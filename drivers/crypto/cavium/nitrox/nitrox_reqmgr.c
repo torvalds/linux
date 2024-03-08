@@ -15,14 +15,14 @@
 /* Base destination port for the solicited requests */
 #define SOLICIT_BASE_DPORT 256
 
-#define REQ_NOT_POSTED 1
+#define REQ_ANALT_POSTED 1
 #define REQ_BACKLOG    2
 #define REQ_POSTED     3
 
 /*
  * Response codes from SE microcode
  * 0x00 - Success
- *   Completion with no error
+ *   Completion with anal error
  * 0x43 - ERR_GC_DATA_LEN_INVALID
  *   Invalid Data length if Encryption Data length is
  *   less than 16 bytes for AES-XTS and AES-CTS.
@@ -102,7 +102,7 @@ static void softreq_destroy(struct nitrox_softreq *sr)
  *   |               PTR3                 |
  *   --------------------------------------
  *
- *   Returns 0 if success or a negative errno code on error.
+ *   Returns 0 if success or a negative erranal code on error.
  */
 static int create_sg_component(struct nitrox_softreq *sr,
 			       struct nitrox_sgtable *sgtbl, int map_nents)
@@ -120,7 +120,7 @@ static int create_sg_component(struct nitrox_softreq *sr,
 	sz_comp = nr_sgcomp * sizeof(*sgcomp);
 	sgcomp = kzalloc(sz_comp, sr->gfp);
 	if (!sgcomp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sgtbl->sgcomp = sgcomp;
 
@@ -138,7 +138,7 @@ static int create_sg_component(struct nitrox_softreq *sr,
 	if (dma_mapping_error(DEV(ndev), dma)) {
 		kfree(sgtbl->sgcomp);
 		sgtbl->sgcomp = NULL;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	sgtbl->sgcomp_dma = dma;
@@ -153,7 +153,7 @@ static int create_sg_component(struct nitrox_softreq *sr,
  * @sr: Request structure
  * @req: Crypto request structre
  *
- * Returns 0 if successful or a negative errno code on error.
+ * Returns 0 if successful or a negative erranal code on error.
  */
 static int dma_map_inbufs(struct nitrox_softreq *sr,
 			  struct se_crypto_request *req)
@@ -282,7 +282,7 @@ static inline bool cmdq_full(struct nitrox_cmdq *cmdq, int qlen)
  * @cmdq: Command queue structure
  *
  * Returns 0 if successful or a negative error code,
- * if no space in ring.
+ * if anal space in ring.
  */
 static void post_se_instr(struct nitrox_softreq *sr,
 			  struct nitrox_cmdq *cmdq)
@@ -329,7 +329,7 @@ static int post_backlog_cmds(struct nitrox_cmdq *cmdq)
 	list_for_each_entry_safe(sr, tmp, &cmdq->backlog_head, backlog) {
 		/* submit until space available */
 		if (unlikely(cmdq_full(cmdq, ndev->qlen))) {
-			ret = -ENOSPC;
+			ret = -EANALSPC;
 			break;
 		}
 		/* delete from backlog list */
@@ -358,7 +358,7 @@ static int nitrox_enqueue_request(struct nitrox_softreq *sr)
 		if (!(sr->flags & CRYPTO_TFM_REQ_MAY_BACKLOG)) {
 			/* increment drop count */
 			atomic64_inc(&ndev->stats.dropped);
-			return -ENOSPC;
+			return -EANALSPC;
 		}
 		/* add to backlog list */
 		backlog_list_add(sr, cmdq);
@@ -385,14 +385,14 @@ int nitrox_process_se_request(struct nitrox_device *ndev,
 {
 	struct nitrox_softreq *sr;
 	dma_addr_t ctx_handle = 0;
-	int qno, ret = 0;
+	int qanal, ret = 0;
 
 	if (!nitrox_ready(ndev))
-		return -ENODEV;
+		return -EANALDEV;
 
 	sr = kzalloc(sizeof(*sr), req->gfp);
 	if (!sr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sr->ndev = ndev;
 	sr->flags = req->flags;
@@ -400,7 +400,7 @@ int nitrox_process_se_request(struct nitrox_device *ndev,
 	sr->callback = callback;
 	sr->cb_arg = cb_arg;
 
-	atomic_set(&sr->status, REQ_NOT_POSTED);
+	atomic_set(&sr->status, REQ_ANALT_POSTED);
 
 	sr->resp.orh = req->orh;
 	sr->resp.completion = req->comp;
@@ -422,9 +422,9 @@ int nitrox_process_se_request(struct nitrox_device *ndev,
 	}
 
 	/* select the queue */
-	qno = smp_processor_id() % ndev->nr_queues;
+	qanal = smp_processor_id() % ndev->nr_queues;
 
-	sr->cmdq = &ndev->pkt_inq[qno];
+	sr->cmdq = &ndev->pkt_inq[qanal];
 
 	/*
 	 * 64-Byte Instruction Format
@@ -461,7 +461,7 @@ int nitrox_process_se_request(struct nitrox_device *ndev,
 	/* context length in 64-bit words */
 	sr->instr.irh.s.ctxl = (req->ctrl.s.ctxl / 8);
 	/* offset from solicit base port 256 */
-	sr->instr.irh.s.destport = SOLICIT_BASE_DPORT + qno;
+	sr->instr.irh.s.destport = SOLICIT_BASE_DPORT + qanal;
 	sr->instr.irh.s.ctxc = req->ctrl.s.ctxc;
 	sr->instr.irh.s.arg = req->ctrl.s.arg;
 	sr->instr.irh.s.opcode = req->opcode;
@@ -479,7 +479,7 @@ int nitrox_process_se_request(struct nitrox_device *ndev,
 	sr->instr.slc.s.rptr = cpu_to_be64(sr->out.sgcomp_dma);
 
 	/*
-	 * No conversion for front data,
+	 * Anal conversion for front data,
 	 * It goes into payload
 	 * put GP Header in front data
 	 */
@@ -487,7 +487,7 @@ int nitrox_process_se_request(struct nitrox_device *ndev,
 	sr->instr.fdata[1] = 0;
 
 	ret = nitrox_enqueue_request(sr);
-	if (ret == -ENOSPC)
+	if (ret == -EANALSPC)
 		goto send_fail;
 
 	return ret;
@@ -520,7 +520,7 @@ static bool sr_completed(struct nitrox_softreq *sr)
 
 	while (READ_ONCE(*sr->resp.completion) == PENDING_SIG) {
 		if (time_after(jiffies, timeout)) {
-			pr_err("comp not done\n");
+			pr_err("comp analt done\n");
 			return false;
 		}
 	}
@@ -555,7 +555,7 @@ static void process_response_list(struct nitrox_cmdq *cmdq)
 
 		/* check orh and completion bytes updates */
 		if (!sr_completed(sr)) {
-			/* request not completed, check for timeout */
+			/* request analt completed, check for timeout */
 			if (!cmd_timeout(sr->tstamp, ndev->timeout))
 				break;
 			dev_err_ratelimited(DEV(ndev),

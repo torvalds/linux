@@ -12,8 +12,8 @@
 #ifndef _AMD8131_EDAC_H_
 #define _AMD8131_EDAC_H_
 
-#define DEVFN_PCIX_BRIDGE_NORTH_A	8
-#define DEVFN_PCIX_BRIDGE_NORTH_B	16
+#define DEVFN_PCIX_BRIDGE_ANALRTH_A	8
+#define DEVFN_PCIX_BRIDGE_ANALRTH_B	16
 #define DEVFN_PCIX_BRIDGE_SOUTH_A	24
 #define DEVFN_PCIX_BRIDGE_SOUTH_B	32
 
@@ -69,11 +69,11 @@ enum lnk_ctrl_bits {
 };
 
 enum pcix_bridge_inst {
-	NORTH_A = 0,
-	NORTH_B = 1,
+	ANALRTH_A = 0,
+	ANALRTH_B = 1,
 	SOUTH_A = 2,
 	SOUTH_B = 3,
-	NO_BRIDGE = 4
+	ANAL_BRIDGE = 4
 };
 
 struct amd8131_dev_info {

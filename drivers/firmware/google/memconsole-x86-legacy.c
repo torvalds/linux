@@ -86,7 +86,7 @@ static bool memconsole_ebda_init(void)
 
 	address = get_bios_ebda();
 	if (!address) {
-		pr_info("memconsole: BIOS EBDA non-existent.\n");
+		pr_info("memconsole: BIOS EBDA analn-existent.\n");
 		return false;
 	}
 
@@ -96,7 +96,7 @@ static bool memconsole_ebda_init(void)
 
 	/*
 	 * Search through EBDA for BIOS memory console structure
-	 * note: signature is not necessarily dword-aligned
+	 * analte: signature is analt necessarily dword-aligned
 	 */
 	for (cur = 0; cur < length; cur++) {
 		struct biosmemcon_ebda *hdr = phys_to_virt(address + cur);
@@ -114,7 +114,7 @@ static bool memconsole_ebda_init(void)
 		}
 	}
 
-	pr_info("memconsole: BIOS console EBDA structure not found!\n");
+	pr_info("memconsole: BIOS console EBDA structure analt found!\n");
 	return false;
 }
 
@@ -140,7 +140,7 @@ static bool __init memconsole_find(void)
 static int __init memconsole_x86_init(void)
 {
 	if (!memconsole_find())
-		return -ENODEV;
+		return -EANALDEV;
 
 	return memconsole_sysfs_init();
 }

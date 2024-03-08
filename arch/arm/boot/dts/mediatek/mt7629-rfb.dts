@@ -106,7 +106,7 @@
 	status = "okay";
 
 	flash@0 {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		reg = <0>;
 
 		partitions {
@@ -194,15 +194,15 @@
 		};
 	};
 
-	/* SPI-NOR is shared pin with serial NAND */
+	/* SPI-ANALR is shared pin with serial NAND */
 	qspi_pins: qspi-pins {
 		mux {
 			function = "flash";
-			groups = "spi_nor";
+			groups = "spi_analr";
 		};
 	};
 
-	/* Serial NAND is shared pin with SPI-NOR */
+	/* Serial NAND is shared pin with SPI-ANALR */
 	serial_nand_pins: serial-nand-pins {
 		mux {
 			function = "flash";

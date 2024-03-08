@@ -44,7 +44,7 @@ properties:
   port:
     $ref: /schemas/graph.yaml#/properties/port
     description:
-      A DPI port node
+      A DPI port analde
 
   "#address-cells":
     const: 1
@@ -56,7 +56,7 @@ properties:
 
 patternProperties:
   "^dsi@[0-9a-f]+$":
-    description: subnodes for the three DSI host adapters
+    description: subanaldes for the three DSI host adapters
     type: object
     $ref: dsi-controller.yaml#
 
@@ -72,7 +72,7 @@ patternProperties:
 
       clocks:
         description: phandles to the high speed and low power (energy save) clocks
-          the high speed clock is not present on the third (dsi2) block, so it
+          the high speed clock is analt present on the third (dsi2) block, so it
           should only have the "lp" clock
         minItems: 1
         maxItems: 2

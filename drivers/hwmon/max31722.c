@@ -75,7 +75,7 @@ static int max31722_probe(struct spi_device *spi)
 
 	data = devm_kzalloc(&spi->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spi_set_drvdata(spi, data);
 	data->spi_device = spi;
@@ -109,7 +109,7 @@ static void max31722_remove(struct spi_device *spi)
 
 	ret = max31722_set_mode(data, MAX31722_MODE_STANDBY);
 	if (ret)
-		/* There is nothing we can do about this ... */
+		/* There is analthing we can do about this ... */
 		dev_warn(&spi->dev, "Failed to put device in stand-by mode\n");
 }
 

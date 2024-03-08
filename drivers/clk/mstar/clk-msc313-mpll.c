@@ -81,7 +81,7 @@ static int msc313_mpll_probe(struct platform_device *pdev)
 
 	mpll = devm_kzalloc(dev, sizeof(*mpll), GFP_KERNEL);
 	if (!mpll)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))
@@ -107,7 +107,7 @@ static int msc313_mpll_probe(struct platform_device *pdev)
 	mpll->clk_data = devm_kzalloc(dev, struct_size(mpll->clk_data, hws,
 			ARRAY_SIZE(output_dividers)), GFP_KERNEL);
 	if (!mpll->clk_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	clk_init.name = dev_name(dev);
 	clk_init.ops = &msc313_mpll_ops;
@@ -126,7 +126,7 @@ static int msc313_mpll_probe(struct platform_device *pdev)
 		outputname = devm_kasprintf(dev, GFP_KERNEL, "%s_div_%u",
 				clk_init.name, output_dividers[i]);
 		if (!outputname)
-			return -ENOMEM;
+			return -EANALMEM;
 		divhw = devm_clk_hw_register_fixed_factor(dev, outputname,
 				clk_init.name, 0, 1, output_dividers[i]);
 		if (IS_ERR(divhw))

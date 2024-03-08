@@ -8,7 +8,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/skbuff.h>
 #include <linux/rtnetlink.h>
 #include <linux/module.h>
@@ -83,7 +83,7 @@ static int tcf_gact_init(struct net *net, struct nlattr *nla,
 
 #ifndef CONFIG_GACT_PROB
 	if (tb[TCA_GACT_PROB] != NULL)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 #else
 	if (tb[TCA_GACT_PROB]) {
 		p_parm = nla_data(tb[TCA_GACT_PROB]);
@@ -91,7 +91,7 @@ static int tcf_gact_init(struct net *net, struct nlattr *nla,
 			return -EINVAL;
 		if (TC_ACT_EXT_CMP(p_parm->paction, TC_ACT_GOTO_CHAIN)) {
 			NL_SET_ERR_MSG(extack,
-				       "goto chain not allowed on fallback");
+				       "goto chain analt allowed on fallback");
 			return -EINVAL;
 		}
 	}
@@ -253,17 +253,17 @@ static int tcf_gact_offload_act_setup(struct tc_action *act, void *entry_data,
 			entry->id = FLOW_ACTION_GOTO;
 			entry->chain_index = tcf_gact_goto_chain_index(act);
 		} else if (is_tcf_gact_continue(act)) {
-			NL_SET_ERR_MSG_MOD(extack, "Offload of \"continue\" action is not supported");
-			return -EOPNOTSUPP;
+			NL_SET_ERR_MSG_MOD(extack, "Offload of \"continue\" action is analt supported");
+			return -EOPANALTSUPP;
 		} else if (is_tcf_gact_reclassify(act)) {
-			NL_SET_ERR_MSG_MOD(extack, "Offload of \"reclassify\" action is not supported");
-			return -EOPNOTSUPP;
+			NL_SET_ERR_MSG_MOD(extack, "Offload of \"reclassify\" action is analt supported");
+			return -EOPANALTSUPP;
 		} else if (is_tcf_gact_pipe(act)) {
-			NL_SET_ERR_MSG_MOD(extack, "Offload of \"pipe\" action is not supported");
-			return -EOPNOTSUPP;
+			NL_SET_ERR_MSG_MOD(extack, "Offload of \"pipe\" action is analt supported");
+			return -EOPANALTSUPP;
 		} else {
 			NL_SET_ERR_MSG_MOD(extack, "Unsupported generic action offload");
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 		*index_inc = 1;
 	} else {
@@ -278,7 +278,7 @@ static int tcf_gact_offload_act_setup(struct tc_action *act, void *entry_data,
 		else if (is_tcf_gact_goto_chain(act))
 			fl_action->id = FLOW_ACTION_GOTO;
 		else
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -325,7 +325,7 @@ static int __init gact_init_module(void)
 #ifdef CONFIG_GACT_PROB
 	pr_info("GACT probability on\n");
 #else
-	pr_info("GACT probability NOT on\n");
+	pr_info("GACT probability ANALT on\n");
 #endif
 
 	return tcf_register_action(&act_gact_ops, &gact_net_ops);

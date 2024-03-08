@@ -27,7 +27,7 @@
 #include <linux/leds.h>
 
 #include <asm/processor.h>
-#include <asm/thread_notify.h>
+#include <asm/thread_analtify.h>
 #include <asm/stacktrace.h>
 #include <asm/system_misc.h>
 #include <asm/mach/time.h>
@@ -161,8 +161,8 @@ void __show_regs(struct pt_regs *regs)
 		const char *segment;
 
 		if ((domain & domain_mask(DOMAIN_USER)) ==
-		    domain_val(DOMAIN_USER, DOMAIN_NOACCESS))
-			segment = "none";
+		    domain_val(DOMAIN_USER, DOMAIN_ANALACCESS))
+			segment = "analne";
 		else
 			segment = "user";
 
@@ -203,16 +203,16 @@ void show_regs(struct pt_regs * regs)
 	dump_backtrace(regs, NULL, KERN_DEFAULT);
 }
 
-ATOMIC_NOTIFIER_HEAD(thread_notify_head);
+ATOMIC_ANALTIFIER_HEAD(thread_analtify_head);
 
-EXPORT_SYMBOL_GPL(thread_notify_head);
+EXPORT_SYMBOL_GPL(thread_analtify_head);
 
 /*
  * Free current thread data structures etc..
  */
 void exit_thread(struct task_struct *tsk)
 {
-	thread_notify(THREAD_NOTIFY_EXIT, task_thread_info(tsk));
+	thread_analtify(THREAD_ANALTIFY_EXIT, task_thread_info(tsk));
 }
 
 void flush_thread(void)
@@ -227,7 +227,7 @@ void flush_thread(void)
 
 	flush_tls();
 
-	thread_notify(THREAD_NOTIFY_FLUSH, thread);
+	thread_analtify(THREAD_ANALTIFY_FLUSH, thread);
 }
 
 asmlinkage void ret_from_fork(void) __asm__("ret_from_fork");
@@ -272,7 +272,7 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 		thread->tp_value[0] = tls;
 	thread->tp_value[1] = get_tpuser();
 
-	thread_notify(THREAD_NOTIFY_COPY, thread);
+	thread_analtify(THREAD_ANALTIFY_COPY, thread);
 
 	return 0;
 }
@@ -329,7 +329,7 @@ int in_gate_area(struct mm_struct *mm, unsigned long addr)
 	return (addr >= gate_vma.vm_start) && (addr < gate_vma.vm_end);
 }
 
-int in_gate_area_no_mm(unsigned long addr)
+int in_gate_area_anal_mm(unsigned long addr)
 {
 	return in_gate_area(NULL, addr);
 }
@@ -359,11 +359,11 @@ static unsigned long sigpage_addr(const struct mm_struct *mm,
 
 	last = TASK_SIZE - (npages << PAGE_SHIFT);
 
-	/* No room after stack? */
+	/* Anal room after stack? */
 	if (first > last)
 		return 0;
 
-	/* Just enough room? */
+	/* Just eanalugh room? */
 	if (first == last)
 		return first;
 
@@ -404,7 +404,7 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 	if (!signal_page)
 		signal_page = get_signal_page();
 	if (!signal_page)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	npages = 1; /* for sigpage */
 	npages += vdso_total_pages;
@@ -430,7 +430,7 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 	mm->context.sigpage = addr;
 
 	/* Unlike the sigpage, failure to install the vdso is unlikely
-	 * to be fatal to the process, so no error check needed
+	 * to be fatal to the process, so anal error check needed
 	 * here.
 	 */
 	arm_install_vdso(mm, addr + PAGE_SIZE);

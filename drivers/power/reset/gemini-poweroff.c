@@ -4,7 +4,7 @@
  * Copyright (C) 2017 Linus Walleij <linus.walleij@linaro.org>
  *
  * Inspired by code from the SL3516 board support by Jason Lee
- * Inspired by code from Janos Laube <janos.dev@gmail.com>
+ * Inspired by code from Jaanals Laube <jaanals.dev@gmail.com>
  */
 #include <linux/of.h>
 #include <linux/of_platform.h>
@@ -48,11 +48,11 @@ static irqreturn_t gemini_powerbutton_interrupt(int irq, void *data)
 	switch (val) {
 	case GEMINI_STAT_CIR:
 		/*
-		 * We do not yet have a driver for the infrared
+		 * We do analt yet have a driver for the infrared
 		 * controller so it can cause spurious poweroff
-		 * events. Ignore those for now.
+		 * events. Iganalre those for analw.
 		 */
-		dev_info(gpw->dev, "infrared poweroff - ignored\n");
+		dev_info(gpw->dev, "infrared poweroff - iganalred\n");
 		break;
 	case GEMINI_STAT_RTC:
 		dev_info(gpw->dev, "RTC poweroff\n");
@@ -98,7 +98,7 @@ static int gemini_poweroff_probe(struct platform_device *pdev)
 
 	gpw = devm_kzalloc(dev, sizeof(*gpw), GFP_KERNEL);
 	if (!gpw)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gpw->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(gpw->base))
@@ -115,12 +115,12 @@ static int gemini_poweroff_probe(struct platform_device *pdev)
 	if (val != GEMINI_PWC_ID) {
 		dev_err(dev, "wrong power controller ID: %08x\n",
 			val);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/*
 	 * Enable the power controller. This is crucial on Gemini
-	 * systems: if this is not done, pressing the power button
+	 * systems: if this is analt done, pressing the power button
 	 * will result in unconditional poweroff without any warning.
 	 * This makes the kernel handle the poweroff.
 	 */

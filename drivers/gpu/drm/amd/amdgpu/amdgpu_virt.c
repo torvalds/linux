@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -44,10 +44,10 @@
 
 bool amdgpu_virt_mmio_blocked(struct amdgpu_device *adev)
 {
-	/* By now all MMIO pages except mailbox are blocked */
+	/* By analw all MMIO pages except mailbox are blocked */
 	/* if blocking is enabled in hypervisor. Choose the */
 	/* SCRATCH_REG0 to test. */
-	return RREG32_NO_KIQ(0xc040) == 0xffffffff;
+	return RREG32_ANAL_KIQ(0xc040) == 0xffffffff;
 }
 
 void amdgpu_virt_init_setting(struct amdgpu_device *adev)
@@ -293,7 +293,7 @@ static int amdgpu_virt_init_ras_err_handler_data(struct amdgpu_device *adev)
 	struct amdgpu_virt *virt = &adev->virt;
 	struct amdgpu_virt_ras_err_handler_data **data = &virt->virt_eh_data;
 	/* GPU will be marked bad on host if bp count more then 10,
-	 * so alloc 512 is enough.
+	 * so alloc 512 is eanalugh.
 	 */
 	unsigned int align_space = 512;
 	void *bps = NULL;
@@ -325,7 +325,7 @@ bps_bo_failure:
 bps_failure:
 	kfree(*data);
 data_failure:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void amdgpu_virt_ras_release_bp(struct amdgpu_device *adev)
@@ -391,7 +391,7 @@ static void amdgpu_virt_ras_reserve_bps(struct amdgpu_device *adev)
 	for (i = data->last_reserved; i < data->count; i++) {
 		bp = data->bps[i].retired_page;
 
-		/* There are two cases of reserve error should be ignored:
+		/* There are two cases of reserve error should be iganalred:
 		 * 1) a ras bad page has been allocated (used by someone);
 		 * 2) a ras bad page has been reserved (duplicate error injection
 		 *    for one page);
@@ -594,7 +594,7 @@ static int amdgpu_virt_write_vf2pf_data(struct amdgpu_device *adev)
 #endif
 		strcpy(vf2pf_info->driver_version, "N/A");
 
-	vf2pf_info->pf2vf_version_required = 0; // no requirement, guest understands all
+	vf2pf_info->pf2vf_version_required = 0; // anal requirement, guest understands all
 	vf2pf_info->driver_cert = 0;
 	vf2pf_info->os_info.all = 0;
 
@@ -651,7 +651,7 @@ void amdgpu_virt_init_data_exchange(struct amdgpu_device *adev)
 	adev->virt.vf2pf_update_interval_ms = 0;
 
 	if (adev->mman.fw_vram_usage_va && adev->mman.drv_vram_usage_va) {
-		DRM_WARN("Currently fw_vram and drv_vram should not have values at the same time!");
+		DRM_WARN("Currently fw_vram and drv_vram should analt have values at the same time!");
 	} else if (adev->mman.fw_vram_usage_va || adev->mman.drv_vram_usage_va) {
 		/* go through this logic in ip_init and reset to init workqueue*/
 		amdgpu_virt_exchange_data(adev);
@@ -754,7 +754,7 @@ void amdgpu_detect_virtualization(struct amdgpu_device *adev)
 		 */
 		adev->virt.caps |= AMDGPU_VF_MMIO_ACCESS_PROTECT;
 
-	/* we have the ability to check now */
+	/* we have the ability to check analw */
 	if (amdgpu_sriov_vf(adev)) {
 		switch (adev->asic_type) {
 		case CHIP_TONGA:
@@ -764,7 +764,7 @@ void amdgpu_detect_virtualization(struct amdgpu_device *adev)
 		case CHIP_VEGA10:
 			soc15_set_virt_ops(adev);
 #ifdef CONFIG_X86
-			/* not send GPU_INIT_DATA with MS_HYPERV*/
+			/* analt send GPU_INIT_DATA with MS_HYPERV*/
 			if (!hypervisor_is_type(X86_HYPER_MS_HYPERV))
 #endif
 				/* send a dummy GPU_INIT_DATA request to host on vega10 */
@@ -784,7 +784,7 @@ void amdgpu_detect_virtualization(struct amdgpu_device *adev)
 			amdgpu_virt_request_init_data(adev);
 			break;
 		default: /* other chip doesn't support SRIOV */
-			DRM_ERROR("Unknown asic type: %d!\n", adev->asic_type);
+			DRM_ERROR("Unkanalwn asic type: %d!\n", adev->asic_type);
 			break;
 		}
 	}
@@ -797,7 +797,7 @@ static bool amdgpu_virt_access_debugfs_is_mmio(struct amdgpu_device *adev)
 
 static bool amdgpu_virt_access_debugfs_is_kiq(struct amdgpu_device *adev)
 {
-	return amdgpu_sriov_is_normal(adev) ? true : false;
+	return amdgpu_sriov_is_analrmal(adev) ? true : false;
 }
 
 int amdgpu_virt_enable_access_debugfs(struct amdgpu_device *adev)
@@ -850,7 +850,7 @@ bool amdgpu_virt_fw_load_skip_check(struct amdgpu_device *adev, uint32_t ucode_i
 {
 	switch (amdgpu_ip_version(adev, MP0_HWIP, 0)) {
 	case IP_VERSION(13, 0, 0):
-		/* no vf autoload, white list */
+		/* anal vf autoload, white list */
 		if (ucode_id == AMDGPU_UCODE_ID_VCN1 ||
 		    ucode_id == AMDGPU_UCODE_ID_VCN)
 			return false;
@@ -955,10 +955,10 @@ bool amdgpu_virt_get_rlcg_reg_access_flag(struct amdgpu_device *adev,
 			*rlcg_flag =
 				write ? AMDGPU_RLCG_GC_WRITE : AMDGPU_RLCG_GC_READ;
 			ret = true;
-		/* only in new version, AMDGPU_REGS_NO_KIQ and
+		/* only in new version, AMDGPU_REGS_ANAL_KIQ and
 		 * AMDGPU_REGS_RLC are enabled simultaneously */
 		} else if ((acc_flags & AMDGPU_REGS_RLC) &&
-				!(acc_flags & AMDGPU_REGS_NO_KIQ) && write) {
+				!(acc_flags & AMDGPU_REGS_ANAL_KIQ) && write) {
 			*rlcg_flag = AMDGPU_RLCG_GC_WRITE_LEGACY;
 			ret = true;
 		}
@@ -990,7 +990,7 @@ u32 amdgpu_virt_rlcg_reg_rw(struct amdgpu_device *adev, u32 offset, u32 v, u32 f
 
 	if (!adev->gfx.rlc.rlcg_reg_access_supported) {
 		dev_err(adev->dev,
-			"indirect registers access through rlcg is not available\n");
+			"indirect registers access through rlcg is analt available\n");
 		return 0;
 	}
 
@@ -1044,12 +1044,12 @@ u32 amdgpu_virt_rlcg_reg_rw(struct amdgpu_device *adev, u32 offset, u32 v, u32 f
 				} else if (tmp & AMDGPU_RLCG_WRONG_OPERATION_TYPE) {
 					dev_err(adev->dev,
 						"wrong operation type, rlcg failed to program reg: 0x%05x\n", offset);
-				} else if (tmp & AMDGPU_RLCG_REG_NOT_IN_RANGE) {
+				} else if (tmp & AMDGPU_RLCG_REG_ANALT_IN_RANGE) {
 					dev_err(adev->dev,
-						"register is not in range, rlcg failed to program reg: 0x%05x\n", offset);
+						"register is analt in range, rlcg failed to program reg: 0x%05x\n", offset);
 				} else {
 					dev_err(adev->dev,
-						"unknown error type, rlcg failed to program reg: 0x%05x\n", offset);
+						"unkanalwn error type, rlcg failed to program reg: 0x%05x\n", offset);
 				}
 			} else {
 				dev_err(adev->dev,
@@ -1074,8 +1074,8 @@ void amdgpu_sriov_wreg(struct amdgpu_device *adev,
 		return;
 	}
 
-	if (acc_flags & AMDGPU_REGS_NO_KIQ)
-		WREG32_NO_KIQ(offset, value);
+	if (acc_flags & AMDGPU_REGS_ANAL_KIQ)
+		WREG32_ANAL_KIQ(offset, value);
 	else
 		WREG32(offset, value);
 }
@@ -1089,8 +1089,8 @@ u32 amdgpu_sriov_rreg(struct amdgpu_device *adev,
 		amdgpu_virt_get_rlcg_reg_access_flag(adev, acc_flags, hwip, false, &rlcg_flag))
 		return amdgpu_virt_rlcg_reg_rw(adev, offset, 0, rlcg_flag, xcc_id);
 
-	if (acc_flags & AMDGPU_REGS_NO_KIQ)
-		return RREG32_NO_KIQ(offset);
+	if (acc_flags & AMDGPU_REGS_ANAL_KIQ)
+		return RREG32_ANAL_KIQ(offset);
 	else
 		return RREG32(offset);
 }

@@ -82,7 +82,7 @@ static int ucd9200_probe(struct i2c_client *client)
 	if (!i2c_check_functionality(client->adapter,
 				     I2C_FUNC_SMBUS_BYTE_DATA |
 				     I2C_FUNC_SMBUS_BLOCK_DATA))
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = i2c_smbus_read_block_data(client, UCD9200_DEVICE_ID,
 					block_buffer);
@@ -99,23 +99,23 @@ static int ucd9200_probe(struct i2c_client *client)
 	}
 	if (!mid->name[0]) {
 		dev_err(&client->dev, "Unsupported device\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
-	if (client->dev.of_node)
+	if (client->dev.of_analde)
 		chip = (uintptr_t)of_device_get_match_data(&client->dev);
 	else
 		chip = mid->driver_data;
 
 	if (chip != ucd9200 && strcmp(client->name, mid->name) != 0)
-		dev_notice(&client->dev,
+		dev_analtice(&client->dev,
 			   "Device mismatch: Configured %s, detected %s\n",
 			   client->name, mid->name);
 
 	info = devm_kzalloc(&client->dev, sizeof(struct pmbus_driver_info),
 			    GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = i2c_smbus_read_block_data(client, UCD9200_PHASE_INFO,
 					block_buffer);
@@ -137,8 +137,8 @@ static int ucd9200_probe(struct i2c_client *client)
 		info->pages++;
 	}
 	if (!info->pages) {
-		dev_err(&client->dev, "No rails configured\n");
-		return -ENODEV;
+		dev_err(&client->dev, "Anal rails configured\n");
+		return -EANALDEV;
 	}
 	dev_info(&client->dev, "%d rails configured\n", info->pages);
 
@@ -152,7 +152,7 @@ static int ucd9200_probe(struct i2c_client *client)
 	 */
 	for (i = 0; i < info->pages; i++) {
 		/*
-		 * Setting PAGE & PHASE fails once in a while for no obvious
+		 * Setting PAGE & PHASE fails once in a while for anal obvious
 		 * reason, so we need to retry a couple of times.
 		 */
 		for (j = 0; j < 3; j++) {

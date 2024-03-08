@@ -6,7 +6,7 @@
 #include <linux/sched/idle.h>
 
 #include <asm/cpufeature.h>
-#include <asm/nospec-branch.h>
+#include <asm/analspec-branch.h>
 
 #define MWAIT_SUBSTATE_MASK		0xf
 #define MWAIT_CSTATE_MASK		0xf
@@ -75,12 +75,12 @@ static __always_inline void __mwait(unsigned long eax, unsigned long ecx)
  *                 MONITOR                         MONITORX
  * opcode          0f 01 c8           |            0f 01 fa
  * EAX                     (logical) address to monitor
- * ECX                     #GP if not zero
+ * ECX                     #GP if analt zero
  */
 static __always_inline void __mwaitx(unsigned long eax, unsigned long ebx,
 				     unsigned long ecx)
 {
-	/* No MDS buffer clear as this is AMD/HYGON only */
+	/* Anal MDS buffer clear as this is AMD/HYGON only */
 
 	/* "mwaitx %eax, %ebx, %ecx;" */
 	asm volatile(".byte 0x0f, 0x01, 0xfb;"
@@ -89,12 +89,12 @@ static __always_inline void __mwaitx(unsigned long eax, unsigned long ebx,
 
 /*
  * Re-enable interrupts right upon calling mwait in such a way that
- * no interrupt can fire _before_ the execution of mwait, ie: no
+ * anal interrupt can fire _before_ the execution of mwait, ie: anal
  * instruction must be placed between "sti" and "mwait".
  *
  * This is necessary because if an interrupt queues a timer before
- * executing mwait, it would otherwise go unnoticed and the next tick
- * would not be reprogrammed accordingly before mwait ever wakes up.
+ * executing mwait, it would otherwise go unanalticed and the next tick
+ * would analt be reprogrammed accordingly before mwait ever wakes up.
  */
 static __always_inline void __sti_mwait(unsigned long eax, unsigned long ecx)
 {

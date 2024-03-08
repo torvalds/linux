@@ -62,10 +62,10 @@ static int sclp_ctl_ioctl_sccb(void __user *user_area)
 	if (copy_from_user(&ctl_sccb, user_area, sizeof(ctl_sccb)))
 		return -EFAULT;
 	if (!sclp_ctl_cmdw_supported(ctl_sccb.cmdw))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	sccb = (void *) get_zeroed_page(GFP_KERNEL | GFP_DMA);
 	if (!sccb)
-		return -ENOMEM;
+		return -EANALMEM;
 	copied = PAGE_SIZE -
 		copy_from_user(sccb, u64_to_uptr(ctl_sccb.sccb), PAGE_SIZE);
 	if (offsetof(struct sccb_header, length) +
@@ -102,8 +102,8 @@ static long sclp_ctl_ioctl(struct file *filp, unsigned int cmd,
 	switch (cmd) {
 	case SCLP_CTL_SCCB:
 		return sclp_ctl_ioctl_sccb(argp);
-	default: /* unknown ioctl number */
-		return -ENOTTY;
+	default: /* unkanalwn ioctl number */
+		return -EANALTTY;
 	}
 }
 
@@ -112,17 +112,17 @@ static long sclp_ctl_ioctl(struct file *filp, unsigned int cmd,
  */
 static const struct file_operations sclp_ctl_fops = {
 	.owner = THIS_MODULE,
-	.open = nonseekable_open,
+	.open = analnseekable_open,
 	.unlocked_ioctl = sclp_ctl_ioctl,
 	.compat_ioctl = sclp_ctl_ioctl,
-	.llseek = no_llseek,
+	.llseek = anal_llseek,
 };
 
 /*
  * Misc device definition
  */
 static struct miscdevice sclp_ctl_device = {
-	.minor = MISC_DYNAMIC_MINOR,
+	.mianalr = MISC_DYNAMIC_MIANALR,
 	.name = "sclp",
 	.fops = &sclp_ctl_fops,
 };

@@ -10,7 +10,7 @@
  *   Copyright (c) International Business Machines  Corp., 2000,2009
  *
  *
- * Notes:
+ * Analtes:
  *     These APIs are based on the C library functions.  The semantics
  *     should match the C functions but with expanded size operands.
  *

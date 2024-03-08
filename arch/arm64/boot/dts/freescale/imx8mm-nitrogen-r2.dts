@@ -50,7 +50,7 @@
 		compatible = "fsl,imx-audio-wm8960";
 		/* JD2: hp detect high for headphone*/
 		hp-det-gpios = <&gpio4 28 GPIO_ACTIVE_HIGH>;
-		/* Jack is not stuffed */
+		/* Jack is analt stuffed */
 		mic-det-gpios = <&gpio1 10 GPIO_ACTIVE_HIGH>;
 		model = "wm8960-audio";
 		pinctrl-names = "default";
@@ -326,7 +326,7 @@
 &usdhc1 {
 	bus-width = <8>;
 	sdhci-caps-mask = <0x80000000 0x0>;
-	non-removable;
+	analn-removable;
 	pinctrl-names = "default", "state_100mhz", "state_200mhz";
 	pinctrl-0 = <&pinctrl_usdhc1>;
 	pinctrl-1 = <&pinctrl_usdhc1_100mhz>;
@@ -352,7 +352,7 @@
 &usdhc3 {
 	bus-width = <4>;
 	sdhci-caps-mask = <0x2 0x0>;
-	non-removable;
+	analn-removable;
 	pinctrl-names = "default", "state_100mhz", "state_200mhz";
 	pinctrl-0 = <&pinctrl_usdhc3>;
 	pinctrl-1 = <&pinctrl_usdhc3_100mhz>;

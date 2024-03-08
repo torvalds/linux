@@ -25,7 +25,7 @@
 
 /*
  * Reader gate for communication with contact-less cards using Type A
- * protocol ISO14443-3 but not compliant with ISO14443-4
+ * protocol ISO14443-3 but analt compliant with ISO14443-4
  */
 #define ST21NFCA_RF_READER_14443_3_A_GATE	0x15
 #define ST21NFCA_RF_READER_14443_3_A_UID	0x02
@@ -86,8 +86,8 @@ static const struct nfc_hci_gate st21nfca_gates[] = {
 	{ST21NFCA_RF_CARD_F_GATE, NFC_HCI_INVALID_PIPE},
 
 	/* Secure element pipes are created by secure element host */
-	{ST21NFCA_CONNECTIVITY_GATE, NFC_HCI_DO_NOT_CREATE_PIPE},
-	{ST21NFCA_APDU_READER_GATE, NFC_HCI_DO_NOT_CREATE_PIPE},
+	{ST21NFCA_CONNECTIVITY_GATE, NFC_HCI_DO_ANALT_CREATE_PIPE},
+	{ST21NFCA_APDU_READER_GATE, NFC_HCI_DO_ANALT_CREATE_PIPE},
 };
 
 struct st21nfca_pipe_info {
@@ -123,7 +123,7 @@ static int st21nfca_hci_load_session(struct nfc_hci_dev *hdev)
 	 * (such as removing connectivity or APDU reader pipe)
 	 * A better approach on ST21NFCA is to:
 	 * - get a pipe list for each host.
-	 * (eg: NFC_HCI_HOST_CONTROLLER_ID for now).
+	 * (eg: NFC_HCI_HOST_CONTROLLER_ID for analw).
 	 * (TODO Later on UICC HOST and eSE HOST)
 	 * - get pipe information
 	 * - match retrieved pipe list in st21nfca_gates
@@ -191,8 +191,8 @@ static int st21nfca_hci_load_session(struct nfc_hci_dev *hdev)
 	}
 
 	/*
-	 * 3 gates have a well known pipe ID. Only NFC_HCI_LINK_MGMT_GATE
-	 * is not yet open at this stage.
+	 * 3 gates have a well kanalwn pipe ID. Only NFC_HCI_LINK_MGMT_GATE
+	 * is analt yet open at this stage.
 	 */
 	r = nfc_hci_connect_gate(hdev, NFC_HCI_HOST_CONTROLLER_ID,
 				 NFC_HCI_LINK_MGMT_GATE,
@@ -296,7 +296,7 @@ static int st21nfca_hci_ready(struct nfc_hci_dev *hdev)
 	}
 
 	print_hex_dump(KERN_DEBUG, "FULL VERSION SOFTWARE INFO: ",
-		       DUMP_PREFIX_NONE, 16, 1,
+		       DUMP_PREFIX_ANALNE, 16, 1,
 		       skb->data, FULL_VERSION_LEN, false);
 
 	kfree_skb(skb);
@@ -473,7 +473,7 @@ static int st21nfca_hci_start_poll(struct nfc_hci_dev *hdev,
 		 * system code is equal to 'FFFF'
 		 * - bit 1: use a random value for lowest 6 bytes of
 		 * NFCID2 value
-		 * - bit 2: ignore polling request frame if request code
+		 * - bit 2: iganalre polling request frame if request code
 		 * is equal to '01'
 		 * - Other bits are RFU
 		 */
@@ -814,7 +814,7 @@ static int st21nfca_hci_check_presence(struct nfc_hci_dev *hdev,
 		/*
 		 * PRESENCE_CHECK on those gates is available
 		 * However, the answer to this command is taking 3 * fwi
-		 * if the card is no present.
+		 * if the card is anal present.
 		 * Instead, we send an empty I-Frame with a very short
 		 * configurable fwi ~604µs.
 		 */
@@ -825,7 +825,7 @@ static int st21nfca_hci_check_presence(struct nfc_hci_dev *hdev,
 					ST21NFCA_RF_READER_CMD_PRESENCE_CHECK,
 					NULL, 0, NULL);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -884,7 +884,7 @@ static int st21nfca_admin_event_received(struct nfc_hci_dev *hdev, u8 event,
 /*
  * Returns:
  * <= 0: driver handled the event, skb consumed
- *    1: driver does not handle the event, please do standard processing
+ *    1: driver does analt handle the event, please do standard processing
  */
 static int st21nfca_hci_event_received(struct nfc_hci_dev *hdev, u8 pipe,
 				       u8 event, struct sk_buff *skb)
@@ -948,7 +948,7 @@ int st21nfca_hci_probe(void *phy_id, const struct nfc_phy_ops *phy_ops,
 
 	info = kzalloc(sizeof(struct st21nfca_hci_info), GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	info->phy_ops = phy_ops;
 	info->phy_id = phy_id;
@@ -965,7 +965,7 @@ int st21nfca_hci_probe(void *phy_id, const struct nfc_phy_ops *phy_ops,
 	 */
 	dev_num = find_first_zero_bit(dev_mask, ST21NFCA_NUM_DEVICES);
 	if (dev_num >= ST21NFCA_NUM_DEVICES) {
-		r = -ENODEV;
+		r = -EANALDEV;
 		goto err_alloc_hdev;
 	}
 
@@ -991,8 +991,8 @@ int st21nfca_hci_probe(void *phy_id, const struct nfc_phy_ops *phy_ops,
 				    phy_tailroom, phy_payload);
 
 	if (!info->hdev) {
-		pr_err("Cannot allocate nfc hdev.\n");
-		r = -ENOMEM;
+		pr_err("Cananalt allocate nfc hdev.\n");
+		r = -EANALMEM;
 		goto err_alloc_hdev;
 	}
 

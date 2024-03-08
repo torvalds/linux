@@ -42,7 +42,7 @@ KernelVersion:	4.9
 Contact:	Craig Gallek <kraig@google.com>
 Description:	The number of times the interrupt has fired since boot.  This
 		is a comma-separated list of counters; one per CPU in CPU id
-		order.  NOTE: This file consistently shows counters for all
+		order.  ANALTE: This file consistently shows counters for all
 		CPU ids.  This differs from the behavior of /proc/interrupts
 		which only shows counters for online CPUs.
 

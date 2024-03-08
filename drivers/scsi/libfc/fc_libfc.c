@@ -26,9 +26,9 @@ MODULE_PARM_DESC(debug_logging, "a bit mask of logging levels");
 
 DEFINE_MUTEX(fc_prov_mutex);
 static LIST_HEAD(fc_local_ports);
-struct blocking_notifier_head fc_lport_notifier_head =
-		BLOCKING_NOTIFIER_INIT(fc_lport_notifier_head);
-EXPORT_SYMBOL(fc_lport_notifier_head);
+struct blocking_analtifier_head fc_lport_analtifier_head =
+		BLOCKING_ANALTIFIER_INIT(fc_lport_analtifier_head);
+EXPORT_SYMBOL(fc_lport_analtifier_head);
 
 /*
  * Providers which primarily send requests and PRLIs.
@@ -94,7 +94,7 @@ module_exit(libfc_exit);
  * @nents: pointer to the remaining number of entries in the SG list.
  * @offset: pointer to the current offset in the SG list.
  * @crc: pointer to the 32-bit crc value.
- *	 If crc is NULL, CRC is not calculated.
+ *	 If crc is NULL, CRC is analt calculated.
  */
 u32 fc_copy_buffer_to_sglist(void *buf, size_t len,
 			     struct scatterlist *sg,
@@ -148,7 +148,7 @@ u32 fc_copy_buffer_to_sglist(void *buf, size_t len,
  * @in_fp: request frame containing header to use in filling in reply
  * @r_ctl: R_CTL value for header
  * @f_ctl: F_CTL value for header, with 0 pad
- * @seq_cnt: sequence count for the header, ignored if frame has a sequence
+ * @seq_cnt: sequence count for the header, iganalred if frame has a sequence
  * @parm_offset: parameter / offset value
  */
 void fc_fill_hdr(struct fc_frame *fp, const struct fc_frame *in_fp,
@@ -171,7 +171,7 @@ void fc_fill_hdr(struct fc_frame *fp, const struct fc_frame *in_fp,
 		}
 		fr_eof(fp) = FC_EOF_T;
 	} else {
-		WARN_ON(fr_len(fp) % 4 != 0);	/* no pad to non last frame */
+		WARN_ON(fr_len(fp) % 4 != 0);	/* anal pad to analn last frame */
 		fr_eof(fp) = FC_EOF_N;
 	}
 
@@ -238,13 +238,13 @@ void fc_fc4_conf_lport_params(struct fc_lport *lport, enum fc_fh_type type)
 	}
 }
 
-void fc_lport_iterate(void (*notify)(struct fc_lport *, void *), void *arg)
+void fc_lport_iterate(void (*analtify)(struct fc_lport *, void *), void *arg)
 {
 	struct fc_lport *lport;
 
 	mutex_lock(&fc_prov_mutex);
 	list_for_each_entry(lport, &fc_local_ports, lport_list)
-		notify(lport, arg);
+		analtify(lport, arg);
 	mutex_unlock(&fc_prov_mutex);
 }
 EXPORT_SYMBOL(fc_lport_iterate);
@@ -293,27 +293,27 @@ void fc_fc4_deregister_provider(enum fc_fh_type type, struct fc4_prov *prov)
 EXPORT_SYMBOL(fc_fc4_deregister_provider);
 
 /**
- * fc_fc4_add_lport() - add new local port to list and run notifiers.
+ * fc_fc4_add_lport() - add new local port to list and run analtifiers.
  * @lport:  The new local port.
  */
 void fc_fc4_add_lport(struct fc_lport *lport)
 {
 	mutex_lock(&fc_prov_mutex);
 	list_add_tail(&lport->lport_list, &fc_local_ports);
-	blocking_notifier_call_chain(&fc_lport_notifier_head,
+	blocking_analtifier_call_chain(&fc_lport_analtifier_head,
 				     FC_LPORT_EV_ADD, lport);
 	mutex_unlock(&fc_prov_mutex);
 }
 
 /**
- * fc_fc4_del_lport() - remove local port from list and run notifiers.
+ * fc_fc4_del_lport() - remove local port from list and run analtifiers.
  * @lport:  The new local port.
  */
 void fc_fc4_del_lport(struct fc_lport *lport)
 {
 	mutex_lock(&fc_prov_mutex);
 	list_del(&lport->lport_list);
-	blocking_notifier_call_chain(&fc_lport_notifier_head,
+	blocking_analtifier_call_chain(&fc_lport_analtifier_head,
 				     FC_LPORT_EV_DEL, lport);
 	mutex_unlock(&fc_prov_mutex);
 }

@@ -13,7 +13,7 @@
  * Francois-Rene Rideau <fare@tunes.org> 19970707
  *    gathered all the good ideas from all asm-foo/byteorder.h into one file,
  *    cleaned them up.
- *    I hope it is compliant with non-GCC compilers.
+ *    I hope it is compliant with analn-GCC compilers.
  *    I decided to put __BYTEORDER_HAS_U64__ in byteorder.h,
  *    because I wasn't sure it would be ok to put it in types.h
  *    Upgraded it to 2.1.43
@@ -22,7 +22,7 @@
  *    to please Linus T., replaced huge #ifdef's between little/big endian
  *    by nestedly #include'd files.
  * Francois-Rene Rideau <fare@tunes.org> 19971205
- *    Made it to 2.1.71; now a facelift:
+ *    Made it to 2.1.71; analw a facelift:
  *    Put files under include/linux/byteorder/
  *    Split swab from generic support.
  *
@@ -37,7 +37,7 @@
  *   = every architecture could add their byteswap macro in asm/byteorder.h
  *    see how some architectures already do (i386, alpha, ppc, etc)
  *   = cpu_to_beXX and beXX_to_cpu might some day need to be well
- *    distinguished throughout the kernel. This is not the case currently,
+ *    distinguished throughout the kernel. This is analt the case currently,
  *    since little endian, big endian, and pdp endian machines needn't it.
  *    But this might be the case for, say, a port of Linux to 20/21 bit
  *    architectures (and F21 Linux addict around?).
@@ -52,7 +52,7 @@
  *	htonl(__u32 x)
  *	htons(__u16 x)
  * It seems that some programs (which? where? or perhaps a standard? POSIX?)
- * might like the above to be functions, not macros (why?).
+ * might like the above to be functions, analt macros (why?).
  * if that's true, then detect them, and take measures.
  * Anyway, the measure is: define only ___ntohl as a macro instead,
  * and in a separate file, have
@@ -123,7 +123,7 @@
 /*
  * They have to be macros in order to do the constant folding
  * correctly - if the argument passed into a inline function
- * it is no longer constant according to gcc..
+ * it is anal longer constant according to gcc..
  */
 
 #undef ntohl

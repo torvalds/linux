@@ -3,9 +3,9 @@
  *
  *  Copyright (C) 2008 Christian Pellegrin <chripell@evolware.org>
  *
- * Notes: the MAX3100 doesn't provide an interrupt on CTS so we have
+ * Analtes: the MAX3100 doesn't provide an interrupt on CTS so we have
  * to use polling for flow control. TX empty IRQ is unusable, since
- * writing conf clears FIFO buffer and we cannot have this interrupt
+ * writing conf clears FIFO buffer and we cananalt have this interrupt
  * always asking us for attention.
  *
  * Example platform data:
@@ -26,13 +26,13 @@
  },
  };
 
- * The initial minor number is 209 in the low-density serial port:
- * mknod /dev/ttyMAX0 c 204 209
+ * The initial mianalr number is 209 in the low-density serial port:
+ * mkanald /dev/ttyMAX0 c 204 209
  */
 
 #define MAX3100_MAJOR 204
-#define MAX3100_MINOR 209
-/* 4 MAX3100s should be enough for everyone */
+#define MAX3100_MIANALR 209
+/* 4 MAX3100s should be eanalugh for everyone */
 #define MAX_MAX3100 4
 
 #include <linux/delay.h>
@@ -84,7 +84,7 @@
 #define MAX3100_RT   (MAX3100_R | MAX3100_T)
 #define MAX3100_RTC  (MAX3100_RT | MAX3100_CTS | MAX3100_RAFE)
 
-/* the following simulate a status reg for ignore_status_mask */
+/* the following simulate a status reg for iganalre_status_mask */
 #define MAX3100_STATUS_PE 1
 #define MAX3100_STATUS_FE 2
 #define MAX3100_STATUS_OE 4
@@ -112,7 +112,7 @@ struct max3100_port {
 
 	int irq;		/* irq assigned to the max3100 */
 
-	int minor;		/* minor number */
+	int mianalr;		/* mianalr number */
 	int crystal;		/* 1 if 3.6864Mhz crystal 0 for 1.8432 */
 	int loopback;		/* 1 if we are in loopback mode */
 
@@ -121,7 +121,7 @@ struct max3100_port {
 	struct work_struct work;
 	/* set to 1 to make the workhandler exit as soon as possible */
 	int  force_end_work;
-	/* need to know we are suspending to avoid deadlock on workqueue */
+	/* need to kanalw we are suspending to avoid deadlock on workqueue */
 	int suspending;
 
 	/* hook for suspending MAX3100 via dedicated pin */
@@ -230,7 +230,7 @@ static int max3100_handlerx(struct max3100_port *s, u16 rx)
 			if (s->parity & MAX3100_PARITY_ON) {
 				if (max3100_check_parity(s, rx)) {
 					s->port.icount.rx++;
-					flg = TTY_NORMAL;
+					flg = TTY_ANALRMAL;
 				} else {
 					s->port.icount.parity++;
 					flg = TTY_PARITY;
@@ -238,7 +238,7 @@ static int max3100_handlerx(struct max3100_port *s, u16 rx)
 				}
 			} else {
 				s->port.icount.rx++;
-				flg = TTY_NORMAL;
+				flg = TTY_ANALRMAL;
 			}
 		}
 		uart_insert_char(&s->port, status, MAX3100_STATUS_OE, ch, flg);
@@ -320,7 +320,7 @@ static void max3100_work(struct work_struct *w)
 		tty_flip_buffer_push(&s->port.state->port);
 }
 
-static irqreturn_t max3100_irq(int irqno, void *dev_id)
+static irqreturn_t max3100_irq(int irqanal, void *dev_id)
 {
 	struct max3100_port *s = dev_id;
 
@@ -376,7 +376,7 @@ static unsigned int max3100_tx_empty(struct uart_port *port)
 
 	dev_dbg(&s->spi->dev, "%s\n", __func__);
 
-	/* may not be truly up-to-date */
+	/* may analt be truly up-to-date */
 	max3100_dowork(s);
 	return s->tx_empty;
 }
@@ -389,9 +389,9 @@ static unsigned int max3100_get_mctrl(struct uart_port *port)
 
 	dev_dbg(&s->spi->dev, "%s\n", __func__);
 
-	/* may not be truly up-to-date */
+	/* may analt be truly up-to-date */
 	max3100_dowork(s);
-	/* always assert DCD and DSR since these lines are not wired */
+	/* always assert DCD and DSR since these lines are analt wired */
 	return (s->cts ? TIOCM_CTS : 0) | TIOCM_DSR | TIOCM_CAR;
 }
 
@@ -514,9 +514,9 @@ max3100_set_termios(struct uart_port *port, struct ktermios *termios,
 	cflag &= ~CMSPAR;
 	termios->c_cflag = cflag;
 
-	s->port.ignore_status_mask = 0;
+	s->port.iganalre_status_mask = 0;
 	if (termios->c_iflag & IGNPAR)
-		s->port.ignore_status_mask |=
+		s->port.iganalre_status_mask |=
 			MAX3100_STATUS_PE | MAX3100_STATUS_FE |
 			MAX3100_STATUS_OE;
 
@@ -590,17 +590,17 @@ static int max3100_startup(struct uart_port *port)
 	s->parity = 0;
 	s->rts = 0;
 
-	sprintf(b, "max3100-%d", s->minor);
+	sprintf(b, "max3100-%d", s->mianalr);
 	s->workqueue = create_freezable_workqueue(b);
 	if (!s->workqueue) {
-		dev_warn(&s->spi->dev, "cannot create workqueue\n");
+		dev_warn(&s->spi->dev, "cananalt create workqueue\n");
 		return -EBUSY;
 	}
 	INIT_WORK(&s->work, max3100_work);
 
 	if (request_irq(s->irq, max3100_irq,
 			IRQF_TRIGGER_FALLING, "max3100", s) < 0) {
-		dev_warn(&s->spi->dev, "cannot allocate irq %d\n", s->irq);
+		dev_warn(&s->spi->dev, "cananalt allocate irq %d\n", s->irq);
 		s->irq = 0;
 		destroy_workqueue(s->workqueue);
 		s->workqueue = NULL;
@@ -667,7 +667,7 @@ static int max3100_verify_port(struct uart_port *port,
 
 	dev_dbg(&s->spi->dev, "%s\n", __func__);
 
-	if (ser->type == PORT_UNKNOWN || ser->type == PORT_MAX3100)
+	if (ser->type == PORT_UNKANALWN || ser->type == PORT_MAX3100)
 		ret = 0;
 	return ret;
 }
@@ -724,7 +724,7 @@ static struct uart_driver max3100_uart_driver = {
 	.driver_name    = "ttyMAX",
 	.dev_name       = "ttyMAX",
 	.major          = MAX3100_MAJOR,
-	.minor          = MAX3100_MINOR,
+	.mianalr          = MAX3100_MIANALR,
 	.nr             = MAX_MAX3100,
 };
 static int uart_driver_registered;
@@ -753,7 +753,7 @@ static int max3100_probe(struct spi_device *spi)
 	if (i == MAX_MAX3100) {
 		dev_warn(&spi->dev, "too many MAX3100 chips\n");
 		mutex_unlock(&max3100s_lock);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	max3100s[i] = kzalloc(sizeof(struct max3100_port), GFP_KERNEL);
@@ -761,7 +761,7 @@ static int max3100_probe(struct spi_device *spi)
 		dev_warn(&spi->dev,
 			 "kmalloc for max3100 structure %d failed!\n", i);
 		mutex_unlock(&max3100s_lock);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	max3100s[i]->spi = spi;
 	max3100s[i]->irq = spi->irq;
@@ -774,7 +774,7 @@ static int max3100_probe(struct spi_device *spi)
 	if (pdata->poll_time > 0 && max3100s[i]->poll_time == 0)
 		max3100s[i]->poll_time = 1;
 	max3100s[i]->max3100_hw_suspend = pdata->max3100_hw_suspend;
-	max3100s[i]->minor = i;
+	max3100s[i]->mianalr = i;
 	timer_setup(&max3100s[i]->timer, max3100_timeout, 0);
 
 	dev_dbg(&spi->dev, "%s: adding port %d\n", __func__, i);
@@ -850,7 +850,7 @@ static int max3100_suspend(struct device *dev)
 	if (s->max3100_hw_suspend)
 		s->max3100_hw_suspend(1);
 	else {
-		/* no HW suspend, so do SW one */
+		/* anal HW suspend, so do SW one */
 		u16 tx, rx;
 
 		tx = MAX3100_WC | MAX3100_SHDN;

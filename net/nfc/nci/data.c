@@ -49,9 +49,9 @@ void nci_data_exchange_complete(struct nci_dev *ndev, struct sk_buff *skb,
 		/* forward skb to nfc core */
 		cb(cb_context, skb, err);
 	} else if (skb) {
-		pr_err("no rx callback, dropping rx data...\n");
+		pr_err("anal rx callback, dropping rx data...\n");
 
-		/* no waiting callback, free skb */
+		/* anal waiting callback, free skb */
 		kfree_skb(skb);
 	}
 
@@ -120,7 +120,7 @@ static int nci_queue_tx_data_frags(struct nci_dev *ndev,
 					 (NCI_DATA_HDR_SIZE + frag_len),
 					 GFP_ATOMIC);
 		if (skb_frag == NULL) {
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto free_exit;
 		}
 		skb_reserve(skb_frag, NCI_DATA_HDR_SIZE);
@@ -179,7 +179,7 @@ int nci_send_data(struct nci_dev *ndev, __u8 conn_id, struct sk_buff *skb)
 
 	/* check if the packet need to be fragmented */
 	if (skb->len <= conn_info->max_pkt_payload_len) {
-		/* no need to fragment packet */
+		/* anal need to fragment packet */
 		nci_push_data_hdr(ndev, conn_id, skb, NCI_PBF_LAST);
 
 		skb_queue_tail(&ndev->tx_q, skb);
@@ -222,7 +222,7 @@ static void nci_add_rx_data_frag(struct nci_dev *ndev,
 	if (ndev->rx_data_reassembly) {
 		reassembly_len = ndev->rx_data_reassembly->len;
 
-		/* first, make enough room for the already accumulated data */
+		/* first, make eanalugh room for the already accumulated data */
 		if (skb_cow_head(skb, reassembly_len)) {
 			pr_err("error adding room for accumulated rx data\n");
 
@@ -232,7 +232,7 @@ static void nci_add_rx_data_frag(struct nci_dev *ndev,
 			kfree_skb(ndev->rx_data_reassembly);
 			ndev->rx_data_reassembly = NULL;
 
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto exit;
 		}
 
@@ -297,5 +297,5 @@ void nci_rx_data_packet(struct nci_dev *ndev, struct sk_buff *skb)
 		skb_trim(skb, (skb->len - 1));
 	}
 
-	nci_add_rx_data_frag(ndev, skb, pbf, conn_id, nci_to_errno(status));
+	nci_add_rx_data_frag(ndev, skb, pbf, conn_id, nci_to_erranal(status));
 }

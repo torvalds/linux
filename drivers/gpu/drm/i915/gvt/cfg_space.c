@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -42,8 +42,8 @@ enum {
 	INTEL_GVT_PCI_BAR_MAX,
 };
 
-/* bitmap for writable bits (RW or RW1C bits, but cannot co-exist in one
- * byte) byte by byte in standard pci configuration space. (not the full
+/* bitmap for writable bits (RW or RW1C bits, but cananalt co-exist in one
+ * byte) byte by byte in standard pci configuration space. (analt the full
  * 256 bytes.)
  */
 static const u8 pci_cfg_space_rw_bmp[PCI_INTERRUPT_LINE + 4] = {
@@ -82,7 +82,7 @@ static void vgpu_pci_cfg_mem_write(struct intel_vgpu *vgpu, unsigned int off,
 		/**
 		 * The PCI_STATUS high byte has RW1C bits, here
 		 * emulates clear by writing 1 for these bits.
-		 * Writing a 0b to RW1C bits has no effect.
+		 * Writing a 0b to RW1C bits has anal effect.
 		 */
 		if (off + i == PCI_STATUS + 1)
 			new = (~new & old) & mask;
@@ -392,7 +392,7 @@ void intel_vgpu_reset_cfg_space(struct intel_vgpu *vgpu)
 	}
 
 	/**
-	 * Currently we only do such reset when vGPU is not
+	 * Currently we only do such reset when vGPU is analt
 	 * owned by any VM, so we simply restore entire cfg
 	 * space to default value.
 	 */

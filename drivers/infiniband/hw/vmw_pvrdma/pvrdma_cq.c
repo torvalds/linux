@@ -21,21 +21,21 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+ * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE
  * COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
  * INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
  * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
  * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
@@ -54,14 +54,14 @@
 #include "pvrdma.h"
 
 /**
- * pvrdma_req_notify_cq - request notification for a completion queue
+ * pvrdma_req_analtify_cq - request analtification for a completion queue
  * @ibcq: the completion queue
- * @notify_flags: notification flags
+ * @analtify_flags: analtification flags
  *
  * @return: 0 for success.
  */
-int pvrdma_req_notify_cq(struct ib_cq *ibcq,
-			 enum ib_cq_notify_flags notify_flags)
+int pvrdma_req_analtify_cq(struct ib_cq *ibcq,
+			 enum ib_cq_analtify_flags analtify_flags)
 {
 	struct pvrdma_dev *dev = to_vdev(ibcq->device);
 	struct pvrdma_cq *cq = to_vcq(ibcq);
@@ -69,14 +69,14 @@ int pvrdma_req_notify_cq(struct ib_cq *ibcq,
 	unsigned long flags;
 	int has_data = 0;
 
-	val |= (notify_flags & IB_CQ_SOLICITED_MASK) == IB_CQ_SOLICITED ?
+	val |= (analtify_flags & IB_CQ_SOLICITED_MASK) == IB_CQ_SOLICITED ?
 		PVRDMA_UAR_CQ_ARM_SOL : PVRDMA_UAR_CQ_ARM;
 
 	spin_lock_irqsave(&cq->cq_lock, flags);
 
 	pvrdma_write_uar_cq(dev, val);
 
-	if (notify_flags & IB_CQ_REPORT_MISSED_EVENTS) {
+	if (analtify_flags & IB_CQ_REPORT_MISSED_EVENTS) {
 		unsigned int head;
 
 		has_data = pvrdma_idx_ring_has_data(&cq->ring_state->rx,
@@ -120,14 +120,14 @@ int pvrdma_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 	BUILD_BUG_ON(sizeof(struct pvrdma_cqe) != 64);
 
 	if (attr->flags)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	entries = roundup_pow_of_two(entries);
 	if (entries < 1 || entries > dev->dsr->caps.max_cqe)
 		return -EINVAL;
 
 	if (!atomic_add_unless(&dev->num_cqs, 1, dev->dsr->caps.max_cq))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cq->ibcq.cqe = entries;
 	cq->is_kernel = !udata;
@@ -165,7 +165,7 @@ int pvrdma_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 	ret = pvrdma_page_dir_init(dev, &cq->pdir, npages, cq->is_kernel);
 	if (ret) {
 		dev_warn(&dev->pdev->dev,
-			 "could not allocate page directory\n");
+			 "could analt allocate page directory\n");
 		goto err_umem;
 	}
 
@@ -188,7 +188,7 @@ int pvrdma_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 	ret = pvrdma_cmd_post(dev, &req, &rsp, PVRDMA_CMD_CREATE_CQ_RESP);
 	if (ret < 0) {
 		dev_warn(&dev->pdev->dev,
-			 "could not create completion queue, error: %d\n", ret);
+			 "could analt create completion queue, error: %d\n", ret);
 		goto err_page_dir;
 	}
 
@@ -254,7 +254,7 @@ int pvrdma_destroy_cq(struct ib_cq *cq, struct ib_udata *udata)
 	ret = pvrdma_cmd_post(dev, &req, NULL, 0);
 	if (ret < 0)
 		dev_warn(&dev->pdev->dev,
-			 "could not destroy completion queue, error: %d\n",
+			 "could analt destroy completion queue, error: %d\n",
 			 ret);
 
 	/* free cq's resources */
@@ -401,6 +401,6 @@ int pvrdma_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *wc)
 
 	spin_unlock_irqrestore(&cq->cq_lock, flags);
 
-	/* Ensure we do not return errors from poll_cq */
+	/* Ensure we do analt return errors from poll_cq */
 	return npolled;
 }

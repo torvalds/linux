@@ -43,7 +43,7 @@ extern const struct rvt_operation_params hfi1_post_parms[];
 #define HFI1_S_ANY_TID_WAIT_SEND (RVT_S_WAIT_SSN_CREDIT | RVT_S_WAIT_DMA)
 
 /*
- * Send if not busy or waiting for I/O and either
+ * Send if analt busy or waiting for I/O and either
  * a RC response is pending or we can process send work requests.
  */
 static inline int hfi1_send_ok(struct rvt_qp *qp)
@@ -93,11 +93,11 @@ void hfi1_migrate_qp(struct rvt_qp *qp);
 void *qp_priv_alloc(struct rvt_dev_info *rdi, struct rvt_qp *qp);
 void qp_priv_free(struct rvt_dev_info *rdi, struct rvt_qp *qp);
 unsigned free_all_qps(struct rvt_dev_info *rdi);
-void notify_qp_reset(struct rvt_qp *qp);
+void analtify_qp_reset(struct rvt_qp *qp);
 int get_pmtu_from_attr(struct rvt_dev_info *rdi, struct rvt_qp *qp,
 		       struct ib_qp_attr *attr);
 void flush_qp_waiters(struct rvt_qp *qp);
-void notify_error_qp(struct rvt_qp *qp);
+void analtify_error_qp(struct rvt_qp *qp);
 void stop_send_queue(struct rvt_qp *qp);
 void quiesce_qp(struct rvt_qp *qp);
 u32 mtu_from_qp(struct rvt_dev_info *rdi, struct rvt_qp *qp, u32 pmtu);

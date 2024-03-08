@@ -47,11 +47,11 @@ vmxnet3_xdp_set(struct net_device *netdev, struct netdev_bpf *bpf,
 	if (new_bpf_prog && netdev->mtu > VMXNET3_XDP_MAX_MTU) {
 		NL_SET_ERR_MSG_FMT_MOD(extack, "MTU %u too large for XDP",
 				       netdev->mtu);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (adapter->netdev->features & NETIF_F_LRO) {
-		NL_SET_ERR_MSG_MOD(extack, "LRO is not supported with XDP");
+		NL_SET_ERR_MSG_MOD(extack, "LRO is analt supported with XDP");
 		adapter->netdev->features &= ~NETIF_F_LRO;
 	}
 
@@ -84,13 +84,13 @@ vmxnet3_xdp_set(struct net_device *netdev, struct netdev_bpf *bpf,
 	if (err) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "failed to re-create rx queues for XDP.");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	err = vmxnet3_activate_dev(adapter);
 	if (err) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "failed to activate device for XDP.");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	clear_bit(VMXNET3_STATE_BIT_RESETTING, &adapter->state);
 
@@ -134,7 +134,7 @@ vmxnet3_xdp_xmit_frame(struct vmxnet3_adapter *adapter,
 
 	if (vmxnet3_cmd_ring_desc_avail(&tq->tx_ring) == 0) {
 		tq->stats.tx_ring_full++;
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 
 	tbi->map_type = VMXNET3_MAP_XDP;
@@ -183,7 +183,7 @@ vmxnet3_xdp_xmit_frame(struct vmxnet3_adapter *adapter,
 	gdesc->dword[2] = cpu_to_le32(le32_to_cpu(gdesc->dword[2]) ^
 						  VMXNET3_TXD_GEN);
 
-	/* No need to handle the case when tx_num_deferred doesn't reach
+	/* Anal need to handle the case when tx_num_deferred doesn't reach
 	 * threshold. Backend driver at hypervisor side will poll and reset
 	 * tq->shared->txNumDeferred to 0.
 	 */
@@ -360,7 +360,7 @@ out_skb:
 	if (!*skb_xdp_pass)
 		return XDP_DROP;
 
-	/* No need to refill. */
+	/* Anal need to refill. */
 	return likely(*skb_xdp_pass) ? act : XDP_DROP;
 }
 

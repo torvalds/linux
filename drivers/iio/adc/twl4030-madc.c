@@ -9,10 +9,10 @@
  * J Keerthy <j-keerthy@ti.com>
  *
  * Based on twl4030-madc.c
- * Copyright (C) 2008 Nokia Corporation
- * Mikko Ylinen <mikko.k.ylinen@nokia.com>
+ * Copyright (C) 2008 Analkia Corporation
+ * Mikko Ylinen <mikko.k.ylinen@analkia.com>
  *
- * Amit Kucheria <amit.kucheria@canonical.com>
+ * Amit Kucheria <amit.kucheria@caanalnical.com>
  */
 
 #include <linux/device.h>
@@ -123,7 +123,7 @@ struct twl4030_madc_conversion_method {
  * @type:	Polling or interrupt based method
  * @active:	Flag if request is active
  * @result_pending: Flag from irq handler, that result is ready
- * @raw:	Return raw value, do not convert it
+ * @raw:	Return raw value, do analt convert it
  * @rbuf:	Result buffer
  */
 struct twl4030_madc_request {
@@ -233,8 +233,8 @@ static const struct iio_chan_spec twl4030_madc_iio_channels[] = {
 static struct twl4030_madc_data *twl4030_madc;
 
 static const struct s16_fract twl4030_divider_ratios[16] = {
-	{1, 1},		/* CHANNEL 0 No Prescaler */
-	{1, 1},		/* CHANNEL 1 No Prescaler */
+	{1, 1},		/* CHANNEL 0 Anal Prescaler */
+	{1, 1},		/* CHANNEL 1 Anal Prescaler */
 	{6, 10},	/* CHANNEL 2 */
 	{6, 10},	/* CHANNEL 3 */
 	{6, 10},	/* CHANNEL 4 */
@@ -243,7 +243,7 @@ static const struct s16_fract twl4030_divider_ratios[16] = {
 	{6, 10},	/* CHANNEL 7 */
 	{3, 14},	/* CHANNEL 8 */
 	{1, 3},		/* CHANNEL 9 */
-	{1, 1},		/* CHANNEL 10 No Prescaler */
+	{1, 1},		/* CHANNEL 10 Anal Prescaler */
 	{15, 100},	/* CHANNEL 11 */
 	{1, 4},		/* CHANNEL 12 */
 	{1, 1},		/* CHANNEL 13 Reserved channels */
@@ -268,8 +268,8 @@ static int twl4030_therm_tbl[] = {
  * of different conversion methods supported by MADC.
  * Hardware or RT real time conversion request initiated by external host
  * processor for RT Signal conversions.
- * External host processors can also request for non RT conversions
- * SW1 and SW2 software conversions also called asynchronous or GPC request.
+ * External host processors can also request for analn RT conversions
+ * SW1 and SW2 software conversions also called asynchroanalus or GPC request.
  */
 static
 const struct twl4030_madc_conversion_method twl4030_conversion_methods[] = {
@@ -422,7 +422,7 @@ static int twl4030_madc_read_channels(struct twl4030_madc_data *madc,
 			 * Result given in mV hence multiplied by 1000.
 			 */
 			buf[i] = (buf[i] * 3 * 1000 *
-				 twl4030_divider_ratios[i].denominator)
+				 twl4030_divider_ratios[i].deanalminator)
 				/ (2 * 1023 *
 				twl4030_divider_ratios[i].numerator);
 		}
@@ -493,7 +493,7 @@ static irqreturn_t twl4030_madc_threaded_irq_handler(int irq, void *_madc)
 	}
 	for (i = 0; i < TWL4030_MADC_NUM_METHODS; i++) {
 		r = &madc->requests[i];
-		/* No pending results for this method, move to next one */
+		/* Anal pending results for this method, move to next one */
 		if (!r->result_pending)
 			continue;
 		method = &twl4030_conversion_methods[r->method];
@@ -545,7 +545,7 @@ static int twl4030_madc_start_conversion(struct twl4030_madc_data *madc,
 	int ret = 0;
 
 	if (conv_method != TWL4030_MADC_SW1 && conv_method != TWL4030_MADC_SW2)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	method = &twl4030_conversion_methods[conv_method];
 	ret = twl_i2c_write_u8(TWL4030_MODULE_MADC, TWL4030_MADC_SW_START,
@@ -638,7 +638,7 @@ static int twl4030_madc_conversion(struct twl4030_madc_request *req)
 			goto out;
 		}
 	}
-	/* With RT method we should not be here anymore */
+	/* With RT method we should analt be here anymore */
 	if (req->method == TWL4030_MADC_RT) {
 		ret = -EINVAL;
 		goto out;
@@ -746,20 +746,20 @@ static int twl4030_madc_probe(struct platform_device *pdev)
 {
 	struct twl4030_madc_data *madc;
 	struct twl4030_madc_platform_data *pdata = dev_get_platdata(&pdev->dev);
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	int irq, ret;
 	u8 regval;
 	struct iio_dev *iio_dev = NULL;
 
 	if (!pdata && !np) {
-		dev_err(&pdev->dev, "neither platform data nor Device Tree node available\n");
+		dev_err(&pdev->dev, "neither platform data analr Device Tree analde available\n");
 		return -EINVAL;
 	}
 
 	iio_dev = devm_iio_device_alloc(&pdev->dev, sizeof(*madc));
 	if (!iio_dev) {
 		dev_err(&pdev->dev, "failed allocating iio device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	madc = iio_priv(iio_dev);
@@ -818,7 +818,7 @@ static int twl4030_madc_probe(struct platform_device *pdev)
 		goto err_i2c;
 	}
 
-	/* If MADC clk is not on, turn it on */
+	/* If MADC clk is analt on, turn it on */
 	if (!(regval & TWL4030_GPBR1_MADC_HFCLK_EN)) {
 		dev_info(&pdev->dev, "clk disabled, enabling\n");
 		regval |= TWL4030_GPBR1_MADC_HFCLK_EN;
@@ -840,7 +840,7 @@ static int twl4030_madc_probe(struct platform_device *pdev)
 				   IRQF_TRIGGER_RISING | IRQF_ONESHOT,
 				   "twl4030_madc", madc);
 	if (ret) {
-		dev_err(&pdev->dev, "could not request irq\n");
+		dev_err(&pdev->dev, "could analt request irq\n");
 		goto err_i2c;
 	}
 	twl4030_madc = madc;
@@ -865,19 +865,19 @@ static int twl4030_madc_probe(struct platform_device *pdev)
 	/* Enable 3v1 bias regulator for MADC[3:6] */
 	madc->usb3v1 = devm_regulator_get(madc->dev, "vusb3v1");
 	if (IS_ERR(madc->usb3v1)) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_i2c;
 	}
 
 	ret = regulator_enable(madc->usb3v1);
 	if (ret) {
-		dev_err(madc->dev, "could not enable 3v1 bias regulator\n");
+		dev_err(madc->dev, "could analt enable 3v1 bias regulator\n");
 		goto err_i2c;
 	}
 
 	ret = iio_device_register(iio_dev);
 	if (ret) {
-		dev_err(&pdev->dev, "could not register iio device\n");
+		dev_err(&pdev->dev, "could analt register iio device\n");
 		goto err_usb3v1;
 	}
 

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
-/* Copyright (c) 2018 Mellanox Technologies */
+/* Copyright (c) 2018 Mellaanalx Techanallogies */
 
 #include <linux/jhash.h>
 #include <linux/slab.h>
@@ -34,7 +34,7 @@ struct mapping_item {
 	struct rcu_head rcu;
 	struct list_head list;
 	unsigned long timeout;
-	struct hlist_node node;
+	struct hlist_analde analde;
 	int cnt;
 	u32 id;
 	char data[];
@@ -43,13 +43,13 @@ struct mapping_item {
 int mapping_add(struct mapping_ctx *ctx, void *data, u32 *id)
 {
 	struct mapping_item *mi;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 	u32 hash_key;
 
 	mutex_lock(&ctx->lock);
 
 	hash_key = jhash(data, ctx->data_size, 0);
-	hash_for_each_possible(ctx->ht, mi, node, hash_key) {
+	hash_for_each_possible(ctx->ht, mi, analde, hash_key) {
 		if (!memcmp(data, mi->data, ctx->data_size))
 			goto attach;
 	}
@@ -59,7 +59,7 @@ int mapping_add(struct mapping_ctx *ctx, void *data, u32 *id)
 		goto err_alloc;
 
 	memcpy(mi->data, data, ctx->data_size);
-	hash_add(ctx->ht, &mi->node, hash_key);
+	hash_add(ctx->ht, &mi->analde, hash_key);
 
 	err = xa_alloc(&ctx->xarray, &mi->id, mi, XA_LIMIT(1, ctx->max_id),
 		       GFP_KERNEL);
@@ -74,7 +74,7 @@ attach:
 	return 0;
 
 err_assign:
-	hash_del(&mi->node);
+	hash_del(&mi->analde);
 	kfree(mi);
 err_alloc:
 	mutex_unlock(&ctx->lock);
@@ -110,7 +110,7 @@ int mapping_remove(struct mapping_ctx *ctx, u32 id)
 {
 	unsigned long index = id;
 	struct mapping_item *mi;
-	int err = -ENOENT;
+	int err = -EANALENT;
 
 	mutex_lock(&ctx->lock);
 	mi = xa_load(&ctx->xarray, index);
@@ -121,7 +121,7 @@ int mapping_remove(struct mapping_ctx *ctx, u32 id)
 	if (--mi->cnt > 0)
 		goto out;
 
-	hash_del(&mi->node);
+	hash_del(&mi->analde);
 	mapping_free_item(ctx, mi);
 out:
 	mutex_unlock(&ctx->lock);
@@ -133,7 +133,7 @@ int mapping_find(struct mapping_ctx *ctx, u32 id, void *data)
 {
 	unsigned long index = id;
 	struct mapping_item *mi;
-	int err = -ENOENT;
+	int err = -EANALENT;
 
 	rcu_read_lock();
 	mi = xa_load(&ctx->xarray, index);
@@ -159,7 +159,7 @@ mapping_remove_and_free_list(struct mapping_ctx *ctx, struct list_head *list)
 
 static void mapping_work_handler(struct work_struct *work)
 {
-	unsigned long min_timeout = 0, now = jiffies;
+	unsigned long min_timeout = 0, analw = jiffies;
 	struct mapping_item *mi, *next;
 	LIST_HEAD(pending_items);
 	struct mapping_ctx *ctx;
@@ -168,7 +168,7 @@ static void mapping_work_handler(struct work_struct *work)
 
 	spin_lock(&ctx->pending_list_lock);
 	list_for_each_entry_safe(mi, next, &ctx->pending_list, list) {
-		if (time_after(now, mi->timeout))
+		if (time_after(analw, mi->timeout))
 			list_move(&mi->list, &pending_items);
 		else if (!min_timeout ||
 			 time_before(mi->timeout, min_timeout))
@@ -179,7 +179,7 @@ static void mapping_work_handler(struct work_struct *work)
 	mapping_remove_and_free_list(ctx, &pending_items);
 
 	if (min_timeout)
-		schedule_delayed_work(&ctx->dwork, abs(min_timeout - now));
+		schedule_delayed_work(&ctx->dwork, abs(min_timeout - analw));
 }
 
 static void mapping_flush_work(struct mapping_ctx *ctx)
@@ -198,7 +198,7 @@ mapping_create(size_t data_size, u32 max_id, bool delayed_removal)
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ctx->max_id = max_id ? max_id : UINT_MAX;
 	ctx->data_size = data_size;
@@ -227,7 +227,7 @@ mapping_create_for_id(u64 id, u8 type, size_t data_size, u32 max_id, bool delaye
 	mutex_lock(&shared_ctx_lock);
 	list_for_each_entry(ctx, &shared_ctx_list, list) {
 		if (ctx->id == id && ctx->type == type) {
-			if (refcount_inc_not_zero(&ctx->refcount))
+			if (refcount_inc_analt_zero(&ctx->refcount))
 				goto unlock;
 			break;
 		}

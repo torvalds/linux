@@ -194,7 +194,7 @@ enum iqs269_event_id {
 };
 
 enum iqs269_slider_id {
-	IQS269_SLIDER_NONE,
+	IQS269_SLIDER_ANALNE,
 	IQS269_SLIDER_KEY,
 	IQS269_SLIDER_RAW,
 };
@@ -341,10 +341,10 @@ static enum iqs269_slider_id iqs269_slider_type(struct iqs269_private *iqs269,
 	 * the touch-and-hold timer ceiling.
 	 */
 	if (slider_num && (iqs269->otp_option & IQS269_OTP_OPTION_HOLD))
-		return IQS269_SLIDER_NONE;
+		return IQS269_SLIDER_ANALNE;
 
 	if (!iqs269->sys_reg.slider_select[slider_num])
-		return IQS269_SLIDER_NONE;
+		return IQS269_SLIDER_ANALNE;
 
 	for (i = 0; i < IQS269_NUM_GESTURES; i++)
 		if (iqs269->sl_code[slider_num][i] != KEY_RESERVED)
@@ -524,20 +524,20 @@ static int iqs269_ati_target_get(struct iqs269_private *iqs269,
 	return 0;
 }
 
-static int iqs269_parse_mask(const struct fwnode_handle *fwnode,
+static int iqs269_parse_mask(const struct fwanalde_handle *fwanalde,
 			     const char *propname, u8 *mask)
 {
 	unsigned int val[IQS269_NUM_CH];
 	int count, error, i;
 
-	count = fwnode_property_count_u32(fwnode, propname);
+	count = fwanalde_property_count_u32(fwanalde, propname);
 	if (count < 0)
 		return 0;
 
 	if (count > IQS269_NUM_CH)
 		return -EINVAL;
 
-	error = fwnode_property_read_u32_array(fwnode, propname, val, count);
+	error = fwanalde_property_read_u32_array(fwanalde, propname, val, count);
 	if (error)
 		return error;
 
@@ -554,16 +554,16 @@ static int iqs269_parse_mask(const struct fwnode_handle *fwnode,
 }
 
 static int iqs269_parse_chan(struct iqs269_private *iqs269,
-			     const struct fwnode_handle *ch_node)
+			     const struct fwanalde_handle *ch_analde)
 {
 	struct i2c_client *client = iqs269->client;
-	struct fwnode_handle *ev_node;
+	struct fwanalde_handle *ev_analde;
 	struct iqs269_ch_reg *ch_reg;
 	u16 engine_a, engine_b;
 	unsigned int reg, val;
 	int error, i;
 
-	error = fwnode_property_read_u32(ch_node, "reg", &reg);
+	error = fwanalde_property_read_u32(ch_analde, "reg", &reg);
 	if (error) {
 		dev_err(&client->dev, "Failed to read channel number: %d\n",
 			error);
@@ -574,22 +574,22 @@ static int iqs269_parse_chan(struct iqs269_private *iqs269,
 	}
 
 	iqs269->sys_reg.active |= BIT(reg);
-	if (!fwnode_property_present(ch_node, "azoteq,reseed-disable"))
+	if (!fwanalde_property_present(ch_analde, "azoteq,reseed-disable"))
 		iqs269->sys_reg.reseed |= BIT(reg);
 
-	if (fwnode_property_present(ch_node, "azoteq,blocking-enable"))
+	if (fwanalde_property_present(ch_analde, "azoteq,blocking-enable"))
 		iqs269->sys_reg.blocking |= BIT(reg);
 
-	if (fwnode_property_present(ch_node, "azoteq,slider0-select"))
+	if (fwanalde_property_present(ch_analde, "azoteq,slider0-select"))
 		iqs269->sys_reg.slider_select[0] |= BIT(reg);
 
-	if (fwnode_property_present(ch_node, "azoteq,slider1-select") &&
+	if (fwanalde_property_present(ch_analde, "azoteq,slider1-select") &&
 	    !(iqs269->otp_option & IQS269_OTP_OPTION_HOLD))
 		iqs269->sys_reg.slider_select[1] |= BIT(reg);
 
 	ch_reg = &iqs269->sys_reg.ch_reg[reg];
 
-	error = iqs269_parse_mask(ch_node, "azoteq,rx-enable",
+	error = iqs269_parse_mask(ch_analde, "azoteq,rx-enable",
 				  &ch_reg->rx_enable);
 	if (error) {
 		dev_err(&client->dev, "Invalid channel %u RX enable mask: %d\n",
@@ -597,7 +597,7 @@ static int iqs269_parse_chan(struct iqs269_private *iqs269,
 		return error;
 	}
 
-	error = iqs269_parse_mask(ch_node, "azoteq,tx-enable",
+	error = iqs269_parse_mask(ch_analde, "azoteq,tx-enable",
 				  &ch_reg->tx_enable);
 	if (error) {
 		dev_err(&client->dev, "Invalid channel %u TX enable mask: %d\n",
@@ -609,16 +609,16 @@ static int iqs269_parse_chan(struct iqs269_private *iqs269,
 	engine_b = be16_to_cpu(ch_reg->engine_b);
 
 	engine_a |= IQS269_CHx_ENG_A_MEAS_CAP_SIZE;
-	if (fwnode_property_present(ch_node, "azoteq,meas-cap-decrease"))
+	if (fwanalde_property_present(ch_analde, "azoteq,meas-cap-decrease"))
 		engine_a &= ~IQS269_CHx_ENG_A_MEAS_CAP_SIZE;
 
 	engine_a |= IQS269_CHx_ENG_A_RX_GND_INACTIVE;
-	if (fwnode_property_present(ch_node, "azoteq,rx-float-inactive"))
+	if (fwanalde_property_present(ch_analde, "azoteq,rx-float-inactive"))
 		engine_a &= ~IQS269_CHx_ENG_A_RX_GND_INACTIVE;
 
 	engine_a &= ~IQS269_CHx_ENG_A_LOCAL_CAP_SIZE;
 	engine_b &= ~IQS269_CHx_ENG_B_LOCAL_CAP_ENABLE;
-	if (!fwnode_property_read_u32(ch_node, "azoteq,local-cap-size", &val)) {
+	if (!fwanalde_property_read_u32(ch_analde, "azoteq,local-cap-size", &val)) {
 		switch (val) {
 		case IQS269_LOCAL_CAP_SIZE_0:
 			break;
@@ -640,10 +640,10 @@ static int iqs269_parse_chan(struct iqs269_private *iqs269,
 	}
 
 	engine_a &= ~IQS269_CHx_ENG_A_INV_LOGIC;
-	if (fwnode_property_present(ch_node, "azoteq,invert-enable"))
+	if (fwanalde_property_present(ch_analde, "azoteq,invert-enable"))
 		engine_a |= IQS269_CHx_ENG_A_INV_LOGIC;
 
-	if (!fwnode_property_read_u32(ch_node, "azoteq,proj-bias", &val)) {
+	if (!fwanalde_property_read_u32(ch_analde, "azoteq,proj-bias", &val)) {
 		if (val > IQS269_CHx_ENG_A_PROJ_BIAS_MAX) {
 			dev_err(&client->dev,
 				"Invalid channel %u bias current: %u\n", reg,
@@ -655,7 +655,7 @@ static int iqs269_parse_chan(struct iqs269_private *iqs269,
 		engine_a |= (val << IQS269_CHx_ENG_A_PROJ_BIAS_SHIFT);
 	}
 
-	if (!fwnode_property_read_u32(ch_node, "azoteq,sense-mode", &val)) {
+	if (!fwanalde_property_read_u32(ch_analde, "azoteq,sense-mode", &val)) {
 		if (val > IQS269_CHx_ENG_A_SENSE_MODE_MAX) {
 			dev_err(&client->dev,
 				"Invalid channel %u sensing mode: %u\n", reg,
@@ -667,7 +667,7 @@ static int iqs269_parse_chan(struct iqs269_private *iqs269,
 		engine_a |= val;
 	}
 
-	if (!fwnode_property_read_u32(ch_node, "azoteq,sense-freq", &val)) {
+	if (!fwanalde_property_read_u32(ch_analde, "azoteq,sense-freq", &val)) {
 		if (val > IQS269_CHx_ENG_B_SENSE_FREQ_MAX) {
 			dev_err(&client->dev,
 				"Invalid channel %u sensing frequency: %u\n",
@@ -680,13 +680,13 @@ static int iqs269_parse_chan(struct iqs269_private *iqs269,
 	}
 
 	engine_b &= ~IQS269_CHx_ENG_B_STATIC_ENABLE;
-	if (fwnode_property_present(ch_node, "azoteq,static-enable"))
+	if (fwanalde_property_present(ch_analde, "azoteq,static-enable"))
 		engine_b |= IQS269_CHx_ENG_B_STATIC_ENABLE;
 
 	ch_reg->engine_a = cpu_to_be16(engine_a);
 	ch_reg->engine_b = cpu_to_be16(engine_b);
 
-	if (!fwnode_property_read_u32(ch_node, "azoteq,ati-mode", &val)) {
+	if (!fwanalde_property_read_u32(ch_analde, "azoteq,ati-mode", &val)) {
 		error = iqs269_ati_mode_set(iqs269, reg, val);
 		if (error) {
 			dev_err(&client->dev,
@@ -695,7 +695,7 @@ static int iqs269_parse_chan(struct iqs269_private *iqs269,
 		}
 	}
 
-	if (!fwnode_property_read_u32(ch_node, "azoteq,ati-base", &val)) {
+	if (!fwanalde_property_read_u32(ch_analde, "azoteq,ati-base", &val)) {
 		error = iqs269_ati_base_set(iqs269, reg, val);
 		if (error) {
 			dev_err(&client->dev,
@@ -704,7 +704,7 @@ static int iqs269_parse_chan(struct iqs269_private *iqs269,
 		}
 	}
 
-	if (!fwnode_property_read_u32(ch_node, "azoteq,ati-target", &val)) {
+	if (!fwanalde_property_read_u32(ch_analde, "azoteq,ati-target", &val)) {
 		error = iqs269_ati_target_set(iqs269, reg, val);
 		if (error) {
 			dev_err(&client->dev,
@@ -714,7 +714,7 @@ static int iqs269_parse_chan(struct iqs269_private *iqs269,
 		}
 	}
 
-	error = iqs269_parse_mask(ch_node, "azoteq,assoc-select",
+	error = iqs269_parse_mask(ch_analde, "azoteq,assoc-select",
 				  &ch_reg->assoc_select);
 	if (error) {
 		dev_err(&client->dev, "Invalid channel %u association: %d\n",
@@ -722,7 +722,7 @@ static int iqs269_parse_chan(struct iqs269_private *iqs269,
 		return error;
 	}
 
-	if (!fwnode_property_read_u32(ch_node, "azoteq,assoc-weight", &val)) {
+	if (!fwanalde_property_read_u32(ch_analde, "azoteq,assoc-weight", &val)) {
 		if (val > IQS269_CHx_WEIGHT_MAX) {
 			dev_err(&client->dev,
 				"Invalid channel %u associated weight: %u\n",
@@ -734,31 +734,31 @@ static int iqs269_parse_chan(struct iqs269_private *iqs269,
 	}
 
 	for (i = 0; i < ARRAY_SIZE(iqs269_events); i++) {
-		ev_node = fwnode_get_named_child_node(ch_node,
+		ev_analde = fwanalde_get_named_child_analde(ch_analde,
 						      iqs269_events[i].name);
-		if (!ev_node)
+		if (!ev_analde)
 			continue;
 
-		if (!fwnode_property_read_u32(ev_node, "azoteq,thresh", &val)) {
+		if (!fwanalde_property_read_u32(ev_analde, "azoteq,thresh", &val)) {
 			if (val > IQS269_CHx_THRESH_MAX) {
 				dev_err(&client->dev,
 					"Invalid channel %u threshold: %u\n",
 					reg, val);
-				fwnode_handle_put(ev_node);
+				fwanalde_handle_put(ev_analde);
 				return -EINVAL;
 			}
 
 			ch_reg->thresh[iqs269_events[i].th_offs] = val;
 		}
 
-		if (!fwnode_property_read_u32(ev_node, "azoteq,hyst", &val)) {
+		if (!fwanalde_property_read_u32(ev_analde, "azoteq,hyst", &val)) {
 			u8 *hyst = &ch_reg->hyst;
 
 			if (val > IQS269_CHx_HYST_MAX) {
 				dev_err(&client->dev,
 					"Invalid channel %u hysteresis: %u\n",
 					reg, val);
-				fwnode_handle_put(ev_node);
+				fwanalde_handle_put(ev_analde);
 				return -EINVAL;
 			}
 
@@ -773,8 +773,8 @@ static int iqs269_parse_chan(struct iqs269_private *iqs269,
 			}
 		}
 
-		error = fwnode_property_read_u32(ev_node, "linux,code", &val);
-		fwnode_handle_put(ev_node);
+		error = fwanalde_property_read_u32(ev_analde, "linux,code", &val);
+		fwanalde_handle_put(ev_analde);
 		if (error == -EINVAL) {
 			continue;
 		} else if (error) {
@@ -811,7 +811,7 @@ static int iqs269_parse_prop(struct iqs269_private *iqs269)
 {
 	struct iqs269_sys_reg *sys_reg = &iqs269->sys_reg;
 	struct i2c_client *client = iqs269->client;
-	struct fwnode_handle *ch_node;
+	struct fwanalde_handle *ch_analde;
 	u16 general, misc_a, misc_b;
 	unsigned int val;
 	int error;
@@ -1049,10 +1049,10 @@ static int iqs269_parse_prop(struct iqs269_private *iqs269)
 
 	sys_reg->event_mask = ~((u8)IQS269_EVENT_MASK_SYS);
 
-	device_for_each_child_node(&client->dev, ch_node) {
-		error = iqs269_parse_chan(iqs269, ch_node);
+	device_for_each_child_analde(&client->dev, ch_analde) {
+		error = iqs269_parse_chan(iqs269, ch_analde);
 		if (error) {
-			fwnode_handle_put(ch_node);
+			fwanalde_handle_put(ch_analde);
 			return error;
 		}
 	}
@@ -1069,7 +1069,7 @@ static int iqs269_parse_prop(struct iqs269_private *iqs269)
 		general |= IQS269_SYS_SETTINGS_CLK_DIV;
 
 	/*
-	 * Configure the device to automatically switch between normal and low-
+	 * Configure the device to automatically switch between analrmal and low-
 	 * power modes as a function of sensing activity. Ultra-low-power mode,
 	 * if enabled, is reserved for suspend.
 	 */
@@ -1176,7 +1176,7 @@ static int iqs269_parse_prop(struct iqs269_private *iqs269)
 	general |= IQS269_SYS_SETTINGS_EVENT_MODE;
 
 	/*
-	 * As per the datasheet, enable streaming during normal-power mode if
+	 * As per the datasheet, enable streaming during analrmal-power mode if
 	 * raw coordinates will be read from either slider. In that case, the
 	 * device returns to event mode during low-power mode.
 	 */
@@ -1249,7 +1249,7 @@ static int iqs269_input_init(struct iqs269_private *iqs269)
 
 	iqs269->keypad = devm_input_allocate_device(&client->dev);
 	if (!iqs269->keypad)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	iqs269->keypad->keycodemax = ARRAY_SIZE(iqs269->keycode);
 	iqs269->keypad->keycode = iqs269->keycode;
@@ -1290,12 +1290,12 @@ static int iqs269_input_init(struct iqs269_private *iqs269)
 	}
 
 	for (i = 0; i < IQS269_NUM_SL; i++) {
-		if (iqs269_slider_type(iqs269, i) == IQS269_SLIDER_NONE)
+		if (iqs269_slider_type(iqs269, i) == IQS269_SLIDER_ANALNE)
 			continue;
 
 		iqs269->slider[i] = devm_input_allocate_device(&client->dev);
 		if (!iqs269->slider[i])
-			return -ENOMEM;
+			return -EANALMEM;
 
 		iqs269->slider[i]->keycodemax = ARRAY_SIZE(iqs269->sl_code[i]);
 		iqs269->slider[i]->keycode = iqs269->sl_code[i];
@@ -1312,7 +1312,7 @@ static int iqs269_input_init(struct iqs269_private *iqs269)
 
 		/*
 		 * Present the slider as a narrow trackpad if one or more chan-
-		 * nels have been selected to participate, but no gestures have
+		 * nels have been selected to participate, but anal gestures have
 		 * been mapped to a keycode.
 		 */
 		if (iqs269_slider_type(iqs269, i) == IQS269_SLIDER_RAW) {
@@ -1384,7 +1384,7 @@ static int iqs269_report(struct iqs269_private *iqs269)
 		flags.gesture >>= (i * IQS269_NUM_GESTURES);
 
 		switch (iqs269_slider_type(iqs269, i)) {
-		case IQS269_SLIDER_NONE:
+		case IQS269_SLIDER_ANALNE:
 			continue;
 
 		case IQS269_SLIDER_KEY:
@@ -1479,12 +1479,12 @@ static irqreturn_t iqs269_irq(int irq, void *context)
 	struct iqs269_private *iqs269 = context;
 
 	if (iqs269_report(iqs269))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/*
-	 * The device does not deassert its interrupt (RDY) pin until shortly
+	 * The device does analt deassert its interrupt (RDY) pin until shortly
 	 * after receiving an I2C stop condition; the following delay ensures
-	 * the interrupt handler does not return before this time.
+	 * the interrupt handler does analt return before this time.
 	 */
 	iqs269_irq_wait();
 
@@ -1836,7 +1836,7 @@ static int iqs269_probe(struct i2c_client *client)
 
 	iqs269 = devm_kzalloc(&client->dev, sizeof(*iqs269), GFP_KERNEL);
 	if (!iqs269)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(client, iqs269);
 	iqs269->client = client;
@@ -1895,7 +1895,7 @@ static int iqs269_probe(struct i2c_client *client)
 	}
 
 	/*
-	 * The keypad may include one or more switches and is not registered
+	 * The keypad may include one or more switches and is analt registered
 	 * until ATI is complete and the initial switch states are read.
 	 */
 	error = input_register_device(iqs269->keypad);

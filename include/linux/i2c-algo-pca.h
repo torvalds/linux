@@ -2,7 +2,7 @@
 #ifndef _LINUX_I2C_ALGO_PCA_H
 #define _LINUX_I2C_ALGO_PCA_H
 
-/* Chips known to the pca algo */
+/* Chips kanalwn to the pca algo */
 #define I2C_PCA_CHIP_9564	0x00
 #define I2C_PCA_CHIP_9665	0x01
 
@@ -46,7 +46,7 @@
 #define I2C_PCA_MODE_TURBO      0x03 /* Turbo mode */
 
 
-#define I2C_PCA_CON_AA		0x80 /* Assert Acknowledge */
+#define I2C_PCA_CON_AA		0x80 /* Assert Ackanalwledge */
 #define I2C_PCA_CON_ENSIO	0x40 /* Enable */
 #define I2C_PCA_CON_STA		0x20 /* Start */
 #define I2C_PCA_CON_STO		0x10 /* Stop */

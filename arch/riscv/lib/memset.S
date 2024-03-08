@@ -47,7 +47,7 @@ SYM_FUNC_START(__memset)
 	add a3, t0, a4
 
 	andi a4, a4, 31*SZREG  /* Calculate remainder */
-	beqz a4, 3f            /* Shortcut if no remainder */
+	beqz a4, 3f            /* Shortcut if anal remainder */
 	neg a4, a4
 	addi a4, a4, 32*SZREG  /* Calculate initial offset */
 

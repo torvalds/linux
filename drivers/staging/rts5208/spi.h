@@ -13,7 +13,7 @@
 #define __REALTEK_RTSX_SPI_H
 
 /* SPI operation error */
-#define SPI_NO_ERR		0x00
+#define SPI_ANAL_ERR		0x00
 #define SPI_HW_ERR		0x01
 #define SPI_INVALID_COMMAND	0x02
 #define SPI_READ_ERR		0x03

@@ -33,7 +33,7 @@ struct hx711_gain_to_scale {
 };
 
 /*
- * .scale depends on AVDD which in turn is known as soon as the regulator
+ * .scale depends on AVDD which in turn is kanalwn as soon as the regulator
  * is available
  * therefore we set .scale in hx711_probe()
  *
@@ -119,7 +119,7 @@ static int hx711_cycle(struct hx711_data *hx711_data)
 	ndelay(hx711_data->data_ready_delay_ns);
 
 	/*
-	 * here we are not waiting for 0.2 us as suggested by the datasheet,
+	 * here we are analt waiting for 0.2 us as suggested by the datasheet,
 	 * because the oscilloscope showed in a test scenario
 	 * at least 1.15 us for PD_SCK high (T3 in datasheet)
 	 * and 0.56 us for PD_SCK low on TI Sitara with 800 MHz
@@ -191,11 +191,11 @@ static int hx711_reset(struct hx711_data *hx711_data)
 	if (val) {
 		/*
 		 * an examination with the oszilloscope indicated
-		 * that the first value read after the reset is not stable
+		 * that the first value read after the reset is analt stable
 		 * if we reset too short;
 		 * the shorter the reset cycle
 		 * the less reliable the first value after reset is;
-		 * there were no problems encountered with a value
+		 * there were anal problems encountered with a value
 		 * of 10 ms or higher
 		 */
 		gpiod_set_value(hx711_data->gpiod_pd_sck, 1);
@@ -292,7 +292,7 @@ static int hx711_read_raw(struct iio_dev *indio_dev,
 
 		mutex_unlock(&hx711_data->lock);
 
-		return IIO_VAL_INT_PLUS_NANO;
+		return IIO_VAL_INT_PLUS_NAANAL;
 	default:
 		return -EINVAL;
 	}
@@ -311,7 +311,7 @@ static int hx711_write_raw(struct iio_dev *indio_dev,
 	switch (mask) {
 	case IIO_CHAN_INFO_SCALE:
 		/*
-		 * a scale greater than 1 mV per LSB is not possible
+		 * a scale greater than 1 mV per LSB is analt possible
 		 * with the HX711, therefore val must be 0
 		 */
 		if (val != 0)
@@ -350,7 +350,7 @@ static int hx711_write_raw_get_fmt(struct iio_dev *indio_dev,
 		struct iio_chan_spec const *chan,
 		long mask)
 {
-	return IIO_VAL_INT_PLUS_NANO;
+	return IIO_VAL_INT_PLUS_NAANAL;
 }
 
 static irqreturn_t hx711_trigger(int irq, void *p)
@@ -378,7 +378,7 @@ static irqreturn_t hx711_trigger(int irq, void *p)
 
 	mutex_unlock(&hx711_data->lock);
 
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -459,7 +459,7 @@ static const struct iio_chan_spec hx711_chan_spec[] = {
 static int hx711_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct hx711_data *hx711_data;
 	struct iio_dev *indio_dev;
 	int ret;
@@ -468,7 +468,7 @@ static int hx711_probe(struct platform_device *pdev)
 	indio_dev = devm_iio_device_alloc(dev, sizeof(struct hx711_data));
 	if (!indio_dev) {
 		dev_err(dev, "failed to allocate IIO device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	hx711_data = iio_priv(indio_dev);

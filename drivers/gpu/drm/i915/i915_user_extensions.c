@@ -4,7 +4,7 @@
  * Copyright © 2018 Intel Corporation
  */
 
-#include <linux/nospec.h>
+#include <linux/analspec.h>
 #include <linux/sched/signal.h>
 #include <linux/uaccess.h>
 
@@ -43,7 +43,7 @@ int i915_user_extensions(struct i915_user_extension __user *ext,
 
 		err = -EINVAL;
 		if (name < count) {
-			name = array_index_nospec(name, count);
+			name = array_index_analspec(name, count);
 			if (tbl[name])
 				err = tbl[name](ext, data);
 		}

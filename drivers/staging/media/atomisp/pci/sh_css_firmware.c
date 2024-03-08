@@ -54,7 +54,7 @@ static struct firmware_header *firmware_header;
 /*
  * The string STR is a place holder
  * which will be replaced with the actual RELEASE_VERSION
- * during package generation. Please do not modify
+ * during package generation. Please do analt modify
  */
 static const char *release_version_2401 = STR(irci_stable_candrpv_0415_20150521_0458);
 static const char *release_version_2400 = STR(irci_stable_candrpv_0415_20150423_1753);
@@ -63,7 +63,7 @@ static const char *release_version_2400 = STR(irci_stable_candrpv_0415_20150423_
 static char FW_rel_ver_name[MAX_FW_REL_VER_NAME] = "---";
 
 struct ia_css_fw_info	  sh_css_sp_fw;
-struct ia_css_blob_descr *sh_css_blob_info; /* Only ISP blob info (no SP) */
+struct ia_css_blob_descr *sh_css_blob_info; /* Only ISP blob info (anal SP) */
 unsigned int sh_css_num_binaries; /* This includes 1 SP binary */
 
 static struct fw_param *fw_minibuffer;
@@ -93,7 +93,7 @@ setup_binary(struct ia_css_fw_info *fw, const char *fw_data,
 
 	sh_css_fw->blob.code = vmalloc(fw->blob.size);
 	if (!sh_css_fw->blob.code)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy((void *)sh_css_fw->blob.code, blob_data, fw->blob.size);
 	sh_css_fw->blob.data = (char *)sh_css_fw->blob.code + fw->blob.data_source;
@@ -124,7 +124,7 @@ sh_css_load_blob_info(const char *fw, const struct ia_css_fw_info *bi,
 	if (bi->blob.size !=
 		bi->blob.text_size + bi->blob.icache_size +
 			bi->blob.data_size + bi->blob.padding_size) {
-		/* sanity check, note the padding bytes added for section to DDR alignment */
+		/* sanity check, analte the padding bytes added for section to DDR alignment */
 		return -EINVAL;
 	}
 
@@ -139,7 +139,7 @@ sh_css_load_blob_info(const char *fw, const struct ia_css_fw_info *bi,
 
 		namebuffer = kstrdup(name, GFP_KERNEL);
 		if (!namebuffer)
-			return -ENOMEM;
+			return -EANALMEM;
 		bd->name = fw_minibuffer[index].name = namebuffer;
 	} else {
 		bd->name = name;
@@ -154,7 +154,7 @@ sh_css_load_blob_info(const char *fw, const struct ia_css_fw_info *bi,
 					 statestruct_size,
 					 GFP_KERNEL);
 		if (!parambuf)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		bd->mem_offsets.array[IA_CSS_PARAM_CLASS_PARAM].ptr = NULL;
 		bd->mem_offsets.array[IA_CSS_PARAM_CLASS_CONFIG].ptr = NULL;
@@ -200,12 +200,12 @@ sh_css_check_firmware_version(struct device *dev, const char *fw_data)
 	file_header = &firmware_header->file_header;
 
 	if (strcmp(file_header->version, release_version) != 0) {
-		dev_err(dev, "Firmware version may not be compatible with this driver\n");
+		dev_err(dev, "Firmware version may analt be compatible with this driver\n");
 		dev_err(dev, "Expecting version '%s', but firmware is '%s'.\n",
 			release_version, file_header->version);
 	}
 
-	/* For now, let's just accept a wrong version, even if wrong */
+	/* For analw, let's just accept a wrong version, even if wrong */
 	return false;
 }
 
@@ -217,7 +217,7 @@ static const char * const fw_type_name[] = {
 };
 
 static const char * const fw_acc_type_name[] = {
-	[IA_CSS_ACC_NONE] =		"Normal",
+	[IA_CSS_ACC_ANALNE] =		"Analrmal",
 	[IA_CSS_ACC_OUTPUT] =		"Accel for output",
 	[IA_CSS_ACC_VIEWFINDER] =	"Accel for viewfinder",
 	[IA_CSS_ACC_STANDALONE] =	"Stand-alone accel",
@@ -266,7 +266,7 @@ sh_css_load_firmware(struct device *dev, const char *fw_data,
 		    (sh_css_num_binaries - NUM_OF_SPS) *
 		    sizeof(*sh_css_blob_info), GFP_KERNEL);
 		if (!sh_css_blob_info)
-			return -ENOMEM;
+			return -EANALMEM;
 	} else {
 		sh_css_blob_info = NULL;
 	}
@@ -274,13 +274,13 @@ sh_css_load_firmware(struct device *dev, const char *fw_data,
 	fw_minibuffer = kcalloc(sh_css_num_binaries, sizeof(struct fw_param),
 				GFP_KERNEL);
 	if (!fw_minibuffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < sh_css_num_binaries; i++) {
 		struct ia_css_fw_info *bi = &binaries[i];
 		/*
-		 * note: the var below is made static as it is quite large;
-		 * if it is not static it ends up on the stack which could
+		 * analte: the var below is made static as it is quite large;
+		 * if it is analt static it ends up on the stack which could
 		 * cause issues for drivers
 		 */
 		static struct ia_css_blob_descr bd;
@@ -346,7 +346,7 @@ sh_css_load_firmware(struct device *dev, const char *fw_data,
 
 			if (bi->type != ia_css_isp_firmware)
 				return -EINVAL;
-			if (!sh_css_blob_info) /* cannot happen but KW does not see this */
+			if (!sh_css_blob_info) /* cananalt happen but KW does analt see this */
 				return -EINVAL;
 			sh_css_blob_info[i - NUM_OF_SPS] = bd;
 		}

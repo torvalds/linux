@@ -9,7 +9,7 @@
 #include <linux/btf.h>
 #include <unistd.h>
 #include <signal.h>
-#include <errno.h>
+#include <erranal.h>
 #include <string.h>
 #include <pthread.h>
 
@@ -24,7 +24,7 @@ static struct bpf_map_create_opts map_opts = {
 	.btf_key_type_id = 1,
 	.btf_value_type_id = 3,
 	.btf_fd = -1,
-	.map_flags = BPF_F_NO_PREALLOC,
+	.map_flags = BPF_F_ANAL_PREALLOC,
 };
 
 static unsigned int nr_sk_threads_done;
@@ -45,7 +45,7 @@ static unsigned int threads_err(void)
 	return READ_ONCE(nr_sk_threads_err);
 }
 
-static void notify_thread_err(void)
+static void analtify_thread_err(void)
 {
 	__sync_add_and_fetch(&nr_sk_threads_err, 1);
 }
@@ -63,12 +63,12 @@ static unsigned int threads_done(void)
 	return READ_ONCE(nr_sk_threads_done);
 }
 
-static void notify_thread_done(void)
+static void analtify_thread_done(void)
 {
 	__sync_add_and_fetch(&nr_sk_threads_done, 1);
 }
 
-static void notify_thread_redo(void)
+static void analtify_thread_redo(void)
 {
 	__sync_sub_and_fetch(&nr_sk_threads_done, 1);
 }
@@ -144,15 +144,15 @@ static int create_sk_storage_map(void)
 	int btf_fd, map_fd;
 
 	btf_fd = load_btf();
-	CHECK(btf_fd == -1, "bpf_load_btf", "btf_fd:%d errno:%d\n",
-	      btf_fd, errno);
+	CHECK(btf_fd == -1, "bpf_load_btf", "btf_fd:%d erranal:%d\n",
+	      btf_fd, erranal);
 	map_opts.btf_fd = btf_fd;
 
 	map_fd = bpf_map_create(BPF_MAP_TYPE_SK_STORAGE, "sk_storage_map", 4, 8, 0, &map_opts);
 	map_opts.btf_fd = -1;
 	close(btf_fd);
 	CHECK(map_fd == -1,
-	      "bpf_map_create()", "errno:%d\n", errno);
+	      "bpf_map_create()", "erranal:%d\n", erranal);
 
 	return map_fd;
 }
@@ -167,8 +167,8 @@ static void *insert_close_thread(void *arg)
 
 	sk_fds = malloc(sizeof(*sk_fds) * nr_sk_per_thread);
 	if (!sk_fds) {
-		notify_thread_err();
-		return ERR_PTR(-ENOMEM);
+		analtify_thread_err();
+		return ERR_PTR(-EANALMEM);
 	}
 
 	for (i = 0; i < nr_sk_per_thread; i++)
@@ -182,22 +182,22 @@ static void *insert_close_thread(void *arg)
 		for (i = 0; i < nr_sk_per_thread && !is_stopped(); i++) {
 			sk_fds[i] = socket(AF_INET6, SOCK_STREAM, 0);
 			if (sk_fds[i] == -1) {
-				err = -errno;
-				fprintf(stderr, "socket(): errno:%d\n", errno);
+				err = -erranal;
+				fprintf(stderr, "socket(): erranal:%d\n", erranal);
 				goto errout;
 			}
 			err = bpf_map_update_elem(map_fd, &sk_fds[i], &value,
-						  BPF_NOEXIST);
+						  BPF_ANALEXIST);
 			if (err) {
-				err = -errno;
+				err = -erranal;
 				fprintf(stderr,
-					"bpf_map_update_elem(): errno:%d\n",
-					errno);
+					"bpf_map_update_elem(): erranal:%d\n",
+					erranal);
 				goto errout;
 			}
 		}
 
-		notify_thread_done();
+		analtify_thread_done();
 		wait_for_map_close();
 
 close_all:
@@ -206,7 +206,7 @@ close_all:
 			sk_fds[i] = -1;
 		}
 
-		notify_thread_redo();
+		analtify_thread_redo();
 	}
 
 	free(sk_fds);
@@ -216,7 +216,7 @@ errout:
 	for (i = 0; i < nr_sk_per_thread && sk_fds[i] != -1; i++)
 		close(sk_fds[i]);
 	free(sk_fds);
-	notify_thread_err();
+	analtify_thread_err();
 	return ERR_PTR(err);
 }
 
@@ -229,14 +229,14 @@ static int do_sk_storage_map_stress_free(void)
 	sk_thread_ids = malloc(sizeof(pthread_t) * nr_sk_threads);
 	if (!sk_thread_ids) {
 		fprintf(stderr, "malloc(sk_threads): NULL\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	for (i = 0; i < nr_sk_threads; i++) {
 		err = pthread_create(&sk_thread_ids[i], NULL,
 				     insert_close_thread, NULL);
 		if (err) {
-			err = -errno;
+			err = -erranal;
 			goto done;
 		}
 		nr_threads_created++;
@@ -286,16 +286,16 @@ static void *update_thread(void *arg)
 
 	while (!is_stopped()) {
 		err = bpf_map_update_elem(map_fd, &sk_fd, &value, 0);
-		if (err && errno != EAGAIN) {
-			err = -errno;
+		if (err && erranal != EAGAIN) {
+			err = -erranal;
 			fprintf(stderr, "bpf_map_update_elem: %d %d\n",
-				err, errno);
+				err, erranal);
 			break;
 		}
 	}
 
 	if (!is_stopped()) {
-		notify_thread_err();
+		analtify_thread_err();
 		return ERR_PTR(err);
 	}
 
@@ -310,16 +310,16 @@ static void *delete_thread(void *arg)
 
 	while (!is_stopped()) {
 		err = bpf_map_delete_elem(map_fd, &sk_fd);
-		if (err && errno != ENOENT) {
-			err = -errno;
+		if (err && erranal != EANALENT) {
+			err = -erranal;
 			fprintf(stderr, "bpf_map_delete_elem: %d %d\n",
-				err, errno);
+				err, erranal);
 			break;
 		}
 	}
 
 	if (!is_stopped()) {
-		notify_thread_err();
+		analtify_thread_err();
 		return ERR_PTR(err);
 	}
 
@@ -335,12 +335,12 @@ static int do_sk_storage_map_stress_change(void)
 	sk_thread_ids = malloc(sizeof(pthread_t) * nr_sk_threads);
 	if (!sk_thread_ids) {
 		fprintf(stderr, "malloc(sk_threads): NULL\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	sk_fd = socket(AF_INET6, SOCK_STREAM, 0);
 	if (sk_fd == -1) {
-		err = -errno;
+		err = -erranal;
 		goto done;
 	}
 
@@ -355,7 +355,7 @@ static int do_sk_storage_map_stress_change(void)
 			err = pthread_create(&sk_thread_ids[i], NULL,
 					     delete_thread, &sk_fd);
 		if (err) {
-			err = -errno;
+			err = -erranal;
 			goto done;
 		}
 		nr_threads_created++;
@@ -398,7 +398,7 @@ static void test_sk_storage_map_stress_free(void)
 	struct rlimit rlim_old, rlim_new = {};
 	int err;
 
-	getrlimit(RLIMIT_NOFILE, &rlim_old);
+	getrlimit(RLIMIT_ANALFILE, &rlim_old);
 
 	signal(SIGTERM, stop_handler);
 	signal(SIGINT, stop_handler);
@@ -410,9 +410,9 @@ static void test_sk_storage_map_stress_free(void)
 	if (rlim_old.rlim_cur < nr_sk_threads * nr_sk_per_thread) {
 		rlim_new.rlim_cur = nr_sk_threads * nr_sk_per_thread + 128;
 		rlim_new.rlim_max = rlim_new.rlim_cur + 128;
-		err = setrlimit(RLIMIT_NOFILE, &rlim_new);
-		CHECK(err, "setrlimit(RLIMIT_NOFILE)", "rlim_new:%lu errno:%d",
-		      rlim_new.rlim_cur, errno);
+		err = setrlimit(RLIMIT_ANALFILE, &rlim_new);
+		CHECK(err, "setrlimit(RLIMIT_ANALFILE)", "rlim_new:%lu erranal:%d",
+		      rlim_new.rlim_cur, erranal);
 	}
 
 	err = do_sk_storage_map_stress_free();
@@ -425,7 +425,7 @@ static void test_sk_storage_map_stress_free(void)
 	}
 
 	if (rlim_new.rlim_cur)
-		setrlimit(RLIMIT_NOFILE, &rlim_old);
+		setrlimit(RLIMIT_ANALFILE, &rlim_old);
 
 	CHECK(err, "test_sk_storage_map_stress_free", "err:%d\n", err);
 }
@@ -463,30 +463,30 @@ static void test_sk_storage_map_basic(void)
 	int btf_fd, map_fd, sk_fd, err;
 
 	btf_fd = load_btf();
-	CHECK(btf_fd == -1, "bpf_load_btf", "btf_fd:%d errno:%d\n",
-	      btf_fd, errno);
+	CHECK(btf_fd == -1, "bpf_load_btf", "btf_fd:%d erranal:%d\n",
+	      btf_fd, erranal);
 	map_opts.btf_fd = btf_fd;
 
 	sk_fd = socket(AF_INET6, SOCK_STREAM, 0);
-	CHECK(sk_fd == -1, "socket()", "sk_fd:%d errno:%d\n",
-	      sk_fd, errno);
+	CHECK(sk_fd == -1, "socket()", "sk_fd:%d erranal:%d\n",
+	      sk_fd, erranal);
 
 	map_fd = bpf_map_create(BPF_MAP_TYPE_SK_STORAGE, "sk_storage_map", 4, 8, 0, &map_opts);
 	CHECK(map_fd == -1, "bpf_map_create(good_xattr)",
-	      "map_fd:%d errno:%d\n", map_fd, errno);
+	      "map_fd:%d erranal:%d\n", map_fd, erranal);
 
 	/* Add new elem */
 	memcpy(&lookup_value, &value, sizeof(value));
 	err = bpf_map_update_elem(map_fd, &sk_fd, &value,
-				  BPF_NOEXIST | BPF_F_LOCK);
-	CHECK(err, "bpf_map_update_elem(BPF_NOEXIST|BPF_F_LOCK)",
-	      "err:%d errno:%d\n", err, errno);
+				  BPF_ANALEXIST | BPF_F_LOCK);
+	CHECK(err, "bpf_map_update_elem(BPF_ANALEXIST|BPF_F_LOCK)",
+	      "err:%d erranal:%d\n", err, erranal);
 	err = bpf_map_lookup_elem_flags(map_fd, &sk_fd, &lookup_value,
 					BPF_F_LOCK);
 	CHECK(err || lookup_value.lock || lookup_value.cnt != value.cnt,
 	      "bpf_map_lookup_elem_flags(BPF_F_LOCK)",
-	      "err:%d errno:%d lock:%x cnt:%x(%x)\n",
-	      err, errno, lookup_value.lock, lookup_value.cnt, value.cnt);
+	      "err:%d erranal:%d lock:%x cnt:%x(%x)\n",
+	      err, erranal, lookup_value.lock, lookup_value.cnt, value.cnt);
 
 	/* Bump the cnt and update with BPF_EXIST | BPF_F_LOCK */
 	value.cnt += 1;
@@ -494,93 +494,93 @@ static void test_sk_storage_map_basic(void)
 	err = bpf_map_update_elem(map_fd, &sk_fd, &value,
 				  BPF_EXIST | BPF_F_LOCK);
 	CHECK(err, "bpf_map_update_elem(BPF_EXIST|BPF_F_LOCK)",
-	      "err:%d errno:%d\n", err, errno);
+	      "err:%d erranal:%d\n", err, erranal);
 	err = bpf_map_lookup_elem_flags(map_fd, &sk_fd, &lookup_value,
 					BPF_F_LOCK);
 	CHECK(err || lookup_value.lock || lookup_value.cnt != value.cnt,
 	      "bpf_map_lookup_elem_flags(BPF_F_LOCK)",
-	      "err:%d errno:%d lock:%x cnt:%x(%x)\n",
-	      err, errno, lookup_value.lock, lookup_value.cnt, value.cnt);
+	      "err:%d erranal:%d lock:%x cnt:%x(%x)\n",
+	      err, erranal, lookup_value.lock, lookup_value.cnt, value.cnt);
 
 	/* Bump the cnt and update with BPF_EXIST */
 	value.cnt += 1;
 	value.lock = 2;
 	err = bpf_map_update_elem(map_fd, &sk_fd, &value, BPF_EXIST);
 	CHECK(err, "bpf_map_update_elem(BPF_EXIST)",
-	      "err:%d errno:%d\n", err, errno);
+	      "err:%d erranal:%d\n", err, erranal);
 	err = bpf_map_lookup_elem_flags(map_fd, &sk_fd, &lookup_value,
 					BPF_F_LOCK);
 	CHECK(err || lookup_value.lock || lookup_value.cnt != value.cnt,
 	      "bpf_map_lookup_elem_flags(BPF_F_LOCK)",
-	      "err:%d errno:%d lock:%x cnt:%x(%x)\n",
-	      err, errno, lookup_value.lock, lookup_value.cnt, value.cnt);
+	      "err:%d erranal:%d lock:%x cnt:%x(%x)\n",
+	      err, erranal, lookup_value.lock, lookup_value.cnt, value.cnt);
 
-	/* Update with BPF_NOEXIST */
+	/* Update with BPF_ANALEXIST */
 	value.cnt += 1;
 	value.lock = 2;
 	err = bpf_map_update_elem(map_fd, &sk_fd, &value,
-				  BPF_NOEXIST | BPF_F_LOCK);
-	CHECK(!err || errno != EEXIST,
-	      "bpf_map_update_elem(BPF_NOEXIST|BPF_F_LOCK)",
-	      "err:%d errno:%d\n", err, errno);
-	err = bpf_map_update_elem(map_fd, &sk_fd, &value, BPF_NOEXIST);
-	CHECK(!err || errno != EEXIST, "bpf_map_update_elem(BPF_NOEXIST)",
-	      "err:%d errno:%d\n", err, errno);
+				  BPF_ANALEXIST | BPF_F_LOCK);
+	CHECK(!err || erranal != EEXIST,
+	      "bpf_map_update_elem(BPF_ANALEXIST|BPF_F_LOCK)",
+	      "err:%d erranal:%d\n", err, erranal);
+	err = bpf_map_update_elem(map_fd, &sk_fd, &value, BPF_ANALEXIST);
+	CHECK(!err || erranal != EEXIST, "bpf_map_update_elem(BPF_ANALEXIST)",
+	      "err:%d erranal:%d\n", err, erranal);
 	value.cnt -= 1;
 	err = bpf_map_lookup_elem_flags(map_fd, &sk_fd, &lookup_value,
 					BPF_F_LOCK);
 	CHECK(err || lookup_value.lock || lookup_value.cnt != value.cnt,
 	      "bpf_map_lookup_elem_flags(BPF_F_LOCK)",
-	      "err:%d errno:%d lock:%x cnt:%x(%x)\n",
-	      err, errno, lookup_value.lock, lookup_value.cnt, value.cnt);
+	      "err:%d erranal:%d lock:%x cnt:%x(%x)\n",
+	      err, erranal, lookup_value.lock, lookup_value.cnt, value.cnt);
 
 	/* Bump the cnt again and update with map_flags == 0 */
 	value.cnt += 1;
 	value.lock = 2;
 	err = bpf_map_update_elem(map_fd, &sk_fd, &value, 0);
-	CHECK(err, "bpf_map_update_elem()", "err:%d errno:%d\n",
-	      err, errno);
+	CHECK(err, "bpf_map_update_elem()", "err:%d erranal:%d\n",
+	      err, erranal);
 	err = bpf_map_lookup_elem_flags(map_fd, &sk_fd, &lookup_value,
 					BPF_F_LOCK);
 	CHECK(err || lookup_value.lock || lookup_value.cnt != value.cnt,
 	      "bpf_map_lookup_elem_flags(BPF_F_LOCK)",
-	      "err:%d errno:%d lock:%x cnt:%x(%x)\n",
-	      err, errno, lookup_value.lock, lookup_value.cnt, value.cnt);
+	      "err:%d erranal:%d lock:%x cnt:%x(%x)\n",
+	      err, erranal, lookup_value.lock, lookup_value.cnt, value.cnt);
 
 	/* Test delete elem */
 	err = bpf_map_delete_elem(map_fd, &sk_fd);
-	CHECK(err, "bpf_map_delete_elem()", "err:%d errno:%d\n",
-	      err, errno);
+	CHECK(err, "bpf_map_delete_elem()", "err:%d erranal:%d\n",
+	      err, erranal);
 	err = bpf_map_lookup_elem_flags(map_fd, &sk_fd, &lookup_value,
 					BPF_F_LOCK);
-	CHECK(!err || errno != ENOENT,
+	CHECK(!err || erranal != EANALENT,
 	      "bpf_map_lookup_elem_flags(BPF_F_LOCK)",
-	      "err:%d errno:%d\n", err, errno);
+	      "err:%d erranal:%d\n", err, erranal);
 	err = bpf_map_delete_elem(map_fd, &sk_fd);
-	CHECK(!err || errno != ENOENT, "bpf_map_delete_elem()",
-	      "err:%d errno:%d\n", err, errno);
+	CHECK(!err || erranal != EANALENT, "bpf_map_delete_elem()",
+	      "err:%d erranal:%d\n", err, erranal);
 
 	memcpy(&bad_xattr, &map_opts, sizeof(map_opts));
 	bad_xattr.btf_key_type_id = 0;
 	err = bpf_map_create(BPF_MAP_TYPE_SK_STORAGE, "sk_storage_map", 4, 8, 0, &bad_xattr);
-	CHECK(!err || errno != EINVAL, "bpf_map_create(bad_xattr)",
-	      "err:%d errno:%d\n", err, errno);
+	CHECK(!err || erranal != EINVAL, "bpf_map_create(bad_xattr)",
+	      "err:%d erranal:%d\n", err, erranal);
 
 	memcpy(&bad_xattr, &map_opts, sizeof(map_opts));
 	bad_xattr.btf_key_type_id = 3;
 	err = bpf_map_create(BPF_MAP_TYPE_SK_STORAGE, "sk_storage_map", 4, 8, 0, &bad_xattr);
-	CHECK(!err || errno != EINVAL, "bpf_map_create(bad_xattr)",
-	      "err:%d errno:%d\n", err, errno);
+	CHECK(!err || erranal != EINVAL, "bpf_map_create(bad_xattr)",
+	      "err:%d erranal:%d\n", err, erranal);
 
 	err = bpf_map_create(BPF_MAP_TYPE_SK_STORAGE, "sk_storage_map", 4, 8, 1, &map_opts);
-	CHECK(!err || errno != EINVAL, "bpf_map_create(bad_xattr)",
-	      "err:%d errno:%d\n", err, errno);
+	CHECK(!err || erranal != EINVAL, "bpf_map_create(bad_xattr)",
+	      "err:%d erranal:%d\n", err, erranal);
 
 	memcpy(&bad_xattr, &map_opts, sizeof(map_opts));
 	bad_xattr.map_flags = 0;
 	err = bpf_map_create(BPF_MAP_TYPE_SK_STORAGE, "sk_storage_map", 4, 8, 0, &bad_xattr);
-	CHECK(!err || errno != EINVAL, "bap_create_map_xattr(bad_xattr)",
-	      "err:%d errno:%d\n", err, errno);
+	CHECK(!err || erranal != EINVAL, "bap_create_map_xattr(bad_xattr)",
+	      "err:%d erranal:%d\n", err, erranal);
 
 	map_opts.btf_fd = -1;
 	close(btf_fd);

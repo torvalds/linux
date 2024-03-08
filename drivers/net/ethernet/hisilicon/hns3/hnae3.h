@@ -37,7 +37,7 @@
 
 #define HNAE3_MOD_VERSION "1.0"
 
-#define HNAE3_MIN_VECTOR_NUM	2 /* first one for misc, another for IO */
+#define HNAE3_MIN_VECTOR_NUM	2 /* first one for misc, aanalther for IO */
 
 /* Device version */
 #define HNAE3_DEVICE_VERSION_V1   0x00020
@@ -214,7 +214,7 @@ enum hnae3_loop {
 	HNAE3_LOOP_SERIAL_SERDES,
 	HNAE3_LOOP_PARALLEL_SERDES,
 	HNAE3_LOOP_PHY,
-	HNAE3_LOOP_NONE,
+	HNAE3_LOOP_ANALNE,
 };
 
 enum hnae3_client_type {
@@ -224,16 +224,16 @@ enum hnae3_client_type {
 
 /* mac media type */
 enum hnae3_media_type {
-	HNAE3_MEDIA_TYPE_UNKNOWN,
+	HNAE3_MEDIA_TYPE_UNKANALWN,
 	HNAE3_MEDIA_TYPE_FIBER,
 	HNAE3_MEDIA_TYPE_COPPER,
 	HNAE3_MEDIA_TYPE_BACKPLANE,
-	HNAE3_MEDIA_TYPE_NONE,
+	HNAE3_MEDIA_TYPE_ANALNE,
 };
 
 /* must be consistent with definition in firmware */
 enum hnae3_module_type {
-	HNAE3_MODULE_TYPE_UNKNOWN	= 0x00,
+	HNAE3_MODULE_TYPE_UNKANALWN	= 0x00,
 	HNAE3_MODULE_TYPE_FIBRE_LR	= 0x01,
 	HNAE3_MODULE_TYPE_FIBRE_SR	= 0x02,
 	HNAE3_MODULE_TYPE_AOC		= 0x03,
@@ -247,11 +247,11 @@ enum hnae3_fec_mode {
 	HNAE3_FEC_BASER,
 	HNAE3_FEC_RS,
 	HNAE3_FEC_LLRS,
-	HNAE3_FEC_NONE,
+	HNAE3_FEC_ANALNE,
 	HNAE3_FEC_USER_DEF,
 };
 
-enum hnae3_reset_notify_type {
+enum hnae3_reset_analtify_type {
 	HNAE3_UP_CLIENT,
 	HNAE3_DOWN_CLIENT,
 	HNAE3_INIT_CLIENT,
@@ -274,7 +274,7 @@ enum hnae3_reset_type {
 	HNAE3_FUNC_RESET,
 	HNAE3_GLOBAL_RESET,
 	HNAE3_IMP_RESET,
-	HNAE3_NONE_RESET,
+	HNAE3_ANALNE_RESET,
 	HNAE3_VF_EXP_RESET,
 	HNAE3_MAX_RESET,
 };
@@ -283,11 +283,11 @@ enum hnae3_port_base_vlan_state {
 	HNAE3_PORT_BASE_VLAN_DISABLE,
 	HNAE3_PORT_BASE_VLAN_ENABLE,
 	HNAE3_PORT_BASE_VLAN_MODIFY,
-	HNAE3_PORT_BASE_VLAN_NOCHANGE,
+	HNAE3_PORT_BASE_VLAN_ANALCHANGE,
 };
 
 enum hnae3_dbg_cmd {
-	HNAE3_DBG_CMD_TM_NODES,
+	HNAE3_DBG_CMD_TM_ANALDES,
 	HNAE3_DBG_CMD_TM_PRI,
 	HNAE3_DBG_CMD_TM_QSET,
 	HNAE3_DBG_CMD_TM_MAP,
@@ -332,7 +332,7 @@ enum hnae3_dbg_cmd {
 	HNAE3_DBG_CMD_UMV_INFO,
 	HNAE3_DBG_CMD_PAGE_POOL_INFO,
 	HNAE3_DBG_CMD_COAL_INFO,
-	HNAE3_DBG_CMD_UNKNOWN,
+	HNAE3_DBG_CMD_UNKANALWN,
 };
 
 enum hnae3_tc_map_mode {
@@ -362,15 +362,15 @@ struct hnae3_vector_info {
 #define HNAE3_FW_VERSION_BYTE0_SHIFT	0
 #define HNAE3_FW_VERSION_BYTE0_MASK	GENMASK(7, 0)
 
-struct hnae3_ring_chain_node {
-	struct hnae3_ring_chain_node *next;
+struct hnae3_ring_chain_analde {
+	struct hnae3_ring_chain_analde *next;
 	u32 tqp_index;
 	u32 flag;
 	u32 int_gl_idx;
 };
 
-#define HNAE3_IS_TX_RING(node) \
-	(((node)->flag & 1 << HNAE3_RING_TYPE_B) == HNAE3_RING_TYPE_TX)
+#define HNAE3_IS_TX_RING(analde) \
+	(((analde)->flag & 1 << HNAE3_RING_TYPE_B) == HNAE3_RING_TYPE_TX)
 
 /* device specification info from firmware */
 struct hnae3_dev_specs {
@@ -381,7 +381,7 @@ struct hnae3_dev_specs {
 	u16 rss_key_size;
 	u16 int_ql_max; /* max value of interrupt coalesce based on INT_QL */
 	u16 max_int_gl; /* max value of interrupt coalesce based on INT_GL */
-	u8 max_non_tso_bd_num; /* max BD number of one non-TSO packet */
+	u8 max_analn_tso_bd_num; /* max BD number of one analn-TSO packet */
 	u16 max_frm_size;
 	u16 max_qset_num;
 	u16 umv_size;
@@ -394,8 +394,8 @@ struct hnae3_client_ops {
 	int (*init_instance)(struct hnae3_handle *handle);
 	void (*uninit_instance)(struct hnae3_handle *handle, bool reset);
 	void (*link_status_change)(struct hnae3_handle *handle, bool state);
-	int (*reset_notify)(struct hnae3_handle *handle,
-			    enum hnae3_reset_notify_type type);
+	int (*reset_analtify)(struct hnae3_handle *handle,
+			    enum hnae3_reset_analtify_type type);
 	void (*process_hw_error)(struct hnae3_handle *handle,
 				 enum hnae3_hw_error_type);
 };
@@ -406,14 +406,14 @@ struct hnae3_client {
 	unsigned long state;
 	enum hnae3_client_type type;
 	const struct hnae3_client_ops *ops;
-	struct list_head node;
+	struct list_head analde;
 };
 
 #define HNAE3_DEV_CAPS_MAX_NUM	96
 struct hnae3_ae_dev {
 	struct pci_dev *pdev;
 	const struct hnae3_ae_ops *ops;
-	struct list_head node;
+	struct list_head analde;
 	u32 flag;
 	unsigned long hw_err_reset_req;
 	struct hnae3_dev_specs dev_specs;
@@ -442,7 +442,7 @@ struct hnae3_ae_dev {
  *   Inform the hclge that client has been stopped
  * get_status()
  *   Get the carrier state of the back channel of the handle, 1 for ok, 0 for
- *   non-ok
+ *   analn-ok
  * get_ksettings_an_result()
  *   Get negotiation status,speed and duplex
  * get_media_type()
@@ -687,10 +687,10 @@ struct hnae3_ae_ops {
 	int (*put_vector)(struct hnae3_handle *handle, int vector_num);
 	int (*map_ring_to_vector)(struct hnae3_handle *handle,
 				  int vector_num,
-				  struct hnae3_ring_chain_node *vr_chain);
+				  struct hnae3_ring_chain_analde *vr_chain);
 	int (*unmap_ring_from_vector)(struct hnae3_handle *handle,
 				      int vector_num,
-				      struct hnae3_ring_chain_node *vr_chain);
+				      struct hnae3_ring_chain_analde *vr_chain);
 
 	int (*reset_queue)(struct hnae3_handle *handle);
 	u32 (*get_fw_version)(struct hnae3_handle *handle);
@@ -773,7 +773,7 @@ struct hnae3_ae_ops {
 			    u32 nsec, u32 sec);
 	int (*get_ts_info)(struct hnae3_handle *handle,
 			   struct ethtool_ts_info *info);
-	int (*get_link_diagnosis_info)(struct hnae3_handle *handle,
+	int (*get_link_diaganalsis_info)(struct hnae3_handle *handle,
 				       u32 *status_code);
 	void (*clean_vf_config)(struct hnae3_ae_dev *ae_dev, int num_vfs);
 	int (*get_dscp_prio)(struct hnae3_handle *handle, u8 dscp,
@@ -803,7 +803,7 @@ struct hnae3_dcb_ops {
 
 struct hnae3_ae_algo {
 	const struct hnae3_ae_ops *ops;
-	struct list_head node;
+	struct list_head analde;
 	const struct pci_device_id *pdev_id_table;
 };
 
@@ -895,7 +895,7 @@ struct hnae3_handle {
 		struct hnae3_roce_private_info rinfo;
 	};
 
-	u32 numa_node_mask;	/* for multi-chip support */
+	u32 numa_analde_mask;	/* for multi-chip support */
 
 	enum hnae3_port_base_vlan_state port_base_vlan_state;
 

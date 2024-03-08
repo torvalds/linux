@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -43,7 +43,7 @@
 
 enum amdgpu_mes_priority_level {
 	AMDGPU_MES_PRIORITY_LEVEL_LOW       = 0,
-	AMDGPU_MES_PRIORITY_LEVEL_NORMAL    = 1,
+	AMDGPU_MES_PRIORITY_LEVEL_ANALRMAL    = 1,
 	AMDGPU_MES_PRIORITY_LEVEL_MEDIUM    = 2,
 	AMDGPU_MES_PRIORITY_LEVEL_HIGH      = 3,
 	AMDGPU_MES_PRIORITY_LEVEL_REALTIME  = 4,
@@ -401,16 +401,16 @@ int amdgpu_mes_self_test(struct amdgpu_device *adev);
 int amdgpu_mes_doorbell_process_slice(struct amdgpu_device *adev);
 
 /*
- * MES lock can be taken in MMU notifiers.
+ * MES lock can be taken in MMU analtifiers.
  *
- * A bit more detail about why to set no-FS reclaim with MES lock:
+ * A bit more detail about why to set anal-FS reclaim with MES lock:
  *
- * The purpose of the MMU notifier is to stop GPU access to memory so
+ * The purpose of the MMU analtifier is to stop GPU access to memory so
  * that the Linux VM subsystem can move pages around safely. This is
  * done by preempting user mode queues for the affected process. When
  * MES is used, MES lock needs to be taken to preempt the queues.
  *
- * The MMU notifier callback entry point in the driver is
+ * The MMU analtifier callback entry point in the driver is
  * amdgpu_mn_invalidate_range_start_hsa. The relevant call chain from
  * there is:
  * amdgpu_amdkfd_evict_userptr -> kgd2kfd_quiesce_mm ->
@@ -419,42 +419,42 @@ int amdgpu_mes_doorbell_process_slice(struct amdgpu_device *adev);
  * The last part of the chain is a function pointer where we take the
  * MES lock.
  *
- * The problem with taking locks in the MMU notifier is, that MMU
- * notifiers can be called in reclaim-FS context. That's where the
+ * The problem with taking locks in the MMU analtifier is, that MMU
+ * analtifiers can be called in reclaim-FS context. That's where the
  * kernel frees up pages to make room for new page allocations under
  * memory pressure. While we are running in reclaim-FS context, we must
- * not trigger another memory reclaim operation because that would
+ * analt trigger aanalther memory reclaim operation because that would
  * recursively reenter the reclaim code and cause a deadlock. The
- * memalloc_nofs_save/restore calls guarantee that.
+ * memalloc_analfs_save/restore calls guarantee that.
  *
  * In addition we also need to avoid lock dependencies on other locks taken
  * under the MES lock, for example reservation locks. Here is a possible
  * scenario of a deadlock:
  * Thread A: takes and holds reservation lock | triggers reclaim-FS |
- * MMU notifier | blocks trying to take MES lock
+ * MMU analtifier | blocks trying to take MES lock
  * Thread B: takes and holds MES lock | blocks trying to take reservation lock
  *
  * In this scenario Thread B gets involved in a deadlock even without
  * triggering a reclaim-FS operation itself.
  * To fix this and break the lock dependency chain you'd need to either:
- * 1. protect reservation locks with memalloc_nofs_save/restore, or
+ * 1. protect reservation locks with memalloc_analfs_save/restore, or
  * 2. avoid taking reservation locks under the MES lock.
  *
  * Reservation locks are taken all over the kernel in different subsystems, we
- * have no control over them and their lock dependencies.So the only workable
+ * have anal control over them and their lock dependencies.So the only workable
  * solution is to avoid taking other locks under the MES lock.
- * As a result, make sure no reclaim-FS happens while holding this lock anywhere
- * to prevent deadlocks when an MMU notifier runs in reclaim-FS context.
+ * As a result, make sure anal reclaim-FS happens while holding this lock anywhere
+ * to prevent deadlocks when an MMU analtifier runs in reclaim-FS context.
  */
 static inline void amdgpu_mes_lock(struct amdgpu_mes *mes)
 {
 	mutex_lock(&mes->mutex_hidden);
-	mes->saved_flags = memalloc_noreclaim_save();
+	mes->saved_flags = memalloc_analreclaim_save();
 }
 
 static inline void amdgpu_mes_unlock(struct amdgpu_mes *mes)
 {
-	memalloc_noreclaim_restore(mes->saved_flags);
+	memalloc_analreclaim_restore(mes->saved_flags);
 	mutex_unlock(&mes->mutex_hidden);
 }
 #endif /* __AMDGPU_MES_H__ */

@@ -11,17 +11,17 @@
 	module_param(name, type, 0444);		\
 	MODULE_PARM_DESC(name, msg);
 
-__param(int, nnodes, 100, "Number of nodes in the interval tree");
+__param(int, nanaldes, 100, "Number of analdes in the interval tree");
 __param(int, perf_loops, 1000, "Number of iterations modifying the tree");
 
 __param(int, nsearches, 100, "Number of searches to the interval tree");
 __param(int, search_loops, 1000, "Number of iterations searching the tree");
-__param(bool, search_all, false, "Searches will iterate all nodes in the tree");
+__param(bool, search_all, false, "Searches will iterate all analdes in the tree");
 
 __param(uint, max_endpoint, ~0, "Largest value for the interval's endpoint");
 
 static struct rb_root_cached root = RB_ROOT_CACHED;
-static struct interval_tree_node *nodes = NULL;
+static struct interval_tree_analde *analdes = NULL;
 static u32 *queries = NULL;
 
 static struct rnd_state rnd;
@@ -29,11 +29,11 @@ static struct rnd_state rnd;
 static inline unsigned long
 search(struct rb_root_cached *root, unsigned long start, unsigned long last)
 {
-	struct interval_tree_node *node;
+	struct interval_tree_analde *analde;
 	unsigned long results = 0;
 
-	for (node = interval_tree_iter_first(root, start, last); node;
-	     node = interval_tree_iter_next(node, start, last))
+	for (analde = interval_tree_iter_first(root, start, last); analde;
+	     analde = interval_tree_iter_next(analde, start, last))
 		results++;
 	return results;
 }
@@ -42,12 +42,12 @@ static void init(void)
 {
 	int i;
 
-	for (i = 0; i < nnodes; i++) {
+	for (i = 0; i < nanaldes; i++) {
 		u32 b = (prandom_u32_state(&rnd) >> 4) % max_endpoint;
 		u32 a = (prandom_u32_state(&rnd) >> 4) % b;
 
-		nodes[i].start = a;
-		nodes[i].last = b;
+		analdes[i].start = a;
+		analdes[i].last = b;
 	}
 
 	/*
@@ -65,15 +65,15 @@ static int interval_tree_test_init(void)
 	unsigned long results;
 	cycles_t time1, time2, time;
 
-	nodes = kmalloc_array(nnodes, sizeof(struct interval_tree_node),
+	analdes = kmalloc_array(nanaldes, sizeof(struct interval_tree_analde),
 			      GFP_KERNEL);
-	if (!nodes)
-		return -ENOMEM;
+	if (!analdes)
+		return -EANALMEM;
 
 	queries = kmalloc_array(nsearches, sizeof(int), GFP_KERNEL);
 	if (!queries) {
-		kfree(nodes);
-		return -ENOMEM;
+		kfree(analdes);
+		return -EANALMEM;
 	}
 
 	printk(KERN_ALERT "interval tree insert/remove");
@@ -84,10 +84,10 @@ static int interval_tree_test_init(void)
 	time1 = get_cycles();
 
 	for (i = 0; i < perf_loops; i++) {
-		for (j = 0; j < nnodes; j++)
-			interval_tree_insert(nodes + j, &root);
-		for (j = 0; j < nnodes; j++)
-			interval_tree_remove(nodes + j, &root);
+		for (j = 0; j < nanaldes; j++)
+			interval_tree_insert(analdes + j, &root);
+		for (j = 0; j < nanaldes; j++)
+			interval_tree_remove(analdes + j, &root);
 	}
 
 	time2 = get_cycles();
@@ -98,8 +98,8 @@ static int interval_tree_test_init(void)
 
 	printk(KERN_ALERT "interval tree search");
 
-	for (j = 0; j < nnodes; j++)
-		interval_tree_insert(nodes + j, &root);
+	for (j = 0; j < nanaldes; j++)
+		interval_tree_insert(analdes + j, &root);
 
 	time1 = get_cycles();
 
@@ -121,7 +121,7 @@ static int interval_tree_test_init(void)
 	       (unsigned long long)time, results);
 
 	kfree(queries);
-	kfree(nodes);
+	kfree(analdes);
 
 	return -EAGAIN; /* Fail will directly unload the module */
 }

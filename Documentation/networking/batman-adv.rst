@@ -4,17 +4,17 @@
 batman-adv
 ==========
 
-Batman advanced is a new approach to wireless networking which does no longer
+Batman advanced is a new approach to wireless networking which does anal longer
 operate on the IP basis. Unlike the batman daemon, which exchanges information
 using UDP packets and sets routing tables, batman-advanced operates on ISO/OSI
 Layer 2 only and uses and routes (or better: bridges) Ethernet Frames. It
-emulates a virtual network switch of all nodes participating. Therefore all
-nodes appear to be link local, thus all higher operating protocols won't be
+emulates a virtual network switch of all analdes participating. Therefore all
+analdes appear to be link local, thus all higher operating protocols won't be
 affected by any changes within the network. You can run almost any protocol
 above batman advanced, prominent examples are: IPv4, IPv6, DHCP, IPX.
 
 Batman advanced was implemented as a Linux kernel driver to reduce the overhead
-to a minimum. It does not depend on any (other) network driver, and can be used
+to a minimum. It does analt depend on any (other) network driver, and can be used
 on wifi as well as ethernet lan, vpn, etc ... (anything with ethernet-style
 layer 2).
 
@@ -26,7 +26,7 @@ Load the batman-adv module into your kernel::
 
   $ insmod batman-adv.ko
 
-The module is now waiting for activation. You must add some interfaces on which
+The module is analw waiting for activation. You must add some interfaces on which
 batman-adv can operate. The batman-adv soft-interface can be created using the
 iproute2 tool ``ip``::
 
@@ -36,12 +36,12 @@ To activate a given interface simply attach it to the ``bat0`` interface::
 
   $ ip link set dev eth0 master bat0
 
-Repeat this step for all interfaces you wish to add. Now batman-adv starts
+Repeat this step for all interfaces you wish to add. Analw batman-adv starts
 using/broadcasting on this/these interface(s).
 
 To deactivate an interface you have to detach it from the "bat0" interface::
 
-  $ ip link set dev eth0 nomaster
+  $ ip link set dev eth0 analmaster
 
 The same can also be done using the batctl interface subcommand::
 
@@ -82,7 +82,7 @@ Usage
 
 To make use of your newly created mesh, batman advanced provides a new
 interface "bat0" which you should use from this point on. All interfaces added
-to batman advanced are not relevant any longer because batman handles them for
+to batman advanced are analt relevant any longer because batman handles them for
 you. Basically, one "hands over" the data by using the batman interface and
 batman will make sure it reaches its destination.
 
@@ -90,15 +90,15 @@ The "bat0" interface can be used like any other regular interface. It needs an
 IP address which can be either statically configured or dynamically (by using
 DHCP or similar services)::
 
-  NodeA: ip link set up dev bat0
-  NodeA: ip addr add 192.168.0.1/24 dev bat0
+  AnaldeA: ip link set up dev bat0
+  AnaldeA: ip addr add 192.168.0.1/24 dev bat0
 
-  NodeB: ip link set up dev bat0
-  NodeB: ip addr add 192.168.0.2/24 dev bat0
-  NodeB: ping 192.168.0.1
+  AnaldeB: ip link set up dev bat0
+  AnaldeB: ip addr add 192.168.0.2/24 dev bat0
+  AnaldeB: ping 192.168.0.1
 
-Note: In order to avoid problems remove all IP addresses previously assigned to
-interfaces now used by batman advanced, e.g.::
+Analte: In order to avoid problems remove all IP addresses previously assigned to
+interfaces analw used by batman advanced, e.g.::
 
   $ ip addr flush dev eth0
 
@@ -142,7 +142,7 @@ batctl
 
 As batman advanced operates on layer 2, all hosts participating in the virtual
 switch are completely transparent for all protocols above layer 2. Therefore
-the common diagnosis tools do not work as expected. To overcome these problems,
+the common diaganalsis tools do analt work as expected. To overcome these problems,
 batctl was created. At the moment the batctl contains ping, traceroute, tcpdump
 and interfaces to the kernel module settings.
 

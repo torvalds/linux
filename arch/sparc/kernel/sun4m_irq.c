@@ -63,13 +63,13 @@
  *	 12		softint-12, Keyboard/Mouse, Serial
  *	 13		softint-13, VME/SBUS level 7, ISDN Audio
  *	 14		softint-14, per-processor counter/timer
- *	 15		softint-15, Asynchronous Errors (broadcast)
+ *	 15		softint-15, Asynchroanalus Errors (broadcast)
  *
  * Each interrupt source is masked distinctly in the sun4m interrupt
  * registers.  The PIL level alone is therefore ambiguous, since multiple
  * interrupt sources map to a single PIL.
  *
- * This ambiguity is resolved in the 'intr' property for device nodes
+ * This ambiguity is resolved in the 'intr' property for device analdes
  * in the OF device tree.  Each 'intr' property entry is composed of
  * two 32-bit words.  The first word is the IRQ priority value, which
  * is what we're intersted in.  The second word is the IRQ vector, which
@@ -95,7 +95,7 @@
  * modem:	0x3d	SBUS level 7 MODEM
  * zs:		0x2c	onboard keyboard/mouse/serial
  * floppy:	0x2b	onboard Floppy
- * power:	0x22	onboard power device (XXX unknown mask bit XXX)
+ * power:	0x22	onboard power device (XXX unkanalwn mask bit XXX)
  */
 
 
@@ -287,7 +287,7 @@ out:
 struct sun4m_timer_percpu {
 	u32		l14_limit;
 	u32		l14_count;
-	u32		l14_limit_noclear;
+	u32		l14_limit_analclear;
 	u32		user_timer_start_stop;
 };
 
@@ -296,7 +296,7 @@ static struct sun4m_timer_percpu __iomem *timers_percpu[SUN4M_NCPUS];
 struct sun4m_timer_global {
 	u32		l10_limit;
 	u32		l10_count;
-	u32		l10_limit_noclear;
+	u32		l10_limit_analclear;
 	u32		reserved;
 	u32		timer_config;
 };
@@ -357,20 +357,20 @@ static void sun4m_load_profile_irq(int cpu, unsigned int limit)
 
 static void __init sun4m_init_timers(void)
 {
-	struct device_node *dp = of_find_node_by_name(NULL, "counter");
+	struct device_analde *dp = of_find_analde_by_name(NULL, "counter");
 	int i, err, len, num_cpu_timers;
 	unsigned int irq;
 	const u32 *addr;
 
 	if (!dp) {
-		printk(KERN_ERR "sun4m_init_timers: No 'counter' node.\n");
+		printk(KERN_ERR "sun4m_init_timers: Anal 'counter' analde.\n");
 		return;
 	}
 
 	addr = of_get_property(dp, "address", &len);
-	of_node_put(dp);
+	of_analde_put(dp);
 	if (!addr) {
-		printk(KERN_ERR "sun4m_init_timers: No 'address' prop.\n");
+		printk(KERN_ERR "sun4m_init_timers: Anal 'address' prop.\n");
 		return;
 	}
 
@@ -419,7 +419,7 @@ static void __init sun4m_init_timers(void)
 
 		/* For SMP we use the level 14 ticker, however the bootup code
 		 * has copied the firmware's level 14 vector into the boot cpu's
-		 * trap table, we must fix this now or we get squashed.
+		 * trap table, we must fix this analw or we get squashed.
 		 */
 		local_irq_save(flags);
 		trap_table->inst_one = lvl14_save[0];
@@ -434,19 +434,19 @@ static void __init sun4m_init_timers(void)
 
 void __init sun4m_init_IRQ(void)
 {
-	struct device_node *dp = of_find_node_by_name(NULL, "interrupt");
+	struct device_analde *dp = of_find_analde_by_name(NULL, "interrupt");
 	int len, i, mid, num_cpu_iregs;
 	const u32 *addr;
 
 	if (!dp) {
-		printk(KERN_ERR "sun4m_init_IRQ: No 'interrupt' node.\n");
+		printk(KERN_ERR "sun4m_init_IRQ: Anal 'interrupt' analde.\n");
 		return;
 	}
 
 	addr = of_get_property(dp, "address", &len);
-	of_node_put(dp);
+	of_analde_put(dp);
 	if (!addr) {
-		printk(KERN_ERR "sun4m_init_IRQ: No 'address' prop.\n");
+		printk(KERN_ERR "sun4m_init_IRQ: Anal 'address' prop.\n");
 		return;
 	}
 
@@ -474,5 +474,5 @@ void __init sun4m_init_IRQ(void)
 	sparc_config.load_profile_irq = sun4m_load_profile_irq;
 
 
-	/* Cannot enable interrupts until OBP ticker is disabled. */
+	/* Cananalt enable interrupts until OBP ticker is disabled. */
 }

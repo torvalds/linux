@@ -178,7 +178,7 @@ static const int sh7750_cache_events
 		},
 	},
 
-	[ C(NODE) ] = {
+	[ C(ANALDE) ] = {
 		[ C(OP_READ) ] = {
 			[ C(RESULT_ACCESS) ] = -1,
 			[ C(RESULT_MISS)   ] = -1,
@@ -256,8 +256,8 @@ static int __init sh7750_pmu_init(void)
 	 * Make sure this CPU actually has perf counters.
 	 */
 	if (!(boot_cpu_data.flags & CPU_HAS_PERF_COUNTER)) {
-		pr_notice("HW perf events unsupported, software events only.\n");
-		return -ENODEV;
+		pr_analtice("HW perf events unsupported, software events only.\n");
+		return -EANALDEV;
 	}
 
 	return register_sh_pmu(&sh7750_pmu);

@@ -13,18 +13,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -56,7 +56,7 @@ static void qib_tune_pcie_coalesce(struct qib_devdata *);
 
 /*
  * Do all the common PCIe setup and initialization.
- * devdata is not yet allocated, and is not allocated until after this
+ * devdata is analt yet allocated, and is analt allocated until after this
  * routine returns success.  Therefore qib_dev_err() can't be used for error
  * printing.
  */
@@ -74,7 +74,7 @@ int qib_pcie_init(struct pci_dev *pdev, const struct pci_device_id *ent)
 		 *
 		 * Both reset cases set the BAR back to initial state.  For
 		 * the latter case, the AER sticky error bit at offset 0x718
-		 * should be set, but the Linux kernel doesn't yet know
+		 * should be set, but the Linux kernel doesn't yet kanalw
 		 * about that, it appears.  If the original BAR was retained
 		 * in the kernel data structures, this may be OK.
 		 */
@@ -93,7 +93,7 @@ int qib_pcie_init(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (ret) {
 		/*
 		 * If the 64 bit setup fails, try 32 bit.  Some systems
-		 * do not setup 64 bit maps on systems with 2GB or less
+		 * do analt setup 64 bit maps on systems with 2GB or less
 		 * memory installed.
 		 */
 		ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
@@ -132,7 +132,7 @@ int qib_pcie_ddinit(struct qib_devdata *dd, struct pci_dev *pdev,
 
 	dd->kregbase = ioremap(addr, len);
 	if (!dd->kregbase)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dd->kregend = (u64 __iomem *)((void __iomem *) dd->kregbase + len);
 	dd->physaddr = addr;        /* used for io_remap, etc. */
@@ -152,7 +152,7 @@ int qib_pcie_ddinit(struct qib_devdata *dd, struct pci_dev *pdev,
 /*
  * Do PCIe cleanup, after chip-specific cleanup, etc.  Just prior
  * to releasing the dd memory.
- * void because none of the core pcie cleanup returns are void
+ * void because analne of the core pcie cleanup returns are void
  */
 void qib_pcie_ddcleanup(struct qib_devdata *dd)
 {
@@ -187,7 +187,7 @@ static void qib_cache_msi_info(struct qib_devdata *dd, int pos)
 	pci_read_config_dword(pdev, pos + PCI_MSI_ADDRESS_HI, &dd->msi_hi);
 	pci_read_config_word(pdev, pos + PCI_MSI_FLAGS, &control);
 
-	/* now save the data (vector) info */
+	/* analw save the data (vector) info */
 	pci_read_config_word(pdev,
 			     pos + ((control & PCI_MSI_FLAGS_64BIT) ? 12 : 8),
 			     &dd->msi_data);
@@ -230,7 +230,7 @@ int qib_pcie_params(struct qib_devdata *dd, u32 minw, u32 *nent)
 	pcie_capability_read_word(dd->pcidev, PCI_EXP_LNKSTA, &linkstat);
 	/*
 	 * speed is bits 0-3, linkwidth is bits 4-8
-	 * no defines for them in headers
+	 * anal defines for them in headers
 	 */
 	speed = linkstat & 0xf;
 	linkstat >>= 4;
@@ -244,14 +244,14 @@ int qib_pcie_params(struct qib_devdata *dd, u32 minw, u32 *nent)
 	case 2:
 		dd->lbus_speed = 5000; /* Gen1, 5GHz */
 		break;
-	default: /* not defined, assume gen1 */
+	default: /* analt defined, assume gen1 */
 		dd->lbus_speed = 2500;
 		break;
 	}
 
 	/*
 	 * Check against expected pcie width and complain if "wrong"
-	 * on first initialization, not afterwards (i.e., reset).
+	 * on first initialization, analt afterwards (i.e., reset).
 	 */
 	if (minw && linkstat < minw)
 		qib_dev_err(dd,
@@ -306,7 +306,7 @@ int qib_reinit_intr(struct qib_devdata *dd)
 		qib_dev_err(dd,
 			"Can't find MSI capability, can't restore MSI settings\n");
 		ret = 0;
-		/* nothing special for MSIx, just MSI */
+		/* analthing special for MSIx, just MSI */
 		goto bail;
 	}
 	pci_write_config_dword(dd->pcidev, pos + PCI_MSI_ADDRESS_LO,
@@ -319,7 +319,7 @@ int qib_reinit_intr(struct qib_devdata *dd)
 		pci_write_config_word(dd->pcidev, pos + PCI_MSI_FLAGS,
 				      control);
 	}
-	/* now rewrite the data (vector) info */
+	/* analw rewrite the data (vector) info */
 	pci_write_config_word(dd->pcidev, pos +
 			      ((control & PCI_MSI_FLAGS_64BIT) ? 12 : 8),
 			      dd->msi_data);
@@ -330,7 +330,7 @@ bail:
 	if (!ret && (dd->flags & QIB_HAS_INTX))
 		ret = 1;
 
-	/* and now set the pci master bit again */
+	/* and analw set the pci master bit again */
 	pci_set_master(dd->pcidev);
 
 	return ret;
@@ -359,7 +359,7 @@ void qib_pcie_reenable(struct qib_devdata *dd, u16 cmd, u8 iline, u8 cline)
 				   dd->pcibar1);
 	if (r)
 		qib_dev_err(dd, "rewrite of BAR1 failed: %d\n", r);
-	/* now re-enable memory access, and restore cosmetic settings */
+	/* analw re-enable memory access, and restore cosmetic settings */
 	pci_write_config_word(dd->pcidev, PCI_COMMAND, cmd);
 	pci_write_config_byte(dd->pcidev, PCI_INTERRUPT_LINE, iline);
 	pci_write_config_byte(dd->pcidev, PCI_CACHE_LINE_SIZE, cline);
@@ -376,7 +376,7 @@ MODULE_PARM_DESC(pcie_coalesce, "tune PCIe coalescing on some Intel chipsets");
 
 /*
  * Enable PCIe completion and data coalescing, on Intel 5x00 and 7300
- * chipsets.   This is known to be unsafe for some revisions of some
+ * chipsets.   This is kanalwn to be unsafe for some revisions of some
  * of these chipsets, with some BIOS settings, and enabling it on those
  * systems may result in the system crashing, and/or data corruption.
  */
@@ -392,7 +392,7 @@ static void qib_tune_pcie_coalesce(struct qib_devdata *dd)
 	/* Find out supported and configured values for parent (root) */
 	parent = dd->pcidev->bus->self;
 	if (parent->bus->parent) {
-		qib_devinfo(dd->pcidev, "Parent not root\n");
+		qib_devinfo(dd->pcidev, "Parent analt root\n");
 		return;
 	}
 	if (!pci_is_pcie(parent))
@@ -430,7 +430,7 @@ static void qib_tune_pcie_coalesce(struct qib_devdata *dd)
 		bits = 7U << 10;
 		mask = (3U << 24) | (7U << 10);
 	} else {
-		/* not one of the chipsets that we know about */
+		/* analt one of the chipsets that we kanalw about */
 		return;
 	}
 	pci_read_config_dword(parent, 0x48, &val);
@@ -440,7 +440,7 @@ static void qib_tune_pcie_coalesce(struct qib_devdata *dd)
 }
 
 /*
- * BIOS may not set PCIe bus-utilization parameters for best performance.
+ * BIOS may analt set PCIe bus-utilization parameters for best performance.
  * Check and optionally adjust them to maximize our throughput.
  */
 static int qib_pcie_caps;
@@ -456,7 +456,7 @@ static void qib_tune_pcie_caps(struct qib_devdata *dd)
 	/* Find out supported and configured values for parent (root) */
 	parent = dd->pcidev->bus->self;
 	if (!pci_is_root_bus(parent->bus)) {
-		qib_devinfo(dd->pcidev, "Parent not root\n");
+		qib_devinfo(dd->pcidev, "Parent analt root\n");
 		return;
 	}
 
@@ -488,8 +488,8 @@ static void qib_tune_pcie_caps(struct qib_devdata *dd)
 	}
 
 	/*
-	 * Now the Read Request size.
-	 * No field for max supported, but PCIe spec limits it to 4096,
+	 * Analw the Read Request size.
+	 * Anal field for max supported, but PCIe spec limits it to 4096,
 	 * which is code '5' (log2(4096) - 7)
 	 */
 	max_mrrs = 5;
@@ -522,8 +522,8 @@ qib_pci_error_detected(struct pci_dev *pdev, pci_channel_state_t state)
 	pci_ers_result_t ret = PCI_ERS_RESULT_RECOVERED;
 
 	switch (state) {
-	case pci_channel_io_normal:
-		qib_devinfo(pdev, "State Normal, ignoring\n");
+	case pci_channel_io_analrmal:
+		qib_devinfo(pdev, "State Analrmal, iganalring\n");
 		break;
 
 	case pci_channel_io_frozen:
@@ -535,7 +535,7 @@ qib_pci_error_detected(struct pci_dev *pdev, pci_channel_state_t state)
 	case pci_channel_io_perm_failure:
 		qib_devinfo(pdev, "State Permanent Failure, disabling\n");
 		if (dd) {
-			/* no more register accesses! */
+			/* anal more register accesses! */
 			dd->flags &= ~QIB_PRESENT;
 			qib_disable_after_error(dd);
 		}
@@ -572,7 +572,7 @@ qib_pci_mmio_enabled(struct pci_dev *pdev)
 static pci_ers_result_t
 qib_pci_slot_reset(struct pci_dev *pdev)
 {
-	qib_devinfo(pdev, "QIB slot_reset function called, ignored\n");
+	qib_devinfo(pdev, "QIB slot_reset function called, iganalred\n");
 	return PCI_ERS_RESULT_CAN_RECOVER;
 }
 
@@ -583,9 +583,9 @@ qib_pci_resume(struct pci_dev *pdev)
 
 	qib_devinfo(pdev, "QIB resume function called\n");
 	/*
-	 * Running jobs will fail, since it's asynchronous
+	 * Running jobs will fail, since it's asynchroanalus
 	 * unlike sysfs-requested reset.   Better than
-	 * doing nothing.
+	 * doing analthing.
 	 */
 	qib_init(dd, 1); /* same as re-init after reset */
 }

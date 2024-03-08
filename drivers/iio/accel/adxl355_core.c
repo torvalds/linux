@@ -69,8 +69,8 @@ static const struct regmap_range adxl355_read_reg_range[] = {
 };
 
 const struct regmap_access_table adxl355_readable_regs_tbl = {
-	.yes_ranges = adxl355_read_reg_range,
-	.n_yes_ranges = ARRAY_SIZE(adxl355_read_reg_range),
+	.anal_ranges = adxl355_read_reg_range,
+	.n_anal_ranges = ARRAY_SIZE(adxl355_read_reg_range),
 };
 EXPORT_SYMBOL_NS_GPL(adxl355_readable_regs_tbl, IIO_ADXL355);
 
@@ -79,8 +79,8 @@ static const struct regmap_range adxl355_write_reg_range[] = {
 };
 
 const struct regmap_access_table adxl355_writeable_regs_tbl = {
-	.yes_ranges = adxl355_write_reg_range,
-	.n_yes_ranges = ARRAY_SIZE(adxl355_write_reg_range),
+	.anal_ranges = adxl355_write_reg_range,
+	.n_anal_ranges = ARRAY_SIZE(adxl355_write_reg_range),
 };
 EXPORT_SYMBOL_NS_GPL(adxl355_writeable_regs_tbl, IIO_ADXL355);
 
@@ -302,7 +302,7 @@ static int adxl355_setup(struct adxl355_data *data)
 
 	if (regval != ADXL355_DEVID_AD_VAL) {
 		dev_err(data->dev, "Invalid ADI ID 0x%02x\n", regval);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ret = regmap_read(data->regmap, ADXL355_DEVID_MST_REG, &regval);
@@ -311,7 +311,7 @@ static int adxl355_setup(struct adxl355_data *data)
 
 	if (regval != ADXL355_DEVID_MST_VAL) {
 		dev_err(data->dev, "Invalid MEMS ID 0x%02x\n", regval);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ret = regmap_read(data->regmap, ADXL355_PARTID_REG, &regval);
@@ -524,7 +524,7 @@ static int adxl355_read_raw(struct iio_dev *indio_dev,
 		case IIO_ACCEL:
 			*val = data->chip_info->accel_scale.integer;
 			*val2 = data->chip_info->accel_scale.decimal;
-			return IIO_VAL_INT_PLUS_NANO;
+			return IIO_VAL_INT_PLUS_NAANAL;
 		default:
 			return -EINVAL;
 		}
@@ -649,29 +649,29 @@ static irqreturn_t adxl355_trigger_handler(int irq, void *p)
 	ret = regmap_bulk_read(data->regmap, ADXL355_XDATA3_REG,
 			       &data->buffer.buf[1], 3);
 	if (ret)
-		goto out_unlock_notify;
+		goto out_unlock_analtify;
 
 	ret = regmap_bulk_read(data->regmap, ADXL355_YDATA3_REG,
 			       &data->buffer.buf[5], 3);
 	if (ret)
-		goto out_unlock_notify;
+		goto out_unlock_analtify;
 
 	ret = regmap_bulk_read(data->regmap, ADXL355_ZDATA3_REG,
 			       &data->buffer.buf[9], 3);
 	if (ret)
-		goto out_unlock_notify;
+		goto out_unlock_analtify;
 
 	ret = regmap_bulk_read(data->regmap, ADXL355_TEMP2_REG,
 			       &data->buffer.buf[12], 2);
 	if (ret)
-		goto out_unlock_notify;
+		goto out_unlock_analtify;
 
 	iio_push_to_buffers_with_timestamp(indio_dev, &data->buffer,
 					   pf->timestamp);
 
-out_unlock_notify:
+out_unlock_analtify:
 	mutex_unlock(&data->lock);
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -729,7 +729,7 @@ static int adxl355_probe_trigger(struct iio_dev *indio_dev, int irq)
 						   indio_dev->name,
 						   iio_device_id(indio_dev));
 	if (!data->dready_trig)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->dready_trig->ops = &adxl355_trigger_ops;
 	iio_trigger_set_drvdata(data->dready_trig, indio_dev);
@@ -762,7 +762,7 @@ int adxl355_core_probe(struct device *dev, struct regmap *regmap,
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = iio_priv(indio_dev);
 	data->regmap = regmap;
@@ -792,7 +792,7 @@ int adxl355_core_probe(struct device *dev, struct regmap *regmap,
 		return ret;
 	}
 
-	irq = fwnode_irq_get_byname(dev_fwnode(dev), "DRDY");
+	irq = fwanalde_irq_get_byname(dev_fwanalde(dev), "DRDY");
 	if (irq > 0) {
 		ret = adxl355_probe_trigger(indio_dev, irq);
 		if (ret)

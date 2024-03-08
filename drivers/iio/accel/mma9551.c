@@ -153,7 +153,7 @@ static int mma9551_read_event_config(struct iio_dev *indio_dev,
 
 	switch (chan->type) {
 	case IIO_INCLI:
-		/* IIO counts axes from 1, because IIO_NO_MOD is 0. */
+		/* IIO counts axes from 1, because IIO_ANAL_MOD is 0. */
 		return data->event_enabled[chan->channel2 - 1];
 	default:
 		return -EINVAL;
@@ -168,7 +168,7 @@ static int mma9551_config_incli_event(struct iio_dev *indio_dev,
 	enum mma9551_tilt_axis mma_axis;
 	int ret;
 
-	/* IIO counts axes from 1, because IIO_NO_MOD is 0. */
+	/* IIO counts axes from 1, because IIO_ANAL_MOD is 0. */
 	mma_axis = axis - 1;
 
 	if (data->event_enabled[mma_axis] == state)
@@ -177,7 +177,7 @@ static int mma9551_config_incli_event(struct iio_dev *indio_dev,
 	if (state == 0) {
 		ret = mma9551_gpio_config(data->client,
 					  (enum mma9551_gpio_pin)mma_axis,
-					  MMA9551_APPID_NONE, 0, 0);
+					  MMA9551_APPID_ANALNE, 0, 0);
 		if (ret < 0)
 			return ret;
 
@@ -428,7 +428,7 @@ static int mma9551_gpio_probe(struct iio_dev *indio_dev)
 			return ret;
 		}
 
-		dev_dbg(dev, "gpio resource, no:%d irq:%d\n",
+		dev_dbg(dev, "gpio resource, anal:%d irq:%d\n",
 			desc_to_gpio(gpio), data->irqs[i]);
 	}
 
@@ -456,7 +456,7 @@ static int mma9551_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = iio_priv(indio_dev);
 	i2c_set_clientdata(client, indio_dev);

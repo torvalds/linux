@@ -13,20 +13,20 @@
  *  are met:
  *
  *  1. Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer.
+ *     analtice, this list of conditions and the following disclaimer.
  *  2. Redistributions in binary form must reproduce the above copyright
- *     notice, this list of conditions and the following disclaimer in the
+ *     analtice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- *  3. Neither the name of the University nor the names of its
+ *  3. Neither the name of the University analr the names of its
  *     contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
  *  THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESS OR IMPLIED
- *  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+ *  WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE IMPLIED WARRANTIES OF
  *  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- *  DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+ *  DISCLAIMED. IN ANAL EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
  *  FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- *  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ *  CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF
  *  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
  *  BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
  *  LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
@@ -200,18 +200,18 @@ int nfs_idmap_init(void)
 	struct key *keyring;
 	int ret = 0;
 
-	printk(KERN_NOTICE "NFS: Registering the %s key type\n",
+	printk(KERN_ANALTICE "NFS: Registering the %s key type\n",
 		key_type_id_resolver.name);
 
 	cred = prepare_kernel_cred(&init_task);
 	if (!cred)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	keyring = keyring_alloc(".id_resolver",
 				GLOBAL_ROOT_UID, GLOBAL_ROOT_GID, cred,
 				(KEY_POS_ALL & ~KEY_POS_SETATTR) |
 				KEY_USR_VIEW | KEY_USR_READ,
-				KEY_ALLOC_NOT_IN_QUOTA, NULL, NULL);
+				KEY_ALLOC_ANALT_IN_QUOTA, NULL, NULL);
 	if (IS_ERR(keyring)) {
 		ret = PTR_ERR(keyring);
 		goto failed_put_cred;
@@ -263,7 +263,7 @@ static ssize_t nfs_idmap_get_desc(const char *name, size_t namelen,
 
 	*desc = kmalloc(desclen, GFP_KERNEL);
 	if (!*desc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cp = *desc;
 	memcpy(cp, type, typelen);
@@ -398,7 +398,7 @@ static const match_table_t nfs_idmap_tokens = {
 static int nfs_idmap_legacy_upcall(struct key *, void *);
 static ssize_t idmap_pipe_downcall(struct file *, const char __user *,
 				   size_t);
-static void idmap_release_pipe(struct inode *);
+static void idmap_release_pipe(struct ianalde *);
 static void idmap_pipe_destroy_msg(struct rpc_pipe_msg *);
 
 static const struct rpc_pipe_ops idmap_upcall_ops = {
@@ -460,7 +460,7 @@ nfs_idmap_new(struct nfs_client *clp)
 
 	idmap = kzalloc(sizeof(*idmap), GFP_KERNEL);
 	if (idmap == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&idmap->idmap_mutex);
 	idmap->user_ns = get_user_ns(clp->cl_rpcclient->cl_cred->user_ns);
@@ -585,13 +585,13 @@ static int nfs_idmap_legacy_upcall(struct key *authkey, void *aux)
 	struct idmap_msg *im;
 	struct idmap *idmap = aux;
 	struct key *key = rka->target_key;
-	int ret = -ENOKEY;
+	int ret = -EANALKEY;
 
 	if (!aux)
 		goto out1;
 
 	/* msg and im are freed in idmap_pipe_destroy_msg */
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
 		goto out1;
@@ -634,16 +634,16 @@ static int nfs_idmap_read_and_verify_message(struct idmap_msg *im,
 {
 	char id_str[NFS_UINT_MAXLEN];
 	size_t len;
-	int ret = -ENOKEY;
+	int ret = -EANALKEY;
 
-	/* ret = -ENOKEY */
+	/* ret = -EANALKEY */
 	if (upcall->im_type != im->im_type || upcall->im_conv != im->im_conv)
 		goto out;
 	switch (im->im_conv) {
 	case IDMAP_CONV_NAMETOID:
 		if (strcmp(upcall->im_name, im->im_name) != 0)
 			break;
-		/* Note: here we store the NUL terminator too */
+		/* Analte: here we store the NUL terminator too */
 		len = 1 + nfs_map_numeric_to_string(im->im_id, id_str,
 						    sizeof(id_str));
 		ret = nfs_idmap_instantiate(key, authkey, id_str, len);
@@ -665,27 +665,27 @@ static ssize_t
 idmap_pipe_downcall(struct file *filp, const char __user *src, size_t mlen)
 {
 	struct request_key_auth *rka;
-	struct rpc_inode *rpci = RPC_I(file_inode(filp));
+	struct rpc_ianalde *rpci = RPC_I(file_ianalde(filp));
 	struct idmap *idmap = (struct idmap *)rpci->private;
 	struct idmap_legacy_upcalldata *data;
 	struct key *authkey;
 	struct idmap_msg im;
 	size_t namelen_in;
-	int ret = -ENOKEY;
+	int ret = -EANALKEY;
 
 	/* If instantiation is successful, anyone waiting for key construction
-	 * will have been woken up and someone else may now have used
-	 * idmap_key_cons - so after this point we may no longer touch it.
+	 * will have been woken up and someone else may analw have used
+	 * idmap_key_cons - so after this point we may anal longer touch it.
 	 */
 	data = xchg(&idmap->idmap_upcall_data, NULL);
 	if (data == NULL)
-		goto out_noupcall;
+		goto out_analupcall;
 
 	authkey = data->authkey;
 	rka = get_request_key_auth(authkey);
 
 	if (mlen != sizeof(im)) {
-		ret = -ENOSPC;
+		ret = -EANALSPC;
 		goto out;
 	}
 
@@ -695,7 +695,7 @@ idmap_pipe_downcall(struct file *filp, const char __user *src, size_t mlen)
 	}
 
 	if (!(im.im_status & IDMAP_STATUS_SUCCESS)) {
-		ret = -ENOKEY;
+		ret = -EANALKEY;
 		goto out;
 	}
 
@@ -714,7 +714,7 @@ idmap_pipe_downcall(struct file *filp, const char __user *src, size_t mlen)
 
 out:
 	nfs_idmap_complete_pipe_upcall(data, ret);
-out_noupcall:
+out_analupcall:
 	return ret;
 }
 
@@ -726,14 +726,14 @@ idmap_pipe_destroy_msg(struct rpc_pipe_msg *msg)
 			pipe_msg);
 	struct idmap *idmap = data->idmap;
 
-	if (msg->errno)
-		nfs_idmap_abort_pipe_upcall(idmap, data, msg->errno);
+	if (msg->erranal)
+		nfs_idmap_abort_pipe_upcall(idmap, data, msg->erranal);
 }
 
 static void
-idmap_release_pipe(struct inode *inode)
+idmap_release_pipe(struct ianalde *ianalde)
 {
-	struct rpc_inode *rpci = RPC_I(inode);
+	struct rpc_ianalde *rpci = RPC_I(ianalde);
 	struct idmap *idmap = (struct idmap *)rpci->private;
 	struct idmap_legacy_upcalldata *data;
 
@@ -783,7 +783,7 @@ int nfs_map_uid_to_name(const struct nfs_server *server, kuid_t uid, char *buf, 
 	__u32 id;
 
 	id = from_kuid_munged(idmap_userns(idmap), uid);
-	if (!(server->caps & NFS_CAP_UIDGID_NOMAP))
+	if (!(server->caps & NFS_CAP_UIDGID_ANALMAP))
 		ret = nfs_idmap_lookup_name(id, "user", buf, buflen, idmap);
 	if (ret < 0)
 		ret = nfs_map_numeric_to_string(id, buf, buflen);
@@ -797,7 +797,7 @@ int nfs_map_gid_to_group(const struct nfs_server *server, kgid_t gid, char *buf,
 	__u32 id;
 
 	id = from_kgid_munged(idmap_userns(idmap), gid);
-	if (!(server->caps & NFS_CAP_UIDGID_NOMAP))
+	if (!(server->caps & NFS_CAP_UIDGID_ANALMAP))
 		ret = nfs_idmap_lookup_name(id, "group", buf, buflen, idmap);
 	if (ret < 0)
 		ret = nfs_map_numeric_to_string(id, buf, buflen);

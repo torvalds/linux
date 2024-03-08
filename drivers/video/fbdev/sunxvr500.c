@@ -39,7 +39,7 @@ struct e3d_info {
 
 	void __iomem		*ramdac;
 
-	struct device_node	*of_node;
+	struct device_analde	*of_analde;
 
 	unsigned int		width;
 	unsigned int		height;
@@ -55,9 +55,9 @@ struct e3d_info {
 
 static int e3d_get_props(struct e3d_info *ep)
 {
-	ep->width = of_getintprop_default(ep->of_node, "width", 0);
-	ep->height = of_getintprop_default(ep->of_node, "height", 0);
-	ep->depth = of_getintprop_default(ep->of_node, "depth", 8);
+	ep->width = of_getintprop_default(ep->of_analde, "width", 0);
+	ep->height = of_getintprop_default(ep->of_analde, "height", 0);
+	ep->depth = of_getintprop_default(ep->of_analde, "depth", 8);
 
 	if (!ep->width || !ep->height) {
 		printk(KERN_ERR "e3d: Critical properties missing for %s\n",
@@ -109,7 +109,7 @@ static void e3d_clut_write(struct e3d_info *ep, int index, u32 val)
 	spin_unlock_irqrestore(&ep->lock, flags);
 }
 
-static int e3d_setcolreg(unsigned regno,
+static int e3d_setcolreg(unsigned reganal,
 			 unsigned red, unsigned green, unsigned blue,
 			 unsigned transp, struct fb_info *info)
 {
@@ -118,7 +118,7 @@ static int e3d_setcolreg(unsigned regno,
 	u32 red_10, green_10, blue_10;
 	u32 value;
 
-	if (regno >= 256)
+	if (reganal >= 256)
 		return 1;
 
 	red_8 = red >> 8;
@@ -127,8 +127,8 @@ static int e3d_setcolreg(unsigned regno,
 
 	value = (blue_8 << 24) | (green_8 << 16) | (red_8 << 8);
 
-	if (info->fix.visual == FB_VISUAL_TRUECOLOR && regno < 16)
-		((u32 *)info->pseudo_palette)[regno] = value;
+	if (info->fix.visual == FB_VISUAL_TRUECOLOR && reganal < 16)
+		((u32 *)info->pseudo_palette)[reganal] = value;
 
 
 	red_10 = red >> 6;
@@ -136,7 +136,7 @@ static int e3d_setcolreg(unsigned regno,
 	blue_10 = blue >> 6;
 
 	value = (blue_10 << 20) | (green_10 << 10) | (red_10 << 0);
-	e3d_clut_write(ep, regno, value);
+	e3d_clut_write(ep, reganal, value);
 
 	return 0;
 }
@@ -145,7 +145,7 @@ static int e3d_setcolreg(unsigned regno,
  * XXX two 8bpp areas of the framebuffer work.  I imagine there is
  * XXX a WID attribute somewhere else in the framebuffer which tells
  * XXX the ramdac which of the two 8bpp framebuffer regions to take
- * XXX the pixel from.  So, for now, render into both regions to make
+ * XXX the pixel from.  So, for analw, render into both regions to make
  * XXX sure the pixel shows up.
  */
 static void e3d_imageblit(struct fb_info *info, const struct fb_image *image)
@@ -234,8 +234,8 @@ static int e3d_set_fbinfo(struct e3d_info *ep)
 	var->transp.length = 0;
 
 	if (fb_alloc_cmap(&info->cmap, 256, 0)) {
-		printk(KERN_ERR "e3d: Cannot allocate color map.\n");
-		return -ENOMEM;
+		printk(KERN_ERR "e3d: Cananalt allocate color map.\n");
+		return -EANALMEM;
 	}
 
         return 0;
@@ -244,7 +244,7 @@ static int e3d_set_fbinfo(struct e3d_info *ep)
 static int e3d_pci_register(struct pci_dev *pdev,
 			    const struct pci_device_id *ent)
 {
-	struct device_node *of_node;
+	struct device_analde *of_analde;
 	const char *device_type;
 	struct fb_info *info;
 	struct e3d_info *ep;
@@ -255,30 +255,30 @@ static int e3d_pci_register(struct pci_dev *pdev,
 	if (err)
 		return err;
 
-	of_node = pci_device_to_OF_node(pdev);
-	if (!of_node) {
-		printk(KERN_ERR "e3d: Cannot find OF node of %s\n",
+	of_analde = pci_device_to_OF_analde(pdev);
+	if (!of_analde) {
+		printk(KERN_ERR "e3d: Cananalt find OF analde of %s\n",
 		       pci_name(pdev));
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
-	device_type = of_get_property(of_node, "device_type", NULL);
+	device_type = of_get_property(of_analde, "device_type", NULL);
 	if (!device_type) {
-		printk(KERN_INFO "e3d: Ignoring secondary output device "
+		printk(KERN_INFO "e3d: Iganalring secondary output device "
 		       "at %s\n", pci_name(pdev));
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	err = pci_enable_device(pdev);
 	if (err < 0) {
-		printk(KERN_ERR "e3d: Cannot enable PCI device %s\n",
+		printk(KERN_ERR "e3d: Cananalt enable PCI device %s\n",
 		       pci_name(pdev));
 		goto err_out;
 	}
 
 	info = framebuffer_alloc(sizeof(struct e3d_info), &pdev->dev);
 	if (!info) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_disable;
 	}
 
@@ -286,7 +286,7 @@ static int e3d_pci_register(struct pci_dev *pdev,
 	ep->info = info;
 	ep->pdev = pdev;
 	spin_lock_init(&ep->lock);
-	ep->of_node = of_node;
+	ep->of_analde = of_analde;
 
 	/* Read the PCI base register of the frame buffer, which we
 	 * need in order to interpret the RAMDAC_VID_*FB* values in
@@ -299,13 +299,13 @@ static int e3d_pci_register(struct pci_dev *pdev,
 	ep->regs_base_phys = pci_resource_start (pdev, 1);
 	err = pci_request_region(pdev, 1, "e3d regs");
 	if (err < 0) {
-		printk("e3d: Cannot request region 1 for %s\n",
+		printk("e3d: Cananalt request region 1 for %s\n",
 		       pci_name(pdev));
 		goto err_release_fb;
 	}
 	ep->ramdac = ioremap(ep->regs_base_phys + 0x8000, 0x1000);
 	if (!ep->ramdac) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_release_pci1;
 	}
 
@@ -322,7 +322,7 @@ static int e3d_pci_register(struct pci_dev *pdev,
 
 	err = pci_request_region(pdev, 0, "e3d framebuffer");
 	if (err < 0) {
-		printk("e3d: Cannot request region 0 for %s\n",
+		printk("e3d: Cananalt request region 0 for %s\n",
 		       pci_name(pdev));
 		goto err_unmap_ramdac;
 	}
@@ -352,7 +352,7 @@ static int e3d_pci_register(struct pci_dev *pdev,
 
 	ep->fb_base = ioremap(ep->fb_base_phys, ep->fb_size);
 	if (!ep->fb_base) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_release_pci0;
 	}
 
@@ -366,7 +366,7 @@ static int e3d_pci_register(struct pci_dev *pdev,
 
 	err = register_framebuffer(info);
 	if (err < 0) {
-		printk(KERN_ERR "e3d: Could not register framebuffer %s\n",
+		printk(KERN_ERR "e3d: Could analt register framebuffer %s\n",
 		       pci_name(pdev));
 		goto err_free_cmap;
 	}
@@ -432,10 +432,10 @@ static struct pci_driver e3d_driver = {
 static int __init e3d_init(void)
 {
 	if (fb_modesetting_disabled("e3d"))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (fb_get_options("e3d", NULL))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return pci_register_driver(&e3d_driver);
 }

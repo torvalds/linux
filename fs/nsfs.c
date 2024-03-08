@@ -19,25 +19,25 @@ static struct vfsmount *nsfs_mnt;
 static long ns_ioctl(struct file *filp, unsigned int ioctl,
 			unsigned long arg);
 static const struct file_operations ns_file_operations = {
-	.llseek		= no_llseek,
+	.llseek		= anal_llseek,
 	.unlocked_ioctl = ns_ioctl,
 	.compat_ioctl   = compat_ptr_ioctl,
 };
 
 static char *ns_dname(struct dentry *dentry, char *buffer, int buflen)
 {
-	struct inode *inode = d_inode(dentry);
+	struct ianalde *ianalde = d_ianalde(dentry);
 	const struct proc_ns_operations *ns_ops = dentry->d_fsdata;
 
 	return dynamic_dname(buffer, buflen, "%s:[%lu]",
-		ns_ops->name, inode->i_ino);
+		ns_ops->name, ianalde->i_ianal);
 }
 
 static void ns_prune_dentry(struct dentry *dentry)
 {
-	struct inode *inode = d_inode(dentry);
-	if (inode) {
-		struct ns_common *ns = inode->i_private;
+	struct ianalde *ianalde = d_ianalde(dentry);
+	if (ianalde) {
+		struct ns_common *ns = ianalde->i_private;
 		atomic_long_set(&ns->stashed, 0);
 	}
 }
@@ -49,10 +49,10 @@ const struct dentry_operations ns_dentry_operations =
 	.d_dname	= ns_dname,
 };
 
-static void nsfs_evict(struct inode *inode)
+static void nsfs_evict(struct ianalde *ianalde)
 {
-	struct ns_common *ns = inode->i_private;
-	clear_inode(inode);
+	struct ns_common *ns = ianalde->i_private;
+	clear_ianalde(ianalde);
 	ns->ops->put(ns);
 }
 
@@ -60,7 +60,7 @@ static int __ns_get_path(struct path *path, struct ns_common *ns)
 {
 	struct vfsmount *mnt = nsfs_mnt;
 	struct dentry *dentry;
-	struct inode *inode;
+	struct ianalde *ianalde;
 	unsigned long d;
 
 	rcu_read_lock();
@@ -68,7 +68,7 @@ static int __ns_get_path(struct path *path, struct ns_common *ns)
 	if (!d)
 		goto slow;
 	dentry = (struct dentry *)d;
-	if (!lockref_get_not_dead(&dentry->d_lockref))
+	if (!lockref_get_analt_dead(&dentry->d_lockref))
 		goto slow;
 	rcu_read_unlock();
 	ns->ops->put(ns);
@@ -78,25 +78,25 @@ got_it:
 	return 0;
 slow:
 	rcu_read_unlock();
-	inode = new_inode_pseudo(mnt->mnt_sb);
-	if (!inode) {
+	ianalde = new_ianalde_pseudo(mnt->mnt_sb);
+	if (!ianalde) {
 		ns->ops->put(ns);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
-	inode->i_ino = ns->inum;
-	simple_inode_init_ts(inode);
-	inode->i_flags |= S_IMMUTABLE;
-	inode->i_mode = S_IFREG | S_IRUGO;
-	inode->i_fop = &ns_file_operations;
-	inode->i_private = ns;
+	ianalde->i_ianal = ns->inum;
+	simple_ianalde_init_ts(ianalde);
+	ianalde->i_flags |= S_IMMUTABLE;
+	ianalde->i_mode = S_IFREG | S_IRUGO;
+	ianalde->i_fop = &ns_file_operations;
+	ianalde->i_private = ns;
 
-	dentry = d_make_root(inode);	/* not the normal use, but... */
+	dentry = d_make_root(ianalde);	/* analt the analrmal use, but... */
 	if (!dentry)
-		return -ENOMEM;
+		return -EANALMEM;
 	dentry->d_fsdata = (void *)ns->ops;
 	d = atomic_long_cmpxchg(&ns->stashed, 0, (unsigned long)dentry);
 	if (d) {
-		d_delete(dentry);	/* make sure ->d_prune() does nothing */
+		d_delete(dentry);	/* make sure ->d_prune() does analthing */
 		dput(dentry);
 		cpu_relax();
 		return -EAGAIN;
@@ -112,7 +112,7 @@ int ns_get_path_cb(struct path *path, ns_get_path_helper_t *ns_get_cb,
 	do {
 		struct ns_common *ns = ns_get_cb(private_data);
 		if (!ns)
-			return -ENOENT;
+			return -EANALENT;
 		ret = __ns_get_path(path, ns);
 	} while (ret == -EAGAIN);
 
@@ -187,7 +187,7 @@ static long ns_ioctl(struct file *filp, unsigned int ioctl,
 			unsigned long arg)
 {
 	struct user_namespace *user_ns;
-	struct ns_common *ns = get_proc_ns(file_inode(filp));
+	struct ns_common *ns = get_proc_ns(file_ianalde(filp));
 	uid_t __user *argp;
 	uid_t uid;
 
@@ -208,7 +208,7 @@ static long ns_ioctl(struct file *filp, unsigned int ioctl,
 		uid = from_kuid_munged(current_user_ns(), user_ns->owner);
 		return put_user(uid, argp);
 	default:
-		return -ENOTTY;
+		return -EANALTTY;
 	}
 }
 
@@ -216,7 +216,7 @@ int ns_get_name(char *buf, size_t size, struct task_struct *task,
 			const struct proc_ns_operations *ns_ops)
 {
 	struct ns_common *ns;
-	int res = -ENOENT;
+	int res = -EANALENT;
 	const char *name;
 	ns = ns_ops->get(task);
 	if (ns) {
@@ -233,31 +233,31 @@ bool proc_ns_file(const struct file *file)
 }
 
 /**
- * ns_match() - Returns true if current namespace matches dev/ino provided.
+ * ns_match() - Returns true if current namespace matches dev/ianal provided.
  * @ns: current namespace
  * @dev: dev_t from nsfs that will be matched against current nsfs
- * @ino: ino_t from nsfs that will be matched against current nsfs
+ * @ianal: ianal_t from nsfs that will be matched against current nsfs
  *
- * Return: true if dev and ino matches the current nsfs.
+ * Return: true if dev and ianal matches the current nsfs.
  */
-bool ns_match(const struct ns_common *ns, dev_t dev, ino_t ino)
+bool ns_match(const struct ns_common *ns, dev_t dev, ianal_t ianal)
 {
-	return (ns->inum == ino) && (nsfs_mnt->mnt_sb->s_dev == dev);
+	return (ns->inum == ianal) && (nsfs_mnt->mnt_sb->s_dev == dev);
 }
 
 
 static int nsfs_show_path(struct seq_file *seq, struct dentry *dentry)
 {
-	struct inode *inode = d_inode(dentry);
+	struct ianalde *ianalde = d_ianalde(dentry);
 	const struct proc_ns_operations *ns_ops = dentry->d_fsdata;
 
-	seq_printf(seq, "%s:[%lu]", ns_ops->name, inode->i_ino);
+	seq_printf(seq, "%s:[%lu]", ns_ops->name, ianalde->i_ianal);
 	return 0;
 }
 
 static const struct super_operations nsfs_ops = {
 	.statfs = simple_statfs,
-	.evict_inode = nsfs_evict,
+	.evict_ianalde = nsfs_evict,
 	.show_path = nsfs_show_path,
 };
 
@@ -265,7 +265,7 @@ static int nsfs_init_fs_context(struct fs_context *fc)
 {
 	struct pseudo_fs_context *ctx = init_pseudo(fc, NSFS_MAGIC);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 	ctx->ops = &nsfs_ops;
 	ctx->dops = &ns_dentry_operations;
 	return 0;
@@ -274,7 +274,7 @@ static int nsfs_init_fs_context(struct fs_context *fc)
 static struct file_system_type nsfs = {
 	.name = "nsfs",
 	.init_fs_context = nsfs_init_fs_context,
-	.kill_sb = kill_anon_super,
+	.kill_sb = kill_aanaln_super,
 };
 
 void __init nsfs_init(void)
@@ -282,5 +282,5 @@ void __init nsfs_init(void)
 	nsfs_mnt = kern_mount(&nsfs);
 	if (IS_ERR(nsfs_mnt))
 		panic("can't set nsfs up\n");
-	nsfs_mnt->mnt_sb->s_flags &= ~SB_NOUSER;
+	nsfs_mnt->mnt_sb->s_flags &= ~SB_ANALUSER;
 }

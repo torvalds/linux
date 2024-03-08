@@ -4,11 +4,11 @@
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -49,7 +49,7 @@
 #define AR5K_EEPROM_INFO(_n)		(AR5K_EEPROM_INFO_BASE + (_n))
 
 #define AR5K_EEPROM_VERSION		AR5K_EEPROM_INFO(1)	/* EEPROM Version */
-#define AR5K_EEPROM_VERSION_3_0		0x3000	/* No idea what's going on before this version */
+#define AR5K_EEPROM_VERSION_3_0		0x3000	/* Anal idea what's going on before this version */
 #define AR5K_EEPROM_VERSION_3_1		0x3001	/* ob/db values for 2GHz (ar5211_rfregs) */
 #define AR5K_EEPROM_VERSION_3_2		0x3002	/* different frequency representation (eeprom_bin2freq) */
 #define AR5K_EEPROM_VERSION_3_3		0x3003	/* offsets changed, has 32 CTLs (see below) and ee_false_detect (eeprom_read_modes) */
@@ -198,7 +198,7 @@
 #define AR5K_EEPROM_PCDAC_START		1
 #define AR5K_EEPROM_PCDAC_STOP		63
 #define AR5K_EEPROM_PCDAC_STEP		1
-#define AR5K_EEPROM_NON_EDGE_M		0x40
+#define AR5K_EEPROM_ANALN_EDGE_M		0x40
 #define AR5K_EEPROM_CHANNEL_POWER	8
 #define AR5K_EEPROM_N_OBDB		4
 #define AR5K_EEPROM_OBDB_DIS		0xffff
@@ -236,7 +236,7 @@ enum ath5k_eeprom_freq_bands {
 /* fbin value for chan 2420 x2 */
 #define	AR5K_EEPROM_5413_SPUR_CHAN_2	1200
 #define	AR5K_EEPROM_SPUR_CHAN_MASK	0x3FFF
-#define	AR5K_EEPROM_NO_SPUR		0x8000
+#define	AR5K_EEPROM_ANAL_SPUR		0x8000
 #define	AR5K_SPUR_CHAN_WIDTH			87
 #define	AR5K_SPUR_SYMBOL_WIDTH_BASE_100Hz	3125
 #define	AR5K_SPUR_SYMBOL_WIDTH_TURBO_100Hz	6250
@@ -340,7 +340,7 @@ struct ath5k_chan_pcal_info {
 
 /* Per rate calibration data for each mode,
  * used for rate power table setup.
- * Note: Values in 0.5dB units */
+ * Analte: Values in 0.5dB units */
 struct ath5k_rate_pcal_info {
 	u16	freq; /* Frequency */
 	/* Power level for 6-24Mbit/s rates or
@@ -402,7 +402,7 @@ struct ath5k_edge_power {
  * @ee_margin_tx_rx: Margin in dB when final attenuation stage should be used
  *
  * @ee_false_detect: Backoff in Sensitivity (dB) on channels with spur signals
- * @ee_noise_floor_thr: Noise floor threshold in 1dB steps
+ * @ee_analise_floor_thr: Analise floor threshold in 1dB steps
  * @ee_adc_desired_size: Desired amplitude for ADC, used by AGC; in 0.5 dB steps
  * @ee_pga_desired_size: Desired output of PGA (for BB gain) in 0.5 dB steps
  * @ee_pd_gain_overlap: PD ADC curves need to overlap in 0.5dB steps (ee_map>=2)
@@ -479,8 +479,8 @@ struct ath5k_eeprom_info {
 	u8	ee_ctl[AR5K_EEPROM_MAX_CTLS];
 	struct ath5k_edge_power ee_ctl_pwr[AR5K_EEPROM_N_EDGES * AR5K_EEPROM_MAX_CTLS];
 
-	/* Noise Floor Calibration settings */
-	s16	ee_noise_floor_thr[AR5K_EEPROM_N_MODES];
+	/* Analise Floor Calibration settings */
+	s16	ee_analise_floor_thr[AR5K_EEPROM_N_MODES];
 	s8	ee_adc_desired_size[AR5K_EEPROM_N_MODES];
 	s8	ee_pga_desired_size[AR5K_EEPROM_N_MODES];
 	s8	ee_adc_desired_size_turbo[AR5K_EEPROM_N_MODES];

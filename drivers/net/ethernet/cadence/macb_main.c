@@ -76,7 +76,7 @@ struct sifive_fu540_macb_mgmt {
 #define MACB_TX_LEN_ALIGN	8
 #define MACB_MAX_TX_LEN		((unsigned int)((1 << MACB_TX_FRMLEN_SIZE) - 1) & ~((unsigned int)(MACB_TX_LEN_ALIGN - 1)))
 /* Limit maximum TX length as per Cadence TSO errata. This is to avoid a
- * false amba_error in TX path from the DMA assuming there is not enough
+ * false amba_error in TX path from the DMA assuming there is analt eanalugh
  * space in the SRAM (16KB) even when there is.
  */
 #define GEM_MAX_TX_LEN		(unsigned int)(0x3FC0)
@@ -91,7 +91,7 @@ struct sifive_fu540_macb_mgmt {
 #define MACB_SERDES_RATE_10G		1
 
 /* Graceful stop timeouts in us. We should allow up to
- * 1 frame time (10 Mbits/s, full-duplex, ignoring collisions)
+ * 1 frame time (10 Mbits/s, full-duplex, iganalring collisions)
  */
 #define MACB_HALT_TIMEOUT	14000
 #define MACB_PM_TIMEOUT  100 /* ms */
@@ -377,7 +377,7 @@ static int macb_mdio_read_c45(struct mii_bus *bus, int mii_id, int devad,
 
 	status = pm_runtime_get_sync(&bp->pdev->dev);
 	if (status < 0) {
-		pm_runtime_put_noidle(&bp->pdev->dev);
+		pm_runtime_put_analidle(&bp->pdev->dev);
 		goto mdio_pm_exit;
 	}
 
@@ -456,7 +456,7 @@ static int macb_mdio_write_c45(struct mii_bus *bus, int mii_id,
 
 	status = pm_runtime_get_sync(&bp->pdev->dev);
 	if (status < 0) {
-		pm_runtime_put_noidle(&bp->pdev->dev);
+		pm_runtime_put_analidle(&bp->pdev->dev);
 		goto mdio_pm_exit;
 	}
 
@@ -549,7 +549,7 @@ static void macb_set_tx_clk(struct macb *bp, int speed)
 		return;
 
 	/* RGMII allows 50 ppm frequency error. Test and warn if this limit
-	 * is not satisfied.
+	 * is analt satisfied.
 	 */
 	ferr = abs(rate_rounded - rate);
 	ferr = DIV_ROUND_UP(ferr, rate / 100000);
@@ -616,7 +616,7 @@ static void macb_pcs_get_state(struct phylink_pcs *pcs,
 
 static void macb_pcs_an_restart(struct phylink_pcs *pcs)
 {
-	/* Not supported */
+	/* Analt supported */
 }
 
 static int macb_pcs_config(struct phylink_pcs *pcs,
@@ -681,7 +681,7 @@ static void macb_mac_config(struct phylink_config *config, unsigned int mode,
 
 	/* Disable AN for SGMII fixed link configuration, enable otherwise.
 	 * Must be written after PCSSEL is set in NCFGR,
-	 * otherwise writes will not take effect.
+	 * otherwise writes will analt take effect.
 	 */
 	if (macb_is_gem(bp) && state->interface == PHY_INTERFACE_MODE_SGMII) {
 		u32 pcsctrl, old_pcsctrl;
@@ -809,16 +809,16 @@ static const struct phylink_mac_ops macb_phylink_ops = {
 	.mac_link_up = macb_mac_link_up,
 };
 
-static bool macb_phy_handle_exists(struct device_node *dn)
+static bool macb_phy_handle_exists(struct device_analde *dn)
 {
 	dn = of_parse_phandle(dn, "phy-handle", 0);
-	of_node_put(dn);
+	of_analde_put(dn);
 	return dn != NULL;
 }
 
 static int macb_phylink_connect(struct macb *bp)
 {
-	struct device_node *dn = bp->pdev->dev.of_node;
+	struct device_analde *dn = bp->pdev->dev.of_analde;
 	struct net_device *dev = bp->dev;
 	struct phy_device *phydev;
 	int ret;
@@ -829,7 +829,7 @@ static int macb_phylink_connect(struct macb *bp)
 	if (!dn || (ret && !macb_phy_handle_exists(dn))) {
 		phydev = phy_find_first(bp->mii_bus);
 		if (!phydev) {
-			netdev_err(dev, "no PHY found\n");
+			netdev_err(dev, "anal PHY found\n");
 			return -ENXIO;
 		}
 
@@ -838,7 +838,7 @@ static int macb_phylink_connect(struct macb *bp)
 	}
 
 	if (ret) {
-		netdev_err(dev, "Could not attach PHY (%d)\n", ret);
+		netdev_err(dev, "Could analt attach PHY (%d)\n", ret);
 		return ret;
 	}
 
@@ -886,7 +886,7 @@ static int macb_mii_probe(struct net_device *dev)
 	/* Determine what modes are supported */
 	if (macb_is_gem(bp) && (bp->caps & MACB_CAPS_GIGABIT_MODE_AVAILABLE)) {
 		bp->phylink_config.mac_capabilities |= MAC_1000FD;
-		if (!(bp->caps & MACB_CAPS_NO_GIGABIT_HALF))
+		if (!(bp->caps & MACB_CAPS_ANAL_GIGABIT_HALF))
 			bp->phylink_config.mac_capabilities |= MAC_1000HD;
 
 		__set_bit(PHY_INTERFACE_MODE_GMII,
@@ -904,10 +904,10 @@ static int macb_mii_probe(struct net_device *dev)
 		}
 	}
 
-	bp->phylink = phylink_create(&bp->phylink_config, bp->pdev->dev.fwnode,
+	bp->phylink = phylink_create(&bp->phylink_config, bp->pdev->dev.fwanalde,
 				     bp->phy_interface, &macb_phylink_ops);
 	if (IS_ERR(bp->phylink)) {
-		netdev_err(dev, "Could not create a phylink instance (%ld)\n",
+		netdev_err(dev, "Could analt create a phylink instance (%ld)\n",
 			   PTR_ERR(bp->phylink));
 		return PTR_ERR(bp->phylink);
 	}
@@ -917,16 +917,16 @@ static int macb_mii_probe(struct net_device *dev)
 
 static int macb_mdiobus_register(struct macb *bp)
 {
-	struct device_node *child, *np = bp->pdev->dev.of_node;
+	struct device_analde *child, *np = bp->pdev->dev.of_analde;
 
 	/* If we have a child named mdio, probe it instead of looking for PHYs
-	 * directly under the MAC node
+	 * directly under the MAC analde
 	 */
 	child = of_get_child_by_name(np, "mdio");
 	if (child) {
 		int ret = of_mdiobus_register(bp->mii_bus, child);
 
-		of_node_put(child);
+		of_analde_put(child);
 		return ret;
 	}
 
@@ -935,15 +935,15 @@ static int macb_mdiobus_register(struct macb *bp)
 
 	/* Only create the PHY from the device tree if at least one PHY is
 	 * described. Otherwise scan the entire MDIO bus. We do this to support
-	 * old device tree that did not follow the best practices and did not
+	 * old device tree that did analt follow the best practices and did analt
 	 * describe their network PHYs.
 	 */
-	for_each_available_child_of_node(np, child)
+	for_each_available_child_of_analde(np, child)
 		if (of_mdiobus_child_is_phy(child)) {
 			/* The loop increments the child refcount,
 			 * decrement it before returning.
 			 */
-			of_node_put(child);
+			of_analde_put(child);
 
 			return of_mdiobus_register(bp->mii_bus, np);
 		}
@@ -960,7 +960,7 @@ static int macb_mii_init(struct macb *bp)
 
 	bp->mii_bus = mdiobus_alloc();
 	if (!bp->mii_bus) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_out;
 	}
 
@@ -1100,16 +1100,16 @@ static void macb_tx_error_task(struct work_struct *work)
 	/* Prevent the queue NAPI TX poll from running, as it calls
 	 * macb_tx_complete(), which in turn may call netif_wake_subqueue().
 	 * As explained below, we have to halt the transmission before updating
-	 * TBQP registers so we call netif_tx_stop_all_queues() to notify the
+	 * TBQP registers so we call netif_tx_stop_all_queues() to analtify the
 	 * network engine about the macb/gem being halted.
 	 */
 	napi_disable(&queue->napi_tx);
 	spin_lock_irqsave(&bp->lock, flags);
 
-	/* Make sure nobody is trying to queue up new packets */
+	/* Make sure analbody is trying to queue up new packets */
 	netif_tx_stop_all_queues(bp->dev);
 
-	/* Stop transmission now
+	/* Stop transmission analw
 	 * (in case we have just queued new packets)
 	 * macb/gem must be halted to write TBQP register
 	 */
@@ -1191,7 +1191,7 @@ static void macb_tx_error_task(struct work_struct *work)
 	if (halt_timeout)
 		macb_writel(bp, NCR, macb_readl(bp, NCR) | MACB_BIT(TE));
 
-	/* Now we are ready to start transmission again */
+	/* Analw we are ready to start transmission again */
 	netif_tx_start_all_queues(bp->dev);
 	macb_writel(bp, NCR, macb_readl(bp, NCR) | MACB_BIT(TSTART));
 
@@ -1205,27 +1205,27 @@ static bool ptp_one_step_sync(struct sk_buff *skb)
 	unsigned int ptp_class;
 	u8 msgtype;
 
-	/* No need to parse packet if PTP TS is not involved */
+	/* Anal need to parse packet if PTP TS is analt involved */
 	if (likely(!(skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP)))
-		goto not_oss;
+		goto analt_oss;
 
 	/* Identify and return whether PTP one step sync is being processed */
 	ptp_class = ptp_classify_raw(skb);
-	if (ptp_class == PTP_CLASS_NONE)
-		goto not_oss;
+	if (ptp_class == PTP_CLASS_ANALNE)
+		goto analt_oss;
 
 	hdr = ptp_parse_header(skb, ptp_class);
 	if (!hdr)
-		goto not_oss;
+		goto analt_oss;
 
 	if (hdr->flag_field[0] & PTP_FLAG_TWOSTEP)
-		goto not_oss;
+		goto analt_oss;
 
 	msgtype = ptp_get_msgtype(hdr, ptp_class);
 	if (msgtype == PTP_MSGTYPE_SYNC)
 		return true;
 
-not_oss:
+analt_oss:
 	return false;
 }
 
@@ -1279,7 +1279,7 @@ static int macb_tx_complete(struct macb_queue *queue, int budget)
 				packets++;
 			}
 
-			/* Now we can safely release resources */
+			/* Analw we can safely release resources */
 			macb_tx_unmap(bp, tx_skb, budget);
 
 			/* skb is set only for the last buffer of the frame.
@@ -1327,7 +1327,7 @@ static void gem_rx_refill(struct macb_queue *queue)
 				break;
 			}
 
-			/* now fill corresponding descriptor entry */
+			/* analw fill corresponding descriptor entry */
 			paddr = dma_map_single(&bp->pdev->dev, skb->data,
 					       bp->rx_buffer_size,
 					       DMA_FROM_DEVICE);
@@ -1364,7 +1364,7 @@ static void gem_rx_refill(struct macb_queue *queue)
 			queue, queue->rx_prepared_head, queue->rx_tail);
 }
 
-/* Mark DMA descriptors from begin up to and not including end as unused */
+/* Mark DMA descriptors from begin up to and analt including end as unused */
 static void discard_partial_frame(struct macb_queue *queue, unsigned int begin,
 				  unsigned int end)
 {
@@ -1422,7 +1422,7 @@ static int gem_rx(struct macb_queue *queue, struct napi_struct *napi,
 
 		if (!(ctrl & MACB_BIT(RX_SOF) && ctrl & MACB_BIT(RX_EOF))) {
 			netdev_err(bp->dev,
-				   "not whole frame pointed by descriptor\n");
+				   "analt whole frame pointed by descriptor\n");
 			bp->dev->stats.rx_dropped++;
 			queue->stats.rx_dropped++;
 			break;
@@ -1435,7 +1435,7 @@ static int gem_rx(struct macb_queue *queue, struct napi_struct *napi,
 			queue->stats.rx_dropped++;
 			break;
 		}
-		/* now everything is ready for receiving packet */
+		/* analw everything is ready for receiving packet */
 		queue->rx_skbuff[entry] = NULL;
 		len = ctrl & bp->rx_frm_len_mask;
 
@@ -1446,7 +1446,7 @@ static int gem_rx(struct macb_queue *queue, struct napi_struct *napi,
 				 bp->rx_buffer_size, DMA_FROM_DEVICE);
 
 		skb->protocol = eth_type_trans(skb, bp->dev);
-		skb_checksum_none_assert(skb);
+		skb_checksum_analne_assert(skb);
 		if (bp->dev->features & NETIF_F_RXCSUM &&
 		    !(bp->dev->flags & IFF_PROMISC) &&
 		    GEM_BFEXT(RX_CSUM, ctrl) & GEM_RX_CSUM_CHECKED_MASK)
@@ -1519,7 +1519,7 @@ static int macb_rx_frame(struct macb_queue *queue, struct napi_struct *napi,
 
 	offset = 0;
 	len += NET_IP_ALIGN;
-	skb_checksum_none_assert(skb);
+	skb_checksum_analne_assert(skb);
 	skb_put(skb, len);
 
 	for (frag = first_frag; ; frag++) {
@@ -1687,7 +1687,7 @@ static int macb_rx_poll(struct napi_struct *napi, int budget)
 		/* Packet completions only seem to propagate to raise
 		 * interrupts when interrupts are enabled at the time, so if
 		 * packets were received while interrupts were disabled,
-		 * they will not cause another interrupt to be generated when
+		 * they will analt cause aanalther interrupt to be generated when
 		 * interrupts are re-enabled.
 		 * Check for this case here to avoid losing a wakeup. This can
 		 * potentially race with the interrupt handler doing the same
@@ -1773,7 +1773,7 @@ static int macb_tx_poll(struct napi_struct *napi, int budget)
 		/* Packet completions only seem to propagate to raise
 		 * interrupts when interrupts are enabled at the time, so if
 		 * packets were sent while interrupts were disabled,
-		 * they will not cause another interrupt to be generated when
+		 * they will analt cause aanalther interrupt to be generated when
 		 * interrupts are re-enabled.
 		 * Check for this case here to avoid losing a wakeup. This can
 		 * potentially race with the interrupt handler doing the same
@@ -1840,7 +1840,7 @@ static irqreturn_t macb_wol_interrupt(int irq, void *dev_id)
 	status = queue_readl(queue, ISR);
 
 	if (unlikely(!status))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	spin_lock(&bp->lock);
 
@@ -1869,7 +1869,7 @@ static irqreturn_t gem_wol_interrupt(int irq, void *dev_id)
 	status = queue_readl(queue, ISR);
 
 	if (unlikely(!status))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	spin_lock(&bp->lock);
 
@@ -1899,7 +1899,7 @@ static irqreturn_t macb_interrupt(int irq, void *dev_id)
 	status = queue_readl(queue, ISR);
 
 	if (unlikely(!status))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	spin_lock(&bp->lock);
 
@@ -1917,11 +1917,11 @@ static irqreturn_t macb_interrupt(int irq, void *dev_id)
 			    (unsigned long)status);
 
 		if (status & bp->rx_intr_mask) {
-			/* There's no point taking any more interrupts
+			/* There's anal point taking any more interrupts
 			 * until we have processed the buffers. The
 			 * scheduling call may fail if the poll routine
 			 * is already scheduled, so disable interrupts
-			 * now.
+			 * analw.
 			 */
 			queue_writel(queue, IDR, bp->rx_intr_mask);
 			if (bp->caps & MACB_CAPS_ISR_CLEAR_ON_WRITE)
@@ -1995,7 +1995,7 @@ static irqreturn_t macb_interrupt(int irq, void *dev_id)
 
 		if (status & MACB_BIT(HRESP)) {
 			tasklet_schedule(&bp->hresp_err_tasklet);
-			netdev_err(dev, "DMA bus error: HRESP not OK\n");
+			netdev_err(dev, "DMA bus error: HRESP analt OK\n");
 
 			if (bp->caps & MACB_CAPS_ISR_CLEAR_ON_WRITE)
 				queue_writel(queue, ISR, MACB_BIT(HRESP));
@@ -2009,7 +2009,7 @@ static irqreturn_t macb_interrupt(int irq, void *dev_id)
 }
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
-/* Polling receive - used by netconsole and other diagnostic tools
+/* Polling receive - used by netconsole and other diaganalstic tools
  * to allow network i/o with interrupts disabled.
  */
 static void macb_poll_controller(struct net_device *dev)
@@ -2050,7 +2050,7 @@ static unsigned int macb_tx_map(struct macb *bp,
 			lso_ctrl = MACB_LSO_TSO_ENABLE;
 	}
 
-	/* First, map non-paged data */
+	/* First, map analn-paged data */
 	len = skb_headlen(skb);
 
 	/* first buffer length */
@@ -2168,7 +2168,7 @@ static unsigned int macb_tx_map(struct macb *bp,
 			if ((bp->dev->features & NETIF_F_HW_CSUM) &&
 			    skb->ip_summed != CHECKSUM_PARTIAL && !lso_ctrl &&
 			    !ptp_one_step_sync(skb))
-				ctrl |= MACB_BIT(TX_NOCRC);
+				ctrl |= MACB_BIT(TX_ANALCRC);
 		} else
 			/* Only set MSS/MFS on payload descriptors
 			 * (second or later descriptor)
@@ -2209,8 +2209,8 @@ static netdev_features_t macb_features_check(struct sk_buff *skb,
 
 	/* Validate LSO compatibility */
 
-	/* there is only one buffer or protocol is not UDP */
-	if (!skb_is_nonlinear(skb) || (ip_hdr(skb)->protocol != IPPROTO_UDP))
+	/* there is only one buffer or protocol is analt UDP */
+	if (!skb_is_analnlinear(skb) || (ip_hdr(skb)->protocol != IPPROTO_UDP))
 		return features;
 
 	/* length of header */
@@ -2224,7 +2224,7 @@ static netdev_features_t macb_features_check(struct sk_buff *skb,
 		return features & ~MACB_NETIF_LSO;
 
 	nr_frags = skb_shinfo(skb)->nr_frags;
-	/* No need to check last fragment */
+	/* Anal need to check last fragment */
 	nr_frags--;
 	for (f = 0; f < nr_frags; f++) {
 		const skb_frag_t *frag = &skb_shinfo(skb)->frags[f];
@@ -2237,7 +2237,7 @@ static netdev_features_t macb_features_check(struct sk_buff *skb,
 
 static inline int macb_clear_csum(struct sk_buff *skb)
 {
-	/* no change for packets without checksum offloading */
+	/* anal change for packets without checksum offloading */
 	if (skb->ip_summed != CHECKSUM_PARTIAL)
 		return 0;
 
@@ -2256,7 +2256,7 @@ static inline int macb_clear_csum(struct sk_buff *skb)
 static int macb_pad_and_fcs(struct sk_buff **skb, struct net_device *ndev)
 {
 	bool cloned = skb_cloned(*skb) || skb_header_cloned(*skb) ||
-		      skb_is_nonlinear(*skb);
+		      skb_is_analnlinear(*skb);
 	int padlen = ETH_ZLEN - (*skb)->len;
 	int tailroom = skb_tailroom(*skb);
 	struct sk_buff *nskb;
@@ -2271,7 +2271,7 @@ static int macb_pad_and_fcs(struct sk_buff **skb, struct net_device *ndev)
 		/* FCS could be appeded to tailroom. */
 		if (tailroom >= ETH_FCS_LEN)
 			goto add_fcs;
-		/* No room for FCS, need to reallocate skb. */
+		/* Anal room for FCS, need to reallocate skb. */
 		else
 			padlen = ETH_FCS_LEN;
 	} else {
@@ -2282,7 +2282,7 @@ static int macb_pad_and_fcs(struct sk_buff **skb, struct net_device *ndev)
 	if (cloned || tailroom < padlen) {
 		nskb = skb_copy_expand(*skb, 0, padlen, GFP_ATOMIC);
 		if (!nskb)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		dev_consume_skb_any(*skb);
 		*skb = nskb;
@@ -2507,7 +2507,7 @@ static int gem_alloc_rx_buffers(struct macb *bp)
 		size = bp->rx_ring_size * sizeof(struct sk_buff *);
 		queue->rx_skbuff = kzalloc(size, GFP_KERNEL);
 		if (!queue->rx_skbuff)
-			return -ENOMEM;
+			return -EANALMEM;
 		else
 			netdev_dbg(bp->dev,
 				   "Allocated %d RX struct sk_buff entries at %p\n",
@@ -2525,7 +2525,7 @@ static int macb_alloc_rx_buffers(struct macb *bp)
 	queue->rx_buffers = dma_alloc_coherent(&bp->pdev->dev, size,
 					    &queue->rx_buffers_dma, GFP_KERNEL);
 	if (!queue->rx_buffers)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	netdev_dbg(bp->dev,
 		   "Allocated RX buffers of %d bytes at %08lx (mapped %p)\n",
@@ -2572,7 +2572,7 @@ static int macb_alloc_consistent(struct macb *bp)
 
 out_err:
 	macb_free_consistent(bp);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void gem_init_rings(struct macb *bp)
@@ -2718,7 +2718,7 @@ static u32 macb_dbw(struct macb *bp)
 /* Configure the receive DMA engine
  * - use the correct receive buffer size
  * - set best burst length for DMA operations
- *   (if not supported by FIFO, it will fallback to default)
+ *   (if analt supported by FIFO, it will fallback to default)
  * - set both rx/tx packet buffers to full memory size
  * These are configurable parameters for GEM.
  */
@@ -2787,7 +2787,7 @@ static void macb_init_hw(struct macb *bp)
 	else if (macb_is_gem(bp) && bp->dev->features & NETIF_F_RXCSUM)
 		config |= GEM_BIT(RXCOEN);
 	if (!(bp->dev->flags & IFF_BROADCAST))
-		config |= MACB_BIT(NBC);	/* No BroadCast */
+		config |= MACB_BIT(NBC);	/* Anal BroadCast */
 	config |= macb_dbw(bp);
 	macb_writel(bp, NCFGR, config);
 	if ((bp->caps & MACB_CAPS_JUMBO) && bp->jumbo_max_len)
@@ -3128,7 +3128,7 @@ static int gem_get_sset_count(struct net_device *dev, int sset)
 	case ETH_SS_STATS:
 		return GEM_STATS_LEN + bp->num_queues * QUEUE_STATS_LEN;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -3199,7 +3199,7 @@ static struct net_device_stats *macb_get_stats(struct net_device *dev)
 	nstat->tx_aborted_errors = hwstat->tx_excessive_cols;
 	nstat->tx_carrier_errors = hwstat->tx_carrier_errors;
 	nstat->tx_fifo_errors = hwstat->tx_underruns;
-	/* Don't know about heartbeat or window errors... */
+	/* Don't kanalw about heartbeat or window errors... */
 
 	return nstat;
 }
@@ -3265,12 +3265,12 @@ static int macb_set_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 	/* Don't manage WoL on MAC if handled by the PHY
 	 * or if there's a failure in talking to the PHY
 	 */
-	if (!ret || ret != -EOPNOTSUPP)
+	if (!ret || ret != -EOPANALTSUPP)
 		return ret;
 
 	if (!(bp->wol & MACB_WOL_HAS_MAGIC_PACKET) ||
 	    (wol->wolopts & ~WAKE_MAGIC))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (wol->wolopts & WAKE_MAGIC)
 		bp->wol |= MACB_WOL_ENABLED;
@@ -3334,7 +3334,7 @@ static int macb_set_ringparam(struct net_device *netdev,
 
 	if ((new_tx_size == bp->tx_ring_size) &&
 	    (new_rx_size == bp->rx_ring_size)) {
-		/* nothing to do */
+		/* analthing to do */
 		return 0;
 	}
 
@@ -3366,7 +3366,7 @@ static unsigned int gem_get_tsu_rate(struct macb *bp)
 		tsu_clk = bp->pclk;
 		tsu_rate = clk_get_rate(tsu_clk);
 	} else
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	return tsu_rate;
 }
 
@@ -3397,7 +3397,7 @@ static int gem_get_ts_info(struct net_device *dev,
 		(1 << HWTSTAMP_TX_OFF) |
 		(1 << HWTSTAMP_TX_ON);
 	info->rx_filters =
-		(1 << HWTSTAMP_FILTER_NONE) |
+		(1 << HWTSTAMP_FILTER_ANALNE) |
 		(1 << HWTSTAMP_FILTER_ALL);
 
 	info->phc_index = bp->ptp_clock ? ptp_clock_index(bp->ptp_clock) : -1;
@@ -3451,7 +3451,7 @@ static void gem_enable_flow_filters(struct macb *bp, bool enable)
 		/* enable/disable screener regs for the flow entry */
 		t2_scr = GEM_BFINS(ETHTEN, enable, t2_scr);
 
-		/* only enable fields with no masking */
+		/* only enable fields with anal masking */
 		tp4sp_m = &(fs->m_u.tcp_ip4_spec);
 
 		if (enable && (tp4sp_m->ip4src == 0xFFFFFFFF))
@@ -3488,7 +3488,7 @@ static void gem_prog_cmp_regs(struct macb *bp, struct ethtool_rx_flow_spec *fs)
 	tp4sp_v = &(fs->h_u.tcp_ip4_spec);
 	tp4sp_m = &(fs->m_u.tcp_ip4_spec);
 
-	/* ignore field if any masking set */
+	/* iganalre field if any masking set */
 	if (tp4sp_m->ip4src == 0xFFFFFFFF) {
 		/* 1st compare reg - IP source address */
 		w0 = 0;
@@ -3502,7 +3502,7 @@ static void gem_prog_cmp_regs(struct macb *bp, struct ethtool_rx_flow_spec *fs)
 		cmp_a = true;
 	}
 
-	/* ignore field if any masking set */
+	/* iganalre field if any masking set */
 	if (tp4sp_m->ip4dst == 0xFFFFFFFF) {
 		/* 2nd compare reg - IP destination address */
 		w0 = 0;
@@ -3516,7 +3516,7 @@ static void gem_prog_cmp_regs(struct macb *bp, struct ethtool_rx_flow_spec *fs)
 		cmp_b = true;
 	}
 
-	/* ignore both port fields if masking set in both */
+	/* iganalre both port fields if masking set in both */
 	if ((tp4sp_m->psrc == 0xFFFF) || (tp4sp_m->pdst == 0xFFFF)) {
 		/* 3rd compare reg - source port, destination port */
 		w0 = 0;
@@ -3568,7 +3568,7 @@ static int gem_add_flow_filter(struct net_device *netdev,
 
 	newfs = kmalloc(sizeof(*newfs), GFP_KERNEL);
 	if (newfs == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	memcpy(&newfs->fs, fs, sizeof(newfs->fs));
 
 	netdev_dbg(netdev,
@@ -3588,7 +3588,7 @@ static int gem_add_flow_filter(struct net_device *netdev,
 			added = true;
 			break;
 		} else if (item->fs.location == fs->location) {
-			netdev_err(netdev, "Rule not added: location %d not free!\n",
+			netdev_err(netdev, "Rule analt added: location %d analt free!\n",
 					fs->location);
 			ret = -EBUSY;
 			goto err;
@@ -3702,8 +3702,8 @@ static int gem_get_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *cmd,
 		break;
 	default:
 		netdev_err(netdev,
-			  "Command parameter %d is not supported\n", cmd->cmd);
-		ret = -EOPNOTSUPP;
+			  "Command parameter %d is analt supported\n", cmd->cmd);
+		ret = -EOPANALTSUPP;
 	}
 
 	return ret;
@@ -3728,8 +3728,8 @@ static int gem_set_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *cmd)
 		break;
 	default:
 		netdev_err(netdev,
-			  "Command parameter %d is not supported\n", cmd->cmd);
-		ret = -EOPNOTSUPP;
+			  "Command parameter %d is analt supported\n", cmd->cmd);
+		ret = -EOPANALTSUPP;
 	}
 
 	return ret;
@@ -3785,7 +3785,7 @@ static int macb_hwtstamp_get(struct net_device *dev,
 		return -EINVAL;
 
 	if (!bp->ptp_info)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return bp->ptp_info->get_hwtst(dev, cfg);
 }
@@ -3800,7 +3800,7 @@ static int macb_hwtstamp_set(struct net_device *dev,
 		return -EINVAL;
 
 	if (!bp->ptp_info)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return bp->ptp_info->set_hwtst(dev, cfg, extack);
 }
@@ -3925,7 +3925,7 @@ static void macb_configure_caps(struct macb *bp,
 		dcfg = gem_readl(bp, DCFG1);
 		if (GEM_BFEXT(IRQCOR, dcfg) == 0)
 			bp->caps |= MACB_CAPS_ISR_CLEAR_ON_WRITE;
-		if (GEM_BFEXT(NO_PCS, dcfg) == 0)
+		if (GEM_BFEXT(ANAL_PCS, dcfg) == 0)
 			bp->caps |= MACB_CAPS_PCS;
 		dcfg = gem_readl(bp, DCFG12);
 		if (GEM_BFEXT(HIGH_SPEED, dcfg) == 1)
@@ -4003,12 +4003,12 @@ static int macb_clk_init(struct platform_device *pdev, struct clk **pclk,
 
 	if (IS_ERR_OR_NULL(*pclk))
 		return dev_err_probe(&pdev->dev,
-				     IS_ERR(*pclk) ? PTR_ERR(*pclk) : -ENODEV,
+				     IS_ERR(*pclk) ? PTR_ERR(*pclk) : -EANALDEV,
 				     "failed to get pclk\n");
 
 	if (IS_ERR_OR_NULL(*hclk))
 		return dev_err_probe(&pdev->dev,
-				     IS_ERR(*hclk) ? PTR_ERR(*hclk) : -ENODEV,
+				     IS_ERR(*hclk) ? PTR_ERR(*hclk) : -EANALDEV,
 				     "failed to get hclk\n");
 
 	*tx_clk = devm_clk_get_optional(&pdev->dev, "tx_clk");
@@ -4125,7 +4125,7 @@ static int macb_init(struct platform_device *pdev)
 #endif
 		}
 
-		/* get irq: here we use the linux queue index, not the hardware
+		/* get irq: here we use the linux queue index, analt the hardware
 		 * queue index. the queue irq definitions in the device tree
 		 * must remove the optional gaps that could exist in the
 		 * hardware queue mask.
@@ -4188,11 +4188,11 @@ static int macb_init(struct platform_device *pdev)
 	if (bp->max_tuples > 0) {
 		/* also needs one ethtype match to check IPv4 */
 		if (GEM_BFEXT(SCR2ETH, reg) > 0) {
-			/* program this reg now */
+			/* program this reg analw */
 			reg = 0;
 			reg = GEM_BFINS(ETHTCMP, (uint16_t)ETH_P_IP, reg);
 			gem_writel_n(bp, ETHT, SCRT2_ETHT, reg);
-			/* Filtering is supported in hw but don't enable it in kernel now */
+			/* Filtering is supported in hw but don't enable it in kernel analw */
 			dev->hw_features |= NETIF_F_NTUPLE;
 			/* init Rx flow definitions */
 			bp->rx_fs_list.count = 0;
@@ -4251,7 +4251,7 @@ static int at91ether_alloc_coherent(struct macb *lp)
 					  macb_dma_desc_get_size(lp)),
 					 &q->rx_ring_dma, GFP_KERNEL);
 	if (!q->rx_ring)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	q->rx_buffers = dma_alloc_coherent(&lp->pdev->dev,
 					    AT91ETHER_MAX_RX_DESCR *
@@ -4263,7 +4263,7 @@ static int at91ether_alloc_coherent(struct macb *lp)
 				  macb_dma_desc_get_size(lp),
 				  q->rx_ring, q->rx_ring_dma);
 		q->rx_ring = NULL;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -4675,7 +4675,7 @@ static int fu540_c000_clk_init(struct platform_device *pdev, struct clk **pclk,
 
 	mgmt = devm_kzalloc(&pdev->dev, sizeof(*mgmt), GFP_KERNEL);
 	if (!mgmt) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_disable_clks;
 	}
 
@@ -4742,7 +4742,7 @@ static int init_reset_optional(struct platform_device *pdev)
 		if (!ret) {
 			u32 pm_info[2];
 
-			ret = of_property_read_u32_array(pdev->dev.of_node, "power-domains",
+			ret = of_property_read_u32_array(pdev->dev.of_analde, "power-domains",
 							 pm_info, ARRAY_SIZE(pm_info));
 			if (ret) {
 				dev_err(&pdev->dev, "Failed to read power management information\n");
@@ -4876,7 +4876,7 @@ static const struct macb_config zynqmp_config = {
 };
 
 static const struct macb_config zynq_config = {
-	.caps = MACB_CAPS_GIGABIT_MODE_AVAILABLE | MACB_CAPS_NO_GIGABIT_HALF |
+	.caps = MACB_CAPS_GIGABIT_MODE_AVAILABLE | MACB_CAPS_ANAL_GIGABIT_HALF |
 		MACB_CAPS_NEEDS_RSTONUBR,
 	.dma_burst_length = 16,
 	.clk_init = macb_clk_init,
@@ -4971,7 +4971,7 @@ static int macb_probe(struct platform_device *pdev)
 			struct clk **, struct clk **,  struct clk **,
 			struct clk **) = macb_config->clk_init;
 	int (*init)(struct platform_device *) = macb_config->init;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct clk *pclk, *hclk = NULL, *tx_clk = NULL, *rx_clk = NULL;
 	struct clk *tsu_clk = NULL;
 	unsigned int queue_mask, num_queues;
@@ -4991,7 +4991,7 @@ static int macb_probe(struct platform_device *pdev)
 	if (np) {
 		const struct of_device_id *match;
 
-		match = of_match_node(macb_dt_ids, np);
+		match = of_match_analde(macb_dt_ids, np);
 		if (match && match->data) {
 			macb_config = match->data;
 			clk_init = macb_config->clk_init;
@@ -5005,7 +5005,7 @@ static int macb_probe(struct platform_device *pdev)
 
 	pm_runtime_set_autosuspend_delay(&pdev->dev, MACB_PM_TIMEOUT);
 	pm_runtime_use_autosuspend(&pdev->dev);
-	pm_runtime_get_noresume(&pdev->dev);
+	pm_runtime_get_analresume(&pdev->dev);
 	pm_runtime_set_active(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
 	native_io = hw_is_native_io(mem);
@@ -5013,7 +5013,7 @@ static int macb_probe(struct platform_device *pdev)
 	macb_probe_queues(mem, native_io, &queue_mask, &num_queues);
 	dev = alloc_etherdev_mq(sizeof(*bp), num_queues);
 	if (!dev) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_disable_clocks;
 	}
 
@@ -5060,10 +5060,10 @@ static int macb_probe(struct platform_device *pdev)
 	bp->usrio = macb_config->usrio;
 
 	/* By default we set to partial store and forward mode for zynqmp.
-	 * Disable if not set in devicetree.
+	 * Disable if analt set in devicetree.
 	 */
 	if (GEM_BFEXT(PBUF_CUTTHRU, gem_readl(bp, DCFG6))) {
-		err = of_property_read_u32(bp->pdev->dev.of_node,
+		err = of_property_read_u32(bp->pdev->dev.of_analde,
 					   "cdns,rx-watermark",
 					   &bp->rx_watermark);
 
@@ -5128,7 +5128,7 @@ static int macb_probe(struct platform_device *pdev)
 
 	err = of_get_phy_mode(np, &interface);
 	if (err)
-		/* not found in DT, MII by default */
+		/* analt found in DT, MII by default */
 		bp->phy_interface = PHY_INTERFACE_MODE_MII;
 	else
 		bp->phy_interface = interface;
@@ -5146,7 +5146,7 @@ static int macb_probe(struct platform_device *pdev)
 
 	err = register_netdev(dev);
 	if (err) {
-		dev_err(&pdev->dev, "Cannot register net device, aborting.\n");
+		dev_err(&pdev->dev, "Cananalt register net device, aborting.\n");
 		goto err_out_unregister_mdio;
 	}
 
@@ -5346,7 +5346,7 @@ static int __maybe_unused macb_resume(struct device *dev)
 
 		disable_irq_wake(bp->queues[0].irq);
 
-		/* Now make sure we disable phy before moving
+		/* Analw make sure we disable phy before moving
 		 * to common restore path
 		 */
 		rtnl_lock();

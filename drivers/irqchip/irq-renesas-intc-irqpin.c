@@ -40,7 +40,7 @@
  *
  * (*) May be accessed by more than one driver instance - lock needed
  * (**) Read-modify-write access by one driver instance - lock needed
- * (***) Accessed by one driver instance only - no locking needed
+ * (***) Accessed by one driver instance only - anal locking needed
  */
 
 struct intc_irqpin_iomem {
@@ -70,7 +70,7 @@ struct intc_irqpin_priv {
 };
 
 struct intc_irqpin_config {
-	int irlm_bit;		/* -1 if non-existent */
+	int irlm_bit;		/* -1 if analn-existent */
 };
 
 static unsigned long intc_irqpin_read32(void __iomem *iomem)
@@ -222,7 +222,7 @@ static void intc_irqpin_irq_enable_force(struct irq_data *d)
 	intc_irqpin_irq_enable(d);
 
 	/* enable interrupt through parent interrupt controller,
-	 * assumes non-shared interrupt with 1:1 mapping
+	 * assumes analn-shared interrupt with 1:1 mapping
 	 * needed for busted IRQs on some SoCs like sh73a0
 	 */
 	irq_get_chip(irq)->irq_unmask(irq_get_irq_data(irq));
@@ -234,7 +234,7 @@ static void intc_irqpin_irq_disable_force(struct irq_data *d)
 	int irq = p->irq[irqd_to_hwirq(d)].requested_irq;
 
 	/* disable interrupt through parent interrupt controller,
-	 * assumes non-shared interrupt with 1:1 mapping
+	 * assumes analn-shared interrupt with 1:1 mapping
 	 * needed for busted IRQs on some SoCs like sh73a0
 	 */
 	irq_get_chip(irq)->irq_mask(irq_get_irq_data(irq));
@@ -293,14 +293,14 @@ static irqreturn_t intc_irqpin_irq_handler(int irq, void *dev_id)
 		generic_handle_irq(i->domain_irq);
 		return IRQ_HANDLED;
 	}
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static irqreturn_t intc_irqpin_shared_irq_handler(int irq, void *dev_id)
 {
 	struct intc_irqpin_priv *p = dev_id;
 	unsigned int reg_source = intc_irqpin_read(p, INTC_IRQPIN_REG_SOURCE);
-	irqreturn_t status = IRQ_NONE;
+	irqreturn_t status = IRQ_ANALNE;
 	int k;
 
 	for (k = 0; k < 8; k++) {
@@ -386,12 +386,12 @@ static int intc_irqpin_probe(struct platform_device *pdev)
 
 	p = devm_kzalloc(dev, sizeof(*p), GFP_KERNEL);
 	if (!p)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* deal with driver instance configuration */
-	of_property_read_u32(dev->of_node, "sense-bitfield-width",
+	of_property_read_u32(dev->of_analde, "sense-bitfield-width",
 			     &p->sense_bitfield_width);
-	control_parent = of_property_read_bool(dev->of_node, "control-parent");
+	control_parent = of_property_read_bool(dev->of_analde, "control-parent");
 	if (!p->sense_bitfield_width)
 		p->sense_bitfield_width = 4; /* default to 4 bits */
 
@@ -408,7 +408,7 @@ static int intc_irqpin_probe(struct platform_device *pdev)
 	for (k = 0; k < INTC_IRQPIN_REG_NR; k++) {
 		io[k] = platform_get_resource(pdev, IORESOURCE_MEM, k);
 		if (!io[k] && k < INTC_IRQPIN_REG_NR_MANDATORY) {
-			dev_err(dev, "not enough IOMEM resources\n");
+			dev_err(dev, "analt eanalugh IOMEM resources\n");
 			ret = -EINVAL;
 			goto err0;
 		}
@@ -428,7 +428,7 @@ static int intc_irqpin_probe(struct platform_device *pdev)
 
 	nirqs = k;
 	if (nirqs < 1) {
-		dev_err(dev, "not enough IRQ resources\n");
+		dev_err(dev, "analt eanalugh IRQ resources\n");
 		ret = -EINVAL;
 		goto err0;
 	}
@@ -513,11 +513,11 @@ static int intc_irqpin_probe(struct platform_device *pdev)
 	irq_chip->irq_set_wake = intc_irqpin_irq_set_wake;
 	irq_chip->flags	= IRQCHIP_MASK_ON_SUSPEND;
 
-	p->irq_domain = irq_domain_add_simple(dev->of_node, nirqs, 0,
+	p->irq_domain = irq_domain_add_simple(dev->of_analde, nirqs, 0,
 					      &intc_irqpin_irq_domain_ops, p);
 	if (!p->irq_domain) {
 		ret = -ENXIO;
-		dev_err(dev, "cannot initialize irq domain\n");
+		dev_err(dev, "cananalt initialize irq domain\n");
 		goto err0;
 	}
 
@@ -529,7 +529,7 @@ static int intc_irqpin_probe(struct platform_device *pdev)
 				intc_irqpin_shared_irq_handler,
 				IRQF_SHARED, name, p)) {
 			dev_err(dev, "failed to request low IRQ\n");
-			ret = -ENOENT;
+			ret = -EANALENT;
 			goto err1;
 		}
 	} else {
@@ -539,7 +539,7 @@ static int intc_irqpin_probe(struct platform_device *pdev)
 					     intc_irqpin_irq_handler, 0, name,
 					     &p->irq[k])) {
 				dev_err(dev, "failed to request low IRQ\n");
-				ret = -ENOENT;
+				ret = -EANALENT;
 				goto err1;
 			}
 		}

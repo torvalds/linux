@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause) */
 /*
- * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023, Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #ifndef _DT_BINDINGS_CLK_QCOM_GCC_SDX75_H
@@ -169,19 +169,19 @@
 #define GCC_EMMC_BCR						2
 #define GCC_PCIE_1_BCR						3
 #define GCC_PCIE_1_LINK_DOWN_BCR				4
-#define GCC_PCIE_1_NOCSR_COM_PHY_BCR				5
+#define GCC_PCIE_1_ANALCSR_COM_PHY_BCR				5
 #define GCC_PCIE_1_PHY_BCR					6
 #define GCC_PCIE_2_BCR						7
 #define GCC_PCIE_2_LINK_DOWN_BCR				8
-#define GCC_PCIE_2_NOCSR_COM_PHY_BCR				9
+#define GCC_PCIE_2_ANALCSR_COM_PHY_BCR				9
 #define GCC_PCIE_2_PHY_BCR					10
 #define GCC_PCIE_BCR						11
 #define GCC_PCIE_LINK_DOWN_BCR					12
-#define GCC_PCIE_NOCSR_COM_PHY_BCR				13
+#define GCC_PCIE_ANALCSR_COM_PHY_BCR				13
 #define GCC_PCIE_PHY_BCR					14
 #define GCC_PCIE_PHY_CFG_AHB_BCR				15
 #define GCC_PCIE_PHY_COM_BCR					16
-#define GCC_PCIE_PHY_NOCSR_COM_PHY_BCR				17
+#define GCC_PCIE_PHY_ANALCSR_COM_PHY_BCR				17
 #define GCC_QUSB2PHY_BCR					18
 #define GCC_TCSR_PCIE_BCR					19
 #define GCC_USB30_BCR						20

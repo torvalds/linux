@@ -35,7 +35,7 @@ enum ionic_intr_mask_vals {
 };
 
 /** enum ionic_intr_credits_bits - bitwise composition of credits values.
- * @IONIC_INTR_CRED_COUNT:	bit mask of credit count, no shift needed.
+ * @IONIC_INTR_CRED_COUNT:	bit mask of credit count, anal shift needed.
  * @IONIC_INTR_CRED_COUNT_SIGNED: bit mask of credit count, including sign bit.
  * @IONIC_INTR_CRED_UNMASK:	unmask the interrupt.
  * @IONIC_INTR_CRED_RESET_COALESCE: reset the coalesce timer.
@@ -105,7 +105,7 @@ static inline void ionic_intr_mask_assert(struct ionic_intr __iomem *intr_ctrl,
  * @IONIC_DBELL_RING_2:		ring two dbell component value.
  * @IONIC_DBELL_RING_3:		ring three dbell component value.
  *
- * @IONIC_DBELL_INDEX_MASK:	bit mask of valid index bits, no shift needed.
+ * @IONIC_DBELL_INDEX_MASK:	bit mask of valid index bits, anal shift needed.
  */
 enum ionic_dbell_bits {
 	IONIC_DBELL_QID_MASK		= 0xffffff,

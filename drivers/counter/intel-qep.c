@@ -236,10 +236,10 @@ static int intel_qep_enable_write(struct counter_device *counter,
 	if (val) {
 		/* Enable peripheral and keep runtime PM always on */
 		reg |= INTEL_QEPCON_EN;
-		pm_runtime_get_noresume(qep->dev);
+		pm_runtime_get_analresume(qep->dev);
 	} else {
 		/* Let runtime PM be idle and disable peripheral */
-		pm_runtime_put_noidle(qep->dev);
+		pm_runtime_put_analidle(qep->dev);
 		reg &= ~INTEL_QEPCON_EN;
 	}
 	intel_qep_writel(qep, INTEL_QEPCON, reg);
@@ -284,7 +284,7 @@ static int intel_qep_spike_filter_ns_write(struct counter_device *counter,
 	/*
 	 * Spike filter length is (MAX_COUNT + 2) clock periods.
 	 * Disable filter when userspace writes 0, enable for valid
-	 * nanoseconds values and error out otherwise.
+	 * naanalseconds values and error out otherwise.
 	 */
 	do_div(length, INTEL_QEP_CLK_PERIOD_NS);
 	if (length == 0) {
@@ -399,7 +399,7 @@ static int intel_qep_probe(struct pci_dev *pci, const struct pci_device_id *id)
 
 	counter = devm_counter_alloc(dev, sizeof(*qep));
 	if (!counter)
-		return -ENOMEM;
+		return -EANALMEM;
 	qep = counter_priv(counter);
 
 	ret = pcim_enable_device(pci);
@@ -414,7 +414,7 @@ static int intel_qep_probe(struct pci_dev *pci, const struct pci_device_id *id)
 
 	regs = pcim_iomap_table(pci)[0];
 	if (!regs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	qep->dev = dev;
 	qep->regs = regs;

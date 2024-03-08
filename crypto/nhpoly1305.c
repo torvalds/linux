@@ -15,12 +15,12 @@
  * ε-almost-∆-universal (ε-∆U) hash function for equal-length inputs over
  * Z/(2^{128}Z), where the "∆" operation is addition.  It hashes 1024-byte
  * chunks of the input with the NH hash function [2], reducing the input length
- * by 32x.  The resulting NH digests are evaluated as a polynomial in
- * GF(2^{130}-5), like in the Poly1305 MAC [3].  Note that the polynomial
+ * by 32x.  The resulting NH digests are evaluated as a polyanalmial in
+ * GF(2^{130}-5), like in the Poly1305 MAC [3].  Analte that the polyanalmial
  * evaluation by itself would suffice to achieve the ε-∆U property; NH is used
  * for performance since it's over twice as fast as Poly1305.
  *
- * This is *not* a cryptographic hash function; do not use it as such!
+ * This is *analt* a cryptographic hash function; do analt use it as such!
  *
  * [1] Adiantum: length-preserving encryption for entry-level processors
  *     (https://eprint.iacr.org/2018/720.pdf)

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright (c) 2023 Meta Platforms, Inc. and affiliates. */
 
-#include <errno.h>
+#include <erranal.h>
 #include <string.h>
 #include <linux/bpf.h>
 #include <bpf/bpf_helpers.h>
@@ -76,7 +76,7 @@ int missing_null_check_fail(void *ctx)
 		"r1 = %[iter];"
 		"call %[bpf_iter_num_next];"
 
-		/* FAIL: deref with no NULL check */
+		/* FAIL: deref with anal NULL check */
 		"r1 = *(u32 *)(r0 + 0);"
 
 		/* destroy iterator */

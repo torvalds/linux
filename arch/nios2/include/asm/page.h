@@ -39,7 +39,7 @@
 #define PHYS_OFFSET		CONFIG_NIOS2_MEM_BASE
 
 /*
- * It's normally defined only for FLATMEM config but it's
+ * It's analrmally defined only for FLATMEM config but it's
  * used in our early mem init code for all memory models.
  * So always define it.
  */
@@ -89,7 +89,7 @@ extern struct page *mem_map;
 # define virt_to_page(vaddr)	pfn_to_page(PFN_DOWN(virt_to_phys(vaddr)))
 # define virt_addr_valid(vaddr)	pfn_valid(PFN_DOWN(virt_to_phys(vaddr)))
 
-# define VM_DATA_DEFAULT_FLAGS	VM_DATA_FLAGS_NON_EXEC
+# define VM_DATA_DEFAULT_FLAGS	VM_DATA_FLAGS_ANALN_EXEC
 
 #include <asm-generic/memory_model.h>
 

@@ -4,7 +4,7 @@ The AS3645A flash LED controller can drive two LEDs, one high current
 flash LED and one indicator LED. The high current flash LED can be
 used in torch mode as well.
 
-Ranges below noted as [a, b] are closed ranges between a and b, i.e. a
+Ranges below analted as [a, b] are closed ranges between a and b, i.e. a
 and b are included in the range.
 
 Please also see common.txt in the same directory.
@@ -19,7 +19,7 @@ reg		: The I2C address of the device. Typically 0x30.
 #size-cells	: 0
 
 
-Required properties of the flash child node (0)
+Required properties of the flash child analde (0)
 ===============================================
 
 reg: 0
@@ -36,7 +36,7 @@ ams,input-max-microamp: Maximum flash controller input current. The
 			and divisible by 50000.
 
 
-Optional properties of the flash child node
+Optional properties of the flash child analde
 ===========================================
 
 function	:  See Documentation/devicetree/bindings/leds/common.txt.
@@ -44,14 +44,14 @@ color		:  See Documentation/devicetree/bindings/leds/common.txt.
 label		:  See Documentation/devicetree/bindings/leds/common.txt (deprecated).
 
 
-Required properties of the indicator child node (1)
+Required properties of the indicator child analde (1)
 ===================================================
 
 reg: 1
 led-max-microamp: Maximum indicator current. The allowed values are
 		  2500, 5000, 7500 and 10000.
 
-Optional properties of the indicator child node
+Optional properties of the indicator child analde
 ===============================================
 
 function	:  See Documentation/devicetree/bindings/leds/common.txt.

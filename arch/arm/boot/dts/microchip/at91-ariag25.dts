@@ -74,7 +74,7 @@
 	status = "okay";
 };
 
-/* TWD2+TCLK2 hidden behind ethernet, so no i2c2 */
+/* TWD2+TCLK2 hidden behind ethernet, so anal i2c2 */
 
 &macb0 {
 	phy-mode = "rmii";
@@ -88,7 +88,7 @@
 
 
 &mmc0 {
-	/* N.B. Aria has no SD card detect (CD), assumed present */
+	/* N.B. Aria has anal SD card detect (CD), assumed present */
 
 	pinctrl-0 = <
 		&pinctrl_mmc0_slot0_clk_cmd_dat0
@@ -155,7 +155,7 @@
 };
 
 &usart2 {
-	/* cannot activate RTS2+CTS2, clash with
+	/* cananalt activate RTS2+CTS2, clash with
 	 * ethernet on PB0 and PB1 */
 	pinctrl-0 = <&pinctrl_usart2>;
 	status = "okay";

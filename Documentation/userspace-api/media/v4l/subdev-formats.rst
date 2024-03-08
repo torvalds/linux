@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 
 .. _v4l2-mbus-format:
 
@@ -40,14 +40,14 @@ Media Bus Formats
         Must be set by the driver for subdevices. If the application sets the
 	flag ``V4L2_MBUS_FRAMEFMT_SET_CSC`` then the application can set this
 	field on the source pad to request a specific colorspace for the media
-	bus data. If the driver cannot handle the requested conversion, it will
-	return another supported colorspace. The driver indicates that colorspace
+	bus data. If the driver cananalt handle the requested conversion, it will
+	return aanalther supported colorspace. The driver indicates that colorspace
 	conversion is supported by setting the flag
 	V4L2_SUBDEV_MBUS_CODE_CSC_COLORSPACE in the corresponding struct
 	:c:type:`v4l2_subdev_mbus_code_enum` during enumeration.
 	See :ref:`v4l2-subdev-mbus-code-flags`.
     * - union {
-      - (anonymous)
+      - (aanalnymous)
     * - __u16
       - ``ycbcr_enc``
       - Y'CbCr encoding, from enum :c:type:`v4l2_ycbcr_encoding`.
@@ -55,9 +55,9 @@ Media Bus Formats
 	the driver for subdevices, see :ref:`colorspaces`. If the application
 	sets the flag ``V4L2_MBUS_FRAMEFMT_SET_CSC`` then the application can set
 	this field on a source pad to request a specific Y'CbCr encoding
-	for the media bus data. If the driver cannot handle the requested
-	conversion, it will return another supported encoding.
-	This field is ignored for HSV media bus formats. The driver indicates
+	for the media bus data. If the driver cananalt handle the requested
+	conversion, it will return aanalther supported encoding.
+	This field is iganalred for HSV media bus formats. The driver indicates
 	that ycbcr_enc conversion is supported by setting the flag
 	V4L2_SUBDEV_MBUS_CODE_CSC_YCBCR_ENC in the corresponding struct
 	:c:type:`v4l2_subdev_mbus_code_enum` during enumeration.
@@ -69,9 +69,9 @@ Media Bus Formats
 	the driver for subdevices, see :ref:`colorspaces`. If the application
 	sets the flag ``V4L2_MBUS_FRAMEFMT_SET_CSC`` then the application can set
 	this field on a source pad to request a specific HSV encoding
-	for the media bus data. If the driver cannot handle the requested
-	conversion, it will return another supported encoding.
-	This field is ignored for Y'CbCr media bus formats. The driver indicates
+	for the media bus data. If the driver cananalt handle the requested
+	conversion, it will return aanalther supported encoding.
+	This field is iganalred for Y'CbCr media bus formats. The driver indicates
 	that hsv_enc conversion is supported by setting the flag
 	V4L2_SUBDEV_MBUS_CODE_CSC_HSV_ENC in the corresponding struct
 	:c:type:`v4l2_subdev_mbus_code_enum` during enumeration.
@@ -85,8 +85,8 @@ Media Bus Formats
 	the driver for subdevices, see :ref:`colorspaces`. If the application
 	sets the flag ``V4L2_MBUS_FRAMEFMT_SET_CSC`` then the application can set
 	this field on a source pad to request a specific quantization
-	for the media bus data. If the driver cannot handle the requested
-	conversion, it will return another supported quantization.
+	for the media bus data. If the driver cananalt handle the requested
+	conversion, it will return aanalther supported quantization.
 	The driver indicates that quantization conversion is supported by
 	setting the flag V4L2_SUBDEV_MBUS_CODE_CSC_QUANTIZATION in the
 	corresponding struct :c:type:`v4l2_subdev_mbus_code_enum`
@@ -99,8 +99,8 @@ Media Bus Formats
 	the driver for subdevices, see :ref:`colorspaces`. If the application
 	sets the flag ``V4L2_MBUS_FRAMEFMT_SET_CSC`` then the application can set
 	this field on a source pad to request a specific transfer
-	function for the media bus data. If the driver cannot handle the requested
-	conversion, it will return another supported transfer function.
+	function for the media bus data. If the driver cananalt handle the requested
+	conversion, it will return aanalther supported transfer function.
 	The driver indicates that the transfer function conversion is supported by
 	setting the flag V4L2_SUBDEV_MBUS_CODE_CSC_XFER_FUNC in the
 	corresponding struct :c:type:`v4l2_subdev_mbus_code_enum`
@@ -127,13 +127,13 @@ Media Bus Formats
       - ``V4L2_MBUS_FRAMEFMT_SET_CSC``
       - 0x0001
       - Set by the application. It is only used for source pads and is
-	ignored for sink pads. If set, then request the subdevice to do
+	iganalred for sink pads. If set, then request the subdevice to do
 	colorspace conversion from the received colorspace to the requested
 	colorspace values. If the colorimetry field (``colorspace``, ``xfer_func``,
 	``ycbcr_enc``, ``hsv_enc`` or ``quantization``) is set to ``*_DEFAULT``,
 	then that colorimetry setting will remain unchanged from what was received.
 	So in order to change the quantization, only the ``quantization`` field shall
-	be set to non default value (``V4L2_QUANTIZATION_FULL_RANGE`` or
+	be set to analn default value (``V4L2_QUANTIZATION_FULL_RANGE`` or
 	``V4L2_QUANTIZATION_LIM_RANGE``) and all other colorimetry fields shall
 	be set to ``*_DEFAULT``.
 
@@ -148,13 +148,13 @@ Media Bus Pixel Codes
 
 The media bus pixel codes describe image formats as flowing over
 physical buses (both between separate physical components and inside
-SoC devices). This should not be confused with the V4L2 pixel formats
+SoC devices). This should analt be confused with the V4L2 pixel formats
 that describe, using four character codes, image formats as stored in
 memory.
 
 While there is a relationship between image formats on buses and image
 formats in memory (a raw Bayer image won't be magically converted to
-JPEG just by storing it to memory), there is no one-to-one
+JPEG just by storing it to memory), there is anal one-to-one
 correspondence between them.
 
 The media bus pixel codes document parallel formats. Should the pixel data be
@@ -205,7 +205,7 @@ The following tables list existing packed RGB formats.
 
 .. HACK: ideally, we would be using adjustbox here. However, Sphinx
 .. is a very bad behaviored guy: if the table has more than 30 cols,
-.. it switches to long table, and there's no way to override it.
+.. it switches to long table, and there's anal way to override it.
 
 
 .. tabularcolumns:: |p{5.0cm}|p{0.7cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|
@@ -2431,7 +2431,7 @@ JEIDA defined bit mapping will be named
 
 .. raw:: latex
 
-    \normalsize
+    \analrmalsize
 
 
 Bayer Formats
@@ -2486,7 +2486,7 @@ organization is given as an example for the first pixel only.
 
 .. HACK: ideally, we would be using adjustbox here. However, Sphinx
 .. is a very bad behaviored guy: if the table has more than 30 cols,
-.. it switches to long table, and there's no way to override it.
+.. it switches to long table, and there's anal way to override it.
 
 
 .. raw:: latex
@@ -3288,13 +3288,13 @@ Packed YUV Formats
 Those data formats transfer pixel data as (possibly downsampled) Y, U
 and V components. Some formats include dummy bits in some of their
 samples and are collectively referred to as "YDYC" (Y-Dummy-Y-Chroma)
-formats. One cannot rely on the values of these dummy bits as those are
+formats. One cananalt rely on the values of these dummy bits as those are
 undefined.
 
 The format code is made of the following information.
 
 -  The Y, U and V components order code, as transferred on the bus.
-   Possible values are YUYV, UYVY, YVYU and VYUY for formats with no
+   Possible values are YUYV, UYVY, YVYU and VYUY for formats with anal
    dummy bit, and YDYUYDYV, YDYVYDYU, YUYDYVYD and YVYDYUYD for YDYC
    formats.
 
@@ -3333,7 +3333,7 @@ the following codes.
 
 -  a\ :sub:`x` for alpha component bit number x
 
-- for non-available bits (for positions higher than the bus width)
+- for analn-available bits (for positions higher than the bus width)
 
 -  d for dummy bits
 
@@ -8304,5 +8304,5 @@ The following table lists the existing metadata formats.
       - 0x7001
       - This format should be used when the same driver handles
 	both sides of the link and the bus format is a fixed
-	metadata format that is not configurable from userspace.
+	metadata format that is analt configurable from userspace.
 	Width and height will be set to 0 for this format.

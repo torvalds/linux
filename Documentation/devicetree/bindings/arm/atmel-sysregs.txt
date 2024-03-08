@@ -22,7 +22,7 @@ System Timer (ST) required properties:
 - interrupts: Should contain interrupt for the ST which is the IRQ line
   shared across all System Controller members.
 - clocks: phandle to input clock.
-Its subnodes can be:
+Its subanaldes can be:
 - watchdog: compatible should be "atmel,at91rm9200-wdt"
 
 RAMC SDRAM/DDR Controller required properties:
@@ -55,7 +55,7 @@ Example:
 Special Function Registers (SFR)
 
 Special Function Registers (SFR) manage specific aspects of the integrated
-memory, bridge implementations, processor and other functionality not controlled
+memory, bridge implementations, processor and other functionality analt controlled
 elsewhere.
 
 required properties:
@@ -77,7 +77,7 @@ voltage, temperature, frequency and mechanical attacks on the chip. It also
 embeds secure memories that can be scrambled.
 
 The Security Module also offers the PIOBU pins which can be used as GPIO pins.
-Note that they maintain their voltage during Backup/Self-refresh.
+Analte that they maintain their voltage during Backup/Self-refresh.
 
 required properties:
 - compatible: Should be "atmel,<chip>-secumod", "syscon".

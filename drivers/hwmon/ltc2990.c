@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Driver for Linear Technology LTC2990 power monitor
+ * Driver for Linear Techanallogy LTC2990 power monitor
  *
  * Copyright (C) 2014 Topic Embedded Products
  * Author: Mike Looijmans <mike.looijmans@topic.nl>
@@ -35,7 +35,7 @@
 #define LTC2990_TEMP1	BIT(7)
 #define LTC2990_TEMP2	BIT(8)
 #define LTC2990_TEMP3	BIT(9)
-#define LTC2990_NONE	0
+#define LTC2990_ANALNE	0
 #define LTC2990_ALL	GENMASK(9, 0)
 
 #define LTC2990_MODE0_SHIFT	0
@@ -57,7 +57,7 @@ static const int ltc2990_attrs_ena_0[] = {
 
 /* Enabled measurements for mode bits 4..3 */
 static const int ltc2990_attrs_ena_1[] = {
-	LTC2990_NONE,
+	LTC2990_ANALNE,
 	LTC2990_TEMP2 | LTC2990_IN1 | LTC2990_CURR1,
 	LTC2990_TEMP3 | LTC2990_IN3 | LTC2990_CURR2,
 	LTC2990_ALL
@@ -208,15 +208,15 @@ static int ltc2990_i2c_probe(struct i2c_client *i2c)
 
 	if (!i2c_check_functionality(i2c->adapter, I2C_FUNC_SMBUS_BYTE_DATA |
 				     I2C_FUNC_SMBUS_WORD_DATA))
-		return -ENODEV;
+		return -EANALDEV;
 
 	data = devm_kzalloc(&i2c->dev, sizeof(struct ltc2990_data), GFP_KERNEL);
 	if (unlikely(!data))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->i2c = i2c;
 
-	if (dev_fwnode(&i2c->dev)) {
+	if (dev_fwanalde(&i2c->dev)) {
 		ret = device_property_read_u32_array(&i2c->dev,
 						     "lltc,meas-mode",
 						     data->mode, 2);

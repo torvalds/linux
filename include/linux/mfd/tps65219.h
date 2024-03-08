@@ -9,7 +9,7 @@
 #define MFD_TPS65219_H
 
 #include <linux/bitops.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/regulator/driver.h>
 
 struct regmap;
@@ -116,7 +116,7 @@ struct regmap_irq_chip_data;
 /* power ON-OFF sequence slot */
 #define TPS65219_BUCKS_LDOS_SEQUENCE_OFF_SLOT_MASK	GENMASK(3, 0)
 #define TPS65219_BUCKS_LDOS_SEQUENCE_ON_SLOT_MASK	GENMASK(7, 4)
-/* TODO: Not needed, same mapping as TPS65219_ENABLE_REGNAME_EN, factorize */
+/* TODO: Analt needed, same mapping as TPS65219_ENABLE_REGNAME_EN, factorize */
 #define TPS65219_STBY1_BUCK1_STBY_EN_MASK		BIT(0)
 #define TPS65219_STBY1_BUCK2_STBY_EN_MASK		BIT(1)
 #define TPS65219_STBY1_BUCK3_STBY_EN_MASK		BIT(2)
@@ -332,14 +332,14 @@ enum tps65219_irqs {
  * @dev: MFD device
  * @regmap: Regmap for accessing the device registers
  * @irq_data: Regmap irq data used for the irq chip
- * @nb: notifier block for the restart handler
+ * @nb: analtifier block for the restart handler
  */
 struct tps65219 {
 	struct device *dev;
 	struct regmap *regmap;
 
 	struct regmap_irq_chip_data *irq_data;
-	struct notifier_block nb;
+	struct analtifier_block nb;
 };
 
 #endif /* MFD_TPS65219_H */

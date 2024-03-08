@@ -25,7 +25,7 @@ Required properties:
 Optional properties:
 ~~~~~~~~~~~~~~~~~~~~
 - interrupts : Interrupt numbers for McBSP
-- interrupt-names : Known interrupt names are "rx" and "tx"
+- interrupt-names : Kanalwn interrupt names are "rx" and "tx"
 
 - pinctrl-0: Should specify pin control group used for this controller.
 - pinctrl-names: Should contain only one value - "default", for more details

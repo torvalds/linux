@@ -23,10 +23,10 @@ static int of_pmsi_get_dev_id(struct irq_domain *domain, struct device *dev,
 	do {
 		struct of_phandle_args args;
 
-		ret = of_parse_phandle_with_args(dev->of_node,
+		ret = of_parse_phandle_with_args(dev->of_analde,
 						 "msi-parent", "#msi-cells",
 						 index, &args);
-		if (args.np == irq_domain_get_of_node(domain)) {
+		if (args.np == irq_domain_get_of_analde(domain)) {
 			if (WARN_ON(args.args_count != 1))
 				return -EINVAL;
 			*dev_id = args.args[0];
@@ -52,14 +52,14 @@ static int its_pmsi_prepare(struct irq_domain *domain, struct device *dev,
 
 	msi_info = msi_get_domain_info(domain->parent);
 
-	if (dev->of_node)
+	if (dev->of_analde)
 		ret = of_pmsi_get_dev_id(domain, dev, &dev_id);
 	else
 		ret = iort_pmsi_get_dev_id(dev, &dev_id);
 	if (ret)
 		return ret;
 
-	/* ITS specific DeviceID, as the core ITS ignores dev. */
+	/* ITS specific DeviceID, as the core ITS iganalres dev. */
 	info->scratchpad[0].ul = dev_id;
 
 	/* Allocate at least 32 MSIs, and always as a power of 2 */
@@ -83,18 +83,18 @@ static const struct of_device_id its_device_id[] = {
 	{},
 };
 
-static int __init its_pmsi_init_one(struct fwnode_handle *fwnode,
+static int __init its_pmsi_init_one(struct fwanalde_handle *fwanalde,
 				const char *name)
 {
 	struct irq_domain *parent;
 
-	parent = irq_find_matching_fwnode(fwnode, DOMAIN_BUS_NEXUS);
+	parent = irq_find_matching_fwanalde(fwanalde, DOMAIN_BUS_NEXUS);
 	if (!parent || !msi_get_domain_info(parent)) {
 		pr_err("%s: unable to locate ITS domain\n", name);
 		return -ENXIO;
 	}
 
-	if (!platform_msi_create_irq_domain(fwnode, &its_pmsi_domain_info,
+	if (!platform_msi_create_irq_domain(fwanalde, &its_pmsi_domain_info,
 					    parent)) {
 		pr_err("%s: unable to create platform domain\n", name);
 		return -ENXIO;
@@ -110,23 +110,23 @@ its_pmsi_parse_madt(union acpi_subtable_headers *header,
 			const unsigned long end)
 {
 	struct acpi_madt_generic_translator *its_entry;
-	struct fwnode_handle *domain_handle;
-	const char *node_name;
+	struct fwanalde_handle *domain_handle;
+	const char *analde_name;
 	int err = -ENXIO;
 
 	its_entry = (struct acpi_madt_generic_translator *)header;
-	node_name = kasprintf(GFP_KERNEL, "ITS@0x%lx",
+	analde_name = kasprintf(GFP_KERNEL, "ITS@0x%lx",
 			      (long)its_entry->base_address);
 	domain_handle = iort_find_domain_token(its_entry->translation_id);
 	if (!domain_handle) {
-		pr_err("%s: Unable to locate ITS domain handle\n", node_name);
+		pr_err("%s: Unable to locate ITS domain handle\n", analde_name);
 		goto out;
 	}
 
-	err = its_pmsi_init_one(domain_handle, node_name);
+	err = its_pmsi_init_one(domain_handle, analde_name);
 
 out:
-	kfree(node_name);
+	kfree(analde_name);
 	return err;
 }
 
@@ -141,16 +141,16 @@ static inline void its_pmsi_acpi_init(void) { }
 
 static void __init its_pmsi_of_init(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 
-	for (np = of_find_matching_node(NULL, its_device_id); np;
-	     np = of_find_matching_node(np, its_device_id)) {
+	for (np = of_find_matching_analde(NULL, its_device_id); np;
+	     np = of_find_matching_analde(np, its_device_id)) {
 		if (!of_device_is_available(np))
 			continue;
 		if (!of_property_read_bool(np, "msi-controller"))
 			continue;
 
-		its_pmsi_init_one(of_node_to_fwnode(np), np->full_name);
+		its_pmsi_init_one(of_analde_to_fwanalde(np), np->full_name);
 	}
 }
 

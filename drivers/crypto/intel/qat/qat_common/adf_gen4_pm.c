@@ -45,7 +45,7 @@ static int send_host_msg(struct adf_accel_dev *accel_dev)
 
 	/* Send HOST_MSG */
 	msg = FIELD_PREP(ADF_GEN4_PM_MSG_PAYLOAD_BIT_MASK,
-			 pm_idle_support ? PM_SET_MIN : PM_NO_CHANGE);
+			 pm_idle_support ? PM_SET_MIN : PM_ANAL_CHANGE);
 	msg |= ADF_GEN4_PM_MSG_PENDING;
 	ADF_CSR_WR(pmisc, ADF_GEN4_PM_HOST_MSG, msg);
 

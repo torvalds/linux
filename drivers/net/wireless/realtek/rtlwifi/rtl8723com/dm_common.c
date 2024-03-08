@@ -14,8 +14,8 @@ void rtl8723_dm_init_dynamic_txpower(struct ieee80211_hw *hw)
 
 	rtlpriv->dm.dynamic_txpower_enable = false;
 
-	rtlpriv->dm.last_dtp_lvl = TXHIGHPWRLEVEL_NORMAL;
-	rtlpriv->dm.dynamic_txhighpower_lvl = TXHIGHPWRLEVEL_NORMAL;
+	rtlpriv->dm.last_dtp_lvl = TXHIGHPWRLEVEL_ANALRMAL;
+	rtlpriv->dm.dynamic_txhighpower_lvl = TXHIGHPWRLEVEL_ANALRMAL;
 }
 EXPORT_SYMBOL_GPL(rtl8723_dm_init_dynamic_txpower);
 
@@ -23,7 +23,7 @@ void rtl8723_dm_init_edca_turbo(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	rtlpriv->dm.current_turbo_edca = false;
-	rtlpriv->dm.is_any_nonbepkts = false;
+	rtlpriv->dm.is_any_analnbepkts = false;
 	rtlpriv->dm.is_cur_rdlstate = false;
 }
 EXPORT_SYMBOL_GPL(rtl8723_dm_init_edca_turbo);

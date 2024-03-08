@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2017-2018 Netronome Systems, Inc. */
+/* Copyright (C) 2017-2018 Netroanalme Systems, Inc. */
 
 #include <linux/rtnetlink.h>
 #include <net/devlink.h>
@@ -54,7 +54,7 @@ nfp_devlink_set_lanes(struct nfp_pf *pf, unsigned int idx, unsigned int lanes)
 	ret = nfp_eth_config_commit_end(nsp);
 	if (ret < 0)
 		return ret;
-	if (ret) /* no change */
+	if (ret) /* anal change */
 		return 0;
 
 	return nfp_net_refresh_port_table_sync(pf);
@@ -104,7 +104,7 @@ nfp_devlink_port_unsplit(struct devlink *devlink, struct devlink_port *port,
 		return ret;
 
 	if (!eth_port.is_split) {
-		NL_SET_ERR_MSG_MOD(extack, "port is not split");
+		NL_SET_ERR_MSG_MOD(extack, "port is analt split");
 		return -EINVAL;
 	}
 
@@ -156,7 +156,7 @@ static const struct nfp_devlink_versions_simple {
 	const char *key;
 	const char *hwinfo;
 } nfp_devlink_versions_hwinfo[] = {
-	{ DEVLINK_INFO_VERSION_GENERIC_BOARD_ID,	"assembly.partno", },
+	{ DEVLINK_INFO_VERSION_GENERIC_BOARD_ID,	"assembly.partanal", },
 	{ DEVLINK_INFO_VERSION_GENERIC_BOARD_REV,	"assembly.revision", },
 	{ DEVLINK_INFO_VERSION_GENERIC_BOARD_MANUFACTURE, "assembly.vendor", },
 	{ "board.model", /* code name */		"assembly.model", },
@@ -214,7 +214,7 @@ nfp_devlink_versions_get_nsp(struct devlink_info_req *req, bool flash,
 
 		version = nfp_nsp_versions_get(info->id, flash, buf, size);
 		if (IS_ERR(version)) {
-			if (PTR_ERR(version) == -ENOENT)
+			if (PTR_ERR(version) == -EANALENT)
 				continue;
 			else
 				return PTR_ERR(version);
@@ -244,7 +244,7 @@ nfp_devlink_info_get(struct devlink *devlink, struct devlink_info_req *req,
 	int err;
 
 	vendor = nfp_hwinfo_lookup(pf->hwinfo, "assembly.vendor");
-	part = nfp_hwinfo_lookup(pf->hwinfo, "assembly.partno");
+	part = nfp_hwinfo_lookup(pf->hwinfo, "assembly.partanal");
 	sn = nfp_hwinfo_lookup(pf->hwinfo, "assembly.serial");
 	if (vendor && part && sn) {
 		char *buf;
@@ -252,7 +252,7 @@ nfp_devlink_info_get(struct devlink *devlink, struct devlink_info_req *req,
 		buf = kmalloc(strlen(vendor) + strlen(part) + strlen(sn) + 1,
 			      GFP_KERNEL);
 		if (!buf)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		buf[0] = '\0';
 		strcat(buf, vendor);
@@ -274,7 +274,7 @@ nfp_devlink_info_get(struct devlink *devlink, struct devlink_info_req *req,
 	if (nfp_nsp_has_versions(nsp)) {
 		buf = kzalloc(NFP_NSP_VERSION_BUFSZ, GFP_KERNEL);
 		if (!buf) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto err_close_nsp;
 		}
 

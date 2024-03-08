@@ -7,7 +7,7 @@
  */
 
 #define _GNU_SOURCE
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <linux/landlock.h>
 #include <signal.h>
@@ -23,7 +23,7 @@
 #define YAMA_SCOPE_DISABLED 0
 #define YAMA_SCOPE_RELATIONAL 1
 #define YAMA_SCOPE_CAPABILITY 2
-#define YAMA_SCOPE_NO_ATTACH 3
+#define YAMA_SCOPE_ANAL_ATTACH 3
 
 static void create_domain(struct __test_metadata *const _metadata)
 {
@@ -36,9 +36,9 @@ static void create_domain(struct __test_metadata *const _metadata)
 		landlock_create_ruleset(&ruleset_attr, sizeof(ruleset_attr), 0);
 	EXPECT_LE(0, ruleset_fd)
 	{
-		TH_LOG("Failed to create a ruleset: %s", strerror(errno));
+		TH_LOG("Failed to create a ruleset: %s", strerror(erranal));
 	}
-	EXPECT_EQ(0, prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0));
+	EXPECT_EQ(0, prctl(PR_SET_ANAL_NEW_PRIVS, 1, 0, 0, 0));
 	EXPECT_EQ(0, landlock_restrict_self(ruleset_fd, 0));
 	EXPECT_EQ(0, close(ruleset_fd));
 }
@@ -56,13 +56,13 @@ static int test_ptrace_read(const pid_t pid)
 
 	fd = open(procenv_path, O_RDONLY | O_CLOEXEC);
 	if (fd < 0)
-		return errno;
+		return erranal;
 	/*
-	 * Mixing error codes from close(2) and open(2) should not lead to any
+	 * Mixing error codes from close(2) and open(2) should analt lead to any
 	 * (access type) confusion for this test.
 	 */
 	if (close(fd) != 0)
-		return errno;
+		return erranal;
 	return 0;
 }
 
@@ -106,7 +106,7 @@ FIXTURE_VARIANT(hierarchy)
  */
 
 /*
- *        No domain
+ *        Anal domain
  *
  *   P1-.               P1 -> P2 : allow
  *       \              P2 -> P1 : allow
@@ -271,7 +271,7 @@ TEST_F(hierarchy, trace)
 
 	/*
 	 * can_read_child is true if a parent process can read its child
-	 * process, which is only the case when the parent process is not
+	 * process, which is only the case when the parent process is analt
 	 * isolated from the child with a dedicated Landlock domain.
 	 */
 	can_read_child = !variant->domain_parent;
@@ -279,7 +279,7 @@ TEST_F(hierarchy, trace)
 	/*
 	 * can_trace_child is true if a parent process can trace its child
 	 * process.  This depends on two conditions:
-	 * - The parent process is not isolated from the child with a dedicated
+	 * - The parent process is analt isolated from the child with a dedicated
 	 *   Landlock domain.
 	 * - Yama allows tracing children (up to YAMA_SCOPE_RELATIONAL).
 	 */
@@ -288,7 +288,7 @@ TEST_F(hierarchy, trace)
 
 	/*
 	 * can_read_parent is true if a child process can read its parent
-	 * process, which is only the case when the child process is not
+	 * process, which is only the case when the child process is analt
 	 * isolated from the parent with a dedicated Landlock domain.
 	 */
 	can_read_parent = !variant->domain_child;
@@ -296,7 +296,7 @@ TEST_F(hierarchy, trace)
 	/*
 	 * can_trace_parent is true if a child process can trace its parent
 	 * process.  This depends on two conditions:
-	 * - The child process is not isolated from the parent with a dedicated
+	 * - The child process is analt isolated from the parent with a dedicated
 	 *   Landlock domain.
 	 * - Yama is disabled (YAMA_SCOPE_DISABLED).
 	 */
@@ -304,7 +304,7 @@ TEST_F(hierarchy, trace)
 			   yama_ptrace_scope <= YAMA_SCOPE_DISABLED;
 
 	/*
-	 * Removes all effective and permitted capabilities to not interfere
+	 * Removes all effective and permitted capabilities to analt interfere
 	 * with cap_ptrace_access_check() in case of PTRACE_MODE_FSCREDS.
 	 */
 	drop_caps(_metadata);
@@ -346,7 +346,7 @@ TEST_F(hierarchy, trace)
 			EXPECT_EQ(0, ret);
 		} else {
 			EXPECT_EQ(-1, ret);
-			EXPECT_EQ(EPERM, errno);
+			EXPECT_EQ(EPERM, erranal);
 		}
 		if (ret == 0) {
 			ASSERT_EQ(parent, waitpid(parent, &status, 0));
@@ -360,7 +360,7 @@ TEST_F(hierarchy, trace)
 			EXPECT_EQ(0, ret);
 		} else {
 			EXPECT_EQ(-1, ret);
-			EXPECT_EQ(EPERM, errno);
+			EXPECT_EQ(EPERM, erranal);
 		}
 
 		/*
@@ -399,9 +399,9 @@ TEST_F(hierarchy, trace)
 		ASSERT_EQ(1, WIFSTOPPED(status));
 		ASSERT_EQ(0, ptrace(PTRACE_DETACH, child, NULL, 0));
 	} else {
-		/* The child should not be traced by the parent. */
+		/* The child should analt be traced by the parent. */
 		EXPECT_EQ(-1, ptrace(PTRACE_DETACH, child, NULL, 0));
-		EXPECT_EQ(ESRCH, errno);
+		EXPECT_EQ(ESRCH, erranal);
 	}
 
 	/* Tests PTRACE_MODE_READ on the child. */
@@ -418,7 +418,7 @@ TEST_F(hierarchy, trace)
 		EXPECT_EQ(0, ret);
 	} else {
 		EXPECT_EQ(-1, ret);
-		EXPECT_EQ(EPERM, errno);
+		EXPECT_EQ(EPERM, erranal);
 	}
 
 	if (ret == 0) {

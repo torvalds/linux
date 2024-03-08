@@ -19,7 +19,7 @@ function update_current_settings {
 }
 
 if ! ethtool -h | grep -q set-ring >/dev/null; then
-    echo "SKIP: No --set-ring support in ethtool"
+    echo "SKIP: Anal --set-ring support in ethtool"
     exit 4
 fi
 

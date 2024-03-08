@@ -2,7 +2,7 @@
 /*
  * Copyright (C) 2021 ARM Limited.
  */
-#include <errno.h>
+#include <erranal.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -48,10 +48,10 @@ static void fill_buf(char *buf, size_t size)
 static int do_child(void)
 {
 	if (ptrace(PTRACE_TRACEME, -1, NULL, NULL))
-		ksft_exit_fail_msg("PTRACE_TRACEME", strerror(errno));
+		ksft_exit_fail_msg("PTRACE_TRACEME", strerror(erranal));
 
 	if (raise(SIGSTOP))
-		ksft_exit_fail_msg("raise(SIGSTOP)", strerror(errno));
+		ksft_exit_fail_msg("raise(SIGSTOP)", strerror(erranal));
 
 	return EXIT_SUCCESS;
 }
@@ -67,7 +67,7 @@ static struct user_za_header *get_za(pid_t pid, void **buf, size_t *size)
 		if (*size < sz) {
 			p = realloc(*buf, sz);
 			if (!p) {
-				errno = ENOMEM;
+				erranal = EANALMEM;
 				goto error;
 			}
 
@@ -116,12 +116,12 @@ static void ptrace_set_get_vl(pid_t child, unsigned int vl, bool *supported)
 	prctl_vl = prctl(PR_SME_SET_VL, vl);
 	if (prctl_vl == -1)
 		ksft_exit_fail_msg("prctl(PR_SME_SET_VL) failed: %s (%d)\n",
-				   strerror(errno), errno);
+				   strerror(erranal), erranal);
 
-	/* If the VL is not supported then a supported VL will be returned */
+	/* If the VL is analt supported then a supported VL will be returned */
 	*supported = (prctl_vl == vl);
 
-	/* Set the VL by doing a set with no register payload */
+	/* Set the VL by doing a set with anal register payload */
 	memset(&za, 0, sizeof(za));
 	za.size = sizeof(za);
 	za.vl = vl;
@@ -145,8 +145,8 @@ static void ptrace_set_get_vl(pid_t child, unsigned int vl, bool *supported)
 	free(new_za);
 }
 
-/* Validate attempting to set no ZA data and read it back */
-static void ptrace_set_no_data(pid_t child, unsigned int vl)
+/* Validate attempting to set anal ZA data and read it back */
+static void ptrace_set_anal_data(pid_t child, unsigned int vl)
 {
 	void *read_buf = NULL;
 	struct user_za_header write_za;
@@ -161,18 +161,18 @@ static void ptrace_set_no_data(pid_t child, unsigned int vl)
 
 	ret = set_za(child, &write_za);
 	if (ret != 0) {
-		ksft_test_result_fail("Failed to set VL %u no data\n", vl);
+		ksft_test_result_fail("Failed to set VL %u anal data\n", vl);
 		return;
 	}
 
 	/* Read the data back */
 	if (!get_za(child, (void **)&read_buf, &read_za_size)) {
-		ksft_test_result_fail("Failed to read VL %u no data\n", vl);
+		ksft_test_result_fail("Failed to read VL %u anal data\n", vl);
 		return;
 	}
 	read_za = read_buf;
 
-	/* We might read more data if there's extensions we don't know */
+	/* We might read more data if there's extensions we don't kanalw */
 	if (read_za->size < write_za.size) {
 		ksft_test_result_fail("VL %u wrote %d bytes, only read %d\n",
 				      vl, write_za.size, read_za->size);
@@ -227,7 +227,7 @@ static void ptrace_set_get_data(pid_t child, unsigned int vl)
 	}
 	read_za = read_buf;
 
-	/* We might read more data if there's extensions we don't know */
+	/* We might read more data if there's extensions we don't kanalw */
 	if (read_za->size < write_za->size) {
 		ksft_test_result_fail("VL %u wrote %d bytes, only read %d\n",
 				      vl, write_za->size, read_za->size);
@@ -280,16 +280,16 @@ static int do_parent(pid_t child)
 		sig = WSTOPSIG(status);
 
 		if (ptrace(PTRACE_GETSIGINFO, pid, NULL, &si)) {
-			if (errno == ESRCH)
+			if (erranal == ESRCH)
 				goto disappeared;
 
-			if (errno == EINVAL) {
+			if (erranal == EINVAL) {
 				sig = 0; /* bust group-stop */
 				goto cont;
 			}
 
 			ksft_test_result_fail("PTRACE_GETSIGINFO: %s\n",
-					      strerror(errno));
+					      strerror(erranal));
 			goto error;
 		}
 
@@ -299,11 +299,11 @@ static int do_parent(pid_t child)
 
 	cont:
 		if (ptrace(PTRACE_CONT, pid, NULL, sig)) {
-			if (errno == ESRCH)
+			if (erranal == ESRCH)
 				goto disappeared;
 
 			ksft_test_result_fail("PTRACE_CONT: %s\n",
-					      strerror(errno));
+					      strerror(erranal));
 			goto error;
 		}
 	}
@@ -319,7 +319,7 @@ static int do_parent(pid_t child)
 
 		/* If the VL is supported validate data set/get */
 		if (vl_supported) {
-			ptrace_set_no_data(child, vl);
+			ptrace_set_anal_data(child, vl);
 			ptrace_set_get_data(child, vl);
 		} else {
 			ksft_test_result_skip("Disabled ZA for VL %u\n", vl);
@@ -348,7 +348,7 @@ int main(void)
 
 	if (!(getauxval(AT_HWCAP2) & HWCAP2_SME)) {
 		ksft_set_plan(1);
-		ksft_exit_skip("SME not available\n");
+		ksft_exit_skip("SME analt available\n");
 	}
 
 	ksft_set_plan(EXPECTED_TESTS);

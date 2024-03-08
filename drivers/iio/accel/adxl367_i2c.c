@@ -17,7 +17,7 @@ struct adxl367_i2c_state {
 	struct regmap *regmap;
 };
 
-static bool adxl367_readable_noinc_reg(struct device *dev, unsigned int reg)
+static bool adxl367_readable_analinc_reg(struct device *dev, unsigned int reg)
 {
 	return reg == ADXL367_I2C_FIFO_DATA;
 }
@@ -27,14 +27,14 @@ static int adxl367_i2c_read_fifo(void *context, __be16 *fifo_buf,
 {
 	struct adxl367_i2c_state *st = context;
 
-	return regmap_noinc_read(st->regmap, ADXL367_I2C_FIFO_DATA, fifo_buf,
+	return regmap_analinc_read(st->regmap, ADXL367_I2C_FIFO_DATA, fifo_buf,
 				 fifo_entries * sizeof(*fifo_buf));
 }
 
 static const struct regmap_config adxl367_i2c_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
-	.readable_noinc_reg = adxl367_readable_noinc_reg,
+	.readable_analinc_reg = adxl367_readable_analinc_reg,
 };
 
 static const struct adxl367_ops adxl367_i2c_ops = {
@@ -48,7 +48,7 @@ static int adxl367_i2c_probe(struct i2c_client *client)
 
 	st = devm_kzalloc(&client->dev, sizeof(*st), GFP_KERNEL);
 	if (!st)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	regmap = devm_regmap_init_i2c(client, &adxl367_i2c_regmap_config);
 	if (IS_ERR(regmap))

@@ -17,7 +17,7 @@
 #include "dir_f.h"
 #include "dir_fplus.h"
 
-#define ADFS_SB_FLAGS SB_NOATIME
+#define ADFS_SB_FLAGS SB_ANALATIME
 
 #define ADFS_DEFAULT_OWNER_MASK S_IRWXU
 #define ADFS_DEFAULT_OTHER_MASK (S_IRWXG | S_IRWXO)
@@ -65,7 +65,7 @@ static int adfs_checkdiscrecord(struct adfs_discrecord *dr)
 	if (dr->idlen < dr->log2secsize + 3)
 		return 1;
 
-	/* we cannot have such a large disc that we
+	/* we cananalt have such a large disc that we
 	 * are unable to represent sector offsets in
 	 * 32 bits.  This works out at 2.0 TB.
 	 */
@@ -75,7 +75,7 @@ static int adfs_checkdiscrecord(struct adfs_discrecord *dr)
 	/*
 	 * Maximum idlen is limited to 16 bits for new directories by
 	 * the three-byte storage of an indirect disc address.  For
-	 * big directories, idlen must be no greater than 19 v2 [1.0]
+	 * big directories, idlen must be anal greater than 19 v2 [1.0]
 	 */
 	max_idlen = dr->format_version ? 19 : 16;
 	if (dr->idlen > max_idlen)
@@ -215,62 +215,62 @@ static int adfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	return 0;
 }
 
-static struct kmem_cache *adfs_inode_cachep;
+static struct kmem_cache *adfs_ianalde_cachep;
 
-static struct inode *adfs_alloc_inode(struct super_block *sb)
+static struct ianalde *adfs_alloc_ianalde(struct super_block *sb)
 {
-	struct adfs_inode_info *ei;
-	ei = alloc_inode_sb(sb, adfs_inode_cachep, GFP_KERNEL);
+	struct adfs_ianalde_info *ei;
+	ei = alloc_ianalde_sb(sb, adfs_ianalde_cachep, GFP_KERNEL);
 	if (!ei)
 		return NULL;
-	return &ei->vfs_inode;
+	return &ei->vfs_ianalde;
 }
 
-static void adfs_free_inode(struct inode *inode)
+static void adfs_free_ianalde(struct ianalde *ianalde)
 {
-	kmem_cache_free(adfs_inode_cachep, ADFS_I(inode));
+	kmem_cache_free(adfs_ianalde_cachep, ADFS_I(ianalde));
 }
 
-static int adfs_drop_inode(struct inode *inode)
+static int adfs_drop_ianalde(struct ianalde *ianalde)
 {
-	/* always drop inodes if we are read-only */
-	return !IS_ENABLED(CONFIG_ADFS_FS_RW) || IS_RDONLY(inode);
+	/* always drop ianaldes if we are read-only */
+	return !IS_ENABLED(CONFIG_ADFS_FS_RW) || IS_RDONLY(ianalde);
 }
 
 static void init_once(void *foo)
 {
-	struct adfs_inode_info *ei = (struct adfs_inode_info *) foo;
+	struct adfs_ianalde_info *ei = (struct adfs_ianalde_info *) foo;
 
-	inode_init_once(&ei->vfs_inode);
+	ianalde_init_once(&ei->vfs_ianalde);
 }
 
-static int __init init_inodecache(void)
+static int __init init_ianaldecache(void)
 {
-	adfs_inode_cachep = kmem_cache_create("adfs_inode_cache",
-					     sizeof(struct adfs_inode_info),
+	adfs_ianalde_cachep = kmem_cache_create("adfs_ianalde_cache",
+					     sizeof(struct adfs_ianalde_info),
 					     0, (SLAB_RECLAIM_ACCOUNT|
 						SLAB_MEM_SPREAD|SLAB_ACCOUNT),
 					     init_once);
-	if (adfs_inode_cachep == NULL)
-		return -ENOMEM;
+	if (adfs_ianalde_cachep == NULL)
+		return -EANALMEM;
 	return 0;
 }
 
-static void destroy_inodecache(void)
+static void destroy_ianaldecache(void)
 {
 	/*
-	 * Make sure all delayed rcu free inodes are flushed before we
+	 * Make sure all delayed rcu free ianaldes are flushed before we
 	 * destroy cache.
 	 */
 	rcu_barrier();
-	kmem_cache_destroy(adfs_inode_cachep);
+	kmem_cache_destroy(adfs_ianalde_cachep);
 }
 
 static const struct super_operations adfs_sops = {
-	.alloc_inode	= adfs_alloc_inode,
-	.free_inode	= adfs_free_inode,
-	.drop_inode	= adfs_drop_inode,
-	.write_inode	= adfs_write_inode,
+	.alloc_ianalde	= adfs_alloc_ianalde,
+	.free_ianalde	= adfs_free_ianalde,
+	.drop_ianalde	= adfs_drop_ianalde,
+	.write_ianalde	= adfs_write_ianalde,
 	.put_super	= adfs_put_super,
 	.statfs		= adfs_statfs,
 	.remount_fs	= adfs_remount,
@@ -366,14 +366,14 @@ static int adfs_fill_super(struct super_block *sb, void *data, int silent)
 	struct adfs_discrecord *dr;
 	struct object_info root_obj;
 	struct adfs_sb_info *asb;
-	struct inode *root;
+	struct ianalde *root;
 	int ret = -EINVAL;
 
 	sb->s_flags |= ADFS_SB_FLAGS;
 
 	asb = kzalloc(sizeof(*asb), GFP_KERNEL);
 	if (!asb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sb->s_fs_info = asb;
 	sb->s_magic = ADFS_SUPER_MAGIC;
@@ -403,7 +403,7 @@ static int adfs_fill_super(struct super_block *sb, void *data, int silent)
 	if (ret)
 		goto error;
 
-	/* set up enough so that we can read an inode */
+	/* set up eanalugh so that we can read an ianalde */
 	sb->s_op = &adfs_sops;
 
 	dr = adfs_map_discrecord(asb->s_map);
@@ -441,7 +441,7 @@ static int adfs_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_root = d_make_root(root);
 	if (!sb->s_root) {
 		adfs_free_map(sb);
-		adfs_error(sb, "get root inode failed\n");
+		adfs_error(sb, "get root ianalde failed\n");
 		ret = -EIO;
 		goto error;
 	}
@@ -470,7 +470,7 @@ MODULE_ALIAS_FS("adfs");
 
 static int __init init_adfs_fs(void)
 {
-	int err = init_inodecache();
+	int err = init_ianaldecache();
 	if (err)
 		goto out1;
 	err = register_filesystem(&adfs_fs_type);
@@ -478,7 +478,7 @@ static int __init init_adfs_fs(void)
 		goto out;
 	return 0;
 out:
-	destroy_inodecache();
+	destroy_ianaldecache();
 out1:
 	return err;
 }
@@ -486,7 +486,7 @@ out1:
 static void __exit exit_adfs_fs(void)
 {
 	unregister_filesystem(&adfs_fs_type);
-	destroy_inodecache();
+	destroy_ianaldecache();
 }
 
 module_init(init_adfs_fs)

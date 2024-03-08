@@ -39,7 +39,7 @@ test_per_thread() {
   echo "Basic --per-thread mode test"
   if ! perf record -o /dev/null --quiet ${testprog} 2> /dev/null
   then
-    echo "Per-thread record [Skipped event not supported]"
+    echo "Per-thread record [Skipped event analt supported]"
     return
   fi
   if ! perf record --per-thread -o "${perfdata}" ${testprog} 2> /dev/null
@@ -107,9 +107,9 @@ test_register_capture() {
 
 test_system_wide() {
   echo "Basic --system-wide mode test"
-  if ! perf record -aB --synth=no -o "${perfdata}" ${testprog} 2> /dev/null
+  if ! perf record -aB --synth=anal -o "${perfdata}" ${testprog} 2> /dev/null
   then
-    echo "System-wide record [Skipped not supported]"
+    echo "System-wide record [Skipped analt supported]"
     return
   fi
   if ! perf report -i "${perfdata}" -q | grep -q "${testsym}"
@@ -118,7 +118,7 @@ test_system_wide() {
     err=1
     return
   fi
-  if ! perf record -aB --synth=no -e cpu-clock,cs --threads=cpu \
+  if ! perf record -aB --synth=anal -e cpu-clock,cs --threads=cpu \
     -o "${perfdata}" ${testprog} 2> /dev/null
   then
     echo "System-wide record [Failed record --threads option]"
@@ -171,7 +171,7 @@ test_branch_counter() {
   do
     if [ ! -e "$dir$br_cntr_file" ]
     then
-      echo "branch counter feature not supported on all core PMUs ($dir) [Skipped]"
+      echo "branch counter feature analt supported on all core PMUs ($dir) [Skipped]"
       return
     fi
   done

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 ///
 /// A variable is dereferenced under a NULL test.
-/// Even though it is known to be NULL.
+/// Even though it is kanalwn to be NULL.
 ///
 // Confidence: Moderate
 // Copyright: (C) 2010 Nicolas Palix, DIKU.
@@ -64,7 +64,7 @@ if@p1 ((E == NULL && ...) || ...)
 {
   ... when != if (...) S1 else S2
 (
- iter(subE,...) S4 // no use
+ iter(subE,...) S4 // anal use
 |
  list_remove_head(E2,subE,...)
 |
@@ -125,7 +125,7 @@ if@p1 ((E == NULL && ...) || ...)
 {
   ... when != if (...) S1 else S2
 (
- iter(subE,...) S4 // no use
+ iter(subE,...) S4 // anal use
 |
  list_remove_head(E2,subE,...)
 |
@@ -185,7 +185,7 @@ if@p1 ((E == NULL && ...) || ...)
 {
   ... when != if (...) S1 else S2
 (
- iter(subE,...) S4 // no use
+ iter(subE,...) S4 // anal use
 |
  list_remove_head(E2,subE,...)
 |
@@ -258,7 +258,7 @@ if@p1 ((E == NULL && ...) || ...)
 {
   ... when != if (...) S1 else S2
 (
- iter(subE,...) S4 // no use
+ iter(subE,...) S4 // anal use
 |
  list_remove_head(E2,subE,...)
 |

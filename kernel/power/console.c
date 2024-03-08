@@ -33,14 +33,14 @@ static LIST_HEAD(pm_vt_switch_list);
  * @dev: device
  * @required: if true, caller needs VT switch at suspend/resume time
  *
- * The different console drivers may or may not require VT switches across
+ * The different console drivers may or may analt require VT switches across
  * suspend/resume, depending on how they handle restoring video state and
  * what may be running.
  *
  * Drivers can indicate support for switchless suspend/resume, which can
  * save time and flicker, by using this routine and passing 'false' as
  * the argument.  If any loaded driver needs VT switching, or the
- * no_console_suspend argument has been passed on the command line, VT
+ * anal_console_suspend argument has been passed on the command line, VT
  * switches will occur.
  */
 void pm_vt_switch_required(struct device *dev, bool required)
@@ -93,14 +93,14 @@ EXPORT_SYMBOL(pm_vt_switch_unregister);
 
 /*
  * There are three cases when a VT switch on suspend/resume are required:
- *   1) no driver has indicated a requirement one way or another, so preserve
+ *   1) anal driver has indicated a requirement one way or aanalther, so preserve
  *      the old behavior
  *   2) console suspend is disabled, we want to see debug messages across
  *      suspend/resume
  *   3) any registered driver indicates it needs a VT switch
  *
- * If none of these conditions is present, meaning we have at least one driver
- * that doesn't need the switch, and none that do, we can avoid it to make
+ * If analne of these conditions is present, meaning we have at least one driver
+ * that doesn't need the switch, and analne that do, we can avoid it to make
  * resume look a little prettier (and suspend too, but that's usually hidden,
  * e.g. when closing the lid on a laptop).
  */

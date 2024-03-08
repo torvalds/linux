@@ -4,10 +4,10 @@
 #include <nvif/mem.h>
 #include <nvif/push.h>
 
-#include "nouveau_display.h"
+#include "analuveau_display.h"
 
 struct nv50_msto;
-struct nouveau_encoder;
+struct analuveau_encoder;
 
 struct nv50_disp {
 	struct nvif_disp *disp;
@@ -25,7 +25,7 @@ struct nv50_disp {
 #define NV50_DISP_OVLY_SEM0(c)                    NV50_DISP_WNDW_SEM0(4 + (c))
 #define NV50_DISP_OVLY_SEM1(c)                    NV50_DISP_WNDW_SEM1(4 + (c))
 #define NV50_DISP_OVLY_NTFY(c)                    NV50_DISP_WNDW_NTFY(4 + (c))
-	struct nouveau_bo *sync;
+	struct analuveau_bo *sync;
 
 	struct mutex mutex;
 };
@@ -33,7 +33,7 @@ struct nv50_disp {
 static inline struct nv50_disp *
 nv50_disp(struct drm_device *dev)
 {
-	return nouveau_display(dev)->priv;
+	return analuveau_display(dev)->priv;
 }
 
 struct nv50_disp_interlock {
@@ -50,7 +50,7 @@ struct nv50_disp_interlock {
 	u32 wimm;
 };
 
-void corec37d_ntfy_init(struct nouveau_bo *, u32);
+void corec37d_ntfy_init(struct analuveau_bo *, u32);
 
 void head907d_olut_load(struct drm_color_lut *, int size, void __iomem *);
 
@@ -101,12 +101,12 @@ int nv50_dmac_create(struct nvif_device *device, struct nvif_object *disp,
 void nv50_dmac_destroy(struct nv50_dmac *);
 
 /*
- * For normal encoders this just returns the encoder. For active MST encoders,
+ * For analrmal encoders this just returns the encoder. For active MST encoders,
  * this returns the real outp that's driving displays on the topology.
- * Inactive MST encoders return NULL, since they would have no real outp to
+ * Inactive MST encoders return NULL, since they would have anal real outp to
  * return anyway.
  */
-struct nouveau_encoder *nv50_real_outp(struct drm_encoder *encoder);
+struct analuveau_encoder *nv50_real_outp(struct drm_encoder *encoder);
 
 u32 *evo_wait(struct nv50_dmac *, int nr);
 void evo_kick(u32 *, struct nv50_dmac *);

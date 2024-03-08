@@ -27,7 +27,7 @@
 #include <linux/sched/mm.h>
 #include <linux/platform_device.h>
 #include <linux/rmap.h>
-#include <linux/mmu_notifier.h>
+#include <linux/mmu_analtifier.h>
 #include <linux/migrate.h>
 
 #include "test_hmm_uapi.h"
@@ -59,7 +59,7 @@ MODULE_PARM_DESC(spm_addr_dev1,
 		"Specify start address for SPM (special purpose memory) used for device 1. By setting this Coherent device type will be used. Make sure spm_addr_dev0 is set too. Minimum SPM size should be DEVMEM_CHUNK_SIZE.");
 
 static const struct dev_pagemap_ops dmirror_devmem_ops;
-static const struct mmu_interval_notifier_ops dmirror_min_ops;
+static const struct mmu_interval_analtifier_ops dmirror_min_ops;
 static dev_t dmirror_dev;
 
 struct dmirror_device;
@@ -76,21 +76,21 @@ struct dmirror_bounce {
 
 /*
  * Data structure to track address ranges and register for mmu interval
- * notifier updates.
+ * analtifier updates.
  */
 struct dmirror_interval {
-	struct mmu_interval_notifier	notifier;
+	struct mmu_interval_analtifier	analtifier;
 	struct dmirror			*dmirror;
 };
 
 /*
  * Data attached to the open device file.
- * Note that it might be shared after a fork().
+ * Analte that it might be shared after a fork().
  */
 struct dmirror {
 	struct dmirror_device		*mdevice;
 	struct xarray			pt;
-	struct mmu_interval_notifier	notifier;
+	struct mmu_interval_analtifier	analtifier;
 	struct mutex			mutex;
 };
 
@@ -133,7 +133,7 @@ static int dmirror_bounce_init(struct dmirror_bounce *bounce,
 	bounce->cpages = 0;
 	bounce->ptr = vmalloc(size);
 	if (!bounce->ptr)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 
@@ -157,22 +157,22 @@ static void dmirror_bounce_fini(struct dmirror_bounce *bounce)
 	vfree(bounce->ptr);
 }
 
-static int dmirror_fops_open(struct inode *inode, struct file *filp)
+static int dmirror_fops_open(struct ianalde *ianalde, struct file *filp)
 {
-	struct cdev *cdev = inode->i_cdev;
+	struct cdev *cdev = ianalde->i_cdev;
 	struct dmirror *dmirror;
 	int ret;
 
 	/* Mirror this process address space */
 	dmirror = kzalloc(sizeof(*dmirror), GFP_KERNEL);
 	if (dmirror == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dmirror->mdevice = container_of(cdev, struct dmirror_device, cdevice);
 	mutex_init(&dmirror->mutex);
 	xa_init(&dmirror->pt);
 
-	ret = mmu_interval_notifier_insert(&dmirror->notifier, current->mm,
+	ret = mmu_interval_analtifier_insert(&dmirror->analtifier, current->mm,
 				0, ULONG_MAX & PAGE_MASK, &dmirror_min_ops);
 	if (ret) {
 		kfree(dmirror);
@@ -183,11 +183,11 @@ static int dmirror_fops_open(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static int dmirror_fops_release(struct inode *inode, struct file *filp)
+static int dmirror_fops_release(struct ianalde *ianalde, struct file *filp)
 {
 	struct dmirror *dmirror = filp->private_data;
 
-	mmu_interval_notifier_remove(&dmirror->notifier);
+	mmu_interval_analtifier_remove(&dmirror->analtifier);
 	xa_destroy(&dmirror->pt);
 	kfree(dmirror);
 	return 0;
@@ -246,7 +246,7 @@ static void dmirror_do_update(struct dmirror *dmirror, unsigned long start,
 
 	/*
 	 * The XArray doesn't hold references to pages since it relies on
-	 * the mmu notifier to clear page pointers when they become stale.
+	 * the mmu analtifier to clear page pointers when they become stale.
 	 * Therefore, it is OK to just clear the entry.
 	 */
 	xa_for_each_range(&dmirror->pt, pfn, entry, start >> PAGE_SHIFT,
@@ -254,21 +254,21 @@ static void dmirror_do_update(struct dmirror *dmirror, unsigned long start,
 		xa_erase(&dmirror->pt, pfn);
 }
 
-static bool dmirror_interval_invalidate(struct mmu_interval_notifier *mni,
-				const struct mmu_notifier_range *range,
+static bool dmirror_interval_invalidate(struct mmu_interval_analtifier *mni,
+				const struct mmu_analtifier_range *range,
 				unsigned long cur_seq)
 {
-	struct dmirror *dmirror = container_of(mni, struct dmirror, notifier);
+	struct dmirror *dmirror = container_of(mni, struct dmirror, analtifier);
 
 	/*
-	 * Ignore invalidation callbacks for device private pages since
+	 * Iganalre invalidation callbacks for device private pages since
 	 * the invalidation is handled as part of the migration process.
 	 */
-	if (range->event == MMU_NOTIFY_MIGRATE &&
+	if (range->event == MMU_ANALTIFY_MIGRATE &&
 	    range->owner == dmirror->mdevice)
 		return true;
 
-	if (mmu_notifier_range_blockable(range))
+	if (mmu_analtifier_range_blockable(range))
 		mutex_lock(&dmirror->mutex);
 	else if (!mutex_trylock(&dmirror->mutex))
 		return false;
@@ -280,14 +280,14 @@ static bool dmirror_interval_invalidate(struct mmu_interval_notifier *mni,
 	return true;
 }
 
-static const struct mmu_interval_notifier_ops dmirror_min_ops = {
+static const struct mmu_interval_analtifier_ops dmirror_min_ops = {
 	.invalidate = dmirror_interval_invalidate,
 };
 
 static int dmirror_range_fault(struct dmirror *dmirror,
 				struct hmm_range *range)
 {
-	struct mm_struct *mm = dmirror->notifier.mm;
+	struct mm_struct *mm = dmirror->analtifier.mm;
 	unsigned long timeout =
 		jiffies + msecs_to_jiffies(HMM_RANGE_DEFAULT_TIMEOUT);
 	int ret;
@@ -298,7 +298,7 @@ static int dmirror_range_fault(struct dmirror *dmirror,
 			goto out;
 		}
 
-		range->notifier_seq = mmu_interval_read_begin(range->notifier);
+		range->analtifier_seq = mmu_interval_read_begin(range->analtifier);
 		mmap_read_lock(mm);
 		ret = hmm_range_fault(range);
 		mmap_read_unlock(mm);
@@ -309,8 +309,8 @@ static int dmirror_range_fault(struct dmirror *dmirror,
 		}
 
 		mutex_lock(&dmirror->mutex);
-		if (mmu_interval_read_retry(range->notifier,
-					    range->notifier_seq)) {
+		if (mmu_interval_read_retry(range->analtifier,
+					    range->analtifier_seq)) {
 			mutex_unlock(&dmirror->mutex);
 			continue;
 		}
@@ -327,11 +327,11 @@ out:
 static int dmirror_fault(struct dmirror *dmirror, unsigned long start,
 			 unsigned long end, bool write)
 {
-	struct mm_struct *mm = dmirror->notifier.mm;
+	struct mm_struct *mm = dmirror->analtifier.mm;
 	unsigned long addr;
 	unsigned long pfns[64];
 	struct hmm_range range = {
-		.notifier = &dmirror->notifier,
+		.analtifier = &dmirror->analtifier,
 		.hmm_pfns = pfns,
 		.pfn_flags_mask = 0,
 		.default_flags =
@@ -341,7 +341,7 @@ static int dmirror_fault(struct dmirror *dmirror, unsigned long start,
 	int ret = 0;
 
 	/* Since the mm is for the mirrored process, get a reference first. */
-	if (!mmget_not_zero(mm))
+	if (!mmget_analt_zero(mm))
 		return 0;
 
 	for (addr = start; addr < end; addr = range.end) {
@@ -372,7 +372,7 @@ static int dmirror_do_read(struct dmirror *dmirror, unsigned long start,
 		entry = xa_load(&dmirror->pt, pfn);
 		page = xa_untag_pointer(entry);
 		if (!page)
-			return -ENOENT;
+			return -EANALENT;
 
 		memcpy_from_page(ptr, page, 0, PAGE_SIZE);
 
@@ -403,7 +403,7 @@ static int dmirror_read(struct dmirror *dmirror, struct hmm_dmirror_cmd *cmd)
 		mutex_lock(&dmirror->mutex);
 		ret = dmirror_do_read(dmirror, start, end, &bounce);
 		mutex_unlock(&dmirror->mutex);
-		if (ret != -ENOENT)
+		if (ret != -EANALENT)
 			break;
 
 		start = cmd->addr + (bounce.cpages << PAGE_SHIFT);
@@ -438,7 +438,7 @@ static int dmirror_do_write(struct dmirror *dmirror, unsigned long start,
 		entry = xa_load(&dmirror->pt, pfn);
 		page = xa_untag_pointer(entry);
 		if (!page || xa_pointer_tag(entry) != DPT_XA_TAG_WRITE)
-			return -ENOENT;
+			return -EANALENT;
 
 		memcpy_to_page(page, 0, ptr, PAGE_SIZE);
 
@@ -474,7 +474,7 @@ static int dmirror_write(struct dmirror *dmirror, struct hmm_dmirror_cmd *cmd)
 		mutex_lock(&dmirror->mutex);
 		ret = dmirror_do_write(dmirror, start, end, &bounce);
 		mutex_unlock(&dmirror->mutex);
-		if (ret != -ENOENT)
+		if (ret != -EANALENT)
 			break;
 
 		start = cmd->addr + (bounce.cpages << PAGE_SHIFT);
@@ -499,7 +499,7 @@ static int dmirror_allocate_chunk(struct dmirror_device *mdevice,
 	unsigned long pfn_first;
 	unsigned long pfn_last;
 	void *ptr;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	devmem = kzalloc(sizeof(*devmem), GFP_KERNEL);
 	if (!devmem)
@@ -516,7 +516,7 @@ static int dmirror_allocate_chunk(struct dmirror_device *mdevice,
 		devmem->pagemap.type = MEMORY_DEVICE_PRIVATE;
 		break;
 	case HMM_DMIRROR_MEMORY_DEVICE_COHERENT:
-		devmem->pagemap.range.start = (MINOR(mdevice->cdevice.dev) - 2) ?
+		devmem->pagemap.range.start = (MIANALR(mdevice->cdevice.dev) - 2) ?
 							spm_addr_dev0 :
 							spm_addr_dev1;
 		devmem->pagemap.range.end = devmem->pagemap.range.start +
@@ -548,7 +548,7 @@ static int dmirror_allocate_chunk(struct dmirror_device *mdevice,
 		mdevice->devmem_capacity = new_capacity;
 		mdevice->devmem_chunks = new_chunks;
 	}
-	ptr = memremap_pages(&devmem->pagemap, numa_node_id());
+	ptr = memremap_pages(&devmem->pagemap, numa_analde_id());
 	if (IS_ERR_OR_NULL(ptr)) {
 		if (ptr)
 			ret = PTR_ERR(ptr);
@@ -606,7 +606,7 @@ static struct page *dmirror_devmem_alloc_page(struct dmirror_device *mdevice)
 	 * For ZONE_DEVICE private type, this is a fake device so we allocate
 	 * real system memory to store our device memory.
 	 * For ZONE_DEVICE coherent type we use the actual dpage to store the
-	 * data and ignore rpage.
+	 * data and iganalre rpage.
 	 */
 	if (dmirror_is_private_zone(mdevice)) {
 		rpage = alloc_page(GFP_HIGHUSER);
@@ -654,8 +654,8 @@ static void dmirror_migrate_alloc_and_copy(struct migrate_vma *args,
 			continue;
 
 		/*
-		 * Note that spage might be NULL which is OK since it is an
-		 * unallocated pte_none() or read-only zero page.
+		 * Analte that spage might be NULL which is OK since it is an
+		 * unallocated pte_analne() or read-only zero page.
 		 */
 		spage = migrate_pfn_to_page(*src);
 		if (WARN(spage && is_zone_device_page(spage),
@@ -674,7 +674,7 @@ static void dmirror_migrate_alloc_and_copy(struct migrate_vma *args,
 			clear_highpage(rpage);
 
 		/*
-		 * Normally, a device would use the page->zone_device_data to
+		 * Analrmally, a device would use the page->zone_device_data to
 		 * point to the mirror but here we use it to hold the page for
 		 * the simulated device memory and that page holds the pointer
 		 * to the mirror.
@@ -779,7 +779,7 @@ static int dmirror_exclusive(struct dmirror *dmirror,
 {
 	unsigned long start, end, addr;
 	unsigned long size = cmd->npages << PAGE_SHIFT;
-	struct mm_struct *mm = dmirror->notifier.mm;
+	struct mm_struct *mm = dmirror->analtifier.mm;
 	struct page *pages[64];
 	struct dmirror_bounce bounce;
 	unsigned long next;
@@ -791,7 +791,7 @@ static int dmirror_exclusive(struct dmirror *dmirror,
 		return -EINVAL;
 
 	/* Since the mm is for the mirrored process, get a reference first. */
-	if (!mmget_not_zero(mm))
+	if (!mmget_analt_zero(mm))
 		return -EINVAL;
 
 	mmap_read_lock(mm);
@@ -902,7 +902,7 @@ static int dmirror_migrate_to_system(struct dmirror *dmirror,
 {
 	unsigned long start, end, addr;
 	unsigned long size = cmd->npages << PAGE_SHIFT;
-	struct mm_struct *mm = dmirror->notifier.mm;
+	struct mm_struct *mm = dmirror->analtifier.mm;
 	struct vm_area_struct *vma;
 	unsigned long src_pfns[64] = { 0 };
 	unsigned long dst_pfns[64] = { 0 };
@@ -916,7 +916,7 @@ static int dmirror_migrate_to_system(struct dmirror *dmirror,
 		return -EINVAL;
 
 	/* Since the mm is for the mirrored process, get a reference first. */
-	if (!mmget_not_zero(mm))
+	if (!mmget_analt_zero(mm))
 		return -EINVAL;
 
 	cmd->cpages = 0;
@@ -962,7 +962,7 @@ static int dmirror_migrate_to_device(struct dmirror *dmirror,
 {
 	unsigned long start, end, addr;
 	unsigned long size = cmd->npages << PAGE_SHIFT;
-	struct mm_struct *mm = dmirror->notifier.mm;
+	struct mm_struct *mm = dmirror->analtifier.mm;
 	struct vm_area_struct *vma;
 	unsigned long src_pfns[64] = { 0 };
 	unsigned long dst_pfns[64] = { 0 };
@@ -977,7 +977,7 @@ static int dmirror_migrate_to_device(struct dmirror *dmirror,
 		return -EINVAL;
 
 	/* Since the mm is for the mirrored process, get a reference first. */
-	if (!mmget_not_zero(mm))
+	if (!mmget_analt_zero(mm))
 		return -EINVAL;
 
 	mmap_read_lock(mm);
@@ -1046,7 +1046,7 @@ static void dmirror_mkentry(struct dmirror *dmirror, struct hmm_range *range,
 		return;
 	}
 	if (!(entry & HMM_PFN_VALID)) {
-		*perm = HMM_DMIRROR_PROT_NONE;
+		*perm = HMM_DMIRROR_PROT_ANALNE;
 		return;
 	}
 
@@ -1066,7 +1066,7 @@ static void dmirror_mkentry(struct dmirror *dmirror, struct hmm_range *range,
 	} else if (is_zero_pfn(page_to_pfn(page)))
 		*perm = HMM_DMIRROR_PROT_ZERO;
 	else
-		*perm = HMM_DMIRROR_PROT_NONE;
+		*perm = HMM_DMIRROR_PROT_ANALNE;
 	if (entry & HMM_PFN_WRITE)
 		*perm |= HMM_DMIRROR_PROT_WRITE;
 	else
@@ -1077,15 +1077,15 @@ static void dmirror_mkentry(struct dmirror *dmirror, struct hmm_range *range,
 		*perm |= HMM_DMIRROR_PROT_PUD;
 }
 
-static bool dmirror_snapshot_invalidate(struct mmu_interval_notifier *mni,
-				const struct mmu_notifier_range *range,
+static bool dmirror_snapshot_invalidate(struct mmu_interval_analtifier *mni,
+				const struct mmu_analtifier_range *range,
 				unsigned long cur_seq)
 {
 	struct dmirror_interval *dmi =
-		container_of(mni, struct dmirror_interval, notifier);
+		container_of(mni, struct dmirror_interval, analtifier);
 	struct dmirror *dmirror = dmi->dmirror;
 
-	if (mmu_notifier_range_blockable(range))
+	if (mmu_analtifier_range_blockable(range))
 		mutex_lock(&dmirror->mutex);
 	else if (!mutex_trylock(&dmirror->mutex))
 		return false;
@@ -1100,7 +1100,7 @@ static bool dmirror_snapshot_invalidate(struct mmu_interval_notifier *mni,
 	return true;
 }
 
-static const struct mmu_interval_notifier_ops dmirror_mrn_ops = {
+static const struct mmu_interval_analtifier_ops dmirror_mrn_ops = {
 	.invalidate = dmirror_snapshot_invalidate,
 };
 
@@ -1108,18 +1108,18 @@ static int dmirror_range_snapshot(struct dmirror *dmirror,
 				  struct hmm_range *range,
 				  unsigned char *perm)
 {
-	struct mm_struct *mm = dmirror->notifier.mm;
-	struct dmirror_interval notifier;
+	struct mm_struct *mm = dmirror->analtifier.mm;
+	struct dmirror_interval analtifier;
 	unsigned long timeout =
 		jiffies + msecs_to_jiffies(HMM_RANGE_DEFAULT_TIMEOUT);
 	unsigned long i;
 	unsigned long n;
 	int ret = 0;
 
-	notifier.dmirror = dmirror;
-	range->notifier = &notifier.notifier;
+	analtifier.dmirror = dmirror;
+	range->analtifier = &analtifier.analtifier;
 
-	ret = mmu_interval_notifier_insert(range->notifier, mm,
+	ret = mmu_interval_analtifier_insert(range->analtifier, mm,
 			range->start, range->end - range->start,
 			&dmirror_mrn_ops);
 	if (ret)
@@ -1131,7 +1131,7 @@ static int dmirror_range_snapshot(struct dmirror *dmirror,
 			goto out;
 		}
 
-		range->notifier_seq = mmu_interval_read_begin(range->notifier);
+		range->analtifier_seq = mmu_interval_read_begin(range->analtifier);
 
 		mmap_read_lock(mm);
 		ret = hmm_range_fault(range);
@@ -1143,8 +1143,8 @@ static int dmirror_range_snapshot(struct dmirror *dmirror,
 		}
 
 		mutex_lock(&dmirror->mutex);
-		if (mmu_interval_read_retry(range->notifier,
-					    range->notifier_seq)) {
+		if (mmu_interval_read_retry(range->analtifier,
+					    range->analtifier_seq)) {
 			mutex_unlock(&dmirror->mutex);
 			continue;
 		}
@@ -1157,14 +1157,14 @@ static int dmirror_range_snapshot(struct dmirror *dmirror,
 
 	mutex_unlock(&dmirror->mutex);
 out:
-	mmu_interval_notifier_remove(range->notifier);
+	mmu_interval_analtifier_remove(range->analtifier);
 	return ret;
 }
 
 static int dmirror_snapshot(struct dmirror *dmirror,
 			    struct hmm_dmirror_cmd *cmd)
 {
-	struct mm_struct *mm = dmirror->notifier.mm;
+	struct mm_struct *mm = dmirror->analtifier.mm;
 	unsigned long start, end;
 	unsigned long size = cmd->npages << PAGE_SHIFT;
 	unsigned long addr;
@@ -1184,12 +1184,12 @@ static int dmirror_snapshot(struct dmirror *dmirror,
 		return -EINVAL;
 
 	/* Since the mm is for the mirrored process, get a reference first. */
-	if (!mmget_not_zero(mm))
+	if (!mmget_analt_zero(mm))
 		return -EINVAL;
 
 	/*
-	 * Register a temporary notifier to detect invalidations even if it
-	 * overlaps with other mmu_interval_notifiers.
+	 * Register a temporary analtifier to detect invalidations even if it
+	 * overlaps with other mmu_interval_analtifiers.
 	 */
 	uptr = u64_to_user_ptr(cmd->ptr);
 	for (addr = start; addr < end; addr = next) {
@@ -1241,7 +1241,7 @@ static void dmirror_device_evict_chunk(struct dmirror_chunk *chunk)
 			    !is_device_coherent_page(spage)))
 			continue;
 		spage = BACKING_PAGE(spage);
-		dpage = alloc_page(GFP_HIGHUSER_MOVABLE | __GFP_NOFAIL);
+		dpage = alloc_page(GFP_HIGHUSER_MOVABLE | __GFP_ANALFAIL);
 		lock_page(dpage);
 		copy_highpage(dpage, spage);
 		dst_pfns[i] = migrate_pfn(page_to_pfn(dpage));
@@ -1377,7 +1377,7 @@ static int dmirror_fops_mmap(struct file *file, struct vm_area_struct *vma)
 
 		page = alloc_page(GFP_KERNEL | __GFP_ZERO);
 		if (!page)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		ret = vm_insert_page(vma, addr, page);
 		if (ret) {
@@ -1410,7 +1410,7 @@ static void dmirror_devmem_free(struct page *page)
 	mdevice = dmirror_page_to_device(page);
 	spin_lock(&mdevice->lock);
 
-	/* Return page to our allocator if not freeing the chunk */
+	/* Return page to our allocator if analt freeing the chunk */
 	if (!dmirror_page_to_chunk(page)->remove) {
 		mdevice->cfree++;
 		page->zone_device_data = mdevice->free_pages;
@@ -1429,7 +1429,7 @@ static vm_fault_t dmirror_devmem_fault(struct vm_fault *vmf)
 	vm_fault_t ret;
 
 	/*
-	 * Normally, a device would use the page->zone_device_data to point to
+	 * Analrmally, a device would use the page->zone_device_data to point to
 	 * the mirror but here we use it to hold the page for the simulated
 	 * device memory and that page holds the pointer to the mirror.
 	 */
@@ -1454,7 +1454,7 @@ static vm_fault_t dmirror_devmem_fault(struct vm_fault *vmf)
 		return ret;
 	migrate_vma_pages(&args);
 	/*
-	 * No device finalize step is needed since
+	 * Anal device finalize step is needed since
 	 * dmirror_devmem_fault_alloc_and_copy() will have already
 	 * invalidated the device page table.
 	 */

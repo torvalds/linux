@@ -20,15 +20,15 @@
 static inline int vxlan_vni_cmp(struct rhashtable_compare_arg *arg,
 				const void *ptr)
 {
-	const struct vxlan_vni_node *vnode = ptr;
+	const struct vxlan_vni_analde *vanalde = ptr;
 	__be32 vni = *(__be32 *)arg->key;
 
-	return vnode->vni != vni;
+	return vanalde->vni != vni;
 }
 
 const struct rhashtable_params vxlan_vni_rht_params = {
-	.head_offset = offsetof(struct vxlan_vni_node, vnode),
-	.key_offset = offsetof(struct vxlan_vni_node, vni),
+	.head_offset = offsetof(struct vxlan_vni_analde, vanalde),
+	.key_offset = offsetof(struct vxlan_vni_analde, vni),
 	.key_len = sizeof(__be32),
 	.nelem_hint = 3,
 	.max_size = VXLAN_N_VID,
@@ -36,12 +36,12 @@ const struct rhashtable_params vxlan_vni_rht_params = {
 	.automatic_shrinking = true,
 };
 
-static void vxlan_vs_add_del_vninode(struct vxlan_dev *vxlan,
-				     struct vxlan_vni_node *v,
+static void vxlan_vs_add_del_vnianalde(struct vxlan_dev *vxlan,
+				     struct vxlan_vni_analde *v,
 				     bool del)
 {
 	struct vxlan_net *vn = net_generic(vxlan->net, vxlan_net_id);
-	struct vxlan_dev_node *node;
+	struct vxlan_dev_analde *analde;
 	struct vxlan_sock *vs;
 
 	spin_lock(&vn->sock_lock);
@@ -58,14 +58,14 @@ static void vxlan_vs_add_del_vninode(struct vxlan_dev *vxlan,
 #if IS_ENABLED(CONFIG_IPV6)
 	vs = rtnl_dereference(vxlan->vn6_sock);
 	if (vs && v) {
-		node = &v->hlist6;
-		hlist_add_head_rcu(&node->hlist, vni_head(vs, v->vni));
+		analde = &v->hlist6;
+		hlist_add_head_rcu(&analde->hlist, vni_head(vs, v->vni));
 	}
 #endif
 	vs = rtnl_dereference(vxlan->vn4_sock);
 	if (vs && v) {
-		node = &v->hlist4;
-		hlist_add_head_rcu(&node->hlist, vni_head(vs, v->vni));
+		analde = &v->hlist4;
+		hlist_add_head_rcu(&analde->hlist, vni_head(vs, v->vni));
 	}
 out:
 	spin_unlock(&vn->sock_lock);
@@ -77,8 +77,8 @@ void vxlan_vs_add_vnigrp(struct vxlan_dev *vxlan,
 {
 	struct vxlan_net *vn = net_generic(vxlan->net, vxlan_net_id);
 	struct vxlan_vni_group *vg = rtnl_dereference(vxlan->vnigrp);
-	struct vxlan_vni_node *v, *tmp;
-	struct vxlan_dev_node *node;
+	struct vxlan_vni_analde *v, *tmp;
+	struct vxlan_dev_analde *analde;
 
 	if (!vg)
 		return;
@@ -87,12 +87,12 @@ void vxlan_vs_add_vnigrp(struct vxlan_dev *vxlan,
 	list_for_each_entry_safe(v, tmp, &vg->vni_list, vlist) {
 #if IS_ENABLED(CONFIG_IPV6)
 		if (ipv6)
-			node = &v->hlist6;
+			analde = &v->hlist6;
 		else
 #endif
-			node = &v->hlist4;
-		node->vxlan = vxlan;
-		hlist_add_head_rcu(&node->hlist, vni_head(vs, v->vni));
+			analde = &v->hlist4;
+		analde->vxlan = vxlan;
+		hlist_add_head_rcu(&analde->hlist, vni_head(vs, v->vni));
 	}
 	spin_unlock(&vn->sock_lock);
 }
@@ -101,7 +101,7 @@ void vxlan_vs_del_vnigrp(struct vxlan_dev *vxlan)
 {
 	struct vxlan_vni_group *vg = rtnl_dereference(vxlan->vnigrp);
 	struct vxlan_net *vn = net_generic(vxlan->net, vxlan_net_id);
-	struct vxlan_vni_node *v, *tmp;
+	struct vxlan_vni_analde *v, *tmp;
 
 	if (!vg)
 		return;
@@ -116,7 +116,7 @@ void vxlan_vs_del_vnigrp(struct vxlan_dev *vxlan)
 	spin_unlock(&vn->sock_lock);
 }
 
-static void vxlan_vnifilter_stats_get(const struct vxlan_vni_node *vninode,
+static void vxlan_vnifilter_stats_get(const struct vxlan_vni_analde *vnianalde,
 				      struct vxlan_vni_stats *dest)
 {
 	int i;
@@ -127,7 +127,7 @@ static void vxlan_vnifilter_stats_get(const struct vxlan_vni_node *vninode,
 		struct vxlan_vni_stats temp;
 		unsigned int start;
 
-		pstats = per_cpu_ptr(vninode->stats, i);
+		pstats = per_cpu_ptr(vnianalde->stats, i);
 		do {
 			start = u64_stats_fetch_begin(&pstats->syncp);
 			memcpy(&temp, &pstats->stats, sizeof(temp));
@@ -144,10 +144,10 @@ static void vxlan_vnifilter_stats_get(const struct vxlan_vni_node *vninode,
 	}
 }
 
-static void vxlan_vnifilter_stats_add(struct vxlan_vni_node *vninode,
+static void vxlan_vnifilter_stats_add(struct vxlan_vni_analde *vnianalde,
 				      int type, unsigned int len)
 {
-	struct vxlan_vni_stats_pcpu *pstats = this_cpu_ptr(vninode->stats);
+	struct vxlan_vni_stats_pcpu *pstats = this_cpu_ptr(vnianalde->stats);
 
 	u64_stats_update_begin(&pstats->syncp);
 	switch (type) {
@@ -176,27 +176,27 @@ static void vxlan_vnifilter_stats_add(struct vxlan_vni_node *vninode,
 }
 
 void vxlan_vnifilter_count(struct vxlan_dev *vxlan, __be32 vni,
-			   struct vxlan_vni_node *vninode,
+			   struct vxlan_vni_analde *vnianalde,
 			   int type, unsigned int len)
 {
-	struct vxlan_vni_node *vnode;
+	struct vxlan_vni_analde *vanalde;
 
 	if (!(vxlan->cfg.flags & VXLAN_F_VNIFILTER))
 		return;
 
-	if (vninode) {
-		vnode = vninode;
+	if (vnianalde) {
+		vanalde = vnianalde;
 	} else {
-		vnode = vxlan_vnifilter_lookup(vxlan, vni);
-		if (!vnode)
+		vanalde = vxlan_vnifilter_lookup(vxlan, vni);
+		if (!vanalde)
 			return;
 	}
 
-	vxlan_vnifilter_stats_add(vnode, type, len);
+	vxlan_vnifilter_stats_add(vanalde, type, len);
 }
 
-static u32 vnirange(struct vxlan_vni_node *vbegin,
-		    struct vxlan_vni_node *vend)
+static u32 vnirange(struct vxlan_vni_analde *vbegin,
+		    struct vxlan_vni_analde *vend)
 {
 	return (be32_to_cpu(vend->vni) - be32_to_cpu(vbegin->vni));
 }
@@ -211,7 +211,7 @@ static size_t vxlan_vnifilter_entry_nlmsg_size(void)
 }
 
 static int __vnifilter_entry_fill_stats(struct sk_buff *skb,
-					const struct vxlan_vni_node *vbegin)
+					const struct vxlan_vni_analde *vbegin)
 {
 	struct vxlan_vni_stats vstats;
 	struct nlattr *vstats_attr;
@@ -249,8 +249,8 @@ out_stats_err:
 }
 
 static bool vxlan_fill_vni_filter_entry(struct sk_buff *skb,
-					struct vxlan_vni_node *vbegin,
-					struct vxlan_vni_node *vend,
+					struct vxlan_vni_analde *vbegin,
+					struct vxlan_vni_analde *vend,
 					bool fill_stats)
 {
 	struct nlattr *ventry;
@@ -297,14 +297,14 @@ out_err:
 	return false;
 }
 
-static void vxlan_vnifilter_notify(const struct vxlan_dev *vxlan,
-				   struct vxlan_vni_node *vninode, int cmd)
+static void vxlan_vnifilter_analtify(const struct vxlan_dev *vxlan,
+				   struct vxlan_vni_analde *vnianalde, int cmd)
 {
 	struct tunnel_msg *tmsg;
 	struct sk_buff *skb;
 	struct nlmsghdr *nlh;
 	struct net *net = dev_net(vxlan->dev);
-	int err = -ENOBUFS;
+	int err = -EANALBUFS;
 
 	skb = nlmsg_new(vxlan_vnifilter_entry_nlmsg_size(), GFP_KERNEL);
 	if (!skb)
@@ -319,11 +319,11 @@ static void vxlan_vnifilter_notify(const struct vxlan_dev *vxlan,
 	tmsg->family = AF_BRIDGE;
 	tmsg->ifindex = vxlan->dev->ifindex;
 
-	if (!vxlan_fill_vni_filter_entry(skb, vninode, vninode, false))
+	if (!vxlan_fill_vni_filter_entry(skb, vnianalde, vnianalde, false))
 		goto out_err;
 
 	nlmsg_end(skb, nlh);
-	rtnl_notify(skb, net, 0, RTNLGRP_TUNNEL, NULL, GFP_KERNEL);
+	rtnl_analtify(skb, net, 0, RTNLGRP_TUNNEL, NULL, GFP_KERNEL);
 
 	return;
 
@@ -337,7 +337,7 @@ static int vxlan_vnifilter_dump_dev(const struct net_device *dev,
 				    struct sk_buff *skb,
 				    struct netlink_callback *cb)
 {
-	struct vxlan_vni_node *tmp, *v, *vbegin = NULL, *vend = NULL;
+	struct vxlan_vni_analde *tmp, *v, *vbegin = NULL, *vend = NULL;
 	struct vxlan_dev *vxlan = netdev_priv(dev);
 	struct tunnel_msg *new_tmsg, *tmsg;
 	int idx = 0, s_idx = cb->args[1];
@@ -422,12 +422,12 @@ static int vxlan_vnifilter_dump(struct sk_buff *skb, struct netlink_callback *cb
 	if (tmsg->ifindex) {
 		dev = dev_get_by_index_rcu(net, tmsg->ifindex);
 		if (!dev) {
-			err = -ENODEV;
+			err = -EANALDEV;
 			goto out_err;
 		}
 		if (!netif_is_vxlan(dev)) {
 			NL_SET_ERR_MSG(cb->extack,
-				       "The device is not a vxlan device");
+				       "The device is analt a vxlan device");
 			err = -EINVAL;
 			goto out_err;
 		}
@@ -513,7 +513,7 @@ static int vxlan_update_default_fdb_entry(struct vxlan_dev *vxlan, __be32 vni,
 }
 
 static int vxlan_vni_update_group(struct vxlan_dev *vxlan,
-				  struct vxlan_vni_node *vninode,
+				  struct vxlan_vni_analde *vnianalde,
 				  union vxlan_addr *group,
 				  bool create, bool *changed,
 				  struct netlink_ext_ack *extack)
@@ -524,9 +524,9 @@ static int vxlan_vni_update_group(struct vxlan_dev *vxlan,
 	union vxlan_addr old_remote_ip;
 	int ret = 0;
 
-	memcpy(&old_remote_ip, &vninode->remote_ip, sizeof(old_remote_ip));
+	memcpy(&old_remote_ip, &vnianalde->remote_ip, sizeof(old_remote_ip));
 
-	/* if per vni remote ip is not present use vxlan dev
+	/* if per vni remote ip is analt present use vxlan dev
 	 * default dst remote ip for fdb entry
 	 */
 	if (group && !vxlan_addr_any(group)) {
@@ -536,7 +536,7 @@ static int vxlan_vni_update_group(struct vxlan_dev *vxlan,
 			newrip = &dst->remote_ip;
 	}
 
-	/* if old rip exists, and no newrip,
+	/* if old rip exists, and anal newrip,
 	 * explicitly delete old rip
 	 */
 	if (!newrip && !vxlan_addr_any(&old_remote_ip))
@@ -548,18 +548,18 @@ static int vxlan_vni_update_group(struct vxlan_dev *vxlan,
 	if (!create && oldrip && newrip && vxlan_addr_equal(oldrip, newrip))
 		return 0;
 
-	ret = vxlan_update_default_fdb_entry(vxlan, vninode->vni,
+	ret = vxlan_update_default_fdb_entry(vxlan, vnianalde->vni,
 					     oldrip, newrip,
 					     extack);
 	if (ret)
 		goto out;
 
 	if (group)
-		memcpy(&vninode->remote_ip, group, sizeof(vninode->remote_ip));
+		memcpy(&vnianalde->remote_ip, group, sizeof(vnianalde->remote_ip));
 
 	if (vxlan->dev->flags & IFF_UP) {
 		if (vxlan_addr_multicast(&old_remote_ip) &&
-		    !vxlan_group_used(vn, vxlan, vninode->vni,
+		    !vxlan_group_used(vn, vxlan, vnianalde->vni,
 				      &old_remote_ip,
 				      vxlan->default_dst.remote_ifindex)) {
 			ret = vxlan_igmp_leave(vxlan, &old_remote_ip,
@@ -568,8 +568,8 @@ static int vxlan_vni_update_group(struct vxlan_dev *vxlan,
 				goto out;
 		}
 
-		if (vxlan_addr_multicast(&vninode->remote_ip)) {
-			ret = vxlan_igmp_join(vxlan, &vninode->remote_ip, 0);
+		if (vxlan_addr_multicast(&vnianalde->remote_ip)) {
+			ret = vxlan_igmp_join(vxlan, &vnianalde->remote_ip, 0);
 			if (ret == -EADDRINUSE)
 				ret = 0;
 			if (ret)
@@ -591,14 +591,14 @@ int vxlan_vnilist_update_group(struct vxlan_dev *vxlan,
 {
 	struct list_head *headp, *hpos;
 	struct vxlan_vni_group *vg;
-	struct vxlan_vni_node *vent;
+	struct vxlan_vni_analde *vent;
 	int ret;
 
 	vg = rtnl_dereference(vxlan->vnigrp);
 
 	headp = &vg->vni_list;
 	list_for_each_prev(hpos, headp) {
-		vent = list_entry(hpos, struct vxlan_vni_node, vlist);
+		vent = list_entry(hpos, struct vxlan_vni_analde, vlist);
 		if (vxlan_addr_any(&vent->remote_ip)) {
 			ret = vxlan_update_default_fdb_entry(vxlan, vent->vni,
 							     old_remote_ip,
@@ -613,30 +613,30 @@ int vxlan_vnilist_update_group(struct vxlan_dev *vxlan,
 }
 
 static void vxlan_vni_delete_group(struct vxlan_dev *vxlan,
-				   struct vxlan_vni_node *vninode)
+				   struct vxlan_vni_analde *vnianalde)
 {
 	struct vxlan_net *vn = net_generic(vxlan->net, vxlan_net_id);
 	struct vxlan_rdst *dst = &vxlan->default_dst;
 
-	/* if per vni remote_ip not present, delete the
+	/* if per vni remote_ip analt present, delete the
 	 * default dst remote_ip previously added for this vni
 	 */
-	if (!vxlan_addr_any(&vninode->remote_ip) ||
+	if (!vxlan_addr_any(&vnianalde->remote_ip) ||
 	    !vxlan_addr_any(&dst->remote_ip))
 		__vxlan_fdb_delete(vxlan, all_zeros_mac,
-				   (vxlan_addr_any(&vninode->remote_ip) ?
-				   dst->remote_ip : vninode->remote_ip),
+				   (vxlan_addr_any(&vnianalde->remote_ip) ?
+				   dst->remote_ip : vnianalde->remote_ip),
 				   vxlan->cfg.dst_port,
-				   vninode->vni, vninode->vni,
+				   vnianalde->vni, vnianalde->vni,
 				   dst->remote_ifindex,
 				   true);
 
 	if (vxlan->dev->flags & IFF_UP) {
-		if (vxlan_addr_multicast(&vninode->remote_ip) &&
-		    !vxlan_group_used(vn, vxlan, vninode->vni,
-				      &vninode->remote_ip,
+		if (vxlan_addr_multicast(&vnianalde->remote_ip) &&
+		    !vxlan_group_used(vn, vxlan, vnianalde->vni,
+				      &vnianalde->remote_ip,
 				      dst->remote_ifindex)) {
-			vxlan_igmp_leave(vxlan, &vninode->remote_ip, 0);
+			vxlan_igmp_leave(vxlan, &vnianalde->remote_ip, 0);
 		}
 	}
 }
@@ -647,34 +647,34 @@ static int vxlan_vni_update(struct vxlan_dev *vxlan,
 			    bool *changed,
 			    struct netlink_ext_ack *extack)
 {
-	struct vxlan_vni_node *vninode;
+	struct vxlan_vni_analde *vnianalde;
 	int ret;
 
-	vninode = rhashtable_lookup_fast(&vg->vni_hash, &vni,
+	vnianalde = rhashtable_lookup_fast(&vg->vni_hash, &vni,
 					 vxlan_vni_rht_params);
-	if (!vninode)
+	if (!vnianalde)
 		return 0;
 
-	ret = vxlan_vni_update_group(vxlan, vninode, group, false, changed,
+	ret = vxlan_vni_update_group(vxlan, vnianalde, group, false, changed,
 				     extack);
 	if (ret)
 		return ret;
 
 	if (changed)
-		vxlan_vnifilter_notify(vxlan, vninode, RTM_NEWTUNNEL);
+		vxlan_vnifilter_analtify(vxlan, vnianalde, RTM_NEWTUNNEL);
 
 	return 0;
 }
 
 static void __vxlan_vni_add_list(struct vxlan_vni_group *vg,
-				 struct vxlan_vni_node *v)
+				 struct vxlan_vni_analde *v)
 {
 	struct list_head *headp, *hpos;
-	struct vxlan_vni_node *vent;
+	struct vxlan_vni_analde *vent;
 
 	headp = &vg->vni_list;
 	list_for_each_prev(hpos, headp) {
-		vent = list_entry(hpos, struct vxlan_vni_node, vlist);
+		vent = list_entry(hpos, struct vxlan_vni_analde, vlist);
 		if (be32_to_cpu(v->vni) < be32_to_cpu(vent->vni))
 			continue;
 		else
@@ -685,38 +685,38 @@ static void __vxlan_vni_add_list(struct vxlan_vni_group *vg,
 }
 
 static void __vxlan_vni_del_list(struct vxlan_vni_group *vg,
-				 struct vxlan_vni_node *v)
+				 struct vxlan_vni_analde *v)
 {
 	list_del_rcu(&v->vlist);
 	vg->num_vnis--;
 }
 
-static struct vxlan_vni_node *vxlan_vni_alloc(struct vxlan_dev *vxlan,
+static struct vxlan_vni_analde *vxlan_vni_alloc(struct vxlan_dev *vxlan,
 					      __be32 vni)
 {
-	struct vxlan_vni_node *vninode;
+	struct vxlan_vni_analde *vnianalde;
 
-	vninode = kzalloc(sizeof(*vninode), GFP_KERNEL);
-	if (!vninode)
+	vnianalde = kzalloc(sizeof(*vnianalde), GFP_KERNEL);
+	if (!vnianalde)
 		return NULL;
-	vninode->stats = netdev_alloc_pcpu_stats(struct vxlan_vni_stats_pcpu);
-	if (!vninode->stats) {
-		kfree(vninode);
+	vnianalde->stats = netdev_alloc_pcpu_stats(struct vxlan_vni_stats_pcpu);
+	if (!vnianalde->stats) {
+		kfree(vnianalde);
 		return NULL;
 	}
-	vninode->vni = vni;
-	vninode->hlist4.vxlan = vxlan;
+	vnianalde->vni = vni;
+	vnianalde->hlist4.vxlan = vxlan;
 #if IS_ENABLED(CONFIG_IPV6)
-	vninode->hlist6.vxlan = vxlan;
+	vnianalde->hlist6.vxlan = vxlan;
 #endif
 
-	return vninode;
+	return vnianalde;
 }
 
-static void vxlan_vni_free(struct vxlan_vni_node *vninode)
+static void vxlan_vni_free(struct vxlan_vni_analde *vnianalde)
 {
-	free_percpu(vninode->stats);
-	kfree(vninode);
+	free_percpu(vnianalde->stats);
+	kfree(vnianalde);
 }
 
 static int vxlan_vni_add(struct vxlan_dev *vxlan,
@@ -724,7 +724,7 @@ static int vxlan_vni_add(struct vxlan_dev *vxlan,
 			 u32 vni, union vxlan_addr *group,
 			 struct netlink_ext_ack *extack)
 {
-	struct vxlan_vni_node *vninode;
+	struct vxlan_vni_analde *vnianalde;
 	__be32 v = cpu_to_be32(vni);
 	bool changed = false;
 	int err = 0;
@@ -738,37 +738,37 @@ static int vxlan_vni_add(struct vxlan_dev *vxlan,
 		return err;
 	}
 
-	vninode = vxlan_vni_alloc(vxlan, v);
-	if (!vninode)
-		return -ENOMEM;
+	vnianalde = vxlan_vni_alloc(vxlan, v);
+	if (!vnianalde)
+		return -EANALMEM;
 
 	err = rhashtable_lookup_insert_fast(&vg->vni_hash,
-					    &vninode->vnode,
+					    &vnianalde->vanalde,
 					    vxlan_vni_rht_params);
 	if (err) {
-		vxlan_vni_free(vninode);
+		vxlan_vni_free(vnianalde);
 		return err;
 	}
 
-	__vxlan_vni_add_list(vg, vninode);
+	__vxlan_vni_add_list(vg, vnianalde);
 
 	if (vxlan->dev->flags & IFF_UP)
-		vxlan_vs_add_del_vninode(vxlan, vninode, false);
+		vxlan_vs_add_del_vnianalde(vxlan, vnianalde, false);
 
-	err = vxlan_vni_update_group(vxlan, vninode, group, true, &changed,
+	err = vxlan_vni_update_group(vxlan, vnianalde, group, true, &changed,
 				     extack);
 
 	if (changed)
-		vxlan_vnifilter_notify(vxlan, vninode, RTM_NEWTUNNEL);
+		vxlan_vnifilter_analtify(vxlan, vnianalde, RTM_NEWTUNNEL);
 
 	return err;
 }
 
-static void vxlan_vni_node_rcu_free(struct rcu_head *rcu)
+static void vxlan_vni_analde_rcu_free(struct rcu_head *rcu)
 {
-	struct vxlan_vni_node *v;
+	struct vxlan_vni_analde *v;
 
-	v = container_of(rcu, struct vxlan_vni_node, rcu);
+	v = container_of(rcu, struct vxlan_vni_analde, rcu);
 	vxlan_vni_free(v);
 }
 
@@ -776,35 +776,35 @@ static int vxlan_vni_del(struct vxlan_dev *vxlan,
 			 struct vxlan_vni_group *vg,
 			 u32 vni, struct netlink_ext_ack *extack)
 {
-	struct vxlan_vni_node *vninode;
+	struct vxlan_vni_analde *vnianalde;
 	__be32 v = cpu_to_be32(vni);
 	int err = 0;
 
 	vg = rtnl_dereference(vxlan->vnigrp);
 
-	vninode = rhashtable_lookup_fast(&vg->vni_hash, &v,
+	vnianalde = rhashtable_lookup_fast(&vg->vni_hash, &v,
 					 vxlan_vni_rht_params);
-	if (!vninode) {
-		err = -ENOENT;
+	if (!vnianalde) {
+		err = -EANALENT;
 		goto out;
 	}
 
-	vxlan_vni_delete_group(vxlan, vninode);
+	vxlan_vni_delete_group(vxlan, vnianalde);
 
 	err = rhashtable_remove_fast(&vg->vni_hash,
-				     &vninode->vnode,
+				     &vnianalde->vanalde,
 				     vxlan_vni_rht_params);
 	if (err)
 		goto out;
 
-	__vxlan_vni_del_list(vg, vninode);
+	__vxlan_vni_del_list(vg, vnianalde);
 
-	vxlan_vnifilter_notify(vxlan, vninode, RTM_DELTUNNEL);
+	vxlan_vnifilter_analtify(vxlan, vnianalde, RTM_DELTUNNEL);
 
 	if (vxlan->dev->flags & IFF_UP)
-		vxlan_vs_add_del_vninode(vxlan, vninode, true);
+		vxlan_vs_add_del_vnianalde(vxlan, vnianalde, true);
 
-	call_rcu(&vninode->rcu, vxlan_vni_node_rcu_free);
+	call_rcu(&vnianalde->rcu, vxlan_vni_analde_rcu_free);
 
 	return 0;
 out:
@@ -829,7 +829,7 @@ static int vxlan_vni_add_del(struct vxlan_dev *vxlan, __u32 start_vni,
 			err = vxlan_vni_del(vxlan, vg, v, extack);
 			break;
 		default:
-			err = -EOPNOTSUPP;
+			err = -EOPANALTSUPP;
 			break;
 		}
 		if (err)
@@ -867,7 +867,7 @@ static int vxlan_process_vni_filter(struct vxlan_dev *vxlan,
 
 	if (!vni_start && !vni_end) {
 		NL_SET_ERR_MSG_ATTR(extack, nlvnifilter,
-				    "vni start nor end found in vni entry");
+				    "vni start analr end found in vni entry");
 		return -EINVAL;
 	}
 
@@ -900,20 +900,20 @@ static int vxlan_process_vni_filter(struct vxlan_dev *vxlan,
 
 void vxlan_vnigroup_uninit(struct vxlan_dev *vxlan)
 {
-	struct vxlan_vni_node *v, *tmp;
+	struct vxlan_vni_analde *v, *tmp;
 	struct vxlan_vni_group *vg;
 
 	vg = rtnl_dereference(vxlan->vnigrp);
 	list_for_each_entry_safe(v, tmp, &vg->vni_list, vlist) {
-		rhashtable_remove_fast(&vg->vni_hash, &v->vnode,
+		rhashtable_remove_fast(&vg->vni_hash, &v->vanalde,
 				       vxlan_vni_rht_params);
 		hlist_del_init_rcu(&v->hlist4.hlist);
 #if IS_ENABLED(CONFIG_IPV6)
 		hlist_del_init_rcu(&v->hlist6.hlist);
 #endif
 		__vxlan_vni_del_list(vg, v);
-		vxlan_vnifilter_notify(vxlan, v, RTM_DELTUNNEL);
-		call_rcu(&v->rcu, vxlan_vni_node_rcu_free);
+		vxlan_vnifilter_analtify(vxlan, v, RTM_DELTUNNEL);
+		call_rcu(&v->rcu, vxlan_vni_analde_rcu_free);
 	}
 	rhashtable_destroy(&vg->vni_hash);
 	kfree(vg);
@@ -926,7 +926,7 @@ int vxlan_vnigroup_init(struct vxlan_dev *vxlan)
 
 	vg = kzalloc(sizeof(*vg), GFP_KERNEL);
 	if (!vg)
-		return -ENOMEM;
+		return -EANALMEM;
 	ret = rhashtable_init(&vg->vni_hash, &vxlan_vni_rht_params);
 	if (ret) {
 		kfree(vg);
@@ -958,17 +958,17 @@ static int vxlan_vnifilter_process(struct sk_buff *skb, struct nlmsghdr *nlh,
 	tmsg = nlmsg_data(nlh);
 	dev = __dev_get_by_index(net, tmsg->ifindex);
 	if (!dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!netif_is_vxlan(dev)) {
-		NL_SET_ERR_MSG_MOD(extack, "The device is not a vxlan device");
+		NL_SET_ERR_MSG_MOD(extack, "The device is analt a vxlan device");
 		return -EINVAL;
 	}
 
 	vxlan = netdev_priv(dev);
 
 	if (!(vxlan->cfg.flags & VXLAN_F_VNIFILTER))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	nlmsg_for_each_attr(attr, nlh, sizeof(*tmsg), rem) {
 		switch (nla_type(attr)) {
@@ -985,7 +985,7 @@ static int vxlan_vnifilter_process(struct sk_buff *skb, struct nlmsghdr *nlh,
 	}
 
 	if (!vnis) {
-		NL_SET_ERR_MSG_MOD(extack, "No vnis found to process");
+		NL_SET_ERR_MSG_MOD(extack, "Anal vnis found to process");
 		err = -EINVAL;
 	}
 

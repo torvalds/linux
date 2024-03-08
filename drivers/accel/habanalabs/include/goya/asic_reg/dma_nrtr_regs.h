@@ -7,7 +7,7 @@
 
 /************************************
  ** This is an auto-generated file **
- **       DO NOT EDIT BELOW        **
+ **       DO ANALT EDIT BELOW        **
  ************************************/
 
 #ifndef ASIC_REG_DMA_NRTR_REGS_H_
@@ -221,6 +221,6 @@
 
 #define mmDMA_NRTR_SCRAMB_EN                                         0x1C0600
 
-#define mmDMA_NRTR_NON_LIN_SCRAMB                                    0x1C0604
+#define mmDMA_NRTR_ANALN_LIN_SCRAMB                                    0x1C0604
 
 #endif /* ASIC_REG_DMA_NRTR_REGS_H_ */

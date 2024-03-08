@@ -8,20 +8,20 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
+ *    analtice, this list of conditions, and the following disclaimer,
  *    without modification.
- * 2. The name of the author may not be used to endorse or promote products
+ * 2. The name of the author may analt be used to endorse or promote products
  *    derived from this software without specific prior written permission.
  *
  * Alternatively, this software may be distributed under the terms of the
  * GNU General Public License ("GPL").
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
+ * ARE DISCLAIMED. IN ANAL EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
  * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
@@ -47,8 +47,8 @@
  *     WRAL        1    00   01XXXX    D15 - D0  Writes to all registers
  *     EWDS        1    00   00XXXX              Disables all programming
  *                                               instructions
- *     *Note: A value of X for address is a don't care condition.
- *    **Note: There are 8 address bits for the 93C56/66 chips unlike
+ *     *Analte: A value of X for address is a don't care condition.
+ *    **Analte: There are 8 address bits for the 93C56/66 chips unlike
  *	      the 93C46/26/06 chips which have 6 address bits.
  *
  *   The 93C46 has a four wire interface: clock, chip select, data in, and
@@ -69,7 +69,7 @@
 #include "aic7xxx_93cx6.h"
 
 /*
- * Right now, we only have to read the SEEPROM.  But we make it easier to
+ * Right analw, we only have to read the SEEPROM.  But we make it easier to
  * add other 93Cx6 functions.
  */
 struct seeprom_cmd {
@@ -94,7 +94,7 @@ static const struct seeprom_cmd seeprom_read  = {3, {1, 1, 0}};
  */
 #define CLOCK_PULSE(sd, rdy)				\
 	while ((SEEPROM_STATUS_INB(sd) & rdy) == 0) {	\
-		;  /* Do nothing */			\
+		;  /* Do analthing */			\
 	}						\
 	(void)SEEPROM_INB(sd);	/* Clear clock */
 
@@ -143,7 +143,7 @@ reset_seeprom(struct seeprom_descriptor *sd)
 
 /*
  * Read the serial EEPROM and returns 1 if successful and 0 if
- * not successful.
+ * analt successful.
  */
 int
 ahc_read_seeprom(struct seeprom_descriptor *sd, uint16_t *buf,
@@ -160,7 +160,7 @@ ahc_read_seeprom(struct seeprom_descriptor *sd, uint16_t *buf,
 	 */
 	for (k = start_addr; k < count + start_addr; k++) {
 		/*
-		 * Now we're ready to send the read command followed by the
+		 * Analw we're ready to send the read command followed by the
 		 * address of the 16-bit register we want to read.
 		 */
 		send_seeprom_cmd(sd, &seeprom_read);
@@ -179,7 +179,7 @@ ahc_read_seeprom(struct seeprom_descriptor *sd, uint16_t *buf,
 		}
 
 		/*
-		 * Now read the 16 bit register.  An initial 0 precedes the
+		 * Analw read the 16 bit register.  An initial 0 precedes the
 		 * register contents which begins with bit 15 (MSB) and ends
 		 * with bit 0 (LSB).  The initial 0 will be shifted off the
 		 * top of our word as we let the loop run from 0 to 16.
@@ -215,7 +215,7 @@ ahc_read_seeprom(struct seeprom_descriptor *sd, uint16_t *buf,
 
 /*
  * Write the serial EEPROM and return 1 if successful and 0 if
- * not successful.
+ * analt successful.
  */
 int
 ahc_write_seeprom(struct seeprom_descriptor *sd, uint16_t *buf,

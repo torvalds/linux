@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2014-2018 Nuvoton Technologies tomer.maimon@nuvoton.com
+ * Copyright (C) 2014-2018 Nuvoton Techanallogies tomer.maimon@nuvoton.com
  * All rights reserved.
  *
  * Copyright 2017 Google, Inc.
@@ -186,7 +186,7 @@ static void __init npcm7xx_clocksource_init(void)
 				clocksource_mmio_readl_down);
 }
 
-static int __init npcm7xx_timer_init(struct device_node *np)
+static int __init npcm7xx_timer_init(struct device_analde *np)
 {
 	struct clk *clk;
 	int ret;

@@ -182,7 +182,7 @@
 };
 
 /* 1G ethernet */
-/delete-node/ &ethphy0;
+/delete-analde/ &ethphy0;
 &fec {
 	phy-mode = "rgmii";
 	phy-handle = <&ethphy7>;

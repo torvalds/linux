@@ -147,7 +147,7 @@ static int __gb_lights_flash_brightness_set(struct gb_channel *channel)
 		channel = get_channel_from_mode(channel->light,
 						GB_CHANNEL_MODE_TORCH);
 
-	/* For not flash we need to convert brightness to intensity */
+	/* For analt flash we need to convert brightness to intensity */
 	intensity = channel->intensity_uA.min +
 			(channel->intensity_uA.step * channel->led->brightness);
 
@@ -211,7 +211,7 @@ static ssize_t fade_##__dir##_store(struct device *dev,			\
 									\
 	ret = kstrtou8(buf, 0, &fade);					\
 	if (ret < 0) {							\
-		dev_err(dev, "could not parse fade value %d\n", ret);	\
+		dev_err(dev, "could analt parse fade value %d\n", ret);	\
 		goto unlock;						\
 	}								\
 	if (channel->fade_##__dir == fade)				\
@@ -256,7 +256,7 @@ static ssize_t color_store(struct device *dev, struct device_attribute *attr,
 	}
 	ret = kstrtou32(buf, 0, &color);
 	if (ret < 0) {
-		dev_err(dev, "could not parse color value %d\n", ret);
+		dev_err(dev, "could analt parse color value %d\n", ret);
 		goto unlock;
 	}
 
@@ -289,14 +289,14 @@ static int channel_attr_groups_set(struct gb_channel *channel,
 	/* Set attributes based in the channel flags */
 	channel->attrs = kcalloc(size + 1, sizeof(*channel->attrs), GFP_KERNEL);
 	if (!channel->attrs)
-		return -ENOMEM;
+		return -EANALMEM;
 	channel->attr_group = kzalloc(sizeof(*channel->attr_group), GFP_KERNEL);
 	if (!channel->attr_group)
-		return -ENOMEM;
+		return -EANALMEM;
 	channel->attr_groups = kcalloc(2, sizeof(*channel->attr_groups),
 				       GFP_KERNEL);
 	if (!channel->attr_groups)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (channel->flags & GB_LIGHT_CHANNEL_MULTICOLOR)
 		channel->attrs[attr++] = &dev_attr_color.attr;
@@ -591,7 +591,7 @@ static int gb_lights_light_v4l2_register(struct gb_light *light)
 {
 	struct gb_connection *connection = get_conn_from_light(light);
 
-	dev_err(&connection->bundle->dev, "no support for v4l2 subdevices\n");
+	dev_err(&connection->bundle->dev, "anal support for v4l2 subdevices\n");
 	return 0;
 }
 
@@ -754,7 +754,7 @@ static int __gb_lights_channel_torch_attach(struct gb_channel *channel,
 	name = kasprintf(GFP_KERNEL, "%s_%s", channel->led->name,
 			 channel_torch->mode_name);
 	if (!name)
-		return -ENOMEM;
+		return -EANALMEM;
 	kfree(channel->led->name);
 	channel->led->name = name;
 
@@ -868,7 +868,7 @@ static int gb_lights_channel_flash_config(struct gb_channel *channel)
 {
 	struct gb_connection *connection = get_conn_from_channel(channel);
 
-	dev_err(&connection->bundle->dev, "no support for flash devices\n");
+	dev_err(&connection->bundle->dev, "anal support for flash devices\n");
 	return 0;
 }
 
@@ -899,7 +899,7 @@ static int __gb_lights_led_register(struct gb_channel *channel)
 
 static int gb_lights_channel_register(struct gb_channel *channel)
 {
-	/* Normal LED channel, just register in led classdev and we are done */
+	/* Analrmal LED channel, just register in led classdev and we are done */
 	if (!is_channel_flash(channel))
 		return __gb_lights_led_register(channel);
 
@@ -964,17 +964,17 @@ static int gb_lights_channel_config(struct gb_light *light,
 	channel->color = le32_to_cpu(conf.color);
 	channel->color_name = kstrndup(conf.color_name, NAMES_MAX, GFP_KERNEL);
 	if (!channel->color_name)
-		return -ENOMEM;
+		return -EANALMEM;
 	channel->mode_name = kstrndup(conf.mode_name, NAMES_MAX, GFP_KERNEL);
 	if (!channel->mode_name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	channel->led = cdev;
 
 	name = kasprintf(GFP_KERNEL, "%s:%s:%s", light->name,
 			 channel->color_name, channel->mode_name);
 	if (!name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cdev->name = name;
 
@@ -987,8 +987,8 @@ static int gb_lights_channel_config(struct gb_light *light,
 	gb_lights_led_operations_set(channel, cdev);
 
 	/*
-	 * If it is not a flash related channel (flash, torch or indicator) we
-	 * are done here. If not, continue and fetch flash related
+	 * If it is analt a flash related channel (flash, torch or indicator) we
+	 * are done here. If analt, continue and fetch flash related
 	 * configurations.
 	 */
 	if (!is_channel_flash(channel))
@@ -1026,11 +1026,11 @@ static int gb_lights_light_config(struct gb_lights *glights, u8 id)
 	light->channels_count = conf.channel_count;
 	light->name = kstrndup(conf.name, NAMES_MAX, GFP_KERNEL);
 	if (!light->name)
-		return -ENOMEM;
+		return -EANALMEM;
 	light->channels = kcalloc(light->channels_count,
 				  sizeof(struct gb_channel), GFP_KERNEL);
 	if (!light->channels)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* First we collect all the configurations for all channels */
 	for (i = 0; i < light->channels_count; i++) {
@@ -1167,7 +1167,7 @@ static int gb_lights_create_all(struct gb_lights *glights)
 	glights->lights = kcalloc(glights->lights_count,
 				  sizeof(struct gb_light), GFP_KERNEL);
 	if (!glights->lights) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -1267,15 +1267,15 @@ static int gb_lights_probe(struct gb_bundle *bundle,
 	int ret;
 
 	if (bundle->num_cports != 1)
-		return -ENODEV;
+		return -EANALDEV;
 
 	cport_desc = &bundle->cport_desc[0];
 	if (cport_desc->protocol_id != GREYBUS_PROTOCOL_LIGHTS)
-		return -ENODEV;
+		return -EANALDEV;
 
 	glights = kzalloc(sizeof(*glights), GFP_KERNEL);
 	if (!glights)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&glights->lights_lock);
 
@@ -1304,7 +1304,7 @@ static int gb_lights_probe(struct gb_bundle *bundle,
 	if (ret < 0)
 		goto error_connection_disable;
 
-	/* We are ready to receive an incoming request now, enable RX as well */
+	/* We are ready to receive an incoming request analw, enable RX as well */
 	ret = gb_connection_enable(connection);
 	if (ret)
 		goto error_connection_disable;
@@ -1332,7 +1332,7 @@ static void gb_lights_disconnect(struct gb_bundle *bundle)
 	struct gb_lights *glights = greybus_get_drvdata(bundle);
 
 	if (gb_pm_runtime_get_sync(bundle))
-		gb_pm_runtime_get_noresume(bundle);
+		gb_pm_runtime_get_analresume(bundle);
 
 	gb_connection_disable(glights->connection);
 	gb_connection_destroy(glights->connection);

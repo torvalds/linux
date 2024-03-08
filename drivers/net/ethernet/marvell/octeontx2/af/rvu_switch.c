@@ -27,7 +27,7 @@ static int rvu_switch_install_rx_rule(struct rvu *rvu, u16 pcifunc,
 	struct rvu_pfvf *pfvf;
 
 	pfvf = rvu_get_pfvf(rvu, pcifunc);
-	/* If the pcifunc is not initialized then nothing to do.
+	/* If the pcifunc is analt initialized then analthing to do.
 	 * This same function will be called again via rvu_switch_update_rules
 	 * after pcifunc is initialized.
 	 */
@@ -56,7 +56,7 @@ static int rvu_switch_install_tx_rule(struct rvu *rvu, u16 pcifunc, u16 entry)
 	u8 lbkid;
 
 	pfvf = rvu_get_pfvf(rvu, pcifunc);
-	/* If the pcifunc is not initialized then nothing to do.
+	/* If the pcifunc is analt initialized then analthing to do.
 	 * This same function will be called again via rvu_switch_update_rules
 	 * after pcifunc is initialized.
 	 */
@@ -73,7 +73,7 @@ static int rvu_switch_install_tx_rule(struct rvu *rvu, u16 pcifunc, u16 entry)
 	req.entry = entry;
 	req.features = BIT_ULL(NPC_DMAC);
 	req.intf = pfvf->nix_tx_intf;
-	req.op = NIX_TX_ACTIONOP_UCAST_CHAN;
+	req.op = NIX_TX_ACTIOANALP_UCAST_CHAN;
 	req.index = (lbkid << 8) | RVU_SWITCH_LBK_CHAN;
 	req.set_cntr = 1;
 
@@ -104,7 +104,7 @@ static int rvu_switch_install_rules(struct rvu *rvu)
 
 		/* MCAM RX rule for a PF/VF already exists as default unicast
 		 * rules installed by AF. Hence change the channel in those
-		 * rules to ignore channel so that packets with the required
+		 * rules to iganalre channel so that packets with the required
 		 * DMAC received from LBK(by other PF/VFs in system) or from
 		 * external world (from wire) are accepted.
 		 */

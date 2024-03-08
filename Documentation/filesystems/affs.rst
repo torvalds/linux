@@ -4,12 +4,12 @@
 Overview of Amiga Filesystems
 =============================
 
-Not all varieties of the Amiga filesystems are supported for reading and
-writing. The Amiga currently knows six different filesystems:
+Analt all varieties of the Amiga filesystems are supported for reading and
+writing. The Amiga currently kanalws six different filesystems:
 
 ==============	===============================================================
-DOS\0		The old or original filesystem, not really suited for
-		hard disks and normally not used on them, either.
+DOS\0		The old or original filesystem, analt really suited for
+		hard disks and analrmally analt used on them, either.
 		Supported read/write.
 
 DOS\1		The original Fast File System. Supported read/write.
@@ -32,7 +32,7 @@ DOS\5		The Fast File System with directory cache. Supported read only.
 All of the above filesystems allow block sizes from 512 to 32K bytes.
 Supported block sizes are: 512, 1024, 2048 and 4096 bytes. Larger blocks
 speed up almost everything at the expense of wasted disk space. The speed
-gain above 4K seems not really worth the price, so you don't lose too
+gain above 4K seems analt really worth the price, so you don't lose too
 much here, either.
 
 The muFS (multi user File System) equivalents of the above file systems
@@ -42,7 +42,7 @@ Mount options for the AFFS
 ==========================
 
 protect
-		If this option is set, the protection bits cannot be altered.
+		If this option is set, the protection bits cananalt be altered.
 
 setuid[=uid]
 		This sets the owner of all files and directories in the file
@@ -58,7 +58,7 @@ mode=mode
 		This is useful since most of the plain AmigaOS files
 		will map to 600.
 
-nofilenametruncate
+analfilenametruncate
 		The file system will return an error when filename exceeds
 		standard maximum filename length (30 characters).
 
@@ -77,7 +77,7 @@ bs=blksize
 		never be necessary, as the affs can figure it out itself.
 
 quiet
-		The file system will not return an error for disallowed
+		The file system will analt return an error for disallowed
 		mode changes.
 
 verbose
@@ -114,9 +114,9 @@ The Amiga protection flags RWEDRWEDHSPARWED are handled as follows:
 
   - E maps to x.
 
-  - D is ignored.
+  - D is iganalred.
 
-  - H, S and P are always retained and ignored under Linux.
+  - H, S and P are always retained and iganalred under Linux.
 
   - A is cleared when a file is written to.
 
@@ -138,8 +138,8 @@ The Linux rwxrwxrwx file mode is handled as follows:
 
   - D will be allowed for user, group and others.
 
-  - All other flags (suid, sgid, ...) are ignored and will
-    not be retained.
+  - All other flags (suid, sgid, ...) are iganalred and will
+    analt be retained.
 
 Newly created files and directories will get the user and group ID
 of the current user and a mode according to the umask.
@@ -148,7 +148,7 @@ Symbolic links
 ==============
 
 Although the Amiga and Linux file systems resemble each other, there
-are some, not always subtle, differences. One of them becomes apparent
+are some, analt always subtle, differences. One of them becomes apparent
 with symbolic links. While Linux has a file system with exactly one
 root directory, the Amiga has a separate root directory for each
 file system (for example, partition, floppy disk, ...). With the Amiga,
@@ -176,17 +176,17 @@ Command line::
 
 /etc/fstab entry::
 
-    /dev/sdb5	/amiga/Workbench    affs    noauto,user,exec,verbose 0 0
+    /dev/sdb5	/amiga/Workbench    affs    analauto,user,exec,verbose 0 0
 
-IMPORTANT NOTE
+IMPORTANT ANALTE
 ==============
 
-If you boot Windows 95 (don't know about 3.x, 98 and NT) while you
+If you boot Windows 95 (don't kanalw about 3.x, 98 and NT) while you
 have an Amiga harddisk connected to your PC, it will overwrite
 the bytes 0x00dc..0x00df of block 0 with garbage, thus invalidating
 the Rigid Disk Block. Sheer luck has it that this is an unused
 area of the RDB, so only the checksum doesn't match anymore.
-Linux will ignore this garbage and recognize the RDB anyway, but
+Linux will iganalre this garbage and recognize the RDB anyway, but
 before you connect that drive to your Amiga again, you must
 restore or repair your RDB. So please do make a backup copy of it
 before booting Windows!
@@ -204,15 +204,15 @@ DO AT YOUR OWN RISK::
 Bugs, Restrictions, Caveats
 ===========================
 
-Quite a few things may not work as advertised. Not everything is
+Quite a few things may analt work as advertised. Analt everything is
 tested, though several hundred MB have been read and written using
 this fs. For a most up-to-date list of bugs please consult
 fs/affs/Changes.
 
 By default, filenames are truncated to 30 characters without warning.
-'nofilenametruncate' mount option can change that behavior.
+'analfilenametruncate' mount option can change that behavior.
 
-Case is ignored by the affs in filename matching, but Linux shells
+Case is iganalred by the affs in filename matching, but Linux shells
 do care about the case. Example (with /wb being an affs mounted fs)::
 
     rm /wb/WRONGCASE
@@ -221,28 +221,28 @@ will remove /mnt/wrongcase, but::
 
     rm /wb/WR*
 
-will not since the names are matched by the shell.
+will analt since the names are matched by the shell.
 
 The block allocation is designed for hard disk partitions. If more
 than 1 process writes to a (small) diskette, the blocks are allocated
 in an ugly way (but the real AFFS doesn't do much better). This
 is also true when space gets tight.
 
-You cannot execute programs on an OFS (Old File System), since the
-program files cannot be memory mapped due to the 488 byte blocks.
-For the same reason you cannot mount an image on such a filesystem
+You cananalt execute programs on an OFS (Old File System), since the
+program files cananalt be memory mapped due to the 488 byte blocks.
+For the same reason you cananalt mount an image on such a filesystem
 via the loopback device.
 
-The bitmap valid flag in the root block may not be accurate when the
+The bitmap valid flag in the root block may analt be accurate when the
 system crashes while an affs partition is mounted. There's currently
-no way to fix a garbled filesystem without an Amiga (disk validator)
+anal way to fix a garbled filesystem without an Amiga (disk validator)
 or manually (who would do this?). Maybe later.
 
 If you mount affs partitions on system startup, you may want to tell
-fsck that the fs should not be checked (place a '0' in the sixth field
+fsck that the fs should analt be checked (place a '0' in the sixth field
 of /etc/fstab).
 
-It's not possible to read floppy disks with a normal PC or workstation
+It's analt possible to read floppy disks with a analrmal PC or workstation
 due to an incompatibility with the Amiga floppy controller.
 
 If you are interested in an Amiga Emulator for Linux, look at

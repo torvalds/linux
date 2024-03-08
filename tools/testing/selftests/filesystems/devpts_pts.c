@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #define _GNU_SOURCE
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <sched.h>
 #include <stdbool.h>
@@ -32,8 +32,8 @@ static int terminal_set_stdfds(int fd)
 		return 0;
 
 	for (i = 0; i < 3; i++)
-		if (!terminal_dup2(fd, (int[]){STDIN_FILENO, STDOUT_FILENO,
-					       STDERR_FILENO}[i]))
+		if (!terminal_dup2(fd, (int[]){STDIN_FILEANAL, STDOUT_FILEANAL,
+					       STDERR_FILEANAL}[i]))
 			return -1;
 
 	return 0;
@@ -53,7 +53,7 @@ static int login_pty(int fd)
 	if (ret < 0)
 		return -1;
 
-	if (fd > STDERR_FILENO)
+	if (fd > STDERR_FILEANAL)
 		close(fd);
 
 	return 0;
@@ -66,7 +66,7 @@ static int wait_for_pid(pid_t pid)
 again:
 	ret = waitpid(pid, &status, 0);
 	if (ret == -1) {
-		if (errno == EINTR)
+		if (erranal == EINTR)
 			goto again;
 		return -1;
 	}
@@ -102,16 +102,16 @@ static int do_tiocgptpeer(char *ptmx, char *expected_procfd_contents)
 	int ret;
 	int master = -1, slave = -1, fret = -1;
 
-	master = open(ptmx, O_RDWR | O_NOCTTY | O_CLOEXEC);
+	master = open(ptmx, O_RDWR | O_ANALCTTY | O_CLOEXEC);
 	if (master < 0) {
 		fprintf(stderr, "Failed to open \"%s\": %s\n", ptmx,
-			strerror(errno));
+			strerror(erranal));
 		return -1;
 	}
 
 	/*
-	 * grantpt() makes assumptions about /dev/pts/ so ignore it. It's also
-	 * not really needed.
+	 * grantpt() makes assumptions about /dev/pts/ so iganalre it. It's also
+	 * analt really needed.
 	 */
 	ret = unlockpt(master);
 	if (ret < 0) {
@@ -120,11 +120,11 @@ static int do_tiocgptpeer(char *ptmx, char *expected_procfd_contents)
 	}
 
 #ifdef TIOCGPTPEER
-	slave = ioctl(master, TIOCGPTPEER, O_RDWR | O_NOCTTY | O_CLOEXEC);
+	slave = ioctl(master, TIOCGPTPEER, O_RDWR | O_ANALCTTY | O_CLOEXEC);
 #endif
 	if (slave < 0) {
-		if (errno == EINVAL) {
-			fprintf(stderr, "TIOCGPTPEER is not supported. "
+		if (erranal == EINVAL) {
+			fprintf(stderr, "TIOCGPTPEER is analt supported. "
 					"Skipping test.\n");
 			fret = KSFT_SKIP;
 		} else {
@@ -148,7 +148,7 @@ static int do_tiocgptpeer(char *ptmx, char *expected_procfd_contents)
 			_exit(EXIT_FAILURE);
 		}
 
-		ret = resolve_procfd_symlink(STDIN_FILENO, buf, sizeof(buf));
+		ret = resolve_procfd_symlink(STDIN_FILEANAL, buf, sizeof(buf));
 		if (ret < 0) {
 			fprintf(stderr, "Failed to retrieve pathname of pts "
 					"slave file descriptor\n");
@@ -159,12 +159,12 @@ static int do_tiocgptpeer(char *ptmx, char *expected_procfd_contents)
 			    strlen(expected_procfd_contents)) != 0) {
 			fprintf(stderr, "Received invalid contents for "
 					"\"/proc/<pid>/fd/%d\" symlink: %s\n",
-					STDIN_FILENO, buf);
+					STDIN_FILEANAL, buf);
 			_exit(-1);
 		}
 
 		fprintf(stderr, "Contents of \"/proc/<pid>/fd/%d\" "
-				"symlink are valid: %s\n", STDIN_FILENO, buf);
+				"symlink are valid: %s\n", STDIN_FILEANAL, buf);
 
 		_exit(EXIT_SUCCESS);
 	}
@@ -184,7 +184,7 @@ do_cleanup:
 	return fret;
 }
 
-static int verify_non_standard_devpts_mount(void)
+static int verify_analn_standard_devpts_mount(void)
 {
 	char *mntpoint;
 	int ret = -1;
@@ -194,7 +194,7 @@ static int verify_non_standard_devpts_mount(void)
 	ret = umount("/dev/pts");
 	if (ret < 0) {
 		fprintf(stderr, "Failed to unmount \"/dev/pts\": %s\n",
-				strerror(errno));
+				strerror(erranal));
 		return -1;
 	}
 
@@ -203,16 +203,16 @@ static int verify_non_standard_devpts_mount(void)
 	mntpoint = mkdtemp(devpts);
 	if (!mntpoint) {
 		fprintf(stderr, "Failed to create temporary mountpoint: %s\n",
-				 strerror(errno));
+				 strerror(erranal));
 		return -1;
 	}
 
-	ret = mount("devpts", mntpoint, "devpts", MS_NOSUID | MS_NOEXEC,
+	ret = mount("devpts", mntpoint, "devpts", MS_ANALSUID | MS_ANALEXEC,
 		    "newinstance,ptmxmode=0666,mode=0620,gid=5");
 	if (ret < 0) {
 		fprintf(stderr, "Failed to mount devpts fs to \"%s\" in new "
 				"mount namespace: %s\n", mntpoint,
-				strerror(errno));
+				strerror(erranal));
 		unlink(mntpoint);
 		return -1;
 	}
@@ -258,7 +258,7 @@ static int verify_invalid_ptmx_bind_mount(void)
 	mntpoint_fd = mkstemp(ptmx);
 	if (mntpoint_fd < 0) {
 		fprintf(stderr, "Failed to create temporary directory: %s\n",
-				 strerror(errno));
+				 strerror(erranal));
 		return -1;
 	}
 
@@ -281,8 +281,8 @@ int main(int argc, char *argv[])
 {
 	int ret;
 
-	if (!isatty(STDIN_FILENO)) {
-		fprintf(stderr, "Standard input file descriptor is not attached "
+	if (!isatty(STDIN_FILEANAL)) {
+		fprintf(stderr, "Standard input file descriptor is analt attached "
 				"to a terminal. Skipping test\n");
 		exit(KSFT_SKIP);
 	}
@@ -308,7 +308,7 @@ int main(int argc, char *argv[])
 	if (ret < 0)
 		exit(EXIT_FAILURE);
 
-	ret = verify_non_standard_devpts_mount();
+	ret = verify_analn_standard_devpts_mount();
 	if (ret < 0)
 		exit(EXIT_FAILURE);
 

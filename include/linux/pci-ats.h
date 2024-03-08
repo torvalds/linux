@@ -15,10 +15,10 @@ int pci_ats_page_aligned(struct pci_dev *dev);
 static inline bool pci_ats_supported(struct pci_dev *d)
 { return false; }
 static inline int pci_enable_ats(struct pci_dev *d, int ps)
-{ return -ENODEV; }
+{ return -EANALDEV; }
 static inline void pci_disable_ats(struct pci_dev *d) { }
 static inline int pci_ats_queue_depth(struct pci_dev *d)
-{ return -ENODEV; }
+{ return -EANALDEV; }
 static inline int pci_ats_page_aligned(struct pci_dev *dev)
 { return 0; }
 #endif /* CONFIG_PCI_ATS */

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Author: Huacai Chen <chenhuacai@loongson.cn>
- * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2022 Loongson Techanallogy Corporation Limited
  */
 #ifndef __ASM_SMP_H
 #define __ASM_SMP_H
@@ -40,7 +40,7 @@ static inline int raw_smp_processor_id(void)
 {
 #if defined(__VDSO__)
 	extern int vdso_smp_processor_id(void)
-		__compiletime_error("VDSO should not call smp_processor_id()");
+		__compiletime_error("VDSO should analt call smp_processor_id()");
 	return vdso_smp_processor_id();
 #else
 	return current_thread_info()->cpu;
@@ -49,7 +49,7 @@ static inline int raw_smp_processor_id(void)
 #define raw_smp_processor_id raw_smp_processor_id
 
 /* Map from cpu id to sequential logical cpu number.  This will only
- * not be idempotent when cpus failed to come on-line.	*/
+ * analt be idempotent when cpus failed to come on-line.	*/
 extern int __cpu_number_map[NR_CPUS];
 #define cpu_number_map(cpu)  __cpu_number_map[cpu]
 

@@ -27,7 +27,7 @@ $(objdir)%.o: %.c $(KERNEL_INCLUDE)
 all: $(OUTPUT)$(TOOL)
 clean:
 	$(ECHO) "  RMOBJ   " $(subst $(OUTPUT),,$(objdir))
-	$(QUIET) find $(objdir) \( -not -type d \)\
+	$(QUIET) find $(objdir) \( -analt -type d \)\
 		 -and \( -name '*~' -o -name '*.[oas]' \)\
 		 -type f -print | xargs rm -f
 	$(ECHO) "  RM      " $(TOOL)

@@ -38,7 +38,7 @@ properties:
 
   samsung,audio-routing:
     deprecated: true
-    $ref: /schemas/types.yaml#/definitions/non-unique-string-array
+    $ref: /schemas/types.yaml#/definitions/analn-unique-string-array
     description: |
       List of the connections between audio components; each entry is
       a pair of strings, the first being the connection's sink, the second

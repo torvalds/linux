@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -57,7 +57,7 @@ struct iosys_map;
 #define DRIVER_DATE		"20120117"
 
 #define DRIVER_MAJOR 0
-#define DRIVER_MINOR 1
+#define DRIVER_MIANALR 1
 #define DRIVER_PATCHLEVEL 0
 
 #define QXL_DEBUGFS_MAX_COMPONENTS		32
@@ -84,7 +84,7 @@ struct qxl_bo {
 	int                             type;
 
 	/* Constant after initialization */
-	unsigned int is_primary:1; /* is this now a primary surface */
+	unsigned int is_primary:1; /* is this analw a primary surface */
 	unsigned int is_dumb:1;
 	struct qxl_bo *shadow;
 	unsigned int hw_surf_alloc:1;
@@ -209,7 +209,7 @@ struct qxl_device {
 
 	spinlock_t	release_lock;
 	struct idr	release_idr;
-	uint32_t	release_seqno;
+	uint32_t	release_seqanal;
 	atomic_t	release_count;
 	wait_queue_head_t release_event;
 	spinlock_t release_idr_lock;
@@ -271,7 +271,7 @@ int qxl_vram_evict(struct qxl_device *qdev);
 struct qxl_ring *qxl_ring_create(struct qxl_ring_header *header,
 				 int element_size,
 				 int n_elements,
-				 int prod_notify,
+				 int prod_analtify,
 				 wait_queue_head_t *push_event);
 void qxl_ring_free(struct qxl_ring *ring);
 int qxl_check_idle(struct qxl_ring *ring);
@@ -347,7 +347,7 @@ void qxl_io_create_primary(struct qxl_device *qdev,
 			   struct qxl_bo *bo);
 void qxl_io_destroy_primary(struct qxl_device *qdev);
 void qxl_io_memslot_add(struct qxl_device *qdev, uint8_t id);
-void qxl_io_notify_oom(struct qxl_device *qdev);
+void qxl_io_analtify_oom(struct qxl_device *qdev);
 
 int qxl_io_update_area(struct qxl_device *qdev, struct qxl_bo *surf,
 		       const struct qxl_rect *area);
@@ -364,7 +364,7 @@ void qxl_release_unmap(struct qxl_device *qdev,
 		       struct qxl_release *release,
 		       union qxl_release_info *info);
 int qxl_release_list_add(struct qxl_release *release, struct qxl_bo *bo);
-int qxl_release_reserve_list(struct qxl_release *release, bool no_intr);
+int qxl_release_reserve_list(struct qxl_release *release, bool anal_intr);
 void qxl_release_backoff_reserve_list(struct qxl_release *release);
 void qxl_release_fence_buffer_objects(struct qxl_release *release);
 
@@ -408,7 +408,7 @@ int qxl_garbage_collect(struct qxl_device *qdev);
 
 /* debugfs */
 
-void qxl_debugfs_init(struct drm_minor *minor);
+void qxl_debugfs_init(struct drm_mianalr *mianalr);
 void qxl_ttm_debugfs_init(struct qxl_device *qdev);
 
 /* qxl_prime.c */

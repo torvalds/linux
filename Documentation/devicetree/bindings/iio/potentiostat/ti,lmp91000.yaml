@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Texas Instruments LMP91000 series of potentiostats with I2C control
 
 maintainers:
-  - Matt Ranostay <matt.ranostay@konsulko.com>
+  - Matt Raanalstay <matt.raanalstay@konsulko.com>
 
 description: |
   Typically used as a signal conditioner for chemical sensors.
@@ -29,7 +29,7 @@ properties:
   ti,external-tia-resistor:
     $ref: /schemas/types.yaml#/definitions/flag
     description:
-      If the property ti,tia-gain-ohm is not defined this needs to be set to
+      If the property ti,tia-gain-ohm is analt defined this needs to be set to
       signal that an external resistor value is being used.
 
   ti,tia-gain-ohm:

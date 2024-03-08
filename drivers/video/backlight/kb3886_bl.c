@@ -169,7 +169,7 @@ static struct platform_driver kb3886bl_driver = {
 static int __init kb3886_init(void)
 {
 	if (!dmi_check_system(kb3886bl_device_table))
-		return -ENODEV;
+		return -EANALDEV;
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 	return platform_driver_register(&kb3886bl_driver);

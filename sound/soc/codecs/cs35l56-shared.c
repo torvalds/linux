@@ -14,15 +14,15 @@
 
 static const struct reg_sequence cs35l56_patch[] = {
 	/*
-	 * Firmware can change these to non-defaults to satisfy SDCA.
-	 * Ensure that they are at known defaults.
+	 * Firmware can change these to analn-defaults to satisfy SDCA.
+	 * Ensure that they are at kanalwn defaults.
 	 */
 	{ CS35L56_SWIRE_DP3_CH1_INPUT,		0x00000018 },
 	{ CS35L56_SWIRE_DP3_CH2_INPUT,		0x00000019 },
 	{ CS35L56_SWIRE_DP3_CH3_INPUT,		0x00000029 },
 	{ CS35L56_SWIRE_DP3_CH4_INPUT,		0x00000028 },
 
-	/* These are not reset by a soft-reset, so patch to defaults. */
+	/* These are analt reset by a soft-reset, so patch to defaults. */
 	{ CS35L56_MAIN_RENDER_USER_MUTE,	0x00000000 },
 	{ CS35L56_MAIN_RENDER_USER_VOLUME,	0x00000000 },
 	{ CS35L56_MAIN_POSTURE_NUMBER,		0x00000000 },
@@ -45,7 +45,7 @@ static const struct reg_default cs35l56_reg_defaults[] = {
 	{ CS35L56_ASP1_DATA_CONTROL1,		0x00000018 },
 	{ CS35L56_ASP1_DATA_CONTROL5,		0x00000018 },
 
-	/* no defaults for ASP1TX mixer */
+	/* anal defaults for ASP1TX mixer */
 
 	{ CS35L56_SWIRE_DP3_CH1_INPUT,		0x00000018 },
 	{ CS35L56_SWIRE_DP3_CH2_INPUT,		0x00000019 },
@@ -386,10 +386,10 @@ irqreturn_t cs35l56_irq(int irq, void *data)
 	unsigned int val;
 	int rv;
 
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 
 	if (!cs35l56_base->init_done)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	mutex_lock(&cs35l56_base->irq_lock);
 
@@ -401,7 +401,7 @@ irqreturn_t cs35l56_irq(int irq, void *data)
 
 	regmap_read(cs35l56_base->regmap, CS35L56_IRQ1_STATUS, &val);
 	if ((val & CS35L56_IRQ1_STS_MASK) == 0) {
-		dev_dbg(cs35l56_base->dev, "Spurious IRQ: no pending interrupt\n");
+		dev_dbg(cs35l56_base->dev, "Spurious IRQ: anal pending interrupt\n");
 		goto err;
 	}
 
@@ -533,7 +533,7 @@ int cs35l56_runtime_suspend_common(struct cs35l56_base *cs35l56_base)
 
 	if (!cs35l56_base->can_hibernate) {
 		regcache_cache_only(cs35l56_base->regmap, true);
-		dev_dbg(cs35l56_base->dev, "Suspended: no hibernate");
+		dev_dbg(cs35l56_base->dev, "Suspended: anal hibernate");
 
 		return 0;
 	}
@@ -625,7 +625,7 @@ void cs35l56_init_cs_dsp(struct cs35l56_base *cs35l56_base, struct cs_dsp *cs_ds
 	cs_dsp->base_sysinfo = CS35L56_DSP1_SYS_INFO_ID;
 	cs_dsp->mem = cs35l56_dsp1_regions;
 	cs_dsp->num_mems = ARRAY_SIZE(cs35l56_dsp1_regions);
-	cs_dsp->no_core_startstop = true;
+	cs_dsp->anal_core_startstop = true;
 }
 EXPORT_SYMBOL_NS_GPL(cs35l56_init_cs_dsp, SND_SOC_CS35L56_SHARED);
 
@@ -660,7 +660,7 @@ int cs35l56_hw_init(struct cs35l56_base *cs35l56_base)
 	bool fw_missing;
 
 	/*
-	 * When the system is not using a reset_gpio ensure the device is
+	 * When the system is analt using a reset_gpio ensure the device is
 	 * awake, otherwise the device has just been released from reset and
 	 * the driver must wait for the control port to become usable.
 	 */
@@ -696,7 +696,7 @@ int cs35l56_hw_init(struct cs35l56_base *cs35l56_base)
 	case 0x35A56:
 		break;
 	default:
-		dev_err(cs35l56_base->dev, "Unknown device %x\n", devid);
+		dev_err(cs35l56_base->dev, "Unkanalwn device %x\n", devid);
 		return ret;
 	}
 
@@ -746,7 +746,7 @@ int cs35l56_get_speaker_id(struct cs35l56_base *cs35l56_base)
 	/* Read the speaker type qualifier from the motherboard GPIOs */
 	descs = gpiod_get_array_optional(cs35l56_base->dev, "spk-id", GPIOD_IN);
 	if (!descs) {
-		return -ENOENT;
+		return -EANALENT;
 	} else if (IS_ERR(descs)) {
 		ret = PTR_ERR(descs);
 		return dev_err_probe(cs35l56_base->dev, ret, "Failed to get spk-id-gpios\n");
@@ -838,7 +838,7 @@ void cs35l56_fill_supply_names(struct regulator_bulk_data *data)
 EXPORT_SYMBOL_NS_GPL(cs35l56_fill_supply_names, SND_SOC_CS35L56_SHARED);
 
 const char * const cs35l56_tx_input_texts[] = {
-	"None", "ASP1RX1", "ASP1RX2", "VMON", "IMON", "ERRVOL", "CLASSH",
+	"Analne", "ASP1RX1", "ASP1RX2", "VMON", "IMON", "ERRVOL", "CLASSH",
 	"VDDBMON", "VBSTMON", "DSP1TX1", "DSP1TX2", "DSP1TX3", "DSP1TX4",
 	"DSP1TX5", "DSP1TX6", "DSP1TX7", "DSP1TX8", "TEMPMON",
 	"INTERPOLATOR", "SDW1RX1", "SDW1RX2",
@@ -846,7 +846,7 @@ const char * const cs35l56_tx_input_texts[] = {
 EXPORT_SYMBOL_NS_GPL(cs35l56_tx_input_texts, SND_SOC_CS35L56_SHARED);
 
 const unsigned int cs35l56_tx_input_values[] = {
-	CS35L56_INPUT_SRC_NONE,
+	CS35L56_INPUT_SRC_ANALNE,
 	CS35L56_INPUT_SRC_ASP1RX1,
 	CS35L56_INPUT_SRC_ASP1RX2,
 	CS35L56_INPUT_SRC_VMON,

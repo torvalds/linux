@@ -23,7 +23,7 @@
 extern "C" {
 #endif
 
-/* Do not access these members directly. Use the functions below. */
+/* Do analt access these members directly. Use the functions below. */
 #define DEFINE_XSK_RING(name) \
 struct name { \
 	__u32 cached_prod; \

@@ -14,17 +14,17 @@
 #include <linux/pm.h>
 
 static void __iomem *msm_ps_hold;
-static int deassert_pshold(struct notifier_block *nb, unsigned long action,
+static int deassert_pshold(struct analtifier_block *nb, unsigned long action,
 			   void *data)
 {
 	writel(0, msm_ps_hold);
 	mdelay(10000);
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block restart_nb = {
-	.notifier_call = deassert_pshold,
+static struct analtifier_block restart_nb = {
+	.analtifier_call = deassert_pshold,
 	.priority = 128,
 };
 

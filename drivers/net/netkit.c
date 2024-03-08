@@ -117,7 +117,7 @@ static int netkit_open(struct net_device *dev)
 	struct net_device *peer = rtnl_dereference(nk->peer);
 
 	if (!peer)
-		return -ENOTCONN;
+		return -EANALTCONN;
 	if (peer->flags & IFF_UP) {
 		netif_carrier_on(dev);
 		netif_carrier_on(peer);
@@ -152,7 +152,7 @@ static int netkit_get_iflink(const struct net_device *dev)
 
 static void netkit_set_multicast(struct net_device *dev)
 {
-	/* Nothing to do, we receive whatever gets pushed to us! */
+	/* Analthing to do, we receive whatever gets pushed to us! */
 }
 
 static void netkit_set_headroom(struct net_device *dev, int headroom)
@@ -237,11 +237,11 @@ static void netkit_setup(struct net_device *dev)
 	dev->max_mtu = ETH_MAX_MTU;
 	dev->pcpu_stat_type = NETDEV_PCPU_STAT_TSTATS;
 
-	dev->flags |= IFF_NOARP;
+	dev->flags |= IFF_ANALARP;
 	dev->priv_flags &= ~IFF_TX_SKB_SHARING;
 	dev->priv_flags |= IFF_LIVE_ADDR_CHANGE;
 	dev->priv_flags |= IFF_PHONY_HEADROOM;
-	dev->priv_flags |= IFF_NO_QUEUE;
+	dev->priv_flags |= IFF_ANAL_QUEUE;
 
 	dev->ethtool_ops = &netkit_ethtool_ops;
 	dev->netdev_ops  = &netkit_netdev_ops;
@@ -274,7 +274,7 @@ static int netkit_check_policy(int policy, struct nlattr *tb,
 		return 0;
 	default:
 		NL_SET_ERR_MSG_ATTR(extack, tb,
-				    "Provided default xmit policy not supported");
+				    "Provided default xmit policy analt supported");
 		return -EINVAL;
 	}
 }
@@ -301,8 +301,8 @@ static int netkit_validate(struct nlattr *tb[], struct nlattr *data[],
 	if (!attr)
 		return 0;
 	NL_SET_ERR_MSG_ATTR(extack, attr,
-			    "Setting Ethernet address is not supported");
-	return -EOPNOTSUPP;
+			    "Setting Ethernet address is analt supported");
+	return -EOPANALTSUPP;
 }
 
 static struct rtnl_link_ops netkit_link_ops;
@@ -396,7 +396,7 @@ static int netkit_new_link(struct net *src_net, struct net_device *dev,
 		goto err_register_peer;
 	netif_carrier_off(peer);
 	if (mode == NETKIT_L2)
-		dev_change_flags(peer, peer->flags & ~IFF_NOARP, NULL);
+		dev_change_flags(peer, peer->flags & ~IFF_ANALARP, NULL);
 
 	err = rtnl_configure_link(peer, NULL, 0, NULL);
 	if (err < 0)
@@ -420,7 +420,7 @@ static int netkit_new_link(struct net *src_net, struct net_device *dev,
 		goto err_configure_peer;
 	netif_carrier_off(dev);
 	if (mode == NETKIT_L2)
-		dev_change_flags(dev, dev->flags & ~IFF_NOARP, NULL);
+		dev_change_flags(dev, dev->flags & ~IFF_ANALARP, NULL);
 
 	rcu_assign_pointer(netkit_priv(dev)->peer, peer);
 	rcu_assign_pointer(netkit_priv(peer)->peer, dev);
@@ -479,7 +479,7 @@ static struct net_device *netkit_dev_fetch(struct net *net, u32 ifindex, u32 whi
 
 	dev = __dev_get_by_index(net, ifindex);
 	if (!dev)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 	if (dev->netdev_ops != &netkit_netdev_ops)
 		return ERR_PTR(-ENXIO);
 
@@ -489,7 +489,7 @@ static struct net_device *netkit_dev_fetch(struct net *net, u32 ifindex, u32 whi
 	if (which == BPF_NETKIT_PEER) {
 		dev = rcu_dereference_rtnl(nk->peer);
 		if (!dev)
-			return ERR_PTR(-ENODEV);
+			return ERR_PTR(-EANALDEV);
 	}
 	return dev;
 }
@@ -550,7 +550,7 @@ int netkit_prog_detach(const union bpf_attr *attr, struct bpf_prog *prog)
 	}
 	entry = netkit_entry_fetch(dev, false);
 	if (!entry) {
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto out;
 	}
 	ret = bpf_mprog_detach(entry, &entry_new, prog, NULL, attr->attach_flags,
@@ -626,7 +626,7 @@ static void netkit_link_release(struct bpf_link *link)
 		goto out;
 	entry = netkit_entry_fetch(dev, false);
 	if (!entry) {
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto out;
 	}
 	ret = bpf_mprog_detach(entry, &entry_new, link->prog, link, 0, 0, 0);
@@ -654,7 +654,7 @@ static int netkit_link_update(struct bpf_link *link, struct bpf_prog *nprog,
 	rtnl_lock();
 	dev = nkl->dev;
 	if (!dev) {
-		ret = -ENOLINK;
+		ret = -EANALLINK;
 		goto out;
 	}
 	if (oprog && link->prog != oprog) {
@@ -668,7 +668,7 @@ static int netkit_link_update(struct bpf_link *link, struct bpf_prog *nprog,
 	}
 	entry = netkit_entry_fetch(dev, false);
 	if (!entry) {
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto out;
 	}
 	ret = bpf_mprog_attach(entry, &entry_new, nprog, link, oprog,
@@ -767,7 +767,7 @@ int netkit_link_attach(const union bpf_attr *attr, struct bpf_prog *prog)
 	}
 	nkl = kzalloc(sizeof(*nkl), GFP_KERNEL_ACCOUNT);
 	if (!nkl) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 	ret = netkit_link_init(nkl, &link_primer, attr, dev, prog);
@@ -847,13 +847,13 @@ static int netkit_change_link(struct net_device *dev, struct nlattr *tb[],
 
 	if (data[IFLA_NETKIT_MODE]) {
 		NL_SET_ERR_MSG_ATTR(extack, data[IFLA_NETKIT_MODE],
-				    "netkit link operating mode cannot be changed after device creation");
+				    "netkit link operating mode cananalt be changed after device creation");
 		return -EACCES;
 	}
 
 	if (data[IFLA_NETKIT_PEER_INFO]) {
 		NL_SET_ERR_MSG_ATTR(extack, data[IFLA_NETKIT_PEER_INFO],
-				    "netkit peer info cannot be changed after device creation");
+				    "netkit peer info cananalt be changed after device creation");
 		return -EINVAL;
 	}
 
@@ -867,7 +867,7 @@ static int netkit_change_link(struct net_device *dev, struct nlattr *tb[],
 	}
 
 	if (data[IFLA_NETKIT_PEER_POLICY]) {
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		attr = data[IFLA_NETKIT_PEER_POLICY];
 		policy = nla_get_u32(attr);
 		if (peer)

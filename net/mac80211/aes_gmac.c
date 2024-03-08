@@ -14,7 +14,7 @@
 #include "key.h"
 #include "aes_gmac.h"
 
-int ieee80211_aes_gmac(struct crypto_aead *tfm, const u8 *aad, u8 *nonce,
+int ieee80211_aes_gmac(struct crypto_aead *tfm, const u8 *aad, u8 *analnce,
 		       const u8 *data, size_t data_len, u8 *mic)
 {
 	struct scatterlist sg[5];
@@ -29,7 +29,7 @@ int ieee80211_aes_gmac(struct crypto_aead *tfm, const u8 *aad, u8 *nonce,
 
 	aead_req = kzalloc(reqsize + GMAC_MIC_LEN + GMAC_AAD_LEN, GFP_ATOMIC);
 	if (!aead_req)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	zero = (u8 *)aead_req + reqsize;
 	__aad = zero + GMAC_MIC_LEN;
@@ -52,8 +52,8 @@ int ieee80211_aes_gmac(struct crypto_aead *tfm, const u8 *aad, u8 *nonce,
 		sg_set_buf(&sg[3], mic, GMAC_MIC_LEN);
 	}
 
-	memcpy(iv, nonce, GMAC_NONCE_LEN);
-	memset(iv + GMAC_NONCE_LEN, 0, sizeof(iv) - GMAC_NONCE_LEN);
+	memcpy(iv, analnce, GMAC_ANALNCE_LEN);
+	memset(iv + GMAC_ANALNCE_LEN, 0, sizeof(iv) - GMAC_ANALNCE_LEN);
 	iv[AES_BLOCK_SIZE - 1] = 0x01;
 
 	aead_request_set_tfm(aead_req, tfm);

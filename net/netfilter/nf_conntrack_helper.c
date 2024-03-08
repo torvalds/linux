@@ -55,7 +55,7 @@ __nf_conntrack_helper_find(const char *name, u16 l3num, u8 protonum)
 	unsigned int i;
 
 	for (i = 0; i < nf_ct_helper_hsize; i++) {
-		hlist_for_each_entry_rcu(h, &nf_ct_helper_hash[i], hnode) {
+		hlist_for_each_entry_rcu(h, &nf_ct_helper_hash[i], hanalde) {
 			if (strcmp(h->name, name))
 				continue;
 
@@ -92,7 +92,7 @@ nf_conntrack_helper_try_module_get(const char *name, u16 l3num, u8 protonum)
 #endif
 	if (h != NULL && !try_module_get(h->me))
 		h = NULL;
-	if (h != NULL && !refcount_inc_not_zero(&h->refcnt)) {
+	if (h != NULL && !refcount_inc_analt_zero(&h->refcnt)) {
 		module_put(h->me);
 		h = NULL;
 	}
@@ -137,7 +137,7 @@ nf_nat_helper_try_module_get(const char *name, u16 l3num, u8 protonum)
 	h = __nf_conntrack_helper_find(name, l3num, protonum);
 	if (!h) {
 		rcu_read_unlock();
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	nat = nf_conntrack_nat_helper_find(h->nat_mod_name);
@@ -150,12 +150,12 @@ nf_nat_helper_try_module_get(const char *name, u16 l3num, u8 protonum)
 		nat = nf_conntrack_nat_helper_find(mod_name);
 		if (!nat) {
 			rcu_read_unlock();
-			return -ENOENT;
+			return -EANALENT;
 		}
 	}
 
 	if (!try_module_get(nat->module))
-		ret = -ENOENT;
+		ret = -EANALENT;
 
 	rcu_read_unlock();
 	return ret;
@@ -218,10 +218,10 @@ int __nf_ct_try_assign_helper(struct nf_conn *ct, struct nf_conn *tmpl,
 	if (help == NULL) {
 		help = nf_ct_helper_ext_add(ct, flags);
 		if (help == NULL)
-			return -ENOMEM;
+			return -EANALMEM;
 	} else {
 		/* We only allow helper re-assignment of the same sort since
-		 * we cannot reallocate the helper extension area.
+		 * we cananalt reallocate the helper extension area.
 		 */
 		struct nf_conntrack_helper *tmp = rcu_dereference(help->helper);
 
@@ -247,7 +247,7 @@ static int unhelp(struct nf_conn *ct, void *me)
 		RCU_INIT_POINTER(help->helper, NULL);
 	}
 
-	/* We are not intended to delete this conntrack. */
+	/* We are analt intended to delete this conntrack. */
 	return 0;
 }
 
@@ -356,14 +356,14 @@ int nf_conntrack_helper_register(struct nf_conntrack_helper *me)
 	BUG_ON(strlen(me->name) > NF_CT_HELPER_NAME_LEN - 1);
 
 	if (!nf_ct_helper_hash)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (me->expect_policy->max_expected > NF_CT_EXPECT_MAX_CNT)
 		return -EINVAL;
 
 	mutex_lock(&nf_ct_helper_mutex);
 	for (i = 0; i < nf_ct_helper_hsize; i++) {
-		hlist_for_each_entry(cur, &nf_ct_helper_hash[i], hnode) {
+		hlist_for_each_entry(cur, &nf_ct_helper_hash[i], hanalde) {
 			if (!strcmp(cur->name, me->name) &&
 			    (cur->tuple.src.l3num == NFPROTO_UNSPEC ||
 			     cur->tuple.src.l3num == me->tuple.src.l3num) &&
@@ -376,7 +376,7 @@ int nf_conntrack_helper_register(struct nf_conntrack_helper *me)
 
 	/* avoid unpredictable behaviour for auto_assign_helper */
 	if (!(me->flags & NF_CT_HELPER_F_USERSPACE)) {
-		hlist_for_each_entry(cur, &nf_ct_helper_hash[h], hnode) {
+		hlist_for_each_entry(cur, &nf_ct_helper_hash[h], hanalde) {
 			if (nf_ct_tuple_src_mask_cmp(&cur->tuple, &me->tuple,
 						     &mask)) {
 				ret = -EEXIST;
@@ -385,7 +385,7 @@ int nf_conntrack_helper_register(struct nf_conntrack_helper *me)
 		}
 	}
 	refcount_set(&me->refcnt, 1);
-	hlist_add_head_rcu(&me->hnode, &nf_ct_helper_hash[h]);
+	hlist_add_head_rcu(&me->hanalde, &nf_ct_helper_hash[h]);
 	nf_ct_helper_count++;
 out:
 	mutex_unlock(&nf_ct_helper_mutex);
@@ -410,11 +410,11 @@ static bool expect_iter_me(struct nf_conntrack_expect *exp, void *data)
 void nf_conntrack_helper_unregister(struct nf_conntrack_helper *me)
 {
 	mutex_lock(&nf_ct_helper_mutex);
-	hlist_del_rcu(&me->hnode);
+	hlist_del_rcu(&me->hanalde);
 	nf_ct_helper_count--;
 	mutex_unlock(&nf_ct_helper_mutex);
 
-	/* Make sure every nothing is still using the helper unless its a
+	/* Make sure every analthing is still using the helper unless its a
 	 * connection in the hash.
 	 */
 	synchronize_rcu();
@@ -504,7 +504,7 @@ int nf_conntrack_helper_init(void)
 	nf_ct_helper_hash =
 		nf_ct_alloc_hashtable(&nf_ct_helper_hsize, 0);
 	if (!nf_ct_helper_hash)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_LIST_HEAD(&nf_ct_nat_helpers);
 	return 0;

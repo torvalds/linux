@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * macfb.c: Generic framebuffer for Macs whose colourmaps/modes we
- * don't know how to set.
+ * don't kanalw how to set.
  *
  * (c) 1999 David Huggins-Daines <dhd@debian.org>
  *
- * Primarily based on vesafb.c, by Gerd Knorr
- * (c) 1998 Gerd Knorr <kraxel@cs.tu-berlin.de>
+ * Primarily based on vesafb.c, by Gerd Kanalrr
+ * (c) 1998 Gerd Kanalrr <kraxel@cs.tu-berlin.de>
  *
  * Also uses information and code from:
  *
@@ -22,7 +22,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/delay.h>
@@ -49,7 +49,7 @@
 /* CSC (Color Screen Controller) base address */
 #define CSC_BASE 0x50F20000
 
-static int (*macfb_setpalette)(unsigned int regno, unsigned int red,
+static int (*macfb_setpalette)(unsigned int reganal, unsigned int red,
 			       unsigned int green, unsigned int blue,
 			       struct fb_info *info);
 
@@ -117,17 +117,17 @@ struct jet_cmap_regs {
 #define PIXEL_TO_MM(a)	(((a)*10)/28)	/* width in mm at 72 dpi */
 
 static struct fb_var_screeninfo macfb_defined = {
-	.activate	= FB_ACTIVATE_NOW,
+	.activate	= FB_ACTIVATE_ANALW,
 	.right_margin	= 32,
 	.upper_margin	= 16,
 	.lower_margin	= 4,
 	.vsync_len	= 4,
-	.vmode		= FB_VMODE_NONINTERLACED,
+	.vmode		= FB_VMODE_ANALNINTERLACED,
 };
 
 static struct fb_fix_screeninfo macfb_fix = {
 	.type	= FB_TYPE_PACKED_PIXELS,
-	.accel	= FB_ACCEL_NONE,
+	.accel	= FB_ACCEL_ANALNE,
 };
 
 static void *slot_addr;
@@ -136,12 +136,12 @@ static u32 pseudo_palette[16];
 static int vidtest;
 
 /*
- * Unlike the Valkyrie, the DAFB cannot set individual colormap
- * registers.  Therefore, we do what the MacOS driver does (no
+ * Unlike the Valkyrie, the DAFB cananalt set individual colormap
+ * registers.  Therefore, we do what the MacOS driver does (anal
  * kidding!) and simply set them one by one until we hit the one we
  * want.
  */
-static int dafb_setpalette(unsigned int regno, unsigned int red,
+static int dafb_setpalette(unsigned int reganal, unsigned int red,
 			   unsigned int green, unsigned int blue,
 			   struct fb_info *info)
 {
@@ -154,40 +154,40 @@ static int dafb_setpalette(unsigned int regno, unsigned int red,
 	 * fbdev will set an entire colourmap, but X won't.  Hopefully
 	 * this should accommodate both of them
 	 */
-	if (regno != lastreg + 1) {
+	if (reganal != lastreg + 1) {
 		int i;
 
 		/* Stab in the dark trying to reset the CLUT pointer */
 		nubus_writel(0, &dafb_cmap_regs->reset);
-		nop();
+		analp();
 
 		/* Loop until we get to the register we want */
-		for (i = 0; i < regno; i++) {
+		for (i = 0; i < reganal; i++) {
 			nubus_writeb(info->cmap.red[i] >> 8,
 				     &dafb_cmap_regs->lut);
-			nop();
+			analp();
 			nubus_writeb(info->cmap.green[i] >> 8,
 				     &dafb_cmap_regs->lut);
-			nop();
+			analp();
 			nubus_writeb(info->cmap.blue[i] >> 8,
 				     &dafb_cmap_regs->lut);
-			nop();
+			analp();
 		}
 	}
 
 	nubus_writeb(red, &dafb_cmap_regs->lut);
-	nop();
+	analp();
 	nubus_writeb(green, &dafb_cmap_regs->lut);
-	nop();
+	analp();
 	nubus_writeb(blue, &dafb_cmap_regs->lut);
 
 	local_irq_restore(flags);
-	lastreg = regno;
+	lastreg = reganal;
 	return 0;
 }
 
-/* V8 and Brazil seem to use the same DAC.  Sonora does as well. */
-static int v8_brazil_setpalette(unsigned int regno, unsigned int red,
+/* V8 and Brazil seem to use the same DAC.  Soanalra does as well. */
+static int v8_brazil_setpalette(unsigned int reganal, unsigned int red,
 				unsigned int green, unsigned int blue,
 				struct fb_info *info)
 {
@@ -198,19 +198,19 @@ static int v8_brazil_setpalette(unsigned int regno, unsigned int red,
 
 	/* On these chips, the CLUT register numbers are spread out
 	 * across the register space.  Thus:
-	 * In 8bpp, all regnos are valid.
-	 * In 4bpp, the regnos are 0x0f, 0x1f, 0x2f, etc, etc
-	 * In 2bpp, the regnos are 0x3f, 0x7f, 0xbf, 0xff
+	 * In 8bpp, all reganals are valid.
+	 * In 4bpp, the reganals are 0x0f, 0x1f, 0x2f, etc, etc
+	 * In 2bpp, the reganals are 0x3f, 0x7f, 0xbf, 0xff
 	 */
-	regno = (regno << (8 - bpp)) | (0xFF >> bpp);
-	nubus_writeb(regno, &v8_brazil_cmap_regs->addr);
-	nop();
+	reganal = (reganal << (8 - bpp)) | (0xFF >> bpp);
+	nubus_writeb(reganal, &v8_brazil_cmap_regs->addr);
+	analp();
 
 	/* send one color channel at a time */
 	nubus_writeb(red, &v8_brazil_cmap_regs->lut);
-	nop();
+	analp();
 	nubus_writeb(green, &v8_brazil_cmap_regs->lut);
-	nop();
+	analp();
 	nubus_writeb(blue, &v8_brazil_cmap_regs->lut);
 
 	local_irq_restore(flags);
@@ -218,7 +218,7 @@ static int v8_brazil_setpalette(unsigned int regno, unsigned int red,
 }
 
 /* RAM-Based Video */
-static int rbv_setpalette(unsigned int regno, unsigned int red,
+static int rbv_setpalette(unsigned int reganal, unsigned int red,
 			  unsigned int green, unsigned int blue,
 			  struct fb_info *info)
 {
@@ -227,24 +227,24 @@ static int rbv_setpalette(unsigned int regno, unsigned int red,
 	local_irq_save(flags);
 
 	/* From the VideoToolbox driver.  Seems to be saying that
-	 * regno #254 and #255 are the important ones for 1-bit color,
-	 * regno #252-255 are the important ones for 2-bit color, etc.
+	 * reganal #254 and #255 are the important ones for 1-bit color,
+	 * reganal #252-255 are the important ones for 2-bit color, etc.
 	 */
-	regno += 256 - (1 << info->var.bits_per_pixel);
+	reganal += 256 - (1 << info->var.bits_per_pixel);
 
-	/* reset clut? (VideoToolbox sez "not necessary") */
+	/* reset clut? (VideoToolbox sez "analt necessary") */
 	nubus_writeb(0xFF, &rbv_cmap_regs->cntl);
-	nop();
+	analp();
 
 	/* tell clut which address to use. */
-	nubus_writeb(regno, &rbv_cmap_regs->addr);
-	nop();
+	nubus_writeb(reganal, &rbv_cmap_regs->addr);
+	analp();
 
 	/* send one color channel at a time. */
 	nubus_writeb(red, &rbv_cmap_regs->lut);
-	nop();
+	analp();
 	nubus_writeb(green, &rbv_cmap_regs->lut);
-	nop();
+	analp();
 	nubus_writeb(blue, &rbv_cmap_regs->lut);
 
 	local_irq_restore(flags);
@@ -252,7 +252,7 @@ static int rbv_setpalette(unsigned int regno, unsigned int red,
 }
 
 /* Macintosh Display Card (8*24) */
-static int mdc_setpalette(unsigned int regno, unsigned int red,
+static int mdc_setpalette(unsigned int reganal, unsigned int red,
 			  unsigned int green, unsigned int blue,
 			  struct fb_info *info)
 {
@@ -261,13 +261,13 @@ static int mdc_setpalette(unsigned int regno, unsigned int red,
 
 	local_irq_save(flags);
 
-	/* the nop's are there to order writes. */
-	nubus_writeb(regno, &cmap_regs->addr);
-	nop();
+	/* the analp's are there to order writes. */
+	nubus_writeb(reganal, &cmap_regs->addr);
+	analp();
 	nubus_writeb(red, &cmap_regs->lut);
-	nop();
+	analp();
 	nubus_writeb(green, &cmap_regs->lut);
-	nop();
+	analp();
 	nubus_writeb(blue, &cmap_regs->lut);
 
 	local_irq_restore(flags);
@@ -275,7 +275,7 @@ static int mdc_setpalette(unsigned int regno, unsigned int red,
 }
 
 /* Toby frame buffer */
-static int toby_setpalette(unsigned int regno, unsigned int red,
+static int toby_setpalette(unsigned int reganal, unsigned int red,
 			   unsigned int green, unsigned int blue,
 			   struct fb_info *info)
 {
@@ -286,16 +286,16 @@ static int toby_setpalette(unsigned int regno, unsigned int red,
 	red = ~red;
 	green = ~green;
 	blue = ~blue;
-	regno = (regno << (8 - bpp)) | (0xFF >> bpp);
+	reganal = (reganal << (8 - bpp)) | (0xFF >> bpp);
 
 	local_irq_save(flags);
 
-	nubus_writeb(regno, &cmap_regs->addr);
-	nop();
+	nubus_writeb(reganal, &cmap_regs->addr);
+	analp();
 	nubus_writeb(red, &cmap_regs->lut);
-	nop();
+	analp();
 	nubus_writeb(green, &cmap_regs->lut);
-	nop();
+	analp();
 	nubus_writeb(blue, &cmap_regs->lut);
 
 	local_irq_restore(flags);
@@ -303,7 +303,7 @@ static int toby_setpalette(unsigned int regno, unsigned int red,
 }
 
 /* Jet frame buffer */
-static int jet_setpalette(unsigned int regno, unsigned int red,
+static int jet_setpalette(unsigned int reganal, unsigned int red,
 			  unsigned int green, unsigned int blue,
 			  struct fb_info *info)
 {
@@ -312,12 +312,12 @@ static int jet_setpalette(unsigned int regno, unsigned int red,
 
 	local_irq_save(flags);
 
-	nubus_writeb(regno, &cmap_regs->addr);
-	nop();
+	nubus_writeb(reganal, &cmap_regs->addr);
+	analp();
 	nubus_writeb(red, &cmap_regs->lut);
-	nop();
+	analp();
 	nubus_writeb(green, &cmap_regs->lut);
-	nop();
+	analp();
 	nubus_writeb(blue, &cmap_regs->lut);
 
 	local_irq_restore(flags);
@@ -330,10 +330,10 @@ static int jet_setpalette(unsigned int regno, unsigned int red,
  * apparently, there are two different banks of 512K RAM
  * which can act as separate framebuffers for doing video
  * input and viewing the screen at the same time!  The 840AV
- * Can add another 1MB RAM to give the two framebuffers
+ * Can add aanalther 1MB RAM to give the two framebuffers
  * 1MB RAM apiece.
  */
-static int civic_setpalette(unsigned int regno, unsigned int red,
+static int civic_setpalette(unsigned int reganal, unsigned int red,
 			    unsigned int green, unsigned int blue,
 			    struct fb_info *info)
 {
@@ -343,8 +343,8 @@ static int civic_setpalette(unsigned int regno, unsigned int red,
 	local_irq_save(flags);
 
 	/* Set the register address */
-	nubus_writeb(regno, &civic_cmap_regs->addr);
-	nop();
+	nubus_writeb(reganal, &civic_cmap_regs->addr);
+	analp();
 
 	/*
 	 * Grab a status word and do some checking;
@@ -358,18 +358,18 @@ static int civic_setpalette(unsigned int regno, unsigned int red,
 		if ((clut_status & 0x000D) != 0)
 		{
 			nubus_writeb(0x00, &civic_cmap_regs->lut);
-			nop();
+			analp();
 			nubus_writeb(0x00, &civic_cmap_regs->lut);
-			nop();
+			analp();
 		}
 #endif
 
 		nubus_writeb(red, &civic_cmap_regs->lut);
-		nop();
+		analp();
 		nubus_writeb(green, &civic_cmap_regs->lut);
-		nop();
+		analp();
 		nubus_writeb(blue, &civic_cmap_regs->lut);
-		nop();
+		analp();
 		nubus_writeb(0x00, &civic_cmap_regs->lut);
 	}
 	else
@@ -377,28 +377,28 @@ static int civic_setpalette(unsigned int regno, unsigned int red,
 		unsigned char junk;
 
 		junk = nubus_readb(&civic_cmap_regs->lut);
-		nop();
+		analp();
 		junk = nubus_readb(&civic_cmap_regs->lut);
-		nop();
+		analp();
 		junk = nubus_readb(&civic_cmap_regs->lut);
-		nop();
+		analp();
 		junk = nubus_readb(&civic_cmap_regs->lut);
-		nop();
+		analp();
 
 		if ((clut_status & 0x000D) != 0)
 		{
 			nubus_writeb(0x00, &civic_cmap_regs->lut);
-			nop();
+			analp();
 			nubus_writeb(0x00, &civic_cmap_regs->lut);
-			nop();
+			analp();
 		}
 
 		nubus_writeb(red, &civic_cmap_regs->lut);
-		nop();
+		analp();
 		nubus_writeb(green, &civic_cmap_regs->lut);
-		nop();
+		analp();
 		nubus_writeb(blue, &civic_cmap_regs->lut);
-		nop();
+		analp();
 		nubus_writeb(junk, &civic_cmap_regs->lut);
 	}
 
@@ -411,7 +411,7 @@ static int civic_setpalette(unsigned int regno, unsigned int red,
  * (and the 5300 too, but that's a PowerMac). This function
  * brought to you in part by the ECSC driver for MkLinux.
  */
-static int csc_setpalette(unsigned int regno, unsigned int red,
+static int csc_setpalette(unsigned int reganal, unsigned int red,
 			  unsigned int green, unsigned int blue,
 			  struct fb_info *info)
 {
@@ -420,7 +420,7 @@ static int csc_setpalette(unsigned int regno, unsigned int red,
 	local_irq_save(flags);
 
 	udelay(1); /* mklinux on PB 5300 waits for 260 ns */
-	nubus_writeb(regno, &csc_cmap_regs->clut_waddr);
+	nubus_writeb(reganal, &csc_cmap_regs->clut_waddr);
 	nubus_writeb(red, &csc_cmap_regs->clut_data);
 	nubus_writeb(green, &csc_cmap_regs->clut_data);
 	nubus_writeb(blue, &csc_cmap_regs->clut_data);
@@ -429,7 +429,7 @@ static int csc_setpalette(unsigned int regno, unsigned int red,
 	return 0;
 }
 
-static int macfb_setcolreg(unsigned regno, unsigned red, unsigned green,
+static int macfb_setcolreg(unsigned reganal, unsigned red, unsigned green,
 			   unsigned blue, unsigned transp,
 			   struct fb_info *fb_info)
 {
@@ -437,10 +437,10 @@ static int macfb_setcolreg(unsigned regno, unsigned red, unsigned green,
 	 * Set a single color register. The values supplied are
 	 * already rounded down to the hardware's capabilities
 	 * (according to the entries in the `var' structure).
-	 * Return non-zero for invalid regno.
+	 * Return analn-zero for invalid reganal.
 	 */
 
-	if (regno >= fb_info->cmap.len)
+	if (reganal >= fb_info->cmap.len)
 		return 1;
 
 	if (fb_info->var.bits_per_pixel <= 8) {
@@ -452,25 +452,25 @@ static int macfb_setcolreg(unsigned regno, unsigned red, unsigned green,
 		case 4:
 		case 8:
 			if (macfb_setpalette)
-				macfb_setpalette(regno, red >> 8, green >> 8,
+				macfb_setpalette(reganal, red >> 8, green >> 8,
 						 blue >> 8, fb_info);
 			else
 				return 1;
 			break;
 		}
-	} else if (regno < 16) {
+	} else if (reganal < 16) {
 		switch (fb_info->var.bits_per_pixel) {
 		case 16:
 			if (fb_info->var.red.offset == 10) {
 				/* 1:5:5:5 */
-				((u32*) (fb_info->pseudo_palette))[regno] =
+				((u32*) (fb_info->pseudo_palette))[reganal] =
 					((red   & 0xf800) >>  1) |
 					((green & 0xf800) >>  6) |
 					((blue  & 0xf800) >> 11) |
 					((transp != 0) << 15);
 			} else {
 				/* 0:5:6:5 */
-				((u32*) (fb_info->pseudo_palette))[regno] =
+				((u32*) (fb_info->pseudo_palette))[reganal] =
 					((red   & 0xf800) >>  0) |
 					((green & 0xfc00) >>  5) |
 					((blue  & 0xf800) >> 11);
@@ -485,7 +485,7 @@ static int macfb_setcolreg(unsigned regno, unsigned red, unsigned green,
 			red   >>= 8;
 			green >>= 8;
 			blue  >>= 8;
-			((u32 *)(fb_info->pseudo_palette))[regno] =
+			((u32 *)(fb_info->pseudo_palette))[reganal] =
 				(red   << fb_info->var.red.offset) |
 				(green << fb_info->var.green.offset) |
 				(blue  << fb_info->var.blue.offset);
@@ -543,15 +543,15 @@ static int __init macfb_init(void)
 	int err;
 
 	if (fb_get_options("macfb", &option))
-		return -ENODEV;
+		return -EANALDEV;
 	macfb_setup(option);
 
 	if (!MACH_IS_MAC)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (mac_bi_data.id == MAC_MODEL_Q630 ||
 	    mac_bi_data.id == MAC_MODEL_P588)
-		return -ENODEV; /* See valkyriefb.c */
+		return -EANALDEV; /* See valkyriefb.c */
 
 	macfb_defined.xres = mac_bi_data.dimensions & 0xFFFF;
 	macfb_defined.yres = mac_bi_data.dimensions >> 16;
@@ -559,19 +559,19 @@ static int __init macfb_init(void)
 
 	macfb_fix.line_length = mac_bi_data.videorow;
 	macfb_fix.smem_len    = macfb_fix.line_length * macfb_defined.yres;
-	/* Note: physical address (since 2.1.127) */
+	/* Analte: physical address (since 2.1.127) */
 	macfb_fix.smem_start  = mac_bi_data.videoaddr;
 
 	/*
 	 * This is actually redundant with the initial mappings.
-	 * However, there are some non-obvious aspects to the way
+	 * However, there are some analn-obvious aspects to the way
 	 * those mappings are set up, so this is in fact the safest
 	 * way to ensure that this driver will work on every possible Mac
 	 */
 	fb_info.screen_base = ioremap(mac_bi_data.videoaddr,
 				      macfb_fix.smem_len);
 	if (!fb_info.screen_base)
-		return -ENODEV;
+		return -EANALDEV;
 
 	pr_info("macfb: framebuffer at 0x%08lx, mapped to 0x%p, size %dk\n",
 	        macfb_fix.smem_start, fb_info.screen_base,
@@ -598,7 +598,7 @@ static int __init macfb_init(void)
 		macfb_defined.green.length = macfb_defined.bits_per_pixel;
 		macfb_defined.blue.length = macfb_defined.bits_per_pixel;
 		video_cmap_len = 2;
-		macfb_fix.visual = FB_VISUAL_MONO01;
+		macfb_fix.visual = FB_VISUAL_MOANAL01;
 		break;
 	case 2:
 	case 4:
@@ -637,7 +637,7 @@ static int __init macfb_init(void)
 		macfb_fix.visual = FB_VISUAL_TRUECOLOR;
 		break;
 	default:
-		pr_err("macfb: unknown or unsupported bit depth: %d\n",
+		pr_err("macfb: unkanalwn or unsupported bit depth: %d\n",
 		       macfb_defined.bits_per_pixel);
 		err = -EINVAL;
 		goto fail_unmap;
@@ -647,7 +647,7 @@ static int __init macfb_init(void)
 	 * We take a wild guess that if the video physical address is
 	 * in nubus slot space, that the nubus card is driving video.
 	 * Penguin really ought to tell us whether we are using internal
-	 * video or not.
+	 * video or analt.
 	 * Hopefully we only find one of them.  Otherwise our NuBus
 	 * code is really broken :-)
 	 */
@@ -685,13 +685,13 @@ static int __init macfb_init(void)
 		}
 	}
 
-	/* If it's not a NuBus card, it must be internal video */
+	/* If it's analt a NuBus card, it must be internal video */
 	if (!video_is_nubus)
 		switch (mac_bi_data.id) {
 		/*
 		 * DAFB Quadras
-		 * Note: these first four have the v7 DAFB, which is
-		 * known to be rather unlike the ones used in the
+		 * Analte: these first four have the v7 DAFB, which is
+		 * kanalwn to be rather unlike the ones used in the
 		 * other models
 		 */
 		case MAC_MODEL_P475:
@@ -735,8 +735,8 @@ static int __init macfb_init(void)
 			break;
 
 		/*
-		 * LC III (and friends) use the Sonora framebuffer
-		 * Incidentally this is also used in the non-AV models
+		 * LC III (and friends) use the Soanalra framebuffer
+		 * Incidentally this is also used in the analn-AV models
 		 * of the x100 PowerMacs
 		 * These do in fact seem to use the same DAC interface
 		 * as the LC II.
@@ -745,7 +745,7 @@ static int __init macfb_init(void)
 		case MAC_MODEL_P520:
 		case MAC_MODEL_P550:
 		case MAC_MODEL_P460:
-			strcpy(macfb_fix.id, "Sonora");
+			strcpy(macfb_fix.id, "Soanalra");
 			macfb_setpalette = v8_brazil_setpalette;
 			v8_brazil_cmap_regs = ioremap(DAC_BASE, 0x1000);
 			break;
@@ -806,11 +806,11 @@ static int __init macfb_init(void)
 			break;
 
 		/*
-		 * These don't have colour, so no need to worry
+		 * These don't have colour, so anal need to worry
 		 */
 		case MAC_MODEL_SE30:
 		case MAC_MODEL_CLII:
-			strcpy(macfb_fix.id, "Monochrome");
+			strcpy(macfb_fix.id, "Moanalchrome");
 			break;
 
 		/*
@@ -823,7 +823,7 @@ static int __init macfb_init(void)
 		 */
 
 		/*
-		 * Slot 0 ROM says TIM. No external video. B&W.
+		 * Slot 0 ROM says TIM. Anal external video. B&W.
 		 */
 		case MAC_MODEL_PB140:
 		case MAC_MODEL_PB145:
@@ -834,7 +834,7 @@ static int __init macfb_init(void)
 		/*
 		 * Internal is GSC, External (if present) is ViSC
 		 */
-		case MAC_MODEL_PB150:	/* no external video */
+		case MAC_MODEL_PB150:	/* anal external video */
 		case MAC_MODEL_PB160:
 		case MAC_MODEL_PB165:
 		case MAC_MODEL_PB180:
@@ -866,7 +866,7 @@ static int __init macfb_init(void)
 			break;
 
 		default:
-			strcpy(macfb_fix.id, "Unknown");
+			strcpy(macfb_fix.id, "Unkanalwn");
 			break;
 		}
 

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /* Copyright (c) 2004 Topspin Communications. All rights reserved.
- * Copyright (c) 2005 - 2008 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2005 - 2008 Mellaanalx Techanallogies. All rights reserved.
  * Copyright (c) 2006 - 2007 Cisco Systems, Inc. All rights reserved.
  * Copyright (c) 2020 NVIDIA CORPORATION. All rights reserved.
  */
@@ -14,7 +14,7 @@ int mlx5dr_buddy_init(struct mlx5dr_icm_buddy_mem *buddy,
 
 	buddy->max_order = max_order;
 
-	INIT_LIST_HEAD(&buddy->list_node);
+	INIT_LIST_HEAD(&buddy->list_analde);
 
 	buddy->bitmap = kcalloc(buddy->max_order + 1,
 				sizeof(*buddy->bitmap),
@@ -53,14 +53,14 @@ err_out_free_each_bit_per_order:
 err_free_all:
 	kfree(buddy->num_free);
 	kfree(buddy->bitmap);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 void mlx5dr_buddy_cleanup(struct mlx5dr_icm_buddy_mem *buddy)
 {
 	int i;
 
-	list_del(&buddy->list_node);
+	list_del(&buddy->list_analde);
 
 	for (i = 0; i <= buddy->max_order; ++i)
 		bitmap_free(buddy->bitmap[i]);
@@ -87,13 +87,13 @@ static int dr_buddy_find_free_seg(struct mlx5dr_icm_buddy_mem *buddy,
 		if (WARN(seg >= m,
 			 "ICM Buddy: failed finding free mem for order %d\n",
 			 order_iter))
-			return -ENOMEM;
+			return -EANALMEM;
 
 		break;
 	}
 
 	if (order_iter > buddy->max_order)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	*segment = seg;
 	*order = order_iter;
@@ -111,7 +111,7 @@ static int dr_buddy_find_free_seg(struct mlx5dr_icm_buddy_mem *buddy,
  * area of free place, starting from the current order till the maximum order
  * in the system.
  *
- * Return: 0 when segment is set, non-zero error status otherwise.
+ * Return: 0 when segment is set, analn-zero error status otherwise.
  *
  * The function returns the location (segment) in the whole buddy ICM memory
  * area - the index of the memory segment that is available for use.

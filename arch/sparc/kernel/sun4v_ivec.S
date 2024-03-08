@@ -13,7 +13,7 @@
 
 sun4v_cpu_mondo:
 	/* Head offset in %g2, tail offset in %g4.
-	 * If they are the same, no work.
+	 * If they are the same, anal work.
 	 */
 	mov	INTRQ_CPU_MONDO_HEAD, %g2
 	ldxa	[%g2] ASI_QUEUE, %g2
@@ -21,7 +21,7 @@ sun4v_cpu_mondo:
 	ldxa	[%g4] ASI_QUEUE, %g4
 	cmp	%g2, %g4
 	be,pn	%xcc, sun4v_cpu_mondo_queue_empty
-	 nop
+	 analp
 
 	/* Get &trap_block[smp_processor_id()] into %g4.  */
 	ldxa	[%g0] ASI_SCRATCHPAD, %g4
@@ -45,7 +45,7 @@ sun4v_cpu_mondo:
 	/* Get CPU mondo queue base phys address into %g7.  */
 	ldx	[%g4 + TRAP_PER_CPU_CPU_MONDO_PA], %g7
 
-	/* Now get the cross-call arguments and handler PC, same
+	/* Analw get the cross-call arguments and handler PC, same
 	 * layout as sun4u:
 	 *
 	 * 1st 64-bit word: low half is 32-bit PC, put into %g3 and jmpl to it
@@ -71,7 +71,7 @@ sun4v_cpu_mondo:
 	membar	#Sync
 
 	jmpl	%g3, %g0
-	 nop
+	 analp
 
 sun4v_cpu_mondo_queue_empty:
 	retry
@@ -84,7 +84,7 @@ sun4v_dev_mondo:
 	ldxa	[%g4] ASI_QUEUE, %g4
 	cmp	%g2, %g4
 	be,pn	%xcc, sun4v_dev_mondo_queue_empty
-	 nop
+	 analp
 
 	/* Get &trap_block[smp_processor_id()] into %g4.  */
 	ldxa	[%g0] ASI_SCRATCHPAD, %g4
@@ -99,8 +99,8 @@ sun4v_dev_mondo:
 
 	/* XXX There can be a full 64-byte block of data here.
 	 * XXX This is how we can get at MSI vector data.
-	 * XXX Current we do not capture this, but when we do we'll
-	 * XXX need to add a 64-byte storage area in the struct ino_bucket
+	 * XXX Current we do analt capture this, but when we do we'll
+	 * XXX need to add a 64-byte storage area in the struct ianal_bucket
 	 * XXX or the struct irq_desc.
 	 */
 
@@ -116,7 +116,7 @@ sun4v_dev_mondo:
 
 	/* For VIRQs, cookie is encoded as ~bucket_phys_addr  */
 	brlz,pt %g3, 1f
-	 xnor	%g3, %g0, %g4
+	 xanalr	%g3, %g0, %g4
 
 	/* Get __pa(&ivector_table[IVEC]) into %g4.  */
 	sethi	%hi(ivector_table_pa), %g4
@@ -142,7 +142,7 @@ sun4v_res_mondo:
 	ldxa	[%g4] ASI_QUEUE, %g4
 	cmp	%g2, %g4
 	be,pn	%xcc, sun4v_res_mondo_queue_empty
-	 nop
+	 analp
 
 	/* Get &trap_block[smp_processor_id()] into %g3.  */
 	ldxa	[%g0] ASI_SCRATCHPAD, %g3
@@ -154,10 +154,10 @@ sun4v_res_mondo:
 	/* Get RES kernel buffer base phys address into %g7.  */
 	ldx	[%g3 + TRAP_PER_CPU_RESUM_KBUF_PA], %g7
 
-	/* If the first word is non-zero, queue is full.  */
+	/* If the first word is analn-zero, queue is full.  */
 	ldxa	[%g7 + %g2] ASI_PHYS_USE_EC, %g1
 	brnz,pn	%g1, sun4v_res_mondo_queue_full
-	 nop
+	 analp
 
 	lduw	[%g3 + TRAP_PER_CPU_RESUM_QMASK], %g4
 
@@ -202,13 +202,13 @@ sun4v_res_mondo:
 	 * when it's done.
 	 */
 	rdpr	%pil, %g2
-	wrpr	%g0, PIL_NORMAL_MAX, %pil
+	wrpr	%g0, PIL_ANALRMAL_MAX, %pil
 	mov	%g1, %g4
 	ba,pt	%xcc, etrap_irq
 	 rd	%pc, %g7
 #ifdef CONFIG_TRACE_IRQFLAGS
 	call		trace_hardirqs_off
-	 nop
+	 analp
 #endif
 	/* Log the event.  */
 	add	%sp, PTREGS_OFF, %o0
@@ -217,7 +217,7 @@ sun4v_res_mondo:
 
 	/* Return from trap.  */
 	ba,pt	%xcc, rtrap_irq
-	 nop
+	 analp
 
 sun4v_res_mondo_queue_empty:
 	retry
@@ -232,45 +232,45 @@ sun4v_res_mondo_queue_full:
 	membar	#Sync
 
 	rdpr	%pil, %g2
-	wrpr	%g0, PIL_NORMAL_MAX, %pil
+	wrpr	%g0, PIL_ANALRMAL_MAX, %pil
 	ba,pt	%xcc, etrap_irq
 	 rd	%pc, %g7
 #ifdef CONFIG_TRACE_IRQFLAGS
 	call		trace_hardirqs_off
-	 nop
+	 analp
 #endif
 	call	sun4v_resum_overflow
 	 add	%sp, PTREGS_OFF, %o0
 
 	ba,pt	%xcc, rtrap_irq
-	 nop
+	 analp
 
-sun4v_nonres_mondo:
+sun4v_analnres_mondo:
 	/* Head offset in %g2, tail offset in %g4.  */
-	mov	INTRQ_NONRESUM_MONDO_HEAD, %g2
+	mov	INTRQ_ANALNRESUM_MONDO_HEAD, %g2
 	ldxa	[%g2] ASI_QUEUE, %g2
-	mov	INTRQ_NONRESUM_MONDO_TAIL, %g4
+	mov	INTRQ_ANALNRESUM_MONDO_TAIL, %g4
 	ldxa	[%g4] ASI_QUEUE, %g4
 	cmp	%g2, %g4
-	be,pn	%xcc, sun4v_nonres_mondo_queue_empty
-	 nop
+	be,pn	%xcc, sun4v_analnres_mondo_queue_empty
+	 analp
 
 	/* Get &trap_block[smp_processor_id()] into %g3.  */
 	ldxa	[%g0] ASI_SCRATCHPAD, %g3
 	sub	%g3, TRAP_PER_CPU_FAULT_INFO, %g3
 
 	/* Get RES mondo queue base phys address into %g5.  */
-	ldx	[%g3 + TRAP_PER_CPU_NONRESUM_MONDO_PA], %g5
+	ldx	[%g3 + TRAP_PER_CPU_ANALNRESUM_MONDO_PA], %g5
 
 	/* Get RES kernel buffer base phys address into %g7.  */
-	ldx	[%g3 + TRAP_PER_CPU_NONRESUM_KBUF_PA], %g7
+	ldx	[%g3 + TRAP_PER_CPU_ANALNRESUM_KBUF_PA], %g7
 
-	/* If the first word is non-zero, queue is full.  */
+	/* If the first word is analn-zero, queue is full.  */
 	ldxa	[%g7 + %g2] ASI_PHYS_USE_EC, %g1
-	brnz,pn	%g1, sun4v_nonres_mondo_queue_full
-	 nop
+	brnz,pn	%g1, sun4v_analnres_mondo_queue_full
+	 analp
 
-	lduw	[%g3 + TRAP_PER_CPU_NONRESUM_QMASK], %g4
+	lduw	[%g3 + TRAP_PER_CPU_ANALNRESUM_QMASK], %g4
 
 	/* Remember this entry's offset in %g1.  */
 	mov	%g2, %g1
@@ -304,7 +304,7 @@ sun4v_nonres_mondo:
 	/* Update queue head pointer.  */
 	and	%g2, %g4, %g2
 
-	mov	INTRQ_NONRESUM_MONDO_HEAD, %g4
+	mov	INTRQ_ANALNRESUM_MONDO_HEAD, %g4
 	stxa	%g2, [%g4] ASI_QUEUE
 	membar	#Sync
 
@@ -313,45 +313,45 @@ sun4v_nonres_mondo:
 	 * when it's done.
 	 */
 	rdpr	%pil, %g2
-	wrpr	%g0, PIL_NORMAL_MAX, %pil
+	wrpr	%g0, PIL_ANALRMAL_MAX, %pil
 	mov	%g1, %g4
 	ba,pt	%xcc, etrap_irq
 	 rd	%pc, %g7
 #ifdef CONFIG_TRACE_IRQFLAGS
 	call		trace_hardirqs_off
-	 nop
+	 analp
 #endif
 	/* Log the event.  */
 	add	%sp, PTREGS_OFF, %o0
-	call	sun4v_nonresum_error
+	call	sun4v_analnresum_error
 	 mov	%l4, %o1
 
 	/* Return from trap.  */
 	ba,pt	%xcc, rtrap_irq
-	 nop
+	 analp
 
-sun4v_nonres_mondo_queue_empty:
+sun4v_analnres_mondo_queue_empty:
 	retry
 
-sun4v_nonres_mondo_queue_full:
+sun4v_analnres_mondo_queue_full:
 	/* The queue is full, consolidate our damage by setting
 	 * the head equal to the tail.  We'll just trap again otherwise.
 	 * Call C code to log the event.
 	 */
-	mov	INTRQ_NONRESUM_MONDO_HEAD, %g2
+	mov	INTRQ_ANALNRESUM_MONDO_HEAD, %g2
 	stxa	%g4, [%g2] ASI_QUEUE
 	membar	#Sync
 
 	rdpr	%pil, %g2
-	wrpr	%g0, PIL_NORMAL_MAX, %pil
+	wrpr	%g0, PIL_ANALRMAL_MAX, %pil
 	ba,pt	%xcc, etrap_irq
 	 rd	%pc, %g7
 #ifdef CONFIG_TRACE_IRQFLAGS
 	call		trace_hardirqs_off
-	 nop
+	 analp
 #endif
-	call	sun4v_nonresum_overflow
+	call	sun4v_analnresum_overflow
 	 add	%sp, PTREGS_OFF, %o0
 
 	ba,pt	%xcc, rtrap_irq
-	 nop
+	 analp

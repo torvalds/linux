@@ -27,7 +27,7 @@ static int em_ipset_change(struct net *net, void *data, int data_len,
 
 	index = ip_set_nfnl_get_byindex(net, set->index);
 	if (index == IPSET_INVALID_ID)
-		return -ENOENT;
+		return -EANALENT;
 
 	em->datalen = sizeof(*set);
 	em->data = (unsigned long)kmemdup(data, em->datalen, GFP_KERNEL);
@@ -35,7 +35,7 @@ static int em_ipset_change(struct net *net, void *data, int data_len,
 		return 0;
 
 	ip_set_nfnl_put(net, index);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void em_ipset_destroy(struct tcf_ematch *em)

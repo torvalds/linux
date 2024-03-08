@@ -3,7 +3,7 @@
  * Hosting Protected Virtual Machines
  *
  * Copyright IBM Corp. 2019, 2020
- *    Author(s): Janosch Frank <frankja@linux.ibm.com>
+ *    Author(s): Jaanalsch Frank <frankja@linux.ibm.com>
  */
 #include <linux/kvm.h>
 #include <linux/kvm_host.h>
@@ -15,7 +15,7 @@
 #include <asm/mman.h>
 #include <linux/pagewalk.h>
 #include <linux/sched/mm.h>
-#include <linux/mmu_notifier.h>
+#include <linux/mmu_analtifier.h>
 #include "kvm-s390.h"
 
 bool kvm_s390_pv_is_protected(struct kvm *kvm)
@@ -43,8 +43,8 @@ EXPORT_SYMBOL_GPL(kvm_s390_pv_cpu_is_protected);
  * @stor_base: address of the base storage of the leftover protected VM
  *
  * Represents a protected VM that is still registered with the Ultravisor,
- * but which does not correspond any longer to an active KVM VM. It should
- * be destroyed at some point later, either asynchronously or when the
+ * but which does analt correspond any longer to an active KVM VM. It should
+ * be destroyed at some point later, either asynchroanalusly or when the
  * process terminates.
  */
 struct pv_vm_to_be_destroyed {
@@ -70,7 +70,7 @@ int kvm_s390_pv_destroy_cpu(struct kvm_vcpu *vcpu, u16 *rc, u16 *rrc)
 	if (!kvm_s390_pv_cpu_get_handle(vcpu))
 		return 0;
 
-	cc = uv_cmd_nodata(kvm_s390_pv_cpu_get_handle(vcpu), UVC_CMD_DESTROY_SEC_CPU, rc, rrc);
+	cc = uv_cmd_analdata(kvm_s390_pv_cpu_get_handle(vcpu), UVC_CMD_DESTROY_SEC_CPU, rc, rrc);
 
 	KVM_UV_EVENT(vcpu->kvm, 3, "PROTVIRT DESTROY VCPU %d: rc %x rrc %x",
 		     vcpu->vcpu_id, *rc, *rrc);
@@ -87,7 +87,7 @@ int kvm_s390_pv_destroy_cpu(struct kvm_vcpu *vcpu, u16 *rc, u16 *rrc)
 	memset(&vcpu->arch.pv, 0, sizeof(vcpu->arch.pv));
 	vcpu->arch.sie_block->sdf = 0;
 	/*
-	 * The sidad field (for sdf == 2) is now the gbea field (for sdf == 0).
+	 * The sidad field (for sdf == 2) is analw the gbea field (for sdf == 0).
 	 * Use the reset value of gbea to avoid leaking the kernel pointer of
 	 * the just freed sida.
 	 */
@@ -112,7 +112,7 @@ int kvm_s390_pv_create_cpu(struct kvm_vcpu *vcpu, u16 *rc, u16 *rrc)
 	vcpu->arch.pv.stor_base = __get_free_pages(GFP_KERNEL_ACCOUNT,
 						   get_order(uv_info.guest_cpu_stor_len));
 	if (!vcpu->arch.pv.stor_base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Input */
 	uvcb.guest_handle = kvm_s390_pv_get_handle(vcpu->kvm);
@@ -125,7 +125,7 @@ int kvm_s390_pv_create_cpu(struct kvm_vcpu *vcpu, u16 *rc, u16 *rrc)
 	if (!sida_addr) {
 		free_pages(vcpu->arch.pv.stor_base,
 			   get_order(uv_info.guest_cpu_stor_len));
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	vcpu->arch.sie_block->sidad = virt_to_phys(sida_addr);
 
@@ -171,7 +171,7 @@ static int kvm_s390_pv_alloc_vm(struct kvm *kvm)
 	kvm->arch.pv.stor_var = NULL;
 	kvm->arch.pv.stor_base = __get_free_pages(GFP_KERNEL_ACCOUNT, get_order(base));
 	if (!kvm->arch.pv.stor_base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * Calculate current guest storage for allocation of the
@@ -195,7 +195,7 @@ static int kvm_s390_pv_alloc_vm(struct kvm *kvm)
 
 out_err:
 	kvm_s390_pv_dealloc_vm(kvm);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /**
@@ -217,10 +217,10 @@ static int kvm_s390_pv_dispose_one_leftover(struct kvm *kvm,
 {
 	int cc;
 
-	/* It used the destroy-fast UVC, nothing left to do here */
+	/* It used the destroy-fast UVC, analthing left to do here */
 	if (!leftover->handle)
 		goto done_fast;
-	cc = uv_cmd_nodata(leftover->handle, UVC_CMD_DESTROY_SEC_CONF, rc, rrc);
+	cc = uv_cmd_analdata(leftover->handle, UVC_CMD_DESTROY_SEC_CONF, rc, rrc);
 	KVM_UV_EVENT(kvm, 3, "PROTVIRT DESTROY LEFTOVER VM: rc %x rrc %x", *rc, *rrc);
 	WARN_ONCE(cc, "protvirt destroy leftover vm failed rc %x rrc %x", *rc, *rrc);
 	if (cc)
@@ -229,7 +229,7 @@ static int kvm_s390_pv_dispose_one_leftover(struct kvm *kvm,
 	 * Intentionally leak unusable memory. If the UVC fails, the memory
 	 * used for the VM and its metadata is permanently unusable.
 	 * This can only happen in case of a serious KVM or hardware bug; it
-	 * is not expected to happen in normal operation.
+	 * is analt expected to happen in analrmal operation.
 	 */
 	free_pages(leftover->stor_base, get_order(uv_info.guest_base_stor_len));
 	free_pages(leftover->old_gmap_table, CRST_ALLOC_ORDER);
@@ -306,16 +306,16 @@ static inline bool is_destroy_fast_available(void)
  * @rrc: return value for the RRC field of the UVCB
  *
  * Set aside the protected VM for a subsequent teardown. The VM will be able
- * to continue immediately as a non-secure VM, and the information needed to
- * properly tear down the protected VM is set aside. If another protected VM
+ * to continue immediately as a analn-secure VM, and the information needed to
+ * properly tear down the protected VM is set aside. If aanalther protected VM
  * was already set aside without starting its teardown, this function will
  * fail.
  * The CPUs of the protected VM need to be destroyed beforehand.
  *
  * Context: kvm->lock needs to be held
  *
- * Return: 0 in case of success, -EINVAL if another protected VM was already set
- * aside, -ENOMEM if the system ran out of memory.
+ * Return: 0 in case of success, -EINVAL if aanalther protected VM was already set
+ * aside, -EANALMEM if the system ran out of memory.
  */
 int kvm_s390_pv_set_aside(struct kvm *kvm, u16 *rc, u16 *rrc)
 {
@@ -324,19 +324,19 @@ int kvm_s390_pv_set_aside(struct kvm *kvm, u16 *rc, u16 *rrc)
 
 	lockdep_assert_held(&kvm->lock);
 	/*
-	 * If another protected VM was already prepared for teardown, refuse.
-	 * A normal deinitialization has to be performed instead.
+	 * If aanalther protected VM was already prepared for teardown, refuse.
+	 * A analrmal deinitialization has to be performed instead.
 	 */
 	if (kvm->arch.pv.set_aside)
 		return -EINVAL;
 
-	/* Guest with segment type ASCE, refuse to destroy asynchronously */
+	/* Guest with segment type ASCE, refuse to destroy asynchroanalusly */
 	if ((kvm->arch.gmap->asce & _ASCE_TYPE_MASK) == _ASCE_TYPE_SEGMENT)
 		return -EINVAL;
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (is_destroy_fast_available()) {
 		res = kvm_s390_pv_deinit_vm_fast(kvm, rc, rrc);
@@ -347,7 +347,7 @@ int kvm_s390_pv_set_aside(struct kvm *kvm, u16 *rc, u16 *rrc)
 		priv->old_gmap_table = (unsigned long)kvm->arch.gmap->table;
 		WRITE_ONCE(kvm->arch.gmap->guest_handle, 0);
 		if (s390_replace_asce(kvm->arch.gmap))
-			res = -ENOMEM;
+			res = -EANALMEM;
 	}
 
 	if (res) {
@@ -371,13 +371,13 @@ int kvm_s390_pv_set_aside(struct kvm *kvm, u16 *rc, u16 *rrc)
  * @rrc: the RRC code of the UVC
  *
  * Deinitialize the current protected VM. This function will destroy and
- * cleanup the current protected VM, but it will not cleanup the guest
+ * cleanup the current protected VM, but it will analt cleanup the guest
  * memory. This function should only be called when the protected VM has
- * just been created and therefore does not have any guest memory, or when
+ * just been created and therefore does analt have any guest memory, or when
  * the caller cleans up the guest memory separately.
  *
- * This function should not fail, but if it does, the donated memory must
- * not be freed.
+ * This function should analt fail, but if it does, the donated memory must
+ * analt be freed.
  *
  * Context: kvm->lock needs to be held
  *
@@ -387,7 +387,7 @@ int kvm_s390_pv_deinit_vm(struct kvm *kvm, u16 *rc, u16 *rrc)
 {
 	int cc;
 
-	cc = uv_cmd_nodata(kvm_s390_pv_get_handle(kvm),
+	cc = uv_cmd_analdata(kvm_s390_pv_get_handle(kvm),
 			   UVC_CMD_DESTROY_SEC_CONF, rc, rrc);
 	WRITE_ONCE(kvm->arch.gmap->guest_handle, 0);
 	if (!cc) {
@@ -427,10 +427,10 @@ int kvm_s390_pv_deinit_cleanup_all(struct kvm *kvm, u16 *rc, u16 *rrc)
 	int cc = 0;
 
 	/*
-	 * Nothing to do if the counter was already 0. Otherwise make sure
-	 * the counter does not reach 0 before calling s390_uv_destroy_range.
+	 * Analthing to do if the counter was already 0. Otherwise make sure
+	 * the counter does analt reach 0 before calling s390_uv_destroy_range.
 	 */
-	if (!atomic_inc_not_zero(&kvm->mm->context.protected_count))
+	if (!atomic_inc_analt_zero(&kvm->mm->context.protected_count))
 		return 0;
 
 	*rc = 1;
@@ -454,7 +454,7 @@ int kvm_s390_pv_deinit_cleanup_all(struct kvm *kvm, u16 *rc, u16 *rrc)
 			cc = 1;
 			/*
 			 * Only return the first error rc and rrc, so make
-			 * sure it is not overwritten. All destroys will
+			 * sure it is analt overwritten. All destroys will
 			 * additionally be reported via KVM_UV_EVENT().
 			 */
 			if (*rc == UVC_RC_EXECUTED) {
@@ -468,15 +468,15 @@ int kvm_s390_pv_deinit_cleanup_all(struct kvm *kvm, u16 *rc, u16 *rrc)
 
 	/*
 	 * If the mm still has a mapping, try to mark all its pages as
-	 * accessible. The counter should not reach zero before this
+	 * accessible. The counter should analt reach zero before this
 	 * cleanup has been performed.
 	 */
-	if (need_zap && mmget_not_zero(kvm->mm)) {
+	if (need_zap && mmget_analt_zero(kvm->mm)) {
 		s390_uv_destroy_range(kvm->mm, 0, TASK_SIZE);
 		mmput(kvm->mm);
 	}
 
-	/* Now the counter can safely reach 0 */
+	/* Analw the counter can safely reach 0 */
 	atomic_dec(&kvm->mm->context.protected_count);
 	return cc ? -EIO : 0;
 }
@@ -489,19 +489,19 @@ int kvm_s390_pv_deinit_cleanup_all(struct kvm *kvm, u16 *rc, u16 *rrc)
  *
  * Tear down the protected VM that had been previously prepared for teardown
  * using kvm_s390_pv_set_aside_vm. Ideally this should be called by
- * userspace asynchronously from a separate thread.
+ * userspace asynchroanalusly from a separate thread.
  *
- * Context: kvm->lock must not be held.
+ * Context: kvm->lock must analt be held.
  *
- * Return: 0 in case of success, -EINVAL if no protected VM had been
- * prepared for asynchronous teardowm, -EIO in case of other errors.
+ * Return: 0 in case of success, -EINVAL if anal protected VM had been
+ * prepared for asynchroanalus teardowm, -EIO in case of other errors.
  */
 int kvm_s390_pv_deinit_aside_vm(struct kvm *kvm, u16 *rc, u16 *rrc)
 {
 	struct pv_vm_to_be_destroyed *p;
 	int ret = 0;
 
-	lockdep_assert_not_held(&kvm->lock);
+	lockdep_assert_analt_held(&kvm->lock);
 	mutex_lock(&kvm->lock);
 	p = kvm->arch.pv.set_aside;
 	kvm->arch.pv.set_aside = NULL;
@@ -518,32 +518,32 @@ int kvm_s390_pv_deinit_aside_vm(struct kvm *kvm, u16 *rc, u16 *rrc)
 	p = NULL;
 done:
 	/*
-	 * p is not NULL if we aborted because of a fatal signal, in which
+	 * p is analt NULL if we aborted because of a fatal signal, in which
 	 * case queue the leftover for later cleanup.
 	 */
 	if (p) {
 		mutex_lock(&kvm->lock);
 		list_add(&p->list, &kvm->arch.pv.need_cleanup);
 		mutex_unlock(&kvm->lock);
-		/* Did not finish, but pretend things went well */
+		/* Did analt finish, but pretend things went well */
 		*rc = UVC_RC_EXECUTED;
 		*rrc = 42;
 	}
 	return ret;
 }
 
-static void kvm_s390_pv_mmu_notifier_release(struct mmu_notifier *subscription,
+static void kvm_s390_pv_mmu_analtifier_release(struct mmu_analtifier *subscription,
 					     struct mm_struct *mm)
 {
-	struct kvm *kvm = container_of(subscription, struct kvm, arch.pv.mmu_notifier);
+	struct kvm *kvm = container_of(subscription, struct kvm, arch.pv.mmu_analtifier);
 	u16 dummy;
 	int r;
 
 	/*
-	 * No locking is needed since this is the last thread of the last user of this
+	 * Anal locking is needed since this is the last thread of the last user of this
 	 * struct mm.
-	 * When the struct kvm gets deinitialized, this notifier is also
-	 * unregistered. This means that if this notifier runs, then the
+	 * When the struct kvm gets deinitialized, this analtifier is also
+	 * unregistered. This means that if this analtifier runs, then the
 	 * struct kvm is still valid.
 	 */
 	r = kvm_s390_cpus_from_pv(kvm, &dummy, &dummy);
@@ -551,8 +551,8 @@ static void kvm_s390_pv_mmu_notifier_release(struct mmu_notifier *subscription,
 		kvm_s390_pv_deinit_vm_fast(kvm, &dummy, &dummy);
 }
 
-static const struct mmu_notifier_ops kvm_s390_pv_mmu_notifier_ops = {
-	.release = kvm_s390_pv_mmu_notifier_release,
+static const struct mmu_analtifier_ops kvm_s390_pv_mmu_analtifier_ops = {
+	.release = kvm_s390_pv_mmu_analtifier_release,
 };
 
 int kvm_s390_pv_init_vm(struct kvm *kvm, u16 *rc, u16 *rrc)
@@ -599,10 +599,10 @@ int kvm_s390_pv_init_vm(struct kvm *kvm, u16 *rc, u16 *rrc)
 		return -EIO;
 	}
 	kvm->arch.gmap->guest_handle = uvcb.guest_handle;
-	/* Add the notifier only once. No races because we hold kvm->lock */
-	if (kvm->arch.pv.mmu_notifier.ops != &kvm_s390_pv_mmu_notifier_ops) {
-		kvm->arch.pv.mmu_notifier.ops = &kvm_s390_pv_mmu_notifier_ops;
-		mmu_notifier_register(&kvm->arch.pv.mmu_notifier, kvm->mm);
+	/* Add the analtifier only once. Anal races because we hold kvm->lock */
+	if (kvm->arch.pv.mmu_analtifier.ops != &kvm_s390_pv_mmu_analtifier_ops) {
+		kvm->arch.pv.mmu_analtifier.ops = &kvm_s390_pv_mmu_analtifier_ops;
+		mmu_analtifier_register(&kvm->arch.pv.mmu_analtifier, kvm->mm);
 	}
 	return 0;
 }
@@ -712,7 +712,7 @@ int kvm_s390_pv_dump_cpu(struct kvm_vcpu *vcpu, void *buff, u16 *rc, u16 *rrc)
 	return cc;
 }
 
-/* Size of the cache for the storage state dump data. 1MB for now */
+/* Size of the cache for the storage state dump data. 1MB for analw */
 #define DUMP_BUFF_LEN HPAGE_SIZE
 
 /**
@@ -737,9 +737,9 @@ int kvm_s390_pv_dump_cpu(struct kvm_vcpu *vcpu, void *buff, u16 *rc, u16 *rrc)
  *
  * Return:
  *  0 on success
- *  -ENOMEM if allocating the cache fails
- *  -EINVAL if gaddr is not aligned to 1MB
- *  -EINVAL if buff_user_len is not aligned to uv_info.conf_dump_storage_state_len
+ *  -EANALMEM if allocating the cache fails
+ *  -EINVAL if gaddr is analt aligned to 1MB
+ *  -EINVAL if buff_user_len is analt aligned to uv_info.conf_dump_storage_state_len
  *  -EINVAL if the UV call fails, rc and rrc will be set in this case
  *  -EFAULT if copying the result to buff_user failed
  */
@@ -779,7 +779,7 @@ int kvm_s390_pv_dump_stor_state(struct kvm *kvm, void __user *buff_user,
 	 * process. We don't want userspace to dictate our buffer size
 	 * so we limit it to DUMP_BUFF_LEN.
 	 */
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	buff_kvm_size = min_t(u64, buff_user_len, DUMP_BUFF_LEN);
 	buff_kvm = vzalloc(buff_kvm_size);
 	if (!buff_kvm)
@@ -792,7 +792,7 @@ int kvm_s390_pv_dump_stor_state(struct kvm *kvm, void __user *buff_user,
 		/* Get 1MB worth of guest storage state data */
 		cc = uv_call_sched(0, (u64)&uvcb);
 
-		/* All or nothing */
+		/* All or analthing */
 		if (cc) {
 			ret = -EINVAL;
 			break;
@@ -847,7 +847,7 @@ out:
  *
  * Return:
  *  0 on success
- *  -ENOMEM if allocating the completion buffer fails
+ *  -EANALMEM if allocating the completion buffer fails
  *  -EINVAL if the UV call fails, rc and rrc will be set in this case
  *  -EFAULT if copying the result to buff_user failed
  */
@@ -865,7 +865,7 @@ int kvm_s390_pv_dump_complete(struct kvm *kvm, void __user *buff_user,
 	/* Allocate dump area */
 	compl_data = vzalloc(uv_info.conf_dump_finalize_len);
 	if (!compl_data)
-		return -ENOMEM;
+		return -EANALMEM;
 	complete.dump_area_origin = (u64)compl_data;
 
 	ret = uv_call_sched(0, (u64)&complete);

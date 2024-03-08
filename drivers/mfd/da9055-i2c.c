@@ -21,7 +21,7 @@ static int da9055_i2c_probe(struct i2c_client *i2c)
 
 	da9055 = devm_kzalloc(&i2c->dev, sizeof(struct da9055), GFP_KERNEL);
 	if (!da9055)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	da9055->regmap = devm_regmap_init_i2c(i2c, &da9055_regmap_config);
 	if (IS_ERR(da9055->regmap)) {
@@ -47,7 +47,7 @@ static void da9055_i2c_remove(struct i2c_client *i2c)
 }
 
 /*
- * DO NOT change the device Ids. The naming is intentionally specific as both
+ * DO ANALT change the device Ids. The naming is intentionally specific as both
  * the PMIC and CODEC parts of this chip are instantiated separately as I2C
  * devices (both have configurable I2C addresses, and are to all intents and
  * purposes separate). As a result there are specific DA9055 ids for PMIC

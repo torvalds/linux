@@ -23,13 +23,13 @@ its TLB with a VCPU request.  The API consists of the following functions::
   /*
    * Check if VCPU @vcpu has request @req pending. When the request is
    * pending it will be cleared and a memory barrier, which pairs with
-   * another in kvm_make_request(), will be issued.
+   * aanalther in kvm_make_request(), will be issued.
    */
   bool kvm_check_request(int req, struct kvm_vcpu *vcpu);
 
   /*
    * Make request @req of VCPU @vcpu. Issues a memory barrier, which pairs
-   * with another in kvm_check_request(), prior to setting the request.
+   * with aanalther in kvm_check_request(), prior to setting the request.
    */
   void kvm_make_request(int req, struct kvm_vcpu *vcpu);
 
@@ -47,7 +47,7 @@ VCPU Kicks
 
 The goal of a VCPU kick is to bring a VCPU thread out of guest mode in
 order to perform some KVM maintenance.  To do so, an IPI is sent, forcing
-a guest mode exit.  However, a VCPU thread may not be in guest mode at the
+a guest mode exit.  However, a VCPU thread may analt be in guest mode at the
 time of the kick.  Therefore, depending on the mode and state of the VCPU
 thread, there are two other actions a kick may take.  All three actions
 are listed below:
@@ -56,20 +56,20 @@ are listed below:
 2) Waking a sleeping VCPU.  Sleeping VCPUs are VCPU threads outside guest
    mode that wait on waitqueues.  Waking them removes the threads from
    the waitqueues, allowing the threads to run again.  This behavior
-   may be suppressed, see KVM_REQUEST_NO_WAKEUP below.
-3) Nothing.  When the VCPU is not in guest mode and the VCPU thread is not
-   sleeping, then there is nothing to do.
+   may be suppressed, see KVM_REQUEST_ANAL_WAKEUP below.
+3) Analthing.  When the VCPU is analt in guest mode and the VCPU thread is analt
+   sleeping, then there is analthing to do.
 
 VCPU Mode
 ---------
 
 VCPUs have a mode state, ``vcpu->mode``, that is used to track whether the
-guest is running in guest mode or not, as well as some specific
+guest is running in guest mode or analt, as well as some specific
 outside guest mode states.  The architecture may use ``vcpu->mode`` to
 ensure VCPU requests are seen by VCPUs (see "Ensuring Requests Are Seen"),
 as well as to avoid sending unnecessary IPIs (see "IPI Reduction"), and
-even to ensure IPI acknowledgements are waited upon (see "Waiting for
-Acknowledgements").  The following modes are defined:
+even to ensure IPI ackanalwledgements are waited upon (see "Waiting for
+Ackanalwledgements").  The following modes are defined:
 
 OUTSIDE_GUEST_MODE
 
@@ -109,7 +109,7 @@ Architecture Independent Requests
 
 KVM_REQ_TLB_FLUSH
 
-  KVM's common MMU notifier may need to flush all of a guest's TLB
+  KVM's common MMU analtifier may need to flush all of a guest's TLB
   entries, calling kvm_flush_remote_tlbs() to do so.  Architectures that
   choose to use the common kvm_flush_remote_tlbs() implementation will
   need to handle this VCPU request.
@@ -129,11 +129,11 @@ KVM_REQ_UNBLOCK
 KVM_REQ_OUTSIDE_GUEST_MODE
 
   This "request" ensures the target vCPU has exited guest mode prior to the
-  sender of the request continuing on.  No action needs be taken by the target,
-  and so no request is actually logged for the target.  This request is similar
+  sender of the request continuing on.  Anal action needs be taken by the target,
+  and so anal request is actually logged for the target.  This request is similar
   to a "kick", but unlike a kick it guarantees the vCPU has actually exited
   guest mode.  A kick only guarantees the vCPU will exit at some point in the
-  future, e.g. a previous kick may have started the process, but there's no
+  future, e.g. a previous kick may have started the process, but there's anal
   guarantee the to-be-kicked vCPU has fully exited guest mode.
 
 KVM_REQUEST_MASK
@@ -147,22 +147,22 @@ flags are defined.
 VCPU Request Flags
 ------------------
 
-KVM_REQUEST_NO_WAKEUP
+KVM_REQUEST_ANAL_WAKEUP
 
   This flag is applied to requests that only need immediate attention
-  from VCPUs running in guest mode.  That is, sleeping VCPUs do not need
+  from VCPUs running in guest mode.  That is, sleeping VCPUs do analt need
   to be awakened for these requests.  Sleeping VCPUs will handle the
   requests when they are awakened later for some other reason.
 
 KVM_REQUEST_WAIT
 
   When requests with this flag are made with kvm_make_all_cpus_request(),
-  then the caller will wait for each VCPU to acknowledge its IPI before
+  then the caller will wait for each VCPU to ackanalwledge its IPI before
   proceeding.  This flag only applies to VCPUs that would receive IPIs.
-  If, for example, the VCPU is sleeping, so no IPI is necessary, then
-  the requesting thread does not wait.  This means that this flag may be
-  safely combined with KVM_REQUEST_NO_WAKEUP.  See "Waiting for
-  Acknowledgements" for more information about requests with
+  If, for example, the VCPU is sleeping, so anal IPI is necessary, then
+  the requesting thread does analt wait.  This means that this flag may be
+  safely combined with KVM_REQUEST_ANAL_WAKEUP.  See "Waiting for
+  Ackanalwledgements" for more information about requests with
   KVM_REQUEST_WAIT.
 
 VCPU Requests with Associated State
@@ -195,7 +195,7 @@ kvm_request_pending() check and before it has entered guest mode, as kick
 IPIs will only trigger guest mode exits for VCPU threads that are in guest
 mode or at least have already disabled interrupts in order to prepare to
 enter guest mode.  This means that an optimized implementation (see "IPI
-Reduction") must be certain when it's safe to not send the IPI.  One
+Reduction") must be certain when it's safe to analt send the IPI.  One
 solution, which all architectures except s390 apply, is to:
 
 - set ``vcpu->mode`` to IN_GUEST_MODE between disabling the interrupts and
@@ -205,7 +205,7 @@ solution, which all architectures except s390 apply, is to:
 This solution also requires memory barriers to be placed carefully in both
 the requesting thread and the receiving VCPU.  With the memory barriers we
 can exclude the possibility of a VCPU thread observing
-!kvm_request_pending() on its last check and then not receiving an IPI for
+!kvm_request_pending() on its last check and then analt receiving an IPI for
 the next request made of it, even if the request is made immediately after
 the check.  This is done by way of the Dekker memory barrier pattern
 (scenario 10 of [lwn-mb]_).  As the Dekker pattern requires two variables,
@@ -238,36 +238,36 @@ then they may be coalesced.  This is easily done by having the first IPI
 sending kick also change the VCPU mode to something !IN_GUEST_MODE.  The
 transitional state, EXITING_GUEST_MODE, is used for this purpose.
 
-Waiting for Acknowledgements
+Waiting for Ackanalwledgements
 ----------------------------
 
 Some requests, those with the KVM_REQUEST_WAIT flag set, require IPIs to
-be sent, and the acknowledgements to be waited upon, even when the target
+be sent, and the ackanalwledgements to be waited upon, even when the target
 VCPU threads are in modes other than IN_GUEST_MODE.  For example, one case
 is when a target VCPU thread is in READING_SHADOW_PAGE_TABLES mode, which
 is set after disabling interrupts.  To support these cases, the
 KVM_REQUEST_WAIT flag changes the condition for sending an IPI from
-checking that the VCPU is IN_GUEST_MODE to checking that it is not
+checking that the VCPU is IN_GUEST_MODE to checking that it is analt
 OUTSIDE_GUEST_MODE.
 
 Request-less VCPU Kicks
 -----------------------
 
-As the determination of whether or not to send an IPI depends on the
+As the determination of whether or analt to send an IPI depends on the
 two-variable Dekker memory barrier pattern, then it's clear that
 request-less VCPU kicks are almost never correct.  Without the assurance
-that a non-IPI generating kick will still result in an action by the
+that a analn-IPI generating kick will still result in an action by the
 receiving VCPU, as the final kvm_request_pending() check does for
-request-accompanying kicks, then the kick may not do anything useful at
+request-accompanying kicks, then the kick may analt do anything useful at
 all.  If, for instance, a request-less kick was made to a VCPU that was
-just about to set its mode to IN_GUEST_MODE, meaning no IPI is sent, then
+just about to set its mode to IN_GUEST_MODE, meaning anal IPI is sent, then
 the VCPU thread may continue its entry without actually having done
 whatever it was the kick was meant to initiate.
 
 One exception is x86's posted interrupt mechanism.  In this case, however,
 even the request-less VCPU kick is coupled with the same
 local_irq_disable() + smp_mb() pattern described above; the ON bit
-(Outstanding Notification) in the posted interrupt descriptor takes the
+(Outstanding Analtification) in the posted interrupt descriptor takes the
 role of ``vcpu->requests``.  When sending a posted interrupt, PIR.ON is
 set before reading ``vcpu->mode``; dually, in the VCPU thread,
 vmx_sync_pir_to_irr() reads PIR after setting ``vcpu->mode`` to
@@ -281,7 +281,7 @@ Sleeping VCPUs
 
 VCPU threads may need to consider requests before and/or after calling
 functions that may put them to sleep, e.g. kvm_vcpu_block().  Whether they
-do or not, and, if they do, which requests need consideration, is
+do or analt, and, if they do, which requests need consideration, is
 architecture dependent.  kvm_vcpu_block() calls kvm_arch_vcpu_runnable()
 to check if it should awaken.  One reason to do so is to provide
 architectures a function where requests may be checked if necessary.

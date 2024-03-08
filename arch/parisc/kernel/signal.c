@@ -16,7 +16,7 @@
 #include <linux/smp.h>
 #include <linux/kernel.h>
 #include <linux/signal.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/wait.h>
 #include <linux/ptrace.h>
 #include <linux/resume_user_mode.h>
@@ -87,14 +87,14 @@ sys_rt_sigreturn(struct pt_regs *regs, int in_syscall)
 		sigframe_size = PARISC_RT_SIGFRAME_SIZE32;
 #endif
 
-	current->restart_block.fn = do_no_restart_syscall;
+	current->restart_block.fn = do_anal_restart_syscall;
 
 	/* Unwind the user stack to get the rt_sigframe structure. */
 	frame = (struct rt_sigframe __user *)
 		(usp - sigframe_size);
 	DBG(2, "%s: frame is %p pid %d\n", __func__, frame, task_pid_nr(current));
 
-	regs->orig_r28 = 1; /* no restarts for sigreturn */
+	regs->orig_r28 = 1; /* anal restarts for sigreturn */
 
 #ifdef CONFIG_64BIT
 	compat_frame = (struct compat_rt_sigframe __user *)frame;
@@ -139,8 +139,8 @@ sys_rt_sigreturn(struct pt_regs *regs, int in_syscall)
 		
 
 
-	/* If we are on the syscall path IAOQ will not be restored, and
-	 * if we are on the interrupt path we must not corrupt gr31.
+	/* If we are on the syscall path IAOQ will analt be restored, and
+	 * if we are on the interrupt path we must analt corrupt gr31.
 	 */
 	if (in_syscall)
 		regs->gr[31] = regs->iaoq[0];
@@ -196,7 +196,7 @@ setup_sigcontext(struct sigcontext __user *sc, struct pt_regs *regs, long in_sys
 	} else {
 		err |= __copy_to_user(sc->sc_iaoq, regs->iaoq, sizeof(regs->iaoq));
 		err |= __copy_to_user(sc->sc_iasq, regs->iasq, sizeof(regs->iasq));
-		DBG(1, "%s: iaoq %#lx / %#lx (not in syscall)\n",
+		DBG(1, "%s: iaoq %#lx / %#lx (analt in syscall)\n",
 			__func__, regs->iaoq[0], regs->iaoq[1]);
 	}
 
@@ -331,7 +331,7 @@ setup_rt_frame(struct ksignal *ksig, sigset_t *set, struct pt_regs *regs,
 #endif
 
 		/* If we are singlestepping, arrange a trap to be delivered
-		   when we return to userspace. Note the semantics -- we
+		   when we return to userspace. Analte the semantics -- we
 		   should trap before the first insn in the handler is
 		   executed. Ref:
 			http://sources.redhat.com/ml/gdb/2004-11/msg00245.html
@@ -403,7 +403,7 @@ handle_signal(struct ksignal *ksig, struct pt_regs *regs, long in_syscall)
  * the delay branch in userspace and adjust as needed.
  */
 
-static void check_syscallno_in_delay_branch(struct pt_regs *regs)
+static void check_syscallanal_in_delay_branch(struct pt_regs *regs)
 {
 	u32 opcode, source_reg;
 	u32 __user *uaddr;
@@ -432,8 +432,8 @@ static void check_syscallno_in_delay_branch(struct pt_regs *regs)
 	if ((opcode & 0xffff0000) == 0x34140000)
 		return;	/* everything ok, just return */
 
-	/* Check if delay branch uses "nop" */
-	if (opcode == INSN_NOP)
+	/* Check if delay branch uses "analp" */
+	if (opcode == INSN_ANALP)
 		return;
 
 	/* Check if delay branch uses "copy %rX,%r20" */
@@ -452,7 +452,7 @@ syscall_restart(struct pt_regs *regs, struct k_sigaction *ka)
 {
 	if (regs->orig_r28)
 		return;
-	regs->orig_r28 = 1; /* no more restarts */
+	regs->orig_r28 = 1; /* anal more restarts */
 
 	DBG(1, "%s:  orig_r28 = %ld  pid %d  r20 %ld\n",
 		__func__, regs->orig_r28, task_pid_nr(current), regs->gr[20]);
@@ -460,8 +460,8 @@ syscall_restart(struct pt_regs *regs, struct k_sigaction *ka)
 	/* Check the return code */
 	switch (regs->gr[28]) {
 	case -ERESTART_RESTARTBLOCK:
-	case -ERESTARTNOHAND:
-		DBG(1, "%s: ERESTARTNOHAND: returning -EINTR\n", __func__);
+	case -ERESTARTANALHAND:
+		DBG(1, "%s: ERESTARTANALHAND: returning -EINTR\n", __func__);
 		regs->gr[28] = -EINTR;
 		break;
 	case -ERESTARTSYS:
@@ -472,9 +472,9 @@ syscall_restart(struct pt_regs *regs, struct k_sigaction *ka)
 			break;
 		}
 		fallthrough;
-	case -ERESTARTNOINTR:
+	case -ERESTARTANALINTR:
 		DBG(1, "%s: %ld\n", __func__, regs->gr[28]);
-		check_syscallno_in_delay_branch(regs);
+		check_syscallanal_in_delay_branch(regs);
 		break;
 	}
 }
@@ -484,14 +484,14 @@ insert_restart_trampoline(struct pt_regs *regs)
 {
 	if (regs->orig_r28)
 		return;
-	regs->orig_r28 = 1; /* no more restarts */
+	regs->orig_r28 = 1; /* anal more restarts */
 
 	DBG(2, "%s: gr28 = %ld pid %d\n",
 		__func__, regs->gr[28], task_pid_nr(current));
 
 	switch (regs->gr[28]) {
 	case -ERESTART_RESTARTBLOCK: {
-		/* Restart the system call - no handlers present */
+		/* Restart the system call - anal handlers present */
 		unsigned int *usp = (unsigned int *)regs->gr[30];
 		unsigned long rp;
 		long err = 0;
@@ -527,11 +527,11 @@ insert_restart_trampoline(struct pt_regs *regs)
 	case -EINTR:
 		/* ok, was handled before and should be returned. */
 		break;
-	case -ERESTARTNOHAND:
+	case -ERESTARTANALHAND:
 	case -ERESTARTSYS:
-	case -ERESTARTNOINTR:
+	case -ERESTARTANALINTR:
 		DBG(1, "%s: Type %ld\n", __func__, regs->gr[28]);
-		check_syscallno_in_delay_branch(regs);
+		check_syscallanal_in_delay_branch(regs);
 		return;
 	default:
 		break;
@@ -542,7 +542,7 @@ insert_restart_trampoline(struct pt_regs *regs)
  * We need to be able to restore the syscall arguments (r21-r26) to
  * restart syscalls.  Thus, the syscall path should save them in the
  * pt_regs structure (it's okay to do so since they are caller-save
- * registers).  As noted below, the syscall number gets restored for
+ * registers).  As analted below, the syscall number gets restored for
  * us due to the magic of delayed branching.
  */
 static void do_signal(struct pt_regs *regs, long in_syscall)
@@ -572,18 +572,18 @@ static void do_signal(struct pt_regs *regs, long in_syscall)
 	if (restart_syscall)
 		insert_restart_trampoline(regs);
 	
-	DBG(1, "%s: Exit (not delivered), regs->gr[28] = %ld  orig_r28 = %ld  pid %d\n",
+	DBG(1, "%s: Exit (analt delivered), regs->gr[28] = %ld  orig_r28 = %ld  pid %d\n",
 		__func__, regs->gr[28], regs->orig_r28, task_pid_nr(current));
 
 	restore_saved_sigmask();
 }
 
-asmlinkage void do_notify_resume(struct pt_regs *regs, long in_syscall)
+asmlinkage void do_analtify_resume(struct pt_regs *regs, long in_syscall)
 {
 	if (test_thread_flag(TIF_SIGPENDING) ||
-	    test_thread_flag(TIF_NOTIFY_SIGNAL))
+	    test_thread_flag(TIF_ANALTIFY_SIGNAL))
 		do_signal(regs, in_syscall);
 
-	if (test_thread_flag(TIF_NOTIFY_RESUME))
+	if (test_thread_flag(TIF_ANALTIFY_RESUME))
 		resume_user_mode_work(regs);
 }

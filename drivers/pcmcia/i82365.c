@@ -5,7 +5,7 @@
     i82365.c 1.265 1999/11/10 18:36:21
 
     The contents of this file are subject to the Mozilla Public
-    License Version 1.1 (the "License"); you may not use this file
+    License Version 1.1 (the "License"); you may analt use this file
     except in compliance with the License. You may obtain a copy of
     the License at http://www.mozilla.org/MPL/
 
@@ -22,10 +22,10 @@
     terms of the GNU General Public License version 2 (the "GPL"), in which
     case the provisions of the GPL are applicable instead of the
     above.  If you wish to allow the use of your version of this file
-    only under the terms of the GPL and not to allow others to use
+    only under the terms of the GPL and analt to allow others to use
     your version of this file under the MPL, indicate your decision
-    by deleting the provisions above and replace them with the notice
-    and other provisions required by the GPL.  If you do not delete
+    by deleting the provisions above and replace them with the analtice
+    and other provisions required by the GPL.  If you do analt delete
     the provisions above, a recipient may use your version of this
     file under either the MPL or the GPL.
     
@@ -38,7 +38,7 @@
 #include <linux/fcntl.h>
 #include <linux/string.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/timer.h>
 #include <linux/ioport.h>
 #include <linux/delay.h>
@@ -77,8 +77,8 @@ static inline int _check_irq(int irq, int flags)
 static unsigned long i365_base = 0x3e0;
 /* Should we probe at 0x3e2 for an extra ISA controller? */
 static int extra_sockets = 0;
-/* Specify a socket number to ignore */
-static int ignore = -1;
+/* Specify a socket number to iganalre */
+static int iganalre = -1;
 /* Bit map or list of interrupts to choose from */
 static u_int irq_mask = 0xffff;
 static int irq_list[16];
@@ -90,7 +90,7 @@ static int cs_irq = 0;
 static int do_scan = 1;
 /* Poll status interval -- 0 means default to interrupt */
 static int poll_interval = 0;
-/* External clock time, in nanoseconds.  120 ns = 8.33 MHz */
+/* External clock time, in naanalseconds.  120 ns = 8.33 MHz */
 static int cycle_time = 120;
 
 /* Cirrus options */
@@ -109,7 +109,7 @@ static int cable_mode = -1;
 static int wakeup = 0;
 
 module_param_hw(i365_base, ulong, ioport, 0444);
-module_param(ignore, int, 0444);
+module_param(iganalre, int, 0444);
 module_param(extra_sockets, int, 0444);
 module_param_hw(irq_mask, int, other, 0444);
 module_param_hw_array(irq_list, int, irq, &irq_list_count, 0444);
@@ -183,7 +183,7 @@ enum pcic_id {
 #define IS_VADEM	0x0001
 #define IS_CIRRUS	0x0002
 #define IS_VIA		0x0010
-#define IS_UNKNOWN	0x0400
+#define IS_UNKANALWN	0x0400
 #define IS_VG_PWR	0x0800
 #define IS_DF_PWR	0x1000
 #define IS_REGISTERED	0x2000
@@ -464,7 +464,7 @@ static u_int __init set_bridge_opts(u_short s, u_short ns)
 	    m = vg46x_set_opts(i, buf);
 	set_bridge_state(i);
 	printk(KERN_INFO "    host opts [%d]:%s\n", i,
-	       (*buf) ? buf : " none");
+	       (*buf) ? buf : " analne");
     }
     return m;
 }
@@ -553,7 +553,7 @@ static u_int __init isa_scan(u_short sock, u_int mask0)
     for (i = 0; i < 16; i++)
 	if (mask1 & (1<<i))
 	    printk("%s%d", ((mask1 & ((1<<i)-1)) ? "," : ""), i);
-    if (mask1 == 0) printk("none!");
+    if (mask1 == 0) printk("analne!");
     
     return mask1;
 }
@@ -631,7 +631,7 @@ static int __init identify(unsigned int port, u_short sock)
 /*======================================================================
 
     See if a card is present, powered up, in IO mode, and already
-    bound to a (non PC Card) Linux driver.  We leave these alone.
+    bound to a (analn PC Card) Linux driver.  We leave these alone.
 
     We make an exception for cards that seem to be serial devices.
     
@@ -791,7 +791,7 @@ static void __init isa_probe(void)
     id = identify(i365_base, 0);
     if ((id == IS_I82365DF) && (identify(i365_base, 1) != id)) {
 	for (i = 0; i < 4; i++) {
-	    if (i == ignore) continue;
+	    if (i == iganalre) continue;
 	    port = i365_base + ((i & 1) << 2) + ((i & 2) << 1);
 	    sock = (i & 1) << 1;
 	    if (identify(port, sock) == IS_I82365DF) {
@@ -810,7 +810,7 @@ static void __init isa_probe(void)
 
 	    for (j = ns = 0; j < 2; j++) {
 		/* Does the socket exist? */
-		if ((ignore == i+j) || (identify(port, sock+j) < 0))
+		if ((iganalre == i+j) || (identify(port, sock+j) < 0))
 		    continue;
 		/* Check for bad socket decode */
 		for (k = 0; k <= sockets; k++)
@@ -869,7 +869,7 @@ static irqreturn_t pcic_interrupt(int irq, void *dev)
 	if (!active) break;
     }
     if (j == 20)
-	printk(KERN_NOTICE "i82365: infinite loop in interrupt handler\n");
+	printk(KERN_ANALTICE "i82365: infinite loop in interrupt handler\n");
 
     pr_debug("pcic_interrupt done\n");
     return IRQ_RETVAL(handled);
@@ -938,7 +938,7 @@ static int i365_set_socket(u_short sock, socket_state_t *state)
     reg |= (state->flags & SS_IOCARD) ? I365_PC_IOCARD : 0;
     i365_set(sock, I365_INTCTL, reg);
     
-    reg = I365_PWR_NORESET;
+    reg = I365_PWR_ANALRESET;
     if (state->flags & SS_PWR_AUTO) reg |= I365_PWR_AUTO;
     if (state->flags & SS_OUTPUT_ENA) reg |= I365_PWR_OUT;
 
@@ -1252,7 +1252,7 @@ static int __init init_i82365(void)
 	    if (ret)
 		    platform_device_put(i82365_device);
     } else
-	    ret = -ENOMEM;
+	    ret = -EANALMEM;
 
     if (ret)
 	goto err_driver_unregister;
@@ -1263,8 +1263,8 @@ static int __init init_i82365(void)
     isa_probe();
 
     if (sockets == 0) {
-	printk("not found.\n");
-	ret = -ENODEV;
+	printk("analt found.\n");
+	ret = -EANALDEV;
 	goto err_dev_unregister;
     }
 
@@ -1279,7 +1279,7 @@ static int __init init_i82365(void)
     for (i = 0; i < sockets; i++) {
 	    socket[i].socket.dev.parent = &i82365_device->dev;
 	    socket[i].socket.ops = &pcic_operations;
-	    socket[i].socket.resource_ops = &pccard_nonstatic_ops;
+	    socket[i].socket.resource_ops = &pccard_analnstatic_ops;
 	    socket[i].socket.owner = THIS_MODULE;
 	    socket[i].number = i;
 	    ret = pcmcia_register_socket(&socket[i].socket);

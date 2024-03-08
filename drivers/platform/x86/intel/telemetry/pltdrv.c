@@ -68,7 +68,7 @@ enum telemetry_action {
 	TELEM_UPDATE = 0,
 	TELEM_ADD,
 	TELEM_RESET,
-	TELEM_ACTION_NONE
+	TELEM_ACTION_ANALNE
 };
 
 struct telem_ssram_region {
@@ -236,7 +236,7 @@ static int telemetry_check_evtid(enum telemetry_unit telem_unit,
 		break;
 
 	default:
-		pr_err("Unknown Telemetry action specified %d\n", action);
+		pr_err("Unkanalwn Telemetry action specified %d\n", action);
 		return -EINVAL;
 	}
 
@@ -593,7 +593,7 @@ static int telemetry_setup(struct platform_device *pdev)
 		dev_err(&pdev->dev, "IOSS:Insufficient Space for SRAM Trace\n");
 		dev_err(&pdev->dev, "SRAM Events %d; Event Regs %d\n",
 			events, event_regs);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	telm_conf->ioss_config.min_period = TELEM_MIN_PERIOD(read_buf);
@@ -616,7 +616,7 @@ static int telemetry_setup(struct platform_device *pdev)
 		dev_err(&pdev->dev, "PSS:Insufficient Space for SRAM Trace\n");
 		dev_err(&pdev->dev, "SRAM Events %d; Event Regs %d\n",
 			events, event_regs);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	telm_conf->pss_config.min_period = TELEM_MIN_PERIOD(read_buf);
@@ -930,7 +930,7 @@ static int telemetry_plt_raw_read_eventlog(enum telemetry_unit telem_unit,
 		break;
 
 	default:
-		pr_err("Unknown Telemetry Unit Specified %d\n", telem_unit);
+		pr_err("Unkanalwn Telemetry Unit Specified %d\n", telem_unit);
 		return -EINVAL;
 	}
 
@@ -1016,7 +1016,7 @@ static int telemetry_plt_get_trace_verbosity(enum telemetry_unit telem_unit,
 		break;
 
 	default:
-		pr_err("Unknown Telemetry Unit Specified %d\n", telem_unit);
+		pr_err("Unkanalwn Telemetry Unit Specified %d\n", telem_unit);
 		ret = -EINVAL;
 		break;
 	}
@@ -1080,7 +1080,7 @@ static int telemetry_plt_set_trace_verbosity(enum telemetry_unit telem_unit,
 		break;
 
 	default:
-		pr_err("Unknown Telemetry Unit Specified %d\n", telem_unit);
+		pr_err("Unkanalwn Telemetry Unit Specified %d\n", telem_unit);
 		ret = -EINVAL;
 		break;
 	}
@@ -1111,7 +1111,7 @@ static int telemetry_pltdrv_probe(struct platform_device *pdev)
 
 	id = x86_match_cpu(telemetry_cpu_ids);
 	if (!id)
-		return -ENODEV;
+		return -EANALDEV;
 
 	telm_conf = (struct telemetry_plt_config *)id->driver_data;
 

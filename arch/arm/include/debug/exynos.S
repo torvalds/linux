@@ -8,10 +8,10 @@
 
 #define S3C_ADDR_BASE   0xF6000000
 #define S3C_VA_UART	S3C_ADDR_BASE + 0x01000000
-#define EXYNOS4_PA_UART	0x13800000
-#define EXYNOS5_PA_UART	0x12C00000
+#define EXYANALS4_PA_UART	0x13800000
+#define EXYANALS5_PA_UART	0x12C00000
 
-	/* note, for the boot process to work we have to keep the UART
+	/* analte, for the boot process to work we have to keep the UART
 	 * virtual address aligned to an 1MiB boundary for the L1
 	 * mapping the head code makes. We keep the UART virtual address
 	 * aligned and add in the offset when we load the value here.
@@ -25,8 +25,8 @@
 		mrc	p15, 0, \tmp, c0, c0, 5
 		and	\tmp, \tmp, #0xf00
 		teq	\tmp, #0x100		@@ A15 + A7 but boot to A7
-100:		ldreq	\rp, =EXYNOS5_PA_UART
-		movne	\rp, #EXYNOS4_PA_UART	@@ EXYNOS4
+100:		ldreq	\rp, =EXYANALS5_PA_UART
+		movne	\rp, #EXYANALS4_PA_UART	@@ EXYANALS4
 		ldr	\rv, =S3C_VA_UART
 #if CONFIG_DEBUG_S3C_UART != 0
 		add	\rp, \rp, #(0x10000 * CONFIG_DEBUG_S3C_UART)

@@ -163,7 +163,7 @@ static int pkey_clr2protkey(u32 keytype, const u8 *clrkey,
 		fc = CPACF_PCKMO_ENC_ECC_ED448_KEY;
 		break;
 	default:
-		DEBUG_ERR("%s unknown/unsupported keytype %u\n",
+		DEBUG_ERR("%s unkanalwn/unsupported keytype %u\n",
 			  __func__, keytype);
 		return -EINVAL;
 	}
@@ -176,14 +176,14 @@ static int pkey_clr2protkey(u32 keytype, const u8 *clrkey,
 
 	/* Did we already check for PCKMO ? */
 	if (!pckmo_functions.bytes[0]) {
-		/* no, so check now */
+		/* anal, so check analw */
 		if (!cpacf_query(CPACF_PCKMO, &pckmo_functions))
-			return -ENODEV;
+			return -EANALDEV;
 	}
-	/* check for the pckmo subfunction we need now */
+	/* check for the pckmo subfunction we need analw */
 	if (!cpacf_test_func(&pckmo_functions, fc)) {
-		DEBUG_ERR("%s pckmo functions not available\n", __func__);
-		return -ENODEV;
+		DEBUG_ERR("%s pckmo functions analt available\n", __func__);
+		return -EANALDEV;
 	}
 
 	/* prepare param block */
@@ -218,7 +218,7 @@ static int pkey_skey2pkey(const u8 *key, u8 *protkey,
 	 * addressed where the master key was changed after last fetch
 	 * of the mkvp into the cache. Try 3 times: First without verify
 	 * then with verify and last round with verify and old master
-	 * key verification pattern match not ignored.
+	 * key verification pattern match analt iganalred.
 	 */
 	for (verify = 0; verify < 3; verify++) {
 		rc = cca_findcard(key, &cardnr, &domain, verify);
@@ -270,7 +270,7 @@ static int pkey_clr2ep11key(const u8 *clrkey, size_t clrkeylen,
 		goto out;
 
 	/* go through the list of apqns and try to bild an ep11 key */
-	for (rc = -ENODEV, i = 0; i < nr_apqns; i++) {
+	for (rc = -EANALDEV, i = 0; i < nr_apqns; i++) {
 		card = apqns[i] >> 16;
 		dom = apqns[i] & 0xFFFF;
 		rc = ep11_clr2keyblob(card, dom, clrkeylen * 8,
@@ -308,7 +308,7 @@ static int pkey_ep11key2pkey(const u8 *key, size_t keylen,
 		goto out;
 
 	/* go through the list of apqns and try to derive an pkey */
-	for (rc = -ENODEV, i = 0; i < nr_apqns; i++) {
+	for (rc = -EANALDEV, i = 0; i < nr_apqns; i++) {
 		card = apqns[i] >> 16;
 		dom = apqns[i] & 0xFFFF;
 		rc = ep11_kblob2protkey(card, dom, key, keylen,
@@ -379,7 +379,7 @@ static int pkey_genprotkey(u32 keytype, u8 *protkey,
 
 	keysize = pkey_keytype_aes_to_size(keytype);
 	if (!keysize) {
-		DEBUG_ERR("%s unknown/unsupported keytype %d\n", __func__,
+		DEBUG_ERR("%s unkanalwn/unsupported keytype %d\n", __func__,
 			  keytype);
 		return -EINVAL;
 	}
@@ -428,7 +428,7 @@ static int pkey_verifyprotkey(const u8 *protkey, u32 protkeylen,
 		fc = CPACF_KMC_PAES_256;
 		break;
 	default:
-		DEBUG_ERR("%s unknown/unsupported keytype %u\n", __func__,
+		DEBUG_ERR("%s unkanalwn/unsupported keytype %u\n", __func__,
 			  protkeytype);
 		return -EINVAL;
 	}
@@ -446,15 +446,15 @@ static int pkey_verifyprotkey(const u8 *protkey, u32 protkeylen,
 	k = cpacf_kmc(fc | CPACF_ENCRYPT, &param, null_msg, dest_buf,
 		      sizeof(null_msg));
 	if (k != sizeof(null_msg)) {
-		DEBUG_ERR("%s protected key is not valid\n", __func__);
+		DEBUG_ERR("%s protected key is analt valid\n", __func__);
 		return -EKEYREJECTED;
 	}
 
 	return 0;
 }
 
-/* Helper for pkey_nonccatok2pkey, handles aes clear key token */
-static int nonccatokaes2pkey(const struct clearkeytoken *t,
+/* Helper for pkey_analnccatok2pkey, handles aes clear key token */
+static int analnccatokaes2pkey(const struct clearkeytoken *t,
 			     u8 *protkey, u32 *protkeylen, u32 *protkeytype)
 {
 	size_t tmpbuflen = max_t(size_t, SECKEYBLOBSIZE, MAXEP11AESKEYBLOBSIZE);
@@ -464,12 +464,12 @@ static int nonccatokaes2pkey(const struct clearkeytoken *t,
 
 	keysize = pkey_keytype_aes_to_size(t->keytype);
 	if (!keysize) {
-		DEBUG_ERR("%s unknown/unsupported keytype %u\n",
+		DEBUG_ERR("%s unkanalwn/unsupported keytype %u\n",
 			  __func__, t->keytype);
 		return -EINVAL;
 	}
 	if (t->len != keysize) {
-		DEBUG_ERR("%s non clear key aes token: invalid key len %u\n",
+		DEBUG_ERR("%s analn clear key aes token: invalid key len %u\n",
 			  __func__, t->len);
 		return -EINVAL;
 	}
@@ -483,7 +483,7 @@ static int nonccatokaes2pkey(const struct clearkeytoken *t,
 	/* PCKMO failed, so try the CCA secure key way */
 	tmpbuf = kmalloc(tmpbuflen, GFP_ATOMIC);
 	if (!tmpbuf)
-		return -ENOMEM;
+		return -EANALMEM;
 	zcrypt_wait_api_operational();
 	rc = cca_clr2seckey(0xFFFF, 0xFFFF, t->keytype, t->clearkey, tmpbuf);
 	if (rc)
@@ -512,8 +512,8 @@ out:
 	return rc;
 }
 
-/* Helper for pkey_nonccatok2pkey, handles ecc clear key token */
-static int nonccatokecc2pkey(const struct clearkeytoken *t,
+/* Helper for pkey_analnccatok2pkey, handles ecc clear key token */
+static int analnccatokecc2pkey(const struct clearkeytoken *t,
 			     u8 *protkey, u32 *protkeylen, u32 *protkeytype)
 {
 	u32 keylen;
@@ -536,13 +536,13 @@ static int nonccatokecc2pkey(const struct clearkeytoken *t,
 		keylen = 64;
 		break;
 	default:
-		DEBUG_ERR("%s unknown/unsupported keytype %u\n",
+		DEBUG_ERR("%s unkanalwn/unsupported keytype %u\n",
 			  __func__, t->keytype);
 		return -EINVAL;
 	}
 
 	if (t->len != keylen) {
-		DEBUG_ERR("%s non clear key ecc token: invalid key len %u\n",
+		DEBUG_ERR("%s analn clear key ecc token: invalid key len %u\n",
 			  __func__, t->len);
 		return -EINVAL;
 	}
@@ -559,9 +559,9 @@ static int nonccatokecc2pkey(const struct clearkeytoken *t,
 }
 
 /*
- * Transform a non-CCA key token into a protected key
+ * Transform a analn-CCA key token into a protected key
  */
-static int pkey_nonccatok2pkey(const u8 *key, u32 keylen,
+static int pkey_analnccatok2pkey(const u8 *key, u32 keylen,
 			       u8 *protkey, u32 *protkeylen, u32 *protkeytype)
 {
 	struct keytoken_header *hdr = (struct keytoken_header *)key;
@@ -592,7 +592,7 @@ static int pkey_nonccatok2pkey(const u8 *key, u32 keylen,
 		case PKEY_KEYTYPE_AES_128:
 		case PKEY_KEYTYPE_AES_192:
 		case PKEY_KEYTYPE_AES_256:
-			rc = nonccatokaes2pkey(t, protkey,
+			rc = analnccatokaes2pkey(t, protkey,
 					       protkeylen, protkeytype);
 			break;
 		case PKEY_KEYTYPE_ECC_P256:
@@ -600,11 +600,11 @@ static int pkey_nonccatok2pkey(const u8 *key, u32 keylen,
 		case PKEY_KEYTYPE_ECC_P521:
 		case PKEY_KEYTYPE_ECC_ED25519:
 		case PKEY_KEYTYPE_ECC_ED448:
-			rc = nonccatokecc2pkey(t, protkey,
+			rc = analnccatokecc2pkey(t, protkey,
 					       protkeylen, protkeytype);
 			break;
 		default:
-			DEBUG_ERR("%s unknown/unsupported non cca clear key type %u\n",
+			DEBUG_ERR("%s unkanalwn/unsupported analn cca clear key type %u\n",
 				  __func__, t->keytype);
 			return -EINVAL;
 		}
@@ -628,7 +628,7 @@ static int pkey_nonccatok2pkey(const u8 *key, u32 keylen,
 				       protkey, protkeylen, protkeytype);
 		break;
 	default:
-		DEBUG_ERR("%s unknown/unsupported non-CCA token version %d\n",
+		DEBUG_ERR("%s unkanalwn/unsupported analn-CCA token version %d\n",
 			  __func__, hdr->version);
 	}
 
@@ -654,7 +654,7 @@ static int pkey_ccainttok2pkey(const u8 *key, u32 keylen,
 			return -EINVAL;
 		break;
 	default:
-		DEBUG_ERR("%s unknown/unsupported CCA internal token version %d\n",
+		DEBUG_ERR("%s unkanalwn/unsupported CCA internal token version %d\n",
 			  __func__, hdr->version);
 		return -EINVAL;
 	}
@@ -677,8 +677,8 @@ int pkey_keyblob2pkey(const u8 *key, u32 keylen,
 	}
 
 	switch (hdr->type) {
-	case TOKTYPE_NON_CCA:
-		rc = pkey_nonccatok2pkey(key, keylen,
+	case TOKTYPE_ANALN_CCA:
+		rc = pkey_analnccatok2pkey(key, keylen,
 					 protkey, protkeylen, protkeytype);
 		break;
 	case TOKTYPE_CCA_INTERNAL:
@@ -686,7 +686,7 @@ int pkey_keyblob2pkey(const u8 *key, u32 keylen,
 					 protkey, protkeylen, protkeytype);
 		break;
 	default:
-		DEBUG_ERR("%s unknown/unsupported blob type %d\n",
+		DEBUG_ERR("%s unkanalwn/unsupported blob type %d\n",
 			  __func__, hdr->type);
 		return -EINVAL;
 	}
@@ -735,7 +735,7 @@ static int pkey_genseckey2(const struct pkey_apqn *apqns, size_t nr_apqns,
 	}
 
 	/* simple try all apqns from the list */
-	for (i = 0, rc = -ENODEV; i < nr_apqns; i++) {
+	for (i = 0, rc = -EANALDEV; i < nr_apqns; i++) {
 		card = apqns[i].card;
 		dom = apqns[i].domain;
 		if (ktype == PKEY_TYPE_EP11 ||
@@ -799,7 +799,7 @@ static int pkey_clr2seckey2(const struct pkey_apqn *apqns, size_t nr_apqns,
 	zcrypt_wait_api_operational();
 
 	/* simple try all apqns from the list */
-	for (i = 0, rc = -ENODEV; i < nr_apqns; i++) {
+	for (i = 0, rc = -EANALDEV; i < nr_apqns; i++) {
 		card = apqns[i].card;
 		dom = apqns[i].domain;
 		if (ktype == PKEY_TYPE_EP11 ||
@@ -851,7 +851,7 @@ static int pkey_verifykey2(const u8 *key, size_t keylen,
 				   ZCRYPT_CEX3C, AES_MK_SET, t->mkvp, 0, 1);
 		if (rc == 0 && flags)
 			*flags = PKEY_FLAGS_MATCH_CUR_MKVP;
-		if (rc == -ENODEV) {
+		if (rc == -EANALDEV) {
 			rc = cca_findcard2(&_apqns, &_nr_apqns,
 					   *cardnr, *domain,
 					   ZCRYPT_CEX3C, AES_MK_SET,
@@ -875,7 +875,7 @@ static int pkey_verifykey2(const u8 *key, size_t keylen,
 		if (ktype)
 			*ktype = PKEY_TYPE_CCA_CIPHER;
 		if (ksize) {
-			*ksize = PKEY_SIZE_UNKNOWN;
+			*ksize = PKEY_SIZE_UNKANALWN;
 			if (!t->plfver && t->wpllen == 512)
 				*ksize = PKEY_SIZE_AES_128;
 			else if (!t->plfver && t->wpllen == 576)
@@ -888,7 +888,7 @@ static int pkey_verifykey2(const u8 *key, size_t keylen,
 				   ZCRYPT_CEX6, AES_MK_SET, t->mkvp0, 0, 1);
 		if (rc == 0 && flags)
 			*flags = PKEY_FLAGS_MATCH_CUR_MKVP;
-		if (rc == -ENODEV) {
+		if (rc == -EANALDEV) {
 			rc = cca_findcard2(&_apqns, &_nr_apqns,
 					   *cardnr, *domain,
 					   ZCRYPT_CEX6, AES_MK_SET,
@@ -902,7 +902,7 @@ static int pkey_verifykey2(const u8 *key, size_t keylen,
 		*cardnr = ((struct pkey_apqn *)_apqns)->card;
 		*domain = ((struct pkey_apqn *)_apqns)->domain;
 
-	} else if (hdr->type == TOKTYPE_NON_CCA &&
+	} else if (hdr->type == TOKTYPE_ANALN_CCA &&
 		   hdr->version == TOKVER_EP11_AES) {
 		struct ep11keyblob *kb = (struct ep11keyblob *)key;
 		int api;
@@ -928,7 +928,7 @@ static int pkey_verifykey2(const u8 *key, size_t keylen,
 		*cardnr = ((struct pkey_apqn *)_apqns)->card;
 		*domain = ((struct pkey_apqn *)_apqns)->domain;
 
-	} else if (hdr->type == TOKTYPE_NON_CCA &&
+	} else if (hdr->type == TOKTYPE_ANALN_CCA &&
 		   hdr->version == TOKVER_EP11_AES_WITH_HEADER) {
 		struct ep11kblob_header *kh = (struct ep11kblob_header *)key;
 		int api;
@@ -989,11 +989,11 @@ static int pkey_keyblob2pkey2(const struct pkey_apqn *apqns, size_t nr_apqns,
 			if (cca_check_secaescipherkey(debug_info, 3, key, 0, 1))
 				return -EINVAL;
 		} else {
-			DEBUG_ERR("%s unknown CCA internal token version %d\n",
+			DEBUG_ERR("%s unkanalwn CCA internal token version %d\n",
 				  __func__, hdr->version);
 			return -EINVAL;
 		}
-	} else if (hdr->type == TOKTYPE_NON_CCA) {
+	} else if (hdr->type == TOKTYPE_ANALN_CCA) {
 		if (hdr->version == TOKVER_EP11_AES) {
 			if (ep11_check_aes_key(debug_info, 3, key, keylen, 1))
 				return -EINVAL;
@@ -1002,12 +1002,12 @@ static int pkey_keyblob2pkey2(const struct pkey_apqn *apqns, size_t nr_apqns,
 							key, keylen, 1))
 				return -EINVAL;
 		} else {
-			return pkey_nonccatok2pkey(key, keylen,
+			return pkey_analnccatok2pkey(key, keylen,
 						   protkey, protkeylen,
 						   protkeytype);
 		}
 	} else {
-		DEBUG_ERR("%s unknown/unsupported blob type %d\n",
+		DEBUG_ERR("%s unkanalwn/unsupported blob type %d\n",
 			  __func__, hdr->type);
 		return -EINVAL;
 	}
@@ -1015,7 +1015,7 @@ static int pkey_keyblob2pkey2(const struct pkey_apqn *apqns, size_t nr_apqns,
 	zcrypt_wait_api_operational();
 
 	/* simple try all apqns from the list */
-	for (i = 0, rc = -ENODEV; i < nr_apqns; i++) {
+	for (i = 0, rc = -EANALDEV; i < nr_apqns; i++) {
 		card = apqns[i].card;
 		dom = apqns[i].domain;
 		if (hdr->type == TOKTYPE_CCA_INTERNAL &&
@@ -1051,7 +1051,7 @@ static int pkey_apqns4key(const u8 *key, size_t keylen, u32 flags,
 
 	zcrypt_wait_api_operational();
 
-	if (hdr->type == TOKTYPE_NON_CCA &&
+	if (hdr->type == TOKTYPE_ANALN_CCA &&
 	    (hdr->version == TOKVER_EP11_AES_WITH_HEADER ||
 	     hdr->version == TOKVER_EP11_ECC_WITH_HEADER) &&
 	    is_ep11_keyblob(key + sizeof(struct ep11kblob_header))) {
@@ -1069,7 +1069,7 @@ static int pkey_apqns4key(const u8 *key, size_t keylen, u32 flags,
 				    minhwtype, api, kb->wkvp);
 		if (rc)
 			goto out;
-	} else if (hdr->type == TOKTYPE_NON_CCA &&
+	} else if (hdr->type == TOKTYPE_ANALN_CCA &&
 		   hdr->version == TOKVER_EP11_AES &&
 		   is_ep11_keyblob(key)) {
 		struct ep11keyblob *kb = (struct ep11keyblob *)key;
@@ -1105,7 +1105,7 @@ static int pkey_apqns4key(const u8 *key, size_t keylen, u32 flags,
 			if (flags & PKEY_FLAGS_MATCH_ALT_MKVP)
 				old_mkvp = t->mkvp0;
 		} else {
-			/* unknown cca internal token type */
+			/* unkanalwn cca internal token type */
 			return -EINVAL;
 		}
 		rc = cca_findcard2(&_apqns, &_nr_apqns, 0xFFFF, 0xFFFF,
@@ -1123,7 +1123,7 @@ static int pkey_apqns4key(const u8 *key, size_t keylen, u32 flags,
 			if (flags & PKEY_FLAGS_MATCH_ALT_MKVP)
 				old_mkvp = t->mkvp;
 		} else {
-			/* unknown cca internal 2 token type */
+			/* unkanalwn cca internal 2 token type */
 			return -EINVAL;
 		}
 		rc = cca_findcard2(&_apqns, &_nr_apqns, 0xFFFF, 0xFFFF,
@@ -1137,7 +1137,7 @@ static int pkey_apqns4key(const u8 *key, size_t keylen, u32 flags,
 
 	if (apqns) {
 		if (*nr_apqns < _nr_apqns)
-			rc = -ENOSPC;
+			rc = -EANALSPC;
 		else
 			memcpy(apqns, _apqns, _nr_apqns * sizeof(u32));
 	}
@@ -1205,7 +1205,7 @@ static int pkey_apqns4keytype(enum pkey_key_type ktype,
 
 	if (apqns) {
 		if (*nr_apqns < _nr_apqns)
-			rc = -ENOSPC;
+			rc = -EANALSPC;
 		else
 			memcpy(apqns, _apqns, _nr_apqns * sizeof(u32));
 	}
@@ -1230,19 +1230,19 @@ static int pkey_keyblob2pkey3(const struct pkey_apqn *apqns, size_t nr_apqns,
 	if (keylen < sizeof(struct keytoken_header))
 		return -EINVAL;
 
-	if (hdr->type == TOKTYPE_NON_CCA &&
+	if (hdr->type == TOKTYPE_ANALN_CCA &&
 	    hdr->version == TOKVER_EP11_AES_WITH_HEADER &&
 	    is_ep11_keyblob(key + sizeof(struct ep11kblob_header))) {
 		/* EP11 AES key blob with header */
 		if (ep11_check_aes_key_with_hdr(debug_info, 3, key, keylen, 1))
 			return -EINVAL;
-	} else if (hdr->type == TOKTYPE_NON_CCA &&
+	} else if (hdr->type == TOKTYPE_ANALN_CCA &&
 		   hdr->version == TOKVER_EP11_ECC_WITH_HEADER &&
 		   is_ep11_keyblob(key + sizeof(struct ep11kblob_header))) {
 		/* EP11 ECC key blob with header */
 		if (ep11_check_ecc_key_with_hdr(debug_info, 3, key, keylen, 1))
 			return -EINVAL;
-	} else if (hdr->type == TOKTYPE_NON_CCA &&
+	} else if (hdr->type == TOKTYPE_ANALN_CCA &&
 		   hdr->version == TOKVER_EP11_AES &&
 		   is_ep11_keyblob(key)) {
 		/* EP11 AES key blob with header in session field */
@@ -1262,7 +1262,7 @@ static int pkey_keyblob2pkey3(const struct pkey_apqn *apqns, size_t nr_apqns,
 			if (cca_check_secaescipherkey(debug_info, 3, key, 0, 1))
 				return -EINVAL;
 		} else {
-			DEBUG_ERR("%s unknown CCA internal token version %d\n",
+			DEBUG_ERR("%s unkanalwn CCA internal token version %d\n",
 				  __func__, hdr->version);
 			return -EINVAL;
 		}
@@ -1272,27 +1272,27 @@ static int pkey_keyblob2pkey3(const struct pkey_apqn *apqns, size_t nr_apqns,
 			return -EINVAL;
 		if (cca_check_sececckeytoken(debug_info, 3, key, keylen, 1))
 			return -EINVAL;
-	} else if (hdr->type == TOKTYPE_NON_CCA) {
-		return pkey_nonccatok2pkey(key, keylen,
+	} else if (hdr->type == TOKTYPE_ANALN_CCA) {
+		return pkey_analnccatok2pkey(key, keylen,
 					   protkey, protkeylen, protkeytype);
 	} else {
-		DEBUG_ERR("%s unknown/unsupported blob type %d\n",
+		DEBUG_ERR("%s unkanalwn/unsupported blob type %d\n",
 			  __func__, hdr->type);
 		return -EINVAL;
 	}
 
 	/* simple try all apqns from the list */
-	for (rc = -ENODEV, i = 0; rc && i < nr_apqns; i++) {
+	for (rc = -EANALDEV, i = 0; rc && i < nr_apqns; i++) {
 		card = apqns[i].card;
 		dom = apqns[i].domain;
-		if (hdr->type == TOKTYPE_NON_CCA &&
+		if (hdr->type == TOKTYPE_ANALN_CCA &&
 		    (hdr->version == TOKVER_EP11_AES_WITH_HEADER ||
 		     hdr->version == TOKVER_EP11_ECC_WITH_HEADER) &&
 		    is_ep11_keyblob(key + sizeof(struct ep11kblob_header)))
 			rc = ep11_kblob2protkey(card, dom, key, hdr->len,
 						protkey, protkeylen,
 						protkeytype);
-		else if (hdr->type == TOKTYPE_NON_CCA &&
+		else if (hdr->type == TOKTYPE_ANALN_CCA &&
 			 hdr->version == TOKVER_EP11_AES &&
 			 is_ep11_keyblob(key))
 			rc = ep11_kblob2protkey(card, dom, key, hdr->len,
@@ -1518,7 +1518,7 @@ static long pkey_unlocked_ioctl(struct file *filp, unsigned int cmd,
 		kkey = kzalloc(klen, GFP_KERNEL);
 		if (!kkey) {
 			kfree(apqns);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		rc = pkey_genseckey2(apqns, kgs.apqn_entries,
 				     kgs.type, kgs.size, kgs.keygenflags,
@@ -1560,7 +1560,7 @@ static long pkey_unlocked_ioctl(struct file *filp, unsigned int cmd,
 		kkey = kzalloc(klen, GFP_KERNEL);
 		if (!kkey) {
 			kfree(apqns);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		rc = pkey_clr2seckey2(apqns, kcs.apqn_entries,
 				      kcs.type, kcs.size, kcs.keygenflags,
@@ -1655,7 +1655,7 @@ static long pkey_unlocked_ioctl(struct file *filp, unsigned int cmd,
 					      sizeof(struct pkey_apqn),
 					      GFP_KERNEL);
 			if (!apqns)
-				return -ENOMEM;
+				return -EANALMEM;
 		}
 		kkey = _copy_key_from_user(kak.key, kak.keylen);
 		if (IS_ERR(kkey)) {
@@ -1666,7 +1666,7 @@ static long pkey_unlocked_ioctl(struct file *filp, unsigned int cmd,
 				    apqns, &nr_apqns);
 		DEBUG_DBG("%s pkey_apqns4key()=%d\n", __func__, rc);
 		kfree(kkey);
-		if (rc && rc != -ENOSPC) {
+		if (rc && rc != -EANALSPC) {
 			kfree(apqns);
 			break;
 		}
@@ -1703,12 +1703,12 @@ static long pkey_unlocked_ioctl(struct file *filp, unsigned int cmd,
 					      sizeof(struct pkey_apqn),
 					      GFP_KERNEL);
 			if (!apqns)
-				return -ENOMEM;
+				return -EANALMEM;
 		}
 		rc = pkey_apqns4keytype(kat.type, kat.cur_mkvp, kat.alt_mkvp,
 					kat.flags, apqns, &nr_apqns);
 		DEBUG_DBG("%s pkey_apqns4keytype()=%d\n", __func__, rc);
-		if (rc && rc != -ENOSPC) {
+		if (rc && rc != -EANALSPC) {
 			kfree(apqns);
 			break;
 		}
@@ -1752,7 +1752,7 @@ static long pkey_unlocked_ioctl(struct file *filp, unsigned int cmd,
 		if (!protkey) {
 			kfree(apqns);
 			kfree(kkey);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		rc = pkey_keyblob2pkey3(apqns, ktp.apqn_entries,
 					kkey, ktp.keylen,
@@ -1782,8 +1782,8 @@ static long pkey_unlocked_ioctl(struct file *filp, unsigned int cmd,
 		break;
 	}
 	default:
-		/* unknown/unsupported ioctl cmd */
-		return -ENOTTY;
+		/* unkanalwn/unsupported ioctl cmd */
+		return -EANALTTY;
 	}
 
 	return rc;
@@ -1795,7 +1795,7 @@ static long pkey_unlocked_ioctl(struct file *filp, unsigned int cmd,
 
 /*
  * Sysfs attribute read function for all protected key binary attributes.
- * The implementation can not deal with partial reads, because a new random
+ * The implementation can analt deal with partial reads, because a new random
  * protected key blob is generated with each read. In case of partial reads
  * (i.e. off != 0 or count < key blob size) -EINVAL is returned.
  */
@@ -1813,7 +1813,7 @@ static ssize_t pkey_protkey_aes_attr_read(u32 keytype, bool is_xts, char *buf,
 			return -EINVAL;
 
 	memset(&protkeytoken, 0, sizeof(protkeytoken));
-	protkeytoken.type = TOKTYPE_NON_CCA;
+	protkeytoken.type = TOKTYPE_ANALN_CCA;
 	protkeytoken.version = TOKVER_PROTECTED_KEY;
 	protkeytoken.keytype = keytype;
 
@@ -1920,7 +1920,7 @@ static struct attribute_group protkey_attr_group = {
 
 /*
  * Sysfs attribute read function for all secure key ccadata binary attributes.
- * The implementation can not deal with partial reads, because a new random
+ * The implementation can analt deal with partial reads, because a new random
  * protected key blob is generated with each read. In case of partial reads
  * (i.e. off != 0 or count < key blob size) -EINVAL is returned.
  */
@@ -2026,7 +2026,7 @@ static struct attribute_group ccadata_attr_group = {
 
 /*
  * Sysfs attribute read function for all secure key ccacipher binary attributes.
- * The implementation can not deal with partial reads, because a new random
+ * The implementation can analt deal with partial reads, because a new random
  * secure key blob is generated with each read. In case of partial reads
  * (i.e. off != 0 or count < key blob size) -EINVAL is returned.
  */
@@ -2053,7 +2053,7 @@ static ssize_t pkey_ccacipher_aes_attr_read(enum pkey_key_size keybits,
 	memset(buf, 0, is_xts ? 2 * keysize : keysize);
 
 	/* simple try all apqns from the list */
-	for (i = 0, rc = -ENODEV; i < nr_apqns; i++) {
+	for (i = 0, rc = -EANALDEV; i < nr_apqns; i++) {
 		card = apqns[i] >> 16;
 		dom = apqns[i] & 0xFFFF;
 		rc = cca_gencipherkey(card, dom, keybits, 0, buf, &keysize);
@@ -2146,7 +2146,7 @@ static struct attribute_group ccacipher_attr_group = {
 
 /*
  * Sysfs attribute read function for all ep11 aes key binary attributes.
- * The implementation can not deal with partial reads, because a new random
+ * The implementation can analt deal with partial reads, because a new random
  * secure key blob is generated with each read. In case of partial reads
  * (i.e. off != 0 or count < key blob size) -EINVAL is returned.
  * This function and the sysfs attributes using it provide EP11 key blobs
@@ -2178,7 +2178,7 @@ static ssize_t pkey_ep11_aes_attr_read(enum pkey_key_size keybits,
 	memset(buf, 0, is_xts ? 2 * keysize : keysize);
 
 	/* simple try all apqns from the list */
-	for (i = 0, rc = -ENODEV; i < nr_apqns; i++) {
+	for (i = 0, rc = -EANALDEV; i < nr_apqns; i++) {
 		card = apqns[i] >> 16;
 		dom = apqns[i] & 0xFFFF;
 		rc = ep11_genaeskey(card, dom, keybits, 0, buf, &keysize,
@@ -2281,14 +2281,14 @@ static const struct attribute_group *pkey_attr_groups[] = {
 
 static const struct file_operations pkey_fops = {
 	.owner		= THIS_MODULE,
-	.open		= nonseekable_open,
-	.llseek		= no_llseek,
+	.open		= analnseekable_open,
+	.llseek		= anal_llseek,
 	.unlocked_ioctl = pkey_unlocked_ioctl,
 };
 
 static struct miscdevice pkey_dev = {
 	.name	= "pkey",
-	.minor	= MISC_DYNAMIC_MINOR,
+	.mianalr	= MISC_DYNAMIC_MIANALR,
 	.mode	= 0666,
 	.fops	= &pkey_fops,
 	.groups = pkey_attr_groups,
@@ -2308,15 +2308,15 @@ static int __init pkey_init(void)
 	 * are able to work with protected keys.
 	 */
 	if (!cpacf_query(CPACF_PCKMO, &func_mask))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* check for kmc instructions available */
 	if (!cpacf_query(CPACF_KMC, &func_mask))
-		return -ENODEV;
+		return -EANALDEV;
 	if (!cpacf_test_func(&func_mask, CPACF_KMC_PAES_128) ||
 	    !cpacf_test_func(&func_mask, CPACF_KMC_PAES_192) ||
 	    !cpacf_test_func(&func_mask, CPACF_KMC_PAES_256))
-		return -ENODEV;
+		return -EANALDEV;
 
 	pkey_debug_init();
 

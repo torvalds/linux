@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -26,7 +26,7 @@
 
 #define NUM_JOBLIST_ENTRIES      32
 
-#define TASK_TYPE_NO_ACTION      0
+#define TASK_TYPE_ANAL_ACTION      0
 #define TASK_TYPE_UCODE_LOAD     1
 #define TASK_TYPE_UCODE_SAVE     2
 #define TASK_TYPE_REG_LOAD       3
@@ -52,7 +52,7 @@
 #define JOB_GNB_SAVE             8
 #define JOB_GNB_RESTORE          9
 
-#define IGNORE_JOB               0xff
+#define IGANALRE_JOB               0xff
 #define END_OF_TASK_LIST     (uint16_t)0xffff
 
 // Size of DRAM regions (in bytes) requested by SMU:

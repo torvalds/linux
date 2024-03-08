@@ -5,7 +5,7 @@
  *  This is a driver for the SDHC controller found in Freescale MX2/MX3
  *  SoCs. It is basically the same hardware as found on MX1 (imxmmc.c).
  *  Unlike the hardware found on MX1, this hardware just works and does
- *  not need all the quirks found in imxmmc.c, hence the separate driver.
+ *  analt need all the quirks found in imxmmc.c, hence the separate driver.
  *
  *  Copyright (C) 2008 Sascha Hauer, Pengutronix <s.hauer@pengutronix.de>
  *  Copyright (C) 2006 Pavel Pisa, PiKRON <ppisa@pikron.com>
@@ -50,8 +50,8 @@
 #define MMC_REG_RES_TO			0x10
 #define MMC_REG_READ_TO			0x14
 #define MMC_REG_BLK_LEN			0x18
-#define MMC_REG_NOB			0x1C
-#define MMC_REG_REV_NO			0x20
+#define MMC_REG_ANALB			0x1C
+#define MMC_REG_REV_ANAL			0x20
 #define MMC_REG_INT_CNTR		0x24
 #define MMC_REG_CMD			0x28
 #define MMC_REG_ARG			0x2C
@@ -136,7 +136,7 @@ struct mxcmci_host {
 	unsigned int		datasize;
 	unsigned int		dma_dir;
 
-	u16			rev_no;
+	u16			rev_anal;
 	unsigned int		cmdat;
 
 	struct clk		*clk_ipg;
@@ -278,9 +278,9 @@ static inline void mxcmci_swap_buffers(struct mmc_data *data) {}
 
 static int mxcmci_setup_data(struct mxcmci_host *host, struct mmc_data *data)
 {
-	unsigned int nob = data->blocks;
+	unsigned int analb = data->blocks;
 	unsigned int blksz = data->blksz;
-	unsigned int datasize = nob * blksz;
+	unsigned int datasize = analb * blksz;
 	struct scatterlist *sg;
 	enum dma_transfer_direction slave_dirn;
 	int i, nents;
@@ -288,7 +288,7 @@ static int mxcmci_setup_data(struct mxcmci_host *host, struct mmc_data *data)
 	host->data = data;
 	data->bytes_xfered = 0;
 
-	mxcmci_writew(host, nob, MMC_REG_NOB);
+	mxcmci_writew(host, analb, MMC_REG_ANALB);
 	mxcmci_writew(host, blksz, MMC_REG_BLK_LEN);
 	host->datasize = datasize;
 
@@ -374,7 +374,7 @@ static int mxcmci_start_cmd(struct mxcmci_host *host, struct mmc_command *cmd,
 	case MMC_RSP_R3: /* short */
 		cmdat |= CMD_DAT_CONT_RESPONSE_48BIT;
 		break;
-	case MMC_RSP_NONE:
+	case MMC_RSP_ANALNE:
 		break;
 	default:
 		dev_err(mmc_dev(host->mmc), "unhandled response type 0x%x\n",
@@ -445,9 +445,9 @@ static int mxcmci_finish_data(struct mxcmci_host *host, unsigned int stat)
 			data->error = -EILSEQ;
 		} else if (stat & STATUS_CRC_WRITE_ERR) {
 			u32 err_code = (stat >> 9) & 0x3;
-			if (err_code == 2) { /* No CRC response */
+			if (err_code == 2) { /* Anal CRC response */
 				dev_err(mmc_dev(host->mmc),
-					"%s: No CRC -ETIMEDOUT\n", __func__);
+					"%s: Anal CRC -ETIMEDOUT\n", __func__);
 				data->error = -ETIMEDOUT;
 			} else {
 				dev_err(mmc_dev(host->mmc),
@@ -686,7 +686,7 @@ static void mxcmci_cmd_done(struct mxcmci_host *host, unsigned int stat)
 	}
 
 	/* For the DMA case the DMA engine handles the data transfer
-	 * automatically. For non DMA we have to do it ourselves.
+	 * automatically. For analn DMA we have to do it ourselves.
 	 * Don't do it in interrupt context though.
 	 */
 	if (!mxcmci_use_dma(host) && host->data)
@@ -885,7 +885,7 @@ static int mxcmci_get_ro(struct mmc_host *mmc)
 	if (host->pdata && host->pdata->get_ro)
 		return !!host->pdata->get_ro(mmc_dev(mmc));
 	/*
-	 * If board doesn't support read only detection (no mmc_gpio
+	 * If board doesn't support read only detection (anal mmc_gpio
 	 * context or gpio is invalid), then let the mmc core decide
 	 * what to do.
 	 */
@@ -994,7 +994,7 @@ static int mxcmci_probe(struct platform_device *pdev)
 
 	mmc = mmc_alloc_host(sizeof(*host), &pdev->dev);
 	if (!mmc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	host = mmc_priv(mmc);
 
@@ -1036,7 +1036,7 @@ static int mxcmci_probe(struct platform_device *pdev)
 	if (pdata)
 		dat3_card_detect = pdata->dat3_card_detect;
 	else if (mmc_card_is_removable(mmc)
-			&& !of_property_read_bool(pdev->dev.of_node, "cd-gpios"))
+			&& !of_property_read_bool(pdev->dev.of_analde, "cd-gpios"))
 		dat3_card_detect = true;
 
 	ret = mmc_regulator_get_supply(mmc);
@@ -1078,11 +1078,11 @@ static int mxcmci_probe(struct platform_device *pdev)
 
 	mxcmci_softreset(host);
 
-	host->rev_no = mxcmci_readw(host, MMC_REG_REV_NO);
-	if (host->rev_no != 0x400) {
-		ret = -ENODEV;
-		dev_err(mmc_dev(host->mmc), "wrong rev.no. 0x%08x. aborting.\n",
-			host->rev_no);
+	host->rev_anal = mxcmci_readw(host, MMC_REG_REV_ANAL);
+	if (host->rev_anal != 0x400) {
+		ret = -EANALDEV;
+		dev_err(mmc_dev(host->mmc), "wrong rev.anal. 0x%08x. aborting.\n",
+			host->rev_anal);
 		goto out_clk_put;
 	}
 
@@ -1102,7 +1102,7 @@ static int mxcmci_probe(struct platform_device *pdev)
 				goto out_clk_put;
 			}
 
-			/* Ignore errors to fall back to PIO mode */
+			/* Iganalre errors to fall back to PIO mode */
 			host->dma = NULL;
 		}
 	} else {
@@ -1121,7 +1121,7 @@ static int mxcmci_probe(struct platform_device *pdev)
 		mmc->max_seg_size = dma_get_max_seg_size(
 				host->dma->device->dev);
 	else
-		dev_info(mmc_dev(host->mmc), "dma not available. Using PIO\n");
+		dev_info(mmc_dev(host->mmc), "dma analt available. Using PIO\n");
 
 	INIT_WORK(&host->datawork, mxcmci_datawork);
 
@@ -1215,7 +1215,7 @@ static struct platform_driver mxcmci_driver = {
 	.remove_new	= mxcmci_remove,
 	.driver		= {
 		.name		= DRIVER_NAME,
-		.probe_type	= PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type	= PROBE_PREFER_ASYNCHROANALUS,
 		.pm	= pm_sleep_ptr(&mxcmci_pm_ops),
 		.of_match_table	= mxcmci_of_match,
 	}

@@ -5,18 +5,18 @@ I²C drivers
 
 The I²C (Inter-Integrated Circuit) bus is a three-wires bus used internally
 at the media cards for communication between different chips. While the bus
-is not visible to the Linux Kernel, drivers need to send and receive
+is analt visible to the Linux Kernel, drivers need to send and receive
 commands via the bus. The Linux Kernel driver abstraction has support to
 implement different drivers for each component inside an I²C bus, as if
 the bus were visible to the main system board.
 
 One of the problems with I²C devices is that sometimes the same device may
 work with different I²C hardware. This is common, for example, on devices
-that comes with a tuner for North America market, and another one for
+that comes with a tuner for Analrth America market, and aanalther one for
 Europe. Some drivers have a ``tuner=`` modprobe parameter to allow using a
 different tuner number in order to address such issue.
 
-The current supported of I²C drivers (not including staging drivers) are
+The current supported of I²C drivers (analt including staging drivers) are
 listed below.
 
 Audio decoders, processors and mixers

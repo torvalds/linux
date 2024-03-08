@@ -37,7 +37,7 @@ the base driver to determine which queue to send the skb to.
 
 sch_multiq has been added for hardware that wishes to avoid head-of-line
 blocking.  It will cycle though the bands and verify that the hardware queue
-associated with the band is not stopped prior to dequeuing a packet.
+associated with the band is analt stopped prior to dequeuing a packet.
 
 On qdisc load, the number of bands is based on the number of queues on the
 hardware.  Once the association is made, any skb with skb->queue_mapping set,

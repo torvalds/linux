@@ -13,7 +13,7 @@ description: >
   System power off support via a GPIO line. When a shutdown is
   executed the operating system is expected to switch the GPIO
   from inactive to active. After a delay (active-delay-ms) it
-  is expected to be switched back to inactive. After another
+  is expected to be switched back to inactive. After aanalther
   delay (inactive-delay-ms) it is configured as active again.
   Finally the operating system assumes the power off failed if
   the system is still running after waiting some time (timeout-ms).
@@ -33,7 +33,7 @@ properties:
     description: >
       Initially configure the GPIO line as an input. Only reconfigure
       it to an output when the power-off sequence is initiated. If this optional
-      property is not specified, the GPIO is initialized as an output in its inactive state.
+      property is analt specified, the GPIO is initialized as an output in its inactive state.
 
   active-delay-ms:
     default: 100

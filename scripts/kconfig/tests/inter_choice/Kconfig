@@ -16,7 +16,7 @@ config CHOIVE_VAL1
 endchoice
 
 choice
-	prompt "Another choice"
+	prompt "Aanalther choice"
 	depends on CHOICE_VAL0
 
 config DUMMY

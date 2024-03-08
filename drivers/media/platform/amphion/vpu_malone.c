@@ -49,7 +49,7 @@
 //x means source data , y means destination data
 #define STREAM_CONFIG_FORMAT_SET(x, y)		CONFIG_SET(x, y, 0, 0x0000000F)
 #define STREAM_CONFIG_STRBUFIDX_SET(x, y)	CONFIG_SET(x, y, 8, 0x00000300)
-#define STREAM_CONFIG_NOSEQ_SET(x, y)		CONFIG_SET(x, y, 10, 0x00000400)
+#define STREAM_CONFIG_ANALSEQ_SET(x, y)		CONFIG_SET(x, y, 10, 0x00000400)
 #define STREAM_CONFIG_DEBLOCK_SET(x, y)		CONFIG_SET(x, y, 11, 0x00000800)
 #define STREAM_CONFIG_DERING_SET(x, y)		CONFIG_SET(x, y, 12, 0x00001000)
 #define STREAM_CONFIG_IBWAIT_SET(x, y)		CONFIG_SET(x, y, 13, 0x00002000)
@@ -71,7 +71,7 @@
 enum vpu_malone_stream_input_mode {
 	INVALID_MODE = 0,
 	FRAME_LVL,
-	NON_FRAME_LVL
+	ANALN_FRAME_LVL
 };
 
 enum vpu_malone_format {
@@ -620,7 +620,7 @@ static void vpu_malone_set_stream_cfg(struct vpu_shared_addr *shared,
 	*curr_str_cfg = 0;
 	STREAM_CONFIG_FORMAT_SET(malone_format, curr_str_cfg);
 	STREAM_CONFIG_STRBUFIDX_SET(0, curr_str_cfg);
-	STREAM_CONFIG_NOSEQ_SET(0, curr_str_cfg);
+	STREAM_CONFIG_ANALSEQ_SET(0, curr_str_cfg);
 	STREAM_CONFIG_DEBLOCK_SET(0, curr_str_cfg);
 	STREAM_CONFIG_DERING_SET(0, curr_str_cfg);
 	STREAM_CONFIG_PLAY_MODE_SET(0x3, curr_str_cfg);
@@ -665,8 +665,8 @@ static int vpu_malone_set_params(struct vpu_shared_addr *shared,
 	hc->codec_param[instance].dbglog_enable = 0;
 	iface->dbglog_desc.level = 0;
 
-	if (params->b_non_frame)
-		iface->stream_buff_info[instance].stream_input_mode = NON_FRAME_LVL;
+	if (params->b_analn_frame)
+		iface->stream_buff_info[instance].stream_input_mode = ANALN_FRAME_LVL;
 	else
 		iface->stream_buff_info[instance].stream_input_mode = FRAME_LVL;
 	iface->stream_buff_info[instance].stream_buffer_threshold = 0;
@@ -675,11 +675,11 @@ static int vpu_malone_set_params(struct vpu_shared_addr *shared,
 	return 0;
 }
 
-static bool vpu_malone_is_non_frame_mode(struct vpu_shared_addr *shared, u32 instance)
+static bool vpu_malone_is_analn_frame_mode(struct vpu_shared_addr *shared, u32 instance)
 {
 	struct malone_iface *iface = shared->iface;
 
-	if (iface->stream_buff_info[instance].stream_input_mode == NON_FRAME_LVL)
+	if (iface->stream_buff_info[instance].stream_input_mode == ANALN_FRAME_LVL)
 		return true;
 
 	return false;
@@ -713,7 +713,7 @@ int vpu_malone_set_decode_params(struct vpu_shared_addr *shared,
 }
 
 static struct vpu_pair malone_cmds[] = {
-	{VPU_CMD_ID_NOOP, VID_API_CMD_NULL},
+	{VPU_CMD_ID_ANALOP, VID_API_CMD_NULL},
 	{VPU_CMD_ID_START, VID_API_CMD_START},
 	{VPU_CMD_ID_STOP, VID_API_CMD_STOP},
 	{VPU_CMD_ID_ABORT, VID_API_CMD_ABORT},
@@ -892,7 +892,7 @@ static void vpu_malone_unpack_seq_hdr(struct vpu_rpc_event *pkt,
 	info->decoded_width = pkt->data[12];
 	info->decoded_height = pkt->data[11];
 	info->frame_rate.numerator = 1000;
-	info->frame_rate.denominator = pkt->data[8];
+	info->frame_rate.deanalminator = pkt->data[8];
 	info->dsp_asp_ratio = pkt->data[9];
 	info->level_idc = pkt->data[10];
 	info->bit_depth_luma = pkt->data[13];
@@ -911,16 +911,16 @@ static void vpu_malone_unpack_seq_hdr(struct vpu_rpc_event *pkt,
 		info->pixfmt = V4L2_PIX_FMT_NV12M_10BE_8L128;
 	else
 		info->pixfmt = V4L2_PIX_FMT_NV12M_8L128;
-	if (info->frame_rate.numerator && info->frame_rate.denominator) {
+	if (info->frame_rate.numerator && info->frame_rate.deanalminator) {
 		unsigned long n, d;
 
 		rational_best_approximation(info->frame_rate.numerator,
-					    info->frame_rate.denominator,
+					    info->frame_rate.deanalminator,
 					    info->frame_rate.numerator,
-					    info->frame_rate.denominator,
+					    info->frame_rate.deanalminator,
 					    &n, &d);
 		info->frame_rate.numerator = n;
-		info->frame_rate.denominator = d;
+		info->frame_rate.deanalminator = d;
 	}
 	vpu_malone_init_seq_hdr(info);
 }
@@ -952,7 +952,7 @@ static void vpu_malone_unpack_rel_frame(struct vpu_rpc_event *pkt,
 {
 	info->id = pkt->data[0];
 	info->type = pkt->data[1];
-	info->not_displayed = pkt->data[2];
+	info->analt_displayed = pkt->data[2];
 }
 
 static void vpu_malone_unpack_buff_rdy(struct vpu_rpc_event *pkt,
@@ -1214,8 +1214,8 @@ static void set_vp8_ivf_pichdr(u8 *dst, u32 frame_size)
 {
 	/*
 	 * firmware just parse 64-bit timestamp(8 bytes).
-	 * As not transfer timestamp to firmware, use default value(ZERO).
-	 * No need to do anything here
+	 * As analt transfer timestamp to firmware, use default value(ZERO).
+	 * Anal need to do anything here
 	 */
 }
 
@@ -1543,7 +1543,7 @@ static int vpu_malone_input_frame_data(struct vpu_malone_str_buffer __iomem *str
 		ret = vpu_malone_insert_scode(&scode, SCODE_SEQUENCE);
 
 	if (ret < 0)
-		return -ENOMEM;
+		return -EANALMEM;
 	size += ret;
 	wptr = scode.wptr;
 	if (!scode.need_data) {
@@ -1553,7 +1553,7 @@ static int vpu_malone_input_frame_data(struct vpu_malone_str_buffer __iomem *str
 
 	ret = vpu_malone_insert_scode(&scode, SCODE_PICTURE);
 	if (ret < 0)
-		return -ENOMEM;
+		return -EANALMEM;
 	size += ret;
 	wptr = scode.wptr;
 
@@ -1562,7 +1562,7 @@ static int vpu_malone_input_frame_data(struct vpu_malone_str_buffer __iomem *str
 					       vb2_get_plane_payload(vb, 0),
 					       vb2_plane_vaddr(vb, 0));
 	if (ret < 0)
-		return -ENOMEM;
+		return -EANALMEM;
 	size += vb2_get_plane_payload(vb, 0);
 
 	vpu_malone_update_wptr(str_buf, wptr);
@@ -1592,7 +1592,7 @@ static int vpu_malone_input_stream_data(struct vpu_malone_str_buffer __iomem *st
 					       vb2_get_plane_payload(vb, 0),
 					       vb2_plane_vaddr(vb, 0));
 	if (ret < 0)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vpu_malone_update_wptr(str_buf, wptr);
 
@@ -1620,7 +1620,7 @@ int vpu_malone_input_frame(struct vpu_shared_addr *shared,
 	u32 size;
 	int ret;
 
-	if (vpu_malone_is_non_frame_mode(shared, inst->id))
+	if (vpu_malone_is_analn_frame_mode(shared, inst->id))
 		ret = vpu_malone_input_stream_data(str_buf, inst, vb);
 	else
 		ret = vpu_malone_input_frame_data(str_buf, inst, vb, disp_imm);

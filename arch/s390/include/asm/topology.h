@@ -61,7 +61,7 @@ static inline void topology_expect_change(void) { }
 
 #endif /* CONFIG_SCHED_TOPOLOGY */
 
-#define POLARIZATION_UNKNOWN	(-1)
+#define POLARIZATION_UNKANALWN	(-1)
 #define POLARIZATION_HRZ	(0)
 #define POLARIZATION_VL		(1)
 #define POLARIZATION_VM		(2)
@@ -71,25 +71,25 @@ static inline void topology_expect_change(void) { }
 
 #ifdef CONFIG_NUMA
 
-#define cpu_to_node cpu_to_node
-static inline int cpu_to_node(int cpu)
+#define cpu_to_analde cpu_to_analde
+static inline int cpu_to_analde(int cpu)
 {
 	return 0;
 }
 
-/* Returns a pointer to the cpumask of CPUs on node 'node'. */
-#define cpumask_of_node cpumask_of_node
-static inline const struct cpumask *cpumask_of_node(int node)
+/* Returns a pointer to the cpumask of CPUs on analde 'analde'. */
+#define cpumask_of_analde cpumask_of_analde
+static inline const struct cpumask *cpumask_of_analde(int analde)
 {
 	return cpu_possible_mask;
 }
 
-#define pcibus_to_node(bus) __pcibus_to_node(bus)
+#define pcibus_to_analde(bus) __pcibus_to_analde(bus)
 
 #else /* !CONFIG_NUMA */
 
-#define numa_node_id numa_node_id
-static inline int numa_node_id(void)
+#define numa_analde_id numa_analde_id
+static inline int numa_analde_id(void)
 {
 	return 0;
 }

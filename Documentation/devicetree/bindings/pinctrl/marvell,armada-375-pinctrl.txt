@@ -8,7 +8,7 @@ Required properties:
 - reg: register specifier of MPP registers
 
 Available mpp pins/groups and functions:
-Note: brackets (x) are not part of the mpp name for marvell,function and given
+Analte: brackets (x) are analt part of the mpp name for marvell,function and given
 only for more detailed description in this document.
 
 name          pins     functions

@@ -11,7 +11,7 @@ description:
   fabric IP cores they are based on
 
 maintainers:
-  - Conor Dooley <conor.dooley@microchip.com>
+  - Coanalr Dooley <coanalr.dooley@microchip.com>
 
 allOf:
   - $ref: spi-controller.yaml#

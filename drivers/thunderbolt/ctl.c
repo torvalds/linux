@@ -2,7 +2,7 @@
 /*
  * Thunderbolt driver - control channel and configuration commands
  *
- * Copyright (c) 2014 Andreas Noever <andreas.noever@gmail.com>
+ * Copyright (c) 2014 Andreas Analever <andreas.analever@gmail.com>
  * Copyright (C) 2018, Intel Corporation
  */
 
@@ -29,7 +29,7 @@
  * @request_queue_lock: Lock protecting @request_queue
  * @request_queue: List of outstanding requests
  * @running: Is the control channel running at the moment
- * @timeout_msec: Default timeout for non-raw control messages
+ * @timeout_msec: Default timeout for analn-raw control messages
  * @callback: Callback called when hotplug message is received
  * @callback_data: Data passed to @callback
  */
@@ -129,7 +129,7 @@ static int tb_cfg_request_enqueue(struct tb_ctl *ctl,
 	mutex_lock(&ctl->request_queue_lock);
 	if (!ctl->running) {
 		mutex_unlock(&ctl->request_queue_lock);
-		return -ENOTCONN;
+		return -EANALTCONN;
 	}
 	req->ctl = ctl;
 	list_add_tail(&req->list, &ctl->request_queue);
@@ -195,8 +195,8 @@ static int check_header(const struct ctl_pkg *pkg, u32 len,
 		return -EIO;
 
 	/* check header */
-	if (WARN(header->unknown != 1 << 9,
-			"header->unknown is %#x\n", header->unknown))
+	if (WARN(header->unkanalwn != 1 << 9,
+			"header->unkanalwn is %#x\n", header->unkanalwn))
 		return -EIO;
 	if (WARN(route != tb_cfg_get_route(header),
 			"wrong route (expected %llx, got %llx)",
@@ -221,7 +221,7 @@ static int check_config_address(struct tb_cfg_address addr,
 			length, addr.length))
 		return -EIO;
 	/*
-	 * We cannot check addr->port as it is set to the upstream port of the
+	 * We cananalt check addr->port as it is set to the upstream port of the
 	 * sender.
 	 */
 	return 0;
@@ -265,9 +265,9 @@ static void tb_cfg_print_error(struct tb_ctl *ctl,
 {
 	WARN_ON(res->err != 1);
 	switch (res->tb_error) {
-	case TB_CFG_ERROR_PORT_NOT_CONNECTED:
-		/* Port is not connected. This can happen during surprise
-		 * removal. Do not warn. */
+	case TB_CFG_ERROR_PORT_ANALT_CONNECTED:
+		/* Port is analt connected. This can happen during surprise
+		 * removal. Do analt warn. */
 		return;
 	case TB_CFG_ERROR_INVALID_CONFIG_SPACE:
 		/*
@@ -277,11 +277,11 @@ static void tb_cfg_print_error(struct tb_ctl *ctl,
 		tb_ctl_dbg(ctl, "%llx:%x: invalid config space or offset\n",
 			   res->response_route, res->response_port);
 		return;
-	case TB_CFG_ERROR_NO_SUCH_PORT:
+	case TB_CFG_ERROR_ANAL_SUCH_PORT:
 		/*
-		 * - The route contains a non-existent port.
-		 * - The route contains a non-PHY port (e.g. PCIe).
-		 * - The port in cfg_read/cfg_write does not exist.
+		 * - The route contains a analn-existent port.
+		 * - The route contains a analn-PHY port (e.g. PCIe).
+		 * - The port in cfg_read/cfg_write does analt exist.
 		 */
 		tb_ctl_WARN(ctl, "CFG_ERROR(%llx:%x): Invalid port\n",
 			res->response_route, res->response_port);
@@ -296,7 +296,7 @@ static void tb_cfg_print_error(struct tb_ctl *ctl,
 		return;
 	default:
 		/* 5,6,7,9 and 11 are also valid error codes */
-		tb_ctl_WARN(ctl, "CFG_ERROR(%llx:%x): Unknown error\n",
+		tb_ctl_WARN(ctl, "CFG_ERROR(%llx:%x): Unkanalwn error\n",
 			res->response_route, res->response_port);
 		return;
 	}
@@ -364,7 +364,7 @@ static int tb_ctl_tx(struct tb_ctl *ctl, const void *data, size_t len,
 	}
 	pkg = tb_ctl_pkg_alloc(ctl);
 	if (!pkg)
-		return -ENOMEM;
+		return -EANALMEM;
 	pkg->frame.callback = tb_ctl_tx_callback;
 	pkg->frame.size = len + 4;
 	pkg->frame.sof = type;
@@ -379,7 +379,7 @@ static int tb_ctl_tx(struct tb_ctl *ctl, const void *data, size_t len,
 }
 
 /*
- * tb_ctl_handle_event() - acknowledge a plug event, invoke ctl->callback
+ * tb_ctl_handle_event() - ackanalwledge a plug event, invoke ctl->callback
  */
 static bool tb_ctl_handle_event(struct tb_ctl *ctl, enum tb_cfg_pkg_type type,
 				struct ctl_pkg *pkg, size_t size)
@@ -390,10 +390,10 @@ static bool tb_ctl_handle_event(struct tb_ctl *ctl, enum tb_cfg_pkg_type type,
 static void tb_ctl_rx_submit(struct ctl_pkg *pkg)
 {
 	tb_ring_rx(pkg->ctl->rx, &pkg->frame); /*
-					     * We ignore failures during stop.
+					     * We iganalre failures during stop.
 					     * All rx packets are referenced
 					     * from ctl->rx_packets, so we do
-					     * not loose them.
+					     * analt loose them.
 					     */
 }
 
@@ -511,7 +511,7 @@ static void tb_cfg_request_work(struct work_struct *work)
 }
 
 /**
- * tb_cfg_request() - Start control request not waiting for it to complete
+ * tb_cfg_request() - Start control request analt waiting for it to complete
  * @ctl: Control channel to use
  * @req: Request to start
  * @callback: Callback called when the request is completed
@@ -560,7 +560,7 @@ err_put:
  * @err: Error to assign to the request
  *
  * This function can be used to cancel ongoing request. It will wait
- * until the request is not active anymore.
+ * until the request is analt active anymore.
  */
 void tb_cfg_request_cancel(struct tb_cfg_request *req, int err)
 {
@@ -582,7 +582,7 @@ static void tb_cfg_request_complete(void *data)
  * @timeout_msec: Timeout how long to wait @req to complete
  *
  * Starts a control request and waits until it completes. If timeout
- * triggers the request is canceled before function returns. Note the
+ * triggers the request is canceled before function returns. Analte the
  * caller needs to make sure only one message for given switch is active
  * at a time.
  */
@@ -614,7 +614,7 @@ struct tb_cfg_result tb_cfg_request_sync(struct tb_ctl *ctl,
 /**
  * tb_ctl_alloc() - allocate a control channel
  * @nhi: Pointer to NHI
- * @timeout_msec: Default timeout used with non-raw control messages
+ * @timeout_msec: Default timeout used with analn-raw control messages
  * @cb: Callback called for plug events
  * @cb_data: Data passed to @cb
  *
@@ -641,11 +641,11 @@ struct tb_ctl *tb_ctl_alloc(struct tb_nhi *nhi, int timeout_msec, event_cb cb,
 	if (!ctl->frame_pool)
 		goto err;
 
-	ctl->tx = tb_ring_alloc_tx(nhi, 0, 10, RING_FLAG_NO_SUSPEND);
+	ctl->tx = tb_ring_alloc_tx(nhi, 0, 10, RING_FLAG_ANAL_SUSPEND);
 	if (!ctl->tx)
 		goto err;
 
-	ctl->rx = tb_ring_alloc_rx(nhi, 0, 10, RING_FLAG_NO_SUSPEND, 0, 0xffff,
+	ctl->rx = tb_ring_alloc_rx(nhi, 0, 10, RING_FLAG_ANAL_SUSPEND, 0, 0xffff,
 				   0xffff, NULL, NULL);
 	if (!ctl->rx)
 		goto err;
@@ -670,7 +670,7 @@ err:
  *
  * Must be called after tb_ctl_stop.
  *
- * Must NOT be called from ctl->callback.
+ * Must ANALT be called from ctl->callback.
  */
 void tb_ctl_free(struct tb_ctl *ctl)
 {
@@ -716,7 +716,7 @@ void tb_ctl_start(struct tb_ctl *ctl)
  * All invocations of ctl->callback will have finished after this method
  * returns.
  *
- * Must NOT be called from ctl->callback.
+ * Must ANALT be called from ctl->callback.
  */
 void tb_ctl_stop(struct tb_ctl *ctl)
 {
@@ -736,15 +736,15 @@ void tb_ctl_stop(struct tb_ctl *ctl)
 /* public interface, commands */
 
 /**
- * tb_cfg_ack_notification() - Ack notification
+ * tb_cfg_ack_analtification() - Ack analtification
  * @ctl: Control channel to use
  * @route: Router that originated the event
- * @error: Pointer to the notification package
+ * @error: Pointer to the analtification package
  *
- * Call this as response for non-plug notification to ack it. Returns
+ * Call this as response for analn-plug analtification to ack it. Returns
  * %0 on success or an error code on failure.
  */
-int tb_cfg_ack_notification(struct tb_ctl *ctl, u64 route,
+int tb_cfg_ack_analtification(struct tb_ctl *ctl, u64 route,
 			    const struct cfg_error_pkg *error)
 {
 	struct cfg_ack_pkg pkg = {
@@ -787,14 +787,14 @@ int tb_cfg_ack_notification(struct tb_ctl *ctl, u64 route,
 		name = "asymmetric link";
 		break;
 	default:
-		name = "unknown";
+		name = "unkanalwn";
 		break;
 	}
 
-	tb_ctl_dbg(ctl, "acking %s (%#x) notification on %llx\n", name,
+	tb_ctl_dbg(ctl, "acking %s (%#x) analtification on %llx\n", name,
 		   error->error, route);
 
-	return tb_ctl_tx(ctl, &pkg, sizeof(pkg), TB_CFG_PKG_NOTIFY_ACK);
+	return tb_ctl_tx(ctl, &pkg, sizeof(pkg), TB_CFG_PKG_ANALTIFY_ACK);
 }
 
 /**
@@ -852,7 +852,7 @@ static bool tb_cfg_copy(struct tb_cfg_request *req, const struct ctl_pkg *pkg)
 {
 	struct tb_cfg_result res;
 
-	/* Now make sure it is in expected format */
+	/* Analw make sure it is in expected format */
 	res = parse_header(pkg, req->response_size, req->response_type,
 			   tb_cfg_get_route(req->request));
 	if (!res.err)
@@ -869,7 +869,7 @@ static bool tb_cfg_copy(struct tb_cfg_request *req, const struct ctl_pkg *pkg)
  * @ctl: Control channel pointer
  * @route: Router string for the router to send reset
  *
- * If the switch at route is incorrectly configured then we will not receive a
+ * If the switch at route is incorrectly configured then we will analt receive a
  * reply (even though the switch will reset). The caller should check for
  * -ETIMEDOUT and attempt to reconfigure the switch.
  */
@@ -882,7 +882,7 @@ struct tb_cfg_result tb_cfg_reset(struct tb_ctl *ctl, u64 route)
 
 	req = tb_cfg_request_alloc();
 	if (!req) {
-		res.err = -ENOMEM;
+		res.err = -EANALMEM;
 		return res;
 	}
 
@@ -937,7 +937,7 @@ struct tb_cfg_result tb_cfg_read_raw(struct tb_ctl *ctl, void *buffer,
 
 		req = tb_cfg_request_alloc();
 		if (!req) {
-			res.err = -ENOMEM;
+			res.err = -EANALMEM;
 			return res;
 		}
 
@@ -1010,7 +1010,7 @@ struct tb_cfg_result tb_cfg_write_raw(struct tb_ctl *ctl, const void *buffer,
 
 		req = tb_cfg_request_alloc();
 		if (!req) {
-			res.err = -ENOMEM;
+			res.err = -EANALMEM;
 			return res;
 		}
 
@@ -1050,19 +1050,19 @@ static int tb_cfg_get_error(struct tb_ctl *ctl, enum tb_cfg_space space,
 	/*
 	 * For unimplemented ports access to port config space may return
 	 * TB_CFG_ERROR_INVALID_CONFIG_SPACE (alternatively their type is
-	 * set to TB_TYPE_INACTIVE). In the former case return -ENODEV so
+	 * set to TB_TYPE_INACTIVE). In the former case return -EANALDEV so
 	 * that the caller can mark the port as disabled.
 	 */
 	if (space == TB_CFG_PORT &&
 	    res->tb_error == TB_CFG_ERROR_INVALID_CONFIG_SPACE)
-		return -ENODEV;
+		return -EANALDEV;
 
 	tb_cfg_print_error(ctl, res);
 
 	if (res->tb_error == TB_CFG_ERROR_LOCK)
 		return -EACCES;
-	if (res->tb_error == TB_CFG_ERROR_PORT_NOT_CONNECTED)
-		return -ENOTCONN;
+	if (res->tb_error == TB_CFG_ERROR_PORT_ANALT_CONNECTED)
+		return -EANALTCONN;
 
 	return -EIO;
 }

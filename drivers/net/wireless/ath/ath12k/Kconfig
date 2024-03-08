@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: BSD-3-Clause-Clear
 config ATH12K
-	tristate "Qualcomm Technologies Wi-Fi 7 support (ath12k)"
+	tristate "Qualcomm Techanallogies Wi-Fi 7 support (ath12k)"
 	depends on MAC80211 && HAS_DMA && PCI
 	select CRYPTO_MICHAEL_MIC
 	select QCOM_QMI_HELPERS
@@ -8,7 +8,7 @@ config ATH12K
 	select QRTR
 	select QRTR_MHI
 	help
-	  Enable support for Qualcomm Technologies Wi-Fi 7 (IEEE
+	  Enable support for Qualcomm Techanallogies Wi-Fi 7 (IEEE
 	  802.11be) family of chipsets, for example WCN7850 and
 	  QCN9274.
 

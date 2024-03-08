@@ -67,4 +67,4 @@ Module Parameters
 -----------------
 
 * read_only: int
-  Set to non-zero if you wish to prevent write access to alarm thresholds.
+  Set to analn-zero if you wish to prevent write access to alarm thresholds.

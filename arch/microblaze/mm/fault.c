@@ -21,7 +21,7 @@
 #include <linux/signal.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/ptrace.h>
@@ -67,7 +67,7 @@ static int store_updates_sp(struct pt_regs *regs)
 void bad_page_fault(struct pt_regs *regs, unsigned long address, int sig)
 {
 	const struct exception_table_entry *fixup;
-/* MS: no context */
+/* MS: anal context */
 	/* Are we prepared to handle this fault?  */
 	fixup = search_exception_tables(regs->pc);
 	if (fixup) {
@@ -108,7 +108,7 @@ void do_page_fault(struct pt_regs *regs, unsigned long address,
 
 	if (unlikely(faulthandler_disabled() || !mm)) {
 		if (kernel_mode(regs))
-			goto bad_area_nosemaphore;
+			goto bad_area_analsemaphore;
 
 		/* faulthandler_disabled() in user mode is really bad,
 		   as is current->mm == NULL. */
@@ -135,13 +135,13 @@ void do_page_fault(struct pt_regs *regs, unsigned long address,
 	 *
 	 * As the vast majority of faults will be valid we will only perform
 	 * the source reference check when there is a possibility of a deadlock.
-	 * Attempt to lock the address space, if we cannot we then validate the
+	 * Attempt to lock the address space, if we cananalt we then validate the
 	 * source.  If this is invalid we can skip the address space check,
 	 * thus avoiding the deadlock.
 	 */
 	if (unlikely(!mmap_read_trylock(mm))) {
 		if (kernel_mode(regs) && !search_exception_tables(regs->pc))
-			goto bad_area_nosemaphore;
+			goto bad_area_analsemaphore;
 
 retry:
 		mmap_read_lock(mm);
@@ -194,7 +194,7 @@ retry:
 	}
 	vma = expand_stack(mm, address);
 	if (!vma)
-		goto bad_area_nosemaphore;
+		goto bad_area_analsemaphore;
 
 good_area:
 	code = SEGV_ACCERR;
@@ -244,7 +244,7 @@ good_area:
 		flags |= FAULT_FLAG_TRIED;
 
 		/*
-		 * No need to mmap_read_unlock(mm) as we would
+		 * Anal need to mmap_read_unlock(mm) as we would
 		 * have already released it in __lock_page_or_retry
 		 * in mm/filemap.c.
 		 */
@@ -265,7 +265,7 @@ good_area:
 bad_area:
 	mmap_read_unlock(mm);
 
-bad_area_nosemaphore:
+bad_area_analsemaphore:
 	pte_errors++;
 
 	/* User mode accesses cause a SIGSEGV */

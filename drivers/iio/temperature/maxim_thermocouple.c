@@ -2,8 +2,8 @@
 /*
  * maxim_thermocouple.c  - Support for Maxim thermocouple chips
  *
- * Copyright (C) 2016-2018 Matt Ranostay
- * Author: <matt.ranostay@konsulko.com>
+ * Copyright (C) 2016-2018 Matt Raanalstay
+ * Author: <matt.raanalstay@konsulko.com>
  */
 
 #include <linux/init.h>
@@ -173,7 +173,7 @@ static irqreturn_t maxim_thermocouple_trigger_handler(int irq, void *private)
 						   iio_get_time_ns(indio_dev));
 	}
 
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -235,7 +235,7 @@ static int maxim_thermocouple_probe(struct spi_device *spi)
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	indio_dev->info = &maxim_thermocouple_info;
 	indio_dev->name = MAXIM_THERMOCOUPLE_DRV_NAME;
@@ -299,6 +299,6 @@ static struct spi_driver maxim_thermocouple_driver = {
 };
 module_spi_driver(maxim_thermocouple_driver);
 
-MODULE_AUTHOR("Matt Ranostay <matt.ranostay@konsulko.com>");
+MODULE_AUTHOR("Matt Raanalstay <matt.raanalstay@konsulko.com>");
 MODULE_DESCRIPTION("Maxim thermocouple sensors");
 MODULE_LICENSE("GPL");

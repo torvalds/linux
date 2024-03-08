@@ -47,7 +47,7 @@ int xp_alloc_tx_descs(struct xsk_buff_pool *pool, struct xdp_sock *xs)
 	pool->tx_descs = kvcalloc(xs->tx->nentries, sizeof(*pool->tx_descs),
 				  GFP_KERNEL);
 	if (!pool->tx_descs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -101,8 +101,8 @@ struct xsk_buff_pool *xp_create_and_assign_umem(struct xdp_sock *xs,
 		xskb = &pool->heads[i];
 		xskb->pool = pool;
 		xskb->xdp.frame_sz = umem->chunk_size - umem->headroom;
-		INIT_LIST_HEAD(&xskb->free_list_node);
-		INIT_LIST_HEAD(&xskb->xskb_list_node);
+		INIT_LIST_HEAD(&xskb->free_list_analde);
+		INIT_LIST_HEAD(&xskb->xskb_list_analde);
 		if (pool->unaligned)
 			pool->free_heads[i] = xskb;
 		else
@@ -190,7 +190,7 @@ int xp_assign_dev(struct xsk_buff_pool *pool,
 	if (flags & XDP_USE_NEED_WAKEUP)
 		pool->uses_need_wakeup = true;
 	/* Tx needs to be explicitly woken up the first time.  Also
-	 * for supporting drivers that do not implement this
+	 * for supporting drivers that do analt implement this
 	 * feature. They will always have to call sendto() or poll().
 	 */
 	pool->cached_need_wakeup = XDP_WAKEUP_TX;
@@ -202,12 +202,12 @@ int xp_assign_dev(struct xsk_buff_pool *pool,
 		return 0;
 
 	if ((netdev->xdp_features & NETDEV_XDP_ACT_ZC) != NETDEV_XDP_ACT_ZC) {
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		goto err_unreg_pool;
 	}
 
 	if (netdev->xdp_zc_max_segs == 1 && (flags & XDP_USE_SG)) {
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		goto err_unreg_pool;
 	}
 
@@ -220,7 +220,7 @@ int xp_assign_dev(struct xsk_buff_pool *pool,
 		goto err_unreg_pool;
 
 	if (!pool->dma_pages) {
-		WARN(1, "Driver did not DMA map zero-copy buffers");
+		WARN(1, "Driver did analt DMA map zero-copy buffers");
 		err = -EINVAL;
 		goto err_unreg_xsk;
 	}
@@ -379,7 +379,7 @@ void xp_dma_unmap(struct xsk_buff_pool *pool, unsigned long attrs)
 
 	dma_map = xp_find_dma_map(pool);
 	if (!dma_map) {
-		WARN(1, "Could not find dma_map for device");
+		WARN(1, "Could analt find dma_map for device");
 		return;
 	}
 
@@ -420,7 +420,7 @@ static int xp_init_dma_info(struct xsk_buff_pool *pool, struct xsk_dma_map *dma_
 
 	pool->dma_pages = kvcalloc(dma_map->dma_pages_cnt, sizeof(*pool->dma_pages), GFP_KERNEL);
 	if (!pool->dma_pages)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pool->dev = dma_map->dev;
 	pool->dma_pages_cnt = dma_map->dma_pages_cnt;
@@ -451,14 +451,14 @@ int xp_dma_map(struct xsk_buff_pool *pool, struct device *dev,
 
 	dma_map = xp_create_dma_map(dev, pool->netdev, nr_pages, pool->umem);
 	if (!dma_map)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < dma_map->dma_pages_cnt; i++) {
 		dma = dma_map_page_attrs(dev, pages[i], 0, PAGE_SIZE,
 					 DMA_BIDIRECTIONAL, attrs);
 		if (dma_mapping_error(dev, dma)) {
 			__xp_dma_unmap(dma_map, attrs);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		if (dma_need_sync(dev, dma))
 			dma_map->dma_need_sync = true;
@@ -478,10 +478,10 @@ int xp_dma_map(struct xsk_buff_pool *pool, struct device *dev,
 }
 EXPORT_SYMBOL(xp_dma_map);
 
-static bool xp_addr_crosses_non_contig_pg(struct xsk_buff_pool *pool,
+static bool xp_addr_crosses_analn_contig_pg(struct xsk_buff_pool *pool,
 					  u64 addr)
 {
-	return xp_desc_crosses_non_contig_pg(pool, addr, pool->chunk_size);
+	return xp_desc_crosses_analn_contig_pg(pool, addr, pool->chunk_size);
 }
 
 static bool xp_check_unaligned(struct xsk_buff_pool *pool, u64 *addr)
@@ -489,7 +489,7 @@ static bool xp_check_unaligned(struct xsk_buff_pool *pool, u64 *addr)
 	*addr = xp_unaligned_extract_addr(*addr);
 	if (*addr >= pool->addrs_cnt ||
 	    *addr + pool->chunk_size > pool->addrs_cnt ||
-	    xp_addr_crosses_non_contig_pg(pool, *addr))
+	    xp_addr_crosses_analn_contig_pg(pool, *addr))
 		return false;
 	return true;
 }
@@ -549,8 +549,8 @@ struct xdp_buff *xp_alloc(struct xsk_buff_pool *pool)
 	} else {
 		pool->free_list_cnt--;
 		xskb = list_first_entry(&pool->free_list, struct xdp_buff_xsk,
-					free_list_node);
-		list_del_init(&xskb->free_list_node);
+					free_list_analde);
+		list_del_init(&xskb->free_list_analde);
 	}
 
 	xskb->xdp.data = xskb->xdp.data_hard_start + XDP_PACKET_HEADROOM;
@@ -618,8 +618,8 @@ static u32 xp_alloc_reused(struct xsk_buff_pool *pool, struct xdp_buff **xdp, u3
 
 	i = nb_entries;
 	while (i--) {
-		xskb = list_first_entry(&pool->free_list, struct xdp_buff_xsk, free_list_node);
-		list_del_init(&xskb->free_list_node);
+		xskb = list_first_entry(&pool->free_list, struct xdp_buff_xsk, free_list_analde);
+		list_del_init(&xskb->free_list_analde);
 
 		*xdp = &xskb->xdp;
 		xdp++;
@@ -670,11 +670,11 @@ EXPORT_SYMBOL(xp_can_alloc);
 
 void xp_free(struct xdp_buff_xsk *xskb)
 {
-	if (!list_empty(&xskb->free_list_node))
+	if (!list_empty(&xskb->free_list_analde))
 		return;
 
 	xskb->pool->free_list_cnt++;
-	list_add(&xskb->free_list_node, &xskb->pool->free_list);
+	list_add(&xskb->free_list_analde, &xskb->pool->free_list);
 }
 EXPORT_SYMBOL(xp_free);
 

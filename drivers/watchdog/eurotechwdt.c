@@ -12,9 +12,9 @@
  *	(c) Copyright 1996-1997 Alan Cox <alan@lxorguk.ukuu.org.uk>,
  *						All Rights Reserved.
  *
- *	Neither Alan Cox nor CymruNet Ltd. admit liability nor provide
+ *	Neither Alan Cox analr CymruNet Ltd. admit liability analr provide
  *	warranty for any of this software. This material is provided
- *	"AS-IS" and at no charge.
+ *	"AS-IS" and at anal charge.
  *
  *	(c) Copyright 1995    Alan Cox <alan@lxorguk.ukuu.org.uk>*
  */
@@ -33,7 +33,7 @@
  *	add expect_close support
  *
  * 2002.05.30 - Joel Becker <joel.becker@oracle.com>
- *	Added Matt Domsch's nowayout module option.
+ *	Added Matt Domsch's analwayout module option.
  */
 
 /*
@@ -51,7 +51,7 @@
 #include <linux/watchdog.h>
 #include <linux/fs.h>
 #include <linux/ioport.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/reboot.h>
 #include <linux/init.h>
 #include <linux/io.h>
@@ -64,7 +64,7 @@ static char eur_expect_close;
 static DEFINE_SPINLOCK(eurwdt_lock);
 
 /*
- * You must set these - there is no sane way to probe for this board.
+ * You must set these - there is anal sane way to probe for this board.
  */
 
 static int io = 0x3f0;
@@ -73,11 +73,11 @@ static char *ev = "int";
 
 #define WDT_TIMEOUT		60                /* 1 minute */
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout,
-		"Watchdog cannot be stopped once started (default="
-				__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+static bool analwayout = WATCHDOG_ANALWAYOUT;
+module_param(analwayout, bool, 0);
+MODULE_PARM_DESC(analwayout,
+		"Watchdog cananalt be stopped once started (default="
+				__MODULE_STRING(WATCHDOG_ANALWAYOUT) ")");
 
 /*
  * Some symbolic names
@@ -187,9 +187,9 @@ static void eurwdt_ping(void)
 /**
  * eurwdt_write:
  * @file: file handle to the watchdog
- * @buf: buffer to write (unused as data does not matter here
+ * @buf: buffer to write (unused as data does analt matter here
  * @count: count of bytes
- * @ppos: pointer to the position to write. No seeks allowed
+ * @ppos: pointer to the position to write. Anal seeks allowed
  *
  * A write to a watchdog device is defined as a keepalive signal. Any
  * write of data will do, as we don't define content meaning.
@@ -199,7 +199,7 @@ static ssize_t eurwdt_write(struct file *file, const char __user *buf,
 size_t count, loff_t *ppos)
 {
 	if (count) {
-		if (!nowayout) {
+		if (!analwayout) {
 			size_t i;
 
 			eur_expect_close = 0;
@@ -292,32 +292,32 @@ static long eurwdt_ioctl(struct file *file,
 		return put_user(eurwdt_timeout, p);
 
 	default:
-		return -ENOTTY;
+		return -EANALTTY;
 	}
 }
 
 /**
  * eurwdt_open:
- * @inode: inode of device
+ * @ianalde: ianalde of device
  * @file: file handle to device
  *
  * The misc device has been opened. The watchdog device is single
  * open and on opening we load the counter.
  */
 
-static int eurwdt_open(struct inode *inode, struct file *file)
+static int eurwdt_open(struct ianalde *ianalde, struct file *file)
 {
 	if (test_and_set_bit(0, &eurwdt_is_open))
 		return -EBUSY;
 	eurwdt_timeout = WDT_TIMEOUT;	/* initial timeout */
 	/* Activate the WDT */
 	eurwdt_activate_timer();
-	return stream_open(inode, file);
+	return stream_open(ianalde, file);
 }
 
 /**
  * eurwdt_release:
- * @inode: inode to board
+ * @ianalde: ianalde to board
  * @file: file handle to board
  *
  * The watchdog has a configurable API. There is a religious dispute
@@ -327,12 +327,12 @@ static int eurwdt_open(struct inode *inode, struct file *file)
  * case you have to open it again very soon.
  */
 
-static int eurwdt_release(struct inode *inode, struct file *file)
+static int eurwdt_release(struct ianalde *ianalde, struct file *file)
 {
 	if (eur_expect_close == 42)
 		eurwdt_disable_timer();
 	else {
-		pr_crit("Unexpected close, not stopping watchdog!\n");
+		pr_crit("Unexpected close, analt stopping watchdog!\n");
 		eurwdt_ping();
 	}
 	clear_bit(0, &eurwdt_is_open);
@@ -341,24 +341,24 @@ static int eurwdt_release(struct inode *inode, struct file *file)
 }
 
 /**
- * eurwdt_notify_sys:
- * @this: our notifier block
+ * eurwdt_analtify_sys:
+ * @this: our analtifier block
  * @code: the event being reported
  * @unused: unused
  *
- * Our notifier is called on system shutdowns. We want to turn the card
+ * Our analtifier is called on system shutdowns. We want to turn the card
  * off at reboot otherwise the machine will reboot again during memory
  * test or worse yet during the following fsck. This would suck, in fact
  * trust me - if it happens it does suck.
  */
 
-static int eurwdt_notify_sys(struct notifier_block *this, unsigned long code,
+static int eurwdt_analtify_sys(struct analtifier_block *this, unsigned long code,
 	void *unused)
 {
 	if (code == SYS_DOWN || code == SYS_HALT)
 		eurwdt_disable_timer();	/* Turn the card off */
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 /*
@@ -368,7 +368,7 @@ static int eurwdt_notify_sys(struct notifier_block *this, unsigned long code,
 
 static const struct file_operations eurwdt_fops = {
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
+	.llseek		= anal_llseek,
 	.write		= eurwdt_write,
 	.unlocked_ioctl	= eurwdt_ioctl,
 	.compat_ioctl	= compat_ptr_ioctl,
@@ -377,7 +377,7 @@ static const struct file_operations eurwdt_fops = {
 };
 
 static struct miscdevice eurwdt_miscdev = {
-	.minor	= WATCHDOG_MINOR,
+	.mianalr	= WATCHDOG_MIANALR,
 	.name	= "watchdog",
 	.fops	= &eurwdt_fops,
 };
@@ -387,17 +387,17 @@ static struct miscdevice eurwdt_miscdev = {
  * turn the timebomb registers off.
  */
 
-static struct notifier_block eurwdt_notifier = {
-	.notifier_call = eurwdt_notify_sys,
+static struct analtifier_block eurwdt_analtifier = {
+	.analtifier_call = eurwdt_analtify_sys,
 };
 
 /**
  * eurwdt_exit:
  *
- * Unload the watchdog. You cannot do this with any file handles open.
+ * Unload the watchdog. You cananalt do this with any file handles open.
  * If your watchdog is set to continue ticking on close and you unload
  * it, well it keeps ticking. We won't get the interrupt but the board
- * will not touch PC memory so all is fine. You just have to load a new
+ * will analt touch PC memory so all is fine. You just have to load a new
  * module in 60 seconds or reboot.
  */
 
@@ -407,7 +407,7 @@ static void __exit eurwdt_exit(void)
 
 	misc_deregister(&eurwdt_miscdev);
 
-	unregister_reboot_notifier(&eurwdt_notifier);
+	unregister_reboot_analtifier(&eurwdt_analtifier);
 	release_region(io, 2);
 	free_irq(irq, NULL);
 }
@@ -426,25 +426,25 @@ static int __init eurwdt_init(void)
 
 	ret = request_irq(irq, eurwdt_interrupt, 0, "eurwdt", NULL);
 	if (ret) {
-		pr_err("IRQ %d is not free\n", irq);
+		pr_err("IRQ %d is analt free\n", irq);
 		goto out;
 	}
 
 	if (!request_region(io, 2, "eurwdt")) {
-		pr_err("IO %X is not free\n", io);
+		pr_err("IO %X is analt free\n", io);
 		ret = -EBUSY;
 		goto outirq;
 	}
 
-	ret = register_reboot_notifier(&eurwdt_notifier);
+	ret = register_reboot_analtifier(&eurwdt_analtifier);
 	if (ret) {
-		pr_err("can't register reboot notifier (err=%d)\n", ret);
+		pr_err("can't register reboot analtifier (err=%d)\n", ret);
 		goto outreg;
 	}
 
 	ret = misc_register(&eurwdt_miscdev);
 	if (ret) {
-		pr_err("can't misc_register on minor=%d\n", WATCHDOG_MINOR);
+		pr_err("can't misc_register on mianalr=%d\n", WATCHDOG_MIANALR);
 		goto outreboot;
 	}
 
@@ -458,7 +458,7 @@ out:
 	return ret;
 
 outreboot:
-	unregister_reboot_notifier(&eurwdt_notifier);
+	unregister_reboot_analtifier(&eurwdt_analtifier);
 
 outreg:
 	release_region(io, 2);

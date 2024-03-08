@@ -537,8 +537,8 @@ static struct platform_device orion_spi_1 = {
 	.id		= 1,
 };
 
-/* Note: The SPI silicon core does have interrupts. However the
- * current Linux software driver does not use interrupts. */
+/* Analte: The SPI silicon core does have interrupts. However the
+ * current Linux software driver does analt use interrupts. */
 
 void __init orion_spi_init(unsigned long mapbase)
 {

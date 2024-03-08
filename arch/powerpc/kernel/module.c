@@ -72,13 +72,13 @@ int module_finalize(const Elf_Ehdr *hdr,
 	}
 #endif /* CONFIG_PPC64_ELF_ABI_V1 */
 
-#ifdef CONFIG_PPC_BARRIER_NOSPEC
+#ifdef CONFIG_PPC_BARRIER_ANALSPEC
 	sect = find_section(hdr, sechdrs, "__spec_barrier_fixup");
 	if (sect != NULL)
-		do_barrier_nospec_fixups_range(barrier_nospec_enabled,
+		do_barrier_analspec_fixups_range(barrier_analspec_enabled,
 				  (void *)sect->sh_addr,
 				  (void *)sect->sh_addr + sect->sh_size);
-#endif /* CONFIG_PPC_BARRIER_NOSPEC */
+#endif /* CONFIG_PPC_BARRIER_ANALSPEC */
 
 	sect = find_section(hdr, sechdrs, "__lwsync_fixup");
 	if (sect != NULL)
@@ -90,19 +90,19 @@ int module_finalize(const Elf_Ehdr *hdr,
 }
 
 static __always_inline void *
-__module_alloc(unsigned long size, unsigned long start, unsigned long end, bool nowarn)
+__module_alloc(unsigned long size, unsigned long start, unsigned long end, bool analwarn)
 {
 	pgprot_t prot = strict_module_rwx_enabled() ? PAGE_KERNEL : PAGE_KERNEL_EXEC;
-	gfp_t gfp = GFP_KERNEL | (nowarn ? __GFP_NOWARN : 0);
+	gfp_t gfp = GFP_KERNEL | (analwarn ? __GFP_ANALWARN : 0);
 
 	/*
 	 * Don't do huge page allocations for modules yet until more testing
 	 * is done. STRICT_MODULE_RWX may require extra work to support this
 	 * too.
 	 */
-	return __vmalloc_node_range(size, 1, start, end, gfp, prot,
+	return __vmalloc_analde_range(size, 1, start, end, gfp, prot,
 				    VM_FLUSH_RESET_PERMS,
-				    NUMA_NO_NODE, __builtin_return_address(0));
+				    NUMA_ANAL_ANALDE, __builtin_return_address(0));
 }
 
 void *module_alloc(unsigned long size)

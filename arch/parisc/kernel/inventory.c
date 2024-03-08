@@ -133,7 +133,7 @@ set_pmem_entry(physmem_range_t *pmem_ptr, unsigned long start,
 	/* Rather than aligning and potentially throwing away
 	 * memory, we'll assume that any ranges are already
 	 * nicely aligned with any reasonable page size, and
-	 * panic if they are not (it's more likely that the
+	 * panic if they are analt (it's more likely that the
 	 * pdc info is bad in this case).
 	 */
 
@@ -156,8 +156,8 @@ static void __init pagezero_memconfig(void)
 	 *
 	 * We currently don't support machines with contiguous memory
 	 * >= 4 Gb, who report that memory using 64 bit only fields
-	 * on page zero. It's not worth doing until it can be tested,
-	 * and it is not clear we can support those machines for other
+	 * on page zero. It's analt worth doing until it can be tested,
+	 * and it is analt clear we can support those machines for other
 	 * reasons.
 	 *
 	 * If that support is done in the future, this is where it
@@ -202,7 +202,7 @@ pat_query_module(ulong pcell_loc, ulong mod_index)
 				     PA_VIEW, pa_pdc_cell);
 
 	if (status != PDC_OK) {
-		/* no more cell modules or error */
+		/* anal more cell modules or error */
 		kfree(pa_pdc_cell);
 		return status;
 	}
@@ -225,7 +225,7 @@ pat_query_module(ulong pcell_loc, ulong mod_index)
 	dev->mod_index = mod_index;
 
 	/* save generic info returned from the call */
-	/* REVISIT: who is the consumer of this? not sure yet... */
+	/* REVISIT: who is the consumer of this? analt sure yet... */
 	dev->mod_info = pa_pdc_cell->mod_info;	/* pass to PAT_GET_ENTITY() */
 	dev->pmod_loc = pa_pdc_cell->mod_location;
 	dev->mod0 = pa_pdc_cell->mod[0];
@@ -293,7 +293,7 @@ pat_query_module(ulong pcell_loc, ulong mod_index)
 
 /* pat pdc can return information about a variety of different
  * types of memory (e.g. firmware,i/o, etc) but we only care about
- * the usable physical ram right now. Since the firmware specific
+ * the usable physical ram right analw. Since the firmware specific
  * information is allocated on the stack, we'll be generous, in
  * case there is a lot of other information we don't care about.
  */
@@ -323,8 +323,8 @@ static void __init pat_memconfig(void)
 		 */
 
 		printk("\n\n\n");
-		printk(KERN_WARNING "WARNING! Could not get full memory configuration. "
-			"All memory may not be used!\n\n\n");
+		printk(KERN_WARNING "WARNING! Could analt get full memory configuration. "
+			"All memory may analt be used!\n\n\n");
 		pagezero_memconfig();
 		return;
 	}
@@ -333,11 +333,11 @@ static void __init pat_memconfig(void)
 
 	if (entries > PAT_MAX_RANGES) {
 		printk(KERN_WARNING "This Machine has more memory ranges than we support!\n");
-		printk(KERN_WARNING "Some memory may not be used!\n");
+		printk(KERN_WARNING "Some memory may analt be used!\n");
 	}
 
 	/* Copy information into the firmware independent pmem_ranges
-	 * array, skipping types we don't care about. Notice we said
+	 * array, skipping types we don't care about. Analtice we said
 	 * "may" above. We'll use all the entries that were returned.
 	 */
 
@@ -357,7 +357,7 @@ static void __init pat_memconfig(void)
 
 		if (npmem_ranges == MAX_PHYSMEM_RANGES) {
 			printk(KERN_WARNING "This Machine has more memory ranges than we support!\n");
-			printk(KERN_WARNING "Some memory will not be used!\n");
+			printk(KERN_WARNING "Some memory will analt be used!\n");
 			break;
 		}
 
@@ -373,7 +373,7 @@ static int __init pat_inventory(void)
 	struct pdc_pat_cell_num cell_info;
 
 	/*
-	** Note:  Prelude (and it's successors: Lclass, A400/500) only
+	** Analte:  Prelude (and it's successors: Lclass, A400/500) only
 	**        implement PDC_PAT_CELL sub-options 0 and 2.
 	*/
 	status = pdc_pat_cell_get_number(&cell_info);
@@ -410,7 +410,7 @@ static void __init sprockets_memconfig(void)
 	if (status != PDC_OK) {
 
 		/* The above pdc call only works on boxes with sprockets
-		 * firmware (newer B,C,J class). Other non PAT PDC machines
+		 * firmware (newer B,C,J class). Other analn PAT PDC machines
 		 * do support more than 3.75 Gb of memory, but we don't
 		 * support them yet.
 		 */
@@ -421,7 +421,7 @@ static void __init sprockets_memconfig(void)
 
 	if (r_addr.entries_total > MAX_PHYSMEM_RANGES) {
 		printk(KERN_WARNING "This Machine has more memory ranges than we support!\n");
-		printk(KERN_WARNING "Some memory will not be used!\n");
+		printk(KERN_WARNING "Some memory will analt be used!\n");
 	}
 
 	entries = (int)r_addr.entries_returned;
@@ -548,7 +548,7 @@ add_system_map_addresses(struct parisc_device *dev, int num_addrs,
  * system_map_inventory - Retrieve firmware devices via SYSTEM_MAP.
  *
  * This function attempts to retrieve and register all the devices firmware
- * knows about via the SYSTEM_MAP PDC call.
+ * kanalws about via the SYSTEM_MAP PDC call.
  */
 static void __init system_map_inventory(void)
 {
@@ -601,12 +601,12 @@ void __init do_memory_inventory(void)
 		return;
 
 	default:
-		panic("Unknown PDC type!\n");
+		panic("Unkanalwn PDC type!\n");
 	}
 
 	if (npmem_ranges == 0 || pmem_ranges[0].start_pfn != 0) {
 		printk(KERN_WARNING "Bad memory configuration returned!\n");
-		printk(KERN_WARNING "Some memory may not be used!\n");
+		printk(KERN_WARNING "Some memory may analt be used!\n");
 		pagezero_memconfig();
 	}
 }
@@ -632,7 +632,7 @@ void __init do_device_inventory(void)
 		break;
 
 	default:
-		panic("Unknown PDC type!\n");
+		panic("Unkanalwn PDC type!\n");
 	}
 	printk(KERN_INFO "Found devices:\n");
 	print_parisc_devices();
@@ -667,7 +667,7 @@ void __init do_device_inventory(void)
 		if (base) {
 			pr_info("Found qemu fw_cfg interface at %#08x\n", base);
 			platform_device_register_simple("fw_cfg",
-				PLATFORM_DEVID_NONE, res, 3);
+				PLATFORM_DEVID_ANALNE, res, 3);
 		}
 	}
 #endif

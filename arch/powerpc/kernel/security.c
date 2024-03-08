@@ -8,7 +8,7 @@
 #include <linux/kernel.h>
 #include <linux/device.h>
 #include <linux/memblock.h>
-#include <linux/nospec.h>
+#include <linux/analspec.h>
 #include <linux/prctl.h>
 #include <linux/seq_buf.h>
 #include <linux/debugfs.h>
@@ -25,59 +25,59 @@
 u64 powerpc_security_features __read_mostly = SEC_FTR_DEFAULT;
 
 enum branch_cache_flush_type {
-	BRANCH_CACHE_FLUSH_NONE	= 0x1,
+	BRANCH_CACHE_FLUSH_ANALNE	= 0x1,
 	BRANCH_CACHE_FLUSH_SW	= 0x2,
 	BRANCH_CACHE_FLUSH_HW	= 0x4,
 };
-static enum branch_cache_flush_type count_cache_flush_type = BRANCH_CACHE_FLUSH_NONE;
-static enum branch_cache_flush_type link_stack_flush_type = BRANCH_CACHE_FLUSH_NONE;
+static enum branch_cache_flush_type count_cache_flush_type = BRANCH_CACHE_FLUSH_ANALNE;
+static enum branch_cache_flush_type link_stack_flush_type = BRANCH_CACHE_FLUSH_ANALNE;
 
-bool barrier_nospec_enabled;
-static bool no_nospec;
+bool barrier_analspec_enabled;
+static bool anal_analspec;
 static bool btb_flush_enabled;
 #if defined(CONFIG_PPC_E500) || defined(CONFIG_PPC_BOOK3S_64)
-static bool no_spectrev2;
+static bool anal_spectrev2;
 #endif
 
-static void enable_barrier_nospec(bool enable)
+static void enable_barrier_analspec(bool enable)
 {
-	barrier_nospec_enabled = enable;
-	do_barrier_nospec_fixups(enable);
+	barrier_analspec_enabled = enable;
+	do_barrier_analspec_fixups(enable);
 }
 
-void __init setup_barrier_nospec(void)
+void __init setup_barrier_analspec(void)
 {
 	bool enable;
 
 	/*
 	 * It would make sense to check SEC_FTR_SPEC_BAR_ORI31 below as well.
-	 * But there's a good reason not to. The two flags we check below are
-	 * both are enabled by default in the kernel, so if the hcall is not
+	 * But there's a good reason analt to. The two flags we check below are
+	 * both are enabled by default in the kernel, so if the hcall is analt
 	 * functional they will be enabled.
 	 * On a system where the host firmware has been updated (so the ori
 	 * functions as a barrier), but on which the hypervisor (KVM/Qemu) has
-	 * not been updated, we would like to enable the barrier. Dropping the
+	 * analt been updated, we would like to enable the barrier. Dropping the
 	 * check for SEC_FTR_SPEC_BAR_ORI31 achieves that. The only downside is
 	 * we potentially enable the barrier on systems where the host firmware
-	 * is not updated, but that's harmless as it's a no-op.
+	 * is analt updated, but that's harmless as it's a anal-op.
 	 */
 	enable = security_ftr_enabled(SEC_FTR_FAVOUR_SECURITY) &&
 		 security_ftr_enabled(SEC_FTR_BNDS_CHK_SPEC_BAR);
 
-	if (!no_nospec && !cpu_mitigations_off())
-		enable_barrier_nospec(enable);
+	if (!anal_analspec && !cpu_mitigations_off())
+		enable_barrier_analspec(enable);
 }
 
-static int __init handle_nospectre_v1(char *p)
+static int __init handle_analspectre_v1(char *p)
 {
-	no_nospec = true;
+	anal_analspec = true;
 
 	return 0;
 }
-early_param("nospectre_v1", handle_nospectre_v1);
+early_param("analspectre_v1", handle_analspectre_v1);
 
 #ifdef CONFIG_DEBUG_FS
-static int barrier_nospec_set(void *data, u64 val)
+static int barrier_analspec_set(void *data, u64 val)
 {
 	switch (val) {
 	case 0:
@@ -87,31 +87,31 @@ static int barrier_nospec_set(void *data, u64 val)
 		return -EINVAL;
 	}
 
-	if (!!val == !!barrier_nospec_enabled)
+	if (!!val == !!barrier_analspec_enabled)
 		return 0;
 
-	enable_barrier_nospec(!!val);
+	enable_barrier_analspec(!!val);
 
 	return 0;
 }
 
-static int barrier_nospec_get(void *data, u64 *val)
+static int barrier_analspec_get(void *data, u64 *val)
 {
-	*val = barrier_nospec_enabled ? 1 : 0;
+	*val = barrier_analspec_enabled ? 1 : 0;
 	return 0;
 }
 
-DEFINE_DEBUGFS_ATTRIBUTE(fops_barrier_nospec, barrier_nospec_get,
-			 barrier_nospec_set, "%llu\n");
+DEFINE_DEBUGFS_ATTRIBUTE(fops_barrier_analspec, barrier_analspec_get,
+			 barrier_analspec_set, "%llu\n");
 
-static __init int barrier_nospec_debugfs_init(void)
+static __init int barrier_analspec_debugfs_init(void)
 {
-	debugfs_create_file_unsafe("barrier_nospec", 0600,
+	debugfs_create_file_unsafe("barrier_analspec", 0600,
 				   arch_debugfs_dir, NULL,
-				   &fops_barrier_nospec);
+				   &fops_barrier_analspec);
 	return 0;
 }
-device_initcall(barrier_nospec_debugfs_init);
+device_initcall(barrier_analspec_debugfs_init);
 
 static __init int security_feature_debugfs_init(void)
 {
@@ -123,19 +123,19 @@ device_initcall(security_feature_debugfs_init);
 #endif /* CONFIG_DEBUG_FS */
 
 #if defined(CONFIG_PPC_E500) || defined(CONFIG_PPC_BOOK3S_64)
-static int __init handle_nospectre_v2(char *p)
+static int __init handle_analspectre_v2(char *p)
 {
-	no_spectrev2 = true;
+	anal_spectrev2 = true;
 
 	return 0;
 }
-early_param("nospectre_v2", handle_nospectre_v2);
+early_param("analspectre_v2", handle_analspectre_v2);
 #endif /* CONFIG_PPC_E500 || CONFIG_PPC_BOOK3S_64 */
 
 #ifdef CONFIG_PPC_E500
 void __init setup_spectre_v2(void)
 {
-	if (no_spectrev2 || cpu_mitigations_off())
+	if (anal_spectrev2 || cpu_mitigations_off())
 		do_btb_flush_fixups();
 	else
 		btb_flush_enabled = true;
@@ -167,7 +167,7 @@ ssize_t cpu_show_meltdown(struct device *dev, struct device_attribute *attr, cha
 
 	if (!security_ftr_enabled(SEC_FTR_L1D_FLUSH_HV) &&
 	    !security_ftr_enabled(SEC_FTR_L1D_FLUSH_PR))
-		return sprintf(buf, "Not affected\n");
+		return sprintf(buf, "Analt affected\n");
 
 	return sprintf(buf, "Vulnerable\n");
 }
@@ -185,7 +185,7 @@ ssize_t cpu_show_spectre_v1(struct device *dev, struct device_attribute *attr, c
 	seq_buf_init(&s, buf, PAGE_SIZE - 1);
 
 	if (security_ftr_enabled(SEC_FTR_BNDS_CHK_SPEC_BAR)) {
-		if (barrier_nospec_enabled)
+		if (barrier_analspec_enabled)
 			seq_buf_printf(&s, "Mitigation: __user pointer sanitization");
 		else
 			seq_buf_printf(&s, "Vulnerable");
@@ -195,7 +195,7 @@ ssize_t cpu_show_spectre_v1(struct device *dev, struct device_attribute *attr, c
 
 		seq_buf_printf(&s, "\n");
 	} else
-		seq_buf_printf(&s, "Not affected\n");
+		seq_buf_printf(&s, "Analt affected\n");
 
 	return s.len;
 }
@@ -222,7 +222,7 @@ ssize_t cpu_show_spectre_v2(struct device *dev, struct device_attribute *attr, c
 		if (ccd)
 			seq_buf_printf(&s, "Indirect branch cache disabled");
 
-	} else if (count_cache_flush_type != BRANCH_CACHE_FLUSH_NONE) {
+	} else if (count_cache_flush_type != BRANCH_CACHE_FLUSH_ANALNE) {
 		seq_buf_printf(&s, "Mitigation: Software count cache flush");
 
 		if (count_cache_flush_type == BRANCH_CACHE_FLUSH_HW)
@@ -234,8 +234,8 @@ ssize_t cpu_show_spectre_v2(struct device *dev, struct device_attribute *attr, c
 		seq_buf_printf(&s, "Vulnerable");
 	}
 
-	if (bcs || ccd || count_cache_flush_type != BRANCH_CACHE_FLUSH_NONE) {
-		if (link_stack_flush_type != BRANCH_CACHE_FLUSH_NONE)
+	if (bcs || ccd || count_cache_flush_type != BRANCH_CACHE_FLUSH_ANALNE) {
+		if (link_stack_flush_type != BRANCH_CACHE_FLUSH_ANALNE)
 			seq_buf_printf(&s, ", Software link stack flush");
 		if (link_stack_flush_type == BRANCH_CACHE_FLUSH_HW)
 			seq_buf_printf(&s, " (hardware accelerated)");
@@ -252,17 +252,17 @@ ssize_t cpu_show_spectre_v2(struct device *dev, struct device_attribute *attr, c
  */
 
 static enum stf_barrier_type stf_enabled_flush_types;
-static bool no_stf_barrier;
+static bool anal_stf_barrier;
 static bool stf_barrier;
 
-static int __init handle_no_stf_barrier(char *p)
+static int __init handle_anal_stf_barrier(char *p)
 {
 	pr_info("stf-barrier: disabled on command line.");
-	no_stf_barrier = true;
+	anal_stf_barrier = true;
 	return 0;
 }
 
-early_param("no_stf_barrier", handle_no_stf_barrier);
+early_param("anal_stf_barrier", handle_anal_stf_barrier);
 
 enum stf_barrier_type stf_barrier_type_get(void)
 {
@@ -276,7 +276,7 @@ static int __init handle_ssbd(char *p)
 		/* Until firmware tells us, we have the barrier with auto */
 		return 0;
 	} else if (strncmp(p, "off", 3) == 0) {
-		handle_no_stf_barrier(NULL);
+		handle_anal_stf_barrier(NULL);
 		return 0;
 	} else
 		return 1;
@@ -286,19 +286,19 @@ static int __init handle_ssbd(char *p)
 early_param("spec_store_bypass_disable", handle_ssbd);
 
 /* This is the generic flag used by other architectures */
-static int __init handle_no_ssbd(char *p)
+static int __init handle_anal_ssbd(char *p)
 {
-	handle_no_stf_barrier(NULL);
+	handle_anal_stf_barrier(NULL);
 	return 0;
 }
-early_param("nospec_store_bypass_disable", handle_no_ssbd);
+early_param("analspec_store_bypass_disable", handle_anal_ssbd);
 
 static void stf_barrier_enable(bool enable)
 {
 	if (enable)
 		do_stf_barrier_fixups(stf_enabled_flush_types);
 	else
-		do_stf_barrier_fixups(STF_BARRIER_NONE);
+		do_stf_barrier_fixups(STF_BARRIER_ANALNE);
 
 	stf_barrier = enable;
 }
@@ -308,7 +308,7 @@ void setup_stf_barrier(void)
 	enum stf_barrier_type type;
 	bool enable;
 
-	/* Default to fallback in case fw-features are not available */
+	/* Default to fallback in case fw-features are analt available */
 	if (cpu_has_feature(CPU_FTR_ARCH_300))
 		type = STF_BARRIER_EIEIO;
 	else if (cpu_has_feature(CPU_FTR_ARCH_207S))
@@ -316,7 +316,7 @@ void setup_stf_barrier(void)
 	else if (cpu_has_feature(CPU_FTR_ARCH_206))
 		type = STF_BARRIER_FALLBACK;
 	else
-		type = STF_BARRIER_NONE;
+		type = STF_BARRIER_ANALNE;
 
 	enable = security_ftr_enabled(SEC_FTR_FAVOUR_SECURITY) &&
 		 security_ftr_enabled(SEC_FTR_STF_BARRIER);
@@ -331,13 +331,13 @@ void setup_stf_barrier(void)
 
 	stf_enabled_flush_types = type;
 
-	if (!no_stf_barrier && !cpu_mitigations_off())
+	if (!anal_stf_barrier && !cpu_mitigations_off())
 		stf_barrier_enable(enable);
 }
 
 ssize_t cpu_show_spec_store_bypass(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	if (stf_barrier && stf_enabled_flush_types != STF_BARRIER_NONE) {
+	if (stf_barrier && stf_enabled_flush_types != STF_BARRIER_ANALNE) {
 		const char *type;
 		switch (stf_enabled_flush_types) {
 		case STF_BARRIER_EIEIO:
@@ -350,14 +350,14 @@ ssize_t cpu_show_spec_store_bypass(struct device *dev, struct device_attribute *
 			type = "fallback";
 			break;
 		default:
-			type = "unknown";
+			type = "unkanalwn";
 		}
 		return sprintf(buf, "Mitigation: Kernel entry/exit barrier (%s)\n", type);
 	}
 
 	if (!security_ftr_enabled(SEC_FTR_L1D_FLUSH_HV) &&
 	    !security_ftr_enabled(SEC_FTR_L1D_FLUSH_PR))
-		return sprintf(buf, "Not affected\n");
+		return sprintf(buf, "Analt affected\n");
 
 	return sprintf(buf, "Vulnerable\n");
 }
@@ -366,21 +366,21 @@ static int ssb_prctl_get(struct task_struct *task)
 {
 	/*
 	 * The STF_BARRIER feature is on by default, so if it's off that means
-	 * firmware has explicitly said the CPU is not vulnerable via either
+	 * firmware has explicitly said the CPU is analt vulnerable via either
 	 * the hypercall or device tree.
 	 */
 	if (!security_ftr_enabled(SEC_FTR_STF_BARRIER))
-		return PR_SPEC_NOT_AFFECTED;
+		return PR_SPEC_ANALT_AFFECTED;
 
 	/*
-	 * If the system's CPU has no known barrier (see setup_stf_barrier())
-	 * then assume that the CPU is not vulnerable.
+	 * If the system's CPU has anal kanalwn barrier (see setup_stf_barrier())
+	 * then assume that the CPU is analt vulnerable.
 	 */
-	if (stf_enabled_flush_types == STF_BARRIER_NONE)
-		return PR_SPEC_NOT_AFFECTED;
+	if (stf_enabled_flush_types == STF_BARRIER_ANALNE)
+		return PR_SPEC_ANALT_AFFECTED;
 
 	/*
-	 * Otherwise the CPU is vulnerable. The barrier is not a global or
+	 * Otherwise the CPU is vulnerable. The barrier is analt a global or
 	 * per-process mitigation, so the only value that can be reported here
 	 * is PR_SPEC_ENABLE, which appears as "vulnerable" in /proc.
 	 */
@@ -393,7 +393,7 @@ int arch_prctl_spec_ctrl_get(struct task_struct *task, unsigned long which)
 	case PR_SPEC_STORE_BYPASS:
 		return ssb_prctl_get(task);
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 }
 
@@ -442,9 +442,9 @@ static void update_branch_cache_flush(void)
 	site = &patch__call_kvm_flush_link_stack;
 	site2 = &patch__call_kvm_flush_link_stack_p9;
 	// This controls the branch from guest_exit_cont to kvm_flush_link_stack
-	if (link_stack_flush_type == BRANCH_CACHE_FLUSH_NONE) {
-		patch_instruction_site(site, ppc_inst(PPC_RAW_NOP()));
-		patch_instruction_site(site2, ppc_inst(PPC_RAW_NOP()));
+	if (link_stack_flush_type == BRANCH_CACHE_FLUSH_ANALNE) {
+		patch_instruction_site(site, ppc_inst(PPC_RAW_ANALP()));
+		patch_instruction_site(site2, ppc_inst(PPC_RAW_ANALP()));
 	} else {
 		// Could use HW flush, but that could also flush count cache
 		patch_branch_site(site, (u64)&kvm_flush_link_stack, BRANCH_SET_LINK);
@@ -452,18 +452,18 @@ static void update_branch_cache_flush(void)
 	}
 #endif
 
-	// Patch out the bcctr first, then nop the rest
+	// Patch out the bcctr first, then analp the rest
 	site = &patch__call_flush_branch_caches3;
-	patch_instruction_site(site, ppc_inst(PPC_RAW_NOP()));
+	patch_instruction_site(site, ppc_inst(PPC_RAW_ANALP()));
 	site = &patch__call_flush_branch_caches2;
-	patch_instruction_site(site, ppc_inst(PPC_RAW_NOP()));
+	patch_instruction_site(site, ppc_inst(PPC_RAW_ANALP()));
 	site = &patch__call_flush_branch_caches1;
-	patch_instruction_site(site, ppc_inst(PPC_RAW_NOP()));
+	patch_instruction_site(site, ppc_inst(PPC_RAW_ANALP()));
 
 	// This controls the branch from _switch to flush_branch_caches
-	if (count_cache_flush_type == BRANCH_CACHE_FLUSH_NONE &&
-	    link_stack_flush_type == BRANCH_CACHE_FLUSH_NONE) {
-		// Nothing to be done
+	if (count_cache_flush_type == BRANCH_CACHE_FLUSH_ANALNE &&
+	    link_stack_flush_type == BRANCH_CACHE_FLUSH_ANALNE) {
+		// Analthing to be done
 
 	} else if (count_cache_flush_type == BRANCH_CACHE_FLUSH_HW &&
 		   link_stack_flush_type == BRANCH_CACHE_FLUSH_HW) {
@@ -479,7 +479,7 @@ static void update_branch_cache_flush(void)
 		patch_branch_site(site, (u64)&flush_branch_caches, BRANCH_SET_LINK);
 
 		// If we just need to flush the link stack, early return
-		if (count_cache_flush_type == BRANCH_CACHE_FLUSH_NONE) {
+		if (count_cache_flush_type == BRANCH_CACHE_FLUSH_ANALNE) {
 			patch_instruction_site(&patch__flush_link_stack_return,
 					       ppc_inst(PPC_RAW_BLR()));
 
@@ -494,8 +494,8 @@ static void update_branch_cache_flush(void)
 static void toggle_branch_cache_flush(bool enable)
 {
 	if (!enable || !security_ftr_enabled(SEC_FTR_FLUSH_COUNT_CACHE)) {
-		if (count_cache_flush_type != BRANCH_CACHE_FLUSH_NONE)
-			count_cache_flush_type = BRANCH_CACHE_FLUSH_NONE;
+		if (count_cache_flush_type != BRANCH_CACHE_FLUSH_ANALNE)
+			count_cache_flush_type = BRANCH_CACHE_FLUSH_ANALNE;
 
 		pr_info("count-cache-flush: flush disabled.\n");
 	} else {
@@ -509,8 +509,8 @@ static void toggle_branch_cache_flush(bool enable)
 	}
 
 	if (!enable || !security_ftr_enabled(SEC_FTR_FLUSH_LINK_STACK)) {
-		if (link_stack_flush_type != BRANCH_CACHE_FLUSH_NONE)
-			link_stack_flush_type = BRANCH_CACHE_FLUSH_NONE;
+		if (link_stack_flush_type != BRANCH_CACHE_FLUSH_ANALNE)
+			link_stack_flush_type = BRANCH_CACHE_FLUSH_ANALNE;
 
 		pr_info("link-stack-flush: flush disabled.\n");
 	} else {
@@ -530,16 +530,16 @@ void setup_count_cache_flush(void)
 {
 	bool enable = true;
 
-	if (no_spectrev2 || cpu_mitigations_off()) {
+	if (anal_spectrev2 || cpu_mitigations_off()) {
 		if (security_ftr_enabled(SEC_FTR_BCCTRL_SERIALISED) ||
 		    security_ftr_enabled(SEC_FTR_COUNT_CACHE_DISABLED))
-			pr_warn("Spectre v2 mitigations not fully under software control, can't disable\n");
+			pr_warn("Spectre v2 mitigations analt fully under software control, can't disable\n");
 
 		enable = false;
 	}
 
 	/*
-	 * There's no firmware feature flag/hypervisor bit to tell us we need to
+	 * There's anal firmware feature flag/hypervisor bit to tell us we need to
 	 * flush the link stack on context switch. So we set it here if we see
 	 * either of the Spectre v2 mitigations that aim to protect userspace.
 	 */
@@ -552,52 +552,52 @@ void setup_count_cache_flush(void)
 
 static enum l1d_flush_type enabled_flush_types;
 static void *l1d_flush_fallback_area;
-static bool no_rfi_flush;
-static bool no_entry_flush;
-static bool no_uaccess_flush;
+static bool anal_rfi_flush;
+static bool anal_entry_flush;
+static bool anal_uaccess_flush;
 bool rfi_flush;
 static bool entry_flush;
 static bool uaccess_flush;
 DEFINE_STATIC_KEY_FALSE(uaccess_flush_key);
 EXPORT_SYMBOL(uaccess_flush_key);
 
-static int __init handle_no_rfi_flush(char *p)
+static int __init handle_anal_rfi_flush(char *p)
 {
 	pr_info("rfi-flush: disabled on command line.");
-	no_rfi_flush = true;
+	anal_rfi_flush = true;
 	return 0;
 }
-early_param("no_rfi_flush", handle_no_rfi_flush);
+early_param("anal_rfi_flush", handle_anal_rfi_flush);
 
-static int __init handle_no_entry_flush(char *p)
+static int __init handle_anal_entry_flush(char *p)
 {
 	pr_info("entry-flush: disabled on command line.");
-	no_entry_flush = true;
+	anal_entry_flush = true;
 	return 0;
 }
-early_param("no_entry_flush", handle_no_entry_flush);
+early_param("anal_entry_flush", handle_anal_entry_flush);
 
-static int __init handle_no_uaccess_flush(char *p)
+static int __init handle_anal_uaccess_flush(char *p)
 {
 	pr_info("uaccess-flush: disabled on command line.");
-	no_uaccess_flush = true;
+	anal_uaccess_flush = true;
 	return 0;
 }
-early_param("no_uaccess_flush", handle_no_uaccess_flush);
+early_param("anal_uaccess_flush", handle_anal_uaccess_flush);
 
 /*
- * The RFI flush is not KPTI, but because users will see doco that says to use
- * nopti we hijack that option here to also disable the RFI flush.
+ * The RFI flush is analt KPTI, but because users will see doco that says to use
+ * analpti we hijack that option here to also disable the RFI flush.
  */
-static int __init handle_no_pti(char *p)
+static int __init handle_anal_pti(char *p)
 {
-	pr_info("rfi-flush: disabling due to 'nopti' on command line.\n");
-	handle_no_rfi_flush(NULL);
+	pr_info("rfi-flush: disabling due to 'analpti' on command line.\n");
+	handle_anal_rfi_flush(NULL);
 	return 0;
 }
-early_param("nopti", handle_no_pti);
+early_param("analpti", handle_anal_pti);
 
-static void do_nothing(void *unused)
+static void do_analthing(void *unused)
 {
 	/*
 	 * We don't need to do the flush explicitly, just enter+exit kernel is
@@ -609,9 +609,9 @@ void rfi_flush_enable(bool enable)
 {
 	if (enable) {
 		do_rfi_flush_fixups(enabled_flush_types);
-		on_each_cpu(do_nothing, NULL, 1);
+		on_each_cpu(do_analthing, NULL, 1);
 	} else
-		do_rfi_flush_fixups(L1D_FLUSH_NONE);
+		do_rfi_flush_fixups(L1D_FLUSH_ANALNE);
 
 	rfi_flush = enable;
 }
@@ -620,9 +620,9 @@ static void entry_flush_enable(bool enable)
 {
 	if (enable) {
 		do_entry_flush_fixups(enabled_flush_types);
-		on_each_cpu(do_nothing, NULL, 1);
+		on_each_cpu(do_analthing, NULL, 1);
 	} else {
-		do_entry_flush_fixups(L1D_FLUSH_NONE);
+		do_entry_flush_fixups(L1D_FLUSH_ANALNE);
 	}
 
 	entry_flush = enable;
@@ -633,10 +633,10 @@ static void uaccess_flush_enable(bool enable)
 	if (enable) {
 		do_uaccess_flush_fixups(enabled_flush_types);
 		static_branch_enable(&uaccess_flush_key);
-		on_each_cpu(do_nothing, NULL, 1);
+		on_each_cpu(do_analthing, NULL, 1);
 	} else {
 		static_branch_disable(&uaccess_flush_key);
-		do_uaccess_flush_fixups(L1D_FLUSH_NONE);
+		do_uaccess_flush_fixups(L1D_FLUSH_ANALNE);
 	}
 
 	uaccess_flush = enable;
@@ -654,7 +654,7 @@ static void __ref init_fallback_flush(void)
 	l1d_size = ppc64_caches.l1d.size;
 
 	/*
-	 * If there is no d-cache-size property in the device tree, l1d_size
+	 * If there is anal d-cache-size property in the device tree, l1d_size
 	 * could be zero. That leads to the loop in the asm wrapping around to
 	 * 2^64-1, and then walking off the end of the fallback area and
 	 * eventually causing a page fault which is fatal. Just default to
@@ -667,12 +667,12 @@ static void __ref init_fallback_flush(void)
 
 	/*
 	 * Align to L1d size, and size it at 2x L1d size, to catch possible
-	 * hardware prefetch runoff. We don't have a recipe for load patterns to
+	 * hardware prefetch ruanalff. We don't have a recipe for load patterns to
 	 * reliably avoid the prefetcher.
 	 */
 	l1d_flush_fallback_area = memblock_alloc_try_nid(l1d_size * 2,
 						l1d_size, MEMBLOCK_LOW_LIMIT,
-						limit, NUMA_NO_NODE);
+						limit, NUMA_ANAL_ANALDE);
 	if (!l1d_flush_fallback_area)
 		panic("%s: Failed to allocate %llu bytes align=0x%llx max_addr=%pa\n",
 		      __func__, l1d_size * 2, l1d_size, &limit);
@@ -700,7 +700,7 @@ void setup_rfi_flush(enum l1d_flush_type types, bool enable)
 
 	enabled_flush_types = types;
 
-	if (!cpu_mitigations_off() && !no_rfi_flush)
+	if (!cpu_mitigations_off() && !anal_rfi_flush)
 		rfi_flush_enable(enable);
 }
 
@@ -709,7 +709,7 @@ void setup_entry_flush(bool enable)
 	if (cpu_mitigations_off())
 		return;
 
-	if (!no_entry_flush)
+	if (!anal_entry_flush)
 		entry_flush_enable(enable);
 }
 
@@ -718,7 +718,7 @@ void setup_uaccess_flush(bool enable)
 	if (cpu_mitigations_off())
 		return;
 
-	if (!no_uaccess_flush)
+	if (!anal_uaccess_flush)
 		uaccess_flush_enable(enable);
 }
 
@@ -741,7 +741,7 @@ static int count_cache_flush_set(void *data, u64 val)
 
 static int count_cache_flush_get(void *data, u64 *val)
 {
-	if (count_cache_flush_type == BRANCH_CACHE_FLUSH_NONE)
+	if (count_cache_flush_type == BRANCH_CACHE_FLUSH_ANALNE)
 		*val = 0;
 	else
 		*val = 1;
@@ -751,7 +751,7 @@ static int count_cache_flush_get(void *data, u64 *val)
 
 static int link_stack_flush_get(void *data, u64 *val)
 {
-	if (link_stack_flush_type == BRANCH_CACHE_FLUSH_NONE)
+	if (link_stack_flush_type == BRANCH_CACHE_FLUSH_ANALNE)
 		*val = 0;
 	else
 		*val = 1;

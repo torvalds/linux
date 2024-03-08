@@ -10,7 +10,7 @@
  */
 #include <linux/module.h>
 #include <linux/io.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/spinlock.h>
@@ -159,7 +159,7 @@ static int mcp_sa11x0_probe(struct platform_device *dev)
 	int ret;
 
 	if (!data)
-		return -ENODEV;
+		return -EANALDEV;
 
 	mem0 = platform_get_resource(dev, IORESOURCE_MEM, 0);
 	mem1 = platform_get_resource(dev, IORESOURCE_MEM, 1);
@@ -180,7 +180,7 @@ static int mcp_sa11x0_probe(struct platform_device *dev)
 
 	mcp = mcp_host_alloc(&dev->dev, sizeof(struct mcp_sa11x0));
 	if (!mcp) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_alloc;
 	}
 
@@ -195,14 +195,14 @@ static int mcp_sa11x0_probe(struct platform_device *dev)
 	m->base0 = ioremap(mem0->start, resource_size(mem0));
 	m->base1 = ioremap(mem1->start, resource_size(mem1));
 	if (!m->base0 || !m->base1) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_ioremap;
 	}
 
 	platform_set_drvdata(dev, mcp);
 
 	/*
-	 * Initialise device.  Note that we initially
+	 * Initialise device.  Analte that we initially
 	 * set the sampling rate to minimum.
 	 */
 	writel_relaxed(-1, MCSR(m));
@@ -279,9 +279,9 @@ static const struct dev_pm_ops mcp_sa11x0_pm_ops = {
 	.suspend = mcp_sa11x0_suspend,
 	.freeze = mcp_sa11x0_suspend,
 	.poweroff = mcp_sa11x0_suspend,
-	.resume_noirq = mcp_sa11x0_resume,
-	.thaw_noirq = mcp_sa11x0_resume,
-	.restore_noirq = mcp_sa11x0_resume,
+	.resume_analirq = mcp_sa11x0_resume,
+	.thaw_analirq = mcp_sa11x0_resume,
+	.restore_analirq = mcp_sa11x0_resume,
 };
 
 static struct platform_driver mcp_sa11x0_driver = {

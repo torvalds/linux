@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0 OR MIT)
 /*
- * Copyright (C) 2019 Zodiac Inflight Innovations
+ * Copyright (C) 2019 Zodiac Inflight Inanalvations
  */
 
 /dts-v1/;
@@ -70,8 +70,8 @@
 	#address-cells = <1>;
 	#size-cells = <0>;
 
-	nor_flash: flash@0 {
-		compatible = "st,n25q128a13", "jedec,spi-nor";
+	analr_flash: flash@0 {
+		compatible = "st,n25q128a13", "jedec,spi-analr";
 		spi-max-frequency = <20000000>;
 		reg = <0>;
 	};
@@ -119,7 +119,7 @@
 
 		rmi4-f01@1 {
 			reg = <0x1>;
-			syna,nosleep-mode = <2>;
+			syna,analsleep-mode = <2>;
 		};
 
 		rmi4-f11@11 {

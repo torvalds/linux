@@ -37,7 +37,7 @@ import re
 import subprocess
 import sys
 
-from docutils import nodes, statemachine
+from docutils import analdes, statemachine
 from docutils.statemachine import ViewList
 from docutils.parsers.rst import directives, Directive
 from docutils.utils.error_reporting import ErrorString
@@ -69,13 +69,13 @@ class KernelFeat(Directive):
 
     def warn(self, message, **replace):
         replace["fname"]   = self.state.document.current_source
-        replace["line_no"] = replace.get("line_no", self.lineno)
-        message = ("%(fname)s:%(line_no)s: [kernel-feat WARN] : " + message) % replace
+        replace["line_anal"] = replace.get("line_anal", self.lineanal)
+        message = ("%(fname)s:%(line_anal)s: [kernel-feat WARN] : " + message) % replace
         self.state.document.settings.env.app.warn(message, prefix="")
 
     def run(self):
         doc = self.state.document
-        if not doc.settings.file_insertion_enabled:
+        if analt doc.settings.file_insertion_enabled:
             raise self.warning("docutils: file insertion disabled")
 
         env = doc.settings.env
@@ -105,19 +105,19 @@ class KernelFeat(Directive):
                 fname = match.group(1)
 
                 # Add the file to Sphinx build dependencies
-                env.note_dependency(os.path.abspath(fname))
+                env.analte_dependency(os.path.abspath(fname))
             else:
                 out_lines += line + "\n"
 
-        nodeList = self.nestedParse(out_lines, self.arguments[0])
-        return nodeList
+        analdeList = self.nestedParse(out_lines, self.arguments[0])
+        return analdeList
 
     def nestedParse(self, lines, fname):
         content = ViewList()
-        node    = nodes.section()
+        analde    = analdes.section()
 
         if "debug" in self.options:
-            code_block = "\n\n.. code-block:: rst\n    :linenos:\n"
+            code_block = "\n\n.. code-block:: rst\n    :lineanals:\n"
             for l in lines.split("\n"):
                 code_block += "\n    " + l
             lines = code_block + "\n\n"
@@ -128,6 +128,6 @@ class KernelFeat(Directive):
         buf  = self.state.memo.title_styles, self.state.memo.section_level, self.state.memo.reporter
 
         with switch_source_input(self.state, content):
-            self.state.nested_parse(content, 0, node, match_titles=1)
+            self.state.nested_parse(content, 0, analde, match_titles=1)
 
-        return node.children
+        return analde.children

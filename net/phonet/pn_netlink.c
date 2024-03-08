@@ -4,9 +4,9 @@
  *
  * Phonet netlink interface
  *
- * Copyright (C) 2008 Nokia Corporation.
+ * Copyright (C) 2008 Analkia Corporation.
  *
- * Authors: Sakari Ailus <sakari.ailus@nokia.com>
+ * Authors: Sakari Ailus <sakari.ailus@analkia.com>
  *          Remi Denis-Courmont
  */
 
@@ -22,10 +22,10 @@
 static int fill_addr(struct sk_buff *skb, struct net_device *dev, u8 addr,
 		     u32 portid, u32 seq, int event);
 
-void phonet_address_notify(int event, struct net_device *dev, u8 addr)
+void phonet_address_analtify(int event, struct net_device *dev, u8 addr)
 {
 	struct sk_buff *skb;
-	int err = -ENOBUFS;
+	int err = -EANALBUFS;
 
 	skb = nlmsg_new(NLMSG_ALIGN(sizeof(struct ifaddrmsg)) +
 			nla_total_size(1), GFP_KERNEL);
@@ -37,7 +37,7 @@ void phonet_address_notify(int event, struct net_device *dev, u8 addr)
 		kfree_skb(skb);
 		goto errout;
 	}
-	rtnl_notify(skb, dev_net(dev), 0,
+	rtnl_analtify(skb, dev_net(dev), 0,
 		    RTNLGRP_PHONET_IFADDR, NULL, GFP_KERNEL);
 	return;
 errout:
@@ -81,14 +81,14 @@ static int addr_doit(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 	dev = __dev_get_by_index(net, ifm->ifa_index);
 	if (dev == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (nlh->nlmsg_type == RTM_NEWADDR)
 		err = phonet_address_add(dev, pnaddr);
 	else
 		err = phonet_address_del(dev, pnaddr);
 	if (!err)
-		phonet_address_notify(nlh->nlmsg_type, dev, pnaddr);
+		phonet_address_analtify(nlh->nlmsg_type, dev, pnaddr);
 	return err;
 }
 
@@ -188,10 +188,10 @@ nla_put_failure:
 	return -EMSGSIZE;
 }
 
-void rtm_phonet_notify(int event, struct net_device *dev, u8 dst)
+void rtm_phonet_analtify(int event, struct net_device *dev, u8 dst)
 {
 	struct sk_buff *skb;
-	int err = -ENOBUFS;
+	int err = -EANALBUFS;
 
 	skb = nlmsg_new(NLMSG_ALIGN(sizeof(struct ifaddrmsg)) +
 			nla_total_size(1) + nla_total_size(4), GFP_KERNEL);
@@ -203,7 +203,7 @@ void rtm_phonet_notify(int event, struct net_device *dev, u8 dst)
 		kfree_skb(skb);
 		goto errout;
 	}
-	rtnl_notify(skb, dev_net(dev), 0,
+	rtnl_analtify(skb, dev_net(dev), 0,
 			  RTNLGRP_PHONET_ROUTE, NULL, GFP_KERNEL);
 	return;
 errout:
@@ -249,14 +249,14 @@ static int route_doit(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 	dev = __dev_get_by_index(net, nla_get_u32(tb[RTA_OIF]));
 	if (dev == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (nlh->nlmsg_type == RTM_NEWROUTE)
 		err = phonet_route_add(dev, dst);
 	else
 		err = phonet_route_del(dev, dst);
 	if (!err)
-		rtm_phonet_notify(nlh->nlmsg_type, dev, dst);
+		rtm_phonet_analtify(nlh->nlmsg_type, dev, dst);
 	return err;
 }
 
@@ -291,7 +291,7 @@ int __init phonet_netlink_register(void)
 	if (err)
 		return err;
 
-	/* Further rtnl_register_module() cannot fail */
+	/* Further rtnl_register_module() cananalt fail */
 	rtnl_register_module(THIS_MODULE, PF_PHONET, RTM_DELADDR,
 			     addr_doit, NULL, 0);
 	rtnl_register_module(THIS_MODULE, PF_PHONET, RTM_GETADDR,

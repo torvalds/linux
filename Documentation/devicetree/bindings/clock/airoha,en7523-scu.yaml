@@ -11,20 +11,20 @@ maintainers:
   - John Crispin <nbd@nbd.name>
 
 description: |
-  This node defines the System Control Unit of the EN7523 SoC,
+  This analde defines the System Control Unit of the EN7523 SoC,
   a collection of registers configuring many different aspects of the SoC.
 
   The clock driver uses it to read and configure settings of the
   PLL controller, which provides clocks for the CPU, the bus and
   other SoC internal peripherals.
 
-  Each clock is assigned an identifier and client nodes use this identifier
+  Each clock is assigned an identifier and client analdes use this identifier
   to specify which clock they consume.
 
   All these identifiers can be found in:
   [1]: <include/dt-bindings/clock/en7523-clk.h>.
 
-  The clocks are provided inside a system controller node.
+  The clocks are provided inside a system controller analde.
 
 properties:
   compatible:

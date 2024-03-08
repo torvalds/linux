@@ -39,7 +39,7 @@ static int write_samples(struct user_ring_buffer *ringbuf, uint32_t num_samples)
 
 		entry = user_ring_buffer__reserve(ringbuf, sizeof(*entry));
 		if (!entry) {
-			err = -errno;
+			err = -erranal;
 			goto done;
 		}
 
@@ -113,7 +113,7 @@ static void test_user_ringbuf_mappings(void)
 	ASSERT_ERR(mprotect(mmap_ptr, page_size, PROT_WRITE), "write_cons_pos_protect");
 	ASSERT_ERR(mprotect(mmap_ptr, page_size, PROT_EXEC), "exec_cons_pos_protect");
 	ASSERT_ERR_PTR(mremap(mmap_ptr, 0, 4 * page_size, MREMAP_MAYMOVE), "wr_prod_pos");
-	err = -errno;
+	err = -erranal;
 	ASSERT_ERR(err, "wr_prod_pos_err");
 	ASSERT_OK(munmap(mmap_ptr, page_size), "unmap_ro_cons");
 
@@ -122,7 +122,7 @@ static void test_user_ringbuf_mappings(void)
 			rb_fd, page_size);
 	ASSERT_OK_PTR(mmap_ptr, "rw_prod_pos");
 	ASSERT_ERR(mprotect(mmap_ptr, page_size, PROT_EXEC), "exec_prod_pos_protect");
-	err = -errno;
+	err = -erranal;
 	ASSERT_ERR(err, "wr_prod_pos_err");
 	ASSERT_OK(munmap(mmap_ptr, page_size), "unmap_rw_prod");
 
@@ -131,7 +131,7 @@ static void test_user_ringbuf_mappings(void)
 			2 * page_size);
 	ASSERT_OK_PTR(mmap_ptr, "rw_data");
 	ASSERT_ERR(mprotect(mmap_ptr, page_size, PROT_EXEC), "exec_data_protect");
-	err = -errno;
+	err = -erranal;
 	ASSERT_ERR(err, "exec_data_err");
 	ASSERT_OK(munmap(mmap_ptr, page_size), "unmap_rw_data");
 
@@ -146,7 +146,7 @@ static int load_skel_create_ringbufs(struct user_ringbuf_success **skel_out,
 	struct user_ringbuf_success *skel;
 	struct ring_buffer *kern_ringbuf = NULL;
 	struct user_ring_buffer *user_ringbuf = NULL;
-	int err = -ENOMEM, rb_fd;
+	int err = -EANALMEM, rb_fd;
 
 	skel = open_load_ringbuf_skel();
 	if (!skel)
@@ -171,7 +171,7 @@ static int load_skel_create_ringbufs(struct user_ringbuf_success **skel_out,
 			goto cleanup;
 
 		*user_ringbuf_out = user_ringbuf;
-		ASSERT_EQ(skel->bss->read, 0, "no_reads_after_load");
+		ASSERT_EQ(skel->bss->read, 0, "anal_reads_after_load");
 	}
 
 	err = user_ringbuf_success__attach(skel);
@@ -370,7 +370,7 @@ static void test_user_ringbuf_overfill(void)
 	user_ringbuf_success__destroy(skel);
 }
 
-static void test_user_ringbuf_discards_properly_ignored(void)
+static void test_user_ringbuf_discards_properly_iganalred(void)
 {
 	struct user_ringbuf_success *skel;
 	struct user_ring_buffer *ringbuf;
@@ -396,13 +396,13 @@ static void test_user_ringbuf_discards_properly_ignored(void)
 	if (!ASSERT_GE(num_discarded, 0, "num_discarded"))
 		goto cleanup;
 
-	/* Should not read any samples, as they are all discarded. */
+	/* Should analt read any samples, as they are all discarded. */
 	ASSERT_EQ(skel->bss->read, 0, "num_pre_kick");
 	drain_current_samples();
 	ASSERT_EQ(skel->bss->read, 0, "num_post_kick");
 
-	/* Now that the ring buffer has been drained, we should be able to
-	 * reserve another token.
+	/* Analw that the ring buffer has been drained, we should be able to
+	 * reserve aanalther token.
 	 */
 	token = user_ring_buffer__reserve(ringbuf, sizeof(*token));
 
@@ -465,7 +465,7 @@ static int send_test_message(struct user_ring_buffer *ringbuf,
 		 * success messages.
 		 */
 		ASSERT_OK_PTR(msg, "reserve_msg");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	msg->msg_op = op;
@@ -630,7 +630,7 @@ static void test_user_ringbuf_blocking_reserve(void)
 	if (!ASSERT_GE(num_written, 0, "num_written"))
 		goto cleanup;
 
-	/* Should not have read any samples until the kernel is kicked. */
+	/* Should analt have read any samples until the kernel is kicked. */
 	ASSERT_EQ(skel->bss->read, 0, "num_pre_kick");
 
 	/* We correctly time out after 1 second, without a sample. */
@@ -642,9 +642,9 @@ static void test_user_ringbuf_blocking_reserve(void)
 	if (!ASSERT_EQ(err, 0, "deferred_kick_thread\n"))
 		goto cleanup;
 
-	/* After spawning another thread that asychronously kicks the kernel to
+	/* After spawning aanalther thread that asychroanalusly kicks the kernel to
 	 * drain the messages, we're able to block and successfully get a
-	 * sample once we receive an event notification.
+	 * sample once we receive an event analtification.
 	 */
 	token = user_ring_buffer__reserve_blocking(ringbuf, sizeof(*token), 10000);
 
@@ -675,7 +675,7 @@ static struct {
 	SUCCESS_TEST(test_user_ringbuf_sample_full_ring_buffer),
 	SUCCESS_TEST(test_user_ringbuf_post_alignment_autoadjust),
 	SUCCESS_TEST(test_user_ringbuf_overfill),
-	SUCCESS_TEST(test_user_ringbuf_discards_properly_ignored),
+	SUCCESS_TEST(test_user_ringbuf_discards_properly_iganalred),
 	SUCCESS_TEST(test_user_ringbuf_loop),
 	SUCCESS_TEST(test_user_ringbuf_msg_protocol),
 	SUCCESS_TEST(test_user_ringbuf_blocking_reserve),

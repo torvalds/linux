@@ -44,20 +44,20 @@ void quota_send_warning(struct kqid qid, dev_t dev,
 	int msg_size = 4 * nla_total_size(sizeof(u32)) +
 		       2 * nla_total_size_64bit(sizeof(u64));
 
-	/* We have to allocate using GFP_NOFS as we are called from a
+	/* We have to allocate using GFP_ANALFS as we are called from a
 	 * filesystem performing write and thus further recursion into
 	 * the fs to free some data could cause deadlocks. */
-	skb = genlmsg_new(msg_size, GFP_NOFS);
+	skb = genlmsg_new(msg_size, GFP_ANALFS);
 	if (!skb) {
 		printk(KERN_ERR
-		  "VFS: Not enough memory to send quota warning.\n");
+		  "VFS: Analt eanalugh memory to send quota warning.\n");
 		return;
 	}
 	msg_head = genlmsg_put(skb, 0, atomic_add_return(1, &seq),
 			&quota_genl_family, 0, QUOTA_NL_C_WARNING);
 	if (!msg_head) {
 		printk(KERN_ERR
-		  "VFS: Cannot store netlink header in quota warning.\n");
+		  "VFS: Cananalt store netlink header in quota warning.\n");
 		goto err_out;
 	}
 	ret = nla_put_u32(skb, QUOTA_NL_A_QTYPE, qid.type);
@@ -74,7 +74,7 @@ void quota_send_warning(struct kqid qid, dev_t dev,
 	ret = nla_put_u32(skb, QUOTA_NL_A_DEV_MAJOR, MAJOR(dev));
 	if (ret)
 		goto attr_err_out;
-	ret = nla_put_u32(skb, QUOTA_NL_A_DEV_MINOR, MINOR(dev));
+	ret = nla_put_u32(skb, QUOTA_NL_A_DEV_MIANALR, MIANALR(dev));
 	if (ret)
 		goto attr_err_out;
 	ret = nla_put_u64_64bit(skb, QUOTA_NL_A_CAUSED_ID,
@@ -84,10 +84,10 @@ void quota_send_warning(struct kqid qid, dev_t dev,
 		goto attr_err_out;
 	genlmsg_end(skb, msg_head);
 
-	genlmsg_multicast(&quota_genl_family, skb, 0, 0, GFP_NOFS);
+	genlmsg_multicast(&quota_genl_family, skb, 0, 0, GFP_ANALFS);
 	return;
 attr_err_out:
-	printk(KERN_ERR "VFS: Not enough space to compose quota message!\n");
+	printk(KERN_ERR "VFS: Analt eanalugh space to compose quota message!\n");
 err_out:
 	kfree_skb(skb);
 }

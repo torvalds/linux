@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -873,7 +873,7 @@ static void vega10_didt_set_mask(struct pp_hwmgr *hwmgr, const bool enable)
 		}
 	}
 
-	/* For Vega10, SMC does not support any mask yet. */
+	/* For Vega10, SMC does analt support any mask yet. */
 	if (enable)
 		smum_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_ConfigureGfxDidt, didt_block_info,
 						NULL);
@@ -1255,7 +1255,7 @@ void vega10_initialize_power_tune_defaults(struct pp_hwmgr *hwmgr)
 	table->TplxLimit = cpu_to_le16(tdp_table->usTemperatureLimitPlx);
 	table->LoadLineResistance =
 			hwmgr->platform_descriptor.LoadLineSlope * 256;
-	table->FitLimit = 0; /* Not used for Vega10 */
+	table->FitLimit = 0; /* Analt used for Vega10 */
 
 	table->Liquid1_I2C_address = tdp_table->ucLiquid1_I2C_address;
 	table->Liquid2_I2C_address = tdp_table->ucLiquid2_I2C_address;
@@ -1295,7 +1295,7 @@ int vega10_enable_power_containment(struct pp_hwmgr *hwmgr)
 	hwmgr->default_power_limit = hwmgr->power_limit =
 			(uint32_t)(tdp_table->usMaximumPowerDeliveryLimit);
 
-	if (!hwmgr->not_vf)
+	if (!hwmgr->analt_vf)
 		return 0;
 
 	if (PP_CAP(PHM_PlatformCaps_PowerContainment)) {

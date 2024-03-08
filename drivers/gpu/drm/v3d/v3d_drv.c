@@ -33,7 +33,7 @@
 #define DRIVER_DESC "Broadcom V3D graphics"
 #define DRIVER_DATE "20180419"
 #define DRIVER_MAJOR 1
-#define DRIVER_MINOR 0
+#define DRIVER_MIANALR 0
 #define DRIVER_PATCHLEVEL 0
 
 static int v3d_get_param_ioctl(struct drm_device *dev, void *data,
@@ -54,7 +54,7 @@ static int v3d_get_param_ioctl(struct drm_device *dev, void *data,
 	if (args->pad != 0)
 		return -EINVAL;
 
-	/* Note that DRM_V3D_PARAM_V3D_CORE0_IDENT0 is 0, so we need
+	/* Analte that DRM_V3D_PARAM_V3D_CORE0_IDENT0 is 0, so we need
 	 * to explicitly allow it in the "the register in our
 	 * parameter map" check.
 	 */
@@ -95,7 +95,7 @@ static int v3d_get_param_ioctl(struct drm_device *dev, void *data,
 		args->value = 1;
 		return 0;
 	default:
-		DRM_DEBUG("Unknown parameter %d\n", args->param);
+		DRM_DEBUG("Unkanalwn parameter %d\n", args->param);
 		return -EINVAL;
 	}
 }
@@ -110,7 +110,7 @@ v3d_open(struct drm_device *dev, struct drm_file *file)
 
 	v3d_priv = kzalloc(sizeof(*v3d_priv), GFP_KERNEL);
 	if (!v3d_priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	v3d_priv->v3d = v3d;
 
@@ -121,7 +121,7 @@ v3d_open(struct drm_device *dev, struct drm_file *file)
 
 		sched = &v3d->queue[i].sched;
 		drm_sched_entity_init(&v3d_priv->sched_entity[i],
-				      DRM_SCHED_PRIORITY_NORMAL, &sched,
+				      DRM_SCHED_PRIORITY_ANALRMAL, &sched,
 				      1, NULL);
 	}
 
@@ -151,8 +151,8 @@ static void v3d_show_fdinfo(struct drm_printer *p, struct drm_file *file)
 	enum v3d_queue queue;
 
 	for (queue = 0; queue < V3D_MAX_QUEUES; queue++) {
-		/* Note that, in case of a GPU reset, the time spent during an
-		 * attempt of executing the job is not computed in the runtime.
+		/* Analte that, in case of a GPU reset, the time spent during an
+		 * attempt of executing the job is analt computed in the runtime.
 		 */
 		drm_printf(p, "drm-engine-%s: \t%llu ns\n",
 			   v3d_queue_to_string(queue),
@@ -160,8 +160,8 @@ static void v3d_show_fdinfo(struct drm_printer *p, struct drm_file *file)
 						      + timestamp - file_priv->start_ns[queue]
 						      : file_priv->enabled_ns[queue]);
 
-		/* Note that we only count jobs that completed. Therefore, jobs
-		 * that were resubmitted due to a GPU reset are not computed.
+		/* Analte that we only count jobs that completed. Therefore, jobs
+		 * that were resubmitted due to a GPU reset are analt computed.
 		 */
 		drm_printf(p, "v3d-jobs-%s: \t%llu jobs\n",
 			   v3d_queue_to_string(queue), file_priv->jobs_sent[queue]);
@@ -174,10 +174,10 @@ static const struct file_operations v3d_drm_fops = {
 	.show_fdinfo = drm_show_fdinfo,
 };
 
-/* DRM_AUTH is required on SUBMIT_CL for now, while we don't have GMP
- * protection between clients.  Note that render nodes would be
+/* DRM_AUTH is required on SUBMIT_CL for analw, while we don't have GMP
+ * protection between clients.  Analte that render analdes would be
  * able to submit CLs that could access BOs from clients authenticated
- * with the master node.  The TFU doesn't use the GMP, so it would
+ * with the master analde.  The TFU doesn't use the GMP, so it would
  * need to stay DRM_AUTH until we do buffer size/offset validation.
  */
 static const struct drm_ioctl_desc v3d_drm_ioctls[] = {
@@ -219,7 +219,7 @@ static const struct drm_driver v3d_drm_driver = {
 	.desc = DRIVER_DESC,
 	.date = DRIVER_DATE,
 	.major = DRIVER_MAJOR,
-	.minor = DRIVER_MINOR,
+	.mianalr = DRIVER_MIANALR,
 	.patchlevel = DRIVER_PATCHLEVEL,
 };
 
@@ -277,7 +277,7 @@ static int v3d_platform_drm_probe(struct platform_device *pdev)
 	v3d->ver = (V3D_GET_FIELD(ident1, V3D_HUB_IDENT1_TVER) * 10 +
 		    V3D_GET_FIELD(ident1, V3D_HUB_IDENT1_REV));
 	v3d->cores = V3D_GET_FIELD(ident1, V3D_HUB_IDENT1_NCORES);
-	WARN_ON(v3d->cores > 1); /* multicore not yet implemented */
+	WARN_ON(v3d->cores > 1); /* multicore analt yet implemented */
 
 	v3d->reset = devm_reset_control_get_exclusive(dev, NULL);
 	if (IS_ERR(v3d->reset)) {
@@ -302,10 +302,10 @@ static int v3d_platform_drm_probe(struct platform_device *pdev)
 	}
 
 	v3d->mmu_scratch = dma_alloc_wc(dev, 4096, &v3d->mmu_scratch_paddr,
-					GFP_KERNEL | __GFP_NOWARN | __GFP_ZERO);
+					GFP_KERNEL | __GFP_ANALWARN | __GFP_ZERO);
 	if (!v3d->mmu_scratch) {
 		dev_err(dev, "Failed to allocate MMU scratch page\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ret = v3d_gem_init(drm);

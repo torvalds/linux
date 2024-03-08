@@ -10,7 +10,7 @@
  */
 
 #include <asm/unaligned.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
@@ -50,8 +50,8 @@
 #define QT2_MODEM_STATUS    0x01  /* following 1 byte is modem status */
 #define QT2_XMIT_HOLD       0x02  /* following 2 bytes are ?? */
 #define QT2_CHANGE_PORT     0x03  /* following 1 byte is port to change to */
-#define QT2_REC_FLUSH       0x04  /* no following info */
-#define QT2_XMIT_FLUSH      0x05  /* no following info */
+#define QT2_REC_FLUSH       0x04  /* anal following info */
+#define QT2_XMIT_FLUSH      0x05  /* anal following info */
 #define QT2_CONTROL_ESCAPE  0xff  /* pass through previous 2 control bytes */
 
 #define  MAX_BAUD_RATE              921600
@@ -214,8 +214,8 @@ static inline int update_mctrl(struct qt2_port_private *port_priv,
 
 	if (((set | clear) & (TIOCM_DTR | TIOCM_RTS)) == 0) {
 		dev_dbg(&port->dev,
-			"update_mctrl - DTR|RTS not being set|cleared\n");
-		return 0;	/* no change */
+			"update_mctrl - DTR|RTS analt being set|cleared\n");
+		return 0;	/* anal change */
 	}
 
 	clear &= ~set;	/* 'set' takes precedence over 'clear' */
@@ -247,7 +247,7 @@ static int qt2_calc_num_ports(struct usb_serial *serial,
 
 	/* we didn't recognize the device */
 	dev_err(&serial->dev->dev,
-		 "don't know the number of ports, assuming 1\n");
+		 "don't kanalw the number of ports, assuming 1\n");
 
 	return 1;
 }
@@ -338,7 +338,7 @@ static int qt2_open(struct tty_struct *tty, struct usb_serial_port *port)
 
 	data = kzalloc(2, GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* open the port */
 	status = usb_control_msg(serial->dev,
@@ -535,7 +535,7 @@ static void qt2_process_read_urb(struct urb *urb)
 				continue;
 		}
 
-		tty_insert_flip_char(&port->port, *ch, TTY_NORMAL);
+		tty_insert_flip_char(&port->port, *ch, TTY_ANALRMAL);
 	}
 
 	tty_flip_buffer_push(&port->port);
@@ -566,7 +566,7 @@ static void qt2_read_bulk_callback(struct urb *urb)
 
 	if (urb->status) {
 		dev_warn(&serial->dev->dev,
-			 "%s - non-zero urb status: %i\n", __func__,
+			 "%s - analn-zero urb status: %i\n", __func__,
 			 urb->status);
 		return;
 	}
@@ -591,7 +591,7 @@ static int qt2_setup_urbs(struct usb_serial *serial)
 	serial_priv = usb_get_serial_data(serial);
 	serial_priv->read_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!serial_priv->read_urb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	usb_fill_bulk_urb(serial_priv->read_urb, serial->dev,
 			  usb_rcvbulkpipe(serial->dev,
@@ -628,11 +628,11 @@ static int qt2_attach(struct usb_serial *serial)
 
 	serial_priv = kzalloc(sizeof(*serial_priv), GFP_KERNEL);
 	if (!serial_priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	serial_priv->read_buffer = kmalloc(QT2_READ_BUFFER_SIZE, GFP_KERNEL);
 	if (!serial_priv->read_buffer) {
-		status = -ENOMEM;
+		status = -EANALMEM;
 		goto err_buf;
 	}
 
@@ -659,7 +659,7 @@ static int qt2_port_probe(struct usb_serial_port *port)
 
 	port_priv = kzalloc(sizeof(*port_priv), GFP_KERNEL);
 	if (!port_priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&port_priv->lock);
 	spin_lock_init(&port_priv->urb_lock);
@@ -687,7 +687,7 @@ err_urb:
 	kfree(port_priv->write_buffer);
 err_buf:
 	kfree(port_priv);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void qt2_port_remove(struct usb_serial_port *port)
@@ -710,7 +710,7 @@ static int qt2_tiocmget(struct tty_struct *tty)
 
 	d = kzalloc(2, GFP_KERNEL);
 	if (!d)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	r = qt2_getregister(dev, port_priv->device_port, UART_MCR, d);
 	if (r < 0)
@@ -887,7 +887,7 @@ static int qt2_write(struct tty_struct *tty,
 	port_priv = usb_get_serial_port_data(port);
 
 	if (port_priv->write_urb == NULL) {
-		dev_err(&port->dev, "%s - no output urb\n", __func__);
+		dev_err(&port->dev, "%s - anal output urb\n", __func__);
 		return 0;
 	}
 	write_urb = port_priv->write_urb;

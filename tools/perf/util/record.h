@@ -14,10 +14,10 @@ struct option;
 struct record_opts {
 	struct target target;
 	bool	      inherit_stat;
-	bool	      no_buffering;
-	bool	      no_inherit;
-	bool	      no_inherit_set;
-	bool	      no_samples;
+	bool	      anal_buffering;
+	bool	      anal_inherit;
+	bool	      anal_inherit_set;
+	bool	      anal_samples;
 	bool	      raw_samples;
 	bool	      sample_address;
 	bool	      sample_phys_addr;
@@ -45,10 +45,10 @@ struct record_opts {
 	bool	      user_callchains;
 	bool	      tail_synthesize;
 	bool	      overwrite;
-	bool	      ignore_missing_thread;
+	bool	      iganalre_missing_thread;
 	bool	      strict_freq;
 	bool	      sample_id;
-	bool	      no_bpf_event;
+	bool	      anal_bpf_event;
 	bool	      kcore;
 	bool	      text_poke;
 	bool	      build_id;
@@ -86,7 +86,7 @@ extern struct option *record_options;
 
 int record__parse_freq(const struct option *opt, const char *str, int unset);
 
-static inline bool record_opts__no_switch_events(const struct record_opts *opts)
+static inline bool record_opts__anal_switch_events(const struct record_opts *opts)
 {
 	return opts->record_switch_events_set && !opts->record_switch_events;
 }

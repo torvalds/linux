@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 /*
  * PTP 1588 clock support - user space interface
  *
@@ -15,7 +15,7 @@
  *  GNU General Public License for more details.
  *
  *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
+ *  along with this program; if analt, write to the Free Software
  *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
@@ -44,7 +44,7 @@
 
 /*
  * flag fields valid for the original PTP_EXTTS_REQUEST ioctl.
- * DO NOT ADD NEW FLAGS HERE.
+ * DO ANALT ADD NEW FLAGS HERE.
  */
 #define PTP_EXTTS_V1_VALID_FLAGS	(PTP_ENABLE_FEATURE |	\
 					 PTP_RISING_EDGE |	\
@@ -65,7 +65,7 @@
 					 PTP_PEROUT_PHASE)
 
 /*
- * No flags are valid for the original PTP_PEROUT_REQUEST ioctl
+ * Anal flags are valid for the original PTP_PEROUT_REQUEST ioctl
  */
 #define PTP_PEROUT_V1_VALID_FLAGS	(0)
 
@@ -73,14 +73,14 @@
  * struct ptp_clock_time - represents a time value
  *
  * The sign of the seconds field applies to the whole value. The
- * nanoseconds field is always unsigned. The reserved field is
- * included for sub-nanosecond resolution, should the demand for
+ * naanalseconds field is always unsigned. The reserved field is
+ * included for sub-naanalsecond resolution, should the demand for
  * this ever appear.
  *
  */
 struct ptp_clock_time {
 	__s64 sec;  /* seconds */
-	__u32 nsec; /* nanoseconds */
+	__u32 nsec; /* naanalseconds */
 	__u32 reserved;
 };
 
@@ -95,7 +95,7 @@ struct ptp_clock_caps {
 	int cross_timestamping;
 	/* Whether the clock supports adjust phase */
 	int adjust_phase;
-	int max_phase_adj; /* Maximum phase adjustment in nanoseconds. */
+	int max_phase_adj; /* Maximum phase adjustment in naanalseconds. */
 	int rsv[11];       /* Reserved for future use. */
 };
 
@@ -161,12 +161,12 @@ struct ptp_sys_offset_extended {
 struct ptp_sys_offset_precise {
 	struct ptp_clock_time device;
 	struct ptp_clock_time sys_realtime;
-	struct ptp_clock_time sys_monoraw;
+	struct ptp_clock_time sys_moanalraw;
 	unsigned int rsv[4];    /* Reserved for future use. */
 };
 
 enum ptp_pin_function {
-	PTP_PF_NONE,
+	PTP_PF_ANALNE,
 	PTP_PF_EXTTS,
 	PTP_PF_PEROUT,
 	PTP_PF_PHYSYNC,
@@ -176,7 +176,7 @@ struct ptp_pin_desc {
 	/*
 	 * Hardware specific human readable pin name. This field is
 	 * set by the kernel during the PTP_PIN_GETFUNC ioctl and is
-	 * ignored for the PTP_PIN_SETFUNC ioctl.
+	 * iganalred for the PTP_PIN_SETFUNC ioctl.
 	 */
 	char name[64];
 	/*

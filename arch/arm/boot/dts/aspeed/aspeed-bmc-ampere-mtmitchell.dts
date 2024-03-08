@@ -81,7 +81,7 @@
 		};
 
 		vga_memory: region@bf000000 {
-			no-map;
+			anal-map;
 			compatible = "shared-dma-pool";
 			reg = <0xbf000000 0x01000000>;  /* 16M */
 		};
@@ -346,7 +346,7 @@
 	flash@0 {
 		status = "okay";
 		m25p,fast-read;
-		label = "pnor";
+		label = "panalr";
 		spi-max-frequency = <20000000>;
 	};
 };
@@ -849,7 +849,7 @@
 	/*J0-J7*/	"","","","","","","","",
 	/*K0-K7*/	"","","","","","","","",
 	/*L0-L7*/	"","","","","","","","",
-	/*M0-M7*/	"","s0-ddr-save","soc-spi-nor-access","presence-cpu0",
+	/*M0-M7*/	"","s0-ddr-save","soc-spi-analr-access","presence-cpu0",
 			"s0-rtc-lock","","","",
 	/*N0-N7*/	"hpm-fw-recovery","hpm-stby-rst-n","jtag-sel-s0","led-sw-hb",
 			"jtag-dbgr-prsnt-n","s1-heartbeat","","",
@@ -859,7 +859,7 @@
 	/*Q0-Q7*/	"","","","","","","","",
 	/*R0-R7*/	"","","","","","","","",
 	/*S0-S7*/	"","","identify-button","led-identify",
-			"s1-ddr-save","spi-nor-access","host0-ready","presence-cpu1",
+			"s1-ddr-save","spi-analr-access","host0-ready","presence-cpu1",
 	/*T0-T7*/	"","","","","","","","",
 	/*U0-U7*/	"","","","","","","","",
 	/*V0-V7*/	"s0-hightemp-n","s0-fault-alert","s0-sys-auth-failure-n",

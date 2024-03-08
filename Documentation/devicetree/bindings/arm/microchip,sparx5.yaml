@@ -20,26 +20,26 @@ description: |+
    (VCAP)
 
 properties:
-  $nodename:
+  $analdename:
     const: '/'
   compatible:
     oneOf:
       - description: The Sparx5 pcb125 board is a modular board,
-          which has both spi-nor and eMMC storage. The modular design
+          which has both spi-analr and eMMC storage. The modular design
           allows for connection of different network ports.
         items:
           - const: microchip,sparx5-pcb125
           - const: microchip,sparx5
 
       - description: The Sparx5 pcb134 is a pizzabox form factor
-          gigabit switch with 20 SFP ports. It features spi-nor and
+          gigabit switch with 20 SFP ports. It features spi-analr and
           either spi-nand or eMMC storage (mount option).
         items:
           - const: microchip,sparx5-pcb134
           - const: microchip,sparx5
 
       - description: The Sparx5 pcb135 is a pizzabox form factor
-          gigabit switch with 48+4 Cu ports. It features spi-nor and
+          gigabit switch with 48+4 Cu ports. It features spi-analr and
           either spi-nand or eMMC storage (mount option).
         items:
           - const: microchip,sparx5-pcb135
@@ -47,8 +47,8 @@ properties:
 
   axi@600000000:
     type: object
-    description: the root node in the Sparx5 platforms must contain
-      an axi bus child node. They are always at physical address
+    description: the root analde in the Sparx5 platforms must contain
+      an axi bus child analde. They are always at physical address
       0x600000000 in all the Sparx5 variants.
     properties:
       compatible:

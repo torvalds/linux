@@ -6,7 +6,7 @@
  * Copyright (C) 2016 Alexander Kurz <akurz@blala.de>
  *
  * Components from Maxim AL32 Charger detection Driver for MX50 Yoshi Board
- * Copyright (C) Amazon Technologies Inc. All rights reserved.
+ * Copyright (C) Amazon Techanallogies Inc. All rights reserved.
  * Manish Lachwani (lachwani@lab126.com)
  */
 #include <linux/module.h>
@@ -50,7 +50,7 @@
 #define CONTROL3_DEFAULT	0x8d
 
 enum max14656_chg_type {
-	MAX14656_NO_CHARGER	= 0,
+	MAX14656_ANAL_CHARGER	= 0,
 	MAX14656_SDP_CHARGER,
 	MAX14656_CDP_CHARGER,
 	MAX14656_DCP_CHARGER,
@@ -65,7 +65,7 @@ enum max14656_chg_type {
 static const struct max14656_chg_type_props {
 	enum power_supply_type type;
 } chg_type_props[] = {
-	{ POWER_SUPPLY_TYPE_UNKNOWN },
+	{ POWER_SUPPLY_TYPE_UNKANALWN },
 	{ POWER_SUPPLY_TYPE_USB },
 	{ POWER_SUPPLY_TYPE_USB_CDP },
 	{ POWER_SUPPLY_TYPE_USB_DCP },
@@ -148,11 +148,11 @@ static void max14656_irq_worker(struct work_struct *work)
 		if (chg_type < MAX14656_CHARGER_LAST)
 			chip->psy_desc.type = chg_type_props[chg_type].type;
 		else
-			chip->psy_desc.type = POWER_SUPPLY_TYPE_UNKNOWN;
+			chip->psy_desc.type = POWER_SUPPLY_TYPE_UNKANALWN;
 		chip->online = 1;
 	} else {
 		chip->online = 0;
-		chip->psy_desc.type = POWER_SUPPLY_TYPE_UNKNOWN;
+		chip->psy_desc.type = POWER_SUPPLY_TYPE_UNKANALWN;
 	}
 
 	power_supply_changed(chip->detect_psy);
@@ -174,12 +174,12 @@ static int max14656_hw_init(struct max14656_chip *chip)
 	struct i2c_client *client = chip->client;
 
 	if (max14656_read_reg(client, MAX14656_DEVICE_ID, &val))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if ((val & DEVICE_VENDOR_MASK) != 0x20) {
 		dev_err(&client->dev, "wrong vendor ID %d\n",
 			((val & DEVICE_VENDOR_MASK) >> 4));
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	rev = val & DEVICE_REV_MASK;
 
@@ -245,23 +245,23 @@ static int max14656_probe(struct i2c_client *client)
 
 	if (irq <= 0) {
 		dev_err(dev, "invalid irq number: %d\n", irq);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA)) {
-		dev_err(dev, "No support for SMBUS_BYTE_DATA\n");
-		return -ENODEV;
+		dev_err(dev, "Anal support for SMBUS_BYTE_DATA\n");
+		return -EANALDEV;
 	}
 
 	chip = devm_kzalloc(dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	psy_cfg.drv_data = chip;
 	chip->client = client;
 	chip->online = 0;
 	chip->psy_desc.name = MAX14656_NAME;
-	chip->psy_desc.type = POWER_SUPPLY_TYPE_UNKNOWN;
+	chip->psy_desc.type = POWER_SUPPLY_TYPE_UNKANALWN;
 	chip->psy_desc.properties = max14656_battery_props;
 	chip->psy_desc.num_properties = ARRAY_SIZE(max14656_battery_props);
 	chip->psy_desc.get_property = max14656_get_property;
@@ -269,7 +269,7 @@ static int max14656_probe(struct i2c_client *client)
 
 	ret = max14656_hw_init(chip);
 	if (ret)
-		return -ENODEV;
+		return -EANALDEV;
 
 	chip->detect_psy = devm_power_supply_register(dev,
 		       &chip->psy_desc, &psy_cfg);

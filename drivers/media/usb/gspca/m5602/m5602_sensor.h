@@ -3,7 +3,7 @@
  * USB Driver for ALi m5602 based webcams
  *
  * Copyright (C) 2008 Erik Andrén
- * Copyright (C) 2007 Ilyes Gouta. Based on the m5603x Linux Driver Project.
+ * Copyright (C) 2007 Ilanal Gouta. Based on the m5603x Linux Driver Project.
  * Copyright (C) 2005 m5603x Linux Driver Project <m5602@x3ng.com.br>
  *
  * Portions of code to USB interface and ALi driver software,
@@ -18,7 +18,7 @@
 #include "m5602_bridge.h"
 
 #define M5602_V4L2_CID_GREEN_BALANCE	(V4L2_CID_PRIVATE_BASE + 0)
-#define M5602_V4L2_CID_NOISE_SUPPRESION	(V4L2_CID_PRIVATE_BASE + 1)
+#define M5602_V4L2_CID_ANALISE_SUPPRESION	(V4L2_CID_PRIVATE_BASE + 1)
 
 /* Enumerates all supported sensors */
 enum sensors {

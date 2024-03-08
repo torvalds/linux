@@ -511,7 +511,7 @@ struct sev_data_dbg {
  * struct sev_data_attestation_report - SEV_ATTESTATION_REPORT command parameters
  *
  * @handle: handle of the VM
- * @mnonce: a random nonce that will be included in the report.
+ * @manalnce: a random analnce that will be included in the report.
  * @address: physical address where the report will be copied.
  * @len: length of the physical buffer.
  */
@@ -519,7 +519,7 @@ struct sev_data_attestation_report {
 	u32 handle;				/* In */
 	u32 reserved;
 	u64 address;				/* In */
-	u8 mnonce[16];				/* In */
+	u8 manalnce[16];				/* In */
 	u32 len;				/* In/Out */
 } __packed;
 
@@ -532,10 +532,10 @@ struct sev_data_attestation_report {
  *
  * Returns:
  * 0 if the SEV successfully processed the command
- * -%ENODEV    if the SEV device is not available
- * -%ENOTSUPP  if the SEV does not support SEV
+ * -%EANALDEV    if the SEV device is analt available
+ * -%EANALTSUPP  if the SEV does analt support SEV
  * -%ETIMEDOUT if the SEV command timed out
- * -%EIO       if the SEV returned a non-zero return code
+ * -%EIO       if the SEV returned a analn-zero return code
  */
 int sev_platform_init(int *error);
 
@@ -547,10 +547,10 @@ int sev_platform_init(int *error);
  *
  * Returns:
  * 0 if the SEV successfully processed the command
- * -%ENODEV    if the SEV device is not available
- * -%ENOTSUPP  if the SEV does not support SEV
+ * -%EANALDEV    if the SEV device is analt available
+ * -%EANALTSUPP  if the SEV does analt support SEV
  * -%ETIMEDOUT if the SEV command timed out
- * -%EIO       if the SEV returned a non-zero return code
+ * -%EIO       if the SEV returned a analn-zero return code
  */
 int sev_platform_status(struct sev_user_data_status *status, int *error);
 
@@ -560,7 +560,7 @@ int sev_platform_status(struct sev_user_data_status *status, int *error);
  *
  * This function can be used by other drivers to issue a SEV command on
  * behalf of userspace. The caller must pass a valid SEV file descriptor
- * so that we know that it has access to SEV device.
+ * so that we kanalw that it has access to SEV device.
  *
  * @filep - SEV device file pointer
  * @cmd - command to issue
@@ -569,11 +569,11 @@ int sev_platform_status(struct sev_user_data_status *status, int *error);
  *
  * Returns:
  * 0 if the SEV successfully processed the command
- * -%ENODEV    if the SEV device is not available
- * -%ENOTSUPP  if the SEV does not support SEV
+ * -%EANALDEV    if the SEV device is analt available
+ * -%EANALTSUPP  if the SEV does analt support SEV
  * -%ETIMEDOUT if the SEV command timed out
- * -%EIO       if the SEV returned a non-zero return code
- * -%EINVAL    if the SEV file descriptor is not valid
+ * -%EIO       if the SEV returned a analn-zero return code
+ * -%EINVAL    if the SEV file descriptor is analt valid
  */
 int sev_issue_cmd_external_user(struct file *filep, unsigned int id,
 				void *data, int *error);
@@ -586,10 +586,10 @@ int sev_issue_cmd_external_user(struct file *filep, unsigned int id,
  *
  * Returns:
  * 0 if the sev successfully processed the command
- * -%ENODEV    if the sev device is not available
- * -%ENOTSUPP  if the sev does not support SEV
+ * -%EANALDEV    if the sev device is analt available
+ * -%EANALTSUPP  if the sev does analt support SEV
  * -%ETIMEDOUT if the sev command timed out
- * -%EIO       if the sev returned a non-zero return code
+ * -%EIO       if the sev returned a analn-zero return code
  */
 int sev_guest_deactivate(struct sev_data_deactivate *data, int *error);
 
@@ -601,10 +601,10 @@ int sev_guest_deactivate(struct sev_data_deactivate *data, int *error);
  *
  * Returns:
  * 0 if the sev successfully processed the command
- * -%ENODEV    if the sev device is not available
- * -%ENOTSUPP  if the sev does not support SEV
+ * -%EANALDEV    if the sev device is analt available
+ * -%EANALTSUPP  if the sev does analt support SEV
  * -%ETIMEDOUT if the sev command timed out
- * -%EIO       if the sev returned a non-zero return code
+ * -%EIO       if the sev returned a analn-zero return code
  */
 int sev_guest_activate(struct sev_data_activate *data, int *error);
 
@@ -615,10 +615,10 @@ int sev_guest_activate(struct sev_data_activate *data, int *error);
  *
  * Returns:
  * 0 if the sev successfully processed the command
- * -%ENODEV    if the sev device is not available
- * -%ENOTSUPP  if the sev does not support SEV
+ * -%EANALDEV    if the sev device is analt available
+ * -%EANALTSUPP  if the sev does analt support SEV
  * -%ETIMEDOUT if the sev command timed out
- * -%EIO       if the sev returned a non-zero return code
+ * -%EIO       if the sev returned a analn-zero return code
  */
 int sev_guest_df_flush(int *error);
 
@@ -630,10 +630,10 @@ int sev_guest_df_flush(int *error);
  *
  * Returns:
  * 0 if the sev successfully processed the command
- * -%ENODEV    if the sev device is not available
- * -%ENOTSUPP  if the sev does not support SEV
+ * -%EANALDEV    if the sev device is analt available
+ * -%EANALTSUPP  if the sev does analt support SEV
  * -%ETIMEDOUT if the sev command timed out
- * -%EIO       if the sev returned a non-zero return code
+ * -%EIO       if the sev returned a analn-zero return code
  */
 int sev_guest_decommission(struct sev_data_decommission *data, int *error);
 
@@ -642,23 +642,23 @@ void *psp_copy_user_blob(u64 uaddr, u32 len);
 #else	/* !CONFIG_CRYPTO_DEV_SP_PSP */
 
 static inline int
-sev_platform_status(struct sev_user_data_status *status, int *error) { return -ENODEV; }
+sev_platform_status(struct sev_user_data_status *status, int *error) { return -EANALDEV; }
 
-static inline int sev_platform_init(int *error) { return -ENODEV; }
-
-static inline int
-sev_guest_deactivate(struct sev_data_deactivate *data, int *error) { return -ENODEV; }
+static inline int sev_platform_init(int *error) { return -EANALDEV; }
 
 static inline int
-sev_guest_decommission(struct sev_data_decommission *data, int *error) { return -ENODEV; }
+sev_guest_deactivate(struct sev_data_deactivate *data, int *error) { return -EANALDEV; }
 
 static inline int
-sev_guest_activate(struct sev_data_activate *data, int *error) { return -ENODEV; }
-
-static inline int sev_guest_df_flush(int *error) { return -ENODEV; }
+sev_guest_decommission(struct sev_data_decommission *data, int *error) { return -EANALDEV; }
 
 static inline int
-sev_issue_cmd_external_user(struct file *filep, unsigned int id, void *data, int *error) { return -ENODEV; }
+sev_guest_activate(struct sev_data_activate *data, int *error) { return -EANALDEV; }
+
+static inline int sev_guest_df_flush(int *error) { return -EANALDEV; }
+
+static inline int
+sev_issue_cmd_external_user(struct file *filep, unsigned int id, void *data, int *error) { return -EANALDEV; }
 
 static inline void *psp_copy_user_blob(u64 __user uaddr, u32 len) { return ERR_PTR(-EINVAL); }
 

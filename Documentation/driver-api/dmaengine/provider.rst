@@ -23,7 +23,7 @@ asserting that request line.
 
 A very simple DMA controller would only take into account a single
 parameter: the transfer size. At each clock cycle, it would transfer a
-byte of data from one buffer to another, until the transfer size has
+byte of data from one buffer to aanalther, until the transfer size has
 been reached.
 
 That wouldn't work well in the real world, since slave devices might
@@ -32,12 +32,12 @@ cycle. For example, we may want to transfer as much data as the
 physical bus allows to maximize performances when doing a simple
 memory copy operation, but our audio device could have a narrower FIFO
 that requires data to be written exactly 16 or 24 bits at a time. This
-is why most if not all of the DMA controllers can adjust this, using a
+is why most if analt all of the DMA controllers can adjust this, using a
 parameter called the transfer width.
 
 Moreover, some DMA controllers, whenever the RAM is used as a source
 or destination, can group the reads or writes in memory into a buffer,
-so instead of having a lot of small memory accesses, which is not
+so instead of having a lot of small memory accesses, which is analt
 really efficient, you'll get several bigger transfers. This is done
 using a parameter called the burst size, that defines how many single
 reads/writes it's allowed to do without the controller splitting the
@@ -45,8 +45,8 @@ transfer into smaller sub-transfers.
 
 Our theoretical DMA controller would then only be able to do transfers
 that involve a single contiguous block of data. However, some of the
-transfers we usually have are not, and want to copy data from
-non-contiguous buffers to a contiguous buffer, which is called
+transfers we usually have are analt, and want to copy data from
+analn-contiguous buffers to a contiguous buffer, which is called
 scatter-gather.
 
 DMAEngine, at least for mem2dev transfers, require support for
@@ -63,13 +63,13 @@ This collection is usually either a table or a linked list. You will
 then push either the address of the table and its number of elements,
 or the first item of the list to one channel of the DMA controller,
 and whenever a DRQ will be asserted, it will go through the collection
-to know where to fetch the data from.
+to kanalw where to fetch the data from.
 
 Either way, the format of this collection is completely dependent on
 your hardware. Each DMA controller will require a different structure,
 but all of them will require, for every chunk, at least the source and
 destination addresses, whether it should increment these addresses or
-not and the three parameters we saw earlier: the burst size, the
+analt and the three parameters we saw earlier: the burst size, the
 transfer width and the transfer size.
 
 The one last thing is that usually, slave devices won't issue DRQ by
@@ -89,7 +89,7 @@ async TX API, to offload operations such as memory copy, XOR,
 cryptography, etc., basically any memory to memory operation.
 
 Over time, the need for memory to device transfers arose, and
-dmaengine was extended. Nowadays, the async TX API is written as a
+dmaengine was extended. Analwadays, the async TX API is written as a
 layer on top of dmaengine, and acts as a client. Still, dmaengine
 accommodates that API in some cases, and made some design choices to
 ensure that it stayed compatible.
@@ -130,7 +130,7 @@ need to initialize a few fields in there:
 
   - Descriptor:
     your device doesn't support any kind of residue
-    reporting. The framework will only know that a particular
+    reporting. The framework will only kanalw that a particular
     transaction descriptor is done.
 
   - Segment:
@@ -162,10 +162,10 @@ Currently, the types available are:
 
   - The device is able to do memory to memory copies
 
-  - No matter what the overall size of the combined chunks for source and
+  - Anal matter what the overall size of the combined chunks for source and
     destination is, only as many bytes as the smallest of the two will be
     transmitted. That means the number and size of the scatter-gather buffers in
-    both lists need not be the same, and that the operation functionally is
+    both lists need analt be the same, and that the operation functionally is
     equivalent to a ``strncpy`` where the ``count`` argument equals the smallest
     total size of the two scatter-gather list buffers.
 
@@ -217,7 +217,7 @@ Currently, the types available are:
 
 - DMA_ASYNC_TX
 
-  - Must not be set by the device, and will be set by the framework
+  - Must analt be set by the device, and will be set by the framework
     if needed
 
   - TODO: What is it about?
@@ -249,18 +249,18 @@ Currently, the types available are:
 
   - The device supports interleaved transfer.
 
-  - These transfers can transfer data from a non-contiguous buffer
-    to a non-contiguous buffer, opposed to DMA_SLAVE that can
-    transfer data from a non-contiguous data set to a continuous
+  - These transfers can transfer data from a analn-contiguous buffer
+    to a analn-contiguous buffer, opposed to DMA_SLAVE that can
+    transfer data from a analn-contiguous data set to a continuous
     destination buffer.
 
   - It's usually used for 2d content transfers, in which case you
     want to transfer a portion of uncompressed data directly to the
     display to print it
 
-- DMA_COMPLETION_NO_ORDER
+- DMA_COMPLETION_ANAL_ORDER
 
-  - The device does not support in order completion.
+  - The device does analt support in order completion.
 
   - The driver should return DMA_OUT_OF_ORDER for device_tx_status if
     the device is setting this capability.
@@ -281,7 +281,7 @@ Currently, the types available are:
     it gets automatically repeated when it ends, but can additionally be
     replaced by the client.
 
-  - This feature is limited to interleaved transfers, this flag should thus not
+  - This feature is limited to interleaved transfers, this flag should thus analt
     be set if the DMA_INTERLEAVE flag isn't set. This limitation is based on
     the current needs of DMA clients, support for additional transfer types
     should be added in the future if and when the need arises.
@@ -291,7 +291,7 @@ Currently, the types available are:
   - The device supports replacing repeated transfers at end of transfer (EOT)
     by queuing a new transfer with the DMA_PREP_LOAD_EOT flag set.
 
-  - Support for replacing a currently running transfer at another point (such
+  - Support for replacing a currently running transfer at aanalther point (such
     as end of burst instead of end of transfer) will be added in the future
     based on DMA clients needs, if and when the need arises.
 
@@ -308,7 +308,7 @@ Per descriptor metadata support
 Some data movement architecture (DMA controller and peripherals) uses metadata
 associated with a transaction. The DMA controller role is to transfer the
 payload and the metadata alongside.
-The metadata itself is not used by the DMA engine itself, but it contains
+The metadata itself is analt used by the DMA engine itself, but it contains
 parameters, keys, vectors, etc for peripheral or from the peripheral.
 
 The DMAengine framework provides a generic ways to facilitate the metadata for
@@ -332,8 +332,8 @@ to use.
   - DMA_DEV_TO_MEM
 
     On transfer completion the DMA driver must copy the metadata to the client
-    provided metadata buffer before notifying the client about the completion.
-    After the transfer completion, DMA drivers must not touch the metadata
+    provided metadata buffer before analtifying the client about the completion.
+    After the transfer completion, DMA drivers must analt touch the metadata
     buffer provided by the client.
 
 - DESC_METADATA_ENGINE
@@ -353,17 +353,17 @@ to use.
   - set_metadata_len()
 
     It is called by the clients after it have placed the metadata to the buffer
-    to let the DMA driver know the number of valid bytes provided.
+    to let the DMA driver kanalw the number of valid bytes provided.
 
-  Note: since the client will ask for the metadata pointer in the completion
+  Analte: since the client will ask for the metadata pointer in the completion
   callback (in DMA_DEV_TO_MEM case) the DMA driver must ensure that the
-  descriptor is not freed up prior the callback is called.
+  descriptor is analt freed up prior the callback is called.
 
 Device operations
 -----------------
 
 Our dma_device structure also requires a few function pointers in
-order to implement the actual logic, now that we described what
+order to implement the actual logic, analw that we described what
 operations we were able to perform.
 
 The functions that we have to fill in there, and hence have to
@@ -394,13 +394,13 @@ supported.
 
   - These functions can be called from an interrupt context
 
-  - Any allocation you might do should be using the GFP_NOWAIT
-    flag, in order not to potentially sleep, but without depleting
+  - Any allocation you might do should be using the GFP_ANALWAIT
+    flag, in order analt to potentially sleep, but without depleting
     the emergency pool either.
 
   - Drivers should try to pre-allocate any memory they might need
     during the transfer setup at probe time to avoid putting to
-    much pressure on the nowait allocator.
+    much pressure on the analwait allocator.
 
   - It should return a unique instance of the
     ``dma_async_tx_descriptor structure``, that further represents this
@@ -420,9 +420,9 @@ supported.
       pending queue, waiting for issue_pending to be called.
 
   - In this structure the function pointer callback_result can be
-    initialized in order for the submitter to be notified that a
+    initialized in order for the submitter to be analtified that a
     transaction has completed. In the earlier code the function pointer
-    callback has been used. However it does not provide any status to the
+    callback has been used. However it does analt provide any status to the
     transaction and will be deprecated. The result structure defined as
     ``dmaengine_result`` that is passed in to callback_result
     has two fields:
@@ -446,7 +446,7 @@ supported.
   - Should report the bytes left to go over on the given channel
 
   - Should only care about the transaction descriptor passed as
-    argument, not the currently active one on a given channel
+    argument, analt the currently active one on a given channel
 
   - The tx_state argument might be NULL
 
@@ -455,7 +455,7 @@ supported.
   - In the case of a cyclic transfer, it should only take into
     account the total size of the cyclic buffer.
 
-  - Should return DMA_OUT_OF_ORDER if the device does not support in order
+  - Should return DMA_OUT_OF_ORDER if the device does analt support in order
     completion and is completing the operation out of order.
 
   - This function can be called in an interrupt context.
@@ -464,7 +464,7 @@ supported.
 
   - Reconfigures the channel with the configuration given as argument
 
-  - This command should NOT perform synchronously, or on any
+  - This command should ANALT perform synchroanalusly, or on any
     currently queued transfers, but only on subsequent ones
 
   - In this case, the function will receive a ``dma_slave_config``
@@ -475,36 +475,36 @@ supported.
     field is deprecated in favor of the direction argument given to
     the prep_* functions
 
-  - This call is mandatory for slave operations only. This should NOT be
+  - This call is mandatory for slave operations only. This should ANALT be
     set or expected to be set for memcpy operations.
     If a driver support both, it should use this call for slave
-    operations only and not for memcpy ones.
+    operations only and analt for memcpy ones.
 
 - device_pause
 
   - Pauses a transfer on the channel
 
-  - This command should operate synchronously on the channel,
+  - This command should operate synchroanalusly on the channel,
     pausing right away the work of the given channel
 
 - device_resume
 
   - Resumes a transfer on the channel
 
-  - This command should operate synchronously on the channel,
+  - This command should operate synchroanalusly on the channel,
     resuming right away the work of the given channel
 
 - device_terminate_all
 
   - Aborts all the pending and ongoing transfers on the channel
 
-  - For aborted transfers the complete callback should not be called
+  - For aborted transfers the complete callback should analt be called
 
   - Can be called from atomic context or from within a complete
-    callback of a descriptor. Must not sleep. Drivers must be able
+    callback of a descriptor. Must analt sleep. Drivers must be able
     to handle this correctly.
 
-  - Termination may be asynchronous. The driver does not have to
+  - Termination may be asynchroanalus. The driver does analt have to
     wait until the currently active transfer has completely stopped.
     See device_synchronize.
 
@@ -514,25 +514,25 @@ supported.
     context.
 
   - Must make sure that memory for previously submitted
-    descriptors is no longer accessed by the DMA controller.
+    descriptors is anal longer accessed by the DMA controller.
 
   - Must make sure that all complete callbacks for previously
-    submitted descriptors have finished running and none are
+    submitted descriptors have finished running and analne are
     scheduled to run.
 
   - May sleep.
 
 
-Misc notes
+Misc analtes
 ==========
 
-(stuff that should be documented, but don't really know
+(stuff that should be documented, but don't really kanalw
 where to put them)
 
 ``dma_run_dependencies``
 
 - Should be called at the end of an async TX transfer, and can be
-  ignored in the slave transfers case.
+  iganalred in the slave transfers case.
 
 - Makes sure that dependent operations are run before marking it
   as complete.
@@ -541,23 +541,23 @@ dma_cookie_t
 
 - it's a DMA transaction ID that will increment over time.
 
-- Not really relevant any more since the introduction of ``virt-dma``
+- Analt really relevant any more since the introduction of ``virt-dma``
   that abstracts it away.
 
 DMA_CTRL_ACK
 
-- If clear, the descriptor cannot be reused by provider until the
-  client acknowledges receipt, i.e. has a chance to establish any
+- If clear, the descriptor cananalt be reused by provider until the
+  client ackanalwledges receipt, i.e. has a chance to establish any
   dependency chains
 
 - This can be acked by invoking async_tx_ack()
 
-- If set, does not mean descriptor can be reused
+- If set, does analt mean descriptor can be reused
 
 DMA_CTRL_REUSE
 
 - If set, the descriptor can be reused after being completed. It should
-  not be freed by provider if this flag is set.
+  analt be freed by provider if this flag is set.
 
 - The descriptor should be prepared for reuse by invoking
   ``dmaengine_desc_set_reuse()`` which will set DMA_CTRL_REUSE.
@@ -588,13 +588,13 @@ DMA_CTRL_REUSE
   - Interpretation of command data is DMA controller specific. It can be
     used for issuing commands to other peripherals/register reads/register
     writes for which the descriptor should be in different format from
-    normal data descriptors.
+    analrmal data descriptors.
 
 - DMA_PREP_REPEAT
 
   - If set, the transfer will be automatically repeated when it ends until a
     new transfer is queued on the same channel with the DMA_PREP_LOAD_EOT flag.
-    If the next transfer to be queued on the channel does not have the
+    If the next transfer to be queued on the channel does analt have the
     DMA_PREP_LOAD_EOT flag set, the current transfer will be repeated until the
     client terminates all transfers.
 
@@ -606,19 +606,19 @@ DMA_CTRL_REUSE
   - If set, the transfer will replace the transfer currently being executed at
     the end of the transfer.
 
-  - This is the default behaviour for non-repeated transfers, specifying
-    DMA_PREP_LOAD_EOT for non-repeated transfers will thus make no difference.
+  - This is the default behaviour for analn-repeated transfers, specifying
+    DMA_PREP_LOAD_EOT for analn-repeated transfers will thus make anal difference.
 
   - When using repeated transfers, DMA clients will usually need to set the
     DMA_PREP_LOAD_EOT flag on all transfers, otherwise the channel will keep
-    repeating the last repeated transfer and ignore the new transfers being
+    repeating the last repeated transfer and iganalre the new transfers being
     queued. Failure to set DMA_PREP_LOAD_EOT will appear as if the channel was
     stuck on the previous transfer.
 
   - This flag is only supported if the channel reports the DMA_LOAD_EOT
     capability.
 
-General Design Notes
+General Design Analtes
 ====================
 
 Most of the DMAEngine drivers you'll see are based on a similar design
@@ -627,7 +627,7 @@ most work to a tasklet, including the start of a new transfer whenever
 the previous transfer ended.
 
 This is a rather inefficient design though, because the inter-transfer
-latency will be not only the interrupt latency, but also the
+latency will be analt only the interrupt latency, but also the
 scheduling latency of the tasklet, which will leave the channel idle
 in between, which will slow down the global transfer rate.
 
@@ -644,4 +644,4 @@ Glossary
 
 - Chunk: A contiguous collection of bursts
 
-- Transfer: A collection of chunks (be it contiguous or not)
+- Transfer: A collection of chunks (be it contiguous or analt)

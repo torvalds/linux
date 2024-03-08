@@ -19,7 +19,7 @@
 #include "q6afe.h"
 #include "q6core.h"
 #include "q6dsp-common.h"
-#include "q6dsp-errno.h"
+#include "q6dsp-erranal.h"
 
 #define ADM_CMD_DEVICE_OPEN_V5		0x00010326
 #define ADM_CMDRSP_DEVICE_OPEN_V5	0x00010329
@@ -49,7 +49,7 @@ struct q6copp {
 	struct aprv2_ibasic_rsp_result_t result;
 	struct kref refcount;
 	wait_queue_head_t wait;
-	struct list_head node;
+	struct list_head analde;
 	struct q6adm *adm;
 };
 
@@ -82,7 +82,7 @@ struct q6adm_cmd_matrix_map_routings_v5 {
 	u32 num_sessions;
 } __packed;
 
-struct q6adm_session_map_node_v5 {
+struct q6adm_session_map_analde_v5 {
 	u16 session_id;
 	u16 num_copps;
 } __packed;
@@ -95,7 +95,7 @@ static struct q6copp *q6adm_find_copp(struct q6adm *adm, int port_idx,
 	unsigned long flags;
 
 	spin_lock_irqsave(&adm->copps_list_lock, flags);
-	list_for_each_entry(c, &adm->copps_list, node) {
+	list_for_each_entry(c, &adm->copps_list, analde) {
 		if ((port_idx == c->afe_port) && (copp_idx == c->copp_idx)) {
 			ret = c;
 			kref_get(&c->refcount);
@@ -117,7 +117,7 @@ static void q6adm_free_copp(struct kref *ref)
 
 	spin_lock_irqsave(&adm->copps_list_lock, flags);
 	clear_bit(c->copp_idx, &adm->copp_bitmap[c->afe_port]);
-	list_del(&c->node);
+	list_del(&c->analde);
 	spin_unlock_irqrestore(&adm->copps_list_lock, flags);
 	kfree(c);
 }
@@ -169,7 +169,7 @@ static int q6adm_callback(struct apr_device *adev, struct apr_resp_pkt *data)
 			break;
 
 		default:
-			dev_err(&adev->dev, "Unknown Cmd: 0x%x\n",
+			dev_err(&adev->dev, "Unkanalwn Cmd: 0x%x\n",
 				result->opcode);
 			break;
 		}
@@ -201,7 +201,7 @@ static int q6adm_callback(struct apr_device *adev, struct apr_resp_pkt *data)
 	}
 	break;
 	default:
-		dev_err(&adev->dev, "Unknown cmd:0x%x\n",
+		dev_err(&adev->dev, "Unkanalwn cmd:0x%x\n",
 		       hdr->opcode);
 		break;
 	}
@@ -222,7 +222,7 @@ static struct q6copp *q6adm_alloc_copp(struct q6adm *adm, int port_idx)
 
 	c = kzalloc(sizeof(*c), GFP_ATOMIC);
 	if (!c)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	set_bit(idx, &adm->copp_bitmap[port_idx]);
 	c->copp_idx = idx;
@@ -305,7 +305,7 @@ static struct q6copp *q6adm_find_matching_copp(struct q6adm *adm,
 
 	spin_lock_irqsave(&adm->copps_list_lock, flags);
 
-	list_for_each_entry(c, &adm->copps_list, node) {
+	list_for_each_entry(c, &adm->copps_list, analde) {
 		if ((port_id == c->afe_port) && (topology == c->topology) &&
 		    (mode == c->mode) && (rate == c->rate) &&
 		    (bit_width == c->bit_width) && (app_type == c->app_type)) {
@@ -331,7 +331,7 @@ static int q6adm_device_open(struct q6adm *adm, struct q6copp *copp,
 	pkt_size = APR_HDR_SIZE + sizeof(*open);
 	p = kzalloc(pkt_size, GFP_KERNEL);
 	if (!p)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pkt = p;
 	open = p + APR_HDR_SIZE;
@@ -408,7 +408,7 @@ struct q6copp *q6adm_open(struct device *dev, int port_id, int path, int rate,
 		return ERR_CAST(copp);
 	}
 
-	list_add_tail(&copp->node, &adm->copps_list);
+	list_add_tail(&copp->analde, &adm->copps_list);
 	spin_unlock_irqrestore(&adm->copps_list_lock, flags);
 
 	kref_init(&copp->refcount);
@@ -461,7 +461,7 @@ int q6adm_matrix_map(struct device *dev, int path,
 {
 	struct q6adm *adm = dev_get_drvdata(dev->parent);
 	struct q6adm_cmd_matrix_map_routings_v5 *route;
-	struct q6adm_session_map_node_v5 *node;
+	struct q6adm_session_map_analde_v5 *analde;
 	struct apr_pkt *pkt;
 	uint16_t *copps_list;
 	int pkt_size, ret, i, copp_idx;
@@ -469,17 +469,17 @@ int q6adm_matrix_map(struct device *dev, int path,
 	struct q6copp *copp;
 
 	/* Assumes port_ids have already been validated during adm_open */
-	pkt_size = (APR_HDR_SIZE + sizeof(*route) +  sizeof(*node) +
+	pkt_size = (APR_HDR_SIZE + sizeof(*route) +  sizeof(*analde) +
 		    (sizeof(uint32_t) * payload_map.num_copps));
 
 	matrix_map = kzalloc(pkt_size, GFP_KERNEL);
 	if (!matrix_map)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pkt = matrix_map;
 	route = matrix_map + APR_HDR_SIZE;
-	node = matrix_map + APR_HDR_SIZE + sizeof(*route);
-	copps_list = matrix_map + APR_HDR_SIZE + sizeof(*route) + sizeof(*node);
+	analde = matrix_map + APR_HDR_SIZE + sizeof(*route);
+	copps_list = matrix_map + APR_HDR_SIZE + sizeof(*route) + sizeof(*analde);
 
 	pkt->hdr.hdr_field = APR_HDR_FIELD(APR_MSG_TYPE_SEQ_CMD,
 					   APR_HDR_LEN(APR_HDR_SIZE),
@@ -501,8 +501,8 @@ int q6adm_matrix_map(struct device *dev, int path,
 		break;
 	}
 
-	node->session_id = payload_map.session_id;
-	node->num_copps = payload_map.num_copps;
+	analde->session_id = payload_map.session_id;
+	analde->num_copps = payload_map.num_copps;
 
 	for (i = 0; i < payload_map.num_copps; i++) {
 		int port_idx = payload_map.port_id[i];
@@ -589,7 +589,7 @@ static int q6adm_probe(struct apr_device *adev)
 
 	adm = devm_kzalloc(dev, sizeof(*adm), GFP_KERNEL);
 	if (!adm)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	adm->apr = adev;
 	dev_set_drvdata(dev, adm);

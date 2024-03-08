@@ -34,7 +34,7 @@
  *
  * Some of the internal functions ("__xxx") are useful when
  * manipulating whole lists rather than single entries, as
- * sometimes we already know the next/prev entries and we can
+ * sometimes we already kanalw the next/prev entries and we can
  * generate better code by using them directly rather than
  * using the generic single-entry routines.
  */
@@ -51,9 +51,9 @@ static inline void INIT_LIST_HEAD(struct list_head *list)
 }
 
 /*
- * Insert a new entry between two known consecutive entries.
+ * Insert a new entry between two kanalwn consecutive entries.
  *
- * This is only for internal list manipulation where we know
+ * This is only for internal list manipulation where we kanalw
  * the prev/next entries already!
  */
 #ifndef CONFIG_DEBUG_LIST
@@ -237,7 +237,7 @@ static int parser_auth(struct table *t, const char *filename)
 			done = 1;
 		if (len) {
 			r = regexec(&mask_rex, buf, 4, match, 0);
-			if (r == REG_NOMATCH) {
+			if (r == REG_ANALMATCH) {
 			} else if (r) {
 				fprintf(stderr,
 					"Error matching regular expression %d in %s\n",

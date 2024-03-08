@@ -1451,7 +1451,7 @@ static void b43_radio_init2055_post(struct b43_wldev *dev)
 		b43_radio_mask(dev, B2055_C1_RX_BB_REG, 0x7F);
 		b43_radio_mask(dev, B2055_C2_RX_BB_REG, 0x7F);
 	}
-	b43_radio_maskset(dev, B2055_RRCCAL_NOPTSEL, 0xFFC0, 0x2C);
+	b43_radio_maskset(dev, B2055_RRCCAL_ANALPTSEL, 0xFFC0, 0x2C);
 	b43_radio_write(dev, B2055_CAL_MISC, 0x3C);
 	b43_radio_mask(dev, B2055_CAL_MISC, 0xFFBE);
 	b43_radio_set(dev, B2055_CAL_LPOCTL, 0x80);
@@ -1486,7 +1486,7 @@ static void b43_radio_init2055(struct b43_wldev *dev)
 {
 	b43_radio_init2055_pre(dev);
 	if (b43_status(dev) < B43_STAT_INITIALIZED) {
-		/* Follow wl, not specs. Do not force uploading all regs */
+		/* Follow wl, analt specs. Do analt force uploading all regs */
 		b2055_upload_inittab(dev, 0, 0);
 	} else {
 		bool ghz5 = b43_current_band(dev->wl) == NL80211_BAND_5GHZ;
@@ -1509,7 +1509,7 @@ static int b43_nphy_load_samples(struct b43_wldev *dev,
 	data = kcalloc(len, sizeof(u32), GFP_KERNEL);
 	if (!data) {
 		b43err(dev->wl, "allocation for samples loading failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	if (nphy->hang_avoid)
 		b43_nphy_stay_in_carrier_search(dev, 1);
@@ -2715,7 +2715,7 @@ static void b43_nphy_workarounds_rev7plus(struct b43_wldev *dev)
 
 	u16 bias, conv, filt;
 
-	u32 noise_tbl[2];
+	u32 analise_tbl[2];
 
 	u32 tmp32;
 	u8 core;
@@ -2791,7 +2791,7 @@ static void b43_nphy_workarounds_rev7plus(struct b43_wldev *dev)
 
 		switch (phy->radio_rev) {
 		case 5:
-			/* Check radio version (to be 0) by PHY rev for now */
+			/* Check radio version (to be 0) by PHY rev for analw */
 			if (phy->rev == 8 && b43_is_40mhz(dev)) {
 				for (core = 0; core < 2; core++) {
 					scap_val_11b[core] = scap_val;
@@ -3112,13 +3112,13 @@ static void b43_nphy_workarounds_rev7plus(struct b43_wldev *dev)
 	b43_ntab_write(dev, B43_NTAB16(7, 0x123), 0x77);
 	b43_ntab_write(dev, B43_NTAB16(7, 0x12A), 0x77);
 
-	b43_ntab_read_bulk(dev, B43_NTAB32(16, 0x02), 1, noise_tbl);
-	noise_tbl[1] = b43_is_40mhz(dev) ? 0x14D : 0x18D;
-	b43_ntab_write_bulk(dev, B43_NTAB32(16, 0x02), 2, noise_tbl);
+	b43_ntab_read_bulk(dev, B43_NTAB32(16, 0x02), 1, analise_tbl);
+	analise_tbl[1] = b43_is_40mhz(dev) ? 0x14D : 0x18D;
+	b43_ntab_write_bulk(dev, B43_NTAB32(16, 0x02), 2, analise_tbl);
 
-	b43_ntab_read_bulk(dev, B43_NTAB32(16, 0x7E), 1, noise_tbl);
-	noise_tbl[1] = b43_is_40mhz(dev) ? 0x14D : 0x18D;
-	b43_ntab_write_bulk(dev, B43_NTAB32(16, 0x7E), 2, noise_tbl);
+	b43_ntab_read_bulk(dev, B43_NTAB32(16, 0x7E), 1, analise_tbl);
+	analise_tbl[1] = b43_is_40mhz(dev) ? 0x14D : 0x18D;
+	b43_ntab_write_bulk(dev, B43_NTAB32(16, 0x7E), 2, analise_tbl);
 
 	b43_nphy_gain_ctl_workarounds(dev);
 
@@ -3209,7 +3209,7 @@ static void b43_nphy_workarounds_rev3plus(struct b43_wldev *dev)
 		0x2 : 0x9C40;
 	b43_phy_write(dev, B43_NPHY_ENDROP_TLEN, tmp16);
 
-	b43_phy_maskset(dev, B43_NPHY_SGILTRNOFFSET, 0xF0FF, 0x0700);
+	b43_phy_maskset(dev, B43_NPHY_SGILTRANALFFSET, 0xF0FF, 0x0700);
 
 	if (!b43_is_40mhz(dev)) {
 		b43_ntab_write(dev, B43_NTAB32(16, 3), 0x18D);
@@ -3464,7 +3464,7 @@ static void b43_nphy_workarounds(struct b43_wldev *dev)
  **************************************************/
 
 /*
- * Transmits a known value for LO calibration
+ * Transmits a kanalwn value for LO calibration
  * https://bcm-v4.sipsolutions.net/802.11/PHY/N/TXTone
  */
 static int b43_nphy_tx_tone(struct b43_wldev *dev, u32 freq, u16 max_val,
@@ -3921,7 +3921,7 @@ static void b43_nphy_ipa_internal_tssi_setup(struct b43_wldev *dev)
 }
 
 /*
- * Stop radio and transmit known signal. Then check received signal strength to
+ * Stop radio and transmit kanalwn signal. Then check received signal strength to
  * get TSSI (Transmit Signal Strength Indicator).
  * https://bcm-v4.sipsolutions.net/802.11/PHY/N/TxPwrCtrlIdleTssi
  */
@@ -3933,7 +3933,7 @@ static void b43_nphy_tx_power_ctl_idle_tssi(struct b43_wldev *dev)
 	u32 tmp;
 	s32 rssi[4] = { };
 
-	if (phy->chandef->chan->flags & IEEE80211_CHAN_NO_IR)
+	if (phy->chandef->chan->flags & IEEE80211_CHAN_ANAL_IR)
 		return;
 
 	if (b43_nphy_ipa(dev))
@@ -3994,7 +3994,7 @@ static void b43_nphy_tx_prepare_adjusted_power_table(struct b43_wldev *dev)
 	 * Groups 5..8 use QPSK (group per coding rate)
 	 * Groups 9..12 use 16-QAM (group per coding rate)
 	 * Groups 13..16 use 64-QAM (group per coding rate)
-	 * Groups 17..20 are unknown
+	 * Groups 17..20 are unkanalwn
 	 */
 
 	for (i = 0; i < 4; i++)
@@ -4387,7 +4387,7 @@ static void b43_nphy_rx_iq_coeffs(struct b43_wldev *dev, bool write,
 }
 
 #if 0
-/* Ready but not used anywhere */
+/* Ready but analt used anywhere */
 /* https://bcm-v4.sipsolutions.net/802.11/PHY/N/RxCalPhyCleanup */
 static void b43_nphy_rx_cal_phy_cleanup(struct b43_wldev *dev, u8 core)
 {
@@ -4917,7 +4917,7 @@ static void b43_nphy_ext_pa_set_tx_dig_filters(struct b43_wldev *dev)
 /* https://bcm-v4.sipsolutions.net/802.11/PHY/N/IpaSetTxDigiFilts */
 static void b43_nphy_int_pa_set_tx_dig_filters(struct b43_wldev *dev)
 {
-	/* B43_NPHY_TXF_20CO_S0A1, B43_NPHY_TXF_40CO_S0A1, unknown */
+	/* B43_NPHY_TXF_20CO_S0A1, B43_NPHY_TXF_40CO_S0A1, unkanalwn */
 	static const u16 offset[] = { 0x186, 0x195, 0x2C5 };
 	static const s16 dig_filter_phy_rev16[] = {
 		-375, 136, -407, 208, -1527,
@@ -5827,7 +5827,7 @@ static void b43_nphy_set_rx_core_state(struct b43_wldev *dev, u8 mask)
 }
 
 static enum b43_txpwr_result b43_nphy_op_recalc_txpower(struct b43_wldev *dev,
-							bool ignore_tssi)
+							bool iganalre_tssi)
 {
 	struct b43_phy *phy = &dev->phy;
 	struct b43_phy_n *nphy = dev->phy.n;
@@ -6011,7 +6011,7 @@ static int b43_phy_initn(struct b43_wldev *dev)
 	nphy->deaf_count = 0;
 	b43_nphy_tables_init(dev);
 	nphy->crsminpwr_adjusted = false;
-	nphy->noisevars_adjusted = false;
+	nphy->analisevars_adjusted = false;
 
 	/* Clear all overrides */
 	if (dev->phy.rev >= 3) {
@@ -6419,7 +6419,7 @@ static int b43_nphy_op_allocate(struct b43_wldev *dev)
 
 	nphy = kzalloc(sizeof(*nphy), GFP_KERNEL);
 	if (!nphy)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev->phy.n = nphy;
 
@@ -6438,7 +6438,7 @@ static void b43_nphy_op_prepare_structs(struct b43_wldev *dev)
 	nphy->spur_avoid = (phy->rev >= 3) ?
 				B43_SPUR_AVOID_AUTO : B43_SPUR_AVOID_DISABLE;
 	nphy->gain_boost = true; /* this way we follow wl, assume it is true */
-	nphy->txrx_chain = 2; /* sth different than 0 and 1 for now */
+	nphy->txrx_chain = 2; /* sth different than 0 and 1 for analw */
 	nphy->phyrxchain = 3; /* to avoid b43_nphy_set_rx_core_state like wl */
 	nphy->perical = 2; /* avoid additional rssi cal on init (like wl) */
 	/* 128 can mean disabled-by-default state of TX pwr ctl. Max value is
@@ -6550,7 +6550,7 @@ static void b43_nphy_op_software_rfkill(struct b43_wldev *dev,
 	struct b43_phy *phy = &dev->phy;
 
 	if (b43_read32(dev, B43_MMIO_MACCTL) & B43_MACCTL_ENABLED)
-		b43err(dev->wl, "MAC not suspended\n");
+		b43err(dev->wl, "MAC analt suspended\n");
 
 	if (blocked) {
 		if (phy->rev >= 19) {
@@ -6559,7 +6559,7 @@ static void b43_nphy_op_software_rfkill(struct b43_wldev *dev,
 			b43_phy_mask(dev, B43_NPHY_RFCTL_CMD,
 				     ~B43_NPHY_RFCTL_CMD_CHIP0PU);
 		} else if (phy->rev >= 7) {
-			/* Nothing needed */
+			/* Analthing needed */
 		} else if (phy->rev >= 3) {
 			b43_phy_mask(dev, B43_NPHY_RFCTL_CMD,
 				     ~B43_NPHY_RFCTL_CMD_CHIP0PU);

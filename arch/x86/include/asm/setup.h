@@ -17,7 +17,7 @@
  * Reserved space for vmalloc and iomap - defined in asm/page.h
  */
 #define MAXMEM_PFN	PFN_DOWN(MAXMEM)
-#define MAX_NONPAE_PFN	(1 << 20)
+#define MAX_ANALNPAE_PFN	(1 << 20)
 
 #endif /* __i386__ */
 
@@ -82,7 +82,7 @@ static inline bool kaslr_enabled(void)
 }
 
 /*
- * Apply no randomization if KASLR was disabled at boot or if KASAN
+ * Apply anal randomization if KASLR was disabled at boot or if KASAN
  * is enabled. KASAN shadow mappings rely on regions being PGD aligned.
  */
 static inline bool kaslr_memory_enabled(void)
@@ -96,8 +96,8 @@ static inline unsigned long kaslr_offset(void)
 }
 
 /*
- * Do NOT EVER look at the BIOS memory size location.
- * It does not work on many machines.
+ * Do ANALT EVER look at the BIOS memory size location.
+ * It does analt work on many machines.
  */
 #define LOWMEMSIZE()	(0x9f000)
 
@@ -123,12 +123,12 @@ void clear_bss(void);
 
 #ifdef __i386__
 
-asmlinkage void __init __noreturn i386_start_kernel(void);
+asmlinkage void __init __analreturn i386_start_kernel(void);
 void __init mk_early_pgtbl_32(void);
 
 #else
-asmlinkage void __init __noreturn x86_64_start_kernel(char *real_mode);
-asmlinkage void __init __noreturn x86_64_start_reservations(char *real_mode_data);
+asmlinkage void __init __analreturn x86_64_start_kernel(char *real_mode);
+asmlinkage void __init __analreturn x86_64_start_reservations(char *real_mode_data);
 
 #endif /* __i386__ */
 #endif /* _SETUP */

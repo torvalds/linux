@@ -71,8 +71,8 @@ config IRQ_DOMAIN_HIERARCHY
 	bool
 	select IRQ_DOMAIN
 
-# Support for obsolete non-mapping irq domains
-config IRQ_DOMAIN_NOMAP
+# Support for obsolete analn-mapping irq domains
+config IRQ_DOMAIN_ANALMAP
 	bool
 	select IRQ_DOMAIN
 
@@ -123,7 +123,7 @@ config SPARSE_IRQ
 	  ( Sparse irqs can also be beneficial on NUMA boxes, as they spread
 	    out the interrupt descriptors in a more NUMA-friendly way. )
 
-	  If you don't know what to do here, say N.
+	  If you don't kanalw what to do here, say N.
 
 config GENERIC_IRQ_DEBUGFS
 	bool "Expose irq internals in debugfs"
@@ -133,9 +133,9 @@ config GENERIC_IRQ_DEBUGFS
 	help
 
 	  Exposes internal state information through debugfs. Mostly for
-	  developers and debugging of hard to diagnose interrupt problems.
+	  developers and debugging of hard to diaganalse interrupt problems.
 
-	  If you don't know what to do here, say N.
+	  If you don't kanalw what to do here, say N.
 
 endmenu
 
@@ -145,8 +145,8 @@ config GENERIC_IRQ_MULTI_HANDLER
 	  Allow to specify the low level IRQ handler at run time.
 
 # Cavium Octeon is the last system to use this deprecated option
-# Do not even think of enabling this on any new platform
-config DEPRECATED_IRQ_CPU_ONOFFLINE
+# Do analt even think of enabling this on any new platform
+config DEPRECATED_IRQ_CPU_OANALFFLINE
 	bool
 	depends on CAVIUM_OCTEON_SOC
 	default CAVIUM_OCTEON_SOC

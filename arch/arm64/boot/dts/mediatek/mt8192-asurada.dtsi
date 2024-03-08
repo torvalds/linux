@@ -201,7 +201,7 @@
 		scp_mem_reserved: scp@50000000 {
 			compatible = "shared-dma-pool";
 			reg = <0 0x50000000 0 0x2900000>;
-			no-map;
+			anal-map;
 		};
 
 		wifi_restricted_dma_region: wifi@c0000000 {
@@ -439,9 +439,9 @@
 	cap-mmc-hw-reset;
 	mmc-hs400-enhanced-strobe;
 	hs400-ds-delay = <0x12814>;
-	no-sdio;
-	no-sd;
-	non-removable;
+	anal-sdio;
+	anal-sd;
+	analn-removable;
 };
 
 &mmc1 {
@@ -458,8 +458,8 @@
 	cap-sd-highspeed;
 	sd-uhs-sdr50;
 	sd-uhs-sdr104;
-	no-sdio;
-	no-mmc;
+	anal-sdio;
+	anal-mmc;
 };
 
 /* for CORE */
@@ -494,16 +494,16 @@
 	mediatek,mic-type-2 = <2>; /* DMIC */
 };
 
-&nor_flash {
+&analr_flash {
 	status = "okay";
 
 	pinctrl-names = "default";
-	pinctrl-0 = <&nor_flash_pins>;
+	pinctrl-0 = <&analr_flash_pins>;
 	assigned-clocks = <&topckgen CLK_TOP_SFLASH_SEL>;
 	assigned-clock-parents = <&topckgen CLK_TOP_UNIVPLL_D6_D8>;
 
 	flash@0 {
-		compatible = "winbond,w25q64jwm", "jedec,spi-nor";
+		compatible = "winbond,w25q64jwm", "jedec,spi-analr";
 		reg = <0>;
 		spi-max-frequency = <52000000>;
 		spi-rx-bus-width = <2>;
@@ -1101,23 +1101,23 @@
 		};
 	};
 
-	nor_flash_pins: nor-flash-default-pins {
+	analr_flash_pins: analr-flash-default-pins {
 		pins-cs-io1 {
-			pinmux = <PINMUX_GPIO24__FUNC_SPINOR_CS>,
-				 <PINMUX_GPIO28__FUNC_SPINOR_IO1>;
+			pinmux = <PINMUX_GPIO24__FUNC_SPIANALR_CS>,
+				 <PINMUX_GPIO28__FUNC_SPIANALR_IO1>;
 			input-enable;
 			bias-pull-up;
 			drive-strength = <10>;
 		};
 
 		pins-io0 {
-			pinmux = <PINMUX_GPIO27__FUNC_SPINOR_IO0>;
+			pinmux = <PINMUX_GPIO27__FUNC_SPIANALR_IO0>;
 			bias-pull-up;
 			drive-strength = <10>;
 		};
 
 		pins-clk {
-			pinmux = <PINMUX_GPIO25__FUNC_SPINOR_CK>;
+			pinmux = <PINMUX_GPIO25__FUNC_SPIANALR_CK>;
 			input-enable;
 			bias-pull-up;
 			drive-strength = <10>;

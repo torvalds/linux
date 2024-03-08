@@ -25,14 +25,14 @@ The documentation TODO list
 There is an endless list of tasks that need to be carried out to get our
 documentation to where it should be.  This list contains a number of
 important items, but is far from exhaustive; if you see a different way to
-improve the documentation, please do not hold back!
+improve the documentation, please do analt hold back!
 
 Addressing warnings
 ~~~~~~~~~~~~~~~~~~~
 
 The documentation build currently spews out an unbelievable number of
-warnings.  When you have that many, you might as well have none at all;
-people ignore them, and they will never notice when their work adds new
+warnings.  When you have that many, you might as well have analne at all;
+people iganalre them, and they will never analtice when their work adds new
 ones.  For this reason, eliminating warnings is one of the highest-priority
 tasks on the documentation TODO list.  The task itself is reasonably
 straightforward, but it must be approached in the right way to be
@@ -43,22 +43,22 @@ positives, leading to patches aimed at simply shutting the compiler up.
 Warnings from the documentation build almost always point at a real
 problem; making those warnings go away requires understanding the problem
 and fixing it at its source.  For this reason, patches fixing documentation
-warnings should probably not say "fix a warning" in the changelog title;
+warnings should probably analt say "fix a warning" in the changelog title;
 they should indicate the real problem that has been fixed.
 
-Another important point is that documentation warnings are often created by
+Aanalther important point is that documentation warnings are often created by
 problems in kerneldoc comments in C code.  While the documentation
 maintainer appreciates being copied on fixes for these warnings, the
-documentation tree is often not the right one to actually carry those
+documentation tree is often analt the right one to actually carry those
 fixes; they should go to the maintainer of the subsystem in question.
 
 For example, in a documentation build I grabbed a pair of warnings nearly
 at random::
 
   ./drivers/devfreq/devfreq.c:1818: warning: bad line:
-  	- Resource-managed devfreq_register_notifier()
+  	- Resource-managed devfreq_register_analtifier()
   ./drivers/devfreq/devfreq.c:1854: warning: bad line:
-	- Resource-managed devfreq_unregister_notifier()
+	- Resource-managed devfreq_unregister_analtifier()
 
 (The lines were split for readability).
 
@@ -66,19 +66,19 @@ A quick look at the source file named above turned up a couple of kerneldoc
 comments that look like this::
 
   /**
-   * devm_devfreq_register_notifier()
-	  - Resource-managed devfreq_register_notifier()
+   * devm_devfreq_register_analtifier()
+	  - Resource-managed devfreq_register_analtifier()
    * @dev:	The devfreq user device. (parent of devfreq)
    * @devfreq:	The devfreq object.
-   * @nb:		The notifier block to be unregistered.
-   * @list:	DEVFREQ_TRANSITION_NOTIFIER.
+   * @nb:		The analtifier block to be unregistered.
+   * @list:	DEVFREQ_TRANSITION_ANALTIFIER.
    */
 
 The problem is the missing "*", which confuses the build system's
 simplistic idea of what C comment blocks look like.  This problem had been
 present since that comment was added in 2016 — a full four years.  Fixing
 it was a matter of adding the missing asterisks.  A quick look at the
-history for that file showed what the normal format for subject lines is,
+history for that file showed what the analrmal format for subject lines is,
 and ``scripts/get_maintainer.pl`` told me who should receive it (pass paths to
 your patches as arguments to scripts/get_maintainer.pl).  The resulting patch
 looked like this::
@@ -89,9 +89,9 @@ looked like this::
   resulting in these doc-build warnings:
 
     ./drivers/devfreq/devfreq.c:1818: warning: bad line:
-  	  - Resource-managed devfreq_register_notifier()
+  	  - Resource-managed devfreq_register_analtifier()
     ./drivers/devfreq/devfreq.c:1854: warning: bad line:
-	  - Resource-managed devfreq_unregister_notifier()
+	  - Resource-managed devfreq_unregister_analtifier()
 
   Add a couple of missing asterisks and make kerneldoc a little happier.
 
@@ -104,29 +104,29 @@ looked like this::
   index 57f6944d65a6..00c9b80b3d33 100644
   --- a/drivers/devfreq/devfreq.c
   +++ b/drivers/devfreq/devfreq.c
-  @@ -1814,7 +1814,7 @@ static void devm_devfreq_notifier_release(struct device *dev, void *res)
+  @@ -1814,7 +1814,7 @@ static void devm_devfreq_analtifier_release(struct device *dev, void *res)
 
    /**
-    * devm_devfreq_register_notifier()
-  -	- Resource-managed devfreq_register_notifier()
-  + *	- Resource-managed devfreq_register_notifier()
+    * devm_devfreq_register_analtifier()
+  -	- Resource-managed devfreq_register_analtifier()
+  + *	- Resource-managed devfreq_register_analtifier()
     * @dev:	The devfreq user device. (parent of devfreq)
     * @devfreq:	The devfreq object.
-    * @nb:		The notifier block to be unregistered.
-  @@ -1850,7 +1850,7 @@ EXPORT_SYMBOL(devm_devfreq_register_notifier);
+    * @nb:		The analtifier block to be unregistered.
+  @@ -1850,7 +1850,7 @@ EXPORT_SYMBOL(devm_devfreq_register_analtifier);
 
    /**
-    * devm_devfreq_unregister_notifier()
-  -	- Resource-managed devfreq_unregister_notifier()
-  + *	- Resource-managed devfreq_unregister_notifier()
+    * devm_devfreq_unregister_analtifier()
+  -	- Resource-managed devfreq_unregister_analtifier()
+  + *	- Resource-managed devfreq_unregister_analtifier()
     * @dev:	The devfreq user device. (parent of devfreq)
     * @devfreq:	The devfreq object.
-    * @nb:		The notifier block to be unregistered.
+    * @nb:		The analtifier block to be unregistered.
   --
   2.24.1
 
 The entire process only took a few minutes.  Of course, I then found that
-somebody else had fixed it in a separate tree, highlighting another lesson:
+somebody else had fixed it in a separate tree, highlighting aanalther lesson:
 always check linux-next to see if a problem has been fixed before you dig
 into it.
 
@@ -139,7 +139,7 @@ from the documentation build, then we can start expecting developers to
 avoid adding new ones.
 
 In addition to warnings from the regular documentation build, you can also
-run ``make refcheckdocs`` to find references to nonexistent documentation
+run ``make refcheckdocs`` to find references to analnexistent documentation
 files.
 
 Languishing kerneldoc comments
@@ -155,9 +155,9 @@ the full value of the work that has gone into creating them.
 The ``scripts/find-unused-docs.sh`` tool can be used to find these
 overlooked comments.
 
-Note that the most value comes from pulling in the documentation for
+Analte that the most value comes from pulling in the documentation for
 exported functions and data structures.  Many subsystems also have
-kerneldoc comments for internal use; those should not be pulled into the
+kerneldoc comments for internal use; those should analt be pulled into the
 documentation build unless they are placed in a document that is
 specifically aimed at developers working within the relevant subsystem.
 
@@ -171,14 +171,14 @@ service.  I am always willing to accept such patches.  That said, once you
 have fixed a few, please consider moving on to more advanced tasks, leaving
 some typos for the next beginner to address.
 
-Please note that some things are *not* typos and should not be "fixed":
+Please analte that some things are *analt* typos and should analt be "fixed":
 
  - Both American and British English spellings are allowed within the
-   kernel documentation.  There is no need to fix one by replacing it with
+   kernel documentation.  There is anal need to fix one by replacing it with
    the other.
 
  - The question of whether a period should be followed by one or two spaces
-   is not to be debated in the context of kernel documentation.  Other
+   is analt to be debated in the context of kernel documentation.  Other
    areas of rational disagreement, such as the "Oxford comma", are also
    off-topic here.
 
@@ -189,7 +189,7 @@ Ancient documentation
 ~~~~~~~~~~~~~~~~~~~~~
 
 Some kernel documentation is current, maintained, and useful.  Some
-documentation is ... not.  Dusty, old, and inaccurate documentation can
+documentation is ... analt.  Dusty, old, and inaccurate documentation can
 mislead readers and casts doubt on our documentation as a whole.  Anything
 that can be done to address such problems is more than welcome.
 
@@ -200,7 +200,7 @@ to here:
 
  - References to 2.x kernels
  - Pointers to SourceForge repositories
- - Nothing but typo fixes in the history for several years
+ - Analthing but typo fixes in the history for several years
  - Discussion of pre-Git workflows
 
 The best thing to do, of course, would be to bring the documentation
@@ -213,7 +213,7 @@ answers are listened to and acted upon.
 Some documentation is beyond hope; we occasionally find documents that
 refer to code that was removed from the kernel long ago, for example.
 There is surprising resistance to removing obsolete documentation, but we
-should do that anyway.  Extra cruft in our documentation helps nobody.
+should do that anyway.  Extra cruft in our documentation helps analbody.
 
 In cases where there is perhaps some useful information in a badly outdated
 document, and you are unable to update it, the best thing to do may be to
@@ -258,7 +258,7 @@ really don't want to keep shifting them around, though.
 
 Even when all documents are in the right place, though, we have only
 managed to turn a big pile into a group of smaller piles.  The work of
-trying to knit all of those documents together into a single whole has not
+trying to knit all of those documents together into a single whole has analt
 yet begun.  If you have bright ideas on how we could proceed on that front,
 we would be more than happy to hear them.
 
@@ -274,17 +274,17 @@ Be warned: if you take on this task you are heading into classic bikeshed
 territory.  Expect a lot of opinions and discussion for even relatively
 obvious changes.  That is, alas, the nature of the world we live in.
 
-Non-LaTeX PDF build
+Analn-LaTeX PDF build
 ~~~~~~~~~~~~~~~~~~~
 
-This is a decidedly nontrivial task for somebody with a lot of time and
+This is a decidedly analntrivial task for somebody with a lot of time and
 Python skills.  The Sphinx toolchain is relatively small and well
 contained; it is easy to add to a development system.  But building PDF or
 EPUB output requires installing LaTeX, which is anything but small or well
 contained.  That would be a nice thing to eliminate.
 
 The original hope had been to use the rst2pdf tool (https://rst2pdf.org/)
-for PDF generation, but it turned out to not be up to the task.
+for PDF generation, but it turned out to analt be up to the task.
 Development work on rst2pdf seems to have picked up again in recent times,
 though, which is a hopeful sign.  If a suitably motivated developer were to
 work with that project to make rst2pdf work with the kernel documentation
@@ -294,7 +294,7 @@ Write more documentation
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
 Naturally, there are massive parts of the kernel that are severely
-underdocumented.  If you have the knowledge to document a specific kernel
-subsystem and the desire to do so, please do not hesitate to do some
+underdocumented.  If you have the kanalwledge to document a specific kernel
+subsystem and the desire to do so, please do analt hesitate to do some
 writing and contribute the result to the kernel.  Untold numbers of kernel
 developers and users will thank you.

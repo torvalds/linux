@@ -156,7 +156,7 @@ type=4
 config=316
 optional=1
 
-# PERF_TYPE_RAW / IDQ_UOPS_NOT_DELIVERED.CORE
+# PERF_TYPE_RAW / IDQ_UOPS_ANALT_DELIVERED.CORE
 [event21:base-stat]
 fd=21
 type=4

@@ -68,13 +68,13 @@ static int __init bgrt_init(void)
 	int ret;
 
 	if (!bgrt_tab.image_address)
-		return -ENODEV;
+		return -EANALDEV;
 
 	bgrt_image = memremap(bgrt_tab.image_address, bgrt_image_size,
 			      MEMREMAP_WB);
 	if (!bgrt_image) {
-		pr_notice("Ignoring BGRT: failed to map image memory\n");
-		return -ENOMEM;
+		pr_analtice("Iganalring BGRT: failed to map image memory\n");
+		return -EANALMEM;
 	}
 
 	bin_attr_image.private = bgrt_image;

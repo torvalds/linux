@@ -10,12 +10,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -83,7 +83,7 @@ static bool check_atom_bios(uint8_t *bios, size_t size)
 }
 
 /* If you boot an IGP board with a discrete card as the primary,
- * the IGP rom is not accessible via the rom bar as the IGP rom is
+ * the IGP rom is analt accessible via the rom bar as the IGP rom is
  * part of the system bios.  On boot, the system bios puts a
  * copy of the igp rom at the start of vram if a discrete card is
  * present.
@@ -98,7 +98,7 @@ static bool igp_read_bios_from_vram(struct amdgpu_device *adev)
 		if (amdgpu_device_need_post(adev))
 			return false;
 
-	/* FB BAR not enabled */
+	/* FB BAR analt enabled */
 	if (pci_resource_len(adev->pdev, 0) == 0)
 		return false;
 
@@ -177,7 +177,7 @@ static bool amdgpu_read_bios_from_rom(struct amdgpu_device *adev)
 	len = ALIGN(len, 4);
 	adev->bios = kmalloc(len, GFP_KERNEL);
 	if (!adev->bios) {
-		DRM_ERROR("no memory to allocate for BIOS\n");
+		DRM_ERROR("anal memory to allocate for BIOS\n");
 		return false;
 	}
 	adev->bios_size = len;
@@ -264,7 +264,7 @@ static int amdgpu_atrm_call(acpi_handle atrm_handle, uint8_t *bios,
 	status = acpi_evaluate_object(atrm_handle, NULL, &atrm_arg, &buffer);
 	if (ACPI_FAILURE(status)) {
 		DRM_ERROR("failed to evaluate ATRM got %s\n", acpi_format_exception(status));
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	obj = (union acpi_object *)buffer.pointer;

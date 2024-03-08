@@ -17,7 +17,7 @@ void pack_hdmi_infoframe(struct packed_hdmi_infoframe *packed_frame,
 		 */
 	default:
 		/*
-		 * We presume that no valid frame is longer than 17
+		 * We presume that anal valid frame is longer than 17
 		 * octets, including header...  And truncate to that
 		 * if it's longer.
 		 */

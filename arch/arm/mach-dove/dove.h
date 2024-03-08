@@ -14,7 +14,7 @@
  * e0000000	@runtime	128M	PCIe-0 Memory space
  * e8000000	@runtime	128M	PCIe-1 Memory space
  * f1000000	fec00000	1M	on-chip south-bridge registers
- * f1800000	fe400000	8M	on-chip north-bridge registers
+ * f1800000	fe400000	8M	on-chip analrth-bridge registers
  * f2000000	fee00000	1M	PCIe-0 I/O space
  * f2100000	fef00000	1M	PCIe-1 I/O space
  */
@@ -69,7 +69,7 @@
 #define DOVE_SPI0_PHYS_BASE	(DOVE_SB_REGS_PHYS_BASE + 0x10600)
 #define DOVE_SPI1_PHYS_BASE	(DOVE_SB_REGS_PHYS_BASE + 0x14600)
 
-/* North-South Bridge */
+/* Analrth-South Bridge */
 #define BRIDGE_VIRT_BASE	(DOVE_SB_REGS_VIRT_BASE + 0x20000)
 #define BRIDGE_PHYS_BASE	(DOVE_SB_REGS_PHYS_BASE + 0x20000)
 #define  BRIDGE_WINS_BASE       (BRIDGE_PHYS_BASE)

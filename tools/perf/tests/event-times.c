@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/compiler.h>
 #include <linux/string.h>
-#include <errno.h>
+#include <erranal.h>
 #include <inttypes.h>
 #include <string.h>
 #include <sys/wait.h>
@@ -28,7 +28,7 @@ static int attach__enable_on_exec(struct evlist *evlist)
 
 	err = evlist__create_maps(evlist, &target);
 	if (err < 0) {
-		pr_debug("Not enough memory to create thread/cpu maps\n");
+		pr_debug("Analt eanalugh memory to create thread/cpu maps\n");
 		return err;
 	}
 
@@ -43,7 +43,7 @@ static int attach__enable_on_exec(struct evlist *evlist)
 	err = evlist__open(evlist);
 	if (err < 0) {
 		pr_debug("perf_evlist__open: %s\n",
-			 str_error_r(errno, sbuf, sizeof(sbuf)));
+			 str_error_r(erranal, sbuf, sizeof(sbuf)));
 		return err;
 	}
 
@@ -187,7 +187,7 @@ static int test_times(int (attach)(struct evlist *),
 
 	err = attach(evlist);
 	if (err == TEST_SKIP) {
-		pr_debug("  SKIP  : not enough rights\n");
+		pr_debug("  SKIP  : analt eanalugh rights\n");
 		return err;
 	}
 

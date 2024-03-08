@@ -1,7 +1,7 @@
 /*
  * Silicon Motion SM7XX frame buffer device
  *
- * Copyright (C) 2006 Silicon Motion Technology Corp.
+ * Copyright (C) 2006 Silicon Motion Techanallogy Corp.
  * Authors:  Ge Wang, gewang@siliconmotion.com
  *	     Boyod boyod.yang@siliconmotion.com.cn
  *
@@ -71,11 +71,11 @@ static const struct fb_var_screeninfo smtcfb_var = {
 	.red            = {16, 8, 0},
 	.green          = {8, 8, 0},
 	.blue           = {0, 8, 0},
-	.activate       = FB_ACTIVATE_NOW,
+	.activate       = FB_ACTIVATE_ANALW,
 	.height         = -1,
 	.width          = -1,
-	.vmode          = FB_VMODE_NONINTERLACED,
-	.nonstd         = 0,
+	.vmode          = FB_VMODE_ANALNINTERLACED,
+	.analnstd         = 0,
 	.accel_flags    = FB_ACCELF_TEXT,
 };
 
@@ -863,13 +863,13 @@ static void __init sm7xx_vga_setup(char *options)
 	}
 }
 
-static void sm712_setpalette(int regno, unsigned int red, unsigned int green,
+static void sm712_setpalette(int reganal, unsigned int red, unsigned int green,
 			     unsigned int blue, struct fb_info *info)
 {
 	/* set bit 5:4 = 01 (write LCD RAM only) */
 	smtc_seqw(0x66, (smtc_seqr(0x66) & 0xC3) | 0x10);
 
-	smtc_mmiowb(regno, dac_reg);
+	smtc_mmiowb(reganal, dac_reg);
 	smtc_mmiowb(red >> 10, dac_val);
 	smtc_mmiowb(green >> 10, dac_val);
 	smtc_mmiowb(blue >> 10, dac_val);
@@ -918,7 +918,7 @@ static int smtc_blank(int blank_mode, struct fb_info *info)
 		smtc_seqw(0x31, (smtc_seqr(0x31) | 0x03));
 		smtc_seqw(0x24, (smtc_seqr(0x24) | 0x01));
 		break;
-	case FB_BLANK_NORMAL:
+	case FB_BLANK_ANALRMAL:
 		/* Screen Off: HSync: On, VSync : On   Soft blank */
 		smtc_seqw(0x24, (smtc_seqr(0x24) | 0x01));
 		smtc_seqw(0x31, ((smtc_seqr(0x31) & (~0x07)) | 0x00));
@@ -974,7 +974,7 @@ static int smtc_blank(int blank_mode, struct fb_info *info)
 	return 0;
 }
 
-static int smtc_setcolreg(unsigned int regno, unsigned int red,
+static int smtc_setcolreg(unsigned int reganal, unsigned int red,
 			  unsigned int green, unsigned int blue,
 			  unsigned int trans, struct fb_info *info)
 {
@@ -983,7 +983,7 @@ static int smtc_setcolreg(unsigned int regno, unsigned int red,
 
 	sfb = info->par;
 
-	if (regno > 255)
+	if (reganal > 255)
 		return 1;
 
 	switch (sfb->fb->fix.visual) {
@@ -992,7 +992,7 @@ static int smtc_setcolreg(unsigned int regno, unsigned int red,
 		/*
 		 * 16/32 bit true-colour, use pseudo-palette for 16 base color
 		 */
-		if (regno >= 16)
+		if (reganal >= 16)
 			break;
 		if (sfb->fb->var.bits_per_pixel == 16) {
 			u32 *pal = sfb->fb->pseudo_palette;
@@ -1000,24 +1000,24 @@ static int smtc_setcolreg(unsigned int regno, unsigned int red,
 			val = chan_to_field(red, &sfb->fb->var.red);
 			val |= chan_to_field(green, &sfb->fb->var.green);
 			val |= chan_to_field(blue, &sfb->fb->var.blue);
-			pal[regno] = pal_rgb(red, green, blue, val);
+			pal[reganal] = pal_rgb(red, green, blue, val);
 		} else {
 			u32 *pal = sfb->fb->pseudo_palette;
 
 			val = chan_to_field(red, &sfb->fb->var.red);
 			val |= chan_to_field(green, &sfb->fb->var.green);
 			val |= chan_to_field(blue, &sfb->fb->var.blue);
-			pal[regno] = big_swap(val);
+			pal[reganal] = big_swap(val);
 		}
 		break;
 
 	case FB_VISUAL_PSEUDOCOLOR:
 		/* color depth 8 bit */
-		sm712_setpalette(regno, red, green, blue, info);
+		sm712_setpalette(reganal, red, green, blue, info);
 		break;
 
 	default:
-		return 1;	/* unknown type */
+		return 1;	/* unkanalwn type */
 	}
 
 	return 0;
@@ -1034,7 +1034,7 @@ static ssize_t smtcfb_read(struct fb_info *info, char __user *buf,
 	unsigned long total_size;
 
 	if (!info->screen_base)
-		return -ENODEV;
+		return -EANALDEV;
 
 	total_size = info->screen_size;
 
@@ -1052,7 +1052,7 @@ static ssize_t smtcfb_read(struct fb_info *info, char __user *buf,
 
 	buffer = kmalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	src = (u32 __iomem *)(info->screen_base + p);
 
@@ -1097,7 +1097,7 @@ static ssize_t smtcfb_write(struct fb_info *info, const char __user *buf,
 	unsigned long total_size;
 
 	if (!info->screen_base)
-		return -ENODEV;
+		return -EANALDEV;
 
 	total_size = info->screen_size;
 
@@ -1114,14 +1114,14 @@ static ssize_t smtcfb_write(struct fb_info *info, const char __user *buf,
 
 	if (count + p > total_size) {
 		if (!err)
-			err = -ENOSPC;
+			err = -EANALSPC;
 
 		count = total_size - p;
 	}
 
 	buffer = kmalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dst = (u32 __iomem *)(info->screen_base + p);
 
@@ -1391,7 +1391,7 @@ static int smtc_map_smem(struct smtcfb_info *sfb,
 	if (!sfb->fb->screen_base) {
 		dev_err(&pdev->dev,
 			"%s: unable to map screen memory\n", sfb->fb->fix.id);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -1450,7 +1450,7 @@ static u_long sm7xx_vram_probe(struct smtcfb_info *sfb)
 		else if (vram == 0x03)
 			return 0x00400000;  /* 4 MB */
 	}
-	return 0;  /* unknown hardware */
+	return 0;  /* unkanalwn hardware */
 }
 
 static void sm7xx_resolution_probe(struct smtcfb_info *sfb)
@@ -1464,7 +1464,7 @@ static void sm7xx_resolution_probe(struct smtcfb_info *sfb)
 	}
 
 	/*
-	 * No parameter, default resolution is 1024x768-16.
+	 * Anal parameter, default resolution is 1024x768-16.
 	 *
 	 * FIXME: earlier laptops, such as IBM Thinkpad 240X, has a 800x600
 	 * panel, also see the comments about Thinkpad 240X above.
@@ -1478,7 +1478,7 @@ static void sm7xx_resolution_probe(struct smtcfb_info *sfb)
 	 * Loongson MIPS netbooks use 1024x600 LCD panels, which is the original
 	 * target platform of this driver, but nearly all old x86 laptops have
 	 * 1024x768. Lighting 768 panels using 600's timings would partially
-	 * garble the display, so we don't want that. But it's not possible to
+	 * garble the display, so we don't want that. But it's analt possible to
 	 * distinguish them reliably.
 	 *
 	 * So we change the default to 768, but keep 600 as-is on MIPS.
@@ -1511,7 +1511,7 @@ static int smtcfb_pci_probe(struct pci_dev *pdev,
 
 	err = pci_request_region(pdev, 0, "sm7xxfb");
 	if (err < 0) {
-		dev_err(&pdev->dev, "cannot reserve framebuffer region\n");
+		dev_err(&pdev->dev, "cananalt reserve framebuffer region\n");
 		goto failed_regions;
 	}
 
@@ -1519,7 +1519,7 @@ static int smtcfb_pci_probe(struct pci_dev *pdev,
 
 	info = framebuffer_alloc(sizeof(*sfb), &pdev->dev);
 	if (!info) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto failed_free;
 	}
 
@@ -1555,7 +1555,7 @@ static int smtcfb_pci_probe(struct pci_dev *pdev,
 			dev_err(&pdev->dev,
 				"%s: unable to map memory mapped IO!\n",
 				sfb->fb->fix.id);
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto failed_fb;
 		}
 
@@ -1586,7 +1586,7 @@ static int smtcfb_pci_probe(struct pci_dev *pdev,
 			dev_err(&pdev->dev,
 				"%s: unable to map memory mapped IO!\n",
 				sfb->fb->fix.id);
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto failed_fb;
 		}
 
@@ -1601,8 +1601,8 @@ static int smtcfb_pci_probe(struct pci_dev *pdev,
 		break;
 	default:
 		dev_err(&pdev->dev,
-			"No valid Silicon Motion display chip was detected!\n");
-		err = -ENODEV;
+			"Anal valid Silicon Motion display chip was detected!\n");
+		err = -EANALDEV;
 		goto failed_fb;
 	}
 
@@ -1754,10 +1754,10 @@ static int __init sm712fb_init(void)
 	char *option = NULL;
 
 	if (fb_modesetting_disabled("sm712fb"))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (fb_get_options("sm712fb", &option))
-		return -ENODEV;
+		return -EANALDEV;
 	if (option && *option)
 		mode_option = option;
 	sm7xx_vga_setup(mode_option);

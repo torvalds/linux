@@ -19,12 +19,12 @@ struct i915_page_table *alloc_pt(struct i915_address_space *vm, int sz)
 
 	pt = kmalloc(sizeof(*pt), I915_GFP_ALLOW_FAIL);
 	if (unlikely(!pt))
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	pt->base = vm->alloc_pt_dma(vm, sz);
 	if (IS_ERR(pt->base)) {
 		kfree(pt);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	pt->is_compact = false;
@@ -56,13 +56,13 @@ struct i915_page_directory *alloc_pd(struct i915_address_space *vm)
 
 	pd = __alloc_pd(I915_PDES);
 	if (unlikely(!pd))
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	pd->pt.base = vm->alloc_pt_dma(vm, I915_GTT_PAGE_SIZE_4K);
 	if (IS_ERR(pd->pt.base)) {
 		kfree(pd->entry);
 		kfree(pd);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	return pd;

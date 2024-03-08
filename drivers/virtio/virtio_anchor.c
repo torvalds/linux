@@ -8,11 +8,11 @@ bool virtio_require_restricted_mem_acc(struct virtio_device *dev)
 }
 EXPORT_SYMBOL_GPL(virtio_require_restricted_mem_acc);
 
-static bool virtio_no_restricted_mem_acc(struct virtio_device *dev)
+static bool virtio_anal_restricted_mem_acc(struct virtio_device *dev)
 {
 	return false;
 }
 
 bool (*virtio_check_mem_acc_cb)(struct virtio_device *dev) =
-	virtio_no_restricted_mem_acc;
+	virtio_anal_restricted_mem_acc;
 EXPORT_SYMBOL_GPL(virtio_check_mem_acc_cb);

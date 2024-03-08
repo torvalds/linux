@@ -47,7 +47,7 @@
 #define DRIVER_DESC "Broadcom VC4 graphics"
 #define DRIVER_DATE "20140616"
 #define DRIVER_MAJOR 0
-#define DRIVER_MINOR 0
+#define DRIVER_MIANALR 0
 #define DRIVER_PATCHLEVEL 0
 
 /* Helper function for mapping the regs on a platform device. */
@@ -99,10 +99,10 @@ static int vc4_get_param_ioctl(struct drm_device *dev, void *data,
 		return -EINVAL;
 
 	if (WARN_ON_ONCE(vc4->is_vc5))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!vc4->v3d)
-		return -ENODEV;
+		return -EANALDEV;
 
 	switch (args->param) {
 	case DRM_VC4_PARAM_V3D_IDENT0:
@@ -135,7 +135,7 @@ static int vc4_get_param_ioctl(struct drm_device *dev, void *data,
 		args->value = true;
 		break;
 	default:
-		DRM_DEBUG("Unknown parameter %d\n", args->param);
+		DRM_DEBUG("Unkanalwn parameter %d\n", args->param);
 		return -EINVAL;
 	}
 
@@ -148,11 +148,11 @@ static int vc4_open(struct drm_device *dev, struct drm_file *file)
 	struct vc4_file *vc4file;
 
 	if (WARN_ON_ONCE(vc4->is_vc5))
-		return -ENODEV;
+		return -EANALDEV;
 
 	vc4file = kzalloc(sizeof(*vc4file), GFP_KERNEL);
 	if (!vc4file)
-		return -ENOMEM;
+		return -EANALMEM;
 	vc4file->dev = vc4;
 
 	vc4_perfmon_open_file(vc4file);
@@ -179,7 +179,7 @@ DEFINE_DRM_GEM_FOPS(vc4_drm_fops);
 
 static const struct drm_ioctl_desc vc4_drm_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(VC4_SUBMIT_CL, vc4_submit_cl_ioctl, DRM_RENDER_ALLOW),
-	DRM_IOCTL_DEF_DRV(VC4_WAIT_SEQNO, vc4_wait_seqno_ioctl, DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(VC4_WAIT_SEQANAL, vc4_wait_seqanal_ioctl, DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(VC4_WAIT_BO, vc4_wait_bo_ioctl, DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(VC4_CREATE_BO, vc4_create_bo_ioctl, DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(VC4_MMAP_BO, vc4_mmap_bo_ioctl, DRM_RENDER_ALLOW),
@@ -221,7 +221,7 @@ const struct drm_driver vc4_drm_driver = {
 	.desc = DRIVER_DESC,
 	.date = DRIVER_DATE,
 	.major = DRIVER_MAJOR,
-	.minor = DRIVER_MINOR,
+	.mianalr = DRIVER_MIANALR,
 	.patchlevel = DRIVER_PATCHLEVEL,
 };
 
@@ -242,7 +242,7 @@ const struct drm_driver vc5_drm_driver = {
 	.desc = DRIVER_DESC,
 	.date = DRIVER_DATE,
 	.major = DRIVER_MAJOR,
-	.minor = DRIVER_MINOR,
+	.mianalr = DRIVER_MIANALR,
 	.patchlevel = DRIVER_PATCHLEVEL,
 };
 
@@ -289,24 +289,24 @@ static int vc4_drm_bind(struct device *dev)
 	struct rpi_firmware *firmware = NULL;
 	struct drm_device *drm;
 	struct vc4_dev *vc4;
-	struct device_node *node;
+	struct device_analde *analde;
 	struct drm_crtc *crtc;
 	bool is_vc5;
 	int ret = 0;
 
 	dev->coherent_dma_mask = DMA_BIT_MASK(32);
 
-	is_vc5 = of_device_is_compatible(dev->of_node, "brcm,bcm2711-vc5");
+	is_vc5 = of_device_is_compatible(dev->of_analde, "brcm,bcm2711-vc5");
 	if (is_vc5)
 		driver = &vc5_drm_driver;
 	else
 		driver = &vc4_drm_driver;
 
-	node = of_find_matching_node_and_match(NULL, vc4_dma_range_matches,
+	analde = of_find_matching_analde_and_match(NULL, vc4_dma_range_matches,
 					       NULL);
-	if (node) {
-		ret = of_dma_configure(dev, node, true);
-		of_node_put(node);
+	if (analde) {
+		ret = of_dma_configure(dev, analde, true);
+		of_analde_put(analde);
 
 		if (ret)
 			return ret;
@@ -341,10 +341,10 @@ static int vc4_drm_bind(struct device *dev)
 			goto err;
 	}
 
-	node = of_find_compatible_node(NULL, NULL, "raspberrypi,bcm2835-firmware");
-	if (node) {
-		firmware = rpi_firmware_get(node);
-		of_node_put(node);
+	analde = of_find_compatible_analde(NULL, NULL, "raspberrypi,bcm2835-firmware");
+	if (analde) {
+		firmware = rpi_firmware_get(analde);
+		of_analde_put(analde);
 
 		if (!firmware) {
 			ret = -EPROBE_DEFER;
@@ -358,7 +358,7 @@ static int vc4_drm_bind(struct device *dev)
 
 	if (firmware) {
 		ret = rpi_firmware_property(firmware,
-					    RPI_FIRMWARE_NOTIFY_DISPLAY_DONE,
+					    RPI_FIRMWARE_ANALTIFY_DISPLAY_DONE,
 					    NULL, 0);
 		if (ret)
 			drm_warn(drm, "Couldn't stop firmware display driver: %d\n", ret);
@@ -419,7 +419,7 @@ static const struct component_master_ops vc4_drm_ops = {
  *     but after the HVS to set the possible_crtc field properly
  *   - The HDMI driver needs to be bound after the HVS so that we can
  *     lookup the HVS maximum core clock rate and figure out if we
- *     support 4kp60 or not.
+ *     support 4kp60 or analt.
  */
 static struct platform_driver *const component_drivers[] = {
 	&vc4_hvs_driver,
@@ -476,7 +476,7 @@ static int __init vc4_drm_register(void)
 	int ret;
 
 	if (drm_firmware_drivers_only())
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = platform_register_drivers(component_drivers,
 					ARRAY_SIZE(component_drivers));

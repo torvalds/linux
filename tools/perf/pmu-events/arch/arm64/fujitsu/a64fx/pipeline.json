@@ -126,22 +126,22 @@
     "BriefDescription": "This event counts aborted requests in L1D pipelines that due to store-load interlock."
   },
   {
-    "PublicDescription": "This event counts requests in L1D cache pipeline#0 that its sector cache ID is not 0.",
+    "PublicDescription": "This event counts requests in L1D cache pipeline#0 that its sector cache ID is analt 0.",
     "EventCode": "0x2A0",
-    "EventName": "L1_PIPE0_VAL_IU_NOT_SEC0",
-    "BriefDescription": "This event counts requests in L1D cache pipeline#0 that its sector cache ID is not 0."
+    "EventName": "L1_PIPE0_VAL_IU_ANALT_SEC0",
+    "BriefDescription": "This event counts requests in L1D cache pipeline#0 that its sector cache ID is analt 0."
   },
   {
-    "PublicDescription": "This event counts requests in L1D cache pipeline#1 that its sector cache ID is not 0.",
+    "PublicDescription": "This event counts requests in L1D cache pipeline#1 that its sector cache ID is analt 0.",
     "EventCode": "0x2A1",
-    "EventName": "L1_PIPE1_VAL_IU_NOT_SEC0",
-    "BriefDescription": "This event counts requests in L1D cache pipeline#1 that its sector cache ID is not 0."
+    "EventName": "L1_PIPE1_VAL_IU_ANALT_SEC0",
+    "BriefDescription": "This event counts requests in L1D cache pipeline#1 that its sector cache ID is analt 0."
   },
   {
-    "PublicDescription": "This event counts the number of times where 2 elements of the gather instructions became 2 flows because 2 elements could not be combined.",
+    "PublicDescription": "This event counts the number of times where 2 elements of the gather instructions became 2 flows because 2 elements could analt be combined.",
     "EventCode": "0x2B0",
     "EventName": "L1_PIPE_COMP_GATHER_2FLOW",
-    "BriefDescription": "This event counts the number of times where 2 elements of the gather instructions became 2 flows because 2 elements could not be combined."
+    "BriefDescription": "This event counts the number of times where 2 elements of the gather instructions became 2 flows because 2 elements could analt be combined."
   },
   {
     "PublicDescription": "This event counts the number of times where 2 elements of the gather instructions became 1 flow because 2 elements could be combined.",

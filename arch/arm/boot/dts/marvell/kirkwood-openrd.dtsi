@@ -82,8 +82,8 @@
 				 * High: SD
 				 *
 				 * When changing this line make sure the newly
-				 * selected device node is enabled and the
-				 * previously selected device node is disabled.
+				 * selected device analde is enabled and the
+				 * previously selected device analde is disabled.
 				 */
 				output-high; /* Select SD by default */
 				line-name = "SelUARTorSD";

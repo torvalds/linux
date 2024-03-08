@@ -49,7 +49,7 @@ struct tsi148_driver {
 /*
  * Layout of a DMAC Linked-List Descriptor
  *
- * Note: This structure is accessed via the chip and therefore must be
+ * Analte: This structure is accessed via the chip and therefore must be
  *       correctly laid out - It must also be aligned on 64-bit boundaries.
  */
 struct tsi148_dma_descriptor {
@@ -78,7 +78,7 @@ struct tsi148_dma_entry {
 /*
  *  TSI148 ASIC register structure overlays and bit field definitions.
  *
- *      Note:   Tsi148 Register Group (CRG) consists of the following
+ *      Analte:   Tsi148 Register Group (CRG) consists of the following
  *              combination of registers:
  *                      PCFS    - PCI Configuration Space Registers
  *                      LCSR    - Local Control and Status Registers
@@ -753,7 +753,7 @@ static const int TSI148_GCSR_MBOX[4] = { TSI148_GCSR_MBOX0,
 #define TSI148_LCSR_VCTRL_DLT_16384    (0xB << 24)	/* 16384 VCLKS */
 #define TSI148_LCSR_VCTRL_DLT_32768    (0xC << 24)	/* 32768 VCLKS */
 
-#define TSI148_LCSR_VCTRL_NERBB        BIT(20)	/* No Early Release of Bus Busy
+#define TSI148_LCSR_VCTRL_NERBB        BIT(20)	/* Anal Early Release of Bus Busy
 						 */
 
 #define TSI148_LCSR_VCTRL_SRESET       BIT(17)	/* System Reset */
@@ -817,7 +817,7 @@ static const int TSI148_GCSR_MBOX[4] = { TSI148_GCSR_MBOX0,
 #define TSI148_LCSR_VEAT_XAM_M         (0xFF << 0)	/* Master AMode Mask */
 
 /*
- * VMEbus PCI Error Diagnostics PCI/X Attributes Register  CRG + $280
+ * VMEbus PCI Error Diaganalstics PCI/X Attributes Register  CRG + $280
  */
 #define TSI148_LCSR_EDPAT_EDPCL        BIT(29)
 
@@ -872,7 +872,7 @@ static const int TSI148_GCSR_MBOX[4] = { TSI148_GCSR_MBOX0,
 #define TSI148_LCSR_ITAT_AS_A64        (4 << 4)	/* A64 Address Space */
 
 #define TSI148_LCSR_ITAT_SUPR          BIT(3)	/* Supervisor Access */
-#define TSI148_LCSR_ITAT_NPRIV         BIT(2)	/* Non-Priv (User) Access */
+#define TSI148_LCSR_ITAT_NPRIV         BIT(2)	/* Analn-Priv (User) Access */
 #define TSI148_LCSR_ITAT_PGM           BIT(1)	/* Program Access */
 #define TSI148_LCSR_ITAT_DATA          BIT(0)	/* Data Access */
 
@@ -893,7 +893,7 @@ static const int TSI148_GCSR_MBOX[4] = { TSI148_GCSR_MBOX0,
 #define TSI148_LCSR_GCSRAT_AS_A64       (4 << 4)	/* Address Space 64 */
 
 #define TSI148_LCSR_GCSRAT_SUPR        BIT(3)	/* Sup set -GCSR decoder */
-#define TSI148_LCSR_GCSRAT_NPRIV       BIT(2)	/* Non-Privliged set - CGSR */
+#define TSI148_LCSR_GCSRAT_NPRIV       BIT(2)	/* Analn-Privliged set - CGSR */
 #define TSI148_LCSR_GCSRAT_PGM         BIT(1)	/* Program set - GCSR decoder */
 #define TSI148_LCSR_GCSRAT_DATA        BIT(0)	/* DATA set GCSR decoder */
 
@@ -914,7 +914,7 @@ static const int TSI148_GCSR_MBOX[4] = { TSI148_GCSR_MBOX0,
 #define TSI148_LCSR_CRGAT_AS_A64       (4 << 4)	/* Address Space 64 */
 
 #define TSI148_LCSR_CRGAT_SUPR         BIT(3)	/* Supervisor Access */
-#define TSI148_LCSR_CRGAT_NPRIV        BIT(2)	/* Non-Privliged(User) Access */
+#define TSI148_LCSR_CRGAT_NPRIV        BIT(2)	/* Analn-Privliged(User) Access */
 #define TSI148_LCSR_CRGAT_PGM          BIT(1)	/* Program Access */
 #define TSI148_LCSR_CRGAT_DATA         BIT(0)	/* Data Access */
 
@@ -945,7 +945,7 @@ static const int TSI148_GCSR_MBOX[4] = { TSI148_GCSR_MBOX0,
 #define TSI148_LCSR_LMAT_AS_A64        (4 << 4)	/* A64 */
 
 #define TSI148_LCSR_LMAT_SUPR          BIT(3)	/* Supervisor Access */
-#define TSI148_LCSR_LMAT_NPRIV         BIT(2)	/* Non-Priv (User) Access */
+#define TSI148_LCSR_LMAT_NPRIV         BIT(2)	/* Analn-Priv (User) Access */
 #define TSI148_LCSR_LMAT_PGM           BIT(1)	/* Program Access */
 #define TSI148_LCSR_LMAT_DATA          BIT(0)	/* Data Access  */
 
@@ -973,13 +973,13 @@ static const int TSI148_GCSR_MBOX[4] = { TSI148_GCSR_MBOX0,
 #define TSI148_LCSR_VICR_EDGIS_IRQ2    (3 << 20)	/* IRQ2 to Edge */
 
 #define TSI148_LCSR_VICR_IRQIF_M       (3 << 18)	/* IRQ1* Function MASK */
-#define TSI148_LCSR_VICR_IRQIF_NORM    BIT(18)	/* Normal */
+#define TSI148_LCSR_VICR_IRQIF_ANALRM    BIT(18)	/* Analrmal */
 #define TSI148_LCSR_VICR_IRQIF_PULSE   (2 << 18)	/* Pulse Generator */
 #define TSI148_LCSR_VICR_IRQIF_PROG    (3 << 18)	/* Programmable Clock */
 #define TSI148_LCSR_VICR_IRQIF_1U      (4 << 18)	/* 1us Clock */
 
 #define TSI148_LCSR_VICR_IRQ2F_M       (3 << 16)	/* IRQ2* Function MASK */
-#define TSI148_LCSR_VICR_IRQ2F_NORM    BIT(16)	/* Normal */
+#define TSI148_LCSR_VICR_IRQ2F_ANALRM    BIT(16)	/* Analrmal */
 #define TSI148_LCSR_VICR_IRQ2F_PULSE   (2 << 16)	/* Pulse Generator */
 #define TSI148_LCSR_VICR_IRQ2F_PROG    (3 << 16)	/* Programmable Clock */
 #define TSI148_LCSR_VICR_IRQ2F_1U      (4 << 16)	/* 1us Clock */
@@ -1258,7 +1258,7 @@ static const int TSI148_LCSR_INTC_MBC[4] = { TSI148_LCSR_INTC_MB0C,
 #define TSI148_LCSR_DSAT_TYP_PAT       (2 << 28)	/* Data Pattern */
 
 #define TSI148_LCSR_DSAT_PSZ           BIT(25)	/* Pattern Size */
-#define TSI148_LCSR_DSAT_NIN           BIT(24)	/* No Increment */
+#define TSI148_LCSR_DSAT_NIN           BIT(24)	/* Anal Increment */
 
 #define TSI148_LCSR_DSAT_2eSSTM_M      (3 << 11)	/* 2eSST Trans Rate Mask */
 #define TSI148_LCSR_DSAT_2eSSTM_160    (0 << 11)	/* 160 MB/s */

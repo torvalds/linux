@@ -23,7 +23,7 @@
 #include <asm/hw_irq.h>
 #include <asm/irqflags.h>
 #else
-#include "../kernel/head_booke.h" /* for THREAD_NORMSAVE() */
+#include "../kernel/head_booke.h" /* for THREAD_ANALRMSAVE() */
 #endif
 
 #define LONGBYTES		(BITS_PER_LONG / 8)
@@ -35,7 +35,7 @@
 #define HOST_CALLEE_LR  PPC_LR_STKOFF
 #define HOST_RUN        (HOST_CALLEE_LR + LONGBYTES)
 /*
- * r2 is special: it holds 'current', and it made nonvolatile in the
+ * r2 is special: it holds 'current', and it made analnvolatile in the
  * kernel with the -ffixed-r2 gcc option.
  */
 #define HOST_R2         (HOST_RUN + LONGBYTES)
@@ -57,7 +57,7 @@
  * r4 = vcpu, r5 = srr0, r6 = srr1
  * saved in vcpu: cr, ctr, r3-r13
  */
-.macro kvm_handler_common intno, srr0, flags
+.macro kvm_handler_common intanal, srr0, flags
 	/* Restore host stack pointer */
 	PPC_STL	r1, VCPU_GPR(R1)(r4)
 	PPC_STL	r2, VCPU_GPR(R2)(r4)
@@ -71,8 +71,8 @@ END_BTB_FLUSH_SECTION
 	mfspr	r10, SPRN_PID
 	lwz	r8, VCPU_HOST_PID(r4)
 	PPC_LL	r11, VCPU_SHARED(r4)
-	PPC_STL	r14, VCPU_GPR(R14)(r4) /* We need a non-volatile GPR. */
-	li	r14, \intno
+	PPC_STL	r14, VCPU_GPR(R14)(r4) /* We need a analn-volatile GPR. */
+	li	r14, \intanal
 
 	stw	r10, VCPU_GUEST_PID(r4)
 	mtspr	SPRN_PID, r8
@@ -95,7 +95,7 @@ END_BTB_FLUSH_SECTION
 
 	/*
 	 * Make sure CE/ME/RI are set (if appropriate for exception type)
-	 * whether or not the guest had it set.  Since mfmsr/mtmsr are
+	 * whether or analt the guest had it set.  Since mfmsr/mtmsr are
 	 * somewhat expensive, skip in the common case where the guest
 	 * had all these bits set (and thus they're still set if
 	 * appropriate for the exception type).
@@ -167,8 +167,8 @@ END_BTB_FLUSH_SECTION
 /*
  * For input register values, see arch/powerpc/include/asm/kvm_booke_hv_asm.h
  */
-.macro kvm_handler intno type scratch, paca_ex, ex_r10, ex_r11, srr0, srr1, flags
- _GLOBAL(kvmppc_handler_\intno\()_\srr1)
+.macro kvm_handler intanal type scratch, paca_ex, ex_r10, ex_r11, srr0, srr1, flags
+ _GLOBAL(kvmppc_handler_\intanal\()_\srr1)
 	mr	r11, r4
 	/*
 	 * Get vcpu from Paca: paca->__current.thread->kvm_vcpu
@@ -201,7 +201,7 @@ END_BTB_FLUSH_SECTION
 	PPC_STL	r5, VCPU_CTR(r4)
 	mfspr	r5, \srr0
 	mfspr	r6, \srr1
-	kvm_handler_common \intno, \srr0, \flags
+	kvm_handler_common \intanal, \srr0, \flags
 .endm
 
 #define EX_PARAMS(type) \
@@ -243,7 +243,7 @@ kvm_handler BOOKE_INTERRUPT_FIT, EX_PARAMS(GEN), \
 kvm_handler BOOKE_INTERRUPT_WATCHDOG, EX_PARAMS(CRIT),\
 	SPRN_CSRR0, SPRN_CSRR1, 0
 /*
- * Only bolted TLB miss exception handlers are supported for now
+ * Only bolted TLB miss exception handlers are supported for analw
  */
 kvm_handler BOOKE_INTERRUPT_DTLB_MISS, EX_PARAMS_TLB, \
 	SPRN_SRR0, SPRN_SRR1, (NEED_EMU | NEED_DEAR | NEED_ESR)
@@ -277,18 +277,18 @@ kvm_handler BOOKE_INTERRUPT_LRAT_ERROR, EX_PARAMS(GEN), \
 /*
  * For input register values, see arch/powerpc/include/asm/kvm_booke_hv_asm.h
  */
-.macro kvm_handler intno srr0, srr1, flags
-_GLOBAL(kvmppc_handler_\intno\()_\srr1)
+.macro kvm_handler intanal srr0, srr1, flags
+_GLOBAL(kvmppc_handler_\intanal\()_\srr1)
 	PPC_LL	r11, THREAD_KVM_VCPU(r10)
 	PPC_STL r3, VCPU_GPR(R3)(r11)
 	mfspr	r3, SPRN_SPRG_RSCRATCH0
 	PPC_STL	r4, VCPU_GPR(R4)(r11)
-	PPC_LL	r4, THREAD_NORMSAVE(0)(r10)
+	PPC_LL	r4, THREAD_ANALRMSAVE(0)(r10)
 	PPC_STL	r5, VCPU_GPR(R5)(r11)
 	PPC_STL	r13, VCPU_CR(r11)
 	mfspr	r5, \srr0
 	PPC_STL	r3, VCPU_GPR(R10)(r11)
-	PPC_LL	r3, THREAD_NORMSAVE(2)(r10)
+	PPC_LL	r3, THREAD_ANALRMSAVE(2)(r10)
 	PPC_STL	r6, VCPU_GPR(R6)(r11)
 	PPC_STL	r4, VCPU_GPR(R11)(r11)
 	mfspr	r6, \srr1
@@ -300,11 +300,11 @@ _GLOBAL(kvmppc_handler_\intno\()_\srr1)
 	PPC_STL	r12, VCPU_GPR(R12)(r11)
 	PPC_STL	r7, VCPU_CTR(r11)
 	mr	r4, r11
-	kvm_handler_common \intno, \srr0, \flags
+	kvm_handler_common \intanal, \srr0, \flags
 .endm
 
-.macro kvm_lvl_handler intno scratch srr0, srr1, flags
-_GLOBAL(kvmppc_handler_\intno\()_\srr1)
+.macro kvm_lvl_handler intanal scratch srr0, srr1, flags
+_GLOBAL(kvmppc_handler_\intanal\()_\srr1)
 	mfspr	r10, SPRN_SPRG_THREAD
 	PPC_LL	r11, THREAD_KVM_VCPU(r10)
 	PPC_STL r3, VCPU_GPR(R3)(r11)
@@ -328,7 +328,7 @@ _GLOBAL(kvmppc_handler_\intno\()_\srr1)
 	PPC_STL	r4, VCPU_GPR(R11)(r11)
 	PPC_STL	r7, VCPU_CTR(r11)
 	mr	r4, r11
-	kvm_handler_common \intno, \srr0, \flags
+	kvm_handler_common \intanal, \srr0, \flags
 .endm
 
 kvm_lvl_handler BOOKE_INTERRUPT_CRITICAL, \
@@ -426,12 +426,12 @@ _GLOBAL(kvmppc_resume_host)
 
 	/* Switch to kernel stack and jump to handler. */
 	mr	r3, r4
-	mr	r5, r14 /* intno */
+	mr	r5, r14 /* intanal */
 	mr	r14, r4 /* Save vcpu pointer. */
 	mr	r4, r5
 	bl	kvmppc_handle_exit
 
-	/* Restore vcpu pointer and the nonvolatiles we used. */
+	/* Restore vcpu pointer and the analnvolatiles we used. */
 	mr	r4, r14
 	PPC_LL	r14, VCPU_GPR(R14)(r4)
 
@@ -462,13 +462,13 @@ skip_nv_load:
 	srawi	r3, r3, 2 /* Shift -ERR back down. */
 
 heavyweight_exit:
-	/* Not returning to guest. */
+	/* Analt returning to guest. */
 	PPC_LL	r5, HOST_STACK_LR(r1)
 	lwz	r6, HOST_CR(r1)
 
 	/*
-	 * We already saved guest volatile register state; now save the
-	 * non-volatiles.
+	 * We already saved guest volatile register state; analw save the
+	 * analn-volatiles.
 	 */
 
 	PPC_STL	r15, VCPU_GPR(R15)(r4)
@@ -489,7 +489,7 @@ heavyweight_exit:
 	PPC_STL	r30, VCPU_GPR(R30)(r4)
 	PPC_STL	r31, VCPU_GPR(R31)(r4)
 
-	/* Load host non-volatile register state from host stack. */
+	/* Load host analn-volatile register state from host stack. */
 	PPC_LL	r14, HOST_NV_GPR(R14)(r1)
 	PPC_LL	r15, HOST_NV_GPR(R15)(r1)
 	PPC_LL	r16, HOST_NV_GPR(R16)(r1)
@@ -531,7 +531,7 @@ _GLOBAL(__kvmppc_vcpu_run)
 
 	stw	r5, HOST_CR(r1)
 
-	/* Save host non-volatile register state to stack. */
+	/* Save host analn-volatile register state to stack. */
 	PPC_STL	r14, HOST_NV_GPR(R14)(r1)
 	PPC_STL	r15, HOST_NV_GPR(R15)(r1)
 	PPC_STL	r16, HOST_NV_GPR(R16)(r1)
@@ -551,7 +551,7 @@ _GLOBAL(__kvmppc_vcpu_run)
 	PPC_STL	r30, HOST_NV_GPR(R30)(r1)
 	PPC_STL	r31, HOST_NV_GPR(R31)(r1)
 
-	/* Load guest non-volatiles. */
+	/* Load guest analn-volatiles. */
 	PPC_LL	r14, VCPU_GPR(R14)(r4)
 	PPC_LL	r15, VCPU_GPR(R15)(r4)
 	PPC_LL	r16, VCPU_GPR(R16)(r4)

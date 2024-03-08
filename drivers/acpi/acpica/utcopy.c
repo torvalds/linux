@@ -146,12 +146,12 @@ acpi_ut_copy_isimple_to_esimple(union acpi_operand_object *internal_object,
 		case ACPI_REFCLASS_NAME:
 			/*
 			 * For namepath, return the object handle ("reference")
-			 * We are referring to the namespace node
+			 * We are referring to the namespace analde
 			 */
 			external_object->reference.handle =
-			    internal_object->reference.node;
+			    internal_object->reference.analde;
 			external_object->reference.actual_type =
-			    acpi_ns_get_type(internal_object->reference.node);
+			    acpi_ns_get_type(internal_object->reference.analde);
 			break;
 
 		default:
@@ -183,10 +183,10 @@ acpi_ut_copy_isimple_to_esimple(union acpi_operand_object *internal_object,
 
 	default:
 		/*
-		 * There is no corresponding external object type
+		 * There is anal corresponding external object type
 		 */
 		ACPI_ERROR((AE_INFO,
-			    "Unsupported object type, cannot convert to external object: %s",
+			    "Unsupported object type, cananalt convert to external object: %s",
 			    acpi_ut_get_type_name(internal_object->common.
 						  type)));
 
@@ -204,7 +204,7 @@ acpi_ut_copy_isimple_to_esimple(union acpi_operand_object *internal_object,
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Copy one package element to another package element
+ * DESCRIPTION: Copy one package element to aanalther package element
  *
  ******************************************************************************/
 
@@ -373,7 +373,7 @@ acpi_ut_copy_iobject_to_eobject(union acpi_operand_object *internal_object,
 							   &ret_buffer->length);
 	} else {
 		/*
-		 * Build a simple object (no nested objects)
+		 * Build a simple object (anal nested objects)
 		 */
 		status = acpi_ut_copy_isimple_to_esimple(internal_object,
 							 ACPI_CAST_PTR(union
@@ -389,7 +389,7 @@ acpi_ut_copy_iobject_to_eobject(union acpi_operand_object *internal_object,
 									acpi_object))),
 							 &ret_buffer->length);
 		/*
-		 * build simple does not include the object size in the length
+		 * build simple does analt include the object size in the length
 		 * so we add it in here
 		 */
 		ret_buffer->length += sizeof(union acpi_object);
@@ -408,8 +408,8 @@ acpi_ut_copy_iobject_to_eobject(union acpi_operand_object *internal_object,
  * RETURN:      Status
  *
  * DESCRIPTION: This function copies an external object to an internal one.
- *              NOTE: Pointers can be copied, we don't need to copy data.
- *              (The pointers have to be valid in our address space no matter
+ *              ANALTE: Pointers can be copied, we don't need to copy data.
+ *              (The pointers have to be valid in our address space anal matter
  *              what we do with them!)
  *
  ******************************************************************************/
@@ -435,7 +435,7 @@ acpi_ut_copy_esimple_to_isimple(union acpi_object *external_object,
 								 external_object->
 								 type);
 		if (!internal_object) {
-			return_ACPI_STATUS(AE_NO_MEMORY);
+			return_ACPI_STATUS(AE_ANAL_MEMORY);
 		}
 		break;
 
@@ -446,10 +446,10 @@ acpi_ut_copy_esimple_to_isimple(union acpi_object *external_object,
 
 	default:
 
-		/* All other types are not supported */
+		/* All other types are analt supported */
 
 		ACPI_ERROR((AE_INFO,
-			    "Unsupported object type, cannot convert to internal object: %s",
+			    "Unsupported object type, cananalt convert to internal object: %s",
 			    acpi_ut_get_type_name(external_object->type)));
 
 		return_ACPI_STATUS(AE_SUPPORT);
@@ -501,7 +501,7 @@ acpi_ut_copy_esimple_to_isimple(union acpi_object *external_object,
 
 	case ACPI_TYPE_LOCAL_REFERENCE:
 
-		/* An incoming reference is defined to be a namespace node */
+		/* An incoming reference is defined to be a namespace analde */
 
 		internal_object->reference.class = ACPI_REFCLASS_REFOF;
 		internal_object->reference.object =
@@ -520,7 +520,7 @@ acpi_ut_copy_esimple_to_isimple(union acpi_object *external_object,
 
 error_exit:
 	acpi_ut_remove_reference(internal_object);
-	return_ACPI_STATUS(AE_NO_MEMORY);
+	return_ACPI_STATUS(AE_ANAL_MEMORY);
 }
 
 /*******************************************************************************
@@ -553,7 +553,7 @@ acpi_ut_copy_epackage_to_ipackage(union acpi_object *external_object,
 	package_object =
 	    acpi_ut_create_package_object(external_object->package.count);
 	if (!package_object) {
-		return_ACPI_STATUS(AE_NO_MEMORY);
+		return_ACPI_STATUS(AE_ANAL_MEMORY);
 	}
 
 	package_elements = package_object->package.elements;
@@ -613,7 +613,7 @@ acpi_ut_copy_eobject_to_iobject(union acpi_object *external_object,
 						      internal_object);
 	} else {
 		/*
-		 * Build a simple object (no nested objects)
+		 * Build a simple object (anal nested objects)
 		 */
 		status = acpi_ut_copy_esimple_to_isimple(external_object,
 							 internal_object);
@@ -631,7 +631,7 @@ acpi_ut_copy_eobject_to_iobject(union acpi_object *external_object,
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Simple copy of one internal object to another. Reference count
+ * DESCRIPTION: Simple copy of one internal object to aanalther. Reference count
  *              of the destination object is preserved.
  *
  ******************************************************************************/
@@ -652,11 +652,11 @@ acpi_ut_copy_simple_object(union acpi_operand_object *source_desc,
 
 	/*
 	 * Copy the entire source object over the destination object.
-	 * Note: Source can be either an operand object or namespace node.
+	 * Analte: Source can be either an operand object or namespace analde.
 	 */
 	copy_size = sizeof(union acpi_operand_object);
 	if (ACPI_GET_DESCRIPTOR_TYPE(source_desc) == ACPI_DESC_TYPE_NAMED) {
-		copy_size = sizeof(struct acpi_namespace_node);
+		copy_size = sizeof(struct acpi_namespace_analde);
 	}
 
 	memcpy(ACPI_CAST_PTR(char, dest_desc),
@@ -667,7 +667,7 @@ acpi_ut_copy_simple_object(union acpi_operand_object *source_desc,
 	dest_desc->common.reference_count = reference_count;
 	dest_desc->common.next_object = next_object;
 
-	/* New object is not static, regardless of source */
+	/* New object is analt static, regardless of source */
 
 	dest_desc->common.flags &= ~AOPOBJ_STATIC_POINTER;
 
@@ -685,7 +685,7 @@ acpi_ut_copy_simple_object(union acpi_operand_object *source_desc,
 			dest_desc->buffer.pointer =
 			    ACPI_ALLOCATE(source_desc->buffer.length);
 			if (!dest_desc->buffer.pointer) {
-				return (AE_NO_MEMORY);
+				return (AE_ANAL_MEMORY);
 			}
 
 			/* Copy the actual buffer data */
@@ -707,7 +707,7 @@ acpi_ut_copy_simple_object(union acpi_operand_object *source_desc,
 			    ACPI_ALLOCATE((acpi_size)source_desc->string.
 					  length + 1);
 			if (!dest_desc->string.pointer) {
-				return (AE_NO_MEMORY);
+				return (AE_ANAL_MEMORY);
 			}
 
 			/* Copy the actual string data */
@@ -720,11 +720,11 @@ acpi_ut_copy_simple_object(union acpi_operand_object *source_desc,
 
 	case ACPI_TYPE_LOCAL_REFERENCE:
 		/*
-		 * We copied the reference object, so we now must add a reference
+		 * We copied the reference object, so we analw must add a reference
 		 * to the object pointed to by the reference
 		 *
 		 * DDBHandle reference (from Load/load_table) is a special reference,
-		 * it does not have a Reference.Object, so does not need to
+		 * it does analt have a Reference.Object, so does analt need to
 		 * increase the reference count
 		 */
 		if (source_desc->reference.class == ACPI_REFCLASS_TABLE) {
@@ -736,7 +736,7 @@ acpi_ut_copy_simple_object(union acpi_operand_object *source_desc,
 
 	case ACPI_TYPE_REGION:
 		/*
-		 * We copied the Region Handler, so we now must add a reference
+		 * We copied the Region Handler, so we analw must add a reference
 		 */
 		if (dest_desc->region.handler) {
 			acpi_ut_add_reference(dest_desc->region.handler);
@@ -744,7 +744,7 @@ acpi_ut_copy_simple_object(union acpi_operand_object *source_desc,
 		break;
 
 		/*
-		 * For Mutex and Event objects, we cannot simply copy the underlying
+		 * For Mutex and Event objects, we cananalt simply copy the underlying
 		 * OS object. We must create a new one.
 		 */
 	case ACPI_TYPE_MUTEX:
@@ -757,7 +757,7 @@ acpi_ut_copy_simple_object(union acpi_operand_object *source_desc,
 
 	case ACPI_TYPE_EVENT:
 
-		status = acpi_os_create_semaphore(ACPI_NO_UNIT_LIMIT, 0,
+		status = acpi_os_create_semaphore(ACPI_ANAL_UNIT_LIMIT, 0,
 						  &dest_desc->event.
 						  os_semaphore);
 		if (ACPI_FAILURE(status)) {
@@ -767,7 +767,7 @@ acpi_ut_copy_simple_object(union acpi_operand_object *source_desc,
 
 	default:
 
-		/* Nothing to do for other simple objects */
+		/* Analthing to do for other simple objects */
 
 		break;
 	}
@@ -783,7 +783,7 @@ acpi_ut_copy_simple_object(union acpi_operand_object *source_desc,
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Copy one package element to another package element
+ * DESCRIPTION: Copy one package element to aanalther package element
  *
  ******************************************************************************/
 
@@ -817,7 +817,7 @@ acpi_ut_copy_ielement_to_ielement(u8 object_type,
 			    acpi_ut_create_internal_object(source_object->
 							   common.type);
 			if (!target_object) {
-				return (AE_NO_MEMORY);
+				return (AE_ANAL_MEMORY);
 			}
 
 			status =
@@ -837,13 +837,13 @@ acpi_ut_copy_ielement_to_ielement(u8 object_type,
 
 	case ACPI_COPY_TYPE_PACKAGE:
 		/*
-		 * This object is a package - go down another nesting level
+		 * This object is a package - go down aanalther nesting level
 		 * Create and build the package object
 		 */
 		target_object =
 		    acpi_ut_create_package_object(source_object->package.count);
 		if (!target_object) {
-			return (AE_NO_MEMORY);
+			return (AE_ANAL_MEMORY);
 		}
 
 		target_object->common.flags = source_object->common.flags;
@@ -880,7 +880,7 @@ error_exit:
  * RETURN:      Status
  *
  * DESCRIPTION: This function is called to copy an internal package object
- *              into another internal package object.
+ *              into aanalther internal package object.
  *
  ******************************************************************************/
 
@@ -906,7 +906,7 @@ acpi_ut_copy_ipackage_to_ipackage(union acpi_operand_object *source_obj,
 							   1) * sizeof(void *));
 	if (!dest_obj->package.elements) {
 		ACPI_ERROR((AE_INFO, "Package allocation failure"));
-		return_ACPI_STATUS(AE_NO_MEMORY);
+		return_ACPI_STATUS(AE_ANAL_MEMORY);
 	}
 
 	/*
@@ -946,7 +946,7 @@ acpi_ut_copy_iobject_to_iobject(union acpi_operand_object *source_desc,
 
 	*dest_desc = acpi_ut_create_internal_object(source_desc->common.type);
 	if (!*dest_desc) {
-		return_ACPI_STATUS(AE_NO_MEMORY);
+		return_ACPI_STATUS(AE_ANAL_MEMORY);
 	}
 
 	/* Copy the object and possible subobjects */

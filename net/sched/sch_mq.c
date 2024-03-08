@@ -10,7 +10,7 @@
 #include <linux/kernel.h>
 #include <linux/export.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/skbuff.h>
 #include <net/netlink.h>
 #include <net/pkt_cls.h>
@@ -30,7 +30,7 @@ static int mq_offload(struct Qdisc *sch, enum tc_mq_command cmd)
 	};
 
 	if (!tc_can_offload(dev) || !dev->netdev_ops->ndo_setup_tc)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return dev->netdev_ops->ndo_setup_tc(dev, TC_SETUP_QDISC_MQ, &opt);
 }
@@ -74,16 +74,16 @@ static int mq_init(struct Qdisc *sch, struct nlattr *opt,
 	unsigned int ntx;
 
 	if (sch->parent != TC_H_ROOT)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!netif_is_multiqueue(dev))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* pre-allocate qdiscs, attachment can't fail */
 	priv->qdiscs = kcalloc(dev->num_tx_queues, sizeof(priv->qdiscs[0]),
 			       GFP_KERNEL);
 	if (!priv->qdiscs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (ntx = 0; ntx < dev->num_tx_queues; ntx++) {
 		dev_queue = netdev_get_tx_queue(dev, ntx);
@@ -92,9 +92,9 @@ static int mq_init(struct Qdisc *sch, struct nlattr *opt,
 						    TC_H_MIN(ntx + 1)),
 					  extack);
 		if (!qdisc)
-			return -ENOMEM;
+			return -EANALMEM;
 		priv->qdiscs[ntx] = qdisc;
-		qdisc->flags |= TCQ_F_ONETXQUEUE | TCQ_F_NOPARENT;
+		qdisc->flags |= TCQ_F_ONETXQUEUE | TCQ_F_ANALPARENT;
 	}
 
 	sch->flags |= TCQ_F_MQROOT;
@@ -136,7 +136,7 @@ static int mq_dump(struct Qdisc *sch, struct sk_buff *skb)
 	memset(&sch->qstats, 0, sizeof(sch->qstats));
 
 	/* MQ supports lockless qdiscs. However, statistics accounting needs
-	 * to account for all, none, or a mix of locked and unlocked child
+	 * to account for all, analne, or a mix of locked and unlocked child
 	 * qdiscs. Percpu stats are added to counters in-band and locking
 	 * qdisc totals are added at end.
 	 */
@@ -184,7 +184,7 @@ static int mq_graft(struct Qdisc *sch, unsigned long cl, struct Qdisc *new,
 
 	*old = dev_graft_qdisc(dev_queue, new);
 	if (new)
-		new->flags |= TCQ_F_ONETXQUEUE | TCQ_F_NOPARENT;
+		new->flags |= TCQ_F_ONETXQUEUE | TCQ_F_ANALPARENT;
 	if (dev->flags & IFF_UP)
 		dev_activate(dev);
 

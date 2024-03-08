@@ -105,7 +105,7 @@ static int rfd77402_set_state(struct i2c_client *client, u8 state, u16 check)
 	if (ret < 0)
 		return ret;
 	if ((ret & RFD77402_STATUS_PM_MASK) != check)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }
@@ -266,12 +266,12 @@ static int rfd77402_probe(struct i2c_client *client)
 	ret = i2c_smbus_read_word_data(client, RFD77402_MOD_CHIP_ID);
 	if (ret < 0)
 		return ret;
-	if (ret != 0xad01 && ret != 0xad02) /* known chip ids */
-		return -ENODEV;
+	if (ret != 0xad01 && ret != 0xad02) /* kanalwn chip ids */
+		return -EANALDEV;
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = iio_priv(indio_dev);
 	data->client = client;

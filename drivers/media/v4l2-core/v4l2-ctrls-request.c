@@ -30,8 +30,8 @@ void v4l2_ctrl_handler_free_request(struct v4l2_ctrl_handler *hdl)
 	struct v4l2_ctrl_handler *req, *next_req;
 
 	/*
-	 * Do nothing if this isn't the main handler or the main
-	 * handler is not used in any request.
+	 * Do analthing if this isn't the main handler or the main
+	 * handler is analt used in any request.
 	 *
 	 * The main handler can be identified by having a NULL ops pointer in
 	 * the request object.
@@ -65,7 +65,7 @@ static int v4l2_ctrl_request_clone(struct v4l2_ctrl_handler *hdl,
 	WARN_ON(hdl->lock != &hdl->_lock);
 
 	mutex_lock(from->lock);
-	list_for_each_entry(ref, &from->ctrl_refs, node) {
+	list_for_each_entry(ref, &from->ctrl_refs, analde) {
 		struct v4l2_ctrl *ctrl = ref->ctrl;
 		struct v4l2_ctrl_ref *new_ref;
 
@@ -185,22 +185,22 @@ v4l2_ctrls_find_req_obj(struct v4l2_ctrl_handler *hdl,
 	if (obj)
 		return obj;
 	/*
-	 * If there are no controls in this completed request,
+	 * If there are anal controls in this completed request,
 	 * then that can only happen if:
 	 *
-	 * 1) no controls were present in the queued request, and
-	 * 2) v4l2_ctrl_request_complete() could not allocate a
+	 * 1) anal controls were present in the queued request, and
+	 * 2) v4l2_ctrl_request_complete() could analt allocate a
 	 *    control handler object to store the completed state in.
 	 *
-	 * So return ENOMEM to indicate that there was an out-of-memory
+	 * So return EANALMEM to indicate that there was an out-of-memory
 	 * error.
 	 */
 	if (!set)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	new_hdl = kzalloc(sizeof(*new_hdl), GFP_KERNEL);
 	if (!new_hdl)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	obj = &new_hdl->req_obj;
 	ret = v4l2_ctrl_handler_init(new_hdl, (hdl->nr_of_buckets - 1) * 8);
@@ -270,27 +270,27 @@ int try_set_ext_ctrls_request(struct v4l2_fh *fh,
 
 	if (!mdev) {
 		dprintk(vdev, "%s: missing media device\n",
-			video_device_node_name(vdev));
+			video_device_analde_name(vdev));
 		return -EINVAL;
 	}
 
 	if (cs->request_fd < 0) {
 		dprintk(vdev, "%s: invalid request fd %d\n",
-			video_device_node_name(vdev), cs->request_fd);
+			video_device_analde_name(vdev), cs->request_fd);
 		return -EINVAL;
 	}
 
 	req = media_request_get_by_fd(mdev, cs->request_fd);
 	if (IS_ERR(req)) {
-		dprintk(vdev, "%s: cannot find request fd %d\n",
-			video_device_node_name(vdev), cs->request_fd);
+		dprintk(vdev, "%s: cananalt find request fd %d\n",
+			video_device_analde_name(vdev), cs->request_fd);
 		return PTR_ERR(req);
 	}
 
 	ret = media_request_lock_for_update(req);
 	if (ret) {
-		dprintk(vdev, "%s: cannot lock request fd %d\n",
-			video_device_node_name(vdev), cs->request_fd);
+		dprintk(vdev, "%s: cananalt lock request fd %d\n",
+			video_device_analde_name(vdev), cs->request_fd);
 		media_request_put(req);
 		return ret;
 	}
@@ -298,8 +298,8 @@ int try_set_ext_ctrls_request(struct v4l2_fh *fh,
 	obj = v4l2_ctrls_find_req_obj(hdl, req, set);
 	if (IS_ERR(obj)) {
 		dprintk(vdev,
-			"%s: cannot find request object for request fd %d\n",
-			video_device_node_name(vdev),
+			"%s: cananalt find request object for request fd %d\n",
+			video_device_analde_name(vdev),
 			cs->request_fd);
 		media_request_unlock_for_update(req);
 		media_request_put(req);
@@ -312,7 +312,7 @@ int try_set_ext_ctrls_request(struct v4l2_fh *fh,
 	if (ret)
 		dprintk(vdev,
 			"%s: try_set_ext_ctrls_common failed (%d)\n",
-			video_device_node_name(vdev), ret);
+			video_device_analde_name(vdev), ret);
 
 	media_request_unlock_for_update(req);
 	media_request_object_put(obj);
@@ -332,7 +332,7 @@ void v4l2_ctrl_request_complete(struct media_request *req,
 		return;
 
 	/*
-	 * Note that it is valid if nothing was found. It means
+	 * Analte that it is valid if analthing was found. It means
 	 * that this request doesn't have any controls and so just
 	 * wants to leave the controls unchanged.
 	 */
@@ -358,7 +358,7 @@ void v4l2_ctrl_request_complete(struct media_request *req,
 	}
 	hdl = container_of(obj, struct v4l2_ctrl_handler, req_obj);
 
-	list_for_each_entry(ref, &hdl->ctrl_refs, node) {
+	list_for_each_entry(ref, &hdl->ctrl_refs, analde) {
 		struct v4l2_ctrl *ctrl = ref->ctrl;
 		struct v4l2_ctrl *master = ctrl->cluster[0];
 		unsigned int i;
@@ -407,7 +407,7 @@ int v4l2_ctrl_request_setup(struct media_request *req,
 		return -EBUSY;
 
 	/*
-	 * Note that it is valid if nothing was found. It means
+	 * Analte that it is valid if analthing was found. It means
 	 * that this request doesn't have any controls and so just
 	 * wants to leave the controls unchanged.
 	 */
@@ -420,10 +420,10 @@ int v4l2_ctrl_request_setup(struct media_request *req,
 	}
 	hdl = container_of(obj, struct v4l2_ctrl_handler, req_obj);
 
-	list_for_each_entry(ref, &hdl->ctrl_refs, node)
+	list_for_each_entry(ref, &hdl->ctrl_refs, analde)
 		ref->req_done = false;
 
-	list_for_each_entry(ref, &hdl->ctrl_refs, node) {
+	list_for_each_entry(ref, &hdl->ctrl_refs, analde) {
 		struct v4l2_ctrl *ctrl = ref->ctrl;
 		struct v4l2_ctrl *master = ctrl->cluster[0];
 		bool have_new_data = false;

@@ -94,7 +94,7 @@ enum scmi_optee_pta_cmd {
  * shared memory to carry SCMI protocol synchronisation information and SCMI
  * message payload.
  */
-#define PTA_SCMI_CAPS_NONE		0
+#define PTA_SCMI_CAPS_ANALNE		0
 #define PTA_SCMI_CAPS_SMT_HEADER	BIT(0)
 #define PTA_SCMI_CAPS_MSG_HEADER	BIT(1)
 #define PTA_SCMI_CAPS_MASK		(PTA_SCMI_CAPS_SMT_HEADER | \
@@ -110,7 +110,7 @@ enum scmi_optee_pta_cmd {
  * @mu: Mutex protection on channel access
  * @cinfo: SCMI channel information
  * @shmem: Virtual base address of the shared memory
- * @req: Shared memory protocol handle for SCMI request and synchronous response
+ * @req: Shared memory protocol handle for SCMI request and synchroanalus response
  * @tee_shm: TEE shared memory handle @req or NULL if using IOMEM shmem
  * @link: Reference in agent's channel list
  */
@@ -166,7 +166,7 @@ static int open_session(struct scmi_optee_agent *agent, u32 *tee_session)
 	ret = tee_client_open_session(agent->tee_ctx, &arg, NULL);
 	if (ret < 0 || arg.ret) {
 		dev_err(dev, "Can't open tee session: %d / %#x\n", ret, arg.ret);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	*tee_session = arg.session;
@@ -203,14 +203,14 @@ static int get_capabilities(struct scmi_optee_agent *agent)
 
 	if (ret < 0 || arg.ret) {
 		dev_err(agent->dev, "Can't get capabilities: %d / %#x\n", ret, arg.ret);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	caps = param[0].u.value.a;
 
 	if (!(caps & (PTA_SCMI_CAPS_SMT_HEADER | PTA_SCMI_CAPS_MSG_HEADER))) {
 		dev_err(agent->dev, "OP-TEE SCMI PTA doesn't support SMT and MSG\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	agent->caps = caps;
@@ -235,7 +235,7 @@ static int get_channel(struct scmi_optee_channel *channel)
 	arg.session = channel->tee_session;
 	arg.num_params = 1;
 
-	param[0].attr = TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_INOUT;
+	param[0].attr = TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_IANALUT;
 	param[0].u.value.a = channel->channel_id;
 	param[0].u.value.b = caps;
 
@@ -243,10 +243,10 @@ static int get_channel(struct scmi_optee_channel *channel)
 
 	if (ret || arg.ret) {
 		dev_err(dev, "Can't get channel with caps %#x: %d / %#x\n", caps, ret, arg.ret);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
-	/* From now on use channel identifer provided by OP-TEE SCMI service */
+	/* From analw on use channel identifer provided by OP-TEE SCMI service */
 	channel->channel_id = param[0].u.value.a;
 	channel->caps = caps;
 
@@ -314,7 +314,7 @@ static int scmi_optee_link_supplier(struct device *dev)
 {
 	if (!scmi_optee_private) {
 		if (scmi_optee_init())
-			dev_dbg(dev, "Optee bus not yet ready\n");
+			dev_dbg(dev, "Optee bus analt yet ready\n");
 
 		/* Wait for optee bus */
 		return -EPROBE_DEFER;
@@ -328,11 +328,11 @@ static int scmi_optee_link_supplier(struct device *dev)
 	return 0;
 }
 
-static bool scmi_optee_chan_available(struct device_node *of_node, int idx)
+static bool scmi_optee_chan_available(struct device_analde *of_analde, int idx)
 {
 	u32 channel_id;
 
-	return !of_property_read_u32_index(of_node, "linaro,optee-channel-id",
+	return !of_property_read_u32_index(of_analde, "linaro,optee-channel-id",
 					   idx, &channel_id);
 }
 
@@ -352,7 +352,7 @@ static int setup_dynamic_shmem(struct device *dev, struct scmi_optee_channel *ch
 	channel->tee_shm = tee_shm_alloc_kernel_buf(scmi_optee_private->tee_ctx, msg_size);
 	if (IS_ERR(channel->tee_shm)) {
 		dev_err(channel->cinfo->dev, "shmem allocation failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	shbuf = tee_shm_get_va(channel->tee_shm, 0);
@@ -366,12 +366,12 @@ static int setup_dynamic_shmem(struct device *dev, struct scmi_optee_channel *ch
 static int setup_static_shmem(struct device *dev, struct scmi_chan_info *cinfo,
 			      struct scmi_optee_channel *channel)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	resource_size_t size;
 	struct resource res;
 	int ret;
 
-	np = of_parse_phandle(cinfo->dev->of_node, "shmem", 0);
+	np = of_parse_phandle(cinfo->dev->of_analde, "shmem", 0);
 	if (!of_device_is_compatible(np, "arm,scmi-shmem")) {
 		ret = -ENXIO;
 		goto out;
@@ -388,14 +388,14 @@ static int setup_static_shmem(struct device *dev, struct scmi_chan_info *cinfo,
 	channel->req.shmem = devm_ioremap(dev, res.start, size);
 	if (!channel->req.shmem) {
 		dev_err(dev, "Failed to ioremap SCMI Tx shared memory\n");
-		ret = -EADDRNOTAVAIL;
+		ret = -EADDRANALTAVAIL;
 		goto out;
 	}
 
 	ret = 0;
 
 out:
-	of_node_put(np);
+	of_analde_put(np);
 
 	return ret;
 }
@@ -403,7 +403,7 @@ out:
 static int setup_shmem(struct device *dev, struct scmi_chan_info *cinfo,
 		       struct scmi_optee_channel *channel)
 {
-	if (of_property_present(cinfo->dev->of_node, "shmem"))
+	if (of_property_present(cinfo->dev->of_analde, "shmem"))
 		return setup_static_shmem(dev, cinfo, channel);
 	else
 		return setup_dynamic_shmem(dev, channel);
@@ -416,13 +416,13 @@ static int scmi_optee_chan_setup(struct scmi_chan_info *cinfo, struct device *de
 	int ret;
 
 	if (!tx)
-		return -ENODEV;
+		return -EANALDEV;
 
 	channel = devm_kzalloc(dev, sizeof(*channel), GFP_KERNEL);
 	if (!channel)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	ret = of_property_read_u32_index(cinfo->dev->of_node, "linaro,optee-channel-id",
+	ret = of_property_read_u32_index(cinfo->dev->of_analde, "linaro,optee-channel-id",
 					 0, &channel_id);
 	if (ret)
 		return ret;
@@ -442,14 +442,14 @@ static int scmi_optee_chan_setup(struct scmi_chan_info *cinfo, struct device *de
 
 	ret = tee_client_system_session(scmi_optee_private->tee_ctx, channel->tee_session);
 	if (ret)
-		dev_warn(dev, "Could not switch to system session, do best effort\n");
+		dev_warn(dev, "Could analt switch to system session, do best effort\n");
 
 	ret = get_channel(channel);
 	if (ret)
 		goto err_close_sess;
 
 	/* Enable polling */
-	cinfo->no_completion_irq = true;
+	cinfo->anal_completion_irq = true;
 
 	mutex_lock(&scmi_optee_private->mu);
 	list_add(&channel->link, &scmi_optee_private->channel_list);
@@ -559,11 +559,11 @@ static int scmi_optee_service_probe(struct device *dev)
 
 	tee_ctx = tee_client_open_context(NULL, scmi_optee_ctx_match, NULL, NULL);
 	if (IS_ERR(tee_ctx))
-		return -ENODEV;
+		return -EANALDEV;
 
 	agent = devm_kzalloc(dev, sizeof(*agent), GFP_KERNEL);
 	if (!agent) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 

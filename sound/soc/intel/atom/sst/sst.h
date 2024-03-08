@@ -3,7 +3,7 @@
  *  sst.h - Intel SST Driver for audio engine
  *
  *  Copyright (C) 2008-14 Intel Corporation
- *  Authors:	Vinod Koul <vinod.koul@intel.com>
+ *  Authors:	Vianald Koul <vianald.koul@intel.com>
  *		Harsha Priya <priya.harsha@intel.com>
  *		Dharageswari R <dharageswari.r@intel.com>
  *		KP Jeeja <jeeja.kp@intel.com>
@@ -58,7 +58,7 @@ enum sst_algo_ops {
 
 /* stream states */
 enum sst_stream_states {
-	STREAM_UN_INIT	= 0,	/* Freed/Not used stream */
+	STREAM_UN_INIT	= 0,	/* Freed/Analt used stream */
 	STREAM_RUNNING	= 1,	/* Running */
 	STREAM_PAUSED	= 2,	/* Paused stream */
 	STREAM_INIT	= 3,	/* stream init, waiting for data */
@@ -117,7 +117,7 @@ union config_status_reg_mrfld {
 		u64 clk_sel:3;
 		u64 rsvd2:1;
 		u64 sst_clk:3;
-		u64 xt_snoop:1;
+		u64 xt_sanalop:1;
 		u64 rsvd3:4;
 		u64 clk_sel1:6;
 		u64 clk_enable:3;
@@ -147,7 +147,7 @@ union sst_imr_reg_mrfld {
 };
 
 /**
- * struct sst_block - This structure is used to block a user/fw data call to another
+ * struct sst_block - This structure is used to block a user/fw data call to aanalther
  * fw/user call
  *
  * @condition: condition for blocking check
@@ -157,7 +157,7 @@ union sst_imr_reg_mrfld {
  * @on: block condition
  * @msg_id: msg_id = msgid in mfld/ctp, mrfld = NULL
  * @drv_id: str_id in mfld/ctp, = drv_id in mrfld
- * @node: list head node
+ * @analde: list head analde
  */
 struct sst_block {
 	bool	condition;
@@ -167,7 +167,7 @@ struct sst_block {
 	bool	on;
 	u32     msg_id;
 	u32     drv_id;
-	struct list_head node;
+	struct list_head analde;
 };
 
 /**
@@ -202,7 +202,7 @@ struct stream_info {
 	void (*compr_cb)(void *compr_cb_param);
 
 	void			*drain_cb_param;
-	void (*drain_notify)(void *drain_cb_param);
+	void (*drain_analtify)(void *drain_cb_param);
 
 	unsigned int		num_ch;
 	unsigned int		pipe_id;
@@ -281,7 +281,7 @@ struct sst_memcpy_list {
 
 /*Firmware Module Information*/
 enum sst_lib_dwnld_status {
-	SST_LIB_NOT_FOUND = 0,
+	SST_LIB_ANALT_FOUND = 0,
 	SST_LIB_FOUND,
 	SST_LIB_DOWNLOADED,
 };
@@ -378,7 +378,7 @@ struct intel_sst_drv {
 	wait_queue_head_t	wait_queue;
 	struct workqueue_struct *post_msg_wq;
 	unsigned int		tstamp;
-	/* str_id 0 is not used */
+	/* str_id 0 is analt used */
 	struct stream_info	streams[MAX_NUM_STREAMS+1];
 	spinlock_t		ipc_spin_lock;
 	spinlock_t              block_lock;

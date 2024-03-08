@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2016 Hisilicon Limited.
- * Copyright (c) 2007, 2008 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2007, 2008 Mellaanalx Techanallogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -13,18 +13,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -98,7 +98,7 @@ static int handle_en_event(struct hns_roce_dev *hr_dev, u32 port,
 	netdev = hr_dev->iboe.netdevs[port];
 	if (!netdev) {
 		dev_err(dev, "can't find netdev on port(%u)!\n", port);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	switch (event) {
@@ -121,10 +121,10 @@ static int handle_en_event(struct hns_roce_dev *hr_dev, u32 port,
 	return ret;
 }
 
-static int hns_roce_netdev_event(struct notifier_block *self,
+static int hns_roce_netdev_event(struct analtifier_block *self,
 				 unsigned long event, void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_analtifier_info_to_dev(ptr);
 	struct hns_roce_ib_iboe *iboe = NULL;
 	struct hns_roce_dev *hr_dev = NULL;
 	int ret;
@@ -137,12 +137,12 @@ static int hns_roce_netdev_event(struct notifier_block *self,
 		if (dev == iboe->netdevs[port]) {
 			ret = handle_en_event(hr_dev, port, event);
 			if (ret)
-				return NOTIFY_DONE;
+				return ANALTIFY_DONE;
 			break;
 		}
 	}
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static int hns_roce_setup_mtu_mac(struct hns_roce_dev *hr_dev)
@@ -189,7 +189,7 @@ static int hns_roce_query_device(struct ib_device *ib_dev,
 	props->max_qp_rd_atom = hr_dev->caps.max_qp_dest_rdma;
 	props->max_qp_init_rd_atom = hr_dev->caps.max_qp_init_rdma;
 	props->atomic_cap = hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_ATOMIC ?
-			    IB_ATOMIC_HCA : IB_ATOMIC_NONE;
+			    IB_ATOMIC_HCA : IB_ATOMIC_ANALNE;
 	props->max_pkeys = 1;
 	props->local_ca_ack_delay = hr_dev->caps.local_ca_ack_delay;
 	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_SRQ) {
@@ -282,12 +282,12 @@ static int hns_roce_modify_device(struct ib_device *ib_dev, int mask,
 {
 	unsigned long flags;
 
-	if (mask & ~IB_DEVICE_MODIFY_NODE_DESC)
-		return -EOPNOTSUPP;
+	if (mask & ~IB_DEVICE_MODIFY_ANALDE_DESC)
+		return -EOPANALTSUPP;
 
-	if (mask & IB_DEVICE_MODIFY_NODE_DESC) {
+	if (mask & IB_DEVICE_MODIFY_ANALDE_DESC) {
 		spin_lock_irqsave(&to_hr_dev(ib_dev)->sm_lock, flags);
-		memcpy(ib_dev->node_desc, props->node_desc, NODE_DESC_SIZE);
+		memcpy(ib_dev->analde_desc, props->analde_desc, ANALDE_DESC_SIZE);
 		spin_unlock_irqrestore(&to_hr_dev(ib_dev)->sm_lock, flags);
 	}
 
@@ -349,7 +349,7 @@ static int hns_roce_alloc_uar_entry(struct ib_ucontext *uctx)
 	context->db_mmap_entry = hns_roce_user_mmap_entry_insert(
 		uctx, address, PAGE_SIZE, HNS_ROCE_MMAP_TYPE_DB);
 	if (!context->db_mmap_entry)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -513,14 +513,14 @@ static void hns_roce_disassociate_ucontext(struct ib_ucontext *ibcontext)
 static void hns_roce_get_fw_ver(struct ib_device *device, char *str)
 {
 	u64 fw_ver = to_hr_dev(device)->caps.fw_ver;
-	unsigned int major, minor, sub_minor;
+	unsigned int major, mianalr, sub_mianalr;
 
 	major = upper_32_bits(fw_ver);
-	minor = high_16_bits(lower_32_bits(fw_ver));
-	sub_minor = low_16_bits(fw_ver);
+	mianalr = high_16_bits(lower_32_bits(fw_ver));
+	sub_mianalr = low_16_bits(fw_ver);
 
-	snprintf(str, IB_FW_VERSION_NAME_MAX, "%u.%u.%04u", major, minor,
-		 sub_minor);
+	snprintf(str, IB_FW_VERSION_NAME_MAX, "%u.%u.%04u", major, mianalr,
+		 sub_mianalr);
 }
 
 #define HNS_ROCE_HW_CNT(ename, cname) \
@@ -548,7 +548,7 @@ static const struct rdma_stat_desc hns_roce_port_stats_descs[] = {
 	HNS_ROCE_HW_CNT(TRP_RX_SOF, "trp_rx_sof"),
 	HNS_ROCE_HW_CNT(CQ_CQE, "cq_cqe"),
 	HNS_ROCE_HW_CNT(CQ_POE, "cq_poe"),
-	HNS_ROCE_HW_CNT(CQ_NOTIFY, "cq_notify"),
+	HNS_ROCE_HW_CNT(CQ_ANALTIFY, "cq_analtify"),
 };
 
 static struct rdma_hw_stats *hns_roce_alloc_hw_port_stats(
@@ -596,7 +596,7 @@ static void hns_roce_unregister_device(struct hns_roce_dev *hr_dev)
 	struct hns_roce_ib_iboe *iboe = &hr_dev->iboe;
 
 	hr_dev->active = false;
-	unregister_netdevice_notifier(&iboe->nb);
+	unregister_netdevice_analtifier(&iboe->nb);
 	ib_unregister_device(&hr_dev->ib_dev);
 }
 
@@ -604,7 +604,7 @@ static const struct ib_device_ops hns_roce_dev_ops = {
 	.owner = THIS_MODULE,
 	.driver_id = RDMA_DRIVER_HNS,
 	.uverbs_abi_ver = 1,
-	.uverbs_no_driver_id_binding = 1,
+	.uverbs_anal_driver_id_binding = 1,
 
 	.get_dev_fw_str = hns_roce_get_fw_ver,
 	.add_gid = hns_roce_add_gid,
@@ -700,7 +700,7 @@ static int hns_roce_register_device(struct hns_roce_dev *hr_dev)
 
 	ib_dev = &hr_dev->ib_dev;
 
-	ib_dev->node_type = RDMA_NODE_IB_CA;
+	ib_dev->analde_type = RDMA_ANALDE_IB_CA;
 	ib_dev->dev.parent = dev;
 
 	ib_dev->phys_port_cnt = hr_dev->caps.num_ports;
@@ -753,10 +753,10 @@ static int hns_roce_register_device(struct hns_roce_dev *hr_dev)
 		goto error_failed_setup_mtu_mac;
 	}
 
-	iboe->nb.notifier_call = hns_roce_netdev_event;
-	ret = register_netdevice_notifier(&iboe->nb);
+	iboe->nb.analtifier_call = hns_roce_netdev_event;
+	ret = register_netdevice_analtifier(&iboe->nb);
 	if (ret) {
-		dev_err(dev, "register_netdevice_notifier failed!\n");
+		dev_err(dev, "register_netdevice_analtifier failed!\n");
 		goto error_failed_setup_mtu_mac;
 	}
 
@@ -982,7 +982,7 @@ static void check_and_get_armed_cq(struct list_head *cq_list, struct ib_cq *cq)
 	if (cq->comp_handler) {
 		if (!hr_cq->is_armed) {
 			hr_cq->is_armed = 1;
-			list_add_tail(&hr_cq->node, cq_list);
+			list_add_tail(&hr_cq->analde, cq_list);
 		}
 	}
 	spin_unlock_irqrestore(&hr_cq->lock, flags);
@@ -999,7 +999,7 @@ void hns_roce_handle_device_err(struct hns_roce_dev *hr_dev)
 	INIT_LIST_HEAD(&cq_list);
 
 	spin_lock_irqsave(&hr_dev->qp_list_lock, flags);
-	list_for_each_entry(hr_qp, &hr_dev->qp_list, node) {
+	list_for_each_entry(hr_qp, &hr_dev->qp_list, analde) {
 		spin_lock_irqsave(&hr_qp->sq.lock, flags_qp);
 		if (hr_qp->sq.tail != hr_qp->sq.head)
 			check_and_get_armed_cq(&cq_list, hr_qp->ibqp.send_cq);
@@ -1011,7 +1011,7 @@ void hns_roce_handle_device_err(struct hns_roce_dev *hr_dev)
 		spin_unlock_irqrestore(&hr_qp->rq.lock, flags_qp);
 	}
 
-	list_for_each_entry(hr_cq, &cq_list, node)
+	list_for_each_entry(hr_cq, &cq_list, analde)
 		hns_roce_cq_completion(hr_dev, hr_cq->cqn);
 
 	spin_unlock_irqrestore(&hr_dev->qp_list_lock, flags);
@@ -1022,7 +1022,7 @@ static int hns_roce_alloc_dfx_cnt(struct hns_roce_dev *hr_dev)
 	hr_dev->dfx_cnt = kvcalloc(HNS_ROCE_DFX_CNT_TOTAL, sizeof(atomic64_t),
 				   GFP_KERNEL);
 	if (!hr_dev->dfx_cnt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }

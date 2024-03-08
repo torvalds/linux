@@ -155,7 +155,7 @@ acpi_ut_walk_aml_resources(struct acpi_walk_state *walk_state,
 	/* The absolute minimum resource template is one end_tag descriptor */
 
 	if (aml_length < sizeof(struct aml_resource_end_tag)) {
-		return_ACPI_STATUS(AE_AML_NO_RESOURCE_END_TAG);
+		return_ACPI_STATUS(AE_AML_ANAL_RESOURCE_END_TAG);
 	}
 
 	/* Point to the end of the resource template buffer */
@@ -172,7 +172,7 @@ acpi_ut_walk_aml_resources(struct acpi_walk_state *walk_state,
 		    acpi_ut_validate_resource(walk_state, aml, &resource_index);
 		if (ACPI_FAILURE(status)) {
 			/*
-			 * Exit on failure. Cannot continue because the descriptor
+			 * Exit on failure. Cananalt continue because the descriptor
 			 * length may be bogus also.
 			 */
 			return_ACPI_STATUS(status);
@@ -202,12 +202,12 @@ acpi_ut_walk_aml_resources(struct acpi_walk_state *walk_state,
 			 * the 2nd byte of the end_tag
 			 */
 			if ((aml + 1) >= end_aml) {
-				return_ACPI_STATUS(AE_AML_NO_RESOURCE_END_TAG);
+				return_ACPI_STATUS(AE_AML_ANAL_RESOURCE_END_TAG);
 			}
 
 			/*
 			 * Don't attempt to perform any validation on the 2nd byte.
-			 * Although all known ASL compilers insert a zero for the 2nd
+			 * Although all kanalwn ASL compilers insert a zero for the 2nd
 			 * byte, it can also be a checksum (as per the ACPI spec),
 			 * and this is occasionally seen in the field. July 2017.
 			 */
@@ -218,7 +218,7 @@ acpi_ut_walk_aml_resources(struct acpi_walk_state *walk_state,
 				*context = aml;
 			}
 
-			/* Normal exit */
+			/* Analrmal exit */
 
 			return_ACPI_STATUS(AE_OK);
 		}
@@ -227,7 +227,7 @@ acpi_ut_walk_aml_resources(struct acpi_walk_state *walk_state,
 		offset += length;
 	}
 
-	/* Did not find an end_tag descriptor */
+	/* Did analt find an end_tag descriptor */
 
 	if (user_function) {
 
@@ -242,7 +242,7 @@ acpi_ut_walk_aml_resources(struct acpi_walk_state *walk_state,
 		}
 	}
 
-	return_ACPI_STATUS(AE_AML_NO_RESOURCE_END_TAG);
+	return_ACPI_STATUS(AE_AML_ANAL_RESOURCE_END_TAG);
 }
 
 /*******************************************************************************
@@ -252,7 +252,7 @@ acpi_ut_walk_aml_resources(struct acpi_walk_state *walk_state,
  * PARAMETERS:  walk_state          - Current walk info
  *              aml                 - Pointer to the raw AML resource descriptor
  *              return_index        - Where the resource index is returned. NULL
- *                                    if the index is not required.
+ *                                    if the index is analt required.
  *
  * RETURN:      Status, and optionally the Index into the global resource tables
  *
@@ -315,7 +315,7 @@ acpi_ut_validate_resource(struct acpi_walk_state *walk_state,
 
 	/*
 	 * Validate the resource_length field. This ensures that the length
-	 * is at least reasonable, and guarantees that it is non-zero.
+	 * is at least reasonable, and guarantees that it is analn-zero.
 	 */
 	resource_length = acpi_ut_get_resource_length(aml);
 	minimum_resource_length = acpi_gbl_resource_aml_sizes[resource_index];
@@ -415,7 +415,7 @@ bad_resource_length:
  *
  * PARAMETERS:  aml             - Pointer to the raw AML resource descriptor
  *
- * RETURN:      The Resource Type with no extraneous bits (except the
+ * RETURN:      The Resource Type with anal extraneous bits (except the
  *              Large/Small descriptor bit -- this is left alone)
  *
  * DESCRIPTION: Extract the Resource Type/Name from the first byte of
@@ -452,7 +452,7 @@ u8 acpi_ut_get_resource_type(void *aml)
  * RETURN:      Byte Length
  *
  * DESCRIPTION: Get the "Resource Length" of a raw AML descriptor. By
- *              definition, this does not include the size of the descriptor
+ *              definition, this does analt include the size of the descriptor
  *              header or the length field itself.
  *
  ******************************************************************************/
@@ -527,7 +527,7 @@ u32 acpi_ut_get_descriptor_length(void *aml)
 	ACPI_FUNCTION_ENTRY();
 
 	/*
-	 * Get the Resource Length (does not include header length) and add
+	 * Get the Resource Length (does analt include header length) and add
 	 * the header length (depends on if this is a small or large resource)
 	 */
 	return (acpi_ut_get_resource_length(aml) +
@@ -544,7 +544,7 @@ u32 acpi_ut_get_descriptor_length(void *aml)
  * RETURN:      Status, pointer to the end tag
  *
  * DESCRIPTION: Find the end_tag resource descriptor in an AML resource template
- *              Note: allows a buffer length of zero.
+ *              Analte: allows a buffer length of zero.
  *
  ******************************************************************************/
 

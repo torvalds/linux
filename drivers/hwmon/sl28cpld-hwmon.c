@@ -60,7 +60,7 @@ static int sl28cpld_hwmon_read(struct device *dev,
 
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	*input = value;
@@ -89,15 +89,15 @@ static int sl28cpld_hwmon_probe(struct platform_device *pdev)
 	int ret;
 
 	if (!pdev->dev.parent)
-		return -ENODEV;
+		return -EANALDEV;
 
 	hwmon = devm_kzalloc(&pdev->dev, sizeof(*hwmon), GFP_KERNEL);
 	if (!hwmon)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hwmon->regmap = dev_get_regmap(pdev->dev.parent, NULL);
 	if (!hwmon->regmap)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = device_property_read_u32(&pdev->dev, "reg", &hwmon->offset);
 	if (ret)

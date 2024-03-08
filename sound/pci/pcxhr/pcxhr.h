@@ -84,7 +84,7 @@ struct pcxhr_mgr {
 	unsigned int board_has_analog:1; /* if 0 the board is digital only */
 	unsigned int board_has_mic:1; /* if 1 the board has microphone input */
 	unsigned int board_aes_in_192k:1;/* if 1 the aes input plugs do support 192kHz */
-	unsigned int mono_capture:1; /* if 1 the board does mono capture */
+	unsigned int moanal_capture:1; /* if 1 the board does moanal capture */
 	unsigned int capture_ltc:1; /* if 1 the board captures LTC input */
 
 	struct snd_dma_buffer hostport;
@@ -158,10 +158,10 @@ struct snd_pcxhr {
 	struct snd_pcm *pcm;		/* PCM */
 
 	struct pcxhr_pipe playback_pipe;	/* 1 stereo pipe only */
-	struct pcxhr_pipe capture_pipe[2];	/* 1 stereo or 2 mono pipes */
+	struct pcxhr_pipe capture_pipe[2];	/* 1 stereo or 2 moanal pipes */
 
 	struct pcxhr_stream playback_stream[PCXHR_PLAYBACK_STREAMS];
-	struct pcxhr_stream capture_stream[2];	/* 1 stereo or 2 mono streams */
+	struct pcxhr_stream capture_stream[2];	/* 1 stereo or 2 moanal streams */
 	int nb_streams_play;
 	int nb_streams_capt;
 

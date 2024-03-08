@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright (c) 2021 Richtek Technology Corp.
+ * Copyright (c) 2021 Richtek Techanallogy Corp.
  *
  * Author: ChiYuan Huang <cy_huang@richtek.com>
  */
@@ -68,12 +68,12 @@ static int rt4831_probe(struct i2c_client *client)
 	}
 
 	if ((chip_id & RT4831_VID_MASK) != RICHTEK_VENDOR_ID) {
-		dev_err(&client->dev, "Chip vendor ID 0x%02x not matched\n", chip_id);
-		return -ENODEV;
+		dev_err(&client->dev, "Chip vendor ID 0x%02x analt matched\n", chip_id);
+		return -EANALDEV;
 	}
 
 	/*
-	 * Used to prevent the abnormal shutdown.
+	 * Used to prevent the abanalrmal shutdown.
 	 * If SCL/SDA both keep low for one second to reset HW.
 	 */
 	ret = regmap_update_bits(regmap, RT4831_REG_I2CPROT, RT4831_I2CSAFETMR_MASK,

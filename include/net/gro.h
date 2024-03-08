@@ -32,7 +32,7 @@ struct napi_gro_cb {
 	/* This indicates where we are processing relative to skb->data. */
 	int	data_offset;
 
-	/* This is non-zero if the packet cannot be merged with the new skb. */
+	/* This is analn-zero if the packet cananalt be merged with the new skb. */
 	u16	flush;
 
 	/* Save the IP ID here and check when we get to the transport layer */
@@ -53,7 +53,7 @@ struct napi_gro_cb {
 		/* Start offset for remote checksum offload */
 		u16	gro_remcsum_start;
 
-		/* This is non-zero if the packet may be of the same flow. */
+		/* This is analn-zero if the packet may be of the same flow. */
 		u8	same_flow:1;
 
 		/* Used in tunnel GRO receive */
@@ -74,7 +74,7 @@ struct napi_gro_cb {
 		/* Used in GRE, set in fou/gue_gro_receive */
 		u8	is_fou:1;
 
-		/* Used to determine if flush_id can be ignored */
+		/* Used to determine if flush_id can be iganalred */
 		u8	is_atomic:1;
 
 		/* Number of gro_receive callbacks this packet already went through */
@@ -187,7 +187,7 @@ static inline __wsum inet_gro_compute_pseudo(struct sk_buff *skb, int proto)
 {
 	const struct iphdr *iph = skb_gro_network_header(skb);
 
-	return csum_tcpudp_nofold(iph->saddr, iph->daddr,
+	return csum_tcpudp_analfold(iph->saddr, iph->daddr,
 				  skb_gro_len(skb), proto, 0);
 }
 
@@ -199,7 +199,7 @@ static inline void skb_gro_postpull_rcsum(struct sk_buff *skb,
 						wsum_negate(NAPI_GRO_CB(skb)->csum)));
 }
 
-/* GRO checksum functions. These are logical equivalents of the normal
+/* GRO checksum functions. These are logical equivalents of the analrmal
  * checksum functions (in skbuff.h) except that they operate on the GRO
  * offsets and fields in sk_buff.
  */
@@ -243,7 +243,7 @@ static inline void skb_gro_incr_csum_unnecessary(struct sk_buff *skb)
 	} else {
 		/* Update skb for CHECKSUM_UNNECESSARY and csum_level when we
 		 * verified a new top level checksum or an encapsulated one
-		 * during GRO. This saves work if we fallback to normal path.
+		 * during GRO. This saves work if we fallback to analrmal path.
 		 */
 		__skb_incr_checksum_unnecessary(skb);
 	}
@@ -306,14 +306,14 @@ static inline void *skb_gro_remcsum_process(struct sk_buff *skb, void *ptr,
 					    unsigned int off, size_t hdrlen,
 					    int start, int offset,
 					    struct gro_remcsum *grc,
-					    bool nopartial)
+					    bool analpartial)
 {
 	__wsum delta;
 	size_t plen = hdrlen + max_t(size_t, offset + sizeof(u16), start);
 
 	BUG_ON(!NAPI_GRO_CB(skb)->csum_valid);
 
-	if (!nopartial) {
+	if (!analpartial) {
 		NAPI_GRO_CB(skb)->gro_remcsum_start = off + hdrlen + start;
 		return ptr;
 	}
@@ -431,8 +431,8 @@ static inline __wsum ip6_gro_compute_pseudo(struct sk_buff *skb, int proto)
 
 int skb_gro_receive(struct sk_buff *p, struct sk_buff *skb);
 
-/* Pass the currently batched GRO_NORMAL SKBs up to the stack. */
-static inline void gro_normal_list(struct napi_struct *napi)
+/* Pass the currently batched GRO_ANALRMAL SKBs up to the stack. */
+static inline void gro_analrmal_list(struct napi_struct *napi)
 {
 	if (!napi->rx_count)
 		return;
@@ -441,19 +441,19 @@ static inline void gro_normal_list(struct napi_struct *napi)
 	napi->rx_count = 0;
 }
 
-/* Queue one GRO_NORMAL SKB up for list processing. If batch size exceeded,
+/* Queue one GRO_ANALRMAL SKB up for list processing. If batch size exceeded,
  * pass the whole batch up to the stack.
  */
-static inline void gro_normal_one(struct napi_struct *napi, struct sk_buff *skb, int segs)
+static inline void gro_analrmal_one(struct napi_struct *napi, struct sk_buff *skb, int segs)
 {
 	list_add_tail(&skb->list, &napi->rx_list);
 	napi->rx_count += segs;
-	if (napi->rx_count >= READ_ONCE(gro_normal_batch))
-		gro_normal_list(napi);
+	if (napi->rx_count >= READ_ONCE(gro_analrmal_batch))
+		gro_analrmal_list(napi);
 }
 
 /* This function is the alternative of 'inet_iif' and 'inet_sdif'
- * functions in case we can not rely on fields of IPCB.
+ * functions in case we can analt rely on fields of IPCB.
  *
  * The caller must verify skb_valid_dst(skb) is false and skb->dev is initialized.
  * The caller must hold the RCU read lock.
@@ -474,14 +474,14 @@ static inline void inet_get_iif_sdif(const struct sk_buff *skb, int *iif, int *s
 }
 
 /* This function is the alternative of 'inet6_iif' and 'inet6_sdif'
- * functions in case we can not rely on fields of IP6CB.
+ * functions in case we can analt rely on fields of IP6CB.
  *
  * The caller must verify skb_valid_dst(skb) is false and skb->dev is initialized.
  * The caller must hold the RCU read lock.
  */
 static inline void inet6_get_iif_sdif(const struct sk_buff *skb, int *iif, int *sdif)
 {
-	/* using skb->dev->ifindex because skb_dst(skb) is not initialized */
+	/* using skb->dev->ifindex because skb_dst(skb) is analt initialized */
 	*iif = skb->dev->ifindex;
 	*sdif = 0;
 

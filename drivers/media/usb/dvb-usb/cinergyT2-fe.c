@@ -114,7 +114,7 @@ static uint16_t compute_tps(struct dtv_frontend_properties *op)
 	case HIERARCHY_4:
 		tps |= (3 << 10);
 		break;
-	case HIERARCHY_NONE:
+	case HIERARCHY_ANALNE:
 	default:
 		/* tps |= (0 << 10) */;
 	}

@@ -45,7 +45,7 @@ static inline u8 port_states_to_phys_state(struct opa_port_states *ps)
  * values are the same in OmniPath Architecture. OPA leverages some of the same
  * concepts as InfiniBand, but has a few other states as well.
  *
- * When writing, only values 0-3 are valid, other values are ignored.
+ * When writing, only values 0-3 are valid, other values are iganalred.
  * When reading, 0 is reserved.
  *
  * Returned by the ibphys_portstate() routine.
@@ -53,7 +53,7 @@ static inline u8 port_states_to_phys_state(struct opa_port_states *ps)
 enum opa_port_phys_state {
 	/* Values 0-7 have the same meaning in OPA as in InfiniBand. */
 
-	IB_PORTPHYSSTATE_NOP = 0,
+	IB_PORTPHYSSTATE_ANALP = 0,
 	/* 1 is reserved */
 	IB_PORTPHYSSTATE_POLLING = 2,
 	IB_PORTPHYSSTATE_DISABLED = 3,
@@ -80,7 +80,7 @@ enum opa_port_phys_state {
 	OPA_PORTPHYSSTATE_TEST = 11,
 
 	OPA_PORTPHYSSTATE_MAX = 11,
-	/* values 12-15 are reserved/ignored */
+	/* values 12-15 are reserved/iganalred */
 };
 
 #endif /* _LINUX_H */

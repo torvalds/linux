@@ -5,16 +5,16 @@
 
 #ifdef __KERNEL__
 
-#include <asm/nops.h>
+#include <asm/analps.h>
 #include <asm/processor-flags.h>
 #include <linux/irqflags.h>
 #include <linux/jump_label.h>
 
 /*
- * The compiler should not reorder volatile asm statements with respect to each
+ * The compiler should analt reorder volatile asm statements with respect to each
  * other: they should execute in program order. However GCC 4.9.x and 5.x have
  * a bug (which was fixed in 8.1, 7.3 and 6.5) where they might reorder
- * volatile asm. The write functions are not affected since they have memory
+ * volatile asm. The write functions are analt affected since they have memory
  * clobbers preventing reordering. To prevent reads from being reordered with
  * respect to writes, use a dummy memory operand.
  */
@@ -59,7 +59,7 @@ static inline unsigned long native_read_cr4(void)
 	unsigned long val;
 #ifdef CONFIG_X86_32
 	/*
-	 * This could fault if CR4 does not exist.  Non-existent CR4
+	 * This could fault if CR4 does analt exist.  Analn-existent CR4
 	 * is functionally equivalent to CR4 == 0.  Keep it simple and pretend
 	 * that CR4 == 0 on CPUs that don't have CR4.
 	 */
@@ -215,7 +215,7 @@ fail:
 }
 #endif /* CONFIG_X86_USER_SHADOW_STACK */
 
-#define nop() asm volatile ("nop")
+#define analp() asm volatile ("analp")
 
 static inline void serialize(void)
 {
@@ -233,12 +233,12 @@ static inline void movdir64b(void __iomem *dst, const void *src)
 	 * MOVDIR64B %(rdx), rax.
 	 *
 	 * Both __src and __dst must be memory constraints in order to tell the
-	 * compiler that no other memory accesses should be reordered around
+	 * compiler that anal other memory accesses should be reordered around
 	 * this one.
 	 *
 	 * Also, both must be supplied as lvalues because this tells
 	 * the compiler what the object is (its size) the instruction accesses.
-	 * I.e., not the pointers but what they point to, thus the deref'ing '*'.
+	 * I.e., analt the pointers but what they point to, thus the deref'ing '*'.
 	 */
 	asm volatile(".byte 0x66, 0x0f, 0x38, 0xf8, 0x02"
 		     : "+m" (*__dst)
@@ -257,10 +257,10 @@ static inline void movdir64b(void __iomem *dst, const void *src)
  *
  * This function issues the ENQCMDS instruction to submit data from
  * kernel space to MMIO space, in a unit of 512 bits. Order of data access
- * is not guaranteed, nor is a memory barrier performed afterwards. It
+ * is analt guaranteed, analr is a memory barrier performed afterwards. It
  * returns 0 on success and -EAGAIN on failure.
  *
- * Warning: Do not use this helper unless your driver has checked that the
+ * Warning: Do analt use this helper unless your driver has checked that the
  * ENQCMDS instruction is supported on the platform and the device accepts
  * ENQCMDS.
  */

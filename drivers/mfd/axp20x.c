@@ -61,13 +61,13 @@ static const struct regmap_range axp152_volatile_ranges[] = {
 };
 
 static const struct regmap_access_table axp152_writeable_table = {
-	.yes_ranges	= axp152_writeable_ranges,
-	.n_yes_ranges	= ARRAY_SIZE(axp152_writeable_ranges),
+	.anal_ranges	= axp152_writeable_ranges,
+	.n_anal_ranges	= ARRAY_SIZE(axp152_writeable_ranges),
 };
 
 static const struct regmap_access_table axp152_volatile_table = {
-	.yes_ranges	= axp152_volatile_ranges,
-	.n_yes_ranges	= ARRAY_SIZE(axp152_volatile_ranges),
+	.anal_ranges	= axp152_volatile_ranges,
+	.n_anal_ranges	= ARRAY_SIZE(axp152_volatile_ranges),
 };
 
 static const struct regmap_range axp20x_writeable_ranges[] = {
@@ -87,13 +87,13 @@ static const struct regmap_range axp20x_volatile_ranges[] = {
 };
 
 static const struct regmap_access_table axp20x_writeable_table = {
-	.yes_ranges	= axp20x_writeable_ranges,
-	.n_yes_ranges	= ARRAY_SIZE(axp20x_writeable_ranges),
+	.anal_ranges	= axp20x_writeable_ranges,
+	.n_anal_ranges	= ARRAY_SIZE(axp20x_writeable_ranges),
 };
 
 static const struct regmap_access_table axp20x_volatile_table = {
-	.yes_ranges	= axp20x_volatile_ranges,
-	.n_yes_ranges	= ARRAY_SIZE(axp20x_volatile_ranges),
+	.anal_ranges	= axp20x_volatile_ranges,
+	.n_anal_ranges	= ARRAY_SIZE(axp20x_volatile_ranges),
 };
 
 static const struct regmap_range axp192_writeable_ranges[] = {
@@ -116,13 +116,13 @@ static const struct regmap_range axp192_volatile_ranges[] = {
 };
 
 static const struct regmap_access_table axp192_writeable_table = {
-	.yes_ranges	= axp192_writeable_ranges,
-	.n_yes_ranges	= ARRAY_SIZE(axp192_writeable_ranges),
+	.anal_ranges	= axp192_writeable_ranges,
+	.n_anal_ranges	= ARRAY_SIZE(axp192_writeable_ranges),
 };
 
 static const struct regmap_access_table axp192_volatile_table = {
-	.yes_ranges	= axp192_volatile_ranges,
-	.n_yes_ranges	= ARRAY_SIZE(axp192_volatile_ranges),
+	.anal_ranges	= axp192_volatile_ranges,
+	.n_anal_ranges	= ARRAY_SIZE(axp192_volatile_ranges),
 };
 
 /* AXP22x ranges are shared with the AXP809, as they cover the same range */
@@ -141,13 +141,13 @@ static const struct regmap_range axp22x_volatile_ranges[] = {
 };
 
 static const struct regmap_access_table axp22x_writeable_table = {
-	.yes_ranges	= axp22x_writeable_ranges,
-	.n_yes_ranges	= ARRAY_SIZE(axp22x_writeable_ranges),
+	.anal_ranges	= axp22x_writeable_ranges,
+	.n_anal_ranges	= ARRAY_SIZE(axp22x_writeable_ranges),
 };
 
 static const struct regmap_access_table axp22x_volatile_table = {
-	.yes_ranges	= axp22x_volatile_ranges,
-	.n_yes_ranges	= ARRAY_SIZE(axp22x_volatile_ranges),
+	.anal_ranges	= axp22x_volatile_ranges,
+	.n_anal_ranges	= ARRAY_SIZE(axp22x_volatile_ranges),
 };
 
 /* AXP288 ranges are shared with the AXP803, as they cover the same range */
@@ -171,13 +171,13 @@ static const struct regmap_range axp288_volatile_ranges[] = {
 };
 
 static const struct regmap_access_table axp288_writeable_table = {
-	.yes_ranges	= axp288_writeable_ranges,
-	.n_yes_ranges	= ARRAY_SIZE(axp288_writeable_ranges),
+	.anal_ranges	= axp288_writeable_ranges,
+	.n_anal_ranges	= ARRAY_SIZE(axp288_writeable_ranges),
 };
 
 static const struct regmap_access_table axp288_volatile_table = {
-	.yes_ranges	= axp288_volatile_ranges,
-	.n_yes_ranges	= ARRAY_SIZE(axp288_volatile_ranges),
+	.anal_ranges	= axp288_volatile_ranges,
+	.n_anal_ranges	= ARRAY_SIZE(axp288_volatile_ranges),
 };
 
 static const struct regmap_range axp806_writeable_ranges[] = {
@@ -198,13 +198,13 @@ static const struct regmap_range axp313a_volatile_ranges[] = {
 };
 
 static const struct regmap_access_table axp313a_writeable_table = {
-	.yes_ranges = axp313a_writeable_ranges,
-	.n_yes_ranges = ARRAY_SIZE(axp313a_writeable_ranges),
+	.anal_ranges = axp313a_writeable_ranges,
+	.n_anal_ranges = ARRAY_SIZE(axp313a_writeable_ranges),
 };
 
 static const struct regmap_access_table axp313a_volatile_table = {
-	.yes_ranges = axp313a_volatile_ranges,
-	.n_yes_ranges = ARRAY_SIZE(axp313a_volatile_ranges),
+	.anal_ranges = axp313a_volatile_ranges,
+	.n_anal_ranges = ARRAY_SIZE(axp313a_volatile_ranges),
 };
 
 static const struct regmap_range axp806_volatile_ranges[] = {
@@ -212,13 +212,13 @@ static const struct regmap_range axp806_volatile_ranges[] = {
 };
 
 static const struct regmap_access_table axp806_writeable_table = {
-	.yes_ranges	= axp806_writeable_ranges,
-	.n_yes_ranges	= ARRAY_SIZE(axp806_writeable_ranges),
+	.anal_ranges	= axp806_writeable_ranges,
+	.n_anal_ranges	= ARRAY_SIZE(axp806_writeable_ranges),
 };
 
 static const struct regmap_access_table axp806_volatile_table = {
-	.yes_ranges	= axp806_volatile_ranges,
-	.n_yes_ranges	= ARRAY_SIZE(axp806_volatile_ranges),
+	.anal_ranges	= axp806_volatile_ranges,
+	.n_anal_ranges	= ARRAY_SIZE(axp806_volatile_ranges),
 };
 
 static const struct regmap_range axp15060_writeable_ranges[] = {
@@ -237,13 +237,13 @@ static const struct regmap_range axp15060_volatile_ranges[] = {
 };
 
 static const struct regmap_access_table axp15060_writeable_table = {
-	.yes_ranges	= axp15060_writeable_ranges,
-	.n_yes_ranges	= ARRAY_SIZE(axp15060_writeable_ranges),
+	.anal_ranges	= axp15060_writeable_ranges,
+	.n_anal_ranges	= ARRAY_SIZE(axp15060_writeable_ranges),
 };
 
 static const struct regmap_access_table axp15060_volatile_table = {
-	.yes_ranges	= axp15060_volatile_ranges,
-	.n_yes_ranges	= ARRAY_SIZE(axp15060_volatile_ranges),
+	.anal_ranges	= axp15060_volatile_ranges,
+	.n_anal_ranges	= ARRAY_SIZE(axp15060_volatile_ranges),
 };
 
 static const struct resource axp152_pek_resources[] = {
@@ -261,7 +261,7 @@ static const struct resource axp192_usb_power_supply_resources[] = {
 	DEFINE_RES_IRQ_NAMED(AXP192_IRQ_VBUS_PLUGIN, "VBUS_PLUGIN"),
 	DEFINE_RES_IRQ_NAMED(AXP192_IRQ_VBUS_REMOVAL, "VBUS_REMOVAL"),
 	DEFINE_RES_IRQ_NAMED(AXP192_IRQ_VBUS_VALID, "VBUS_VALID"),
-	DEFINE_RES_IRQ_NAMED(AXP192_IRQ_VBUS_NOT_VALID, "VBUS_NOT_VALID"),
+	DEFINE_RES_IRQ_NAMED(AXP192_IRQ_VBUS_ANALT_VALID, "VBUS_ANALT_VALID"),
 };
 
 static const struct resource axp20x_ac_power_supply_resources[] = {
@@ -279,7 +279,7 @@ static const struct resource axp20x_usb_power_supply_resources[] = {
 	DEFINE_RES_IRQ_NAMED(AXP20X_IRQ_VBUS_PLUGIN, "VBUS_PLUGIN"),
 	DEFINE_RES_IRQ_NAMED(AXP20X_IRQ_VBUS_REMOVAL, "VBUS_REMOVAL"),
 	DEFINE_RES_IRQ_NAMED(AXP20X_IRQ_VBUS_VALID, "VBUS_VALID"),
-	DEFINE_RES_IRQ_NAMED(AXP20X_IRQ_VBUS_NOT_VALID, "VBUS_NOT_VALID"),
+	DEFINE_RES_IRQ_NAMED(AXP20X_IRQ_VBUS_ANALT_VALID, "VBUS_ANALT_VALID"),
 };
 
 static const struct resource axp22x_usb_power_supply_resources[] = {
@@ -458,7 +458,7 @@ static const struct regmap_irq axp192_regmap_irqs[] = {
 	INIT_REGMAP_IRQ(AXP192, N_OE_PWR_ON,		3, 7),
 	INIT_REGMAP_IRQ(AXP192, N_OE_PWR_OFF,	        3, 6),
 	INIT_REGMAP_IRQ(AXP192, VBUS_VALID,		3, 5),
-	INIT_REGMAP_IRQ(AXP192, VBUS_NOT_VALID,	        3, 4),
+	INIT_REGMAP_IRQ(AXP192, VBUS_ANALT_VALID,	        3, 4),
 	INIT_REGMAP_IRQ(AXP192, VBUS_SESS_VALID,	3, 3),
 	INIT_REGMAP_IRQ(AXP192, VBUS_SESS_END,	        3, 2),
 	INIT_REGMAP_IRQ(AXP192, LOW_PWR_LVL,	        3, 0),
@@ -494,7 +494,7 @@ static const struct regmap_irq axp20x_regmap_irqs[] = {
 	INIT_REGMAP_IRQ(AXP20X, N_OE_PWR_ON,		3, 7),
 	INIT_REGMAP_IRQ(AXP20X, N_OE_PWR_OFF,	        3, 6),
 	INIT_REGMAP_IRQ(AXP20X, VBUS_VALID,		3, 5),
-	INIT_REGMAP_IRQ(AXP20X, VBUS_NOT_VALID,	        3, 4),
+	INIT_REGMAP_IRQ(AXP20X, VBUS_ANALT_VALID,	        3, 4),
 	INIT_REGMAP_IRQ(AXP20X, VBUS_SESS_VALID,	3, 3),
 	INIT_REGMAP_IRQ(AXP20X, VBUS_SESS_END,	        3, 2),
 	INIT_REGMAP_IRQ(AXP20X, LOW_PWR_LVL1,	        3, 1),
@@ -971,7 +971,7 @@ static const struct property_entry axp288_fuel_gauge_properties[] = {
 	{ }
 };
 
-static const struct software_node axp288_fuel_gauge_sw_node = {
+static const struct software_analde axp288_fuel_gauge_sw_analde = {
 	.name = "axp288_fuel_gauge",
 	.properties = axp288_fuel_gauge_properties,
 };
@@ -993,7 +993,7 @@ static const struct mfd_cell axp288_cells[] = {
 		.name		= "axp288_fuel_gauge",
 		.num_resources	= ARRAY_SIZE(axp288_fuel_gauge_resources),
 		.resources	= axp288_fuel_gauge_resources,
-		.swnode		= &axp288_fuel_gauge_sw_node,
+		.swanalde		= &axp288_fuel_gauge_sw_analde,
 	}, {
 		.name		= "axp221-pek",
 		.num_resources	= ARRAY_SIZE(axp288_power_button_resources),
@@ -1126,14 +1126,14 @@ static int axp20x_power_off(struct sys_off_data *data)
 	/* Give capacitors etc. time to drain to avoid kernel panic msg. */
 	mdelay(500);
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 int axp20x_match_device(struct axp20x_dev *axp20x)
 {
 	struct device *dev = axp20x->dev;
-	const struct mfd_cell *cells_no_irq = NULL;
-	int nr_cells_no_irq = 0;
+	const struct mfd_cell *cells_anal_irq = NULL;
+	int nr_cells_anal_irq = 0;
 
 	axp20x->variant = (long)device_get_match_data(dev);
 	switch (axp20x->variant) {
@@ -1190,9 +1190,9 @@ int axp20x_match_device(struct axp20x_dev *axp20x)
 	case AXP806_ID:
 		/*
 		 * Don't register the power key part if in slave mode or
-		 * if there is no interrupt line.
+		 * if there is anal interrupt line.
 		 */
-		if (of_property_read_bool(axp20x->dev->of_node,
+		if (of_property_read_bool(axp20x->dev->of_analde,
 					  "x-powers,self-working-mode")) {
 			axp20x->nr_cells = ARRAY_SIZE(axp806_self_working_cells);
 			axp20x->cells = axp806_self_working_cells;
@@ -1200,8 +1200,8 @@ int axp20x_match_device(struct axp20x_dev *axp20x)
 			axp20x->nr_cells = ARRAY_SIZE(axp806_cells);
 			axp20x->cells = axp806_cells;
 		}
-		nr_cells_no_irq = ARRAY_SIZE(axp806_cells);
-		cells_no_irq = axp806_cells;
+		nr_cells_anal_irq = ARRAY_SIZE(axp806_cells);
+		cells_anal_irq = axp806_cells;
 		axp20x->regmap_cfg = &axp806_regmap_config;
 		axp20x->regmap_irq_chip = &axp806_regmap_irq_chip;
 		break;
@@ -1236,15 +1236,15 @@ int axp20x_match_device(struct axp20x_dev *axp20x)
 	}
 
 	/*
-	 * Use an alternative cell array when no interrupt line is connected,
+	 * Use an alternative cell array when anal interrupt line is connected,
 	 * since IRQs are required by some drivers.
 	 * The default is the safe "regulator-only", as this works fine without
 	 * an interrupt specified.
 	 */
 	if (axp20x->irq <= 0) {
-		if (cells_no_irq) {
-			axp20x->nr_cells = nr_cells_no_irq;
-			axp20x->cells = cells_no_irq;
+		if (cells_anal_irq) {
+			axp20x->nr_cells = nr_cells_anal_irq;
+			axp20x->cells = cells_anal_irq;
 		} else {
 			axp20x->nr_cells = ARRAY_SIZE(axp_regulator_only_cells);
 			axp20x->cells = axp_regulator_only_cells;
@@ -1281,9 +1281,9 @@ int axp20x_device_probe(struct axp20x_dev *axp20x)
 	 * property "x-powers,master-mode" to override the default.
 	 */
 	if (axp20x->variant == AXP806_ID) {
-		if (of_property_read_bool(axp20x->dev->of_node,
+		if (of_property_read_bool(axp20x->dev->of_analde,
 					  "x-powers,master-mode") ||
-		    of_property_read_bool(axp20x->dev->of_node,
+		    of_property_read_bool(axp20x->dev->of_analde,
 					  "x-powers,self-working-mode"))
 			regmap_write(axp20x->regmap, AXP806_REG_ADDR_EXT,
 				     AXP806_REG_ADDR_EXT_ADDR_MASTER_MODE);

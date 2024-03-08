@@ -8,8 +8,8 @@
 #include "rtd1296.dtsi"
 
 / {
-	compatible = "synology,ds418", "realtek,rtd1296";
-	model = "Synology DiskStation DS418";
+	compatible = "syanallogy,ds418", "realtek,rtd1296";
+	model = "Syanallogy DiskStation DS418";
 
 	memory@1f000 {
 		device_type = "memory";

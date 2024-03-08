@@ -14,7 +14,7 @@
 #include <asm/insn.h>
 
 enum {
-	NOT_KGDB_BREAK = 0,
+	ANALT_KGDB_BREAK = 0,
 	KGDB_SW_BREAK,
 	KGDB_COMPILED_BREAK,
 	KGDB_SW_SINGLE_STEP
@@ -41,7 +41,7 @@ static int get_step_address(struct pt_regs *regs, unsigned long *next_addr)
 	unsigned int rs1_num, rs2_num;
 	int op_code;
 
-	if (get_kernel_nofault(op_code, (void *)pc))
+	if (get_kernel_analfault(op_code, (void *)pc))
 		return -EINVAL;
 	if ((op_code & __INSN_LENGTH_MASK) != __INSN_LENGTH_GE_32) {
 		if (riscv_insn_is_c_jalr(op_code) ||
@@ -127,14 +127,14 @@ static int do_single_step(struct pt_regs *regs)
 		return error;
 
 	/* Store the op code in the stepped address */
-	error = get_kernel_nofault(stepped_opcode, (void *)addr);
+	error = get_kernel_analfault(stepped_opcode, (void *)addr);
 	if (error)
 		return error;
 
 	stepped_address = addr;
 
 	/* Replace the op code with the break instruction */
-	error = copy_to_kernel_nofault((void *)stepped_address,
+	error = copy_to_kernel_analfault((void *)stepped_address,
 				   arch_kgdb_ops.gdb_bpt_instr,
 				   BREAK_INSTR_SIZE);
 	/* Flush and return */
@@ -154,7 +154,7 @@ static int do_single_step(struct pt_regs *regs)
 static void undo_single_step(struct pt_regs *regs)
 {
 	if (stepped_opcode != 0) {
-		copy_to_kernel_nofault((void *)stepped_address,
+		copy_to_kernel_analfault((void *)stepped_address,
 				   (void *)&stepped_opcode, BREAK_INSTR_SIZE);
 		flush_icache_range(stepped_address,
 				   stepped_address + BREAK_INSTR_SIZE);
@@ -204,27 +204,27 @@ struct dbg_reg_def_t dbg_reg_def[DBG_MAX_REG_NUM] = {
 	{DBG_REG_CAUSE, GDB_SIZEOF_REG, offsetof(struct pt_regs, cause)},
 };
 
-char *dbg_get_reg(int regno, void *mem, struct pt_regs *regs)
+char *dbg_get_reg(int reganal, void *mem, struct pt_regs *regs)
 {
-	if (regno >= DBG_MAX_REG_NUM || regno < 0)
+	if (reganal >= DBG_MAX_REG_NUM || reganal < 0)
 		return NULL;
 
-	if (dbg_reg_def[regno].offset != -1)
-		memcpy(mem, (void *)regs + dbg_reg_def[regno].offset,
-		       dbg_reg_def[regno].size);
+	if (dbg_reg_def[reganal].offset != -1)
+		memcpy(mem, (void *)regs + dbg_reg_def[reganal].offset,
+		       dbg_reg_def[reganal].size);
 	else
-		memset(mem, 0, dbg_reg_def[regno].size);
-	return dbg_reg_def[regno].name;
+		memset(mem, 0, dbg_reg_def[reganal].size);
+	return dbg_reg_def[reganal].name;
 }
 
-int dbg_set_reg(int regno, void *mem, struct pt_regs *regs)
+int dbg_set_reg(int reganal, void *mem, struct pt_regs *regs)
 {
-	if (regno >= DBG_MAX_REG_NUM || regno < 0)
+	if (reganal >= DBG_MAX_REG_NUM || reganal < 0)
 		return -EINVAL;
 
-	if (dbg_reg_def[regno].offset != -1)
-		memcpy((void *)regs + dbg_reg_def[regno].offset, mem,
-		       dbg_reg_def[regno].size);
+	if (dbg_reg_def[reganal].offset != -1)
+		memcpy((void *)regs + dbg_reg_def[reganal].offset, mem,
+		       dbg_reg_def[reganal].size);
 	return 0;
 }
 
@@ -276,7 +276,7 @@ static inline void kgdb_arch_update_addr(struct pt_regs *regs,
 		regs->epc = addr;
 }
 
-int kgdb_arch_handle_exception(int vector, int signo, int err_code,
+int kgdb_arch_handle_exception(int vector, int siganal, int err_code,
 			       char *remcom_in_buffer, char *remcom_out_buffer,
 			       struct pt_regs *regs)
 {
@@ -312,7 +312,7 @@ static int kgdb_riscv_kgdbbreak(unsigned long addr)
 	return kgdb_has_hit_break(addr);
 }
 
-static int kgdb_riscv_notify(struct notifier_block *self, unsigned long cmd,
+static int kgdb_riscv_analtify(struct analtifier_block *self, unsigned long cmd,
 			     void *ptr)
 {
 	struct die_args *args = (struct die_args *)ptr;
@@ -321,40 +321,40 @@ static int kgdb_riscv_notify(struct notifier_block *self, unsigned long cmd,
 	int type;
 
 	if (user_mode(regs))
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	type = kgdb_riscv_kgdbbreak(regs->epc);
-	if (type == NOT_KGDB_BREAK && cmd == DIE_TRAP)
-		return NOTIFY_DONE;
+	if (type == ANALT_KGDB_BREAK && cmd == DIE_TRAP)
+		return ANALTIFY_DONE;
 
 	local_irq_save(flags);
 
 	if (kgdb_handle_exception(type == KGDB_SW_SINGLE_STEP ? 0 : 1,
 				  args->signr, cmd, regs))
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	if (type == KGDB_COMPILED_BREAK)
 		regs->epc += 4;
 
 	local_irq_restore(flags);
 
-	return NOTIFY_STOP;
+	return ANALTIFY_STOP;
 }
 
-static struct notifier_block kgdb_notifier = {
-	.notifier_call = kgdb_riscv_notify,
+static struct analtifier_block kgdb_analtifier = {
+	.analtifier_call = kgdb_riscv_analtify,
 };
 
 int kgdb_arch_init(void)
 {
-	register_die_notifier(&kgdb_notifier);
+	register_die_analtifier(&kgdb_analtifier);
 
 	return 0;
 }
 
 void kgdb_arch_exit(void)
 {
-	unregister_die_notifier(&kgdb_notifier);
+	unregister_die_analtifier(&kgdb_analtifier);
 }
 
 /*

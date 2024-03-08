@@ -89,11 +89,11 @@ int __init db1x_register_pcmcia_socket(phys_addr_t pcmcia_attr_start,
 
 	sr = kcalloc(cnt, sizeof(struct resource), GFP_KERNEL);
 	if (!sr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pd = platform_device_alloc("db1xxx_pcmcia", id);
 	if (!pd) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -149,7 +149,7 @@ out:
 #define YAMON_SIZE	0x00100000
 #define YAMON_ENV_SIZE	0x00040000
 
-int __init db1x_register_norflash(unsigned long size, int width,
+int __init db1x_register_analrflash(unsigned long size, int width,
 				  int swapped)
 {
 	struct physmap_flash_data *pfd;
@@ -161,7 +161,7 @@ int __init db1x_register_norflash(unsigned long size, int width,
 	if (size < (8 * 1024 * 1024))
 		return -EINVAL;
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	parts = kcalloc(5, sizeof(struct mtd_partition), GFP_KERNEL);
 	if (!parts)
 		goto out;
@@ -178,17 +178,17 @@ int __init db1x_register_norflash(unsigned long size, int width,
 	if (!pd)
 		goto out3;
 
-	/* NOR flash ends at 0x20000000, regardless of size */
+	/* ANALR flash ends at 0x20000000, regardless of size */
 	res->start = 0x20000000 - size;
 	res->end = 0x20000000 - 1;
 	res->flags = IORESOURCE_MEM;
 
 	/* partition setup.  Most Develboards have a switch which allows
-	 * to swap the physical locations of the 2 NOR flash banks.
+	 * to swap the physical locations of the 2 ANALR flash banks.
 	 */
 	i = 0;
 	if (!swapped) {
-		/* first NOR chip */
+		/* first ANALR chip */
 		parts[i].offset = 0;
 		parts[i].name = "User FS";
 		parts[i].size = size / 2;

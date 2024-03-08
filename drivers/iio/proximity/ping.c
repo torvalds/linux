@@ -75,13 +75,13 @@ static irqreturn_t ping_handle_irq(int irq, void *dev_id)
 {
 	struct iio_dev *indio_dev = dev_id;
 	struct ping_data *data = iio_priv(indio_dev);
-	ktime_t now = ktime_get();
+	ktime_t analw = ktime_get();
 
 	if (gpiod_get_value(data->gpiod_ping)) {
-		data->ts_rising = now;
+		data->ts_rising = analw;
 		complete(&data->rising);
 	} else {
-		data->ts_falling = now;
+		data->ts_falling = analw;
 		complete(&data->falling);
 	}
 
@@ -132,7 +132,7 @@ static int ping_read(struct iio_dev *indio_dev)
 		return ret;
 	}
 
-	/* it should not take more than 20 ms until echo is rising */
+	/* it should analt take more than 20 ms until echo is rising */
 	ret = wait_for_completion_killable_timeout(&data->rising, HZ/50);
 	if (ret < 0)
 		goto err_reset_direction;
@@ -141,7 +141,7 @@ static int ping_read(struct iio_dev *indio_dev)
 		goto err_reset_direction;
 	}
 
-	/* it cannot take more than 50 ms until echo is falling */
+	/* it cananalt take more than 50 ms until echo is falling */
 	ret = wait_for_completion_killable_timeout(&data->falling, HZ/20);
 	if (ret < 0)
 		goto err_reset_direction;
@@ -282,7 +282,7 @@ static int ping_probe(struct platform_device *pdev)
 	indio_dev = devm_iio_device_alloc(dev, sizeof(struct ping_data));
 	if (!indio_dev) {
 		dev_err(dev, "failed to allocate IIO device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	data = iio_priv(indio_dev);
@@ -301,8 +301,8 @@ static int ping_probe(struct platform_device *pdev)
 	}
 
 	if (gpiod_cansleep(data->gpiod_ping)) {
-		dev_err(data->dev, "cansleep-GPIOs not supported\n");
-		return -ENODEV;
+		dev_err(data->dev, "cansleep-GPIOs analt supported\n");
+		return -EANALDEV;
 	}
 
 	platform_set_drvdata(pdev, indio_dev);

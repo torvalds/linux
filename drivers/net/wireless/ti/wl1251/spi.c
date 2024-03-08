@@ -2,7 +2,7 @@
 /*
  * This file is part of wl1251
  *
- * Copyright (C) 2008 Nokia Corporation
+ * Copyright (C) 2008 Analkia Corporation
  */
 
 #include <linux/err.h>
@@ -48,7 +48,7 @@ static void wl1251_spi_reset(struct wl1251 *wl)
 
 	cmd = kzalloc(WSPI_INIT_CMD_LEN, GFP_KERNEL);
 	if (!cmd) {
-		wl1251_error("could not allocate cmd for spi reset");
+		wl1251_error("could analt allocate cmd for spi reset");
 		return;
 	}
 
@@ -76,7 +76,7 @@ static void wl1251_spi_wake(struct wl1251 *wl)
 	u8 *cmd = kzalloc(WSPI_INIT_CMD_LEN, GFP_KERNEL);
 
 	if (!cmd) {
-		wl1251_error("could not allocate cmd for spi init");
+		wl1251_error("could analt allocate cmd for spi init");
 		return;
 	}
 
@@ -151,7 +151,7 @@ static void wl1251_spi_read(struct wl1251 *wl, int addr, void *buf,
 	t[0].len = 4;
 	spi_message_add_tail(&t[0], &m);
 
-	/* Busy and non busy words read */
+	/* Busy and analn busy words read */
 	t[1].rx_buf = busy_buf;
 	t[1].len = WL1251_BUSY_WORD_LEN;
 	spi_message_add_tail(&t[1], &m);
@@ -231,18 +231,18 @@ static const struct wl1251_if_operations wl1251_spi_ops = {
 
 static int wl1251_spi_probe(struct spi_device *spi)
 {
-	struct device_node *np = spi->dev.of_node;
+	struct device_analde *np = spi->dev.of_analde;
 	struct ieee80211_hw *hw;
 	struct wl1251_spi *wl_spi;
 	struct wl1251 *wl;
 	int ret;
 
 	if (!np)
-		return -ENODEV;
+		return -EANALDEV;
 
 	wl_spi = devm_kzalloc(&spi->dev, sizeof(*wl_spi), GFP_KERNEL);
 	if (!wl_spi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wl_spi->spi = spi;
 
@@ -284,11 +284,11 @@ static int wl1251_spi_probe(struct spi_device *spi)
 	wl->irq = spi->irq;
 	if (wl->irq < 0) {
 		wl1251_error("irq missing in platform data");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out_free;
 	}
 
-	irq_set_status_flags(wl->irq, IRQ_NOAUTOEN);
+	irq_set_status_flags(wl->irq, IRQ_ANALAUTOEN);
 	ret = devm_request_irq(&spi->dev, wl->irq, wl1251_irq, 0,
 							DRIVER_NAME, wl);
 	if (ret < 0) {

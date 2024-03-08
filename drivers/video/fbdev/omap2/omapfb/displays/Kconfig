@@ -52,7 +52,7 @@ config FB_OMAP2_PANEL_SONY_ACX565AKM
 	depends on SPI && BACKLIGHT_CLASS_DEVICE
 	depends on DRM_PANEL_SONY_ACX565AKM = n
 	help
-	  This is the LCD panel used on Nokia N900
+	  This is the LCD panel used on Analkia N900
 
 config FB_OMAP2_PANEL_LGPHILIPS_LB035Q02
 	tristate "LG.Philips LB035Q02 LCD Panel"

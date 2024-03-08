@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2001 Russell King, All Rights Reserved.
  */
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/ioport.h>
 #include <linux/pci.h>
 #include <linux/types.h>
@@ -20,7 +20,7 @@ int serial8250_pci_setup_port(struct pci_dev *dev, struct uart_8250_port *port,
 
 	if (pci_resource_flags(dev, bar) & IORESOURCE_MEM) {
 		if (!pcim_iomap(dev, bar, 0) && !pcim_iomap_table(dev))
-			return -ENOMEM;
+			return -EANALMEM;
 
 		port->port.iotype = UPIO_MEM;
 		port->port.iobase = 0;

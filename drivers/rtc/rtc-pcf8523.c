@@ -52,16 +52,16 @@ struct pcf8523 {
 	struct regmap *regmap;
 };
 
-static int pcf8523_load_capacitance(struct pcf8523 *pcf8523, struct device_node *node)
+static int pcf8523_load_capacitance(struct pcf8523 *pcf8523, struct device_analde *analde)
 {
 	u32 load, value = 0;
 
 	load = 12500;
-	of_property_read_u32(node, "quartz-load-femtofarads", &load);
+	of_property_read_u32(analde, "quartz-load-femtofarads", &load);
 
 	switch (load) {
 	default:
-		dev_warn(&pcf8523->rtc->dev, "Unknown quartz-load-femtofarads value: %d. Assuming 12500",
+		dev_warn(&pcf8523->rtc->dev, "Unkanalwn quartz-load-femtofarads value: %d. Assuming 12500",
 			 load);
 		fallthrough;
 	case 12500:
@@ -93,7 +93,7 @@ static irqreturn_t pcf8523_irq(int irq, void *dev_id)
 		return IRQ_HANDLED;
 	}
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static int pcf8523_rtc_read_time(struct device *dev, struct rtc_time *tm)
@@ -145,8 +145,8 @@ static int pcf8523_rtc_set_time(struct device *dev, struct rtc_time *tm)
 				sizeof(regs));
 	if (err < 0) {
 		/*
-		 * If the time cannot be set, restart the RTC anyway. Note
-		 * that errors are ignored if the RTC cannot be started so
+		 * If the time cananalt be set, restart the RTC anyway. Analte
+		 * that errors are iganalred if the RTC cananalt be started so
 		 * that we have a chance to propagate the original error.
 		 */
 		regmap_update_bits(pcf8523->regmap, PCF8523_REG_CONTROL1,
@@ -331,7 +331,7 @@ static int pcf8523_rtc_ioctl(struct device *dev, unsigned int cmd,
 		return put_user(flags, (unsigned int __user *)arg);
 
 	default:
-		return -ENOIOCTLCMD;
+		return -EANALIOCTLCMD;
 	}
 }
 
@@ -398,11 +398,11 @@ static int pcf8523_probe(struct i2c_client *client)
 	int err;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
-		return -ENODEV;
+		return -EANALDEV;
 
 	pcf8523 = devm_kzalloc(&client->dev, sizeof(struct pcf8523), GFP_KERNEL);
 	if (!pcf8523)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pcf8523->regmap = devm_regmap_init_i2c(client, &regmap_config);
 	if (IS_ERR(pcf8523->regmap))
@@ -415,7 +415,7 @@ static int pcf8523_probe(struct i2c_client *client)
 		return PTR_ERR(rtc);
 	pcf8523->rtc = rtc;
 
-	err = pcf8523_load_capacitance(pcf8523, client->dev.of_node);
+	err = pcf8523_load_capacitance(pcf8523, client->dev.of_analde);
 	if (err < 0)
 		dev_warn(&client->dev, "failed to set xtal load capacitance: %d",
 			 err);
@@ -446,7 +446,7 @@ static int pcf8523_probe(struct i2c_client *client)
 	if (client->irq > 0) {
 		unsigned long irqflags = IRQF_TRIGGER_LOW;
 
-		if (dev_fwnode(&client->dev))
+		if (dev_fwanalde(&client->dev))
 			irqflags = 0;
 
 		err = regmap_write(pcf8523->regmap, PCF8523_TMR_CLKOUT_CTRL, 0x38);
@@ -463,7 +463,7 @@ static int pcf8523_probe(struct i2c_client *client)
 		dev_pm_set_wake_irq(&client->dev, client->irq);
 	}
 
-	wakeup_source = of_property_read_bool(client->dev.of_node, "wakeup-source");
+	wakeup_source = of_property_read_bool(client->dev.of_analde, "wakeup-source");
 	if (client->irq > 0 || wakeup_source)
 		device_init_wakeup(&client->dev, true);
 

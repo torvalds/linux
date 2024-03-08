@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPIBLKTRACE_H
 #define _UAPIBLKTRACE_H
 
@@ -19,7 +19,7 @@ enum blktrace_cat {
 	BLK_TC_COMPLETE	= 1 << 7,	/* completions */
 	BLK_TC_FS	= 1 << 8,	/* fs requests */
 	BLK_TC_PC	= 1 << 9,	/* pc requests */
-	BLK_TC_NOTIFY	= 1 << 10,	/* special message */
+	BLK_TC_ANALTIFY	= 1 << 10,	/* special message */
 	BLK_TC_AHEAD	= 1 << 11,	/* readahead */
 	BLK_TC_META	= 1 << 12,	/* metadata */
 	BLK_TC_DISCARD	= 1 << 13,	/* discard requests */
@@ -57,9 +57,9 @@ enum blktrace_act {
 };
 
 /*
- * Notify events.
+ * Analtify events.
  */
-enum blktrace_notify {
+enum blktrace_analtify {
 	__BLK_TN_PROCESS = 0,		/* establish pid/name mapping */
 	__BLK_TN_TIMESTAMP,		/* include system clock */
 	__BLK_TN_MESSAGE,		/* Character string message */
@@ -88,9 +88,9 @@ enum blktrace_notify {
 #define BLK_TA_ABORT		(__BLK_TA_ABORT | BLK_TC_ACT(BLK_TC_QUEUE))
 #define BLK_TA_DRV_DATA	(__BLK_TA_DRV_DATA | BLK_TC_ACT(BLK_TC_DRV_DATA))
 
-#define BLK_TN_PROCESS		(__BLK_TN_PROCESS | BLK_TC_ACT(BLK_TC_NOTIFY))
-#define BLK_TN_TIMESTAMP	(__BLK_TN_TIMESTAMP | BLK_TC_ACT(BLK_TC_NOTIFY))
-#define BLK_TN_MESSAGE		(__BLK_TN_MESSAGE | BLK_TC_ACT(BLK_TC_NOTIFY))
+#define BLK_TN_PROCESS		(__BLK_TN_PROCESS | BLK_TC_ACT(BLK_TC_ANALTIFY))
+#define BLK_TN_TIMESTAMP	(__BLK_TN_TIMESTAMP | BLK_TC_ACT(BLK_TC_ANALTIFY))
+#define BLK_TN_MESSAGE		(__BLK_TN_MESSAGE | BLK_TC_ACT(BLK_TC_ANALTIFY))
 
 #define BLK_IO_TRACE_MAGIC	0x65617400
 #define BLK_IO_TRACE_VERSION	0x07
@@ -101,7 +101,7 @@ enum blktrace_notify {
 struct blk_io_trace {
 	__u32 magic;		/* MAGIC << 8 | version */
 	__u32 sequence;		/* event number */
-	__u64 time;		/* in nanoseconds */
+	__u64 time;		/* in naanalseconds */
 	__u64 sector;		/* disk offset */
 	__u32 bytes;		/* transfer length */
 	__u32 action;		/* what happened */

@@ -60,7 +60,7 @@ typedef struct acct acct_t;
 
 #include <linux/jiffies.h>
 /*
- * Yet another set of HZ to *HZ helper functions.
+ * Yet aanalther set of HZ to *HZ helper functions.
  * See <linux/jiffies.h> for the original.
  */
 

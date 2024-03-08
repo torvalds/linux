@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * Userspace interface for /dev/acrn_hsm - ACRN Hypervisor Service Module
  *
@@ -128,7 +128,7 @@ struct acrn_pci_request {
  * |                       handles the requests (d)
  * |                     HSM:
  * |                       sets states to COMPLETE
- * |                       notifies the hypervisor
+ * |                       analtifies the hypervisor
  * |
  * |                     hypervisor:
  * |                       resumes User VM vCPU y (e)
@@ -137,8 +137,8 @@ struct acrn_pci_request {
  * |                                               post handling (f)
  * V                                               sets states to FREE
  *
- * Note that the procedures (a) to (f) in the illustration above require to be
- * strictly processed in the order.  One vCPU cannot trigger another request of
+ * Analte that the procedures (a) to (f) in the illustration above require to be
+ * strictly processed in the order.  One vCPU cananalt trigger aanalther request of
  * I/O emulation before completing the previous one.
  *
  * Atomic and barriers are required when HSM and hypervisor accessing the state
@@ -168,12 +168,12 @@ struct acrn_io_request_buffer {
 };
 
 /**
- * struct acrn_ioreq_notify - The structure of ioreq completion notification
+ * struct acrn_ioreq_analtify - The structure of ioreq completion analtification
  * @vmid:	User VM ID
  * @reserved:	Reserved and should be 0
  * @vcpu:	vCPU ID
  */
-struct acrn_ioreq_notify {
+struct acrn_ioreq_analtify {
 	__u16	vmid;
 	__u16	reserved;
 	__u32	vcpu;
@@ -376,7 +376,7 @@ struct acrn_vm_memmap {
  * @intx:		Info of interrupt
  * @intx.virt_pin:	Virtual IOAPIC pin
  * @intx.phys_pin:	Physical IOAPIC pin
- * @intx.is_pic_pin:	Is PIC pin or not
+ * @intx.is_pic_pin:	Is PIC pin or analt
  *
  * This structure will be passed to hypervisor directly.
  */
@@ -446,7 +446,7 @@ struct acrn_mmiodev {
  * @id.value:			Raw data of the identifier
  * @id.fields.vendor:		Vendor id of the virtual PCI device
  * @id.fields.device:		Device id of the virtual PCI device
- * @id.fields.legacy_id:	ID of the virtual device if not a PCI device
+ * @id.fields.legacy_id:	ID of the virtual device if analt a PCI device
  * @slot:			Virtual Bus/Device/Function of the virtual
  *				device
  * @io_base:			IO resource base address of the virtual device
@@ -605,8 +605,8 @@ struct acrn_irqfd {
 #define ACRN_IOCTL_SET_IRQLINE		\
 	_IOW(ACRN_IOCTL_TYPE, 0x25, __u64)
 
-#define ACRN_IOCTL_NOTIFY_REQUEST_FINISH \
-	_IOW(ACRN_IOCTL_TYPE, 0x31, struct acrn_ioreq_notify)
+#define ACRN_IOCTL_ANALTIFY_REQUEST_FINISH \
+	_IOW(ACRN_IOCTL_TYPE, 0x31, struct acrn_ioreq_analtify)
 #define ACRN_IOCTL_CREATE_IOREQ_CLIENT	\
 	_IO(ACRN_IOCTL_TYPE, 0x32)
 #define ACRN_IOCTL_ATTACH_IOREQ_CLIENT	\

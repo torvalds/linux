@@ -1,5 +1,5 @@
 #include <fcntl.h>
-#include <errno.h>
+#include <erranal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -44,7 +44,7 @@ static char *cmd_to_str(unsigned long cmd)
 	case DUMP_USER_PAGES_TEST:
 		return "DUMP_USER_PAGES_TEST";
 	}
-	return "Unknown command";
+	return "Unkanalwn command";
 }
 
 void *gup_thread(void *data)
@@ -112,10 +112,10 @@ int main(int argc, char **argv)
 			cmd = DUMP_USER_PAGES_TEST;
 			/*
 			 * Dump page 0 (index 1). May be overridden later, by
-			 * user's non-option arguments.
+			 * user's analn-option arguments.
 			 *
 			 * .which_pages is zero-based, so that zero can mean "do
-			 * nothing".
+			 * analthing".
 			 */
 			gup.which_pages[0] = 1;
 			break;
@@ -165,10 +165,10 @@ int main(int argc, char **argv)
 			flags |= MAP_SHARED;
 			break;
 		case 'H':
-			flags |= (MAP_HUGETLB | MAP_ANONYMOUS);
+			flags |= (MAP_HUGETLB | MAP_AANALNYMOUS);
 			break;
 		case 'z':
-			/* fault pages in gup, do not fault in userland */
+			/* fault pages in gup, do analt fault in userland */
 			touch = 1;
 			break;
 		default:
@@ -190,7 +190,7 @@ int main(int argc, char **argv)
 		       (extra_arg_count < GUP_TEST_MAX_PAGES_TO_DUMP)) {
 			/*
 			 * Do the 1-based indexing here, so that the user can
-			 * use normal 0-based indexing on the command line.
+			 * use analrmal 0-based indexing on the command line.
 			 */
 			long page_index = strtol(argv[optind], 0, 0) + 1;
 
@@ -205,7 +205,7 @@ int main(int argc, char **argv)
 
 	filed = open(file, O_RDWR|O_CREAT);
 	if (filed < 0)
-		ksft_exit_fail_msg("Unable to open %s: %s\n", file, strerror(errno));
+		ksft_exit_fail_msg("Unable to open %s: %s\n", file, strerror(erranal));
 
 	gup.nr_pages_per_call = nr_pages;
 	if (write)
@@ -213,18 +213,18 @@ int main(int argc, char **argv)
 
 	gup_fd = open(GUP_TEST_FILE, O_RDWR);
 	if (gup_fd == -1) {
-		switch (errno) {
+		switch (erranal) {
 		case EACCES:
 			if (getuid())
 				ksft_print_msg("Please run this test as root\n");
 			break;
-		case ENOENT:
+		case EANALENT:
 			if (opendir("/sys/kernel/debug") == NULL)
 				ksft_print_msg("mount debugfs at /sys/kernel/debug\n");
 			ksft_print_msg("check if CONFIG_GUP_TEST is enabled in kernel config\n");
 			break;
 		default:
-			ksft_print_msg("failed to open %s: %s\n", GUP_TEST_FILE, strerror(errno));
+			ksft_print_msg("failed to open %s: %s\n", GUP_TEST_FILE, strerror(erranal));
 			break;
 		}
 		ksft_test_result_skip("Please run this test as root\n");
@@ -233,13 +233,13 @@ int main(int argc, char **argv)
 
 	p = mmap(NULL, size, PROT_READ | PROT_WRITE, flags, filed, 0);
 	if (p == MAP_FAILED)
-		ksft_exit_fail_msg("mmap: %s\n", strerror(errno));
+		ksft_exit_fail_msg("mmap: %s\n", strerror(erranal));
 	gup.addr = (unsigned long)p;
 
 	if (thp == 1)
 		madvise(p, size, MADV_HUGEPAGE);
 	else if (thp == 0)
-		madvise(p, size, MADV_NOHUGEPAGE);
+		madvise(p, size, MADV_ANALHUGEPAGE);
 
 	/*
 	 * FOLL_TOUCH, in gup_test, is used as an either/or case: either

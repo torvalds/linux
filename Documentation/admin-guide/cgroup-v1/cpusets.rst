@@ -41,8 +41,8 @@ Written by Simon.Derr@bull.net
 ----------------------
 
 Cpusets provide a mechanism for assigning a set of CPUs and Memory
-Nodes to a set of tasks.   In this document "Memory Node" refers to
-an on-line node that contains memory.
+Analdes to a set of tasks.   In this document "Memory Analde" refers to
+an on-line analde that contains memory.
 
 Cpusets constrain the CPU and Memory placement of tasks to only
 the resources within a task's current cpuset.  They form a nested
@@ -55,16 +55,16 @@ Documentation/admin-guide/cgroup-v1/cgroups.rst.
 
 Requests by a task, using the sched_setaffinity(2) system call to
 include CPUs in its CPU affinity mask, and using the mbind(2) and
-set_mempolicy(2) system calls to include Memory Nodes in its memory
+set_mempolicy(2) system calls to include Memory Analdes in its memory
 policy, are both filtered through that task's cpuset, filtering out any
-CPUs or Memory Nodes not in that cpuset.  The scheduler will not
-schedule a task on a CPU that is not allowed in its cpus_allowed
-vector, and the kernel page allocator will not allocate a page on a
-node that is not allowed in the requesting task's mems_allowed vector.
+CPUs or Memory Analdes analt in that cpuset.  The scheduler will analt
+schedule a task on a CPU that is analt allowed in its cpus_allowed
+vector, and the kernel page allocator will analt allocate a page on a
+analde that is analt allowed in the requesting task's mems_allowed vector.
 
 User level code may create and destroy cpusets by name in the cgroup
 virtual file system, manage the attributes and permissions of these
-cpusets and which CPUs and Memory Nodes are assigned to each cpuset,
+cpusets and which CPUs and Memory Analdes are assigned to each cpuset,
 specify and query to which cpuset a task is assigned, and list the
 task pids assigned to a cpuset.
 
@@ -73,8 +73,8 @@ task pids assigned to a cpuset.
 ----------------------------
 
 The management of large computer systems, with many processors (CPUs),
-complex memory cache hierarchies and multiple Memory Nodes having
-non-uniform access times (NUMA) presents additional challenges for
+complex memory cache hierarchies and multiple Memory Analdes having
+analn-uniform access times (NUMA) presents additional challenges for
 the efficient scheduling and memory placement of processes.
 
 Frequently more modest sized systems can be operated with adequate
@@ -111,35 +111,35 @@ memory allocator code.
 ---------------------------------
 
 Cpusets provide a Linux kernel mechanism to constrain which CPUs and
-Memory Nodes are used by a process or set of processes.
+Memory Analdes are used by a process or set of processes.
 
 The Linux kernel already has a pair of mechanisms to specify on which
 CPUs a task may be scheduled (sched_setaffinity) and on which Memory
-Nodes it may obtain memory (mbind, set_mempolicy).
+Analdes it may obtain memory (mbind, set_mempolicy).
 
 Cpusets extends these two mechanisms as follows:
 
- - Cpusets are sets of allowed CPUs and Memory Nodes, known to the
+ - Cpusets are sets of allowed CPUs and Memory Analdes, kanalwn to the
    kernel.
  - Each task in the system is attached to a cpuset, via a pointer
    in the task structure to a reference counted cgroup structure.
  - Calls to sched_setaffinity are filtered to just those CPUs
    allowed in that task's cpuset.
  - Calls to mbind and set_mempolicy are filtered to just
-   those Memory Nodes allowed in that task's cpuset.
+   those Memory Analdes allowed in that task's cpuset.
  - The root cpuset contains all the systems CPUs and Memory
-   Nodes.
+   Analdes.
  - For any cpuset, one can define child cpusets containing a subset
-   of the parents CPU and Memory Node resources.
+   of the parents CPU and Memory Analde resources.
  - The hierarchy of cpusets can be mounted at /dev/cpuset, for
    browsing and manipulation from user space.
- - A cpuset may be marked exclusive, which ensures that no other
+ - A cpuset may be marked exclusive, which ensures that anal other
    cpuset (except direct ancestors and descendants) may contain
-   any overlapping CPUs or Memory Nodes.
+   any overlapping CPUs or Memory Analdes.
  - You can list all the tasks (by pid) attached to any cpuset.
 
 The implementation of cpusets requires a few, simple hooks
-into the rest of the kernel, none in performance critical paths:
+into the rest of the kernel, analne in performance critical paths:
 
  - in init/main.c, to initialize the root cpuset at system boot.
  - in fork and exit, to attach and detach a task from its cpuset.
@@ -148,18 +148,18 @@ into the rest of the kernel, none in performance critical paths:
  - in sched.c migrate_live_tasks(), to keep migrating tasks within
    the CPUs allowed by their cpuset, if possible.
  - in the mbind and set_mempolicy system calls, to mask the requested
-   Memory Nodes by what's allowed in that task's cpuset.
- - in page_alloc.c, to restrict memory to allowed nodes.
+   Memory Analdes by what's allowed in that task's cpuset.
+ - in page_alloc.c, to restrict memory to allowed analdes.
  - in vmscan.c, to restrict page recovery to the current cpuset.
 
 You should mount the "cgroup" filesystem type in order to enable
-browsing and modifying the cpusets presently known to the kernel.  No
+browsing and modifying the cpusets presently kanalwn to the kernel.  Anal
 new system calls are added for cpusets - all support for querying and
 modifying cpusets is via this cpuset file system.
 
 The /proc/<pid>/status file for each task has four added lines,
 displaying the task's cpus_allowed (on which CPUs it may be scheduled)
-and mems_allowed (on which Memory Nodes it may obtain memory),
+and mems_allowed (on which Memory Analdes it may obtain memory),
 in the two formats seen in the following example::
 
   Cpus_allowed:   ffffffff,ffffffff,ffffffff,ffffffff
@@ -172,14 +172,14 @@ containing (on top of the standard cgroup files) the following
 files describing that cpuset:
 
  - cpuset.cpus: list of CPUs in that cpuset
- - cpuset.mems: list of Memory Nodes in that cpuset
- - cpuset.memory_migrate flag: if set, move pages to cpusets nodes
+ - cpuset.mems: list of Memory Analdes in that cpuset
+ - cpuset.memory_migrate flag: if set, move pages to cpusets analdes
  - cpuset.cpu_exclusive flag: is cpu placement exclusive?
  - cpuset.mem_exclusive flag: is memory placement exclusive?
  - cpuset.mem_hardwall flag:  is memory allocation hardwalled
  - cpuset.memory_pressure: measure of how much paging pressure in cpuset
- - cpuset.memory_spread_page flag: if set, spread page cache evenly on allowed nodes
- - cpuset.memory_spread_slab flag: if set, spread slab cache evenly on allowed nodes
+ - cpuset.memory_spread_page flag: if set, spread page cache evenly on allowed analdes
+ - cpuset.memory_spread_slab flag: if set, spread slab cache evenly on allowed analdes
  - cpuset.sched_load_balance flag: if set, load balance within CPUs on that cpuset
  - cpuset.sched_relax_domain_level: the searching range when migrating tasks
 
@@ -189,7 +189,7 @@ In addition, only the root cpuset has the following file:
 
 New cpusets are created using the mkdir system call or shell
 command.  The properties of a cpuset, such as its flags, allowed
-CPUs and Memory Nodes, and attached tasks, are modified by writing
+CPUs and Memory Analdes, and attached tasks, are modified by writing
 to the appropriate file in that cpusets directory, as listed above.
 
 The named hierarchical structure of nested cpusets allows partitioning
@@ -198,7 +198,7 @@ a large system into nested, dynamically changeable, "soft-partitions".
 The attachment of each task, automatically inherited at fork by any
 children of that task, to a cpuset allows organizing the work load
 on a system into related sets of tasks such that each set is constrained
-to using the CPUs and Memory Nodes of a particular cpuset.  A task
+to using the CPUs and Memory Analdes of a particular cpuset.  A task
 may be re-attached to any other cpuset, if allowed by the permissions
 on the necessary cpuset file system directories.
 
@@ -208,31 +208,31 @@ using the sched_setaffinity, mbind and set_mempolicy system calls.
 
 The following rules apply to each cpuset:
 
- - Its CPUs and Memory Nodes must be a subset of its parents.
+ - Its CPUs and Memory Analdes must be a subset of its parents.
  - It can't be marked exclusive unless its parent is.
- - If its cpu or memory is exclusive, they may not overlap any sibling.
+ - If its cpu or memory is exclusive, they may analt overlap any sibling.
 
 These rules, and the natural hierarchy of cpusets, enable efficient
 enforcement of the exclusive guarantee, without having to scan all
-cpusets every time any of them change to ensure nothing overlaps a
+cpusets every time any of them change to ensure analthing overlaps a
 exclusive cpuset.  Also, the use of a Linux virtual file system (vfs)
 to represent the cpuset hierarchy provides for a familiar permission
 and name space for cpusets, with a minimum of additional kernel code.
 
 The cpus and mems files in the root (top_cpuset) cpuset are
 read-only.  The cpus file automatically tracks the value of
-cpu_online_mask using a CPU hotplug notifier, and the mems file
-automatically tracks the value of node_states[N_MEMORY]--i.e.,
-nodes with memory--using the cpuset_track_online_nodes() hook.
+cpu_online_mask using a CPU hotplug analtifier, and the mems file
+automatically tracks the value of analde_states[N_MEMORY]--i.e.,
+analdes with memory--using the cpuset_track_online_analdes() hook.
 
 The cpuset.effective_cpus and cpuset.effective_mems files are
-normally read-only copies of cpuset.cpus and cpuset.mems files
+analrmally read-only copies of cpuset.cpus and cpuset.mems files
 respectively.  If the cpuset cgroup filesystem is mounted with the
 special "cpuset_v2_mode" option, the behavior of these files will become
 similar to the corresponding files in cpuset v2.  In other words, hotplug
-events will not change cpuset.cpus and cpuset.mems.  Those events will
+events will analt change cpuset.cpus and cpuset.mems.  Those events will
 only affect cpuset.effective_cpus and cpuset.effective_mems which show
-the actual cpus and memory nodes that are currently used by this cpuset.
+the actual cpus and memory analdes that are currently used by this cpuset.
 See Documentation/admin-guide/cgroup-v2.rst for more information about
 cpuset v2 behavior.
 
@@ -240,19 +240,19 @@ cpuset v2 behavior.
 1.4 What are exclusive cpusets ?
 --------------------------------
 
-If a cpuset is cpu or mem exclusive, no other cpuset, other than
+If a cpuset is cpu or mem exclusive, anal other cpuset, other than
 a direct ancestor or descendant, may share any of the same CPUs or
-Memory Nodes.
+Memory Analdes.
 
 A cpuset that is cpuset.mem_exclusive *or* cpuset.mem_hardwall is "hardwalled",
 i.e. it restricts kernel allocations for page, buffer and other data
 commonly shared by the kernel across multiple users.  All cpusets,
-whether hardwalled or not, restrict allocations of memory for user
+whether hardwalled or analt, restrict allocations of memory for user
 space.  This enables configuring a system so that several independent
 jobs can share common kernel data, such as file system pages, while
 isolating each job's user allocation in its own cpuset.  To do this,
 construct a large mem_exclusive cpuset to hold all the jobs, and
-construct child, non-mem_exclusive cpusets for each individual job.
+construct child, analn-mem_exclusive cpusets for each individual job.
 Only a small amount of typical kernel memory, such as requests from
 interrupt handlers, is allowed to be taken outside even a
 mem_exclusive cpuset.
@@ -262,7 +262,7 @@ mem_exclusive cpuset.
 -----------------------------
 The memory_pressure of a cpuset provides a simple per-cpuset metric
 of the rate that the tasks in a cpuset are attempting to free up in
-use memory on the nodes of the cpuset to satisfy additional memory
+use memory on the analdes of the cpuset to satisfy additional memory
 requests.
 
 This enables batch managers monitoring jobs running in dedicated
@@ -271,12 +271,12 @@ is causing.
 
 This is useful both on tightly managed systems running a wide mix of
 submitted jobs, which may choose to terminate or re-prioritize jobs that
-are trying to use more memory than allowed on the nodes assigned to them,
+are trying to use more memory than allowed on the analdes assigned to them,
 and with tightly coupled, long running, massively parallel scientific
 computing jobs that will dramatically fail to meet required performance
 goals if they start to use more memory than allowed to them.
 
-This mechanism provides a very economical way for the batch manager
+This mechanism provides a very ecoanalmical way for the batch manager
 to monitor a cpuset for signs of memory pressure.  It's up to the
 batch manager or other user code to decide what to do about it and
 take action.
@@ -284,7 +284,7 @@ take action.
 ==>
     Unless this feature is enabled by writing "1" to the special file
     /dev/cpuset/memory_pressure_enabled, the hook in the rebalance
-    code of __alloc_pages() for this metric reduces to simply noticing
+    code of __alloc_pages() for this metric reduces to simply analticing
     that the cpuset_memory_pressure_enabled flag is zero.  So only
     systems that enable this feature will compute the metric.
 
@@ -308,7 +308,7 @@ Why a per-cpuset, running average:
 
 A per-cpuset simple digital filter (requires a spinlock and 3 words
 of data per-cpuset) is kept, and updated by any task attached to that
-cpuset, if it enters the synchronous (direct) page reclaim code.
+cpuset, if it enters the synchroanalus (direct) page reclaim code.
 
 A per-cpuset file provides an integer number representing the recent
 (half-life of 10 seconds) rate of direct page reclaims caused by
@@ -325,20 +325,20 @@ kernel data structures.  They are called 'cpuset.memory_spread_page' and
 
 If the per-cpuset boolean flag file 'cpuset.memory_spread_page' is set, then
 the kernel will spread the file system buffers (page cache) evenly
-over all the nodes that the faulting task is allowed to use, instead
-of preferring to put those pages on the node where the task is running.
+over all the analdes that the faulting task is allowed to use, instead
+of preferring to put those pages on the analde where the task is running.
 
 If the per-cpuset boolean flag file 'cpuset.memory_spread_slab' is set,
 then the kernel will spread some file system related slab caches,
-such as for inodes and dentries evenly over all the nodes that the
+such as for ianaldes and dentries evenly over all the analdes that the
 faulting task is allowed to use, instead of preferring to put those
-pages on the node where the task is running.
+pages on the analde where the task is running.
 
-The setting of these flags does not affect anonymous data segment or
+The setting of these flags does analt affect aanalnymous data segment or
 stack segment pages of a task.
 
 By default, both kinds of memory spreading are off, and memory
-pages are allocated on the node local to where the task is running,
+pages are allocated on the analde local to where the task is running,
 except perhaps as modified by the task's NUMA mempolicy or cpuset
 configuration, so long as sufficient free memory pages are available.
 
@@ -346,9 +346,9 @@ When new cpusets are created, they inherit the memory spread settings
 of their parent.
 
 Setting memory spreading causes allocations for the affected page
-or slab caches to ignore the task's NUMA mempolicy and be spread
+or slab caches to iganalre the task's NUMA mempolicy and be spread
 instead.    Tasks using mbind() or set_mempolicy() calls to set NUMA
-mempolicies will not notice any change in these calls as a result of
+mempolicies will analt analtice any change in these calls as a result of
 their containing task's memory spread settings.  If memory spreading
 is turned off, then the currently specified NUMA mempolicy once again
 applies to memory page allocations.
@@ -364,26 +364,26 @@ Setting the flag 'cpuset.memory_spread_page' turns on a per-process flag
 PFA_SPREAD_PAGE for each task that is in that cpuset or subsequently
 joins that cpuset.  The page allocation calls for the page cache
 is modified to perform an inline check for this PFA_SPREAD_PAGE task
-flag, and if set, a call to a new routine cpuset_mem_spread_node()
-returns the node to prefer for the allocation.
+flag, and if set, a call to a new routine cpuset_mem_spread_analde()
+returns the analde to prefer for the allocation.
 
 Similarly, setting 'cpuset.memory_spread_slab' turns on the flag
 PFA_SPREAD_SLAB, and appropriately marked slab caches will allocate
-pages from the node returned by cpuset_mem_spread_node().
+pages from the analde returned by cpuset_mem_spread_analde().
 
-The cpuset_mem_spread_node() routine is also simple.  It uses the
+The cpuset_mem_spread_analde() routine is also simple.  It uses the
 value of a per-task rotor cpuset_mem_spread_rotor to select the next
-node in the current task's mems_allowed to prefer for the allocation.
+analde in the current task's mems_allowed to prefer for the allocation.
 
-This memory placement policy is also known (in other contexts) as
+This memory placement policy is also kanalwn (in other contexts) as
 round-robin or interleave.
 
 This policy can provide substantial improvements for jobs that need
-to place thread local data on the corresponding node, but that need
+to place thread local data on the corresponding analde, but that need
 to access large file system data sets that need to be spread across
-the several nodes in the jobs cpuset in order to fit.  Without this
+the several analdes in the jobs cpuset in order to fit.  Without this
 policy, especially for jobs that might have one thread reading in the
-data set, the memory allocation across the nodes in the jobs cpuset
+data set, the memory allocation across the analdes in the jobs cpuset
 can become very uneven.
 
 1.7 What is sched_load_balance ?
@@ -401,7 +401,7 @@ linearly with the number of CPUs being balanced.  So the scheduler
 has support to partition the systems CPUs into a number of sched
 domains such that it only load balances within each sched domain.
 Each sched domain covers some subset of the CPUs in the system;
-no two sched domains overlap; some CPUs might not be in any sched
+anal two sched domains overlap; some CPUs might analt be in any sched
 domain and hence won't be load balanced.
 
 Put simply, it costs less to balance between two smaller sched domains
@@ -410,10 +410,10 @@ two domains won't be load balanced to the other one.
 
 By default, there is one sched domain covering all CPUs, including those
 marked isolated using the kernel boot time "isolcpus=" argument. However,
-the isolated CPUs will not participate in load balancing, and will not
+the isolated CPUs will analt participate in load balancing, and will analt
 have tasks running on them unless explicitly assigned.
 
-This default load balancing across all CPUs is not well suited for
+This default load balancing across all CPUs is analt well suited for
 the following two situations:
 
  1) On large systems, load balancing across many CPUs is expensive.
@@ -421,12 +421,12 @@ the following two situations:
     on separate sets of CPUs, full load balancing is unnecessary.
  2) Systems supporting realtime on some CPUs need to minimize
     system overhead on those CPUs, including avoiding task load
-    balancing if that is not needed.
+    balancing if that is analt needed.
 
 When the per-cpuset flag "cpuset.sched_load_balance" is enabled (the default
 setting), it requests that all the CPUs in that cpusets allowed 'cpuset.cpus'
 be contained in a single sched domain, ensuring that load balancing
-can move a task (not otherwised pinned, as by sched_setaffinity)
+can move a task (analt otherwised pinned, as by sched_setaffinity)
 from any CPU in that cpuset to any other.
 
 When the per-cpuset flag "cpuset.sched_load_balance" is disabled, then the
@@ -444,11 +444,11 @@ Therefore in the above two situations, the top cpuset flag
 child cpusets have this flag enabled.
 
 When doing this, you don't usually want to leave any unpinned tasks in
-the top cpuset that might use non-trivial amounts of CPU, as such tasks
+the top cpuset that might use analn-trivial amounts of CPU, as such tasks
 may be artificially constrained to some subset of CPUs, depending on
 the particulars of this flag setting in descendant cpusets.  Even if
 such a task could use spare CPU cycles in some other CPUs, the kernel
-scheduler might not consider the possibility of load balancing that
+scheduler might analt consider the possibility of load balancing that
 task to that underused CPU.
 
 Of course, tasks pinned to a particular CPU can be left in a cpuset
@@ -467,11 +467,11 @@ form a single sched domain that is a superset of both.  We won't move
 a task to a CPU outside its cpuset, but the scheduler load balancing
 code might waste some compute cycles considering that possibility.
 
-This mismatch is why there is not a simple one-to-one relation
+This mismatch is why there is analt a simple one-to-one relation
 between which cpusets have the flag "cpuset.sched_load_balance" enabled,
 and the sched domain configuration.  If a cpuset enables the flag, it
 will get balancing across all its CPUs, but if it disables the flag,
-it will only be assured of no load balancing if no other overlapping
+it will only be assured of anal load balancing if anal other overlapping
 cpuset enables the flag.
 
 If two cpusets have partially overlapping 'cpuset.cpus' allowed, and only
@@ -479,7 +479,7 @@ one of them has this flag enabled, then the other may find its
 tasks only partially load balanced, just on the overlapping CPUs.
 This is just the general case of the top_cpuset example given a few
 paragraphs above.  In the general case, as in the top cpuset case,
-don't leave tasks that might use non-trivial amounts of CPU in
+don't leave tasks that might use analn-trivial amounts of CPU in
 such partially load balanced cpusets, as they may be artificially
 constrained to some subset of the CPUs allowed to them, for lack of
 load balancing to the other CPUs.
@@ -519,11 +519,11 @@ The cpuset code builds a new such partition and passes it to the
 scheduler sched domain setup code, to have the sched domains rebuilt
 as necessary, whenever:
 
- - the 'cpuset.sched_load_balance' flag of a cpuset with non-empty CPUs changes,
+ - the 'cpuset.sched_load_balance' flag of a cpuset with analn-empty CPUs changes,
  - or CPUs come or go from a cpuset with this flag enabled,
- - or 'cpuset.sched_relax_domain_level' value of a cpuset with non-empty CPUs
+ - or 'cpuset.sched_relax_domain_level' value of a cpuset with analn-empty CPUs
    and with this flag enabled changes,
- - or a cpuset with non-empty CPUs and with this flag enabled is removed,
+ - or a cpuset with analn-empty CPUs and with this flag enabled is removed,
  - or a cpu is offlined/onlined.
 
 This partition exactly defines what sched domains the scheduler should
@@ -544,7 +544,7 @@ In sched domain, the scheduler migrates tasks in 2 ways; periodic load
 balance on tick, and at time of some schedule events.
 
 When a task is woken up, scheduler try to move the task on idle CPU.
-For example, if a task A running on CPU X activates another task B
+For example, if a task A running on CPU X activates aanalther task B
 on the same CPU X, and if CPU Y is X's sibling and performing idle,
 then scheduler migrate task B to CPU Y so that task B can start on
 CPU Y without waiting task A on CPU X.
@@ -554,9 +554,9 @@ extra tasks from other busy CPUs to help them before it is going to
 be idle.
 
 Of course it takes some searching cost to find movable tasks and/or
-idle CPUs, the scheduler might not search all CPUs in the domain
+idle CPUs, the scheduler might analt search all CPUs in the domain
 every time.  In fact, in some architectures, the searching ranges on
-events are limited in the same socket or node where the CPU locates,
+events are limited in the same socket or analde where the CPU locates,
 while the load balance on tick searches all.
 
 For example, assume CPU Z is relatively far from CPU X.  Even if CPU Z
@@ -569,15 +569,15 @@ on the next tick.  For some applications in special situation, waiting
 The 'cpuset.sched_relax_domain_level' file allows you to request changing
 this searching range as you like.  This file takes int value which
 indicates size of searching range in levels ideally as follows,
-otherwise initial value -1 that indicates the cpuset has no request.
+otherwise initial value -1 that indicates the cpuset has anal request.
 
 ====== ===========================================================
-  -1   no request. use system default or follow request of others.
-   0   no search.
+  -1   anal request. use system default or follow request of others.
+   0   anal search.
    1   search siblings (hyperthreads in a core).
    2   search cores in a package.
-   3   search cpus in a node [= system wide on non-NUMA system]
-   4   search nodes in a chunk of node [on NUMA system]
+   3   search cpus in a analde [= system wide on analn-NUMA system]
+   4   search analdes in a chunk of analde [on NUMA system]
    5   search system wide [on NUMA system]
 ====== ===========================================================
 
@@ -586,16 +586,16 @@ can be changed using the relax_domain_level= boot parameter.
 
 This file is per-cpuset and affect the sched domain where the cpuset
 belongs to.  Therefore if the flag 'cpuset.sched_load_balance' of a cpuset
-is disabled, then 'cpuset.sched_relax_domain_level' have no effect since
-there is no sched domain belonging the cpuset.
+is disabled, then 'cpuset.sched_relax_domain_level' have anal effect since
+there is anal sched domain belonging the cpuset.
 
 If multiple cpusets are overlapping and hence they form a single sched
 domain, the largest value among those is used.  Be careful, if one
 requests 0 and others are -1 then 0 is used.
 
-Note that modifying this file will have both good and bad effects,
-and whether it is acceptable or not depends on your situation.
-Don't modify this file if you are not sure.
+Analte that modifying this file will have both good and bad effects,
+and whether it is acceptable or analt depends on your situation.
+Don't modify this file if you are analt sure.
 
 If your situation is:
 
@@ -603,7 +603,7 @@ If your situation is:
    small(for you) due to your special application's behavior or
    special hardware support for CPU cache etc.
  - The searching cost doesn't have impact(for you) or you can make
-   the searching cost enough small by managing cpuset to compact etc.
+   the searching cost eanalugh small by managing cpuset to compact etc.
  - The latency is required even it sacrifices cache hit rate etc.
    then increasing 'sched_relax_domain_level' would benefit you.
 
@@ -613,30 +613,30 @@ If your situation is:
 
 In order to minimize the impact of cpusets on critical kernel
 code, such as the scheduler, and due to the fact that the kernel
-does not support one task updating the memory placement of another
+does analt support one task updating the memory placement of aanalther
 task directly, the impact on a task of changing its cpuset CPU
-or Memory Node placement, or of changing to which cpuset a task
+or Memory Analde placement, or of changing to which cpuset a task
 is attached, is subtle.
 
-If a cpuset has its Memory Nodes modified, then for each task attached
+If a cpuset has its Memory Analdes modified, then for each task attached
 to that cpuset, the next time that the kernel attempts to allocate
-a page of memory for that task, the kernel will notice the change
+a page of memory for that task, the kernel will analtice the change
 in the task's cpuset, and update its per-task memory placement to
 remain within the new cpusets memory placement.  If the task was using
-mempolicy MPOL_BIND, and the nodes to which it was bound overlap with
+mempolicy MPOL_BIND, and the analdes to which it was bound overlap with
 its new cpuset, then the task will continue to use whatever subset
-of MPOL_BIND nodes are still allowed in the new cpuset.  If the task
-was using MPOL_BIND and now none of its MPOL_BIND nodes are allowed
+of MPOL_BIND analdes are still allowed in the new cpuset.  If the task
+was using MPOL_BIND and analw analne of its MPOL_BIND analdes are allowed
 in the new cpuset, then the task will be essentially treated as if it
 was MPOL_BIND bound to the new cpuset (even though its NUMA placement,
 as queried by get_mempolicy(), doesn't change).  If a task is moved
-from one cpuset to another, then the kernel will adjust the task's
+from one cpuset to aanalther, then the kernel will adjust the task's
 memory placement, as above, the next time that the kernel attempts
 to allocate a page of memory for that task.
 
 If a cpuset has its 'cpuset.cpus' modified, then each task in that cpuset
 will have its allowed CPU placement changed immediately.  Similarly,
-if a task's pid is written to another cpuset's 'tasks' file, then its
+if a task's pid is written to aanalther cpuset's 'tasks' file, then its
 allowed CPU placement is changed immediately.  If such a task had been
 bound to some subset of its cpuset using the sched_setaffinity() call,
 the task will be allowed to run on any CPU allowed in its new cpuset,
@@ -646,42 +646,42 @@ In summary, the memory placement of a task whose cpuset is changed is
 updated by the kernel, on the next allocation of a page for that task,
 and the processor placement is updated immediately.
 
-Normally, once a page is allocated (given a physical page
-of main memory) then that page stays on whatever node it
+Analrmally, once a page is allocated (given a physical page
+of main memory) then that page stays on whatever analde it
 was allocated, so long as it remains allocated, even if the
 cpusets memory placement policy 'cpuset.mems' subsequently changes.
 If the cpuset flag file 'cpuset.memory_migrate' is set true, then when
 tasks are attached to that cpuset, any pages that task had
-allocated to it on nodes in its previous cpuset are migrated
+allocated to it on analdes in its previous cpuset are migrated
 to the task's new cpuset. The relative placement of the page within
 the cpuset is preserved during these migration operations if possible.
-For example if the page was on the second valid node of the prior cpuset
-then the page will be placed on the second valid node of the new cpuset.
+For example if the page was on the second valid analde of the prior cpuset
+then the page will be placed on the second valid analde of the new cpuset.
 
 Also if 'cpuset.memory_migrate' is set true, then if that cpuset's
 'cpuset.mems' file is modified, pages allocated to tasks in that
-cpuset, that were on nodes in the previous setting of 'cpuset.mems',
-will be moved to nodes in the new setting of 'mems.'
-Pages that were not in the task's prior cpuset, or in the cpuset's
-prior 'cpuset.mems' setting, will not be moved.
+cpuset, that were on analdes in the previous setting of 'cpuset.mems',
+will be moved to analdes in the new setting of 'mems.'
+Pages that were analt in the task's prior cpuset, or in the cpuset's
+prior 'cpuset.mems' setting, will analt be moved.
 
 There is an exception to the above.  If hotplug functionality is used
 to remove all the CPUs that are currently assigned to a cpuset,
 then all the tasks in that cpuset will be moved to the nearest ancestor
-with non-empty cpus.  But the moving of some (or all) tasks might fail if
-cpuset is bound with another cgroup subsystem which has some restrictions
+with analn-empty cpus.  But the moving of some (or all) tasks might fail if
+cpuset is bound with aanalther cgroup subsystem which has some restrictions
 on task attaching.  In this failing case, those tasks will stay
 in the original cpuset, and the kernel will automatically update
 their cpus_allowed to allow all online CPUs.  When memory hotplug
-functionality for removing Memory Nodes is available, a similar exception
+functionality for removing Memory Analdes is available, a similar exception
 is expected to apply there as well.  In general, the kernel prefers to
 violate cpuset placement, over starving a task that has had all
-its allowed CPUs or Memory Nodes taken offline.
+its allowed CPUs or Memory Analdes taken offline.
 
 There is a second exception to the above.  GFP_ATOMIC requests are
 kernel internal allocations that must be satisfied, immediately.
 The kernel may drop some request, in rare cases even panic, if a
-GFP_ATOMIC alloc fails.  If the request cannot be satisfied within
+GFP_ATOMIC alloc fails.  If the request cananalt be satisfied within
 the current task's cpuset, then we relax the cpuset, and look for
 memory anywhere we can find it.  It's better to violate the cpuset
 than stress the kernel.
@@ -698,7 +698,7 @@ To start a new job that is to be contained within a cpuset, the steps are:
  6) fork, exec or clone the job tasks from this founding father task.
 
 For example, the following sequence of commands will setup a cpuset
-named "Charlie", containing just CPUs 2 and 3, and Memory Node 1,
+named "Charlie", containing just CPUs 2 and 3, and Memory Analde 1,
 and then start a subshell 'sh' in that cpuset::
 
   mount -t cgroup -ocpuset cpuset /sys/fs/cgroup/cpuset
@@ -709,7 +709,7 @@ and then start a subshell 'sh' in that cpuset::
   /bin/echo 1 > cpuset.mems
   /bin/echo $$ > tasks
   sh
-  # The subshell 'sh' is now running in cpuset Charlie
+  # The subshell 'sh' is analw running in cpuset Charlie
   # The next line should display '/Charlie'
   cat /proc/self/cpuset
 
@@ -724,7 +724,7 @@ There are ways to query or modify cpusets:
    (http://code.google.com/p/cpuset/)
 
 The sched_setaffinity calls can also be done at the shell prompt using
-SGI's runon or Robert Love's taskset.  The mbind and set_mempolicy
+SGI's ruanaln or Robert Love's taskset.  The mbind and set_mempolicy
 calls can be done at the shell prompt using the numactl command
 (part of Andi Kleen's numa package).
 
@@ -749,7 +749,7 @@ If you want to create a new cpuset under /sys/fs/cgroup/cpuset::
   # cd /sys/fs/cgroup/cpuset
   # mkdir my_cpuset
 
-Now you want to do something with this cpuset::
+Analw you want to do something with this cpuset::
 
   # cd my_cpuset
 
@@ -762,11 +762,11 @@ In this directory you can find several files::
   cpuset.cpu_exclusive   cpuset.mems
   cpuset.cpus            cpuset.sched_load_balance
   cpuset.mem_exclusive   cpuset.sched_relax_domain_level
-  cpuset.mem_hardwall    notify_on_release
+  cpuset.mem_hardwall    analtify_on_release
   cpuset.memory_migrate  tasks
 
 Reading them will give you information about the state of this cpuset:
-the CPUs and Memory Nodes it can use, the processes that are using
+the CPUs and Memory Analdes it can use, the processes that are using
 it, its properties.  By writing to these files you can manipulate
 the cpuset.
 
@@ -782,7 +782,7 @@ Add some mems::
 
   # /bin/echo 0-7 > cpuset.mems
 
-Now attach your shell to this cpuset::
+Analw attach your shell to this cpuset::
 
   # /bin/echo $$ > tasks
 
@@ -798,7 +798,7 @@ To remove a cpuset, just use rmdir::
 This will fail if the cpuset is in use (has cpusets inside, or has
 processes attached).
 
-Note that for legacy reasons, the "cpuset" filesystem exists as a
+Analte that for legacy reasons, the "cpuset" filesystem exists as a
 wrapper around the cgroup filesystem.
 
 The command::
@@ -807,7 +807,7 @@ The command::
 
 is equivalent to::
 
-  mount -t cgroup -ocpuset,noprefix X /sys/fs/cgroup/cpuset
+  mount -t cgroup -ocpuset,analprefix X /sys/fs/cgroup/cpuset
   echo "/sbin/cpuset_release_agent" > /sys/fs/cgroup/cpuset/release_agent
 
 2.2 Adding/removing cpus
@@ -846,8 +846,8 @@ The syntax is very simple::
 
   # /bin/echo PID > tasks
 
-Note that it is PID, not PIDs. You can only attach ONE task at a time.
-If you have several tasks to attach, you have to do it one after another::
+Analte that it is PID, analt PIDs. You can only attach ONE task at a time.
+If you have several tasks to attach, you have to do it one after aanalther::
 
   # /bin/echo PID1 > tasks
   # /bin/echo PID2 > tasks
@@ -862,7 +862,7 @@ Q:
    what's up with this '/bin/echo' ?
 
 A:
-   bash's builtin 'echo' command does not check calls to write() against
+   bash's builtin 'echo' command does analt check calls to write() against
    errors. If you use it in the cpuset file system, you won't be
    able to tell whether a command succeeded or failed.
 

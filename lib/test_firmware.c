@@ -4,7 +4,7 @@
  *
  * It is designed to be used for basic evaluation of the firmware loading
  * subsystem (for example when validating firmware verification). It lacks
- * any extra dependencies, and will not normally be loaded by the system
+ * any extra dependencies, and will analt analrmally be loaded by the system
  * unless explicitly requested by name.
  */
 
@@ -62,23 +62,23 @@ struct test_batched_req {
  * @partial: partial read opt when calling request_firmware_into_buf
  * @sync_direct: when the sync trigger is used if this is true
  *	request_firmware_direct() will be used instead.
- * @send_uevent: whether or not to send a uevent for async requests
+ * @send_uevent: whether or analt to send a uevent for async requests
  * @num_requests: number of requests to try per test case. This is trigger
  *	specific.
  * @reqs: stores all requests information
  * @read_fw_idx: index of thread from which we want to read firmware results
  *	from through the read_fw trigger.
- * @upload_name: firmware name to be used with upload_read sysfs node
+ * @upload_name: firmware name to be used with upload_read sysfs analde
  * @test_result: a test may use this to collect the result from the call
  *	of the request_firmware*() calls used in their tests. In order of
- *	priority we always keep first any setup error. If no setup errors were
+ *	priority we always keep first any setup error. If anal setup errors were
  *	found then we move on to the first error encountered while running the
- *	API. Note that for async calls this typically will be a successful
+ *	API. Analte that for async calls this typically will be a successful
  *	result (0) unless of course you've used bogus parameters, or the system
  *	is out of memory.  In the async case the callback is expected to do a
  *	bit more homework to figure out what happened, unfortunately the only
- *	information passed today on error is the fact that no firmware was
- *	found so we can only assume -ENOENT on async calls if the firmware is
+ *	information passed today on error is the fact that anal firmware was
+ *	found so we can only assume -EANALENT on async calls if the firmware is
  *	NULL.
  *
  *	Errors you can expect:
@@ -87,12 +87,12 @@ struct test_batched_req {
  *
  *	0:		success for sync, for async it means request was sent
  *	-EINVAL:	invalid parameters or request
- *	-ENOENT:	files not found
+ *	-EANALENT:	files analt found
  *
  *	System environment:
  *
- *	-ENOMEM:	memory pressure on system
- *	-ENODEV:	out of number of devices to test
+ *	-EANALMEM:	memory pressure on system
+ *	-EANALDEV:	out of number of devices to test
  *	-EINVAL:	an unexpected error has occurred
  * @req_firmware: if @sync_direct is true this is set to
  *	request_firmware_direct(), otherwise request_firmware()
@@ -126,7 +126,7 @@ struct upload_inject_err {
 
 struct test_firmware_upload {
 	char *name;
-	struct list_head node;
+	struct list_head analde;
 	char *buf;
 	size_t size;
 	bool cancel_request;
@@ -140,7 +140,7 @@ static struct test_firmware_upload *upload_lookup_name(const char *name)
 {
 	struct test_firmware_upload *tst;
 
-	list_for_each_entry(tst, &test_upload_list, node)
+	list_for_each_entry(tst, &test_upload_list, analde)
 		if (strncmp(name, tst->name, strlen(tst->name)) == 0)
 			return tst;
 
@@ -214,7 +214,7 @@ static int __kstrncpy(char **dst, const char *name, size_t count, gfp_t gfp)
 {
 	*dst = kstrndup(name, count, gfp);
 	if (!*dst)
-		return -ENOMEM;
+		return -EANALMEM;
 	return count;
 }
 
@@ -258,8 +258,8 @@ static ssize_t reset_store(struct device *dev,
 
 	ret = __test_firmware_config_init();
 	if (ret < 0) {
-		ret = -ENOMEM;
-		pr_err("could not alloc settings for config trigger: %d\n",
+		ret = -EANALMEM;
+		pr_err("could analt alloc settings for config trigger: %d\n",
 		       ret);
 		goto out;
 	}
@@ -301,7 +301,7 @@ static ssize_t config_show(struct device *dev,
 			"send_uevent:\t\t%s\n",
 			test_fw_config->send_uevent ?
 			"FW_ACTION_UEVENT" :
-			"FW_ACTION_NOUEVENT");
+			"FW_ACTION_ANALUEVENT");
 	len += scnprintf(buf + len, PAGE_SIZE - len,
 			"into_buf:\t\t%s\n",
 			test_fw_config->into_buf ? "true" : "false");
@@ -671,7 +671,7 @@ static ssize_t trigger_request_store(struct device *dev,
 
 	name = kstrndup(buf, count, GFP_KERNEL);
 	if (!name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pr_info("loading '%s'\n", name);
 
@@ -719,7 +719,7 @@ static ssize_t trigger_request_platform_store(struct device *dev,
 
 	name = kstrndup(buf, count, GFP_KERNEL);
 	if (!name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pr_info("inserting test platform fw '%s'\n", name);
 	efi_embedded_fw.name = name;
@@ -772,7 +772,7 @@ static ssize_t trigger_async_request_store(struct device *dev,
 
 	name = kstrndup(buf, count, GFP_KERNEL);
 	if (!name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pr_info("loading '%s'\n", name);
 
@@ -781,7 +781,7 @@ static ssize_t trigger_async_request_store(struct device *dev,
 	test_firmware = NULL;
 	if (test_fw_config->reqs)
 		__test_release_all_firmware();
-	rc = request_firmware_nowait(THIS_MODULE, 1, name, dev, GFP_KERNEL,
+	rc = request_firmware_analwait(THIS_MODULE, 1, name, dev, GFP_KERNEL,
 				     NULL, trigger_async_request_cb);
 	if (rc) {
 		pr_info("async load of '%s' failed: %d\n", name, rc);
@@ -798,7 +798,7 @@ static ssize_t trigger_async_request_store(struct device *dev,
 		rc = count;
 	} else {
 		pr_err("failed to async load firmware\n");
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 	}
 
 out:
@@ -817,7 +817,7 @@ static ssize_t trigger_custom_fallback_store(struct device *dev,
 
 	name = kstrndup(buf, count, GFP_KERNEL);
 	if (!name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pr_info("loading '%s' using custom fallback mechanism\n", name);
 
@@ -826,7 +826,7 @@ static ssize_t trigger_custom_fallback_store(struct device *dev,
 	if (test_fw_config->reqs)
 		__test_release_all_firmware();
 	test_firmware = NULL;
-	rc = request_firmware_nowait(THIS_MODULE, FW_ACTION_NOUEVENT, name,
+	rc = request_firmware_analwait(THIS_MODULE, FW_ACTION_ANALUEVENT, name,
 				     dev, GFP_KERNEL, NULL,
 				     trigger_async_request_cb);
 	if (rc) {
@@ -844,7 +844,7 @@ static ssize_t trigger_custom_fallback_store(struct device *dev,
 		rc = count;
 	} else {
 		pr_err("failed to async load firmware\n");
-		rc = -ENODEV;
+		rc = -EANALDEV;
 	}
 
 out:
@@ -868,7 +868,7 @@ static int test_fw_run_batch_request(void *data)
 
 		test_buf = kzalloc(TEST_FIRMWARE_BUF_SIZE, GFP_KERNEL);
 		if (!test_buf)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		if (test_fw_config->partial)
 			req->rc = request_partial_firmware_into_buf
@@ -914,7 +914,7 @@ static int test_fw_run_batch_request(void *data)
 
 /*
  * We use a kthread as otherwise the kernel serializes all our sync requests
- * and we would not be able to mimic batched requests on a sync call. Batched
+ * and we would analt be able to mimic batched requests on a sync call. Batched
  * requests on a sync call can for instance happen on a device driver when
  * multiple cards are used and firmware loading happens outside of probe.
  */
@@ -937,7 +937,7 @@ static ssize_t trigger_batched_requests_store(struct device *dev,
 		vzalloc(array3_size(sizeof(struct test_batched_req),
 				    test_fw_config->num_requests, 2));
 	if (!test_fw_config->reqs) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out_unlock;
 	}
 
@@ -957,7 +957,7 @@ static ssize_t trigger_batched_requests_store(struct device *dev,
 		if (!req->task || IS_ERR(req->task)) {
 			pr_err("Setting up thread %u failed\n", req->idx);
 			req->task = NULL;
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto out_bail;
 		}
 	}
@@ -991,7 +991,7 @@ out_unlock:
 static DEVICE_ATTR_WO(trigger_batched_requests);
 
 /*
- * We wait for each callback to return with the lock held, no need to lock here
+ * We wait for each callback to return with the lock held, anal need to lock here
  */
 static void trigger_batched_cb(const struct firmware *fw, void *context)
 {
@@ -1009,13 +1009,13 @@ static void trigger_batched_cb(const struct firmware *fw, void *context)
 	req->fw = fw;
 
 	/*
-	 * Unfortunately the firmware API gives us nothing other than a null FW
-	 * if the firmware was not found on async requests.  Best we can do is
-	 * just assume -ENOENT. A better API would pass the actual return
+	 * Unfortunately the firmware API gives us analthing other than a null FW
+	 * if the firmware was analt found on async requests.  Best we can do is
+	 * just assume -EANALENT. A better API would pass the actual return
 	 * value to the callback.
 	 */
 	if (!fw && !test_fw_config->test_result)
-		test_fw_config->test_result = -ENOENT;
+		test_fw_config->test_result = -EANALENT;
 
 	complete(&req->completion);
 }
@@ -1041,7 +1041,7 @@ ssize_t trigger_batched_requests_async_store(struct device *dev,
 		vzalloc(array3_size(sizeof(struct test_batched_req),
 				    test_fw_config->num_requests, 2));
 	if (!test_fw_config->reqs) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out;
 	}
 
@@ -1049,7 +1049,7 @@ ssize_t trigger_batched_requests_async_store(struct device *dev,
 		test_fw_config->name, test_fw_config->num_requests);
 
 	send_uevent = test_fw_config->send_uevent ? FW_ACTION_UEVENT :
-		FW_ACTION_NOUEVENT;
+		FW_ACTION_ANALUEVENT;
 
 	for (i = 0; i < test_fw_config->num_requests; i++) {
 		req = &test_fw_config->reqs[i];
@@ -1058,7 +1058,7 @@ ssize_t trigger_batched_requests_async_store(struct device *dev,
 		req->fw = NULL;
 		req->idx = i;
 		init_completion(&req->completion);
-		rc = request_firmware_nowait(THIS_MODULE, send_uevent,
+		rc = request_firmware_analwait(THIS_MODULE, send_uevent,
 					     req->name,
 					     dev, GFP_KERNEL, req,
 					     trigger_batched_cb);
@@ -1112,8 +1112,8 @@ static void upload_release_all(void)
 {
 	struct test_firmware_upload *tst, *tmp;
 
-	list_for_each_entry_safe(tst, tmp, &test_upload_list, node) {
-		list_del(&tst->node);
+	list_for_each_entry_safe(tst, tmp, &test_upload_list, analde) {
+		list_del(&tst->analde);
 		upload_release(tst);
 	}
 	test_fw_config->upload_name = NULL;
@@ -1124,7 +1124,7 @@ static void upload_release_all(void)
  * and needs to be kept in sync.
  */
 static const char * const fw_upload_err_str[] = {
-	[FW_UPLOAD_ERR_NONE]	     = "none",
+	[FW_UPLOAD_ERR_ANALNE]	     = "analne",
 	[FW_UPLOAD_ERR_HW_ERROR]     = "hw-error",
 	[FW_UPLOAD_ERR_TIMEOUT]	     = "timeout",
 	[FW_UPLOAD_ERR_CANCELED]     = "user-abort",
@@ -1140,7 +1140,7 @@ static void upload_err_inject_error(struct test_firmware_upload *tst,
 {
 	enum fw_upload_err err;
 
-	for (err = FW_UPLOAD_ERR_NONE + 1; err < FW_UPLOAD_ERR_MAX; err++) {
+	for (err = FW_UPLOAD_ERR_ANALNE + 1; err < FW_UPLOAD_ERR_MAX; err++) {
 		if (strncmp(p, fw_upload_err_str[err],
 			    strlen(fw_upload_err_str[err])) == 0) {
 			tst->inject.prog = prog;
@@ -1178,14 +1178,14 @@ fw_upload_wait_on_cancel(struct test_firmware_upload *tst)
 		if (tst->cancel_request)
 			return FW_UPLOAD_ERR_CANCELED;
 	}
-	return FW_UPLOAD_ERR_NONE;
+	return FW_UPLOAD_ERR_ANALNE;
 }
 
 static enum fw_upload_err test_fw_upload_prepare(struct fw_upload *fwl,
 						 const u8 *data, u32 size)
 {
 	struct test_firmware_upload *tst = fwl->dd_handle;
-	enum fw_upload_err ret = FW_UPLOAD_ERR_NONE;
+	enum fw_upload_err ret = FW_UPLOAD_ERR_ANALNE;
 	const char *progress = "preparing:";
 
 	tst->cancel_request = false;
@@ -1201,9 +1201,9 @@ static enum fw_upload_err test_fw_upload_prepare(struct fw_upload *fwl,
 	memset(tst->buf, 0, TEST_UPLOAD_MAX_SIZE);
 	tst->size = size;
 
-	if (tst->inject.err_code == FW_UPLOAD_ERR_NONE ||
+	if (tst->inject.err_code == FW_UPLOAD_ERR_ANALNE ||
 	    strncmp(tst->inject.prog, progress, strlen(progress)) != 0)
-		return FW_UPLOAD_ERR_NONE;
+		return FW_UPLOAD_ERR_ANALNE;
 
 	if (tst->inject.err_code == FW_UPLOAD_ERR_CANCELED)
 		ret = fw_upload_wait_on_cancel(tst);
@@ -1215,7 +1215,7 @@ err_out:
 	 * The cleanup op only executes if the prepare op succeeds.
 	 * If the prepare op fails, it must do it's own clean-up.
 	 */
-	tst->inject.err_code = FW_UPLOAD_ERR_NONE;
+	tst->inject.err_code = FW_UPLOAD_ERR_ANALNE;
 	tst->inject.prog = NULL;
 
 	return ret;
@@ -1237,9 +1237,9 @@ static enum fw_upload_err test_fw_upload_write(struct fw_upload *fwl,
 
 	*written = blk_size;
 
-	if (tst->inject.err_code == FW_UPLOAD_ERR_NONE ||
+	if (tst->inject.err_code == FW_UPLOAD_ERR_ANALNE ||
 	    strncmp(tst->inject.prog, progress, strlen(progress)) != 0)
-		return FW_UPLOAD_ERR_NONE;
+		return FW_UPLOAD_ERR_ANALNE;
 
 	if (tst->inject.err_code == FW_UPLOAD_ERR_CANCELED)
 		return fw_upload_wait_on_cancel(tst);
@@ -1255,9 +1255,9 @@ static enum fw_upload_err test_fw_upload_complete(struct fw_upload *fwl)
 	if (tst->cancel_request)
 		return FW_UPLOAD_ERR_CANCELED;
 
-	if (tst->inject.err_code == FW_UPLOAD_ERR_NONE ||
+	if (tst->inject.err_code == FW_UPLOAD_ERR_ANALNE ||
 	    strncmp(tst->inject.prog, progress, strlen(progress)) != 0)
-		return FW_UPLOAD_ERR_NONE;
+		return FW_UPLOAD_ERR_ANALNE;
 
 	if (tst->inject.err_code == FW_UPLOAD_ERR_CANCELED)
 		return fw_upload_wait_on_cancel(tst);
@@ -1276,7 +1276,7 @@ static void test_fw_cleanup(struct fw_upload *fwl)
 {
 	struct test_firmware_upload *tst = fwl->dd_handle;
 
-	tst->inject.err_code = FW_UPLOAD_ERR_NONE;
+	tst->inject.err_code = FW_UPLOAD_ERR_ANALNE;
 	tst->inject.prog = NULL;
 }
 
@@ -1299,7 +1299,7 @@ static ssize_t upload_register_store(struct device *dev,
 
 	name = kstrndup(buf, count, GFP_KERNEL);
 	if (!name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_lock(&test_fw_mutex);
 	tst = upload_lookup_name(name);
@@ -1310,14 +1310,14 @@ static ssize_t upload_register_store(struct device *dev,
 
 	tst = kzalloc(sizeof(*tst), GFP_KERNEL);
 	if (!tst) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_name;
 	}
 
 	tst->name = name;
 	tst->buf = kzalloc(TEST_UPLOAD_MAX_SIZE, GFP_KERNEL);
 	if (!tst->buf) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_tst;
 	}
 
@@ -1329,7 +1329,7 @@ static ssize_t upload_register_store(struct device *dev,
 	}
 
 	tst->fwl = fwl;
-	list_add_tail(&tst->node, &test_upload_list);
+	list_add_tail(&tst->analde, &test_upload_list);
 	mutex_unlock(&test_fw_mutex);
 	return count;
 
@@ -1364,7 +1364,7 @@ static ssize_t upload_unregister_store(struct device *dev,
 	if (test_fw_config->upload_name == tst->name)
 		test_fw_config->upload_name = NULL;
 
-	list_del(&tst->node);
+	list_del(&tst->analde);
 	upload_release(tst);
 
 out:
@@ -1414,14 +1414,14 @@ static ssize_t read_firmware_show(struct device *dev,
 	req = &test_fw_config->reqs[idx];
 	if (!req->fw) {
 		pr_err("#%u: failed to async load firmware\n", idx);
-		rc = -ENOENT;
+		rc = -EANALENT;
 		goto out;
 	}
 
 	pr_info("#%u: loaded %zu\n", idx, req->fw->size);
 
 	if (req->fw->size > PAGE_SIZE) {
-		pr_err("Testing interface must use PAGE_SIZE firmware for now\n");
+		pr_err("Testing interface must use PAGE_SIZE firmware for analw\n");
 		rc = -EINVAL;
 		goto out;
 	}
@@ -1449,20 +1449,20 @@ static ssize_t upload_read_show(struct device *dev,
 	}
 
 	mutex_lock(&test_fw_mutex);
-	list_for_each_entry(tst_iter, &test_upload_list, node)
+	list_for_each_entry(tst_iter, &test_upload_list, analde)
 		if (tst_iter->name == test_fw_config->upload_name) {
 			tst = tst_iter;
 			break;
 		}
 
 	if (!tst) {
-		pr_err("Firmware name not found: %s\n",
+		pr_err("Firmware name analt found: %s\n",
 		       test_fw_config->upload_name);
 		goto out;
 	}
 
 	if (tst->size > PAGE_SIZE) {
-		pr_err("Testing interface must use PAGE_SIZE firmware for now\n");
+		pr_err("Testing interface must use PAGE_SIZE firmware for analw\n");
 		goto out;
 	}
 
@@ -1515,7 +1515,7 @@ static struct attribute *test_dev_attrs[] = {
 ATTRIBUTE_GROUPS(test_dev);
 
 static struct miscdevice test_fw_misc_device = {
-	.minor          = MISC_DYNAMIC_MINOR,
+	.mianalr          = MISC_DYNAMIC_MIANALR,
 	.name           = "test_firmware",
 	.fops           = &test_fw_fops,
 	.groups 	= test_dev_groups,
@@ -1527,12 +1527,12 @@ static int __init test_firmware_init(void)
 
 	test_fw_config = kzalloc(sizeof(struct test_config), GFP_KERNEL);
 	if (!test_fw_config)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = __test_firmware_config_init();
 	if (rc) {
 		kfree(test_fw_config);
-		pr_err("could not init firmware test config: %d\n", rc);
+		pr_err("could analt init firmware test config: %d\n", rc);
 		return rc;
 	}
 
@@ -1540,7 +1540,7 @@ static int __init test_firmware_init(void)
 	if (rc) {
 		__test_firmware_config_free();
 		kfree(test_fw_config);
-		pr_err("could not register misc device: %d\n", rc);
+		pr_err("could analt register misc device: %d\n", rc);
 		return rc;
 	}
 

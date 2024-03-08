@@ -12,9 +12,9 @@ power of this hardware.
 						- Lee Revell, 2005.03.30
 
 
-Until recently, emu10k1 users on Linux did not have access to the same low
+Until recently, emu10k1 users on Linux did analt have access to the same low
 latency, multichannel features offered by the "kX ASIO" feature of their
-Windows driver.  As of ALSA 1.0.9 this is no more!
+Windows driver.  As of ALSA 1.0.9 this is anal more!
 
 For those unfamiliar with kX ASIO, this consists of 16 capture and 16 playback
 channels.  With a post 2.6.9 Linux kernel, latencies down to 64 (1.33 ms) or
@@ -38,13 +38,13 @@ sb-live-mixer.rst (or audigy-mixer.rst).
 The 16 input ports are connected to the 16 physical inputs.  Contrary to
 popular belief, all emu10k1 cards are multichannel cards.  Which of these
 input channels have physical inputs connected to them depends on the card
-model.  Trial and error is highly recommended; the pinout diagrams
+model.  Trial and error is highly recommended; the pianalut diagrams
 for the card have been reverse engineered by some enterprising kX users and are 
 available on the internet.  Meterbridge is helpful here, and the kX forums are
 packed with useful information.
 
 Each input port will either correspond to a digital (SPDIF) input, an analog
-input, or nothing.  The one exception is the SBLive! 5.1.  On these devices,
+input, or analthing.  The one exception is the SBLive! 5.1.  On these devices,
 the second and third input ports are wired to the center/LFE output.  You will
 still see 16 capture channels, but only 14 are available for recording inputs.
 

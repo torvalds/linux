@@ -26,7 +26,7 @@
 
 /*
  * Pull Up Values - it indicates whether a pull-up should be
- * applied for bidirectional mode only. The hardware ignores the
+ * applied for bidirectional mode only. The hardware iganalres the
  * configuration when operating in other modes.
  */
 #define PMIC_MPP_PULL_UP_0P6KOHM		0
@@ -40,10 +40,10 @@
 
 /* mpp peripheral type and subtype values */
 #define PMIC_MPP_TYPE				0x11
-#define PMIC_MPP_SUBTYPE_4CH_NO_ANA_OUT		0x3
-#define PMIC_MPP_SUBTYPE_ULT_4CH_NO_ANA_OUT	0x4
-#define PMIC_MPP_SUBTYPE_4CH_NO_SINK		0x5
-#define PMIC_MPP_SUBTYPE_ULT_4CH_NO_SINK	0x6
+#define PMIC_MPP_SUBTYPE_4CH_ANAL_ANA_OUT		0x3
+#define PMIC_MPP_SUBTYPE_ULT_4CH_ANAL_ANA_OUT	0x4
+#define PMIC_MPP_SUBTYPE_4CH_ANAL_SINK		0x5
+#define PMIC_MPP_SUBTYPE_ULT_4CH_ANAL_SINK	0x6
 #define PMIC_MPP_SUBTYPE_4CH_FULL_FUNC		0x7
 #define PMIC_MPP_SUBTYPE_8CH_FULL_FUNC		0xf
 
@@ -90,7 +90,7 @@
 #define PMIC_MPP_MODE_ANALOG_OUTPUT		5
 #define PMIC_MPP_MODE_CURRENT_SINK		6
 
-#define PMIC_MPP_SELECTOR_NORMAL		0
+#define PMIC_MPP_SELECTOR_ANALRMAL		0
 #define PMIC_MPP_SELECTOR_PAIRED		1
 #define PMIC_MPP_SELECTOR_DTEST_FIRST		4
 
@@ -226,7 +226,7 @@ static const struct pinctrl_ops pmic_mpp_pinctrl_ops = {
 	.get_groups_count	= pmic_mpp_get_groups_count,
 	.get_group_name		= pmic_mpp_get_group_name,
 	.get_group_pins		= pmic_mpp_get_group_pins,
-	.dt_node_to_map		= pinconf_generic_dt_node_to_map_group,
+	.dt_analde_to_map		= pinconf_generic_dt_analde_to_map_group,
 	.dt_free_map		= pinctrl_utils_free_map,
 };
 
@@ -287,7 +287,7 @@ static int pmic_mpp_write_mode_ctl(struct pmic_mpp_state *state,
 	else if (pad->paired)
 		sel = PMIC_MPP_SELECTOR_PAIRED;
 	else
-		sel = PMIC_MPP_SELECTOR_NORMAL;
+		sel = PMIC_MPP_SELECTOR_ANALRMAL;
 
 	en = !!pad->out_value;
 
@@ -409,7 +409,7 @@ static int pmic_mpp_config_set(struct pinctrl_dev *pctldev, unsigned int pin,
 
 	pad = pctldev->desc->pins[pin].drv_data;
 
-	/* Make it possible to enable the pin, by not setting high impedance */
+	/* Make it possible to enable the pin, by analt setting high impedance */
 	pad->is_enabled = true;
 
 	for (i = 0; i < nconfs; i++) {
@@ -657,7 +657,7 @@ static int pmic_mpp_populate(struct pmic_mpp_state *state,
 	if (type != PMIC_MPP_TYPE) {
 		dev_err(state->dev, "incorrect block type 0x%x at 0x%x\n",
 			type, pad->base);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	subtype = pmic_mpp_read(state, pad, PMIC_MPP_REG_SUBTYPE);
@@ -665,10 +665,10 @@ static int pmic_mpp_populate(struct pmic_mpp_state *state,
 		return subtype;
 
 	switch (subtype) {
-	case PMIC_MPP_SUBTYPE_4CH_NO_ANA_OUT:
-	case PMIC_MPP_SUBTYPE_ULT_4CH_NO_ANA_OUT:
-	case PMIC_MPP_SUBTYPE_4CH_NO_SINK:
-	case PMIC_MPP_SUBTYPE_ULT_4CH_NO_SINK:
+	case PMIC_MPP_SUBTYPE_4CH_ANAL_ANA_OUT:
+	case PMIC_MPP_SUBTYPE_ULT_4CH_ANAL_ANA_OUT:
+	case PMIC_MPP_SUBTYPE_4CH_ANAL_SINK:
+	case PMIC_MPP_SUBTYPE_ULT_4CH_ANAL_SINK:
 	case PMIC_MPP_SUBTYPE_4CH_FULL_FUNC:
 		pad->num_sources = 4;
 		break;
@@ -676,9 +676,9 @@ static int pmic_mpp_populate(struct pmic_mpp_state *state,
 		pad->num_sources = 8;
 		break;
 	default:
-		dev_err(state->dev, "unknown MPP type 0x%x at 0x%x\n",
+		dev_err(state->dev, "unkanalwn MPP type 0x%x at 0x%x\n",
 			subtype, pad->base);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	val = pmic_mpp_read(state, pad, PMIC_MPP_REG_MODE_CTL);
@@ -727,8 +727,8 @@ static int pmic_mpp_populate(struct pmic_mpp_state *state,
 		pad->function = PMIC_MPP_SINK;
 		break;
 	default:
-		dev_err(state->dev, "unknown MPP direction\n");
-		return -ENODEV;
+		dev_err(state->dev, "unkanalwn MPP direction\n");
+		return -EANALDEV;
 	}
 
 	sel = val >> PMIC_MPP_REG_MODE_FUNCTION_SHIFT;
@@ -746,8 +746,8 @@ static int pmic_mpp_populate(struct pmic_mpp_state *state,
 	pad->power_source = val >> PMIC_MPP_REG_VIN_SHIFT;
 	pad->power_source &= PMIC_MPP_REG_VIN_MASK;
 
-	if (subtype != PMIC_MPP_SUBTYPE_ULT_4CH_NO_ANA_OUT &&
-	    subtype != PMIC_MPP_SUBTYPE_ULT_4CH_NO_SINK) {
+	if (subtype != PMIC_MPP_SUBTYPE_ULT_4CH_ANAL_ANA_OUT &&
+	    subtype != PMIC_MPP_SUBTYPE_ULT_4CH_ANAL_SINK) {
 		val = pmic_mpp_read(state, pad, PMIC_MPP_REG_DIG_PULL_CTL);
 		if (val < 0)
 			return val;
@@ -852,7 +852,7 @@ static const struct irq_chip pmic_mpp_irq_chip = {
 static int pmic_mpp_probe(struct platform_device *pdev)
 {
 	struct irq_domain *parent_domain;
-	struct device_node *parent_node;
+	struct device_analde *parent_analde;
 	struct device *dev = &pdev->dev;
 	struct pinctrl_pin_desc *pindesc;
 	struct pinctrl_desc *pctrldesc;
@@ -862,7 +862,7 @@ static int pmic_mpp_probe(struct platform_device *pdev)
 	int ret, npins, i;
 	u32 reg;
 
-	ret = of_property_read_u32(dev->of_node, "reg", &reg);
+	ret = of_property_read_u32(dev->of_analde, "reg", &reg);
 	if (ret < 0) {
 		dev_err(dev, "missing base address");
 		return ret;
@@ -874,7 +874,7 @@ static int pmic_mpp_probe(struct platform_device *pdev)
 
 	state = devm_kzalloc(dev, sizeof(*state), GFP_KERNEL);
 	if (!state)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, state);
 
@@ -883,15 +883,15 @@ static int pmic_mpp_probe(struct platform_device *pdev)
 
 	pindesc = devm_kcalloc(dev, npins, sizeof(*pindesc), GFP_KERNEL);
 	if (!pindesc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pads = devm_kcalloc(dev, npins, sizeof(*pads), GFP_KERNEL);
 	if (!pads)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pctrldesc = devm_kzalloc(dev, sizeof(*pctrldesc), GFP_KERNEL);
 	if (!pctrldesc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pctrldesc->pctlops = &pmic_mpp_pinctrl_ops;
 	pctrldesc->pmxops = &pmic_mpp_pinmux_ops;
@@ -932,20 +932,20 @@ static int pmic_mpp_probe(struct platform_device *pdev)
 	if (IS_ERR(state->ctrl))
 		return PTR_ERR(state->ctrl);
 
-	parent_node = of_irq_find_parent(state->dev->of_node);
-	if (!parent_node)
+	parent_analde = of_irq_find_parent(state->dev->of_analde);
+	if (!parent_analde)
 		return -ENXIO;
 
-	parent_domain = irq_find_host(parent_node);
-	of_node_put(parent_node);
+	parent_domain = irq_find_host(parent_analde);
+	of_analde_put(parent_analde);
 	if (!parent_domain)
 		return -ENXIO;
 
 	girq = &state->chip.irq;
 	gpio_irq_chip_set_chip(girq, &pmic_mpp_irq_chip);
-	girq->default_type = IRQ_TYPE_NONE;
+	girq->default_type = IRQ_TYPE_ANALNE;
 	girq->handler = handle_level_irq;
-	girq->fwnode = dev_fwnode(state->dev);
+	girq->fwanalde = dev_fwanalde(state->dev);
 	girq->parent_domain = parent_domain;
 	girq->child_to_parent_hwirq = pmic_mpp_child_to_parent_hwirq;
 	girq->populate_parent_alloc_arg = gpiochip_populate_parent_fwspec_fourcell;
@@ -1005,7 +1005,7 @@ static struct platform_driver pmic_mpp_driver = {
 
 module_platform_driver(pmic_mpp_driver);
 
-MODULE_AUTHOR("Ivan T. Ivanov <iivanov@mm-sol.com>");
+MODULE_AUTHOR("Ivan T. Ivaanalv <iivaanalv@mm-sol.com>");
 MODULE_DESCRIPTION("Qualcomm SPMI PMIC MPP pin control driver");
 MODULE_ALIAS("platform:qcom-spmi-mpp");
 MODULE_LICENSE("GPL v2");

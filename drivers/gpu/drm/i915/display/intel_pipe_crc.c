@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
@@ -36,7 +36,7 @@
 #include "intel_pipe_crc.h"
 
 static const char * const pipe_crc_sources[] = {
-	[INTEL_PIPE_CRC_SOURCE_NONE] = "none",
+	[INTEL_PIPE_CRC_SOURCE_ANALNE] = "analne",
 	[INTEL_PIPE_CRC_SOURCE_PLANE1] = "plane1",
 	[INTEL_PIPE_CRC_SOURCE_PLANE2] = "plane2",
 	[INTEL_PIPE_CRC_SOURCE_PLANE3] = "plane3",
@@ -62,7 +62,7 @@ static int i8xx_pipe_crc_ctl_reg(enum intel_pipe_crc_source *source,
 	case INTEL_PIPE_CRC_SOURCE_PIPE:
 		*val = PIPE_CRC_ENABLE | PIPE_CRC_INCLUDE_BORDER_I8XX;
 		break;
-	case INTEL_PIPE_CRC_SOURCE_NONE:
+	case INTEL_PIPE_CRC_SOURCE_ANALNE:
 		*val = 0;
 		break;
 	default:
@@ -110,7 +110,7 @@ static void i9xx_pipe_crc_auto_source(struct drm_i915_private *dev_priv,
 				*source = INTEL_PIPE_CRC_SOURCE_DP_D;
 				break;
 			default:
-				drm_WARN(&dev_priv->drm, 1, "nonexisting DP port %c\n",
+				drm_WARN(&dev_priv->drm, 1, "analnexisting DP port %c\n",
 					 port_name(dig_port->base.port));
 				break;
 			}
@@ -150,7 +150,7 @@ static int vlv_pipe_crc_ctl_reg(struct drm_i915_private *dev_priv,
 		*val = PIPE_CRC_ENABLE | PIPE_CRC_SOURCE_DP_D_VLV;
 		need_stable_symbols = true;
 		break;
-	case INTEL_PIPE_CRC_SOURCE_NONE:
+	case INTEL_PIPE_CRC_SOURCE_ANALNE:
 		*val = 0;
 		break;
 	default:
@@ -206,7 +206,7 @@ static int i9xx_pipe_crc_ctl_reg(struct drm_i915_private *dev_priv,
 			return -EINVAL;
 		*val = PIPE_CRC_ENABLE | PIPE_CRC_SOURCE_TV_PRE;
 		break;
-	case INTEL_PIPE_CRC_SOURCE_NONE:
+	case INTEL_PIPE_CRC_SOURCE_ANALNE:
 		*val = 0;
 		break;
 	default:
@@ -214,7 +214,7 @@ static int i9xx_pipe_crc_ctl_reg(struct drm_i915_private *dev_priv,
 		 * The DP CRC source doesn't work on g4x.
 		 * It can be made to work to some degree by selecting
 		 * the correct CRC source before the port is enabled,
-		 * and not touching the CRC source bits again until
+		 * and analt touching the CRC source bits again until
 		 * the port is disabled. But even then the bits
 		 * eventually get stuck and a reboot is needed to get
 		 * working CRCs on the pipe again. Let's simply
@@ -265,7 +265,7 @@ static int ilk_pipe_crc_ctl_reg(enum intel_pipe_crc_source *source,
 	case INTEL_PIPE_CRC_SOURCE_PIPE:
 		*val = PIPE_CRC_ENABLE | PIPE_CRC_SOURCE_PIPE_ILK;
 		break;
-	case INTEL_PIPE_CRC_SOURCE_NONE:
+	case INTEL_PIPE_CRC_SOURCE_ANALNE:
 		*val = 0;
 		break;
 	default:
@@ -288,7 +288,7 @@ intel_crtc_crc_setup_workarounds(struct intel_crtc *crtc, bool enable)
 
 	state = drm_atomic_state_alloc(&dev_priv->drm);
 	if (!state) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto unlock;
 	}
 
@@ -345,7 +345,7 @@ static int ivb_pipe_crc_ctl_reg(struct drm_i915_private *dev_priv,
 	case INTEL_PIPE_CRC_SOURCE_PIPE:
 		*val = PIPE_CRC_ENABLE | PIPE_CRC_SOURCE_PF_IVB;
 		break;
-	case INTEL_PIPE_CRC_SOURCE_NONE:
+	case INTEL_PIPE_CRC_SOURCE_ANALNE:
 		*val = 0;
 		break;
 	default:
@@ -388,7 +388,7 @@ static int skl_pipe_crc_ctl_reg(struct drm_i915_private *dev_priv,
 	case INTEL_PIPE_CRC_SOURCE_PIPE:
 		*val = PIPE_CRC_ENABLE | PIPE_CRC_SOURCE_DMUX_SKL;
 		break;
-	case INTEL_PIPE_CRC_SOURCE_NONE:
+	case INTEL_PIPE_CRC_SOURCE_ANALNE:
 		*val = 0;
 		break;
 	default:
@@ -422,7 +422,7 @@ display_crc_ctl_parse_source(const char *buf, enum intel_pipe_crc_source *s)
 	int i;
 
 	if (!buf) {
-		*s = INTEL_PIPE_CRC_SOURCE_NONE;
+		*s = INTEL_PIPE_CRC_SOURCE_ANALNE;
 		return 0;
 	}
 
@@ -446,7 +446,7 @@ static int i8xx_crc_source_valid(struct drm_i915_private *dev_priv,
 {
 	switch (source) {
 	case INTEL_PIPE_CRC_SOURCE_PIPE:
-	case INTEL_PIPE_CRC_SOURCE_NONE:
+	case INTEL_PIPE_CRC_SOURCE_ANALNE:
 		return 0;
 	default:
 		return -EINVAL;
@@ -459,7 +459,7 @@ static int i9xx_crc_source_valid(struct drm_i915_private *dev_priv,
 	switch (source) {
 	case INTEL_PIPE_CRC_SOURCE_PIPE:
 	case INTEL_PIPE_CRC_SOURCE_TV:
-	case INTEL_PIPE_CRC_SOURCE_NONE:
+	case INTEL_PIPE_CRC_SOURCE_ANALNE:
 		return 0;
 	default:
 		return -EINVAL;
@@ -474,7 +474,7 @@ static int vlv_crc_source_valid(struct drm_i915_private *dev_priv,
 	case INTEL_PIPE_CRC_SOURCE_DP_B:
 	case INTEL_PIPE_CRC_SOURCE_DP_C:
 	case INTEL_PIPE_CRC_SOURCE_DP_D:
-	case INTEL_PIPE_CRC_SOURCE_NONE:
+	case INTEL_PIPE_CRC_SOURCE_ANALNE:
 		return 0;
 	default:
 		return -EINVAL;
@@ -488,7 +488,7 @@ static int ilk_crc_source_valid(struct drm_i915_private *dev_priv,
 	case INTEL_PIPE_CRC_SOURCE_PIPE:
 	case INTEL_PIPE_CRC_SOURCE_PLANE1:
 	case INTEL_PIPE_CRC_SOURCE_PLANE2:
-	case INTEL_PIPE_CRC_SOURCE_NONE:
+	case INTEL_PIPE_CRC_SOURCE_ANALNE:
 		return 0;
 	default:
 		return -EINVAL;
@@ -502,7 +502,7 @@ static int ivb_crc_source_valid(struct drm_i915_private *dev_priv,
 	case INTEL_PIPE_CRC_SOURCE_PIPE:
 	case INTEL_PIPE_CRC_SOURCE_PLANE1:
 	case INTEL_PIPE_CRC_SOURCE_PLANE2:
-	case INTEL_PIPE_CRC_SOURCE_NONE:
+	case INTEL_PIPE_CRC_SOURCE_ANALNE:
 		return 0;
 	default:
 		return -EINVAL;
@@ -521,7 +521,7 @@ static int skl_crc_source_valid(struct drm_i915_private *dev_priv,
 	case INTEL_PIPE_CRC_SOURCE_PLANE5:
 	case INTEL_PIPE_CRC_SOURCE_PLANE6:
 	case INTEL_PIPE_CRC_SOURCE_PLANE7:
-	case INTEL_PIPE_CRC_SOURCE_NONE:
+	case INTEL_PIPE_CRC_SOURCE_ANALNE:
 		return 0;
 	default:
 		return -EINVAL;
@@ -560,7 +560,7 @@ int intel_crtc_verify_crc_source(struct drm_crtc *crtc, const char *source_name,
 	enum intel_pipe_crc_source source;
 
 	if (display_crc_ctl_parse_source(source_name, &source) < 0) {
-		drm_dbg(&dev_priv->drm, "unknown source %s\n", source_name);
+		drm_dbg(&dev_priv->drm, "unkanalwn source %s\n", source_name);
 		return -EINVAL;
 	}
 
@@ -587,7 +587,7 @@ int intel_crtc_set_crc_source(struct drm_crtc *_crtc, const char *source_name)
 	bool enable;
 
 	if (display_crc_ctl_parse_source(source_name, &source) < 0) {
-		drm_dbg(&dev_priv->drm, "unknown source %s\n", source_name);
+		drm_dbg(&dev_priv->drm, "unkanalwn source %s\n", source_name);
 		return -EINVAL;
 	}
 
@@ -599,7 +599,7 @@ int intel_crtc_set_crc_source(struct drm_crtc *_crtc, const char *source_name)
 		return -EIO;
 	}
 
-	enable = source != INTEL_PIPE_CRC_SOURCE_NONE;
+	enable = source != INTEL_PIPE_CRC_SOURCE_ANALNE;
 	if (enable)
 		intel_crtc_crc_setup_workarounds(crtc, true);
 
@@ -640,7 +640,7 @@ void intel_crtc_enable_pipe_crc(struct intel_crtc *crtc)
 	if (get_new_crc_ctl_reg(dev_priv, pipe, &pipe_crc->source, &val) < 0)
 		return;
 
-	/* Don't need pipe_crc->lock here, IRQs are not generated. */
+	/* Don't need pipe_crc->lock here, IRQs are analt generated. */
 	pipe_crc->skipped = 0;
 
 	intel_de_write(dev_priv, PIPE_CRC_CTL(pipe), val);

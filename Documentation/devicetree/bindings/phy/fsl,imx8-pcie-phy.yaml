@@ -64,7 +64,7 @@ properties:
   fsl,clkreq-unsupported:
     type: boolean
     description: A boolean property indicating the CLKREQ# signal is
-      not supported in the board design (optional)
+      analt supported in the board design (optional)
 
   power-domains:
     description: PCIe PHY  power domain (optional).

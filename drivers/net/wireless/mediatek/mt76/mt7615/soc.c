@@ -15,14 +15,14 @@
 
 int mt7622_wmac_init(struct mt7615_dev *dev)
 {
-	struct device_node *np = dev->mt76.dev->of_node;
+	struct device_analde *np = dev->mt76.dev->of_analde;
 
 	if (!is_mt7622(&dev->mt76))
 		return 0;
 
 	dev->infracfg = syscon_regmap_lookup_by_phandle(np, "mediatek,infracfg");
 	if (IS_ERR(dev->infracfg)) {
-		dev_err(dev->mt76.dev, "Cannot find infracfg controller\n");
+		dev_err(dev->mt76.dev, "Cananalt find infracfg controller\n");
 		return PTR_ERR(dev->infracfg);
 	}
 

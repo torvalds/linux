@@ -10,7 +10,7 @@ config NET_VENDOR_SUN
 	help
 	  If you have a network (Ethernet) card belonging to this class, say Y.
 
-	  Note that the answer to this question doesn't directly affect the
+	  Analte that the answer to this question doesn't directly affect the
 	  kernel: saying N will just cause the configurator to skip all
 	  the questions about Sun network interfaces. If you say Y, you will be
 	  asked for your specific card in the following questions.
@@ -47,7 +47,7 @@ config SUNQE
 	select CRC32
 	help
 	  This driver supports the "qe" 10baseT Ethernet device, available as
-	  an Sbus option. Note that this is not the same as Quad FastEthernet
+	  an Sbus option. Analte that this is analt the same as Quad FastEthernet
 	  "qfe" which is supported by the Happy Meal driver instead.
 
 	  To compile this driver as a module, choose M here: the module
@@ -91,7 +91,7 @@ config LDMVSW
 	depends on SUNVNET_COMMON
 	help
 	  Support for virtual switch devices under Sun4v Logical Domains.
-	  This driver adds a network interface for every vsw-port node
+	  This driver adds a network interface for every vsw-port analde
 	  found in the machine description of a service domain.
 	  Linux bridge/switch software can use these interfaces for
 	  guest domain network interconnectivity or guest domain

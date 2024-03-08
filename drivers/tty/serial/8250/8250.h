@@ -85,11 +85,11 @@ struct serial8250_config {
 #define UART_CAP_MINI	BIT(17)	/* Mini UART on BCM283X family lacks:
 					 * STOP PARITY EPAR SPAR WLEN5 WLEN6
 					 */
-#define UART_CAP_NOTEMT	BIT(18)	/* UART without interrupt on TEMT available */
+#define UART_CAP_ANALTEMT	BIT(18)	/* UART without interrupt on TEMT available */
 
 #define UART_BUG_QUOT	BIT(0)	/* UART has buggy quot LSB */
 #define UART_BUG_TXEN	BIT(1)	/* UART has buggy TX IIR status */
-#define UART_BUG_NOMSR	BIT(2)	/* UART has buggy MSR status bits (Au1x00) */
+#define UART_BUG_ANALMSR	BIT(2)	/* UART has buggy MSR status bits (Au1x00) */
 #define UART_BUG_THRE	BIT(3)	/* UART has buggy THRE reassertion */
 #define UART_BUG_TXRACE	BIT(5)	/* UART Tx fails to set remote DR */
 
@@ -126,8 +126,8 @@ static inline void serial_out(struct uart_8250_port *up, int offset, int value)
  *	serial_lsr_in - Read LSR register and preserve flags across reads
  *	@up:	uart 8250 port
  *
- *	Read LSR register and handle saving non-preserved flags across reads.
- *	The flags that are not preserved across reads are stored into
+ *	Read LSR register and handle saving analn-preserved flags across reads.
+ *	The flags that are analt preserved across reads are stored into
  *	up->lsr_saved_flags.
  *
  *	Returns LSR value or'ed with the preserved flags (if any).
@@ -418,5 +418,5 @@ static inline int ns16550a_goto_highspeed(struct uart_8250_port *up)
 
 static inline int serial_index(struct uart_port *port)
 {
-	return port->minor - 64;
+	return port->mianalr - 64;
 }

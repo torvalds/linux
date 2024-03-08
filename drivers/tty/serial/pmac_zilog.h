@@ -21,10 +21,10 @@ struct uart_pmac_port {
 	 * early inited port)
 	 */
 	struct macio_dev		*dev;
-	/* device node to this port, this points to one of 2 childs
-	 * of "escc" node (ie. ch-a or ch-b)
+	/* device analde to this port, this points to one of 2 childs
+	 * of "escc" analde (ie. ch-a or ch-b)
 	 */
-	struct device_node		*node;
+	struct device_analde		*analde;
 #else
 	struct platform_device		*pdev;
 #endif
@@ -67,7 +67,7 @@ static inline struct uart_pmac_port *pmz_get_port_A(struct uart_pmac_port *uap)
 }
 
 /*
- * Register accessors. Note that we don't need to enforce a recovery
+ * Register accessors. Analte that we don't need to enforce a recovery
  * delay on PCI PowerMac hardware, it's dealt in HW by the MacIO chip,
  * though if we try to use this driver on older machines, we might have
  * to add it back
@@ -224,11 +224,11 @@ static inline void zssync(struct uart_pmac_port *port)
 
 /* Write Register 9 (Master interrupt control) */
 #define	VIS	1	/* Vector Includes Status */
-#define	NV	2	/* No Vector */
+#define	NV	2	/* Anal Vector */
 #define	DLC	4	/* Disable Lower Chain */
 #define	MIE	8	/* Master Interrupt Enable */
 #define	STATHI	0x10	/* Status high */
-#define	NORESET	0	/* No reset on write to R9 */
+#define	ANALRESET	0	/* Anal reset on write to R9 */
 #define	CHRB	0x40	/* Reset channel B */
 #define	CHRA	0x80	/* Reset channel A */
 #define	FHWRES	0xc0	/* Force hardware reset */
@@ -259,7 +259,7 @@ static inline void zssync(struct uart_pmac_port *port)
 #define	RCTRxCP	0x20	/* Receive clock = TRxC pin */
 #define	RCBR	0x40	/* Receive clock = BR Generator output */
 #define	RCDPLL	0x60	/* Receive clock = DPLL output */
-#define	RTxCX	0x80	/* RTxC Xtal/No Xtal */
+#define	RTxCX	0x80	/* RTxC Xtal/Anal Xtal */
 
 /* Write Register 12 (lower byte of baud rate generator time constant) */
 

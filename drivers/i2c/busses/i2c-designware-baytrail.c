@@ -19,18 +19,18 @@ int i2c_dw_baytrail_probe_lock_support(struct dw_i2c_dev *dev)
 	acpi_handle handle;
 
 	if (!dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	handle = ACPI_HANDLE(dev->dev);
 	if (!handle)
-		return -ENODEV;
+		return -EANALDEV;
 
 	status = acpi_evaluate_integer(handle, "_SEM", NULL, &shared_host);
 	if (ACPI_FAILURE(status))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!shared_host)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!iosf_mbi_available())
 		return -EPROBE_DEFER;

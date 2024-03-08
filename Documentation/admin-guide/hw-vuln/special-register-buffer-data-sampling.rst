@@ -21,9 +21,9 @@ be affected.
 
 A processor is affected by SRBDS if its Family_Model and stepping is
 in the following list, with the exception of the listed processors
-exporting MDS_NO while Intel TSX is available yet not enabled. The
+exporting MDS_ANAL while Intel TSX is available yet analt enabled. The
 latter class of processors are only affected when Intel TSX is enabled
-by software using TSX_CTRL_MSR otherwise they are not affected.
+by software using TSX_CTRL_MSR otherwise they are analt affected.
 
   =============  ============  ========
   common name    Family_Model  Stepping
@@ -56,14 +56,14 @@ The following CVE entry is related to this SRBDS issue:
 Attack scenarios
 ----------------
 An unprivileged user can extract values returned from RDRAND and RDSEED
-executed on another core or sibling thread using MDS techniques.
+executed on aanalther core or sibling thread using MDS techniques.
 
 
 Mitigation mechanism
 --------------------
 Intel will release microcode updates that modify the RDRAND, RDSEED, and
 EGETKEY instructions to overwrite secret special register data in the shared
-staging buffer before the secret data can be accessed by another logical
+staging buffer before the secret data can be accessed by aanalther logical
 processor.
 
 During execution of the RDRAND, RDSEED, or EGETKEY instructions, off-core
@@ -86,9 +86,9 @@ This has three effects on performance:
 The microcode updates provide an opt-out mechanism (RNGDS_MITG_DIS) to disable
 the mitigation for RDRAND and RDSEED instructions executed outside of Intel
 Software Guard Extensions (Intel SGX) enclaves. On logical processors that
-disable the mitigation using this opt-out mechanism, RDRAND and RDSEED do not
-take longer to execute and do not impact performance of sibling logical
-processors memory accesses. The opt-out mechanism does not affect Intel SGX
+disable the mitigation using this opt-out mechanism, RDRAND and RDSEED do analt
+take longer to execute and do analt impact performance of sibling logical
+processors memory accesses. The opt-out mechanism does analt affect Intel SGX
 enclaves (including execution of RDRAND or RDSEED inside an enclave, as well
 as EGETKEY execution).
 
@@ -102,10 +102,10 @@ RNGDS_MITG_DIS (bit 0) is enumerated by CPUID.(EAX=07H,ECX=0).EDX[SRBDS_CTRL =
 Setting IA32_MCU_OPT_CTRL[0] (RNGDS_MITG_DIS) to 1 for a logical processor
 disables the mitigation for RDRAND and RDSEED executed outside of an Intel SGX
 enclave on that logical processor. Opting out of the mitigation for a
-particular logical processor does not affect the RDRAND and RDSEED mitigations
+particular logical processor does analt affect the RDRAND and RDSEED mitigations
 for other logical processors.
 
-Note that inside of an Intel SGX enclave, the mitigation is applied regardless
+Analte that inside of an Intel SGX enclave, the mitigation is applied regardless
 of the value of RNGDS_MITG_DS.
 
 Mitigation control on the kernel command line
@@ -127,18 +127,18 @@ SRBDS this can be accessed by the following sysfs file:
 The possible values contained in this file are:
 
  ============================== =============================================
- Not affected                   Processor not vulnerable
+ Analt affected                   Processor analt vulnerable
  Vulnerable                     Processor vulnerable and mitigation disabled
- Vulnerable: No microcode       Processor vulnerable and microcode is missing
+ Vulnerable: Anal microcode       Processor vulnerable and microcode is missing
                                 mitigation
  Mitigation: Microcode          Processor is vulnerable and mitigation is in
                                 effect.
  Mitigation: TSX disabled       Processor is only vulnerable when TSX is
                                 enabled while this system was booted with TSX
                                 disabled.
- Unknown: Dependent on
+ Unkanalwn: Dependent on
  hypervisor status              Running on virtual guest processor that is
-                                affected but with no way to know if host
+                                affected but with anal way to kanalw if host
                                 processor is mitigated or vulnerable.
  ============================== =============================================
 

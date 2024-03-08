@@ -26,7 +26,7 @@
 
 #define SERVICE_TIMER_HZ (1 * HZ)
 
-#define RCB_IRQ_NOT_INITED 0
+#define RCB_IRQ_ANALT_INITED 0
 #define RCB_IRQ_INITED 1
 #define HNS_BUFFER_SIZE_2048 2048
 
@@ -186,7 +186,7 @@ static void fill_desc(struct hnae_ring *ring, void *priv,
 				flag_ipoffset |= 1 << HNS_TXD_L4CS_B;
 
 			} else if (skb->protocol == htons(ETH_P_IPV6)) {
-				/* ipv6 has not l3 cs, check for L4 header */
+				/* ipv6 has analt l3 cs, check for L4 header */
 				flag_ipoffset |= 1 << HNS_TXD_L4CS_B;
 			}
 
@@ -214,7 +214,7 @@ static int hns_nic_maybe_stop_tx(
 	struct sk_buff *new_skb = NULL;
 	int buf_num;
 
-	/* no. of segments (plus a header) */
+	/* anal. of segments (plus a header) */
 	buf_num = skb_shinfo(skb)->nr_frags + 1;
 
 	if (unlikely(buf_num > ring->max_desc_num_per_pkt)) {
@@ -223,7 +223,7 @@ static int hns_nic_maybe_stop_tx(
 
 		new_skb = skb_copy(skb, GFP_ATOMIC);
 		if (!new_skb)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		dev_kfree_skb_any(skb);
 		*out_skb = new_skb;
@@ -264,7 +264,7 @@ static int hns_nic_maybe_stop_tso(
 		/* manual split the send packet */
 		new_skb = skb_copy(skb, GFP_ATOMIC);
 		if (!new_skb)
-			return -ENOMEM;
+			return -EANALMEM;
 		dev_kfree_skb_any(skb);
 		*out_skb = new_skb;
 
@@ -343,15 +343,15 @@ netdev_tx_t hns_nic_net_xmit_hw(struct net_device *ndev,
 	case -EBUSY:
 		ring->stats.tx_busy++;
 		goto out_net_tx_busy;
-	case -ENOMEM:
+	case -EANALMEM:
 		ring->stats.sw_err_cnt++;
-		netdev_err(ndev, "no memory to xmit!\n");
+		netdev_err(ndev, "anal memory to xmit!\n");
 		goto out_err_tx_ok;
 	default:
 		break;
 	}
 
-	/* no. of segments (plus a header) */
+	/* anal. of segments (plus a header) */
 	seg_num = skb_shinfo(skb)->nr_frags + 1;
 	next_to_use = ring->next_to_use;
 
@@ -456,7 +456,7 @@ static void hns_nic_reuse_page(struct sk_buff *skb, int i,
 			size - pull_len, truesize);
 
 	 /* avoid re-using remote pages,flag default unreuse */
-	if (unlikely(page_to_nid(desc_cb->priv) != numa_node_id()))
+	if (unlikely(page_to_nid(desc_cb->priv) != numa_analde_id()))
 		return;
 
 	if (twobufs) {
@@ -522,11 +522,11 @@ static void hns_nic_rx_checksum(struct hns_nic_ring_data *ring_data,
 	 * Software workaround:
 	 * We do get info within the RX descriptor about the kind of L3/L4
 	 * protocol coming in the packet and the error status. These errors
-	 * might not just be checksum errors but could be related to version,
+	 * might analt just be checksum errors but could be related to version,
 	 * length of IPv4, UDP, TCP etc.
-	 * Because there is no-way of knowing if it is a L3/L4 error due to bad
-	 * checksum or any other L3/L4 error, we will not (cannot) convey
-	 * checksum status for such cases to upper stack and will not maintain
+	 * Because there is anal-way of kanalwing if it is a L3/L4 error due to bad
+	 * checksum or any other L3/L4 error, we will analt (cananalt) convey
+	 * checksum status for such cases to upper stack and will analt maintain
 	 * the RX L3/L4 checksum counters as well.
 	 */
 
@@ -537,11 +537,11 @@ static void hns_nic_rx_checksum(struct hns_nic_ring_data *ring_data,
 	if ((l3id != HNS_RX_FLAG_L3ID_IPV4) && (l3id != HNS_RX_FLAG_L3ID_IPV6))
 		return;
 
-	/* check for any(not just checksum)flagged L3 protocol errors */
+	/* check for any(analt just checksum)flagged L3 protocol errors */
 	if (unlikely(hnae_get_bit(flag, HNS_RXD_L3E_B)))
 		return;
 
-	/* we do not support checksum of fragmented packets */
+	/* we do analt support checksum of fragmented packets */
 	if (unlikely(hnae_get_bit(flag, HNS_RXD_FRAG_B)))
 		return;
 
@@ -551,11 +551,11 @@ static void hns_nic_rx_checksum(struct hns_nic_ring_data *ring_data,
 	    (l4id != HNS_RX_FLAG_L4ID_SCTP))
 		return;
 
-	/* check for any(not just checksum)flagged L4 protocol errors */
+	/* check for any(analt just checksum)flagged L4 protocol errors */
 	if (unlikely(hnae_get_bit(flag, HNS_RXD_L4E_B)))
 		return;
 
-	/* now, this has to be a packet with valid RX checksum */
+	/* analw, this has to be a packet with valid RX checksum */
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
 }
 
@@ -587,7 +587,7 @@ static int hns_nic_poll_rx_skb(struct hns_nic_ring_data *ring_data,
 					HNS_RX_HEAD_SIZE);
 	if (unlikely(!skb)) {
 		ring->stats.sw_err_cnt++;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	prefetchw(skb->data);
@@ -600,9 +600,9 @@ static int hns_nic_poll_rx_skb(struct hns_nic_ring_data *ring_data,
 		memcpy(__skb_put(skb, length), va, ALIGN(length, sizeof(long)));
 
 		/* we can reuse buffer as-is, just make sure it is local */
-		if (likely(page_to_nid(desc_cb->priv) == numa_node_id()))
+		if (likely(page_to_nid(desc_cb->priv) == numa_analde_id()))
 			desc_cb->reuse_flag = 1;
-		else /* this page cannot be reused so discard it */
+		else /* this page cananalt be reused so discard it */
 			put_page(desc_cb->priv);
 
 		ring_ptr_move_fw(ring, next_to_clean);
@@ -637,7 +637,7 @@ static int hns_nic_poll_rx_skb(struct hns_nic_ring_data *ring_data,
 	/* check except process, free skb and jump the desc */
 	if (unlikely((!bnum) || (bnum > ring->max_desc_num_per_pkt))) {
 out_bnum_err:
-		*out_bnum = *out_bnum ? *out_bnum : 1; /* ntc moved,cannot 0*/
+		*out_bnum = *out_bnum ? *out_bnum : 1; /* ntc moved,cananalt 0*/
 		netdev_err(ndev, "invalid bnum(%d,%d,%d,%d),%016llx,%016llx\n",
 			   bnum, ring->max_desc_num_per_pkt,
 			   length, (int)MAX_SKB_FRAGS,
@@ -650,9 +650,9 @@ out_bnum_err:
 	bnum_flag = le32_to_cpu(desc->rx.ipoff_bnum_pid_flag);
 
 	if (unlikely(!hnae_get_bit(bnum_flag, HNS_RXD_VLD_B))) {
-		netdev_err(ndev, "no valid bd,%016llx,%016llx\n",
+		netdev_err(ndev, "anal valid bd,%016llx,%016llx\n",
 			   ((u64 *)desc)[0], ((u64 *)desc)[1]);
-		ring->stats.non_vld_descs++;
+		ring->stats.analn_vld_descs++;
 		dev_kfree_skb_any(skb);
 		return -EINVAL;
 	}
@@ -818,7 +818,7 @@ static void hns_nic_adpt_coalesce(struct hns_nic_ring_data *ring_data)
 
 	/**
 	 * Because all ring in one port has one coalesce param, when one ring
-	 * calculate its own coalesce param, it cannot write to hardware at
+	 * calculate its own coalesce param, it cananalt write to hardware at
 	 * once. There are three conditions as follows:
 	 *       1. current ring's coalesce param is larger than the hardware.
 	 *       2. or ring which adapt last time can change again.
@@ -846,7 +846,7 @@ static int hns_nic_rx_poll_one(struct hns_nic_ring_data *ring_data,
 	struct hnae_ring *ring = ring_data->ring;
 	struct sk_buff *skb;
 	int num, bnum;
-#define RCB_NOF_ALLOC_RX_BUFF_ONCE 16
+#define RCB_ANALF_ALLOC_RX_BUFF_ONCE 16
 	int recv_pkts, recv_bds, clean_count, err;
 	int unused_count = hns_desc_unused(ring);
 
@@ -858,7 +858,7 @@ static int hns_nic_rx_poll_one(struct hns_nic_ring_data *ring_data,
 
 	while (recv_pkts < budget && recv_bds < num) {
 		/* reuse or realloc buffers */
-		if (clean_count + unused_count >= RCB_NOF_ALLOC_RX_BUFF_ONCE) {
+		if (clean_count + unused_count >= RCB_ANALF_ALLOC_RX_BUFF_ONCE) {
 			hns_nic_alloc_rx_buffers(ring_data,
 						 clean_count + unused_count);
 			clean_count = 0;
@@ -867,7 +867,7 @@ static int hns_nic_rx_poll_one(struct hns_nic_ring_data *ring_data,
 
 		/* poll one pkt */
 		err = hns_nic_poll_rx_skb(ring_data, &skb, &bnum);
-		if (unlikely(!skb)) /* this fault cannot be repaired */
+		if (unlikely(!skb)) /* this fault cananalt be repaired */
 			goto out;
 
 		recv_bds += bnum;
@@ -982,7 +982,7 @@ static int hns_nic_tx_poll_one(struct hns_nic_ring_data *ring_data,
 	rmb(); /* make sure head is ready before touch any data */
 
 	if (is_ring_empty(ring) || head == ring->next_to_clean)
-		return 0; /* no data to poll */
+		return 0; /* anal data to poll */
 
 	if (!is_valid_clean_head(ring, head)) {
 		netdev_err(ndev, "wrong head (%d, %d-%d)\n", head,
@@ -1115,9 +1115,9 @@ static void hns_nic_adjust_link(struct net_device *ndev)
 	struct hnae_handle *h = priv->ae_handle;
 	int state = 1;
 
-	/* If there is no phy, do not need adjust link */
+	/* If there is anal phy, do analt need adjust link */
 	if (ndev->phydev) {
-		/* When phy link down, do nothing */
+		/* When phy link down, do analthing */
 		if (ndev->phydev->link == 0)
 			return;
 
@@ -1125,7 +1125,7 @@ static void hns_nic_adjust_link(struct net_device *ndev)
 						  ndev->phydev->duplex)) {
 			/* because Hi161X chip don't support to change gmac
 			 * speed and duplex with traffic. Delay 200ms to
-			 * make sure there is no more data in chip FIFO.
+			 * make sure there is anal more data in chip FIFO.
 			 */
 			netif_carrier_off(ndev);
 			msleep(200);
@@ -1181,7 +1181,7 @@ int hns_nic_init_phy(struct net_device *ndev, struct hnae_handle *h)
 		ret = phy_attach_direct(ndev, phy_dev, 0, h->phy_if);
 	}
 	if (unlikely(ret))
-		return -ENODEV;
+		return -EANALDEV;
 
 	phy_attached_info(phy_dev);
 
@@ -1209,7 +1209,7 @@ static int hns_nic_net_set_mac_address(struct net_device *ndev, void *p)
 	int ret;
 
 	if (!mac_addr || !is_valid_ether_addr((const u8 *)mac_addr->sa_data))
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 
 	ret = h->dev->ops->set_mac_addr(h, mac_addr->sa_data);
 	if (ret) {
@@ -1237,7 +1237,7 @@ static void hns_init_mac_addr(struct net_device *ndev)
 
 	if (device_get_ethdev_address(priv->dev, ndev)) {
 		eth_hw_addr_random(ndev);
-		dev_warn(priv->dev, "No valid mac, use random mac %pM",
+		dev_warn(priv->dev, "Anal valid mac, use random mac %pM",
 			 ndev->dev_addr);
 	}
 }
@@ -1291,7 +1291,7 @@ static void hns_nic_free_irq(int q_num, struct hns_nic_priv *priv)
 			free_irq(priv->ring_data[i].ring->irq,
 				 &priv->ring_data[i]);
 			priv->ring_data[i].ring->irq_init_flag =
-				RCB_IRQ_NOT_INITED;
+				RCB_IRQ_ANALT_INITED;
 		}
 	}
 }
@@ -1316,7 +1316,7 @@ static int hns_nic_init_irq(struct hns_nic_priv *priv)
 
 		rd->ring->ring_name[RCB_RING_NAME_LEN - 1] = '\0';
 
-		irq_set_status_flags(rd->ring->irq, IRQ_NOAUTOEN);
+		irq_set_status_flags(rd->ring->irq, IRQ_ANALAUTOEN);
 		ret = request_irq(rd->ring->irq,
 				  hns_irq_handle, 0, rd->ring->ring_name, rd);
 		if (ret) {
@@ -1610,7 +1610,7 @@ static void hns_disable_serdes_lb(struct net_device *ndev)
 /**
  *hns_nic_clear_all_rx_fetch - clear the chip fetched descriptions. The
  *function as follows:
- *    1. if one rx ring has found the page_offset is not equal 0 between head
+ *    1. if one rx ring has found the page_offset is analt equal 0 between head
  *       and tail, it means that the chip fetched the wrong descs for the ring
  *       which buffer size is 4096.
  *    2. we set the chip serdes loopback and set rss indirection to the ring.
@@ -1642,14 +1642,14 @@ static int hns_nic_clear_all_rx_fetch(struct net_device *ndev)
 	indir_size = ops->get_rss_indir_size(h) * sizeof(*org_indir);
 	org_indir = kzalloc(indir_size, GFP_KERNEL);
 	if (!org_indir)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* store the original indirection */
 	ops->get_rss(h, org_indir, NULL, NULL);
 
 	cur_indir = kzalloc(indir_size, GFP_KERNEL);
 	if (!cur_indir) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto cur_indir_alloc_err;
 	}
 
@@ -1687,7 +1687,7 @@ static int hns_nic_clear_all_rx_fetch(struct net_device *ndev)
 				/* alloc one skb and init */
 				skb = hns_assemble_skb(ndev);
 				if (!skb) {
-					ret = -ENOMEM;
+					ret = -EANALMEM;
 					goto out;
 				}
 				rd = &tx_ring_data(priv, skb->queue_mapping);
@@ -1739,12 +1739,12 @@ static int hns_nic_change_mtu(struct net_device *ndev, int new_mtu)
 	if (new_mtu < 68)
 		return -EINVAL;
 
-	/* MTU no change */
+	/* MTU anal change */
 	if (new_mtu == ndev->mtu)
 		return 0;
 
 	if (!h->dev->ops->set_mtu)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	if (if_running) {
 		(void)hns_nic_net_stop(ndev);
@@ -1798,7 +1798,7 @@ static int hns_nic_set_features(struct net_device *netdev,
 	switch (priv->enet_ver) {
 	case AE_VERSION_1:
 		if (features & (NETIF_F_TSO | NETIF_F_TSO6))
-			netdev_info(netdev, "enet v1 do not support tso!\n");
+			netdev_info(netdev, "enet v1 do analt support tso!\n");
 		break;
 	default:
 		break;
@@ -2115,7 +2115,7 @@ static int hns_nic_init_ring_data(struct hns_nic_priv *priv)
 					      sizeof(*priv->ring_data), 2),
 				  GFP_KERNEL);
 	if (!priv->ring_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < h->q_num; i++) {
 		rd = &priv->ring_data[i];
@@ -2126,7 +2126,7 @@ static int hns_nic_init_ring_data(struct hns_nic_priv *priv)
 			hns_nic_tx_fini_pro_v2;
 
 		netif_napi_add(priv->netdev, &rd->napi, hns_nic_common_poll);
-		rd->ring->irq_init_flag = RCB_IRQ_NOT_INITED;
+		rd->ring->irq_init_flag = RCB_IRQ_ANALT_INITED;
 	}
 	for (i = h->q_num; i < h->q_num * 2; i++) {
 		rd = &priv->ring_data[i];
@@ -2138,7 +2138,7 @@ static int hns_nic_init_ring_data(struct hns_nic_priv *priv)
 			hns_nic_rx_fini_pro_v2;
 
 		netif_napi_add(priv->netdev, &rd->napi, hns_nic_common_poll);
-		rd->ring->irq_init_flag = RCB_IRQ_NOT_INITED;
+		rd->ring->irq_init_flag = RCB_IRQ_ANALT_INITED;
 	}
 
 	return 0;
@@ -2159,7 +2159,7 @@ static void hns_nic_uninit_ring_data(struct hns_nic_priv *priv)
 				 &priv->ring_data[i]);
 		}
 
-		priv->ring_data[i].ring->irq_init_flag = RCB_IRQ_NOT_INITED;
+		priv->ring_data[i].ring->irq_init_flag = RCB_IRQ_ANALT_INITED;
 	}
 	kfree(priv->ring_data);
 }
@@ -2192,10 +2192,10 @@ static int hns_nic_try_get_ae(struct net_device *ndev)
 	int ret;
 
 	h = hnae_get_handle(&priv->netdev->dev,
-			    priv->fwnode, priv->port_id, NULL);
+			    priv->fwanalde, priv->port_id, NULL);
 	if (IS_ERR_OR_NULL(h)) {
-		ret = -ENODEV;
-		dev_dbg(priv->dev, "has not handle, register notifier!\n");
+		ret = -EANALDEV;
+		dev_dbg(priv->dev, "has analt handle, register analtifier!\n");
 		goto out;
 	}
 	priv->ae_handle = h;
@@ -2208,7 +2208,7 @@ static int hns_nic_try_get_ae(struct net_device *ndev)
 
 	ret = hns_nic_init_ring_data(priv);
 	if (ret) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_init_ring_data;
 	}
 
@@ -2232,17 +2232,17 @@ out:
 	return ret;
 }
 
-static int hns_nic_notifier_action(struct notifier_block *nb,
+static int hns_nic_analtifier_action(struct analtifier_block *nb,
 				   unsigned long action, void *data)
 {
 	struct hns_nic_priv *priv =
-		container_of(nb, struct hns_nic_priv, notifier_block);
+		container_of(nb, struct hns_nic_priv, analtifier_block);
 
 	assert(action == HNAE_AE_REGISTER);
 
 	if (!hns_nic_try_get_ae(priv->netdev)) {
-		hnae_unregister_notifier(&priv->notifier_block);
-		priv->notifier_block.notifier_call = NULL;
+		hnae_unregister_analtifier(&priv->analtifier_block);
+		priv->analtifier_block.analtifier_call = NULL;
 	}
 	return 0;
 }
@@ -2257,7 +2257,7 @@ static int hns_nic_dev_probe(struct platform_device *pdev)
 
 	ndev = alloc_etherdev_mq(sizeof(struct hns_nic_priv), NIC_MAX_Q_PER_VF);
 	if (!ndev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, ndev);
 
@@ -2265,24 +2265,24 @@ static int hns_nic_dev_probe(struct platform_device *pdev)
 	priv->dev = dev;
 	priv->netdev = ndev;
 
-	if (dev_of_node(dev)) {
-		struct device_node *ae_node;
+	if (dev_of_analde(dev)) {
+		struct device_analde *ae_analde;
 
-		if (of_device_is_compatible(dev->of_node,
+		if (of_device_is_compatible(dev->of_analde,
 					    "hisilicon,hns-nic-v1"))
 			priv->enet_ver = AE_VERSION_1;
 		else
 			priv->enet_ver = AE_VERSION_2;
 
-		ae_node = of_parse_phandle(dev->of_node, "ae-handle", 0);
-		if (!ae_node) {
-			ret = -ENODEV;
-			dev_err(dev, "not find ae-handle\n");
+		ae_analde = of_parse_phandle(dev->of_analde, "ae-handle", 0);
+		if (!ae_analde) {
+			ret = -EANALDEV;
+			dev_err(dev, "analt find ae-handle\n");
 			goto out_read_prop_fail;
 		}
-		priv->fwnode = &ae_node->fwnode;
-	} else if (is_acpi_node(dev->fwnode)) {
-		struct fwnode_reference_args args;
+		priv->fwanalde = &ae_analde->fwanalde;
+	} else if (is_acpi_analde(dev->fwanalde)) {
+		struct fwanalde_reference_args args;
 
 		if (acpi_dev_found(hns_enet_acpi_match[0].id))
 			priv->enet_ver = AE_VERSION_1;
@@ -2294,19 +2294,19 @@ static int hns_nic_dev_probe(struct platform_device *pdev)
 		}
 
 		/* try to find port-idx-in-ae first */
-		ret = acpi_node_get_property_reference(dev->fwnode,
+		ret = acpi_analde_get_property_reference(dev->fwanalde,
 						       "ae-handle", 0, &args);
 		if (ret) {
-			dev_err(dev, "not find ae-handle\n");
+			dev_err(dev, "analt find ae-handle\n");
 			goto out_read_prop_fail;
 		}
-		if (!is_acpi_device_node(args.fwnode)) {
+		if (!is_acpi_device_analde(args.fwanalde)) {
 			ret = -EINVAL;
 			goto out_read_prop_fail;
 		}
-		priv->fwnode = args.fwnode;
+		priv->fwanalde = args.fwanalde;
 	} else {
-		dev_err(dev, "cannot read cfg data from OF or acpi\n");
+		dev_err(dev, "cananalt read cfg data from OF or acpi\n");
 		ret = -ENXIO;
 		goto out_read_prop_fail;
 	}
@@ -2373,22 +2373,22 @@ static int hns_nic_dev_probe(struct platform_device *pdev)
 	set_bit(NIC_STATE_DOWN, &priv->state);
 
 	if (hns_nic_try_get_ae(priv->netdev)) {
-		priv->notifier_block.notifier_call = hns_nic_notifier_action;
-		ret = hnae_register_notifier(&priv->notifier_block);
+		priv->analtifier_block.analtifier_call = hns_nic_analtifier_action;
+		ret = hnae_register_analtifier(&priv->analtifier_block);
 		if (ret) {
-			dev_err(dev, "register notifier fail!\n");
-			goto out_notify_fail;
+			dev_err(dev, "register analtifier fail!\n");
+			goto out_analtify_fail;
 		}
-		dev_dbg(dev, "has not handle, register notifier!\n");
+		dev_dbg(dev, "has analt handle, register analtifier!\n");
 	}
 
 	return 0;
 
-out_notify_fail:
+out_analtify_fail:
 	(void)cancel_work_sync(&priv->service_task);
 out_read_prop_fail:
 	/* safe for ACPI FW */
-	of_node_put(to_of_node(priv->fwnode));
+	of_analde_put(to_of_analde(priv->fwanalde));
 	free_netdev(ndev);
 	return ret;
 }
@@ -2411,15 +2411,15 @@ static void hns_nic_dev_remove(struct platform_device *pdev)
 	if (!IS_ERR_OR_NULL(priv->ae_handle))
 		hnae_put_handle(priv->ae_handle);
 	priv->ae_handle = NULL;
-	if (priv->notifier_block.notifier_call)
-		hnae_unregister_notifier(&priv->notifier_block);
-	priv->notifier_block.notifier_call = NULL;
+	if (priv->analtifier_block.analtifier_call)
+		hnae_unregister_analtifier(&priv->analtifier_block);
+	priv->analtifier_block.analtifier_call = NULL;
 
 	set_bit(NIC_STATE_REMOVING, &priv->state);
 	(void)cancel_work_sync(&priv->service_task);
 
 	/* safe for ACPI FW */
-	of_node_put(to_of_node(priv->fwnode));
+	of_analde_put(to_of_analde(priv->fwanalde));
 
 	free_netdev(ndev);
 }

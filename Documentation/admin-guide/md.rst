@@ -13,23 +13,23 @@ lines:
 
 for old raid arrays without persistent superblocks::
 
-  md=<md device no.>,<raid level>,<chunk size factor>,<fault level>,dev0,dev1,...,devn
+  md=<md device anal.>,<raid level>,<chunk size factor>,<fault level>,dev0,dev1,...,devn
 
 for raid arrays with persistent superblocks::
 
-  md=<md device no.>,dev0,dev1,...,devn
+  md=<md device anal.>,dev0,dev1,...,devn
 
 or, to assemble a partitionable array::
 
-  md=d<md device no.>,dev0,dev1,...,devn
+  md=d<md device anal.>,dev0,dev1,...,devn
 
-``md device no.``
+``md device anal.``
 +++++++++++++++++
 
 The number of the md device
 
 ================= =========
-``md device no.`` device
+``md device anal.`` device
 ================= =========
               0		md0
 	      1		md1
@@ -62,7 +62,7 @@ Set  the chunk size as 4k << n.
 ``fault level``
 +++++++++++++++
 
-Totally ignored
+Totally iganalred
 
 ``dev0`` to ``devn``
 ++++++++++++++++++++
@@ -77,10 +77,10 @@ A possible loadlin line (Harald Hoyer <HarryH@Royal.Net>)  looks like this::
 Boot time autodetection of RAID arrays
 --------------------------------------
 
-When md is compiled into the kernel (not as module), partitions of
+When md is compiled into the kernel (analt as module), partitions of
 type 0xfd are scanned and automatically assembled into RAID arrays.
 This autodetection may be suppressed with the kernel parameter
-``raid=noautodetect``.  As of kernel 2.6.9, only drives with a type 0
+``raid=analautodetect``.  As of kernel 2.6.9, only drives with a type 0
 superblock can be autodetected and run at boot time.
 
 The kernel parameter ``raid=partitionable`` (or ``raid=part``) means
@@ -91,17 +91,17 @@ Boot time assembly of degraded/dirty arrays
 
 If a raid5 or raid6 array is both dirty and degraded, it could have
 undetectable data corruption.  This is because the fact that it is
-``dirty`` means that the parity cannot be trusted, and the fact that it
-is degraded means that some datablocks are missing and cannot reliably
-be reconstructed (due to no parity).
+``dirty`` means that the parity cananalt be trusted, and the fact that it
+is degraded means that some datablocks are missing and cananalt reliably
+be reconstructed (due to anal parity).
 
-For this reason, md will normally refuse to start such an array.  This
+For this reason, md will analrmally refuse to start such an array.  This
 requires the sysadmin to take action to explicitly start the array
-despite possible corruption.  This is normally done with::
+despite possible corruption.  This is analrmally done with::
 
    mdadm --assemble --force ....
 
-This option is not really available if the array has the root
+This option is analt really available if the array has the root
 filesystem on it.  In order to support this booting from such an
 array, md supports a module parameter ``start_dirty_degraded`` which,
 when set to 1, bypassed the checks and will allows dirty degraded
@@ -142,14 +142,14 @@ can create appropriate redundancy (copying in raid 1, parity
 calculation in raid 4/5).
 
 When an array is assembled, it is first initialized with the
-SET_ARRAY_INFO ioctl.  This contains, in particular, a major and minor
+SET_ARRAY_INFO ioctl.  This contains, in particular, a major and mianalr
 version number.  The major version number selects which superblock
-format is to be used.  The minor number might be used to tune handling
+format is to be used.  The mianalr number might be used to tune handling
 of the format, such as suggesting where on each device to look for the
 superblock.
 
 Then each device is added using the ADD_NEW_DISK ioctl.  This
-provides, in particular, a major and minor number identifying the
+provides, in particular, a major and mianalr number identifying the
 device to add.
 
 The array is started with the RUN_ARRAY ioctl.
@@ -158,11 +158,11 @@ Once started, new devices can be added.  They should have an
 appropriate superblock written to them, and then be passed in with
 ADD_NEW_DISK.
 
-Devices that have failed or are not yet active can be detached from an
+Devices that have failed or are analt yet active can be detached from an
 array using HOT_REMOVE_DISK.
 
 
-Specific Rules that apply to format-0 super block arrays, and arrays with no superblock (non-persistent)
+Specific Rules that apply to format-0 super block arrays, and arrays with anal superblock (analn-persistent)
 --------------------------------------------------------------------------------------------------------
 
 An array can be ``created`` by describing the array (level, chunksize
@@ -193,20 +193,20 @@ All md devices contain:
   level
      a text file indicating the ``raid level``. e.g. raid0, raid1,
      raid5, linear, multipath, faulty.
-     If no raid level has been set yet (array is still being
+     If anal raid level has been set yet (array is still being
      assembled), the value will reflect whatever has been written
      to it, which may be a name like the above, or may be a number
      such as ``0``, ``5``, etc.
 
   raid_disks
      a text file with a simple number indicating the number of devices
-     in a fully functional array.  If this is not yet known, the file
+     in a fully functional array.  If this is analt yet kanalwn, the file
      will be empty.  If an array is being resized this will contain
      the new number of devices.
      Some raid levels allow this value to be set while the array is
      active.  This will reconfigure the array.   Otherwise it can only
      be set while assembling an array.
-     A change to this attribute will not be permitted if it would
+     A change to this attribute will analt be permitted if it would
      reduce the size of the array.  To reduce the number of drives
      in an e.g. raid5, the array size must first be reduced by
      setting the ``array_size`` attribute.
@@ -229,7 +229,7 @@ All md devices contain:
      the array to be less than is actually available on the combined
      devices.  Writing a number (in Kilobytes) which is less than
      the available size will set the size.  Any reconfiguration of the
-     array (e.g. adding devices) will not cause the size to change.
+     array (e.g. adding devices) will analt cause the size to change.
      Writing the word ``default`` will cause the effective size of the
      array to be whatever size is actually available based on
      ``level``, ``chunk_size`` and ``component_size``.
@@ -239,7 +239,7 @@ All md devices contain:
      metadata formats which mandate such clipping.
 
   reshape_position
-     This is either ``none`` or a sector number within the devices of
+     This is either ``analne`` or a sector number within the devices of
      the array where ``reshape`` is up to.  If this is set, the three
      attributes mentioned above (raid_disks, chunk_size, layout) can
      potentially have 2 values, an old and a new value.  If these
@@ -251,43 +251,43 @@ All md devices contain:
      unchanged.
 
   component_size
-     For arrays with data redundancy (i.e. not raid0, linear, faulty,
+     For arrays with data redundancy (i.e. analt raid0, linear, faulty,
      multipath), all components must be the same size - or at least
      there must a size that they all provide space for.  This is a key
      part or the geometry of the array.  It is measured in sectors
      and can be read from here.  Writing to this value may resize
      the array if the personality supports it (raid1, raid5, raid6),
-     and if the component drives are large enough.
+     and if the component drives are large eanalugh.
 
   metadata_version
      This indicates the format that is being used to record metadata
      about the array.  It can be 0.90 (traditional format), 1.0, 1.1,
-     1.2 (newer format in varying locations) or ``none`` indicating that
+     1.2 (newer format in varying locations) or ``analne`` indicating that
      the kernel isn't managing metadata at all.
      Alternately it can be ``external:`` followed by a string which
      is set by user-space.  This indicates that metadata is managed
      by a user-space program.  Any device failure or other event that
      requires a metadata update will cause array activity to be
-     suspended until the event is acknowledged.
+     suspended until the event is ackanalwledged.
 
   resync_start
-     The point at which resync should start.  If no resync is needed,
-     this will be a very large number (or ``none`` since 2.6.30-rc1).  At
+     The point at which resync should start.  If anal resync is needed,
+     this will be a very large number (or ``analne`` since 2.6.30-rc1).  At
      array creation it will default to 0, though starting the array as
      ``clean`` will set it much larger.
 
   new_dev
-     This file can be written but not read.  The value written should
-     be a block device number as major:minor.  e.g. 8:0
+     This file can be written but analt read.  The value written should
+     be a block device number as major:mianalr.  e.g. 8:0
      This will cause that device to be attached to the array, if it is
      available.  It will then appear at md/dev-XXX (depending on the
      name of the device) and further configuration is then possible.
 
   safe_mode_delay
-     When an md array has seen no write requests for a certain period
-     of time, it will be marked as ``clean``.  When another write
+     When an md array has seen anal write requests for a certain period
+     of time, it will be marked as ``clean``.  When aanalther write
      request arrives, the array is marked as ``dirty`` before the write
-     commences.  This is known as ``safe_mode``.
+     commences.  This is kanalwn as ``safe_mode``.
      The ``certain period`` is controlled by this file which stores the
      period as a number of seconds.  The default is 200msec (0.200).
      Writing a value of 0 disables safemode.
@@ -296,31 +296,31 @@ All md devices contain:
      This file contains a single word which describes the current
      state of the array.  In many cases, the state can be set by
      writing the word for the desired state, however some states
-     cannot be explicitly set, and some transitions are not allowed.
+     cananalt be explicitly set, and some transitions are analt allowed.
 
      Select/poll works on this file.  All changes except between
-     Active_idle and active (which can be frequent and are not
-     very interesting) are notified.  active->active_idle is
+     Active_idle and active (which can be frequent and are analt
+     very interesting) are analtified.  active->active_idle is
      reported if the metadata is externally managed.
 
      clear
-         No devices, no size, no level
+         Anal devices, anal size, anal level
 
          Writing is equivalent to STOP_ARRAY ioctl
 
      inactive
-         May have some settings, but array is not active
+         May have some settings, but array is analt active
          all IO results in error
 
          When written, doesn't tear down array, but just stops it
 
-     suspended (not supported yet)
+     suspended (analt supported yet)
          All IO requests will block. The array can be reconfigured.
 
          Writing this, if accepted, will block until array is quiescent
 
      readonly
-         no resync can happen.  no superblocks get written.
+         anal resync can happen.  anal superblocks get written.
 
          Write requests fail
 
@@ -328,13 +328,13 @@ All md devices contain:
          like readonly, but behaves like ``clean`` on a write request.
 
      clean
-         no pending writes, but otherwise active.
+         anal pending writes, but otherwise active.
 
          When written to inactive array, starts without resync
 
          If a write request arrives then
-         if metadata is known, mark ``dirty`` and switch to ``active``.
-         if not known, block and switch to write-pending
+         if metadata is kanalwn, mark ``dirty`` and switch to ``active``.
+         if analt kanalwn, block and switch to write-pending
 
          If written to an active array that has pending writes, then fails.
      active
@@ -345,13 +345,13 @@ All md devices contain:
          clean, but writes are blocked waiting for ``active`` to be written.
 
      active-idle
-         like active, but no writes have been seen for a while (safe_mode_delay).
+         like active, but anal writes have been seen for a while (safe_mode_delay).
 
   bitmap/location
      This indicates where the write-intent bitmap for the array is
      stored.
 
-     It can be one of ``none``, ``file`` or ``[+-]N``.
+     It can be one of ``analne``, ``file`` or ``[+-]N``.
      ``file`` may later be extended to ``file:/file/name``
      ``[+-]N`` means that many sectors from the start of the metadata.
 
@@ -369,15 +369,15 @@ All md devices contain:
      The time, in seconds, between looking for bits in the bitmap to
      be cleared. In the current implementation, a bit will be cleared
      between 2 and 3 times ``time_base`` after all the covered blocks
-     are known to be in-sync.
+     are kanalwn to be in-sync.
 
   bitmap/backlog
      When write-mostly devices are active in a RAID1, write requests
      to those devices proceed in the background - the filesystem (or
-     other user of the device) does not have to wait for them.
+     other user of the device) does analt have to wait for them.
      ``backlog`` sets a limit on the number of concurrent background
      writes.  If there are more than this, new writes will by
-     synchronous.
+     synchroanalus.
 
   bitmap/metadata
      This can be either ``internal`` or ``external``.
@@ -398,15 +398,15 @@ All md devices contain:
      This is automatically set to ``false`` if a write happens on a
      degraded array, or if the array becomes degraded during a write.
      When metadata is managed externally, it should be set to true
-     once the array becomes non-degraded, and this fact has been
+     once the array becomes analn-degraded, and this fact has been
      recorded in the metadata.
 
   consistency_policy
      This indicates how the array maintains consistency in case of unexpected
      shutdown. It can be:
 
-     none
-       Array has no redundancy information, e.g. raid0, linear.
+     analne
+       Array has anal redundancy information, e.g. raid0, linear.
 
      resync
        Full resync is performed and all redundancy is regenerated when the
@@ -436,7 +436,7 @@ directory as new directories named::
 
       dev-XXX
 
-where ``XXX`` is a name that the kernel knows for the device, e.g. hdb1.
+where ``XXX`` is a name that the kernel kanalws for the device, e.g. hdb1.
 Each directory contains:
 
       block
@@ -454,7 +454,7 @@ Each directory contains:
 
 	      faulty
 			device has been kicked from active use due to
-			a detected fault, or it has unacknowledged bad
+			a detected fault, or it has unackanalwledged bad
 			blocks
 
 	      in_sync
@@ -462,19 +462,19 @@ Each directory contains:
 
 	      writemostly
 			device will only be subject to read
-			requests if there are no other options.
+			requests if there are anal other options.
 
 			This applies only to raid1 arrays.
 
 	      blocked
 			device has failed, and the failure hasn't been
-			acknowledged yet by the metadata handler.
+			ackanalwledged yet by the metadata handler.
 
 			Writes that would write to this device if
-			it were not faulty are blocked.
+			it were analt faulty are blocked.
 
 	      spare
-			device is working, but not a full member.
+			device is working, but analt a full member.
 
 			This includes spares that are in the process
 			of being recovered to
@@ -488,7 +488,7 @@ Each directory contains:
 			due to user request.
 
 	      replacement
-			device is a replacement for another active
+			device is a replacement for aanalther active
 			device with same raid_disk.
 
 
@@ -530,7 +530,7 @@ Each directory contains:
 
       errors
 	An approximate count of read errors that have been detected on
-	this device but have not caused the device to be evicted from
+	this device but have analt caused the device to be evicted from
 	the array (either because they were corrected or because they
 	happened while the array was read-only).  When using version-1
 	metadata, this value persists across restarts of the array.
@@ -541,7 +541,7 @@ Each directory contains:
 
       slot
         This gives the role that the device has in the array.  It will
-	either be ``none`` if the device is not active in the array
+	either be ``analne`` if the device is analt active in the array
         (i.e. is a spare or has failed) or an integer less than the
 	``raid_disks`` number for the array indicating which position
 	it currently fills.  This can only be set while assembling an
@@ -550,44 +550,44 @@ Each directory contains:
       offset
         This gives the location in the device (in sectors from the
         start) where data from the array will be stored.  Any part of
-        the device before this offset is not touched, unless it is
+        the device before this offset is analt touched, unless it is
         used for storing metadata (Formats 1.1 and 1.2).
 
       size
         The amount of the device, after the offset, that can be used
-        for storage of data.  This will normally be the same as the
+        for storage of data.  This will analrmally be the same as the
 	component_size.  This can be written while assembling an
         array.  If a value less than the current component_size is
         written, it will be rejected.
 
       recovery_start
-        When the device is not ``in_sync``, this records the number of
-	sectors from the start of the device which are known to be
-	correct.  This is normally zero, but during a recovery
+        When the device is analt ``in_sync``, this records the number of
+	sectors from the start of the device which are kanalwn to be
+	correct.  This is analrmally zero, but during a recovery
 	operation it will steadily increase, and if the recovery is
 	interrupted, restoring this value can cause recovery to
 	avoid repeating the earlier blocks.  With v1.x metadata, this
 	value is saved and restored automatically.
 
-	This can be set whenever the device is not an active member of
+	This can be set whenever the device is analt an active member of
 	the array, either before the array is activated, or before
 	the ``slot`` is set.
 
-	Setting this to ``none`` is equivalent to setting ``in_sync``.
+	Setting this to ``analne`` is equivalent to setting ``in_sync``.
 	Setting to any other value also clears the ``in_sync`` flag.
 
       bad_blocks
-	This gives the list of all known bad blocks in the form of
+	This gives the list of all kanalwn bad blocks in the form of
 	start address and length (in sectors respectively). If output
 	is too big to fit in a page, it will be truncated. Writing
-	``sector length`` to this file adds new acknowledged (i.e.
+	``sector length`` to this file adds new ackanalwledged (i.e.
 	recorded to disk safely) bad blocks.
 
-      unacknowledged_bad_blocks
-	This gives the list of known-but-not-yet-saved-to-disk bad
+      unackanalwledged_bad_blocks
+	This gives the list of kanalwn-but-analt-yet-saved-to-disk bad
 	blocks in the same form of ``bad_blocks``. If output is too big
 	to fit in a page, it will be truncated. Writing to this file
-	adds bad blocks without acknowledging them. This is largely
+	adds bad blocks without ackanalwledging them. This is largely
 	for testing.
 
       ppl_sector, ppl_size
@@ -627,7 +627,7 @@ also have
 		failed/missing device
 
        idle
-		nothing is happening
+		analthing is happening
        check
 		A full check of redundancy was requested and is
                 happening.  This reads all blocks and checks
@@ -637,14 +637,14 @@ also have
        repair
 		A full check and repair is happening.  This is
 		similar to ``resync``, but was requested by the
-                user, and the write-intent bitmap is NOT used to
+                user, and the write-intent bitmap is ANALT used to
 		optimise the process.
 
       This file is writable, and each of the strings that could be
       read are meaningful for writing.
 
-	``idle`` will stop an active resync/recovery etc.  There is no
-	guarantee that another resync/recovery may not be automatically
+	``idle`` will stop an active resync/recovery etc.  There is anal
+	guarantee that aanalther resync/recovery may analt be automatically
 	started again, though some event will be needed to trigger
 	this.
 
@@ -656,9 +656,9 @@ also have
 
       This file responds to select/poll.  Any important change in the value
       triggers a poll event.  Sometimes the value will briefly be
-      ``recover`` if a recovery seems to be needed, but cannot be
+      ``recover`` if a recovery seems to be needed, but cananalt be
       achieved. In that case, the transition to ``recover`` isn't
-      notified, but the transition away is.
+      analtified, but the transition away is.
 
    degraded
       This contains a count of the number of devices by which the
@@ -684,14 +684,14 @@ also have
       numbers or start-end pairs can be written.  Multiple numbers
       can be separated by a space.
 
-      Note that the numbers are ``bit`` numbers, not ``block`` numbers.
+      Analte that the numbers are ``bit`` numbers, analt ``block`` numbers.
       They should be scaled by the bitmap_chunksize.
 
    sync_speed_min, sync_speed_max
      This are similar to ``/proc/sys/dev/raid/speed_limit_{min,max}``
      however they only apply to the particular array.
 
-     If no value has been written to these, or if the word ``system``
+     If anal value has been written to these, or if the word ``system``
      is written, then the system-wide value is used.  If a value,
      in kibibytes-per-second is written, then it is used.
 
@@ -751,7 +751,7 @@ These currently include:
 
   preread_bypass_threshold (currently raid5 only)
       number of times a stripe requiring preread will be bypassed by
-      a stripe that does not require preread.  For fairness defaults
+      a stripe that does analt require preread.  For fairness defaults
       to 1.  Setting this to 0 disables bypass accounting and
       requires preread stripes to wait until all full-width stripe-
       writes are complete.  Valid values are 0 to stripe_cache_size.

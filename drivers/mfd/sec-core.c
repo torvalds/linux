@@ -238,7 +238,7 @@ static void sec_pmic_configure(struct sec_pmic_dev *sec_pmic)
 					 S2MPS13_REG_WRSTBI_MASK, 0x0);
 		if (err)
 			dev_warn(sec_pmic->dev,
-				 "Cannot initialize WRSTBI config: %d\n",
+				 "Cananalt initialize WRSTBI config: %d\n",
 				 err);
 	}
 }
@@ -249,7 +249,7 @@ static void sec_pmic_configure(struct sec_pmic_dev *sec_pmic)
  * others have to parse their own platform data elements from device tree.
  *
  * The s5m8767 platform data structure is instantiated here and the drivers for
- * the sub-modules need not instantiate another instance while parsing their
+ * the sub-modules need analt instantiate aanalther instance while parsing their
  * platform data.
  */
 static struct sec_platform_data *
@@ -259,11 +259,11 @@ sec_pmic_i2c_parse_dt_pdata(struct device *dev)
 
 	pd = devm_kzalloc(dev, sizeof(*pd), GFP_KERNEL);
 	if (!pd)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
-	pd->manual_poweroff = of_property_read_bool(dev->of_node,
+	pd->manual_poweroff = of_property_read_bool(dev->of_analde,
 						"samsung,s2mps11-acokb-ground");
-	pd->disable_wrstbi = of_property_read_bool(dev->of_node,
+	pd->disable_wrstbi = of_property_read_bool(dev->of_analde,
 						"samsung,s2mps11-wrstbi-ground");
 	return pd;
 }
@@ -279,7 +279,7 @@ static int sec_pmic_probe(struct i2c_client *i2c)
 	sec_pmic = devm_kzalloc(&i2c->dev, sizeof(struct sec_pmic_dev),
 				GFP_KERNEL);
 	if (sec_pmic == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(i2c, sec_pmic);
 	sec_pmic->dev = &i2c->dev;
@@ -366,7 +366,7 @@ static int sec_pmic_probe(struct i2c_client *i2c)
 	default:
 		dev_err(&i2c->dev, "Unsupported device type (%lu)\n",
 			sec_pmic->device_type);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	ret = devm_mfd_add_devices(sec_pmic->dev, -1, sec_devs, num_sec_devs,
 				   NULL, 0, NULL);
@@ -395,7 +395,7 @@ static void sec_pmic_shutdown(struct i2c_client *i2c)
 	default:
 		/*
 		 * Currently only one board with S2MPS11 needs this, so just
-		 * ignore the rest.
+		 * iganalre the rest.
 		 */
 		dev_warn(sec_pmic->dev,
 			"Unsupported device %lu for manual power off\n",

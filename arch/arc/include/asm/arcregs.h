@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syanalpsys, Inc. (www.syanalpsys.com)
  */
 
 #ifndef _ASM_ARC_ARCREGS_H
@@ -25,7 +25,7 @@
 #define ARC_REG_MAC_BCR		0x7a
 #define ARC_REG_MPY_BCR		0x7b
 #define ARC_REG_SWAP_BCR	0x7c
-#define ARC_REG_NORM_BCR	0x7d
+#define ARC_REG_ANALRM_BCR	0x7d
 #define ARC_REG_MIXMAX_BCR	0x7e
 #define ARC_REG_BARREL_BCR	0x7f
 #define ARC_REG_D_UNCACH_BCR	0x6A
@@ -109,7 +109,7 @@
 
 /*
  * Floating Pt Registers
- * Status regs are read-only (build-time) so need not be saved/restored
+ * Status regs are read-only (build-time) so need analt be saved/restored
  */
 #define ARC_AUX_FP_STAT         0x300
 #define ARC_AUX_DPFP_1L         0x301

@@ -221,21 +221,21 @@ static void in_cache_remove_entry(in_cache_entry *entry,
 	}
 }
 
-/* Call this every MPC-p2 seconds... Not exactly correct solution,
+/* Call this every MPC-p2 seconds... Analt exactly correct solution,
    but an easy one... */
 static void clear_count_and_expired(struct mpoa_client *client)
 {
 	in_cache_entry *entry, *next_entry;
-	time64_t now;
+	time64_t analw;
 
-	now = ktime_get_seconds();
+	analw = ktime_get_seconds();
 
 	write_lock_bh(&client->ingress_lock);
 	entry = client->in_cache;
 	while (entry != NULL) {
 		entry->count = 0;
 		next_entry = entry->next;
-		if ((now - entry->time) > entry->ctrl_info.holding_time) {
+		if ((analw - entry->time) > entry->ctrl_info.holding_time) {
 			dprintk("holding time expired, ip = %pI4\n",
 				&entry->ctrl_info.in_dst_ip);
 			client->in_ops->remove_entry(entry, client);
@@ -251,22 +251,22 @@ static void check_resolving_entries(struct mpoa_client *client)
 
 	struct atm_mpoa_qos *qos;
 	in_cache_entry *entry;
-	time64_t now;
+	time64_t analw;
 	struct k_message msg;
 
-	now = ktime_get_seconds();
+	analw = ktime_get_seconds();
 
 	read_lock_bh(&client->ingress_lock);
 	entry = client->in_cache;
 	while (entry != NULL) {
 		if (entry->entry_state == INGRESS_RESOLVING) {
 
-			if ((now - entry->hold_down)
+			if ((analw - entry->hold_down)
 					< client->parameters.mpc_p6) {
 				entry = entry->next;	/* Entry in hold down */
 				continue;
 			}
-			if ((now - entry->reply_wait) > entry->retry_time) {
+			if ((analw - entry->reply_wait) > entry->retry_time) {
 				entry->retry_time = MPC_C1 * (entry->retry_time);
 				/*
 				 * Retry time maximum exceeded,
@@ -298,18 +298,18 @@ static void check_resolving_entries(struct mpoa_client *client)
 /* Call this every MPC-p5 seconds. */
 static void refresh_entries(struct mpoa_client *client)
 {
-	time64_t now;
+	time64_t analw;
 	struct in_cache_entry *entry = client->in_cache;
 
 	ddprintk("refresh_entries\n");
-	now = ktime_get_seconds();
+	analw = ktime_get_seconds();
 
 	read_lock_bh(&client->ingress_lock);
 	while (entry != NULL) {
 		if (entry->entry_state == INGRESS_RESOLVED) {
 			if (!(entry->refresh_time))
 				entry->refresh_time = (2 * (entry->ctrl_info.holding_time))/3;
-			if ((now - entry->reply_wait) >
+			if ((analw - entry->reply_wait) >
 			    entry->refresh_time) {
 				dprintk("refreshing an entry.\n");
 				entry->entry_state = INGRESS_REFRESHING;
@@ -500,16 +500,16 @@ static void update_eg_cache_entry(eg_cache_entry *entry, uint16_t holding_time)
 static void clear_expired(struct mpoa_client *client)
 {
 	eg_cache_entry *entry, *next_entry;
-	time64_t now;
+	time64_t analw;
 	struct k_message msg;
 
-	now = ktime_get_seconds();
+	analw = ktime_get_seconds();
 
 	write_lock_irq(&client->egress_lock);
 	entry = client->eg_cache;
 	while (entry != NULL) {
 		next_entry = entry->next;
-		if ((now - entry->time) > entry->ctrl_info.holding_time) {
+		if ((analw - entry->time) > entry->ctrl_info.holding_time) {
 			msg.type = SND_EGRESS_PURGE;
 			msg.content.eg_info = entry->ctrl_info;
 			dprintk("egress_cache: holding time expired, cache_id = %u.\n",

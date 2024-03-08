@@ -20,30 +20,30 @@
 #include "bmap.h"
 
 /**
- * struct nilfs_inode_info - nilfs inode data in memory
- * @i_flags: inode flags
+ * struct nilfs_ianalde_info - nilfs ianalde data in memory
+ * @i_flags: ianalde flags
  * @i_state: dynamic state flags
  * @i_bmap: pointer on i_bmap_data
  * @i_bmap_data: raw block mapping
  * @i_xattr: <TODO>
  * @i_dir_start_lookup: page index of last successful search
- * @i_cno: checkpoint number for GC inode
- * @i_assoc_inode: associated inode (B-tree node cache holder or back pointer)
+ * @i_canal: checkpoint number for GC ianalde
+ * @i_assoc_ianalde: associated ianalde (B-tree analde cache holder or back pointer)
  * @i_dirty: list for connecting dirty files
  * @xattr_sem: semaphore for extended attributes processing
- * @i_bh: buffer contains disk inode
+ * @i_bh: buffer contains disk ianalde
  * @i_root: root object of the current filesystem tree
- * @vfs_inode: VFS inode object
+ * @vfs_ianalde: VFS ianalde object
  */
-struct nilfs_inode_info {
+struct nilfs_ianalde_info {
 	__u32 i_flags;
 	unsigned long  i_state;		/* Dynamic state flags */
 	struct nilfs_bmap *i_bmap;
 	struct nilfs_bmap i_bmap_data;
 	__u64 i_xattr;	/* sector_t ??? */
 	__u32 i_dir_start_lookup;
-	__u64 i_cno;		/* check point number for GC inode */
-	struct inode *i_assoc_inode;
+	__u64 i_canal;		/* check point number for GC ianalde */
+	struct ianalde *i_assoc_ianalde;
 	struct list_head i_dirty;	/* List for connecting dirty files */
 
 #ifdef CONFIG_NILFS_XATTR
@@ -58,41 +58,41 @@ struct nilfs_inode_info {
 #endif
 	struct buffer_head *i_bh;	/*
 					 * i_bh contains a new or dirty
-					 * disk inode.
+					 * disk ianalde.
 					 */
 	struct nilfs_root *i_root;
-	struct inode vfs_inode;
+	struct ianalde vfs_ianalde;
 };
 
-static inline struct nilfs_inode_info *NILFS_I(const struct inode *inode)
+static inline struct nilfs_ianalde_info *NILFS_I(const struct ianalde *ianalde)
 {
-	return container_of(inode, struct nilfs_inode_info, vfs_inode);
+	return container_of(ianalde, struct nilfs_ianalde_info, vfs_ianalde);
 }
 
-static inline struct nilfs_inode_info *
+static inline struct nilfs_ianalde_info *
 NILFS_BMAP_I(const struct nilfs_bmap *bmap)
 {
-	return container_of(bmap, struct nilfs_inode_info, i_bmap_data);
+	return container_of(bmap, struct nilfs_ianalde_info, i_bmap_data);
 }
 
 /*
- * Dynamic state flags of NILFS on-memory inode (i_state)
+ * Dynamic state flags of NILFS on-memory ianalde (i_state)
  */
 enum {
-	NILFS_I_NEW = 0,		/* Inode is newly created */
+	NILFS_I_NEW = 0,		/* Ianalde is newly created */
 	NILFS_I_DIRTY,			/* The file is dirty */
-	NILFS_I_QUEUED,			/* inode is in dirty_files list */
+	NILFS_I_QUEUED,			/* ianalde is in dirty_files list */
 	NILFS_I_BUSY,			/*
-					 * Inode is grabbed by a segment
+					 * Ianalde is grabbed by a segment
 					 * constructor
 					 */
 	NILFS_I_COLLECTED,		/* All dirty blocks are collected */
 	NILFS_I_UPDATED,		/* The file has been written back */
-	NILFS_I_INODE_SYNC,		/* dsync is not allowed for inode */
-	NILFS_I_BMAP,			/* has bmap and btnode_cache */
-	NILFS_I_GCINODE,		/* inode for GC, on memory only */
-	NILFS_I_BTNC,			/* inode for btree node cache */
-	NILFS_I_SHADOW,			/* inode for shadowed page cache */
+	NILFS_I_IANALDE_SYNC,		/* dsync is analt allowed for ianalde */
+	NILFS_I_BMAP,			/* has bmap and btanalde_cache */
+	NILFS_I_GCIANALDE,		/* ianalde for GC, on memory only */
+	NILFS_I_BTNC,			/* ianalde for btree analde cache */
+	NILFS_I_SHADOW,			/* ianalde for shadowed page cache */
 };
 
 /*
@@ -104,21 +104,21 @@ enum {
 };
 
 /*
- * Macros to check inode numbers
+ * Macros to check ianalde numbers
  */
-#define NILFS_MDT_INO_BITS						\
-	(BIT(NILFS_DAT_INO) | BIT(NILFS_CPFILE_INO) |			\
-	 BIT(NILFS_SUFILE_INO) | BIT(NILFS_IFILE_INO) |			\
-	 BIT(NILFS_ATIME_INO) | BIT(NILFS_SKETCH_INO))
+#define NILFS_MDT_IANAL_BITS						\
+	(BIT(NILFS_DAT_IANAL) | BIT(NILFS_CPFILE_IANAL) |			\
+	 BIT(NILFS_SUFILE_IANAL) | BIT(NILFS_IFILE_IANAL) |			\
+	 BIT(NILFS_ATIME_IANAL) | BIT(NILFS_SKETCH_IANAL))
 
-#define NILFS_SYS_INO_BITS (BIT(NILFS_ROOT_INO) | NILFS_MDT_INO_BITS)
+#define NILFS_SYS_IANAL_BITS (BIT(NILFS_ROOT_IANAL) | NILFS_MDT_IANAL_BITS)
 
-#define NILFS_FIRST_INO(sb) (((struct the_nilfs *)sb->s_fs_info)->ns_first_ino)
+#define NILFS_FIRST_IANAL(sb) (((struct the_nilfs *)sb->s_fs_info)->ns_first_ianal)
 
-#define NILFS_MDT_INODE(sb, ino) \
-	((ino) < NILFS_FIRST_INO(sb) && (NILFS_MDT_INO_BITS & BIT(ino)))
-#define NILFS_VALID_INODE(sb, ino) \
-	((ino) >= NILFS_FIRST_INO(sb) || (NILFS_SYS_INO_BITS & BIT(ino)))
+#define NILFS_MDT_IANALDE(sb, ianal) \
+	((ianal) < NILFS_FIRST_IANAL(sb) && (NILFS_MDT_IANAL_BITS & BIT(ianal)))
+#define NILFS_VALID_IANALDE(sb, ianal) \
+	((ianal) >= NILFS_FIRST_IANAL(sb) || (NILFS_SYS_IANAL_BITS & BIT(ianal)))
 
 /**
  * struct nilfs_transaction_info: context information for synchronization
@@ -148,7 +148,7 @@ struct nilfs_transaction_info {
 					 * end of transaction.
 					 */
 #define NILFS_TI_GC		0x0004	/* GC context */
-#define NILFS_TI_COMMIT		0x0008	/* Change happened or not */
+#define NILFS_TI_COMMIT		0x0008	/* Change happened or analt */
 #define NILFS_TI_WRITER		0x0010	/* Constructor context */
 
 
@@ -187,34 +187,34 @@ static inline int nilfs_doing_construction(void)
  * function prototype
  */
 #ifdef CONFIG_NILFS_POSIX_ACL
-#error "NILFS: not yet supported POSIX ACL"
-extern int nilfs_acl_chmod(struct inode *);
-extern int nilfs_init_acl(struct inode *, struct inode *);
+#error "NILFS: analt yet supported POSIX ACL"
+extern int nilfs_acl_chmod(struct ianalde *);
+extern int nilfs_init_acl(struct ianalde *, struct ianalde *);
 #else
-static inline int nilfs_acl_chmod(struct inode *inode)
+static inline int nilfs_acl_chmod(struct ianalde *ianalde)
 {
 	return 0;
 }
 
-static inline int nilfs_init_acl(struct inode *inode, struct inode *dir)
+static inline int nilfs_init_acl(struct ianalde *ianalde, struct ianalde *dir)
 {
-	if (S_ISLNK(inode->i_mode))
+	if (S_ISLNK(ianalde->i_mode))
 		return 0;
 
-	inode->i_mode &= ~current_umask();
+	ianalde->i_mode &= ~current_umask();
 	return 0;
 }
 #endif
 
 #define NILFS_ATIME_DISABLE
 
-/* Flags that should be inherited by new inodes from their parent. */
+/* Flags that should be inherited by new ianaldes from their parent. */
 #define NILFS_FL_INHERITED						\
 	(FS_SECRM_FL | FS_UNRM_FL | FS_COMPR_FL | FS_SYNC_FL |		\
-	 FS_IMMUTABLE_FL | FS_APPEND_FL | FS_NODUMP_FL | FS_NOATIME_FL |\
-	 FS_COMPRBLK_FL | FS_NOCOMP_FL | FS_NOTAIL_FL | FS_DIRSYNC_FL)
+	 FS_IMMUTABLE_FL | FS_APPEND_FL | FS_ANALDUMP_FL | FS_ANALATIME_FL |\
+	 FS_COMPRBLK_FL | FS_ANALCOMP_FL | FS_ANALTAIL_FL | FS_DIRSYNC_FL)
 
-/* Mask out flags that are inappropriate for the given type of inode. */
+/* Mask out flags that are inappropriate for the given type of ianalde. */
 static inline __u32 nilfs_mask_flags(umode_t mode, __u32 flags)
 {
 	if (S_ISDIR(mode))
@@ -222,20 +222,20 @@ static inline __u32 nilfs_mask_flags(umode_t mode, __u32 flags)
 	else if (S_ISREG(mode))
 		return flags & ~(FS_DIRSYNC_FL | FS_TOPDIR_FL);
 	else
-		return flags & (FS_NODUMP_FL | FS_NOATIME_FL);
+		return flags & (FS_ANALDUMP_FL | FS_ANALATIME_FL);
 }
 
 /* dir.c */
-int nilfs_add_link(struct dentry *, struct inode *);
-ino_t nilfs_inode_by_name(struct inode *, const struct qstr *);
-int nilfs_make_empty(struct inode *, struct inode *);
-struct nilfs_dir_entry *nilfs_find_entry(struct inode *, const struct qstr *,
+int nilfs_add_link(struct dentry *, struct ianalde *);
+ianal_t nilfs_ianalde_by_name(struct ianalde *, const struct qstr *);
+int nilfs_make_empty(struct ianalde *, struct ianalde *);
+struct nilfs_dir_entry *nilfs_find_entry(struct ianalde *, const struct qstr *,
 		struct folio **);
 int nilfs_delete_entry(struct nilfs_dir_entry *, struct folio *);
-int nilfs_empty_dir(struct inode *);
-struct nilfs_dir_entry *nilfs_dotdot(struct inode *, struct folio **);
-void nilfs_set_link(struct inode *, struct nilfs_dir_entry *,
-			   struct folio *, struct inode *);
+int nilfs_empty_dir(struct ianalde *);
+struct nilfs_dir_entry *nilfs_dotdot(struct ianalde *, struct folio **);
+void nilfs_set_link(struct ianalde *, struct nilfs_dir_entry *,
+			   struct folio *, struct ianalde *);
 
 /* file.c */
 extern int nilfs_sync_file(struct file *, loff_t, loff_t, int);
@@ -249,51 +249,51 @@ long nilfs_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
 int nilfs_ioctl_prepare_clean_segments(struct the_nilfs *, struct nilfs_argv *,
 				       void **);
 
-/* inode.c */
-void nilfs_inode_add_blocks(struct inode *inode, int n);
-void nilfs_inode_sub_blocks(struct inode *inode, int n);
-extern struct inode *nilfs_new_inode(struct inode *, umode_t);
-extern int nilfs_get_block(struct inode *, sector_t, struct buffer_head *, int);
-extern void nilfs_set_inode_flags(struct inode *);
-extern int nilfs_read_inode_common(struct inode *, struct nilfs_inode *);
-extern void nilfs_write_inode_common(struct inode *, struct nilfs_inode *, int);
-struct inode *nilfs_ilookup(struct super_block *sb, struct nilfs_root *root,
-			    unsigned long ino);
-struct inode *nilfs_iget_locked(struct super_block *sb, struct nilfs_root *root,
-				unsigned long ino);
-struct inode *nilfs_iget(struct super_block *sb, struct nilfs_root *root,
-			 unsigned long ino);
-extern struct inode *nilfs_iget_for_gc(struct super_block *sb,
-				       unsigned long ino, __u64 cno);
-int nilfs_attach_btree_node_cache(struct inode *inode);
-void nilfs_detach_btree_node_cache(struct inode *inode);
-struct inode *nilfs_iget_for_shadow(struct inode *inode);
-extern void nilfs_update_inode(struct inode *, struct buffer_head *, int);
-extern void nilfs_truncate(struct inode *);
-extern void nilfs_evict_inode(struct inode *);
+/* ianalde.c */
+void nilfs_ianalde_add_blocks(struct ianalde *ianalde, int n);
+void nilfs_ianalde_sub_blocks(struct ianalde *ianalde, int n);
+extern struct ianalde *nilfs_new_ianalde(struct ianalde *, umode_t);
+extern int nilfs_get_block(struct ianalde *, sector_t, struct buffer_head *, int);
+extern void nilfs_set_ianalde_flags(struct ianalde *);
+extern int nilfs_read_ianalde_common(struct ianalde *, struct nilfs_ianalde *);
+extern void nilfs_write_ianalde_common(struct ianalde *, struct nilfs_ianalde *, int);
+struct ianalde *nilfs_ilookup(struct super_block *sb, struct nilfs_root *root,
+			    unsigned long ianal);
+struct ianalde *nilfs_iget_locked(struct super_block *sb, struct nilfs_root *root,
+				unsigned long ianal);
+struct ianalde *nilfs_iget(struct super_block *sb, struct nilfs_root *root,
+			 unsigned long ianal);
+extern struct ianalde *nilfs_iget_for_gc(struct super_block *sb,
+				       unsigned long ianal, __u64 canal);
+int nilfs_attach_btree_analde_cache(struct ianalde *ianalde);
+void nilfs_detach_btree_analde_cache(struct ianalde *ianalde);
+struct ianalde *nilfs_iget_for_shadow(struct ianalde *ianalde);
+extern void nilfs_update_ianalde(struct ianalde *, struct buffer_head *, int);
+extern void nilfs_truncate(struct ianalde *);
+extern void nilfs_evict_ianalde(struct ianalde *);
 extern int nilfs_setattr(struct mnt_idmap *, struct dentry *,
 			 struct iattr *);
 extern void nilfs_write_failed(struct address_space *mapping, loff_t to);
-int nilfs_permission(struct mnt_idmap *idmap, struct inode *inode,
+int nilfs_permission(struct mnt_idmap *idmap, struct ianalde *ianalde,
 		     int mask);
-int nilfs_load_inode_block(struct inode *inode, struct buffer_head **pbh);
-extern int nilfs_inode_dirty(struct inode *);
-int nilfs_set_file_dirty(struct inode *inode, unsigned int nr_dirty);
-extern int __nilfs_mark_inode_dirty(struct inode *, int);
-extern void nilfs_dirty_inode(struct inode *, int flags);
-int nilfs_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
+int nilfs_load_ianalde_block(struct ianalde *ianalde, struct buffer_head **pbh);
+extern int nilfs_ianalde_dirty(struct ianalde *);
+int nilfs_set_file_dirty(struct ianalde *ianalde, unsigned int nr_dirty);
+extern int __nilfs_mark_ianalde_dirty(struct ianalde *, int);
+extern void nilfs_dirty_ianalde(struct ianalde *, int flags);
+int nilfs_fiemap(struct ianalde *ianalde, struct fiemap_extent_info *fieinfo,
 		 __u64 start, __u64 len);
-static inline int nilfs_mark_inode_dirty(struct inode *inode)
+static inline int nilfs_mark_ianalde_dirty(struct ianalde *ianalde)
 {
-	return __nilfs_mark_inode_dirty(inode, I_DIRTY);
+	return __nilfs_mark_ianalde_dirty(ianalde, I_DIRTY);
 }
-static inline int nilfs_mark_inode_dirty_sync(struct inode *inode)
+static inline int nilfs_mark_ianalde_dirty_sync(struct ianalde *ianalde)
 {
-	return __nilfs_mark_inode_dirty(inode, I_DIRTY_SYNC);
+	return __nilfs_mark_ianalde_dirty(ianalde, I_DIRTY_SYNC);
 }
 
 /* super.c */
-extern struct inode *nilfs_alloc_inode(struct super_block *);
+extern struct ianalde *nilfs_alloc_ianalde(struct super_block *);
 
 __printf(2, 3)
 void __nilfs_msg(struct super_block *sb, const char *fmt, ...);
@@ -312,12 +312,12 @@ void __nilfs_error(struct super_block *sb, const char *function,
 
 #define nilfs_msg(sb, level, fmt, ...)					\
 	do {								\
-		no_printk(level fmt, ##__VA_ARGS__);			\
+		anal_printk(level fmt, ##__VA_ARGS__);			\
 		(void)(sb);						\
 	} while (0)
 #define nilfs_error(sb, fmt, ...)					\
 	do {								\
-		no_printk(fmt, ##__VA_ARGS__);				\
+		anal_printk(fmt, ##__VA_ARGS__);				\
 		__nilfs_error(sb, "", " ");				\
 	} while (0)
 
@@ -345,18 +345,18 @@ struct nilfs_super_block **nilfs_prepare_super(struct super_block *sb,
 int nilfs_commit_super(struct super_block *sb, int flag);
 int nilfs_cleanup_super(struct super_block *sb);
 int nilfs_resize_fs(struct super_block *sb, __u64 newsize);
-int nilfs_attach_checkpoint(struct super_block *sb, __u64 cno, int curr_mnt,
+int nilfs_attach_checkpoint(struct super_block *sb, __u64 canal, int curr_mnt,
 			    struct nilfs_root **root);
-int nilfs_checkpoint_is_mounted(struct super_block *sb, __u64 cno);
+int nilfs_checkpoint_is_mounted(struct super_block *sb, __u64 canal);
 
-/* gcinode.c */
-int nilfs_gccache_submit_read_data(struct inode *, sector_t, sector_t, __u64,
+/* gcianalde.c */
+int nilfs_gccache_submit_read_data(struct ianalde *, sector_t, sector_t, __u64,
 				   struct buffer_head **);
-int nilfs_gccache_submit_read_node(struct inode *, sector_t, __u64,
+int nilfs_gccache_submit_read_analde(struct ianalde *, sector_t, __u64,
 				   struct buffer_head **);
 int nilfs_gccache_wait_and_mark_dirty(struct buffer_head *);
-int nilfs_init_gcinode(struct inode *inode);
-void nilfs_remove_all_gcinodes(struct the_nilfs *nilfs);
+int nilfs_init_gcianalde(struct ianalde *ianalde);
+void nilfs_remove_all_gcianaldes(struct the_nilfs *nilfs);
 
 /* sysfs.c */
 int __init nilfs_sysfs_init(void);
@@ -367,15 +367,15 @@ int nilfs_sysfs_create_snapshot_group(struct nilfs_root *);
 void nilfs_sysfs_delete_snapshot_group(struct nilfs_root *);
 
 /*
- * Inodes and files operations
+ * Ianaldes and files operations
  */
 extern const struct file_operations nilfs_dir_operations;
-extern const struct inode_operations nilfs_file_inode_operations;
+extern const struct ianalde_operations nilfs_file_ianalde_operations;
 extern const struct file_operations nilfs_file_operations;
 extern const struct address_space_operations nilfs_aops;
-extern const struct inode_operations nilfs_dir_inode_operations;
-extern const struct inode_operations nilfs_special_inode_operations;
-extern const struct inode_operations nilfs_symlink_inode_operations;
+extern const struct ianalde_operations nilfs_dir_ianalde_operations;
+extern const struct ianalde_operations nilfs_special_ianalde_operations;
+extern const struct ianalde_operations nilfs_symlink_ianalde_operations;
 
 /*
  * filesystem type

@@ -47,7 +47,7 @@ static irqreturn_t lima_pp_irq_handler(int irq, void *data)
 
 	/* for shared irq case */
 	if (!state)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	lima_pp_handle_irq(ip, state);
 
@@ -60,7 +60,7 @@ static irqreturn_t lima_pp_irq_handler(int irq, void *data)
 static irqreturn_t lima_pp_bcast_irq_handler(int irq, void *data)
 {
 	int i;
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 	struct lima_ip *pp_bcast = data;
 	struct lima_device *dev = pp_bcast->dev;
 	struct lima_sched_pipe *pipe = dev->pipe + lima_pipe_pp;
@@ -68,7 +68,7 @@ static irqreturn_t lima_pp_bcast_irq_handler(int irq, void *data)
 
 	/* for shared irq case */
 	if (!pipe->current_task)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	frame = pipe->current_task->frame;
 
@@ -196,12 +196,12 @@ static int lima_pp_hard_reset(struct lima_ip *ip)
 
 static void lima_pp_print_version(struct lima_ip *ip)
 {
-	u32 version, major, minor;
+	u32 version, major, mianalr;
 	char *name;
 
 	version = pp_read(LIMA_PP_VERSION);
 	major = (version >> 8) & 0xFF;
-	minor = version & 0xFF;
+	mianalr = version & 0xFF;
 	switch (version >> 16) {
 	case 0xC807:
 	    name = "mali200";
@@ -216,11 +216,11 @@ static void lima_pp_print_version(struct lima_ip *ip)
 		name = "mali450";
 		break;
 	default:
-		name = "unknown";
+		name = "unkanalwn";
 		break;
 	}
-	dev_info(ip->dev->dev, "%s - %s version major %d minor %d\n",
-		 lima_ip_name(ip), name, major, minor);
+	dev_info(ip->dev->dev, "%s - %s version major %d mianalr %d\n",
+		 lima_ip_name(ip), name, major, mianalr);
 }
 
 static int lima_pp_hw_init(struct lima_ip *ip)
@@ -435,7 +435,7 @@ int lima_pp_pipe_init(struct lima_device *dev)
 			0, SLAB_HWCACHE_ALIGN, sizeof(struct lima_sched_task),
 			frame_size, NULL);
 		if (!lima_pp_task_slab)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 	lima_pp_task_slab_refcnt++;
 

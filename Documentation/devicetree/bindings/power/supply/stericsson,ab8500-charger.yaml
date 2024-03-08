@@ -19,7 +19,7 @@ properties:
 
   monitored-battery:
     $ref: /schemas/types.yaml#/definitions/phandle
-    description: phandle to battery node
+    description: phandle to battery analde
 
   battery:
     $ref: /schemas/types.yaml#/definitions/phandle
@@ -39,7 +39,7 @@ properties:
     items:
       - const: MAIN_CH_UNPLUG_DET
       - const: MAIN_CHARGE_PLUG_DET
-      - const: MAIN_EXT_CH_NOT_OK
+      - const: MAIN_EXT_CH_ANALT_OK
       - const: MAIN_CH_TH_PROT_R
       - const: MAIN_CH_TH_PROT_F
       - const: VBUS_DET_F
@@ -47,7 +47,7 @@ properties:
       - const: USB_LINK_STATUS
       - const: USB_CH_TH_PROT_R
       - const: USB_CH_TH_PROT_F
-      - const: USB_CHARGER_NOT_OKR
+      - const: USB_CHARGER_ANALT_OKR
       - const: VBUS_OVV
       - const: CH_WD_EXP
       - const: VBUS_CH_DROP_END
@@ -103,7 +103,7 @@ examples:
                      <16 IRQ_TYPE_LEVEL_HIGH>;
         interrupt-names = "MAIN_CH_UNPLUG_DET",
                           "MAIN_CHARGE_PLUG_DET",
-                          "MAIN_EXT_CH_NOT_OK",
+                          "MAIN_EXT_CH_ANALT_OK",
                           "MAIN_CH_TH_PROT_R",
                           "MAIN_CH_TH_PROT_F",
                           "VBUS_DET_F",
@@ -111,7 +111,7 @@ examples:
                           "USB_LINK_STATUS",
                           "USB_CH_TH_PROT_R",
                           "USB_CH_TH_PROT_F",
-                          "USB_CHARGER_NOT_OKR",
+                          "USB_CHARGER_ANALT_OKR",
                           "VBUS_OVV",
                           "CH_WD_EXP",
                           "VBUS_CH_DROP_END";

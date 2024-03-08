@@ -1,7 +1,7 @@
 /*
  * net/ife/ife.c - Inter-FE protocol based on ForCES WG InterFE LFB
  * Copyright (c) 2015 Jamal Hadi Salim <jhs@mojatatu.com>
- * Copyright (c) 2017 Yotam Gigi <yotamg@mellanox.com>
+ * Copyright (c) 2017 Yotam Gigi <yotamg@mellaanalx.com>
  *
  * Refer to: draft-ietf-forces-interfelfb-03 and netdev01 paper:
  * "Distributing Linux Traffic Control Classifier-Action Subsystem"
@@ -15,7 +15,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/skbuff.h>
 #include <linux/rtnetlink.h>
 #include <linux/module.h>

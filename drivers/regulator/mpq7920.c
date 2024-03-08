@@ -2,7 +2,7 @@
 //
 // mpq7920.c  - regulator driver for mps mpq7920
 //
-// Copyright 2019 Monolithic Power Systems, Inc
+// Copyright 2019 Moanallithic Power Systems, Inc
 //
 // Author: Saravanan Sekar <sravanhome@gmail.com>
 
@@ -28,7 +28,7 @@
 		.id = MPQ7920_BUCK ## _id,				\
 		.name = _name,						\
 		.of_match = _name,					\
-		.regulators_node = "regulators",			\
+		.regulators_analde = "regulators",			\
 		.of_parse_cb = mpq7920_parse_cb,			\
 		.ops = &mpq7920_buck_ops,				\
 		.min_uV = MPQ7920_BUCK_VOLT_MIN,			\
@@ -56,7 +56,7 @@
 		.id = MPQ7920_LDO ## _id,				\
 		.name = _name,						\
 		.of_match = _name,					\
-		.regulators_node = "regulators",			\
+		.regulators_analde = "regulators",			\
 		.ops = _ops,						\
 		.min_uV = MPQ7920_LDO_VOLT_MIN,				\
 		.uV_step = MPQ7920_VOLT_STEP,				\
@@ -119,11 +119,11 @@ static const unsigned int mpq7920_I_limits3[] = {
 };
 
 static int mpq7920_set_ramp_delay(struct regulator_dev *rdev, int ramp_delay);
-static int mpq7920_parse_cb(struct device_node *np,
+static int mpq7920_parse_cb(struct device_analde *np,
 				const struct regulator_desc *rdesc,
 				struct regulator_config *config);
 
-/* RTCLDO not controllable, always ON */
+/* RTCLDO analt controllable, always ON */
 static const struct regulator_ops mpq7920_ldortc_ops = {
 	.list_voltage		= regulator_list_voltage_linear,
 	.map_voltage		= regulator_map_voltage_linear,
@@ -206,7 +206,7 @@ static int mpq7920_set_ramp_delay(struct regulator_dev *rdev, int ramp_delay)
 				  MPQ7920_MASK_DVS_SLEWRATE, ramp_val << 6);
 }
 
-static int mpq7920_parse_cb(struct device_node *np,
+static int mpq7920_parse_cb(struct device_analde *np,
 				const struct regulator_desc *desc,
 				struct regulator_config *config)
 {
@@ -240,12 +240,12 @@ static void mpq7920_parse_dt(struct device *dev,
 		 struct mpq7920_regulator_info *info)
 {
 	int ret;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	uint8_t freq;
 
 	np = of_get_child_by_name(np, "regulators");
 	if (!np) {
-		dev_err(dev, "missing 'regulators' subnode in DT\n");
+		dev_err(dev, "missing 'regulators' subanalde in DT\n");
 		return;
 	}
 
@@ -256,7 +256,7 @@ static void mpq7920_parse_dt(struct device *dev,
 					(freq & 3) << 4);
 	}
 
-	of_node_put(np);
+	of_analde_put(np);
 }
 
 static int mpq7920_i2c_probe(struct i2c_client *client)
@@ -271,7 +271,7 @@ static int mpq7920_i2c_probe(struct i2c_client *client)
 	info = devm_kzalloc(dev, sizeof(struct mpq7920_regulator_info),
 				GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	info->rdesc = mpq7920_regulators_desc;
 	regmap = devm_regmap_init_i2c(client, &mpq7920_regmap_config);
@@ -282,7 +282,7 @@ static int mpq7920_i2c_probe(struct i2c_client *client)
 
 	i2c_set_clientdata(client, info);
 	info->regmap = regmap;
-	if (client->dev.of_node)
+	if (client->dev.of_analde)
 		mpq7920_parse_dt(&client->dev, info);
 
 	config.dev = dev;
@@ -317,7 +317,7 @@ MODULE_DEVICE_TABLE(i2c, mpq7920_id);
 static struct i2c_driver mpq7920_regulator_driver = {
 	.driver = {
 		.name = "mpq7920",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = mpq7920_of_match,
 	},
 	.probe = mpq7920_i2c_probe,

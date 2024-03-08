@@ -54,7 +54,7 @@ static void update_safari_cfg(void *arg)
 
 	__asm__ __volatile__("stxa	%0, [%%g0] %1\n\t"
 			     "membar	#Sync"
-			     : /* no outputs */
+			     : /* anal outputs */
 			     : "r" (reg), "i" (ASI_SAFARI_CONFIG)
 			     : "memory");
 }
@@ -161,7 +161,7 @@ static int __init us3_freq_init(void)
 	int ret;
 
 	if (tlb_type != cheetah && tlb_type != cheetah_plus)
-		return -ENODEV;
+		return -EANALDEV;
 
 	__asm__("rdpr %%ver, %0" : "=r" (ver));
 	manuf = ((ver >> 48) & 0xffff);
@@ -175,7 +175,7 @@ static int __init us3_freq_init(void)
 		us3_freq_table = kzalloc(NR_CPUS * sizeof(*us3_freq_table),
 					 GFP_KERNEL);
 		if (!us3_freq_table)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		ret = cpufreq_register_driver(&cpufreq_us3_driver);
 		if (ret)
@@ -184,7 +184,7 @@ static int __init us3_freq_init(void)
 		return ret;
 	}
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static void __exit us3_freq_exit(void)

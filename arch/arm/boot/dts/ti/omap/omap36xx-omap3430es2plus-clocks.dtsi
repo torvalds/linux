@@ -13,7 +13,7 @@
 
 		ssi_ssr_gate_fck_3430es2: clock-ssi-ssr-gate-fck-3430es2 {
 			#clock-cells = <0>;
-			compatible = "ti,composite-no-wait-gate-clock";
+			compatible = "ti,composite-anal-wait-gate-clock";
 			clock-output-names = "ssi_ssr_gate_fck_3430es2";
 			clocks = <&corex2_fck>;
 			ti,bit-shift = <0>;

@@ -91,7 +91,7 @@ fail:
 
 static void ezport_stop_programming(struct spi_device *spi, struct gpio_desc *reset)
 {
-	/* reset without asserted chip select to return into normal mode */
+	/* reset without asserted chip select to return into analrmal mode */
 	spi_bus_lock(spi->master);
 	ezport_reset(reset);
 	spi_bus_unlock(spi->master);
@@ -105,7 +105,7 @@ static int ezport_get_status_register(struct spi_device *spi)
 	if (ret < 0)
 		return ret;
 	if (ret == 0xff) {
-		dev_err(&spi->dev, "Invalid EzPort status, EzPort is not functional!\n");
+		dev_err(&spi->dev, "Invalid EzPort status, EzPort is analt functional!\n");
 		return -EINVAL;
 	}
 
@@ -227,7 +227,7 @@ static int ezport_flash_transfer(struct spi_device *spi, u32 address,
 
 	command = kmalloc(4, GFP_KERNEL | GFP_DMA);
 	if (!command)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	command[0] = EZPORT_CMD_SP;
 	command[1] = address >> 16;
@@ -257,7 +257,7 @@ static int ezport_flash_compare(struct spi_device *spi, u32 address,
 
 	buffer = kmalloc(payload_size + 5, GFP_KERNEL | GFP_DMA);
 	if (!buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	buffer[0] = EZPORT_CMD_FAST_READ;
 	buffer[1] = address >> 16;
@@ -305,7 +305,7 @@ static int ezport_firmware_compare_data(struct spi_device *spi,
 
 	if (ret & EZPORT_STATUS_FS) {
 		dev_info(&spi->dev, "Device is in secure mode (status=0x%02x)!\n", ret);
-		dev_info(&spi->dev, "FW verification is not possible\n");
+		dev_info(&spi->dev, "FW verification is analt possible\n");
 		return -EACCES;
 	}
 
@@ -390,7 +390,7 @@ static int ezport_firmware_load(struct spi_device *spi, const char *fwname)
 
 	ret = request_firmware(&fw, fwname, &spi->dev);
 	if (ret) {
-		dev_err(&spi->dev, "Could not get firmware: %d\n", ret);
+		dev_err(&spi->dev, "Could analt get firmware: %d\n", ret);
 		return ret;
 	}
 
@@ -409,7 +409,7 @@ static int ezport_firmware_load(struct spi_device *spi, const char *fwname)
  *
  * Context: can sleep
  *
- * Return: 0 on success; negative errno on failure
+ * Return: 0 on success; negative erranal on failure
  */
 static int ezport_flash(struct spi_device *spi, struct gpio_desc *reset, const char *fwname)
 {
@@ -512,13 +512,13 @@ static int gehc_achc_probe(struct spi_device *spi)
 
 	achc = devm_kzalloc(&spi->dev, sizeof(*achc), GFP_KERNEL);
 	if (!achc)
-		return -ENOMEM;
+		return -EANALMEM;
 	spi_set_drvdata(spi, achc);
 	achc->main = spi;
 
 	mutex_init(&achc->device_lock);
 
-	ret = of_property_read_u32_index(spi->dev.of_node, "reg", 1, &ezport_reg);
+	ret = of_property_read_u32_index(spi->dev.of_analde, "reg", 1, &ezport_reg);
 	if (ret)
 		return dev_err_probe(&spi->dev, ret, "missing second reg entry!\n");
 
@@ -532,7 +532,7 @@ static int gehc_achc_probe(struct spi_device *spi)
 
 	achc->reset = devm_gpiod_get(&spi->dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(achc->reset))
-		return dev_err_probe(&spi->dev, PTR_ERR(achc->reset), "Could not get reset gpio\n");
+		return dev_err_probe(&spi->dev, PTR_ERR(achc->reset), "Could analt get reset gpio\n");
 
 	return 0;
 }

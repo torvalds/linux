@@ -21,7 +21,7 @@ config STI_CORE
 config VIDEO_CMDLINE
 	bool
 
-config VIDEO_NOMODESET
+config VIDEO_ANALMODESET
 	bool
 	default n
 

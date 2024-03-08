@@ -64,11 +64,11 @@ static int simple_bridge_get_modes(struct drm_connector *connector)
 
 	if (!edid) {
 		/*
-		 * In case we cannot retrieve the EDIDs (missing or broken DDC
+		 * In case we cananalt retrieve the EDIDs (missing or broken DDC
 		 * bus from the next bridge), fallback on the XGA standards and
 		 * prefer a mode pretty much anyone can handle.
 		 */
-		ret = drm_add_modes_noedid(connector, 1920, 1200);
+		ret = drm_add_modes_analedid(connector, 1920, 1200);
 		drm_set_preferred_mode(connector, 1024, 768);
 		return ret;
 	}
@@ -108,16 +108,16 @@ static int simple_bridge_attach(struct drm_bridge *bridge,
 	int ret;
 
 	ret = drm_bridge_attach(bridge->encoder, sbridge->next_bridge, bridge,
-				DRM_BRIDGE_ATTACH_NO_CONNECTOR);
+				DRM_BRIDGE_ATTACH_ANAL_CONNECTOR);
 	if (ret < 0)
 		return ret;
 
-	if (flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR)
+	if (flags & DRM_BRIDGE_ATTACH_ANAL_CONNECTOR)
 		return 0;
 
 	if (!bridge->encoder) {
 		DRM_ERROR("Missing encoder\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	drm_connector_helper_add(&sbridge->connector,
@@ -169,25 +169,25 @@ static const struct drm_bridge_funcs simple_bridge_bridge_funcs = {
 static int simple_bridge_probe(struct platform_device *pdev)
 {
 	struct simple_bridge *sbridge;
-	struct device_node *remote;
+	struct device_analde *remote;
 
 	sbridge = devm_kzalloc(&pdev->dev, sizeof(*sbridge), GFP_KERNEL);
 	if (!sbridge)
-		return -ENOMEM;
+		return -EANALMEM;
 	platform_set_drvdata(pdev, sbridge);
 
 	sbridge->info = of_device_get_match_data(&pdev->dev);
 
 	/* Get the next bridge in the pipeline. */
-	remote = of_graph_get_remote_node(pdev->dev.of_node, 1, -1);
+	remote = of_graph_get_remote_analde(pdev->dev.of_analde, 1, -1);
 	if (!remote)
 		return -EINVAL;
 
 	sbridge->next_bridge = of_drm_find_bridge(remote);
-	of_node_put(remote);
+	of_analde_put(remote);
 
 	if (!sbridge->next_bridge) {
-		dev_dbg(&pdev->dev, "Next bridge not found, deferring probe\n");
+		dev_dbg(&pdev->dev, "Next bridge analt found, deferring probe\n");
 		return -EPROBE_DEFER;
 	}
 
@@ -198,7 +198,7 @@ static int simple_bridge_probe(struct platform_device *pdev)
 		if (ret == -EPROBE_DEFER)
 			return -EPROBE_DEFER;
 		sbridge->vdd = NULL;
-		dev_dbg(&pdev->dev, "No vdd regulator found: %d\n", ret);
+		dev_dbg(&pdev->dev, "Anal vdd regulator found: %d\n", ret);
 	}
 
 	sbridge->enable = devm_gpiod_get_optional(&pdev->dev, "enable",
@@ -209,7 +209,7 @@ static int simple_bridge_probe(struct platform_device *pdev)
 
 	/* Register the bridge. */
 	sbridge->bridge.funcs = &simple_bridge_bridge_funcs;
-	sbridge->bridge.of_node = pdev->dev.of_node;
+	sbridge->bridge.of_analde = pdev->dev.of_analde;
 	sbridge->bridge.timings = sbridge->info->timings;
 
 	drm_bridge_add(&sbridge->bridge);
@@ -227,7 +227,7 @@ static void simple_bridge_remove(struct platform_device *pdev)
 /*
  * We assume the ADV7123 DAC is the "default" for historical reasons
  * Information taken from the ADV7123 datasheet, revision D.
- * NOTE: the ADV7123EP seems to have other timings and need a new timings
+ * ANALTE: the ADV7123EP seems to have other timings and need a new timings
  * set if used.
  */
 static const struct drm_bridge_timings default_bridge_timings = {

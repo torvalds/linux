@@ -45,11 +45,11 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Not taken branch instructions retired.",
+        "BriefDescription": "Analt taken branch instructions retired.",
         "Errata": "SKL091",
         "EventCode": "0xc4",
         "EventName": "BR_INST_RETIRED.COND_NTAKEN",
-        "PublicDescription": "This event counts not taken branch instructions retired.",
+        "PublicDescription": "This event counts analt taken branch instructions retired.",
         "SampleAfterValue": "400009",
         "UMask": "0x10"
     },
@@ -94,11 +94,11 @@
         "UMask": "0x20"
     },
     {
-        "BriefDescription": "Not taken branch instructions retired.",
+        "BriefDescription": "Analt taken branch instructions retired.",
         "Errata": "SKL091",
         "EventCode": "0xC4",
-        "EventName": "BR_INST_RETIRED.NOT_TAKEN",
-        "PublicDescription": "This event counts not taken branch instructions retired.",
+        "EventName": "BR_INST_RETIRED.ANALT_TAKEN",
+        "PublicDescription": "This event counts analt taken branch instructions retired.",
         "SampleAfterValue": "400009",
         "UMask": "0x10"
     },
@@ -106,7 +106,7 @@
         "BriefDescription": "Speculative and retired mispredicted macro conditional branches",
         "EventCode": "0x89",
         "EventName": "BR_MISP_EXEC.ALL_BRANCHES",
-        "PublicDescription": "This event counts both taken and not taken speculative and retired mispredicted branch instructions.",
+        "PublicDescription": "This event counts both taken and analt taken speculative and retired mispredicted branch instructions.",
         "SampleAfterValue": "200003",
         "UMask": "0xff"
     },
@@ -148,7 +148,7 @@
         "EventCode": "0xC5",
         "EventName": "BR_MISP_RETIRED.NEAR_CALL",
         "PEBS": "1",
-        "PublicDescription": "Counts both taken and not taken retired mispredicted direct and indirect near calls, including both register and memory indirect.",
+        "PublicDescription": "Counts both taken and analt taken retired mispredicted direct and indirect near calls, including both register and memory indirect.",
         "SampleAfterValue": "400009",
         "UMask": "0x2"
     },
@@ -161,11 +161,11 @@
         "UMask": "0x20"
     },
     {
-        "BriefDescription": "This event counts the number of mispredicted ret instructions retired. Non PEBS",
+        "BriefDescription": "This event counts the number of mispredicted ret instructions retired. Analn PEBS",
         "EventCode": "0xC5",
         "EventName": "BR_MISP_RETIRED.RET",
         "PEBS": "1",
-        "PublicDescription": "This is a non-precise version (that is, does not use PEBS) of the event that counts mispredicted return instructions retired.",
+        "PublicDescription": "This is a analn-precise version (that is, does analt use PEBS) of the event that counts mispredicted return instructions retired.",
         "SampleAfterValue": "100007",
         "UMask": "0x8"
     },
@@ -199,9 +199,9 @@
         "UMask": "0x2"
     },
     {
-        "BriefDescription": "Reference cycles when the core is not in halt state.",
+        "BriefDescription": "Reference cycles when the core is analt in halt state.",
         "EventName": "CPU_CLK_UNHALTED.REF_TSC",
-        "PublicDescription": "Counts the number of reference cycles when the core is not in a halt state. The core enters the halt state when it is running the HLT instruction or the MWAIT instruction. This event is not affected by core frequency changes (for example, P states, TM2 transitions) but has the same incrementing frequency as the time stamp counter. This event can approximate elapsed time while the core was not in a halt state. This event has a constant ratio with the CPU_CLK_UNHALTED.REF_XCLK event. It is counted on a dedicated fixed counter, leaving the four (eight when Hyperthreading is disabled) programmable counters available for other events. Note: On all current platforms this event stops counting during 'throttling (TM)' states duty off periods the processor is 'halted'.  The counter update is done at a lower clock rate then the core clock the overflow status bit for this counter may appear 'sticky'.  After the counter has overflowed and software clears the overflow status bit and resets the counter to less than MAX. The reset value to the counter is not clocked immediately so the overflow status bit will flip 'high (1)' and generate another PMI (if enabled) after which the reset value gets clocked into the counter. Therefore, software will get the interrupt, read the overflow status bit '1 for bit 34 while the counter value is less than MAX. Software should ignore this case.",
+        "PublicDescription": "Counts the number of reference cycles when the core is analt in a halt state. The core enters the halt state when it is running the HLT instruction or the MWAIT instruction. This event is analt affected by core frequency changes (for example, P states, TM2 transitions) but has the same incrementing frequency as the time stamp counter. This event can approximate elapsed time while the core was analt in a halt state. This event has a constant ratio with the CPU_CLK_UNHALTED.REF_XCLK event. It is counted on a dedicated fixed counter, leaving the four (eight when Hyperthreading is disabled) programmable counters available for other events. Analte: On all current platforms this event stops counting during 'throttling (TM)' states duty off periods the processor is 'halted'.  The counter update is done at a lower clock rate then the core clock the overflow status bit for this counter may appear 'sticky'.  After the counter has overflowed and software clears the overflow status bit and resets the counter to less than MAX. The reset value to the counter is analt clocked immediately so the overflow status bit will flip 'high (1)' and generate aanalther PMI (if enabled) after which the reset value gets clocked into the counter. Therefore, software will get the interrupt, read the overflow status bit '1 for bit 34 while the counter value is less than MAX. Software should iganalre this case.",
         "SampleAfterValue": "2000003",
         "UMask": "0x3"
     },
@@ -230,29 +230,29 @@
         "SampleAfterValue": "100007"
     },
     {
-        "BriefDescription": "Core cycles when the thread is not in halt state",
+        "BriefDescription": "Core cycles when the thread is analt in halt state",
         "EventName": "CPU_CLK_UNHALTED.THREAD",
-        "PublicDescription": "Counts the number of core cycles while the thread is not in a halt state. The thread enters the halt state when it is running the HLT instruction. This event is a component in many key event ratios. The core frequency may change from time to time due to transitions associated with Enhanced Intel SpeedStep Technology or TM2. For this reason this event may have a changing ratio with regards to time. When the core frequency is constant, this event can approximate elapsed time while the core was not in the halt state. It is counted on a dedicated fixed counter, leaving the four (eight when Hyperthreading is disabled) programmable counters available for other events.",
+        "PublicDescription": "Counts the number of core cycles while the thread is analt in a halt state. The thread enters the halt state when it is running the HLT instruction. This event is a component in many key event ratios. The core frequency may change from time to time due to transitions associated with Enhanced Intel SpeedStep Techanallogy or TM2. For this reason this event may have a changing ratio with regards to time. When the core frequency is constant, this event can approximate elapsed time while the core was analt in the halt state. It is counted on a dedicated fixed counter, leaving the four (eight when Hyperthreading is disabled) programmable counters available for other events.",
         "SampleAfterValue": "2000003",
         "UMask": "0x2"
     },
     {
         "AnyThread": "1",
-        "BriefDescription": "Core cycles when at least one thread on the physical core is not in halt state.",
+        "BriefDescription": "Core cycles when at least one thread on the physical core is analt in halt state.",
         "EventName": "CPU_CLK_UNHALTED.THREAD_ANY",
         "SampleAfterValue": "2000003",
         "UMask": "0x2"
     },
     {
-        "BriefDescription": "Thread cycles when thread is not in halt state",
+        "BriefDescription": "Thread cycles when thread is analt in halt state",
         "EventCode": "0x3C",
         "EventName": "CPU_CLK_UNHALTED.THREAD_P",
-        "PublicDescription": "This is an architectural event that counts the number of thread cycles while the thread is not in a halt state. The thread enters the halt state when it is running the HLT instruction. The core frequency may change from time to time due to power or thermal throttling. For this reason, this event may have a changing ratio with regards to wall clock time.",
+        "PublicDescription": "This is an architectural event that counts the number of thread cycles while the thread is analt in a halt state. The thread enters the halt state when it is running the HLT instruction. The core frequency may change from time to time due to power or thermal throttling. For this reason, this event may have a changing ratio with regards to wall clock time.",
         "SampleAfterValue": "2000003"
     },
     {
         "AnyThread": "1",
-        "BriefDescription": "Core cycles when at least one thread on the physical core is not in halt state.",
+        "BriefDescription": "Core cycles when at least one thread on the physical core is analt in halt state.",
         "EventCode": "0x3C",
         "EventName": "CPU_CLK_UNHALTED.THREAD_P_ANY",
         "SampleAfterValue": "2000003"
@@ -314,49 +314,49 @@
         "UMask": "0x4"
     },
     {
-        "BriefDescription": "Cycles total of 1 uop is executed on all ports and Reservation Station was not empty.",
+        "BriefDescription": "Cycles total of 1 uop is executed on all ports and Reservation Station was analt empty.",
         "EventCode": "0xA6",
         "EventName": "EXE_ACTIVITY.1_PORTS_UTIL",
-        "PublicDescription": "Counts cycles during which a total of 1 uop was executed on all ports and Reservation Station (RS) was not empty.",
+        "PublicDescription": "Counts cycles during which a total of 1 uop was executed on all ports and Reservation Station (RS) was analt empty.",
         "SampleAfterValue": "2000003",
         "UMask": "0x2"
     },
     {
-        "BriefDescription": "Cycles total of 2 uops are executed on all ports and Reservation Station was not empty.",
+        "BriefDescription": "Cycles total of 2 uops are executed on all ports and Reservation Station was analt empty.",
         "EventCode": "0xA6",
         "EventName": "EXE_ACTIVITY.2_PORTS_UTIL",
-        "PublicDescription": "Counts cycles during which a total of 2 uops were executed on all ports and Reservation Station (RS) was not empty.",
+        "PublicDescription": "Counts cycles during which a total of 2 uops were executed on all ports and Reservation Station (RS) was analt empty.",
         "SampleAfterValue": "2000003",
         "UMask": "0x4"
     },
     {
-        "BriefDescription": "Cycles total of 3 uops are executed on all ports and Reservation Station was not empty.",
+        "BriefDescription": "Cycles total of 3 uops are executed on all ports and Reservation Station was analt empty.",
         "EventCode": "0xA6",
         "EventName": "EXE_ACTIVITY.3_PORTS_UTIL",
-        "PublicDescription": "Cycles total of 3 uops are executed on all ports and Reservation Station (RS) was not empty.",
+        "PublicDescription": "Cycles total of 3 uops are executed on all ports and Reservation Station (RS) was analt empty.",
         "SampleAfterValue": "2000003",
         "UMask": "0x8"
     },
     {
-        "BriefDescription": "Cycles total of 4 uops are executed on all ports and Reservation Station was not empty.",
+        "BriefDescription": "Cycles total of 4 uops are executed on all ports and Reservation Station was analt empty.",
         "EventCode": "0xA6",
         "EventName": "EXE_ACTIVITY.4_PORTS_UTIL",
-        "PublicDescription": "Cycles total of 4 uops are executed on all ports and Reservation Station (RS) was not empty.",
+        "PublicDescription": "Cycles total of 4 uops are executed on all ports and Reservation Station (RS) was analt empty.",
         "SampleAfterValue": "2000003",
         "UMask": "0x10"
     },
     {
-        "BriefDescription": "Cycles where the Store Buffer was full and no outstanding load.",
+        "BriefDescription": "Cycles where the Store Buffer was full and anal outstanding load.",
         "EventCode": "0xA6",
         "EventName": "EXE_ACTIVITY.BOUND_ON_STORES",
         "SampleAfterValue": "2000003",
         "UMask": "0x40"
     },
     {
-        "BriefDescription": "Cycles where no uops were executed, the Reservation Station was not empty, the Store Buffer was full and there was no outstanding load.",
+        "BriefDescription": "Cycles where anal uops were executed, the Reservation Station was analt empty, the Store Buffer was full and there was anal outstanding load.",
         "EventCode": "0xA6",
         "EventName": "EXE_ACTIVITY.EXE_BOUND_0_PORTS",
-        "PublicDescription": "Counts cycles during which no uops were executed on all ports and Reservation Station (RS) was not empty.",
+        "PublicDescription": "Counts cycles during which anal uops were executed on all ports and Reservation Station (RS) was analt empty.",
         "SampleAfterValue": "2000003",
         "UMask": "0x1"
     },
@@ -379,7 +379,7 @@
     {
         "BriefDescription": "Instructions retired from execution.",
         "EventName": "INST_RETIRED.ANY",
-        "PublicDescription": "Counts the number of instructions retired from execution. For instructions that consist of multiple micro-ops, Counts the retirement of the last micro-op of the instruction. Counting continues during hardware interrupts, traps, and inside interrupt handlers. Notes: INST_RETIRED.ANY is counted by a designated fixed counter, leaving the four (eight when Hyperthreading is disabled) programmable counters available for other events. INST_RETIRED.ANY_P is counted by a programmable counter and it is an architectural performance event. Counting: Faulting executions of GETSEC/VM entry/VM Exit/MWait will not count as retired instructions.",
+        "PublicDescription": "Counts the number of instructions retired from execution. For instructions that consist of multiple micro-ops, Counts the retirement of the last micro-op of the instruction. Counting continues during hardware interrupts, traps, and inside interrupt handlers. Analtes: INST_RETIRED.ANY is counted by a designated fixed counter, leaving the four (eight when Hyperthreading is disabled) programmable counters available for other events. INST_RETIRED.ANY_P is counted by a programmable counter and it is an architectural performance event. Counting: Faulting executions of GETSEC/VM entry/VM Exit/MWait will analt count as retired instructions.",
         "SampleAfterValue": "2000003",
         "UMask": "0x1"
     },
@@ -392,10 +392,10 @@
         "SampleAfterValue": "2000003"
     },
     {
-        "BriefDescription": "Number of all retired NOP instructions.",
+        "BriefDescription": "Number of all retired ANALP instructions.",
         "Errata": "SKL091, SKL044",
         "EventCode": "0xC0",
-        "EventName": "INST_RETIRED.NOP",
+        "EventName": "INST_RETIRED.ANALP",
         "PEBS": "1",
         "SampleAfterValue": "2000003",
         "UMask": "0x2"
@@ -458,16 +458,16 @@
     {
         "BriefDescription": "The number of times that split load operations are temporarily blocked because all resources for handling the split accesses are in use",
         "EventCode": "0x03",
-        "EventName": "LD_BLOCKS.NO_SR",
+        "EventName": "LD_BLOCKS.ANAL_SR",
         "PublicDescription": "The number of times that split load operations are temporarily blocked because all resources for handling the split accesses are in use.",
         "SampleAfterValue": "100003",
         "UMask": "0x8"
     },
     {
-        "BriefDescription": "Loads blocked due to overlapping with a preceding store that cannot be forwarded.",
+        "BriefDescription": "Loads blocked due to overlapping with a preceding store that cananalt be forwarded.",
         "EventCode": "0x03",
         "EventName": "LD_BLOCKS.STORE_FORWARD",
-        "PublicDescription": "Counts the number of times where store forwarding was prevented for a load operation. The most common case is a load blocked due to the address of memory access (partially) overlapping with a preceding uncompleted store. Note: See the table of not supported store forwards in the Optimization Guide.",
+        "PublicDescription": "Counts the number of times where store forwarding was prevented for a load operation. The most common case is a load blocked due to the address of memory access (partially) overlapping with a preceding uncompleted store. Analte: See the table of analt supported store forwards in the Optimization Guide.",
         "SampleAfterValue": "100003",
         "UMask": "0x2"
     },
@@ -475,7 +475,7 @@
         "BriefDescription": "False dependencies in MOB due to partial compare on address.",
         "EventCode": "0x07",
         "EventName": "LD_BLOCKS_PARTIAL.ADDRESS_ALIAS",
-        "PublicDescription": "Counts false dependencies in MOB when the partial comparison upon loose net check and dependency was resolved by the Enhanced Loose net mechanism. This may not result in high performance penalties. Loose net checks can fail when loads and stores are 4k aliased.",
+        "PublicDescription": "Counts false dependencies in MOB when the partial comparison upon loose net check and dependency was resolved by the Enhanced Loose net mechanism. This may analt result in high performance penalties. Loose net checks can fail when loads and stores are 4k aliased.",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -483,7 +483,7 @@
         "BriefDescription": "Demand load dispatches that hit L1D fill buffer (FB) allocated for software prefetch.",
         "EventCode": "0x4C",
         "EventName": "LOAD_HIT_PRE.SW_PF",
-        "PublicDescription": "Counts all not software-prefetch load dispatches that hit the fill buffer (FB) allocated for the software prefetch. It can also be incremented by some lock instructions. So it should only be used with profiling so that the locks can be excluded by ASM (Assembly File) inspection of the nearby instructions.",
+        "PublicDescription": "Counts all analt software-prefetch load dispatches that hit the fill buffer (FB) allocated for the software prefetch. It can also be incremented by some lock instructions. So it should only be used with profiling so that the locks can be excluded by ASM (Assembly File) inspection of the nearby instructions.",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -563,7 +563,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Cycles stalled due to no store buffers available. (not including draining form sync).",
+        "BriefDescription": "Cycles stalled due to anal store buffers available. (analt including draining form sync).",
         "EventCode": "0xA2",
         "EventName": "RESOURCE_STALLS.SB",
         "PublicDescription": "Counts allocation stall cycles caused by the store buffer (SB) being full. This counts cycles that the pipeline back-end blocked uop delivery from the front-end.",
@@ -579,7 +579,7 @@
         "UMask": "0x20"
     },
     {
-        "BriefDescription": "Number of retired PAUSE instructions (that do not end up with a VMExit to the VMM; TSX aborted Instructions may be counted). This event is not supported on first SKL and KBL products.",
+        "BriefDescription": "Number of retired PAUSE instructions (that do analt end up with a VMExit to the VMM; TSX aborted Instructions may be counted). This event is analt supported on first SKL and KBL products.",
         "EventCode": "0xCC",
         "EventName": "ROB_MISC_EVENTS.PAUSE_INST",
         "SampleAfterValue": "2000003",
@@ -589,7 +589,7 @@
         "BriefDescription": "Cycles when Reservation Station (RS) is empty for the thread",
         "EventCode": "0x5E",
         "EventName": "RS_EVENTS.EMPTY_CYCLES",
-        "PublicDescription": "Counts cycles during which the reservation station (RS) is empty for the thread.; Note: In ST-mode, not active thread should drive 0. This is usually caused by severely costly branch mispredictions, or allocator/FE issues.",
+        "PublicDescription": "Counts cycles during which the reservation station (RS) is empty for the thread.; Analte: In ST-mode, analt active thread should drive 0. This is usually caused by severely costly branch mispredictions, or allocator/FE issues.",
         "SampleAfterValue": "2000003",
         "UMask": "0x1"
     },
@@ -709,10 +709,10 @@
         "UMask": "0x2"
     },
     {
-        "BriefDescription": "Cycles with no micro-ops executed from any thread on physical core.",
+        "BriefDescription": "Cycles with anal micro-ops executed from any thread on physical core.",
         "CounterMask": "1",
         "EventCode": "0xB1",
-        "EventName": "UOPS_EXECUTED.CORE_CYCLES_NONE",
+        "EventName": "UOPS_EXECUTED.CORE_CYCLES_ANALNE",
         "Invert": "1",
         "SampleAfterValue": "2000003",
         "UMask": "0x2"
@@ -754,12 +754,12 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts number of cycles no uops were dispatched to be executed on this thread.",
+        "BriefDescription": "Counts number of cycles anal uops were dispatched to be executed on this thread.",
         "CounterMask": "1",
         "EventCode": "0xB1",
         "EventName": "UOPS_EXECUTED.STALL_CYCLES",
         "Invert": "1",
-        "PublicDescription": "Counts cycles during which no uops were dispatched from the Reservation Station (RS) per thread.",
+        "PublicDescription": "Counts cycles during which anal uops were dispatched from the Reservation Station (RS) per thread.",
         "SampleAfterValue": "2000003",
         "UMask": "0x1"
     },
@@ -788,19 +788,19 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Number of slow LEA uops being allocated. A uop is generally considered SlowLea if it has 3 sources (e.g. 2 sources + immediate) regardless if as a result of LEA instruction or not.",
+        "BriefDescription": "Number of slow LEA uops being allocated. A uop is generally considered SlowLea if it has 3 sources (e.g. 2 sources + immediate) regardless if as a result of LEA instruction or analt.",
         "EventCode": "0x0E",
         "EventName": "UOPS_ISSUED.SLOW_LEA",
         "SampleAfterValue": "2000003",
         "UMask": "0x20"
     },
     {
-        "BriefDescription": "Cycles when Resource Allocation Table (RAT) does not issue Uops to Reservation Station (RS) for the thread",
+        "BriefDescription": "Cycles when Resource Allocation Table (RAT) does analt issue Uops to Reservation Station (RS) for the thread",
         "CounterMask": "1",
         "EventCode": "0x0E",
         "EventName": "UOPS_ISSUED.STALL_CYCLES",
         "Invert": "1",
-        "PublicDescription": "Counts cycles during which the Resource Allocation Table (RAT) does not issue any Uops to the reservation station (RS) for the current thread.",
+        "PublicDescription": "Counts cycles during which the Resource Allocation Table (RAT) does analt issue any Uops to the reservation station (RS) for the current thread.",
         "SampleAfterValue": "2000003",
         "UMask": "0x1"
     },
@@ -813,10 +813,10 @@
         "UMask": "0x2"
     },
     {
-        "BriefDescription": "Number of macro-fused uops retired. (non precise)",
+        "BriefDescription": "Number of macro-fused uops retired. (analn precise)",
         "EventCode": "0xc2",
         "EventName": "UOPS_RETIRED.MACRO_FUSED",
-        "PublicDescription": "Counts the number of macro-fused uops retired. (non precise)",
+        "PublicDescription": "Counts the number of macro-fused uops retired. (analn precise)",
         "SampleAfterValue": "2000003",
         "UMask": "0x4"
     },
@@ -844,7 +844,7 @@
         "EventCode": "0xC2",
         "EventName": "UOPS_RETIRED.TOTAL_CYCLES",
         "Invert": "1",
-        "PublicDescription": "Number of cycles using always true condition (uops_ret < 16) applied to non PEBS uops retired event.",
+        "PublicDescription": "Number of cycles using always true condition (uops_ret < 16) applied to analn PEBS uops retired event.",
         "SampleAfterValue": "2000003",
         "UMask": "0x2"
     }

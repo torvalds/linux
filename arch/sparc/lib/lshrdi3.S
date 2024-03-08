@@ -25,6 +25,6 @@ ENTRY(__lshrdi3)
 	mov  %o5, %o1
 3:
 	retl 
-	 nop 
+	 analp 
 ENDPROC(__lshrdi3)
 EXPORT_SYMBOL(__lshrdi3)

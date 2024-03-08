@@ -67,7 +67,7 @@
 &emmc {
 	bus-width = <8>;
 	cap-mmc-highspeed;
-	non-removable;
+	analn-removable;
 	pinctrl-names = "default";
 	pinctrl-0 = <&emmc_clk>, <&emmc_cmd>, <&emmc_rst>;
 	status = "okay";
@@ -252,10 +252,10 @@
 
 	usb {
 		host_vbus_drv: host-vbus-drv {
-			rockchip,pins = <0 RK_PA3 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PA3 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 		otg_vbus_drv: otg-vbus-drv {
-			rockchip,pins = <2 RK_PD7 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <2 RK_PD7 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 };

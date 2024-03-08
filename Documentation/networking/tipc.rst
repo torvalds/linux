@@ -11,7 +11,7 @@ TIPC (Transparent Inter Process Communication) is a protocol that is specially
 designed for intra-cluster communication. It can be configured to transmit
 messages either on UDP or directly across Ethernet. Message delivery is
 sequence guaranteed, loss free and flow controlled. Latency times are shorter
-than with any other known protocol, while maximal throughput is comparable to
+than with any other kanalwn protocol, while maximal throughput is comparable to
 that of TCP.
 
 TIPC Features
@@ -20,11 +20,11 @@ TIPC Features
 - Cluster wide IPC service
 
   Have you ever wished you had the convenience of Unix Domain Sockets even when
-  transmitting data between cluster nodes? Where you yourself determine the
+  transmitting data between cluster analdes? Where you yourself determine the
   addresses you want to bind to and use? Where you don't have to perform DNS
   lookups and worry about IP addresses? Where you don't have to start timers
   to monitor the continuous existence of peer sockets? And yet without the
-  downsides of that socket type, such as the risk of lingering inodes?
+  downsides of that socket type, such as the risk of lingering ianaldes?
 
   Welcome to the Transparent Inter Process Communication service, TIPC in short,
   which gives you all of this, and a lot more.
@@ -42,11 +42,11 @@ TIPC Features
   sockets with the associated service address.
 
   The service tracking mechanism can also be used for Cluster Topology Tracking,
-  i.e., subscribing for availability/non-availability of cluster nodes.
+  i.e., subscribing for availability/analn-availability of cluster analdes.
 
   Likewise, the service tracking mechanism can be used for Cluster Connectivity
   Tracking, i.e., subscribing for up/down events for individual links between
-  cluster nodes.
+  cluster analdes.
 
 - Transmission Modes
 
@@ -61,38 +61,38 @@ TIPC Features
   Multicast with very good performance and scalability is available both in
   datagram mode and in communication group mode.
 
-- Inter Node Links
+- Inter Analde Links
 
-  Communication between any two nodes in a cluster is maintained by one or two
-  Inter Node Links, which both guarantee data traffic integrity and monitor
-  the peer node's availability.
+  Communication between any two analdes in a cluster is maintained by one or two
+  Inter Analde Links, which both guarantee data traffic integrity and monitor
+  the peer analde's availability.
 
 - Cluster Scalability
 
-  By applying the Overlapping Ring Monitoring algorithm on the inter node links
-  it is possible to scale TIPC clusters up to 1000 nodes with a maintained
+  By applying the Overlapping Ring Monitoring algorithm on the inter analde links
+  it is possible to scale TIPC clusters up to 1000 analdes with a maintained
   neighbor failure discovery time of 1-2 seconds. For smaller clusters this
   time can be made much shorter.
 
 - Neighbor Discovery
 
-  Neighbor Node Discovery in the cluster is done by Ethernet broadcast or UDP
-  multicast, when any of those services are available. If not, configured peer
+  Neighbor Analde Discovery in the cluster is done by Ethernet broadcast or UDP
+  multicast, when any of those services are available. If analt, configured peer
   IP addresses can be used.
 
 - Configuration
 
-  When running TIPC in single node mode no configuration whatsoever is needed.
-  When running in cluster mode TIPC must as a minimum be given a node address
+  When running TIPC in single analde mode anal configuration whatsoever is needed.
+  When running in cluster mode TIPC must as a minimum be given a analde address
   (before Linux 4.17) and told which interface to attach to. The "tipc"
   configuration tool makes is possible to add and maintain many more
   configuration parameters.
 
 - Performance
 
-  TIPC message transfer latency times are better than in any other known protocol.
-  Maximal byte throughput for inter-node connections is still somewhat lower than
-  for TCP, while they are superior for intra-node and inter-container throughput
+  TIPC message transfer latency times are better than in any other kanalwn protocol.
+  Maximal byte throughput for inter-analde connections is still somewhat lower than
+  for TCP, while they are superior for intra-analde and inter-container throughput
   on the same host.
 
 - Language Support
@@ -184,10 +184,10 @@ TIPC Name Interfaces
 .. kernel-doc:: net/tipc/name_distr.c
    :internal:
 
-TIPC Node Management Interfaces
+TIPC Analde Management Interfaces
 -------------------------------
 
-.. kernel-doc:: net/tipc/node.c
+.. kernel-doc:: net/tipc/analde.c
    :internal:
 
 TIPC Socket Interfaces

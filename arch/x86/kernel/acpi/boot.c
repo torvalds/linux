@@ -43,8 +43,8 @@ EXPORT_SYMBOL(acpi_disabled);
 # include <asm/proto.h>
 #endif				/* X86 */
 
-int acpi_noirq;				/* skip ACPI IRQ initialization */
-static int acpi_nobgrt;			/* skip ACPI BGRT */
+int acpi_analirq;				/* skip ACPI IRQ initialization */
+static int acpi_analbgrt;			/* skip ACPI BGRT */
 int acpi_pci_disabled;		/* skip ACPI PCI scan and IRQ initialization */
 EXPORT_SYMBOL(acpi_pci_disabled);
 
@@ -140,7 +140,7 @@ static int __init acpi_parse_madt(struct acpi_table_header *table)
 	madt = (struct acpi_table_madt *)table;
 	if (!madt) {
 		pr_warn("Unable to map MADT\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (madt->address) {
@@ -155,7 +155,7 @@ static int __init acpi_parse_madt(struct acpi_table_header *table)
 	/* ACPI 6.3 and newer support the online capable bit. */
 	if (acpi_gbl_FADT.header.revision > 6 ||
 	    (acpi_gbl_FADT.header.revision == 6 &&
-	     acpi_gbl_FADT.minor_revision >= 3))
+	     acpi_gbl_FADT.mianalr_revision >= 3))
 		acpi_support_online_capable = true;
 
 	default_acpi_madt_oem_check(madt->header.oem_id,
@@ -168,7 +168,7 @@ static int __init acpi_parse_madt(struct acpi_table_header *table)
  * acpi_register_lapic - register a local apic and generates a logic cpu number
  * @id: local apic id to register
  * @acpiid: ACPI id to register
- * @enabled: this cpu is enabled or not
+ * @enabled: this cpu is enabled or analt
  *
  * Returns the logic cpu number which maps to the local apic
  */
@@ -225,11 +225,11 @@ acpi_parse_x2apic(union acpi_subtable_headers *header, const unsigned long end)
 	apic_id = processor->local_apic_id;
 	enabled = processor->lapic_flags & ACPI_MADT_ENABLED;
 
-	/* Ignore invalid ID */
+	/* Iganalre invalid ID */
 	if (apic_id == 0xffffffff)
 		return 0;
 
-	/* don't register processors that cannot be onlined */
+	/* don't register processors that cananalt be onlined */
 	if (!acpi_is_processor_usable(processor->lapic_flags))
 		return 0;
 
@@ -245,18 +245,18 @@ acpi_parse_x2apic(union acpi_subtable_headers *header, const unsigned long end)
 	 * We need to register disabled CPU as well to permit
 	 * counting disabled CPUs. This allows us to size
 	 * cpus_possible_map more accurately, to permit
-	 * to not preallocating memory for all NR_CPUS
+	 * to analt preallocating memory for all NR_CPUS
 	 * when we use CPU hotplug.
 	 */
 	if (!apic_id_valid(apic_id)) {
 		if (enabled)
-			pr_warn("x2apic entry ignored\n");
+			pr_warn("x2apic entry iganalred\n");
 		return 0;
 	}
 
 	acpi_register_lapic(apic_id, processor->uid, enabled);
 #else
-	pr_warn("x2apic entry ignored\n");
+	pr_warn("x2apic entry iganalred\n");
 #endif
 
 	return 0;
@@ -274,11 +274,11 @@ acpi_parse_lapic(union acpi_subtable_headers * header, const unsigned long end)
 
 	acpi_table_print_madt_entry(&header->common);
 
-	/* Ignore invalid ID */
+	/* Iganalre invalid ID */
 	if (processor->id == 0xff)
 		return 0;
 
-	/* don't register processors that can not be onlined */
+	/* don't register processors that can analt be onlined */
 	if (!acpi_is_processor_usable(processor->lapic_flags))
 		return 0;
 
@@ -286,7 +286,7 @@ acpi_parse_lapic(union acpi_subtable_headers * header, const unsigned long end)
 	 * We need to register disabled CPU as well to permit
 	 * counting disabled CPUs. This allows us to size
 	 * cpus_possible_map more accurately, to permit
-	 * to not preallocating memory for all NR_CPUS
+	 * to analt preallocating memory for all NR_CPUS
 	 * when we use CPU hotplug.
 	 */
 	acpi_register_lapic(processor->id,	/* APIC ID */
@@ -348,7 +348,7 @@ acpi_parse_x2apic_nmi(union acpi_subtable_headers *header,
 	acpi_table_print_madt_entry(&header->common);
 
 	if (x2apic_nmi->lint != 1)
-		pr_warn("NMI not connected to LINT 1!\n");
+		pr_warn("NMI analt connected to LINT 1!\n");
 
 	return 0;
 }
@@ -366,7 +366,7 @@ acpi_parse_lapic_nmi(union acpi_subtable_headers * header, const unsigned long e
 	acpi_table_print_madt_entry(&header->common);
 
 	if (lapic_nmi->lint != 1)
-		pr_warn("NMI not connected to LINT 1!\n");
+		pr_warn("NMI analt connected to LINT 1!\n");
 
 	return 0;
 }
@@ -378,7 +378,7 @@ static int acpi_wakeup_cpu(u32 apicid, unsigned long start_ip)
 	 * Remap mailbox memory only for the first call to acpi_wakeup_cpu().
 	 *
 	 * Wakeup of secondary CPUs is fully serialized in the core code.
-	 * No need to protect acpi_mp_wake_mailbox from concurrent accesses.
+	 * Anal need to protect acpi_mp_wake_mailbox from concurrent accesses.
 	 */
 	if (!acpi_mp_wake_mailbox) {
 		acpi_mp_wake_mailbox = memremap(acpi_mp_wake_mailbox_paddr,
@@ -404,11 +404,11 @@ static int acpi_wakeup_cpu(u32 apicid, unsigned long start_ip)
 	 * Wait for the CPU to wake up.
 	 *
 	 * The CPU being woken up is essentially in a spin loop waiting to be
-	 * woken up. It should not take long for it wake up and acknowledge by
+	 * woken up. It should analt take long for it wake up and ackanalwledge by
 	 * zeroing out ->command.
 	 *
 	 * ACPI specification doesn't provide any guidance on how long kernel
-	 * has to wait for a wake up acknowledgement. It also doesn't provide
+	 * has to wait for a wake up ackanalwledgement. It also doesn't provide
 	 * a way to cancel a wake up request if it takes too long.
 	 *
 	 * In TDX environment, the VMM has control over how long it takes to
@@ -611,7 +611,7 @@ acpi_parse_int_src_ovr(union acpi_subtable_headers * header,
 
 	if (intsrc->source_irq == 0) {
 		if (acpi_skip_timer_override) {
-			pr_warn("BIOS IRQ0 override ignored.\n");
+			pr_warn("BIOS IRQ0 override iganalred.\n");
 			return 0;
 		}
 
@@ -654,7 +654,7 @@ acpi_parse_nmi_src(union acpi_subtable_headers * header, const unsigned long end
  *
  * use ELCR to set PIC-mode trigger type for SCI
  *
- * If a PIC-mode SCI is not recognized or gives spurious IRQ7's
+ * If a PIC-mode SCI is analt recognized or gives spurious IRQ7's
  * it may require Edge Trigger -- use "acpi_sci=edge"
  *
  * Port 0x4d0-4d1 are ELCR1 and ELCR2, the Edge/Level Control Registers
@@ -676,7 +676,7 @@ void __init acpi_pic_sci_set_trigger(unsigned int irq, u16 trigger)
 	 * since we will set it correctly as we enable the PCI irq
 	 * routing.
 	 */
-	new = acpi_noirq ? old : 0;
+	new = acpi_analirq ? old : 0;
 
 	/*
 	 * Update SCI information in the ELCR, it isn't in the PCI
@@ -754,13 +754,13 @@ static int acpi_register_gsi_ioapic(struct device *dev, u32 gsi,
 {
 	int irq = gsi;
 #ifdef CONFIG_X86_IO_APIC
-	int node;
+	int analde;
 	struct irq_alloc_info info;
 
-	node = dev ? dev_to_node(dev) : NUMA_NO_NODE;
+	analde = dev ? dev_to_analde(dev) : NUMA_ANAL_ANALDE;
 	trigger = trigger == ACPI_EDGE_SENSITIVE ? 0 : 1;
 	polarity = polarity == ACPI_ACTIVE_HIGH ? 0 : 1;
-	ioapic_set_alloc_attr(&info, node, trigger, polarity);
+	ioapic_set_alloc_attr(&info, analde, trigger, polarity);
 
 	mutex_lock(&acpi_ioapic_lock);
 	irq = mp_map_gsi_to_irq(gsi, IOAPIC_MAP_ALLOC, &info);
@@ -830,15 +830,15 @@ static void __init acpi_set_irq_model_ioapic(void)
 #ifdef CONFIG_ACPI_HOTPLUG_CPU
 #include <acpi/processor.h>
 
-static int acpi_map_cpu2node(acpi_handle handle, int cpu, int physid)
+static int acpi_map_cpu2analde(acpi_handle handle, int cpu, int physid)
 {
 #ifdef CONFIG_ACPI_NUMA
 	int nid;
 
-	nid = acpi_get_node(handle);
-	if (nid != NUMA_NO_NODE) {
-		set_apicid_to_node(physid, nid);
-		numa_set_node(cpu, nid);
+	nid = acpi_get_analde(handle);
+	if (nid != NUMA_ANAL_ANALDE) {
+		set_apicid_to_analde(physid, nid);
+		numa_set_analde(cpu, nid);
 	}
 #endif
 	return 0;
@@ -856,7 +856,7 @@ int acpi_map_cpu(acpi_handle handle, phys_cpuid_t physid, u32 acpi_id,
 	}
 
 	acpi_processor_set_pdc(handle);
-	acpi_map_cpu2node(handle, cpu, physid);
+	acpi_map_cpu2analde(handle, cpu, physid);
 
 	*pcpu = cpu;
 	return 0;
@@ -866,7 +866,7 @@ EXPORT_SYMBOL(acpi_map_cpu);
 int acpi_unmap_cpu(int cpu)
 {
 #ifdef CONFIG_ACPI_NUMA
-	set_apicid_to_node(per_cpu(x86_cpu_to_apicid, cpu), NUMA_NO_NODE);
+	set_apicid_to_analde(per_cpu(x86_cpu_to_apicid, cpu), NUMA_ANAL_ANALDE);
 #endif
 
 	per_cpu(x86_cpu_to_apicid, cpu) = BAD_APICID;
@@ -880,7 +880,7 @@ EXPORT_SYMBOL(acpi_unmap_cpu);
 
 int acpi_register_ioapic(acpi_handle handle, u64 phys_addr, u32 gsi_base)
 {
-	int ret = -ENOSYS;
+	int ret = -EANALSYS;
 #ifdef CONFIG_ACPI_HOTPLUG_IOAPIC
 	int ioapic_id;
 	u64 addr;
@@ -914,7 +914,7 @@ EXPORT_SYMBOL(acpi_register_ioapic);
 
 int acpi_unregister_ioapic(acpi_handle handle, u32 gsi_base)
 {
-	int ret = -ENOSYS;
+	int ret = -EANALSYS;
 
 #ifdef CONFIG_ACPI_HOTPLUG_IOAPIC
 	mutex_lock(&acpi_ioapic_lock);
@@ -975,7 +975,7 @@ static int __init acpi_parse_hpet(struct acpi_table_header *table)
 	hpet_blockid = hpet_tbl->sequence;
 
 	/*
-	 * Some broken BIOSes advertise HPET at 0x0. We really do not
+	 * Some broken BIOSes advertise HPET at 0x0. We really do analt
 	 * want to allocate a resource there.
 	 */
 	if (!hpet_address) {
@@ -986,7 +986,7 @@ static int __init acpi_parse_hpet(struct acpi_table_header *table)
 	/*
 	 * Some even more broken BIOSes advertise HPET at
 	 * 0xfed0000000000000 instead of 0xfed00000. Fix it up and add
-	 * some noise:
+	 * some analise:
 	 */
 	if (hpet_address == 0xfed0000000000000UL) {
 		if (!hpet_force_user) {
@@ -1045,7 +1045,7 @@ late_initcall(hpet_insert_resource);
 static int __init acpi_parse_fadt(struct acpi_table_header *table)
 {
 	if (!(acpi_gbl_FADT.boot_flags & ACPI_FADT_LEGACY_DEVICES)) {
-		pr_debug("no legacy devices present\n");
+		pr_debug("anal legacy devices present\n");
 		x86_platform.legacy.devices.pnpbios = 0;
 	}
 
@@ -1056,14 +1056,14 @@ static int __init acpi_parse_fadt(struct acpi_table_header *table)
 		x86_platform.legacy.i8042 = X86_LEGACY_I8042_FIRMWARE_ABSENT;
 	}
 
-	if (acpi_gbl_FADT.boot_flags & ACPI_FADT_NO_CMOS_RTC) {
-		pr_debug("not registering RTC platform device\n");
+	if (acpi_gbl_FADT.boot_flags & ACPI_FADT_ANAL_CMOS_RTC) {
+		pr_debug("analt registering RTC platform device\n");
 		x86_platform.legacy.rtc = 0;
 	}
 
-	if (acpi_gbl_FADT.boot_flags & ACPI_FADT_NO_VGA) {
-		pr_debug("probing for VGA not safe\n");
-		x86_platform.legacy.no_vga = 1;
+	if (acpi_gbl_FADT.boot_flags & ACPI_FADT_ANAL_VGA) {
+		pr_debug("probing for VGA analt safe\n");
+		x86_platform.legacy.anal_vga = 1;
 	}
 
 #ifdef CONFIG_X86_PM_TIMER
@@ -1103,10 +1103,10 @@ static int __init early_acpi_parse_madt_lapic_addr_ovr(void)
 	int count;
 
 	if (!boot_cpu_has(X86_FEATURE_APIC))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
-	 * Note that the LAPIC address is obtained from the MADT (32-bit value)
+	 * Analte that the LAPIC address is obtained from the MADT (32-bit value)
 	 * and (optionally) overridden by a LAPIC_ADDR_OVR entry (64-bit value).
 	 */
 
@@ -1127,7 +1127,7 @@ static int __init acpi_parse_madt_lapic_entries(void)
 	int count, x2count = 0;
 
 	if (!boot_cpu_has(X86_FEATURE_APIC))
-		return -ENODEV;
+		return -EANALDEV;
 
 	count = acpi_table_parse_madt(ACPI_MADT_TYPE_LOCAL_SAPIC,
 				      acpi_parse_sapic, MAX_LOCAL_APIC);
@@ -1139,9 +1139,9 @@ static int __init acpi_parse_madt_lapic_entries(void)
 					acpi_parse_x2apic, MAX_LOCAL_APIC);
 	}
 	if (!count && !x2count) {
-		pr_err("No LAPIC entries present\n");
+		pr_err("Anal LAPIC entries present\n");
 		/* TBD: Cleanup to allow fallback to MPS */
-		return -ENODEV;
+		return -EANALDEV;
 	} else if (count < 0 || x2count < 0) {
 		pr_err("Error parsing LAPIC entry\n");
 		/* TBD: Cleanup to allow fallback to MPS */
@@ -1167,7 +1167,7 @@ static int __init acpi_parse_mp_wake(union acpi_subtable_headers *header,
 	struct acpi_madt_multiproc_wakeup *mp_wake;
 
 	if (!IS_ENABLED(CONFIG_SMP))
-		return -ENODEV;
+		return -EANALDEV;
 
 	mp_wake = (struct acpi_madt_multiproc_wakeup *)header;
 	if (BAD_MADT_ENTRY(mp_wake, end))
@@ -1196,7 +1196,7 @@ static void __init mp_config_acpi_legacy_irqs(void)
 	 */
 	mp_bus_id_to_type[MP_ISA_BUS] = MP_BUS_ISA;
 #endif
-	set_bit(MP_ISA_BUS, mp_bus_not_pci);
+	set_bit(MP_ISA_BUS, mp_bus_analt_pci);
 	pr_debug("Bus #%d is ISA (nIRQs: %d)\n", MP_ISA_BUS, nr_legacy_irqs());
 
 	/*
@@ -1265,25 +1265,25 @@ static int __init acpi_parse_madt_ioapic_entries(void)
 	 * If MPS is present, it will handle them,
 	 * otherwise the system will stay in PIC mode
 	 */
-	if (acpi_disabled || acpi_noirq)
-		return -ENODEV;
+	if (acpi_disabled || acpi_analirq)
+		return -EANALDEV;
 
 	if (!boot_cpu_has(X86_FEATURE_APIC))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
-	 * if "noapic" boot option, don't look for IO-APICs
+	 * if "analapic" boot option, don't look for IO-APICs
 	 */
 	if (ioapic_is_disabled) {
-		pr_info("Skipping IOAPIC probe due to 'noapic' option.\n");
-		return -ENODEV;
+		pr_info("Skipping IOAPIC probe due to 'analapic' option.\n");
+		return -EANALDEV;
 	}
 
 	count = acpi_table_parse_madt(ACPI_MADT_TYPE_IO_APIC, acpi_parse_ioapic,
 				      MAX_IO_APICS);
 	if (!count) {
-		pr_err("No IOAPIC entries present\n");
-		return -ENODEV;
+		pr_err("Anal IOAPIC entries present\n");
+		return -EANALDEV;
 	} else if (count < 0) {
 		pr_err("Error parsing IOAPIC entry\n");
 		return count;
@@ -1298,15 +1298,15 @@ static int __init acpi_parse_madt_ioapic_entries(void)
 	}
 
 	/*
-	 * If BIOS did not supply an INT_SRC_OVR for the SCI
+	 * If BIOS did analt supply an INT_SRC_OVR for the SCI
 	 * pretend we got one so we can set the SCI flags.
-	 * But ignore setting up SCI on hardware reduced platforms.
+	 * But iganalre setting up SCI on hardware reduced platforms.
 	 */
 	if (acpi_sci_override_gsi == INVALID_ACPI_IRQ && !acpi_gbl_reduced_hardware)
 		acpi_sci_ioapic_setup(acpi_gbl_FADT.sci_interrupt, 0, 0,
 				      acpi_gbl_FADT.sci_interrupt);
 
-	/* Fill in identity legacy mappings where no override */
+	/* Fill in identity legacy mappings where anal override */
 	mp_config_acpi_legacy_irqs();
 
 	count = acpi_table_parse_madt(ACPI_MADT_TYPE_NMI_SOURCE,
@@ -1395,12 +1395,12 @@ static void __init acpi_process_madt(void)
 		}
 	} else {
 		/*
- 		 * ACPI found no MADT, and so ACPI wants UP PIC mode.
+ 		 * ACPI found anal MADT, and so ACPI wants UP PIC mode.
  		 * In the event an MPS table was found, forget it.
  		 * Boot with "acpi=off" to use MPS on such a system.
  		 */
 		if (smp_found_config) {
-			pr_warn("No APIC-table, disabling MPS\n");
+			pr_warn("Anal APIC-table, disabling MPS\n");
 			smp_found_config = 0;
 		}
 	}
@@ -1420,8 +1420,8 @@ static void __init acpi_process_madt(void)
 static int __init disable_acpi_irq(const struct dmi_system_id *d)
 {
 	if (!acpi_force) {
-		pr_notice("%s detected: force use of acpi=noirq\n", d->ident);
-		acpi_noirq_set();
+		pr_analtice("%s detected: force use of acpi=analirq\n", d->ident);
+		acpi_analirq_set();
 	}
 	return 0;
 }
@@ -1429,7 +1429,7 @@ static int __init disable_acpi_irq(const struct dmi_system_id *d)
 static int __init disable_acpi_pci(const struct dmi_system_id *d)
 {
 	if (!acpi_force) {
-		pr_notice("%s detected: force use of pci=noacpi\n", d->ident);
+		pr_analtice("%s detected: force use of pci=analacpi\n", d->ident);
 		acpi_disable_pci();
 	}
 	return 0;
@@ -1438,10 +1438,10 @@ static int __init disable_acpi_pci(const struct dmi_system_id *d)
 static int __init disable_acpi_xsdt(const struct dmi_system_id *d)
 {
 	if (!acpi_force) {
-		pr_notice("%s detected: force use of acpi=rsdt\n", d->ident);
-		acpi_gbl_do_not_use_xsdt = TRUE;
+		pr_analtice("%s detected: force use of acpi=rsdt\n", d->ident);
+		acpi_gbl_do_analt_use_xsdt = TRUE;
 	} else {
-		pr_notice("Warning: DMI blacklist says broken, but acpi XSDT forced\n");
+		pr_analtice("Warning: DMI blacklist says broken, but acpi XSDT forced\n");
 	}
 	return 0;
 }
@@ -1449,21 +1449,21 @@ static int __init disable_acpi_xsdt(const struct dmi_system_id *d)
 static int __init dmi_disable_acpi(const struct dmi_system_id *d)
 {
 	if (!acpi_force) {
-		pr_notice("%s detected: acpi off\n", d->ident);
+		pr_analtice("%s detected: acpi off\n", d->ident);
 		disable_acpi();
 	} else {
-		pr_notice("Warning: DMI blacklist says broken, but acpi forced\n");
+		pr_analtice("Warning: DMI blacklist says broken, but acpi forced\n");
 	}
 	return 0;
 }
 
 /*
- * Force ignoring BIOS IRQ0 override
+ * Force iganalring BIOS IRQ0 override
  */
-static int __init dmi_ignore_irq0_timer_override(const struct dmi_system_id *d)
+static int __init dmi_iganalre_irq0_timer_override(const struct dmi_system_id *d)
 {
 	if (!acpi_skip_timer_override) {
-		pr_notice("%s detected: Ignoring BIOS IRQ0 override\n",
+		pr_analtice("%s detected: Iganalring BIOS IRQ0 override\n",
 			d->ident);
 		acpi_skip_timer_override = 1;
 	}
@@ -1472,7 +1472,7 @@ static int __init dmi_ignore_irq0_timer_override(const struct dmi_system_id *d)
 
 /*
  * ACPI offers an alternative platform interface model that removes
- * ACPI hardware requirements for platforms that do not implement
+ * ACPI hardware requirements for platforms that do analt implement
  * the PC Architecture.
  *
  * We initialize the Hardware-reduced ACPI model here:
@@ -1483,8 +1483,8 @@ void __init acpi_generic_reduced_hw_init(void)
 	 * Override x86_init functions and bypass legacy PIC in
 	 * hardware reduced ACPI mode.
 	 */
-	x86_init.timers.timer_init	= x86_init_noop;
-	x86_init.irqs.pre_vector_init	= x86_init_noop;
+	x86_init.timers.timer_init	= x86_init_analop;
+	x86_init.irqs.pre_vector_init	= x86_init_analop;
 	legacy_pic			= &null_legacy_pic;
 }
 
@@ -1594,11 +1594,11 @@ static const struct dmi_system_id acpi_dmi_table_late[] __initconst = {
 	 * is enabled.  This input is incorrectly designated the
 	 * ISA IRQ 0 via an interrupt source override even though
 	 * it is wired to the output of the master 8259A and INTIN0
-	 * is not connected at all.  Force ignoring BIOS IRQ0
+	 * is analt connected at all.  Force iganalring BIOS IRQ0
 	 * override in that cases.
 	 */
 	{
-	 .callback = dmi_ignore_irq0_timer_override,
+	 .callback = dmi_iganalre_irq0_timer_override,
 	 .ident = "HP nx6115 laptop",
 	 .matches = {
 		     DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
@@ -1606,7 +1606,7 @@ static const struct dmi_system_id acpi_dmi_table_late[] __initconst = {
 		     },
 	 },
 	{
-	 .callback = dmi_ignore_irq0_timer_override,
+	 .callback = dmi_iganalre_irq0_timer_override,
 	 .ident = "HP NX6125 laptop",
 	 .matches = {
 		     DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
@@ -1614,7 +1614,7 @@ static const struct dmi_system_id acpi_dmi_table_late[] __initconst = {
 		     },
 	 },
 	{
-	 .callback = dmi_ignore_irq0_timer_override,
+	 .callback = dmi_iganalre_irq0_timer_override,
 	 .ident = "HP NX6325 laptop",
 	 .matches = {
 		     DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
@@ -1622,7 +1622,7 @@ static const struct dmi_system_id acpi_dmi_table_late[] __initconst = {
 		     },
 	 },
 	{
-	 .callback = dmi_ignore_irq0_timer_override,
+	 .callback = dmi_iganalre_irq0_timer_override,
 	 .ident = "HP 6715b laptop",
 	 .matches = {
 		     DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
@@ -1630,7 +1630,7 @@ static const struct dmi_system_id acpi_dmi_table_late[] __initconst = {
 		     },
 	 },
 	{
-	 .callback = dmi_ignore_irq0_timer_override,
+	 .callback = dmi_iganalre_irq0_timer_override,
 	 .ident = "FUJITSU SIEMENS",
 	 .matches = {
 		     DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU SIEMENS"),
@@ -1737,13 +1737,13 @@ int __init acpi_boot_init(void)
 	acpi_process_madt();
 
 	acpi_table_parse(ACPI_SIG_HPET, acpi_parse_hpet);
-	if (IS_ENABLED(CONFIG_ACPI_BGRT) && !acpi_nobgrt)
+	if (IS_ENABLED(CONFIG_ACPI_BGRT) && !acpi_analbgrt)
 		acpi_table_parse(ACPI_SIG_BGRT, acpi_parse_bgrt);
 
-	if (!acpi_noirq)
+	if (!acpi_analirq)
 		x86_init.pci.init = pci_acpi_init;
 
-	/* Do not enable ACPI SPCR console by default */
+	/* Do analt enable ACPI SPCR console by default */
 	acpi_parse_spcr(earlycon_acpi_spcr_enable, false);
 	return 0;
 }
@@ -1768,18 +1768,18 @@ static int __init parse_acpi(char *arg)
 	}
 	/* acpi=rsdt use RSDT instead of XSDT */
 	else if (strcmp(arg, "rsdt") == 0) {
-		acpi_gbl_do_not_use_xsdt = TRUE;
+		acpi_gbl_do_analt_use_xsdt = TRUE;
 	}
-	/* "acpi=noirq" disables ACPI interrupt routing */
-	else if (strcmp(arg, "noirq") == 0) {
-		acpi_noirq_set();
+	/* "acpi=analirq" disables ACPI interrupt routing */
+	else if (strcmp(arg, "analirq") == 0) {
+		acpi_analirq_set();
 	}
 	/* "acpi=copy_dsdt" copies DSDT */
 	else if (strcmp(arg, "copy_dsdt") == 0) {
 		acpi_gbl_copy_dsdt_locally = 1;
 	}
-	/* "acpi=nocmcff" disables FF mode for corrected errors */
-	else if (strcmp(arg, "nocmcff") == 0) {
+	/* "acpi=analcmcff" disables FF mode for corrected errors */
+	else if (strcmp(arg, "analcmcff") == 0) {
 		acpi_disable_cmcff = 1;
 	} else {
 		/* Core will printk when we return error. */
@@ -1791,7 +1791,7 @@ early_param("acpi", parse_acpi);
 
 static int __init parse_acpi_bgrt(char *arg)
 {
-	acpi_nobgrt = true;
+	acpi_analbgrt = true;
 	return 0;
 }
 early_param("bgrt_disable", parse_acpi_bgrt);
@@ -1799,7 +1799,7 @@ early_param("bgrt_disable", parse_acpi_bgrt);
 /* FIXME: Using pci= for an ACPI parameter is a travesty. */
 static int __init parse_pci(char *arg)
 {
-	if (arg && strcmp(arg, "noacpi") == 0)
+	if (arg && strcmp(arg, "analacpi") == 0)
 		acpi_disable_pci();
 	return 0;
 }
@@ -1808,9 +1808,9 @@ early_param("pci", parse_pci);
 int __init acpi_mps_check(void)
 {
 #if defined(CONFIG_X86_LOCAL_APIC) && !defined(CONFIG_X86_MPPARSE)
-/* mptable code is not built-in*/
-	if (acpi_disabled || acpi_noirq) {
-		pr_warn("MPS support code is not built-in, using acpi=off or acpi=noirq or pci=noacpi may have problem\n");
+/* mptable code is analt built-in*/
+	if (acpi_disabled || acpi_analirq) {
+		pr_warn("MPS support code is analt built-in, using acpi=off or acpi=analirq or pci=analacpi may have problem\n");
 		return 1;
 	}
 #endif

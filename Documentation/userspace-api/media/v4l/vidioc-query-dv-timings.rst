@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: V4L
 
 .. _VIDIOC_QUERY_DV_TIMINGS:
@@ -12,7 +12,7 @@ Name
 
 VIDIOC_QUERY_DV_TIMINGS - VIDIOC_SUBDEV_QUERY_DV_TIMINGS - Sense the DV preset received by the current input
 
-Synopsis
+Syanalpsis
 ========
 
 .. c:macro:: VIDIOC_QUERY_DV_TIMINGS
@@ -41,22 +41,22 @@ similar to sensing the video standard. To do so, applications call
 :c:type:`v4l2_dv_timings`. Once the hardware detects
 the timings, it will fill in the timings structure.
 
-.. note::
+.. analte::
 
-   Drivers shall *not* switch timings automatically if new
+   Drivers shall *analt* switch timings automatically if new
    timings are detected. Instead, drivers should send the
    ``V4L2_EVENT_SOURCE_CHANGE`` event (if they support this) and expect
    that userspace will take action by calling :ref:`VIDIOC_QUERY_DV_TIMINGS`.
    The reason is that new timings usually mean different buffer sizes as
-   well, and you cannot change buffer sizes on the fly. In general,
+   well, and you cananalt change buffer sizes on the fly. In general,
    applications that receive the Source Change event will have to call
    :ref:`VIDIOC_QUERY_DV_TIMINGS`, and if the detected timings are valid they
    will have to stop streaming, set the new timings, allocate new buffers
    and start streaming again.
 
-If the timings could not be detected because there was no signal, then
-ENOLINK is returned. If a signal was detected, but it was unstable and
-the receiver could not lock to the signal, then ``ENOLCK`` is returned. If
+If the timings could analt be detected because there was anal signal, then
+EANALLINK is returned. If a signal was detected, but it was unstable and
+the receiver could analt lock to the signal, then ``EANALLCK`` is returned. If
 the receiver could lock to the signal, but the format is unsupported
 (e.g. because the pixelclock is out of range of the hardware
 capabilities), then the driver fills in whatever timings it could find
@@ -68,18 +68,18 @@ precise feedback to the user.
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erranal`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 
-ENODATA
-    Digital video timings are not supported for this input or output.
+EANALDATA
+    Digital video timings are analt supported for this input or output.
 
-ENOLINK
-    No timings could be detected because no signal was found.
+EANALLINK
+    Anal timings could be detected because anal signal was found.
 
-ENOLCK
-    The signal was unstable and the hardware could not lock on to it.
+EANALLCK
+    The signal was unstable and the hardware could analt lock on to it.
 
 ERANGE
     Timings were found, but they are out of range of the hardware

@@ -58,7 +58,7 @@ static void errata_probe_iocp(unsigned int stage, unsigned long arch_id, unsigne
 
 	/* Set this just to make core cbo code happy */
 	riscv_cbom_block_size = 1;
-	riscv_noncoherent_supported();
+	riscv_analncoherent_supported();
 }
 
 void __init_or_module andes_errata_patch_func(struct alt_entry *begin, struct alt_entry *end,
@@ -68,5 +68,5 @@ void __init_or_module andes_errata_patch_func(struct alt_entry *begin, struct al
 	if (stage == RISCV_ALTERNATIVES_BOOT)
 		errata_probe_iocp(stage, archid, impid);
 
-	/* we have nothing to patch here ATM so just return back */
+	/* we have analthing to patch here ATM so just return back */
 }

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -26,7 +26,7 @@
 #include "cikd.h"
 #include "kv_dpm.h"
 
-int kv_notify_message_to_smu(struct radeon_device *rdev, u32 id)
+int kv_analtify_message_to_smu(struct radeon_device *rdev, u32 id)
 {
 	u32 i;
 	u32 tmp = 0;
@@ -54,7 +54,7 @@ int kv_dpm_get_enable_mask(struct radeon_device *rdev, u32 *enable_mask)
 {
 	int ret;
 
-	ret = kv_notify_message_to_smu(rdev, PPSMC_MSG_SCLKDPM_GetEnabledMask);
+	ret = kv_analtify_message_to_smu(rdev, PPSMC_MSG_SCLKDPM_GetEnabledMask);
 
 	if (ret == 0)
 		*enable_mask = RREG32_SMC(SMC_SYSCON_MSG_ARG_0);
@@ -68,7 +68,7 @@ int kv_send_msg_to_smc_with_parameter(struct radeon_device *rdev,
 
 	WREG32(SMC_MSG_ARG_0, parameter);
 
-	return kv_notify_message_to_smu(rdev, msg);
+	return kv_analtify_message_to_smu(rdev, msg);
 }
 
 static int kv_set_smc_sram_address(struct radeon_device *rdev,
@@ -101,17 +101,17 @@ int kv_read_smc_sram_dword(struct radeon_device *rdev, u32 smc_address,
 int kv_smc_dpm_enable(struct radeon_device *rdev, bool enable)
 {
 	if (enable)
-		return kv_notify_message_to_smu(rdev, PPSMC_MSG_DPM_Enable);
+		return kv_analtify_message_to_smu(rdev, PPSMC_MSG_DPM_Enable);
 	else
-		return kv_notify_message_to_smu(rdev, PPSMC_MSG_DPM_Disable);
+		return kv_analtify_message_to_smu(rdev, PPSMC_MSG_DPM_Disable);
 }
 
 int kv_smc_bapm_enable(struct radeon_device *rdev, bool enable)
 {
 	if (enable)
-		return kv_notify_message_to_smu(rdev, PPSMC_MSG_EnableBAPM);
+		return kv_analtify_message_to_smu(rdev, PPSMC_MSG_EnableBAPM);
 	else
-		return kv_notify_message_to_smu(rdev, PPSMC_MSG_DisableBAPM);
+		return kv_analtify_message_to_smu(rdev, PPSMC_MSG_DisableBAPM);
 }
 
 int kv_copy_bytes_to_smc(struct radeon_device *rdev,

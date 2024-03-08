@@ -17,13 +17,13 @@
 #include <linux/log2.h>
 
 /*
- * DOC: basic adjustable divider clock that cannot gate
+ * DOC: basic adjustable divider clock that cananalt gate
  *
  * Traits of this clock:
  * prepare - clk_prepare only ensures that parents are prepared
  * enable - clk_enable only ensures that parents are enabled
  * rate - rate is adjustable.  clk->rate = ceiling(parent->rate / divisor)
- * parent - fixed parent.  No clk_set_parent support
+ * parent - fixed parent.  Anal clk_set_parent support
  */
 
 static inline u32 clk_div_readl(struct clk_divider *divider)
@@ -137,7 +137,7 @@ unsigned long divider_recalc_rate(struct clk_hw *hw, unsigned long parent_rate,
 	div = _get_div(table, val, flags, width);
 	if (!div) {
 		WARN(!(flags & CLK_DIVIDER_ALLOW_ZERO),
-			"%s: Zero divisor and CLK_DIVIDER_ALLOW_ZERO not set\n",
+			"%s: Zero divisor and CLK_DIVIDER_ALLOW_ZERO analt set\n",
 			clk_hw_get_name(hw));
 		return parent_rate;
 	}
@@ -264,13 +264,13 @@ static int _div_round(const struct clk_div_table *table,
 	return _div_round_up(table, parent_rate, rate, flags);
 }
 
-static bool _is_best_div(unsigned long rate, unsigned long now,
+static bool _is_best_div(unsigned long rate, unsigned long analw,
 			 unsigned long best, unsigned long flags)
 {
 	if (flags & CLK_DIVIDER_ROUND_CLOSEST)
-		return abs(rate - now) < abs(rate - best);
+		return abs(rate - analw) < abs(rate - best);
 
-	return now <= rate && now > best;
+	return analw <= rate && analw > best;
 }
 
 static int _next_div(const struct clk_div_table *table, int div,
@@ -293,7 +293,7 @@ static int clk_divider_bestdiv(struct clk_hw *hw, struct clk_hw *parent,
 			       unsigned long flags)
 {
 	int i, bestdiv = 0;
-	unsigned long parent_rate, best = 0, now, maxdiv;
+	unsigned long parent_rate, best = 0, analw, maxdiv;
 	unsigned long parent_rate_saved = *best_parent_rate;
 
 	if (!rate)
@@ -327,10 +327,10 @@ static int clk_divider_bestdiv(struct clk_hw *hw, struct clk_hw *parent,
 			return i;
 		}
 		parent_rate = clk_hw_round_rate(parent, rate * i);
-		now = DIV_ROUND_UP_ULL((u64)parent_rate, i);
-		if (_is_best_div(rate, now, best, flags)) {
+		analw = DIV_ROUND_UP_ULL((u64)parent_rate, i);
+		if (_is_best_div(rate, analw, best, flags)) {
 			bestdiv = i;
-			best = now;
+			best = analw;
 			*best_parent_rate = parent_rate;
 		}
 	}
@@ -535,7 +535,7 @@ const struct clk_ops clk_divider_ro_ops = {
 EXPORT_SYMBOL_GPL(clk_divider_ro_ops);
 
 struct clk_hw *__clk_hw_register_divider(struct device *dev,
-		struct device_node *np, const char *name,
+		struct device_analde *np, const char *name,
 		const char *parent_name, const struct clk_hw *parent_hw,
 		const struct clk_parent_data *parent_data, unsigned long flags,
 		void __iomem *reg, u8 shift, u8 width, u8 clk_divider_flags,
@@ -556,7 +556,7 @@ struct clk_hw *__clk_hw_register_divider(struct device *dev,
 	/* allocate the divider */
 	div = kzalloc(sizeof(*div), GFP_KERNEL);
 	if (!div)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = name;
 	if (clk_divider_flags & CLK_DIVIDER_READ_ONLY)
@@ -661,7 +661,7 @@ static void devm_clk_hw_release_divider(struct device *dev, void *res)
 }
 
 struct clk_hw *__devm_clk_hw_register_divider(struct device *dev,
-		struct device_node *np, const char *name,
+		struct device_analde *np, const char *name,
 		const char *parent_name, const struct clk_hw *parent_hw,
 		const struct clk_parent_data *parent_data, unsigned long flags,
 		void __iomem *reg, u8 shift, u8 width, u8 clk_divider_flags,
@@ -671,7 +671,7 @@ struct clk_hw *__devm_clk_hw_register_divider(struct device *dev,
 
 	ptr = devres_alloc(devm_clk_hw_release_divider, sizeof(*ptr), GFP_KERNEL);
 	if (!ptr)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	hw = __clk_hw_register_divider(dev, np, name, parent_name, parent_hw,
 				       parent_data, flags, reg, shift, width,

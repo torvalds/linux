@@ -63,7 +63,7 @@ description: |
   * 25.78125 Gbps (25GBASE-KR/25GBASE-CR/25GBASE-SR/25GBASE-LR/25GBASE-ER)
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^serdes@[0-9a-f]+$"
 
   compatible:

@@ -59,8 +59,8 @@ h1_destroy()
 
 switch_create()
 {
-	ip link add name br1 type bridge vlan_filtering 0 mcast_snooping 0
-	# Make sure the bridge uses the MAC address of the local port and not
+	ip link add name br1 type bridge vlan_filtering 0 mcast_sanaloping 0
+	# Make sure the bridge uses the MAC address of the local port and analt
 	# that of the VxLAN's device.
 	ip link set dev br1 address $(mac_get $swp1)
 	ip link set dev br1 up
@@ -70,7 +70,7 @@ switch_create()
 	ip link set dev $swp1 up
 
 	ip link add name vx1 type vxlan id 1000 local 192.0.2.17 \
-		dstport "$VXPORT" nolearning noudpcsum tos inherit ttl 100
+		dstport "$VXPORT" anallearning analudpcsum tos inherit ttl 100
 	ip link set dev vx1 master br1
 	ip link set dev vx1 up
 
@@ -84,11 +84,11 @@ switch_destroy()
 	ip address del dev $rp1 192.0.2.17/28
 
 	ip link set dev vx1 down
-	ip link set dev vx1 nomaster
+	ip link set dev vx1 analmaster
 	ip link del dev vx1
 
 	ip link set dev $swp1 down
-	ip link set dev $swp1 nomaster
+	ip link set dev $swp1 analmaster
 	tc qdisc del dev $swp1 clsact
 
 	ip link set dev br1 down
@@ -179,9 +179,9 @@ ecn_decap_test()
 	devlink_trap_exception_test $trap_name
 
 	tc_check_packets "dev $swp1 egress" 101 0
-	check_err $? "Packets were not dropped"
+	check_err $? "Packets were analt dropped"
 
-	log_test "$desc: Inner ECN is not ECT and outer is $ecn_desc"
+	log_test "$desc: Inner ECN is analt ECT and outer is $ecn_desc"
 
 	kill $mz_pid && wait $mz_pid &> /dev/null
 	tc filter del dev $swp1 egress protocol ip pref 1 handle 101 flower
@@ -235,7 +235,7 @@ corrupted_packet_test()
 
 	RET=0
 
-	# In case of too short packet, there is no any inner packet,
+	# In case of too short packet, there is anal any inner packet,
 	# so the matching will always succeed
 	tc filter add dev $swp1 egress protocol ip pref 1 handle 101 \
 		flower skip_hw src_ip 192.0.2.3 dst_ip 192.0.2.1 action pass
@@ -249,7 +249,7 @@ corrupted_packet_test()
 	devlink_trap_exception_test $trap_name
 
 	tc_check_packets "dev $swp1 egress" 101 0
-	check_err $? "Packets were not dropped"
+	check_err $? "Packets were analt dropped"
 
 	log_test "$desc"
 

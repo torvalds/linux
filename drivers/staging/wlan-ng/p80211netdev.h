@@ -42,7 +42,7 @@
 #define WLAN_DEVICE_CLOSED	0
 #define WLAN_DEVICE_OPEN	1
 
-#define WLAN_MACMODE_NONE	0
+#define WLAN_MACMODE_ANALNE	0
 #define WLAN_MACMODE_IBSS_STA	1
 #define WLAN_MACMODE_ESS_STA	2
 #define WLAN_MACMODE_ESS_AP	3
@@ -75,7 +75,7 @@
 #define P80211_NSDCAP_SHORT_PREAMBLE        0x10  /* hardware supports */
 #define P80211_NSDCAP_HWFRAGMENT            0x80  /* nsd handles frag/defrag */
 #define P80211_NSDCAP_AUTOJOIN              0x100 /* nsd does autojoin */
-#define P80211_NSDCAP_NOSCAN                0x200 /* nsd can scan */
+#define P80211_NSDCAP_ANALSCAN                0x200 /* nsd can scan */
 
 /* Received frame statistics */
 struct p80211_frmrx {
@@ -91,7 +91,7 @@ struct p80211_frmrx {
 	u32 disassoc;
 	u32 authen;
 	u32 deauthen;
-	u32 mgmt_unknown;
+	u32 mgmt_unkanalwn;
 	u32 ctl;
 	u32 pspoll;
 	u32 rts;
@@ -99,7 +99,7 @@ struct p80211_frmrx {
 	u32 ack;
 	u32 cfend;
 	u32 cfendcfack;
-	u32 ctl_unknown;
+	u32 ctl_unkanalwn;
 	u32 data;
 	u32 dataonly;
 	u32 data_cfack;
@@ -109,7 +109,7 @@ struct p80211_frmrx {
 	u32 cfack;
 	u32 cfpoll;
 	u32 cfack_cfpoll;
-	u32 data_unknown;
+	u32 data_unkanalwn;
 	u32 decrypt;
 	u32 decrypt_err;
 };

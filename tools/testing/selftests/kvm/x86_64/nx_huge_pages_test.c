@@ -102,7 +102,7 @@ static void wait_for_reclaim(int reclaim_period_ms)
 	reclaim_wait_ms = reclaim_period_ms * 5;
 	ts.tv_sec = reclaim_wait_ms / 1000;
 	ts.tv_nsec = (reclaim_wait_ms - (ts.tv_sec * 1000)) * 1000000;
-	nanosleep(&ts, NULL);
+	naanalsleep(&ts, NULL);
 }
 
 void run_test(int reclaim_period_ms, bool disable_nx_huge_pages,
@@ -121,15 +121,15 @@ void run_test(int reclaim_period_ms, bool disable_nx_huge_pages,
 		if (reboot_permissions) {
 			TEST_ASSERT(!r, "Disabling NX huge pages should succeed if process has reboot permissions");
 		} else {
-			TEST_ASSERT(r == -1 && errno == EPERM,
-				    "This process should not have permission to disable NX huge pages");
+			TEST_ASSERT(r == -1 && erranal == EPERM,
+				    "This process should analt have permission to disable NX huge pages");
 			return;
 		}
 	}
 
 	vcpu = vm_vcpu_add(vm, 0, guest_code);
 
-	vm_userspace_mem_region_add(vm, VM_MEM_SRC_ANONYMOUS_HUGETLB,
+	vm_userspace_mem_region_add(vm, VM_MEM_SRC_AANALNYMOUS_HUGETLB,
 				    HPAGE_GPA, HPAGE_SLOT,
 				    HPAGE_SLOT_NPAGES, 0);
 
@@ -165,7 +165,7 @@ void run_test(int reclaim_period_ms, bool disable_nx_huge_pages,
 
 	/*
 	 * Then the guest code will read from the second hugepage, resulting
-	 * in another huge page mapping being created.
+	 * in aanalther huge page mapping being created.
 	 */
 	vcpu_run(vcpu);
 	check_2m_page_count(vm, 2);
@@ -175,7 +175,7 @@ void run_test(int reclaim_period_ms, bool disable_nx_huge_pages,
 	 * Next, the guest will execute from the first huge page, causing it
 	 * to be remapped at 4k.
 	 *
-	 * If NX huge pages are disabled, this should have no effect.
+	 * If NX huge pages are disabled, this should have anal effect.
 	 */
 	vcpu_run(vcpu);
 	check_2m_page_count(vm, disable_nx_huge_pages ? 2 : 1);
@@ -191,7 +191,7 @@ void run_test(int reclaim_period_ms, bool disable_nx_huge_pages,
 	check_2m_page_count(vm, disable_nx_huge_pages ? 3 : 1);
 	check_split_count(vm, disable_nx_huge_pages ? 0 : 2);
 
-	/* Reading from the first huge page again should have no effect. */
+	/* Reading from the first huge page again should have anal effect. */
 	vcpu_run(vcpu);
 	check_2m_page_count(vm, disable_nx_huge_pages ? 3 : 1);
 	check_split_count(vm, disable_nx_huge_pages ? 0 : 2);
@@ -200,10 +200,10 @@ void run_test(int reclaim_period_ms, bool disable_nx_huge_pages,
 	wait_for_reclaim(reclaim_period_ms);
 
 	/*
-	 * Now that the reclaimer has run, all the split pages should be gone.
+	 * Analw that the reclaimer has run, all the split pages should be gone.
 	 *
-	 * If NX huge pages are disabled, the relaimer will not run, so
-	 * nothing should change from here on.
+	 * If NX huge pages are disabled, the relaimer will analt run, so
+	 * analthing should change from here on.
 	 */
 	check_2m_page_count(vm, disable_nx_huge_pages ? 3 : 1);
 	check_split_count(vm, 0);
@@ -242,7 +242,7 @@ int main(int argc, char **argv)
 			reclaim_period_ms = atoi_positive("Reclaim period", optarg);
 			break;
 		case 't':
-			token = atoi_paranoid(optarg);
+			token = atoi_paraanalid(optarg);
 			break;
 		case 'r':
 			reboot_permissions = true;

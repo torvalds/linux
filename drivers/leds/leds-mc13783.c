@@ -113,34 +113,34 @@ static struct mc13xxx_leds_platform_data __init *mc13xxx_led_probe_dt(
 {
 	struct mc13xxx_leds *leds = platform_get_drvdata(pdev);
 	struct mc13xxx_leds_platform_data *pdata;
-	struct device_node *parent, *child;
+	struct device_analde *parent, *child;
 	struct device *dev = &pdev->dev;
-	int i = 0, ret = -ENODATA;
+	int i = 0, ret = -EANALDATA;
 
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
-	parent = of_get_child_by_name(dev_of_node(dev->parent), "leds");
+	parent = of_get_child_by_name(dev_of_analde(dev->parent), "leds");
 	if (!parent)
-		goto out_node_put;
+		goto out_analde_put;
 
 	ret = of_property_read_u32_array(parent, "led-control",
 					 pdata->led_control,
 					 leds->devtype->num_regs);
 	if (ret)
-		goto out_node_put;
+		goto out_analde_put;
 
 	pdata->num_leds = of_get_available_child_count(parent);
 
 	pdata->led = devm_kcalloc(dev, pdata->num_leds, sizeof(*pdata->led),
 				  GFP_KERNEL);
 	if (!pdata->led) {
-		ret = -ENOMEM;
-		goto out_node_put;
+		ret = -EANALMEM;
+		goto out_analde_put;
 	}
 
-	for_each_available_child_of_node(parent, child) {
+	for_each_available_child_of_analde(parent, child) {
 		const char *str;
 		u32 tmp;
 
@@ -158,10 +158,10 @@ static struct mc13xxx_leds_platform_data __init *mc13xxx_led_probe_dt(
 	}
 
 	pdata->num_leds = i;
-	ret = i > 0 ? 0 : -ENODATA;
+	ret = i > 0 ? 0 : -EANALDATA;
 
-out_node_put:
-	of_node_put(parent);
+out_analde_put:
+	of_analde_put(parent);
 
 	return ret ? ERR_PTR(ret) : pdata;
 }
@@ -169,7 +169,7 @@ out_node_put:
 static inline struct mc13xxx_leds_platform_data __init *mc13xxx_led_probe_dt(
 	struct platform_device *pdev)
 {
-	return ERR_PTR(-ENOSYS);
+	return ERR_PTR(-EANALSYS);
 }
 #endif
 
@@ -181,23 +181,23 @@ static int __init mc13xxx_led_probe(struct platform_device *pdev)
 	struct mc13xxx_led_devtype *devtype =
 		(struct mc13xxx_led_devtype *)pdev->id_entry->driver_data;
 	struct mc13xxx_leds *leds;
-	int i, id, ret = -ENODATA;
+	int i, id, ret = -EANALDATA;
 	u32 init_led = 0;
 
 	leds = devm_kzalloc(dev, sizeof(*leds), GFP_KERNEL);
 	if (!leds)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	leds->devtype = devtype;
 	leds->master = mcdev;
 	platform_set_drvdata(pdev, leds);
 
-	if (dev_of_node(dev->parent)) {
+	if (dev_of_analde(dev->parent)) {
 		pdata = mc13xxx_led_probe_dt(pdev);
 		if (IS_ERR(pdata))
 			return PTR_ERR(pdata);
 	} else if (!pdata)
-		return -ENODATA;
+		return -EANALDATA;
 
 	leds->num_leds = pdata->num_leds;
 
@@ -210,7 +210,7 @@ static int __init mc13xxx_led_probe(struct platform_device *pdev)
 	leds->led = devm_kcalloc(dev, leds->num_leds, sizeof(*leds->led),
 				 GFP_KERNEL);
 	if (!leds->led)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < devtype->num_regs; i++) {
 		ret = mc13xxx_reg_write(mcdev, leds->devtype->ledctrl_base + i,

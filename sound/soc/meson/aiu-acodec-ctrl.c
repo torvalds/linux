@@ -75,9 +75,9 @@ static const struct snd_kcontrol_new aiu_acodec_ctrl_out_enable =
 				    CTRL_DIN_EN, 1, 0);
 
 static const struct snd_soc_dapm_widget aiu_acodec_ctrl_widgets[] = {
-	SND_SOC_DAPM_MUX("ACODEC SRC", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("ACODEC SRC", SND_SOC_ANALPM, 0, 0,
 			 &aiu_acodec_ctrl_mux),
-	SND_SOC_DAPM_SWITCH("ACODEC OUT EN", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SWITCH("ACODEC OUT EN", SND_SOC_ANALPM, 0, 0,
 			    &aiu_acodec_ctrl_out_enable),
 };
 
@@ -168,10 +168,10 @@ static int aiu_acodec_of_xlate_dai_name(struct snd_soc_component *component,
 static int aiu_acodec_ctrl_component_probe(struct snd_soc_component *component)
 {
 	/*
-	 * NOTE: Din Skew setting
+	 * ANALTE: Din Skew setting
 	 * According to the documentation, the following update adds one delay
 	 * to the din line. Without this, the output saturates. This happens
-	 * regardless of the link format (i2s or left_j) so it is not clear what
+	 * regardless of the link format (i2s or left_j) so it is analt clear what
 	 * it actually does but it seems to be required
 	 */
 	snd_soc_component_update_bits(component, AIU_ACODEC_CTRL,

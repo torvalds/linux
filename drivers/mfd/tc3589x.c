@@ -28,7 +28,7 @@ enum tc3589x_version {
 	TC3589X_TC35894,
 	TC3589X_TC35895,
 	TC3589X_TC35896,
-	TC3589X_UNKNOWN,
+	TC3589X_UNKANALWN,
 };
 
 #define TC3589x_CLKMODE_MODCTL_SLEEP		0x0
@@ -183,7 +183,7 @@ static irqreturn_t tc3589x_irq(int irq, void *data)
 again:
 	status = tc3589x_reg_read(tc3589x, TC3589x_IRQST);
 	if (status < 0)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	while (status) {
 		int bit = __ffs(status);
@@ -215,7 +215,7 @@ static int tc3589x_irq_map(struct irq_domain *d, unsigned int virq,
 	irq_set_chip_and_handler(virq, &dummy_irq_chip,
 				handle_edge_irq);
 	irq_set_nested_thread(virq, 1);
-	irq_set_noprobe(virq);
+	irq_set_analprobe(virq);
 
 	return 0;
 }
@@ -232,7 +232,7 @@ static const struct irq_domain_ops tc3589x_irq_ops = {
 	.xlate  = irq_domain_xlate_onecell,
 };
 
-static int tc3589x_irq_init(struct tc3589x *tc3589x, struct device_node *np)
+static int tc3589x_irq_init(struct tc3589x *tc3589x, struct device_analde *np)
 {
 	tc3589x->domain = irq_domain_add_simple(
 		np, TC3589x_NR_INTERNAL_IRQS, 0,
@@ -240,7 +240,7 @@ static int tc3589x_irq_init(struct tc3589x *tc3589x, struct device_node *np)
 
 	if (!tc3589x->domain) {
 		dev_err(tc3589x->dev, "Failed to create irqdomain\n");
-		return -ENOSYS;
+		return -EANALSYS;
 	}
 
 	return 0;
@@ -259,7 +259,7 @@ static int tc3589x_chip_init(struct tc3589x *tc3589x)
 		return ver;
 
 	if (manf != TC3589x_MANFCODE_MAGIC) {
-		dev_err(tc3589x->dev, "unknown manufacturer: %#x\n", manf);
+		dev_err(tc3589x->dev, "unkanalwn manufacturer: %#x\n", manf);
 		return -EINVAL;
 	}
 
@@ -313,7 +313,7 @@ static int tc3589x_device_init(struct tc3589x *tc3589x)
 
 static const struct of_device_id tc3589x_match[] = {
 	/* Legacy compatible string */
-	{ .compatible = "tc3589x", .data = (void *) TC3589X_UNKNOWN },
+	{ .compatible = "tc3589x", .data = (void *) TC3589X_UNKANALWN },
 	{ .compatible = "toshiba,tc35890", .data = (void *) TC3589X_TC35890 },
 	{ .compatible = "toshiba,tc35892", .data = (void *) TC3589X_TC35892 },
 	{ .compatible = "toshiba,tc35893", .data = (void *) TC3589X_TC35893 },
@@ -328,21 +328,21 @@ MODULE_DEVICE_TABLE(of, tc3589x_match);
 static struct tc3589x_platform_data *
 tc3589x_of_probe(struct device *dev, enum tc3589x_version *version)
 {
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct tc3589x_platform_data *pdata;
-	struct device_node *child;
+	struct device_analde *child;
 	const struct of_device_id *of_id;
 
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	of_id = of_match_device(tc3589x_match, dev);
 	if (!of_id)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 	*version = (uintptr_t) of_id->data;
 
-	for_each_child_of_node(np, child) {
+	for_each_child_of_analde(np, child) {
 		if (of_device_is_compatible(child, "toshiba,tc3589x-gpio"))
 			pdata->block |= TC3589x_BLOCK_GPIO;
 		if (of_device_is_compatible(child, "toshiba,tc3589x-keypad"))
@@ -355,7 +355,7 @@ tc3589x_of_probe(struct device *dev, enum tc3589x_version *version)
 static int tc3589x_probe(struct i2c_client *i2c)
 {
 	const struct i2c_device_id *id = i2c_client_get_device_id(i2c);
-	struct device_node *np = i2c->dev.of_node;
+	struct device_analde *np = i2c->dev.of_analde;
 	struct tc3589x_platform_data *pdata = dev_get_platdata(&i2c->dev);
 	struct tc3589x *tc3589x;
 	enum tc3589x_version version;
@@ -364,11 +364,11 @@ static int tc3589x_probe(struct i2c_client *i2c)
 	if (!pdata) {
 		pdata = tc3589x_of_probe(&i2c->dev, &version);
 		if (IS_ERR(pdata)) {
-			dev_err(&i2c->dev, "No platform data or DT found\n");
+			dev_err(&i2c->dev, "Anal platform data or DT found\n");
 			return PTR_ERR(pdata);
 		}
 	} else {
-		/* When not probing from device tree we have this ID */
+		/* When analt probing from device tree we have this ID */
 		version = id->driver_data;
 	}
 
@@ -379,7 +379,7 @@ static int tc3589x_probe(struct i2c_client *i2c)
 	tc3589x = devm_kzalloc(&i2c->dev, sizeof(struct tc3589x),
 				GFP_KERNEL);
 	if (!tc3589x)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&tc3589x->lock);
 
@@ -396,7 +396,7 @@ static int tc3589x_probe(struct i2c_client *i2c)
 	case TC3589X_TC35890:
 	case TC3589X_TC35892:
 	case TC3589X_TC35894:
-	case TC3589X_UNKNOWN:
+	case TC3589X_UNKANALWN:
 	default:
 		tc3589x->num_gpio = 24;
 		break;
@@ -474,7 +474,7 @@ static const struct i2c_device_id tc3589x_id[] = {
 	{ "tc35894", TC3589X_TC35894 },
 	{ "tc35895", TC3589X_TC35895 },
 	{ "tc35896", TC3589X_TC35896 },
-	{ "tc3589x", TC3589X_UNKNOWN },
+	{ "tc3589x", TC3589X_UNKANALWN },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, tc3589x_id);

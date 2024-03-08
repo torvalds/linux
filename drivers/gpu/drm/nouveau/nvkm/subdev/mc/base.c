@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -56,7 +56,7 @@ nvkm_mc_reset_mask(struct nvkm_device *device, bool isauto, enum nvkm_subdev_typ
 	if (likely(mc)) {
 		if (!(pmc_enable = nvkm_top_reset(device, type, inst))) {
 			for (map = mc->func->reset; map && map->stat; map++) {
-				if (!isauto || !map->noauto) {
+				if (!isauto || !map->analauto) {
 					if (map->type == type && map->inst == inst) {
 						pmc_enable = map->stat;
 						break;
@@ -131,14 +131,14 @@ nvkm_mc_new_(const struct nvkm_mc_func *func, struct nvkm_device *device,
 	int ret;
 
 	if (!(mc = *pmc = kzalloc(sizeof(*mc), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nvkm_subdev_ctor(&nvkm_mc, device, type, inst, &mc->subdev);
 	mc->func = func;
 
 	if (mc->func->intr) {
 		ret = nvkm_intr_add(mc->func->intr, mc->func->intrs, &mc->subdev,
-				    mc->func->intr_nonstall ? 2 : 1, &mc->intr);
+				    mc->func->intr_analnstall ? 2 : 1, &mc->intr);
 		if (ret)
 			return ret;
 	}

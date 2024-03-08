@@ -9,7 +9,7 @@ List available monitors
 
 :Manual section: 1
 
-SYNOPSIS
+SYANALPSIS
 ========
 
 **rv mon** [*-h*] **monitor_name** [*-h*] [*MONITOR OPTIONS*]

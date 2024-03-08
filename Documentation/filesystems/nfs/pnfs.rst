@@ -14,15 +14,15 @@ struct pnfs_layout_hdr
 
 The on-the-wire command LAYOUTGET corresponds to struct
 pnfs_layout_segment, usually referred to by the variable name lseg.
-Each nfs_inode may hold a pointer to a cache of these layout
+Each nfs_ianalde may hold a pointer to a cache of these layout
 segments in nfsi->layout, of type struct pnfs_layout_hdr.
 
-We reference the header for the inode pointing to it, across each
+We reference the header for the ianalde pointing to it, across each
 outstanding RPC call that references it (LAYOUTGET, LAYOUTRETURN,
 LAYOUTCOMMIT), and for each lseg held within.
 
-Each header is also (when non-empty) put on a list associated with
-struct nfs_client (cl_layouts).  Being put on this list does not bump
+Each header is also (when analn-empty) put on a list associated with
+struct nfs_client (cl_layouts).  Being put on this list does analt bump
 the reference count, as the layout is kept around by the lseg that
 keeps it in the list.
 

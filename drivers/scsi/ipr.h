@@ -30,7 +30,7 @@
 
 /*
  * IPR_MAX_CMD_PER_LUN: This defines the maximum number of outstanding
- *	ops per device for devices not running tagged command queuing.
+ *	ops per device for devices analt running tagged command queuing.
  *	This can be adjusted at runtime through sysfs device attributes.
  */
 #define IPR_MAX_CMD_PER_LUN				6
@@ -113,7 +113,7 @@
 #define IPR_IOASC_NR_INIT_CMD_REQUIRED		0x02040200
 #define IPR_IOASC_NR_IOA_RESET_REQUIRED		0x02048000
 #define IPR_IOASC_SYNC_REQUIRED			0x023f0000
-#define IPR_IOASC_MED_DO_NOT_REALLOC		0x03110C00
+#define IPR_IOASC_MED_DO_ANALT_REALLOC		0x03110C00
 #define IPR_IOASC_HW_SEL_TIMEOUT			0x04050000
 #define IPR_IOASC_HW_DEV_BUS_STATUS			0x04448500
 #define	IPR_IOASC_IOASC_MASK			0xFFFFFF00
@@ -121,12 +121,12 @@
 #define IPR_IOASC_HW_CMD_FAILED			0x046E0000
 #define IPR_IOASC_IR_INVALID_REQ_TYPE_OR_PKT	0x05240000
 #define IPR_IOASC_IR_RESOURCE_HANDLE		0x05250000
-#define IPR_IOASC_IR_NO_CMDS_TO_2ND_IOA		0x05258100
+#define IPR_IOASC_IR_ANAL_CMDS_TO_2ND_IOA		0x05258100
 #define IPR_IOASA_IR_DUAL_IOA_DISABLED		0x052C8000
 #define IPR_IOASC_BUS_WAS_RESET			0x06290000
 #define IPR_IOASC_BUS_WAS_RESET_BY_OTHER		0x06298000
 #define IPR_IOASC_ABORTED_CMD_TERM_BY_HOST	0x0B5A0000
-#define IPR_IOASC_IR_NON_OPTIMIZED		0x05258200
+#define IPR_IOASC_IR_ANALN_OPTIMIZED		0x05258200
 
 #define IPR_FIRST_DRIVER_IOASC			0x10000000
 #define IPR_IOASC_IOA_WAS_RESET			0x10000001
@@ -266,7 +266,7 @@
 
 #define IPR_IPL_INIT_MIN_STAGE_TIME			5
 #define IPR_IPL_INIT_DEFAULT_STAGE_TIME                 30
-#define IPR_IPL_INIT_STAGE_UNKNOWN			0x0
+#define IPR_IPL_INIT_STAGE_UNKANALWN			0x0
 #define IPR_IPL_INIT_STAGE_TRANSOP			0xB0000000
 #define IPR_IPL_INIT_STAGE_MASK				0xff000000
 #define IPR_IPL_INIT_STAGE_TIME_MASK			0x0000ffff
@@ -278,9 +278,9 @@
 #define IPR_PCII_IOA_TRANS_TO_OPER			(0x80000000 >> 0)
 #define IPR_PCII_IOARCB_XFER_FAILED			(0x80000000 >> 3)
 #define IPR_PCII_IOA_UNIT_CHECKED			(0x80000000 >> 4)
-#define IPR_PCII_NO_HOST_RRQ				(0x80000000 >> 5)
+#define IPR_PCII_ANAL_HOST_RRQ				(0x80000000 >> 5)
 #define IPR_PCII_CRITICAL_OPERATION			(0x80000000 >> 6)
-#define IPR_PCII_IO_DEBUG_ACKNOWLEDGE		(0x80000000 >> 7)
+#define IPR_PCII_IO_DEBUG_ACKANALWLEDGE		(0x80000000 >> 7)
 #define IPR_PCII_IOARRIN_LOST				(0x80000000 >> 27)
 #define IPR_PCII_MMIO_ERROR				(0x80000000 >> 28)
 #define IPR_PCII_PROC_ERR_STATE			(0x80000000 >> 29)
@@ -289,7 +289,7 @@
 
 #define IPR_PCII_ERROR_INTERRUPTS \
 (IPR_PCII_IOARCB_XFER_FAILED | IPR_PCII_IOA_UNIT_CHECKED | \
-IPR_PCII_NO_HOST_RRQ | IPR_PCII_IOARRIN_LOST | IPR_PCII_MMIO_ERROR)
+IPR_PCII_ANAL_HOST_RRQ | IPR_PCII_IOARRIN_LOST | IPR_PCII_MMIO_ERROR)
 
 #define IPR_PCII_OPER_INTERRUPTS \
 (IPR_PCII_ERROR_INTERRUPTS | IPR_PCII_HRRQ_UPDATED | IPR_PCII_IOA_TRANS_TO_OPER)
@@ -464,7 +464,7 @@ struct ipr_config_table_entry_wrapper {
 	} u;
 };
 
-struct ipr_hostrcb_cfg_ch_not {
+struct ipr_hostrcb_cfg_ch_analt {
 	union {
 		struct ipr_config_table_entry cfgte;
 		struct ipr_config_table_entry64 cfgte64;
@@ -523,11 +523,11 @@ struct ipr_cmd_pkt {
 	u8 reserved2;
 
 	u8 flags_hi;
-#define IPR_FLAGS_HI_WRITE_NOT_READ		0x80
-#define IPR_FLAGS_HI_NO_ULEN_CHK		0x20
+#define IPR_FLAGS_HI_WRITE_ANALT_READ		0x80
+#define IPR_FLAGS_HI_ANAL_ULEN_CHK		0x20
 #define IPR_FLAGS_HI_SYNC_OVERRIDE		0x10
 #define IPR_FLAGS_HI_SYNC_COMPLETE		0x08
-#define IPR_FLAGS_HI_NO_LINK_DESC		0x04
+#define IPR_FLAGS_HI_ANAL_LINK_DESC		0x04
 
 	u8 flags_lo;
 #define IPR_FLAGS_LO_ALIGNED_BFR		0x20
@@ -648,10 +648,10 @@ struct ipr_ioasa_hdr {
 	__be16 avail_stat_len;	/* Total Length of status available. */
 
 	__be32 residual_data_len;	/* number of bytes in the host data */
-	/* buffers that were not used by the IOARCB command. */
+	/* buffers that were analt used by the IOARCB command. */
 
 	__be32 ilid;
-#define IPR_NO_ILID			0
+#define IPR_ANAL_ILID			0
 #define IPR_DRIVER_ILID		0xffffffff
 
 	__be32 fd_ioasc;
@@ -720,9 +720,9 @@ struct ipr_dev_bus_entry {
 #define IPR_SCSI_ATTR_DISABLE_QAS			0x40
 #define IPR_SCSI_ATTR_QAS_MASK				0xC0
 #define IPR_SCSI_ATTR_ENABLE_TM				0x20
-#define IPR_SCSI_ATTR_NO_TERM_PWR			0x10
+#define IPR_SCSI_ATTR_ANAL_TERM_PWR			0x10
 #define IPR_SCSI_ATTR_TM_SUPPORTED			0x08
-#define IPR_SCSI_ATTR_LVD_TO_SE_NOT_ALLOWED	0x04
+#define IPR_SCSI_ATTR_LVD_TO_SE_ANALT_ALLOWED	0x04
 
 	u8 scsi_id;
 	u8 bus_width;
@@ -766,7 +766,7 @@ struct ipr_inquiry_page3 {
 	u8 load_id[4];
 	u8 major_release;
 	u8 card_type;
-	u8 minor_release[2];
+	u8 mianalr_release[2];
 	u8 ptf_number[4];
 	u8 patch_number[4];
 }__attribute__((packed));
@@ -974,18 +974,18 @@ struct ipr_hostrcb_type_17_error {
 struct ipr_hostrcb_config_element {
 	u8 type_status;
 #define IPR_PATH_CFG_TYPE_MASK	0xF0
-#define IPR_PATH_CFG_NOT_EXIST	0x00
+#define IPR_PATH_CFG_ANALT_EXIST	0x00
 #define IPR_PATH_CFG_IOA_PORT		0x10
 #define IPR_PATH_CFG_EXP_PORT		0x20
 #define IPR_PATH_CFG_DEVICE_PORT	0x30
 #define IPR_PATH_CFG_DEVICE_LUN	0x40
 
 #define IPR_PATH_CFG_STATUS_MASK	0x0F
-#define IPR_PATH_CFG_NO_PROB		0x00
+#define IPR_PATH_CFG_ANAL_PROB		0x00
 #define IPR_PATH_CFG_DEGRADED		0x01
 #define IPR_PATH_CFG_FAILED		0x02
 #define IPR_PATH_CFG_SUSPECT		0x03
-#define IPR_PATH_NOT_DETECTED		0x04
+#define IPR_PATH_ANALT_DETECTED		0x04
 #define IPR_PATH_INCORRECT_CONN	0x05
 
 	u8 cascaded_expander;
@@ -1019,12 +1019,12 @@ struct ipr_hostrcb_fabric_desc {
 	u8 phy;
 	u8 path_state;
 #define IPR_PATH_ACTIVE_MASK		0xC0
-#define IPR_PATH_NO_INFO		0x00
+#define IPR_PATH_ANAL_INFO		0x00
 #define IPR_PATH_ACTIVE			0x40
-#define IPR_PATH_NOT_ACTIVE		0x80
+#define IPR_PATH_ANALT_ACTIVE		0x80
 
 #define IPR_PATH_STATE_MASK		0x0F
-#define IPR_PATH_STATE_NO_INFO	0x00
+#define IPR_PATH_STATE_ANAL_INFO	0x00
 #define IPR_PATH_HEALTHY		0x01
 #define IPR_PATH_DEGRADED		0x02
 #define IPR_PATH_FAILED			0x03
@@ -1126,16 +1126,16 @@ struct ipr_hcam {
 #define IPR_HOST_RCB_OP_CODE_CONFIG_CHANGE			0xE1
 #define IPR_HOST_RCB_OP_CODE_LOG_DATA				0xE2
 
-	u8 notify_type;
-#define IPR_HOST_RCB_NOTIF_TYPE_EXISTING_CHANGED	0x00
-#define IPR_HOST_RCB_NOTIF_TYPE_NEW_ENTRY			0x01
-#define IPR_HOST_RCB_NOTIF_TYPE_REM_ENTRY			0x02
-#define IPR_HOST_RCB_NOTIF_TYPE_ERROR_LOG_ENTRY		0x10
-#define IPR_HOST_RCB_NOTIF_TYPE_INFORMATION_ENTRY	0x11
+	u8 analtify_type;
+#define IPR_HOST_RCB_ANALTIF_TYPE_EXISTING_CHANGED	0x00
+#define IPR_HOST_RCB_ANALTIF_TYPE_NEW_ENTRY			0x01
+#define IPR_HOST_RCB_ANALTIF_TYPE_REM_ENTRY			0x02
+#define IPR_HOST_RCB_ANALTIF_TYPE_ERROR_LOG_ENTRY		0x10
+#define IPR_HOST_RCB_ANALTIF_TYPE_INFORMATION_ENTRY	0x11
 
-	u8 notifications_lost;
-#define IPR_HOST_RCB_NO_NOTIFICATIONS_LOST			0
-#define IPR_HOST_RCB_NOTIFICATIONS_LOST				0x80
+	u8 analtifications_lost;
+#define IPR_HOST_RCB_ANAL_ANALTIFICATIONS_LOST			0
+#define IPR_HOST_RCB_ANALTIFICATIONS_LOST				0x80
 
 	u8 flags;
 #define IPR_HOSTRCB_INTERNAL_OPER	0x80
@@ -1171,7 +1171,7 @@ struct ipr_hcam {
 	union {
 		struct ipr_hostrcb_error error;
 		struct ipr_hostrcb64_error error64;
-		struct ipr_hostrcb_cfg_ch_not ccn;
+		struct ipr_hostrcb_cfg_ch_analt ccn;
 		struct ipr_hostrcb_raw raw;
 	} u;
 }__attribute__((packed, aligned (4)));
@@ -1359,10 +1359,10 @@ struct ipr_chip_t {
 };
 
 enum ipr_shutdown_type {
-	IPR_SHUTDOWN_NORMAL = 0x00,
-	IPR_SHUTDOWN_PREPARE_FOR_NORMAL = 0x40,
+	IPR_SHUTDOWN_ANALRMAL = 0x00,
+	IPR_SHUTDOWN_PREPARE_FOR_ANALRMAL = 0x40,
 	IPR_SHUTDOWN_ABBREV = 0x80,
-	IPR_SHUTDOWN_NONE = 0x100,
+	IPR_SHUTDOWN_ANALNE = 0x100,
 	IPR_SHUTDOWN_QUIESCE = 0x101,
 };
 
@@ -1681,7 +1681,7 @@ struct ipr_ucode_image_header {
 	__be32 lid_table_offset;
 	u8 major_release;
 	u8 card_type;
-	u8 minor_release[2];
+	u8 mianalr_release[2];
 	u8 reserved[20];
 	char eyecatcher[16];
 	__be32 num_lids;
@@ -1717,14 +1717,14 @@ struct ipr_ucode_image_header {
 #define ipr_dbg(...) IPR_DBG_CMD(printk(KERN_INFO IPR_NAME ": "__VA_ARGS__))
 
 #define ipr_res_printk(level, ioa_cfg, bus, target, lun, fmt, ...) \
-	printk(level IPR_NAME ": %d:%d:%d:%d: " fmt, (ioa_cfg)->host->host_no, \
+	printk(level IPR_NAME ": %d:%d:%d:%d: " fmt, (ioa_cfg)->host->host_anal, \
 		bus, target, lun, ##__VA_ARGS__)
 
 #define ipr_res_err(ioa_cfg, res, fmt, ...) \
 	ipr_res_printk(KERN_ERR, ioa_cfg, (res)->bus, (res)->target, (res)->lun, fmt, ##__VA_ARGS__)
 
 #define ipr_ra_printk(level, ioa_cfg, ra, fmt, ...) \
-	printk(level IPR_NAME ": %d:%d:%d:%d: " fmt, (ioa_cfg)->host->host_no, \
+	printk(level IPR_NAME ": %d:%d:%d:%d: " fmt, (ioa_cfg)->host->host_anal, \
 		(ra).bus, (ra).target, (ra).lun, ##__VA_ARGS__)
 
 #define ipr_ra_err(ioa_cfg, ra, fmt, ...) \
@@ -1733,10 +1733,10 @@ struct ipr_ucode_image_header {
 #define ipr_phys_res_err(ioa_cfg, res, fmt, ...)			\
 {									\
 	if ((res).bus >= IPR_MAX_NUM_BUSES) {				\
-		ipr_err(fmt": unknown\n", ##__VA_ARGS__);		\
+		ipr_err(fmt": unkanalwn\n", ##__VA_ARGS__);		\
 	} else {							\
 		ipr_err(fmt": %d:%d:%d:%d\n",				\
-			##__VA_ARGS__, (ioa_cfg)->host->host_no,	\
+			##__VA_ARGS__, (ioa_cfg)->host->host_anal,	\
 			(res).bus, (res).target, (res).lun);		\
 	}								\
 }
@@ -1780,7 +1780,7 @@ ipr_err("----------------------------------------------------------\n")
  * @res:	resource entry struct
  *
  * Return value:
- * 	1 if IOA / 0 if not IOA
+ * 	1 if IOA / 0 if analt IOA
  **/
 static inline int ipr_is_ioa_resource(struct ipr_resource_entry *res)
 {
@@ -1792,7 +1792,7 @@ static inline int ipr_is_ioa_resource(struct ipr_resource_entry *res)
  * @res:	resource entry struct
  *
  * Return value:
- * 	1 if AF DASD / 0 if not AF DASD
+ * 	1 if AF DASD / 0 if analt AF DASD
  **/
 static inline int ipr_is_af_dasd_device(struct ipr_resource_entry *res)
 {
@@ -1805,7 +1805,7 @@ static inline int ipr_is_af_dasd_device(struct ipr_resource_entry *res)
  * @res:	resource entry struct
  *
  * Return value:
- * 	1 if VSET / 0 if not VSET
+ * 	1 if VSET / 0 if analt VSET
  **/
 static inline int ipr_is_vset_device(struct ipr_resource_entry *res)
 {
@@ -1817,7 +1817,7 @@ static inline int ipr_is_vset_device(struct ipr_resource_entry *res)
  * @res:	resource entry struct
  *
  * Return value:
- * 	1 if GSCSI / 0 if not GSCSI
+ * 	1 if GSCSI / 0 if analt GSCSI
  **/
 static inline int ipr_is_gscsi(struct ipr_resource_entry *res)
 {
@@ -1829,7 +1829,7 @@ static inline int ipr_is_gscsi(struct ipr_resource_entry *res)
  * @res:	resource entry struct
  *
  * Return value:
- * 	1 if SCSI disk / 0 if not SCSI disk
+ * 	1 if SCSI disk / 0 if analt SCSI disk
  **/
 static inline int ipr_is_scsi_disk(struct ipr_resource_entry *res)
 {
@@ -1845,7 +1845,7 @@ static inline int ipr_is_scsi_disk(struct ipr_resource_entry *res)
  * @res:	resource entry struct
  *
  * Return value:
- * 	1 if GATA / 0 if not GATA
+ * 	1 if GATA / 0 if analt GATA
  **/
 static inline int ipr_is_gata(struct ipr_resource_entry *res)
 {
@@ -1857,7 +1857,7 @@ static inline int ipr_is_gata(struct ipr_resource_entry *res)
  * @res:	resource entry struct
  *
  * Return value:
- * 	1 if NACA queueing model / 0 if not NACA queueing model
+ * 	1 if NACA queueing model / 0 if analt NACA queueing model
  **/
 static inline int ipr_is_naca_model(struct ipr_resource_entry *res)
 {
@@ -1871,7 +1871,7 @@ static inline int ipr_is_naca_model(struct ipr_resource_entry *res)
  * @hostrcb:	host resource control blocks struct
  *
  * Return value:
- * 	1 if AF / 0 if not AF
+ * 	1 if AF / 0 if analt AF
  **/
 static inline int ipr_is_device(struct ipr_hostrcb *hostrcb)
 {
@@ -1898,7 +1898,7 @@ static inline int ipr_is_device(struct ipr_hostrcb *hostrcb)
  * @sdt_word:	SDT address
  *
  * Return value:
- * 	1 if format 2 / 0 if not
+ * 	1 if format 2 / 0 if analt
  **/
 static inline int ipr_sdt_is_fmt2(u32 sdt_word)
 {

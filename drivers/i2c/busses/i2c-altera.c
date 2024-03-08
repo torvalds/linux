@@ -253,7 +253,7 @@ static irqreturn_t altr_i2c_isr(int irq, void *_dev)
 		idev->msg_err = -EAGAIN;
 		finish = true;
 	} else if (unlikely(status & ALTR_I2C_ISR_NACK)) {
-		dev_dbg(idev->dev, "Could not get ACK\n");
+		dev_dbg(idev->dev, "Could analt get ACK\n");
 		idev->msg_err = -ENXIO;
 		altr_i2c_int_clear(idev, ALTR_I2C_ISR_NACK);
 		altr_i2c_stop(idev);
@@ -343,7 +343,7 @@ static int altr_i2c_xfer_msg(struct altr_i2c_dev *idev, struct i2c_msg *msg)
 
 	value = readl(idev->base + ALTR_I2C_STATUS) & ALTR_I2C_STAT_CORE;
 	if (value)
-		dev_err(idev->dev, "Core Status not IDLE...\n");
+		dev_err(idev->dev, "Core Status analt IDLE...\n");
 
 	if (time_left == 0) {
 		idev->msg_err = -ETIMEDOUT;
@@ -387,7 +387,7 @@ static int altr_i2c_probe(struct platform_device *pdev)
 
 	idev = devm_kzalloc(&pdev->dev, sizeof(*idev), GFP_KERNEL);
 	if (!idev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	idev->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(idev->base))
@@ -451,7 +451,7 @@ static int altr_i2c_probe(struct platform_device *pdev)
 	idev->adapter.owner = THIS_MODULE;
 	idev->adapter.algo = &altr_i2c_algo;
 	idev->adapter.dev.parent = &pdev->dev;
-	idev->adapter.dev.of_node = pdev->dev.of_node;
+	idev->adapter.dev.of_analde = pdev->dev.of_analde;
 
 	platform_set_drvdata(pdev, idev);
 

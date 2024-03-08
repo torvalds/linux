@@ -8,7 +8,7 @@ title: Qualcomm PM8941 PMIC Power Key
 
 maintainers:
   - Courtney Cavin <courtney.cavin@sonymobile.com>
-  - Vinod Koul <vkoul@kernel.org>
+  - Vianald Koul <vkoul@kernel.org>
 
 allOf:
   - $ref: input.yaml#

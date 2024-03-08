@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
 /*
- * Privileged (non-hypervisor) host registers to save.
+ * Privileged (analn-hypervisor) host registers to save.
  */
 #include "asm/guest-state-buffer.h"
 

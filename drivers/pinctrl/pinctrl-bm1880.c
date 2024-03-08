@@ -948,7 +948,7 @@ static const struct pinctrl_ops bm1880_pctrl_ops = {
 	.get_groups_count = bm1880_pctrl_get_groups_count,
 	.get_group_name = bm1880_pctrl_get_group_name,
 	.get_group_pins = bm1880_pctrl_get_group_pins,
-	.dt_node_to_map = pinconf_generic_dt_node_to_map_all,
+	.dt_analde_to_map = pinconf_generic_dt_analde_to_map_all,
 	.dt_free_map = pinctrl_utils_free_map,
 };
 
@@ -1091,7 +1091,7 @@ static int bm1880_pinconf_drv_set(unsigned int mA, u32 width,
 
 static int bm1880_pinconf_drv_get(u32 width, u32 drv)
 {
-	int ret = -ENOTSUPP;
+	int ret = -EANALTSUPP;
 
 	/*
 	 * There are two sets of drive strength bit width exposed by the
@@ -1192,7 +1192,7 @@ static int bm1880_pinconf_cfg_get(struct pinctrl_dev *pctldev,
 		arg = ret;
 		break;
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	*config = pinconf_to_config_packed(param, arg);
@@ -1315,7 +1315,7 @@ static int bm1880_pinctrl_probe(struct platform_device *pdev)
 
 	pctrl = devm_kzalloc(&pdev->dev, sizeof(*pctrl), GFP_KERNEL);
 	if (!pctrl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pctrl->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(pctrl->base))

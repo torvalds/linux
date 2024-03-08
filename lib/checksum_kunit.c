@@ -126,7 +126,7 @@ static const u16 expected_results[] = {
 };
 
 /* Values for a little endian CPU. Byte swap each half on big endian CPU. */
-static const u32 init_sums_no_overflow[] = {
+static const u32 init_sums_anal_overflow[] = {
 	0xffffffff, 0xfffffffb, 0xfffffbfb, 0xfffffbf7, 0xfffff7f7, 0xfffff7f3,
 	0xfffff3f3, 0xfffff3ef, 0xffffefef, 0xffffefeb, 0xffffebeb, 0xffffebe7,
 	0xffffe7e7, 0xffffe7e3, 0xffffe3e3, 0xffffe3df, 0xffffdfdf, 0xffffdfdb,
@@ -471,13 +471,13 @@ static void assert_setup_correct(struct kunit *test)
 	CHECK_EQ(sizeof(random_buf) / sizeof(random_buf[0]), MAX_LEN);
 	CHECK_EQ(sizeof(expected_results) / sizeof(expected_results[0]),
 		 MAX_LEN);
-	CHECK_EQ(sizeof(init_sums_no_overflow) /
-			 sizeof(init_sums_no_overflow[0]),
+	CHECK_EQ(sizeof(init_sums_anal_overflow) /
+			 sizeof(init_sums_anal_overflow[0]),
 		 MAX_LEN);
 }
 
 /*
- * Test with randomized input (pre determined random with known results).
+ * Test with randomized input (pre determined random with kanalwn results).
  */
 static void test_csum_fixed_random_inputs(struct kunit *test)
 {
@@ -542,10 +542,10 @@ static void test_csum_all_carry_inputs(struct kunit *test)
 
 /*
  * Test with input that alone doesn't cause any carries. By selecting the
- * maximum initial sum, this allows us to test that there are no carries
+ * maximum initial sum, this allows us to test that there are anal carries
  * where there shouldn't be.
  */
-static void test_csum_no_carry_inputs(struct kunit *test)
+static void test_csum_anal_carry_inputs(struct kunit *test)
 {
 	int len, align;
 	__wsum sum;
@@ -557,9 +557,9 @@ static void test_csum_no_carry_inputs(struct kunit *test)
 		for (len = 0; len < MAX_LEN && (align + len) < TEST_BUFLEN;
 		     ++len) {
 			/*
-			 * Expect no carries.
+			 * Expect anal carries.
 			 */
-			sum = to_wsum(init_sums_no_overflow[len]);
+			sum = to_wsum(init_sums_anal_overflow[len]);
 			result = full_csum(&tmp_buf[align], len, sum);
 			expec = 0;
 			CHECK_EQ(result, expec);
@@ -567,7 +567,7 @@ static void test_csum_no_carry_inputs(struct kunit *test)
 			/*
 			 * Expect one carry.
 			 */
-			sum = to_wsum(init_sums_no_overflow[len] + 1);
+			sum = to_wsum(init_sums_anal_overflow[len] + 1);
 			result = full_csum(&tmp_buf[align], len, sum);
 			expec = to_sum16(len ? 0xfffe : 0xffff);
 			CHECK_EQ(result, expec);
@@ -624,7 +624,7 @@ static void test_csum_ipv6_magic(struct kunit *test)
 static struct kunit_case __refdata checksum_test_cases[] = {
 	KUNIT_CASE(test_csum_fixed_random_inputs),
 	KUNIT_CASE(test_csum_all_carry_inputs),
-	KUNIT_CASE(test_csum_no_carry_inputs),
+	KUNIT_CASE(test_csum_anal_carry_inputs),
 	KUNIT_CASE(test_ip_fast_csum),
 	KUNIT_CASE(test_csum_ipv6_magic),
 	{}
@@ -637,5 +637,5 @@ static struct kunit_suite checksum_test_suite = {
 
 kunit_test_suites(&checksum_test_suite);
 
-MODULE_AUTHOR("Noah Goldstein <goldstein.w.n@gmail.com>");
+MODULE_AUTHOR("Analah Goldstein <goldstein.w.n@gmail.com>");
 MODULE_LICENSE("GPL");

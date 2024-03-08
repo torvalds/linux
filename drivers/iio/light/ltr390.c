@@ -129,7 +129,7 @@ static int ltr390_probe(struct i2c_client *client)
 	dev = &client->dev;
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = iio_priv(indio_dev);
 
@@ -155,7 +155,7 @@ static int ltr390_probe(struct i2c_client *client)
 		dev_info(dev, "received invalid product id: 0x%x", part_number);
 	dev_dbg(dev, "LTR390, product id: 0x%x\n", part_number);
 
-	/* reset sensor, chip fails to respond to this, so ignore any errors */
+	/* reset sensor, chip fails to respond to this, so iganalre any errors */
 	regmap_set_bits(data->regmap, LTR390_MAIN_CTRL, LTR390_SW_RESET);
 
 	/* Wait for the registers to reset before proceeding */

@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: DTV.audio
 
 .. _AUDIO_BILINGUAL_CHANNEL_SELECT:
@@ -14,7 +14,7 @@ AUDIO_BILINGUAL_CHANNEL_SELECT
 
 .. attention:: This ioctl is deprecated
 
-Synopsis
+Syanalpsis
 --------
 
 .. c:macro:: AUDIO_BILINGUAL_CHANNEL_SELECT
@@ -38,12 +38,12 @@ Arguments
 
        -  audio_channel_select_t ch
 
-       -  Select the output format of the audio (mono left/right, stereo).
+       -  Select the output format of the audio (moanal left/right, stereo).
 
 Description
 -----------
 
-This ioctl is obsolete. Do not use in new drivers. It has been replaced
+This ioctl is obsolete. Do analt use in new drivers. It has been replaced
 by the V4L2 ``V4L2_CID_MPEG_AUDIO_DEC_MULTILINGUAL_PLAYBACK`` control
 for MPEG decoders controlled through V4L2.
 
@@ -53,6 +53,6 @@ for bilingual streams if possible.
 Return Value
 ------------
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erranal`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.

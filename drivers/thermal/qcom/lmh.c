@@ -12,9 +12,9 @@
 #include <linux/slab.h>
 #include <linux/firmware/qcom/qcom_scm.h>
 
-#define LMH_NODE_DCVS			0x44435653
-#define LMH_CLUSTER0_NODE_ID		0x6370302D
-#define LMH_CLUSTER1_NODE_ID		0x6370312D
+#define LMH_ANALDE_DCVS			0x44435653
+#define LMH_CLUSTER0_ANALDE_ID		0x6370302D
+#define LMH_CLUSTER1_ANALDE_ID		0x6370312D
 
 #define LMH_SUB_FN_THERMAL		0x54484D4C
 #define LMH_SUB_FN_CRNT			0x43524E54
@@ -61,7 +61,7 @@ static void lmh_disable_interrupt(struct irq_data *d)
 {
 	struct lmh_hw_data *lmh_data = irq_data_get_irq_chip_data(d);
 
-	disable_irq_nosync(lmh_data->irq);
+	disable_irq_analsync(lmh_data->irq);
 }
 
 static struct irq_chip lmh_irq_chip = {
@@ -88,26 +88,26 @@ static const struct irq_domain_ops lmh_irq_ops = {
 static int lmh_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
-	struct device_node *cpu_node;
+	struct device_analde *np = dev->of_analde;
+	struct device_analde *cpu_analde;
 	struct lmh_hw_data *lmh_data;
 	int temp_low, temp_high, temp_arm, cpu_id, ret;
 	unsigned int enable_alg;
-	u32 node_id;
+	u32 analde_id;
 
 	lmh_data = devm_kzalloc(dev, sizeof(*lmh_data), GFP_KERNEL);
 	if (!lmh_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	lmh_data->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(lmh_data->base))
 		return PTR_ERR(lmh_data->base);
 
-	cpu_node = of_parse_phandle(np, "cpus", 0);
-	if (!cpu_node)
+	cpu_analde = of_parse_phandle(np, "cpus", 0);
+	if (!cpu_analde)
 		return -EINVAL;
-	cpu_id = of_cpu_node_to_id(cpu_node);
-	of_node_put(cpu_node);
+	cpu_id = of_cpu_analde_to_id(cpu_analde);
+	of_analde_put(cpu_analde);
 
 	ret = of_property_read_u32(np, "qcom,lmh-temp-high-millicelsius", &temp_high);
 	if (ret) {
@@ -129,15 +129,15 @@ static int lmh_probe(struct platform_device *pdev)
 
 	/*
 	 * Only sdm845 has lmh hardware currently enabled from hlos. If this is needed
-	 * for other platforms, revisit this to check if the <cpu-id, node-id> should be part
+	 * for other platforms, revisit this to check if the <cpu-id, analde-id> should be part
 	 * of a dt match table.
 	 */
 	if (cpu_id == 0) {
-		node_id = LMH_CLUSTER0_NODE_ID;
+		analde_id = LMH_CLUSTER0_ANALDE_ID;
 	} else if (cpu_id == 4) {
-		node_id = LMH_CLUSTER1_NODE_ID;
+		analde_id = LMH_CLUSTER1_ANALDE_ID;
 	} else {
-		dev_err(dev, "Wrong CPU id associated with LMh node\n");
+		dev_err(dev, "Wrong CPU id associated with LMh analde\n");
 		return -EINVAL;
 	}
 
@@ -148,22 +148,22 @@ static int lmh_probe(struct platform_device *pdev)
 
 	if (enable_alg) {
 		ret = qcom_scm_lmh_dcvsh(LMH_SUB_FN_CRNT, LMH_ALGO_MODE_ENABLE, 1,
-					 LMH_NODE_DCVS, node_id, 0);
+					 LMH_ANALDE_DCVS, analde_id, 0);
 		if (ret)
 			dev_err(dev, "Error %d enabling current subfunction\n", ret);
 
 		ret = qcom_scm_lmh_dcvsh(LMH_SUB_FN_REL, LMH_ALGO_MODE_ENABLE, 1,
-					 LMH_NODE_DCVS, node_id, 0);
+					 LMH_ANALDE_DCVS, analde_id, 0);
 		if (ret)
 			dev_err(dev, "Error %d enabling reliability subfunction\n", ret);
 
 		ret = qcom_scm_lmh_dcvsh(LMH_SUB_FN_BCL, LMH_ALGO_MODE_ENABLE, 1,
-					 LMH_NODE_DCVS, node_id, 0);
+					 LMH_ANALDE_DCVS, analde_id, 0);
 		if (ret)
 			dev_err(dev, "Error %d enabling BCL subfunction\n", ret);
 
 		ret = qcom_scm_lmh_dcvsh(LMH_SUB_FN_THERMAL, LMH_ALGO_MODE_ENABLE, 1,
-					 LMH_NODE_DCVS, node_id, 0);
+					 LMH_ANALDE_DCVS, analde_id, 0);
 		if (ret) {
 			dev_err(dev, "Error %d enabling thermal subfunction\n", ret);
 			return ret;
@@ -178,21 +178,21 @@ static int lmh_probe(struct platform_device *pdev)
 
 	/* Set default thermal trips */
 	ret = qcom_scm_lmh_dcvsh(LMH_SUB_FN_THERMAL, LMH_TH_ARM_THRESHOLD, temp_arm,
-				 LMH_NODE_DCVS, node_id, 0);
+				 LMH_ANALDE_DCVS, analde_id, 0);
 	if (ret) {
 		dev_err(dev, "Error setting thermal ARM threshold%d\n", ret);
 		return ret;
 	}
 
 	ret = qcom_scm_lmh_dcvsh(LMH_SUB_FN_THERMAL, LMH_TH_HI_THRESHOLD, temp_high,
-				 LMH_NODE_DCVS, node_id, 0);
+				 LMH_ANALDE_DCVS, analde_id, 0);
 	if (ret) {
 		dev_err(dev, "Error setting thermal HI threshold%d\n", ret);
 		return ret;
 	}
 
 	ret = qcom_scm_lmh_dcvsh(LMH_SUB_FN_THERMAL, LMH_TH_LOW_THRESHOLD, temp_low,
-				 LMH_NODE_DCVS, node_id, 0);
+				 LMH_ANALDE_DCVS, analde_id, 0);
 	if (ret) {
 		dev_err(dev, "Error setting thermal ARM threshold%d\n", ret);
 		return ret;
@@ -206,9 +206,9 @@ static int lmh_probe(struct platform_device *pdev)
 	}
 
 	/* Disable the irq and let cpufreq enable it when ready to handle the interrupt */
-	irq_set_status_flags(lmh_data->irq, IRQ_NOAUTOEN);
+	irq_set_status_flags(lmh_data->irq, IRQ_ANALAUTOEN);
 	ret = devm_request_irq(dev, lmh_data->irq, lmh_handle_irq,
-			       IRQF_ONESHOT | IRQF_NO_SUSPEND,
+			       IRQF_ONESHOT | IRQF_ANAL_SUSPEND,
 			       "lmh-irq", lmh_data);
 	if (ret) {
 		dev_err(dev, "Error %d registering irq %x\n", ret, lmh_data->irq);

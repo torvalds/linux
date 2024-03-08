@@ -194,7 +194,7 @@
 /*
  * Stream table.
  *
- * Linear: Enough to cover 1 << IDR1.SIDSIZE entries
+ * Linear: Eanalugh to cover 1 << IDR1.SIDSIZE entries
  * 2lvl: 128k L1 entries,
  *       256 lazy entries per table (each table covers a PCI bus)
  */
@@ -317,7 +317,7 @@ struct arm_smmu_ste {
 #define CMDQ_MAX_SZ_SHIFT		(Q_MAX_SZ_SHIFT - CMDQ_ENT_SZ_SHIFT)
 
 #define CMDQ_CONS_ERR			GENMASK(30, 24)
-#define CMDQ_ERR_CERROR_NONE_IDX	0
+#define CMDQ_ERR_CERROR_ANALNE_IDX	0
 #define CMDQ_ERR_CERROR_ILL_IDX		1
 #define CMDQ_ERR_CERROR_ABT_IDX		2
 #define CMDQ_ERR_CERROR_ATC_INV_IDX	3
@@ -373,7 +373,7 @@ struct arm_smmu_ste {
 #define CMDQ_RESUME_1_STAG		GENMASK_ULL(15, 0)
 
 #define CMDQ_SYNC_0_CS			GENMASK_ULL(13, 12)
-#define CMDQ_SYNC_0_CS_NONE		0
+#define CMDQ_SYNC_0_CS_ANALNE		0
 #define CMDQ_SYNC_0_CS_IRQ		1
 #define CMDQ_SYNC_0_CS_SEV		2
 #define CMDQ_SYNC_0_MSH			GENMASK_ULL(23, 22)
@@ -690,7 +690,7 @@ struct arm_smmu_device {
 struct arm_smmu_stream {
 	u32				id;
 	struct arm_smmu_master		*master;
-	struct rb_node			node;
+	struct rb_analde			analde;
 };
 
 /* SMMU private data for each master */
@@ -736,7 +736,7 @@ struct arm_smmu_domain {
 	struct list_head		devices;
 	spinlock_t			devices_lock;
 
-	struct list_head		mmu_notifiers;
+	struct list_head		mmu_analtifiers;
 };
 
 static inline struct arm_smmu_domain *to_smmu_domain(struct iommu_domain *dom)
@@ -765,7 +765,7 @@ bool arm_smmu_master_sva_enabled(struct arm_smmu_master *master);
 int arm_smmu_master_enable_sva(struct arm_smmu_master *master);
 int arm_smmu_master_disable_sva(struct arm_smmu_master *master);
 bool arm_smmu_master_iopf_supported(struct arm_smmu_master *master);
-void arm_smmu_sva_notifier_synchronize(void);
+void arm_smmu_sva_analtifier_synchronize(void);
 struct iommu_domain *arm_smmu_sva_domain_alloc(void);
 void arm_smmu_sva_remove_dev_pasid(struct iommu_domain *domain,
 				   struct device *dev, ioasid_t id);
@@ -787,12 +787,12 @@ static inline bool arm_smmu_master_sva_enabled(struct arm_smmu_master *master)
 
 static inline int arm_smmu_master_enable_sva(struct arm_smmu_master *master)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static inline int arm_smmu_master_disable_sva(struct arm_smmu_master *master)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static inline bool arm_smmu_master_iopf_supported(struct arm_smmu_master *master)
@@ -800,7 +800,7 @@ static inline bool arm_smmu_master_iopf_supported(struct arm_smmu_master *master
 	return false;
 }
 
-static inline void arm_smmu_sva_notifier_synchronize(void) {}
+static inline void arm_smmu_sva_analtifier_synchronize(void) {}
 
 static inline struct iommu_domain *arm_smmu_sva_domain_alloc(void)
 {

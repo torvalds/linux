@@ -33,7 +33,7 @@ static const u16 asEqCoefsPipes[64] = {
 };
 
 /* More coef sets can be found in the win2k "inf" file. */
-static const auxxEqCoeffSet_t asEqCoefsNormal = {
+static const auxxEqCoeffSet_t asEqCoefsAnalrmal = {
 	.LeftCoefs = {
 		      0x7e60, 0xc19e, 0x0001, 0x0002, 0x0001,
 		      0x7fa0, 0xc05f, 0x004f, 0x0000, 0xffb1,
@@ -66,7 +66,7 @@ static const auxxEqCoeffSet_t asEqCoefsNormal = {
 		       0x3e96, 0x3e96, 0x3e96, 0x3e96, 0x3e96}
 };
 
-static const u16 eq_gains_normal[20] = {
+static const u16 eq_gains_analrmal[20] = {
 	0x3e96, 0x3e96, 0x3e96, 0x3e96, 0x3e96,
 	0x3e96, 0x3e96, 0x3e96, 0x3e96, 0x3e96,
 	0x3e96, 0x3e96, 0x3e96, 0x3e96, 0x3e96,

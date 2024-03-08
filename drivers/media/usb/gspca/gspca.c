@@ -70,7 +70,7 @@ static void PDEBUG_MODE(struct gspca_dev *gspca_dev, int debug, char *txt,
 }
 
 /* specific memory types - !! should be different from V4L2_MEMORY_xxx */
-#define GSPCA_MEMORY_NO 0	/* V4L2_MEMORY_xxx starts from 1 */
+#define GSPCA_MEMORY_ANAL 0	/* V4L2_MEMORY_xxx starts from 1 */
 #define GSPCA_MEMORY_READ 7
 
 /*
@@ -87,16 +87,16 @@ static void int_irq(struct urb *urb)
 	case 0:
 		if (gspca_dev->sd_desc->int_pkt_scan(gspca_dev,
 		    urb->transfer_buffer, urb->actual_length) < 0) {
-			gspca_err(gspca_dev, "Unknown packet received\n");
+			gspca_err(gspca_dev, "Unkanalwn packet received\n");
 		}
 		break;
 
-	case -ENOENT:
+	case -EANALENT:
 	case -ECONNRESET:
-	case -ENODEV:
+	case -EANALDEV:
 	case -ESHUTDOWN:
 		/* Stop is requested either by software or hardware is gone,
-		 * keep the ret value non-zero and don't resubmit later.
+		 * keep the ret value analn-zero and don't resubmit later.
 		 */
 		break;
 
@@ -123,7 +123,7 @@ static int gspca_input_connect(struct gspca_dev *dev)
 	if (dev->sd_desc->int_pkt_scan || dev->sd_desc->other_input)  {
 		input_dev = input_allocate_device();
 		if (!input_dev)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		usb_make_path(dev->dev, dev->phys, sizeof(dev->phys));
 		strlcat(dev->phys, "/input0", sizeof(dev->phys));
@@ -170,21 +170,21 @@ static int alloc_and_submit_int_urb(struct gspca_dev *gspca_dev,
 
 	urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!urb) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error;
 	}
 
 	buffer = usb_alloc_coherent(dev, buffer_len,
 				GFP_KERNEL, &urb->transfer_dma);
 	if (!buffer) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error_buffer;
 	}
 	usb_fill_int_urb(urb, dev,
 		usb_rcvintpipe(dev, ep->bEndpointAddress),
 		buffer, buffer_len,
 		int_irq, (void *)gspca_dev, interval);
-	urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
+	urb->transfer_flags |= URB_ANAL_TRANSFER_DMA_MAP;
 	ret = usb_submit_urb(urb, GFP_KERNEL);
 	if (ret < 0) {
 		gspca_err(gspca_dev, "submit int URB failed with error %i\n",
@@ -397,7 +397,7 @@ void gspca_frame_add(struct gspca_dev *gspca_dev,
 	spin_unlock_irqrestore(&gspca_dev->qlock, flags);
 
 	if (packet_type == FIRST_PACKET) {
-		/* if there is no queued buffer, discard the whole frame */
+		/* if there is anal queued buffer, discard the whole frame */
 		if (!buf) {
 			gspca_dev->last_packet_type = DISCARD_PACKET;
 			gspca_dev->sequence++;
@@ -453,7 +453,7 @@ void gspca_frame_add(struct gspca_dev *gspca_dev,
 		vb2_set_plane_payload(&buf->vb.vb2_buf, 0,
 				      gspca_dev->image_len);
 		buf->vb.sequence = gspca_dev->sequence++;
-		buf->vb.field = V4L2_FIELD_NONE;
+		buf->vb.field = V4L2_FIELD_ANALNE;
 		gspca_dbg(gspca_dev, D_FRAM, "frame complete len:%d\n",
 			  gspca_dev->image_len);
 		vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
@@ -470,7 +470,7 @@ static void destroy_urbs(struct gspca_dev *gspca_dev)
 
 	gspca_dbg(gspca_dev, D_STREAM, "kill transfer\n");
 
-	/* Killing all URBs guarantee that no URB completion
+	/* Killing all URBs guarantee that anal URB completion
 	 * handler is running. Therefore, there shouldn't
 	 * be anyone trying to access gspca_dev->urb[i]
 	 */
@@ -546,7 +546,7 @@ static u32 which_bandwidth(struct gspca_dev *gspca_dev)
 		struct v4l2_streamparm parm;
 
 		gspca_dev->sd_desc->get_streamparm(gspca_dev, &parm);
-		bandwidth *= parm.parm.capture.timeperframe.denominator;
+		bandwidth *= parm.parm.capture.timeperframe.deanalminator;
 		bandwidth /= parm.parm.capture.timeperframe.numerator;
 	} else {
 
@@ -697,7 +697,7 @@ static int create_urbs(struct gspca_dev *gspca_dev,
 	for (n = 0; n < nurbs; n++) {
 		urb = usb_alloc_urb(npkt, GFP_KERNEL);
 		if (!urb)
-			return -ENOMEM;
+			return -EANALMEM;
 		gspca_dev->urb[n] = urb;
 		urb->transfer_buffer = usb_alloc_coherent(gspca_dev->dev,
 						bsize,
@@ -706,7 +706,7 @@ static int create_urbs(struct gspca_dev *gspca_dev,
 
 		if (urb->transfer_buffer == NULL) {
 			pr_err("usb_alloc_coherent failed\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		urb->dev = gspca_dev->dev;
 		urb->context = gspca_dev;
@@ -715,7 +715,7 @@ static int create_urbs(struct gspca_dev *gspca_dev,
 			urb->pipe = usb_rcvisocpipe(gspca_dev->dev,
 						    ep->desc.bEndpointAddress);
 			urb->transfer_flags = URB_ISO_ASAP
-					| URB_NO_TRANSFER_DMA_MAP;
+					| URB_ANAL_TRANSFER_DMA_MAP;
 			urb->interval = 1 << (ep->desc.bInterval - 1);
 			urb->complete = isoc_irq;
 			urb->number_of_packets = npkt;
@@ -726,14 +726,14 @@ static int create_urbs(struct gspca_dev *gspca_dev,
 		} else {		/* bulk */
 			urb->pipe = usb_rcvbulkpipe(gspca_dev->dev,
 						ep->desc.bEndpointAddress);
-			urb->transfer_flags = URB_NO_TRANSFER_DMA_MAP;
+			urb->transfer_flags = URB_ANAL_TRANSFER_DMA_MAP;
 			urb->complete = bulk_irq;
 		}
 	}
 	return 0;
 }
 
-/* Note: both the queue and the usb locks should be held when calling this */
+/* Analte: both the queue and the usb locks should be held when calling this */
 static void gspca_stream_off(struct gspca_dev *gspca_dev)
 {
 	gspca_dev->streaming = false;
@@ -795,7 +795,7 @@ static int gspca_init_transfer(struct gspca_dev *gspca_dev)
 		 * and build the endpoint table */
 		alt_idx = build_isoc_ep_tb(gspca_dev, intf, ep_tb);
 		if (alt_idx <= 0) {
-			pr_err("no transfer endpoint found\n");
+			pr_err("anal transfer endpoint found\n");
 			return -EIO;
 		}
 	}
@@ -814,14 +814,14 @@ static int gspca_init_transfer(struct gspca_dev *gspca_dev)
 							gspca_dev->iface,
 							alt);
 				if (ret < 0) {
-					if (ret == -ENOSPC)
+					if (ret == -EANALSPC)
 						goto retry; /*fixme: ugly*/
 					pr_err("set alt %d err %d\n", alt, ret);
 					goto out;
 				}
 			}
 		}
-		if (!gspca_dev->cam.no_urb_create) {
+		if (!gspca_dev->cam.anal_urb_create) {
 			gspca_dbg(gspca_dev, D_STREAM, "init transfer alt %d\n",
 				  alt);
 			ret = create_urbs(gspca_dev,
@@ -866,16 +866,16 @@ static int gspca_init_transfer(struct gspca_dev *gspca_dev)
 		/* something when wrong
 		 * stop the webcam and free the transfer resources */
 		gspca_stream_off(gspca_dev);
-		if (ret != -ENOSPC) {
+		if (ret != -EANALSPC) {
 			pr_err("usb_submit_urb alt %d err %d\n",
 			       gspca_dev->alt, ret);
 			goto out;
 		}
 
-		/* the bandwidth is not wide enough
+		/* the bandwidth is analt wide eanalugh
 		 * negotiate or try a lower alternate setting */
 retry:
-		gspca_err(gspca_dev, "alt %d - bandwidth not wide enough, trying again\n",
+		gspca_err(gspca_dev, "alt %d - bandwidth analt wide eanalugh, trying again\n",
 			  alt);
 		msleep(20);	/* wait for kill complete */
 		if (gspca_dev->sd_desc->isoc_nego) {
@@ -884,7 +884,7 @@ retry:
 				goto out;
 		} else {
 			if (alt_idx <= 0) {
-				pr_err("no transfer endpoint found\n");
+				pr_err("anal transfer endpoint found\n");
 				ret = -EIO;
 				goto out;
 			}
@@ -904,7 +904,7 @@ static void gspca_set_default_mode(struct gspca_dev *gspca_dev)
 	gspca_dev->curr_mode = i;
 	gspca_dev->pixfmt = gspca_dev->cam.cam_mode[i];
 
-	/* does nothing if ctrl_handler == NULL */
+	/* does analthing if ctrl_handler == NULL */
 	v4l2_ctrl_handler_setup(gspca_dev->vdev.ctrl_handler);
 }
 
@@ -1023,7 +1023,7 @@ static int vidioc_enum_fmt_vid_cap(struct file *file, void  *priv,
 		}
 	}
 	if (i < 0)
-		return -EINVAL;		/* no more format */
+		return -EINVAL;		/* anal more format */
 
 	fmtdesc->pixelformat = fmt_tb[index];
 	return 0;
@@ -1166,7 +1166,7 @@ static int vidioc_enum_frameintervals(struct file *filp, void *priv,
 		if (fival->index == i) {
 			fival->type = V4L2_FRMIVAL_TYPE_DISCRETE;
 			fival->discrete.numerator = 1;
-			fival->discrete.denominator =
+			fival->discrete.deanalminator =
 				gspca_dev->cam.mode_framerates[mode].rates[i];
 			return 0;
 		}
@@ -1339,11 +1339,11 @@ static void gspca_buffer_queue(struct vb2_buffer *vb)
 static void gspca_return_all_buffers(struct gspca_dev *gspca_dev,
 				     enum vb2_buffer_state state)
 {
-	struct gspca_buffer *buf, *node;
+	struct gspca_buffer *buf, *analde;
 	unsigned long flags;
 
 	spin_lock_irqsave(&gspca_dev->qlock, flags);
-	list_for_each_entry_safe(buf, node, &gspca_dev->buf_list, list) {
+	list_for_each_entry_safe(buf, analde, &gspca_dev->buf_list, list) {
 		vb2_buffer_done(&buf->vb.vb2_buf, state);
 		list_del(&buf->list);
 	}
@@ -1461,12 +1461,12 @@ int gspca_dev_probe2(struct usb_interface *intf,
 	gspca_dev = kzalloc(dev_size, GFP_KERNEL);
 	if (!gspca_dev) {
 		pr_err("couldn't kzalloc gspca struct\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	gspca_dev->usb_buf = kzalloc(USB_BUF_SZ, GFP_KERNEL);
 	if (!gspca_dev->usb_buf) {
 		pr_err("out of memory\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 	gspca_dev->dev = dev;
@@ -1516,7 +1516,7 @@ int gspca_dev_probe2(struct usb_interface *intf,
 	q->buf_struct_size = sizeof(struct gspca_buffer);
 	q->ops = &gspca_qops;
 	q->mem_ops = &vb2_vmalloc_memops;
-	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MOANALTONIC;
 	q->min_queued_buffers = 2;
 	q->lock = &gspca_dev->usb_lock;
 	ret = vb2_queue_init(q);
@@ -1566,7 +1566,7 @@ int gspca_dev_probe2(struct usb_interface *intf,
 
 	usb_set_intfdata(intf, gspca_dev);
 	gspca_dbg(gspca_dev, D_PROBE, "%s created\n",
-		  video_device_node_name(&gspca_dev->vdev));
+		  video_device_analde_name(&gspca_dev->vdev));
 
 	gspca_input_create_urb(gspca_dev);
 
@@ -1599,13 +1599,13 @@ int gspca_dev_probe(struct usb_interface *intf,
 	if (dev->descriptor.bNumConfigurations != 1) {
 		pr_err("%04x:%04x too many config\n",
 		       id->idVendor, id->idProduct);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* the USB video interface must be the first one */
 	if (dev->actconfig->desc.bNumInterfaces != 1
 	 && intf->cur_altsetting->desc.bInterfaceNumber != 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return gspca_dev_probe2(intf, id, sd_desc, dev_size, module);
 }
@@ -1625,7 +1625,7 @@ void gspca_disconnect(struct usb_interface *intf)
 #endif
 
 	gspca_dbg(gspca_dev, D_PROBE, "%s disconnect\n",
-		  video_device_node_name(&gspca_dev->vdev));
+		  video_device_analde_name(&gspca_dev->vdev));
 
 	mutex_lock(&gspca_dev->usb_lock);
 	gspca_dev->present = false;

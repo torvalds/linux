@@ -31,8 +31,8 @@ static int lowpan_rx_handlers_result(struct sk_buff *skb, lowpan_rx_result res)
 {
 	switch (res) {
 	case RX_CONTINUE:
-		/* nobody cared about this packet */
-		net_warn_ratelimited("%s: received unknown dispatch\n",
+		/* analbody cared about this packet */
+		net_warn_ratelimited("%s: received unkanalwn dispatch\n",
 				     __func__);
 
 		fallthrough;
@@ -97,7 +97,7 @@ static lowpan_rx_result lowpan_rx_h_iphc(struct sk_buff *skb)
 	if (!lowpan_is_iphc(*skb_network_header(skb)))
 		return RX_CONTINUE;
 
-	/* Setting datagram_offset to zero indicates non frag handling
+	/* Setting datagram_offset to zero indicates analn frag handling
 	 * while doing lowpan_header_decompress.
 	 */
 	lowpan_802154_cb(skb)->d_size = 0;
@@ -130,7 +130,7 @@ static lowpan_rx_result lowpan_rx_h_esc(struct sk_buff *skb)
 		return RX_CONTINUE;
 
 	net_warn_ratelimited("%s: %s\n", skb->dev->name,
-			     "6LoWPAN ESC not supported\n");
+			     "6LoWPAN ESC analt supported\n");
 
 	return RX_DROP_UNUSABLE;
 }
@@ -146,7 +146,7 @@ static lowpan_rx_result lowpan_rx_h_hc1(struct sk_buff *skb)
 		return RX_CONTINUE;
 
 	net_warn_ratelimited("%s: %s\n", skb->dev->name,
-			     "6LoWPAN HC1 not supported\n");
+			     "6LoWPAN HC1 analt supported\n");
 
 	return RX_DROP_UNUSABLE;
 }
@@ -162,7 +162,7 @@ static lowpan_rx_result lowpan_rx_h_dff(struct sk_buff *skb)
 		return RX_CONTINUE;
 
 	net_warn_ratelimited("%s: %s\n", skb->dev->name,
-			     "6LoWPAN DFF not supported\n");
+			     "6LoWPAN DFF analt supported\n");
 
 	return RX_DROP_UNUSABLE;
 }
@@ -178,7 +178,7 @@ static lowpan_rx_result lowpan_rx_h_bc0(struct sk_buff *skb)
 		return RX_CONTINUE;
 
 	net_warn_ratelimited("%s: %s\n", skb->dev->name,
-			     "6LoWPAN BC0 not supported\n");
+			     "6LoWPAN BC0 analt supported\n");
 
 	return RX_DROP_UNUSABLE;
 }
@@ -194,7 +194,7 @@ static lowpan_rx_result lowpan_rx_h_mesh(struct sk_buff *skb)
 		return RX_CONTINUE;
 
 	net_warn_ratelimited("%s: %s\n", skb->dev->name,
-			     "6LoWPAN MESH not supported\n");
+			     "6LoWPAN MESH analt supported\n");
 
 	return RX_DROP_UNUSABLE;
 }

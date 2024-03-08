@@ -5,7 +5,7 @@
 
 /* Just a quick and causal check of the shmem_utils API */
 
-static int igt_shmem_basic(void *ignored)
+static int igt_shmem_basic(void *iganalred)
 {
 	u32 datum = 0xdeadbeef, result;
 	struct file *file;
@@ -35,7 +35,7 @@ static int igt_shmem_basic(void *ignored)
 
 	map = shmem_pin_map(file);
 	if (!map) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_file;
 	}
 

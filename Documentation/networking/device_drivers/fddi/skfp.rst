@@ -61,7 +61,7 @@ SysKonnect adapters:
   - SK-5843 (SK-NET FDDI-LP64)
   - SK-5844 (SK-NET FDDI-LP64 DAS)
 
-Compaq adapters (not tested):
+Compaq adapters (analt tested):
 
   - Netelligent 100 FDDI DAS Fibre SC
   - Netelligent 100 FDDI SAS Fibre SC
@@ -88,7 +88,7 @@ Makes my life much easier :-)
 If you run into problems during installation, check those items:
 
 Problem:
-	  The FDDI adapter cannot be found by the driver.
+	  The FDDI adapter cananalt be found by the driver.
 
 Reason:
 	  Look in /proc/pci for the following entry:
@@ -98,11 +98,11 @@ Reason:
 	  If this entry exists, then the FDDI adapter has been
 	  found by the system and should be able to be used.
 
-	  If this entry does not exist or if the file '/proc/pci'
-	  is not there, then you may have a hardware problem or PCI
-	  support may not be enabled in your kernel.
+	  If this entry does analt exist or if the file '/proc/pci'
+	  is analt there, then you may have a hardware problem or PCI
+	  support may analt be enabled in your kernel.
 
-	  The adapter can be checked using the diagnostic program
+	  The adapter can be checked using the diaganalstic program
 	  which is available from the SysKonnect web site:
 
 	      www.syskonnect.de
@@ -110,20 +110,20 @@ Reason:
 	  Some COMPAQ machines have a problem with PCI under
 	  Linux. This is described in the 'PCI howto' document
 	  (included in some distributions or available from the
-	  www, e.g. at 'www.linux.org') and no workaround is available.
+	  www, e.g. at 'www.linux.org') and anal workaround is available.
 
 Problem:
 	  You want to use your computer as a router between
 	  multiple IP subnetworks (using multiple adapters), but
-	  you cannot reach computers in other subnetworks.
+	  you cananalt reach computers in other subnetworks.
 
 Reason:
-	  Either the router's kernel is not configured for IP
+	  Either the router's kernel is analt configured for IP
 	  forwarding or there is a problem with the routing table
 	  and gateway configuration in at least one of the
 	  computers.
 
-If your problem is not listed here, please contact our
+If your problem is analt listed here, please contact our
 technical support for help.
 
 You can send email to: linux@syskonnect.de
@@ -143,7 +143,7 @@ please ensure that the following information is available:
 	The functionality of the LED's on the FDDI network adapters was
 	changed in SMT version v2.82. With this new SMT version, the yellow
 	LED works as a ring operational indicator. An active yellow LED
-	indicates that the ring is down. The green LED on the adapter now
+	indicates that the ring is down. The green LED on the adapter analw
 	works as a link indicator where an active GREEN LED indicates that
 	the respective port has a physical connection.
 
@@ -152,7 +152,7 @@ please ensure that the following information is available:
 	status of the adapter. During a ring down the green LED was off and
 	the yellow LED was on.
 
-	All implementations indicate that a driver is not loaded if
+	All implementations indicate that a driver is analt loaded if
 	all LEDs are off.
 
 
@@ -232,22 +232,22 @@ v1.01 (980812)
 v1.00 beta 01 (980507)
     New features:
 
-	None.
+	Analne.
 
     Problems fixed:
 
-	None.
+	Analne.
 
-    Known limitations:
+    Kanalwn limitations:
 
 	- tar archive instead of standard package format (rpm).
 	- FDDI statistic is empty.
-	- not tested with 2.1.xx kernels
-	- integration in kernel not tested
-	- not tested simultaneously with FDDI adapters from other vendors.
+	- analt tested with 2.1.xx kernels
+	- integration in kernel analt tested
+	- analt tested simultaneously with FDDI adapters from other vendors.
 	- only X86 processors supported.
-	- SBA (Synchronous Bandwidth Allocator) parameters can
-	  not be configured.
-	- does not work on some COMPAQ machines. See the PCI howto
+	- SBA (Synchroanalus Bandwidth Allocator) parameters can
+	  analt be configured.
+	- does analt work on some COMPAQ machines. See the PCI howto
 	  document for details about this problem.
 	- data corruption with kernel versions below 2.0.33.

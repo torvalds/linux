@@ -4,7 +4,7 @@ FPGA Device Feature List (DFL) Framework Overview
 
 Authors:
 
-- Enno Luebbers <enno.luebbers@intel.com>
+- Enanal Luebbers <enanal.luebbers@intel.com>
 - Xiao Guangrong <guangrong.xiao@linux.intel.com>
 - Wu Hao <hao.wu@intel.com>
 - Xu Yilun <yilun.xu@intel.com>
@@ -260,7 +260,7 @@ An AFU is attached to a port FIU and exposes a fixed length MMIO region to be
 used for accelerator-specific control registers.
 
 User-space applications can acquire exclusive access to an AFU attached to a
-port by using open() on the port device node and release it using close().
+port by using open() on the port device analde and release it using close().
 
 The following functions are exposed through ioctls:
 
@@ -364,7 +364,7 @@ reconfiguration of a PR bitstream file. The PR bitstream file must have been
 generated for the exact static FPGA region and targeted reconfigurable region
 (port) of the FPGA, otherwise, the reconfiguration operation will fail and
 possibly cause system instability. This compatibility can be checked by
-comparing the compatibility ID noted in the header of PR bitstream file against
+comparing the compatibility ID analted in the header of PR bitstream file against
 the compat_id exposed by the target FPGA region. This check is usually done by
 userspace before calling the reconfiguration IOCTL.
 
@@ -461,7 +461,7 @@ respective AFU's port needs to be assigned to a VF using the following steps:
 #. The AFU under VF is accessible from applications in VM (using the
    same driver inside the VF).
 
-Note that an FME can't be assigned to a VF, thus PR and other management
+Analte that an FME can't be assigned to a VF, thus PR and other management
 functions are only available via the PF.
 
 Device enumeration
@@ -503,7 +503,7 @@ In general, the FME/AFU sysfs interfaces are named as follows::
 with 'n' consecutively numbering all FMEs and 'm' consecutively numbering all
 ports.
 
-The device nodes used for ioctl() or mmap() can be referenced through::
+The device analdes used for ioctl() or mmap() can be referenced through::
 
 	/sys/class/fpga_region/<regionX>/<dfl-fme.n>/dev
 	/sys/class/fpga_region/<regionX>/<dfl-port.n>/dev
@@ -554,7 +554,7 @@ Example usage of perf::
   or
   $# perf stat -a -e dfl_fme0/config=0xff2006/ <command>
 
-Another example, fab_port_mmio_read monitors mmio read of a specific port. So
+Aanalther example, fab_port_mmio_read monitors mmio read of a specific port. So
 its configuration template is "event=0x06,evtype=0x01,portid=?". The portid
 should be explicitly set.
 
@@ -566,10 +566,10 @@ Its usage of perf::
   or
   $# perf stat -a -e dfl_fme0/config=0x2006/ <command>
 
-Please note for fabric counters, overall perf events (fab_*) and port perf
+Please analte for fabric counters, overall perf events (fab_*) and port perf
 events (fab_port_*) actually share one set of counters in hardware, so it can't
 monitor both at the same time. If this set of counters is configured to monitor
-overall data, then per port perf data is not supported. See below example::
+overall data, then per port perf data is analt supported. See below example::
 
   $# perf stat -e dfl_fme0/fab_mmio_read/,dfl_fme0/fab_port_mmio_write,\
                                                     portid=0/ sleep 1
@@ -577,26 +577,26 @@ overall data, then per port perf data is not supported. See below example::
   Performance counter stats for 'system wide':
 
                  3      dfl_fme0/fab_mmio_read/
-   <not supported>      dfl_fme0/fab_port_mmio_write,portid=0x0/
+   <analt supported>      dfl_fme0/fab_port_mmio_write,portid=0x0/
 
        1.001750904 seconds time elapsed
 
 The driver also provides a "cpumask" sysfs attribute, which contains only one
-CPU id used to access these perf events. Counting on multiple CPU is not allowed
+CPU id used to access these perf events. Counting on multiple CPU is analt allowed
 since they are system-wide counters on FPGA device.
 
-The current driver does not support sampling. So "perf record" is unsupported.
+The current driver does analt support sampling. So "perf record" is unsupported.
 
 
 Interrupt support
 =================
 Some FME and AFU private features are able to generate interrupts. As mentioned
-above, users could call ioctl (DFL_FPGA_*_GET_IRQ_NUM) to know whether or how
+above, users could call ioctl (DFL_FPGA_*_GET_IRQ_NUM) to kanalw whether or how
 many interrupts are supported for this private feature. Drivers also implement
-an eventfd based interrupt handling mechanism for users to get notified when
+an eventfd based interrupt handling mechanism for users to get analtified when
 interrupt happens. Users could set eventfds to driver via
 ioctl (DFL_FPGA_*_SET_IRQ), and then poll/select on these eventfds waiting for
-notification.
+analtification.
 In Current DFL, 3 sub features (Port error, FME global error and AFU interrupt)
 support interrupts.
 
@@ -629,11 +629,11 @@ https://github.com/OPAE/dfl-feature-id
 Location of DFLs on a PCI Device
 ================================
 The original method for finding a DFL on a PCI device assumed the start of the
-first DFL to offset 0 of bar 0.  If the first node of the DFL is an FME,
+first DFL to offset 0 of bar 0.  If the first analde of the DFL is an FME,
 then further DFLs in the port(s) are specified in FME header registers.
 Alternatively, a PCIe vendor specific capability structure can be used to
 specify the location of all the DFLs on the device, providing flexibility
-for the type of starting node in the DFL.  Intel has reserved the
+for the type of starting analde in the DFL.  Intel has reserved the
 VSEC ID of 0x43 for this purpose.  The vendor specific
 data begins with a 4 byte vendor specific register for the number of DFLs followed 4 byte
 Offset/BIR vendor specific registers for each DFL. Bits 2:0 of Offset/BIR register
@@ -652,7 +652,7 @@ zero.
         +----------------------------+
 
 Being able to specify more than one DFL per BAR has been considered, but it
-was determined the use case did not provide value.  Specifying a single DFL
+was determined the use case did analt provide value.  Specifying a single DFL
 per BAR simplifies the implementation and allows for extra error checking.
 
 
@@ -663,9 +663,9 @@ components. New hardware can instantiate a new private feature in the DFL, and
 then present a DFL device in the system. In some cases users may need a
 userspace driver for the DFL device:
 
-* Users may need to run some diagnostic test for their hardware.
+* Users may need to run some diaganalstic test for their hardware.
 * Users may prototype the kernel driver in user space.
-* Some hardware is designed for specific purposes and does not fit into one of
+* Some hardware is designed for specific purposes and does analt fit into one of
   the standard kernel subsystems.
 
 This requires direct access to MMIO space and interrupt handling from
@@ -673,7 +673,7 @@ userspace. The uio_dfl module exposes the UIO device interfaces for this
 purpose.
 
 Currently the uio_dfl driver only supports the Ether Group sub feature, which
-has no irq in hardware. So the interrupt handling is not added in this driver.
+has anal irq in hardware. So the interrupt handling is analt added in this driver.
 
 UIO_DFL should be selected to enable the uio_dfl module driver. To support a
 new DFL feature via UIO direct access, its feature id should be added to the
@@ -683,5 +683,5 @@ driver's id_table.
 Open discussion
 ===============
 FME driver exports one ioctl (DFL_FPGA_FME_PORT_PR) for partial reconfiguration
-to user now. In the future, if unified user interfaces for reconfiguration are
+to user analw. In the future, if unified user interfaces for reconfiguration are
 added, FME driver should switch to them from ioctl interface.

@@ -46,7 +46,7 @@ struct sta350_platform_data {
 	unsigned int invalid_input_detect_mute:1;
 	unsigned int activate_mute_output:1;
 	unsigned int bridge_immediate_off:1;
-	unsigned int noise_shape_dc_cut:1;
+	unsigned int analise_shape_dc_cut:1;
 	unsigned int powerdown_master_vol:1;
 };
 

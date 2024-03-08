@@ -17,7 +17,7 @@
 	};
 
 	/*
-	 * Lenovo 100e Chromebook 2nd Gen (MTK) and Lenovo 300e Chromebook 2nd
+	 * Leanalvo 100e Chromebook 2nd Gen (MTK) and Leanalvo 300e Chromebook 2nd
 	 * Gen (MTK) are using synaptics touchscreen (hid-over-i2c driver) as a
 	 * second source touchscreen.
 	 */
@@ -31,7 +31,7 @@
 
 &i2c4 {
 	/*
-	 * Lenovo 100e Chromebook 2nd Gen (MTK) and Lenovo 300e Chromebook 2nd
+	 * Leanalvo 100e Chromebook 2nd Gen (MTK) and Leanalvo 300e Chromebook 2nd
 	 * Gen (MTK) are using synaptics trackpad (hid-over-i2c driver) as a
 	 * second source trackpad.
 	 */

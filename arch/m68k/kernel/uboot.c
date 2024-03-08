@@ -14,7 +14,7 @@
 #include <linux/module.h>
 #include <linux/mm.h>
 #include <linux/console.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/memblock.h>
 #include <linux/seq_file.h>

@@ -120,9 +120,9 @@ static SOC_VALUE_ENUM_SINGLE_DECL(ak4118_iec958_fs_enum, AK4118_REG_RCV_STATUS1,
 
 static struct snd_kcontrol_new ak4118_iec958_controls[] = {
 	SOC_SINGLE("IEC958 Parity Errors", AK4118_REG_RCV_STATUS0, 0, 1, 0),
-	SOC_SINGLE("IEC958 No Audio", AK4118_REG_RCV_STATUS0, 1, 1, 0),
+	SOC_SINGLE("IEC958 Anal Audio", AK4118_REG_RCV_STATUS0, 1, 1, 0),
 	SOC_SINGLE("IEC958 PLL Lock", AK4118_REG_RCV_STATUS0, 4, 1, 1),
-	SOC_SINGLE("IEC958 Non PCM", AK4118_REG_RCV_STATUS0, 6, 1, 0),
+	SOC_SINGLE("IEC958 Analn PCM", AK4118_REG_RCV_STATUS0, 6, 1, 0),
 	SOC_ENUM("IEC958 Sampling Freq", ak4118_iec958_fs_enum),
 };
 
@@ -135,7 +135,7 @@ static const struct snd_soc_dapm_widget ak4118_dapm_widgets[] = {
 	SND_SOC_DAPM_INPUT("INRX5"),
 	SND_SOC_DAPM_INPUT("INRX6"),
 	SND_SOC_DAPM_INPUT("INRX7"),
-	SND_SOC_DAPM_MUX("Input Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("Input Mux", SND_SOC_ANALPM, 0, 0,
 			 &ak4118_input_mux_controls),
 };
 
@@ -167,7 +167,7 @@ static int ak4118_set_dai_fmt_provider(struct ak4118_priv *ak4118,
 		dif = AK4118_REG_FORMAT_CTL_DIF2;
 		break;
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	return dif;
@@ -187,7 +187,7 @@ static int ak4118_set_dai_fmt_consumer(struct ak4118_priv *ak4118,
 		dif = AK4118_REG_FORMAT_CTL_DIF1 | AK4118_REG_FORMAT_CTL_DIF2;
 		break;
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	return dif;
@@ -209,11 +209,11 @@ static int ak4118_set_dai_fmt(struct snd_soc_dai *dai,
 		dif = ak4118_set_dai_fmt_consumer(ak4118, format);
 		break;
 	default:
-		ret = -ENOTSUPP;
+		ret = -EANALTSUPP;
 		goto exit;
 	}
 
-	/* format not supported */
+	/* format analt supported */
 	if (dif < 0) {
 		ret = dif;
 		goto exit;
@@ -267,12 +267,12 @@ static irqreturn_t ak4118_irq_handler(int irq, void *data)
 	unsigned int i;
 
 	if (!component)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	for (i = 0; i < ARRAY_SIZE(ak4118_iec958_controls); i++) {
 		kctl_new = &ak4118_iec958_controls[i];
 
-		snd_soc_component_notify_control(component, kctl_new->name);
+		snd_soc_component_analtify_control(component, kctl_new->name);
 	}
 
 	return IRQ_HANDLED;
@@ -344,7 +344,7 @@ static const struct regmap_config ak4118_regmap = {
 	.reg_defaults = ak4118_reg_defaults,
 	.num_reg_defaults = ARRAY_SIZE(ak4118_reg_defaults),
 
-	.cache_type = REGCACHE_NONE,
+	.cache_type = REGCACHE_ANALNE,
 	.max_register = AK4118_REG_MAX - 1,
 };
 
@@ -356,7 +356,7 @@ static int ak4118_i2c_probe(struct i2c_client *i2c)
 	ak4118 = devm_kzalloc(&i2c->dev, sizeof(struct ak4118_priv),
 			      GFP_KERNEL);
 	if (ak4118 == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ak4118->regmap = devm_regmap_init_i2c(i2c, &ak4118_regmap);
 	if (IS_ERR(ak4118->regmap))

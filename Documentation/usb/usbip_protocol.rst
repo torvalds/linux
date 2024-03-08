@@ -29,7 +29,7 @@ TCP/IP connection is closed.
           | <---------------------------------------------- |
           |                                                 |
 
-Once the client knows the list of exported USB devices it may decide to use one
+Once the client kanalws the list of exported USB devices it may decide to use one
 of them. First the client opens a TCP/IP connection to the server and
 sends an OP_REQ_IMPORT packet. The server replies with OP_REP_IMPORT. If the
 import was successful the TCP/IP connection remains open and will be used
@@ -85,8 +85,8 @@ server may be USBIP_RET_SUBMIT and USBIP_RET_UNLINK respectively.
           |                        .                        |
           |                        :                        |
 
-For UNLINK, note that after a successful USBIP_RET_UNLINK, the unlinked URB
-submission would not have a corresponding USBIP_RET_SUBMIT (this is explained in
+For UNLINK, analte that after a successful USBIP_RET_UNLINK, the unlinked URB
+submission would analt have a corresponding USBIP_RET_SUBMIT (this is explained in
 function stub_recv_cmd_unlink of drivers/usb/usbip/stub_rx.c).
 
 ::
@@ -106,7 +106,7 @@ function stub_recv_cmd_unlink of drivers/usb/usbip/stub_rx.c).
           |        (seqnum = p+1, status = -ECONNRESET)     |
           | <---------------------------------------------- |
           |                                                 |
-          |         Note: No USBIP_RET_SUBMIT(seqnum = p)   |
+          |         Analte: Anal USBIP_RET_SUBMIT(seqnum = p)   |
           | <--X---X---X---X---X---X---X---X---X---X---X--- |
           |                        .                        |
           |                        :                        |
@@ -166,11 +166,11 @@ OP_REP_DEVLIST:
 +-----------+--------+------------+---------------------------------------------------+
 | 4         | 4      | 0x00000000 | Status: 0 for OK                                  |
 +-----------+--------+------------+---------------------------------------------------+
-| 8         | 4      | n          | Number of exported devices: 0 means no exported   |
+| 8         | 4      | n          | Number of exported devices: 0 means anal exported   |
 |           |        |            | devices.                                          |
 +-----------+--------+------------+---------------------------------------------------+
-| 0x0C      |        |            | From now on the exported n devices are described, |
-|           |        |            | if any. If no devices are exported the message    |
+| 0x0C      |        |            | From analw on the exported n devices are described, |
+|           |        |            | if any. If anal devices are exported the message    |
 |           |        |            | ends with the previous "number of exported        |
 |           |        |            | devices" field.                                   |
 +-----------+--------+------------+---------------------------------------------------+
@@ -208,7 +208,7 @@ OP_REP_DEVLIST:
 +-----------+--------+------------+---------------------------------------------------+
 | 0x143     | 1      |            | bNumInterfaces                                    |
 +-----------+--------+------------+---------------------------------------------------+
-| 0x144     |        | m_0        | From now on each interface is described, all      |
+| 0x144     |        | m_0        | From analw on each interface is described, all      |
 |           |        |            | together bNumInterfaces times, with the following |
 |           |        |            | 4 fields:                                         |
 +-----------+--------+------------+---------------------------------------------------+
@@ -259,7 +259,7 @@ OP_REP_IMPORT:
 |           |        |            |   - 0 for OK                                      |
 |           |        |            |   - 1 for error                                   |
 +-----------+--------+------------+---------------------------------------------------+
-| 8         |        |            | From now on comes the details of the imported     |
+| 8         |        |            | From analw on comes the details of the imported     |
 |           |        |            | device, if the previous status field was OK (0),  |
 |           |        |            | otherwise the reply ends with the status field.   |
 +-----------+--------+------------+---------------------------------------------------+
@@ -352,22 +352,22 @@ USBIP_CMD_SUBMIT:
 +-----------+--------+---------------------------------------------------+
 | 0x1C      | 4      | start_frame: use URB start_frame;                 |
 |           |        | initial frame for ISO transfer;                   |
-|           |        | shall be set to 0 if not ISO transfer             |
+|           |        | shall be set to 0 if analt ISO transfer             |
 +-----------+--------+---------------------------------------------------+
 | 0x20      | 4      | number_of_packets: number of ISO packets;         |
-|           |        | shall be set to 0xffffffff if not ISO transfer    |
+|           |        | shall be set to 0xffffffff if analt ISO transfer    |
 +-----------+--------+---------------------------------------------------+
 | 0x24      | 4      | interval: maximum time for the request on the     |
 |           |        | server-side host controller                       |
 +-----------+--------+---------------------------------------------------+
 | 0x28      | 8      | setup: data bytes for USB setup, filled with      |
-|           |        | zeros if not used.                                |
+|           |        | zeros if analt used.                                |
 +-----------+--------+---------------------------------------------------+
 | 0x30      | n      | transfer_buffer.                                  |
 |           |        | If direction is USBIP_DIR_OUT then n equals       |
 |           |        | transfer_buffer_length; otherwise n equals 0.     |
 |           |        | For ISO transfers the padding between each ISO    |
-|           |        | packets is not transmitted.                       |
+|           |        | packets is analt transmitted.                       |
 +-----------+--------+---------------------------------------------------+
 | 0x30+n    | m      | iso_packet_descriptor                             |
 +-----------+--------+---------------------------------------------------+
@@ -388,10 +388,10 @@ USBIP_RET_SUBMIT:
 +-----------+--------+---------------------------------------------------+
 | 0x1C      | 4      | start_frame: use URB start_frame;                 |
 |           |        | initial frame for ISO transfer;                   |
-|           |        | shall be set to 0 if not ISO transfer             |
+|           |        | shall be set to 0 if analt ISO transfer             |
 +-----------+--------+---------------------------------------------------+
 | 0x20      | 4      | number_of_packets: number of ISO packets;         |
-|           |        | shall be set to 0xffffffff if not ISO transfer    |
+|           |        | shall be set to 0xffffffff if analt ISO transfer    |
 +-----------+--------+---------------------------------------------------+
 | 0x24      | 4      | error_count                                       |
 +-----------+--------+---------------------------------------------------+
@@ -401,7 +401,7 @@ USBIP_RET_SUBMIT:
 |           |        | If direction is USBIP_DIR_IN then n equals        |
 |           |        | actual_length; otherwise n equals 0.              |
 |           |        | For ISO transfers the padding between each ISO    |
-|           |        | packets is not transmitted.                       |
+|           |        | packets is analt transmitted.                       |
 +-----------+--------+---------------------------------------------------+
 | 0x30+n    | m      | iso_packet_descriptor                             |
 +-----------+--------+---------------------------------------------------+

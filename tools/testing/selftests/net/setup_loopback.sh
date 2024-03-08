@@ -14,7 +14,7 @@ netdev_check_for_carrier() {
 	for i in {1..5}; do
 		carrier="$(cat /sys/class/net/${dev}/carrier)"
 		if [[ "${carrier}" -ne 1 ]] ; then
-			echo "carrier not ready yet..." >&2
+			echo "carrier analt ready yet..." >&2
 			sleep 1
 		else
 			echo "carrier ready" >&2
@@ -24,11 +24,11 @@ netdev_check_for_carrier() {
 	echo "${carrier}"
 }
 
-# Assumes that there is no existing ipvlan device on the physical device
+# Assumes that there is anal existing ipvlan device on the physical device
 setup_loopback_environment() {
 	local dev="$1"
 
-	# Fail hard if cannot turn on loopback mode for current NIC
+	# Fail hard if cananalt turn on loopback mode for current NIC
 	ethtool -K "${dev}" loopback on || exit 1
 	sleep 1
 
@@ -91,7 +91,7 @@ cleanup_loopback(){
 
 setup_interrupt() {
 	# Use timer on  host to trigger the network stack
-	# Also disable device interrupt to not depend on NIC interrupt
+	# Also disable device interrupt to analt depend on NIC interrupt
 	# Reduce test flakiness caused by unexpected interrupts
 	echo 100000 >"${FLUSH_PATH}"
 	echo 50 >"${IRQ_PATH}"

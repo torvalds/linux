@@ -66,10 +66,10 @@ static void adc_keys_poll(struct input_dev *input)
 static int adc_keys_load_keymap(struct device *dev, struct adc_keys_state *st)
 {
 	struct adc_keys_button *map;
-	struct fwnode_handle *child;
+	struct fwanalde_handle *child;
 	int i;
 
-	st->num_keys = device_get_child_node_count(dev);
+	st->num_keys = device_get_child_analde_count(dev);
 	if (st->num_keys == 0) {
 		dev_err(dev, "keymap is missing\n");
 		return -EINVAL;
@@ -77,22 +77,22 @@ static int adc_keys_load_keymap(struct device *dev, struct adc_keys_state *st)
 
 	map = devm_kmalloc_array(dev, st->num_keys, sizeof(*map), GFP_KERNEL);
 	if (!map)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i = 0;
-	device_for_each_child_node(dev, child) {
-		if (fwnode_property_read_u32(child, "press-threshold-microvolt",
+	device_for_each_child_analde(dev, child) {
+		if (fwanalde_property_read_u32(child, "press-threshold-microvolt",
 					     &map[i].voltage)) {
 			dev_err(dev, "Key with invalid or missing voltage\n");
-			fwnode_handle_put(child);
+			fwanalde_handle_put(child);
 			return -EINVAL;
 		}
 		map[i].voltage /= 1000;
 
-		if (fwnode_property_read_u32(child, "linux,code",
+		if (fwanalde_property_read_u32(child, "linux,code",
 					     &map[i].keycode)) {
 			dev_err(dev, "Key with invalid or missing linux,code\n");
-			fwnode_handle_put(child);
+			fwanalde_handle_put(child);
 			return -EINVAL;
 		}
 
@@ -114,7 +114,7 @@ static int adc_keys_probe(struct platform_device *pdev)
 
 	st = devm_kzalloc(dev, sizeof(*st), GFP_KERNEL);
 	if (!st)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	st->channel = devm_iio_channel_get(dev, "buttons");
 	if (IS_ERR(st->channel))
@@ -146,7 +146,7 @@ static int adc_keys_probe(struct platform_device *pdev)
 	input = devm_input_allocate_device(dev);
 	if (!input) {
 		dev_err(dev, "failed to allocate input device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	input_set_drvdata(input, st);

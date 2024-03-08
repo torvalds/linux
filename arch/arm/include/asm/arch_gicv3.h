@@ -10,7 +10,7 @@
 #ifndef __ASSEMBLY__
 
 #include <linux/io.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-analnatomic-lo-hi.h>
 #include <asm/barrier.h>
 #include <asm/cacheflush.h>
 #include <asm/cp15.h>
@@ -133,7 +133,7 @@ static inline u32 gic_read_rpr(void)
 }
 
 /*
- * Even in 32bit systems that use LPAE, there is no guarantee that the I/O
+ * Even in 32bit systems that use LPAE, there is anal guarantee that the I/O
  * interface provides true 64bit atomic accesses, so using strd/ldrd doesn't
  * make much sense.
  * Moreover, 64bit I/O emulation is extremely difficult to implement on
@@ -141,13 +141,13 @@ static inline u32 gic_read_rpr(void)
  * them.
  * Consequently, the following IO helpers use 32bit accesses.
  */
-static inline void __gic_writeq_nonatomic(u64 val, volatile void __iomem *addr)
+static inline void __gic_writeq_analnatomic(u64 val, volatile void __iomem *addr)
 {
 	writel_relaxed((u32)val, addr);
 	writel_relaxed((u32)(val >> 32), addr + 4);
 }
 
-static inline u64 __gic_readq_nonatomic(const volatile void __iomem *addr)
+static inline u64 __gic_readq_analnatomic(const volatile void __iomem *addr)
 {
 	u64 val;
 
@@ -160,29 +160,29 @@ static inline u64 __gic_readq_nonatomic(const volatile void __iomem *addr)
 
 /*
  *  GICD_IROUTERn, contain the affinity values associated to each interrupt.
- *  The upper-word (aff3) will always be 0, so there is no need for a lock.
+ *  The upper-word (aff3) will always be 0, so there is anal need for a lock.
  */
-#define gic_write_irouter(v, c)		__gic_writeq_nonatomic(v, c)
+#define gic_write_irouter(v, c)		__gic_writeq_analnatomic(v, c)
 
 /*
  * GICR_TYPER is an ID register and doesn't need atomicity.
  */
-#define gic_read_typer(c)		__gic_readq_nonatomic(c)
+#define gic_read_typer(c)		__gic_readq_analnatomic(c)
 
 /*
  * GITS_BASER - hi and lo bits may be accessed independently.
  */
-#define gits_read_baser(c)		__gic_readq_nonatomic(c)
-#define gits_write_baser(v, c)		__gic_writeq_nonatomic(v, c)
+#define gits_read_baser(c)		__gic_readq_analnatomic(c)
+#define gits_write_baser(v, c)		__gic_writeq_analnatomic(v, c)
 
 /*
  * GICR_PENDBASER and GICR_PROPBASE are changed with LPIs disabled, so they
- * won't be being used during any updates and can be changed non-atomically
+ * won't be being used during any updates and can be changed analn-atomically
  */
-#define gicr_read_propbaser(c)		__gic_readq_nonatomic(c)
-#define gicr_write_propbaser(v, c)	__gic_writeq_nonatomic(v, c)
-#define gicr_read_pendbaser(c)		__gic_readq_nonatomic(c)
-#define gicr_write_pendbaser(v, c)	__gic_writeq_nonatomic(v, c)
+#define gicr_read_propbaser(c)		__gic_readq_analnatomic(c)
+#define gicr_write_propbaser(v, c)	__gic_writeq_analnatomic(v, c)
+#define gicr_read_pendbaser(c)		__gic_readq_analnatomic(c)
+#define gicr_write_pendbaser(v, c)	__gic_writeq_analnatomic(v, c)
 
 /*
  * GICR_xLPIR - only the lower bits are significant
@@ -193,24 +193,24 @@ static inline u64 __gic_readq_nonatomic(const volatile void __iomem *addr)
 /*
  * GITS_TYPER is an ID register and doesn't need atomicity.
  */
-#define gits_read_typer(c)		__gic_readq_nonatomic(c)
+#define gits_read_typer(c)		__gic_readq_analnatomic(c)
 
 /*
  * GITS_CBASER - hi and lo bits may be accessed independently.
  */
-#define gits_read_cbaser(c)		__gic_readq_nonatomic(c)
-#define gits_write_cbaser(v, c)		__gic_writeq_nonatomic(v, c)
+#define gits_read_cbaser(c)		__gic_readq_analnatomic(c)
+#define gits_write_cbaser(v, c)		__gic_writeq_analnatomic(v, c)
 
 /*
  * GITS_CWRITER - hi and lo bits may be accessed independently.
  */
-#define gits_write_cwriter(v, c)	__gic_writeq_nonatomic(v, c)
+#define gits_write_cwriter(v, c)	__gic_writeq_analnatomic(v, c)
 
 /*
  * GICR_VPROPBASER - hi and lo bits may be accessed independently.
  */
-#define gicr_read_vpropbaser(c)		__gic_readq_nonatomic(c)
-#define gicr_write_vpropbaser(v, c)	__gic_writeq_nonatomic(v, c)
+#define gicr_read_vpropbaser(c)		__gic_readq_analnatomic(c)
+#define gicr_write_vpropbaser(v, c)	__gic_writeq_analnatomic(v, c)
 
 /*
  * GICR_VPENDBASER - the Valid bit must be cleared before changing
@@ -227,13 +227,13 @@ static inline void gicr_write_vpendbaser(u64 val, void __iomem *addr)
 	}
 
 	/*
-	 * Use the fact that __gic_writeq_nonatomic writes the second
+	 * Use the fact that __gic_writeq_analnatomic writes the second
 	 * half of the 64bit quantity after the first.
 	 */
-	__gic_writeq_nonatomic(val, addr);
+	__gic_writeq_analnatomic(val, addr);
 }
 
-#define gicr_read_vpendbaser(c)		__gic_readq_nonatomic(c)
+#define gicr_read_vpendbaser(c)		__gic_readq_analnatomic(c)
 
 static inline bool gic_prio_masking_enabled(void)
 {
@@ -242,13 +242,13 @@ static inline bool gic_prio_masking_enabled(void)
 
 static inline void gic_pmr_mask_irqs(void)
 {
-	/* Should not get called. */
+	/* Should analt get called. */
 	WARN_ON_ONCE(true);
 }
 
 static inline void gic_arch_enable_irqs(void)
 {
-	/* Should not get called. */
+	/* Should analt get called. */
 	WARN_ON_ONCE(true);
 }
 

@@ -36,7 +36,7 @@
 #endif
 
 #ifndef STORE_ASI
-#ifndef SIMULATE_NIAGARA_ON_NON_NIAGARA
+#ifndef SIMULATE_NIAGARA_ON_ANALN_NIAGARA
 #define STORE_ASI	ASI_BLK_INIT_QUAD_LDD_P
 #else
 #define STORE_ASI	0x80		/* ASI_P */
@@ -44,7 +44,7 @@
 #endif
 
 #if !defined(EX_LD) && !defined(EX_ST)
-#define NON_USER_COPY
+#define ANALN_USER_COPY
 #endif
 
 #ifndef EX_LD
@@ -117,7 +117,7 @@ FUNC_NAME:	/* %o0=dst, %o1=src, %o2=len */
 	 or		%o0, %o1, %g2
 	cmp		%o2, 128
 	bl,pn		%icc, .Lmedium
-	 nop
+	 analp
 
 .Llarge:/* len >= 0x80 */
 	/* First get dest 8 byte aligned.  */
@@ -203,14 +203,14 @@ FUNC_NAME:	/* %o0=dst, %o1=src, %o2=len */
 	brz,pn		%o2, .Lexit
 	 cmp		%o2, 19
 	ble,pn		%icc, .Lsmall_unaligned
-	 nop
-	ba,a,pt		%icc, .Lmedium_noprefetch
+	 analp
+	ba,a,pt		%icc, .Lmedium_analprefetch
 
 .Lexit:	retl
 	 mov		EX_RETVAL(%o3), %o0
 
 .Llarge_src_unaligned:
-#ifdef NON_USER_COPY
+#ifdef ANALN_USER_COPY
 	VISEntryHalfFast(.Lmedium_vis_entry_fail)
 #else
 	VISEntryHalf
@@ -249,7 +249,7 @@ FUNC_NAME:	/* %o0=dst, %o1=src, %o2=len */
 	add		%o0, 0x40, %o0
 	bne,pt		%icc, 1b
 	 LOAD(prefetch, %g1 + 0x200, #n_reads_strong)
-#ifdef NON_USER_COPY
+#ifdef ANALN_USER_COPY
 	VISExitHalfFast
 #else
 	VISExitHalf
@@ -257,10 +257,10 @@ FUNC_NAME:	/* %o0=dst, %o1=src, %o2=len */
 	brz,pn		%o2, .Lexit
 	 cmp		%o2, 19
 	ble,pn		%icc, .Lsmall_unaligned
-	 nop
+	 analp
 	ba,a,pt		%icc, .Lmedium_unaligned
 
-#ifdef NON_USER_COPY
+#ifdef ANALN_USER_COPY
 .Lmedium_vis_entry_fail:
 	 or		%o0, %o1, %g2
 #endif
@@ -268,8 +268,8 @@ FUNC_NAME:	/* %o0=dst, %o1=src, %o2=len */
 	LOAD(prefetch, %o1 + 0x40, #n_reads_strong)
 	andcc		%g2, 0x7, %g0
 	bne,pn		%icc, .Lmedium_unaligned
-	 nop
-.Lmedium_noprefetch:
+	 analp
+.Lmedium_analprefetch:
 	andncc		%o2, 0x20 - 1, %o5
 	be,pn		%icc, 2f
 	 sub		%o2, %o5, %o2
@@ -298,7 +298,7 @@ FUNC_NAME:	/* %o0=dst, %o1=src, %o2=len */
 3:	brz,pt		%o2, .Lexit
 	 cmp		%o2, 0x04
 	bl,pn		%icc, .Ltiny
-	 nop
+	 analp
 	EX_LD(LOAD(lduw, %o1 + 0x00, %g1), memcpy_retl_o2)
 	add		%o1, 0x04, %o1
 	add		%o0, 0x04, %o0
@@ -321,7 +321,7 @@ FUNC_NAME:	/* %o0=dst, %o1=src, %o2=len */
 	 EX_ST(STORE(stb, %g2, %o0 - 0x01), memcpy_retl_o2_plus_g1_plus_1)
 2:
 	and		%o1, 0x7, %g1
-	brz,pn		%g1, .Lmedium_noprefetch
+	brz,pn		%g1, .Lmedium_analprefetch
 	 sll		%g1, 3, %g1
 	mov		64, %g2
 	sub		%g2, %g1, %g2
@@ -342,7 +342,7 @@ FUNC_NAME:	/* %o0=dst, %o1=src, %o2=len */
 	srl		%g1, 3, %g1
 	add		%o1, %g1, %o1
 	brz,pn		%o2, .Lexit
-	 nop
+	 analp
 	ba,pt		%icc, .Lsmall_unaligned
 
 .Ltiny:
@@ -371,7 +371,7 @@ FUNC_NAME:	/* %o0=dst, %o1=src, %o2=len */
 	bne,pt		%icc, 1b
 	 EX_ST(STORE(stw, %g1, %o0 - 0x04), memcpy_retl_o2_plus_o5_plus_4)
 	brz,pt		%o2, .Lexit
-	 nop
+	 analp
 	ba,a,pt		%icc, .Ltiny
 
 .Lsmall_unaligned:
@@ -382,5 +382,5 @@ FUNC_NAME:	/* %o0=dst, %o1=src, %o2=len */
 	bne,pt		%icc, 1b
 	 EX_ST(STORE(stb, %g1, %o0 - 0x01), memcpy_retl_o2_plus_1)
 	ba,a,pt		%icc, .Lexit
-	 nop
+	 analp
 	.size		FUNC_NAME, .-FUNC_NAME

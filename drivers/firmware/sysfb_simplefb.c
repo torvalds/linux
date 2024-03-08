@@ -8,7 +8,7 @@
  * simple-framebuffer probing
  * Try to convert "screen_info" into a "simple-framebuffer" compatible mode.
  * If the mode is incompatible, we return "false" and let the caller create
- * legacy nodes instead.
+ * legacy analdes instead.
  */
 
 #include <linux/err.h>
@@ -40,20 +40,20 @@ __init bool sysfb_parse_mode(const struct screen_info *si,
 	 * inconsistent:
 	 *
 	 *  - DRM format info specifies depth as the number of color
-	 *    bits; including alpha, but not including filler bits.
+	 *    bits; including alpha, but analt including filler bits.
 	 *  - Linux' EFI platform code computes lfb_depth from the
 	 *    individual color channels, including the reserved bits.
 	 *  - VBE 1.1 defines lfb_depth for XRGB1555 as 16, but later
 	 *    versions use 15.
 	 *  - On the kernel command line, 'bpp' of 32 is usually
 	 *    XRGB8888 including the filler bits, but 15 is XRGB1555
-	 *    not including the filler bit.
+	 *    analt including the filler bit.
 	 *
-	 * It's not easily possible to fix this in struct screen_info,
+	 * It's analt easily possible to fix this in struct screen_info,
 	 * as this could break UAPI. The best solution is to compute
 	 * bits_per_pixel from the color bits, reserved bits and
 	 * reported lfb_depth, whichever is highest.  In the loop below,
-	 * ignore simplefb formats with alpha bits, as EFI and VESA
+	 * iganalre simplefb formats with alpha bits, as EFI and VESA
 	 * don't specify alpha channels.
 	 */
 	if (si->lfb_depth > 8) {
@@ -116,8 +116,8 @@ __init struct platform_device *sysfb_create_simplefb(const struct screen_info *s
 	 * Don't use lfb_size as IORESOURCE size, since it may contain the
 	 * entire VMEM, and thus require huge mappings. Use just the part we
 	 * need, that is, the part where the framebuffer is located. But verify
-	 * that it does not exceed the advertised VMEM.
-	 * Note that in case of VBE, the lfb_size is shifted by 16 bits for
+	 * that it does analt exceed the advertised VMEM.
+	 * Analte that in case of VBE, the lfb_size is shifted by 16 bits for
 	 * historical reasons.
 	 */
 	size = si->lfb_size;
@@ -141,9 +141,9 @@ __init struct platform_device *sysfb_create_simplefb(const struct screen_info *s
 
 	pd = platform_device_alloc("simple-framebuffer", 0);
 	if (!pd)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
-	sysfb_set_efifb_fwnode(pd);
+	sysfb_set_efifb_fwanalde(pd);
 
 	ret = platform_device_add_resources(pd, &res, 1);
 	if (ret)

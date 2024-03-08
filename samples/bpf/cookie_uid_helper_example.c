@@ -34,7 +34,7 @@
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof(*(x)))
 
 #include <arpa/inet.h>
-#include <errno.h>
+#include <erranal.h>
 #include <error.h>
 #include <limits.h>
 #include <linux/bpf.h>
@@ -70,7 +70,7 @@ static void maps_create(void)
 	map_fd = bpf_map_create(BPF_MAP_TYPE_HASH, NULL, sizeof(uint32_t),
 				sizeof(struct stats), 100, NULL);
 	if (map_fd < 0)
-		error(1, errno, "map create failed!\n");
+		error(1, erranal, "map create failed!\n");
 }
 
 static void prog_load(void)
@@ -80,7 +80,7 @@ static void prog_load(void)
 	struct bpf_insn prog[] = {
 		/*
 		 * Save sk_buff for future usage. value stored in R6 to R10 will
-		 * not be reset after a bpf helper function call.
+		 * analt be reset after a bpf helper function call.
 		 */
 		BPF_MOV64_REG(BPF_REG_6, BPF_REG_1),
 		/*
@@ -165,7 +165,7 @@ static void prog_load(void)
 	prog_fd = bpf_prog_load(BPF_PROG_TYPE_SOCKET_FILTER, NULL, "GPL",
 				prog, ARRAY_SIZE(prog), &opts);
 	if (prog_fd < 0)
-		error(1, errno, "failed to load prog\n%s\n", log_buf);
+		error(1, erranal, "failed to load prog\n%s\n", log_buf);
 }
 
 static void prog_attach_iptables(char *file)
@@ -174,7 +174,7 @@ static void prog_attach_iptables(char *file)
 	char rules[256];
 
 	if (bpf_obj_pin(prog_fd, file))
-		error(1, errno, "bpf_obj_pin");
+		error(1, erranal, "bpf_obj_pin");
 	if (strlen(file) > 50) {
 		printf("file path too long: %s\n", file);
 		exit(1);
@@ -204,7 +204,7 @@ static void print_table(void)
 		curN = nextN;
 		res = bpf_map_lookup_elem(map_fd, &curN, &curEntry);
 		if (res < 0) {
-			error(1, errno, "fail to get entry value of Key: %u\n",
+			error(1, erranal, "fail to get entry value of Key: %u\n",
 				curN);
 		} else {
 			printf("cookie: %u, uid: 0x%x, Packet Count: %lu,"
@@ -229,33 +229,33 @@ static void udp_client(void)
 
 	s_rcv = socket(PF_INET, SOCK_DGRAM, 0);
 	if (s_rcv < 0)
-		error(1, errno, "rcv socket creat failed!\n");
+		error(1, erranal, "rcv socket creat failed!\n");
 	si_other.sin_family = AF_INET;
 	si_other.sin_port = htons(PORT);
 	if (inet_aton("127.0.0.1", &si_other.sin_addr) == 0)
-		error(1, errno, "inet_aton\n");
+		error(1, erranal, "inet_aton\n");
 	if (bind(s_rcv, (struct sockaddr *)&si_other, sizeof(si_other)) == -1)
-		error(1, errno, "bind\n");
+		error(1, erranal, "bind\n");
 	s_send = socket(PF_INET, SOCK_DGRAM, 0);
 	if (s_send < 0)
-		error(1, errno, "send socket creat failed!\n");
+		error(1, erranal, "send socket creat failed!\n");
 	res = getsockopt(s_send, SOL_SOCKET, SO_COOKIE, &cookie, &cookie_len);
 	if (res < 0)
-		printf("get cookie failed: %s\n", strerror(errno));
+		printf("get cookie failed: %s\n", strerror(erranal));
 	res = bpf_map_lookup_elem(map_fd, &cookie, &dataEntry);
 	if (res != -1)
-		error(1, errno, "socket stat found while flow not active\n");
+		error(1, erranal, "socket stat found while flow analt active\n");
 	for (i = 0; i < 10; i++) {
 		res = sendto(s_send, &message, sizeof(message), 0,
 			     (struct sockaddr *)&si_other, slen);
 		if (res == -1)
-			error(1, errno, "send\n");
+			error(1, erranal, "send\n");
 		if (res != sizeof(message))
 			error(1, 0, "%uB != %luB\n", res, sizeof(message));
 		recv_len = recvfrom(s_rcv, &buf, sizeof(buf), 0,
 			     (struct sockaddr *)&si_me, &slen);
 		if (recv_len < 0)
-			error(1, errno, "receive\n");
+			error(1, erranal, "receive\n");
 		res = memcmp(&(si_other.sin_addr), &(si_me.sin_addr),
 			   sizeof(si_me.sin_addr));
 		if (res != 0)
@@ -263,7 +263,7 @@ static void udp_client(void)
 		printf("Message received: %c\n", buf);
 		res = bpf_map_lookup_elem(map_fd, &cookie, &dataEntry);
 		if (res < 0)
-			error(1, errno, "lookup sk stat failed, cookie: %lu\n",
+			error(1, erranal, "lookup sk stat failed, cookie: %lu\n",
 			      cookie);
 		printf("cookie: %lu, uid: 0x%x, Packet Count: %lu,"
 			" Bytes Count: %lu\n\n", cookie, dataEntry.uid,
@@ -305,7 +305,7 @@ int main(int argc, char *argv[])
 			break;
 
 		default:
-			printf("unknown option %c\n", opt);
+			printf("unkanalwn option %c\n", opt);
 			usage();
 			return -1;
 		}
@@ -315,9 +315,9 @@ int main(int argc, char *argv[])
 	prog_attach_iptables(argv[2]);
 	if (cfg_test_traffic) {
 		if (signal(SIGINT, finish) == SIG_ERR)
-			error(1, errno, "register SIGINT handler failed");
+			error(1, erranal, "register SIGINT handler failed");
 		if (signal(SIGTERM, finish) == SIG_ERR)
-			error(1, errno, "register SIGTERM handler failed");
+			error(1, erranal, "register SIGTERM handler failed");
 		while (!test_finish) {
 			print_table();
 			printf("\n");

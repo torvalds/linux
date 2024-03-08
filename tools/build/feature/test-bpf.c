@@ -21,7 +21,7 @@
 # elif defined(__mips__) && defined(_ABI64)
 #  define __NR_bpf 5315
 # else
-#  error __NR_bpf not defined. libbpf does not support your arch.
+#  error __NR_bpf analt defined. libbpf does analt support your arch.
 # endif
 #endif
 

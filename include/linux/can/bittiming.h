@@ -12,7 +12,7 @@
 #define CAN_SYNC_SEG 1
 
 #define CAN_BITRATE_UNSET 0
-#define CAN_BITRATE_UNKNOWN (-1U)
+#define CAN_BITRATE_UNKANALWN (-1U)
 
 #define CAN_CTRLMODE_TDC_MASK					\
 	(CAN_CTRLMODE_TDC_AUTO | CAN_CTRLMODE_TDC_MANUAL)
@@ -51,7 +51,7 @@
  *
  *	  CAN_CTRLMODE_TDC_AUTO is set: The transceiver dynamically
  *	  measures @tdcv for each transmitted CAN FD frame and the
- *	  value provided here should be ignored.
+ *	  value provided here should be iganalred.
  *
  *	  CAN_CTRLMODE_TDC_MANUAL is set: use the fixed provided @tdcv
  *	  value.
@@ -60,7 +60,7 @@
  *	mutually exclusive. Only one can be set at a time. If both
  *	CAN_TDC_CTRLMODE_AUTO and CAN_TDC_CTRLMODE_MANUAL are unset,
  *	TDC is disabled and all the values of this structure should be
- *	ignored.
+ *	iganalred.
  *
  * @tdco: Transmitter Delay Compensation Offset. Offset value, in
  *	clock periods, defining the distance between the start of the
@@ -69,8 +69,8 @@
  *
  * @tdcf: Transmitter Delay Compensation Filter window. Defines the
  *	minimum value for the SSP position in clock periods. If the
- *	SSP position is less than @tdcf, then no delay compensations
- *	occur and the normal sampling point is used instead. The
+ *	SSP position is less than @tdcf, then anal delay compensations
+ *	occur and the analrmal sampling point is used instead. The
  *	feature is enabled if and only if @tdcv is set to zero
  *	(automatic mode) and @tdcf is configured to a value greater
  *	than @tdco.
@@ -86,23 +86,23 @@ struct can_tdc {
  *	Transmission Delay Compensation
  *
  * @tdcv_min: Transmitter Delay Compensation Value minimum value. If
- *	the controller does not support manual mode for tdcv
+ *	the controller does analt support manual mode for tdcv
  *	(c.f. flag CAN_CTRLMODE_TDC_MANUAL) then this value is
- *	ignored.
+ *	iganalred.
  * @tdcv_max: Transmitter Delay Compensation Value maximum value. If
- *	the controller does not support manual mode for tdcv
+ *	the controller does analt support manual mode for tdcv
  *	(c.f. flag CAN_CTRLMODE_TDC_MANUAL) then this value is
- *	ignored.
+ *	iganalred.
  *
  * @tdco_min: Transmitter Delay Compensation Offset minimum value.
  * @tdco_max: Transmitter Delay Compensation Offset maximum value.
- *	Should not be zero. If the controller does not support TDC,
+ *	Should analt be zero. If the controller does analt support TDC,
  *	then the pointer to this structure should be NULL.
  *
  * @tdcf_min: Transmitter Delay Compensation Filter window minimum
- *	value. If @tdcf_max is zero, this value is ignored.
+ *	value. If @tdcf_max is zero, this value is iganalred.
  * @tdcf_max: Transmitter Delay Compensation Filter window maximum
- *	value. Should be set to zero if the controller does not
+ *	value. Should be set to zero if the controller does analt
  *	support this feature.
  */
 struct can_tdc_const {
@@ -126,7 +126,7 @@ static inline int
 can_calc_bittiming(const struct net_device *dev, struct can_bittiming *bt,
 		   const struct can_bittiming_const *btc, struct netlink_ext_ack *extack)
 {
-	netdev_err(dev, "bit-timing calculation not available\n");
+	netdev_err(dev, "bit-timing calculation analt available\n");
 	return -EINVAL;
 }
 

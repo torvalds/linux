@@ -10,7 +10,7 @@
  *
  * Written by Ralph Metzler
  * Overhauled by Holger Waechtler
- * Kernel I2C stuff by Michael Hunold <hunold@convergence.de>
+ * Kernel I2C stuff by Michael Huanalld <huanalld@convergence.de>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public License
@@ -24,7 +24,7 @@
  *
 
  * You should have received a copy of the GNU Lesser General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if analt, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  *
  */
@@ -37,7 +37,7 @@
 #include <linux/ioctl.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/delay.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
@@ -64,7 +64,7 @@
  * @step_size:		step size between two consecutive frequencies
  * @max_drift:		maximum drift
  *
- * NOTE: step_size is in Hz, for terrestrial/cable or kHz for satellite
+ * ANALTE: step_size is in Hz, for terrestrial/cable or kHz for satellite
  */
 struct dvb_frontend_tune_settings {
 	int min_delay_ms;
@@ -123,7 +123,7 @@ struct analog_parameters {
  *
  * @DVBFE_ALGO_HW: Hardware Algorithm -
  *	Devices that support this algorithm do everything in hardware
- *	and no software support is needed to handle them.
+ *	and anal software support is needed to handle them.
  *	Requesting these devices to LOCK is the only thing required,
  *	device is supposed to do everything in the hardware.
  *
@@ -219,7 +219,7 @@ enum dvbfe_search {
  * @set_frequency:	Set a new frequency. Shouldn't be used on newer drivers.
  * @set_bandwidth:	Set a new frequency. Shouldn't be used on newer drivers.
  *
- * NOTE: frequencies used on @get_frequency and @set_frequency are in Hz for
+ * ANALTE: frequencies used on @get_frequency and @set_frequency are in Hz for
  * terrestrial/cable or kHz for satellite.
  *
  */
@@ -354,7 +354,7 @@ struct dvb_frontend_internal_info {
  * @info:		embedded &struct dvb_tuner_info with tuner properties
  * @delsys:		Delivery systems supported by the frontend
  * @detach:		callback function called when frontend is detached.
- *			drivers should clean up, but not yet free the &struct
+ *			drivers should clean up, but analt yet free the &struct
  *			dvb_frontend allocation.
  * @release:		callback function called when frontend is ready to be
  *			freed.
@@ -370,7 +370,7 @@ struct dvb_frontend_internal_info {
  *			resuming from suspend.
  * @write:		callback function used by some demod legacy drivers to
  *			allow other drivers to write data into their registers.
- *			Should not be used on new drivers.
+ *			Should analt be used on new drivers.
  * @tune:		callback function used by demod drivers that use
  *			@DVBFE_ALGO_HW to tune into a frequency.
  * @get_frontend_algo:	returns the desired hardware algorithm.
@@ -384,9 +384,9 @@ struct dvb_frontend_internal_info {
  * @get_frontend:	callback function used to inform the parameters
  *			actuall in use. The properties to be used are stored at
  *			&struct dvb_frontend.dtv_property_cache and update
- *			statistics. Please notice that it should not return
- *			an error code if the statistics are not available
- *			because the demog is not locked.
+ *			statistics. Please analtice that it should analt return
+ *			an error code if the statistics are analt available
+ *			because the demog is analt locked.
  * @read_status:	returns the locking status of the frontend.
  * @read_ber:		legacy callback function to return the bit error rate.
  *			Newer drivers should provide such info via DVBv5 API,
@@ -397,7 +397,7 @@ struct dvb_frontend_internal_info {
  *			DVBv5 API, e. g. @set_frontend/@get_frontend,
  *			implementing this callback only if DVBv3 API
  *			compatibility is wanted.
- * @read_snr:		legacy callback function to return the Signal/Noise
+ * @read_snr:		legacy callback function to return the Signal/Analise
  *			rate. Newer drivers should provide such info via
  *			DVBv5 API, e. g. @set_frontend/@get_frontend,
  *			implementing this callback only if DVBv3 API
@@ -423,7 +423,7 @@ struct dvb_frontend_internal_info {
  *			FE_ENABLE_HIGH_LNB_VOLTAGE() ioctl (only Satellite).
  * @dishnetwork_send_legacy_command: callback function to implement the
  *			FE_DISHNETWORK_SEND_LEGACY_CMD() ioctl (only Satellite).
- *			Drivers should not use this, except when the DVB
+ *			Drivers should analt use this, except when the DVB
  *			core emulation fails to provide proper support (e.g.
  *			if @set_voltage takes more than 8ms to work), and
  *			when backward compatibility with this legacy API is
@@ -554,9 +554,9 @@ struct dvb_fe_events {
  * @atscmh_fic_ver:	Version number of the FIC (Fast Information Channel)
  *			signaling data (only ATSC-M/H)
  * @atscmh_parade_id:	Parade identification number (only ATSC-M/H)
- * @atscmh_nog:		Number of MH groups per MH subframe for a designated
+ * @atscmh_analg:		Number of MH groups per MH subframe for a designated
  *			parade (only ATSC-M/H)
- * @atscmh_tnog:	Total number of MH groups including all MH groups
+ * @atscmh_tanalg:	Total number of MH groups including all MH groups
  *			belonging to all MH parades in one MH subframe
  *			(only ATSC-M/H)
  * @atscmh_sgn:		Start group number (only ATSC-M/H)
@@ -571,9 +571,9 @@ struct dvb_fe_events {
  * @atscmh_sccc_code_mode_b:	SCCC code mode B (only ATSC-M/H)
  * @atscmh_sccc_code_mode_c:	SCCC code mode C (only ATSC-M/H)
  * @atscmh_sccc_code_mode_d:	SCCC code mode D (only ATSC-M/H)
- * @lna:		Power ON/OFF/AUTO the Linear Now-noise Amplifier (LNA)
+ * @lna:		Power ON/OFF/AUTO the Linear Analw-analise Amplifier (LNA)
  * @strength:		DVBv5 API statistics: Signal Strength
- * @cnr:		DVBv5 API statistics: Signal to Noise ratio of the
+ * @cnr:		DVBv5 API statistics: Signal to Analise ratio of the
  *			(main) carrier
  * @pre_bit_error:	DVBv5 API statistics: pre-Viterbi bit error count
  * @pre_bit_count:	DVBv5 API statistics: pre-Viterbi bit count
@@ -582,7 +582,7 @@ struct dvb_fe_events {
  * @block_error:	DVBv5 API statistics: block error count
  * @block_count:	DVBv5 API statistics: block count
  *
- * NOTE: derivated statistics like Uncorrected Error blocks (UCE) are
+ * ANALTE: derivated statistics like Uncorrected Error blocks (UCE) are
  * calculated on userspace.
  *
  * Only a subset of the properties are needed for a given delivery system.
@@ -635,8 +635,8 @@ struct dtv_frontend_properties {
 	/* ATSC-MH specifics */
 	u8			atscmh_fic_ver;
 	u8			atscmh_parade_id;
-	u8			atscmh_nog;
-	u8			atscmh_tnog;
+	u8			atscmh_analg;
+	u8			atscmh_tanalg;
 	u8			atscmh_sgn;
 	u8			atscmh_prc;
 
@@ -663,8 +663,8 @@ struct dtv_frontend_properties {
 	struct dtv_fe_stats	block_count;
 };
 
-#define DVB_FE_NO_EXIT  0
-#define DVB_FE_NORMAL_EXIT      1
+#define DVB_FE_ANAL_EXIT  0
+#define DVB_FE_ANALRMAL_EXIT      1
 #define DVB_FE_DEVICE_REMOVED   2
 #define DVB_FE_DEVICE_RESUME    3
 
@@ -728,7 +728,7 @@ int dvb_register_frontend(struct dvb_adapter *dvb,
  * Stops the frontend kthread, calls dvb_unregister_device() and frees the
  * private frontend data allocated by dvb_register_frontend().
  *
- * NOTE: This function doesn't frees the memory allocated by the demod,
+ * ANALTE: This function doesn't frees the memory allocated by the demod,
  * by the SEC driver and by the tuner. In order to free it, an explicit call to
  * dvb_frontend_detach() is needed, after calling this function.
  */
@@ -800,7 +800,7 @@ int dvb_frontend_resume(struct dvb_frontend *fe);
  * Calls &dvb_frontend_ops.init\(\) and &dvb_frontend_ops.tuner_ops.init\(\),
  * and resets SEC tone and voltage (for Satellite systems).
  *
- * NOTE: Currently, this function is used only by one driver (budget-av).
+ * ANALTE: Currently, this function is used only by one driver (budget-av).
  * It seems to be due to address some special issue with that specific
  * frontend.
  */
@@ -822,7 +822,7 @@ void dvb_frontend_reinitialise(struct dvb_frontend *fe);
  * FE_DISHNETWORK_SEND_LEGACY_CMD() using the &dvb_frontend_ops.set_voltage\(\)
  * callback.
  *
- * NOTE: it should not be used at the drivers, as the emulation for the
+ * ANALTE: it should analt be used at the drivers, as the emulation for the
  * legacy callback is provided by the Kernel. The only situation where this
  * should be at the drivers is when there are some bugs at the hardware that
  * would prevent the core emulation to work. On such cases, the driver would

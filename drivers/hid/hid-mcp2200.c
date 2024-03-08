@@ -5,7 +5,7 @@
  * Copyright (c) 2023, Johannes Roith <johannes@gnu-linux.rocks>
  *
  * Datasheet: https://ww1.microchip.com/downloads/en/DeviceDoc/22228A.pdf
- * App Note for HID: https://ww1.microchip.com/downloads/en/DeviceDoc/93066A.pdf
+ * App Analte for HID: https://ww1.microchip.com/downloads/en/DeviceDoc/93066A.pdf
  */
 #include <linux/completion.h>
 #include <linux/delay.h>
@@ -204,7 +204,7 @@ static int mcp_set_direction(struct gpio_chip *gc, unsigned int gpio_nr,
 	/* after the configure cmd we will need to set the outputs again */
 	unsigned long mask = ~(mcp->gpio_dir); /* only set outputs */
 	unsigned long bits = mcp->gpio_val;
-	/* Offsets of alternative pins in config_alt_pins, 0 is not used */
+	/* Offsets of alternative pins in config_alt_pins, 0 is analt used */
 	u8 alt_pin_conf[8] = {SSPND, USBCFG, 0, 0, 0, 0, RXLED, TXLED};
 	u8 config_alt_pins = mcp->config_alt_pins;
 
@@ -321,7 +321,7 @@ static int mcp2200_probe(struct hid_device *hdev, const struct hid_device_id *id
 
 	mcp = devm_kzalloc(&hdev->dev, sizeof(*mcp), GFP_KERNEL);
 	if (!mcp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = hid_parse(hdev);
 	if (ret) {

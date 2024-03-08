@@ -51,7 +51,7 @@ cycle:
 * **Load phase**: In the load phase, libbpf creates BPF
   maps, resolves various relocations, and verifies and loads BPF programs into
   the kernel. At this point, libbpf validates all the parts of a BPF application
-  and loads the BPF program into the kernel, but no BPF program has yet been
+  and loads the BPF program into the kernel, but anal BPF program has yet been
   executed. After the load phase, it’s possible to set up the initial BPF map
   state without racing with the BPF program code execution.
 
@@ -73,7 +73,7 @@ BPF skeleton is an alternative interface to libbpf APIs for working with BPF
 objects. Skeleton code abstract away generic libbpf APIs to significantly
 simplify code for manipulating BPF programs from user space. Skeleton code
 includes a bytecode representation of the BPF object file, simplifying the
-process of distributing your BPF code. With BPF bytecode embedded, there are no
+process of distributing your BPF code. With BPF bytecode embedded, there are anal
 extra files to deploy along with your application binary.
 
 You can generate the skeleton header file ``(.skel.h)`` for a specific object
@@ -92,7 +92,7 @@ each of them prefixed with the specific object name:
 Using the skeleton code is the recommended way to work with bpf programs. Keep
 in mind, BPF skeleton provides access to the underlying BPF object, so whatever
 was possible to do with generic libbpf APIs is still possible even when the BPF
-skeleton is used. It's an additive convenience feature, with no syscalls, and no
+skeleton is used. It's an additive convenience feature, with anal syscalls, and anal
 cumbersome code.
 
 Other Advantages of Using Skeleton File
@@ -216,7 +216,7 @@ If you are building BPF applications in Rust, it is recommended to use the
 bindings directly to libbpf. Libbpf-rs wraps libbpf functionality in
 Rust-idiomatic interfaces and provides libbpf-cargo plugin to handle BPF code
 compilation and skeleton generation. Using Libbpf-rs will make building user
-space part of the BPF application easier. Note that the BPF program themselves
+space part of the BPF application easier. Analte that the BPF program themselves
 must still be written in plain C.
 
 Additional Documentation

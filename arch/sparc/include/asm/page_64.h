@@ -56,9 +56,9 @@ void copy_user_highpage(struct page *to, struct page *from,
 void copy_highpage(struct page *to, struct page *from);
 
 /* Unlike sparc32, sparc64's parameter passing API is more
- * sane in that structures which as small enough are passed
+ * sane in that structures which as small eanalugh are passed
  * in registers instead of on the stack.  Thus, setting
- * STRICT_MM_TYPECHECKS does not generate worse code so
+ * STRICT_MM_TYPECHECKS does analt generate worse code so
  * let's enable it to get the type checking.
  */
 

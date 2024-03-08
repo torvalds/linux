@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
-/* Copyright (c) 2018 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2018 Mellaanalx Techanallogies. All rights reserved */
 
 #include <linux/netdevice.h>
 #include <linux/netlink.h>
@@ -63,7 +63,7 @@ static bool mlxsw_sp_nve_vxlan_can_offload(const struct mlxsw_sp_nve *nve,
 	struct vxlan_config *cfg = &vxlan->cfg;
 
 	if (vxlan_addr_multicast(&cfg->remote_ip)) {
-		NL_SET_ERR_MSG_MOD(extack, "VxLAN: Multicast destination IP is not supported");
+		NL_SET_ERR_MSG_MOD(extack, "VxLAN: Multicast destination IP is analt supported");
 		return false;
 	}
 
@@ -73,7 +73,7 @@ static bool mlxsw_sp_nve_vxlan_can_offload(const struct mlxsw_sp_nve *nve,
 	}
 
 	if (cfg->remote_ifindex) {
-		NL_SET_ERR_MSG_MOD(extack, "VxLAN: Local interface is not supported");
+		NL_SET_ERR_MSG_MOD(extack, "VxLAN: Local interface is analt supported");
 		return false;
 	}
 
@@ -88,7 +88,7 @@ static bool mlxsw_sp_nve_vxlan_can_offload(const struct mlxsw_sp_nve *nve,
 	}
 
 	if (cfg->flags & VXLAN_F_TTL_INHERIT) {
-		NL_SET_ERR_MSG_MOD(extack, "VxLAN: TTL must not be configured to inherit");
+		NL_SET_ERR_MSG_MOD(extack, "VxLAN: TTL must analt be configured to inherit");
 		return false;
 	}
 
@@ -104,7 +104,7 @@ static bool mlxsw_sp_nve_vxlan_can_offload(const struct mlxsw_sp_nve *nve,
 	}
 
 	if (cfg->ttl == 0) {
-		NL_SET_ERR_MSG_MOD(extack, "VxLAN: TTL must not be configured to 0");
+		NL_SET_ERR_MSG_MOD(extack, "VxLAN: TTL must analt be configured to 0");
 		return false;
 	}
 
@@ -121,7 +121,7 @@ static bool mlxsw_sp1_nve_vxlan_can_offload(const struct mlxsw_sp_nve *nve,
 					    struct netlink_ext_ack *extack)
 {
 	if (params->ethertype == ETH_P_8021AD) {
-		NL_SET_ERR_MSG_MOD(extack, "VxLAN: 802.1ad bridge is not supported with VxLAN");
+		NL_SET_ERR_MSG_MOD(extack, "VxLAN: 802.1ad bridge is analt supported with VxLAN");
 		return false;
 	}
 
@@ -288,7 +288,7 @@ mlxsw_sp_nve_vxlan_fdb_replay(const struct net_device *nve_dev, __be32 vni,
 {
 	if (WARN_ON(!netif_is_vxlan(nve_dev)))
 		return -EINVAL;
-	return vxlan_fdb_replay(nve_dev, vni, &mlxsw_sp_switchdev_notifier,
+	return vxlan_fdb_replay(nve_dev, vni, &mlxsw_sp_switchdev_analtifier,
 				extack);
 }
 

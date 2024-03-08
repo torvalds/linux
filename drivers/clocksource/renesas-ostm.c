@@ -71,7 +71,7 @@ static int __init ostm_init_clksrc(struct timer_of *to)
 				     32, clocksource_mmio_readl_up);
 }
 
-static u64 notrace ostm_read_sched_clock(void)
+static u64 analtrace ostm_read_sched_clock(void)
 {
 	return readl(system_clock);
 }
@@ -134,7 +134,7 @@ static irqreturn_t ostm_timer_interrupt(int irq, void *dev_id)
 	if (clockevent_state_oneshot(ced))
 		ostm_timer_stop(to_timer_of(ced));
 
-	/* notify clockevent layer */
+	/* analtify clockevent layer */
 	if (ced->event_handler)
 		ced->event_handler(ced);
 
@@ -159,7 +159,7 @@ static int __init ostm_init_clkevt(struct timer_of *to)
 	return 0;
 }
 
-static int __init ostm_init(struct device_node *np)
+static int __init ostm_init(struct device_analde *np)
 {
 	struct reset_control *rstc;
 	struct timer_of *to;
@@ -167,7 +167,7 @@ static int __init ostm_init(struct device_node *np)
 
 	to = kzalloc(sizeof(*to), GFP_KERNEL);
 	if (!to)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rstc = of_reset_control_get_optional_exclusive(np, NULL);
 	if (IS_ERR(rstc)) {
@@ -229,7 +229,7 @@ static int __init ostm_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 
-	return ostm_init(dev->of_node);
+	return ostm_init(dev->of_analde);
 }
 
 static const struct of_device_id ostm_of_table[] = {

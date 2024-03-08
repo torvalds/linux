@@ -254,7 +254,7 @@ static int max8998_rtc_probe(struct platform_device *pdev)
 	info = devm_kzalloc(&pdev->dev, sizeof(struct max8998_rtc_info),
 			GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	info->dev = &pdev->dev;
 	info->max8998 = max8998;
@@ -272,12 +272,12 @@ static int max8998_rtc_probe(struct platform_device *pdev)
 	}
 
 	if (!max8998->irq_domain)
-		goto no_irq;
+		goto anal_irq;
 
 	info->irq = irq_create_mapping(max8998->irq_domain, MAX8998_IRQ_ALARM0);
 	if (!info->irq) {
 		dev_warn(&pdev->dev, "Failed to map alarm IRQ\n");
-		goto no_irq;
+		goto anal_irq;
 	}
 
 	ret = devm_request_threaded_irq(&pdev->dev, info->irq, NULL,
@@ -287,7 +287,7 @@ static int max8998_rtc_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Failed to request alarm IRQ: %d: %d\n",
 			info->irq, ret);
 
-no_irq:
+anal_irq:
 	dev_info(&pdev->dev, "RTC CHIP NAME: %s\n", pdev->id_entry->name);
 	if (pdata && pdata->rtc_delay) {
 		info->lp3974_bug_workaround = true;

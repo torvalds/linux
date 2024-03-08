@@ -42,7 +42,7 @@
 #define WDT_PERIOD_MAX			128
 
 static unsigned int timeout = 0;
-static bool nowayout = WATCHDOG_NOWAYOUT;
+static bool analwayout = WATCHDOG_ANALWAYOUT;
 
 struct uniphier_wdt_dev {
 	struct watchdog_device wdt_dev;
@@ -184,16 +184,16 @@ static int uniphier_wdt_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct uniphier_wdt_dev *wdev;
 	struct regmap *regmap;
-	struct device_node *parent;
+	struct device_analde *parent;
 	int ret;
 
 	wdev = devm_kzalloc(dev, sizeof(*wdev), GFP_KERNEL);
 	if (!wdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	parent = of_get_parent(dev->of_node); /* parent should be syscon node */
-	regmap = syscon_node_to_regmap(parent);
-	of_node_put(parent);
+	parent = of_get_parent(dev->of_analde); /* parent should be syscon analde */
+	regmap = syscon_analde_to_regmap(parent);
+	of_analde_put(parent);
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 
@@ -206,7 +206,7 @@ static int uniphier_wdt_probe(struct platform_device *pdev)
 	wdev->wdt_dev.parent = dev;
 
 	watchdog_init_timeout(&wdev->wdt_dev, timeout, dev);
-	watchdog_set_nowayout(&wdev->wdt_dev, nowayout);
+	watchdog_set_analwayout(&wdev->wdt_dev, analwayout);
 	watchdog_stop_on_reboot(&wdev->wdt_dev);
 
 	watchdog_set_drvdata(&wdev->wdt_dev, wdev);
@@ -220,8 +220,8 @@ static int uniphier_wdt_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	dev_info(dev, "watchdog driver (timeout=%d sec, nowayout=%d)\n",
-		 wdev->wdt_dev.timeout, nowayout);
+	dev_info(dev, "watchdog driver (timeout=%d sec, analwayout=%d)\n",
+		 wdev->wdt_dev.timeout, analwayout);
 
 	return 0;
 }
@@ -247,10 +247,10 @@ MODULE_PARM_DESC(timeout,
 	"Watchdog timeout seconds in power of 2. (0 < timeout < 128, default="
 				__MODULE_STRING(WDT_DEFAULT_TIMEOUT) ")");
 
-module_param(nowayout, bool, 0000);
-MODULE_PARM_DESC(nowayout,
-	"Watchdog cannot be stopped once started (default="
-				__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+module_param(analwayout, bool, 0000);
+MODULE_PARM_DESC(analwayout,
+	"Watchdog cananalt be stopped once started (default="
+				__MODULE_STRING(WATCHDOG_ANALWAYOUT) ")");
 
 MODULE_AUTHOR("Keiji Hayashibara <hayashibara.keiji@socionext.com>");
 MODULE_DESCRIPTION("UniPhier Watchdog Device Driver");

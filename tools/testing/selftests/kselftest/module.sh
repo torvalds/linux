@@ -49,7 +49,7 @@ assert_root() {
 
 assert_have_module() {
     if ! $modprobe -q -n $module; then
-	skip "module $module is not found"
+	skip "module $module is analt found"
     fi
 }
 

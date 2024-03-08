@@ -51,7 +51,7 @@ int i; \
 
 /* LUT select */
 typedef enum _LUT_USES {
-	NO_LUT = 0, RESERVED, GRAPHICS, OVERLAY
+	ANAL_LUT = 0, RESERVED, GRAPHICS, OVERLAY
 } LUT_USES;
 
 /* Primary surface pixel format select */
@@ -132,7 +132,7 @@ typedef struct {
 	volatile u32 AGPIntSSID;	/* 0x0174 */
 	volatile u32 AGPIntPMCSR;	/* 0x0178 */
 	volatile u32 VGAFrameBufBase;	/* 0x017C */
-	volatile u32 VGANotify;	/* 0x0180 */
+	volatile u32 VGAAnaltify;	/* 0x0180 */
 	volatile u32 DACPLLMode;	/* 0x0184 */
 	volatile u32 Core1VideoClockDiv;	/* 0x0188 */
 	volatile u32 AGPIntStat;	/* 0x018C */

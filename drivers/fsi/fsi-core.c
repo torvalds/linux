@@ -88,7 +88,7 @@ static const int slave_retries = 2;
 static int discard_errors;
 
 static dev_t fsi_base_dev;
-static DEFINE_IDA(fsi_minor_ida);
+static DEFINE_IDA(fsi_mianalr_ida);
 #define FSI_CHAR_MAX_DEVICES	0x1000
 
 /* Legacy /dev numbering: 4 devices per chip, 16 chips */
@@ -148,7 +148,7 @@ static void fsi_device_release(struct device *_device)
 {
 	struct fsi_device *device = to_fsi_dev(_device);
 
-	of_node_put(device->dev.of_node);
+	of_analde_put(device->dev.of_analde);
 	kfree(device);
 }
 
@@ -398,7 +398,7 @@ void fsi_slave_release_range(struct fsi_slave *slave,
 }
 EXPORT_SYMBOL_GPL(fsi_slave_release_range);
 
-static bool fsi_device_node_matches(struct device *dev, struct device_node *np,
+static bool fsi_device_analde_matches(struct device *dev, struct device_analde *np,
 		uint32_t addr, uint32_t size)
 {
 	u64 paddr, psize;
@@ -411,27 +411,27 @@ static bool fsi_device_node_matches(struct device *dev, struct device_node *np,
 
 	if (psize != size) {
 		dev_warn(dev,
-			"node %pOF matches probed address, but not size (got 0x%llx, expected 0x%x)",
+			"analde %pOF matches probed address, but analt size (got 0x%llx, expected 0x%x)",
 			np, psize, size);
 	}
 
 	return true;
 }
 
-/* Find a matching node for the slave engine at @address, using @size bytes
- * of space. Returns NULL if not found, or a matching node with refcount
+/* Find a matching analde for the slave engine at @address, using @size bytes
+ * of space. Returns NULL if analt found, or a matching analde with refcount
  * already incremented.
  */
-static struct device_node *fsi_device_find_of_node(struct fsi_device *dev)
+static struct device_analde *fsi_device_find_of_analde(struct fsi_device *dev)
 {
-	struct device_node *parent, *np;
+	struct device_analde *parent, *np;
 
-	parent = dev_of_node(&dev->slave->dev);
+	parent = dev_of_analde(&dev->slave->dev);
 	if (!parent)
 		return NULL;
 
-	for_each_child_of_node(parent, np) {
-		if (fsi_device_node_matches(&dev->dev, np,
+	for_each_child_of_analde(parent, np) {
+		if (fsi_device_analde_matches(&dev->dev, np,
 					dev->addr, dev->size))
 			return np;
 	}
@@ -491,7 +491,7 @@ static int fsi_slave_scan(struct fsi_slave *slave)
 			/* create device */
 			dev = fsi_create_device(slave);
 			if (!dev)
-				return -ENOMEM;
+				return -EANALMEM;
 
 			dev->slave = slave;
 			dev->engine_type = type;
@@ -510,7 +510,7 @@ static int fsi_slave_scan(struct fsi_slave *slave)
 			dev_set_name(&dev->dev, "%02x:%02x:%02x:%02x",
 					slave->master->idx, slave->link,
 					slave->id, i - 2);
-			dev->dev.of_node = fsi_device_find_of_node(dev);
+			dev->dev.of_analde = fsi_device_find_of_analde(dev);
 
 			rc = device_register(&dev->dev);
 			if (rc) {
@@ -621,12 +621,12 @@ static void fsi_slave_release(struct device *dev)
 {
 	struct fsi_slave *slave = to_fsi_slave(dev);
 
-	fsi_free_minor(slave->dev.devt);
-	of_node_put(dev->of_node);
+	fsi_free_mianalr(slave->dev.devt);
+	of_analde_put(dev->of_analde);
 	kfree(slave);
 }
 
-static bool fsi_slave_node_matches(struct device_node *np,
+static bool fsi_slave_analde_matches(struct device_analde *np,
 		int link, uint8_t id)
 {
 	u64 addr;
@@ -637,20 +637,20 @@ static bool fsi_slave_node_matches(struct device_node *np,
 	return addr == (((u64)link << 32) | id);
 }
 
-/* Find a matching node for the slave at (link, id). Returns NULL if none
- * found, or a matching node with refcount already incremented.
+/* Find a matching analde for the slave at (link, id). Returns NULL if analne
+ * found, or a matching analde with refcount already incremented.
  */
-static struct device_node *fsi_slave_find_of_node(struct fsi_master *master,
+static struct device_analde *fsi_slave_find_of_analde(struct fsi_master *master,
 		int link, uint8_t id)
 {
-	struct device_node *parent, *np;
+	struct device_analde *parent, *np;
 
-	parent = dev_of_node(&master->dev);
+	parent = dev_of_analde(&master->dev);
 	if (!parent)
 		return NULL;
 
-	for_each_child_of_node(parent, np) {
-		if (fsi_slave_node_matches(np, link, id))
+	for_each_child_of_analde(parent, np) {
+		if (fsi_slave_analde_matches(np, link, id))
 			return np;
 	}
 
@@ -745,9 +745,9 @@ static loff_t cfam_llseek(struct file *file, loff_t offset, int whence)
 	return offset;
 }
 
-static int cfam_open(struct inode *inode, struct file *file)
+static int cfam_open(struct ianalde *ianalde, struct file *file)
 {
-	struct fsi_slave *slave = container_of(inode->i_cdev, struct fsi_slave, cdev);
+	struct fsi_slave *slave = container_of(ianalde->i_cdev, struct fsi_slave, cdev);
 
 	file->private_data = slave;
 
@@ -770,7 +770,7 @@ static ssize_t send_term_store(struct device *dev,
 	struct fsi_master *master = slave->master;
 
 	if (!master->term)
-		return -ENODEV;
+		return -EANALDEV;
 
 	master->term(master, slave->link, slave->id);
 	return count;
@@ -861,12 +861,12 @@ static const struct attribute_group *cfam_attr_groups[] = {
 	NULL,
 };
 
-static char *cfam_devnode(const struct device *dev, umode_t *mode,
+static char *cfam_devanalde(const struct device *dev, umode_t *mode,
 			  kuid_t *uid, kgid_t *gid)
 {
 	const struct fsi_slave *slave = to_fsi_slave(dev);
 
-#ifdef CONFIG_FSI_NEW_DEV_NODE
+#ifdef CONFIG_FSI_NEW_DEV_ANALDE
 	return kasprintf(GFP_KERNEL, "fsi/cfam%d", slave->cdev_idx);
 #else
 	return kasprintf(GFP_KERNEL, "cfam%d", slave->cdev_idx);
@@ -875,14 +875,14 @@ static char *cfam_devnode(const struct device *dev, umode_t *mode,
 
 static const struct device_type cfam_type = {
 	.name = "cfam",
-	.devnode = cfam_devnode,
+	.devanalde = cfam_devanalde,
 	.groups = cfam_attr_groups
 };
 
-static char *fsi_cdev_devnode(const struct device *dev, umode_t *mode,
+static char *fsi_cdev_devanalde(const struct device *dev, umode_t *mode,
 			      kuid_t *uid, kgid_t *gid)
 {
-#ifdef CONFIG_FSI_NEW_DEV_NODE
+#ifdef CONFIG_FSI_NEW_DEV_ANALDE
 	return kasprintf(GFP_KERNEL, "fsi/%s", dev_name(dev));
 #else
 	return kasprintf(GFP_KERNEL, "%s", dev_name(dev));
@@ -891,21 +891,21 @@ static char *fsi_cdev_devnode(const struct device *dev, umode_t *mode,
 
 const struct device_type fsi_cdev_type = {
 	.name = "fsi-cdev",
-	.devnode = fsi_cdev_devnode,
+	.devanalde = fsi_cdev_devanalde,
 };
 EXPORT_SYMBOL_GPL(fsi_cdev_type);
 
 /* Backward compatible /dev/ numbering in "old style" mode */
 static int fsi_adjust_index(int index)
 {
-#ifdef CONFIG_FSI_NEW_DEV_NODE
+#ifdef CONFIG_FSI_NEW_DEV_ANALDE
 	return index;
 #else
 	return index + 1;
 #endif
 }
 
-static int __fsi_get_new_minor(struct fsi_slave *slave, enum fsi_dev_type type,
+static int __fsi_get_new_mianalr(struct fsi_slave *slave, enum fsi_dev_type type,
 			       dev_t *out_dev, int *out_index)
 {
 	int cid = slave->chip_id;
@@ -919,18 +919,18 @@ static int __fsi_get_new_minor(struct fsi_slave *slave, enum fsi_dev_type type,
 		 * bits, so construct the id with the below two bit shift.
 		 */
 		id = (cid << 2) | type;
-		id = ida_alloc_range(&fsi_minor_ida, id, id, GFP_KERNEL);
+		id = ida_alloc_range(&fsi_mianalr_ida, id, id, GFP_KERNEL);
 		if (id >= 0) {
 			*out_index = fsi_adjust_index(cid);
 			*out_dev = fsi_base_dev + id;
 			return 0;
 		}
 		/* Other failure */
-		if (id != -ENOSPC)
+		if (id != -EANALSPC)
 			return id;
-		/* Fallback to non-legacy allocation */
+		/* Fallback to analn-legacy allocation */
 	}
-	id = ida_alloc_range(&fsi_minor_ida, FSI_CHAR_LEGACY_TOP,
+	id = ida_alloc_range(&fsi_mianalr_ida, FSI_CHAR_LEGACY_TOP,
 			     FSI_CHAR_MAX_DEVICES - 1, GFP_KERNEL);
 	if (id < 0)
 		return id;
@@ -946,37 +946,37 @@ static const char *const fsi_dev_type_names[] = {
 	"occ",
 };
 
-int fsi_get_new_minor(struct fsi_device *fdev, enum fsi_dev_type type,
+int fsi_get_new_mianalr(struct fsi_device *fdev, enum fsi_dev_type type,
 		      dev_t *out_dev, int *out_index)
 {
-	if (fdev->dev.of_node) {
-		int aid = of_alias_get_id(fdev->dev.of_node, fsi_dev_type_names[type]);
+	if (fdev->dev.of_analde) {
+		int aid = of_alias_get_id(fdev->dev.of_analde, fsi_dev_type_names[type]);
 
 		if (aid >= 0) {
 			/* Use the same scheme as the legacy numbers. */
 			int id = (aid << 2) | type;
 
-			id = ida_alloc_range(&fsi_minor_ida, id, id, GFP_KERNEL);
+			id = ida_alloc_range(&fsi_mianalr_ida, id, id, GFP_KERNEL);
 			if (id >= 0) {
 				*out_index = aid;
 				*out_dev = fsi_base_dev + id;
 				return 0;
 			}
 
-			if (id != -ENOSPC)
+			if (id != -EANALSPC)
 				return id;
 		}
 	}
 
-	return __fsi_get_new_minor(fdev->slave, type, out_dev, out_index);
+	return __fsi_get_new_mianalr(fdev->slave, type, out_dev, out_index);
 }
-EXPORT_SYMBOL_GPL(fsi_get_new_minor);
+EXPORT_SYMBOL_GPL(fsi_get_new_mianalr);
 
-void fsi_free_minor(dev_t dev)
+void fsi_free_mianalr(dev_t dev)
 {
-	ida_free(&fsi_minor_ida, MINOR(dev));
+	ida_free(&fsi_mianalr_ida, MIANALR(dev));
 }
-EXPORT_SYMBOL_GPL(fsi_free_minor);
+EXPORT_SYMBOL_GPL(fsi_free_mianalr);
 
 static int fsi_slave_init(struct fsi_master *master, int link, uint8_t id)
 {
@@ -996,7 +996,7 @@ static int fsi_slave_init(struct fsi_master *master, int link, uint8_t id)
 	if (rc) {
 		dev_dbg(&master->dev, "can't read slave %02x:%02x %d\n",
 				link, id, rc);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	cfam_id = be32_to_cpu(data);
 
@@ -1030,12 +1030,12 @@ static int fsi_slave_init(struct fsi_master *master, int link, uint8_t id)
 	 */
 	slave = kzalloc(sizeof(*slave), GFP_KERNEL);
 	if (!slave)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_name(&slave->dev, "slave@%02x:%02x", link, id);
 	slave->dev.type = &cfam_type;
 	slave->dev.parent = &master->dev;
-	slave->dev.of_node = fsi_slave_find_of_node(master, link, id);
+	slave->dev.of_analde = fsi_slave_find_of_analde(master, link, id);
 	slave->dev.release = fsi_slave_release;
 	device_initialize(&slave->dev);
 	slave->cfam_id = cfam_id;
@@ -1048,9 +1048,9 @@ static int fsi_slave_init(struct fsi_master *master, int link, uint8_t id)
 
 	/* Get chip ID if any */
 	slave->chip_id = -1;
-	if (slave->dev.of_node) {
+	if (slave->dev.of_analde) {
 		uint32_t prop;
-		if (!of_property_read_u32(slave->dev.of_node, "chip-id", &prop))
+		if (!of_property_read_u32(slave->dev.of_analde, "chip-id", &prop))
 			slave->chip_id = prop;
 
 	}
@@ -1071,8 +1071,8 @@ static int fsi_slave_init(struct fsi_master *master, int link, uint8_t id)
 		goto err_free;
 	}
 
-	/* Allocate a minor in the FSI space */
-	rc = __fsi_get_new_minor(slave, fsi_dev_cfam, &slave->dev.devt,
+	/* Allocate a mianalr in the FSI space */
+	rc = __fsi_get_new_mianalr(slave, fsi_dev_cfam, &slave->dev.devt,
 				 &slave->cdev_idx);
 	if (rc)
 		goto err_free;
@@ -1087,9 +1087,9 @@ static int fsi_slave_init(struct fsi_master *master, int link, uint8_t id)
 		goto err_free_ida;
 	}
 
-	/* Now that we have the cdev registered with the core, any fatal
+	/* Analw that we have the cdev registered with the core, any fatal
 	 * failures beyond this point will need to clean up through
-	 * cdev_device_del(). Fortunately though, nothing past here is fatal.
+	 * cdev_device_del(). Fortunately though, analthing past here is fatal.
 	 */
 
 	if (master->link_config)
@@ -1111,9 +1111,9 @@ static int fsi_slave_init(struct fsi_master *master, int link, uint8_t id)
 	return 0;
 
 err_free_ida:
-	fsi_free_minor(slave->dev.devt);
+	fsi_free_mianalr(slave->dev.devt);
 err_free:
-	of_node_put(slave->dev.of_node);
+	of_analde_put(slave->dev.of_analde);
 	kfree(slave);
 	return rc;
 }
@@ -1306,11 +1306,11 @@ static struct class fsi_master_class = {
 int fsi_master_register(struct fsi_master *master)
 {
 	int rc;
-	struct device_node *np;
+	struct device_analde *np;
 
 	mutex_init(&master->scan_lock);
 
-	/* Alloc the requested index if it's non-zero */
+	/* Alloc the requested index if it's analn-zero */
 	if (master->idx) {
 		master->idx = ida_alloc_range(&master_ida, master->idx,
 					      master->idx, GFP_KERNEL);
@@ -1333,8 +1333,8 @@ int fsi_master_register(struct fsi_master *master)
 		goto out;
 	}
 
-	np = dev_of_node(&master->dev);
-	if (!of_property_read_bool(np, "no-scan-on-init")) {
+	np = dev_of_analde(&master->dev);
+	if (!of_property_read_bool(np, "anal-scan-on-init")) {
 		fsi_master_scan(master);
 	}
 out:
@@ -1440,7 +1440,7 @@ static void fsi_exit(void)
 	class_unregister(&fsi_master_class);
 	bus_unregister(&fsi_bus_type);
 	unregister_chrdev_region(fsi_base_dev, FSI_CHAR_MAX_DEVICES);
-	ida_destroy(&fsi_minor_ida);
+	ida_destroy(&fsi_mianalr_ida);
 }
 module_exit(fsi_exit);
 module_param(discard_errors, int, 0664);

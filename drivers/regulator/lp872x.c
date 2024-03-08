@@ -376,7 +376,7 @@ static int lp872x_buck_set_mode(struct regulator_dev *rdev, unsigned int mode)
 
 	if (mode == REGULATOR_MODE_FAST)
 		val = LP872X_FORCE_PWM << shift;
-	else if (mode == REGULATOR_MODE_NORMAL)
+	else if (mode == REGULATOR_MODE_ANALRMAL)
 		val = LP872X_AUTO_PWM << shift;
 	else
 		return -EINVAL;
@@ -412,7 +412,7 @@ static unsigned int lp872x_buck_get_mode(struct regulator_dev *rdev)
 	if (ret)
 		return ret;
 
-	return val & mask ? REGULATOR_MODE_FAST : REGULATOR_MODE_NORMAL;
+	return val & mask ? REGULATOR_MODE_FAST : REGULATOR_MODE_ANALRMAL;
 }
 
 static const struct regulator_ops lp872x_ldo_ops = {
@@ -793,7 +793,7 @@ static const struct regmap_config lp872x_regmap_config = {
 
 #ifdef CONFIG_OF
 
-#define LP872X_VALID_OPMODE	(REGULATOR_MODE_FAST | REGULATOR_MODE_NORMAL)
+#define LP872X_VALID_OPMODE	(REGULATOR_MODE_FAST | REGULATOR_MODE_ANALRMAL)
 
 static struct of_regulator_match lp8720_matches[] = {
 	{ .name = "ldo1", .driver_data = (void *)LP8720_ID_LDO1, },
@@ -819,7 +819,7 @@ static struct of_regulator_match lp8725_matches[] = {
 static struct lp872x_platform_data
 *lp872x_populate_pdata_from_dt(struct device *dev, enum lp872x_id which)
 {
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct lp872x_platform_data *pdata;
 	struct of_regulator_match *match;
 	int num_matches;
@@ -829,14 +829,14 @@ static struct lp872x_platform_data
 
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	of_property_read_u8(np, "ti,general-config", &pdata->general_config);
 	pdata->update_config = of_property_read_bool(np, "ti,update-config");
 
 	pdata->dvs = devm_kzalloc(dev, sizeof(struct lp872x_dvs), GFP_KERNEL);
 	if (!pdata->dvs)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	of_property_read_u8(np, "ti,dvs-vsel", (u8 *)&pdata->dvs->vsel);
 	of_property_read_u8(np, "ti,dvs-state", &dvs_state);
@@ -889,7 +889,7 @@ static int lp872x_probe(struct i2c_client *cl)
 		[LP8725] = LP8725_NUM_REGULATORS,
 	};
 
-	if (cl->dev.of_node) {
+	if (cl->dev.of_analde) {
 		pdata = lp872x_populate_pdata_from_dt(&cl->dev,
 					      (enum lp872x_id)id->driver_data);
 		if (IS_ERR(pdata))
@@ -900,7 +900,7 @@ static int lp872x_probe(struct i2c_client *cl)
 
 	lp = devm_kzalloc(&cl->dev, sizeof(struct lp872x), GFP_KERNEL);
 	if (!lp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	lp->num_regulators = lp872x_num_regulators[id->driver_data];
 
@@ -944,7 +944,7 @@ MODULE_DEVICE_TABLE(i2c, lp872x_ids);
 static struct i2c_driver lp872x_driver = {
 	.driver = {
 		.name = "lp872x",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = of_match_ptr(lp872x_dt_ids),
 	},
 	.probe = lp872x_probe,

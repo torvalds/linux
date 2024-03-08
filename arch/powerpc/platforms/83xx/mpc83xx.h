@@ -64,7 +64,7 @@
  * mpc83xx_* files. Mostly for use by mpc83xx_setup
  */
 
-extern void __noreturn mpc83xx_restart(char *cmd);
+extern void __analreturn mpc83xx_restart(char *cmd);
 extern long mpc83xx_time_init(void);
 int __init mpc837x_usb_cfg(void);
 int __init mpc834x_usb_cfg(void);

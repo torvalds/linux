@@ -6,7 +6,7 @@
  * vdso2c requires stripped and unstripped input.  It would be trivial
  * to fully strip the input in here, but, for reasons described below,
  * we need to write a section table.  Doing this is more or less
- * equivalent to dropping all non-allocatable sections, but it's
+ * equivalent to dropping all analn-allocatable sections, but it's
  * easier to let objcopy handle that instead of doing it ourselves.
  * If we ever need to do something fancier than what objcopy provides,
  * it would be straightforward to add here.
@@ -14,23 +14,23 @@
  * We keep a section table for a few reasons:
  *
  * Binutils has issues debugging the vDSO: it reads the section table to
- * find SHT_NOTE; it won't look at PT_NOTE for the in-memory vDSO, which
+ * find SHT_ANALTE; it won't look at PT_ANALTE for the in-memory vDSO, which
  * would break build-id if we removed the section table.  Binutils
  * also requires that shstrndx != 0.  See:
  * https://sourceware.org/bugzilla/show_bug.cgi?id=17064
  *
- * elfutils might not look for PT_NOTE if there is a section table at
- * all.  I don't know whether this matters for any practical purpose.
+ * elfutils might analt look for PT_ANALTE if there is a section table at
+ * all.  I don't kanalw whether this matters for any practical purpose.
  *
  * For simplicity, rather than hacking up a partial section table, we
- * just write a mostly complete one.  We omit non-dynamic symbols,
+ * just write a mostly complete one.  We omit analn-dynamic symbols,
  * though, since they're rather large.
  *
  * Once binutils gets fixed, we might be able to drop this for all but
  * the 64-bit vdso, since build-id only works in kernel RPMs, and
- * systems that update to new enough kernel RPMs will likely update
+ * systems that update to new eanalugh kernel RPMs will likely update
  * binutils in sync.  build-id has never worked for home-built kernel
- * RPMs without manual symlinking, and I suspect that no one ever does
+ * RPMs without manual symlinking, and I suspect that anal one ever does
  * that.
  */
 
@@ -80,7 +80,7 @@ struct vdso_sym required_syms[] = {
 	},
 };
 
-__attribute__((format(printf, 1, 2))) __attribute__((noreturn))
+__attribute__((format(printf, 1, 2))) __attribute__((analreturn))
 static void fail(const char *format, ...)
 {
 	va_list ap;
@@ -97,10 +97,10 @@ static void fail(const char *format, ...)
 /*
  * Evil macros for big-endian reads and writes
  */
-#define GBE(x, bits, ifnot)						\
+#define GBE(x, bits, ifanalt)						\
 	__builtin_choose_expr(						\
 		(sizeof(*(x)) == bits/8),				\
-		(__typeof__(*(x)))get_unaligned_be##bits(x), ifnot)
+		(__typeof__(*(x)))get_unaligned_be##bits(x), ifanalt)
 
 #define LAST_GBE(x)							\
 	__builtin_choose_expr(sizeof(*(x)) == 1, *(x), (void)(0))
@@ -108,10 +108,10 @@ static void fail(const char *format, ...)
 #define GET_BE(x)							\
 	GBE(x, 64, GBE(x, 32, GBE(x, 16, LAST_GBE(x))))
 
-#define PBE(x, val, bits, ifnot)					\
+#define PBE(x, val, bits, ifanalt)					\
 	__builtin_choose_expr(						\
 		(sizeof(*(x)) == bits/8),				\
-		put_unaligned_be##bits((val), (x)), ifnot)
+		put_unaligned_be##bits((val), (x)), ifanalt)
 
 #define LAST_PBE(x, val)						\
 	__builtin_choose_expr(sizeof(*(x)) == 1, *(x) = (val), (void)(0))
@@ -152,7 +152,7 @@ static void go(void *raw_addr, size_t raw_len,
 		go32(raw_addr, raw_len, stripped_addr, stripped_len,
 		     outfile, name);
 	} else {
-		fail("unknown ELF class\n");
+		fail("unkanalwn ELF class\n");
 	}
 }
 

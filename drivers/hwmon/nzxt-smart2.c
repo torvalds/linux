@@ -55,21 +55,21 @@ enum {
 };
 
 enum {
-	FAN_TYPE_NONE = 0,
+	FAN_TYPE_ANALNE = 0,
 	FAN_TYPE_DC = 1,
 	FAN_TYPE_PWM = 2,
 };
 
-struct unknown_static_data {
+struct unkanalwn_static_data {
 	/*
 	 * Some configuration data? Stays the same after fan speed changes,
 	 * changes in fan configuration, reboots and driver reloads.
 	 *
 	 * The same data in multiple report types.
 	 *
-	 * Byte 12 seems to be the number of fan channels, but I am not sure.
+	 * Byte 12 seems to be the number of fan channels, but I am analt sure.
 	 */
-	u8 unknown1[14];
+	u8 unkanalwn1[14];
 } __packed;
 
 /*
@@ -81,7 +81,7 @@ struct fan_config_report {
 	u8 report_id;
 	/* Always 0x03 */
 	u8 magic;
-	struct unknown_static_data unknown_data;
+	struct unkanalwn_static_data unkanalwn_data;
 	/* Fan type as detected by the device. See FAN_TYPE_* enum. */
 	u8 fan_type[FAN_CHANNELS_MAX];
 } __packed;
@@ -96,7 +96,7 @@ struct fan_status_report {
 	u8 report_id;
 	/* FAN_STATUS_REPORT_SPEED = 0x02 or FAN_STATUS_REPORT_VOLTAGE = 0x04 */
 	u8 type;
-	struct unknown_static_data unknown_data;
+	struct unkanalwn_static_data unkanalwn_data;
 	/* Fan type as detected by the device. See FAN_TYPE_* enum. */
 	u8 fan_type[FAN_CHANNELS_MAX];
 
@@ -109,23 +109,23 @@ struct fan_status_report {
 			 */
 			__le16 fan_rpm[FAN_CHANNELS_MAX];
 			/*
-			 * Fan duty cycle, in percent. Non-zero even for
+			 * Fan duty cycle, in percent. Analn-zero even for
 			 * channels without fans connected.
 			 */
 			u8 duty_percent[FAN_CHANNELS_MAX];
 			/*
-			 * Exactly the same values as duty_percent[], non-zero
+			 * Exactly the same values as duty_percent[], analn-zero
 			 * for disconnected fans too.
 			 */
 			u8 duty_percent_dup[FAN_CHANNELS_MAX];
-			/* "Case Noise" in db */
-			u8 noise_db;
+			/* "Case Analise" in db */
+			u8 analise_db;
 		} __packed fan_speed;
 		/* When type == FAN_STATUS_REPORT_VOLTAGE */
 		struct {
 			/*
-			 * Voltage, in millivolts. Non-zero even when fan is
-			 * not connected.
+			 * Voltage, in millivolts. Analn-zero even when fan is
+			 * analt connected.
 			 */
 			__le16 fan_in[FAN_CHANNELS_MAX];
 			/*
@@ -198,7 +198,7 @@ struct drvdata {
 	 * in drvdata must be updated, and only then new output reports can be
 	 * sent).
 	 * 2) Synchronize access to output_buffer (well, the buffer is here,
-	 * because synchronization is necessary anyway - so why not get rid of
+	 * because synchronization is necessary anyway - so why analt get rid of
 	 * a kmalloc?).
 	 */
 	struct mutex mutex;
@@ -212,7 +212,7 @@ static long scale_pwm_value(long val, long orig_max, long new_max)
 		return 0;
 
 	/*
-	 * Positive values should not become zero: 0 completely turns off the
+	 * Positive values should analt become zero: 0 completely turns off the
 	 * fan.
 	 */
 	return max(1L, DIV_ROUND_CLOSEST(min(val, orig_max) * new_max, orig_max));
@@ -265,7 +265,7 @@ static void handle_fan_status_report(struct drvdata *drvdata, void *data, int si
 			continue;
 
 		/*
-		 * This should not happen (if my expectations about the device
+		 * This should analt happen (if my expectations about the device
 		 * are correct).
 		 *
 		 * Even if the userspace sends fan detect command through
@@ -371,7 +371,7 @@ static int nzxt_smart2_hwmon_read(struct device *dev, enum hwmon_sensor_types ty
 			if (res)
 				goto unlock;
 
-			*val = drvdata->fan_type[channel] != FAN_TYPE_NONE;
+			*val = drvdata->fan_type[channel] != FAN_TYPE_ANALNE;
 			break;
 
 		case hwmon_pwm_mode:
@@ -397,7 +397,7 @@ static int nzxt_smart2_hwmon_read(struct device *dev, enum hwmon_sensor_types ty
 
 	case hwmon_fan:
 		/*
-		 * It's not strictly necessary to wait for *_received in the
+		 * It's analt strictly necessary to wait for *_received in the
 		 * remaining cases (fancontrol doesn't care about them). But I'm
 		 * doing it to have consistent behavior.
 		 */
@@ -485,7 +485,7 @@ static int set_pwm(struct drvdata *drvdata, int channel, long val)
 	 * pwmconfig and fancontrol scripts expect pwm writes to take effect
 	 * immediately (i. e. read from pwm* sysfs should return the value
 	 * written into it). The device seems to always accept pwm values - even
-	 * when there is no fan connected - so update pwm status without waiting
+	 * when there is anal fan connected - so update pwm status without waiting
 	 * for a report, to make pwmconfig and fancontrol happy. Worst case -
 	 * if the device didn't accept new pwm value for some reason (never seen
 	 * this in practice) - it will be reported incorrectly only until next
@@ -520,11 +520,11 @@ static int set_pwm_enable(struct drvdata *drvdata, int channel, long val)
 		return res;
 	}
 
-	expected_val = drvdata->fan_type[channel] != FAN_TYPE_NONE;
+	expected_val = drvdata->fan_type[channel] != FAN_TYPE_ANALNE;
 
 	spin_unlock_irq(&drvdata->wq.lock);
 
-	return (val == expected_val) ? 0 : -EOPNOTSUPP;
+	return (val == expected_val) ? 0 : -EOPANALTSUPP;
 }
 
 /*
@@ -709,7 +709,7 @@ static int __maybe_unused nzxt_smart2_hid_reset_resume(struct hid_device *hdev)
 	struct drvdata *drvdata = hid_get_drvdata(hdev);
 
 	/*
-	 * Userspace is still frozen (so no concurrent sysfs attribute access
+	 * Userspace is still frozen (so anal concurrent sysfs attribute access
 	 * is possible), but raw_event can already be called concurrently.
 	 */
 	spin_lock_bh(&drvdata->wq.lock);
@@ -734,7 +734,7 @@ static int nzxt_smart2_hid_probe(struct hid_device *hdev,
 
 	drvdata = devm_kzalloc(&hdev->dev, sizeof(struct drvdata), GFP_KERNEL);
 	if (!drvdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drvdata->hid = hdev;
 	hid_set_drvdata(hdev, drvdata);
@@ -832,7 +832,7 @@ MODULE_LICENSE("GPL");
  * With module_init()/module_hid_driver() and the driver built into the kernel:
  *
  * Driver 'nzxt_smart2' was unable to register with bus_type 'hid' because the
- * bus was not initialized.
+ * bus was analt initialized.
  */
 late_initcall(nzxt_smart2_init);
 module_exit(nzxt_smart2_exit);

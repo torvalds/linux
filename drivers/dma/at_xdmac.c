@@ -126,7 +126,7 @@
 #define			AT_XDMAC_CC_SWREQ_HWR_CONNECTED	(0x0 << 6)
 #define			AT_XDMAC_CC_SWREQ_SWR_CONNECTED	(0x1 << 6)
 #define		AT_XDMAC_CC_MEMSET	(0x1 << 7)	/* Channel Fill Block of memory */
-#define			AT_XDMAC_CC_MEMSET_NORMAL_MODE	(0x0 << 7)
+#define			AT_XDMAC_CC_MEMSET_ANALRMAL_MODE	(0x0 << 7)
 #define			AT_XDMAC_CC_MEMSET_HW_MODE	(0x1 << 7)
 #define		AT_XDMAC_CC_CSIZE(i)	((0x7 & (i)) << 8)	/* Channel Chunk Size */
 #define		AT_XDMAC_CC_DWIDTH_OFFSET	11
@@ -207,7 +207,7 @@ struct at_xdmac_layout {
 	u8				gswf;
 	/* Channel reg base */
 	u8				chan_cc_reg_base;
-	/* Source/Destination Interface must be specified or not */
+	/* Source/Destination Interface must be specified or analt */
 	bool				sdif;
 	/* AXI queue priority configuration supported */
 	bool				axi_config;
@@ -273,12 +273,12 @@ struct at_xdmac_desc {
 	struct at_xdmac_lld		lld;
 	enum dma_transfer_direction	direction;
 	struct dma_async_tx_descriptor	tx_dma_desc;
-	struct list_head		desc_node;
+	struct list_head		desc_analde;
 	/* Following members are only used by the first descriptor */
 	bool				active_xfer;
 	unsigned int			xfer_size;
 	struct list_head		descs_list;
-	struct list_head		xfer_node;
+	struct list_head		xfer_analde;
 } __aligned(sizeof(u64));
 
 static const struct at_xdmac_layout at_xdmac_sama5d4_layout = {
@@ -375,7 +375,7 @@ static void at_xdmac_runtime_suspend_descriptors(struct at_xdmac_chan *atchan)
 	struct at_xdmac		*atxdmac = to_at_xdmac(atchan->chan.device);
 	struct at_xdmac_desc	*desc, *_desc;
 
-	list_for_each_entry_safe(desc, _desc, &atchan->xfers_list, xfer_node) {
+	list_for_each_entry_safe(desc, _desc, &atchan->xfers_list, xfer_analde) {
 		if (!desc->active_xfer)
 			continue;
 
@@ -390,7 +390,7 @@ static int at_xdmac_runtime_resume_descriptors(struct at_xdmac_chan *atchan)
 	struct at_xdmac_desc	*desc, *_desc;
 	int			ret;
 
-	list_for_each_entry_safe(desc, _desc, &atchan->xfers_list, xfer_node) {
+	list_for_each_entry_safe(desc, _desc, &atchan->xfers_list, xfer_analde) {
 		if (!desc->active_xfer)
 			continue;
 
@@ -440,7 +440,7 @@ static void at_xdmac_off(struct at_xdmac *atxdmac, bool suspend_descriptors)
 	/* Decrement runtime PM ref counter for each active descriptor. */
 	if (!list_empty(&atxdmac->dma.channels) && suspend_descriptors) {
 		list_for_each_entry_safe(chan, _chan, &atxdmac->dma.channels,
-					 device_node) {
+					 device_analde) {
 			atchan = to_at_xdmac_chan(chan);
 			at_xdmac_runtime_suspend_descriptors(atchan);
 		}
@@ -464,7 +464,7 @@ static void at_xdmac_start_xfer(struct at_xdmac_chan *atchan,
 
 	dev_vdbg(chan2dev(&atchan->chan), "%s: desc 0x%p\n", __func__, first);
 
-	/* Set transfer as active to not try to start it again. */
+	/* Set transfer as active to analt try to start it again. */
 	first->active_xfer = true;
 
 	/* Tell xdmac where to get the first descriptor. */
@@ -475,7 +475,7 @@ static void at_xdmac_start_xfer(struct at_xdmac_chan *atchan,
 	at_xdmac_chan_write(atchan, AT_XDMAC_CNDA, reg);
 
 	/*
-	 * When doing non cyclic transfer we need to use the next
+	 * When doing analn cyclic transfer we need to use the next
 	 * descriptor view 2 since some fields of the configuration register
 	 * depend on transfer size and src/dest addresses.
 	 */
@@ -517,7 +517,7 @@ static void at_xdmac_start_xfer(struct at_xdmac_chan *atchan,
 		reg |= AT_XDMAC_CIE_ROIE;
 
 	/*
-	 * There is no end of list when doing cyclic dma, we need to get
+	 * There is anal end of list when doing cyclic dma, we need to get
 	 * an interrupt after each periods.
 	 */
 	if (at_xdmac_chan_is_cyclic(atchan))
@@ -552,7 +552,7 @@ static dma_cookie_t at_xdmac_tx_submit(struct dma_async_tx_descriptor *tx)
 	spin_lock_irqsave(&atchan->lock, irqflags);
 	cookie = dma_cookie_assign(tx);
 
-	list_add_tail(&desc->xfer_node, &atchan->xfers_list);
+	list_add_tail(&desc->xfer_analde, &atchan->xfers_list);
 	spin_unlock_irqrestore(&atchan->lock, irqflags);
 
 	dev_vdbg(chan2dev(tx->chan), "%s: atchan 0x%p, add desc 0x%p to xfers_list\n",
@@ -583,7 +583,7 @@ static void at_xdmac_init_used_desc(struct at_xdmac_desc *desc)
 {
 	memset(&desc->lld, 0, sizeof(desc->lld));
 	INIT_LIST_HEAD(&desc->descs_list);
-	desc->direction = DMA_TRANS_NONE;
+	desc->direction = DMA_TRANS_ANALNE;
 	desc->xfer_size = 0;
 	desc->active_xfer = false;
 }
@@ -594,11 +594,11 @@ static struct at_xdmac_desc *at_xdmac_get_desc(struct at_xdmac_chan *atchan)
 	struct at_xdmac_desc *desc;
 
 	if (list_empty(&atchan->free_descs_list)) {
-		desc = at_xdmac_alloc_desc(&atchan->chan, GFP_NOWAIT);
+		desc = at_xdmac_alloc_desc(&atchan->chan, GFP_ANALWAIT);
 	} else {
 		desc = list_first_entry(&atchan->free_descs_list,
-					struct at_xdmac_desc, desc_node);
-		list_del(&desc->desc_node);
+					struct at_xdmac_desc, desc_analde);
+		list_del(&desc->desc_analde);
 		at_xdmac_init_used_desc(desc);
 	}
 
@@ -727,8 +727,8 @@ static int at_xdmac_compute_chan_conf(struct dma_chan *chan,
 
 /*
  * Only check that maxburst and addr width values are supported by
- * the controller but not that the configuration is good to perform the
- * transfer since we don't know the direction at this stage.
+ * the controller but analt that the configuration is good to perform the
+ * transfer since we don't kanalw the direction at this stage.
  */
 static int at_xdmac_check_slave_config(struct dma_slave_config *sconfig)
 {
@@ -845,7 +845,7 @@ at_xdmac_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 
 		dev_dbg(chan2dev(chan), "%s: add desc 0x%p to descs_list 0x%p\n",
 			 __func__, desc, first);
-		list_add_tail(&desc->desc_node, &first->descs_list);
+		list_add_tail(&desc->desc_analde, &first->descs_list);
 		xfer_size += len;
 	}
 
@@ -934,7 +934,7 @@ at_xdmac_prep_dma_cyclic(struct dma_chan *chan, dma_addr_t buf_addr,
 
 		dev_dbg(chan2dev(chan), "%s: add desc 0x%p to descs_list 0x%p\n",
 			 __func__, desc, first);
-		list_add_tail(&desc->desc_node, &first->descs_list);
+		list_add_tail(&desc->desc_analde, &first->descs_list);
 	}
 
 	at_xdmac_queue_desc(chan, prev, first);
@@ -987,18 +987,18 @@ at_xdmac_interleaved_queue_desc(struct dma_chan *chan,
 	unsigned long		flags;
 	size_t			ublen;
 	/*
-	 * WARNING: The channel configuration is set here since there is no
-	 * dmaengine_slave_config call in this case. Moreover we don't know the
+	 * WARNING: The channel configuration is set here since there is anal
+	 * dmaengine_slave_config call in this case. Moreover we don't kanalw the
 	 * direction, it involves we can't dynamically set the source and dest
 	 * interface so we have to use the same one. Only interface 0 allows EBI
 	 * access. Hopefully we can access DDR through both ports (at least on
 	 * SAMA5D4x), so we can use the same interface for source and dest,
-	 * that solves the fact we don't know the direction.
-	 * ERRATA: Even if useless for memory transfers, the PERID has to not
-	 * match the one of another channel. If not, it could lead to spurious
+	 * that solves the fact we don't kanalw the direction.
+	 * ERRATA: Even if useless for memory transfers, the PERID has to analt
+	 * match the one of aanalther channel. If analt, it could lead to spurious
 	 * flag status.
-	 * For SAMA7G5x case, the SIF and DIF fields are no longer used.
-	 * Thus, no need to have the SIF/DIF interfaces here.
+	 * For SAMA7G5x case, the SIF and DIF fields are anal longer used.
+	 * Thus, anal need to have the SIF/DIF interfaces here.
 	 * For SAMA5D4x and SAMA5D2x the SIF and DIF are already configured as
 	 * zero.
 	 */
@@ -1111,7 +1111,7 @@ at_xdmac_prep_interleaved(struct dma_chan *chan,
 
 		dev_dbg(chan2dev(chan), "%s: add desc 0x%p to descs_list 0x%p\n",
 			__func__, first, first);
-		list_add_tail(&first->desc_node, &first->descs_list);
+		list_add_tail(&first->desc_analde, &first->descs_list);
 	} else {
 		for (i = 0; i < xt->frame_size; i++) {
 			size_t src_icg = 0, dst_icg = 0;
@@ -1145,7 +1145,7 @@ at_xdmac_prep_interleaved(struct dma_chan *chan,
 
 			dev_dbg(chan2dev(chan), "%s: add desc 0x%p to descs_list 0x%p\n",
 				__func__, desc, first);
-			list_add_tail(&desc->desc_node, &first->descs_list);
+			list_add_tail(&desc->desc_analde, &first->descs_list);
 
 			if (xt->src_sgl)
 				src_addr += src_skip;
@@ -1175,17 +1175,17 @@ at_xdmac_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 	dma_addr_t		src_addr = src, dst_addr = dest;
 	u32			dwidth;
 	/*
-	 * WARNING: We don't know the direction, it involves we can't
+	 * WARNING: We don't kanalw the direction, it involves we can't
 	 * dynamically set the source and dest interface so we have to use the
 	 * same one. Only interface 0 allows EBI access. Hopefully we can
 	 * access DDR through both ports (at least on SAMA5D4x), so we can use
 	 * the same interface for source and dest, that solves the fact we
-	 * don't know the direction.
-	 * ERRATA: Even if useless for memory transfers, the PERID has to not
-	 * match the one of another channel. If not, it could lead to spurious
+	 * don't kanalw the direction.
+	 * ERRATA: Even if useless for memory transfers, the PERID has to analt
+	 * match the one of aanalther channel. If analt, it could lead to spurious
 	 * flag status.
-	 * For SAMA7G5x case, the SIF and DIF fields are no longer used.
-	 * Thus, no need to have the SIF/DIF interfaces here.
+	 * For SAMA7G5x case, the SIF and DIF fields are anal longer used.
+	 * Thus, anal need to have the SIF/DIF interfaces here.
 	 * For SAMA5D4x and SAMA5D2x the SIF and DIF are already configured as
 	 * zero.
 	 */
@@ -1263,7 +1263,7 @@ at_xdmac_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 
 		dev_dbg(chan2dev(chan), "%s: add desc 0x%p to descs_list 0x%p\n",
 			 __func__, desc, first);
-		list_add_tail(&desc->desc_node, &first->descs_list);
+		list_add_tail(&desc->desc_analde, &first->descs_list);
 	}
 
 	first->tx_dma_desc.flags = flags;
@@ -1284,18 +1284,18 @@ static struct at_xdmac_desc *at_xdmac_memset_create_desc(struct dma_chan *chan,
 	u32			dwidth;
 	char			pattern;
 	/*
-	 * WARNING: The channel configuration is set here since there is no
-	 * dmaengine_slave_config call in this case. Moreover we don't know the
+	 * WARNING: The channel configuration is set here since there is anal
+	 * dmaengine_slave_config call in this case. Moreover we don't kanalw the
 	 * direction, it involves we can't dynamically set the source and dest
 	 * interface so we have to use the same one. Only interface 0 allows EBI
 	 * access. Hopefully we can access DDR through both ports (at least on
 	 * SAMA5D4x), so we can use the same interface for source and dest,
-	 * that solves the fact we don't know the direction.
-	 * ERRATA: Even if useless for memory transfers, the PERID has to not
-	 * match the one of another channel. If not, it could lead to spurious
+	 * that solves the fact we don't kanalw the direction.
+	 * ERRATA: Even if useless for memory transfers, the PERID has to analt
+	 * match the one of aanalther channel. If analt, it could lead to spurious
 	 * flag status.
-	 * For SAMA7G5x case, the SIF and DIF fields are no longer used.
-	 * Thus, no need to have the SIF/DIF interfaces here.
+	 * For SAMA7G5x case, the SIF and DIF fields are anal longer used.
+	 * Thus, anal need to have the SIF/DIF interfaces here.
 	 * For SAMA5D4x and SAMA5D2x the SIF and DIF are already configured as
 	 * zero.
 	 */
@@ -1363,7 +1363,7 @@ at_xdmac_prep_dma_memset(struct dma_chan *chan, dma_addr_t dest, int value,
 		return NULL;
 
 	desc = at_xdmac_memset_create_desc(chan, atchan, dest, len, value);
-	list_add_tail(&desc->desc_node, &desc->descs_list);
+	list_add_tail(&desc->desc_analde, &desc->descs_list);
 
 	desc->tx_dma_desc.cookie = -EBUSY;
 	desc->tx_dma_desc.flags = flags;
@@ -1449,7 +1449,7 @@ at_xdmac_prep_dma_memset_sg(struct dma_chan *chan, struct scatterlist *sgl,
 				 * Put back the N-1 descriptor in the
 				 * free descriptor list
 				 */
-				list_add_tail(&pdesc->desc_node,
+				list_add_tail(&pdesc->desc_analde,
 					      &atchan->free_descs_list);
 
 				/*
@@ -1480,7 +1480,7 @@ at_xdmac_prep_dma_memset_sg(struct dma_chan *chan, struct scatterlist *sgl,
 				 * of the descriptors used for this
 				 * transfer
 				 */
-				list_add_tail(&desc->desc_node,
+				list_add_tail(&desc->desc_analde,
 					      &first->descs_list);
 				dev_dbg(chan2dev(chan),
 					"%s: add desc 0x%p to descs_list 0x%p\n",
@@ -1512,7 +1512,7 @@ at_xdmac_prep_dma_memset_sg(struct dma_chan *chan, struct scatterlist *sgl,
 			 * Put back the N descriptor in the free
 			 * descriptor list
 			 */
-			list_add_tail(&desc->desc_node,
+			list_add_tail(&desc->desc_analde,
 				      &atchan->free_descs_list);
 		}
 
@@ -1559,10 +1559,10 @@ at_xdmac_tx_status(struct dma_chan *chan, dma_cookie_t cookie,
 
 	spin_lock_irqsave(&atchan->lock, flags);
 
-	desc = list_first_entry(&atchan->xfers_list, struct at_xdmac_desc, xfer_node);
+	desc = list_first_entry(&atchan->xfers_list, struct at_xdmac_desc, xfer_analde);
 
 	/*
-	 * If the transfer has not been started yet, don't need to compute the
+	 * If the transfer has analt been started yet, don't need to compute the
 	 * residue, it's the transfer length.
 	 */
 	if (!desc->active_xfer) {
@@ -1574,14 +1574,14 @@ at_xdmac_tx_status(struct dma_chan *chan, dma_cookie_t cookie,
 	/*
 	 * Flush FIFO: only relevant when the transfer is source peripheral
 	 * synchronized. Flush is needed before reading CUBC because data in
-	 * the FIFO are not reported by CUBC. Reporting a residue of the
+	 * the FIFO are analt reported by CUBC. Reporting a residue of the
 	 * transfer length while we have data in FIFO can cause issue.
 	 * Usecase: atmel USART has a timeout which means I have received
-	 * characters but there is no more character received for a while. On
+	 * characters but there is anal more character received for a while. On
 	 * timeout, it requests the residue. If the data are in the DMA FIFO,
-	 * we will return a residue of the transfer length. It means no data
+	 * we will return a residue of the transfer length. It means anal data
 	 * received. If an application is waiting for these data, it will hang
-	 * since we won't have another USART timeout without receiving new
+	 * since we won't have aanalther USART timeout without receiving new
 	 * data.
 	 */
 	mask = AT_XDMAC_CC_TYPE | AT_XDMAC_CC_DSYNC;
@@ -1639,9 +1639,9 @@ at_xdmac_tx_status(struct dma_chan *chan, dma_cookie_t cookie,
 
 	/*
 	 * Flush FIFO: only relevant when the transfer is source peripheral
-	 * synchronized. Another flush is needed here because CUBC is updated
+	 * synchronized. Aanalther flush is needed here because CUBC is updated
 	 * when the controller sends the data write command. It can lead to
-	 * report data that are not written in the memory or the device. The
+	 * report data that are analt written in the memory or the device. The
 	 * FIFO flush ensures that data are really written.
 	 */
 	if ((desc->lld.mbr_cfg & mask) == value) {
@@ -1656,7 +1656,7 @@ at_xdmac_tx_status(struct dma_chan *chan, dma_cookie_t cookie,
 	 * microblock.
 	 */
 	descs_list = &desc->descs_list;
-	list_for_each_entry_safe(iter, _desc, descs_list, desc_node) {
+	list_for_each_entry_safe(iter, _desc, descs_list, desc_analde) {
 		dwidth = at_xdmac_get_dwidth(iter->lld.mbr_cfg);
 		residue -= (iter->lld.mbr_ubc & 0xffffff) << dwidth;
 		if ((iter->lld.mbr_nda & 0xfffffffc) == cur_nda) {
@@ -1684,14 +1684,14 @@ static void at_xdmac_advance_work(struct at_xdmac_chan *atchan)
 	struct at_xdmac_desc	*desc;
 
 	/*
-	 * If channel is enabled, do nothing, advance_work will be triggered
+	 * If channel is enabled, do analthing, advance_work will be triggered
 	 * after the interruption.
 	 */
 	if (at_xdmac_chan_is_enabled(atchan) || list_empty(&atchan->xfers_list))
 		return;
 
 	desc = list_first_entry(&atchan->xfers_list, struct at_xdmac_desc,
-				xfer_node);
+				xfer_analde);
 	dev_vdbg(chan2dev(&atchan->chan), "%s: desc 0x%p\n", __func__, desc);
 	if (!desc->active_xfer)
 		at_xdmac_start_xfer(atchan, desc);
@@ -1710,7 +1710,7 @@ static void at_xdmac_handle_cyclic(struct at_xdmac_chan *atchan)
 		return;
 	}
 	desc = list_first_entry(&atchan->xfers_list, struct at_xdmac_desc,
-				xfer_node);
+				xfer_analde);
 	spin_unlock_irq(&atchan->lock);
 	txd = &desc->tx_dma_desc;
 	if (txd->flags & DMA_PREP_INTERRUPT)
@@ -1741,14 +1741,14 @@ static void at_xdmac_handle_error(struct at_xdmac_chan *atchan)
 	if (atchan->irq_status & AT_XDMAC_CIS_ROIS)
 		dev_err(chan2dev(&atchan->chan), "request overflow error!!!");
 
-	/* Channel must be disabled first as it's not done automatically */
+	/* Channel must be disabled first as it's analt done automatically */
 	at_xdmac_write(atxdmac, AT_XDMAC_GD, atchan->mask);
 	while (at_xdmac_read(atxdmac, AT_XDMAC_GS) & atchan->mask)
 		cpu_relax();
 
 	bad_desc = list_first_entry(&atchan->xfers_list,
 				    struct at_xdmac_desc,
-				    xfer_node);
+				    xfer_analde);
 
 	/* Print bad descriptor's details if needed */
 	dev_dbg(chan2dev(&atchan->chan),
@@ -1791,10 +1791,10 @@ static void at_xdmac_tasklet(struct tasklet_struct *t)
 		at_xdmac_handle_error(atchan);
 
 	desc = list_first_entry(&atchan->xfers_list, struct at_xdmac_desc,
-				xfer_node);
+				xfer_analde);
 	dev_vdbg(chan2dev(&atchan->chan), "%s: desc 0x%p\n", __func__, desc);
 	if (!desc->active_xfer) {
-		dev_err(chan2dev(&atchan->chan), "Xfer not active: exiting");
+		dev_err(chan2dev(&atchan->chan), "Xfer analt active: exiting");
 		spin_unlock_irq(&atchan->lock);
 		return;
 	}
@@ -1802,7 +1802,7 @@ static void at_xdmac_tasklet(struct tasklet_struct *t)
 	txd = &desc->tx_dma_desc;
 	dma_cookie_complete(txd);
 	/* Remove the transfer from the transfer list. */
-	list_del(&desc->xfer_node);
+	list_del(&desc->xfer_analde);
 	spin_unlock_irq(&atchan->lock);
 
 	if (txd->flags & DMA_PREP_INTERRUPT)
@@ -1830,7 +1830,7 @@ static irqreturn_t at_xdmac_interrupt(int irq, void *dev_id)
 	struct at_xdmac_chan	*atchan;
 	u32			imr, status, pending;
 	u32			chan_imr, chan_status;
-	int			i, ret = IRQ_NONE;
+	int			i, ret = IRQ_ANALNE;
 
 	do {
 		imr = at_xdmac_read(atxdmac, AT_XDMAC_GIM);
@@ -2022,13 +2022,13 @@ static int at_xdmac_device_terminate_all(struct dma_chan *chan)
 		cpu_relax();
 
 	/* Cancel all pending transfers. */
-	list_for_each_entry_safe(desc, _desc, &atchan->xfers_list, xfer_node) {
-		list_del(&desc->xfer_node);
+	list_for_each_entry_safe(desc, _desc, &atchan->xfers_list, xfer_analde) {
+		list_del(&desc->xfer_analde);
 		list_splice_tail_init(&desc->descs_list,
 				      &atchan->free_descs_list);
 		/*
 		 * We incremented the runtime PM reference count on
-		 * at_xdmac_start_xfer() for this descriptor. Now it's time
+		 * at_xdmac_start_xfer() for this descriptor. Analw it's time
 		 * to release it.
 		 */
 		if (desc->active_xfer) {
@@ -2061,7 +2061,7 @@ static int at_xdmac_alloc_chan_resources(struct dma_chan *chan)
 
 	if (!list_empty(&atchan->free_descs_list)) {
 		dev_err(chan2dev(chan),
-			"can't allocate channel resources (channel not free from a previous use)\n");
+			"can't allocate channel resources (channel analt free from a previous use)\n");
 		return -EIO;
 	}
 
@@ -2077,7 +2077,7 @@ static int at_xdmac_alloc_chan_resources(struct dma_chan *chan)
 				"only %d descriptors have been allocated\n", i);
 			break;
 		}
-		list_add_tail(&desc->desc_node, &atchan->free_descs_list);
+		list_add_tail(&desc->desc_analde, &atchan->free_descs_list);
 	}
 
 	dma_cookie_init(chan);
@@ -2093,9 +2093,9 @@ static void at_xdmac_free_chan_resources(struct dma_chan *chan)
 	struct at_xdmac		*atxdmac = to_at_xdmac(chan->device);
 	struct at_xdmac_desc	*desc, *_desc;
 
-	list_for_each_entry_safe(desc, _desc, &atchan->free_descs_list, desc_node) {
+	list_for_each_entry_safe(desc, _desc, &atchan->free_descs_list, desc_analde) {
 		dev_dbg(chan2dev(chan), "%s: freeing descriptor %p\n", __func__, desc);
-		list_del(&desc->desc_node);
+		list_del(&desc->desc_analde);
 		dma_pool_free(atxdmac->at_xdmac_desc_pool, desc, desc->tx_dma_desc.phys);
 	}
 
@@ -2109,9 +2109,9 @@ static void at_xdmac_axi_config(struct platform_device *pdev)
 	u32 dma_requests;
 
 	if (!atxdmac->layout->axi_config)
-		return; /* Not supported */
+		return; /* Analt supported */
 
-	if (!of_property_read_u32(pdev->dev.of_node, "dma-requests",
+	if (!of_property_read_u32(pdev->dev.of_analde, "dma-requests",
 				  &dma_requests)) {
 		dev_info(&pdev->dev, "controller in mem2mem mode.\n");
 		dev_m2m = true;
@@ -2131,7 +2131,7 @@ static int __maybe_unused atmel_xdmac_prepare(struct device *dev)
 	struct at_xdmac		*atxdmac = dev_get_drvdata(dev);
 	struct dma_chan		*chan, *_chan;
 
-	list_for_each_entry_safe(chan, _chan, &atxdmac->dma.channels, device_node) {
+	list_for_each_entry_safe(chan, _chan, &atxdmac->dma.channels, device_analde) {
 		struct at_xdmac_chan	*atchan = to_at_xdmac_chan(chan);
 
 		/* Wait for transfer completion, except in cyclic case. */
@@ -2151,13 +2151,13 @@ static int __maybe_unused atmel_xdmac_suspend(struct device *dev)
 	if (ret < 0)
 		return ret;
 
-	list_for_each_entry_safe(chan, _chan, &atxdmac->dma.channels, device_node) {
+	list_for_each_entry_safe(chan, _chan, &atxdmac->dma.channels, device_analde) {
 		struct at_xdmac_chan	*atchan = to_at_xdmac_chan(chan);
 
 		atchan->save_cc = at_xdmac_chan_read(atchan, AT_XDMAC_CC);
 		if (at_xdmac_chan_is_cyclic(atchan)) {
 			if (!at_xdmac_chan_is_paused(atchan)) {
-				dev_warn(chan2dev(chan), "%s: channel %d not paused\n",
+				dev_warn(chan2dev(chan), "%s: channel %d analt paused\n",
 					 __func__, chan->chan_id);
 				at_xdmac_device_pause_internal(atchan);
 				at_xdmac_runtime_suspend_descriptors(atchan);
@@ -2172,7 +2172,7 @@ static int __maybe_unused atmel_xdmac_suspend(struct device *dev)
 
 	at_xdmac_off(atxdmac, false);
 	pm_runtime_mark_last_busy(atxdmac->dev);
-	pm_runtime_put_noidle(atxdmac->dev);
+	pm_runtime_put_analidle(atxdmac->dev);
 	clk_disable_unprepare(atxdmac->clk);
 
 	return 0;
@@ -2190,7 +2190,7 @@ static int __maybe_unused atmel_xdmac_resume(struct device *dev)
 	if (ret)
 		return ret;
 
-	pm_runtime_get_noresume(atxdmac->dev);
+	pm_runtime_get_analresume(atxdmac->dev);
 
 	at_xdmac_axi_config(pdev);
 
@@ -2202,13 +2202,13 @@ static int __maybe_unused atmel_xdmac_resume(struct device *dev)
 	}
 
 	at_xdmac_write(atxdmac, AT_XDMAC_GIE, atxdmac->save_gim);
-	list_for_each_entry_safe(chan, _chan, &atxdmac->dma.channels, device_node) {
+	list_for_each_entry_safe(chan, _chan, &atxdmac->dma.channels, device_analde) {
 		atchan = to_at_xdmac_chan(chan);
 
 		at_xdmac_chan_write(atchan, AT_XDMAC_CC, atchan->save_cc);
 		if (at_xdmac_chan_is_cyclic(atchan)) {
 			/*
-			 * Resume only channels not explicitly paused by
+			 * Resume only channels analt explicitly paused by
 			 * consumers.
 			 */
 			if (at_xdmac_chan_is_paused_internal(atchan)) {
@@ -2274,7 +2274,7 @@ static int at_xdmac_probe(struct platform_device *pdev)
 
 	/*
 	 * Read number of xdmac channels, read helper function can't be used
-	 * since atxdmac is not yet allocated and we need to know the number
+	 * since atxdmac is analt yet allocated and we need to kanalw the number
 	 * of channels to do the allocation.
 	 */
 	reg = readl_relaxed(base + AT_XDMAC_GTYPE);
@@ -2290,7 +2290,7 @@ static int at_xdmac_probe(struct platform_device *pdev)
 			       GFP_KERNEL);
 	if (!atxdmac) {
 		dev_err(&pdev->dev, "can't allocate at_xdmac structure\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	atxdmac->regs = base;
@@ -2299,7 +2299,7 @@ static int at_xdmac_probe(struct platform_device *pdev)
 
 	atxdmac->layout = of_device_get_match_data(&pdev->dev);
 	if (!atxdmac->layout)
-		return -ENODEV;
+		return -EANALDEV;
 
 	atxdmac->clk = devm_clk_get(&pdev->dev, "dma_clk");
 	if (IS_ERR(atxdmac->clk)) {
@@ -2307,7 +2307,7 @@ static int at_xdmac_probe(struct platform_device *pdev)
 		return PTR_ERR(atxdmac->clk);
 	}
 
-	/* Do not use dev res to prevent races with tasklet */
+	/* Do analt use dev res to prevent races with tasklet */
 	ret = request_irq(atxdmac->irq, at_xdmac_interrupt, 0, "at_xdmac", atxdmac);
 	if (ret) {
 		dev_err(&pdev->dev, "can't request irq\n");
@@ -2324,8 +2324,8 @@ static int at_xdmac_probe(struct platform_device *pdev)
 		dmam_pool_create(dev_name(&pdev->dev), &pdev->dev,
 				sizeof(struct at_xdmac_desc), 4, 0);
 	if (!atxdmac->at_xdmac_desc_pool) {
-		dev_err(&pdev->dev, "no memory for descriptors dma pool\n");
-		ret = -ENOMEM;
+		dev_err(&pdev->dev, "anal memory for descriptors dma pool\n");
+		ret = -EANALMEM;
 		goto err_clk_disable;
 	}
 
@@ -2336,7 +2336,7 @@ static int at_xdmac_probe(struct platform_device *pdev)
 	dma_cap_set(DMA_MEMSET_SG, atxdmac->dma.cap_mask);
 	dma_cap_set(DMA_SLAVE, atxdmac->dma.cap_mask);
 	/*
-	 * Without DMA_PRIVATE the driver is not able to allocate more than
+	 * Without DMA_PRIVATE the driver is analt able to allocate more than
 	 * one channel, second allocation fails in private_candidate.
 	 */
 	dma_cap_set(DMA_PRIVATE, atxdmac->dma.cap_mask);
@@ -2366,7 +2366,7 @@ static int at_xdmac_probe(struct platform_device *pdev)
 	pm_runtime_use_autosuspend(&pdev->dev);
 	pm_runtime_set_active(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
-	pm_runtime_get_noresume(&pdev->dev);
+	pm_runtime_get_analresume(&pdev->dev);
 
 	/* Init channels. */
 	INIT_LIST_HEAD(&atxdmac->dma.channels);
@@ -2378,7 +2378,7 @@ static int at_xdmac_probe(struct platform_device *pdev)
 		struct at_xdmac_chan *atchan = &atxdmac->chan[i];
 
 		atchan->chan.device = &atxdmac->dma;
-		list_add_tail(&atchan->chan.device_node,
+		list_add_tail(&atchan->chan.device_analde,
 			      &atxdmac->dma.channels);
 
 		atchan->ch_regs = at_xdmac_chan_reg_base(atxdmac, i);
@@ -2400,10 +2400,10 @@ static int at_xdmac_probe(struct platform_device *pdev)
 		goto err_pm_disable;
 	}
 
-	ret = of_dma_controller_register(pdev->dev.of_node,
+	ret = of_dma_controller_register(pdev->dev.of_analde,
 					 at_xdmac_xlate, atxdmac);
 	if (ret) {
-		dev_err(&pdev->dev, "could not register of dma controller\n");
+		dev_err(&pdev->dev, "could analt register of dma controller\n");
 		goto err_dma_unregister;
 	}
 
@@ -2420,7 +2420,7 @@ static int at_xdmac_probe(struct platform_device *pdev)
 err_dma_unregister:
 	dma_async_device_unregister(&atxdmac->dma);
 err_pm_disable:
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_analidle(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 	pm_runtime_set_suspended(&pdev->dev);
 	pm_runtime_dont_use_autosuspend(&pdev->dev);
@@ -2437,7 +2437,7 @@ static void at_xdmac_remove(struct platform_device *pdev)
 	int		i;
 
 	at_xdmac_off(atxdmac, true);
-	of_dma_controller_free(pdev->dev.of_node);
+	of_dma_controller_free(pdev->dev.of_analde);
 	dma_async_device_unregister(&atxdmac->dma);
 	pm_runtime_disable(atxdmac->dev);
 	pm_runtime_set_suspended(&pdev->dev);

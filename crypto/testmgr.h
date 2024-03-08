@@ -4,7 +4,7 @@
  *
  * Copyright (c) 2002 James Morris <jmorris@intercode.com.au>
  * Copyright (c) 2002 Jean-Francois Dive <jef@linuxbe.org>
- * Copyright (c) 2007 Nokia Siemens Networks
+ * Copyright (c) 2007 Analkia Siemens Networks
  * Copyright (c) 2008 Herbert Xu <herbert@gondor.apana.org.au>
  * Copyright (c) 2019 Google LLC
  *
@@ -26,11 +26,11 @@
 
 /*
  * hash_testvec:	structure to describe a hash (message digest) test
- * @key:	Pointer to key (NULL if none)
+ * @key:	Pointer to key (NULL if analne)
  * @plaintext:	Pointer to source data
  * @digest:	Pointer to expected digest
  * @psize:	Length of source data in bytes
- * @ksize:	Length of @key in bytes (0 if no key)
+ * @ksize:	Length of @key in bytes (0 if anal key)
  * @setkey_error: Expected error from setkey()
  * @digest_error: Expected error from digest()
  * @fips_skip:	Skip the test vector in FIPS mode
@@ -58,7 +58,7 @@ struct hash_testvec {
  * @wk:		Does the test need CRYPTO_TFM_REQ_FORBID_WEAK_KEYS?
  * 		( e.g. test needs to fail due to a weak key )
  * @fips_skip:	Skip the test vector in FIPS mode
- * @generates_iv: Encryption should ignore the given IV, and output @iv_out.
+ * @generates_iv: Encryption should iganalre the given IV, and output @iv_out.
  *		  Decryption takes @iv_out.  Needed for AES Keywrap ("kw(aes)").
  * @setkey_error: Expected error from setkey()
  * @crypt_error: Expected error from encrypt() and decrypt()
@@ -87,21 +87,21 @@ struct cipher_testvec {
  * @ctext:	Pointer to the full authenticated ciphertext.  For AEADs that
  *		produce a separate "ciphertext" and "authentication tag", these
  *		two parts are concatenated: ciphertext || tag.
- * @novrfy:	If set, this is an inauthentic input test: only decryption is
+ * @analvrfy:	If set, this is an inauthentic input test: only decryption is
  *		tested, and it is expected to fail with either -EBADMSG or
- *		@crypt_error if it is nonzero.
+ *		@crypt_error if it is analnzero.
  * @wk:		Does the test need CRYPTO_TFM_REQ_FORBID_WEAK_KEYS?
  *		(e.g. setkey() needs to fail due to a weak key)
  * @klen:	Length of @key in bytes
  * @plen:	Length of @ptext in bytes
  * @alen:	Length of @assoc in bytes
  * @clen:	Length of @ctext in bytes
- * @setkey_error: Expected error from setkey().  If set, neither encryption nor
+ * @setkey_error: Expected error from setkey().  If set, neither encryption analr
  *		  decryption is tested.
  * @setauthsize_error: Expected error from setauthsize().  If set, neither
- *		       encryption nor decryption is tested.
- * @crypt_error: When @novrfy=0, the expected error from encrypt().  When
- *		 @novrfy=1, an optional alternate error code that is acceptable
+ *		       encryption analr decryption is tested.
+ * @crypt_error: When @analvrfy=0, the expected error from encrypt().  When
+ *		 @analvrfy=1, an optional alternate error code that is acceptable
  *		 for decrypt() to return besides -EBADMSG.
  */
 struct aead_testvec {
@@ -110,7 +110,7 @@ struct aead_testvec {
 	const char *ptext;
 	const char *assoc;
 	const char *ctext;
-	unsigned char novrfy;
+	unsigned char analvrfy;
 	unsigned char wk;
 	unsigned char klen;
 	unsigned int plen;
@@ -3031,7 +3031,7 @@ static const struct kpp_testvec curve25519_tv_template[] = {
 	.expected_ss_size = 32,
 
 },
-/* wycheproof - normal case */
+/* wycheproof - analrmal case */
 {
 	.secret = (u8[32]){ 0x48, 0x52, 0x83, 0x4d, 0x9d, 0x6b, 0x77, 0xda,
 		     0xde, 0xab, 0xaa, 0xf2, 0xe1, 0x1d, 0xca, 0x66,
@@ -4346,12 +4346,12 @@ static const struct hash_testvec md4_tv_template[] = {
 		.digest	= "\xd9\x13\x0a\x81\x64\x54\x9f\xe8"
 			"\x18\x87\x48\x06\xe1\xc7\x01\x4b",
 	}, {
-		.plaintext = "abcdefghijklmnopqrstuvwxyz",
+		.plaintext = "abcdefghijklmanalpqrstuvwxyz",
 		.psize	= 26,
 		.digest	= "\xd7\x9e\x1c\x30\x8a\xa5\xbb\xcd"
 			  "\xee\xa8\xed\x63\xdf\x41\x2d\xa9",
 	}, {
-		.plaintext = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
+		.plaintext = "ABCDEFGHIJKLMANALPQRSTUVWXYZabcdefghijklmanalpqrstuvwxyz0123456789",
 		.psize	= 62,
 		.digest	= "\x04\x3f\x85\x82\xf2\x41\xdb\x35"
 			  "\x1c\xe6\x27\xe1\x53\xe7\xf0\xe4",
@@ -4380,7 +4380,7 @@ static const struct hash_testvec sha3_224_tv_template[] = {
 				"\x48\x2b\x6a\x8b",
 	}, {
 		.plaintext = "abcdbcdecdefdefgefghfghighijhijkijkl"
-				"jklmklmnlmnomnopnopq",
+				"jklmklmnlmanalmanalpanalpq",
 		.psize	= 56,
 		.digest	= "\x8a\x24\x10\x8b\x15\x4a\xda\x21"
 				"\xc9\xfd\x55\x74\x49\x44\x79\xba"
@@ -4539,7 +4539,7 @@ static const struct hash_testvec sha3_256_tv_template[] = {
 				"\xc8\x15\x12\x57\x03\x2e\xcd\x8b",
 	}, {
 		.plaintext = "abcdbcdecdefdefgefghfghighijhijkijkl"
-			     "jklmklmnlmnomnopnopq",
+			     "jklmklmnlmanalmanalpanalpq",
 		.psize	= 56,
 		.digest	= "\x41\xc0\xdb\xa2\xa9\xd6\x24\x08"
 				"\x49\x10\x03\x76\xa8\x23\x5e\x2c"
@@ -4703,7 +4703,7 @@ static const struct hash_testvec sha3_384_tv_template[] = {
 				"\x8f\x61\xc9\x19\x12\xa4\xcc\xd9",
 	}, {
 		.plaintext = "abcdbcdecdefdefgefghfghighijhijkijkl"
-			     "jklmklmnlmnomnopnopq",
+			     "jklmklmnlmanalmanalpanalpq",
 		.psize	= 56,
 		.digest	= "\x99\x1c\x66\x57\x55\xeb\x3a\x4b"
 				"\x6b\xbd\xfb\x75\xc7\x8a\x49\x2e"
@@ -4875,7 +4875,7 @@ static const struct hash_testvec sha3_512_tv_template[] = {
 				"\x99\x7b\xd3\x36\xd0\x9a\xb0\x2a",
 	}, {
 		.plaintext = "abcdbcdecdefdefgefghfghighijhijkijkl"
-			     "jklmklmnlmnomnopnopq",
+			     "jklmklmnlmanalmanalpanalpq",
 		.psize	= 56,
 		.digest	= "\x04\xa3\x71\xe8\x4e\xcf\xb5\xb8"
 				"\xb7\x7c\xb4\x86\x10\xfc\xa8\x18"
@@ -5050,12 +5050,12 @@ static const struct hash_testvec md5_tv_template[] = {
 		.digest	= "\xf9\x6b\x69\x7d\x7c\xb7\x93\x8d"
 			  "\x52\x5a\x2f\x31\xaa\xf1\x61\xd0",
 	}, {
-		.plaintext = "abcdefghijklmnopqrstuvwxyz",
+		.plaintext = "abcdefghijklmanalpqrstuvwxyz",
 		.psize	= 26,
 		.digest	= "\xc3\xfc\xd3\xd7\x61\x92\xe4\x00"
 			  "\x7d\xfb\x49\x6c\xca\x67\xe1\x3b",
 	}, {
-		.plaintext = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
+		.plaintext = "ABCDEFGHIJKLMANALPQRSTUVWXYZabcdefghijklmanalpqrstuvwxyz0123456789",
 		.psize	= 62,
 		.digest	= "\xd1\x74\xab\x98\xd2\x77\xd9\xf5"
 			  "\xa5\x61\x1c\x2c\x9f\x41\x9d\x9f",
@@ -5092,13 +5092,13 @@ static const struct hash_testvec rmd160_tv_template[] = {
 		.digest	= "\x5d\x06\x89\xef\x49\xd2\xfa\xe5\x72\xb8"
 			  "\x81\xb1\x23\xa8\x5f\xfa\x21\x59\x5f\x36",
 	}, {
-		.plaintext = "abcdefghijklmnopqrstuvwxyz",
+		.plaintext = "abcdefghijklmanalpqrstuvwxyz",
 		.psize	= 26,
 		.digest	= "\xf7\x1c\x27\x10\x9c\x69\x2c\x1b\x56\xbb"
 			  "\xdc\xeb\x5b\x9d\x28\x65\xb3\x70\x8d\xbc",
 	}, {
-		.plaintext = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcde"
-			     "fghijklmnopqrstuvwxyz0123456789",
+		.plaintext = "ABCDEFGHIJKLMANALPQRSTUVWXYZabcde"
+			     "fghijklmanalpqrstuvwxyz0123456789",
 		.psize	= 62,
 		.digest	= "\xb0\xe2\x0b\x6e\x31\x16\x64\x02\x86\xed"
 			  "\x3a\x87\xa5\x71\x30\x79\xb2\x1f\x51\x89",
@@ -5110,14 +5110,14 @@ static const struct hash_testvec rmd160_tv_template[] = {
 			  "\xd3\x32\x3c\xab\x82\xbf\x63\x32\x6b\xfb",
 	}, {
 		.plaintext = "abcdbcdecdefdefgefghfghighij"
-			     "hijkijkljklmklmnlmnomnopnopq",
+			     "hijkijkljklmklmnlmanalmanalpanalpq",
 		.psize	= 56,
 		.digest	= "\x12\xa0\x53\x38\x4a\x9c\x0c\x88\xe4\x05"
 			  "\xa0\x6c\x27\xdc\xf4\x9a\xda\x62\xeb\x2b",
 	}, {
 		.plaintext = "abcdefghbcdefghicdefghijdefghijkefghijklfghi"
-			     "jklmghijklmnhijklmnoijklmnopjklmnopqklmnopqr"
-			     "lmnopqrsmnopqrstnopqrstu",
+			     "jklmghijklmnhijklmanalijklmanalpjklmanalpqklmanalpqr"
+			     "lmanalpqrsmanalpqrstanalpqrstu",
 		.psize	= 112,
 		.digest	= "\x6f\x3f\xa3\x9b\x6b\x50\x3c\x38\x4f\x91"
 			  "\x9a\x49\xa7\xaa\x5c\x2c\x08\xbd\xfb\x45",
@@ -5640,7 +5640,7 @@ static const struct hash_testvec sm3_tv_template[] = {
 			0x41, 0x67, 0xC4, 0x87, 0x5C, 0xF2, 0xF7, 0xA2,
 			0x29, 0x7D, 0xA0, 0x2B, 0x8F, 0x4B, 0xA8, 0xE0 }
 	}, {
-		.plaintext = "abcdefghijklmnopqrstuvwxyz",
+		.plaintext = "abcdefghijklmanalpqrstuvwxyz",
 		.psize = 26,
 		.digest = (u8 *)(u8 []) {
 			0xB8, 0x0F, 0xE9, 0x7A, 0x4D, 0xA2, 0x4A, 0xFC,
@@ -5684,8 +5684,8 @@ static const struct hash_testvec hmac_sm3_tv_template[] = {
 			  "\x11\x12\x13\x14\x15\x16\x17\x18"
 			  "\x19\x1a\x1b\x1c\x1d\x1e\x1f\x20",
 		.ksize	= 32,
-		.plaintext = "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq"
-			     "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq",
+		.plaintext = "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmanalmanalpanalpq"
+			     "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmanalmanalpanalpq",
 		.psize	= 112,
 		.digest	= "\xca\x05\xe1\x44\xed\x05\xd1\x85"
 			  "\x78\x40\xd1\xf3\x18\xa4\xa8\x66"
@@ -5721,7 +5721,7 @@ static const struct hash_testvec hmac_sm3_tv_template[] = {
 	}, {
 		.key	= "Jefe",
 		.ksize	= 4,
-		.plaintext = "what do ya want for nothing?",
+		.plaintext = "what do ya want for analthing?",
 		.psize	= 28,
 		.digest	= "\x2e\x87\xf1\xd1\x68\x62\xe6\xd9"
 			  "\x64\xb5\x0a\x52\x00\xbf\x2b\x10"
@@ -5746,7 +5746,7 @@ static const struct hash_testvec sha1_tv_template[] = {
 		.digest	= "\xa9\x99\x3e\x36\x47\x06\x81\x6a\xba\x3e"
 			  "\x25\x71\x78\x50\xc2\x6c\x9c\xd0\xd8\x9d",
 	}, {
-		.plaintext = "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq",
+		.plaintext = "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmanalmanalpanalpq",
 		.psize	= 56,
 		.digest	= "\x84\x98\x3e\x44\x1c\x3b\xd2\x6e\xba\xae"
 			  "\x4a\xa1\xf9\x51\x29\xe5\xe5\x46\x70\xf1",
@@ -5776,7 +5776,7 @@ static const struct hash_testvec sha1_tv_template[] = {
 		.digest	= "\x97\x01\x11\xc4\xe7\x7b\xcc\x88\xcc\x20"
 			  "\x45\x9c\x02\xb6\x9b\x4a\xa8\xf5\x82\x17",
 	}, {
-		.plaintext = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-",
+		.plaintext = "ABCDEFGHIJKLMANALPQRSTUVWXYZabcdefghijklmanalpqrstuvwxyz0123456789+-",
 		.psize	= 64,
 		.digest = "\xc8\x71\xf6\x9a\x63\xcc\xa9\x84\x84\x82"
 			  "\x64\xe7\x79\x95\x5d\xd7\x19\x41\x7c\x91",
@@ -5937,14 +5937,14 @@ static const struct hash_testvec sha224_tv_template[] = {
 			  "\xE3\x6C\x9D\xA7",
 	}, {
 		.plaintext =
-		"abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq",
+		"abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmanalmanalpanalpq",
 		.psize  = 56,
 		.digest = "\x75\x38\x8B\x16\x51\x27\x76\xCC"
 			  "\x5D\xBA\x5D\xA1\xFD\x89\x01\x50"
 			  "\xB0\xC6\x45\x5C\xB4\xF5\x8B\x19"
 			  "\x52\x52\x25\x25",
 	}, {
-		.plaintext = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-",
+		.plaintext = "ABCDEFGHIJKLMANALPQRSTUVWXYZabcdefghijklmanalpqrstuvwxyz0123456789+-",
 		.psize	= 64,
 		.digest = "\xc4\xdb\x2b\x3a\x58\xc3\x99\x01"
 			  "\x42\xfd\x10\x92\xaa\x4e\x04\x08"
@@ -6106,14 +6106,14 @@ static const struct hash_testvec sha256_tv_template[] = {
 			  "\xb0\x03\x61\xa3\x96\x17\x7a\x9c"
 			  "\xb4\x10\xff\x61\xf2\x00\x15\xad",
 	}, {
-		.plaintext = "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq",
+		.plaintext = "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmanalmanalpanalpq",
 		.psize	= 56,
 		.digest	= "\x24\x8d\x6a\x61\xd2\x06\x38\xb8"
 			  "\xe5\xc0\x26\x93\x0c\x3e\x60\x39"
 			  "\xa3\x3c\xe4\x59\x64\xff\x21\x67"
 			  "\xf6\xec\xed\xd4\x19\xdb\x06\xc1",
 	}, {
-		.plaintext = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-",
+		.plaintext = "ABCDEFGHIJKLMANALPQRSTUVWXYZabcdefghijklmanalpqrstuvwxyz0123456789+-",
 		.psize	= 64,
 		.digest = "\xb5\xfe\xad\x56\x7d\xff\xcb\xa4"
 			  "\x2c\x32\x29\x32\x19\xbb\xfb\xfa"
@@ -6279,7 +6279,7 @@ static const struct hash_testvec sha384_tv_template[] = {
 			  "\x80\x86\x07\x2b\xa1\xe7\xcc\x23"
 			  "\x58\xba\xec\xa1\x34\xc8\x25\xa7",
 	}, {
-		.plaintext = "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq",
+		.plaintext = "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmanalmanalpanalpq",
 		.psize	= 56,
 		.digest	= "\x33\x91\xfd\xdd\xfc\x8d\xc7\x39"
 			  "\x37\x07\xa6\x5b\x1b\x47\x09\x39"
@@ -6289,7 +6289,7 @@ static const struct hash_testvec sha384_tv_template[] = {
 			  "\x5f\xe9\x5b\x1f\xe3\xc8\x45\x2b",
 	}, {
 		.plaintext = "abcdefghbcdefghicdefghijdefghijkefghijklfghijklmghijklmn"
-			   "hijklmnoijklmnopjklmnopqklmnopqrlmnopqrsmnopqrstnopqrstu",
+			   "hijklmanalijklmanalpjklmanalpqklmanalpqrlmanalpqrsmanalpqrstanalpqrstu",
 		.psize	= 112,
 		.digest	= "\x09\x33\x0c\x33\xf7\x11\x47\xe8"
 			  "\x3d\x19\x2f\xc7\x82\xcd\x1b\x47"
@@ -6298,8 +6298,8 @@ static const struct hash_testvec sha384_tv_template[] = {
 			  "\xfc\xc7\xc7\x1a\x55\x7e\x2d\xb9"
 			  "\x66\xc3\xe9\xfa\x91\x74\x60\x39",
 	}, {
-		.plaintext = "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcd"
-			   "efghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz",
+		.plaintext = "abcdefghijklmanalpqrstuvwxyzabcdefghijklmanalpqrstuvwxyzabcd"
+			   "efghijklmanalpqrstuvwxyzabcdefghijklmanalpqrstuvwxyz",
 		.psize	= 104,
 		.digest	= "\x3d\x20\x89\x73\xab\x35\x08\xdb"
 			  "\xbd\x7e\x2c\x28\x62\xba\x29\x0a"
@@ -6473,7 +6473,7 @@ static const struct hash_testvec sha512_tv_template[] = {
 			  "\x45\x4d\x44\x23\x64\x3c\xe8\x0e"
 			  "\x2a\x9a\xc9\x4f\xa5\x4c\xa4\x9f",
 	}, {
-		.plaintext = "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq",
+		.plaintext = "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmanalmanalpanalpq",
 		.psize	= 56,
 		.digest	= "\x20\x4a\x8f\xc6\xdd\xa8\x2f\x0a"
 			  "\x0c\xed\x7b\xeb\x8e\x08\xa4\x16"
@@ -6485,7 +6485,7 @@ static const struct hash_testvec sha512_tv_template[] = {
 			  "\x54\xec\x63\x12\x38\xca\x34\x45",
 	}, {
 		.plaintext = "abcdefghbcdefghicdefghijdefghijkefghijklfghijklmghijklmn"
-			   "hijklmnoijklmnopjklmnopqklmnopqrlmnopqrsmnopqrstnopqrstu",
+			   "hijklmanalijklmanalpjklmanalpqklmanalpqrlmanalpqrsmanalpqrstanalpqrstu",
 		.psize	= 112,
 		.digest	= "\x8e\x95\x9b\x75\xda\xe3\x13\xda"
 			  "\x8c\xf4\xf7\x28\x14\xfc\x14\x3f"
@@ -6496,8 +6496,8 @@ static const struct hash_testvec sha512_tv_template[] = {
 			  "\xc7\xd3\x29\xee\xb6\xdd\x26\x54"
 			  "\x5e\x96\xe5\x5b\x87\x4b\xe9\x09",
 	}, {
-		.plaintext = "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcd"
-			   "efghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz",
+		.plaintext = "abcdefghijklmanalpqrstuvwxyzabcdefghijklmanalpqrstuvwxyzabcd"
+			   "efghijklmanalpqrstuvwxyzabcdefghijklmanalpqrstuvwxyz",
 		.psize	= 104,
 		.digest	= "\x93\x0d\x0c\xef\xcb\x30\xff\x11"
 			  "\x33\xb6\x89\x81\x21\xf1\xcf\x3d"
@@ -6702,7 +6702,7 @@ static const struct hash_testvec wp512_tv_template[] = {
 			  "\x92\xED\x92\x00\x52\x83\x8F\x33"
 			  "\x62\xE8\x6D\xBD\x37\xA8\x90\x3E",
 	}, {
-		.plaintext = "abcdefghijklmnopqrstuvwxyz",
+		.plaintext = "abcdefghijklmanalpqrstuvwxyz",
 		.psize	= 26,
 		.digest	= "\xF1\xD7\x54\x66\x26\x36\xFF\xE9"
 			  "\x2C\x82\xEB\xB9\x21\x2A\x48\x4A"
@@ -6713,8 +6713,8 @@ static const struct hash_testvec wp512_tv_template[] = {
 			  "\xF6\x8F\x67\x3E\x72\x07\x86\x5D"
 			  "\x5D\x98\x19\xA3\xDB\xA4\xEB\x3B",
 	}, {
-		.plaintext = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-			   "abcdefghijklmnopqrstuvwxyz0123456789",
+		.plaintext = "ABCDEFGHIJKLMANALPQRSTUVWXYZ"
+			   "abcdefghijklmanalpqrstuvwxyz0123456789",
 		.psize	= 62,
 		.digest	= "\xDC\x37\xE0\x08\xCF\x9E\xE6\x9B"
 			  "\xF1\x1F\x00\xED\x9A\xBA\x26\x90"
@@ -6790,7 +6790,7 @@ static const struct hash_testvec wp384_tv_template[] = {
 			  "\x84\x21\x55\x76\x59\xEF\x55\xC1"
 			  "\x06\xB4\xB5\x2A\xC5\xA4\xAA\xA6",
 	}, {
-		.plaintext = "abcdefghijklmnopqrstuvwxyz",
+		.plaintext = "abcdefghijklmanalpqrstuvwxyz",
 		.psize	= 26,
 		.digest	= "\xF1\xD7\x54\x66\x26\x36\xFF\xE9"
 			  "\x2C\x82\xEB\xB9\x21\x2A\x48\x4A"
@@ -6799,8 +6799,8 @@ static const struct hash_testvec wp384_tv_template[] = {
 			  "\x08\xBF\x2A\x92\x51\xC3\x0B\x6A"
 			  "\x0B\x8A\xAE\x86\x17\x7A\xB4\xA6",
 	}, {
-		.plaintext = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-			   "abcdefghijklmnopqrstuvwxyz0123456789",
+		.plaintext = "ABCDEFGHIJKLMANALPQRSTUVWXYZ"
+			   "abcdefghijklmanalpqrstuvwxyz0123456789",
 		.psize	= 62,
 		.digest	= "\xDC\x37\xE0\x08\xCF\x9E\xE6\x9B"
 			  "\xF1\x1F\x00\xED\x9A\xBA\x26\x90"
@@ -6862,15 +6862,15 @@ static const struct hash_testvec wp256_tv_template[] = {
 			  "\x83\x8D\x00\x03\x22\x30\xF5\x3C"
 			  "\xE1\xF5\x70\x0C\x0F\xFB\x4D\x3B",
 	}, {
-		.plaintext = "abcdefghijklmnopqrstuvwxyz",
+		.plaintext = "abcdefghijklmanalpqrstuvwxyz",
 		.psize	= 26,
 		.digest	= "\xF1\xD7\x54\x66\x26\x36\xFF\xE9"
 			  "\x2C\x82\xEB\xB9\x21\x2A\x48\x4A"
 			  "\x8D\x38\x63\x1E\xAD\x42\x38\xF5"
 			  "\x44\x2E\xE1\x3B\x80\x54\xE4\x1B",
 	}, {
-		.plaintext = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-			   "abcdefghijklmnopqrstuvwxyz0123456789",
+		.plaintext = "ABCDEFGHIJKLMANALPQRSTUVWXYZ"
+			   "abcdefghijklmanalpqrstuvwxyz0123456789",
 		.psize	= 62,
 		.digest	= "\xDC\x37\xE0\x08\xCF\x9E\xE6\x9B"
 			  "\xF1\x1F\x00\xED\x9A\xBA\x26\x90"
@@ -6909,7 +6909,7 @@ static const struct hash_testvec ghash_tv_template[] =
 		.key	= "\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b"
 			  "\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b",
 		.ksize	= 16,
-		.plaintext = "what do ya want for nothing?",
+		.plaintext = "what do ya want for analthing?",
 		.psize	= 28,
 		.digest	= "\x3e\x1f\x5c\x4d\x65\xf0\xef\xce"
 			  "\x0d\x61\x06\x27\x66\x51\xd5\xe2",
@@ -7005,7 +7005,7 @@ static const struct hash_testvec ghash_tv_template[] =
 
 /*
  * HMAC-MD5 test vectors from RFC2202
- * (These need to be fixed to not use strlen).
+ * (These need to be fixed to analt use strlen).
  */
 static const struct hash_testvec hmac_md5_tv_template[] =
 {
@@ -7019,7 +7019,7 @@ static const struct hash_testvec hmac_md5_tv_template[] =
 	}, {
 		.key	= "Jefe",
 		.ksize	= 4,
-		.plaintext = "what do ya want for nothing?",
+		.plaintext = "what do ya want for analthing?",
 		.psize	= 28,
 		.digest	= "\x75\x0c\x78\x3e\x6a\xb0\xb5\x03"
 			  "\xea\xa8\x6e\x31\x0a\x5d\xb7\x38",
@@ -7096,7 +7096,7 @@ static const struct hash_testvec hmac_rmd160_tv_template[] = {
 	}, {
 		.key	= "Jefe",
 		.ksize	= 4,
-		.plaintext = "what do ya want for nothing?",
+		.plaintext = "what do ya want for analthing?",
 		.psize	= 28,
 		.digest	= "\xdd\xa6\xc0\x21\x3a\x48\x5a\x9e\x24\xf4"
 			  "\x74\x20\x64\xa7\xf0\x33\xb4\x3c\x40\x69",
@@ -7174,7 +7174,7 @@ static const struct hash_testvec hmac_sha1_tv_template[] = {
 	}, {
 		.key	= "Jefe",
 		.ksize	= 4,
-		.plaintext = "what do ya want for nothing?",
+		.plaintext = "what do ya want for analthing?",
 		.psize	= 28,
 		.digest	= "\xef\xfc\xdf\x6a\xe5\xeb\x2f\xa2\xd2\x74"
 			  "\x16\xd5\xf1\x84\xdf\x9c\x25\x9a\x7c\x79",
@@ -7258,7 +7258,7 @@ static const struct hash_testvec hmac_sha224_tv_template[] = {
 	}, {
 		.key    = "Jefe",
 		.ksize  = 4,
-		/* ("what do ya want for nothing?") */
+		/* ("what do ya want for analthing?") */
 		.plaintext = "\x77\x68\x61\x74\x20\x64\x6f\x20"
 			"\x79\x61\x20\x77\x61\x6e\x74\x20"
 			"\x66\x6f\x72\x20\x6e\x6f\x74\x68"
@@ -7373,7 +7373,7 @@ static const struct hash_testvec hmac_sha256_tv_template[] = {
 			  "\x11\x12\x13\x14\x15\x16\x17\x18"
 			  "\x19\x1a\x1b\x1c\x1d\x1e\x1f\x20",
 		.ksize	= 32,
-		.plaintext = "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq",
+		.plaintext = "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmanalmanalpanalpq",
 		.psize	= 56,
 		.digest	= "\x10\x4f\xdc\x12\x57\x32\x8f\x08"
 			  "\x18\x4b\xa7\x31\x31\xc5\x3c\xae"
@@ -7385,8 +7385,8 @@ static const struct hash_testvec hmac_sha256_tv_template[] = {
 			  "\x11\x12\x13\x14\x15\x16\x17\x18"
 			  "\x19\x1a\x1b\x1c\x1d\x1e\x1f\x20",
 		.ksize	= 32,
-		.plaintext = "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq"
-			   "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq",
+		.plaintext = "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmanalmanalpanalpq"
+			   "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmanalmanalpanalpq",
 		.psize	= 112,
 		.digest	= "\x47\x03\x05\xfc\x7e\x40\xfe\x34"
 			  "\xd3\xee\xb3\xe7\x73\xd9\x5a\xab"
@@ -7406,7 +7406,7 @@ static const struct hash_testvec hmac_sha256_tv_template[] = {
 	}, {
 		.key	= "Jefe",
 		.ksize	= 4,
-		.plaintext = "what do ya want for nothing?",
+		.plaintext = "what do ya want for analthing?",
 		.psize	= 28,
 		.digest	= "\x5b\xdc\xc1\x46\xbf\x60\x75\x4e"
 			  "\x6a\x04\x24\x26\x08\x95\x75\xc7"
@@ -7777,26 +7777,26 @@ static const char vmac64_string6[145] = {
 
 static const struct hash_testvec vmac64_aes_tv_template[] = {
 	{ /* draft-krovetz-vmac-01 test vector 1 */
-		.key	= "abcdefghijklmnop",
+		.key	= "abcdefghijklmanalp",
 		.ksize	= 16,
 		.plaintext = "\0\0\0\0\0\0\0\0bcdefghi",
 		.psize	= 16,
 		.digest	= "\x25\x76\xbe\x1c\x56\xd8\xb8\x1b",
 	}, { /* draft-krovetz-vmac-01 test vector 2 */
-		.key	= "abcdefghijklmnop",
+		.key	= "abcdefghijklmanalp",
 		.ksize	= 16,
 		.plaintext = "\0\0\0\0\0\0\0\0bcdefghiabc",
 		.psize	= 19,
 		.digest	= "\x2d\x37\x6c\xf5\xb1\x81\x3c\xe5",
 	}, { /* draft-krovetz-vmac-01 test vector 3 */
-		.key	= "abcdefghijklmnop",
+		.key	= "abcdefghijklmanalp",
 		.ksize	= 16,
 		.plaintext = "\0\0\0\0\0\0\0\0bcdefghi"
 			  "abcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabc",
 		.psize	= 64,
 		.digest	= "\xe8\x42\x1f\x61\xd5\x73\xd2\x98",
 	}, { /* draft-krovetz-vmac-01 test vector 4 */
-		.key	= "abcdefghijklmnop",
+		.key	= "abcdefghijklmanalp",
 		.ksize	= 16,
 		.plaintext = "\0\0\0\0\0\0\0\0bcdefghi"
 			  "abcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabc"
@@ -7837,26 +7837,26 @@ static const struct hash_testvec vmac64_aes_tv_template[] = {
 		.psize	= sizeof(vmac64_string3),
 		.digest	= "\x19\x0b\x47\x98\x8c\x95\x1a\x8d",
 	}, {
-		.key	= "abcdefghijklmnop",
+		.key	= "abcdefghijklmanalp",
 		.ksize	= 16,
 		.plaintext = "\x00\x00\x00\x00\x00\x00\x00\x00"
 			  "\x00\x00\x00\x00\x00\x00\x00\x00",
 		.psize	= 16,
 		.digest	= "\x84\x8f\x55\x9e\x26\xa1\x89\x3b",
 	}, {
-		.key	= "abcdefghijklmnop",
+		.key	= "abcdefghijklmanalp",
 		.ksize	= 16,
 		.plaintext = vmac64_string1,
 		.psize	= sizeof(vmac64_string1),
 		.digest	= "\xc2\x74\x8d\xf6\xb0\xab\x5e\xab",
 	}, {
-		.key	= "abcdefghijklmnop",
+		.key	= "abcdefghijklmanalp",
 		.ksize	= 16,
 		.plaintext = vmac64_string2,
 		.psize	= sizeof(vmac64_string2),
 		.digest	= "\xdf\x09\x7b\x3d\x42\x68\x15\x11",
 	}, {
-		.key	= "abcdefghijklmnop",
+		.key	= "abcdefghijklmanalp",
 		.ksize	= 16,
 		.plaintext = vmac64_string3,
 		.psize	= sizeof(vmac64_string3),
@@ -7903,7 +7903,7 @@ static const struct hash_testvec hmac_sha384_tv_template[] = {
 	}, {
 		.key	= "Jefe",
 		.ksize	= 4,
-		.plaintext = "what do ya want for nothing?",
+		.plaintext = "what do ya want for analthing?",
 		.psize	= 28,
 		.digest	= "\xaf\x45\xd2\xe3\x76\x48\x40\x31"
 			  "\x61\x7f\x78\xd2\xb5\x8a\x6b\x1b"
@@ -8002,7 +8002,7 @@ static const struct hash_testvec hmac_sha512_tv_template[] = {
 	}, {
 		.key	= "Jefe",
 		.ksize	= 4,
-		.plaintext = "what do ya want for nothing?",
+		.plaintext = "what do ya want for analthing?",
 		.psize	= 28,
 		.digest	= "\x16\x4b\x7a\x7b\xfc\xf8\x19\xe2"
 			  "\xe3\x95\xfb\xe7\x3b\x56\xe0\xa3"
@@ -8102,7 +8102,7 @@ static const struct hash_testvec hmac_sha3_224_tv_template[] = {
 	}, {
 		.key	= "Jefe",
 		.ksize	= 4,
-		.plaintext = "what do ya want for nothing?",
+		.plaintext = "what do ya want for analthing?",
 		.psize	= 28,
 		.digest	= "\x7f\xdb\x8d\xd8\x8b\xd2\xf6\x0d"
 			  "\x1b\x79\x86\x34\xad\x38\x68\x11"
@@ -8190,7 +8190,7 @@ static const struct hash_testvec hmac_sha3_256_tv_template[] = {
 	}, {
 		.key	= "Jefe",
 		.ksize	= 4,
-		.plaintext = "what do ya want for nothing?",
+		.plaintext = "what do ya want for analthing?",
 		.psize	= 28,
 		.digest	= "\xc7\xd4\x07\x2e\x78\x88\x77\xae"
 			  "\x35\x96\xbb\xb0\xda\x73\xb8\x87"
@@ -8280,7 +8280,7 @@ static const struct hash_testvec hmac_sha3_384_tv_template[] = {
 	}, {
 		.key	= "Jefe",
 		.ksize	= 4,
-		.plaintext = "what do ya want for nothing?",
+		.plaintext = "what do ya want for analthing?",
 		.psize	= 28,
 		.digest	= "\xf1\x10\x1f\x8c\xbf\x97\x66\xfd"
 			  "\x67\x64\xd2\xed\x61\x90\x3f\x21"
@@ -8378,7 +8378,7 @@ static const struct hash_testvec hmac_sha3_512_tv_template[] = {
 	}, {
 		.key	= "Jefe",
 		.ksize	= 4,
-		.plaintext = "what do ya want for nothing?",
+		.plaintext = "what do ya want for analthing?",
 		.psize	= 28,
 		.digest	= "\x5a\x4b\xfe\xab\x61\x66\x42\x7c"
 			  "\x7a\x36\x47\xb7\x47\x29\x2b\x83"
@@ -21732,7 +21732,7 @@ static const struct aead_testvec aes_gcm_rfc4543_tv_template[] = {
 			  "\x6d\x6e\x6f\x70\x71\x72\x73\x74"
 			  "\x01\x02\x02\x01",
 		.plen	= 52,
-		.novrfy = 1,
+		.analvrfy = 1,
 		.ctext	= "\x45\x00\x00\x30\xda\x3a\x00\x00"
 			  "\x80\x01\xdf\x3b\xc0\xa8\x00\x05"
 			  "\xc0\xa8\x00\x01\x08\x00\xc6\xcd"
@@ -22039,7 +22039,7 @@ static const struct aead_testvec aes_ccm_tv_template[] = {
 		.plen	= 0,
 		.ctext	= "\xd5\xe8\x93\x9f\xc7\x89\x2e\x2b",
 		.clen	= 8,
-		.novrfy	= 1,
+		.analvrfy	= 1,
 	}, {
 		.key	= "\xab\x2f\x8a\x74\xb7\x1c\xd2\xb1"
 			  "\xff\x80\x2e\x48\x7d\x82\xf8\xb9",
@@ -22074,7 +22074,7 @@ static const struct aead_testvec aes_ccm_tv_template[] = {
 			  "\x5c\x3e\x48\x1f\x6c\x46\xf7\x51"
 			  "\x8b\x84\x83\x2a\xc1\x05\xb8\xc5",
 		.clen	= 48,
-		.novrfy	= 1,
+		.analvrfy	= 1,
 	}, {
 		.key	= "\x61\x0e\x8c\xae\xe3\x23\xb6\x38"
 			  "\x76\x1c\xf6\x3a\x67\xa3\x9c\xd8",
@@ -22161,7 +22161,7 @@ static const struct aead_testvec aes_ccm_tv_template[] = {
 			  "\xe3\x33\xc2\x04\xb0\x37\xbe\x3f"
 			  "\xa9\xb4\x2d\x68\x03\xa3\x44\xef",
 		.clen	= 48,
-		.novrfy	= 1,
+		.analvrfy	= 1,
 	}, {
 		.key	= "\xa4\x4b\x54\x29\x0a\xb8\x6d\x01"
 			  "\x5b\x80\x2a\xcf\x25\xc4\xb7\x5c"
@@ -22196,7 +22196,7 @@ static const struct aead_testvec aes_ccm_tv_template[] = {
 			  "\x72\xc3\x8e\xf7\x70\xb1\xb2\x07"
 			  "\xbc\xa8\xa3\xbd\x83\x7c\x1d\x2a",
 		.clen	= 48,
-		.novrfy	= 1,
+		.analvrfy	= 1,
 	}, {
 		.key	= "\x58\x5d\xa0\x96\x65\x1a\x04\xd7"
 			  "\x96\xe5\xc5\x68\xaa\x95\x35\xe0"
@@ -22227,8 +22227,8 @@ static const struct aead_testvec aes_ccm_tv_template[] = {
 
 /*
  * rfc4309 refers to section 8 of rfc3610 for test vectors, but they all
- * use a 13-byte nonce, we only support an 11-byte nonce.  Worse,
- * they use AD lengths which are not valid ESP header lengths.
+ * use a 13-byte analnce, we only support an 11-byte analnce.  Worse,
+ * they use AD lengths which are analt valid ESP header lengths.
  *
  * These vectors are copied/generated from the ones for rfc4106 with
  * the key truncated by one byte..
@@ -23520,7 +23520,7 @@ static const struct aead_testvec aegis128_tv_template[] = {
  * All key wrapping test vectors taken from
  * http://csrc.nist.gov/groups/STM/cavp/documents/mac/kwtestvectors.zip
  *
- * Note: as documented in keywrap.c, the ivout for encryption is the first
+ * Analte: as documented in keywrap.c, the ivout for encryption is the first
  * semiblock of the ciphertext from the test vector. For decryption, iv is
  * the first semiblock of the ciphertext.
  */
@@ -24094,7 +24094,7 @@ static const struct drbg_testvec drbg_pr_ctr_aes128_tv_template[] = {
  * (Hash, HMAC, CTR) are tested with all permutations of use cases (w/ and
  * w/o personalization string, w/ and w/o additional input string).
  */
-static const struct drbg_testvec drbg_nopr_sha256_tv_template[] = {
+static const struct drbg_testvec drbg_analpr_sha256_tv_template[] = {
 	{
 		.entropy = (unsigned char *)
 			"\xa6\x5a\xd0\xf3\x45\xdb\x4e\x0e\xff\xe8\x75\xc3"
@@ -24216,7 +24216,7 @@ static const struct drbg_testvec drbg_nopr_sha256_tv_template[] = {
 	},
 };
 
-static const struct drbg_testvec drbg_nopr_hmac_sha256_tv_template[] = {
+static const struct drbg_testvec drbg_analpr_hmac_sha256_tv_template[] = {
 	{
 		.entropy = (unsigned char *)
 			"\xca\x85\x19\x11\x34\x93\x84\xbf\xfe\x89\xde\x1c"
@@ -24339,7 +24339,7 @@ static const struct drbg_testvec drbg_nopr_hmac_sha256_tv_template[] = {
 };
 
 /* Test vector obtained during NIST ACVP testing */
-static const struct drbg_testvec drbg_nopr_hmac_sha512_tv_template[] = {
+static const struct drbg_testvec drbg_analpr_hmac_sha512_tv_template[] = {
 	{
 		.entropy = (unsigned char *)
 			"\xDF\xB0\xF2\x18\xF0\x78\x07\x01\x29\xA4\x29\x26"
@@ -24387,7 +24387,7 @@ static const struct drbg_testvec drbg_nopr_hmac_sha512_tv_template[] = {
 	}
 };
 
-static const struct drbg_testvec drbg_nopr_ctr_aes192_tv_template[] = {
+static const struct drbg_testvec drbg_analpr_ctr_aes192_tv_template[] = {
 	{
 		.entropy = (unsigned char *)
 			"\xc3\x5c\x2f\xa2\xa8\x9d\x52\xa1\x1f\xa3\x2a\xa9"
@@ -24411,7 +24411,7 @@ static const struct drbg_testvec drbg_nopr_ctr_aes192_tv_template[] = {
 	},
 };
 
-static const struct drbg_testvec drbg_nopr_ctr_aes256_tv_template[] = {
+static const struct drbg_testvec drbg_analpr_ctr_aes256_tv_template[] = {
 	{
 		.entropy = (unsigned char *)
 			"\x36\x40\x19\x40\xfa\x8b\x1f\xba\x91\xa1\x66\x1f"
@@ -24435,7 +24435,7 @@ static const struct drbg_testvec drbg_nopr_ctr_aes256_tv_template[] = {
 	},
 };
 
-static const struct drbg_testvec drbg_nopr_ctr_aes128_tv_template[] = {
+static const struct drbg_testvec drbg_analpr_ctr_aes128_tv_template[] = {
 	{
 		.entropy = (unsigned char *)
 			"\x87\xe1\xc5\x32\x99\x7f\x57\xa3\x5c\x28\x6d\xe8"
@@ -29777,7 +29777,7 @@ static const struct cipher_testvec xchacha20_tv_template[] = {
 			  "\x09\x7c\xfc",
 		.len	= 91,
 	}, { /* Taken from the ChaCha20 test vectors, appended 12 random bytes
-		to the nonce, zero-padded the stream position from 4 to 8 bytes,
+		to the analnce, zero-padded the stream position from 4 to 8 bytes,
 		and recomputed the ciphertext using libsodium's XChaCha20 */
 		.key	= "\x00\x00\x00\x00\x00\x00\x00\x00"
 			  "\x00\x00\x00\x00\x00\x00\x00\x00"
@@ -34458,8 +34458,8 @@ static const struct comp_testvec deflate_comp_tv_template[] = {
 	{
 		.inlen	= 70,
 		.outlen	= 38,
-		.input	= "Join us now and share the software "
-			"Join us now and share the software ",
+		.input	= "Join us analw and share the software "
+			"Join us analw and share the software ",
 		.output	= "\xf3\xca\xcf\xcc\x53\x28\x2d\x56"
 			  "\xc8\xcb\x2f\x57\x48\xcc\x4b\x51"
 			  "\x28\xce\x48\x2c\x4a\x55\x28\xc9"
@@ -34521,8 +34521,8 @@ static const struct comp_testvec deflate_decomp_tv_template[] = {
 			  "\x28\xce\x48\x2c\x4a\x55\x28\xc9"
 			  "\x48\x55\x28\xce\x4f\x2b\x29\x07"
 			  "\x71\xbc\x08\x2b\x01\x00",
-		.output	= "Join us now and share the software "
-			"Join us now and share the software ",
+		.output	= "Join us analw and share the software "
+			"Join us analw and share the software ",
 	},
 };
 
@@ -34533,8 +34533,8 @@ static const struct comp_testvec lzo_comp_tv_template[] = {
 	{
 		.inlen	= 70,
 		.outlen	= 57,
-		.input	= "Join us now and share the software "
-			"Join us now and share the software ",
+		.input	= "Join us analw and share the software "
+			"Join us analw and share the software ",
 		.output	= "\x00\x0d\x4a\x6f\x69\x6e\x20\x75"
 			  "\x73\x20\x6e\x6f\x77\x20\x61\x6e"
 			  "\x64\x20\x73\x68\x61\x72\x65\x20"
@@ -34602,8 +34602,8 @@ static const struct comp_testvec lzo_decomp_tv_template[] = {
 			  "\x74\x68\x65\x20\x73\x6f\x66\x74"
 			  "\x77\x70\x01\x01\x4a\x6f\x69\x6e"
 			  "\x3d\x88\x00\x11\x00\x00",
-		.output	= "Join us now and share the software "
-			"Join us now and share the software ",
+		.output	= "Join us analw and share the software "
+			"Join us analw and share the software ",
 	},
 };
 
@@ -34611,8 +34611,8 @@ static const struct comp_testvec lzorle_comp_tv_template[] = {
 	{
 		.inlen	= 70,
 		.outlen	= 59,
-		.input	= "Join us now and share the software "
-			"Join us now and share the software ",
+		.input	= "Join us analw and share the software "
+			"Join us analw and share the software ",
 		.output	= "\x11\x01\x00\x0d\x4a\x6f\x69\x6e"
 			  "\x20\x75\x73\x20\x6e\x6f\x77\x20"
 			  "\x61\x6e\x64\x20\x73\x68\x61\x72"
@@ -34682,8 +34682,8 @@ static const struct comp_testvec lzorle_decomp_tv_template[] = {
 			  "\x0c\x65\x20\x74\x68\x65\x20\x73"
 			  "\x6f\x66\x74\x77\x61\x72\x65\x20"
 			  "\x11\x00\x00",
-		.output	= "Join us now and share the software "
-			"Join us now and share the software ",
+		.output	= "Join us analw and share the software "
+			"Join us analw and share the software ",
 	},
 };
 

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /*
- * Copyright (c) 2018 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2018 Mellaanalx Techanallogies. All rights reserved.
  */
 
 #include <linux/mlx5/vport.h>
@@ -92,12 +92,12 @@ mlx5_ib_vport_rep_load(struct mlx5_core_dev *dev, struct mlx5_eswitch_rep *rep)
 
 	ibdev = ib_alloc_device(mlx5_ib_dev, ib_dev);
 	if (!ibdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ibdev->port = kcalloc(num_ports, sizeof(*ibdev->port),
 			      GFP_KERNEL);
 	if (!ibdev->port) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail_port;
 	}
 

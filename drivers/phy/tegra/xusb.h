@@ -46,14 +46,14 @@ struct tegra_xusb_lane_soc {
 struct tegra_xusb_lane {
 	const struct tegra_xusb_lane_soc *soc;
 	struct tegra_xusb_pad *pad;
-	struct device_node *np;
+	struct device_analde *np;
 	struct list_head list;
 	unsigned int function;
 	unsigned int index;
 };
 
 int tegra_xusb_lane_parse_dt(struct tegra_xusb_lane *lane,
-			     struct device_node *np);
+			     struct device_analde *np);
 
 struct tegra_xusb_usb3_lane {
 	struct tegra_xusb_lane base;
@@ -129,7 +129,7 @@ to_sata_lane(struct tegra_xusb_lane *lane)
 
 struct tegra_xusb_lane_ops {
 	struct tegra_xusb_lane *(*probe)(struct tegra_xusb_pad *pad,
-					 struct device_node *np,
+					 struct device_analde *np,
 					 unsigned int index);
 	void (*remove)(struct tegra_xusb_lane *lane);
 	void (*iddq_enable)(struct tegra_xusb_lane *lane);
@@ -152,7 +152,7 @@ struct tegra_xusb_padctl;
 struct tegra_xusb_pad_ops {
 	struct tegra_xusb_pad *(*probe)(struct tegra_xusb_padctl *padctl,
 					const struct tegra_xusb_pad_soc *soc,
-					struct device_node *np);
+					struct device_analde *np);
 	void (*remove)(struct tegra_xusb_pad *pad);
 };
 
@@ -184,7 +184,7 @@ static inline struct tegra_xusb_pad *to_tegra_xusb_pad(struct device *dev)
 
 int tegra_xusb_pad_init(struct tegra_xusb_pad *pad,
 			struct tegra_xusb_padctl *padctl,
-			struct device_node *np);
+			struct device_analde *np);
 int tegra_xusb_pad_register(struct tegra_xusb_pad *pad,
 			    const struct phy_ops *ops);
 void tegra_xusb_pad_unregister(struct tegra_xusb_pad *pad);
@@ -401,8 +401,8 @@ struct tegra_xusb_padctl_ops {
 			 const struct tegra_xusb_padctl_soc *soc);
 	void (*remove)(struct tegra_xusb_padctl *padctl);
 
-	int (*suspend_noirq)(struct tegra_xusb_padctl *padctl);
-	int (*resume_noirq)(struct tegra_xusb_padctl *padctl);
+	int (*suspend_analirq)(struct tegra_xusb_padctl *padctl);
+	int (*resume_analirq)(struct tegra_xusb_padctl *padctl);
 	int (*usb3_save_context)(struct tegra_xusb_padctl *padctl,
 				 unsigned int index);
 	int (*hsic_set_idle)(struct tegra_xusb_padctl *padctl,

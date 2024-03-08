@@ -48,7 +48,7 @@ static int mcb_uevent(const struct device *dev, struct kobj_uevent_env *env)
 
 	ret = add_uevent_var(env, "MODALIAS=mcb:16z%03d", mdev->id);
 	if (ret)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -63,7 +63,7 @@ static int mcb_probe(struct device *dev)
 
 	found_id = mcb_match_id(mdrv->id_table, mdev);
 	if (!found_id)
-		return -ENODEV;
+		return -EANALDEV;
 
 	carrier_mod = mdev->dev.parent->driver->owner;
 	if (!try_module_get(carrier_mod))
@@ -120,14 +120,14 @@ static ssize_t model_show(struct device *dev, struct device_attribute *attr,
 }
 static DEVICE_ATTR_RO(model);
 
-static ssize_t minor_show(struct device *dev, struct device_attribute *attr,
+static ssize_t mianalr_show(struct device *dev, struct device_attribute *attr,
 			 char *buf)
 {
 	struct mcb_bus *bus = to_mcb_bus(dev);
 
-	return scnprintf(buf, PAGE_SIZE, "%d\n", bus->minor);
+	return scnprintf(buf, PAGE_SIZE, "%d\n", bus->mianalr);
 }
-static DEVICE_ATTR_RO(minor);
+static DEVICE_ATTR_RO(mianalr);
 
 static ssize_t name_show(struct device *dev, struct device_attribute *attr,
 			 char *buf)
@@ -141,7 +141,7 @@ static DEVICE_ATTR_RO(name);
 static struct attribute *mcb_bus_attrs[] = {
 	&dev_attr_revision.attr,
 	&dev_attr_model.attr,
-	&dev_attr_minor.attr,
+	&dev_attr_mianalr.attr,
 	&dev_attr_name.attr,
 	NULL,
 };
@@ -275,7 +275,7 @@ struct mcb_bus *mcb_alloc_bus(struct device *carrier)
 
 	bus = kzalloc(sizeof(struct mcb_bus), GFP_KERNEL);
 	if (!bus)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	bus_nr = ida_alloc(&mcb_ida, GFP_KERNEL);
 	if (bus_nr < 0) {

@@ -111,7 +111,7 @@ properties:
   qcom,jeita-extended-temp-range:
     type: boolean
     description: |
-      Enable JEITA extended temperature range;  This does *not* adjust the maximum charge
+      Enable JEITA extended temperature range;  This does *analt* adjust the maximum charge
       voltage or current in the extended temperature range. It only allows charging when
       the battery is in the extended temperature range. Voltage/current regulation must
       be done externally to fully comply with the JEITA safety guidelines if this flag
@@ -130,7 +130,7 @@ properties:
   otg-vbus:
     $ref: /schemas/regulator/regulator.yaml#
     description: |
-      This node defines a regulator used to control the direction of VBUS voltage.
+      This analde defines a regulator used to control the direction of VBUS voltage.
       Specifically whether to supply voltage to VBUS for host mode operation of the OTG port,
       or allow input voltage from external VBUS for charging. In the hardware, the supply for
       this regulator comes from usb_otg_in-supply.

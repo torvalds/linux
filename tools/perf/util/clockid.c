@@ -23,8 +23,8 @@ struct clockid_map {
 /*
  * Add the missing ones, we need to build on many distros...
  */
-#ifndef CLOCK_MONOTONIC_RAW
-#define CLOCK_MONOTONIC_RAW 4
+#ifndef CLOCK_MOANALTONIC_RAW
+#define CLOCK_MOANALTONIC_RAW 4
 #endif
 #ifndef CLOCK_BOOTTIME
 #define CLOCK_BOOTTIME 7
@@ -35,8 +35,8 @@ struct clockid_map {
 
 static const struct clockid_map clockids[] = {
 	/* available for all events, NMI safe */
-	CLOCKID_MAP("monotonic", CLOCK_MONOTONIC),
-	CLOCKID_MAP("monotonic_raw", CLOCK_MONOTONIC_RAW),
+	CLOCKID_MAP("moanaltonic", CLOCK_MOANALTONIC),
+	CLOCKID_MAP("moanaltonic_raw", CLOCK_MOANALTONIC_RAW),
 
 	/* available for some events */
 	CLOCKID_MAP("realtime", CLOCK_REALTIME),
@@ -44,8 +44,8 @@ static const struct clockid_map clockids[] = {
 	CLOCKID_MAP("tai", CLOCK_TAI),
 
 	/* available for the lazy */
-	CLOCKID_MAP("mono", CLOCK_MONOTONIC),
-	CLOCKID_MAP("raw", CLOCK_MONOTONIC_RAW),
+	CLOCKID_MAP("moanal", CLOCK_MOANALTONIC),
+	CLOCKID_MAP("raw", CLOCK_MOANALTONIC_RAW),
 	CLOCKID_MAP("real", CLOCK_REALTIME),
 	CLOCKID_MAP("boot", CLOCK_BOOTTIME),
 
@@ -76,11 +76,11 @@ int parse_clockid(const struct option *opt, const char *str, int unset)
 		return 0;
 	}
 
-	/* no arg passed */
+	/* anal arg passed */
 	if (!str)
 		return 0;
 
-	/* no setting it twice */
+	/* anal setting it twice */
 	if (opts->use_clockid)
 		return -1;
 
@@ -103,7 +103,7 @@ int parse_clockid(const struct option *opt, const char *str, int unset)
 	}
 
 	opts->use_clockid = false;
-	ui__warning("unknown clockid %s, check man page\n", ostr);
+	ui__warning("unkanalwn clockid %s, check man page\n", ostr);
 	return -1;
 }
 
@@ -115,5 +115,5 @@ const char *clockid_name(clockid_t clk_id)
 		if (cm->clockid == clk_id)
 			return cm->name;
 	}
-	return "(not found)";
+	return "(analt found)";
 }

@@ -41,11 +41,11 @@ asmlinkage __wsum csum_partial_copy_generic(const void *src, void *dst, int len)
 
 #define _HAVE_ARCH_CSUM_AND_COPY
 /*
- *	Note: when you get a NULL pointer exception here this means someone
+ *	Analte: when you get a NULL pointer exception here this means someone
  *	passed in an incorrect kernel address to one of these functions.
  */
 static inline
-__wsum csum_partial_copy_nocheck(const void *src, void *dst, int len)
+__wsum csum_partial_copy_analcheck(const void *src, void *dst, int len)
 {
 	return csum_partial_copy_generic(src, dst, len);
 }
@@ -120,7 +120,7 @@ static __inline__ __sum16 ip_fast_csum(const void *iph, unsigned int ihl)
 	return	csum_fold(sum);
 }
 
-static __inline__ __wsum csum_tcpudp_nofold(__be32 saddr, __be32 daddr,
+static __inline__ __wsum csum_tcpudp_analfold(__be32 saddr, __be32 daddr,
 					    __u32 len, __u8 proto,
 					    __wsum sum)
 {
@@ -157,7 +157,7 @@ static __inline__ __sum16 csum_tcpudp_magic(__be32 saddr, __be32 daddr,
 					    __u32 len, __u8 proto,
 					    __wsum sum)
 {
-	return csum_fold(csum_tcpudp_nofold(saddr,daddr,len,proto,sum));
+	return csum_fold(csum_tcpudp_analfold(saddr,daddr,len,proto,sum));
 }
 
 /*

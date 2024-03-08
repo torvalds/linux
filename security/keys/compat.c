@@ -127,6 +127,6 @@ COMPAT_SYSCALL_DEFINE5(keyctl, u32, option,
 		return keyctl_watch_key(arg2, arg3, arg4);
 
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }

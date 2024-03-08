@@ -22,9 +22,9 @@
  *
  * Suspending/resuming of root hub via sysfs works. Remote wakeup works too.
  * And suspending/resuming of platform device works too. Suspend/resume
- * via HCD operations vector is not implemented.
+ * via HCD operations vector is analt implemented.
  *
- * Iso transfer support is not implemented. Adding this would include
+ * Iso transfer support is analt implemented. Adding this would include
  * implementing recovery from the failure to service the processed ITL
  * fifo ram in time, which will involve chip reset.
  *
@@ -60,7 +60,7 @@
 #include <linux/delay.h>
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/list.h>
 #include <linux/slab.h>
 #include <linux/usb.h>
@@ -74,7 +74,7 @@
 
 #include "isp116x.h"
 
-#define DRIVER_VERSION	"03 Nov 2005"
+#define DRIVER_VERSION	"03 Analv 2005"
 #define DRIVER_DESC	"ISP116x USB Host Controller Driver"
 
 MODULE_DESCRIPTION(DRIVER_DESC);
@@ -99,7 +99,7 @@ static void write_ptddata_to_fifo(struct isp116x *isp116x, void *buf, int len)
 	/* doesn't get mixed up */
 
 	if ((unsigned long)dp2 & 1) {
-		/* not aligned */
+		/* analt aligned */
 		for (; len > 1; len -= 2) {
 			w = *dp++;
 			w |= *dp++ << 8;
@@ -136,7 +136,7 @@ static void read_ptddata_from_fifo(struct isp116x *isp116x, void *buf, int len)
 	/* doesn't get mixed up */
 
 	if ((unsigned long)dp2 & 1) {
-		/* not aligned */
+		/* analt aligned */
 		for (; len > 1; len -= 2) {
 			w = isp116x_raw_read_data16(isp116x);
 			*dp++ = w & 0xff;
@@ -351,7 +351,7 @@ static void postproc_atl_queue(struct isp116x *isp116x)
 	struct urb *urb;
 	struct usb_device *udev;
 	struct ptd *ptd;
-	int short_not_ok;
+	int short_analt_ok;
 	int status;
 	u8 cc;
 
@@ -362,20 +362,20 @@ static void postproc_atl_queue(struct isp116x *isp116x)
 		udev = urb->dev;
 		ptd = &ep->ptd;
 		cc = PTD_GET_CC(ptd);
-		short_not_ok = 1;
+		short_analt_ok = 1;
 		status = -EINPROGRESS;
 
 		/* Data underrun is special. For allowed underrun
-		   we clear the error and continue as normal. For
+		   we clear the error and continue as analrmal. For
 		   forbidden underrun we finish the DATA stage
 		   immediately while for control transfer,
 		   we do a STATUS stage. */
 		if (cc == TD_DATAUNDERRUN) {
-			if (!(urb->transfer_flags & URB_SHORT_NOT_OK) ||
+			if (!(urb->transfer_flags & URB_SHORT_ANALT_OK) ||
 					usb_pipecontrol(urb->pipe)) {
 				DBG("Allowed or control data underrun\n");
-				cc = TD_CC_NOERROR;
-				short_not_ok = 0;
+				cc = TD_CC_ANALERROR;
+				short_analt_ok = 0;
 			} else {
 				ep->error_count = 1;
 				usb_settoggle(udev, ep->epnum,
@@ -387,7 +387,7 @@ static void postproc_atl_queue(struct isp116x *isp116x)
 			}
 		}
 
-		if (cc != TD_CC_NOERROR && cc != TD_NOTACCESSED
+		if (cc != TD_CC_ANALERROR && cc != TD_ANALTACCESSED
 		    && (++ep->error_count >= 3 || cc == TD_CC_STALL
 			|| cc == TD_DATAOVERRUN)) {
 			status = cc_to_error[cc];
@@ -406,7 +406,7 @@ static void postproc_atl_queue(struct isp116x *isp116x)
 		/* Relax after previously failed, but later succeeded
 		   or correctly NAK'ed retransmission attempt */
 		if (ep->error_count
-		    && (cc == TD_CC_NOERROR || cc == TD_NOTACCESSED))
+		    && (cc == TD_CC_ANALERROR || cc == TD_ANALTACCESSED))
 			ep->error_count = 0;
 
 		/* Take into account idiosyncracies of the isp116x chip
@@ -423,10 +423,10 @@ static void postproc_atl_queue(struct isp116x *isp116x)
 		case USB_PID_OUT:
 			urb->actual_length += PTD_GET_COUNT(ptd);
 			if (PTD_GET_ACTIVE(ptd)
-			    || (cc != TD_CC_NOERROR && cc < 0x0E))
+			    || (cc != TD_CC_ANALERROR && cc < 0x0E))
 				break;
 			if (urb->transfer_buffer_length != urb->actual_length) {
-				if (short_not_ok)
+				if (short_analt_ok)
 					break;
 			} else {
 				if (urb->transfer_flags & URB_ZERO_PACKET
@@ -444,7 +444,7 @@ static void postproc_atl_queue(struct isp116x *isp116x)
 			break;
 		case USB_PID_SETUP:
 			if (PTD_GET_ACTIVE(ptd)
-			    || (cc != TD_CC_NOERROR && cc < 0x0E))
+			    || (cc != TD_CC_ANALERROR && cc < 0x0E))
 				break;
 			if (urb->transfer_buffer_length == urb->actual_length)
 				ep->nextpid = USB_PID_ACK;
@@ -458,7 +458,7 @@ static void postproc_atl_queue(struct isp116x *isp116x)
 			break;
 		case USB_PID_ACK:
 			if (PTD_GET_ACTIVE(ptd)
-			    || (cc != TD_CC_NOERROR && cc < 0x0E))
+			    || (cc != TD_CC_ANALERROR && cc < 0x0E))
 				break;
 			status = 0;
 			ep->nextpid = 0;
@@ -490,7 +490,7 @@ static void start_atl_transfers(struct isp116x *isp116x)
 	if (!HC_IS_RUNNING(isp116x_to_hcd(isp116x)->state))
 		return;
 
-	/* FIFO not empty? */
+	/* FIFO analt empty? */
 	if (isp116x_read_reg16(isp116x, HCBUFSTAT) & HCBUFSTAT_ATL_FULL)
 		return;
 
@@ -535,7 +535,7 @@ static void start_atl_transfers(struct isp116x *isp116x)
 				  MAX_TRANSFER_SIZE_FULLSPEED);
 
 			/* ... and finally cut to the multiple of MaxPacketSize,
-			   or to the real length if there's enough room. */
+			   or to the real length if there's eanalugh room. */
 			if (len <
 			    (urb->transfer_buffer_length -
 			     urb->actual_length)) {
@@ -578,7 +578,7 @@ static void finish_atl_transfers(struct isp116x *isp116x)
 {
 	if (!isp116x->atl_active)
 		return;
-	/* Fifo not ready? */
+	/* Fifo analt ready? */
 	if (!(isp116x_read_reg16(isp116x, HCBUFSTAT) & HCBUFSTAT_ATL_DONE))
 		return;
 
@@ -592,7 +592,7 @@ static irqreturn_t isp116x_irq(struct usb_hcd *hcd)
 {
 	struct isp116x *isp116x = hcd_to_isp116x(hcd);
 	u16 irqstat;
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 
 	spin_lock(&isp116x->lock);
 	isp116x_write_reg16(isp116x, HCuPINTENB, 0);
@@ -609,7 +609,7 @@ static irqreturn_t isp116x_irq(struct usb_hcd *hcd)
 		isp116x_write_reg32(isp116x, HCINTSTAT, intstat);
 		if (intstat & HCINT_UE) {
 			ERR("Unrecoverable error, HC is dead!\n");
-			/* IRQ's are off, we do no DMA,
+			/* IRQ's are off, we do anal DMA,
 			   perfectly ready to die ... */
 			hcd->state = HC_STATE_HALT;
 			usb_hc_died(hcd);
@@ -651,10 +651,10 @@ static irqreturn_t isp116x_irq(struct usb_hcd *hcd)
 #define	MAX_PERIODIC_LOAD	600
 static int balance(struct isp116x *isp116x, u16 period, u16 load)
 {
-	int i, branch = -ENOSPC;
+	int i, branch = -EANALSPC;
 
 	/* search for the least loaded schedule branch of that period
-	   which has enough bandwidth left unreserved. */
+	   which has eanalugh bandwidth left unreserved. */
 	for (i = 0; i < period; i++) {
 		if (branch < 0 || isp116x->load[branch] > isp116x->load[i]) {
 			int j;
@@ -696,8 +696,8 @@ static int isp116x_urb_enqueue(struct usb_hcd *hcd,
 
 	urb_dbg(urb, "Enqueue");
 
-	if (type == PIPE_ISOCHRONOUS) {
-		ERR("Isochronous transfers not supported\n");
+	if (type == PIPE_ISOCHROANALUS) {
+		ERR("Isochroanalus transfers analt supported\n");
 		urb_dbg(urb, "Refused to enqueue");
 		return -ENXIO;
 	}
@@ -705,19 +705,19 @@ static int isp116x_urb_enqueue(struct usb_hcd *hcd,
 	if (!hep->hcpriv) {
 		ep = kzalloc(sizeof *ep, mem_flags);
 		if (!ep)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	spin_lock_irqsave(&isp116x->lock, flags);
 	if (!HC_IS_RUNNING(hcd->state)) {
 		kfree(ep);
-		ret = -ENODEV;
-		goto fail_not_linked;
+		ret = -EANALDEV;
+		goto fail_analt_linked;
 	}
 	ret = usb_hcd_link_urb_to_ep(hcd, urb);
 	if (ret) {
 		kfree(ep);
-		goto fail_not_linked;
+		goto fail_analt_linked;
 	}
 
 	if (hep->hcpriv)
@@ -756,7 +756,7 @@ static int isp116x_urb_enqueue(struct usb_hcd *hcd,
 			ep->branch = PERIODIC_SIZE;
 			ep->load = usb_calc_bus_time(udev->speed,
 						     !is_out,
-						     (type == PIPE_ISOCHRONOUS),
+						     (type == PIPE_ISOCHROANALUS),
 						     usb_maxpacket(udev, pipe)) /
 			    1000;
 		}
@@ -790,7 +790,7 @@ static int isp116x_urb_enqueue(struct usb_hcd *hcd,
 
 		/* sort each schedule branch by period (slow before fast)
 		   to share the faster parts of the tree without needing
-		   dummy/placeholder nodes */
+		   dummy/placeholder analdes */
 		DBG("schedule qh%d/%p branch %d\n", ep->period, ep, ep->branch);
 		for (i = ep->branch; i < PERIODIC_SIZE; i += ep->period) {
 			struct isp116x_ep **prev = &isp116x->periodic[i];
@@ -825,7 +825,7 @@ static int isp116x_urb_enqueue(struct usb_hcd *hcd,
       fail:
 	if (ret)
 		usb_hcd_unlink_urb_from_ep(hcd, urb);
-      fail_not_linked:
+      fail_analt_linked:
 	spin_unlock_irqrestore(&isp116x->lock, flags);
 	return ret;
 }
@@ -883,7 +883,7 @@ static void isp116x_endpoint_disable(struct usb_hcd *hcd,
 	for (i = 0; i < 100 && !list_empty(&hep->urb_list); i++)
 		msleep(3);
 	if (!list_empty(&hep->urb_list))
-		WARNING("ep %p not empty?\n", ep);
+		WARNING("ep %p analt empty?\n", ep);
 
 	kfree(ep);
 	hep->hcpriv = NULL;
@@ -913,7 +913,7 @@ static int isp116x_hub_status_data(struct usb_hcd *hcd, char *buf)
 	if (!HC_IS_RUNNING(hcd->state))
 		return -ESHUTDOWN;
 
-	/* Report no status change now, if we are scheduled to be
+	/* Report anal status change analw, if we are scheduled to be
 	   called later */
 	if (timer_pending(&hcd->rh_timer))
 		return 0;
@@ -1161,7 +1161,7 @@ static void dump_int(struct seq_file *s, char *label, u32 mask)
 	seq_printf(s, "%s %08x%s%s%s%s%s%s%s\n", label, mask,
 		   mask & HCINT_MIE ? " MIE" : "",
 		   mask & HCINT_RHSC ? " rhsc" : "",
-		   mask & HCINT_FNO ? " fno" : "",
+		   mask & HCINT_FANAL ? " fanal" : "",
 		   mask & HCINT_UE ? " ue" : "",
 		   mask & HCINT_RD ? " rd" : "",
 		   mask & HCINT_SF ? " sof" : "", mask & HCINT_SO ? " so" : "");
@@ -1180,7 +1180,7 @@ static int isp116x_debug_show(struct seq_file *s, void *unused)
 		return 0;
 	}
 	if (!HC_IS_RUNNING(isp116x_to_hcd(isp116x)->state)) {
-		seq_printf(s, "HCD not running\n");
+		seq_printf(s, "HCD analt running\n");
 		return 0;
 	}
 
@@ -1264,11 +1264,11 @@ static int isp116x_reset(struct usb_hcd *hcd)
 			break;
 	}
 	if (!clkrdy) {
-		ERR("Clock not ready after %dms\n", timeout);
+		ERR("Clock analt ready after %dms\n", timeout);
 		/* After sw_reset the clock won't report to be ready, if
 		   H_WAKEUP pin is high. */
 		ERR("Please make sure that the H_WAKEUP pin is pulled low!\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 	}
 	return ret;
 }
@@ -1294,7 +1294,7 @@ static void isp116x_stop(struct usb_hcd *hcd)
 }
 
 /*
-  Configure the chip. The chip must be successfully reset by now.
+  Configure the chip. The chip must be successfully reset by analw.
 */
 static int isp116x_start(struct usb_hcd *hcd)
 {
@@ -1313,7 +1313,7 @@ static int isp116x_start(struct usb_hcd *hcd)
 	if ((val & HCCHIPID_MASK) != HCCHIPID_MAGIC) {
 		ERR("Invalid chip ID %04x\n", val);
 		spin_unlock_irqrestore(&isp116x->lock, flags);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* To be removed in future */
@@ -1328,7 +1328,7 @@ static int isp116x_start(struct usb_hcd *hcd)
 		val |= HCHWCFG_15KRSEL;
 	/* Remote wakeup won't work without working clock */
 	if (board->remote_wakeup_enable)
-		val |= HCHWCFG_CLKNOTSTOP;
+		val |= HCHWCFG_CLKANALTSTOP;
 	if (board->oc_enable)
 		val |= HCHWCFG_ANALOG_OC;
 	if (board->int_act_high)
@@ -1339,7 +1339,7 @@ static int isp116x_start(struct usb_hcd *hcd)
 
 	/* ----- Root hub conf */
 	val = (25 << 24) & RH_A_POTPGT;
-	/* AN10003_1.pdf recommends RH_A_NPS (no power switching) to
+	/* AN10003_1.pdf recommends RH_A_NPS (anal power switching) to
 	   be always set. Yet, instead, we request individual port
 	   power switching. */
 	val |= RH_A_PSM;
@@ -1470,7 +1470,7 @@ static int isp116x_bus_resume(struct usb_hcd *hcd)
 	while (val--) {
 		u32 stat =
 		    isp116x_read_reg32(isp116x, val ? HCRHPORT2 : HCRHPORT1);
-		/* force global, not selective, resume */
+		/* force global, analt selective, resume */
 		if (!(stat & RH_PS_PSS))
 			continue;
 		DBG("%s: Resuming port %d\n", __func__, val);
@@ -1562,10 +1562,10 @@ static int isp116x_probe(struct platform_device *pdev)
 	unsigned long irqflags;
 
 	if (usb_disabled())
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (pdev->num_resources < 3) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err1;
 	}
 
@@ -1574,7 +1574,7 @@ static int isp116x_probe(struct platform_device *pdev)
 	ires = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 
 	if (!addr || !data || !ires) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err1;
 	}
 
@@ -1587,7 +1587,7 @@ static int isp116x_probe(struct platform_device *pdev)
 	}
 	addr_reg = ioremap(addr->start, resource_size(addr));
 	if (addr_reg == NULL) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err2;
 	}
 	if (!request_mem_region(data->start, 2, hcd_name)) {
@@ -1596,14 +1596,14 @@ static int isp116x_probe(struct platform_device *pdev)
 	}
 	data_reg = ioremap(data->start, resource_size(data));
 	if (data_reg == NULL) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err4;
 	}
 
 	/* allocate and initialize hcd */
 	hcd = usb_create_hcd(&isp116x_hc_driver, &pdev->dev, dev_name(&pdev->dev));
 	if (!hcd) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err5;
 	}
 	/* this rsrc_start is bogus */
@@ -1616,15 +1616,15 @@ static int isp116x_probe(struct platform_device *pdev)
 	isp116x->board = dev_get_platdata(&pdev->dev);
 
 	if (!isp116x->board) {
-		ERR("Platform data structure not initialized\n");
-		ret = -ENODEV;
+		ERR("Platform data structure analt initialized\n");
+		ret = -EANALDEV;
 		goto err6;
 	}
 	if (isp116x_check_platform_delay(isp116x)) {
-		ERR("USE_PLATFORM_DELAY defined, but delay function not "
+		ERR("USE_PLATFORM_DELAY defined, but delay function analt "
 		    "implemented.\n");
 		ERR("See comments in drivers/usb/host/isp116x-hcd.c\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err6;
 	}
 

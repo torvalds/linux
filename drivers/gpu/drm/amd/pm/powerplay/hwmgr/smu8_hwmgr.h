@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -66,7 +66,7 @@ struct smu8_sys_info {
 
 #define MAX_DISPLAYPHY_IDS			0x8
 #define DISPLAYPHY_LANEMASK			0xF
-#define UNKNOWN_TRANSMITTER_PHY_ID		(-1)
+#define UNKANALWN_TRANSMITTER_PHY_ID		(-1)
 
 #define DISPLAYPHY_PHYID_SHIFT			24
 #define DISPLAYPHY_LANESELECT_SHIFT		16
@@ -120,7 +120,7 @@ struct smu8_uvd_clocks {
 };
 
 enum smu8_pstate_previous_action {
-	DO_NOTHING = 1,
+	DO_ANALTHING = 1,
 	FORCE_HIGH,
 	CANCEL_FORCE_HIGH
 };
@@ -301,7 +301,7 @@ struct smu8_hwmgr {
 	bool vce_power_gated;
 	bool samu_power_gated;
 	bool acp_power_gated;
-	bool acp_power_up_no_dsp;
+	bool acp_power_up_anal_dsp;
 	uint32_t active_process_mask;
 
 	uint32_t max_sclk_level;

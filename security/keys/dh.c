@@ -24,13 +24,13 @@ static ssize_t dh_data_from_key(key_serial_t keyid, const void **data)
 
 	key_ref = lookup_user_key(keyid, 0, KEY_NEED_READ);
 	if (IS_ERR(key_ref)) {
-		ret = -ENOKEY;
+		ret = -EANALKEY;
 		goto error;
 	}
 
 	key = key_ref_to_ptr(key_ref);
 
-	ret = -EOPNOTSUPP;
+	ret = -EOPANALTSUPP;
 	if (key->type == &key_type_user) {
 		down_read(&key->sem);
 		status = key_validate(key);
@@ -46,7 +46,7 @@ static ssize_t dh_data_from_key(key_serial_t keyid, const void **data)
 				*data = duplicate;
 				ret = payload->datalen;
 			} else {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 			}
 		}
 		up_read(&key->sem);
@@ -68,10 +68,10 @@ static int kdf_alloc(struct crypto_shash **hash, char *hashname)
 {
 	struct crypto_shash *tfm;
 
-	/* allocate synchronous hash */
+	/* allocate synchroanalus hash */
 	tfm = crypto_alloc_shash(hashname, 0, 0);
 	if (IS_ERR(tfm)) {
-		pr_info("could not allocate digest TFM handle %s\n", hashname);
+		pr_info("could analt allocate digest TFM handle %s\n", hashname);
 		return PTR_ERR(tfm);
 	}
 
@@ -102,7 +102,7 @@ static int keyctl_dh_compute_kdf(struct crypto_shash *hash,
 
 	outbuf = kmalloc(outbuf_len, GFP_KERNEL);
 	if (!outbuf) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
@@ -200,7 +200,7 @@ long __keyctl_dh_compute(struct keyctl_dh_params __user *params,
 	secretlen = crypto_dh_key_len(&dh_inputs);
 	secret = kmalloc(secretlen, GFP_KERNEL);
 	if (!secret) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out2;
 	}
 	ret = crypto_dh_encode_key(secret, secretlen, &dh_inputs);
@@ -221,7 +221,7 @@ long __keyctl_dh_compute(struct keyctl_dh_params __user *params,
 
 	if (!kdfcopy) {
 		/*
-		 * When not using a KDF, buflen 0 is used to read the
+		 * When analt using a KDF, buflen 0 is used to read the
 		 * required buffer length
 		 */
 		if (buflen == 0) {
@@ -236,7 +236,7 @@ long __keyctl_dh_compute(struct keyctl_dh_params __user *params,
 	outbuf = kzalloc(kdfcopy ? (outlen + kdfcopy->otherinfolen) : outlen,
 			 GFP_KERNEL);
 	if (!outbuf) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out4;
 	}
 
@@ -244,7 +244,7 @@ long __keyctl_dh_compute(struct keyctl_dh_params __user *params,
 
 	req = kpp_request_alloc(tfm, GFP_KERNEL);
 	if (!req) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out5;
 	}
 

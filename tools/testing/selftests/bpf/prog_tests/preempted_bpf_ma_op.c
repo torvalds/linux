@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright (C) 2023. Huawei Technologies Co., Ltd */
+/* Copyright (C) 2023. Huawei Techanallogies Co., Ltd */
 #define _GNU_SOURCE
 #include <sched.h>
 #include <pthread.h>
@@ -16,7 +16,7 @@ struct alloc_ctx {
 	int run_err;
 	/* input */
 	int fd;
-	bool *nomem_err;
+	bool *analmem_err;
 };
 
 static void *run_alloc_prog(void *data)
@@ -29,7 +29,7 @@ static void *run_alloc_prog(void *data)
 	CPU_SET(0, &cpu_set);
 	pthread_setaffinity_np(pthread_self(), sizeof(cpu_set), &cpu_set);
 
-	for (i = 0; i < ALLOC_LOOP_NR && !*ctx->nomem_err; i++) {
+	for (i = 0; i < ALLOC_LOOP_NR && !*ctx->analmem_err; i++) {
 		LIBBPF_OPTS(bpf_test_run_opts, topts);
 		int err;
 
@@ -61,12 +61,12 @@ void test_preempted_bpf_ma_op(void)
 
 		snprintf(name, sizeof(name), "test%d", i);
 		prog = bpf_object__find_program_by_name(skel->obj, name);
-		if (!ASSERT_OK_PTR(prog, "no test prog"))
+		if (!ASSERT_OK_PTR(prog, "anal test prog"))
 			goto out;
 
 		ctx[i].run_err = 0;
 		ctx[i].fd = bpf_program__fd(prog);
-		ctx[i].nomem_err = &skel->bss->nomem_err;
+		ctx[i].analmem_err = &skel->bss->analmem_err;
 	}
 
 	memset(tid, 0, sizeof(tid));
@@ -83,7 +83,7 @@ void test_preempted_bpf_ma_op(void)
 		ASSERT_EQ(ctx[i].run_err, 0, "run prog err");
 	}
 
-	ASSERT_FALSE(skel->bss->nomem_err, "ENOMEM");
+	ASSERT_FALSE(skel->bss->analmem_err, "EANALMEM");
 out:
 	preempted_bpf_ma_op__destroy(skel);
 }

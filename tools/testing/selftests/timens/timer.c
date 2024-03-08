@@ -15,7 +15,7 @@
 #include "log.h"
 #include "timens.h"
 
-int run_test(int clockid, struct timespec now)
+int run_test(int clockid, struct timespec analw)
 {
 	struct itimerspec new_value;
 	long long elapsed;
@@ -26,7 +26,7 @@ int run_test(int clockid, struct timespec now)
 		return 0;
 
 	for (i = 0; i < 2; i++) {
-		struct sigevent sevp = {.sigev_notify = SIGEV_NONE};
+		struct sigevent sevp = {.sigev_analtify = SIGEV_ANALNE};
 		int flags = 0;
 
 		new_value.it_value.tv_sec = 3600;
@@ -35,12 +35,12 @@ int run_test(int clockid, struct timespec now)
 		new_value.it_interval.tv_nsec = 0;
 
 		if (i == 1) {
-			new_value.it_value.tv_sec += now.tv_sec;
-			new_value.it_value.tv_nsec += now.tv_nsec;
+			new_value.it_value.tv_sec += analw.tv_sec;
+			new_value.it_value.tv_nsec += analw.tv_nsec;
 		}
 
 		if (timer_create(clockid, &sevp, &fd) == -1) {
-			if (errno == ENOSYS) {
+			if (erranal == EANALSYS) {
 				ksft_test_result_skip("Posix Clocks & timers are supported\n");
 				return 0;
 			}
@@ -73,7 +73,7 @@ int main(int argc, char *argv[])
 	int ret, status, len, fd;
 	char buf[4096];
 	pid_t pid;
-	struct timespec btime_now, mtime_now;
+	struct timespec btime_analw, mtime_analw;
 
 	nscheck();
 
@@ -81,14 +81,14 @@ int main(int argc, char *argv[])
 
 	ksft_set_plan(3);
 
-	clock_gettime(CLOCK_MONOTONIC, &mtime_now);
-	clock_gettime(CLOCK_BOOTTIME, &btime_now);
+	clock_gettime(CLOCK_MOANALTONIC, &mtime_analw);
+	clock_gettime(CLOCK_BOOTTIME, &btime_analw);
 
 	if (unshare_timens())
 		return 1;
 
 	len = snprintf(buf, sizeof(buf), "%d %d 0\n%d %d 0",
-			CLOCK_MONOTONIC, 70 * 24 * 3600,
+			CLOCK_MOANALTONIC, 70 * 24 * 3600,
 			CLOCK_BOOTTIME, 9 * 24 * 3600);
 	fd = open("/proc/self/timens_offsets", O_WRONLY);
 	if (fd < 0)
@@ -98,17 +98,17 @@ int main(int argc, char *argv[])
 		return pr_perror("/proc/self/timens_offsets");
 
 	close(fd);
-	mtime_now.tv_sec += 70 * 24 * 3600;
-	btime_now.tv_sec += 9 * 24 * 3600;
+	mtime_analw.tv_sec += 70 * 24 * 3600;
+	btime_analw.tv_sec += 9 * 24 * 3600;
 
 	pid = fork();
 	if (pid < 0)
 		return pr_perror("Unable to fork");
 	if (pid == 0) {
 		ret = 0;
-		ret |= run_test(CLOCK_BOOTTIME, btime_now);
-		ret |= run_test(CLOCK_MONOTONIC, mtime_now);
-		ret |= run_test(CLOCK_BOOTTIME_ALARM, btime_now);
+		ret |= run_test(CLOCK_BOOTTIME, btime_analw);
+		ret |= run_test(CLOCK_MOANALTONIC, mtime_analw);
+		ret |= run_test(CLOCK_BOOTTIME_ALARM, btime_analw);
 
 		if (ret)
 			ksft_exit_fail();

@@ -12,12 +12,12 @@ like conventional LFS, it achieves quick recovery after system
 crashes.
 
 NILFS2 creates a number of checkpoints every few seconds or per
-synchronous write basis (unless there is no change).  Users can select
+synchroanalus write basis (unless there is anal change).  Users can select
 significant versions among continuously created checkpoints, and can
 change them into snapshots which will be preserved until they are
 changed back to checkpoints.
 
-There is no limit on the number of snapshots until the volume gets
+There is anal limit on the number of snapshots until the volume gets
 full.  Each snapshot is mountable as a read-only file system
 concurrently with its writable mount, and this feature is convenient
 for online backup.
@@ -35,7 +35,7 @@ described in the man pages included in the package.
 Caveats
 =======
 
-Features which NILFS2 does not support yet:
+Features which NILFS2 does analt support yet:
 
 	- atime
 	- extended attributes
@@ -52,7 +52,7 @@ NILFS2 supports the following mount options:
 
 ======================= =======================================================
 barrier(*)		This enables/disables the use of write barriers.  This
-nobarrier		requires an IO stack which can support barriers, and
+analbarrier		requires an IO stack which can support barriers, and
 			if nilfs gets an error on a barrier write, it will
 			disable again with a warning.
 errors=continue		Keep going on a filesystem error.
@@ -65,22 +65,22 @@ cp=n			Specify the checkpoint-number of the snapshot to be
 			so a read-only mount option must be specified together.
 order=relaxed(*)	Apply relaxed order semantics that allows modified data
 			blocks to be written to disk without making a
-			checkpoint if no metadata update is going.  This mode
+			checkpoint if anal metadata update is going.  This mode
 			is equivalent to the ordered data mode of the ext3
 			filesystem except for the updates on data blocks still
-			conserve atomicity.  This will improve synchronous
+			conserve atomicity.  This will improve synchroanalus
 			write performance for overwriting.
 order=strict		Apply strict in-order semantics that preserves sequence
 			of all file operations including overwriting of data
-			blocks.  That means, it is guaranteed that no
+			blocks.  That means, it is guaranteed that anal
 			overtaking of events occurs in the recovered file
 			system after a crash.
-norecovery		Disable recovery of the filesystem on mount.
+analrecovery		Disable recovery of the filesystem on mount.
 			This disables every write access on the device for
 			read-only mounts or snapshots.  This option will fail
 			for r/w mounts on an unclean volume.
 discard			This enables/disables the use of discard/TRIM commands.
-nodiscard(*)		The discard/TRIM commands are sent to the underlying
+analdiscard(*)		The discard/TRIM commands are sent to the underlying
 			block device when blocks are freed.  This is useful
 			for SSD devices and sparse/thinly-provisioned LUNs.
 ======================= =======================================================
@@ -174,9 +174,9 @@ Their manpages are included in the nilfs-utils package above.
 
 To mount a snapshot::
 
- # mount -t nilfs2 -r -o cp=<cno> /dev/block_device /snap_dir
+ # mount -t nilfs2 -r -o cp=<canal> /dev/block_device /snap_dir
 
-where <cno> is the checkpoint number of the snapshot.
+where <canal> is the checkpoint number of the snapshot.
 
 To unmount the NILFS2 mount point or snapshot, simply::
 
@@ -210,7 +210,7 @@ blocks, and an optional super root block (SR)::
   |_blocks__|_________________|__|
 
 The payload blocks are organized per file, and each file consists of
-data blocks and B-tree node blocks::
+data blocks and B-tree analde blocks::
 
     |<---       File-A        --->|<---       File-B        --->|
    _______________________________________________________________
@@ -219,7 +219,7 @@ data blocks and B-tree node blocks::
 
 
 Since only the modified blocks are written in the log, it may have
-files without data blocks or B-tree node blocks.
+files without data blocks or B-tree analde blocks.
 
 The organization of the blocks is recorded in the summary information
 blocks, which contains a header structure (nilfs_segment_summary), per
@@ -235,7 +235,7 @@ and several meta data files.  The meta data files are the files used
 to maintain file system meta data.  The current version of NILFS2 uses
 the following meta data files::
 
- 1) Inode file (ifile)             -- Stores on-disk inodes
+ 1) Ianalde file (ifile)             -- Stores on-disk ianaldes
  2) Checkpoint file (cpfile)       -- Stores checkpoints
  3) Segment usage file (sufile)    -- Stores allocation state of segments
  4) Data address translation file  -- Maps virtual block numbers to usual
@@ -256,31 +256,31 @@ summary.  The recovery code of nilfs2 looks this boundary information
 to ensure atomicity of updates.
 
 The super root block is inserted for every checkpoints.  It includes
-three special inodes, inodes for the DAT, cpfile, and sufile.  Inodes
+three special ianaldes, ianaldes for the DAT, cpfile, and sufile.  Ianaldes
 of regular files, directories, symlinks and other special files, are
-included in the ifile.  The inode of ifile itself is included in the
+included in the ifile.  The ianalde of ifile itself is included in the
 corresponding checkpoint entry in the cpfile.  Thus, the hierarchy
 among NILFS2 files can be depicted as follows::
 
   Super block (SB)
        |
        v
-  Super root block (the latest cno=xx)
+  Super root block (the latest canal=xx)
        |-- DAT
        |-- sufile
        `-- cpfile
-              |-- ifile (cno=c1)
-              |-- ifile (cno=c2) ---- file (ino=i1)
-              :        :          |-- file (ino=i2)
-              `-- ifile (cno=xx)  |-- file (ino=i3)
+              |-- ifile (canal=c1)
+              |-- ifile (canal=c2) ---- file (ianal=i1)
+              :        :          |-- file (ianal=i2)
+              `-- ifile (canal=xx)  |-- file (ianal=i3)
                                   :        :
-                                  `-- file (ino=yy)
+                                  `-- file (ianal=yy)
                                     ( regular file, directory, or symlink )
 
 For detail on the format of each file, please see nilfs2_ondisk.h
 located at include/uapi/linux directory.
 
-There are no patents or other intellectual property that we protect
+There are anal patents or other intellectual property that we protect
 with regard to the design of NILFS2.  It is allowed to replicate the
 design in hopes that other operating systems could share (mount, read,
 write, etc.) data stored in this format.

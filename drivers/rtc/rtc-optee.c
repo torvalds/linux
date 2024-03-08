@@ -138,7 +138,7 @@ static int optee_rtc_readoffset(struct device *dev, long *offset)
 	int ret;
 
 	if (!(priv->features & TA_RTC_FEATURE_CORRECTION))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	inv_arg.func = TA_CMD_RTC_GET_OFFSET;
 	inv_arg.session = priv->session_id;
@@ -163,7 +163,7 @@ static int optee_rtc_setoffset(struct device *dev, long offset)
 	int ret;
 
 	if (!(priv->features & TA_RTC_FEATURE_CORRECTION))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	inv_arg.func = TA_CMD_RTC_SET_OFFSET;
 	inv_arg.session = priv->session_id;
@@ -251,7 +251,7 @@ static int optee_rtc_probe(struct device *dev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rtc = devm_rtc_allocate_device(dev);
 	if (IS_ERR(rtc))
@@ -260,7 +260,7 @@ static int optee_rtc_probe(struct device *dev)
 	/* Open context with TEE driver */
 	priv->ctx = tee_client_open_context(NULL, optee_ctx_match, NULL, NULL);
 	if (IS_ERR(priv->ctx))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Open session with rtc Trusted App */
 	export_uuid(sess_arg.uuid, &rtc_device->id.uuid);

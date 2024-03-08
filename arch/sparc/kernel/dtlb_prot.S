@@ -28,28 +28,28 @@
 	ldxa		[%g4] ASI_DMMU, %g5		! Put tagaccess in %g5
 	srlx		%g5, PAGE_SHIFT, %g5
 	sllx		%g5, PAGE_SHIFT, %g5		! Clear context ID bits
-	bgu,pn		%xcc, winfix_trampoline		! Yes, perform winfixup
+	bgu,pn		%xcc, winfix_trampoline		! Anal, perform winfixup
 	 mov		FAULT_CODE_DTLB | FAULT_CODE_WRITE, %g4
-	ba,pt		%xcc, sparc64_realfault_common	! Nope, normal fault
-	 nop
-	nop
+	ba,pt		%xcc, sparc64_realfault_common	! Analpe, analrmal fault
+	 analp
+	analp
 
 /* PROT ** ICACHE line 3: Unused...	*/
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
 
 /* PROT ** ICACHE line 4: Unused...	*/
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp

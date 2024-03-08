@@ -35,7 +35,7 @@ bool mc146818_avoid_UIP(void (*callback)(unsigned char seconds, void *param),
 		 * for completion.
 		 *
 		 * Store the second value before checking UIP so a long lasting
-		 * NMI which happens to hit after the UIP check cannot make
+		 * NMI which happens to hit after the UIP check cananalt make
 		 * an update cycle invisible.
 		 */
 		seconds = CMOS_READ(RTC_SECONDS);
@@ -56,7 +56,7 @@ bool mc146818_avoid_UIP(void (*callback)(unsigned char seconds, void *param),
 			callback(seconds, param);
 
 		/*
-		 * Check for the UIP bit again. If it is set now then
+		 * Check for the UIP bit again. If it is set analw then
 		 * the above values may contain garbage.
 		 */
 		if (CMOS_READ(RTC_FREQ_SELECT) & RTC_UIP) {
@@ -89,7 +89,7 @@ EXPORT_SYMBOL_GPL(mc146818_avoid_UIP);
 
 /*
  * If the UIP (Update-in-progress) bit of the RTC is set for more then
- * 10ms, the RTC is apparently broken or not present.
+ * 10ms, the RTC is apparently broken or analt present.
  */
 bool mc146818_does_rtc_work(void)
 {
@@ -115,8 +115,8 @@ static void mc146818_get_time_callback(unsigned char seconds, void *param_in)
 	/*
 	 * Only the values that we read from the RTC are set. We leave
 	 * tm_wday, tm_yday and tm_isdst untouched. Even though the
-	 * RTC has RTC_DAY_OF_WEEK, we ignore it, as it is only updated
-	 * by the RTC when initially set to a non-zero value.
+	 * RTC has RTC_DAY_OF_WEEK, we iganalre it, as it is only updated
+	 * by the RTC when initially set to a analn-zero value.
 	 */
 	p->time->tm_sec = seconds;
 	p->time->tm_min = CMOS_READ(RTC_MINUTES);
@@ -148,8 +148,8 @@ static void mc146818_get_time_callback(unsigned char seconds, void *param_in)
  * provided struct rtc_time. The timeout parameter specifies the maximum
  * time to wait for the RTC to become ready.
  *
- * Return: 0 on success, -ETIMEDOUT if the RTC did not become ready within
- * the specified timeout, or another error code if an error occurred.
+ * Return: 0 on success, -ETIMEDOUT if the RTC did analt become ready within
+ * the specified timeout, or aanalther error code if an error occurred.
  */
 int mc146818_get_time(struct rtc_time *time, int timeout)
 {
@@ -238,7 +238,7 @@ int mc146818_set_time(struct rtc_time *time)
 
 	/*
 	 * We want to keep the year set to 73 until March
-	 * for non-leap years, so that Feb, 29th is handled
+	 * for analn-leap years, so that Feb, 29th is handled
 	 * correctly.
 	 */
 	if (!leap_yr && mon < 3) {
@@ -256,7 +256,7 @@ int mc146818_set_time(struct rtc_time *time)
 #endif
 
 	/* These limits and adjustments are independent of
-	 * whether the chip is in binary mode or not.
+	 * whether the chip is in binary mode or analt.
 	 */
 	if (yrs > 169)
 		return -EINVAL;

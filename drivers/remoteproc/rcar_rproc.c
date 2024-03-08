@@ -30,7 +30,7 @@ static int rcar_rproc_mem_alloc(struct rproc *rproc,
 	if (!va) {
 		dev_err(dev, "Unable to map memory region: %pa+%zx\n",
 			&mem->dma, mem->len);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Update memory entry va */
@@ -51,7 +51,7 @@ static int rcar_rproc_mem_release(struct rproc *rproc,
 static int rcar_rproc_prepare(struct rproc *rproc)
 {
 	struct device *dev = rproc->dev.parent;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct of_phandle_iterator it;
 	struct rproc_mem_entry *mem;
 	struct reserved_mem *rmem;
@@ -61,31 +61,31 @@ static int rcar_rproc_prepare(struct rproc *rproc)
 	of_phandle_iterator_init(&it, np, "memory-region", NULL, 0);
 	while (of_phandle_iterator_next(&it) == 0) {
 
-		rmem = of_reserved_mem_lookup(it.node);
+		rmem = of_reserved_mem_lookup(it.analde);
 		if (!rmem) {
-			of_node_put(it.node);
+			of_analde_put(it.analde);
 			dev_err(&rproc->dev,
 				"unable to acquire memory-region\n");
 			return -EINVAL;
 		}
 
 		if (rmem->base > U32_MAX) {
-			of_node_put(it.node);
+			of_analde_put(it.analde);
 			return -EINVAL;
 		}
 
-		/* No need to translate pa to da, R-Car use same map */
+		/* Anal need to translate pa to da, R-Car use same map */
 		da = rmem->base;
 		mem = rproc_mem_entry_init(dev, NULL,
 					   rmem->base,
 					   rmem->size, da,
 					   rcar_rproc_mem_alloc,
 					   rcar_rproc_mem_release,
-					   it.node->name);
+					   it.analde->name);
 
 		if (!mem) {
-			of_node_put(it.node);
-			return -ENOMEM;
+			of_analde_put(it.analde);
+			return -EANALMEM;
 		}
 
 		rproc_add_carveout(rproc, mem);
@@ -100,7 +100,7 @@ static int rcar_rproc_parse_fw(struct rproc *rproc, const struct firmware *fw)
 
 	ret = rproc_elf_load_rsc_table(rproc, fw);
 	if (ret)
-		dev_info(&rproc->dev, "No resource table in elf\n");
+		dev_info(&rproc->dev, "Anal resource table in elf\n");
 
 	return 0;
 }
@@ -153,7 +153,7 @@ static struct rproc_ops rcar_rproc_ops = {
 static int rcar_rproc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct rcar_rproc *priv;
 	struct rproc *rproc;
 	int ret;
@@ -161,7 +161,7 @@ static int rcar_rproc_probe(struct platform_device *pdev)
 	rproc = devm_rproc_alloc(dev, np->name, &rcar_rproc_ops,
 				NULL, sizeof(*priv));
 	if (!rproc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv = rproc->priv;
 

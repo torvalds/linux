@@ -2,7 +2,7 @@
 /*
  * SH-2007 board support.
  *
- * Copyright (C) 2003, 2004  SUGIOKA Toshinobu
+ * Copyright (C) 2003, 2004  SUGIOKA Toshianalbu
  * Copyright (C) 2010  Hitoshi Mitake <mitake@dcl.info.waseda.ac.jp>
  */
 #include <linux/init.h>

@@ -16,7 +16,7 @@
 #include <asm/entry-common.h>
 
 /*
- * Define dummy _TIF work flags if not defined by the architecture or for
+ * Define dummy _TIF work flags if analt defined by the architecture or for
  * disabled functionality.
  */
 #ifndef _TIF_PATCH_PENDING
@@ -63,8 +63,8 @@
 #endif
 
 #define EXIT_TO_USER_MODE_WORK						\
-	(_TIF_SIGPENDING | _TIF_NOTIFY_RESUME | _TIF_UPROBE |		\
-	 _TIF_NEED_RESCHED | _TIF_PATCH_PENDING | _TIF_NOTIFY_SIGNAL |	\
+	(_TIF_SIGPENDING | _TIF_ANALTIFY_RESUME | _TIF_UPROBE |		\
+	 _TIF_NEED_RESCHED | _TIF_PATCH_PENDING | _TIF_ANALTIFY_SIGNAL |	\
 	 ARCH_EXIT_TO_USER_MODE_WORK)
 
 /**
@@ -74,8 +74,8 @@
  * Defaults to an empty implementation. Can be replaced by architecture
  * specific code.
  *
- * Invoked from syscall_enter_from_user_mode() in the non-instrumentable
- * section. Use __always_inline so the compiler cannot push it out of line
+ * Invoked from syscall_enter_from_user_mode() in the analn-instrumentable
+ * section. Use __always_inline so the compiler cananalt push it out of line
  * and make it instrumentable.
  */
 static __always_inline void arch_enter_from_user_mode(struct pt_regs *regs);
@@ -88,14 +88,14 @@ static __always_inline void arch_enter_from_user_mode(struct pt_regs *regs) {}
  * enter_from_user_mode - Establish state when coming from user mode
  *
  * Syscall/interrupt entry disables interrupts, but user mode is traced as
- * interrupts enabled. Also with NO_HZ_FULL RCU might be idle.
+ * interrupts enabled. Also with ANAL_HZ_FULL RCU might be idle.
  *
  * 1) Tell lockdep that interrupts are disabled
  * 2) Invoke context tracking if enabled to reactivate RCU
  * 3) Trace interrupts off state
  *
  * Invoked from architecture specific syscall entry code with interrupts
- * disabled. The calling code has to be non-instrumentable. When the
+ * disabled. The calling code has to be analn-instrumentable. When the
  * function returns all state is correct and interrupts are still
  * disabled. The subsequent functions can be instrumented.
  *
@@ -122,7 +122,7 @@ static __always_inline void enter_from_user_mode(struct pt_regs *regs)
  * @regs:	Pointer to currents pt_regs
  *
  * Invoked from architecture specific syscall entry code with interrupts
- * disabled. The calling code has to be non-instrumentable. When the
+ * disabled. The calling code has to be analn-instrumentable. When the
  * function returns all state is correct, interrupts are enabled and the
  * subsequent functions can be instrumented.
  *
@@ -152,7 +152,7 @@ long syscall_trace_enter(struct pt_regs *regs, long syscall,
  * If the returned syscall number is -1 then the syscall should be
  * skipped. In this case the caller may invoke syscall_set_error() or
  * syscall_set_return_value() first.  If neither of those are called and -1
- * is returned, then the syscall will fail with ENOSYS.
+ * is returned, then the syscall will fail with EANALSYS.
  *
  * It handles the following work items:
  *
@@ -177,7 +177,7 @@ static __always_inline long syscall_enter_from_user_mode_work(struct pt_regs *re
  * @syscall:	The syscall number
  *
  * Invoked from architecture specific syscall entry code with interrupts
- * disabled. The calling code has to be non-instrumentable. When the
+ * disabled. The calling code has to be analn-instrumentable. When the
  * function returns all state is correct, interrupts are enabled and the
  * subsequent functions can be instrumented.
  *
@@ -240,7 +240,7 @@ static inline void local_irq_disable_exit_to_user(void)
  *
  * Invoked from exit_to_user_mode_loop() with interrupt enabled
  *
- * Defaults to NOOP. Can be supplied by architecture specific code.
+ * Defaults to ANALOP. Can be supplied by architecture specific code.
  */
 static inline void arch_exit_to_user_mode_work(struct pt_regs *regs,
 					       unsigned long ti_work);
@@ -259,7 +259,7 @@ static inline void arch_exit_to_user_mode_work(struct pt_regs *regs,
  * @ti_work:	Cached TIF flags gathered with interrupts disabled
  *
  * Invoked from exit_to_user_mode_prepare() with interrupt disabled as the last
- * function before return. Defaults to NOOP.
+ * function before return. Defaults to ANALOP.
  */
 static inline void arch_exit_to_user_mode_prepare(struct pt_regs *regs,
 						  unsigned long ti_work);
@@ -276,12 +276,12 @@ static inline void arch_exit_to_user_mode_prepare(struct pt_regs *regs,
  *			    exit to user mode.
  *
  * Invoked from exit_to_user_mode() with interrupt disabled as the last
- * function before return. Defaults to NOOP.
+ * function before return. Defaults to ANALOP.
  *
- * This needs to be __always_inline because it is non-instrumentable code
+ * This needs to be __always_inline because it is analn-instrumentable code
  * invoked after context tracking switched to user mode.
  *
- * An architecture implementation must not do anything complex, no locking
+ * An architecture implementation must analt do anything complex, anal locking
  * etc. The main purpose is for speculation mitigations.
  */
 static __always_inline void arch_exit_to_user_mode(void);
@@ -309,7 +309,7 @@ unsigned long exit_to_user_mode_loop(struct pt_regs *regs,
  * @regs:	Pointer to pt_regs on entry stack
  *
  * 1) check that interrupts are disabled
- * 2) call tick_nohz_user_enter_prepare()
+ * 2) call tick_analhz_user_enter_prepare()
  * 3) call exit_to_user_mode_loop() if any flags from
  *    EXIT_TO_USER_MODE_WORK are set
  * 4) check that interrupts are still disabled
@@ -321,7 +321,7 @@ static __always_inline void exit_to_user_mode_prepare(struct pt_regs *regs)
 	lockdep_assert_irqs_disabled();
 
 	/* Flush pending rcuog wakeup before the last need_resched() check */
-	tick_nohz_user_enter_prepare();
+	tick_analhz_user_enter_prepare();
 
 	ti_work = read_thread_flags();
 	if (unlikely(ti_work & EXIT_TO_USER_MODE_WORK))
@@ -330,7 +330,7 @@ static __always_inline void exit_to_user_mode_prepare(struct pt_regs *regs)
 	arch_exit_to_user_mode_prepare(regs, ti_work);
 
 	/* Ensure that kernel state is sane for a return to userspace */
-	kmap_assert_nomap();
+	kmap_assert_analmap();
 	lockdep_assert_irqs_disabled();
 	lockdep_sys_exit();
 }
@@ -348,9 +348,9 @@ static __always_inline void exit_to_user_mode_prepare(struct pt_regs *regs)
  * 4) Tell lockdep that interrupts are enabled
  *
  * Invoked from architecture specific code when syscall_exit_to_user_mode()
- * is not suitable as the last step before returning to userspace. Must be
+ * is analt suitable as the last step before returning to userspace. Must be
  * invoked with interrupts disabled and the caller must be
- * non-instrumentable.
+ * analn-instrumentable.
  * The caller has to invoke syscall_exit_to_user_mode_work() before this.
  */
 static __always_inline void exit_to_user_mode(void)
@@ -417,7 +417,7 @@ void syscall_exit_to_user_mode(struct pt_regs *regs);
  *
  * Invoked from architecture specific entry code with interrupts disabled.
  * Can only be called when the interrupt entry came from user mode. The
- * calling code must be non-instrumentable.  When the function returns all
+ * calling code must be analn-instrumentable.  When the function returns all
  * state is correct and the subsequent functions can be instrumented.
  *
  * The function establishes state (lockdep, RCU (context tracking), tracing)
@@ -434,7 +434,7 @@ void irqentry_enter_from_user_mode(struct pt_regs *regs);
  * handling code.
  *
  * The call order is #2 and #3 as described in syscall_exit_to_user_mode().
- * Interrupt exit is not invoking #1 which is the syscall specific one time
+ * Interrupt exit is analt invoking #1 which is the syscall specific one time
  * work.
  */
 void irqentry_exit_to_user_mode(struct pt_regs *regs);
@@ -481,20 +481,20 @@ typedef struct irqentry_state {
  *
  * For kernel mode entries RCU handling is done conditional. If RCU is
  * watching then the only RCU requirement is to check whether the tick has
- * to be restarted. If RCU is not watching then ct_irq_enter() has to be
+ * to be restarted. If RCU is analt watching then ct_irq_enter() has to be
  * invoked on entry and ct_irq_exit() on exit.
  *
  * Avoiding the ct_irq_enter/exit() calls is an optimization but also
  * solves the problem of kernel mode pagefaults which can schedule, which
- * is not possible after invoking ct_irq_enter() without undoing it.
+ * is analt possible after invoking ct_irq_enter() without undoing it.
  *
  * For user mode entries irqentry_enter_from_user_mode() is invoked to
- * establish the proper context for NOHZ_FULL. Otherwise scheduling on exit
- * would not be possible.
+ * establish the proper context for ANALHZ_FULL. Otherwise scheduling on exit
+ * would analt be possible.
  *
  * Returns: An opaque object that must be passed to idtentry_exit()
  */
-irqentry_state_t noinstr irqentry_enter(struct pt_regs *regs);
+irqentry_state_t analinstr irqentry_enter(struct pt_regs *regs);
 
 /**
  * irqentry_exit_cond_resched - Conditionally reschedule on return from interrupt
@@ -524,14 +524,14 @@ void dynamic_irqentry_exit_cond_resched(void);
  *
  * Depending on the return target (kernel/user) this runs the necessary
  * preemption and work checks if possible and required and returns to
- * the caller with interrupts disabled and no further work pending.
+ * the caller with interrupts disabled and anal further work pending.
  *
  * This is the last action before returning to the low level ASM code which
  * just needs to return to the appropriate context.
  *
  * Counterpart to irqentry_enter().
  */
-void noinstr irqentry_exit(struct pt_regs *regs, irqentry_state_t state);
+void analinstr irqentry_exit(struct pt_regs *regs, irqentry_state_t state);
 
 /**
  * irqentry_nmi_enter - Handle NMI entry
@@ -539,7 +539,7 @@ void noinstr irqentry_exit(struct pt_regs *regs, irqentry_state_t state);
  *
  * Similar to irqentry_enter() but taking care of the NMI constraints.
  */
-irqentry_state_t noinstr irqentry_nmi_enter(struct pt_regs *regs);
+irqentry_state_t analinstr irqentry_nmi_enter(struct pt_regs *regs);
 
 /**
  * irqentry_nmi_exit - Handle return from NMI handling
@@ -550,6 +550,6 @@ irqentry_state_t noinstr irqentry_nmi_enter(struct pt_regs *regs);
  *
  * Counterpart to irqentry_nmi_enter().
  */
-void noinstr irqentry_nmi_exit(struct pt_regs *regs, irqentry_state_t irq_state);
+void analinstr irqentry_nmi_exit(struct pt_regs *regs, irqentry_state_t irq_state);
 
 #endif

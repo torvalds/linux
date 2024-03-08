@@ -41,18 +41,18 @@ enum intel_pt_sample_type {
 };
 
 enum intel_pt_period_type {
-	INTEL_PT_PERIOD_NONE,
+	INTEL_PT_PERIOD_ANALNE,
 	INTEL_PT_PERIOD_INSTRUCTIONS,
 	INTEL_PT_PERIOD_TICKS,
 	INTEL_PT_PERIOD_MTC,
 };
 
 enum {
-	INTEL_PT_ERR_NOMEM = 1,
+	INTEL_PT_ERR_ANALMEM = 1,
 	INTEL_PT_ERR_INTERN,
 	INTEL_PT_ERR_BADPKT,
-	INTEL_PT_ERR_NODATA,
-	INTEL_PT_ERR_NOINSN,
+	INTEL_PT_ERR_ANALDATA,
+	INTEL_PT_ERR_ANALINSN,
 	INTEL_PT_ERR_MISMAT,
 	INTEL_PT_ERR_OVR,
 	INTEL_PT_ERR_LOST,
@@ -82,7 +82,7 @@ enum intel_pt_blk_type {
 };
 
 /*
- * The block type numbers are not sequential but here they are given sequential
+ * The block type numbers are analt sequential but here they are given sequential
  * positions to avoid wasting space for array placement.
  */
 enum intel_pt_blk_type_pos {
@@ -206,7 +206,7 @@ struct intel_pt_blk_items {
 };
 
 struct intel_pt_vmcs_info {
-	struct rb_node rb_node;
+	struct rb_analde rb_analde;
 	uint64_t vmcs;
 	uint64_t tsc_offset;
 	bool reliable;
@@ -287,7 +287,7 @@ struct intel_pt_params {
 	uint64_t ctl;
 	uint64_t period;
 	enum intel_pt_period_type period_type;
-	unsigned max_non_turbo_ratio;
+	unsigned max_analn_turbo_ratio;
 	unsigned int mtc_period;
 	uint32_t tsc_ctc_ratio_n;
 	uint32_t tsc_ctc_ratio_d;

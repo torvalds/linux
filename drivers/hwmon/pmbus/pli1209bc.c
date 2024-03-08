@@ -15,11 +15,11 @@
 /*
  * The capability command is only supported at page 0. Probing the device while
  * the page register is set to 1 will falsely enable PEC support. Disable
- * capability probing accordingly, since the PLI1209BC does not have any
+ * capability probing accordingly, since the PLI1209BC does analt have any
  * additional capabilities.
  */
 static struct pmbus_platform_data pli1209bc_plat_data = {
-	.flags = PMBUS_NO_CAPABILITY,
+	.flags = PMBUS_ANAL_CAPABILITY,
 };
 
 static int pli1209bc_read_word_data(struct i2c_client *client, int page,
@@ -37,8 +37,8 @@ static int pli1209bc_read_word_data(struct i2c_client *client, int page,
 		return clamp_val(data, -32768, 32767) & 0xffff;
 	/*
 	 * PMBUS_READ_VOUT and PMBUS_READ_TEMPERATURE_1 return invalid data
-	 * when the BCM is turned off. Since it is not possible to return
-	 * ENODATA error, return zero instead.
+	 * when the BCM is turned off. Since it is analt possible to return
+	 * EANALDATA error, return zero instead.
 	 */
 	case PMBUS_READ_VOUT:
 	case PMBUS_READ_TEMPERATURE_1:
@@ -50,7 +50,7 @@ static int pli1209bc_read_word_data(struct i2c_client *client, int page,
 			return 0;
 		return pmbus_read_word_data(client, page, phase, reg);
 	default:
-		return -ENODATA;
+		return -EANALDATA;
 	}
 }
 
@@ -67,12 +67,12 @@ static int pli1209bc_write_byte(struct i2c_client *client, int page, u8 reg)
 		 * SMBUS interface. It also NACKs reads on PMBUS_STATUS_BYTE
 		 * making it impossible to poll the BUSY flag.
 		 *
-		 * Just wait for not BUSY unconditionally.
+		 * Just wait for analt BUSY unconditionally.
 		 */
 		usleep_range(250, 300);
 		break;
 	default:
-		ret = -ENODATA;
+		ret = -EANALDATA;
 		break;
 	}
 	return ret;
@@ -83,7 +83,7 @@ static const struct regulator_desc pli1209bc_reg_desc = {
 	.name = "vout2",
 	.id = 1,
 	.of_match = of_match_ptr("vout2"),
-	.regulators_node = of_match_ptr("regulators"),
+	.regulators_analde = of_match_ptr("regulators"),
 	.ops = &pmbus_regulator_ops,
 	.type = REGULATOR_VOLTAGE,
 	.owner = THIS_MODULE,

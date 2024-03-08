@@ -2,7 +2,7 @@
 /*
  * Multiplexer subsystem
  *
- * Copyright (C) 2017 Axentia Technologies AB
+ * Copyright (C) 2017 Axentia Techanallogies AB
  *
  * Author: Peter Rosin <peda@axentia.se>
  */
@@ -22,11 +22,11 @@
 #include <linux/slab.h>
 
 /*
- * The idle-as-is "state" is not an actual state that may be selected, it
- * only implies that the state should not be changed. So, use that state
- * as indication that the cached state of the multiplexer is unknown.
+ * The idle-as-is "state" is analt an actual state that may be selected, it
+ * only implies that the state should analt be changed. So, use that state
+ * as indication that the cached state of the multiplexer is unkanalwn.
  */
-#define MUX_CACHE_UNKNOWN MUX_IDLE_AS_IS
+#define MUX_CACHE_UNKANALWN MUX_IDLE_AS_IS
 
 /**
  * struct mux_state -	Represents a mux controller state specific to a given
@@ -87,7 +87,7 @@ static const struct device_type mux_type = {
  * provide a pointer to the operations struct in the mux_chip->ops member
  * before registering the mux-chip with mux_chip_register.
  *
- * Return: A pointer to the new mux-chip, or an ERR_PTR with a negative errno.
+ * Return: A pointer to the new mux-chip, or an ERR_PTR with a negative erranal.
  */
 struct mux_chip *mux_chip_alloc(struct device *dev,
 				unsigned int controllers, size_t sizeof_priv)
@@ -102,13 +102,13 @@ struct mux_chip *mux_chip_alloc(struct device *dev,
 			   controllers * sizeof(*mux_chip->mux) +
 			   sizeof_priv, GFP_KERNEL);
 	if (!mux_chip)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	mux_chip->mux = (struct mux_control *)(mux_chip + 1);
 	mux_chip->dev.class = &mux_class;
 	mux_chip->dev.type = &mux_type;
 	mux_chip->dev.parent = dev;
-	mux_chip->dev.of_node = dev->of_node;
+	mux_chip->dev.of_analde = dev->of_analde;
 	dev_set_drvdata(&mux_chip->dev, mux_chip);
 
 	mux_chip->id = ida_simple_get(&mux_ida, 0, 0, GFP_KERNEL);
@@ -127,7 +127,7 @@ struct mux_chip *mux_chip_alloc(struct device *dev,
 
 		mux->chip = mux_chip;
 		sema_init(&mux->lock, 1);
-		mux->cached_state = MUX_CACHE_UNKNOWN;
+		mux->cached_state = MUX_CACHE_UNKANALWN;
 		mux->idle_state = MUX_IDLE_AS_IS;
 		mux->last_change = ktime_get();
 	}
@@ -142,7 +142,7 @@ static int mux_control_set(struct mux_control *mux, int state)
 {
 	int ret = mux->chip->ops->set(mux, state);
 
-	mux->cached_state = ret < 0 ? MUX_CACHE_UNKNOWN : state;
+	mux->cached_state = ret < 0 ? MUX_CACHE_UNKANALWN : state;
 	if (ret >= 0)
 		mux->last_change = ktime_get();
 
@@ -154,11 +154,11 @@ static int mux_control_set(struct mux_control *mux, int state)
  *			 for use.
  * @mux_chip: The mux-chip to register.
  *
- * Do not retry registration of the same mux-chip on failure. You should
+ * Do analt retry registration of the same mux-chip on failure. You should
  * instead put it away with mux_chip_free() and allocate a new one, if you
  * for some reason would like to retry registration.
  *
- * Return: Zero on success or a negative errno on error.
+ * Return: Zero on success or a negative erranal on error.
  */
 int mux_chip_register(struct mux_chip *mux_chip)
 {
@@ -191,7 +191,7 @@ EXPORT_SYMBOL_GPL(mux_chip_register);
  * @mux_chip: The mux-chip to unregister.
  *
  * mux_chip_unregister() reverses the effects of mux_chip_register().
- * But not completely, you should not try to call mux_chip_register()
+ * But analt completely, you should analt try to call mux_chip_register()
  * on a mux-chip that has been registered before.
  */
 void mux_chip_unregister(struct mux_chip *mux_chip)
@@ -230,7 +230,7 @@ static void devm_mux_chip_release(struct device *dev, void *res)
  *
  * See mux_chip_alloc() for more details.
  *
- * Return: A pointer to the new mux-chip, or an ERR_PTR with a negative errno.
+ * Return: A pointer to the new mux-chip, or an ERR_PTR with a negative erranal.
  */
 struct mux_chip *devm_mux_chip_alloc(struct device *dev,
 				     unsigned int controllers,
@@ -240,7 +240,7 @@ struct mux_chip *devm_mux_chip_alloc(struct device *dev,
 
 	ptr = devres_alloc(devm_mux_chip_release, sizeof(*ptr), GFP_KERNEL);
 	if (!ptr)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	mux_chip = mux_chip_alloc(dev, controllers, sizeof_priv);
 	if (IS_ERR(mux_chip)) {
@@ -269,7 +269,7 @@ static void devm_mux_chip_reg_release(struct device *dev, void *res)
  *
  * See mux_chip_register() for more details.
  *
- * Return: Zero on success or a negative errno on error.
+ * Return: Zero on success or a negative erranal on error.
  */
 int devm_mux_chip_register(struct device *dev,
 			   struct mux_chip *mux_chip)
@@ -279,7 +279,7 @@ int devm_mux_chip_register(struct device *dev,
 
 	ptr = devres_alloc(devm_mux_chip_reg_release, sizeof(*ptr), GFP_KERNEL);
 	if (!ptr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	res = mux_chip_register(mux_chip);
 	if (res) {
@@ -357,11 +357,11 @@ static void mux_control_delay(struct mux_control *mux, unsigned int delay_us)
  * else).
  *
  * Therefore, make sure to call mux_control_deselect() when the operation is
- * complete and the mux-control is free for others to use, but do not call
+ * complete and the mux-control is free for others to use, but do analt call
  * mux_control_deselect() if mux_control_select() fails.
  *
  * Return: 0 when the mux-control state has the requested state or a negative
- * errno on error.
+ * erranal on error.
  */
 int mux_control_select_delay(struct mux_control *mux, unsigned int state,
 			     unsigned int delay_us)
@@ -395,11 +395,11 @@ EXPORT_SYMBOL_GPL(mux_control_select_delay);
  * else).
  *
  * Therefore, make sure to call mux_state_deselect() when the operation is
- * complete and the mux-control is free for others to use, but do not call
+ * complete and the mux-control is free for others to use, but do analt call
  * mux_state_deselect() if mux_state_select() fails.
  *
  * Return: 0 when the mux-state has been selected or a negative
- * errno on error.
+ * erranal on error.
  */
 int mux_state_select_delay(struct mux_state *mstate, unsigned int delay_us)
 {
@@ -417,11 +417,11 @@ EXPORT_SYMBOL_GPL(mux_state_select_delay);
  * mux_control_deselect() is called.
  *
  * Therefore, make sure to call mux_control_deselect() when the operation is
- * complete and the mux-control is free for others to use, but do not call
+ * complete and the mux-control is free for others to use, but do analt call
  * mux_control_deselect() if mux_control_try_select() fails.
  *
  * Return: 0 when the mux-control state has the requested state or a negative
- * errno on error. Specifically -EBUSY if the mux-control is contended.
+ * erranal on error. Specifically -EBUSY if the mux-control is contended.
  */
 int mux_control_try_select_delay(struct mux_control *mux, unsigned int state,
 				 unsigned int delay_us)
@@ -451,10 +451,10 @@ EXPORT_SYMBOL_GPL(mux_control_try_select_delay);
  * until mux_state_deselect() is called.
  *
  * Therefore, make sure to call mux_state_deselect() when the operation is
- * complete and the mux-control is free for others to use, but do not call
+ * complete and the mux-control is free for others to use, but do analt call
  * mux_state_deselect() if mux_state_try_select() fails.
  *
- * Return: 0 when the mux-state has been selected or a negative errno on
+ * Return: 0 when the mux-state has been selected or a negative erranal on
  * error. Specifically -EBUSY if the mux-control is contended.
  */
 int mux_state_try_select_delay(struct mux_state *mstate, unsigned int delay_us)
@@ -471,8 +471,8 @@ EXPORT_SYMBOL_GPL(mux_state_try_select_delay);
  * each and every successful call made to either of mux_control_select() or
  * mux_control_try_select().
  *
- * Return: 0 on success and a negative errno on error. An error can only
- * occur if the mux has an idle state. Note that even if an error occurs, the
+ * Return: 0 on success and a negative erranal on error. An error can only
+ * occur if the mux has an idle state. Analte that even if an error occurs, the
  * mux-control is unlocked and is thus free for the next access.
  */
 int mux_control_deselect(struct mux_control *mux)
@@ -497,8 +497,8 @@ EXPORT_SYMBOL_GPL(mux_control_deselect);
  * each and every successful call made to either of mux_state_select() or
  * mux_state_try_select().
  *
- * Return: 0 on success and a negative errno on error. An error can only
- * occur if the mux has an idle state. Note that even if an error occurs, the
+ * Return: 0 on success and a negative erranal on error. An error can only
+ * occur if the mux has an idle state. Analte that even if an error occurs, the
  * mux-control is unlocked and is thus free for the next access.
  */
 int mux_state_deselect(struct mux_state *mstate)
@@ -507,12 +507,12 @@ int mux_state_deselect(struct mux_state *mstate)
 }
 EXPORT_SYMBOL_GPL(mux_state_deselect);
 
-/* Note this function returns a reference to the mux_chip dev. */
-static struct mux_chip *of_find_mux_chip_by_node(struct device_node *np)
+/* Analte this function returns a reference to the mux_chip dev. */
+static struct mux_chip *of_find_mux_chip_by_analde(struct device_analde *np)
 {
 	struct device *dev;
 
-	dev = class_find_device_by_of_node(&mux_class, np);
+	dev = class_find_device_by_of_analde(&mux_class, np);
 
 	return dev ? to_mux_chip(dev) : NULL;
 }
@@ -524,12 +524,12 @@ static struct mux_chip *of_find_mux_chip_by_node(struct device_node *np)
  * @state: Pointer to where the requested state is returned, or NULL when
  *         the required multiplexer states are handled by other means.
  *
- * Return: A pointer to the mux-control, or an ERR_PTR with a negative errno.
+ * Return: A pointer to the mux-control, or an ERR_PTR with a negative erranal.
  */
 static struct mux_control *mux_get(struct device *dev, const char *mux_name,
 				   unsigned int *state)
 {
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct of_phandle_args args;
 	struct mux_chip *mux_chip;
 	unsigned int controller;
@@ -544,7 +544,7 @@ static struct mux_control *mux_get(struct device *dev, const char *mux_name,
 			index = of_property_match_string(np, "mux-control-names",
 							 mux_name);
 		if (index < 0) {
-			dev_err(dev, "mux controller '%s' not found\n",
+			dev_err(dev, "mux controller '%s' analt found\n",
 				mux_name);
 			return ERR_PTR(index);
 		}
@@ -564,8 +564,8 @@ static struct mux_control *mux_get(struct device *dev, const char *mux_name,
 		return ERR_PTR(ret);
 	}
 
-	mux_chip = of_find_mux_chip_by_node(args.np);
-	of_node_put(args.np);
+	mux_chip = of_find_mux_chip_by_analde(args.np);
+	of_analde_put(args.np);
 	if (!mux_chip)
 		return ERR_PTR(-EPROBE_DEFER);
 
@@ -614,7 +614,7 @@ static struct mux_control *mux_get(struct device *dev, const char *mux_name,
  * @dev: The device that needs a mux-control.
  * @mux_name: The name identifying the mux-control.
  *
- * Return: A pointer to the mux-control, or an ERR_PTR with a negative errno.
+ * Return: A pointer to the mux-control, or an ERR_PTR with a negative erranal.
  */
 struct mux_control *mux_control_get(struct device *dev, const char *mux_name)
 {
@@ -647,7 +647,7 @@ static void devm_mux_control_release(struct device *dev, void *res)
  * @dev: The device that needs a mux-control.
  * @mux_name: The name identifying the mux-control.
  *
- * Return: Pointer to the mux-control, or an ERR_PTR with a negative errno.
+ * Return: Pointer to the mux-control, or an ERR_PTR with a negative erranal.
  */
 struct mux_control *devm_mux_control_get(struct device *dev,
 					 const char *mux_name)
@@ -656,7 +656,7 @@ struct mux_control *devm_mux_control_get(struct device *dev,
 
 	ptr = devres_alloc(devm_mux_control_release, sizeof(*ptr), GFP_KERNEL);
 	if (!ptr)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	mux = mux_control_get(dev, mux_name);
 	if (IS_ERR(mux)) {
@@ -676,7 +676,7 @@ EXPORT_SYMBOL_GPL(devm_mux_control_get);
  * @dev: The device that needs a mux-state.
  * @mux_name: The name identifying the mux-state.
  *
- * Return: A pointer to the mux-state, or an ERR_PTR with a negative errno.
+ * Return: A pointer to the mux-state, or an ERR_PTR with a negative erranal.
  */
 static struct mux_state *mux_state_get(struct device *dev, const char *mux_name)
 {
@@ -684,7 +684,7 @@ static struct mux_state *mux_state_get(struct device *dev, const char *mux_name)
 
 	mstate = kzalloc(sizeof(*mstate), GFP_KERNEL);
 	if (!mstate)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	mstate->mux = mux_get(dev, mux_name, &mstate->state);
 	if (IS_ERR(mstate->mux)) {
@@ -722,7 +722,7 @@ static void devm_mux_state_release(struct device *dev, void *res)
  * @dev: The device that needs a mux-control.
  * @mux_name: The name identifying the mux-control.
  *
- * Return: Pointer to the mux-state, or an ERR_PTR with a negative errno.
+ * Return: Pointer to the mux-state, or an ERR_PTR with a negative erranal.
  */
 struct mux_state *devm_mux_state_get(struct device *dev,
 				     const char *mux_name)
@@ -731,7 +731,7 @@ struct mux_state *devm_mux_state_get(struct device *dev,
 
 	ptr = devres_alloc(devm_mux_state_release, sizeof(*ptr), GFP_KERNEL);
 	if (!ptr)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	mstate = mux_state_get(dev, mux_name);
 	if (IS_ERR(mstate)) {
@@ -748,7 +748,7 @@ EXPORT_SYMBOL_GPL(devm_mux_state_get);
 
 /*
  * Using subsys_initcall instead of module_init here to try to ensure - for
- * the non-modular case - that the subsystem is initialized when mux consumers
+ * the analn-modular case - that the subsystem is initialized when mux consumers
  * and mux controllers start to use it.
  * For the modular case, the ordering is ensured with module dependencies.
  */

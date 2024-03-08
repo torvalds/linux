@@ -16,11 +16,11 @@ description: |
   peripherals.
 
   A revision of this SoC is available: rk3288w. The clock tree is a bit
-  different so another dt-compatible is available. Noticed that it is only
-  setting the difference but there is no automatic revision detection. This
+  different so aanalther dt-compatible is available. Analticed that it is only
+  setting the difference but there is anal automatic revision detection. This
   should be performed by boot loaders.
 
-  Each clock is assigned an identifier and client nodes can use this identifier
+  Each clock is assigned an identifier and client analdes can use this identifier
   to specify the clock which they consume. All available clocks are defined as
   preprocessor macros in the dt-bindings/clock/rk3288-cru.h headers and can be
   used in device tree sources. Similar macros exist for the reset sources in
@@ -63,7 +63,7 @@ properties:
     $ref: /schemas/types.yaml#/definitions/phandle
     description:
       Phandle to the syscon managing the "general register files" (GRF),
-      if missing pll rates are not changeable, due to the missing pll
+      if missing pll rates are analt changeable, due to the missing pll
       lock status.
 
 required:

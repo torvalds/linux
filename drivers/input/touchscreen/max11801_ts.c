@@ -16,10 +16,10 @@
  * -----------------------------------------------------
  * | CHIP     |  AUTO MODE SUPPORT(FIFO) | INTERFACE    |
  * |----------------------------------------------------|
- * | max11800 |  YES                     |   SPI        |
- * | max11801 |  YES                     |   I2C        |
- * | max11802 |  NO                      |   SPI        |
- * | max11803 |  NO                      |   I2C        |
+ * | max11800 |  ANAL                     |   SPI        |
+ * | max11801 |  ANAL                     |   I2C        |
+ * | max11802 |  ANAL                      |   SPI        |
+ * | max11803 |  ANAL                      |   I2C        |
  * ------------------------------------------------------
  *
  * Currently, this driver only supports max11801.
@@ -82,13 +82,13 @@ struct max11801_data {
 
 static u8 read_register(struct i2c_client *client, int addr)
 {
-	/* XXX: The chip ignores LSB of register address */
+	/* XXX: The chip iganalres LSB of register address */
 	return i2c_smbus_read_byte_data(client, addr << 1);
 }
 
 static int max11801_write_reg(struct i2c_client *client, int addr, int data)
 {
-	/* XXX: The chip ignores LSB of register address */
+	/* XXX: The chip iganalres LSB of register address */
 	return i2c_smbus_write_byte_data(client, addr << 1, data);
 }
 
@@ -178,7 +178,7 @@ static int max11801_ts_probe(struct i2c_client *client)
 	input_dev = devm_input_allocate_device(&client->dev);
 	if (!data || !input_dev) {
 		dev_err(&client->dev, "Failed to allocate memory\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	data->client = client;

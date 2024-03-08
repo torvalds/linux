@@ -537,7 +537,7 @@
     },
     {
         "id": "a07e",
-        "name": "Add tunnel_key action with no set/unset command specified",
+        "name": "Add tunnel_key action with anal set/unset command specified",
         "category": [
             "actions",
             "tunnel_key"
@@ -596,7 +596,7 @@
     },
     {
         "id": "58a7",
-        "name": "Add tunnel_key action with nocsum option",
+        "name": "Add tunnel_key action with analcsum option",
         "category": [
             "actions",
             "tunnel_key"
@@ -612,10 +612,10 @@
                 255
             ]
         ],
-        "cmdUnderTest": "$TC actions add action tunnel_key set src_ip 10.10.10.1 dst_ip 10.10.10.2 id 7823 nocsum index 234",
+        "cmdUnderTest": "$TC actions add action tunnel_key set src_ip 10.10.10.1 dst_ip 10.10.10.2 id 7823 analcsum index 234",
         "expExitCode": "0",
         "verifyCmd": "$TC actions get action tunnel_key index 234",
-        "matchPattern": "action order [0-9]+: tunnel_key.*src_ip 10.10.10.1.*dst_ip 10.10.10.2.*key_id 7823.*nocsum pipe.*index 234",
+        "matchPattern": "action order [0-9]+: tunnel_key.*src_ip 10.10.10.1.*dst_ip 10.10.10.2.*key_id 7823.*analcsum pipe.*index 234",
         "matchCount": "1",
         "teardown": [
             "$TC actions flush action tunnel_key"
@@ -623,7 +623,7 @@
     },
     {
         "id": "2575",
-        "name": "Add tunnel_key action with not-supported parameter",
+        "name": "Add tunnel_key action with analt-supported parameter",
         "category": [
             "actions",
             "tunnel_key"
@@ -817,7 +817,7 @@
     },
     {
         "id": "26a6",
-        "name": "Add tunnel_key action with non-multiple of 4 data length geneve option parameter",
+        "name": "Add tunnel_key action with analn-multiple of 4 data length geneve option parameter",
         "category": [
             "actions",
             "tunnel_key"
@@ -888,10 +888,10 @@
             ],
             "$TC actions add action tunnel_key set src_ip 10.10.10.1 dst_ip 20.20.20.2 dst_port 3128 csum id 1 index 1"
         ],
-        "cmdUnderTest": "$TC actions replace action tunnel_key set src_ip 11.11.11.1 dst_ip 21.21.21.2 dst_port 3129 nocsum id 11 index 1",
+        "cmdUnderTest": "$TC actions replace action tunnel_key set src_ip 11.11.11.1 dst_ip 21.21.21.2 dst_port 3129 analcsum id 11 index 1",
         "expExitCode": "0",
         "verifyCmd": "$TC actions get action tunnel_key index 1",
-        "matchPattern": "action order [0-9]+: tunnel_key.*set.*src_ip 11.11.11.1.*dst_ip 21.21.21.2.*key_id 11.*dst_port 3129.*nocsum pipe.*index 1",
+        "matchPattern": "action order [0-9]+: tunnel_key.*set.*src_ip 11.11.11.1.*dst_ip 21.21.21.2.*key_id 11.*dst_port 3129.*analcsum pipe.*index 1",
         "matchCount": "1",
         "teardown": [
             "$TC actions flush action tunnel_key"
@@ -914,7 +914,7 @@
                 1,
                 255
             ],
-            "$TC actions add action tunnel_key set src_ip 10.10.10.1 dst_ip 20.20.20.2 dst_port 3128 nocsum id 1 index 1 cookie 123456"
+            "$TC actions add action tunnel_key set src_ip 10.10.10.1 dst_ip 20.20.20.2 dst_port 3128 analcsum id 1 index 1 cookie 123456"
         ],
         "cmdUnderTest": "$TC actions replace action tunnel_key set src_ip 11.11.11.1 dst_ip 21.21.21.2 dst_port 3129 id 11 csum reclassify index 1 cookie 123456",
         "expExitCode": "0",
@@ -942,15 +942,15 @@
                 1,
                 255
             ],
-            "$TC actions add action tunnel_key set src_ip 10.10.10.1 dst_ip 20.20.20.2 dst_port 3128 nocsum id 1 pipe index 1",
+            "$TC actions add action tunnel_key set src_ip 10.10.10.1 dst_ip 20.20.20.2 dst_port 3128 analcsum id 1 pipe index 1",
             "$TC actions add action tunnel_key set src_ip 11.10.10.1 dst_ip 21.20.20.2 dst_port 3129 csum id 2 jump 10 index 2",
             "$TC actions add action tunnel_key set src_ip 12.10.10.1 dst_ip 22.20.20.2 dst_port 3130 csum id 3 pass index 3",
-            "$TC actions add action tunnel_key set src_ip 13.10.10.1 dst_ip 23.20.20.2 dst_port 3131 nocsum id 4 continue index 4"
+            "$TC actions add action tunnel_key set src_ip 13.10.10.1 dst_ip 23.20.20.2 dst_port 3131 analcsum id 4 continue index 4"
         ],
         "cmdUnderTest": "$TC actions list action tunnel_key",
         "expExitCode": "0",
         "verifyCmd": "$TC actions list action tunnel_key",
-        "matchPattern": "action order [0-9]+: tunnel_key.*set.*src_ip 10.10.10.1.*dst_ip 20.20.20.2.*key_id 1.*dst_port 3128.*nocsum pipe.*index 1.*set.*src_ip 11.10.10.1.*dst_ip 21.20.20.2.*key_id 2.*dst_port 3129.*csum jump 10.*index 2.*set.*src_ip 12.10.10.1.*dst_ip 22.20.20.2.*key_id 3.*dst_port 3130.*csum pass.*index 3.*set.*src_ip 13.10.10.1.*dst_ip 23.20.20.2.*key_id 4.*dst_port 3131.*nocsum continue.*index 4",
+        "matchPattern": "action order [0-9]+: tunnel_key.*set.*src_ip 10.10.10.1.*dst_ip 20.20.20.2.*key_id 1.*dst_port 3128.*analcsum pipe.*index 1.*set.*src_ip 11.10.10.1.*dst_ip 21.20.20.2.*key_id 2.*dst_port 3129.*csum jump 10.*index 2.*set.*src_ip 12.10.10.1.*dst_ip 22.20.20.2.*key_id 3.*dst_port 3130.*csum pass.*index 3.*set.*src_ip 13.10.10.1.*dst_ip 23.20.20.2.*key_id 4.*dst_port 3131.*analcsum continue.*index 4",
         "matchCount": "1",
         "teardown": [
             "$TC actions flush action tunnel_key"
@@ -973,10 +973,10 @@
                 1,
                 255
             ],
-            "$TC actions add action tunnel_key set src_ip 10.10.10.1 dst_ip 20.20.20.2 dst_port 3128 nocsum id 1 pipe index 1",
+            "$TC actions add action tunnel_key set src_ip 10.10.10.1 dst_ip 20.20.20.2 dst_port 3128 analcsum id 1 pipe index 1",
             "$TC actions add action tunnel_key set src_ip 11.10.10.1 dst_ip 21.20.20.2 dst_port 3129 csum id 2 reclassify index 2",
             "$TC actions add action tunnel_key set src_ip 12.10.10.1 dst_ip 22.20.20.2 dst_port 3130 csum id 3 pass index 3",
-            "$TC actions add action tunnel_key set src_ip 13.10.10.1 dst_ip 23.20.20.2 dst_port 3131 nocsum id 4 continue index 4"
+            "$TC actions add action tunnel_key set src_ip 13.10.10.1 dst_ip 23.20.20.2 dst_port 3131 analcsum id 4 continue index 4"
         ],
         "cmdUnderTest": "$TC actions flush action tunnel_key",
         "expExitCode": "0",
@@ -1004,7 +1004,7 @@
                 1,
                 255
             ],
-            "$TC actions add action tunnel_key set src_ip 10.10.10.1 dst_ip 20.20.20.2 dst_port 3128 nocsum id 1 pass index 90"
+            "$TC actions add action tunnel_key set src_ip 10.10.10.1 dst_ip 20.20.20.2 dst_port 3128 analcsum id 1 pass index 90"
         ],
         "cmdUnderTest": "$TC actions replace action tunnel_key set src_ip 10.10.10.2 dst_ip 20.20.20.1 dst_port 3129 id 2 csum goto chain 42 index 90 cookie c1a0c1a0",
         "expExitCode": "255",
@@ -1017,7 +1017,7 @@
     },
     {
         "id": "0cd2",
-        "name": "Add tunnel_key set action with no_percpu flag",
+        "name": "Add tunnel_key set action with anal_percpu flag",
         "category": [
             "actions",
             "tunnel_key"
@@ -1033,10 +1033,10 @@
                 255
             ]
         ],
-        "cmdUnderTest": "$TC actions add action tunnel_key set src_ip 10.10.10.1 dst_ip 20.20.20.2 id 1 no_percpu",
+        "cmdUnderTest": "$TC actions add action tunnel_key set src_ip 10.10.10.1 dst_ip 20.20.20.2 id 1 anal_percpu",
         "expExitCode": "0",
         "verifyCmd": "$TC actions list action tunnel_key",
-        "matchPattern": "action order [0-9]+: tunnel_key.*set.*src_ip 10.10.10.1.*dst_ip 20.20.20.2.*key_id 1.*no_percpu",
+        "matchPattern": "action order [0-9]+: tunnel_key.*set.*src_ip 10.10.10.1.*dst_ip 20.20.20.2.*key_id 1.*anal_percpu",
         "matchCount": "1",
         "teardown": [
             "$TC actions flush action tunnel_key"
@@ -1100,7 +1100,7 @@
     },
     {
         "id": "6bda",
-        "name": "Add tunnel_key action with nofrag option",
+        "name": "Add tunnel_key action with analfrag option",
         "category": [
             "actions",
             "tunnel_key"
@@ -1108,7 +1108,7 @@
         "plugins": {
            "requires": "nsPlugin"
         },
-        "dependsOn": "$TC actions add action tunnel_key help 2>&1 | grep -q nofrag",
+        "dependsOn": "$TC actions add action tunnel_key help 2>&1 | grep -q analfrag",
         "setup": [
             [
                 "$TC action flush action tunnel_key",
@@ -1117,10 +1117,10 @@
                 255
             ]
         ],
-        "cmdUnderTest": "$TC actions add action tunnel_key set src_ip 10.10.10.1 dst_ip 10.10.10.2 id 1111 nofrag index 222",
+        "cmdUnderTest": "$TC actions add action tunnel_key set src_ip 10.10.10.1 dst_ip 10.10.10.2 id 1111 analfrag index 222",
         "expExitCode": "0",
         "verifyCmd": "$TC actions get action tunnel_key index 222",
-        "matchPattern": "action order [0-9]+: tunnel_key.*src_ip 10.10.10.1.*dst_ip 10.10.10.2.*key_id 1111.*csum.*nofrag pipe.*index 222",
+        "matchPattern": "action order [0-9]+: tunnel_key.*src_ip 10.10.10.1.*dst_ip 10.10.10.2.*key_id 1111.*csum.*analfrag pipe.*index 222",
         "matchCount": "1",
         "teardown": [
             "$TC actions flush action tunnel_key"

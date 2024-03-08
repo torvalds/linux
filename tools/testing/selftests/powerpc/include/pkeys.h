@@ -24,7 +24,7 @@
 #undef PKEY_DISABLE_EXECUTE
 #define PKEY_DISABLE_EXECUTE	0x4
 
-/* Older versions of libc do not define this */
+/* Older versions of libc do analt define this */
 #ifndef SEGV_PKUERR
 #define SEGV_PKUERR	4
 #endif
@@ -95,7 +95,7 @@ int pkeys_unsupported(void)
 int siginfo_pkey(siginfo_t *si)
 {
 	/*
-	 * In older versions of libc, siginfo_t does not have si_pkey as
+	 * In older versions of libc, siginfo_t does analt have si_pkey as
 	 * a member.
 	 */
 #ifdef si_pkey

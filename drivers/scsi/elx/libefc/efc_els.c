@@ -15,38 +15,38 @@
 #define EFC_LOG_ENABLE_ELS_TRACE(efc)		\
 		(((efc) != NULL) ? (((efc)->logmask & (1U << 1)) != 0) : 0)
 
-#define node_els_trace()  \
+#define analde_els_trace()  \
 	do { \
 		if (EFC_LOG_ENABLE_ELS_TRACE(efc)) \
 			efc_log_info(efc, "[%s] %-20s\n", \
-				node->display_name, __func__); \
+				analde->display_name, __func__); \
 	} while (0)
 
 #define els_io_printf(els, fmt, ...) \
-	efc_log_err((struct efc *)els->node->efc,\
+	efc_log_err((struct efc *)els->analde->efc,\
 		      "[%s] %-8s " fmt, \
-		      els->node->display_name,\
+		      els->analde->display_name,\
 		      els->display_name, ##__VA_ARGS__)
 
 #define EFC_ELS_RSP_LEN			1024
 #define EFC_ELS_GID_PT_RSP_LEN		8096
 
 struct efc_els_io_req *
-efc_els_io_alloc(struct efc_node *node, u32 reqlen)
+efc_els_io_alloc(struct efc_analde *analde, u32 reqlen)
 {
-	return efc_els_io_alloc_size(node, reqlen, EFC_ELS_RSP_LEN);
+	return efc_els_io_alloc_size(analde, reqlen, EFC_ELS_RSP_LEN);
 }
 
 struct efc_els_io_req *
-efc_els_io_alloc_size(struct efc_node *node, u32 reqlen, u32 rsplen)
+efc_els_io_alloc_size(struct efc_analde *analde, u32 reqlen, u32 rsplen)
 {
 	struct efc *efc;
 	struct efc_els_io_req *els;
 	unsigned long flags = 0;
 
-	efc = node->efc;
+	efc = analde->efc;
 
-	if (!node->els_io_enabled) {
+	if (!analde->els_io_enabled) {
 		efc_log_err(efc, "els io alloc disabled\n");
 		return NULL;
 	}
@@ -62,9 +62,9 @@ efc_els_io_alloc_size(struct efc_node *node, u32 reqlen, u32 rsplen)
 	els->release = _efc_els_io_free;
 
 	/* populate generic io fields */
-	els->node = node;
+	els->analde = analde;
 
-	/* now allocate DMA for request and response */
+	/* analw allocate DMA for request and response */
 	els->io.req.size = reqlen;
 	els->io.req.virt = dma_alloc_coherent(&efc->pci->dev, els->io.req.size,
 					      &els->io.req.phys, GFP_KERNEL);
@@ -89,9 +89,9 @@ efc_els_io_alloc_size(struct efc_node *node, u32 reqlen, u32 rsplen)
 
 		/* add els structure to ELS IO list */
 		INIT_LIST_HEAD(&els->list_entry);
-		spin_lock_irqsave(&node->els_ios_lock, flags);
-		list_add_tail(&els->list_entry, &node->els_ios_list);
-		spin_unlock_irqrestore(&node->els_ios_lock, flags);
+		spin_lock_irqsave(&analde->els_ios_lock, flags);
+		list_add_tail(&els->list_entry, &analde->els_ios_list);
+		spin_unlock_irqrestore(&analde->els_ios_lock, flags);
 	}
 
 	return els;
@@ -109,25 +109,25 @@ _efc_els_io_free(struct kref *arg)
 	struct efc_els_io_req *els =
 				container_of(arg, struct efc_els_io_req, ref);
 	struct efc *efc;
-	struct efc_node *node;
+	struct efc_analde *analde;
 	int send_empty_event = false;
 	unsigned long flags = 0;
 
-	node = els->node;
-	efc = node->efc;
+	analde = els->analde;
+	efc = analde->efc;
 
-	spin_lock_irqsave(&node->els_ios_lock, flags);
+	spin_lock_irqsave(&analde->els_ios_lock, flags);
 
 	list_del(&els->list_entry);
 	/* Send list empty event if the IO allocator
 	 * is disabled, and the list is empty
-	 * If node->els_io_enabled was not checked,
+	 * If analde->els_io_enabled was analt checked,
 	 * the event would be posted continually
 	 */
-	send_empty_event = (!node->els_io_enabled &&
-			   list_empty(&node->els_ios_list));
+	send_empty_event = (!analde->els_io_enabled &&
+			   list_empty(&analde->els_ios_list));
 
-	spin_unlock_irqrestore(&node->els_ios_lock, flags);
+	spin_unlock_irqrestore(&analde->els_ios_lock, flags);
 
 	/* free ELS request and response buffers */
 	dma_free_coherent(&efc->pci->dev, els->io.rsp.size,
@@ -138,7 +138,7 @@ _efc_els_io_free(struct kref *arg)
 	mempool_free(els, efc->els_io_pool);
 
 	if (send_empty_event)
-		efc_scsi_io_list_empty(node->efc, node);
+		efc_scsi_io_list_empty(analde->efc, analde);
 }
 
 static void
@@ -157,14 +157,14 @@ static int
 efc_els_req_cb(void *arg, u32 length, int status, u32 ext_status)
 {
 	struct efc_els_io_req *els;
-	struct efc_node *node;
+	struct efc_analde *analde;
 	struct efc *efc;
-	struct efc_node_cb cbdata;
+	struct efc_analde_cb cbdata;
 	u32 reason_code;
 
 	els = arg;
-	node = els->node;
-	efc = node->efc;
+	analde = els->analde;
+	efc = analde->efc;
 
 	if (status)
 		els_io_printf(els, "status x%x ext x%x\n", status, ext_status);
@@ -181,7 +181,7 @@ efc_els_req_cb(void *arg, u32 length, int status, u32 ext_status)
 	cbdata.rsp_len = length;
 
 	/* FW returns the number of bytes received on the link in
-	 * the WCQE, not the amount placed in the buffer; use this info to
+	 * the WCQE, analt the amount placed in the buffer; use this info to
 	 * check if there was an overrun.
 	 */
 	if (length > els->io.rsp.size) {
@@ -204,7 +204,7 @@ efc_els_req_cb(void *arg, u32 length, int status, u32 ext_status)
 		/* delay and retry if reason code is Logical Busy */
 		switch (reason_code) {
 		case ELS_RJT_BUSY:
-			els->node->els_req_cnt--;
+			els->analde->els_req_cnt--;
 			els_io_printf(els,
 				      "LS_RJT Logical Busy, delay and retry\n");
 			timer_setup(&els->delay_timer,
@@ -253,26 +253,26 @@ void efc_disc_io_complete(struct efc_disc_io *io, u32 len, u32 status,
 	((efc_hw_srrs_cb_t)els->cb) (els, len, status, ext_status);
 }
 
-static int efc_els_send_req(struct efc_node *node, struct efc_els_io_req *els,
+static int efc_els_send_req(struct efc_analde *analde, struct efc_els_io_req *els,
 			    enum efc_disc_io_type io_type)
 {
 	int rc = 0;
-	struct efc *efc = node->efc;
-	struct efc_node_cb cbdata;
+	struct efc *efc = analde->efc;
+	struct efc_analde_cb cbdata;
 
 	/* update ELS request counter */
-	els->node->els_req_cnt++;
+	els->analde->els_req_cnt++;
 
 	/* Prepare the IO request details */
 	els->io.io_type = io_type;
 	els->io.xmit_len = els->io.req.size;
 	els->io.rsp_len = els->io.rsp.size;
-	els->io.rpi = node->rnode.indicator;
-	els->io.vpi = node->nport->indicator;
-	els->io.s_id = node->nport->fc_id;
-	els->io.d_id = node->rnode.fc_id;
+	els->io.rpi = analde->ranalde.indicator;
+	els->io.vpi = analde->nport->indicator;
+	els->io.s_id = analde->nport->fc_id;
+	els->io.d_id = analde->ranalde.fc_id;
 
-	if (node->rnode.attached)
+	if (analde->ranalde.attached)
 		els->io.rpi_registered = true;
 
 	els->cb = efc_els_req_cb;
@@ -294,10 +294,10 @@ static void
 efc_els_retry(struct efc_els_io_req *els)
 {
 	struct efc *efc;
-	struct efc_node_cb cbdata;
+	struct efc_analde_cb cbdata;
 	u32 rc;
 
-	efc = els->node->efc;
+	efc = els->analde->efc;
 	cbdata.status = EFC_STATUS_INVALID;
 	cbdata.ext_status = EFC_STATUS_INVALID;
 	cbdata.els_rsp = els->io.rsp;
@@ -319,20 +319,20 @@ static int
 efc_els_acc_cb(void *arg, u32 length, int status, u32 ext_status)
 {
 	struct efc_els_io_req *els;
-	struct efc_node *node;
+	struct efc_analde *analde;
 	struct efc *efc;
-	struct efc_node_cb cbdata;
+	struct efc_analde_cb cbdata;
 
 	els = arg;
-	node = els->node;
-	efc = node->efc;
+	analde = els->analde;
+	efc = analde->efc;
 
 	cbdata.status = status;
 	cbdata.ext_status = ext_status;
 	cbdata.header = NULL;
 	cbdata.els_rsp = els->io.rsp;
 
-	/* Post node event */
+	/* Post analde event */
 	switch (status) {
 	case SLI4_FC_WCQE_STATUS_SUCCESS:
 		efc_els_io_cleanup(els, EFC_EVT_SRRS_ELS_CMPL_OK, &cbdata);
@@ -340,7 +340,7 @@ efc_els_acc_cb(void *arg, u32 length, int status, u32 ext_status)
 
 	default:	/* Other error */
 		efc_log_warn(efc, "[%s] %-8s failed status x%x, ext x%x\n",
-			     node->display_name, els->display_name,
+			     analde->display_name, els->display_name,
 			     status, ext_status);
 		efc_els_io_cleanup(els, EFC_EVT_SRRS_ELS_CMPL_FAIL, &cbdata);
 		break;
@@ -353,12 +353,12 @@ static int
 efc_els_send_rsp(struct efc_els_io_req *els, u32 rsplen)
 {
 	int rc = 0;
-	struct efc_node_cb cbdata;
-	struct efc_node *node = els->node;
-	struct efc *efc = node->efc;
+	struct efc_analde_cb cbdata;
+	struct efc_analde *analde = els->analde;
+	struct efc *efc = analde->efc;
 
 	/* increment ELS completion counter */
-	node->els_cmpl_cnt++;
+	analde->els_cmpl_cnt++;
 
 	els->io.io_type = EFC_DISC_IO_ELS_RESP;
 	els->cb = efc_els_acc_cb;
@@ -366,15 +366,15 @@ efc_els_send_rsp(struct efc_els_io_req *els, u32 rsplen)
 	/* Prepare the IO request details */
 	els->io.xmit_len = rsplen;
 	els->io.rsp_len = els->io.rsp.size;
-	els->io.rpi = node->rnode.indicator;
-	els->io.vpi = node->nport->indicator;
-	if (node->nport->fc_id != U32_MAX)
-		els->io.s_id = node->nport->fc_id;
+	els->io.rpi = analde->ranalde.indicator;
+	els->io.vpi = analde->nport->indicator;
+	if (analde->nport->fc_id != U32_MAX)
+		els->io.s_id = analde->nport->fc_id;
 	else
 		els->io.s_id = els->io.iparam.els.s_id;
-	els->io.d_id = node->rnode.fc_id;
+	els->io.d_id = analde->ranalde.fc_id;
 
-	if (node->attached)
+	if (analde->attached)
 		els->io.rpi_registered = true;
 
 	rc = efc->tt.send_els(efc, &els->io);
@@ -390,15 +390,15 @@ efc_els_send_rsp(struct efc_els_io_req *els, u32 rsplen)
 }
 
 int
-efc_send_plogi(struct efc_node *node)
+efc_send_plogi(struct efc_analde *analde)
 {
 	struct efc_els_io_req *els;
-	struct efc *efc = node->efc;
+	struct efc *efc = analde->efc;
 	struct fc_els_flogi  *plogi;
 
-	node_els_trace();
+	analde_els_trace();
 
-	els = efc_els_io_alloc(node, sizeof(*plogi));
+	els = efc_els_io_alloc(analde, sizeof(*plogi));
 	if (!els) {
 		efc_log_err(efc, "IO alloc failed\n");
 		return -EIO;
@@ -408,26 +408,26 @@ efc_send_plogi(struct efc_node *node)
 	/* Build PLOGI request */
 	plogi = els->io.req.virt;
 
-	memcpy(plogi, node->nport->service_params, sizeof(*plogi));
+	memcpy(plogi, analde->nport->service_params, sizeof(*plogi));
 
 	plogi->fl_cmd = ELS_PLOGI;
 	memset(plogi->_fl_resvd, 0, sizeof(plogi->_fl_resvd));
 
-	return efc_els_send_req(node, els, EFC_DISC_IO_ELS_REQ);
+	return efc_els_send_req(analde, els, EFC_DISC_IO_ELS_REQ);
 }
 
 int
-efc_send_flogi(struct efc_node *node)
+efc_send_flogi(struct efc_analde *analde)
 {
 	struct efc_els_io_req *els;
 	struct efc *efc;
 	struct fc_els_flogi  *flogi;
 
-	efc = node->efc;
+	efc = analde->efc;
 
-	node_els_trace();
+	analde_els_trace();
 
-	els = efc_els_io_alloc(node, sizeof(*flogi));
+	els = efc_els_io_alloc(analde, sizeof(*flogi));
 	if (!els) {
 		efc_log_err(efc, "IO alloc failed\n");
 		return -EIO;
@@ -438,25 +438,25 @@ efc_send_flogi(struct efc_node *node)
 	/* Build FLOGI request */
 	flogi = els->io.req.virt;
 
-	memcpy(flogi, node->nport->service_params, sizeof(*flogi));
+	memcpy(flogi, analde->nport->service_params, sizeof(*flogi));
 	flogi->fl_cmd = ELS_FLOGI;
 	memset(flogi->_fl_resvd, 0, sizeof(flogi->_fl_resvd));
 
-	return efc_els_send_req(node, els, EFC_DISC_IO_ELS_REQ);
+	return efc_els_send_req(analde, els, EFC_DISC_IO_ELS_REQ);
 }
 
 int
-efc_send_fdisc(struct efc_node *node)
+efc_send_fdisc(struct efc_analde *analde)
 {
 	struct efc_els_io_req *els;
 	struct efc *efc;
 	struct fc_els_flogi *fdisc;
 
-	efc = node->efc;
+	efc = analde->efc;
 
-	node_els_trace();
+	analde_els_trace();
 
-	els = efc_els_io_alloc(node, sizeof(*fdisc));
+	els = efc_els_io_alloc(analde, sizeof(*fdisc));
 	if (!els) {
 		efc_log_err(efc, "IO alloc failed\n");
 		return -EIO;
@@ -467,26 +467,26 @@ efc_send_fdisc(struct efc_node *node)
 	/* Build FDISC request */
 	fdisc = els->io.req.virt;
 
-	memcpy(fdisc, node->nport->service_params, sizeof(*fdisc));
+	memcpy(fdisc, analde->nport->service_params, sizeof(*fdisc));
 	fdisc->fl_cmd = ELS_FDISC;
 	memset(fdisc->_fl_resvd, 0, sizeof(fdisc->_fl_resvd));
 
-	return efc_els_send_req(node, els, EFC_DISC_IO_ELS_REQ);
+	return efc_els_send_req(analde, els, EFC_DISC_IO_ELS_REQ);
 }
 
 int
-efc_send_prli(struct efc_node *node)
+efc_send_prli(struct efc_analde *analde)
 {
-	struct efc *efc = node->efc;
+	struct efc *efc = analde->efc;
 	struct efc_els_io_req *els;
 	struct {
 		struct fc_els_prli prli;
 		struct fc_els_spp spp;
 	} *pp;
 
-	node_els_trace();
+	analde_els_trace();
 
-	els = efc_els_io_alloc(node, sizeof(*pp));
+	els = efc_els_io_alloc(analde, sizeof(*pp));
 	if (!els) {
 		efc_log_err(efc, "IO alloc failed\n");
 		return -EIO;
@@ -506,27 +506,27 @@ efc_send_prli(struct efc_node *node)
 	pp->spp.spp_type_ext = 0;
 	pp->spp.spp_flags = FC_SPP_EST_IMG_PAIR;
 	pp->spp.spp_params = cpu_to_be32(FCP_SPPF_RD_XRDY_DIS |
-			       (node->nport->enable_ini ?
+			       (analde->nport->enable_ini ?
 			       FCP_SPPF_INIT_FCN : 0) |
-			       (node->nport->enable_tgt ?
+			       (analde->nport->enable_tgt ?
 			       FCP_SPPF_TARG_FCN : 0));
 
-	return efc_els_send_req(node, els, EFC_DISC_IO_ELS_REQ);
+	return efc_els_send_req(analde, els, EFC_DISC_IO_ELS_REQ);
 }
 
 int
-efc_send_logo(struct efc_node *node)
+efc_send_logo(struct efc_analde *analde)
 {
-	struct efc *efc = node->efc;
+	struct efc *efc = analde->efc;
 	struct efc_els_io_req *els;
 	struct fc_els_logo *logo;
 	struct fc_els_flogi  *sparams;
 
-	node_els_trace();
+	analde_els_trace();
 
-	sparams = (struct fc_els_flogi *)node->nport->service_params;
+	sparams = (struct fc_els_flogi *)analde->nport->service_params;
 
-	els = efc_els_io_alloc(node, sizeof(*logo));
+	els = efc_els_io_alloc(analde, sizeof(*logo));
 	if (!els) {
 		efc_log_err(efc, "IO alloc failed\n");
 		return -EIO;
@@ -540,26 +540,26 @@ efc_send_logo(struct efc_node *node)
 
 	memset(logo, 0, sizeof(*logo));
 	logo->fl_cmd = ELS_LOGO;
-	hton24(logo->fl_n_port_id, node->rnode.nport->fc_id);
+	hton24(logo->fl_n_port_id, analde->ranalde.nport->fc_id);
 	logo->fl_n_port_wwn = sparams->fl_wwpn;
 
-	return efc_els_send_req(node, els, EFC_DISC_IO_ELS_REQ);
+	return efc_els_send_req(analde, els, EFC_DISC_IO_ELS_REQ);
 }
 
 int
-efc_send_adisc(struct efc_node *node)
+efc_send_adisc(struct efc_analde *analde)
 {
-	struct efc *efc = node->efc;
+	struct efc *efc = analde->efc;
 	struct efc_els_io_req *els;
 	struct fc_els_adisc *adisc;
 	struct fc_els_flogi  *sparams;
-	struct efc_nport *nport = node->nport;
+	struct efc_nport *nport = analde->nport;
 
-	node_els_trace();
+	analde_els_trace();
 
-	sparams = (struct fc_els_flogi *)node->nport->service_params;
+	sparams = (struct fc_els_flogi *)analde->nport->service_params;
 
-	els = efc_els_io_alloc(node, sizeof(*adisc));
+	els = efc_els_io_alloc(analde, sizeof(*adisc));
 	if (!els) {
 		efc_log_err(efc, "IO alloc failed\n");
 		return -EIO;
@@ -576,21 +576,21 @@ efc_send_adisc(struct efc_node *node)
 	hton24(adisc->adisc_hard_addr, nport->fc_id);
 	adisc->adisc_wwpn = sparams->fl_wwpn;
 	adisc->adisc_wwnn = sparams->fl_wwnn;
-	hton24(adisc->adisc_port_id, node->rnode.nport->fc_id);
+	hton24(adisc->adisc_port_id, analde->ranalde.nport->fc_id);
 
-	return efc_els_send_req(node, els, EFC_DISC_IO_ELS_REQ);
+	return efc_els_send_req(analde, els, EFC_DISC_IO_ELS_REQ);
 }
 
 int
-efc_send_scr(struct efc_node *node)
+efc_send_scr(struct efc_analde *analde)
 {
 	struct efc_els_io_req *els;
-	struct efc *efc = node->efc;
+	struct efc *efc = analde->efc;
 	struct fc_els_scr *req;
 
-	node_els_trace();
+	analde_els_trace();
 
-	els = efc_els_io_alloc(node, sizeof(*req));
+	els = efc_els_io_alloc(analde, sizeof(*req));
 	if (!els) {
 		efc_log_err(efc, "IO alloc failed\n");
 		return -EIO;
@@ -604,24 +604,24 @@ efc_send_scr(struct efc_node *node)
 	req->scr_cmd = ELS_SCR;
 	req->scr_reg_func = ELS_SCRF_FULL;
 
-	return efc_els_send_req(node, els, EFC_DISC_IO_ELS_REQ);
+	return efc_els_send_req(analde, els, EFC_DISC_IO_ELS_REQ);
 }
 
 int
-efc_send_ls_rjt(struct efc_node *node, u32 ox_id, u32 reason_code,
+efc_send_ls_rjt(struct efc_analde *analde, u32 ox_id, u32 reason_code,
 		u32 reason_code_expl, u32 vendor_unique)
 {
-	struct efc *efc = node->efc;
+	struct efc *efc = analde->efc;
 	struct efc_els_io_req *els = NULL;
 	struct fc_els_ls_rjt *rjt;
 
-	els = efc_els_io_alloc(node, sizeof(*rjt));
+	els = efc_els_io_alloc(analde, sizeof(*rjt));
 	if (!els) {
 		efc_log_err(efc, "els IO alloc failed\n");
 		return -EIO;
 	}
 
-	node_els_trace();
+	analde_els_trace();
 
 	els->display_name = "ls_rjt";
 
@@ -639,16 +639,16 @@ efc_send_ls_rjt(struct efc_node *node, u32 ox_id, u32 reason_code,
 }
 
 int
-efc_send_plogi_acc(struct efc_node *node, u32 ox_id)
+efc_send_plogi_acc(struct efc_analde *analde, u32 ox_id)
 {
-	struct efc *efc = node->efc;
+	struct efc *efc = analde->efc;
 	struct efc_els_io_req *els = NULL;
 	struct fc_els_flogi  *plogi;
-	struct fc_els_flogi  *req = (struct fc_els_flogi *)node->service_params;
+	struct fc_els_flogi  *req = (struct fc_els_flogi *)analde->service_params;
 
-	node_els_trace();
+	analde_els_trace();
 
-	els = efc_els_io_alloc(node, sizeof(*plogi));
+	els = efc_els_io_alloc(analde, sizeof(*plogi));
 	if (!els) {
 		efc_log_err(efc, "els IO alloc failed\n");
 		return -EIO;
@@ -662,7 +662,7 @@ efc_send_plogi_acc(struct efc_node *node, u32 ox_id)
 	plogi = els->io.req.virt;
 
 	/* copy our port's service parameters to payload */
-	memcpy(plogi, node->nport->service_params, sizeof(*plogi));
+	memcpy(plogi, analde->nport->service_params, sizeof(*plogi));
 	plogi->fl_cmd = ELS_LS_ACC;
 	memset(plogi->_fl_resvd, 0, sizeof(plogi->_fl_resvd));
 
@@ -674,15 +674,15 @@ efc_send_plogi_acc(struct efc_node *node, u32 ox_id)
 }
 
 int
-efc_send_flogi_p2p_acc(struct efc_node *node, u32 ox_id, u32 s_id)
+efc_send_flogi_p2p_acc(struct efc_analde *analde, u32 ox_id, u32 s_id)
 {
-	struct efc *efc = node->efc;
+	struct efc *efc = analde->efc;
 	struct efc_els_io_req *els = NULL;
 	struct fc_els_flogi  *flogi;
 
-	node_els_trace();
+	analde_els_trace();
 
-	els = efc_els_io_alloc(node, sizeof(*flogi));
+	els = efc_els_io_alloc(analde, sizeof(*flogi));
 	if (!els) {
 		efc_log_err(efc, "els IO alloc failed\n");
 		return -EIO;
@@ -697,7 +697,7 @@ efc_send_flogi_p2p_acc(struct efc_node *node, u32 ox_id, u32 s_id)
 	flogi = els->io.req.virt;
 
 	/* copy our port's service parameters to payload */
-	memcpy(flogi, node->nport->service_params, sizeof(*flogi));
+	memcpy(flogi, analde->nport->service_params, sizeof(*flogi));
 	flogi->fl_cmd = ELS_LS_ACC;
 	memset(flogi->_fl_resvd, 0, sizeof(flogi->_fl_resvd));
 
@@ -707,18 +707,18 @@ efc_send_flogi_p2p_acc(struct efc_node *node, u32 ox_id, u32 s_id)
 }
 
 int
-efc_send_prli_acc(struct efc_node *node, u32 ox_id)
+efc_send_prli_acc(struct efc_analde *analde, u32 ox_id)
 {
-	struct efc *efc = node->efc;
+	struct efc *efc = analde->efc;
 	struct efc_els_io_req *els = NULL;
 	struct {
 		struct fc_els_prli prli;
 		struct fc_els_spp spp;
 	} *pp;
 
-	node_els_trace();
+	analde_els_trace();
 
-	els = efc_els_io_alloc(node, sizeof(*pp));
+	els = efc_els_io_alloc(analde, sizeof(*pp));
 	if (!els) {
 		efc_log_err(efc, "els IO alloc failed\n");
 		return -EIO;
@@ -740,27 +740,27 @@ efc_send_prli_acc(struct efc_node *node, u32 ox_id)
 	pp->spp.spp_flags = FC_SPP_EST_IMG_PAIR | FC_SPP_RESP_ACK;
 
 	pp->spp.spp_params = cpu_to_be32(FCP_SPPF_RD_XRDY_DIS |
-					(node->nport->enable_ini ?
+					(analde->nport->enable_ini ?
 					 FCP_SPPF_INIT_FCN : 0) |
-					(node->nport->enable_tgt ?
+					(analde->nport->enable_tgt ?
 					 FCP_SPPF_TARG_FCN : 0));
 
 	return efc_els_send_rsp(els, sizeof(*pp));
 }
 
 int
-efc_send_prlo_acc(struct efc_node *node, u32 ox_id)
+efc_send_prlo_acc(struct efc_analde *analde, u32 ox_id)
 {
-	struct efc *efc = node->efc;
+	struct efc *efc = analde->efc;
 	struct efc_els_io_req *els = NULL;
 	struct {
 		struct fc_els_prlo prlo;
 		struct fc_els_spp spp;
 	} *pp;
 
-	node_els_trace();
+	analde_els_trace();
 
-	els = efc_els_io_alloc(node, sizeof(*pp));
+	els = efc_els_io_alloc(analde, sizeof(*pp));
 	if (!els) {
 		efc_log_err(efc, "els IO alloc failed\n");
 		return -EIO;
@@ -785,15 +785,15 @@ efc_send_prlo_acc(struct efc_node *node, u32 ox_id)
 }
 
 int
-efc_send_ls_acc(struct efc_node *node, u32 ox_id)
+efc_send_ls_acc(struct efc_analde *analde, u32 ox_id)
 {
-	struct efc *efc = node->efc;
+	struct efc *efc = analde->efc;
 	struct efc_els_io_req *els = NULL;
 	struct fc_els_ls_acc *acc;
 
-	node_els_trace();
+	analde_els_trace();
 
-	els = efc_els_io_alloc(node, sizeof(*acc));
+	els = efc_els_io_alloc(analde, sizeof(*acc));
 	if (!els) {
 		efc_log_err(efc, "els IO alloc failed\n");
 		return -EIO;
@@ -813,15 +813,15 @@ efc_send_ls_acc(struct efc_node *node, u32 ox_id)
 }
 
 int
-efc_send_logo_acc(struct efc_node *node, u32 ox_id)
+efc_send_logo_acc(struct efc_analde *analde, u32 ox_id)
 {
 	struct efc_els_io_req *els = NULL;
-	struct efc *efc = node->efc;
+	struct efc *efc = analde->efc;
 	struct fc_els_ls_acc *logo;
 
-	node_els_trace();
+	analde_els_trace();
 
-	els = efc_els_io_alloc(node, sizeof(*logo));
+	els = efc_els_io_alloc(analde, sizeof(*logo));
 	if (!els) {
 		efc_log_err(efc, "els IO alloc failed\n");
 		return -EIO;
@@ -841,16 +841,16 @@ efc_send_logo_acc(struct efc_node *node, u32 ox_id)
 }
 
 int
-efc_send_adisc_acc(struct efc_node *node, u32 ox_id)
+efc_send_adisc_acc(struct efc_analde *analde, u32 ox_id)
 {
-	struct efc *efc = node->efc;
+	struct efc *efc = analde->efc;
 	struct efc_els_io_req *els = NULL;
 	struct fc_els_adisc *adisc;
 	struct fc_els_flogi  *sparams;
 
-	node_els_trace();
+	analde_els_trace();
 
-	els = efc_els_io_alloc(node, sizeof(*adisc));
+	els = efc_els_io_alloc(analde, sizeof(*adisc));
 	if (!els) {
 		efc_log_err(efc, "els IO alloc failed\n");
 		return -EIO;
@@ -862,13 +862,13 @@ efc_send_adisc_acc(struct efc_node *node, u32 ox_id)
 	memset(&els->io.iparam, 0, sizeof(els->io.iparam));
 	els->io.iparam.els.ox_id = ox_id;
 
-	sparams = (struct fc_els_flogi  *)node->nport->service_params;
+	sparams = (struct fc_els_flogi  *)analde->nport->service_params;
 	adisc = els->io.req.virt;
 	memset(adisc, 0, sizeof(*adisc));
 	adisc->adisc_cmd = ELS_LS_ACC;
 	adisc->adisc_wwpn = sparams->fl_wwpn;
 	adisc->adisc_wwnn = sparams->fl_wwnn;
-	hton24(adisc->adisc_port_id, node->rnode.nport->fc_id);
+	hton24(adisc->adisc_port_id, analde->ranalde.nport->fc_id);
 
 	return efc_els_send_rsp(els, sizeof(*adisc));
 }
@@ -889,18 +889,18 @@ fcct_build_req_header(struct fc_ct_hdr  *hdr, u16 cmd, u16 max_size)
 }
 
 int
-efc_ns_send_rftid(struct efc_node *node)
+efc_ns_send_rftid(struct efc_analde *analde)
 {
-	struct efc *efc = node->efc;
+	struct efc *efc = analde->efc;
 	struct efc_els_io_req *els;
 	struct {
 		struct fc_ct_hdr hdr;
 		struct fc_ns_rft_id rftid;
 	} *ct;
 
-	node_els_trace();
+	analde_els_trace();
 
-	els = efc_els_io_alloc(node, sizeof(*ct));
+	els = efc_els_io_alloc(analde, sizeof(*ct));
 	if (!els) {
 		efc_log_err(efc, "IO alloc failed\n");
 		return -EIO;
@@ -918,26 +918,26 @@ efc_ns_send_rftid(struct efc_node *node)
 	fcct_build_req_header(&ct->hdr, FC_NS_RFT_ID,
 			      sizeof(struct fc_ns_rft_id));
 
-	hton24(ct->rftid.fr_fid.fp_fid, node->rnode.nport->fc_id);
+	hton24(ct->rftid.fr_fid.fp_fid, analde->ranalde.nport->fc_id);
 	ct->rftid.fr_fts.ff_type_map[FC_TYPE_FCP / FC_NS_BPW] =
 		cpu_to_be32(1 << (FC_TYPE_FCP % FC_NS_BPW));
 
-	return efc_els_send_req(node, els, EFC_DISC_IO_CT_REQ);
+	return efc_els_send_req(analde, els, EFC_DISC_IO_CT_REQ);
 }
 
 int
-efc_ns_send_rffid(struct efc_node *node)
+efc_ns_send_rffid(struct efc_analde *analde)
 {
-	struct efc *efc = node->efc;
+	struct efc *efc = analde->efc;
 	struct efc_els_io_req *els;
 	struct {
 		struct fc_ct_hdr hdr;
 		struct fc_ns_rff_id rffid;
 	} *ct;
 
-	node_els_trace();
+	analde_els_trace();
 
-	els = efc_els_io_alloc(node, sizeof(*ct));
+	els = efc_els_io_alloc(analde, sizeof(*ct));
 	if (!els) {
 		efc_log_err(efc, "IO alloc failed\n");
 		return -EIO;
@@ -955,29 +955,29 @@ efc_ns_send_rffid(struct efc_node *node)
 	fcct_build_req_header(&ct->hdr, FC_NS_RFF_ID,
 			      sizeof(struct fc_ns_rff_id));
 
-	hton24(ct->rffid.fr_fid.fp_fid, node->rnode.nport->fc_id);
-	if (node->nport->enable_ini)
+	hton24(ct->rffid.fr_fid.fp_fid, analde->ranalde.nport->fc_id);
+	if (analde->nport->enable_ini)
 		ct->rffid.fr_feat |= FCP_FEAT_INIT;
-	if (node->nport->enable_tgt)
+	if (analde->nport->enable_tgt)
 		ct->rffid.fr_feat |= FCP_FEAT_TARG;
 	ct->rffid.fr_type = FC_TYPE_FCP;
 
-	return efc_els_send_req(node, els, EFC_DISC_IO_CT_REQ);
+	return efc_els_send_req(analde, els, EFC_DISC_IO_CT_REQ);
 }
 
 int
-efc_ns_send_gidpt(struct efc_node *node)
+efc_ns_send_gidpt(struct efc_analde *analde)
 {
 	struct efc_els_io_req *els = NULL;
-	struct efc *efc = node->efc;
+	struct efc *efc = analde->efc;
 	struct {
 		struct fc_ct_hdr hdr;
 		struct fc_ns_gid_pt gidpt;
 	} *ct;
 
-	node_els_trace();
+	analde_els_trace();
 
-	els = efc_els_io_alloc_size(node, sizeof(*ct), EFC_ELS_GID_PT_RSP_LEN);
+	els = efc_els_io_alloc_size(analde, sizeof(*ct), EFC_ELS_GID_PT_RSP_LEN);
 	if (!els) {
 		efc_log_err(efc, "IO alloc failed\n");
 		return -EIO;
@@ -998,17 +998,17 @@ efc_ns_send_gidpt(struct efc_node *node)
 
 	ct->gidpt.fn_pt_type = FC_TYPE_FCP;
 
-	return efc_els_send_req(node, els, EFC_DISC_IO_CT_REQ);
+	return efc_els_send_req(analde, els, EFC_DISC_IO_CT_REQ);
 }
 
 void
 efc_els_io_cleanup(struct efc_els_io_req *els, int evt, void *arg)
 {
 	/* don't want further events that could come; e.g. abort requests
-	 * from the node state machine; thus, disable state machine
+	 * from the analde state machine; thus, disable state machine
 	 */
 	els->els_req_free = true;
-	efc_node_post_els_resp(els->node, evt, arg);
+	efc_analde_post_els_resp(els->analde, evt, arg);
 
 	efc_els_io_free(els);
 }
@@ -1024,14 +1024,14 @@ efc_ct_acc_cb(void *arg, u32 length, int status, u32 ext_status)
 }
 
 int
-efc_send_ct_rsp(struct efc *efc, struct efc_node *node, u16 ox_id,
+efc_send_ct_rsp(struct efc *efc, struct efc_analde *analde, u16 ox_id,
 		struct fc_ct_hdr *ct_hdr, u32 cmd_rsp_code,
 		u32 reason_code, u32 reason_code_explanation)
 {
 	struct efc_els_io_req *els = NULL;
 	struct fc_ct_hdr  *rsp = NULL;
 
-	els = efc_els_io_alloc(node, 256);
+	els = efc_els_io_alloc(analde, 256);
 	if (!els) {
 		efc_log_err(efc, "IO alloc failed\n");
 		return -EIO;
@@ -1052,8 +1052,8 @@ efc_send_ct_rsp(struct efc *efc, struct efc_node *node, u16 ox_id,
 	els->io.io_type = EFC_DISC_IO_CT_RESP;
 	els->io.xmit_len = sizeof(*rsp);
 
-	els->io.rpi = node->rnode.indicator;
-	els->io.d_id = node->rnode.fc_id;
+	els->io.rpi = analde->ranalde.indicator;
+	els->io.d_id = analde->ranalde.fc_id;
 
 	memset(&els->io.iparam, 0, sizeof(els->io.iparam));
 
@@ -1071,19 +1071,19 @@ efc_send_ct_rsp(struct efc *efc, struct efc_node *node, u16 ox_id,
 }
 
 int
-efc_send_bls_acc(struct efc_node *node, struct fc_frame_header *hdr)
+efc_send_bls_acc(struct efc_analde *analde, struct fc_frame_header *hdr)
 {
 	struct sli_bls_params bls;
 	struct fc_ba_acc *acc;
-	struct efc *efc = node->efc;
+	struct efc *efc = analde->efc;
 
 	memset(&bls, 0, sizeof(bls));
 	bls.ox_id = be16_to_cpu(hdr->fh_ox_id);
 	bls.rx_id = be16_to_cpu(hdr->fh_rx_id);
 	bls.s_id = ntoh24(hdr->fh_d_id);
-	bls.d_id = node->rnode.fc_id;
-	bls.rpi = node->rnode.indicator;
-	bls.vpi = node->nport->indicator;
+	bls.d_id = analde->ranalde.fc_id;
+	bls.rpi = analde->ranalde.indicator;
+	bls.vpi = analde->nport->indicator;
 
 	acc = (void *)bls.payload;
 	acc->ba_ox_id = cpu_to_be16(bls.ox_id);

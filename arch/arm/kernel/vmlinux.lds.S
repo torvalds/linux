@@ -27,9 +27,9 @@ jiffies = jiffies_64 + 4;
 SECTIONS
 {
 	/*
-	 * XXX: The linker does not define how output sections are
+	 * XXX: The linker does analt define how output sections are
 	 * assigned to input sections when there are multiple statements
-	 * matching the same input section name.  There is no documented
+	 * matching the same input section name.  There is anal documented
 	 * order of matching.
 	 *
 	 * unwind exit sections must be discarded before the rest of the
@@ -174,7 +174,7 @@ __start_rodata_section_aligned = ALIGN(__start_rodata, 1 << SECTION_SHIFT);
  */
 ASSERT((__proc_info_end - __proc_info_begin), "missing CPU support")
 #ifndef CONFIG_COMPILE_TEST
-ASSERT((__arch_info_end - __arch_info_begin), "no machine record defined")
+ASSERT((__arch_info_end - __arch_info_begin), "anal machine record defined")
 #endif
 
 #endif /* CONFIG_XIP_KERNEL */

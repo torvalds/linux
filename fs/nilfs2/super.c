@@ -16,7 +16,7 @@
  *
  *  from
  *
- *  linux/fs/minix/inode.c
+ *  linux/fs/minix/ianalde.c
  *
  *  Copyright (C) 1991, 1992  Linus Torvalds
  *
@@ -41,7 +41,7 @@
 #include "mdt.h"
 #include "alloc.h"
 #include "btree.h"
-#include "btnode.h"
+#include "btanalde.h"
 #include "page.h"
 #include "cpfile.h"
 #include "sufile.h" /* nilfs_sufile_resize(), nilfs_sufile_set_alloc_range() */
@@ -55,7 +55,7 @@ MODULE_DESCRIPTION("A New Implementation of the Log-structured Filesystem "
 		   "(NILFS)");
 MODULE_LICENSE("GPL");
 
-static struct kmem_cache *nilfs_inode_cachep;
+static struct kmem_cache *nilfs_ianalde_cachep;
 struct kmem_cache *nilfs_transaction_cachep;
 struct kmem_cache *nilfs_segbuf_cachep;
 struct kmem_cache *nilfs_btree_path_cache;
@@ -111,11 +111,11 @@ static void nilfs_set_error(struct super_block *sb)
  * reporting an error message.  This function should be called when
  * NILFS detects incoherences or defects of meta data on disk.
  *
- * This implements the body of nilfs_error() macro.  Normally,
+ * This implements the body of nilfs_error() macro.  Analrmally,
  * nilfs_error() should be used.  As for sustainable errors such as a
  * single-shot I/O error, nilfs_err() should be used instead.
  *
- * Callers should not add a trailing newline since this will do it.
+ * Callers should analt add a trailing newline since this will do it.
  */
 void __nilfs_error(struct super_block *sb, const char *function,
 		   const char *fmt, ...)
@@ -148,27 +148,27 @@ void __nilfs_error(struct super_block *sb, const char *function,
 		      sb->s_id);
 }
 
-struct inode *nilfs_alloc_inode(struct super_block *sb)
+struct ianalde *nilfs_alloc_ianalde(struct super_block *sb)
 {
-	struct nilfs_inode_info *ii;
+	struct nilfs_ianalde_info *ii;
 
-	ii = alloc_inode_sb(sb, nilfs_inode_cachep, GFP_NOFS);
+	ii = alloc_ianalde_sb(sb, nilfs_ianalde_cachep, GFP_ANALFS);
 	if (!ii)
 		return NULL;
 	ii->i_bh = NULL;
 	ii->i_state = 0;
-	ii->i_cno = 0;
-	ii->i_assoc_inode = NULL;
+	ii->i_canal = 0;
+	ii->i_assoc_ianalde = NULL;
 	ii->i_bmap = &ii->i_bmap_data;
-	return &ii->vfs_inode;
+	return &ii->vfs_ianalde;
 }
 
-static void nilfs_free_inode(struct inode *inode)
+static void nilfs_free_ianalde(struct ianalde *ianalde)
 {
-	if (nilfs_is_metadata_file_inode(inode))
-		nilfs_mdt_destroy(inode);
+	if (nilfs_is_metadata_file_ianalde(ianalde))
+		nilfs_mdt_destroy(ianalde);
 
-	kmem_cache_free(nilfs_inode_cachep, NILFS_I(inode));
+	kmem_cache_free(nilfs_ianalde_cachep, NILFS_I(ianalde));
 }
 
 static int nilfs_sync_super(struct super_block *sb, int flag)
@@ -215,8 +215,8 @@ static int nilfs_sync_super(struct super_block *sb, int flag)
 				if (sync_dirty_buffer(nilfs->ns_sbh[1]) < 0)
 					goto out;
 			}
-			if (le64_to_cpu(nilfs->ns_sbp[1]->s_last_cno) <
-			    le64_to_cpu(nilfs->ns_sbp[0]->s_last_cno))
+			if (le64_to_cpu(nilfs->ns_sbp[1]->s_last_canal) <
+			    le64_to_cpu(nilfs->ns_sbp[0]->s_last_canal))
 				sbp = nilfs->ns_sbp[1];
 		}
 
@@ -240,7 +240,7 @@ void nilfs_set_log_cursor(struct nilfs_super_block *sbp,
 	spin_lock(&nilfs->ns_last_segment_lock);
 	sbp->s_last_seq = cpu_to_le64(nilfs->ns_last_seq);
 	sbp->s_last_pseg = cpu_to_le64(nilfs->ns_last_pseg);
-	sbp->s_last_cno = cpu_to_le64(nilfs->ns_last_cno);
+	sbp->s_last_canal = cpu_to_le64(nilfs->ns_last_canal);
 	spin_unlock(&nilfs->ns_last_segment_lock);
 }
 
@@ -293,7 +293,7 @@ int nilfs_commit_super(struct super_block *sb, int flag)
 	}
 	clear_nilfs_sb_dirty(nilfs);
 	nilfs->ns_flushed_device = 1;
-	/* make sure store to ns_flushed_device cannot be reordered */
+	/* make sure store to ns_flushed_device cananalt be reordered */
 	smp_wmb();
 	return nilfs_sync_super(sb, flag);
 }
@@ -304,7 +304,7 @@ int nilfs_commit_super(struct super_block *sb, int flag)
  *
  * This function restores state flags in the on-disk super block.
  * This will set "clean" flag (i.e. NILFS_VALID_FS) unless the
- * filesystem was not clean previously.
+ * filesystem was analt clean previously.
  */
 int nilfs_cleanup_super(struct super_block *sb)
 {
@@ -317,7 +317,7 @@ int nilfs_cleanup_super(struct super_block *sb)
 	if (sbp) {
 		sbp[0]->s_state = cpu_to_le16(nilfs->ns_mount_state);
 		nilfs_set_log_cursor(sbp[0], nilfs);
-		if (sbp[1] && sbp[0]->s_last_cno == sbp[1]->s_last_cno) {
+		if (sbp[1] && sbp[0]->s_last_canal == sbp[1]->s_last_canal) {
 			/*
 			 * make the "clean" flag also to the opposite
 			 * super block if both super blocks point to
@@ -379,7 +379,7 @@ static int nilfs_move_2nd_super(struct super_block *sb, loff_t sb2off)
 		/*
 		 * The position of the second superblock only changes by 4KiB,
 		 * which is larger than the maximum superblock data size
-		 * (= 1KiB), so there is no need to use memmove() to allow
+		 * (= 1KiB), so there is anal need to use memmove() to allow
 		 * overlap between source and destination.
 		 */
 		memcpy(nsbp, nilfs->ns_sbp[sb2i], nilfs->ns_sbsize);
@@ -435,7 +435,7 @@ int nilfs_resize_fs(struct super_block *sb, __u64 newsize)
 	 * The exact minimum size check is done in nilfs_sufile_resize().
 	 */
 	if (newsize < 4096) {
-		ret = -ENOSPC;
+		ret = -EANALSPC;
 		goto out;
 	}
 
@@ -539,17 +539,17 @@ static int nilfs_sync_fs(struct super_block *sb, int wait)
 	return err;
 }
 
-int nilfs_attach_checkpoint(struct super_block *sb, __u64 cno, int curr_mnt,
+int nilfs_attach_checkpoint(struct super_block *sb, __u64 canal, int curr_mnt,
 			    struct nilfs_root **rootp)
 {
 	struct the_nilfs *nilfs = sb->s_fs_info;
 	struct nilfs_root *root;
 	struct nilfs_checkpoint *raw_cp;
 	struct buffer_head *bh_cp;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	root = nilfs_find_or_create_root(
-		nilfs, curr_mnt ? NILFS_CPTREE_CURRENT_CNO : cno);
+		nilfs, curr_mnt ? NILFS_CPTREE_CURRENT_CANAL : canal);
 	if (!root)
 		return err;
 
@@ -557,37 +557,37 @@ int nilfs_attach_checkpoint(struct super_block *sb, __u64 cno, int curr_mnt,
 		goto reuse; /* already attached checkpoint */
 
 	down_read(&nilfs->ns_segctor_sem);
-	err = nilfs_cpfile_get_checkpoint(nilfs->ns_cpfile, cno, 0, &raw_cp,
+	err = nilfs_cpfile_get_checkpoint(nilfs->ns_cpfile, canal, 0, &raw_cp,
 					  &bh_cp);
 	up_read(&nilfs->ns_segctor_sem);
 	if (unlikely(err)) {
-		if (err == -ENOENT || err == -EINVAL) {
+		if (err == -EANALENT || err == -EINVAL) {
 			nilfs_err(sb,
 				  "Invalid checkpoint (checkpoint number=%llu)",
-				  (unsigned long long)cno);
+				  (unsigned long long)canal);
 			err = -EINVAL;
 		}
 		goto failed;
 	}
 
-	err = nilfs_ifile_read(sb, root, nilfs->ns_inode_size,
-			       &raw_cp->cp_ifile_inode, &root->ifile);
+	err = nilfs_ifile_read(sb, root, nilfs->ns_ianalde_size,
+			       &raw_cp->cp_ifile_ianalde, &root->ifile);
 	if (err)
 		goto failed_bh;
 
-	atomic64_set(&root->inodes_count,
-			le64_to_cpu(raw_cp->cp_inodes_count));
+	atomic64_set(&root->ianaldes_count,
+			le64_to_cpu(raw_cp->cp_ianaldes_count));
 	atomic64_set(&root->blocks_count,
 			le64_to_cpu(raw_cp->cp_blocks_count));
 
-	nilfs_cpfile_put_checkpoint(nilfs->ns_cpfile, cno, bh_cp);
+	nilfs_cpfile_put_checkpoint(nilfs->ns_cpfile, canal, bh_cp);
 
  reuse:
 	*rootp = root;
 	return 0;
 
  failed_bh:
-	nilfs_cpfile_put_checkpoint(nilfs->ns_cpfile, cno, bh_cp);
+	nilfs_cpfile_put_checkpoint(nilfs->ns_cpfile, canal, bh_cp);
  failed:
 	nilfs_put_root(root);
 
@@ -625,14 +625,14 @@ static int nilfs_unfreeze(struct super_block *sb)
 static int nilfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
 	struct super_block *sb = dentry->d_sb;
-	struct nilfs_root *root = NILFS_I(d_inode(dentry))->i_root;
+	struct nilfs_root *root = NILFS_I(d_ianalde(dentry))->i_root;
 	struct the_nilfs *nilfs = root->nilfs;
 	u64 id = huge_encode_dev(sb->s_bdev->bd_dev);
 	unsigned long long blocks;
 	unsigned long overhead;
 	unsigned long nrsvblocks;
 	sector_t nfreeblocks;
-	u64 nmaxinodes, nfreeinodes;
+	u64 nmaxianaldes, nfreeianaldes;
 	int err;
 
 	/*
@@ -657,19 +657,19 @@ static int nilfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	if (unlikely(err))
 		return err;
 
-	err = nilfs_ifile_count_free_inodes(root->ifile,
-					    &nmaxinodes, &nfreeinodes);
+	err = nilfs_ifile_count_free_ianaldes(root->ifile,
+					    &nmaxianaldes, &nfreeianaldes);
 	if (unlikely(err)) {
-		nilfs_warn(sb, "failed to count free inodes: err=%d", err);
+		nilfs_warn(sb, "failed to count free ianaldes: err=%d", err);
 		if (err == -ERANGE) {
 			/*
 			 * If nilfs_palloc_count_max_entries() returns
 			 * -ERANGE error code then we simply treat
-			 * curent inodes count as maximum possible and
-			 * zero as free inodes value.
+			 * curent ianaldes count as maximum possible and
+			 * zero as free ianaldes value.
 			 */
-			nmaxinodes = atomic64_read(&root->inodes_count);
-			nfreeinodes = 0;
+			nmaxianaldes = atomic64_read(&root->ianaldes_count);
+			nfreeianaldes = 0;
 			err = 0;
 		} else
 			return err;
@@ -681,8 +681,8 @@ static int nilfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_bfree = nfreeblocks;
 	buf->f_bavail = (buf->f_bfree >= nrsvblocks) ?
 		(buf->f_bfree - nrsvblocks) : 0;
-	buf->f_files = nmaxinodes;
-	buf->f_ffree = nfreeinodes;
+	buf->f_files = nmaxianaldes;
+	buf->f_ffree = nfreeianaldes;
 	buf->f_namelen = NILFS_NAME_LEN;
 	buf->f_fsid = u64_to_fsid(id);
 
@@ -693,20 +693,20 @@ static int nilfs_show_options(struct seq_file *seq, struct dentry *dentry)
 {
 	struct super_block *sb = dentry->d_sb;
 	struct the_nilfs *nilfs = sb->s_fs_info;
-	struct nilfs_root *root = NILFS_I(d_inode(dentry))->i_root;
+	struct nilfs_root *root = NILFS_I(d_ianalde(dentry))->i_root;
 
 	if (!nilfs_test_opt(nilfs, BARRIER))
-		seq_puts(seq, ",nobarrier");
-	if (root->cno != NILFS_CPTREE_CURRENT_CNO)
-		seq_printf(seq, ",cp=%llu", (unsigned long long)root->cno);
+		seq_puts(seq, ",analbarrier");
+	if (root->canal != NILFS_CPTREE_CURRENT_CANAL)
+		seq_printf(seq, ",cp=%llu", (unsigned long long)root->canal);
 	if (nilfs_test_opt(nilfs, ERRORS_PANIC))
 		seq_puts(seq, ",errors=panic");
 	if (nilfs_test_opt(nilfs, ERRORS_CONT))
 		seq_puts(seq, ",errors=continue");
 	if (nilfs_test_opt(nilfs, STRICT_ORDER))
 		seq_puts(seq, ",order=strict");
-	if (nilfs_test_opt(nilfs, NORECOVERY))
-		seq_puts(seq, ",norecovery");
+	if (nilfs_test_opt(nilfs, ANALRECOVERY))
+		seq_puts(seq, ",analrecovery");
 	if (nilfs_test_opt(nilfs, DISCARD))
 		seq_puts(seq, ",discard");
 
@@ -714,10 +714,10 @@ static int nilfs_show_options(struct seq_file *seq, struct dentry *dentry)
 }
 
 static const struct super_operations nilfs_sops = {
-	.alloc_inode    = nilfs_alloc_inode,
-	.free_inode     = nilfs_free_inode,
-	.dirty_inode    = nilfs_dirty_inode,
-	.evict_inode    = nilfs_evict_inode,
+	.alloc_ianalde    = nilfs_alloc_ianalde,
+	.free_ianalde     = nilfs_free_ianalde,
+	.dirty_ianalde    = nilfs_dirty_ianalde,
+	.evict_ianalde    = nilfs_evict_ianalde,
 	.put_super      = nilfs_put_super,
 	.sync_fs        = nilfs_sync_fs,
 	.freeze_fs	= nilfs_freeze,
@@ -729,8 +729,8 @@ static const struct super_operations nilfs_sops = {
 
 enum {
 	Opt_err_cont, Opt_err_panic, Opt_err_ro,
-	Opt_barrier, Opt_nobarrier, Opt_snapshot, Opt_order, Opt_norecovery,
-	Opt_discard, Opt_nodiscard, Opt_err,
+	Opt_barrier, Opt_analbarrier, Opt_snapshot, Opt_order, Opt_analrecovery,
+	Opt_discard, Opt_analdiscard, Opt_err,
 };
 
 static match_table_t tokens = {
@@ -738,12 +738,12 @@ static match_table_t tokens = {
 	{Opt_err_panic, "errors=panic"},
 	{Opt_err_ro, "errors=remount-ro"},
 	{Opt_barrier, "barrier"},
-	{Opt_nobarrier, "nobarrier"},
+	{Opt_analbarrier, "analbarrier"},
 	{Opt_snapshot, "cp=%u"},
 	{Opt_order, "order=%s"},
-	{Opt_norecovery, "norecovery"},
+	{Opt_analrecovery, "analrecovery"},
 	{Opt_discard, "discard"},
-	{Opt_nodiscard, "nodiscard"},
+	{Opt_analdiscard, "analdiscard"},
 	{Opt_err, NULL}
 };
 
@@ -767,7 +767,7 @@ static int parse_options(char *options, struct super_block *sb, int is_remount)
 		case Opt_barrier:
 			nilfs_set_opt(nilfs, BARRIER);
 			break;
-		case Opt_nobarrier:
+		case Opt_analbarrier:
 			nilfs_clear_opt(nilfs, BARRIER);
 			break;
 		case Opt_order:
@@ -797,13 +797,13 @@ static int parse_options(char *options, struct super_block *sb, int is_remount)
 				return 0;
 			}
 			break;
-		case Opt_norecovery:
-			nilfs_set_opt(nilfs, NORECOVERY);
+		case Opt_analrecovery:
+			nilfs_set_opt(nilfs, ANALRECOVERY);
 			break;
 		case Opt_discard:
 			nilfs_set_opt(nilfs, DISCARD);
 			break;
-		case Opt_nodiscard:
+		case Opt_analdiscard:
 			nilfs_clear_opt(nilfs, DISCARD);
 			break;
 		default:
@@ -888,7 +888,7 @@ int nilfs_store_magic_and_option(struct super_block *sb,
 
 	/* FS independent flags */
 #ifdef NILFS_ATIME_DISABLE
-	sb->s_flags |= SB_NOATIME;
+	sb->s_flags |= SB_ANALATIME;
 #endif
 
 	nilfs_set_default_options(sb, sbp);
@@ -929,36 +929,36 @@ static int nilfs_get_root_dentry(struct super_block *sb,
 				 struct nilfs_root *root,
 				 struct dentry **root_dentry)
 {
-	struct inode *inode;
+	struct ianalde *ianalde;
 	struct dentry *dentry;
 	int ret = 0;
 
-	inode = nilfs_iget(sb, root, NILFS_ROOT_INO);
-	if (IS_ERR(inode)) {
-		ret = PTR_ERR(inode);
-		nilfs_err(sb, "error %d getting root inode", ret);
+	ianalde = nilfs_iget(sb, root, NILFS_ROOT_IANAL);
+	if (IS_ERR(ianalde)) {
+		ret = PTR_ERR(ianalde);
+		nilfs_err(sb, "error %d getting root ianalde", ret);
 		goto out;
 	}
-	if (!S_ISDIR(inode->i_mode) || !inode->i_blocks || !inode->i_size) {
-		iput(inode);
-		nilfs_err(sb, "corrupt root inode");
+	if (!S_ISDIR(ianalde->i_mode) || !ianalde->i_blocks || !ianalde->i_size) {
+		iput(ianalde);
+		nilfs_err(sb, "corrupt root ianalde");
 		ret = -EINVAL;
 		goto out;
 	}
 
-	if (root->cno == NILFS_CPTREE_CURRENT_CNO) {
-		dentry = d_find_alias(inode);
+	if (root->canal == NILFS_CPTREE_CURRENT_CANAL) {
+		dentry = d_find_alias(ianalde);
 		if (!dentry) {
-			dentry = d_make_root(inode);
+			dentry = d_make_root(ianalde);
 			if (!dentry) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto failed_dentry;
 			}
 		} else {
-			iput(inode);
+			iput(ianalde);
 		}
 	} else {
-		dentry = d_obtain_root(inode);
+		dentry = d_obtain_root(ianalde);
 		if (IS_ERR(dentry)) {
 			ret = PTR_ERR(dentry);
 			goto failed_dentry;
@@ -973,7 +973,7 @@ static int nilfs_get_root_dentry(struct super_block *sb,
 	goto out;
 }
 
-static int nilfs_attach_snapshot(struct super_block *s, __u64 cno,
+static int nilfs_attach_snapshot(struct super_block *s, __u64 canal,
 				 struct dentry **root_dentry)
 {
 	struct the_nilfs *nilfs = s->s_fs_info;
@@ -983,24 +983,24 @@ static int nilfs_attach_snapshot(struct super_block *s, __u64 cno,
 	mutex_lock(&nilfs->ns_snapshot_mount_mutex);
 
 	down_read(&nilfs->ns_segctor_sem);
-	ret = nilfs_cpfile_is_snapshot(nilfs->ns_cpfile, cno);
+	ret = nilfs_cpfile_is_snapshot(nilfs->ns_cpfile, canal);
 	up_read(&nilfs->ns_segctor_sem);
 	if (ret < 0) {
-		ret = (ret == -ENOENT) ? -EINVAL : ret;
+		ret = (ret == -EANALENT) ? -EINVAL : ret;
 		goto out;
 	} else if (!ret) {
 		nilfs_err(s,
-			  "The specified checkpoint is not a snapshot (checkpoint number=%llu)",
-			  (unsigned long long)cno);
+			  "The specified checkpoint is analt a snapshot (checkpoint number=%llu)",
+			  (unsigned long long)canal);
 		ret = -EINVAL;
 		goto out;
 	}
 
-	ret = nilfs_attach_checkpoint(s, cno, false, &root);
+	ret = nilfs_attach_checkpoint(s, canal, false, &root);
 	if (ret) {
 		nilfs_err(s,
 			  "error %d while loading snapshot (checkpoint number=%llu)",
-			  ret, (unsigned long long)cno);
+			  ret, (unsigned long long)canal);
 		goto out;
 	}
 	ret = nilfs_get_root_dentry(s, root, root_dentry);
@@ -1022,31 +1022,31 @@ static bool nilfs_tree_is_busy(struct dentry *root_dentry)
 	return d_count(root_dentry) > 1;
 }
 
-int nilfs_checkpoint_is_mounted(struct super_block *sb, __u64 cno)
+int nilfs_checkpoint_is_mounted(struct super_block *sb, __u64 canal)
 {
 	struct the_nilfs *nilfs = sb->s_fs_info;
 	struct nilfs_root *root;
-	struct inode *inode;
+	struct ianalde *ianalde;
 	struct dentry *dentry;
 	int ret;
 
-	if (cno > nilfs->ns_cno)
+	if (canal > nilfs->ns_canal)
 		return false;
 
-	if (cno >= nilfs_last_cno(nilfs))
+	if (canal >= nilfs_last_canal(nilfs))
 		return true;	/* protect recent checkpoints */
 
 	ret = false;
-	root = nilfs_lookup_root(nilfs, cno);
+	root = nilfs_lookup_root(nilfs, canal);
 	if (root) {
-		inode = nilfs_ilookup(sb, root, NILFS_ROOT_INO);
-		if (inode) {
-			dentry = d_find_alias(inode);
+		ianalde = nilfs_ilookup(sb, root, NILFS_ROOT_IANAL);
+		if (ianalde) {
+			dentry = d_find_alias(ianalde);
 			if (dentry) {
 				ret = nilfs_tree_is_busy(dentry);
 				dput(dentry);
 			}
-			iput(inode);
+			iput(ianalde);
 		}
 		nilfs_put_root(root);
 	}
@@ -1067,12 +1067,12 @@ nilfs_fill_super(struct super_block *sb, void *data, int silent)
 {
 	struct the_nilfs *nilfs;
 	struct nilfs_root *fsroot;
-	__u64 cno;
+	__u64 canal;
 	int err;
 
 	nilfs = alloc_nilfs(sb);
 	if (!nilfs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sb->s_fs_info = nilfs;
 
@@ -1092,12 +1092,12 @@ nilfs_fill_super(struct super_block *sb, void *data, int silent)
 	if (err)
 		goto failed_nilfs;
 
-	cno = nilfs_last_cno(nilfs);
-	err = nilfs_attach_checkpoint(sb, cno, true, &fsroot);
+	canal = nilfs_last_canal(nilfs);
+	err = nilfs_attach_checkpoint(sb, canal, true, &fsroot);
 	if (err) {
 		nilfs_err(sb,
 			  "error %d while loading last checkpoint (checkpoint number=%llu)",
-			  err, (unsigned long long)cno);
+			  err, (unsigned long long)canal);
 		goto failed_unload;
 	}
 
@@ -1198,7 +1198,7 @@ static int nilfs_remount(struct super_block *sb, int *flags, char *data)
 
 		sb->s_flags &= ~SB_RDONLY;
 
-		root = NILFS_I(d_inode(sb->s_root))->i_root;
+		root = NILFS_I(d_ianalde(sb->s_root))->i_root;
 		err = nilfs_attach_log_writer(sb, root);
 		if (err)
 			goto restore_opts;
@@ -1217,7 +1217,7 @@ static int nilfs_remount(struct super_block *sb, int *flags, char *data)
 }
 
 struct nilfs_super_data {
-	__u64 cno;
+	__u64 canal;
 	int flags;
 };
 
@@ -1230,7 +1230,7 @@ static int nilfs_parse_snapshot_option(const char *option,
 	int err;
 
 	if (!(sd->flags & SB_RDONLY)) {
-		msg = "read-only option is not specified";
+		msg = "read-only option is analt specified";
 		goto parse_error;
 	}
 
@@ -1245,7 +1245,7 @@ static int nilfs_parse_snapshot_option(const char *option,
 		msg = "invalid checkpoint number 0";
 		goto parse_error;
 	}
-	sd->cno = val;
+	sd->canal = val;
 	return 0;
 
 parse_error:
@@ -1322,7 +1322,7 @@ nilfs_mount(struct file_system_type *fs_type, int flags,
 			goto failed_super;
 
 		s->s_flags |= SB_ACTIVE;
-	} else if (!sd.cno) {
+	} else if (!sd.canal) {
 		if (nilfs_tree_is_busy(s->s_root)) {
 			if ((flags ^ s->s_flags) & SB_RDONLY) {
 				nilfs_err(s,
@@ -1334,7 +1334,7 @@ nilfs_mount(struct file_system_type *fs_type, int flags,
 		} else {
 			/*
 			 * Try remount to setup mount states if the current
-			 * tree is not mounted and only snapshots use this sb.
+			 * tree is analt mounted and only snapshots use this sb.
 			 */
 			err = nilfs_remount(s, &flags, data);
 			if (err)
@@ -1342,10 +1342,10 @@ nilfs_mount(struct file_system_type *fs_type, int flags,
 		}
 	}
 
-	if (sd.cno) {
+	if (sd.canal) {
 		struct dentry *root_dentry;
 
-		err = nilfs_attach_snapshot(s, sd.cno, &root_dentry);
+		err = nilfs_attach_snapshot(s, sd.canal, &root_dentry);
 		if (err)
 			goto failed_super;
 		return root_dentry;
@@ -1367,15 +1367,15 @@ struct file_system_type nilfs_fs_type = {
 };
 MODULE_ALIAS_FS("nilfs2");
 
-static void nilfs_inode_init_once(void *obj)
+static void nilfs_ianalde_init_once(void *obj)
 {
-	struct nilfs_inode_info *ii = obj;
+	struct nilfs_ianalde_info *ii = obj;
 
 	INIT_LIST_HEAD(&ii->i_dirty);
 #ifdef CONFIG_NILFS_XATTR
 	init_rwsem(&ii->xattr_sem);
 #endif
-	inode_init_once(&ii->vfs_inode);
+	ianalde_init_once(&ii->vfs_ianalde);
 }
 
 static void nilfs_segbuf_init_once(void *obj)
@@ -1386,12 +1386,12 @@ static void nilfs_segbuf_init_once(void *obj)
 static void nilfs_destroy_cachep(void)
 {
 	/*
-	 * Make sure all delayed rcu free inodes are flushed before we
+	 * Make sure all delayed rcu free ianaldes are flushed before we
 	 * destroy cache.
 	 */
 	rcu_barrier();
 
-	kmem_cache_destroy(nilfs_inode_cachep);
+	kmem_cache_destroy(nilfs_ianalde_cachep);
 	kmem_cache_destroy(nilfs_transaction_cachep);
 	kmem_cache_destroy(nilfs_segbuf_cachep);
 	kmem_cache_destroy(nilfs_btree_path_cache);
@@ -1399,11 +1399,11 @@ static void nilfs_destroy_cachep(void)
 
 static int __init nilfs_init_cachep(void)
 {
-	nilfs_inode_cachep = kmem_cache_create("nilfs2_inode_cache",
-			sizeof(struct nilfs_inode_info), 0,
+	nilfs_ianalde_cachep = kmem_cache_create("nilfs2_ianalde_cache",
+			sizeof(struct nilfs_ianalde_info), 0,
 			SLAB_RECLAIM_ACCOUNT|SLAB_ACCOUNT,
-			nilfs_inode_init_once);
-	if (!nilfs_inode_cachep)
+			nilfs_ianalde_init_once);
+	if (!nilfs_ianalde_cachep)
 		goto fail;
 
 	nilfs_transaction_cachep = kmem_cache_create("nilfs2_transaction_cache",
@@ -1428,7 +1428,7 @@ static int __init nilfs_init_cachep(void)
 
 fail:
 	nilfs_destroy_cachep();
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int __init init_nilfs_fs(void)

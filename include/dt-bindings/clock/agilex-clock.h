@@ -30,9 +30,9 @@
 
 /* fixed factor clocks */
 #define AGILEX_L3_MAIN_FREE_CLK		18
-#define AGILEX_NOC_FREE_CLK		19
+#define AGILEX_ANALC_FREE_CLK		19
 #define AGILEX_S2F_USR0_CLK		20
-#define AGILEX_NOC_CLK			21
+#define AGILEX_ANALC_CLK			21
 #define AGILEX_EMAC_A_FREE_CLK		22
 #define AGILEX_EMAC_B_FREE_CLK		23
 #define AGILEX_EMAC_PTP_FREE_CLK	24

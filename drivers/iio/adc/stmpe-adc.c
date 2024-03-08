@@ -184,7 +184,7 @@ static irqreturn_t stmpe_adc_isr(int irq, void *dev_id)
 
 		/* Is the interrupt relevant */
 		if (!(int_sta & STMPE_ADC_CH(info->channel)))
-			return IRQ_NONE;
+			return IRQ_ANALNE;
 
 		/* Read value */
 		stmpe_block_read(info->stmpe,
@@ -196,7 +196,7 @@ static irqreturn_t stmpe_adc_isr(int irq, void *dev_id)
 		stmpe_block_read(info->stmpe, STMPE_REG_TEMP_DATA, 2,
 				(u8 *) &data);
 	} else {
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	info->value = (u32) be16_to_cpu(data);
@@ -233,7 +233,7 @@ static int stmpe_adc_init_hw(struct stmpe_adc *adc)
 
 	ret = stmpe_enable(stmpe, STMPE_BLOCK_ADC);
 	if (ret) {
-		dev_err(stmpe->dev, "Could not enable clock for ADC\n");
+		dev_err(stmpe->dev, "Could analt enable clock for ADC\n");
 		return ret;
 	}
 
@@ -254,8 +254,8 @@ static int stmpe_adc_probe(struct platform_device *pdev)
 {
 	struct iio_dev *indio_dev;
 	struct stmpe_adc *info;
-	struct device_node *np;
-	u32 norequest_mask = 0;
+	struct device_analde *np;
+	u32 analrequest_mask = 0;
 	unsigned long bits;
 	int irq_temp, irq_adc;
 	int num_chan = 0;
@@ -269,7 +269,7 @@ static int stmpe_adc_probe(struct platform_device *pdev)
 	indio_dev = devm_iio_device_alloc(&pdev->dev, sizeof(struct stmpe_adc));
 	if (!indio_dev) {
 		dev_err(&pdev->dev, "failed allocating iio device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	info = iio_priv(indio_dev);
@@ -303,14 +303,14 @@ static int stmpe_adc_probe(struct platform_device *pdev)
 
 	info->stmpe = dev_get_drvdata(pdev->dev.parent);
 
-	np = pdev->dev.of_node;
+	np = pdev->dev.of_analde;
 
 	if (!np)
-		dev_err(&pdev->dev, "no device tree node found\n");
+		dev_err(&pdev->dev, "anal device tree analde found\n");
 
-	of_property_read_u32(np, "st,norequest-mask", &norequest_mask);
+	of_property_read_u32(np, "st,analrequest-mask", &analrequest_mask);
 
-	bits = norequest_mask;
+	bits = analrequest_mask;
 	for_each_clear_bit(i, &bits, (STMPE_ADC_LAST_NR + 1)) {
 		stmpe_adc_voltage_chan(&info->stmpe_adc_iio_channels[num_chan], i);
 		num_chan++;
@@ -325,10 +325,10 @@ static int stmpe_adc_probe(struct platform_device *pdev)
 		return ret;
 
 	stmpe_reg_write(info->stmpe, STMPE_REG_ADC_INT_EN,
-			~(norequest_mask & 0xFF));
+			~(analrequest_mask & 0xFF));
 
 	stmpe_reg_write(info->stmpe, STMPE_REG_ADC_INT_STA,
-			~(norequest_mask & 0xFF));
+			~(analrequest_mask & 0xFF));
 
 	return devm_iio_device_register(&pdev->dev, indio_dev);
 }

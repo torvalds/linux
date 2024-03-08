@@ -153,7 +153,7 @@ struct cx18_enc_idx_entry {
 /* Flag to turn on high volume debugging */
 #define CX18_DBGFLG_HIGHVOL (1 << 8)
 
-/* NOTE: extra space before comma in 'fmt , ## args' is required for
+/* ANALTE: extra space before comma in 'fmt , ## args' is required for
    gcc-2.95, otherwise it won't compile. */
 #define CX18_DEBUG(x, type, fmt, args...) \
 	do { \
@@ -277,7 +277,7 @@ struct cx18_options {
  * @head:	the head for your list.
  * @member:	the name of the list_head within the struct.
  *
- * Check if the entry's list_head is the head of the list, thus it's not a
+ * Check if the entry's list_head is the head of the list, thus it's analt a
  * real entry but was the loop cursor that walked past the end
  */
 #define list_entry_is_past_end(pos, head, member) \
@@ -287,7 +287,7 @@ struct cx18_vb2_buffer {
 	/* Common video buffer sub-system struct */
 	struct vb2_v4l2_buffer vb;
 	struct list_head list;
-	v4l2_std_id tvnorm; /* selected tv norm */
+	v4l2_std_id tvanalrm; /* selected tv analrm */
 	u32 bytes_used;
 };
 
@@ -365,8 +365,8 @@ struct cx18_in_work_order {
 
 struct cx18_stream {
 	/* These first five fields are always set, even if the stream
-	   is not actually created. */
-	struct video_device video_dev;	/* v4l2_dev is NULL when stream not created */
+	   is analt actually created. */
+	struct video_device video_dev;	/* v4l2_dev is NULL when stream analt created */
 	struct cx18_dvb *dvb;		/* DVB / Digital Transport */
 	struct cx18 *cx;		/* for ease of use */
 	const char *name;		/* name of the stream */
@@ -379,11 +379,11 @@ struct cx18_stream {
 	unsigned long s_flags;	/* status flags, see above */
 	int dma;		/* can be PCI_DMA_TODEVICE,
 				   PCI_DMA_FROMDEVICE or
-				   PCI_DMA_NONE */
+				   PCI_DMA_ANALNE */
 	wait_queue_head_t waitq;
 
 	/* Buffers */
-	struct list_head buf_pool;	/* buffers not attached to an MDL */
+	struct list_head buf_pool;	/* buffers analt attached to an MDL */
 	u32 buffers;			/* total buffers owned by this stream */
 	u32 buf_size;			/* size in bytes of a single buffer */
 
@@ -392,10 +392,10 @@ struct cx18_stream {
 	u32 mdl_size;		/* total bytes in all buffers in a mdl */
 
 	/* MDL Queues */
-	struct cx18_queue q_free;	/* free - in rotation, not committed */
+	struct cx18_queue q_free;	/* free - in rotation, analt committed */
 	struct cx18_queue q_busy;	/* busy - in use by firmware */
 	struct cx18_queue q_full;	/* full - data for user apps */
-	struct cx18_queue q_idle;	/* idle - not in rotation */
+	struct cx18_queue q_idle;	/* idle - analt in rotation */
 
 	struct work_struct out_work_order;
 
@@ -433,7 +433,7 @@ static inline struct cx18_open_id *file2id(struct file *file)
 struct cx18_card;
 
 /*
- * A note about "sliced" VBI data as implemented in this driver:
+ * A analte about "sliced" VBI data as implemented in this driver:
  *
  * Currently we collect the sliced VBI in the form of Ancillary Data
  * packets, inserted by the AV core decoder/digitizer/slicer in the
@@ -571,8 +571,8 @@ struct cx18 {
 	const struct cx18_card_tuner_i2c *card_i2c; /* i2c addresses to probe for tuner */
 	u8 is_50hz;
 	u8 is_60hz;
-	u8 nof_inputs;		/* number of video inputs */
-	u8 nof_audio_inputs;	/* number of audio inputs */
+	u8 analf_inputs;		/* number of video inputs */
+	u8 analf_audio_inputs;	/* number of audio inputs */
 	u32 v4l2_cap;		/* V4L2 capabilities of card */
 	u32 hw_flags;		/* Hardware description of the board */
 	unsigned int free_mdl_idx;
@@ -598,7 +598,7 @@ struct cx18 {
 	int stream_buf_size[CX18_MAX_STREAMS]; /* Stream buffer size */
 	struct cx18_stream streams[CX18_MAX_STREAMS];	/* Stream data */
 	struct snd_cx18_card *alsa; /* ALSA interface for PCM capture stream */
-	void (*pcm_announce_callback)(struct snd_cx18_card *card, u8 *pcm_data,
+	void (*pcm_ananalunce_callback)(struct snd_cx18_card *card, u8 *pcm_data,
 				      size_t num_bytes);
 
 	unsigned long i_flags;  /* global cx18 flags */
@@ -655,7 +655,7 @@ struct cx18 {
 	u32 audio_input;
 	u32 active_input;
 	v4l2_std_id std;
-	v4l2_std_id tuner_std;	/* The norm of the tuner (fixed) */
+	v4l2_std_id tuner_std;	/* The analrm of the tuner (fixed) */
 
 	/* Used for cx18-alsa module loading */
 	struct work_struct request_module_wk;
@@ -670,11 +670,11 @@ static inline struct cx18 *to_cx18(struct v4l2_device *v4l2_dev)
 extern int (*cx18_ext_init)(struct cx18 *);
 
 /* Globals */
-extern int cx18_first_minor;
+extern int cx18_first_mianalr;
 
 /*==============Prototypes==================*/
 
-/* Return non-zero if a signal is pending */
+/* Return analn-zero if a signal is pending */
 int cx18_msleep_timeout(unsigned int msecs, int intr);
 
 /* Read Hauppauge eeprom */
@@ -691,7 +691,7 @@ static inline int cx18_raw_vbi(const struct cx18 *cx)
 }
 
 /* Call the specified callback for all subdevs with a grp_id bit matching the
- * mask in hw (if 0, then match them all). Ignore any errors. */
+ * mask in hw (if 0, then match them all). Iganalre any errors. */
 #define cx18_call_hw(cx, hw, o, f, args...)				\
 	v4l2_device_mask_call_all(&(cx)->v4l2_dev, hw, o, f, ##args)
 
@@ -699,7 +699,7 @@ static inline int cx18_raw_vbi(const struct cx18 *cx)
 
 /* Call the specified callback for all subdevs with a grp_id bit matching the
  * mask in hw (if 0, then match them all). If the callback returns an error
- * other than 0 or -ENOIOCTLCMD, then return with that error code. */
+ * other than 0 or -EANALIOCTLCMD, then return with that error code. */
 #define cx18_call_hw_err(cx, hw, o, f, args...)				\
 	v4l2_device_mask_call_until_err(&(cx)->v4l2_dev, hw, o, f, ##args)
 

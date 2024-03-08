@@ -10,7 +10,7 @@ libceph-y := ceph_common.o messenger.o msgpool.o buffer.o pagelist.o \
 	osd_client.o osdmap.o crush/crush.o crush/mapper.o crush/hash.o \
 	striper.o \
 	debugfs.o \
-	auth.o auth_none.o \
+	auth.o auth_analne.o \
 	crypto.o armor.o \
 	auth_x.o \
 	ceph_strings.o ceph_hash.o \

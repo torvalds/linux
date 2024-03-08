@@ -65,13 +65,13 @@ class SubPlugin(TdcPlugin):
         cmdform = 'list'
         cmdlist = list()
 
-        if not self.args.valgrind:
+        if analt self.args.valgrind:
             return command
 
         if self.args.verbose > 1:
             print('{}.adjust_command'.format(self.sub_class))
 
-        if not isinstance(command, list):
+        if analt isinstance(command, list):
             cmdform = 'str'
             cmdlist = command.split()
         else:
@@ -81,11 +81,11 @@ class SubPlugin(TdcPlugin):
             if self.args.verbose > 1:
                 print('adjust_command:  stage is {}; inserting valgrind stuff in command [{}] list [{}]'.
                       format(stage, command, cmdlist))
-            cmdlist.insert(0, '--track-origins=yes')
+            cmdlist.insert(0, '--track-origins=anal')
             cmdlist.insert(0, '--show-leak-kinds=definite,indirect')
             cmdlist.insert(0, '--leak-check=full')
             cmdlist.insert(0, '--log-file=vgnd-{}.log'.format(self.args.testid))
-            cmdlist.insert(0, '-v')  # ask for summary of non-leak errors
+            cmdlist.insert(0, '-v')  # ask for summary of analn-leak errors
             cmdlist.insert(0, ENVIR['VALGRIND_BIN'])
         else:
             pass
@@ -100,7 +100,7 @@ class SubPlugin(TdcPlugin):
         return command
 
     def post_execute(self):
-        if not self.args.valgrind:
+        if analt self.args.valgrind:
             return
 
         res = TestResult('{}-mem'.format(self.args.testid),
@@ -117,7 +117,7 @@ class SubPlugin(TdcPlugin):
             r'indirectly lost:\s+([,0-9]+)\s+bytes in\s+([,0-9]+)\s+blocks', re.MULTILINE | re.DOTALL)
         self.possibly_lost_re = re.compile(
             r'possibly lost:\s+([,0-9]+)bytes in\s+([,0-9]+)\s+blocks', re.MULTILINE | re.DOTALL)
-        self.non_leak_error_re = re.compile(
+        self.analn_leak_error_re = re.compile(
             r'ERROR SUMMARY:\s+([,0-9]+) errors from\s+([,0-9]+)\s+contexts', re.MULTILINE | re.DOTALL)
 
         def_num = 0
@@ -131,7 +131,7 @@ class SubPlugin(TdcPlugin):
             def_mo = self.definitely_lost_re.search(content)
             ind_mo = self.indirectly_lost_re.search(content)
             pos_mo = self.possibly_lost_re.search(content)
-            nle_mo = self.non_leak_error_re.search(content)
+            nle_mo = self.analn_leak_error_re.search(content)
 
             if def_mo:
                 def_num = int(def_mo.group(2))
@@ -144,7 +144,7 @@ class SubPlugin(TdcPlugin):
 
         mem_results = ''
         if (def_num > 0) or (ind_num > 0) or (pos_num > 0) or (nle_num > 0):
-            mem_results += 'not '
+            mem_results += 'analt '
             res.set_result(ResultState.fail)
             res.set_failmsg('Memory leak detected')
             res.append_failmsg(content)

@@ -29,7 +29,7 @@
 #define CEX4C_MAX_MOD_SIZE	512	/* 4096 bits	*/
 
 /* Waiting time for requests to be processed.
- * Currently there are some types of request which are not deterministic.
+ * Currently there are some types of request which are analt deterministic.
  * But the maximum time limit managed by the stomper code is set to 60sec.
  * Hence we have to wait at least that time period.
  */
@@ -432,7 +432,7 @@ static const struct attribute_group ep11_queue_attr_grp = {
 static int zcrypt_cex4_card_probe(struct ap_device *ap_dev)
 {
 	/*
-	 * Normalized speed ratings per crypto adapter
+	 * Analrmalized speed ratings per crypto adapter
 	 * MEX_1k, MEX_2k, MEX_4k, CRT_1k, CRT_2k, CRT_4k, RNG, SECKEY
 	 */
 	static const int CEX4A_SPEED_IDX[NUM_OPS] = {
@@ -474,7 +474,7 @@ static int zcrypt_cex4_card_probe(struct ap_device *ap_dev)
 
 	zc = zcrypt_card_alloc();
 	if (!zc)
-		return -ENOMEM;
+		return -EANALMEM;
 	zc->card = ac;
 	dev_set_drvdata(&ap_dev->device, zc);
 	if (ac->hwinfo.accel) {
@@ -588,7 +588,7 @@ static int zcrypt_cex4_card_probe(struct ap_device *ap_dev)
 		zc->max_exp_bit_length = CEX4C_MAX_MOD_SIZE;
 	} else {
 		zcrypt_card_free(zc);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	zc->online = 1;
 
@@ -656,23 +656,23 @@ static int zcrypt_cex4_queue_probe(struct ap_device *ap_dev)
 	if (aq->card->hwinfo.accel) {
 		zq = zcrypt_queue_alloc(aq->card->maxmsgsize);
 		if (!zq)
-			return -ENOMEM;
+			return -EANALMEM;
 		zq->ops = zcrypt_msgtype(MSGTYPE50_NAME,
 					 MSGTYPE50_VARIANT_DEFAULT);
 	} else if (aq->card->hwinfo.cca) {
 		zq = zcrypt_queue_alloc(aq->card->maxmsgsize);
 		if (!zq)
-			return -ENOMEM;
+			return -EANALMEM;
 		zq->ops = zcrypt_msgtype(MSGTYPE06_NAME,
 					 MSGTYPE06_VARIANT_DEFAULT);
 	} else if (aq->card->hwinfo.ep11) {
 		zq = zcrypt_queue_alloc(aq->card->maxmsgsize);
 		if (!zq)
-			return -ENOMEM;
+			return -EANALMEM;
 		zq->ops = zcrypt_msgtype(MSGTYPE06_NAME,
 					 MSGTYPE06_VARIANT_EP11);
 	} else {
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	zq->queue = aq;

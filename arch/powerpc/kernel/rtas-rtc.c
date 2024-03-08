@@ -40,7 +40,7 @@ time64_t __init rtas_get_boot_time(void)
 	return mktime64(ret[0], ret[1], ret[2], ret[3], ret[4], ret[5]);
 }
 
-/* NOTE: get_rtc_time will get an error if executed in interrupt context
+/* ANALTE: get_rtc_time will get an error if executed in interrupt context
  * and if a delay is needed to read the clock.  In this case we just
  * silently return without updating rtc_tm.
  */
@@ -62,7 +62,7 @@ void rtas_get_rtc_time(struct rtc_time *rtc_tm)
 				printk_ratelimited(KERN_WARNING
 						   "error: reading clock "
 						   "would delay interrupt\n");
-				return;	/* delay not allowed */
+				return;	/* delay analt allowed */
 			}
 			msleep(wait_time);
 		}

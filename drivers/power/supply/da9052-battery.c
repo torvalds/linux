@@ -36,7 +36,7 @@
 #define DA9052_MEAN(x, y)		((x + y) / 2)
 
 enum charger_type_enum {
-	DA9052_NOCHARGER = 1,
+	DA9052_ANALCHARGER = 1,
 	DA9052_CHARGER,
 };
 
@@ -166,7 +166,7 @@ static u32 const vc_tbl[3][68][2] = {
 struct da9052_battery {
 	struct da9052 *da9052;
 	struct power_supply *psy;
-	struct notifier_block nb;
+	struct analtifier_block nb;
 	int charger_type;
 	int status;
 	int health;
@@ -262,7 +262,7 @@ static int da9052_bat_check_status(struct da9052_battery *bat, int *status)
 			if (chg_current >= chg_end_current)
 				bat->status = POWER_SUPPLY_STATUS_CHARGING;
 			else
-				bat->status = POWER_SUPPLY_STATUS_NOT_CHARGING;
+				bat->status = POWER_SUPPLY_STATUS_ANALT_CHARGING;
 		} else {
 			/* If Charging end flag is cleared then battery is
 			 * charging
@@ -271,9 +271,9 @@ static int da9052_bat_check_status(struct da9052_battery *bat, int *status)
 		}
 	} else if (dcindet || vbusdet) {
 			bat->charger_type = DA9052_CHARGER;
-			bat->status = POWER_SUPPLY_STATUS_NOT_CHARGING;
+			bat->status = POWER_SUPPLY_STATUS_ANALT_CHARGING;
 	} else {
-		bat->charger_type = DA9052_NOCHARGER;
+		bat->charger_type = DA9052_ANALCHARGER;
 		bat->status = POWER_SUPPLY_STATUS_DISCHARGING;
 	}
 
@@ -343,7 +343,7 @@ static unsigned char da9052_determine_vc_tbl_index(unsigned char adc_temp)
 	}
 	/*
 	 * For some reason authors of the driver didn't presume that we can
-	 * end up here. It might be OK, but might be not, no one knows for
+	 * end up here. It might be OK, but might be analt, anal one kanalws for
 	 * sure. Go check your battery, is it on fire?
 	 */
 	WARN_ON(1);
@@ -414,7 +414,7 @@ static int da9052_bat_check_health(struct da9052_battery *bat, int *health)
 		return ret;
 
 	if (bat_illegal) {
-		bat->health = POWER_SUPPLY_HEALTH_UNKNOWN;
+		bat->health = POWER_SUPPLY_HEALTH_UNKANALWN;
 		return 0;
 	}
 
@@ -454,7 +454,7 @@ static irqreturn_t da9052_bat_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static int da9052_USB_current_notifier(struct notifier_block *nb,
+static int da9052_USB_current_analtifier(struct analtifier_block *nb,
 					unsigned long events, void *data)
 {
 	u8 row;
@@ -502,7 +502,7 @@ static int da9052_bat_get_property(struct power_supply *psy,
 		return ret;
 
 	if (illegal && psp != POWER_SUPPLY_PROP_PRESENT)
-		return -ENODEV;
+		return -EANALDEV;
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_STATUS:
@@ -510,7 +510,7 @@ static int da9052_bat_get_property(struct power_supply *psy,
 		break;
 	case POWER_SUPPLY_PROP_ONLINE:
 		val->intval =
-			(bat->charger_type == DA9052_NOCHARGER) ? 0 : 1;
+			(bat->charger_type == DA9052_ANALCHARGER) ? 0 : 1;
 		break;
 	case POWER_SUPPLY_PROP_PRESENT:
 		ret = da9052_bat_check_presence(bat, &val->intval);
@@ -534,8 +534,8 @@ static int da9052_bat_get_property(struct power_supply *psy,
 		val->intval = da9052_adc_read_temp(bat->da9052);
 		ret = val->intval;
 		break;
-	case POWER_SUPPLY_PROP_TECHNOLOGY:
-		val->intval = POWER_SUPPLY_TECHNOLOGY_LION;
+	case POWER_SUPPLY_PROP_TECHANALLOGY:
+		val->intval = POWER_SUPPLY_TECHANALLOGY_LION;
 		break;
 	default:
 		return -EINVAL;
@@ -553,7 +553,7 @@ static enum power_supply_property da9052_bat_props[] = {
 	POWER_SUPPLY_PROP_CURRENT_AVG,
 	POWER_SUPPLY_PROP_CAPACITY,
 	POWER_SUPPLY_PROP_TEMP,
-	POWER_SUPPLY_PROP_TECHNOLOGY,
+	POWER_SUPPLY_PROP_TECHANALLOGY,
 };
 
 static struct power_supply_desc psy_desc = {
@@ -593,15 +593,15 @@ static s32 da9052_bat_probe(struct platform_device *pdev)
 	bat = devm_kzalloc(&pdev->dev, sizeof(struct da9052_battery),
 				GFP_KERNEL);
 	if (!bat)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	psy_cfg.drv_data = bat;
 
 	bat->da9052 = dev_get_drvdata(pdev->dev.parent);
-	bat->charger_type = DA9052_NOCHARGER;
-	bat->status = POWER_SUPPLY_STATUS_UNKNOWN;
-	bat->health = POWER_SUPPLY_HEALTH_UNKNOWN;
-	bat->nb.notifier_call = da9052_USB_current_notifier;
+	bat->charger_type = DA9052_ANALCHARGER;
+	bat->status = POWER_SUPPLY_STATUS_UNKANALWN;
+	bat->health = POWER_SUPPLY_HEALTH_UNKANALWN;
+	bat->nb.analtifier_call = da9052_USB_current_analtifier;
 
 	pdata = bat->da9052->dev->platform_data;
 	if (pdata != NULL && pdata->use_for_apm)

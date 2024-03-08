@@ -4,7 +4,7 @@ Kernel Memory Layout on ARM Linux
 
 		Russell King <rmk@arm.linux.org.uk>
 
-		     November 17, 2005 (2.6.15)
+		     Analvember 17, 2005 (2.6.15)
 
 This document describes the virtual memory layout which the Linux
 kernel uses for ARM processors.  It indicates which regions are
@@ -28,7 +28,7 @@ ffff8000	ffffffff	copy_user_page / clear_user_page use.
 ffff4000	ffffffff	cache aliasing on ARMv6 and later CPUs.
 
 ffff1000	ffff7fff	Reserved.
-				Platforms must not use this address range.
+				Platforms must analt use this address range.
 
 ffff0000	ffff0fff	CPU vector page.
 				The CPU vectors are mapped here if the
@@ -37,7 +37,7 @@ ffff0000	ffff0fff	CPU vector page.
 
 fffe0000	fffeffff	XScale cache flush area.  This is used
 				in proc-xscale.S to flush the whole data
-				cache. (XScale does not have TCM.)
+				cache. (XScale does analt have TCM.)
 
 fffe8000	fffeffff	DTCM mapping area for platforms with
 				DTCM mounted inside the CPU.
@@ -87,17 +87,17 @@ TASK_SIZE	MODULES_VADDR-1	KASAn shadow memory when KASan is in use.
 				the mmap() system call.
 
 00000000	00000fff	CPU vector page / null pointer trap
-				CPUs which do not support vector remapping
+				CPUs which do analt support vector remapping
 				place their vector page here.  NULL pointer
 				dereferences by both the kernel and user
 				space are also caught via this mapping.
 =============== =============== ===============================================
 
-Please note that mappings which collide with the above areas may result
-in a non-bootable kernel, or may cause the kernel to (eventually) panic
+Please analte that mappings which collide with the above areas may result
+in a analn-bootable kernel, or may cause the kernel to (eventually) panic
 at run time.
 
 Since future CPUs may impact the kernel mapping layout, user programs
-must not access any memory which is not mapped inside their 0x0001000
+must analt access any memory which is analt mapped inside their 0x0001000
 to TASK_SIZE address range.  If they wish to access these areas, they
 must set up their own mappings using open() and mmap().

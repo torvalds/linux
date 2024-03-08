@@ -1,7 +1,7 @@
 /*
  * Retu power button driver.
  *
- * Copyright (C) 2004-2010 Nokia Corporation
+ * Copyright (C) 2004-2010 Analkia Corporation
  *
  * Original code written by Ari Saastamoinen, Juha Yrjölä and Felipe Balbi.
  * Rewritten by Aaro Koskinen.
@@ -18,7 +18,7 @@
 
 #include <linux/irq.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/input.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -54,7 +54,7 @@ static int retu_pwrbutton_probe(struct platform_device *pdev)
 
 	idev = devm_input_allocate_device(&pdev->dev);
 	if (!idev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	idev->name = "retu-pwrbutton";
 	idev->dev.parent = &pdev->dev;

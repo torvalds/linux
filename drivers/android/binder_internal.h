@@ -16,26 +16,26 @@
 #include "binder_alloc.h"
 
 struct binder_context {
-	struct binder_node *binder_context_mgr_node;
-	struct mutex context_mgr_node_lock;
+	struct binder_analde *binder_context_mgr_analde;
+	struct mutex context_mgr_analde_lock;
 	kuid_t binder_context_mgr_uid;
 	const char *name;
 };
 
 /**
- * struct binder_device - information about a binder device node
+ * struct binder_device - information about a binder device analde
  * @hlist:          list of binder devices (only used for devices requested via
  *                  CONFIG_ANDROID_BINDER_DEVICES)
- * @miscdev:        information about a binder character device node
+ * @miscdev:        information about a binder character device analde
  * @context:        binder context information
- * @binderfs_inode: This is the inode of the root dentry of the super block
+ * @binderfs_ianalde: This is the ianalde of the root dentry of the super block
  *                  belonging to a binderfs mount.
  */
 struct binder_device {
-	struct hlist_node hlist;
+	struct hlist_analde hlist;
 	struct miscdevice miscdev;
 	struct binder_context context;
-	struct inode *binderfs_inode;
+	struct ianalde *binderfs_ianalde;
 	refcount_t ref;
 };
 
@@ -78,13 +78,13 @@ extern const struct file_operations binder_fops;
 extern char *binder_devices_param;
 
 #ifdef CONFIG_ANDROID_BINDERFS
-extern bool is_binderfs_device(const struct inode *inode);
+extern bool is_binderfs_device(const struct ianalde *ianalde);
 extern struct dentry *binderfs_create_file(struct dentry *dir, const char *name,
 					   const struct file_operations *fops,
 					   void *data);
 extern void binderfs_remove_file(struct dentry *dentry);
 #else
-static inline bool is_binderfs_device(const struct inode *inode)
+static inline bool is_binderfs_device(const struct ianalde *ianalde)
 {
 	return false;
 }
@@ -124,7 +124,7 @@ extern const struct binder_debugfs_entry binder_debugfs_entries[];
 enum binder_stat_types {
 	BINDER_STAT_PROC,
 	BINDER_STAT_THREAD,
-	BINDER_STAT_NODE,
+	BINDER_STAT_ANALDE,
 	BINDER_STAT_REF,
 	BINDER_STAT_DEATH,
 	BINDER_STAT_TRANSACTION,
@@ -141,10 +141,10 @@ struct binder_stats {
 
 /**
  * struct binder_work - work enqueued on a worklist
- * @entry:             node enqueued on list
+ * @entry:             analde enqueued on list
  * @type:              type of work to be performed
  *
- * There are separate work lists for proc, thread, and node (async).
+ * There are separate work lists for proc, thread, and analde (async).
  */
 struct binder_work {
 	struct list_head entry;
@@ -155,10 +155,10 @@ struct binder_work {
 		BINDER_WORK_TRANSACTION_PENDING,
 		BINDER_WORK_TRANSACTION_ONEWAY_SPAM_SUSPECT,
 		BINDER_WORK_RETURN_ERROR,
-		BINDER_WORK_NODE,
+		BINDER_WORK_ANALDE,
 		BINDER_WORK_DEAD_BINDER,
 		BINDER_WORK_DEAD_BINDER_AND_CLEAR,
-		BINDER_WORK_CLEAR_DEATH_NOTIFICATION,
+		BINDER_WORK_CLEAR_DEATH_ANALTIFICATION,
 	} type;
 };
 
@@ -168,19 +168,19 @@ struct binder_error {
 };
 
 /**
- * struct binder_node - binder node bookkeeping
+ * struct binder_analde - binder analde bookkeeping
  * @debug_id:             unique ID for debugging
  *                        (invariant after initialized)
- * @lock:                 lock for node fields
- * @work:                 worklist element for node work
+ * @lock:                 lock for analde fields
+ * @work:                 worklist element for analde work
  *                        (protected by @proc->inner_lock)
- * @rb_node:              element for proc->nodes tree
+ * @rb_analde:              element for proc->analdes tree
  *                        (protected by @proc->inner_lock)
- * @dead_node:            element for binder_dead_nodes list
- *                        (protected by binder_dead_nodes_lock)
- * @proc:                 binder_proc that owns this node
+ * @dead_analde:            element for binder_dead_analdes list
+ *                        (protected by binder_dead_analdes_lock)
+ * @proc:                 binder_proc that owns this analde
  *                        (invariant after initialized)
- * @refs:                 list of references on this node
+ * @refs:                 list of references on this analde
  *                        (protected by @lock)
  * @internal_strong_refs: used to take strong references when
  *                        initiating a transaction
@@ -194,29 +194,29 @@ struct binder_error {
  *                        and by @lock)
  * @tmp_refs:             temporary kernel refs
  *                        (protected by @proc->inner_lock while @proc
- *                        is valid, and by binder_dead_nodes_lock
- *                        if @proc is NULL. During inc/dec and node release
+ *                        is valid, and by binder_dead_analdes_lock
+ *                        if @proc is NULL. During inc/dec and analde release
  *                        it is also protected by @lock to provide safety
- *                        as the node dies and @proc becomes NULL)
- * @ptr:                  userspace pointer for node
- *                        (invariant, no lock needed)
- * @cookie:               userspace cookie for node
- *                        (invariant, no lock needed)
- * @has_strong_ref:       userspace notified of strong ref
+ *                        as the analde dies and @proc becomes NULL)
+ * @ptr:                  userspace pointer for analde
+ *                        (invariant, anal lock needed)
+ * @cookie:               userspace cookie for analde
+ *                        (invariant, anal lock needed)
+ * @has_strong_ref:       userspace analtified of strong ref
  *                        (protected by @proc->inner_lock if @proc
  *                        and by @lock)
- * @pending_strong_ref:   userspace has acked notification of strong ref
+ * @pending_strong_ref:   userspace has acked analtification of strong ref
  *                        (protected by @proc->inner_lock if @proc
  *                        and by @lock)
- * @has_weak_ref:         userspace notified of weak ref
+ * @has_weak_ref:         userspace analtified of weak ref
  *                        (protected by @proc->inner_lock if @proc
  *                        and by @lock)
- * @pending_weak_ref:     userspace has acked notification of weak ref
+ * @pending_weak_ref:     userspace has acked analtification of weak ref
  *                        (protected by @proc->inner_lock if @proc
  *                        and by @lock)
- * @has_async_transaction: async transaction to node in progress
+ * @has_async_transaction: async transaction to analde in progress
  *                        (protected by @lock)
- * @accept_fds:           file descriptor operations supported for node
+ * @accept_fds:           file descriptor operations supported for analde
  *                        (invariant after initialized)
  * @min_priority:         minimum scheduling priority
  *                        (invariant after initialized)
@@ -225,15 +225,15 @@ struct binder_error {
  * @async_todo:           list of async work items
  *                        (protected by @proc->inner_lock)
  *
- * Bookkeeping structure for binder nodes.
+ * Bookkeeping structure for binder analdes.
  */
-struct binder_node {
+struct binder_analde {
 	int debug_id;
 	spinlock_t lock;
 	struct binder_work work;
 	union {
-		struct rb_node rb_node;
-		struct hlist_node dead_node;
+		struct rb_analde rb_analde;
+		struct hlist_analde dead_analde;
 	};
 	struct binder_proc *proc;
 	struct hlist_head refs;
@@ -267,7 +267,7 @@ struct binder_node {
 
 struct binder_ref_death {
 	/**
-	 * @work: worklist element for death notifications
+	 * @work: worklist element for death analtifications
 	 *        (protected by inner_lock of the proc that
 	 *        this ref belongs to)
 	 */
@@ -279,8 +279,8 @@ struct binder_ref_death {
  * struct binder_ref_data - binder_ref counts and id
  * @debug_id:        unique ID for the ref
  * @desc:            unique userspace handle for ref
- * @strong:          strong ref count (debugging only if not locked)
- * @weak:            weak ref count (debugging only if not locked)
+ * @strong:          strong ref count (debugging only if analt locked)
+ * @weak:            weak ref count (debugging only if analt locked)
  *
  * Structure to hold ref count and ref id information. Since
  * the actual ref can only be accessed with a lock, this structure
@@ -295,47 +295,47 @@ struct binder_ref_data {
 };
 
 /**
- * struct binder_ref - struct to track references on nodes
+ * struct binder_ref - struct to track references on analdes
  * @data:        binder_ref_data containing id, handle, and current refcounts
- * @rb_node_desc: node for lookup by @data.desc in proc's rb_tree
- * @rb_node_node: node for lookup by @node in proc's rb_tree
- * @node_entry:  list entry for node->refs list in target node
- *               (protected by @node->lock)
+ * @rb_analde_desc: analde for lookup by @data.desc in proc's rb_tree
+ * @rb_analde_analde: analde for lookup by @analde in proc's rb_tree
+ * @analde_entry:  list entry for analde->refs list in target analde
+ *               (protected by @analde->lock)
  * @proc:        binder_proc containing ref
- * @node:        binder_node of target node. When cleaning up a
- *               ref for deletion in binder_cleanup_ref, a non-NULL
- *               @node indicates the node must be freed
- * @death:       pointer to death notification (ref_death) if requested
- *               (protected by @node->lock)
+ * @analde:        binder_analde of target analde. When cleaning up a
+ *               ref for deletion in binder_cleanup_ref, a analn-NULL
+ *               @analde indicates the analde must be freed
+ * @death:       pointer to death analtification (ref_death) if requested
+ *               (protected by @analde->lock)
  *
- * Structure to track references from procA to target node (on procB). This
+ * Structure to track references from procA to target analde (on procB). This
  * structure is unsafe to access without holding @proc->outer_lock.
  */
 struct binder_ref {
 	/* Lookups needed: */
-	/*   node + proc => ref (transaction) */
+	/*   analde + proc => ref (transaction) */
 	/*   desc + proc => ref (transaction, inc/dec ref) */
-	/*   node => refs + procs (proc exit) */
+	/*   analde => refs + procs (proc exit) */
 	struct binder_ref_data data;
-	struct rb_node rb_node_desc;
-	struct rb_node rb_node_node;
-	struct hlist_node node_entry;
+	struct rb_analde rb_analde_desc;
+	struct rb_analde rb_analde_analde;
+	struct hlist_analde analde_entry;
 	struct binder_proc *proc;
-	struct binder_node *node;
+	struct binder_analde *analde;
 	struct binder_ref_death *death;
 };
 
 /**
  * struct binder_proc - binder process bookkeeping
- * @proc_node:            element for binder_procs list
+ * @proc_analde:            element for binder_procs list
  * @threads:              rbtree of binder_threads in this proc
  *                        (protected by @inner_lock)
- * @nodes:                rbtree of binder nodes associated with
- *                        this proc ordered by node->ptr
+ * @analdes:                rbtree of binder analdes associated with
+ *                        this proc ordered by analde->ptr
  *                        (protected by @inner_lock)
  * @refs_by_desc:         rbtree of refs ordered by ref->desc
  *                        (protected by @outer_lock)
- * @refs_by_node:         rbtree of refs ordered by ref->node
+ * @refs_by_analde:         rbtree of refs ordered by ref->analde
  *                        (protected by @outer_lock)
  * @waiting_threads:      threads currently waiting for proc work
  *                        (protected by @inner_lock)
@@ -346,7 +346,7 @@ struct binder_ref {
  * @cred                  struct cred associated with the `struct file`
  *                        in binder_open()
  *                        (invariant after initialized)
- * @deferred_work_node:   element for binder_deferred_list
+ * @deferred_work_analde:   element for binder_deferred_list
  *                        (protected by binder_deferred_lock)
  * @deferred_work:        bitmap of deferred work to perform
  *                        (protected by binder_deferred_lock)
@@ -371,12 +371,12 @@ struct binder_ref {
  * @todo:                 list of work for this process
  *                        (protected by @inner_lock)
  * @stats:                per-process binder statistics
- *                        (atomics, no lock needed)
- * @delivered_death:      list of delivered death notification
+ *                        (atomics, anal lock needed)
+ * @delivered_death:      list of delivered death analtification
  *                        (protected by @inner_lock)
  * @max_threads:          cap on number of binder threads
  *                        (protected by @inner_lock)
- * @requested_threads:    number of binder threads requested but not
+ * @requested_threads:    number of binder threads requested but analt
  *                        yet started. In current implementation, can
  *                        only be 0 or 1.
  *                        (protected by @inner_lock)
@@ -386,30 +386,30 @@ struct binder_ref {
  *                        (protected by @inner_lock)
  * @default_priority:     default scheduler priority
  *                        (invariant after initialized)
- * @debugfs_entry:        debugfs node
+ * @debugfs_entry:        debugfs analde
  * @alloc:                binder allocator bookkeeping
  * @context:              binder_context for this proc
  *                        (invariant after initialized)
- * @inner_lock:           can nest under outer_lock and/or node lock
- * @outer_lock:           no nesting under innor or node lock
- *                        Lock order: 1) outer, 2) node, 3) inner
+ * @inner_lock:           can nest under outer_lock and/or analde lock
+ * @outer_lock:           anal nesting under inanalr or analde lock
+ *                        Lock order: 1) outer, 2) analde, 3) inner
  * @binderfs_entry:       process-specific binderfs log file
  * @oneway_spam_detection_enabled: process enabled oneway spam detection
- *                        or not
+ *                        or analt
  *
  * Bookkeeping structure for binder processes
  */
 struct binder_proc {
-	struct hlist_node proc_node;
+	struct hlist_analde proc_analde;
 	struct rb_root threads;
-	struct rb_root nodes;
+	struct rb_root analdes;
 	struct rb_root refs_by_desc;
-	struct rb_root refs_by_node;
+	struct rb_root refs_by_analde;
 	struct list_head waiting_threads;
 	int pid;
 	struct task_struct *tsk;
 	const struct cred *cred;
-	struct hlist_node deferred_work_node;
+	struct hlist_analde deferred_work_analde;
 	int deferred_work;
 	int outstanding_txns;
 	bool is_dead;
@@ -439,16 +439,16 @@ struct binder_proc {
  * struct binder_thread - binder thread bookkeeping
  * @proc:                 binder process for this thread
  *                        (invariant after initialization)
- * @rb_node:              element for proc->threads rbtree
+ * @rb_analde:              element for proc->threads rbtree
  *                        (protected by @proc->inner_lock)
- * @waiting_thread_node:  element for @proc->waiting_threads list
+ * @waiting_thread_analde:  element for @proc->waiting_threads list
  *                        (protected by @proc->inner_lock)
  * @pid:                  PID for this thread
  *                        (invariant after initialization)
  * @looper:               bitmap of looping state
  *                        (only accessed by this thread)
  * @looper_needs_return:  looping thread needs to exit driver
- *                        (no lock needed)
+ *                        (anal lock needed)
  * @transaction_stack:    stack of in-progress transactions for this thread
  *                        (protected by @proc->inner_lock)
  * @todo:                 list of work to do for this thread
@@ -463,9 +463,9 @@ struct binder_proc {
  *                        (protected by @proc->inner_lock)
  * @wait:                 wait queue for thread work
  * @stats:                per-thread statistics
- *                        (atomics, no lock needed)
+ *                        (atomics, anal lock needed)
  * @tmp_ref:              temporary reference to indicate thread is in use
- *                        (atomic since @proc->inner_lock cannot
+ *                        (atomic since @proc->inner_lock cananalt
  *                        always be acquired)
  * @is_dead:              thread is dead and awaiting free
  *                        when outstanding transactions are cleaned up
@@ -475,8 +475,8 @@ struct binder_proc {
  */
 struct binder_thread {
 	struct binder_proc *proc;
-	struct rb_node rb_node;
-	struct list_head waiting_thread_node;
+	struct rb_analde rb_analde;
+	struct list_head waiting_thread_analde;
 	int pid;
 	int looper;              /* only modified by this thread */
 	bool looper_need_return; /* can be written by other thread */
@@ -522,7 +522,7 @@ struct binder_transaction {
 	struct binder_thread *to_thread;
 	struct binder_transaction *to_parent;
 	unsigned need_reply:1;
-	/* unsigned is_dead:1; */       /* not used at the moment */
+	/* unsigned is_dead:1; */       /* analt used at the moment */
 
 	struct binder_buffer *buffer;
 	unsigned int    code;
@@ -545,7 +545,7 @@ struct binder_transaction {
 /**
  * struct binder_object - union of flat binder object types
  * @hdr:   generic object header
- * @fbo:   binder object (nodes and refs)
+ * @fbo:   binder object (analdes and refs)
  * @fdo:   file descriptor object
  * @bbo:   binder buffer pointer
  * @fdao:  file descriptor array

@@ -326,9 +326,9 @@
 	pinctrl-0 = <&pinctrl_usdhc2>;
 	vmmc-supply = <&reg_mba6_3p3v>;
 	bus-width = <4>;
-	no-1-8-v;
-	no-mmc;
-	no-sdio;
+	anal-1-8-v;
+	anal-mmc;
+	anal-sdio;
 	cd-gpios = <&gpio1 4 GPIO_ACTIVE_LOW>;
 	wp-gpios = <&gpio1 2 GPIO_ACTIVE_HIGH>;
 	status = "okay";
@@ -337,7 +337,7 @@
 &wdog1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_wdog1>;
-	/* does not work on unmodified starter kit */
+	/* does analt work on unmodified starter kit */
 	/* fsl,ext-reset-output; */
 	status = "okay";
 };
@@ -431,7 +431,7 @@
 	};
 
 	pinctrl_hdmi: hdmigrp {
-		/* NOTE: DDC is done via I2C2, so DON'T
+		/* ANALTE: DDC is done via I2C2, so DON'T
 		 * configure DDC pins for HDMI!
 		 */
 		fsl,pins = <

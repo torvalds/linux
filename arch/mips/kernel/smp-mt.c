@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  *
- * Copyright (C) 2004, 05, 06 MIPS Technologies, Inc.
+ * Copyright (C) 2004, 05, 06 MIPS Techanallogies, Inc.
  *    Elizabeth Clarke (beth@mips.com)
  *    Ralf Baechle (ralf@linux-mips.org)
  * Copyright (C) 2006 Ralf Baechle (ralf@linux-mips.org)
@@ -34,7 +34,7 @@ static void __init smvp_copy_vpe_config(void)
 	/* set config to be the same as vpe0, particularly kseg0 coherency alg */
 	write_vpe_c0_config( read_c0_config());
 
-	/* make sure there are no software interrupts pending */
+	/* make sure there are anal software interrupts pending */
 	write_vpe_c0_cause(0);
 
 	/* Propagate Config7 */
@@ -98,7 +98,7 @@ static void __init smvp_tc_init(unsigned int tc, unsigned int mvpconf0)
 
 	tmp = read_tc_c0_tcstatus();
 
-	/* mark not allocated and not dynamically allocatable */
+	/* mark analt allocated and analt dynamically allocatable */
 	tmp &= ~(TCSTATUS_A | TCSTATUS_DA);
 	tmp |= TCSTATUS_IXMT;		/* interrupt exempt */
 	write_tc_c0_tcstatus(tmp);

@@ -32,11 +32,11 @@ layout is as follows::
                           xdp_desc->addr
 
 An AF_XDP application can request headrooms larger than ``sizeof(struct
-xsk_tx_metadata)``. The kernel will ignore the padding (and will still
+xsk_tx_metadata)``. The kernel will iganalre the padding (and will still
 use ``xdp_desc->addr - tx_metadata_len`` to locate
 the ``xsk_tx_metadata``). For the frames that shouldn't carry
 any metadata (i.e., the ones that don't have ``XDP_TX_METADATA`` option),
-the metadata area is ignored by the kernel as well.
+the metadata area is iganalred by the kernel as well.
 
 The flags field enables the particular offload:
 
@@ -49,7 +49,7 @@ The flags field enables the particular offload:
 
 Besides the flags above, in order to trigger the offloads, the first
 packet's ``struct xdp_desc`` descriptor should set ``XDP_TX_METADATA``
-bit in the ``options`` field. Also note that in a multi-buffer packet
+bit in the ``options`` field. Also analte that in a multi-buffer packet
 only the first chunk should carry the metadata.
 
 Software TX Checksum
@@ -58,7 +58,7 @@ Software TX Checksum
 For development and testing purposes its possible to pass
 ``XDP_UMEM_TX_SW_CSUM`` flag to ``XDP_UMEM_REG`` UMEM registration call.
 In this case, when running in ``XDK_COPY`` mode, the TX checksum
-is calculated on the CPU. Do not enable this option in production because
+is calculated on the CPU. Do analt enable this option in production because
 it will negatively affect performance.
 
 Querying Device Capabilities

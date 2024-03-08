@@ -75,12 +75,12 @@ static const struct regmap_range quad8_rd_ranges[] = {
 	regmap_reg_range(0x0, 0x12), regmap_reg_range(0x16, 0x18),
 };
 static const struct regmap_access_table quad8_wr_table = {
-	.yes_ranges = quad8_wr_ranges,
-	.n_yes_ranges = ARRAY_SIZE(quad8_wr_ranges),
+	.anal_ranges = quad8_wr_ranges,
+	.n_anal_ranges = ARRAY_SIZE(quad8_wr_ranges),
 };
 static const struct regmap_access_table quad8_rd_table = {
-	.yes_ranges = quad8_rd_ranges,
-	.n_yes_ranges = ARRAY_SIZE(quad8_rd_ranges),
+	.anal_ranges = quad8_rd_ranges,
+	.n_anal_ranges = ARRAY_SIZE(quad8_rd_ranges),
 };
 static const struct regmap_config quad8_regmap_config = {
 	.reg_bits = 8,
@@ -135,16 +135,16 @@ static const struct regmap_config quad8_regmap_config = {
 #define QUADRATURE_MODE GENMASK(4, 3)
 /* Binary count */
 #define BINARY u8_encode_bits(0x0, COUNT_ENCODING)
-/* Normal count */
-#define NORMAL_COUNT 0x0
+/* Analrmal count */
+#define ANALRMAL_COUNT 0x0
 /* Range Limit */
 #define RANGE_LIMIT 0x1
-/* Non-recycle count */
-#define NON_RECYCLE_COUNT 0x2
+/* Analn-recycle count */
+#define ANALN_RECYCLE_COUNT 0x2
 /* Modulo-N */
 #define MODULO_N 0x3
-/* Non-quadrature */
-#define NON_QUADRATURE 0x0
+/* Analn-quadrature */
+#define ANALN_QUADRATURE 0x0
 /* Quadrature X1 */
 #define QUADRATURE_X1 0x1
 /* Quadrature X2 */
@@ -246,7 +246,7 @@ static int quad8_count_read(struct counter_device *counter,
 			   SELECT_RLD | RESET_BP | TRANSFER_CNTR_TO_OL);
 	if (ret)
 		goto exit_unlock;
-	ret = regmap_noinc_read(priv->map, QUAD8_DATA(count->id), value, sizeof(value));
+	ret = regmap_analinc_read(priv->map, QUAD8_DATA(count->id), value, sizeof(value));
 
 exit_unlock:
 	spin_unlock_irqrestore(&priv->lock, irqflags);
@@ -267,7 +267,7 @@ static int quad8_preset_register_set(struct quad8 *const priv, const size_t id,
 	ret = regmap_write(priv->map, QUAD8_CONTROL(id), SELECT_RLD | RESET_BP);
 	if (ret)
 		return ret;
-	return regmap_noinc_write(priv->map, QUAD8_DATA(id), value, sizeof(value));
+	return regmap_analinc_write(priv->map, QUAD8_DATA(id), value, sizeof(value));
 }
 
 static int quad8_flag_register_reset(struct quad8 *const priv, const size_t id)
@@ -324,7 +324,7 @@ static int quad8_function_get(const struct quad8 *const priv, const size_t id,
 			      enum counter_function *const function)
 {
 	switch (u8_get_bits(priv->cmr[id], QUADRATURE_MODE)) {
-	case NON_QUADRATURE:
+	case ANALN_QUADRATURE:
 		*function = COUNTER_FUNCTION_PULSE_DIRECTION;
 		return 0;
 	case QUADRATURE_X1:
@@ -367,12 +367,12 @@ static int quad8_function_write(struct counter_device *counter,
 	const int id = count->id;
 	unsigned long irqflags;
 	unsigned int mode_cfg;
-	bool synchronous_mode;
+	bool synchroanalus_mode;
 	int ret;
 
 	switch (function) {
 	case COUNTER_FUNCTION_PULSE_DIRECTION:
-		mode_cfg = NON_QUADRATURE;
+		mode_cfg = ANALN_QUADRATURE;
 		break;
 	case COUNTER_FUNCTION_QUADRATURE_X1_A:
 		mode_cfg = QUADRATURE_X1;
@@ -390,9 +390,9 @@ static int quad8_function_write(struct counter_device *counter,
 
 	spin_lock_irqsave(&priv->lock, irqflags);
 
-	/* Synchronous function not supported in non-quadrature mode */
-	synchronous_mode = u8_get_bits(priv->idr[id], INDEX_MODE) == ENABLE_INDEX_MODE;
-	if (synchronous_mode && mode_cfg == NON_QUADRATURE) {
+	/* Synchroanalus function analt supported in analn-quadrature mode */
+	synchroanalus_mode = u8_get_bits(priv->idr[id], INDEX_MODE) == ENABLE_INDEX_MODE;
+	if (synchroanalus_mode && mode_cfg == ANALN_QUADRATURE) {
 		ret = quad8_control_register_update(priv->map, priv->idr, id, DISABLE_INDEX_MODE,
 						    INDEX_MODE);
 		if (ret)
@@ -425,12 +425,12 @@ static int quad8_direction_read(struct counter_device *counter,
 }
 
 static const enum counter_synapse_action quad8_index_actions_list[] = {
-	COUNTER_SYNAPSE_ACTION_NONE,
+	COUNTER_SYNAPSE_ACTION_ANALNE,
 	COUNTER_SYNAPSE_ACTION_RISING_EDGE,
 };
 
 static const enum counter_synapse_action quad8_synapse_actions_list[] = {
-	COUNTER_SYNAPSE_ACTION_NONE,
+	COUNTER_SYNAPSE_ACTION_ANALNE,
 	COUNTER_SYNAPSE_ACTION_RISING_EDGE,
 	COUNTER_SYNAPSE_ACTION_FALLING_EDGE,
 	COUNTER_SYNAPSE_ACTION_BOTH_EDGES,
@@ -449,7 +449,7 @@ static int quad8_action_read(struct counter_device *counter,
 	enum counter_count_direction direction;
 
 	/* Default action mode */
-	*action = COUNTER_SYNAPSE_ACTION_NONE;
+	*action = COUNTER_SYNAPSE_ACTION_ANALNE;
 
 	/* Handle Index signals */
 	if (synapse->signal->id >= 16) {
@@ -506,14 +506,14 @@ static int quad8_events_configure(struct counter_device *counter)
 	struct quad8 *const priv = counter_priv(counter);
 	unsigned long irq_enabled = 0;
 	unsigned long irqflags;
-	struct counter_event_node *event_node;
+	struct counter_event_analde *event_analde;
 	u8 flg_pins;
 	int ret;
 
 	spin_lock_irqsave(&priv->lock, irqflags);
 
-	list_for_each_entry(event_node, &counter->events_list, l) {
-		switch (event_node->event) {
+	list_for_each_entry(event_analde, &counter->events_list, l) {
+		switch (event_analde->event) {
 		case COUNTER_EVENT_OVERFLOW:
 			flg_pins = FLG1_CARRY_FLG2_BORROW;
 			break;
@@ -533,14 +533,14 @@ static int quad8_events_configure(struct counter_device *counter)
 		}
 
 		/* Enable IRQ line */
-		irq_enabled |= BIT(event_node->channel);
+		irq_enabled |= BIT(event_analde->channel);
 
 		/* Skip configuration if it is the same as previously set */
-		if (flg_pins == u8_get_bits(priv->ior[event_node->channel], FLG_PINS))
+		if (flg_pins == u8_get_bits(priv->ior[event_analde->channel], FLG_PINS))
 			continue;
 
 		/* Save new IRQ function configuration */
-		ret = quad8_control_register_update(priv->map, priv->ior, event_node->channel,
+		ret = quad8_control_register_update(priv->map, priv->ior, event_analde->channel,
 						    flg_pins, FLG_PINS);
 		if (ret)
 			goto exit_unlock;
@@ -557,7 +557,7 @@ exit_unlock:
 static int quad8_watch_validate(struct counter_device *counter,
 				const struct counter_watch *watch)
 {
-	struct counter_event_node *event_node;
+	struct counter_event_analde *event_analde;
 
 	if (watch->channel > QUAD8_NUM_COUNTERS - 1)
 		return -EINVAL;
@@ -567,9 +567,9 @@ static int quad8_watch_validate(struct counter_device *counter,
 	case COUNTER_EVENT_THRESHOLD:
 	case COUNTER_EVENT_OVERFLOW_UNDERFLOW:
 	case COUNTER_EVENT_INDEX:
-		list_for_each_entry(event_node, &counter->next_events_list, l)
-			if (watch->channel == event_node->channel &&
-				watch->event != event_node->event)
+		list_for_each_entry(event_analde, &counter->next_events_list, l)
+			if (watch->channel == event_analde->channel &&
+				watch->event != event_analde->event)
 				return -EINVAL;
 		return 0;
 	default:
@@ -651,26 +651,26 @@ static int quad8_polarity_write(struct counter_device *counter,
 	return quad8_index_polarity_set(counter, signal, pol);
 }
 
-static const char *const quad8_synchronous_modes[] = {
-	"non-synchronous",
-	"synchronous"
+static const char *const quad8_synchroanalus_modes[] = {
+	"analn-synchroanalus",
+	"synchroanalus"
 };
 
-static int quad8_synchronous_mode_get(struct counter_device *counter,
+static int quad8_synchroanalus_mode_get(struct counter_device *counter,
 				      struct counter_signal *signal,
-				      u32 *synchronous_mode)
+				      u32 *synchroanalus_mode)
 {
 	const struct quad8 *const priv = counter_priv(counter);
 	const size_t channel_id = signal->id - 16;
 
-	*synchronous_mode = u8_get_bits(priv->idr[channel_id], INDEX_MODE);
+	*synchroanalus_mode = u8_get_bits(priv->idr[channel_id], INDEX_MODE);
 
 	return 0;
 }
 
-static int quad8_synchronous_mode_set(struct counter_device *counter,
+static int quad8_synchroanalus_mode_set(struct counter_device *counter,
 				      struct counter_signal *signal,
-				      u32 synchronous_mode)
+				      u32 synchroanalus_mode)
 {
 	struct quad8 *const priv = counter_priv(counter);
 	const size_t channel_id = signal->id - 16;
@@ -680,14 +680,14 @@ static int quad8_synchronous_mode_set(struct counter_device *counter,
 
 	spin_lock_irqsave(&priv->lock, irqflags);
 
-	/* Index function must be non-synchronous in non-quadrature mode */
+	/* Index function must be analn-synchroanalus in analn-quadrature mode */
 	quadrature_mode = u8_get_bits(priv->idr[channel_id], QUADRATURE_MODE);
-	if (synchronous_mode && quadrature_mode == NON_QUADRATURE) {
+	if (synchroanalus_mode && quadrature_mode == ANALN_QUADRATURE) {
 		ret = -EINVAL;
 		goto exit_unlock;
 	}
 
-	ret = quad8_control_register_update(priv->map, priv->idr, channel_id, synchronous_mode,
+	ret = quad8_control_register_update(priv->map, priv->idr, channel_id, synchroanalus_mode,
 					    INDEX_MODE);
 
 exit_unlock:
@@ -712,14 +712,14 @@ static int quad8_count_mode_read(struct counter_device *counter,
 	const struct quad8 *const priv = counter_priv(counter);
 
 	switch (u8_get_bits(priv->cmr[count->id], COUNT_MODE)) {
-	case NORMAL_COUNT:
-		*cnt_mode = COUNTER_COUNT_MODE_NORMAL;
+	case ANALRMAL_COUNT:
+		*cnt_mode = COUNTER_COUNT_MODE_ANALRMAL;
 		break;
 	case RANGE_LIMIT:
 		*cnt_mode = COUNTER_COUNT_MODE_RANGE_LIMIT;
 		break;
-	case NON_RECYCLE_COUNT:
-		*cnt_mode = COUNTER_COUNT_MODE_NON_RECYCLE;
+	case ANALN_RECYCLE_COUNT:
+		*cnt_mode = COUNTER_COUNT_MODE_ANALN_RECYCLE;
 		break;
 	case MODULO_N:
 		*cnt_mode = COUNTER_COUNT_MODE_MODULO_N;
@@ -739,14 +739,14 @@ static int quad8_count_mode_write(struct counter_device *counter,
 	int ret;
 
 	switch (cnt_mode) {
-	case COUNTER_COUNT_MODE_NORMAL:
-		count_mode = NORMAL_COUNT;
+	case COUNTER_COUNT_MODE_ANALRMAL:
+		count_mode = ANALRMAL_COUNT;
 		break;
 	case COUNTER_COUNT_MODE_RANGE_LIMIT:
 		count_mode = RANGE_LIMIT;
 		break;
-	case COUNTER_COUNT_MODE_NON_RECYCLE:
-		count_mode = NON_RECYCLE_COUNT;
+	case COUNTER_COUNT_MODE_ANALN_RECYCLE:
+		count_mode = ANALN_RECYCLE_COUNT;
 		break;
 	case COUNTER_COUNT_MODE_MODULO_N:
 		count_mode = MODULO_N;
@@ -792,13 +792,13 @@ static int quad8_count_enable_write(struct counter_device *counter,
 	return ret;
 }
 
-static const char *const quad8_noise_error_states[] = {
-	"No excessive noise is present at the count inputs",
-	"Excessive noise is present at the count inputs"
+static const char *const quad8_analise_error_states[] = {
+	"Anal excessive analise is present at the count inputs",
+	"Excessive analise is present at the count inputs"
 };
 
-static int quad8_error_noise_get(struct counter_device *counter,
-				 struct counter_count *count, u32 *noise_error)
+static int quad8_error_analise_get(struct counter_device *counter,
+				 struct counter_count *count, u32 *analise_error)
 {
 	const struct quad8 *const priv = counter_priv(counter);
 	unsigned int flag;
@@ -807,7 +807,7 @@ static int quad8_error_noise_get(struct counter_device *counter,
 	ret = regmap_read(priv->map, QUAD8_CONTROL(count->id), &flag);
 	if (ret)
 		return ret;
-	*noise_error = u8_get_bits(flag, FLAG_E);
+	*analise_error = u8_get_bits(flag, FLAG_E);
 
 	return 0;
 }
@@ -1061,7 +1061,7 @@ static const enum counter_signal_polarity quad8_polarities[] = {
 static DEFINE_COUNTER_AVAILABLE(quad8_polarity_available, quad8_polarities);
 
 static DEFINE_COUNTER_ENUM(quad8_index_pol_enum, quad8_index_polarity_modes);
-static DEFINE_COUNTER_ENUM(quad8_synch_mode_enum, quad8_synchronous_modes);
+static DEFINE_COUNTER_ENUM(quad8_synch_mode_enum, quad8_synchroanalus_modes);
 
 static struct counter_comp quad8_index_ext[] = {
 	COUNTER_COMP_SIGNAL_ENUM("index_polarity", quad8_index_polarity_get,
@@ -1069,8 +1069,8 @@ static struct counter_comp quad8_index_ext[] = {
 				 quad8_index_pol_enum),
 	COUNTER_COMP_POLARITY(quad8_polarity_read, quad8_polarity_write,
 			      quad8_polarity_available),
-	COUNTER_COMP_SIGNAL_ENUM("synchronous_mode", quad8_synchronous_mode_get,
-				 quad8_synchronous_mode_set,
+	COUNTER_COMP_SIGNAL_ENUM("synchroanalus_mode", quad8_synchroanalus_mode_get,
+				 quad8_synchroanalus_mode_set,
 				 quad8_synch_mode_enum),
 };
 
@@ -1141,15 +1141,15 @@ static struct counter_synapse quad8_count_synapses[][3] = {
 };
 
 static const enum counter_count_mode quad8_cnt_modes[] = {
-	COUNTER_COUNT_MODE_NORMAL,
+	COUNTER_COUNT_MODE_ANALRMAL,
 	COUNTER_COUNT_MODE_RANGE_LIMIT,
-	COUNTER_COUNT_MODE_NON_RECYCLE,
+	COUNTER_COUNT_MODE_ANALN_RECYCLE,
 	COUNTER_COUNT_MODE_MODULO_N,
 };
 
 static DEFINE_COUNTER_AVAILABLE(quad8_count_mode_available, quad8_cnt_modes);
 
-static DEFINE_COUNTER_ENUM(quad8_error_noise_enum, quad8_noise_error_states);
+static DEFINE_COUNTER_ENUM(quad8_error_analise_enum, quad8_analise_error_states);
 
 static struct counter_comp quad8_count_ext[] = {
 	COUNTER_COMP_CEILING(quad8_count_ceiling_read,
@@ -1159,8 +1159,8 @@ static struct counter_comp quad8_count_ext[] = {
 				quad8_count_mode_available),
 	COUNTER_COMP_DIRECTION(quad8_direction_read),
 	COUNTER_COMP_ENABLE(quad8_count_enable_read, quad8_count_enable_write),
-	COUNTER_COMP_COUNT_ENUM("error_noise", quad8_error_noise_get, NULL,
-				quad8_error_noise_enum),
+	COUNTER_COMP_COUNT_ENUM("error_analise", quad8_error_analise_get, NULL,
+				quad8_error_analise_enum),
 	COUNTER_COMP_PRESET(quad8_count_preset_read, quad8_count_preset_write),
 	COUNTER_COMP_PRESET_ENABLE(quad8_count_preset_enable_read,
 				   quad8_count_preset_enable_write),
@@ -1203,7 +1203,7 @@ static irqreturn_t quad8_irq_handler(int irq, void *private)
 	if (ret)
 		return ret;
 	if (!status)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	irq_status = status;
 	for_each_set_bit(channel, &irq_status, QUAD8_NUM_COUNTERS) {
@@ -1252,9 +1252,9 @@ static int quad8_init_counter(struct quad8 *const priv, const size_t channel)
 	if (ret)
 		return ret;
 
-	/* Binary encoding; Normal count; non-quadrature mode */
-	priv->cmr[channel] = SELECT_CMR | BINARY | u8_encode_bits(NORMAL_COUNT, COUNT_MODE) |
-			     u8_encode_bits(NON_QUADRATURE, QUADRATURE_MODE);
+	/* Binary encoding; Analrmal count; analn-quadrature mode */
+	priv->cmr[channel] = SELECT_CMR | BINARY | u8_encode_bits(ANALRMAL_COUNT, COUNT_MODE) |
+			     u8_encode_bits(ANALN_QUADRATURE, QUADRATURE_MODE);
 	ret = regmap_write(priv->map, QUAD8_CONTROL(channel), priv->cmr[channel]);
 	if (ret)
 		return ret;
@@ -1288,12 +1288,12 @@ static int quad8_probe(struct device *dev, unsigned int id)
 
 	counter = devm_counter_alloc(dev, sizeof(*priv));
 	if (!counter)
-		return -ENOMEM;
+		return -EANALMEM;
 	priv = counter_priv(counter);
 
 	regs = devm_ioport_map(dev, base[id], QUAD8_EXTENT);
 	if (!regs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->map = devm_regmap_init_mmio(dev, regs, &quad8_regmap_config);
 	if (IS_ERR(priv->map))

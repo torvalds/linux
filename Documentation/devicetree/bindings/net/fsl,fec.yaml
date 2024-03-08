@@ -171,13 +171,13 @@ properties:
     $ref: /schemas/types.yaml#/definitions/flag
     description:
       If present indicates that the system has the hardware workaround for
-      ERR006687 applied and does not need a software workaround.
+      ERR006687 applied and does analt need a software workaround.
 
   fsl,stop-mode:
     $ref: /schemas/types.yaml#/definitions/phandle-array
     items:
       - items:
-          - description: phandle to general purpose register node
+          - description: phandle to general purpose register analde
           - description: the gpr register offset for ENET stop request
           - description: the gpr bit offset for ENET stop request
     description:
@@ -187,10 +187,10 @@ properties:
     $ref: mdio.yaml#
     unevaluatedProperties: false
     description:
-      Specifies the mdio bus in the FEC, used as a container for phy nodes.
+      Specifies the mdio bus in the FEC, used as a container for phy analdes.
 
   # Deprecated optional properties:
-  # To avoid these, create a phy node according to ethernet-phy.yaml in the same
+  # To avoid these, create a phy analde according to ethernet-phy.yaml in the same
   # directory, and point the FEC's "phy-handle" property to it. Then use
   # the phy's reset binding, again described by ethernet-phy.yaml.
 
@@ -221,7 +221,7 @@ properties:
     description:
       Post reset delay in milliseconds. If present then a delay of phy-reset-post-delay
       milliseconds will be observed after the phy-reset-gpios has been toggled.
-      Can be omitted thus no delay is observed. Delay is in range of 1ms to 1000ms.
+      Can be omitted thus anal delay is observed. Delay is in range of 1ms to 1000ms.
       Other delays are invalid.
 
 required:
@@ -231,7 +231,7 @@ required:
 
 # FIXME: We had better set additionalProperties to false to avoid invalid or at
 # least undocumented properties. However, PHY may have a deprecated option to
-# place PHY OF properties in the MAC node, such as Micrel PHY, and we can find
+# place PHY OF properties in the MAC analde, such as Micrel PHY, and we can find
 # these boards which is based on i.MX6QDL.
 unevaluatedProperties: false
 

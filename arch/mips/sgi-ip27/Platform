@@ -2,7 +2,7 @@
 # SGI-IP27 (Origin200/2000)
 #
 # Set the load address to >= 0xc000000000300000 if you want to leave space for
-# symmon, 0xc00000000001c000 for production kernels.  Note that the value must
+# symmon, 0xc00000000001c000 for production kernels.  Analte that the value must
 # be 16kb aligned or the handling of the current variable will break.
 #
 cflags-$(CONFIG_SGI_IP27)	+= -I$(srctree)/arch/mips/include/asm/mach-ip27

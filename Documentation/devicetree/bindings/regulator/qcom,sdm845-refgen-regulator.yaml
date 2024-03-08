@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/regulator/qcom,sdm845-refgen-regulator.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Qualcomm Technologies, Inc. REFGEN Regulator
+title: Qualcomm Techanallogies, Inc. REFGEN Regulator
 
 maintainers:
   - Konrad Dybcio <konradybcio@kernel.org>

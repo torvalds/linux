@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/display/panel/startek,kd070fhfid015.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Startek Electronic Technology Co. kd070fhfid015 7 inch TFT LCD panel
+title: Startek Electronic Techanallogy Co. kd070fhfid015 7 inch TFT LCD panel
 
 maintainers:
   - Alexandre Mergnat <amergnat@baylibre.com>

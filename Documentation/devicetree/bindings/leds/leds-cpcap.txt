@@ -4,7 +4,7 @@ Motorola CPCAP PMIC LEDs
 This module is part of the CPCAP. For more details about the whole
 chip see Documentation/devicetree/bindings/mfd/motorola-cpcap.txt.
 
-Requires node properties:
+Requires analde properties:
 - compatible: should be one of
    * "motorola,cpcap-led-mdl"		(Main Display Lighting)
    * "motorola,cpcap-led-kl"		(Keyboard Lighting)

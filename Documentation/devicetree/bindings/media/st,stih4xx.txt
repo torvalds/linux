@@ -16,13 +16,13 @@ Example:
 	bdisp0:bdisp@9f10000 {
 		compatible = "st,stih407-bdisp";
 		reg = <0x9f10000 0x1000>;
-		interrupts = <GIC_SPI 38 IRQ_TYPE_NONE>;
+		interrupts = <GIC_SPI 38 IRQ_TYPE_ANALNE>;
 		clock-names = "bdisp";
 		clocks = <&clk_s_c0_flexgen CLK_IC_BDISP_0>;
 	};
 
 Aliases:
-Each BDISP should have a numbered alias in the aliases node, in the form of
+Each BDISP should have a numbered alias in the aliases analde, in the form of
 bdispN, N = 0 or 1.
 
 Example:

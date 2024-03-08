@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
-/* Copyright (c) 2018 Mellanox Technologies */
+/* Copyright (c) 2018 Mellaanalx Techanallogies */
 
 #include <linux/mlx5/vport.h>
 #include <linux/list.h>
@@ -80,7 +80,7 @@ mlx5_devcom_register_device(struct mlx5_core_dev *dev)
 
 	devc = mlx5_devcom_dev_alloc(dev);
 	if (!devc) {
-		devc = ERR_PTR(-ENOMEM);
+		devc = ERR_PTR(-EANALMEM);
 		goto out;
 	}
 
@@ -114,7 +114,7 @@ mlx5_devcom_comp_alloc(u64 id, u64 key, mlx5_devcom_event_handler_t handler)
 
 	comp = kzalloc(sizeof(*comp), GFP_KERNEL);
 	if (!comp)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	comp->id = id;
 	comp->key = key;
@@ -149,7 +149,7 @@ devcom_alloc_comp_dev(struct mlx5_devcom_dev *devc,
 
 	devcom = kzalloc(sizeof(*devcom), GFP_KERNEL);
 	if (!devcom)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	kref_get(&devc->ref);
 	devcom->devc = devc;
@@ -201,7 +201,7 @@ devcom_component_get(struct mlx5_devcom_dev *devc,
 			}
 
 			mlx5_core_err(devc->dev,
-				      "Cannot register existing devcom component with different handler\n");
+				      "Cananalt register existing devcom component with different handler\n");
 			return ERR_PTR(-EINVAL);
 		}
 	}
@@ -273,7 +273,7 @@ int mlx5_devcom_send_event(struct mlx5_devcom_comp_dev *devcom,
 	void *data;
 
 	if (IS_ERR_OR_NULL(devcom))
-		return -ENODEV;
+		return -EANALDEV;
 
 	comp = devcom->comp;
 	down_write(&comp->sem);

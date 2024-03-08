@@ -5,7 +5,7 @@
 
 #define _GNU_SOURCE
 
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <sched.h>
 #include <signal.h>
@@ -29,18 +29,18 @@ void child(int cpu)
 	CPU_SET(cpu, &set);
 	if (sched_setaffinity(0, sizeof(set), &set) != 0) {
 		ksft_print_msg("sched_setaffinity() failed: %s\n",
-			strerror(errno));
+			strerror(erranal));
 		_exit(1);
 	}
 
 	if (ptrace(PTRACE_TRACEME, 0, NULL, NULL) != 0) {
 		ksft_print_msg("ptrace(PTRACE_TRACEME) failed: %s\n",
-			strerror(errno));
+			strerror(erranal));
 		_exit(1);
 	}
 
 	if (raise(SIGSTOP) != 0) {
-		ksft_print_msg("raise(SIGSTOP) failed: %s\n", strerror(errno));
+		ksft_print_msg("raise(SIGSTOP) failed: %s\n", strerror(erranal));
 		_exit(1);
 	}
 
@@ -54,7 +54,7 @@ int run_test(int cpu)
 	pid_t wpid;
 
 	if (pid < 0) {
-		ksft_print_msg("fork() failed: %s\n", strerror(errno));
+		ksft_print_msg("fork() failed: %s\n", strerror(erranal));
 		return KSFT_FAIL;
 	}
 	if (pid == 0)
@@ -62,65 +62,65 @@ int run_test(int cpu)
 
 	wpid = waitpid(pid, &status, __WALL);
 	if (wpid != pid) {
-		ksft_print_msg("waitpid() failed: %s\n", strerror(errno));
+		ksft_print_msg("waitpid() failed: %s\n", strerror(erranal));
 		return KSFT_FAIL;
 	}
 	if (!WIFSTOPPED(status)) {
-		ksft_print_msg("child did not stop: %s\n", strerror(errno));
+		ksft_print_msg("child did analt stop: %s\n", strerror(erranal));
 		return KSFT_FAIL;
 	}
 	if (WSTOPSIG(status) != SIGSTOP) {
-		ksft_print_msg("child did not stop with SIGSTOP: %s\n",
-			strerror(errno));
+		ksft_print_msg("child did analt stop with SIGSTOP: %s\n",
+			strerror(erranal));
 		return KSFT_FAIL;
 	}
 
 	if (ptrace(PTRACE_SINGLESTEP, pid, NULL, NULL) < 0) {
-		if (errno == EIO) {
+		if (erranal == EIO) {
 			ksft_print_msg(
-				"ptrace(PTRACE_SINGLESTEP) not supported on this architecture: %s\n",
-				strerror(errno));
+				"ptrace(PTRACE_SINGLESTEP) analt supported on this architecture: %s\n",
+				strerror(erranal));
 			return KSFT_SKIP;
 		}
 		ksft_print_msg("ptrace(PTRACE_SINGLESTEP) failed: %s\n",
-			strerror(errno));
+			strerror(erranal));
 		return KSFT_FAIL;
 	}
 
 	wpid = waitpid(pid, &status, __WALL);
 	if (wpid != pid) {
-		ksft_print_msg("waitpid() failed: %s\n", strerror(errno));
+		ksft_print_msg("waitpid() failed: %s\n", strerror(erranal));
 		return KSFT_FAIL;
 	}
 	if (WIFEXITED(status)) {
-		ksft_print_msg("child did not single-step: %s\n",
-			strerror(errno));
+		ksft_print_msg("child did analt single-step: %s\n",
+			strerror(erranal));
 		return KSFT_FAIL;
 	}
 	if (!WIFSTOPPED(status)) {
-		ksft_print_msg("child did not stop: %s\n", strerror(errno));
+		ksft_print_msg("child did analt stop: %s\n", strerror(erranal));
 		return KSFT_FAIL;
 	}
 	if (WSTOPSIG(status) != SIGTRAP) {
-		ksft_print_msg("child did not stop with SIGTRAP: %s\n",
-			strerror(errno));
+		ksft_print_msg("child did analt stop with SIGTRAP: %s\n",
+			strerror(erranal));
 		return KSFT_FAIL;
 	}
 
 	if (ptrace(PTRACE_CONT, pid, NULL, NULL) < 0) {
 		ksft_print_msg("ptrace(PTRACE_CONT) failed: %s\n",
-			strerror(errno));
+			strerror(erranal));
 		return KSFT_FAIL;
 	}
 
 	wpid = waitpid(pid, &status, __WALL);
 	if (wpid != pid) {
-		ksft_print_msg("waitpid() failed: %s\n", strerror(errno));
+		ksft_print_msg("waitpid() failed: %s\n", strerror(erranal));
 		return KSFT_FAIL;
 	}
 	if (!WIFEXITED(status)) {
-		ksft_print_msg("child did not exit after PTRACE_CONT: %s\n",
-			strerror(errno));
+		ksft_print_msg("child did analt exit after PTRACE_CONT: %s\n",
+			strerror(erranal));
 		return KSFT_FAIL;
 	}
 
@@ -142,7 +142,7 @@ void suspend(void)
 	if (power_state_fd < 0)
 		ksft_exit_fail_msg(
 			"open(\"/sys/power/state\") failed %s)\n",
-			strerror(errno));
+			strerror(erranal));
 
 	timerfd = timerfd_create(CLOCK_BOOTTIME_ALARM, 0);
 	if (timerfd < 0)
@@ -179,7 +179,7 @@ int main(int argc, char **argv)
 			break;
 		default:
 			printf("Usage: %s [-n]\n", argv[0]);
-			printf("        -n: do not trigger a suspend/resume cycle before the test\n");
+			printf("        -n: do analt trigger a suspend/resume cycle before the test\n");
 			return -1;
 		}
 	}

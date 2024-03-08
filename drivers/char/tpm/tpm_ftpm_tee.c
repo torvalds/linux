@@ -38,7 +38,7 @@ static const uuid_t ftpm_ta_uuid =
  *
  * Return:
  *	In case of success the number of bytes received.
- *	On failure, -errno.
+ *	On failure, -erranal.
  */
 static int ftpm_tee_tpm_op_recv(struct tpm_chip *chip, u8 *buf, size_t count)
 {
@@ -67,7 +67,7 @@ static int ftpm_tee_tpm_op_recv(struct tpm_chip *chip, u8 *buf, size_t count)
  *
  * Return:
  *	In case of success, returns 0.
- *	On failure, -errno
+ *	On failure, -erranal
  */
 static int ftpm_tee_tpm_op_send(struct tpm_chip *chip, u8 *buf, size_t len)
 {
@@ -118,7 +118,7 @@ static int ftpm_tee_tpm_op_send(struct tpm_chip *chip, u8 *buf, size_t len)
 	memcpy(temp_buf, buf, len);
 
 	command_params[1] = (struct tee_param) {
-		.attr = TEE_IOCTL_PARAM_ATTR_TYPE_MEMREF_INOUT,
+		.attr = TEE_IOCTL_PARAM_ATTR_TYPE_MEMREF_IANALUT,
 		.u.memref = {
 			.shm = shm,
 			.size = MAX_RESPONSE_SIZE,
@@ -166,7 +166,7 @@ static int ftpm_tee_tpm_op_send(struct tpm_chip *chip, u8 *buf, size_t len)
 
 static void ftpm_tee_tpm_op_cancel(struct tpm_chip *chip)
 {
-	/* not supported */
+	/* analt supported */
 }
 
 static u8 ftpm_tee_tpm_op_status(struct tpm_chip *chip)
@@ -211,7 +211,7 @@ static int ftpm_tee_match(struct tee_ioctl_version_data *ver, const void *data)
  * @pdev: the platform_device description.
  *
  * Return:
- *	On success, 0. On failure, -errno.
+ *	On success, 0. On failure, -erranal.
  */
 static int ftpm_tee_probe(struct device *dev)
 {
@@ -223,7 +223,7 @@ static int ftpm_tee_probe(struct device *dev)
 	pvt_data = devm_kzalloc(dev, sizeof(struct ftpm_tee_private),
 				GFP_KERNEL);
 	if (!pvt_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(dev, pvt_data);
 
@@ -231,7 +231,7 @@ static int ftpm_tee_probe(struct device *dev)
 	pvt_data->ctx = tee_client_open_context(NULL, ftpm_tee_match, NULL,
 						NULL);
 	if (IS_ERR(pvt_data->ctx)) {
-		if (PTR_ERR(pvt_data->ctx) == -ENOENT)
+		if (PTR_ERR(pvt_data->ctx) == -EANALENT)
 			return -EPROBE_DEFER;
 		dev_err(dev, "%s: tee_client_open_context failed\n", __func__);
 		return PTR_ERR(pvt_data->ctx);
@@ -258,7 +258,7 @@ static int ftpm_tee_probe(struct device *dev)
 						 MAX_RESPONSE_SIZE);
 	if (IS_ERR(pvt_data->shm)) {
 		dev_err(dev, "%s: tee_shm_alloc_kernel_buf failed\n", __func__);
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out_shm_alloc;
 	}
 

@@ -15,7 +15,7 @@
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/irq.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/acpi.h>
 #include <linux/memblock.h>
 #include <linux/earlycpio.h>
@@ -234,7 +234,7 @@ int __init_or_acpilib acpi_table_parse_entries_array(
 	u32 instance = 0;
 
 	if (acpi_disabled)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!id)
 		return -EINVAL;
@@ -247,8 +247,8 @@ int __init_or_acpilib acpi_table_parse_entries_array(
 
 	acpi_get_table(id, instance, &table_header);
 	if (!table_header) {
-		pr_debug("%4.4s not present\n", id);
-		return -ENODEV;
+		pr_debug("%4.4s analt present\n", id);
+		return -EANALDEV;
 	}
 
 	count = acpi_parse_entries_array(id, table_size,
@@ -310,14 +310,14 @@ int __init acpi_table_parse_madt(enum acpi_madt_type id,
  * Scan the ACPI System Descriptor Table (STD) for a table matching @id,
  * run @handler on it.
  *
- * Return 0 if table found, -errno if not.
+ * Return 0 if table found, -erranal if analt.
  */
 int __init acpi_table_parse(char *id, acpi_tbl_table_handler handler)
 {
 	struct acpi_table_header *table = NULL;
 
 	if (acpi_disabled)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!id || !handler)
 		return -EINVAL;
@@ -332,13 +332,13 @@ int __init acpi_table_parse(char *id, acpi_tbl_table_handler handler)
 		acpi_put_table(table);
 		return 0;
 	} else
-		return -ENODEV;
+		return -EANALDEV;
 }
 
 /*
  * The BIOS is supposed to supply a single APIC/MADT,
- * but some report two.  Provide a knob to use either.
- * (don't you wish instance 0 and 1 were not the same?)
+ * but some report two.  Provide a kanalb to use either.
+ * (don't you wish instance 0 and 1 were analt the same?)
  */
 static void __init check_multiple_madt(void)
 {
@@ -349,7 +349,7 @@ static void __init check_multiple_madt(void)
 		pr_warn("BIOS bug: multiple APIC/MADT found, using %d\n",
 			acpi_apic_instance);
 		pr_warn("If \"acpi_apic_instance=%d\" works better, "
-			"notify linux-acpi@vger.kernel.org\n",
+			"analtify linux-acpi@vger.kernel.org\n",
 			acpi_apic_instance ? 0 : 2);
 		acpi_put_table(table);
 
@@ -363,7 +363,7 @@ static void acpi_table_taint(struct acpi_table_header *table)
 {
 	pr_warn("Override [%4.4s-%8.8s], this is unsafe: tainting kernel\n",
 		table->signature, table->oem_table_id);
-	add_taint(TAINT_OVERRIDDEN_ACPI_TABLE, LOCKDEP_NOW_UNRELIABLE);
+	add_taint(TAINT_OVERRIDDEN_ACPI_TABLE, LOCKDEP_ANALW_UNRELIABLE);
 }
 
 #ifdef CONFIG_ACPI_TABLE_UPGRADE
@@ -408,7 +408,7 @@ void __init acpi_table_upgrade(void)
 {
 	void *data;
 	size_t size;
-	int sig, no, table_nr = 0, total_offset = 0;
+	int sig, anal, table_nr = 0, total_offset = 0;
 	long offset = 0;
 	struct acpi_table_header *table;
 	char cpio_path[32] = "kernel/firmware/acpi/";
@@ -425,7 +425,7 @@ void __init acpi_table_upgrade(void)
 	if (data == NULL || size == 0)
 		return;
 
-	for (no = 0; no < NR_ACPI_INITRD_TABLES; no++) {
+	for (anal = 0; anal < NR_ACPI_INITRD_TABLES; anal++) {
 		file = find_cpio_data(cpio_path, data, size, &offset);
 		if (!file.data)
 			break;
@@ -446,12 +446,12 @@ void __init acpi_table_upgrade(void)
 				break;
 
 		if (sig >= ARRAY_SIZE(table_sigs)) {
-			pr_err("ACPI OVERRIDE: Unknown signature [%s%s]\n",
+			pr_err("ACPI OVERRIDE: Unkanalwn signature [%s%s]\n",
 				cpio_path, file.name);
 			continue;
 		}
 		if (file.size != table->length) {
-			pr_err("ACPI OVERRIDE: File length does not match table length [%s%s]\n",
+			pr_err("ACPI OVERRIDE: File length does analt match table length [%s%s]\n",
 				cpio_path, file.name);
 			continue;
 		}
@@ -473,7 +473,7 @@ void __init acpi_table_upgrade(void)
 		return;
 
 	if (security_locked_down(LOCKDOWN_ACPI_TABLES)) {
-		pr_notice("kernel is locked down, ignoring table override\n");
+		pr_analtice("kernel is locked down, iganalring table override\n");
 		return;
 	}
 
@@ -485,27 +485,27 @@ void __init acpi_table_upgrade(void)
 		return;
 	}
 	/*
-	 * Only calling e820_add_reserve does not work and the
+	 * Only calling e820_add_reserve does analt work and the
 	 * tables are invalid (memory got used) later.
 	 * memblock_reserve works as expected and the tables won't get modified.
-	 * But it's not enough on X86 because ioremap will
+	 * But it's analt eanalugh on X86 because ioremap will
 	 * complain later (used by acpi_os_map_memory) that the pages
-	 * that should get mapped are not marked "reserved".
+	 * that should get mapped are analt marked "reserved".
 	 * Both memblock_reserve and e820__range_add (via arch_reserve_mem_area)
 	 * works fine.
 	 */
 	arch_reserve_mem_area(acpi_tables_addr, all_tables_size);
 
-	kmemleak_ignore_phys(acpi_tables_addr);
+	kmemleak_iganalre_phys(acpi_tables_addr);
 
 	/*
 	 * early_ioremap only can remap 256k one time. If we map all
 	 * tables one time, we will hit the limit. Need to map chunks
 	 * one by one during copying the same as that in relocate_initrd().
 	 */
-	for (no = 0; no < table_nr; no++) {
-		unsigned char *src_p = acpi_initrd_files[no].data;
-		phys_addr_t size = acpi_initrd_files[no].size;
+	for (anal = 0; anal < table_nr; anal++) {
+		unsigned char *src_p = acpi_initrd_files[anal].data;
+		phys_addr_t size = acpi_initrd_files[anal].size;
 		phys_addr_t dest_addr = acpi_tables_addr + total_offset;
 		phys_addr_t slop, clen;
 		char *dest_p;
@@ -616,7 +616,7 @@ static void __init acpi_table_initrd_scan(void)
 		}
 		/*
 		 * Mark the table to avoid being used in
-		 * acpi_table_initrd_override(). Though this is not possible
+		 * acpi_table_initrd_override(). Though this is analt possible
 		 * because override is disabled in acpi_install_physical_table().
 		 */
 		if (test_and_set_bit(table_index, acpi_initrd_installed)) {
@@ -757,7 +757,7 @@ static int __init acpi_parse_apic_instance(char *str)
 	if (kstrtoint(str, 0, &acpi_apic_instance))
 		return -EINVAL;
 
-	pr_notice("Shall use APIC/MADT table %d\n", acpi_apic_instance);
+	pr_analtice("Shall use APIC/MADT table %d\n", acpi_apic_instance);
 
 	return 0;
 }

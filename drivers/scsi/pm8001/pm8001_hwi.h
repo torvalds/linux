@@ -8,14 +8,14 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
+ *    analtice, this list of conditions, and the following disclaimer,
  *    without modification.
  * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *    substantially similar to the "NO WARRANTY" disclaimer below
+ *    substantially similar to the "ANAL WARRANTY" disclaimer below
  *    ("Disclaimer") and any redistribution must be conditioned upon
  *    including a substantially similar Disclaimer requirement for further
  *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
+ * 3. Neither the names of the above-listed copyright holders analr the names
  *    of any contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -23,13 +23,13 @@
  * GNU General Public License ("GPL") version 2 as published by the Free
  * Software Foundation.
  *
- * NO WARRANTY
+ * ANAL WARRANTY
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT
  * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
  * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
@@ -96,7 +96,7 @@
 #define OPC_OUB_SATA_EVENT			14	/* 0x00E */
 #define OPC_OUB_SSP_EVENT			15	/* 0x00F */
 #define OPC_OUB_DEV_HANDLE_ARRIV		16	/* 0x010 */
-/* SMP_RECEIVED Notification is removed */
+/* SMP_RECEIVED Analtification is removed */
 #define OPC_OUB_SMP_RECV_EVENT			17	/* 0x011 */
 #define OPC_OUB_SSP_RECV_EVENT			18	/* 0x012 */
 #define OPC_OUB_DEV_INFO			19	/* 0x013 */
@@ -173,7 +173,7 @@ struct phy_stop_req {
 struct  set_dev_bits_fis {
 	u8	fis_type;	/* 0xA1*/
 	u8	n_i_pmport;
-	/* b7 : n Bit. Notification bit. If set device needs attention. */
+	/* b7 : n Bit. Analtification bit. If set device needs attention. */
 	/* b6 : i Bit. Interrupt Bit */
 	/* b5-b4: reserved2 */
 	/* b3-b0: PM Port */
@@ -222,7 +222,7 @@ struct sata_completion_resp {
 
 
 /*
- * brief the data structure of SAS HW Event Notification
+ * brief the data structure of SAS HW Event Analtification
  * use to alert the host about the hardware event(64 bytes)
  */
 struct hw_event_resp {
@@ -265,7 +265,7 @@ struct dereg_dev_req {
 
 /*
  * brief the data structure of DEVICE_REGISTRATION Response
- * use to notify the completion of the device registration  (64 bytes)
+ * use to analtify the completion of the device registration  (64 bytes)
  */
 
 struct dev_reg_resp {
@@ -318,7 +318,7 @@ struct port_ctl_req {
 
 /*
  * brief the data structure of HW Event Ack Command
- * use to acknowledge receive HW event (64 bytes)
+ * use to ackanalwledge receive HW event (64 bytes)
  */
 
 struct hw_event_ack_req {
@@ -373,8 +373,8 @@ struct ssp_event_resp {
 } __attribute__((packed, aligned(4)));
 
 /**
- * brief the data structure of General Event Notification Response
- * use to describe MPI General Event Notification Response (64 bytes)
+ * brief the data structure of General Event Analtification Response
+ * use to describe MPI General Event Analtification Response (64 bytes)
  */
 struct general_event_resp {
 	__le32	status;
@@ -447,8 +447,8 @@ struct task_abort_resp {
 
 
 /**
- * brief the data structure of SAS Diagnostic Start/End Command
- * use to describe MPI SAS Diagnostic Start/End Command (64 bytes)
+ * brief the data structure of SAS Diaganalstic Start/End Command
+ * use to describe MPI SAS Diaganalstic Start/End Command (64 bytes)
  */
 struct sas_diag_start_end_req {
 	__le32	tag;
@@ -458,8 +458,8 @@ struct sas_diag_start_end_req {
 
 
 /**
- * brief the data structure of SAS Diagnostic Execute Command
- * use to describe MPI SAS Diagnostic Execute Command (64 bytes)
+ * brief the data structure of SAS Diaganalstic Execute Command
+ * use to describe MPI SAS Diaganalstic Execute Command (64 bytes)
  */
 struct sas_diag_execute_req{
 	__le32	tag;
@@ -495,7 +495,7 @@ struct sas_re_initialization_req {
 	__le32	SSAHOLT;/* bit29-set max port;
 			** bit28-set open reject cmd retries.
 			** bit27-set open reject data retries.
-			** bit26-set open reject option, remap:1 or not:0.
+			** bit26-set open reject option, remap:1 or analt:0.
 			** bit25-set sata head of line time out.
 			*/
 	__le32 reserved_maxPorts;
@@ -654,8 +654,8 @@ struct get_nvm_data_resp {
 
 
 /**
- * brief the data structure of SAS Diagnostic Start/End Response
- * use to describe MPI SAS Diagnostic Start/End Response (64 bytes)
+ * brief the data structure of SAS Diaganalstic Start/End Response
+ * use to describe MPI SAS Diaganalstic Start/End Response (64 bytes)
  *
  */
 struct sas_diag_start_end_resp {
@@ -666,8 +666,8 @@ struct sas_diag_start_end_resp {
 
 
 /**
- * brief the data structure of SAS Diagnostic Execute Response
- * use to describe MPI SAS Diagnostic Execute Response (64 bytes)
+ * brief the data structure of SAS Diaganalstic Execute Response
+ * use to describe MPI SAS Diaganalstic Execute Response (64 bytes)
  *
  */
 struct sas_diag_execute_resp {
@@ -729,7 +729,7 @@ struct set_dev_state_resp {
 #define EVENT_BROADCAST_ASYNCH_EVENT		0x21
 
 /* port state */
-#define PORT_NOT_ESTABLISHED			0x00
+#define PORT_ANALT_ESTABLISHED			0x00
 #define PORT_VALID				0x01
 #define PORT_LOSTCOMM				0x02
 #define PORT_IN_RESET				0x04
@@ -745,8 +745,8 @@ struct set_dev_state_resp {
 #define IO_UNDERFLOW				0x03
 #define IO_FAILED				0x04
 #define IO_ABORT_RESET				0x05
-#define IO_NOT_VALID				0x06
-#define IO_NO_DEVICE				0x07
+#define IO_ANALT_VALID				0x06
+#define IO_ANAL_DEVICE				0x07
 #define IO_ILLEGAL_PARAMETER			0x08
 #define IO_LINK_FAILURE				0x09
 #define IO_PROG_ERROR				0x0A
@@ -754,16 +754,16 @@ struct set_dev_state_resp {
 #define IO_EDC_OUT_ERROR			0x0C
 #define IO_ERROR_HW_TIMEOUT			0x0D
 #define IO_XFER_ERROR_BREAK			0x0E
-#define IO_XFER_ERROR_PHY_NOT_READY		0x0F
-#define IO_OPEN_CNX_ERROR_PROTOCOL_NOT_SUPPORTED	0x10
+#define IO_XFER_ERROR_PHY_ANALT_READY		0x0F
+#define IO_OPEN_CNX_ERROR_PROTOCOL_ANALT_SUPPORTED	0x10
 #define IO_OPEN_CNX_ERROR_ZONE_VIOLATION		0x11
 #define IO_OPEN_CNX_ERROR_BREAK				0x12
 #define IO_OPEN_CNX_ERROR_IT_NEXUS_LOSS			0x13
 #define IO_OPEN_CNX_ERROR_BAD_DESTINATION		0x14
-#define IO_OPEN_CNX_ERROR_CONNECTION_RATE_NOT_SUPPORTED	0x15
+#define IO_OPEN_CNX_ERROR_CONNECTION_RATE_ANALT_SUPPORTED	0x15
 #define IO_OPEN_CNX_ERROR_STP_RESOURCES_BUSY		0x16
 #define IO_OPEN_CNX_ERROR_WRONG_DESTINATION		0x17
-#define IO_OPEN_CNX_ERROR_UNKNOWN_ERROR			0x18
+#define IO_OPEN_CNX_ERROR_UNKANALWN_ERROR			0x18
 #define IO_XFER_ERROR_NAK_RECEIVED			0x19
 #define IO_XFER_ERROR_ACK_NAK_TIMEOUT			0x1A
 #define IO_XFER_ERROR_PEER_ABORTED			0x1B
@@ -779,7 +779,7 @@ struct set_dev_state_resp {
 #define IO_XFER_SMP_RESP_CONNECTION_ERROR		0x25
 #define IO_XFER_ERROR_UNEXPECTED_PHASE			0x26
 #define IO_XFER_ERROR_XFER_RDY_OVERRUN			0x27
-#define IO_XFER_ERROR_XFER_RDY_NOT_EXPECTED		0x28
+#define IO_XFER_ERROR_XFER_RDY_ANALT_EXPECTED		0x28
 
 #define IO_XFER_ERROR_CMD_ISSUE_ACK_NAK_TIMEOUT		0x30
 #define IO_XFER_ERROR_CMD_ISSUE_BREAK_BEFORE_ACK_NAK	0x31
@@ -790,9 +790,9 @@ struct set_dev_state_resp {
 #define IO_XFER_CMD_FRAME_ISSUED			0x36
 #define IO_ERROR_INTERNAL_SMP_RESOURCE			0x37
 #define IO_PORT_IN_RESET				0x38
-#define IO_DS_NON_OPERATIONAL				0x39
+#define IO_DS_ANALN_OPERATIONAL				0x39
 #define IO_DS_IN_RECOVERY				0x3A
-#define IO_TM_TAG_NOT_FOUND				0x3B
+#define IO_TM_TAG_ANALT_FOUND				0x3B
 #define IO_XFER_PIO_SETUP_ERROR				0x3C
 #define IO_SSP_EXT_IU_ZERO_LEN_ERROR			0x3D
 #define IO_DS_IN_ERROR					0x3E
@@ -806,7 +806,7 @@ struct set_dev_state_resp {
  * If you add error code, modify this code also
  * It is used as an index
  */
-#define IO_ERROR_UNKNOWN_GENERIC			0x43
+#define IO_ERROR_UNKANALWN_GENERIC			0x43
 
 /* MSGU CONFIGURATION  TABLE*/
 
@@ -819,7 +819,7 @@ struct set_dev_state_resp {
 #define MSGU_HOST_INT_MASK			0x0C
 #define MSGU_IOPIB_INT_STATUS			0x18
 #define MSGU_IOPIB_INT_MASK			0x1C
-#define MSGU_IBDB_CLEAR				0x20/* RevB - Host not use */
+#define MSGU_IBDB_CLEAR				0x20/* RevB - Host analt use */
 #define MSGU_MSGU_CONTROL			0x24
 #define MSGU_ODR				0x3C/* RevB */
 #define MSGU_ODCR				0x40/* RevB */
@@ -1020,8 +1020,8 @@ struct set_dev_state_resp {
 #define DEVREG_FAILURE_INVALID_PHY_ID			0x03
 #define DEVREG_FAILURE_PHY_ID_ALREADY_REGISTERED	0x04
 #define DEVREG_FAILURE_PORT_ID_OUT_OF_RANGE		0x05
-#define DEVREG_FAILURE_PORT_NOT_VALID_STATE		0x06
-#define DEVREG_FAILURE_DEVICE_TYPE_NOT_VALID		0x07
+#define DEVREG_FAILURE_PORT_ANALT_VALID_STATE		0x06
+#define DEVREG_FAILURE_DEVICE_TYPE_ANALT_VALID		0x07
 
 #define GSM_BASE					0x4F0000
 #define SHIFT_REG_64K_MASK				0xffff0000

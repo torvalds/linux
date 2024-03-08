@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Perf annotate functions.
+ * Perf ananaltate functions.
  *
- * Copyright (C) 2020-2023 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2023 Loongson Techanallogy Corporation Limited
  */
 
 static int loongarch_call__parse(struct arch *arch, struct ins_operands *ops, struct map_symbol *ms)
@@ -123,7 +123,7 @@ struct ins_ops *loongarch__associate_ins_ops(struct arch *arch, const char *name
 }
 
 static
-int loongarch__annotate_init(struct arch *arch, char *cpuid __maybe_unused)
+int loongarch__ananaltate_init(struct arch *arch, char *cpuid __maybe_unused)
 {
 	if (!arch->initialized) {
 		arch->associate_instruction_ops = loongarch__associate_ins_ops;

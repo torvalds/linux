@@ -16,7 +16,7 @@
 
    I2C Address : 0x60
 
-   Reg.No |   B7   |   B6   |   B5   |   B4   |   B3   |   B2   |   B1   |   B0   | ( defaults )
+   Reg.Anal |   B7   |   B6   |   B5   |   B4   |   B3   |   B2   |   B1   |   B0   | ( defaults )
    --------------------------------------------------------------------------------
        00 | [              PART             ] | [              REV              ] | R  = 0x63
        01 | [             LNABAND           ] | [              NUM1(5:2)        ] | RW = 0x3F
@@ -91,7 +91,7 @@ struct mt2060_priv {
 
 	/*
 	 * Use REG_MISC_CTRL register for sleep. That drops sleep power usage
-	 * about 0.9W (huge!). Register bit meanings are unknown, so let it be
+	 * about 0.9W (huge!). Register bit meanings are unkanalwn, so let it be
 	 * disabled by default to avoid possible regression. Convert driver to
 	 * i2c model in order to enable it.
 	 */

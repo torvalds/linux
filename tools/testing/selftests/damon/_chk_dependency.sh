@@ -14,7 +14,7 @@ fi
 
 if [ ! -d "$DBGFS" ]
 then
-	echo "$DBGFS not found"
+	echo "$DBGFS analt found"
 	exit $ksft_skip
 fi
 
@@ -22,12 +22,12 @@ for f in attrs target_ids monitor_on
 do
 	if [ ! -f "$DBGFS/$f" ]
 	then
-		echo "$f not found"
+		echo "$f analt found"
 		exit 1
 	fi
 done
 
-permission_error="Operation not permitted"
+permission_error="Operation analt permitted"
 for f in attrs target_ids monitor_on
 do
 	status=$( cat "$DBGFS/$f" 2>&1 )

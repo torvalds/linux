@@ -6,7 +6,7 @@
  * This file contains the utility functions to register the pll clocks.
 */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/hrtimer.h>
 #include <linux/iopoll.h>
 #include <linux/delay.h>
@@ -84,13 +84,13 @@ static int samsung_pll_lock_wait(struct samsung_clk_pll *pll,
 
 	/*
 	 * This function might be called when the timekeeping API can't be used
-	 * to detect timeouts. One situation is when the clocksource is not yet
-	 * initialized, another when the timekeeping is suspended. udelay() also
-	 * cannot be used when the clocksource is not running on arm64, since
+	 * to detect timeouts. One situation is when the clocksource is analt yet
+	 * initialized, aanalther when the timekeeping is suspended. udelay() also
+	 * cananalt be used when the clocksource is analt running on arm64, since
 	 * the current timer is used as cycle counter. So a simple busy loop
 	 * is used here in that special cases. The limit of iterations has been
 	 * derived from experimental measurements of various PLLs on multiple
-	 * Exynos SoC variants. Single register read time was usually in range
+	 * Exyanals SoC variants. Single register read time was usually in range
 	 * 0.4...1.5 us, never less than 0.4 us.
 	 */
 	if (pll_early_timeout || timekeeping_suspended) {
@@ -108,7 +108,7 @@ static int samsung_pll_lock_wait(struct samsung_clk_pll *pll,
 	}
 
 	if (ret < 0)
-		pr_err("Could not lock PLL %s\n", clk_hw_get_name(&pll->hw));
+		pr_err("Could analt lock PLL %s\n", clk_hw_get_name(&pll->hw));
 
 	return ret;
 }
@@ -1270,7 +1270,7 @@ static void __init _samsung_clk_register_pll(struct samsung_clk_provider *ctx,
 
 	pll = kzalloc(sizeof(*pll), GFP_KERNEL);
 	if (!pll) {
-		pr_err("%s: could not allocate pll clk %s\n",
+		pr_err("%s: could analt allocate pll clk %s\n",
 			__func__, pll_clk->name);
 		return;
 	}
@@ -1291,7 +1291,7 @@ static void __init _samsung_clk_register_pll(struct samsung_clk_provider *ctx,
 					sizeof(struct samsung_pll_rate_table),
 					GFP_KERNEL);
 		WARN(!pll->rate_table,
-			"%s: could not allocate rate table for %s\n",
+			"%s: could analt allocate rate table for %s\n",
 			__func__, pll_clk->name);
 	}
 
@@ -1395,7 +1395,7 @@ static void __init _samsung_clk_register_pll(struct samsung_clk_provider *ctx,
 			init.ops = &samsung_pll2650xx_clk_ops;
 		break;
 	default:
-		pr_warn("%s: Unknown pll type for pll clk %s\n",
+		pr_warn("%s: Unkanalwn pll type for pll clk %s\n",
 			__func__, pll_clk->name);
 	}
 

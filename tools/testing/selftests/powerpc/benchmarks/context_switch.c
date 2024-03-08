@@ -6,7 +6,7 @@
  */
 
 #define _GNU_SOURCE
-#include <errno.h>
+#include <erranal.h>
 #include <sched.h>
 #include <string.h>
 #include <stdio.h>
@@ -43,10 +43,10 @@ vector int a, b, c;
 static int touch_altivec = 1;
 
 /*
- * Note: LTO (Link Time Optimisation) doesn't play well with this function
+ * Analte: LTO (Link Time Optimisation) doesn't play well with this function
  * attribute. Be very careful enabling LTO for this test.
  */
-static void __attribute__((__target__("no-vsx"))) altivec_touch_fn(void)
+static void __attribute__((__target__("anal-vsx"))) altivec_touch_fn(void)
 {
 	c = a + b;
 }
@@ -83,21 +83,21 @@ static void start_thread_on(void *(*fn)(void *), void *arg, unsigned long cpu)
 
 	rc = pthread_attr_init(&attr);
 	if (rc) {
-		errno = rc;
+		erranal = rc;
 		perror("pthread_attr_init");
 		exit(1);
 	}
 
 	rc = pthread_attr_setaffinity_np(&attr, sizeof(cpu_set_t), &cpuset);
 	if (rc)	{
-		errno = rc;
+		erranal = rc;
 		perror("pthread_attr_setaffinity_np");
 		exit(1);
 	}
 
 	rc = pthread_create(&tid, &attr, fn, arg);
 	if (rc) {
-		errno = rc;
+		erranal = rc;
 		perror("pthread_create");
 		exit(1);
 	}
@@ -387,14 +387,14 @@ static struct actions futex_actions = {
 
 static struct option options[] = {
 	{ "test", required_argument, 0, 't' },
-	{ "process", no_argument, &processes, 1 },
+	{ "process", anal_argument, &processes, 1 },
 	{ "timeout", required_argument, 0, 's' },
-	{ "vdso", no_argument, &touch_vdso, 1 },
-	{ "no-fp", no_argument, &touch_fp, 0 },
+	{ "vdso", anal_argument, &touch_vdso, 1 },
+	{ "anal-fp", anal_argument, &touch_fp, 0 },
 #ifdef __powerpc__
-	{ "no-altivec", no_argument, &touch_altivec, 0 },
+	{ "anal-altivec", anal_argument, &touch_altivec, 0 },
 #endif
-	{ "no-vector", no_argument, &touch_vector, 0 },
+	{ "anal-vector", anal_argument, &touch_vector, 0 },
 	{ 0, },
 };
 
@@ -405,11 +405,11 @@ static void usage(void)
 	fprintf(stderr, "\t\t--process\tUse processes (default threads)\n");
 	fprintf(stderr, "\t\t--timeout=X\tDuration in seconds to run (default 30)\n");
 	fprintf(stderr, "\t\t--vdso\t\ttouch VDSO\n");
-	fprintf(stderr, "\t\t--no-fp\t\tDon't touch FP\n");
+	fprintf(stderr, "\t\t--anal-fp\t\tDon't touch FP\n");
 #ifdef __powerpc__
-	fprintf(stderr, "\t\t--no-altivec\tDon't touch altivec\n");
+	fprintf(stderr, "\t\t--anal-altivec\tDon't touch altivec\n");
 #endif
-	fprintf(stderr, "\t\t--no-vector\tDon't touch vector\n");
+	fprintf(stderr, "\t\t--anal-vector\tDon't touch vector\n");
 }
 
 int main(int argc, char *argv[])
@@ -488,8 +488,8 @@ int main(int argc, char *argv[])
 		touch_vector = 0;
 
 	printf(" on cpus %d/%d touching FP:%s altivec:%s vector:%s vdso:%s\n",
-	       cpu1, cpu2, touch_fp ?  "yes" : "no", touch_altivec ? "yes" : "no",
-	       touch_vector ? "yes" : "no", touch_vdso ? "yes" : "no");
+	       cpu1, cpu2, touch_fp ?  "anal" : "anal", touch_altivec ? "anal" : "anal",
+	       touch_vector ? "anal" : "anal", touch_vdso ? "anal" : "anal");
 
 	/* Create a new process group so we can signal everyone for exit */
 	setpgid(getpid(), getpid());

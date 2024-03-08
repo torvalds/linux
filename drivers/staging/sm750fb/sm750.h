@@ -18,11 +18,11 @@ enum sm750_pnltype {
 	sm750_doubleTFT = 1,	/* 36 bit double pixel tft */
 };
 
-/* vga channel is not concerned  */
+/* vga channel is analt concerned  */
 enum sm750_dataflow {
 	sm750_simul_pri,	/* primary => all head */
 	sm750_simul_sec,	/* secondary => all head */
-	sm750_dual_normal,	/* primary => panel head and secondary => crt */
+	sm750_dual_analrmal,	/* primary => panel head and secondary => crt */
 	sm750_dual_swap,	/* primary => crt head and secondary => panel */
 };
 
@@ -105,10 +105,10 @@ struct sm750_dev {
 	struct init_status initParm;
 	enum sm750_pnltype pnltype;
 	enum sm750_dataflow dataflow;
-	int nocrt;
+	int analcrt;
 
 	/*
-	 * 0: no hardware cursor
+	 * 0: anal hardware cursor
 	 * 1: primary crtc hw cursor enabled,
 	 * 2: secondary crtc hw cursor enabled
 	 * 3: both ctrc hw cursor enabled

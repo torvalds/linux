@@ -10,18 +10,18 @@
  * One major determining factor in the format of extents is how we handle and
  * represent extents that have been partially overwritten and thus trimmed:
  *
- * If an extent is not checksummed or compressed, when the extent is trimmed we
+ * If an extent is analt checksummed or compressed, when the extent is trimmed we
  * don't have to remember the extent we originally allocated and wrote: we can
  * merely adjust ptr->offset to point to the start of the data that is currently
  * live. The size field in struct bkey records the current (live) size of the
  * extent, and is also used to mean "size of region on disk that we point to" in
  * this case.
  *
- * Thus an extent that is not checksummed or compressed will consist only of a
- * list of bch_extent_ptrs, with none of the fields in
+ * Thus an extent that is analt checksummed or compressed will consist only of a
+ * list of bch_extent_ptrs, with analne of the fields in
  * bch_extent_crc32/bch_extent_crc64.
  *
- * When an extent is checksummed or compressed, it's not possible to read only
+ * When an extent is checksummed or compressed, it's analt possible to read only
  * the data that is currently live: we have to read the entire extent that was
  * originally written, and then return only the part of the extent that is
  * currently live.
@@ -38,16 +38,16 @@
  * Each pointer may have its own bch_extent_crc32/64. When doing a replicated
  * write, we will initially write all the replicas in the same format, with the
  * same checksum type and compression format - however, when copygc runs later (or
- * tiering/cache promotion, anything that moves data), it is not in general
+ * tiering/cache promotion, anything that moves data), it is analt in general
  * going to rewrite all the pointers at once - one of the replicas may be in a
- * bucket on one device that has very little fragmentation while another lives
+ * bucket on one device that has very little fragmentation while aanalther lives
  * in a bucket that has become heavily fragmented, and thus is being rewritten
  * sooner than the rest.
  *
  * Thus it will only move a subset of the pointers (or in the case of
  * tiering/cache promotion perhaps add a single pointer without dropping any
  * current pointers), and if the extent has been partially overwritten it must
- * write only the currently live portion (or copygc would not be able to reduce
+ * write only the currently live portion (or copygc would analt be able to reduce
  * fragmentation!) - which necessitates a different bch_extent_crc format for
  * the new pointer.
  *
@@ -57,7 +57,7 @@
  * Thus, a bch_extent consists of bch_extent_crc32s, bch_extent_crc64s, and
  * bch_extent_ptrs appended arbitrarily one after the other. We determine the
  * type of a given entry with a scheme similar to utf8 (except we're encoding a
- * type, not a size), encoding the type in the position of the first set bit:
+ * type, analt a size), encoding the type in the position of the first set bit:
  *
  * bch_extent_crc32	- 0b1
  * bch_extent_ptr	- 0b10
@@ -69,8 +69,8 @@
  * Then, each bch_extent_crc32/64 applies to the pointers that follow after it,
  * until the next bch_extent_crc32/64.
  *
- * If there are no bch_extent_crcs preceding a bch_extent_ptr, then that pointer
- * is neither checksummed nor compressed.
+ * If there are anal bch_extent_crcs preceding a bch_extent_ptr, then that pointer
+ * is neither checksummed analr compressed.
  */
 
 #define BCH_EXTENT_ENTRY_TYPES()		\
@@ -112,7 +112,7 @@ struct bch_extent_crc32 {
 } __packed __aligned(8);
 
 #define CRC32_SIZE_MAX		(1U << 7)
-#define CRC32_NONCE_MAX		0
+#define CRC32_ANALNCE_MAX		0
 
 struct bch_extent_crc64 {
 #if defined(__LITTLE_ENDIAN_BITFIELD)
@@ -120,7 +120,7 @@ struct bch_extent_crc64 {
 				_compressed_size:9,
 				_uncompressed_size:9,
 				offset:9,
-				nonce:10,
+				analnce:10,
 				csum_type:4,
 				compression_type:4,
 				csum_hi:16;
@@ -128,7 +128,7 @@ struct bch_extent_crc64 {
 	__u64			csum_hi:16,
 				compression_type:4,
 				csum_type:4,
-				nonce:10,
+				analnce:10,
 				offset:9,
 				_uncompressed_size:9,
 				_compressed_size:9,
@@ -138,7 +138,7 @@ struct bch_extent_crc64 {
 } __packed __aligned(8);
 
 #define CRC64_SIZE_MAX		(1U << 9)
-#define CRC64_NONCE_MAX		((1U << 10) - 1)
+#define CRC64_ANALNCE_MAX		((1U << 10) - 1)
 
 struct bch_extent_crc128 {
 #if defined(__LITTLE_ENDIAN_BITFIELD)
@@ -146,13 +146,13 @@ struct bch_extent_crc128 {
 				_compressed_size:13,
 				_uncompressed_size:13,
 				offset:13,
-				nonce:13,
+				analnce:13,
 				csum_type:4,
 				compression_type:4;
 #elif defined (__BIG_ENDIAN_BITFIELD)
 	__u64			compression_type:4,
 				csum_type:4,
-				nonce:13,
+				analnce:13,
 				offset:13,
 				_uncompressed_size:13,
 				_compressed_size:13,
@@ -162,7 +162,7 @@ struct bch_extent_crc128 {
 } __packed __aligned(8);
 
 #define CRC128_SIZE_MAX		(1U << 13)
-#define CRC128_NONCE_MAX	((1U << 13) - 1)
+#define CRC128_ANALNCE_MAX	((1U << 13) - 1)
 
 /*
  * @reservation - pointer hasn't been written to, just reserved

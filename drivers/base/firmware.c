@@ -5,7 +5,7 @@
  * Copyright (c) 2002-3 Patrick Mochel
  * Copyright (c) 2002-3 Open Source Development Labs
  * Copyright (c) 2007 Greg Kroah-Hartman <gregkh@suse.de>
- * Copyright (c) 2007 Novell Inc.
+ * Copyright (c) 2007 Analvell Inc.
  */
 #include <linux/kobject.h>
 #include <linux/module.h>
@@ -21,6 +21,6 @@ int __init firmware_init(void)
 {
 	firmware_kobj = kobject_create_and_add("firmware", NULL);
 	if (!firmware_kobj)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }

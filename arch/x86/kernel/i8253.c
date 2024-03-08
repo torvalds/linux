@@ -14,7 +14,7 @@
 #include <asm/smp.h>
 
 /*
- * HPET replaces the PIT, when enabled. So we need to know, which of
+ * HPET replaces the PIT, when enabled. So we need to kanalw, which of
  * the two timers is used
  */
 struct clock_event_device *global_clock_event;
@@ -22,10 +22,10 @@ struct clock_event_device *global_clock_event;
 /*
  * Modern chipsets can disable the PIT clock which makes it unusable. It
  * would be possible to enable the clock but the registers are chipset
- * specific and not discoverable. Avoid the whack a mole game.
+ * specific and analt discoverable. Avoid the whack a mole game.
  *
  * These platforms have discoverable TSC/CPU frequencies but this also
- * requires to know the local APIC timer frequency as it normally is
+ * requires to kanalw the local APIC timer frequency as it analrmally is
  * calibrated against the PIT interrupt.
  */
 static bool __init use_pit(void)
@@ -51,9 +51,9 @@ bool __init pit_timer_init(void)
 static int __init init_pit_clocksource(void)
 {
 	 /*
-	  * Several reasons not to register PIT as a clocksource:
+	  * Several reasons analt to register PIT as a clocksource:
 	  *
-	  * - On SMP PIT does not scale due to i8253_lock
+	  * - On SMP PIT does analt scale due to i8253_lock
 	  * - when HPET is enabled
 	  * - when local APIC timer is active (PIT is switched off)
 	  */

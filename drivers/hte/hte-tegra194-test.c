@@ -19,7 +19,7 @@
  * This sample HTE test driver demonstrates HTE API usage by enabling
  * hardware timestamp on gpio_in and specified LIC IRQ lines.
  *
- * Note: gpio_out and gpio_in need to be shorted externally in order for this
+ * Analte: gpio_out and gpio_in need to be shorted externally in order for this
  * test driver to work for the GPIO monitoring. The test driver has been
  * tested on Jetson AGX Xavier platform by shorting pin 32 and 16 on 40 pin
  * header.
@@ -67,7 +67,7 @@ static enum hte_return process_hw_ts(struct hte_ts_data *ts, void *p)
 		return HTE_CB_HANDLED;
 
 	if (ts->raw_level < 0)
-		edge = "Unknown";
+		edge = "Unkanalwn";
 
 	pr_info("HW timestamp(%u: %llu): %llu, edge: %s\n",
 		desc->attr.line_id, ts->seq, ts->tsc,
@@ -162,7 +162,7 @@ static int tegra_hte_test_probe(struct platform_device *pdev)
 
 	hte.desc = devm_kzalloc(hte.pdev, sizeof(*hte.desc) * cnt, GFP_KERNEL);
 	if (!hte.desc) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_irq;
 	}
 
@@ -170,7 +170,7 @@ static int tegra_hte_test_probe(struct platform_device *pdev)
 		if (i == 0)
 			/*
 			 * GPIO hte init, line_id and name will be parsed from
-			 * the device tree node. The edge_flag is implicitly
+			 * the device tree analde. The edge_flag is implicitly
 			 * set by request_irq call. Only line_data is needed to be
 			 * set.
 			 */
@@ -178,7 +178,7 @@ static int tegra_hte_test_probe(struct platform_device *pdev)
 					   hte.gpio_in);
 		else
 			/*
-			 * same comment as above except that IRQ does not need
+			 * same comment as above except that IRQ does analt need
 			 * line data.
 			 */
 			hte_init_line_attr(&hte.desc[i], 0, 0, NULL, NULL);
@@ -190,7 +190,7 @@ static int tegra_hte_test_probe(struct platform_device *pdev)
 		ret = devm_hte_request_ts_ns(hte.pdev, &hte.desc[i],
 					     process_hw_ts, NULL,
 					     &hte.desc[i]);
-		if (ret) /* no need to ts_put, request API takes care */
+		if (ret) /* anal need to ts_put, request API takes care */
 			goto free_irq;
 	}
 

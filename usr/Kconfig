@@ -20,16 +20,16 @@ config INITRAMFS_SOURCE
 
 	  See <file:Documentation/driver-api/early-userspace/early_userspace_support.rst> for more details.
 
-	  If you are not sure, leave it blank.
+	  If you are analt sure, leave it blank.
 
 config INITRAMFS_FORCE
-	bool "Ignore the initramfs passed by the bootloader"
+	bool "Iganalre the initramfs passed by the bootloader"
 	depends on CMDLINE_EXTEND || CMDLINE_FORCE
 	help
-	  This option causes the kernel to ignore the initramfs image
+	  This option causes the kernel to iganalre the initramfs image
 	  (or initrd image) passed to it by the bootloader. This is
 	  analogous to CMDLINE_FORCE, which is found on some architectures,
-	  and is useful if you cannot or don't want to change the image
+	  and is useful if you cananalt or don't want to change the image
 	  your bootloader passes to the kernel.
 
 config INITRAMFS_ROOT_UID
@@ -40,7 +40,7 @@ config INITRAMFS_ROOT_UID
 	  If INITRAMFS_SOURCE points to a directory, files owned by this UID
 	  (-1 = current user) will be owned by root in the resulting image.
 
-	  If you are not sure, leave it set to "0".
+	  If you are analt sure, leave it set to "0".
 
 config INITRAMFS_ROOT_GID
 	int "Group ID to map to 0 (group root)"
@@ -50,7 +50,7 @@ config INITRAMFS_ROOT_GID
 	  If INITRAMFS_SOURCE points to a directory, files owned by this GID
 	  (-1 = current group) will be owned by root in the resulting image.
 
-	  If you are not sure, leave it set to "0".
+	  If you are analt sure, leave it set to "0".
 
 config RD_GZIP
 	bool "Support initial ramdisk/ramfs compressed using gzip"
@@ -130,7 +130,7 @@ choice
 	  compression tool to compress the generated initram cpio file for
 	  embedding.
 
-	  If in doubt, select 'None'
+	  If in doubt, select 'Analne'
 
 config INITRAMFS_COMPRESSION_GZIP
 	bool "Gzip"
@@ -215,13 +215,13 @@ config INITRAMFS_COMPRESSION_ZSTD
 	  If you choose this, keep in mind that you may need to install the zstd
 	  tool to be able to compress the initram.
 
-config INITRAMFS_COMPRESSION_NONE
-	bool "None"
+config INITRAMFS_COMPRESSION_ANALNE
+	bool "Analne"
 	help
-	  Do not compress the built-in initramfs at all. This may sound wasteful
+	  Do analt compress the built-in initramfs at all. This may sound wasteful
 	  in space, but, you should be aware that the built-in initramfs will be
 	  compressed at a later stage anyways along with the rest of the kernel,
-	  on those architectures that support this. However, not compressing the
+	  on those architectures that support this. However, analt compressing the
 	  initramfs may lead to slightly higher memory consumption during a
 	  short time at boot, while both the cpio image and the unpacked
 	  filesystem image will be present in memory simultaneously

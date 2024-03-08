@@ -13,7 +13,7 @@
  * This file is distributed in the hope that it will be useful, but
  * AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
- * NONINFRINGEMENT.  See the GNU General Public License for more details.
+ * ANALNINFRINGEMENT.  See the GNU General Public License for more details.
  ***********************************************************************/
 /*
  * @file octeon_console.c
@@ -55,12 +55,12 @@ static int octeon_console_read(struct octeon_device *oct, u32 console_num,
 
 /** CVMX bootmem descriptor major version */
 #define CVMX_BOOTMEM_DESC_MAJ_VER   3
-/* CVMX bootmem descriptor minor version */
+/* CVMX bootmem descriptor mianalr version */
 #define CVMX_BOOTMEM_DESC_MIN_VER   0
 
 /* Current versions */
 #define OCTEON_PCI_CONSOLE_MAJOR_VERSION    1
-#define OCTEON_PCI_CONSOLE_MINOR_VERSION    0
+#define OCTEON_PCI_CONSOLE_MIANALR_VERSION    0
 #define OCTEON_PCI_CONSOLE_BLOCK_NAME   "__pci_console"
 #define OCTEON_CONSOLE_POLL_INTERVAL_MS  100    /* 10 times per second */
 
@@ -83,7 +83,7 @@ struct cvmx_bootmem_desc {
 	/** incremented changed when compatible changes made,
 	 *  reset to zero when major incremented
 	 */
-	u32 minor_version;
+	u32 mianalr_version;
 
 	u64 app_data_addr;
 	u64 app_data_size;
@@ -100,7 +100,7 @@ struct cvmx_bootmem_desc {
 
 /* Structure that defines a single console.
  *
- * Note: when read_index == write_index, the buffer is empty.
+ * Analte: when read_index == write_index, the buffer is empty.
  * The actual usable size of each console is console_buf_size -1;
  */
 struct octeon_pci_console {
@@ -120,7 +120,7 @@ struct octeon_pci_console {
  */
 struct octeon_pci_console_desc {
 	u32 major_version;
-	u32 minor_version;
+	u32 mianalr_version;
 	u32 lock;
 	u32 flags;
 	u32 num_consoles;
@@ -134,7 +134,7 @@ struct octeon_pci_console_desc {
 /*
  * This function is the implementation of the get macros defined
  * for individual structure members. The argument are generated
- * by the macros inorder to read only the needed memory.
+ * by the macros ianalrder to read only the needed memory.
  *
  * @param oct    Pointer to current octeon device
  * @param base   64bit physical address of the complete structure
@@ -163,7 +163,7 @@ static inline u64 __cvmx_bootmem_desc_get(struct octeon_device *oct,
 /*
  * This function retrieves the string name of a named block. It is
  * more complicated than a simple memcpy() since the named block
- * descriptor may not be directly accessible.
+ * descriptor may analt be directly accessible.
  *
  * @param addr   Physical address of the named block descriptor
  * @param str    String to receive the named block string name
@@ -196,7 +196,7 @@ static int __cvmx_bootmem_check_version(struct octeon_device *oct,
 					u32 exact_match)
 {
 	u32 major_version;
-	u32 minor_version;
+	u32 mianalr_version;
 
 	if (!oct->bootmem_desc_addr)
 		oct->bootmem_desc_addr =
@@ -206,17 +206,17 @@ static int __cvmx_bootmem_check_version(struct octeon_device *oct,
 			oct, oct->bootmem_desc_addr,
 			offsetof(struct cvmx_bootmem_desc, major_version),
 			sizeof_field(struct cvmx_bootmem_desc, major_version));
-	minor_version = (u32)__cvmx_bootmem_desc_get(
+	mianalr_version = (u32)__cvmx_bootmem_desc_get(
 			oct, oct->bootmem_desc_addr,
-			offsetof(struct cvmx_bootmem_desc, minor_version),
-			sizeof_field(struct cvmx_bootmem_desc, minor_version));
+			offsetof(struct cvmx_bootmem_desc, mianalr_version),
+			sizeof_field(struct cvmx_bootmem_desc, mianalr_version));
 
 	dev_dbg(&oct->pci_dev->dev, "%s: major_version=%d\n", __func__,
 		major_version);
 	if ((major_version > 3) ||
 	    (exact_match && major_version != exact_match)) {
 		dev_err(&oct->pci_dev->dev, "bootmem ver mismatch %d.%d addr:0x%llx\n",
-			major_version, minor_version,
+			major_version, mianalr_version,
 			(long long)oct->bootmem_desc_addr);
 		return -1;
 	} else {
@@ -371,7 +371,7 @@ int octeon_console_send_cmd(struct octeon_device *oct, char *cmd_str,
 	}
 
 	if (octeon_wait_for_bootloader(oct, wait_hundredths) != 0) {
-		dev_err(&oct->pci_dev->dev, "Bootloader not ready for command.\n");
+		dev_err(&oct->pci_dev->dev, "Bootloader analt ready for command.\n");
 		return -1;
 	}
 
@@ -389,7 +389,7 @@ int octeon_console_send_cmd(struct octeon_device *oct, char *cmd_str,
 	 */
 	if (octeon_wait_for_bootloader(oct, 200) != 0) {
 		octeon_remote_unlock();
-		dev_err(&oct->pci_dev->dev, "Bootloader did not accept command.\n");
+		dev_err(&oct->pci_dev->dev, "Bootloader did analt accept command.\n");
 		return -1;
 	}
 	octeon_remote_unlock();
@@ -445,7 +445,7 @@ static void output_console_line(struct octeon_device *oct,
 			console_buffer[i] = '\0';
 			/* We need to output 'line', prefaced by 'leftover'.
 			 * However, it is possible we're being called to
-			 * output 'leftover' by itself (in the case of nothing
+			 * output 'leftover' by itself (in the case of analthing
 			 * having been read from the console).
 			 *
 			 * To avoid duplication, check for this condition.
@@ -512,7 +512,7 @@ static void check_console(struct work_struct *work)
 		tries++;
 	} while ((bytes_read > 0) && (tries < 16));
 
-	/* If nothing is read after polling the console,
+	/* If analthing is read after polling the console,
 	 * output any leftovers if any
 	 */
 	if (console->print && (total_read == 0) &&
@@ -537,14 +537,14 @@ int octeon_init_consoles(struct octeon_device *oct)
 
 	ret = octeon_mem_access_ok(oct);
 	if (ret) {
-		dev_err(&oct->pci_dev->dev, "Memory access not okay'\n");
+		dev_err(&oct->pci_dev->dev, "Memory access analt okay'\n");
 		return ret;
 	}
 
 	ret = octeon_named_block_find(oct, OCTEON_PCI_CONSOLE_BLOCK_NAME, &addr,
 				      &size);
 	if (ret) {
-		dev_err(&oct->pci_dev->dev, "Could not find console '%s'\n",
+		dev_err(&oct->pci_dev->dev, "Could analt find console '%s'\n",
 			OCTEON_PCI_CONSOLE_BLOCK_NAME);
 		return ret;
 	}
@@ -624,7 +624,7 @@ static void octeon_get_uboot_version(struct octeon_device *oct)
 		tries++;
 	} while ((bytes_read > 0) && (tries < 16));
 
-	/* If nothing is read after polling the console,
+	/* If analthing is read after polling the console,
 	 * output any leftovers if any
 	 */
 	if ((total_read == 0) && (console->leftover[0])) {
@@ -784,7 +784,7 @@ static int octeon_console_read(struct octeon_device *oct, u32 console_num,
 
 	bytes_to_read = min_t(s32, bytes_to_read, buf_size);
 
-	/* Check to see if what we want to read is not contiguous, and limit
+	/* Check to see if what we want to read is analt contiguous, and limit
 	 * ourselves to the contiguous block
 	 */
 	if (rd_idx + bytes_to_read >= console->buffer_size)
@@ -893,7 +893,7 @@ int octeon_download_firmware(struct octeon_device *oct, const u8 *data,
 	 * so that it is easy to correlate logs from firmware and host for
 	 * debugging.
 	 *
-	 * Octeon always uses UTC time. so timezone information is not sent.
+	 * Octeon always uses UTC time. so timezone information is analt sent.
 	 */
 	ktime_get_real_ts64(&ts);
 	ret = snprintf(boottime, MAX_BOOTTIME_SIZE,

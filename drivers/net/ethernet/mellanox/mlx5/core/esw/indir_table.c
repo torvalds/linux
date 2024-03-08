@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
-/* Copyright (c) 2021 Mellanox Technologies. */
+/* Copyright (c) 2021 Mellaanalx Techanallogies. */
 
 #include <linux/etherdevice.h>
 #include <linux/idr.h>
@@ -27,7 +27,7 @@ struct mlx5_esw_indir_table_rule {
 };
 
 struct mlx5_esw_indir_table_entry {
-	struct hlist_node hlist;
+	struct hlist_analde hlist;
 	struct mlx5_flow_table *ft;
 	struct mlx5_flow_group *recirc_grp;
 	struct mlx5_flow_group *fwd_grp;
@@ -49,7 +49,7 @@ mlx5_esw_indir_table_init(void)
 	struct mlx5_esw_indir_table *indir = kvzalloc(sizeof(*indir), GFP_KERNEL);
 
 	if (!indir)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	mutex_init(&indir->lock);
 	hash_init(indir->table);
@@ -113,7 +113,7 @@ static int mlx5_esw_indir_table_rule_get(struct mlx5_eswitch *esw,
 
 	rule = kzalloc(sizeof(*rule), GFP_KERNEL);
 	if (!rule)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Modify flow source to recirculate packet */
 	data = mlx5_eswitch_get_vport_metadata_for_set(esw, esw_attr->rx_tun_attr->decap_vport);
@@ -135,7 +135,7 @@ static int mlx5_esw_indir_table_rule_get(struct mlx5_eswitch *esw,
 	}
 
 	flow_act.action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST | MLX5_FLOW_CONTEXT_ACTION_MOD_HDR;
-	flow_act.flags = FLOW_ACT_IGNORE_FLOW_LEVEL | FLOW_ACT_NO_APPEND;
+	flow_act.flags = FLOW_ACT_IGANALRE_FLOW_LEVEL | FLOW_ACT_ANAL_APPEND;
 	flow_act.fg = e->recirc_grp;
 	dest.type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
 	dest.ft = mlx5_chains_get_table(chains, 0, 1, 0);
@@ -194,7 +194,7 @@ static int mlx5_create_indir_recirc_group(struct mlx5_esw_indir_table_entry *e)
 
 	in = kvzalloc(inlen, GFP_KERNEL);
 	if (!in)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	MLX5_SET(create_flow_group_in, in, start_flow_index, 0);
 	MLX5_SET(create_flow_group_in, in, end_flow_index, MLX5_ESW_INDIR_TABLE_RECIRC_IDX);
@@ -216,7 +216,7 @@ static int mlx5_create_indir_fwd_group(struct mlx5_eswitch *esw,
 
 	in = kvzalloc(inlen, GFP_KERNEL);
 	if (!in)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Hold one entry */
 	MLX5_SET(create_flow_group_in, in, start_flow_index, MLX5_ESW_INDIR_TABLE_FWD_IDX);
@@ -256,11 +256,11 @@ mlx5_esw_indir_table_entry_create(struct mlx5_eswitch *esw, struct mlx5_flow_att
 
 	root_ns = mlx5_get_flow_namespace(esw->dev, MLX5_FLOW_NAMESPACE_FDB);
 	if (!root_ns)
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-EANALENT);
 
 	e = kzalloc(sizeof(*e), GFP_KERNEL);
 	if (!e)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ft_attr.prio = FDB_TC_OFFLOAD;
 	ft_attr.max_fte = MLX5_ESW_INDIR_TABLE_SIZE;

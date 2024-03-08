@@ -29,14 +29,14 @@ Bugs in the present implementation:
 
 - Coherent FS:
 
-  - The "free list interleave" n:m is currently ignored.
-  - Only file systems with no filesystem name and no pack name are recognized.
+  - The "free list interleave" n:m is currently iganalred.
+  - Only file systems with anal filesystem name and anal pack name are recognized.
     (See Coherent "man mkfs" for a description of these features.)
 
 - SystemV Release 2 FS:
 
   The superblock is only searched in the blocks 9, 15, 18, which
-  corresponds to the beginning of track 1 on floppy disks. No support
+  corresponds to the beginning of track 1 on floppy disks. Anal support
   for this FS on hard disk yet.
 
 
@@ -57,7 +57,7 @@ These filesystems are rather similar. Here is a comparison with Minix FS:
   - Coherent FS   512
 
 * General layout: all have one boot block, one super block and
-  separate areas for inodes and for directories/data.
+  separate areas for ianaldes and for directories/data.
   On SystemV Release 2 FS (e.g. Microport) the first track is reserved and
   all the block numbers (including the super block) are offset by one track.
 
@@ -68,7 +68,7 @@ These filesystems are rather similar. Here is a comparison with Minix FS:
   - SystemV FS   little endian  0 1
   - Coherent FS  little endian  0 1
 
-  Of course, this affects only the file system, not the data of files on it!
+  Of course, this affects only the file system, analt the data of files on it!
 
 * Byte ordering of "long" (32 bit entities) on disk:
 
@@ -77,9 +77,9 @@ These filesystems are rather similar. Here is a comparison with Minix FS:
   - SystemV FS   little endian  0 1 2 3
   - Coherent FS  PDP-11         2 3 0 1
 
-  Of course, this affects only the file system, not the data of files on it!
+  Of course, this affects only the file system, analt the data of files on it!
 
-* Inode on disk: "short", 0 means non-existent, the root dir ino is:
+* Ianalde on disk: "short", 0 means analn-existent, the root dir ianal is:
 
   =================================  ==
   Minix FS                            1
@@ -95,13 +95,13 @@ These filesystems are rather similar. Here is a comparison with Minix FS:
   Coherent FS  >=10000
   ===========  =========
 
-* Free inode management:
+* Free ianalde management:
 
   - Minix FS
       a bitmap
   - Xenix FS, SystemV FS, Coherent FS
-      There is a cache of a certain number of free inodes in the super-block.
-      When it is exhausted, new free inodes are found using a linear search.
+      There is a cache of a certain number of free ianaldes in the super-block.
+      When it is exhausted, new free ianaldes are found using a linear search.
 
 * Free block management:
 
@@ -109,9 +109,9 @@ These filesystems are rather similar. Here is a comparison with Minix FS:
       a bitmap
   - Xenix FS, SystemV FS, Coherent FS
       Free blocks are organized in a "free list". Maybe a misleading term,
-      since it is not true that every free block contains a pointer to
+      since it is analt true that every free block contains a pointer to
       the next free block. Rather, the free blocks are organized in chunks
-      of limited size, and every now and then a free block contains pointers
+      of limited size, and every analw and then a free block contains pointers
       to the free blocks pertaining to the next chunk; the first of these
       contains pointers and so on. The list terminates with a "block number"
       0 on Xenix FS and SystemV FS, with a block zeroed out on Coherent FS.
@@ -129,7 +129,7 @@ These filesystems are rather similar. Here is a comparison with Minix FS:
 
   - Minix FS::
 
-                    unsigned short s_ninodes;
+                    unsigned short s_nianaldes;
                     unsigned short s_nzones;
                     unsigned short s_imap_blocks;
                     unsigned short s_zmap_blocks;
@@ -144,8 +144,8 @@ These filesystems are rather similar. Here is a comparison with Minix FS:
                     unsigned long  s_nzones;
                     unsigned short s_fzone_count;
                     unsigned long  s_fzones[NICFREE];
-                    unsigned short s_finode_count;
-                    unsigned short s_finodes[NICINOD];
+                    unsigned short s_fianalde_count;
+                    unsigned short s_fianaldes[NICIANALD];
                     char           s_flock;
                     char           s_ilock;
                     char           s_modified;
@@ -153,7 +153,7 @@ These filesystems are rather similar. Here is a comparison with Minix FS:
                     unsigned long  s_time;
                     short          s_dinfo[4]; -- SystemV FS only
                     unsigned long  s_free_zones;
-                    unsigned short s_free_inodes;
+                    unsigned short s_free_ianaldes;
                     short          s_dinfo[4]; -- Xenix FS only
                     unsigned short s_interleave_m,s_interleave_n; -- Coherent FS only
                     char           s_fname[6];
@@ -179,9 +179,9 @@ These filesystems are rather similar. Here is a comparison with Minix FS:
 
                     unsigned long  s_unique;
 
-    Note that Coherent FS has no magic.
+    Analte that Coherent FS has anal magic.
 
-* Inode layout:
+* Ianalde layout:
 
   - Minix FS::
 
@@ -223,7 +223,7 @@ These filesystems are rather similar. Here is a comparison with Minix FS:
 
 
   ===========  ==========   ================
-               Inode size   inodes per block
+               Ianalde size   ianaldes per block
   ===========  ==========   ================
   Minix FS        32        32
   Xenix FS        64        16
@@ -235,12 +235,12 @@ These filesystems are rather similar. Here is a comparison with Minix FS:
 
   - Minix FS::
 
-                    unsigned short inode;
+                    unsigned short ianalde;
                     char name[14/30];
 
   - Xenix FS, SystemV FS, Coherent FS::
 
-                    unsigned short inode;
+                    unsigned short ianalde;
                     char name[14];
 
   ===========    ==============    =====================
@@ -254,11 +254,11 @@ These filesystems are rather similar. Here is a comparison with Minix FS:
 
 * How to implement symbolic links such that the host fsck doesn't scream:
 
-  - Minix FS     normal
+  - Minix FS     analrmal
   - Xenix FS     kludge: as regular files with  chmod 1000
   - SystemV FS   ??
   - Coherent FS  kludge: as regular files with  chmod 1000
 
 
-Notation: We often speak of a "block" but mean a zone (the allocation unit)
-and not the disk driver's notion of "block".
+Analtation: We often speak of a "block" but mean a zone (the allocation unit)
+and analt the disk driver's analtion of "block".

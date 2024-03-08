@@ -44,7 +44,7 @@ static int time_to_dump;
 /*
  * In case of system reset, secondary CPUs enter crash_kexec_secondary with out
  * having to send an IPI explicitly. So, indicate if the crash is via
- * system reset to avoid sending another IPI.
+ * system reset to avoid sending aanalther IPI.
  */
 static int is_via_system_reset;
 
@@ -77,7 +77,7 @@ static int handle_fault(struct pt_regs *regs)
 static atomic_t cpus_in_crash;
 void crash_ipi_callback(struct pt_regs *regs)
 {
-	static cpumask_t cpus_state_saved = CPU_MASK_NONE;
+	static cpumask_t cpus_state_saved = CPU_MASK_ANALNE;
 
 	int cpu = smp_processor_id();
 
@@ -106,7 +106,7 @@ void crash_ipi_callback(struct pt_regs *regs)
 	for (;;);	/* FIXME */
 #endif
 
-	/* NOTREACHED */
+	/* ANALTREACHED */
 }
 
 static void crash_kexec_prepare_cpus(void)
@@ -149,7 +149,7 @@ again:
 		return;
 	}
 
-	printk(KERN_EMERG "ERROR: %d cpu(s) not responding\n",
+	printk(KERN_EMERG "ERROR: %d cpu(s) analt responding\n",
 		ncpus - atomic_read(&cpus_in_crash));
 
 	/*
@@ -205,7 +205,7 @@ void crash_kexec_secondary(struct pt_regs *regs)
 	/* Wait for the primary crash CPU to signal its progress */
 	while (crashing_cpu < 0) {
 		if (--msecs < 0) {
-			/* No response, kdump image may not have been loaded */
+			/* Anal response, kdump image may analt have been loaded */
 			local_irq_restore(flags);
 			return;
 		}
@@ -240,7 +240,7 @@ void crash_kexec_secondary(struct pt_regs *regs)
 
 /* wait for all the CPUs to hit real mode but timeout if they don't come in */
 #if defined(CONFIG_SMP) && defined(CONFIG_PPC64)
-noinstr static void __maybe_unused crash_kexec_wait_realmode(int cpu)
+analinstr static void __maybe_unused crash_kexec_wait_realmode(int cpu)
 {
 	unsigned int msecs;
 	int i;
@@ -282,8 +282,8 @@ void crash_kexec_prepare(void)
 	hard_irq_disable();
 
 	/*
-	 * Make a note of crashing cpu. Will be used in machine_kexec
-	 * such that another IPI will not be sent.
+	 * Make a analte of crashing cpu. Will be used in machine_kexec
+	 * such that aanalther IPI will analt be sent.
 	 */
 	crashing_cpu = smp_processor_id();
 
@@ -309,7 +309,7 @@ int crash_shutdown_register(crash_shutdown_t handler)
 
 	if (i == CRASH_HANDLER_MAX) {
 		printk(KERN_ERR "Crash shutdown handles full, "
-		       "not registered.\n");
+		       "analt registered.\n");
 		rc = 1;
 	}
 
@@ -328,7 +328,7 @@ int crash_shutdown_unregister(crash_shutdown_t handler)
 			break;
 
 	if (i == CRASH_HANDLER_MAX) {
-		printk(KERN_ERR "Crash shutdown handle not found\n");
+		printk(KERN_ERR "Crash shutdown handle analt found\n");
 		rc = 1;
 	} else {
 		/* Shift handles down */
@@ -336,7 +336,7 @@ int crash_shutdown_unregister(crash_shutdown_t handler)
 			crash_shutdown_handles[i] =
 				crash_shutdown_handles[i+1];
 		/*
-		 * Reset last entry to NULL now that it has been shifted down,
+		 * Reset last entry to NULL analw that it has been shifted down,
 		 * this will allow new handles to be added here.
 		 */
 		crash_shutdown_handles[i] = NULL;

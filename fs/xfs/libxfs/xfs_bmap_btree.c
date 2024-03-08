@@ -11,7 +11,7 @@
 #include "xfs_trans_resv.h"
 #include "xfs_bit.h"
 #include "xfs_mount.h"
-#include "xfs_inode.h"
+#include "xfs_ianalde.h"
 #include "xfs_trans.h"
 #include "xfs_alloc.h"
 #include "xfs_btree.h"
@@ -31,7 +31,7 @@ static struct kmem_cache	*xfs_bmbt_cur_cache;
  */
 void
 xfs_bmdr_to_bmbt(
-	struct xfs_inode	*ip,
+	struct xfs_ianalde	*ip,
 	xfs_bmdr_block_t	*dblock,
 	int			dblocklen,
 	struct xfs_btree_block	*rblock,
@@ -45,7 +45,7 @@ xfs_bmdr_to_bmbt(
 	__be64			*tpp;
 
 	xfs_btree_init_block_int(mp, rblock, XFS_BUF_DADDR_NULL,
-				 XFS_BTNUM_BMAP, 0, 0, ip->i_ino,
+				 XFS_BTNUM_BMAP, 0, 0, ip->i_ianal,
 				 XFS_BTREE_LONG_PTRS);
 	rblock->bb_level = dblock->bb_level;
 	ASSERT(be16_to_cpu(rblock->bb_level) > 0);
@@ -74,7 +74,7 @@ xfs_bmbt_disk_get_all(
 	if (l0 >> (64 - BMBT_EXNTFLAG_BITLEN))
 		irec->br_state = XFS_EXT_UNWRITTEN;
 	else
-		irec->br_state = XFS_EXT_NORM;
+		irec->br_state = XFS_EXT_ANALRM;
 }
 
 /*
@@ -106,9 +106,9 @@ xfs_bmbt_disk_set_all(
 	struct xfs_bmbt_rec	*r,
 	struct xfs_bmbt_irec	*s)
 {
-	int			extent_flag = (s->br_state != XFS_EXT_NORM);
+	int			extent_flag = (s->br_state != XFS_EXT_ANALRM);
 
-	ASSERT(s->br_state == XFS_EXT_NORM || s->br_state == XFS_EXT_UNWRITTEN);
+	ASSERT(s->br_state == XFS_EXT_ANALRM || s->br_state == XFS_EXT_UNWRITTEN);
 	ASSERT(!(s->br_startoff & xfs_mask64hi(64-BMBT_STARTOFF_BITLEN)));
 	ASSERT(!(s->br_blockcount & xfs_mask64hi(64-BMBT_BLOCKCOUNT_BITLEN)));
 	ASSERT(!(s->br_startblock & xfs_mask64hi(64-BMBT_STARTBLOCK_BITLEN)));
@@ -144,7 +144,7 @@ xfs_bmbt_to_bmdr(
 		ASSERT(rblock->bb_magic == cpu_to_be32(XFS_BMAP_CRC_MAGIC));
 		ASSERT(uuid_equal(&rblock->bb_u.l.bb_uuid,
 		       &mp->m_sb.sb_meta_uuid));
-		ASSERT(rblock->bb_u.l.bb_blkno ==
+		ASSERT(rblock->bb_u.l.bb_blkanal ==
 		       cpu_to_be64(XFS_BUF_DADDR_NULL));
 	} else
 		ASSERT(rblock->bb_magic == cpu_to_be32(XFS_BMAP_MAGIC));
@@ -170,13 +170,13 @@ xfs_bmbt_dup_cursor(
 	struct xfs_btree_cur	*new;
 
 	new = xfs_bmbt_init_cursor(cur->bc_mp, cur->bc_tp,
-			cur->bc_ino.ip, cur->bc_ino.whichfork);
+			cur->bc_ianal.ip, cur->bc_ianal.whichfork);
 
 	/*
 	 * Copy the firstblock, dfops, and flags values,
 	 * since init cursor doesn't get them.
 	 */
-	new->bc_ino.flags = cur->bc_ino.flags;
+	new->bc_ianal.flags = cur->bc_ianal.flags;
 
 	return new;
 }
@@ -186,13 +186,13 @@ xfs_bmbt_update_cursor(
 	struct xfs_btree_cur	*src,
 	struct xfs_btree_cur	*dst)
 {
-	ASSERT((dst->bc_tp->t_highest_agno != NULLAGNUMBER) ||
-	       (dst->bc_ino.ip->i_diflags & XFS_DIFLAG_REALTIME));
+	ASSERT((dst->bc_tp->t_highest_aganal != NULLAGNUMBER) ||
+	       (dst->bc_ianal.ip->i_diflags & XFS_DIFLAG_REALTIME));
 
-	dst->bc_ino.allocated += src->bc_ino.allocated;
-	dst->bc_tp->t_highest_agno = src->bc_tp->t_highest_agno;
+	dst->bc_ianal.allocated += src->bc_ianal.allocated;
+	dst->bc_tp->t_highest_aganal = src->bc_tp->t_highest_aganal;
 
-	src->bc_ino.allocated = 0;
+	src->bc_ianal.allocated = 0;
 }
 
 STATIC int
@@ -208,30 +208,30 @@ xfs_bmbt_alloc_block(
 	memset(&args, 0, sizeof(args));
 	args.tp = cur->bc_tp;
 	args.mp = cur->bc_mp;
-	xfs_rmap_ino_bmbt_owner(&args.oinfo, cur->bc_ino.ip->i_ino,
-			cur->bc_ino.whichfork);
+	xfs_rmap_ianal_bmbt_owner(&args.oinfo, cur->bc_ianal.ip->i_ianal,
+			cur->bc_ianal.whichfork);
 	args.minlen = args.maxlen = args.prod = 1;
-	args.wasdel = cur->bc_ino.flags & XFS_BTCUR_BMBT_WASDEL;
+	args.wasdel = cur->bc_ianal.flags & XFS_BTCUR_BMBT_WASDEL;
 	if (!args.wasdel && args.tp->t_blk_res == 0)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	/*
 	 * If we are coming here from something like unwritten extent
-	 * conversion, there has been no data extent allocation already done, so
+	 * conversion, there has been anal data extent allocation already done, so
 	 * we have to ensure that we attempt to locate the entire set of bmbt
 	 * allocations in the same AG, as xfs_bmapi_write() would have reserved.
 	 */
-	if (cur->bc_tp->t_highest_agno == NULLAGNUMBER)
-		args.minleft = xfs_bmapi_minleft(cur->bc_tp, cur->bc_ino.ip,
-					cur->bc_ino.whichfork);
+	if (cur->bc_tp->t_highest_aganal == NULLAGNUMBER)
+		args.minleft = xfs_bmapi_minleft(cur->bc_tp, cur->bc_ianal.ip,
+					cur->bc_ianal.whichfork);
 
 	error = xfs_alloc_vextent_start_ag(&args, be64_to_cpu(start->l));
 	if (error)
 		return error;
 
-	if (args.fsbno == NULLFSBLOCK && args.minleft) {
+	if (args.fsbanal == NULLFSBLOCK && args.minleft) {
 		/*
-		 * Could not find an AG with enough free space to satisfy
+		 * Could analt find an AG with eanalugh free space to satisfy
 		 * a full btree split.  Try again and if
 		 * successful activate the lowspace algorithm.
 		 */
@@ -241,19 +241,19 @@ xfs_bmbt_alloc_block(
 			return error;
 		cur->bc_tp->t_flags |= XFS_TRANS_LOWMODE;
 	}
-	if (WARN_ON_ONCE(args.fsbno == NULLFSBLOCK)) {
+	if (WARN_ON_ONCE(args.fsbanal == NULLFSBLOCK)) {
 		*stat = 0;
 		return 0;
 	}
 
 	ASSERT(args.len == 1);
-	cur->bc_ino.allocated++;
-	cur->bc_ino.ip->i_nblocks++;
-	xfs_trans_log_inode(args.tp, cur->bc_ino.ip, XFS_ILOG_CORE);
-	xfs_trans_mod_dquot_byino(args.tp, cur->bc_ino.ip,
+	cur->bc_ianal.allocated++;
+	cur->bc_ianal.ip->i_nblocks++;
+	xfs_trans_log_ianalde(args.tp, cur->bc_ianal.ip, XFS_ILOG_CORE);
+	xfs_trans_mod_dquot_byianal(args.tp, cur->bc_ianal.ip,
 			XFS_TRANS_DQ_BCOUNT, 1L);
 
-	new->l = cpu_to_be64(args.fsbno);
+	new->l = cpu_to_be64(args.fsbanal);
 
 	*stat = 1;
 	return 0;
@@ -265,21 +265,21 @@ xfs_bmbt_free_block(
 	struct xfs_buf		*bp)
 {
 	struct xfs_mount	*mp = cur->bc_mp;
-	struct xfs_inode	*ip = cur->bc_ino.ip;
+	struct xfs_ianalde	*ip = cur->bc_ianal.ip;
 	struct xfs_trans	*tp = cur->bc_tp;
-	xfs_fsblock_t		fsbno = XFS_DADDR_TO_FSB(mp, xfs_buf_daddr(bp));
+	xfs_fsblock_t		fsbanal = XFS_DADDR_TO_FSB(mp, xfs_buf_daddr(bp));
 	struct xfs_owner_info	oinfo;
 	int			error;
 
-	xfs_rmap_ino_bmbt_owner(&oinfo, ip->i_ino, cur->bc_ino.whichfork);
-	error = xfs_free_extent_later(cur->bc_tp, fsbno, 1, &oinfo,
-			XFS_AG_RESV_NONE, false);
+	xfs_rmap_ianal_bmbt_owner(&oinfo, ip->i_ianal, cur->bc_ianal.whichfork);
+	error = xfs_free_extent_later(cur->bc_tp, fsbanal, 1, &oinfo,
+			XFS_AG_RESV_ANALNE, false);
 	if (error)
 		return error;
 
 	ip->i_nblocks--;
-	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
-	xfs_trans_mod_dquot_byino(tp, ip, XFS_TRANS_DQ_BCOUNT, -1L);
+	xfs_trans_log_ianalde(tp, ip, XFS_ILOG_CORE);
+	xfs_trans_mod_dquot_byianal(tp, ip, XFS_TRANS_DQ_BCOUNT, -1L);
 	return 0;
 }
 
@@ -317,11 +317,11 @@ xfs_bmbt_get_maxrecs(
 /*
  * Get the maximum records we could store in the on-disk format.
  *
- * For non-root nodes this is equivalent to xfs_bmbt_get_maxrecs, but
- * for the root node this checks the available space in the dinode fork
+ * For analn-root analdes this is equivalent to xfs_bmbt_get_maxrecs, but
+ * for the root analde this checks the available space in the dianalde fork
  * so that we can resize the in-memory buffer to match it.  After a
  * resize to the maximum size this function returns the same value
- * as xfs_bmbt_get_maxrecs for the root node, too.
+ * as xfs_bmbt_get_maxrecs for the root analde, too.
  */
 STATIC int
 xfs_bmbt_get_dmaxrecs(
@@ -330,7 +330,7 @@ xfs_bmbt_get_dmaxrecs(
 {
 	if (level != cur->bc_nlevels - 1)
 		return cur->bc_mp->m_bmap_dmxr[level != 0];
-	return xfs_bmdr_maxrecs(cur->bc_ino.forksize, level == 0);
+	return xfs_bmdr_maxrecs(cur->bc_ianal.forksize, level == 0);
 }
 
 STATIC void
@@ -390,7 +390,7 @@ xfs_bmbt_diff_two_keys(
 	ASSERT(!mask || mask->bmbt.br_startoff);
 
 	/*
-	 * Note: This routine previously casted a and b to int64 and subtracted
+	 * Analte: This routine previously casted a and b to int64 and subtracted
 	 * them to generate a result.  This lead to problems if b was the
 	 * "maximum" key value (all ones) being signed incorrectly, hence this
 	 * somewhat less efficient version.
@@ -416,10 +416,10 @@ xfs_bmbt_verify(
 
 	if (xfs_has_crc(mp)) {
 		/*
-		 * XXX: need a better way of verifying the owner here. Right now
+		 * XXX: need a better way of verifying the owner here. Right analw
 		 * just make sure there has been one set.
 		 */
-		fa = xfs_btree_lblock_v5hdr_verify(bp, XFS_RMAP_OWN_UNKNOWN);
+		fa = xfs_btree_lblock_v5hdr_verify(bp, XFS_RMAP_OWN_UNKANALWN);
 		if (fa)
 			return fa;
 	}
@@ -427,7 +427,7 @@ xfs_bmbt_verify(
 	/*
 	 * numrecs and level verification.
 	 *
-	 * We don't know what fork we belong to, so just verify that the level
+	 * We don't kanalw what fork we belong to, so just verify that the level
 	 * is less than the maximum of the two. Later checks will be more
 	 * precise.
 	 */
@@ -482,7 +482,7 @@ const struct xfs_buf_ops xfs_bmbt_buf_ops = {
 
 
 STATIC int
-xfs_bmbt_keys_inorder(
+xfs_bmbt_keys_ianalrder(
 	struct xfs_btree_cur		*cur,
 	const union xfs_btree_key	*k1,
 	const union xfs_btree_key	*k2)
@@ -492,7 +492,7 @@ xfs_bmbt_keys_inorder(
 }
 
 STATIC int
-xfs_bmbt_recs_inorder(
+xfs_bmbt_recs_ianalrder(
 	struct xfs_btree_cur		*cur,
 	const union xfs_btree_rec	*r1,
 	const union xfs_btree_rec	*r2)
@@ -533,8 +533,8 @@ static const struct xfs_btree_ops xfs_bmbt_ops = {
 	.key_diff		= xfs_bmbt_key_diff,
 	.diff_two_keys		= xfs_bmbt_diff_two_keys,
 	.buf_ops		= &xfs_bmbt_buf_ops,
-	.keys_inorder		= xfs_bmbt_keys_inorder,
-	.recs_inorder		= xfs_bmbt_recs_inorder,
+	.keys_ianalrder		= xfs_bmbt_keys_ianalrder,
+	.recs_ianalrder		= xfs_bmbt_recs_ianalrder,
 	.keys_contiguous	= xfs_bmbt_keys_contiguous,
 };
 
@@ -542,7 +542,7 @@ static struct xfs_btree_cur *
 xfs_bmbt_init_common(
 	struct xfs_mount	*mp,
 	struct xfs_trans	*tp,
-	struct xfs_inode	*ip,
+	struct xfs_ianalde	*ip,
 	int			whichfork)
 {
 	struct xfs_btree_cur	*cur;
@@ -554,13 +554,13 @@ xfs_bmbt_init_common(
 	cur->bc_statoff = XFS_STATS_CALC_INDEX(xs_bmbt_2);
 
 	cur->bc_ops = &xfs_bmbt_ops;
-	cur->bc_flags = XFS_BTREE_LONG_PTRS | XFS_BTREE_ROOT_IN_INODE;
+	cur->bc_flags = XFS_BTREE_LONG_PTRS | XFS_BTREE_ROOT_IN_IANALDE;
 	if (xfs_has_crc(mp))
 		cur->bc_flags |= XFS_BTREE_CRC_BLOCKS;
 
-	cur->bc_ino.ip = ip;
-	cur->bc_ino.allocated = 0;
-	cur->bc_ino.flags = 0;
+	cur->bc_ianal.ip = ip;
+	cur->bc_ianal.allocated = 0;
+	cur->bc_ianal.flags = 0;
 
 	return cur;
 }
@@ -572,7 +572,7 @@ struct xfs_btree_cur *
 xfs_bmbt_init_cursor(
 	struct xfs_mount	*mp,
 	struct xfs_trans	*tp,
-	struct xfs_inode	*ip,
+	struct xfs_ianalde	*ip,
 	int			whichfork)
 {
 	struct xfs_ifork	*ifp = xfs_ifork_ptr(ip, whichfork);
@@ -581,8 +581,8 @@ xfs_bmbt_init_cursor(
 	cur = xfs_bmbt_init_common(mp, tp, ip, whichfork);
 
 	cur->bc_nlevels = be16_to_cpu(ifp->if_broot->bb_level) + 1;
-	cur->bc_ino.forksize = xfs_inode_fork_size(ip, whichfork);
-	cur->bc_ino.whichfork = whichfork;
+	cur->bc_ianal.forksize = xfs_ianalde_fork_size(ip, whichfork);
+	cur->bc_ianal.whichfork = whichfork;
 
 	return cur;
 }
@@ -599,15 +599,15 @@ xfs_bmbt_block_maxrecs(
 }
 
 /*
- * Allocate a new bmap btree cursor for reloading an inode block mapping data
- * structure.  Note that callers can use the staged cursor to reload extents
- * format inode forks if they rebuild the iext tree and commit the staged
+ * Allocate a new bmap btree cursor for reloading an ianalde block mapping data
+ * structure.  Analte that callers can use the staged cursor to reload extents
+ * format ianalde forks if they rebuild the iext tree and commit the staged
  * cursor immediately.
  */
 struct xfs_btree_cur *
 xfs_bmbt_stage_cursor(
 	struct xfs_mount	*mp,
-	struct xfs_inode	*ip,
+	struct xfs_ianalde	*ip,
 	struct xbtree_ifakeroot	*ifake)
 {
 	struct xfs_btree_cur	*cur;
@@ -616,17 +616,17 @@ xfs_bmbt_stage_cursor(
 	/* data fork always has larger maxheight */
 	cur = xfs_bmbt_init_common(mp, NULL, ip, XFS_DATA_FORK);
 	cur->bc_nlevels = ifake->if_levels;
-	cur->bc_ino.forksize = ifake->if_fork_size;
+	cur->bc_ianal.forksize = ifake->if_fork_size;
 
 	/* Don't let anyone think we're attached to the real fork yet. */
-	cur->bc_ino.whichfork = -1;
+	cur->bc_ianal.whichfork = -1;
 	xfs_btree_stage_ifakeroot(cur, ifake, &ops);
 	ops->update_cursor = NULL;
 	return cur;
 }
 
 /*
- * Swap in the new inode fork root.  Once we pass this point the newly rebuilt
+ * Swap in the new ianalde fork root.  Once we pass this point the newly rebuilt
  * mappings are in place and we have to kill off any old btree blocks.
  */
 void
@@ -635,7 +635,7 @@ xfs_bmbt_commit_staged_btree(
 	struct xfs_trans	*tp,
 	int			whichfork)
 {
-	struct xbtree_ifakeroot	*ifake = cur->bc_ino.ifake;
+	struct xbtree_ifakeroot	*ifake = cur->bc_ianal.ifake;
 	struct xfs_ifork	*ifp;
 	static const short	brootflag[2] = {XFS_ILOG_DBROOT, XFS_ILOG_ABROOT};
 	static const short	extflag[2] = {XFS_ILOG_DEXT, XFS_ILOG_AEXT};
@@ -649,22 +649,22 @@ xfs_bmbt_commit_staged_btree(
 	 * staging fork's contents into the real fork to transfer everything
 	 * we just built.
 	 */
-	ifp = xfs_ifork_ptr(cur->bc_ino.ip, whichfork);
+	ifp = xfs_ifork_ptr(cur->bc_ianal.ip, whichfork);
 	xfs_idestroy_fork(ifp);
 	memcpy(ifp, ifake->if_fork, sizeof(struct xfs_ifork));
 
 	switch (ifp->if_format) {
-	case XFS_DINODE_FMT_EXTENTS:
+	case XFS_DIANALDE_FMT_EXTENTS:
 		flags |= extflag[whichfork];
 		break;
-	case XFS_DINODE_FMT_BTREE:
+	case XFS_DIANALDE_FMT_BTREE:
 		flags |= brootflag[whichfork];
 		break;
 	default:
 		ASSERT(0);
 		break;
 	}
-	xfs_trans_log_inode(tp, cur->bc_ino.ip, flags);
+	xfs_trans_log_ianalde(tp, cur->bc_ianal.ip, flags);
 	xfs_btree_commit_ifakeroot(cur, tp, whichfork, &xfs_bmbt_ops);
 }
 
@@ -683,7 +683,7 @@ xfs_bmbt_maxrecs(
 
 /*
  * Calculate the maximum possible height of the btree that the on-disk format
- * supports. This is used for sizing structures large enough to support every
+ * supports. This is used for sizing structures large eanalugh to support every
  * possible configuration of a filesystem that might get mounted.
  */
 unsigned int
@@ -698,13 +698,13 @@ xfs_bmbt_maxlevels_ondisk(void)
 	minrecs[0] = xfs_bmbt_block_maxrecs(blocklen, true) / 2;
 	minrecs[1] = xfs_bmbt_block_maxrecs(blocklen, false) / 2;
 
-	/* One extra level for the inode root. */
+	/* One extra level for the ianalde root. */
 	return xfs_btree_compute_maxlevels(minrecs,
 			XFS_MAX_EXTCNT_DATA_FORK_LARGE) + 1;
 }
 
 /*
- * Calculate number of records in a bmap btree inode root.
+ * Calculate number of records in a bmap btree ianalde root.
  */
 int
 xfs_bmdr_maxrecs(
@@ -719,9 +719,9 @@ xfs_bmdr_maxrecs(
 }
 
 /*
- * Change the owner of a btree format fork fo the inode passed in. Change it to
+ * Change the owner of a btree format fork fo the ianalde passed in. Change it to
  * the owner of that is passed in so that we can change owners before or after
- * we switch forks between inodes. The operation that the caller is doing will
+ * we switch forks between ianaldes. The operation that the caller is doing will
  * determine whether is needs to change owner before or after the switch.
  *
  * For demand paged transactional modification, the fork switch should be done
@@ -731,16 +731,16 @@ xfs_bmdr_maxrecs(
  * validate the owner until the btree buffers are unpinned and writes can occur
  * again.
  *
- * For recovery based ownership change, there is no transactional context and
+ * For recovery based ownership change, there is anal transactional context and
  * so a buffer list must be supplied so that we can record the buffers that we
  * modified for the caller to issue IO on.
  */
 int
 xfs_bmbt_change_owner(
 	struct xfs_trans	*tp,
-	struct xfs_inode	*ip,
+	struct xfs_ianalde	*ip,
 	int			whichfork,
-	xfs_ino_t		new_owner,
+	xfs_ianal_t		new_owner,
 	struct list_head	*buffer_list)
 {
 	struct xfs_btree_cur	*cur;
@@ -748,10 +748,10 @@ xfs_bmbt_change_owner(
 
 	ASSERT(tp || buffer_list);
 	ASSERT(!(tp && buffer_list));
-	ASSERT(xfs_ifork_ptr(ip, whichfork)->if_format == XFS_DINODE_FMT_BTREE);
+	ASSERT(xfs_ifork_ptr(ip, whichfork)->if_format == XFS_DIANALDE_FMT_BTREE);
 
 	cur = xfs_bmbt_init_cursor(ip->i_mount, tp, ip, whichfork);
-	cur->bc_ino.flags |= XFS_BTCUR_BMBT_INVALID_OWNER;
+	cur->bc_ianal.flags |= XFS_BTCUR_BMBT_INVALID_OWNER;
 
 	error = xfs_btree_change_owner(cur, new_owner, buffer_list);
 	xfs_btree_del_cursor(cur, error);
@@ -775,7 +775,7 @@ xfs_bmbt_init_cur_cache(void)
 			0, 0, NULL);
 
 	if (!xfs_bmbt_cur_cache)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 

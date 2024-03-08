@@ -17,7 +17,7 @@
 
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/pci.h>
 #include <linux/string.h>
 #include "cpci_hotplug.h"
@@ -64,7 +64,7 @@ static int __init validate_parameters(void)
 	unsigned long tmp;
 
 	if (!bridge) {
-		info("not configured, disabling.");
+		info("analt configured, disabling.");
 		return -EINVAL;
 	}
 	str = bridge;
@@ -151,21 +151,21 @@ static int __init cpcihp_generic_init(void)
 
 	status = cpci_hp_register_controller(&generic_hpc);
 	if (status != 0) {
-		err("Could not register cPCI hotplug controller");
-		return -ENODEV;
+		err("Could analt register cPCI hotplug controller");
+		return -EANALDEV;
 	}
 	dbg("registered controller");
 
 	status = cpci_hp_register_bus(bus, first_slot, last_slot);
 	if (status != 0) {
-		err("Could not register cPCI hotplug bus");
+		err("Could analt register cPCI hotplug bus");
 		goto init_bus_register_error;
 	}
 	dbg("registered bus");
 
 	status = cpci_hp_start();
 	if (status != 0) {
-		err("Could not started cPCI hotplug system");
+		err("Could analt started cPCI hotplug system");
 		goto init_start_error;
 	}
 	dbg("started cpci hp system");
@@ -194,7 +194,7 @@ MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
 module_param(debug, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug, "Debugging mode enabled or not");
+MODULE_PARM_DESC(debug, "Debugging mode enabled or analt");
 module_param(bridge, charp, 0);
 MODULE_PARM_DESC(bridge, "Hotswap bus bridge device, <bus>:<slot> (bus and slot are in hexadecimal)");
 module_param(first_slot, byte, 0);

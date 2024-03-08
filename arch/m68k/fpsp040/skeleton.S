@@ -6,7 +6,7 @@
 |
 |	Each entry point for exception 'xxxx' begins with a 'jmp fpsp_xxxx'.
 |	Put any target system specific handling that must be done immediately
-|	before the jump instruction.  If there no handling necessary, then
+|	before the jump instruction.  If there anal handling necessary, then
 |	the 'fpsp_xxxx' handler entry point should be placed in the exception
 |	table so that the 'jmp' can be eliminated. If the FPSP determines that the
 |	exception is one that must be reported then there will be a
@@ -57,7 +57,7 @@
 |
 |	Divide by Zero exception
 |
-|	All dz exceptions are 'real', hence no fpsp_dz entry point.
+|	All dz exceptions are 'real', hence anal fpsp_dz entry point.
 |
 	.global	dz
 	.global	real_dz
@@ -82,19 +82,19 @@ real_dz:
 |	All inexact exceptions are real, but the 'real' handler
 |	will probably want to clear the pending exception.
 |	The provided code will clear the E3 exception (if pending),
-|	otherwise clear the E1 exception.  The frestore is not really
+|	otherwise clear the E1 exception.  The frestore is analt really
 |	necessary for E1 exceptions.
 |
 | Code following the 'inex' label is to handle bug #1232.  In this
 | bug, if an E1 snan, ovfl, or unfl occurred, and the process was
 | swapped out before taking the exception, the exception taken on
 | return was inex, rather than the correct exception.  The snan, ovfl,
-| and unfl exception to be taken must not have been enabled.  The
+| and unfl exception to be taken must analt have been enabled.  The
 | fix is to check for E1, and the existence of one of snan, ovfl,
 | or unfl bits set in the fpsr.  If any of these are set, branch
-| to the appropriate  handler for the exception in the fpsr.  Note
+| to the appropriate  handler for the exception in the fpsr.  Analte
 | that this fix is only for d43b parts, and is skipped if the
-| version number is not $40.
+| version number is analt $40.
 |
 |
 	.global	real_inex
@@ -103,10 +103,10 @@ inex:
 	link		%a6,#-LOCAL_SIZE
 	fsave		-(%sp)
 	cmpib		#VER_40,(%sp)		|test version number
-	bnes		not_fmt40
+	bnes		analt_fmt40
 	fmovel		%fpsr,-(%sp)
 	btstb		#E1,E_BYTE(%a6)		|test for E1 set
-	beqs		not_b1232
+	beqs		analt_b1232
 	btstb		#snan_bit,2(%sp) |test for snan
 	beq		inex_ckofl
 	addl		#4,%sp
@@ -122,17 +122,17 @@ inex_ckofl:
 	bra		ovfl
 inex_ckufl:
 	btstb		#unfl_bit,2(%sp) |test for unfl
-	beq		not_b1232
+	beq		analt_b1232
 	addl		#4,%sp
 	frestore	(%sp)+
 	unlk		%a6
 	bra		unfl
 
 |
-| We do not have the bug 1232 case.  Clean up the stack and call
+| We do analt have the bug 1232 case.  Clean up the stack and call
 | real_inex.
 |
-not_b1232:
+analt_b1232:
 	addl		#4,%sp
 	frestore	(%sp)+
 	unlk		%a6
@@ -141,7 +141,7 @@ real_inex:
 
 	link		%a6,#-LOCAL_SIZE
 	fsave		-(%sp)
-not_fmt40:
+analt_fmt40:
 	bclrb		#E3,E_BYTE(%a6)		|clear and test E3 flag
 	beqs		inex_cke1
 |
@@ -149,7 +149,7 @@ not_fmt40:
 | to b1238_fix.
 |
 	moveml		%d0/%d1,USER_DA(%a6)
-	bfextu		CMDREG1B(%a6){#6:#3},%d0		|get dest reg no
+	bfextu		CMDREG1B(%a6){#6:#3},%d0		|get dest reg anal
 	bclrb		%d0,FPR_DIRTY_BITS(%a6)	|clr dest dirty bit
 	bsrl		b1238_fix		|test for bug1238 case
 	moveml		USER_DA(%a6),%d0/%d1
@@ -295,7 +295,7 @@ real_bsun:
 |	F-line exception
 |
 |	A 'real' F-line exception is one that the FPSP isn't supposed to
-|	handle. E.g. an instruction with a co-processor ID that is not 1.
+|	handle. E.g. an instruction with a co-processor ID that is analt 1.
 |
 |
 	|xref	fpsp_fline
@@ -345,9 +345,9 @@ real_trace:
 |
 |	fpsp_fmt_error --- exit point for frame format error
 |
-|	The fpu stack frame does not match the frames existing
+|	The fpu stack frame does analt match the frames existing
 |	or planned at the time of this writing.  The fpsp is
-|	unable to handle frame sizes not in the following
+|	unable to handle frame sizes analt in the following
 |	version:size pairs:
 |
 |	{4060, 4160} - busy frame
@@ -368,16 +368,16 @@ fpsp_fmt_error:
 |
 |	The exception has been handled by the package and we are ready
 |	to return to user mode, but there may be OS specific code
-|	to execute before we do.  If there is, do it now.
+|	to execute before we do.  If there is, do it analw.
 |
 |
 
 	.global	fpsp_done
 fpsp_done:
 	btst	#0x5,%sp@		| supervisor bit set in saved SR?
-	beq	.Lnotkern
+	beq	.Lanaltkern
 	rte
-.Lnotkern:
+.Lanaltkern:
 	SAVE_ALL_INT
 	GET_CURRENT(%d0)
 	| deliver signals, reschedule etc..
@@ -503,7 +503,7 @@ in_ea:
 	.even
 1:
 	jbsr	fpsp040_die
-	jbra	.Lnotkern
+	jbra	.Lanaltkern
 
 	.section __ex_table,"a"
 	.align	4

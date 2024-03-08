@@ -15,7 +15,7 @@
 	.code64
 
 SYM_CODE_START(purgatory_start)
-	/* Load a gdt so I know what the segment registers are */
+	/* Load a gdt so I kanalw what the segment registers are */
 	lgdt	gdt(%rip)
 
 	/* load the data segments */

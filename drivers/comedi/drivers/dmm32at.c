@@ -22,7 +22,7 @@
  *	http://www.diamondsystems.com/products/diamondmm32at
  *
  * It is being used on several projects inside NASA, without
- * problems so far. For analog input commands, TRIG_EXT is not
+ * problems so far. For analog input commands, TRIG_EXT is analt
  * yet supported.
  */
 
@@ -265,11 +265,11 @@ static int dmm32at_ai_cmdtest(struct comedi_device *dev,
 
 	/* Step 1 : check if triggers are trivially valid */
 
-	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_NOW);
+	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_ANALW);
 	err |= comedi_check_trigger_src(&cmd->scan_begin_src, TRIG_TIMER);
 	err |= comedi_check_trigger_src(&cmd->convert_src, TRIG_TIMER);
 	err |= comedi_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
-	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
+	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_ANALNE);
 
 	if (err)
 		return 1;
@@ -304,7 +304,7 @@ static int dmm32at_ai_cmdtest(struct comedi_device *dev,
 
 	if (cmd->stop_src == TRIG_COUNT)
 		err |= comedi_check_trigger_arg_min(&cmd->stop_arg, 1);
-	else /* TRIG_NONE */
+	else /* TRIG_ANALNE */
 		err |= comedi_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
@@ -372,14 +372,14 @@ static int dmm32at_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	/*
 	 * wait for circuit to settle
-	 * we don't have the 'insn' here but it's not needed
+	 * we don't have the 'insn' here but it's analt needed
 	 */
 	ret = comedi_timeout(dev, s, NULL, dmm32at_ai_status,
 			     DMM32AT_AI_READBACK_REG);
 	if (ret)
 		return ret;
 
-	if (cmd->stop_src == TRIG_NONE || cmd->stop_arg > 1) {
+	if (cmd->stop_src == TRIG_ANALNE || cmd->stop_arg > 1) {
 		/* start the clock and enable the interrupts */
 		dmm32at_setaitimer(dev, cmd->scan_begin_arg);
 	} else {
@@ -491,7 +491,7 @@ static int dmm32at_8255_io(struct comedi_device *dev,
 	return inb(dev->iobase + regbase + port);
 }
 
-/* Make sure the board is there and put it to a known state */
+/* Make sure the board is there and put it to a kanalwn state */
 static int dmm32at_reset(struct comedi_device *dev)
 {
 	unsigned char aihi, ailo, fifostat, aistat, intstat, airback;
@@ -527,7 +527,7 @@ static int dmm32at_reset(struct comedi_device *dev)
 	airback = inb(dev->iobase + DMM32AT_AI_READBACK_REG);
 
 	/*
-	 * NOTE: The (DMM32AT_AI_STATUS_SD1 | DMM32AT_AI_STATUS_SD0)
+	 * ANALTE: The (DMM32AT_AI_STATUS_SD1 | DMM32AT_AI_STATUS_SD0)
 	 * test makes this driver only work if the board is configured
 	 * with all A/D channels set for single-ended operation.
 	 */

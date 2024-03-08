@@ -8,7 +8,7 @@ fault-injection
     :maxdepth: 1
 
     fault-injection
-    notifier-error-inject
+    analtifier-error-inject
     nvme-fault-injection
     provoke-crashes
 

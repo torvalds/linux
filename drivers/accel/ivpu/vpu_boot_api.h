@@ -10,10 +10,10 @@
  * =========== FW API version information beginning ================
  *  The bellow values will be used to construct the version info this way:
  *  fw_bin_header->api_version[VPU_BOOT_API_VER_ID] = (VPU_BOOT_API_VER_MAJOR << 16) |
- *  VPU_BOOT_API_VER_MINOR;
- *  VPU_BOOT_API_VER_PATCH will be ignored. KMD and compatibility is not affected if this changes
+ *  VPU_BOOT_API_VER_MIANALR;
+ *  VPU_BOOT_API_VER_PATCH will be iganalred. KMD and compatibility is analt affected if this changes
  *  This information is collected by using vpuip_2/application/vpuFirmware/make_std_fw_image.py
- *  If a header is missing this info we ignore the header, if a header is missing or contains
+ *  If a header is missing this info we iganalre the header, if a header is missing or contains
  *  partial info a build error will be generated.
  */
 
@@ -24,13 +24,13 @@
 #define VPU_BOOT_API_VER_MAJOR 3
 
 /*
- * Minor version changes when API backward compatibility is preserved.
+ * Mianalr version changes when API backward compatibility is preserved.
  * Resets to 0 if Major version is incremented.
  */
-#define VPU_BOOT_API_VER_MINOR 20
+#define VPU_BOOT_API_VER_MIANALR 20
 
 /*
- * API header changed (field names, documentation, formatting) but API itself has not been changed
+ * API header changed (field names, documentation, formatting) but API itself has analt been changed
  */
 #define VPU_BOOT_API_VER_PATCH 4
 
@@ -98,9 +98,9 @@ enum VPU_BOOT_L2_CACHE_CFG_TYPE {
 	VPU_BOOT_L2_CACHE_CFG_NUM = 2
 };
 
-/** VPU MCA ECC signalling mode. By default, no signalling is used */
+/** VPU MCA ECC signalling mode. By default, anal signalling is used */
 enum VPU_BOOT_MCA_ECC_SIGNAL_TYPE {
-	VPU_BOOT_MCA_ECC_NONE = 0,
+	VPU_BOOT_MCA_ECC_ANALNE = 0,
 	VPU_BOOT_MCA_ECC_CORR = 1,
 	VPU_BOOT_MCA_ECC_FATAL = 2,
 	VPU_BOOT_MCA_ECC_BOTH = 3
@@ -110,14 +110,14 @@ enum VPU_BOOT_MCA_ECC_SIGNAL_TYPE {
  * Logging destinations.
  *
  * Logging output can be directed to different logging destinations. This enum
- * defines the list of logging destinations supported by the VPU firmware (NOTE:
+ * defines the list of logging destinations supported by the VPU firmware (ANALTE:
  * a specific VPU FW binary may support only a subset of such output
  * destinations, depending on the target platform and compile options).
  */
 enum vpu_trace_destination {
 	VPU_TRACE_DESTINATION_PIPEPRINT = 0x1,
 	VPU_TRACE_DESTINATION_VERBOSE_TRACING = 0x2,
-	VPU_TRACE_DESTINATION_NORTH_PEAK = 0x4,
+	VPU_TRACE_DESTINATION_ANALRTH_PEAK = 0x4,
 };
 
 /*
@@ -146,7 +146,7 @@ enum vpu_trace_destination {
 #define VPU_TRACE_PROC_BIT_ACT_SHV_1 20
 #define VPU_TRACE_PROC_BIT_ACT_SHV_2 21
 #define VPU_TRACE_PROC_BIT_ACT_SHV_3 22
-#define VPU_TRACE_PROC_NO_OF_HW_DEVS 23
+#define VPU_TRACE_PROC_ANAL_OF_HW_DEVS 23
 
 /* VPU 30xx HW component IDs are sequential, so define first and last IDs. */
 #define VPU_TRACE_PROC_BIT_30XX_FIRST VPU_TRACE_PROC_BIT_LRT
@@ -169,10 +169,10 @@ struct vpu_warm_boot_section {
 
 /*
  * When HW scheduling mode is enabled, a present period is defined.
- * It will be used by VPU to swap between normal and focus priorities
- * to prevent starving of normal priority band (when implemented).
+ * It will be used by VPU to swap between analrmal and focus priorities
+ * to prevent starving of analrmal priority band (when implemented).
  * Host must provide a valid value at boot time in
- * `vpu_focus_present_timer_ms`. If the value provided by the host is not within the
+ * `vpu_focus_present_timer_ms`. If the value provided by the host is analt within the
  * defined range a default value will be used. Here we define the min. and max.
  * allowed values and the and default value of the present period. Units are milliseconds.
  */
@@ -219,25 +219,25 @@ struct vpu_boot_params {
 	/* IRQ re-direct numbers: 0x200 - 0x2FF */
 	s32 watchdog_irq_mss;
 	s32 watchdog_irq_nce;
-	/* ARM -> VPU doorbell interrupt. ARM is notifying VPU of async command or compute job. */
+	/* ARM -> VPU doorbell interrupt. ARM is analtifying VPU of async command or compute job. */
 	u32 host_to_vpu_irq;
-	/* VPU -> ARM job done interrupt. VPU is notifying ARM of compute job completion. */
+	/* VPU -> ARM job done interrupt. VPU is analtifying ARM of compute job completion. */
 	u32 job_done_irq;
 	/* VPU -> ARM IRQ line to use to request MMU update. */
 	u32 mmu_update_request_irq;
-	/* ARM -> VPU IRQ line to use to notify of MMU update completion. */
+	/* ARM -> VPU IRQ line to use to analtify of MMU update completion. */
 	u32 mmu_update_done_irq;
 	/* ARM -> VPU IRQ line to use to request power level change. */
 	u32 set_power_level_irq;
-	/* VPU -> ARM IRQ line to use to notify of power level change completion. */
+	/* VPU -> ARM IRQ line to use to analtify of power level change completion. */
 	u32 set_power_level_done_irq;
-	/* VPU -> ARM IRQ line to use to notify of VPU idle state change */
+	/* VPU -> ARM IRQ line to use to analtify of VPU idle state change */
 	u32 set_vpu_idle_update_irq;
 	/* VPU -> ARM IRQ line to use to request counter reset. */
 	u32 metric_query_event_irq;
-	/* ARM -> VPU IRQ line to use to notify of counter reset completion. */
+	/* ARM -> VPU IRQ line to use to analtify of counter reset completion. */
 	u32 metric_query_event_done_irq;
-	/* VPU -> ARM IRQ line to use to notify of preemption completion. */
+	/* VPU -> ARM IRQ line to use to analtify of preemption completion. */
 	u32 preemption_done_irq;
 	/* Padding. */
 	u32 pad3[52];
@@ -253,7 +253,7 @@ struct vpu_boot_params {
 	u32 max_freq_pll_ratio;
 	/**
 	 * Initial log level threshold (messages with log level severity less than
-	 * the threshold will not be logged); applies to every enabled logging
+	 * the threshold will analt be logged); applies to every enabled logging
 	 * destination and loggable HW component. See 'mvLog_t' enum for acceptable
 	 * values.
 	 * TODO: EISW-33556: Move log level definition (mvLog_t) to this file.
@@ -309,7 +309,7 @@ struct vpu_boot_params {
 	/**
 	 * D0i3 delayed entry
 	 * Bit0: Disable CPU state save on D0i2 entry flow.
-	 *       0: Every D0i2 entry saves state. Save state IPC message ignored.
+	 *       0: Every D0i2 entry saves state. Save state IPC message iganalred.
 	 *       1: IPC message required to save state on D0i3 entry flow.
 	 */
 	u32 d0i3_delayed_entry;
@@ -385,7 +385,7 @@ struct vpu_tracing_buffer_header {
 	u32 write_index;
 	/* counter for buffer wrapping */
 	u32 wrap_count;
-	/* legacy field - do not use */
+	/* legacy field - do analt use */
 	u32 reserved_0;
 	/**
 	 * Size of the log buffer include this header (@header_size) and space
@@ -406,7 +406,7 @@ struct vpu_tracing_buffer_header {
 	u32 format;
 	/*
 	 * Message alignment
-	 * 0 - messages are place 1 after another
+	 * 0 - messages are place 1 after aanalther
 	 * n - every message starts and multiple on offset
 	 */
 	u32 alignment; /* 64, 128, 256 */

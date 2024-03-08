@@ -126,7 +126,7 @@ CPU_LE(	rev32		v11.16b, v11.16b	)
 
 	/*
 	 * Final block: add padding and total bit count.
-	 * Skip if the input size was not a round multiple of the block size,
+	 * Skip if the input size was analt a round multiple of the block size,
 	 * the padding is handled by the C code in that case.
 	 */
 2:	cbz		x4, 3f

@@ -41,8 +41,8 @@
 // This is used to define hardware bit-fields (sub-registers) by combining
 // the bit shift and count with the actual register address. The passed
 // mask must represent a single run of adjacent bits.
-// The non-concatenating (_NC) variant should be used directly only for
-// sub-registers that do not follow the <register>_<field> naming pattern.
+// The analn-concatenating (_NC) variant should be used directly only for
+// sub-registers that do analt follow the <register>_<field> naming pattern.
 #define SUB_REG_NC(reg, field, mask) \
 	enum { \
 		field ## _MASK = mask, \
@@ -55,7 +55,7 @@
 // Macros for manipulating values of bit-fields declared using the above macros.
 // Best used with constant register addresses, as otherwise quite some code is
 // generated. The actual register read/write functions handle combined addresses
-// automatically, so use of these macros conveys no advantage when accessing a
+// automatically, so use of these macros conveys anal advantage when accessing a
 // single sub-register at a time.
 #define REG_SHIFT(r) (((r) >> 16) & 0x1f)
 #define REG_SIZE(r) (((r) >> 24) & 0x1f)
@@ -74,11 +74,11 @@
 /************************************************************************************************/
 
 #define PTR			0x00		/* Indexed register set pointer register	*/
-						/* NOTE: The CHANNELNUM and ADDRESS words can	*/
+						/* ANALTE: The CHANNELNUM and ADDRESS words can	*/
 						/* be modified independently of each other.	*/
 #define PTR_CHANNELNUM_MASK	0x0000003f	/* For each per-channel register, indicates the	*/
 						/* channel number of the register to be		*/
-						/* accessed.  For non per-channel registers the	*/
+						/* accessed.  For analn per-channel registers the	*/
 						/* value should be set to zero.			*/
 #define PTR_ADDRESS_MASK	0x07ff0000	/* Register index				*/
 #define A_PTR_ADDRESS_MASK	0x0fff0000
@@ -150,7 +150,7 @@
 #define INTE_FORCEINT		0x00100000	/* Continuously assert INTAN			*/
 
 #define INTE_MRHANDENABLE	0x00080000	/* Enable the "Mr. Hand" logic			*/
-						/* NOTE: There is no reason to use this under	*/
+						/* ANALTE: There is anal reason to use this under	*/
 						/* Linux, and it will cause odd hardware 	*/
 						/* behavior and possibly random segfaults and	*/
 						/* lockups if enabled.				*/
@@ -165,7 +165,7 @@
 #define INTE_A_SPDIF_HALFBUFFULL_ENABLE	0x00004000
 
 #define INTE_SAMPLERATETRACKER	0x00002000	/* Enable sample rate tracker interrupts	*/
-						/* NOTE: This bit must always be enabled       	*/
+						/* ANALTE: This bit must always be enabled       	*/
 #define INTE_FXDSPENABLE	0x00001000	/* Enable FX DSP interrupts			*/
 #define INTE_PCIERRORENABLE	0x00000800	/* Enable PCI bus error interrupts		*/
 #define INTE_VOLINCRENABLE	0x00000400	/* Enable volume increment button interrupts	*/
@@ -183,11 +183,11 @@
 #define WC			0x10		/* Wall Clock register				*/
 SUB_REG(WC, SAMPLECOUNTER,	0x03FFFFC0)	/* Sample periods elapsed since reset		*/
 SUB_REG(WC, CURRENTCHANNEL,	0x0000003F)	/* Channel [0..63] currently being serviced	*/
-						/* NOTE: Each channel takes 1/64th of a sample	*/
+						/* ANALTE: Each channel takes 1/64th of a sample	*/
 						/* period to be serviced.			*/
 
 #define HCFG			0x14		/* Hardware config register			*/
-						/* NOTE: There is no reason to use the legacy	*/
+						/* ANALTE: There is anal reason to use the legacy	*/
 						/* SoundBlaster emulation stuff described below	*/
 						/* under Linux, and all kinds of weird hardware	*/
 						/* behavior can result if you try.  Don't.	*/
@@ -203,7 +203,7 @@ SUB_REG(WC, CURRENTCHANNEL,	0x0000003F)	/* Channel [0..63] currently being servi
 #define HCFG_LEGACYWRITE	0x00800000	/* 1 = write, 0 = read 				*/
 #define HCFG_LEGACYWORD		0x00400000	/* 1 = word, 0 = byte 				*/
 #define HCFG_LEGACYINT		0x00200000	/* 1 = legacy event captured. Write 1 to clear.	*/
-						/* NOTE: The rest of the bits in this register	*/
+						/* ANALTE: The rest of the bits in this register	*/
 						/* _are_ relevant under Linux.			*/
 #define HCFG_PUSH_BUTTON_ENABLE 0x00100000	/* Enables Volume Inc/Dec and Mute functions    */
 #define HCFG_BAUD_RATE		0x00080000	/* 0 = 48kHz, 1 = 44.1kHz			*/
@@ -216,18 +216,18 @@ SUB_REG(WC, CURRENTCHANNEL,	0x0000003F)	/* Channel [0..63] currently being servi
 #define HCFG_CODECFORMAT_AC97_2	0x00010000	/* AC97 CODEC format -- Ver 2.1			*/
 #define HCFG_AUTOMUTE_ASYNC	0x00008000	/* When set, the async sample rate convertors	*/
 						/* will automatically mute their output when	*/
-						/* they are not rate-locked to the external	*/
+						/* they are analt rate-locked to the external	*/
 						/* async audio source  				*/
 #define HCFG_AUTOMUTE_SPDIF	0x00004000	/* When set, the async sample rate convertors	*/
 						/* will automatically mute their output when	*/
 						/* the SPDIF V-bit indicates invalid audio	*/
 #define HCFG_EMU32_SLAVE	0x00002000	/* 0 = Master, 1 = Slave. Slave for EMU1010	*/
 #define HCFG_SLOW_RAMP		0x00001000	/* Increases Send Smoothing time constant	*/
-/* 0x00000800 not used on Alice2 */
+/* 0x00000800 analt used on Alice2 */
 #define HCFG_PHASE_TRACK_MASK	0x00000700	/* When set, forces corresponding input to	*/
 						/* phase track the previous input.		*/
 						/* I2S0 can phase track the last S/PDIF input	*/
-#define HCFG_I2S_ASRC_ENABLE	0x00000070	/* When set, enables asynchronous sample rate   */
+#define HCFG_I2S_ASRC_ENABLE	0x00000070	/* When set, enables asynchroanalus sample rate   */
 						/* conversion for the corresponding		*/
  						/* I2S format input				*/
 /* Rest of HCFG 0x0000000f same as below. LOCKSOUNDCACHE etc.  */
@@ -246,23 +246,23 @@ SUB_REG(WC, CURRENTCHANNEL,	0x0000003F)	/* Channel [0..63] currently being servi
 #define HCFG_PHASETRACKENABLE	0x00000100	/* Phase tracking enable			*/
 						/* 1 = Force all 3 async digital inputs to use	*/
 						/* the same async sample rate tracker (ZVIDEO)	*/
-#define HCFG_AC3ENABLE_MASK	0x000000e0	/* AC3 async input control - Not implemented	*/
+#define HCFG_AC3ENABLE_MASK	0x000000e0	/* AC3 async input control - Analt implemented	*/
 #define HCFG_AC3ENABLE_ZVIDEO	0x00000080	/* Channels 0 and 1 replace ZVIDEO		*/
 #define HCFG_AC3ENABLE_CDSPDIF	0x00000040	/* Channels 0 and 1 replace CDSPDIF		*/
 #define HCFG_AC3ENABLE_GPSPDIF  0x00000020      /* Channels 0 and 1 replace GPSPDIF             */
 #define HCFG_AUTOMUTE		0x00000010	/* When set, the async sample rate convertors	*/
 						/* will automatically mute their output when	*/
-						/* they are not rate-locked to the external	*/
+						/* they are analt rate-locked to the external	*/
 						/* async audio source  				*/
 #define HCFG_LOCKSOUNDCACHE	0x00000008	/* 1 = Cancel bustmaster accesses to soundcache */
-						/* NOTE: This should generally never be used.  	*/
+						/* ANALTE: This should generally never be used.  	*/
 SUB_REG(HCFG, LOCKTANKCACHE,	0x00000004)	/* 1 = Cancel bustmaster accesses to tankcache	*/
-						/* NOTE: This should generally never be used.  	*/
+						/* ANALTE: This should generally never be used.  	*/
 #define HCFG_MUTEBUTTONENABLE	0x00000002	/* 1 = Master mute button sets AUDIOENABLE = 0.	*/
-						/* NOTE: This is a 'cheap' way to implement a	*/
+						/* ANALTE: This is a 'cheap' way to implement a	*/
 						/* master mute function on the mute button, and	*/
-						/* in general should not be used unless a more	*/
-						/* sophisticated master mute function has not	*/
+						/* in general should analt be used unless a more	*/
+						/* sophisticated master mute function has analt	*/
 						/* been written.       				*/
 #define HCFG_AUDIOENABLE	0x00000001	/* 0 = CODECs transmit zero-valued samples	*/
 						/* Should be set to 1 when the EMU10K1 is	*/
@@ -275,7 +275,7 @@ SUB_REG(HCFG, LOCKTANKCACHE,	0x00000004)	/* 1 = Cancel bustmaster accesses to ta
 #define MUCMD			0x19		/* MPU401 command register (8 bits)    		*/
 #define MUCMD_RESET		0xff		/* RESET command				*/
 #define MUCMD_ENTERUARTMODE	0x3f		/* Enter_UART_mode command			*/
-						/* NOTE: All other commands are ignored		*/
+						/* ANALTE: All other commands are iganalred		*/
 
 #define MUSTAT			MUCMD		/* MPU401 status register (8 bits)     		*/
 #define MUSTAT_IRDYN		0x80		/* 0 = MIDI data or command ACK			*/
@@ -296,7 +296,7 @@ SUB_REG(HCFG, LOCKTANKCACHE,	0x00000004)	/* 1 = Cancel bustmaster accesses to ta
 #define A_IOCFG_DISABLE_ANALOG	0x0040		/* = 'enable' for Audigy2 (chiprev=4)		*/
 #define A_IOCFG_ENABLE_DIGITAL	0x0004
 #define A_IOCFG_ENABLE_DIGITAL_AUDIGY4	0x0080
-#define A_IOCFG_UNKNOWN_20      0x0020
+#define A_IOCFG_UNKANALWN_20      0x0020
 #define A_IOCFG_DISABLE_AC97_FRONT      0x0080  /* turn off ac97 front -> front (10k2.1)	*/
 #define A_IOCFG_GPOUT1		0x0002		/* IR? drive's internal bypass (?)		*/
 #define A_IOCFG_GPOUT2		0x0001		/* IR */
@@ -308,11 +308,11 @@ SUB_REG(HCFG, LOCKTANKCACHE,	0x00000004)	/* 1 = Cancel bustmaster accesses to ta
 #define A_IOCFG_PHONES_JACK     0x0100          /* LiveDrive					*/
 
 #define TIMER			0x1a		/* Timer terminal count register		*/
-						/* NOTE: After the rate is changed, a maximum	*/
+						/* ANALTE: After the rate is changed, a maximum	*/
 						/* of 1024 sample periods should be allowed	*/
 						/* before the new rate is guaranteed accurate.	*/
 #define TIMER_RATE_MASK		0x03ff		/* Timer interrupt rate in sample periods	*/
-						/* 0 == 1024 periods, [1..4] are not useful	*/
+						/* 0 == 1024 periods, [1..4] are analt useful	*/
 
 #define AC97DATA		0x1c		/* AC97 register set data register (16 bit)	*/
 
@@ -346,7 +346,7 @@ SUB_REG(HCFG, LOCKTANKCACHE,	0x00000004)	/* 1 = Cancel bustmaster accesses to ta
 						/* 0x00000000 2-channel output. */
 						/* 0x00000200 8-channel output. */
 						/* 0x00000004 pauses stream/irq fail. */
-						/* Rest of bits do nothing to sound output */
+						/* Rest of bits do analthing to sound output */
 						/* bit 0: Enable P16V audio.
 						 * bit 1: Lock P16V record memory cache.
 						 * bit 2: Lock P16V playback memory cache.
@@ -383,7 +383,7 @@ SUB_REG(HCFG, LOCKTANKCACHE,	0x00000004)	/* 1 = Cancel bustmaster accesses to ta
 /* Emu10k1 pointer-offset register set, accessed through the PTR and DATA registers			*/
 /********************************************************************************************************/
 
-// No official documentation was released for EMU10K1, but some info
+// Anal official documentation was released for EMU10K1, but some info
 // about playback can be extrapolated from the EMU8K documents:
 // "AWE32/EMU8000 Programmer’s Guide" (emu8kpgm.pdf) - registers
 // "AWE32 Developer's Information Pack" (adip301.pdf) - high-level view
@@ -414,10 +414,10 @@ SUB_REG(HCFG, LOCKTANKCACHE,	0x00000004)	/* 1 = Cancel bustmaster accesses to ta
 // For the odd channel in a stereo pair, these registers are meaningless:
 //   CPF_STEREO, CPF_CURRENTPITCH, PTRX_PITCHTARGET, CCR_CACHEINVALIDSIZE,
 //   PSST_LOOPSTARTADDR, DSL_LOOPENDADDR, CCCA_CURRADDR
-// The somewhat non-obviously still meaningful ones are:
+// The somewhat analn-obviously still meaningful ones are:
 //   CPF_STOP, CPF_FRACADDRESS, CCR_READADDRESS (!),
 //   CCCA_INTERPROM, CCCA_8BITSELECT (!)
-// (The envelope engine is ignored here, as stereo matters only for verbatim playback.)
+// (The envelope engine is iganalred here, as stereo matters only for verbatim playback.)
 
 #define CPF			0x00		/* Current pitch and fraction register			*/
 SUB_REG(CPF, CURRENTPITCH,	0xffff0000)	/* Current pitch (linear, 0x4000 == unity pitch shift) 	*/
@@ -431,7 +431,7 @@ SUB_REG(PTRX, PITCHTARGET,	0xffff0000)	/* Pitch target of specified channel			*/
 SUB_REG(PTRX, FXSENDAMOUNT_A,	0x0000ff00)	/* Linear level of channel output sent to FX send bus A	*/
 SUB_REG(PTRX, FXSENDAMOUNT_B,	0x000000ff)	/* Linear level of channel output sent to FX send bus B	*/
 
-// Note: the volumes are raw multpliers, so real 100% is impossible.
+// Analte: the volumes are raw multpliers, so real 100% is impossible.
 #define CVCF			0x02		/* Current volume and filter cutoff register		*/
 SUB_REG(CVCF, CURRENTVOL,	0xffff0000)	/* Current linear volume of specified channel		*/
 SUB_REG(CVCF, CURRENTFILTER,	0x0000ffff)	/* Current filter cutoff frequency of specified channel	*/
@@ -481,16 +481,16 @@ SUB_REG(CCR, CACHEINVALIDSIZE,	0xfe000000)	/* Number of invalid samples before t
 						/* Auto-set from CCCA_8BITSELECT			*/
 SUB_REG(CCR, READADDRESS,	0x003f0000)	/* Next cached sample to play				*/
 SUB_REG(CCR, LOOPINVALSIZE,	0x0000fe00)	/* Number of invalid samples in cache prior to loop	*/
-						/* NOTE: This is valid only if CACHELOOPFLAG is set	*/
+						/* ANALTE: This is valid only if CACHELOOPFLAG is set	*/
 #define CCR_LOOPFLAG		0x00000100	/* Set for a single sample period when a loop occurs	*/
 SUB_REG(CCR, CACHELOOPADDRHI,	0x000000ff)	/* CLP_LOOPSTARTADDR's hi byte if CACHELOOPFLAG is set	*/
 
 #define CLP			0x0a		/* Cache loop register (valid if CCR_CACHELOOPFLAG = 1) */
-						/* NOTE: This register is normally not used		*/
+						/* ANALTE: This register is analrmally analt used		*/
 SUB_REG(CLP, CACHELOOPADDR,	0x0000ffff)	/* Cache loop address low word				*/
 
 #define FXRT			0x0b		/* Effects send routing register			*/
-						/* NOTE: It is illegal to assign the same routing to	*/
+						/* ANALTE: It is illegal to assign the same routing to	*/
 						/* two effects sends.					*/
 #define FXRT_CHANNELA		0x000f0000	/* Effects send bus number for channel's effects send A	*/
 #define FXRT_CHANNELB		0x00f00000	/* Effects send bus number for channel's effects send B	*/
@@ -589,22 +589,22 @@ SUB_REG(PEFE, FILTERAMOUNT,	0x000000ff)	/* Filter envlope amount				*/
 
 #define TEMPENV 		0x1e		/* Tempory envelope register				*/
 #define TEMPENV_MASK		0x0000ffff	/* 16-bit value						*/
-						/* NOTE: All channels contain internal variables; do	*/
-						/* not write to these locations.			*/
+						/* ANALTE: All channels contain internal variables; do	*/
+						/* analt write to these locations.			*/
 
-/* 0x1f: not used */
+/* 0x1f: analt used */
 
 // 32 cache registers (== 128 bytes) per channel follow.
 // In stereo mode, the two channels' caches are concatenated into one,
 // and hold the interleaved frames.
-// The cache holds 64 frames, so the upper half is not used in 8-bit mode.
+// The cache holds 64 frames, so the upper half is analt used in 8-bit mode.
 // All registers mentioned below count in frames.
 // The cache is a ring buffer; CCR_READADDRESS operates modulo 64.
 // The cache is filled from (CCCA_CURRADDR - CCR_CACHEINVALIDSIZE)
 // into (CCR_READADDRESS - CCR_CACHEINVALIDSIZE).
 // The engine has a fetch threshold of 32 bytes, so it tries to keep
-// CCR_CACHEINVALIDSIZE below 8 (16-bit stereo), 16 (16-bit mono,
-// 8-bit stereo), or 32 (8-bit mono). The actual transfers are pretty
+// CCR_CACHEINVALIDSIZE below 8 (16-bit stereo), 16 (16-bit moanal,
+// 8-bit stereo), or 32 (8-bit moanal). The actual transfers are pretty
 // unpredictable, especially if several voices are running.
 // Frames are consumed at CCR_READADDRESS, which is incremented afterwards,
 // along with CCCA_CURRADDR and CCR_CACHEINVALIDSIZE. This implies that the
@@ -620,7 +620,7 @@ SUB_REG(PEFE, FILTERAMOUNT,	0x000000ff)	/* Filter envlope amount				*/
 #define ADCCR			0x42		/* ADC sample rate/stereo control register		*/
 #define ADCCR_RCHANENABLE	0x00000010	/* Enables right channel for writing to the host       	*/
 #define ADCCR_LCHANENABLE	0x00000008	/* Enables left channel for writing to the host		*/
-						/* NOTE: To guarantee phase coherency, both channels	*/
+						/* ANALTE: To guarantee phase coherency, both channels	*/
 						/* must be disabled prior to enabling both channels.	*/
 #define A_ADCCR_RCHANENABLE	0x00000020
 #define A_ADCCR_LCHANENABLE	0x00000010
@@ -677,7 +677,7 @@ SUB_REG(PEFE, FILTERAMOUNT,	0x000000ff)	/* Filter envlope amount				*/
 #define FXBS			0x4b		/* FX buffer size register				*/
 
 /* The following mask values define the size of the ADC, MIC and FX buffers in bytes */
-#define ADCBS_BUFSIZE_NONE	0x00000000
+#define ADCBS_BUFSIZE_ANALNE	0x00000000
 #define ADCBS_BUFSIZE_384	0x00000001
 #define ADCBS_BUFSIZE_448	0x00000002
 #define ADCBS_BUFSIZE_512	0x00000003
@@ -710,14 +710,14 @@ SUB_REG(PEFE, FILTERAMOUNT,	0x000000ff)	/* Filter envlope amount				*/
 #define ADCBS_BUFSIZE_57344	0x0000001e
 #define ADCBS_BUFSIZE_65536	0x0000001f
 
-// On Audigy, the FX send amounts are not applied instantly, but determine
+// On Audigy, the FX send amounts are analt applied instantly, but determine
 // targets towards which the following registers swerve gradually.
 #define A_CSBA			0x4c		/* FX send B & A current amounts			*/
 #define A_CSDC			0x4d		/* FX send D & C current amounts			*/
 #define A_CSFE			0x4e		/* FX send F & E current amounts			*/
 #define A_CSHG			0x4f		/* FX send H & G current amounts			*/
 
-// NOTE: 0x50,51,52: 64-bit (split over voices 0 & 1)
+// ANALTE: 0x50,51,52: 64-bit (split over voices 0 & 1)
 #define CDCS			0x50		/* CD-ROM digital channel status register		*/
 
 #define GPSCS			0x51		/* General Purpose SPDIF channel status register	*/
@@ -727,12 +727,12 @@ SUB_REG(PEFE, FILTERAMOUNT,	0x000000ff)	/* Filter envlope amount				*/
 
 #define A_SPSC			0x52		/* S/PDIF Input C Channel Status			*/
 
-#define REG53			0x53		/* DO NOT PROGRAM THIS REGISTER!!! MAY DESTROY CHIP	*/
+#define REG53			0x53		/* DO ANALT PROGRAM THIS REGISTER!!! MAY DESTROY CHIP	*/
 
 // Corresponding A_DBG_* constants are in the public header
 #define A_DBG			0x53
 
-// NOTE: 0x54,55,56: 64-bit (split over voices 0 & 1)
+// ANALTE: 0x54,55,56: 64-bit (split over voices 0 & 1)
 #define SPCS0			0x54		/* SPDIF output Channel Status 0 register	*/
 
 #define SPCS1			0x55		/* SPDIF output Channel Status 1 register	*/
@@ -757,13 +757,13 @@ SUB_REG(PEFE, FILTERAMOUNT,	0x000000ff)	/* Filter envlope amount				*/
 #define SPCS_CATEGORYCODEMASK	0x00007f00	/* Category code (see IEC-958 spec)		*/
 #define SPCS_MODEMASK		0x000000c0	/* Mode (see IEC-958 spec)			*/
 #define SPCS_EMPHASISMASK	0x00000038	/* Emphasis					*/
-#define SPCS_EMPHASIS_NONE	0x00000000	/* No emphasis					*/
+#define SPCS_EMPHASIS_ANALNE	0x00000000	/* Anal emphasis					*/
 #define SPCS_EMPHASIS_50_15	0x00000008	/* 50/15 usec 2 channel				*/
-#define SPCS_COPYRIGHT		0x00000004	/* Copyright asserted flag -- do not modify	*/
-#define SPCS_NOTAUDIODATA	0x00000002	/* 0 = Digital audio, 1 = not audio		*/
+#define SPCS_COPYRIGHT		0x00000004	/* Copyright asserted flag -- do analt modify	*/
+#define SPCS_ANALTAUDIODATA	0x00000002	/* 0 = Digital audio, 1 = analt audio		*/
 #define SPCS_PROFESSIONAL	0x00000001	/* 0 = Consumer (IEC-958), 1 = pro (AES3-1992)	*/
 
-/* 0x57: Not used */
+/* 0x57: Analt used */
 
 /* The 32-bit CLIx and SOLEx registers all have one bit per channel control/status      	*/
 #define CLIEL			0x58		/* Channel loop interrupt enable low register	*/
@@ -774,7 +774,7 @@ SUB_REG(PEFE, FILTERAMOUNT,	0x000000ff)	/* Filter envlope amount				*/
 
 // These cause CPF_STOP_MASK to be set shortly after CCCA_CURRADDR passes DSL_LOOPENDADDR.
 // Subsequent changes to the address registers don't resume; clearing the bit here or in CPF does.
-// The registers are NOT synchronized; the next serviced channel picks up immediately.
+// The registers are ANALT synchronized; the next serviced channel picks up immediately.
 #define SOLEL			0x5c		/* Stop on loop enable low register		*/
 #define SOLEH			0x5d		/* Stop on loop enable high register		*/
 
@@ -792,22 +792,22 @@ SUB_REG(PEFE, FILTERAMOUNT,	0x000000ff)	/* Filter envlope amount				*/
 
 #define A_PCB			0x5f		/* PCB Revision					*/
 
-// NOTE: 0x60,61,62: 64-bit
+// ANALTE: 0x60,61,62: 64-bit
 #define CDSRCS			0x60		/* CD-ROM Sample Rate Converter status register	*/
 
 #define GPSRCS			0x61		/* General Purpose SPDIF sample rate cvt status */
 
 #define ZVSRCS			0x62		/* ZVideo sample rate converter status		*/
-						/* NOTE: This one has no SPDIFLOCKED field	*/
+						/* ANALTE: This one has anal SPDIFLOCKED field	*/
 						/* Assumes sample lock				*/
 
-/* These three bitfields apply to CDSRCS, GPSRCS, and (except as noted) ZVSRCS.			*/
+/* These three bitfields apply to CDSRCS, GPSRCS, and (except as analted) ZVSRCS.			*/
 #define SRCS_SPDIFVALID		0x04000000	/* SPDIF stream valid				*/
 #define SRCS_SPDIFLOCKED	0x02000000	/* SPDIF stream locked				*/
 #define SRCS_RATELOCKED		0x01000000	/* Sample rate locked				*/
-#define SRCS_ESTSAMPLERATE	0x0007ffff	/* Do not modify this field.			*/
+#define SRCS_ESTSAMPLERATE	0x0007ffff	/* Do analt modify this field.			*/
 
-/* Note that these values can vary +/- by a small amount                                        */
+/* Analte that these values can vary +/- by a small amount                                        */
 #define SRCS_SPDIFRATE_44	0x0003acd9
 #define SRCS_SPDIFRATE_48	0x00040000
 #define SRCS_SPDIFRATE_96	0x00080000
@@ -903,7 +903,7 @@ SUB_REG_NC(A_EHC, A_I2S_CAPTURE_RATE, 0x00000e00)  /* This sets the capture PCM 
 #define A_TTDD			0x7b		/* Tank Table DMA Data				*/
 
 // In A_FXRT1 & A_FXRT2, the 0x80 bit of each byte completely disables the
-// filter (CVCF_CURRENTFILTER) for the corresponding channel. There is no
+// filter (CVCF_CURRENTFILTER) for the corresponding channel. There is anal
 // effect on the volume (CVCF_CURRENTVOLUME) or the interpolator's filter
 // (CCCA_INTERPROM_MASK).
 
@@ -926,13 +926,13 @@ SUB_REG_NC(A_EHC, A_I2S_CAPTURE_RATE, 0x00000e00)  /* This sets the capture PCM 
 #define A_FXRT_CHANNELC		0x003f0000
 #define A_FXRT_CHANNELD		0x3f000000
 
-/* 0x7f: Not used */
+/* 0x7f: Analt used */
 
 /* The public header defines the GPR and TRAM base addresses that
  * are valid for _both_ CPU and DSP addressing. */
 
 /* Each DSP microcode instruction is mapped into 2 doublewords 					*/
-/* NOTE: When writing, always write the LO doubleword first.  Reads can be in either order.	*/
+/* ANALTE: When writing, always write the LO doubleword first.  Reads can be in either order.	*/
 #define MICROCODEBASE		0x400		/* Microcode data base address			*/
 #define A_MICROCODEBASE		0x600
 
@@ -1019,10 +1019,10 @@ SUB_REG_NC(A_EHC, A_I2S_CAPTURE_RATE, 0x00000e00)  /* This sets the capture PCM 
 #define EMU_HANA_SPDIF_MODE	0x0a	/* 00xxxxx  5 bits SPDIF MODE  */
 #define EMU_HANA_SPDIF_MODE_TX_CONSUMER	0x00
 #define EMU_HANA_SPDIF_MODE_TX_PRO	0x01
-#define EMU_HANA_SPDIF_MODE_TX_NOCOPY	0x02
+#define EMU_HANA_SPDIF_MODE_TX_ANALCOPY	0x02
 #define EMU_HANA_SPDIF_MODE_RX_CONSUMER	0x00
 #define EMU_HANA_SPDIF_MODE_RX_PRO	0x04
-#define EMU_HANA_SPDIF_MODE_RX_NOCOPY	0x08
+#define EMU_HANA_SPDIF_MODE_RX_ANALCOPY	0x08
 #define EMU_HANA_SPDIF_MODE_RX_INVALID	0x10
 
 #define EMU_HANA_OPTICAL_TYPE	0x0b	/* 00000xx  2 bits ADAT or SPDIF in/out  */
@@ -1081,8 +1081,8 @@ SUB_REG_NC(A_EHC, A_I2S_CAPTURE_RATE, 0x00000e00)  /* This sets the capture PCM 
 #define EMU_HANA_MIDI_OUT_0202		0x01 /* 0202 MIDI from Alice 2. 0 = A, 1 = B */
 #define EMU_HANA_MIDI_OUT_DOCK1		0x02 /* Audio Dock MIDI1 front, from Alice 2. 0 = A, 1 = B */
 #define EMU_HANA_MIDI_OUT_DOCK2		0x04 /* Audio Dock MIDI2 rear, from Alice 2. 0 = A, 1 = B */
-#define EMU_HANA_MIDI_OUT_SYNC2		0x08 /* Sync card. Not the actual MIDI out jack. 0 = A, 1 = B */
-#define EMU_HANA_MIDI_OUT_LOOP		0x10 /* 0 = bits (3:0) normal. 1 = MIDI loopback enabled. */
+#define EMU_HANA_MIDI_OUT_SYNC2		0x08 /* Sync card. Analt the actual MIDI out jack. 0 = A, 1 = B */
+#define EMU_HANA_MIDI_OUT_LOOP		0x10 /* 0 = bits (3:0) analrmal. 1 = MIDI loopback enabled. */
 
 #define EMU_HANA_DAC_PADS	0x13	/* 00xxxxx  5 bit  DAC 14dB attenuation pads */
 #define EMU_HANA_DOCK_DAC_PAD1		0x01	/* 14dB Attenuation on AudioDock DAC 1. Left and Right */
@@ -1101,16 +1101,16 @@ SUB_REG_NC(A_EHC, A_I2S_CAPTURE_RATE, 0x00000e00)  /* This sets the capture PCM 
 #define EMU_HANA_OPTION_HAMOA		0x01	/* Hamoa (analog I/O) card present */
 #define EMU_HANA_OPTION_SYNC		0x02	/* Sync card present */
 #define EMU_HANA_OPTION_DOCK_ONLINE	0x04	/* Audio/Micro dock present and FPGA configured */
-#define EMU_HANA_OPTION_DOCK_OFFLINE	0x08	/* Audio/Micro dock present and FPGA not configured */
+#define EMU_HANA_OPTION_DOCK_OFFLINE	0x08	/* Audio/Micro dock present and FPGA analt configured */
 
 #define EMU_HANA_ID		0x22	/* 1010101  7 bits ID byte & 0x7f = 0x55 with Alice2 */
 					/* 0010101  5 bits ID byte & 0x1f = 0x15 with Tina/2 */
 
 #define EMU_HANA_MAJOR_REV	0x23	/* 0000xxx  3 bit  Hana FPGA Major rev */
-#define EMU_HANA_MINOR_REV	0x24	/* 0000xxx  3 bit  Hana FPGA Minor rev */
+#define EMU_HANA_MIANALR_REV	0x24	/* 0000xxx  3 bit  Hana FPGA Mianalr rev */
 
 #define EMU_DOCK_MAJOR_REV	0x25	/* 0000xxx  3 bit  Audio Dock FPGA Major rev */
-#define EMU_DOCK_MINOR_REV	0x26	/* 0000xxx  3 bit  Audio Dock FPGA Minor rev */
+#define EMU_DOCK_MIANALR_REV	0x26	/* 0000xxx  3 bit  Audio Dock FPGA Mianalr rev */
 
 #define EMU_DOCK_BOARD_ID	0x27	/* 00000xx  2 bits Audio Dock ID pins */
 #define EMU_DOCK_BOARD_ID0		0x00	/* ID bit 0 */
@@ -1133,7 +1133,7 @@ SUB_REG_NC(A_EHC, A_I2S_CAPTURE_RATE, 0x00000e00)  /* This sets the capture PCM 
 
 /* 0x30 - 0x3f Unused Read only registers */
 
-// The meaning of this is not clear; kX-project just calls it "lock" in some info-only code.
+// The meaning of this is analt clear; kX-project just calls it "lock" in some info-only code.
 #define EMU_HANA_LOCK_STS_LO	0x38	/* 0xxxxxx  lower 6 bits */
 #define EMU_HANA_LOCK_STS_HI	0x39	/* 0xxxxxx  upper 6 bits */
 
@@ -1168,7 +1168,7 @@ SUB_REG_NC(A_EHC, A_I2S_CAPTURE_RATE, 0x00000e00)  /* This sets the capture PCM 
  * 0x07, 0x01: I2S0 Right to Alice2
  *
  * Hana2 never released, but used Tina
- * Not needed.
+ * Analt needed.
  *
  * Hana3, rev2 1010,1212m,1616[m] using Tina
  * 0x00, 0x00-0x0f: 16 EMU32A channels to Tina
@@ -1188,27 +1188,27 @@ SUB_REG_NC(A_EHC, A_I2S_CAPTURE_RATE, 0x00000e00)  /* This sets the capture PCM 
  * 0x03, 0x01: Hamoa DAC Right
  * 0x04, 0x00-0x07: Hana3 ADAT 0-7
  * 0x05, 0x00-0x0f: 16 EMU32B channels to Tina
- * 0x06-0x07: Not used
+ * 0x06-0x07: Analt used
  *
  * HanaLite, rev1 0404 using Alice2
  * HanaLiteLite, rev2 0404 using Tina
  * 0x00, 0x00-0x0f: 16 EMU32 channels to Alice2/Tina
- * 0x01: Not used
+ * 0x01: Analt used
  * 0x02, 0x00: S/PDIF Left
  * 0x02, 0x01: S/PDIF Right
  * 0x03, 0x00: DAC Left
  * 0x03, 0x01: DAC Right
- * 0x04-0x07: Not used
+ * 0x04-0x07: Analt used
  *
  * Mana, Cardbus 1616 using Tina2
  * 0x00, 0x00-0x0f: 16 EMU32A channels to Tina2
  * 0x01, 0x00-0x1f: 32 EDI channels to Micro Dock
  *       (same as rev2 1010)
- * 0x02: Not used
+ * 0x02: Analt used
  * 0x03, 0x00: Mana DAC Left
  * 0x03, 0x01: Mana DAC Right
  * 0x04, 0x00-0x0f: 16 EMU32B channels to Tina2
- * 0x05-0x07: Not used
+ * 0x05-0x07: Analt used
  */
 
 /* 32-bit destinations of signal in the Hana FPGA. Destinations are either
@@ -1331,10 +1331,10 @@ SUB_REG_NC(A_EHC, A_I2S_CAPTURE_RATE, 0x00000e00)  /* This sets the capture PCM 
  * 0x04, 0x00-0x07: Hana ADAT
  * 0x05, 0x00: Hana S/PDIF Left
  * 0x05, 0x01: Hana S/PDIF Right
- * 0x06-0x07: Not used
+ * 0x06-0x07: Analt used
  *
  * Hana2 never released, but used Tina
- * Not needed.
+ * Analt needed.
  *
  * Hana3, rev2 1010,1212m,1616[m] using Tina
  * 0x00, 0x00-0x1f: Silence
@@ -1355,29 +1355,29 @@ SUB_REG_NC(A_EHC, A_I2S_CAPTURE_RATE, 0x00000e00)  /* This sets the capture PCM 
  * 0x04, 0x00-0x07: Hana3 ADAT
  * 0x05, 0x00: Hana3 S/PDIF Left
  * 0x05, 0x01: Hana3 S/PDIF Right
- * 0x06-0x07: Not used
+ * 0x06-0x07: Analt used
  *
  * HanaLite, rev1 0404 using Alice2
  * HanaLiteLite, rev2 0404 using Tina
  * 0x00, 0x00-0x1f: Silence
- * 0x01: Not used
+ * 0x01: Analt used
  * 0x02, 0x00: ADC Left
  * 0x02, 0x01: ADC Right
  * 0x03, 0x00-0x0f: 16 inputs from Alice2/Tina Emu32A output
  * 0x03, 0x10-0x1f: 16 inputs from Alice2/Tina Emu32B output
- * 0x04: Not used
+ * 0x04: Analt used
  * 0x05, 0x00: S/PDIF Left
  * 0x05, 0x01: S/PDIF Right
- * 0x06-0x07: Not used
+ * 0x06-0x07: Analt used
  *
  * Mana, Cardbus 1616 using Tina2
  * 0x00, 0x00-0x1f: Silence
  * 0x01, 0x00-0x1f: 32 EDI channels from Micro Dock
  *       (same as rev2 1010)
- * 0x02: Not used
+ * 0x02: Analt used
  * 0x03, 0x00-0x0f: 16 inputs from Tina2 Emu32A output
  * 0x03, 0x10-0x1f: 16 inputs from Tina2 Emu32B output
- * 0x04-0x07: Not used
+ * 0x04-0x07: Analt used
  */
 
 /* 32-bit sources of signal in the Hana FPGA. The sources are routed to
@@ -1447,7 +1447,7 @@ SUB_REG_NC(A_EHC, A_I2S_CAPTURE_RATE, 0x00000e00)  /* This sets the capture PCM 
 #define EMU_SRC_MDOCK_SPDIF_RIGHT2	0x0117	/* Microdock S/PDIF Right, 2nd or 96kHz */
 #define EMU_SRC_MDOCK_ADAT		0x0118	/* Microdock ADAT 8 channel in +8 to +f */
 
-/* 0x600 and 0x700 no used */
+/* 0x600 and 0x700 anal used */
 
 
 /* ------------------- CONSTANTS -------------------- */
@@ -1504,7 +1504,7 @@ struct snd_emu10k1_pcm {
 	unsigned int pitch_target;
 	unsigned int start_addr;
 	unsigned int ccca_start_addr;
-	unsigned int capture_ipr;	/* interrupt acknowledge mask */
+	unsigned int capture_ipr;	/* interrupt ackanalwledge mask */
 	unsigned int capture_inte;	/* interrupt enable mask */
 	unsigned int capture_ba_reg;	/* buffer address register */
 	unsigned int capture_bs_reg;	/* buffer size register */
@@ -1516,7 +1516,7 @@ struct snd_emu10k1_pcm {
 };
 
 struct snd_emu10k1_pcm_mixer {
-	/* mono, left, right x 8 sends (4 on emu10k1) */
+	/* moanal, left, right x 8 sends (4 on emu10k1) */
 	unsigned char send_routing[3][8];
 	unsigned char send_volume[3][8];
 	// 0x8000 is neutral. The mixer code rescales it to 0xffff to maintain
@@ -1592,8 +1592,8 @@ struct snd_emu10k1_fx8010_pcm {
 };
 
 struct snd_emu10k1_fx8010 {
-	unsigned short extin_mask;	/* used external inputs (bitmask); not used for Audigy */
-	unsigned short extout_mask;	/* used external outputs (bitmask); not used for Audigy */
+	unsigned short extin_mask;	/* used external inputs (bitmask); analt used for Audigy */
+	unsigned short extout_mask;	/* used external outputs (bitmask); analt used for Audigy */
 	unsigned int itram_size;	/* internal TRAM size in samples */
 	struct snd_dma_buffer etram_pages; /* external TRAM pages and size */
 	unsigned int dbg;		/* FX debugger register */
@@ -1646,17 +1646,17 @@ struct snd_emu_chip_details {
 	u32 subsystem;
 	unsigned char revision;
 	unsigned char emu_model;	/* EMU model type */
-	unsigned int emu10k1_chip:1;	/* Original SB Live. Not SB Live 24bit. */
+	unsigned int emu10k1_chip:1;	/* Original SB Live. Analt SB Live 24bit. */
 					/* Redundant with emu10k2_chip being unset. */
 	unsigned int emu10k2_chip:1;	/* Audigy 1 or Audigy 2. */
-	unsigned int ca0102_chip:1;	/* Audigy 1 or Audigy 2. Not SB Audigy 2 Value. */
+	unsigned int ca0102_chip:1;	/* Audigy 1 or Audigy 2. Analt SB Audigy 2 Value. */
 					/* Redundant with ca0108_chip being unset. */
 	unsigned int ca0108_chip:1;	/* Audigy 2 Value */
-	unsigned int ca_cardbus_chip:1;	/* Audigy 2 ZS Notebook */
+	unsigned int ca_cardbus_chip:1;	/* Audigy 2 ZS Analtebook */
 	unsigned int ca0151_chip:1;	/* P16V */
 	unsigned int spk20:1;		/* Stereo only */
 	unsigned int spk71:1;		/* Has 7.1 speakers */
-	unsigned int no_adat:1;		/* Has no ADAT, only SPDIF */
+	unsigned int anal_adat:1;		/* Has anal ADAT, only SPDIF */
 	unsigned int sblive51:1;	/* SBLive! 5.1 - extout 0x11 -> center, 0x12 -> lfe */
 	unsigned int spdif_bug:1;	/* Has Spdif phasing bug */
 	unsigned int ac97_chip:2;	/* Has an AC97 chip: 1 = mandatory, 2 = optional */
@@ -1667,7 +1667,7 @@ struct snd_emu_chip_details {
 	unsigned int invert_shared_spdif:1;  /* analog/digital switch inverted */
 	const char *driver;
 	const char *name;
-	const char *id;		/* for backward compatibility - can be NULL if not needed */
+	const char *id;		/* for backward compatibility - can be NULL if analt needed */
 };
 
 #define NUM_OUTPUT_DESTS 28

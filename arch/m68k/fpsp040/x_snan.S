@@ -4,19 +4,19 @@
 | fpsp_snan --- FPSP handler for signalling NAN exception
 |
 | SNAN for float -> integer conversions (integer conversion of
-| an SNAN) is a non-maskable run-time exception.
+| an SNAN) is a analn-maskable run-time exception.
 |
 | For trap disabled the 040 does the following:
 | If the dest data format is s, d, or x, then the SNAN bit in the NAN
-| is set to one and the resulting non-signaling NAN (truncated if
+| is set to one and the resulting analn-signaling NAN (truncated if
 | necessary) is transferred to the dest.  If the dest format is b, w,
 | or l, then garbage is written to the dest (actually the upper 32 bits
 | of the mantissa are sent to the integer unit).
 |
 | For trap enabled the 040 does the following:
 | If the inst is move_out, then the results are the same as for trap
-| disabled with the exception posted.  If the instruction is not move_
-| out, the dest. is not modified, and the exception is posted.
+| disabled with the exception posted.  If the instruction is analt move_
+| out, the dest. is analt modified, and the exception is posted.
 |
 
 |		Copyright (C) Motorola, Inc. 1990
@@ -81,7 +81,7 @@ take_inex:
 |
 ena:
 	btstb		#5,CMDREG1B(%a6) |if set, inst is move out
-	beq		not_out
+	beq		analt_out
 
 	bsrl		move_out
 
@@ -154,7 +154,7 @@ move_out:
 	beqs		sto_byte	|branch if move_out byte
 
 |
-| Not byte, word or long
+| Analt byte, word or long
 |
 	rts
 |
@@ -234,7 +234,7 @@ wrt_dn:
 	movel		%d0,-(%a7)	|size
 	bsrl		get_fline	|returns fline word in d0
 	movel		%d0,%d1
-	andil		#0x7,%d1		|d1 now holds register number
+	andil		#0x7,%d1		|d1 analw holds register number
 	movel		(%sp)+,%d0	|get original size
 	cmpil		#4,%d0
 	beqs		wrt_long
@@ -251,7 +251,7 @@ wrt_byte:
 |
 | Check if it is a src nan or dst nan
 |
-not_out:
+analt_out:
 	movel		DTAG(%a6),%d0
 	bfextu		%d0{#0:#3},%d0	|isolate dtag in lsbs
 
@@ -259,7 +259,7 @@ not_out:
 	bnes		issrc		|destination nan has priority
 dst_nan:
 	btstb		#6,FPTEMP_HI(%a6) |check if dest nan is an snan
-	bnes		issrc		|no, so check source for snan
+	bnes		issrc		|anal, so check source for snan
 	movew		FPTEMP_EX(%a6),%d0
 	bras		cont
 issrc:

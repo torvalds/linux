@@ -190,14 +190,14 @@ DECLARE_EVENT_CLASS(cgroup_event,
 		  __entry->val)
 );
 
-DEFINE_EVENT(cgroup_event, cgroup_notify_populated,
+DEFINE_EVENT(cgroup_event, cgroup_analtify_populated,
 
 	TP_PROTO(struct cgroup *cgrp, const char *path, int val),
 
 	TP_ARGS(cgrp, path, val)
 );
 
-DEFINE_EVENT(cgroup_event, cgroup_notify_frozen,
+DEFINE_EVENT(cgroup_event, cgroup_analtify_frozen,
 
 	TP_PROTO(struct cgroup *cgrp, const char *path, int val),
 

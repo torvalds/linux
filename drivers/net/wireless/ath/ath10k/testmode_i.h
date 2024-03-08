@@ -11,7 +11,7 @@
 /* Bump this after every _compatible_ interface change, for example
  * addition of a new command or an attribute.
  */
-#define ATH10K_TESTMODE_VERSION_MINOR 0
+#define ATH10K_TESTMODE_VERSION_MIANALR 0
 
 #define ATH10K_TM_DATA_MAX_LEN		5000
 
@@ -21,7 +21,7 @@ enum ath10k_tm_attr {
 	ATH10K_TM_ATTR_DATA		= 2,
 	ATH10K_TM_ATTR_WMI_CMDID	= 3,
 	ATH10K_TM_ATTR_VERSION_MAJOR	= 4,
-	ATH10K_TM_ATTR_VERSION_MINOR	= 5,
+	ATH10K_TM_ATTR_VERSION_MIANALR	= 5,
 	ATH10K_TM_ATTR_WMI_OP_VERSION	= 6,
 
 	/* keep last */

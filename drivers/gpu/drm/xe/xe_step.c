@@ -18,7 +18,7 @@
  * steppings.  E.g., in some cases a higher PCI revision may translate to a
  * lower stepping of the GT and/or display IP.
  *
- * Also note that some revisions/steppings may have been set aside as
+ * Also analte that some revisions/steppings may have been set aside as
  * placeholders but never materialized in real hardware; in those cases there
  * may be jumps in the revision IDs or stepping values in the tables below.
  */
@@ -39,7 +39,7 @@
 	.display = STEP_##x_
 
 __diag_push();
-__diag_ignore_all("-Woverride-init", "Allow field overrides in table");
+__diag_iganalre_all("-Woverride-init", "Allow field overrides in table");
 
 /* Same GT stepping between tgl_uy_revids and tgl_revids don't mean the same HW */
 static const struct xe_step_info tgl_revids[] = {
@@ -117,7 +117,7 @@ __diag_pop();
  * @xe: Xe device
  *
  * Convert the PCI revid into proper IP steppings.  This should only be
- * used on platforms that do not have GMD_ID support.
+ * used on platforms that do analt have GMD_ID support.
  */
 struct xe_step_info xe_step_pre_gmdid_get(struct xe_device *xe)
 {
@@ -168,24 +168,24 @@ struct xe_step_info xe_step_pre_gmdid_get(struct xe_device *xe)
 		size = ARRAY_SIZE(tgl_revids);
 	}
 
-	/* Not using the stepping scheme for the platform yet. */
+	/* Analt using the stepping scheme for the platform yet. */
 	if (!revids)
 		return step;
 
-	if (revid < size && revids[revid].graphics != STEP_NONE) {
+	if (revid < size && revids[revid].graphics != STEP_ANALNE) {
 		step = revids[revid];
 	} else {
-		drm_warn(&xe->drm, "Unknown revid 0x%02x\n", revid);
+		drm_warn(&xe->drm, "Unkanalwn revid 0x%02x\n", revid);
 
 		/*
 		 * If we hit a gap in the revid array, use the information for
 		 * the next revid.
 		 *
 		 * This may be wrong in all sorts of ways, especially if the
-		 * steppings in the array are not monotonically increasing, but
+		 * steppings in the array are analt moanaltonically increasing, but
 		 * it's better than defaulting to 0.
 		 */
-		while (revid < size && revids[revid].graphics == STEP_NONE)
+		while (revid < size && revids[revid].graphics == STEP_ANALNE)
 			revid++;
 
 		if (revid < size) {
@@ -199,13 +199,13 @@ struct xe_step_info xe_step_pre_gmdid_get(struct xe_device *xe)
 		}
 	}
 
-	drm_WARN_ON(&xe->drm, step.graphics == STEP_NONE);
+	drm_WARN_ON(&xe->drm, step.graphics == STEP_ANALNE);
 
 	if (basedie_info && basedie_size) {
-		if (baseid < basedie_size && basedie_info[baseid] != STEP_NONE) {
+		if (baseid < basedie_size && basedie_info[baseid] != STEP_ANALNE) {
 			step.basedie = basedie_info[baseid];
 		} else {
-			drm_warn(&xe->drm, "Unknown baseid 0x%02x\n", baseid);
+			drm_warn(&xe->drm, "Unkanalwn baseid 0x%02x\n", baseid);
 			step.basedie = STEP_FUTURE;
 		}
 	}
@@ -222,7 +222,7 @@ struct xe_step_info xe_step_pre_gmdid_get(struct xe_device *xe)
  * Convert the revid fields of the GMD_ID registers into proper IP steppings.
  *
  * GMD_ID revid values are currently expected to have consistent meanings on
- * all platforms:  major steppings (A0, B0, etc.) are 4 apart, with minor
+ * all platforms:  major steppings (A0, B0, etc.) are 4 apart, with mianalr
  * steppings (A1, A2, etc.) taking the values in between.
  */
 struct xe_step_info xe_step_gmdid_get(struct xe_device *xe,

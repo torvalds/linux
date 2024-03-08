@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * An RTC test device/driver
- * Copyright (C) 2005 Tower Technologies
+ * Copyright (C) 2005 Tower Techanallogies
  * Author: Alessandro Zummo <a.zummo@towertech.it>
  */
 
@@ -91,7 +91,7 @@ static int test_rtc_alarm_irq_enable(struct device *dev, unsigned int enable)
 	return 0;
 }
 
-static const struct rtc_class_ops test_rtc_ops_noalm = {
+static const struct rtc_class_ops test_rtc_ops_analalm = {
 	.read_time = test_rtc_read_time,
 	.set_time = test_rtc_set_time,
 	.alarm_irq_enable = test_rtc_alarm_irq_enable,
@@ -118,7 +118,7 @@ static int test_probe(struct platform_device *plat_dev)
 
 	rtd = devm_kzalloc(&plat_dev->dev, sizeof(*rtd), GFP_KERNEL);
 	if (!rtd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(plat_dev, rtd);
 
@@ -128,7 +128,7 @@ static int test_probe(struct platform_device *plat_dev)
 
 	switch (plat_dev->id) {
 	case 0:
-		rtd->rtc->ops = &test_rtc_ops_noalm;
+		rtd->rtc->ops = &test_rtc_ops_analalm;
 		break;
 	default:
 		rtd->rtc->ops = &test_rtc_ops;
@@ -156,7 +156,7 @@ static int __init test_init(void)
 	if (err)
 		return err;
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 	for (i = 0; i < MAX_RTC_TEST; i++) {
 		pdev[i] = platform_device_alloc("rtc-test", i);
 		if (!pdev[i])

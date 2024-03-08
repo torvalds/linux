@@ -98,7 +98,7 @@ enum arm_spe_events {
 	EV_L1D_REFILL		= 3,
 	EV_TLB_ACCESS		= 4,
 	EV_TLB_WALK		= 5,
-	EV_NOT_TAKEN		= 6,
+	EV_ANALT_TAKEN		= 6,
 	EV_MISPRED		= 7,
 	EV_LLC_ACCESS		= 8,
 	EV_LLC_MISS		= 9,

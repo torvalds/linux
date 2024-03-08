@@ -2,7 +2,7 @@
 /*
  *  Intel HID event & 5 button array driver
  *
- *  Copyright (C) 2015 Alex Hung <alex.hung@canonical.com>
+ *  Copyright (C) 2015 Alex Hung <alex.hung@caanalnical.com>
  *  Copyright (C) 2015 Andrew Lutomirski <luto@kernel.org>
  */
 
@@ -35,7 +35,7 @@ MODULE_PARM_DESC(enable_sw_tablet_mode,
 	"Enable SW_TABLET_MODE reporting -1:auto 0:off 1:at-first-event 2:at-probe. "
 	"If you need this please report this to: platform-driver-x86@vger.kernel.org");
 
-/* When NOT in tablet mode, VGBS returns with the flag 0x40 */
+/* When ANALT in tablet mode, VGBS returns with the flag 0x40 */
 #define TABLET_MODE_FLAG BIT(6)
 
 MODULE_LICENSE("GPL");
@@ -65,7 +65,7 @@ static const struct key_entry intel_hid_keymap[] = {
 	{ KE_KEY, 8, { KEY_RFKILL } },
 	{ KE_KEY, 9, { KEY_POWER } },
 	{ KE_KEY, 11, { KEY_SLEEP } },
-	/* 13 has two different meanings in the spec -- ignore it. */
+	/* 13 has two different meanings in the spec -- iganalre it. */
 	{ KE_KEY, 14, { KEY_STOPCD } },
 	{ KE_KEY, 15, { KEY_PLAYPAUSE } },
 	{ KE_KEY, 16, { KEY_MUTE } },
@@ -77,18 +77,18 @@ static const struct key_entry intel_hid_keymap[] = {
 	{ KE_END },
 };
 
-/* 5 button array notification value. */
+/* 5 button array analtification value. */
 static const struct key_entry intel_array_keymap[] = {
 	{ KE_KEY,    0xC2, { KEY_LEFTMETA } },                /* Press */
-	{ KE_IGNORE, 0xC3, { KEY_LEFTMETA } },                /* Release */
+	{ KE_IGANALRE, 0xC3, { KEY_LEFTMETA } },                /* Release */
 	{ KE_KEY,    0xC4, { KEY_VOLUMEUP } },                /* Press */
-	{ KE_IGNORE, 0xC5, { KEY_VOLUMEUP } },                /* Release */
+	{ KE_IGANALRE, 0xC5, { KEY_VOLUMEUP } },                /* Release */
 	{ KE_KEY,    0xC6, { KEY_VOLUMEDOWN } },              /* Press */
-	{ KE_IGNORE, 0xC7, { KEY_VOLUMEDOWN } },              /* Release */
+	{ KE_IGANALRE, 0xC7, { KEY_VOLUMEDOWN } },              /* Release */
 	{ KE_KEY,    0xC8, { KEY_ROTATE_LOCK_TOGGLE } },      /* Press */
-	{ KE_IGNORE, 0xC9, { KEY_ROTATE_LOCK_TOGGLE } },      /* Release */
+	{ KE_IGANALRE, 0xC9, { KEY_ROTATE_LOCK_TOGGLE } },      /* Release */
 	{ KE_KEY,    0xCE, { KEY_POWER } },                   /* Press */
-	{ KE_IGNORE, 0xCF, { KEY_POWER } },                   /* Release */
+	{ KE_IGANALRE, 0xCF, { KEY_POWER } },                   /* Release */
 	{ KE_END },
 };
 
@@ -115,9 +115,9 @@ static const struct dmi_system_id button_array_table[] = {
 		},
 	},
 	{
-		.ident = "Lenovo ThinkPad X1 Tablet Gen 2",
+		.ident = "Leanalvo ThinkPad X1 Tablet Gen 2",
 		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_SYS_VENDOR, "LEANALVO"),
 			DMI_MATCH(DMI_PRODUCT_FAMILY, "ThinkPad X1 Tablet Gen 2"),
 		},
 	},
@@ -153,14 +153,14 @@ static const struct dmi_system_id dmi_vgbs_allow_list[] = {
 	{
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "HP"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "HP Elite Dragonfly G2 Notebook PC"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "HP Elite Dragonfly G2 Analtebook PC"),
 		},
 	},
 	{ }
 };
 
 /*
- * Some devices, even non convertible ones, can send incorrect SW_TABLET_MODE
+ * Some devices, even analn convertible ones, can send incorrect SW_TABLET_MODE
  * reports. Accept such reports only from devices in this list.
  */
 static const struct dmi_system_id dmi_auto_add_switch[] = {
@@ -382,7 +382,7 @@ static int intel_hid_pl_suspend_handler(struct device *device)
 {
 	intel_button_array_enable(device, false);
 
-	if (!pm_suspend_no_platform())
+	if (!pm_suspend_anal_platform())
 		intel_hid_set_enable(device, false);
 
 	return 0;
@@ -392,7 +392,7 @@ static int intel_hid_pl_resume_handler(struct device *device)
 {
 	intel_hid_pm_complete(device);
 
-	if (!pm_suspend_no_platform())
+	if (!pm_suspend_anal_platform())
 		intel_hid_set_enable(device, true);
 
 	intel_button_array_enable(device, true);
@@ -416,7 +416,7 @@ static int intel_hid_input_setup(struct platform_device *device)
 
 	priv->input_dev = devm_input_allocate_device(&device->dev);
 	if (!priv->input_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = sparse_keymap_setup(priv->input_dev, intel_hid_keymap, NULL);
 	if (ret)
@@ -436,7 +436,7 @@ static int intel_button_array_input_setup(struct platform_device *device)
 	/* Setup input device for 5 button array */
 	priv->array = devm_input_allocate_device(&device->dev);
 	if (!priv->array)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = sparse_keymap_setup(priv->array, intel_array_keymap, NULL);
 	if (ret)
@@ -455,7 +455,7 @@ static int intel_hid_switches_setup(struct platform_device *device)
 	/* Setup input device for switches */
 	priv->switches = devm_input_allocate_device(&device->dev);
 	if (!priv->switches)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	__set_bit(EV_SW, priv->switches->evbit);
 	__set_bit(SW_TABLET_MODE, priv->switches->swbit);
@@ -499,7 +499,7 @@ static bool report_tablet_mode_event(struct input_dev *input_dev, u32 event)
 	}
 }
 
-static void notify_handler(acpi_handle handle, u32 event, void *context)
+static void analtify_handler(acpi_handle handle, u32 event, void *context)
 {
 	struct platform_device *device = context;
 	struct intel_hid_priv *priv = dev_get_drvdata(&device->dev);
@@ -523,7 +523,7 @@ static void notify_handler(acpi_handle handle, u32 event, void *context)
 		/*
 		 * Needed for wakeup from suspend-to-idle to work on some
 		 * platforms that don't expose the 5-button array, but still
-		 * send notifies with the power button event code to this
+		 * send analtifies with the power button event code to this
 		 * device object on power button actions while suspended.
 		 */
 		if (event == 0xce)
@@ -531,7 +531,7 @@ static void notify_handler(acpi_handle handle, u32 event, void *context)
 
 		/*
 		 * Some devices send (duplicate) tablet-mode events when moved
-		 * around even though the mode has not changed; and they do this
+		 * around even though the mode has analt changed; and they do this
 		 * even when suspended.
 		 * Update the switch state in case it changed and then return
 		 * without waking up to avoid spurious wakeups.
@@ -546,7 +546,7 @@ static void notify_handler(acpi_handle handle, u32 event, void *context)
 			return;
 
 		if (!sparse_keymap_entry_from_scancode(priv->array, event)) {
-			dev_info(&device->dev, "unknown event 0x%x\n", event);
+			dev_info(&device->dev, "unkanalwn event 0x%x\n", event);
 			return;
 		}
 
@@ -558,7 +558,7 @@ wakeup:
 
 	/*
 	 * Needed for suspend to work on some platforms that don't expose
-	 * the 5-button array, but still send notifies with power button
+	 * the 5-button array, but still send analtifies with power button
 	 * event code to this device object on power button actions.
 	 *
 	 * Report the power button press and release.
@@ -584,7 +584,7 @@ wakeup:
 	if (event != 0xc0) {
 		if (!priv->array ||
 		    !sparse_keymap_report_event(priv->array, event, 1, true))
-			dev_dbg(&device->dev, "unknown event 0x%x\n", event);
+			dev_dbg(&device->dev, "unkanalwn event 0x%x\n", event);
 		return;
 	}
 
@@ -595,7 +595,7 @@ wakeup:
 	}
 
 	if (!sparse_keymap_report_event(priv->input_dev, ev_index, 1, true))
-		dev_dbg(&device->dev, "unknown event index 0x%llx\n",
+		dev_dbg(&device->dev, "unkanalwn event index 0x%llx\n",
 			 ev_index);
 }
 
@@ -635,22 +635,22 @@ static int intel_hid_probe(struct platform_device *device)
 
 	if (!intel_hid_evaluate_method(handle, INTEL_HID_DSM_HDMM_FN, &mode)) {
 		dev_warn(&device->dev, "failed to read mode\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (mode != 0) {
 		/*
 		 * This driver only implements "simple" mode.  There appear
-		 * to be no other modes, but we should be paranoid and check
+		 * to be anal other modes, but we should be paraanalid and check
 		 * for compatibility.
 		 */
-		dev_info(&device->dev, "platform is not in simple mode\n");
-		return -ENODEV;
+		dev_info(&device->dev, "platform is analt in simple mode\n");
+		return -EANALDEV;
 	}
 
 	priv = devm_kzalloc(&device->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 	dev_set_drvdata(&device->dev, priv);
 
 	/* See dual_accel_detect.h for more info on the dual_accel check. */
@@ -677,7 +677,7 @@ static int intel_hid_probe(struct platform_device *device)
 			pr_err("Failed to setup Intel 5 button array hotkeys\n");
 	}
 
-	/* Setup switches for devices that we know VGBS return correctly */
+	/* Setup switches for devices that we kanalw VGBS return correctly */
 	if (enable_sw_tablet_mode == TABLET_SW_AT_PROBE) {
 		dev_info(&device->dev, "platform supports switches\n");
 		err = intel_hid_switches_setup(device);
@@ -687,16 +687,16 @@ static int intel_hid_probe(struct platform_device *device)
 			report_tablet_mode_state(device);
 	}
 
-	status = acpi_install_notify_handler(handle,
-					     ACPI_DEVICE_NOTIFY,
-					     notify_handler,
+	status = acpi_install_analtify_handler(handle,
+					     ACPI_DEVICE_ANALTIFY,
+					     analtify_handler,
 					     device);
 	if (ACPI_FAILURE(status))
 		return -EBUSY;
 
 	err = intel_hid_set_enable(&device->dev, true);
 	if (err)
-		goto err_remove_notify;
+		goto err_remove_analtify;
 
 	intel_button_array_enable(&device->dev, true);
 
@@ -712,13 +712,13 @@ static int intel_hid_probe(struct platform_device *device)
 	/*
 	 * In order for system wakeup to work, the EC GPE has to be marked as
 	 * a wakeup one, so do that here (this setting will persist, but it has
-	 * no effect until the wakeup mask is set for the EC GPE).
+	 * anal effect until the wakeup mask is set for the EC GPE).
 	 */
 	acpi_ec_mark_gpe_for_wake();
 	return 0;
 
-err_remove_notify:
-	acpi_remove_notify_handler(handle, ACPI_DEVICE_NOTIFY, notify_handler);
+err_remove_analtify:
+	acpi_remove_analtify_handler(handle, ACPI_DEVICE_ANALTIFY, analtify_handler);
 
 	return err;
 }
@@ -728,7 +728,7 @@ static void intel_hid_remove(struct platform_device *device)
 	acpi_handle handle = ACPI_HANDLE(&device->dev);
 
 	device_init_wakeup(&device->dev, false);
-	acpi_remove_notify_handler(handle, ACPI_DEVICE_NOTIFY, notify_handler);
+	acpi_remove_analtify_handler(handle, ACPI_DEVICE_ANALTIFY, analtify_handler);
 	intel_hid_set_enable(&device->dev, false);
 	intel_button_array_enable(&device->dev, false);
 }
@@ -746,13 +746,13 @@ static struct platform_driver intel_hid_pl_driver = {
 /*
  * Unfortunately, some laptops provide a _HID="INT33D5" device with
  * _CID="PNP0C02".  This causes the pnpacpi scan driver to claim the
- * ACPI node, so no platform device will be created.  The pnpacpi
- * driver rejects this device in subsequent processing, so no physical
- * node is created at all.
+ * ACPI analde, so anal platform device will be created.  The pnpacpi
+ * driver rejects this device in subsequent processing, so anal physical
+ * analde is created at all.
  *
  * As a workaround until the ACPI core figures out how to handle
  * this corner case, manually ask the ACPI platform device code to
- * claim the ACPI node.
+ * claim the ACPI analde.
  */
 static acpi_status __init
 check_acpi_dev(acpi_handle handle, u32 lvl, void *context, void **rv)

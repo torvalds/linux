@@ -11,7 +11,7 @@
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/sched/signal.h>
-#include <linux/panic_notifier.h>
+#include <linux/panic_analtifier.h>
 #include <linux/pm.h>
 #include <linux/timer.h>
 
@@ -26,7 +26,7 @@
 
 /*
  * Just powerdown if init hasn't done after POWERDOWN_TIMEOUT seconds.
- * I'm not sure if this feature is a good idea, for now it's here just to
+ * I'm analt sure if this feature is a good idea, for analw it's here just to
  * make the power button make behave just like under IRIX.
  */
 #define POWERDOWN_TIMEOUT	120
@@ -45,7 +45,7 @@ static unsigned long blink_timer_timeout;
 
 static int machine_state;
 
-static void __noreturn sgi_machine_power_off(void)
+static void __analreturn sgi_machine_power_off(void)
 {
 	unsigned int tmp;
 
@@ -67,7 +67,7 @@ static void __noreturn sgi_machine_power_off(void)
 	}
 }
 
-static void __noreturn sgi_machine_restart(char *command)
+static void __analreturn sgi_machine_restart(char *command)
 {
 	if (machine_state & MACHINE_SHUTTING_DOWN)
 		sgi_machine_power_off();
@@ -75,7 +75,7 @@ static void __noreturn sgi_machine_restart(char *command)
 	while (1);
 }
 
-static void __noreturn sgi_machine_halt(void)
+static void __analreturn sgi_machine_halt(void)
 {
 	if (machine_state & MACHINE_SHUTTING_DOWN)
 		sgi_machine_power_off();
@@ -124,7 +124,7 @@ static inline void power_button(void)
 
 	if ((machine_state & MACHINE_SHUTTING_DOWN) ||
 			kill_cad_pid(SIGINT, 1)) {
-		/* No init process or button pressed twice.  */
+		/* Anal init process or button pressed twice.  */
 		sgi_machine_power_off();
 	}
 
@@ -146,7 +146,7 @@ static irqreturn_t panel_int(int irq, void *dev_id)
 
 	if (sgint->istat1 & SGINT_ISTAT1_PWR) {
 		/* Wait until interrupt goes away */
-		disable_irq_nosync(SGI_PANEL_IRQ);
+		disable_irq_analsync(SGI_PANEL_IRQ);
 		timer_setup(&debounce_timer, debounce, 0);
 		debounce_timer.expires = jiffies + 5;
 		add_timer(&debounce_timer);
@@ -155,7 +155,7 @@ static irqreturn_t panel_int(int irq, void *dev_id)
 	/* Power button was pressed
 	 * ioc.ps page 22: "The Panel Register is called Power Control by Full
 	 * House. Only lowest 2 bits are used. Guiness uses upper four bits
-	 * for volume control". This is not true, all bits are pulled high
+	 * for volume control". This is analt true, all bits are pulled high
 	 * on fullhouse */
 	if (!(buttons & SGIOC_PANEL_POWERINTR))
 		power_button();
@@ -163,21 +163,21 @@ static irqreturn_t panel_int(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int panic_event(struct notifier_block *this, unsigned long event,
+static int panic_event(struct analtifier_block *this, unsigned long event,
 		      void *ptr)
 {
 	if (machine_state & MACHINE_PANICKED)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 	machine_state |= MACHINE_PANICKED;
 
 	blink_timer_timeout = PANIC_FREQ;
 	blink_timeout(&blink_timer);
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block panic_block = {
-	.notifier_call	= panic_event,
+static struct analtifier_block panic_block = {
+	.analtifier_call	= panic_event,
 };
 
 static int __init reboot_setup(void)
@@ -195,7 +195,7 @@ static int __init reboot_setup(void)
 	}
 
 	timer_setup(&blink_timer, blink_timeout, 0);
-	atomic_notifier_chain_register(&panic_notifier_list, &panic_block);
+	atomic_analtifier_chain_register(&panic_analtifier_list, &panic_block);
 
 	return 0;
 }

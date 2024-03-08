@@ -16,80 +16,80 @@
  *					region	SMBus	Block	proc.	block
  * Chip name			PCI ID	size	PEC	buffer	call	read
  * ---------------------------------------------------------------------------
- * 82801AA (ICH)		0x2413	16	no	no	no	no
- * 82801AB (ICH0)		0x2423	16	no	no	no	no
- * 82801BA (ICH2)		0x2443	16	no	no	no	no
- * 82801CA (ICH3)		0x2483	32	soft	no	no	no
- * 82801DB (ICH4)		0x24c3	32	hard	yes	no	no
- * 82801E (ICH5)		0x24d3	32	hard	yes	yes	yes
- * 6300ESB			0x25a4	32	hard	yes	yes	yes
- * 82801F (ICH6)		0x266a	32	hard	yes	yes	yes
- * 6310ESB/6320ESB		0x269b	32	hard	yes	yes	yes
- * 82801G (ICH7)		0x27da	32	hard	yes	yes	yes
- * 82801H (ICH8)		0x283e	32	hard	yes	yes	yes
- * 82801I (ICH9)		0x2930	32	hard	yes	yes	yes
- * EP80579 (Tolapai)		0x5032	32	hard	yes	yes	yes
- * ICH10			0x3a30	32	hard	yes	yes	yes
- * ICH10			0x3a60	32	hard	yes	yes	yes
- * 5/3400 Series (PCH)		0x3b30	32	hard	yes	yes	yes
- * 6 Series (PCH)		0x1c22	32	hard	yes	yes	yes
- * Patsburg (PCH)		0x1d22	32	hard	yes	yes	yes
- * Patsburg (PCH) IDF		0x1d70	32	hard	yes	yes	yes
- * Patsburg (PCH) IDF		0x1d71	32	hard	yes	yes	yes
- * Patsburg (PCH) IDF		0x1d72	32	hard	yes	yes	yes
- * DH89xxCC (PCH)		0x2330	32	hard	yes	yes	yes
- * Panther Point (PCH)		0x1e22	32	hard	yes	yes	yes
- * Lynx Point (PCH)		0x8c22	32	hard	yes	yes	yes
- * Lynx Point-LP (PCH)		0x9c22	32	hard	yes	yes	yes
- * Avoton (SOC)			0x1f3c	32	hard	yes	yes	yes
- * Wellsburg (PCH)		0x8d22	32	hard	yes	yes	yes
- * Wellsburg (PCH) MS		0x8d7d	32	hard	yes	yes	yes
- * Wellsburg (PCH) MS		0x8d7e	32	hard	yes	yes	yes
- * Wellsburg (PCH) MS		0x8d7f	32	hard	yes	yes	yes
- * Coleto Creek (PCH)		0x23b0	32	hard	yes	yes	yes
- * Wildcat Point (PCH)		0x8ca2	32	hard	yes	yes	yes
- * Wildcat Point-LP (PCH)	0x9ca2	32	hard	yes	yes	yes
- * BayTrail (SOC)		0x0f12	32	hard	yes	yes	yes
- * Braswell (SOC)		0x2292	32	hard	yes	yes	yes
- * Sunrise Point-H (PCH) 	0xa123  32	hard	yes	yes	yes
- * Sunrise Point-LP (PCH)	0x9d23	32	hard	yes	yes	yes
- * DNV (SOC)			0x19df	32	hard	yes	yes	yes
- * Emmitsburg (PCH)		0x1bc9	32	hard	yes	yes	yes
- * Broxton (SOC)		0x5ad4	32	hard	yes	yes	yes
- * Lewisburg (PCH)		0xa1a3	32	hard	yes	yes	yes
- * Lewisburg Supersku (PCH)	0xa223	32	hard	yes	yes	yes
- * Kaby Lake PCH-H (PCH)	0xa2a3	32	hard	yes	yes	yes
- * Gemini Lake (SOC)		0x31d4	32	hard	yes	yes	yes
- * Cannon Lake-H (PCH)		0xa323	32	hard	yes	yes	yes
- * Cannon Lake-LP (PCH)		0x9da3	32	hard	yes	yes	yes
- * Cedar Fork (PCH)		0x18df	32	hard	yes	yes	yes
- * Ice Lake-LP (PCH)		0x34a3	32	hard	yes	yes	yes
- * Ice Lake-N (PCH)		0x38a3	32	hard	yes	yes	yes
- * Comet Lake (PCH)		0x02a3	32	hard	yes	yes	yes
- * Comet Lake-H (PCH)		0x06a3	32	hard	yes	yes	yes
- * Elkhart Lake (PCH)		0x4b23	32	hard	yes	yes	yes
- * Tiger Lake-LP (PCH)		0xa0a3	32	hard	yes	yes	yes
- * Tiger Lake-H (PCH)		0x43a3	32	hard	yes	yes	yes
- * Jasper Lake (SOC)		0x4da3	32	hard	yes	yes	yes
- * Comet Lake-V (PCH)		0xa3a3	32	hard	yes	yes	yes
- * Alder Lake-S (PCH)		0x7aa3	32	hard	yes	yes	yes
- * Alder Lake-P (PCH)		0x51a3	32	hard	yes	yes	yes
- * Alder Lake-M (PCH)		0x54a3	32	hard	yes	yes	yes
- * Raptor Lake-S (PCH)		0x7a23	32	hard	yes	yes	yes
- * Meteor Lake-P (SOC)		0x7e22	32	hard	yes	yes	yes
- * Meteor Lake SoC-S (SOC)	0xae22	32	hard	yes	yes	yes
- * Meteor Lake PCH-S (PCH)	0x7f23	32	hard	yes	yes	yes
- * Birch Stream (SOC)		0x5796	32	hard	yes	yes	yes
+ * 82801AA (ICH)		0x2413	16	anal	anal	anal	anal
+ * 82801AB (ICH0)		0x2423	16	anal	anal	anal	anal
+ * 82801BA (ICH2)		0x2443	16	anal	anal	anal	anal
+ * 82801CA (ICH3)		0x2483	32	soft	anal	anal	anal
+ * 82801DB (ICH4)		0x24c3	32	hard	anal	anal	anal
+ * 82801E (ICH5)		0x24d3	32	hard	anal	anal	anal
+ * 6300ESB			0x25a4	32	hard	anal	anal	anal
+ * 82801F (ICH6)		0x266a	32	hard	anal	anal	anal
+ * 6310ESB/6320ESB		0x269b	32	hard	anal	anal	anal
+ * 82801G (ICH7)		0x27da	32	hard	anal	anal	anal
+ * 82801H (ICH8)		0x283e	32	hard	anal	anal	anal
+ * 82801I (ICH9)		0x2930	32	hard	anal	anal	anal
+ * EP80579 (Tolapai)		0x5032	32	hard	anal	anal	anal
+ * ICH10			0x3a30	32	hard	anal	anal	anal
+ * ICH10			0x3a60	32	hard	anal	anal	anal
+ * 5/3400 Series (PCH)		0x3b30	32	hard	anal	anal	anal
+ * 6 Series (PCH)		0x1c22	32	hard	anal	anal	anal
+ * Patsburg (PCH)		0x1d22	32	hard	anal	anal	anal
+ * Patsburg (PCH) IDF		0x1d70	32	hard	anal	anal	anal
+ * Patsburg (PCH) IDF		0x1d71	32	hard	anal	anal	anal
+ * Patsburg (PCH) IDF		0x1d72	32	hard	anal	anal	anal
+ * DH89xxCC (PCH)		0x2330	32	hard	anal	anal	anal
+ * Panther Point (PCH)		0x1e22	32	hard	anal	anal	anal
+ * Lynx Point (PCH)		0x8c22	32	hard	anal	anal	anal
+ * Lynx Point-LP (PCH)		0x9c22	32	hard	anal	anal	anal
+ * Avoton (SOC)			0x1f3c	32	hard	anal	anal	anal
+ * Wellsburg (PCH)		0x8d22	32	hard	anal	anal	anal
+ * Wellsburg (PCH) MS		0x8d7d	32	hard	anal	anal	anal
+ * Wellsburg (PCH) MS		0x8d7e	32	hard	anal	anal	anal
+ * Wellsburg (PCH) MS		0x8d7f	32	hard	anal	anal	anal
+ * Coleto Creek (PCH)		0x23b0	32	hard	anal	anal	anal
+ * Wildcat Point (PCH)		0x8ca2	32	hard	anal	anal	anal
+ * Wildcat Point-LP (PCH)	0x9ca2	32	hard	anal	anal	anal
+ * BayTrail (SOC)		0x0f12	32	hard	anal	anal	anal
+ * Braswell (SOC)		0x2292	32	hard	anal	anal	anal
+ * Sunrise Point-H (PCH) 	0xa123  32	hard	anal	anal	anal
+ * Sunrise Point-LP (PCH)	0x9d23	32	hard	anal	anal	anal
+ * DNV (SOC)			0x19df	32	hard	anal	anal	anal
+ * Emmitsburg (PCH)		0x1bc9	32	hard	anal	anal	anal
+ * Broxton (SOC)		0x5ad4	32	hard	anal	anal	anal
+ * Lewisburg (PCH)		0xa1a3	32	hard	anal	anal	anal
+ * Lewisburg Supersku (PCH)	0xa223	32	hard	anal	anal	anal
+ * Kaby Lake PCH-H (PCH)	0xa2a3	32	hard	anal	anal	anal
+ * Gemini Lake (SOC)		0x31d4	32	hard	anal	anal	anal
+ * Cananaln Lake-H (PCH)		0xa323	32	hard	anal	anal	anal
+ * Cananaln Lake-LP (PCH)		0x9da3	32	hard	anal	anal	anal
+ * Cedar Fork (PCH)		0x18df	32	hard	anal	anal	anal
+ * Ice Lake-LP (PCH)		0x34a3	32	hard	anal	anal	anal
+ * Ice Lake-N (PCH)		0x38a3	32	hard	anal	anal	anal
+ * Comet Lake (PCH)		0x02a3	32	hard	anal	anal	anal
+ * Comet Lake-H (PCH)		0x06a3	32	hard	anal	anal	anal
+ * Elkhart Lake (PCH)		0x4b23	32	hard	anal	anal	anal
+ * Tiger Lake-LP (PCH)		0xa0a3	32	hard	anal	anal	anal
+ * Tiger Lake-H (PCH)		0x43a3	32	hard	anal	anal	anal
+ * Jasper Lake (SOC)		0x4da3	32	hard	anal	anal	anal
+ * Comet Lake-V (PCH)		0xa3a3	32	hard	anal	anal	anal
+ * Alder Lake-S (PCH)		0x7aa3	32	hard	anal	anal	anal
+ * Alder Lake-P (PCH)		0x51a3	32	hard	anal	anal	anal
+ * Alder Lake-M (PCH)		0x54a3	32	hard	anal	anal	anal
+ * Raptor Lake-S (PCH)		0x7a23	32	hard	anal	anal	anal
+ * Meteor Lake-P (SOC)		0x7e22	32	hard	anal	anal	anal
+ * Meteor Lake SoC-S (SOC)	0xae22	32	hard	anal	anal	anal
+ * Meteor Lake PCH-S (PCH)	0x7f23	32	hard	anal	anal	anal
+ * Birch Stream (SOC)		0x5796	32	hard	anal	anal	anal
  *
  * Features supported by this driver:
- * Software PEC				no
- * Hardware PEC				yes
- * Block buffer				yes
- * Block process call transaction	yes
- * I2C block read transaction		yes (doesn't use the block buffer)
- * Slave mode				no
- * SMBus Host Notify			yes
- * Interrupt processing			yes
+ * Software PEC				anal
+ * Hardware PEC				anal
+ * Block buffer				anal
+ * Block process call transaction	anal
+ * I2C block read transaction		anal (doesn't use the block buffer)
+ * Slave mode				anal
+ * SMBus Host Analtify			anal
+ * Interrupt processing			anal
  *
  * See the file Documentation/i2c/busses/i2c-i801.rst for details.
  */
@@ -192,10 +192,10 @@
 #define SMBHSTSTS_INTR		BIT(1)
 #define SMBHSTSTS_HOST_BUSY	BIT(0)
 
-/* Host Notify Status register bits */
+/* Host Analtify Status register bits */
 #define SMBSLVSTS_HST_NTFY_STS	BIT(0)
 
-/* Host Notify Command register bits */
+/* Host Analtify Command register bits */
 #define SMBSLVCMD_SMBALERT_DISABLE	BIT(2)
 #define SMBSLVCMD_HST_NTFY_INTREN	BIT(0)
 
@@ -247,13 +247,13 @@
 #define PCI_DEVICE_ID_INTEL_LYNXPOINT_LP_SMBUS		0x9c22
 #define PCI_DEVICE_ID_INTEL_WILDCATPOINT_LP_SMBUS	0x9ca2
 #define PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_SMBUS	0x9d23
-#define PCI_DEVICE_ID_INTEL_CANNONLAKE_LP_SMBUS		0x9da3
+#define PCI_DEVICE_ID_INTEL_CANANALNLAKE_LP_SMBUS		0x9da3
 #define PCI_DEVICE_ID_INTEL_TIGERLAKE_LP_SMBUS		0xa0a3
 #define PCI_DEVICE_ID_INTEL_SUNRISEPOINT_H_SMBUS	0xa123
 #define PCI_DEVICE_ID_INTEL_LEWISBURG_SMBUS		0xa1a3
 #define PCI_DEVICE_ID_INTEL_LEWISBURG_SSKU_SMBUS	0xa223
 #define PCI_DEVICE_ID_INTEL_KABYLAKE_PCH_H_SMBUS	0xa2a3
-#define PCI_DEVICE_ID_INTEL_CANNONLAKE_H_SMBUS		0xa323
+#define PCI_DEVICE_ID_INTEL_CANANALNLAKE_H_SMBUS		0xa323
 #define PCI_DEVICE_ID_INTEL_COMETLAKE_V_SMBUS		0xa3a3
 #define PCI_DEVICE_ID_INTEL_METEOR_LAKE_SOC_S_SMBUS	0xae22
 
@@ -304,8 +304,8 @@ struct i801_priv {
 #define FEATURE_BLOCK_PROC	BIT(2)
 #define FEATURE_I2C_BLOCK_READ	BIT(3)
 #define FEATURE_IRQ		BIT(4)
-#define FEATURE_HOST_NOTIFY	BIT(5)
-/* Not really a feature, but it's convenient to handle it as such */
+#define FEATURE_HOST_ANALTIFY	BIT(5)
+/* Analt really a feature, but it's convenient to handle it as such */
 #define FEATURE_IDF		BIT(15)
 #define FEATURE_TCO_SPT		BIT(16)
 #define FEATURE_TCO_CNL		BIT(17)
@@ -316,7 +316,7 @@ static const char *i801_feature_names[] = {
 	"Block process call",
 	"I2C block read",
 	"Interrupt",
-	"SMBus Host Notify",
+	"SMBus Host Analtify",
 };
 
 static unsigned int disable_features;
@@ -326,10 +326,10 @@ MODULE_PARM_DESC(disable_features, "Disable selected driver features:\n"
 	"\t\t  0x02  disable the block buffer\n"
 	"\t\t  0x08  disable the I2C block read functionality\n"
 	"\t\t  0x10  don't use interrupts\n"
-	"\t\t  0x20  disable SMBus Host Notify ");
+	"\t\t  0x20  disable SMBus Host Analtify ");
 
 /* Make sure the SMBus host is ready to start transmitting.
-   Return 0 if it is, -EBUSY if it is not. */
+   Return 0 if it is, -EBUSY if it is analt. */
 static int i801_check_pre(struct i801_priv *priv)
 {
 	int status;
@@ -348,7 +348,7 @@ static int i801_check_pre(struct i801_priv *priv)
 
 	/*
 	 * Clear CRC status if needed.
-	 * During normal operation, i801_check_post() takes care
+	 * During analrmal operation, i801_check_post() takes care
 	 * of it after every operation.  We do it here only in case
 	 * the hardware was already in this state when the driver
 	 * started.
@@ -415,7 +415,7 @@ static int i801_check_post(struct i801_priv *priv, int status)
 			dev_dbg(&priv->pci_dev->dev, "PEC error\n");
 		} else {
 			result = -ENXIO;
-			dev_dbg(&priv->pci_dev->dev, "No response\n");
+			dev_dbg(&priv->pci_dev->dev, "Anal response\n");
 		}
 	}
 	if (status & SMBHSTSTS_BUS_ERR) {
@@ -492,7 +492,7 @@ static int i801_block_transaction_by_block(struct i801_priv *priv,
 		xact = I801_BLOCK_DATA;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	/* Set block buffer mode */
@@ -562,7 +562,7 @@ static void i801_isr_byte_done(struct i801_priv *priv)
 	}
 }
 
-static irqreturn_t i801_host_notify_isr(struct i801_priv *priv)
+static irqreturn_t i801_host_analtify_isr(struct i801_priv *priv)
 {
 	unsigned short addr;
 
@@ -571,11 +571,11 @@ static irqreturn_t i801_host_notify_isr(struct i801_priv *priv)
 	/*
 	 * With the tested platforms, reading SMBNTFDDAT (22 + (p)->smba)
 	 * always returns 0. Our current implementation doesn't provide
-	 * data, so we just ignore it.
+	 * data, so we just iganalre it.
 	 */
-	i2c_handle_smbus_host_notify(&priv->adapter, addr);
+	i2c_handle_smbus_host_analtify(&priv->adapter, addr);
 
-	/* clear Host Notify bit and return */
+	/* clear Host Analtify bit and return */
 	outb_p(SMBSLVSTS_HST_NTFY_STS, SMBSLVSTS(priv));
 	return IRQ_HANDLED;
 }
@@ -593,7 +593,7 @@ static irqreturn_t i801_host_notify_isr(struct i801_priv *priv)
  * 2) For byte-by-byte (I2C read/write) transactions, one BYTE_DONE interrupt
  *    occurs for each byte of a byte-by-byte to prepare the next byte.
  *
- * 3) Host Notify interrupts
+ * 3) Host Analtify interrupts
  */
 static irqreturn_t i801_isr(int irq, void *dev_id)
 {
@@ -604,12 +604,12 @@ static irqreturn_t i801_isr(int irq, void *dev_id)
 	/* Confirm this is our interrupt */
 	pci_read_config_word(priv->pci_dev, PCI_STATUS, &pcists);
 	if (!(pcists & PCI_STATUS_INTERRUPT))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
-	if (priv->features & FEATURE_HOST_NOTIFY) {
+	if (priv->features & FEATURE_HOST_ANALTIFY) {
 		status = inb_p(SMBSLVSTS(priv));
 		if (status & SMBSLVSTS_HST_NTFY_STS)
-			return i801_host_notify_isr(priv);
+			return i801_host_analtify_isr(priv);
 	}
 
 	status = inb_p(SMBHSTSTS(priv));
@@ -618,7 +618,7 @@ static irqreturn_t i801_isr(int irq, void *dev_id)
 
 	/*
 	 * Clear IRQ sources: SMB_ALERT status is set after signal assertion
-	 * independently of the interrupt generation being blocked or not
+	 * independently of the interrupt generation being blocked or analt
 	 * so clear it always when the status is set.
 	 */
 	status &= STATUS_FLAGS | SMBHSTSTS_SMBALERT_STS;
@@ -649,7 +649,7 @@ static int i801_block_transaction_byte_by_byte(struct i801_priv *priv,
 	const struct i2c_adapter *adap = &priv->adapter;
 
 	if (command == I2C_SMBUS_BLOCK_PROC_CALL)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	len = data->block[0];
 
@@ -770,7 +770,7 @@ static int i801_simple_transaction(struct i801_priv *priv, union i2c_smbus_data 
 		break;
 	default:
 		pci_err(priv->pci_dev, "Unsupported transaction %d\n", command);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	ret = i801_transaction(priv, xact);
@@ -835,7 +835,7 @@ static int i801_block_transaction(struct i801_priv *priv, union i2c_smbus_data *
 		} else if (!(priv->features & FEATURE_I2C_BLOCK_READ)) {
 			dev_err(&priv->pci_dev->dev,
 				"I2C block read is unsupported!\n");
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 		break;
 	case I2C_SMBUS_BLOCK_PROC_CALL:
@@ -846,7 +846,7 @@ static int i801_block_transaction(struct i801_priv *priv, union i2c_smbus_data *
 	}
 
 	/* Experience has shown that the block buffer can only be used for
-	   SMBus (not I2C) block transactions, even though the datasheet
+	   SMBus (analt I2C) block transactions, even though the datasheet
 	   doesn't mention this limitation. */
 	if ((priv->features & FEATURE_BLOCK_BUFFER) &&
 	    command != I2C_SMBUS_I2C_BLOCK_DATA)
@@ -866,7 +866,7 @@ static int i801_block_transaction(struct i801_priv *priv, union i2c_smbus_data *
 	return result;
 }
 
-/* Return negative errno on error. */
+/* Return negative erranal on error. */
 static s32 i801_access(struct i2c_adapter *adap, u16 addr,
 		       unsigned short flags, char read_write, u8 command,
 		       int size, union i2c_smbus_data *data)
@@ -910,7 +910,7 @@ static s32 i801_access(struct i2c_adapter *adap, u16 addr,
 out:
 	/*
 	 * Unlock the SMBus device for use by BIOS/ACPI,
-	 * and clear status flags if not done already.
+	 * and clear status flags if analt done already.
 	 */
 	outb_p(SMBHSTSTS_INUSE_STS | STATUS_FLAGS, SMBHSTSTS(priv));
 
@@ -933,32 +933,32 @@ static u32 i801_func(struct i2c_adapter *adapter)
 		I2C_FUNC_SMBUS_BLOCK_PROC_CALL : 0) |
 	       ((priv->features & FEATURE_I2C_BLOCK_READ) ?
 		I2C_FUNC_SMBUS_READ_I2C_BLOCK : 0) |
-	       ((priv->features & FEATURE_HOST_NOTIFY) ?
-		I2C_FUNC_SMBUS_HOST_NOTIFY : 0);
+	       ((priv->features & FEATURE_HOST_ANALTIFY) ?
+		I2C_FUNC_SMBUS_HOST_ANALTIFY : 0);
 }
 
-static void i801_enable_host_notify(struct i2c_adapter *adapter)
+static void i801_enable_host_analtify(struct i2c_adapter *adapter)
 {
 	struct i801_priv *priv = i2c_get_adapdata(adapter);
 
-	if (!(priv->features & FEATURE_HOST_NOTIFY))
+	if (!(priv->features & FEATURE_HOST_ANALTIFY))
 		return;
 
 	/*
-	 * Enable host notify interrupt and block the generation of interrupt
-	 * from the SMB_ALERT signal because the driver does not support
+	 * Enable host analtify interrupt and block the generation of interrupt
+	 * from the SMB_ALERT signal because the driver does analt support
 	 * SMBus Alert.
 	 */
 	outb_p(SMBSLVCMD_HST_NTFY_INTREN | SMBSLVCMD_SMBALERT_DISABLE |
 	       priv->original_slvcmd, SMBSLVCMD(priv));
 
-	/* clear Host Notify bit to allow a new notification */
+	/* clear Host Analtify bit to allow a new analtification */
 	outb_p(SMBSLVSTS_HST_NTFY_STS, SMBSLVSTS(priv));
 }
 
-static void i801_disable_host_notify(struct i801_priv *priv)
+static void i801_disable_host_analtify(struct i801_priv *priv)
 {
-	if (!(priv->features & FEATURE_HOST_NOTIFY))
+	if (!(priv->features & FEATURE_HOST_ANALTIFY))
 		return;
 
 	outb_p(priv->original_slvcmd, SMBSLVCMD(priv));
@@ -971,15 +971,15 @@ static const struct i2c_algorithm smbus_algorithm = {
 
 #define FEATURES_ICH5	(FEATURE_BLOCK_PROC | FEATURE_I2C_BLOCK_READ	| \
 			 FEATURE_IRQ | FEATURE_SMBUS_PEC		| \
-			 FEATURE_BLOCK_BUFFER | FEATURE_HOST_NOTIFY)
+			 FEATURE_BLOCK_BUFFER | FEATURE_HOST_ANALTIFY)
 #define FEATURES_ICH4	(FEATURE_SMBUS_PEC | FEATURE_BLOCK_BUFFER | \
-			 FEATURE_HOST_NOTIFY)
+			 FEATURE_HOST_ANALTIFY)
 
 static const struct pci_device_id i801_ids[] = {
 	{ PCI_DEVICE_DATA(INTEL, 82801AA_3,			0)				 },
 	{ PCI_DEVICE_DATA(INTEL, 82801AB_3,			0)				 },
 	{ PCI_DEVICE_DATA(INTEL, 82801BA_2,			0)				 },
-	{ PCI_DEVICE_DATA(INTEL, 82801CA_3,			FEATURE_HOST_NOTIFY)		 },
+	{ PCI_DEVICE_DATA(INTEL, 82801CA_3,			FEATURE_HOST_ANALTIFY)		 },
 	{ PCI_DEVICE_DATA(INTEL, 82801DB_3,			FEATURES_ICH4)			 },
 	{ PCI_DEVICE_DATA(INTEL, 82801EB_3,			FEATURES_ICH5)			 },
 	{ PCI_DEVICE_DATA(INTEL, ESB_4,				FEATURES_ICH5)			 },
@@ -1021,8 +1021,8 @@ static const struct pci_device_id i801_ids[] = {
 	{ PCI_DEVICE_DATA(INTEL, LEWISBURG_SMBUS,		FEATURES_ICH5 | FEATURE_TCO_SPT) },
 	{ PCI_DEVICE_DATA(INTEL, LEWISBURG_SSKU_SMBUS,		FEATURES_ICH5 | FEATURE_TCO_SPT) },
 	{ PCI_DEVICE_DATA(INTEL, KABYLAKE_PCH_H_SMBUS,		FEATURES_ICH5 | FEATURE_TCO_SPT) },
-	{ PCI_DEVICE_DATA(INTEL, CANNONLAKE_H_SMBUS,		FEATURES_ICH5 | FEATURE_TCO_CNL) },
-	{ PCI_DEVICE_DATA(INTEL, CANNONLAKE_LP_SMBUS,		FEATURES_ICH5 | FEATURE_TCO_CNL) },
+	{ PCI_DEVICE_DATA(INTEL, CANANALNLAKE_H_SMBUS,		FEATURES_ICH5 | FEATURE_TCO_CNL) },
+	{ PCI_DEVICE_DATA(INTEL, CANANALNLAKE_LP_SMBUS,		FEATURES_ICH5 | FEATURE_TCO_CNL) },
 	{ PCI_DEVICE_DATA(INTEL, ICELAKE_LP_SMBUS,		FEATURES_ICH5 | FEATURE_TCO_CNL) },
 	{ PCI_DEVICE_DATA(INTEL, ICELAKE_N_SMBUS,		FEATURES_ICH5 | FEATURE_TCO_CNL) },
 	{ PCI_DEVICE_DATA(INTEL, COMETLAKE_SMBUS,		FEATURES_ICH5 | FEATURE_TCO_CNL) },
@@ -1096,7 +1096,7 @@ static void dmi_check_onboard_device(u8 type, const char *name,
 	struct i2c_board_info info;
 
 	for (i = 0; i < ARRAY_SIZE(dmi_devices); i++) {
-		/* & ~0x80, ignore enabled/disabled bit */
+		/* & ~0x80, iganalre enabled/disabled bit */
 		if ((type & ~0x80) != dmi_devices[i].type)
 			continue;
 		if (strcasecmp(name, dmi_devices[i].name))
@@ -1141,7 +1141,7 @@ static void dmi_check_onboard_devices(const struct dmi_header *dm, void *adap)
 	}
 }
 
-/* NOTE: Keep this list in sync with drivers/platform/x86/dell-smo8800.c */
+/* ANALTE: Keep this list in sync with drivers/platform/x86/dell-smo8800.c */
 static const char *const acpi_smo8800_ids[] = {
 	"SMO8800",
 	"SMO8801",
@@ -1168,29 +1168,29 @@ static acpi_status check_acpi_smo88xx_device(acpi_handle obj_handle,
 		return AE_OK;
 
 	if (!(info->valid & ACPI_VALID_HID))
-		goto smo88xx_not_found;
+		goto smo88xx_analt_found;
 
 	hid = info->hardware_id.string;
 	if (!hid)
-		goto smo88xx_not_found;
+		goto smo88xx_analt_found;
 
 	i = match_string(acpi_smo8800_ids, ARRAY_SIZE(acpi_smo8800_ids), hid);
 	if (i < 0)
-		goto smo88xx_not_found;
+		goto smo88xx_analt_found;
 
 	kfree(info);
 
 	*return_value = NULL;
 	return AE_CTRL_TERMINATE;
 
-smo88xx_not_found:
+smo88xx_analt_found:
 	kfree(info);
 	return AE_OK;
 }
 
 static bool is_dell_system_with_lis3lv02d(void)
 {
-	void *err = ERR_PTR(-ENOENT);
+	void *err = ERR_PTR(-EANALENT);
 
 	if (!dmi_match(DMI_SYS_VENDOR, "Dell Inc."))
 		return false;
@@ -1198,9 +1198,9 @@ static bool is_dell_system_with_lis3lv02d(void)
 	/*
 	 * Check that ACPI device SMO88xx is present and is functioning.
 	 * Function acpi_get_devices() already filters all ACPI devices
-	 * which are not present or are not functioning.
+	 * which are analt present or are analt functioning.
 	 * ACPI device SMO88xx represents our ST microelectronics lis3lv02d
-	 * accelerometer but unfortunately ACPI does not provide any other
+	 * accelerometer but unfortunately ACPI does analt provide any other
 	 * information (like I2C address).
 	 */
 	acpi_get_devices(NULL, check_acpi_smo88xx_device, NULL, &err);
@@ -1209,7 +1209,7 @@ static bool is_dell_system_with_lis3lv02d(void)
 }
 
 /*
- * Accelerometer's I2C address is not specified in DMI nor ACPI,
+ * Accelerometer's I2C address is analt specified in DMI analr ACPI,
  * so it is needed to define mapping table based on DMI product names.
  */
 static const struct {
@@ -1252,7 +1252,7 @@ static void register_dell_lis3lv02d_i2c_device(struct i801_priv *priv)
 	if (i == ARRAY_SIZE(dell_lis3lv02d_devices)) {
 		dev_warn(&priv->pci_dev->dev,
 			 "Accelerometer lis3lv02d is present on SMBus but its"
-			 " address is unknown, skipping registration\n");
+			 " address is unkanalwn, skipping registration\n");
 		return;
 	}
 
@@ -1403,7 +1403,7 @@ static void i801_add_mux(struct i801_priv *priv)
 	gpio_data.values = mux_config->values;
 	gpio_data.n_values = mux_config->n_values;
 	gpio_data.classes = mux_config->classes;
-	gpio_data.idle = I2C_MUX_GPIO_NO_IDLE;
+	gpio_data.idle = I2C_MUX_GPIO_ANAL_IDLE;
 
 	/* Register GPIO descriptor lookup table */
 	lookup = devm_kzalloc(dev,
@@ -1419,14 +1419,14 @@ static void i801_add_mux(struct i801_priv *priv)
 	priv->lookup = lookup;
 
 	/*
-	 * Register the mux device, we use PLATFORM_DEVID_NONE here
+	 * Register the mux device, we use PLATFORM_DEVID_ANALNE here
 	 * because since we are referring to the GPIO chip by name we are
 	 * anyways in deep trouble if there is more than one of these
 	 * devices, and there should likely only be one platform controller
 	 * hub.
 	 */
 	priv->mux_pdev = platform_device_register_data(dev, "i2c-mux-gpio",
-				PLATFORM_DEVID_NONE, &gpio_data,
+				PLATFORM_DEVID_ANALNE, &gpio_data,
 				sizeof(struct i2c_mux_gpio_platform_data));
 	if (IS_ERR(priv->mux_pdev)) {
 		gpiod_remove_lookup_table(lookup);
@@ -1456,7 +1456,7 @@ i801_add_tco_spt(struct i801_priv *priv, struct pci_dev *pci_dev,
 	int ret;
 
 	/*
-	 * We must access the NO_REBOOT bit over the Primary to Sideband
+	 * We must access the ANAL_REBOOT bit over the Primary to Sideband
 	 * (P2SB) bridge.
 	 */
 
@@ -1510,7 +1510,7 @@ static void i801_add_tco(struct i801_priv *priv)
 	memset(tco_res, 0, sizeof(tco_res));
 	/*
 	 * Always populate the main iTCO IO resource here. The second entry
-	 * for NO_REBOOT MMIO is filled by the SPT specific function.
+	 * for ANAL_REBOOT MMIO is filled by the SPT specific function.
 	 */
 	res = &tco_res[0];
 	res->start = tco_base & ~1;
@@ -1544,7 +1544,7 @@ i801_acpi_io_handler(u32 function, acpi_physical_address address, u32 bits,
 
 	/*
 	 * Once BIOS AML code touches the OpRegion we warn and inhibit any
-	 * further access from the driver itself. This device is now owned
+	 * further access from the driver itself. This device is analw owned
 	 * by the system firmware.
 	 */
 	i2c_lock_bus(&priv->adapter, I2C_LOCK_SEGMENT);
@@ -1557,7 +1557,7 @@ i801_acpi_io_handler(u32 function, acpi_physical_address address, u32 bits,
 
 		/*
 		 * BIOS is accessing the host controller so prevent it from
-		 * suspending automatically from now on.
+		 * suspending automatically from analw on.
 		 */
 		pm_runtime_get_sync(&pdev->dev);
 	}
@@ -1618,7 +1618,7 @@ static int i801_probe(struct pci_dev *dev, const struct pci_device_id *id)
 
 	priv = devm_kzalloc(&dev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_adapdata(&priv->adapter, priv);
 	priv->adapter.owner = THIS_MODULE;
@@ -1634,7 +1634,7 @@ static int i801_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	/* Disable features on user request */
 	for (i = 0; i < ARRAY_SIZE(i801_feature_names); i++) {
 		if (priv->features & disable_features & (1 << i))
-			dev_notice(&dev->dev, "%s disabled by user\n",
+			dev_analtice(&dev->dev, "%s disabled by user\n",
 				   i801_feature_names[i]);
 	}
 	priv->features &= ~disable_features;
@@ -1656,11 +1656,11 @@ static int i801_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	if (!priv->smba) {
 		dev_err(&dev->dev,
 			"SMBus base address uninitialized, upgrade BIOS\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (i801_acpi_probe(priv))
-		return -ENODEV;
+		return -EANALDEV;
 
 	err = pcim_iomap_regions(dev, 1 << SMBBAR, DRV_NAME);
 	if (err) {
@@ -1693,7 +1693,7 @@ static int i801_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	/* Default timeout in interrupt mode: 200 ms */
 	priv->adapter.timeout = HZ / 5;
 
-	if (dev->irq == IRQ_NOTCONNECTED)
+	if (dev->irq == IRQ_ANALTCONNECTED)
 		priv->features &= ~FEATURE_IRQ;
 
 	if (priv->features & FEATURE_IRQ) {
@@ -1719,13 +1719,13 @@ static int i801_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	dev_info(&dev->dev, "SMBus using %s\n",
 		 priv->features & FEATURE_IRQ ? "PCI interrupt" : "polling");
 
-	/* Host notification uses an interrupt */
+	/* Host analtification uses an interrupt */
 	if (!(priv->features & FEATURE_IRQ))
-		priv->features &= ~FEATURE_HOST_NOTIFY;
+		priv->features &= ~FEATURE_HOST_ANALTIFY;
 
-	/* Remember original Interrupt and Host Notify settings */
+	/* Remember original Interrupt and Host Analtify settings */
 	priv->original_hstcnt = inb_p(SMBHSTCNT(priv)) & ~SMBHSTCNT_KILL;
-	if (priv->features & FEATURE_HOST_NOTIFY)
+	if (priv->features & FEATURE_HOST_ANALTIFY)
 		priv->original_slvcmd = inb_p(SMBSLVCMD(priv));
 
 	i801_add_tco(priv);
@@ -1740,15 +1740,15 @@ static int i801_probe(struct pci_dev *dev, const struct pci_device_id *id)
 		return err;
 	}
 
-	i801_enable_host_notify(&priv->adapter);
+	i801_enable_host_analtify(&priv->adapter);
 
 	i801_probe_optional_slaves(priv);
-	/* We ignore errors - multiplexing is optional */
+	/* We iganalre errors - multiplexing is optional */
 	i801_add_mux(priv);
 
 	pci_set_drvdata(dev, priv);
 
-	dev_pm_set_driver_flags(&dev->dev, DPM_FLAG_NO_DIRECT_COMPLETE);
+	dev_pm_set_driver_flags(&dev->dev, DPM_FLAG_ANAL_DIRECT_COMPLETE);
 	pm_runtime_set_autosuspend_delay(&dev->dev, 1000);
 	pm_runtime_use_autosuspend(&dev->dev);
 	pm_runtime_put_autosuspend(&dev->dev);
@@ -1761,7 +1761,7 @@ static void i801_remove(struct pci_dev *dev)
 {
 	struct i801_priv *priv = pci_get_drvdata(dev);
 
-	i801_disable_host_notify(priv);
+	i801_disable_host_analtify(priv);
 	i801_del_mux(priv);
 	i2c_del_adapter(&priv->adapter);
 	i801_acpi_remove(priv);
@@ -1770,12 +1770,12 @@ static void i801_remove(struct pci_dev *dev)
 
 	/* if acpi_reserved is set then usage_count is incremented already */
 	if (!priv->acpi_reserved)
-		pm_runtime_get_noresume(&dev->dev);
+		pm_runtime_get_analresume(&dev->dev);
 
 	i801_restore_regs(priv);
 
 	/*
-	 * do not call pci_disable_device(dev) since it can cause hard hangs on
+	 * do analt call pci_disable_device(dev) since it can cause hard hangs on
 	 * some systems during power-off (eg. Fujitsu-Siemens Lifebook E8010)
 	 */
 }
@@ -1784,7 +1784,7 @@ static void i801_shutdown(struct pci_dev *dev)
 {
 	struct i801_priv *priv = pci_get_drvdata(dev);
 
-	i801_disable_host_notify(priv);
+	i801_disable_host_analtify(priv);
 	/* Restore config registers to avoid hard hang on some systems */
 	i801_restore_regs(priv);
 }
@@ -1804,7 +1804,7 @@ static int i801_resume(struct device *dev)
 	struct i801_priv *priv = dev_get_drvdata(dev);
 
 	i801_setup_hstcfg(priv);
-	i801_enable_host_notify(&priv->adapter);
+	i801_enable_host_analtify(&priv->adapter);
 	i2c_mark_adapter_resumed(&priv->adapter);
 
 	return 0;
@@ -1820,7 +1820,7 @@ static struct pci_driver i801_driver = {
 	.shutdown	= i801_shutdown,
 	.driver		= {
 		.pm	= pm_sleep_ptr(&i801_pm_ops),
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 };
 

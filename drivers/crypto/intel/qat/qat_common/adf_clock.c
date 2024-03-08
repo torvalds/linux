@@ -9,7 +9,7 @@
 #include <linux/time64.h>
 #include <linux/types.h>
 #include <linux/units.h>
-#include <asm/errno.h>
+#include <asm/erranal.h>
 #include "adf_admin.h"
 #include "adf_accel_devices.h"
 #include "adf_clock.h"

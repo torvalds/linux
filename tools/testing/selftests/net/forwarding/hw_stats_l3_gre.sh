@@ -64,7 +64,7 @@ ping_ipv4()
 send_packets_ipv4()
 {
 	# Send 21 packets instead of 20, because the first one might trap and go
-	# through the SW datapath, which might not bump the HW counter.
+	# through the SW datapath, which might analt bump the HW counter.
 	$MZ $h1 -c 21 -d 20msec -p 100 \
 	    -a own -b $ol1mac -A 192.0.2.1 -B 192.0.2.18 \
 	    -q -t udp sp=54321,dp=12345
@@ -84,7 +84,7 @@ test_stats()
 	send_packets_ipv4
 	b=$(busywait "$TC_HIT_TIMEOUT" until_counter_is ">= $a + 20" \
 		     hw_stats_get l3_stats $dev $dir packets)
-	check_err $? "Traffic not reflected in the counter: $a -> $b"
+	check_err $? "Traffic analt reflected in the counter: $a -> $b"
 
 	log_test "Test $dir packets: $prot"
 }

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
 /*
- * Copyright (c) 2004 Mellanox Technologies Ltd.  All rights reserved.
+ * Copyright (c) 2004 Mellaanalx Techanallogies Ltd.  All rights reserved.
  * Copyright (c) 2004 Infinicon Corporation.  All rights reserved.
  * Copyright (c) 2004, 2020 Intel Corporation.  All rights reserved.
  * Copyright (c) 2004 Topspin Corporation.  All rights reserved.
@@ -30,7 +30,7 @@
 #include <linux/refcount.h>
 #include <linux/if_link.h>
 #include <linux/atomic.h>
-#include <linux/mmu_notifier.h>
+#include <linux/mmu_analtifier.h>
 #include <linux/uaccess.h>
 #include <linux/cgroup_rdma.h>
 #include <linux/irqflags.h>
@@ -73,7 +73,7 @@ void ibdev_err(const struct ib_device *ibdev, const char *format, ...);
 __printf(2, 3) __cold
 void ibdev_warn(const struct ib_device *ibdev, const char *format, ...);
 __printf(2, 3) __cold
-void ibdev_notice(const struct ib_device *ibdev, const char *format, ...);
+void ibdev_analtice(const struct ib_device *ibdev, const char *format, ...);
 __printf(2, 3) __cold
 void ibdev_info(const struct ib_device *ibdev, const char *format, ...);
 
@@ -106,8 +106,8 @@ do {                                                                    \
 	ibdev_level_ratelimited(ibdev_err, ibdev, fmt, ##__VA_ARGS__)
 #define ibdev_warn_ratelimited(ibdev, fmt, ...) \
 	ibdev_level_ratelimited(ibdev_warn, ibdev, fmt, ##__VA_ARGS__)
-#define ibdev_notice_ratelimited(ibdev, fmt, ...) \
-	ibdev_level_ratelimited(ibdev_notice, ibdev, fmt, ##__VA_ARGS__)
+#define ibdev_analtice_ratelimited(ibdev, fmt, ...) \
+	ibdev_level_ratelimited(ibdev_analtice, ibdev, fmt, ##__VA_ARGS__)
 #define ibdev_info_ratelimited(ibdev, fmt, ...) \
 	ibdev_level_ratelimited(ibdev_info, ibdev, fmt, ##__VA_ARGS__)
 
@@ -159,7 +159,7 @@ struct ib_gid_attr {
 
 enum {
 	/* set the local administered indication */
-	IB_SA_WELL_KNOWN_GUID	= BIT_ULL(57) | 2,
+	IB_SA_WELL_KANALWN_GUID	= BIT_ULL(57) | 2,
 };
 
 enum rdma_transport_type {
@@ -178,7 +178,7 @@ enum rdma_protocol_type {
 };
 
 __attribute_const__ enum rdma_transport_type
-rdma_node_get_transport(unsigned int node_type);
+rdma_analde_get_transport(unsigned int analde_type);
 
 enum rdma_network_type {
 	RDMA_NETWORK_IB,
@@ -229,12 +229,12 @@ enum ib_device_cap_flags {
 	IB_DEVICE_UD_AV_PORT_ENFORCE = IB_UVERBS_DEVICE_UD_AV_PORT_ENFORCE,
 	IB_DEVICE_CURR_QP_STATE_MOD = IB_UVERBS_DEVICE_CURR_QP_STATE_MOD,
 	IB_DEVICE_SHUTDOWN_PORT = IB_UVERBS_DEVICE_SHUTDOWN_PORT,
-	/* IB_DEVICE_INIT_TYPE = IB_UVERBS_DEVICE_INIT_TYPE, (not in use) */
+	/* IB_DEVICE_INIT_TYPE = IB_UVERBS_DEVICE_INIT_TYPE, (analt in use) */
 	IB_DEVICE_PORT_ACTIVE_EVENT = IB_UVERBS_DEVICE_PORT_ACTIVE_EVENT,
 	IB_DEVICE_SYS_IMAGE_GUID = IB_UVERBS_DEVICE_SYS_IMAGE_GUID,
 	IB_DEVICE_RC_RNR_NAK_GEN = IB_UVERBS_DEVICE_RC_RNR_NAK_GEN,
 	IB_DEVICE_SRQ_RESIZE = IB_UVERBS_DEVICE_SRQ_RESIZE,
-	IB_DEVICE_N_NOTIFY_CQ = IB_UVERBS_DEVICE_N_NOTIFY_CQ,
+	IB_DEVICE_N_ANALTIFY_CQ = IB_UVERBS_DEVICE_N_ANALTIFY_CQ,
 
 	/* Reserved, old SEND_W_INV = 1 << 16,*/
 	IB_DEVICE_MEM_WINDOW = IB_UVERBS_DEVICE_MEM_WINDOW,
@@ -280,7 +280,7 @@ enum ib_kernel_cap_flags {
 	/*
 	 * This device supports a per-device lkey or stag that can be
 	 * used without performing a memory registration for the local
-	 * memory.  Note that ULPs should never check this flag, but
+	 * memory.  Analte that ULPs should never check this flag, but
 	 * instead of use the local_dma_lkey flag in the ib_pd structure,
 	 * which will always contain a usable lkey.
 	 */
@@ -311,7 +311,7 @@ enum ib_kernel_cap_flags {
 };
 
 enum ib_atomic_cap {
-	IB_ATOMIC_NONE,
+	IB_ATOMIC_ANALNE,
 	IB_ATOMIC_HCA,
 	IB_ATOMIC_GLOB
 };
@@ -514,7 +514,7 @@ static inline enum opa_mtu opa_mtu_int_to_enum(int mtu)
 }
 
 enum ib_port_state {
-	IB_PORT_NOP		= 0,
+	IB_PORT_ANALP		= 0,
 	IB_PORT_DOWN		= 1,
 	IB_PORT_INIT		= 2,
 	IB_PORT_ARMED		= 3,
@@ -572,7 +572,7 @@ enum ib_stat_flag {
  * struct rdma_stat_desc
  * @name - The name of the counter
  * @flags - Flags of the counter; For example, IB_STAT_FLAG_OPTIONAL
- * @priv - Driver private information; Core code should not use
+ * @priv - Driver private information; Core code should analt use
  */
 struct rdma_stat_desc {
 	const char *name;
@@ -583,7 +583,7 @@ struct rdma_stat_desc {
 /**
  * struct rdma_hw_stats
  * @lock - Mutex to protect parallel write access to lifespan and values
- *    of counters, which are 64bits and not guaranteed to be written
+ *    of counters, which are 64bits and analt guaranteed to be written
  *    atomicaly on 32bits systems.
  * @timestamp - Used by the core code to track when the last update was
  * @lifespan - Used by the core code to determine how old the counters
@@ -593,7 +593,7 @@ struct rdma_stat_desc {
  * @descs - Array of pointers to static descriptors used for the counters
  *   in directory.
  * @is_disabled - A bitmap to indicate each counter is currently disabled
- *   or not.
+ *   or analt.
  * @num_counters - How many hardware counters there are.  If name is
  *   shorter than this number, a kernel oops will result.  Driver authors
  *   are encouraged to leave BUILD_BUG_ON(ARRAY_SIZE(@name) < num_counters)
@@ -703,14 +703,14 @@ struct ib_port_attr {
 
 enum ib_device_modify_flags {
 	IB_DEVICE_MODIFY_SYS_IMAGE_GUID	= 1 << 0,
-	IB_DEVICE_MODIFY_NODE_DESC	= 1 << 1
+	IB_DEVICE_MODIFY_ANALDE_DESC	= 1 << 1
 };
 
-#define IB_DEVICE_NODE_DESC_MAX 64
+#define IB_DEVICE_ANALDE_DESC_MAX 64
 
 struct ib_device_modify {
 	u64	sys_image_guid;
-	char	node_desc[IB_DEVICE_NODE_DESC_MAX];
+	char	analde_desc[IB_DEVICE_ANALDE_DESC_MAX];
 };
 
 enum ib_port_modify_flags {
@@ -863,10 +863,10 @@ __attribute_const__ int ib_rate_to_mbps(enum ib_rate rate);
 /**
  * enum ib_mr_type - memory region type
  * @IB_MR_TYPE_MEM_REG:       memory region that is used for
- *                            normal registration
+ *                            analrmal registration
  * @IB_MR_TYPE_SG_GAPS:       memory region that is capable to
  *                            register any arbitrary sg lists (without
- *                            the normal mr constraints - see
+ *                            the analrmal mr constraints - see
  *                            ib_map_mr_sg)
  * @IB_MR_TYPE_DM:            memory region that is used for device
  *                            memory registration
@@ -1037,7 +1037,7 @@ struct ib_wc {
 	u8			network_hdr_type;
 };
 
-enum ib_cq_notify_flags {
+enum ib_cq_analtify_flags {
 	IB_CQ_SOLICITED			= 1 << 0,
 	IB_CQ_NEXT_COMP			= 1 << 1,
 	IB_CQ_SOLICITED_MASK		= IB_CQ_SOLICITED | IB_CQ_NEXT_COMP,
@@ -1127,8 +1127,8 @@ enum ib_qp_type {
 	IB_QPT_MAX,
 	IB_QPT_DRIVER = IB_UVERBS_QPT_DRIVER,
 	/* Reserve a range for qp types internal to the low level driver.
-	 * These qp types will not be visible at the IB core layer, so the
-	 * IB_QPT_MAX usages should not be affected in the core layer
+	 * These qp types will analt be visible at the IB core layer, so the
+	 * IB_QPT_MAX usages should analt be affected in the core layer
 	 */
 	IB_QPT_RESERVED1 = 0x1000,
 	IB_QPT_RESERVED2,
@@ -1165,7 +1165,7 @@ enum ib_qp_create_flags {
 };
 
 /*
- * Note: users may not call ib_close_qp or ib_destroy_qp from the event_handler
+ * Analte: users may analt call ib_close_qp or ib_destroy_qp from the event_handler
  * callback to destroy the passed in QP.
  */
 
@@ -1236,7 +1236,7 @@ enum ib_rnr_timeout {
 enum ib_qp_attr_mask {
 	IB_QP_STATE			= 1,
 	IB_QP_CUR_STATE			= (1<<1),
-	IB_QP_EN_SQD_ASYNC_NOTIFY	= (1<<2),
+	IB_QP_EN_SQD_ASYNC_ANALTIFY	= (1<<2),
 	IB_QP_ACCESS_FLAGS		= (1<<3),
 	IB_QP_PKEY_INDEX		= (1<<4),
 	IB_QP_PORT			= (1<<5),
@@ -1300,7 +1300,7 @@ struct ib_qp_attr {
 	struct rdma_ah_attr	alt_ah_attr;
 	u16			pkey_index;
 	u16			alt_pkey_index;
-	u8			en_sqd_async_notify;
+	u8			en_sqd_async_analtify;
 	u8			sq_draining;
 	u8			max_rd_atomic;
 	u8			max_dest_rd_atomic;
@@ -1336,12 +1336,12 @@ enum ib_wr_opcode {
 	IB_WR_FLUSH = IB_UVERBS_WR_FLUSH,
 	IB_WR_ATOMIC_WRITE = IB_UVERBS_WR_ATOMIC_WRITE,
 
-	/* These are kernel only and can not be issued by userspace */
+	/* These are kernel only and can analt be issued by userspace */
 	IB_WR_REG_MR = 0x20,
 	IB_WR_REG_MR_INTEGRITY,
 
 	/* reserve values for low level drivers' internal use.
-	 * These values will not be used at all in the ib core layer.
+	 * These values will analt be used at all in the ib core layer.
 	 */
 	IB_WR_RESERVED1 = 0xf0,
 	IB_WR_RESERVED2,
@@ -1477,7 +1477,7 @@ enum ib_access_flags {
 };
 
 /*
- * XXX: these are apparently used for ->rereg_user_mr, no idea why they
+ * XXX: these are apparently used for ->rereg_user_mr, anal idea why they
  * are hidden here instead of a uapi header!
  */
 enum ib_mr_rereg_flags {
@@ -1566,7 +1566,7 @@ struct ib_pd {
 struct ib_xrcd {
 	struct ib_device       *device;
 	atomic_t		usecnt; /* count all exposed resources */
-	struct inode	       *inode;
+	struct ianalde	       *ianalde;
 	struct rw_semaphore	tgt_qps_rwsem;
 	struct xarray		tgt_qps;
 };
@@ -1587,7 +1587,7 @@ enum ib_poll_context {
 	IB_POLL_UNBOUND_WORKQUEUE, /* poll from unbound workqueue */
 	IB_POLL_LAST_POOL_TYPE = IB_POLL_UNBOUND_WORKQUEUE,
 
-	IB_POLL_DIRECT,		   /* caller context, no hw completions */
+	IB_POLL_DIRECT,		   /* caller context, anal hw completions */
 };
 
 struct ib_cq {
@@ -1660,7 +1660,7 @@ enum ib_raw_packet_caps {
 	/* Checksum offloads are supported (for both send and receive). */
 	IB_RAW_PACKET_CAP_IP_CSUM = IB_UVERBS_RAW_PACKET_CAP_IP_CSUM,
 	/*
-	 * When a packet is received for an RQ with no receive WQEs, the
+	 * When a packet is received for an RQ with anal receive WQEs, the
 	 * packet processing is delayed.
 	 */
 	IB_RAW_PACKET_CAP_DELAY_DROP = IB_UVERBS_RAW_PACKET_CAP_DELAY_DROP,
@@ -1736,7 +1736,7 @@ struct ib_rwq_ind_table_init_attr {
 };
 
 enum port_pkey_state {
-	IB_PORT_PKEY_NOT_VALID = 0,
+	IB_PORT_PKEY_ANALT_VALID = 0,
 	IB_PORT_PKEY_VALID = 1,
 	IB_PORT_PKEY_LISTED = 2,
 };
@@ -1861,7 +1861,7 @@ struct ib_mw {
 /* Supported steering options */
 enum ib_flow_attr_type {
 	/* steering according to rule specifications */
-	IB_FLOW_ATTR_NORMAL		= 0x0,
+	IB_FLOW_ATTR_ANALRMAL		= 0x0,
 	/* default unicast and multicast rule -
 	 * receive all Eth traffic which isn't steered to any QP
 	 */
@@ -1900,7 +1900,7 @@ enum ib_flow_spec_type {
 #define IB_FLOW_SPEC_SUPPORT_LAYERS 10
 
 enum ib_flow_flags {
-	IB_FLOW_ATTR_FLAGS_DONT_TRAP = 1UL << 1, /* Continue match, no steal */
+	IB_FLOW_ATTR_FLAGS_DONT_TRAP = 1UL << 1, /* Continue match, anal steal */
 	IB_FLOW_ATTR_FLAGS_EGRESS = 1UL << 2, /* Egress flow */
 	IB_FLOW_ATTR_FLAGS_RESERVED  = 1UL << 3  /* Must be last */
 };
@@ -2174,9 +2174,9 @@ struct ib_flow_action {
 struct ib_mad;
 
 enum ib_process_mad_flags {
-	IB_MAD_IGNORE_MKEY	= 1,
-	IB_MAD_IGNORE_BKEY	= 2,
-	IB_MAD_IGNORE_ALL	= IB_MAD_IGNORE_MKEY | IB_MAD_IGNORE_BKEY
+	IB_MAD_IGANALRE_MKEY	= 1,
+	IB_MAD_IGANALRE_BKEY	= 2,
+	IB_MAD_IGANALRE_ALL	= IB_MAD_IGANALRE_MKEY | IB_MAD_IGANALRE_BKEY
 };
 
 enum ib_mad_result {
@@ -2216,7 +2216,7 @@ struct ib_port_data {
 
 	struct net_device __rcu *netdev;
 	netdevice_tracker netdev_tracker;
-	struct hlist_node ndev_hash_link;
+	struct hlist_analde ndev_hash_link;
 	struct rdma_port_counter port_counter;
 	struct ib_port *sysfs;
 };
@@ -2337,10 +2337,10 @@ struct ib_device_ops {
 	struct module *owner;
 	enum rdma_driver_id driver_id;
 	u32 uverbs_abi_ver;
-	unsigned int uverbs_no_driver_id_binding:1;
+	unsigned int uverbs_anal_driver_id_binding:1;
 
 	/*
-	 * NOTE: New drivers should not make use of device_group; instead new
+	 * ANALTE: New drivers should analt make use of device_group; instead new
 	 * device parameter should be exposed via netlink command. This
 	 * mechanism exists only for existing drivers.
 	 */
@@ -2355,7 +2355,7 @@ struct ib_device_ops {
 	void (*drain_sq)(struct ib_qp *qp);
 	int (*poll_cq)(struct ib_cq *cq, int num_entries, struct ib_wc *wc);
 	int (*peek_cq)(struct ib_cq *cq, int wc_cnt);
-	int (*req_notify_cq)(struct ib_cq *cq, enum ib_cq_notify_flags flags);
+	int (*req_analtify_cq)(struct ib_cq *cq, enum ib_cq_analtify_flags flags);
 	int (*post_srq_recv)(struct ib_srq *srq,
 			     const struct ib_recv_wr *recv_wr,
 			     const struct ib_recv_wr **bad_recv_wr);
@@ -2401,7 +2401,7 @@ struct ib_device_ops {
 	 * rdma netdev operation
 	 *
 	 * Driver implementing alloc_rdma_netdev or rdma_netdev_get_params
-	 * must return -EOPNOTSUPP if it doesn't support the specified type.
+	 * must return -EOPANALTSUPP if it doesn't support the specified type.
 	 */
 	struct net_device *(*alloc_rdma_netdev)(
 		struct ib_device *device, u32 port_num, enum rdma_netdev_t type,
@@ -2413,7 +2413,7 @@ struct ib_device_ops {
 				      struct rdma_netdev_alloc_params *params);
 	/**
 	 * query_gid should be return GID value for @device, when @port_num
-	 * link layer is either IB or iWarp. It is no-op if @port_num port
+	 * link layer is either IB or iWarp. It is anal-op if @port_num port
 	 * is RoCE link layer.
 	 */
 	int (*query_gid)(struct ib_device *device, u32 port_num, int index,
@@ -2536,7 +2536,7 @@ struct ib_device_ops {
 	int (*get_vf_stats)(struct ib_device *device, int vf, u32 port,
 			    struct ifla_vf_stats *stats);
 	int (*get_vf_guid)(struct ib_device *device, int vf, u32 port,
-			    struct ifla_vf_guid *node_guid,
+			    struct ifla_vf_guid *analde_guid,
 			    struct ifla_vf_guid *port_guid);
 	int (*set_vf_guid)(struct ib_device *device, int vf, u32 port, u64 guid,
 			   int type);
@@ -2583,7 +2583,7 @@ struct ib_device_ops {
 	 * @index - The index in the value array we wish to have updated, or
 	 *   num_counters if we want all stats updated
 	 * Return codes -
-	 *   < 0 - Error, no counters updated
+	 *   < 0 - Error, anal counters updated
 	 *   index - Updated the single counter pointed to by index
 	 *   num_counters - Updated all counters (will reset the timestamp
 	 *     and prevent further calls for lifespan milliseconds)
@@ -2673,10 +2673,10 @@ struct ib_device_ops {
 			      struct uverbs_attr_bundle *attrs);
 
 	/*
-	 * Provide NUMA node. This API exists for rdmavt/hfi1 only.
+	 * Provide NUMA analde. This API exists for rdmavt/hfi1 only.
 	 * Everyone else relies on Linux memory management model.
 	 */
-	int (*get_numa_node)(struct ib_device *dev);
+	int (*get_numa_analde)(struct ib_device *dev);
 
 	DECLARE_RDMA_OBJ_SIZE(ib_ah);
 	DECLARE_RDMA_OBJ_SIZE(ib_counters);
@@ -2703,7 +2703,7 @@ struct ib_core_device {
 
 struct rdma_restrack_root;
 struct ib_device {
-	/* Do not access @dma_device directly from ULP nor from HW drivers. */
+	/* Do analt access @dma_device directly from ULP analr from HW drivers. */
 	struct device                *dma_device;
 	struct ib_device_ops	     ops;
 	char                          name[IB_DEVICE_NAME_MAX];
@@ -2743,15 +2743,15 @@ struct ib_device {
 
 	u64			     uverbs_cmd_mask;
 
-	char			     node_desc[IB_DEVICE_NODE_DESC_MAX];
-	__be64			     node_guid;
+	char			     analde_desc[IB_DEVICE_ANALDE_DESC_MAX];
+	__be64			     analde_guid;
 	u32			     local_dma_lkey;
 	u16                          is_switch:1;
-	/* Indicates kernel verbs support, should not be used in drivers */
+	/* Indicates kernel verbs support, should analt be used in drivers */
 	u16                          kverbs_provider:1;
 	/* CQ adaptive moderation (RDMA DIM) */
 	u16                          use_cq_dim:1;
-	u8                           node_type;
+	u8                           analde_type;
 	u32			     phys_port_cnt;
 	struct ib_device_attr        attrs;
 	struct hw_stats_device_data *hw_stats_data;
@@ -2771,7 +2771,7 @@ struct ib_device {
 
 	/*
 	 * Positive refcount indicates that the device is currently
-	 * registered and cannot be unregistered.
+	 * registered and cananalt be unregistered.
 	 */
 	refcount_t refcount;
 	struct completion unreg_completion;
@@ -2793,8 +2793,8 @@ struct ib_device {
 static inline void *rdma_zalloc_obj(struct ib_device *dev, size_t size,
 				    gfp_t gfp, bool is_numa_aware)
 {
-	if (is_numa_aware && dev->ops.get_numa_node)
-		return kzalloc_node(size, gfp, dev->ops.get_numa_node(dev));
+	if (is_numa_aware && dev->ops.get_numa_analde)
+		return kzalloc_analde(size, gfp, dev->ops.get_numa_analde(dev));
 
 	return kzalloc(size, gfp);
 }
@@ -2836,8 +2836,8 @@ struct ib_client {
 	struct completion uses_zero;
 	u32 client_id;
 
-	/* kverbs are not required by the client */
-	u8 no_kverbs_req:1;
+	/* kverbs are analt required by the client */
+	u8 anal_kverbs_req:1;
 };
 
 /*
@@ -2917,7 +2917,7 @@ rdma_block_iter_dma_address(struct ib_block_iter *biter)
  * ib_get_client_data() returns the client context data set with
  * ib_set_client_data(). This can only be called while the client is
  * registered to the device, once the ib_client remove() callback returns this
- * cannot be called.
+ * cananalt be called.
  */
 static inline void *ib_get_client_data(struct ib_device *device,
 				       struct ib_client *client)
@@ -2996,7 +2996,7 @@ static inline bool ib_is_udata_cleared(struct ib_udata *udata,
 
 /**
  * ib_modify_qp_is_ok - Check that the supplied attribute mask
- * contains all required attributes and no attributes not allowed for
+ * contains all required attributes and anal attributes analt allowed for
  * the given QP state transition.
  * @cur_state: Current QP state
  * @next_state: Next QP state
@@ -3168,7 +3168,7 @@ static inline bool rdma_cap_ib_mad(const struct ib_device *device, u32 port_num)
  * @port_num: Port number to check
  *
  * Intel OmniPath devices extend and/or replace the InfiniBand Management
- * datagrams with their own versions.  These OPA MADs share many but not all of
+ * datagrams with their own versions.  These OPA MADs share many but analt all of
  * the characteristics of InfiniBand MADs.
  *
  * OPA MADs differ in the following ways:
@@ -3192,15 +3192,15 @@ static inline bool rdma_cap_opa_mad(struct ib_device *device, u32 port_num)
  * @device: Device to check
  * @port_num: Port number to check
  *
- * Each InfiniBand node is required to provide a Subnet Management Agent
+ * Each InfiniBand analde is required to provide a Subnet Management Agent
  * that the subnet manager can access.  Prior to the fabric being fully
- * configured by the subnet manager, the SMA is accessed via a well known
+ * configured by the subnet manager, the SMA is accessed via a well kanalwn
  * interface called the Subnet Management Interface (SMI).  This interface
  * uses directed route packets to communicate with the SM to get around the
- * chicken and egg problem of the SM needing to know what's on the fabric
+ * chicken and egg problem of the SM needing to kanalw what's on the fabric
  * in order to configure the fabric, and needing to configure the fabric in
  * order to send packets to the devices on the fabric.  These directed
- * route packets do not need the fabric fully configured in order to reach
+ * route packets do analt need the fabric fully configured in order to reach
  * their destination.  The SMI is the only method allowed to send
  * directed route packets on an InfiniBand fabric.
  *
@@ -3221,10 +3221,10 @@ static inline bool rdma_cap_ib_smi(const struct ib_device *device, u32 port_num)
  * The InfiniBand Communication Manager is one of many pre-defined General
  * Service Agents (GSA) that are accessed via the General Service
  * Interface (GSI).  It's role is to facilitate establishment of connections
- * between nodes as well as other management related tasks for established
+ * between analdes as well as other management related tasks for established
  * connections.
  *
- * Return: true if the port supports an IB CM (this does not guarantee that
+ * Return: true if the port supports an IB CM (this does analt guarantee that
  * a CM is actually running however).
  */
 static inline bool rdma_cap_ib_cm(const struct ib_device *device, u32 port_num)
@@ -3242,7 +3242,7 @@ static inline bool rdma_cap_ib_cm(const struct ib_device *device, u32 port_num)
  * Similar to above, but specific to iWARP connections which have a different
  * managment protocol than InfiniBand.
  *
- * Return: true if the port supports an iWARP CM (this does not guarantee that
+ * Return: true if the port supports an iWARP CM (this does analt guarantee that
  * a CM is actually running however).
  */
 static inline bool rdma_cap_iw_cm(const struct ib_device *device, u32 port_num)
@@ -3263,7 +3263,7 @@ static inline bool rdma_cap_iw_cm(const struct ib_device *device, u32 port_num)
  * SA to query the proper route.
  *
  * Return: true if the port should act as a client to the fabric Subnet
- * Administration interface.  This does not imply that the SA service is
+ * Administration interface.  This does analt imply that the SA service is
  * running locally.
  */
 static inline bool rdma_cap_ib_sa(const struct ib_device *device, u32 port_num)
@@ -3278,7 +3278,7 @@ static inline bool rdma_cap_ib_sa(const struct ib_device *device, u32 port_num)
  * @device: Device to check
  * @port_num: Port number to check
  *
- * InfiniBand multicast registration is more complex than normal IPv4 or
+ * InfiniBand multicast registration is more complex than analrmal IPv4 or
  * IPv6 multicast registration.  Each Host Channel Adapter must register
  * with the Subnet Manager when it wishes to join a multicast group.  It
  * should do so only once regardless of how many queue pairs it subscribes
@@ -3322,7 +3322,7 @@ static inline bool rdma_cap_af_ib(const struct ib_device *device, u32 port_num)
  *
  * RoCE is InfiniBand over Ethernet, and it uses a well defined technique
  * to fabricate GIDs over Ethernet/IP specific addresses native to the
- * port.  Normally, packet headers are generated by the sending host
+ * port.  Analrmally, packet headers are generated by the sending host
  * adapter, but when sending connectionless datagrams, we must manually
  * inject the proper headers for the fabric we are communicating over.
  *
@@ -3357,11 +3357,11 @@ static inline bool rdma_cap_opa_ah(struct ib_device *device, u32 port_num)
  * @device: Device
  * @port_num: Port number
  *
- * This MAD size includes the MAD headers and MAD payload.  No other headers
+ * This MAD size includes the MAD headers and MAD payload.  Anal other headers
  * are included.
  *
  * Return the max MAD size required by the Port.  Will return 0 if the port
- * does not support MADs
+ * does analt support MADs
  */
 static inline size_t rdma_max_mad_size(const struct ib_device *device,
 				       u32 port_num)
@@ -3376,7 +3376,7 @@ static inline size_t rdma_max_mad_size(const struct ib_device *device,
  *
  * RoCE GID table mechanism manages the various GIDs for a device.
  *
- * NOTE: if allocating the port's GID table has failed, this call will still
+ * ANALTE: if allocating the port's GID table has failed, this call will still
  * return true, but any RoCE GID table API will fail.
  *
  * Return: true if the port uses RoCE GID table mechanism in order to manage
@@ -3395,18 +3395,18 @@ static inline bool rdma_cap_roce_gid_table(const struct ib_device *device,
 static inline bool rdma_cap_read_inv(struct ib_device *dev, u32 port_num)
 {
 	/*
-	 * iWarp drivers must support READ W/ INVALIDATE.  No other protocol
+	 * iWarp drivers must support READ W/ INVALIDATE.  Anal other protocol
 	 * has support for it yet.
 	 */
 	return rdma_protocol_iwarp(dev, port_num);
 }
 
 /**
- * rdma_core_cap_opa_port - Return whether the RDMA Port is OPA or not.
+ * rdma_core_cap_opa_port - Return whether the RDMA Port is OPA or analt.
  * @device: Device
  * @port_num: 1 based Port number
  *
- * Return true if port is an Intel OPA port , false if not
+ * Return true if port is an Intel OPA port , false if analt
  */
 static inline bool rdma_core_cap_opa_port(struct ib_device *device,
 					  u32 port_num)
@@ -3422,7 +3422,7 @@ static inline bool rdma_core_cap_opa_port(struct ib_device *device,
  * @mtu: enum value of MTU
  *
  * Return the MTU size supported by the port as an integer value. Will return
- * -1 if enum value of mtu is not supported.
+ * -1 if enum value of mtu is analt supported.
  */
 static inline int rdma_mtu_enum_to_int(struct ib_device *device, u32 port,
 				       int mtu)
@@ -3457,7 +3457,7 @@ int ib_get_vf_config(struct ib_device *device, int vf, u32 port,
 int ib_get_vf_stats(struct ib_device *device, int vf, u32 port,
 		    struct ifla_vf_stats *stats);
 int ib_get_vf_guid(struct ib_device *device, int vf, u32 port,
-		    struct ifla_vf_guid *node_guid,
+		    struct ifla_vf_guid *analde_guid,
 		    struct ifla_vf_guid *port_guid);
 int ib_set_vf_guid(struct ib_device *device, int vf, u32 port, u64 guid,
 		   int type);
@@ -3515,7 +3515,7 @@ int ib_dealloc_pd_user(struct ib_pd *pd, struct ib_udata *udata);
  * ib_dealloc_pd - Deallocate kernel PD
  * @pd: The protection domain
  *
- * NOTE: for user PD use ib_dealloc_pd_user with valid udata!
+ * ANALTE: for user PD use ib_dealloc_pd_user with valid udata!
  */
 static inline void ib_dealloc_pd(struct ib_pd *pd)
 {
@@ -3581,7 +3581,7 @@ int ib_get_rdma_header_version(const union rdma_network_hdr *hdr);
  * @port_num: Port on which the received message arrived.
  * @wc: Work completion associated with the received message.
  * @grh: References the received global route header.  This parameter is
- *   ignored unless the work completion indicates that the GRH is valid.
+ *   iganalred unless the work completion indicates that the GRH is valid.
  * @ah_attr: Returned attributes that can be used when creating an address
  *   handle for replying to the message.
  * When ib_init_ah_attr_from_wc() returns success,
@@ -3602,7 +3602,7 @@ int ib_init_ah_attr_from_wc(struct ib_device *device, u32 port_num,
  * @pd: The protection domain associated with the address handle.
  * @wc: Work completion information associated with a received message.
  * @grh: References the received global route header.  This parameter is
- *   ignored unless the work completion indicates that the GRH is valid.
+ *   iganalred unless the work completion indicates that the GRH is valid.
  * @port_num: The outbound port number to associate with the address.
  *
  * The address handle is used to reference a local or global destination
@@ -3647,7 +3647,7 @@ int rdma_destroy_ah_user(struct ib_ah *ah, u32 flags, struct ib_udata *udata);
  * @ah: The address handle to destroy.
  * @flags: Destroy address handle flags (see enum rdma_destroy_ah_flags).
  *
- * NOTE: for user ah use rdma_destroy_ah_user with valid udata!
+ * ANALTE: for user ah use rdma_destroy_ah_user with valid udata!
  */
 static inline void rdma_destroy_ah(struct ib_ah *ah, u32 flags)
 {
@@ -3664,7 +3664,7 @@ static inline struct ib_srq *
 ib_create_srq(struct ib_pd *pd, struct ib_srq_init_attr *srq_init_attr)
 {
 	if (!pd->device->ops.create_srq)
-		return ERR_PTR(-EOPNOTSUPP);
+		return ERR_PTR(-EOPANALTSUPP);
 
 	return ib_create_srq_user(pd, srq_init_attr, NULL, NULL);
 }
@@ -3678,7 +3678,7 @@ ib_create_srq(struct ib_pd *pd, struct ib_srq_init_attr *srq_init_attr)
  *   are being modified.
  *
  * The mask may contain IB_SRQ_MAX_WR to resize the SRQ and/or
- * IB_SRQ_LIMIT to set the SRQ's limit and request notification when
+ * IB_SRQ_LIMIT to set the SRQ's limit and request analtification when
  * the number of receives queued drops below the limit.
  */
 int ib_modify_srq(struct ib_srq *srq,
@@ -3705,7 +3705,7 @@ int ib_destroy_srq_user(struct ib_srq *srq, struct ib_udata *udata);
  * ib_destroy_srq - Destroys the specified kernel SRQ.
  * @srq: The SRQ to destroy.
  *
- * NOTE: for user srq use ib_destroy_srq_user with valid udata!
+ * ANALTE: for user srq use ib_destroy_srq_user with valid udata!
  */
 static inline void ib_destroy_srq(struct ib_srq *srq)
 {
@@ -3804,7 +3804,7 @@ int ib_destroy_qp_user(struct ib_qp *qp, struct ib_udata *udata);
  * ib_destroy_qp - Destroys the specified kernel QP.
  * @qp: The QP to destroy.
  *
- * NOTE: for user qp use ib_destroy_qp_user with valid udata!
+ * ANALTE: for user qp use ib_destroy_qp_user with valid udata!
  */
 static inline int ib_destroy_qp(struct ib_qp *qp)
 {
@@ -3826,7 +3826,7 @@ struct ib_qp *ib_open_qp(struct ib_xrcd *xrcd,
  * @qp: The QP handle to release
  *
  * The opened QP handle is released by the caller.  The underlying
- * shared QP is not destroyed until all internal references are released.
+ * shared QP is analt destroyed until all internal references are released.
  */
 int ib_close_qp(struct ib_qp *qp);
 
@@ -3839,7 +3839,7 @@ int ib_close_qp(struct ib_qp *qp);
  *   the work request that failed to be posted on the QP.
  *
  * While IBA Vol. 1 section 11.4.1.1 specifies that if an immediate
- * error is returned, the QP state shall not be affected,
+ * error is returned, the QP state shall analt be affected,
  * ib_post_send() will return an immediate error after queueing any
  * earlier work requests in the list.
  */
@@ -3908,7 +3908,7 @@ int ib_process_cq_direct(struct ib_cq *cq, int budget);
  * @comp_handler: A user-specified callback that is invoked when a
  *   completion event occurs on the CQ.
  * @event_handler: A user-specified callback that is invoked when an
- *   asynchronous event not associated with a completion occurs on the CQ.
+ *   asynchroanalus event analt associated with a completion occurs on the CQ.
  * @cq_context: Context associated with the CQ returned to the user via
  *   the associated completion and event handlers.
  * @cq_attr: The attributes the CQ should be created upon.
@@ -3953,7 +3953,7 @@ int ib_destroy_cq_user(struct ib_cq *cq, struct ib_udata *udata);
  * ib_destroy_cq - Destroys the specified kernel CQ.
  * @cq: The CQ to destroy.
  *
- * NOTE: for user cq use ib_destroy_cq_user with valid udata!
+ * ANALTE: for user cq use ib_destroy_cq_user with valid udata!
  */
 static inline void ib_destroy_cq(struct ib_cq *cq)
 {
@@ -3972,7 +3972,7 @@ static inline void ib_destroy_cq(struct ib_cq *cq)
  * Poll a CQ for (possibly multiple) completions.  If the return value
  * is < 0, an error occurred.  If the return value is >= 0, it is the
  * number of completions returned.  If the return value is
- * non-negative and < num_entries, then the CQ was emptied.
+ * analn-negative and < num_entries, then the CQ was emptied.
  */
 static inline int ib_poll_cq(struct ib_cq *cq, int num_entries,
 			     struct ib_wc *wc)
@@ -3981,7 +3981,7 @@ static inline int ib_poll_cq(struct ib_cq *cq, int num_entries,
 }
 
 /**
- * ib_req_notify_cq - Request completion notification on a CQ.
+ * ib_req_analtify_cq - Request completion analtification on a CQ.
  * @cq: The CQ to generate an event for.
  * @flags:
  *   Must contain exactly one of %IB_CQ_SOLICITED or %IB_CQ_NEXT_COMP
@@ -3991,26 +3991,26 @@ static inline int ib_poll_cq(struct ib_cq *cq, int num_entries,
  *   described below.
  *
  * Return Value:
- *    < 0 means an error occurred while requesting notification
- *   == 0 means notification was requested successfully, and if
- *        IB_CQ_REPORT_MISSED_EVENTS was passed in, then no events
- *        were missed and it is safe to wait for another event.  In
+ *    < 0 means an error occurred while requesting analtification
+ *   == 0 means analtification was requested successfully, and if
+ *        IB_CQ_REPORT_MISSED_EVENTS was passed in, then anal events
+ *        were missed and it is safe to wait for aanalther event.  In
  *        this case is it guaranteed that any work completions added
  *        to the CQ since the last CQ poll will trigger a completion
- *        notification event.
+ *        analtification event.
  *    > 0 is only returned if IB_CQ_REPORT_MISSED_EVENTS was passed
  *        in.  It means that the consumer must poll the CQ again to
  *        make sure it is empty to avoid missing an event because of a
- *        race between requesting notification and an entry being
+ *        race between requesting analtification and an entry being
  *        added to the CQ.  This return value means it is possible
- *        (but not guaranteed) that a work completion has been added
+ *        (but analt guaranteed) that a work completion has been added
  *        to the CQ since the last poll without triggering a
- *        completion notification event.
+ *        completion analtification event.
  */
-static inline int ib_req_notify_cq(struct ib_cq *cq,
-				   enum ib_cq_notify_flags flags)
+static inline int ib_req_analtify_cq(struct ib_cq *cq,
+				   enum ib_cq_analtify_flags flags)
 {
-	return cq->device->ops.req_notify_cq(cq, flags);
+	return cq->device->ops.req_analtify_cq(cq, flags);
 }
 
 struct ib_cq *ib_cq_pool_get(struct ib_device *dev, unsigned int nr_cqe,
@@ -4296,7 +4296,7 @@ int ib_dereg_mr_user(struct ib_mr *mr, struct ib_udata *udata);
  *
  * This function can fail, if the memory region has memory windows bound to it.
  *
- * NOTE: for user mr use ib_dereg_mr_user with valid udata!
+ * ANALTE: for user mr use ib_dereg_mr_user with valid udata!
  */
 static inline int ib_dereg_mr(struct ib_mr *mr)
 {
@@ -4356,7 +4356,7 @@ int ib_attach_mcast(struct ib_qp *qp, union ib_gid *gid, u16 lid);
 int ib_detach_mcast(struct ib_qp *qp, union ib_gid *gid, u16 lid);
 
 struct ib_xrcd *ib_alloc_xrcd_user(struct ib_device *device,
-				   struct inode *inode, struct ib_udata *udata);
+				   struct ianalde *ianalde, struct ib_udata *udata);
 int ib_dealloc_xrcd_user(struct ib_xrcd *xrcd, struct ib_udata *udata);
 
 static inline int ib_check_mr_access(struct ib_device *ib_dev,
@@ -4377,13 +4377,13 @@ static inline int ib_check_mr_access(struct ib_device *ib_dev,
 
 	if (flags & IB_ACCESS_ON_DEMAND &&
 	    !(ib_dev->attrs.kernel_cap_flags & IBK_ON_DEMAND_PAGING))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if ((flags & IB_ACCESS_FLUSH_GLOBAL &&
 	    !(device_cap & IB_DEVICE_FLUSH_GLOBAL)) ||
 	    (flags & IB_ACCESS_FLUSH_PERSISTENT &&
 	    !(device_cap & IB_DEVICE_FLUSH_PERSISTENT)))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return 0;
 }
@@ -4421,7 +4421,7 @@ int ib_check_mr_status(struct ib_mr *mr, u32 check_mask,
  * ib_device_try_get: Hold a registration lock
  * device: The device to lock
  *
- * A device under an active registration lock cannot become unregistered. It
+ * A device under an active registration lock cananalt become unregistered. It
  * is only possible to obtain a registration lock on a device that is fully
  * registered, otherwise this function returns false.
  *
@@ -4432,7 +4432,7 @@ int ib_check_mr_status(struct ib_mr *mr, u32 check_mask,
  */
 static inline bool ib_device_try_get(struct ib_device *dev)
 {
-	return refcount_inc_not_zero(&dev->refcount);
+	return refcount_inc_analt_zero(&dev->refcount);
 }
 
 void ib_device_put(struct ib_device *device);
@@ -4747,23 +4747,23 @@ static inline struct ib_device *rdma_device_to_ibdev(struct device *device)
 }
 
 /**
- * ibdev_to_node - return the NUMA node for a given ib_device
- * @dev:	device to get the NUMA node for.
+ * ibdev_to_analde - return the NUMA analde for a given ib_device
+ * @dev:	device to get the NUMA analde for.
  */
-static inline int ibdev_to_node(struct ib_device *ibdev)
+static inline int ibdev_to_analde(struct ib_device *ibdev)
 {
 	struct device *parent = ibdev->dev.parent;
 
 	if (!parent)
-		return NUMA_NO_NODE;
-	return dev_to_node(parent);
+		return NUMA_ANAL_ANALDE;
+	return dev_to_analde(parent);
 }
 
 /**
  * rdma_device_to_drv_device - Helper macro to reach back to driver's
  *			       ib_device holder structure from device pointer.
  *
- * NOTE: New drivers should not make use of this API; This API is only for
+ * ANALTE: New drivers should analt make use of this API; This API is only for
  * existing drivers who have exposed sysfs entries using
  * ops->device_group.
  */
@@ -4820,7 +4820,7 @@ static inline u32 rdma_calc_flow_label(u32 lqpn, u32 rqpn)
 
 /**
  * rdma_get_udp_sport - Calculate and set UDP source port based on the flow
- *                      label. If flow label is not defined in GRH then
+ *                      label. If flow label is analt defined in GRH then
  *                      calculate it based on lqpn/rqpn.
  *
  * @fl:                 flow label from GRH

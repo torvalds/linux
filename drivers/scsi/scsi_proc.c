@@ -22,7 +22,7 @@
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/proc_fs.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/blkdev.h>
 #include <linux/seq_file.h>
 #include <linux/mutex.h>
@@ -64,8 +64,8 @@ struct scsi_proc_entry {
 static ssize_t proc_scsi_host_write(struct file *file, const char __user *buf,
                            size_t count, loff_t *ppos)
 {
-	struct Scsi_Host *shost = pde_data(file_inode(file));
-	ssize_t ret = -ENOMEM;
+	struct Scsi_Host *shost = pde_data(file_ianalde(file));
+	ssize_t ret = -EANALMEM;
 	char *page;
     
 	if (count > PROC_BLOCK_SIZE)
@@ -92,9 +92,9 @@ static int proc_scsi_show(struct seq_file *m, void *v)
 	return shost->hostt->show_info(m, shost);
 }
 
-static int proc_scsi_host_open(struct inode *inode, struct file *file)
+static int proc_scsi_host_open(struct ianalde *ianalde, struct file *file)
 {
-	return single_open_size(file, proc_scsi_show, pde_data(inode),
+	return single_open_size(file, proc_scsi_show, pde_data(ianalde),
 				4 * PAGE_SIZE);
 }
 
@@ -164,7 +164,7 @@ int scsi_proc_hostdir_add(const struct scsi_host_template *sht)
 	if (!e) {
 		e = kzalloc(sizeof(*e), GFP_KERNEL);
 		if (!e) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto unlock;
 		}
 	}
@@ -174,7 +174,7 @@ int scsi_proc_hostdir_add(const struct scsi_host_template *sht)
 	if (!e->proc_dir) {
 		printk(KERN_ERR "%s: proc_mkdir failed for %s\n", __func__,
 		       sht->proc_name);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto unlock;
 	}
 	e->sht = sht;
@@ -229,7 +229,7 @@ void scsi_proc_host_add(struct Scsi_Host *shost)
 	if (!e)
 		goto err;
 
-	sprintf(name,"%d", shost->host_no);
+	sprintf(name,"%d", shost->host_anal);
 	p = proc_create_data(name, S_IRUGO | S_IWUSR, e->proc_dir,
 			     &proc_scsi_ops, shost);
 	if (!p)
@@ -259,7 +259,7 @@ void scsi_proc_host_rm(struct Scsi_Host *shost)
 	if (!e)
 		return;
 
-	sprintf(name,"%d", shost->host_no);
+	sprintf(name,"%d", shost->host_anal);
 	remove_proc_entry(name, e->proc_dir);
 }
 /**
@@ -282,7 +282,7 @@ static int proc_print_scsidevice(struct device *dev, void *data)
 	sdev = to_scsi_device(dev);
 	seq_printf(s,
 		"Host: scsi%d Channel: %02d Id: %02d Lun: %02llu\n  Vendor: ",
-		sdev->host->host_no, sdev->channel, sdev->id, sdev->lun);
+		sdev->host->host_anal, sdev->channel, sdev->id, sdev->lun);
 	for (i = 0; i < 8; i++) {
 		if (sdev->vendor[i] >= 0x20)
 			seq_putc(s, sdev->vendor[i]);
@@ -332,7 +332,7 @@ out:
  * does scsi_host_lookup() and either user_scan() if that transport
  * type supports it, or else scsi_scan_host_selected()
  *
- * Note: this seems to be aimed exclusively at SCSI parallel busses.
+ * Analte: this seems to be aimed exclusively at SCSI parallel busses.
  */
 
 static int scsi_add_single_device(uint host, uint channel, uint id, uint lun)
@@ -385,10 +385,10 @@ static int scsi_remove_single_device(uint host, uint channel, uint id, uint lun)
 
 /**
  * proc_scsi_write - handle writes to /proc/scsi/scsi
- * @file: not used
+ * @file: analt used
  * @buf: buffer to write
  * @length: length of buf, at most PAGE_SIZE
- * @ppos: not used
+ * @ppos: analt used
  *
  * Description: this provides a legacy mechanism to add or remove devices by
  * Host, Channel, ID, and Lun.  To use,
@@ -396,9 +396,9 @@ static int scsi_remove_single_device(uint host, uint channel, uint id, uint lun)
  * "echo 'scsi remove-single-device 0 1 2 3' > /proc/scsi/scsi" with
  * "0 1 2 3" replaced by the Host, Channel, Id, and Lun.
  *
- * Note: this seems to be aimed at parallel SCSI. Most modern busses (USB,
+ * Analte: this seems to be aimed at parallel SCSI. Most modern busses (USB,
  * SATA, Firewire, Fibre Channel, etc) dynamically assign these values to
- * provide a unique identifier and nothing more.
+ * provide a unique identifier and analthing more.
  */
 
 
@@ -414,7 +414,7 @@ static ssize_t proc_scsi_write(struct file *file, const char __user *buf,
 
 	buffer = (char *)__get_free_page(GFP_KERNEL);
 	if (!buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = -EFAULT;
 	if (copy_from_user(buffer, buf, length))
@@ -521,12 +521,12 @@ static const struct seq_operations scsi_seq_ops = {
 
 /**
  * proc_scsi_open - glue function
- * @inode: not used
+ * @ianalde: analt used
  * @file: passed to single_open()
  *
  * Associates proc_scsi_show with this file
  */
-static int proc_scsi_open(struct inode *inode, struct file *file)
+static int proc_scsi_open(struct ianalde *ianalde, struct file *file)
 {
 	/*
 	 * We don't really need this for the write case but it doesn't
@@ -563,7 +563,7 @@ int __init scsi_init_procfs(void)
 err2:
 	remove_proc_entry("scsi", NULL);
 err1:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /**

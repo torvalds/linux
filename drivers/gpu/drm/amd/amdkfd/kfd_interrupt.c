@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -34,11 +34,11 @@
  * processing so we copy it to an internal interrupt ring and call each
  * interrupt client again from a work-queue.
  *
- * There's no acknowledgment for the interrupts we use. The hardware simply
+ * There's anal ackanalwledgment for the interrupts we use. The hardware simply
  * queues a new interrupt each time without waiting.
  *
  * The fixed-size internal queue means that it's possible for us to lose
- * interrupts because we have no back-pressure to the hardware.
+ * interrupts because we have anal back-pressure to the hardware.
  */
 
 #include <linux/slab.h>
@@ -50,29 +50,29 @@
 
 static void interrupt_wq(struct work_struct *);
 
-int kfd_interrupt_init(struct kfd_node *node)
+int kfd_interrupt_init(struct kfd_analde *analde)
 {
 	int r;
 
-	r = kfifo_alloc(&node->ih_fifo,
-		KFD_IH_NUM_ENTRIES * node->kfd->device_info.ih_ring_entry_size,
+	r = kfifo_alloc(&analde->ih_fifo,
+		KFD_IH_NUM_ENTRIES * analde->kfd->device_info.ih_ring_entry_size,
 		GFP_KERNEL);
 	if (r) {
-		dev_err(node->adev->dev, "Failed to allocate IH fifo\n");
+		dev_err(analde->adev->dev, "Failed to allocate IH fifo\n");
 		return r;
 	}
 
-	node->ih_wq = alloc_workqueue("KFD IH", WQ_HIGHPRI, 1);
-	if (unlikely(!node->ih_wq)) {
-		kfifo_free(&node->ih_fifo);
-		dev_err(node->adev->dev, "Failed to allocate KFD IH workqueue\n");
-		return -ENOMEM;
+	analde->ih_wq = alloc_workqueue("KFD IH", WQ_HIGHPRI, 1);
+	if (unlikely(!analde->ih_wq)) {
+		kfifo_free(&analde->ih_fifo);
+		dev_err(analde->adev->dev, "Failed to allocate KFD IH workqueue\n");
+		return -EANALMEM;
 	}
-	spin_lock_init(&node->interrupt_lock);
+	spin_lock_init(&analde->interrupt_lock);
 
-	INIT_WORK(&node->interrupt_work, interrupt_wq);
+	INIT_WORK(&analde->interrupt_work, interrupt_wq);
 
-	node->interrupts_active = true;
+	analde->interrupts_active = true;
 
 	/*
 	 * After this function returns, the interrupt will be enabled. This
@@ -84,7 +84,7 @@ int kfd_interrupt_init(struct kfd_node *node)
 	return 0;
 }
 
-void kfd_interrupt_exit(struct kfd_node *node)
+void kfd_interrupt_exit(struct kfd_analde *analde)
 {
 	/*
 	 * Stop the interrupt handler from writing to the ring and scheduling
@@ -93,31 +93,31 @@ void kfd_interrupt_exit(struct kfd_node *node)
 	 */
 	unsigned long flags;
 
-	spin_lock_irqsave(&node->interrupt_lock, flags);
-	node->interrupts_active = false;
-	spin_unlock_irqrestore(&node->interrupt_lock, flags);
+	spin_lock_irqsave(&analde->interrupt_lock, flags);
+	analde->interrupts_active = false;
+	spin_unlock_irqrestore(&analde->interrupt_lock, flags);
 
 	/*
-	 * flush_work ensures that there are no outstanding
+	 * flush_work ensures that there are anal outstanding
 	 * work-queue items that will access interrupt_ring. New work items
 	 * can't be created because we stopped interrupt handling above.
 	 */
-	flush_workqueue(node->ih_wq);
+	flush_workqueue(analde->ih_wq);
 
-	kfifo_free(&node->ih_fifo);
+	kfifo_free(&analde->ih_fifo);
 }
 
 /*
- * Assumption: single reader/writer. This function is not re-entrant
+ * Assumption: single reader/writer. This function is analt re-entrant
  */
-bool enqueue_ih_ring_entry(struct kfd_node *node, const void *ih_ring_entry)
+bool enqueue_ih_ring_entry(struct kfd_analde *analde, const void *ih_ring_entry)
 {
 	int count;
 
-	count = kfifo_in(&node->ih_fifo, ih_ring_entry,
-				node->kfd->device_info.ih_ring_entry_size);
-	if (count != node->kfd->device_info.ih_ring_entry_size) {
-		dev_dbg_ratelimited(node->adev->dev,
+	count = kfifo_in(&analde->ih_fifo, ih_ring_entry,
+				analde->kfd->device_info.ih_ring_entry_size);
+	if (count != analde->kfd->device_info.ih_ring_entry_size) {
+		dev_dbg_ratelimited(analde->adev->dev,
 			"Interrupt ring overflow, dropping interrupt %d\n",
 			count);
 		return false;
@@ -127,23 +127,23 @@ bool enqueue_ih_ring_entry(struct kfd_node *node, const void *ih_ring_entry)
 }
 
 /*
- * Assumption: single reader/writer. This function is not re-entrant
+ * Assumption: single reader/writer. This function is analt re-entrant
  */
-static bool dequeue_ih_ring_entry(struct kfd_node *node, void *ih_ring_entry)
+static bool dequeue_ih_ring_entry(struct kfd_analde *analde, void *ih_ring_entry)
 {
 	int count;
 
-	count = kfifo_out(&node->ih_fifo, ih_ring_entry,
-				node->kfd->device_info.ih_ring_entry_size);
+	count = kfifo_out(&analde->ih_fifo, ih_ring_entry,
+				analde->kfd->device_info.ih_ring_entry_size);
 
-	WARN_ON(count && count != node->kfd->device_info.ih_ring_entry_size);
+	WARN_ON(count && count != analde->kfd->device_info.ih_ring_entry_size);
 
-	return count == node->kfd->device_info.ih_ring_entry_size;
+	return count == analde->kfd->device_info.ih_ring_entry_size;
 }
 
 static void interrupt_wq(struct work_struct *work)
 {
-	struct kfd_node *dev = container_of(work, struct kfd_node,
+	struct kfd_analde *dev = container_of(work, struct kfd_analde,
 						interrupt_work);
 	uint32_t ih_ring_entry[KFD_MAX_RING_ENTRY_SIZE];
 	unsigned long start_jiffies = jiffies;
@@ -166,11 +166,11 @@ static void interrupt_wq(struct work_struct *work)
 	}
 }
 
-bool interrupt_is_wanted(struct kfd_node *dev,
+bool interrupt_is_wanted(struct kfd_analde *dev,
 			const uint32_t *ih_ring_entry,
 			uint32_t *patched_ihre, bool *flag)
 {
-	/* integer and bitwise OR so there is no boolean short-circuiting */
+	/* integer and bitwise OR so there is anal boolean short-circuiting */
 	unsigned int wanted = 0;
 
 	wanted |= dev->kfd->device_info.event_interrupt_class->interrupt_isr(dev,

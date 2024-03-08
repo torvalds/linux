@@ -2,7 +2,7 @@
 //
 // Driver for Microchip S/PDIF RX Controller
 //
-// Copyright (C) 2020 Microchip Technology Inc. and its subsidiaries
+// Copyright (C) 2020 Microchip Techanallogy Inc. and its subsidiaries
 //
 // Author: Codrin Ciubotariu <codrin.ciubotariu@microchip.com>
 
@@ -69,7 +69,7 @@
 /* Parity Bit Mode */
 #define SPDIFRX_MR_PBMODE_MASK		GENMASK(3, 3)
 #define SPDIFRX_MR_PBMODE_PARCHECK	(0 << 3)	/* Parity Check Enabled */
-#define SPDIFRX_MR_PBMODE_NOPARCHECK	(1 << 3)	/* Parity Check Disabled */
+#define SPDIFRX_MR_PBMODE_ANALPARCHECK	(1 << 3)	/* Parity Check Disabled */
 
 /* Sample Data Width */
 #define SPDIFRX_MR_DATAWIDTH_MASK	GENMASK(5, 4)
@@ -88,7 +88,7 @@
 
 /* Consecutive Preamble Error Threshold Automatic Restart */
 #define SPDIFRX_MR_AUTORST_MASK			GENMASK(24, 24)
-#define SPDIFRX_MR_AUTORST_NOACTION		(0 << 24)
+#define SPDIFRX_MR_AUTORST_ANALACTION		(0 << 24)
 #define SPDIFRX_MR_AUTORST_UNLOCK_ON_PRE_ERR	(1 << 24)
 
 /*
@@ -116,7 +116,7 @@
 #define SPDIFRX_RSR_ULOCK			BIT(0)
 #define SPDIFRX_RSR_BADF			BIT(1)
 #define SPDIFRX_RSR_LOWF			BIT(2)
-#define SPDIFRX_RSR_NOSIGNAL			BIT(3)
+#define SPDIFRX_RSR_ANALSIGNAL			BIT(3)
 #define SPDIFRX_RSR_IFS_MASK			GENMASK(27, 16)
 #define SPDIFRX_RSR_IFS(reg)			\
 	(((reg) & SPDIFRX_RSR_IFS_MASK) >> 16)
@@ -346,7 +346,7 @@ static irqreturn_t mchp_spdif_interrupt(int irq, void *dev_id)
 	struct mchp_spdifrx_dev *dev = dev_id;
 	struct mchp_spdifrx_mixer_control *ctrl = &dev->control;
 	u32 sr, imr, pending;
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 	int ch;
 
 	regmap_read(dev->regmap, SPDIFRX_ISR, &sr);
@@ -356,7 +356,7 @@ static irqreturn_t mchp_spdif_interrupt(int irq, void *dev_id)
 		pending);
 
 	if (!pending)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (pending & SPDIFRX_IR_BLOCKEND) {
 		for (ch = 0; ch < SPDIFRX_CHANNELS; ch++) {
@@ -437,7 +437,7 @@ static int mchp_spdifrx_hw_params(struct snd_pcm_substream *substream,
 		params_width(params), params_channels(params));
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		dev_err(dev->dev, "Playback is not supported\n");
+		dev_err(dev->dev, "Playback is analt supported\n");
 		return -EINVAL;
 	}
 
@@ -548,7 +548,7 @@ static int mchp_spdifrx_cs_get(struct mchp_spdifrx_dev *dev,
 	 *   caches (ch_stat->data)
 	 * - otherwise we just update it here the software caches with latest
 	 *   available information and return it; in this case we don't need
-	 *   spin locking as the IRQ is disabled and will not be raised from
+	 *   spin locking as the IRQ is disabled and will analt be raised from
 	 *   anywhere else.
 	 */
 
@@ -558,7 +558,7 @@ static int mchp_spdifrx_cs_get(struct mchp_spdifrx_dev *dev,
 		/* Check for new data available */
 		ret = wait_for_completion_interruptible_timeout(&ch_stat->done,
 								msecs_to_jiffies(100));
-		/* Valid stream might not be present */
+		/* Valid stream might analt be present */
 		if (ret <= 0) {
 			dev_dbg(dev->dev, "channel status for channel %d timeout\n",
 				channel);
@@ -633,7 +633,7 @@ static int mchp_spdifrx_subcode_ch_get(struct mchp_spdifrx_dev *dev,
 	 * To retrieve data:
 	 * - if the receiver is enabled we need to wait for blockend IRQ to read
 	 *   data to and update it for us in software caches
-	 * - otherwise reading the SPDIFRX_CHUD() registers is enough.
+	 * - otherwise reading the SPDIFRX_CHUD() registers is eanalugh.
 	 */
 
 	if (dev->trigger_enabled) {
@@ -641,7 +641,7 @@ static int mchp_spdifrx_subcode_ch_get(struct mchp_spdifrx_dev *dev,
 		regmap_write(dev->regmap, SPDIFRX_IER, SPDIFRX_IR_BLOCKEND);
 		ret = wait_for_completion_interruptible_timeout(&user_data->done,
 								msecs_to_jiffies(100));
-		/* Valid stream might not be present. */
+		/* Valid stream might analt be present. */
 		if (ret <= 0) {
 			dev_dbg(dev->dev, "user data for channel %d timeout\n",
 				channel);
@@ -791,7 +791,7 @@ static int mchp_spdifrx_signal_get(struct snd_kcontrol *kcontrol,
 	/*
 	 * To get the signal we need to have receiver enabled. This
 	 * could be enabled also from trigger() function thus we need to
-	 * take care of not disabling the receiver when it runs.
+	 * take care of analt disabling the receiver when it runs.
 	 */
 	if (!dev->trigger_enabled) {
 		regmap_update_bits(dev->regmap, SPDIFRX_MR, SPDIFRX_MR_RXEN_MASK,
@@ -818,7 +818,7 @@ unlock:
 	mutex_unlock(&dev->mlock);
 
 	if (!(val & SPDIFRX_RSR_ULOCK))
-		ctrl->signal = !(val & SPDIFRX_RSR_NOSIGNAL);
+		ctrl->signal = !(val & SPDIFRX_RSR_ANALSIGNAL);
 	else
 		ctrl->signal = 0;
 	uvalue->value.integer.value[0] = ctrl->signal;
@@ -859,13 +859,13 @@ static int mchp_spdifrx_rate_get(struct snd_kcontrol *kcontrol,
 	 */
 	if (dev->trigger_enabled) {
 		regmap_read(dev->regmap, SPDIFRX_RSR, &val);
-		/* If the receiver is not locked, ISF data is invalid. */
+		/* If the receiver is analt locked, ISF data is invalid. */
 		if (val & SPDIFRX_RSR_ULOCK || !(val & SPDIFRX_RSR_IFS_MASK)) {
 			ucontrol->value.integer.value[0] = 0;
 			goto pm_runtime_put;
 		}
 	} else {
-		/* Reveicer is not locked, IFS data is invalid. */
+		/* Reveicer is analt locked, IFS data is invalid. */
 		ucontrol->value.integer.value[0] = 0;
 		goto pm_runtime_put;
 	}
@@ -929,7 +929,7 @@ static struct snd_kcontrol_new mchp_spdifrx_ctrls[] = {
 	/* Lock status */
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_PCM,
-		.name = SNDRV_CTL_NAME_IEC958("", CAPTURE, NONE) "Unlocked",
+		.name = SNDRV_CTL_NAME_IEC958("", CAPTURE, ANALNE) "Unlocked",
 		.access = SNDRV_CTL_ELEM_ACCESS_READ |
 			SNDRV_CTL_ELEM_ACCESS_VOLATILE,
 		.info = mchp_spdifrx_boolean_info,
@@ -938,7 +938,7 @@ static struct snd_kcontrol_new mchp_spdifrx_ctrls[] = {
 	/* Bad format */
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_PCM,
-		.name = SNDRV_CTL_NAME_IEC958("", CAPTURE, NONE)"Bad Format",
+		.name = SNDRV_CTL_NAME_IEC958("", CAPTURE, ANALNE)"Bad Format",
 		.access = SNDRV_CTL_ELEM_ACCESS_READ |
 			SNDRV_CTL_ELEM_ACCESS_VOLATILE,
 		.info = mchp_spdifrx_boolean_info,
@@ -947,7 +947,7 @@ static struct snd_kcontrol_new mchp_spdifrx_ctrls[] = {
 	/* Signal */
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_PCM,
-		.name = SNDRV_CTL_NAME_IEC958("", CAPTURE, NONE) "Signal",
+		.name = SNDRV_CTL_NAME_IEC958("", CAPTURE, ANALNE) "Signal",
 		.access = SNDRV_CTL_ELEM_ACCESS_READ |
 			SNDRV_CTL_ELEM_ACCESS_VOLATILE,
 		.info = mchp_spdifrx_boolean_info,
@@ -956,7 +956,7 @@ static struct snd_kcontrol_new mchp_spdifrx_ctrls[] = {
 	/* Sampling rate */
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_PCM,
-		.name = SNDRV_CTL_NAME_IEC958("", CAPTURE, NONE) "Rate",
+		.name = SNDRV_CTL_NAME_IEC958("", CAPTURE, ANALNE) "Rate",
 		.access = SNDRV_CTL_ELEM_ACCESS_READ |
 			SNDRV_CTL_ELEM_ACCESS_VOLATILE,
 		.info = mchp_spdifrx_rate_info,
@@ -979,7 +979,7 @@ static int mchp_spdifrx_dai_probe(struct snd_soc_dai *dai)
 	regmap_write(dev->regmap, SPDIFRX_MR,
 		     SPDIFRX_MR_VBMODE_DISCARD_IF_VB1 |
 		     SPDIFRX_MR_SBMODE_DISCARD |
-		     SPDIFRX_MR_AUTORST_NOACTION |
+		     SPDIFRX_MR_AUTORST_ANALACTION |
 		     SPDIFRX_MR_PACK_DISABLED);
 
 	for (ch = 0; ch < SPDIFRX_CHANNELS; ch++) {
@@ -1091,7 +1091,7 @@ static int mchp_spdifrx_probe(struct platform_device *pdev)
 	/* Get memory for driver data. */
 	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Map I/O registers. */
 	base = devm_platform_get_and_ioremap_resource(pdev, 0, &mem);

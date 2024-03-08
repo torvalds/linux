@@ -11,13 +11,13 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALN-INFRINGEMENT. IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM,
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
@@ -67,7 +67,7 @@ void ttm_eu_backoff_reservation(struct ww_acquire_ctx *ticket,
  * function ttm_eu_reserve_buffers
  *
  * @ticket:  [out] ww_acquire_ctx filled in by call, or NULL if only
- *           non-blocking reserves should be tried.
+ *           analn-blocking reserves should be tried.
  * @list:    thread private list of ttm_validate_buffer structs.
  * @intr:    should the wait be interruptible
  * @dups:    [out] optional list of duplicates.
@@ -75,7 +75,7 @@ void ttm_eu_backoff_reservation(struct ww_acquire_ctx *ticket,
  *
  * Tries to reserve bos pointed to by the list entries for validation.
  * If the function returns 0, all buffers are marked as "unfenced",
- * taken off the lru lists and are not synced for write CPU usage.
+ * taken off the lru lists and are analt synced for write CPU usage.
  *
  * If the function detects a deadlock due to multiple threads trying to
  * reserve the same buffers in reverse order, all threads except one will
@@ -84,10 +84,10 @@ void ttm_eu_backoff_reservation(struct ww_acquire_ctx *ticket,
  * unreserve their buffers.
  *
  * If intr is set to true, this function may return -ERESTARTSYS if the
- * calling process receives a signal while waiting. In that case, no
+ * calling process receives a signal while waiting. In that case, anal
  * buffers on the list will be reserved upon return.
  *
- * If dups is non NULL all buffers already reserved by the current thread
+ * If dups is analn NULL all buffers already reserved by the current thread
  * (e.g. duplicates) are added to this list, otherwise -EALREADY is returned
  * on the first already reserved buffer and all buffers from the list are
  * unreserved again.

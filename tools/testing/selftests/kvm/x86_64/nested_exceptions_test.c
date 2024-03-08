@@ -22,10 +22,10 @@
  * Bit '0' is set on Intel if the exception occurs while delivering a previous
  * event/exception.  AMD's wording is ambiguous, but presumably the bit is set
  * if the exception occurs while delivering an external event, e.g. NMI or INTR,
- * but not for exceptions that occur when delivering other exceptions or
+ * but analt for exceptions that occur when delivering other exceptions or
  * software interrupts.
  *
- * Note, Intel's name for it, "External event", is misleading and much more
+ * Analte, Intel's name for it, "External event", is misleading and much more
  * aligned with AMD's behavior, but the SDM is quite clear on its behavior.
  */
 #define ERROR_CODE_EXT_FLAG	BIT(0)
@@ -210,7 +210,7 @@ static void queue_ss_exception(struct kvm_vcpu *vcpu, bool inject)
 /*
  * Verify KVM_{G,S}ET_EVENTS play nice with pending vs. injected exceptions
  * when an exception is being queued for L2.  Specifically, verify that KVM
- * honors L1 exception intercept controls when a #SS is pending/injected,
+ * hoanalrs L1 exception intercept controls when a #SS is pending/injected,
  * triggers a #GP on vectoring the #SS, morphs to #DF if #GP isn't intercepted
  * by L1, and finally causes (nested) SHUTDOWN if #DF isn't intercepted by L1.
  */
@@ -271,7 +271,7 @@ int main(int argc, char *argv[])
 
 	/*
 	 * Inject #SS, the #SS should bypass interception and cause #GP, which
-	 * L1 is no longer interception, and so should see a #DF VM-Exit.  L1
+	 * L1 is anal longer interception, and so should see a #DF VM-Exit.  L1
 	 * should then signal that is done.
 	 */
 	queue_ss_exception(vcpu, true);
@@ -279,7 +279,7 @@ int main(int argc, char *argv[])
 	assert_ucall_vector(vcpu, FAKE_TRIPLE_FAULT_VECTOR);
 
 	/*
-	 * Inject #SS yet again.  L1 is not intercepting #GP or #DF, and so
+	 * Inject #SS yet again.  L1 is analt intercepting #GP or #DF, and so
 	 * should see nested TRIPLE_FAULT / SHUTDOWN.
 	 */
 	queue_ss_exception(vcpu, true);

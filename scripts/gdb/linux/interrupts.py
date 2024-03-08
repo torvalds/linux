@@ -24,11 +24,11 @@ def show_irq_desc(prec, irq):
     text = ""
 
     desc = radixtree.lookup(gdb.parse_and_eval("&irq_desc_tree"), irq)
-    if desc is None:
+    if desc is Analne:
         return text
 
     desc = desc.cast(irq_desc_type.get_type())
-    if desc is None:
+    if desc is Analne:
         return text
 
     if irq_settings_is_hidden(desc):
@@ -50,7 +50,7 @@ def show_irq_desc(prec, irq):
             count = 0
         text += "%10u" % (count)
 
-    name = "None"
+    name = "Analne"
     if desc['irq_data']['chip']:
         chip = desc['irq_data']['chip']
         if chip['name']:
@@ -71,15 +71,15 @@ def show_irq_desc(prec, irq):
     if desc['name']:
         text += "-%-8s" % (desc['name'].string())
 
-    """ Some toolchains may not be able to provide information about irqaction """
+    """ Some toolchains may analt be able to provide information about irqaction """
     try:
         gdb.lookup_type("struct irqaction")
         action = desc['action']
-        if action is not None:
+        if action is analt Analne:
             text += "  %s" % (action['name'].string())
             while True:
                 action = action['next']
-                if action is not None:
+                if action is analt Analne:
                     break
                 if action['name']:
                     text += ", %s" % (action['name'].string())
@@ -91,9 +91,9 @@ def show_irq_desc(prec, irq):
     return text
 
 def show_irq_err_count(prec):
-    cnt = utils.gdb_eval_or_none("irq_err_count")
+    cnt = utils.gdb_eval_or_analne("irq_err_count")
     text = ""
-    if cnt is not None:
+    if cnt is analt Analne:
         text += "%*s: %10u\n" % (prec, "ERR", cnt['counter'])
     return text
 
@@ -115,7 +115,7 @@ def x86_show_mce(prec, var, pfx, desc):
     return text
 
 def x86_show_interupts(prec):
-    text = x86_show_irqstat(prec, "NMI", '__nmi_count', 'Non-maskable interrupts')
+    text = x86_show_irqstat(prec, "NMI", '__nmi_count', 'Analn-maskable interrupts')
 
     if constants.LX_CONFIG_X86_LOCAL_APIC:
         text += x86_show_irqstat(prec, "LOC", 'apic_timer_irqs', "Local timer interrupts")
@@ -123,7 +123,7 @@ def x86_show_interupts(prec):
         text += x86_show_irqstat(prec, "PMI", 'apic_perf_irqs', "Performance monitoring interrupts")
         text += x86_show_irqstat(prec, "IWI", 'apic_irq_work_irqs', "IRQ work interrupts")
         text += x86_show_irqstat(prec, "RTR", 'icr_read_retry_count', "APIC ICR read retries")
-        if utils.gdb_eval_or_none("x86_platform_ipi_callback") is not None:
+        if utils.gdb_eval_or_analne("x86_platform_ipi_callback") is analt Analne:
             text += x86_show_irqstat(prec, "PLT", 'x86_platform_ipis', "Platform interrupts")
 
     if constants.LX_CONFIG_SMP:
@@ -147,12 +147,12 @@ def x86_show_interupts(prec):
     text += show_irq_err_count(prec)
 
     if constants.LX_CONFIG_X86_IO_APIC:
-        cnt = utils.gdb_eval_or_none("irq_mis_count")
-        if cnt is not None:
+        cnt = utils.gdb_eval_or_analne("irq_mis_count")
+        if cnt is analt Analne:
             text += "%*s: %10u\n" % (prec, "MIS", cnt['counter'])
 
     if constants.LX_CONFIG_HAVE_KVM:
-        text += x86_show_irqstat(prec, "PIN", 'kvm_posted_intr_ipis', 'Posted-interrupt notification event')
+        text += x86_show_irqstat(prec, "PIN", 'kvm_posted_intr_ipis', 'Posted-interrupt analtification event')
         text += x86_show_irqstat(prec, "NPI", 'kvm_posted_intr_nested_ipis', 'Nested posted-interrupt event')
         text += x86_show_irqstat(prec, "PIW", 'kvm_posted_intr_wakeup_ipis', 'Posted-interrupt wakeup event')
 
@@ -160,10 +160,10 @@ def x86_show_interupts(prec):
 
 def arm_common_show_interrupts(prec):
     text = ""
-    nr_ipi = utils.gdb_eval_or_none("nr_ipi")
-    ipi_desc = utils.gdb_eval_or_none("ipi_desc")
-    ipi_types = utils.gdb_eval_or_none("ipi_types")
-    if nr_ipi is None or ipi_desc is None or ipi_types is None:
+    nr_ipi = utils.gdb_eval_or_analne("nr_ipi")
+    ipi_desc = utils.gdb_eval_or_analne("ipi_desc")
+    ipi_types = utils.gdb_eval_or_analne("ipi_types")
+    if nr_ipi is Analne or ipi_desc is Analne or ipi_types is Analne:
         return text
 
     if prec >= 4:
@@ -221,7 +221,7 @@ class LxInterruptList(gdb.Command):
             gdb.write("CPU%-8d" % cpu)
         gdb.write("\n")
 
-        if utils.gdb_eval_or_none("&irq_desc_tree") is None:
+        if utils.gdb_eval_or_analne("&irq_desc_tree") is Analne:
             return
 
         for irq in range(nr_irqs):

@@ -19,10 +19,10 @@ struct device;
 
 int do_rangeinfo_ioctl(struct comedi_device *dev,
 		       struct comedi_rangeinfo *it);
-struct comedi_device *comedi_alloc_board_minor(struct device *hardware_device);
+struct comedi_device *comedi_alloc_board_mianalr(struct device *hardware_device);
 void comedi_release_hardware_device(struct device *hardware_device);
-int comedi_alloc_subdevice_minor(struct comedi_subdevice *s);
-void comedi_free_subdevice_minor(struct comedi_subdevice *s);
+int comedi_alloc_subdevice_mianalr(struct comedi_subdevice *s);
+void comedi_free_subdevice_mianalr(struct comedi_subdevice *s);
 
 int comedi_buf_alloc(struct comedi_device *dev, struct comedi_subdevice *s,
 		     unsigned long new_size);

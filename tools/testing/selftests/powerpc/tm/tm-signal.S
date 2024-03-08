@@ -10,7 +10,7 @@
 #include "vsx_asm.h"
 
 /*
- * Large caveat here being that the caller cannot expect the
+ * Large caveat here being that the caller cananalt expect the
  * signal to always be sent! The hardware can (AND WILL!) abort
  * the transaction between the tbegin and the tsuspend (however
  * unlikely it seems or infrequently it actually happens).
@@ -53,8 +53,8 @@ skip_vmx_lc:
 	bl load_vsx
 skip_vsx_lc:
 	/*
-	 * Set r3 (return value) before tbegin. Use the pid as a known
-	 * 'all good' return value, zero is used to indicate a non-doomed
+	 * Set r3 (return value) before tbegin. Use the pid as a kanalwn
+	 * 'all good' return value, zero is used to indicate a analn-doomed
 	 * transaction.
 	 */
 	ld	r3, STACK_FRAME_PARAM(0)(sp)

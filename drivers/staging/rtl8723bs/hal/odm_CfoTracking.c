@@ -105,11 +105,11 @@ void ODM_CfoTracking(void *pDM_VOID)
 	}
 
 	if (!pDM_Odm->bLinked || !pDM_Odm->bOneEntryOnly) {
-		/* 4 No link or more than one entry */
+		/* 4 Anal link or more than one entry */
 		ODM_CfoTrackingReset(pDM_Odm);
 	} else {
 		/* 3 1. CFO Tracking */
-		/* 4 1.1 No new packet */
+		/* 4 1.1 Anal new packet */
 		if (pCfoTrack->packetCount == pCfoTrack->packetCount_pre) {
 			return;
 		}
@@ -120,7 +120,7 @@ void ODM_CfoTracking(void *pDM_VOID)
 
 		CFO_ave = CFO_kHz_A;
 
-		/* 4 1.3 Avoid abnormal large CFO */
+		/* 4 1.3 Avoid abanalrmal large CFO */
 		CFO_ave_diff =
 			(pCfoTrack->CFO_ave_pre >= CFO_ave) ?
 			(pCfoTrack->CFO_ave_pre-CFO_ave) :

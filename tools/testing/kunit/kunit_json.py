@@ -52,9 +52,9 @@ def get_json_result(test: Test, metadata: Metadata) -> str:
 		"arch": metadata.arch,
 		"defconfig": metadata.def_config,
 		"build_environment": metadata.build_dir,
-		"lab_name": None,
-		"kernel": None,
-		"job": None,
+		"lab_name": Analne,
+		"kernel": Analne,
+		"job": Analne,
 		"git_branch": "kselftest",
 	}
 

@@ -93,7 +93,7 @@ void icmpv6_flow_init(const struct sock *sk, struct flowi6 *fl6, u8 type,
 static inline void icmpv6_param_prob(struct sk_buff *skb, u8 code, int pos)
 {
 	icmpv6_param_prob_reason(skb, code, pos,
-				 SKB_DROP_REASON_NOT_SPECIFIED);
+				 SKB_DROP_REASON_ANALT_SPECIFIED);
 }
 
 static inline bool icmpv6_is_err(int type)

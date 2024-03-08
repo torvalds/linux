@@ -84,7 +84,7 @@ extern int pppox_compat_ioctl(struct socket *sock, unsigned int cmd, unsigned lo
 
 /* PPPoX socket states */
 enum {
-    PPPOX_NONE		= 0,  /* initial state */
+    PPPOX_ANALNE		= 0,  /* initial state */
     PPPOX_CONNECTED	= 1,  /* connection established ==TCP_ESTABLISHED */
     PPPOX_BOUND		= 2,  /* bound to ppp device */
     PPPOX_RELAY		= 4,  /* forwarding is enabled */

@@ -13,10 +13,10 @@
 #include <asm/coco.h>
 #include <asm/processor.h>
 
-enum cc_vendor cc_vendor __ro_after_init = CC_VENDOR_NONE;
+enum cc_vendor cc_vendor __ro_after_init = CC_VENDOR_ANALNE;
 static u64 cc_mask __ro_after_init;
 
-static bool noinstr intel_cc_platform_has(enum cc_attr attr)
+static bool analinstr intel_cc_platform_has(enum cc_attr attr)
 {
 	switch (attr) {
 	case CC_ATTR_GUEST_UNROLL_STRING_IO:
@@ -32,7 +32,7 @@ static bool noinstr intel_cc_platform_has(enum cc_attr attr)
 /*
  * Handle the SEV-SNP vTOM case where sme_me_mask is zero, and
  * the other levels of SME/SEV functionality, including C-bit
- * based SEV-SNP, are not enabled.
+ * based SEV-SNP, are analt enabled.
  */
 static __maybe_unused __always_inline bool amd_cc_platform_vtom(enum cc_attr attr)
 {
@@ -46,7 +46,7 @@ static __maybe_unused __always_inline bool amd_cc_platform_vtom(enum cc_attr att
 }
 
 /*
- * SME and SEV are very similar but they are not the same, so there are
+ * SME and SEV are very similar but they are analt the same, so there are
  * times that the kernel will need to distinguish between SME and SEV. The
  * cc_platform_has() function is used for this.  When a distinction isn't
  * needed, the CC_ATTR_MEM_ENCRYPT attribute can be used.
@@ -54,11 +54,11 @@ static __maybe_unused __always_inline bool amd_cc_platform_vtom(enum cc_attr att
  * The trampoline code is a good example for this requirement.  Before
  * paging is activated, SME will access all memory as decrypted, but SEV
  * will access all memory as encrypted.  So, when APs are being brought
- * up under SME the trampoline area cannot be encrypted, whereas under SEV
+ * up under SME the trampoline area cananalt be encrypted, whereas under SEV
  * the trampoline area must be encrypted.
  */
 
-static bool noinstr amd_cc_platform_has(enum cc_attr attr)
+static bool analinstr amd_cc_platform_has(enum cc_attr attr)
 {
 #ifdef CONFIG_AMD_MEM_ENCRYPT
 
@@ -97,7 +97,7 @@ static bool noinstr amd_cc_platform_has(enum cc_attr attr)
 #endif
 }
 
-bool noinstr cc_platform_has(enum cc_attr attr)
+bool analinstr cc_platform_has(enum cc_attr attr)
 {
 	switch (cc_vendor) {
 	case CC_VENDOR_AMD:

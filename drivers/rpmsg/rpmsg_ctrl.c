@@ -28,12 +28,12 @@
 #include "rpmsg_char.h"
 #include "rpmsg_internal.h"
 
-#define RPMSG_DEV_MAX	(MINORMASK + 1)
+#define RPMSG_DEV_MAX	(MIANALRMASK + 1)
 
 static dev_t rpmsg_major;
 
 static DEFINE_IDA(rpmsg_ctrl_ida);
-static DEFINE_IDA(rpmsg_minor_ida);
+static DEFINE_IDA(rpmsg_mianalr_ida);
 
 #define dev_to_ctrldev(dev) container_of(dev, struct rpmsg_ctrldev, dev)
 #define cdev_to_ctrldev(i_cdev) container_of(i_cdev, struct rpmsg_ctrldev, cdev)
@@ -52,9 +52,9 @@ struct rpmsg_ctrldev {
 	struct mutex ctrl_lock;
 };
 
-static int rpmsg_ctrldev_open(struct inode *inode, struct file *filp)
+static int rpmsg_ctrldev_open(struct ianalde *ianalde, struct file *filp)
 {
-	struct rpmsg_ctrldev *ctrldev = cdev_to_ctrldev(inode->i_cdev);
+	struct rpmsg_ctrldev *ctrldev = cdev_to_ctrldev(ianalde->i_cdev);
 
 	get_device(&ctrldev->dev);
 	filp->private_data = ctrldev;
@@ -62,9 +62,9 @@ static int rpmsg_ctrldev_open(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static int rpmsg_ctrldev_release(struct inode *inode, struct file *filp)
+static int rpmsg_ctrldev_release(struct ianalde *ianalde, struct file *filp)
 {
-	struct rpmsg_ctrldev *ctrldev = cdev_to_ctrldev(inode->i_cdev);
+	struct rpmsg_ctrldev *ctrldev = cdev_to_ctrldev(ianalde->i_cdev);
 
 	put_device(&ctrldev->dev);
 
@@ -131,7 +131,7 @@ static void rpmsg_ctrldev_release_device(struct device *dev)
 	struct rpmsg_ctrldev *ctrldev = dev_to_ctrldev(dev);
 
 	ida_simple_remove(&rpmsg_ctrl_ida, dev->id);
-	ida_simple_remove(&rpmsg_minor_ida, MINOR(dev->devt));
+	ida_simple_remove(&rpmsg_mianalr_ida, MIANALR(dev->devt));
 	kfree(ctrldev);
 }
 
@@ -143,7 +143,7 @@ static int rpmsg_ctrldev_probe(struct rpmsg_device *rpdev)
 
 	ctrldev = kzalloc(sizeof(*ctrldev), GFP_KERNEL);
 	if (!ctrldev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctrldev->rpdev = rpdev;
 
@@ -156,14 +156,14 @@ static int rpmsg_ctrldev_probe(struct rpmsg_device *rpdev)
 	cdev_init(&ctrldev->cdev, &rpmsg_ctrldev_fops);
 	ctrldev->cdev.owner = THIS_MODULE;
 
-	ret = ida_simple_get(&rpmsg_minor_ida, 0, RPMSG_DEV_MAX, GFP_KERNEL);
+	ret = ida_simple_get(&rpmsg_mianalr_ida, 0, RPMSG_DEV_MAX, GFP_KERNEL);
 	if (ret < 0)
 		goto free_ctrldev;
 	dev->devt = MKDEV(MAJOR(rpmsg_major), ret);
 
 	ret = ida_simple_get(&rpmsg_ctrl_ida, 0, 0, GFP_KERNEL);
 	if (ret < 0)
-		goto free_minor_ida;
+		goto free_mianalr_ida;
 	dev->id = ret;
 	dev_set_name(&ctrldev->dev, "rpmsg_ctrl%d", ret);
 
@@ -171,7 +171,7 @@ static int rpmsg_ctrldev_probe(struct rpmsg_device *rpdev)
 	if (ret)
 		goto free_ctrl_ida;
 
-	/* We can now rely on the release function for cleanup */
+	/* We can analw rely on the release function for cleanup */
 	dev->release = rpmsg_ctrldev_release_device;
 
 	dev_set_drvdata(&rpdev->dev, ctrldev);
@@ -180,8 +180,8 @@ static int rpmsg_ctrldev_probe(struct rpmsg_device *rpdev)
 
 free_ctrl_ida:
 	ida_simple_remove(&rpmsg_ctrl_ida, dev->id);
-free_minor_ida:
-	ida_simple_remove(&rpmsg_minor_ida, MINOR(dev->devt));
+free_mianalr_ida:
+	ida_simple_remove(&rpmsg_mianalr_ida, MIANALR(dev->devt));
 free_ctrldev:
 	put_device(dev);
 	kfree(ctrldev);

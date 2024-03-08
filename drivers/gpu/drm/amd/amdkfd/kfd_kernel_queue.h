@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -32,7 +32,7 @@
 /**
  * kq_acquire_packet_buffer: Returns a pointer to the location in the kernel
  * queue ring buffer where the calling function can write its packet. It is
- * Guaranteed that there is enough space for that packet. It also updates the
+ * Guaranteed that there is eanalugh space for that packet. It also updates the
  * pending write pointer to that location so subsequent calls to
  * acquire_packet_buffer will get a correct write pointer
  *
@@ -53,12 +53,12 @@ void kq_rollback_packet(struct kernel_queue *kq);
 
 struct kernel_queue {
 	/* data */
-	struct kfd_node		*dev;
+	struct kfd_analde		*dev;
 	struct mqd_manager	*mqd_mgr;
 	struct queue		*queue;
 	uint64_t		pending_wptr64;
 	uint32_t		pending_wptr;
-	unsigned int		nop_packet;
+	unsigned int		analp_packet;
 
 	struct kfd_mem_obj	*rptr_mem;
 	uint32_t		*rptr_kernel;

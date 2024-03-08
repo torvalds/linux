@@ -25,7 +25,7 @@ properties:
   sram:
     $ref: /schemas/types.yaml#/definitions/phandle
     description:
-      phandle to MSMC SRAM node
+      phandle to MSMC SRAM analde
 
   dmas:
     maxItems: 10
@@ -100,11 +100,11 @@ properties:
           ti,syscon-rgmii-delay:
             items:
               - items:
-                  - description: phandle to system controller node
+                  - description: phandle to system controller analde
                   - description: The offset to ICSSG control register
             $ref: /schemas/types.yaml#/definitions/phandle-array
             description:
-              phandle to system controller node and register offset
+              phandle to system controller analde and register offset
               to ICSSG control register for RGMII transmit delay
 
           ti,half-duplex-capable:

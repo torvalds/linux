@@ -188,13 +188,13 @@ enum hns3_nic_state {
 #define HNS3_VECTOR_TX_IRQ			BIT_ULL(0)
 #define HNS3_VECTOR_RX_IRQ			BIT_ULL(1)
 
-#define HNS3_VECTOR_NOT_INITED			0
+#define HNS3_VECTOR_ANALT_INITED			0
 #define HNS3_VECTOR_INITED			1
 
 #define HNS3_MAX_BD_SIZE			65535
 #define HNS3_MAX_TSO_BD_NUM			63U
 #define HNS3_MAX_TSO_SIZE			1048576U
-#define HNS3_MAX_NON_TSO_SIZE			9728U
+#define HNS3_MAX_ANALN_TSO_SIZE			9728U
 
 #define HNS3_VECTOR_GL_MASK			GENMASK(11, 0)
 #define HNS3_VECTOR_GL0_OFFSET			0x100
@@ -222,28 +222,28 @@ enum hns3_pkt_l2t_type {
 };
 
 enum hns3_pkt_l3t_type {
-	HNS3_L3T_NONE,
+	HNS3_L3T_ANALNE,
 	HNS3_L3T_IPV6,
 	HNS3_L3T_IPV4,
 	HNS3_L3T_RESERVED
 };
 
 enum hns3_pkt_l4t_type {
-	HNS3_L4T_UNKNOWN,
+	HNS3_L4T_UNKANALWN,
 	HNS3_L4T_TCP,
 	HNS3_L4T_UDP,
 	HNS3_L4T_SCTP
 };
 
 enum hns3_pkt_ol3t_type {
-	HNS3_OL3T_NONE,
+	HNS3_OL3T_ANALNE,
 	HNS3_OL3T_IPV6,
-	HNS3_OL3T_IPV4_NO_CSUM,
+	HNS3_OL3T_IPV4_ANAL_CSUM,
 	HNS3_OL3T_IPV4_CSUM
 };
 
 enum hns3_pkt_tun_type {
-	HNS3_TUN_NONE,
+	HNS3_TUN_ANALNE,
 	HNS3_TUN_MAC_IN_UDP,
 	HNS3_TUN_NVGRE,
 	HNS3_TUN_OTHER
@@ -313,7 +313,7 @@ struct __packed hns3_desc {
 };
 
 enum hns3_desc_type {
-	DESC_TYPE_UNKNOWN		= 0,
+	DESC_TYPE_UNKANALWN		= 0,
 	DESC_TYPE_SKB			= 1 << 0,
 	DESC_TYPE_FRAGLIST_SKB		= 1 << 1,
 	DESC_TYPE_PAGE			= 1 << 2,
@@ -392,10 +392,10 @@ enum hns3_pkt_ol3type {
 };
 
 enum hns3_pkt_ol4type {
-	HNS3_OL4_TYPE_NO_TUN,
+	HNS3_OL4_TYPE_ANAL_TUN,
 	HNS3_OL4_TYPE_MAC_IN_UDP,
 	HNS3_OL4_TYPE_NVGRE,
-	HNS3_OL4_TYPE_UNKNOWN
+	HNS3_OL4_TYPE_UNKANALWN
 };
 
 struct hns3_rx_ptype {
@@ -444,7 +444,7 @@ struct ring_stats {
 			u64 l3l4_csum_err;
 			u64 csum_complete;
 			u64 rx_multicast;
-			u64 non_reuse_pg;
+			u64 analn_reuse_pg;
 			u64 frag_alloc_err;
 			u64 frag_alloc;
 		};
@@ -507,7 +507,7 @@ struct hns3_enet_ring {
 			struct sk_buff *tail_skb;
 		};
 	};
-} ____cacheline_internodealigned_in_smp;
+} ____cacheline_interanaldealigned_in_smp;
 
 enum hns3_flow_level_range {
 	HNS3_FLOW_LOW = 0,
@@ -563,12 +563,12 @@ struct hns3_enet_tqp_vector {
 
 	cpumask_t affinity_mask;
 	u16 num_tqps;	/* total number of tqps in TQP vector */
-	struct irq_affinity_notify affinity_notify;
+	struct irq_affinity_analtify affinity_analtify;
 
 	char name[HNAE3_INT_NAME_LEN];
 
 	u64 event_cnt;
-} ____cacheline_internodealigned_in_smp;
+} ____cacheline_interanaldealigned_in_smp;
 
 struct hns3_nic_priv {
 	struct hnae3_handle *ae_handle;
@@ -582,7 +582,7 @@ struct hns3_nic_priv {
 	struct hns3_enet_ring *ring;
 	struct hns3_enet_tqp_vector *tqp_vector;
 	u16 vector_num;
-	u8 max_non_tso_bd_num;
+	u8 max_analn_tso_bd_num;
 
 	u64 tx_timeout_count;
 
@@ -733,8 +733,8 @@ void hns3_set_vector_coalesce_tx_ql(struct hns3_enet_tqp_vector *tqp_vector,
 				    u32 ql_value);
 
 void hns3_request_update_promisc_mode(struct hnae3_handle *handle);
-int hns3_reset_notify(struct hnae3_handle *handle,
-		      enum hnae3_reset_notify_type type);
+int hns3_reset_analtify(struct hnae3_handle *handle,
+		      enum hnae3_reset_analtify_type type);
 
 #ifdef CONFIG_HNS3_DCB
 void hns3_dcbnl_setup(struct hnae3_handle *handle);

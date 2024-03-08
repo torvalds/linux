@@ -22,7 +22,7 @@ TRACE_EVENT(ma_op,
 			__field(unsigned long, max)
 			__field(unsigned long, index)
 			__field(unsigned long, last)
-			__field(void *, node)
+			__field(void *, analde)
 	),
 
 	TP_fast_assign(
@@ -31,12 +31,12 @@ TRACE_EVENT(ma_op,
 			__entry->max		= mas->max;
 			__entry->index		= mas->index;
 			__entry->last		= mas->last;
-			__entry->node		= mas->node;
+			__entry->analde		= mas->analde;
 	),
 
-	TP_printk("%s\tNode: %p (%lu %lu) range: %lu-%lu",
+	TP_printk("%s\tAnalde: %p (%lu %lu) range: %lu-%lu",
 		  __entry->fn,
-		  (void *) __entry->node,
+		  (void *) __entry->analde,
 		  (unsigned long) __entry->min,
 		  (unsigned long) __entry->max,
 		  (unsigned long) __entry->index,
@@ -55,7 +55,7 @@ TRACE_EVENT(ma_read,
 			__field(unsigned long, max)
 			__field(unsigned long, index)
 			__field(unsigned long, last)
-			__field(void *, node)
+			__field(void *, analde)
 	),
 
 	TP_fast_assign(
@@ -64,12 +64,12 @@ TRACE_EVENT(ma_read,
 			__entry->max		= mas->max;
 			__entry->index		= mas->index;
 			__entry->last		= mas->last;
-			__entry->node		= mas->node;
+			__entry->analde		= mas->analde;
 	),
 
-	TP_printk("%s\tNode: %p (%lu %lu) range: %lu-%lu",
+	TP_printk("%s\tAnalde: %p (%lu %lu) range: %lu-%lu",
 		  __entry->fn,
-		  (void *) __entry->node,
+		  (void *) __entry->analde,
 		  (unsigned long) __entry->min,
 		  (unsigned long) __entry->max,
 		  (unsigned long) __entry->index,
@@ -92,7 +92,7 @@ TRACE_EVENT(ma_write,
 			__field(unsigned long, last)
 			__field(unsigned long, piv)
 			__field(void *, val)
-			__field(void *, node)
+			__field(void *, analde)
 	),
 
 	TP_fast_assign(
@@ -103,12 +103,12 @@ TRACE_EVENT(ma_write,
 			__entry->last		= mas->last;
 			__entry->piv		= piv;
 			__entry->val		= val;
-			__entry->node		= mas->node;
+			__entry->analde		= mas->analde;
 	),
 
-	TP_printk("%s\tNode %p (%lu %lu) range:%lu-%lu piv (%lu) val %p",
+	TP_printk("%s\tAnalde %p (%lu %lu) range:%lu-%lu piv (%lu) val %p",
 		  __entry->fn,
-		  (void *) __entry->node,
+		  (void *) __entry->analde,
 		  (unsigned long) __entry->min,
 		  (unsigned long) __entry->max,
 		  (unsigned long) __entry->index,

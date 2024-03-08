@@ -14,10 +14,10 @@
 #include <linux/regmap.h>
 #include <linux/watchdog.h>
 
-static bool nowayout;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout,
-		"Watchdog cannot be stopped once started (default=\"false\")");
+static bool analwayout;
+module_param(analwayout, bool, 0);
+MODULE_PARM_DESC(analwayout,
+		"Watchdog cananalt be stopped once started (default=\"false\")");
 
 #define HW_MARGIN_MIN 2
 #define HW_MARGIN_MAX 4416
@@ -210,18 +210,18 @@ static int bd9576_wdt_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, priv);
 
 	priv->dev = dev;
 	priv->regmap = dev_get_regmap(dev->parent, NULL);
 	if (!priv->regmap) {
-		dev_err(dev, "No regmap found\n");
-		return -ENODEV;
+		dev_err(dev, "Anal regmap found\n");
+		return -EANALDEV;
 	}
 
-	priv->gpiod_en = devm_fwnode_gpiod_get(dev, dev_fwnode(dev->parent),
+	priv->gpiod_en = devm_fwanalde_gpiod_get(dev, dev_fwanalde(dev->parent),
 					       "rohm,watchdog-enable",
 					       GPIOD_OUT_LOW,
 					       "watchdog-enable");
@@ -229,7 +229,7 @@ static int bd9576_wdt_probe(struct platform_device *pdev)
 		return dev_err_probe(dev, PTR_ERR(priv->gpiod_en),
 			      "getting watchdog-enable GPIO failed\n");
 
-	priv->gpiod_ping = devm_fwnode_gpiod_get(dev, dev_fwnode(dev->parent),
+	priv->gpiod_ping = devm_fwanalde_gpiod_get(dev, dev_fwanalde(dev->parent),
 						 "rohm,watchdog-ping",
 						 GPIOD_OUT_LOW,
 						 "watchdog-ping");
@@ -277,7 +277,7 @@ static int bd9576_wdt_probe(struct platform_device *pdev)
 	priv->wdd.timeout		= WATCHDOG_TIMEOUT;
 
 	watchdog_init_timeout(&priv->wdd, 0, dev);
-	watchdog_set_nowayout(&priv->wdd, nowayout);
+	watchdog_set_analwayout(&priv->wdd, analwayout);
 
 	watchdog_stop_on_reboot(&priv->wdd);
 

@@ -20,7 +20,7 @@ static dev_t rproc_major;
 
 static ssize_t rproc_cdev_write(struct file *filp, const char __user *buf, size_t len, loff_t *pos)
 {
-	struct rproc *rproc = container_of(filp->f_inode->i_cdev, struct rproc, cdev);
+	struct rproc *rproc = container_of(filp->f_ianalde->i_cdev, struct rproc, cdev);
 	int ret = 0;
 	char cmd[10];
 
@@ -47,7 +47,7 @@ static ssize_t rproc_cdev_write(struct file *filp, const char __user *buf, size_
 
 static long rproc_device_ioctl(struct file *filp, unsigned int ioctl, unsigned long arg)
 {
-	struct rproc *rproc = container_of(filp->f_inode->i_cdev, struct rproc, cdev);
+	struct rproc *rproc = container_of(filp->f_ianalde->i_cdev, struct rproc, cdev);
 	void __user *argp = (void __user *)arg;
 	s32 param;
 
@@ -72,9 +72,9 @@ static long rproc_device_ioctl(struct file *filp, unsigned int ioctl, unsigned l
 	return 0;
 }
 
-static int rproc_cdev_release(struct inode *inode, struct file *filp)
+static int rproc_cdev_release(struct ianalde *ianalde, struct file *filp)
 {
-	struct rproc *rproc = container_of(inode->i_cdev, struct rproc, cdev);
+	struct rproc *rproc = container_of(ianalde->i_cdev, struct rproc, cdev);
 	int ret = 0;
 
 	if (!rproc->cdev_put_on_release)

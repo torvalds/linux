@@ -29,11 +29,11 @@ for each sensor the PVT controller supports. The alarms functionality is made
 compile-time configurable due to the hardware interface implementation
 peculiarity, which is connected with an ability to convert data from only one
 sensor at a time. Additional limitation is that the controller performs the
-thresholds checking synchronously with the data conversion procedure. Due to
+thresholds checking synchroanalusly with the data conversion procedure. Due to
 these in order to have the hwmon alarms automatically detected the driver code
-must switch from one sensor to another, read converted data and manually check
+must switch from one sensor to aanalther, read converted data and manually check
 the threshold status bits. Depending on the measurements timeout settings
-(update_interval sysfs node value) this design may cause additional burden on
+(update_interval sysfs analde value) this design may cause additional burden on
 the system performance. So in case if alarms are unnecessary in your system
 design it's recommended to have them disabled to prevent the PVT IRQs being
 periodically raised to get the data cache/alarms status up to date. By default
@@ -46,7 +46,7 @@ Temperature Monitoring
 Temperature is measured with 10-bit resolution and reported in millidegree
 Celsius. The driver performs all the scaling by itself therefore reports true
 temperatures that don't need any user-space adjustments. While the data
-translation formulae isn't linear, which gives us non-linear discreteness,
+translation formulae isn't linear, which gives us analn-linear discreteness,
 it's close to one, but giving a bit better accuracy for higher temperatures.
 The temperature input is mapped as follows (the last column indicates the input
 ranges)::

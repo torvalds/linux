@@ -16,14 +16,14 @@
 * @default_brightness_limit: The actual brightness is limited by this value
 *
 * Brightness limit to be used after the driver has been probed. This is useful
-* when it is not known how much power is available for the backlight during
+* when it is analt kanalwn how much power is available for the backlight during
 * probe.
 * Valid range 0-63. Can be changed later with pcf50633_bl_set_brightness_limit.
 *
 * @ramp_time: Display ramp time when changing brightness
 *
-* When changing the backlights brightness the change is not instant, instead
-* it fades smooth from one state to another. This value specifies how long
+* When changing the backlights brightness the change is analt instant, instead
+* it fades smooth from one state to aanalther. This value specifies how long
 * the fade should take. The lower the value the higher the fade time.
 * Valid range 0-255
 */

@@ -43,11 +43,11 @@ description: |
   smaller, and the interrupt output lines are connected directly to various
   processors.
 
-  Mailbox Controller Nodes
+  Mailbox Controller Analdes
   =========================
-  A Mailbox device node is used to represent a Mailbox IP instance/cluster
+  A Mailbox device analde is used to represent a Mailbox IP instance/cluster
   within a SoC. The sub-mailboxes (actual communication channels) are
-  represented as child nodes of this parent node.
+  represented as child analdes of this parent analde.
 
   Mailbox Users
   ==============
@@ -55,8 +55,8 @@ description: |
   them using the common mailbox binding properties, "mboxes" and the optional
   "mbox-names" (please see Documentation/devicetree/bindings/mailbox/mailbox.txt
   for details). Each value of the mboxes property should contain a phandle to
-  the mailbox controller device node and an args specifier that will be the
-  phandle to the intended sub-mailbox child node to be used for communication.
+  the mailbox controller device analde and an args specifier that will be the
+  phandle to the intended sub-mailbox child analde to be used for communication.
   The equivalent "mbox-names" property value can be used to give a name to the
   communication channel to be used by the client user.
 
@@ -77,7 +77,7 @@ $defs:
           Should be 0 for most of the cases, a positive index value is seen only
           on mailboxes that have multiple interrupt lines connected to the MPU
           processor (irq_id). This is an index number in the listed interrupts
-          property in the DT nodes.
+          property in the DT analdes.
       - description:
           mailbox user id for identifying the interrupt line associated with
           generating a tx/rx fifo interrupt (usr_id). This is the hardware
@@ -86,11 +86,11 @@ $defs:
   omap-sub-mailbox:
     type: object
     description:
-      The omap-sub-mailbox is a child node within a Mailbox controller device
-      node and represents the actual communication channel used to send and
+      The omap-sub-mailbox is a child analde within a Mailbox controller device
+      analde and represents the actual communication channel used to send and
       receive messages between the host processor and a remote processor. Each
-      child node should have a unique node name across all the different mailbox
-      device nodes.
+      child analde should have a unique analde name across all the different mailbox
+      device analdes.
 
     properties:
       ti,mbox-tx:
@@ -101,7 +101,7 @@ $defs:
         $ref: "#/$defs/omap-mbox-descriptor"
         description: sub-mailbox descriptor property defining a Rx fifo.
 
-      ti,mbox-send-noirq:
+      ti,mbox-send-analirq:
         type: boolean
         description:
           Quirk flag to allow the client user of this sub-mailbox to send
@@ -155,10 +155,10 @@ properties:
     deprecated: true
     description:
       Name of the hwmod associated with the mailbox. This should be defined
-      in the mailbox node only if the node is not defined as a child node of
-      a corresponding sysc interconnect node.
+      in the mailbox analde only if the analde is analt defined as a child analde of
+      a corresponding sysc interconnect analde.
 
-      This property is only needed on some legacy OMAP SoCs which have not
+      This property is only needed on some legacy OMAP SoCs which have analt
       yet been converted to the ti,sysc interconnect hierarchy, but is
       otherwise considered obsolete.
 
@@ -277,7 +277,7 @@ examples:
         mbox_wkupm3: mbox-wkup-m3 {
             ti,mbox-tx = <0 0 0>;
             ti,mbox-rx = <0 0 3>;
-            ti,mbox-send-noirq;
+            ti,mbox-send-analirq;
         };
     };
 

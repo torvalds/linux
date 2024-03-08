@@ -46,7 +46,7 @@
 };
 
 &sdio2 {
-	non-removable;
+	analn-removable;
 	max-frequency = <48000000>;
 	vmmc-supply = <&camldo1_reg>;
 	vqmmc-supply = <&iosr1_reg>;

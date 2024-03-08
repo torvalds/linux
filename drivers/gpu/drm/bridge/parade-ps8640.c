@@ -31,7 +31,7 @@
 #define  SWAUX_ADDR_MASK	GENMASK(19, 0)
 #define PAGE0_SWAUX_LENGTH	0x80
 #define  SWAUX_LENGTH_MASK	GENMASK(3, 0)
-#define  SWAUX_NO_PAYLOAD	BIT(7)
+#define  SWAUX_ANAL_PAYLOAD	BIT(7)
 #define PAGE0_SWAUX_WDATA	0x81
 #define PAGE0_SWAUX_RDATA	0x82
 #define PAGE0_SWAUX_CTRL	0x83
@@ -64,7 +64,7 @@
 #define COMMON_PS8640_REGMAP_CONFIG \
 	.reg_bits = 8, \
 	.val_bits = 8, \
-	.cache_type = REGCACHE_NONE
+	.cache_type = REGCACHE_ANALNE
 
 /*
  * PS8640 uses multiple addresses:
@@ -174,8 +174,8 @@ static int _ps8640_wait_hpd_asserted(struct ps8640 *ps_bridge, unsigned long wai
 	 * 50 ms. The best guess is that the MCU is doing "stuff" during this
 	 * time (maybe talking to the panel) and we don't want to interrupt it.
 	 *
-	 * No locking is done around "need_post_hpd_delay". If we're here we
-	 * know we're holding a PM Runtime reference and the only other place
+	 * Anal locking is done around "need_post_hpd_delay". If we're here we
+	 * kanalw we're holding a PM Runtime reference and the only other place
 	 * that touches this is PM Runtime resume.
 	 */
 	if (!ret && ps_bridge->need_post_hpd_delay) {
@@ -193,7 +193,7 @@ static int ps8640_wait_hpd_asserted(struct drm_dp_aux *aux, unsigned long wait_u
 	int ret;
 
 	/*
-	 * Note that this function is called by code that has already powered
+	 * Analte that this function is called by code that has already powered
 	 * the panel. We have to power ourselves up but we don't need to worry
 	 * about powering the panel.
 	 */
@@ -255,7 +255,7 @@ static ssize_t ps8640_aux_transfer_msg(struct drm_dp_aux *aux,
 	addr_len[PAGE0_SWAUX_ADDR_15_8 - base] = msg->address >> 8;
 	addr_len[PAGE0_SWAUX_ADDR_23_16 - base] = (msg->address >> 16) |
 						  (msg->request << 4);
-	addr_len[PAGE0_SWAUX_LENGTH - base] = (len == 0) ? SWAUX_NO_PAYLOAD :
+	addr_len[PAGE0_SWAUX_LENGTH - base] = (len == 0) ? SWAUX_ANAL_PAYLOAD :
 					      ((len - 1) & SWAUX_LENGTH_MASK);
 
 	regmap_bulk_write(map, PAGE0_SWAUX_ADDR_7_0, addr_len,
@@ -292,7 +292,7 @@ static ssize_t ps8640_aux_transfer_msg(struct drm_dp_aux *aux,
 	case SWAUX_STATUS_NACK:
 	case SWAUX_STATUS_I2C_NACK:
 		/*
-		 * The programming guide is not clear about whether a I2C NACK
+		 * The programming guide is analt clear about whether a I2C NACK
 		 * would trigger SWAUX_STATUS_NACK or SWAUX_STATUS_I2C_NACK. So
 		 * we handle both cases together.
 		 */
@@ -314,7 +314,7 @@ static ssize_t ps8640_aux_transfer_msg(struct drm_dp_aux *aux,
 		len = data & SWAUX_M_MASK;
 		break;
 	case SWAUX_STATUS_INVALID:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	case SWAUX_STATUS_TIMEOUT:
 		return -ETIMEDOUT;
 	}
@@ -387,7 +387,7 @@ static int __maybe_unused ps8640_resume(struct device *dev)
 	ret = regulator_bulk_enable(ARRAY_SIZE(ps_bridge->supplies),
 				    ps_bridge->supplies);
 	if (ret < 0) {
-		dev_err(dev, "cannot enable regulators %d\n", ret);
+		dev_err(dev, "cananalt enable regulators %d\n", ret);
 		return ret;
 	}
 
@@ -408,7 +408,7 @@ static int __maybe_unused ps8640_resume(struct device *dev)
 	 * Mystery 200 ms delay for the "MCU to be ready". It's unclear if
 	 * this is truly necessary since the MCU will already signal that
 	 * things are "good to go" by signaling HPD on "gpio 9". See
-	 * _ps8640_wait_hpd_asserted(). For now we'll keep this mystery delay
+	 * _ps8640_wait_hpd_asserted(). For analw we'll keep this mystery delay
 	 * just in case.
 	 */
 	msleep(200);
@@ -426,7 +426,7 @@ static int __maybe_unused ps8640_suspend(struct device *dev)
 	ret = regulator_bulk_disable(ARRAY_SIZE(ps_bridge->supplies),
 				     ps_bridge->supplies);
 	if (ret < 0)
-		dev_err(dev, "cannot disable regulators %d\n", ret);
+		dev_err(dev, "cananalt disable regulators %d\n", ret);
 
 	return ret;
 }
@@ -455,7 +455,7 @@ static void ps8640_atomic_pre_enable(struct drm_bridge *bridge,
 	 * intended for factory programming of the display module default
 	 * parameters. Once the display module is configured, the MCS shall be
 	 * disabled by the manufacturer. Once disabled, all MCS commands are
-	 * ignored by the display interface.
+	 * iganalred by the display interface.
 	 */
 
 	ret = regmap_update_bits(map, PAGE2_MCS_EN, MCS_EN, 0);
@@ -484,7 +484,7 @@ static void ps8640_atomic_post_disable(struct drm_bridge *bridge,
 	/*
 	 * The bridge seems to expect everything to be power cycled at the
 	 * disable process, so grab a lock here to make sure
-	 * ps8640_aux_transfer() is not holding a runtime PM reference and
+	 * ps8640_aux_transfer() is analt holding a runtime PM reference and
 	 * preventing the bridge from suspend.
 	 */
 	mutex_lock(&ps_bridge->aux_lock);
@@ -501,7 +501,7 @@ static int ps8640_bridge_attach(struct drm_bridge *bridge,
 	struct device *dev = &ps_bridge->page[0]->dev;
 	int ret;
 
-	if (!(flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR))
+	if (!(flags & DRM_BRIDGE_ATTACH_ANAL_CONNECTOR))
 		return -EINVAL;
 
 	ps_bridge->aux.drm_dev = bridge->dev;
@@ -561,26 +561,26 @@ static const struct drm_bridge_funcs ps8640_bridge_funcs = {
 
 static int ps8640_bridge_get_dsi_resources(struct device *dev, struct ps8640 *ps_bridge)
 {
-	struct device_node *in_ep, *dsi_node;
+	struct device_analde *in_ep, *dsi_analde;
 	struct mipi_dsi_device *dsi;
 	struct mipi_dsi_host *host;
 	const struct mipi_dsi_device_info info = { .type = "ps8640",
 						   .channel = 0,
-						   .node = NULL,
+						   .analde = NULL,
 						 };
 
 	/* port@0 is ps8640 dsi input port */
-	in_ep = of_graph_get_endpoint_by_regs(dev->of_node, 0, -1);
+	in_ep = of_graph_get_endpoint_by_regs(dev->of_analde, 0, -1);
 	if (!in_ep)
-		return -ENODEV;
+		return -EANALDEV;
 
-	dsi_node = of_graph_get_remote_port_parent(in_ep);
-	of_node_put(in_ep);
-	if (!dsi_node)
-		return -ENODEV;
+	dsi_analde = of_graph_get_remote_port_parent(in_ep);
+	of_analde_put(in_ep);
+	if (!dsi_analde)
+		return -EANALDEV;
 
-	host = of_find_mipi_dsi_host_by_node(dsi_node);
-	of_node_put(dsi_node);
+	host = of_find_mipi_dsi_host_by_analde(dsi_analde);
+	of_analde_put(dsi_analde);
 	if (!host)
 		return -EPROBE_DEFER;
 
@@ -605,14 +605,14 @@ static int ps8640_bridge_link_panel(struct drm_dp_aux *aux)
 {
 	struct ps8640 *ps_bridge = aux_to_ps8640(aux);
 	struct device *dev = aux->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	int ret;
 
 	/*
-	 * NOTE about returning -EPROBE_DEFER from this function: if we
+	 * ANALTE about returning -EPROBE_DEFER from this function: if we
 	 * return an error (most relevant to -EPROBE_DEFER) it will only
 	 * be passed out to ps8640_probe() if it called this directly (AKA the
-	 * panel isn't under the "aux-bus" node). That should be fine because
+	 * panel isn't under the "aux-bus" analde). That should be fine because
 	 * if the panel is under "aux-bus" it's guaranteed to have probed by
 	 * the time this function has been called.
 	 */
@@ -638,7 +638,7 @@ static int ps8640_probe(struct i2c_client *client)
 
 	ps_bridge = devm_kzalloc(dev, sizeof(*ps_bridge), GFP_KERNEL);
 	if (!ps_bridge)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&ps_bridge->aux_lock);
 
@@ -663,7 +663,7 @@ static int ps8640_probe(struct i2c_client *client)
 		return PTR_ERR(ps_bridge->gpio_reset);
 
 	ps_bridge->bridge.funcs = &ps8640_bridge_funcs;
-	ps_bridge->bridge.of_node = dev->of_node;
+	ps_bridge->bridge.of_analde = dev->of_analde;
 	ps_bridge->bridge.type = DRM_MODE_CONNECTOR_eDP;
 
 	/*
@@ -712,7 +712,7 @@ static int ps8640_probe(struct i2c_client *client)
 	 */
 	pm_runtime_set_autosuspend_delay(dev, 2000);
 	pm_runtime_use_autosuspend(dev);
-	pm_suspend_ignore_children(dev, true);
+	pm_suspend_iganalre_children(dev, true);
 	ret = devm_add_action_or_reset(dev, ps8640_runtime_disable, dev);
 	if (ret)
 		return ret;
@@ -720,11 +720,11 @@ static int ps8640_probe(struct i2c_client *client)
 	ret = devm_of_dp_aux_populate_bus(&ps_bridge->aux, ps8640_bridge_link_panel);
 
 	/*
-	 * If devm_of_dp_aux_populate_bus() returns -ENODEV then it's up to
-	 * usa to call ps8640_bridge_link_panel() directly. NOTE: in this case
+	 * If devm_of_dp_aux_populate_bus() returns -EANALDEV then it's up to
+	 * usa to call ps8640_bridge_link_panel() directly. ANALTE: in this case
 	 * the function is allowed to -EPROBE_DEFER.
 	 */
-	if (ret == -ENODEV)
+	if (ret == -EANALDEV)
 		return ps8640_bridge_link_panel(&ps_bridge->aux);
 
 	return ret;

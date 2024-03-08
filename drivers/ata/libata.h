@@ -35,7 +35,7 @@ enum {
 extern atomic_t ata_print_id;
 extern int atapi_passthru16;
 extern int libata_fua;
-extern int libata_noacpi;
+extern int libata_analacpi;
 extern int libata_allow_tpm;
 extern const struct device_type ata_port_type;
 extern struct ata_link *ata_dev_phys_link(struct ata_device *dev);
@@ -124,7 +124,7 @@ extern void ata_scsi_set_sense(struct ata_device *dev,
 extern void ata_scsi_set_sense_information(struct ata_device *dev,
 					   struct scsi_cmnd *cmd,
 					   const struct ata_taskfile *tf);
-extern void ata_scsi_media_change_notify(struct ata_device *dev);
+extern void ata_scsi_media_change_analtify(struct ata_device *dev);
 extern void ata_scsi_hotplug(struct work_struct *work);
 extern void ata_schedule_scsi_eh(struct Scsi_Host *shost);
 extern void ata_scsi_dev_rescan(struct work_struct *work);

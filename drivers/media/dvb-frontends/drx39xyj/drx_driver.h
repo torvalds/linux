@@ -5,22 +5,22 @@
   Redistribution and use in source and binary forms, with or without
   modification, are permitted provided that the following conditions are met:
 
-  * Redistributions of source code must retain the above copyright notice,
+  * Redistributions of source code must retain the above copyright analtice,
     this list of conditions and the following disclaimer.
-  * Redistributions in binary form must reproduce the above copyright notice,
+  * Redistributions in binary form must reproduce the above copyright analtice,
     this list of conditions and the following disclaimer in the documentation
 	and/or other materials provided with the distribution.
-  * Neither the name of Trident Microsystems nor Hauppauge Computer Works
-    nor the names of its contributors may be used to endorse or promote
+  * Neither the name of Trident Microsystems analr Hauppauge Computer Works
+    analr the names of its contributors may be used to endorse or promote
 	products derived from this software without specific prior written
 	permission.
 
   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE
   IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+  ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
   LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+  CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF
   SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
   INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
   CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
@@ -32,7 +32,7 @@
 #define __DRXDRIVER_H__
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/firmware.h>
 #include <linux/i2c.h>
 
@@ -48,10 +48,10 @@ struct i2c_device_addr {
 
 /*
 * \def IS_I2C_10BIT( addr )
-* \brief Determine if I2C address 'addr' is a 10 bits address or not.
+* \brief Determine if I2C address 'addr' is a 10 bits address or analt.
 * \param addr The I2C address.
 * \return int.
-* \retval 0 if address is not a 10 bits I2C address.
+* \retval 0 if address is analt a 10 bits I2C address.
 * \retval 1 if address is a 10 bits I2C address.
 */
 #define IS_I2C_10BIT(addr) \
@@ -96,13 +96,13 @@ int drxbsp_i2c_term(void);
 * \return int Return status.
 * \retval 0 Success.
 * \retval -EIO Failure.
-* \retval -EINVAL Parameter 'wcount' is not zero but parameter
+* \retval -EINVAL Parameter 'wcount' is analt zero but parameter
 *                                       'wdata' contains NULL.
 *                                       Idem for 'rcount' and 'rdata'.
 *                                       Both w_dev_addr and r_dev_addr are NULL.
 *
 * This function must implement an atomic write and/or read action on the I2C bus
-* No other process may use the I2C bus when this function is executing.
+* Anal other process may use the I2C bus when this function is executing.
 * The critical section of this function runs from and including the I2C
 * write, up to and including the I2C read action.
 *
@@ -156,7 +156,7 @@ extern int drx_i2c_error_g;
 
 enum tuner_lock_status {
 	TUNER_LOCKED,
-	TUNER_NOT_LOCKED
+	TUNER_ANALT_LOCKED
 };
 
 struct tuner_common {
@@ -168,7 +168,7 @@ struct tuner_common {
 	char ***sub_mode_descriptions;	/* Pointer to description of sub-modes */
 	u8 sub_modes;	/* Number of available sub-modes      */
 
-	/* The following fields will be either 0, NULL or false and do not need
+	/* The following fields will be either 0, NULL or false and do analt need
 		initialisation */
 	void *self_check;	/* gives proof of initialization  */
 	bool programmed;	/* only valid if self_check is OK  */
@@ -256,7 +256,7 @@ int drxbsp_tuner_default_i2c_write_read(struct tuner_instance *tuner,
 *
 * The actual DAP implementation may be restricted to only one of the modes.
 * A compiler warning or error will be generated if the DAP implementation
-* overrides or cannot handle the mode defined below.
+* overrides or cananalt handle the mode defined below.
 */
 #ifndef DRXDAP_SINGLE_MASTER
 #define DRXDAP_SINGLE_MASTER 1
@@ -271,10 +271,10 @@ int drxbsp_tuner_default_i2c_write_read(struct tuner_instance *tuner,
 *
 * This maximum size may be restricted by the actual DAP implementation.
 * A compiler warning or error will be generated if the DAP implementation
-* overrides or cannot handle the chunksize defined below.
+* overrides or cananalt handle the chunksize defined below.
 *
 * Beware that the DAP uses  DRXDAP_MAX_WCHUNKSIZE to create a temporary data
-* buffer. Do not undefine or choose too large, unless your system is able to
+* buffer. Do analt undefine or choose too large, unless your system is able to
 * handle a stack buffer of that size.
 *
 */
@@ -291,7 +291,7 @@ int drxbsp_tuner_default_i2c_write_read(struct tuner_instance *tuner,
 *
 * This maximum size may be restricted by the actual DAP implementation.
 * A compiler warning or error will be generated if the DAP implementation
-* overrides or cannot handle the chunksize defined below.
+* overrides or cananalt handle the chunksize defined below.
 */
 #ifndef DRXDAP_MAX_RCHUNKSIZE
 #define  DRXDAP_MAX_RCHUNKSIZE 60
@@ -304,13 +304,13 @@ int drxbsp_tuner_default_i2c_write_read(struct tuner_instance *tuner,
 **************/
 
 /*
-* \def DRX_UNKNOWN
-* \brief Generic UNKNOWN value for DRX enumerated types.
+* \def DRX_UNKANALWN
+* \brief Generic UNKANALWN value for DRX enumerated types.
 *
-* Used to indicate that the parameter value is unknown or not yet initialized.
+* Used to indicate that the parameter value is unkanalwn or analt yet initialized.
 */
-#ifndef DRX_UNKNOWN
-#define DRX_UNKNOWN (254)
+#ifndef DRX_UNKANALWN
+#define DRX_UNKANALWN (254)
 #endif
 
 /*
@@ -333,7 +333,7 @@ int drxbsp_tuner_default_i2c_write_read(struct tuner_instance *tuner,
 /*
 * \brief LNA capability flag
 *
-* Device has a Low Noise Amplifier
+* Device has a Low Analise Amplifier
 *
 */
 #define DRX_CAPABILITY_HAS_LNA           (1UL <<  0)
@@ -433,9 +433,9 @@ int drxbsp_tuner_default_i2c_write_read(struct tuner_instance *tuner,
 MACROS
 -------------------------------------------------------------------------*/
 /* Macros to stringify the version number */
-#define DRX_VERSIONSTRING(MAJOR, MINOR, PATCH) \
+#define DRX_VERSIONSTRING(MAJOR, MIANALR, PATCH) \
 	 DRX_VERSIONSTRING_HELP(MAJOR)"." \
-	 DRX_VERSIONSTRING_HELP(MINOR)"." \
+	 DRX_VERSIONSTRING_HELP(MIANALR)"." \
 	 DRX_VERSIONSTRING_HELP(PATCH)
 #define DRX_VERSIONSTRING_HELP(NUM) #NUM
 
@@ -487,8 +487,8 @@ enum drx_standard {
 	DRX_STANDARD_ITU_D,    /*< Cable ITU ANNEX D.               */
 	DRX_STANDARD_FM,       /*< Terrestrial\Cable FM radio       */
 	DRX_STANDARD_DTMB,     /*< Terrestrial DTMB standard (China)*/
-	DRX_STANDARD_UNKNOWN = DRX_UNKNOWN,
-				/*< Standard unknown.                */
+	DRX_STANDARD_UNKANALWN = DRX_UNKANALWN,
+				/*< Standard unkanalwn.                */
 	DRX_STANDARD_AUTO = DRX_AUTO
 				/*< Autodetect standard.             */
 };
@@ -502,8 +502,8 @@ enum drx_substandard {
 	DRX_SUBSTANDARD_ATV_BG_SCANDINAVIA,
 	DRX_SUBSTANDARD_ATV_DK_POLAND,
 	DRX_SUBSTANDARD_ATV_DK_CHINA,
-	DRX_SUBSTANDARD_UNKNOWN = DRX_UNKNOWN,
-					/*< Sub-standard unknown.         */
+	DRX_SUBSTANDARD_UNKANALWN = DRX_UNKANALWN,
+					/*< Sub-standard unkanalwn.         */
 	DRX_SUBSTANDARD_AUTO = DRX_AUTO
 					/*< Auto (default) sub-standard   */
 };
@@ -516,21 +516,21 @@ enum drx_bandwidth {
 	DRX_BANDWIDTH_8MHZ = 0,	 /*< Bandwidth 8 MHz.   */
 	DRX_BANDWIDTH_7MHZ,	 /*< Bandwidth 7 MHz.   */
 	DRX_BANDWIDTH_6MHZ,	 /*< Bandwidth 6 MHz.   */
-	DRX_BANDWIDTH_UNKNOWN = DRX_UNKNOWN,
-					/*< Bandwidth unknown. */
+	DRX_BANDWIDTH_UNKANALWN = DRX_UNKANALWN,
+					/*< Bandwidth unkanalwn. */
 	DRX_BANDWIDTH_AUTO = DRX_AUTO
 					/*< Auto Set Bandwidth */
 };
 
 /*
 * \enum enum drx_mirror
-* \brief Indicate if channel spectrum is mirrored or not.
+* \brief Indicate if channel spectrum is mirrored or analt.
 */
 enum drx_mirror {
-	DRX_MIRROR_NO = 0,   /*< Spectrum is not mirrored.           */
-	DRX_MIRROR_YES,	     /*< Spectrum is mirrored.               */
-	DRX_MIRROR_UNKNOWN = DRX_UNKNOWN,
-				/*< Unknown if spectrum is mirrored.    */
+	DRX_MIRROR_ANAL = 0,   /*< Spectrum is analt mirrored.           */
+	DRX_MIRROR_ANAL,	     /*< Spectrum is mirrored.               */
+	DRX_MIRROR_UNKANALWN = DRX_UNKANALWN,
+				/*< Unkanalwn if spectrum is mirrored.    */
 	DRX_MIRROR_AUTO = DRX_AUTO
 				/*< Autodetect if spectrum is mirrored. */
 };
@@ -551,8 +551,8 @@ enum drx_modulation {
 	DRX_CONSTELLATION_QAM512,    /*< Constellation is QAM512.  */
 	DRX_CONSTELLATION_QAM1024,   /*< Constellation is QAM1024. */
 	DRX_CONSTELLATION_QPSK_NR,   /*< Constellation is QPSK_NR  */
-	DRX_CONSTELLATION_UNKNOWN = DRX_UNKNOWN,
-					/*< Constellation unknown.    */
+	DRX_CONSTELLATION_UNKANALWN = DRX_UNKANALWN,
+					/*< Constellation unkanalwn.    */
 	DRX_CONSTELLATION_AUTO = DRX_AUTO
 					/*< Autodetect constellation. */
 };
@@ -562,12 +562,12 @@ enum drx_modulation {
 * \brief Hierarchy of the channel.
 */
 enum drx_hierarchy {
-	DRX_HIERARCHY_NONE = 0,	/*< None hierarchical channel.     */
+	DRX_HIERARCHY_ANALNE = 0,	/*< Analne hierarchical channel.     */
 	DRX_HIERARCHY_ALPHA1,	/*< Hierarchical channel, alpha=1. */
 	DRX_HIERARCHY_ALPHA2,	/*< Hierarchical channel, alpha=2. */
 	DRX_HIERARCHY_ALPHA4,	/*< Hierarchical channel, alpha=4. */
-	DRX_HIERARCHY_UNKNOWN = DRX_UNKNOWN,
-				/*< Hierarchy unknown.             */
+	DRX_HIERARCHY_UNKANALWN = DRX_UNKANALWN,
+				/*< Hierarchy unkanalwn.             */
 	DRX_HIERARCHY_AUTO = DRX_AUTO
 				/*< Autodetect hierarchy.          */
 };
@@ -579,8 +579,8 @@ enum drx_hierarchy {
 enum drx_priority {
 	DRX_PRIORITY_LOW = 0,  /*< Low priority channel.  */
 	DRX_PRIORITY_HIGH,     /*< High priority channel. */
-	DRX_PRIORITY_UNKNOWN = DRX_UNKNOWN
-				/*< Priority unknown.      */
+	DRX_PRIORITY_UNKANALWN = DRX_UNKANALWN
+				/*< Priority unkanalwn.      */
 };
 
 /*
@@ -593,8 +593,8 @@ enum drx_coderate {
 		DRX_CODERATE_3DIV4,	/*< Code rate 3/4nd.      */
 		DRX_CODERATE_5DIV6,	/*< Code rate 5/6nd.      */
 		DRX_CODERATE_7DIV8,	/*< Code rate 7/8nd.      */
-		DRX_CODERATE_UNKNOWN = DRX_UNKNOWN,
-					/*< Code rate unknown.    */
+		DRX_CODERATE_UNKANALWN = DRX_UNKANALWN,
+					/*< Code rate unkanalwn.    */
 		DRX_CODERATE_AUTO = DRX_AUTO
 					/*< Autodetect code rate. */
 };
@@ -608,8 +608,8 @@ enum drx_guard {
 	DRX_GUARD_1DIV16,     /*< Guard interval 1/16th.     */
 	DRX_GUARD_1DIV8,      /*< Guard interval 1/8th.      */
 	DRX_GUARD_1DIV4,      /*< Guard interval 1/4th.      */
-	DRX_GUARD_UNKNOWN = DRX_UNKNOWN,
-				/*< Guard interval unknown.    */
+	DRX_GUARD_UNKANALWN = DRX_UNKANALWN,
+				/*< Guard interval unkanalwn.    */
 	DRX_GUARD_AUTO = DRX_AUTO
 				/*< Autodetect guard interval. */
 };
@@ -622,8 +622,8 @@ enum drx_fft_mode {
 	DRX_FFTMODE_2K = 0,    /*< 2K FFT mode.         */
 	DRX_FFTMODE_4K,	       /*< 4K FFT mode.         */
 	DRX_FFTMODE_8K,	       /*< 8K FFT mode.         */
-	DRX_FFTMODE_UNKNOWN = DRX_UNKNOWN,
-				/*< FFT mode unknown.    */
+	DRX_FFTMODE_UNKANALWN = DRX_UNKANALWN,
+				/*< FFT mode unkanalwn.    */
 	DRX_FFTMODE_AUTO = DRX_AUTO
 				/*< Autodetect FFT mode. */
 };
@@ -633,14 +633,14 @@ enum drx_fft_mode {
 * \brief Channel classification.
 */
 enum drx_classification {
-	DRX_CLASSIFICATION_GAUSS = 0, /*< Gaussion noise.            */
-	DRX_CLASSIFICATION_HVY_GAUSS, /*< Heavy Gaussion noise.      */
+	DRX_CLASSIFICATION_GAUSS = 0, /*< Gaussion analise.            */
+	DRX_CLASSIFICATION_HVY_GAUSS, /*< Heavy Gaussion analise.      */
 	DRX_CLASSIFICATION_COCHANNEL, /*< Co-channel.                */
 	DRX_CLASSIFICATION_STATIC,    /*< Static echo.               */
 	DRX_CLASSIFICATION_MOVING,    /*< Moving echo.               */
 	DRX_CLASSIFICATION_ZERODB,    /*< Zero dB echo.              */
-	DRX_CLASSIFICATION_UNKNOWN = DRX_UNKNOWN,
-					/*< Unknown classification     */
+	DRX_CLASSIFICATION_UNKANALWN = DRX_UNKANALWN,
+					/*< Unkanalwn classification     */
 	DRX_CLASSIFICATION_AUTO = DRX_AUTO
 					/*< Autodetect classification. */
 };
@@ -672,8 +672,8 @@ enum drx_interleave_mode {
 	DRX_INTERLEAVEMODE_B52_M720,
 	DRX_INTERLEAVEMODE_B52_M48,
 	DRX_INTERLEAVEMODE_B52_M0,
-	DRX_INTERLEAVEMODE_UNKNOWN = DRX_UNKNOWN,
-					/*< Unknown interleave mode    */
+	DRX_INTERLEAVEMODE_UNKANALWN = DRX_UNKANALWN,
+					/*< Unkanalwn interleave mode    */
 	DRX_INTERLEAVEMODE_AUTO = DRX_AUTO
 					/*< Autodetect interleave mode */
 };
@@ -685,8 +685,8 @@ enum drx_interleave_mode {
 enum drx_carrier_mode {
 	DRX_CARRIER_MULTI = 0,		/*< Multi carrier mode       */
 	DRX_CARRIER_SINGLE,		/*< Single carrier mode      */
-	DRX_CARRIER_UNKNOWN = DRX_UNKNOWN,
-					/*< Carrier mode unknown.    */
+	DRX_CARRIER_UNKANALWN = DRX_UNKANALWN,
+					/*< Carrier mode unkanalwn.    */
 	DRX_CARRIER_AUTO = DRX_AUTO	/*< Autodetect carrier mode  */
 };
 
@@ -702,8 +702,8 @@ enum drx_frame_mode {
 					/*< 420 with fixed PN     */
 	DRX_FRAMEMODE_945_FIXED_PN,
 					/*< 945 with fixed PN     */
-	DRX_FRAMEMODE_UNKNOWN = DRX_UNKNOWN,
-					/*< Frame mode unknown.   */
+	DRX_FRAMEMODE_UNKANALWN = DRX_UNKANALWN,
+					/*< Frame mode unkanalwn.   */
 	DRX_FRAMEMODE_AUTO = DRX_AUTO
 					/*< Autodetect frame mode */
 };
@@ -717,8 +717,8 @@ enum drx_tps_frame {
 	DRX_TPS_FRAME2,		  /*< TPS frame 2.       */
 	DRX_TPS_FRAME3,		  /*< TPS frame 3.       */
 	DRX_TPS_FRAME4,		  /*< TPS frame 4.       */
-	DRX_TPS_FRAME_UNKNOWN = DRX_UNKNOWN
-					/*< TPS frame unknown. */
+	DRX_TPS_FRAME_UNKANALWN = DRX_UNKANALWN
+					/*< TPS frame unkanalwn. */
 };
 
 /*
@@ -729,8 +729,8 @@ enum drx_ldpc {
 	DRX_LDPC_0_4 = 0,	  /*< LDPC 0.4           */
 	DRX_LDPC_0_6,		  /*< LDPC 0.6           */
 	DRX_LDPC_0_8,		  /*< LDPC 0.8           */
-	DRX_LDPC_UNKNOWN = DRX_UNKNOWN,
-					/*< LDPC unknown.      */
+	DRX_LDPC_UNKANALWN = DRX_UNKANALWN,
+					/*< LDPC unkanalwn.      */
 	DRX_LDPC_AUTO = DRX_AUTO  /*< Autodetect LDPC    */
 };
 
@@ -741,8 +741,8 @@ enum drx_ldpc {
 enum drx_pilot_mode {
 	DRX_PILOT_ON = 0,	  /*< Pilot On             */
 	DRX_PILOT_OFF,		  /*< Pilot Off            */
-	DRX_PILOT_UNKNOWN = DRX_UNKNOWN,
-					/*< Pilot unknown.       */
+	DRX_PILOT_UNKANALWN = DRX_UNKANALWN,
+					/*< Pilot unkanalwn.       */
 	DRX_PILOT_AUTO = DRX_AUTO /*< Autodetect Pilot     */
 };
 
@@ -763,8 +763,8 @@ enum drxu_code_action {
 
 		DRX_NEVER_LOCK = 0,
 			      **< Device will never lock on this signal *
-		DRX_NOT_LOCKED,
-			      **< Device has no lock at all             *
+		DRX_ANALT_LOCKED,
+			      **< Device has anal lock at all             *
 		DRX_LOCK_STATE_1,
 			      **< Generic lock state                    *
 		DRX_LOCK_STATE_2,
@@ -788,7 +788,7 @@ enum drxu_code_action {
 
 enum drx_lock_status {
 	DRX_NEVER_LOCK = 0,
-	DRX_NOT_LOCKED,
+	DRX_ANALT_LOCKED,
 	DRX_LOCK_STATE_1,
 	DRX_LOCK_STATE_2,
 	DRX_LOCK_STATE_3,
@@ -850,7 +850,7 @@ enum drx_uio {
 */
 enum drxuio_mode {
 	DRX_UIO_MODE_DISABLE = 0x01,
-			    /*< not used, pin is configured as input */
+			    /*< analt used, pin is configured as input */
 	DRX_UIO_MODE_READWRITE = 0x02,
 			    /*< used for read/write by application   */
 	DRX_UIO_MODE_FIRMWARE = 0x04,
@@ -940,7 +940,7 @@ struct drxu_code_info {
 * \brief Microcode version record
 * Version numbers are stored in BCD format, as usual:
 *   o major number = bits 31-20 (first three nibbles of MSW)
-*   o minor number = bits 19-16 (fourth nibble of MSW)
+*   o mianalr number = bits 19-16 (fourth nibble of MSW)
 *   o patch number = bits 15-0  (remaining nibbles in LSW)
 *
 * The device type indicates for which the device is meant. It is based on the
@@ -994,7 +994,7 @@ struct drx_channel {
 				/*< frequency in kHz                 */
 	enum drx_bandwidth bandwidth;
 				/*< bandwidth                        */
-	enum drx_mirror mirror;	/*< mirrored or not on RF            */
+	enum drx_mirror mirror;	/*< mirrored or analt on RF            */
 	enum drx_modulation constellation;
 				/*< constellation                    */
 	enum drx_hierarchy hierarchy;
@@ -1022,7 +1022,7 @@ enum drx_cfg_sqi_speed {
 	DRX_SQI_SPEED_FAST = 0,
 	DRX_SQI_SPEED_MEDIUM,
 	DRX_SQI_SPEED_SLOW,
-	DRX_SQI_SPEED_UNKNOWN = DRX_UNKNOWN
+	DRX_SQI_SPEED_UNKANALWN = DRX_UNKANALWN
 };
 
 /*========================================*/
@@ -1188,7 +1188,7 @@ typedef int(*drx_scan_func_t) (void *scan_context,
 		DRX_MODULE_BSP_I2C,
 		DRX_MODULE_BSP_TUNER,
 		DRX_MODULE_BSP_HOST,
-		DRX_MODULE_UNKNOWN
+		DRX_MODULE_UNKANALWN
 	};
 
 /*
@@ -1202,7 +1202,7 @@ typedef int(*drx_scan_func_t) (void *scan_context,
 		char *module_name;
 			       /*< Name or description of module */
 		u16 v_major;  /*< Major version number          */
-		u16 v_minor;  /*< Minor version number          */
+		u16 v_mianalr;  /*< Mianalr version number          */
 		u16 v_patch;  /*< Patch version number          */
 		char *v_string; /*< Version as text string        */
 	};
@@ -1364,8 +1364,8 @@ struct drx_version_list {
 		DRX_AUD_STANDARD_A2,	   /*< set A2-Korea FM Stereo        */
 		DRX_AUD_STANDARD_EIAJ,	   /*< set to Japanese FM Stereo     */
 		DRX_AUD_STANDARD_FM_STEREO,/*< set to FM-Stereo Radio        */
-		DRX_AUD_STANDARD_M_MONO,   /*< for 4.5 MHz mono detected     */
-		DRX_AUD_STANDARD_D_K_MONO, /*< for 6.5 MHz mono detected     */
+		DRX_AUD_STANDARD_M_MOANAL,   /*< for 4.5 MHz moanal detected     */
+		DRX_AUD_STANDARD_D_K_MOANAL, /*< for 6.5 MHz moanal detected     */
 		DRX_AUD_STANDARD_BG_FM,	   /*< set BG_FM standard            */
 		DRX_AUD_STANDARD_D_K1,	   /*< set D_K1 standard             */
 		DRX_AUD_STANDARD_D_K2,	   /*< set D_K2 standard             */
@@ -1378,10 +1378,10 @@ struct drx_version_list {
 					   /*< set I_NICAM_FM standard       */
 		DRX_AUD_STANDARD_D_K_NICAM_FM,
 					   /*< set D_K_NICAM_FM standard     */
-		DRX_AUD_STANDARD_NOT_READY,/*< used to detect audio standard */
+		DRX_AUD_STANDARD_ANALT_READY,/*< used to detect audio standard */
 		DRX_AUD_STANDARD_AUTO = DRX_AUTO,
 					   /*< Automatic Standard Detection  */
-		DRX_AUD_STANDARD_UNKNOWN = DRX_UNKNOWN
+		DRX_AUD_STANDARD_UNKANALWN = DRX_UNKANALWN
 					   /*< used as auto and for readback */
 	};
 
@@ -1392,8 +1392,8 @@ struct drx_version_list {
 	enum drx_aud_nicam_status {
 		DRX_AUD_NICAM_DETECTED = 0,
 					  /*< NICAM carrier detected         */
-		DRX_AUD_NICAM_NOT_DETECTED,
-					  /*< NICAM carrier not detected     */
+		DRX_AUD_NICAM_ANALT_DETECTED,
+					  /*< NICAM carrier analt detected     */
 		DRX_AUD_NICAM_BAD	  /*< NICAM carrier bad quality      */
 	};
 
@@ -1537,17 +1537,17 @@ struct drx_version_list {
 *
 */
 	enum drx_cfg_aud_deviation {
-		DRX_AUD_DEVIATION_NORMAL,
+		DRX_AUD_DEVIATION_ANALRMAL,
 		DRX_AUD_DEVIATION_HIGH
 	};
 
 /*
-* /enum enum drx_no_carrier_option * setting for carrier, mute/noise.
+* /enum enum drx_anal_carrier_option * setting for carrier, mute/analise.
 *
 */
-	enum drx_no_carrier_option {
-		DRX_NO_CARRIER_MUTE,
-		DRX_NO_CARRIER_NOISE
+	enum drx_anal_carrier_option {
+		DRX_ANAL_CARRIER_MUTE,
+		DRX_ANAL_CARRIER_ANALISE
 	};
 
 /*
@@ -1575,7 +1575,7 @@ struct drx_version_list {
 */
 	struct drx_aud_carrier {
 		u16 thres;	/* carrier detetcion threshold for primary carrier (A) */
-		enum drx_no_carrier_option opt;	/* Mute or noise at no carrier detection (A) */
+		enum drx_anal_carrier_option opt;	/* Mute or analise at anal carrier detection (A) */
 		s32 shift;	/* DC level of incoming signal (A) */
 		s32 dco;	/* frequency adjustment (A) */
 	};
@@ -1592,7 +1592,7 @@ struct drx_version_list {
 * /enum enum drx_aud_i2s_src * Selection of audio source
 */
 	enum drx_aud_i2s_src {
-		DRX_AUD_SRC_MONO,
+		DRX_AUD_SRC_MOANAL,
 		DRX_AUD_SRC_STEREO_OR_AB,
 		DRX_AUD_SRC_STEREO_OR_A,
 		DRX_AUD_SRC_STEREO_OR_B};
@@ -1601,20 +1601,20 @@ struct drx_version_list {
 * \enum enum drx_aud_i2s_matrix * \brief Used for selecting I2S output.
 */
 	enum drx_aud_i2s_matrix {
-		DRX_AUD_I2S_MATRIX_A_MONO,
-					/*< A sound only, stereo or mono     */
-		DRX_AUD_I2S_MATRIX_B_MONO,
-					/*< B sound only, stereo or mono     */
+		DRX_AUD_I2S_MATRIX_A_MOANAL,
+					/*< A sound only, stereo or moanal     */
+		DRX_AUD_I2S_MATRIX_B_MOANAL,
+					/*< B sound only, stereo or moanal     */
 		DRX_AUD_I2S_MATRIX_STEREO,
 					/*< A+B sound, transparent           */
-		DRX_AUD_I2S_MATRIX_MONO	/*< A+B mixed to mono sum, (L+R)/2   */};
+		DRX_AUD_I2S_MATRIX_MOANAL	/*< A+B mixed to moanal sum, (L+R)/2   */};
 
 /*
 * /enum enum drx_aud_fm_matrix * setting for FM-Matrix in audio demodulator.
 *
 */
 	enum drx_aud_fm_matrix {
-		DRX_AUD_FM_MATRIX_NO_MATRIX,
+		DRX_AUD_FM_MATRIX_ANAL_MATRIX,
 		DRX_AUD_FM_MATRIX_GERMAN,
 		DRX_AUD_FM_MATRIX_KOREAN,
 		DRX_AUD_FM_MATRIX_SOUND_A,
@@ -1634,14 +1634,14 @@ struct drx_cfg_aud_mixer {
 * \enum DRXI2SVidSync_t
 * \brief Audio/video synchronization, interacts with I2S mode.
 * AUTO_1 and AUTO_2 are for automatic video standard detection with preference
-* for NTSC or Monochrome, because the frequencies are too close (59.94 & 60 Hz)
+* for NTSC or Moanalchrome, because the frequencies are too close (59.94 & 60 Hz)
 */
 	enum drx_cfg_aud_av_sync {
 		DRX_AUD_AVSYNC_OFF,/*< audio/video synchronization is off   */
 		DRX_AUD_AVSYNC_NTSC,
 				   /*< it is an NTSC system                 */
-		DRX_AUD_AVSYNC_MONOCHROME,
-				   /*< it is a MONOCHROME system            */
+		DRX_AUD_AVSYNC_MOANALCHROME,
+				   /*< it is a MOANALCHROME system            */
 		DRX_AUD_AVSYNC_PAL_SECAM
 				   /*< it is a PAL/SECAM system             */};
 
@@ -1667,7 +1667,7 @@ struct drx_aud_beep {
 */
 	enum drx_aud_btsc_detect {
 		DRX_BTSC_STEREO,
-		DRX_BTSC_MONO_AND_SAP};
+		DRX_BTSC_MOANAL_AND_SAP};
 
 /*
 * \struct struct drx_aud_data * \brief Audio data structure
@@ -1696,7 +1696,7 @@ struct drx_aud_data {
 * \enum enum drx_qam_lock_range * \brief QAM lock range mode
 */
 	enum drx_qam_lock_range {
-		DRX_QAM_LOCKRANGE_NORMAL,
+		DRX_QAM_LOCKRANGE_ANALRMAL,
 		DRX_QAM_LOCKRANGE_EXTENDED};
 
 /*============================================================================*/
@@ -1818,13 +1818,13 @@ struct drx_reg_dump {
 		/* Microcode (firmware) attributes */
 		char *microcode_file;   /*<  microcode filename           */
 		bool verify_microcode;
-				   /*< Use microcode verify or not.          */
+				   /*< Use microcode verify or analt.          */
 		struct drx_mc_version_rec mcversion;
 				   /*< Version record of microcode from file */
 
 		/* Clocks and tuner attributes */
 		s32 intermediate_freq;
-				     /*< IF,if tuner instance not used. (kHz)*/
+				     /*< IF,if tuner instance analt used. (kHz)*/
 		s32 sys_clock_freq;
 				     /*< Systemclock frequency.  (kHz)       */
 		s32 osc_clock_freq;
@@ -1832,7 +1832,7 @@ struct drx_reg_dump {
 		s16 osc_clock_deviation;
 				     /*< Oscillator clock deviation.  (ppm)  */
 		bool mirror_freq_spect;
-				     /*< Mirror IF frequency spectrum or not.*/
+				     /*< Mirror IF frequency spectrum or analt.*/
 
 		/* Initial MPEG output attributes */
 		struct drx_cfg_mpeg_output mpeg_cfg;
@@ -1936,7 +1936,7 @@ Conversion from enum values to human readable form.
 	(x == DRX_STANDARD_FM)  ? "FM"               : \
 	(x == DRX_STANDARD_DTMB)  ? "DTMB"             : \
 	(x == DRX_STANDARD_AUTO)  ? "Auto"             : \
-	(x == DRX_STANDARD_UNKNOWN)  ? "Unknown"          : \
+	(x == DRX_STANDARD_UNKANALWN)  ? "Unkanalwn"          : \
 	"(Invalid)")
 
 /* channel */
@@ -1946,14 +1946,14 @@ Conversion from enum values to human readable form.
 	(x == DRX_BANDWIDTH_7MHZ)  ?  "7 MHz"            : \
 	(x == DRX_BANDWIDTH_6MHZ)  ?  "6 MHz"            : \
 	(x == DRX_BANDWIDTH_AUTO)  ?  "Auto"             : \
-	(x == DRX_BANDWIDTH_UNKNOWN)  ?  "Unknown"          : \
+	(x == DRX_BANDWIDTH_UNKANALWN)  ?  "Unkanalwn"          : \
 	"(Invalid)")
 #define DRX_STR_FFTMODE(x) ( \
 	(x == DRX_FFTMODE_2K)  ?  "2k"               : \
 	(x == DRX_FFTMODE_4K)  ?  "4k"               : \
 	(x == DRX_FFTMODE_8K)  ?  "8k"               : \
 	(x == DRX_FFTMODE_AUTO)  ?  "Auto"             : \
-	(x == DRX_FFTMODE_UNKNOWN)  ?  "Unknown"          : \
+	(x == DRX_FFTMODE_UNKANALWN)  ?  "Unkanalwn"          : \
 	"(Invalid)")
 #define DRX_STR_GUARD(x) ( \
 	(x == DRX_GUARD_1DIV32)  ?  "1/32nd"           : \
@@ -1961,7 +1961,7 @@ Conversion from enum values to human readable form.
 	(x == DRX_GUARD_1DIV8)  ?  "1/8th"            : \
 	(x == DRX_GUARD_1DIV4)  ?  "1/4th"            : \
 	(x == DRX_GUARD_AUTO)  ?  "Auto"             : \
-	(x == DRX_GUARD_UNKNOWN)  ?  "Unknown"          : \
+	(x == DRX_GUARD_UNKANALWN)  ?  "Unkanalwn"          : \
 	"(Invalid)")
 #define DRX_STR_CONSTELLATION(x) ( \
 	(x == DRX_CONSTELLATION_BPSK)  ?  "BPSK"            : \
@@ -1976,7 +1976,7 @@ Conversion from enum values to human readable form.
 	(x == DRX_CONSTELLATION_QAM1024)  ?  "QAM1024"         : \
 	(x == DRX_CONSTELLATION_QPSK_NR)  ?  "QPSK_NR"            : \
 	(x == DRX_CONSTELLATION_AUTO)  ?  "Auto"            : \
-	(x == DRX_CONSTELLATION_UNKNOWN)  ?  "Unknown"         : \
+	(x == DRX_CONSTELLATION_UNKANALWN)  ?  "Unkanalwn"         : \
 	"(Invalid)")
 #define DRX_STR_CODERATE(x) ( \
 	(x == DRX_CODERATE_1DIV2)  ?  "1/2nd"           : \
@@ -1985,26 +1985,26 @@ Conversion from enum values to human readable form.
 	(x == DRX_CODERATE_5DIV6)  ?  "5/6th"           : \
 	(x == DRX_CODERATE_7DIV8)  ?  "7/8th"           : \
 	(x == DRX_CODERATE_AUTO)  ?  "Auto"            : \
-	(x == DRX_CODERATE_UNKNOWN)  ?  "Unknown"         : \
+	(x == DRX_CODERATE_UNKANALWN)  ?  "Unkanalwn"         : \
 	"(Invalid)")
 #define DRX_STR_HIERARCHY(x) ( \
-	(x == DRX_HIERARCHY_NONE)  ?  "None"            : \
+	(x == DRX_HIERARCHY_ANALNE)  ?  "Analne"            : \
 	(x == DRX_HIERARCHY_ALPHA1)  ?  "Alpha=1"         : \
 	(x == DRX_HIERARCHY_ALPHA2)  ?  "Alpha=2"         : \
 	(x == DRX_HIERARCHY_ALPHA4)  ?  "Alpha=4"         : \
 	(x == DRX_HIERARCHY_AUTO)  ?  "Auto"            : \
-	(x == DRX_HIERARCHY_UNKNOWN)  ?  "Unknown"         : \
+	(x == DRX_HIERARCHY_UNKANALWN)  ?  "Unkanalwn"         : \
 	"(Invalid)")
 #define DRX_STR_PRIORITY(x) ( \
 	(x == DRX_PRIORITY_LOW)  ?  "Low"             : \
 	(x == DRX_PRIORITY_HIGH)  ?  "High"            : \
-	(x == DRX_PRIORITY_UNKNOWN)  ?  "Unknown"         : \
+	(x == DRX_PRIORITY_UNKANALWN)  ?  "Unkanalwn"         : \
 	"(Invalid)")
 #define DRX_STR_MIRROR(x) ( \
-	(x == DRX_MIRROR_NO)  ?  "Normal"          : \
-	(x == DRX_MIRROR_YES)  ?  "Mirrored"        : \
+	(x == DRX_MIRROR_ANAL)  ?  "Analrmal"          : \
+	(x == DRX_MIRROR_ANAL)  ?  "Mirrored"        : \
 	(x == DRX_MIRROR_AUTO)  ?  "Auto"            : \
-	(x == DRX_MIRROR_UNKNOWN)  ?  "Unknown"         : \
+	(x == DRX_MIRROR_UNKANALWN)  ?  "Unkanalwn"         : \
 	"(Invalid)")
 #define DRX_STR_CLASSIFICATION(x) ( \
 	(x == DRX_CLASSIFICATION_GAUSS)  ?  "Gaussion"        : \
@@ -2013,7 +2013,7 @@ Conversion from enum values to human readable form.
 	(x == DRX_CLASSIFICATION_STATIC)  ?  "Static echo"     : \
 	(x == DRX_CLASSIFICATION_MOVING)  ?  "Moving echo"     : \
 	(x == DRX_CLASSIFICATION_ZERODB)  ?  "Zero dB echo"    : \
-	(x == DRX_CLASSIFICATION_UNKNOWN)  ?  "Unknown"         : \
+	(x == DRX_CLASSIFICATION_UNKANALWN)  ?  "Unkanalwn"         : \
 	(x == DRX_CLASSIFICATION_AUTO)  ?  "Auto"            : \
 	"(Invalid)")
 
@@ -2040,7 +2040,7 @@ Conversion from enum values to human readable form.
 	(x == DRX_INTERLEAVEMODE_B52_M720) ? "B52_M720"        : \
 	(x == DRX_INTERLEAVEMODE_B52_M48) ? "B52_M48"         : \
 	(x == DRX_INTERLEAVEMODE_B52_M0) ? "B52_M0"          : \
-	(x == DRX_INTERLEAVEMODE_UNKNOWN) ? "Unknown"         : \
+	(x == DRX_INTERLEAVEMODE_UNKANALWN) ? "Unkanalwn"         : \
 	(x == DRX_INTERLEAVEMODE_AUTO) ? "Auto"            : \
 	"(Invalid)")
 
@@ -2049,14 +2049,14 @@ Conversion from enum values to human readable form.
 	(x == DRX_LDPC_0_6) ? "0.6"             : \
 	(x == DRX_LDPC_0_8) ? "0.8"             : \
 	(x == DRX_LDPC_AUTO) ? "Auto"            : \
-	(x == DRX_LDPC_UNKNOWN) ? "Unknown"         : \
+	(x == DRX_LDPC_UNKANALWN) ? "Unkanalwn"         : \
 	"(Invalid)")
 
 #define DRX_STR_CARRIER(x) ( \
 	(x == DRX_CARRIER_MULTI) ? "Multi"           : \
 	(x == DRX_CARRIER_SINGLE) ? "Single"          : \
 	(x == DRX_CARRIER_AUTO) ? "Auto"            : \
-	(x == DRX_CARRIER_UNKNOWN) ? "Unknown"         : \
+	(x == DRX_CARRIER_UNKANALWN) ? "Unkanalwn"         : \
 	"(Invalid)")
 
 #define DRX_STR_FRAMEMODE(x) ( \
@@ -2066,14 +2066,14 @@ Conversion from enum values to human readable form.
 	(x == DRX_FRAMEMODE_420_FIXED_PN)  ? "420 with fixed PN"  : \
 	(x == DRX_FRAMEMODE_945_FIXED_PN)  ? "945 with fixed PN"  : \
 	(x == DRX_FRAMEMODE_AUTO)  ? "Auto"               : \
-	(x == DRX_FRAMEMODE_UNKNOWN)  ? "Unknown"            : \
+	(x == DRX_FRAMEMODE_UNKANALWN)  ? "Unkanalwn"            : \
 	"(Invalid)")
 
 #define DRX_STR_PILOT(x) ( \
 	(x == DRX_PILOT_ON) ?   "On"              : \
 	(x == DRX_PILOT_OFF) ?   "Off"             : \
 	(x == DRX_PILOT_AUTO) ?   "Auto"            : \
-	(x == DRX_PILOT_UNKNOWN) ?   "Unknown"         : \
+	(x == DRX_PILOT_UNKANALWN) ?   "Unkanalwn"         : \
 	"(Invalid)")
 /* TPS */
 
@@ -2082,14 +2082,14 @@ Conversion from enum values to human readable form.
 	(x == DRX_TPS_FRAME2)  ?  "Frame2"          : \
 	(x == DRX_TPS_FRAME3)  ?  "Frame3"          : \
 	(x == DRX_TPS_FRAME4)  ?  "Frame4"          : \
-	(x == DRX_TPS_FRAME_UNKNOWN)  ?  "Unknown"         : \
+	(x == DRX_TPS_FRAME_UNKANALWN)  ?  "Unkanalwn"         : \
 	"(Invalid)")
 
 /* lock status */
 
 #define DRX_STR_LOCKSTATUS(x) ( \
 	(x == DRX_NEVER_LOCK)  ?  "Never"           : \
-	(x == DRX_NOT_LOCKED)  ?  "No"              : \
+	(x == DRX_ANALT_LOCKED)  ?  "Anal"              : \
 	(x == DRX_LOCKED)  ?  "Locked"          : \
 	(x == DRX_LOCK_STATE_1)  ?  "Lock state 1"    : \
 	(x == DRX_LOCK_STATE_2)  ?  "Lock state 2"    : \
@@ -2112,7 +2112,7 @@ Conversion from enum values to human readable form.
 	(x == DRX_MODULE_BSP_TUNER)  ?  "BSP Tuner"             : \
 	(x == DRX_MODULE_BSP_HOST)  ?  "BSP Host"              : \
 	(x == DRX_MODULE_DAP)  ?  "Data Access Protocol"  : \
-	(x == DRX_MODULE_UNKNOWN)  ?  "Unknown"               : \
+	(x == DRX_MODULE_UNKANALWN)  ?  "Unkanalwn"               : \
 	"(Invalid)")
 
 #define DRX_STR_POWER_MODE(x) ( \
@@ -2148,8 +2148,8 @@ Conversion from enum values to human readable form.
 	(x == DRX_AUD_STANDARD_EIAJ)  ? "EIAJ"                     : \
 	(x == DRX_AUD_STANDARD_FM_STEREO)  ? "FM Stereo"                : \
 	(x == DRX_AUD_STANDARD_AUTO)  ? "Auto"                     : \
-	(x == DRX_AUD_STANDARD_M_MONO)  ? "M-Standard Mono"          : \
-	(x == DRX_AUD_STANDARD_D_K_MONO)  ? "D/K Mono FM"              : \
+	(x == DRX_AUD_STANDARD_M_MOANAL)  ? "M-Standard Moanal"          : \
+	(x == DRX_AUD_STANDARD_D_K_MOANAL)  ? "D/K Moanal FM"              : \
 	(x == DRX_AUD_STANDARD_BG_FM)  ? "B/G-Dual Carrier FM (A2)" : \
 	(x == DRX_AUD_STANDARD_D_K1)  ? "D/K1-Dual Carrier FM"     : \
 	(x == DRX_AUD_STANDARD_D_K2)  ? "D/K2-Dual Carrier FM"     : \
@@ -2158,37 +2158,37 @@ Conversion from enum values to human readable form.
 	(x == DRX_AUD_STANDARD_L_NICAM_AM)  ? "L-NICAM-AM"               : \
 	(x == DRX_AUD_STANDARD_I_NICAM_FM)  ? "I-NICAM-FM"               : \
 	(x == DRX_AUD_STANDARD_D_K_NICAM_FM)  ? "D/K-NICAM-FM"             : \
-	(x == DRX_AUD_STANDARD_UNKNOWN)  ? "Unknown"                  : \
+	(x == DRX_AUD_STANDARD_UNKANALWN)  ? "Unkanalwn"                  : \
 	"(Invalid)")
 #define DRX_STR_AUD_STEREO(x) ( \
 	(x == true)  ? "Stereo"           : \
-	(x == false)  ? "Mono"             : \
+	(x == false)  ? "Moanal"             : \
 	"(Invalid)")
 
 #define DRX_STR_AUD_SAP(x) ( \
 	(x == true)  ? "Present"          : \
-	(x == false)  ? "Not present"      : \
+	(x == false)  ? "Analt present"      : \
 	"(Invalid)")
 
 #define DRX_STR_AUD_CARRIER(x) ( \
 	(x == true)  ? "Present"          : \
-	(x == false)  ? "Not present"      : \
+	(x == false)  ? "Analt present"      : \
 	"(Invalid)")
 
 #define DRX_STR_AUD_RDS(x) ( \
 	(x == true)  ? "Available"        : \
-	(x == false)  ? "Not Available"    : \
+	(x == false)  ? "Analt Available"    : \
 	"(Invalid)")
 
 #define DRX_STR_AUD_NICAM_STATUS(x) ( \
 	(x == DRX_AUD_NICAM_DETECTED)  ? "Detected"         : \
-	(x == DRX_AUD_NICAM_NOT_DETECTED)  ? "Not detected"     : \
+	(x == DRX_AUD_NICAM_ANALT_DETECTED)  ? "Analt detected"     : \
 	(x == DRX_AUD_NICAM_BAD)  ? "Bad"              : \
 	"(Invalid)")
 
 #define DRX_STR_RDS_VALID(x) ( \
 	(x == true)  ? "Valid"            : \
-	(x == false)  ? "Not Valid"        : \
+	(x == false)  ? "Analt Valid"        : \
 	"(Invalid)")
 
 /*-------------------------------------------------------------------------
@@ -2278,12 +2278,12 @@ Access macros
 #define DRX_SET_AUD_BTSC_DETECT(d, x) DRX_ACCESSMACRO_SET((d), (x), \
 	 DRX_XS_CFG_AUD_BTSC_DETECT, enum drx_aud_btsc_detect)
 #define DRX_GET_AUD_BTSC_DETECT(d, x) DRX_ACCESSMACRO_GET((d), (x), \
-	 DRX_XS_CFG_AUD_BTSC_DETECT, enum drx_aud_btsc_detect, DRX_UNKNOWN)
+	 DRX_XS_CFG_AUD_BTSC_DETECT, enum drx_aud_btsc_detect, DRX_UNKANALWN)
 
 #define DRX_SET_QAM_LOCKRANGE(d, x) DRX_ACCESSMACRO_SET((d), (x), \
 	 DRX_XS_CFG_QAM_LOCKRANGE, enum drx_qam_lock_range)
 #define DRX_GET_QAM_LOCKRANGE(d, x) DRX_ACCESSMACRO_GET((d), (x), \
-	 DRX_XS_CFG_QAM_LOCKRANGE, enum drx_qam_lock_range, DRX_UNKNOWN)
+	 DRX_XS_CFG_QAM_LOCKRANGE, enum drx_qam_lock_range, DRX_UNKANALWN)
 
 /*
 * \brief Macro to check if std is an ATV standard
@@ -2311,14 +2311,14 @@ Access macros
 /*
 * \brief Macro to check if std is VSB standard
 * \retval true std is VSB standard
-* \retval false std is not VSB standard
+* \retval false std is analt VSB standard
 */
 #define DRX_ISVSBSTD(std) ((std) == DRX_STANDARD_8VSB)
 
 /*
 * \brief Macro to check if std is DVBT standard
 * \retval true std is DVBT standard
-* \retval false std is not DVBT standard
+* \retval false std is analt DVBT standard
 */
 #define DRX_ISDVBTSTD(std) ((std) == DRX_STANDARD_DVBT)
 

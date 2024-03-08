@@ -127,7 +127,7 @@
 	};
 
 	/* vbus feeds the rk817 usb input.
-	 * With no battery attached, also feeds vcc_bat+
+	 * With anal battery attached, also feeds vcc_bat+
 	 * via ON/OFF_BAT jumper
 	 */
 	vbus: vbus {
@@ -259,7 +259,7 @@
 	cooling-maps {
 		map1 {
 			trip = <&cpu_hot>;
-			cooling-device = <&fan THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+			cooling-device = <&fan THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 		};
 	};
 };
@@ -275,7 +275,7 @@
 		     &gmac1m0_tx_bus2
 		     &gmac1m0_rx_bus2
 		     &gmac1m0_rgmii_clk
-		     &gmac1m0_clkinout
+		     &gmac1m0_clkianalut
 		     &gmac1m0_rgmii_bus>;
 	snps,reset-gpio = <&gpio0 RK_PC3 GPIO_ACTIVE_LOW>;
 	snps,reset-active-low;
@@ -574,7 +574,7 @@
 &pinctrl {
 	bt {
 		bt_enable_h: bt-enable-h {
-			rockchip,pins = <2 RK_PB7 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <2 RK_PB7 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		bt_host_wake_l: bt-host-wake-l {
@@ -582,33 +582,33 @@
 		};
 
 		bt_wake_l: bt-wake-l {
-			rockchip,pins = <2 RK_PC1 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <2 RK_PC1 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	fan {
 		fan_en_h: fan-en-h {
-			rockchip,pins = <0 RK_PD5 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PD5 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	leds {
 		work_led_enable_h: work-led-enable-h {
-			rockchip,pins = <0 RK_PD3 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PD3 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		diy_led_enable_h: diy-led-enable-h {
-			rockchip,pins = <0 RK_PD4 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PD4 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	pcie {
 		pcie_enable_h: pcie-enable-h {
-			rockchip,pins = <0 RK_PC6 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PC6 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		pcie_reset_h: pcie-reset-h {
-			rockchip,pins = <1 RK_PB2 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <1 RK_PB2 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
@@ -620,19 +620,19 @@
 
 	usb2 {
 		vcc5v0_usb20_host_en: vcc5v0-usb20-host-en {
-			rockchip,pins = <4 RK_PB5 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <4 RK_PB5 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	sdio-pwrseq {
 		wifi_enable_h: wifi-enable-h {
-			rockchip,pins = <2 RK_PC2 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <2 RK_PC2 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	vcc_sd {
 		vcc_sd_h: vcc-sd-h {
-			rockchip,pins = <0 RK_PA5 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PA5 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 };
@@ -653,7 +653,7 @@
 &sdhci {
 	bus-width = <8>;
 	mmc-hs200-1_8v;
-	non-removable;
+	analn-removable;
 	vmmc-supply = <&vcc_3v3>;
 	vqmmc-supply = <&vcc_1v8>;
 	status = "okay";
@@ -678,7 +678,7 @@
 	cap-sdio-irq;
 	keep-power-in-suspend;
 	mmc-pwrseq = <&sdio_pwrseq>;
-	non-removable;
+	analn-removable;
 	pinctrl-names = "default";
 	pinctrl-0 = <&sdmmc1_bus4 &sdmmc1_cmd &sdmmc1_clk>;
 	sd-uhs-sdr104;
@@ -695,7 +695,7 @@
 	status = "disabled";
 
 	flash@0 {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		reg = <0>;
 		spi-max-frequency = <24000000>;
 		spi-rx-bus-width = <4>;

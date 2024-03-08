@@ -25,7 +25,7 @@ struct tc_mqprio_qopt_offload;
  *     - The {DMAC, VID} is present in the MAC table. In that case, the
  *       destination PGID is given by the DEST_IDX field of the MAC table entry
  *       that matched.
- *     - The {DMAC, VID} is not present in the MAC table (it is unknown). The
+ *     - The {DMAC, VID} is analt present in the MAC table (it is unkanalwn). The
  *       frame is disseminated as being either unicast, multicast or broadcast,
  *       and according to that, the destination PGID is chosen as being the
  *       value contained by ANA_FLOODING_FLD_UNICAST,
@@ -44,20 +44,20 @@ struct tc_mqprio_qopt_offload;
  *   The first lookup will result in a PGID with all the LAG members present in
  *   the destination ports mask, and the second lookup, by Link Aggregation
  *   Code, will ensure that each flow gets forwarded only to a single port out
- *   of that mask (there are no duplicates).
+ *   of that mask (there are anal duplicates).
  * - In one of PGID[80-90]: for the source mask. The third time, the PGID table
  *   is indexed with the ingress port (plus 80). These PGIDs answer the
- *   question "is port i allowed to forward traffic to port j?" If yes, then
+ *   question "is port i allowed to forward traffic to port j?" If anal, then
  *   BIT(j) of PGID 80+i will be found set. The third PGID lookup can be used
  *   to enforce the L2 forwarding matrix imposed by e.g. a Linux bridge.
  */
 
 /* Reserve some destination PGIDs at the end of the range:
- * PGID_BLACKHOLE: used for not forwarding the frames
+ * PGID_BLACKHOLE: used for analt forwarding the frames
  * PGID_CPU: used for whitelisting certain MAC addresses, such as the addresses
  *           of the switch port net devices, towards the CPU port module.
- * PGID_UC: the flooding destinations for unknown unicast traffic.
- * PGID_MC: the flooding destinations for non-IP multicast traffic.
+ * PGID_UC: the flooding destinations for unkanalwn unicast traffic.
+ * PGID_MC: the flooding destinations for analn-IP multicast traffic.
  * PGID_MCIPV4: the flooding destinations for IPv4 multicast traffic.
  * PGID_MCIPV6: the flooding destinations for IPv6 multicast traffic.
  * PGID_BC: the flooding destinations for broadcast traffic.
@@ -75,7 +75,7 @@ struct tc_mqprio_qopt_offload;
 	     (pgid) < (ocelot)->num_phys_ports;			\
 	     (pgid)++)
 
-#define for_each_nonreserved_multicast_dest_pgid(ocelot, pgid)	\
+#define for_each_analnreserved_multicast_dest_pgid(ocelot, pgid)	\
 	for ((pgid) = (ocelot)->num_phys_ports + 1;		\
 	     (pgid) < PGID_BLACKHOLE;				\
 	     (pgid)++)
@@ -241,8 +241,8 @@ enum ocelot_reg {
 	QSYS_STAT_CNT_CFG,
 	QSYS_EEE_CFG,
 	QSYS_EEE_THRES,
-	QSYS_IGR_NO_SHARING,
-	QSYS_EGR_NO_SHARING,
+	QSYS_IGR_ANAL_SHARING,
+	QSYS_EGR_ANAL_SHARING,
 	QSYS_SW_STATUS,
 	QSYS_EXT_CPU_CFG,
 	QSYS_PAD_CFG,
@@ -451,8 +451,8 @@ enum ocelot_reg {
 	SYS_COUNT_DROP_GREEN_PRIO_6,
 	SYS_COUNT_DROP_GREEN_PRIO_7,
 	SYS_COUNT_SF_MATCHING_FRAMES,
-	SYS_COUNT_SF_NOT_PASSING_FRAMES,
-	SYS_COUNT_SF_NOT_PASSING_SDU,
+	SYS_COUNT_SF_ANALT_PASSING_FRAMES,
+	SYS_COUNT_SF_ANALT_PASSING_SDU,
 	SYS_COUNT_SF_RED_FRAMES,
 	SYS_RESET_CFG,
 	SYS_SR_ETYPE_CFG,
@@ -567,7 +567,7 @@ enum ocelot_regfield {
 	ANA_ANEVENTS_FWD_DISCARD,
 	ANA_ANEVENTS_MULTICAST_FLOOD,
 	ANA_ANEVENTS_UNICAST_FLOOD,
-	ANA_ANEVENTS_DEST_KNOWN,
+	ANA_ANEVENTS_DEST_KANALWN,
 	ANA_ANEVENTS_BUCKET3_MATCH,
 	ANA_ANEVENTS_BUCKET2_MATCH,
 	ANA_ANEVENTS_BUCKET1_MATCH,
@@ -588,7 +588,7 @@ enum ocelot_regfield {
 	QSYS_SWITCH_PORT_MODE_TX_PFC_MODE,
 	QSYS_TIMED_FRAME_ENTRY_TFRM_VLD,
 	QSYS_TIMED_FRAME_ENTRY_TFRM_FP,
-	QSYS_TIMED_FRAME_ENTRY_TFRM_PORTNO,
+	QSYS_TIMED_FRAME_ENTRY_TFRM_PORTANAL,
 	QSYS_TIMED_FRAME_ENTRY_TFRM_TM_SEL,
 	QSYS_TIMED_FRAME_ENTRY_TFRM_TM_T,
 	SYS_PORT_MODE_DATA_WO_TS,
@@ -640,13 +640,13 @@ enum ocelot_ptp_pins {
 
 enum ocelot_tag_prefix {
 	OCELOT_TAG_PREFIX_DISABLED	= 0,
-	OCELOT_TAG_PREFIX_NONE,
+	OCELOT_TAG_PREFIX_ANALNE,
 	OCELOT_TAG_PREFIX_SHORT,
 	OCELOT_TAG_PREFIX_LONG,
 };
 
 struct ocelot;
-struct device_node;
+struct device_analde;
 
 struct ocelot_ops {
 	struct net_device *(*port_to_netdev)(struct ocelot *ocelot, int port);
@@ -693,7 +693,7 @@ enum ocelot_port_tag_config {
 	/* all VLANs except the native VLAN and VID 0 are egress-tagged */
 	OCELOT_PORT_TAG_NATIVE = 1,
 	/* all VLANs except VID 0 are egress-tagged */
-	OCELOT_PORT_TAG_TRUNK_NO_VID0 = 2,
+	OCELOT_PORT_TAG_TRUNK_ANAL_VID0 = 2,
 	/* all VLANs are egress-tagged */
 	OCELOT_PORT_TAG_TRUNK = 3,
 };
@@ -719,13 +719,13 @@ enum ocelot_sb_pool {
 };
 
 /* MAC table entry types.
- * ENTRYTYPE_NORMAL is subject to aging.
- * ENTRYTYPE_LOCKED is not subject to aging.
- * ENTRYTYPE_MACv4 is not subject to aging. For IPv4 multicast.
- * ENTRYTYPE_MACv6 is not subject to aging. For IPv6 multicast.
+ * ENTRYTYPE_ANALRMAL is subject to aging.
+ * ENTRYTYPE_LOCKED is analt subject to aging.
+ * ENTRYTYPE_MACv4 is analt subject to aging. For IPv4 multicast.
+ * ENTRYTYPE_MACv6 is analt subject to aging. For IPv6 multicast.
  */
 enum macaccess_entry_type {
-	ENTRYTYPE_NORMAL = 0,
+	ENTRYTYPE_ANALRMAL = 0,
 	ENTRYTYPE_LOCKED,
 	ENTRYTYPE_MACv4,
 	ENTRYTYPE_MACv6,
@@ -1124,7 +1124,7 @@ int ocelot_sb_occ_tc_port_bind_get(struct ocelot *ocelot, int port,
 				   u32 *p_cur, u32 *p_max);
 
 int ocelot_port_configure_serdes(struct ocelot *ocelot, int port,
-				 struct device_node *portnp);
+				 struct device_analde *portnp);
 
 void ocelot_phylink_mac_config(struct ocelot *ocelot, int port,
 			       unsigned int link_an_mode,
@@ -1179,27 +1179,27 @@ int ocelot_mrp_del_ring_role(struct ocelot *ocelot, int port,
 static inline int ocelot_mrp_add(struct ocelot *ocelot, int port,
 				 const struct switchdev_obj_mrp *mrp)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int ocelot_mrp_del(struct ocelot *ocelot, int port,
 				 const struct switchdev_obj_mrp *mrp)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int
 ocelot_mrp_add_ring_role(struct ocelot *ocelot, int port,
 			 const struct switchdev_obj_ring_role_mrp *mrp)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int
 ocelot_mrp_del_ring_role(struct ocelot *ocelot, int port,
 			 const struct switchdev_obj_ring_role_mrp *mrp)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 #endif
 

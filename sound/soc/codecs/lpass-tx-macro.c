@@ -1136,7 +1136,7 @@ static int tx_macro_digital_mute(struct snd_soc_dai *dai, int mute, int stream)
 	struct tx_macro *tx = snd_soc_component_get_drvdata(component);
 	u8 decimator;
 
-	/* active decimator not set yet */
+	/* active decimator analt set yet */
 	if (tx->active_decimator[dai->id] == -1)
 		return 0;
 
@@ -1333,117 +1333,117 @@ static const char * const dec_mode_mux_text[] = {
 };
 
 static const struct soc_enum dec_mode_mux_enum[] = {
-	SOC_ENUM_SINGLE(SND_SOC_NOPM, 0, ARRAY_SIZE(dec_mode_mux_text),
+	SOC_ENUM_SINGLE(SND_SOC_ANALPM, 0, ARRAY_SIZE(dec_mode_mux_text),
 			dec_mode_mux_text),
-	SOC_ENUM_SINGLE(SND_SOC_NOPM, 1, ARRAY_SIZE(dec_mode_mux_text),
+	SOC_ENUM_SINGLE(SND_SOC_ANALPM, 1, ARRAY_SIZE(dec_mode_mux_text),
 			dec_mode_mux_text),
-	SOC_ENUM_SINGLE(SND_SOC_NOPM, 2,  ARRAY_SIZE(dec_mode_mux_text),
+	SOC_ENUM_SINGLE(SND_SOC_ANALPM, 2,  ARRAY_SIZE(dec_mode_mux_text),
 			dec_mode_mux_text),
-	SOC_ENUM_SINGLE(SND_SOC_NOPM, 3, ARRAY_SIZE(dec_mode_mux_text),
+	SOC_ENUM_SINGLE(SND_SOC_ANALPM, 3, ARRAY_SIZE(dec_mode_mux_text),
 			dec_mode_mux_text),
-	SOC_ENUM_SINGLE(SND_SOC_NOPM, 4, ARRAY_SIZE(dec_mode_mux_text),
+	SOC_ENUM_SINGLE(SND_SOC_ANALPM, 4, ARRAY_SIZE(dec_mode_mux_text),
 			dec_mode_mux_text),
-	SOC_ENUM_SINGLE(SND_SOC_NOPM, 5, ARRAY_SIZE(dec_mode_mux_text),
+	SOC_ENUM_SINGLE(SND_SOC_ANALPM, 5, ARRAY_SIZE(dec_mode_mux_text),
 			dec_mode_mux_text),
-	SOC_ENUM_SINGLE(SND_SOC_NOPM, 6, ARRAY_SIZE(dec_mode_mux_text),
+	SOC_ENUM_SINGLE(SND_SOC_ANALPM, 6, ARRAY_SIZE(dec_mode_mux_text),
 			dec_mode_mux_text),
-	SOC_ENUM_SINGLE(SND_SOC_NOPM, 7, ARRAY_SIZE(dec_mode_mux_text),
+	SOC_ENUM_SINGLE(SND_SOC_ANALPM, 7, ARRAY_SIZE(dec_mode_mux_text),
 			dec_mode_mux_text),
 };
 
 static const struct snd_kcontrol_new tx_aif1_cap_mixer[] = {
-	SOC_SINGLE_EXT("DEC0", SND_SOC_NOPM, TX_MACRO_DEC0, 1, 0,
+	SOC_SINGLE_EXT("DEC0", SND_SOC_ANALPM, TX_MACRO_DEC0, 1, 0,
 			tx_macro_tx_mixer_get, tx_macro_tx_mixer_put),
-	SOC_SINGLE_EXT("DEC1", SND_SOC_NOPM, TX_MACRO_DEC1, 1, 0,
+	SOC_SINGLE_EXT("DEC1", SND_SOC_ANALPM, TX_MACRO_DEC1, 1, 0,
 			tx_macro_tx_mixer_get, tx_macro_tx_mixer_put),
-	SOC_SINGLE_EXT("DEC2", SND_SOC_NOPM, TX_MACRO_DEC2, 1, 0,
+	SOC_SINGLE_EXT("DEC2", SND_SOC_ANALPM, TX_MACRO_DEC2, 1, 0,
 			tx_macro_tx_mixer_get, tx_macro_tx_mixer_put),
-	SOC_SINGLE_EXT("DEC3", SND_SOC_NOPM, TX_MACRO_DEC3, 1, 0,
+	SOC_SINGLE_EXT("DEC3", SND_SOC_ANALPM, TX_MACRO_DEC3, 1, 0,
 			tx_macro_tx_mixer_get, tx_macro_tx_mixer_put),
-	SOC_SINGLE_EXT("DEC4", SND_SOC_NOPM, TX_MACRO_DEC4, 1, 0,
+	SOC_SINGLE_EXT("DEC4", SND_SOC_ANALPM, TX_MACRO_DEC4, 1, 0,
 			tx_macro_tx_mixer_get, tx_macro_tx_mixer_put),
-	SOC_SINGLE_EXT("DEC5", SND_SOC_NOPM, TX_MACRO_DEC5, 1, 0,
+	SOC_SINGLE_EXT("DEC5", SND_SOC_ANALPM, TX_MACRO_DEC5, 1, 0,
 			tx_macro_tx_mixer_get, tx_macro_tx_mixer_put),
-	SOC_SINGLE_EXT("DEC6", SND_SOC_NOPM, TX_MACRO_DEC6, 1, 0,
+	SOC_SINGLE_EXT("DEC6", SND_SOC_ANALPM, TX_MACRO_DEC6, 1, 0,
 			tx_macro_tx_mixer_get, tx_macro_tx_mixer_put),
-	SOC_SINGLE_EXT("DEC7", SND_SOC_NOPM, TX_MACRO_DEC7, 1, 0,
+	SOC_SINGLE_EXT("DEC7", SND_SOC_ANALPM, TX_MACRO_DEC7, 1, 0,
 			tx_macro_tx_mixer_get, tx_macro_tx_mixer_put),
 };
 
 static const struct snd_kcontrol_new tx_aif2_cap_mixer[] = {
-	SOC_SINGLE_EXT("DEC0", SND_SOC_NOPM, TX_MACRO_DEC0, 1, 0,
+	SOC_SINGLE_EXT("DEC0", SND_SOC_ANALPM, TX_MACRO_DEC0, 1, 0,
 			tx_macro_tx_mixer_get, tx_macro_tx_mixer_put),
-	SOC_SINGLE_EXT("DEC1", SND_SOC_NOPM, TX_MACRO_DEC1, 1, 0,
+	SOC_SINGLE_EXT("DEC1", SND_SOC_ANALPM, TX_MACRO_DEC1, 1, 0,
 			tx_macro_tx_mixer_get, tx_macro_tx_mixer_put),
-	SOC_SINGLE_EXT("DEC2", SND_SOC_NOPM, TX_MACRO_DEC2, 1, 0,
+	SOC_SINGLE_EXT("DEC2", SND_SOC_ANALPM, TX_MACRO_DEC2, 1, 0,
 			tx_macro_tx_mixer_get, tx_macro_tx_mixer_put),
-	SOC_SINGLE_EXT("DEC3", SND_SOC_NOPM, TX_MACRO_DEC3, 1, 0,
+	SOC_SINGLE_EXT("DEC3", SND_SOC_ANALPM, TX_MACRO_DEC3, 1, 0,
 			tx_macro_tx_mixer_get, tx_macro_tx_mixer_put),
-	SOC_SINGLE_EXT("DEC4", SND_SOC_NOPM, TX_MACRO_DEC4, 1, 0,
+	SOC_SINGLE_EXT("DEC4", SND_SOC_ANALPM, TX_MACRO_DEC4, 1, 0,
 			tx_macro_tx_mixer_get, tx_macro_tx_mixer_put),
-	SOC_SINGLE_EXT("DEC5", SND_SOC_NOPM, TX_MACRO_DEC5, 1, 0,
+	SOC_SINGLE_EXT("DEC5", SND_SOC_ANALPM, TX_MACRO_DEC5, 1, 0,
 			tx_macro_tx_mixer_get, tx_macro_tx_mixer_put),
-	SOC_SINGLE_EXT("DEC6", SND_SOC_NOPM, TX_MACRO_DEC6, 1, 0,
+	SOC_SINGLE_EXT("DEC6", SND_SOC_ANALPM, TX_MACRO_DEC6, 1, 0,
 			tx_macro_tx_mixer_get, tx_macro_tx_mixer_put),
-	SOC_SINGLE_EXT("DEC7", SND_SOC_NOPM, TX_MACRO_DEC7, 1, 0,
+	SOC_SINGLE_EXT("DEC7", SND_SOC_ANALPM, TX_MACRO_DEC7, 1, 0,
 			tx_macro_tx_mixer_get, tx_macro_tx_mixer_put),
 };
 
 static const struct snd_kcontrol_new tx_aif3_cap_mixer[] = {
-	SOC_SINGLE_EXT("DEC0", SND_SOC_NOPM, TX_MACRO_DEC0, 1, 0,
+	SOC_SINGLE_EXT("DEC0", SND_SOC_ANALPM, TX_MACRO_DEC0, 1, 0,
 			tx_macro_tx_mixer_get, tx_macro_tx_mixer_put),
-	SOC_SINGLE_EXT("DEC1", SND_SOC_NOPM, TX_MACRO_DEC1, 1, 0,
+	SOC_SINGLE_EXT("DEC1", SND_SOC_ANALPM, TX_MACRO_DEC1, 1, 0,
 			tx_macro_tx_mixer_get, tx_macro_tx_mixer_put),
-	SOC_SINGLE_EXT("DEC2", SND_SOC_NOPM, TX_MACRO_DEC2, 1, 0,
+	SOC_SINGLE_EXT("DEC2", SND_SOC_ANALPM, TX_MACRO_DEC2, 1, 0,
 			tx_macro_tx_mixer_get, tx_macro_tx_mixer_put),
-	SOC_SINGLE_EXT("DEC3", SND_SOC_NOPM, TX_MACRO_DEC3, 1, 0,
+	SOC_SINGLE_EXT("DEC3", SND_SOC_ANALPM, TX_MACRO_DEC3, 1, 0,
 			tx_macro_tx_mixer_get, tx_macro_tx_mixer_put),
-	SOC_SINGLE_EXT("DEC4", SND_SOC_NOPM, TX_MACRO_DEC4, 1, 0,
+	SOC_SINGLE_EXT("DEC4", SND_SOC_ANALPM, TX_MACRO_DEC4, 1, 0,
 			tx_macro_tx_mixer_get, tx_macro_tx_mixer_put),
-	SOC_SINGLE_EXT("DEC5", SND_SOC_NOPM, TX_MACRO_DEC5, 1, 0,
+	SOC_SINGLE_EXT("DEC5", SND_SOC_ANALPM, TX_MACRO_DEC5, 1, 0,
 			tx_macro_tx_mixer_get, tx_macro_tx_mixer_put),
-	SOC_SINGLE_EXT("DEC6", SND_SOC_NOPM, TX_MACRO_DEC6, 1, 0,
+	SOC_SINGLE_EXT("DEC6", SND_SOC_ANALPM, TX_MACRO_DEC6, 1, 0,
 			tx_macro_tx_mixer_get, tx_macro_tx_mixer_put),
-	SOC_SINGLE_EXT("DEC7", SND_SOC_NOPM, TX_MACRO_DEC7, 1, 0,
+	SOC_SINGLE_EXT("DEC7", SND_SOC_ANALPM, TX_MACRO_DEC7, 1, 0,
 			tx_macro_tx_mixer_get, tx_macro_tx_mixer_put),
 };
 
 static const struct snd_soc_dapm_widget tx_macro_dapm_widgets[] = {
 	SND_SOC_DAPM_AIF_OUT("TX_AIF1 CAP", "TX_AIF1 Capture", 0,
-		SND_SOC_NOPM, TX_MACRO_AIF1_CAP, 0),
+		SND_SOC_ANALPM, TX_MACRO_AIF1_CAP, 0),
 
 	SND_SOC_DAPM_AIF_OUT("TX_AIF2 CAP", "TX_AIF2 Capture", 0,
-		SND_SOC_NOPM, TX_MACRO_AIF2_CAP, 0),
+		SND_SOC_ANALPM, TX_MACRO_AIF2_CAP, 0),
 
 	SND_SOC_DAPM_AIF_OUT("TX_AIF3 CAP", "TX_AIF3 Capture", 0,
-		SND_SOC_NOPM, TX_MACRO_AIF3_CAP, 0),
+		SND_SOC_ANALPM, TX_MACRO_AIF3_CAP, 0),
 
-	SND_SOC_DAPM_MIXER("TX_AIF1_CAP Mixer", SND_SOC_NOPM, TX_MACRO_AIF1_CAP, 0,
+	SND_SOC_DAPM_MIXER("TX_AIF1_CAP Mixer", SND_SOC_ANALPM, TX_MACRO_AIF1_CAP, 0,
 		tx_aif1_cap_mixer, ARRAY_SIZE(tx_aif1_cap_mixer)),
 
-	SND_SOC_DAPM_MIXER("TX_AIF2_CAP Mixer", SND_SOC_NOPM, TX_MACRO_AIF2_CAP, 0,
+	SND_SOC_DAPM_MIXER("TX_AIF2_CAP Mixer", SND_SOC_ANALPM, TX_MACRO_AIF2_CAP, 0,
 		tx_aif2_cap_mixer, ARRAY_SIZE(tx_aif2_cap_mixer)),
 
-	SND_SOC_DAPM_MIXER("TX_AIF3_CAP Mixer", SND_SOC_NOPM, TX_MACRO_AIF3_CAP, 0,
+	SND_SOC_DAPM_MIXER("TX_AIF3_CAP Mixer", SND_SOC_ANALPM, TX_MACRO_AIF3_CAP, 0,
 		tx_aif3_cap_mixer, ARRAY_SIZE(tx_aif3_cap_mixer)),
 
-	SND_SOC_DAPM_MUX("TX SMIC MUX0", SND_SOC_NOPM, 0, 0, &tx_smic0_mux),
-	SND_SOC_DAPM_MUX("TX SMIC MUX1", SND_SOC_NOPM, 0, 0, &tx_smic1_mux),
-	SND_SOC_DAPM_MUX("TX SMIC MUX2", SND_SOC_NOPM, 0, 0, &tx_smic2_mux),
-	SND_SOC_DAPM_MUX("TX SMIC MUX3", SND_SOC_NOPM, 0, 0, &tx_smic3_mux),
-	SND_SOC_DAPM_MUX("TX SMIC MUX4", SND_SOC_NOPM, 0, 0, &tx_smic4_mux),
-	SND_SOC_DAPM_MUX("TX SMIC MUX5", SND_SOC_NOPM, 0, 0, &tx_smic5_mux),
-	SND_SOC_DAPM_MUX("TX SMIC MUX6", SND_SOC_NOPM, 0, 0, &tx_smic6_mux),
-	SND_SOC_DAPM_MUX("TX SMIC MUX7", SND_SOC_NOPM, 0, 0, &tx_smic7_mux),
+	SND_SOC_DAPM_MUX("TX SMIC MUX0", SND_SOC_ANALPM, 0, 0, &tx_smic0_mux),
+	SND_SOC_DAPM_MUX("TX SMIC MUX1", SND_SOC_ANALPM, 0, 0, &tx_smic1_mux),
+	SND_SOC_DAPM_MUX("TX SMIC MUX2", SND_SOC_ANALPM, 0, 0, &tx_smic2_mux),
+	SND_SOC_DAPM_MUX("TX SMIC MUX3", SND_SOC_ANALPM, 0, 0, &tx_smic3_mux),
+	SND_SOC_DAPM_MUX("TX SMIC MUX4", SND_SOC_ANALPM, 0, 0, &tx_smic4_mux),
+	SND_SOC_DAPM_MUX("TX SMIC MUX5", SND_SOC_ANALPM, 0, 0, &tx_smic5_mux),
+	SND_SOC_DAPM_MUX("TX SMIC MUX6", SND_SOC_ANALPM, 0, 0, &tx_smic6_mux),
+	SND_SOC_DAPM_MUX("TX SMIC MUX7", SND_SOC_ANALPM, 0, 0, &tx_smic7_mux),
 
-	SND_SOC_DAPM_MUX("TX DMIC MUX0", SND_SOC_NOPM, 4, 0, &tx_dmic0_mux),
-	SND_SOC_DAPM_MUX("TX DMIC MUX1", SND_SOC_NOPM, 4, 0, &tx_dmic1_mux),
-	SND_SOC_DAPM_MUX("TX DMIC MUX2", SND_SOC_NOPM, 4, 0, &tx_dmic2_mux),
-	SND_SOC_DAPM_MUX("TX DMIC MUX3", SND_SOC_NOPM, 4, 0, &tx_dmic3_mux),
-	SND_SOC_DAPM_MUX("TX DMIC MUX4", SND_SOC_NOPM, 4, 0, &tx_dmic4_mux),
-	SND_SOC_DAPM_MUX("TX DMIC MUX5", SND_SOC_NOPM, 4, 0, &tx_dmic5_mux),
-	SND_SOC_DAPM_MUX("TX DMIC MUX6", SND_SOC_NOPM, 4, 0, &tx_dmic6_mux),
-	SND_SOC_DAPM_MUX("TX DMIC MUX7", SND_SOC_NOPM, 4, 0, &tx_dmic7_mux),
+	SND_SOC_DAPM_MUX("TX DMIC MUX0", SND_SOC_ANALPM, 4, 0, &tx_dmic0_mux),
+	SND_SOC_DAPM_MUX("TX DMIC MUX1", SND_SOC_ANALPM, 4, 0, &tx_dmic1_mux),
+	SND_SOC_DAPM_MUX("TX DMIC MUX2", SND_SOC_ANALPM, 4, 0, &tx_dmic2_mux),
+	SND_SOC_DAPM_MUX("TX DMIC MUX3", SND_SOC_ANALPM, 4, 0, &tx_dmic3_mux),
+	SND_SOC_DAPM_MUX("TX DMIC MUX4", SND_SOC_ANALPM, 4, 0, &tx_dmic4_mux),
+	SND_SOC_DAPM_MUX("TX DMIC MUX5", SND_SOC_ANALPM, 4, 0, &tx_dmic5_mux),
+	SND_SOC_DAPM_MUX("TX DMIC MUX6", SND_SOC_ANALPM, 4, 0, &tx_dmic6_mux),
+	SND_SOC_DAPM_MUX("TX DMIC MUX7", SND_SOC_ANALPM, 4, 0, &tx_dmic7_mux),
 
 	SND_SOC_DAPM_INPUT("TX SWR_ADC0"),
 	SND_SOC_DAPM_INPUT("TX SWR_ADC1"),
@@ -1466,60 +1466,60 @@ static const struct snd_soc_dapm_widget tx_macro_dapm_widgets[] = {
 	SND_SOC_DAPM_INPUT("TX DMIC6"),
 	SND_SOC_DAPM_INPUT("TX DMIC7"),
 
-	SND_SOC_DAPM_MUX_E("TX DEC0 MUX", SND_SOC_NOPM,
+	SND_SOC_DAPM_MUX_E("TX DEC0 MUX", SND_SOC_ANALPM,
 			   TX_MACRO_DEC0, 0,
 			   &tx_dec0_mux, tx_macro_enable_dec,
 			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
 			   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD),
 
-	SND_SOC_DAPM_MUX_E("TX DEC1 MUX", SND_SOC_NOPM,
+	SND_SOC_DAPM_MUX_E("TX DEC1 MUX", SND_SOC_ANALPM,
 			   TX_MACRO_DEC1, 0,
 			   &tx_dec1_mux, tx_macro_enable_dec,
 			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
 			   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD),
 
-	SND_SOC_DAPM_MUX_E("TX DEC2 MUX", SND_SOC_NOPM,
+	SND_SOC_DAPM_MUX_E("TX DEC2 MUX", SND_SOC_ANALPM,
 			   TX_MACRO_DEC2, 0,
 			   &tx_dec2_mux, tx_macro_enable_dec,
 			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
 			   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD),
 
-	SND_SOC_DAPM_MUX_E("TX DEC3 MUX", SND_SOC_NOPM,
+	SND_SOC_DAPM_MUX_E("TX DEC3 MUX", SND_SOC_ANALPM,
 			   TX_MACRO_DEC3, 0,
 			   &tx_dec3_mux, tx_macro_enable_dec,
 			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
 			   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD),
 
-	SND_SOC_DAPM_MUX_E("TX DEC4 MUX", SND_SOC_NOPM,
+	SND_SOC_DAPM_MUX_E("TX DEC4 MUX", SND_SOC_ANALPM,
 			   TX_MACRO_DEC4, 0,
 			   &tx_dec4_mux, tx_macro_enable_dec,
 			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
 			   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD),
 
-	SND_SOC_DAPM_MUX_E("TX DEC5 MUX", SND_SOC_NOPM,
+	SND_SOC_DAPM_MUX_E("TX DEC5 MUX", SND_SOC_ANALPM,
 			   TX_MACRO_DEC5, 0,
 			   &tx_dec5_mux, tx_macro_enable_dec,
 			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
 			   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD),
 
-	SND_SOC_DAPM_MUX_E("TX DEC6 MUX", SND_SOC_NOPM,
+	SND_SOC_DAPM_MUX_E("TX DEC6 MUX", SND_SOC_ANALPM,
 			   TX_MACRO_DEC6, 0,
 			   &tx_dec6_mux, tx_macro_enable_dec,
 			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
 			   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD),
 
-	SND_SOC_DAPM_MUX_E("TX DEC7 MUX", SND_SOC_NOPM,
+	SND_SOC_DAPM_MUX_E("TX DEC7 MUX", SND_SOC_ANALPM,
 			   TX_MACRO_DEC7, 0,
 			   &tx_dec7_mux, tx_macro_enable_dec,
 			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
 			   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD),
 
-	SND_SOC_DAPM_SUPPLY_S("TX_MCLK", 0, SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SUPPLY_S("TX_MCLK", 0, SND_SOC_ANALPM, 0, 0,
 	tx_macro_mclk_event, SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 
-	SND_SOC_DAPM_SUPPLY_S("TX_SWR_CLK", 0, SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_SUPPLY_S("TX_SWR_CLK", 0, SND_SOC_ANALPM, 0, 0, NULL, 0),
 
-	SND_SOC_DAPM_SUPPLY_S("VA_SWR_CLK", 0, SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SUPPLY_S("VA_SWR_CLK", 0, SND_SOC_ANALPM, 0, 0,
 			NULL, 0),
 };
 
@@ -1819,7 +1819,7 @@ static const struct snd_kcontrol_new tx_macro_snd_controls[] = {
 	SOC_ENUM_EXT("DEC7 MODE", dec_mode_mux_enum[7],
 			tx_macro_dec_mode_get, tx_macro_dec_mode_put),
 
-	SOC_SINGLE_EXT("DEC0_BCS Switch", SND_SOC_NOPM, 0, 1, 0,
+	SOC_SINGLE_EXT("DEC0_BCS Switch", SND_SOC_ANALPM, 0, 1, 0,
 		       tx_macro_get_bcs, tx_macro_set_bcs),
 };
 
@@ -1953,7 +1953,7 @@ static const struct snd_soc_component_driver tx_macro_component_drv = {
 static int tx_macro_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	kernel_ulong_t flags;
 	struct tx_macro *tx;
 	void __iomem *base;
@@ -1963,7 +1963,7 @@ static int tx_macro_probe(struct platform_device *pdev)
 
 	tx = devm_kzalloc(dev, sizeof(*tx), GFP_KERNEL);
 	if (!tx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tx->macro = devm_clk_get_optional(dev, "macro");
 	if (IS_ERR(tx->macro))

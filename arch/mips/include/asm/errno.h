@@ -5,13 +5,13 @@
  *
  * Copyright (C) 1995, 1999, 2001, 2002 by Ralf Baechle
  */
-#ifndef _ASM_ERRNO_H
-#define _ASM_ERRNO_H
+#ifndef _ASM_ERRANAL_H
+#define _ASM_ERRANAL_H
 
-#include <uapi/asm/errno.h>
+#include <uapi/asm/erranal.h>
 
 
-/* The biggest error number defined here or in <linux/errno.h>. */
-#define EMAXERRNO	1133
+/* The biggest error number defined here or in <linux/erranal.h>. */
+#define EMAXERRANAL	1133
 
-#endif /* _ASM_ERRNO_H */
+#endif /* _ASM_ERRANAL_H */

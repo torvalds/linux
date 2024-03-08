@@ -46,12 +46,12 @@ struct cxl_process_element_hcall {
 	u8     reserved4[12];
 } __packed;
 
-#define H_STATE_NORMAL              1
+#define H_STATE_ANALRMAL              1
 #define H_STATE_DISABLE             2
 #define H_STATE_TEMP_UNAVAILABLE    3
 #define H_STATE_PERM_UNAVAILABLE    4
 
-/* NOTE: element must be a logical real address, and must be pinned */
+/* ANALTE: element must be a logical real address, and must be pinned */
 long cxl_h_attach_process(u64 unit_address, struct cxl_process_element_hcall *element,
 			u64 *process_token, u64 *mmio_addr, u64 *mmio_size);
 
@@ -135,7 +135,7 @@ long cxl_h_collect_vpd(u64 unit_address, u64 record, u64 list_address,
 long cxl_h_get_fn_error_interrupt(u64 unit_address, u64 *reg);
 
 /**
- * cxl_h_ack_fn_error_interrupt - Acknowledge function-wide error data
+ * cxl_h_ack_fn_error_interrupt - Ackanalwledge function-wide error data
  *                                based on an interrupt
  * Parameter1 = value to write to the function-wide error interrupt register
  */

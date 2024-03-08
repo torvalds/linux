@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -64,8 +64,8 @@ typedef struct {
 #define SMU71_MAX_LEVELS_LINK            SMU__NUM_PCIE_DPM_LEVELS
 #define SMU71_MAX_ENTRIES_SMIO           32
 
-#define DPM_NO_LIMIT 0
-#define DPM_NO_UP 1
+#define DPM_ANAL_LIMIT 0
+#define DPM_ANAL_UP 1
 #define DPM_GO_DOWN 2
 #define DPM_GO_UP 3
 
@@ -104,7 +104,7 @@ typedef struct {
 #define SMU71_DTE_SINKS 1
 #define SMU71_NUM_CPU_TES 0
 #define SMU71_NUM_GPU_TES 1
-#define SMU71_NUM_NON_TES 2
+#define SMU71_NUM_ANALN_TES 2
 
 #endif
 
@@ -114,7 +114,7 @@ typedef struct {
 #define SMU7_DTE_SINKS 3
 #define SMU7_NUM_CPU_TES 2
 #define SMU7_NUM_GPU_TES 1
-#define SMU7_NUM_NON_TES 2
+#define SMU7_NUM_ANALN_TES 2
 
 #endif
 
@@ -278,11 +278,11 @@ struct SMU7_PowerScoreboard
     uint16_t   VddcLeakagePower[SID_OPTION_COUNT];
     uint16_t   VddcSclkConstantPower[SID_OPTION_COUNT];
     uint16_t   VddcSclkDynamicPower[SID_OPTION_COUNT];
-    uint16_t   VddcNonSclkDynamicPower[SID_OPTION_COUNT];
+    uint16_t   VddcAnalnSclkDynamicPower[SID_OPTION_COUNT];
     uint16_t   VddcTotalPower[SID_OPTION_COUNT];
     uint16_t   VddcTotalCurrent[SID_OPTION_COUNT];
     uint16_t   VddcLoadVoltage[SID_OPTION_COUNT];
-    uint16_t   VddcNoLoadVoltage[SID_OPTION_COUNT];
+    uint16_t   VddcAnalLoadVoltage[SID_OPTION_COUNT];
 
     uint16_t   DisplayPhyPower;
     uint16_t   PciePhyPower;

@@ -17,7 +17,7 @@ struct typec_altmode_ops;
  * @svid: Standard or Vendor ID (SVID) of the alternate mode
  * @mode: Index of the Mode
  * @vdo: VDO returned by Discover Modes USB PD command
- * @active: Tells has the mode been entered or not
+ * @active: Tells has the mode been entered or analt
  * @desc: Optional human readable description of the mode
  * @ops: Operations vector from the driver
  */
@@ -51,7 +51,7 @@ static inline void *typec_altmode_get_drvdata(struct typec_altmode *altmode)
  * @exit: Operations to be executed with Exit Mode Command
  * @attention: Callback for Attention Command
  * @vdm: Callback for SVID specific commands
- * @notify: Communication channel for platform and the alternate mode
+ * @analtify: Communication channel for platform and the alternate mode
  * @activate: User callback for Enter/Exit Mode
  */
 struct typec_altmode_ops {
@@ -60,7 +60,7 @@ struct typec_altmode_ops {
 	void (*attention)(struct typec_altmode *altmode, u32 vdo);
 	int (*vdm)(struct typec_altmode *altmode, const u32 hdr,
 		   const u32 *vdo, int cnt);
-	int (*notify)(struct typec_altmode *altmode, unsigned long conf,
+	int (*analtify)(struct typec_altmode *altmode, unsigned long conf,
 		      void *data);
 	int (*activate)(struct typec_altmode *altmode, int activate);
 };
@@ -70,7 +70,7 @@ int typec_altmode_exit(struct typec_altmode *altmode);
 int typec_altmode_attention(struct typec_altmode *altmode, u32 vdo);
 int typec_altmode_vdm(struct typec_altmode *altmode,
 		      const u32 header, const u32 *vdo, int count);
-int typec_altmode_notify(struct typec_altmode *altmode, unsigned long conf,
+int typec_altmode_analtify(struct typec_altmode *altmode, unsigned long conf,
 			 void *data);
 const struct typec_altmode *
 typec_altmode_get_partner(struct typec_altmode *altmode);
@@ -87,7 +87,7 @@ enum {
 };
 
 /*
- * For the muxes there is no difference between Accessory Modes and Alternate
+ * For the muxes there is anal difference between Accessory Modes and Alternate
  * Modes, so the Accessory Modes are supplied with specific modal state values
  * here. Unlike with Alternate Modes, where the mux will be linked with the
  * alternate mode device, the mux for Accessory Modes will be linked with the
@@ -97,7 +97,7 @@ enum {
  * value for typec_set_mode() when accessory modes are supported.
  *
  * USB4 also requires that the pins on the connector are repurposed, just like
- * Alternate Modes. USB4 mode is however not entered with the Enter Mode Command
+ * Alternate Modes. USB4 mode is however analt entered with the Enter Mode Command
  * like the Alternate Modes are, but instead with a special Enter_USB Message.
  * The Enter_USB Message can also be used for setting to connector to operate in
  * USB 3.2 or in USB 2.0 mode instead of USB4.

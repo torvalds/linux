@@ -341,7 +341,7 @@
 	/* WiFi firmware requires power to be kept while in suspend */
 	keep-power-in-suspend;
 
-	non-removable;
+	analn-removable;
 	disable-wp;
 
 	mmc-pwrseq = <&sdio_pwrseq>;

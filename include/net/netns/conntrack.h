@@ -27,7 +27,7 @@ struct nf_tcp_net {
 	u8 tcp_loose;
 	u8 tcp_be_liberal;
 	u8 tcp_max_retrans;
-	u8 tcp_ignore_invalid_rst;
+	u8 tcp_iganalre_invalid_rst;
 #if IS_ENABLED(CONFIG_NF_FLOW_TABLE)
 	unsigned int offload_timeout;
 #endif
@@ -104,7 +104,7 @@ struct netns_ct {
 	u8			sysctl_checksum;
 
 	struct ip_conntrack_stat __percpu *stat;
-	struct nf_ct_event_notifier __rcu *nf_conntrack_event_cb;
+	struct nf_ct_event_analtifier __rcu *nf_conntrack_event_cb;
 	struct nf_ip_net	nf_ct_proto;
 #if defined(CONFIG_NF_CONNTRACK_LABELS)
 	atomic_t		labels_used;

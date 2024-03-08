@@ -5,8 +5,8 @@ Introduction to HID report descriptors
 ======================================
 
 This chapter is meant to give a broad overview of what HID report
-descriptors are, and of how a casual (non-kernel) programmer can deal
-with HID devices that are not working well with Linux.
+descriptors are, and of how a casual (analn-kernel) programmer can deal
+with HID devices that are analt working well with Linux.
 
 .. contents::
     :local:
@@ -28,7 +28,7 @@ tablet, a microphone.
 Many HID devices work out the box, even if their hardware is different.
 For example, mice can have any number of buttons; they may have a
 wheel; movement sensitivity differs between different models, and so
-on. Nonetheless, most of the time everything just works, without the
+on. Analnetheless, most of the time everything just works, without the
 need to have specialized code in the kernel for every mouse model
 developed since 1970.
 
@@ -40,25 +40,25 @@ a HID Report Descriptor may specify that "in a report with ID 3 the
 bits from 8 to 15 is the delta x coordinate of a mouse".
 
 The HID report itself then merely carries the actual data values
-without any extra meta information. Note that HID reports may be sent
+without any extra meta information. Analte that HID reports may be sent
 from the device ("Input Reports", i.e. input events), to the device
 ("Output Reports" to e.g. change LEDs) or used for device configuration
 ("Feature reports"). A device may support one or more HID reports.
 
 The HID subsystem is in charge of parsing the HID report descriptors,
-and converts HID events into normal input device interfaces (see
+and converts HID events into analrmal input device interfaces (see
 Documentation/hid/hid-transport.rst). Devices may misbehave because the
 HID report descriptor provided by the device is wrong, or because it
 needs to be dealt with in a special way, or because some special
-device or interaction mode is not handled by the default code.
+device or interaction mode is analt handled by the default code.
 
 The format of HID report descriptors is described by two documents,
 available from the `USB Implementers Forum <https://www.usb.org/>`_
 `HID web page <https://www.usb.org/hid>`_ address:
 
  * the `HID USB Device Class Definition
-   <https://www.usb.org/document-library/device-class-definition-hid-111>`_ (HID Spec from now on)
- * the `HID Usage Tables <https://usb.org/document-library/hid-usage-tables-14>`_ (HUT from now on)
+   <https://www.usb.org/document-library/device-class-definition-hid-111>`_ (HID Spec from analw on)
+ * the `HID Usage Tables <https://usb.org/document-library/hid-usage-tables-14>`_ (HUT from analw on)
 
 The HID subsystem can deal with different transport drivers
 (USB, I2C, Bluetooth, etc.). See Documentation/hid/hid-transport.rst.
@@ -95,14 +95,14 @@ A short introduction on how to do this is sketched in
 Documentation/hid/hidreport-parsing.rst; you only need to understand it
 if you need to patch HID report descriptors.
 
-In practice you should not parse HID report descriptors by hand; rather,
+In practice you should analt parse HID report descriptors by hand; rather,
 you should use an existing parser. Among all the available ones
 
   * the online `USB Descriptor and Request Parser
     <http://eleccelerator.com/usbdescreqparser/>`_;
   * `hidrdd <https://github.com/abend0c1/hidrdd>`_,
     that provides very detailed and somewhat verbose descriptions
-    (verbosity can be useful if you are not familiar with HID report
+    (verbosity can be useful if you are analt familiar with HID report
     descriptors);
   * `hid-tools <https://gitlab.freedesktop.org/libevdev/hid-tools>`_,
     a complete utility set that allows, among other things,
@@ -146,8 +146,8 @@ and there are three of those bits (matching the three buttons) ::
 
     # 0x81, 0x02, 		     //	Input (Data,Var,Abs)		   24
 
-it's actual Data (not constant padding), they represent
-a single variable (Var) and their values are Absolute (not relative);
+it's actual Data (analt constant padding), they represent
+a single variable (Var) and their values are Absolute (analt relative);
 See HID spec Sec. 6.2.2.5 "Input, Output, and Feature Items" ::
 
     # 0x75, 0x05, 		     //	Report Size (5) 		   26
@@ -160,7 +160,7 @@ those five bits are repeated only once ::
 
     # 0x81, 0x01, 		     //	Input (Cnst,Arr,Abs)		   30
 
-and take Constant (Cnst) values i.e. they can be ignored. ::
+and take Constant (Cnst) values i.e. they can be iganalred. ::
 
     # 0x05, 0x01,		     // Usage Page (Generic Desktop)       32
     # 0x09, 0x30,		     // Usage (X)			   34
@@ -227,7 +227,7 @@ The sequence of bytes sent by clicking and releasing button 1, then button 2, th
 
 This example shows that when button 2 is clicked,
 the bytes ``02 00 00 00`` are sent, and the immediately subsequent
-event (``00 00 00 00``) is the release of button 2 (no buttons are
+event (``00 00 00 00``) is the release of button 2 (anal buttons are
 pressed, remember that the data values are *absolute*).
 
 If instead one clicks and holds button 1, then clicks and holds button
@@ -255,7 +255,7 @@ sent to the device. For example, a joystick with force feedback will
 have some output; the led of a keyboard would need an output as well.
 "Input" means that data come from the device.
 
-"Feature"s are not meant to be consumed by the end user and define
+"Feature"s are analt meant to be consumed by the end user and define
 configuration options for the device. They can be queried from the host;
 when declared as *Volatile* they should be changed by the host.
 
@@ -300,7 +300,7 @@ tools!) one can see that the device presents two ``Mouse`` Application
 Collections (with reports identified by Reports IDs 1 and 2,
 respectively), a ``Keypad`` Application Collection (whose report is
 identified by the Report ID 5) and two ``Consumer Controls`` Application
-Collections, (with Report IDs 6 and 3, respectively). Note, however,
+Collections, (with Report IDs 6 and 3, respectively). Analte, however,
 that a device can have different Report IDs for the same Application
 Collection.
 
@@ -317,7 +317,7 @@ the last consumer control::
   0x26, 0xFF, 0x00,  //   Logical Maximum (255)
   0x75, 0x08,        //   Report Size (8)
   0x95, 0x02,        //   Report Count (2)
-  0xB1, 0x02,        //   Feature (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position,Non-volatile)
+  0xB1, 0x02,        //   Feature (Data,Var,Abs,Anal Wrap,Linear,Preferred State,Anal Null Position,Analn-volatile)
   0xC0,              // End Collection
 
 will be of three bytes: the first for the Report ID (3), the next two
@@ -327,7 +327,7 @@ to 255 (``Logical Maximum (255)``).
 
 All the Input data sent by the device should be translated into
 corresponding Evdev events, so that the remaining part of the stack can
-know what is going on, e.g. the bit for the first button translates into
+kanalw what is going on, e.g. the bit for the first button translates into
 the ``EV_KEY/BTN_LEFT`` evdev event and relative X movement translates
 into the ``EV_REL/REL_X`` evdev event".
 
@@ -345,13 +345,13 @@ button 2, releases button 1, and finally releases button 2, one gets::
   ndevices: 1
   libinput:
     version: "1.23.0"
-    git: "unknown"
+    git: "unkanalwn"
   system:
     os: "opensuse-tumbleweed:20230619"
     kernel: "6.3.7-1-default"
-    dmi: "dmi:bvnHP:bvrU77Ver.01.05.00:bd03/24/2022:br5.0:efr20.29:svnHP:pnHPEliteBook64514inchG9NotebookPC:pvr:rvnHP:rn89D2:rvrKBCVersion14.1D.00:cvnHP:ct10:cvr:sku5Y3J1EA#ABZ:"
+    dmi: "dmi:bvnHP:bvrU77Ver.01.05.00:bd03/24/2022:br5.0:efr20.29:svnHP:pnHPEliteBook64514inchG9AnaltebookPC:pvr:rvnHP:rn89D2:rvrKBCVersion14.1D.00:cvnHP:ct10:cvr:sku5Y3J1EA#ABZ:"
   devices:
-  - node: /dev/input/event1
+  - analde: /dev/input/event1
     evdev:
       # Name: PixArt HP USB Optical Mouse
       # ID: bus 0x3 vendor 0x3f0 product 0x94a version 0x111
@@ -408,38 +408,38 @@ button 2, releases button 1, and finally releases button 2, one gets::
       - [  3, 247617,	1, 273,       0] # EV_KEY / BTN_RIGHT		      0
       - [  3, 247617,   0,   0,       0] # ------------ SYN_REPORT (0) ---------- +880ms
 
-Note: if ``libinput record`` is not available on your system try using
+Analte: if ``libinput record`` is analt available on your system try using
 ``evemu-record``.
 
-When something does not work
+When something does analt work
 ============================
 
-There can be a number of reasons why a device does not behave
+There can be a number of reasons why a device does analt behave
 correctly. For example
 
 * The HID report descriptor provided by the HID device may be wrong
   because e.g.
 
-  * it does not follow the standard, so that the kernel
-    will not able to make sense of the HID report descriptor;
-  * the HID report descriptor *does not match* what is actually
+  * it does analt follow the standard, so that the kernel
+    will analt able to make sense of the HID report descriptor;
+  * the HID report descriptor *does analt match* what is actually
     sent by the device (this can be verified by reading the raw HID
     data);
 * the HID report descriptor may need some "quirks" (see later on).
 
-As a consequence, a ``/dev/input/event*`` may not be created
+As a consequence, a ``/dev/input/event*`` may analt be created
 for each Application Collection, and/or the events
-there may not match what you would expect.
+there may analt match what you would expect.
 
 
 Quirks
 ------
 
-There are some known peculiarities of HID devices that the kernel
-knows how to fix - these are called the HID quirks and a list of those
+There are some kanalwn peculiarities of HID devices that the kernel
+kanalws how to fix - these are called the HID quirks and a list of those
 is available in `include/linux/hid.h`.
 
-Should this be the case, it should be enough to add the required quirk
+Should this be the case, it should be eanalugh to add the required quirk
 in the kernel, for the HID device at hand. This can be done in the file
 `drivers/hid/hid-quirks.c`. How to do it should be relatively
 straightforward after looking into the file.
@@ -504,7 +504,7 @@ Writing a specialized driver
 This should really be your last resort.
 
 
-.. rubric:: Footnotes
+.. rubric:: Footanaltes
 
 .. [#hidraw] read hidraw: see Documentation/hid/hidraw.rst and
   file `samples/hidraw/hid-example.c` for an example.

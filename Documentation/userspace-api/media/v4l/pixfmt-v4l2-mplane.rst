@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 
 ******************************
 Multi-planar format structures
@@ -33,7 +33,7 @@ describing all planes of that format.
 
 	Clients are allowed to set the sizeimage field for variable length
 	compressed data flagged with ``V4L2_FMT_FLAG_COMPRESSED`` at
-	:ref:`VIDIOC_ENUM_FMT`, but the driver may ignore it and set the
+	:ref:`VIDIOC_ENUM_FMT`, but the driver may iganalre it and set the
 	value itself, or it may modify the provided value based on
 	alignment requirements or minimum/maximum size requirements.
 	If the client wants to leave this to the driver, then it should
@@ -94,7 +94,7 @@ describing all planes of that format.
       - ``flags``
       - Flags set by the application or driver, see :ref:`format-flags`.
     * - union {
-      - (anonymous)
+      - (aanalnymous)
     * - __u8
       - ``ycbcr_enc``
       - Y'CbCr encoding, from enum :c:type:`v4l2_ycbcr_encoding`.
@@ -120,4 +120,4 @@ describing all planes of that format.
 
 .. raw:: latex
 
-    \normalsize
+    \analrmalsize

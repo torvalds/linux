@@ -6,13 +6,13 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/arm-smccc.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/tee_drv.h>
 #include "optee_private.h"
 
-struct notif_entry {
+struct analtif_entry {
 	struct list_head link;
 	struct completion c;
 	u_int key;
@@ -20,38 +20,38 @@ struct notif_entry {
 
 static bool have_key(struct optee *optee, u_int key)
 {
-	struct notif_entry *entry;
+	struct analtif_entry *entry;
 
-	list_for_each_entry(entry, &optee->notif.db, link)
+	list_for_each_entry(entry, &optee->analtif.db, link)
 		if (entry->key == key)
 			return true;
 
 	return false;
 }
 
-int optee_notif_wait(struct optee *optee, u_int key)
+int optee_analtif_wait(struct optee *optee, u_int key)
 {
 	unsigned long flags;
-	struct notif_entry *entry;
+	struct analtif_entry *entry;
 	int rc = 0;
 
-	if (key > optee->notif.max_key)
+	if (key > optee->analtif.max_key)
 		return -EINVAL;
 
 	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
 	if (!entry)
-		return -ENOMEM;
+		return -EANALMEM;
 	init_completion(&entry->c);
 	entry->key = key;
 
-	spin_lock_irqsave(&optee->notif.lock, flags);
+	spin_lock_irqsave(&optee->analtif.lock, flags);
 
 	/*
 	 * If the bit is already set it means that the key has already
-	 * been posted and we must not wait.
+	 * been posted and we must analt wait.
 	 */
-	if (test_bit(key, optee->notif.bitmap)) {
-		clear_bit(key, optee->notif.bitmap);
+	if (test_bit(key, optee->analtif.bitmap)) {
+		clear_bit(key, optee->analtif.bitmap);
 		goto out;
 	}
 
@@ -64,62 +64,62 @@ int optee_notif_wait(struct optee *optee, u_int key)
 		goto out;
 	}
 
-	list_add_tail(&entry->link, &optee->notif.db);
+	list_add_tail(&entry->link, &optee->analtif.db);
 
 	/*
 	 * Unlock temporarily and wait for completion.
 	 */
-	spin_unlock_irqrestore(&optee->notif.lock, flags);
+	spin_unlock_irqrestore(&optee->analtif.lock, flags);
 	wait_for_completion(&entry->c);
-	spin_lock_irqsave(&optee->notif.lock, flags);
+	spin_lock_irqsave(&optee->analtif.lock, flags);
 
 	list_del(&entry->link);
 out:
-	spin_unlock_irqrestore(&optee->notif.lock, flags);
+	spin_unlock_irqrestore(&optee->analtif.lock, flags);
 
 	kfree(entry);
 
 	return rc;
 }
 
-int optee_notif_send(struct optee *optee, u_int key)
+int optee_analtif_send(struct optee *optee, u_int key)
 {
 	unsigned long flags;
-	struct notif_entry *entry;
+	struct analtif_entry *entry;
 
-	if (key > optee->notif.max_key)
+	if (key > optee->analtif.max_key)
 		return -EINVAL;
 
-	spin_lock_irqsave(&optee->notif.lock, flags);
+	spin_lock_irqsave(&optee->analtif.lock, flags);
 
-	list_for_each_entry(entry, &optee->notif.db, link)
+	list_for_each_entry(entry, &optee->analtif.db, link)
 		if (entry->key == key) {
 			complete(&entry->c);
 			goto out;
 		}
 
-	/* Only set the bit in case there where nobody waiting */
-	set_bit(key, optee->notif.bitmap);
+	/* Only set the bit in case there where analbody waiting */
+	set_bit(key, optee->analtif.bitmap);
 out:
-	spin_unlock_irqrestore(&optee->notif.lock, flags);
+	spin_unlock_irqrestore(&optee->analtif.lock, flags);
 
 	return 0;
 }
 
-int optee_notif_init(struct optee *optee, u_int max_key)
+int optee_analtif_init(struct optee *optee, u_int max_key)
 {
-	spin_lock_init(&optee->notif.lock);
-	INIT_LIST_HEAD(&optee->notif.db);
-	optee->notif.bitmap = bitmap_zalloc(max_key, GFP_KERNEL);
-	if (!optee->notif.bitmap)
-		return -ENOMEM;
+	spin_lock_init(&optee->analtif.lock);
+	INIT_LIST_HEAD(&optee->analtif.db);
+	optee->analtif.bitmap = bitmap_zalloc(max_key, GFP_KERNEL);
+	if (!optee->analtif.bitmap)
+		return -EANALMEM;
 
-	optee->notif.max_key = max_key;
+	optee->analtif.max_key = max_key;
 
 	return 0;
 }
 
-void optee_notif_uninit(struct optee *optee)
+void optee_analtif_uninit(struct optee *optee)
 {
-	bitmap_free(optee->notif.bitmap);
+	bitmap_free(optee->analtif.bitmap);
 }

@@ -15,7 +15,7 @@ Supported chips:
 
     Prefix: 'lm92'
 
-    Addresses scanned: none, force parameter needed
+    Addresses scanned: analne, force parameter needed
 
     Datasheet: http://www.national.com/pf/LM/LM76.html
 
@@ -23,7 +23,7 @@ Supported chips:
 
     Prefix: 'max6635'
 
-    Addresses scanned: none, force parameter needed
+    Addresses scanned: analne, force parameter needed
 
     Datasheet: http://www.maxim-ic.com/quick_view2.cfm/qv_pk/3074
 
@@ -44,5 +44,5 @@ alarms for high, low, and critical thresholds. There's also an hysteresis to
 control the thresholds for resetting alarms.
 
 Support was added later for the LM76 and Maxim MAX6633/MAX6634/MAX6635,
-which are mostly compatible. They have not all been tested, so you
+which are mostly compatible. They have analt all been tested, so you
 may need to use the force parameter.

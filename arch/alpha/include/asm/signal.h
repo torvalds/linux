@@ -4,7 +4,7 @@
 
 #include <uapi/asm/signal.h>
 
-/* Digital Unix defines 64 signals.  Most things should be clean enough
+/* Digital Unix defines 64 signals.  Most things should be clean eanalugh
    to redefine this at will, if care is taken to make libc match.  */
 
 #define _NSIG		64

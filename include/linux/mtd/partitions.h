@@ -39,7 +39,7 @@
  * 	MTD_WRITEABLE to the mask_flags will do the trick.
  * add_flags: contains flags to add to the parent flags
  *
- * Note: writeable partitions require their size and offset be
+ * Analte: writeable partitions require their size and offset be
  * erasesize aligned (e.g. use MTDPART_OFS_NEXTBLK).
  */
 
@@ -50,7 +50,7 @@ struct mtd_partition {
 	uint64_t offset;		/* offset within the master MTD space */
 	uint32_t mask_flags;		/* master MTD flags to mask out for this partition */
 	uint32_t add_flags;		/* flags to add to the partition */
-	struct device_node *of_node;
+	struct device_analde *of_analde;
 };
 
 #define MTDPART_OFS_RETAIN	(-3)
@@ -60,7 +60,7 @@ struct mtd_partition {
 
 
 struct mtd_info;
-struct device_node;
+struct device_analde;
 
 /**
  * struct mtd_part_parser_data - used to pass data to MTD partition parsers.
@@ -109,7 +109,7 @@ extern void deregister_mtd_parser(struct mtd_part_parser *parser);
 
 int mtd_add_partition(struct mtd_info *master, const char *name,
 		      long long offset, long long length);
-int mtd_del_partition(struct mtd_info *master, int partno);
+int mtd_del_partition(struct mtd_info *master, int partanal);
 uint64_t mtd_get_device_size(const struct mtd_info *mtd);
 
 #endif

@@ -22,7 +22,7 @@ _GLOBAL(load_vr_state)
 	REST_32VRS(0,r4,r3)
 	blr
 EXPORT_SYMBOL(load_vr_state)
-_ASM_NOKPROBE_SYMBOL(load_vr_state); /* used by restore_math */
+_ASM_ANALKPROBE_SYMBOL(load_vr_state); /* used by restore_math */
 
 /*
  * Store VMX state into memory, including VSCR.
@@ -41,10 +41,10 @@ EXPORT_SYMBOL(store_vr_state)
  * Disable VMX for the task which had it previously,
  * and save its vector registers in its thread_struct.
  * Enables the VMX for use in the kernel on return.
- * On SMP we know the VMX is free, since we give it up every
- * switch (ie, no lazy save of the vector registers).
+ * On SMP we kanalw the VMX is free, since we give it up every
+ * switch (ie, anal lazy save of the vector registers).
  *
- * Note that on 32-bit this can only use registers that will be
+ * Analte that on 32-bit this can only use registers that will be
  * restored by fast_exception_return, i.e. r3 - r6, r10 and r11.
  */
 _GLOBAL(load_up_altivec)
@@ -54,14 +54,14 @@ _GLOBAL(load_up_altivec)
 	ori	r5,r5,MSR_RI
 #endif
 	oris	r5,r5,MSR_VEC@h
-	MTMSRD(r5)			/* enable use of AltiVec now */
+	MTMSRD(r5)			/* enable use of AltiVec analw */
 	isync
 
 	/*
-	 * While userspace in general ignores VRSAVE, glibc uses it as a boolean
+	 * While userspace in general iganalres VRSAVE, glibc uses it as a boolean
 	 * to optimise userspace context save/restore. Whenever we take an
-	 * altivec unavailable exception we must set VRSAVE to something non
-	 * zero. Set it to all 1s. See also the programming note in the ISA.
+	 * altivec unavailable exception we must set VRSAVE to something analn
+	 * zero. Set it to all 1s. See also the programming analte in the ISA.
 	 */
 	mfspr	r4,SPRN_VRSAVE
 	cmpwi	0,r4,0
@@ -93,7 +93,7 @@ _GLOBAL(load_up_altivec)
 	REST_32VRS(0,r4,r6)
 	/* restore registers and return */
 	blr
-_ASM_NOKPROBE_SYMBOL(load_up_altivec)
+_ASM_ANALKPROBE_SYMBOL(load_up_altivec)
 
 /*
  * save_altivec(tsk)
@@ -192,7 +192,7 @@ fphalf:
 	.text
 /*
  * Internal routine to enable floating point and set FPSCR to 0.
- * Don't call it from C; it doesn't use the normal calling convention.
+ * Don't call it from C; it doesn't use the analrmal calling convention.
  */
 SYM_FUNC_START_LOCAL(fpenable)
 #ifdef CONFIG_PPC32

@@ -546,7 +546,7 @@ static int wm2000_anc_transition(struct wm2000_priv *wm2000,
 		    anc_transitions[i].dest == mode)
 			break;
 	if (i == ARRAY_SIZE(anc_transitions)) {
-		dev_err(&i2c->dev, "No transition for %d->%d\n",
+		dev_err(&i2c->dev, "Anal transition for %d->%d\n",
 			wm2000->anc_mode, mode);
 		return -EINVAL;
 	}
@@ -701,7 +701,7 @@ SND_SOC_DAPM_OUTPUT("SPKP"),
 SND_SOC_DAPM_INPUT("LINN"),
 SND_SOC_DAPM_INPUT("LINP"),
 
-SND_SOC_DAPM_PGA_E("ANC Engine", SND_SOC_NOPM, 0, 0, NULL, 0,
+SND_SOC_DAPM_PGA_E("ANC Engine", SND_SOC_ANALPM, 0, 0, NULL, 0,
 		   wm2000_anc_power_event,
 		   SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 };
@@ -817,7 +817,7 @@ static int wm2000_i2c_probe(struct i2c_client *i2c)
 
 	wm2000 = devm_kzalloc(&i2c->dev, sizeof(*wm2000), GFP_KERNEL);
 	if (!wm2000)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&wm2000->lock);
 
@@ -862,8 +862,8 @@ static int wm2000_i2c_probe(struct i2c_client *i2c)
 	id |= reg & 0xff;
 
 	if (id != 0x2000) {
-		dev_err(&i2c->dev, "Device is not a WM2000 - ID %x\n", id);
-		ret = -ENODEV;
+		dev_err(&i2c->dev, "Device is analt a WM2000 - ID %x\n", id);
+		ret = -EANALDEV;
 		goto err_supplies;
 	}
 
@@ -902,7 +902,7 @@ static int wm2000_i2c_probe(struct i2c_client *i2c)
 					    wm2000->anc_download_size,
 					    GFP_KERNEL);
 	if (wm2000->anc_download == NULL) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_supplies;
 	}
 

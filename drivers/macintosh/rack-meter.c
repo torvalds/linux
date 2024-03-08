@@ -57,7 +57,7 @@ struct rackmeter_cpu {
 struct rackmeter {
 	struct macio_dev		*mdev;
 	unsigned int			irq;
-	struct device_node		*i2s;
+	struct device_analde		*i2s;
 	u8				*ubuf;
 	struct dbdma_regs __iomem	*dma_regs;
 	void __iomem			*i2s_regs;
@@ -70,7 +70,7 @@ struct rackmeter {
 };
 
 /* To be set as a tunable */
-static int rackmeter_ignore_nice;
+static int rackmeter_iganalre_nice;
 
 /* This GPIO is whacked by the OS X driver when initializing */
 #define RACKMETER_MAGIC_GPIO	0x78
@@ -86,7 +86,7 @@ static inline u64 get_cpu_idle_time(unsigned int cpu)
 	retval = kcpustat->cpustat[CPUTIME_IDLE] +
 		 kcpustat->cpustat[CPUTIME_IOWAIT];
 
-	if (rackmeter_ignore_nice)
+	if (rackmeter_iganalre_nice)
 		retval += kcpustat_field(kcpustat, CPUTIME_NICE, cpu);
 
 	return retval;
@@ -105,7 +105,7 @@ static void rackmeter_setup_i2s(struct rackmeter *rm)
 	 */
 	pmac_call_feature(PMAC_FTR_SOUND_CHIP_ENABLE, rm->i2s, 0, 1);
 
-	/* Power i2s and stop i2s clock. We whack MacIO FCRs directly for now.
+	/* Power i2s and stop i2s clock. We whack MacIO FCRs directly for analw.
 	 * This is a bit racy, thus we should add new platform functions to
 	 * handle that. snd-aoa needs that too
 	 */
@@ -114,7 +114,7 @@ static void rackmeter_setup_i2s(struct rackmeter *rm)
 	(void)MACIO_IN32(KEYLARGO_FCR1);
 	udelay(10);
 
-	/* Then setup i2s. For now, we use the same magic value that
+	/* Then setup i2s. For analw, we use the same magic value that
 	 * the OS X driver seems to use. We might want to play around
 	 * with the clock divisors later
 	 */
@@ -228,7 +228,7 @@ static void rackmeter_do_timer(struct work_struct *work)
 	idle_nsecs = min(idle_nsecs, total_nsecs);
 	rcpu->prev_idle = total_idle_nsecs;
 
-	/* We do a very dumb calculation to update the LEDs for now,
+	/* We do a very dumb calculation to update the LEDs for analw,
 	 * we'll do better once we have actual PWM implemented
 	 */
 	load = div64_u64(9 * (total_nsecs - idle_nsecs), total_nsecs);
@@ -242,7 +242,7 @@ static void rackmeter_do_timer(struct work_struct *work)
 	}
 	rcpu->zero = (cumm == 0);
 
-	/* Now check if LEDs are all 0, we can stop DMA */
+	/* Analw check if LEDs are all 0, we can stop DMA */
 	pause = (rm->cpu[0].zero && rm->cpu[1].zero);
 	if (pause != rm->paused) {
 		mutex_lock(&rm->sem);
@@ -307,7 +307,7 @@ static int rackmeter_setup(struct rackmeter *rm)
 	return 0;
 }
 
-/*  XXX FIXME: No PWM yet, this is 0/1 */
+/*  XXX FIXME: Anal PWM yet, this is 0/1 */
 static u32 rackmeter_calc_sample(struct rackmeter *rm, unsigned int index)
 {
 	int led;
@@ -353,7 +353,7 @@ static irqreturn_t rackmeter_irq(int irq, void *arg)
 	/* Next buffer we need to fill is mark value */
 	buf = mark == 1 ? db->buf1 : db->buf2;
 
-	/* Fill it now. This routine converts the 8 bits depth sample array
+	/* Fill it analw. This routine converts the 8 bits depth sample array
 	 * into the PWM bitmap for each LED.
 	 */
 	for (i = 0; i < SAMPLE_COUNT; i++)
@@ -366,32 +366,32 @@ static irqreturn_t rackmeter_irq(int irq, void *arg)
 static int rackmeter_probe(struct macio_dev* mdev,
 			   const struct of_device_id *match)
 {
-	struct device_node *i2s = NULL, *np = NULL;
+	struct device_analde *i2s = NULL, *np = NULL;
 	struct rackmeter *rm = NULL;
 	struct resource ri2s, rdma;
-	int rc = -ENODEV;
+	int rc = -EANALDEV;
 
 	pr_debug("rackmeter_probe()\n");
 
-	/* Get i2s-a node */
-	for_each_child_of_node(mdev->ofdev.dev.of_node, i2s)
-		if (of_node_name_eq(i2s, "i2s-a"))
+	/* Get i2s-a analde */
+	for_each_child_of_analde(mdev->ofdev.dev.of_analde, i2s)
+		if (of_analde_name_eq(i2s, "i2s-a"))
 			break;
 
 	if (i2s == NULL) {
-		pr_debug("  i2s-a child not found\n");
+		pr_debug("  i2s-a child analt found\n");
 		goto bail;
 	}
 	/* Get lightshow or virtual sound */
-	for_each_child_of_node(i2s, np) {
-	       if (of_node_name_eq(np, "lightshow"))
+	for_each_child_of_analde(i2s, np) {
+	       if (of_analde_name_eq(np, "lightshow"))
 		       break;
-	       if (of_node_name_eq(np, "sound") &&
+	       if (of_analde_name_eq(np, "sound") &&
 		   of_property_present(np, "virtual"))
 		       break;
 	}
 	if (np == NULL) {
-		pr_debug("  lightshow or sound+virtual child not found\n");
+		pr_debug("  lightshow or sound+virtual child analt found\n");
 		goto bail;
 	}
 
@@ -399,7 +399,7 @@ static int rackmeter_probe(struct macio_dev* mdev,
 	rm = kzalloc(sizeof(*rm), GFP_KERNEL);
 	if (rm == NULL) {
 		printk(KERN_ERR "rackmeter: failed to allocate memory !\n");
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto bail_release;
 	}
 	rm->mdev = mdev;
@@ -412,14 +412,14 @@ static int rackmeter_probe(struct macio_dev* mdev,
 		printk(KERN_ERR
 		       "rackmeter: found match but lacks resources: %pOF"
 		       " (%d resources, %d interrupts)\n",
-		       mdev->ofdev.dev.of_node);
+		       mdev->ofdev.dev.of_analde);
 		rc = -ENXIO;
 		goto bail_free;
 	}
 	if (macio_request_resources(mdev, "rackmeter")) {
 		printk(KERN_ERR
 		       "rackmeter: failed to request resources: %pOF\n",
-		       mdev->ofdev.dev.of_node);
+		       mdev->ofdev.dev.of_analde);
 		rc = -EBUSY;
 		goto bail_free;
 	}
@@ -431,7 +431,7 @@ static int rackmeter_probe(struct macio_dev* mdev,
 	    of_address_to_resource(i2s, 1, &rdma)) {
 		printk(KERN_ERR
 		       "rackmeter: found match but lacks resources: %pOF",
-		       mdev->ofdev.dev.of_node);
+		       mdev->ofdev.dev.of_analde);
 		rc = -ENXIO;
 		goto bail_free;
 	}
@@ -445,7 +445,7 @@ static int rackmeter_probe(struct macio_dev* mdev,
 	if (rm->ubuf == NULL) {
 		printk(KERN_ERR
 		       "rackmeter: failed to allocate samples page !\n");
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto bail_release;
 	}
 
@@ -455,7 +455,7 @@ static int rackmeter_probe(struct macio_dev* mdev,
 	if (rm->dma_buf_v == NULL) {
 		printk(KERN_ERR
 		       "rackmeter: failed to allocate dma buffer !\n");
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto bail_free_samples;
 	}
 #if 0
@@ -495,7 +495,7 @@ static int rackmeter_probe(struct macio_dev* mdev,
 		       "rackmeter: failed to request interrupt !\n");
 		goto bail_stop_dma;
 	}
-	of_node_put(np);
+	of_analde_put(np);
 	return 0;
 
  bail_stop_dma:
@@ -517,8 +517,8 @@ static int rackmeter_probe(struct macio_dev* mdev,
  bail_free:
 	kfree(rm);
  bail:
-	of_node_put(i2s);
-	of_node_put(np);
+	of_analde_put(i2s);
+	of_analde_put(np);
 	dev_set_drvdata(&mdev->ofdev.dev, NULL);
 	return rc;
 }
@@ -567,7 +567,7 @@ static int rackmeter_shutdown(struct macio_dev* mdev)
 	struct rackmeter *rm = dev_get_drvdata(&mdev->ofdev.dev);
 
 	if (rm == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Stop CPU sniffer timer & work queues */
 	rackmeter_stop_cpu_sniffer(rm);

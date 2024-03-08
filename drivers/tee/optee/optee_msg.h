@@ -14,31 +14,31 @@
  *
  * This file is divided into two sections.
  * 1. Formatting of messages.
- * 2. Requests from normal world
+ * 2. Requests from analrmal world
  */
 
 /*****************************************************************************
  * Part 1 - formatting of messages
  *****************************************************************************/
 
-#define OPTEE_MSG_ATTR_TYPE_NONE		0x0
+#define OPTEE_MSG_ATTR_TYPE_ANALNE		0x0
 #define OPTEE_MSG_ATTR_TYPE_VALUE_INPUT		0x1
 #define OPTEE_MSG_ATTR_TYPE_VALUE_OUTPUT	0x2
-#define OPTEE_MSG_ATTR_TYPE_VALUE_INOUT		0x3
+#define OPTEE_MSG_ATTR_TYPE_VALUE_IANALUT		0x3
 #define OPTEE_MSG_ATTR_TYPE_RMEM_INPUT		0x5
 #define OPTEE_MSG_ATTR_TYPE_RMEM_OUTPUT		0x6
-#define OPTEE_MSG_ATTR_TYPE_RMEM_INOUT		0x7
+#define OPTEE_MSG_ATTR_TYPE_RMEM_IANALUT		0x7
 #define OPTEE_MSG_ATTR_TYPE_FMEM_INPUT		OPTEE_MSG_ATTR_TYPE_RMEM_INPUT
 #define OPTEE_MSG_ATTR_TYPE_FMEM_OUTPUT		OPTEE_MSG_ATTR_TYPE_RMEM_OUTPUT
-#define OPTEE_MSG_ATTR_TYPE_FMEM_INOUT		OPTEE_MSG_ATTR_TYPE_RMEM_INOUT
+#define OPTEE_MSG_ATTR_TYPE_FMEM_IANALUT		OPTEE_MSG_ATTR_TYPE_RMEM_IANALUT
 #define OPTEE_MSG_ATTR_TYPE_TMEM_INPUT		0x9
 #define OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT		0xa
-#define OPTEE_MSG_ATTR_TYPE_TMEM_INOUT		0xb
+#define OPTEE_MSG_ATTR_TYPE_TMEM_IANALUT		0xb
 
 #define OPTEE_MSG_ATTR_TYPE_MASK		GENMASK(7, 0)
 
 /*
- * Meta parameter to be absorbed by the Secure OS and not passed
+ * Meta parameter to be absorbed by the Secure OS and analt passed
  * to the Trusted Application.
  *
  * Currently only used with OPTEE_MSG_CMD_OPEN_SESSION.
@@ -61,17 +61,17 @@
  * So, entries should be placed like members of this structure:
  *
  * struct page_data {
- *   uint64_t pages_array[OPTEE_MSG_NONCONTIG_PAGE_SIZE/sizeof(uint64_t) - 1];
+ *   uint64_t pages_array[OPTEE_MSG_ANALNCONTIG_PAGE_SIZE/sizeof(uint64_t) - 1];
  *   uint64_t next_page_data;
  * };
  *
  * Structure is designed to exactly fit into the page size
- * OPTEE_MSG_NONCONTIG_PAGE_SIZE which is a standard 4KB page.
+ * OPTEE_MSG_ANALNCONTIG_PAGE_SIZE which is a standard 4KB page.
  *
  * The size of 4KB is chosen because this is the smallest page size for ARM
  * architectures. If REE uses larger pages, it should divide them to 4KB ones.
  */
-#define OPTEE_MSG_ATTR_NONCONTIG		BIT(9)
+#define OPTEE_MSG_ATTR_ANALNCONTIG		BIT(9)
 
 /*
  * Memory attributes for caching passed with temp memrefs. The actual value
@@ -95,9 +95,9 @@
 #define OPTEE_MSG_LOGIN_APPLICATION_GROUP	0x00000006
 
 /*
- * Page size used in non-contiguous buffer entries
+ * Page size used in analn-contiguous buffer entries
  */
-#define OPTEE_MSG_NONCONTIG_PAGE_SIZE		4096
+#define OPTEE_MSG_ANALNCONTIG_PAGE_SIZE		4096
 
 #define OPTEE_MSG_FMEM_INVALID_GLOBAL_ID	0xffffffffffffffff
 
@@ -107,9 +107,9 @@
  * @size:	Size of the buffer
  * @shm_ref:	Temporary shared memory reference, pointer to a struct tee_shm
  *
- * Secure and normal world communicates pointers as physical address
- * instead of the virtual address. This is because secure and normal world
- * have completely independent memory mapping. Normal world can even have a
+ * Secure and analrmal world communicates pointers as physical address
+ * instead of the virtual address. This is because secure and analrmal world
+ * have completely independent memory mapping. Analrmal world can even have a
  * hypervisor which need to translate the guest physical address (AKA IPA
  * in ARM documentation) to a real physical address before passing the
  * structure to secure world.
@@ -152,7 +152,7 @@ struct optee_msg_param_fmem {
 /**
  * struct optee_msg_param_value - opaque value parameter
  *
- * Value parameters are passed unchecked between normal and secure world.
+ * Value parameters are passed unchecked between analrmal and secure world.
  */
 struct optee_msg_param_value {
 	u64 a;
@@ -174,7 +174,7 @@ struct optee_msg_param_value {
  * OPTEE_MSG_ATTR_TYPE_TMEM_* indicates @tmem and
  * OPTEE_MSG_ATTR_TYPE_RMEM_* or the alias PTEE_MSG_ATTR_TYPE_FMEM_* indicates
  * @rmem or @fmem depending on the conduit.
- * OPTEE_MSG_ATTR_TYPE_NONE indicates that none of the members are used.
+ * OPTEE_MSG_ATTR_TYPE_ANALNE indicates that analne of the members are used.
  */
 struct optee_msg_param {
 	u64 attr;
@@ -200,7 +200,7 @@ struct optee_msg_param {
  * @num_params: number of parameters supplied to the OS Command
  * @params: the parameters supplied to the OS Command
  *
- * All normal calls to Trusted OS uses this struct. If cmd requires further
+ * All analrmal calls to Trusted OS uses this struct. If cmd requires further
  * information than what these fields hold it can be passed as a parameter
  * tagged as meta (setting the OPTEE_MSG_ATTR_META bit in corresponding
  * attrs field). All parameters tagged as meta have to come first.
@@ -232,7 +232,7 @@ struct optee_msg_arg {
 	 sizeof(struct optee_msg_param) * (num_params))
 
 /*****************************************************************************
- * Part 2 - requests from normal world
+ * Part 2 - requests from analrmal world
  *****************************************************************************/
 
 /*
@@ -263,17 +263,17 @@ struct optee_msg_arg {
 /*
  * Returns 2.0 if using API specified in this file without further
  * extensions. Represented in 2 32-bit words in OPTEE_MSG_REVISION_MAJOR
- * and OPTEE_MSG_REVISION_MINOR
+ * and OPTEE_MSG_REVISION_MIANALR
  */
 #define OPTEE_MSG_REVISION_MAJOR	2
-#define OPTEE_MSG_REVISION_MINOR	0
+#define OPTEE_MSG_REVISION_MIANALR	0
 #define OPTEE_MSG_FUNCID_CALLS_REVISION	0xFF03
 
 /*
  * Get UUID of Trusted OS.
  *
- * Used by non-secure world to figure out which Trusted OS is installed.
- * Note that returned UUID is the UUID of the Trusted OS, not of the API.
+ * Used by analn-secure world to figure out which Trusted OS is installed.
+ * Analte that returned UUID is the UUID of the Trusted OS, analt of the API.
  *
  * Returns UUID in 4 32-bit words in the same way as
  * OPTEE_MSG_FUNCID_CALLS_UID described above.
@@ -287,9 +287,9 @@ struct optee_msg_arg {
 /*
  * Get revision of Trusted OS.
  *
- * Used by non-secure world to figure out which version of the Trusted OS
- * is installed. Note that the returned revision is the revision of the
- * Trusted OS, not of the API.
+ * Used by analn-secure world to figure out which version of the Trusted OS
+ * is installed. Analte that the returned revision is the revision of the
+ * Trusted OS, analt of the API.
  *
  * Returns revision in 2 32-bit words in the same way as
  * OPTEE_MSG_CALLS_REVISION described above.
@@ -319,7 +319,7 @@ struct optee_msg_arg {
  * OPTEE_MSG_CMD_REGISTER_SHM registers a shared memory reference. The
  * information is passed as:
  * [in] param[0].attr			OPTEE_MSG_ATTR_TYPE_TMEM_INPUT
- *					[| OPTEE_MSG_ATTR_NONCONTIG]
+ *					[| OPTEE_MSG_ATTR_ANALNCONTIG]
  * [in] param[0].u.tmem.buf_ptr		physical address (of first fragment)
  * [in] param[0].u.tmem.size		size (of first fragment)
  * [in] param[0].u.tmem.shm_ref		holds shared memory reference
@@ -334,8 +334,8 @@ struct optee_msg_arg {
  * OPTEE_MSG_CMD_DO_BOTTOM_HALF does the scheduled bottom half processing
  * of a driver.
  *
- * OPTEE_MSG_CMD_STOP_ASYNC_NOTIF informs secure world that from now is
- * normal world unable to process asynchronous notifications. Typically
+ * OPTEE_MSG_CMD_STOP_ASYNC_ANALTIF informs secure world that from analw is
+ * analrmal world unable to process asynchroanalus analtifications. Typically
  * used when the driver is shut down.
  */
 #define OPTEE_MSG_CMD_OPEN_SESSION	0
@@ -345,7 +345,7 @@ struct optee_msg_arg {
 #define OPTEE_MSG_CMD_REGISTER_SHM	4
 #define OPTEE_MSG_CMD_UNREGISTER_SHM	5
 #define OPTEE_MSG_CMD_DO_BOTTOM_HALF	6
-#define OPTEE_MSG_CMD_STOP_ASYNC_NOTIF	7
+#define OPTEE_MSG_CMD_STOP_ASYNC_ANALTIF	7
 #define OPTEE_MSG_FUNCID_CALL_WITH_ARG	0x0004
 
 #endif /* _OPTEE_MSG_H */

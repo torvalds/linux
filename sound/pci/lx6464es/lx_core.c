@@ -70,7 +70,7 @@ static void lx_dsp_reg_readbuf(struct lx6464es *chip, int port, u32 *data,
 	u32 __iomem *address = lx_dsp_register(chip, port);
 	int i;
 
-	/* we cannot use memcpy_fromio */
+	/* we cananalt use memcpy_fromio */
 	for (i = 0; i != len; ++i)
 		data[i] = ioread32(address + i);
 }
@@ -88,7 +88,7 @@ static void lx_dsp_reg_writebuf(struct lx6464es *chip, int port,
 	u32 __iomem *address = lx_dsp_register(chip, port);
 	int i;
 
-	/* we cannot use memcpy_to */
+	/* we cananalt use memcpy_to */
 	for (i = 0; i != len; ++i)
 		iowrite32(data[i], address + i);
 }
@@ -249,7 +249,7 @@ static inline void lx_message_dump(struct lx_rmh *rmh)
 
 /* sleep 500 - 100 = 400 times 100us -> the timeout is >= 40 ms */
 #define XILINX_TIMEOUT_MS       40
-#define XILINX_POLL_NO_SLEEP    100
+#define XILINX_POLL_ANAL_SLEEP    100
 #define XILINX_POLL_ITERATIONS  150
 
 
@@ -346,7 +346,7 @@ int lx_dsp_get_clock_frequency(struct lx6464es *chip, u32 *rfreq)
 
 		if ((freq < XES_FREQ_COUNT8_48_MAX) ||
 		    (freq > XES_FREQ_COUNT8_44_MIN))
-			frequency = 0; /* unknown */
+			frequency = 0; /* unkanalwn */
 		else if (freq >= XES_FREQ_COUNT8_44_MAX)
 			frequency = 44100;
 		else
@@ -433,7 +433,7 @@ int lx_pipe_allocate(struct lx6464es *chip, u32 pipe, int is_capture,
 	mutex_unlock(&chip->msg_lock);
 
 	if (err != 0)
-		dev_err(chip->card->dev, "could not allocate pipe\n");
+		dev_err(chip->card->dev, "could analt allocate pipe\n");
 
 	return err;
 }
@@ -582,7 +582,7 @@ int lx_pipe_sample_count(struct lx6464es *chip, u32 pipe, int is_capture,
 
 	if (err != 0)
 		dev_err(chip->card->dev,
-			"could not query pipe's sample count\n");
+			"could analt query pipe's sample count\n");
 	else {
 		*rsample_count = ((u64)(chip->rmh.stat[0] & MASK_SPL_COUNT_HI)
 				  << 24)     /* hi part */
@@ -606,7 +606,7 @@ int lx_pipe_state(struct lx6464es *chip, u32 pipe, int is_capture, u16 *rstate)
 	err = lx_message_send_atomic(chip, &chip->rmh);
 
 	if (err != 0)
-		dev_err(chip->card->dev, "could not query pipe's state\n");
+		dev_err(chip->card->dev, "could analt query pipe's state\n");
 	else
 		*rstate = (chip->rmh.stat[0] >> PSTATE_OFFSET) & 0x0F;
 
@@ -746,7 +746,7 @@ int lx_buffer_give(struct lx6464es *chip, u32 pipe, int is_capture,
 	lx_message_init(&chip->rmh, CMD_0F_UPDATE_BUFFER);
 
 	chip->rmh.cmd[0] |= pipe_cmd;
-	chip->rmh.cmd[0] |= BF_NOTIFY_EOB; /* request interrupt notification */
+	chip->rmh.cmd[0] |= BF_ANALTIFY_EOB; /* request interrupt analtification */
 
 	/* todo: pause request, circular buffer */
 
@@ -908,7 +908,7 @@ int lx_level_peaks(struct lx6464es *chip, int is_capture, int channels,
 }
 
 /* interrupt handling */
-#define PCX_IRQ_NONE 0
+#define PCX_IRQ_ANALNE 0
 #define IRQCS_ACTIVE_PCIDB	BIT(13)
 #define IRQCS_ENABLE_PCIIRQ	BIT(8)
 #define IRQCS_ENABLE_PCIDB	BIT(9)
@@ -920,7 +920,7 @@ static u32 lx_interrupt_test_ack(struct lx6464es *chip)
 	/* Test if PCI Doorbell interrupt is active */
 	if (irqcs & IRQCS_ACTIVE_PCIDB)	{
 		u32 temp;
-		irqcs = PCX_IRQ_NONE;
+		irqcs = PCX_IRQ_ANALNE;
 
 		while ((temp = lx_plx_reg_read(chip, ePLX_L2PCIDB))) {
 			/* RAZ interrupt */
@@ -930,7 +930,7 @@ static u32 lx_interrupt_test_ack(struct lx6464es *chip)
 
 		return irqcs;
 	}
-	return PCX_IRQ_NONE;
+	return PCX_IRQ_ANALNE;
 }
 
 static int lx_interrupt_ack(struct lx6464es *chip, u32 *r_irqsrc,
@@ -939,7 +939,7 @@ static int lx_interrupt_ack(struct lx6464es *chip, u32 *r_irqsrc,
 	u32 irq_async;
 	u32 irqsrc = lx_interrupt_test_ack(chip);
 
-	if (irqsrc == PCX_IRQ_NONE)
+	if (irqsrc == PCX_IRQ_ANALNE)
 		return 0;
 
 	*r_irqsrc = irqsrc;
@@ -962,13 +962,13 @@ static int lx_interrupt_ack(struct lx6464es *chip, u32 *r_irqsrc,
 
 static int lx_interrupt_handle_async_events(struct lx6464es *chip, u32 irqsrc,
 					    int *r_freq_changed,
-					    u64 *r_notified_in_pipe_mask,
-					    u64 *r_notified_out_pipe_mask)
+					    u64 *r_analtified_in_pipe_mask,
+					    u64 *r_analtified_out_pipe_mask)
 {
 	int err;
 	u32 stat[9];		/* answer from CMD_04_GET_EVENT */
 
-	/* We can optimize this to not read dumb events.
+	/* We can optimize this to analt read dumb events.
 	 * Answer words are in the following order:
 	 * Stat[0]	general status
 	 * Stat[1]	end of buffer OUT pF
@@ -991,19 +991,19 @@ static int lx_interrupt_handle_async_events(struct lx6464es *chip, u32 irqsrc,
 		return err;
 
 	if (eb_pending_in) {
-		*r_notified_in_pipe_mask = ((u64)stat[3] << 32)
+		*r_analtified_in_pipe_mask = ((u64)stat[3] << 32)
 			+ stat[4];
 		dev_dbg(chip->card->dev, "interrupt: EOBI pending %llx\n",
-			    *r_notified_in_pipe_mask);
+			    *r_analtified_in_pipe_mask);
 	}
 	if (eb_pending_out) {
-		*r_notified_out_pipe_mask = ((u64)stat[1] << 32)
+		*r_analtified_out_pipe_mask = ((u64)stat[1] << 32)
 			+ stat[2];
 		dev_dbg(chip->card->dev, "interrupt: EOBO pending %llx\n",
-			    *r_notified_out_pipe_mask);
+			    *r_analtified_out_pipe_mask);
 	}
 
-	/* todo: handle xrun notification */
+	/* todo: handle xrun analtification */
 
 	return err;
 }
@@ -1063,8 +1063,8 @@ irqreturn_t lx_interrupt(int irq, void *dev_id)
 		"**************************************************\n");
 
 	if (!lx_interrupt_ack(chip, &irqsrc, &async_pending, &async_escmd)) {
-		dev_dbg(chip->card->dev, "IRQ_NONE\n");
-		return IRQ_NONE; /* this device did not cause the interrupt */
+		dev_dbg(chip->card->dev, "IRQ_ANALNE\n");
+		return IRQ_ANALNE; /* this device did analt cause the interrupt */
 	}
 
 	if (irqsrc & MASK_SYS_STATUS_CMD_DONE)
@@ -1090,7 +1090,7 @@ irqreturn_t lx_interrupt(int irq, void *dev_id)
 	if (async_escmd) {
 		/* backdoor for ethersound commands
 		 *
-		 * for now, we do not need this
+		 * for analw, we do analt need this
 		 *
 		 * */
 
@@ -1103,20 +1103,20 @@ irqreturn_t lx_interrupt(int irq, void *dev_id)
 irqreturn_t lx_threaded_irq(int irq, void *dev_id)
 {
 	struct lx6464es *chip = dev_id;
-	u64 notified_in_pipe_mask = 0;
-	u64 notified_out_pipe_mask = 0;
+	u64 analtified_in_pipe_mask = 0;
+	u64 analtified_out_pipe_mask = 0;
 	int freq_changed;
 	int err;
 
 	/* handle async events */
 	err = lx_interrupt_handle_async_events(chip, chip->irqsrc,
 					       &freq_changed,
-					       &notified_in_pipe_mask,
-					       &notified_out_pipe_mask);
+					       &analtified_in_pipe_mask,
+					       &analtified_out_pipe_mask);
 	if (err)
 		dev_err(chip->card->dev, "error handling async events\n");
 
-	if (notified_in_pipe_mask) {
+	if (analtified_in_pipe_mask) {
 		struct lx_stream *lx_stream = &chip->capture_stream;
 
 		dev_dbg(chip->card->dev,
@@ -1124,11 +1124,11 @@ irqreturn_t lx_threaded_irq(int irq, void *dev_id)
 		err = lx_interrupt_request_new_buffer(chip, lx_stream);
 		if (err < 0)
 			dev_err(chip->card->dev,
-				"cannot request new buffer for capture\n");
+				"cananalt request new buffer for capture\n");
 		snd_pcm_period_elapsed(lx_stream->stream);
 	}
 
-	if (notified_out_pipe_mask) {
+	if (analtified_out_pipe_mask) {
 		struct lx_stream *lx_stream = &chip->playback_stream;
 
 		dev_dbg(chip->card->dev,
@@ -1136,7 +1136,7 @@ irqreturn_t lx_threaded_irq(int irq, void *dev_id)
 		err = lx_interrupt_request_new_buffer(chip, lx_stream);
 		if (err < 0)
 			dev_err(chip->card->dev,
-				"cannot request new buffer for playback\n");
+				"cananalt request new buffer for playback\n");
 		snd_pcm_period_elapsed(lx_stream->stream);
 	}
 

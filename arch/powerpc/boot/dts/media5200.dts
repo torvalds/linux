@@ -2,7 +2,7 @@
 /*
  * Freescale Media5200 board Device Tree Source
  *
- * Copyright 2009 Secret Lab Technologies Ltd.
+ * Copyright 2009 Secret Lab Techanallogies Ltd.
  * Grant Likely <grant.likely@secretlab.ca>
  * Steven Cavanagh <scavanagh@secretlab.ca>
  */
@@ -124,7 +124,7 @@
 		media5200_fpga: fpga@2,0 {
 			compatible = "fsl,media5200-fpga";
 			interrupt-controller;
-			#interrupt-cells = <2>;	// 0:bank 1:id; no type field
+			#interrupt-cells = <2>;	// 0:bank 1:id; anal type field
 			reg = <2 0 0x10000>;
 
 			interrupt-parent = <&mpc5200_pic>;

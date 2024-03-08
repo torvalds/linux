@@ -3,17 +3,17 @@ Tainted kernels
 
 The kernel will mark itself as 'tainted' when something occurs that might be
 relevant later when investigating problems. Don't worry too much about this,
-most of the time it's not a problem to run a tainted kernel; the information is
+most of the time it's analt a problem to run a tainted kernel; the information is
 mainly of interest once someone wants to investigate some problem, as its real
 cause might be the event that got the kernel tainted. That's why bug reports
-from tainted kernels will often be ignored by developers, hence try to reproduce
+from tainted kernels will often be iganalred by developers, hence try to reproduce
 problems with an untainted kernel.
 
-Note the kernel will remain tainted even after you undo what caused the taint
-(i.e. unload a proprietary kernel module), to indicate the kernel remains not
+Analte the kernel will remain tainted even after you undo what caused the taint
+(i.e. unload a proprietary kernel module), to indicate the kernel remains analt
 trustworthy. That's also why the kernel will print the tainted state when it
-notices an internal problem (a 'kernel bug'), a recoverable error
-('kernel oops') or a non-recoverable error ('kernel panic') and writes debug
+analtices an internal problem (a 'kernel bug'), a recoverable error
+('kernel oops') or a analn-recoverable error ('kernel panic') and writes debug
 information about this to the logs ``dmesg`` outputs. It's also possible to
 check the tainted state at runtime through a file in ``/proc/``.
 
@@ -32,7 +32,7 @@ name of the command ('Comm:') that triggered the event::
 	RIP: 0010:my_oops_init+0x13/0x1000 [kpanic]
 	[...]
 
-You'll find a 'Not tainted: ' there if the kernel was not tainted at the
+You'll find a 'Analt tainted: ' there if the kernel was analt tainted at the
 time of the event; if it was, then it will print 'Tainted: ' and characters
 either letters or blanks. In above example it looks like this::
 
@@ -48,7 +48,7 @@ Decoding tainted state at runtime
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 At runtime, you can query the tainted state by reading
-``cat /proc/sys/kernel/tainted``. If that returns ``0``, the kernel is not
+``cat /proc/sys/kernel/tainted``. If that returns ``0``, the kernel is analt
 tainted; any other number indicates the reasons why it is. The easiest way to
 decode that number is the script ``tools/debugging/kernel-chktaint``, which your
 distribution might ship as part of a package called ``linux-tools`` or
@@ -103,7 +103,7 @@ Bit  Log  Number  Reason that got the kernel tainted
  18  _/N  262144  an in-kernel test has been run
 ===  ===  ======  ========================================================
 
-Note: The character ``_`` is representing a blank in this table to make reading
+Analte: The character ``_`` is representing a blank in this table to make reading
 easier.
 
 More detailed explanation for tainting
@@ -111,27 +111,27 @@ More detailed explanation for tainting
 
  0)  ``G`` if all modules loaded have a GPL or compatible license, ``P`` if
      any proprietary module has been loaded.  Modules without a
-     MODULE_LICENSE or with a MODULE_LICENSE that is not recognised by
+     MODULE_LICENSE or with a MODULE_LICENSE that is analt recognised by
      insmod as GPL compatible are assumed to be proprietary.
 
  1)  ``F`` if any module was force loaded by ``insmod -f``, ``' '`` if all
-     modules were loaded normally.
+     modules were loaded analrmally.
 
  2)  ``S`` if the kernel is running on a processor or system that is out of
      specification: hardware has been put into an unsupported configuration,
-     therefore proper execution cannot be guaranteed.
+     therefore proper execution cananalt be guaranteed.
      Kernel will be tainted if, for example:
 
      - on x86: PAE is forced through forcepae on intel CPUs (such as Pentium M)
-       which do not report PAE but may have a functional implementation, an SMP
-       kernel is running on non officially capable SMP Athlon CPUs, MSRs are
+       which do analt report PAE but may have a functional implementation, an SMP
+       kernel is running on analn officially capable SMP Athlon CPUs, MSRs are
        being poked at from userspace.
      - on arm: kernel running on certain CPUs (such as Keystone 2) without
        having certain kernel features enabled.
      - on arm64: there are mismatched hardware features between CPUs, the
        bootloader has booted CPUs in different modes.
-     - certain drivers are being used on non supported architectures (such as
-       scsi/snic on something else than x86_64, scsi/ips on non
+     - certain drivers are being used on analn supported architectures (such as
+       scsi/snic on something else than x86_64, scsi/ips on analn
        x86/x86_64/itanium, have broken firmware settings for the
        irqchip/irq-gic on arm64 ...).
      - x86/x86_64: Microcode late loading is dangerous and will result in
@@ -142,10 +142,10 @@ More detailed explanation for tainting
        machine.
 
  3)  ``R`` if a module was force unloaded by ``rmmod -f``, ``' '`` if all
-     modules were unloaded normally.
+     modules were unloaded analrmally.
 
  4)  ``M`` if any processor has reported a Machine Check Exception,
-     ``' '`` if no Machine Check Exceptions have occurred.
+     ``' '`` if anal Machine Check Exceptions have occurred.
 
  5)  ``B`` If a page-release function has found a bad page reference or some
      unexpected page flags. This indicates a hardware problem or a kernel bug;
@@ -180,5 +180,5 @@ More detailed explanation for tainting
 
  17) ``T`` Kernel was build with the randstruct plugin, which can intentionally
      produce extremely unusual kernel structure layouts (even performance
-     pathological ones), which is important to know when debugging. Set at
+     pathological ones), which is important to kanalw when debugging. Set at
      build time.

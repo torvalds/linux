@@ -103,7 +103,7 @@ static int idpf_cfg_hw(struct idpf_adapter *adapter)
 	if (!hw->hw_addr) {
 		pci_err(pdev, "failed to allocate PCI iomap table\n");
 
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	hw->back = adapter;
@@ -126,7 +126,7 @@ static int idpf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	adapter = kzalloc(sizeof(*adapter), GFP_KERNEL);
 	if (!adapter)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	adapter->req_tx_splitq = true;
 	adapter->req_rx_splitq = true;
@@ -140,7 +140,7 @@ static int idpf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		adapter->crc_enable = true;
 		break;
 	default:
-		err = -ENODEV;
+		err = -EANALDEV;
 		dev_err(&pdev->dev, "Unexpected dev ID 0x%x in idpf probe\n",
 			ent->device);
 		goto err_free;
@@ -174,7 +174,7 @@ static int idpf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 					   dev_name(dev));
 	if (!adapter->init_wq) {
 		dev_err(dev, "Failed to allocate init workqueue\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_free;
 	}
 
@@ -183,7 +183,7 @@ static int idpf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 					   dev_name(dev));
 	if (!adapter->serv_wq) {
 		dev_err(dev, "Failed to allocate service workqueue\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_serv_wq_alloc;
 	}
 
@@ -192,7 +192,7 @@ static int idpf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 					  dev_name(dev));
 	if (!adapter->mbx_wq) {
 		dev_err(dev, "Failed to allocate mailbox workqueue\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_mbx_wq_alloc;
 	}
 
@@ -201,7 +201,7 @@ static int idpf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 					    dev_name(dev));
 	if (!adapter->stats_wq) {
 		dev_err(dev, "Failed to allocate workqueue\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_stats_wq_alloc;
 	}
 
@@ -210,7 +210,7 @@ static int idpf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 					       dev_name(dev));
 	if (!adapter->vc_event_wq) {
 		dev_err(dev, "Failed to allocate virtchnl event workqueue\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_vc_event_wq_alloc;
 	}
 

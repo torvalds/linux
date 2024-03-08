@@ -52,7 +52,7 @@ static struct rc_map_list cinergy_map = {
 	.map = {
 		.scan     = cinergy,
 		.size     = ARRAY_SIZE(cinergy),
-		.rc_proto = RC_PROTO_UNKNOWN,	/* Legacy IR type */
+		.rc_proto = RC_PROTO_UNKANALWN,	/* Legacy IR type */
 		.name     = RC_MAP_CINERGY,
 	}
 };

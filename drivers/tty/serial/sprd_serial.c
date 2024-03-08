@@ -271,15 +271,15 @@ static int sprd_uart_dma_submit(struct uart_port *port,
 	struct dma_async_tx_descriptor *dma_des;
 	unsigned long flags;
 
-	flags = SPRD_DMA_FLAGS(SPRD_DMA_CHN_MODE_NONE,
-			       SPRD_DMA_NO_TRG,
+	flags = SPRD_DMA_FLAGS(SPRD_DMA_CHN_MODE_ANALNE,
+			       SPRD_DMA_ANAL_TRG,
 			       SPRD_DMA_FRAG_REQ,
 			       SPRD_DMA_TRANS_INT);
 
 	dma_des = dmaengine_prep_slave_single(ud->chn, ud->phys_addr, trans_len,
 					      direction, flags);
 	if (!dma_des)
-		return -ENODEV;
+		return -EANALDEV;
 
 	dma_des->callback = callback;
 	dma_des->callback_param = port;
@@ -354,7 +354,7 @@ static int sprd_rx_alloc_buf(struct sprd_uart_port *sp)
 	sp->rx_dma.virt = dma_alloc_coherent(sp->port.dev, SPRD_UART_RX_SIZE,
 					     &sp->rx_dma.phys_addr, GFP_KERNEL);
 	if (!sp->rx_dma.virt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -551,10 +551,10 @@ static void sprd_start_tx(struct uart_port *port)
 	}
 }
 
-/* The Sprd serial does not support this function. */
+/* The Sprd serial does analt support this function. */
 static void sprd_break_ctl(struct uart_port *port, int break_state)
 {
-	/* nothing to do */
+	/* analthing to do */
 }
 
 static int handle_lsr_errors(struct uart_port *port,
@@ -577,7 +577,7 @@ static int handle_lsr_errors(struct uart_port *port,
 	if (*lsr & SPRD_LSR_OE)
 		port->icount.overrun++;
 
-	/* mask off conditions which should be ignored */
+	/* mask off conditions which should be iganalred */
 	*lsr &= port->read_status_mask;
 	if (*lsr & SPRD_LSR_BI)
 		*flag = TTY_BREAK;
@@ -606,7 +606,7 @@ static inline void sprd_rx(struct uart_port *port)
 	       max_count--) {
 		lsr = serial_in(port, SPRD_LSR);
 		ch = serial_in(port, SPRD_RXD);
-		flag = TTY_NORMAL;
+		flag = TTY_ANALRMAL;
 		port->icount.rx++;
 
 		if (lsr & (SPRD_LSR_BI | SPRD_LSR_PE |
@@ -644,7 +644,7 @@ static irqreturn_t sprd_handle_irq(int irq, void *dev_id)
 
 	if (!ims) {
 		uart_port_unlock(port);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	if (ims & SPRD_IMSR_TIMEOUT)
@@ -784,7 +784,7 @@ static void sprd_set_termios(struct uart_port *port, struct ktermios *termios,
 
 	/* calculate parity */
 	lcr &= ~SPRD_LCR_PARITY;
-	termios->c_cflag &= ~CMSPAR;	/* no support mark/space */
+	termios->c_cflag &= ~CMSPAR;	/* anal support mark/space */
 	if (termios->c_cflag & PARENB) {
 		lcr |= SPRD_LCR_PARITY_EN;
 		if (termios->c_cflag & PARODD)
@@ -804,18 +804,18 @@ static void sprd_set_termios(struct uart_port *port, struct ktermios *termios,
 	if (termios->c_iflag & (IGNBRK | BRKINT | PARMRK))
 		port->read_status_mask |= SPRD_LSR_BI;
 
-	/* characters to ignore */
-	port->ignore_status_mask = 0;
+	/* characters to iganalre */
+	port->iganalre_status_mask = 0;
 	if (termios->c_iflag & IGNPAR)
-		port->ignore_status_mask |= SPRD_LSR_PE | SPRD_LSR_FE;
+		port->iganalre_status_mask |= SPRD_LSR_PE | SPRD_LSR_FE;
 	if (termios->c_iflag & IGNBRK) {
-		port->ignore_status_mask |= SPRD_LSR_BI;
+		port->iganalre_status_mask |= SPRD_LSR_BI;
 		/*
-		 * If we're ignoring parity and break indicators,
-		 * ignore overruns too (for real raw support).
+		 * If we're iganalring parity and break indicators,
+		 * iganalre overruns too (for real raw support).
 		 */
 		if (termios->c_iflag & IGNPAR)
-			port->ignore_status_mask |= SPRD_LSR_OE;
+			port->iganalre_status_mask |= SPRD_LSR_OE;
 	}
 
 	/* flow control */
@@ -851,7 +851,7 @@ static const char *sprd_type(struct uart_port *port)
 
 static void sprd_release_port(struct uart_port *port)
 {
-	/* nothing to do */
+	/* analthing to do */
 }
 
 static int sprd_request_port(struct uart_port *port)
@@ -1000,8 +1000,8 @@ static int sprd_console_setup(struct console *co, char *options)
 
 	sprd_uart_port = sprd_port[co->index];
 	if (!sprd_uart_port || !sprd_uart_port->port.membase) {
-		pr_info("serial port %d not yet initialized\n", co->index);
-		return -ENODEV;
+		pr_info("serial port %d analt yet initialized\n", co->index);
+		return -EANALDEV;
 	}
 
 	if (options)
@@ -1054,7 +1054,7 @@ static int __init sprd_early_console_setup(struct earlycon_device *device,
 					   const char *opt)
 {
 	if (!device->port.membase)
-		return -ENODEV;
+		return -EANALDEV;
 
 	device->con->write = sprd_early_write;
 	return 0;
@@ -1071,7 +1071,7 @@ static struct uart_driver sprd_uart_driver = {
 	.driver_name = "sprd_serial",
 	.dev_name = SPRD_TTY_NAME,
 	.major = 0,
-	.minor = 0,
+	.mianalr = 0,
 	.nr = UART_NR_MAX,
 	.cons = SPRD_CONSOLE,
 };
@@ -1096,7 +1096,7 @@ static bool sprd_uart_is_console(struct uart_port *uport)
 	struct console *cons = sprd_uart_driver.cons;
 
 	if ((cons && cons->index >= 0 && cons->index == uport->line) ||
-	    of_console_check(uport->dev->of_node, SPRD_TTY_NAME, uport->line))
+	    of_console_check(uport->dev->of_analde, SPRD_TTY_NAME, uport->line))
 		return true;
 
 	return false;
@@ -1153,7 +1153,7 @@ static int sprd_probe(struct platform_device *pdev)
 	int index;
 	int ret;
 
-	index = of_alias_get_id(pdev->dev.of_node, "serial");
+	index = of_alias_get_id(pdev->dev.of_analde, "serial");
 	if (index < 0 || index >= UART_NR_MAX) {
 		dev_err(&pdev->dev, "got a wrong serial alias id %d\n", index);
 		return -EINVAL;
@@ -1161,7 +1161,7 @@ static int sprd_probe(struct platform_device *pdev)
 
 	sport = devm_kzalloc(&pdev->dev, sizeof(*sport), GFP_KERNEL);
 	if (!sport)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	up = &sport->port;
 	up->dev = &pdev->dev;

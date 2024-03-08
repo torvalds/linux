@@ -6,23 +6,23 @@
  */
 
 /*
- * Notes:
+ * Analtes:
  *
- * - Devices with firmware version < 2 do not store their configuration in
+ * - Devices with firmware version < 2 do analt store their configuration in
  *   EEPROM.
  *
- * - In autonomous mode, only messages from a TV will be acknowledged, even
+ * - In autoanalmous mode, only messages from a TV will be ackanalwledged, even
  *   polling messages. Upon receiving a message from a TV, the dongle will
  *   respond to messages from any logical address.
  *
- * - In autonomous mode, the dongle will by default reply Feature Abort
+ * - In autoanalmous mode, the dongle will by default reply Feature Abort
  *   [Unrecognized Opcode] when it receives Give Device Vendor ID. It will
  *   however observe vendor ID's reported by other devices and possibly
  *   alter this behavior. When TV's (and TV's only) report that their vendor ID
  *   is LG (0x00e091), the dongle will itself reply that it has the same vendor
  *   ID, and it will respond to at least one vendor specific command.
  *
- * - In autonomous mode, the dongle is known to attempt wakeup if it receives
+ * - In autoanalmous mode, the dongle is kanalwn to attempt wakeup if it receives
  *   <User Control Pressed> ["Power On"], ["Power] or ["Power Toggle"], or if it
  *   receives <Set Stream Path> with its own physical address. It also does this
  *   if it receives <Vendor Specific Command> [0x03 0x00] from an LG TV.
@@ -53,7 +53,7 @@ MODULE_PARM_DESC(debug, "debug level (0-2)");
 MODULE_PARM_DESC(persistent_config, "read config from persistent memory (0-1)");
 
 enum pulse8_msgcodes {
-	MSGCODE_NOTHING = 0,
+	MSGCODE_ANALTHING = 0,
 	MSGCODE_PING,
 	MSGCODE_TIMEOUT_ERROR,
 	MSGCODE_HIGH_ERROR,
@@ -103,7 +103,7 @@ enum pulse8_msgcodes {
 };
 
 static const char * const pulse8_msgnames[] = {
-	"NOTHING",
+	"ANALTHING",
 	"PING",
 	"TIMEOUT_ERROR",
 	"HIGH_ERROR",
@@ -151,12 +151,12 @@ static const char * const pulse8_msgnames[] = {
 
 static const char *pulse8_msgname(u8 cmd)
 {
-	static char unknown_msg[5];
+	static char unkanalwn_msg[5];
 
 	if ((cmd & 0x3f) < ARRAY_SIZE(pulse8_msgnames))
 		return pulse8_msgnames[cmd & 0x3f];
-	snprintf(unknown_msg, sizeof(unknown_msg), "0x%02x", cmd);
-	return unknown_msg;
+	snprintf(unkanalwn_msg, sizeof(unkanalwn_msg), "0x%02x", cmd);
+	return unkanalwn_msg;
 }
 
 #define MSGSTART	0xff
@@ -204,7 +204,7 @@ struct pulse8 {
 	struct mutex lock;
 	bool config_pending;
 	bool restoring_config;
-	bool autonomous;
+	bool autoanalmous;
 };
 
 static int pulse8_send(struct serio *serio, const u8 *command, u8 cmd_len)
@@ -250,7 +250,7 @@ static int pulse8_send_and_wait_once(struct pulse8 *pulse8,
 	    cmd[0] != MSGCODE_SET_CONTROLLED &&
 	    cmd[0] != MSGCODE_SET_AUTO_ENABLED &&
 	    cmd[0] != MSGCODE_GET_BUILDDATE)
-		return -ENOTTY;
+		return -EANALTTY;
 	if (response &&
 	    ((pulse8->data[0] & 0x3f) != response || pulse8->len < size + 1)) {
 		dev_info(pulse8->dev, "transmit %s failed with %s\n",
@@ -268,7 +268,7 @@ static int pulse8_send_and_wait(struct pulse8 *pulse8,
 	int err;
 
 	err = pulse8_send_and_wait_once(pulse8, cmd, cmd_len, response, size);
-	if (err != -ENOTTY)
+	if (err != -EANALTTY)
 		return err;
 
 	cmd_sc[0] = MSGCODE_SET_CONTROLLED;
@@ -278,7 +278,7 @@ static int pulse8_send_and_wait(struct pulse8 *pulse8,
 	if (!err)
 		err = pulse8_send_and_wait_once(pulse8, cmd, cmd_len,
 						response, size);
-	return err == -ENOTTY ? -EIO : err;
+	return err == -EANALTTY ? -EIO : err;
 }
 
 static void pulse8_tx_work_handler(struct work_struct *work)
@@ -429,7 +429,7 @@ static irqreturn_t pulse8_interrupt(struct serio *serio, unsigned char data,
 			break;
 		case MSGCODE_TRANSMIT_FAILED_ACK:
 			/*
-			 * A NACK for a broadcast message makes no sense, these
+			 * A NACK for a broadcast message makes anal sense, these
 			 * seem to be spurious messages and are skipped.
 			 */
 			if (pulse8->tx_msg_is_bcast)
@@ -523,7 +523,7 @@ static int pulse8_cec_adap_log_addr(struct cec_adapter *adap, u8 log_addr)
 				   MSGCODE_COMMAND_ACCEPTED, 0);
 	if (err)
 		goto unlock;
-	pulse8->autonomous = cmd[1];
+	pulse8->autoanalmous = cmd[1];
 	if (log_addr == CEC_LOG_ADDR_INVALID)
 		goto unlock;
 
@@ -693,8 +693,8 @@ static int pulse8_setup(struct pulse8 *pulse8, struct serio *serio,
 	err = pulse8_send_and_wait(pulse8, cmd, 1, cmd[0], 1);
 	if (err)
 		return err;
-	pulse8->autonomous = data[0];
-	dev_dbg(pulse8->dev, "Autonomous mode: %s",
+	pulse8->autoanalmous = data[0];
+	dev_dbg(pulse8->dev, "Autoanalmous mode: %s",
 		data[0] ? "on" : "off");
 
 	if (pulse8->vers >= 10) {
@@ -743,7 +743,7 @@ static int pulse8_setup(struct pulse8 *pulse8, struct serio *serio,
 	default:
 		log_addrs->log_addr_type[0] = CEC_LOG_ADDR_TYPE_UNREGISTERED;
 		log_addrs->all_device_types[0] = CEC_OP_ALL_DEVTYPE_SWITCH;
-		dev_info(pulse8->dev, "Unknown Primary Device Type: %d\n",
+		dev_info(pulse8->dev, "Unkanalwn Primary Device Type: %d\n",
 			 log_addrs->primary_device_type[0]);
 		break;
 	}
@@ -836,14 +836,14 @@ static int pulse8_connect(struct serio *serio, struct serio_driver *drv)
 {
 	u32 caps = CEC_CAP_DEFAULTS | CEC_CAP_PHYS_ADDR | CEC_CAP_MONITOR_ALL;
 	struct pulse8 *pulse8;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 	struct cec_log_addrs log_addrs = {};
 	u16 pa = CEC_PHYS_ADDR_INVALID;
 
 	pulse8 = kzalloc(sizeof(*pulse8), GFP_KERNEL);
 
 	if (!pulse8)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pulse8->serio = serio;
 	pulse8->adap = cec_allocate_adapter(&pulse8_cec_adap_ops, pulse8,
@@ -876,9 +876,9 @@ static int pulse8_connect(struct serio *serio, struct serio_driver *drv)
 	if (err < 0)
 		goto close_serio;
 
-	pulse8->dev = &pulse8->adap->devnode.dev;
+	pulse8->dev = &pulse8->adap->devanalde.dev;
 
-	if (persistent_config && pulse8->autonomous) {
+	if (persistent_config && pulse8->autoanalmous) {
 		err = pulse8_apply_persistent_config(pulse8, &log_addrs, pa);
 		if (err)
 			goto close_serio;

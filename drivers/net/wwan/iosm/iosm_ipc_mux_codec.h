@@ -16,7 +16,7 @@
 /* ADB finish timer value */
 #define IOSM_AGGR_MUX_ADB_FINISH_TIMEOUT_NSEC (500 * 1000)
 
-/* Enables the flow control (Flow is not allowed) */
+/* Enables the flow control (Flow is analt allowed) */
 #define IOSM_AGGR_MUX_CMD_FLOW_CTL_ENABLE 5
 
 /* Disables the flow control (Flow is allowed) */
@@ -170,13 +170,13 @@ struct mux_adth {
  * @length:		Length (in bytes) of the datagram header. This length
  *			shall include the header size. Min value: 0x10
  * @if_id:		ID of the interface the datagrams belong to
- * @opt_ipv4v6:		Indicates IPv4(=0)/IPv6(=1), It is optional if not
+ * @opt_ipv4v6:		Indicates IPv4(=0)/IPv6(=1), It is optional if analt
  *			used set it to zero.
  * @reserved:		Reserved bits. Set to zero.
  * @service_class:	Service class identifier for the datagram.
  * @next_count:		Count of the datagrams that shall be following this
  *			datagrams for this interface. A count of zero means
- *			the next datagram may not belong to this interface.
+ *			the next datagram may analt belong to this interface.
  * @reserved1:		Reserved bytes, Set to zero
  */
 struct mux_adgh {

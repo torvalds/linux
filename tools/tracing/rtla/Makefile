@@ -25,12 +25,12 @@ $(call allow-override,LDCONFIG,ldconfig)
 INSTALL	=	install
 MKDIR	=	mkdir
 FOPTS	:=	-flto=auto -ffat-lto-objects -fexceptions -fstack-protector-strong \
-		-fasynchronous-unwind-tables -fstack-clash-protection
-WOPTS	:= 	-Wall -Werror=format-security -Wp,-D_FORTIFY_SOURCE=2 -Wp,-D_GLIBCXX_ASSERTIONS -Wno-maybe-uninitialized
+		-fasynchroanalus-unwind-tables -fstack-clash-protection
+WOPTS	:= 	-Wall -Werror=format-security -Wp,-D_FORTIFY_SOURCE=2 -Wp,-D_GLIBCXX_ASSERTIONS -Wanal-maybe-uninitialized
 
 ifeq ($(CC),clang)
   FOPTS := $(filter-out -ffat-lto-objects, $(FOPTS))
-  WOPTS := $(filter-out -Wno-maybe-uninitialized, $(WOPTS))
+  WOPTS := $(filter-out -Wanal-maybe-uninitialized, $(WOPTS))
 endif
 
 TRACEFS_HEADERS	:= $$($(PKG_CONFIG) --cflags libtracefs)
@@ -87,7 +87,7 @@ endif
 
 define show_dependencies
 	@echo "********************************************";				\
-	echo "** NOTICE: Failed build dependencies";					\
+	echo "** ANALTICE: Failed build dependencies";					\
 	echo "**";									\
 	echo "** Required Libraries:";							\
 	$(MISSING_LIBS)									\
@@ -122,10 +122,10 @@ install: doc_install
 	$(MKDIR) -p $(DESTDIR)$(BINDIR)
 	$(INSTALL) rtla -m 755 $(DESTDIR)$(BINDIR)
 	$(STRIP) $(DESTDIR)$(BINDIR)/rtla
-	@test ! -f $(DESTDIR)$(BINDIR)/osnoise || rm $(DESTDIR)$(BINDIR)/osnoise
-	ln -s rtla $(DESTDIR)$(BINDIR)/osnoise
-	@test ! -f $(DESTDIR)$(BINDIR)/hwnoise || rm $(DESTDIR)$(BINDIR)/hwnoise
-	ln -s rtla $(DESTDIR)$(BINDIR)/hwnoise
+	@test ! -f $(DESTDIR)$(BINDIR)/osanalise || rm $(DESTDIR)$(BINDIR)/osanalise
+	ln -s rtla $(DESTDIR)$(BINDIR)/osanalise
+	@test ! -f $(DESTDIR)$(BINDIR)/hwanalise || rm $(DESTDIR)$(BINDIR)/hwanalise
+	ln -s rtla $(DESTDIR)$(BINDIR)/hwanalise
 	@test ! -f $(DESTDIR)$(BINDIR)/timerlat || rm $(DESTDIR)$(BINDIR)/timerlat
 	ln -s rtla $(DESTDIR)$(BINDIR)/timerlat
 

@@ -954,7 +954,7 @@ static const struct drm_panel_funcs s6e8aa0_drm_funcs = {
 static int s6e8aa0_parse_dt(struct s6e8aa0 *ctx)
 {
 	struct device *dev = ctx->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	int ret;
 
 	ret = of_get_videomode(np, &ctx->vm, 0);
@@ -981,7 +981,7 @@ static int s6e8aa0_probe(struct mipi_dsi_device *dsi)
 
 	ctx = devm_kzalloc(dev, sizeof(struct s6e8aa0), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mipi_dsi_set_drvdata(dsi, ctx);
 
@@ -1007,7 +1007,7 @@ static int s6e8aa0_probe(struct mipi_dsi_device *dsi)
 
 	ctx->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(ctx->reset_gpio)) {
-		dev_err(dev, "cannot get reset-gpios %ld\n",
+		dev_err(dev, "cananalt get reset-gpios %ld\n",
 			PTR_ERR(ctx->reset_gpio));
 		return PTR_ERR(ctx->reset_gpio);
 	}

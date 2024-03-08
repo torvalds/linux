@@ -2,7 +2,7 @@
  *  linux/drivers/scsi/esas2r/esas2r.h
  *      For use with ATTO ExpressSAS R6xx SAS/SATA RAID controllers
  *
- *  Copyright (c) 2001-2013 ATTO Technology, Inc.
+ *  Copyright (c) 2001-2013 ATTO Techanallogy, Inc.
  *  (mailto:linuxdrivers@attotech.com)
  *
  * This program is free software; you can redistribute it and/or
@@ -15,19 +15,19 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * NO WARRANTY
+ * ANAL WARRANTY
  * THE PROGRAM IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OR
  * CONDITIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED INCLUDING, WITHOUT
- * LIMITATION, ANY WARRANTIES OR CONDITIONS OF TITLE, NON-INFRINGEMENT,
+ * LIMITATION, ANY WARRANTIES OR CONDITIONS OF TITLE, ANALN-INFRINGEMENT,
  * MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE. Each Recipient is
  * solely responsible for determining the appropriateness of using and
  * distributing the Program and assumes all risks associated with its
- * exercise of rights under this Agreement, including but not limited to
+ * exercise of rights under this Agreement, including but analt limited to
  * the risks and costs of program errors, damage to or loss of data,
  * programs or equipment, and unavailability or interruption of operations.
  *
  * DISCLAIMER OF LIABILITY
- * NEITHER RECIPIENT NOR ANY CONTRIBUTORS SHALL HAVE ANY LIABILITY FOR ANY
+ * NEITHER RECIPIENT ANALR ANY CONTRIBUTORS SHALL HAVE ANY LIABILITY FOR ANY
  * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING WITHOUT LIMITATION LOST PROFITS), HOWEVER CAUSED AND
  * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
@@ -36,7 +36,7 @@
  * HEREUNDER, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if analt, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
  * USA.
  */
@@ -94,11 +94,11 @@ extern int num_io_requests;
 #define ESAS2R_DRVR_NAME     "esas2r"
 #define ESAS2R_LONGNAME      "ATTO ExpressSAS 6GB RAID Adapter"
 #define ESAS2R_MAX_DEVICES     32
-#define ATTONODE_NAME         "ATTONode"
+#define ATTOANALDE_NAME         "ATTOAnalde"
 #define ESAS2R_MAJOR_REV       1
-#define ESAS2R_MINOR_REV       00
+#define ESAS2R_MIANALR_REV       00
 #define ESAS2R_VERSION_STR     DEFINED_NUM_TO_STR(ESAS2R_MAJOR_REV) "." \
-	DEFINED_NUM_TO_STR(ESAS2R_MINOR_REV)
+	DEFINED_NUM_TO_STR(ESAS2R_MIANALR_REV)
 #define ESAS2R_COPYRIGHT_YEARS "2001-2013"
 #define ESAS2R_DEFAULT_SGL_PAGE_SIZE 384
 #define ESAS2R_DEFAULT_CMD_PER_LUN   64
@@ -131,7 +131,7 @@ extern int num_io_requests;
 #define HIWORD(d) ((u16)(((u32)(d)) >> 16))
 #define MAKEDWORD(lo, hi) ((u32)((u16)(lo) | ((u32)(u16)(hi) << 16)))
 
-/* macro to get the lowest nonzero bit of a value */
+/* macro to get the lowest analnzero bit of a value */
 #define LOBIT(x) ((x) & (0 - (x)))
 
 /* These functions are provided to access the chip's control registers.
@@ -457,7 +457,7 @@ struct esas2r_flash_img {
 	#define FI_STAT_INVALID  0x04
 	#define FI_STAT_CHKSUM   0x05
 	#define FI_STAT_LENGTH   0x06
-	#define FI_STAT_UNKNOWN  0x07
+	#define FI_STAT_UNKANALWN  0x07
 	#define FI_STAT_IMG_VER  0x08
 	#define FI_STAT_BUSY     0x09
 	#define FI_STAT_DUAL     0x0A
@@ -556,7 +556,7 @@ struct esas2r_sas_nvram {
 	#define SASNVR_COAL_MED     0x02
 	#define SASNVR_COAL_HI      0x03
 	u8 cmd_throttle;
-	#define SASNVR_CMDTHR_NONE  0x00
+	#define SASNVR_CMDTHR_ANALNE  0x00
 	u8 dev_wait_time;
 	u8 dev_wait_count;
 	u8 spin_up_delay;
@@ -630,7 +630,7 @@ struct esas2r_target {
 	u8 new_target_state;
 	u8 target_state;
 	u8 buffered_target_state;
-#define TS_NOT_PRESENT      0x00
+#define TS_ANALT_PRESENT      0x00
 #define TS_PRESENT          0x05
 #define TS_LUN_CHANGE       0x06
 #define TS_INVALID          0xFF
@@ -757,7 +757,7 @@ enum fw_event_type {
 	fw_event_null,
 	fw_event_lun_change,
 	fw_event_present,
-	fw_event_not_present,
+	fw_event_analt_present,
 	fw_event_vda_ae
 };
 
@@ -818,7 +818,7 @@ struct esas2r_adapter {
 	#define AF_TASKLET_SCHEDULED    15
 	#define AF_HEARTBEAT        16
 	#define AF_HEARTBEAT_ENB    17
-	#define AF_NOT_PRESENT      18
+	#define AF_ANALT_PRESENT      18
 	#define AF_CHPRST_STARTED   19
 	#define AF_FIRST_INIT       20
 	#define AF_POWER_DOWN       21
@@ -872,7 +872,7 @@ struct esas2r_adapter {
 	#define ESAS2R_INIT_MSG_INIT        2
 	#define ESAS2R_INIT_MSG_GET_INIT    3
 	#define ESAS2R_INIT_MSG_REINIT      4
-	u16 cmd_ref_no;
+	u16 cmd_ref_anal;
 	u32 fw_version;
 	u32 fw_build;
 	u32 chip_init_time;
@@ -928,12 +928,12 @@ struct esas2r_adapter {
 	struct workqueue_struct *fw_event_q;
 	struct list_head fw_event_list;
 	spinlock_t fw_event_lock;
-	u8 fw_events_off;                       /* if '1', then ignore events */
+	u8 fw_events_off;                       /* if '1', then iganalre events */
 	char fw_event_q_name[ESAS2R_KOBJ_NAME_LEN];
 	/*
 	 * intr_mode stores the interrupt mode currently being used by this
 	 * adapter. it is based on the interrupt_mode module parameter, but
-	 * can be changed based on the ability (or not) to utilize the
+	 * can be changed based on the ability (or analt) to utilize the
 	 * mode requested by the parameter.
 	 */
 	int intr_mode;
@@ -1107,7 +1107,7 @@ bool esas2r_build_sg_list_sge(struct esas2r_adapter *a,
 bool esas2r_build_sg_list_prd(struct esas2r_adapter *a,
 			      struct esas2r_sg_context *sgc);
 void esas2r_targ_db_initialize(struct esas2r_adapter *a);
-void esas2r_targ_db_remove_all(struct esas2r_adapter *a, bool notify);
+void esas2r_targ_db_remove_all(struct esas2r_adapter *a, bool analtify);
 void esas2r_targ_db_report_changes(struct esas2r_adapter *a);
 struct esas2r_target *esas2r_targ_db_add_raid(struct esas2r_adapter *a,
 					      struct esas2r_disc_context *dc);
@@ -1219,12 +1219,12 @@ static inline void esas2r_rq_init_request(struct esas2r_request *rq,
 	 * clear the size of the VDA request.  esas2r_build_sg_list() will
 	 * only allow the size of the request to grow.  there are some
 	 * management requests that go through there twice and the second
-	 * time through sets a smaller request size.  if this is not modified
+	 * time through sets a smaller request size.  if this is analt modified
 	 * at all we'll set it to the size of the entire VDA request.
 	 */
 	rq->vda_req_sz = RQ_SIZE_DEFAULT;
 
-	/* req_table entry should be NULL at this point - if not, halt */
+	/* req_table entry should be NULL at this point - if analt, halt */
 
 	if (a->req_table[LOWORD(vrq->scsi.handle)]) {
 		esas2r_bugon();
@@ -1239,12 +1239,12 @@ static inline void esas2r_rq_init_request(struct esas2r_request *rq,
 	 * add a reference number to the handle to make it unique (until it
 	 * wraps of course) while preserving the least significant word
 	 */
-	vrq->scsi.handle = (a->cmd_ref_no++ << 16) | (u16)vrq->scsi.handle;
+	vrq->scsi.handle = (a->cmd_ref_anal++ << 16) | (u16)vrq->scsi.handle;
 
 	/*
 	 * the following formats a SCSI request.  the caller can override as
 	 * necessary.  clear_vda_request can be called to clear the VDA
-	 * request for another type of request.
+	 * request for aanalther type of request.
 	 */
 	vrq->scsi.function = VDA_FUNC_SCSI;
 	vrq->scsi.sense_len = SENSE_DATA_SZ;
@@ -1324,7 +1324,7 @@ static inline void esas2r_enable_chip_interrupts(struct esas2r_adapter *a)
 					    ESAS2R_INT_ENB_MASK);
 }
 
-/* Schedule a TASKLET to perform non-interrupt tasks that may require delays
+/* Schedule a TASKLET to perform analn-interrupt tasks that may require delays
  * or long completion times.
  */
 static inline void esas2r_schedule_tasklet(struct esas2r_adapter *a)
@@ -1389,7 +1389,7 @@ static inline u16 esas2r_targ_get_id(struct esas2r_target *t,
 	return (u16)(uintptr_t)(t - a->targetdb);
 }
 
-/*  Build and start an asynchronous event request */
+/*  Build and start an asynchroanalus event request */
 static inline void esas2r_start_ae_request(struct esas2r_adapter *a,
 					   struct esas2r_request *rq)
 {

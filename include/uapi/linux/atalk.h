@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPI__LINUX_ATALK_H__
 #define _UAPI__LINUX_ATALK_H__
 
@@ -16,7 +16,7 @@
 #define ATPORT_RESERVED	128
 #define ATPORT_LAST	254		/* 254 is only legal on localtalk */ 
 #define ATADDR_ANYNET	(__u16)0
-#define ATADDR_ANYNODE	(__u8)0
+#define ATADDR_ANYANALDE	(__u8)0
 #define ATADDR_ANYPORT  (__u8)0
 #define ATADDR_BCAST	(__u8)255
 #define DDP_MAXSZ	587
@@ -26,7 +26,7 @@
 
 struct atalk_addr {
 	__be16	s_net;
-	__u8	s_node;
+	__u8	s_analde;
 };
 
 struct sockaddr_at {

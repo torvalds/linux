@@ -17,8 +17,8 @@ the T10 website (https://t10.org/).
 Device-side implications
 ========================
 
-Once a buffer has been queued to a stream ring, the device is notified (through
-an out-of-band mechanism on another endpoint) that data is ready for that stream
+Once a buffer has been queued to a stream ring, the device is analtified (through
+an out-of-band mechanism on aanalther endpoint) that data is ready for that stream
 ID.  The device then tells the host which "stream" it wants to start.  The host
 can also initiate a transfer on a stream without the device asking, but the
 device can refuse that transfer.  Devices can switch between streams at any
@@ -48,8 +48,8 @@ SuperSpeed device will say how many stream IDs it can handle.  Therefore,
 drivers should be able to deal with being allocated less stream IDs than they
 requested.
 
-Do NOT call this function if you have URBs enqueued for any of the endpoints
-passed in as arguments.  Do not call this function to request less than two
+Do ANALT call this function if you have URBs enqueued for any of the endpoints
+passed in as arguments.  Do analt call this function to request less than two
 streams.
 
 Drivers will only be allowed to call this API once for the same endpoint
@@ -60,12 +60,12 @@ controller driver, and may change in the future.
 Picking new Stream IDs to use
 =============================
 
-Stream ID 0 is reserved, and should not be used to communicate with devices.  If
+Stream ID 0 is reserved, and should analt be used to communicate with devices.  If
 usb_alloc_streams() returns with a value of N, you may use streams 1 though N.
 To queue an URB for a specific stream, set the urb->stream_id value.  If the
-endpoint does not support streams, an error will be returned.
+endpoint does analt support streams, an error will be returned.
 
-Note that new API to choose the next stream ID will have to be added if the xHCI
+Analte that new API to choose the next stream ID will have to be added if the xHCI
 driver supports secondary stream IDs.
 
 

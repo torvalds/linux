@@ -4,7 +4,7 @@
  * for more details.
  *
  * Copyright (C) 2003 Atheros Communications, Inc.,  All Rights Reserved.
- * Copyright (C) 2006 FON Technology, SL.
+ * Copyright (C) 2006 FON Techanallogy, SL.
  * Copyright (C) 2006 Imre Kaloz <kaloz@openwrt.org>
  * Copyright (C) 2006-2009 Felix Fietkau <nbd@openwrt.org>
  * Copyright (C) 2012 Alexandros C. Couloumbis <alex@ozo.com>
@@ -230,7 +230,7 @@ void __init ar5312_init_devices(void)
 	ath25_find_config(AR5312_FLASH_BASE, AR5312_FLASH_SIZE);
 	config = ath25_board.config;
 
-	/* AR2313 has CPU minor rev. 10 */
+	/* AR2313 has CPU mianalr rev. 10 */
 	if ((current_cpu_data.processor_id & 0xff) == 0x0a)
 		ath25_soc = ATH25_SOC_AR2313;
 
@@ -376,7 +376,7 @@ void __init ar5312_plat_mem_setup(void)
 	/* Clear any lingering AHB errors */
 	ar5312_rst_reg_read(AR5312_PROCADDR);
 	ar5312_rst_reg_read(AR5312_DMAADDR);
-	ar5312_rst_reg_write(AR5312_WDT_CTRL, AR5312_WDT_CTRL_IGNORE);
+	ar5312_rst_reg_write(AR5312_WDT_CTRL, AR5312_WDT_CTRL_IGANALRE);
 
 	_machine_restart = ar5312_restart;
 }

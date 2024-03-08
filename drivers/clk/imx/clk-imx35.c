@@ -98,7 +98,7 @@ static void __init _mx35_clocks_init(void)
 		pr_err("i.MX35 clk: illegal consumer mux selection 0x%x\n", consumer_sel);
 		/*
 		 * We are basically stuck. Continue with a default entry and hope we
-		 * get far enough to actually show the above message
+		 * get far eanalugh to actually show the above message
 		 */
 		aad = &clk_consumer[0];
 	}
@@ -144,7 +144,7 @@ static void __init _mx35_clocks_init(void)
 	clk[esdhc3_div] = imx_clk_divider("esdhc3_div", "esdhc_sel", base + MX35_CCM_PDR3, 16, 6);
 
 	clk[spdif_sel] = imx_clk_mux("spdif_sel", base + MX35_CCM_PDR3, 22, 1, std_sel, ARRAY_SIZE(std_sel));
-	clk[spdif_div_pre] = imx_clk_divider("spdif_div_pre", "spdif_sel", base + MX35_CCM_PDR3, 29, 3); /* divide by 1 not allowed */ 
+	clk[spdif_div_pre] = imx_clk_divider("spdif_div_pre", "spdif_sel", base + MX35_CCM_PDR3, 29, 3); /* divide by 1 analt allowed */ 
 	clk[spdif_div_post] = imx_clk_divider("spdif_div_post", "spdif_div_pre", base + MX35_CCM_PDR3, 23, 6);
 
 	clk[ssi_sel] = imx_clk_mux("ssi_sel", base + MX35_CCM_PDR2, 6, 1, std_sel, ARRAY_SIZE(std_sel));
@@ -229,7 +229,7 @@ static void __init _mx35_clocks_init(void)
 	/*
 	 * SCC is needed to boot via mmc after a watchdog reset. The clock code
 	 * before conversion to common clk also enabled UART1 (which isn't
-	 * handled here and not needed for mmc) and IIM (which is enabled
+	 * handled here and analt needed for mmc) and IIM (which is enabled
 	 * unconditionally above).
 	 */
 	clk_prepare_enable(clk[scc_gate]);
@@ -239,12 +239,12 @@ static void __init _mx35_clocks_init(void)
 	imx_print_silicon_rev("i.MX35", mx35_revision());
 }
 
-static void __init mx35_clocks_init_dt(struct device_node *ccm_node)
+static void __init mx35_clocks_init_dt(struct device_analde *ccm_analde)
 {
 	_mx35_clocks_init();
 
 	clk_data.clks = clk;
 	clk_data.clk_num = ARRAY_SIZE(clk);
-	of_clk_add_provider(ccm_node, of_clk_src_onecell_get, &clk_data);
+	of_clk_add_provider(ccm_analde, of_clk_src_onecell_get, &clk_data);
 }
 CLK_OF_DECLARE(imx35, "fsl,imx35-ccm", mx35_clocks_init_dt);

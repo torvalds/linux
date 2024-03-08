@@ -94,7 +94,7 @@ static const struct iwl_ht_params iwl7000_ht_params = {
 	.trans.base_params = &iwl7000_base_params,		\
 	.led_mode = IWL_LED_RF_STATE,				\
 	.nvm_hw_section_num = 0,				\
-	.non_shared_ant = ANT_A,				\
+	.analn_shared_ant = ANT_A,				\
 	.dccm_offset = IWL7000_DCCM_OFFSET
 
 #define IWL_DEVICE_7000						\

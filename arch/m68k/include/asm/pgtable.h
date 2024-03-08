@@ -3,7 +3,7 @@
 #define __M68K_PGTABLE_H
 
 #ifdef __uClinux__
-#include <asm/pgtable_no.h>
+#include <asm/pgtable_anal.h>
 #else
 #include <asm/pgtable_mm.h>
 #endif

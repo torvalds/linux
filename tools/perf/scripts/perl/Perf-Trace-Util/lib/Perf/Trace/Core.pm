@@ -21,9 +21,9 @@ trace_flag_str
 
 our $VERSION = '0.01';
 
-my %trace_flags = (0x00 => "NONE",
+my %trace_flags = (0x00 => "ANALNE",
 		   0x01 => "IRQS_OFF",
-		   0x02 => "IRQS_NOSUPPORT",
+		   0x02 => "IRQS_ANALSUPPORT",
 		   0x04 => "NEED_RESCHED",
 		   0x08 => "HARDIRQ",
 		   0x10 => "SOFTIRQ");
@@ -38,7 +38,7 @@ sub trace_flag_str
 
     foreach my $idx (sort {$a <=> $b} keys %trace_flags) {
 	if (!$value && !$idx) {
-	    $string .= "NONE";
+	    $string .= "ANALNE";
 	    last;
 	}
 
@@ -136,7 +136,7 @@ sub define_symbolic_field
 {
     my ($event_name, $field_name) = @_;
 
-    # nothing to do, really
+    # analthing to do, really
 }
 
 sub define_symbolic_value
@@ -165,7 +165,7 @@ __END__
 
 Perf::Trace::Core - Perl extension for perf script
 
-=head1 SYNOPSIS
+=head1 SYANALPSIS
 
   use Perf::Trace::Core
 

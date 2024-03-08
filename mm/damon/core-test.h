@@ -258,7 +258,7 @@ static void damon_test_ops_registration(struct kunit *test)
 	ops.id = DAMON_OPS_PADDR;
 	KUNIT_EXPECT_EQ(test, damon_register_ops(&ops), -EINVAL);
 
-	/* Unknown ops id cannot be registered */
+	/* Unkanalwn ops id cananalt be registered */
 	KUNIT_EXPECT_EQ(test, damon_select_ops(c, NR_DAMON_OPS), -EINVAL);
 
 	/* Registration should success after unregistration */
@@ -371,14 +371,14 @@ static void damon_test_set_attrs(struct kunit *test)
 
 static void damon_test_moving_sum(struct kunit *test)
 {
-	unsigned int mvsum = 50000, nomvsum = 50000, len_window = 10;
+	unsigned int mvsum = 50000, analmvsum = 50000, len_window = 10;
 	unsigned int new_values[] = {10000, 0, 10000, 0, 0, 0, 10000, 0, 0, 0};
 	unsigned int expects[] = {55000, 50000, 55000, 50000, 45000, 40000,
 		45000, 40000, 35000, 30000};
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(new_values); i++) {
-		mvsum = damon_moving_sum(mvsum, nomvsum, len_window,
+		mvsum = damon_moving_sum(mvsum, analmvsum, len_window,
 				new_values[i]);
 		KUNIT_EXPECT_EQ(test, mvsum, expects[i]);
 	}
@@ -388,8 +388,8 @@ static void damos_test_new_filter(struct kunit *test)
 {
 	struct damos_filter *filter;
 
-	filter = damos_new_filter(DAMOS_FILTER_TYPE_ANON, true);
-	KUNIT_EXPECT_EQ(test, filter->type, DAMOS_FILTER_TYPE_ANON);
+	filter = damos_new_filter(DAMOS_FILTER_TYPE_AANALN, true);
+	KUNIT_EXPECT_EQ(test, filter->type, DAMOS_FILTER_TYPE_AANALN);
 	KUNIT_EXPECT_EQ(test, filter->matching, true);
 	KUNIT_EXPECT_PTR_EQ(test, filter->list.prev, &filter->list);
 	KUNIT_EXPECT_PTR_EQ(test, filter->list.next, &filter->list);

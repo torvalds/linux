@@ -13,19 +13,19 @@
  * modification, are permitted provided that the following conditions
  * are met:
  *
- * - Redistributions of source code must retain the above copyright notice,
+ * - Redistributions of source code must retain the above copyright analtice,
  *   this list of conditions and the following disclaimer.
  *
  * - Redistributions in binary form must reproduce the above copyright
- *   notice, this list of conditions and the following disclaimer in
+ *   analtice, this list of conditions and the following disclaimer in
  *   the documentation and/or other materials provided with the distribution.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,THE
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO,THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
  * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
  * BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
  * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
@@ -249,7 +249,7 @@ struct ocrdma_mbx_rsp {
 
 enum {
 	OCRDMA_MQE_EMBEDDED	= 1,
-	OCRDMA_MQE_NONEMBEDDED	= 0
+	OCRDMA_MQE_ANALNEMBEDDED	= 0
 };
 
 struct ocrdma_mqe_sge {
@@ -286,7 +286,7 @@ struct ocrdma_mqe {
 		struct ocrdma_mqe_emb_cmd emb_req;
 		struct {
 			struct ocrdma_mqe_sge sge[19];
-		} nonemb_req;
+		} analnemb_req;
 		u8 cmd[236];
 		struct ocrdma_mbx_rsp rsp;
 	} u;
@@ -336,7 +336,7 @@ struct ocrdma_create_eq_rsp {
 	u32 vector_eqid;
 };
 
-#define OCRDMA_EQ_MINOR_OTHER	0x1
+#define OCRDMA_EQ_MIANALR_OTHER	0x1
 
 struct ocrmda_set_eqd {
 	u32 eq_id;
@@ -766,7 +766,7 @@ enum {
 
 	OCRDMA_CREATE_CQ_COALESCWM_SHIFT	= 12,
 	OCRDMA_CREATE_CQ_COALESCWM_MASK		= BIT(13) | BIT(12),
-	OCRDMA_CREATE_CQ_FLAGS_NODELAY		= BIT(14),
+	OCRDMA_CREATE_CQ_FLAGS_ANALDELAY		= BIT(14),
 	OCRDMA_CREATE_CQ_FLAGS_AUTO_VALID	= BIT(15),
 
 	OCRDMA_CREATE_CQ_EQ_ID_MASK		= 0xFFFF,
@@ -784,7 +784,7 @@ enum {
 	OCRDMA_CREATE_CQ_FLAGS_EVENTABLE	= BIT(31),
 	OCRDMA_CREATE_CQ_DEF_FLAGS		= OCRDMA_CREATE_CQ_FLAGS_VALID |
 					OCRDMA_CREATE_CQ_FLAGS_EVENTABLE |
-					OCRDMA_CREATE_CQ_FLAGS_NODELAY
+					OCRDMA_CREATE_CQ_FLAGS_ANALDELAY
 };
 
 struct ocrdma_create_cq_cmd {
@@ -1923,14 +1923,14 @@ struct ocrdma_av {
 
 struct ocrdma_rsrc_stats {
 	u32 dpp_pds;
-	u32 non_dpp_pds;
+	u32 analn_dpp_pds;
 	u32 rc_dpp_qps;
 	u32 uc_dpp_qps;
 	u32 ud_dpp_qps;
-	u32 rc_non_dpp_qps;
+	u32 rc_analn_dpp_qps;
 	u32 rsvd;
-	u32 uc_non_dpp_qps;
-	u32 ud_non_dpp_qps;
+	u32 uc_analn_dpp_qps;
+	u32 ud_analn_dpp_qps;
 	u32 rsvd1;
 	u32 srqs;
 	u32 rbqs;

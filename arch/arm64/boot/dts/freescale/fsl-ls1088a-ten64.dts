@@ -3,7 +3,7 @@
  * Device Tree file for Travese Ten64 (LS1088) board
  * Based on fsl-ls1088a-rdb.dts
  * Copyright 2017-2020 NXP
- * Copyright 2019-2021 Traverse Technologies
+ * Copyright 2019-2021 Traverse Techanallogies
  *
  * Author: Mathew McBride <matt@traverse.com.au>
  */
@@ -285,7 +285,7 @@
 	status = "okay";
 
 	en25s64: flash@0 {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		reg = <0>;
@@ -350,7 +350,7 @@
 			#size-cells = <1>;
 
 			/* reserved for future boot direct from NAND flash
-			 * (this would use the same layout as the 8MiB NOR flash)
+			 * (this would use the same layout as the 8MiB ANALR flash)
 			 */
 			partition@0 {
 				label = "nand-boot-reserved";

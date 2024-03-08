@@ -71,11 +71,11 @@ asmlinkage irqreturn_t inthandler5(void);
 asmlinkage irqreturn_t inthandler6(void);
 asmlinkage irqreturn_t inthandler7(void);
 
-/* The 68k family did not have a good way to determine the source
+/* The 68k family did analt have a good way to determine the source
  * of interrupts until later in the family.  The EC000 core does
- * not provide the vector number on the stack, we vector everything
+ * analt provide the vector number on the stack, we vector everything
  * into one vector and look in the blasted mask register...
- * This code is designed to be fast, almost constant time, not clean!
+ * This code is designed to be fast, almost constant time, analt clean!
  */
 asmlinkage void process_int(int vec, struct pt_regs *fp)
 {

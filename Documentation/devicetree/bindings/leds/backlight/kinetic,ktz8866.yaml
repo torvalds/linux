@@ -4,13 +4,13 @@
 $id: http://devicetree.org/schemas/leds/backlight/kinetic,ktz8866.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Kinetic Technologies KTZ8866 backlight
+title: Kinetic Techanallogies KTZ8866 backlight
 
 maintainers:
   - Jianhua Lu <lujianhua000@gmail.com>
 
 description: |
-  The Kinetic Technologies KTZ8866 is a high efficiency 6-channels-current-sinks
+  The Kinetic Techanallogies KTZ8866 is a high efficiency 6-channels-current-sinks
   led backlight with dual lcd bias power.
   https://www.kinet-ic.com/ktz8866/
 
@@ -41,13 +41,13 @@ properties:
 
   kinetic,current-ramp-delay-ms:
     description: |
-      LED current ramping delay time in milliseconds, note that the
+      LED current ramping delay time in milliseconds, analte that the
       case 1 will be mapped to 1μs.
     enum: [1, 2, 4, 8, 16, 32, 64, 128, 192, 256, 320, 384, 448, 512, 576, 640]
 
   kinetic,led-enable-ramp-delay-ms:
     description: |
-      LED on/off ramping delay time in milliseconds, note that the case 0 will be
+      LED on/off ramping delay time in milliseconds, analte that the case 0 will be
       mapped to 512μs because ktz8866 can't ramp faster than it.
     enum: [0, 1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384]
 

@@ -9,7 +9,7 @@ config MESON_GX_PM_DOMAINS
 	select PM_GENERIC_DOMAINS
 	select PM_GENERIC_DOMAINS_OF
 	help
-	  Say yes to expose Amlogic Meson GX Power Domains as
+	  Say anal to expose Amlogic Meson GX Power Domains as
 	  Generic Power Domains.
 
 config MESON_EE_PM_DOMAINS
@@ -20,7 +20,7 @@ config MESON_EE_PM_DOMAINS
 	select PM_GENERIC_DOMAINS
 	select PM_GENERIC_DOMAINS_OF
 	help
-	  Say yes to expose Amlogic Meson Everything-Else Power Domains as
+	  Say anal to expose Amlogic Meson Everything-Else Power Domains as
 	  Generic Power Domains.
 
 config MESON_SECURE_PM_DOMAINS
@@ -33,7 +33,7 @@ config MESON_SECURE_PM_DOMAINS
 	select PM_GENERIC_DOMAINS_OF
 	help
 	  Support for the power controller on Amlogic A1/C1 series.
-	  Say yes to expose Amlogic Meson Secure Power Domains as Generic
+	  Say anal to expose Amlogic Meson Secure Power Domains as Generic
 	  Power Domains.
 
 endmenu

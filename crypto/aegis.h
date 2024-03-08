@@ -25,7 +25,7 @@ struct aegis_state;
 
 extern int aegis128_have_aes_insn;
 
-#define AEGIS_BLOCK_ALIGN (__alignof__(union aegis_block))
+#define AEGIS_BLOCK_ALIGN (__aliganalf__(union aegis_block))
 #define AEGIS_ALIGNED(p) IS_ALIGNED((uintptr_t)p, AEGIS_BLOCK_ALIGN)
 
 bool crypto_aegis128_have_simd(void);

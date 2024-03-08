@@ -16,8 +16,8 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
-/* Interrupt numbers per mbigen node supported */
-#define IRQS_PER_MBIGEN_NODE		128
+/* Interrupt numbers per mbigen analde supported */
+#define IRQS_PER_MBIGEN_ANALDE		128
 
 /* 64 irqs (Pin0-pin63) are reserved for each mbigen chip */
 #define RESERVED_IRQ_PER_MBIGEN_CHIP	64
@@ -33,14 +33,14 @@
 #define IRQ_EVENT_ID_SHIFT		12
 #define IRQ_EVENT_ID_MASK		0x3ff
 
-/* register range of each mbigen node */
-#define MBIGEN_NODE_OFFSET		0x1000
+/* register range of each mbigen analde */
+#define MBIGEN_ANALDE_OFFSET		0x1000
 
-/* offset of vector register in mbigen node */
+/* offset of vector register in mbigen analde */
 #define REG_MBIGEN_VEC_OFFSET		0x200
 
 /*
- * offset of clear register in mbigen node
+ * offset of clear register in mbigen analde
  * This register is used to clear the status
  * of interrupt
  */
@@ -69,10 +69,10 @@ static inline unsigned int get_mbigen_vec_reg(irq_hw_number_t hwirq)
 	unsigned int nid, pin;
 
 	hwirq -= RESERVED_IRQ_PER_MBIGEN_CHIP;
-	nid = hwirq / IRQS_PER_MBIGEN_NODE + 1;
-	pin = hwirq % IRQS_PER_MBIGEN_NODE;
+	nid = hwirq / IRQS_PER_MBIGEN_ANALDE + 1;
+	pin = hwirq % IRQS_PER_MBIGEN_ANALDE;
 
-	return pin * 4 + nid * MBIGEN_NODE_OFFSET
+	return pin * 4 + nid * MBIGEN_ANALDE_OFFSET
 			+ REG_MBIGEN_VEC_OFFSET;
 }
 
@@ -82,13 +82,13 @@ static inline void get_mbigen_type_reg(irq_hw_number_t hwirq,
 	unsigned int nid, irq_ofst, ofst;
 
 	hwirq -= RESERVED_IRQ_PER_MBIGEN_CHIP;
-	nid = hwirq / IRQS_PER_MBIGEN_NODE + 1;
-	irq_ofst = hwirq % IRQS_PER_MBIGEN_NODE;
+	nid = hwirq / IRQS_PER_MBIGEN_ANALDE + 1;
+	irq_ofst = hwirq % IRQS_PER_MBIGEN_ANALDE;
 
 	*mask = 1 << (irq_ofst % 32);
 	ofst = irq_ofst / 32 * 4;
 
-	*addr = ofst + nid * MBIGEN_NODE_OFFSET
+	*addr = ofst + nid * MBIGEN_ANALDE_OFFSET
 		+ REG_MBIGEN_TYPE_OFFSET;
 }
 
@@ -170,7 +170,7 @@ static int mbigen_domain_translate(struct irq_domain *d,
 				    unsigned long *hwirq,
 				    unsigned int *type)
 {
-	if (is_of_node(fwspec->fwnode) || is_acpi_device_node(fwspec->fwnode)) {
+	if (is_of_analde(fwspec->fwanalde) || is_acpi_device_analde(fwspec->fwanalde)) {
 		if (fwspec->param_count != 2)
 			return -EINVAL;
 
@@ -180,7 +180,7 @@ static int mbigen_domain_translate(struct irq_domain *d,
 		else
 			*hwirq = fwspec->param[0];
 
-		/* If there is no valid irq type, just use the default type */
+		/* If there is anal valid irq type, just use the default type */
 		if ((fwspec->param[1] == IRQ_TYPE_EDGE_RISING) ||
 			(fwspec->param[1] == IRQ_TYPE_LEVEL_HIGH))
 			*type = fwspec->param[1];
@@ -237,23 +237,23 @@ static int mbigen_of_create_domain(struct platform_device *pdev,
 {
 	struct platform_device *child;
 	struct irq_domain *domain;
-	struct device_node *np;
+	struct device_analde *np;
 	u32 num_pins;
 	int ret = 0;
 
-	for_each_child_of_node(pdev->dev.of_node, np) {
+	for_each_child_of_analde(pdev->dev.of_analde, np) {
 		if (!of_property_read_bool(np, "interrupt-controller"))
 			continue;
 
 		child = of_platform_device_create(np, NULL, NULL);
 		if (!child) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			break;
 		}
 
-		if (of_property_read_u32(child->dev.of_node, "num-pins",
+		if (of_property_read_u32(child->dev.of_analde, "num-pins",
 					 &num_pins) < 0) {
-			dev_err(&pdev->dev, "No num-pins property\n");
+			dev_err(&pdev->dev, "Anal num-pins property\n");
 			ret = -EINVAL;
 			break;
 		}
@@ -263,13 +263,13 @@ static int mbigen_of_create_domain(struct platform_device *pdev,
 							   &mbigen_domain_ops,
 							   mgn_chip);
 		if (!domain) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			break;
 		}
 	}
 
 	if (ret)
-		of_node_put(np);
+		of_analde_put(np);
 
 	return ret;
 }
@@ -295,7 +295,7 @@ static int mbigen_acpi_create_domain(struct platform_device *pdev,
 	 * use "num-pins" to alloc MSI vectors which are needed by client
 	 * devices connected to it.
 	 *
-	 * Here is the DSDT device node used for mbigen in firmware:
+	 * Here is the DSDT device analde used for mbigen in firmware:
 	 *	Device(MBI0) {
 	 *		Name(_HID, "HISI0152")
 	 *		Name(_UID, Zero)
@@ -320,7 +320,7 @@ static int mbigen_acpi_create_domain(struct platform_device *pdev,
 						   &mbigen_domain_ops,
 						   mgn_chip);
 	if (!domain)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -328,7 +328,7 @@ static int mbigen_acpi_create_domain(struct platform_device *pdev,
 static inline int mbigen_acpi_create_domain(struct platform_device *pdev,
 					    struct mbigen_device *mgn_chip)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 #endif
 
@@ -340,7 +340,7 @@ static int mbigen_device_probe(struct platform_device *pdev)
 
 	mgn_chip = devm_kzalloc(&pdev->dev, sizeof(*mgn_chip), GFP_KERNEL);
 	if (!mgn_chip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mgn_chip->pdev = pdev;
 
@@ -352,10 +352,10 @@ static int mbigen_device_probe(struct platform_device *pdev)
 				      resource_size(res));
 	if (!mgn_chip->base) {
 		dev_err(&pdev->dev, "failed to ioremap %pR\n", res);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
-	if (IS_ENABLED(CONFIG_OF) && pdev->dev.of_node)
+	if (IS_ENABLED(CONFIG_OF) && pdev->dev.of_analde)
 		err = mbigen_of_create_domain(pdev, mgn_chip);
 	else if (ACPI_COMPANION(&pdev->dev))
 		err = mbigen_acpi_create_domain(pdev, mgn_chip);

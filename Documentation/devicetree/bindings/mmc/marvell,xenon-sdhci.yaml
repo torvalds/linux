@@ -1,20 +1,20 @@
 # SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 %YAML 1.2
 ---
-$id: http://devicetree.org/schemas/mmc/marvell,xenon-sdhci.yaml#
+$id: http://devicetree.org/schemas/mmc/marvell,xeanaln-sdhci.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Marvell Xenon SDHCI Controller
+title: Marvell Xeanaln SDHCI Controller
 
 description: |
   This file documents differences between the core MMC properties described by
-  mmc-controller.yaml and the properties used by the Xenon implementation.
+  mmc-controller.yaml and the properties used by the Xeanaln implementation.
 
-  Multiple SDHCs might be put into a single Xenon IP, to save size and cost.
+  Multiple SDHCs might be put into a single Xeanaln IP, to save size and cost.
   Each SDHC is independent and owns independent resources, such as register
   sets, clock and PHY.
 
-  Each SDHC should have an independent device tree node.
+  Each SDHC should have an independent device tree analde.
 
 maintainers:
   - Ulf Hansson <ulf.hansson@linaro.org>
@@ -34,19 +34,19 @@ properties:
 
       - items:
           - const: marvell,armada-3700-sdhci
-          - const: marvell,sdhci-xenon
+          - const: marvell,sdhci-xeanaln
 
   reg:
     minItems: 1
     maxItems: 2
     description: |
       For "marvell,armada-3700-sdhci", two register areas.  The first one
-      for Xenon IP register. The second one for the Armada 3700 SoC PHY PAD
+      for Xeanaln IP register. The second one for the Armada 3700 SoC PHY PAD
       Voltage Control register.  Please follow the examples with compatible
       "marvell,armada-3700-sdhci" in below.
       Please also check property marvell,pad-type in below.
 
-      For other compatible strings, one register area for Xenon IP.
+      For other compatible strings, one register area for Xeanaln IP.
 
   clocks:
     minItems: 1
@@ -61,7 +61,7 @@ properties:
   interrupts:
     maxItems: 1
 
-  marvell,xenon-sdhc-id:
+  marvell,xeanaln-sdhc-id:
     $ref: /schemas/types.yaml#/definitions/uint32
     minimum: 0
     maximum: 7
@@ -70,23 +70,23 @@ properties:
       Operation Control Register Bit[7:0].  Set/clear the corresponding bit to
       enable/disable current SDHC.
 
-  marvell,xenon-phy-type:
+  marvell,xeanaln-phy-type:
     $ref: /schemas/types.yaml#/definitions/string
     enum:
       - emmc 5.1 phy
       - emmc 5.0 phy
     description: |
-      Xenon support multiple types of PHYs. To select eMMC 5.1 PHY, set:
-      marvell,xenon-phy-type = "emmc 5.1 phy" eMMC 5.1 PHY is the default
-      choice if this property is not provided.  To select eMMC 5.0 PHY, set:
-      marvell,xenon-phy-type = "emmc 5.0 phy"
+      Xeanaln support multiple types of PHYs. To select eMMC 5.1 PHY, set:
+      marvell,xeanaln-phy-type = "emmc 5.1 phy" eMMC 5.1 PHY is the default
+      choice if this property is analt provided.  To select eMMC 5.0 PHY, set:
+      marvell,xeanaln-phy-type = "emmc 5.0 phy"
 
-      All those types of PHYs can support eMMC, SD and SDIO. Please note that
+      All those types of PHYs can support eMMC, SD and SDIO. Please analte that
       this property only presents the type of PHY.  It doesn't stand for the
       entire SDHC type or property.  For example, "emmc 5.1 phy" doesn't mean
-      that this Xenon SDHC only supports eMMC 5.1.
+      that this Xeanaln SDHC only supports eMMC 5.1.
 
-  marvell,xenon-phy-znr:
+  marvell,xeanaln-phy-znr:
     $ref: /schemas/types.yaml#/definitions/uint32
     minimum: 0
     maximum: 0x1f
@@ -95,7 +95,7 @@ properties:
       Set PHY ZNR value.
       Only available for eMMC PHY.
 
-  marvell,xenon-phy-zpr:
+  marvell,xeanaln-phy-zpr:
     $ref: /schemas/types.yaml#/definitions/uint32
     minimum: 0
     maximum: 0x1f
@@ -104,7 +104,7 @@ properties:
       Set PHY ZPR value.
       Only available for eMMC PHY.
 
-  marvell,xenon-phy-nr-success-tun:
+  marvell,xeanaln-phy-nr-success-tun:
     $ref: /schemas/types.yaml#/definitions/uint32
     minimum: 1
     maximum: 7
@@ -113,13 +113,13 @@ properties:
       Set the number of required consecutive successful sampling points
       used to identify a valid sampling window, in tuning process.
 
-  marvell,xenon-phy-tun-step-divider:
+  marvell,xeanaln-phy-tun-step-divider:
     $ref: /schemas/types.yaml#/definitions/uint32
     default: 64
     description: |
       Set the divider for calculating TUN_STEP.
 
-  marvell,xenon-phy-slow-mode:
+  marvell,xeanaln-phy-slow-mode:
     type: boolean
     description: |
       If this property is selected, transfers will bypass PHY.
@@ -128,11 +128,11 @@ properties:
       always occur with PHY enabled in eMMC HS SDR, SD SDR12, SD SDR25,
       SD Default Speed and HS mode and eMMC legacy speed mode.
 
-  marvell,xenon-tun-count:
+  marvell,xeanaln-tun-count:
     $ref: /schemas/types.yaml#/definitions/uint32
     default: 0x9
     description: |
-      Xenon SDHC SoC usually doesn't provide re-tuning counter in
+      Xeanaln SDHC SoC usually doesn't provide re-tuning counter in
       Capabilities Register 3 Bit[11:8].
       This property provides the re-tuning counter.
 
@@ -148,7 +148,7 @@ allOf:
       properties:
         reg:
           items:
-            - description: Xenon IP registers
+            - description: Xeanaln IP registers
             - description: Armada 3700 SoC PHY PAD Voltage Control register
 
         marvell,pad-type:
@@ -209,11 +209,11 @@ examples:
       clocks = <&emmc_clk 0>, <&axi_clk 0>;
       clock-names = "core", "axi";
       bus-width = <4>;
-      marvell,xenon-phy-slow-mode;
-      marvell,xenon-tun-count = <11>;
-      non-removable;
-      no-sd;
-      no-sdio;
+      marvell,xeanaln-phy-slow-mode;
+      marvell,xeanaln-tun-count = <11>;
+      analn-removable;
+      anal-sd;
+      anal-sdio;
 
       /* Vmmc and Vqmmc are both fixed */
     };
@@ -232,7 +232,7 @@ examples:
       clocks = <&sdclk 0>, <&axi_clk 0>;
       clock-names = "core", "axi";
       bus-width = <4>;
-      marvell,xenon-tun-count = <9>;
+      marvell,xeanaln-tun-count = <9>;
     };
 
   - |
@@ -241,7 +241,7 @@ examples:
     #include <dt-bindings/interrupt-controller/irq.h>
 
     mmc@aa0000 {
-      compatible = "marvell,armada-3700-sdhci", "marvell,sdhci-xenon";
+      compatible = "marvell,armada-3700-sdhci", "marvell,sdhci-xeanaln";
       reg = <0xaa0000 0x1000>,
             <0x17808 0x4>;
       interrupts = <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>;
@@ -250,9 +250,9 @@ examples:
       bus-width = <8>;
       mmc-ddr-1_8v;
       mmc-hs400-1_8v;
-      non-removable;
-      no-sd;
-      no-sdio;
+      analn-removable;
+      anal-sd;
+      anal-sdio;
 
       /* Vmmc and Vqmmc are both fixed */
 
@@ -265,7 +265,7 @@ examples:
     #include <dt-bindings/interrupt-controller/irq.h>
 
     mmc@ab0000 {
-      compatible = "marvell,armada-3700-sdhci", "marvell,sdhci-xenon";
+      compatible = "marvell,armada-3700-sdhci", "marvell,sdhci-xeanaln";
       reg = <0xab0000 0x1000>,
             <0x17808 0x4>;
       interrupts = <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>;

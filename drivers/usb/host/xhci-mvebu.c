@@ -52,7 +52,7 @@ int xhci_mvebu_mbus_init_quirk(struct usb_hcd *hcd)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	if (!res)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
 	 * We don't use devm_ioremap() because this mapping should
@@ -60,14 +60,14 @@ int xhci_mvebu_mbus_init_quirk(struct usb_hcd *hcd)
 	 */
 	base = ioremap(res->start, resource_size(res));
 	if (!base)
-		return -ENODEV;
+		return -EANALDEV;
 
 	dram = mv_mbus_dram_info();
 	xhci_mvebu_mbus_config(base, dram);
 
 	/*
 	 * This memory area was only needed to configure the MBus
-	 * windows, and is therefore no longer useful.
+	 * windows, and is therefore anal longer useful.
 	 */
 	iounmap(base);
 

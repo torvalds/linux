@@ -50,7 +50,7 @@ enum iwl_prph_scratch_mtr_format {
  * @IWL_PRPH_SCRATCH_MTR_FORMAT: a mask for the size of the tfd.
  *	There are 4 optional values: 0: 16 bit, 1: 32 bit, 2: 64 bit,
  *	3: 256 bit.
- * @IWL_PRPH_SCRATCH_RB_SIZE_EXT_MASK: RB size full information, ignored
+ * @IWL_PRPH_SCRATCH_RB_SIZE_EXT_MASK: RB size full information, iganalred
  *	by older firmware versions, so set IWL_PRPH_SCRATCH_RB_SIZE_4K
  *	appropriately; use the below values for this.
  * @IWL_PRPH_SCRATCH_RB_SIZE_EXT_8K: 8kB RB size
@@ -203,13 +203,13 @@ struct iwl_prph_scratch {
  * struct iwl_prph_info - peripheral information
  * @boot_stage_mirror: reflects the value in the Boot Stage CSR register
  * @ipc_status_mirror: reflects the value in the IPC Status CSR register
- * @sleep_notif: indicates the peripheral sleep status
+ * @sleep_analtif: indicates the peripheral sleep status
  * @reserved: reserved
  */
 struct iwl_prph_info {
 	__le32 boot_stage_mirror;
 	__le32 ipc_status_mirror;
-	__le32 sleep_notif;
+	__le32 sleep_analtif;
 	__le32 reserved;
 } __packed; /* PERIPH_INFO_S */
 

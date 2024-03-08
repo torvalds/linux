@@ -1,17 +1,17 @@
 /*
  * Copyright (c) 2006 Damien Bergamini <damien.bergamini@free.fr>
- * Copyright (c) 2006 Sam Leffler, Errno Consulting
+ * Copyright (c) 2006 Sam Leffler, Erranal Consulting
  * Copyright (c) 2007 Christoph Hellwig <hch@lst.de>
  * Copyright (c) 2008-2009 Weongyo Jeong <weongyo@freebsd.org>
  * Copyright (c) 2012 Pontus Fuchs <pontus.fuchs@gmail.com>
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -108,13 +108,13 @@ struct ar5523_cmd_hdr {
 
 struct ar5523_cmd_host_available {
 	__be32	sw_ver_major;
-	__be32	sw_ver_minor;
+	__be32	sw_ver_mianalr;
 	__be32	sw_ver_patch;
 	__be32	sw_ver_build;
 } __packed;
 
 #define	ATH_SW_VER_MAJOR	1
-#define	ATH_SW_VER_MINOR	5
+#define	ATH_SW_VER_MIANALR	5
 #define	ATH_SW_VER_PATCH	0
 #define	ATH_SW_VER_BUILD	9999
 
@@ -169,8 +169,8 @@ struct ar5523_tx_desc {
 #define	UATH_TXQID_FF		0x20	/* content is fast frame */
 	__be32	connid;		/* tx connection id */
 #define UATH_ID_INVALID	0xffffffff	/* for sending prior to connection */
-	__be32	flags;		/* non-zero if response desired */
-#define UATH_TX_NOTIFY	(1 << 24)	/* f/w will send a UATH_NOTIF_TX */
+	__be32	flags;		/* analn-zero if response desired */
+#define UATH_TX_ANALTIFY	(1 << 24)	/* f/w will send a UATH_ANALTIF_TX */
 	__be32	buflen;		/* payload length */
 } __packed;
 
@@ -224,7 +224,7 @@ struct ar5523_cmd_rates {
 } __packed;
 
 enum {
-	WLAN_MODE_NONE = 0,
+	WLAN_MODE_ANALNE = 0,
 	WLAN_MODE_11b,
 	WLAN_MODE_11a,
 	WLAN_MODE_11g,
@@ -307,16 +307,16 @@ struct ar5523_cmd_rx_filter {		/* WDCMSG_RX_FILTER */
 } __packed;
 
 enum {
-	CFG_NONE,			/* Sentinal to indicate "no config" */
+	CFG_ANALNE,			/* Sentinal to indicate "anal config" */
 	CFG_REG_DOMAIN,			/* Regulatory Domain */
 	CFG_RATE_CONTROL_ENABLE,
-	CFG_DEF_XMIT_DATA_RATE,		/* NB: if rate control is not enabled */
+	CFG_DEF_XMIT_DATA_RATE,		/* NB: if rate control is analt enabled */
 	CFG_HW_TX_RETRIES,
 	CFG_SW_TX_RETRIES,
 	CFG_SLOW_CLOCK_ENABLE,
 	CFG_COMP_PROC,
 	CFG_USER_RTS_THRESHOLD,
-	CFG_XR2NORM_RATE_THRESHOLD,
+	CFG_XR2ANALRM_RATE_THRESHOLD,
 	CFG_XRMODE_SWITCH_COUNT,
 	CFG_PROTECTION_TYPE,
 	CFG_BURST_SEQ_THRESHOLD,
@@ -341,13 +341,13 @@ enum {
 	CFG_USE_32KHZ_CLOCK,
 	CFG_GMODE_PROTECTION,
 	CFG_GMODE_PROTECT_RATE_INDEX,
-	CFG_GMODE_NON_ERP_PREAMBLE,
+	CFG_GMODE_ANALN_ERP_PREAMBLE,
 	CFG_WDC_TRANSPORT_CHUNK_SIZE,
 };
 
 enum {
-	/* Sentinal to indicate "no capability" */
-	CAP_NONE,
+	/* Sentinal to indicate "anal capability" */
+	CAP_ANALNE,
 	CAP_ALL,			/* ALL capabilities */
 	CAP_TARGET_VERSION,
 	CAP_TARGET_REVISION,
@@ -396,7 +396,7 @@ enum {
 };
 
 enum {
-	ST_NONE,                    /* Sentinal to indicate "no status" */
+	ST_ANALNE,                    /* Sentinal to indicate "anal status" */
 	ST_ALL,
 	ST_SERVICE_TYPE,
 	ST_WLAN_MODE,

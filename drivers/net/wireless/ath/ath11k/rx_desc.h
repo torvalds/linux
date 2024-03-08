@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-3-Clause-Clear */
 /*
  * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 #ifndef ATH11K_RX_DESC_H
 #define ATH11K_RX_DESC_H
@@ -13,16 +13,16 @@ enum rx_desc_rxpcu_filter {
 };
 
 /* rxpcu_filter_pass
- *		This MPDU passed the normal frame filter programming of rxpcu.
+ *		This MPDU passed the analrmal frame filter programming of rxpcu.
  *
  * rxpcu_filter_monitor_client
- *		 This MPDU did not pass the regular frame filter and would
- *		 have been dropped, were it not for the frame fitting into the
+ *		 This MPDU did analt pass the regular frame filter and would
+ *		 have been dropped, were it analt for the frame fitting into the
  *		 'monitor_client' category.
  *
  * rxpcu_filter_monitor_other
- *		This MPDU did not pass the regular frame filter and also did
- *		not pass the rxpcu_monitor_client filter. It would have been
+ *		This MPDU did analt pass the regular frame filter and also did
+ *		analt pass the rxpcu_monitor_client filter. It would have been
  *		dropped accept that it did pass the 'monitor_other' category.
  */
 
@@ -89,10 +89,10 @@ enum rx_desc_decrypt_status_code {
 #define RX_ATTENTION_INFO1_FIRST_MPDU		BIT(0)
 #define RX_ATTENTION_INFO1_RSVD_1A		BIT(1)
 #define RX_ATTENTION_INFO1_MCAST_BCAST		BIT(2)
-#define RX_ATTENTION_INFO1_AST_IDX_NOT_FOUND	BIT(3)
+#define RX_ATTENTION_INFO1_AST_IDX_ANALT_FOUND	BIT(3)
 #define RX_ATTENTION_INFO1_AST_IDX_TIMEDOUT	BIT(4)
 #define RX_ATTENTION_INFO1_POWER_MGMT		BIT(5)
-#define RX_ATTENTION_INFO1_NON_QOS		BIT(6)
+#define RX_ATTENTION_INFO1_ANALN_QOS		BIT(6)
 #define RX_ATTENTION_INFO1_NULL_DATA		BIT(7)
 #define RX_ATTENTION_INFO1_MGMT_TYPE		BIT(8)
 #define RX_ATTENTION_INFO1_CTRL_TYPE		BIT(9)
@@ -130,7 +130,7 @@ enum rx_desc_decrypt_status_code {
 #define RX_ATTENTION_INFO2_DA_IS_MCBC		BIT(8)
 #define RX_ATTENTION_INFO2_SA_IS_VALID		BIT(9)
 #define RX_ATTENTION_INFO2_DCRYPT_STATUS_CODE	GENMASK(12, 10)
-#define RX_ATTENTION_INFO2_RX_BITMAP_NOT_UPDED	BIT(13)
+#define RX_ATTENTION_INFO2_RX_BITMAP_ANALT_UPDED	BIT(13)
 #define RX_ATTENTION_INFO2_MSDU_DONE		BIT(31)
 
 struct rx_attention {
@@ -157,7 +157,7 @@ struct rx_attention {
  *
  * first_mpdu
  *		Indicates the first MSDU of the PPDU.  If both first_mpdu
- *		and last_mpdu are set in the MSDU then this is a not an
+ *		and last_mpdu are set in the MSDU then this is a analt an
  *		A-MPDU frame but a stand alone MPDU.  Interior MPDU in an
  *		A-MPDU shall have both first_mpdu and last_mpdu bits set to
  *		0.  The PPDU start status will only be valid when this bit
@@ -169,8 +169,8 @@ struct rx_attention {
  *		matches one of the 4 BSSID registers. Only set when
  *		first_msdu is set.
  *
- * ast_index_not_found
- *		Only valid when first_msdu is set. Indicates no AST matching
+ * ast_index_analt_found
+ *		Only valid when first_msdu is set. Indicates anal AST matching
  *		entries within the max search count.
  *
  * ast_index_timeout
@@ -181,8 +181,8 @@ struct rx_attention {
  *		Power management bit set in the 802.11 header.  Only set
  *		when first_msdu is set.
  *
- * non_qos
- *		Set if packet is not a non-QoS data frame.  Only set when
+ * analn_qos
+ *		Set if packet is analt a analn-QoS data frame.  Only set when
  *		first_msdu is set.
  *
  * null_data
@@ -213,7 +213,7 @@ struct rx_attention {
  * fragment
  *		Indicates that this is an 802.11 fragment frame.  This is
  *		set when either the more_frag bit is set in the frame
- *		control or the fragment number is not zero.  Only set when
+ *		control or the fragment number is analt zero.  Only set when
  *		first_msdu is set.
  *
  * order
@@ -227,10 +227,10 @@ struct rx_attention {
  *		packets and descriptors which need FW attention.
  *
  * overflow_err
- *		PCU Receive FIFO does not have enough space to store the
- *		full receive packet.  Enough space is reserved in the
+ *		PCU Receive FIFO does analt have eanalugh space to store the
+ *		full receive packet.  Eanalugh space is reserved in the
  *		receive FIFO for the status is written.  This MPDU remaining
- *		packets in the PPDU will be filtered and no Ack response
+ *		packets in the PPDU will be filtered and anal Ack response
  *		will be transmitted.
  *
  * msdu_length_err
@@ -239,26 +239,26 @@ struct rx_attention {
  *
  * tcp_udp_chksum_fail
  *		Indicates that the computed checksum (tcp_udp_chksum) did
- *		not match the checksum in the TCP/UDP header.
+ *		analt match the checksum in the TCP/UDP header.
  *
  * ip_chksum_fail
- *		Indicates that the computed checksum did not match the
+ *		Indicates that the computed checksum did analt match the
  *		checksum in the IP header.
  *
  * sa_idx_invalid
- *		Indicates no matching entry was found in the address search
+ *		Indicates anal matching entry was found in the address search
  *		table for the source MAC address.
  *
  * da_idx_invalid
- *		Indicates no matching entry was found in the address search
+ *		Indicates anal matching entry was found in the address search
  *		table for the destination MAC address.
  *
  * rx_in_tx_decrypt_byp
- *		Indicates that RX packet is not decrypted as Crypto is busy
+ *		Indicates that RX packet is analt decrypted as Crypto is busy
  *		with TX packet processing.
  *
  * encrypt_required
- *		Indicates that this data type frame is not encrypted even if
+ *		Indicates that this data type frame is analt encrypted even if
  *		the policy for this MPDU requires encryption as indicated in
  *		the peer table key type.
  *
@@ -266,7 +266,7 @@ struct rx_attention {
  *		MPDU is a directed packet which means that the RA matched
  *		our STA addresses.  In proxySTA it means that the TA matched
  *		an entry in our address search table with the corresponding
- *		'no_ack' bit is the address search entry cleared.
+ *		'anal_ack' bit is the address search entry cleared.
  *
  * buffer_fragment
  *		Indicates that at least one of the rx buffers has been
@@ -292,10 +292,10 @@ struct rx_attention {
  *		the search timer.
  *
  * flow_idx_invalid
- *		flow id is not valid.
+ *		flow id is analt valid.
  *
  * amsdu_parser_error
- *		A-MSDU could not be properly de-agregated.
+ *		A-MSDU could analt be properly de-agregated.
  *
  * sa_idx_timeout
  *		Indicates an unsuccessful search for the source MAC address
@@ -307,7 +307,7 @@ struct rx_attention {
  *
  * msdu_limit_error
  *		Indicates that the MSDU threshold was exceeded and thus
- *		all the rest of the MSDUs will not be scattered and will not
+ *		all the rest of the MSDUs will analt be scattered and will analt
  *		be decasulated but will be DMA'ed in RAW format as a single
  *		MSDU buffer.
  *
@@ -325,8 +325,8 @@ struct rx_attention {
  *		Field provides insight into the decryption performed. Values are
  *		defined in enum %RX_DESC_DECRYPT_STATUS_CODE*.
  *
- * rx_bitmap_not_updated
- *		Frame is received, but RXPCU could not update the receive bitmap
+ * rx_bitmap_analt_updated
+ *		Frame is received, but RXPCU could analt update the receive bitmap
  *		due to (temporary) fifo constraints.
  *
  * msdu_done
@@ -399,10 +399,10 @@ struct rx_attention {
 #define RX_MPDU_START_INFO6_MPDU_LEN		GENMASK(13, 0)
 #define RX_MPDU_START_INFO6_FIRST_MPDU		BIT(14)
 #define RX_MPDU_START_INFO6_MCAST_BCAST		BIT(15)
-#define RX_MPDU_START_INFO6_AST_IDX_NOT_FOUND	BIT(16)
+#define RX_MPDU_START_INFO6_AST_IDX_ANALT_FOUND	BIT(16)
 #define RX_MPDU_START_INFO6_AST_IDX_TIMEOUT	BIT(17)
 #define RX_MPDU_START_INFO6_POWER_MGMT		BIT(18)
-#define RX_MPDU_START_INFO6_NON_QOS		BIT(19)
+#define RX_MPDU_START_INFO6_ANALN_QOS		BIT(19)
 #define RX_MPDU_START_INFO6_NULL_DATA		BIT(20)
 #define RX_MPDU_START_INFO6_MGMT_TYPE		BIT(21)
 #define RX_MPDU_START_INFO6_CTRL_TYPE		BIT(22)
@@ -507,10 +507,10 @@ struct rx_mpdu_start_ipq8074 {
 #define RX_MPDU_START_INFO13_MPDU_LEN			GENMASK(13, 0)
 #define RX_MPDU_START_INFO13_FIRST_MPDU			BIT(14)
 #define RX_MPDU_START_INFO13_MCAST_BCAST		BIT(15)
-#define RX_MPDU_START_INFO13_AST_IDX_NOT_FOUND		BIT(16)
+#define RX_MPDU_START_INFO13_AST_IDX_ANALT_FOUND		BIT(16)
 #define RX_MPDU_START_INFO13_AST_IDX_TIMEOUT		BIT(17)
 #define RX_MPDU_START_INFO13_POWER_MGMT			BIT(18)
-#define RX_MPDU_START_INFO13_NON_QOS			BIT(19)
+#define RX_MPDU_START_INFO13_ANALN_QOS			BIT(19)
 #define RX_MPDU_START_INFO13_NULL_DATA			BIT(20)
 #define RX_MPDU_START_INFO13_MGMT_TYPE			BIT(21)
 #define RX_MPDU_START_INFO13_CTRL_TYPE			BIT(22)
@@ -579,7 +579,7 @@ struct rx_mpdu_start_wcn6855 {
  *		Field indicates what the reason was that this mpdu frame
  *		was allowed to come into the receive path by rxpcu. Values
  *		are defined in enum %RX_DESC_RXPCU_FILTER_*.
- *		Note: for ndp frame, if it was expected because the preceding
+ *		Analte: for ndp frame, if it was expected because the preceding
  *		NDPA was filter_pass, the setting rxpcu_filter_pass will be
  *		used. This setting will also be used for every ndp frame in
  *		case Promiscuous mode is enabled.
@@ -641,7 +641,7 @@ struct rx_mpdu_start_wcn6855 {
  *		If set, use EPD instead of LPD.
  *
  * all_frames_shall_be_encrypted
- *		If set, all frames (data only?) shall be encrypted. If not,
+ *		If set, all frames (data only?) shall be encrypted. If analt,
  *		RX CRYPTO shall set an error flag.
  *
  * encrypt_type
@@ -680,8 +680,8 @@ struct rx_mpdu_start_wcn6855 {
  *
  * pre_delim_err_warning
  *		Indicates that a delimiter FCS error was found in between the
- *		previous MPDU and this MPDU. Note that this is just a warning,
- *		and does not mean that this MPDU is corrupted in any way. If
+ *		previous MPDU and this MPDU. Analte that this is just a warning,
+ *		and does analt mean that this MPDU is corrupted in any way. If
  *		it is, there will be other errors indicated such as FCS or
  *		decrypt errors.
  *
@@ -694,12 +694,12 @@ struct rx_mpdu_start_wcn6855 {
  * new_peer_entry
  *		Set if new RX_PEER_ENTRY TLV follows. If clear, RX_PEER_ENTRY
  *		doesn't follow so RX DECRYPTION module either uses old peer
- *		entry or not decrypt.
+ *		entry or analt decrypt.
  *
  * decrypt_needed
- *		When RXPCU sets bit 'ast_index_not_found or ast_index_timeout',
- *		RXPCU will also ensure that this bit is NOT set. CRYPTO for that
- *		reason only needs to evaluate this bit and non of the other ones
+ *		When RXPCU sets bit 'ast_index_analt_found or ast_index_timeout',
+ *		RXPCU will also ensure that this bit is ANALT set. CRYPTO for that
+ *		reason only needs to evaluate this bit and analn of the other ones
  *
  * decap_type
  *		Used by the OLE during decapsulation. Values are defined in
@@ -708,14 +708,14 @@ struct rx_mpdu_start_wcn6855 {
  * rx_insert_vlan_c_tag_padding
  * rx_insert_vlan_s_tag_padding
  *		Insert 4 byte of all zeros as VLAN tag or double VLAN tag if
- *		the rx payload does not have VLAN.
+ *		the rx payload does analt have VLAN.
  *
  * strip_vlan_c_tag_decap
  * strip_vlan_s_tag_decap
  *		Strip VLAN or double VLAN during decapsulation.
  *
  * pre_delim_count
- *		The number of delimiters before this MPDU. Note that this
+ *		The number of delimiters before this MPDU. Analte that this
  *		number is cleared at PPDU start. If this MPDU is the first
  *		received MPDU in the PPDU and this MPDU gets filtered-in,
  *		this field will indicate the number of delimiters located
@@ -910,7 +910,7 @@ struct rx_msdu_start_wcn6855 {
  *
  * ip_frag
  *		Indicates that either the IP More frag bit is set or IP frag
- *		number is non-zero.  If set indicates that this is a fragmented
+ *		number is analn-zero.  If set indicates that this is a fragmented
  *		IP packet.
  *
  * tcp_only_ack
@@ -961,7 +961,7 @@ struct rx_msdu_start_wcn6855 {
  * flow_id_toeplitz
  *		Toeplitz hash of 5-tuple
  *		{IP source address, IP destination address, IP source port, IP
- *		destination port, L4 protocol}  in case of non-IPSec.
+ *		destination port, L4 protocol}  in case of analn-IPSec.
  *
  *		In case of IPSec - Toeplitz hash of 4-tuple
  *		{IP source address, IP destination address, SPI, L4 protocol}
@@ -1006,7 +1006,7 @@ struct rx_msdu_start_wcn6855 {
  *
  *		LSB related to SS 0
  *
- *		0 - spatial stream not used for this reception
+ *		0 - spatial stream analt used for this reception
  *		1 - spatial stream used for this reception
  *
  * ppdu_start_timestamp
@@ -1179,7 +1179,7 @@ struct rx_msdu_end_qcn9074 {
  * tcp_udp_chksum
  *		The value of the computed TCP/UDP checksum.  A mode bit
  *		selects whether this checksum is the full checksum or the
- *		partial checksum which does not include the pseudo header.
+ *		partial checksum which does analt include the pseudo header.
  *
  * key_id
  *		The key ID octet from the IV. Only valid when first_msdu is set.
@@ -1187,10 +1187,10 @@ struct rx_msdu_end_qcn9074 {
  * cce_super_rule
  *		Indicates the super filter rule.
  *
- * cce_classify_not_done_truncate
+ * cce_classify_analt_done_truncate
  *		Classification failed due to truncated frame.
  *
- * cce_classify_not_done_cce_dis
+ * cce_classify_analt_done_cce_dis
  *		Classification failed due to CCE global disable
  *
  * ext_wapi_pn*
@@ -1199,13 +1199,13 @@ struct rx_msdu_end_qcn9074 {
  * reported_mpdu_length
  *		MPDU length before decapsulation. Only valid when first_msdu is
  *		set. This field is taken directly from the length field of the
- *		A-MPDU delimiter or the preamble length field for non-A-MPDU
+ *		A-MPDU delimiter or the preamble length field for analn-A-MPDU
  *		frames.
  *
  * first_msdu
  *		Indicates the first MSDU of A-MSDU. If both first_msdu and
- *		last_msdu are set in the MSDU then this is a non-aggregated MSDU
- *		frame: normal MPDU. Interior MSDU in an A-MSDU shall have both
+ *		last_msdu are set in the MSDU then this is a analn-aggregated MSDU
+ *		frame: analrmal MPDU. Interior MSDU in an A-MSDU shall have both
  *		first_mpdu and last_mpdu bits set to 0.
  *
  * last_msdu
@@ -1222,7 +1222,7 @@ struct rx_msdu_end_qcn9074 {
  *
  * msdu_limit_error
  *		Indicates that the MSDU threshold was exceeded and thus all the
- *		rest of the MSDUs will not be scattered and will not be
+ *		rest of the MSDUs will analt be scattered and will analt be
  *		decapsulated but will be DMA'ed in RAW format as a single MSDU.
  *
  * flow_idx_timeout
@@ -1230,10 +1230,10 @@ struct rx_msdu_end_qcn9074 {
  *		the search timer.
  *
  * flow_idx_invalid
- *		flow id is not valid.
+ *		flow id is analt valid.
  *
  * amsdu_parser_error
- *		A-MSDU could not be properly de-agregated.
+ *		A-MSDU could analt be properly de-agregated.
  *
  * sa_is_valid
  *		Indicates that OLE found a valid SA entry.
@@ -1256,7 +1256,7 @@ struct rx_msdu_end_qcn9074 {
  *		TCP sequence number.
  *
  * tcp_ack_number
- *		TCP acknowledge number.
+ *		TCP ackanalwledge number.
  *
  * tcp_flag
  *		TCP flags {NS, CWR, ECE, URG, ACK, PSH, RST, SYN, FIN}.
@@ -1284,7 +1284,7 @@ struct rx_msdu_end_qcn9074 {
  *
  * l3_type
  *		The 16-bit type value indicating the type of L3 later
- *		extracted from LLC/SNAP, set to zero if SNAP is not
+ *		extracted from LLC/SNAP, set to zero if SNAP is analt
  *		available.
  *
  * rule_indication
@@ -1298,7 +1298,7 @@ struct rx_msdu_end_qcn9074 {
  *		address.
  *
  * msdu_drop
- *		REO shall drop this MSDU and not forward it to any other ring.
+ *		REO shall drop this MSDU and analt forward it to any other ring.
  *
  * reo_destination_indication
  *		The id of the reo exit ring where the msdu frame shall push
@@ -1339,7 +1339,7 @@ enum rx_mpdu_end_rxdma_dest_ring {
 #define RX_MPDU_END_INFO1_RXDMA0_DEST_RING		GENMASK(22, 21)
 #define RX_MPDU_END_INFO1_RXDMA1_DEST_RING		GENMASK(24, 23)
 #define RX_MPDU_END_INFO1_DECRYPT_STATUS_CODE		GENMASK(27, 25)
-#define RX_MPDU_END_INFO1_RX_BITMAP_NOT_UPD		BIT(28)
+#define RX_MPDU_END_INFO1_RX_BITMAP_ANALT_UPD		BIT(28)
 
 struct rx_mpdu_end {
 	__le16 info0;
@@ -1368,20 +1368,20 @@ struct rx_mpdu_end {
  *		packet without decryption to RxOLE after setting this bit.
  *
  * rx_in_tx_decrypt_byp
- *		Indicates that RX packet is not decrypted as Crypto is
+ *		Indicates that RX packet is analt decrypted as Crypto is
  *		busy with TX packet processing.
  *
  * overflow_err
  *		RXPCU Receive FIFO ran out of space to receive the full MPDU.
  *		Therefore this MPDU is terminated early and is thus corrupted.
  *
- *		This MPDU will not be ACKed.
+ *		This MPDU will analt be ACKed.
  *
  *		RXPCU might still be able to correctly receive the following
- *		MPDUs in the PPDU if enough fifo space became available in time.
+ *		MPDUs in the PPDU if eanalugh fifo space became available in time.
  *
  * mpdu_length_err
- *		Set by RXPCU if the expected MPDU length does not correspond
+ *		Set by RXPCU if the expected MPDU length does analt correspond
  *		with the actually received number of bytes in the MPDU.
  *
  * tkip_mic_err
@@ -1390,7 +1390,7 @@ struct rx_mpdu_end {
  *
  * decrypt_err
  *		Set by RX CRYPTO when CRYPTO detected a decrypt error for this
- *		MPDU or CRYPTO received an encrypted frame, but did not get a
+ *		MPDU or CRYPTO received an encrypted frame, but did analt get a
  *		valid corresponding key id in the peer entry.
  *
  * unencrypted_frame_err
@@ -1411,7 +1411,7 @@ struct rx_mpdu_end {
  * rxdma0_destination_ring
  * rxdma1_destination_ring
  *		The ring to which RXDMA0/1 shall push the frame, assuming
- *		no MPDU level errors are detected. In case of MPDU level
+ *		anal MPDU level errors are detected. In case of MPDU level
  *		errors, RXDMA0/1 might change the RXDMA0/1 destination. Values
  *		are defined in %enum RX_MPDU_END_RXDMA_DEST_RING_*.
  *
@@ -1419,8 +1419,8 @@ struct rx_mpdu_end {
  *		Field provides insight into the decryption performed. Values
  *		are defined in enum %RX_DESC_DECRYPT_STATUS_CODE_*.
  *
- * rx_bitmap_not_updated
- *		Frame is received, but RXPCU could not update the receive bitmap
+ * rx_bitmap_analt_updated
+ *		Frame is received, but RXPCU could analt update the receive bitmap
  *		due to (temporary) fifo constraints.
  */
 

@@ -28,7 +28,7 @@
 #include <linux/cdev.h>
 #include <linux/err.h>
 #include <linux/kfifo.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/mutex.h>
 #include <linux/of.h>
 #include <linux/interrupt.h>
@@ -46,14 +46,14 @@
 #include "pi433_if.h"
 #include "rf69.h"
 
-#define N_PI433_MINORS		BIT(MINORBITS) /*32*/	/* ... up to 256 */
+#define N_PI433_MIANALRS		BIT(MIANALRBITS) /*32*/	/* ... up to 256 */
 #define MAX_MSG_SIZE		900	/* min: FIFO_SIZE! */
 #define MSG_FIFO_SIZE		65536   /* 65536 = 2^16  */
 #define NUM_DIO			2
 
 static dev_t pi433_dev;
 static DEFINE_IDR(pi433_idr);
-static DEFINE_MUTEX(minor_lock); /* Protect idr accesses */
+static DEFINE_MUTEX(mianalr_lock); /* Protect idr accesses */
 static struct dentry *root_dir;	/* debugfs root directory for the driver */
 
 /* mainly for udev to create /dev/pi433 */
@@ -72,7 +72,7 @@ static const struct class pi433_class = {
 struct pi433_device {
 	/* device handling related values */
 	dev_t			devt;
-	int			minor;
+	int			mianalr;
 	struct device		*dev;
 	struct cdev		*cdev;
 	struct spi_device	*spi;
@@ -145,7 +145,7 @@ static irqreturn_t DIO1_irq_handler(int irq, void *dev_id)
 {
 	struct pi433_device *device = dev_id;
 
-	if (device->irq_state[DIO1] == DIO_FIFO_NOT_EMPTY_DIO1) {
+	if (device->irq_state[DIO1] == DIO_FIFO_ANALT_EMPTY_DIO1) {
 		device->free_in_fifo = FIFO_SIZE;
 	} else if (device->irq_state[DIO1] == DIO_FIFO_LEVEL) {
 		if (device->rx_active)
@@ -275,7 +275,7 @@ rf69_set_rx_cfg(struct pi433_device *dev, struct pi433_rx_cfg *rx_cfg)
 			return ret;
 	}
 	if (rx_cfg->enable_address_filtering != filtering_off) {
-		ret = rf69_set_node_address(dev->spi, rx_cfg->node_address);
+		ret = rf69_set_analde_address(dev->spi, rx_cfg->analde_address);
 		if (ret < 0)
 			return ret;
 		ret = rf69_set_broadcast_address(dev->spi,
@@ -371,7 +371,7 @@ static int pi433_start_rx(struct pi433_device *dev)
 {
 	int retval;
 
-	/* return without action, if no pending read request */
+	/* return without action, if anal pending read request */
 	if (!dev->rx_active)
 		return 0;
 
@@ -436,7 +436,7 @@ static int pi433_receive(void *data)
 	if (retval)
 		return retval;
 
-	/* now check RSSI, if low wait for getting high (RSSI interrupt) */
+	/* analw check RSSI, if low wait for getting high (RSSI interrupt) */
 	while (!(rf69_read_reg(spi, REG_IRQFLAGS1) & MASK_IRQFLAGS1_RSSI)) {
 		/* allow tx to interrupt us while waiting for high RSSI */
 		dev->interrupt_rx_allowed = true;
@@ -636,7 +636,7 @@ static int pi433_tx_thread(void *data)
 		/*
 		 * if rx is active, we need to interrupt the waiting for
 		 * incoming telegrams, to be able to send something.
-		 * We are only allowed, if currently no reception takes
+		 * We are only allowed, if currently anal reception takes
 		 * place otherwise we need to  wait for the incoming telegram
 		 * to finish
 		 */
@@ -772,7 +772,7 @@ pi433_read(struct file *filp, char __user *buf, size_t size, loff_t *f_pos)
 	int			bytes_received;
 	ssize_t			retval;
 
-	/* check, whether internal buffer is big enough for requested size */
+	/* check, whether internal buffer is big eanalugh for requested size */
 	if (size > MAX_MSG_SIZE)
 		return -EMSGSIZE;
 
@@ -822,7 +822,7 @@ pi433_write(struct file *filp, const char __user *buf,
 	device = instance->device;
 
 	/*
-	 * check, whether internal buffer (tx thread) is big enough
+	 * check, whether internal buffer (tx thread) is big eanalugh
 	 * for requested size
 	 */
 	if (count > MAX_MSG_SIZE)
@@ -833,7 +833,7 @@ pi433_write(struct file *filp, const char __user *buf,
 	 * config the RF trasmitter correctly due to invalid settings
 	 */
 	if (!instance->tx_cfg_initialized) {
-		dev_notice_once(device->dev,
+		dev_analtice_once(device->dev,
 				"write: failed due to unconfigured tx_cfg (see PI433_IOC_WR_TX_CFG)\n");
 		return -EINVAL;
 	}
@@ -878,7 +878,7 @@ pi433_write(struct file *filp, const char __user *buf,
 
 abort:
 	dev_warn(device->dev,
-		 "write to fifo failed, non recoverable: 0x%x\n", retval);
+		 "write to fifo failed, analn recoverable: 0x%x\n", retval);
 	mutex_unlock(&device->tx_fifo_lock);
 	return -EAGAIN;
 }
@@ -892,7 +892,7 @@ static long pi433_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 	/* Check type and command number */
 	if (_IOC_TYPE(cmd) != PI433_IOC_MAGIC)
-		return -ENOTTY;
+		return -EANALTTY;
 
 	instance = filp->private_data;
 	device = instance->device;
@@ -922,7 +922,7 @@ static long pi433_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	case PI433_IOC_WR_RX_CFG:
 		mutex_lock(&device->rx_lock);
 
-		/* during pendig read request, change of config not allowed */
+		/* during pendig read request, change of config analt allowed */
 		if (device->rx_active) {
 			mutex_unlock(&device->rx_lock);
 			return -EAGAIN;
@@ -945,34 +945,34 @@ static long pi433_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 /*-------------------------------------------------------------------------*/
 
-static int pi433_open(struct inode *inode, struct file *filp)
+static int pi433_open(struct ianalde *ianalde, struct file *filp)
 {
 	struct pi433_device	*device;
 	struct pi433_instance	*instance;
 
-	mutex_lock(&minor_lock);
-	device = idr_find(&pi433_idr, iminor(inode));
-	mutex_unlock(&minor_lock);
+	mutex_lock(&mianalr_lock);
+	device = idr_find(&pi433_idr, imianalr(ianalde));
+	mutex_unlock(&mianalr_lock);
 	if (!device) {
-		pr_debug("device: minor %d unknown.\n", iminor(inode));
-		return -ENODEV;
+		pr_debug("device: mianalr %d unkanalwn.\n", imianalr(ianalde));
+		return -EANALDEV;
 	}
 
 	instance = kzalloc(sizeof(*instance), GFP_KERNEL);
 	if (!instance)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* setup instance data*/
 	instance->device = device;
 
 	/* instance data as context */
 	filp->private_data = instance;
-	stream_open(inode, filp);
+	stream_open(ianalde, filp);
 
 	return 0;
 }
 
-static int pi433_release(struct inode *inode, struct file *filp)
+static int pi433_release(struct ianalde *ianalde, struct file *filp)
 {
 	struct pi433_instance	*instance;
 
@@ -1001,9 +1001,9 @@ static int setup_gpio(struct pi433_device *device)
 		device->gpiod[i] = gpiod_get(&device->spi->dev, name,
 					     0 /*GPIOD_IN*/);
 
-		if (device->gpiod[i] == ERR_PTR(-ENOENT)) {
+		if (device->gpiod[i] == ERR_PTR(-EANALENT)) {
 			dev_dbg(&device->spi->dev,
-				"Could not find entry for %s. Ignoring.\n", name);
+				"Could analt find entry for %s. Iganalring.\n", name);
 			continue;
 		}
 
@@ -1060,28 +1060,28 @@ static void free_gpio(struct pi433_device *device)
 	}
 }
 
-static int pi433_get_minor(struct pi433_device *device)
+static int pi433_get_mianalr(struct pi433_device *device)
 {
-	int retval = -ENOMEM;
+	int retval = -EANALMEM;
 
-	mutex_lock(&minor_lock);
-	retval = idr_alloc(&pi433_idr, device, 0, N_PI433_MINORS, GFP_KERNEL);
+	mutex_lock(&mianalr_lock);
+	retval = idr_alloc(&pi433_idr, device, 0, N_PI433_MIANALRS, GFP_KERNEL);
 	if (retval >= 0) {
-		device->minor = retval;
+		device->mianalr = retval;
 		retval = 0;
-	} else if (retval == -ENOSPC) {
+	} else if (retval == -EANALSPC) {
 		dev_err(&device->spi->dev, "too many pi433 devices\n");
 		retval = -EINVAL;
 	}
-	mutex_unlock(&minor_lock);
+	mutex_unlock(&mianalr_lock);
 	return retval;
 }
 
-static void pi433_free_minor(struct pi433_device *dev)
+static void pi433_free_mianalr(struct pi433_device *dev)
 {
-	mutex_lock(&minor_lock);
-	idr_remove(&pi433_idr, dev->minor);
-	mutex_unlock(&minor_lock);
+	mutex_lock(&mianalr_lock);
+	idr_remove(&pi433_idr, dev->mianalr);
+	mutex_unlock(&mianalr_lock);
 }
 
 /*-------------------------------------------------------------------------*/
@@ -1099,7 +1099,7 @@ static const struct file_operations pi433_fops = {
 	.compat_ioctl = compat_ptr_ioctl,
 	.open =		pi433_open,
 	.release =	pi433_release,
-	.llseek =	no_llseek,
+	.llseek =	anal_llseek,
 };
 
 static int pi433_debugfs_regs_show(struct seq_file *m, void *p)
@@ -1189,14 +1189,14 @@ static int pi433_probe(struct spi_device *spi)
 		dev_dbg(&spi->dev, "found pi433 (ver. 0x%x)\n", retval);
 		break;
 	default:
-		dev_dbg(&spi->dev, "unknown chip version: 0x%x\n", retval);
-		return -ENODEV;
+		dev_dbg(&spi->dev, "unkanalwn chip version: 0x%x\n", retval);
+		return -EANALDEV;
 	}
 
 	/* Allocate driver data */
 	device = kzalloc(sizeof(*device), GFP_KERNEL);
 	if (!device)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Initialize the driver data */
 	device->spi = spi;
@@ -1207,7 +1207,7 @@ static int pi433_probe(struct spi_device *spi)
 	/* init rx buffer */
 	device->rx_buffer = kmalloc(MAX_MSG_SIZE, GFP_KERNEL);
 	if (!device->rx_buffer) {
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto RX_failed;
 	}
 
@@ -1233,57 +1233,57 @@ static int pi433_probe(struct spi_device *spi)
 	/* setup the radio module */
 	retval = rf69_set_mode(spi, standby);
 	if (retval < 0)
-		goto minor_failed;
+		goto mianalr_failed;
 	retval = rf69_set_data_mode(spi, DATAMODUL_MODE_PACKET);
 	if (retval < 0)
-		goto minor_failed;
+		goto mianalr_failed;
 	retval = rf69_enable_amplifier(spi, MASK_PALEVEL_PA0);
 	if (retval < 0)
-		goto minor_failed;
+		goto mianalr_failed;
 	retval = rf69_disable_amplifier(spi, MASK_PALEVEL_PA1);
 	if (retval < 0)
-		goto minor_failed;
+		goto mianalr_failed;
 	retval = rf69_disable_amplifier(spi, MASK_PALEVEL_PA2);
 	if (retval < 0)
-		goto minor_failed;
+		goto mianalr_failed;
 	retval = rf69_set_output_power_level(spi, 13);
 	if (retval < 0)
-		goto minor_failed;
+		goto mianalr_failed;
 	retval = rf69_set_antenna_impedance(spi, fifty_ohm);
 	if (retval < 0)
-		goto minor_failed;
+		goto mianalr_failed;
 
-	/* determ minor number */
-	retval = pi433_get_minor(device);
+	/* determ mianalr number */
+	retval = pi433_get_mianalr(device);
 	if (retval) {
-		dev_dbg(&spi->dev, "get of minor number failed\n");
-		goto minor_failed;
+		dev_dbg(&spi->dev, "get of mianalr number failed\n");
+		goto mianalr_failed;
 	}
 
 	/* create device */
-	device->devt = MKDEV(MAJOR(pi433_dev), device->minor);
+	device->devt = MKDEV(MAJOR(pi433_dev), device->mianalr);
 	device->dev = device_create(&pi433_class,
 				    &spi->dev,
 				    device->devt,
 				    device,
 				    "pi433.%d",
-				    device->minor);
+				    device->mianalr);
 	if (IS_ERR(device->dev)) {
 		pr_err("pi433: device register failed\n");
 		retval = PTR_ERR(device->dev);
 		goto device_create_failed;
 	} else {
 		dev_dbg(device->dev,
-			"created device for major %d, minor %d\n",
+			"created device for major %d, mianalr %d\n",
 			MAJOR(pi433_dev),
-			device->minor);
+			device->mianalr);
 	}
 
 	/* start tx thread */
 	device->tx_task_struct = kthread_run(pi433_tx_thread,
 					     device,
 					     "pi433.%d_tx_task",
-					     device->minor);
+					     device->mianalr);
 	if (IS_ERR(device->tx_task_struct)) {
 		dev_dbg(device->dev, "start of send thread failed\n");
 		retval = PTR_ERR(device->tx_task_struct);
@@ -1294,7 +1294,7 @@ static int pi433_probe(struct spi_device *spi)
 	device->cdev = cdev_alloc();
 	if (!device->cdev) {
 		dev_dbg(device->dev, "allocation of cdev failed\n");
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto cdev_failed;
 	}
 	device->cdev->owner = THIS_MODULE;
@@ -1320,8 +1320,8 @@ cdev_failed:
 send_thread_failed:
 	device_destroy(&pi433_class, device->devt);
 device_create_failed:
-	pi433_free_minor(device);
-minor_failed:
+	pi433_free_mianalr(device);
+mianalr_failed:
 	free_gpio(device);
 GPIO_failed:
 	kfree(device->rx_buffer);
@@ -1349,7 +1349,7 @@ static void pi433_remove(struct spi_device *spi)
 
 	cdev_del(device->cdev);
 
-	pi433_free_minor(device);
+	pi433_free_mianalr(device);
 
 	kfree(device->rx_buffer);
 	kfree(device);
@@ -1372,7 +1372,7 @@ static struct spi_driver pi433_spi_driver = {
 	.remove =	pi433_remove,
 
 	/*
-	 * NOTE:  suspend/resume methods are not necessary here.
+	 * ANALTE:  suspend/resume methods are analt necessary here.
 	 * We don't do anything except pass the requests to/from
 	 * the underlying controller.  The refrigerator handles
 	 * most issues; the controller driver handles the rest.
@@ -1394,10 +1394,10 @@ static int __init pi433_init(void)
 
 	/*
 	 * Claim device numbers.  Then register a class
-	 * that will key udev/mdev to add/remove /dev nodes.
+	 * that will key udev/mdev to add/remove /dev analdes.
 	 * Last, register the driver which manages those device numbers.
 	 */
-	status = alloc_chrdev_region(&pi433_dev, 0, N_PI433_MINORS, "pi433");
+	status = alloc_chrdev_region(&pi433_dev, 0, N_PI433_MIANALRS, "pi433");
 	if (status < 0)
 		return status;
 

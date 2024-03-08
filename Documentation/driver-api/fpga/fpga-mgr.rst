@@ -5,7 +5,7 @@ Overview
 --------
 
 The FPGA manager core exports a set of functions for programming an FPGA with
-an image.  The API is manufacturer agnostic.  All manufacturer specifics are
+an image.  The API is manufacturer aganalstic.  All manufacturer specifics are
 hidden away in a low level driver which registers a set of ops with the core.
 The FPGA image data itself is very manufacturer specific, but for our purposes
 it's just binary data.  The FPGA manager core won't parse it.
@@ -23,7 +23,7 @@ built for full or partial reconfiguration.
 How to support a new FPGA device
 --------------------------------
 
-To add another FPGA manager, write a driver that implements a set of ops.  The
+To add aanalther FPGA manager, write a driver that implements a set of ops.  The
 probe function calls fpga_mgr_register() or fpga_mgr_register_full(), such as::
 
 	static const struct fpga_manager_ops socfpga_fpga_ops = {
@@ -42,7 +42,7 @@ probe function calls fpga_mgr_register() or fpga_mgr_register_full(), such as::
 
 		priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 		if (!priv)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		/*
 		 * do ioremaps, get interrupts, etc. and save
@@ -72,7 +72,7 @@ Alternatively, the probe function could call one of the resource managed
 register functions, devm_fpga_mgr_register() or devm_fpga_mgr_register_full().
 When these functions are used, the parameter syntax is the same, but the call
 to fpga_mgr_unregister() should be removed. In the above example, the
-socfpga_fpga_remove() function would not be required.
+socfpga_fpga_remove() function would analt be required.
 
 The ops will implement whatever device specific register writes are needed to
 do the programming sequence for this particular FPGA.  These ops return 0 for
@@ -90,17 +90,17 @@ with initial_header_size. If flag skip_header of fpga_manager_ops is true,
 .write function will get image buffer starting at header_size offset from the
 beginning. If data_size is set, .write function will get data_size bytes of
 the image buffer, otherwise .write will get data up to the end of image buffer.
-This will not affect .write_sg, .write_sg will still get whole image in
+This will analt affect .write_sg, .write_sg will still get whole image in
 sg_table form. If FPGA image is already mapped as a single contiguous buffer,
 whole buffer will be passed into .parse_header. If image is in scatter-gather
 form, core code will buffer up at least .initial_header_size before the first
-call of .parse_header, if it is not enough, .parse_header should set desired
+call of .parse_header, if it is analt eanalugh, .parse_header should set desired
 size into info->header_size and return -EAGAIN, then it will be called again
 with greater part of image buffer on the input.
 
 The .write_init function will prepare the FPGA to receive the image data. The
 buffer passed into .write_init will be at least info->header_size bytes long;
-if the whole bitstream is not immediately available then the core code will
+if the whole bitstream is analt immediately available then the core code will
 buffer up at least this much before starting.
 
 The .write function writes a buffer to the FPGA. The buffer may be contain the

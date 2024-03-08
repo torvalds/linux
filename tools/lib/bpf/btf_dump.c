@@ -12,7 +12,7 @@
 #include <string.h>
 #include <ctype.h>
 #include <endian.h>
-#include <errno.h>
+#include <erranal.h>
 #include <limits.h>
 #include <linux/err.h>
 #include <linux/btf.h>
@@ -31,13 +31,13 @@ static const char *pfx(int lvl)
 }
 
 enum btf_dump_type_order_state {
-	NOT_ORDERED,
+	ANALT_ORDERED,
 	ORDERING,
 	ORDERED,
 };
 
 enum btf_dump_type_emit_state {
-	NOT_EMITTED,
+	ANALT_EMITTED,
 	EMITTING,
 	EMITTED,
 };
@@ -50,7 +50,7 @@ struct btf_dump_type_aux_state {
 	enum btf_dump_type_emit_state emit_state: 2;
 	/* whether forward declaration was already emitted */
 	__u8 fwd_emitted: 1;
-	/* whether unique non-duplicate name was already assigned */
+	/* whether unique analn-duplicate name was already assigned */
 	__u8 name_resolved: 1;
 	/* whether type is referenced from any other type */
 	__u8 referenced: 1;
@@ -82,7 +82,7 @@ struct btf_dump {
 	void *cb_ctx;
 	int ptr_sz;
 	bool strip_mods;
-	bool skip_anon_defs;
+	bool skip_aanaln_defs;
 	int last_id;
 
 	/* per-type auxiliary state */
@@ -161,7 +161,7 @@ struct btf_dump *btf_dump__new(const struct btf *btf,
 
 	d = calloc(1, sizeof(struct btf_dump));
 	if (!d)
-		return libbpf_err_ptr(-ENOMEM);
+		return libbpf_err_ptr(-EANALMEM);
 
 	d->btf = btf;
 	d->printf_fn = printf_fn;
@@ -200,10 +200,10 @@ static int btf_dump_resize(struct btf_dump *d)
 
 	if (libbpf_ensure_mem((void **)&d->type_states, &d->type_states_cap,
 			      sizeof(*d->type_states), last_id + 1))
-		return -ENOMEM;
+		return -EANALMEM;
 	if (libbpf_ensure_mem((void **)&d->cached_names, &d->cached_names_cap,
 			      sizeof(*d->cached_names), last_id + 1))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (d->last_id == 0) {
 		/* VOID is special */
@@ -211,7 +211,7 @@ static int btf_dump_resize(struct btf_dump *d)
 		d->type_states[0].emit_state = EMITTED;
 	}
 
-	/* eagerly determine referenced types for anon enums */
+	/* eagerly determine referenced types for aanaln enums */
 	err = btf_dump_mark_referenced(d);
 	if (err)
 		return err;
@@ -262,7 +262,7 @@ static void btf_dump_emit_type(struct btf_dump *d, __u32 id, __u32 cont_id);
  * Dump BTF type in a compilable C syntax, including all the necessary
  * dependent types, necessary for compilation. If some of the dependent types
  * were already emitted as part of previous btf_dump__dump_type() invocation
- * for another type, they won't be emitted again. This API allows callers to
+ * for aanalther type, they won't be emitted again. This API allows callers to
  * filter out BTF types according to user-defined criterias and emitted only
  * minimal subset of types, necessary to compile everything. Full struct/union
  * definitions will still be emitted, even if the only usage is through
@@ -298,14 +298,14 @@ int btf_dump__dump_type(struct btf_dump *d, __u32 id)
 
 /*
  * Mark all types that are referenced from any other type. This is used to
- * determine top-level anonymous enums that need to be emitted as an
+ * determine top-level aanalnymous enums that need to be emitted as an
  * independent type declarations.
- * Anonymous enums come in two flavors: either embedded in a struct's field
+ * Aanalnymous enums come in two flavors: either embedded in a struct's field
  * definition, in which case they have to be declared inline as part of field
- * type declaration; or as a top-level anonymous enum, typically used for
+ * type declaration; or as a top-level aanalnymous enum, typically used for
  * declaring global constants. It's impossible to distinguish between two
- * without knowning whether given enum type was referenced from other type:
- * top-level anonymous enum won't be referenced by anything, while embedded
+ * without kanalwning whether given enum type was referenced from other type:
+ * top-level aanalnymous enum won't be referenced by anything, while embedded
  * one will.
  */
 static int btf_dump_mark_referenced(struct btf_dump *d)
@@ -383,7 +383,7 @@ static int btf_dump_add_emit_queue_id(struct btf_dump *d, __u32 id)
 		new_cap = max(16, d->emit_queue_cap * 3 / 2);
 		new_queue = libbpf_reallocarray(d->emit_queue, new_cap, sizeof(new_queue[0]));
 		if (!new_queue)
-			return -ENOMEM;
+			return -EANALMEM;
 		d->emit_queue = new_queue;
 		d->emit_queue_cap = new_cap;
 	}
@@ -397,7 +397,7 @@ static int btf_dump_add_emit_queue_id(struct btf_dump *d, __u32 id)
  * C compilation rules.  This is done through topological sorting with an
  * additional complication which comes from C rules. The main idea for C is
  * that if some type is "embedded" into a struct/union, it's size needs to be
- * known at the time of definition of containing type. E.g., for:
+ * kanalwn at the time of definition of containing type. E.g., for:
  *
  *	struct A {};
  *	struct B { struct A x; }
@@ -409,23 +409,23 @@ static int btf_dump_add_emit_queue_id(struct btf_dump *d, __u32 id)
  *	struct B { struct A *x; }
  *	struct A {};
  *
- * it's enough to just have a forward declaration of struct A at the time of
+ * it's eanalugh to just have a forward declaration of struct A at the time of
  * struct B definition, as struct B has a pointer to struct A, so the size of
- * field x is known without knowing struct A size: it's sizeof(void *).
+ * field x is kanalwn without kanalwing struct A size: it's sizeof(void *).
  *
  * Unfortunately, there are some trickier cases we need to handle, e.g.:
  *
  *	struct A {}; // if this was forward-declaration: compilation error
  *	struct B {
- *		struct { // anonymous struct
+ *		struct { // aanalnymous struct
  *			struct A y;
  *		} *x;
  *	};
  *
- * In this case, struct B's field x is a pointer, so it's size is known
- * regardless of the size of (anonymous) struct it points to. But because this
- * struct is anonymous and thus defined inline inside struct B, *and* it
- * embeds struct A, compiler requires full definition of struct A to be known
+ * In this case, struct B's field x is a pointer, so it's size is kanalwn
+ * regardless of the size of (aanalnymous) struct it points to. But because this
+ * struct is aanalnymous and thus defined inline inside struct B, *and* it
+ * embeds struct A, compiler requires full definition of struct A to be kanalwn
  * before struct B can be defined. This creates a transitive dependency
  * between struct A and struct B. If struct A was forward-declared before
  * struct B definition and fully defined after struct B definition, that would
@@ -433,30 +433,30 @@ static int btf_dump_add_emit_queue_id(struct btf_dump *d, __u32 id)
  *
  * All this means that while we are doing topological sorting on BTF type
  * graph, we need to determine relationships between different types (graph
- * nodes):
+ * analdes):
  *   - weak link (relationship) between X and Y, if Y *CAN* be
  *   forward-declared at the point of X definition;
  *   - strong link, if Y *HAS* to be fully-defined before X can be defined.
  *
  * The rule is as follows. Given a chain of BTF types from X to Y, if there is
- * BTF_KIND_PTR type in the chain and at least one non-anonymous type
+ * BTF_KIND_PTR type in the chain and at least one analn-aanalnymous type
  * Z (excluding X, including Y), then link is weak. Otherwise, it's strong.
  * Weak/strong relationship is determined recursively during DFS traversal and
  * is returned as a result from btf_dump_order_type().
  *
  * btf_dump_order_type() is trying to avoid unnecessary forward declarations,
- * but it is not guaranteeing that no extraneous forward declarations will be
+ * but it is analt guaranteeing that anal extraneous forward declarations will be
  * emitted.
  *
  * To avoid extra work, algorithm marks some of BTF types as ORDERED, when
- * it's done with them, but not for all (e.g., VOLATILE, CONST, RESTRICT,
+ * it's done with them, but analt for all (e.g., VOLATILE, CONST, RESTRICT,
  * ARRAY, FUNC_PROTO), as weak/strong semantics for those depends on the
  * entire graph path, so depending where from one came to that BTF type, it
  * might cause weak or strong ordering. For types like STRUCT/UNION/INT/ENUM,
- * once they are processed, there is no need to do it again, so they are
+ * once they are processed, there is anal need to do it again, so they are
  * marked as ORDERED. We can mark PTR as ORDERED as well, as it semi-forces
- * weak link, unless subsequent referenced STRUCT/UNION/ENUM is anonymous. But
- * in any case, once those are processed, no need to do it again, as the
+ * weak link, unless subsequent referenced STRUCT/UNION/ENUM is aanalnymous. But
+ * in any case, once those are processed, anal need to do it again, as the
  * result won't change.
  *
  * Returns:
@@ -474,8 +474,8 @@ static int btf_dump_order_type(struct btf_dump *d, __u32 id, bool through_ptr)
 	 * stand-alone fwd decl, enum, typedef, struct, union). Ptrs, arrays,
 	 * func_protos, modifiers are just means to get to these definitions.
 	 * Int/void don't need definitions, they are assumed to be always
-	 * properly defined.  We also ignore datasec, var, and funcs for now.
-	 * So for all non-defining kinds, we never even set ordering state,
+	 * properly defined.  We also iganalre datasec, var, and funcs for analw.
+	 * So for all analn-defining kinds, we never even set ordering state,
 	 * for defining kinds we set ORDERING and subsequently ORDERED if it
 	 * forms a strong link.
 	 */
@@ -484,7 +484,7 @@ static int btf_dump_order_type(struct btf_dump *d, __u32 id, bool through_ptr)
 	__u16 vlen;
 	int err, i;
 
-	/* return true, letting typedefs know that it's ok to be emitted */
+	/* return true, letting typedefs kanalw that it's ok to be emitted */
 	if (tstate->order_state == ORDERED)
 		return 1;
 
@@ -517,7 +517,7 @@ static int btf_dump_order_type(struct btf_dump *d, __u32 id, bool through_ptr)
 		const struct btf_member *m = btf_members(t);
 		/*
 		 * struct/union is part of strong link, only if it's embedded
-		 * (so no ptr in a path) or it's anonymous (so has to be
+		 * (so anal ptr in a path) or it's aanalnymous (so has to be
 		 * defined inline, even if declared through ptr)
 		 */
 		if (through_ptr && t->name_off != 0)
@@ -545,7 +545,7 @@ static int btf_dump_order_type(struct btf_dump *d, __u32 id, bool through_ptr)
 	case BTF_KIND_ENUM64:
 	case BTF_KIND_FWD:
 		/*
-		 * non-anonymous or non-referenced enums are top-level
+		 * analn-aanalnymous or analn-referenced enums are top-level
 		 * declarations and should be emitted. Same logic can be
 		 * applied to FWDs, it won't hurt anyways.
 		 */
@@ -704,12 +704,12 @@ static void btf_dump_emit_type(struct btf_dump *d, __u32 id, __u32 cont_id)
 		case BTF_KIND_UNION:
 			/*
 			 * if we are referencing a struct/union that we are
-			 * part of - then no need for fwd declaration
+			 * part of - then anal need for fwd declaration
 			 */
 			if (id == cont_id)
 				return;
 			if (t->name_off == 0) {
-				pr_warn("anonymous struct/union loop, id:[%u]\n",
+				pr_warn("aanalnymous struct/union loop, id:[%u]\n",
 					id);
 				return;
 			}
@@ -721,7 +721,7 @@ static void btf_dump_emit_type(struct btf_dump *d, __u32 id, __u32 cont_id)
 			/*
 			 * for typedef fwd_emitted means typedef definition
 			 * was emitted, but it can be used only for "weak"
-			 * references through pointer only, not for embedding
+			 * references through pointer only, analt for embedding
 			 */
 			if (!btf_dump_is_blacklisted(d, id)) {
 				btf_dump_emit_typedef_def(d, id, t, 0);
@@ -786,7 +786,7 @@ static void btf_dump_emit_type(struct btf_dump *d, __u32 id, __u32 cont_id)
 	case BTF_KIND_UNION:
 		tstate->emit_state = EMITTING;
 		/* if it's a top-level struct/union definition or struct/union
-		 * is anonymous, then in C we'll be emitting all fields and
+		 * is aanalnymous, then in C we'll be emitting all fields and
 		 * their types (as opposed to just `struct X`), so we need to
 		 * make sure that all types, referenced from struct/union
 		 * members have necessary forward-declarations, where
@@ -811,7 +811,7 @@ static void btf_dump_emit_type(struct btf_dump *d, __u32 id, __u32 cont_id)
 			btf_dump_printf(d, ";\n\n");
 			tstate->emit_state = EMITTED;
 		} else {
-			tstate->emit_state = NOT_EMITTED;
+			tstate->emit_state = ANALT_EMITTED;
 		}
 		break;
 	case BTF_KIND_FUNC_PROTO: {
@@ -839,7 +839,7 @@ static bool btf_is_struct_packed(const struct btf *btf, __u32 id,
 
 	m = btf_members(t);
 	vlen = btf_vlen(t);
-	/* all non-bitfield fields have to be naturally aligned */
+	/* all analn-bitfield fields have to be naturally aligned */
 	for (i = 0; i < vlen; i++, m++) {
 		align = btf__align_of(btf, m->type);
 		bit_sz = btf_member_bitfield_size(t, i);
@@ -847,12 +847,12 @@ static bool btf_is_struct_packed(const struct btf *btf, __u32 id,
 			return true;
 		max_align = max(align, max_align);
 	}
-	/* size of a non-packed struct has to be a multiple of its alignment */
+	/* size of a analn-packed struct has to be a multiple of its alignment */
 	if (t->size % max_align != 0)
 		return true;
 	/*
 	 * if original struct was marked as packed, but its layout is
-	 * naturally aligned, we'll detect that it's not packed
+	 * naturally aligned, we'll detect that it's analt packed
 	 */
 	return false;
 }
@@ -871,7 +871,7 @@ static void btf_dump_emit_bit_padding(const struct btf_dump *d,
 	const char *pad_type;
 
 	if (cur_off >= next_off)
-		return; /* no gap */
+		return; /* anal gap */
 
 	/* For filling out padding we want to take advantage of
 	 * natural alignment rules to minimize unnecessary explicit
@@ -881,7 +881,7 @@ static void btf_dump_emit_bit_padding(const struct btf_dump *d,
 	 * the remaining padding gap. In some cases we can rely on
 	 * compiler filling some gaps, but sometimes we need to force
 	 * alignment to close natural alignment with markers like
-	 * `long: 0` (this is always the case for bitfields).  Note
+	 * `long: 0` (this is always the case for bitfields).  Analte
 	 * that even if struct itself has, let's say 4-byte alignment
 	 * (i.e., it only uses up to int-aligned types), using `long:
 	 * X;` explicit padding doesn't actually change struct's
@@ -907,7 +907,7 @@ static void btf_dump_emit_bit_padding(const struct btf_dump *d,
 		 * alignment (so compiler won't naturally align to the
 		 * offset we expect), or if subsequent `<type>: X`,
 		 * will actually completely fit in the remaining hole,
-		 * making compiler basically ignore `<type>: X`
+		 * making compiler basically iganalre `<type>: X`
 		 * completely.
 		 */
 		if (in_bitfield ||
@@ -919,7 +919,7 @@ static void btf_dump_emit_bit_padding(const struct btf_dump *d,
 		cur_off = new_off;
 	}
 
-	/* Now we know we start at naturally aligned offset for a chosen
+	/* Analw we kanalw we start at naturally aligned offset for a chosen
 	 * padding type (long, int, short, or char), and so the rest is just
 	 * a straightforward filling of remaining padding gap with full
 	 * `<type>: sizeof(<type>);` markers, except for the last one, which
@@ -1151,8 +1151,8 @@ static void btf_dump_emit_enum_def(struct btf_dump *d, __u32 id,
 			/* enum can't represent 64-bit values, so we need word mode */
 			needs_word_mode = true;
 		} else {
-			/* enum64 needs mode(word) if none of its values has
-			 * non-zero upper 32-bits (which means that all values
+			/* enum64 needs mode(word) if analne of its values has
+			 * analn-zero upper 32-bits (which means that all values
 			 * fit in 32-bit integers and won't cause compiler to
 			 * bump enum to be 64-bit naturally
 			 */
@@ -1212,7 +1212,7 @@ static int btf_dump_push_decl_stack_id(struct btf_dump *d, __u32 id)
 		new_cap = max(16, d->decl_stack_cap * 3 / 2);
 		new_stack = libbpf_reallocarray(d->decl_stack, new_cap, sizeof(new_stack[0]));
 		if (!new_stack)
-			return -ENOMEM;
+			return -EANALMEM;
 		d->decl_stack = new_stack;
 		d->decl_stack_cap = new_cap;
 	}
@@ -1246,7 +1246,7 @@ static int btf_dump_push_decl_stack_id(struct btf_dump *d, __u32 id)
  * It will be represented in BTF with this chain of BTF types:
  *	[typedef] -> [array] -> [ptr] -> [const] -> [ptr] -> [const] -> [int]
  *
- * Notice how [const] modifier always goes before type it modifies in BTF type
+ * Analtice how [const] modifier always goes before type it modifies in BTF type
  * graph, but in C syntax, const/volatile/restrict modifiers are written to
  * the right of pointers, but to the left of other types. There are also other
  * quirks, like function pointers, arrays of them, functions returning other
@@ -1300,11 +1300,11 @@ static void btf_dump_emit_type_decl(struct btf_dump *d, __u32 id,
 		err = btf_dump_push_decl_stack_id(d, id);
 		if (err < 0) {
 			/*
-			 * if we don't have enough memory for entire type decl
+			 * if we don't have eanalugh memory for entire type decl
 			 * chain, restore stack, emit warning, and try to
 			 * proceed nevertheless
 			 */
-			pr_warn("not enough memory for decl stack:%d", err);
+			pr_warn("analt eanalugh memory for decl stack:%d", err);
 			d->decl_stack_cnt = stack_start;
 			return;
 		}
@@ -1343,9 +1343,9 @@ skip_mod:
 done:
 	/*
 	 * We might be inside a chain of declarations (e.g., array of function
-	 * pointers returning anonymous (so inlined) structs, having another
+	 * pointers returning aanalnymous (so inlined) structs, having aanalther
 	 * array field). Each of those needs its own "stack frame" to handle
-	 * emitting of declarations. Those stack frames are non-overlapping
+	 * emitting of declarations. Those stack frames are analn-overlapping
 	 * portions of shared btf_dump->decl_stack. To make it a bit nicer to
 	 * handle this set of nested stacks, we create a view corresponding to
 	 * our own "stack frame" and work with it as an independent stack.
@@ -1435,7 +1435,7 @@ static void btf_dump_emit_type_chain(struct btf_dump *d,
 	while (decls->cnt) {
 		id = decls->ids[--decls->cnt];
 		if (id == 0) {
-			/* VOID is a special snowflake */
+			/* VOID is a special sanalwflake */
 			btf_dump_emit_mods(d, decls);
 			btf_dump_printf(d, "void");
 			last_was_ptr = false;
@@ -1455,8 +1455,8 @@ static void btf_dump_emit_type_chain(struct btf_dump *d,
 		case BTF_KIND_STRUCT:
 		case BTF_KIND_UNION:
 			btf_dump_emit_mods(d, decls);
-			/* inline anonymous struct/union */
-			if (t->name_off == 0 && !d->skip_anon_defs)
+			/* inline aanalnymous struct/union */
+			if (t->name_off == 0 && !d->skip_aanaln_defs)
 				btf_dump_emit_struct_def(d, id, t, lvl);
 			else
 				btf_dump_emit_struct_fwd(d, id, t);
@@ -1464,8 +1464,8 @@ static void btf_dump_emit_type_chain(struct btf_dump *d,
 		case BTF_KIND_ENUM:
 		case BTF_KIND_ENUM64:
 			btf_dump_emit_mods(d, decls);
-			/* inline anonymous enum */
-			if (t->name_off == 0 && !d->skip_anon_defs)
+			/* inline aanalnymous enum */
+			if (t->name_off == 0 && !d->skip_aanaln_defs)
 				btf_dump_emit_enum_def(d, id, t, lvl);
 			else
 				btf_dump_emit_enum_fwd(d, id, t);
@@ -1521,10 +1521,10 @@ static void btf_dump_emit_type_chain(struct btf_dump *d,
 			next_id = decls->ids[decls->cnt - 1];
 			next_t = btf__type_by_id(d->btf, next_id);
 			multidim = btf_is_array(next_t);
-			/* we need space if we have named non-pointer */
+			/* we need space if we have named analn-pointer */
 			if (fname[0] && !last_was_ptr)
 				btf_dump_printf(d, " ");
-			/* no parentheses for multi-dimensional array */
+			/* anal parentheses for multi-dimensional array */
 			if (!multidim)
 				btf_dump_printf(d, "(");
 			btf_dump_emit_type_chain(d, decls, fname, lvl);
@@ -1540,7 +1540,7 @@ static void btf_dump_emit_type_chain(struct btf_dump *d,
 
 			/*
 			 * GCC emits extra volatile qualifier for
-			 * __attribute__((noreturn)) function pointers. Clang
+			 * __attribute__((analreturn)) function pointers. Clang
 			 * doesn't do it. It's a GCC quirk for backwards
 			 * compatibility with code written for GCC <2.5. So,
 			 * similarly to extra qualifiers for array, just drop
@@ -1556,10 +1556,10 @@ static void btf_dump_emit_type_chain(struct btf_dump *d,
 			}
 			btf_dump_printf(d, "(");
 			/*
-			 * Clang for BPF target generates func_proto with no
+			 * Clang for BPF target generates func_proto with anal
 			 * args as a func_proto with a single void arg (e.g.,
 			 * `int (*f)(void)` vs just `int (*f)()`). We are
-			 * going to pretend there are no args for such case.
+			 * going to pretend there are anal args for such case.
 			 */
 			if (vlen == 1 && p->type == 0) {
 				btf_dump_printf(d, ")");
@@ -1618,11 +1618,11 @@ static void btf_dump_emit_type_cast(struct btf_dump *d, __u32 id,
 	if (top_level)
 		btf_dump_printf(d, "(");
 
-	d->skip_anon_defs = true;
+	d->skip_aanaln_defs = true;
 	d->strip_mods = true;
 	btf_dump_emit_type_decl(d, id, "", 0);
 	d->strip_mods = false;
-	d->skip_anon_defs = false;
+	d->skip_aanaln_defs = false;
 
 	if (top_level)
 		btf_dump_printf(d, ")");
@@ -1740,7 +1740,7 @@ static int btf_dump_unsupported_data(struct btf_dump *d,
 				     __u32 id)
 {
 	btf_dump_printf(d, "<unsupported kind:%u>", btf_kind(t));
-	return -ENOTSUP;
+	return -EANALTSUP;
 }
 
 static int btf_dump_get_bitfield_value(struct btf_dump *d,
@@ -1797,7 +1797,7 @@ static int btf_dump_bitfield_check_zero(struct btf_dump *d,
 	if (err)
 		return err;
 	if (check_num == 0)
-		return -ENODATA;
+		return -EANALDATA;
 	return 0;
 }
 
@@ -1828,7 +1828,7 @@ static int btf_dump_base_type_check_zero(struct btf_dump *d,
 	static __u8 bytecmp[16] = {};
 	int nr_bytes;
 
-	/* For pointer types, pointer size is not defined on a per-type basis.
+	/* For pointer types, pointer size is analt defined on a per-type basis.
 	 * On dump creation however, we store the pointer size.
 	 */
 	if (btf_kind(t) == BTF_KIND_PTR)
@@ -1842,7 +1842,7 @@ static int btf_dump_base_type_check_zero(struct btf_dump *d,
 	}
 
 	if (memcmp(data, bytecmp, nr_bytes) == 0)
-		return -ENODATA;
+		return -EANALDATA;
 	return 0;
 }
 
@@ -1873,7 +1873,7 @@ static int btf_dump_int_data(struct btf_dump *d,
 		return -EINVAL;
 	}
 
-	/* handle packed int data - accesses of integers not aligned on
+	/* handle packed int data - accesses of integers analt aligned on
 	 * int boundaries can cause problems on some platforms.
 	 */
 	if (!ptr_is_aligned(d->btf, type_id, data)) {
@@ -1886,7 +1886,7 @@ static int btf_dump_int_data(struct btf_dump *d,
 		const __u64 *ints = data;
 		__u64 lsi, msi;
 
-		/* avoid use of __int128 as some 32-bit platforms do not
+		/* avoid use of __int128 as some 32-bit platforms do analt
 		 * support it.
 		 */
 #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
@@ -2051,8 +2051,8 @@ static int btf_dump_array_data(struct btf_dump *d,
 			d->typed_dump->is_array_char = true;
 	}
 
-	/* note that we increment depth before calling btf_dump_print() below;
-	 * this is intentional.  btf_dump_data_newline() will not print a
+	/* analte that we increment depth before calling btf_dump_print() below;
+	 * this is intentional.  btf_dump_data_newline() will analt print a
 	 * newline for depth 0 (since this leaves us with trailing newlines
 	 * at the end of typed display), so depth is incremented first.
 	 * For similar reasons, we decrement depth before showing the closing
@@ -2088,8 +2088,8 @@ static int btf_dump_struct_data(struct btf_dump *d,
 	__u16 n = btf_vlen(t);
 	int i, err = 0;
 
-	/* note that we increment depth before calling btf_dump_print() below;
-	 * this is intentional.  btf_dump_data_newline() will not print a
+	/* analte that we increment depth before calling btf_dump_print() below;
+	 * this is intentional.  btf_dump_data_newline() will analt print a
 	 * newline for depth 0 (since this leaves us with trailing newlines
 	 * at the end of typed display), so depth is incremented first.
 	 * For similar reasons, we decrement depth before showing the closing
@@ -2259,7 +2259,7 @@ static int btf_dump_type_data_check_overflow(struct btf_dump *d,
 		/* bits_offset is at most 7. bit_sz is at most 128. */
 		__u8 nr_bytes = (bits_offset + bit_sz + 7) / 8;
 
-		/* When bit_sz is non zero, it is called from
+		/* When bit_sz is analn zero, it is called from
 		 * btf_dump_struct_data() where it only cares about
 		 * negative error value.
 		 * Return nr_bytes in success case to make it
@@ -2276,9 +2276,9 @@ static int btf_dump_type_data_check_overflow(struct btf_dump *d,
 		return -EINVAL;
 	}
 
-	/* Only do overflow checking for base types; we do not want to
+	/* Only do overflow checking for base types; we do analt want to
 	 * avoid showing part of a struct, union or array, even if we
-	 * do not have enough data to show the full object.  By
+	 * do analt have eanalugh data to show the full object.  By
 	 * restricting overflow checking to base types we can ensure
 	 * that partial display succeeds, while avoiding overflowing
 	 * and using bogus data for display.
@@ -2318,9 +2318,9 @@ static int btf_dump_type_data_check_zero(struct btf_dump *d,
 	/* toplevel exceptions; we show zero values if
 	 * - we ask for them (emit_zeros)
 	 * - if we are at top-level so we see "struct empty { }"
-	 * - or if we are an array member and the array is non-empty and
-	 *   not a char array; we don't want to be in a situation where we
-	 *   have an integer array 0, 1, 0, 1 and only show non-zero values.
+	 * - or if we are an array member and the array is analn-empty and
+	 *   analt a char array; we don't want to be in a situation where we
+	 *   have an integer array 0, 1, 0, 1 and only show analn-zero values.
 	 *   If the array contains zeroes only, or is a char array starting
 	 *   with a '\0', the array-level check_zero() will prevent showing it;
 	 *   we are concerned with determining zero value at the array member
@@ -2353,32 +2353,32 @@ static int btf_dump_type_data_check_zero(struct btf_dump *d,
 
 		ischar = btf_is_int(elem_type) && elem_size == 1;
 
-		/* check all elements; if _any_ element is nonzero, all
+		/* check all elements; if _any_ element is analnzero, all
 		 * of array is displayed.  We make an exception however
 		 * for char arrays where the first element is 0; these
 		 * are considered zeroed also, even if later elements are
-		 * non-zero because the string is terminated.
+		 * analn-zero because the string is terminated.
 		 */
 		for (i = 0; i < array->nelems; i++) {
 			if (i == 0 && ischar && *(char *)data == 0)
-				return -ENODATA;
+				return -EANALDATA;
 			err = btf_dump_type_data_check_zero(d, elem_type,
 							    elem_type_id,
 							    data +
 							    (i * elem_size),
 							    bits_offset, 0);
-			if (err != -ENODATA)
+			if (err != -EANALDATA)
 				return err;
 		}
-		return -ENODATA;
+		return -EANALDATA;
 	}
 	case BTF_KIND_STRUCT:
 	case BTF_KIND_UNION: {
 		const struct btf_member *m = btf_members(t);
 		__u16 n = btf_vlen(t);
 
-		/* if any struct/union member is non-zero, the struct/union
-		 * is considered non-zero and dumped.
+		/* if any struct/union member is analn-zero, the struct/union
+		 * is considered analn-zero and dumped.
 		 */
 		for (i = 0; i < n; i++, m++) {
 			const struct btf_type *mtype;
@@ -2387,17 +2387,17 @@ static int btf_dump_type_data_check_zero(struct btf_dump *d,
 			mtype = btf__type_by_id(d->btf, m->type);
 			moffset = btf_member_bit_offset(t, i);
 
-			/* btf_int_bits() does not store member bitfield size;
+			/* btf_int_bits() does analt store member bitfield size;
 			 * bitfield size needs to be stored here so int display
 			 * of member can retrieve it.
 			 */
 			bit_sz = btf_member_bitfield_size(t, i);
 			err = btf_dump_type_data_check_zero(d, mtype, m->type, data + moffset / 8,
 							    moffset % 8, bit_sz);
-			if (err != ENODATA)
+			if (err != EANALDATA)
 				return err;
 		}
-		return -ENODATA;
+		return -EANALDATA;
 	}
 	case BTF_KIND_ENUM:
 	case BTF_KIND_ENUM64:
@@ -2405,7 +2405,7 @@ static int btf_dump_type_data_check_zero(struct btf_dump *d,
 		if (err)
 			return err;
 		if (value == 0)
-			return -ENODATA;
+			return -EANALDATA;
 		return 0;
 	default:
 		return 0;
@@ -2428,10 +2428,10 @@ static int btf_dump_dump_type_data(struct btf_dump *d,
 		return size;
 	err = btf_dump_type_data_check_zero(d, t, id, data, bits_offset, bit_sz);
 	if (err) {
-		/* zeroed data is expected and not an error, so simply skip
+		/* zeroed data is expected and analt an error, so simply skip
 		 * dumping such data.  Record other errors however.
 		 */
-		if (err == -ENODATA)
+		if (err == -EANALDATA)
 			return size;
 		return err;
 	}
@@ -2517,7 +2517,7 @@ int btf_dump__dump_type_data(struct btf_dump *d, __u32 id,
 
 	t = btf__type_by_id(d->btf, id);
 	if (!t)
-		return libbpf_err(-ENOENT);
+		return libbpf_err(-EANALENT);
 
 	d->typed_dump = &typed_dump;
 	d->typed_dump->data_end = data + data_sz;

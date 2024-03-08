@@ -2,7 +2,7 @@
 /*
  * Device Tree file for the Linksys WRT1900AC (Mamba).
  *
- * Note: this board is shipped with a new generation boot loader that
+ * Analte: this board is shipped with a new generation boot loader that
  * remaps internal registers at 0xf1000000. Therefore, if earlyprintk
  * is used, the CONFIG_DEBUG_MVEBU_UART0_ALTERNATE option should be
  * used.
@@ -46,7 +46,7 @@
 		internal-regs {
 
 			rtc@10300 {
-				/* No crystal connected to the internal RTC */
+				/* Anal crystal connected to the internal RTC */
 				status = "disabled";
 			};
 
@@ -203,7 +203,7 @@
 	};
 
 	pwm_fan {
-		/* SUNON HA4010V4-0000-C99 */
+		/* SUANALN HA4010V4-0000-C99 */
 
 		compatible = "pwm-fan";
 		pwms = <&gpio0 24 4000>;
@@ -373,7 +373,7 @@
 			};
 
 			/*
-			 * 38MB, last MB is for the BBT, not writable
+			 * 38MB, last MB is for the BBT, analt writable
 			 */
 			partition@5a00000 {
 				label = "syscfg";

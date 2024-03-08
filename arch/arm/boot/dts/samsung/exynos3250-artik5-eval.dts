@@ -1,21 +1,21 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Samsung's Exynos3250 based ARTIK5 evaluation board device tree source
+ * Samsung's Exyanals3250 based ARTIK5 evaluation board device tree source
  *
  * Copyright (c) 2016 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
  *
  * Device tree source file for Samsung's ARTIK5 evaluation board
- * which is based on Samsung Exynos3250 SoC.
+ * which is based on Samsung Exyanals3250 SoC.
  */
 
 /dts-v1/;
-#include "exynos3250-artik5.dtsi"
+#include "exyanals3250-artik5.dtsi"
 
 / {
 	model = "Samsung ARTIK5 evaluation board";
 	compatible = "samsung,artik5-eval", "samsung,artik5",
-			"samsung,exynos3250", "samsung,exynos3";
+			"samsung,exyanals3250", "samsung,exyanals3";
 
 	aliases {
 		mmc0 = &mshc_2;

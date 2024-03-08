@@ -68,8 +68,8 @@ enum tegra210_sfc_path {
 };
 
 struct tegra210_sfc {
-	unsigned int mono_to_stereo[SFC_PATHS];
-	unsigned int stereo_to_mono[SFC_PATHS];
+	unsigned int moanal_to_stereo[SFC_PATHS];
+	unsigned int stereo_to_moanal[SFC_PATHS];
 	unsigned int srate_out;
 	unsigned int srate_in;
 	struct regmap *regmap;

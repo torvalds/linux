@@ -45,7 +45,7 @@ struct sockaddr_iucv {
 	sa_family_t	siucv_family;
 	unsigned short	siucv_port;		/* Reserved */
 	unsigned int	siucv_addr;		/* Reserved */
-	char		siucv_nodeid[8];	/* Reserved */
+	char		siucv_analdeid[8];	/* Reserved */
 	char		siucv_user_id[8];	/* Guest User Id */
 	char		siucv_name[8];		/* Application Name */
 };
@@ -70,10 +70,10 @@ struct af_iucv_trans_hdr {
 	u8 version;
 	u8 flags;
 	u16 window;
-	char destNodeID[8];
+	char destAnaldeID[8];
 	char destUserID[8];
 	char destAppName[16];
-	char srcNodeID[8];
+	char srcAnaldeID[8];
 	char srcUserID[8];
 	char srcAppName[16];             /* => 70 bytes */
 	struct iucv_message iucv_hdr;    /* => 33 bytes */
@@ -85,24 +85,24 @@ static inline struct af_iucv_trans_hdr *iucv_trans_hdr(struct sk_buff *skb)
 	return (struct af_iucv_trans_hdr *)skb_network_header(skb);
 }
 
-enum iucv_tx_notify {
+enum iucv_tx_analtify {
 	/* transmission of skb is completed and was successful */
-	TX_NOTIFY_OK = 0,
+	TX_ANALTIFY_OK = 0,
 	/* target is unreachable */
-	TX_NOTIFY_UNREACHABLE = 1,
+	TX_ANALTIFY_UNREACHABLE = 1,
 	/* transfer pending queue full */
-	TX_NOTIFY_TPQFULL = 2,
+	TX_ANALTIFY_TPQFULL = 2,
 	/* general error */
-	TX_NOTIFY_GENERALERROR = 3,
+	TX_ANALTIFY_GENERALERROR = 3,
 	/* transmission of skb is pending - may interleave
-	 * with TX_NOTIFY_DELAYED_* */
-	TX_NOTIFY_PENDING = 4,
+	 * with TX_ANALTIFY_DELAYED_* */
+	TX_ANALTIFY_PENDING = 4,
 	/* transmission of skb was done successfully (delayed) */
-	TX_NOTIFY_DELAYED_OK = 5,
+	TX_ANALTIFY_DELAYED_OK = 5,
 	/* target unreachable (detected delayed) */
-	TX_NOTIFY_DELAYED_UNREACHABLE = 6,
+	TX_ANALTIFY_DELAYED_UNREACHABLE = 6,
 	/* general error (detected delayed) */
-	TX_NOTIFY_DELAYED_GENERALERROR = 7,
+	TX_ANALTIFY_DELAYED_GENERALERROR = 7,
 };
 
 #define iucv_sk(__sk) ((struct iucv_sock *) __sk)
@@ -135,8 +135,8 @@ struct iucv_sock {
 	atomic_t		msg_recv;
 	atomic_t		pendings;
 	int			transport;
-	void			(*sk_txnotify)(struct sock *sk,
-					       enum iucv_tx_notify n);
+	void			(*sk_txanaltify)(struct sock *sk,
+					       enum iucv_tx_analtify n);
 };
 
 struct iucv_skb_cb {

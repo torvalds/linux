@@ -9,9 +9,9 @@
 #include <linux/bits.h>
 #include <linux/bitfield.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/export.h>
-#include <linux/fwnode.h>
+#include <linux/fwanalde.h>
 #include <linux/module.h>
 #include <linux/soundwire/sdw_intel.h>
 #include <linux/string.h>
@@ -23,9 +23,9 @@ static int ctrl_link_mask;
 module_param_named(sdw_link_mask, ctrl_link_mask, int, 0444);
 MODULE_PARM_DESC(sdw_link_mask, "Intel link mask (one bit per link)");
 
-static bool is_link_enabled(struct fwnode_handle *fw_node, u8 idx)
+static bool is_link_enabled(struct fwanalde_handle *fw_analde, u8 idx)
 {
-	struct fwnode_handle *link;
+	struct fwanalde_handle *link;
 	char name[32];
 	u32 quirk_mask = 0;
 
@@ -33,11 +33,11 @@ static bool is_link_enabled(struct fwnode_handle *fw_node, u8 idx)
 	snprintf(name, sizeof(name),
 		 "mipi-sdw-link-%hhu-subproperties", idx);
 
-	link = fwnode_get_named_child_node(fw_node, name);
+	link = fwanalde_get_named_child_analde(fw_analde, name);
 	if (!link)
 		return false;
 
-	fwnode_property_read_u32(link,
+	fwanalde_property_read_u32(link,
 				 "intel-quirk-mask",
 				 &quirk_mask);
 
@@ -59,12 +59,12 @@ sdw_intel_scan_controller(struct sdw_intel_acpi_info *info)
 
 	/* Found controller, find links supported */
 	count = 0;
-	ret = fwnode_property_read_u8_array(acpi_fwnode_handle(adev),
+	ret = fwanalde_property_read_u8_array(acpi_fwanalde_handle(adev),
 					    "mipi-sdw-master-count", &count, 1);
 
 	/*
 	 * In theory we could check the number of links supported in
-	 * hardware, but in that step we cannot assume SoundWire IP is
+	 * hardware, but in that step we cananalt assume SoundWire IP is
 	 * powered.
 	 *
 	 * In addition, if the BIOS doesn't even provide this
@@ -88,7 +88,7 @@ sdw_intel_scan_controller(struct sdw_intel_acpi_info *info)
 	}
 
 	if (!count) {
-		dev_warn(&adev->dev, "No SoundWire links detected\n");
+		dev_warn(&adev->dev, "Anal SoundWire links detected\n");
 		return -EINVAL;
 	}
 	dev_dbg(&adev->dev, "ACPI reports %d SDW Link devices\n", count);
@@ -99,13 +99,13 @@ sdw_intel_scan_controller(struct sdw_intel_acpi_info *info)
 	for (i = 0; i < count; i++) {
 		if (ctrl_link_mask && !(ctrl_link_mask & BIT(i))) {
 			dev_dbg(&adev->dev,
-				"Link %d masked, will not be enabled\n", i);
+				"Link %d masked, will analt be enabled\n", i);
 			continue;
 		}
 
-		if (!is_link_enabled(acpi_fwnode_handle(adev), i)) {
+		if (!is_link_enabled(acpi_fwanalde_handle(adev), i)) {
 			dev_dbg(&adev->dev,
-				"Link %d not selected in firmware\n", i);
+				"Link %d analt selected in firmware\n", i);
 			continue;
 		}
 
@@ -128,7 +128,7 @@ static acpi_status sdw_intel_acpi_cb(acpi_handle handle, u32 level,
 
 	if (!acpi_fetch_acpi_dev(handle)) {
 		pr_err("%s: Couldn't find ACPI handle\n", __func__);
-		return AE_NOT_FOUND;
+		return AE_ANALT_FOUND;
 	}
 
 	/*
@@ -175,7 +175,7 @@ int sdw_intel_acpi_scan(acpi_handle *parent_handle,
 				     sdw_intel_acpi_cb,
 				     NULL, info, NULL);
 	if (ACPI_FAILURE(status) || info->handle == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return sdw_intel_scan_controller(info);
 }

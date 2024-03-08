@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Intel Turbo Boost Max Technology 3.0 legacy (non HWP) enumeration driver
+ * Intel Turbo Boost Max Techanallogy 3.0 legacy (analn HWP) enumeration driver
  * Copyright (c) 2017, Intel Corporation.
  * All rights reserved.
  *
@@ -126,7 +126,7 @@ static int __init itmt_legacy_init(void)
 
 	id = x86_match_cpu(itmt_legacy_cpu_ids);
 	if (!id)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN,
 				"platform/x86/turbo_max_3:online",

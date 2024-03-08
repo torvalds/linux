@@ -43,7 +43,7 @@ static inline struct dfs_ref_walk *ref_walk_alloc(void)
 
 	rw = kmalloc(sizeof(*rw), GFP_KERNEL);
 	if (!rw)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	return rw;
 }
 
@@ -110,7 +110,7 @@ static inline int ref_walk_num_tgts(struct dfs_ref_walk *rw)
 
 static inline void ref_walk_set_tgt_hint(struct dfs_ref_walk *rw)
 {
-	dfs_cache_noreq_update_tgthint(ref_walk_path(rw) + 1,
+	dfs_cache_analreq_update_tgthint(ref_walk_path(rw) + 1,
 				       ref_walk_tit(rw));
 }
 
@@ -125,7 +125,7 @@ int dfs_mount_share(struct cifs_mount_ctx *mnt_ctx, bool *isdfs);
 
 static inline char *dfs_get_path(struct cifs_sb_info *cifs_sb, const char *path)
 {
-	return dfs_cache_canonical_path(path, cifs_sb->local_nls, cifs_remap(cifs_sb));
+	return dfs_cache_caanalnical_path(path, cifs_sb->local_nls, cifs_remap(cifs_sb));
 }
 
 static inline int dfs_get_referral(struct cifs_mount_ctx *mnt_ctx, const char *path,

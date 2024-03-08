@@ -17,22 +17,22 @@
 
 /*
  * The semantics of the driver is that whenever there is a buffer available in
- * master queue, the driver queues a buffer also to all other active nodes.
- * If user space hasn't provided a buffer to all other video nodes first,
+ * master queue, the driver queues a buffer also to all other active analdes.
+ * If user space hasn't provided a buffer to all other video analdes first,
  * the driver gets an internal dummy buffer and queues it.
  */
 #define IMGU_QUEUE_MASTER		IPU3_CSS_QUEUE_IN
 #define IMGU_QUEUE_FIRST_INPUT		IPU3_CSS_QUEUE_OUT
 #define IMGU_MAX_QUEUE_DEPTH		(2 + 2)
 
-#define IMGU_NODE_IN			0 /* Input RAW image */
-#define IMGU_NODE_PARAMS		1 /* Input parameters */
-#define IMGU_NODE_OUT			2 /* Main output for still or video */
-#define IMGU_NODE_VF			3 /* Preview */
-#define IMGU_NODE_STAT_3A		4 /* 3A statistics */
-#define IMGU_NODE_NUM			5
+#define IMGU_ANALDE_IN			0 /* Input RAW image */
+#define IMGU_ANALDE_PARAMS		1 /* Input parameters */
+#define IMGU_ANALDE_OUT			2 /* Main output for still or video */
+#define IMGU_ANALDE_VF			3 /* Preview */
+#define IMGU_ANALDE_STAT_3A		4 /* 3A statistics */
+#define IMGU_ANALDE_NUM			5
 
-#define file_to_intel_imgu_node(__file) \
+#define file_to_intel_imgu_analde(__file) \
 	container_of(video_devdata(__file), struct imgu_video_device, vdev)
 
 #define IPU3_INPUT_MIN_WIDTH		0U
@@ -58,7 +58,7 @@ struct imgu_buffer {
 	struct imgu_css_map map;
 };
 
-struct imgu_node_mapping {
+struct imgu_analde_mapping {
 	unsigned int css_queue;
 	const char *name;
 };
@@ -85,7 +85,7 @@ struct imgu_video_device {
 struct imgu_v4l2_subdev {
 	unsigned int pipe;
 	struct v4l2_subdev subdev;
-	struct media_pad subdev_pads[IMGU_NODE_NUM];
+	struct media_pad subdev_pads[IMGU_ANALDE_NUM];
 	struct {
 		struct v4l2_rect eff; /* effective resolution */
 		struct v4l2_rect bds; /* bayer-domain scaled resolution*/
@@ -105,8 +105,8 @@ struct imgu_media_pipe {
 		struct imgu_css_map dmap;
 		struct imgu_css_buffer dummybufs[IMGU_MAX_QUEUE_DEPTH];
 	} queues[IPU3_CSS_QUEUES];
-	struct imgu_video_device nodes[IMGU_NODE_NUM];
-	bool queue_enabled[IMGU_NODE_NUM];
+	struct imgu_video_device analdes[IMGU_ANALDE_NUM];
+	bool queue_enabled[IMGU_ANALDE_NUM];
 	struct media_pipeline pipeline;
 	struct imgu_v4l2_subdev imgu_sd;
 };
@@ -153,8 +153,8 @@ struct imgu_device {
 	wait_queue_head_t buf_drain_wq;
 };
 
-unsigned int imgu_node_to_queue(unsigned int node);
-unsigned int imgu_map_node(struct imgu_device *imgu, unsigned int css_queue);
+unsigned int imgu_analde_to_queue(unsigned int analde);
+unsigned int imgu_map_analde(struct imgu_device *imgu, unsigned int css_queue);
 int imgu_queue_buffers(struct imgu_device *imgu, bool initial,
 		       unsigned int pipe);
 

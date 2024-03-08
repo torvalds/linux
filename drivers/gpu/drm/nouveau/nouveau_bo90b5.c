@@ -8,20 +8,20 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-#include "nouveau_bo.h"
-#include "nouveau_dma.h"
-#include "nouveau_mem.h"
+#include "analuveau_bo.h"
+#include "analuveau_dma.h"
+#include "analuveau_mem.h"
 
 #include <nvif/push906f.h>
 
@@ -30,10 +30,10 @@
  */
 
 int
-nvc0_bo_move_copy(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
+nvc0_bo_move_copy(struct analuveau_channel *chan, struct ttm_buffer_object *bo,
 		  struct ttm_resource *old_reg, struct ttm_resource *new_reg)
 {
-	struct nouveau_mem *mem = nouveau_mem(old_reg);
+	struct analuveau_mem *mem = analuveau_mem(old_reg);
 	struct nvif_push *push = chan->chan.push;
 	u64 src_offset = mem->vma[0].addr;
 	u64 dst_offset = mem->vma[1].addr;

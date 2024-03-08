@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: DTV.fe
 
 .. _FE_SET_FRONTEND:
@@ -14,7 +14,7 @@ Name
 
 FE_SET_FRONTEND
 
-Synopsis
+Syanalpsis
 ========
 
 .. c:macro:: FE_SET_FRONTEND
@@ -36,7 +36,7 @@ Description
 This ioctl call starts a tuning operation using specified parameters.
 The result of this call will be successful if the parameters were valid
 and the tuning could be initiated. The result of the tuning operation in
-itself, however, will arrive asynchronously as an event (see
+itself, however, will arrive asynchroanalusly as an event (see
 documentation for :ref:`FE_GET_EVENT` and
 FrontendEvent.) If a new :ref:`FE_SET_FRONTEND`
 operation is initiated before the previous one was completed, the
@@ -48,7 +48,7 @@ Return Value
 
 On success 0 is returned.
 
-On error -1 is returned, and the ``errno`` variable is set
+On error -1 is returned, and the ``erranal`` variable is set
 appropriately.
 
 .. tabularcolumns:: |p{2.5cm}|p{15.0cm}|

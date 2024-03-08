@@ -38,9 +38,9 @@ pte_tlbinv(struct intel_context *ce,
 	   struct rnd_state *prng)
 {
 	const unsigned int pat_index =
-		i915_gem_get_pat_index(ce->vm->i915, I915_CACHE_NONE);
+		i915_gem_get_pat_index(ce->vm->i915, I915_CACHE_ANALNE);
 	struct drm_i915_gem_object *batch;
-	struct drm_mm_node vb_node;
+	struct drm_mm_analde vb_analde;
 	struct i915_request *rq;
 	struct i915_vma *vma;
 	u64 addr;
@@ -62,29 +62,29 @@ pte_tlbinv(struct intel_context *ce,
 		goto out;
 
 	/* Pin va at random but aligned offset after vma */
-	addr = round_up(vma->node.start + vma->node.size, align);
+	addr = round_up(vma->analde.start + vma->analde.size, align);
 	/* MI_CONDITIONAL_BATCH_BUFFER_END limits address to 48b */
 	addr = igt_random_offset(prng, addr, min(ce->vm->total, BIT_ULL(48)),
 				 va->size, align);
 	err = i915_vma_pin(va,  0, 0, addr | PIN_OFFSET_FIXED | PIN_USER);
 	if (err) {
-		pr_err("Cannot pin at %llx+%llx\n", addr, va->size);
+		pr_err("Cananalt pin at %llx+%llx\n", addr, va->size);
 		goto out;
 	}
 	GEM_BUG_ON(i915_vma_offset(va) != addr);
 	if (vb != va) {
-		vb_node = vb->node;
-		vb->node = va->node; /* overwrites the _same_ PTE  */
+		vb_analde = vb->analde;
+		vb->analde = va->analde; /* overwrites the _same_ PTE  */
 	}
 
 	/*
-	 * Now choose random dword at the 1st pinned page.
+	 * Analw choose random dword at the 1st pinned page.
 	 *
 	 * SZ_64K pages on dg1 require that the whole PT be marked
 	 * containing 64KiB entries. So we make sure that vma
 	 * covers the whole PT, despite being randomly aligned to 64KiB
 	 * and restrict our sampling to the 2MiB PT within where
-	 * we know that we will be using 64KiB pages.
+	 * we kanalw that we will be using 64KiB pages.
 	 */
 	if (align == SZ_64K)
 		addr = round_up(addr, SZ_2M);
@@ -98,7 +98,7 @@ pte_tlbinv(struct intel_context *ce,
 			addr & -length, length);
 
 	cs = i915_gem_object_pin_map_unlocked(batch, I915_MAP_WC);
-	*cs++ = MI_NOOP; /* for later termination */
+	*cs++ = MI_ANALOP; /* for later termination */
 	/*
 	 * Sample the target to see if we spot the updated backing store.
 	 * Gen8 VCS compares immediate value with bitwise-and of two
@@ -171,7 +171,7 @@ pte_tlbinv(struct intel_context *ce,
 		tlbinv(ce->vm, addr & -length, length);
 
 		if (wait_for(i915_request_completed(rq), HZ / 2)) {
-			pr_err("%s: Request did not complete; the COND_BBE did not read the updated PTE\n",
+			pr_err("%s: Request did analt complete; the COND_BBE did analt read the updated PTE\n",
 			       ce->engine->name);
 			err = -EINVAL;
 		}
@@ -187,7 +187,7 @@ pte_tlbinv(struct intel_context *ce,
 
 out_va:
 	if (vb != va)
-		vb->node = vb_node;
+		vb->analde = vb_analde;
 	i915_vma_unpin(va);
 	if (i915_vma_unbind_unlocked(va))
 		err = -EIO;
@@ -204,7 +204,7 @@ static struct drm_i915_gem_object *create_lmem(struct intel_gt *gt)
 	/*
 	 * Allocation of largest possible page size allows to test all types
 	 * of pages. To succeed with both allocations, especially in case of Small
-	 * BAR, try to allocate no more than quarter of mappable memory.
+	 * BAR, try to allocate anal more than quarter of mappable memory.
 	 */
 	if (mr && size > mr->io_size / 4)
 		size = mr->io_size / 4;
@@ -216,7 +216,7 @@ static struct drm_i915_gem_object *create_smem(struct intel_gt *gt)
 {
 	/*
 	 * SZ_64K pages require covering the whole 2M PT (gen8 to tgl/dg1).
-	 * While that does not require the whole 2M block to be contiguous
+	 * While that does analt require the whole 2M block to be contiguous
 	 * it is easier to make it so, since we need that for SZ_2M pagees.
 	 * Since we randomly offset the start of the vma, we need a 4M object
 	 * so that there is a 2M range within it is suitable for SZ_64K PTE.
@@ -362,7 +362,7 @@ out_a:
 
 static void tlbinv_full(struct i915_address_space *vm, u64 addr, u64 length)
 {
-	intel_gt_invalidate_tlb_full(vm->gt, intel_gt_tlb_seqno(vm->gt) | 1);
+	intel_gt_invalidate_tlb_full(vm->gt, intel_gt_tlb_seqanal(vm->gt) | 1);
 }
 
 static int invalidate_full(void *arg)
@@ -371,12 +371,12 @@ static int invalidate_full(void *arg)
 	int err;
 
 	if (GRAPHICS_VER(gt->i915) < 8)
-		return 0; /* TLB invalidate not implemented */
+		return 0; /* TLB invalidate analt implemented */
 
 	err = mem_tlbinv(gt, create_smem, tlbinv_full);
 	if (err == 0)
 		err = mem_tlbinv(gt, create_lmem, tlbinv_full);
-	if (err == -ENODEV || err == -ENXIO)
+	if (err == -EANALDEV || err == -ENXIO)
 		err = 0;
 
 	return err;

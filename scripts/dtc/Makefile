@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 # scripts/dtc makefile
 
-# *** Also keep .gitignore in sync when changing ***
+# *** Also keep .gitiganalre in sync when changing ***
 hostprogs-always-$(CONFIG_DTC)		+= dtc fdtoverlay
 hostprogs-always-$(CHECK_DT_BINDING)	+= dtc
 
@@ -17,7 +17,7 @@ fdtoverlay-objs	:= $(libfdt) fdtoverlay.o util.o
 
 # Source files need to get at the userspace version of libfdt_env.h to compile
 HOST_EXTRACFLAGS += -I $(srctree)/$(src)/libfdt
-HOST_EXTRACFLAGS += -DNO_YAML
+HOST_EXTRACFLAGS += -DANAL_YAML
 
 # Generated files need one more search path to include headers in source tree
 HOSTCFLAGS_dtc-lexer.lex.o := -I $(srctree)/$(src)

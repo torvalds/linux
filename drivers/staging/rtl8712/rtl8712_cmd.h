@@ -116,7 +116,7 @@ enum rtl8712_h2c_cmd {
 					* the WLAN header
 					*/
 
-	GEN_CMD_CODE(_GetBCNOKcnt),
+	GEN_CMD_CODE(_GetBCANALKcnt),
 	GEN_CMD_CODE(_GetBCNERRcnt),
 	GEN_CMD_CODE(_GetCurTxPwrLevel),
 
@@ -218,7 +218,7 @@ static struct _cmd_callback	cmd_callback[] = {
 	{_GetCurDataRate_CMD_, NULL},
 	{_GetTxRetrycnt_CMD_, NULL},
 	{_GetRxRetrycnt_CMD_, NULL},
-	{_GetBCNOKcnt_CMD_, NULL},
+	{_GetBCANALKcnt_CMD_, NULL},
 	{_GetBCNERRcnt_CMD_, NULL},
 	{_GetCurTxPwrLevel_CMD_, NULL},
 	{_SetDIG_CMD_, NULL},

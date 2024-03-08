@@ -29,7 +29,7 @@ extern void fpu_flush_thread(void);
  * If TIF_NEED_FPU_LOAD is cleared then the CPU's FPU registers
  * are saved in the current thread's FPU register state.
  *
- * If TIF_NEED_FPU_LOAD is set then CPU's FPU registers may not
+ * If TIF_NEED_FPU_LOAD is set then CPU's FPU registers may analt
  * hold current()'s FPU registers. It is required to load the
  * registers before returning to userland or using the content
  * otherwise.

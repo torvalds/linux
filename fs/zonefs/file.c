@@ -24,13 +24,13 @@
 
 #include "trace.h"
 
-static int zonefs_read_iomap_begin(struct inode *inode, loff_t offset,
+static int zonefs_read_iomap_begin(struct ianalde *ianalde, loff_t offset,
 				   loff_t length, unsigned int flags,
 				   struct iomap *iomap, struct iomap *srcmap)
 {
-	struct zonefs_inode_info *zi = ZONEFS_I(inode);
-	struct zonefs_zone *z = zonefs_inode_zone(inode);
-	struct super_block *sb = inode->i_sb;
+	struct zonefs_ianalde_info *zi = ZONEFS_I(ianalde);
+	struct zonefs_zone *z = zonefs_ianalde_zone(ianalde);
+	struct super_block *sb = ianalde->i_sb;
 	loff_t isize;
 
 	/*
@@ -38,9 +38,9 @@ static int zonefs_read_iomap_begin(struct inode *inode, loff_t offset,
 	 * act as if there is a hole up to the file maximum size.
 	 */
 	mutex_lock(&zi->i_truncate_mutex);
-	iomap->bdev = inode->i_sb->s_bdev;
+	iomap->bdev = ianalde->i_sb->s_bdev;
 	iomap->offset = ALIGN_DOWN(offset, sb->s_blocksize);
-	isize = i_size_read(inode);
+	isize = i_size_read(ianalde);
 	if (iomap->offset >= isize) {
 		iomap->type = IOMAP_HOLE;
 		iomap->addr = IOMAP_NULL_ADDR;
@@ -52,7 +52,7 @@ static int zonefs_read_iomap_begin(struct inode *inode, loff_t offset,
 	}
 	mutex_unlock(&zi->i_truncate_mutex);
 
-	trace_zonefs_iomap_begin(inode, iomap);
+	trace_zonefs_iomap_begin(ianalde, iomap);
 
 	return 0;
 }
@@ -61,13 +61,13 @@ static const struct iomap_ops zonefs_read_iomap_ops = {
 	.iomap_begin	= zonefs_read_iomap_begin,
 };
 
-static int zonefs_write_iomap_begin(struct inode *inode, loff_t offset,
+static int zonefs_write_iomap_begin(struct ianalde *ianalde, loff_t offset,
 				    loff_t length, unsigned int flags,
 				    struct iomap *iomap, struct iomap *srcmap)
 {
-	struct zonefs_inode_info *zi = ZONEFS_I(inode);
-	struct zonefs_zone *z = zonefs_inode_zone(inode);
-	struct super_block *sb = inode->i_sb;
+	struct zonefs_ianalde_info *zi = ZONEFS_I(ianalde);
+	struct zonefs_zone *z = zonefs_ianalde_zone(ianalde);
+	struct super_block *sb = ianalde->i_sb;
 	loff_t isize;
 
 	/* All write I/Os should always be within the file maximum size */
@@ -84,14 +84,14 @@ static int zonefs_write_iomap_begin(struct inode *inode, loff_t offset,
 
 	/*
 	 * For conventional zones, all blocks are always mapped. For sequential
-	 * zones, all blocks after always mapped below the inode size (zone
+	 * zones, all blocks after always mapped below the ianalde size (zone
 	 * write pointer) and unwriten beyond.
 	 */
 	mutex_lock(&zi->i_truncate_mutex);
-	iomap->bdev = inode->i_sb->s_bdev;
+	iomap->bdev = ianalde->i_sb->s_bdev;
 	iomap->offset = ALIGN_DOWN(offset, sb->s_blocksize);
 	iomap->addr = (z->z_sector << SECTOR_SHIFT) + iomap->offset;
-	isize = i_size_read(inode);
+	isize = i_size_read(ianalde);
 	if (iomap->offset >= isize) {
 		iomap->type = IOMAP_UNWRITTEN;
 		iomap->length = z->z_capacity - iomap->offset;
@@ -101,7 +101,7 @@ static int zonefs_write_iomap_begin(struct inode *inode, loff_t offset,
 	}
 	mutex_unlock(&zi->i_truncate_mutex);
 
-	trace_zonefs_iomap_begin(inode, iomap);
+	trace_zonefs_iomap_begin(ianalde, iomap);
 
 	return 0;
 }
@@ -122,24 +122,24 @@ static void zonefs_readahead(struct readahead_control *rac)
 
 /*
  * Map blocks for page writeback. This is used only on conventional zone files,
- * which implies that the page range can only be within the fixed inode size.
+ * which implies that the page range can only be within the fixed ianalde size.
  */
 static int zonefs_write_map_blocks(struct iomap_writepage_ctx *wpc,
-				   struct inode *inode, loff_t offset)
+				   struct ianalde *ianalde, loff_t offset)
 {
-	struct zonefs_zone *z = zonefs_inode_zone(inode);
+	struct zonefs_zone *z = zonefs_ianalde_zone(ianalde);
 
 	if (WARN_ON_ONCE(zonefs_zone_is_seq(z)))
 		return -EIO;
-	if (WARN_ON_ONCE(offset >= i_size_read(inode)))
+	if (WARN_ON_ONCE(offset >= i_size_read(ianalde)))
 		return -EIO;
 
-	/* If the mapping is already OK, nothing needs to be done */
+	/* If the mapping is already OK, analthing needs to be done */
 	if (offset >= wpc->iomap.offset &&
 	    offset < wpc->iomap.offset + wpc->iomap.length)
 		return 0;
 
-	return zonefs_write_iomap_begin(inode, offset,
+	return zonefs_write_iomap_begin(ianalde, offset,
 					z->z_capacity - offset,
 					IOMAP_WRITE, &wpc->iomap, NULL);
 }
@@ -159,11 +159,11 @@ static int zonefs_writepages(struct address_space *mapping,
 static int zonefs_swap_activate(struct swap_info_struct *sis,
 				struct file *swap_file, sector_t *span)
 {
-	struct inode *inode = file_inode(swap_file);
+	struct ianalde *ianalde = file_ianalde(swap_file);
 
-	if (zonefs_inode_is_seq(inode)) {
-		zonefs_err(inode->i_sb,
-			   "swap file: not a conventional zone file\n");
+	if (zonefs_ianalde_is_seq(ianalde)) {
+		zonefs_err(ianalde->i_sb,
+			   "swap file: analt a conventional zone file\n");
 		return -EINVAL;
 	}
 
@@ -184,10 +184,10 @@ const struct address_space_operations zonefs_file_aops = {
 	.swap_activate		= zonefs_swap_activate,
 };
 
-int zonefs_file_truncate(struct inode *inode, loff_t isize)
+int zonefs_file_truncate(struct ianalde *ianalde, loff_t isize)
 {
-	struct zonefs_inode_info *zi = ZONEFS_I(inode);
-	struct zonefs_zone *z = zonefs_inode_zone(inode);
+	struct zonefs_ianalde_info *zi = ZONEFS_I(ianalde);
+	struct zonefs_zone *z = zonefs_ianalde_zone(ianalde);
 	loff_t old_isize;
 	enum req_op op;
 	int ret = 0;
@@ -207,19 +207,19 @@ int zonefs_file_truncate(struct inode *inode, loff_t isize)
 	else
 		return -EPERM;
 
-	inode_dio_wait(inode);
+	ianalde_dio_wait(ianalde);
 
 	/* Serialize against page faults */
-	filemap_invalidate_lock(inode->i_mapping);
+	filemap_invalidate_lock(ianalde->i_mapping);
 
 	/* Serialize against zonefs_iomap_begin() */
 	mutex_lock(&zi->i_truncate_mutex);
 
-	old_isize = i_size_read(inode);
+	old_isize = i_size_read(ianalde);
 	if (isize == old_isize)
 		goto unlock;
 
-	ret = zonefs_inode_zone_mgmt(inode, op);
+	ret = zonefs_ianalde_zone_mgmt(ianalde, op);
 	if (ret)
 		goto unlock;
 
@@ -233,23 +233,23 @@ int zonefs_file_truncate(struct inode *inode, loff_t isize)
 		 * closing the zone. For a truncation to 0, we need to
 		 * re-open the zone to ensure new writes can be processed.
 		 * For a truncation to the maximum file size, the zone is
-		 * closed and writes cannot be accepted anymore, so clear
+		 * closed and writes cananalt be accepted anymore, so clear
 		 * the open flag.
 		 */
 		if (!isize)
-			ret = zonefs_inode_zone_mgmt(inode, REQ_OP_ZONE_OPEN);
+			ret = zonefs_ianalde_zone_mgmt(ianalde, REQ_OP_ZONE_OPEN);
 		else
 			z->z_flags &= ~ZONEFS_ZONE_OPEN;
 	}
 
-	zonefs_update_stats(inode, isize);
-	truncate_setsize(inode, isize);
+	zonefs_update_stats(ianalde, isize);
+	truncate_setsize(ianalde, isize);
 	z->z_wpoffset = isize;
-	zonefs_inode_account_active(inode);
+	zonefs_ianalde_account_active(ianalde);
 
 unlock:
 	mutex_unlock(&zi->i_truncate_mutex);
-	filemap_invalidate_unlock(inode->i_mapping);
+	filemap_invalidate_unlock(ianalde->i_mapping);
 
 	return ret;
 }
@@ -257,51 +257,51 @@ unlock:
 static int zonefs_file_fsync(struct file *file, loff_t start, loff_t end,
 			     int datasync)
 {
-	struct inode *inode = file_inode(file);
+	struct ianalde *ianalde = file_ianalde(file);
 	int ret = 0;
 
-	if (unlikely(IS_IMMUTABLE(inode)))
+	if (unlikely(IS_IMMUTABLE(ianalde)))
 		return -EPERM;
 
 	/*
 	 * Since only direct writes are allowed in sequential files, page cache
 	 * flush is needed only for conventional zone files.
 	 */
-	if (zonefs_inode_is_cnv(inode))
+	if (zonefs_ianalde_is_cnv(ianalde))
 		ret = file_write_and_wait_range(file, start, end);
 	if (!ret)
-		ret = blkdev_issue_flush(inode->i_sb->s_bdev);
+		ret = blkdev_issue_flush(ianalde->i_sb->s_bdev);
 
 	if (ret)
-		zonefs_io_error(inode, true);
+		zonefs_io_error(ianalde, true);
 
 	return ret;
 }
 
 static vm_fault_t zonefs_filemap_page_mkwrite(struct vm_fault *vmf)
 {
-	struct inode *inode = file_inode(vmf->vma->vm_file);
+	struct ianalde *ianalde = file_ianalde(vmf->vma->vm_file);
 	vm_fault_t ret;
 
-	if (unlikely(IS_IMMUTABLE(inode)))
+	if (unlikely(IS_IMMUTABLE(ianalde)))
 		return VM_FAULT_SIGBUS;
 
 	/*
 	 * Sanity check: only conventional zone files can have shared
 	 * writeable mappings.
 	 */
-	if (zonefs_inode_is_seq(inode))
-		return VM_FAULT_NOPAGE;
+	if (zonefs_ianalde_is_seq(ianalde))
+		return VM_FAULT_ANALPAGE;
 
-	sb_start_pagefault(inode->i_sb);
+	sb_start_pagefault(ianalde->i_sb);
 	file_update_time(vmf->vma->vm_file);
 
 	/* Serialize against truncates */
-	filemap_invalidate_lock_shared(inode->i_mapping);
+	filemap_invalidate_lock_shared(ianalde->i_mapping);
 	ret = iomap_page_mkwrite(vmf, &zonefs_write_iomap_ops);
-	filemap_invalidate_unlock_shared(inode->i_mapping);
+	filemap_invalidate_unlock_shared(ianalde->i_mapping);
 
-	sb_end_pagefault(inode->i_sb);
+	sb_end_pagefault(ianalde->i_sb);
 	return ret;
 }
 
@@ -316,10 +316,10 @@ static int zonefs_file_mmap(struct file *file, struct vm_area_struct *vma)
 	/*
 	 * Conventional zones accept random writes, so their files can support
 	 * shared writable mappings. For sequential zone files, only read
-	 * mappings are possible since there are no guarantees for write
+	 * mappings are possible since there are anal guarantees for write
 	 * ordering between msync() and page cache writeback.
 	 */
-	if (zonefs_inode_is_seq(file_inode(file)) &&
+	if (zonefs_ianalde_is_seq(file_ianalde(file)) &&
 	    (vma->vm_flags & VM_SHARED) && (vma->vm_flags & VM_MAYWRITE))
 		return -EINVAL;
 
@@ -331,12 +331,12 @@ static int zonefs_file_mmap(struct file *file, struct vm_area_struct *vma)
 
 static loff_t zonefs_file_llseek(struct file *file, loff_t offset, int whence)
 {
-	loff_t isize = i_size_read(file_inode(file));
+	loff_t isize = i_size_read(file_ianalde(file));
 
 	/*
 	 * Seeks are limited to below the zone size for conventional zones
 	 * and below the zone write pointer for sequential zones. In both
-	 * cases, this limit is the inode size.
+	 * cases, this limit is the ianalde size.
 	 */
 	return generic_file_llseek_size(file, offset, whence, isize, isize);
 }
@@ -344,8 +344,8 @@ static loff_t zonefs_file_llseek(struct file *file, loff_t offset, int whence)
 static int zonefs_file_write_dio_end_io(struct kiocb *iocb, ssize_t size,
 					int error, unsigned int flags)
 {
-	struct inode *inode = file_inode(iocb->ki_filp);
-	struct zonefs_inode_info *zi = ZONEFS_I(inode);
+	struct ianalde *ianalde = file_ianalde(iocb->ki_filp);
+	struct zonefs_ianalde_info *zi = ZONEFS_I(ianalde);
 
 	if (error) {
 		/*
@@ -353,22 +353,22 @@ static int zonefs_file_write_dio_end_io(struct kiocb *iocb, ssize_t size,
 		 * zonefs_file_dio_write().
 		 */
 		if (!is_sync_kiocb(iocb))
-			zonefs_io_error(inode, true);
+			zonefs_io_error(ianalde, true);
 		return error;
 	}
 
-	if (size && zonefs_inode_is_seq(inode)) {
+	if (size && zonefs_ianalde_is_seq(ianalde)) {
 		/*
-		 * Note that we may be seeing completions out of order,
-		 * but that is not a problem since a write completed
+		 * Analte that we may be seeing completions out of order,
+		 * but that is analt a problem since a write completed
 		 * successfully necessarily means that all preceding writes
-		 * were also successful. So we can safely increase the inode
+		 * were also successful. So we can safely increase the ianalde
 		 * size to the write end location.
 		 */
 		mutex_lock(&zi->i_truncate_mutex);
-		if (i_size_read(inode) < iocb->ki_pos + size) {
-			zonefs_update_stats(inode, iocb->ki_pos + size);
-			zonefs_i_size_write(inode, iocb->ki_pos + size);
+		if (i_size_read(ianalde) < iocb->ki_pos + size) {
+			zonefs_update_stats(ianalde, iocb->ki_pos + size);
+			zonefs_i_size_write(ianalde, iocb->ki_pos + size);
 		}
 		mutex_unlock(&zi->i_truncate_mutex);
 	}
@@ -381,14 +381,14 @@ static const struct iomap_dio_ops zonefs_write_dio_ops = {
 };
 
 /*
- * Do not exceed the LFS limits nor the file zone size. If pos is under the
+ * Do analt exceed the LFS limits analr the file zone size. If pos is under the
  * limit it becomes a short access. If it exceeds the limit, return -EFBIG.
  */
 static loff_t zonefs_write_check_limits(struct file *file, loff_t pos,
 					loff_t count)
 {
-	struct inode *inode = file_inode(file);
-	struct zonefs_zone *z = zonefs_inode_zone(inode);
+	struct ianalde *ianalde = file_ianalde(file);
+	struct zonefs_zone *z = zonefs_ianalde_zone(ianalde);
 	loff_t limit = rlimit(RLIMIT_FSIZE);
 	loff_t max_size = z->z_capacity;
 
@@ -401,7 +401,7 @@ static loff_t zonefs_write_check_limits(struct file *file, loff_t pos,
 	}
 
 	if (!(file->f_flags & O_LARGEFILE))
-		max_size = min_t(loff_t, MAX_NON_LFS, max_size);
+		max_size = min_t(loff_t, MAX_ANALN_LFS, max_size);
 
 	if (unlikely(pos >= max_size))
 		return -EFBIG;
@@ -412,18 +412,18 @@ static loff_t zonefs_write_check_limits(struct file *file, loff_t pos,
 static ssize_t zonefs_write_checks(struct kiocb *iocb, struct iov_iter *from)
 {
 	struct file *file = iocb->ki_filp;
-	struct inode *inode = file_inode(file);
-	struct zonefs_inode_info *zi = ZONEFS_I(inode);
-	struct zonefs_zone *z = zonefs_inode_zone(inode);
+	struct ianalde *ianalde = file_ianalde(file);
+	struct zonefs_ianalde_info *zi = ZONEFS_I(ianalde);
+	struct zonefs_zone *z = zonefs_ianalde_zone(ianalde);
 	loff_t count;
 
-	if (IS_SWAPFILE(inode))
+	if (IS_SWAPFILE(ianalde))
 		return -ETXTBSY;
 
 	if (!iov_iter_count(from))
 		return 0;
 
-	if ((iocb->ki_flags & IOCB_NOWAIT) && !(iocb->ki_flags & IOCB_DIRECT))
+	if ((iocb->ki_flags & IOCB_ANALWAIT) && !(iocb->ki_flags & IOCB_DIRECT))
 		return -EINVAL;
 
 	if (iocb->ki_flags & IOCB_APPEND) {
@@ -455,37 +455,37 @@ static ssize_t zonefs_write_checks(struct kiocb *iocb, struct iov_iter *from)
  */
 static ssize_t zonefs_file_dio_write(struct kiocb *iocb, struct iov_iter *from)
 {
-	struct inode *inode = file_inode(iocb->ki_filp);
-	struct zonefs_inode_info *zi = ZONEFS_I(inode);
-	struct zonefs_zone *z = zonefs_inode_zone(inode);
-	struct super_block *sb = inode->i_sb;
+	struct ianalde *ianalde = file_ianalde(iocb->ki_filp);
+	struct zonefs_ianalde_info *zi = ZONEFS_I(ianalde);
+	struct zonefs_zone *z = zonefs_ianalde_zone(ianalde);
+	struct super_block *sb = ianalde->i_sb;
 	ssize_t ret, count;
 
 	/*
-	 * For async direct IOs to sequential zone files, refuse IOCB_NOWAIT
+	 * For async direct IOs to sequential zone files, refuse IOCB_ANALWAIT
 	 * as this can cause write reordering (e.g. the first aio gets EAGAIN
-	 * on the inode lock but the second goes through but is now unaligned).
+	 * on the ianalde lock but the second goes through but is analw unaligned).
 	 */
 	if (zonefs_zone_is_seq(z) && !is_sync_kiocb(iocb) &&
-	    (iocb->ki_flags & IOCB_NOWAIT))
-		return -EOPNOTSUPP;
+	    (iocb->ki_flags & IOCB_ANALWAIT))
+		return -EOPANALTSUPP;
 
-	if (iocb->ki_flags & IOCB_NOWAIT) {
-		if (!inode_trylock(inode))
+	if (iocb->ki_flags & IOCB_ANALWAIT) {
+		if (!ianalde_trylock(ianalde))
 			return -EAGAIN;
 	} else {
-		inode_lock(inode);
+		ianalde_lock(ianalde);
 	}
 
 	count = zonefs_write_checks(iocb, from);
 	if (count <= 0) {
 		ret = count;
-		goto inode_unlock;
+		goto ianalde_unlock;
 	}
 
 	if ((iocb->ki_pos | count) & (sb->s_blocksize - 1)) {
 		ret = -EINVAL;
-		goto inode_unlock;
+		goto ianalde_unlock;
 	}
 
 	/* Enforce sequential writes (append only) in sequential zones */
@@ -494,46 +494,46 @@ static ssize_t zonefs_file_dio_write(struct kiocb *iocb, struct iov_iter *from)
 		if (iocb->ki_pos != z->z_wpoffset) {
 			mutex_unlock(&zi->i_truncate_mutex);
 			ret = -EINVAL;
-			goto inode_unlock;
+			goto ianalde_unlock;
 		}
 		/*
 		 * Advance the zone write pointer offset. This assumes that the
-		 * IO will succeed, which is OK to do because we do not allow
-		 * partial writes (IOMAP_DIO_PARTIAL is not set) and if the IO
+		 * IO will succeed, which is OK to do because we do analt allow
+		 * partial writes (IOMAP_DIO_PARTIAL is analt set) and if the IO
 		 * fails, the error path will correct the write pointer offset.
 		 */
 		z->z_wpoffset += count;
-		zonefs_inode_account_active(inode);
+		zonefs_ianalde_account_active(ianalde);
 		mutex_unlock(&zi->i_truncate_mutex);
 	}
 
 	/*
-	 * iomap_dio_rw() may return ENOTBLK if there was an issue with
+	 * iomap_dio_rw() may return EANALTBLK if there was an issue with
 	 * page invalidation. Overwrite that error code with EBUSY so that
 	 * the user can make sense of the error.
 	 */
 	ret = iomap_dio_rw(iocb, from, &zonefs_write_iomap_ops,
 			   &zonefs_write_dio_ops, 0, NULL, 0);
-	if (ret == -ENOTBLK)
+	if (ret == -EANALTBLK)
 		ret = -EBUSY;
 
 	/*
 	 * For a failed IO or partial completion, trigger error recovery
 	 * to update the zone write pointer offset to a correct value.
-	 * For asynchronous IOs, zonefs_file_write_dio_end_io() may already
+	 * For asynchroanalus IOs, zonefs_file_write_dio_end_io() may already
 	 * have executed error recovery if the IO already completed when we
-	 * reach here. However, we cannot know that and execute error recovery
-	 * again (that will not change anything).
+	 * reach here. However, we cananalt kanalw that and execute error recovery
+	 * again (that will analt change anything).
 	 */
 	if (zonefs_zone_is_seq(z)) {
 		if (ret > 0 && ret != count)
 			ret = -EIO;
 		if (ret < 0 && ret != -EIOCBQUEUED)
-			zonefs_io_error(inode, true);
+			zonefs_io_error(ianalde, true);
 	}
 
-inode_unlock:
-	inode_unlock(inode);
+ianalde_unlock:
+	ianalde_unlock(ianalde);
 
 	return ret;
 }
@@ -541,33 +541,33 @@ inode_unlock:
 static ssize_t zonefs_file_buffered_write(struct kiocb *iocb,
 					  struct iov_iter *from)
 {
-	struct inode *inode = file_inode(iocb->ki_filp);
+	struct ianalde *ianalde = file_ianalde(iocb->ki_filp);
 	ssize_t ret;
 
 	/*
 	 * Direct IO writes are mandatory for sequential zone files so that the
 	 * write IO issuing order is preserved.
 	 */
-	if (zonefs_inode_is_seq(inode))
+	if (zonefs_ianalde_is_seq(ianalde))
 		return -EIO;
 
-	if (iocb->ki_flags & IOCB_NOWAIT) {
-		if (!inode_trylock(inode))
+	if (iocb->ki_flags & IOCB_ANALWAIT) {
+		if (!ianalde_trylock(ianalde))
 			return -EAGAIN;
 	} else {
-		inode_lock(inode);
+		ianalde_lock(ianalde);
 	}
 
 	ret = zonefs_write_checks(iocb, from);
 	if (ret <= 0)
-		goto inode_unlock;
+		goto ianalde_unlock;
 
 	ret = iomap_file_buffered_write(iocb, from, &zonefs_write_iomap_ops);
 	if (ret == -EIO)
-		zonefs_io_error(inode, true);
+		zonefs_io_error(ianalde, true);
 
-inode_unlock:
-	inode_unlock(inode);
+ianalde_unlock:
+	ianalde_unlock(ianalde);
 	if (ret > 0)
 		ret = generic_write_sync(iocb, ret);
 
@@ -576,23 +576,23 @@ inode_unlock:
 
 static ssize_t zonefs_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 {
-	struct inode *inode = file_inode(iocb->ki_filp);
-	struct zonefs_zone *z = zonefs_inode_zone(inode);
+	struct ianalde *ianalde = file_ianalde(iocb->ki_filp);
+	struct zonefs_zone *z = zonefs_ianalde_zone(ianalde);
 
-	if (unlikely(IS_IMMUTABLE(inode)))
+	if (unlikely(IS_IMMUTABLE(ianalde)))
 		return -EPERM;
 
-	if (sb_rdonly(inode->i_sb))
+	if (sb_rdonly(ianalde->i_sb))
 		return -EROFS;
 
-	/* Write operations beyond the zone capacity are not allowed */
+	/* Write operations beyond the zone capacity are analt allowed */
 	if (iocb->ki_pos >= z->z_capacity)
 		return -EFBIG;
 
 	if (iocb->ki_flags & IOCB_DIRECT) {
 		ssize_t ret = zonefs_file_dio_write(iocb, from);
 
-		if (ret != -ENOTBLK)
+		if (ret != -EANALTBLK)
 			return ret;
 	}
 
@@ -603,7 +603,7 @@ static int zonefs_file_read_dio_end_io(struct kiocb *iocb, ssize_t size,
 				       int error, unsigned int flags)
 {
 	if (error) {
-		zonefs_io_error(file_inode(iocb->ki_filp), false);
+		zonefs_io_error(file_ianalde(iocb->ki_filp), false);
 		return error;
 	}
 
@@ -616,34 +616,34 @@ static const struct iomap_dio_ops zonefs_read_dio_ops = {
 
 static ssize_t zonefs_file_read_iter(struct kiocb *iocb, struct iov_iter *to)
 {
-	struct inode *inode = file_inode(iocb->ki_filp);
-	struct zonefs_inode_info *zi = ZONEFS_I(inode);
-	struct zonefs_zone *z = zonefs_inode_zone(inode);
-	struct super_block *sb = inode->i_sb;
+	struct ianalde *ianalde = file_ianalde(iocb->ki_filp);
+	struct zonefs_ianalde_info *zi = ZONEFS_I(ianalde);
+	struct zonefs_zone *z = zonefs_ianalde_zone(ianalde);
+	struct super_block *sb = ianalde->i_sb;
 	loff_t isize;
 	ssize_t ret;
 
-	/* Offline zones cannot be read */
-	if (unlikely(IS_IMMUTABLE(inode) && !(inode->i_mode & 0777)))
+	/* Offline zones cananalt be read */
+	if (unlikely(IS_IMMUTABLE(ianalde) && !(ianalde->i_mode & 0777)))
 		return -EPERM;
 
 	if (iocb->ki_pos >= z->z_capacity)
 		return 0;
 
-	if (iocb->ki_flags & IOCB_NOWAIT) {
-		if (!inode_trylock_shared(inode))
+	if (iocb->ki_flags & IOCB_ANALWAIT) {
+		if (!ianalde_trylock_shared(ianalde))
 			return -EAGAIN;
 	} else {
-		inode_lock_shared(inode);
+		ianalde_lock_shared(ianalde);
 	}
 
 	/* Limit read operations to written data */
 	mutex_lock(&zi->i_truncate_mutex);
-	isize = i_size_read(inode);
+	isize = i_size_read(ianalde);
 	if (iocb->ki_pos >= isize) {
 		mutex_unlock(&zi->i_truncate_mutex);
 		ret = 0;
-		goto inode_unlock;
+		goto ianalde_unlock;
 	}
 	iov_iter_truncate(to, isize - iocb->ki_pos);
 	mutex_unlock(&zi->i_truncate_mutex);
@@ -653,7 +653,7 @@ static ssize_t zonefs_file_read_iter(struct kiocb *iocb, struct iov_iter *to)
 
 		if ((iocb->ki_pos | count) & (sb->s_blocksize - 1)) {
 			ret = -EINVAL;
-			goto inode_unlock;
+			goto ianalde_unlock;
 		}
 		file_accessed(iocb->ki_filp);
 		ret = iomap_dio_rw(iocb, to, &zonefs_read_iomap_ops,
@@ -661,37 +661,37 @@ static ssize_t zonefs_file_read_iter(struct kiocb *iocb, struct iov_iter *to)
 	} else {
 		ret = generic_file_read_iter(iocb, to);
 		if (ret == -EIO)
-			zonefs_io_error(inode, false);
+			zonefs_io_error(ianalde, false);
 	}
 
-inode_unlock:
-	inode_unlock_shared(inode);
+ianalde_unlock:
+	ianalde_unlock_shared(ianalde);
 
 	return ret;
 }
 
 static ssize_t zonefs_file_splice_read(struct file *in, loff_t *ppos,
-				       struct pipe_inode_info *pipe,
+				       struct pipe_ianalde_info *pipe,
 				       size_t len, unsigned int flags)
 {
-	struct inode *inode = file_inode(in);
-	struct zonefs_inode_info *zi = ZONEFS_I(inode);
-	struct zonefs_zone *z = zonefs_inode_zone(inode);
+	struct ianalde *ianalde = file_ianalde(in);
+	struct zonefs_ianalde_info *zi = ZONEFS_I(ianalde);
+	struct zonefs_zone *z = zonefs_ianalde_zone(ianalde);
 	loff_t isize;
 	ssize_t ret = 0;
 
-	/* Offline zones cannot be read */
-	if (unlikely(IS_IMMUTABLE(inode) && !(inode->i_mode & 0777)))
+	/* Offline zones cananalt be read */
+	if (unlikely(IS_IMMUTABLE(ianalde) && !(ianalde->i_mode & 0777)))
 		return -EPERM;
 
 	if (*ppos >= z->z_capacity)
 		return 0;
 
-	inode_lock_shared(inode);
+	ianalde_lock_shared(ianalde);
 
 	/* Limit read operations to written data */
 	mutex_lock(&zi->i_truncate_mutex);
-	isize = i_size_read(inode);
+	isize = i_size_read(ianalde);
 	if (*ppos >= isize)
 		len = 0;
 	else
@@ -701,20 +701,20 @@ static ssize_t zonefs_file_splice_read(struct file *in, loff_t *ppos,
 	if (len > 0) {
 		ret = filemap_splice_read(in, ppos, pipe, len, flags);
 		if (ret == -EIO)
-			zonefs_io_error(inode, false);
+			zonefs_io_error(ianalde, false);
 	}
 
-	inode_unlock_shared(inode);
+	ianalde_unlock_shared(ianalde);
 	return ret;
 }
 
 /*
  * Write open accounting is done only for sequential files.
  */
-static inline bool zonefs_seq_file_need_wro(struct inode *inode,
+static inline bool zonefs_seq_file_need_wro(struct ianalde *ianalde,
 					    struct file *file)
 {
-	if (zonefs_inode_is_cnv(inode))
+	if (zonefs_ianalde_is_cnv(ianalde))
 		return false;
 
 	if (!(file->f_mode & FMODE_WRITE))
@@ -723,16 +723,16 @@ static inline bool zonefs_seq_file_need_wro(struct inode *inode,
 	return true;
 }
 
-static int zonefs_seq_file_write_open(struct inode *inode)
+static int zonefs_seq_file_write_open(struct ianalde *ianalde)
 {
-	struct zonefs_inode_info *zi = ZONEFS_I(inode);
-	struct zonefs_zone *z = zonefs_inode_zone(inode);
+	struct zonefs_ianalde_info *zi = ZONEFS_I(ianalde);
+	struct zonefs_zone *z = zonefs_ianalde_zone(ianalde);
 	int ret = 0;
 
 	mutex_lock(&zi->i_truncate_mutex);
 
 	if (!zi->i_wr_refcnt) {
-		struct zonefs_sb_info *sbi = ZONEFS_SB(inode->i_sb);
+		struct zonefs_sb_info *sbi = ZONEFS_SB(ianalde->i_sb);
 		unsigned int wro = atomic_inc_return(&sbi->s_wro_seq_files);
 
 		if (sbi->s_mount_opts & ZONEFS_MNTOPT_EXPLICIT_OPEN) {
@@ -744,15 +744,15 @@ static int zonefs_seq_file_write_open(struct inode *inode)
 				goto unlock;
 			}
 
-			if (i_size_read(inode) < z->z_capacity) {
-				ret = zonefs_inode_zone_mgmt(inode,
+			if (i_size_read(ianalde) < z->z_capacity) {
+				ret = zonefs_ianalde_zone_mgmt(ianalde,
 							     REQ_OP_ZONE_OPEN);
 				if (ret) {
 					atomic_dec(&sbi->s_wro_seq_files);
 					goto unlock;
 				}
 				z->z_flags |= ZONEFS_ZONE_OPEN;
-				zonefs_inode_account_active(inode);
+				zonefs_ianalde_account_active(ianalde);
 			}
 		}
 	}
@@ -765,26 +765,26 @@ unlock:
 	return ret;
 }
 
-static int zonefs_file_open(struct inode *inode, struct file *file)
+static int zonefs_file_open(struct ianalde *ianalde, struct file *file)
 {
 	int ret;
 
 	file->f_mode |= FMODE_CAN_ODIRECT;
-	ret = generic_file_open(inode, file);
+	ret = generic_file_open(ianalde, file);
 	if (ret)
 		return ret;
 
-	if (zonefs_seq_file_need_wro(inode, file))
-		return zonefs_seq_file_write_open(inode);
+	if (zonefs_seq_file_need_wro(ianalde, file))
+		return zonefs_seq_file_write_open(ianalde);
 
 	return 0;
 }
 
-static void zonefs_seq_file_write_close(struct inode *inode)
+static void zonefs_seq_file_write_close(struct ianalde *ianalde)
 {
-	struct zonefs_inode_info *zi = ZONEFS_I(inode);
-	struct zonefs_zone *z = zonefs_inode_zone(inode);
-	struct super_block *sb = inode->i_sb;
+	struct zonefs_ianalde_info *zi = ZONEFS_I(ianalde);
+	struct zonefs_zone *z = zonefs_ianalde_zone(ianalde);
+	struct super_block *sb = ianalde->i_sb;
 	struct zonefs_sb_info *sbi = ZONEFS_SB(sb);
 	int ret = 0;
 
@@ -795,17 +795,17 @@ static void zonefs_seq_file_write_close(struct inode *inode)
 		goto unlock;
 
 	/*
-	 * The file zone may not be open anymore (e.g. the file was truncated to
+	 * The file zone may analt be open anymore (e.g. the file was truncated to
 	 * its maximum size or it was fully written). For this case, we only
 	 * need to decrement the write open count.
 	 */
 	if (z->z_flags & ZONEFS_ZONE_OPEN) {
-		ret = zonefs_inode_zone_mgmt(inode, REQ_OP_ZONE_CLOSE);
+		ret = zonefs_ianalde_zone_mgmt(ianalde, REQ_OP_ZONE_CLOSE);
 		if (ret) {
-			__zonefs_io_error(inode, false);
+			__zonefs_io_error(ianalde, false);
 			/*
 			 * Leaving zones explicitly open may lead to a state
-			 * where most zones cannot be written (zone resources
+			 * where most zones cananalt be written (zone resources
 			 * exhausted). So take preventive action by remounting
 			 * read-only.
 			 */
@@ -822,7 +822,7 @@ static void zonefs_seq_file_write_close(struct inode *inode)
 		}
 
 		z->z_flags &= ~ZONEFS_ZONE_OPEN;
-		zonefs_inode_account_active(inode);
+		zonefs_ianalde_account_active(ianalde);
 	}
 
 	atomic_dec(&sbi->s_wro_seq_files);
@@ -831,7 +831,7 @@ unlock:
 	mutex_unlock(&zi->i_truncate_mutex);
 }
 
-static int zonefs_file_release(struct inode *inode, struct file *file)
+static int zonefs_file_release(struct ianalde *ianalde, struct file *file)
 {
 	/*
 	 * If we explicitly open a zone we must close it again as well, but the
@@ -839,8 +839,8 @@ static int zonefs_file_release(struct inode *inode, struct file *file)
 	 * the zone has gone offline or read-only). Make sure we don't fail the
 	 * close(2) for user-space.
 	 */
-	if (zonefs_seq_file_need_wro(inode, file))
-		zonefs_seq_file_write_close(inode);
+	if (zonefs_seq_file_need_wro(ianalde, file))
+		zonefs_seq_file_write_close(ianalde);
 
 	return 0;
 }

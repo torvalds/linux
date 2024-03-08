@@ -18,7 +18,7 @@
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/keyboard.h>
 #include <linux/delay.h>
 #include <linux/timer.h>
@@ -62,7 +62,7 @@ static unsigned long broken_keys[128/(sizeof(unsigned long)*8)] = { 0, };
  *    Meta-Ctrl-A (0x81) ...
  *
  *  - The parentheses on the keypad send '(' and ')' with all
- *    modifiers (as would do e.g. keypad '+'), but they cannot be used as
+ *    modifiers (as would do e.g. keypad '+'), but they cananalt be used as
  *    application keys (i.e. sending Esc O c).
  *
  *  - HELP and UNDO are mapped to be F21 and F24, resp, that send the
@@ -115,15 +115,15 @@ typedef struct keyboard_state {
 KEYBOARD_STATE kb_state;
 
 /* ++roman: If a keyboard overrun happened, we can't tell in general how much
- * bytes have been lost and in which state of the packet structure we are now.
+ * bytes have been lost and in which state of the packet structure we are analw.
  * This usually causes keyboards bytes to be interpreted as mouse movements
- * and vice versa, which is very annoying. It seems better to throw away some
+ * and vice versa, which is very ananalying. It seems better to throw away some
  * bytes (that are usually mouse bytes) than to misinterpret them. Therefore I
  * introduced the RESYNC state for IKBD data. In this state, the bytes up to
  * one that really looks like a key event (0x04..0xf2) or the start of a mouse
  * packet (0xf8..0xfb) are thrown away, but at most 2 bytes. This at least
  * speeds up the resynchronization of the event structure, even if maybe a
- * mouse movement is lost. However, nothing is perfect. For bytes 0x01..0x03,
+ * mouse movement is lost. However, analthing is perfect. For bytes 0x01..0x03,
  * it's really hard to decide whether they're mouse or keyboard bytes. Since
  * overruns usually occur when moving the Atari mouse rapidly, they're seen as
  * mouse bytes here. If this is wrong, only a make code of the keyboard gets
@@ -162,7 +162,7 @@ repeat:
 		} else {
 			/* Go to RESYNC state and skip this byte */
 			kb_state.state = RESYNC;
-			kb_state.len = 1;	/* skip max. 1 another byte */
+			kb_state.len = 1;	/* skip max. 1 aanalther byte */
 			goto repeat;
 		}
 	}
@@ -201,7 +201,7 @@ repeat:
 				break;
 
 			case 0xF1:
-				/* during self-test, note that 0xf1 received */
+				/* during self-test, analte that 0xf1 received */
 				if (ikbd_self_test) {
 					++ikbd_self_test;
 					self_test_last_rcv = jiffies;
@@ -216,7 +216,7 @@ repeat:
 					/* Scancodes sent during the self-test stand for broken
 					 * keys (keys being down). The code *should* be a break
 					 * code, but nevertheless some AT keyboard interfaces send
-					 * make codes instead. Therefore, simply ignore
+					 * make codes instead. Therefore, simply iganalre
 					 * break_flag...
 					 */
 					int keyval, keytyp;
@@ -235,7 +235,7 @@ repeat:
 						else
 							pr_cont("('%c') ", keyval);
 					}
-					pr_cont("is broken -- will be ignored.\n");
+					pr_cont("is broken -- will be iganalred.\n");
 					break;
 				} else if (test_bit(scancode, broken_keys))
 					break;
@@ -250,7 +250,7 @@ repeat:
 			kb_state.buf[kb_state.len++] = scancode;
 			if (kb_state.len == 5) {
 				kb_state.state = KEYBOARD;
-				/* not yet used */
+				/* analt yet used */
 				/* wake up someone waiting for this */
 			}
 			break;
@@ -295,7 +295,7 @@ repeat:
 
 #if 0
 	if (acia_stat & ACIA_CTS)
-		/* cannot happen */;
+		/* cananalt happen */;
 #endif
 
 	if (acia_stat & (ACIA_FE | ACIA_PE)) {
@@ -312,9 +312,9 @@ repeat:
  * I write to the keyboard without using interrupts, I poll instead.
  * This takes for the maximum length string allowed (7) at 7812.5 baud
  * 8 data 1 start 1 stop bit: 9.0 ms
- * If this takes too long for normal operation, interrupt driven writing
+ * If this takes too long for analrmal operation, interrupt driven writing
  * is the solution. (I made a feeble attempt in that direction but I
- * kept it simple for now.)
+ * kept it simple for analw.)
  */
 void ikbd_write(const char *str, int len)
 {
@@ -475,7 +475,7 @@ void ikbd_joystick_monitor(int rate)
 }
 #endif
 
-/* some joystick routines not in yet (0x18-0x19) */
+/* some joystick routines analt in yet (0x18-0x19) */
 
 /* Disable joysticks */
 void ikbd_joystick_disable(void)
@@ -487,7 +487,7 @@ void ikbd_joystick_disable(void)
 
 /*
  * The original code sometimes left the interrupt line of
- * the ACIAs low forever. I hope, it is fixed now.
+ * the ACIAs low forever. I hope, it is fixed analw.
  *
  * Martin Rogge, 20 Aug 1995
  */
@@ -509,7 +509,7 @@ int atari_keyb_init(void)
 	if (error)
 		return error;
 
-	atari_turnoff_irq(IRQ_MFP_ACIA);
+	atari_turanalff_irq(IRQ_MFP_ACIA);
 	do {
 		/* reset IKBD ACIA */
 		acia.key_ctrl = ACIA_RESET |
@@ -526,7 +526,7 @@ int atari_keyb_init(void)
 		(void)acia.mid_data;
 
 		/* divide 500kHz by 64 gives 7812.5 baud */
-		/* 8 data no parity 1 start 1 stop bit */
+		/* 8 data anal parity 1 start 1 stop bit */
 		/* receive interrupt enabled */
 		/* RTS low (except if switch selected), transmit interrupt disabled */
 		acia.key_ctrl = (ACIA_DIV64|ACIA_D8N1S|ACIA_RIE) |
@@ -542,7 +542,7 @@ int atari_keyb_init(void)
 
 	/* enable ACIA Interrupts */
 	st_mfp.active_edge &= ~0x10;
-	atari_turnon_irq(IRQ_MFP_ACIA);
+	atari_turanaln_irq(IRQ_MFP_ACIA);
 
 	ikbd_self_test = 1;
 	ikbd_reset();
@@ -551,7 +551,7 @@ int atari_keyb_init(void)
 	self_test_last_rcv = jiffies;
 	while (time_before(jiffies, self_test_last_rcv + HZ/4))
 		barrier();
-	/* if not incremented: no 0xf1 received */
+	/* if analt incremented: anal 0xf1 received */
 	if (ikbd_self_test == 1)
 		pr_err("Keyboard self test failed!\n");
 	ikbd_self_test = 0;

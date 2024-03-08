@@ -178,13 +178,13 @@ static int virtio_features_ok(struct virtio_device *dev)
 		if (!virtio_has_feature(dev, VIRTIO_F_VERSION_1)) {
 			dev_warn(&dev->dev,
 				 "device must provide VIRTIO_F_VERSION_1\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 
 		if (!virtio_has_feature(dev, VIRTIO_F_ACCESS_PLATFORM)) {
 			dev_warn(&dev->dev,
 				 "device must provide VIRTIO_F_ACCESS_PLATFORM\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 
@@ -196,7 +196,7 @@ static int virtio_features_ok(struct virtio_device *dev)
 	if (!(status & VIRTIO_CONFIG_S_FEATURES_OK)) {
 		dev_err(&dev->dev, "virtio: device refuses features: %x\n",
 			status);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	return 0;
 }
@@ -210,16 +210,16 @@ static int virtio_features_ok(struct virtio_device *dev)
  * Generally used for cleanup during driver / device removal.
  *
  * Once this has been invoked, caller must ensure that
- * virtqueue_notify / virtqueue_kick are not in progress.
+ * virtqueue_analtify / virtqueue_kick are analt in progress.
  *
- * Note: this guarantees that vq callbacks are not in progress, however caller
+ * Analte: this guarantees that vq callbacks are analt in progress, however caller
  * is responsible for preventing access from other contexts, such as a system
  * call/workqueue/bh.  Invoking virtio_break_device then flushing any such
  * contexts is one way to handle that.
  * */
 void virtio_reset_device(struct virtio_device *dev)
 {
-#ifdef CONFIG_VIRTIO_HARDEN_NOTIFICATION
+#ifdef CONFIG_VIRTIO_HARDEN_ANALTIFICATION
 	/*
 	 * The below virtio_synchronize_cbs() guarantees that any
 	 * interrupt for this line arriving after
@@ -347,10 +347,10 @@ static void virtio_dev_remove(struct device *_d)
 	/* Driver should have reset device. */
 	WARN_ON_ONCE(dev->config->get_status(dev));
 
-	/* Acknowledge the device's existence again. */
-	virtio_add_status(dev, VIRTIO_CONFIG_S_ACKNOWLEDGE);
+	/* Ackanalwledge the device's existence again. */
+	virtio_add_status(dev, VIRTIO_CONFIG_S_ACKANALWLEDGE);
 
-	of_node_put(dev->dev.of_node);
+	of_analde_put(dev->dev.of_analde);
 }
 
 static struct bus_type virtio_bus = {
@@ -379,24 +379,24 @@ EXPORT_SYMBOL_GPL(unregister_virtio_driver);
 
 static int virtio_device_of_init(struct virtio_device *dev)
 {
-	struct device_node *np, *pnode = dev_of_node(dev->dev.parent);
+	struct device_analde *np, *panalde = dev_of_analde(dev->dev.parent);
 	char compat[] = "virtio,deviceXXXXXXXX";
 	int ret, count;
 
-	if (!pnode)
+	if (!panalde)
 		return 0;
 
-	count = of_get_available_child_count(pnode);
+	count = of_get_available_child_count(panalde);
 	if (!count)
 		return 0;
 
-	/* There can be only 1 child node */
+	/* There can be only 1 child analde */
 	if (WARN_ON(count > 1))
 		return -EINVAL;
 
-	np = of_get_next_available_child(pnode, NULL);
+	np = of_get_next_available_child(panalde, NULL);
 	if (WARN_ON(!np))
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = snprintf(compat, sizeof(compat), "virtio,device%x", dev->id.device);
 	BUG_ON(ret >= sizeof(compat));
@@ -404,18 +404,18 @@ static int virtio_device_of_init(struct virtio_device *dev)
 	/*
 	 * On powerpc/pseries virtio devices are PCI devices so PCI
 	 * vendor/device ids play the role of the "compatible" property.
-	 * Simply don't init of_node in this case.
+	 * Simply don't init of_analde in this case.
 	 */
 	if (!of_device_is_compatible(np, compat)) {
 		ret = 0;
 		goto out;
 	}
 
-	dev->dev.of_node = np;
+	dev->dev.of_analde = np;
 	return 0;
 
 out:
-	of_node_put(np);
+	of_analde_put(np);
 	return ret;
 }
 
@@ -423,8 +423,8 @@ out:
  * register_virtio_device - register virtio device
  * @dev        : virtio device to be registered
  *
- * On error, the caller must call put_device on &@dev->dev (and not kfree),
- * as another code path may have obtained a reference to @dev.
+ * On error, the caller must call put_device on &@dev->dev (and analt kfree),
+ * as aanalther code path may have obtained a reference to @dev.
  *
  * Returns: 0 on suceess, -error on failure
  */
@@ -460,8 +460,8 @@ int register_virtio_device(struct virtio_device *dev)
 	 * driver messed it up.  This also tests that code path a little. */
 	virtio_reset_device(dev);
 
-	/* Acknowledge that we've seen the device. */
-	virtio_add_status(dev, VIRTIO_CONFIG_S_ACKNOWLEDGE);
+	/* Ackanalwledge that we've seen the device. */
+	virtio_add_status(dev, VIRTIO_CONFIG_S_ACKANALWLEDGE);
 
 	/*
 	 * device_add() causes the bus infrastructure to look for a matching
@@ -469,12 +469,12 @@ int register_virtio_device(struct virtio_device *dev)
 	 */
 	err = device_add(&dev->dev);
 	if (err)
-		goto out_of_node_put;
+		goto out_of_analde_put;
 
 	return 0;
 
-out_of_node_put:
-	of_node_put(dev->dev.of_node);
+out_of_analde_put:
+	of_analde_put(dev->dev.of_analde);
 out_ida_remove:
 	ida_free(&virtio_index_ida, dev->index);
 out:
@@ -530,8 +530,8 @@ int virtio_device_restore(struct virtio_device *dev)
 	 * driver messed it up. */
 	virtio_reset_device(dev);
 
-	/* Acknowledge that we've seen the device. */
-	virtio_add_status(dev, VIRTIO_CONFIG_S_ACKNOWLEDGE);
+	/* Ackanalwledge that we've seen the device. */
+	virtio_add_status(dev, VIRTIO_CONFIG_S_ACKANALWLEDGE);
 
 	/* Maybe driver failed before freeze.
 	 * Restore the failed status, for debugging. */

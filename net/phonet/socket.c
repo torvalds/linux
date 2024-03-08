@@ -4,9 +4,9 @@
  *
  * Phonet sockets
  *
- * Copyright (C) 2008 Nokia Corporation.
+ * Copyright (C) 2008 Analkia Corporation.
  *
- * Authors: Sakari Ailus <sakari.ailus@nokia.com>
+ * Authors: Sakari Ailus <sakari.ailus@analkia.com>
  *          Rémi Denis-Courmont
  */
 
@@ -65,18 +65,18 @@ static struct hlist_head *pn_hash_list(u16 obj)
  */
 struct sock *pn_find_sock_by_sa(struct net *net, const struct sockaddr_pn *spn)
 {
-	struct sock *sknode;
+	struct sock *skanalde;
 	struct sock *rval = NULL;
 	u16 obj = pn_sockaddr_get_object(spn);
 	u8 res = spn->spn_resource;
 	struct hlist_head *hlist = pn_hash_list(obj);
 
 	rcu_read_lock();
-	sk_for_each_rcu(sknode, hlist) {
-		struct pn_sock *pn = pn_sk(sknode);
+	sk_for_each_rcu(skanalde, hlist) {
+		struct pn_sock *pn = pn_sk(skanalde);
 		BUG_ON(!pn->sobject); /* unbound socket */
 
-		if (!net_eq(sock_net(sknode), net))
+		if (!net_eq(sock_net(skanalde), net))
 			continue;
 		if (pn_port(obj)) {
 			/* Look up socket by port */
@@ -91,8 +91,8 @@ struct sock *pn_find_sock_by_sa(struct net *net, const struct sockaddr_pn *spn)
 		    pn_addr(pn->sobject) != pn_addr(obj))
 			continue;
 
-		rval = sknode;
-		sock_hold(sknode);
+		rval = skanalde;
+		sock_hold(skanalde);
 		break;
 	}
 	rcu_read_unlock();
@@ -108,20 +108,20 @@ void pn_deliver_sock_broadcast(struct net *net, struct sk_buff *skb)
 
 	rcu_read_lock();
 	for (h = 0; h < PN_HASHSIZE; h++) {
-		struct sock *sknode;
+		struct sock *skanalde;
 
-		sk_for_each(sknode, hlist) {
+		sk_for_each(skanalde, hlist) {
 			struct sk_buff *clone;
 
-			if (!net_eq(sock_net(sknode), net))
+			if (!net_eq(sock_net(skanalde), net))
 				continue;
-			if (!sock_flag(sknode, SOCK_BROADCAST))
+			if (!sock_flag(skanalde, SOCK_BROADCAST))
 				continue;
 
 			clone = skb_clone(skb, GFP_ATOMIC);
 			if (clone) {
-				sock_hold(sknode);
-				sk_receive_skb(sknode, clone, 0);
+				sock_hold(skanalde);
+				sk_receive_skb(skanalde, clone, 0);
 			}
 		}
 		hlist++;
@@ -134,7 +134,7 @@ int pn_sock_hash(struct sock *sk)
 	struct hlist_head *hlist = pn_hash_list(pn_sk(sk)->sobject);
 
 	mutex_lock(&pnsocks.lock);
-	sk_add_node_rcu(sk, hlist);
+	sk_add_analde_rcu(sk, hlist);
 	mutex_unlock(&pnsocks.lock);
 
 	return 0;
@@ -144,7 +144,7 @@ EXPORT_SYMBOL(pn_sock_hash);
 void pn_sock_unhash(struct sock *sk)
 {
 	mutex_lock(&pnsocks.lock);
-	sk_del_node_init_rcu(sk);
+	sk_del_analde_init_rcu(sk);
 	mutex_unlock(&pnsocks.lock);
 	pn_sock_unbind_all_res(sk);
 	synchronize_rcu();
@@ -168,12 +168,12 @@ static int pn_socket_bind(struct socket *sock, struct sockaddr *addr, int len)
 	if (len < sizeof(struct sockaddr_pn))
 		return -EINVAL;
 	if (spn->spn_family != AF_PHONET)
-		return -EAFNOSUPPORT;
+		return -EAFANALSUPPORT;
 
 	handle = pn_sockaddr_get_object((struct sockaddr_pn *)addr);
 	saddr = pn_addr(handle);
 	if (saddr && phonet_address_lookup(sock_net(sk), saddr))
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 
 	lock_sock(sk);
 	if (sk->sk_state != TCP_CLOSE || pn_port(pn->sobject)) {
@@ -221,15 +221,15 @@ static int pn_socket_connect(struct socket *sock, struct sockaddr *addr,
 	struct pn_sock *pn = pn_sk(sk);
 	struct sockaddr_pn *spn = (struct sockaddr_pn *)addr;
 	struct task_struct *tsk = current;
-	long timeo = sock_rcvtimeo(sk, flags & O_NONBLOCK);
+	long timeo = sock_rcvtimeo(sk, flags & O_ANALNBLOCK);
 	int err;
 
 	if (pn_socket_autobind(sock))
-		return -ENOBUFS;
+		return -EANALBUFS;
 	if (len < sizeof(struct sockaddr_pn))
 		return -EINVAL;
 	if (spn->spn_family != AF_PHONET)
-		return -EAFNOSUPPORT;
+		return -EAFANALSUPPORT;
 
 	lock_sock(sk);
 
@@ -267,7 +267,7 @@ static int pn_socket_connect(struct socket *sock, struct sockaddr *addr,
 			goto out;
 		}
 		if (signal_pending(tsk)) {
-			err = sock_intr_errno(timeo);
+			err = sock_intr_erranal(timeo);
 			goto out;
 		}
 
@@ -339,7 +339,7 @@ static __poll_t pn_socket_poll(struct file *file, struct socket *sock,
 	if (sk->sk_state == TCP_CLOSE)
 		return EPOLLERR;
 	if (!skb_queue_empty_lockless(&sk->sk_receive_queue))
-		mask |= EPOLLIN | EPOLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDANALRM;
 	if (!skb_queue_empty_lockless(&pn->ctrlreq_queue))
 		mask |= EPOLLPRI;
 	if (!mask && sk->sk_state == TCP_CLOSE_WAIT)
@@ -348,7 +348,7 @@ static __poll_t pn_socket_poll(struct file *file, struct socket *sock,
 	if (sk->sk_state == TCP_ESTABLISHED &&
 		refcount_read(&sk->sk_wmem_alloc) < sk->sk_sndbuf &&
 		atomic_read(&pn->tx_credits))
-		mask |= EPOLLOUT | EPOLLWRNORM | EPOLLWRBAND;
+		mask |= EPOLLOUT | EPOLLWRANALRM | EPOLLWRBAND;
 
 	return mask;
 }
@@ -376,11 +376,11 @@ static int pn_socket_ioctl(struct socket *sock, unsigned int cmd,
 		if (dev && (dev->flags & IFF_UP))
 			saddr = phonet_address_get(dev, pn_addr(handle));
 		else
-			saddr = PN_NO_ADDR;
+			saddr = PN_ANAL_ADDR;
 		release_sock(sk);
 
 		dev_put(dev);
-		if (saddr == PN_NO_ADDR)
+		if (saddr == PN_ANAL_ADDR)
 			return -EHOSTUNREACH;
 
 		handle = pn_object(saddr, pn_port(pn->sobject));
@@ -396,7 +396,7 @@ static int pn_socket_listen(struct socket *sock, int backlog)
 	int err = 0;
 
 	if (pn_socket_autobind(sock))
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	lock_sock(sk);
 	if (sock->state != SS_UNCONNECTED) {
@@ -430,17 +430,17 @@ const struct proto_ops phonet_dgram_ops = {
 	.owner		= THIS_MODULE,
 	.release	= pn_socket_release,
 	.bind		= pn_socket_bind,
-	.connect	= sock_no_connect,
-	.socketpair	= sock_no_socketpair,
-	.accept		= sock_no_accept,
+	.connect	= sock_anal_connect,
+	.socketpair	= sock_anal_socketpair,
+	.accept		= sock_anal_accept,
 	.getname	= pn_socket_getname,
 	.poll		= datagram_poll,
 	.ioctl		= pn_socket_ioctl,
-	.listen		= sock_no_listen,
-	.shutdown	= sock_no_shutdown,
+	.listen		= sock_anal_listen,
+	.shutdown	= sock_anal_shutdown,
 	.sendmsg	= pn_socket_sendmsg,
 	.recvmsg	= sock_common_recvmsg,
-	.mmap		= sock_no_mmap,
+	.mmap		= sock_anal_mmap,
 };
 
 const struct proto_ops phonet_stream_ops = {
@@ -449,18 +449,18 @@ const struct proto_ops phonet_stream_ops = {
 	.release	= pn_socket_release,
 	.bind		= pn_socket_bind,
 	.connect	= pn_socket_connect,
-	.socketpair	= sock_no_socketpair,
+	.socketpair	= sock_anal_socketpair,
 	.accept		= pn_socket_accept,
 	.getname	= pn_socket_getname,
 	.poll		= pn_socket_poll,
 	.ioctl		= pn_socket_ioctl,
 	.listen		= pn_socket_listen,
-	.shutdown	= sock_no_shutdown,
+	.shutdown	= sock_anal_shutdown,
 	.setsockopt	= sock_common_setsockopt,
 	.getsockopt	= sock_common_getsockopt,
 	.sendmsg	= pn_socket_sendmsg,
 	.recvmsg	= sock_common_recvmsg,
-	.mmap		= sock_no_mmap,
+	.mmap		= sock_anal_mmap,
 };
 EXPORT_SYMBOL(phonet_stream_ops);
 
@@ -499,7 +499,7 @@ int pn_sock_get_port(struct sock *sk, unsigned short sport)
 		pn_sockaddr_set_port(&try_sa, sport);
 		tmpsk = pn_find_sock_by_sa(net, &try_sa);
 		if (tmpsk == NULL)
-			/* No sock there! We can use that port... */
+			/* Anal sock there! We can use that port... */
 			goto found;
 		else
 			sock_put(tmpsk);
@@ -518,15 +518,15 @@ static struct sock *pn_sock_get_idx(struct seq_file *seq, loff_t pos)
 {
 	struct net *net = seq_file_net(seq);
 	struct hlist_head *hlist = pnsocks.hlist;
-	struct sock *sknode;
+	struct sock *skanalde;
 	unsigned int h;
 
 	for (h = 0; h < PN_HASHSIZE; h++) {
-		sk_for_each_rcu(sknode, hlist) {
-			if (!net_eq(net, sock_net(sknode)))
+		sk_for_each_rcu(skanalde, hlist) {
+			if (!net_eq(net, sock_net(skanalde)))
 				continue;
 			if (!pos)
-				return sknode;
+				return skanalde;
 			pos--;
 		}
 		hlist++;
@@ -575,7 +575,7 @@ static int pn_sock_seq_show(struct seq_file *seq, void *v)
 	seq_setwidth(seq, 127);
 	if (v == SEQ_START_TOKEN)
 		seq_puts(seq, "pt  loc  rem rs st tx_queue rx_queue "
-			"  uid inode ref pointer drops");
+			"  uid ianalde ref pointer drops");
 	else {
 		struct sock *sk = v;
 		struct pn_sock *pn = pn_sk(sk);
@@ -586,7 +586,7 @@ static int pn_sock_seq_show(struct seq_file *seq, void *v)
 			pn->resource, sk->sk_state,
 			sk_wmem_alloc_get(sk), sk_rmem_alloc_get(sk),
 			from_kuid_munged(seq_user_ns(seq), sock_i_uid(sk)),
-			sock_i_ino(sk),
+			sock_i_ianal(sk),
 			refcount_read(&sk->sk_refcnt), sk,
 			atomic_read(&sk->sk_drops));
 	}
@@ -631,7 +631,7 @@ int pn_sock_bind_res(struct sock *sk, u8 res)
 	int ret = -EADDRINUSE;
 
 	if (!net_eq(sock_net(sk), &init_net))
-		return -ENOIOCTLCMD;
+		return -EANALIOCTLCMD;
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 	if (pn_socket_autobind(sk->sk_socket))
@@ -649,7 +649,7 @@ int pn_sock_bind_res(struct sock *sk, u8 res)
 
 int pn_sock_unbind_res(struct sock *sk, u8 res)
 {
-	int ret = -ENOENT;
+	int ret = -EANALENT;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
@@ -749,7 +749,7 @@ static int pn_res_seq_show(struct seq_file *seq, void *v)
 {
 	seq_setwidth(seq, 63);
 	if (v == SEQ_START_TOKEN)
-		seq_puts(seq, "rs   uid inode");
+		seq_puts(seq, "rs   uid ianalde");
 	else {
 		struct sock **psk = v;
 		struct sock *sk = *psk;
@@ -757,7 +757,7 @@ static int pn_res_seq_show(struct seq_file *seq, void *v)
 		seq_printf(seq, "%02X %5u %lu",
 			   (int) (psk - pnres.sk),
 			   from_kuid_munged(seq_user_ns(seq), sock_i_uid(sk)),
-			   sock_i_ino(sk));
+			   sock_i_ianal(sk));
 	}
 	seq_pad(seq, '\n');
 	return 0;

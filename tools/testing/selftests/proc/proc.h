@@ -2,7 +2,7 @@
 #undef NDEBUG
 #include <assert.h>
 #include <dirent.h>
-#include <errno.h>
+#include <erranal.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
@@ -32,9 +32,9 @@ static unsigned long long xstrtoull(const char *p, char **end)
 	} else if ('1' <= *p && *p <= '9') {
 		unsigned long long val;
 
-		errno = 0;
+		erranal = 0;
 		val = strtoull(p, end, 10);
-		assert(errno == 0);
+		assert(erranal == 0);
 		return val;
 	} else
 		assert(0);
@@ -44,8 +44,8 @@ static struct dirent *xreaddir(DIR *d)
 {
 	struct dirent *de;
 
-	errno = 0;
+	erranal = 0;
 	de = readdir(d);
-	assert(de || errno == 0);
+	assert(de || erranal == 0);
 	return de;
 }

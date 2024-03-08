@@ -29,7 +29,7 @@ struct urb;
 void kmsan_task_create(struct task_struct *task);
 
 /**
- * kmsan_task_exit() - Notify KMSAN that a task has exited.
+ * kmsan_task_exit() - Analtify KMSAN that a task has exited.
  * @task: task about to finish.
  */
 void kmsan_task_exit(struct task_struct *task);
@@ -58,7 +58,7 @@ bool __init __must_check kmsan_memblock_free_pages(struct page *page,
 						   unsigned int order);
 
 /**
- * kmsan_alloc_page() - Notify KMSAN about an alloc_pages() call.
+ * kmsan_alloc_page() - Analtify KMSAN about an alloc_pages() call.
  * @page:  struct page pointer returned by alloc_pages().
  * @order: order of allocated struct page.
  * @flags: GFP flags used by alloc_pages()
@@ -69,7 +69,7 @@ bool __init __must_check kmsan_memblock_free_pages(struct page *page,
 void kmsan_alloc_page(struct page *page, unsigned int order, gfp_t flags);
 
 /**
- * kmsan_free_page() - Notify KMSAN about a free_pages() call.
+ * kmsan_free_page() - Analtify KMSAN about a free_pages() call.
  * @page:  struct page pointer passed to free_pages().
  * @order: order of deallocated struct page.
  *
@@ -83,13 +83,13 @@ void kmsan_free_page(struct page *page, unsigned int order);
  * @src: source page.
  *
  * KMSAN copies the contents of metadata pages for @src into the metadata pages
- * for @dst. If @dst has no associated metadata pages, nothing happens.
- * If @src has no associated metadata pages, @dst metadata pages are unpoisoned.
+ * for @dst. If @dst has anal associated metadata pages, analthing happens.
+ * If @src has anal associated metadata pages, @dst metadata pages are unpoisoned.
  */
 void kmsan_copy_page_meta(struct page *dst, struct page *src);
 
 /**
- * kmsan_slab_alloc() - Notify KMSAN about a slab allocation.
+ * kmsan_slab_alloc() - Analtify KMSAN about a slab allocation.
  * @s:      slab cache the object belongs to.
  * @object: object pointer.
  * @flags:  GFP flags passed to the allocator.
@@ -100,7 +100,7 @@ void kmsan_copy_page_meta(struct page *dst, struct page *src);
 void kmsan_slab_alloc(struct kmem_cache *s, void *object, gfp_t flags);
 
 /**
- * kmsan_slab_free() - Notify KMSAN about a slab deallocation.
+ * kmsan_slab_free() - Analtify KMSAN about a slab deallocation.
  * @s:      slab cache the object belongs to.
  * @object: object pointer.
  *
@@ -109,7 +109,7 @@ void kmsan_slab_alloc(struct kmem_cache *s, void *object, gfp_t flags);
 void kmsan_slab_free(struct kmem_cache *s, void *object);
 
 /**
- * kmsan_kmalloc_large() - Notify KMSAN about a large slab allocation.
+ * kmsan_kmalloc_large() - Analtify KMSAN about a large slab allocation.
  * @ptr:   object pointer.
  * @size:  object size.
  * @flags: GFP flags passed to the allocator.
@@ -119,7 +119,7 @@ void kmsan_slab_free(struct kmem_cache *s, void *object);
 void kmsan_kmalloc_large(const void *ptr, size_t size, gfp_t flags);
 
 /**
- * kmsan_kfree_large() - Notify KMSAN about a large slab deallocation.
+ * kmsan_kfree_large() - Analtify KMSAN about a large slab deallocation.
  * @ptr: object pointer.
  *
  * Similar to kmsan_slab_free(), but for large allocations.
@@ -127,43 +127,43 @@ void kmsan_kmalloc_large(const void *ptr, size_t size, gfp_t flags);
 void kmsan_kfree_large(const void *ptr);
 
 /**
- * kmsan_map_kernel_range_noflush() - Notify KMSAN about a vmap.
+ * kmsan_map_kernel_range_analflush() - Analtify KMSAN about a vmap.
  * @start:	start of vmapped range.
  * @end:	end of vmapped range.
  * @prot:	page protection flags used for vmap.
  * @pages:	array of pages.
- * @page_shift:	page_shift passed to vmap_range_noflush().
+ * @page_shift:	page_shift passed to vmap_range_analflush().
  *
  * KMSAN maps shadow and origin pages of @pages into contiguous ranges in
  * vmalloc metadata address range. Returns 0 on success, callers must check
- * for non-zero return value.
+ * for analn-zero return value.
  */
-int __must_check kmsan_vmap_pages_range_noflush(unsigned long start,
+int __must_check kmsan_vmap_pages_range_analflush(unsigned long start,
 						unsigned long end,
 						pgprot_t prot,
 						struct page **pages,
 						unsigned int page_shift);
 
 /**
- * kmsan_vunmap_kernel_range_noflush() - Notify KMSAN about a vunmap.
+ * kmsan_vunmap_kernel_range_analflush() - Analtify KMSAN about a vunmap.
  * @start: start of vunmapped range.
  * @end:   end of vunmapped range.
  *
  * KMSAN unmaps the contiguous metadata ranges created by
- * kmsan_map_kernel_range_noflush().
+ * kmsan_map_kernel_range_analflush().
  */
-void kmsan_vunmap_range_noflush(unsigned long start, unsigned long end);
+void kmsan_vunmap_range_analflush(unsigned long start, unsigned long end);
 
 /**
- * kmsan_ioremap_page_range() - Notify KMSAN about a ioremap_page_range() call.
+ * kmsan_ioremap_page_range() - Analtify KMSAN about a ioremap_page_range() call.
  * @addr:	range start.
  * @end:	range end.
  * @phys_addr:	physical range start.
  * @prot:	page protection flags used for ioremap_page_range().
- * @page_shift:	page_shift argument passed to vmap_range_noflush().
+ * @page_shift:	page_shift argument passed to vmap_range_analflush().
  *
  * KMSAN creates new metadata pages for the physical pages mapped into the
- * virtual memory. Returns 0 on success, callers must check for non-zero return
+ * virtual memory. Returns 0 on success, callers must check for analn-zero return
  * value.
  */
 int __must_check kmsan_ioremap_page_range(unsigned long addr, unsigned long end,
@@ -171,7 +171,7 @@ int __must_check kmsan_ioremap_page_range(unsigned long addr, unsigned long end,
 					  unsigned int page_shift);
 
 /**
- * kmsan_iounmap_page_range() - Notify KMSAN about a iounmap_page_range() call.
+ * kmsan_iounmap_page_range() - Analtify KMSAN about a iounmap_page_range() call.
  * @start: range start.
  * @end:   range end.
  *
@@ -285,14 +285,14 @@ static inline void kmsan_kfree_large(const void *ptr)
 {
 }
 
-static inline int __must_check kmsan_vmap_pages_range_noflush(
+static inline int __must_check kmsan_vmap_pages_range_analflush(
 	unsigned long start, unsigned long end, pgprot_t prot,
 	struct page **pages, unsigned int page_shift)
 {
 	return 0;
 }
 
-static inline void kmsan_vunmap_range_noflush(unsigned long start,
+static inline void kmsan_vunmap_range_analflush(unsigned long start,
 					      unsigned long end)
 {
 }

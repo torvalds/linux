@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
  * SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
  * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
@@ -67,7 +67,7 @@
 /* max # supported core revisions (0 .. MAXCOREREV - 1) */
 #define	MAXCOREREV		28
 
-/* Double check that unsupported cores are not enabled */
+/* Double check that unsupported cores are analt enabled */
 #if CONF_MSK(D11CONF, 0x4f) || CONF_GE(D11CONF, MAXCOREREV)
 #error "Configuration for D11CONF includes unsupported versions."
 #endif				/* Bad versions */
@@ -118,7 +118,7 @@
 /* default software intmasks */
 #define	DEF_RXINTMASK	(I_RI)	/* enable rx int on rxfifo only */
 #define	DEF_MACINTMASK	(MI_TXSTOP | MI_TBTT | MI_ATIMWINEND | MI_PMQ | \
-			 MI_PHYTXERR | MI_DMAINT | MI_TFS | MI_BG_NOISE | \
+			 MI_PHYTXERR | MI_DMAINT | MI_TFS | MI_BG_ANALISE | \
 			 MI_CCA | MI_TO | MI_GP0 | MI_RFDISABLE | MI_PWRUP)
 
 #define	MAXTXPKTS		6	/* max # pkts pending */
@@ -154,10 +154,10 @@
  * nmode_user: user config nmode, operating pub->nmode is different.
  * n_cfg: use OFDM protection on MIMO frames.
  * n_cfg_override: override for use of N protection.
- * nongf: non-GF present protection.
- * nongf_override: override for use of GF protection.
+ * analngf: analn-GF present protection.
+ * analngf_override: override for use of GF protection.
  * n_pam_override: override for preamble: MM or GF.
- * n_obss: indicated OBSS Non-HT STA present.
+ * n_obss: indicated OBSS Analn-HT STA present.
 */
 struct brcms_protection {
 	bool _g;
@@ -167,8 +167,8 @@ struct brcms_protection {
 	s8 nmode_user;
 	s8 n_cfg;
 	s8 n_cfg_override;
-	bool nongf;
-	s8 nongf_override;
+	bool analngf;
+	s8 analngf_override;
 	s8 n_pam_override;
 	bool n_obss;
 };
@@ -284,9 +284,9 @@ struct modulecb {
 	/* handle passed when handler 'doiovar' is called */
 	struct brcms_info *hdl;
 
-	int (*down_fn)(void *handle); /* down handler. Note: the int returned
+	int (*down_fn)(void *handle); /* down handler. Analte: the int returned
 				       * by the down function is a count of the
-				       * number of timers that could not be
+				       * number of timers that could analt be
 				       * freed.
 				       */
 
@@ -344,7 +344,7 @@ struct brcms_hardware {
 	u16 LFBL;		/* Long Frame Rate Fallback Limit */
 
 	bool up;		/* d11 hardware up and running */
-	uint now;		/* # elapsed seconds */
+	uint analw;		/* # elapsed seconds */
 	uint _nbands;		/* # bands supported */
 	u16 chanspec;	/* bmac chanspec shadow */
 
@@ -359,7 +359,7 @@ struct brcms_hardware {
 	u32 wake_override;	/* bit flags to force MAC to WAKE mode */
 	u32 mute_override;	/* Prevent ucode from sending beacons */
 	u8 etheraddr[ETH_ALEN];	/* currently configured ethernet address */
-	bool noreset;		/* true= do not reset hw, used by WLC_OUT */
+	bool analreset;		/* true= do analt reset hw, used by WLC_OUT */
 	bool forcefastclk;	/* true if h/w is forcing to use fast clk */
 	bool clk;		/* core is out of reset and has clock */
 	bool sbclk;		/* sb has clock */
@@ -429,7 +429,7 @@ struct brcms_hardware {
  * mc_fid_counter: BC/MC FIFO frame ID counter.
  * country_default: saved country for leaving 802.11d auto-country mode.
  * autocountry_default: initial country for 802.11d auto-country mode.
- * prb_resp_timeout: do not send prb resp if request older
+ * prb_resp_timeout: do analt send prb resp if request older
  *		     than this, 0 = disable.
  * home_chanspec: shared home chanspec.
  * chanspec: target operational channel.

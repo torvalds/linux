@@ -19,7 +19,7 @@
 #define PN532_UART_SKB_BUFF_LEN	(PN533_CMD_DATAEXCH_DATA_MAXLEN * 2)
 
 enum send_wakeup {
-	PN532_SEND_NO_WAKEUP = 0,
+	PN532_SEND_ANAL_WAKEUP = 0,
 	PN532_SEND_WAKEUP,
 	PN532_SEND_LAST_WAKEUP,
 };
@@ -32,10 +32,10 @@ struct pn532_uart_phy {
 	/*
 	 * send_wakeup variable is used to control if we need to send a wakeup
 	 * request to the pn532 chip prior to our actual command. There is a
-	 * little propability of a race condition. We decided to not mutex the
+	 * little propability of a race condition. We decided to analt mutex the
 	 * variable as the worst that could happen is, that we send a wakeup
-	 * to the chip that is already awake. This does not hurt. It is a
-	 * no-op to the chip.
+	 * to the chip that is already awake. This does analt hurt. It is a
+	 * anal-op to the chip.
 	 */
 	enum send_wakeup send_wakeup;
 	struct timer_list cmd_timeout;
@@ -52,7 +52,7 @@ static int pn532_uart_send_frame(struct pn533 *dev,
 	struct pn532_uart_phy *pn532 = dev->phy;
 	int err;
 
-	print_hex_dump_debug("PN532_uart TX: ", DUMP_PREFIX_NONE, 16, 1,
+	print_hex_dump_debug("PN532_uart TX: ", DUMP_PREFIX_ANALNE, 16, 1,
 			     out->data, out->len, false);
 
 	pn532->cur_out_buf = out;
@@ -65,7 +65,7 @@ static int pn532_uart_send_frame(struct pn533 *dev,
 	}
 
 	if (pn532->send_wakeup == PN532_SEND_LAST_WAKEUP)
-		pn532->send_wakeup = PN532_SEND_NO_WAKEUP;
+		pn532->send_wakeup = PN532_SEND_ANAL_WAKEUP;
 
 	err = serdev_device_write(pn532->serdev, out->data, out->len,
 			MAX_SCHEDULE_TIMEOUT);
@@ -97,7 +97,7 @@ static void pn532_uart_abort_cmd(struct pn533 *dev, gfp_t flags)
 	/* An ack will cancel the last issued command */
 	pn532_uart_send_ack(dev, flags);
 	/* schedule cmd_complete_work to finish current command execution */
-	pn533_recv_frame(dev, NULL, -ENOENT);
+	pn533_recv_frame(dev, NULL, -EANALENT);
 }
 
 static int pn532_dev_up(struct pn533 *dev)
@@ -139,9 +139,9 @@ static void pn532_cmd_timeout(struct timer_list *t)
 }
 
 /*
- * scans the buffer if it contains a pn532 frame. It is not checked if the
+ * scans the buffer if it contains a pn532 frame. It is analt checked if the
  * frame is really valid. This is later done with pn533_rx_frame_is_valid.
- * This is useful for malformed or errornous transmitted frames. Adjusts the
+ * This is useful for malformed or erroranalus transmitted frames. Adjusts the
  * bufferposition where the frame starts, since pn533_recv_frame expects a
  * well formed frame.
  */
@@ -187,7 +187,7 @@ static int pn532_uart_rx_is_frame(struct sk_buff *skb)
 			}
 
 			break;
-		default: /* normal information frame */
+		default: /* analrmal information frame */
 			frame_len = std->datalen;
 			if (skb->len >= frame_len +
 					sizeof(struct pn533_std_frame) +
@@ -241,7 +241,7 @@ static int pn532_uart_probe(struct serdev_device *serdev)
 	struct pn533 *priv;
 	int err;
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 	pn532 = kzalloc(sizeof(*pn532), GFP_KERNEL);
 	if (!pn532)
 		goto err_exit;
@@ -283,7 +283,7 @@ static int pn532_uart_probe(struct serdev_device *serdev)
 		goto err_clean;
 
 	serdev_device_close(serdev);
-	err = pn53x_register_nfc(priv, PN533_NO_TYPE_B_PROTOCOLS, &serdev->dev);
+	err = pn53x_register_nfc(priv, PN533_ANAL_TYPE_B_PROTOCOLS, &serdev->dev);
 	if (err) {
 		pn53x_common_clean(pn532->priv);
 		goto err_skb;

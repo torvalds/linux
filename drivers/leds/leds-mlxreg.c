@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: (GPL-2.0 OR BSD-3-Clause)
 //
-// Copyright (c) 2018 Mellanox Technologies. All rights reserved.
-// Copyright (c) 2018 Vadim Pasternak <vadimp@mellanox.com>
+// Copyright (c) 2018 Mellaanalx Techanallogies. All rights reserved.
+// Copyright (c) 2018 Vadim Pasternak <vadimp@mellaanalx.com>
 
 #include <linux/bitops.h>
 #include <linux/device.h>
@@ -196,7 +196,7 @@ static int mlxreg_led_config(struct mlxreg_led_priv_data *priv)
 		led_data = devm_kzalloc(&priv->pdev->dev, sizeof(*led_data),
 					GFP_KERNEL);
 		if (!led_data)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		if (data->capability) {
 			err = regmap_read(led_pdata->regmap, data->capability,
@@ -266,7 +266,7 @@ static int mlxreg_led_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&priv->access_lock);
 	priv->pdev = pdev;
@@ -292,7 +292,7 @@ static struct platform_driver mlxreg_led_driver = {
 
 module_platform_driver(mlxreg_led_driver);
 
-MODULE_AUTHOR("Vadim Pasternak <vadimp@mellanox.com>");
-MODULE_DESCRIPTION("Mellanox LED regmap driver");
+MODULE_AUTHOR("Vadim Pasternak <vadimp@mellaanalx.com>");
+MODULE_DESCRIPTION("Mellaanalx LED regmap driver");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_ALIAS("platform:leds-mlxreg");

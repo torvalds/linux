@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 /*
  * Surface System Aggregator Module (SSAM) user-space EC interface.
  *
@@ -19,14 +19,14 @@
  * enum ssam_cdev_request_flags - Request flags for SSAM cdev request IOCTL.
  *
  * @SSAM_CDEV_REQUEST_HAS_RESPONSE:
- *	Specifies that the request expects a response. If not set, the request
+ *	Specifies that the request expects a response. If analt set, the request
  *	will be directly completed after its underlying packet has been
  *	transmitted. If set, the request transport system waits for a response
  *	of the request.
  *
  * @SSAM_CDEV_REQUEST_UNSEQUENCED:
  *	Specifies that the request should be transmitted via an unsequenced
- *	packet. If set, the request must not have a response, meaning that this
+ *	packet. If set, the request must analt have a response, meaning that this
  *	flag and the %SSAM_CDEV_REQUEST_HAS_RESPONSE flag are mutually
  *	exclusive.
  */
@@ -74,18 +74,18 @@ struct ssam_cdev_request {
 } __attribute__((__packed__));
 
 /**
- * struct ssam_cdev_notifier_desc - Notifier descriptor.
- * @priority:        Priority value determining the order in which notifier
+ * struct ssam_cdev_analtifier_desc - Analtifier descriptor.
+ * @priority:        Priority value determining the order in which analtifier
  *                   callbacks will be called. A higher value means higher
  *                   priority, i.e. the associated callback will be executed
  *                   earlier than other (lower priority) callbacks.
- * @target_category: The event target category for which this notifier should
+ * @target_category: The event target category for which this analtifier should
  *                   receive events.
  *
- * Specifies the notifier that should be registered or unregistered,
+ * Specifies the analtifier that should be registered or unregistered,
  * specifically with which priority and for which target category of events.
  */
-struct ssam_cdev_notifier_desc {
+struct ssam_cdev_analtifier_desc {
 	__s32 priority;
 	__u8 target_category;
 } __attribute__((__packed__));
@@ -139,8 +139,8 @@ struct ssam_cdev_event {
 } __attribute__((__packed__));
 
 #define SSAM_CDEV_REQUEST		_IOWR(0xA5, 1, struct ssam_cdev_request)
-#define SSAM_CDEV_NOTIF_REGISTER	_IOW(0xA5, 2, struct ssam_cdev_notifier_desc)
-#define SSAM_CDEV_NOTIF_UNREGISTER	_IOW(0xA5, 3, struct ssam_cdev_notifier_desc)
+#define SSAM_CDEV_ANALTIF_REGISTER	_IOW(0xA5, 2, struct ssam_cdev_analtifier_desc)
+#define SSAM_CDEV_ANALTIF_UNREGISTER	_IOW(0xA5, 3, struct ssam_cdev_analtifier_desc)
 #define SSAM_CDEV_EVENT_ENABLE		_IOW(0xA5, 4, struct ssam_cdev_event_desc)
 #define SSAM_CDEV_EVENT_DISABLE		_IOW(0xA5, 5, struct ssam_cdev_event_desc)
 

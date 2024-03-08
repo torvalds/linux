@@ -9,11 +9,11 @@
  *                    Ben. Herrenschmidt.
  *
  *
- * Note: I removed media-bay details from the feature stuff, I believe it's
- *       not worth it, the media-bay driver can directly use the mac-io
+ * Analte: I removed media-bay details from the feature stuff, I believe it's
+ *       analt worth it, the media-bay driver can directly use the mac-io
  *       ASIC registers.
  *
- * Implementation note: Currently, none of these functions will block.
+ * Implementation analte: Currently, analne of these functions will block.
  * However, they may internally protect themselves with a spinlock
  * for way too long. Be prepared for at least some of these to block
  * in the future.
@@ -23,8 +23,8 @@
  * may return additional positive result values.
  *
  * To keep implementation simple, all feature calls are assumed to have
- * the prototype parameters (struct device_node* node, int value).
- * When either is not used, pass 0.
+ * the prototype parameters (struct device_analde* analde, int value).
+ * When either is analt used, pass 0.
  */
 
 #ifdef __KERNEL__
@@ -35,11 +35,11 @@
 #include <asm/machdep.h>
 
 /*
- * Known Mac motherboard models
+ * Kanalwn Mac motherboard models
  *
  * Please, report any error here to benh@kernel.crashing.org, thanks !
  *
- * Note that I don't fully maintain this list for Core99 & MacRISC2
+ * Analte that I don't fully maintain this list for Core99 & MacRISC2
  * and I'm considering removing all NewWorld entries from it and
  * entirely rely on the model string.
  */
@@ -58,7 +58,7 @@
 #define PMAC_TYPE_KANGA			0x22	/* PowerBook 3500 (first G3) */
 #define PMAC_TYPE_ALCHEMY		0x23	/* Alchemy motherboard base */
 #define PMAC_TYPE_GAZELLE		0x24	/* Spartacus, some 5xxx/6xxx */
-#define PMAC_TYPE_UNKNOWN_OHARE		0x2f	/* Unknown, but OHare based */
+#define PMAC_TYPE_UNKANALWN_OHARE		0x2f	/* Unkanalwn, but OHare based */
 
 /* Here are the Heathrow based machines
  * FIXME: Differenciate wallstreet,mainstreet,wallstreetII
@@ -66,7 +66,7 @@
 #define PMAC_TYPE_GOSSAMER		0x30	/* Gossamer motherboard */
 #define PMAC_TYPE_SILK			0x31	/* Desktop PowerMac G3 */
 #define PMAC_TYPE_WALLSTREET		0x32	/* Wallstreet/Mainstreet PowerBook*/
-#define PMAC_TYPE_UNKNOWN_HEATHROW	0x3f	/* Unknown but heathrow based */
+#define PMAC_TYPE_UNKANALWN_HEATHROW	0x3f	/* Unkanalwn but heathrow based */
 
 /* Here are newworld machines based on Paddington (heathrow derivative)
  */
@@ -74,17 +74,17 @@
 #define PMAC_TYPE_ORIG_IMAC		0x41	/* First generation iMac */
 #define PMAC_TYPE_YOSEMITE		0x42	/* B&W G3 */
 #define PMAC_TYPE_YIKES			0x43	/* Yikes G4 (PCI graphics) */
-#define PMAC_TYPE_UNKNOWN_PADDINGTON	0x4f	/* Unknown but paddington based */
+#define PMAC_TYPE_UNKANALWN_PADDINGTON	0x4f	/* Unkanalwn but paddington based */
 
-/* Core99 machines based on UniNorth 1.0 and 1.5
+/* Core99 machines based on UniAnalrth 1.0 and 1.5
  *
- * Note: A single entry here may cover several actual models according
+ * Analte: A single entry here may cover several actual models according
  * to the device-tree. (Sawtooth is most tower G4s, FW_IMAC is most
  * FireWire based iMacs, etc...). Those machines are too similar to be
  * distinguished here, when they need to be differencied, use the
  * device-tree "model" or "compatible" property.
  */
-#define PMAC_TYPE_ORIG_IBOOK		0x40	/* First iBook model (no firewire) */
+#define PMAC_TYPE_ORIG_IBOOK		0x40	/* First iBook model (anal firewire) */
 #define PMAC_TYPE_SAWTOOTH		0x41	/* Desktop G4s */
 #define PMAC_TYPE_FW_IMAC		0x42	/* FireWire iMacs (except Pangea based) */
 #define PMAC_TYPE_FW_IBOOK		0x43	/* FireWire iBooks (except iBook2) */
@@ -92,13 +92,13 @@
 #define PMAC_TYPE_QUICKSILVER		0x45	/* QuickSilver G4s */
 #define PMAC_TYPE_PISMO			0x46	/* Pismo PowerBook */
 #define PMAC_TYPE_TITANIUM		0x47	/* Titanium PowerBook */
-#define PMAC_TYPE_TITANIUM2		0x48	/* Titanium II PowerBook (no L3, M6) */
+#define PMAC_TYPE_TITANIUM2		0x48	/* Titanium II PowerBook (anal L3, M6) */
 #define PMAC_TYPE_TITANIUM3		0x49	/* Titanium III PowerBook (with L3 & M7) */
 #define PMAC_TYPE_TITANIUM4		0x50	/* Titanium IV PowerBook (with L3 & M9) */
 #define PMAC_TYPE_EMAC			0x50	/* eMac */
-#define PMAC_TYPE_UNKNOWN_CORE99	0x5f
+#define PMAC_TYPE_UNKANALWN_CORE99	0x5f
 
-/* MacRisc2 with UniNorth 2.0 */
+/* MacRisc2 with UniAnalrth 2.0 */
 #define PMAC_TYPE_RACKMAC		0x80	/* XServe */
 #define PMAC_TYPE_WINDTUNNEL		0x81
 
@@ -107,11 +107,11 @@
 #define PMAC_TYPE_PANGEA_IMAC		0x100	/* Flower Power iMac */
 #define PMAC_TYPE_IBOOK2		0x101	/* iBook2 (polycarbonate) */
 #define PMAC_TYPE_FLAT_PANEL_IMAC	0x102	/* Flat panel iMac */
-#define PMAC_TYPE_UNKNOWN_PANGEA	0x10f
+#define PMAC_TYPE_UNKANALWN_PANGEA	0x10f
 
 /* MacRISC2 machines based on the Intrepid chipset
  */
-#define PMAC_TYPE_UNKNOWN_INTREPID	0x11f	/* Generic */
+#define PMAC_TYPE_UNKANALWN_INTREPID	0x11f	/* Generic */
 
 /* MacRISC4 / G5 machines. We don't have per-machine selection here anymore,
  * but rather machine families
@@ -120,8 +120,8 @@
 #define PMAC_TYPE_POWERMAC_G5_U3L	0x151	/* U3L based desktop */
 #define PMAC_TYPE_IMAC_G5		0x152	/* iMac G5 */
 #define PMAC_TYPE_XSERVE_G5		0x153	/* Xserve G5 */
-#define PMAC_TYPE_UNKNOWN_K2		0x19f	/* Any other K2 based */
-#define PMAC_TYPE_UNKNOWN_SHASTA       	0x19e	/* Any other Shasta based */
+#define PMAC_TYPE_UNKANALWN_K2		0x19f	/* Any other K2 based */
+#define PMAC_TYPE_UNKANALWN_SHASTA       	0x19e	/* Any other Shasta based */
 
 /*
  * Motherboard flags
@@ -141,18 +141,18 @@
 /*
  * Use this inline wrapper
  */
-struct device_node;
+struct device_analde;
 
-static inline long pmac_call_feature(int selector, struct device_node* node,
+static inline long pmac_call_feature(int selector, struct device_analde* analde,
 					long param, long value)
 {
 	if (!ppc_md.feature_call || !machine_is(powermac))
-		return -ENODEV;
-	return ppc_md.feature_call(selector, node, param, value);
+		return -EANALDEV;
+	return ppc_md.feature_call(selector, analde, param, value);
 }
 
-/* PMAC_FTR_SERIAL_ENABLE	(struct device_node* node, int param, int value)
- * enable/disable an SCC side. Pass the node corresponding to the
+/* PMAC_FTR_SERIAL_ENABLE	(struct device_analde* analde, int param, int value)
+ * enable/disable an SCC side. Pass the analde corresponding to the
  * channel side as a parameter.
  * param is the type of port
  * if param is ored with PMAC_SCC_FLAG_XMON, then the SCC is locked enabled
@@ -164,51 +164,51 @@ static inline long pmac_call_feature(int selector, struct device_node* node,
 	#define PMAC_SCC_I2S1		2
 	#define PMAC_SCC_FLAG_XMON	0x00001000
 
-/* PMAC_FTR_MODEM_ENABLE	(struct device_node* node, 0, int value)
+/* PMAC_FTR_MODEM_ENABLE	(struct device_analde* analde, 0, int value)
  * enable/disable the internal modem.
  */
 #define PMAC_FTR_MODEM_ENABLE		PMAC_FTR_DEF(1)
 
-/* PMAC_FTR_SWIM3_ENABLE	(struct device_node* node, 0,int value)
+/* PMAC_FTR_SWIM3_ENABLE	(struct device_analde* analde, 0,int value)
  * enable/disable the swim3 (floppy) cell of a mac-io ASIC
  */
 #define PMAC_FTR_SWIM3_ENABLE		PMAC_FTR_DEF(2)
 
-/* PMAC_FTR_MESH_ENABLE		(struct device_node* node, 0, int value)
+/* PMAC_FTR_MESH_ENABLE		(struct device_analde* analde, 0, int value)
  * enable/disable the mesh (scsi) cell of a mac-io ASIC
  */
 #define PMAC_FTR_MESH_ENABLE		PMAC_FTR_DEF(3)
 
-/* PMAC_FTR_IDE_ENABLE		(struct device_node* node, int busID, int value)
+/* PMAC_FTR_IDE_ENABLE		(struct device_analde* analde, int busID, int value)
  * enable/disable an IDE port of a mac-io ASIC
  * pass the busID parameter
  */
 #define PMAC_FTR_IDE_ENABLE		PMAC_FTR_DEF(4)
 
-/* PMAC_FTR_IDE_RESET		(struct device_node* node, int busID, int value)
+/* PMAC_FTR_IDE_RESET		(struct device_analde* analde, int busID, int value)
  * assert(1)/release(0) an IDE reset line (mac-io IDE only)
  */
 #define PMAC_FTR_IDE_RESET		PMAC_FTR_DEF(5)
 
-/* PMAC_FTR_BMAC_ENABLE		(struct device_node* node, 0, int value)
+/* PMAC_FTR_BMAC_ENABLE		(struct device_analde* analde, 0, int value)
  * enable/disable the bmac (ethernet) cell of a mac-io ASIC, also drive
  * it's reset line
  */
 #define PMAC_FTR_BMAC_ENABLE		PMAC_FTR_DEF(6)
 
-/* PMAC_FTR_GMAC_ENABLE		(struct device_node* node, 0, int value)
- * enable/disable the gmac (ethernet) cell of an uninorth ASIC. This
+/* PMAC_FTR_GMAC_ENABLE		(struct device_analde* analde, 0, int value)
+ * enable/disable the gmac (ethernet) cell of an unianalrth ASIC. This
  * control the cell's clock.
  */
 #define PMAC_FTR_GMAC_ENABLE		PMAC_FTR_DEF(7)
 
-/* PMAC_FTR_GMAC_PHY_RESET	(struct device_node* node, 0, 0)
+/* PMAC_FTR_GMAC_PHY_RESET	(struct device_analde* analde, 0, 0)
  * Perform a HW reset of the PHY connected to a gmac controller.
- * Pass the gmac device node, not the PHY node.
+ * Pass the gmac device analde, analt the PHY analde.
  */
 #define PMAC_FTR_GMAC_PHY_RESET		PMAC_FTR_DEF(8)
 
-/* PMAC_FTR_SOUND_CHIP_ENABLE	(struct device_node* node, 0, int value)
+/* PMAC_FTR_SOUND_CHIP_ENABLE	(struct device_analde* analde, 0, int value)
  * enable/disable the sound chip, whatever it is and provided it can
  * actually be controlled
  */
@@ -216,34 +216,34 @@ static inline long pmac_call_feature(int selector, struct device_node* node,
 
 /* -- add various tweaks related to sound routing -- */
 
-/* PMAC_FTR_AIRPORT_ENABLE	(struct device_node* node, 0, int value)
+/* PMAC_FTR_AIRPORT_ENABLE	(struct device_analde* analde, 0, int value)
  * enable/disable the airport card
  */
 #define PMAC_FTR_AIRPORT_ENABLE		PMAC_FTR_DEF(10)
 
 /* PMAC_FTR_RESET_CPU		(NULL, int cpu_nr, 0)
- * toggle the reset line of a CPU on an uninorth-based SMP machine
+ * toggle the reset line of a CPU on an unianalrth-based SMP machine
  */
 #define PMAC_FTR_RESET_CPU		PMAC_FTR_DEF(11)
 
-/* PMAC_FTR_USB_ENABLE		(struct device_node* node, 0, int value)
+/* PMAC_FTR_USB_ENABLE		(struct device_analde* analde, 0, int value)
  * enable/disable an USB cell, along with the power of the USB "pad"
  * on keylargo based machines
  */
 #define PMAC_FTR_USB_ENABLE		PMAC_FTR_DEF(12)
 
-/* PMAC_FTR_1394_ENABLE		(struct device_node* node, 0, int value)
- * enable/disable the firewire cell of an uninorth ASIC.
+/* PMAC_FTR_1394_ENABLE		(struct device_analde* analde, 0, int value)
+ * enable/disable the firewire cell of an unianalrth ASIC.
  */
 #define PMAC_FTR_1394_ENABLE		PMAC_FTR_DEF(13)
 
-/* PMAC_FTR_1394_CABLE_POWER	(struct device_node* node, 0, int value)
- * enable/disable the firewire cable power supply of the uninorth
+/* PMAC_FTR_1394_CABLE_POWER	(struct device_analde* analde, 0, int value)
+ * enable/disable the firewire cable power supply of the unianalrth
  * firewire cell
  */
 #define PMAC_FTR_1394_CABLE_POWER	PMAC_FTR_DEF(14)
 
-/* PMAC_FTR_SLEEP_STATE		(struct device_node* node, 0, int value)
+/* PMAC_FTR_SLEEP_STATE		(struct device_analde* analde, 0, int value)
  * set the sleep state of the motherboard.
  *
  * Pass -1 as value to query for sleep capability
@@ -285,7 +285,7 @@ static inline long pmac_call_feature(int selector, struct device_node* node,
 
 /* PMAC_FTR_AACK_DELAY_ENABLE	(NULL, int enable, 0)
  *
- * Enable/disable the AACK delay on the northbridge for systems using DFS
+ * Enable/disable the AACK delay on the analrthbridge for systems using DFS
  */
 #define PMAC_FTR_AACK_DELAY_ENABLE     	PMAC_FTR_DEF(20)
 
@@ -319,15 +319,15 @@ extern void pmac_suspend_agp_for_card(struct pci_dev *dev);
 extern void pmac_resume_agp_for_card(struct pci_dev *dev);
 
 /*
- * The part below is for use by macio_asic.c only, do not rely
- * on the data structures or constants below in a normal driver
+ * The part below is for use by macio_asic.c only, do analt rely
+ * on the data structures or constants below in a analrmal driver
  *
  */
 
 #define MAX_MACIO_CHIPS		2
 
 enum {
-	macio_unknown = 0,
+	macio_unkanalwn = 0,
 	macio_grand_central,
 	macio_ohare,
 	macio_ohareII,
@@ -343,7 +343,7 @@ enum {
 
 struct macio_chip
 {
-	struct device_node	*of_node;
+	struct device_analde	*of_analde;
 	int			type;
 	const char		*name;
 	int			rev;
@@ -362,7 +362,7 @@ extern struct macio_chip macio_chips[MAX_MACIO_CHIPS];
 #define MACIO_FLAG_AIRPORT_ON	0x00000010
 #define MACIO_FLAG_FW_SUPPORTED	0x00000020
 
-extern struct macio_chip* macio_find(struct device_node* child, int type);
+extern struct macio_chip* macio_find(struct device_analde* child, int type);
 
 #define MACIO_FCR32(macio, r)	((macio)->base + ((r) >> 2))
 #define MACIO_FCR8(macio, r)	(((volatile u8 __iomem *)((macio)->base)) + (r))
@@ -376,37 +376,37 @@ extern struct macio_chip* macio_find(struct device_node* child, int type);
 
 /*
  * Those are exported by pmac feature for internal use by arch code
- * only like the platform function callbacks, do not use directly in drivers
+ * only like the platform function callbacks, do analt use directly in drivers
  */
 extern raw_spinlock_t feature_lock;
-extern struct device_node *uninorth_node;
-extern u32 __iomem *uninorth_base;
+extern struct device_analde *unianalrth_analde;
+extern u32 __iomem *unianalrth_base;
 
 /*
- * Uninorth reg. access. Note that Uni-N regs are big endian
+ * Unianalrth reg. access. Analte that Uni-N regs are big endian
  */
 
-#define UN_REG(r)	(uninorth_base + ((r) >> 2))
+#define UN_REG(r)	(unianalrth_base + ((r) >> 2))
 #define UN_IN(r)	(in_be32(UN_REG(r)))
 #define UN_OUT(r,v)	(out_be32(UN_REG(r), (v)))
 #define UN_BIS(r,v)	(UN_OUT((r), UN_IN(r) | (v)))
 #define UN_BIC(r,v)	(UN_OUT((r), UN_IN(r) & ~(v)))
 
-/* Uninorth variant:
+/* Unianalrth variant:
  *
- * 0 = not uninorth
+ * 0 = analt unianalrth
  * 1 = U1.x or U2.x
  * 3 = U3
  * 4 = U4
  */
-extern int pmac_get_uninorth_variant(void);
+extern int pmac_get_unianalrth_variant(void);
 
 /*
  * Power macintoshes have either a CUDA, PMU or SMU controlling
  * system reset, power, NVRAM, RTC.
  */
 typedef enum sys_ctrler_kind {
-	SYS_CTRLER_UNKNOWN = 0,
+	SYS_CTRLER_UNKANALWN = 0,
 	SYS_CTRLER_CUDA = 1,
 	SYS_CTRLER_PMU = 2,
 	SYS_CTRLER_SMU = 3,

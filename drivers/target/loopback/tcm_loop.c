@@ -41,7 +41,7 @@
 
 static struct kmem_cache *tcm_loop_cmd_cache;
 
-static int tcm_loop_hba_no_cnt;
+static int tcm_loop_hba_anal_cnt;
 
 static int tcm_loop_queue_status(struct se_cmd *se_cmd);
 
@@ -116,7 +116,7 @@ static void tcm_loop_target_queue_cmd(struct tcm_loop_cmd *tl_cmd)
 	 * has already been configured via tcm_loop_make_naa_tpg().
 	 */
 	if (!tl_tpg->tl_hba) {
-		set_host_byte(sc, DID_NO_CONNECT);
+		set_host_byte(sc, DID_ANAL_CONNECT);
 		goto out_done;
 	}
 	if (tl_tpg->tl_transport_status == TCM_TRANSPORT_OFFLINE) {
@@ -126,14 +126,14 @@ static void tcm_loop_target_queue_cmd(struct tcm_loop_cmd *tl_cmd)
 	tl_nexus = tl_tpg->tl_nexus;
 	if (!tl_nexus) {
 		scmd_printk(KERN_ERR, sc,
-			    "TCM_Loop I_T Nexus does not exist\n");
+			    "TCM_Loop I_T Nexus does analt exist\n");
 		set_host_byte(sc, DID_ERROR);
 		goto out_done;
 	}
 
 	transfer_length = scsi_transfer_length(sc);
 	if (!scsi_prot_sg_count(sc) &&
-	    scsi_get_prot_op(sc) != SCSI_PROT_NORMAL) {
+	    scsi_get_prot_op(sc) != SCSI_PROT_ANALRMAL) {
 		se_cmd->prot_pto = true;
 		/*
 		 * loopback transport doesn't support
@@ -170,7 +170,7 @@ static int tcm_loop_queuecommand(struct Scsi_Host *sh, struct scsi_cmnd *sc)
 	struct tcm_loop_cmd *tl_cmd = scsi_cmd_priv(sc);
 
 	pr_debug("%s() %d:%d:%d:%llu got CDB: 0x%02x scsi_buf_len: %u\n",
-		 __func__, sc->device->host->host_no, sc->device->id,
+		 __func__, sc->device->host->host_anal, sc->device->id,
 		 sc->device->channel, sc->device->lun, sc->cmnd[0],
 		 scsi_bufflen(sc));
 
@@ -321,7 +321,7 @@ static int tcm_loop_driver_probe(struct device *dev)
 			sizeof(struct tcm_loop_hba));
 	if (!sh) {
 		pr_err("Unable to allocate struct scsi_host\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	tl_hba->sh = sh;
 
@@ -330,7 +330,7 @@ static int tcm_loop_driver_probe(struct device *dev)
 	 */
 	*((struct tcm_loop_hba **)sh->hostdata) = tl_hba;
 	/*
-	 * Setup single ID, Channel and LUN for now..
+	 * Setup single ID, Channel and LUN for analw..
 	 */
 	sh->max_id = 2;
 	sh->max_lun = 0;
@@ -351,7 +351,7 @@ static int tcm_loop_driver_probe(struct device *dev)
 	if (error) {
 		pr_err("%s: scsi_add_host failed\n", __func__);
 		scsi_host_put(sh);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	return 0;
 }
@@ -391,7 +391,7 @@ static int tcm_loop_setup_hba_bus(struct tcm_loop_hba *tl_hba, int tcm_loop_host
 	if (ret) {
 		pr_err("device_register() failed for tl_hba->dev: %d\n", ret);
 		put_device(&tl_hba->dev);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -465,7 +465,7 @@ static u16 tcm_loop_get_tag(struct se_portal_group *se_tpg)
 }
 
 /*
- * Returning (1) here allows for target_core_mod struct se_node_acl to be generated
+ * Returning (1) here allows for target_core_mod struct se_analde_acl to be generated
  * based upon the incoming fabric dependent SCSI Initiator Port
  */
 static int tcm_loop_check_demo_mode(struct se_portal_group *se_tpg)
@@ -501,7 +501,7 @@ static int tcm_loop_write_pending(struct se_cmd *se_cmd)
 	 * memory, and memory has already been mapped to struct se_cmd->t_mem_list
 	 * format with transport_generic_map_mem_to_cmd().
 	 *
-	 * We now tell TCM to add this WRITE CDB directly into the TCM storage
+	 * We analw tell TCM to add this WRITE CDB directly into the TCM storage
 	 * object execution queue.
 	 */
 	target_execute_cmd(se_cmd);
@@ -573,7 +573,7 @@ static char *tcm_loop_dump_proto_id(struct tcm_loop_hba *tl_hba)
 		break;
 	}
 
-	return "Unknown";
+	return "Unkanalwn";
 }
 
 /* Start items for tcm_loop_port_cit */
@@ -693,7 +693,7 @@ static int tcm_loop_make_nexus(
 
 	tl_nexus = kzalloc(sizeof(*tl_nexus), GFP_KERNEL);
 	if (!tl_nexus)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tl_nexus->se_sess = target_setup_session(&tl_tpg->tl_se_tpg, 0, 0,
 					TARGET_PROT_DIN_PASS | TARGET_PROT_DOUT_PASS,
@@ -717,11 +717,11 @@ static int tcm_loop_drop_nexus(
 
 	tl_nexus = tpg->tl_nexus;
 	if (!tl_nexus)
-		return -ENODEV;
+		return -EANALDEV;
 
 	se_sess = tl_nexus->se_sess;
 	if (!se_sess)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (atomic_read(&tpg->tl_tpg_port_count)) {
 		pr_err("Unable to remove TCM_Loop I_T Nexus with active TPG port count: %d\n",
@@ -731,7 +731,7 @@ static int tcm_loop_drop_nexus(
 
 	pr_debug("TCM_Loop_ConfigFS: Removing I_T Nexus to emulated %s Initiator Port: %s\n",
 		 tcm_loop_dump_proto_id(tpg->tl_hba),
-		 tl_nexus->se_sess->se_node_acl->initiatorname);
+		 tl_nexus->se_sess->se_analde_acl->initiatorname);
 	/*
 	 * Release the SCSI I_T Nexus to the emulated Target Port
 	 */
@@ -753,10 +753,10 @@ static ssize_t tcm_loop_tpg_nexus_show(struct config_item *item, char *page)
 
 	tl_nexus = tl_tpg->tl_nexus;
 	if (!tl_nexus)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = snprintf(page, PAGE_SIZE, "%s\n",
-		tl_nexus->se_sess->se_node_acl->initiatorname);
+		tl_nexus->se_sess->se_analde_acl->initiatorname);
 
 	return ret;
 }
@@ -792,7 +792,7 @@ static ssize_t tcm_loop_tpg_nexus_store(struct config_item *item,
 	ptr = strstr(i_port, "naa.");
 	if (ptr) {
 		if (tl_hba->tl_proto_id != SCSI_PROTOCOL_SAS) {
-			pr_err("Passed SAS Initiator Port %s does not match target port protoid: %s\n",
+			pr_err("Passed SAS Initiator Port %s does analt match target port protoid: %s\n",
 			       i_port, tcm_loop_dump_proto_id(tl_hba));
 			return -EINVAL;
 		}
@@ -802,7 +802,7 @@ static ssize_t tcm_loop_tpg_nexus_store(struct config_item *item,
 	ptr = strstr(i_port, "fc.");
 	if (ptr) {
 		if (tl_hba->tl_proto_id != SCSI_PROTOCOL_FCP) {
-			pr_err("Passed FCP Initiator Port %s does not match target port protoid: %s\n",
+			pr_err("Passed FCP Initiator Port %s does analt match target port protoid: %s\n",
 			       i_port, tcm_loop_dump_proto_id(tl_hba));
 			return -EINVAL;
 		}
@@ -812,7 +812,7 @@ static ssize_t tcm_loop_tpg_nexus_store(struct config_item *item,
 	ptr = strstr(i_port, "iqn.");
 	if (ptr) {
 		if (tl_hba->tl_proto_id != SCSI_PROTOCOL_ISCSI) {
-			pr_err("Passed iSCSI Initiator Port %s does not match target port protoid: %s\n",
+			pr_err("Passed iSCSI Initiator Port %s does analt match target port protoid: %s\n",
 			       i_port, tcm_loop_dump_proto_id(tl_hba));
 			return -EINVAL;
 		}
@@ -878,7 +878,7 @@ static ssize_t tcm_loop_tpg_transport_status_store(struct config_item *item,
 		if (tl_tpg->tl_nexus) {
 			struct se_session *tl_sess = tl_tpg->tl_nexus->se_sess;
 
-			core_allocate_nexus_loss_ua(tl_sess->se_node_acl);
+			core_allocate_nexus_loss_ua(tl_sess->se_analde_acl);
 		}
 		return count;
 	}
@@ -894,7 +894,7 @@ static ssize_t tcm_loop_tpg_address_show(struct config_item *item,
 	struct tcm_loop_hba *tl_hba = tl_tpg->tl_hba;
 
 	return snprintf(page, PAGE_SIZE, "%d:0:%d\n",
-			tl_hba->sh->host_no, tl_tpg->tl_tpgt);
+			tl_hba->sh->host_anal, tl_tpg->tl_tpgt);
 }
 
 CONFIGFS_ATTR(tcm_loop_tpg_, nexus);
@@ -939,7 +939,7 @@ static struct se_portal_group *tcm_loop_make_naa_tpg(struct se_wwn *wwn,
 	 */
 	ret = core_tpg_register(wwn, &tl_tpg->tl_se_tpg, tl_hba->tl_proto_id);
 	if (ret < 0)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	pr_debug("TCM_Loop_ConfigFS: Allocated Emulated %s Target Port %s,t,0x%04lx\n",
 		 tcm_loop_dump_proto_id(tl_hba),
@@ -991,7 +991,7 @@ static struct se_wwn *tcm_loop_make_scsi_hba(
 
 	tl_hba = kzalloc(sizeof(*tl_hba), GFP_KERNEL);
 	if (!tl_hba)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	/*
 	 * Determine the emulated Protocol Identifier and Target Port Name
@@ -1031,14 +1031,14 @@ check_len:
 	 * Linux/SCSI LLD of type struct Scsi_Host at tl_hba->sh after
 	 * device_register() callbacks in tcm_loop_driver_probe()
 	 */
-	ret = tcm_loop_setup_hba_bus(tl_hba, tcm_loop_hba_no_cnt);
+	ret = tcm_loop_setup_hba_bus(tl_hba, tcm_loop_hba_anal_cnt);
 	if (ret)
 		return ERR_PTR(ret);
 
 	sh = tl_hba->sh;
-	tcm_loop_hba_no_cnt++;
+	tcm_loop_hba_anal_cnt++;
 	pr_debug("TCM_Loop_ConfigFS: Allocated emulated Target %s Address: %s at Linux/SCSI Host ID: %d\n",
-		 tcm_loop_dump_proto_id(tl_hba), name, sh->host_no);
+		 tcm_loop_dump_proto_id(tl_hba), name, sh->host_anal);
 	return &tl_hba->tl_hba_wwn;
 out:
 	kfree(tl_hba);
@@ -1053,7 +1053,7 @@ static void tcm_loop_drop_scsi_hba(
 
 	pr_debug("TCM_Loop_ConfigFS: Deallocating emulated Target %s Address: %s at Linux/SCSI Host ID: %d\n",
 		 tcm_loop_dump_proto_id(tl_hba), tl_hba->tl_wwn_address,
-		 tl_hba->sh->host_no);
+		 tl_hba->sh->host_anal);
 	/*
 	 * Call device_unregister() on the original tl_hba->dev.
 	 * tcm_loop_fabric_scsi.c:tcm_loop_release_adapter() will
@@ -1108,11 +1108,11 @@ static const struct target_core_fabric_ops loop_ops = {
 
 static int __init tcm_loop_fabric_init(void)
 {
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	tcm_loop_cmd_cache = kmem_cache_create("tcm_loop_cmd_cache",
 				sizeof(struct tcm_loop_cmd),
-				__alignof__(struct tcm_loop_cmd),
+				__aliganalf__(struct tcm_loop_cmd),
 				0, NULL);
 	if (!tcm_loop_cmd_cache) {
 		pr_debug("kmem_cache_create() for tcm_loop_cmd_cache failed\n");

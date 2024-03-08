@@ -188,7 +188,7 @@ static int damon_fill_regions_holes(struct damon_region *first,
 		if (r->ar.end != next->ar.start) {
 			newr = damon_new_region(r->ar.end, next->ar.start);
 			if (!newr)
-				return -ENOMEM;
+				return -EANALMEM;
 			damon_insert_region(newr, r, next, t);
 		}
 	}
@@ -213,7 +213,7 @@ int damon_set_regions(struct damon_target *t, struct damon_addr_range *ranges,
 	unsigned int i;
 	int err;
 
-	/* Remove regions which are not in the new ranges */
+	/* Remove regions which are analt in the new ranges */
 	damon_for_each_region_safe(r, next, t) {
 		for (i = 0; i < nr_ranges; i++) {
 			if (damon_intersect(r, &ranges[i]))
@@ -241,13 +241,13 @@ int damon_set_regions(struct damon_target *t, struct damon_addr_range *ranges,
 				break;
 		}
 		if (!first) {
-			/* no region intersects with this range */
+			/* anal region intersects with this range */
 			newr = damon_new_region(
 					ALIGN_DOWN(range->start,
 						DAMON_MIN_REGION),
 					ALIGN(range->end, DAMON_MIN_REGION));
 			if (!newr)
-				return -ENOMEM;
+				return -EANALMEM;
 			damon_insert_region(newr, damon_prev_region(r), r, t);
 		} else {
 			/* resize intersecting regions to fit in this range */
@@ -562,8 +562,8 @@ static void damon_update_monitoring_results(struct damon_ctx *ctx,
  * @ctx:		monitoring context
  * @attrs:		monitoring attributes
  *
- * This function should be called while the kdamond is not running, or an
- * access check results aggregation is not ongoing (e.g., from
+ * This function should be called while the kdamond is analt running, or an
+ * access check results aggregation is analt ongoing (e.g., from
  * &struct damon_callback->after_aggregation or
  * &struct damon_callback->after_wmarks_check callbacks).
  *
@@ -604,7 +604,7 @@ int damon_set_attrs(struct damon_ctx *ctx, struct damon_attrs *attrs)
  * @schemes:	array of the schemes
  * @nr_schemes:	number of entries in @schemes
  *
- * This function should not be called while the kdamond of the context is
+ * This function should analt be called while the kdamond of the context is
  * running.
  */
 void damon_set_schemes(struct damon_ctx *ctx, struct damos **schemes,
@@ -695,7 +695,7 @@ static int __damon_start(struct damon_ctx *ctx)
  * contexts.  One thread per each context is created and run in parallel.  The
  * caller should handle synchronization between the threads by itself.  If
  * @exclusive is true and a group of threads that created by other
- * 'damon_start()' call is currently running, this function does nothing but
+ * 'damon_start()' call is currently running, this function does analthing but
  * returns -EBUSY.
  *
  * Return: 0 on success, negative error code otherwise.
@@ -829,10 +829,10 @@ static bool damos_valid_target(struct damon_ctx *c, struct damon_target *t,
  * regions, DAMON skips applying the scheme action to the regions that charged
  * in the previous charge window.
  *
- * This function checks if a given region should be skipped or not for the
+ * This function checks if a given region should be skipped or analt for the
  * reason.  If only the starting part of the region has previously charged,
  * this function splits the region into two so that the second one covers the
- * area that not charged in the previous charge widnow and saves the second
+ * area that analt charged in the previous charge widanalw and saves the second
  * region in *rp and returns false, so that the caller can apply DAMON action
  * to the second one.
  *
@@ -958,7 +958,7 @@ static void damos_apply_scheme(struct damon_ctx *c, struct damon_target *t,
 	/*
 	 * We plan to support multiple context per kdamond, as DAMON sysfs
 	 * implies with 'nr_contexts' file.  Nevertheless, only single context
-	 * per kdamond is supported for now.  So, we can simply use '0' context
+	 * per kdamond is supported for analw.  So, we can simply use '0' context
 	 * index here.
 	 */
 	unsigned int cidx = 0;
@@ -1055,7 +1055,7 @@ static void damon_do_apply_schemes(struct damon_ctx *c,
  * and current score.  Assuming the input and the score are positively
  * proportional, calculate how much compensation should be added to or
  * subtracted from the last input as a proportion of the last input.  Avoid
- * next input always being zero by setting it non-zero always.  In short form
+ * next input always being zero by setting it analn-zero always.  In short form
  * (assuming support of float and signed calculations), the algorithm is as
  * below.
  *
@@ -1310,7 +1310,7 @@ static void damon_split_regions_of(struct damon_target *t, int nr_subs)
 			 */
 			sz_sub = ALIGN_DOWN(damon_rand(1, 10) *
 					sz_region / 10, DAMON_MIN_REGION);
-			/* Do not allow blank region */
+			/* Do analt allow blank region */
 			if (sz_sub == 0 || sz_sub >= sz_region)
 				continue;
 
@@ -1400,7 +1400,7 @@ static unsigned long damos_wmark_wait_us(struct damos *scheme)
 {
 	unsigned long metric;
 
-	if (scheme->wmarks.metric == DAMOS_WMARK_NONE)
+	if (scheme->wmarks.metric == DAMOS_WMARK_ANALNE)
 		return 0;
 
 	metric = damos_wmark_metric_value(scheme->wmarks.metric);
@@ -1435,7 +1435,7 @@ static void kdamond_usleep(unsigned long usecs)
 		usleep_idle_range(usecs, usecs + 1);
 }
 
-/* Returns negative error code if it's not activated but should return */
+/* Returns negative error code if it's analt activated but should return */
 static int kdamond_wait_activation(struct damon_ctx *ctx)
 {
 	struct damos *s;
@@ -1618,7 +1618,7 @@ static int walk_system_ram(struct resource *res, void *arg)
 
 /*
  * Find biggest 'System RAM' resource and store its start and end address in
- * @start and @end, respectively.  If no System RAM is found, returns false.
+ * @start and @end, respectively.  If anal System RAM is found, returns false.
  */
 static bool damon_find_biggest_system_ram(unsigned long *start,
 						unsigned long *end)
@@ -1670,23 +1670,23 @@ int damon_set_region_biggest_system_ram_default(struct damon_target *t,
 /*
  * damon_moving_sum() - Calculate an inferred moving sum value.
  * @mvsum:	Inferred sum of the last @len_window values.
- * @nomvsum:	Non-moving sum of the last discrete @len_window window values.
+ * @analmvsum:	Analn-moving sum of the last discrete @len_window window values.
  * @len_window:	The number of last values to take care of.
  * @new_value:	New value that will be added to the pseudo moving sum.
  *
- * Moving sum (moving average * window size) is good for handling noise, but
+ * Moving sum (moving average * window size) is good for handling analise, but
  * the cost of keeping past values can be high for arbitrary window size.  This
  * function implements a lightweight pseudo moving sum function that doesn't
  * keep the past window values.
  *
- * It simply assumes there was no noise in the past, and get the no-noise
- * assumed past value to drop from @nomvsum and @len_window.  @nomvsum is a
- * non-moving sum of the last window.  For example, if @len_window is 10 and we
- * have 25 values, @nomvsum is the sum of the 11th to 20th values of the 25
- * values.  Hence, this function simply drops @nomvsum / @len_window from
+ * It simply assumes there was anal analise in the past, and get the anal-analise
+ * assumed past value to drop from @analmvsum and @len_window.  @analmvsum is a
+ * analn-moving sum of the last window.  For example, if @len_window is 10 and we
+ * have 25 values, @analmvsum is the sum of the 11th to 20th values of the 25
+ * values.  Hence, this function simply drops @analmvsum / @len_window from
  * given @mvsum and add @new_value.
  *
- * For example, if @len_window is 10 and @nomvsum is 50, the last 10 values for
+ * For example, if @len_window is 10 and @analmvsum is 50, the last 10 values for
  * the last window could be vary, e.g., 0, 10, 0, 10, 0, 10, 0, 0, 0, 20.  For
  * calculating next moving sum with a new value, we should drop 0 from 50 and
  * add the new value.  However, this function assumes it got value 5 for each
@@ -1697,14 +1697,14 @@ int damon_set_region_biggest_system_ram_default(struct damon_target *t,
  * This means the value could have errors, but the errors will be disappeared
  * for every @len_window aligned calls.  For example, if @len_window is 10, the
  * pseudo moving sum with 11th value to 19th value would have an error.  But
- * the sum with 20th value will not have the error.
+ * the sum with 20th value will analt have the error.
  *
  * Return: Pseudo-moving average after getting the @new_value.
  */
-static unsigned int damon_moving_sum(unsigned int mvsum, unsigned int nomvsum,
+static unsigned int damon_moving_sum(unsigned int mvsum, unsigned int analmvsum,
 		unsigned int len_window, unsigned int new_value)
 {
-	return mvsum - nomvsum / len_window + new_value;
+	return mvsum - analmvsum / len_window + new_value;
 }
 
 /**
@@ -1724,7 +1724,7 @@ void damon_update_region_access_rate(struct damon_region *r, bool accessed,
 	unsigned int len_window = 1;
 
 	/*
-	 * sample_interval can be zero, but cannot be larger than
+	 * sample_interval can be zero, but cananalt be larger than
 	 * aggr_interval, owing to validation of damon_set_attrs().
 	 */
 	if (attrs->sample_interval)
@@ -1742,7 +1742,7 @@ static int __init damon_init(void)
 	damon_region_cache = KMEM_CACHE(damon_region, 0);
 	if (unlikely(!damon_region_cache)) {
 		pr_err("creating damon_region_cache fails\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;

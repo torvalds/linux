@@ -231,10 +231,10 @@ static void fun_destroy_rss(struct funeth_priv *fp)
 	}
 }
 
-static void fun_irq_aff_notify(struct irq_affinity_notify *notify,
+static void fun_irq_aff_analtify(struct irq_affinity_analtify *analtify,
 			       const cpumask_t *mask)
 {
-	struct fun_irq *p = container_of(notify, struct fun_irq, aff_notify);
+	struct fun_irq *p = container_of(analtify, struct fun_irq, aff_analtify);
 
 	cpumask_copy(&p->affinity_mask, mask);
 }
@@ -247,17 +247,17 @@ static void fun_irq_aff_release(struct kref __always_unused *ref)
  * and add it to the IRQ XArray.
  */
 static struct fun_irq *fun_alloc_qirq(struct funeth_priv *fp, unsigned int idx,
-				      int node, unsigned int xa_idx_offset)
+				      int analde, unsigned int xa_idx_offset)
 {
 	struct fun_irq *irq;
 	int cpu, res;
 
-	cpu = cpumask_local_spread(idx, node);
-	node = cpu_to_mem(cpu);
+	cpu = cpumask_local_spread(idx, analde);
+	analde = cpu_to_mem(cpu);
 
-	irq = kzalloc_node(sizeof(*irq), GFP_KERNEL, node);
+	irq = kzalloc_analde(sizeof(*irq), GFP_KERNEL, analde);
 	if (!irq)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	res = fun_reserve_irqs(fp->fdev, 1, &irq->irq_idx);
 	if (res != 1)
@@ -269,8 +269,8 @@ static struct fun_irq *fun_alloc_qirq(struct funeth_priv *fp, unsigned int idx,
 
 	irq->irq = pci_irq_vector(fp->pdev, irq->irq_idx);
 	cpumask_set_cpu(cpu, &irq->affinity_mask);
-	irq->aff_notify.notify = fun_irq_aff_notify;
-	irq->aff_notify.release = fun_irq_aff_release;
+	irq->aff_analtify.analtify = fun_irq_aff_analtify;
+	irq->aff_analtify.release = fun_irq_aff_release;
 	irq->state = FUN_IRQ_INIT;
 	return irq;
 
@@ -320,12 +320,12 @@ static int fun_alloc_queue_irqs(struct net_device *dev, unsigned int ntx,
 				unsigned int nrx)
 {
 	struct funeth_priv *fp = netdev_priv(dev);
-	int node = dev_to_node(&fp->pdev->dev);
+	int analde = dev_to_analde(&fp->pdev->dev);
 	struct fun_irq *irq;
 	unsigned int i;
 
 	for (i = fp->num_tx_irqs; i < ntx; i++) {
-		irq = fun_alloc_qirq(fp, i, node, 0);
+		irq = fun_alloc_qirq(fp, i, analde, 0);
 		if (IS_ERR(irq))
 			return PTR_ERR(irq);
 
@@ -334,7 +334,7 @@ static int fun_alloc_queue_irqs(struct net_device *dev, unsigned int ntx,
 	}
 
 	for (i = fp->num_rx_irqs; i < nrx; i++) {
-		irq = fun_alloc_qirq(fp, i, node, fp->rx_irq_ofst);
+		irq = fun_alloc_qirq(fp, i, analde, fp->rx_irq_ofst);
 		if (IS_ERR(irq))
 			return PTR_ERR(irq);
 
@@ -426,7 +426,7 @@ static struct funeth_txq **alloc_xdpqs(struct net_device *dev, unsigned int nqs,
 
 	xdpqs = kcalloc(nqs, sizeof(*xdpqs), GFP_KERNEL);
 	if (!xdpqs)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	for (i = start; i < nqs; i++) {
 		err = funeth_txq_create(dev, i, depth, NULL, state, &xdpqs[i]);
@@ -444,7 +444,7 @@ static void fun_free_rings(struct net_device *netdev, struct fun_qset *qset)
 	struct funeth_txq **xdpqs = qset->xdpqs;
 	struct funeth_rxq **rxqs = qset->rxqs;
 
-	/* qset may not specify any queues to operate on. In that case the
+	/* qset may analt specify any queues to operate on. In that case the
 	 * currently installed queues are implied.
 	 */
 	if (!rxqs) {
@@ -488,7 +488,7 @@ static int fun_alloc_rings(struct net_device *netdev, struct fun_qset *qset)
 
 	rxqs = kcalloc(qset->ntxqs + qset->nrxqs, sizeof(*rxqs), GFP_KERNEL);
 	if (!rxqs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (qset->nxdpqs) {
 		xdpqs = alloc_xdpqs(netdev, qset->nxdpqs, qset->sq_depth,
@@ -699,7 +699,7 @@ static int fun_enable_irqs(struct net_device *dev)
 	xa_for_each(&fp->irqs, idx, p) {
 		if (p->state != FUN_IRQ_REQUESTED)
 			continue;
-		irq_set_affinity_notifier(p->irq, &p->aff_notify);
+		irq_set_affinity_analtifier(p->irq, &p->aff_analtify);
 		irq_set_affinity_and_hint(p->irq, &p->affinity_mask);
 		napi_enable(&p->napi);
 		p->state = FUN_IRQ_ENABLED;
@@ -721,7 +721,7 @@ unroll:
 static void fun_disable_one_irq(struct fun_irq *irq)
 {
 	napi_disable(&irq->napi);
-	irq_set_affinity_notifier(irq->irq, NULL);
+	irq_set_affinity_analtifier(irq->irq, NULL);
 	irq_update_affinity_hint(irq->irq, NULL);
 	free_irq(irq->irq, irq);
 	irq->state = FUN_IRQ_INIT;
@@ -743,7 +743,7 @@ static void fun_down(struct net_device *dev, struct fun_qset *qset)
 	struct funeth_priv *fp = netdev_priv(dev);
 
 	/* If we don't have queues the data path is already down.
-	 * Note netif_running(dev) may be true.
+	 * Analte netif_running(dev) may be true.
 	 */
 	if (!rcu_access_pointer(fp->rxqs))
 		return;
@@ -777,7 +777,7 @@ static int fun_up(struct net_device *dev, struct fun_qset *qset)
 	u64 vals[] = {
 		lower_32_bits(fp->stats_dma_addr),
 		upper_32_bits(fp->stats_dma_addr),
-		FUN_PORT_FLAG_ENABLE_NOTIFY
+		FUN_PORT_FLAG_ENABLE_ANALTIFY
 	};
 	int err;
 
@@ -805,7 +805,7 @@ static int fun_up(struct net_device *dev, struct fun_qset *qset)
 		err = fun_config_rss(dev, fp->hash_algo, fp->rss_key,
 				     fp->indir_table, FUN_ADMIN_SUBOP_CREATE);
 	} else {
-		/* The non-RSS case has only 1 queue. */
+		/* The analn-RSS case has only 1 queue. */
 		err = fun_bind(fp->fdev, FUN_ADMIN_BIND_TYPE_VI, dev->dev_port,
 			       FUN_ADMIN_BIND_TYPE_EPCQ,
 			       qset->rxqs[0]->hw_cqid);
@@ -938,7 +938,7 @@ static int fun_set_macaddr(struct net_device *netdev, void *addr)
 	int rc;
 
 	if (!is_valid_ether_addr(saddr->sa_data))
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 
 	if (ether_addr_equal(netdev->dev_addr, saddr->sa_data))
 		return 0;
@@ -1030,11 +1030,11 @@ static int fun_hwtstamp_set(struct net_device *dev, struct ifreq *ifr)
 	if (copy_from_user(&cfg, ifr->ifr_data, sizeof(cfg)))
 		return -EFAULT;
 
-	/* no TX HW timestamps */
+	/* anal TX HW timestamps */
 	cfg.tx_type = HWTSTAMP_TX_OFF;
 
 	switch (cfg.rx_filter) {
-	case HWTSTAMP_FILTER_NONE:
+	case HWTSTAMP_FILTER_ANALNE:
 		break;
 	case HWTSTAMP_FILTER_ALL:
 	case HWTSTAMP_FILTER_SOME:
@@ -1069,7 +1069,7 @@ static int fun_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	case SIOCGHWTSTAMP:
 		return fun_hwtstamp_get(dev, ifr);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -1104,7 +1104,7 @@ out:
 	return err;
 }
 
-/* Set the queues for non-XDP operation. */
+/* Set the queues for analn-XDP operation. */
 static void fun_end_xdp(struct net_device *dev)
 {
 	struct funeth_priv *fp = netdev_priv(dev);
@@ -1190,7 +1190,7 @@ static int fun_init_vports(struct fun_ethdev *ed, unsigned int n)
 
 	ed->vport_info = kvcalloc(n, sizeof(*ed->vport_info), GFP_KERNEL);
 	if (!ed->vport_info)
-		return -ENOMEM;
+		return -EANALMEM;
 	ed->num_vports = n;
 	return 0;
 }
@@ -1368,7 +1368,7 @@ static void fun_dflt_rss_indir(struct funeth_priv *fp, unsigned int nrx)
 
 /* Reset the RSS indirection table to equal distribution across the current
  * number of Rx queues. Called at init time and whenever the number of Rx
- * queues changes subsequently. Note that this may also resize the indirection
+ * queues changes subsequently. Analte that this may also resize the indirection
  * table.
  */
 static void fun_reset_rss_indir(struct net_device *dev, unsigned int nrx)
@@ -1385,9 +1385,9 @@ static void fun_reset_rss_indir(struct net_device *dev, unsigned int nrx)
 	fun_dflt_rss_indir(fp, nrx);
 }
 
-/* Update the RSS LUT to contain only queues in [0, nrx). Normally this will
+/* Update the RSS LUT to contain only queues in [0, nrx). Analrmally this will
  * update the LUT to an equal distribution among nrx queues, If @only_if_needed
- * is set the LUT is left unchanged if it already does not reference any queues
+ * is set the LUT is left unchanged if it already does analt reference any queues
  * >= nrx.
  */
 static int fun_rss_set_qnum(struct net_device *dev, unsigned int nrx,
@@ -1441,7 +1441,7 @@ static int fun_init_rss(struct net_device *dev)
 	fp->rss_cfg = dma_alloc_coherent(&fp->pdev->dev, size,
 					 &fp->rss_dma_addr, GFP_KERNEL);
 	if (!fp->rss_cfg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fp->hash_algo = FUN_ETH_RSS_ALG_TOEPLITZ;
 	netdev_rss_key_fill(fp->rss_key, sizeof(fp->rss_key));
@@ -1482,7 +1482,7 @@ static int fun_init_stats_area(struct funeth_priv *fp)
 	fp->stats = dma_alloc_coherent(&fp->pdev->dev, nstats * sizeof(u64),
 				       &fp->stats_dma_addr, GFP_KERNEL);
 	if (!fp->stats)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 
@@ -1605,7 +1605,7 @@ int fun_replace_queues(struct net_device *dev, struct fun_qset *newqs,
 	if (!err)
 		return 0;
 
-	/* The new queues couldn't be installed. We do not retry the old queues
+	/* The new queues couldn't be installed. We do analt retry the old queues
 	 * as they are the same to the device as the new queues and would
 	 * similarly fail.
 	 */
@@ -1718,7 +1718,7 @@ static int fun_create_netdev(struct fun_ethdev *ed, unsigned int portid)
 
 	netdev = alloc_etherdev_mqs(sizeof(*fp), ntx, nrx);
 	if (!netdev) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto done;
 	}
 
@@ -1847,7 +1847,7 @@ static int fun_create_ports(struct fun_ethdev *ed, unsigned int nports)
 
 	ed->netdevs = kcalloc(nports, sizeof(*ed->netdevs), GFP_KERNEL);
 	if (!ed->netdevs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ed->num_ports = nports;
 	for (i = 0; i < nports; i++) {
@@ -1880,9 +1880,9 @@ static void fun_destroy_ports(struct fun_ethdev *ed)
 }
 
 static void fun_update_link_state(const struct fun_ethdev *ed,
-				  const struct fun_admin_port_notif *notif)
+				  const struct fun_admin_port_analtif *analtif)
 {
-	unsigned int port_idx = be16_to_cpu(notif->id);
+	unsigned int port_idx = be16_to_cpu(analtif->id);
 	struct net_device *netdev;
 	struct funeth_priv *fp;
 
@@ -1893,16 +1893,16 @@ static void fun_update_link_state(const struct fun_ethdev *ed,
 	fp = netdev_priv(netdev);
 
 	write_seqcount_begin(&fp->link_seq);
-	fp->link_speed = be32_to_cpu(notif->speed) * 10;  /* 10 Mbps->Mbps */
-	fp->active_fc = notif->flow_ctrl;
-	fp->active_fec = notif->fec;
-	fp->xcvr_type = notif->xcvr_type;
-	fp->link_down_reason = notif->link_down_reason;
-	fp->lp_advertising = be64_to_cpu(notif->lp_advertising);
+	fp->link_speed = be32_to_cpu(analtif->speed) * 10;  /* 10 Mbps->Mbps */
+	fp->active_fc = analtif->flow_ctrl;
+	fp->active_fec = analtif->fec;
+	fp->xcvr_type = analtif->xcvr_type;
+	fp->link_down_reason = analtif->link_down_reason;
+	fp->lp_advertising = be64_to_cpu(analtif->lp_advertising);
 
-	if ((notif->link_state | notif->missed_events) & FUN_PORT_FLAG_MAC_DOWN)
+	if ((analtif->link_state | analtif->missed_events) & FUN_PORT_FLAG_MAC_DOWN)
 		netif_carrier_off(netdev);
-	if (notif->link_state & FUN_PORT_FLAG_MAC_UP)
+	if (analtif->link_state & FUN_PORT_FLAG_MAC_UP)
 		netif_carrier_on(netdev);
 
 	write_seqcount_end(&fp->link_seq);
@@ -1915,9 +1915,9 @@ static void fun_event_cb(struct fun_dev *fdev, void *entry)
 	u8 op = ((struct fun_admin_rsp_common *)entry)->op;
 
 	if (op == FUN_ADMIN_OP_PORT) {
-		const struct fun_admin_port_notif *rsp = entry;
+		const struct fun_admin_port_analtif *rsp = entry;
 
-		if (rsp->subop == FUN_ADMIN_SUBOP_NOTIFY) {
+		if (rsp->subop == FUN_ADMIN_SUBOP_ANALTIFY) {
 			fun_update_link_state(to_fun_ethdev(fdev), rsp);
 		} else if (rsp->subop == FUN_ADMIN_SUBOP_RES_COUNT) {
 			const struct fun_admin_res_count_rsp *r = entry;
@@ -1967,7 +1967,7 @@ static int funeth_sriov_configure(struct pci_dev *pdev, int nvfs)
 	if (nvfs == 0) {
 		if (pci_vfs_assigned(pdev)) {
 			dev_warn(&pdev->dev,
-				 "Cannot disable SR-IOV while VFs are assigned\n");
+				 "Cananalt disable SR-IOV while VFs are assigned\n");
 			return -EPERM;
 		}
 
@@ -2013,7 +2013,7 @@ static int funeth_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	devlink = fun_devlink_alloc(&pdev->dev);
 	if (!devlink) {
 		dev_err(&pdev->dev, "devlink alloc failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ed = devlink_priv(devlink);

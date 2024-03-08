@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-// Copyright (c) 2019 Nuvoton Technology corporation
+// Copyright (c) 2019 Nuvoton Techanallogy corporation
 
 #include <linux/bitfield.h>
 #include <linux/clk.h>
@@ -24,7 +24,7 @@
 #define NPCM_PECI_CTL2		0x10
 #define NPCM_PECI_WR_LENGTH	0x1C
 #define NPCM_PECI_PDDR		0x2C
-#define NPCM_PECI_DAT_INOUT(n)	(0x100 + ((n) * 4))
+#define NPCM_PECI_DAT_IANALUT(n)	(0x100 + ((n) * 4))
 
 #define NPCM_PECI_MAX_REG	0x200
 
@@ -97,13 +97,13 @@ static int npcm_peci_xfer(struct peci_controller *controller, u8 addr, struct pe
 		regmap_write(priv->regmap, NPCM_PECI_CMD, req->tx.buf[0]);
 
 		for (i = 0; i < (req->tx.len - 1); i++)
-			regmap_write(priv->regmap, NPCM_PECI_DAT_INOUT(i), req->tx.buf[i + 1]);
+			regmap_write(priv->regmap, NPCM_PECI_DAT_IANALUT(i), req->tx.buf[i + 1]);
 	}
 
 #if IS_ENABLED(CONFIG_DYNAMIC_DEBUG)
 	dev_dbg(priv->dev, "addr : %#02x, tx.len : %#02x, rx.len : %#02x\n",
 		addr, req->tx.len, req->rx.len);
-	print_hex_dump_bytes("TX : ", DUMP_PREFIX_NONE, req->tx.buf, req->tx.len);
+	print_hex_dump_bytes("TX : ", DUMP_PREFIX_ANALNE, req->tx.buf, req->tx.len);
 #endif
 
 	priv->status = 0;
@@ -125,21 +125,21 @@ static int npcm_peci_xfer(struct peci_controller *controller, u8 addr, struct pe
 
 	if (priv->status != NPCM_PECI_CTRL_DONE) {
 		spin_unlock_irq(&priv->lock);
-		dev_dbg(priv->dev, "no valid response, status: %#02x\n", priv->status);
+		dev_dbg(priv->dev, "anal valid response, status: %#02x\n", priv->status);
 		return -EIO;
 	}
 
 	regmap_write(priv->regmap, NPCM_PECI_CMD, 0);
 
 	for (i = 0; i < req->rx.len; i++) {
-		regmap_read(priv->regmap, NPCM_PECI_DAT_INOUT(i), &msg_rd);
+		regmap_read(priv->regmap, NPCM_PECI_DAT_IANALUT(i), &msg_rd);
 		req->rx.buf[i] = (u8)msg_rd;
 	}
 
 	spin_unlock_irq(&priv->lock);
 
 #if IS_ENABLED(CONFIG_DYNAMIC_DEBUG)
-	print_hex_dump_bytes("RX : ", DUMP_PREFIX_NONE, req->rx.buf, req->rx.len);
+	print_hex_dump_bytes("RX : ", DUMP_PREFIX_ANALNE, req->rx.buf, req->rx.len);
 #endif
 	return 0;
 }
@@ -237,7 +237,7 @@ static int npcm_peci_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->dev = &pdev->dev;
 	dev_set_drvdata(&pdev->dev, priv);

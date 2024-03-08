@@ -35,9 +35,9 @@
 
 		/*
 		 * The interrupt pin is connected to &tca6424a pin 1, but the Linux
-		 * TCA6424 driver cannot handle low type interrupts at the moment
-		 * (and support cannot be added without some ugly hacks). Since this
-		 * controller does not have any input type GPIOs, just pretend
+		 * TCA6424 driver cananalt handle low type interrupts at the moment
+		 * (and support cananalt be added without some ugly hacks). Since this
+		 * controller does analt have any input type GPIOs, just pretend
 		 * that the interrupt pin is unconnected.
 		 */
 	};
@@ -50,7 +50,7 @@
 
 		/*
 		 * The MPL3115 interrupts are connected to pin 22 and 23
-		 * of &tca6424a, but the binding does not yet support
+		 * of &tca6424a, but the binding does analt yet support
 		 * interrupts.
 		 */
 	};

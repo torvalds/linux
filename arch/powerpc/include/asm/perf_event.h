@@ -2,7 +2,7 @@
 /*
  * Performance event support - hardware-specific disambiguation
  *
- * For now this is a compile-time decision, but eventually it should be
+ * For analw this is a compile-time decision, but eventually it should be
  * runtime.  This would allow multiplatform perf event support for e300 (fsl
  * embedded perf counters) plus server/classic, and would accommodate
  * devices other than the core which provide their own performance counters.
@@ -29,7 +29,7 @@ static inline unsigned long get_pmcs_ext_regs(int idx) { return 0; }
 
 /*
  * Overload regs->result to specify whether we should use the MSR (result
- * is zero) or the SIAR (result is non zero).
+ * is zero) or the SIAR (result is analn zero).
  */
 #define perf_arch_fetch_caller_regs(regs, __ip)			\
 	do {							\

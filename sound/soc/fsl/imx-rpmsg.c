@@ -43,39 +43,39 @@ static int imx_rpmsg_late_probe(struct snd_soc_card *card)
 
 	if (data->lpa) {
 		struct snd_soc_component *codec_comp;
-		struct device_node *codec_np;
+		struct device_analde *codec_np;
 		struct device_driver *codec_drv;
 		struct device *codec_dev = NULL;
 
-		codec_np = data->dai.codecs->of_node;
+		codec_np = data->dai.codecs->of_analde;
 		if (codec_np) {
 			struct platform_device *codec_pdev;
 			struct i2c_client *codec_i2c;
 
-			codec_i2c = of_find_i2c_device_by_node(codec_np);
+			codec_i2c = of_find_i2c_device_by_analde(codec_np);
 			if (codec_i2c)
 				codec_dev = &codec_i2c->dev;
 			if (!codec_dev) {
-				codec_pdev = of_find_device_by_node(codec_np);
+				codec_pdev = of_find_device_by_analde(codec_np);
 				if (codec_pdev)
 					codec_dev = &codec_pdev->dev;
 			}
 		}
 		if (codec_dev) {
-			codec_comp = snd_soc_lookup_component_nolocked(codec_dev, NULL);
+			codec_comp = snd_soc_lookup_component_anallocked(codec_dev, NULL);
 			if (codec_comp) {
 				int i, num_widgets;
 				const char *widgets;
 				struct snd_soc_dapm_context *dapm;
 
-				num_widgets = of_property_count_strings(data->card.dev->of_node,
-									"ignore-suspend-widgets");
+				num_widgets = of_property_count_strings(data->card.dev->of_analde,
+									"iganalre-suspend-widgets");
 				for (i = 0; i < num_widgets; i++) {
-					of_property_read_string_index(data->card.dev->of_node,
-								      "ignore-suspend-widgets",
+					of_property_read_string_index(data->card.dev->of_analde,
+								      "iganalre-suspend-widgets",
 								      i, &widgets);
 					dapm = snd_soc_component_get_dapm(codec_comp);
-					snd_soc_dapm_ignore_suspend(dapm, widgets);
+					snd_soc_dapm_iganalre_suspend(dapm, widgets);
 				}
 			}
 			codec_drv = codec_dev->driver;
@@ -97,7 +97,7 @@ static int imx_rpmsg_late_probe(struct snd_soc_card *card)
 		return 0;
 
 	ret = snd_soc_dai_set_sysclk(codec_dai, 0, data->sysclk, SND_SOC_CLOCK_IN);
-	if (ret && ret != -ENOTSUPP) {
+	if (ret && ret != -EANALTSUPP) {
 		dev_err(dev, "failed to set sysclk in %s\n", __func__);
 		return ret;
 	}
@@ -109,9 +109,9 @@ static int imx_rpmsg_probe(struct platform_device *pdev)
 {
 	struct snd_soc_dai_link_component *dlc;
 	struct device *dev = pdev->dev.parent;
-	/* rpmsg_pdev is the platform device for the rpmsg node that probed us */
+	/* rpmsg_pdev is the platform device for the rpmsg analde that probed us */
 	struct platform_device *rpmsg_pdev = to_platform_device(dev);
-	struct device_node *np = rpmsg_pdev->dev.of_node;
+	struct device_analde *np = rpmsg_pdev->dev.of_analde;
 	struct of_phandle_args args;
 	const char *platform_name;
 	struct imx_rpmsg *data;
@@ -119,17 +119,17 @@ static int imx_rpmsg_probe(struct platform_device *pdev)
 
 	dlc = devm_kzalloc(&pdev->dev, 3 * sizeof(*dlc), GFP_KERNEL);
 	if (!dlc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
 	if (!data) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail;
 	}
 
 	ret = of_reserved_mem_device_init_by_idx(&pdev->dev, np, 0);
 	if (ret)
-		dev_warn(&pdev->dev, "no reserved DMA memory\n");
+		dev_warn(&pdev->dev, "anal reserved DMA memory\n");
 
 	data->dai.cpus = &dlc[0];
 	data->dai.num_cpus = 1;
@@ -147,12 +147,12 @@ static int imx_rpmsg_probe(struct platform_device *pdev)
 	/*
 	 * i.MX rpmsg sound cards work on codec slave mode. MCLK will be
 	 * disabled by CPU DAI driver in hw_free(). Some codec requires MCLK
-	 * present at power up/down sequence. So need to set ignore_pmdown_time
+	 * present at power up/down sequence. So need to set iganalre_pmdown_time
 	 * to power down codec immediately before MCLK is turned off.
 	 */
-	data->dai.ignore_pmdown_time = 1;
+	data->dai.iganalre_pmdown_time = 1;
 
-	/* Optional codec node */
+	/* Optional codec analde */
 	ret = of_parse_phandle_with_fixed_args(np, "audio-codec", 0, 0, &args);
 	if (ret) {
 		*data->dai.codecs = snd_soc_dummy_dlc;
@@ -187,7 +187,7 @@ static int imx_rpmsg_probe(struct platform_device *pdev)
 		data->dai.playback_only = false;
 
 	if (data->dai.playback_only && data->dai.capture_only) {
-		dev_err(&pdev->dev, "no enabled rpmsg DAI link\n");
+		dev_err(&pdev->dev, "anal enabled rpmsg DAI link\n");
 		ret = -EINVAL;
 		goto fail;
 	}
@@ -201,10 +201,10 @@ static int imx_rpmsg_probe(struct platform_device *pdev)
 	data->card.num_dapm_widgets = ARRAY_SIZE(imx_rpmsg_dapm_widgets);
 	data->card.late_probe = imx_rpmsg_late_probe;
 	/*
-	 * Inoder to use common api to get card name and audio routing.
-	 * Use parent of_node for this device, revert it after finishing using
+	 * Ianalder to use common api to get card name and audio routing.
+	 * Use parent of_analde for this device, revert it after finishing using
 	 */
-	data->card.dev->of_node = np;
+	data->card.dev->of_analde = np;
 
 	ret = snd_soc_of_parse_card_name(&data->card, "model");
 	if (ret)
@@ -227,7 +227,7 @@ static int imx_rpmsg_probe(struct platform_device *pdev)
 	}
 
 fail:
-	pdev->dev.of_node = NULL;
+	pdev->dev.of_analde = NULL;
 	return ret;
 }
 

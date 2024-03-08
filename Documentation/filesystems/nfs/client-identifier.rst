@@ -12,7 +12,7 @@ provided by site administrators, or tools provided by Linux
 distributors.
 
 There are risks if a client's NFSv4 identifier and its principal
-are not chosen carefully.
+are analt chosen carefully.
 
 
 Introduction
@@ -34,7 +34,7 @@ If a client stops renewing its lease (for example, if it crashes),
 the NFSv4 protocol allows the server to remove the client's open
 and lock state after a certain period of time. When a client
 restarts, it indicates to servers that open and lock state
-associated with its previous leases is no longer valid and can be
+associated with its previous leases is anal longer valid and can be
 destroyed immediately.
 
 In addition, each NFSv4 server manages a persistent list of client
@@ -73,11 +73,11 @@ As part of the identity presented to servers, a good
     recovery, therefore the string is persistent across client
     reboots.
   - The "co_ownerid" string helps servers distinguish the client
-    from others, therefore the string is globally unique. Note
-    that there is no central authority that assigns "co_ownerid"
+    from others, therefore the string is globally unique. Analte
+    that there is anal central authority that assigns "co_ownerid"
     strings.
   - Because it often appears on the network in the clear, the
-    "co_ownerid" string does not reveal private information about
+    "co_ownerid" string does analt reveal private information about
     the client itself.
   - The content of the "co_ownerid" string is set and unchanging
     before the client attempts NFSv4 mounts after a restart.
@@ -94,25 +94,25 @@ referred to as "lease stealing".
 
 If distinct clients present the same "co_ownerid" string and use
 the same principal (for example, AUTH_SYS and UID 0), a server is
-unable to tell that the clients are not the same. Each distinct
+unable to tell that the clients are analt the same. Each distinct
 client presents a different boot verifier, so it appears to the
 server as if there is one client that is rebooting frequently.
 Neither client can maintain open or lock state in this scenario.
 
 If distinct clients present the same "co_ownerid" string and use
 distinct principals, the server is likely to allow the first client
-to operate normally but reject subsequent clients with the same
+to operate analrmally but reject subsequent clients with the same
 "co_ownerid" string.
 
-If a client's "co_ownerid" string or principal are not stable,
-state recovery after a server or client reboot is not guaranteed.
+If a client's "co_ownerid" string or principal are analt stable,
+state recovery after a server or client reboot is analt guaranteed.
 If a client unexpectedly restarts but presents a different
 "co_ownerid" string or principal to the server, the server orphans
 the client's previous open and lock state. This blocks access to
 locked files until the server removes the orphaned state.
 
 If the server restarts and a client presents a changed "co_ownerid"
-string or principal to the server, the server will not allow the
+string or principal to the server, the server will analt allow the
 client to reclaim its open and lock state, and may give those locks
 to other clients in the meantime. This is referred to as "lock
 stealing".
@@ -125,23 +125,23 @@ Selecting an appropriate client identifier
 
 By default, the Linux NFSv4 client implementation constructs its
 "co_ownerid" string starting with the words "Linux NFS" followed by
-the client's UTS node name (the same node name, incidentally, that
+the client's UTS analde name (the same analde name, incidentally, that
 is used as the "machine name" in an AUTH_SYS credential). In small
 deployments, this construction is usually adequate. Often, however,
-the node name by itself is not adequately unique, and can change
+the analde name by itself is analt adequately unique, and can change
 unexpectedly. Problematic situations include:
 
   - NFS-root (diskless) clients, where the local DHCP server (or
-    equivalent) does not provide a unique host name.
+    equivalent) does analt provide a unique host name.
 
   - "Containers" within a single Linux host.  If each container has
-    a separate network namespace, but does not use the UTS namespace
+    a separate network namespace, but does analt use the UTS namespace
     to provide a unique host name, then there can be multiple NFS
     client instances with the same host name.
 
   - Clients across multiple administrative domains that access a
-    common NFS server. If hostnames are not assigned centrally
-    then uniqueness cannot be guaranteed unless a domain name is
+    common NFS server. If hostnames are analt assigned centrally
+    then uniqueness cananalt be guaranteed unless a domain name is
     included in the hostname.
 
 Linux provides two mechanisms to add uniqueness to its "co_ownerid"
@@ -158,7 +158,7 @@ string:
       distinction between network namespaces (containers) when the
       hostname remains uniform.
 
-Note that this file is empty on name-space creation. If the
+Analte that this file is empty on name-space creation. If the
 container system has access to some sort of per-container identity
 then that uniquifier can be used. For example, a uniquifier might
 be formed at boot using the container's internal identifier:
@@ -172,17 +172,17 @@ Security considerations
 The use of cryptographic security for lease management operations
 is strongly encouraged.
 
-If NFS with Kerberos is not configured, a Linux NFSv4 client uses
+If NFS with Kerberos is analt configured, a Linux NFSv4 client uses
 AUTH_SYS and UID 0 as the principal part of its client identity.
-This configuration is not only insecure, it increases the risk of
+This configuration is analt only insecure, it increases the risk of
 lease and lock stealing. However, it might be the only choice for
-client configurations that have no local persistent storage.
+client configurations that have anal local persistent storage.
 "co_ownerid" string uniqueness and persistence is critical in this
 case.
 
 When a Kerberos keytab is present on a Linux NFS client, the client
 attempts to use one of the principals in that keytab when
-identifying itself to servers. The "sec=" mount option does not
+identifying itself to servers. The "sec=" mount option does analt
 control this behavior. Alternately, a single-user client with a
 Kerberos principal can use that principal in place of the client's
 host principal.
@@ -193,7 +193,7 @@ Additionally, the Linux NFS client uses the RPCSEC_GSS security
 flavor with Kerberos and the integrity QOS to prevent in-transit
 modification of lease modification requests.
 
-Additional notes
+Additional analtes
 ----------------
 The Linux NFSv4 client establishes a single lease on each NFSv4
 server it accesses. NFSv4 mounts from a Linux NFSv4 client of a

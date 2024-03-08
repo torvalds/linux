@@ -12,11 +12,11 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/stddef.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/bitfield.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-analnatomic-lo-hi.h>
 #include <linux/regmap.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/altera.h>
@@ -132,7 +132,7 @@ static int dfl_spi_altera_probe(struct dfl_device *dfl_dev)
 
 	host = devm_spi_alloc_host(dev, sizeof(struct altera_spi));
 	if (!host)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	host->bus_num = -1;
 

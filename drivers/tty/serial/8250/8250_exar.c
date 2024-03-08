@@ -178,7 +178,7 @@ static void xr17v35x_set_divisor(struct uart_port *p, unsigned int baud,
 {
 	serial8250_do_set_divisor(p, baud, quot, quot_frac);
 
-	/* Preserve bits not related to baudrate; DLD[7:4]. */
+	/* Preserve bits analt related to baudrate; DLD[7:4]. */
 	quot_frac |= serial_port_in(p, 0x2) & 0xf0;
 	serial_port_out(p, 0x2, quot_frac);
 }
@@ -366,7 +366,7 @@ static void setup_gpio(struct pci_dev *pcidev, u8 __iomem *p)
 }
 
 static struct platform_device *__xr17v35x_register_gpio(struct pci_dev *pcidev,
-							const struct software_node *node)
+							const struct software_analde *analde)
 {
 	struct platform_device *pdev;
 
@@ -377,7 +377,7 @@ static struct platform_device *__xr17v35x_register_gpio(struct pci_dev *pcidev,
 	pdev->dev.parent = &pcidev->dev;
 	ACPI_COMPANION_SET(&pdev->dev, ACPI_COMPANION(&pcidev->dev));
 
-	if (device_add_software_node(&pdev->dev, node) < 0 ||
+	if (device_add_software_analde(&pdev->dev, analde) < 0 ||
 	    platform_device_add(pdev) < 0) {
 		platform_device_put(pdev);
 		return NULL;
@@ -388,7 +388,7 @@ static struct platform_device *__xr17v35x_register_gpio(struct pci_dev *pcidev,
 
 static void __xr17v35x_unregister_gpio(struct platform_device *pdev)
 {
-	device_remove_software_node(&pdev->dev);
+	device_remove_software_analde(&pdev->dev);
 	platform_device_unregister(pdev);
 }
 
@@ -398,7 +398,7 @@ static const struct property_entry exar_gpio_properties[] = {
 	{ }
 };
 
-static const struct software_node exar_gpio_node = {
+static const struct software_analde exar_gpio_analde = {
 	.properties = exar_gpio_properties,
 };
 
@@ -406,7 +406,7 @@ static int xr17v35x_register_gpio(struct pci_dev *pcidev, struct uart_8250_port 
 {
 	if (pcidev->vendor == PCI_VENDOR_ID_EXAR)
 		port->port.private_data =
-			__xr17v35x_register_gpio(pcidev, &exar_gpio_node);
+			__xr17v35x_register_gpio(pcidev, &exar_gpio_analde);
 
 	return 0;
 }
@@ -534,7 +534,7 @@ static const struct property_entry iot2040_gpio_properties[] = {
 	{ }
 };
 
-static const struct software_node iot2040_gpio_node = {
+static const struct software_analde iot2040_gpio_analde = {
 	.properties = iot2040_gpio_properties,
 };
 
@@ -549,7 +549,7 @@ static int iot2040_register_gpio(struct pci_dev *pcidev,
 	writeb(IOT2040_UARTS_GPIO_HI_MODE, p + UART_EXAR_MPIOSEL_15_8);
 
 	port->port.private_data =
-		__xr17v35x_register_gpio(pcidev, &iot2040_gpio_node);
+		__xr17v35x_register_gpio(pcidev, &iot2040_gpio_analde);
 
 	return 0;
 }
@@ -643,7 +643,7 @@ static void pci_xr17v35x_exit(struct pci_dev *pcidev)
 
 static inline void exar_misc_clear(struct exar8250 *priv)
 {
-	/* Clear all PCI interrupts by reading INT0. No effect on IIR */
+	/* Clear all PCI interrupts by reading INT0. Anal effect on IIR */
 	readb(priv->virt + UART_EXAR_INT0);
 
 	/* Clear INT0 for Expansion Interface slave ports, too */
@@ -653,7 +653,7 @@ static inline void exar_misc_clear(struct exar8250 *priv)
 
 /*
  * These Exar UARTs have an extra interrupt indicator that could fire for a
- * few interrupts that are not presented/cleared through IIR.  One of which is
+ * few interrupts that are analt presented/cleared through IIR.  One of which is
  * a wakeup interrupt when coming out of sleep.  These interrupts are only
  * cleared by reading global INT0 or INT1 registers as interrupts are
  * associated with channel 0. The INT[3:0] registers _are_ accessible from each
@@ -695,12 +695,12 @@ exar_pci_probe(struct pci_dev *pcidev, const struct pci_device_id *ent)
 
 	priv = devm_kzalloc(&pcidev->dev, struct_size(priv, line, nr_ports), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->board = board;
 	priv->virt = pcim_iomap(pcidev, bar, 0);
 	if (!priv->virt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pci_set_master(pcidev);
 

@@ -58,13 +58,13 @@
 #define IT66121_INPUT_CSC_DNFREE_GO		BIT(5)
 #define IT66121_INPUT_CSC_RGB_TO_YUV		0x02
 #define IT66121_INPUT_CSC_YUV_TO_RGB		0x03
-#define IT66121_INPUT_CSC_NO_CONV		0x00
+#define IT66121_INPUT_CSC_ANAL_CONV		0x00
 
 #define IT66121_AFE_XP_REG			0x62
 #define IT66121_AFE_XP_GAINBIT			BIT(7)
 #define IT66121_AFE_XP_PWDPLL			BIT(6)
 #define IT66121_AFE_XP_ENI			BIT(5)
-#define IT66121_AFE_XP_ENO			BIT(4)
+#define IT66121_AFE_XP_EANAL			BIT(4)
 #define IT66121_AFE_XP_RESETB			BIT(3)
 #define IT66121_AFE_XP_PWDI			BIT(2)
 #define IT6610_AFE_XP_BYPASS			BIT(0)
@@ -104,7 +104,7 @@
 
 #define IT66121_INT_STATUS1_REG			0x06
 #define IT66121_INT_STATUS1_AUD_OVF		BIT(7)
-#define IT66121_INT_STATUS1_DDC_NOACK		BIT(5)
+#define IT66121_INT_STATUS1_DDC_ANALACK		BIT(5)
 #define IT66121_INT_STATUS1_DDC_FIFOERR		BIT(4)
 #define IT66121_INT_STATUS1_DDC_BUSHANG		BIT(2)
 #define IT66121_INT_STATUS1_RX_SENS_STATUS	BIT(1)
@@ -134,7 +134,7 @@
 
 #define IT66121_INT_MASK1_REG			0x09
 #define IT66121_INT_MASK1_AUD_OVF		BIT(7)
-#define IT66121_INT_MASK1_DDC_NOACK		BIT(5)
+#define IT66121_INT_MASK1_DDC_ANALACK		BIT(5)
 #define IT66121_INT_MASK1_DDC_FIFOERR		BIT(4)
 #define IT66121_INT_MASK1_DDC_BUSHANG		BIT(2)
 #define IT66121_INT_MASK1_RX_SENS		BIT(1)
@@ -194,7 +194,7 @@
 #define IT66121_DDC_STATUS_REG			0x16
 #define IT66121_DDC_STATUS_TX_DONE		BIT(7)
 #define IT66121_DDC_STATUS_ACTIVE		BIT(6)
-#define IT66121_DDC_STATUS_NOACK		BIT(5)
+#define IT66121_DDC_STATUS_ANALACK		BIT(5)
 #define IT66121_DDC_STATUS_WAIT_BUS		BIT(4)
 #define IT66121_DDC_STATUS_ARBI_LOSE		BIT(3)
 #define IT66121_DDC_STATUS_FIFO_FULL		BIT(2)
@@ -280,7 +280,7 @@
 #define IT66121_AUD_SWL_19BIT			0x8
 #define IT66121_AUD_SWL_18BIT			0x4
 #define IT66121_AUD_SWL_16BIT			0x2
-#define IT66121_AUD_SWL_NOT_INDICATED		0x0
+#define IT66121_AUD_SWL_ANALT_INDICATED		0x0
 
 #define IT66121_AFE_CLK_HIGH			80000 /* Khz */
 
@@ -366,7 +366,7 @@ static int it66121_configure_input(struct it66121_ctx *ctx)
 	if (ret)
 		return ret;
 
-	return regmap_write(ctx->regmap, IT66121_INPUT_CSC_REG, IT66121_INPUT_CSC_NO_CONV);
+	return regmap_write(ctx->regmap, IT66121_INPUT_CSC_REG, IT66121_INPUT_CSC_ANAL_CONV);
 }
 
 /**
@@ -390,7 +390,7 @@ static int it66121_configure_afe(struct it66121_ctx *ctx,
 	if (mode->clock > IT66121_AFE_CLK_HIGH) {
 		ret = regmap_write_bits(ctx->regmap, IT66121_AFE_XP_REG,
 					IT66121_AFE_XP_GAINBIT |
-					IT66121_AFE_XP_ENO,
+					IT66121_AFE_XP_EANAL,
 					IT66121_AFE_XP_GAINBIT);
 		if (ret)
 			return ret;
@@ -416,8 +416,8 @@ static int it66121_configure_afe(struct it66121_ctx *ctx,
 	} else {
 		ret = regmap_write_bits(ctx->regmap, IT66121_AFE_XP_REG,
 					IT66121_AFE_XP_GAINBIT |
-					IT66121_AFE_XP_ENO,
-					IT66121_AFE_XP_ENO);
+					IT66121_AFE_XP_EANAL,
+					IT66121_AFE_XP_EANAL);
 		if (ret)
 			return ret;
 
@@ -463,7 +463,7 @@ static int it66121_configure_afe(struct it66121_ctx *ctx,
 static inline int it66121_wait_ddc_ready(struct it66121_ctx *ctx)
 {
 	int ret, val;
-	u32 error = IT66121_DDC_STATUS_NOACK | IT66121_DDC_STATUS_WAIT_BUS |
+	u32 error = IT66121_DDC_STATUS_ANALACK | IT66121_DDC_STATUS_WAIT_BUS |
 		    IT66121_DDC_STATUS_ARBI_LOSE;
 	u32 done = IT66121_DDC_STATUS_TX_DONE;
 
@@ -564,7 +564,7 @@ static int it66121_get_edid_block(void *context, u8 *buf,
 			return ret;
 		}
 
-		ret = regmap_noinc_read(ctx->regmap, IT66121_DDC_RD_FIFO_REG,
+		ret = regmap_analinc_read(ctx->regmap, IT66121_DDC_RD_FIFO_REG,
 					buf, cnt);
 		if (ret)
 			return ret;
@@ -591,7 +591,7 @@ static int it66121_bridge_attach(struct drm_bridge *bridge,
 	struct it66121_ctx *ctx = container_of(bridge, struct it66121_ctx, bridge);
 	int ret;
 
-	if (!(flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR))
+	if (!(flags & DRM_BRIDGE_ATTACH_ANAL_CONNECTOR))
 		return -EINVAL;
 
 	ret = drm_bridge_attach(bridge->encoder, ctx->next_bridge, bridge, flags);
@@ -941,7 +941,7 @@ static irqreturn_t it66121_irq_threaded_handler(int irq, void *dev_id)
 
 	ret = regmap_read(ctx->regmap, IT66121_INT_STATUS1_REG, &val);
 	if (ret) {
-		dev_err(dev, "Cannot read STATUS1_REG %d\n", ret);
+		dev_err(dev, "Cananalt read STATUS1_REG %d\n", ret);
 	} else if (val & IT66121_INT_STATUS1_HPD_STATUS) {
 		regmap_write_bits(ctx->regmap, IT66121_INT_CLR1_REG,
 				  IT66121_INT_CLR1_HPD, IT66121_INT_CLR1_HPD);
@@ -960,7 +960,7 @@ unlock:
 	mutex_unlock(&ctx->lock);
 
 	if (event)
-		drm_bridge_hpd_notify(&ctx->bridge, status);
+		drm_bridge_hpd_analtify(&ctx->bridge, status);
 
 	return IRQ_HANDLED;
 }
@@ -1349,7 +1349,7 @@ static int it66121_audio_hw_params(struct device *dev, void *data,
 		swl = IT66121_AUD_SWL_16BIT;
 		break;
 	default:
-		swl = IT66121_AUD_SWL_NOT_INDICATED;
+		swl = IT66121_AUD_SWL_ANALT_INDICATED;
 		break;
 	}
 
@@ -1448,8 +1448,8 @@ static int it66121_audio_get_eld(struct device *dev, void *data,
 
 	mutex_lock(&ctx->lock);
 	if (!ctx->connector) {
-		/* Pass en empty ELD if connector not available */
-		dev_dbg(dev, "No connector present, passing empty EDID data");
+		/* Pass en empty ELD if connector analt available */
+		dev_dbg(dev, "Anal connector present, passing empty EDID data");
 		memset(buf, 0, len);
 	} else {
 		memcpy(buf, ctx->connector->eld,
@@ -1466,22 +1466,22 @@ static const struct hdmi_codec_ops it66121_audio_codec_ops = {
 	.audio_shutdown = it66121_audio_shutdown,
 	.mute_stream = it66121_audio_mute,
 	.get_eld = it66121_audio_get_eld,
-	.no_capture_mute = 1,
+	.anal_capture_mute = 1,
 };
 
 static int it66121_audio_codec_init(struct it66121_ctx *ctx, struct device *dev)
 {
 	struct hdmi_codec_pdata codec_data = {
 		.ops = &it66121_audio_codec_ops,
-		.i2s = 1, /* Only i2s support for now */
+		.i2s = 1, /* Only i2s support for analw */
 		.spdif = 0,
 		.max_i2s_channels = 8,
 	};
 
 	dev_dbg(dev, "%s\n", __func__);
 
-	if (!of_property_read_bool(dev->of_node, "#sound-dai-cells")) {
-		dev_info(dev, "No \"#sound-dai-cells\", no audio\n");
+	if (!of_property_read_bool(dev->of_analde, "#sound-dai-cells")) {
+		dev_info(dev, "Anal \"#sound-dai-cells\", anal audio\n");
 		return 0;
 	}
 
@@ -1506,7 +1506,7 @@ static const char * const it66121_supplies[] = {
 static int it66121_probe(struct i2c_client *client)
 {
 	u32 revision_id, vendor_ids[2] = { 0 }, device_ids[2] = { 0 };
-	struct device_node *ep;
+	struct device_analde *ep;
 	int ret;
 	struct it66121_ctx *ctx;
 	struct device *dev = &client->dev;
@@ -1518,9 +1518,9 @@ static int it66121_probe(struct i2c_client *client)
 
 	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	ep = of_graph_get_endpoint_by_regs(dev->of_node, 0, 0);
+	ep = of_graph_get_endpoint_by_regs(dev->of_analde, 0, 0);
 	if (!ep)
 		return -EINVAL;
 
@@ -1529,27 +1529,27 @@ static int it66121_probe(struct i2c_client *client)
 	ctx->info = i2c_get_match_data(client);
 
 	of_property_read_u32(ep, "bus-width", &ctx->bus_width);
-	of_node_put(ep);
+	of_analde_put(ep);
 
 	if (ctx->bus_width != 12 && ctx->bus_width != 24)
 		return -EINVAL;
 
-	ep = of_graph_get_remote_node(dev->of_node, 1, -1);
+	ep = of_graph_get_remote_analde(dev->of_analde, 1, -1);
 	if (!ep) {
 		dev_err(ctx->dev, "The endpoint is unconnected\n");
 		return -EINVAL;
 	}
 
 	if (!of_device_is_available(ep)) {
-		of_node_put(ep);
+		of_analde_put(ep);
 		dev_err(ctx->dev, "The remote device is disabled\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ctx->next_bridge = of_drm_find_bridge(ep);
-	of_node_put(ep);
+	of_analde_put(ep);
 	if (!ctx->next_bridge) {
-		dev_dbg(ctx->dev, "Next bridge not found, deferring probe\n");
+		dev_dbg(ctx->dev, "Next bridge analt found, deferring probe\n");
 		return -EPROBE_DEFER;
 	}
 
@@ -1580,11 +1580,11 @@ static int it66121_probe(struct i2c_client *client)
 
 	if ((vendor_ids[1] << 8 | vendor_ids[0]) != ctx->info->vid ||
 	    (device_ids[1] << 8 | device_ids[0]) != ctx->info->pid) {
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ctx->bridge.funcs = &it66121_bridge_funcs;
-	ctx->bridge.of_node = dev->of_node;
+	ctx->bridge.of_analde = dev->of_analde;
 	ctx->bridge.type = DRM_MODE_CONNECTOR_HDMIA;
 	ctx->bridge.ops = DRM_BRIDGE_OP_DETECT | DRM_BRIDGE_OP_EDID | DRM_BRIDGE_OP_HPD;
 

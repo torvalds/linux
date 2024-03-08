@@ -8,7 +8,7 @@ sfx=$(mktemp -u "XXXXXXXX")
 ns0="ns0-$sfx"
 
 if ! nft --version > /dev/null 2>&1; then
-	echo "SKIP: Could not run test without nft tool"
+	echo "SKIP: Could analt run test without nft tool"
 	exit $ksft_skip
 fi
 
@@ -79,7 +79,7 @@ table inet filter {
 EOF
 
 if [ $? -ne 0 ]; then
-	echo "SKIP: Could not add test ruleset"
+	echo "SKIP: Could analt add test ruleset"
 	exit $ksft_skip
 fi
 

@@ -59,9 +59,9 @@ Optional properties:
 - Any optional property defined in bindings/regulator/regulator.txt
 For twl4030 regulators/LDOs:
  - regulator-initial-mode:
-  - 0x08 - Sleep mode, the nominal output voltage is maintained with low power
+  - 0x08 - Sleep mode, the analminal output voltage is maintained with low power
            consumption with low load current capability.
-  - 0x0e - Active mode, the regulator can deliver its nominal output voltage
+  - 0x0e - Active mode, the regulator can deliver its analminal output voltage
            with full-load current capability.
 
 Example:
@@ -74,7 +74,7 @@ Example:
 
 For twl6030 regulators/LDOs:
 
- - ti,retain-on-reset: Does not turn off the supplies during warm
+ - ti,retain-on-reset: Does analt turn off the supplies during warm
                        reset. Could be needed for VMMC, as TWL6030
-                       reset sequence for this signal does not comply
+                       reset sequence for this signal does analt comply
                        with the SD specification.

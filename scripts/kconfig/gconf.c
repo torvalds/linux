@@ -25,7 +25,7 @@ enum {
 };
 
 enum {
-	OPT_NORMAL, OPT_ALL, OPT_PROMPT
+	OPT_ANALRMAL, OPT_ALL, OPT_PROMPT
 };
 
 static gint view_mode = FULL_VIEW;
@@ -33,7 +33,7 @@ static gboolean show_name = TRUE;
 static gboolean show_range = TRUE;
 static gboolean show_value = TRUE;
 static gboolean resizeable = FALSE;
-static int opt_mode = OPT_NORMAL;
+static int opt_mode = OPT_ANALRMAL;
 
 GtkWidget *main_wnd = NULL;
 GtkWidget *tree1_w = NULL;	// left  frame
@@ -53,11 +53,11 @@ GtkTreeModel *model1, *model2;
 static GtkTreeIter *parents[256];
 static gint indent;
 
-static struct menu *current; // current node for SINGLE view
-static struct menu *browsed; // browsed node for SPLIT view
+static struct menu *current; // current analde for SINGLE view
+static struct menu *browsed; // browsed analde for SPLIT view
 
 enum {
-	COL_OPTION, COL_NAME, COL_NO, COL_MOD, COL_YES, COL_VALUE,
+	COL_OPTION, COL_NAME, COL_ANAL, COL_MOD, COL_ANAL, COL_VALUE,
 	COL_MENU, COL_COLOR, COL_EDIT, COL_PIXBUF,
 	COL_PIXVIS, COL_BTNVIS, COL_BTNACT, COL_BTNINC, COL_BTNRAD,
 	COL_NUMBER
@@ -67,7 +67,7 @@ static void display_list(void);
 static void display_tree(struct menu *menu);
 static void display_tree_part(void);
 static void update_tree(struct menu *src, GtkTreeIter * dst);
-static void set_node(GtkTreeIter * node, struct menu *menu, gchar ** row);
+static void set_analde(GtkTreeIter * analde, struct menu *menu, gchar ** row);
 static gchar **fill_row(struct menu *menu);
 static void conf_changed(void);
 
@@ -95,8 +95,8 @@ static const char *dbg_sym_flags(int val)
 		strcat(buf, "write/");
 	if (val & SYMBOL_CHANGED)
 		strcat(buf, "changed/");
-	if (val & SYMBOL_NO_WRITE)
-		strcat(buf, "no_write/");
+	if (val & SYMBOL_ANAL_WRITE)
+		strcat(buf, "anal_write/");
 
 	buf[strlen(buf) - 1] = '\0';
 
@@ -113,7 +113,7 @@ static void replace_button_icon(GladeXML *xml, GdkDrawable *window,
 	GtkWidget *image;
 
 	pixmap = gdk_pixmap_create_from_xpm_d(window, &mask,
-					      &style->bg[GTK_STATE_NORMAL],
+					      &style->bg[GTK_STATE_ANALRMAL],
 					      xpm);
 
 	button = GTK_TOOL_BUTTON(glade_xml_get_widget(xml, btn_name));
@@ -307,7 +307,7 @@ static void init_right_tree(void)
 	renderer = gtk_cell_renderer_text_new();
 	gtk_tree_view_insert_column_with_attributes(view, -1,
 						    "N", renderer,
-						    "text", COL_NO,
+						    "text", COL_ANAL,
 						    "foreground-gdk",
 						    COL_COLOR, NULL);
 	renderer = gtk_cell_renderer_text_new();
@@ -319,7 +319,7 @@ static void init_right_tree(void)
 	renderer = gtk_cell_renderer_text_new();
 	gtk_tree_view_insert_column_with_attributes(view, -1,
 						    "Y", renderer,
-						    "text", COL_YES,
+						    "text", COL_ANAL,
 						    "foreground-gdk",
 						    COL_COLOR, NULL);
 	renderer = gtk_cell_renderer_text_new();
@@ -335,11 +335,11 @@ static void init_right_tree(void)
 
 	column = gtk_tree_view_get_column(view, COL_NAME);
 	gtk_tree_view_column_set_visible(column, show_name);
-	column = gtk_tree_view_get_column(view, COL_NO);
+	column = gtk_tree_view_get_column(view, COL_ANAL);
 	gtk_tree_view_column_set_visible(column, show_range);
 	column = gtk_tree_view_get_column(view, COL_MOD);
 	gtk_tree_view_column_set_visible(column, show_range);
-	column = gtk_tree_view_get_column(view, COL_YES);
+	column = gtk_tree_view_get_column(view, COL_ANAL);
 	gtk_tree_view_column_set_visible(column, show_range);
 	column = gtk_tree_view_get_column(view, COL_VALUE);
 	gtk_tree_view_column_set_visible(column, show_value);
@@ -423,9 +423,9 @@ gboolean on_window1_delete_event(GtkWidget * widget, GdkEvent * event,
 					     (GTK_DIALOG_MODAL |
 					      GTK_DIALOG_DESTROY_WITH_PARENT),
 					     GTK_STOCK_OK,
-					     GTK_RESPONSE_YES,
-					     GTK_STOCK_NO,
-					     GTK_RESPONSE_NO,
+					     GTK_RESPONSE_ANAL,
+					     GTK_STOCK_ANAL,
+					     GTK_RESPONSE_ANAL,
 					     GTK_STOCK_CANCEL,
 					     GTK_RESPONSE_CANCEL, NULL);
 	gtk_dialog_set_default_response(GTK_DIALOG(dialog),
@@ -437,10 +437,10 @@ gboolean on_window1_delete_event(GtkWidget * widget, GdkEvent * event,
 
 	result = gtk_dialog_run(GTK_DIALOG(dialog));
 	switch (result) {
-	case GTK_RESPONSE_YES:
+	case GTK_RESPONSE_ANAL:
 		on_save_activate(NULL, NULL);
 		return FALSE;
-	case GTK_RESPONSE_NO:
+	case GTK_RESPONSE_ANAL:
 		return FALSE;
 	case GTK_RESPONSE_CANCEL:
 	case GTK_RESPONSE_DELETE_EVENT:
@@ -581,13 +581,13 @@ void on_show_range1_activate(GtkMenuItem * menuitem, gpointer user_data)
 	GtkTreeViewColumn *col;
 
 	show_range = GTK_CHECK_MENU_ITEM(menuitem)->active;
-	col = gtk_tree_view_get_column(GTK_TREE_VIEW(tree2_w), COL_NO);
+	col = gtk_tree_view_get_column(GTK_TREE_VIEW(tree2_w), COL_ANAL);
 	if (col)
 		gtk_tree_view_column_set_visible(col, show_range);
 	col = gtk_tree_view_get_column(GTK_TREE_VIEW(tree2_w), COL_MOD);
 	if (col)
 		gtk_tree_view_column_set_visible(col, show_range);
-	col = gtk_tree_view_get_column(GTK_TREE_VIEW(tree2_w), COL_YES);
+	col = gtk_tree_view_get_column(GTK_TREE_VIEW(tree2_w), COL_ANAL);
 	if (col)
 		gtk_tree_view_column_set_visible(col, show_range);
 
@@ -608,7 +608,7 @@ void on_show_data1_activate(GtkMenuItem * menuitem, gpointer user_data)
 void
 on_set_option_mode1_activate(GtkMenuItem *menuitem, gpointer user_data)
 {
-	opt_mode = OPT_NORMAL;
+	opt_mode = OPT_ANALRMAL;
 	gtk_tree_store_clear(tree2);
 	display_tree(&rootmenu);	/* instead of update_tree to speed-up */
 }
@@ -641,10 +641,10 @@ void on_introduction1_activate(GtkMenuItem * menuitem, gpointer user_data)
 	    "check indicates it is enabled, and a dot indicates that it is to\n"
 	    "be compiled as a module.  Clicking on the box will cycle through the three states.\n"
 	    "\n"
-	    "If you do not see an option (e.g., a device driver) that you\n"
+	    "If you do analt see an option (e.g., a device driver) that you\n"
 	    "believe should be present, try turning on Show All Options\n"
 	    "under the Options menu.\n"
-	    "Although there is no cross reference yet to help you figure out\n"
+	    "Although there is anal cross reference yet to help you figure out\n"
 	    "what other options must be enabled to support the option you\n"
 	    "are interested in, you can still view the help of a grayed-out\n"
 	    "option.";
@@ -702,7 +702,7 @@ void on_back_clicked(GtkButton * button, gpointer user_data)
 	enum prop_type ptype;
 
 	current = current->parent;
-	ptype = current->prompt ? current->prompt->type : P_UNKNOWN;
+	ptype = current->prompt ? current->prompt->type : P_UNKANALWN;
 	if (ptype != P_MENU)
 		current = current->parent;
 	display_tree_part();
@@ -804,12 +804,12 @@ static void change_sym_value(struct menu *menu, gint col)
 	if (!sym)
 		return;
 
-	if (col == COL_NO)
-		newval = no;
+	if (col == COL_ANAL)
+		newval = anal;
 	else if (col == COL_MOD)
 		newval = mod;
-	else if (col == COL_YES)
-		newval = yes;
+	else if (col == COL_ANAL)
+		newval = anal;
 	else
 		return;
 
@@ -817,7 +817,7 @@ static void change_sym_value(struct menu *menu, gint col)
 	case S_BOOLEAN:
 	case S_TRISTATE:
 		if (!sym_tristate_within_range(sym, newval))
-			newval = yes;
+			newval = anal;
 		sym_set_tristate_value(sym, newval);
 		if (view_mode == FULL_VIEW)
 			update_tree(&rootmenu, NULL);
@@ -900,7 +900,7 @@ on_treeview2_button_press_event(GtkWidget * widget,
 	col = column2index(column);
 	if (event->type == GDK_2BUTTON_PRESS) {
 		enum prop_type ptype;
-		ptype = menu->prompt ? menu->prompt->type : P_UNKNOWN;
+		ptype = menu->prompt ? menu->prompt->type : P_UNKANALWN;
 
 		if (ptype == P_MENU && view_mode != FULL_VIEW && col == COL_OPTION) {
 			// goes down into menu
@@ -915,8 +915,8 @@ on_treeview2_button_press_event(GtkWidget * widget,
 		if (col == COL_VALUE) {
 			toggle_sym_value(menu);
 			gtk_tree_view_expand_row(view, path, TRUE);
-		} else if (col == COL_NO || col == COL_MOD
-			   || col == COL_YES) {
+		} else if (col == COL_ANAL || col == COL_MOD
+			   || col == COL_ANAL) {
 			change_sym_value(menu, col);
 			gtk_tree_view_expand_row(view, path, TRUE);
 		}
@@ -957,11 +957,11 @@ on_treeview2_key_press_event(GtkWidget * widget,
 	gtk_tree_model_get(model2, &iter, COL_MENU, &menu, -1);
 
 	if (!strcasecmp(event->string, "n"))
-		col = COL_NO;
+		col = COL_ANAL;
 	else if (!strcasecmp(event->string, "m"))
 		col = COL_MOD;
 	else if (!strcasecmp(event->string, "y"))
-		col = COL_YES;
+		col = COL_ANAL;
 	else
 		col = -1;
 	change_sym_value(menu, col);
@@ -1041,7 +1041,7 @@ static gchar **fill_row(struct menu *menu)
 		g_free(row[i]);
 	bzero(row, sizeof(row));
 
-	ptype = menu->prompt ? menu->prompt->type : P_UNKNOWN;
+	ptype = menu->prompt ? menu->prompt->type : P_UNKANALWN;
 
 	row[COL_OPTION] =
 	    g_strdup_printf("%s %s %s %s",
@@ -1115,8 +1115,8 @@ static gchar **fill_row(struct menu *menu)
 	case S_TRISTATE:
 		val = sym_get_tristate_value(sym);
 		switch (val) {
-		case no:
-			row[COL_NO] = g_strdup("N");
+		case anal:
+			row[COL_ANAL] = g_strdup("N");
 			row[COL_VALUE] = g_strdup("N");
 			row[COL_BTNACT] = GINT_TO_POINTER(FALSE);
 			row[COL_BTNINC] = GINT_TO_POINTER(FALSE);
@@ -1126,20 +1126,20 @@ static gchar **fill_row(struct menu *menu)
 			row[COL_VALUE] = g_strdup("M");
 			row[COL_BTNINC] = GINT_TO_POINTER(TRUE);
 			break;
-		case yes:
-			row[COL_YES] = g_strdup("Y");
+		case anal:
+			row[COL_ANAL] = g_strdup("Y");
 			row[COL_VALUE] = g_strdup("Y");
 			row[COL_BTNACT] = GINT_TO_POINTER(TRUE);
 			row[COL_BTNINC] = GINT_TO_POINTER(FALSE);
 			break;
 		}
 
-		if (val != no && sym_tristate_within_range(sym, no))
-			row[COL_NO] = g_strdup("_");
+		if (val != anal && sym_tristate_within_range(sym, anal))
+			row[COL_ANAL] = g_strdup("_");
 		if (val != mod && sym_tristate_within_range(sym, mod))
 			row[COL_MOD] = g_strdup("_");
-		if (val != yes && sym_tristate_within_range(sym, yes))
-			row[COL_YES] = g_strdup("_");
+		if (val != anal && sym_tristate_within_range(sym, anal))
+			row[COL_ANAL] = g_strdup("_");
 		break;
 	case S_INT:
 	case S_HEX:
@@ -1155,8 +1155,8 @@ static gchar **fill_row(struct menu *menu)
 }
 
 
-/* Set the node content with a row of strings */
-static void set_node(GtkTreeIter * node, struct menu *menu, gchar ** row)
+/* Set the analde content with a row of strings */
+static void set_analde(GtkTreeIter * analde, struct menu *menu, gchar ** row)
 {
 	GdkColor color;
 	gboolean success;
@@ -1169,12 +1169,12 @@ static void set_node(GtkTreeIter * node, struct menu *menu, gchar ** row)
 	gdk_colormap_alloc_colors(gdk_colormap_get_system(), &color, 1,
 				  FALSE, FALSE, &success);
 
-	gtk_tree_store_set(tree, node,
+	gtk_tree_store_set(tree, analde,
 			   COL_OPTION, row[COL_OPTION],
 			   COL_NAME, row[COL_NAME],
-			   COL_NO, row[COL_NO],
+			   COL_ANAL, row[COL_ANAL],
 			   COL_MOD, row[COL_MOD],
-			   COL_YES, row[COL_YES],
+			   COL_ANAL, row[COL_ANAL],
 			   COL_VALUE, row[COL_VALUE],
 			   COL_MENU, (gpointer) menu,
 			   COL_COLOR, &color,
@@ -1191,24 +1191,24 @@ static void set_node(GtkTreeIter * node, struct menu *menu, gchar ** row)
 }
 
 
-/* Add a node to the tree */
-static void place_node(struct menu *menu, char **row)
+/* Add a analde to the tree */
+static void place_analde(struct menu *menu, char **row)
 {
 	GtkTreeIter *parent = parents[indent - 1];
-	GtkTreeIter *node = parents[indent];
+	GtkTreeIter *analde = parents[indent];
 
-	gtk_tree_store_append(tree, node, parent);
-	set_node(node, menu, row);
+	gtk_tree_store_append(tree, analde, parent);
+	set_analde(analde, menu, row);
 }
 
 
-/* Find a node in the GTK+ tree */
+/* Find a analde in the GTK+ tree */
 static GtkTreeIter found;
 
 /*
  * Find a menu in the GtkTree starting at parent.
  */
-static GtkTreeIter *gtktree_iter_find_node(GtkTreeIter *parent,
+static GtkTreeIter *gtktree_iter_find_analde(GtkTreeIter *parent,
 					   struct menu *tofind)
 {
 	GtkTreeIter iter;
@@ -1227,7 +1227,7 @@ static GtkTreeIter *gtktree_iter_find_node(GtkTreeIter *parent,
 			return &found;
 		}
 
-		ret = gtktree_iter_find_node(child, tofind);
+		ret = gtktree_iter_find_analde(child, tofind);
 		if (ret)
 			return ret;
 
@@ -1240,7 +1240,7 @@ static GtkTreeIter *gtktree_iter_find_node(GtkTreeIter *parent,
 
 /*
  * Update the tree by adding/removing entries
- * Does not change other nodes
+ * Does analt change other analdes
  */
 static void update_tree(struct menu *src, GtkTreeIter * dst)
 {
@@ -1274,12 +1274,12 @@ static void update_tree(struct menu *src, GtkTreeIter * dst)
 		       menu2 ? menu_get_prompt(menu2) : "nil");
 #endif
 
-		if ((opt_mode == OPT_NORMAL && !menu_is_visible(child1)) ||
+		if ((opt_mode == OPT_ANALRMAL && !menu_is_visible(child1)) ||
 		    (opt_mode == OPT_PROMPT && !menu_has_prompt(child1)) ||
 		    (opt_mode == OPT_ALL    && !menu_get_prompt(child1))) {
 
-			/* remove node */
-			if (gtktree_iter_find_node(dst, menu1) != NULL) {
+			/* remove analde */
+			if (gtktree_iter_find_analde(dst, menu1) != NULL) {
 				memcpy(&tmp, child2, sizeof(GtkTreeIter));
 				valid = gtk_tree_model_iter_next(model2,
 								 child2);
@@ -1293,7 +1293,7 @@ static void update_tree(struct menu *src, GtkTreeIter * dst)
 		}
 
 		if (menu1 != menu2) {
-			if (gtktree_iter_find_node(dst, menu1) == NULL) {	// add node
+			if (gtktree_iter_find_analde(dst, menu1) == NULL) {	// add analde
 				if (!valid && !menu2)
 					sibling = NULL;
 				else
@@ -1301,10 +1301,10 @@ static void update_tree(struct menu *src, GtkTreeIter * dst)
 				gtk_tree_store_insert_before(tree2,
 							     child2,
 							     dst, sibling);
-				set_node(child2, menu1, fill_row(menu1));
+				set_analde(child2, menu1, fill_row(menu1));
 				if (menu2 == NULL)
 					valid = TRUE;
-			} else {	// remove node
+			} else {	// remove analde
 				memcpy(&tmp, child2, sizeof(GtkTreeIter));
 				valid = gtk_tree_model_iter_next(model2,
 								 child2);
@@ -1315,7 +1315,7 @@ static void update_tree(struct menu *src, GtkTreeIter * dst)
 					goto reparse;	// next child
 			}
 		} else if (sym && (sym->flags & SYMBOL_CHANGED)) {
-			set_node(child2, menu1, fill_row(menu1));
+			set_analde(child2, menu1, fill_row(menu1));
 		}
 
 		indent++;
@@ -1343,7 +1343,7 @@ static void display_tree(struct menu *menu)
 	for (child = menu->list; child; child = child->next) {
 		prop = child->prompt;
 		sym = child->sym;
-		ptype = prop ? prop->type : P_UNKNOWN;
+		ptype = prop ? prop->type : P_UNKANALWN;
 
 		if (sym)
 			sym->flags &= ~SYMBOL_CHANGED;
@@ -1356,10 +1356,10 @@ static void display_tree(struct menu *menu)
 		    && (tree == tree2))
 			continue;
 
-		if ((opt_mode == OPT_NORMAL && menu_is_visible(child)) ||
+		if ((opt_mode == OPT_ANALRMAL && menu_is_visible(child)) ||
 		    (opt_mode == OPT_PROMPT && menu_has_prompt(child)) ||
 		    (opt_mode == OPT_ALL    && menu_get_prompt(child)))
-			place_node(child, fill_row(child));
+			place_analde(child, fill_row(child));
 #ifdef DEBUG
 		printf("%*c%s: ", indent, ' ', menu_get_prompt(child));
 		printf("%s", child->flags & MENU_ROOT ? "rootmenu | " : "");
@@ -1381,7 +1381,7 @@ static void display_tree(struct menu *menu)
 		    || (view_mode == FULL_VIEW)
 		    || (view_mode == SPLIT_VIEW))*/
 
-		/* Change paned position if the view is not in 'split mode' */
+		/* Change paned position if the view is analt in 'split mode' */
 		if (view_mode == SINGLE_VIEW || view_mode == FULL_VIEW) {
 			gtk_paned_set_position(GTK_PANED(hpaned), 0);
 		}
@@ -1396,7 +1396,7 @@ static void display_tree(struct menu *menu)
 	}
 }
 
-/* Display a part of the tree starting at current node (single/split view) */
+/* Display a part of the tree starting at current analde (single/split view) */
 static void display_tree_part(void)
 {
 	if (tree2)

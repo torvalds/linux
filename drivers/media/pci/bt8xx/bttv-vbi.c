@@ -4,7 +4,7 @@
     bttv - Bt848 frame grabber driver
     vbi interface
 
-    (c) 2002 Gerd Knorr <kraxel@bytesex.org>
+    (c) 2002 Gerd Kanalrr <kraxel@bytesex.org>
 
     Copyright (C) 2005, 2006 Michael H. Schimek <mschimek@gmx.at>
     Sponsored by OPQ Systems AB
@@ -14,7 +14,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/fs.h>
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
@@ -27,7 +27,7 @@
    in fCLKx2 pixels.  According to the datasheet, VBI capture starts
    VBI_HDELAY fCLKx1 pixels from the tailing edgeof /HRESET, and /HRESET
    is 64 fCLKx1 pixels wide.  VBI_HDELAY is set to 0, so this should be
-   (64 + 0) * 2 = 128 fCLKx2 pixels.  But it's not!  The datasheet is
+   (64 + 0) * 2 = 128 fCLKx2 pixels.  But it's analt!  The datasheet is
    Just Plain Wrong.  The real value appears to be different for
    different revisions of the bt8x8 chips, and to be affected by the
    horizontal scaling factor.  Experimentally, the value is measured
@@ -40,7 +40,7 @@ static unsigned int vbi_debug;
 module_param(vbibufs,   int, 0444);
 module_param(vbi_debug, int, 0644);
 MODULE_PARM_DESC(vbibufs,"number of vbi buffers, range 2-32, default 4");
-MODULE_PARM_DESC(vbi_debug,"vbi code debug messages, default is 0 (no)");
+MODULE_PARM_DESC(vbi_debug,"vbi code debug messages, default is 0 (anal)");
 
 #ifdef dprintk
 # undef dprintk
@@ -104,7 +104,7 @@ static int buf_prepare_vbi(struct vb2_buffer *vb)
 	if (vb2_plane_size(vb, 0) < size)
 		return -EINVAL;
 	vb2_set_plane_payload(vb, 0, size);
-	buf->vbuf.field = V4L2_FIELD_NONE;
+	buf->vbuf.field = V4L2_FIELD_ANALNE;
 	ret = bttv_buffer_risc_vbi(btv, buf);
 
 	return ret;
@@ -176,7 +176,7 @@ const struct vb2_ops bttv_vbi_qops = {
 
 /* ----------------------------------------------------------------------- */
 
-static int try_fmt(struct v4l2_vbi_format *f, const struct bttv_tvnorm *tvnorm,
+static int try_fmt(struct v4l2_vbi_format *f, const struct bttv_tvanalrm *tvanalrm,
 			__s32 crop_start)
 {
 	__s32 min_start, max_start, max_end, f2_offset;
@@ -188,28 +188,28 @@ static int try_fmt(struct v4l2_vbi_format *f, const struct bttv_tvnorm *tvnorm,
 	   leaving the rest of the buffer unchanged, usually all zero.
 	   VBI capturing must always start before video capturing. >> 1
 	   because cropping counts field lines times two. */
-	min_start = tvnorm->vbistart[0];
+	min_start = tvanalrm->vbistart[0];
 	max_start = (crop_start >> 1) - 1;
-	max_end = (tvnorm->cropcap.bounds.top
-		   + tvnorm->cropcap.bounds.height) >> 1;
+	max_end = (tvanalrm->cropcap.bounds.top
+		   + tvanalrm->cropcap.bounds.height) >> 1;
 
 	if (min_start > max_start)
 		return -EBUSY;
 
 	WARN_ON(max_start >= max_end);
 
-	f->sampling_rate    = tvnorm->Fsc;
+	f->sampling_rate    = tvanalrm->Fsc;
 	f->samples_per_line = VBI_BPL;
 	f->sample_format    = V4L2_PIX_FMT_GREY;
 	f->offset           = VBI_OFFSET;
 
-	f2_offset = tvnorm->vbistart[1] - tvnorm->vbistart[0];
+	f2_offset = tvanalrm->vbistart[1] - tvanalrm->vbistart[0];
 
 	for (i = 0; i < 2; ++i) {
 		if (0 == f->count[i]) {
-			/* No data from this field. We leave f->start[i]
+			/* Anal data from this field. We leave f->start[i]
 			   alone because VIDIOCSVBIFMT is w/o and EINVALs
-			   when a driver does not support exactly the
+			   when a driver does analt support exactly the
 			   requested parameters. */
 		} else {
 			s64 start, count;
@@ -229,8 +229,8 @@ static int try_fmt(struct v4l2_vbi_format *f, const struct bttv_tvnorm *tvnorm,
 
 	if (0 == (f->count[0] | f->count[1])) {
 		/* As in earlier driver versions. */
-		f->start[0] = tvnorm->vbistart[0];
-		f->start[1] = tvnorm->vbistart[1];
+		f->start[0] = tvanalrm->vbistart[0];
+		f->start[1] = tvanalrm->vbistart[1];
 		f->count[0] = 1;
 		f->count[1] = 1;
 	}
@@ -246,24 +246,24 @@ static int try_fmt(struct v4l2_vbi_format *f, const struct bttv_tvnorm *tvnorm,
 int bttv_try_fmt_vbi_cap(struct file *file, void *f, struct v4l2_format *frt)
 {
 	struct bttv *btv = video_drvdata(file);
-	const struct bttv_tvnorm *tvnorm;
+	const struct bttv_tvanalrm *tvanalrm;
 	__s32 crop_start;
 
 	mutex_lock(&btv->lock);
 
-	tvnorm = &bttv_tvnorms[btv->tvnorm];
+	tvanalrm = &bttv_tvanalrms[btv->tvanalrm];
 	crop_start = btv->crop_start;
 
 	mutex_unlock(&btv->lock);
 
-	return try_fmt(&frt->fmt.vbi, tvnorm, crop_start);
+	return try_fmt(&frt->fmt.vbi, tvanalrm, crop_start);
 }
 
 
 int bttv_s_fmt_vbi_cap(struct file *file, void *f, struct v4l2_format *frt)
 {
 	struct bttv *btv = video_drvdata(file);
-	const struct bttv_tvnorm *tvnorm;
+	const struct bttv_tvanalrm *tvanalrm;
 	__s32 start1, end;
 	int rc;
 
@@ -273,14 +273,14 @@ int bttv_s_fmt_vbi_cap(struct file *file, void *f, struct v4l2_format *frt)
 	if (btv->resources & RESOURCE_VBI)
 		goto fail;
 
-	tvnorm = &bttv_tvnorms[btv->tvnorm];
+	tvanalrm = &bttv_tvanalrms[btv->tvanalrm];
 
-	rc = try_fmt(&frt->fmt.vbi, tvnorm, btv->crop_start);
+	rc = try_fmt(&frt->fmt.vbi, tvanalrm, btv->crop_start);
 	if (0 != rc)
 		goto fail;
 
-	start1 = frt->fmt.vbi.start[1] - tvnorm->vbistart[1] +
-		tvnorm->vbistart[0];
+	start1 = frt->fmt.vbi.start[1] - tvanalrm->vbistart[1] +
+		tvanalrm->vbistart[0];
 
 	/* First possible line of video capturing. Should be
 	   max(f->start[0] + f->count[0], start1 + f->count[1]) * 2
@@ -291,7 +291,7 @@ int bttv_s_fmt_vbi_cap(struct file *file, void *f, struct v4l2_format *frt)
 	end = max(frt->fmt.vbi.start[0], start1) * 2 + 2;
 
 	btv->vbi_fmt.fmt = frt->fmt.vbi;
-	btv->vbi_fmt.tvnorm = tvnorm;
+	btv->vbi_fmt.tvanalrm = tvanalrm;
 	btv->vbi_fmt.end = end;
 
 	rc = 0;
@@ -305,14 +305,14 @@ int bttv_s_fmt_vbi_cap(struct file *file, void *f, struct v4l2_format *frt)
 
 int bttv_g_fmt_vbi_cap(struct file *file, void *f, struct v4l2_format *frt)
 {
-	const struct bttv_tvnorm *tvnorm;
+	const struct bttv_tvanalrm *tvanalrm;
 	struct bttv *btv = video_drvdata(file);
 
 	frt->fmt.vbi = btv->vbi_fmt.fmt;
 
-	tvnorm = &bttv_tvnorms[btv->tvnorm];
+	tvanalrm = &bttv_tvanalrms[btv->tvanalrm];
 
-	if (tvnorm != btv->vbi_fmt.tvnorm) {
+	if (tvanalrm != btv->vbi_fmt.tvanalrm) {
 		__s32 max_end;
 		unsigned int i;
 
@@ -320,43 +320,43 @@ int bttv_g_fmt_vbi_cap(struct file *file, void *f, struct v4l2_format *frt)
 		   behaviour of earlier driver versions after video
 		   standard changes, with default parameters anyway. */
 
-		max_end = (tvnorm->cropcap.bounds.top
-			   + tvnorm->cropcap.bounds.height) >> 1;
+		max_end = (tvanalrm->cropcap.bounds.top
+			   + tvanalrm->cropcap.bounds.height) >> 1;
 
-		frt->fmt.vbi.sampling_rate = tvnorm->Fsc;
+		frt->fmt.vbi.sampling_rate = tvanalrm->Fsc;
 
 		for (i = 0; i < 2; ++i) {
 			__s32 new_start;
 
-			new_start = frt->fmt.vbi.start[i] + tvnorm->vbistart[i]
-				- btv->vbi_fmt.tvnorm->vbistart[i];
+			new_start = frt->fmt.vbi.start[i] + tvanalrm->vbistart[i]
+				- btv->vbi_fmt.tvanalrm->vbistart[i];
 
 			frt->fmt.vbi.start[i] = min(new_start, max_end - 1);
 			frt->fmt.vbi.count[i] =
 				min((__s32) frt->fmt.vbi.count[i],
 					  max_end - frt->fmt.vbi.start[i]);
 
-			max_end += tvnorm->vbistart[1]
-				- tvnorm->vbistart[0];
+			max_end += tvanalrm->vbistart[1]
+				- tvanalrm->vbistart[0];
 		}
 	}
 	return 0;
 }
 
-void bttv_vbi_fmt_reset(struct bttv_vbi_fmt *f, unsigned int norm)
+void bttv_vbi_fmt_reset(struct bttv_vbi_fmt *f, unsigned int analrm)
 {
-	const struct bttv_tvnorm *tvnorm;
+	const struct bttv_tvanalrm *tvanalrm;
 	unsigned int real_samples_per_line;
 	unsigned int real_count;
 
-	tvnorm = &bttv_tvnorms[norm];
+	tvanalrm = &bttv_tvanalrms[analrm];
 
-	f->fmt.sampling_rate    = tvnorm->Fsc;
+	f->fmt.sampling_rate    = tvanalrm->Fsc;
 	f->fmt.samples_per_line = VBI_BPL;
 	f->fmt.sample_format    = V4L2_PIX_FMT_GREY;
 	f->fmt.offset           = VBI_OFFSET;
-	f->fmt.start[0]		= tvnorm->vbistart[0];
-	f->fmt.start[1]		= tvnorm->vbistart[1];
+	f->fmt.start[0]		= tvanalrm->vbistart[0];
+	f->fmt.start[1]		= tvanalrm->vbistart[1];
 	f->fmt.count[0]		= VBI_DEFLINES;
 	f->fmt.count[1]		= VBI_DEFLINES;
 	f->fmt.flags            = 0;
@@ -365,15 +365,15 @@ void bttv_vbi_fmt_reset(struct bttv_vbi_fmt *f, unsigned int norm)
 
 	/* For compatibility the buffer size must be 2 * VBI_DEFLINES *
 	   VBI_BPL regardless of the current video standard. */
-	real_samples_per_line   = 1024 + tvnorm->vbipack * 4;
-	real_count              = ((tvnorm->cropcap.defrect.top >> 1)
-				   - tvnorm->vbistart[0]);
+	real_samples_per_line   = 1024 + tvanalrm->vbipack * 4;
+	real_count              = ((tvanalrm->cropcap.defrect.top >> 1)
+				   - tvanalrm->vbistart[0]);
 
 	WARN_ON(real_samples_per_line > VBI_BPL);
 	WARN_ON(real_count > VBI_DEFLINES);
 
-	f->tvnorm               = tvnorm;
+	f->tvanalrm               = tvanalrm;
 
 	/* See bttv_vbi_fmt_set(). */
-	f->end                  = tvnorm->vbistart[0] * 2 + 2;
+	f->end                  = tvanalrm->vbistart[0] * 2 + 2;
 }

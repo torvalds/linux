@@ -18,9 +18,9 @@
 #define MSC1		(SMEMC_VIRT + 0x0C)  /* Static Memory Control Register 1 */
 #define MSC2		(SMEMC_VIRT + 0x10)  /* Static Memory Control Register 2 */
 #define MECR		(SMEMC_VIRT + 0x14)  /* Expansion Memory (PCMCIA/Compact Flash) Bus Configuration */
-#define SXLCR		(SMEMC_VIRT + 0x18)  /* LCR value to be written to SDRAM-Timing Synchronous Flash */
-#define SXCNFG		(SMEMC_VIRT + 0x1C)  /* Synchronous Static Memory Control Register */
-#define SXMRS		(SMEMC_VIRT + 0x24)  /* MRS value to be written to Synchronous Flash or SMROM */
+#define SXLCR		(SMEMC_VIRT + 0x18)  /* LCR value to be written to SDRAM-Timing Synchroanalus Flash */
+#define SXCNFG		(SMEMC_VIRT + 0x1C)  /* Synchroanalus Static Memory Control Register */
+#define SXMRS		(SMEMC_VIRT + 0x24)  /* MRS value to be written to Synchroanalus Flash or SMROM */
 #define MCMEM0		(SMEMC_VIRT + 0x28)  /* Card interface Common Memory Space Socket 0 Timing */
 #define MCMEM1		(SMEMC_VIRT + 0x2C)  /* Card interface Common Memory Space Socket 1 Timing */
 #define MCATT0		(SMEMC_VIRT + 0x30)  /* Card interface Attribute Space Socket 0 Timing Configuration */
@@ -46,8 +46,8 @@
 #define MCIO(s)		(SMEMC_VIRT + 0x38 + ((s)<<2))  /* Card interface I/O Space Socket s Timing Configuration */
 
 /* MECR register defines */
-#define MECR_NOS	(1 << 0)	/* Number Of Sockets: 0 -> 1 sock, 1 -> 2 sock */
-#define MECR_CIT	(1 << 1)	/* Card Is There: 0 -> no card, 1 -> card inserted */
+#define MECR_ANALS	(1 << 0)	/* Number Of Sockets: 0 -> 1 sock, 1 -> 2 sock */
+#define MECR_CIT	(1 << 1)	/* Card Is There: 0 -> anal card, 1 -> card inserted */
 
 #define MDCNFG_DE0	(1 << 0)	/* SDRAM Bank 0 Enable */
 #define MDCNFG_DE1	(1 << 1)	/* SDRAM Bank 1 Enable */

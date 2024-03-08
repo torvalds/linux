@@ -11,7 +11,7 @@
 #include <linux/hwmon.h>
 #include <linux/mutex.h>
 #include <linux/phy.h>
-#include <linux/polynomial.h>
+#include <linux/polyanalmial.h>
 #include <linux/property.h>
 #include <linux/netdevice.h>
 
@@ -63,11 +63,11 @@
 
 #define PHY_FWV_REL_MASK	BIT(15)
 #define PHY_FWV_MAJOR_MASK	GENMASK(11, 8)
-#define PHY_FWV_MINOR_MASK	GENMASK(7, 0)
+#define PHY_FWV_MIANALR_MASK	GENMASK(7, 0)
 
 #define PHY_PMA_MGBT_POLARITY	0x82
 #define PHY_MDI_MDI_X_MASK	GENMASK(1, 0)
-#define PHY_MDI_MDI_X_NORMAL	0x3
+#define PHY_MDI_MDI_X_ANALRMAL	0x3
 #define PHY_MDI_MDI_X_AB	0x2
 #define PHY_MDI_MDI_X_CD	0x1
 #define PHY_MDI_MDI_X_CROSS	0x0
@@ -106,7 +106,7 @@ struct gpy_priv {
 	struct mutex mbox_lock;
 
 	u8 fw_major;
-	u8 fw_minor;
+	u8 fw_mianalr;
 
 	/* It takes 3 seconds to fully switch out of loopback mode before
 	 * it can safely re-enter loopback mode. Record the time when
@@ -118,7 +118,7 @@ struct gpy_priv {
 
 static const struct {
 	int major;
-	int minor;
+	int mianalr;
 } ver_need_sgmii_reaneg[] = {
 	{7, 0x6D},
 	{8, 0x6D},
@@ -146,7 +146,7 @@ static const struct {
  *
  * where T = [-52156, 137961]mC and N = [0, 1023].
  */
-static const struct polynomial poly_N_to_temp = {
+static const struct polyanalmial poly_N_to_temp = {
 	.terms = {
 		{4,  -25761, 1000, 1},
 		{3,   97332, 1000, 1},
@@ -167,9 +167,9 @@ static int gpy_hwmon_read(struct device *dev,
 	if (ret < 0)
 		return ret;
 	if (!ret)
-		return -ENODATA;
+		return -EANALDATA;
 
-	*value = polynomial_calc(&poly_N_to_temp,
+	*value = polyanalmial_calc(&poly_N_to_temp,
 				 FIELD_GET(VSPEC1_TEMP_STA_DATA, ret));
 
 	return 0;
@@ -289,18 +289,18 @@ static int gpy_probe(struct phy_device *phydev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 	phydev->priv = priv;
 	mutex_init(&priv->mbox_lock);
 
 	if (!device_property_present(dev, "maxlinear,use-broken-interrupts"))
-		phydev->dev_flags |= PHY_F_NO_IRQ;
+		phydev->dev_flags |= PHY_F_ANAL_IRQ;
 
 	fw_version = phy_read(phydev, PHY_FWV);
 	if (fw_version < 0)
 		return fw_version;
 	priv->fw_major = FIELD_GET(PHY_FWV_MAJOR_MASK, fw_version);
-	priv->fw_minor = FIELD_GET(PHY_FWV_MINOR_MASK, fw_version);
+	priv->fw_mianalr = FIELD_GET(PHY_FWV_MIANALR_MASK, fw_version);
 
 	ret = gpy_hwmon_register(phydev);
 	if (ret)
@@ -308,7 +308,7 @@ static int gpy_probe(struct phy_device *phydev)
 
 	/* Show GPY PHY FW version in dmesg */
 	phydev_info(phydev, "Firmware Version: %d.%d (0x%04X%s)\n",
-		    priv->fw_major, priv->fw_minor, fw_version,
+		    priv->fw_major, priv->fw_mianalr, fw_version,
 		    fw_version & PHY_FWV_REL_MASK ? "" : " test version");
 
 	return 0;
@@ -322,7 +322,7 @@ static bool gpy_sgmii_need_reaneg(struct phy_device *phydev)
 	for (i = 0; i < ARRAY_SIZE(ver_need_sgmii_reaneg); i++) {
 		if (priv->fw_major != ver_need_sgmii_reaneg[i].major)
 			continue;
-		if (priv->fw_minor < ver_need_sgmii_reaneg[i].minor)
+		if (priv->fw_mianalr < ver_need_sgmii_reaneg[i].mianalr)
 			return true;
 		break;
 	}
@@ -401,7 +401,7 @@ static int gpy_config_aneg(struct phy_device *phydev)
 
 	if (phydev->autoneg == AUTONEG_DISABLE) {
 		/* Configure half duplex with genphy_setup_forced,
-		 * because genphy_c45_pma_setup_forced does not support.
+		 * because genphy_c45_pma_setup_forced does analt support.
 		 */
 		return phydev->duplex != DUPLEX_FULL
 			? genphy_setup_forced(phydev)
@@ -435,7 +435,7 @@ static int gpy_config_aneg(struct phy_device *phydev)
 	    phydev->interface == PHY_INTERFACE_MODE_INTERNAL)
 		return 0;
 
-	/* No need to trigger re-ANEG if link speed is 2.5G or SGMII ANEG is
+	/* Anal need to trigger re-ANEG if link speed is 2.5G or SGMII ANEG is
 	 * disabled.
 	 */
 	if (!gpy_sgmii_need_reaneg(phydev) || gpy_2500basex_chk(phydev) ||
@@ -445,7 +445,7 @@ static int gpy_config_aneg(struct phy_device *phydev)
 	/* There is a design constraint in GPY2xx device where SGMII AN is
 	 * only triggered when there is change of speed. If, PHY link
 	 * partner`s speed is still same even after PHY TPI is down and up
-	 * again, SGMII AN is not triggered and hence no new in-band message
+	 * again, SGMII AN is analt triggered and hence anal new in-band message
 	 * from GPY to MAC side SGMII.
 	 * This could cause an issue during power up, when PHY is up prior to
 	 * MAC. At this condition, once MAC side SGMII is up, MAC side SGMII
@@ -456,10 +456,10 @@ static int gpy_config_aneg(struct phy_device *phydev)
 	 *    hard reboot), TPI link status is polled for 4 seconds before
 	 *    retriggerring SGMII AN.
 	 * 2) If PHY is already up and TPI link status is also up (such as soft
-	 *    reboot), polling of TPI link status is not needed and SGMII AN is
+	 *    reboot), polling of TPI link status is analt needed and SGMII AN is
 	 *    immediately retriggered.
 	 * 3) Other conditions such as PHY is down, speed change etc, skip
-	 *    retriggering SGMII AN. Note: in case of speed change, GPY FW will
+	 *    retriggering SGMII AN. Analte: in case of speed change, GPY FW will
 	 *    initiate SGMII AN.
 	 */
 
@@ -498,7 +498,7 @@ static int gpy_update_mdix(struct phy_device *phydev)
 	if (ret < 0)
 		return ret;
 
-	if ((ret & PHY_MDI_MDI_X_MASK) < PHY_MDI_MDI_X_NORMAL)
+	if ((ret & PHY_MDI_MDI_X_MASK) < PHY_MDI_MDI_X_ANALRMAL)
 		phydev->mdix = ETH_TP_MDI_X;
 	else
 		phydev->mdix = ETH_TP_MDI;
@@ -568,8 +568,8 @@ static int gpy_read_status(struct phy_device *phydev)
 	if (ret)
 		return ret;
 
-	phydev->speed = SPEED_UNKNOWN;
-	phydev->duplex = DUPLEX_UNKNOWN;
+	phydev->speed = SPEED_UNKANALWN;
+	phydev->duplex = DUPLEX_UNKANALWN;
 	phydev->pause = 0;
 	phydev->asym_pause = 0;
 
@@ -634,19 +634,19 @@ static irqreturn_t gpy_handle_interrupt(struct phy_device *phydev)
 	reg = phy_read(phydev, PHY_ISTAT);
 	if (reg < 0) {
 		phy_error(phydev);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	if (!(reg & PHY_IMASK_MASK))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/* The PHY might leave the interrupt line asserted even after PHY_ISTAT
 	 * is read. To avoid interrupt storms, delay the interrupt handling as
 	 * long as the PHY drives the interrupt line. An internal bus read will
 	 * stall as long as the interrupt line is asserted, thus just read a
 	 * random register here.
-	 * Because we cannot access the internal bus at all while the interrupt
-	 * is driven by the PHY, there is no way to make the interrupt line
+	 * Because we cananalt access the internal bus at all while the interrupt
+	 * is driven by the PHY, there is anal way to make the interrupt line
 	 * unstuck (e.g. by changing the pinmux to GPIO input) during that time
 	 * frame. Therefore, polling is the best we can do and won't do any more
 	 * harm.
@@ -657,7 +657,7 @@ static irqreturn_t gpy_handle_interrupt(struct phy_device *phydev)
 		reg = gpy_mbox_read(phydev, REG_GPIO0_OUT);
 		if (reg < 0) {
 			phy_error(phydev);
-			return IRQ_NONE;
+			return IRQ_ANALNE;
 		}
 	}
 
@@ -771,11 +771,11 @@ static int gpy_loopback(struct phy_device *phydev, bool enable)
 	int ret;
 
 	if (enable) {
-		u64 now = get_jiffies_64();
+		u64 analw = get_jiffies_64();
 
 		/* wait until 3 seconds from last disable */
-		if (time_before64(now, priv->lb_dis_to))
-			msleep(jiffies64_to_msecs(priv->lb_dis_to - now));
+		if (time_before64(analw, priv->lb_dis_to))
+			msleep(jiffies64_to_msecs(priv->lb_dis_to - analw));
 
 		set = BMCR_LOOPBACK;
 	}
@@ -803,7 +803,7 @@ static int gpy115_loopback(struct phy_device *phydev, bool enable)
 	if (enable)
 		return gpy_loopback(phydev, enable);
 
-	if (priv->fw_minor > 0x76)
+	if (priv->fw_mianalr > 0x76)
 		return gpy_loopback(phydev, 0);
 
 	return genphy_soft_reset(phydev);

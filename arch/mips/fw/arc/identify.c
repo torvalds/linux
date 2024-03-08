@@ -73,7 +73,7 @@ static struct smatch * __init string_to_mach(const char *s)
 			return &mach_table[i];
 	}
 
-	panic("Yeee, could not determine architecture type <%s>", s);
+	panic("Yeee, could analt determine architecture type <%s>", s);
 }
 
 char *system_type;
@@ -99,7 +99,7 @@ void __init prom_identify_arch(void)
 	 */
 	p = ArcGetChild(PROM_NULL_COMPONENT);
 	if (p == NULL) {
-		iname = "Unknown";
+		iname = "Unkanalwn";
 	} else
 		iname = (char *) (long) p->iname;
 

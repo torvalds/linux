@@ -36,14 +36,14 @@
 })
 
 /*
- * The "__xxx" versions do not do address space checking, useful when
+ * The "__xxx" versions do analt do address space checking, useful when
  * doing multiple accesses to the same area (the user has to do the
  * checks by hand with "access_ok()")
  */
 #define __put_user(x, ptr) \
-	__put_user_nocheck((__typeof__(*(ptr)))(x), (ptr), sizeof(*(ptr)))
+	__put_user_analcheck((__typeof__(*(ptr)))(x), (ptr), sizeof(*(ptr)))
 #define __get_user(x, ptr) \
-    __get_user_nocheck((x), (ptr), sizeof(*(ptr)), __typeof__(*(ptr)))
+    __get_user_analcheck((x), (ptr), sizeof(*(ptr)), __typeof__(*(ptr)))
 
 struct __large_struct { unsigned long buf[100]; };
 #define __m(x) ((struct __large_struct __user *)(x))
@@ -74,7 +74,7 @@ struct __large_struct { unsigned long buf[100]; };
 	__pu_ret; \
 })
 
-#define __put_user_nocheck(x, addr, size) ({			\
+#define __put_user_analcheck(x, addr, size) ({			\
 	register int __pu_ret;					\
 	switch (size) {						\
 	case 1: __put_user_asm(x, b, addr, __pu_ret); break;	\
@@ -137,7 +137,7 @@ int __put_user_bad(void);
 	__gu_ret; \
 })
 
-#define __get_user_nocheck(x, addr, size, type) ({			\
+#define __get_user_analcheck(x, addr, size, type) ({			\
 	register int __gu_ret;						\
 	register unsigned long __gu_val;				\
 	switch (size) {							\

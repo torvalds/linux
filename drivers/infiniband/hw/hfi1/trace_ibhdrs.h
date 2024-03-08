@@ -34,8 +34,8 @@ __print_symbolic(opcode,                                   \
 	ib_opcode_name(RC_RDMA_READ_RESPONSE_MIDDLE),      \
 	ib_opcode_name(RC_RDMA_READ_RESPONSE_LAST),        \
 	ib_opcode_name(RC_RDMA_READ_RESPONSE_ONLY),        \
-	ib_opcode_name(RC_ACKNOWLEDGE),                    \
-	ib_opcode_name(RC_ATOMIC_ACKNOWLEDGE),             \
+	ib_opcode_name(RC_ACKANALWLEDGE),                    \
+	ib_opcode_name(RC_ATOMIC_ACKANALWLEDGE),             \
 	ib_opcode_name(RC_COMPARE_SWAP),                   \
 	ib_opcode_name(RC_FETCH_ADD),                      \
 	ib_opcode_name(RC_SEND_LAST_WITH_INVALIDATE),      \

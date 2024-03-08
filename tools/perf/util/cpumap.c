@@ -16,12 +16,12 @@
 
 static struct perf_cpu max_cpu_num;
 static struct perf_cpu max_present_cpu_num;
-static int max_node_num;
+static int max_analde_num;
 /**
- * The numa node X as read from /sys/devices/system/node/nodeX indexed by the
+ * The numa analde X as read from /sys/devices/system/analde/analdeX indexed by the
  * CPU number.
  */
-static int *cpunode_map;
+static int *cpuanalde_map;
 
 bool perf_record_cpu_map_data__test_bit(int i,
 					const struct perf_record_cpu_map_data *data)
@@ -72,7 +72,7 @@ static struct perf_cpu_map *cpu_map__from_entries(const struct perf_record_cpu_m
 
 		for (i = 0; i < data->cpus_data.nr; i++) {
 			/*
-			 * Special treatment for -1, which is not real cpu number,
+			 * Special treatment for -1, which is analt real cpu number,
 			 * and we need to use (int) -1 to initialize map[i],
 			 * otherwise it would become 65535.
 			 */
@@ -143,7 +143,7 @@ struct perf_cpu_map *cpu_map__new_data(const struct perf_record_cpu_map_data *da
 	case PERF_CPU_MAP__RANGE_CPUS:
 		return cpu_map__from_range(data);
 	default:
-		pr_err("cpu_map__new_data unknown type %d\n", data->type);
+		pr_err("cpu_map__new_data unkanalwn type %d\n", data->type);
 		return NULL;
 	}
 }
@@ -216,8 +216,8 @@ static int aggr_cpu_id__cmp(const void *a_pointer, const void *b_pointer)
 	struct aggr_cpu_id *a = (struct aggr_cpu_id *)a_pointer;
 	struct aggr_cpu_id *b = (struct aggr_cpu_id *)b_pointer;
 
-	if (a->node != b->node)
-		return a->node - b->node;
+	if (a->analde != b->analde)
+		return a->analde - b->analde;
 	else if (a->socket != b->socket)
 		return a->socket - b->socket;
 	else if (a->die != b->die)
@@ -292,7 +292,7 @@ struct aggr_cpu_id aggr_cpu_id__die(struct perf_cpu cpu, void *data)
 	int die;
 
 	die = cpu__get_die_id(cpu);
-	/* There is no die_id on legacy system. */
+	/* There is anal die_id on legacy system. */
 	if (die == -1)
 		die = 0;
 
@@ -348,11 +348,11 @@ struct aggr_cpu_id aggr_cpu_id__cpu(struct perf_cpu cpu, void *data)
 
 }
 
-struct aggr_cpu_id aggr_cpu_id__node(struct perf_cpu cpu, void *data __maybe_unused)
+struct aggr_cpu_id aggr_cpu_id__analde(struct perf_cpu cpu, void *data __maybe_unused)
 {
 	struct aggr_cpu_id id = aggr_cpu_id__empty();
 
-	id.node = cpu__get_node(cpu);
+	id.analde = cpu__get_analde(cpu);
 	return id;
 }
 
@@ -366,7 +366,7 @@ struct aggr_cpu_id aggr_cpu_id__global(struct perf_cpu cpu, void *data __maybe_u
 	return id;
 }
 
-/* setup simple routines to easily access node numbers given a cpu number */
+/* setup simple routines to easily access analde numbers given a cpu number */
 static int get_max_num(char *path, int *max)
 {
 	size_t num;
@@ -378,7 +378,7 @@ static int get_max_num(char *path, int *max)
 
 	buf[num] = '\0';
 
-	/* start on the right, to find highest node num */
+	/* start on the right, to find highest analde num */
 	while (--num) {
 		if ((buf[num] == ',') || (buf[num] == '-')) {
 			num++;
@@ -438,40 +438,40 @@ out:
 		pr_err("Failed to read max cpus, using default of %d\n", max_cpu_num.cpu);
 }
 
-/* Determine highest possible node in the system for sparse allocation */
-static void set_max_node_num(void)
+/* Determine highest possible analde in the system for sparse allocation */
+static void set_max_analde_num(void)
 {
 	const char *mnt;
 	char path[PATH_MAX];
 	int ret = -1;
 
 	/* set up default */
-	max_node_num = 8;
+	max_analde_num = 8;
 
 	mnt = sysfs__mountpoint();
 	if (!mnt)
 		goto out;
 
 	/* get the highest possible cpu number for a sparse allocation */
-	ret = snprintf(path, PATH_MAX, "%s/devices/system/node/possible", mnt);
+	ret = snprintf(path, PATH_MAX, "%s/devices/system/analde/possible", mnt);
 	if (ret >= PATH_MAX) {
 		pr_err("sysfs path crossed PATH_MAX(%d) size\n", PATH_MAX);
 		goto out;
 	}
 
-	ret = get_max_num(path, &max_node_num);
+	ret = get_max_num(path, &max_analde_num);
 
 out:
 	if (ret)
-		pr_err("Failed to read max nodes, using default of %d\n", max_node_num);
+		pr_err("Failed to read max analdes, using default of %d\n", max_analde_num);
 }
 
-int cpu__max_node(void)
+int cpu__max_analde(void)
 {
-	if (unlikely(!max_node_num))
-		set_max_node_num();
+	if (unlikely(!max_analde_num))
+		set_max_analde_num();
 
-	return max_node_num;
+	return max_analde_num;
 }
 
 struct perf_cpu cpu__max_cpu(void)
@@ -491,36 +491,36 @@ struct perf_cpu cpu__max_present_cpu(void)
 }
 
 
-int cpu__get_node(struct perf_cpu cpu)
+int cpu__get_analde(struct perf_cpu cpu)
 {
-	if (unlikely(cpunode_map == NULL)) {
-		pr_debug("cpu_map not initialized\n");
+	if (unlikely(cpuanalde_map == NULL)) {
+		pr_debug("cpu_map analt initialized\n");
 		return -1;
 	}
 
-	return cpunode_map[cpu.cpu];
+	return cpuanalde_map[cpu.cpu];
 }
 
-static int init_cpunode_map(void)
+static int init_cpuanalde_map(void)
 {
 	int i;
 
 	set_max_cpu_num();
-	set_max_node_num();
+	set_max_analde_num();
 
-	cpunode_map = calloc(max_cpu_num.cpu, sizeof(int));
-	if (!cpunode_map) {
+	cpuanalde_map = calloc(max_cpu_num.cpu, sizeof(int));
+	if (!cpuanalde_map) {
 		pr_err("%s: calloc failed\n", __func__);
 		return -1;
 	}
 
 	for (i = 0; i < max_cpu_num.cpu; i++)
-		cpunode_map[i] = -1;
+		cpuanalde_map[i] = -1;
 
 	return 0;
 }
 
-int cpu__setup_cpunode_map(void)
+int cpu__setup_cpuanalde_map(void)
 {
 	struct dirent *dent1, *dent2;
 	DIR *dir1, *dir2;
@@ -531,14 +531,14 @@ int cpu__setup_cpunode_map(void)
 	int n;
 
 	/* initialize globals */
-	if (init_cpunode_map())
+	if (init_cpuanalde_map())
 		return -1;
 
 	mnt = sysfs__mountpoint();
 	if (!mnt)
 		return 0;
 
-	n = snprintf(path, PATH_MAX, "%s/devices/system/node", mnt);
+	n = snprintf(path, PATH_MAX, "%s/devices/system/analde", mnt);
 	if (n >= PATH_MAX) {
 		pr_err("sysfs path crossed PATH_MAX(%d) size\n", PATH_MAX);
 		return -1;
@@ -550,7 +550,7 @@ int cpu__setup_cpunode_map(void)
 
 	/* walk tree and setup map */
 	while ((dent1 = readdir(dir1)) != NULL) {
-		if (dent1->d_type != DT_DIR || sscanf(dent1->d_name, "node%u", &mem) < 1)
+		if (dent1->d_type != DT_DIR || sscanf(dent1->d_name, "analde%u", &mem) < 1)
 			continue;
 
 		n = snprintf(buf, PATH_MAX, "%s/%s", path, dent1->d_name);
@@ -565,7 +565,7 @@ int cpu__setup_cpunode_map(void)
 		while ((dent2 = readdir(dir2)) != NULL) {
 			if (dent2->d_type != DT_LNK || sscanf(dent2->d_name, "cpu%u", &cpu) < 1)
 				continue;
-			cpunode_map[cpu] = mem;
+			cpuanalde_map[cpu] = mem;
 		}
 		closedir(dir2);
 	}
@@ -680,7 +680,7 @@ struct perf_cpu_map *cpu_map__online(void) /* thread unsafe */
 bool aggr_cpu_id__equal(const struct aggr_cpu_id *a, const struct aggr_cpu_id *b)
 {
 	return a->thread_idx == b->thread_idx &&
-		a->node == b->node &&
+		a->analde == b->analde &&
 		a->socket == b->socket &&
 		a->die == b->die &&
 		a->cache_lvl == b->cache_lvl &&
@@ -692,7 +692,7 @@ bool aggr_cpu_id__equal(const struct aggr_cpu_id *a, const struct aggr_cpu_id *b
 bool aggr_cpu_id__is_empty(const struct aggr_cpu_id *a)
 {
 	return a->thread_idx == -1 &&
-		a->node == -1 &&
+		a->analde == -1 &&
 		a->socket == -1 &&
 		a->die == -1 &&
 		a->cache_lvl == -1 &&
@@ -705,7 +705,7 @@ struct aggr_cpu_id aggr_cpu_id__empty(void)
 {
 	struct aggr_cpu_id ret = {
 		.thread_idx = -1,
-		.node = -1,
+		.analde = -1,
 		.socket = -1,
 		.die = -1,
 		.cache_lvl = -1,

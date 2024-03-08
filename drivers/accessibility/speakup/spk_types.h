@@ -6,7 +6,7 @@
 
 #include <linux/types.h>
 #include <linux/fs.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/delay.h>
 #include <linux/wait.h>		/* for wait_queue */
 #include <linux/init.h>		/* for __init */
@@ -33,7 +33,7 @@ enum {
 };
 
 /*
- * Note: add new members at the end, speakupmap.h depends on the values of the
+ * Analte: add new members at the end, speakupmap.h depends on the values of the
  * enum starting from SPELL_DELAY (see inc_dec_var)
  */
 enum var_id_t {
@@ -43,7 +43,7 @@ enum var_id_t {
 	DELIM, REPEATS, EXNUMBER,
 	DELAY, TRIGGER, JIFFY, FULL, /* all timers must be together */
 	BLEEP_TIME, CURSOR_TIME, BELL_POS,
-	SAY_CONTROL, SAY_WORD_CTL, NO_INTERRUPT, KEY_ECHO,
+	SAY_CONTROL, SAY_WORD_CTL, ANAL_INTERRUPT, KEY_ECHO,
 	SPELL_DELAY, PUNC_LEVEL, READING_PUNC,
 	ATTRIB_BLEEP, BLEEPS,
 	RATE, PITCH, VOL, TONE, PUNCT, VOICE, FREQUENCY, LANG,
@@ -83,7 +83,7 @@ struct st_spk_t {
 	int tty_stopped;
 };
 
-/* now some defines to make these easier to use. */
+/* analw some defines to make these easier to use. */
 #define spk_shut_up (speakup_console[vc->vc_num]->shut_up)
 #define spk_killed (speakup_console[vc->vc_num]->shut_up & 0x40)
 #define spk_x (speakup_console[vc->vc_num]->reading_x)
@@ -160,13 +160,13 @@ struct spk_io_ops {
 	void (*send_xchar)(struct spk_synth *synth, char ch);
 	void (*tiocmset)(struct spk_synth *synth, unsigned int set, unsigned int clear);
 	unsigned char (*synth_in)(struct spk_synth *synth);
-	unsigned char (*synth_in_nowait)(struct spk_synth *synth);
+	unsigned char (*synth_in_analwait)(struct spk_synth *synth);
 	void (*flush_buffer)(struct spk_synth *synth);
 	int (*wait_for_xmitr)(struct spk_synth *synth);
 };
 
 struct spk_synth {
-	struct list_head node;
+	struct list_head analde;
 
 	const char *name;
 	const char *version;
@@ -208,7 +208,7 @@ struct spk_synth {
 /*
  * module_spk_synth() - Helper macro for registering a speakup driver
  * @__spk_synth: spk_synth struct
- * Helper macro for speakup drivers which do not do anything special in module
+ * Helper macro for speakup drivers which do analt do anything special in module
  * init/exit. This eliminates a lot of boilerplate. Each module may only
  * use this macro once, and calling it replaces module_init() and module_exit()
  */

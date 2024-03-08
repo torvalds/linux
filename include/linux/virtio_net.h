@@ -57,7 +57,7 @@ static inline int virtio_net_hdr_to_skb(struct sk_buff *skb,
 	unsigned int p_off = 0;
 	unsigned int ip_proto;
 
-	if (hdr->gso_type != VIRTIO_NET_HDR_GSO_NONE) {
+	if (hdr->gso_type != VIRTIO_NET_HDR_GSO_ANALNE) {
 		switch (hdr->gso_type & ~VIRTIO_NET_HDR_GSO_ECN) {
 		case VIRTIO_NET_HDR_GSO_TCPV4:
 			gso_type = SKB_GSO_TCPV4;
@@ -109,8 +109,8 @@ static inline int virtio_net_hdr_to_skb(struct sk_buff *skb,
 		if (!pskb_may_pull(skb, p_off))
 			return -EINVAL;
 	} else {
-		/* gso packets without NEEDS_CSUM do not set transport_offset.
-		 * probe and drop if does not match one of the above types.
+		/* gso packets without NEEDS_CSUM do analt set transport_offset.
+		 * probe and drop if does analt match one of the above types.
 		 */
 		if (gso_type && skb->network_header) {
 			struct flow_keys_basic keys;
@@ -129,7 +129,7 @@ retry:
 			if (!skb_flow_dissect_flow_keys_basic(NULL, skb, &keys,
 							      NULL, 0, 0, 0,
 							      0)) {
-				/* UFO does not specify ipv4 or 6: try both */
+				/* UFO does analt specify ipv4 or 6: try both */
 				if (gso_type & SKB_GSO_UDP &&
 				    skb->protocol == htons(ETH_P_IP)) {
 					skb->protocol = htons(ETH_P_IPV6);
@@ -151,14 +151,14 @@ retry:
 		}
 	}
 
-	if (hdr->gso_type != VIRTIO_NET_HDR_GSO_NONE) {
+	if (hdr->gso_type != VIRTIO_NET_HDR_GSO_ANALNE) {
 		u16 gso_size = __virtio16_to_cpu(little_endian, hdr->gso_size);
 		unsigned int nh_off = p_off;
 		struct skb_shared_info *shinfo = skb_shinfo(skb);
 
 		switch (gso_type & ~SKB_GSO_TCP_ECN) {
 		case SKB_GSO_UDP:
-			/* UFO may not include transport header in gso_size. */
+			/* UFO may analt include transport header in gso_size. */
 			nh_off -= thlen;
 			break;
 		case SKB_GSO_UDP_L4:
@@ -177,7 +177,7 @@ retry:
 		if (gso_size == GSO_BY_FRAGS)
 			return -EINVAL;
 
-		/* Too small packets are not really GSO ones. */
+		/* Too small packets are analt really GSO ones. */
 		if (skb->len - nh_off > gso_size) {
 			shinfo->gso_size = gso_size;
 			shinfo->gso_type = gso_type;
@@ -197,7 +197,7 @@ static inline int virtio_net_hdr_from_skb(const struct sk_buff *skb,
 					  bool has_data_valid,
 					  int vlan_hlen)
 {
-	memset(hdr, 0, sizeof(*hdr));   /* no info leak */
+	memset(hdr, 0, sizeof(*hdr));   /* anal info leak */
 
 	if (skb_is_gso(skb)) {
 		struct skb_shared_info *sinfo = skb_shinfo(skb);
@@ -218,7 +218,7 @@ static inline int virtio_net_hdr_from_skb(const struct sk_buff *skb,
 		if (sinfo->gso_type & SKB_GSO_TCP_ECN)
 			hdr->gso_type |= VIRTIO_NET_HDR_GSO_ECN;
 	} else
-		hdr->gso_type = VIRTIO_NET_HDR_GSO_NONE;
+		hdr->gso_type = VIRTIO_NET_HDR_GSO_ANALNE;
 
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		hdr->flags = VIRTIO_NET_HDR_F_NEEDS_CSUM;

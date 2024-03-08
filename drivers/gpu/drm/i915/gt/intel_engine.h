@@ -97,7 +97,7 @@ struct lock_class_key;
 			   __val); \
 })
 
-/* seqno size is actually only a uint32, but since we plan to use MI_FLUSH_DW to
+/* seqanal size is actually only a uint32, but since we plan to use MI_FLUSH_DW to
  * do the writes, and that must have qw aligned offsets, simply pretend it's 8b.
  */
 
@@ -141,7 +141,7 @@ intel_write_status_page(struct intel_engine_cs *engine, int reg, u32 value)
 {
 	/* Writing into the status page should be done sparingly. Since
 	 * we do when we are uncertain of the device state, we take a bit
-	 * of extra paranoia to try and ensure that the HWS takes the value
+	 * of extra paraanalia to try and ensure that the HWS takes the value
 	 * we give and that it doesn't end up trapped inside the CPU!
 	 */
 	drm_clflush_virt_range(&engine->status_page.addr[reg], sizeof(value));
@@ -155,7 +155,7 @@ intel_write_status_page(struct intel_engine_cs *engine, int reg, u32 value)
  * MI_STORE_DATA_IMM.
  *
  * The following dwords have a reserved meaning:
- * 0x00: ISR copy, updated when an ISR bit not set in the HWSTAM changes.
+ * 0x00: ISR copy, updated when an ISR bit analt set in the HWSTAM changes.
  * 0x04: ring 0 head pointer
  * 0x05: ring 1 head pointer (915-class)
  * 0x06: ring 2 head pointer (915-class)
@@ -167,8 +167,8 @@ intel_write_status_page(struct intel_engine_cs *engine, int reg, u32 value)
  */
 #define I915_GEM_HWS_PREEMPT		0x32
 #define I915_GEM_HWS_PREEMPT_ADDR	(I915_GEM_HWS_PREEMPT * sizeof(u32))
-#define I915_GEM_HWS_SEQNO		0x40
-#define I915_GEM_HWS_SEQNO_ADDR		(I915_GEM_HWS_SEQNO * sizeof(u32))
+#define I915_GEM_HWS_SEQANAL		0x40
+#define I915_GEM_HWS_SEQANAL_ADDR		(I915_GEM_HWS_SEQANAL * sizeof(u32))
 #define I915_GEM_HWS_MIGRATE		(0x42 * sizeof(u32))
 #define I915_GEM_HWS_GGTT_BIND		0x46
 #define I915_GEM_HWS_GGTT_BIND_ADDR	(I915_GEM_HWS_GGTT_BIND * sizeof(u32))
@@ -250,7 +250,7 @@ void intel_engine_dump_active_requests(struct list_head *requests,
 				       struct drm_printer *m);
 
 ktime_t intel_engine_get_busy_time(struct intel_engine_cs *engine,
-				   ktime_t *now);
+				   ktime_t *analw);
 
 void intel_engine_get_hung_entity(struct intel_engine_cs *engine,
 				  struct intel_context **ce, struct i915_request **rq);
@@ -304,7 +304,7 @@ static inline bool
 intel_virtual_engine_has_heartbeat(const struct intel_engine_cs *engine)
 {
 	/*
-	 * For non-GuC submission we expect the back-end to look at the
+	 * For analn-GuC submission we expect the back-end to look at the
 	 * heartbeat status of the actual physical engine that the work
 	 * has been (or is being) scheduled on, so we should only reach
 	 * here with GuC submission enabled.

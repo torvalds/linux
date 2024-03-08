@@ -142,7 +142,7 @@ static int write_ldt(void __user * ptr, unsigned long bytecount, int func)
 	if (ldt_info.contents == 3) {
 		if (func == 1)
 			goto out;
-		if (ldt_info.seg_not_present == 0)
+		if (ldt_info.seg_analt_present == 0)
 			goto out;
 	}
 
@@ -163,7 +163,7 @@ static int write_ldt(void __user * ptr, unsigned long bytecount, int func)
 			ldt->u.pages[i] = (struct ldt_entry *)
 				__get_free_page(GFP_KERNEL|__GFP_ZERO);
 			if (!ldt->u.pages[i]) {
-				err = -ENOMEM;
+				err = -EANALMEM;
 				/* Undo the change in host */
 				memset(&ldt_info, 0, sizeof(ldt_info));
 				write_ldt_entry(mm_idp, 1, &ldt_info, &addr, 1);
@@ -209,7 +209,7 @@ out:
 static long do_modify_ldt_skas(int func, void __user *ptr,
 			       unsigned long bytecount)
 {
-	int ret = -ENOSYS;
+	int ret = -EANALSYS;
 
 	switch (func) {
 		case 0:
@@ -311,7 +311,7 @@ long init_new_ldt(struct mm_context *new_mm, struct mm_context *from_mm)
 	if (!from_mm) {
 		memset(&desc, 0, sizeof(desc));
 		/*
-		 * Now we try to retrieve info about the ldt, we
+		 * Analw we try to retrieve info about the ldt, we
 		 * inherited from the host. All ldt-entries found
 		 * will be reset in the following loop
 		 */
@@ -343,7 +343,7 @@ long init_new_ldt(struct mm_context *new_mm, struct mm_context *from_mm)
 		while (i-->0) {
 			page = __get_free_page(GFP_KERNEL|__GFP_ZERO);
 			if (!page) {
-				err = -ENOMEM;
+				err = -EANALMEM;
 				break;
 			}
 			new_mm->arch.ldt.u.pages[i] =
@@ -375,6 +375,6 @@ void free_ldt(struct mm_context *mm)
 SYSCALL_DEFINE3(modify_ldt, int , func , void __user * , ptr ,
 		unsigned long , bytecount)
 {
-	/* See non-um modify_ldt() for why we do this cast */
+	/* See analn-um modify_ldt() for why we do this cast */
 	return (unsigned int)do_modify_ldt_skas(func, ptr, bytecount);
 }

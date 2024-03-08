@@ -5,7 +5,7 @@
  * Copyright (C) 2021 Intel Corporation, Inc.
  */
 #include <linux/dfl.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/module.h>
 #include <linux/uio_driver.h>
 
@@ -21,7 +21,7 @@ static int uio_dfl_probe(struct dfl_device *ddev)
 
 	uioinfo = devm_kzalloc(dev, sizeof(struct uio_info), GFP_KERNEL);
 	if (!uioinfo)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	uioinfo->name = DRIVER_NAME;
 	uioinfo->version = "0";
@@ -35,7 +35,7 @@ static int uio_dfl_probe(struct dfl_device *ddev)
 	uiomem->name = r->name;
 
 	/* Irq is yet to be supported */
-	uioinfo->irq = UIO_IRQ_NONE;
+	uioinfo->irq = UIO_IRQ_ANALNE;
 
 	ret = devm_uio_register_device(dev, uioinfo);
 	if (ret)

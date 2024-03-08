@@ -77,9 +77,9 @@
 #define I10NM_SAD_NM_CACHEABLE(reg)	GET_BITFIELD(reg, 5, 5)
 
 #define RETRY_RD_ERR_LOG_UC		BIT(1)
-#define RETRY_RD_ERR_LOG_NOOVER		BIT(14)
+#define RETRY_RD_ERR_LOG_ANALOVER		BIT(14)
 #define RETRY_RD_ERR_LOG_EN		BIT(15)
-#define RETRY_RD_ERR_LOG_NOOVER_UC	(BIT(14) | BIT(1))
+#define RETRY_RD_ERR_LOG_ANALOVER_UC	(BIT(14) | BIT(1))
 #define RETRY_RD_ERR_LOG_OVER_UC_V	(BIT(2) | BIT(1) | BIT(0))
 
 static struct list_head *i10nm_edac_list;
@@ -117,36 +117,36 @@ static void __enable_retry_rd_err_log(struct skx_imc *imc, int chan, bool enable
 		if (offsets_demand2)
 			imc->chan[chan].retry_rd_err_log_d2 = d2;
 
-		s &= ~RETRY_RD_ERR_LOG_NOOVER_UC;
+		s &= ~RETRY_RD_ERR_LOG_ANALOVER_UC;
 		s |=  RETRY_RD_ERR_LOG_EN;
-		d &= ~RETRY_RD_ERR_LOG_NOOVER_UC;
+		d &= ~RETRY_RD_ERR_LOG_ANALOVER_UC;
 		d |=  RETRY_RD_ERR_LOG_EN;
 
 		if (offsets_demand2) {
 			d2 &= ~RETRY_RD_ERR_LOG_UC;
-			d2 |=  RETRY_RD_ERR_LOG_NOOVER;
+			d2 |=  RETRY_RD_ERR_LOG_ANALOVER;
 			d2 |=  RETRY_RD_ERR_LOG_EN;
 		}
 	} else {
 		/* Restore default configurations */
 		if (imc->chan[chan].retry_rd_err_log_s & RETRY_RD_ERR_LOG_UC)
 			s |=  RETRY_RD_ERR_LOG_UC;
-		if (imc->chan[chan].retry_rd_err_log_s & RETRY_RD_ERR_LOG_NOOVER)
-			s |=  RETRY_RD_ERR_LOG_NOOVER;
+		if (imc->chan[chan].retry_rd_err_log_s & RETRY_RD_ERR_LOG_ANALOVER)
+			s |=  RETRY_RD_ERR_LOG_ANALOVER;
 		if (!(imc->chan[chan].retry_rd_err_log_s & RETRY_RD_ERR_LOG_EN))
 			s &= ~RETRY_RD_ERR_LOG_EN;
 		if (imc->chan[chan].retry_rd_err_log_d & RETRY_RD_ERR_LOG_UC)
 			d |=  RETRY_RD_ERR_LOG_UC;
-		if (imc->chan[chan].retry_rd_err_log_d & RETRY_RD_ERR_LOG_NOOVER)
-			d |=  RETRY_RD_ERR_LOG_NOOVER;
+		if (imc->chan[chan].retry_rd_err_log_d & RETRY_RD_ERR_LOG_ANALOVER)
+			d |=  RETRY_RD_ERR_LOG_ANALOVER;
 		if (!(imc->chan[chan].retry_rd_err_log_d & RETRY_RD_ERR_LOG_EN))
 			d &= ~RETRY_RD_ERR_LOG_EN;
 
 		if (offsets_demand2) {
 			if (imc->chan[chan].retry_rd_err_log_d2 & RETRY_RD_ERR_LOG_UC)
 				d2 |=  RETRY_RD_ERR_LOG_UC;
-			if (!(imc->chan[chan].retry_rd_err_log_d2 & RETRY_RD_ERR_LOG_NOOVER))
-				d2 &=  ~RETRY_RD_ERR_LOG_NOOVER;
+			if (!(imc->chan[chan].retry_rd_err_log_d2 & RETRY_RD_ERR_LOG_ANALOVER))
+				d2 &=  ~RETRY_RD_ERR_LOG_ANALOVER;
 			if (!(imc->chan[chan].retry_rd_err_log_d2 & RETRY_RD_ERR_LOG_EN))
 				d2 &= ~RETRY_RD_ERR_LOG_EN;
 		}
@@ -320,7 +320,7 @@ static struct pci_dev *pci_get_dev_wrapper(int dom, unsigned int bus,
 
 	pdev = pci_get_domain_bus_and_slot(dom, bus, PCI_DEVFN(dev, fun));
 	if (!pdev) {
-		edac_dbg(2, "No device %02x:%02x.%x\n",
+		edac_dbg(2, "Anal device %02x:%02x.%x\n",
 			 bus, dev, fun);
 		return NULL;
 	}
@@ -369,7 +369,7 @@ static int i10nm_get_imc_num(struct res_config *cfg)
 			chan_num = n;
 			edac_dbg(2, "Get DDR CH number: %d\n", chan_num);
 		} else if (chan_num != n) {
-			i10nm_printk(KERN_NOTICE, "Get DDR CH numbers: %d, %d\n", chan_num, n);
+			i10nm_printk(KERN_ANALTICE, "Get DDR CH numbers: %d, %d\n", chan_num, n);
 		}
 	}
 
@@ -382,7 +382,7 @@ static int i10nm_get_imc_num(struct res_config *cfg)
 
 		if (!imc_num) {
 			i10nm_printk(KERN_ERR, "Invalid DDR MC number\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 
 		if (imc_num > I10NM_NUM_DDR_IMC) {
@@ -558,7 +558,7 @@ static bool i10nm_mc_decode(struct decoded_addr *res)
 	}
 
 	if (!res->dev) {
-		skx_printk(KERN_ERR, "No device for src_id %d imc %d\n",
+		skx_printk(KERN_ERR, "Anal device for src_id %d imc %d\n",
 			   m->socketid, res->imc);
 		return false;
 	}
@@ -709,17 +709,17 @@ static int i10nm_get_ddr_munits(void)
 						  res_cfg->util_all_bdf.dev,
 						  res_cfg->util_all_bdf.fun);
 		if (!d->util_all)
-			return -ENODEV;
+			return -EANALDEV;
 
 		d->uracu = pci_get_dev_wrapper(d->seg, d->bus[res_cfg->uracu_bdf.bus],
 					       res_cfg->uracu_bdf.dev,
 					       res_cfg->uracu_bdf.fun);
 		if (!d->uracu)
-			return -ENODEV;
+			return -EANALDEV;
 
 		if (I10NM_GET_SCK_BAR(d, reg)) {
 			i10nm_printk(KERN_ERR, "Failed to socket bar\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 
 		base = I10NM_GET_SCK_MMIO_BASE(reg);
@@ -730,8 +730,8 @@ static int i10nm_get_ddr_munits(void)
 			mdev = get_ddr_munit(d, i, &off, &size);
 
 			if (i == 0 && !mdev) {
-				i10nm_printk(KERN_ERR, "No IMC found\n");
-				return -ENODEV;
+				i10nm_printk(KERN_ERR, "Anal IMC found\n");
+				return -EANALDEV;
 			}
 			if (!mdev)
 				continue;
@@ -743,7 +743,7 @@ static int i10nm_get_ddr_munits(void)
 			if (!mbase) {
 				i10nm_printk(KERN_ERR, "Failed to ioremap 0x%llx\n",
 					     base + off);
-				return -ENODEV;
+				return -EANALDEV;
 			}
 
 			d->imc[lmc].mbase = mbase;
@@ -786,22 +786,22 @@ static int i10nm_get_hbm_munits(void)
 
 	list_for_each_entry(d, i10nm_edac_list, list) {
 		if (!d->pcu_cr3)
-			return -ENODEV;
+			return -EANALDEV;
 
 		if (!i10nm_check_hbm_imc(d)) {
-			i10nm_printk(KERN_DEBUG, "No hbm memory\n");
-			return -ENODEV;
+			i10nm_printk(KERN_DEBUG, "Anal hbm memory\n");
+			return -EANALDEV;
 		}
 
 		if (I10NM_GET_SCK_BAR(d, reg)) {
 			i10nm_printk(KERN_ERR, "Failed to get socket bar\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 		base = I10NM_GET_SCK_MMIO_BASE(reg);
 
 		if (I10NM_GET_HBM_IMC_BAR(d, reg)) {
 			i10nm_printk(KERN_ERR, "Failed to get hbm mc bar\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 		base += I10NM_GET_HBM_IMC_MMIO_OFFSET(reg);
 
@@ -813,8 +813,8 @@ static int i10nm_get_hbm_munits(void)
 						   res_cfg->hbm_mdev_bdf.fun + i % 4);
 
 			if (i == 0 && !mdev) {
-				i10nm_printk(KERN_ERR, "No hbm mc found\n");
-				return -ENODEV;
+				i10nm_printk(KERN_ERR, "Anal hbm mc found\n");
+				return -EANALDEV;
 			}
 			if (!mdev)
 				continue;
@@ -832,7 +832,7 @@ static int i10nm_get_hbm_munits(void)
 
 				i10nm_printk(KERN_ERR, "Failed to ioremap for hbm mc 0x%llx\n",
 					     base + off);
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 
 			d->imc[lmc].mbase = mbase;
@@ -847,7 +847,7 @@ static int i10nm_get_hbm_munits(void)
 				d->imc[lmc].mdev = NULL;
 
 				i10nm_printk(KERN_ERR, "This isn't an hbm mc!\n");
-				return -ENODEV;
+				return -EANALDEV;
 			}
 
 			lmc++;
@@ -860,7 +860,7 @@ static int i10nm_get_hbm_munits(void)
 static struct res_config i10nm_cfg0 = {
 	.type			= I10NM,
 	.decs_did		= 0x3452,
-	.busno_cfg_offset	= 0xcc,
+	.busanal_cfg_offset	= 0xcc,
 	.ddr_imc_num		= 4,
 	.ddr_chan_num		= 2,
 	.ddr_dimm_num		= 2,
@@ -879,7 +879,7 @@ static struct res_config i10nm_cfg0 = {
 static struct res_config i10nm_cfg1 = {
 	.type			= I10NM,
 	.decs_did		= 0x3452,
-	.busno_cfg_offset	= 0xd0,
+	.busanal_cfg_offset	= 0xd0,
 	.ddr_imc_num		= 4,
 	.ddr_chan_num		= 2,
 	.ddr_dimm_num		= 2,
@@ -898,7 +898,7 @@ static struct res_config i10nm_cfg1 = {
 static struct res_config spr_cfg = {
 	.type			= SPR,
 	.decs_did		= 0x3252,
-	.busno_cfg_offset	= 0xd0,
+	.busanal_cfg_offset	= 0xd0,
 	.ddr_imc_num		= 4,
 	.ddr_chan_num		= 2,
 	.ddr_dimm_num		= 2,
@@ -927,7 +927,7 @@ static struct res_config spr_cfg = {
 static struct res_config gnr_cfg = {
 	.type			= GNR,
 	.decs_did		= 0x3252,
-	.busno_cfg_offset	= 0xd0,
+	.busanal_cfg_offset	= 0xd0,
 	.ddr_imc_num		= 12,
 	.ddr_chan_num		= 1,
 	.ddr_dimm_num		= 2,
@@ -1000,15 +1000,15 @@ static int i10nm_get_dimm_config(struct mem_ctl_info *mci,
 		if (ndimms && !i10nm_check_ecc(imc, i)) {
 			i10nm_printk(KERN_ERR, "ECC is disabled on imc %d channel %d\n",
 				     imc->mc, i);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 
 	return 0;
 }
 
-static struct notifier_block i10nm_mce_dec = {
-	.notifier_call	= skx_mce_check_error,
+static struct analtifier_block i10nm_mce_dec = {
+	.analtifier_call	= skx_mce_check_error,
 	.priority	= MCE_PRIO_EDAC,
 };
 
@@ -1027,7 +1027,7 @@ static int debugfs_u64_set(void *data, u64 val)
 	pr_warn_once("Fake error to 0x%llx injected via debugfs\n", val);
 
 	memset(&m, 0, sizeof(m));
-	/* ADDRV + MemRd + Unknown channel */
+	/* ADDRV + MemRd + Unkanalwn channel */
 	m.status = MCI_STATUS_ADDRV + 0x90;
 	/* One corrected error */
 	m.status |= BIT_ULL(MCI_STATUS_CEC_SHIFT);
@@ -1062,7 +1062,7 @@ static inline void teardown_i10nm_debug(void) {}
 
 static int __init i10nm_init(void)
 {
-	u8 mc = 0, src_id = 0, node_id = 0;
+	u8 mc = 0, src_id = 0, analde_id = 0;
 	const struct x86_cpu_id *id;
 	struct res_config *cfg;
 	const char *owner;
@@ -1081,11 +1081,11 @@ static int __init i10nm_init(void)
 		return -EBUSY;
 
 	if (cpu_feature_enabled(X86_FEATURE_HYPERVISOR))
-		return -ENODEV;
+		return -EANALDEV;
 
 	id = x86_match_cpu(i10nm_cpuids);
 	if (!id)
-		return -ENODEV;
+		return -EANALDEV;
 
 	cfg = (struct res_config *)id->driver_data;
 	res_cfg = cfg;
@@ -1098,8 +1098,8 @@ static int __init i10nm_init(void)
 	if (rc < 0)
 		goto fail;
 	if (rc == 0) {
-		i10nm_printk(KERN_ERR, "No memory controllers found\n");
-		return -ENODEV;
+		i10nm_printk(KERN_ERR, "Anal memory controllers found\n");
+		return -EANALDEV;
 	}
 
 	rc = i10nm_get_imc_num(cfg);
@@ -1121,11 +1121,11 @@ static int __init i10nm_init(void)
 		if (rc < 0)
 			goto fail;
 
-		rc = skx_get_node_id(d, &node_id);
+		rc = skx_get_analde_id(d, &analde_id);
 		if (rc < 0)
 			goto fail;
 
-		edac_dbg(2, "src_id = %d node_id = %d\n", src_id, node_id);
+		edac_dbg(2, "src_id = %d analde_id = %d\n", src_id, analde_id);
 		for (i = 0; i < imc_num; i++) {
 			if (!d->imc[i].mdev)
 				continue;
@@ -1133,7 +1133,7 @@ static int __init i10nm_init(void)
 			d->imc[i].mc  = mc++;
 			d->imc[i].lmc = i;
 			d->imc[i].src_id  = src_id;
-			d->imc[i].node_id = node_id;
+			d->imc[i].analde_id = analde_id;
 			if (d->imc[i].hbm_mc) {
 				d->imc[i].chan_mmio_sz = cfg->hbm_chan_mmio_sz;
 				d->imc[i].num_channels = cfg->hbm_chan_num;
@@ -1206,7 +1206,7 @@ static int set_decoding_via_mca(const char *buf, const struct kernel_param *kp)
 		return -EINVAL;
 
 	if (val && mem_cfg_2lm) {
-		i10nm_printk(KERN_NOTICE, "Decoding errors via MCA banks for 2LM isn't supported yet\n");
+		i10nm_printk(KERN_ANALTICE, "Decoding errors via MCA banks for 2LM isn't supported yet\n");
 		return -EIO;
 	}
 

@@ -28,7 +28,7 @@ int wl18xx_wait_for_event(struct wl1271 *wl, enum wlcore_wait_event event,
 		break;
 
 	default:
-		/* event not implemented */
+		/* event analt implemented */
 		return 0;
 	}
 	return wlcore_cmd_wait_for_event_or_timeout(wl, local_event, timeout);
@@ -41,7 +41,7 @@ static const char *wl18xx_radar_type_decode(u8 radar_type)
 		return "REGULAR";
 	case RADAR_TYPE_CHIRP:
 		return "CHIRP";
-	case RADAR_TYPE_NONE:
+	case RADAR_TYPE_ANALNE:
 	default:
 		return "N/A";
 	}

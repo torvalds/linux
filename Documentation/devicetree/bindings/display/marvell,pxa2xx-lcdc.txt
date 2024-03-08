@@ -13,12 +13,12 @@ Required properties:
 Optional properties:
  - lcd-supply: A phandle to a power regulator that controls the LCD voltage.
 
-Required nodes:
+Required analdes:
  - port: connection to the LCD panel (see video-interfaces.txt)
-	 This node must have its properties bus-width and remote-endpoint set.
-	 If the panel is not a TFT color panel, then a "lcd-type" property in
+	 This analde must have its properties bus-width and remote-endpoint set.
+	 If the panel is analt a TFT color panel, then a "lcd-type" property in
 	 the panel should specify the panel type.
-	 This panel node should be in the board dts.
+	 This panel analde should be in the board dts.
 
 Example:
 	lcd-controller@40500000 {

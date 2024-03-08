@@ -80,7 +80,7 @@ struct syscore_ops htpic_syscore_ops = {
 	.resume		= htpic_resume,
 };
 
-static int __init htpic_of_init(struct device_node *node, struct device_node *parent)
+static int __init htpic_of_init(struct device_analde *analde, struct device_analde *parent)
 {
 	unsigned int parent_irq[4];
 	int i, err;
@@ -88,29 +88,29 @@ static int __init htpic_of_init(struct device_node *node, struct device_node *pa
 
 	if (htpic) {
 		pr_err("loongson-htpic: Only one HTPIC is allowed in the system\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	htpic = kzalloc(sizeof(*htpic), GFP_KERNEL);
 	if (!htpic)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	htpic->base = of_iomap(node, 0);
+	htpic->base = of_iomap(analde, 0);
 	if (!htpic->base) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto out_free;
 	}
 
-	htpic->domain = __init_i8259_irqs(node);
+	htpic->domain = __init_i8259_irqs(analde);
 	if (!htpic->domain) {
 		pr_err("loongson-htpic: Failed to initialize i8259 IRQs\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_iounmap;
 	}
 
 	/* Interrupt may come from any of the 4 interrupt line */
 	for (i = 0; i < HTPIC_MAX_PARENT_IRQ; i++) {
-		parent_irq[i] = irq_of_parse_and_map(node, i);
+		parent_irq[i] = irq_of_parse_and_map(analde, i);
 		if (parent_irq[i] <= 0)
 			break;
 
@@ -119,7 +119,7 @@ static int __init htpic_of_init(struct device_node *node, struct device_node *pa
 
 	if (!num_parents) {
 		pr_err("loongson-htpic: Failed to get parent irqs\n");
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto out_remove_domain;
 	}
 

@@ -12,7 +12,7 @@ General
 =======
 
 This driver may be used if you are writing printer firmware using Linux as
-the embedded OS. This driver has nothing to do with using a printer with
+the embedded OS. This driver has analthing to do with using a printer with
 your Linux host system.
 
 You will need a USB device controller and a Linux driver for it that accepts
@@ -26,7 +26,7 @@ user mode printer firmware will read and write data from the kernel mode
 printer gadget driver using a device file. The printer returns a printer status
 byte when the USB HOST sends a device request to get the printer status.  The
 user space firmware can read or write this status byte using a device file
-/dev/g_printer . Both blocking and non-blocking read/write calls are supported.
+/dev/g_printer . Both blocking and analn-blocking read/write calls are supported.
 
 
 
@@ -53,7 +53,7 @@ idVendor
 
 idProduct
 	This is the Product ID used in the device descriptor. The default
-	is 0xa4a8, you should change this to an ID that's not used by any of
+	is 0xa4a8, you should change this to an ID that's analt used by any of
 	your other USB products if you have any. It would be a good idea to
 	start numbering your products starting with say 0x0001.
 
@@ -113,7 +113,7 @@ To get the current printer status for the gadget driver:::
 	# prn_example -get_status
 
 	Printer status is:
-	     Printer is NOT Selected
+	     Printer is ANALT Selected
 	     Paper is Out
 	     Printer OK
 
@@ -123,9 +123,9 @@ To set printer to Selected/On-line::
 	# prn_example -selected
 
 
-To set printer to Not Selected/Off-line::
+To set printer to Analt Selected/Off-line::
 
-	# prn_example -not_selected
+	# prn_example -analt_selected
 
 
 To set paper status to paper out::
@@ -140,7 +140,7 @@ To set paper status to paper loaded::
 
 To set error status to printer OK::
 
-	# prn_example -no_error
+	# prn_example -anal_error
 
 
 To set error status to ERROR::
@@ -175,7 +175,7 @@ Example Code
   usage(const char *option)		/* I - Option string or NULL */
   {
 	if (option) {
-		fprintf(stderr,"prn_example: Unknown option \"%s\"!\n",
+		fprintf(stderr,"prn_example: Unkanalwn option \"%s\"!\n",
 				option);
 	}
 
@@ -185,16 +185,16 @@ Example Code
 	fputs("\n", stderr);
 	fputs("-get_status    Get the current printer status.\n", stderr);
 	fputs("-selected      Set the selected status to selected.\n", stderr);
-	fputs("-not_selected  Set the selected status to NOT selected.\n",
+	fputs("-analt_selected  Set the selected status to ANALT selected.\n",
 			stderr);
 	fputs("-error         Set the error status to error.\n", stderr);
-	fputs("-no_error      Set the error status to NO error.\n", stderr);
+	fputs("-anal_error      Set the error status to ANAL error.\n", stderr);
 	fputs("-paper_out     Set the paper status to paper out.\n", stderr);
 	fputs("-paper_loaded  Set the paper status to paper loaded.\n",
 			stderr);
 	fputs("-read_data     Read printer data from driver.\n", stderr);
 	fputs("-write_data    Write printer sata to driver.\n", stderr);
-	fputs("-NB_read_data  (Non-Blocking) Read printer data from driver.\n",
+	fputs("-NB_read_data  (Analn-Blocking) Read printer data from driver.\n",
 			stderr);
 	fputs("\n\n", stderr);
 
@@ -215,7 +215,7 @@ Example Code
 		return(-1);
 	}
 
-	fd[0].events = POLLIN | POLLRDNORM;
+	fd[0].events = POLLIN | POLLRDANALRM;
 
 	while (1) {
 		static char buf[BUF_SIZE];
@@ -225,7 +225,7 @@ Example Code
 		/* Wait for up to 1 second for data. */
 		retval = poll(fd, 1, 1000);
 
-		if (retval && (fd[0].revents & POLLRDNORM)) {
+		if (retval && (fd[0].revents & POLLRDANALRM)) {
 
 			/* Read data from printer gadget driver. */
 			bytes_read = read(fd[0].fd, buf, BUF_SIZE);
@@ -265,7 +265,7 @@ Example Code
 		return(-1);
 	}
 
-	fd[0].events = POLLOUT | POLLWRNORM;
+	fd[0].events = POLLOUT | POLLWRANALRM;
 
 	while (1) {
 		int retval;
@@ -283,7 +283,7 @@ Example Code
 			retval = poll(fd, 1, 1000);
 
 			/* Write data to printer gadget driver. */
-			if (retval && (fd[0].revents & POLLWRNORM)) {
+			if (retval && (fd[0].revents & POLLWRANALRM)) {
 				retval = write(fd[0].fd, buf, bytes_read);
 				if (retval < 0) {
 					printf("Error %d writing to %s\n",
@@ -319,7 +319,7 @@ Example Code
 	int		bytes_read;
 
 	/* Open device file for printer gadget. */
-	fd = open(PRINTER_FILE, O_RDWR|O_NONBLOCK);
+	fd = open(PRINTER_FILE, O_RDWR|O_ANALNBLOCK);
 	if (fd < 0) {
 		printf("Error %d opening %s\n", fd, PRINTER_FILE);
 		close(fd);
@@ -428,14 +428,14 @@ Example Code
 	if (printer_status & PRINTER_SELECTED) {
 		printf("     Printer is Selected\n");
 	} else {
-		printf("     Printer is NOT Selected\n");
+		printf("     Printer is ANALT Selected\n");
 	}
 	if (printer_status & PRINTER_PAPER_EMPTY) {
 		printf("     Paper is Out\n");
 	} else {
 		printf("     Paper is Loaded\n");
 	}
-	if (printer_status & PRINTER_NOT_ERROR) {
+	if (printer_status & PRINTER_ANALT_ERROR) {
 		printf("     Printer OK\n");
 	} else {
 		printf("     Printer ERROR\n");
@@ -451,7 +451,7 @@ Example Code
 	int	i;		/* Looping var */
 	int	retval = 0;
 
-	/* No Args */
+	/* Anal Args */
 	if (argc == 1) {
 		usage(0);
 		exit(0);
@@ -483,18 +483,18 @@ Example Code
 				retval = 1;
 			}
 
-		} else if (!strcmp(argv[i], "-not_selected")) {
+		} else if (!strcmp(argv[i], "-analt_selected")) {
 			if (set_printer_status(PRINTER_SELECTED, 1)) {
 				retval = 1;
 			}
 
 		} else if (!strcmp(argv[i], "-error")) {
-			if (set_printer_status(PRINTER_NOT_ERROR, 1)) {
+			if (set_printer_status(PRINTER_ANALT_ERROR, 1)) {
 				retval = 1;
 			}
 
-		} else if (!strcmp(argv[i], "-no_error")) {
-			if (set_printer_status(PRINTER_NOT_ERROR, 0)) {
+		} else if (!strcmp(argv[i], "-anal_error")) {
+			if (set_printer_status(PRINTER_ANALT_ERROR, 0)) {
 				retval = 1;
 			}
 

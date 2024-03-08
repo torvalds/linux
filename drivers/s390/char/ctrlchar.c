@@ -8,7 +8,7 @@
  */
 
 #include <linux/stddef.h>
-#include <asm/errno.h>
+#include <asm/erranal.h>
 #include <linux/sysrq.h>
 #include <linux/ctype.h>
 
@@ -40,7 +40,7 @@ void schedule_sysrq_work(struct sysrq_work *sw)
  * @len: length of valid data in buffer
  * @tty: the tty struct for this console
  *
- * Return: CTRLCHAR_NONE, if nothing matched,
+ * Return: CTRLCHAR_ANALNE, if analthing matched,
  *         CTRLCHAR_SYSRQ, if sysrq was encountered
  *         otherwise char to be inserted logically or'ed
  *         with CTRLCHAR_CTRL
@@ -49,12 +49,12 @@ unsigned int
 ctrlchar_handle(const unsigned char *buf, int len, struct tty_struct *tty)
 {
 	if ((len < 2) || (len > 3))
-		return CTRLCHAR_NONE;
+		return CTRLCHAR_ANALNE;
 
 	/* hat is 0xb1 in codepage 037 (US etc.) and thus */
 	/* converted to 0x5e in ascii ('^') */
 	if ((buf[0] != '^') && (buf[0] != '\252'))
-		return CTRLCHAR_NONE;
+		return CTRLCHAR_ANALNE;
 
 #ifdef CONFIG_MAGIC_SYSRQ
 	/* racy */
@@ -66,7 +66,7 @@ ctrlchar_handle(const unsigned char *buf, int len, struct tty_struct *tty)
 #endif
 
 	if (len != 2)
-		return CTRLCHAR_NONE;
+		return CTRLCHAR_ANALNE;
 
 	switch (tolower(buf[1])) {
 	case 'c':
@@ -76,5 +76,5 @@ ctrlchar_handle(const unsigned char *buf, int len, struct tty_struct *tty)
 	case 'z':
 		return SUSP_CHAR(tty) | CTRLCHAR_CTRL;
 	}
-	return CTRLCHAR_NONE;
+	return CTRLCHAR_ANALNE;
 }

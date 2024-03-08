@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
+ * Copyright (c) 1996, 2003 VIA Networking Techanallogies, Inc.
  * All rights reserved.
  *
  * Purpose: Implement functions to access baseband
@@ -21,7 +21,7 @@
  */
 
 #include <linux/bits.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include "device.h"
 #include "mac.h"
@@ -175,9 +175,9 @@ static const struct vnt_threshold vt3226_vnt_threshold[] = {
  *	priv		- Device Structure
  *	antenna_mode	- Antenna Mode
  *  Out:
- *      none
+ *      analne
  *
- * Return Value: none
+ * Return Value: analne
  *
  */
 int vnt_set_antenna_mode(struct vnt_private *priv, u8 antenna_mode)
@@ -207,9 +207,9 @@ int vnt_set_antenna_mode(struct vnt_private *priv, u8 antenna_mode)
  *      pDevice          - Device Structure
  *      byAntennaMode    - Antenna Mode
  *  Out:
- *      none
+ *      analne
  *
- * Return Value: none
+ * Return Value: analne
  *
  */
 
@@ -323,9 +323,9 @@ end:
  *  In:
  *	priv	- Device Structure
  *  Out:
- *      none
+ *      analne
  *
- * Return Value: none
+ * Return Value: analne
  *
  */
 int vnt_set_short_slot_time(struct vnt_private *priv)
@@ -374,9 +374,9 @@ int vnt_set_vga_gain_offset(struct vnt_private *priv, u8 data)
  *  In:
  *	priv	- Device Structure
  *  Out:
- *      none
+ *      analne
  *
- * Return Value: none
+ * Return Value: analne
  *
  */
 int vnt_set_deep_sleep(struct vnt_private *priv)

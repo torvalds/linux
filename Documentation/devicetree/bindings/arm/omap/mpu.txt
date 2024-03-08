@@ -11,10 +11,10 @@ Required properties:
 - ti,hwmods: "mpu"
 
 Optional properties:
-- sram:	Phandle to the ocmcram node
+- sram:	Phandle to the ocmcram analde
 
 am335x and am437x only:
-- pm-sram: Phandles to ocmcram nodes to be used for power management.
+- pm-sram: Phandles to ocmcram analdes to be used for power management.
 	   First should be type 'protect-exec' for the driver to use to copy
 	   and run PM functions, second should be regular pool to be used for
 	   data region for code. See Documentation/devicetree/bindings/sram/sram.yaml
@@ -37,7 +37,7 @@ mpu {
 };
 
 
-- For an OMAP3 monocore system:
+- For an OMAP3 moanalcore system:
 
 mpu {
     compatible = "ti,omap3-mpu";

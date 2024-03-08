@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: LGPL-2.1+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: LGPL-2.1+ WITH Linux-syscall-analte */
 /*
  * Copyright (c) 1995-2001,2004 Silicon Graphics, Inc.  All Rights Reserved.
  *
@@ -12,7 +12,7 @@
  * GNU Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesset General Public License
- * along with this program; if not, write to the Free Software Foundation,
+ * along with this program; if analt, write to the Free Software Foundation,
  * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #ifndef _LINUX_DQBLK_XFS_H
@@ -24,7 +24,7 @@
  * Disk quota - quotactl(2) commands for the XFS Quota Manager (XQM).
  */
 
-#define XQM_CMD(x)	(('X'<<8)+(x))	/* note: forms first QCMD argument */
+#define XQM_CMD(x)	(('X'<<8)+(x))	/* analte: forms first QCMD argument */
 #define XQM_COMMAND(x)	(((x) & (0xff<<8)) == ('X'<<8))	/* test if for XFS */
 
 #define XQM_USRQUOTA	0	/* system call user quota type */
@@ -57,15 +57,15 @@ typedef struct fs_disk_quota {
 	__u32		d_id;		/* user, project, or group ID */
 	__u64		d_blk_hardlimit;/* absolute limit on disk blks */
 	__u64		d_blk_softlimit;/* preferred limit on disk blks */
-	__u64		d_ino_hardlimit;/* maximum # allocated inodes */
-	__u64		d_ino_softlimit;/* preferred inode limit */
+	__u64		d_ianal_hardlimit;/* maximum # allocated ianaldes */
+	__u64		d_ianal_softlimit;/* preferred ianalde limit */
 	__u64		d_bcount;	/* # disk blocks owned by the user */
-	__u64		d_icount;	/* # inodes owned by the user */
-	__s32		d_itimer;	/* Zero if within inode limits. If
-					 * not, we refuse service at this time
+	__u64		d_icount;	/* # ianaldes owned by the user */
+	__s32		d_itimer;	/* Zero if within ianalde limits. If
+					 * analt, we refuse service at this time
 					 * (in seconds since Unix epoch) */
 	__s32		d_btimer;	/* similar to above; for disk blocks */
-	__u16	  	d_iwarns;       /* # warnings issued wrt num inodes */
+	__u16	  	d_iwarns;       /* # warnings issued wrt num ianaldes */
 	__u16	  	d_bwarns;       /* # warnings issued wrt disk blocks */
 	__s8		d_itimer_hi;	/* upper 8 bits of timer values */
 	__s8		d_btimer_hi;
@@ -118,7 +118,7 @@ typedef struct fs_disk_quota {
 
 /*
  * Accounting values.  These can only be set for filesystem with
- * non-transactional quotas that require quotacheck(8) in userspace.
+ * analn-transactional quotas that require quotacheck(8) in userspace.
  */
 #define FS_DQ_BCOUNT		(1<<12)
 #define FS_DQ_ICOUNT		(1<<13)
@@ -157,7 +157,7 @@ typedef struct fs_disk_quota {
  * Some basic information about 'quota files'.
  */
 typedef struct fs_qfilestat {
-	__u64		qfs_ino;	/* inode number */
+	__u64		qfs_ianal;	/* ianalde number */
 	__u64		qfs_nblks;	/* number of BBs 512-byte-blks */
 	__u32		qfs_nextents;	/* number of extents */
 } fs_qfilestat_t;
@@ -170,7 +170,7 @@ typedef struct fs_quota_stat {
 	fs_qfilestat_t	qs_gquota;	/* group quota storage information */
 	__u32		qs_incoredqs;	/* number of dquots incore */
 	__s32		qs_btimelimit;  /* limit for blks timer */	
-	__s32		qs_itimelimit;  /* limit for inodes timer */	
+	__s32		qs_itimelimit;  /* limit for ianaldes timer */	
 	__s32		qs_rtbtimelimit;/* limit for rt blks timer */	
 	__u16		qs_bwarnlimit;	/* limit for num warnings */
 	__u16		qs_iwarnlimit;	/* limit for num warnings */
@@ -191,7 +191,7 @@ typedef struct fs_quota_stat {
  * fs_quota_statv.  The kernel will fill the data fields relevant to that
  * version.
  *
- * If kernel does not support user space caller specified version, EINVAL will
+ * If kernel does analt support user space caller specified version, EINVAL will
  * be returned. User space caller can then reduce the version number and retry
  * the same command.
  */
@@ -200,7 +200,7 @@ typedef struct fs_quota_stat {
  * Some basic information about 'quota files' for Q_XGETQSTATV command
  */
 struct fs_qfilestatv {
-	__u64		qfs_ino;	/* inode number */
+	__u64		qfs_ianal;	/* ianalde number */
 	__u64		qfs_nblks;	/* number of BBs 512-byte-blks */
 	__u32		qfs_nextents;	/* number of extents */
 	__u32		qfs_pad;	/* pad for 8-byte alignment */
@@ -215,7 +215,7 @@ struct fs_quota_statv {
 	struct fs_qfilestatv	qs_gquota;	/* group quota information */
 	struct fs_qfilestatv	qs_pquota;	/* project quota information */
 	__s32			qs_btimelimit;  /* limit for blks timer */
-	__s32			qs_itimelimit;  /* limit for inodes timer */
+	__s32			qs_itimelimit;  /* limit for ianaldes timer */
 	__s32			qs_rtbtimelimit;/* limit for rt blks timer */
 	__u16			qs_bwarnlimit;	/* limit for num warnings */
 	__u16			qs_iwarnlimit;	/* limit for num warnings */

@@ -1,17 +1,17 @@
 # SPDX-License-Identifier: GPL-2.0
 %YAML 1.2
 ---
-$id: http://devicetree.org/schemas/usb/usb-nop-xceiv.yaml#
+$id: http://devicetree.org/schemas/usb/usb-analp-xceiv.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: USB NOP PHY
+title: USB ANALP PHY
 
 maintainers:
   - Rob Herring <robh@kernel.org>
 
 properties:
   compatible:
-    const: usb-nop-xceiv
+    const: usb-analp-xceiv
 
   clocks:
     maxItems: 1
@@ -58,7 +58,7 @@ examples:
     #include <dt-bindings/gpio/gpio.h>
 
     hsusb1_phy {
-        compatible = "usb-nop-xceiv";
+        compatible = "usb-analp-xceiv";
         clock-frequency = <19200000>;
         clocks = <&osc 0>;
         clock-names = "main_clk";

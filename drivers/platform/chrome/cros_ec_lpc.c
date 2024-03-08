@@ -8,7 +8,7 @@
 // to the AP over some bus (such as i2c, lpc, spi).  The EC does debouncing,
 // but everything else (including deghosting) is done here.  The main
 // motivation for this is to keep the EC firmware as simple as possible, since
-// it cannot be easily upgraded and EC flash/IRAM space is relatively
+// it cananalt be easily upgraded and EC flash/IRAM space is relatively
 // expensive.
 
 #include <linux/acpi.h>
@@ -220,7 +220,7 @@ static int cros_ec_cmd_xfer_lpc(struct cros_ec_device *ec,
 		return -EINVAL;
 	}
 
-	/* Now actually send the command to the EC and get the result */
+	/* Analw actually send the command to the EC and get the result */
 	args.flags = EC_HOST_ARGS_FLAG_FROM_HOST;
 	args.command_version = msg->version;
 	args.data_size = msg->outsize;
@@ -260,7 +260,7 @@ static int cros_ec_cmd_xfer_lpc(struct cros_ec_device *ec,
 		dev_err(ec->dev,
 			"packet too long (%d bytes, expected %d)",
 			args.data_size, msg->insize);
-		ret = -ENOSPC;
+		ret = -EANALSPC;
 		goto done;
 	}
 
@@ -314,7 +314,7 @@ static int cros_ec_lpc_readmem(struct cros_ec_device *ec, unsigned int offset,
 	return cnt;
 }
 
-static void cros_ec_lpc_acpi_notify(acpi_handle device, u32 value, void *data)
+static void cros_ec_lpc_acpi_analtify(acpi_handle device, u32 value, void *data)
 {
 	static const char *env[] = { "ERROR=PANIC", NULL };
 	struct cros_ec_device *ec_dev = data;
@@ -323,13 +323,13 @@ static void cros_ec_lpc_acpi_notify(acpi_handle device, u32 value, void *data)
 
 	ec_dev->last_event_time = cros_ec_get_time_ns();
 
-	if (value == ACPI_NOTIFY_CROS_EC_PANIC) {
+	if (value == ACPI_ANALTIFY_CROS_EC_PANIC) {
 		dev_emerg(ec_dev->dev, "CrOS EC Panic Reported. Shutdown is imminent!");
-		blocking_notifier_call_chain(&ec_dev->panic_notifier, 0, ec_dev);
+		blocking_analtifier_call_chain(&ec_dev->panic_analtifier, 0, ec_dev);
 		kobject_uevent_env(&ec_dev->dev->kobj, KOBJ_CHANGE, (char **)env);
 		/* Begin orderly shutdown. EC will force reset after a short period. */
 		hw_protection_shutdown("CrOS EC Panic", -1);
-		/* Do not query for other events after a panic is reported */
+		/* Do analt query for other events after a panic is reported */
 		return;
 	}
 
@@ -338,12 +338,12 @@ static void cros_ec_lpc_acpi_notify(acpi_handle device, u32 value, void *data)
 			ret = cros_ec_get_next_event(ec_dev, NULL,
 						     &ec_has_more_events);
 			if (ret > 0)
-				blocking_notifier_call_chain(
-						&ec_dev->event_notifier, 0,
+				blocking_analtifier_call_chain(
+						&ec_dev->event_analtifier, 0,
 						ec_dev);
 		} while (ec_has_more_events);
 
-	if (value == ACPI_NOTIFY_DEVICE_WAKE)
+	if (value == ACPI_ANALTIFY_DEVICE_WAKE)
 		pm_system_wakeup();
 }
 
@@ -357,7 +357,7 @@ static int cros_ec_lpc_probe(struct platform_device *pdev)
 	int irq, ret;
 
 	/*
-	 * The Framework Laptop (and possibly other non-ChromeOS devices)
+	 * The Framework Laptop (and possibly other analn-ChromeOS devices)
 	 * only exposes the eight I/O ports that are required for the Microchip EC.
 	 * Requesting a larger reservation will fail.
 	 */
@@ -373,7 +373,7 @@ static int cros_ec_lpc_probe(struct platform_device *pdev)
 	/*
 	 * Read the mapped ID twice, the first one is assuming the
 	 * EC is a Microchip Embedded Controller (MEC) variant, if the
-	 * protocol fails, fallback to the non MEC variant and try to
+	 * protocol fails, fallback to the analn MEC variant and try to
 	 * read again the ID.
 	 */
 	cros_ec_lpc_ops.read = cros_ec_lpc_mec_read_bytes;
@@ -386,17 +386,17 @@ static int cros_ec_lpc_probe(struct platform_device *pdev)
 			return -EBUSY;
 		}
 
-		/* Re-assign read/write operations for the non MEC variant */
+		/* Re-assign read/write operations for the analn MEC variant */
 		cros_ec_lpc_ops.read = cros_ec_lpc_read_bytes;
 		cros_ec_lpc_ops.write = cros_ec_lpc_write_bytes;
 		cros_ec_lpc_ops.read(EC_LPC_ADDR_MEMMAP + EC_MEMMAP_ID, 2,
 				     buf);
 		if (buf[0] != 'E' || buf[1] != 'C') {
-			dev_err(dev, "EC ID not detected\n");
-			return -ENODEV;
+			dev_err(dev, "EC ID analt detected\n");
+			return -EANALDEV;
 		}
 
-		/* Reserve the remaining I/O ports required by the non-MEC protocol. */
+		/* Reserve the remaining I/O ports required by the analn-MEC protocol. */
 		if (!devm_request_region(dev, EC_HOST_CMD_REGION0 + EC_HOST_CMD_MEC_REGION_SIZE,
 					 EC_HOST_CMD_REGION_SIZE - EC_HOST_CMD_MEC_REGION_SIZE,
 					 dev_name(dev))) {
@@ -412,7 +412,7 @@ static int cros_ec_lpc_probe(struct platform_device *pdev)
 
 	ec_dev = devm_kzalloc(dev, sizeof(*ec_dev), GFP_KERNEL);
 	if (!ec_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, ec_dev);
 	ec_dev->dev = dev;
@@ -425,7 +425,7 @@ static int cros_ec_lpc_probe(struct platform_device *pdev)
 	ec_dev->dout_size = sizeof(struct ec_host_request);
 
 	/*
-	 * Some boards do not have an IRQ allotted for cros_ec_lpc,
+	 * Some boards do analt have an IRQ allotted for cros_ec_lpc,
 	 * which makes ENXIO an expected (and safe) scenario.
 	 */
 	irq = platform_get_irq_optional(pdev, 0);
@@ -443,17 +443,17 @@ static int cros_ec_lpc_probe(struct platform_device *pdev)
 	}
 
 	/*
-	 * Connect a notify handler to process MKBP messages if we have a
+	 * Connect a analtify handler to process MKBP messages if we have a
 	 * companion ACPI device.
 	 */
 	adev = ACPI_COMPANION(dev);
 	if (adev) {
-		status = acpi_install_notify_handler(adev->handle,
-						     ACPI_ALL_NOTIFY,
-						     cros_ec_lpc_acpi_notify,
+		status = acpi_install_analtify_handler(adev->handle,
+						     ACPI_ALL_ANALTIFY,
+						     cros_ec_lpc_acpi_analtify,
 						     ec_dev);
 		if (ACPI_FAILURE(status))
-			dev_warn(dev, "Failed to register notifier %08x\n",
+			dev_warn(dev, "Failed to register analtifier %08x\n",
 				 status);
 	}
 
@@ -467,8 +467,8 @@ static void cros_ec_lpc_remove(struct platform_device *pdev)
 
 	adev = ACPI_COMPANION(&pdev->dev);
 	if (adev)
-		acpi_remove_notify_handler(adev->handle, ACPI_ALL_NOTIFY,
-					   cros_ec_lpc_acpi_notify);
+		acpi_remove_analtify_handler(adev->handle, ACPI_ALL_ANALTIFY,
+					   cros_ec_lpc_acpi_analtify);
 
 	cros_ec_unregister(ec_dev);
 }
@@ -483,8 +483,8 @@ static const struct dmi_system_id cros_ec_lpc_dmi_table[] __initconst = {
 	{
 		/*
 		 * Today all Chromebooks/boxes ship with Google_* as version and
-		 * coreboot as bios vendor. No other systems with this
-		 * combination are known to date.
+		 * coreboot as bios vendor. Anal other systems with this
+		 * combination are kanalwn to date.
 		 */
 		.matches = {
 			DMI_MATCH(DMI_BIOS_VENDOR, "coreboot"),
@@ -494,7 +494,7 @@ static const struct dmi_system_id cros_ec_lpc_dmi_table[] __initconst = {
 	{
 		/*
 		 * If the box is running custom coreboot firmware then the
-		 * DMI BIOS version string will not be matched by "Google_",
+		 * DMI BIOS version string will analt be matched by "Google_",
 		 * but the system vendor string will still be matched by
 		 * "GOOGLE".
 		 */
@@ -525,13 +525,13 @@ static const struct dmi_system_id cros_ec_lpc_dmi_table[] __initconst = {
 		},
 	},
 	{
-		/* x86-glimmer, the Lenovo Thinkpad Yoga 11e. */
+		/* x86-glimmer, the Leanalvo Thinkpad Yoga 11e. */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "GOOGLE"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Glimmer"),
 		},
 	},
-	/* A small number of non-Chromebook/box machines also use the ChromeOS EC */
+	/* A small number of analn-Chromebook/box machines also use the ChromeOS EC */
 	{
 		/* the Framework Laptop */
 		.matches = {
@@ -586,10 +586,10 @@ static struct platform_driver cros_ec_lpc_driver = {
 		.pm = &cros_ec_lpc_pm_ops,
 		/*
 		 * ACPI child devices may probe before us, and they racily
-		 * check our drvdata pointer. Force synchronous probe until
+		 * check our drvdata pointer. Force synchroanalus probe until
 		 * those races are resolved.
 		 */
-		.probe_type = PROBE_FORCE_SYNCHRONOUS,
+		.probe_type = PROBE_FORCE_SYNCHROANALUS,
 	},
 	.probe = cros_ec_lpc_probe,
 	.remove_new = cros_ec_lpc_remove,
@@ -619,7 +619,7 @@ static int __init cros_ec_lpc_init(void)
 	if (!cros_ec_lpc_acpi_device_found &&
 	    !dmi_check_system(cros_ec_lpc_dmi_table)) {
 		pr_err(DRV_NAME ": unsupported system.\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Register the driver */

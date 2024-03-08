@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- *  HID driver for Keytouch devices not fully compliant with HID standard
+ *  HID driver for Keytouch devices analt fully compliant with HID standard
  *
  *  Copyright (c) 2011 Jiri Kosina
  */

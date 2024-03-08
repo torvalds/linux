@@ -306,7 +306,7 @@ static struct attribute *max1668_attribute_common[] = {
 	NULL
 };
 
-/* Attributes not present on MAX1805 */
+/* Attributes analt present on MAX1805 */
 static struct attribute *max1668_attribute_unique[] = {
 	&sensor_dev_attr_temp4_max.dev_attr.attr,
 	&sensor_dev_attr_temp4_min.dev_attr.attr,
@@ -355,7 +355,7 @@ static const struct attribute_group max1668_group_unique = {
 	.is_visible = max1668_attribute_mode
 };
 
-/* Return 0 if detection is successful, -ENODEV otherwise */
+/* Return 0 if detection is successful, -EANALDEV otherwise */
 static int max1668_detect(struct i2c_client *client,
 			  struct i2c_board_info *info)
 {
@@ -364,16 +364,16 @@ static int max1668_detect(struct i2c_client *client,
 	int man_id, dev_id;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Check for unsupported part */
 	man_id = i2c_smbus_read_byte_data(client, MAX1668_REG_MAN_ID);
 	if (man_id != MAN_ID_MAXIM)
-		return -ENODEV;
+		return -EANALDEV;
 
 	dev_id = i2c_smbus_read_byte_data(client, MAX1668_REG_DEV_ID);
 	if (dev_id < 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	type_name = NULL;
 	if (dev_id == DEV_ID_MAX1668)
@@ -384,7 +384,7 @@ static int max1668_detect(struct i2c_client *client,
 		type_name = "max1989";
 
 	if (!type_name)
-		return -ENODEV;
+		return -EANALDEV;
 
 	strscpy(info->type, type_name, I2C_NAME_SIZE);
 
@@ -401,11 +401,11 @@ static int max1668_probe(struct i2c_client *client)
 	struct max1668_data *data;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
-		return -ENODEV;
+		return -EANALDEV;
 
 	data = devm_kzalloc(dev, sizeof(struct max1668_data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->client = client;
 	data->type = i2c_match_id(max1668_id, client)->driver_data;

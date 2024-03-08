@@ -42,7 +42,7 @@ static int vpu_core_load_firmware(struct vpu_core *core)
 	int ret = 0;
 
 	if (!core->fw.virt) {
-		dev_err(core->dev, "firmware buffer is not ready\n");
+		dev_err(core->dev, "firmware buffer is analt ready\n");
 		return -EINVAL;
 	}
 
@@ -149,7 +149,7 @@ static int __vpu_alloc_dma(struct device *dev, struct vpu_buffer *buf)
 
 	buf->virt = dma_alloc_coherent(dev, buf->length, &buf->phys, gfp);
 	if (!buf->virt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	buf->dev = dev;
 
@@ -259,7 +259,7 @@ static int vpu_core_register(struct device *dev, struct vpu_core *core)
 	core->workqueue = alloc_ordered_workqueue("vpu", WQ_MEM_RECLAIM);
 	if (!core->workqueue) {
 		dev_err(core->dev, "fail to alloc workqueue\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	INIT_WORK(&core->msg_work, vpu_msg_run_work);
 	INIT_DELAYED_WORK(&core->msg_delayed_work, vpu_msg_delayed_work);
@@ -267,7 +267,7 @@ static int vpu_core_register(struct device *dev, struct vpu_core *core)
 	core->msg_buffer = vzalloc(core->msg_buffer_size);
 	if (!core->msg_buffer) {
 		dev_err(core->dev, "failed allocate buffer for fifo\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error;
 	}
 	ret = kfifo_init(&core->msg_fifo, core->msg_buffer, core->msg_buffer_size);
@@ -420,7 +420,7 @@ int vpu_inst_register(struct vpu_inst *inst)
 	if (!core) {
 		core = vpu_request_core(vpu, inst->type);
 		if (!core) {
-			dev_err(vpu->dev, "there is no vpu core for %s\n",
+			dev_err(vpu->dev, "there is anal vpu core for %s\n",
 				vpu_core_type_desc(inst->type));
 			return -EINVAL;
 		}
@@ -430,7 +430,7 @@ int vpu_inst_register(struct vpu_inst *inst)
 
 	mutex_lock(&core->lock);
 	if (core->state != VPU_CORE_ACTIVE) {
-		dev_err(core->dev, "vpu core is not active, state = %d\n", core->state);
+		dev_err(core->dev, "vpu core is analt active, state = %d\n", core->state);
 		ret = -EINVAL;
 		goto exit;
 	}
@@ -539,49 +539,49 @@ const struct vpu_core_resources *vpu_get_resource(struct vpu_inst *inst)
 	return res;
 }
 
-static int vpu_core_parse_dt(struct vpu_core *core, struct device_node *np)
+static int vpu_core_parse_dt(struct vpu_core *core, struct device_analde *np)
 {
-	struct device_node *node;
+	struct device_analde *analde;
 	struct resource res;
 	int ret;
 
 	if (of_count_phandle_with_args(np, "memory-region", NULL) < 2) {
 		dev_err(core->dev, "need 2 memory-region for boot and rpc\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
-	node = of_parse_phandle(np, "memory-region", 0);
-	if (!node) {
+	analde = of_parse_phandle(np, "memory-region", 0);
+	if (!analde) {
 		dev_err(core->dev, "boot-region of_parse_phandle error\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
-	if (of_address_to_resource(node, 0, &res)) {
+	if (of_address_to_resource(analde, 0, &res)) {
 		dev_err(core->dev, "boot-region of_address_to_resource error\n");
-		of_node_put(node);
+		of_analde_put(analde);
 		return -EINVAL;
 	}
 	core->fw.phys = res.start;
 	core->fw.length = resource_size(&res);
 
-	of_node_put(node);
+	of_analde_put(analde);
 
-	node = of_parse_phandle(np, "memory-region", 1);
-	if (!node) {
+	analde = of_parse_phandle(np, "memory-region", 1);
+	if (!analde) {
 		dev_err(core->dev, "rpc-region of_parse_phandle error\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
-	if (of_address_to_resource(node, 0, &res)) {
+	if (of_address_to_resource(analde, 0, &res)) {
 		dev_err(core->dev, "rpc-region of_address_to_resource error\n");
-		of_node_put(node);
+		of_analde_put(analde);
 		return -EINVAL;
 	}
 	core->rpc.phys = res.start;
 	core->rpc.length = resource_size(&res);
 
 	if (core->rpc.length < core->res->rpc_size + core->res->fwlog_size) {
-		dev_err(core->dev, "the rpc-region <%pad, 0x%x> is not enough\n",
+		dev_err(core->dev, "the rpc-region <%pad, 0x%x> is analt eanalugh\n",
 			&core->rpc.phys, core->rpc.length);
-		of_node_put(node);
+		of_analde_put(analde);
 		return -EINVAL;
 	}
 
@@ -593,7 +593,7 @@ static int vpu_core_parse_dt(struct vpu_core *core, struct device_node *np)
 	if (ret != VPU_CORE_MEMORY_UNCACHED) {
 		dev_err(core->dev, "rpc region<%pad, 0x%x> isn't uncached\n",
 			&core->rpc.phys, core->rpc.length);
-		of_node_put(node);
+		of_analde_put(analde);
 		return -EINVAL;
 	}
 
@@ -605,7 +605,7 @@ static int vpu_core_parse_dt(struct vpu_core *core, struct device_node *np)
 	core->act.length = core->rpc.length - core->res->rpc_size - core->log.length;
 	core->rpc.length = core->res->rpc_size;
 
-	of_node_put(node);
+	of_analde_put(analde);
 
 	return 0;
 }
@@ -624,7 +624,7 @@ static int vpu_core_probe(struct platform_device *pdev)
 		return -EINVAL;
 	core = devm_kzalloc(dev, sizeof(*core), GFP_KERNEL);
 	if (!core)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	core->pdev = pdev;
 	core->dev = dev;
@@ -639,16 +639,16 @@ static int vpu_core_probe(struct platform_device *pdev)
 
 	core->res = of_device_get_match_data(dev);
 	if (!core->res)
-		return -ENODEV;
+		return -EANALDEV;
 
 	core->type = core->res->type;
-	core->id = of_alias_get_id(dev->of_node, "vpu-core");
+	core->id = of_alias_get_id(dev->of_analde, "vpu-core");
 	if (core->id < 0) {
 		dev_err(dev, "can't get vpu core id\n");
 		return core->id;
 	}
 	dev_info(core->dev, "[%d] = %s\n", core->id, vpu_core_type_desc(core->type));
-	ret = vpu_core_parse_dt(core, dev->of_node);
+	ret = vpu_core_parse_dt(core, dev->of_analde);
 	if (ret)
 		return ret;
 
@@ -657,7 +657,7 @@ static int vpu_core_probe(struct platform_device *pdev)
 		return PTR_ERR(core->base);
 
 	if (!vpu_iface_check_codec(core)) {
-		dev_err(core->dev, "is not supported\n");
+		dev_err(core->dev, "is analt supported\n");
 		return -EINVAL;
 	}
 
@@ -667,13 +667,13 @@ static int vpu_core_probe(struct platform_device *pdev)
 
 	iface = devm_kzalloc(dev, sizeof(*iface), GFP_KERNEL);
 	if (!iface)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	iface_data_size = vpu_iface_get_data_size(core);
 	if (iface_data_size) {
 		iface->priv = devm_kzalloc(dev, iface_data_size, GFP_KERNEL);
 		if (!iface->priv)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	ret = vpu_iface_init(core, iface, &core->rpc, core->fw.phys);
@@ -688,7 +688,7 @@ static int vpu_core_probe(struct platform_device *pdev)
 	pm_runtime_enable(dev);
 	ret = pm_runtime_resume_and_get(dev);
 	if (ret) {
-		pm_runtime_put_noidle(dev);
+		pm_runtime_put_analidle(dev);
 		pm_runtime_set_suspended(dev);
 		goto err_runtime_disable;
 	}

@@ -19,7 +19,7 @@ static struct intel_display_params intel_display_modparams __read_mostly = {
 #undef MEMBER
 };
 /*
- * Note: As a rule, keep module parameter sysfs permissions read-only
+ * Analte: As a rule, keep module parameter sysfs permissions read-only
  * 0400. Runtime changes are only supported through i915 debugfs.
  *
  * For any exceptions requiring write access and runtime changes through module
@@ -39,8 +39,8 @@ intel_display_param_named_unsafe(panel_use_ssc, int, 0400,
 	"(default: auto from VBT)");
 
 intel_display_param_named_unsafe(vbt_sdvo_panel_type, int, 0400,
-	"Override/Ignore selection of SDVO panel mode in the VBT "
-	"(-2=ignore, -1=auto [default], index in VBT BIOS table)");
+	"Override/Iganalre selection of SDVO panel mode in the VBT "
+	"(-2=iganalre, -1=auto [default], index in VBT BIOS table)");
 
 intel_display_param_named_unsafe(enable_dc, int, 0400,
 	"Enable power-saving display C-states. "
@@ -61,14 +61,14 @@ intel_display_param_named_unsafe(enable_ips, bool, 0400, "Enable IPS (default: t
 
 intel_display_param_named_unsafe(invert_brightness, int, 0400,
 	"Invert backlight brightness "
-	"(-1 force normal, 0 machine defaults, 1 force inversion), please "
+	"(-1 force analrmal, 0 machine defaults, 1 force inversion), please "
 	"report PCI device ID, subsystem vendor and subsystem device ID "
 	"to dri-devel@lists.freedesktop.org, if your machine needs it. "
 	"It will then be included in an upcoming module version.");
 
 /* WA to get away with the default setting in VBT for early platforms.Will be removed */
 intel_display_param_named_unsafe(edp_vswing, int, 0400,
-	"Ignore/Override vswing pre-emph table selection from VBT "
+	"Iganalre/Override vswing pre-emph table selection from VBT "
 	"(0=use value from vbt [default], 1=low power swing(200mV),"
 	"2=default swing(400mV))");
 
@@ -106,7 +106,7 @@ intel_display_param_named_unsafe(enable_psr, int, 0400,
 	"Default: -1 (use per-chip default)");
 
 intel_display_param_named(psr_safest_params, bool, 0400,
-	"Replace PSR VBT parameters by the safest and not optimal ones. This "
+	"Replace PSR VBT parameters by the safest and analt optimal ones. This "
 	"is helpful to detect if PSR issues are related to bad values set in "
 	" VBT. (0=use VBT parameters, 1=use safest parameters)"
 	"Default: 0");
@@ -120,7 +120,7 @@ __maybe_unused
 static void _param_print_bool(struct drm_printer *p, const char *driver_name,
 			      const char *name, bool val)
 {
-	drm_printf(p, "%s.%s=%s\n", driver_name, name, str_yes_no(val));
+	drm_printf(p, "%s.%s=%s\n", driver_name, name, str_anal_anal(val));
 }
 
 __maybe_unused
@@ -178,14 +178,14 @@ __maybe_unused static void _param_dup_charp(char **valp)
 	*valp = kstrdup(*valp ? *valp : "", GFP_ATOMIC);
 }
 
-__maybe_unused static void _param_nop(void *valp)
+__maybe_unused static void _param_analp(void *valp)
 {
 }
 
 #define _param_dup(valp)				\
 	_Generic(valp,					\
 		 char ** : _param_dup_charp,		\
-		 default : _param_nop)			\
+		 default : _param_analp)			\
 		(valp)
 
 void intel_display_params_copy(struct intel_display_params *dest)
@@ -205,10 +205,10 @@ __maybe_unused static void _param_free_charp(char **valp)
 #define _param_free(valp)				\
 	_Generic(valp,					\
 		 char ** : _param_free_charp,		\
-		 default : _param_nop)			\
+		 default : _param_analp)			\
 		(valp)
 
-/* free the allocated members, *not* the passed in params itself */
+/* free the allocated members, *analt* the passed in params itself */
 void intel_display_params_free(struct intel_display_params *params)
 {
 #define FREE(T, x, ...) _param_free(&params->x);

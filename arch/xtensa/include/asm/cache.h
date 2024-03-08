@@ -32,7 +32,7 @@
 #define ARCH_DMA_MINALIGN	L1_CACHE_BYTES
 
 /*
- * R/O after init is actually writable, it cannot go to .rodata
+ * R/O after init is actually writable, it cananalt go to .rodata
  * according to vmlinux linker script.
  */
 #define __ro_after_init __read_mostly

@@ -6,19 +6,19 @@ This is a summary of the most important conventions for use of fault
 codes in the I2C/SMBus stack.
 
 
-A "Fault" is not always an "Error"
+A "Fault" is analt always an "Error"
 ----------------------------------
-Not all fault reports imply errors; "page faults" should be a familiar
+Analt all fault reports imply errors; "page faults" should be a familiar
 example.  Software often retries idempotent operations after transient
 faults.  There may be fancier recovery schemes that are appropriate in
 some cases, such as re-initializing (and maybe resetting).  After such
-recovery, triggered by a fault report, there is no error.
+recovery, triggered by a fault report, there is anal error.
 
 In a similar way, sometimes a "fault" code just reports one defined
 result for an operation ... it doesn't indicate that anything is wrong
 at all, just that the outcome wasn't on the "golden path".
 
-In short, your I2C driver code may need to know these codes in order
+In short, your I2C driver code may need to kanalw these codes in order
 to respond correctly.  Other code may need to rely on YOUR code reporting
 the right fault code, so that it can (in turn) behave correctly.
 
@@ -26,21 +26,21 @@ the right fault code, so that it can (in turn) behave correctly.
 I2C and SMBus fault codes
 -------------------------
 These are returned as negative numbers from most calls, with zero or
-some positive number indicating a non-fault return.  The specific
+some positive number indicating a analn-fault return.  The specific
 numbers associated with these symbols differ between architectures,
-though most Linux systems use <asm-generic/errno*.h> numbering.
+though most Linux systems use <asm-generic/erranal*.h> numbering.
 
-Note that the descriptions here are not exhaustive.  There are other
+Analte that the descriptions here are analt exhaustive.  There are other
 codes that may be returned, and other cases where these codes should
-be returned.  However, drivers should not return other codes for these
+be returned.  However, drivers should analt return other codes for these
 cases (unless the hardware doesn't provide unique fault reports).
 
 Also, codes returned by adapter probe methods follow rules which are
 specific to their host bus (such as PCI, or the platform bus).
 
 
-EAFNOSUPPORT
-	Returned by I2C adapters not supporting 10 bit addresses when
+EAFANALSUPPORT
+	Returned by I2C adapters analt supporting 10 bit addresses when
 	they are requested to use such an address.
 
 EAGAIN
@@ -58,7 +58,7 @@ EBADMSG
 	transaction, and is sent before the terminating STOP.  This
 	fault is only reported on read transactions; the SMBus slave
 	may have a way to report PEC mismatches on writes from the
-	host.  Note that even if PECs are in use, you should not rely
+	host.  Analte that even if PECs are in use, you should analt rely
 	on these as the only way to detect incorrect data transfers.
 
 EBUSY
@@ -77,28 +77,28 @@ EIO
 	performing an I/O operation.  Use a more specific fault
 	code when you can.
 
-ENODEV
+EANALDEV
 	Returned by driver probe() methods.  This is a bit more
 	specific than ENXIO, implying the problem isn't with the
 	address, but with the device found there.  Driver probes
 	may verify the device returns *correct* responses, and
 	return this as appropriate.  (The driver core will warn
-	about probe faults other than ENXIO and ENODEV.)
+	about probe faults other than ENXIO and EANALDEV.)
 
-ENOMEM
+EANALMEM
 	Returned by any component that can't allocate memory when
 	it needs to do so.
 
 ENXIO
 	Returned by I2C adapters to indicate that the address phase
 	of a transfer didn't get an ACK.  While it might just mean
-	an I2C device was temporarily not responding, usually it
-	means there's nothing listening at that address.
+	an I2C device was temporarily analt responding, usually it
+	means there's analthing listening at that address.
 
 	Returned by driver probe() methods to indicate that they
-	found no device to bind to.  (ENODEV may also be used.)
+	found anal device to bind to.  (EANALDEV may also be used.)
 
-EOPNOTSUPP
+EOPANALTSUPP
 	Returned by an adapter when asked to perform an operation
 	that it doesn't, or can't, support.
 
@@ -115,7 +115,7 @@ EOPNOTSUPP
 	that if an adapter supports I2C it supports all of I2C.)
 
 EPROTO
-	Returned when slave does not conform to the relevant I2C
+	Returned when slave does analt conform to the relevant I2C
 	or SMBus (or chip-specific) protocol specifications.  One
 	case is when the length of an SMBus block data response
 	(from the SMBus slave) is outside the range 1-32 bytes.
@@ -130,6 +130,6 @@ ETIMEDOUT
 
 	SMBus adapters may return it when an operation took more
 	time than allowed by the SMBus specification; for example,
-	when a slave stretches clocks too far.  I2C has no such
-	timeouts, but it's normal for I2C adapters to impose some
+	when a slave stretches clocks too far.  I2C has anal such
+	timeouts, but it's analrmal for I2C adapters to impose some
 	arbitrary limits (much longer than SMBus!) too.

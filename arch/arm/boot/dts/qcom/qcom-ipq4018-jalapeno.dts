@@ -6,8 +6,8 @@
 #include <dt-bindings/input/input.h>
 
 / {
-	model = "8devices Jalapeno";
-	compatible = "8dev,jalapeno", "qcom,ipq4018";
+	model = "8devices Jalapeanal";
+	compatible = "8dev,jalapeanal", "qcom,ipq4018";
 };
 
 &tlmm {
@@ -76,7 +76,7 @@
 	flash@0 {
 		status = "okay";
 
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		reg = <0>;
 		spi-max-frequency = <24000000>;
 
@@ -184,13 +184,13 @@
 &wifi0 {
 	status = "okay";
 
-	qcom,ath10k-calibration-variant = "8devices-Jalapeno";
+	qcom,ath10k-calibration-variant = "8devices-Jalapeanal";
 };
 
 &wifi1 {
 	status = "okay";
 
-	qcom,ath10k-calibration-variant = "8devices-Jalapeno";
+	qcom,ath10k-calibration-variant = "8devices-Jalapeanal";
 };
 
 &usb3_ss_phy {

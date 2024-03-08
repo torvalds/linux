@@ -39,7 +39,7 @@ set_pedit_val(u8 hdr_type, u32 mask, u32 val, u32 offset,
 	return 0;
 
 out_err:
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 int
@@ -51,7 +51,7 @@ mlx5e_tc_act_pedit_parse_action(struct mlx5e_priv *priv,
 	u8 cmd = (act->id == FLOW_ACTION_MANGLE) ? TCA_PEDIT_KEY_EX_CMD_SET :
 						   TCA_PEDIT_KEY_EX_CMD_ADD;
 	u8 htype = act->mangle.htype;
-	int err = -EOPNOTSUPP;
+	int err = -EOPANALTSUPP;
 	u32 mask, val, offset;
 
 	if (htype == FLOW_ACT_MANGLE_UNSPEC) {
@@ -60,7 +60,7 @@ mlx5e_tc_act_pedit_parse_action(struct mlx5e_priv *priv,
 	}
 
 	if (!mlx5e_mod_hdr_max_actions(priv->mdev, namespace)) {
-		NL_SET_ERR_MSG_MOD(extack, "The pedit offload action is not supported");
+		NL_SET_ERR_MSG_MOD(extack, "The pedit offload action is analt supported");
 		goto out_err;
 	}
 

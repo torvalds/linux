@@ -10,7 +10,7 @@
  *   Dick Fowles <fowles@inreach.com>
  *   Joe Mario <jmario@redhat.com>
  */
-#include <errno.h>
+#include <erranal.h>
 #include <inttypes.h>
 #include <linux/compiler.h>
 #include <linux/err.h>
@@ -37,7 +37,7 @@
 #include "evsel.h"
 #include "ui/browsers/hists.h"
 #include "thread.h"
-#include "mem2node.h"
+#include "mem2analde.h"
 #include "symbol.h"
 #include "ui/ui.h"
 #include "ui/progress.h"
@@ -63,8 +63,8 @@ struct c2c_hist_entry {
 	struct c2c_hists	*hists;
 	struct c2c_stats	 stats;
 	unsigned long		*cpuset;
-	unsigned long		*nodeset;
-	struct c2c_stats	*node_stats;
+	unsigned long		*analdeset;
+	struct c2c_stats	*analde_stats;
 	unsigned int		 cacheline_idx;
 
 	struct compute_stats	 cstats;
@@ -72,7 +72,7 @@ struct c2c_hist_entry {
 	unsigned long		 paddr;
 	unsigned long		 paddr_cnt;
 	bool			 paddr_zero;
-	char			*nodestr;
+	char			*analdestr;
 
 	/*
 	 * must be at the end,
@@ -86,13 +86,13 @@ static char const *coalesce_default = "iaddr";
 struct perf_c2c {
 	struct perf_tool	tool;
 	struct c2c_hists	hists;
-	struct mem2node		mem2node;
+	struct mem2analde		mem2analde;
 
-	unsigned long		**nodes;
-	int			 nodes_cnt;
+	unsigned long		**analdes;
+	int			 analdes_cnt;
 	int			 cpus_cnt;
-	int			*cpu2node;
-	int			 node_info;
+	int			*cpu2analde;
+	int			 analde_info;
 
 	bool			 show_src;
 	bool			 show_all;
@@ -125,7 +125,7 @@ static const char *display_str[DISPLAY_MAX] = {
 	[DISPLAY_LCL_HITM] = "Local HITMs",
 	[DISPLAY_RMT_HITM] = "Remote HITMs",
 	[DISPLAY_TOT_HITM] = "Total HITMs",
-	[DISPLAY_SNP_PEER] = "Peer Snoop",
+	[DISPLAY_SNP_PEER] = "Peer Sanalop",
 };
 
 static const struct option c2c_options[] = {
@@ -147,12 +147,12 @@ static void *c2c_he_zalloc(size_t size)
 	if (!c2c_he->cpuset)
 		goto out_free;
 
-	c2c_he->nodeset = bitmap_zalloc(c2c.nodes_cnt);
-	if (!c2c_he->nodeset)
+	c2c_he->analdeset = bitmap_zalloc(c2c.analdes_cnt);
+	if (!c2c_he->analdeset)
 		goto out_free;
 
-	c2c_he->node_stats = zalloc(c2c.nodes_cnt * sizeof(*c2c_he->node_stats));
-	if (!c2c_he->node_stats)
+	c2c_he->analde_stats = zalloc(c2c.analdes_cnt * sizeof(*c2c_he->analde_stats));
+	if (!c2c_he->analde_stats)
 		goto out_free;
 
 	init_stats(&c2c_he->cstats.lcl_hitm);
@@ -164,7 +164,7 @@ static void *c2c_he_zalloc(size_t size)
 	return &c2c_he->he;
 
 out_free:
-	zfree(&c2c_he->nodeset);
+	zfree(&c2c_he->analdeset);
 	zfree(&c2c_he->cpuset);
 	free(c2c_he);
 	return NULL;
@@ -181,9 +181,9 @@ static void c2c_he_free(void *he)
 	}
 
 	zfree(&c2c_he->cpuset);
-	zfree(&c2c_he->nodeset);
-	zfree(&c2c_he->nodestr);
-	zfree(&c2c_he->node_stats);
+	zfree(&c2c_he->analdeset);
+	zfree(&c2c_he->analdestr);
+	zfree(&c2c_he->analde_stats);
 	free(c2c_he);
 }
 
@@ -226,27 +226,27 @@ static void c2c_he__set_cpu(struct c2c_hist_entry *c2c_he,
 			    struct perf_sample *sample)
 {
 	if (WARN_ONCE(sample->cpu == (unsigned int) -1,
-		      "WARNING: no sample cpu value"))
+		      "WARNING: anal sample cpu value"))
 		return;
 
 	__set_bit(sample->cpu, c2c_he->cpuset);
 }
 
-static void c2c_he__set_node(struct c2c_hist_entry *c2c_he,
+static void c2c_he__set_analde(struct c2c_hist_entry *c2c_he,
 			     struct perf_sample *sample)
 {
-	int node;
+	int analde;
 
 	if (!sample->phys_addr) {
 		c2c_he->paddr_zero = true;
 		return;
 	}
 
-	node = mem2node__node(&c2c.mem2node, sample->phys_addr);
-	if (WARN_ONCE(node < 0, "WARNING: failed to find node\n"))
+	analde = mem2analde__analde(&c2c.mem2analde, sample->phys_addr);
+	if (WARN_ONCE(analde < 0, "WARNING: failed to find analde\n"))
 		return;
 
-	__set_bit(node, c2c_he->nodeset);
+	__set_bit(analde, c2c_he->analdeset);
 
 	if (c2c_he->paddr != sample->phys_addr) {
 		c2c_he->paddr_cnt++;
@@ -306,14 +306,14 @@ static int process_sample_event(struct perf_tool *tool __maybe_unused,
 
 	mi = sample__resolve_mem(sample, &al);
 	if (mi == NULL) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
 	/*
 	 * The mi object is released in hists__add_entry_ops,
 	 * if it gets sorted out into existing data, so we need
-	 * to take the copy now.
+	 * to take the copy analw.
 	 */
 	mi_dup = mem_info__get(mi);
 
@@ -330,7 +330,7 @@ static int process_sample_event(struct perf_tool *tool __maybe_unused,
 	c2c_add_stats(&c2c_hists->stats, &stats);
 
 	c2c_he__set_cpu(c2c_he, sample);
-	c2c_he__set_node(c2c_he, sample);
+	c2c_he__set_analde(c2c_he, sample);
 
 	hists__inc_nr_samples(&c2c_hists->hists, he->filtered);
 	ret = hist_entry__append_callchain(he, sample);
@@ -339,13 +339,13 @@ static int process_sample_event(struct perf_tool *tool __maybe_unused,
 		/*
 		 * There's already been warning about missing
 		 * sample's cpu value. Let's account all to
-		 * node 0 in this case, without any further
+		 * analde 0 in this case, without any further
 		 * warning.
 		 *
-		 * Doing node stats only for single callchain data.
+		 * Doing analde stats only for single callchain data.
 		 */
 		int cpu = sample->cpu == (unsigned int) -1 ? 0 : sample->cpu;
-		int node = c2c.cpu2node[cpu];
+		int analde = c2c.cpu2analde[cpu];
 
 		mi = mi_dup;
 
@@ -362,12 +362,12 @@ static int process_sample_event(struct perf_tool *tool __maybe_unused,
 		c2c_he = container_of(he, struct c2c_hist_entry, he);
 		c2c_add_stats(&c2c_he->stats, &stats);
 		c2c_add_stats(&c2c_hists->stats, &stats);
-		c2c_add_stats(&c2c_he->node_stats[node], &stats);
+		c2c_add_stats(&c2c_he->analde_stats[analde], &stats);
 
 		compute_stats(c2c_he, &stats, sample->weight);
 
 		c2c_he__set_cpu(c2c_he, sample);
-		c2c_he__set_node(c2c_he, sample);
+		c2c_he__set_analde(c2c_he, sample);
 
 		hists__inc_nr_samples(&c2c_hists->hists, he->filtered);
 		ret = hist_entry__append_callchain(he, sample);
@@ -380,7 +380,7 @@ out:
 free_mi:
 	mem_info__put(mi_dup);
 	mem_info__put(mi);
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	goto out;
 }
 
@@ -488,7 +488,7 @@ static int c2c_header(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
 
 	if (dim->se) {
 		text = dim->header.line[line].text;
-		/* Use the last line from sort_entry if not defined. */
+		/* Use the last line from sort_entry if analt defined. */
 		if (!text && (line == hpp_list->nr_header_lines - 1))
 			text = dim->se->se_header;
 	} else {
@@ -535,21 +535,21 @@ static int dcacheline_entry(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
 }
 
 static int
-dcacheline_node_entry(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
+dcacheline_analde_entry(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
 		      struct hist_entry *he)
 {
 	struct c2c_hist_entry *c2c_he;
 	int width = c2c_width(fmt, hpp, he->hists);
 
 	c2c_he = container_of(he, struct c2c_hist_entry, he);
-	if (WARN_ON_ONCE(!c2c_he->nodestr))
+	if (WARN_ON_ONCE(!c2c_he->analdestr))
 		return 0;
 
-	return scnprintf(hpp->buf, hpp->size, "%*s", width, c2c_he->nodestr);
+	return scnprintf(hpp->buf, hpp->size, "%*s", width, c2c_he->analdestr);
 }
 
 static int
-dcacheline_node_count(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
+dcacheline_analde_count(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
 		      struct hist_entry *he)
 {
 	struct c2c_hist_entry *c2c_he;
@@ -806,7 +806,7 @@ percent_color(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
 	return hpp_color_scnprintf(hpp, "%*.2f%%", width - 1, per);
 }
 
-static double percent_costly_snoop(struct c2c_hist_entry *c2c_he)
+static double percent_costly_sanalop(struct c2c_hist_entry *c2c_he)
 {
 	struct c2c_hists *hists;
 	struct c2c_stats *stats;
@@ -851,7 +851,7 @@ static double percent_costly_snoop(struct c2c_hist_entry *c2c_he)
 })
 
 static int
-percent_costly_snoop_entry(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
+percent_costly_sanalop_entry(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
 			   struct hist_entry *he)
 {
 	struct c2c_hist_entry *c2c_he;
@@ -860,19 +860,19 @@ percent_costly_snoop_entry(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
 	double per;
 
 	c2c_he = container_of(he, struct c2c_hist_entry, he);
-	per = percent_costly_snoop(c2c_he);
+	per = percent_costly_sanalop(c2c_he);
 	return scnprintf(hpp->buf, hpp->size, "%*s", width, PERC_STR(buf, per));
 }
 
 static int
-percent_costly_snoop_color(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
+percent_costly_sanalop_color(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
 			   struct hist_entry *he)
 {
-	return percent_color(fmt, hpp, he, percent_costly_snoop);
+	return percent_color(fmt, hpp, he, percent_costly_sanalop);
 }
 
 static int64_t
-percent_costly_snoop_cmp(struct perf_hpp_fmt *fmt __maybe_unused,
+percent_costly_sanalop_cmp(struct perf_hpp_fmt *fmt __maybe_unused,
 			 struct hist_entry *left, struct hist_entry *right)
 {
 	struct c2c_hist_entry *c2c_left;
@@ -883,8 +883,8 @@ percent_costly_snoop_cmp(struct perf_hpp_fmt *fmt __maybe_unused,
 	c2c_left  = container_of(left, struct c2c_hist_entry, he);
 	c2c_right = container_of(right, struct c2c_hist_entry, he);
 
-	per_left  = percent_costly_snoop(c2c_left);
-	per_right = percent_costly_snoop(c2c_right);
+	per_left  = percent_costly_sanalop(c2c_left);
+	per_right = percent_costly_sanalop(c2c_right);
 
 	return per_left - per_right;
 }
@@ -1187,24 +1187,24 @@ static int display_metrics(struct perf_hpp *hpp, u32 val, u32 sum)
 }
 
 static int
-node_entry(struct perf_hpp_fmt *fmt __maybe_unused, struct perf_hpp *hpp,
+analde_entry(struct perf_hpp_fmt *fmt __maybe_unused, struct perf_hpp *hpp,
 	   struct hist_entry *he)
 {
 	struct c2c_hist_entry *c2c_he;
 	bool first = true;
-	int node;
+	int analde;
 	int ret = 0;
 
 	c2c_he = container_of(he, struct c2c_hist_entry, he);
 
-	for (node = 0; node < c2c.nodes_cnt; node++) {
+	for (analde = 0; analde < c2c.analdes_cnt; analde++) {
 		DECLARE_BITMAP(set, c2c.cpus_cnt);
 
 		bitmap_zero(set, c2c.cpus_cnt);
-		bitmap_and(set, c2c_he->cpuset, c2c.nodes[node], c2c.cpus_cnt);
+		bitmap_and(set, c2c_he->cpuset, c2c.analdes[analde], c2c.cpus_cnt);
 
 		if (bitmap_empty(set, c2c.cpus_cnt)) {
-			if (c2c.node_info == 1) {
+			if (c2c.analde_info == 1) {
 				ret = scnprintf(hpp->buf, hpp->size, "%21s", " ");
 				advance_hpp(hpp, ret);
 			}
@@ -1216,17 +1216,17 @@ node_entry(struct perf_hpp_fmt *fmt __maybe_unused, struct perf_hpp *hpp,
 			advance_hpp(hpp, ret);
 		}
 
-		switch (c2c.node_info) {
+		switch (c2c.analde_info) {
 		case 0:
-			ret = scnprintf(hpp->buf, hpp->size, "%2d", node);
+			ret = scnprintf(hpp->buf, hpp->size, "%2d", analde);
 			advance_hpp(hpp, ret);
 			break;
 		case 1:
 		{
 			int num = bitmap_weight(set, c2c.cpus_cnt);
-			struct c2c_stats *stats = &c2c_he->node_stats[node];
+			struct c2c_stats *stats = &c2c_he->analde_stats[analde];
 
-			ret = scnprintf(hpp->buf, hpp->size, "%2d{%2d ", node, num);
+			ret = scnprintf(hpp->buf, hpp->size, "%2d{%2d ", analde, num);
 			advance_hpp(hpp, ret);
 
 			switch (c2c.display) {
@@ -1263,7 +1263,7 @@ node_entry(struct perf_hpp_fmt *fmt __maybe_unused, struct perf_hpp *hpp,
 			break;
 		}
 		case 2:
-			ret = scnprintf(hpp->buf, hpp->size, "%2d{", node);
+			ret = scnprintf(hpp->buf, hpp->size, "%2d{", analde);
 			advance_hpp(hpp, ret);
 
 			ret = bitmap_scnprintf(set, c2c.cpus_cnt, hpp->buf, hpp->size);
@@ -1388,11 +1388,11 @@ static struct c2c_dimension dim_dcacheline = {
 	.width		= 18,
 };
 
-static struct c2c_dimension dim_dcacheline_node = {
-	.header		= HEADER_LOW("Node"),
-	.name		= "dcacheline_node",
+static struct c2c_dimension dim_dcacheline_analde = {
+	.header		= HEADER_LOW("Analde"),
+	.name		= "dcacheline_analde",
 	.cmp		= empty_cmp,
-	.entry		= dcacheline_node_entry,
+	.entry		= dcacheline_analde_entry,
 	.width		= 4,
 };
 
@@ -1400,7 +1400,7 @@ static struct c2c_dimension dim_dcacheline_count = {
 	.header		= HEADER_LOW("PA cnt"),
 	.name		= "dcacheline_count",
 	.cmp		= empty_cmp,
-	.entry		= dcacheline_node_count,
+	.entry		= dcacheline_analde_count,
 	.width		= 6,
 };
 
@@ -1414,11 +1414,11 @@ static struct c2c_dimension dim_offset = {
 	.width		= 18,
 };
 
-static struct c2c_dimension dim_offset_node = {
-	.header		= HEADER_LOW("Node"),
-	.name		= "offset_node",
+static struct c2c_dimension dim_offset_analde = {
+	.header		= HEADER_LOW("Analde"),
+	.name		= "offset_analde",
 	.cmp		= empty_cmp,
-	.entry		= dcacheline_node_entry,
+	.entry		= dcacheline_analde_entry,
 	.width		= 4,
 };
 
@@ -1622,18 +1622,18 @@ static struct c2c_dimension dim_tot_loads = {
 	.width		= 7,
 };
 
-static struct c2c_header percent_costly_snoop_header[] = {
+static struct c2c_header percent_costly_sanalop_header[] = {
 	[DISPLAY_LCL_HITM] = HEADER_BOTH("Lcl", "Hitm"),
 	[DISPLAY_RMT_HITM] = HEADER_BOTH("Rmt", "Hitm"),
 	[DISPLAY_TOT_HITM] = HEADER_BOTH("Tot", "Hitm"),
-	[DISPLAY_SNP_PEER] = HEADER_BOTH("Peer", "Snoop"),
+	[DISPLAY_SNP_PEER] = HEADER_BOTH("Peer", "Sanalop"),
 };
 
-static struct c2c_dimension dim_percent_costly_snoop = {
-	.name		= "percent_costly_snoop",
-	.cmp		= percent_costly_snoop_cmp,
-	.entry		= percent_costly_snoop_entry,
-	.color		= percent_costly_snoop_color,
+static struct c2c_dimension dim_percent_costly_sanalop = {
+	.name		= "percent_costly_sanalop",
+	.cmp		= percent_costly_sanalop_cmp,
+	.entry		= percent_costly_sanalop_entry,
+	.color		= percent_costly_sanalop_color,
 	.width		= 7,
 };
 
@@ -1656,7 +1656,7 @@ static struct c2c_dimension dim_percent_lcl_hitm = {
 };
 
 static struct c2c_dimension dim_percent_rmt_peer = {
-	.header		= HEADER_SPAN("-- Peer Snoop --", "Rmt", 1),
+	.header		= HEADER_SPAN("-- Peer Sanalop --", "Rmt", 1),
 	.name		= "percent_rmt_peer",
 	.cmp		= percent_rmt_peer_cmp,
 	.entry		= percent_rmt_peer_entry,
@@ -1741,10 +1741,10 @@ static struct c2c_dimension dim_dso = {
 	.se		= &sort_dso,
 };
 
-static struct c2c_dimension dim_node = {
-	.name		= "node",
+static struct c2c_dimension dim_analde = {
+	.name		= "analde",
 	.cmp		= empty_cmp,
-	.entry		= node_entry,
+	.entry		= analde_entry,
 	.width		= 4,
 };
 
@@ -1827,10 +1827,10 @@ static struct c2c_dimension dim_dcacheline_num_empty = {
 
 static struct c2c_dimension *dimensions[] = {
 	&dim_dcacheline,
-	&dim_dcacheline_node,
+	&dim_dcacheline_analde,
 	&dim_dcacheline_count,
 	&dim_offset,
-	&dim_offset_node,
+	&dim_offset_analde,
 	&dim_iaddr,
 	&dim_tot_hitm,
 	&dim_lcl_hitm,
@@ -1856,7 +1856,7 @@ static struct c2c_dimension *dimensions[] = {
 	&dim_ld_rmthit,
 	&dim_tot_recs,
 	&dim_tot_loads,
-	&dim_percent_costly_snoop,
+	&dim_percent_costly_sanalop,
 	&dim_percent_rmt_hitm,
 	&dim_percent_lcl_hitm,
 	&dim_percent_rmt_peer,
@@ -1870,7 +1870,7 @@ static struct c2c_dimension *dimensions[] = {
 	&dim_tid,
 	&dim_symbol,
 	&dim_dso,
-	&dim_node,
+	&dim_analde,
 	&dim_mean_rmt,
 	&dim_mean_lcl,
 	&dim_mean_rmt_peer,
@@ -2029,7 +2029,7 @@ static int c2c_hists__init_sort(struct perf_hpp_list *hpp_list, char *name)
 				pr_err("Invalid --fields key: `%s'", tok);	\
 				break;						\
 			} else if (ret == -ESRCH) {				\
-				pr_err("Unknown --fields key: `%s'", tok);	\
+				pr_err("Unkanalwn --fields key: `%s'", tok);	\
 				break;						\
 			}							\
 		}								\
@@ -2166,35 +2166,35 @@ static inline bool is_valid_hist_entry(struct hist_entry *he)
 	return has_record;
 }
 
-static void set_node_width(struct c2c_hist_entry *c2c_he, int len)
+static void set_analde_width(struct c2c_hist_entry *c2c_he, int len)
 {
 	struct c2c_dimension *dim;
 
 	dim = &c2c.hists == c2c_he->hists ?
-	      &dim_dcacheline_node : &dim_offset_node;
+	      &dim_dcacheline_analde : &dim_offset_analde;
 
 	if (len > dim->width)
 		dim->width = len;
 }
 
-static int set_nodestr(struct c2c_hist_entry *c2c_he)
+static int set_analdestr(struct c2c_hist_entry *c2c_he)
 {
 	char buf[30];
 	int len;
 
-	if (c2c_he->nodestr)
+	if (c2c_he->analdestr)
 		return 0;
 
-	if (!bitmap_empty(c2c_he->nodeset, c2c.nodes_cnt)) {
-		len = bitmap_scnprintf(c2c_he->nodeset, c2c.nodes_cnt,
+	if (!bitmap_empty(c2c_he->analdeset, c2c.analdes_cnt)) {
+		len = bitmap_scnprintf(c2c_he->analdeset, c2c.analdes_cnt,
 				      buf, sizeof(buf));
 	} else {
 		len = scnprintf(buf, sizeof(buf), "N/A");
 	}
 
-	set_node_width(c2c_he, len);
-	c2c_he->nodestr = strdup(buf);
-	return c2c_he->nodestr ? 0 : -ENOMEM;
+	set_analde_width(c2c_he, len);
+	c2c_he->analdestr = strdup(buf);
+	return c2c_he->analdestr ? 0 : -EANALMEM;
 }
 
 static void calc_width(struct c2c_hist_entry *c2c_he)
@@ -2203,7 +2203,7 @@ static void calc_width(struct c2c_hist_entry *c2c_he)
 
 	c2c_hists = container_of(c2c_he->he.hists, struct c2c_hists, hists);
 	hists__calc_col_len(&c2c_hists->hists, &c2c_he->he);
-	set_nodestr(c2c_he);
+	set_analdestr(c2c_he);
 }
 
 static int filter_cb(struct hist_entry *he, void *arg __maybe_unused)
@@ -2247,27 +2247,27 @@ static int resort_cl_cb(struct hist_entry *he, void *arg __maybe_unused)
 	return 0;
 }
 
-static struct c2c_header header_node_0 = HEADER_LOW("Node");
-static struct c2c_header header_node_1_hitms_stores =
-		HEADER_LOW("Node{cpus %hitms %stores}");
-static struct c2c_header header_node_1_peers_stores =
-		HEADER_LOW("Node{cpus %peers %stores}");
-static struct c2c_header header_node_2 = HEADER_LOW("Node{cpu list}");
+static struct c2c_header header_analde_0 = HEADER_LOW("Analde");
+static struct c2c_header header_analde_1_hitms_stores =
+		HEADER_LOW("Analde{cpus %hitms %stores}");
+static struct c2c_header header_analde_1_peers_stores =
+		HEADER_LOW("Analde{cpus %peers %stores}");
+static struct c2c_header header_analde_2 = HEADER_LOW("Analde{cpu list}");
 
-static void setup_nodes_header(void)
+static void setup_analdes_header(void)
 {
-	switch (c2c.node_info) {
+	switch (c2c.analde_info) {
 	case 0:
-		dim_node.header = header_node_0;
+		dim_analde.header = header_analde_0;
 		break;
 	case 1:
 		if (c2c.display == DISPLAY_SNP_PEER)
-			dim_node.header = header_node_1_peers_stores;
+			dim_analde.header = header_analde_1_peers_stores;
 		else
-			dim_node.header = header_node_1_hitms_stores;
+			dim_analde.header = header_analde_1_hitms_stores;
 		break;
 	case 2:
-		dim_node.header = header_node_2;
+		dim_analde.header = header_analde_2;
 		break;
 	default:
 		break;
@@ -2276,64 +2276,64 @@ static void setup_nodes_header(void)
 	return;
 }
 
-static int setup_nodes(struct perf_session *session)
+static int setup_analdes(struct perf_session *session)
 {
-	struct numa_node *n;
-	unsigned long **nodes;
-	int node, idx;
+	struct numa_analde *n;
+	unsigned long **analdes;
+	int analde, idx;
 	struct perf_cpu cpu;
-	int *cpu2node;
+	int *cpu2analde;
 
-	if (c2c.node_info > 2)
-		c2c.node_info = 2;
+	if (c2c.analde_info > 2)
+		c2c.analde_info = 2;
 
-	c2c.nodes_cnt = session->header.env.nr_numa_nodes;
+	c2c.analdes_cnt = session->header.env.nr_numa_analdes;
 	c2c.cpus_cnt  = session->header.env.nr_cpus_avail;
 
-	n = session->header.env.numa_nodes;
+	n = session->header.env.numa_analdes;
 	if (!n)
 		return -EINVAL;
 
-	nodes = zalloc(sizeof(unsigned long *) * c2c.nodes_cnt);
-	if (!nodes)
-		return -ENOMEM;
+	analdes = zalloc(sizeof(unsigned long *) * c2c.analdes_cnt);
+	if (!analdes)
+		return -EANALMEM;
 
-	c2c.nodes = nodes;
+	c2c.analdes = analdes;
 
-	cpu2node = zalloc(sizeof(int) * c2c.cpus_cnt);
-	if (!cpu2node)
-		return -ENOMEM;
+	cpu2analde = zalloc(sizeof(int) * c2c.cpus_cnt);
+	if (!cpu2analde)
+		return -EANALMEM;
 
 	for (idx = 0; idx < c2c.cpus_cnt; idx++)
-		cpu2node[idx] = -1;
+		cpu2analde[idx] = -1;
 
-	c2c.cpu2node = cpu2node;
+	c2c.cpu2analde = cpu2analde;
 
-	for (node = 0; node < c2c.nodes_cnt; node++) {
-		struct perf_cpu_map *map = n[node].map;
+	for (analde = 0; analde < c2c.analdes_cnt; analde++) {
+		struct perf_cpu_map *map = n[analde].map;
 		unsigned long *set;
 
 		set = bitmap_zalloc(c2c.cpus_cnt);
 		if (!set)
-			return -ENOMEM;
+			return -EANALMEM;
 
-		nodes[node] = set;
+		analdes[analde] = set;
 
-		/* empty node, skip */
+		/* empty analde, skip */
 		if (perf_cpu_map__has_any_cpu_or_is_empty(map))
 			continue;
 
 		perf_cpu_map__for_each_cpu(cpu, idx, map) {
 			__set_bit(cpu.cpu, set);
 
-			if (WARN_ONCE(cpu2node[cpu.cpu] != -1, "node/cpu topology bug"))
+			if (WARN_ONCE(cpu2analde[cpu.cpu] != -1, "analde/cpu topology bug"))
 				return -EINVAL;
 
-			cpu2node[cpu.cpu] = node;
+			cpu2analde[cpu.cpu] = analde;
 		}
 	}
 
-	setup_nodes_header();
+	setup_analdes_header();
 	return 0;
 }
 
@@ -2355,17 +2355,17 @@ static int resort_shared_cl_cb(struct hist_entry *he, void *arg __maybe_unused)
 
 static int hists__iterate_cb(struct hists *hists, hists__resort_cb_t cb)
 {
-	struct rb_node *next = rb_first_cached(&hists->entries);
+	struct rb_analde *next = rb_first_cached(&hists->entries);
 	int ret = 0;
 
 	while (next) {
 		struct hist_entry *he;
 
-		he = rb_entry(next, struct hist_entry, rb_node);
+		he = rb_entry(next, struct hist_entry, rb_analde);
 		ret = cb(he, NULL);
 		if (ret)
 			break;
-		next = rb_next(&he->rb_node);
+		next = rb_next(&he->rb_analde);
 	}
 
 	return ret;
@@ -2387,7 +2387,7 @@ static void print_c2c__display_stats(FILE *out)
 	fprintf(out, "  Loads - uncacheable               : %10d\n", stats->ld_uncache);
 	fprintf(out, "  Loads - IO                        : %10d\n", stats->ld_io);
 	fprintf(out, "  Loads - Miss                      : %10d\n", stats->ld_miss);
-	fprintf(out, "  Loads - no mapping                : %10d\n", stats->ld_noadrs);
+	fprintf(out, "  Loads - anal mapping                : %10d\n", stats->ld_analadrs);
 	fprintf(out, "  Load Fill Buffer Hit              : %10d\n", stats->ld_fbhit);
 	fprintf(out, "  Load L1D hit                      : %10d\n", stats->ld_l1hit);
 	fprintf(out, "  Load L2D hit                      : %10d\n", stats->ld_l2hit);
@@ -2410,12 +2410,12 @@ static void print_c2c__display_stats(FILE *out)
 	fprintf(out, "  LLC Misses to Remote cache (HITM) : %10.1f%%\n", ((double)stats->rmt_hitm/(double)llc_misses) * 100.);
 	fprintf(out, "  Store Operations                  : %10d\n", stats->store);
 	fprintf(out, "  Store - uncacheable               : %10d\n", stats->st_uncache);
-	fprintf(out, "  Store - no mapping                : %10d\n", stats->st_noadrs);
+	fprintf(out, "  Store - anal mapping                : %10d\n", stats->st_analadrs);
 	fprintf(out, "  Store L1D Hit                     : %10d\n", stats->st_l1hit);
 	fprintf(out, "  Store L1D Miss                    : %10d\n", stats->st_l1miss);
-	fprintf(out, "  Store No available memory level   : %10d\n", stats->st_na);
-	fprintf(out, "  No Page Map Rejects               : %10d\n", stats->nomap);
-	fprintf(out, "  Unable to parse data source       : %10d\n", stats->noparse);
+	fprintf(out, "  Store Anal available memory level   : %10d\n", stats->st_na);
+	fprintf(out, "  Anal Page Map Rejects               : %10d\n", stats->analmap);
+	fprintf(out, "  Unable to parse data source       : %10d\n", stats->analparse);
 }
 
 static void print_shared_cacheline_info(FILE *out)
@@ -2432,12 +2432,12 @@ static void print_shared_cacheline_info(FILE *out)
 	fprintf(out, "  L1D hits on shared lines          : %10d\n", stats->ld_l1hit);
 	fprintf(out, "  L2D hits on shared lines          : %10d\n", stats->ld_l2hit);
 	fprintf(out, "  LLC hits on shared lines          : %10d\n", stats->ld_llchit + stats->lcl_hitm);
-	fprintf(out, "  Load hits on peer cache or nodes  : %10d\n", stats->lcl_peer + stats->rmt_peer);
+	fprintf(out, "  Load hits on peer cache or analdes  : %10d\n", stats->lcl_peer + stats->rmt_peer);
 	fprintf(out, "  Locked Access on shared lines     : %10d\n", stats->locks);
 	fprintf(out, "  Blocked Access on shared lines    : %10d\n", stats->blk_data + stats->blk_addr);
 	fprintf(out, "  Store HITs on shared lines        : %10d\n", stats->store);
 	fprintf(out, "  Store L1D hits on shared lines    : %10d\n", stats->st_l1hit);
-	fprintf(out, "  Store No available memory level   : %10d\n", stats->st_na);
+	fprintf(out, "  Store Anal available memory level   : %10d\n", stats->st_na);
 	fprintf(out, "  Total Merged records              : %10d\n", hitm_cnt + stats->store);
 }
 
@@ -2471,7 +2471,7 @@ static void print_cacheline(struct c2c_hists *c2c_hists,
 static void print_pareto(FILE *out)
 {
 	struct perf_hpp_list hpp_list;
-	struct rb_node *nd;
+	struct rb_analde *nd;
 	int ret;
 	const char *cl_output;
 
@@ -2501,7 +2501,7 @@ static void print_pareto(FILE *out)
 	nd = rb_first_cached(&c2c.hists.hists.entries);
 
 	for (; nd; nd = rb_next(nd)) {
-		struct hist_entry *he = rb_entry(nd, struct hist_entry, rb_node);
+		struct hist_entry *he = rb_entry(nd, struct hist_entry, rb_analde);
 		struct c2c_hist_entry *c2c_he;
 
 		if (he->filtered)
@@ -2565,10 +2565,10 @@ static void perf_c2c__hists_fprintf(FILE *out, struct perf_session *session)
 static void c2c_browser__update_nr_entries(struct hist_browser *hb)
 {
 	u64 nr_entries = 0;
-	struct rb_node *nd = rb_first_cached(&hb->hists->entries);
+	struct rb_analde *nd = rb_first_cached(&hb->hists->entries);
 
 	while (nd) {
-		struct hist_entry *he = rb_entry(nd, struct hist_entry, rb_node);
+		struct hist_entry *he = rb_entry(nd, struct hist_entry, rb_analde);
 
 		if (!he->filtered)
 			nr_entries++;
@@ -2576,7 +2576,7 @@ static void c2c_browser__update_nr_entries(struct hist_browser *hb)
 		nd = rb_next(nd);
 	}
 
-	hb->nr_non_filtered_entries = nr_entries;
+	hb->nr_analn_filtered_entries = nr_entries;
 }
 
 struct c2c_cacheline_browser {
@@ -2627,7 +2627,7 @@ static int perf_c2c__browse_cacheline(struct hist_entry *he)
 	int key = -1;
 	static const char help[] =
 	" ENTER         Toggle callchains (if present) \n"
-	" n             Toggle Node details info \n"
+	" n             Toggle Analde details info \n"
 	" s             Toggle full length of symbol and source line columns \n"
 	" q             Return back to cacheline list \n";
 
@@ -2660,8 +2660,8 @@ static int perf_c2c__browse_cacheline(struct hist_entry *he)
 			c2c.symbol_full = !c2c.symbol_full;
 			break;
 		case 'n':
-			c2c.node_info = (c2c.node_info + 1) % 3;
-			setup_nodes_header();
+			c2c.analde_info = (c2c.analde_info + 1) % 3;
+			setup_analdes_header();
 			break;
 		case 'q':
 			goto out;
@@ -2684,7 +2684,7 @@ static int perf_c2c_browser__title(struct hist_browser *browser,
 	scnprintf(bf, size,
 		  "Shared Data Cache Line Table     "
 		  "(%lu entries, sorted on %s)",
-		  browser->nr_non_filtered_entries,
+		  browser->nr_analn_filtered_entries,
 		  display_str[c2c.display]);
 	return 0;
 }
@@ -2788,33 +2788,33 @@ static char *fill_line(const char *orig, int len)
 
 static int ui_quirks(void)
 {
-	const char *nodestr = "Data address";
+	const char *analdestr = "Data address";
 	char *buf;
 
 	if (!c2c.use_stdio) {
 		dim_offset.width  = 5;
 		dim_offset.header = header_offset_tui;
-		nodestr = chk_double_cl ? "Double-CL" : "CL";
+		analdestr = chk_double_cl ? "Double-CL" : "CL";
 	}
 
-	dim_percent_costly_snoop.header = percent_costly_snoop_header[c2c.display];
+	dim_percent_costly_sanalop.header = percent_costly_sanalop_header[c2c.display];
 
 	/* Fix the zero line for dcacheline column. */
 	buf = fill_line(chk_double_cl ? "Double-Cacheline" : "Cacheline",
 				dim_dcacheline.width +
-				dim_dcacheline_node.width +
+				dim_dcacheline_analde.width +
 				dim_dcacheline_count.width + 4);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dim_dcacheline.header.line[0].text = buf;
 
 	/* Fix the zero line for offset column. */
-	buf = fill_line(nodestr, dim_offset.width +
-			         dim_offset_node.width +
+	buf = fill_line(analdestr, dim_offset.width +
+			         dim_offset_analde.width +
 				 dim_dcacheline_count.width + 4);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dim_offset.header.line[0].text = buf;
 
@@ -2834,11 +2834,11 @@ parse_callchain_opt(const struct option *opt, const char *arg, int unset)
 
 	callchain->enabled = !unset;
 	/*
-	 * --no-call-graph
+	 * --anal-call-graph
 	 */
 	if (unset) {
 		symbol_conf.use_callchain = false;
-		callchain->mode = CHAIN_NONE;
+		callchain->mode = CHAIN_ANALNE;
 		return 0;
 	}
 
@@ -2848,7 +2848,7 @@ parse_callchain_opt(const struct option *opt, const char *arg, int unset)
 static int setup_callchain(struct evlist *evlist)
 {
 	u64 sample_type = evlist__combined_sample_type(evlist);
-	enum perf_call_graph_mode mode = CALLCHAIN_NONE;
+	enum perf_call_graph_mode mode = CALLCHAIN_ANALNE;
 
 	if ((sample_type & PERF_SAMPLE_REGS_USER) &&
 	    (sample_type & PERF_SAMPLE_STACK_USER)) {
@@ -2860,8 +2860,8 @@ static int setup_callchain(struct evlist *evlist)
 		mode = CALLCHAIN_FP;
 
 	if (!callchain_param.enabled &&
-	    callchain_param.mode != CHAIN_NONE &&
-	    mode != CALLCHAIN_NONE) {
+	    callchain_param.mode != CHAIN_ANALNE &&
+	    mode != CALLCHAIN_ANALNE) {
 		symbol_conf.use_callchain = true;
 		if (callchain_register_param(&callchain_param) < 0) {
 			ui__error("Can't register callchain params.\n");
@@ -2893,7 +2893,7 @@ static int setup_display(const char *str)
 	else if (!strcmp(display, "peer"))
 		c2c.display = DISPLAY_SNP_PEER;
 	else {
-		pr_err("failed: unknown display type: %s\n", str);
+		pr_err("failed: unkanalwn display type: %s\n", str);
 		return -1;
 	}
 
@@ -2904,7 +2904,7 @@ static int setup_display(const char *str)
 	for (__tok = strtok_r(__buf, __sep, &__tmp); __tok;	\
 	     __tok = strtok_r(NULL,  __sep, &__tmp))
 
-static int build_cl_output(char *cl_sort, bool no_source)
+static int build_cl_output(char *cl_sort, bool anal_source)
 {
 	char *tok, *tmp, *buf = strdup(cl_sort);
 	bool add_pid   = false;
@@ -2916,7 +2916,7 @@ static int build_cl_output(char *cl_sort, bool no_source)
 	int ret = 0;
 
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for_each_token(tok, buf, ",", tmp) {
 		if (!strcmp(tok, "tid")) {
@@ -2927,7 +2927,7 @@ static int build_cl_output(char *cl_sort, bool no_source)
 			add_iaddr = true;
 			add_sym   = true;
 			add_dso   = true;
-			add_src   = no_source ? false : true;
+			add_src   = anal_source ? false : true;
 		} else if (!strcmp(tok, "dso")) {
 			add_dso = true;
 		} else if (strcmp(tok, "offset")) {
@@ -2947,7 +2947,7 @@ static int build_cl_output(char *cl_sort, bool no_source)
 		"percent_stores_l1hit,"
 		"percent_stores_l1miss,"
 		"percent_stores_na,"
-		"offset,offset_node,dcacheline_count,",
+		"offset,offset_analde,dcacheline_count,",
 		add_pid   ? "pid," : "",
 		add_tid   ? "tid," : "",
 		add_iaddr ? "iaddr," : "",
@@ -2961,8 +2961,8 @@ static int build_cl_output(char *cl_sort, bool no_source)
 		add_sym ? "symbol," : "",
 		add_dso ? "dso," : "",
 		add_src ? "cl_srcline," : "",
-		"node") < 0) {
-		ret = -ENOMEM;
+		"analde") < 0) {
+		ret = -EANALMEM;
 		goto err;
 	}
 
@@ -2972,15 +2972,15 @@ err:
 	return ret;
 }
 
-static int setup_coalesce(const char *coalesce, bool no_source)
+static int setup_coalesce(const char *coalesce, bool anal_source)
 {
 	const char *c = coalesce ?: coalesce_default;
 	const char *sort_str = NULL;
 
 	if (asprintf(&c2c.cl_sort, "offset,%s", c) < 0)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	if (build_cl_output(c2c.cl_sort, no_source))
+	if (build_cl_output(c2c.cl_sort, anal_source))
 		return -1;
 
 	if (c2c.display == DISPLAY_TOT_HITM)
@@ -2993,7 +2993,7 @@ static int setup_coalesce(const char *coalesce, bool no_source)
 		sort_str = "tot_peer";
 
 	if (asprintf(&c2c.cl_resort, "offset,%s", sort_str) < 0)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pr_debug("coalesce sort   fields: %s\n", c2c.cl_sort);
 	pr_debug("coalesce resort fields: %s\n", c2c.cl_resort);
@@ -3006,7 +3006,7 @@ static int perf_c2c__report(int argc, const char **argv)
 	struct itrace_synth_opts itrace_synth_opts = {
 		.set = true,
 		.mem = true,	/* Only enable memory event */
-		.default_no_sample = true,
+		.default_anal_sample = true,
 	};
 
 	struct perf_session *session;
@@ -3017,21 +3017,21 @@ static int perf_c2c__report(int argc, const char **argv)
 	char callchain_default_opt[] = CALLCHAIN_DEFAULT_OPT;
 	const char *display = NULL;
 	const char *coalesce = NULL;
-	bool no_source = false;
+	bool anal_source = false;
 	const struct option options[] = {
 	OPT_STRING('k', "vmlinux", &symbol_conf.vmlinux_name,
 		   "file", "vmlinux pathname"),
 	OPT_STRING('i', "input", &input_name, "file",
 		   "the input file to process"),
-	OPT_INCR('N', "node-info", &c2c.node_info,
-		 "show extra node info in report (repeat for more info)"),
+	OPT_INCR('N', "analde-info", &c2c.analde_info,
+		 "show extra analde info in report (repeat for more info)"),
 	OPT_BOOLEAN(0, "stdio", &c2c.use_stdio, "Use the stdio interface"),
 	OPT_BOOLEAN(0, "stats", &c2c.stats_only,
 		    "Display only statistic tables (implies --stdio)"),
 	OPT_BOOLEAN(0, "full-symbols", &c2c.symbol_full,
 		    "Display full length of symbols"),
-	OPT_BOOLEAN(0, "no-source", &no_source,
-		    "Do not display Source Line column"),
+	OPT_BOOLEAN(0, "anal-source", &anal_source,
+		    "Do analt display Source Line column"),
 	OPT_BOOLEAN(0, "show-all", &c2c.show_all,
 		    "Show all captured HITM lines."),
 	OPT_CALLBACK_DEFAULT('g', "call-graph", &callchain_param,
@@ -3052,7 +3052,7 @@ static int perf_c2c__report(int argc, const char **argv)
 	const char *output_str, *sort_str = NULL;
 
 	argc = parse_options(argc, argv, options, report_c2c_usage,
-			     PARSE_OPT_STOP_AT_NON_OPTION);
+			     PARSE_OPT_STOP_AT_ANALN_OPTION);
 	if (argc)
 		usage_with_options(report_c2c_usage, options);
 
@@ -3096,7 +3096,7 @@ static int perf_c2c__report(int argc, const char **argv)
 	if (err)
 		goto out_session;
 
-	err = setup_coalesce(coalesce, no_source);
+	err = setup_coalesce(coalesce, anal_source);
 	if (err) {
 		pr_debug("Failed to initialize hists\n");
 		goto out_session;
@@ -3110,27 +3110,27 @@ static int perf_c2c__report(int argc, const char **argv)
 
 	session->itrace_synth_opts = &itrace_synth_opts;
 
-	err = setup_nodes(session);
+	err = setup_analdes(session);
 	if (err) {
-		pr_err("Failed setup nodes\n");
+		pr_err("Failed setup analdes\n");
 		goto out_session;
 	}
 
-	err = mem2node__init(&c2c.mem2node, &session->header.env);
+	err = mem2analde__init(&c2c.mem2analde, &session->header.env);
 	if (err)
 		goto out_session;
 
 	err = setup_callchain(session->evlist);
 	if (err)
-		goto out_mem2node;
+		goto out_mem2analde;
 
 	if (symbol__init(&session->header.env) < 0)
-		goto out_mem2node;
+		goto out_mem2analde;
 
-	/* No pipe support at the moment. */
+	/* Anal pipe support at the moment. */
 	if (perf_data__is_pipe(session->data)) {
-		pr_debug("No pipe support at the moment.\n");
-		goto out_mem2node;
+		pr_debug("Anal pipe support at the moment.\n");
+		goto out_mem2analde;
 	}
 
 	if (c2c.use_stdio)
@@ -3143,15 +3143,15 @@ static int perf_c2c__report(int argc, const char **argv)
 	err = perf_session__process_events(session);
 	if (err) {
 		pr_err("failed to process sample\n");
-		goto out_mem2node;
+		goto out_mem2analde;
 	}
 
 	if (c2c.display != DISPLAY_SNP_PEER)
 		output_str = "cl_idx,"
 			     "dcacheline,"
-			     "dcacheline_node,"
+			     "dcacheline_analde,"
 			     "dcacheline_count,"
-			     "percent_costly_snoop,"
+			     "percent_costly_sanalop,"
 			     "tot_hitm,lcl_hitm,rmt_hitm,"
 			     "tot_recs,"
 			     "tot_loads,"
@@ -3164,9 +3164,9 @@ static int perf_c2c__report(int argc, const char **argv)
 	else
 		output_str = "cl_idx,"
 			     "dcacheline,"
-			     "dcacheline_node,"
+			     "dcacheline_analde,"
 			     "dcacheline_count,"
-			     "percent_costly_snoop,"
+			     "percent_costly_sanalop,"
 			     "tot_peer,lcl_peer,rmt_peer,"
 			     "tot_recs,"
 			     "tot_loads,"
@@ -3198,13 +3198,13 @@ static int perf_c2c__report(int argc, const char **argv)
 
 	if (ui_quirks()) {
 		pr_err("failed to setup UI\n");
-		goto out_mem2node;
+		goto out_mem2analde;
 	}
 
 	perf_c2c_display(session);
 
-out_mem2node:
-	mem2node__exit(&c2c.mem2node);
+out_mem2analde:
+	mem2analde__exit(&c2c.mem2analde);
 out_session:
 	perf_session__delete(session);
 out:
@@ -3257,12 +3257,12 @@ static int perf_c2c__record(int argc, const char **argv)
 	};
 
 	if (perf_mem_events__init()) {
-		pr_err("failed: memory events not supported\n");
+		pr_err("failed: memory events analt supported\n");
 		return -1;
 	}
 
 	argc = parse_options(argc, argv, options, record_mem_usage,
-			     PARSE_OPT_KEEP_UNKNOWN);
+			     PARSE_OPT_KEEP_UNKANALWN);
 
 	/* Max number of arguments multiplied by number of PMUs that can support them. */
 	rec_argc = argc + 11 * perf_pmus__num_mem_pmus();
@@ -3343,7 +3343,7 @@ out:
 int cmd_c2c(int argc, const char **argv)
 {
 	argc = parse_options(argc, argv, c2c_options, c2c_usage,
-			     PARSE_OPT_STOP_AT_NON_OPTION);
+			     PARSE_OPT_STOP_AT_ANALN_OPTION);
 
 	if (!argc)
 		usage_with_options(c2c_usage, c2c_options);

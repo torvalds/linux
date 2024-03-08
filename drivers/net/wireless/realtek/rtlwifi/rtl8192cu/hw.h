@@ -9,7 +9,7 @@
 #define LLT_LAST_ENTRY_OF_TX_PKT_BUFFER		255
 
 #define RX_PAGE_SIZE_REG_VALUE			PBP_128
-/* Note: We will divide number of page equally for each queue
+/* Analte: We will divide number of page equally for each queue
  * other than public queue! */
 #define TX_TOTAL_PAGE_NUMBER			0xF8
 #define TX_PAGE_BOUNDARY			(TX_TOTAL_PAGE_NUMBER + 1)
@@ -29,7 +29,7 @@
 #define WMM_CHIP_A_PAGE_NUM_HPQ			0x29
 #define WMM_CHIP_A_PAGE_NUM_LPQ			0x29
 
-/* Note: For Chip B Setting ,modify later */
+/* Analte: For Chip B Setting ,modify later */
 #define WMM_CHIP_B_TX_TOTAL_PAGE_NUMBER		0xF5
 #define WMM_CHIP_B_TX_PAGE_BOUNDARY		\
 	(WMM_CHIP_B_TX_TOTAL_PAGE_NUMBER + 1) /* F6 */
@@ -39,10 +39,10 @@
 #define WMM_CHIP_B_PAGE_NUM_LPQ			0x1C
 #define WMM_CHIP_B_PAGE_NUM_NPQ			0x1C
 
-#define BOARD_TYPE_NORMAL_MASK			0xE0
+#define BOARD_TYPE_ANALRMAL_MASK			0xE0
 #define BOARD_TYPE_TEST_MASK			0x0F
 
-/* should be renamed and moved to another file */
+/* should be renamed and moved to aanalther file */
 enum _BOARD_TYPE_8192CUSB {
 	BOARD_USB_DONGLE		= 0,	/* USB dongle */
 	BOARD_USB_HIGH_PA		= 1,	/* USB dongle - high power PA */

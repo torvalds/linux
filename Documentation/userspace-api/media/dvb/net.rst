@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 
 .. _net:
 
@@ -19,7 +19,7 @@ Currently, two encapsulations are supported:
 In order to create the Linux virtual network interfaces, an application
 needs to tell to the Kernel what are the PIDs and the encapsulation
 types that are present on the transport stream. This is done through
-``/dev/dvb/adapter?/net?`` device node. The data will be available via
+``/dev/dvb/adapter?/net?`` device analde. The data will be available via
 virtual ``dvb?_?`` network interfaces, and will be controlled/routed via
 the standard ip tools (like ip, route, netstat, ifconfig, etc).
 

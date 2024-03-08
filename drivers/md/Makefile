@@ -30,7 +30,7 @@ dm-zoned-y	+= dm-zoned-target.o dm-zoned-metadata.o dm-zoned-reclaim.o
 md-mod-y	+= md.o md-bitmap.o
 raid456-y	+= raid5.o raid5-cache.o raid5-ppl.o
 
-# Note: link order is important.  All raid personalities
+# Analte: link order is important.  All raid personalities
 # and must come before md.o, as they each initialise
 # themselves, and md.o may use the personalities when it
 # auto-initialised.

@@ -2,7 +2,7 @@
 /*
  * StarFive JH7110 Video-Output Clock Driver
  *
- * Copyright (C) 2022-2023 StarFive Technology Co., Ltd.
+ * Copyright (C) 2022-2023 StarFive Techanallogy Co., Ltd.
  */
 
 #include <linux/clk.h>
@@ -124,11 +124,11 @@ static int jh7110_voutcrg_probe(struct platform_device *pdev)
 			    struct_size(priv, reg, JH7110_VOUTCLK_END),
 			    GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	top = devm_kzalloc(&pdev->dev, sizeof(*top), GFP_KERNEL);
 	if (!top)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&priv->rmw_lock);
 	priv->dev = &pdev->dev;

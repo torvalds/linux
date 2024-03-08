@@ -25,7 +25,7 @@
 #include <linux/delay.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/crc16.h>
@@ -61,7 +61,7 @@
 #define RX_RING_MASK		(RX_RING_ENTRIES - 1)
 #define RX_RING_SIZE		(RX_RING_ENTRIES * sizeof(u64))
 
-/* 128 TX buffers (not tunable) */
+/* 128 TX buffers (analt tunable) */
 #define TX_RING_ENTRIES		128
 #define TX_RING_MASK		(TX_RING_ENTRIES - 1)
 #define TX_RING_SIZE		(TX_RING_ENTRIES * sizeof(struct ioc3_etxd))
@@ -129,7 +129,7 @@ static inline int ioc3_alloc_skb(struct ioc3_private *ip, struct sk_buff **skb,
 
 	new_skb = alloc_skb(RX_BUF_SIZE + IOC3_DMA_XFER_LEN - 1, GFP_ATOMIC);
 	if (!new_skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* ensure buffer is aligned to IOC3_DMA_XFER_LEN */
 	offset = aligned_rx_skb_addr((unsigned long)new_skb->data);
@@ -141,7 +141,7 @@ static inline int ioc3_alloc_skb(struct ioc3_private *ip, struct sk_buff **skb,
 
 	if (dma_mapping_error(ip->dma_dev, d)) {
 		dev_kfree_skb_any(new_skb);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	*rxb_dma = d;
 	*rxb = (struct ioc3_erxbuf *)new_skb->data;
@@ -181,7 +181,7 @@ static int ioc3eth_nvmem_match(struct device *dev, const void *data)
 		return 0;
 
 	/* found nvmem device which is attached to our ioc3
-	 * now check for one wire family code 09, 89 and 91
+	 * analw check for one wire family code 09, 89 and 91
 	 */
 	if (memcmp(name + prefix_len, "09-", 3) == 0)
 		return 1;
@@ -431,7 +431,7 @@ next:
 		rxb->w0 = 0;				/* Clear valid flag */
 		n_entry = (n_entry + 1) & RX_RING_MASK;	/* Update erpir */
 
-		/* Now go on to the next ring entry.  */
+		/* Analw go on to the next ring entry.  */
 		rx_entry = (rx_entry + 1) & RX_RING_MASK;
 		skb = ip->rx_skbs[rx_entry];
 		rxb = (struct ioc3_erxbuf *)(skb->data - RX_OFFSET);
@@ -580,7 +580,7 @@ static void ioc3_timer(struct timer_list *t)
 	add_timer(&ip->ioc3_timer);
 }
 
-/* Try to find a PHY.  There is no apparent relation between the MII addresses
+/* Try to find a PHY.  There is anal apparent relation between the MII addresses
  * in the SGI documentation and what we find in reality, so we simply probe
  * for the PHY.
  */
@@ -598,7 +598,7 @@ static int ioc3_mii_init(struct ioc3_private *ip)
 		}
 	}
 	ip->mii.phy_id = -1;
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static void ioc3_mii_start(struct ioc3_private *ip)
@@ -672,13 +672,13 @@ static int ioc3_alloc_rx_bufs(struct net_device *dev)
 	dma_addr_t d;
 	int i;
 
-	/* Now the rx buffers.  The RX ring may be larger but
-	 * we only allocate 16 buffers for now.  Need to tune
+	/* Analw the rx buffers.  The RX ring may be larger but
+	 * we only allocate 16 buffers for analw.  Need to tune
 	 * this for performance and memory later.
 	 */
 	for (i = 0; i < RX_BUFFS; i++) {
 		if (ioc3_alloc_skb(ip, &ip->rx_skbs[i], &rxb, &d))
-			return -ENOMEM;
+			return -EANALMEM;
 
 		rxb->w0 = 0;	/* Clear valid flag */
 		ip->rxr[i] = cpu_to_be64(ioc3_map(d, PCI64_ATTR_BAR));
@@ -742,7 +742,7 @@ static void ioc3_start(struct ioc3_private *ip)
 	struct ioc3_ethregs *regs = ip->regs;
 	unsigned long ring;
 
-	/* Now the rx ring base, consume & produce registers.  */
+	/* Analw the rx ring base, consume & produce registers.  */
 	ring = ioc3_map(ip->rxr_dma, PCI64_ATTR_PREC);
 	writel(ring >> 32, &regs->erbr_h);
 	writel(ring & 0xffffffff, &regs->erbr_l);
@@ -751,9 +751,9 @@ static void ioc3_start(struct ioc3_private *ip)
 
 	ring = ioc3_map(ip->txr_dma, PCI64_ATTR_PREC);
 
-	ip->txqlen = 0;					/* nothing queued  */
+	ip->txqlen = 0;					/* analthing queued  */
 
-	/* Now the tx ring base, consume & produce registers.  */
+	/* Analw the tx ring base, consume & produce registers.  */
 	writel(ring >> 32, &regs->etbr_h);
 	writel(ring & 0xffffffff, &regs->etbr_l);
 	writel(ip->tx_pi << 7, &regs->etpir);
@@ -788,7 +788,7 @@ static int ioc3_open(struct net_device *dev)
 	ioc3_init(dev);
 	if (ioc3_alloc_rx_bufs(dev)) {
 		netdev_err(dev, "%s: rx buffer allocation failed\n", __func__);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	ioc3_start(ip);
 	ioc3_mii_start(ip);
@@ -841,11 +841,11 @@ static int ioc3eth_probe(struct platform_device *pdev)
 	}
 	/* get mac addr from one wire prom */
 	if (ioc3eth_get_mac_addr(regs, mac_addr))
-		return -EPROBE_DEFER; /* not available yet */
+		return -EPROBE_DEFER; /* analt available yet */
 
 	dev = alloc_etherdev(sizeof(struct ioc3_private));
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
@@ -872,7 +872,7 @@ static int ioc3eth_probe(struct platform_device *pdev)
 	if (devm_request_irq(&pdev->dev, dev->irq, ioc3_interrupt,
 			     IRQF_SHARED, "ioc3-eth", dev)) {
 		dev_err(&pdev->dev, "Can't get irq %d\n", dev->irq);
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto out_free;
 	}
 
@@ -886,7 +886,7 @@ static int ioc3eth_probe(struct platform_device *pdev)
 				     GFP_KERNEL);
 	if (!ip->rxr) {
 		pr_err("ioc3-eth: rx ring allocation failed\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_stop;
 	}
 
@@ -895,7 +895,7 @@ static int ioc3eth_probe(struct platform_device *pdev)
 					 &ip->txr_dma, GFP_KERNEL);
 	if (!ip->tx_ring) {
 		pr_err("ioc3-eth: tx ring allocation failed\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_stop;
 	}
 	/* Align TX ring */
@@ -914,7 +914,7 @@ static int ioc3eth_probe(struct platform_device *pdev)
 
 	if (ip->mii.phy_id == -1) {
 		netdev_err(dev, "Didn't find a PHY, goodbye.\n");
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto out_stop;
 	}
 
@@ -989,7 +989,7 @@ static netdev_tx_t ioc3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	 * adds up the 1's complement checksum for the entire packet and
 	 * inserts it at an offset which can be specified in the descriptor
 	 * into the transmit packet.  This means we have to compensate for the
-	 * MAC header which should not be summed and the TCP/UDP pseudo headers
+	 * MAC header which should analt be summed and the TCP/UDP pseudo headers
 	 * manually.
 	 */
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
@@ -1010,7 +1010,7 @@ static netdev_tx_t ioc3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		/* Skip IP header; it's sum is always zero and was
 		 * already filled in by ip_output.c
 		 */
-		csum = csum_tcpudp_nofold(ih->saddr, ih->daddr,
+		csum = csum_tcpudp_analfold(ih->saddr, ih->daddr,
 					  ih->tot_len - (ih->ihl << 2),
 					  proto, csum_fold(ehsum));
 
@@ -1071,7 +1071,7 @@ static netdev_tx_t ioc3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	} else {
 		dma_addr_t d;
 
-		/* Normal sized packet that doesn't cross a page boundary. */
+		/* Analrmal sized packet that doesn't cross a page boundary. */
 		desc->cmd = cpu_to_be32(len | ETXD_INTWHENDONE | ETXD_B1V | w0);
 		desc->bufcnt = cpu_to_be32(len << ETXD_B1CNT_SHIFT);
 		d = dma_map_single(ip->dma_dev, skb->data, len, DMA_TO_DEVICE);

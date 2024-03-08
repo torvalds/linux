@@ -46,7 +46,7 @@ static irqreturn_t wm831x_ldo_uv_irq(int irq, void *data)
 {
 	struct wm831x_ldo *ldo = data;
 
-	regulator_notifier_call_chain(ldo->regulator,
+	regulator_analtifier_call_chain(ldo->regulator,
 				      REGULATOR_EVENT_UNDER_VOLTAGE,
 				      NULL);
 
@@ -89,7 +89,7 @@ static unsigned int wm831x_gp_ldo_get_mode(struct regulator_dev *rdev)
 		return ret;
 
 	if (!(ret & WM831X_LDO1_ON_MODE))
-		return REGULATOR_MODE_NORMAL;
+		return REGULATOR_MODE_ANALRMAL;
 
 	ret = wm831x_reg_read(wm831x, ctrl_reg);
 	if (ret < 0)
@@ -112,7 +112,7 @@ static int wm831x_gp_ldo_set_mode(struct regulator_dev *rdev,
 
 
 	switch (mode) {
-	case REGULATOR_MODE_NORMAL:
+	case REGULATOR_MODE_ANALRMAL:
 		ret = wm831x_set_bits(wm831x, on_reg,
 				      WM831X_LDO1_ON_MODE, 0);
 		if (ret < 0)
@@ -189,7 +189,7 @@ static unsigned int wm831x_gp_ldo_get_optimum_mode(struct regulator_dev *rdev,
 		return REGULATOR_MODE_STANDBY;
 	if (load_uA < 50000)
 		return REGULATOR_MODE_IDLE;
-	return REGULATOR_MODE_NORMAL;
+	return REGULATOR_MODE_ANALRMAL;
 }
 
 
@@ -231,13 +231,13 @@ static int wm831x_gp_ldo_probe(struct platform_device *pdev)
 
 	ldo = devm_kzalloc(&pdev->dev, sizeof(struct wm831x_ldo), GFP_KERNEL);
 	if (!ldo)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ldo->wm831x = wm831x;
 
 	res = platform_get_resource(pdev, IORESOURCE_REG, 0);
 	if (res == NULL) {
-		dev_err(&pdev->dev, "No REG resource\n");
+		dev_err(&pdev->dev, "Anal REG resource\n");
 		ret = -EINVAL;
 		goto err;
 	}
@@ -303,7 +303,7 @@ static struct platform_driver wm831x_gp_ldo_driver = {
 	.probe = wm831x_gp_ldo_probe,
 	.driver		= {
 		.name	= "wm831x-ldo",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 };
 
@@ -344,7 +344,7 @@ static unsigned int wm831x_aldo_get_mode(struct regulator_dev *rdev)
 	if (ret & WM831X_LDO7_ON_MODE)
 		return REGULATOR_MODE_IDLE;
 	else
-		return REGULATOR_MODE_NORMAL;
+		return REGULATOR_MODE_ANALRMAL;
 }
 
 static int wm831x_aldo_set_mode(struct regulator_dev *rdev,
@@ -357,7 +357,7 @@ static int wm831x_aldo_set_mode(struct regulator_dev *rdev,
 
 
 	switch (mode) {
-	case REGULATOR_MODE_NORMAL:
+	case REGULATOR_MODE_ANALRMAL:
 		ret = wm831x_set_bits(wm831x, on_reg, WM831X_LDO7_ON_MODE, 0);
 		if (ret < 0)
 			return ret;
@@ -442,13 +442,13 @@ static int wm831x_aldo_probe(struct platform_device *pdev)
 
 	ldo = devm_kzalloc(&pdev->dev, sizeof(struct wm831x_ldo), GFP_KERNEL);
 	if (!ldo)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ldo->wm831x = wm831x;
 
 	res = platform_get_resource(pdev, IORESOURCE_REG, 0);
 	if (res == NULL) {
-		dev_err(&pdev->dev, "No REG resource\n");
+		dev_err(&pdev->dev, "Anal REG resource\n");
 		ret = -EINVAL;
 		goto err;
 	}
@@ -513,7 +513,7 @@ static struct platform_driver wm831x_aldo_driver = {
 	.probe = wm831x_aldo_probe,
 	.driver		= {
 		.name	= "wm831x-aldo",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 };
 
@@ -588,13 +588,13 @@ static int wm831x_alive_ldo_probe(struct platform_device *pdev)
 
 	ldo = devm_kzalloc(&pdev->dev, sizeof(struct wm831x_ldo), GFP_KERNEL);
 	if (!ldo)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ldo->wm831x = wm831x;
 
 	res = platform_get_resource(pdev, IORESOURCE_REG, 0);
 	if (res == NULL) {
-		dev_err(&pdev->dev, "No REG resource\n");
+		dev_err(&pdev->dev, "Anal REG resource\n");
 		ret = -EINVAL;
 		goto err;
 	}
@@ -647,7 +647,7 @@ static struct platform_driver wm831x_alive_ldo_driver = {
 	.probe = wm831x_alive_ldo_probe,
 	.driver		= {
 		.name	= "wm831x-alive-ldo",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 };
 

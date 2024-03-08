@@ -2,9 +2,9 @@
 /*
  * Loongson-2K/Loongson LS7A I2C master mode driver
  *
- * Copyright (C) 2013 Loongson Technology Corporation Limited.
+ * Copyright (C) 2013 Loongson Techanallogy Corporation Limited.
  * Copyright (C) 2014-2017 Lemote, Inc.
- * Copyright (C) 2018-2022 Loongson Technology Corporation Limited.
+ * Copyright (C) 2018-2022 Loongson Techanallogy Corporation Limited.
  *
  * Originally written by liushaozong
  * Rewritten for mainline by Binbin Zhou <zhoubinbin@loongson.cn>
@@ -42,14 +42,14 @@
 #define LS2X_CR_IACK		BIT(0) /* Interrupt response signal */
 
 /* State Register Bit */
-#define LS2X_SR_NOACK		BIT(7) /* Receive NACK */
+#define LS2X_SR_ANALACK		BIT(7) /* Receive NACK */
 #define LS2X_SR_BUSY		BIT(6) /* Bus busy state */
 #define LS2X_SR_AL		BIT(5) /* Arbitration lost */
 #define LS2X_SR_TIP		BIT(1) /* Transmission state */
 #define LS2X_SR_IF		BIT(0) /* Interrupt flag */
 
 /* Control Register Bit */
-#define LS2X_CTR_EN		BIT(7) /* 0: I2c frequency setting 1: Normal */
+#define LS2X_CTR_EN		BIT(7) /* 0: I2c frequency setting 1: Analrmal */
 #define LS2X_CTR_IEN		BIT(6) /* Enable i2c interrupt */
 #define LS2X_CTR_MST		BIT(5) /* 0: Slave mode 1: Master mode */
 #define CTR_FREQ_MASK		GENMASK(7, 6)
@@ -77,7 +77,7 @@ static irqreturn_t ls2x_i2c_isr(int this_irq, void *dev_id)
 	struct ls2x_i2c_priv *priv = dev_id;
 
 	if (!(readb(priv->base + I2C_LS2X_SR) & LS2X_SR_IF))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	writeb(LS2X_CR_IACK, priv->base + I2C_LS2X_CR);
 	complete(&priv->cmd_complete);
@@ -117,7 +117,7 @@ static void ls2x_i2c_init(struct ls2x_i2c_priv *priv)
 
 	ls2x_i2c_adjust_bus_speed(priv);
 
-	/* Set i2c normal operating mode and enable interrupts. */
+	/* Set i2c analrmal operating mode and enable interrupts. */
 	writeb(readb(priv->base + I2C_LS2X_CTR) | CTR_READY_MASK,
 	       priv->base + I2C_LS2X_CTR);
 }
@@ -153,7 +153,7 @@ static int ls2x_i2c_send_byte(struct ls2x_i2c_priv *priv, u8 txdata)
 	if (rxdata & LS2X_SR_AL)
 		return -EAGAIN;
 
-	if (rxdata & LS2X_SR_NOACK)
+	if (rxdata & LS2X_SR_ANALACK)
 		return -ENXIO;
 
 	return 0;
@@ -286,7 +286,7 @@ static int ls2x_i2c_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Map hardware registers */
 	priv->base = devm_platform_ioremap_resource(pdev, 0);
@@ -305,7 +305,7 @@ static int ls2x_i2c_probe(struct platform_device *pdev)
 	adap->owner = THIS_MODULE;
 	adap->algo = &ls2x_i2c_algo;
 	adap->timeout = msecs_to_jiffies(100);
-	device_set_node(&adap->dev, dev_fwnode(dev));
+	device_set_analde(&adap->dev, dev_fwanalde(dev));
 	i2c_set_adapdata(adap, priv);
 	strscpy(adap->name, pdev->name, sizeof(adap->name));
 	init_completion(&priv->cmd_complete);
@@ -366,5 +366,5 @@ static struct platform_driver ls2x_i2c_driver = {
 module_platform_driver(ls2x_i2c_driver);
 
 MODULE_DESCRIPTION("Loongson LS2X I2C Bus driver");
-MODULE_AUTHOR("Loongson Technology Corporation Limited");
+MODULE_AUTHOR("Loongson Techanallogy Corporation Limited");
 MODULE_LICENSE("GPL");

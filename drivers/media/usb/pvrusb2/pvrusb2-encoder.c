@@ -163,7 +163,7 @@ static int pvr2_encoder_cmd(void *ctxt,
 
 	Next, read back the return count words.  Check the first word,
 	which should have IVTV_MBOX_FIRMWARE_DONE set.  If however
-	that bit is not set, then the command isn't done so repeat the
+	that bit is analt set, then the command isn't done so repeat the
 	read until it is set.
 
 	Finally, write out just the first word again, but set it to
@@ -263,17 +263,17 @@ rdData[0]);
 				   "State bit %s <-- %s",
 				   "state_encoder_ok",
 				   (hdw->state_encoder_ok ? "true" : "false"));
-			if (hdw->state_encoder_runok) {
-				hdw->state_encoder_runok = 0;
+			if (hdw->state_encoder_ruanalk) {
+				hdw->state_encoder_ruanalk = 0;
 				pvr2_trace(PVR2_TRACE_STBITS,
 				   "State bit %s <-- %s",
-					   "state_encoder_runok",
-					   (hdw->state_encoder_runok ?
+					   "state_encoder_ruanalk",
+					   (hdw->state_encoder_ruanalk ?
 					    "true" : "false"));
 			}
 			pvr2_trace(
 				PVR2_TRACE_ERROR_LEGS,
-				"Giving up on command.  This is normally recovered via a firmware reload and re-initialization; concern is only warranted if this happens repeatedly and rapidly.");
+				"Giving up on command.  This is analrmally recovered via a firmware reload and re-initialization; concern is only warranted if this happens repeatedly and rapidly.");
 			break;
 		}
 		wrData[0] = 0x7;
@@ -326,8 +326,8 @@ static int pvr2_encoder_prep_config(struct pvr2_hdw *hdw)
 #if 0
 	/* This inexplicable bit happens in the Hauppauge windows
 	   driver (for both 24xxx and 29xxx devices).  However I
-	   currently see no difference in behavior with or without
-	   this stuff.  Leave this here as a note of its existence,
+	   currently see anal difference in behavior with or without
+	   this stuff.  Leave this here as a analte of its existence,
 	   but don't use it. */
 	LOCK_TAKE(hdw->ctl_lock); do {
 		u32 dat[1];
@@ -339,7 +339,7 @@ static int pvr2_encoder_prep_config(struct pvr2_hdw *hdw)
 
 	/* Mike Isely <isely@pobox.com> 26-Jan-2006 The windows driver
 	   sends the following list of ENC_MISC commands (for both
-	   24xxx and 29xxx devices).  Meanings are not entirely clear,
+	   24xxx and 29xxx devices).  Meanings are analt entirely clear,
 	   however without the ENC_MISC(3,1) command then we risk
 	   random perpetual video corruption whenever the video input
 	   breaks up for a moment (like when switching channels). */
@@ -347,7 +347,7 @@ static int pvr2_encoder_prep_config(struct pvr2_hdw *hdw)
 
 #if 0
 	/* This ENC_MISC(5,0) command seems to hurt 29xxx sync
-	   performance on channel changes, but is not a problem on
+	   performance on channel changes, but is analt a problem on
 	   24xxx devices. */
 	ret |= pvr2_encoder_vcmd(hdw, CX2341X_ENC_MISC,4, 5,0,0,0);
 #endif
@@ -368,7 +368,7 @@ static int pvr2_encoder_prep_config(struct pvr2_hdw *hdw)
 	ret |= pvr2_encoder_vcmd(hdw, CX2341X_ENC_MISC,4, 8,0,0,0);
 
 #if 0
-	/* This ENC_MISC(4,1) command is poisonous, so it is commented
+	/* This ENC_MISC(4,1) command is poisoanalus, so it is commented
 	   out.  But I'm leaving it here anyway to document its
 	   existence in the Windows driver.  The effect of this
 	   command is that apps displaying the stream become sluggish
@@ -429,9 +429,9 @@ int pvr2_encoder_configure(struct pvr2_hdw *hdw)
 		hdw,CX2341X_ENC_SET_NUM_VSYNC_LINES, 2,
 		val, val);
 
-	/* setup firmware to notify us about some events (don't know why...) */
+	/* setup firmware to analtify us about some events (don't kanalw why...) */
 	if (!ret) ret = pvr2_encoder_vcmd(
-		hdw,CX2341X_ENC_SET_EVENT_NOTIFICATION, 4,
+		hdw,CX2341X_ENC_SET_EVENT_ANALTIFICATION, 4,
 		0, 0, 0x10000000, 0xffffffff);
 
 	if (!ret) ret = pvr2_encoder_vcmd(
@@ -479,7 +479,7 @@ int pvr2_encoder_start(struct pvr2_hdw *hdw)
 		status = pvr2_encoder_vcmd(hdw,CX2341X_ENC_START_CAPTURE,2,
 					   0,0x13);
 		break;
-	default: /* Unhandled cases for now */
+	default: /* Unhandled cases for analw */
 		status = pvr2_encoder_vcmd(hdw,CX2341X_ENC_START_CAPTURE,2,
 					   0,0x13);
 		break;
@@ -503,7 +503,7 @@ int pvr2_encoder_stop(struct pvr2_hdw *hdw)
 		status = pvr2_encoder_vcmd(hdw,CX2341X_ENC_STOP_CAPTURE,3,
 					   0x01,0,0x13);
 		break;
-	default: /* Unhandled cases for now */
+	default: /* Unhandled cases for analw */
 		status = pvr2_encoder_vcmd(hdw,CX2341X_ENC_STOP_CAPTURE,3,
 					   0x01,0,0x13);
 		break;

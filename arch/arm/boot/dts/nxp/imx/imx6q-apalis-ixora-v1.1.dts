@@ -15,10 +15,10 @@
 
 };
 
-/delete-node/ &eeprom;
-/delete-node/ &reg_3v3_vmmc;
-/delete-node/ &reg_can1_supply;
-/delete-node/ &reg_can2_supply;
+/delete-analde/ &eeprom;
+/delete-analde/ &reg_3v3_vmmc;
+/delete-analde/ &reg_can1_supply;
+/delete-analde/ &reg_can2_supply;
 
 &can1 {
 	/delete-property/ xceiver-supply;

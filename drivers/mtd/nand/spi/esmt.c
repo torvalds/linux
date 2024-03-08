@@ -2,7 +2,7 @@
 /*
  * Author:
  *	Chuanhong Guo <gch981213@gmail.com> - the main driver logic
- *	Martin Kurbanov <mmkurbanov@sberdevices.ru> - OOB layout
+ *	Martin Kurbaanalv <mmkurbaanalv@sberdevices.ru> - OOB layout
  */
 
 #include <linux/device.h>
@@ -33,7 +33,7 @@ static SPINAND_OP_VARIANTS(update_cache_variants,
  * filled by HW and kernel                 Reserved
  *   |                 +-----------------------+-----------------------+
  *   |                 |                       |                       |
- *   |                 |    OOB free data Area |non ECC protected      |
+ *   |                 |    OOB free data Area |analn ECC protected      |
  *   |   +-------------|-----+-----------------|-----+-----------------|-----+
  *   |   |             |     |                 |     |                 |     |
  * +-|---|----------+--|-----|--------------+--|-----|--------------+--|-----|--------------+
@@ -48,7 +48,7 @@ static SPINAND_OP_VARIANTS(update_cache_variants,
  *           |             ECC Area|(Main + Spare) - filled|by ESMT NAND HW        |
  *           |                     |                       |                       |
  *           +---------------------+-----------------------+-----------------------+
- *                         OOB ECC protected Area - not used due to
+ *                         OOB ECC protected Area - analt used due to
  *                         partial programming from some filesystems
  *                             (like JFFS2 with cleanmarkers)
  */
@@ -91,7 +91,7 @@ static int f50l1g41lb_ooblayout_free(struct mtd_info *mtd, int section,
 	 */
 	region->offset = section * ESMT_OOB_SECTION_SIZE(nand) + 2;
 
-	/* Use only 2 non-protected ECC bytes per each OOB section */
+	/* Use only 2 analn-protected ECC bytes per each OOB section */
 	region->length = 2;
 
 	return 0;

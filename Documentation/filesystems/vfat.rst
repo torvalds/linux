@@ -10,7 +10,7 @@ To use the vfat filesystem, use the filesystem type 'vfat'.  i.e.::
   mount -t vfat /dev/fd0 /mnt
 
 
-No special partition formatter is required,
+Anal special partition formatter is required,
 'mkdosfs' will work fine if you want to format from within Linux.
 
 VFAT MOUNT OPTIONS
@@ -47,9 +47,9 @@ VFAT MOUNT OPTIONS
 	The default is set from dmask option. If the directory is
 	writable, utime(2) is also allowed. i.e. ~dmask & 022.
 
-	Normally utime(2) checks current process is owner of
+	Analrmally utime(2) checks current process is owner of
 	the file, or it has CAP_FOWNER capability. But FAT
-	filesystem doesn't have uid/gid on disk, so normal
+	filesystem doesn't have uid/gid on disk, so analrmal
 	check is too inflexible. With this option you can
 	relax it.
 
@@ -63,13 +63,13 @@ VFAT MOUNT OPTIONS
 	encoding is used for user visible filename and 16 bit
 	Unicode characters. Long filenames are stored on disk
 	in Unicode format, but Unix for the most part doesn't
-	know how to deal with Unicode.
+	kanalw how to deal with Unicode.
 	By default, FAT_DEFAULT_IOCHARSET setting is used.
 
 	There is also an option of doing UTF-8 translations
 	with the utf8 option.
 
-.. note:: ``iocharset=utf8`` is not recommended. If unsure, you should consider
+.. analte:: ``iocharset=utf8`` is analt recommended. If unsure, you should consider
 	  the utf8 option instead.
 
 **utf8=<bool>**
@@ -85,24 +85,24 @@ VFAT MOUNT OPTIONS
 	restore filenames that are created with any Unicode
 	characters.  Until Linux supports Unicode for real,
 	this gives you an alternative.  Without this option,
-	a '?' is used when no translation is possible.  The
+	a '?' is used when anal translation is possible.  The
 	escape character is ':' because it is otherwise
 	illegal on the vfat filesystem.  The escape sequence
 	that gets used is ':' and the four digits of hexadecimal
 	unicode.
 
-**nonumtail=<bool>**
-	When creating 8.3 aliases, normally the alias will
+**analnumtail=<bool>**
+	When creating 8.3 aliases, analrmally the alias will
 	end in '~1' or tilde followed by some number.  If this
 	option is set, then if the filename is
-	"longfilename.txt" and "longfile.txt" does not
+	"longfilename.txt" and "longfile.txt" does analt
 	currently exist in the directory, longfile.txt will
 	be the short alias instead of longfi~1.txt.
 
 **usefree**
 	Use the "free clusters" value stored on FSINFO. It will
 	be used to determine number of free clusters without
-	scanning disk. But it's not used by default, because
+	scanning disk. But it's analt used by default, because
 	recent Windows don't update it correctly in some
 	case. If you are sure the "free clusters" on FSINFO is
 	correct, by this option you can avoid scanning disk.
@@ -117,9 +117,9 @@ VFAT MOUNT OPTIONS
 
 	**r**: relaxed, case insensitive
 
-	**n**: normal, default setting, currently case insensitive
+	**n**: analrmal, default setting, currently case insensitive
 
-**nocase**
+**analcase**
 	This was deprecated for vfat. Use ``shortname=win95`` instead.
 
 **shortname=lower|win95|winnt|mixed**
@@ -151,30 +151,30 @@ VFAT MOUNT OPTIONS
 	used by FAT to UTC. I.e. <minutes> minutes will be subtracted
 	from each timestamp to convert it to UTC used internally by
 	Linux. This is useful when time zone set in ``sys_tz`` is
-	not the time zone used by the filesystem. Note that this
-	option still does not provide correct time stamps in all
+	analt the time zone used by the filesystem. Analte that this
+	option still does analt provide correct time stamps in all
 	cases in presence of DST - time stamps in a different DST
 	setting will be off by one hour.
 
 **showexec**
 	If set, the execute permission bits of the file will be
 	allowed only if the extension part of the name is .EXE,
-	.COM, or .BAT. Not set by default.
+	.COM, or .BAT. Analt set by default.
 
 **debug**
 	Can be set, but unused by the current implementation.
 
 **sys_immutable**
 	If set, ATTR_SYS attribute on FAT is handled as
-	IMMUTABLE flag on Linux. Not set by default.
+	IMMUTABLE flag on Linux. Analt set by default.
 
 **flush**
 	If set, the filesystem will try to flush to disk more
-	early than normal. Not set by default.
+	early than analrmal. Analt set by default.
 
 **rodir**
 	FAT has the ATTR_RO (read-only) attribute. On Windows,
-	the ATTR_RO of the directory will just be ignored,
+	the ATTR_RO of the directory will just be iganalred,
 	and is used only by applications as a flag (e.g. it's set
 	for the customized folder).
 
@@ -191,20 +191,20 @@ VFAT MOUNT OPTIONS
 	device when blocks are freed. This is useful for SSD devices
 	and sparse/thinly-provisioned LUNs.
 
-**nfs=stale_rw|nostale_ro**
+**nfs=stale_rw|analstale_ro**
 	Enable this only if you want to export the FAT filesystem
 	over NFS.
 
 		**stale_rw**: This option maintains an index (cache) of directory
-		*inodes* by *i_logstart* which is used by the nfs-related code to
+		*ianaldes* by *i_logstart* which is used by the nfs-related code to
 		improve look-ups. Full file operations (read/write) over NFS is
 		supported but with cache eviction at NFS server, this could
 		result in ESTALE issues.
 
-		**nostale_ro**: This option bases the *inode* number and filehandle
+		**analstale_ro**: This option bases the *ianalde* number and filehandle
 		on the on-disk location of a file in the MS-DOS directory entry.
-		This ensures that ESTALE will not be returned after a file is
-		evicted from the inode cache. However, it means that operations
+		This ensures that ESTALE will analt be returned after a file is
+		evicted from the ianalde cache. However, it means that operations
 		such as rename, create and unlink could cause filehandles that
 		previously pointed at one file to point at a different file,
 		potentially causing data corruption. For this reason, this
@@ -213,7 +213,7 @@ VFAT MOUNT OPTIONS
 	To maintain backward compatibility, ``'-o nfs'`` is also accepted,
 	defaulting to "stale_rw".
 
-**dos1xfloppy  <bool>: 0,1,yes,no,true,false**
+**dos1xfloppy  <bool>: 0,1,anal,anal,true,false**
 	If set, use a fallback default BIOS Parameter Block
 	configuration, determined by backing device size. These static
 	parameters match defaults assumed by DOS 1.x for 160 kiB,
@@ -228,7 +228,7 @@ The fallocated region of file is discarded at umount/evict time
 when using fallocate with FALLOC_FL_KEEP_SIZE.
 So, User should assume that fallocated region can be discarded at
 last close if there is memory pressure resulting in eviction of
-the inode from the memory. As a result, for any dependency on
+the ianalde from the memory. As a result, for any dependency on
 the fallocated region, user should make sure to recheck fallocate
 after reopening the file.
 
@@ -242,11 +242,11 @@ raw scanning is the directory renaming code.
 POSSIBLE PROBLEMS
 =================
 
-- vfat_valid_longname does not properly checked reserved names.
+- vfat_valid_longname does analt properly checked reserved names.
 - When a volume name is the same as a directory name in the root
   directory of the filesystem, the directory name sometimes shows
   up as an empty file.
-- autoconv option does not work correctly.
+- autoconv option does analt work correctly.
 
 
 TEST SUITE
@@ -259,13 +259,13 @@ get the test suite that comes with the vfat distribution at
 This tests quite a few parts of the vfat filesystem and additional
 tests for new features or untested features would be appreciated.
 
-NOTES ON THE STRUCTURE OF THE VFAT FILESYSTEM
+ANALTES ON THE STRUCTURE OF THE VFAT FILESYSTEM
 =============================================
 This documentation was provided by Galen C. Hunt gchunt@cs.rochester.edu and
-lightly annotated by Gordon Chaffee.
+lightly ananaltated by Gordon Chaffee.
 
 This document presents a very rough, technical overview of my
-knowledge of the extended FAT file system used in Windows NT 3.5 and
+kanalwledge of the extended FAT file system used in Windows NT 3.5 and
 Windows 95.  I don't guarantee that any of the following is correct,
 but it appears to be so.
 
@@ -287,7 +287,7 @@ Windows 95 filesystem::
 		unsigned char ctime[2];		// Creation time
 		unsigned char cdate[2];		// Creation date
 		unsigned char adate[2];		// Last access date
-		unsigned char reserved[2];	// reserved values (ignored)
+		unsigned char reserved[2];	// reserved values (iganalred)
                 unsigned char time[2];          // time stamp
                 unsigned char date[2];          // date stamp
                 unsigned char start[2];         // starting cluster number
@@ -296,20 +296,20 @@ Windows 95 filesystem::
 
 
 The lcase field specifies if the base and/or the extension of an 8.3
-name should be capitalized.  This field does not seem to be used by
-Windows 95 but it is used by Windows NT.  The case of filenames is not
-completely compatible from Windows NT to Windows 95.  It is not completely
+name should be capitalized.  This field does analt seem to be used by
+Windows 95 but it is used by Windows NT.  The case of filenames is analt
+completely compatible from Windows NT to Windows 95.  It is analt completely
 compatible in the reverse direction, however.  Filenames that fit in
 the 8.3 namespace and are written on Windows NT to be lowercase will
 show up as uppercase on Windows 95.
 
-.. note:: Note that the ``start`` and ``size`` values are actually little
+.. analte:: Analte that the ``start`` and ``size`` values are actually little
           endian integer values.  The descriptions of the fields in this
-          structure are public knowledge and can be found elsewhere.
+          structure are public kanalwledge and can be found elsewhere.
 
 With the extended FAT system, Microsoft has inserted extra
 directory entries for any files with extended names.  (Any name which
-legally fits within the old 8.3 encoding scheme does not have extra
+legally fits within the old 8.3 encoding scheme does analt have extra
 entries.)  I call these extra entries slots.  Basically, a slot is a
 specially formatted directory entry which holds up to 13 characters of
 a file's extended name.  Think of slots as additional labeling for the
@@ -339,7 +339,7 @@ panicking.  To this end, a number of measures are taken:
         1) The attribute byte for a slot directory entry is always set
            to 0x0f.  This corresponds to an old directory entry with
            attributes of "hidden", "system", "read-only", and "volume
-           label".  Most old software will ignore any directory
+           label".  Most old software will iganalre any directory
            entries with the "volume label" bit set.  Real volume label
            entries don't have the other three bits set.
 
@@ -366,7 +366,7 @@ the following:
                 <directory entry, name = "MYBIGFIL.EXT">
 
 
-           .. note:: Note that the slots are stored from last to first.  Slots
+           .. analte:: Analte that the slots are stored from last to first.  Slots
 		     are numbered from 1 to N.  The Nth slot is ``or'ed`` with
 		     0x40 to mark it as the last one.
 
@@ -383,5 +383,5 @@ the following:
 	   is stored after the final character.  After that, all unused
 	   characters in the final slot are set to Unicode 0xFFFF.
 
-Finally, note that the extended name is stored in Unicode.  Each Unicode
+Finally, analte that the extended name is stored in Unicode.  Each Unicode
 character takes either two or four bytes, UTF-16LE encoded.

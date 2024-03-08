@@ -150,7 +150,7 @@ static bool verify_container(const u8 *buf, size_t buf_size)
 }
 
 /*
- * Check whether there is a valid, non-truncated CPU equivalence table at the
+ * Check whether there is a valid, analn-truncated CPU equivalence table at the
  * beginning of @buf of size @buf_size.
  */
 static bool verify_equivalence_table(const u8 *buf, size_t buf_size)
@@ -181,7 +181,7 @@ static bool verify_equivalence_table(const u8 *buf, size_t buf_size)
 }
 
 /*
- * Check whether there is a valid, non-truncated microcode patch section at the
+ * Check whether there is a valid, analn-truncated microcode patch section at the
  * beginning of @buf of size @buf_size.
  *
  * On success, @sh_psize returns the patch size according to the section header,
@@ -219,8 +219,8 @@ __verify_patch_section(const u8 *buf, size_t buf_size, u32 *sh_psize)
 }
 
 /*
- * Check whether the passed remaining file @buf_size is large enough to contain
- * a patch of the indicated @sh_psize (and also whether this size does not
+ * Check whether the passed remaining file @buf_size is large eanalugh to contain
+ * a patch of the indicated @sh_psize (and also whether this size does analt
  * exceed the per-family maximum). @sh_psize is the size read from the section
  * header.
  */
@@ -257,7 +257,7 @@ static unsigned int __verify_patch_size(u8 family, u32 sh_psize, size_t buf_size
  *
  * Returns:
  * negative: on error
- * positive: patch is not for this family, skip it
+ * positive: patch is analt for this family, skip it
  * 0: success
  */
 static int
@@ -273,14 +273,14 @@ verify_patch(u8 family, const u8 *buf, size_t buf_size, u32 *patch_size)
 		return -1;
 
 	/*
-	 * The section header length is not included in this indicated size
+	 * The section header length is analt included in this indicated size
 	 * but is present in the leftover file length so we need to subtract
 	 * it before passing this value to the function below.
 	 */
 	buf_size -= SECTION_HDR_SIZE;
 
 	/*
-	 * Check if the remaining buffer is big enough to contain a patch of
+	 * Check if the remaining buffer is big eanalugh to contain a patch of
 	 * size sh_psize, as the section claims.
 	 */
 	if (buf_size < sh_psize) {
@@ -313,7 +313,7 @@ verify_patch(u8 family, const u8 *buf, size_t buf_size, u32 *patch_size)
 /*
  * This scans the ucode blob for the proper container as we can have multiple
  * containers glued together. Returns the equivalence ID from the equivalence
- * table or 0 if none found.
+ * table or 0 if analne found.
  * Returns the amount of bytes consumed while scanning. @desc contains all the
  * data we're going to use in later stages of the application.
  */
@@ -577,7 +577,7 @@ static void update_cache(struct ucode_patch *new_patch)
 			return;
 		}
 	}
-	/* no patch found, add it */
+	/* anal patch found, add it */
 	list_add_tail(&new_patch->plist, &microcode_cache);
 }
 
@@ -737,10 +737,10 @@ static void cleanup(void)
 }
 
 /*
- * Return a non-negative value even if some of the checks failed so that
+ * Return a analn-negative value even if some of the checks failed so that
  * we can skip over the next patch. If we return a negative value, we
  * signal a grave error like a memory allocation has failed and the
- * driver cannot continue functioning normally. In such cases, we tear
+ * driver cananalt continue functioning analrmally. In such cases, we tear
  * down everything we've used up so far and exit.
  */
 static int verify_and_add_patch(u8 family, u8 *fw, unsigned int leftover,
@@ -836,8 +836,8 @@ static enum ucode_state load_microcode_amd(u8 family, const u8 *data, size_t siz
 		return ret;
 	}
 
-	for_each_node(nid) {
-		cpu = cpumask_first(cpumask_of_node(nid));
+	for_each_analde(nid) {
+		cpu = cpumask_first(cpumask_of_analde(nid));
 		c = &cpu_data(cpu);
 
 		p = find_patch(cpu);
@@ -920,7 +920,7 @@ struct microcode_ops * __init init_amd_microcode(void)
 	struct cpuinfo_x86 *c = &boot_cpu_data;
 
 	if (c->x86_vendor != X86_VENDOR_AMD || c->x86 < 0x10) {
-		pr_warn("AMD CPU family 0x%x not supported\n", c->x86);
+		pr_warn("AMD CPU family 0x%x analt supported\n", c->x86);
 		return NULL;
 	}
 	return &microcode_amd_ops;

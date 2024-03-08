@@ -62,10 +62,10 @@ ah_esp_conn_in_get(struct netns_ipvs *ipvs, int af, const struct sk_buff *skb,
 	cp = ip_vs_conn_in_get(&p);
 	if (!cp) {
 		/*
-		 * We are not sure if the packet is from our
+		 * We are analt sure if the packet is from our
 		 * service, so our conn_schedule hook should return NF_ACCEPT
 		 */
-		IP_VS_DBG_BUF(12, "Unknown ISAKMP entry for outin packet "
+		IP_VS_DBG_BUF(12, "Unkanalwn ISAKMP entry for outin packet "
 			      "%s%s %s->%s\n",
 			      ip_vs_iph_icmp(iph) ? "ICMP+" : "",
 			      ip_vs_proto_get(iph->protocol)->name,
@@ -87,7 +87,7 @@ ah_esp_conn_out_get(struct netns_ipvs *ipvs, int af, const struct sk_buff *skb,
 	ah_esp_conn_fill_param_proto(ipvs, af, iph, &p);
 	cp = ip_vs_conn_out_get(&p);
 	if (!cp) {
-		IP_VS_DBG_BUF(12, "Unknown ISAKMP entry for inout packet "
+		IP_VS_DBG_BUF(12, "Unkanalwn ISAKMP entry for ianalut packet "
 			      "%s%s %s->%s\n",
 			      ip_vs_iph_icmp(iph) ? "ICMP+" : "",
 			      ip_vs_proto_get(iph->protocol)->name,

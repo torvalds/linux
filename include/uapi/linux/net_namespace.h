@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /* Copyright (c) 2015 6WIND S.A.
  * Author: Nicolas Dichtel <nicolas.dichtel@6wind.com>
  *
@@ -11,8 +11,8 @@
 
 /* Attributes of RTM_NEWNSID/RTM_GETNSID messages */
 enum {
-	NETNSA_NONE,
-#define NETNSA_NSID_NOT_ASSIGNED -1
+	NETNSA_ANALNE,
+#define NETNSA_NSID_ANALT_ASSIGNED -1
 	NETNSA_NSID,
 	NETNSA_PID,
 	NETNSA_FD,

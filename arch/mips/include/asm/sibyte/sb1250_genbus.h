@@ -54,8 +54,8 @@
 #endif /* 1250 PASS2 || 112x PASS1 || 1480 */
 #define S_IO_PARITY_ODD		6
 #define M_IO_PARITY_ODD		_SB_MAKEMASK1(S_IO_PARITY_ODD)
-#define S_IO_NONMUX		7
-#define M_IO_NONMUX		_SB_MAKEMASK1(S_IO_NONMUX)
+#define S_IO_ANALNMUX		7
+#define M_IO_ANALNMUX		_SB_MAKEMASK1(S_IO_ANALNMUX)
 
 #define S_IO_TIMEOUT		8
 #define M_IO_TIMEOUT		_SB_MAKEMASK(8, S_IO_TIMEOUT)
@@ -320,9 +320,9 @@
 #define V_PCMCIA_MODE(x)	_SB_MAKEVALUE(x, S_PCMCIA_MODE)
 #define G_PCMCIA_MODE(x)	_SB_GETVALUE(x, S_PCMCIA_MODE, M_PCMCIA_MODE)
 
-#define K_PCMCIA_MODE_PCMA_NOB	0	/* standard PCMCIA "A", no "B" */
-#define K_PCMCIA_MODE_IDEA_NOB	1	/* IDE "A", no "B" */
-#define K_PCMCIA_MODE_PCMIOA_NOB 2	/* PCMCIA with I/O "A", no "B" */
+#define K_PCMCIA_MODE_PCMA_ANALB	0	/* standard PCMCIA "A", anal "B" */
+#define K_PCMCIA_MODE_IDEA_ANALB	1	/* IDE "A", anal "B" */
+#define K_PCMCIA_MODE_PCMIOA_ANALB 2	/* PCMCIA with I/O "A", anal "B" */
 #define K_PCMCIA_MODE_PCMA_PCMB 4	/* standard PCMCIA "A", standard PCMCIA "B" */
 #define K_PCMCIA_MODE_IDEA_PCMB 5	/* IDE "A", standard PCMCIA "B" */
 #define K_PCMCIA_MODE_PCMA_IDEB 6	/* standard PCMCIA "A", IDE "B" */

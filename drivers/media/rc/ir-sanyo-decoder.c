@@ -5,11 +5,11 @@
 //
 // This protocol uses the NEC protocol timings. However, data is formatted as:
 //	13 bits Custom Code
-//	13 bits NOT(Custom Code)
+//	13 bits ANALT(Custom Code)
 //	8 bits Key data
-//	8 bits NOT(Key data)
+//	8 bits ANALT(Key data)
 //
-// According with LIRC, this protocol is used on Sanyo, Aiwa and Chinon
+// According with LIRC, this protocol is used on Sanyo, Aiwa and Chianaln
 // Information for this protocol is available at the Sanyo LC7461 datasheet.
 
 #include <linux/module.h>
@@ -48,7 +48,7 @@ static int ir_sanyo_decode(struct rc_dev *dev, struct ir_raw_event ev)
 	struct sanyo_dec *data = &dev->raw->sanyo;
 	u32 scancode;
 	u16 address;
-	u8 command, not_command;
+	u8 command, analt_command;
 
 	if (!is_timing_event(ev)) {
 		if (ev.overflow) {
@@ -139,11 +139,11 @@ static int ir_sanyo_decode(struct rc_dev *dev, struct ir_raw_event ev)
 			break;
 
 		address     = bitrev16((data->bits >> 29) & 0x1fff) >> 3;
-		/* not_address = bitrev16((data->bits >> 16) & 0x1fff) >> 3; */
+		/* analt_address = bitrev16((data->bits >> 16) & 0x1fff) >> 3; */
 		command	    = bitrev8((data->bits >>  8) & 0xff);
-		not_command = bitrev8((data->bits >>  0) & 0xff);
+		analt_command = bitrev8((data->bits >>  0) & 0xff);
 
-		if ((command ^ not_command) != 0xff) {
+		if ((command ^ analt_command) != 0xff) {
 			dev_dbg(&dev->dev, "SANYO checksum error: received 0x%08llx\n",
 				data->bits);
 			data->state = STATE_INACTIVE;
@@ -183,7 +183,7 @@ static const struct ir_raw_timings_pd ir_sanyo_timings = {
  * @max:	maximum size of @events
  *
  * Returns:	The number of events written.
- *		-ENOBUFS if there isn't enough space in the array to fit the
+ *		-EANALBUFS if there isn't eanalugh space in the array to fit the
  *		encoding. In this case all @max events will have been written.
  */
 static int ir_sanyo_encode(enum rc_proto protocol, u32 scancode,

@@ -1,7 +1,7 @@
 /*
- * Copyright (C) 2017 Synopsys.
+ * Copyright (C) 2017 Syanalpsys.
  *
- * Synopsys AXS10x reset driver.
+ * Syanalpsys AXS10x reset driver.
  *
  * This file is licensed under the terms of the GNU General Public
  * License version 2. This program is licensed "as is" without any
@@ -47,7 +47,7 @@ static int axs10x_reset_probe(struct platform_device *pdev)
 
 	rst = devm_kzalloc(&pdev->dev, sizeof(*rst), GFP_KERNEL);
 	if (!rst)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rst->regs_rst = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(rst->regs_rst))
@@ -57,7 +57,7 @@ static int axs10x_reset_probe(struct platform_device *pdev)
 
 	rst->rcdev.owner = THIS_MODULE;
 	rst->rcdev.ops = &axs10x_reset_ops;
-	rst->rcdev.of_node = pdev->dev.of_node;
+	rst->rcdev.of_analde = pdev->dev.of_analde;
 	rst->rcdev.nr_resets = AXS10X_MAX_RESETS;
 
 	return devm_reset_controller_register(&pdev->dev, &rst->rcdev);
@@ -77,6 +77,6 @@ static struct platform_driver axs10x_reset_driver = {
 };
 builtin_platform_driver(axs10x_reset_driver);
 
-MODULE_AUTHOR("Eugeniy Paltsev <Eugeniy.Paltsev@synopsys.com>");
-MODULE_DESCRIPTION("Synopsys AXS10x reset driver");
+MODULE_AUTHOR("Eugeniy Paltsev <Eugeniy.Paltsev@syanalpsys.com>");
+MODULE_DESCRIPTION("Syanalpsys AXS10x reset driver");
 MODULE_LICENSE("GPL v2");

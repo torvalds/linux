@@ -21,7 +21,7 @@ struct {
 
 SEC("perf_event")
 __description("prevent map lookup in stack trace")
-__failure __msg("cannot pass map_type 7 into func bpf_map_lookup_elem")
+__failure __msg("cananalt pass map_type 7 into func bpf_map_lookup_elem")
 __naked void map_lookup_in_stack_trace(void)
 {
 	asm volatile ("					\
@@ -40,7 +40,7 @@ __naked void map_lookup_in_stack_trace(void)
 
 SEC("socket")
 __description("prevent map lookup in prog array")
-__failure __msg("cannot pass map_type 3 into func bpf_map_lookup_elem")
+__failure __msg("cananalt pass map_type 3 into func bpf_map_lookup_elem")
 __failure_unpriv
 __naked void map_lookup_in_prog_array(void)
 {

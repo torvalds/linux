@@ -6,7 +6,7 @@ DC Visual Confirmation
 ======================
 
 Display core provides a feature named visual confirmation, which is a set of
-bars added at the scanout time by the driver to convey some specific
+bars added at the scaanalut time by the driver to convey some specific
 information. In general, you can enable this debug option by using::
 
   echo <N> > /sys/kernel/debug/dri/0/amdgpu_dm_visual_confirm
@@ -34,14 +34,14 @@ the bottom of each hardware plane being drawn on the screen.
   covering the same plane
 
 Consider the video playback case in which a video is played in a specific
-plane, and the desktop is drawn in another plane. The video plane should
+plane, and the desktop is drawn in aanalther plane. The video plane should
 feature one or two green bars at the bottom of the video depending on pipe
 split configuration.
 
-* There should **not** be any visual corruption
-* There should **not** be any underflow or screen flashes
-* There should **not** be any black screens
-* There should **not** be any cursor corruption
+* There should **analt** be any visual corruption
+* There should **analt** be any underflow or screen flashes
+* There should **analt** be any black screens
+* There should **analt** be any cursor corruption
 * Multiple plane **may** be briefly disabled during window transitions or
   resizing but should come back after the action has finished
 
@@ -55,7 +55,7 @@ the below command to enable visual confirmation::
   echo 1 > /sys/kernel/debug/dri/0/amdgpu_dm_visual_confirm
 
 In this case, if you have a pipe split, you will see one small red bar at the
-bottom of the display covering the entire display width and another bar
+bottom of the display covering the entire display width and aanalther bar
 covering the second pipe. In other words, you will see a bit high bar in the
 second pipe.
 
@@ -79,7 +79,7 @@ after you reproduce the bug.
 DMUB Firmware Debug
 ===================
 
-Sometimes, dmesg logs aren't enough. This is especially true if a feature is
+Sometimes, dmesg logs aren't eanalugh. This is especially true if a feature is
 implemented primarily in DMUB firmware. In such cases, all we see in dmesg when
 an issue arises is some generic timeout error. So, to get more relevant
 information, we can trace DMUB commands by enabling the relevant bits in
@@ -95,7 +95,7 @@ Trace Groups
    :widths: 1, 1
    :file: ./trace-groups-table.csv
 
-**Note: Not all ASICs support all of the listed trace groups**
+**Analte: Analt all ASICs support all of the listed trace groups**
 
 So, to enable just PSR tracing you can use the following command::
 

@@ -42,7 +42,7 @@ enum mixart_message_id {
 	MSG_SYSTEM_WAIT_SYNCHRO_CMD          = 0x16002C,
 	MSG_SYSTEM_SEND_SYNCHRO_CMD          = 0x16002D,
 
-	MSG_SERVICES_TIMER_NOTIFY            = 0x1D0404,
+	MSG_SERVICES_TIMER_ANALTIFY            = 0x1D0404,
 	MSG_SERVICES_REPORT_TRACES           = 0x1D0700,
 
 	MSG_CLOCK_CHECK_PROPERTIES           = 0x200001,
@@ -242,7 +242,7 @@ struct mixart_group_state_resp
 
 
 
-/* Structures used by the MSG_SERVICES_TIMER_NOTIFY command */
+/* Structures used by the MSG_SERVICES_TIMER_ANALTIFY command */
 
 struct mixart_sample_pos
 {
@@ -257,12 +257,12 @@ struct mixart_sample_pos
  * having MIXART_MAX_STREAM_PER_CARD * MIXART_MAX_CARDS many streams,
  * this is capped to have a total size below MSG_DEFAULT_SIZE.
  */
-#define MIXART_MAX_TIMER_NOTIFY_STREAMS				\
+#define MIXART_MAX_TIMER_ANALTIFY_STREAMS				\
 	((MSG_DEFAULT_SIZE - sizeof(u32)) / sizeof(struct mixart_sample_pos))
-struct mixart_timer_notify
+struct mixart_timer_analtify
 {
 	u32                  stream_count;
-	struct mixart_sample_pos  streams[MIXART_MAX_TIMER_NOTIFY_STREAMS];
+	struct mixart_sample_pos  streams[MIXART_MAX_TIMER_ANALTIFY_STREAMS];
 } __packed;
 
 
@@ -282,7 +282,7 @@ struct mixart_return_uid
 */
 
 enum mixart_clock_generic_type {
-	CGT_NO_CLOCK,
+	CGT_ANAL_CLOCK,
 	CGT_INTERNAL_CLOCK,
 	CGT_PROGRAMMABLE_CLOCK,
 	CGT_INTERNAL_ENSLAVED_CLOCK,
@@ -295,7 +295,7 @@ enum mixart_clock_mode {
 	CM_MASTER,
 	CM_SLAVE,
 	CM_STANDALONE,
-	CM_NOT_CONCERNED
+	CM_ANALT_CONCERNED
 };
 
 
@@ -328,7 +328,7 @@ struct mixart_clock_properties_resp
 /*	MSG_STREAM_SET_OUTPUT_STAGE_PARAM    = 0x130010 */
 
 enum mixart_coding_type {
-	CT_NOT_DEFINED,
+	CT_ANALT_DEFINED,
 	CT_LINEAR,
 	CT_MPEG_L1,
 	CT_MPEG_L2,
@@ -337,7 +337,7 @@ enum mixart_coding_type {
 	CT_GSM
 };
 enum mixart_sample_type {
-	ST_NOT_DEFINED,
+	ST_ANALT_DEFINED,
 	ST_FLOATING_POINT_32BE,
 	ST_FLOATING_POINT_32LE,
 	ST_FLOATING_POINT_64BE,
@@ -554,8 +554,8 @@ void snd_mixart_init_mailbox(struct mixart_mgr *mgr);
 void snd_mixart_exit_mailbox(struct mixart_mgr *mgr);
 
 int  snd_mixart_send_msg(struct mixart_mgr *mgr, struct mixart_msg *request, int max_resp_size, void *resp_data);
-int  snd_mixart_send_msg_wait_notif(struct mixart_mgr *mgr, struct mixart_msg *request, u32 notif_event);
-int  snd_mixart_send_msg_nonblock(struct mixart_mgr *mgr, struct mixart_msg *request);
+int  snd_mixart_send_msg_wait_analtif(struct mixart_mgr *mgr, struct mixart_msg *request, u32 analtif_event);
+int  snd_mixart_send_msg_analnblock(struct mixart_mgr *mgr, struct mixart_msg *request);
 
 irqreturn_t snd_mixart_interrupt(int irq, void *dev_id);
 irqreturn_t snd_mixart_threaded_irq(int irq, void *dev_id);

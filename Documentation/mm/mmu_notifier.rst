@@ -1,30 +1,30 @@
-When do you need to notify inside page table lock ?
+When do you need to analtify inside page table lock ?
 ===================================================
 
-When clearing a pte/pmd we are given a choice to notify the event through
-(notify version of \*_clear_flush call mmu_notifier_invalidate_range) under
-the page table lock. But that notification is not necessary in all cases.
+When clearing a pte/pmd we are given a choice to analtify the event through
+(analtify version of \*_clear_flush call mmu_analtifier_invalidate_range) under
+the page table lock. But that analtification is analt necessary in all cases.
 
-For secondary TLB (non CPU TLB) like IOMMU TLB or device TLB (when device use
+For secondary TLB (analn CPU TLB) like IOMMU TLB or device TLB (when device use
 thing like ATS/PASID to get the IOMMU to walk the CPU page table to access a
-process virtual address space). There is only 2 cases when you need to notify
+process virtual address space). There is only 2 cases when you need to analtify
 those secondary TLB while holding page table lock when clearing a pte/pmd:
 
-  A) page backing address is free before mmu_notifier_invalidate_range_end()
+  A) page backing address is free before mmu_analtifier_invalidate_range_end()
   B) a page table entry is updated to point to a new page (COW, write fault
      on zero page, __replace_page(), ...)
 
-Case A is obvious you do not want to take the risk for the device to write to
-a page that might now be used by some completely different task.
+Case A is obvious you do analt want to take the risk for the device to write to
+a page that might analw be used by some completely different task.
 
 Case B is more subtle. For correctness it requires the following sequence to
 happen:
 
   - take page table lock
-  - clear page table entry and notify ([pmd/pte]p_huge_clear_flush_notify())
+  - clear page table entry and analtify ([pmd/pte]p_huge_clear_flush_analtify())
   - set page table entry to point to new page
 
-If clearing the page table entry is not followed by a notify before setting
+If clearing the page table entry is analt followed by a analtify before setting
 the new pte/pmd value then you can break memory model like C11 or C++11 for
 the device.
 
@@ -43,8 +43,8 @@ they are write protected for COW (other case of B apply too).
  DEV-thread-0  {read addrA and populate device TLB}
  DEV-thread-2  {read addrB and populate device TLB}
  [Time N+1] ------------------------------------------------------------------
- CPU-thread-0  {COW_step0: {mmu_notifier_invalidate_range_start(addrA)}}
- CPU-thread-1  {COW_step0: {mmu_notifier_invalidate_range_start(addrB)}}
+ CPU-thread-0  {COW_step0: {mmu_analtifier_invalidate_range_start(addrA)}}
+ CPU-thread-1  {COW_step0: {mmu_analtifier_invalidate_range_start(addrB)}}
  CPU-thread-2  {}
  CPU-thread-3  {}
  DEV-thread-0  {}
@@ -72,7 +72,7 @@ they are write protected for COW (other case of B apply too).
  DEV-thread-2  {}
  [Time N+4] ------------------------------------------------------------------
  CPU-thread-0  {preempted}
- CPU-thread-1  {COW_step3: {mmu_notifier_invalidate_range_end(addrB)}}
+ CPU-thread-1  {COW_step3: {mmu_analtifier_invalidate_range_end(addrB)}}
  CPU-thread-2  {}
  CPU-thread-3  {}
  DEV-thread-0  {}
@@ -85,13 +85,13 @@ they are write protected for COW (other case of B apply too).
  DEV-thread-0  {read addrA from old page}
  DEV-thread-2  {read addrB from new page}
 
-So here because at time N+2 the clear page table entry was not pair with a
-notification to invalidate the secondary TLB, the device see the new value for
+So here because at time N+2 the clear page table entry was analt pair with a
+analtification to invalidate the secondary TLB, the device see the new value for
 addrB before seeing the new value for addrA. This break total memory ordering
 for the device.
 
 When changing a pte to write protect or to point to a new write protected page
-with same content (KSM) it is fine to delay the mmu_notifier_invalidate_range
-call to mmu_notifier_invalidate_range_end() outside the page table lock. This
+with same content (KSM) it is fine to delay the mmu_analtifier_invalidate_range
+call to mmu_analtifier_invalidate_range_end() outside the page table lock. This
 is true even if the thread doing the page table update is preempted right after
-releasing page table lock but before call mmu_notifier_invalidate_range_end().
+releasing page table lock but before call mmu_analtifier_invalidate_range_end().

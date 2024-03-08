@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -38,8 +38,8 @@
 #define	MC_ARB_DRAM_TIMING2_2				0xa00
 #define	MC_ARB_DRAM_TIMING2_3				0xa01
 
-#define MAX_NO_OF_MVDD_VALUES 2
-#define MAX_NO_VREG_STEPS 32
+#define MAX_ANAL_OF_MVDD_VALUES 2
+#define MAX_ANAL_VREG_STEPS 32
 #define NISLANDS_MAX_SMC_PERFORMANCE_LEVELS_PER_SWSTATE 16
 #define SMC_NISLANDS_MC_REGISTER_ARRAY_SIZE 32
 #define SMC_NISLANDS_MC_REGISTER_ARRAY_SET_COUNT 20
@@ -78,7 +78,7 @@
 #define NISLANDS_SMC_MC_RTT_ENABLE   0x04
 #define NISLANDS_SMC_MC_STUTTER_EN   0x08
 
-#define MAX_NO_VREG_STEPS 32
+#define MAX_ANAL_VREG_STEPS 32
 
 #define NISLANDS_SMC_VOLTAGEMASK_VDDC  0
 #define NISLANDS_SMC_VOLTAGEMASK_MVDD  1
@@ -242,7 +242,7 @@ enum si_display_gap
     SI_PM_DISPLAY_GAP_VBLANK_OR_WM = 0,
     SI_PM_DISPLAY_GAP_VBLANK       = 1,
     SI_PM_DISPLAY_GAP_WATERMARK    = 2,
-    SI_PM_DISPLAY_GAP_IGNORE       = 3,
+    SI_PM_DISPLAY_GAP_IGANALRE       = 3,
 };
 
 extern const struct amdgpu_ip_block_version si_smu_ip_block;
@@ -474,8 +474,8 @@ struct RV770_SMC_STATETABLE
     uint8_t             systemFlags;
     uint8_t             maxVDDCIndexInPPTable;
     uint8_t             extraFlags;
-    uint8_t             highSMIO[MAX_NO_VREG_STEPS];
-    uint32_t            lowSMIO[MAX_NO_VREG_STEPS];
+    uint8_t             highSMIO[MAX_ANAL_VREG_STEPS];
+    uint32_t            lowSMIO[MAX_ANAL_VREG_STEPS];
     RV770_SMC_VOLTAGEMASKTABLE voltageMaskTable;
     RV770_SMC_SWSTATE   initialState;
     RV770_SMC_SWSTATE   ACPIState;
@@ -555,11 +555,11 @@ struct rv7xx_power_info {
 	u32 vddc_mask_low;
 	u32 mvdd_mask_low;
 	u32 mvdd_split_frequency;
-	u32 mvdd_low_smio[MAX_NO_OF_MVDD_VALUES];
+	u32 mvdd_low_smio[MAX_ANAL_OF_MVDD_VALUES];
 	u16 max_vddc;
 	u16 max_vddc_in_table;
 	u16 min_vddc_in_table;
-	struct vddc_table_entry vddc_table[MAX_NO_VREG_STEPS];
+	struct vddc_table_entry vddc_table[MAX_ANAL_VREG_STEPS];
 	u8 valid_vddc_entries;
 	/* dc odt */
 	u32 mclk_odt_threshold;
@@ -801,7 +801,7 @@ struct NISLANDS_SMC_VOLTAGEMASKTABLE
 
 typedef struct NISLANDS_SMC_VOLTAGEMASKTABLE NISLANDS_SMC_VOLTAGEMASKTABLE;
 
-#define NISLANDS_MAX_NO_VREG_STEPS 32
+#define NISLANDS_MAX_ANAL_VREG_STEPS 32
 
 struct NISLANDS_SMC_STATETABLE
 {
@@ -809,8 +809,8 @@ struct NISLANDS_SMC_STATETABLE
     uint8_t                             systemFlags;
     uint8_t                             maxVDDCIndexInPPTable;
     uint8_t                             extraFlags;
-    uint8_t                             highSMIO[NISLANDS_MAX_NO_VREG_STEPS];
-    uint32_t                            lowSMIO[NISLANDS_MAX_NO_VREG_STEPS];
+    uint8_t                             highSMIO[NISLANDS_MAX_ANAL_VREG_STEPS];
+    uint32_t                            lowSMIO[NISLANDS_MAX_ANAL_VREG_STEPS];
     NISLANDS_SMC_VOLTAGEMASKTABLE       voltageMaskTable;
     PP_NIslands_DPM2Parameters          dpm2Params;
     NISLANDS_SMC_SWSTATE                initialState;
@@ -982,7 +982,7 @@ struct si_power_info {
 	bool enable_dte;
 	bool enable_ppm;
 	bool vddc_phase_shed_control;
-	bool pspp_notify_required;
+	bool pspp_analtify_required;
 	bool sclk_deep_sleep_above_low;
 	bool voltage_control_svi2;
 	bool vddci_control_svi2;

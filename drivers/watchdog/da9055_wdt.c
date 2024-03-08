@@ -19,11 +19,11 @@
 #include <linux/mfd/da9055/core.h>
 #include <linux/mfd/da9055/reg.h>
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout,
-		 "Watchdog cannot be stopped once started (default="
-		 __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+static bool analwayout = WATCHDOG_ANALWAYOUT;
+module_param(analwayout, bool, 0);
+MODULE_PARM_DESC(analwayout,
+		 "Watchdog cananalt be stopped once started (default="
+		 __MODULE_STRING(WATCHDOG_ANALWAYOUT) ")");
 
 #define DA9055_DEF_TIMEOUT	4
 #define DA9055_TWDMIN		256
@@ -127,7 +127,7 @@ static int da9055_wdt_probe(struct platform_device *pdev)
 
 	driver_data = devm_kzalloc(dev, sizeof(*driver_data), GFP_KERNEL);
 	if (!driver_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	driver_data->da9055 = da9055;
 
@@ -137,7 +137,7 @@ static int da9055_wdt_probe(struct platform_device *pdev)
 	da9055_wdt->info = &da9055_wdt_info;
 	da9055_wdt->ops = &da9055_wdt_ops;
 	da9055_wdt->parent = dev;
-	watchdog_set_nowayout(da9055_wdt, nowayout);
+	watchdog_set_analwayout(da9055_wdt, analwayout);
 	watchdog_set_drvdata(da9055_wdt, driver_data);
 
 	ret = da9055_wdt_stop(da9055_wdt);

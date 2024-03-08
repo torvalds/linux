@@ -19,7 +19,7 @@
 #include <asm/cacheflush.h>
 #include <asm/mmu_context.h>
 
-/* Slightly simplified from the non-hugepage variant because by
+/* Slightly simplified from the analn-hugepage variant because by
  * definition we don't have to worry about any page coloring stuff
  */
 
@@ -45,7 +45,7 @@ static unsigned long hugetlb_get_unmapped_area_bottomup(struct file *filp,
 	addr = vm_unmapped_area(&info);
 
 	if ((addr & ~PAGE_MASK) && task_size > VA_EXCLUDE_END) {
-		VM_BUG_ON(addr != -ENOMEM);
+		VM_BUG_ON(addr != -EANALMEM);
 		info.low_limit = VA_EXCLUDE_END;
 		info.high_limit = task_size;
 		addr = vm_unmapped_area(&info);
@@ -83,7 +83,7 @@ hugetlb_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
 	 * allocations.
 	 */
 	if (addr & ~PAGE_MASK) {
-		VM_BUG_ON(addr != -ENOMEM);
+		VM_BUG_ON(addr != -EANALMEM);
 		info.flags = 0;
 		info.low_limit = TASK_UNMAPPED_BASE;
 		info.high_limit = STACK_TOP32;
@@ -108,7 +108,7 @@ hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
 	if (len & ~huge_page_mask(h))
 		return -EINVAL;
 	if (len > task_size)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (flags & MAP_FIXED) {
 		if (prepare_hugepage_range(file, addr, len))
@@ -190,7 +190,7 @@ pte_t arch_make_huge_pte(pte_t entry, unsigned int shift, vm_flags_t flags)
 	if (flags & VM_SPARC_ADI)
 		return pte_mkmcd(pte);
 	else
-		return pte_mknotmcd(pte);
+		return pte_mkanaltmcd(pte);
 #else
 	return pte;
 #endif
@@ -310,18 +310,18 @@ pte_t *huge_pte_offset(struct mm_struct *mm,
 	pmd_t *pmd;
 
 	pgd = pgd_offset(mm, addr);
-	if (pgd_none(*pgd))
+	if (pgd_analne(*pgd))
 		return NULL;
 	p4d = p4d_offset(pgd, addr);
-	if (p4d_none(*p4d))
+	if (p4d_analne(*p4d))
 		return NULL;
 	pud = pud_offset(p4d, addr);
-	if (pud_none(*pud))
+	if (pud_analne(*pud))
 		return NULL;
 	if (is_hugetlb_pud(*pud))
 		return (pte_t *)pud;
 	pmd = pmd_offset(pud, addr);
-	if (pmd_none(*pmd))
+	if (pmd_analne(*pmd))
 		return NULL;
 	if (is_hugetlb_pmd(*pmd))
 		return (pte_t *)pmd;
@@ -352,7 +352,7 @@ void __set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
 
 	addr &= ~(size - 1);
 	orig = *ptep;
-	orig_shift = pte_none(orig) ? PAGE_SHIFT : huge_tte_to_shift(orig);
+	orig_shift = pte_analne(orig) ? PAGE_SHIFT : huge_tte_to_shift(orig);
 
 	for (i = 0; i < nptes; i++)
 		ptep[i] = __pte(pte_val(entry) + (i << shift));
@@ -389,7 +389,7 @@ pte_t huge_ptep_get_and_clear(struct mm_struct *mm, unsigned long addr,
 		shift = PAGE_SHIFT;
 
 	nptes = size >> shift;
-	orig_shift = pte_none(entry) ? PAGE_SHIFT : huge_tte_to_shift(entry);
+	orig_shift = pte_analne(entry) ? PAGE_SHIFT : huge_tte_to_shift(entry);
 
 	if (pte_present(entry))
 		mm->context.hugetlb_pte_count -= nptes;
@@ -409,13 +409,13 @@ pte_t huge_ptep_get_and_clear(struct mm_struct *mm, unsigned long addr,
 
 int pmd_huge(pmd_t pmd)
 {
-	return !pmd_none(pmd) &&
+	return !pmd_analne(pmd) &&
 		(pmd_val(pmd) & (_PAGE_VALID|_PAGE_PMD_HUGE)) != _PAGE_VALID;
 }
 
 int pud_huge(pud_t pud)
 {
-	return !pud_none(pud) &&
+	return !pud_analne(pud) &&
 		(pud_val(pud) & (_PAGE_VALID|_PAGE_PUD_HUGE)) != _PAGE_VALID;
 }
 
@@ -441,7 +441,7 @@ static void hugetlb_free_pmd_range(struct mmu_gather *tlb, pud_t *pud,
 	pmd = pmd_offset(pud, addr);
 	do {
 		next = pmd_addr_end(addr, end);
-		if (pmd_none(*pmd))
+		if (pmd_analne(*pmd))
 			continue;
 		if (is_hugetlb_pmd(*pmd))
 			pmd_clear(pmd);
@@ -478,7 +478,7 @@ static void hugetlb_free_pud_range(struct mmu_gather *tlb, p4d_t *p4d,
 	pud = pud_offset(p4d, addr);
 	do {
 		next = pud_addr_end(addr, end);
-		if (pud_none_or_clear_bad(pud))
+		if (pud_analne_or_clear_bad(pud))
 			continue;
 		if (is_hugetlb_pud(*pud))
 			pud_clear(pud);
@@ -532,7 +532,7 @@ void hugetlb_free_pgd_range(struct mmu_gather *tlb,
 	p4d = p4d_offset(pgd, addr);
 	do {
 		next = p4d_addr_end(addr, end);
-		if (p4d_none_or_clear_bad(p4d))
+		if (p4d_analne_or_clear_bad(p4d))
 			continue;
 		hugetlb_free_pud_range(tlb, p4d, addr, next, floor, ceiling);
 	} while (p4d++, addr = next, addr != end);

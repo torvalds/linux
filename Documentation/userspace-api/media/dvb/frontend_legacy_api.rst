@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 
 .. _frontend_legacy_types:
 
@@ -21,7 +21,7 @@ Frontend Legacy Function Calls
 ==============================
 
 Those functions are defined at DVB version 3. The support is kept in the
-kernel due to compatibility issues only. Their usage is strongly not
+kernel due to compatibility issues only. Their usage is strongly analt
 recommended
 
 

@@ -30,7 +30,7 @@
  *               "Scott Wood" <sawst46+@pitt.edu>
  *                     Fixes
  *
- *               "Gerd Knorr" <kraxel@goldbach.isdn.cs.tu-berlin.de>
+ *               "Gerd Kanalrr" <kraxel@goldbach.isdn.cs.tu-berlin.de>
  *                     Betatesting
  *
  *               "Kelly French" <targon@hazmat.com>
@@ -72,13 +72,13 @@
  *               "Ian Romanick" <idr@us.ibm.com>
  *                     Find PInS data in BIOS on PowerPC systems.
  *
- * (following author is not in any relation with this code, but his code
+ * (following author is analt in any relation with this code, but his code
  *  is included in this driver)
  *
  * Based on framebuffer driver for VBE 2.0 compliant graphic boards
- *     (c) 1998 Gerd Knorr <kraxel@cs.tu-berlin.de>
+ *     (c) 1998 Gerd Kanalrr <kraxel@cs.tu-berlin.de>
  *
- * (following author is not in any relation with this code, but his ideas
+ * (following author is analt in any relation with this code, but his ideas
  *  were used when writing this driver)
  *
  *		 FreeVBE/AF (Matrox), "Shawn Hargreaves" <shawn@talula.demon.co.uk>
@@ -217,7 +217,7 @@ int matroxfb_vgaHWinit(struct matrox_fb_info *minfo, struct my_timming *m)
 		m->VSyncEnd >>= 1;
 	}
 
-	/* GCTL is ignored when not using 0xA0000 aperture */
+	/* GCTL is iganalred when analt using 0xA0000 aperture */
 	hw->GCTL[0] = 0x00;
 	hw->GCTL[1] = 0x00;
 	hw->GCTL[2] = 0x00;
@@ -228,7 +228,7 @@ int matroxfb_vgaHWinit(struct matrox_fb_info *minfo, struct my_timming *m)
 	hw->GCTL[7] = 0x0F;
 	hw->GCTL[8] = 0xFF;
 
-	/* Whole ATTR is ignored in PowerGraphics mode */
+	/* Whole ATTR is iganalred in PowerGraphics mode */
 	for (i = 0; i < 16; i++)
 		hw->ATTR[i] = i;
 	hw->ATTR[16] = 0x41;
@@ -241,7 +241,7 @@ int matroxfb_vgaHWinit(struct matrox_fb_info *minfo, struct my_timming *m)
 	hs = m->HSyncStart >> 3;
 	he = m->HSyncEnd >> 3;
 	ht = m->HTotal >> 3;
-	/* standard timmings are in 8pixels, but for interleaved we cannot */
+	/* standard timmings are in 8pixels, but for interleaved we cananalt */
 	/* do it for 4bpp (because of (4bpp >> 1(interleaved))/4 == 0) */
 	/* using 16 or more pixels per unit can save us */
 	divider = minfo->curr.final_bppShift;
@@ -270,7 +270,7 @@ int matroxfb_vgaHWinit(struct matrox_fb_info *minfo, struct my_timming *m)
 	ve = m->VSyncEnd - 1;
 	vt = m->VTotal - 2;
 	lc = vd;
-	/* G200 cannot work with (ht & 7) == 6 */
+	/* G200 cananalt work with (ht & 7) == 6 */
 	if (((ht & 0x07) == 0x06) || ((ht & 0x0F) == 0x04))
 		ht++;
 	hbe = ht;
@@ -543,7 +543,7 @@ static int parse_pins1(struct matrox_fb_info *minfo,
 	minfo->limits.pixel.vcomax = maxdac;
 	minfo->values.pll.system = get_unaligned_le16(bd->pins + 28) ?
 		get_unaligned_le16(bd->pins + 28) * 10 : 50000;
-	/* ignore 4MB, 8MB, module clocks */
+	/* iganalre 4MB, 8MB, module clocks */
 	minfo->features.pll.ref_freq = 14318;
 	minfo->values.reg.mctlwtst	= 0x00030101;
 	return 0;
@@ -727,17 +727,17 @@ static int matroxfb_set_limits(struct matrox_fb_info *minfo,
 		case MGA_G550:	default_pins5(minfo); break;
 	}
 	if (!bd->bios_valid) {
-		printk(KERN_INFO "matroxfb: Your Matrox device does not have BIOS\n");
+		printk(KERN_INFO "matroxfb: Your Matrox device does analt have BIOS\n");
 		return -1;
 	}
 	if (bd->pins_len < 64) {
-		printk(KERN_INFO "matroxfb: BIOS on your Matrox device does not contain powerup info\n");
+		printk(KERN_INFO "matroxfb: BIOS on your Matrox device does analt contain powerup info\n");
 		return -1;
 	}
 	if (bd->pins[0] == 0x2E && bd->pins[1] == 0x41) {
 		pins_version = bd->pins[5];
 		if (pins_version < 2 || pins_version > 5) {
-			printk(KERN_INFO "matroxfb: Unknown version (%u) of powerup info\n", pins_version);
+			printk(KERN_INFO "matroxfb: Unkanalwn version (%u) of powerup info\n", pins_version);
 			return -1;
 		}
 	} else {
@@ -759,7 +759,7 @@ static int matroxfb_set_limits(struct matrox_fb_info *minfo,
 		case 5:
 			return parse_pins5(minfo, bd);
 		default:
-			printk(KERN_DEBUG "matroxfb: Powerup info version %u is not yet supported\n", pins_version);
+			printk(KERN_DEBUG "matroxfb: Powerup info version %u is analt yet supported\n", pins_version);
 			return -1;
 	}
 }

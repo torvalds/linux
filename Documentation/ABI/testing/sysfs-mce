@@ -28,12 +28,12 @@ Description:
 		bank Y.
 
 		When a bit in the bitmask is zero then the respective
-		subevent will not be reported.
+		subevent will analt be reported.
 
 		By default all events are enabled.
 
-		Note that BIOS maintain another mask to disable specific events
-		per bank.  This is not visible here
+		Analte that BIOS maintain aanalther mask to disable specific events
+		per bank.  This is analt visible here
 
 What:		/sys/devices/system/machinecheck/machinecheckX/check_interval
 Contact:	Andi Kleen <ak@linux.intel.com>
@@ -43,13 +43,13 @@ Description:
 		between all CPUs.
 
 		How often to poll for corrected machine check errors, in
-		seconds (Note output is hexadecimal). Default 5 minutes.
+		seconds (Analte output is hexadecimal). Default 5 minutes.
 		When the poller finds MCEs it triggers an exponential speedup
 		(poll more often) on the polling interval.  When the poller
 		stops finding MCEs, it triggers an exponential backoff
 		(poll less often) on the polling interval. The check_interval
 		variable is both the initial and maximum polling interval.
-		0 means no polling for corrected machine check errors
+		0 means anal polling for corrected machine check errors
 		(but some corrected errors might be still reported
 		in other ways)
 
@@ -73,12 +73,12 @@ Description:
 
 		Unit: us
 
-What:		/sys/devices/system/machinecheck/machinecheckX/ignore_ce
+What:		/sys/devices/system/machinecheck/machinecheckX/iganalre_ce
 Contact:	Hidetoshi Seto <seto.hidetoshi@jp.fujitsu.com>
 Date:		Jun 2009
 Description:
 		Disables polling and CMCI for corrected errors.
-		All corrected events are not cleared and kept in bank MSRs.
+		All corrected events are analt cleared and kept in bank MSRs.
 
 What:		/sys/devices/system/machinecheck/machinecheckX/dont_log_ce
 Contact:	Hidetoshi Seto <seto.hidetoshi@jp.fujitsu.com>

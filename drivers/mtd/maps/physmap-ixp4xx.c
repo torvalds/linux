@@ -31,7 +31,7 @@
  *     +---+---+
  *     | C | D | 2
  *     +---+---+
- * This means that on LE systems each 16 bit word must be swapped. Note that
+ * This means that on LE systems each 16 bit word must be swapped. Analte that
  * this requires CONFIG_MTD_CFI_BE_BYTE_SWAP to be enabled to 'unswap' the CFI
  * data and other flash commands which are always in D7-D0.
  */
@@ -112,7 +112,7 @@ static void ixp4xx_write16(struct map_info *map, map_word d, unsigned long adr)
 }
 
 int of_flash_probe_ixp4xx(struct platform_device *pdev,
-			  struct device_node *np,
+			  struct device_analde *np,
 			  struct map_info *map)
 {
 	struct device *dev = &pdev->dev;

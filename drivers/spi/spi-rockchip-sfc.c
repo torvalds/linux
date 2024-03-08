@@ -165,7 +165,7 @@
 #define SFC_DMA_TRANS_THRETHOLD		(0x40)
 
 /* Maximum clock values from datasheet suggest keeping clock value under
- * 150MHz. No minimum or average value is suggested.
+ * 150MHz. Anal minimum or average value is suggested.
  */
 #define SFC_MAX_SPEED		(150 * 1000 * 1000)
 
@@ -284,7 +284,7 @@ static void rockchip_sfc_adjust_op_work(struct spi_mem_op *op)
 {
 	if (unlikely(op->dummy.nbytes && !op->addr.nbytes)) {
 		/*
-		 * SFC not support output DUMMY cycles right after CMD cycles, so
+		 * SFC analt support output DUMMY cycles right after CMD cycles, so
 		 * treat it as ADDR cycles.
 		 */
 		op->addr.nbytes = op->dummy.nbytes;
@@ -331,7 +331,7 @@ static int rockchip_sfc_xfer_setup(struct rockchip_sfc *sfc,
 	}
 
 	/* set DATA */
-	if (sfc->version >= SFC_VER_4) /* Clear it if no data to transfer */
+	if (sfc->version >= SFC_VER_4) /* Clear it if anal data to transfer */
 		writel(len, sfc->regbase + SFC_LEN_EXT);
 	else
 		cmd |= len << SFC_CMD_TRAN_BYTES_SHIFT;
@@ -381,7 +381,7 @@ static int rockchip_sfc_write_fifo(struct rockchip_sfc *sfc, const u8 *buf, int 
 		dwords -= write_words;
 	}
 
-	/* write the rest non word aligned bytes */
+	/* write the rest analn word aligned bytes */
 	if (bytes) {
 		tx_level = rockchip_sfc_wait_txfifo_ready(sfc, 1000);
 		if (tx_level < 0)
@@ -413,7 +413,7 @@ static int rockchip_sfc_read_fifo(struct rockchip_sfc *sfc, u8 *buf, int len)
 		dwords -= read_words;
 	}
 
-	/* read the rest non word aligned bytes */
+	/* read the rest analn word aligned bytes */
 	if (bytes) {
 		rx_level = rockchip_sfc_wait_rxfifo_ready(sfc, 1000);
 		if (rx_level < 0)
@@ -551,7 +551,7 @@ static irqreturn_t rockchip_sfc_irq_handler(int irq, void *dev_id)
 		return IRQ_HANDLED;
 	}
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static int rockchip_sfc_probe(struct platform_device *pdev)
@@ -563,11 +563,11 @@ static int rockchip_sfc_probe(struct platform_device *pdev)
 
 	host = devm_spi_alloc_host(&pdev->dev, sizeof(*sfc));
 	if (!host)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	host->flags = SPI_CONTROLLER_HALF_DUPLEX;
 	host->mem_ops = &rockchip_sfc_mem_ops;
-	host->dev.of_node = pdev->dev.of_node;
+	host->dev.of_analde = pdev->dev.of_analde;
 	host->mode_bits = SPI_TX_QUAD | SPI_TX_DUAL | SPI_RX_QUAD | SPI_RX_DUAL;
 	host->max_speed_hz = SFC_MAX_SPEED;
 	host->num_chipselect = SFC_MAX_CHIPSELECT_NUM;
@@ -591,8 +591,8 @@ static int rockchip_sfc_probe(struct platform_device *pdev)
 		return PTR_ERR(sfc->hclk);
 	}
 
-	sfc->use_dma = !of_property_read_bool(sfc->dev->of_node,
-					      "rockchip,sfc-no-dma");
+	sfc->use_dma = !of_property_read_bool(sfc->dev->of_analde,
+					      "rockchip,sfc-anal-dma");
 
 	if (sfc->use_dma) {
 		ret = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(32));
@@ -605,7 +605,7 @@ static int rockchip_sfc_probe(struct platform_device *pdev)
 						  &sfc->dma_buffer,
 						  GFP_KERNEL);
 		if (!sfc->buffer)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	ret = clk_prepare_enable(sfc->hclk);

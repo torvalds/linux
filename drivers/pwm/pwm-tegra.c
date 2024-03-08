@@ -26,11 +26,11 @@
  *
  * Limitations:
  * -	When PWM is disabled, the output is driven to inactive.
- * -	It does not allow the current PWM period to complete and
+ * -	It does analt allow the current PWM period to complete and
  *	stops abruptly.
  *
  * -	If the register is reconfigured while PWM is running,
- *	it does not complete the currently running period.
+ *	it does analt complete the currently running period.
  *
  * -	If the user input duty is beyond acceptible limits,
  *	-EINVAL is returned.
@@ -121,10 +121,10 @@ static int tegra_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 
 	/*
 	 * Compute the prescaler value for which (1 << PWM_DUTY_WIDTH)
-	 * cycles at the PWM clock rate will take period_ns nanoseconds.
+	 * cycles at the PWM clock rate will take period_ns naanalseconds.
 	 *
 	 * num_channels: If single instance of PWM controller has multiple
-	 * channels (e.g. Tegra210 or older) then it is not possible to
+	 * channels (e.g. Tegra210 or older) then it is analt possible to
 	 * configure separate clock rates to each of the channels, in such
 	 * case the value stored during probe will be referred.
 	 *
@@ -150,7 +150,7 @@ static int tegra_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 		if (required_clk_rate > clk_round_rate(pc->clk, required_clk_rate))
 			/*
 			 * required_clk_rate is a lower bound for the input
-			 * rate; for lower rates there is no value for PWM_SCALE
+			 * rate; for lower rates there is anal value for PWM_SCALE
 			 * that yields a period less than or equal to the
 			 * requested period. Hence, for lower rates, double the
 			 * required_clk_rate to get a clock rate that can meet
@@ -203,7 +203,7 @@ static int tegra_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	pwm_writel(pc, pwm->hwpwm, val);
 
 	/*
-	 * If the PWM is not enabled, turn the clock off again to save power.
+	 * If the PWM is analt enabled, turn the clock off again to save power.
 	 */
 	if (!pwm_is_enabled(pwm))
 		pm_runtime_put(pc->dev);
@@ -246,7 +246,7 @@ static int tegra_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	int err;
 	bool enabled = pwm->state.enabled;
 
-	if (state->polarity != PWM_POLARITY_NORMAL)
+	if (state->polarity != PWM_POLARITY_ANALRMAL)
 		return -EINVAL;
 
 	if (!state->enabled) {
@@ -277,7 +277,7 @@ static int tegra_pwm_probe(struct platform_device *pdev)
 
 	pc = devm_kzalloc(&pdev->dev, sizeof(*pc), GFP_KERNEL);
 	if (!pc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pc->soc = of_device_get_match_data(&pdev->dev);
 	pc->dev = &pdev->dev;
@@ -322,7 +322,7 @@ static int tegra_pwm_probe(struct platform_device *pdev)
 	pc->rst = devm_reset_control_get_exclusive(&pdev->dev, "pwm");
 	if (IS_ERR(pc->rst)) {
 		ret = PTR_ERR(pc->rst);
-		dev_err(&pdev->dev, "Reset control is not found: %d\n", ret);
+		dev_err(&pdev->dev, "Reset control is analt found: %d\n", ret);
 		goto put_pm;
 	}
 

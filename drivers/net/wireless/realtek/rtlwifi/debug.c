@@ -36,7 +36,7 @@ void _rtl_dbg_print_data(struct rtl_priv *rtlpriv, u64 comp, int level,
 		     ((level) <= rtlpriv->cfg->mod_params->debug_level))) {
 		pr_info("In process \"%s\" (pid %i): %s\n",
 			current->comm, current->pid, titlestring);
-		print_hex_dump_bytes("", DUMP_PREFIX_NONE,
+		print_hex_dump_bytes("", DUMP_PREFIX_ANALNE,
 				     hexdata, hexdatalen);
 	}
 }
@@ -59,9 +59,9 @@ static int rtl_debug_get_common(struct seq_file *m, void *v)
 	return debugfs_priv->cb_read(m, v);
 }
 
-static int dl_debug_open_common(struct inode *inode, struct file *file)
+static int dl_debug_open_common(struct ianalde *ianalde, struct file *file)
 {
-	return single_open(file, rtl_debug_get_common, inode->i_private);
+	return single_open(file, rtl_debug_get_common, ianalde->i_private);
 }
 
 static const struct file_operations file_ops_common = {
@@ -207,7 +207,7 @@ static int rtl_debug_get_cam_register(struct seq_file *m, void *v)
 	for (j = start; j < end; j++) {
 		seq_printf(m, "\nD:  %2x > ", j);
 		for (entry_i = 0; entry_i < CAM_CONTENT_COUNT; entry_i++) {
-			/* polling bit, and No Write enable, and address  */
+			/* polling bit, and Anal Write enable, and address  */
 			target_cmd = entry_i + CAM_CONTENT_COUNT * j;
 			target_cmd = target_cmd | BIT(31);
 
@@ -398,7 +398,7 @@ static struct rtl_debugfs_priv rtl_debug_priv_write_rfreg = {
 	.cb_write = rtl_debugfs_set_write_rfreg,
 };
 
-static int rtl_debugfs_close(struct inode *inode, struct file *filp)
+static int rtl_debugfs_close(struct ianalde *ianalde, struct file *filp)
 {
 	return 0;
 }

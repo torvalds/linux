@@ -12,7 +12,7 @@ usually needs a distributed control system -- an organized hierarchy of
 controller systems -- to function. In this hierarchy, there is usually a
 Human Machine Interface (HMI) at the top, where an operator can monitor or
 operate the system. This is typically linked to a middle layer of programmable
-logic controllers (PLC) via a non-time-critical communications system
+logic controllers (PLC) via a analn-time-critical communications system
 (e.g. Ethernet). At the bottom of the control chain is the fieldbus that links
 the PLCs to the components that actually do the work, such as sensors,
 actuators, electric motors, console lights, switches, valves and contactors.
@@ -57,9 +57,9 @@ See:
 drivers/staging/fieldbus/Documentation/ABI/sysfs-class-fieldbus-dev
 drivers/staging/fieldbus/Documentation/ABI/fieldbus-dev-cdev
 
-Note that this simple interface does not provide a way to modify adapter
+Analte that this simple interface does analt provide a way to modify adapter
 configuration settings. It is therefore useful only for adapters that get their
-configuration settings some other way, e.g. non-volatile memory on the adapter,
+configuration settings some other way, e.g. analn-volatile memory on the adapter,
 through the network, ...
 
 At a later phase, this simple interface can easily co-exist with a future

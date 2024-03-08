@@ -23,7 +23,7 @@ description: |
   error detection).
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^memory-controller@[0-9a-f]+$"
 
   compatible:
@@ -97,7 +97,7 @@ patternProperties:
       nvidia,bpmp:
         $ref: /schemas/types.yaml#/definitions/phandle
         description:
-          phandle of the node representing the BPMP
+          phandle of the analde representing the BPMP
 
     allOf:
       - if:

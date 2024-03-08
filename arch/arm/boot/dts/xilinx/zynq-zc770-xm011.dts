@@ -28,7 +28,7 @@
 	};
 
 	usb_phy1: phy1 {
-		compatible = "usb-nop-xceiv";
+		compatible = "usb-analp-xceiv";
 		#phy-cells = <0>;
 	};
 };

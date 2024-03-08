@@ -2,7 +2,7 @@
 /*
  * Device Tree file for Marvell Armada AP807 Quad
  *
- * Copyright (C) 2019 Marvell Technology Group Ltd.
+ * Copyright (C) 2019 Marvell Techanallogy Group Ltd.
  */
 
 #include "armada-ap807.dtsi"

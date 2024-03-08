@@ -22,8 +22,8 @@ static int config_out_of_range(struct pci_pbm_info *pbm,
 			       unsigned long devfn,
 			       unsigned long reg)
 {
-	if (bus < pbm->pci_first_busno ||
-	    bus > pbm->pci_last_busno)
+	if (bus < pbm->pci_first_busanal ||
+	    bus > pbm->pci_last_busanal)
 		return 1;
 	return 0;
 }
@@ -47,7 +47,7 @@ static void *sun4u_config_mkaddr(struct pci_pbm_info *pbm,
 
 /* At least on Sabre, it is necessary to access all PCI host controller
  * registers at their natural size, otherwise zeros are returned.
- * Strange but true, and I see no language in the UltraSPARC-IIi
+ * Strange but true, and I see anal language in the UltraSPARC-IIi
  * programmer's manual that mentions this even indirectly.
  */
 static int sun4u_read_pci_cfg_host(struct pci_pbm_info *pbm,
@@ -298,7 +298,7 @@ static int sun4v_write_pci_cfg(struct pci_bus *bus_dev, unsigned int devfn,
 	unsigned int func = PCI_FUNC(devfn);
 
 	if (config_out_of_range(pbm, bus, devfn, where)) {
-		/* Do nothing. */
+		/* Do analthing. */
 	} else {
 		/* We don't check for hypervisor errors here, but perhaps
 		 * we should and influence our return value depending upon
@@ -318,28 +318,28 @@ struct pci_ops sun4v_pci_ops = {
 
 void pci_get_pbm_props(struct pci_pbm_info *pbm)
 {
-	const u32 *val = of_get_property(pbm->op->dev.of_node, "bus-range", NULL);
+	const u32 *val = of_get_property(pbm->op->dev.of_analde, "bus-range", NULL);
 
-	pbm->pci_first_busno = val[0];
-	pbm->pci_last_busno = val[1];
+	pbm->pci_first_busanal = val[0];
+	pbm->pci_last_busanal = val[1];
 
-	val = of_get_property(pbm->op->dev.of_node, "ino-bitmap", NULL);
+	val = of_get_property(pbm->op->dev.of_analde, "ianal-bitmap", NULL);
 	if (val) {
-		pbm->ino_bitmap = (((u64)val[1] << 32UL) |
+		pbm->ianal_bitmap = (((u64)val[1] << 32UL) |
 				   ((u64)val[0] <<  0UL));
 	}
 }
 
 static void pci_register_iommu_region(struct pci_pbm_info *pbm)
 {
-	const u32 *vdma = of_get_property(pbm->op->dev.of_node, "virtual-dma",
+	const u32 *vdma = of_get_property(pbm->op->dev.of_analde, "virtual-dma",
 					  NULL);
 
 	if (vdma) {
 		struct resource *rp = kzalloc(sizeof(*rp), GFP_KERNEL);
 
 		if (!rp) {
-			pr_info("%s: Cannot allocate IOMMU resource.\n",
+			pr_info("%s: Cananalt allocate IOMMU resource.\n",
 				pbm->name);
 			return;
 		}
@@ -364,7 +364,7 @@ void pci_determine_mem_io_space(struct pci_pbm_info *pbm)
 	/* Corresponding generic code in of_pci_get_host_bridge_resources() */
 
 	saw_mem = saw_io = 0;
-	pbm_ranges = of_get_property(pbm->op->dev.of_node, "ranges", &i);
+	pbm_ranges = of_get_property(pbm->op->dev.of_analde, "ranges", &i);
 	if (!pbm_ranges) {
 		prom_printf("PCI: Fatal error, missing PBM ranges property "
 			    " for %s\n",
@@ -495,7 +495,7 @@ void pci_scan_for_target_abort(struct pci_pbm_info *pbm,
 		}
 	}
 
-	list_for_each_entry(bus, &pbus->children, node)
+	list_for_each_entry(bus, &pbus->children, analde)
 		pci_scan_for_target_abort(pbm, bus);
 }
 
@@ -518,7 +518,7 @@ void pci_scan_for_master_abort(struct pci_pbm_info *pbm,
 		}
 	}
 
-	list_for_each_entry(bus, &pbus->children, node)
+	list_for_each_entry(bus, &pbus->children, analde)
 		pci_scan_for_master_abort(pbm, bus);
 }
 
@@ -542,6 +542,6 @@ void pci_scan_for_parity_error(struct pci_pbm_info *pbm,
 		}
 	}
 
-	list_for_each_entry(bus, &pbus->children, node)
+	list_for_each_entry(bus, &pbus->children, analde)
 		pci_scan_for_parity_error(pbm, bus);
 }

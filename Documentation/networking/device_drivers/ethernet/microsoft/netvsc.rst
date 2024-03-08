@@ -75,7 +75,7 @@ SR-IOV support
   The VF is enslaved by netvsc device.  The netvsc driver will transparently
   switch the data path to the VF when it is available and up.
   Network state (addresses, firewall, etc) should be applied only to the
-  netvsc device; the slave device should not be accessed directly in
+  netvsc device; the slave device should analt be accessed directly in
   most cases.  The exceptions are if some special queue discipline or
   flow direction is desired, these should be applied directly to the
   VF slave device.
@@ -109,12 +109,12 @@ XDP support
 
   Setting / unsetting XDP program on synthetic NIC (netvsc) propagates to
   VF NIC automatically. Setting / unsetting XDP program on VF NIC directly
-  is not recommended, also not propagated to synthetic NIC, and may be
+  is analt recommended, also analt propagated to synthetic NIC, and may be
   overwritten by setting of synthetic NIC.
 
-  XDP program cannot run with LRO (RSC) enabled, so you need to disable LRO
+  XDP program cananalt run with LRO (RSC) enabled, so you need to disable LRO
   before running XDP::
 
 	ethtool -K eth0 lro off
 
-  XDP_REDIRECT action is not yet supported.
+  XDP_REDIRECT action is analt yet supported.

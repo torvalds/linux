@@ -203,11 +203,11 @@ static int vt8500_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	}
 
 	/*
-	 * We cannot skip calling ->config even if state->period ==
+	 * We cananalt skip calling ->config even if state->period ==
 	 * pwm->state.period && state->duty_cycle == pwm->state.duty_cycle
 	 * because we might have exited early in the last call to
 	 * pwm_apply_might_sleep because of !state->enabled and so the two values in
-	 * pwm->state might not be configured in hardware.
+	 * pwm->state might analt be configured in hardware.
 	 */
 	err = vt8500_pwm_config(chip, pwm, state->duty_cycle, state->period);
 	if (err)
@@ -232,15 +232,15 @@ MODULE_DEVICE_TABLE(of, vt8500_pwm_dt_ids);
 static int vt8500_pwm_probe(struct platform_device *pdev)
 {
 	struct vt8500_chip *vt8500;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	int ret;
 
 	if (!np)
-		return dev_err_probe(&pdev->dev, -EINVAL, "invalid devicetree node\n");
+		return dev_err_probe(&pdev->dev, -EINVAL, "invalid devicetree analde\n");
 
 	vt8500 = devm_kzalloc(&pdev->dev, sizeof(*vt8500), GFP_KERNEL);
 	if (vt8500 == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vt8500->chip.dev = &pdev->dev;
 	vt8500->chip.ops = &vt8500_pwm_ops;
@@ -248,7 +248,7 @@ static int vt8500_pwm_probe(struct platform_device *pdev)
 
 	vt8500->clk = devm_clk_get_prepared(&pdev->dev, NULL);
 	if (IS_ERR(vt8500->clk))
-		return dev_err_probe(&pdev->dev, PTR_ERR(vt8500->clk), "clock source not specified\n");
+		return dev_err_probe(&pdev->dev, PTR_ERR(vt8500->clk), "clock source analt specified\n");
 
 	vt8500->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(vt8500->base))

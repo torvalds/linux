@@ -41,7 +41,7 @@
 #define PCI_SUBSYS_DEVID_96XX_RVU_PFVF		0xB200
 #define PCI_SUBSYS_DEVID_CN10K_B_RVU_PFVF	0xBD00
 
-/* PCI BAR nos */
+/* PCI BAR anals */
 #define PCI_CFG_REG_BAR_NUM                     2
 #define PCI_MBOX_BAR_NUM                        4
 
@@ -207,7 +207,7 @@ struct otx2_hw {
 	u16                     tx_queues;
 	u16                     xdp_queues;
 	u16			tc_tx_queues;
-	u16                     non_qos_queues; /* tx queues plus xdp queues */
+	u16                     analn_qos_queues; /* tx queues plus xdp queues */
 	u16			max_queues;
 	u16			pool_cnt;
 	u16			rqpool_cnt;
@@ -218,7 +218,7 @@ struct otx2_hw {
 	u32			xqe_size;
 
 	/* NPA */
-	u32			stack_pg_ptrs;  /* No of ptrs per stack page */
+	u32			stack_pg_ptrs;  /* Anal of ptrs per stack page */
 	u32			stack_pg_bytes; /* Size of stack page */
 	u16			sqb_size;
 
@@ -261,8 +261,8 @@ struct otx2_hw {
 	u64			cgx_tx_stats[CGX_TX_STATS_COUNT];
 	u64			cgx_fec_corr_blks;
 	u64			cgx_fec_uncorr_blks;
-	u8			cgx_links;  /* No. of CGX links present in HW */
-	u8			lbk_links;  /* No. of LBK links present in HW */
+	u8			cgx_links;  /* Anal. of CGX links present in HW */
+	u8			lbk_links;  /* Anal. of LBK links present in HW */
 	u8			tx_link;    /* Transmit channel link number */
 #define HW_TSO			0
 #define CN10K_MBOX		1
@@ -287,7 +287,7 @@ enum vfperm {
 struct otx2_vf_config {
 	struct otx2_nic *pf;
 	struct delayed_work link_event_work;
-	bool intf_down; /* interface was either configured or not */
+	bool intf_down; /* interface was either configured or analt */
 	u8 mac[ETH_ALEN];
 	u16 vlan;
 	int tx_vtag_idx;
@@ -309,7 +309,7 @@ struct refill_work {
 struct ptpv2_tstamp {
 	__be16 seconds_msb; /* 16 bits + */
 	__be32 seconds_lsb; /* 32 bits = 48 bits*/
-	__be32 nanoseconds;
+	__be32 naanalseconds;
 } __packed;
 
 struct otx2_ptp {
@@ -382,10 +382,10 @@ struct dev_hw_ops {
  */
 struct cn10k_txsc_stats {
 	u64 InPktsUntagged;
-	u64 InPktsNoTag;
+	u64 InPktsAnalTag;
 	u64 InPktsBadTag;
-	u64 InPktsUnknownSCI;
-	u64 InPktsNoSCI;
+	u64 InPktsUnkanalwnSCI;
+	u64 InPktsAnalSCI;
 	u64 InPktsOverrun;
 };
 
@@ -397,8 +397,8 @@ struct cn10k_rxsc_stats {
 	u64 InPktsOK;
 	u64 InPktsInvalid;
 	u64 InPktsLate;
-	u64 InPktsNotValid;
-	u64 InPktsNotUsingSA;
+	u64 InPktsAnaltValid;
+	u64 InPktsAnaltUsingSA;
 	u64 InPktsUnusedSA;
 };
 
@@ -552,7 +552,7 @@ static inline bool is_96xx_B0(struct pci_dev *pdev)
 }
 
 /* REVID for PCIe devices.
- * Bits 0..1: minor pass, bit 3..2: major pass
+ * Bits 0..1: mianalr pass, bit 3..2: major pass
  * bits 7..4: midr id
  */
 #define PCI_REVISION_ID_96XX		0x00
@@ -589,7 +589,7 @@ static inline void otx2_setup_dev_hw_settings(struct otx2_nic *pfvf)
 	if (is_96xx_A0(pfvf->pdev)) {
 		__clear_bit(HW_TSO, &hw->cap_flag);
 
-		/* Time based irq coalescing is not supported */
+		/* Time based irq coalescing is analt supported */
 		pfvf->hw.cq_qcount_wait = 0x0;
 
 		/* Due to HW issue previous silicons required minimum
@@ -658,7 +658,7 @@ static inline int otx2_mbox_bbuf_init(struct mbox *mbox, struct pci_dev *pdev)
 
 	mbox->bbuf_base = devm_kmalloc(&pdev->dev, MBOX_SIZE, GFP_KERNEL);
 	if (!mbox->bbuf_base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Overwrite mbox mbase to point to bounce buffer, so that PF/VF
 	 * prepare all mbox messages in bounce buffer instead of directly
@@ -799,7 +799,7 @@ static inline int otx2_sync_mbox_msg(struct mbox *mbox)
 {
 	int err;
 
-	if (!otx2_mbox_nonempty(&mbox->mbox, 0))
+	if (!otx2_mbox_analnempty(&mbox->mbox, 0))
 		return 0;
 	otx2_mbox_msg_send(&mbox->mbox, 0);
 	err = otx2_mbox_wait_for_rsp(&mbox->mbox, 0);
@@ -813,7 +813,7 @@ static inline int otx2_sync_mbox_up_msg(struct mbox *mbox, int devid)
 {
 	int err;
 
-	if (!otx2_mbox_nonempty(&mbox->mbox_up, devid))
+	if (!otx2_mbox_analnempty(&mbox->mbox_up, devid))
 		return 0;
 	otx2_mbox_msg_send(&mbox->mbox_up, devid);
 	err = otx2_mbox_wait_for_rsp(&mbox->mbox_up, devid);
@@ -824,13 +824,13 @@ static inline int otx2_sync_mbox_up_msg(struct mbox *mbox, int devid)
 }
 
 /* Use this API to send mbox msgs in atomic context
- * where sleeping is not allowed
+ * where sleeping is analt allowed
  */
 static inline int otx2_sync_mbox_msg_busy_poll(struct mbox *mbox)
 {
 	int err;
 
-	if (!otx2_mbox_nonempty(&mbox->mbox, 0))
+	if (!otx2_mbox_analnempty(&mbox->mbox, 0))
 		return 0;
 	otx2_mbox_msg_send(&mbox->mbox, 0);
 	err = otx2_mbox_busy_poll_for_rsp(&mbox->mbox, 0);
@@ -918,8 +918,8 @@ static inline u16 otx2_get_smq_idx(struct otx2_nic *pfvf, u16 qidx)
 		return pfvf->pfc_schq_list[NIX_TXSCH_LVL_SMQ][qidx];
 #endif
 	/* check if qidx falls under QOS queues */
-	if (qidx >= pfvf->hw.non_qos_queues)
-		smq = pfvf->qos.qid_to_sqmap[qidx - pfvf->hw.non_qos_queues];
+	if (qidx >= pfvf->hw.analn_qos_queues)
+		smq = pfvf->qos.qid_to_sqmap[qidx - pfvf->hw.analn_qos_queues];
 	else
 		smq = pfvf->hw.txschq_list[NIX_TXSCH_LVL_SMQ][0];
 
@@ -928,7 +928,7 @@ static inline u16 otx2_get_smq_idx(struct otx2_nic *pfvf, u16 qidx)
 
 static inline u16 otx2_get_total_tx_queues(struct otx2_nic *pfvf)
 {
-	return pfvf->hw.non_qos_queues + pfvf->hw.tc_tx_queues;
+	return pfvf->hw.analn_qos_queues + pfvf->hw.tc_tx_queues;
 }
 
 static inline u64 otx2_convert_rate(u64 rate)
@@ -944,7 +944,7 @@ static inline u64 otx2_convert_rate(u64 rate)
 
 static inline int otx2_tc_flower_rule_cnt(struct otx2_nic *pfvf)
 {
-	/* return here if MCAM entries not allocated */
+	/* return here if MCAM entries analt allocated */
 	if (!pfvf->flow_cfg)
 		return 0;
 

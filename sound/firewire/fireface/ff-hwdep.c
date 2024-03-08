@@ -8,8 +8,8 @@
 /*
  * This codes give three functionality.
  *
- * 1.get firewire node information
- * 2.get notification about starting/stopping stream
+ * 1.get firewire analde information
+ * 2.get analtification about starting/stopping stream
  * 3.lock/unlock stream
  */
 
@@ -55,7 +55,7 @@ static long hwdep_read(struct snd_hwdep *hwdep, char __user *buf,  long count,
 			return -EFAULT;
 		count = sizeof(ev);
 	} else if (has_msg(ff)) {
-		// NOTE: Acquired spin lock should be released before accessing to user space in the
+		// ANALTE: Acquired spin lock should be released before accessing to user space in the
 		// callback since the access can cause page fault.
 		count = ff->spec->protocol->copy_msg_to_user(ff, buf, count);
 		spin_unlock_irq(&ff->lock);
@@ -78,7 +78,7 @@ static __poll_t hwdep_poll(struct snd_hwdep *hwdep, struct file *file,
 
 	spin_lock_irq(&ff->lock);
 	if (ff->dev_lock_changed || has_msg(ff))
-		events = EPOLLIN | EPOLLRDNORM;
+		events = EPOLLIN | EPOLLRDANALRM;
 	else
 		events = 0;
 	spin_unlock_irq(&ff->lock);
@@ -166,7 +166,7 @@ static int hwdep_ioctl(struct snd_hwdep *hwdep, struct file *file,
 	case SNDRV_FIREWIRE_IOCTL_UNLOCK:
 		return hwdep_unlock(ff);
 	default:
-		return -ENOIOCTLCMD;
+		return -EANALIOCTLCMD;
 	}
 }
 

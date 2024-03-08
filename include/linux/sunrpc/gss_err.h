@@ -10,20 +10,20 @@
  */
 
 /*
- * Copyright 1993 by OpenVision Technologies, Inc.
+ * Copyright 1993 by OpenVision Techanallogies, Inc.
  * 
  * Permission to use, copy, modify, distribute, and sell this software
  * and its documentation for any purpose is hereby granted without fee,
- * provided that the above copyright notice appears in all copies and
- * that both that copyright notice and this permission notice appear in
- * supporting documentation, and that the name of OpenVision not be used
+ * provided that the above copyright analtice appears in all copies and
+ * that both that copyright analtice and this permission analtice appear in
+ * supporting documentation, and that the name of OpenVision analt be used
  * in advertising or publicity pertaining to distribution of the software
- * without specific, written prior permission. OpenVision makes no
+ * without specific, written prior permission. OpenVision makes anal
  * representations about the suitability of this software for any
  * purpose.  It is provided "as is" without express or implied warranty.
  * 
  * OPENVISION DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE,
- * INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO
+ * INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN ANAL
  * EVENT SHALL OPENVISION BE LIABLE FOR ANY SPECIAL, INDIRECT OR
  * CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
  * USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
@@ -45,7 +45,7 @@ typedef unsigned int OM_uint32;
 #define GSS_C_SEQUENCE_FLAG 8
 #define GSS_C_CONF_FLAG 16
 #define GSS_C_INTEG_FLAG 32
-#define	GSS_C_ANON_FLAG 64
+#define	GSS_C_AANALN_FLAG 64
 #define GSS_C_PROT_READY_FLAG 128
 #define GSS_C_TRANS_FLAG 256
 
@@ -85,8 +85,8 @@ typedef unsigned int OM_uint32;
 #define GSS_C_SUPPLEMENTARY_MASK ((OM_uint32) 0177777ul)
 
 /*
- * The macros that test status codes for error conditions.  Note that the
- * GSS_ERROR() macro has changed slightly from the V1 GSSAPI so that it now
+ * The macros that test status codes for error conditions.  Analte that the
+ * GSS_ERROR() macro has changed slightly from the V1 GSSAPI so that it analw
  * evaluates its argument only once.
  */
 #define GSS_CALLING_ERROR(x) \
@@ -100,7 +100,7 @@ typedef unsigned int OM_uint32;
 	  (GSS_C_ROUTINE_ERROR_MASK << GSS_C_ROUTINE_ERROR_OFFSET)))
 
 /*
- * Now the actual status code definitions
+ * Analw the actual status code definitions
  */
 
 /*
@@ -122,8 +122,8 @@ typedef unsigned int OM_uint32;
 #define GSS_S_BAD_BINDINGS (((OM_uint32) 4ul) << GSS_C_ROUTINE_ERROR_OFFSET)
 #define GSS_S_BAD_STATUS (((OM_uint32) 5ul) << GSS_C_ROUTINE_ERROR_OFFSET)
 #define GSS_S_BAD_SIG (((OM_uint32) 6ul) << GSS_C_ROUTINE_ERROR_OFFSET)
-#define GSS_S_NO_CRED (((OM_uint32) 7ul) << GSS_C_ROUTINE_ERROR_OFFSET)
-#define GSS_S_NO_CONTEXT (((OM_uint32) 8ul) << GSS_C_ROUTINE_ERROR_OFFSET)
+#define GSS_S_ANAL_CRED (((OM_uint32) 7ul) << GSS_C_ROUTINE_ERROR_OFFSET)
+#define GSS_S_ANAL_CONTEXT (((OM_uint32) 8ul) << GSS_C_ROUTINE_ERROR_OFFSET)
 #define GSS_S_DEFECTIVE_TOKEN (((OM_uint32) 9ul) << GSS_C_ROUTINE_ERROR_OFFSET)
 #define GSS_S_DEFECTIVE_CREDENTIAL \
      (((OM_uint32) 10ul) << GSS_C_ROUTINE_ERROR_OFFSET)
@@ -137,7 +137,7 @@ typedef unsigned int OM_uint32;
 #define GSS_S_UNAVAILABLE (((OM_uint32) 16ul) << GSS_C_ROUTINE_ERROR_OFFSET)
 #define GSS_S_DUPLICATE_ELEMENT \
      (((OM_uint32) 17ul) << GSS_C_ROUTINE_ERROR_OFFSET)
-#define GSS_S_NAME_NOT_MN \
+#define GSS_S_NAME_ANALT_MN \
      (((OM_uint32) 18ul) << GSS_C_ROUTINE_ERROR_OFFSET)
 
 /*
@@ -149,7 +149,7 @@ typedef unsigned int OM_uint32;
 #define GSS_S_UNSEQ_TOKEN (1 << (GSS_C_SUPPLEMENTARY_OFFSET + 3))
 #define GSS_S_GAP_TOKEN (1 << (GSS_C_SUPPLEMENTARY_OFFSET + 4))
 
-/* XXXX these are not part of the GSSAPI C bindings!  (but should be) */
+/* XXXX these are analt part of the GSSAPI C bindings!  (but should be) */
 
 #define GSS_CALLING_ERROR_FIELD(x) \
    (((x) >> GSS_C_CALLING_ERROR_OFFSET) & GSS_C_CALLING_ERROR_MASK)

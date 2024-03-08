@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Functions for setting up and using a MPC106 northbridge
+ * Functions for setting up and using a MPC106 analrthbridge
  * Extracted from arch/powerpc/platforms/powermac/pci.c.
  *
  * Copyright (C) 2003 Benjamin Herrenschmuidt (benh@kernel.crashing.org)
@@ -18,16 +18,16 @@
 #define GRACKLE_CFA(b, d, o)	(0x80 | ((b) << 8) | ((d) << 16) \
 				 | (((o) & ~3) << 24))
 
-#define GRACKLE_PICR1_LOOPSNOOP		0x00000010
+#define GRACKLE_PICR1_LOOPSANALOP		0x00000010
 
-static inline void grackle_set_loop_snoop(struct pci_controller *bp, int enable)
+static inline void grackle_set_loop_sanalop(struct pci_controller *bp, int enable)
 {
 	unsigned int val;
 
 	out_be32(bp->cfg_addr, GRACKLE_CFA(0, 0, 0xa8));
 	val = in_le32(bp->cfg_data);
-	val = enable? (val | GRACKLE_PICR1_LOOPSNOOP) :
-		(val & ~GRACKLE_PICR1_LOOPSNOOP);
+	val = enable? (val | GRACKLE_PICR1_LOOPSANALOP) :
+		(val & ~GRACKLE_PICR1_LOOPSANALOP);
 	out_be32(bp->cfg_addr, GRACKLE_CFA(0, 0, 0xa8));
 	out_le32(bp->cfg_data, val);
 	(void)in_le32(bp->cfg_data);
@@ -39,5 +39,5 @@ void __init setup_grackle(struct pci_controller *hose)
 	if (of_machine_is_compatible("PowerMac1,1"))
 		pci_add_flags(PCI_REASSIGN_ALL_BUS);
 	if (of_machine_is_compatible("AAPL,PowerBook1998"))
-		grackle_set_loop_snoop(hose, 1);
+		grackle_set_loop_sanalop(hose, 1);
 }

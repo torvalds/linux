@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * FriendlyElec NanoPi M4 board device tree source
+ * FriendlyElec NaanalPi M4 board device tree source
  *
  * Copyright (c) 2018 FriendlyElec Computer Tech. Co., Ltd.
  * (http://www.friendlyarm.com)
@@ -10,11 +10,11 @@
  */
 
 /dts-v1/;
-#include "rk3399-nanopi4.dtsi"
+#include "rk3399-naanalpi4.dtsi"
 
 / {
-	model = "FriendlyElec NanoPi M4";
-	compatible = "friendlyarm,nanopi-m4", "rockchip,rk3399";
+	model = "FriendlyElec NaanalPi M4";
+	compatible = "friendlyarm,naanalpi-m4", "rockchip,rk3399";
 
 	vdd_5v: vdd-5v {
 		compatible = "regulator-fixed";

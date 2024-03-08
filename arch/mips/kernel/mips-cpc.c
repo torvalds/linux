@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C) 2013 Imagination Technologies
+ * Copyright (C) 2013 Imagination Techanallogies
  * Author: Paul Burton <paul.burton@mips.com>
  */
 
 #include <linux/bitfield.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/percpu.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
@@ -21,14 +21,14 @@ static DEFINE_PER_CPU_ALIGNED(unsigned long, cpc_core_lock_flags);
 
 phys_addr_t __weak mips_cpc_default_phys_base(void)
 {
-	struct device_node *cpc_node;
+	struct device_analde *cpc_analde;
 	struct resource res;
 	int err;
 
-	cpc_node = of_find_compatible_node(of_root, NULL, "mti,mips-cpc");
-	if (cpc_node) {
-		err = of_address_to_resource(cpc_node, 0, &res);
-		of_node_put(cpc_node);
+	cpc_analde = of_find_compatible_analde(of_root, NULL, "mti,mips-cpc");
+	if (cpc_analde) {
+		err = of_address_to_resource(cpc_analde, 0, &res);
+		of_analde_put(cpc_analde);
 		if (!err)
 			return res.start;
 	}
@@ -40,7 +40,7 @@ phys_addr_t __weak mips_cpc_default_phys_base(void)
  * mips_cpc_phys_base - retrieve the physical base address of the CPC
  *
  * This function returns the physical base address of the Cluster Power
- * Controller memory mapped registers, or 0 if no Cluster Power Controller
+ * Controller memory mapped registers, or 0 if anal Cluster Power Controller
  * is present.
  */
 static phys_addr_t mips_cpc_phys_base(void)
@@ -78,7 +78,7 @@ int mips_cpc_probe(void)
 
 	addr = mips_cpc_phys_base();
 	if (!addr)
-		return -ENODEV;
+		return -EANALDEV;
 
 	mips_cpc_base = ioremap(addr, 0x8000);
 	if (!mips_cpc_base)

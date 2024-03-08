@@ -8,7 +8,7 @@
 #include <linux/module.h>
 #include <linux/sched/signal.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/cdev.h>
 #include <linux/fs.h>
 #include <linux/device.h>
@@ -64,7 +64,7 @@ DEFINE_SPINLOCK(msg_queue_spinlock);
 struct vchiq_state g_state;
 
 /*
- * The devices implemented in the VCHIQ firmware are not discoverable,
+ * The devices implemented in the VCHIQ firmware are analt discoverable,
  * so we need to maintain a list of them in order to register them with
  * the interface.
  */
@@ -105,7 +105,7 @@ struct vchiq_arm_state {
 
 	/*
 	 * Use count to track requests from videocore peer.
-	 * This use count is not associated with a service, so needs to be
+	 * This use count is analt associated with a service, so needs to be
 	 * tracked separately with the state.
 	 */
 	int peer_use_count;
@@ -141,7 +141,7 @@ static void __iomem *g_regs;
  * offsets/sizes in pagelists.
  *
  * Modern VPU firmware looks for a DT "cache-line-size" property in
- * the VCHIQ node and will overwrite it with the actual L2 cache size,
+ * the VCHIQ analde and will overwrite it with the actual L2 cache size,
  * which the kernel must then respect.  That property was rejected
  * upstream, so we have to use the VPU firmware's compatibility value
  * of 32.
@@ -162,7 +162,7 @@ static irqreturn_t
 vchiq_doorbell_irq(int irq, void *dev_id)
 {
 	struct vchiq_state *state = dev_id;
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 	unsigned int status;
 
 	/* Read (and clear) the doorbell */
@@ -249,7 +249,7 @@ create_pagelist(struct vchiq_instance *instance, char *buf, char __user *ubuf,
 			(num_pages * sizeof(struct scatterlist))) +
 			sizeof(struct vchiq_pagelist_info);
 
-	/* Allocate enough storage to hold the page pointers and the page
+	/* Allocate eanalugh storage to hold the page pointers and the page
 	 * list
 	 */
 	pagelist = dma_alloc_coherent(instance->state->dev, pagelist_size, &dma_addr,
@@ -304,7 +304,7 @@ create_pagelist(struct vchiq_instance *instance, char *buf, char __user *ubuf,
 			length -= bytes;
 			off = 0;
 		}
-		/* do not try and release vmalloc pages */
+		/* do analt try and release vmalloc pages */
 	} else {
 		actual_pages = pin_user_pages_fast((unsigned long)ubuf & PAGE_MASK, num_pages,
 						   type == PAGELIST_READ, pages);
@@ -328,7 +328,7 @@ create_pagelist(struct vchiq_instance *instance, char *buf, char __user *ubuf,
 	 *  is filled if debugging is enabled
 	 */
 	sg_init_table(scatterlist, num_pages);
-	/* Now set the pages for each scatterlist */
+	/* Analw set the pages for each scatterlist */
 	for (i = 0; i < num_pages; i++)	{
 		unsigned int len = PAGE_SIZE - offset;
 
@@ -357,7 +357,7 @@ create_pagelist(struct vchiq_instance *instance, char *buf, char __user *ubuf,
 		u32 len = sg_dma_len(sg);
 		u32 addr = sg_dma_address(sg);
 
-		/* Note: addrs is the address + page_count - 1
+		/* Analte: addrs is the address + page_count - 1
 		 * The firmware expects blocks after the first to be page-
 		 * aligned and a multiple of the page size
 		 */
@@ -408,7 +408,7 @@ free_pagelist(struct vchiq_instance *instance, struct vchiq_pagelist_info *pagel
 	dev_dbg(instance->state->dev, "arm: %pK, %d\n", pagelistinfo->pagelist, actual);
 
 	/*
-	 * NOTE: dma_unmap_sg must be called before the
+	 * ANALTE: dma_unmap_sg must be called before the
 	 * cpu can touch any of the data/pages.
 	 */
 	dma_unmap_sg(instance->state->dev, pagelistinfo->scatterlist,
@@ -494,15 +494,15 @@ static int vchiq_platform_init(struct platform_device *pdev, struct vchiq_state 
 	slot_mem = dmam_alloc_coherent(dev, slot_mem_size + frag_mem_size,
 				       &slot_phys, GFP_KERNEL);
 	if (!slot_mem) {
-		dev_err(dev, "could not allocate DMA memory\n");
-		return -ENOMEM;
+		dev_err(dev, "could analt allocate DMA memory\n");
+		return -EANALMEM;
 	}
 
 	WARN_ON(((unsigned long)slot_mem & (PAGE_SIZE - 1)) != 0);
 
 	vchiq_slot_zero = vchiq_init_slots(dev, slot_mem, slot_mem_size);
 	if (!vchiq_slot_zero)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vchiq_slot_zero->platform_data[VCHIQ_PLATFORM_FRAGMENTS_OFFSET_IDX] =
 		(int)slot_phys + slot_mem_size;
@@ -585,7 +585,7 @@ vchiq_platform_init_state(struct vchiq_state *state)
 
 	state->platform_state = kzalloc(sizeof(*platform_state), GFP_KERNEL);
 	if (!state->platform_state)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_state = (struct vchiq_2835_state *)state->platform_state;
 
@@ -635,7 +635,7 @@ vchiq_prepare_bulk_data(struct vchiq_instance *instance, struct vchiq_bulk *bulk
 				       : PAGELIST_WRITE);
 
 	if (!pagelistinfo)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bulk->data = pagelistinfo->dma_addr;
 
@@ -669,7 +669,7 @@ int vchiq_initialise(struct vchiq_instance **instance_out)
 	int i, ret;
 
 	/*
-	 * VideoCore may not be ready due to boot up timing.
+	 * VideoCore may analt be ready due to boot up timing.
 	 * It may never be ready if kernel and firmware are mismatched,so don't
 	 * block forever.
 	 */
@@ -680,8 +680,8 @@ int vchiq_initialise(struct vchiq_instance **instance_out)
 		usleep_range(500, 600);
 	}
 	if (i == VCHIQ_INIT_RETRIES) {
-		dev_err(state->dev, "core: %s: Videocore not initialized\n", __func__);
-		ret = -ENOTCONN;
+		dev_err(state->dev, "core: %s: Videocore analt initialized\n", __func__);
+		ret = -EANALTCONN;
 		goto failed;
 	} else if (i > 0) {
 		dev_warn(state->dev, "core: %s: videocore initialized after %d retries\n",
@@ -690,8 +690,8 @@ int vchiq_initialise(struct vchiq_instance **instance_out)
 
 	instance = kzalloc(sizeof(*instance), GFP_KERNEL);
 	if (!instance) {
-		dev_err(state->dev, "core: %s: Cannot allocate vchiq instance\n", __func__);
-		ret = -ENOMEM;
+		dev_err(state->dev, "core: %s: Cananalt allocate vchiq instance\n", __func__);
+		ret = -EANALMEM;
 		goto failed;
 	}
 
@@ -713,7 +713,7 @@ EXPORT_SYMBOL(vchiq_initialise);
 
 void free_bulk_waiter(struct vchiq_instance *instance)
 {
-	struct bulk_waiter_node *waiter, *next;
+	struct bulk_waiter_analde *waiter, *next;
 
 	list_for_each_entry_safe(waiter, next,
 				 &instance->bulk_waiter_list, list) {
@@ -847,7 +847,7 @@ vchiq_bulk_transmit(struct vchiq_instance *instance, unsigned int handle, const 
 
 	while (1) {
 		switch (mode) {
-		case VCHIQ_BULK_MODE_NOCALLBACK:
+		case VCHIQ_BULK_MODE_ANALCALLBACK:
 		case VCHIQ_BULK_MODE_CALLBACK:
 			status = vchiq_bulk_transfer(instance, handle,
 						     (void *)data, NULL,
@@ -885,7 +885,7 @@ int vchiq_bulk_receive(struct vchiq_instance *instance, unsigned int handle,
 
 	while (1) {
 		switch (mode) {
-		case VCHIQ_BULK_MODE_NOCALLBACK:
+		case VCHIQ_BULK_MODE_ANALCALLBACK:
 		case VCHIQ_BULK_MODE_CALLBACK:
 			status = vchiq_bulk_transfer(instance, handle, data, NULL,
 						     size, userdata,
@@ -920,7 +920,7 @@ vchiq_blocking_bulk_transfer(struct vchiq_instance *instance, unsigned int handl
 {
 	struct vchiq_service *service;
 	int status;
-	struct bulk_waiter_node *waiter = NULL, *iter;
+	struct bulk_waiter_analde *waiter = NULL, *iter;
 
 	service = find_service_by_handle(instance, handle);
 	if (!service)
@@ -946,7 +946,7 @@ vchiq_blocking_bulk_transfer(struct vchiq_instance *instance, unsigned int handl
 			/* FIXME: why compare a dma address to a pointer? */
 			if ((bulk->data != (dma_addr_t)(uintptr_t)data) || (bulk->size != size)) {
 				/*
-				 * This is not a retry of the previous one.
+				 * This is analt a retry of the previous one.
 				 * Cancel the signal when the transfer completes.
 				 */
 				spin_lock(&bulk_waiter_spinlock);
@@ -958,7 +958,7 @@ vchiq_blocking_bulk_transfer(struct vchiq_instance *instance, unsigned int handl
 		waiter = kzalloc(sizeof(*waiter), GFP_KERNEL);
 		if (!waiter) {
 			dev_err(service->state->dev, "core: %s: - Out of memory\n", __func__);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 
@@ -1024,7 +1024,7 @@ add_completion(struct vchiq_instance *instance, enum vchiq_reason reason,
 	if (reason == VCHIQ_SERVICE_CLOSED) {
 		/*
 		 * Take an extra reference, to be held until
-		 * this CLOSED notification is delivered.
+		 * this CLOSED analtification is delivered.
 		 */
 		vchiq_service_get(user_service->service);
 		if (instance->use_close_delivered)
@@ -1101,7 +1101,7 @@ service_callback(struct vchiq_instance *instance, enum vchiq_reason reason,
 			DEBUG_COUNT(MSG_QUEUE_FULL_COUNT);
 			dev_dbg(service->state->dev, "arm: msg queue full\n");
 			/*
-			 * If there is no MESSAGE_AVAILABLE in the completion
+			 * If there is anal MESSAGE_AVAILABLE in the completion
 			 * queue, add one
 			 */
 			if ((user_service->message_available_pos -
@@ -1176,7 +1176,7 @@ void vchiq_dump_platform_instances(struct seq_file *f)
 		return;
 
 	/*
-	 * There is no list of instances, so instead scan all services,
+	 * There is anal list of instances, so instead scan all services,
 	 * marking those that have been dumped.
 	 */
 
@@ -1253,7 +1253,7 @@ vchiq_get_state(void)
 	}
 
 	if (g_state.remote->initialised != 1) {
-		pr_notice("%s: g_state.remote->initialised != 1 (%d)\n",
+		pr_analtice("%s: g_state.remote->initialised != 1 (%d)\n",
 			  __func__, g_state.remote->initialised);
 		return NULL;
 	}
@@ -1399,7 +1399,7 @@ vchiq_use_internal(struct vchiq_state *state, struct vchiq_service *service,
 		long ack_cnt = atomic_xchg(&arm_state->ka_use_ack_count, 0);
 
 		while (ack_cnt && !status) {
-			/* Send the use notify to videocore */
+			/* Send the use analtify to videocore */
 			status = vchiq_send_remote_use_active(state);
 			if (!status)
 				ack_cnt--;
@@ -1488,10 +1488,10 @@ vchiq_release_service_internal(struct vchiq_service *service)
 	return vchiq_release_internal(service->state, service);
 }
 
-struct vchiq_debugfs_node *
-vchiq_instance_get_debugfs_node(struct vchiq_instance *instance)
+struct vchiq_debugfs_analde *
+vchiq_instance_get_debugfs_analde(struct vchiq_instance *instance)
 {
-	return &instance->debugfs_node;
+	return &instance->debugfs_analde;
 }
 
 int
@@ -1578,9 +1578,9 @@ vchiq_dump_service_use_state(struct vchiq_state *state)
 	int i, found = 0;
 	/*
 	 * If there's more than 64 services, only dump ones with
-	 * non-zero counts
+	 * analn-zero counts
 	 */
-	int only_nonzero = 0;
+	int only_analnzero = 0;
 	static const char *nz = "<-- preventing suspend";
 
 	int peer_count;
@@ -1600,7 +1600,7 @@ vchiq_dump_service_use_state(struct vchiq_state *state)
 	vc_use_count = arm_state->videocore_use_count;
 	active_services = state->unused_service;
 	if (active_services > MAX_SERVICES)
-		only_nonzero = 1;
+		only_analnzero = 1;
 
 	rcu_read_lock();
 	for (i = 0; i < active_services; i++) {
@@ -1610,7 +1610,7 @@ vchiq_dump_service_use_state(struct vchiq_state *state)
 		if (!service_ptr)
 			continue;
 
-		if (only_nonzero && !service_ptr->service_use_count)
+		if (only_analnzero && !service_ptr->service_use_count)
 			continue;
 
 		if (service_ptr->srvstate == VCHIQ_SRVSTATE_FREE)
@@ -1627,9 +1627,9 @@ vchiq_dump_service_use_state(struct vchiq_state *state)
 
 	read_unlock_bh(&arm_state->susp_res_lock);
 
-	if (only_nonzero)
+	if (only_analnzero)
 		dev_warn(state->dev,
-			 "suspend: Too many active services (%d). Only dumping up to first %d services with non-zero use-count\n",
+			 "suspend: Too many active services (%d). Only dumping up to first %d services with analn-zero use-count\n",
 			 active_services, found);
 
 	for (i = 0; i < found; i++) {
@@ -1714,25 +1714,25 @@ MODULE_DEVICE_TABLE(of, vchiq_of_match);
 
 static int vchiq_probe(struct platform_device *pdev)
 {
-	struct device_node *fw_node;
+	struct device_analde *fw_analde;
 	const struct of_device_id *of_id;
 	struct vchiq_drvdata *drvdata;
 	int err;
 
-	of_id = of_match_node(vchiq_of_match, pdev->dev.of_node);
+	of_id = of_match_analde(vchiq_of_match, pdev->dev.of_analde);
 	drvdata = (struct vchiq_drvdata *)of_id->data;
 	if (!drvdata)
 		return -EINVAL;
 
-	fw_node = of_find_compatible_node(NULL, NULL,
+	fw_analde = of_find_compatible_analde(NULL, NULL,
 					  "raspberrypi,bcm2835-firmware");
-	if (!fw_node) {
-		dev_err(&pdev->dev, "Missing firmware node\n");
-		return -ENOENT;
+	if (!fw_analde) {
+		dev_err(&pdev->dev, "Missing firmware analde\n");
+		return -EANALENT;
 	}
 
-	drvdata->fw = devm_rpi_firmware_get(&pdev->dev, fw_node);
-	of_node_put(fw_node);
+	drvdata->fw = devm_rpi_firmware_get(&pdev->dev, fw_analde);
+	of_analde_put(fw_analde);
 	if (!drvdata->fw)
 		return -EPROBE_DEFER;
 
@@ -1763,7 +1763,7 @@ static int vchiq_probe(struct platform_device *pdev)
 	return 0;
 
 failed_platform_init:
-	dev_warn(&pdev->dev, "arm: Could not initialize vchiq platform\n");
+	dev_warn(&pdev->dev, "arm: Could analt initialize vchiq platform\n");
 error_exit:
 	return err;
 }

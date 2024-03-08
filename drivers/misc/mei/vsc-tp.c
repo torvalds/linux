@@ -72,8 +72,8 @@ struct vsc_tp {
 	atomic_t assert_cnt;
 	wait_queue_head_t xfer_wait;
 
-	vsc_tp_event_cb_t event_notify;
-	void *event_notify_context;
+	vsc_tp_event_cb_t event_analtify;
+	void *event_analtify_context;
 
 	/* used to protect command download */
 	struct mutex mutex;
@@ -334,7 +334,7 @@ void vsc_tp_reset(struct vsc_tp *tp)
 	msleep(VSC_TP_ROM_BOOTUP_DELAY_MS);
 
 	/*
-	 * Set default host wakeup pin to non-active
+	 * Set default host wakeup pin to analn-active
 	 * to avoid unexpected host irq interrupt.
 	 */
 	gpiod_set_value_cansleep(tp->wakeupfw, 1);
@@ -373,8 +373,8 @@ EXPORT_SYMBOL_NS_GPL(vsc_tp_need_read, VSC_TP);
 int vsc_tp_register_event_cb(struct vsc_tp *tp, vsc_tp_event_cb_t event_cb,
 			    void *context)
 {
-	tp->event_notify = event_cb;
-	tp->event_notify_context = context;
+	tp->event_analtify = event_cb;
+	tp->event_analtify_context = context;
 
 	return 0;
 }
@@ -425,8 +425,8 @@ static irqreturn_t vsc_tp_thread_isr(int irq, void *data)
 {
 	struct vsc_tp *tp = data;
 
-	if (tp->event_notify)
-		tp->event_notify(tp->event_notify_context);
+	if (tp->event_analtify)
+		tp->event_analtify(tp->event_analtify_context);
 
 	return IRQ_HANDLED;
 }
@@ -451,15 +451,15 @@ static int vsc_tp_probe(struct spi_device *spi)
 
 	tp = devm_kzalloc(dev, sizeof(*tp), GFP_KERNEL);
 	if (!tp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tp->tx_buf = devm_kzalloc(dev, VSC_TP_MAX_XFER_SIZE, GFP_KERNEL);
 	if (!tp->tx_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tp->rx_buf = devm_kzalloc(dev, VSC_TP_MAX_XFER_SIZE, GFP_KERNEL);
 	if (!tp->rx_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = devm_acpi_dev_add_driver_gpios(dev, vsc_tp_acpi_gpios);
 	if (ret)
@@ -495,15 +495,15 @@ static int vsc_tp_probe(struct spi_device *spi)
 	ret = acpi_dev_for_each_child(ACPI_COMPANION(dev),
 				      vsc_tp_match_any, &adev);
 	if (!ret) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_destroy_lock;
 	}
-	pinfo.fwnode = acpi_fwnode_handle(adev);
+	pinfo.fwanalde = acpi_fwanalde_handle(adev);
 
 	pinfo.name = "intel_vsc";
 	pinfo.data = &tp;
 	pinfo.size_data = sizeof(tp);
-	pinfo.id = PLATFORM_DEVID_NONE;
+	pinfo.id = PLATFORM_DEVID_ANALNE;
 
 	pdev = platform_device_register_full(&pinfo);
 	if (IS_ERR(pdev)) {

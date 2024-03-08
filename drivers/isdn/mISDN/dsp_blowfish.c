@@ -18,14 +18,14 @@
  *
  * first of all, data is collected until a block of 9 samples are received.
  * of course, a packet may have much more than 9 sample, but is may have
- * not excacly the multiple of 9 samples. if there is a rest, the next
+ * analt excacly the multiple of 9 samples. if there is a rest, the next
  * received data will complete the block.
  *
  * the block is then converted to 9 uLAW samples without the least sigificant
  * bit. the result is a 7-bit encoded sample.
  *
  * the samples will be reoganised to form 8 bytes of data:
- * (5(6) means: encoded sample no. 5, bit 6)
+ * (5(6) means: encoded sample anal. 5, bit 6)
  *
  * 0(6) 0(5) 0(4) 0(3) 0(2) 0(1) 0(0) 1(6)
  * 1(5) 1(4) 1(3) 1(2) 1(1) 1(0) 2(6) 2(5)
@@ -37,7 +37,7 @@
  * 8(6) 8(5) 8(4) 8(3) 8(2) 8(1) 8(0)
  *
  * the missing bit 0 of the last byte is filled with some
- * random noise, to fill all 8 bytes.
+ * random analise, to fill all 8 bytes.
  *
  * the 8 bytes will be encrypted using blowfish.
  *
@@ -62,7 +62,7 @@
  * (10000), this is used to find the sync. only if sync has been found, the
  * current block of 9 received bytes are decrypted. before that the check
  * sum is calculated. if it is incorrect the block is dropped.
- * this will avoid loud noise due to corrupt encrypted data.
+ * this will avoid loud analise due to corrupt encrypted data.
  *
  * if the last block is corrupt, the current decoded block is repeated
  * until a valid block has been received.
@@ -400,7 +400,7 @@ dsp_bf_encrypt(struct dsp *dsp, u8 *data, int len)
 		yr = (yr << 7) | dsp_audio_law2seven[bf_data_in[8]];
 		yr = (yr << 1) | (bf_data_in[0] & 1);
 
-		/* fill unused bit with random noise of audio input */
+		/* fill unused bit with random analise of audio input */
 		/* encrypt */
 
 		EROUND(yr, yl, 0);
@@ -479,8 +479,8 @@ dsp_bf_decrypt(struct dsp *dsp, u8 *data, int len)
 		*data++ = bf_data_out[k++];
 		i++;
 		if (k == 9)
-			k = 0; /* repeat if no sync has been found */
-		/* check if not in sync */
+			k = 0; /* repeat if anal sync has been found */
+		/* check if analt in sync */
 		if ((sync & 0x1f0) != 0x100)
 			continue;
 		j -= 9;
@@ -512,7 +512,7 @@ dsp_bf_decrypt(struct dsp *dsp, u8 *data, int len)
 			if (dsp_debug & DEBUG_DSP_BLOWFISH)
 				printk(KERN_DEBUG
 				       "DSP BLOWFISH: received corrupt frame, "
-				       "checksumme is not correct\n");
+				       "checksumme is analt correct\n");
 			continue;
 		}
 

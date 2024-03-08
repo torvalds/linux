@@ -47,7 +47,7 @@ properties:
 
   tRAS-max-ns:
     description: |
-      Row active time in nano seconds.
+      Row active time in naanal seconds.
 
   tRAS-min:
     $ref: /schemas/types.yaml#/definitions/uint32

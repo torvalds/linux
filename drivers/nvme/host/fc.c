@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2016 Avago Technologies.  All rights reserved.
+ * Copyright (c) 2016 Avago Techanallogies.  All rights reserved.
  */
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/module.h>
@@ -40,7 +40,7 @@ struct nvme_fc_queue {
 	size_t			cmnd_capsule_len;
 	u32			qnum;
 	u32			rqcnt;
-	u32			seqno;
+	u32			seqanal;
 
 	u64			connection_id;
 	atomic_t		csn;
@@ -103,7 +103,7 @@ struct nvme_fc_fcp_op {
 
 	atomic_t		state;
 	u32			flags;
-	u32			rqno;
+	u32			rqanal;
 	u32			nents;
 
 	struct nvme_fc_cmd_iu	cmd_iu;
@@ -284,7 +284,7 @@ nvme_fc_attach_to_unreg_lport(struct nvme_fc_port_info *pinfo,
 	spin_lock_irqsave(&nvme_fc_lock, flags);
 
 	list_for_each_entry(lport, &nvme_fc_lport_list, port_list) {
-		if (lport->localport.node_name != pinfo->node_name ||
+		if (lport->localport.analde_name != pinfo->analde_name ||
 		    lport->localport.port_name != pinfo->port_name)
 			continue;
 
@@ -333,7 +333,7 @@ out_done:
  *                              host FC port.
  * @pinfo:     pointer to information about the port to be registered
  * @template:  LLDD entrypoints and operational parameters for the port
- * @dev:       physical hardware device node port corresponds to. Will be
+ * @dev:       physical hardware device analde port corresponds to. Will be
  *             used for DMA mappings
  * @portptr:   pointer to a local port pointer. Upon success, the routine
  *             will allocate a nvme_fc_local_port structure and place its
@@ -341,7 +341,7 @@ out_done:
  *             pointer will be set to 0.
  *
  * Returns:
- * a completion status. Must be 0 upon success; a negative errno
+ * a completion status. Must be 0 upon success; a negative erranal
  * (ex: -ENXIO) upon failure.
  */
 int
@@ -383,23 +383,23 @@ nvme_fc_register_localport(struct nvme_fc_port_info *pinfo,
 		return 0;
 	}
 
-	/* nothing found - allocate a new localport struct */
+	/* analthing found - allocate a new localport struct */
 
 	newrec = kmalloc((sizeof(*newrec) + template->local_priv_sz),
 			 GFP_KERNEL);
 	if (!newrec) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_reghost_failed;
 	}
 
 	idx = ida_alloc(&nvme_fc_local_port_cnt, GFP_KERNEL);
 	if (idx < 0) {
-		ret = -ENOSPC;
+		ret = -EANALSPC;
 		goto out_fail_kfree;
 	}
 
 	if (!get_device(dev) && dev) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out_ida_put;
 	}
 
@@ -414,7 +414,7 @@ nvme_fc_register_localport(struct nvme_fc_port_info *pinfo,
 		newrec->localport.private = &newrec[1];
 	else
 		newrec->localport.private = NULL;
-	newrec->localport.node_name = pinfo->node_name;
+	newrec->localport.analde_name = pinfo->analde_name;
 	newrec->localport.port_name = pinfo->port_name;
 	newrec->localport.port_role = pinfo->port_role;
 	newrec->localport.port_id = pinfo->port_id;
@@ -449,7 +449,7 @@ EXPORT_SYMBOL_GPL(nvme_fc_register_localport);
  * @portptr: pointer to the (registered) local port that is to be deregistered.
  *
  * Returns:
- * a completion status. Must be 0 upon success; a negative errno
+ * a completion status. Must be 0 upon success; a negative erranal
  * (ex: -ENXIO) upon failure.
  */
 int
@@ -503,10 +503,10 @@ nvme_fc_signal_discovery_scan(struct nvme_fc_lport *lport,
 
 	snprintf(hostaddr, sizeof(hostaddr),
 		"NVMEFC_HOST_TRADDR=nn-0x%016llx:pn-0x%016llx",
-		lport->localport.node_name, lport->localport.port_name);
+		lport->localport.analde_name, lport->localport.port_name);
 	snprintf(tgtaddr, sizeof(tgtaddr),
 		"NVMEFC_TRADDR=nn-0x%016llx:pn-0x%016llx",
-		rport->remoteport.node_name, rport->remoteport.port_name);
+		rport->remoteport.analde_name, rport->remoteport.port_name);
 	kobject_uevent_env(&fc_udev_device->kobj, KOBJ_CHANGE, envp);
 }
 
@@ -567,13 +567,13 @@ nvme_fc_resume_controller(struct nvme_fc_ctrl *ctrl)
 	case NVME_CTRL_RESETTING:
 		/*
 		 * Controller is already in the process of terminating the
-		 * association. No need to do anything further. The reconnect
+		 * association. Anal need to do anything further. The reconnect
 		 * step will naturally occur after the reset completes.
 		 */
 		break;
 
 	default:
-		/* no action to take - let it delete */
+		/* anal action to take - let it delete */
 		break;
 	}
 }
@@ -589,12 +589,12 @@ nvme_fc_attach_to_suspended_rport(struct nvme_fc_lport *lport,
 	spin_lock_irqsave(&nvme_fc_lock, flags);
 
 	list_for_each_entry(rport, &lport->endp_list, endp_list) {
-		if (rport->remoteport.node_name != pinfo->node_name ||
+		if (rport->remoteport.analde_name != pinfo->analde_name ||
 		    rport->remoteport.port_name != pinfo->port_name)
 			continue;
 
 		if (!nvme_fc_rport_get(rport)) {
-			rport = ERR_PTR(-ENOLCK);
+			rport = ERR_PTR(-EANALLCK);
 			goto out_done;
 		}
 
@@ -658,7 +658,7 @@ __nvme_fc_set_dev_loss_tmo(struct nvme_fc_rport *rport,
  *             pointer will be set to 0.
  *
  * Returns:
- * a completion status. Must be 0 upon success; a negative errno
+ * a completion status. Must be 0 upon success; a negative erranal
  * (ex: -ENXIO) upon failure.
  */
 int
@@ -697,18 +697,18 @@ nvme_fc_register_remoteport(struct nvme_fc_local_port *localport,
 		return 0;
 	}
 
-	/* nothing found - allocate a new remoteport struct */
+	/* analthing found - allocate a new remoteport struct */
 
 	newrec = kmalloc((sizeof(*newrec) + lport->ops->remote_priv_sz),
 			 GFP_KERNEL);
 	if (!newrec) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_lport_put;
 	}
 
 	idx = ida_alloc(&lport->endp_cnt, GFP_KERNEL);
 	if (idx < 0) {
-		ret = -ENOSPC;
+		ret = -EANALSPC;
 		goto out_kfree_rport;
 	}
 
@@ -728,7 +728,7 @@ nvme_fc_register_remoteport(struct nvme_fc_local_port *localport,
 	else
 		newrec->remoteport.private = NULL;
 	newrec->remoteport.port_role = pinfo->port_role;
-	newrec->remoteport.node_name = pinfo->node_name;
+	newrec->remoteport.analde_name = pinfo->analde_name;
 	newrec->remoteport.port_name = pinfo->port_name;
 	newrec->remoteport.port_id = pinfo->port_id;
 	newrec->remoteport.port_state = FC_OBJSTATE_ONLINE;
@@ -807,7 +807,7 @@ nvme_fc_ctrl_connectivity_loss(struct nvme_fc_ctrl *ctrl)
 	case NVME_CTRL_CONNECTING:
 		/*
 		 * The association has already been terminated and the
-		 * controller is attempting reconnects.  No need to do anything
+		 * controller is attempting reconnects.  Anal need to do anything
 		 * futher.  Reconnects will be attempted until either the
 		 * ctlr_loss_tmo (max_retries * connect_delay) expires or the
 		 * remoteport's dev_loss_tmo expires.
@@ -817,16 +817,16 @@ nvme_fc_ctrl_connectivity_loss(struct nvme_fc_ctrl *ctrl)
 	case NVME_CTRL_RESETTING:
 		/*
 		 * Controller is already in the process of terminating the
-		 * association.  No need to do anything further. The reconnect
+		 * association.  Anal need to do anything further. The reconnect
 		 * step will kick in naturally after the association is
 		 * terminated.
 		 */
 		break;
 
 	case NVME_CTRL_DELETING:
-	case NVME_CTRL_DELETING_NOIO:
+	case NVME_CTRL_DELETING_ANALIO:
 	default:
-		/* no action to take - let it delete */
+		/* anal action to take - let it delete */
 		break;
 	}
 }
@@ -839,7 +839,7 @@ nvme_fc_ctrl_connectivity_loss(struct nvme_fc_ctrl *ctrl)
  *           deregistered.
  *
  * Returns:
- * a completion status. Must be 0 upon success; a negative errno
+ * a completion status. Must be 0 upon success; a negative erranal
  * (ex: -ENXIO) upon failure.
  */
 int
@@ -937,13 +937,13 @@ EXPORT_SYMBOL_GPL(nvme_fc_set_remoteport_devloss);
 /*
  * The fcloop device passes in a NULL device pointer. Real LLD's will
  * pass in a valid device pointer. If NULL is passed to the dma mapping
- * routines, depending on the platform, it may or may not succeed, and
+ * routines, depending on the platform, it may or may analt succeed, and
  * may crash.
  *
  * As such:
  * Wrapper all the dma routines and check the dev pointer.
  *
- * If simple mappings (return just a dma address, we'll noop them,
+ * If simple mappings (return just a dma address, we'll analop them,
  * returning a dma address of 0.
  *
  * On more complex mappings (dma_map_sg), a pseudo routine fills
@@ -1134,7 +1134,7 @@ nvme_fc_send_ls_req(struct nvme_fc_rport *rport, struct nvmefc_ls_req_op *lsop)
 
 	if (!ret) {
 		/*
-		 * No timeout/not interruptible as we need the struct
+		 * Anal timeout/analt interruptible as we need the struct
 		 * to exist until the lldd calls us back. Thus mandate
 		 * wait until driver calls back. lldd responsible for
 		 * the timeout action
@@ -1182,10 +1182,10 @@ nvme_fc_connect_admin_queue(struct nvme_fc_ctrl *ctrl,
 			 ctrl->lport->ops->lsrqst_priv_sz), GFP_KERNEL);
 	if (!lsop) {
 		dev_info(ctrl->ctrl.device,
-			"NVME-FC{%d}: send Create Association failed: ENOMEM\n",
+			"NVME-FC{%d}: send Create Association failed: EANALMEM\n",
 			ctrl->cnum);
-		ret = -ENOMEM;
-		goto out_no_memory;
+		ret = -EANALMEM;
+		goto out_anal_memory;
 	}
 
 	assoc_rqst = (struct fcnvme_ls_cr_assoc_rqst *)&lsop[1];
@@ -1275,7 +1275,7 @@ nvme_fc_connect_admin_queue(struct nvme_fc_ctrl *ctrl,
 
 out_free_buffer:
 	kfree(lsop);
-out_no_memory:
+out_anal_memory:
 	if (ret)
 		dev_err(ctrl->dev,
 			"queue %d connect admin queue failed (%d).\n",
@@ -1298,10 +1298,10 @@ nvme_fc_connect_queue(struct nvme_fc_ctrl *ctrl, struct nvme_fc_queue *queue,
 			 ctrl->lport->ops->lsrqst_priv_sz), GFP_KERNEL);
 	if (!lsop) {
 		dev_info(ctrl->ctrl.device,
-			"NVME-FC{%d}: send Create Connection failed: ENOMEM\n",
+			"NVME-FC{%d}: send Create Connection failed: EANALMEM\n",
 			ctrl->cnum);
-		ret = -ENOMEM;
-		goto out_no_memory;
+		ret = -EANALMEM;
+		goto out_anal_memory;
 	}
 
 	conn_rqst = (struct fcnvme_ls_cr_conn_rqst *)&lsop[1];
@@ -1377,7 +1377,7 @@ nvme_fc_connect_queue(struct nvme_fc_ctrl *ctrl, struct nvme_fc_queue *queue,
 
 out_free_buffer:
 	kfree(lsop);
-out_no_memory:
+out_anal_memory:
 	if (ret)
 		dev_err(ctrl->dev,
 			"queue %d connect I/O queue failed (%d).\n",
@@ -1410,7 +1410,7 @@ nvme_fc_disconnect_assoc_done(struct nvmefc_ls_req *lsreq, int status)
  * be torn down. The action is implicit as it may be due to a loss of
  * connectivity with the fc-nvme target, so you may never get a
  * response even if you tried.  As such, the action of this routine
- * is to asynchronously send the LS, ignore any results of the LS, and
+ * is to asynchroanalusly send the LS, iganalre any results of the LS, and
  * continue on with terminating the association. If the fc-nvme target
  * is present and receives the LS, it too can tear down.
  */
@@ -1429,7 +1429,7 @@ nvme_fc_xmt_disconnect_assoc(struct nvme_fc_ctrl *ctrl)
 	if (!lsop) {
 		dev_info(ctrl->ctrl.device,
 			"NVME-FC{%d}: send Disconnect Association "
-			"failed: ENOMEM\n",
+			"failed: EANALMEM\n",
 			ctrl->cnum);
 		return;
 	}
@@ -1538,7 +1538,7 @@ nvme_fc_match_disconn_ls(struct nvme_fc_rport *rport,
 						sizeof(*oldls->rspbuf),
 						rqst->w0.ls_cmd,
 						FCNVME_RJT_RC_UNAB,
-						FCNVME_RJT_EXP_NONE, 0);
+						FCNVME_RJT_EXP_ANALNE, 0);
 		nvme_fc_xmt_ls_rsp(oldls);
 	}
 
@@ -1568,7 +1568,7 @@ nvme_fc_ls_disconnect_assoc(struct nvmefc_ls_rcv_op *lsop)
 		/* match an active association */
 		ctrl = nvme_fc_match_disconn_ls(rport, lsop);
 		if (!ctrl)
-			ret = VERR_NO_ASSOC;
+			ret = VERR_ANAL_ASSOC;
 	}
 
 	if (ret) {
@@ -1577,10 +1577,10 @@ nvme_fc_ls_disconnect_assoc(struct nvmefc_ls_rcv_op *lsop)
 			validation_errors[ret]);
 		lsop->lsrsp->rsplen = nvme_fc_format_rjt(acc,
 					sizeof(*acc), rqst->w0.ls_cmd,
-					(ret == VERR_NO_ASSOC) ?
+					(ret == VERR_ANAL_ASSOC) ?
 						FCNVME_RJT_RC_INV_ASSOC :
 						FCNVME_RJT_RC_LOGIC,
-					FCNVME_RJT_EXP_NONE, 0);
+					FCNVME_RJT_EXP_ANALNE, 0);
 		return true;
 	}
 
@@ -1611,7 +1611,7 @@ nvme_fc_ls_disconnect_assoc(struct nvmefc_ls_rcv_op *lsop)
 /*
  * Actual Processing routine for received FC-NVME LS Requests from the LLD
  * returns true if a response should be sent afterward, false if rsp will
- * be sent asynchronously.
+ * be sent asynchroanalusly.
  */
 static bool
 nvme_fc_handle_ls_rqst(struct nvmefc_ls_rcv_op *lsop)
@@ -1638,18 +1638,18 @@ nvme_fc_handle_ls_rqst(struct nvmefc_ls_rcv_op *lsop)
 	case FCNVME_LS_DISCONNECT_CONN:
 		lsop->lsrsp->rsplen = nvme_fc_format_rjt(lsop->rspbuf,
 				sizeof(*lsop->rspbuf), w0->ls_cmd,
-				FCNVME_RJT_RC_UNSUP, FCNVME_RJT_EXP_NONE, 0);
+				FCNVME_RJT_RC_UNSUP, FCNVME_RJT_EXP_ANALNE, 0);
 		break;
 	case FCNVME_LS_CREATE_ASSOCIATION:
 	case FCNVME_LS_CREATE_CONNECTION:
 		lsop->lsrsp->rsplen = nvme_fc_format_rjt(lsop->rspbuf,
 				sizeof(*lsop->rspbuf), w0->ls_cmd,
-				FCNVME_RJT_RC_LOGIC, FCNVME_RJT_EXP_NONE, 0);
+				FCNVME_RJT_RC_LOGIC, FCNVME_RJT_EXP_ANALNE, 0);
 		break;
 	default:
 		lsop->lsrsp->rsplen = nvme_fc_format_rjt(lsop->rspbuf,
 				sizeof(*lsop->rspbuf), w0->ls_cmd,
-				FCNVME_RJT_RC_INVAL, FCNVME_RJT_EXP_NONE, 0);
+				FCNVME_RJT_RC_INVAL, FCNVME_RJT_EXP_ANALNE, 0);
 		break;
 	}
 
@@ -1685,7 +1685,7 @@ restart:
 						sizeof(*lsop->rspbuf),
 						w0->ls_cmd,
 						FCNVME_RJT_RC_UNAB,
-						FCNVME_RJT_EXP_NONE, 0);
+						FCNVME_RJT_EXP_ANALNE, 0);
 		}
 		if (sendrsp)
 			nvme_fc_xmt_ls_rsp(lsop);
@@ -1698,7 +1698,7 @@ static
 void nvme_fc_rcv_ls_req_err_msg(struct nvme_fc_lport *lport,
 				struct fcnvme_ls_rqst_w0 *w0)
 {
-	dev_info(lport->dev, "RCV %s LS failed: No memory\n",
+	dev_info(lport->dev, "RCV %s LS failed: Anal memory\n",
 		(w0->ls_cmd <= NVME_FC_LAST_LS_CMD_VALUE) ?
 			nvmefc_ls_names[w0->ls_cmd] : "");
 }
@@ -1739,7 +1739,7 @@ nvme_fc_rcv_ls_req(struct nvme_fc_remote_port *portptr,
 	/* validate there's a routine to transmit a response */
 	if (!lport->ops->xmt_ls_rsp) {
 		dev_info(lport->dev,
-			"RCV %s LS failed: no LLDD xmt_ls_rsp\n",
+			"RCV %s LS failed: anal LLDD xmt_ls_rsp\n",
 			(w0->ls_cmd <= NVME_FC_LAST_LS_CMD_VALUE) ?
 				nvmefc_ls_names[w0->ls_cmd] : "");
 		ret = -EINVAL;
@@ -1758,7 +1758,7 @@ nvme_fc_rcv_ls_req(struct nvme_fc_remote_port *portptr,
 	lsop = kzalloc(sizeof(*lsop), GFP_KERNEL);
 	if (!lsop) {
 		nvme_fc_rcv_ls_req_err_msg(lport, w0);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_put;
 	}
 
@@ -1766,7 +1766,7 @@ nvme_fc_rcv_ls_req(struct nvme_fc_remote_port *portptr,
 	lsop->rspbuf = kzalloc(sizeof(*lsop->rspbuf), GFP_KERNEL);
 	if (!lsop->rqstbuf || !lsop->rspbuf) {
 		nvme_fc_rcv_ls_req_err_msg(lport, w0);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_free;
 	}
 
@@ -1791,7 +1791,7 @@ nvme_fc_rcv_ls_req(struct nvme_fc_remote_port *portptr,
 	spin_lock_irqsave(&rport->lock, flags);
 	if (rport->remoteport.port_state != FC_OBJSTATE_ONLINE) {
 		spin_unlock_irqrestore(&rport->lock, flags);
-		ret = -ENOTCONN;
+		ret = -EANALTCONN;
 		goto out_unmap;
 	}
 	list_add_tail(&lsop->lsrcv_list, &rport->ls_rcv_list);
@@ -1910,7 +1910,7 @@ nvme_fc_ctrl_ioerr_work(struct work_struct *work)
  * associated with request by the lldd
  * @req:IO request from nvme fc to driver
  * Returns: UUID if there is an appid associated with VM or
- * NULL if the user/libvirt has not set the appid to VM
+ * NULL if the user/libvirt has analt set the appid to VM
  */
 char *nvme_fc_io_getuuid(struct nvmefc_fcp_req *req)
 {
@@ -1943,7 +1943,7 @@ nvme_fc_fcpio_done(struct nvmefc_fcp_req *req)
 	 * The current linux implementation of a nvme controller
 	 * allocates a single tag set for all io queues and sizes
 	 * the io queues to fully hold all possible tags. Thus, the
-	 * implementation does not reference or care about the sqhd
+	 * implementation does analt reference or care about the sqhd
 	 * value as it never needs to use the sqhd/sqtail pointers
 	 * for submission pacing.
 	 *
@@ -1956,14 +1956,14 @@ nvme_fc_fcpio_done(struct nvmefc_fcp_req *req)
 	 *    ERSP completions are to go back to the nvme layer in order
 	 *    relative to the rsn, such that the sqhd value will always
 	 *    be "in order" for the nvme layer. As the nvme layer in
-	 *    linux doesn't care about sqhd, there's no need to return
+	 *    linux doesn't care about sqhd, there's anal need to return
 	 *    them in order.
 	 *
 	 * Additionally:
-	 * As the core nvme layer in linux currently does not look at
+	 * As the core nvme layer in linux currently does analt look at
 	 * every field in the cqe - in cases where the FC transport must
-	 * fabricate a CQE, the following fields will not be set as they
-	 * are not referenced:
+	 * fabricate a CQE, the following fields will analt be set as they
+	 * are analt referenced:
 	 *      cqe.sqid,  cqe.sqhd,  cqe.command_id
 	 *
 	 * Failure or error of an individual i/o, in a transport
@@ -1992,7 +1992,7 @@ nvme_fc_fcpio_done(struct nvmefc_fcp_req *req)
 	/*
 	 * For the linux implementation, if we have an unsuccesful
 	 * status, they blk-mq layer can typically be called with the
-	 * non-zero status and the content of the cqe isn't important.
+	 * analn-zero status and the content of the cqe isn't important.
 	 */
 	if (status)
 		goto done;
@@ -2009,9 +2009,9 @@ nvme_fc_fcpio_done(struct nvmefc_fcp_req *req)
 	case 0:
 	case NVME_FC_SIZEOF_ZEROS_RSP:
 		/*
-		 * No response payload or 12 bytes of payload (which
+		 * Anal response payload or 12 bytes of payload (which
 		 * should all be zeros) are considered successful and
-		 * no payload in the CQE by the transport.
+		 * anal payload in the CQE by the transport.
 		 */
 		if (freq->transferred_length !=
 		    be32_to_cpu(op->cmd_iu.data_len)) {
@@ -2087,7 +2087,7 @@ check_error:
 static int
 __nvme_fc_init_request(struct nvme_fc_ctrl *ctrl,
 		struct nvme_fc_queue *queue, struct nvme_fc_fcp_op *op,
-		struct request *rq, u32 rqno)
+		struct request *rq, u32 rqanal)
 {
 	struct nvme_fcp_op_w_sgl *op_w_sgl =
 		container_of(op, typeof(*op_w_sgl), op);
@@ -2103,7 +2103,7 @@ __nvme_fc_init_request(struct nvme_fc_ctrl *ctrl,
 	op->ctrl = ctrl;
 	op->queue = queue;
 	op->rq = rq;
-	op->rqno = rqno;
+	op->rqanal = rqanal;
 
 	cmdiu->format_id = NVME_CMD_FORMAT_ID;
 	cmdiu->fc_id = NVME_CMD_FC_ID;
@@ -2139,7 +2139,7 @@ out_on_error:
 
 static int
 nvme_fc_init_request(struct blk_mq_tag_set *set, struct request *rq,
-		unsigned int hctx_idx, unsigned int numa_node)
+		unsigned int hctx_idx, unsigned int numa_analde)
 {
 	struct nvme_fc_ctrl *ctrl = to_fc_ctrl(set->driver_data);
 	struct nvme_fcp_op_w_sgl *op = blk_mq_rq_to_pdu(rq);
@@ -2172,7 +2172,7 @@ nvme_fc_init_aen_ops(struct nvme_fc_ctrl *ctrl)
 			private = kzalloc(ctrl->lport->ops->fcprqst_priv_sz,
 						GFP_KERNEL);
 			if (!private)
-				return -ENOMEM;
+				return -EANALMEM;
 		}
 
 		cmdiu = &aen_op->cmd_iu;
@@ -2190,7 +2190,7 @@ nvme_fc_init_aen_ops(struct nvme_fc_ctrl *ctrl)
 
 		memset(sqe, 0, sizeof(*sqe));
 		sqe->common.opcode = nvme_admin_async_event;
-		/* Note: core layer may overwrite the sqe.command_id value */
+		/* Analte: core layer may overwrite the sqe.command_id value */
 		sqe->common.command_id = NVME_AQ_BLK_MQ_DEPTH + i;
 	}
 	return 0;
@@ -2424,7 +2424,7 @@ nvme_fc_ctrl_get(struct nvme_fc_ctrl *ctrl)
 }
 
 /*
- * All accesses from nvme core layer done - can now free the
+ * All accesses from nvme core layer done - can analw free the
  * controller. Called after last nvme_put_ctrl() call
  */
 static void
@@ -2446,7 +2446,7 @@ nvme_fc_nvme_ctrl_freed(struct nvme_ctrl *nctrl)
  * As FC allocates FC exchange for each io, the transport must contact
  * the LLDD to terminate the exchange, thus releasing the FC exchange.
  * After terminating the exchange the LLDD will call the transport's
- * normal io done path for the request, but it will have an aborted
+ * analrmal io done path for the request, but it will have an aborted
  * status. The done path will return the io request back to the block
  * layer with an error status.
  */
@@ -2476,8 +2476,8 @@ __nvme_fc_abort_outstanding_ios(struct nvme_fc_ctrl *ctrl, bool start_queues)
 	int q;
 
 	/*
-	 * if aborting io, the queues are no longer good, mark them
-	 * all as not live.
+	 * if aborting io, the queues are anal longer good, mark them
+	 * all as analt live.
 	 */
 	if (ctrl->ctrl.queue_count > 1) {
 		for (q = 1; q < ctrl->ctrl.queue_count; q++)
@@ -2492,9 +2492,9 @@ __nvme_fc_abort_outstanding_ios(struct nvme_fc_ctrl *ctrl, bool start_queues)
 	 * thus releasing the FC exchange. We use blk_mq_tagset_busy_itr()
 	 * to tell us what io's are busy and invoke a transport routine
 	 * to kill them with the LLDD.  After terminating the exchange
-	 * the LLDD will call the transport's normal io done path, but it
+	 * the LLDD will call the transport's analrmal io done path, but it
 	 * will have an aborted status. The done path will return the
-	 * io requests back to the block layer as part of normal completions
+	 * io requests back to the block layer as part of analrmal completions
 	 * (but with error status).
 	 */
 	if (ctrl->ctrl.queue_count > 1) {
@@ -2513,7 +2513,7 @@ __nvme_fc_abort_outstanding_ios(struct nvme_fc_ctrl *ctrl, bool start_queues)
 	 * writing the registers for shutdown and polling (call
 	 * nvme_disable_ctrl()). Given a bunch of i/o was potentially
 	 * just aborted and we will wait on those contexts, and given
-	 * there was no indication of how live the controlelr is on the
+	 * there was anal indication of how live the controlelr is on the
 	 * link, don't send more io to create more contexts for the
 	 * shutdown. Let the controller fail via keepalive failure if
 	 * its still present.
@@ -2587,7 +2587,7 @@ static enum blk_eh_timer_return nvme_fc_timeout(struct request *rq)
 	/*
 	 * the io abort has been initiated. Have the reset timer
 	 * restarted and the abort completion will complete the io
-	 * shortly. Avoids a synchronous wait while the abort finishes.
+	 * shortly. Avoids a synchroanalus wait while the abort finishes.
 	 */
 	return BLK_EH_RESET_TIMER;
 }
@@ -2609,7 +2609,7 @@ nvme_fc_map_data(struct nvme_fc_ctrl *ctrl, struct request *rq,
 			blk_rq_nr_phys_segments(rq), freq->sg_table.sgl,
 			NVME_INLINE_SG_CNT);
 	if (ret)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	op->nents = blk_rq_map_sg(rq->q, rq, freq->sg_table.sgl);
 	WARN_ON(op->nents > blk_rq_nr_phys_segments(rq));
@@ -2696,7 +2696,7 @@ nvme_fc_start_fcp_op(struct nvme_fc_ctrl *ctrl, struct nvme_fc_queue *queue,
 	case NVMEFC_FCP_READ:
 		cmdiu->flags = FCNVME_CMD_FLAGS_READ;
 		break;
-	case NVMEFC_FCP_NODATA:
+	case NVMEFC_FCP_ANALDATA:
 		cmdiu->flags = 0;
 		break;
 	}
@@ -2731,7 +2731,7 @@ nvme_fc_start_fcp_op(struct nvme_fc_ctrl *ctrl, struct nvme_fc_queue *queue,
 		if (ret < 0) {
 			nvme_cleanup_cmd(op->rq);
 			nvme_fc_ctrl_put(ctrl);
-			if (ret == -ENOMEM || ret == -EAGAIN)
+			if (ret == -EANALMEM || ret == -EAGAIN)
 				return BLK_STS_RESOURCE;
 			return BLK_STS_IOERR;
 		}
@@ -2754,13 +2754,13 @@ nvme_fc_start_fcp_op(struct nvme_fc_ctrl *ctrl, struct nvme_fc_queue *queue,
 		/*
 		 * If the lld fails to send the command is there an issue with
 		 * the csn value?  If the command that fails is the Connect,
-		 * no - as the connection won't be live.  If it is a command
+		 * anal - as the connection won't be live.  If it is a command
 		 * post-connect, it's possible a gap in csn may be created.
 		 * Does this matter?  As Linux initiators don't send fused
-		 * commands, no.  The gap would exist, but as there's nothing
+		 * commands, anal.  The gap would exist, but as there's analthing
 		 * that depends on csn order to be delivered on the target
 		 * side, it shouldn't hurt.  It would be difficult for a
-		 * target to even detect the csn gap as it has no idea when the
+		 * target to even detect the csn gap as it has anal idea when the
 		 * cmd with the csn was supposed to arrive.
 		 */
 		opstate = atomic_xchg(&op->state, FCPOP_STATE_COMPLETE);
@@ -2799,7 +2799,7 @@ nvme_fc_queue_rq(struct blk_mq_hw_ctx *hctx,
 
 	if (ctrl->rport->remoteport.port_state != FC_OBJSTATE_ONLINE ||
 	    !nvme_check_ready(&queue->ctrl->ctrl, rq, queue_ready))
-		return nvme_fail_nonready_command(&queue->ctrl->ctrl, rq);
+		return nvme_fail_analnready_command(&queue->ctrl->ctrl, rq);
 
 	ret = nvme_setup_cmd(ns, rq);
 	if (ret)
@@ -2807,11 +2807,11 @@ nvme_fc_queue_rq(struct blk_mq_hw_ctx *hctx,
 
 	/*
 	 * nvme core doesn't quite treat the rq opaquely. Commands such
-	 * as WRITE ZEROES will return a non-zero rq payload_bytes yet
-	 * there is no actual payload to be transferred.
+	 * as WRITE ZEROES will return a analn-zero rq payload_bytes yet
+	 * there is anal actual payload to be transferred.
 	 * To get it right, key data transmission on there being 1 or
-	 * more physical segments in the sg list. If there is no
-	 * physical segments, there is no payload.
+	 * more physical segments in the sg list. If there is anal
+	 * physical segments, there is anal payload.
 	 */
 	if (blk_rq_nr_phys_segments(rq)) {
 		data_len = blk_rq_payload_bytes(rq);
@@ -2819,7 +2819,7 @@ nvme_fc_queue_rq(struct blk_mq_hw_ctx *hctx,
 					NVMEFC_FCP_WRITE : NVMEFC_FCP_READ);
 	} else {
 		data_len = 0;
-		io_dir = NVMEFC_FCP_NODATA;
+		io_dir = NVMEFC_FCP_ANALDATA;
 	}
 
 
@@ -2839,7 +2839,7 @@ nvme_fc_submit_async_event(struct nvme_ctrl *arg)
 	aen_op = &ctrl->aen_ops[0];
 
 	ret = nvme_fc_start_fcp_op(ctrl, aen_op->queue, aen_op, 0,
-					NVMEFC_FCP_NODATA);
+					NVMEFC_FCP_ANALDATA);
 	if (ret)
 		dev_err(ctrl->ctrl.device,
 			"failed async event work\n");
@@ -2938,7 +2938,7 @@ out_cleanup_tagset:
 	nvme_remove_io_tag_set(&ctrl->ctrl);
 	nvme_fc_free_io_queues(ctrl);
 
-	/* force put free routine to ignore io queues */
+	/* force put free routine to iganalre io queues */
 	ctrl->ctrl.tagset = NULL;
 
 	return ret;
@@ -2965,7 +2965,7 @@ nvme_fc_recreate_io_queues(struct nvme_fc_ctrl *ctrl)
 		dev_info(ctrl->ctrl.device,
 			"Fail Reconnect: At least 1 io queue "
 			"required (was %d)\n", prior_ioq_cnt);
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 
 	ctrl->ctrl.queue_count = nr_io_queues + 1;
@@ -3067,10 +3067,10 @@ nvme_fc_create_association(struct nvme_fc_ctrl *ctrl)
 	++ctrl->ctrl.nr_reconnects;
 
 	if (ctrl->rport->remoteport.port_state != FC_OBJSTATE_ONLINE)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (nvme_fc_ctlr_active_on_rport(ctrl))
-		return -ENOTUNIQ;
+		return -EANALTUNIQ;
 
 	dev_info(ctrl->ctrl.device,
 		"NVME-FC{%d}: create association : host wwpn 0x%016llx "
@@ -3128,18 +3128,18 @@ nvme_fc_create_association(struct nvme_fc_ctrl *ctrl)
 	}
 	/* sanity checks */
 
-	/* FC-NVME does not have other data in the capsule */
+	/* FC-NVME does analt have other data in the capsule */
 	if (ctrl->ctrl.icdoff) {
-		dev_err(ctrl->ctrl.device, "icdoff %d is not supported!\n",
+		dev_err(ctrl->ctrl.device, "icdoff %d is analt supported!\n",
 				ctrl->ctrl.icdoff);
 		ret = NVME_SC_INVALID_FIELD | NVME_SC_DNR;
 		goto out_stop_keep_alive;
 	}
 
-	/* FC-NVME supports normal SGL Data Block Descriptors */
+	/* FC-NVME supports analrmal SGL Data Block Descriptors */
 	if (!nvme_ctrl_sgl_supported(&ctrl->ctrl)) {
 		dev_err(ctrl->ctrl.device,
-			"Mandatory sgls are not supported!\n");
+			"Mandatory sgls are analt supported!\n");
 		ret = NVME_SC_INVALID_FIELD | NVME_SC_DNR;
 		goto out_stop_keep_alive;
 	}
@@ -3245,9 +3245,9 @@ nvme_fc_delete_association(struct nvme_fc_ctrl *ctrl)
 
 	/*
 	 * send a Disconnect(association) LS to fc-nvme target
-	 * Note: could have been sent at top of process, but
+	 * Analte: could have been sent at top of process, but
 	 * cleaner on link traffic if after the aborts complete.
-	 * Note: if association doesn't exist, association_id will be 0
+	 * Analte: if association doesn't exist, association_id will be 0
 	 */
 	if (ctrl->association_id)
 		nvme_fc_xmt_disconnect_assoc(ctrl);
@@ -3260,7 +3260,7 @@ nvme_fc_delete_association(struct nvme_fc_ctrl *ctrl)
 	if (disls)
 		/*
 		 * if a Disconnect Request was waiting for a response, send
-		 * now that all ABTS's have been issued (and are complete).
+		 * analw that all ABTS's have been issued (and are complete).
 		 */
 		nvme_fc_xmt_ls_rsp(disls);
 
@@ -3372,7 +3372,7 @@ nvme_fc_reset_ctrl_work(struct work_struct *work)
 			flush_delayed_work(&ctrl->connect_work);
 		}
 	} else {
-		nvme_fc_reconnect_or_delete(ctrl, -ENOTCONN);
+		nvme_fc_reconnect_or_delete(ctrl, -EANALTCONN);
 	}
 }
 
@@ -3468,13 +3468,13 @@ nvme_fc_init_ctrl(struct device *dev, struct nvmf_ctrl_options *opts,
 
 	ctrl = kzalloc(sizeof(*ctrl), GFP_KERNEL);
 	if (!ctrl) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_fail;
 	}
 
 	idx = ida_alloc(&nvme_fc_ctrl_cnt, GFP_KERNEL);
 	if (idx < 0) {
-		ret = -ENOSPC;
+		ret = -EANALSPC;
 		goto out_free_ctrl;
 	}
 
@@ -3519,7 +3519,7 @@ nvme_fc_init_ctrl(struct device *dev, struct nvmf_ctrl_options *opts,
 	ctrl->ctrl.kato = opts->kato;
 	ctrl->ctrl.cntlid = 0xffff;
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	ctrl->queues = kcalloc(ctrl->ctrl.queue_count,
 				sizeof(struct nvme_fc_queue), GFP_KERNEL);
 	if (!ctrl->queues)
@@ -3538,7 +3538,7 @@ nvme_fc_init_ctrl(struct device *dev, struct nvmf_ctrl_options *opts,
 	if (ret)
 		goto out_free_queues;
 	if (lport->dev)
-		ctrl->ctrl.numa_node = dev_to_node(lport->dev);
+		ctrl->ctrl.numa_analde = dev_to_analde(lport->dev);
 
 	/* at this point, teardown path changes to ref counting on nvme ctrl */
 
@@ -3640,22 +3640,22 @@ nvme_fc_parse_traddr(struct nvmet_fc_traddr *traddr, char *buf, size_t blen)
 {
 	char name[2 + NVME_FC_TRADDR_HEXNAMELEN + 1];
 	substring_t wwn = { name, &name[sizeof(name)-1] };
-	int nnoffset, pnoffset;
+	int nanalffset, panalffset;
 
 	/* validate if string is one of the 2 allowed formats */
 	if (strnlen(buf, blen) == NVME_FC_TRADDR_MAXLENGTH &&
 			!strncmp(buf, "nn-0x", NVME_FC_TRADDR_OXNNLEN) &&
 			!strncmp(&buf[NVME_FC_TRADDR_MAX_PN_OFFSET],
 				"pn-0x", NVME_FC_TRADDR_OXNNLEN)) {
-		nnoffset = NVME_FC_TRADDR_OXNNLEN;
-		pnoffset = NVME_FC_TRADDR_MAX_PN_OFFSET +
+		nanalffset = NVME_FC_TRADDR_OXNNLEN;
+		panalffset = NVME_FC_TRADDR_MAX_PN_OFFSET +
 						NVME_FC_TRADDR_OXNNLEN;
 	} else if ((strnlen(buf, blen) == NVME_FC_TRADDR_MINLENGTH &&
 			!strncmp(buf, "nn-", NVME_FC_TRADDR_NNLEN) &&
 			!strncmp(&buf[NVME_FC_TRADDR_MIN_PN_OFFSET],
 				"pn-", NVME_FC_TRADDR_NNLEN))) {
-		nnoffset = NVME_FC_TRADDR_NNLEN;
-		pnoffset = NVME_FC_TRADDR_MIN_PN_OFFSET + NVME_FC_TRADDR_NNLEN;
+		nanalffset = NVME_FC_TRADDR_NNLEN;
+		panalffset = NVME_FC_TRADDR_MIN_PN_OFFSET + NVME_FC_TRADDR_NNLEN;
 	} else
 		goto out_einval;
 
@@ -3663,11 +3663,11 @@ nvme_fc_parse_traddr(struct nvmet_fc_traddr *traddr, char *buf, size_t blen)
 	name[1] = 'x';
 	name[2 + NVME_FC_TRADDR_HEXNAMELEN] = 0;
 
-	memcpy(&name[2], &buf[nnoffset], NVME_FC_TRADDR_HEXNAMELEN);
+	memcpy(&name[2], &buf[nanalffset], NVME_FC_TRADDR_HEXNAMELEN);
 	if (__nvme_fc_parse_u64(&wwn, &traddr->nn))
 		goto out_einval;
 
-	memcpy(&name[2], &buf[pnoffset], NVME_FC_TRADDR_HEXNAMELEN);
+	memcpy(&name[2], &buf[panalffset], NVME_FC_TRADDR_HEXNAMELEN);
 	if (__nvme_fc_parse_u64(&wwn, &traddr->pn))
 		goto out_einval;
 
@@ -3700,13 +3700,13 @@ nvme_fc_create_ctrl(struct device *dev, struct nvmf_ctrl_options *opts)
 	/* find the host and remote ports to connect together */
 	spin_lock_irqsave(&nvme_fc_lock, flags);
 	list_for_each_entry(lport, &nvme_fc_lport_list, port_list) {
-		if (lport->localport.node_name != laddr.nn ||
+		if (lport->localport.analde_name != laddr.nn ||
 		    lport->localport.port_name != laddr.pn ||
 		    lport->localport.port_state != FC_OBJSTATE_ONLINE)
 			continue;
 
 		list_for_each_entry(rport, &lport->endp_list, endp_list) {
-			if (rport->remoteport.node_name != raddr.nn ||
+			if (rport->remoteport.analde_name != raddr.nn ||
 			    rport->remoteport.port_name != raddr.pn ||
 			    rport->remoteport.port_state != FC_OBJSTATE_ONLINE)
 				continue;
@@ -3725,9 +3725,9 @@ nvme_fc_create_ctrl(struct device *dev, struct nvmf_ctrl_options *opts)
 	}
 	spin_unlock_irqrestore(&nvme_fc_lock, flags);
 
-	pr_warn("%s: %s - %s combination not found\n",
+	pr_warn("%s: %s - %s combination analt found\n",
 		__func__, opts->traddr, opts->host_traddr);
-	return ERR_PTR(-ENOENT);
+	return ERR_PTR(-EANALENT);
 }
 
 
@@ -3764,8 +3764,8 @@ restart:
 				 *
 				 * Revert the lport put and retry.  Anything
 				 * added to the list already will be skipped (as
-				 * they are no longer list_empty).  Loops should
-				 * resume at rports that were not yet seen.
+				 * they are anal longer list_empty).  Loops should
+				 * resume at rports that were analt yet seen.
 				 */
 				nvme_fc_lport_put(lport);
 
@@ -3890,9 +3890,9 @@ static int __init nvme_fc_init_module(void)
 	int ret;
 
 	/*
-	 * NOTE:
+	 * ANALTE:
 	 * It is expected that in the future the kernel will combine
-	 * the FC-isms that are currently under scsi and now being
+	 * the FC-isms that are currently under scsi and analw being
 	 * added to by NVME into a new standalone FC class. The SCSI
 	 * and NVME protocols and their devices would be under this
 	 * new FC class.

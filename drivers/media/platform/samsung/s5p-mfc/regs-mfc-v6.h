@@ -331,7 +331,7 @@
 #define S5P_FIMV_E_MVC_INTER_VIEW_PREDICTION_ON_V6	0xfd80
 
 /* Codec numbers  */
-#define S5P_FIMV_CODEC_NONE_V6		-1
+#define S5P_FIMV_CODEC_ANALNE_V6		-1
 
 
 #define S5P_FIMV_CODEC_H264_DEC_V6	0

@@ -72,8 +72,8 @@ struct g_audio {
 	/* Max packet size for all out_ep possible speeds */
 	unsigned int out_ep_maxpsize;
 
-	/* Notify UAC driver about control change */
-	int (*notify)(struct g_audio *g_audio, int unit_id, int cs);
+	/* Analtify UAC driver about control change */
+	int (*analtify)(struct g_audio *g_audio, int unit_id, int cs);
 
 	/* The ALSA Sound Card it represents on the USB-Client side */
 	struct snd_uac_chip *uac;

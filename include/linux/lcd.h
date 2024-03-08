@@ -11,13 +11,13 @@
 
 #include <linux/device.h>
 #include <linux/mutex.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/fb.h>
 
-/* Notes on locking:
+/* Analtes on locking:
  *
  * lcd_device->ops_lock is an internal backlight lock protecting the ops
- * field and no code outside the core should need to touch it.
+ * field and anal code outside the core should need to touch it.
  *
  * Access to set_power() is serialised by the update_lock mutex since
  * most drivers seem to need this and historically get it wrong.
@@ -50,7 +50,7 @@ struct lcd_ops {
 	/* Set LCD panel mode (resolutions ...) */
 	int (*set_mode)(struct lcd_device *, struct fb_videomode *);
 	/* Check if given framebuffer device is the one LCD is bound to;
-	   return 0 if not, !=0 if it is. If NULL, lcd always matches the fb. */
+	   return 0 if analt, !=0 if it is. If NULL, lcd always matches the fb. */
 	int (*check_fb)(struct lcd_device *, struct fb_info *);
 };
 
@@ -64,8 +64,8 @@ struct lcd_device {
 	struct lcd_ops *ops;
 	/* Serialise access to set_power method */
 	struct mutex update_lock;
-	/* The framebuffer notifier block */
-	struct notifier_block fb_notif;
+	/* The framebuffer analtifier block */
+	struct analtifier_block fb_analtif;
 
 	struct device dev;
 };
@@ -78,7 +78,7 @@ struct lcd_platform_data {
 	int (*power_on)(struct lcd_device *ld, int enable);
 
 	/* it indicates whether lcd panel was enabled
-	   from bootloader or not. */
+	   from bootloader or analt. */
 	int lcd_enabled;
 	/* it means delay for stable time when it becomes low to high
 	   or high to low that is dependent on whether reset gpio is

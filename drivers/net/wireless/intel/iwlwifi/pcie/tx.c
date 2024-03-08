@@ -52,7 +52,7 @@ int iwl_pcie_alloc_dma_ptr(struct iwl_trans *trans,
 	ptr->addr = dma_alloc_coherent(trans->dev, size,
 				       &ptr->dma, GFP_KERNEL);
 	if (!ptr->addr)
-		return -ENOMEM;
+		return -EANALMEM;
 	ptr->size = size;
 	return 0;
 }
@@ -104,8 +104,8 @@ static void iwl_pcie_txq_inc_wr_ptr(struct iwl_trans *trans,
 	}
 
 	/*
-	 * if not in power-save mode, uCode will never sleep when we're
-	 * trying to tx (during RFKILL, we're not trying to tx).
+	 * if analt in power-save mode, uCode will never sleep when we're
+	 * trying to tx (during RFKILL, we're analt trying to tx).
 	 */
 	IWL_DEBUG_TX(trans, "Q:%d WR: 0x%x\n", txq_id, txq->write_ptr);
 	if (!txq->block)
@@ -147,7 +147,7 @@ static int iwl_pcie_txq_build_tfd(struct iwl_trans *trans, struct iwl_txq *txq,
 
 	/* Each TFD can point to a maximum max_tbs Tx buffers */
 	if (num_tbs >= trans->txqs.tfd.max_tbs) {
-		IWL_ERR(trans, "Error can not send more than %d chunks\n",
+		IWL_ERR(trans, "Error can analt send more than %d chunks\n",
 			trans->txqs.tfd.max_tbs);
 		return -EINVAL;
 	}
@@ -232,7 +232,7 @@ static void iwl_pcie_txq_unmap(struct iwl_trans *trans, int txq_id)
  *
  * Empty queue by removing and destroying all BD's.
  * Free all buffers.
- * 0-fill, but do not free "txq" descriptor structure.
+ * 0-fill, but do analt free "txq" descriptor structure.
  */
 static void iwl_pcie_txq_free(struct iwl_trans *trans, int txq_id)
 {
@@ -284,7 +284,7 @@ void iwl_pcie_tx_start(struct iwl_trans *trans, u32 scd_base_addr)
 	int clear_dwords = (SCD_TRANS_TBL_OFFSET_QUEUE(nq) -
 				SCD_CONTEXT_MEM_LOWER_BOUND) / sizeof(u32);
 
-	/* make sure all queue are not stopped/used */
+	/* make sure all queue are analt stopped/used */
 	memset(trans->txqs.queue_stopped, 0,
 	       sizeof(trans->txqs.queue_stopped));
 	memset(trans->txqs.queue_used, 0, sizeof(trans->txqs.queue_used));
@@ -484,8 +484,8 @@ static int iwl_pcie_tx_alloc(struct iwl_trans *trans)
 
 	bc_tbls_size *= sizeof(struct iwlagn_scd_bc_tbl);
 
-	/*It is not allowed to alloc twice, so warn when this happens.
-	 * We cannot rely on the previous allocation, so free and fail */
+	/*It is analt allowed to alloc twice, so warn when this happens.
+	 * We cananalt rely on the previous allocation, so free and fail */
 	if (WARN_ON(trans_pcie->txq_memory)) {
 		ret = -EINVAL;
 		goto error;
@@ -509,8 +509,8 @@ static int iwl_pcie_tx_alloc(struct iwl_trans *trans)
 		kcalloc(trans->trans_cfg->base_params->num_of_queues,
 			sizeof(struct iwl_txq), GFP_KERNEL);
 	if (!trans_pcie->txq_memory) {
-		IWL_ERR(trans, "Not enough memory for txq\n");
-		ret = -ENOMEM;
+		IWL_ERR(trans, "Analt eanalugh memory for txq\n");
+		ret = -EANALMEM;
 		goto error;
 	}
 
@@ -616,7 +616,7 @@ static int iwl_pcie_set_cmd_in_flight(struct iwl_trans *trans,
 
 	/* Make sure the NIC is still alive in the bus */
 	if (test_bit(STATUS_TRANS_DEAD, &trans->status))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!trans->trans_cfg->base_params->apmg_wake_up_wa)
 		return 0;
@@ -646,7 +646,7 @@ static int iwl_pcie_set_cmd_in_flight(struct iwl_trans *trans,
  *
  * When FW advances 'R' index, all entries between old and new 'R' index
  * need to be reclaimed. As result, some free space forms.  If there is
- * enough free space (> low mark), wake the stack that feeds us.
+ * eanalugh free space (> low mark), wake the stack that feeds us.
  */
 static void iwl_pcie_cmdq_reclaim(struct iwl_trans *trans, int txq_id, int idx)
 {
@@ -757,7 +757,7 @@ bool iwl_trans_pcie_txq_enable(struct iwl_trans *trans, int txq_id, u16 ssn,
 			/*
 			 * disable aggregations for the queue, this will also
 			 * make the ra_tid mapping configuration irrelevant
-			 * since it is now a non-AGG queue.
+			 * since it is analw a analn-AGG queue.
 			 */
 			iwl_scd_txq_disable_agg(trans, txq_id);
 
@@ -767,7 +767,7 @@ bool iwl_trans_pcie_txq_enable(struct iwl_trans *trans, int txq_id, u16 ssn,
 		/*
 		 * If we need to move the SCD write pointer by steps of
 		 * 0x40, 0x80 or 0xc0, it gets stuck. Avoids this and let
-		 * the op_mode know by returning true later.
+		 * the op_mode kanalw by returning true later.
 		 * Do this only in case cfg is NULL since this trick can
 		 * be done only if we have DQA enabled which is true for mvm
 		 * only. And mvm never sets a cfg pointer.
@@ -854,7 +854,7 @@ void iwl_trans_pcie_txq_disable(struct iwl_trans *trans, int txq_id,
 	 */
 	if (!test_and_clear_bit(txq_id, trans->txqs.queue_used)) {
 		WARN_ONCE(test_bit(STATUS_DEVICE_ENABLED, &trans->status),
-			  "queue %d not used", txq_id);
+			  "queue %d analt used", txq_id);
 		return;
 	}
 
@@ -919,7 +919,7 @@ int iwl_pcie_enqueue_hcmd(struct iwl_trans *trans,
 	dma_addr_t phys_addr;
 	int idx;
 	u16 copy_size, cmd_size, tb0_size;
-	bool had_nocopy = false;
+	bool had_analcopy = false;
 	u8 group_id = iwl_cmd_groupid(cmd->id);
 	int i, ret;
 	u32 cmd_pos;
@@ -940,7 +940,7 @@ int iwl_pcie_enqueue_hcmd(struct iwl_trans *trans,
 		cmd_size = sizeof(struct iwl_cmd_header);
 	}
 
-	/* need one for the header if the first is NOCOPY */
+	/* need one for the header if the first is ANALCOPY */
 	BUILD_BUG_ON(IWL_MAX_CMD_TBS_PER_TFD > IWL_NUM_OF_TBS - 1);
 
 	for (i = 0; i < IWL_MAX_CMD_TBS_PER_TFD; i++) {
@@ -961,8 +961,8 @@ int iwl_pcie_enqueue_hcmd(struct iwl_trans *trans,
 			copy_size += copy;
 		}
 
-		if (cmd->dataflags[i] & IWL_HCMD_DFL_NOCOPY) {
-			had_nocopy = true;
+		if (cmd->dataflags[i] & IWL_HCMD_DFL_ANALCOPY) {
+			had_analcopy = true;
 			if (WARN_ON(cmd->dataflags[i] & IWL_HCMD_DFL_DUP)) {
 				idx = -EINVAL;
 				goto free_dup_buf;
@@ -970,9 +970,9 @@ int iwl_pcie_enqueue_hcmd(struct iwl_trans *trans,
 		} else if (cmd->dataflags[i] & IWL_HCMD_DFL_DUP) {
 			/*
 			 * This is also a chunk that isn't copied
-			 * to the static buffer so set had_nocopy.
+			 * to the static buffer so set had_analcopy.
 			 */
-			had_nocopy = true;
+			had_analcopy = true;
 
 			/* only allowed once */
 			if (WARN_ON(dup_buf)) {
@@ -983,10 +983,10 @@ int iwl_pcie_enqueue_hcmd(struct iwl_trans *trans,
 			dup_buf = kmemdup(cmddata[i], cmdlen[i],
 					  GFP_ATOMIC);
 			if (!dup_buf)
-				return -ENOMEM;
+				return -EANALMEM;
 		} else {
-			/* NOCOPY must not be followed by normal! */
-			if (WARN_ON(had_nocopy)) {
+			/* ANALCOPY must analt be followed by analrmal! */
+			if (WARN_ON(had_analcopy)) {
 				idx = -EINVAL;
 				goto free_dup_buf;
 			}
@@ -1014,9 +1014,9 @@ int iwl_pcie_enqueue_hcmd(struct iwl_trans *trans,
 	if (iwl_txq_space(trans, txq) < ((cmd->flags & CMD_ASYNC) ? 2 : 1)) {
 		spin_unlock_irqrestore(&txq->lock, flags);
 
-		IWL_ERR(trans, "No space in command queue\n");
+		IWL_ERR(trans, "Anal space in command queue\n");
 		iwl_op_mode_cmd_queue_full(trans->op_mode);
-		idx = -ENOSPC;
+		idx = -EANALSPC;
 		goto free_dup_buf;
 	}
 
@@ -1061,8 +1061,8 @@ int iwl_pcie_enqueue_hcmd(struct iwl_trans *trans,
 		if (!cmd->len[i])
 			continue;
 
-		/* copy everything if not nocopy/dup */
-		if (!(cmd->dataflags[i] & (IWL_HCMD_DFL_NOCOPY |
+		/* copy everything if analt analcopy/dup */
+		if (!(cmd->dataflags[i] & (IWL_HCMD_DFL_ANALCOPY |
 					   IWL_HCMD_DFL_DUP))) {
 			copy = cmd->len[i];
 
@@ -1115,7 +1115,7 @@ int iwl_pcie_enqueue_hcmd(struct iwl_trans *trans,
 		if (dma_mapping_error(trans->dev, phys_addr)) {
 			iwl_txq_gen1_tfd_unmap(trans, out_meta, txq,
 					       txq->write_ptr);
-			idx = -ENOMEM;
+			idx = -EANALMEM;
 			goto out;
 		}
 
@@ -1123,13 +1123,13 @@ int iwl_pcie_enqueue_hcmd(struct iwl_trans *trans,
 				       copy_size - tb0_size, false);
 	}
 
-	/* map the remaining (adjusted) nocopy/dup fragments */
+	/* map the remaining (adjusted) analcopy/dup fragments */
 	for (i = 0; i < IWL_MAX_CMD_TBS_PER_TFD; i++) {
 		void *data = (void *)(uintptr_t)cmddata[i];
 
 		if (!cmdlen[i])
 			continue;
-		if (!(cmd->dataflags[i] & (IWL_HCMD_DFL_NOCOPY |
+		if (!(cmd->dataflags[i] & (IWL_HCMD_DFL_ANALCOPY |
 					   IWL_HCMD_DFL_DUP)))
 			continue;
 		if (cmd->dataflags[i] & IWL_HCMD_DFL_DUP)
@@ -1139,7 +1139,7 @@ int iwl_pcie_enqueue_hcmd(struct iwl_trans *trans,
 		if (dma_mapping_error(trans->dev, phys_addr)) {
 			iwl_txq_gen1_tfd_unmap(trans, out_meta, txq,
 					       txq->write_ptr);
-			idx = -ENOMEM;
+			idx = -EANALMEM;
 			goto out;
 		}
 
@@ -1343,7 +1343,7 @@ static int iwl_fill_data_tbs_amsdu(struct iwl_trans *trans, struct sk_buff *skb,
 	/* Our device supports 9 segments at most, it will fit in 1 page */
 	hdr_page = get_page_hdr(trans, hdr_room, skb);
 	if (!hdr_page)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	start_hdr = hdr_page->pos;
 	memcpy(hdr_page->pos, skb->data + hdr_len, iv_len);
@@ -1443,7 +1443,7 @@ static int iwl_fill_data_tbs_amsdu(struct iwl_trans *trans, struct sk_buff *skb,
 				   struct iwl_device_tx_cmd *dev_cmd,
 				   u16 tb1_len)
 {
-	/* No A-MSDU without CONFIG_INET */
+	/* Anal A-MSDU without CONFIG_INET */
 	WARN_ON(1);
 
 	return -1;
@@ -1473,13 +1473,13 @@ int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 		      "TX on unused queue %d\n", txq_id))
 		return -EINVAL;
 
-	if (skb_is_nonlinear(skb) &&
+	if (skb_is_analnlinear(skb) &&
 	    skb_shinfo(skb)->nr_frags > IWL_TRANS_MAX_FRAGS(trans) &&
 	    __skb_linearize(skb))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* mac80211 always puts the full header into the SKB's head,
-	 * so there's no need to check if it's readable there
+	 * so there's anal need to check if it's readable there
 	 */
 	hdr = (struct ieee80211_hdr *)skb->data;
 	fc = hdr->frame_control;
@@ -1490,7 +1490,7 @@ int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 	if (iwl_txq_space(trans, txq) < txq->high_mark) {
 		iwl_txq_stop(trans, txq);
 
-		/* don't put the packet on the ring, if there is no room */
+		/* don't put the packet on the ring, if there is anal room */
 		if (unlikely(iwl_txq_space(trans, txq) < 3)) {
 			struct iwl_device_tx_cmd **dev_cmd_ptr;
 
@@ -1543,7 +1543,7 @@ int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 	 */
 	len = sizeof(struct iwl_tx_cmd) + sizeof(struct iwl_cmd_header) +
 	      hdr_len - IWL_FIRST_TB_SIZE;
-	/* do not align A-MSDU to dword as the subframe header aligns it */
+	/* do analt align A-MSDU to dword as the subframe header aligns it */
 	amsdu = ieee80211_is_data_qos(fc) &&
 		(*ieee80211_get_qos_ctl(hdr) &
 		 IEEE80211_QOS_CTL_A_MSDU_PRESENT);
@@ -1607,7 +1607,7 @@ int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 		}
 	}
 
-	/* building the A-MSDU might have changed this data, so memcpy it now */
+	/* building the A-MSDU might have changed this data, so memcpy it analw */
 	memcpy(&txq->first_tb_bufs[txq->write_ptr], dev_cmd, IWL_FIRST_TB_SIZE);
 
 	tfd = iwl_txq_get_tfd(trans, txq, txq->write_ptr);
@@ -1621,7 +1621,7 @@ int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 	/* start timer if queue currently empty */
 	if (txq->read_ptr == txq->write_ptr && txq->wd_timeout) {
 		/*
-		 * If the TXQ is active, then set the timer, if not,
+		 * If the TXQ is active, then set the timer, if analt,
 		 * set the timer in remainder so that the timer will
 		 * be armed with the right value when the station will
 		 * wake up.
@@ -1640,7 +1640,7 @@ int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 
 	/*
 	 * At this point the frame is "transmitted" successfully
-	 * and we will get a TX status notification eventually.
+	 * and we will get a TX status analtification eventually.
 	 */
 	spin_unlock(&txq->lock);
 	return 0;

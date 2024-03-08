@@ -108,7 +108,7 @@ static int gb_hid_set_report(struct gb_hid *ghid, u8 report_type, u8 report_id,
 					GFP_KERNEL);
 	if (!operation) {
 		gb_pm_runtime_put_autosuspend(ghid->bundle);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	request = operation->request->payload;
@@ -179,7 +179,7 @@ static int gb_hid_alloc_buffers(struct gb_hid *ghid, size_t bufsize)
 {
 	ghid->inbuf = kzalloc(bufsize, GFP_KERNEL);
 	if (!ghid->inbuf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ghid->bufsize = bufsize;
 
@@ -291,7 +291,7 @@ static int gb_hid_parse(struct hid_device *hid)
 
 	rdesc = kzalloc(rsize, GFP_KERNEL);
 	if (!rdesc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = gb_hid_get_report_desc(ghid, rdesc);
 	if (ret) {
@@ -326,7 +326,7 @@ static int gb_hid_start(struct hid_device *hid)
 	if (ret)
 		return ret;
 
-	if (!(hid->quirks & HID_QUIRK_NO_INIT_REPORTS))
+	if (!(hid->quirks & HID_QUIRK_ANAL_INIT_REPORTS))
 		gb_hid_init_reports(ghid);
 
 	return 0;
@@ -373,7 +373,7 @@ static int gb_hid_power(struct hid_device *hid, int lvl)
 	switch (lvl) {
 	case PM_HINT_FULLON:
 		return gb_hid_set_power(ghid, GB_HID_TYPE_PWR_ON);
-	case PM_HINT_NORMAL:
+	case PM_HINT_ANALRMAL:
 		return gb_hid_set_power(ghid, GB_HID_TYPE_PWR_OFF);
 	}
 
@@ -428,15 +428,15 @@ static int gb_hid_probe(struct gb_bundle *bundle,
 	int ret;
 
 	if (bundle->num_cports != 1)
-		return -ENODEV;
+		return -EANALDEV;
 
 	cport_desc = &bundle->cport_desc[0];
 	if (cport_desc->protocol_id != GREYBUS_PROTOCOL_HID)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ghid = kzalloc(sizeof(*ghid), GFP_KERNEL);
 	if (!ghid)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	connection = gb_connection_create(bundle, le16_to_cpu(cport_desc->id),
 					  gb_hid_request_handler);
@@ -494,7 +494,7 @@ static void gb_hid_disconnect(struct gb_bundle *bundle)
 	struct gb_hid *ghid = greybus_get_drvdata(bundle);
 
 	if (gb_pm_runtime_get_sync(bundle))
-		gb_pm_runtime_get_noresume(bundle);
+		gb_pm_runtime_get_analresume(bundle);
 
 	hid_destroy_device(ghid->hid);
 	gb_connection_disable(ghid->connection);

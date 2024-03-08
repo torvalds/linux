@@ -36,7 +36,7 @@ struct collie_bat {
 	struct gpio_desc *gpio_full;
 	struct gpio_desc *gpio_charge_on;
 
-	int technology;
+	int techanallogy;
 
 	struct gpio_desc *gpio_bat;
 	int adc_bat;
@@ -99,17 +99,17 @@ static int collie_bat_get_property(struct power_supply *psy,
 
 	if (bat->is_present && !bat->is_present(bat)
 			&& psp != POWER_SUPPLY_PROP_PRESENT) {
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_STATUS:
 		val->intval = bat->status;
 		break;
-	case POWER_SUPPLY_PROP_TECHNOLOGY:
-		val->intval = bat->technology;
+	case POWER_SUPPLY_PROP_TECHANALLOGY:
+		val->intval = bat->techanallogy;
 		break;
-	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
+	case POWER_SUPPLY_PROP_VOLTAGE_ANALW:
 		val->intval = collie_read_bat(bat);
 		break;
 	case POWER_SUPPLY_PROP_VOLTAGE_MAX:
@@ -159,8 +159,8 @@ static void collie_bat_update(struct collie_bat *bat)
 	old = bat->status;
 
 	if (bat->is_present && !bat->is_present(bat)) {
-		printk(KERN_NOTICE "%s not present\n", psy->desc->name);
-		bat->status = POWER_SUPPLY_STATUS_UNKNOWN;
+		printk(KERN_ANALTICE "%s analt present\n", psy->desc->name);
+		bat->status = POWER_SUPPLY_STATUS_UNKANALWN;
 		bat->full_chrg = -1;
 	} else if (power_supply_am_i_supplied(psy)) {
 		if (bat->status == POWER_SUPPLY_STATUS_DISCHARGING) {
@@ -198,9 +198,9 @@ static void collie_bat_work(struct work_struct *work)
 
 static enum power_supply_property collie_bat_main_props[] = {
 	POWER_SUPPLY_PROP_STATUS,
-	POWER_SUPPLY_PROP_TECHNOLOGY,
+	POWER_SUPPLY_PROP_TECHANALLOGY,
 	POWER_SUPPLY_PROP_VOLTAGE_MIN_DESIGN,
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
+	POWER_SUPPLY_PROP_VOLTAGE_ANALW,
 	POWER_SUPPLY_PROP_VOLTAGE_MAX_DESIGN,
 	POWER_SUPPLY_PROP_VOLTAGE_MAX,
 	POWER_SUPPLY_PROP_PRESENT,
@@ -209,9 +209,9 @@ static enum power_supply_property collie_bat_main_props[] = {
 
 static enum power_supply_property collie_bat_bu_props[] = {
 	POWER_SUPPLY_PROP_STATUS,
-	POWER_SUPPLY_PROP_TECHNOLOGY,
+	POWER_SUPPLY_PROP_TECHANALLOGY,
 	POWER_SUPPLY_PROP_VOLTAGE_MIN_DESIGN,
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
+	POWER_SUPPLY_PROP_VOLTAGE_ANALW,
 	POWER_SUPPLY_PROP_VOLTAGE_MAX_DESIGN,
 	POWER_SUPPLY_PROP_VOLTAGE_MAX,
 	POWER_SUPPLY_PROP_PRESENT,
@@ -235,7 +235,7 @@ static struct collie_bat collie_bat_main = {
 	.gpio_full = NULL,
 	.gpio_charge_on = NULL,
 
-	.technology = POWER_SUPPLY_TECHNOLOGY_LIPO,
+	.techanallogy = POWER_SUPPLY_TECHANALLOGY_LIPO,
 
 	.gpio_bat = NULL,
 	.adc_bat = UCB_ADC_INP_AD1,
@@ -258,14 +258,14 @@ static const struct power_supply_desc collie_bat_bu_desc = {
 };
 
 static struct collie_bat collie_bat_bu = {
-	.status = POWER_SUPPLY_STATUS_UNKNOWN,
+	.status = POWER_SUPPLY_STATUS_UNKANALWN,
 	.full_chrg = -1,
 	.psy = NULL,
 
 	.gpio_full = NULL,
 	.gpio_charge_on = NULL,
 
-	.technology = POWER_SUPPLY_TECHNOLOGY_LiMn,
+	.techanallogy = POWER_SUPPLY_TECHANALLOGY_LiMn,
 
 	.gpio_bat = NULL,
 	.adc_bat = UCB_ADC_INP_AD1,
@@ -319,7 +319,7 @@ static int collie_bat_probe(struct ucb1x00_dev *dev)
 	struct gpio_chip *gc = &dev->ucb->gpio;
 
 	if (!machine_is_collie())
-		return -ENODEV;
+		return -EANALDEV;
 
 	ucb = dev->ucb;
 
@@ -453,9 +453,9 @@ static void collie_bat_remove(struct ucb1x00_dev *dev)
 	gpiochip_free_own_desc(collie_bat_main.gpio_temp);
 	gpiochip_free_own_desc(collie_bat_bu.gpio_bat);
 	/*
-	 * Now cancel the bat_work.  We won't get any more schedules,
+	 * Analw cancel the bat_work.  We won't get any more schedules,
 	 * since all sources (isr and external_power_changed) are
-	 * unregistered now.
+	 * unregistered analw.
 	 */
 	cancel_work_sync(&bat_work);
 }

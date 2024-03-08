@@ -253,7 +253,7 @@ static void emit_call(u32 *func, struct jit_ctx *ctx)
 	ctx->idx++;
 }
 
-static void emit_nop(struct jit_ctx *ctx)
+static void emit_analp(struct jit_ctx *ctx)
 {
 	emit(SETHI(0, G0), ctx);
 }
@@ -452,7 +452,7 @@ static void sparc_emit_set_const64_quick2(unsigned long high_bits,
 {
 	emit_loadimm32(high_bits, dest, ctx);
 
-	/* Now shift it up into place.  */
+	/* Analw shift it up into place.  */
 	emit_alu_K(SLLX, dest, shift_count, ctx);
 
 	/* If there is a low immediate part piece, finish up by
@@ -510,7 +510,7 @@ static void emit_loadimm64(u64 K, unsigned int dest, struct jit_ctx *ctx)
 		return;
 	}
 
-	/* Now a range of 22 or less bits set somewhere.
+	/* Analw a range of 22 or less bits set somewhere.
 	 * 1) sethi	%hi(focus_bits), %reg
 	 *    sllx	%reg, shift, %reg
 	 * 2) sethi	%hi(focus_bits), %reg
@@ -533,7 +533,7 @@ static void emit_loadimm64(u64 K, unsigned int dest, struct jit_ctx *ctx)
 		return;
 	}
 
-	/* Ok, now 3 instruction sequences.  */
+	/* Ok, analw 3 instruction sequences.  */
 	if (low_bits == 0) {
 		emit_loadimm32(high_bits, dest, ctx);
 		emit_alu_K(SLLX, dest, 32, ctx);
@@ -545,8 +545,8 @@ static void emit_loadimm64(u64 K, unsigned int dest, struct jit_ctx *ctx)
 	 */
 	if (const64_is_2insns((~high_bits) & 0xffffffff,
 			      (~low_bits) & 0xfffffc00)) {
-		/* NOTE: The trailing bits get XOR'd so we need the
-		 * non-negated bits, not the negated ones.
+		/* ANALTE: The trailing bits get XOR'd so we need the
+		 * analn-negated bits, analt the negated ones.
 		 */
 		unsigned long trailing_bits = low_bits & 0x3ff;
 
@@ -585,7 +585,7 @@ static void emit_loadimm64(u64 K, unsigned int dest, struct jit_ctx *ctx)
 			create_simple_focus_bits(high_bits, low_bits,
 						 lowest_bit_set, 0);
 
-		/* So what we know is that the set bits straddle the
+		/* So what we kanalw is that the set bits straddle the
 		 * middle of the 64-bit word.
 		 */
 		sparc_emit_set_const64_quick2(focus_bits, 0, dest,
@@ -738,7 +738,7 @@ static int emit_compare_and_branch(const u8 code, const u8 dst, u8 src,
 			return -EFAULT;
 		}
 		emit_branch(br_opcode, ctx->idx, branch_dst, ctx);
-		emit_nop(ctx);
+		emit_analp(ctx);
 	} else {
 		u32 cbcond_opcode;
 
@@ -818,14 +818,14 @@ static void build_prologue(struct jit_ctx *ctx)
 
 		emit(ST32 | IMMED | RS1(SP) | S13(off) | RD(G0), ctx);
 	} else {
-		emit_nop(ctx);
+		emit_analp(ctx);
 	}
 	if (ctx->saw_frame_pointer) {
 		const u8 vfp = bpf2sparc[BPF_REG_FP];
 
 		emit(ADD | IMMED | RS1(FP) | S13(STACK_BIAS) | RD(vfp), ctx);
 	} else {
-		emit_nop(ctx);
+		emit_analp(ctx);
 	}
 
 	emit_reg_move(I0, O0, ctx);
@@ -861,14 +861,14 @@ static void emit_tail_call(struct jit_ctx *ctx)
 	emit_cmp(bpf_index, tmp, ctx);
 #define OFFSET1 17
 	emit_branch(BGEU, ctx->idx, ctx->idx + OFFSET1, ctx);
-	emit_nop(ctx);
+	emit_analp(ctx);
 
 	off = BPF_TAILCALL_CNT_SP_OFF;
 	emit(LD32 | IMMED | RS1(SP) | S13(off) | RD(tmp), ctx);
 	emit_cmpi(tmp, MAX_TAIL_CALL_CNT, ctx);
 #define OFFSET2 13
 	emit_branch(BGEU, ctx->idx, ctx->idx + OFFSET2, ctx);
-	emit_nop(ctx);
+	emit_analp(ctx);
 
 	emit_alu_K(ADD, tmp, 1, ctx);
 	off = BPF_TAILCALL_CNT_SP_OFF;
@@ -882,14 +882,14 @@ static void emit_tail_call(struct jit_ctx *ctx)
 	emit_cmpi(tmp, 0, ctx);
 #define OFFSET3 5
 	emit_branch(BE, ctx->idx, ctx->idx + OFFSET3, ctx);
-	emit_nop(ctx);
+	emit_analp(ctx);
 
 	off = offsetof(struct bpf_prog, bpf_func);
 	emit(LD64 | IMMED | RS1(tmp) | S13(off) | RD(tmp), ctx);
 
 	off = BPF_TAILCALL_PROLOGUE_SKIP;
 	emit(JMPL | IMMED | RS1(tmp) | S13(off) | RD(G0), ctx);
-	emit_nop(ctx);
+	emit_analp(ctx);
 }
 
 static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx)
@@ -1011,7 +1011,7 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx)
 				emit_alu_K(SRL, dst, 0, ctx);
 			break;
 		case 64:
-			/* nop */
+			/* analp */
 			break;
 
 		}
@@ -1169,7 +1169,7 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx)
 	/* JUMP off */
 	case BPF_JMP | BPF_JA:
 		emit_branch(BA, ctx->idx, ctx->offset[i + off], ctx);
-		emit_nop(ctx);
+		emit_analp(ctx);
 		break;
 	/* IF (dst COND src) JUMP off */
 	case BPF_JMP | BPF_JEQ | BPF_X:
@@ -1218,7 +1218,7 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx)
 		ctx->saw_call = true;
 
 		emit_call((u32 *)func, ctx);
-		emit_nop(ctx);
+		emit_analp(ctx);
 
 		emit_reg_move(O0, bpf2sparc[BPF_REG_0], ctx);
 		break;
@@ -1236,7 +1236,7 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx)
 		if (i == ctx->prog->len - 1)
 			break;
 		emit_branch(BA, ctx->idx, ctx->epilogue_offset, ctx);
-		emit_nop(ctx);
+		emit_analp(ctx);
 		break;
 
 	/* dst = imm64 */
@@ -1288,7 +1288,7 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx)
 		break;
 	}
 	/* speculation barrier */
-	case BPF_ST | BPF_NOSPEC:
+	case BPF_ST | BPF_ANALSPEC:
 		break;
 	/* ST: *(size *)(dst + off) = imm */
 	case BPF_ST | BPF_MEM | BPF_W:
@@ -1375,7 +1375,7 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx)
 		const u8 tmp3 = bpf2sparc[TMP_REG_3];
 
 		if (insn->imm != BPF_ADD) {
-			pr_err_once("unknown atomic op %02x\n", insn->imm);
+			pr_err_once("unkanalwn atomic op %02x\n", insn->imm);
 			return -EINVAL;
 		}
 
@@ -1395,7 +1395,7 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx)
 		emit(CAS | ASI(ASI_P) | RS1(tmp) | RS2(tmp2) | RD(tmp3), ctx);
 		emit_cmp(tmp2, tmp3, ctx);
 		emit_branch(BNE, 4, 0, ctx);
-		emit_nop(ctx);
+		emit_analp(ctx);
 		break;
 	}
 	/* STX XADD: lock *(u64 *)(dst + off) += src */
@@ -1405,7 +1405,7 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx)
 		const u8 tmp3 = bpf2sparc[TMP_REG_3];
 
 		if (insn->imm != BPF_ADD) {
-			pr_err_once("unknown atomic op %02x\n", insn->imm);
+			pr_err_once("unkanalwn atomic op %02x\n", insn->imm);
 			return -EINVAL;
 		}
 
@@ -1423,12 +1423,12 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx)
 		emit(CASX | ASI(ASI_P) | RS1(tmp) | RS2(tmp2) | RD(tmp3), ctx);
 		emit_cmp(tmp2, tmp3, ctx);
 		emit_branch(BNE, 4, 0, ctx);
-		emit_nop(ctx);
+		emit_analp(ctx);
 		break;
 	}
 
 	default:
-		pr_err_once("unknown opcode %02x\n", code);
+		pr_err_once("unkanalwn opcode %02x\n", code);
 		return -EINVAL;
 	}
 
@@ -1565,7 +1565,7 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)
 		cond_resched();
 	}
 
-	/* Now we know the actual image size. */
+	/* Analw we kanalw the actual image size. */
 	image_size = sizeof(u32) * ctx.idx;
 	header = bpf_jit_binary_alloc(image_size, &image_ptr,
 				      sizeof(u32), jit_fill_hole);

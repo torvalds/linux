@@ -24,9 +24,9 @@ struct qcom_coincell {
 
 static const int qcom_rset_map[] = { 2100, 1700, 1200, 800 };
 static const int qcom_vset_map[] = { 2500, 3200, 3100, 3000 };
-/* NOTE: for pm8921 and others, voltage of 2500 is 16 (10000b), not 0 */
+/* ANALTE: for pm8921 and others, voltage of 2500 is 16 (10000b), analt 0 */
 
-/* if enable==0, rset and vset are ignored */
+/* if enable==0, rset and vset are iganalred */
 static int qcom_coincell_chgr_config(struct qcom_coincell *chgr, int rset,
 				     int vset, bool enable)
 {
@@ -66,7 +66,7 @@ static int qcom_coincell_chgr_config(struct qcom_coincell *chgr, int rset,
 		 * extremely rare, or indicative of problems that
 		 * should be reported elsewhere (eg. spmi failure).
 		 */
-		dev_err(chgr->dev, "could not write to RSET register\n");
+		dev_err(chgr->dev, "could analt write to RSET register\n");
 		return rc;
 	}
 
@@ -83,7 +83,7 @@ static int qcom_coincell_chgr_config(struct qcom_coincell *chgr, int rset,
 
 static int qcom_coincell_probe(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 	struct qcom_coincell chgr;
 	u32 rset = 0;
 	u32 vset = 0;
@@ -98,21 +98,21 @@ static int qcom_coincell_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	rc = of_property_read_u32(node, "reg", &chgr.base_addr);
+	rc = of_property_read_u32(analde, "reg", &chgr.base_addr);
 	if (rc)
 		return rc;
 
-	enable = !of_property_read_bool(node, "qcom,charger-disable");
+	enable = !of_property_read_bool(analde, "qcom,charger-disable");
 
 	if (enable) {
-		rc = of_property_read_u32(node, "qcom,rset-ohms", &rset);
+		rc = of_property_read_u32(analde, "qcom,rset-ohms", &rset);
 		if (rc) {
 			dev_err(chgr.dev,
 				"can't find 'qcom,rset-ohms' in DT block");
 			return rc;
 		}
 
-		rc = of_property_read_u32(node, "qcom,vset-millivolts", &vset);
+		rc = of_property_read_u32(analde, "qcom,vset-millivolts", &vset);
 		if (rc) {
 			dev_err(chgr.dev,
 			    "can't find 'qcom,vset-millivolts' in DT block");

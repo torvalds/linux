@@ -8,20 +8,20 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  *
  * Authors:
- *    Eugeni Dodonov <eugeni.dodonov@intel.com>
+ *    Eugeni Dodoanalv <eugeni.dodoanalv@intel.com>
  *
  */
 
@@ -58,7 +58,7 @@ static void gen9_init_clock_gating(struct drm_i915_private *i915)
 		intel_uncore_rmw(&i915->uncore, CHICKEN_PAR1_1, 0, SKL_DE_COMPRESSED_HASH_MODE);
 	}
 
-	/* See Bspec note for PSR2_CTL bit 31, Wa#828:skl,bxt,kbl,cfl */
+	/* See Bspec analte for PSR2_CTL bit 31, Wa#828:skl,bxt,kbl,cfl */
 	intel_uncore_rmw(&i915->uncore, CHICKEN_PAR1_1, 0, SKL_EDP_PSR_FIX_RDWRAP);
 
 	/* WaEnableChickenDCPR:skl,bxt,kbl,glk,cfl */
@@ -132,7 +132,7 @@ static void ibx_init_clock_gating(struct drm_i915_private *i915)
 	/*
 	 * On Ibex Peak and Cougar Point, we need to disable clock
 	 * gating for the panel power sequencer or it will fail to
-	 * start up when no ports are active.
+	 * start up when anal ports are active.
 	 */
 	intel_uncore_write(&i915->uncore, SOUTH_DSPCLK_GATE_D, PCH_DPLSUNIT_CLOCK_GATE_DISABLE);
 }
@@ -212,7 +212,7 @@ static void cpt_init_clock_gating(struct drm_i915_private *i915)
 	/*
 	 * On Ibex Peak and Cougar Point, we need to disable clock
 	 * gating for the panel power sequencer or it will fail to
-	 * start up when no ports are active.
+	 * start up when anal ports are active.
 	 */
 	intel_uncore_write(&i915->uncore, SOUTH_DSPCLK_GATE_D, PCH_DPLSUNIT_CLOCK_GATE_DISABLE |
 			   PCH_DPLUNIT_CLOCK_GATE_DISABLE |
@@ -312,7 +312,7 @@ static void lpt_init_clock_gating(struct drm_i915_private *i915)
 {
 	/*
 	 * TODO: this bit should only be enabled when really needed, then
-	 * disabled when not needed anymore in order to save power.
+	 * disabled when analt needed anymore in order to save power.
 	 */
 	if (HAS_PCH_LPT_LP(i915))
 		intel_uncore_rmw(&i915->uncore, SOUTH_DSPCLK_GATE_D,
@@ -500,9 +500,9 @@ static void bdw_init_clock_gating(struct drm_i915_private *i915)
 	/* WaProgramL3SqcReg1Default:bdw */
 	gen8_set_l3sqc_credits(i915, 30, 2);
 
-	/* WaKVMNotificationOnConfigChange:bdw */
+	/* WaKVMAnaltificationOnConfigChange:bdw */
 	intel_uncore_rmw(&i915->uncore, CHICKEN_PAR2_1,
-			 0, KVM_CONFIG_CHANGE_NOTIFICATION_SELECT);
+			 0, KVM_CONFIG_CHANGE_ANALTIFICATION_SELECT);
 
 	lpt_init_clock_gating(i915);
 
@@ -579,7 +579,7 @@ static void ivb_init_clock_gating(struct drm_i915_private *i915)
 	intel_uncore_rmw(&i915->uncore, GEN6_MBCUNIT_SNPCR, GEN6_MBC_SNPCR_MASK,
 			 GEN6_MBC_SNPCR_MED);
 
-	if (!HAS_PCH_NOP(i915))
+	if (!HAS_PCH_ANALP(i915))
 		cpt_init_clock_gating(i915);
 
 	gen6_check_mch_setup(i915);
@@ -729,14 +729,14 @@ static void i85x_init_clock_gating(struct drm_i915_private *i915)
 			   _MASKED_BIT_ENABLE(MEM_DISPLAY_TRICKLE_FEED_DISABLE));
 
 	/*
-	 * Have FBC ignore 3D activity since we use software
+	 * Have FBC iganalre 3D activity since we use software
 	 * render tracking, and otherwise a pure 3D workload
 	 * (even if it just renders a single frame and then does
-	 * abosultely nothing) would not allow FBC to recompress
+	 * abosultely analthing) would analt allow FBC to recompress
 	 * until a 2D blit occurs.
 	 */
 	intel_uncore_write(&i915->uncore, SCPD0,
-			   _MASKED_BIT_ENABLE(SCPD_FBC_IGNORE_3D));
+			   _MASKED_BIT_ENABLE(SCPD_FBC_IGANALRE_3D));
 }
 
 static void i830_init_clock_gating(struct drm_i915_private *i915)
@@ -751,10 +751,10 @@ void intel_clock_gating_init(struct drm_i915_private *i915)
 	i915->clock_gating_funcs->init_clock_gating(i915);
 }
 
-static void nop_init_clock_gating(struct drm_i915_private *i915)
+static void analp_init_clock_gating(struct drm_i915_private *i915)
 {
 	drm_dbg_kms(&i915->drm,
-		    "No clock gating settings or workarounds applied.\n");
+		    "Anal clock gating settings or workarounds applied.\n");
 }
 
 #define CG_FUNCS(platform)						\
@@ -783,7 +783,7 @@ CG_FUNCS(i965g);
 CG_FUNCS(gen3);
 CG_FUNCS(i85x);
 CG_FUNCS(i830);
-CG_FUNCS(nop);
+CG_FUNCS(analp);
 #undef CG_FUNCS
 
 /**
@@ -792,7 +792,7 @@ CG_FUNCS(nop);
  *
  * Setup the hooks that configure which clocks of a given platform can be
  * gated and also apply various GT and display specific workarounds for these
- * platforms. Note that some GT specific workarounds are applied separately
+ * platforms. Analte that some GT specific workarounds are applied separately
  * when GPU contexts or batchbuffers start their execution.
  */
 void intel_clock_gating_hooks_init(struct drm_i915_private *i915)
@@ -840,5 +840,5 @@ void intel_clock_gating_hooks_init(struct drm_i915_private *i915)
 	else if (GRAPHICS_VER(i915) == 2)
 		i915->clock_gating_funcs = &i830_clock_gating_funcs;
 	else
-		i915->clock_gating_funcs = &nop_clock_gating_funcs;
+		i915->clock_gating_funcs = &analp_clock_gating_funcs;
 }

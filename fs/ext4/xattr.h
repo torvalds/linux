@@ -34,7 +34,7 @@ struct ext4_xattr_header {
 	__le32	h_hash;		/* hash value of all attributes */
 	__le32	h_checksum;	/* crc32c(uuid+id+xattrblock) */
 				/* id = inum if refcount=1, blknum otherwise */
-	__u32	h_reserved[3];	/* zero right now */
+	__u32	h_reserved[3];	/* zero right analw */
 };
 
 struct ext4_xattr_ibody_header {
@@ -45,7 +45,7 @@ struct ext4_xattr_entry {
 	__u8	e_name_len;	/* length of name */
 	__u8	e_name_index;	/* attribute name index */
 	__le16	e_value_offs;	/* offset in disk block of value */
-	__le32	e_value_inum;	/* inode in which the value is stored */
+	__le32	e_value_inum;	/* ianalde in which the value is stored */
 	__le32	e_value_size;	/* size of attribute value */
 	__le32	e_hash;		/* hash value of name and value */
 	char	e_name[];	/* attribute name */
@@ -63,11 +63,11 @@ struct ext4_xattr_entry {
 #define EXT4_XATTR_SIZE(size) \
 	(((size) + EXT4_XATTR_ROUND) & ~EXT4_XATTR_ROUND)
 
-#define IHDR(inode, raw_inode) \
+#define IHDR(ianalde, raw_ianalde) \
 	((struct ext4_xattr_ibody_header *) \
-		((void *)raw_inode + \
-		EXT4_GOOD_OLD_INODE_SIZE + \
-		EXT4_I(inode)->i_extra_isize))
+		((void *)raw_ianalde + \
+		EXT4_GOOD_OLD_IANALDE_SIZE + \
+		EXT4_I(ianalde)->i_extra_isize))
 #define IFIRST(hdr) ((struct ext4_xattr_entry *)((hdr)+1))
 
 /*
@@ -77,12 +77,12 @@ struct ext4_xattr_entry {
  * instead of INT_MAX for certain consistency checks, we don't need to
  * worry about arithmetic overflows.  (Actually XATTR_SIZE_MAX is
  * defined in include/uapi/linux/limits.h, so changing it is going
- * not going to be trivial....)
+ * analt going to be trivial....)
  */
 #define EXT4_XATTR_SIZE_MAX (1 << 24)
 
 /*
- * The minimum size of EA value when you start storing it in an external inode
+ * The minimum size of EA value when you start storing it in an external ianalde
  * size of block - size of header - size of 1 entry - 4 null bytes
  */
 #define EXT4_XATTR_MIN_LARGE_EA_SIZE(b)					\
@@ -96,24 +96,24 @@ struct ext4_xattr_entry {
 #define EXT4_ZERO_XATTR_VALUE ((void *)-1)
 
 /*
- * If we want to add an xattr to the inode, we should make sure that
- * i_extra_isize is not 0 and that the inode size is not less than
- * EXT4_GOOD_OLD_INODE_SIZE + extra_isize + pad.
- *   EXT4_GOOD_OLD_INODE_SIZE   extra_isize header   entry   pad  data
+ * If we want to add an xattr to the ianalde, we should make sure that
+ * i_extra_isize is analt 0 and that the ianalde size is analt less than
+ * EXT4_GOOD_OLD_IANALDE_SIZE + extra_isize + pad.
+ *   EXT4_GOOD_OLD_IANALDE_SIZE   extra_isize header   entry   pad  data
  * |--------------------------|------------|------|---------|---|-------|
  */
-#define EXT4_INODE_HAS_XATTR_SPACE(inode)				\
-	((EXT4_I(inode)->i_extra_isize != 0) &&				\
-	 (EXT4_GOOD_OLD_INODE_SIZE + EXT4_I(inode)->i_extra_isize +	\
+#define EXT4_IANALDE_HAS_XATTR_SPACE(ianalde)				\
+	((EXT4_I(ianalde)->i_extra_isize != 0) &&				\
+	 (EXT4_GOOD_OLD_IANALDE_SIZE + EXT4_I(ianalde)->i_extra_isize +	\
 	  sizeof(struct ext4_xattr_ibody_header) + EXT4_XATTR_PAD <=	\
-	  EXT4_INODE_SIZE((inode)->i_sb)))
+	  EXT4_IANALDE_SIZE((ianalde)->i_sb)))
 
 struct ext4_xattr_info {
 	const char *name;
 	const void *value;
 	size_t value_len;
 	int name_index;
-	int in_inode;
+	int in_ianalde;
 };
 
 struct ext4_xattr_search {
@@ -121,7 +121,7 @@ struct ext4_xattr_search {
 	void *base;
 	void *end;
 	struct ext4_xattr_entry *here;
-	int not_found;
+	int analt_found;
 };
 
 struct ext4_xattr_ibody_find {
@@ -129,9 +129,9 @@ struct ext4_xattr_ibody_find {
 	struct ext4_iloc iloc;
 };
 
-struct ext4_xattr_inode_array {
+struct ext4_xattr_ianalde_array {
 	unsigned int count;		/* # of used items in the array */
-	struct inode *inodes[];
+	struct ianalde *ianaldes[];
 };
 
 extern const struct xattr_handler ext4_xattr_user_handler;
@@ -142,65 +142,65 @@ extern const struct xattr_handler ext4_xattr_hurd_handler;
 #define EXT4_XATTR_NAME_ENCRYPTION_CONTEXT "c"
 
 /*
- * The EXT4_STATE_NO_EXPAND is overloaded and used for two purposes.
+ * The EXT4_STATE_ANAL_EXPAND is overloaded and used for two purposes.
  * The first is to signal that there the inline xattrs and data are
- * taking up so much space that we might as well not keep trying to
+ * taking up so much space that we might as well analt keep trying to
  * expand it.  The second is that xattr_sem is taken for writing, so
- * we shouldn't try to recurse into the inode expansion.  For this
+ * we shouldn't try to recurse into the ianalde expansion.  For this
  * second case, we need to make sure that we take save and restore the
- * NO_EXPAND state flag appropriately.
+ * ANAL_EXPAND state flag appropriately.
  */
-static inline void ext4_write_lock_xattr(struct inode *inode, int *save)
+static inline void ext4_write_lock_xattr(struct ianalde *ianalde, int *save)
 {
-	down_write(&EXT4_I(inode)->xattr_sem);
-	*save = ext4_test_inode_state(inode, EXT4_STATE_NO_EXPAND);
-	ext4_set_inode_state(inode, EXT4_STATE_NO_EXPAND);
+	down_write(&EXT4_I(ianalde)->xattr_sem);
+	*save = ext4_test_ianalde_state(ianalde, EXT4_STATE_ANAL_EXPAND);
+	ext4_set_ianalde_state(ianalde, EXT4_STATE_ANAL_EXPAND);
 }
 
-static inline int ext4_write_trylock_xattr(struct inode *inode, int *save)
+static inline int ext4_write_trylock_xattr(struct ianalde *ianalde, int *save)
 {
-	if (down_write_trylock(&EXT4_I(inode)->xattr_sem) == 0)
+	if (down_write_trylock(&EXT4_I(ianalde)->xattr_sem) == 0)
 		return 0;
-	*save = ext4_test_inode_state(inode, EXT4_STATE_NO_EXPAND);
-	ext4_set_inode_state(inode, EXT4_STATE_NO_EXPAND);
+	*save = ext4_test_ianalde_state(ianalde, EXT4_STATE_ANAL_EXPAND);
+	ext4_set_ianalde_state(ianalde, EXT4_STATE_ANAL_EXPAND);
 	return 1;
 }
 
-static inline void ext4_write_unlock_xattr(struct inode *inode, int *save)
+static inline void ext4_write_unlock_xattr(struct ianalde *ianalde, int *save)
 {
 	if (*save == 0)
-		ext4_clear_inode_state(inode, EXT4_STATE_NO_EXPAND);
-	up_write(&EXT4_I(inode)->xattr_sem);
+		ext4_clear_ianalde_state(ianalde, EXT4_STATE_ANAL_EXPAND);
+	up_write(&EXT4_I(ianalde)->xattr_sem);
 }
 
 extern ssize_t ext4_listxattr(struct dentry *, char *, size_t);
 
-extern int ext4_xattr_get(struct inode *, int, const char *, void *, size_t);
-extern int ext4_xattr_set(struct inode *, int, const char *, const void *, size_t, int);
-extern int ext4_xattr_set_handle(handle_t *, struct inode *, int, const char *, const void *, size_t, int);
-extern int ext4_xattr_set_credits(struct inode *inode, size_t value_len,
+extern int ext4_xattr_get(struct ianalde *, int, const char *, void *, size_t);
+extern int ext4_xattr_set(struct ianalde *, int, const char *, const void *, size_t, int);
+extern int ext4_xattr_set_handle(handle_t *, struct ianalde *, int, const char *, const void *, size_t, int);
+extern int ext4_xattr_set_credits(struct ianalde *ianalde, size_t value_len,
 				  bool is_create, int *credits);
-extern int __ext4_xattr_set_credits(struct super_block *sb, struct inode *inode,
+extern int __ext4_xattr_set_credits(struct super_block *sb, struct ianalde *ianalde,
 				struct buffer_head *block_bh, size_t value_len,
 				bool is_create);
 
-extern int ext4_xattr_delete_inode(handle_t *handle, struct inode *inode,
-				   struct ext4_xattr_inode_array **array,
+extern int ext4_xattr_delete_ianalde(handle_t *handle, struct ianalde *ianalde,
+				   struct ext4_xattr_ianalde_array **array,
 				   int extra_credits);
-extern void ext4_xattr_inode_array_free(struct ext4_xattr_inode_array *array);
+extern void ext4_xattr_ianalde_array_free(struct ext4_xattr_ianalde_array *array);
 
-extern int ext4_expand_extra_isize_ea(struct inode *inode, int new_extra_isize,
-			    struct ext4_inode *raw_inode, handle_t *handle);
-extern void ext4_evict_ea_inode(struct inode *inode);
+extern int ext4_expand_extra_isize_ea(struct ianalde *ianalde, int new_extra_isize,
+			    struct ext4_ianalde *raw_ianalde, handle_t *handle);
+extern void ext4_evict_ea_ianalde(struct ianalde *ianalde);
 
 extern const struct xattr_handler * const ext4_xattr_handlers[];
 
-extern int ext4_xattr_ibody_find(struct inode *inode, struct ext4_xattr_info *i,
+extern int ext4_xattr_ibody_find(struct ianalde *ianalde, struct ext4_xattr_info *i,
 				 struct ext4_xattr_ibody_find *is);
-extern int ext4_xattr_ibody_get(struct inode *inode, int name_index,
+extern int ext4_xattr_ibody_get(struct ianalde *ianalde, int name_index,
 				const char *name,
 				void *buffer, size_t buffer_size);
-extern int ext4_xattr_ibody_set(handle_t *handle, struct inode *inode,
+extern int ext4_xattr_ibody_set(handle_t *handle, struct ianalde *ianalde,
 				struct ext4_xattr_info *i,
 				struct ext4_xattr_ibody_find *is);
 
@@ -208,20 +208,20 @@ extern struct mb_cache *ext4_xattr_create_cache(void);
 extern void ext4_xattr_destroy_cache(struct mb_cache *);
 
 #ifdef CONFIG_EXT4_FS_SECURITY
-extern int ext4_init_security(handle_t *handle, struct inode *inode,
-			      struct inode *dir, const struct qstr *qstr);
+extern int ext4_init_security(handle_t *handle, struct ianalde *ianalde,
+			      struct ianalde *dir, const struct qstr *qstr);
 #else
-static inline int ext4_init_security(handle_t *handle, struct inode *inode,
-				     struct inode *dir, const struct qstr *qstr)
+static inline int ext4_init_security(handle_t *handle, struct ianalde *ianalde,
+				     struct ianalde *dir, const struct qstr *qstr)
 {
 	return 0;
 }
 #endif
 
 #ifdef CONFIG_LOCKDEP
-extern void ext4_xattr_inode_set_class(struct inode *ea_inode);
+extern void ext4_xattr_ianalde_set_class(struct ianalde *ea_ianalde);
 #else
-static inline void ext4_xattr_inode_set_class(struct inode *ea_inode) { }
+static inline void ext4_xattr_ianalde_set_class(struct ianalde *ea_ianalde) { }
 #endif
 
-extern int ext4_get_inode_usage(struct inode *inode, qsize_t *usage);
+extern int ext4_get_ianalde_usage(struct ianalde *ianalde, qsize_t *usage);

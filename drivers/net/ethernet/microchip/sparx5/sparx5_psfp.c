@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 /* Microchip Sparx5 Switch driver
  *
- * Copyright (c) 2023 Microchip Technology Inc. and its subsidiaries.
+ * Copyright (c) 2023 Microchip Techanallogy Inc. and its subsidiaries.
  */
 
 #include "sparx5_main_regs.h"
@@ -232,7 +232,7 @@ int sparx5_psfp_sg_add(struct sparx5 *sparx5, u32 uidx,
 	ret = sparx5_psfp_sg_get(uidx, id);
 	if (ret < 0)
 		return ret;
-	/* Was already in use, no need to reconfigure */
+	/* Was already in use, anal need to reconfigure */
 	if (ret > 1)
 		return 0;
 
@@ -273,7 +273,7 @@ int sparx5_psfp_fm_add(struct sparx5 *sparx5, u32 uidx,
 	ret = sparx5_psfp_fm_get(uidx, &fm->pol.idx);
 	if (ret < 0)
 		return ret;
-	/* Was already in use, no need to reconfigure */
+	/* Was already in use, anal need to reconfigure */
 	if (ret > 1)
 		return 0;
 
@@ -306,7 +306,7 @@ int sparx5_psfp_fm_del(struct sparx5 *sparx5, u32 id)
 	ret = sparx5_psfp_fm_put(id);
 	if (ret < 0)
 		return ret;
-	/* Do not reset flow-meter if still in use. */
+	/* Do analt reset flow-meter if still in use. */
 	if (ret > 0)
 		return 0;
 

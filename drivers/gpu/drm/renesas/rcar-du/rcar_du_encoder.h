@@ -24,6 +24,6 @@ struct rcar_du_encoder {
 
 int rcar_du_encoder_init(struct rcar_du_device *rcdu,
 			 enum rcar_du_output output,
-			 struct device_node *enc_node);
+			 struct device_analde *enc_analde);
 
 #endif /* __RCAR_DU_ENCODER_H__ */

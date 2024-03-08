@@ -76,8 +76,8 @@
 		syscon = <&scm_conf>;
 
 		/*
-		 * The three following nodes are marked with opp-suspend
-		 * because the can not be enabled simultaneously on a
+		 * The three following analdes are marked with opp-suspend
+		 * because the can analt be enabled simultaneously on a
 		 * single SoC.
 		 */
 		opp-50-300000000{
@@ -158,7 +158,7 @@
 		compatible = "ti,sysc-omap4-simple", "ti,sysc";
 		clocks = <&l3_clkctrl AM3_L3_L3_INSTR_CLKCTRL 0>;
 		clock-names = "fck";
-		ti,no-idle;
+		ti,anal-idle;
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges = <0x0 0x4b000000 0x1000000>;
@@ -179,8 +179,8 @@
 	};
 
 	/*
-	 * The soc node represents the soc top level view. It is used for IPs
-	 * that are not memory mapped in the MPU view or for the MPU itself.
+	 * The soc analde represents the soc top level view. It is used for IPs
+	 * that are analt memory mapped in the MPU view or for the MPU itself.
 	 */
 	soc {
 		compatible = "ti,omap-infra";
@@ -189,7 +189,7 @@
 	/*
 	 * XXX: Use a flat representation of the AM33XX interconnect.
 	 * The real AM33XX interconnect network is quite complex. Since
-	 * it will not bring real advantage to represent that in DT
+	 * it will analt bring real advantage to represent that in DT
 	 * for the moment, just use a fake OCP bus entry to represent
 	 * the whole bus hierarchy.
 	 */
@@ -327,7 +327,7 @@
 					 SYSC_OMAP2_SOFTRESET |
 					 SYSC_OMAP2_AUTOIDLE)>;
 			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
-					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_ANAL>,
 					<SYSC_IDLE_SMART>;
 			ti,syss-mask = <1>;
 			clocks = <&l3s_clkctrl AM3_L3S_MMC3_CLKCTRL 0>;
@@ -353,10 +353,10 @@
 			ti,sysc-mask = <(SYSC_OMAP4_FREEEMU |
 					 SYSC_OMAP4_SOFTRESET)>;
 			ti,sysc-midle = <SYSC_IDLE_FORCE>,
-					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_ANAL>,
 					<SYSC_IDLE_SMART>;
 			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
-					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_ANAL>,
 					<SYSC_IDLE_SMART>,
 					<SYSC_IDLE_SMART_WKUP>;
 			ti,sysc-delay-us = <2>;
@@ -481,7 +481,7 @@
 			compatible = "ti,sysc-omap4-simple", "ti,sysc";
 			clocks = <&l3_clkctrl AM3_L3_OCMCRAM_CLKCTRL 0>;
 			clock-names = "fck";
-			ti,no-idle;
+			ti,anal-idle;
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0 0x40300000 0x10000>;
@@ -513,7 +513,7 @@
 			reg-names = "rev";
 			clocks = <&l3_clkctrl AM3_L3_EMIF_CLKCTRL 0>;
 			clock-names = "fck";
-			ti,no-idle;
+			ti,anal-idle;
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0x0 0x4c000000 0x1000000>;
@@ -534,7 +534,7 @@
 			      <0x50000014 4>;
 			reg-names = "rev", "sysc", "syss";
 			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
-					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_ANAL>,
 					<SYSC_IDLE_SMART>;
 			ti,syss-mask = <1>;
 			clocks = <&l3s_clkctrl AM3_L3S_GPMC_CLKCTRL 0>;
@@ -571,7 +571,7 @@
 			ti,sysc-mask = <(SYSC_OMAP2_SOFTRESET |
 					 SYSC_OMAP2_AUTOIDLE)>;
 			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
-					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_ANAL>,
 					<SYSC_IDLE_SMART>;
 			ti,syss-mask = <1>;
 			/* Domains (P, C): per_pwrdm, l3_clkdm */
@@ -599,7 +599,7 @@
 			ti,sysc-mask = <(SYSC_OMAP2_SOFTRESET |
 					 SYSC_OMAP2_AUTOIDLE)>;
 			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
-					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_ANAL>,
 					<SYSC_IDLE_SMART>,
 					<SYSC_IDLE_SMART_WKUP>;
 			ti,syss-mask = <1>;
@@ -626,10 +626,10 @@
 			      <0x5600fe10 0x4>;
 			reg-names = "rev", "sysc";
 			ti,sysc-midle = <SYSC_IDLE_FORCE>,
-					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_ANAL>,
 					<SYSC_IDLE_SMART>;
 			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
-					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_ANAL>,
 					<SYSC_IDLE_SMART>;
 			clocks = <&gfx_l3_clkctrl AM3_GFX_L3_GFX_CLKCTRL 0>;
 			clock-names = "fck";
@@ -641,7 +641,7 @@
 			ranges = <0 0x56000000 0x1000000>;
 
 			/*
-			 * Closed source PowerVR driver, no child device
+			 * Closed source PowerVR driver, anal child device
 			 * binding or driver in mainline
 			 */
 		};
@@ -703,8 +703,8 @@
 	clocks = <&l4_wkup_clkctrl AM3_L4_WKUP_TIMER1_CLKCTRL 0>,
 		 <&l4_wkup_clkctrl AM3_L4_WKUP_L4_WKUP_CLKCTRL 0>;
 	clock-names = "fck", "ick";
-	ti,no-reset-on-init;
-	ti,no-idle;
+	ti,anal-reset-on-init;
+	ti,anal-idle;
 	timer@0 {
 		assigned-clocks = <&timer1_fck>;
 		assigned-clock-parents = <&sys_clkin_ck>;
@@ -716,8 +716,8 @@
 	clocks = <&l4ls_clkctrl AM3_L4LS_TIMER2_CLKCTRL 0>,
 		 <&l4ls_clkctrl AM3_L4LS_L4_LS_CLKCTRL 0>;
 	clock-names = "fck", "ick";
-	ti,no-reset-on-init;
-	ti,no-idle;
+	ti,anal-reset-on-init;
+	ti,anal-idle;
 	timer@0 {
 		assigned-clocks = <&timer2_fck>;
 		assigned-clock-parents = <&sys_clkin_ck>;

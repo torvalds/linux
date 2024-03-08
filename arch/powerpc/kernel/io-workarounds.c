@@ -109,7 +109,7 @@ static ret iowa_##name at					\
 	return __do_##name al;					\
 }
 
-#define DEF_PCI_AC_NORET(name, at, al, space, aa)		\
+#define DEF_PCI_AC_ANALRET(name, at, al, space, aa)		\
 static void iowa_##name at					\
 {								\
 	struct iowa_bus *bus;					\
@@ -124,17 +124,17 @@ static void iowa_##name at					\
 #include <asm/io-defs.h>
 
 #undef DEF_PCI_AC_RET
-#undef DEF_PCI_AC_NORET
+#undef DEF_PCI_AC_ANALRET
 
 static const struct ppc_pci_io iowa_pci_io = {
 
 #define DEF_PCI_AC_RET(name, ret, at, al, space, aa)	.name = iowa_##name,
-#define DEF_PCI_AC_NORET(name, at, al, space, aa)	.name = iowa_##name,
+#define DEF_PCI_AC_ANALRET(name, at, al, space, aa)	.name = iowa_##name,
 
 #include <asm/io-defs.h>
 
 #undef DEF_PCI_AC_RET
-#undef DEF_PCI_AC_NORET
+#undef DEF_PCI_AC_ANALRET
 
 };
 
@@ -144,12 +144,12 @@ void __iomem *iowa_ioremap(phys_addr_t addr, unsigned long size,
 {
 	struct iowa_bus *bus;
 	void __iomem *res = __ioremap_caller(addr, size, prot, caller);
-	int busno;
+	int busanal;
 
 	bus = iowa_pci_find(0, (unsigned long)addr);
 	if (bus != NULL) {
-		busno = bus - iowa_busses;
-		PCI_SET_ADDR_TOKEN(res, busno + 1);
+		busanal = bus - iowa_busses;
+		PCI_SET_ADDR_TOKEN(res, busanal + 1);
 	}
 	return res;
 }
@@ -171,7 +171,7 @@ void iowa_register_bus(struct pci_controller *phb, struct ppc_pci_io *ops,
 		       int (*initfunc)(struct iowa_bus *, void *), void *data)
 {
 	struct iowa_bus *bus;
-	struct device_node *np = phb->dn;
+	struct device_analde *np = phb->dn;
 
 	io_workaround_init();
 

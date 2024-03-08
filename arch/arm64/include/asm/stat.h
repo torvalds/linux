@@ -20,8 +20,8 @@ struct stat64 {
 	compat_u64	st_dev;
 	unsigned char   __pad0[4];
 
-#define STAT64_HAS_BROKEN_ST_INO	1
-	compat_ulong_t	__st_ino;
+#define STAT64_HAS_BROKEN_ST_IANAL	1
+	compat_ulong_t	__st_ianal;
 	compat_uint_t	st_mode;
 	compat_uint_t	st_nlink;
 
@@ -44,7 +44,7 @@ struct stat64 {
 	compat_ulong_t	st_ctime;
 	compat_ulong_t	st_ctime_nsec;
 
-	compat_u64	st_ino;
+	compat_u64	st_ianal;
 };
 
 #endif

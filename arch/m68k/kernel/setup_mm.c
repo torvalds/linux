@@ -17,7 +17,7 @@
 #include <linux/interrupt.h>
 #include <linux/fs.h>
 #include <linux/console.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/init.h>
 #include <linux/memblock.h>
@@ -51,8 +51,8 @@
 #include <asm/config.h>
 
 #if !FPSTATESIZE || !NR_IRQS
-#warning No CPU/platform type selected, your kernel will not work!
-#warning Are you building an allnoconfig kernel?
+#warning Anal CPU/platform type selected, your kernel will analt work!
+#warning Are you building an allanalconfig kernel?
 #endif
 
 unsigned long m68k_machtype;
@@ -113,7 +113,7 @@ static void __init m68k_parse_bootinfo(const struct bi_record *record)
 	uint16_t tag;
 
 	while ((tag = be16_to_cpu(record->tag)) != BI_LAST) {
-		int unknown = 0;
+		int unkanalwn = 0;
 		const void *data = record->data;
 		uint16_t size = be16_to_cpu(record->size);
 
@@ -164,30 +164,30 @@ static void __init m68k_parse_bootinfo(const struct bi_record *record)
 
 		default:
 			if (MACH_IS_AMIGA)
-				unknown = amiga_parse_bootinfo(record);
+				unkanalwn = amiga_parse_bootinfo(record);
 			else if (MACH_IS_ATARI)
-				unknown = atari_parse_bootinfo(record);
+				unkanalwn = atari_parse_bootinfo(record);
 			else if (MACH_IS_MAC)
-				unknown = mac_parse_bootinfo(record);
+				unkanalwn = mac_parse_bootinfo(record);
 			else if (MACH_IS_Q40)
-				unknown = q40_parse_bootinfo(record);
+				unkanalwn = q40_parse_bootinfo(record);
 			else if (MACH_IS_BVME6000)
-				unknown = bvme6000_parse_bootinfo(record);
+				unkanalwn = bvme6000_parse_bootinfo(record);
 			else if (MACH_IS_MVME16x)
-				unknown = mvme16x_parse_bootinfo(record);
+				unkanalwn = mvme16x_parse_bootinfo(record);
 			else if (MACH_IS_MVME147)
-				unknown = mvme147_parse_bootinfo(record);
+				unkanalwn = mvme147_parse_bootinfo(record);
 			else if (MACH_IS_HP300)
-				unknown = hp300_parse_bootinfo(record);
+				unkanalwn = hp300_parse_bootinfo(record);
 			else if (MACH_IS_APOLLO)
-				unknown = apollo_parse_bootinfo(record);
+				unkanalwn = apollo_parse_bootinfo(record);
 			else if (MACH_IS_VIRT)
-				unknown = virt_parse_bootinfo(record);
+				unkanalwn = virt_parse_bootinfo(record);
 			else
-				unknown = 1;
+				unkanalwn = 1;
 		}
-		if (unknown)
-			pr_warn("%s: unknown tag 0x%04x ignored\n", __func__,
+		if (unkanalwn)
+			pr_warn("%s: unkanalwn tag 0x%04x iganalred\n", __func__,
 				tag);
 		record = (struct bi_record *)((unsigned long)record + size);
 	}
@@ -197,7 +197,7 @@ static void __init m68k_parse_bootinfo(const struct bi_record *record)
 	m68k_realnum_memory = m68k_num_memory;
 #ifdef CONFIG_SINGLE_MEMORY_CHUNK
 	if (m68k_num_memory > 1) {
-		pr_warn("%s: ignoring last %i chunks of physical memory\n",
+		pr_warn("%s: iganalring last %i chunks of physical memory\n",
 			__func__, (m68k_num_memory - 1));
 		m68k_num_memory = 1;
 	}
@@ -322,7 +322,7 @@ void __init setup_arch(char **cmdline_p)
 		break;
 #endif
 	default:
-		panic("No configuration setup");
+		panic("Anal configuration setup");
 	}
 
 	if (IS_ENABLED(CONFIG_BLK_DEV_INITRD) && m68k_ramdisk.size)
@@ -403,7 +403,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	}
 
 #ifdef CONFIG_M68KFPU_EMU_ONLY
-	fpu = "none(soft float)";
+	fpu = "analne(soft float)";
 #else
 	if (m68k_fputype & FPU_68881)
 		fpu = "68881";
@@ -418,7 +418,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	else if (m68k_fputype & FPU_COLDFIRE)
 		fpu = "ColdFire";
 	else
-		fpu = "none";
+		fpu = "analne";
 #endif
 
 	if (m68k_mmutype & MMU_68851)
@@ -436,7 +436,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	else if (m68k_mmutype & MMU_COLDFIRE)
 		mmu = "ColdFire";
 	else
-		mmu = "unknown";
+		mmu = "unkanalwn";
 
 	clockfreq = loops_per_jiffy * HZ * clockfactor;
 
@@ -482,7 +482,7 @@ static int hardware_proc_show(struct seq_file *m, void *v)
 	if (mach_get_model)
 		mach_get_model(model);
 	else
-		strcpy(model, "Unknown m68k");
+		strcpy(model, "Unkanalwn m68k");
 
 	seq_printf(m, "Model:\t\t%s\n", model);
 	for (mem = 0, i = 0; i < m68k_num_memory; i++)
@@ -507,11 +507,11 @@ void __init arch_cpu_finalize_init(void)
 {
 #if defined(CONFIG_FPU) && !defined(CONFIG_M68KFPU_EMU)
 	if (m68k_fputype == 0) {
-		pr_emerg("*** YOU DO NOT HAVE A FLOATING POINT UNIT, "
+		pr_emerg("*** YOU DO ANALT HAVE A FLOATING POINT UNIT, "
 			"WHICH IS REQUIRED BY LINUX/M68K ***\n");
 		pr_emerg("Upgrade your hardware or join the FPU "
 			"emulation project\n");
-		panic("no FPU");
+		panic("anal FPU");
 	}
 #endif /* !CONFIG_M68KFPU_EMU */
 }
@@ -582,7 +582,7 @@ static ssize_t m68k_nvram_get_size(void)
 		return atari_nvram_get_size();
 	else if (MACH_IS_MAC)
 		return mac_pram_get_size();
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 /* Atari device drivers call .read (to get checksum validation) whereas

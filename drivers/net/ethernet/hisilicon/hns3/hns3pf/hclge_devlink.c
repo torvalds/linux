@@ -48,18 +48,18 @@ static int hclge_devlink_reload_down(struct devlink *devlink, bool netns_change,
 	switch (action) {
 	case DEVLINK_RELOAD_ACTION_DRIVER_REINIT:
 		rtnl_lock();
-		ret = hdev->nic_client->ops->reset_notify(h, HNAE3_DOWN_CLIENT);
+		ret = hdev->nic_client->ops->reset_analtify(h, HNAE3_DOWN_CLIENT);
 		if (ret) {
 			rtnl_unlock();
 			return ret;
 		}
 
-		ret = hdev->nic_client->ops->reset_notify(h,
+		ret = hdev->nic_client->ops->reset_analtify(h,
 							  HNAE3_UNINIT_CLIENT);
 		rtnl_unlock();
 		return ret;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -78,17 +78,17 @@ static int hclge_devlink_reload_up(struct devlink *devlink,
 	switch (action) {
 	case DEVLINK_RELOAD_ACTION_DRIVER_REINIT:
 		rtnl_lock();
-		ret = hdev->nic_client->ops->reset_notify(h, HNAE3_INIT_CLIENT);
+		ret = hdev->nic_client->ops->reset_analtify(h, HNAE3_INIT_CLIENT);
 		if (ret) {
 			rtnl_unlock();
 			return ret;
 		}
 
-		ret = hdev->nic_client->ops->reset_notify(h, HNAE3_UP_CLIENT);
+		ret = hdev->nic_client->ops->reset_analtify(h, HNAE3_UP_CLIENT);
 		rtnl_unlock();
 		return ret;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -108,7 +108,7 @@ int hclge_devlink_init(struct hclge_dev *hdev)
 	devlink = devlink_alloc(&hclge_devlink_ops,
 				sizeof(struct hclge_devlink_priv), &pdev->dev);
 	if (!devlink)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv = devlink_priv(devlink);
 	priv->hdev = hdev;

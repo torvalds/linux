@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Author: Dmitry Safonov <dima@arista.com> */
+/* Author: Dmitry Safoanalv <dima@arista.com> */
 #include <inttypes.h>
 #include "aolib.h"
 
@@ -93,14 +93,14 @@ static void try_accept(const char *tst_name, unsigned int port,
 	close(lsk);
 
 	if (!cnt_name) {
-		test_ok("%s: no counter checks", tst_name);
+		test_ok("%s: anal counter checks", tst_name);
 		goto out;
 	}
 
 	after_cnt = netstat_get_one(cnt_name, NULL);
 
 	if (after_cnt <= before_cnt) {
-		test_fail("%s: %s counter did not increase: %zu <= %zu",
+		test_fail("%s: %s counter did analt increase: %zu <= %zu",
 				tst_name, cnt_name, after_cnt, before_cnt);
 	} else {
 		test_ok("%s: counter %s increased %zu => %zu",
@@ -136,7 +136,7 @@ static void server_add_fail_tests(unsigned int *port)
 		   1, 0);
 	try_accept("TCP-MD5 established: add TCP-AO key", (*port)++, &addr_any,
 		   0, NULL, 0, 0, 0, 0, 0, NULL, 0, 1, 0);
-	try_accept("non-signed established: add TCP-AO key", (*port)++, NULL, 0,
+	try_accept("analn-signed established: add TCP-AO key", (*port)++, NULL, 0,
 		   NULL, 0, 0, 0, 0, 0, "CurrEstab", 0, 0, 0);
 }
 
@@ -158,7 +158,7 @@ static void *server_fn(void *arg)
 	try_accept("AO server (INADDR_ANY): MD5 client", port++, NULL, 0,
 		   &addr_any, 0, 0, 100, 100, 0, "TCPMD5Unexpected",
 		   0, 1, FAULT_TIMEOUT);
-	try_accept("AO server (INADDR_ANY): no sign client", port++, NULL, 0,
+	try_accept("AO server (INADDR_ANY): anal sign client", port++, NULL, 0,
 		   &addr_any, 0, 0, 100, 100, 0, "TCPAORequired",
 		   TEST_CNT_AO_REQUIRED, 0, FAULT_TIMEOUT);
 	try_accept("AO server (AO_REQUIRED): AO client", port++, NULL, 0,
@@ -170,21 +170,21 @@ static void *server_fn(void *arg)
 		   TEST_CNT_AO_REQUIRED, 0, FAULT_TIMEOUT);
 
 	try_accept("MD5 server (INADDR_ANY): AO client", port++, &addr_any, 0,
-		   NULL, 0, 0, 0, 0, 0, "TCPAOKeyNotFound",
+		   NULL, 0, 0, 0, 0, 0, "TCPAOKeyAnaltFound",
 		   0, 1, FAULT_TIMEOUT);
 	try_accept("MD5 server (INADDR_ANY): MD5 client", port++, &addr_any, 0,
 		   NULL, 0, 0, 0, 0, 0, NULL, 0, 1, 0);
-	try_accept("MD5 server (INADDR_ANY): no sign client", port++, &addr_any,
-		   0, NULL, 0, 0, 0, 0, 0, "TCPMD5NotFound",
+	try_accept("MD5 server (INADDR_ANY): anal sign client", port++, &addr_any,
+		   0, NULL, 0, 0, 0, 0, 0, "TCPMD5AnaltFound",
 		   0, 1, FAULT_TIMEOUT);
 
-	try_accept("no sign server: AO client", port++, NULL, 0,
-		   NULL, 0, 0, 0, 0, 0, "TCPAOKeyNotFound",
-		   TEST_CNT_AO_KEY_NOT_FOUND, 0, FAULT_TIMEOUT);
-	try_accept("no sign server: MD5 client", port++, NULL, 0,
+	try_accept("anal sign server: AO client", port++, NULL, 0,
+		   NULL, 0, 0, 0, 0, 0, "TCPAOKeyAnaltFound",
+		   TEST_CNT_AO_KEY_ANALT_FOUND, 0, FAULT_TIMEOUT);
+	try_accept("anal sign server: MD5 client", port++, NULL, 0,
 		   NULL, 0, 0, 0, 0, 0, "TCPMD5Unexpected",
 		   0, 1, FAULT_TIMEOUT);
-	try_accept("no sign server: no sign client", port++, NULL, 0,
+	try_accept("anal sign server: anal sign client", port++, NULL, 0,
 		   NULL, 0, 0, 0, 0, 0, "CurrEstab", 0, 0, 0);
 
 	try_accept("AO+MD5 server: AO client (matching)", port++,
@@ -192,11 +192,11 @@ static void *server_fn(void *arg)
 		   100, 100, 0, "TCPAOGood", TEST_CNT_GOOD, 1, 0);
 	try_accept("AO+MD5 server: AO client (misconfig, matching MD5)", port++,
 		   &this_ip_dest, TEST_PREFIX, &client2, TEST_PREFIX, 0,
-		   100, 100, 0, "TCPAOKeyNotFound", TEST_CNT_AO_KEY_NOT_FOUND,
+		   100, 100, 0, "TCPAOKeyAnaltFound", TEST_CNT_AO_KEY_ANALT_FOUND,
 		   1, FAULT_TIMEOUT);
-	try_accept("AO+MD5 server: AO client (misconfig, non-matching)", port++,
+	try_accept("AO+MD5 server: AO client (misconfig, analn-matching)", port++,
 		   &this_ip_dest, TEST_PREFIX, &client2, TEST_PREFIX, 0,
-		   100, 100, 0, "TCPAOKeyNotFound", TEST_CNT_AO_KEY_NOT_FOUND,
+		   100, 100, 0, "TCPAOKeyAnaltFound", TEST_CNT_AO_KEY_ANALT_FOUND,
 		   1, FAULT_TIMEOUT);
 	try_accept("AO+MD5 server: MD5 client (matching)", port++,
 		   &this_ip_dest, TEST_PREFIX, &client2, TEST_PREFIX, 0,
@@ -204,19 +204,19 @@ static void *server_fn(void *arg)
 	try_accept("AO+MD5 server: MD5 client (misconfig, matching AO)", port++,
 		   &this_ip_dest, TEST_PREFIX, &client2, TEST_PREFIX, 0,
 		   100, 100, 0, "TCPMD5Unexpected", 0, 1, FAULT_TIMEOUT);
-	try_accept("AO+MD5 server: MD5 client (misconfig, non-matching)", port++,
+	try_accept("AO+MD5 server: MD5 client (misconfig, analn-matching)", port++,
 		   &this_ip_dest, TEST_PREFIX, &client2, TEST_PREFIX, 0,
 		   100, 100, 0, "TCPMD5Unexpected", 0, 1, FAULT_TIMEOUT);
-	try_accept("AO+MD5 server: no sign client (unmatched)", port++,
+	try_accept("AO+MD5 server: anal sign client (unmatched)", port++,
 		   &this_ip_dest, TEST_PREFIX, &client2, TEST_PREFIX, 0,
 		   100, 100, 0, "CurrEstab", 0, 1, 0);
-	try_accept("AO+MD5 server: no sign client (misconfig, matching AO)",
+	try_accept("AO+MD5 server: anal sign client (misconfig, matching AO)",
 		   port++, &this_ip_dest, TEST_PREFIX, &client2, TEST_PREFIX, 0,
 		   100, 100, 0, "TCPAORequired",
 		   TEST_CNT_AO_REQUIRED, 1, FAULT_TIMEOUT);
-	try_accept("AO+MD5 server: no sign client (misconfig, matching MD5)",
+	try_accept("AO+MD5 server: anal sign client (misconfig, matching MD5)",
 		   port++, &this_ip_dest, TEST_PREFIX, &client2, TEST_PREFIX, 0,
-		   100, 100, 0, "TCPMD5NotFound", 0, 1, FAULT_TIMEOUT);
+		   100, 100, 0, "TCPMD5AnaltFound", 0, 1, FAULT_TIMEOUT);
 
 	try_accept("AO+MD5 server: client with both [TCP-MD5] and TCP-AO keys",
 		   port++, &this_ip_dest, TEST_PREFIX, &client2, TEST_PREFIX, 0,
@@ -390,9 +390,9 @@ static int open_add(const char *tst_name, unsigned int port,
 	}
 
 	if (strategy & PREINSTALL_MD5) {
-		errno = 0;
+		erranal = 0;
 		test_set_md5(sk, md5_addr, md5_prefix, md5_vrf, md5_password);
-		if (!test_continue(tst_name, -errno, inj, false)) {
+		if (!test_continue(tst_name, -erranal, inj, false)) {
 			close(sk);
 			return -1;
 		}
@@ -521,7 +521,7 @@ static void client_add_fail_tests(unsigned int *port)
 		   (*port)++, PREINSTALL_MD5 | POSTINSTALL_AO,
 		   this_ip_dest, TEST_PREFIX, -1, this_ip_dest, TEST_PREFIX, 0,
 		   100, 100, 1, FAULT_POSTINSTALL);
-	try_to_add("non-signed established: add TCP-AO key",
+	try_to_add("analn-signed established: add TCP-AO key",
 		   (*port)++, POSTINSTALL_AO,
 		   this_ip_dest, TEST_PREFIX, -1, this_ip_dest, TEST_PREFIX, 0,
 		   100, 100, 0, FAULT_POSTINSTALL);
@@ -568,43 +568,43 @@ static void client_vrf_tests(unsigned int *port)
 	 * |  l3index=N   |     reject      |    allow    |    reject   |
 	 * |--------------|-----------------|-------------|-------------|
 	 */
-	try_to_preadd("VRF: TCP-AO key (no l3index) + TCP-MD5 key (no l3index)",
+	try_to_preadd("VRF: TCP-AO key (anal l3index) + TCP-MD5 key (anal l3index)",
 		      (*port)++, PREINSTALL_MD5 | PREINSTALL_AO,
 		      this_ip_addr, TEST_PREFIX, -1,
 		      this_ip_addr, TEST_PREFIX, -1, 0, 100, 100,
 		      1, 1, FAULT_PREINSTALL_MD5);
-	try_to_preadd("VRF: TCP-MD5 key (no l3index) + TCP-AO key (no l3index)",
+	try_to_preadd("VRF: TCP-MD5 key (anal l3index) + TCP-AO key (anal l3index)",
 		      (*port)++, PREINSTALL_MD5_FIRST | PREINSTALL_AO,
 		      this_ip_addr, TEST_PREFIX, -1,
 		      this_ip_addr, TEST_PREFIX, -1, 0, 100, 100,
 		      1, 1, FAULT_PREINSTALL_AO);
-	try_to_preadd("VRF: TCP-AO key (no l3index) + TCP-MD5 key (l3index=0)",
+	try_to_preadd("VRF: TCP-AO key (anal l3index) + TCP-MD5 key (l3index=0)",
 		      (*port)++, PREINSTALL_MD5 | PREINSTALL_AO,
 		      this_ip_addr, TEST_PREFIX, 0,
 		      this_ip_addr, TEST_PREFIX, -1, 0, 100, 100,
 		      1, 1, FAULT_PREINSTALL_MD5);
-	try_to_preadd("VRF: TCP-MD5 key (l3index=0) + TCP-AO key (no l3index)",
+	try_to_preadd("VRF: TCP-MD5 key (l3index=0) + TCP-AO key (anal l3index)",
 		      (*port)++, PREINSTALL_MD5_FIRST | PREINSTALL_AO,
 		      this_ip_addr, TEST_PREFIX, 0,
 		      this_ip_addr, TEST_PREFIX, -1, 0, 100, 100,
 		      1, 1, FAULT_PREINSTALL_AO);
-	try_to_preadd("VRF: TCP-AO key (no l3index) + TCP-MD5 key (l3index=N)",
+	try_to_preadd("VRF: TCP-AO key (anal l3index) + TCP-MD5 key (l3index=N)",
 		      (*port)++, PREINSTALL_MD5 | PREINSTALL_AO,
 		      this_ip_addr, TEST_PREFIX, test_vrf_ifindex,
 		      this_ip_addr, TEST_PREFIX, -1, 0, 100, 100,
 		      1, 1, FAULT_PREINSTALL_MD5);
-	try_to_preadd("VRF: TCP-MD5 key (l3index=N) + TCP-AO key (no l3index)",
+	try_to_preadd("VRF: TCP-MD5 key (l3index=N) + TCP-AO key (anal l3index)",
 		      (*port)++, PREINSTALL_MD5_FIRST | PREINSTALL_AO,
 		      this_ip_addr, TEST_PREFIX, test_vrf_ifindex,
 		      this_ip_addr, TEST_PREFIX, -1, 0, 100, 100,
 		      1, 1, FAULT_PREINSTALL_AO);
 
-	try_to_preadd("VRF: TCP-AO key (l3index=0) + TCP-MD5 key (no l3index)",
+	try_to_preadd("VRF: TCP-AO key (l3index=0) + TCP-MD5 key (anal l3index)",
 		      (*port)++, PREINSTALL_MD5 | PREINSTALL_AO,
 		      this_ip_addr, TEST_PREFIX, -1,
 		      this_ip_addr, TEST_PREFIX, 0, 0, 100, 100,
 		      1, 1, FAULT_PREINSTALL_MD5);
-	try_to_preadd("VRF: TCP-MD5 key (no l3index) + TCP-AO key (l3index=0)",
+	try_to_preadd("VRF: TCP-MD5 key (anal l3index) + TCP-AO key (l3index=0)",
 		      (*port)++, PREINSTALL_MD5_FIRST | PREINSTALL_AO,
 		      this_ip_addr, TEST_PREFIX, -1,
 		      this_ip_addr, TEST_PREFIX, 0, 0, 100, 100,
@@ -630,12 +630,12 @@ static void client_vrf_tests(unsigned int *port)
 		      this_ip_addr, TEST_PREFIX, 0, 0, 100, 100,
 		      1, 1, 0);
 
-	try_to_preadd("VRF: TCP-AO key (l3index=N) + TCP-MD5 key (no l3index)",
+	try_to_preadd("VRF: TCP-AO key (l3index=N) + TCP-MD5 key (anal l3index)",
 		      (*port)++, PREINSTALL_MD5 | PREINSTALL_AO,
 		      this_ip_addr, TEST_PREFIX, test_vrf_ifindex,
 		      this_ip_addr, TEST_PREFIX, -1, 0, 100, 100,
 		      1, 1, FAULT_PREINSTALL_MD5);
-	try_to_preadd("VRF: TCP-MD5 key (no l3index) + TCP-AO key (l3index=N)",
+	try_to_preadd("VRF: TCP-MD5 key (anal l3index) + TCP-AO key (l3index=N)",
 		      (*port)++, PREINSTALL_MD5_FIRST | PREINSTALL_AO,
 		      this_ip_addr, TEST_PREFIX, -1,
 		      this_ip_addr, TEST_PREFIX, test_vrf_ifindex, 0, 100, 100,
@@ -684,14 +684,14 @@ static void *client_fn(void *arg)
 		   &addr_any, 0, 100, 100, 0, FAULT_TIMEOUT, 1, &this_ip_addr);
 	try_connect("MD5 server (INADDR_ANY): MD5 client", port++, &addr_any, 0,
 		   NULL, 0, 100, 100, 0, 0, 1, &this_ip_addr);
-	try_connect("MD5 server (INADDR_ANY): no sign client", port++, NULL, 0,
+	try_connect("MD5 server (INADDR_ANY): anal sign client", port++, NULL, 0,
 		   NULL, 0, 100, 100, 0, FAULT_TIMEOUT, 1, &this_ip_addr);
 
-	try_connect("no sign server: AO client", port++, NULL, 0,
+	try_connect("anal sign server: AO client", port++, NULL, 0,
 		   &addr_any, 0, 100, 100, 0, FAULT_TIMEOUT, 0, &this_ip_addr);
-	try_connect("no sign server: MD5 client", port++, &addr_any, 0,
+	try_connect("anal sign server: MD5 client", port++, &addr_any, 0,
 		   NULL, 0, 100, 100, 0, FAULT_TIMEOUT, 1, &this_ip_addr);
-	try_connect("no sign server: no sign client", port++, NULL, 0,
+	try_connect("anal sign server: anal sign client", port++, NULL, 0,
 		   NULL, 0, 100, 100, 0, 0, 0, &this_ip_addr);
 
 	try_connect("AO+MD5 server: AO client (matching)", port++, NULL, 0,
@@ -699,7 +699,7 @@ static void *client_fn(void *arg)
 	try_connect("AO+MD5 server: AO client (misconfig, matching MD5)",
 		   port++, NULL, 0, &addr_any, 0, 100, 100, 0,
 		   FAULT_TIMEOUT, 1, &this_ip_addr);
-	try_connect("AO+MD5 server: AO client (misconfig, non-matching)",
+	try_connect("AO+MD5 server: AO client (misconfig, analn-matching)",
 		   port++, NULL, 0, &addr_any, 0, 100, 100, 0,
 		   FAULT_TIMEOUT, 1, &client3);
 	try_connect("AO+MD5 server: MD5 client (matching)", port++, &addr_any, 0,
@@ -707,15 +707,15 @@ static void *client_fn(void *arg)
 	try_connect("AO+MD5 server: MD5 client (misconfig, matching AO)",
 		   port++, &addr_any, 0, NULL, 0, 100, 100, 0, FAULT_TIMEOUT,
 		   1, &client2);
-	try_connect("AO+MD5 server: MD5 client (misconfig, non-matching)",
+	try_connect("AO+MD5 server: MD5 client (misconfig, analn-matching)",
 		   port++, &addr_any, 0, NULL, 0, 100, 100, 0, FAULT_TIMEOUT,
 		   1, &client3);
-	try_connect("AO+MD5 server: no sign client (unmatched)",
+	try_connect("AO+MD5 server: anal sign client (unmatched)",
 		   port++, NULL, 0, NULL, 0, 100, 100, 0, 0, 1, &client3);
-	try_connect("AO+MD5 server: no sign client (misconfig, matching AO)",
+	try_connect("AO+MD5 server: anal sign client (misconfig, matching AO)",
 		   port++, NULL, 0, NULL, 0, 100, 100, 0, FAULT_TIMEOUT,
 		   1, &client2);
-	try_connect("AO+MD5 server: no sign client (misconfig, matching MD5)",
+	try_connect("AO+MD5 server: anal sign client (misconfig, matching MD5)",
 		   port++, NULL, 0, NULL, 0, 100, 100, 0, FAULT_TIMEOUT,
 		   1, &this_ip_addr);
 

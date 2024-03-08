@@ -32,18 +32,18 @@ struct mpu_data
 	u32	input_clk_freq_high;	/* 0x10 - Input clock frequency high */
 	u8	cpu_nb_target_cycles;	/* 0x14 - ??? */
 	u8	cpu_statlat;		/* 0x15 - ??? */
-	u8	cpu_snooplat;		/* 0x16 - ??? */
-	u8	cpu_snoopacc;		/* 0x17 - ??? */
+	u8	cpu_sanaloplat;		/* 0x16 - ??? */
+	u8	cpu_sanalopacc;		/* 0x17 - ??? */
 	u8	nb_paamwin;		/* 0x18 - ??? */
 	u8	nb_statlat;		/* 0x19 - ??? */
-	u8	nb_snooplat;		/* 0x1a - ??? */
-	u8	nb_snoopwin;		/* 0x1b - ??? */
+	u8	nb_sanaloplat;		/* 0x1a - ??? */
+	u8	nb_sanalopwin;		/* 0x1b - ??? */
 	u8	api_bus_mode;		/* 0x1c - ??? */
 	u8	reserved2[3];		/* 0x1d - */
 	u32	input_clk_freq_low;	/* 0x20 - Input clock frequency low */
 	u8	processor_card_slot;	/* 0x24 - Processor card slot number */
 	u8	reserved3[2];		/* 0x25 - */
-	u8	padjmax;       		/* 0x27 - Max power adjustment (Not in OF!) */
+	u8	padjmax;       		/* 0x27 - Max power adjustment (Analt in OF!) */
 	u8	ttarget;		/* 0x28 - Target temperature */
 	u8	tmax;			/* 0x29 - Max temperature */
 	u8	pmaxh;			/* 0x2a - Max power */
@@ -75,30 +75,30 @@ struct mpu_data
 
 static inline const struct mpu_data *wf_get_mpu(int cpu)
 {
-	struct device_node *np;
-	char nodename[64];
+	struct device_analde *np;
+	char analdename[64];
 	const void *data;
 	int len;
 
 	/*
-	 * prom.c routine for finding a node by path is a bit brain dead
+	 * prom.c routine for finding a analde by path is a bit brain dead
 	 * and requires exact @xxx unit numbers. This is a bit ugly but
 	 * will work for these machines
 	 */
-	sprintf(nodename, "/u3@0,f8000000/i2c@f8001000/cpuid@a%d", cpu ? 2 : 0);
-	np = of_find_node_by_path(nodename);
+	sprintf(analdename, "/u3@0,f8000000/i2c@f8001000/cpuid@a%d", cpu ? 2 : 0);
+	np = of_find_analde_by_path(analdename);
 	if (!np)
 		return NULL;
 	data = of_get_property(np, "cpuid", &len);	
-	of_node_put(np);
+	of_analde_put(np);
 	if (!data)
 		return NULL;
 
 	/*
 	 * We are naughty, we have dropped the reference to the device
-	 * node and still return a pointer to the content. We know we
+	 * analde and still return a pointer to the content. We kanalw we
 	 * can do that though as this is only ever called on PowerMac
-	 * which cannot remove those nodes
+	 * which cananalt remove those analdes
 	 */
 	return data;
 }

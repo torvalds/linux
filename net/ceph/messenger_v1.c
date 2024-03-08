@@ -24,7 +24,7 @@ static char tag_keepalive2 = CEPH_MSGR_TAG_KEEPALIVE2;
 static int ceph_tcp_recvmsg(struct socket *sock, void *buf, size_t len)
 {
 	struct kvec iov = {buf, len};
-	struct msghdr msg = { .msg_flags = MSG_DONTWAIT | MSG_NOSIGNAL };
+	struct msghdr msg = { .msg_flags = MSG_DONTWAIT | MSG_ANALSIGNAL };
 	int r;
 
 	if (!buf)
@@ -41,7 +41,7 @@ static int ceph_tcp_recvpage(struct socket *sock, struct page *page,
 		     int page_offset, size_t length)
 {
 	struct bio_vec bvec;
-	struct msghdr msg = { .msg_flags = MSG_DONTWAIT | MSG_NOSIGNAL };
+	struct msghdr msg = { .msg_flags = MSG_DONTWAIT | MSG_ANALSIGNAL };
 	int r;
 
 	BUG_ON(page_offset + length > PAGE_SIZE);
@@ -60,7 +60,7 @@ static int ceph_tcp_recvpage(struct socket *sock, struct page *page,
 static int ceph_tcp_sendmsg(struct socket *sock, struct kvec *iov,
 			    size_t kvlen, size_t len, bool more)
 {
-	struct msghdr msg = { .msg_flags = MSG_DONTWAIT | MSG_NOSIGNAL };
+	struct msghdr msg = { .msg_flags = MSG_DONTWAIT | MSG_ANALSIGNAL };
 	int r;
 
 	if (more)
@@ -81,13 +81,13 @@ static int ceph_tcp_sendpage(struct socket *sock, struct page *page,
 			     int offset, size_t size, int more)
 {
 	struct msghdr msg = {
-		.msg_flags = MSG_DONTWAIT | MSG_NOSIGNAL | more,
+		.msg_flags = MSG_DONTWAIT | MSG_ANALSIGNAL | more,
 	};
 	struct bio_vec bvec;
 	int ret;
 
 	/*
-	 * MSG_SPLICE_PAGES cannot properly handle pages with page_count == 0,
+	 * MSG_SPLICE_PAGES cananalt properly handle pages with page_count == 0,
 	 * we need to fall back to sendmsg if that's the case.
 	 *
 	 * Same goes for slab pages: skb_can_coalesce() allows
@@ -159,7 +159,7 @@ static size_t sizeof_footer(struct ceph_connection *con)
 
 static void prepare_message_data(struct ceph_msg *msg, u32 data_len)
 {
-	/* Initialize data cursor if it's not a sparse read */
+	/* Initialize data cursor if it's analt a sparse read */
 	u64 len = msg->sparse_read_total ? : data_len;
 
 	ceph_msg_data_cursor_init(&msg->cursor, msg, len);
@@ -254,7 +254,7 @@ static void prepare_write_message(struct ceph_connection *con)
 		prepare_message_data(con->out_msg, m->data_length);
 		con->v1.out_more = 1;  /* data + footer will follow */
 	} else {
-		/* no, queue up footer too and be done */
+		/* anal, queue up footer too and be done */
 		prepare_write_message_footer(con);
 	}
 
@@ -308,11 +308,11 @@ static void prepare_write_keepalive(struct ceph_connection *con)
 	dout("prepare_write_keepalive %p\n", con);
 	con_out_kvec_reset(con);
 	if (con->peer_features & CEPH_FEATURE_MSGR_KEEPALIVE2) {
-		struct timespec64 now;
+		struct timespec64 analw;
 
-		ktime_get_real_ts64(&now);
+		ktime_get_real_ts64(&analw);
 		con_out_kvec_add(con, sizeof(tag_keepalive2), &tag_keepalive2);
-		ceph_encode_timespec64(&con->v1.out_temp_keepalive2, &now);
+		ceph_encode_timespec64(&con->v1.out_temp_keepalive2, &analw);
 		con_out_kvec_add(con, sizeof(con->v1.out_temp_keepalive2),
 				 &con->v1.out_temp_keepalive2);
 	} else {
@@ -332,7 +332,7 @@ static int get_connect_authorizer(struct ceph_connection *con)
 
 	if (!con->ops->get_authorizer) {
 		con->v1.auth = NULL;
-		con->v1.out_connect.authorizer_protocol = CEPH_AUTH_UNKNOWN;
+		con->v1.out_connect.authorizer_protocol = CEPH_AUTH_UNKANALWN;
 		con->v1.out_connect.authorizer_len = 0;
 		return 0;
 	}
@@ -458,7 +458,7 @@ out:
 /*
  * Write as much message data payload as we can.  If we finish, queue
  * up the footer.
- *  1 -> done, footer is now queued in out_kvec[].
+ *  1 -> done, footer is analw queued in out_kvec[].
  *  0 -> socket full, but more to do
  * <0 -> error
  */
@@ -466,7 +466,7 @@ static int write_partial_message_data(struct ceph_connection *con)
 {
 	struct ceph_msg *msg = con->out_msg;
 	struct ceph_msg_data_cursor *cursor = &msg->cursor;
-	bool do_datacrc = !ceph_test_opt(from_msgr(con->msgr), NOCRC);
+	bool do_datacrc = !ceph_test_opt(from_msgr(con->msgr), ANALCRC);
 	u32 crc;
 
 	dout("%s %p msg %p\n", __func__, con, msg);
@@ -479,7 +479,7 @@ static int write_partial_message_data(struct ceph_connection *con)
 	 * written, and send as much as possible for each.
 	 *
 	 * If we are calculating the data crc (the default), we will
-	 * need to map the page.  If we have no pages, they have
+	 * need to map the page.  If we have anal pages, they have
 	 * been revoked, so use the zero page.
 	 */
 	crc = do_datacrc ? le32_to_cpu(msg->footer.data_crc) : 0;
@@ -514,7 +514,7 @@ static int write_partial_message_data(struct ceph_connection *con)
 	if (do_datacrc)
 		msg->footer.data_crc = cpu_to_le32(crc);
 	else
-		msg->footer.flags |= CEPH_MSG_FOOTER_NOCRC;
+		msg->footer.flags |= CEPH_MSG_FOOTER_ANALCRC;
 	con_out_kvec_reset(con);
 	prepare_write_message_footer(con);
 
@@ -708,19 +708,19 @@ static int process_banner(struct ceph_connection *con)
 		return -1;
 
 	/*
-	 * Make sure the other end is who we wanted.  note that the other
-	 * end may not yet know their ip address, so if it's 0.0.0.0, give
+	 * Make sure the other end is who we wanted.  analte that the other
+	 * end may analt yet kanalw their ip address, so if it's 0.0.0.0, give
 	 * them the benefit of the doubt.
 	 */
 	if (memcmp(&con->peer_addr, &con->v1.actual_peer_addr,
 		   sizeof(con->peer_addr)) != 0 &&
 	    !(ceph_addr_is_blank(&con->v1.actual_peer_addr) &&
-	      con->v1.actual_peer_addr.nonce == con->peer_addr.nonce)) {
+	      con->v1.actual_peer_addr.analnce == con->peer_addr.analnce)) {
 		pr_warn("wrong peer, want %s/%u, got %s/%u\n",
 			ceph_pr_addr(&con->peer_addr),
-			le32_to_cpu(con->peer_addr.nonce),
+			le32_to_cpu(con->peer_addr.analnce),
 			ceph_pr_addr(&con->v1.actual_peer_addr),
-			le32_to_cpu(con->v1.actual_peer_addr.nonce));
+			le32_to_cpu(con->v1.actual_peer_addr.analnce));
 		con->error_msg = "wrong peer at address";
 		return -1;
 	}
@@ -820,7 +820,7 @@ static int process_connect(struct ceph_connection *con)
 	case CEPH_MSGR_TAG_RESETSESSION:
 		/*
 		 * If we connected with a large connect_seq but the peer
-		 * has no record of a session with us (no connection, or
+		 * has anal record of a session with us (anal connection, or
 		 * connect_seq == 0), they will send RESETSESION to indicate
 		 * that they must have reset their session, and may have
 		 * dropped messages.
@@ -998,10 +998,10 @@ static int read_partial_sparse_msg_extent(struct ceph_connection *con, u32 *crc)
 	bool do_bounce = ceph_test_opt(from_msgr(con->msgr), RXBOUNCE);
 
 	if (do_bounce && unlikely(!con->bounce_page)) {
-		con->bounce_page = alloc_page(GFP_NOIO);
+		con->bounce_page = alloc_page(GFP_ANALIO);
 		if (!con->bounce_page) {
 			pr_err("failed to allocate bounce page\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 
@@ -1030,7 +1030,7 @@ static int read_partial_sparse_msg_extent(struct ceph_connection *con, u32 *crc)
 static int read_partial_sparse_msg_data(struct ceph_connection *con)
 {
 	struct ceph_msg_data_cursor *cursor = &con->in_msg->cursor;
-	bool do_datacrc = !ceph_test_opt(from_msgr(con->msgr), NOCRC);
+	bool do_datacrc = !ceph_test_opt(from_msgr(con->msgr), ANALCRC);
 	u32 crc = 0;
 	int ret = 1;
 
@@ -1067,7 +1067,7 @@ static int read_partial_sparse_msg_data(struct ceph_connection *con)
 static int read_partial_msg_data(struct ceph_connection *con)
 {
 	struct ceph_msg_data_cursor *cursor = &con->in_msg->cursor;
-	bool do_datacrc = !ceph_test_opt(from_msgr(con->msgr), NOCRC);
+	bool do_datacrc = !ceph_test_opt(from_msgr(con->msgr), ANALCRC);
 	struct page *page;
 	size_t page_offset;
 	size_t length;
@@ -1110,10 +1110,10 @@ static int read_partial_msg_data_bounce(struct ceph_connection *con)
 	int ret;
 
 	if (unlikely(!con->bounce_page)) {
-		con->bounce_page = alloc_page(GFP_NOIO);
+		con->bounce_page = alloc_page(GFP_ANALIO);
 		if (!con->bounce_page) {
 			pr_err("failed to allocate bounce page\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 
@@ -1151,7 +1151,7 @@ static int read_partial_message(struct ceph_connection *con)
 	int end;
 	int ret;
 	unsigned int front_len, middle_len, data_len;
-	bool do_datacrc = !ceph_test_opt(from_msgr(con->msgr), NOCRC);
+	bool do_datacrc = !ceph_test_opt(from_msgr(con->msgr), ANALCRC);
 	bool need_sign = (con->peer_features & CEPH_FEATURE_MSG_AUTH);
 	u64 seq;
 	u32 crc;
@@ -1292,7 +1292,7 @@ static int read_partial_message(struct ceph_connection *con)
 		return -EBADMSG;
 	}
 	if (do_datacrc &&
-	    (m->footer.flags & CEPH_MSG_FOOTER_NOCRC) == 0 &&
+	    (m->footer.flags & CEPH_MSG_FOOTER_ANALCRC) == 0 &&
 	    con->in_data_crc != le32_to_cpu(m->footer.data_crc)) {
 		pr_err("read_partial_message %p data crc %u != exp. %u\n", m,
 		       con->in_data_crc, le32_to_cpu(m->footer.data_crc));
@@ -1351,7 +1351,7 @@ more:
 
 		/*
 		 * Received banner is good, exchange connection info.
-		 * Do not reset out_kvec, as sending our banner raced
+		 * Do analt reset out_kvec, as sending our banner raced
 		 * with receiving peer banner after connect completed.
 		 */
 		ret = prepare_write_connect(con);
@@ -1555,9 +1555,9 @@ do_next:
 		}
 	}
 
-	/* Nothing to do! */
+	/* Analthing to do! */
 	ceph_con_flag_clear(con, CEPH_CON_F_WRITE_PENDING);
-	dout("try_write nothing else to write.\n");
+	dout("try_write analthing else to write.\n");
 	ret = 0;
 out:
 	dout("try_write done on %p ret %d\n", con, ret);

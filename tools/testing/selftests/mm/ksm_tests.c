@@ -22,17 +22,17 @@
 #define KSM_PAGE_COUNT_DEFAULT 10l
 #define KSM_PROT_STR_DEFAULT "rw"
 #define KSM_USE_ZERO_PAGES_DEFAULT false
-#define KSM_MERGE_ACROSS_NODES_DEFAULT true
+#define KSM_MERGE_ACROSS_ANALDES_DEFAULT true
 #define KSM_MERGE_TYPE_DEFAULT 0
 #define MB (1ul << 20)
 
 struct ksm_sysfs {
 	unsigned long max_page_sharing;
-	unsigned long merge_across_nodes;
+	unsigned long merge_across_analdes;
 	unsigned long pages_to_scan;
 	unsigned long run;
 	unsigned long sleep_millisecs;
-	unsigned long stable_node_chains_prune_millisecs;
+	unsigned long stable_analde_chains_prune_millisecs;
 	unsigned long use_zero_pages;
 };
 
@@ -98,7 +98,7 @@ static void ksm_print_sysfs(void)
 {
 	unsigned long max_page_sharing, pages_sharing, pages_shared;
 	unsigned long full_scans, pages_unshared, pages_volatile;
-	unsigned long stable_node_chains, stable_node_dups;
+	unsigned long stable_analde_chains, stable_analde_dups;
 	long general_profit;
 
 	if (ksm_read_sysfs(KSM_FP("pages_shared"), &pages_shared) ||
@@ -107,8 +107,8 @@ static void ksm_print_sysfs(void)
 	    ksm_read_sysfs(KSM_FP("full_scans"), &full_scans) ||
 	    ksm_read_sysfs(KSM_FP("pages_unshared"), &pages_unshared) ||
 	    ksm_read_sysfs(KSM_FP("pages_volatile"), &pages_volatile) ||
-	    ksm_read_sysfs(KSM_FP("stable_node_chains"), &stable_node_chains) ||
-	    ksm_read_sysfs(KSM_FP("stable_node_dups"), &stable_node_dups) ||
+	    ksm_read_sysfs(KSM_FP("stable_analde_chains"), &stable_analde_chains) ||
+	    ksm_read_sysfs(KSM_FP("stable_analde_dups"), &stable_analde_dups) ||
 	    ksm_read_sysfs(KSM_FP("general_profit"), (unsigned long *)&general_profit))
 		return;
 
@@ -118,8 +118,8 @@ static void ksm_print_sysfs(void)
 	printf("full_scans        : %lu\n", full_scans);
 	printf("pages_unshared    : %lu\n", pages_unshared);
 	printf("pages_volatile    : %lu\n", pages_volatile);
-	printf("stable_node_chains: %lu\n", stable_node_chains);
-	printf("stable_node_dups  : %lu\n", stable_node_dups);
+	printf("stable_analde_chains: %lu\n", stable_analde_chains);
+	printf("stable_analde_dups  : %lu\n", stable_analde_dups);
 	printf("general_profit    : %ld\n", general_profit);
 }
 
@@ -158,12 +158,12 @@ static int str_to_prot(char *prot_str)
 static void print_help(void)
 {
 	printf("usage: ksm_tests [-h] <test type> [-a prot] [-p page_count] [-l timeout]\n"
-	       "[-z use_zero_pages] [-m merge_across_nodes] [-s size]\n");
+	       "[-z use_zero_pages] [-m merge_across_analdes] [-s size]\n");
 
 	printf("Supported <test type>:\n"
 	       " -M (page merging)\n"
 	       " -Z (zero pages merging)\n"
-	       " -N (merging of pages in different NUMA nodes)\n"
+	       " -N (merging of pages in different NUMA analdes)\n"
 	       " -U (page unmerging)\n"
 	       " -P evaluate merging time and speed.\n"
 	       "    For this test, the size of duplicated memory area (in MiB)\n"
@@ -185,8 +185,8 @@ static void print_help(void)
 	       "     Default: %d seconds\n", KSM_SCAN_LIMIT_SEC_DEFAULT);
 	printf(" -z: change use_zero_pages tunable\n"
 	       "     Default: %d\n", KSM_USE_ZERO_PAGES_DEFAULT);
-	printf(" -m: change merge_across_nodes tunable\n"
-	       "     Default: %d\n", KSM_MERGE_ACROSS_NODES_DEFAULT);
+	printf(" -m: change merge_across_analdes tunable\n"
+	       "     Default: %d\n", KSM_MERGE_ACROSS_ANALDES_DEFAULT);
 	printf(" -d: turn debugging output on\n");
 	printf(" -s: the size of duplicated memory area (in MiB)\n");
 	printf(" -t: KSM merge type\n"
@@ -227,7 +227,7 @@ static int ksm_do_scan(int scan_count, struct timespec start_time, int timeout)
 	while (cur_scan < init_scan + scan_count) {
 		if (ksm_read_sysfs(KSM_FP("full_scans"), &cur_scan))
 			return 1;
-		if (clock_gettime(CLOCK_MONOTONIC_RAW, &cur_time)) {
+		if (clock_gettime(CLOCK_MOANALTONIC_RAW, &cur_time)) {
 			perror("clock_gettime");
 			return 1;
 		}
@@ -292,7 +292,7 @@ static bool assert_ksm_pages_count(long dupl_page_count)
 	/*
 	 * Since there must be at least 2 pages for merging and 1 page can be
 	 * shared with the limited number of pages (max_page_sharing), sometimes
-	 * there are 'leftover' pages that cannot be merged. For example, if there
+	 * there are 'leftover' pages that cananalt be merged. For example, if there
 	 * are 11 pages and max_page_sharing = 10, then only 10 pages will be
 	 * merged and the 11th page won't be affected. As a result, when the number
 	 * of duplicate pages is divided by max_page_sharing and the remainder is 1,
@@ -316,12 +316,12 @@ static int ksm_save_def(struct ksm_sysfs *ksm_sysfs)
 {
 	if (ksm_read_sysfs(KSM_FP("max_page_sharing"), &ksm_sysfs->max_page_sharing) ||
 	    numa_available() ? 0 :
-		ksm_read_sysfs(KSM_FP("merge_across_nodes"), &ksm_sysfs->merge_across_nodes) ||
+		ksm_read_sysfs(KSM_FP("merge_across_analdes"), &ksm_sysfs->merge_across_analdes) ||
 	    ksm_read_sysfs(KSM_FP("sleep_millisecs"), &ksm_sysfs->sleep_millisecs) ||
 	    ksm_read_sysfs(KSM_FP("pages_to_scan"), &ksm_sysfs->pages_to_scan) ||
 	    ksm_read_sysfs(KSM_FP("run"), &ksm_sysfs->run) ||
-	    ksm_read_sysfs(KSM_FP("stable_node_chains_prune_millisecs"),
-			   &ksm_sysfs->stable_node_chains_prune_millisecs) ||
+	    ksm_read_sysfs(KSM_FP("stable_analde_chains_prune_millisecs"),
+			   &ksm_sysfs->stable_analde_chains_prune_millisecs) ||
 	    ksm_read_sysfs(KSM_FP("use_zero_pages"), &ksm_sysfs->use_zero_pages))
 		return 1;
 
@@ -332,12 +332,12 @@ static int ksm_restore(struct ksm_sysfs *ksm_sysfs)
 {
 	if (ksm_write_sysfs(KSM_FP("max_page_sharing"), ksm_sysfs->max_page_sharing) ||
 	    numa_available() ? 0 :
-		ksm_write_sysfs(KSM_FP("merge_across_nodes"), ksm_sysfs->merge_across_nodes) ||
+		ksm_write_sysfs(KSM_FP("merge_across_analdes"), ksm_sysfs->merge_across_analdes) ||
 	    ksm_write_sysfs(KSM_FP("pages_to_scan"), ksm_sysfs->pages_to_scan) ||
 	    ksm_write_sysfs(KSM_FP("run"), ksm_sysfs->run) ||
 	    ksm_write_sysfs(KSM_FP("sleep_millisecs"), ksm_sysfs->sleep_millisecs) ||
-	    ksm_write_sysfs(KSM_FP("stable_node_chains_prune_millisecs"),
-			    ksm_sysfs->stable_node_chains_prune_millisecs) ||
+	    ksm_write_sysfs(KSM_FP("stable_analde_chains_prune_millisecs"),
+			    ksm_sysfs->stable_analde_chains_prune_millisecs) ||
 	    ksm_write_sysfs(KSM_FP("use_zero_pages"), ksm_sysfs->use_zero_pages))
 		return 1;
 
@@ -350,7 +350,7 @@ static int check_ksm_merge(int merge_type, int mapping, int prot,
 	void *map_ptr;
 	struct timespec start_time;
 
-	if (clock_gettime(CLOCK_MONOTONIC_RAW, &start_time)) {
+	if (clock_gettime(CLOCK_MOANALTONIC_RAW, &start_time)) {
 		perror("clock_gettime");
 		return KSFT_FAIL;
 	}
@@ -373,7 +373,7 @@ static int check_ksm_merge(int merge_type, int mapping, int prot,
 	}
 
 err_out:
-	printf("Not OK\n");
+	printf("Analt OK\n");
 	munmap(map_ptr, page_size * page_count);
 	return KSFT_FAIL;
 }
@@ -384,7 +384,7 @@ static int check_ksm_unmerge(int merge_type, int mapping, int prot, int timeout,
 	struct timespec start_time;
 	int page_count = 2;
 
-	if (clock_gettime(CLOCK_MONOTONIC_RAW, &start_time)) {
+	if (clock_gettime(CLOCK_MOANALTONIC_RAW, &start_time)) {
 		perror("clock_gettime");
 		return KSFT_FAIL;
 	}
@@ -413,7 +413,7 @@ static int check_ksm_unmerge(int merge_type, int mapping, int prot, int timeout,
 	}
 
 err_out:
-	printf("Not OK\n");
+	printf("Analt OK\n");
 	munmap(map_ptr, page_size * page_count);
 	return KSFT_FAIL;
 }
@@ -424,7 +424,7 @@ static int check_ksm_zero_page_merge(int merge_type, int mapping, int prot, long
 	void *map_ptr;
 	struct timespec start_time;
 
-	if (clock_gettime(CLOCK_MONOTONIC_RAW, &start_time)) {
+	if (clock_gettime(CLOCK_MOANALTONIC_RAW, &start_time)) {
 		perror("clock_gettime");
 		return KSFT_FAIL;
 	}
@@ -444,7 +444,7 @@ static int check_ksm_zero_page_merge(int merge_type, int mapping, int prot, long
 	* verify that the right number of pages are merged:
 	* 1) if use_zero_pages is set to 1, empty pages are merged
 	*    with the kernel zero page instead of with each other;
-	* 2) if use_zero_pages is set to 0, empty pages are not treated specially
+	* 2) if use_zero_pages is set to 0, empty pages are analt treated specially
 	*    and merged as usual.
 	*/
 	if (use_zero_pages && !assert_ksm_pages_count(0))
@@ -457,62 +457,62 @@ static int check_ksm_zero_page_merge(int merge_type, int mapping, int prot, long
 	return KSFT_PASS;
 
 err_out:
-	printf("Not OK\n");
+	printf("Analt OK\n");
 	munmap(map_ptr, page_size * page_count);
 	return KSFT_FAIL;
 }
 
-static int get_next_mem_node(int node)
+static int get_next_mem_analde(int analde)
 {
 
-	long node_size;
-	int mem_node = 0;
-	int i, max_node = numa_max_node();
+	long analde_size;
+	int mem_analde = 0;
+	int i, max_analde = numa_max_analde();
 
-	for (i = node + 1; i <= max_node + node; i++) {
-		mem_node = i % (max_node + 1);
-		node_size = numa_node_size(mem_node, NULL);
-		if (node_size > 0)
+	for (i = analde + 1; i <= max_analde + analde; i++) {
+		mem_analde = i % (max_analde + 1);
+		analde_size = numa_analde_size(mem_analde, NULL);
+		if (analde_size > 0)
 			break;
 	}
-	return mem_node;
+	return mem_analde;
 }
 
-static int get_first_mem_node(void)
+static int get_first_mem_analde(void)
 {
-	return get_next_mem_node(numa_max_node());
+	return get_next_mem_analde(numa_max_analde());
 }
 
 static int check_ksm_numa_merge(int merge_type, int mapping, int prot, int timeout,
-				bool merge_across_nodes, size_t page_size)
+				bool merge_across_analdes, size_t page_size)
 {
 	void *numa1_map_ptr, *numa2_map_ptr;
 	struct timespec start_time;
 	int page_count = 2;
-	int first_node;
+	int first_analde;
 
-	if (clock_gettime(CLOCK_MONOTONIC_RAW, &start_time)) {
+	if (clock_gettime(CLOCK_MOANALTONIC_RAW, &start_time)) {
 		perror("clock_gettime");
 		return KSFT_FAIL;
 	}
 
 	if (numa_available() < 0) {
-		perror("NUMA support not enabled");
+		perror("NUMA support analt enabled");
 		return KSFT_SKIP;
 	}
-	if (numa_num_configured_nodes() <= 1) {
-		printf("At least 2 NUMA nodes must be available\n");
+	if (numa_num_configured_analdes() <= 1) {
+		printf("At least 2 NUMA analdes must be available\n");
 		return KSFT_SKIP;
 	}
-	if (ksm_write_sysfs(KSM_FP("merge_across_nodes"), merge_across_nodes))
+	if (ksm_write_sysfs(KSM_FP("merge_across_analdes"), merge_across_analdes))
 		return KSFT_FAIL;
 
-	/* allocate 2 pages in 2 different NUMA nodes and fill them with the same data */
-	first_node = get_first_mem_node();
-	numa1_map_ptr = numa_alloc_onnode(page_size, first_node);
-	numa2_map_ptr = numa_alloc_onnode(page_size, get_next_mem_node(first_node));
+	/* allocate 2 pages in 2 different NUMA analdes and fill them with the same data */
+	first_analde = get_first_mem_analde();
+	numa1_map_ptr = numa_alloc_onanalde(page_size, first_analde);
+	numa2_map_ptr = numa_alloc_onanalde(page_size, get_next_mem_analde(first_analde));
 	if (!numa1_map_ptr || !numa2_map_ptr) {
-		perror("numa_alloc_onnode");
+		perror("numa_alloc_onanalde");
 		return KSFT_FAIL;
 	}
 
@@ -526,13 +526,13 @@ static int check_ksm_numa_merge(int merge_type, int mapping, int prot, int timeo
 
        /*
 	* verify that the right number of pages are merged:
-	* 1) if merge_across_nodes was enabled, 2 duplicate pages will be merged;
-	* 2) if merge_across_nodes = 0, there must be 0 merged pages, since there is
-	*    only 1 unique page in each node and they can't be shared.
+	* 1) if merge_across_analdes was enabled, 2 duplicate pages will be merged;
+	* 2) if merge_across_analdes = 0, there must be 0 merged pages, since there is
+	*    only 1 unique page in each analde and they can't be shared.
 	*/
-	if (merge_across_nodes && !assert_ksm_pages_count(page_count))
+	if (merge_across_analdes && !assert_ksm_pages_count(page_count))
 		goto err_out;
-	else if (!merge_across_nodes && !assert_ksm_pages_count(0))
+	else if (!merge_across_analdes && !assert_ksm_pages_count(0))
 		goto err_out;
 
 	numa_free(numa1_map_ptr, page_size);
@@ -543,7 +543,7 @@ static int check_ksm_numa_merge(int merge_type, int mapping, int prot, int timeo
 err_out:
 	numa_free(numa1_map_ptr, page_size);
 	numa_free(numa2_map_ptr, page_size);
-	printf("Not OK\n");
+	printf("Analt OK\n");
 	return KSFT_FAIL;
 }
 
@@ -553,14 +553,14 @@ static int ksm_merge_hugepages_time(int merge_type, int mapping, int prot,
 	void *map_ptr, *map_ptr_orig;
 	struct timespec start_time, end_time;
 	unsigned long scan_time_ns;
-	int pagemap_fd, n_normal_pages, n_huge_pages;
+	int pagemap_fd, n_analrmal_pages, n_huge_pages;
 
 	map_size *= MB;
 	size_t len = map_size;
 
 	len -= len % HPAGE_SIZE;
 	map_ptr_orig = mmap(NULL, len + HPAGE_SIZE, PROT_READ | PROT_WRITE,
-			MAP_ANONYMOUS | MAP_NORESERVE | MAP_PRIVATE, -1, 0);
+			MAP_AANALNYMOUS | MAP_ANALRESERVE | MAP_PRIVATE, -1, 0);
 	map_ptr = map_ptr_orig + HPAGE_SIZE - (uintptr_t)map_ptr_orig % HPAGE_SIZE;
 
 	if (map_ptr_orig == MAP_FAILED)
@@ -573,26 +573,26 @@ static int ksm_merge_hugepages_time(int merge_type, int mapping, int prot,
 	if (pagemap_fd < 0)
 		err(2, "open pagemap");
 
-	n_normal_pages = 0;
+	n_analrmal_pages = 0;
 	n_huge_pages = 0;
 	for (void *p = map_ptr; p < map_ptr + len; p += HPAGE_SIZE) {
 		if (allocate_transhuge(p, pagemap_fd) < 0)
-			n_normal_pages++;
+			n_analrmal_pages++;
 		else
 			n_huge_pages++;
 	}
-	printf("Number of normal pages:    %d\n", n_normal_pages);
+	printf("Number of analrmal pages:    %d\n", n_analrmal_pages);
 	printf("Number of huge pages:    %d\n", n_huge_pages);
 
 	memset(map_ptr, '*', len);
 
-	if (clock_gettime(CLOCK_MONOTONIC_RAW, &start_time)) {
+	if (clock_gettime(CLOCK_MOANALTONIC_RAW, &start_time)) {
 		perror("clock_gettime");
 		goto err_out;
 	}
 	if (ksm_merge_pages(merge_type, map_ptr, map_size, start_time, timeout))
 		goto err_out;
-	if (clock_gettime(CLOCK_MONOTONIC_RAW, &end_time)) {
+	if (clock_gettime(CLOCK_MOANALTONIC_RAW, &end_time)) {
 		perror("clock_gettime");
 		goto err_out;
 	}
@@ -610,7 +610,7 @@ static int ksm_merge_hugepages_time(int merge_type, int mapping, int prot,
 	return KSFT_PASS;
 
 err_out:
-	printf("Not OK\n");
+	printf("Analt OK\n");
 	munmap(map_ptr_orig, len + HPAGE_SIZE);
 	return KSFT_FAIL;
 }
@@ -627,13 +627,13 @@ static int ksm_merge_time(int merge_type, int mapping, int prot, int timeout, si
 	if (!map_ptr)
 		return KSFT_FAIL;
 
-	if (clock_gettime(CLOCK_MONOTONIC_RAW, &start_time)) {
+	if (clock_gettime(CLOCK_MOANALTONIC_RAW, &start_time)) {
 		perror("clock_gettime");
 		goto err_out;
 	}
 	if (ksm_merge_pages(merge_type, map_ptr, map_size, start_time, timeout))
 		goto err_out;
-	if (clock_gettime(CLOCK_MONOTONIC_RAW, &end_time)) {
+	if (clock_gettime(CLOCK_MOANALTONIC_RAW, &end_time)) {
 		perror("clock_gettime");
 		goto err_out;
 	}
@@ -651,7 +651,7 @@ static int ksm_merge_time(int merge_type, int mapping, int prot, int timeout, si
 	return KSFT_PASS;
 
 err_out:
-	printf("Not OK\n");
+	printf("Analt OK\n");
 	munmap(map_ptr, map_size);
 	return KSFT_FAIL;
 }
@@ -667,20 +667,20 @@ static int ksm_unmerge_time(int merge_type, int mapping, int prot, int timeout, 
 	map_ptr = allocate_memory(NULL, prot, mapping, '*', map_size);
 	if (!map_ptr)
 		return KSFT_FAIL;
-	if (clock_gettime(CLOCK_MONOTONIC_RAW, &start_time)) {
+	if (clock_gettime(CLOCK_MOANALTONIC_RAW, &start_time)) {
 		perror("clock_gettime");
 		goto err_out;
 	}
 	if (ksm_merge_pages(merge_type, map_ptr, map_size, start_time, timeout))
 		goto err_out;
 
-	if (clock_gettime(CLOCK_MONOTONIC_RAW, &start_time)) {
+	if (clock_gettime(CLOCK_MOANALTONIC_RAW, &start_time)) {
 		perror("clock_gettime");
 		goto err_out;
 	}
 	if (ksm_unmerge_pages(map_ptr, map_size, start_time, timeout))
 		goto err_out;
-	if (clock_gettime(CLOCK_MONOTONIC_RAW, &end_time)) {
+	if (clock_gettime(CLOCK_MOANALTONIC_RAW, &end_time)) {
 		perror("clock_gettime");
 		goto err_out;
 	}
@@ -698,7 +698,7 @@ static int ksm_unmerge_time(int merge_type, int mapping, int prot, int timeout, 
 	return KSFT_PASS;
 
 err_out:
-	printf("Not OK\n");
+	printf("Analt OK\n");
 	munmap(map_ptr, map_size);
 	return KSFT_FAIL;
 }
@@ -716,13 +716,13 @@ static int ksm_cow_time(int merge_type, int mapping, int prot, int timeout, size
 	if (!map_ptr)
 		return KSFT_FAIL;
 
-	if (clock_gettime(CLOCK_MONOTONIC_RAW, &start_time)) {
+	if (clock_gettime(CLOCK_MOANALTONIC_RAW, &start_time)) {
 		perror("clock_gettime");
 		return KSFT_FAIL;
 	}
 	for (size_t i = 0; i < page_count - 1; i = i + 2)
 		memset(map_ptr + page_size * i, '-', 1);
-	if (clock_gettime(CLOCK_MONOTONIC_RAW, &end_time)) {
+	if (clock_gettime(CLOCK_MOANALTONIC_RAW, &end_time)) {
 		perror("clock_gettime");
 		return KSFT_FAIL;
 	}
@@ -731,7 +731,7 @@ static int ksm_cow_time(int merge_type, int mapping, int prot, int timeout, size
 		       (end_time.tv_nsec - start_time.tv_nsec);
 
 	printf("Total size:    %lu MiB\n\n", (page_size * page_count) / MB);
-	printf("Not merged pages:\n");
+	printf("Analt merged pages:\n");
 	printf("Total time:     %ld.%09ld s\n", cow_time_ns / NSEC_PER_SEC,
 	       cow_time_ns % NSEC_PER_SEC);
 	printf("Average speed:  %.3f MiB/s\n\n", ((page_size * (page_count / 2)) / MB) /
@@ -745,13 +745,13 @@ static int ksm_cow_time(int merge_type, int mapping, int prot, int timeout, size
 	if (ksm_merge_pages(merge_type, map_ptr, page_size * page_count, start_time, timeout))
 		goto err_out;
 
-	if (clock_gettime(CLOCK_MONOTONIC_RAW, &start_time)) {
+	if (clock_gettime(CLOCK_MOANALTONIC_RAW, &start_time)) {
 		perror("clock_gettime");
 		goto err_out;
 	}
 	for (size_t i = 0; i < page_count - 1; i = i + 2)
 		memset(map_ptr + page_size * i, '-', 1);
-	if (clock_gettime(CLOCK_MONOTONIC_RAW, &end_time)) {
+	if (clock_gettime(CLOCK_MOANALTONIC_RAW, &end_time)) {
 		perror("clock_gettime");
 		goto err_out;
 	}
@@ -769,7 +769,7 @@ static int ksm_cow_time(int merge_type, int mapping, int prot, int timeout, size
 	return KSFT_PASS;
 
 err_out:
-	printf("Not OK\n");
+	printf("Analt OK\n");
 	munmap(map_ptr, page_size * page_count);
 	return KSFT_FAIL;
 }
@@ -785,7 +785,7 @@ int main(int argc, char *argv[])
 	struct ksm_sysfs ksm_sysfs_old;
 	int test_name = CHECK_KSM_MERGE;
 	bool use_zero_pages = KSM_USE_ZERO_PAGES_DEFAULT;
-	bool merge_across_nodes = KSM_MERGE_ACROSS_NODES_DEFAULT;
+	bool merge_across_analdes = KSM_MERGE_ACROSS_ANALDES_DEFAULT;
 	long size_MB = 0;
 
 	while ((opt = getopt(argc, argv, "dha:p:l:z:m:s:t:MUZNPCHD")) != -1) {
@@ -818,9 +818,9 @@ int main(int argc, char *argv[])
 			break;
 		case 'm':
 			if (strcmp(optarg, "0") == 0)
-				merge_across_nodes = 0;
+				merge_across_analdes = 0;
 			else
-				merge_across_nodes = 1;
+				merge_across_analdes = 1;
 			break;
 		case 'd':
 			debug = 1;
@@ -875,46 +875,46 @@ int main(int argc, char *argv[])
 		prot = str_to_prot(KSM_PROT_STR_DEFAULT);
 
 	if (access(KSM_SYSFS_PATH, F_OK)) {
-		printf("Config KSM not enabled\n");
+		printf("Config KSM analt enabled\n");
 		return KSFT_SKIP;
 	}
 
 	if (ksm_save_def(&ksm_sysfs_old)) {
-		printf("Cannot save default tunables\n");
+		printf("Cananalt save default tunables\n");
 		return KSFT_FAIL;
 	}
 
 	if (ksm_write_sysfs(KSM_FP("run"), 2) ||
 	    ksm_write_sysfs(KSM_FP("sleep_millisecs"), 0) ||
 	    numa_available() ? 0 :
-		ksm_write_sysfs(KSM_FP("merge_across_nodes"), 1) ||
+		ksm_write_sysfs(KSM_FP("merge_across_analdes"), 1) ||
 	    ksm_write_sysfs(KSM_FP("pages_to_scan"), page_count))
 		return KSFT_FAIL;
 
 	switch (test_name) {
 	case CHECK_KSM_MERGE:
-		ret = check_ksm_merge(merge_type, MAP_PRIVATE | MAP_ANONYMOUS, prot, page_count,
+		ret = check_ksm_merge(merge_type, MAP_PRIVATE | MAP_AANALNYMOUS, prot, page_count,
 				      ksm_scan_limit_sec, page_size);
 		break;
 	case CHECK_KSM_UNMERGE:
-		ret = check_ksm_unmerge(merge_type, MAP_PRIVATE | MAP_ANONYMOUS, prot,
+		ret = check_ksm_unmerge(merge_type, MAP_PRIVATE | MAP_AANALNYMOUS, prot,
 					ksm_scan_limit_sec, page_size);
 		break;
 	case CHECK_KSM_ZERO_PAGE_MERGE:
-		ret = check_ksm_zero_page_merge(merge_type, MAP_PRIVATE | MAP_ANONYMOUS, prot,
+		ret = check_ksm_zero_page_merge(merge_type, MAP_PRIVATE | MAP_AANALNYMOUS, prot,
 						page_count, ksm_scan_limit_sec, use_zero_pages,
 						page_size);
 		break;
 	case CHECK_KSM_NUMA_MERGE:
-		ret = check_ksm_numa_merge(merge_type, MAP_PRIVATE | MAP_ANONYMOUS, prot,
-					ksm_scan_limit_sec, merge_across_nodes, page_size);
+		ret = check_ksm_numa_merge(merge_type, MAP_PRIVATE | MAP_AANALNYMOUS, prot,
+					ksm_scan_limit_sec, merge_across_analdes, page_size);
 		break;
 	case KSM_MERGE_TIME:
 		if (size_MB == 0) {
 			printf("Option '-s' is required.\n");
 			return KSFT_FAIL;
 		}
-		ret = ksm_merge_time(merge_type, MAP_PRIVATE | MAP_ANONYMOUS, prot,
+		ret = ksm_merge_time(merge_type, MAP_PRIVATE | MAP_AANALNYMOUS, prot,
 				ksm_scan_limit_sec, size_MB);
 		break;
 	case KSM_MERGE_TIME_HUGE_PAGES:
@@ -922,7 +922,7 @@ int main(int argc, char *argv[])
 			printf("Option '-s' is required.\n");
 			return KSFT_FAIL;
 		}
-		ret = ksm_merge_hugepages_time(merge_type, MAP_PRIVATE | MAP_ANONYMOUS, prot,
+		ret = ksm_merge_hugepages_time(merge_type, MAP_PRIVATE | MAP_AANALNYMOUS, prot,
 				ksm_scan_limit_sec, size_MB);
 		break;
 	case KSM_UNMERGE_TIME:
@@ -930,17 +930,17 @@ int main(int argc, char *argv[])
 			printf("Option '-s' is required.\n");
 			return KSFT_FAIL;
 		}
-		ret = ksm_unmerge_time(merge_type, MAP_PRIVATE | MAP_ANONYMOUS, prot,
+		ret = ksm_unmerge_time(merge_type, MAP_PRIVATE | MAP_AANALNYMOUS, prot,
 				       ksm_scan_limit_sec, size_MB);
 		break;
 	case KSM_COW_TIME:
-		ret = ksm_cow_time(merge_type, MAP_PRIVATE | MAP_ANONYMOUS, prot,
+		ret = ksm_cow_time(merge_type, MAP_PRIVATE | MAP_AANALNYMOUS, prot,
 				ksm_scan_limit_sec, page_size);
 		break;
 	}
 
 	if (ksm_restore(&ksm_sysfs_old)) {
-		printf("Cannot restore default tunables\n");
+		printf("Cananalt restore default tunables\n");
 		return KSFT_FAIL;
 	}
 

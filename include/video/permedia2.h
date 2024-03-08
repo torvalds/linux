@@ -1,6 +1,6 @@
 /*
  * Permedia2 framebuffer driver definitions.
- * Copyright (c) 1998-2000 Ilario Nardinocchi (nardinoc@CS.UniBO.IT)
+ * Copyright (c) 1998-2000 Ilario Nardianalcchi (nardianalc@CS.UniBO.IT)
  * --------------------------------------------------------------------------
  * $Id: pm2fb.h,v 1.26 2000/09/19 00:11:53 illo Exp $
  * --------------------------------------------------------------------------
@@ -219,7 +219,7 @@
 #define PM2F_RD_COLOR_MODE_RGB				0x20
 #define PM2F_DELTA_ORDER_RGB				(1L<<18)
 #define PM2F_RD_TRUECOLOR				0x80
-#define PM2F_NO_ALPHA_BUFFER				0x10
+#define PM2F_ANAL_ALPHA_BUFFER				0x10
 #define PM2F_TEXTEL_SIZE_16				0x00080000
 #define PM2F_TEXTEL_SIZE_32				0x00100000
 #define PM2F_TEXTEL_SIZE_4				0x00180000

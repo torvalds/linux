@@ -47,7 +47,7 @@ static inline void pcmcia_writel(struct bcm63xx_pcmcia_socket *skt,
  * interrupts and PCMCIA bus, and wait for power to stabilise so that
  * the card status signals report correctly.
  *
- * Hardware cannot do that.
+ * Hardware cananalt do that.
  */
 static int bcm63xx_pcmcia_sock_init(struct pcmcia_socket *sock)
 {
@@ -58,7 +58,7 @@ static int bcm63xx_pcmcia_sock_init(struct pcmcia_socket *sock)
  * This callback should remove power on the socket, disable IRQs from
  * the card, turn off status interrupts, and disable the PCMCIA bus.
  *
- * Hardware cannot do that.
+ * Hardware cananalt do that.
  */
 static int bcm63xx_pcmcia_suspend(struct pcmcia_socket *sock)
 {
@@ -83,7 +83,7 @@ static int bcm63xx_pcmcia_set_socket(struct pcmcia_socket *sock,
 
 	spin_lock_irqsave(&skt->lock, flags);
 
-	/* note: hardware cannot control socket power, so we will
+	/* analte: hardware cananalt control socket power, so we will
 	 * always report SS_POWERON */
 
 	/* apply socket reset */
@@ -153,7 +153,7 @@ static const u8 vscd_to_cardtype[] = {
 	[IN_VS1 | IN_VS2 | IN_CD2_VS1H] = (CARD_CARDBUS | CARD_YV),
 
 	/* VS2 grounded, VS1 is tied to CD1, CD2 is grounded */
-	[IN_VS1 | IN_CD1_VS1H] = 0, /* ignore cardbay */
+	[IN_VS1 | IN_CD1_VS1H] = 0, /* iganalre cardbay */
 };
 
 /*
@@ -335,7 +335,7 @@ static int bcm63xx_drv_pcmcia_probe(struct platform_device *pdev)
 
 	skt = kzalloc(sizeof(*skt), GFP_KERNEL);
 	if (!skt)
-		return -ENOMEM;
+		return -EANALMEM;
 	spin_lock_init(&skt->lock);
 	sock = &skt->socket;
 	sock->driver_data = skt;
@@ -361,7 +361,7 @@ static int bcm63xx_drv_pcmcia_probe(struct platform_device *pdev)
 
 	skt->base = ioremap(res->start, regmem_size);
 	if (!skt->base) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
@@ -370,7 +370,7 @@ static int bcm63xx_drv_pcmcia_probe(struct platform_device *pdev)
 	iomem_size = resource_size(res);
 	skt->io_base = ioremap(res->start, iomem_size);
 	if (!skt->io_base) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
@@ -404,7 +404,7 @@ static int bcm63xx_drv_pcmcia_probe(struct platform_device *pdev)
 	pcmcia_writel(skt, val, PCMCIA_C1_REG);
 
 	/*
-	 * Hardware has only one set of timings registers, not one for
+	 * Hardware has only one set of timings registers, analt one for
 	 * each memory access type, so we configure them for the
 	 * slowest one: attribute memory.
 	 */

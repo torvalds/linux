@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2013 Citrix Systems
  *
- * Author: Stefano Stabellini <stefano.stabellini@eu.citrix.com>
+ * Author: Stefaanal Stabellini <stefaanal.stabellini@eu.citrix.com>
  */
 
 #include <linux/export.h>

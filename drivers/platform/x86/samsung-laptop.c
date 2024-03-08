@@ -3,7 +3,7 @@
  * Samsung Laptop driver
  *
  * Copyright (C) 2009,2011 Greg Kroah-Hartman (gregkh@suse.de)
- * Copyright (C) 2009,2011 Novell Inc.
+ * Copyright (C) 2009,2011 Analvell Inc.
  */
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
@@ -27,7 +27,7 @@
 #include <acpi/video.h>
 
 /*
- * This driver is needed because a number of Samsung laptops do not hook
+ * This driver is needed because a number of Samsung laptops do analt hook
  * their control settings through ACPI.  So we have to poke around in the
  * BIOS to do things like brightness values, and "special" key controls.
  */
@@ -95,7 +95,7 @@ struct sabi_commands {
 	u16 set_backlight;
 
 	/*
-	 * 0x80 or 0x00 - no action
+	 * 0x80 or 0x00 - anal action
 	 * 0x81 - recovery key pressed
 	 */
 	u16 get_recovery_mode;
@@ -103,7 +103,7 @@ struct sabi_commands {
 
 	/*
 	 * on seclinux: 0 is low, 1 is high,
-	 * on swsmi: 0 is normal, 1 is silent, 2 is turbo
+	 * on swsmi: 0 is analrmal, 1 is silent, 2 is turbo
 	 */
 	u16 get_performance_level;
 	u16 set_performance_level;
@@ -152,7 +152,7 @@ struct sabi_config {
 
 static const struct sabi_config sabi_configs[] = {
 	{
-		/* I don't know if it is really 2, but it is
+		/* I don't kanalw if it is really 2, but it is
 		 * less than 3 anyway */
 		.sabi_version = 2,
 
@@ -208,7 +208,7 @@ static const struct sabi_config sabi_configs[] = {
 				.value = 0,
 			},
 			{
-				.name = "normal",
+				.name = "analrmal",
 				.value = 1,
 			},
 			{ },
@@ -267,7 +267,7 @@ static const struct sabi_config sabi_configs[] = {
 
 		.performance_levels = {
 			{
-				.name = "normal",
+				.name = "analrmal",
 				.value = 0,
 			},
 			{
@@ -347,7 +347,7 @@ struct samsung_laptop {
 	struct samsung_laptop_debug debug;
 	struct samsung_quirks *quirks;
 
-	struct notifier_block pm_nb;
+	struct analtifier_block pm_nb;
 
 	bool handle_backlight;
 	bool has_stepping_quirk;
@@ -361,7 +361,7 @@ struct samsung_quirks {
 	bool lid_handling;
 };
 
-static struct samsung_quirks samsung_unknown = {};
+static struct samsung_quirks samsung_unkanalwn = {};
 
 static struct samsung_quirks samsung_np740u3e = {
 	.four_kbd_backlight_levels = true,
@@ -379,7 +379,7 @@ MODULE_PARM_DESC(force,
 
 static bool debug;
 module_param(debug, bool, 0644);
-MODULE_PARM_DESC(debug, "Debug enabled or not");
+MODULE_PARM_DESC(debug, "Debug enabled or analt");
 
 static int sabi_command(struct samsung_laptop *samsung, u16 command,
 			struct sabi_data *in,
@@ -423,9 +423,9 @@ static int sabi_command(struct samsung_laptop *samsung, u16 command,
 	complete = readb(samsung->sabi_iface + SABI_IFACE_COMPLETE);
 	iface_data = readb(samsung->sabi_iface + SABI_IFACE_DATA);
 
-	/* iface_data = 0xFF happens when a command is not known
+	/* iface_data = 0xFF happens when a command is analt kanalwn
 	 * so we only add a warning in debug mode since we will
-	 * probably issue some unknown command at startup to find
+	 * probably issue some unkanalwn command at startup to find
 	 * out which features are supported */
 	if (complete != 0xaa || (iface_data == 0xff && debug))
 		pr_warn("SABI command 0x%04x failed with"
@@ -602,7 +602,7 @@ static int swsmi_rfkill_set(void *priv, bool blocked)
 	if (ret)
 		return ret;
 
-	/* Don't set the state for non-present devices */
+	/* Don't set the state for analn-present devices */
 	for (i = 0; i < 4; i++)
 		if (data.data[i] == 0x02)
 			data.data[1] = 0;
@@ -663,7 +663,7 @@ static ssize_t get_performance_level(struct device *dev,
 		if (sretval.data[0] == config->performance_levels[i].value)
 			return sprintf(buf, "%s\n", config->performance_levels[i].name);
 	}
-	return sprintf(buf, "%s\n", "unknown");
+	return sprintf(buf, "%s\n", "unkanalwn");
 }
 
 static ssize_t set_performance_level(struct device *dev,
@@ -705,7 +705,7 @@ static int read_battery_life_extender(struct samsung_laptop *samsung)
 	int retval;
 
 	if (commands->get_battery_life_extender == 0xFFFF)
-		return -ENODEV;
+		return -EANALDEV;
 
 	memset(&data, 0, sizeof(data));
 	data.data[0] = 0x80;
@@ -716,7 +716,7 @@ static int read_battery_life_extender(struct samsung_laptop *samsung)
 		return retval;
 
 	if (data.data[0] != 0 && data.data[0] != 1)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return data.data[0];
 }
@@ -774,7 +774,7 @@ static int read_usb_charge(struct samsung_laptop *samsung)
 	int retval;
 
 	if (commands->get_usb_charge == 0xFFFF)
-		return -ENODEV;
+		return -EANALDEV;
 
 	memset(&data, 0, sizeof(data));
 	data.data[0] = 0x80;
@@ -785,7 +785,7 @@ static int read_usb_charge(struct samsung_laptop *samsung)
 		return retval;
 
 	if (data.data[0] != 0 && data.data[0] != 1)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return data.data[0];
 }
@@ -843,7 +843,7 @@ static int read_lid_handling(struct samsung_laptop *samsung)
 	int retval;
 
 	if (commands->get_lid_handling == 0xFFFF)
-		return -ENODEV;
+		return -EANALDEV;
 
 	memset(&data, 0, sizeof(data));
 	retval = sabi_command(samsung, commands->get_lid_handling,
@@ -992,7 +992,7 @@ static int __init samsung_rfkill_init_swsmi(struct samsung_laptop *samsung)
 		return ret;
 	}
 
-	/* 0x02 seems to mean that the device is no present/available */
+	/* 0x02 seems to mean that the device is anal present/available */
 
 	if (data.data[WL_STATUS_WLAN] != 0x02)
 		ret = samsung_new_rfkill(samsung, &samsung->wlan,
@@ -1051,7 +1051,7 @@ static int kbd_backlight_enable(struct samsung_laptop *samsung)
 	int retval;
 
 	if (commands->kbd_backlight == 0xFFFF)
-		return -ENODEV;
+		return -EANALDEV;
 
 	memset(&data, 0, sizeof(data));
 	data.d0 = 0xaabb;
@@ -1062,7 +1062,7 @@ static int kbd_backlight_enable(struct samsung_laptop *samsung)
 		return retval;
 
 	if (data.d0 != 0xccdd)
-		return -ENODEV;
+		return -EANALDEV;
 	return 0;
 }
 
@@ -1137,7 +1137,7 @@ static int __init samsung_leds_init(struct samsung_laptop *samsung)
 
 	samsung->led_workqueue = create_singlethread_workqueue("led_workqueue");
 	if (!samsung->led_workqueue)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (kbd_backlight_enable(samsung) >= 0) {
 		INIT_WORK(&samsung->kbd_led_work, kbd_led_update);
@@ -1395,8 +1395,8 @@ static int __init samsung_sabi_init(struct samsung_laptop *samsung)
 
 	if (loca == 0xffff) {
 		if (debug || force)
-			pr_err("This computer does not support SABI\n");
-		ret = -ENODEV;
+			pr_err("This computer does analt support SABI\n");
+		ret = -EANALDEV;
 		goto exit;
 	}
 
@@ -1426,8 +1426,8 @@ static int __init samsung_sabi_init(struct samsung_laptop *samsung)
 		int retval = sabi_set_commandb(samsung,
 					       commands->set_linux, 0x81);
 		if (retval) {
-			pr_warn("Linux mode was not set!\n");
-			ret = -ENODEV;
+			pr_warn("Linux mode was analt set!\n");
+			ret = -EANALDEV;
 			goto exit;
 		}
 	}
@@ -1454,7 +1454,7 @@ static void samsung_platform_exit(struct samsung_laptop *samsung)
 	}
 }
 
-static int samsung_pm_notification(struct notifier_block *nb,
+static int samsung_pm_analtification(struct analtifier_block *nb,
 				   unsigned long val, void *ptr)
 {
 	struct samsung_laptop *samsung;
@@ -1474,7 +1474,7 @@ static int __init samsung_platform_init(struct samsung_laptop *samsung)
 {
 	struct platform_device *pdev;
 
-	pdev = platform_device_register_simple("samsung", PLATFORM_DEVID_NONE, NULL, 0);
+	pdev = platform_device_register_simple("samsung", PLATFORM_DEVID_ANALNE, NULL, 0);
 	if (IS_ERR(pdev))
 		return PTR_ERR(pdev);
 
@@ -1510,14 +1510,14 @@ static const struct dmi_system_id samsung_dmi_table[] __initconst = {
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR,
 					"SAMSUNG ELECTRONICS CO., LTD."),
-			DMI_MATCH(DMI_CHASSIS_TYPE, "10"), /* Notebook */
+			DMI_MATCH(DMI_CHASSIS_TYPE, "10"), /* Analtebook */
 		},
 	},
 	{
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR,
 					"SAMSUNG ELECTRONICS CO., LTD."),
-			DMI_MATCH(DMI_CHASSIS_TYPE, "14"), /* Sub-Notebook */
+			DMI_MATCH(DMI_CHASSIS_TYPE, "14"), /* Sub-Analtebook */
 		},
 	},
 	/* DMI ids for laptops with bad Chassis Type */
@@ -1560,15 +1560,15 @@ static int __init samsung_init(void)
 	int ret;
 
 	if (efi_enabled(EFI_BOOT))
-		return -ENODEV;
+		return -EANALDEV;
 
-	quirks = &samsung_unknown;
+	quirks = &samsung_unkanalwn;
 	if (!force && !dmi_check_system(samsung_dmi_table))
-		return -ENODEV;
+		return -EANALDEV;
 
 	samsung = kzalloc(sizeof(*samsung), GFP_KERNEL);
 	if (!samsung)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&samsung->sabi_mutex);
 	samsung->handle_backlight = true;
@@ -1607,8 +1607,8 @@ static int __init samsung_init(void)
 
 	samsung_debugfs_init(samsung);
 
-	samsung->pm_nb.notifier_call = samsung_pm_notification;
-	register_pm_notifier(&samsung->pm_nb);
+	samsung->pm_nb.analtifier_call = samsung_pm_analtification;
+	register_pm_analtifier(&samsung->pm_nb);
 
 	samsung_platform_device = samsung->platform_device;
 	return ret;
@@ -1635,7 +1635,7 @@ static void __exit samsung_exit(void)
 	struct samsung_laptop *samsung;
 
 	samsung = platform_get_drvdata(samsung_platform_device);
-	unregister_pm_notifier(&samsung->pm_nb);
+	unregister_pm_analtifier(&samsung->pm_nb);
 
 	samsung_debugfs_exit(samsung);
 	samsung_lid_handling_exit(samsung);

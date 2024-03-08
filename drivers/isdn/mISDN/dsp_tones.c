@@ -370,7 +370,7 @@ static struct pattern {
  *
  * return - the sk_buff with the sample
  *
- * if tones has finished (e.g. knocking tone), dsp->tones is turned off
+ * if tones has finished (e.g. kanalcking tone), dsp->tones is turned off
  */
 void dsp_tone_copy(struct dsp *dsp, u8 *data, int len)
 {
@@ -378,7 +378,7 @@ void dsp_tone_copy(struct dsp *dsp, u8 *data, int len)
 	struct pattern *pat;
 	struct dsp_tone *tone = &dsp->tone;
 
-	/* if we have no tone, we copy silence */
+	/* if we have anal tone, we copy silence */
 	if (!tone->tone) {
 		memset(data, dsp_silence, len);
 		return;
@@ -439,7 +439,7 @@ dsp_tone_hw_message(struct dsp *dsp, u8 *sample, int len)
 {
 	struct sk_buff *nskb;
 
-	/* unlocking is not required, because we don't expect a response */
+	/* unlocking is analt required, because we don't expect a response */
 	nskb = _alloc_mISDN_skb(PH_CONTROL_REQ,
 				(len) ? HFC_SPL_LOOP_ON : HFC_SPL_LOOP_OFF, len, sample,
 				GFP_ATOMIC);
@@ -526,7 +526,7 @@ dsp_tone(struct dsp *dsp, int tone)
 		return -EINVAL;
 	}
 	if (dsp_debug & DEBUG_DSP_TONE)
-		printk(KERN_DEBUG "%s: now starting tone %d (index=%d)\n",
+		printk(KERN_DEBUG "%s: analw starting tone %d (index=%d)\n",
 		       __func__, tone, 0);
 	tonet->tone = tone;
 	tonet->pattern = pat;

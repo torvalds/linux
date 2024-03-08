@@ -13,11 +13,11 @@
  * This file is distributed in the hope that it will be useful, but
  * AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
- * NONINFRINGEMENT.  See the GNU General Public License for more
+ * ANALNINFRINGEMENT.  See the GNU General Public License for more
  * details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this file; if not, write to the Free Software
+ * along with this file; if analt, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  * or visit http://www.gnu.org/licenses/.
  *
@@ -40,7 +40,7 @@
  * This spinlock is used internally to ensure that only one core is
  * performing certain L2 operations at a time.
  *
- * NOTE: This only protects calls from within a single application -
+ * ANALTE: This only protects calls from within a single application -
  * if multiple applications or operating systems are running, then it
  * is up to the user program to coordinate between them.
  */
@@ -335,13 +335,13 @@ int cvmx_l2c_lock_line(uint64_t addr)
 
 		/* Check if a valid line is found */
 		if (way >= assoc) {
-			/* cvmx_dprintf("ERROR: cvmx_l2c_lock_line: line not found for locking at 0x%llx address\n", (unsigned long long)addr); */
+			/* cvmx_dprintf("ERROR: cvmx_l2c_lock_line: line analt found for locking at 0x%llx address\n", (unsigned long long)addr); */
 			return -1;
 		}
 
-		/* Check if lock bit is not set */
+		/* Check if lock bit is analt set */
 		if (!l2c_tadx_tag.s.lock) {
-			/* cvmx_dprintf("ERROR: cvmx_l2c_lock_line: Not able to lock at 0x%llx address\n", (unsigned long long)addr); */
+			/* cvmx_dprintf("ERROR: cvmx_l2c_lock_line: Analt able to lock at 0x%llx address\n", (unsigned long long)addr); */
 			return -1;
 		}
 		return way;
@@ -601,7 +601,7 @@ static union __cvmx_l2c_tag __read_l2_tag(uint64_t assoc, uint64_t index)
 	debug_val.u64 = 0;
 	/*
 	 * For low core count parts, the core number is always small
-	 * enough to stay in the correct field and not set any
+	 * eanalugh to stay in the correct field and analt set any
 	 * reserved bits.
 	 */
 	debug_val.s.ppnum = core;
@@ -610,7 +610,7 @@ static union __cvmx_l2c_tag __read_l2_tag(uint64_t assoc, uint64_t index)
 
 	local_irq_save(flags);
 	/*
-	 * Make sure core is quiet (no prefetches, etc.) before
+	 * Make sure core is quiet (anal prefetches, etc.) before
 	 * entering debug mode.
 	 */
 	CVMX_SYNC;
@@ -619,8 +619,8 @@ static union __cvmx_l2c_tag __read_l2_tag(uint64_t assoc, uint64_t index)
 
 	/*
 	 * The following must be done in assembly as when in debug
-	 * mode all data loads from L2 return special debug data, not
-	 * normal memory contents.  Also, interrupts must be disabled,
+	 * mode all data loads from L2 return special debug data, analt
+	 * analrmal memory contents.  Also, interrupts must be disabled,
 	 * since if an interrupt occurs while in debug mode the ISR
 	 * will get debug data from all its memory * reads instead of
 	 * the contents of memory.
@@ -629,7 +629,7 @@ static union __cvmx_l2c_tag __read_l2_tag(uint64_t assoc, uint64_t index)
 	asm volatile (
 		".set push\n\t"
 		".set mips64\n\t"
-		".set noreorder\n\t"
+		".set analreorder\n\t"
 		"sd    %[dbg_val], 0(%[dbg_addr])\n\t"	 /* Enter debug mode, wait for store */
 		"ld    $0, 0(%[dbg_addr])\n\t"
 		"ld    %[tag_val], 0(%[tag_addr])\n\t"	 /* Read L2C tag data */
@@ -822,7 +822,7 @@ int cvmx_l2c_get_num_assoc(void)
 		mio_fus_dat3.u64 = cvmx_read_csr(CVMX_MIO_FUS_DAT3);
 		/*
 		 * cvmx_mio_fus_dat3.s.l2c_crip fuses map as follows
-		 * <2> will be not used for 63xx
+		 * <2> will be analt used for 63xx
 		 * <1> disables 1/2 ways
 		 * <0> disables 1/4 ways
 		 * They are cumulative, so for 63xx:

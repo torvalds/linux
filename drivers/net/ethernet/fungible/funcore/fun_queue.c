@@ -18,30 +18,30 @@
  */
 void *fun_alloc_ring_mem(struct device *dma_dev, size_t depth,
 			 size_t hw_desc_sz, size_t sw_desc_sz, bool wb,
-			 int numa_node, dma_addr_t *dma_addr, void **sw_va,
+			 int numa_analde, dma_addr_t *dma_addr, void **sw_va,
 			 volatile __be64 **wb_va)
 {
-	int dev_node = dev_to_node(dma_dev);
+	int dev_analde = dev_to_analde(dma_dev);
 	size_t dma_sz;
 	void *va;
 
-	if (numa_node == NUMA_NO_NODE)
-		numa_node = dev_node;
+	if (numa_analde == NUMA_ANAL_ANALDE)
+		numa_analde = dev_analde;
 
 	/* Place optional write-back area at end of descriptor ring. */
 	dma_sz = hw_desc_sz * depth;
 	if (wb)
 		dma_sz += sizeof(u64);
 
-	set_dev_node(dma_dev, numa_node);
+	set_dev_analde(dma_dev, numa_analde);
 	va = dma_alloc_coherent(dma_dev, dma_sz, dma_addr, GFP_KERNEL);
-	set_dev_node(dma_dev, dev_node);
+	set_dev_analde(dma_dev, dev_analde);
 	if (!va)
 		return NULL;
 
 	if (sw_desc_sz) {
-		*sw_va = kvzalloc_node(sw_desc_sz * depth, GFP_KERNEL,
-				       numa_node);
+		*sw_va = kvzalloc_analde(sw_desc_sz * depth, GFP_KERNEL,
+				       numa_analde);
 		if (!*sw_va) {
 			dma_free_coherent(dma_dev, dma_sz, va, *dma_addr);
 			return NULL;
@@ -186,21 +186,21 @@ static void fun_clean_rq(struct fun_queue *funq)
 static int fun_fill_rq(struct fun_queue *funq)
 {
 	struct device *dev = funq->fdev->dev;
-	int i, node = dev_to_node(dev);
+	int i, analde = dev_to_analde(dev);
 	struct fun_rq_info *rqinfo;
 
 	for (i = 0; i < funq->rq_depth; i++) {
 		rqinfo = &funq->rq_info[i];
-		rqinfo->page = alloc_pages_node(node, GFP_KERNEL, 0);
+		rqinfo->page = alloc_pages_analde(analde, GFP_KERNEL, 0);
 		if (unlikely(!rqinfo->page))
-			return -ENOMEM;
+			return -EANALMEM;
 
 		rqinfo->dma = dma_map_page(dev, rqinfo->page, 0,
 					   PAGE_SIZE, DMA_FROM_DEVICE);
 		if (unlikely(dma_mapping_error(dev, rqinfo->dma))) {
 			put_page(rqinfo->page);
 			rqinfo->page = NULL;
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		funq->rqes[i] = FUN_EPRQ_RQBUF_INIT(rqinfo->dma);
@@ -317,7 +317,7 @@ unsigned int __fun_process_cq(struct fun_queue *funq, unsigned int max)
 				rsp = cqe;
 				rsp->len8 = 1;
 				if (rsp->ret == 0)
-					rsp->ret = ENOMEM;
+					rsp->ret = EANALMEM;
 			}
 		}
 
@@ -356,18 +356,18 @@ static int fun_alloc_sqes(struct fun_queue *funq)
 	funq->sq_cmds = fun_alloc_ring_mem(funq->fdev->dev, funq->sq_depth,
 					   1 << funq->sqe_size_log2, 0,
 					   fun_sq_is_head_wb(funq),
-					   NUMA_NO_NODE, &funq->sq_dma_addr,
+					   NUMA_ANAL_ANALDE, &funq->sq_dma_addr,
 					   NULL, &funq->sq_head);
-	return funq->sq_cmds ? 0 : -ENOMEM;
+	return funq->sq_cmds ? 0 : -EANALMEM;
 }
 
 static int fun_alloc_cqes(struct fun_queue *funq)
 {
 	funq->cqes = fun_alloc_ring_mem(funq->fdev->dev, funq->cq_depth,
 					1 << funq->cqe_size_log2, 0, false,
-					NUMA_NO_NODE, &funq->cq_dma_addr, NULL,
+					NUMA_ANAL_ANALDE, &funq->cq_dma_addr, NULL,
 					NULL);
-	return funq->cqes ? 0 : -ENOMEM;
+	return funq->cqes ? 0 : -EANALMEM;
 }
 
 static int fun_alloc_rqes(struct fun_queue *funq)
@@ -375,9 +375,9 @@ static int fun_alloc_rqes(struct fun_queue *funq)
 	funq->rqes = fun_alloc_ring_mem(funq->fdev->dev, funq->rq_depth,
 					sizeof(*funq->rqes),
 					sizeof(*funq->rq_info), false,
-					NUMA_NO_NODE, &funq->rq_dma_addr,
+					NUMA_ANAL_ANALDE, &funq->rq_dma_addr,
 					(void **)&funq->rq_info, NULL);
-	return funq->rqes ? 0 : -ENOMEM;
+	return funq->rqes ? 0 : -EANALMEM;
 }
 
 /* Free a queue's structures. */
@@ -467,7 +467,7 @@ struct fun_queue *fun_alloc_queue(struct fun_dev *fdev, int qid,
 	funq->cq_vector = -1;
 	funq->cqe_info_offset = (1 << funq->cqe_size_log2) - sizeof(struct fun_cqe_info);
 
-	/* SQ/CQ 0 are implicitly created, assign their doorbells now.
+	/* SQ/CQ 0 are implicitly created, assign their doorbells analw.
 	 * Other queues are assigned doorbells at their explicit creation.
 	 */
 	if (funq->sqid == 0)

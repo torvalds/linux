@@ -57,7 +57,7 @@ static int object_set_placements(struct drm_i915_gem_object *obj,
 				    sizeof(struct intel_memory_region *),
 				    GFP_KERNEL);
 		if (!arr)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		for (i = 0; i < n_placements; i++)
 			arr[i] = placements[i];
@@ -78,7 +78,7 @@ static int i915_gem_publish(struct drm_i915_gem_object *obj,
 	int ret;
 
 	ret = drm_gem_handle_create(file, &obj->base, handle_p);
-	/* drop reference from allocate - handle holds it now */
+	/* drop reference from allocate - handle holds it analw */
 	i915_gem_object_put(obj);
 	if (ret)
 		return ret;
@@ -112,7 +112,7 @@ __i915_gem_object_create_user_ext(struct drm_i915_private *i915, u64 size,
 
 	obj = i915_gem_object_alloc();
 	if (!obj)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ret = object_set_placements(obj, placements, n_placements);
 	if (ret)
@@ -241,7 +241,7 @@ i915_gem_create_ioctl(struct drm_device *dev, void *data,
 
 struct create_ext {
 	struct drm_i915_private *i915;
-	struct intel_memory_region *placements[INTEL_REGION_UNKNOWN];
+	struct intel_memory_region *placements[INTEL_REGION_UNKANALWN];
 	unsigned int n_placements;
 	unsigned int placement_mask;
 	unsigned long flags;
@@ -276,7 +276,7 @@ static int set_placements(struct drm_i915_gem_create_ext_memory_regions *args,
 	struct drm_i915_private *i915 = ext_data->i915;
 	struct drm_i915_gem_memory_class_instance __user *uregions =
 		u64_to_user_ptr(args->regions);
-	struct intel_memory_region *placements[INTEL_REGION_UNKNOWN];
+	struct intel_memory_region *placements[INTEL_REGION_UNKANALWN];
 	u32 mask;
 	int i, ret = 0;
 
@@ -388,7 +388,7 @@ static int ext_set_protected(struct i915_user_extension __user *base, void *data
 		return -EINVAL;
 
 	if (!intel_pxp_is_enabled(ext_data->i915->pxp))
-		return -ENODEV;
+		return -EANALDEV;
 
 	ext_data->flags |= I915_BO_PROTECTED;
 
@@ -407,7 +407,7 @@ static int ext_set_pat(struct i915_user_extension __user *base, void *data)
 
 	/* Limiting the extension only to Xe_LPG and beyond */
 	if (GRAPHICS_VER_FULL(i915) < IP_VER(12, 70))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (copy_from_user(&ext, base, sizeof(ext)))
 		return -EFAULT;
@@ -431,7 +431,7 @@ static const i915_user_extension_fn create_extensions[] = {
 	[I915_GEM_CREATE_EXT_SET_PAT] = ext_set_pat,
 };
 
-#define PAT_INDEX_NOT_SET	0xffff
+#define PAT_INDEX_ANALT_SET	0xffff
 /**
  * i915_gem_create_ext_ioctl - Creates a new mm object and returns a handle to it.
  * @dev: drm device pointer
@@ -451,7 +451,7 @@ i915_gem_create_ext_ioctl(struct drm_device *dev, void *data,
 	if (args->flags & ~I915_GEM_CREATE_EXT_FLAG_NEEDS_CPU_ACCESS)
 		return -EINVAL;
 
-	ext_data.pat_index = PAT_INDEX_NOT_SET;
+	ext_data.pat_index = PAT_INDEX_ANALT_SET;
 	ret = i915_user_extensions(u64_to_user_ptr(args->extensions),
 				   create_extensions,
 				   ARRAY_SIZE(create_extensions),
@@ -488,7 +488,7 @@ i915_gem_create_ext_ioctl(struct drm_device *dev, void *data,
 	if (IS_ERR(obj))
 		return PTR_ERR(obj);
 
-	if (ext_data.pat_index != PAT_INDEX_NOT_SET) {
+	if (ext_data.pat_index != PAT_INDEX_ANALT_SET) {
 		i915_gem_object_set_pat_index(obj, ext_data.pat_index);
 		/* Mark pat_index is set by UMD */
 		obj->pat_set_by_user = true;

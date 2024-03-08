@@ -232,7 +232,7 @@ static void nft_compat_wait_for_destructors(void)
 {
 	/* xtables matches or targets can have side effects, e.g.
 	 * creation/destruction of /proc files.
-	 * The xt ->destroy functions are run asynchronously from
+	 * The xt ->destroy functions are run asynchroanalusly from
 	 * work queue.  If we have pending invocations we thus
 	 * need to wait for those to finish.
 	 */
@@ -266,7 +266,7 @@ nft_target_init(const struct nft_ctx *ctx, const struct nft_expr *expr,
 
 	ret = xt_check_target(&par, size, proto, inv);
 	if (ret < 0) {
-		if (ret == -ENOENT) {
+		if (ret == -EANALENT) {
 			const char *modname = NULL;
 
 			if (strcmp(target->name, "LOG") == 0)
@@ -282,7 +282,7 @@ nft_target_init(const struct nft_ctx *ctx, const struct nft_expr *expr,
 		return ret;
 	}
 
-	/* The standard target cannot be used */
+	/* The standard target cananalt be used */
 	if (!target->target)
 		return -EINVAL;
 
@@ -362,7 +362,7 @@ static int nft_target_validate(const struct nft_ctx *ctx,
 	    ctx->family != NFPROTO_INET &&
 	    ctx->family != NFPROTO_BRIDGE &&
 	    ctx->family != NFPROTO_ARP)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ret = nft_chain_validate_hooks(ctx->chain,
 				       (1 << NF_INET_PRE_ROUTING) |
@@ -538,7 +538,7 @@ nft_match_large_init(const struct nft_ctx *ctx, const struct nft_expr *expr,
 
 	priv->info = kmalloc(XT_ALIGN(m->matchsize), GFP_KERNEL);
 	if (!priv->info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = __nft_match_init(ctx, expr, tb, priv->info);
 	if (ret)
@@ -623,7 +623,7 @@ static int nft_match_validate(const struct nft_ctx *ctx,
 	    ctx->family != NFPROTO_INET &&
 	    ctx->family != NFPROTO_BRIDGE &&
 	    ctx->family != NFPROTO_ARP)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ret = nft_chain_validate_hooks(ctx->chain,
 				       (1 << NF_INET_PRE_ROUTING) |
@@ -726,7 +726,7 @@ static int nfnl_compat_get_rcu(struct sk_buff *skb,
 
 	skb2 = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (skb2 == NULL) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_put;
 	}
 
@@ -803,7 +803,7 @@ nft_match_select_ops(const struct nft_ctx *ctx,
 
 	match = xt_request_find_match(family, mt_name, rev);
 	if (IS_ERR(match))
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-EANALENT);
 
 	if (match->matchsize > nla_len(tb[NFTA_MATCH_INFO])) {
 		err = -EINVAL;
@@ -812,7 +812,7 @@ nft_match_select_ops(const struct nft_ctx *ctx,
 
 	ops = kzalloc(sizeof(struct nft_expr_ops), GFP_KERNEL);
 	if (!ops) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err;
 	}
 
@@ -888,7 +888,7 @@ nft_target_select_ops(const struct nft_ctx *ctx,
 
 	target = xt_request_find_target(family, tg_name, rev);
 	if (IS_ERR(target))
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-EANALENT);
 
 	if (!target->target) {
 		err = -EINVAL;
@@ -902,7 +902,7 @@ nft_target_select_ops(const struct nft_ctx *ctx,
 
 	ops = kzalloc(sizeof(struct nft_expr_ops), GFP_KERNEL);
 	if (!ops) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err;
 	}
 
@@ -957,7 +957,7 @@ static int __init nft_compat_module_init(void)
 
 	ret = nfnetlink_subsys_register(&nfnl_compat_subsys);
 	if (ret < 0) {
-		pr_err("nft_compat: cannot register with nfnetlink.\n");
+		pr_err("nft_compat: cananalt register with nfnetlink.\n");
 		goto err_target;
 	}
 

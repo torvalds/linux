@@ -5,7 +5,7 @@ special IO functions.
 
 Please refer file <devicetree/bindings/pinctrl/pinctrl-bindings.txt>
 for details of the common pinctrl bindings used by client devices,
-including the meaning of the phrase "pin configuration node".
+including the meaning of the phrase "pin configuration analde".
 
 Optional Pinmux properties:
 --------------------------
@@ -15,8 +15,8 @@ at boot.
 - pinctrl[0...n]: Properties to contain the phandle for pinctrl states per
 		<pinctrl-bindings.txt>.
 
-The pin configurations are defined as child of the pinctrl states node. Each
-sub-node have following properties:
+The pin configurations are defined as child of the pinctrl states analde. Each
+sub-analde have following properties:
 
 Required properties:
 ------------------
@@ -52,8 +52,8 @@ detail of Flexible Power Sequence (FPS).
 						FPS source is FPS1
 					- MAX77620_FPS_SRC_2 and
 						FPS source is FPS2
-					- MAX77620_FPS_SRC_NONE.
-						GPIO is not controlled
+					- MAX77620_FPS_SRC_ANALNE.
+						GPIO is analt controlled
 						by FPS events and it gets
 						enabled/disabled by register
 						access.

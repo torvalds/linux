@@ -10,7 +10,7 @@
 #include "ec.h"
 #include "error.h"
 #include "extents.h"
-#include "inode.h"
+#include "ianalde.h"
 #include "io_misc.h"
 #include "lru.h"
 #include "quota.h"
@@ -46,7 +46,7 @@ static int empty_val_key_invalid(struct bch_fs *c, struct bkey_s_c k,
 	int ret = 0;
 
 	bkey_fsck_err_on(bkey_val_bytes(k.k), c, err,
-			 bkey_val_size_nonzero,
+			 bkey_val_size_analnzero,
 			 "incorrect value size (%zu != 0)",
 			 bkey_val_bytes(k.k));
 fsck_err:
@@ -152,13 +152,13 @@ static u64 bch2_key_types_allowed[] = {
 #undef x
 };
 
-const char *bch2_btree_node_type_str(enum btree_node_type type)
+const char *bch2_btree_analde_type_str(enum btree_analde_type type)
 {
-	return type == BKEY_TYPE_btree ? "internal btree node" : bch2_btree_id_str(type - 1);
+	return type == BKEY_TYPE_btree ? "internal btree analde" : bch2_btree_id_str(type - 1);
 }
 
 int __bch2_bkey_invalid(struct bch_fs *c, struct bkey_s_c k,
-			enum btree_node_type type,
+			enum btree_analde_type type,
 			enum bkey_invalid_flags flags,
 			struct printbuf *err)
 {
@@ -175,9 +175,9 @@ int __bch2_bkey_invalid(struct bch_fs *c, struct bkey_s_c k,
 			 !(bch2_key_types_allowed[type] & BIT_ULL(k.k->type)), c, err,
 			 bkey_invalid_type_for_btree,
 			 "invalid key type for btree %s (%s)",
-			 bch2_btree_node_type_str(type), bch2_bkey_types[k.k->type]);
+			 bch2_btree_analde_type_str(type), bch2_bkey_types[k.k->type]);
 
-	if (btree_node_type_is_extents(type) && !bkey_whiteout(k.k)) {
+	if (btree_analde_type_is_extents(type) && !bkey_whiteout(k.k)) {
 		bkey_fsck_err_on(k.k->size == 0, c, err,
 				 bkey_extent_size_zero,
 				 "size == 0");
@@ -188,7 +188,7 @@ int __bch2_bkey_invalid(struct bch_fs *c, struct bkey_s_c k,
 				 k.k->size, k.k->p.offset);
 	} else {
 		bkey_fsck_err_on(k.k->size, c, err,
-				 bkey_size_nonzero,
+				 bkey_size_analnzero,
 				 "size != 0");
 	}
 
@@ -201,12 +201,12 @@ int __bch2_bkey_invalid(struct bch_fs *c, struct bkey_s_c k,
 					 "snapshot == 0");
 		} else if (!btree_type_has_snapshot_field(btree)) {
 			bkey_fsck_err_on(k.k->p.snapshot, c, err,
-					 bkey_snapshot_nonzero,
-					 "nonzero snapshot");
+					 bkey_snapshot_analnzero,
+					 "analnzero snapshot");
 		} else {
 			/*
-			 * btree uses snapshot field but it's not required to be
-			 * nonzero
+			 * btree uses snapshot field but it's analt required to be
+			 * analnzero
 			 */
 		}
 
@@ -219,7 +219,7 @@ fsck_err:
 }
 
 int bch2_bkey_invalid(struct bch_fs *c, struct bkey_s_c k,
-		      enum btree_node_type type,
+		      enum btree_analde_type type,
 		      enum bkey_invalid_flags flags,
 		      struct printbuf *err)
 {
@@ -227,18 +227,18 @@ int bch2_bkey_invalid(struct bch_fs *c, struct bkey_s_c k,
 		bch2_bkey_val_invalid(c, k, flags, err);
 }
 
-int bch2_bkey_in_btree_node(struct bch_fs *c, struct btree *b,
+int bch2_bkey_in_btree_analde(struct bch_fs *c, struct btree *b,
 			    struct bkey_s_c k, struct printbuf *err)
 {
 	int ret = 0;
 
 	bkey_fsck_err_on(bpos_lt(k.k->p, b->data->min_key), c, err,
-			 bkey_before_start_of_btree_node,
-			 "key before start of btree node");
+			 bkey_before_start_of_btree_analde,
+			 "key before start of btree analde");
 
 	bkey_fsck_err_on(bpos_gt(k.k->p, b->data->max_key), c, err,
-			 bkey_after_end_of_btree_node,
-			 "key past end of btree node");
+			 bkey_after_end_of_btree_analde,
+			 "key past end of btree analde");
 fsck_err:
 	return ret;
 }
@@ -252,10 +252,10 @@ void bch2_bpos_to_text(struct printbuf *out, struct bpos pos)
 	else if (bpos_eq(pos, SPOS_MAX))
 		prt_printf(out, "SPOS_MAX");
 	else {
-		if (pos.inode == U64_MAX)
+		if (pos.ianalde == U64_MAX)
 			prt_printf(out, "U64_MAX");
 		else
-			prt_printf(out, "%llu", pos.inode);
+			prt_printf(out, "%llu", pos.ianalde);
 		prt_printf(out, ":");
 		if (pos.offset == U64_MAX)
 			prt_printf(out, "U64_MAX");
@@ -315,12 +315,12 @@ void bch2_bkey_swab_val(struct bkey_s k)
 		ops->swab(k);
 }
 
-bool bch2_bkey_normalize(struct bch_fs *c, struct bkey_s k)
+bool bch2_bkey_analrmalize(struct bch_fs *c, struct bkey_s k)
 {
 	const struct bkey_ops *ops = bch2_bkey_type_ops(k.k->type);
 
-	return ops->key_normalize
-		? ops->key_normalize(c, k)
+	return ops->key_analrmalize
+		? ops->key_analrmalize(c, k)
 		: false;
 }
 
@@ -336,7 +336,7 @@ bool bch2_bkey_merge(struct bch_fs *c, struct bkey_s l, struct bkey_s_c r)
 }
 
 static const struct old_bkey_type {
-	u8		btree_node_type;
+	u8		btree_analde_type;
 	u8		old;
 	u8		new;
 } bkey_renumber_table[] = {
@@ -344,8 +344,8 @@ static const struct old_bkey_type {
 	{BKEY_TYPE_extents,	128, KEY_TYPE_extent		},
 	{BKEY_TYPE_extents,	129, KEY_TYPE_extent		},
 	{BKEY_TYPE_extents,	130, KEY_TYPE_reservation	},
-	{BKEY_TYPE_inodes,	128, KEY_TYPE_inode		},
-	{BKEY_TYPE_inodes,	130, KEY_TYPE_inode_generation	},
+	{BKEY_TYPE_ianaldes,	128, KEY_TYPE_ianalde		},
+	{BKEY_TYPE_ianaldes,	130, KEY_TYPE_ianalde_generation	},
 	{BKEY_TYPE_dirents,	128, KEY_TYPE_dirent		},
 	{BKEY_TYPE_dirents,	129, KEY_TYPE_hash_whiteout	},
 	{BKEY_TYPE_xattrs,	128, KEY_TYPE_xattr		},
@@ -354,7 +354,7 @@ static const struct old_bkey_type {
 	{BKEY_TYPE_quotas,	128, KEY_TYPE_quota		},
 };
 
-void bch2_bkey_renumber(enum btree_node_type btree_node_type,
+void bch2_bkey_renumber(enum btree_analde_type btree_analde_type,
 			struct bkey_packed *k,
 			int write)
 {
@@ -363,7 +363,7 @@ void bch2_bkey_renumber(enum btree_node_type btree_node_type,
 	for (i = bkey_renumber_table;
 	     i < bkey_renumber_table + ARRAY_SIZE(bkey_renumber_table);
 	     i++)
-		if (btree_node_type == i->btree_node_type &&
+		if (btree_analde_type == i->btree_analde_type &&
 		    k->type == (write ? i->new : i->old)) {
 			k->type = write ? i->old : i->new;
 			break;
@@ -393,29 +393,29 @@ void __bch2_bkey_compat(unsigned level, enum btree_id btree_id,
 		break;
 	case 1:
 		if (version < bcachefs_metadata_version_bkey_renumber)
-			bch2_bkey_renumber(__btree_node_type(level, btree_id), k, write);
+			bch2_bkey_renumber(__btree_analde_type(level, btree_id), k, write);
 		break;
 	case 2:
-		if (version < bcachefs_metadata_version_inode_btree_change &&
-		    btree_id == BTREE_ID_inodes) {
+		if (version < bcachefs_metadata_version_ianalde_btree_change &&
+		    btree_id == BTREE_ID_ianaldes) {
 			if (!bkey_packed(k)) {
 				struct bkey_i *u = packed_to_bkey(k);
 
-				swap(u->k.p.inode, u->k.p.offset);
-			} else if (f->bits_per_field[BKEY_FIELD_INODE] &&
+				swap(u->k.p.ianalde, u->k.p.offset);
+			} else if (f->bits_per_field[BKEY_FIELD_IANALDE] &&
 				   f->bits_per_field[BKEY_FIELD_OFFSET]) {
 				struct bkey_format tmp = *f, *in = f, *out = &tmp;
 
-				swap(tmp.bits_per_field[BKEY_FIELD_INODE],
+				swap(tmp.bits_per_field[BKEY_FIELD_IANALDE],
 				     tmp.bits_per_field[BKEY_FIELD_OFFSET]);
-				swap(tmp.field_offset[BKEY_FIELD_INODE],
+				swap(tmp.field_offset[BKEY_FIELD_IANALDE],
 				     tmp.field_offset[BKEY_FIELD_OFFSET]);
 
 				if (!write)
 					swap(in, out);
 
 				uk = __bch2_bkey_unpack_key(in, k);
-				swap(uk.p.inode, uk.p.offset);
+				swap(uk.p.ianalde, uk.p.offset);
 				BUG_ON(!bch2_bkey_pack_key(k, &uk, out));
 			}
 		}

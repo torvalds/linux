@@ -6,7 +6,7 @@
  *			    Shane Huang,
  *			    Rudolf Marek <r.marek@assembler.cz>
  *
- * Note:
+ * Analte:
  * 1. This driver is only for 2.6 kernel, 2.4 kernel need a different driver.
  * 2. This driver is only for Winbond W83792D C version device, there
  *     are also some motherboards with B version W83792D device. The
@@ -19,7 +19,7 @@
  * Supports following chips:
  *
  * Chip		#vin	#fanin	#pwm	#temp	wchipid	vendid	i2c	ISA
- * w83792d	9	7	7	3	0x7a	0x5ca3	yes	no
+ * w83792d	9	7	7	3	0x7a	0x5ca3	anal	anal
  */
 
 #include <linux/module.h>
@@ -34,7 +34,7 @@
 #include <linux/jiffies.h>
 
 /* Addresses to scan */
-static const unsigned short normal_i2c[] = { 0x2c, 0x2d, 0x2e, 0x2f,
+static const unsigned short analrmal_i2c[] = { 0x2c, 0x2d, 0x2e, 0x2f,
 						I2C_CLIENT_END };
 
 /* Insmod parameters */
@@ -171,15 +171,15 @@ static const u8 W83792D_REG_POINTS[3][4] = {
 };
 
 static const u8 W83792D_REG_LEVELS[3][4] = {
-	{ 0x88,		/* (bit3-0) SmartFanII: Fan1 Non-Stop */
+	{ 0x88,		/* (bit3-0) SmartFanII: Fan1 Analn-Stop */
 	  0x88,		/* (bit7-4) SmartFanII: Fan1 Level 1 */
 	  0xE0,		/* (bit7-4) SmartFanII: Fan1 Level 2 */
 	  0xE0 },	/* (bit3-0) SmartFanII: Fan1 Level 3 */
-	{ 0x89,		/* (bit3-0) SmartFanII: Fan2 Non-Stop */
+	{ 0x89,		/* (bit3-0) SmartFanII: Fan2 Analn-Stop */
 	  0x89,		/* (bit7-4) SmartFanII: Fan2 Level 1 */
 	  0xE1,		/* (bit7-4) SmartFanII: Fan2 Level 2 */
 	  0xE1 },	/* (bit3-0) SmartFanII: Fan2 Level 3 */
-	{ 0x98,		/* (bit3-0) SmartFanII: Fan3 Non-Stop */
+	{ 0x98,		/* (bit3-0) SmartFanII: Fan3 Analn-Stop */
 	  0x98,		/* (bit7-4) SmartFanII: Fan3 Level 1 */
 	  0xE2,		/* (bit7-4) SmartFanII: Fan3 Level 2 */
 	  0xE2 }	/* (bit3-0) SmartFanII: Fan3 Level 3 */
@@ -208,9 +208,9 @@ static const u8 W83792D_REG_LEVELS[3][4] = {
 
 /*
  * Conversions. Rounding and limit checking is only done on the TO_REG
- * variants. Note that you should be a bit careful with which arguments
+ * variants. Analte that you should be a bit careful with which arguments
  * these macros are called: arguments may be evaluated more than once.
- * Fixing this is just not worth it.
+ * Fixing this is just analt worth it.
  */
 #define IN_FROM_REG(nr, val) (((nr) <= 1) ? ((val) * 2) : \
 		((((nr) == 6) || ((nr) == 7)) ? ((val) * 6) : ((val) * 4)))
@@ -310,12 +310,12 @@ static struct i2c_driver w83792d_driver = {
 	.remove		= w83792d_remove,
 	.id_table	= w83792d_id,
 	.detect		= w83792d_detect,
-	.address_list	= normal_i2c,
+	.address_list	= analrmal_i2c,
 };
 
 static inline long in_count_from_reg(int nr, struct w83792d_data *data)
 {
-	/* in7 and in8 do not have low bits, but the formula still works */
+	/* in7 and in8 do analt have low bits, but the formula still works */
 	return (data->in[nr] << 2) | ((data->low_bits >> (2 * nr)) & 0x03);
 }
 
@@ -436,7 +436,7 @@ show_fan_div(struct device *dev, struct device_attribute *attr,
 }
 
 /*
- * Note: we save and restore the fan minimum here, because its value is
+ * Analte: we save and restore the fan minimum here, because its value is
  * determined in part by the fan divisor.  This follows the principle of
  * least surprise; the user doesn't expect the fan minimum to change just
  * because the divisor changed.
@@ -933,7 +933,7 @@ w83792d_detect_subclients(struct i2c_client *new_client)
 				dev_err(&new_client->dev,
 					"invalid subclient address %d; must be 0x48-0x4f\n",
 					force_subclients[i]);
-				return -ENODEV;
+				return -EANALDEV;
 			}
 		}
 		w83792d_write_value(new_client, W83792D_REG_I2C_SUBADDR,
@@ -946,7 +946,7 @@ w83792d_detect_subclients(struct i2c_client *new_client)
 	if (!(val & 0x88) && (val & 0x7) == ((val >> 4) & 0x7)) {
 		dev_err(&new_client->dev,
 			"duplicate addresses 0x%x, use force_subclient\n", 0x48 + (val & 0x7));
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (!(val & 0x08))
@@ -1305,7 +1305,7 @@ static const struct attribute_group w83792d_group = {
 	.attrs = w83792d_attributes,
 };
 
-/* Return 0 if detection is successful, -ENODEV otherwise */
+/* Return 0 if detection is successful, -EANALDEV otherwise */
 static int
 w83792d_detect(struct i2c_client *client, struct i2c_board_info *info)
 {
@@ -1314,10 +1314,10 @@ w83792d_detect(struct i2c_client *client, struct i2c_board_info *info)
 	unsigned short address = client->addr;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (w83792d_read_value(client, W83792D_REG_CONFIG) & 0x80)
-		return -ENODEV;
+		return -EANALDEV;
 
 	val1 = w83792d_read_value(client, W83792D_REG_BANK);
 	val2 = w83792d_read_value(client, W83792D_REG_CHIPMAN);
@@ -1325,16 +1325,16 @@ w83792d_detect(struct i2c_client *client, struct i2c_board_info *info)
 	if (!(val1 & 0x07)) {  /* is Bank0 */
 		if ((!(val1 & 0x80) && val2 != 0xa3) ||
 		    ((val1 & 0x80) && val2 != 0x5c))
-			return -ENODEV;
+			return -EANALDEV;
 	}
 	/*
 	 * If Winbond chip, address of chip and W83792D_REG_I2C_ADDR
 	 * should match
 	 */
 	if (w83792d_read_value(client, W83792D_REG_I2C_ADDR) != address)
-		return -ENODEV;
+		return -EANALDEV;
 
-	/*  Put it now into bank 0 and Vendor ID High Byte */
+	/*  Put it analw into bank 0 and Vendor ID High Byte */
 	w83792d_write_value(client,
 			    W83792D_REG_BANK,
 			    (w83792d_read_value(client,
@@ -1344,7 +1344,7 @@ w83792d_detect(struct i2c_client *client, struct i2c_board_info *info)
 	val1 = w83792d_read_value(client, W83792D_REG_WCHIPID);
 	val2 = w83792d_read_value(client, W83792D_REG_CHIPMAN);
 	if (val1 != 0x7a || val2 != 0x5c)
-		return -ENODEV;
+		return -EANALDEV;
 
 	strscpy(info->type, "w83792d", I2C_NAME_SIZE);
 
@@ -1360,7 +1360,7 @@ w83792d_probe(struct i2c_client *client)
 
 	data = devm_kzalloc(dev, sizeof(struct w83792d_data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(client, data);
 	mutex_init(&data->update_lock);
@@ -1455,7 +1455,7 @@ w83792d_init_client(struct i2c_client *client)
 	 * W83792D_REG_VID_IN_B bit6 = 0: the high/low limit of
 	 * vin0/vin1 can be modified by user;
 	 * W83792D_REG_VID_IN_B bit6 = 1: the high/low limit of
-	 * vin0/vin1 auto-updated, can NOT be modified by user.
+	 * vin0/vin1 auto-updated, can ANALT be modified by user.
 	 */
 	vid_in_b = w83792d_read_value(client, W83792D_REG_VID_IN_B);
 	w83792d_write_value(client, W83792D_REG_VID_IN_B,

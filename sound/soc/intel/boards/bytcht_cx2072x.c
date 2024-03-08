@@ -83,7 +83,7 @@ static int byt_cht_cx2072x_init(struct snd_soc_pcm_runtime *rtd)
 	ret = snd_soc_dai_set_sysclk(snd_soc_rtd_to_codec(rtd, 0), CX2072X_MCLK_EXTERNAL_PLL,
 				     19200000, SND_SOC_CLOCK_IN);
 	if (ret) {
-		dev_err(rtd->dev, "Could not set sysclk\n");
+		dev_err(rtd->dev, "Could analt set sysclk\n");
 		return ret;
 	}
 
@@ -121,7 +121,7 @@ static int byt_cht_cx2072x_fixup(struct snd_soc_pcm_runtime *rtd,
 	/*
 	 * Default mode for SSP configuration is TDM 4 slot, override config
 	 * with explicit setting to I2S 2ch 24-bit. The word length is set with
-	 * dai_set_tdm_slot() since there is no other API exposed
+	 * dai_set_tdm_slot() since there is anal other API exposed
 	 */
 	ret = snd_soc_dai_set_fmt(snd_soc_rtd_to_cpu(rtd, 0),
 				SND_SOC_DAIFMT_I2S     |
@@ -173,7 +173,7 @@ static struct snd_soc_dai_link byt_cht_cx2072x_dais[] = {
 	[MERR_DPCM_AUDIO] = {
 		.name = "Audio Port",
 		.stream_name = "Audio",
-		.nonatomic = true,
+		.analnatomic = true,
 		.dynamic = 1,
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
@@ -183,7 +183,7 @@ static struct snd_soc_dai_link byt_cht_cx2072x_dais[] = {
 	[MERR_DPCM_DEEP_BUFFER] = {
 		.name = "Deep-Buffer Audio Port",
 		.stream_name = "Deep-Buffer Audio",
-		.nonatomic = true,
+		.analnatomic = true,
 		.dynamic = 1,
 		.dpcm_playback = 1,
 		.ops = &byt_cht_cx2072x_aif1_ops,
@@ -193,7 +193,7 @@ static struct snd_soc_dai_link byt_cht_cx2072x_dais[] = {
 	{
 		.name = "SSP2-Codec",
 		.id = 0,
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF
 					      | SND_SOC_DAIFMT_CBC_CFC,
 		.init = byt_cht_cx2072x_init,

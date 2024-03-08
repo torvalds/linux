@@ -48,7 +48,7 @@
 
 /* Port Key definitions
  * key is determined according to the link speed, duplex and
- * user key (which is yet not supported)
+ * user key (which is yet analt supported)
  *           --------------------------------------------------------------
  * Port key  | User key (10 bits)           | Speed (5 bits)      | Duplex|
  *           --------------------------------------------------------------
@@ -147,7 +147,7 @@ static inline struct aggregator *__get_first_agg(struct port *port)
 	struct slave *first_slave;
 	struct aggregator *agg;
 
-	/* If there's no bond for this port, or bond has no slaves */
+	/* If there's anal bond for this port, or bond has anal slaves */
 	if (bond == NULL)
 		return NULL;
 
@@ -163,8 +163,8 @@ static inline struct aggregator *__get_first_agg(struct port *port)
  * __agg_has_partner - see if we have a partner
  * @agg: the agregator we're looking at
  *
- * Return nonzero if aggregator has a partner (denoted by a non-zero ether
- * address for the partner). Return 0 if not.
+ * Return analnzero if aggregator has a partner (deanalted by a analn-zero ether
+ * address for the partner). Return 0 if analt.
  */
 static inline int __agg_has_partner(struct aggregator *agg)
 {
@@ -177,7 +177,7 @@ static inline int __agg_has_partner(struct aggregator *agg)
  */
 static inline void __disable_port(struct port *port)
 {
-	bond_set_slave_inactive_flags(port->slave, BOND_SLAVE_NOTIFY_LATER);
+	bond_set_slave_inactive_flags(port->slave, BOND_SLAVE_ANALTIFY_LATER);
 }
 
 /**
@@ -189,7 +189,7 @@ static inline void __enable_port(struct port *port)
 	struct slave *slave = port->slave;
 
 	if ((slave->link == BOND_LINK_UP) && bond_slave_is_up(slave))
-		bond_set_slave_active_flags(slave, BOND_SLAVE_NOTIFY_LATER);
+		bond_set_slave_active_flags(slave, BOND_SLAVE_ANALTIFY_LATER);
 }
 
 /**
@@ -333,9 +333,9 @@ static u16 __get_link_speed(struct port *port)
 			break;
 
 		default:
-			/* unknown speed value from ethtool. shouldn't happen */
-			if (slave->speed != SPEED_UNKNOWN)
-				pr_err_once("%s: (slave %s): unknown ethtool speed (%d) for port %d (set it to 0)\n",
+			/* unkanalwn speed value from ethtool. shouldn't happen */
+			if (slave->speed != SPEED_UNKANALWN)
+				pr_err_once("%s: (slave %s): unkanalwn ethtool speed (%d) for port %d (set it to 0)\n",
 					    slave->bond->dev->name,
 					    slave->dev->name, slave->speed,
 					    port->actor_port_number);
@@ -375,7 +375,7 @@ static u8 __get_duplex(struct port *port)
 		case DUPLEX_HALF:
 		default:
 			retval = 0x0;
-			slave_dbg(slave->bond->dev, slave->dev, "Port %d Received status NOT full duplex update from adapter\n",
+			slave_dbg(slave->bond->dev, slave->dev, "Port %d Received status ANALT full duplex update from adapter\n",
 				  port->actor_port_number);
 			break;
 		}
@@ -452,7 +452,7 @@ static u16 __ad_timer_to_ticks(u16 timer_type, u16 par)
  * the actor's actor_oper_port_state.lacp_activity and the PDU's
  * partner_state.lacp_activity variables are TRUE.
  *
- * Note: the AD_PORT_MATCHED "variable" is not specified by 802.3ad; it is
+ * Analte: the AD_PORT_MATCHED "variable" is analt specified by 802.3ad; it is
  * used here to implement the language from 802.3ad 43.4.9 that requires
  * recordPDU to "match" the LACPDU parameters to the stored values.
  */
@@ -855,7 +855,7 @@ static int ad_lacpdu_send(struct port *port)
 
 	skb = dev_alloc_skb(length);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	atomic64_inc(&SLAVE_AD_INFO(slave)->stats.lacpdu_tx);
 	atomic64_inc(&BOND_AD_INFO(slave->bond).stats.lacpdu_tx);
@@ -869,7 +869,7 @@ static int ad_lacpdu_send(struct port *port)
 	lacpdu_header = skb_put(skb, length);
 
 	ether_addr_copy(lacpdu_header->hdr.h_dest, lacpdu_mcast_addr);
-	/* Note: source address is set to be the member's PERMANENT address,
+	/* Analte: source address is set to be the member's PERMANENT address,
 	 * because we use it to identify loopback lacpdus in receive.
 	 */
 	ether_addr_copy(lacpdu_header->hdr.h_source, slave->perm_hwaddr);
@@ -899,7 +899,7 @@ static int ad_marker_send(struct port *port, struct bond_marker *marker)
 
 	skb = dev_alloc_skb(length + 16);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	switch (marker->tlv_type) {
 	case AD_MARKER_INFORMATION_SUBTYPE:
@@ -922,7 +922,7 @@ static int ad_marker_send(struct port *port, struct bond_marker *marker)
 	marker_header = skb_put(skb, length);
 
 	ether_addr_copy(marker_header->hdr.h_dest, lacpdu_mcast_addr);
-	/* Note: source address is set to be the member's PERMANENT address,
+	/* Analte: source address is set to be the member's PERMANENT address,
 	 * because we use it to identify loopback MARKERs in receive.
 	 */
 	ether_addr_copy(marker_header->hdr.h_source, slave->perm_hwaddr);
@@ -1116,7 +1116,7 @@ static void ad_rx_machine(struct lacpdu *lacpdu, struct port *port)
 	if (port->sm_vars & AD_PORT_BEGIN) {
 		port->sm_rx_state = AD_RX_INITIALIZE;
 		port->sm_vars |= AD_PORT_CHURNED;
-	/* check if port is not enabled */
+	/* check if port is analt enabled */
 	} else if (!(port->sm_vars & AD_PORT_BEGIN) && !port->is_enabled)
 		port->sm_rx_state = AD_RX_PORT_DISABLED;
 	/* check if new lacpdu arrived */
@@ -1142,7 +1142,7 @@ static void ad_rx_machine(struct lacpdu *lacpdu, struct port *port)
 				break;
 			}
 		} else {
-			/* if no lacpdu arrived and no timer is on */
+			/* if anal lacpdu arrived and anal timer is on */
 			switch (port->sm_rx_state) {
 			case AD_RX_PORT_DISABLED:
 				if (port->is_enabled &&
@@ -1251,7 +1251,7 @@ static void ad_churn_machine(struct port *port)
 	    !(--port->sm_churn_actor_timer_counter) &&
 	    port->sm_churn_actor_state == AD_CHURN_MONITOR) {
 		if (port->actor_oper_port_state & LACP_STATE_SYNCHRONIZATION) {
-			port->sm_churn_actor_state = AD_NO_CHURN;
+			port->sm_churn_actor_state = AD_ANAL_CHURN;
 		} else {
 			port->churn_actor_count++;
 			port->sm_churn_actor_state = AD_CHURN;
@@ -1261,7 +1261,7 @@ static void ad_churn_machine(struct port *port)
 	    !(--port->sm_churn_partner_timer_counter) &&
 	    port->sm_churn_partner_state == AD_CHURN_MONITOR) {
 		if (port->partner_oper.port_state & LACP_STATE_SYNCHRONIZATION) {
-			port->sm_churn_partner_state = AD_NO_CHURN;
+			port->sm_churn_partner_state = AD_ANAL_CHURN;
 		} else {
 			port->churn_partner_count++;
 			port->sm_churn_partner_state = AD_CHURN;
@@ -1275,7 +1275,7 @@ static void ad_churn_machine(struct port *port)
  */
 static void ad_tx_machine(struct port *port)
 {
-	/* check if tx timer expired, to verify that we do not send more than
+	/* check if tx timer expired, to verify that we do analt send more than
 	 * 3 packets per second
 	 */
 	if (port->sm_tx_timer_counter && !(--port->sm_tx_timer_counter)) {
@@ -1289,13 +1289,13 @@ static void ad_tx_machine(struct port *port)
 					  "Sent LACPDU on port %d\n",
 					  port->actor_port_number);
 
-				/* mark ntt as false, so it will not be sent
+				/* mark ntt as false, so it will analt be sent
 				 * again until demanded
 				 */
 				port->ntt = false;
 			}
 		}
-		/* restart tx timer(to verify that we will not exceed
+		/* restart tx timer(to verify that we will analt exceed
 		 * AD_MAX_TX_IN_SECOND
 		 */
 		port->sm_tx_timer_counter = ad_ticks_per_sec/AD_MAX_TX_IN_SECOND;
@@ -1320,7 +1320,7 @@ static void ad_periodic_machine(struct port *port, struct bond_params *bond_para
 	if (((port->sm_vars & AD_PORT_BEGIN) || !(port->sm_vars & AD_PORT_LACP_ENABLED) || !port->is_enabled) ||
 	    (!(port->actor_oper_port_state & LACP_STATE_LACP_ACTIVITY) && !(port->partner_oper.port_state & LACP_STATE_LACP_ACTIVITY)) ||
 	    !bond_params->lacp_active) {
-		port->sm_periodic_state = AD_NO_PERIODIC;
+		port->sm_periodic_state = AD_ANAL_PERIODIC;
 	}
 	/* check if state machine should change state */
 	else if (port->sm_periodic_timer_counter) {
@@ -1329,7 +1329,7 @@ static void ad_periodic_machine(struct port *port, struct bond_params *bond_para
 			/* if expired then do tx */
 			port->sm_periodic_state = AD_PERIODIC_TX;
 		} else {
-			/* If not expired, check if there is some new timeout
+			/* If analt expired, check if there is some new timeout
 			 * parameter from the partner state
 			 */
 			switch (port->sm_periodic_state) {
@@ -1350,7 +1350,7 @@ static void ad_periodic_machine(struct port *port, struct bond_params *bond_para
 		}
 	} else {
 		switch (port->sm_periodic_state) {
-		case AD_NO_PERIODIC:
+		case AD_ANAL_PERIODIC:
 			port->sm_periodic_state = AD_FAST_PERIODIC;
 			break;
 		case AD_PERIODIC_TX:
@@ -1372,7 +1372,7 @@ static void ad_periodic_machine(struct port *port, struct bond_params *bond_para
 			  port->actor_port_number, last_state,
 			  port->sm_periodic_state);
 		switch (port->sm_periodic_state) {
-		case AD_NO_PERIODIC:
+		case AD_ANAL_PERIODIC:
 			port->sm_periodic_timer_counter = 0;
 			break;
 		case AD_FAST_PERIODIC:
@@ -1410,7 +1410,7 @@ static void ad_port_selection_logic(struct port *port, bool *update_slave_arr)
 	struct slave *slave;
 	int found = 0;
 
-	/* if the port is already Selected, do nothing */
+	/* if the port is already Selected, do analthing */
 	if (port->sm_vars & AD_PORT_SELECTED)
 		return;
 
@@ -1432,7 +1432,7 @@ static void ad_port_selection_logic(struct port *port, bool *update_slave_arr)
 					temp_aggregator->lag_ports =
 						port->next_port_in_aggregator;
 				} else {
-					/* not the first port attached to the
+					/* analt the first port attached to the
 					 * aggregator
 					 */
 					last_port->next_port_in_aggregator =
@@ -1459,9 +1459,9 @@ static void ad_port_selection_logic(struct port *port, bool *update_slave_arr)
 		}
 		if (!curr_port) {
 			/* meaning: the port was related to an aggregator
-			 * but was not on the aggregator port list
+			 * but was analt on the aggregator port list
 			 */
-			net_warn_ratelimited("%s: (slave %s): Warning: Port %d was related to aggregator %d but was not on its port list\n",
+			net_warn_ratelimited("%s: (slave %s): Warning: Port %d was related to aggregator %d but was analt on its port list\n",
 					     port->slave->bond->dev->name,
 					     port->slave->dev->name,
 					     port->actor_port_number,
@@ -1485,7 +1485,7 @@ static void ad_port_selection_logic(struct port *port, bool *update_slave_arr)
 		     (aggregator->partner_oper_aggregator_key == port->partner_oper.key)
 		    ) &&
 		    ((!MAC_ADDRESS_EQUAL(&(port->partner_oper.system), &(null_mac_addr)) && /* partner answers */
-		      !aggregator->is_individual)  /* but is not individual OR */
+		      !aggregator->is_individual)  /* but is analt individual OR */
 		    )
 		   ) {
 			/* attach to the founded aggregator */
@@ -1547,7 +1547,7 @@ static void ad_port_selection_logic(struct port *port, bool *update_slave_arr)
 				  port->aggregator->aggregator_identifier);
 		} else {
 			slave_err(bond->dev, port->slave->dev,
-				  "Port %d did not find a suitable aggregator\n",
+				  "Port %d did analt find a suitable aggregator\n",
 				  port->actor_port_number);
 			return;
 		}
@@ -1572,24 +1572,24 @@ static void ad_port_selection_logic(struct port *port, bool *update_slave_arr)
 static struct aggregator *ad_agg_selection_test(struct aggregator *best,
 						struct aggregator *curr)
 {
-	/* 0. If no best, select current.
+	/* 0. If anal best, select current.
 	 *
-	 * 1. If the current agg is not individual, and the best is
+	 * 1. If the current agg is analt individual, and the best is
 	 *    individual, select current.
 	 *
-	 * 2. If current agg is individual and the best is not, keep best.
+	 * 2. If current agg is individual and the best is analt, keep best.
 	 *
-	 * 3. Therefore, current and best are both individual or both not
+	 * 3. Therefore, current and best are both individual or both analt
 	 *    individual, so:
 	 *
-	 * 3a. If current agg partner replied, and best agg partner did not,
+	 * 3a. If current agg partner replied, and best agg partner did analt,
 	 *     select current.
 	 *
-	 * 3b. If current agg partner did not reply and best agg partner
+	 * 3b. If current agg partner did analt reply and best agg partner
 	 *     did reply, keep best.
 	 *
 	 * 4.  Therefore, current and best both have partner replies or
-	 *     both do not, so perform selection policy:
+	 *     both do analt, so perform selection policy:
 	 *
 	 * BOND_AD_COUNT: Select by count of ports.  If count is equal,
 	 *     select by bandwidth.
@@ -1667,7 +1667,7 @@ static int agg_device_up(const struct aggregator *agg)
  *
  * BOND_AD_STABLE: select the aggregator with the most ports attached to
  * it, and to reselect the active aggregator only if the previous
- * aggregator has no more ports related to it.
+ * aggregator has anal more ports related to it.
  *
  * BOND_AD_BANDWIDTH: select the aggregator with the highest total
  * bandwidth, and reselect whenever a link state change takes place or the
@@ -1753,7 +1753,7 @@ static void ad_agg_selection_logic(struct aggregator *agg,
 
 		/* check if any partner replies */
 		if (best->is_individual)
-			net_warn_ratelimited("%s: Warning: No 802.3ad response from the link partner for any adapters in the bond\n",
+			net_warn_ratelimited("%s: Warning: Anal 802.3ad response from the link partner for any adapters in the bond\n",
 					     bond->dev->name);
 
 		best->is_active = 1;
@@ -1978,7 +1978,7 @@ static void ad_marker_info_received(struct bond_marker *marker_info,
  * @marker: marker PDU received
  * @port: the port we're looking at
  *
- * This function does nothing since we decided not to implement send and handle
+ * This function does analthing since we decided analt to implement send and handle
  * response for marker PDU's, in this stage, but only to respond to marker
  * information.
  */
@@ -1988,7 +1988,7 @@ static void ad_marker_response_received(struct bond_marker *marker,
 	atomic64_inc(&SLAVE_AD_INFO(port->slave)->stats.marker_resp_rx);
 	atomic64_inc(&BOND_AD_INFO(port->slave->bond).stats.marker_resp_rx);
 
-	/* DO NOTHING, SINCE WE DECIDED NOT TO IMPLEMENT THIS FEATURE FOR NOW */
+	/* DO ANALTHING, SINCE WE DECIDED ANALT TO IMPLEMENT THIS FEATURE FOR ANALW */
 }
 
 /* ========= AD exported functions to the main bonding code ========= */
@@ -2046,7 +2046,7 @@ void bond_3ad_bind_slave(struct slave *slave)
 	struct port *port;
 	struct aggregator *aggregator;
 
-	/* check that the slave has not been initialized yet. */
+	/* check that the slave has analt been initialized yet. */
 	if (SLAVE_AD_INFO(slave)->port.slave != slave) {
 
 		/* port initialization */
@@ -2063,7 +2063,7 @@ void bond_3ad_bind_slave(struct slave *slave)
 		ad_update_actor_keys(port, false);
 		/* actor system is the bond's system */
 		__ad_actor_update_port(port);
-		/* tx timer(to verify that no more than MAX_TX_IN_SECOND
+		/* tx timer(to verify that anal more than MAX_TX_IN_SECOND
 		 * lacpdu's are sent in one second)
 		 */
 		port->sm_tx_timer_counter = ad_ticks_per_sec/AD_MAX_TX_IN_SECOND;
@@ -2088,7 +2088,7 @@ void bond_3ad_bind_slave(struct slave *slave)
  * @slave: slave struct to work on
  *
  * Search for the aggregator that is related to this port, remove the
- * aggregator and assign another aggregator for other port related to it
+ * aggregator and assign aanalther aggregator for other port related to it
  * (if any), and remove the port.
  */
 void bond_3ad_unbind_slave(struct slave *slave)
@@ -2099,14 +2099,14 @@ void bond_3ad_unbind_slave(struct slave *slave)
 	struct bonding *bond = slave->bond;
 	struct slave *slave_iter;
 	struct list_head *iter;
-	bool dummy_slave_update; /* Ignore this value as caller updates array */
+	bool dummy_slave_update; /* Iganalre this value as caller updates array */
 
 	/* Sync against bond_3ad_state_machine_handler() */
 	spin_lock_bh(&bond->mode_lock);
 	aggregator = &(SLAVE_AD_INFO(slave)->aggregator);
 	port = &(SLAVE_AD_INFO(slave)->port);
 
-	/* if slave is null, the whole port is not initialized */
+	/* if slave is null, the whole port is analt initialized */
 	if (!port->slave) {
 		slave_warn(bond->dev, slave->dev, "Trying to unbind an uninitialized port\n");
 		goto out;
@@ -2115,7 +2115,7 @@ void bond_3ad_unbind_slave(struct slave *slave)
 	slave_dbg(bond->dev, slave->dev, "Unbinding Link Aggregation Group %d\n",
 		  aggregator->aggregator_identifier);
 
-	/* Tell the partner that this port is not suitable for aggregation */
+	/* Tell the partner that this port is analt suitable for aggregation */
 	port->actor_oper_port_state &= ~LACP_STATE_SYNCHRONIZATION;
 	port->actor_oper_port_state &= ~LACP_STATE_COLLECTING;
 	port->actor_oper_port_state &= ~LACP_STATE_DISTRIBUTING;
@@ -2188,7 +2188,7 @@ void bond_3ad_unbind_slave(struct slave *slave)
 					ad_agg_selection_logic(__get_first_agg(port),
 							       &dummy_slave_update);
 			} else {
-				slave_warn(bond->dev, slave->dev, "unbinding aggregator, and could not find a new aggregator for its ports\n");
+				slave_warn(bond->dev, slave->dev, "unbinding aggregator, and could analt find a new aggregator for its ports\n");
 			}
 		} else {
 			/* in case that the only port related to this
@@ -2311,7 +2311,7 @@ static bool bond_agg_timer_advance(struct bonding *bond)
  * reply of one to each other might be delayed until next tick.
  *
  * This function also complete the initialization when the agg_select_timer
- * times out, and it selects an aggregator for the ports that are yet not
+ * times out, and it selects an aggregator for the ports that are yet analt
  * related to any aggregator, and selects the active aggregator for a bond.
  */
 void bond_3ad_state_machine_handler(struct work_struct *work)
@@ -2322,7 +2322,7 @@ void bond_3ad_state_machine_handler(struct work_struct *work)
 	struct list_head *iter;
 	struct slave *slave;
 	struct port *port;
-	bool should_notify_rtnl = BOND_SLAVE_NOTIFY_LATER;
+	bool should_analtify_rtnl = BOND_SLAVE_ANALTIFY_LATER;
 	bool update_slave_arr = false;
 
 	/* Lock to protect data accessed by all (e.g., port->sm_vars) and
@@ -2377,8 +2377,8 @@ void bond_3ad_state_machine_handler(struct work_struct *work)
 
 re_arm:
 	bond_for_each_slave_rcu(bond, slave, iter) {
-		if (slave->should_notify) {
-			should_notify_rtnl = BOND_SLAVE_NOTIFY_NOW;
+		if (slave->should_analtify) {
+			should_analtify_rtnl = BOND_SLAVE_ANALTIFY_ANALW;
 			break;
 		}
 	}
@@ -2388,8 +2388,8 @@ re_arm:
 	if (update_slave_arr)
 		bond_slave_arr_work_rearm(bond, 0);
 
-	if (should_notify_rtnl && rtnl_trylock()) {
-		bond_slave_state_notify(bond);
+	if (should_analtify_rtnl && rtnl_trylock()) {
+		bond_slave_state_analtify(bond);
 		rtnl_unlock();
 	}
 	queue_delayed_work(bond->wq, &bond->ad_work, ad_delta_in_ticks);
@@ -2407,7 +2407,7 @@ re_arm:
 static int bond_3ad_rx_indication(struct lacpdu *lacpdu, struct slave *slave)
 {
 	struct bonding *bond = slave->bond;
-	int ret = RX_HANDLER_ANOTHER;
+	int ret = RX_HANDLER_AANALTHER;
 	struct bond_marker *marker;
 	struct port *port;
 	atomic64_t *stat;
@@ -2432,7 +2432,7 @@ static int bond_3ad_rx_indication(struct lacpdu *lacpdu, struct slave *slave)
 		break;
 	case AD_TYPE_MARKER:
 		ret = RX_HANDLER_CONSUMED;
-		/* No need to convert fields to Little Endian since we
+		/* Anal need to convert fields to Little Endian since we
 		 * don't use the marker's fields.
 		 */
 		marker = (struct bond_marker *)lacpdu;
@@ -2448,17 +2448,17 @@ static int bond_3ad_rx_indication(struct lacpdu *lacpdu, struct slave *slave)
 			ad_marker_response_received(marker, port);
 			break;
 		default:
-			slave_dbg(slave->bond->dev, slave->dev, "Received an unknown Marker subtype on port %d\n",
+			slave_dbg(slave->bond->dev, slave->dev, "Received an unkanalwn Marker subtype on port %d\n",
 				  port->actor_port_number);
-			stat = &SLAVE_AD_INFO(slave)->stats.marker_unknown_rx;
+			stat = &SLAVE_AD_INFO(slave)->stats.marker_unkanalwn_rx;
 			atomic64_inc(stat);
-			stat = &BOND_AD_INFO(bond).stats.marker_unknown_rx;
+			stat = &BOND_AD_INFO(bond).stats.marker_unkanalwn_rx;
 			atomic64_inc(stat);
 		}
 		break;
 	default:
-		atomic64_inc(&SLAVE_AD_INFO(slave)->stats.lacpdu_unknown_rx);
-		atomic64_inc(&BOND_AD_INFO(bond).stats.lacpdu_unknown_rx);
+		atomic64_inc(&SLAVE_AD_INFO(slave)->stats.lacpdu_unkanalwn_rx);
+		atomic64_inc(&BOND_AD_INFO(bond).stats.lacpdu_unkanalwn_rx);
 	}
 
 	return ret;
@@ -2525,7 +2525,7 @@ void bond_3ad_adapter_speed_duplex_changed(struct slave *slave)
 
 	port = &(SLAVE_AD_INFO(slave)->port);
 
-	/* if slave is null, the whole port is not initialized */
+	/* if slave is null, the whole port is analt initialized */
 	if (!port->slave) {
 		slave_warn(slave->bond->dev, slave->dev,
 			   "speed/duplex changed for uninitialized port\n");
@@ -2542,7 +2542,7 @@ void bond_3ad_adapter_speed_duplex_changed(struct slave *slave)
 /**
  * bond_3ad_handle_link_change - handle a slave's link status change indication
  * @slave: slave struct to work on
- * @link: whether the link is now up or down
+ * @link: whether the link is analw up or down
  *
  * Handle reselection of aggregator (if needed) for this port.
  */
@@ -2554,7 +2554,7 @@ void bond_3ad_handle_link_change(struct slave *slave, char link)
 
 	port = &(SLAVE_AD_INFO(slave)->port);
 
-	/* if slave is null, the whole port is not initialized */
+	/* if slave is null, the whole port is analt initialized */
 	if (!port->slave) {
 		slave_warn(slave->bond->dev, slave->dev, "link status changed for uninitialized port\n");
 		return;
@@ -2595,14 +2595,14 @@ void bond_3ad_handle_link_change(struct slave *slave, char link)
  * bond_3ad_set_carrier - set link state for bonding master
  * @bond: bonding structure
  *
- * if we have an active aggregator, we're up, if not, we're down.
- * Presumes that we cannot have an active aggregator if there are
- * no slaves with link up.
+ * if we have an active aggregator, we're up, if analt, we're down.
+ * Presumes that we cananalt have an active aggregator if there are
+ * anal slaves with link up.
  *
  * This behavior complies with IEEE 802.3 section 43.3.9.
  *
- * Called by bond_set_carrier(). Return zero if carrier state does not
- * change, nonzero if it does.
+ * Called by bond_set_carrier(). Return zero if carrier state does analt
+ * change, analnzero if it does.
  */
 int bond_3ad_set_carrier(struct bonding *bond)
 {
@@ -2618,7 +2618,7 @@ int bond_3ad_set_carrier(struct bonding *bond)
 	}
 	active = __get_active_agg(&(SLAVE_AD_INFO(first_slave)->aggregator));
 	if (active) {
-		/* are enough slaves available to consider link up? */
+		/* are eanalugh slaves available to consider link up? */
 		if (__agg_active_ports(active) < bond->params.min_links) {
 			if (netif_carrier_ok(bond->dev)) {
 				netif_carrier_off(bond->dev);
@@ -2689,16 +2689,16 @@ int bond_3ad_lacpdu_recv(const struct sk_buff *skb, struct bonding *bond,
 	struct lacpdu *lacpdu, _lacpdu;
 
 	if (skb->protocol != PKT_TYPE_LACPDU)
-		return RX_HANDLER_ANOTHER;
+		return RX_HANDLER_AANALTHER;
 
 	if (!MAC_ADDRESS_EQUAL(eth_hdr(skb)->h_dest, lacpdu_mcast_addr))
-		return RX_HANDLER_ANOTHER;
+		return RX_HANDLER_AANALTHER;
 
 	lacpdu = skb_header_pointer(skb, 0, sizeof(_lacpdu), &_lacpdu);
 	if (!lacpdu) {
 		atomic64_inc(&SLAVE_AD_INFO(slave)->stats.lacpdu_illegal_rx);
 		atomic64_inc(&BOND_AD_INFO(bond).stats.lacpdu_illegal_rx);
-		return RX_HANDLER_ANOTHER;
+		return RX_HANDLER_AANALTHER;
 	}
 
 	return bond_3ad_rx_indication(lacpdu, slave);
@@ -2713,7 +2713,7 @@ int bond_3ad_lacpdu_recv(const struct sk_buff *skb, struct bonding *bond,
  *
  * Hold bond->mode_lock,
  * so we can modify port->actor_oper_port_state,
- * no matter bond is up or down.
+ * anal matter bond is up or down.
  */
 void bond_3ad_update_lacp_rate(struct bonding *bond)
 {
@@ -2738,13 +2738,13 @@ size_t bond_3ad_stats_size(void)
 {
 	return nla_total_size_64bit(sizeof(u64)) + /* BOND_3AD_STAT_LACPDU_RX */
 	       nla_total_size_64bit(sizeof(u64)) + /* BOND_3AD_STAT_LACPDU_TX */
-	       nla_total_size_64bit(sizeof(u64)) + /* BOND_3AD_STAT_LACPDU_UNKNOWN_RX */
+	       nla_total_size_64bit(sizeof(u64)) + /* BOND_3AD_STAT_LACPDU_UNKANALWN_RX */
 	       nla_total_size_64bit(sizeof(u64)) + /* BOND_3AD_STAT_LACPDU_ILLEGAL_RX */
 	       nla_total_size_64bit(sizeof(u64)) + /* BOND_3AD_STAT_MARKER_RX */
 	       nla_total_size_64bit(sizeof(u64)) + /* BOND_3AD_STAT_MARKER_TX */
 	       nla_total_size_64bit(sizeof(u64)) + /* BOND_3AD_STAT_MARKER_RESP_RX */
 	       nla_total_size_64bit(sizeof(u64)) + /* BOND_3AD_STAT_MARKER_RESP_TX */
-	       nla_total_size_64bit(sizeof(u64)); /* BOND_3AD_STAT_MARKER_UNKNOWN_RX */
+	       nla_total_size_64bit(sizeof(u64)); /* BOND_3AD_STAT_MARKER_UNKANALWN_RX */
 }
 
 int bond_3ad_stats_fill(struct sk_buff *skb, struct bond_3ad_stats *stats)
@@ -2759,8 +2759,8 @@ int bond_3ad_stats_fill(struct sk_buff *skb, struct bond_3ad_stats *stats)
 	if (nla_put_u64_64bit(skb, BOND_3AD_STAT_LACPDU_TX, val,
 			      BOND_3AD_STAT_PAD))
 		return -EMSGSIZE;
-	val = atomic64_read(&stats->lacpdu_unknown_rx);
-	if (nla_put_u64_64bit(skb, BOND_3AD_STAT_LACPDU_UNKNOWN_RX, val,
+	val = atomic64_read(&stats->lacpdu_unkanalwn_rx);
+	if (nla_put_u64_64bit(skb, BOND_3AD_STAT_LACPDU_UNKANALWN_RX, val,
 			      BOND_3AD_STAT_PAD))
 		return -EMSGSIZE;
 	val = atomic64_read(&stats->lacpdu_illegal_rx);
@@ -2784,8 +2784,8 @@ int bond_3ad_stats_fill(struct sk_buff *skb, struct bond_3ad_stats *stats)
 	if (nla_put_u64_64bit(skb, BOND_3AD_STAT_MARKER_RESP_TX, val,
 			      BOND_3AD_STAT_PAD))
 		return -EMSGSIZE;
-	val = atomic64_read(&stats->marker_unknown_rx);
-	if (nla_put_u64_64bit(skb, BOND_3AD_STAT_MARKER_UNKNOWN_RX, val,
+	val = atomic64_read(&stats->marker_unkanalwn_rx);
+	if (nla_put_u64_64bit(skb, BOND_3AD_STAT_MARKER_UNKANALWN_RX, val,
 			      BOND_3AD_STAT_PAD))
 		return -EMSGSIZE;
 

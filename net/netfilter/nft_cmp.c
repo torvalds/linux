@@ -147,7 +147,7 @@ static int __nft_cmp_offload(struct nft_offload_ctx *ctx,
 	u8 *data, *datamask;
 
 	if (priv->op != NFT_CMP_EQ || priv->len > reg->len)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (reg->flags & NFT_OFFLOAD_F_NETWORK2HOST) {
 		nft_payload_n2h(&_data, (u8 *)&priv->data, reg->len);
@@ -168,7 +168,7 @@ static int __nft_cmp_offload(struct nft_offload_ctx *ctx,
 	if (reg->key == FLOW_DISSECTOR_KEY_META &&
 	    reg->offset == offsetof(struct nft_flow_key, meta.ingress_iftype) &&
 	    nft_reg_load16(priv->data.data) != ARPHRD_ETHER)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	nft_offload_update_dependency(ctx, &priv->data, reg->len);
 

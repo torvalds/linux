@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /****************************************************************
 
-Siano Mobile Silicon, Inc.
+Siaanal Mobile Silicon, Inc.
 MDTV receiver kernel modules.
 Copyright (C) 2006-2008, Uri Shkolnik
 
@@ -46,7 +46,7 @@ static u32 sms_to_code_rate_table[] = {
 
 
 static u32 sms_to_hierarchy_table[] = {
-	[0] = HIERARCHY_NONE,
+	[0] = HIERARCHY_ANALNE,
 	[1] = HIERARCHY_1,
 	[2] = HIERARCHY_2,
 	[3] = HIERARCHY_4,
@@ -108,12 +108,12 @@ static void sms_board_dvb3_event(struct smsdvb_client_t *client,
 		break;
 
 	default:
-		pr_err("Unknown dvb3 api event\n");
+		pr_err("Unkanalwn dvb3 api event\n");
 		break;
 	}
 }
 
-static void smsdvb_stats_not_ready(struct dvb_frontend *fe)
+static void smsdvb_stats_analt_ready(struct dvb_frontend *fe)
 {
 	struct smsdvb_client_t *client =
 		container_of(fe, struct smsdvb_client_t, frontend);
@@ -143,14 +143,14 @@ static void smsdvb_stats_not_ready(struct dvb_frontend *fe)
 	c->block_count.len = n_layers;
 
 	/*
-	 * Put all of them at FE_SCALE_NOT_AVAILABLE. They're dynamically
+	 * Put all of them at FE_SCALE_ANALT_AVAILABLE. They're dynamically
 	 * changed when the stats become available.
 	 */
 	for (i = 0; i < n_layers; i++) {
-		c->post_bit_error.stat[i].scale = FE_SCALE_NOT_AVAILABLE;
-		c->post_bit_count.stat[i].scale = FE_SCALE_NOT_AVAILABLE;
-		c->block_error.stat[i].scale = FE_SCALE_NOT_AVAILABLE;
-		c->block_count.stat[i].scale = FE_SCALE_NOT_AVAILABLE;
+		c->post_bit_error.stat[i].scale = FE_SCALE_ANALT_AVAILABLE;
+		c->post_bit_count.stat[i].scale = FE_SCALE_ANALT_AVAILABLE;
+		c->block_error.stat[i].scale = FE_SCALE_ANALT_AVAILABLE;
+		c->block_count.stat[i].scale = FE_SCALE_ANALT_AVAILABLE;
 	}
 }
 
@@ -227,15 +227,15 @@ static inline u32 sms_to_bw(u32 value)
 
 #define sms_to_code_rate(value)						\
 	convert_from_table(value, sms_to_code_rate_table,		\
-			   FEC_NONE);
+			   FEC_ANALNE);
 
 #define sms_to_hierarchy(value)						\
 	convert_from_table(value, sms_to_hierarchy_table,		\
-			   FEC_NONE);
+			   FEC_ANALNE);
 
 #define sms_to_modulation(value)					\
 	convert_from_table(value, sms_to_modulation_table,		\
-			   FEC_NONE);
+			   FEC_ANALNE);
 
 static void smsdvb_update_tx_params(struct smsdvb_client_t *client,
 				    struct sms_tx_stats *p)
@@ -267,7 +267,7 @@ static void smsdvb_update_per_slices(struct smsdvb_client_t *client,
 	/* signal Strength, in DBm */
 	c->strength.stat[0].uvalue = p->in_band_power * 1000;
 
-	/* Carrier to noise ratio, in DB */
+	/* Carrier to analise ratio, in DB */
 	c->cnr.stat[0].svalue = p->snr * 1000;
 
 	/* PER/BER requires demod lock */
@@ -319,7 +319,7 @@ static void smsdvb_update_dvb_stats(struct smsdvb_client_t *client,
 	/* update reception data */
 	c->lna = p->is_external_lna_on ? 1 : 0;
 
-	/* Carrier to noise ratio, in DB */
+	/* Carrier to analise ratio, in DB */
 	c->cnr.stat[0].svalue = p->SNR * 1000;
 
 	/* signal Strength, in DBm */
@@ -366,7 +366,7 @@ static void smsdvb_update_isdbt_stats(struct smsdvb_client_t *client,
 	 */
 	if (p->statistics_type == 0) {
 		c->strength.stat[0].uvalue = ((s32)p->transmission_mode) * 1000;
-		c->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		c->cnr.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 		return;
 	}
 
@@ -386,7 +386,7 @@ static void smsdvb_update_isdbt_stats(struct smsdvb_client_t *client,
 	/* update reception data */
 	c->lna = p->is_external_lna_on ? 1 : 0;
 
-	/* Carrier to noise ratio, in DB */
+	/* Carrier to analise ratio, in DB */
 	c->cnr.stat[0].svalue = p->SNR * 1000;
 
 	/* signal Strength, in DBm */
@@ -474,7 +474,7 @@ static void smsdvb_update_isdbt_stats_ex(struct smsdvb_client_t *client,
 	/* update reception data */
 	c->lna = p->is_external_lna_on ? 1 : 0;
 
-	/* Carrier to noise ratio, in DB */
+	/* Carrier to analise ratio, in DB */
 	c->cnr.stat[0].svalue = p->SNR * 1000;
 
 	/* signal Strength, in DBm */
@@ -572,7 +572,7 @@ static int smsdvb_onresponse(void *context, struct smscore_buffer_t *cb)
 		is_status_update = true;
 		break;
 
-	case MSG_SMS_NO_SIGNAL_IND:
+	case MSG_SMS_ANAL_SIGNAL_IND:
 		client->fe_status = 0;
 
 		is_status_update = true;
@@ -611,7 +611,7 @@ static int smsdvb_onresponse(void *context, struct smscore_buffer_t *cb)
 		is_status_update = true;
 		break;
 	default:
-		pr_debug("message not handled\n");
+		pr_debug("message analt handled\n");
 	}
 	smscore_putbuffer(client->coredev, cb);
 
@@ -624,7 +624,7 @@ static int smsdvb_onresponse(void *context, struct smscore_buffer_t *cb)
 				sms_board_dvb3_event(client, DVB3_EVENT_UNC_ERR);
 			client->has_tuned = true;
 		} else {
-			smsdvb_stats_not_ready(fe);
+			smsdvb_stats_analt_ready(fe);
 			client->has_tuned = false;
 			sms_board_dvb3_event(client, DVB3_EVENT_FE_UNLOCK);
 		}
@@ -919,11 +919,11 @@ static int smsdvb_dvbt_set_frontend(struct dvb_frontend *fe)
 		msg.Data[1] = BW_6_MHZ;
 		break;
 	case 0:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	default:
 		return -EINVAL;
 	}
-	/* Disable LNA, if any. An error is returned if no LNA is present */
+	/* Disable LNA, if any. An error is returned if anal LNA is present */
 	ret = sms_board_lna_control(client->coredev, 0);
 	if (ret == 0) {
 		enum fe_status status;
@@ -994,7 +994,7 @@ static int smsdvb_isdbt_set_frontend(struct dvb_frontend *fe)
 		 c->frequency, c->isdbt_sb_segment_count,
 		 c->isdbt_sb_segment_idx);
 
-	/* Disable LNA, if any. An error is returned if no LNA is present */
+	/* Disable LNA, if any. An error is returned if anal LNA is present */
 	ret = sms_board_lna_control(client->coredev, 0);
 	if (ret == 0) {
 		enum fe_status status;
@@ -1022,7 +1022,7 @@ static int smsdvb_set_frontend(struct dvb_frontend *fe)
 		container_of(fe, struct smsdvb_client_t, frontend);
 	struct smscore_device_t *coredev = client->coredev;
 
-	smsdvb_stats_not_ready(fe);
+	smsdvb_stats_analt_ready(fe);
 	c->strength.stat[0].uvalue = 0;
 	c->cnr.stat[0].uvalue = 0;
 
@@ -1066,12 +1066,12 @@ static int smsdvb_sleep(struct dvb_frontend *fe)
 
 static void smsdvb_release(struct dvb_frontend *fe)
 {
-	/* do nothing */
+	/* do analthing */
 }
 
 static const struct dvb_frontend_ops smsdvb_fe_ops = {
 	.info = {
-		.name			= "Siano Mobile Digital MDTV Receiver",
+		.name			= "Siaanal Mobile Digital MDTV Receiver",
 		.frequency_min_hz	=  44250 * kHz,
 		.frequency_max_hz	= 867250 * kHz,
 		.frequency_stepsize_hz	=    250 * kHz,
@@ -1112,7 +1112,7 @@ static int smsdvb_hotplug(struct smscore_device_t *coredev,
 		return 0;
 	client = kzalloc(sizeof(struct smsdvb_client_t), GFP_KERNEL);
 	if (!client)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* register dvb adapter */
 	rc = dvb_register_adapter(&client->adapter,
@@ -1127,7 +1127,7 @@ static int smsdvb_hotplug(struct smscore_device_t *coredev,
 
 	/* init dvb demux */
 	client->demux.dmx.capabilities = DMX_TS_FILTERING;
-	client->demux.filternum = 32; /* todo: nova ??? */
+	client->demux.filternum = 32; /* todo: analva ??? */
 	client->demux.feednum = 32;
 	client->demux.start_feed = smsdvb_start_feed;
 	client->demux.stop_feed = smsdvb_stop_feed;
@@ -1200,7 +1200,7 @@ static int smsdvb_hotplug(struct smscore_device_t *coredev,
 	sms_board_setup(coredev);
 
 	if (smsdvb_debugfs_create(client) < 0)
-		pr_info("failed to create debugfs node\n");
+		pr_info("failed to create debugfs analde\n");
 
 	rc = dvb_create_media_graph(&client->adapter, true);
 	if (rc < 0) {
@@ -1267,5 +1267,5 @@ module_init(smsdvb_module_init);
 module_exit(smsdvb_module_exit);
 
 MODULE_DESCRIPTION("SMS DVB subsystem adaptation module");
-MODULE_AUTHOR("Siano Mobile Silicon, Inc. (uris@siano-ms.com)");
+MODULE_AUTHOR("Siaanal Mobile Silicon, Inc. (uris@siaanal-ms.com)");
 MODULE_LICENSE("GPL");

@@ -18,7 +18,7 @@ static const struct snd_pcm_hardware sdma_pcm_hardware = {
 	.info			= SNDRV_PCM_INFO_MMAP |
 				  SNDRV_PCM_INFO_MMAP_VALID |
 				  SNDRV_PCM_INFO_PAUSE | SNDRV_PCM_INFO_RESUME |
-				  SNDRV_PCM_INFO_NO_PERIOD_WAKEUP |
+				  SNDRV_PCM_INFO_ANAL_PERIOD_WAKEUP |
 				  SNDRV_PCM_INFO_INTERLEAVED,
 	.period_bytes_min	= 32,
 	.period_bytes_max	= 64 * 1024,
@@ -46,7 +46,7 @@ int sdma_pcm_platform_register(struct device *dev,
 
 	config = devm_kzalloc(dev, sizeof(*config), GFP_KERNEL);
 	if (!config)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	*config = sdma_dmaengine_pcm_config;
 

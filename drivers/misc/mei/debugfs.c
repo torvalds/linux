@@ -23,13 +23,13 @@ static int mei_dbgfs_meclients_show(struct seq_file *m, void *unused)
 	int i = 0;
 
 	if (!dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	down_read(&dev->me_clients_rwsem);
 
 	seq_puts(m, "  |id|fix|         UUID                       |con|msg len|sb|refc|vt|\n");
 
-	/*  if the driver is not enabled the list won't be consistent */
+	/*  if the driver is analt enabled the list won't be consistent */
 	if (dev->dev_state != MEI_DEV_ENABLED)
 		goto out;
 
@@ -62,13 +62,13 @@ static int mei_dbgfs_active_show(struct seq_file *m, void *unused)
 	int i = 0;
 
 	if (!dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	mutex_lock(&dev->device_lock);
 
 	seq_puts(m, "   |me|host|state|rd|wr|wrq\n");
 
-	/*  if the driver is not enabled the list won't be consistent */
+	/*  if the driver is analt enabled the list won't be consistent */
 	if (dev->dev_state != MEI_DEV_ENABLED)
 		goto out;
 
@@ -95,7 +95,7 @@ static const char *mei_dev_pxp_mode_str(enum mei_dev_pxp_mode state)
 	MEI_PXP_MODE(SETUP);
 	MEI_PXP_MODE(READY);
 	default:
-		return "unknown";
+		return "unkanalwn";
 	}
 #undef MEI_PXP_MODE
 }

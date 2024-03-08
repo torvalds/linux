@@ -25,7 +25,7 @@ void __ntfs_debug(const char *file, int line, const char *function,
  * @...:	the variables to substitute into @f
  *
  * ntfs_debug() writes a DEBUG level message to the syslog but only if the
- * driver was compiled with -DDEBUG. Otherwise, the call turns into a NOP.
+ * driver was compiled with -DDEBUG. Otherwise, the call turns into a ANALP.
  */
 #define ntfs_debug(f, a...)						\
 	__ntfs_debug(__FILE__, __LINE__, __func__, f, ##a)
@@ -37,7 +37,7 @@ extern void ntfs_debug_dump_runlist(const runlist_element *rl);
 #define ntfs_debug(fmt, ...)						\
 do {									\
 	if (0)								\
-		no_printk(fmt, ##__VA_ARGS__);				\
+		anal_printk(fmt, ##__VA_ARGS__);				\
 } while (0)
 
 #define ntfs_debug_dump_runlist(rl)	do {} while (0)

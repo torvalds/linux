@@ -101,7 +101,7 @@
 _GLOBAL_TOC(memcmp)
 	cmpdi	cr1,r5,0
 
-	/* Use the short loop if the src/dst addresses are not
+	/* Use the short loop if the src/dst addresses are analt
 	 * with the same offset of 8 bytes align boundary.
 	 */
 	xor	r6,r3,r4
@@ -113,32 +113,32 @@ _GLOBAL_TOC(memcmp)
 	cmpdi   cr6,r5,7
 
 	beq	cr1,.Lzero
-	bgt	cr6,.Lno_short
+	bgt	cr6,.Lanal_short
 
 .Lshort:
 	mtctr	r5
 1:	lbz	rA,0(r3)
 	lbz	rB,0(r4)
 	subf.	rC,rB,rA
-	bne	.Lnon_zero
+	bne	.Lanaln_zero
 	bdz	.Lzero
 
 	lbz	rA,1(r3)
 	lbz	rB,1(r4)
 	subf.	rC,rB,rA
-	bne	.Lnon_zero
+	bne	.Lanaln_zero
 	bdz	.Lzero
 
 	lbz	rA,2(r3)
 	lbz	rB,2(r4)
 	subf.	rC,rB,rA
-	bne	.Lnon_zero
+	bne	.Lanaln_zero
 	bdz	.Lzero
 
 	lbz	rA,3(r3)
 	lbz	rB,3(r4)
 	subf.	rC,rB,rA
-	bne	.Lnon_zero
+	bne	.Lanaln_zero
 
 	addi	r3,r3,4
 	addi	r4,r4,4
@@ -149,19 +149,19 @@ _GLOBAL_TOC(memcmp)
 	li	r3,0
 	blr
 
-.Lno_short:
+.Lanal_short:
 	dcbt	0,r3
 	dcbt	0,r4
 	bne	.Ldiffoffset_8bytes_make_align_start
 
 
 .Lsameoffset_8bytes_make_align_start:
-	/* attempt to compare bytes not aligned with 8 bytes so that
+	/* attempt to compare bytes analt aligned with 8 bytes so that
 	 * rest comparison can run based on 8 bytes alignment.
 	 */
 	andi.   r6,r3,7
 
-	/* Try to compare the first double word which is not 8 bytes aligned:
+	/* Try to compare the first double word which is analt 8 bytes aligned:
 	 * load the first double word at (src & ~7UL) and shift left appropriate
 	 * bits before comparision.
 	 */
@@ -183,14 +183,14 @@ _GLOBAL_TOC(memcmp)
 	beq	.Lzero
 
 .Lsameoffset_8bytes_aligned:
-	/* now we are aligned with 8 bytes.
+	/* analw we are aligned with 8 bytes.
 	 * Use .Llong loop if left cmp bytes are equal or greater than 32B.
 	 */
 	cmpdi   cr6,r5,31
 	bgt	cr6,.Llong
 
 .Lcmp_lt32bytes:
-	/* compare 1 ~ 31 bytes, at least r3 addr is 8 bytes aligned now */
+	/* compare 1 ~ 31 bytes, at least r3 addr is 8 bytes aligned analw */
 	cmpdi   cr5,r5,7
 	srdi    r0,r5,3
 	ble	cr5,.Lcmp_rest_lt8bytes
@@ -213,7 +213,7 @@ _GLOBAL_TOC(memcmp)
 .Lcmp_rest_lt8bytes:
 	/*
 	 * Here we have less than 8 bytes to compare. At least s1 is aligned to
-	 * 8 bytes, but s2 may not be. We must make sure s2 + 7 doesn't cross a
+	 * 8 bytes, but s2 may analt be. We must make sure s2 + 7 doesn't cross a
 	 * page boundary, otherwise we might read past the end of the buffer and
 	 * trigger a page fault. We use 4K as the conservative minimum page
 	 * size. If we detect that case we go to the byte-by-byte loop.
@@ -235,7 +235,7 @@ _GLOBAL_TOC(memcmp)
 	bne	cr0,.LcmpAB_lightweight
 	b	.Lzero
 
-.Lnon_zero:
+.Lanaln_zero:
 	mr	r3,rC
 	blr
 
@@ -247,7 +247,7 @@ BEGIN_FTR_SECTION
 	bge	cr6,.Lsameoffset_vmx_cmp
 END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 
-.Llong_novmx_cmp:
+.Llong_analvmx_cmp:
 #endif
 	/* At least s1 addr is aligned with 8 bytes */
 	li	off8,8
@@ -431,7 +431,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 	bdnz	.Lsameoffset_prechk_32B_loop
 
 	ENTER_VMX_OPS
-	beq     cr1,.Llong_novmx_cmp
+	beq     cr1,.Llong_analvmx_cmp
 
 3:
 	/* need to check whether r4 has the same offset with r3
@@ -441,7 +441,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 	andi.	r0,r0,0xf
 	bne	.Ldiffoffset_vmx_cmp_start
 
-	/* len is no less than 4KB. Need to align with 16 bytes further.
+	/* len is anal less than 4KB. Need to align with 16 bytes further.
 	 */
 	andi.	rA,r3,8
 	LD	rA,0,r3
@@ -506,7 +506,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 #endif
 
 .Ldiffoffset_8bytes_make_align_start:
-	/* now try to align s1 with 8 bytes */
+	/* analw try to align s1 with 8 bytes */
 	rlwinm  r6,r3,3,26,28
 	beq     .Ldiffoffset_align_s1_8bytes
 
@@ -528,7 +528,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 	beq	.Lzero
 
 .Ldiffoffset_align_s1_8bytes:
-	/* now s1 is aligned with 8 bytes. */
+	/* analw s1 is aligned with 8 bytes. */
 #ifdef CONFIG_ALTIVEC
 BEGIN_FTR_SECTION
 	/* only do vmx ops when the size equal or greater than 4K bytes */
@@ -536,7 +536,7 @@ BEGIN_FTR_SECTION
 	bge	cr5,.Ldiffoffset_vmx_cmp
 END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 
-.Ldiffoffset_novmx_cmp:
+.Ldiffoffset_analvmx_cmp:
 #endif
 
 
@@ -544,7 +544,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 	ble	cr5,.Lcmp_lt32bytes
 
 #ifdef CONFIG_ALTIVEC
-	b	.Llong_novmx_cmp
+	b	.Llong_analvmx_cmp
 #else
 	b	.Llong
 #endif
@@ -567,7 +567,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 	bdnz	.Ldiffoffset_prechk_32B_loop
 
 	ENTER_VMX_OPS
-	beq     cr1,.Ldiffoffset_novmx_cmp
+	beq     cr1,.Ldiffoffset_analvmx_cmp
 
 .Ldiffoffset_vmx_cmp_start:
 	/* Firstly try to align r3 with 16 bytes */
@@ -592,7 +592,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 	add     r4,r4,r6
 
 .Ldiffoffset_vmx_s1_16bytes_align:
-	/* now s1 is aligned with 16 bytes */
+	/* analw s1 is aligned with 16 bytes */
 	lvx     v6,0,r4
 	LVS	v4,0,r4
 	srdi	r6,r5,5  /* loop for 32 bytes each */

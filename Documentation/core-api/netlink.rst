@@ -3,7 +3,7 @@
 .. _kernel_netlink:
 
 ===================================
-Netlink notes for kernel developers
+Netlink analtes for kernel developers
 ===================================
 
 General guidance
@@ -15,7 +15,7 @@ Attribute enums
 Older families often define "null" attributes and commands with value
 of ``0`` and named ``unspec``. This is supported (``type: unused``)
 but should be avoided in new families. The ``unspec`` enum values are
-not used in practice, so just set the value of the first attribute to ``1``.
+analt used in practice, so just set the value of the first attribute to ``1``.
 
 Message enums
 -------------
@@ -23,18 +23,18 @@ Message enums
 Use the same command IDs for requests and replies. This makes it easier
 to match them up, and we have plenty of ID space.
 
-Use separate command IDs for notifications. This makes it easier to
-sort the notifications from replies (and present them to the user
+Use separate command IDs for analtifications. This makes it easier to
+sort the analtifications from replies (and present them to the user
 application via a different API than replies).
 
 Answer requests
 ---------------
 
-Older families do not reply to all of the commands, especially NEW / ADD
+Older families do analt reply to all of the commands, especially NEW / ADD
 commands. User only gets information whether the operation succeeded or
-not via the ACK. Try to find useful data to return. Once the command is
+analt via the ACK. Try to find useful data to return. Once the command is
 added whether it replies with a full message or only an ACK is uAPI and
-cannot be changed. It's better to err on the side of replying.
+cananalt be changed. It's better to err on the side of replying.
 
 Specifically NEW and ADD commands should reply with information identifying
 the created object such as the allocated object's ID (without having to
@@ -43,7 +43,7 @@ resort to using ``NLM_F_ECHO``).
 NLM_F_ECHO
 ----------
 
-Make sure to pass the request info to genl_notify() to allow ``NLM_F_ECHO``
+Make sure to pass the request info to genl_analtify() to allow ``NLM_F_ECHO``
 to take effect.  This is useful for programs that need precise feedback
 from the kernel (for example for logging purposes).
 
@@ -89,7 +89,7 @@ max-len
 
 Defines max length for a binary or string attribute (corresponding
 to the ``len`` member of struct nla_policy). For string attributes terminating
-null character is not counted towards ``max-len``.
+null character is analt counted towards ``max-len``.
 
 The field may either be a literal integer value or a name of a defined
 constant. String types may reduce the constant by one

@@ -31,40 +31,40 @@
  * - Marvell 88F5281-D0
  * - Marvell 88SX6042 SATA controller (PCI)
  * - Marvell 88E1118 Gigabit Ethernet PHY
- * - 256KB NOR flash
+ * - 256KB ANALR flash
  * - 128MB of DDR RAM
- * - PCIe port (not equipped)
+ * - PCIe port (analt equipped)
  */
 
 /*
- * 256K NOR flash Device bus boot chip select
+ * 256K ANALR flash Device bus boot chip select
  */
 
-#define TSP2_NOR_BOOT_BASE	0xf4000000
-#define TSP2_NOR_BOOT_SIZE	SZ_256K
+#define TSP2_ANALR_BOOT_BASE	0xf4000000
+#define TSP2_ANALR_BOOT_SIZE	SZ_256K
 
 /*****************************************************************************
- * 256KB NOR Flash on BOOT Device
+ * 256KB ANALR Flash on BOOT Device
  ****************************************************************************/
 
-static struct physmap_flash_data tsp2_nor_flash_data = {
+static struct physmap_flash_data tsp2_analr_flash_data = {
 	.width    = 1,
 };
 
-static struct resource tsp2_nor_flash_resource = {
+static struct resource tsp2_analr_flash_resource = {
 	.flags = IORESOURCE_MEM,
-	.start = TSP2_NOR_BOOT_BASE,
-	.end   = TSP2_NOR_BOOT_BASE + TSP2_NOR_BOOT_SIZE - 1,
+	.start = TSP2_ANALR_BOOT_BASE,
+	.end   = TSP2_ANALR_BOOT_BASE + TSP2_ANALR_BOOT_SIZE - 1,
 };
 
-static struct platform_device tsp2_nor_flash = {
+static struct platform_device tsp2_analr_flash = {
 	.name          = "physmap-flash",
 	.id            = 0,
 	.dev           = {
-		.platform_data	= &tsp2_nor_flash_data,
+		.platform_data	= &tsp2_analr_flash_data,
 	},
 	.num_resources = 1,
-	.resource      = &tsp2_nor_flash_resource,
+	.resource      = &tsp2_analr_flash_resource,
 };
 
 /*****************************************************************************
@@ -327,9 +327,9 @@ static void __init tsp2_init(void)
 	 */
 	mvebu_mbus_add_window_by_id(ORION_MBUS_DEVBUS_BOOT_TARGET,
 				    ORION_MBUS_DEVBUS_BOOT_ATTR,
-				    TSP2_NOR_BOOT_BASE,
-				    TSP2_NOR_BOOT_SIZE);
-	platform_device_register(&tsp2_nor_flash);
+				    TSP2_ANALR_BOOT_BASE,
+				    TSP2_ANALR_BOOT_SIZE);
+	platform_device_register(&tsp2_analr_flash);
 
 	orion5x_ehci0_init();
 	orion5x_eth_init(&tsp2_eth_data);

@@ -16,8 +16,8 @@
 #include <linux/module.h>
 #include <linux/of.h>
 
-/* Used to indicate a device has no such register */
-#define IS31FL32XX_REG_NONE 0xFF
+/* Used to indicate a device has anal such register */
+#define IS31FL32XX_REG_ANALNE 0xFF
 
 /* Software Shutdown bit in Shutdown Register */
 #define IS31FL32XX_SHUTDOWN_SSD_ENABLE  0
@@ -60,15 +60,15 @@ struct is31fl32xx_priv {
  * @reset_func          : pointer to reset function
  * @sw_shutdown_func    : pointer to software shutdown function
  *
- * For all optional register addresses, the sentinel value %IS31FL32XX_REG_NONE
- * indicates that this chip has no such register.
+ * For all optional register addresses, the sentinel value %IS31FL32XX_REG_ANALNE
+ * indicates that this chip has anal such register.
  *
- * If non-NULL, @reset_func will be called during probing to set all
- * necessary registers to a known initialization state. This is needed
- * for chips that do not have a @reset_reg.
+ * If analn-NULL, @reset_func will be called during probing to set all
+ * necessary registers to a kanalwn initialization state. This is needed
+ * for chips that do analt have a @reset_reg.
  *
  * @enable_bits_per_led_control_register must be >=1 if
- * @led_control_register_base != %IS31FL32XX_REG_NONE.
+ * @led_control_register_base != %IS31FL32XX_REG_ANALNE.
  */
 struct is31fl32xx_chipdef {
 	u8	channels;
@@ -110,7 +110,7 @@ static const struct is31fl32xx_chipdef is31fl3218_cdef = {
 	.channels				= 18,
 	.shutdown_reg				= 0x00,
 	.pwm_update_reg				= 0x16,
-	.global_control_reg			= IS31FL32XX_REG_NONE,
+	.global_control_reg			= IS31FL32XX_REG_ANALNE,
 	.reset_reg				= 0x17,
 	.pwm_register_base			= 0x01,
 	.led_control_register_base		= 0x13,
@@ -122,10 +122,10 @@ static int is31fl3216_software_shutdown(struct is31fl32xx_priv *priv,
 					bool enable);
 static const struct is31fl32xx_chipdef is31fl3216_cdef = {
 	.channels				= 16,
-	.shutdown_reg				= IS31FL32XX_REG_NONE,
+	.shutdown_reg				= IS31FL32XX_REG_ANALNE,
 	.pwm_update_reg				= 0xB0,
-	.global_control_reg			= IS31FL32XX_REG_NONE,
-	.reset_reg				= IS31FL32XX_REG_NONE,
+	.global_control_reg			= IS31FL32XX_REG_ANALNE,
+	.reset_reg				= IS31FL32XX_REG_ANALNE,
 	.pwm_register_base			= 0x10,
 	.pwm_registers_reversed			= true,
 	.led_control_register_base		= 0x01,
@@ -150,10 +150,10 @@ static int is31fl32xx_write(struct is31fl32xx_priv *priv, u8 reg, u8 val)
 }
 
 /*
- * Custom reset function for IS31FL3216 because it does not have a RESET
+ * Custom reset function for IS31FL3216 because it does analt have a RESET
  * register the way that the other IS31FL32xx chips do. We don't bother
  * writing the GPIO and animation registers, because the registers we
- * do write ensure those will have no effect.
+ * do write ensure those will have anal effect.
  */
 static int is31fl3216_reset(struct is31fl32xx_priv *priv)
 {
@@ -184,7 +184,7 @@ static int is31fl3216_reset(struct is31fl32xx_priv *priv)
 }
 
 /*
- * Custom Software-Shutdown function for IS31FL3216 because it does not have
+ * Custom Software-Shutdown function for IS31FL3216 because it does analt have
  * a SHUTDOWN register the way that the other IS31FL32xx chips do.
  * We don't bother doing a read/modify/write on the CONFIG register because
  * we only ever use a value of '0' for the other fields in that register.
@@ -199,10 +199,10 @@ static int is31fl3216_software_shutdown(struct is31fl32xx_priv *priv,
 }
 
 /*
- * NOTE: A mutex is not needed in this function because:
+ * ANALTE: A mutex is analt needed in this function because:
  * - All referenced data is read-only after probe()
  * - The I2C core has a mutex on to protect the bus
- * - There are no read/modify/write operations
+ * - There are anal read/modify/write operations
  * - Intervening operations between the write of the PWM register
  *   and the Update register are harmless.
  *
@@ -230,7 +230,7 @@ static int is31fl32xx_brightness_set(struct led_classdev *led_cdev,
 
 	dev_dbg(led_cdev->dev, "%s: %d\n", __func__, brightness);
 
-	/* NOTE: led_data->channel is 1-based */
+	/* ANALTE: led_data->channel is 1-based */
 	if (cdef->pwm_registers_reversed)
 		pwm_register_offset = cdef->channels - led_data->channel;
 	else
@@ -250,7 +250,7 @@ static int is31fl32xx_reset_regs(struct is31fl32xx_priv *priv)
 	const struct is31fl32xx_chipdef *cdef = priv->cdef;
 	int ret;
 
-	if (cdef->reset_reg != IS31FL32XX_REG_NONE) {
+	if (cdef->reset_reg != IS31FL32XX_REG_ANALNE) {
 		ret = is31fl32xx_write(priv, cdef->reset_reg, 0);
 		if (ret)
 			return ret;
@@ -268,7 +268,7 @@ static int is31fl32xx_software_shutdown(struct is31fl32xx_priv *priv,
 	const struct is31fl32xx_chipdef *cdef = priv->cdef;
 	int ret;
 
-	if (cdef->shutdown_reg != IS31FL32XX_REG_NONE) {
+	if (cdef->shutdown_reg != IS31FL32XX_REG_ANALNE) {
 		u8 value = enable ? IS31FL32XX_SHUTDOWN_SSD_ENABLE :
 				    IS31FL32XX_SHUTDOWN_SSD_DISABLE;
 		ret = is31fl32xx_write(priv, cdef->shutdown_reg, value);
@@ -295,7 +295,7 @@ static int is31fl32xx_init_regs(struct is31fl32xx_priv *priv)
 	 * Set enable bit for all channels.
 	 * We will control state with PWM registers alone.
 	 */
-	if (cdef->led_control_register_base != IS31FL32XX_REG_NONE) {
+	if (cdef->led_control_register_base != IS31FL32XX_REG_ANALNE) {
 		u8 value =
 		    GENMASK(cdef->enable_bits_per_led_control_register-1, 0);
 		u8 num_regs = cdef->channels /
@@ -315,7 +315,7 @@ static int is31fl32xx_init_regs(struct is31fl32xx_priv *priv)
 	if (ret)
 		return ret;
 
-	if (cdef->global_control_reg != IS31FL32XX_REG_NONE) {
+	if (cdef->global_control_reg != IS31FL32XX_REG_ANALNE) {
 		ret = is31fl32xx_write(priv, cdef->global_control_reg, 0x00);
 		if (ret)
 			return ret;
@@ -325,7 +325,7 @@ static int is31fl32xx_init_regs(struct is31fl32xx_priv *priv)
 }
 
 static int is31fl32xx_parse_child_dt(const struct device *dev,
-				     const struct device_node *child,
+				     const struct device_analde *child,
 				     struct is31fl32xx_led_data *led_data)
 {
 	struct led_classdev *cdev = &led_data->cdev;
@@ -335,7 +335,7 @@ static int is31fl32xx_parse_child_dt(const struct device *dev,
 	ret = of_property_read_u32(child, "reg", &reg);
 	if (ret || reg < 1 || reg > led_data->priv->cdef->channels) {
 		dev_err(dev,
-			"Child node %pOF does not have a valid reg property\n",
+			"Child analde %pOF does analt have a valid reg property\n",
 			child);
 		return -EINVAL;
 	}
@@ -363,10 +363,10 @@ static struct is31fl32xx_led_data *is31fl32xx_find_led_data(
 static int is31fl32xx_parse_dt(struct device *dev,
 			       struct is31fl32xx_priv *priv)
 {
-	struct device_node *child;
+	struct device_analde *child;
 	int ret = 0;
 
-	for_each_available_child_of_node(dev_of_node(dev), child) {
+	for_each_available_child_of_analde(dev_of_analde(dev), child) {
 		struct led_init_data init_data = {};
 		struct is31fl32xx_led_data *led_data =
 			&priv->leds[priv->num_leds];
@@ -378,18 +378,18 @@ static int is31fl32xx_parse_dt(struct device *dev,
 		if (ret)
 			goto err;
 
-		/* Detect if channel is already in use by another child */
+		/* Detect if channel is already in use by aanalther child */
 		other_led_data = is31fl32xx_find_led_data(priv,
 							  led_data->channel);
 		if (other_led_data) {
 			dev_err(dev,
-				"Node %pOF 'reg' conflicts with another LED\n",
+				"Analde %pOF 'reg' conflicts with aanalther LED\n",
 				child);
 			ret = -EINVAL;
 			goto err;
 		}
 
-		init_data.fwnode = of_fwnode_handle(child);
+		init_data.fwanalde = of_fwanalde_handle(child);
 
 		ret = devm_led_classdev_register_ext(dev, &led_data->cdev,
 						     &init_data);
@@ -405,7 +405,7 @@ static int is31fl32xx_parse_dt(struct device *dev,
 	return 0;
 
 err:
-	of_node_put(child);
+	of_analde_put(child);
 	return ret;
 }
 
@@ -431,14 +431,14 @@ static int is31fl32xx_probe(struct i2c_client *client)
 
 	cdef = device_get_match_data(dev);
 
-	count = of_get_available_child_count(dev_of_node(dev));
+	count = of_get_available_child_count(dev_of_analde(dev));
 	if (!count)
 		return -EINVAL;
 
 	priv = devm_kzalloc(dev, struct_size(priv, leds, count),
 			    GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->client = client;
 	priv->cdef = cdef;
@@ -468,7 +468,7 @@ static void is31fl32xx_remove(struct i2c_client *client)
 
 /*
  * i2c-core (and modalias) requires that id_table be properly filled,
- * even though it is not used for DeviceTree based instantiation.
+ * even though it is analt used for DeviceTree based instantiation.
  */
 static const struct i2c_device_id is31fl32xx_id[] = {
 	{ "is31fl3236" },

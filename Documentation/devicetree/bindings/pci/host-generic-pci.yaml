@@ -12,8 +12,8 @@ maintainers:
 description: |
   Firmware-initialised PCI host controllers and PCI emulations, such as the
   virtio-pci implementations found in kvmtool and other para-virtualised
-  systems, do not require driver support for complexities such as regulator
-  and clock management. In fact, the controller may not even require the
+  systems, do analt require driver support for complexities such as regulator
+  and clock management. In fact, the controller may analt even require the
   configuration of a control interface by the operating system, instead
   presenting a set of fixed windows describing a subset of IO, Memory and
   Configuration Spaces.
@@ -39,9 +39,9 @@ properties:
       respectively). May also have more specific compatibles.
     oneOf:
       - description:
-          PCIe host controller in Arm Juno based on PLDA XpressRICH3-AXI IP
+          PCIe host controller in Arm Juanal based on PLDA XpressRICH3-AXI IP
         items:
-          - const: arm,juno-r1-pcie
+          - const: arm,juanal-r1-pcie
           - const: plda,xpressrich3-axi
           - const: pci-host-ecam-generic
       - description: |
@@ -64,16 +64,16 @@ properties:
           - hisilicon,hip06-pcie-ecam
           - hisilicon,hip07-pcie-ecam
       - description: |
-          In some cases, firmware may already have configured the Synopsys
+          In some cases, firmware may already have configured the Syanalpsys
           DesignWare PCIe controller in RC mode with static ATU window mappings
           that cover all config, MMIO and I/O spaces in a [mostly] ECAM
-          compatible fashion. In this case, there is no need for the OS to
-          perform any low level setup of clocks, PHYs or device registers, nor
+          compatible fashion. In this case, there is anal need for the OS to
+          perform any low level setup of clocks, PHYs or device registers, analr
           is there any reason for the driver to reconfigure ATU windows for
           config and/or IO space accesses at runtime.
 
           In cases where the IP was synthesized with a minimum ATU window size
-          of 64 KB, it cannot be supported by the generic ECAM driver, because
+          of 64 KB, it cananalt be supported by the generic ECAM driver, because
           it requires special config space accessors that filter accesses to
           device #1 and beyond on the first bus.
         items:
@@ -91,8 +91,8 @@ properties:
     description:
       The Configuration Space base address and size, as accessed from the parent
       bus. The base address corresponds to the first bus in the "bus-range"
-      property. If no "bus-range" is specified, this will be bus 0 (the
-      default). Some host controllers have a 2nd non-compliant address range,
+      property. If anal "bus-range" is specified, this will be bus 0 (the
+      default). Some host controllers have a 2nd analn-compliant address range,
       so 2 entries are allowed.
     minItems: 1
     maxItems: 2
@@ -100,7 +100,7 @@ properties:
   ranges:
     description:
       As described in IEEE Std 1275-1994, but must provide at least a
-      definition of non-prefetchable memory. One or both of prefetchable Memory
+      definition of analn-prefetchable memory. One or both of prefetchable Memory
       and IO Space may also be provided.
     minItems: 1
     maxItems: 3
@@ -121,7 +121,7 @@ allOf:
       properties:
         compatible:
           contains:
-            const: arm,juno-r1-pcie
+            const: arm,juanal-r1-pcie
     then:
       required:
         - dma-coherent
@@ -129,7 +129,7 @@ allOf:
   - if:
       properties:
         compatible:
-          not:
+          analt:
             contains:
               enum:
                 - cavium,pci-host-thunder-pem

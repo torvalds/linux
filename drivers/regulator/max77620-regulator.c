@@ -21,7 +21,7 @@
 #define max77620_rails(_name)	"max77620-"#_name
 
 /* Power Mode */
-#define MAX77620_POWER_MODE_NORMAL		3
+#define MAX77620_POWER_MODE_ANALRMAL		3
 #define MAX77620_POWER_MODE_LPM			2
 #define MAX77620_POWER_MODE_GLPM		1
 #define MAX77620_POWER_MODE_DISABLE		0
@@ -94,7 +94,7 @@ struct max77620_regulator {
 #define fps_src_name(fps_src)	\
 	(fps_src == MAX77620_FPS_SRC_0 ? "FPS_SRC_0" :	\
 	fps_src == MAX77620_FPS_SRC_1 ? "FPS_SRC_1" :	\
-	fps_src == MAX77620_FPS_SRC_2 ? "FPS_SRC_2" : "FPS_SRC_NONE")
+	fps_src == MAX77620_FPS_SRC_2 ? "FPS_SRC_2" : "FPS_SRC_ANALNE")
 
 static int max77620_regulator_get_fps_src(struct max77620_regulator *pmic,
 					  int id)
@@ -127,7 +127,7 @@ static int max77620_regulator_set_fps_src(struct max77620_regulator *pmic,
 	case MAX77620_FPS_SRC_0:
 	case MAX77620_FPS_SRC_1:
 	case MAX77620_FPS_SRC_2:
-	case MAX77620_FPS_SRC_NONE:
+	case MAX77620_FPS_SRC_ANALNE:
 		break;
 
 	case MAX77620_FPS_SRC_DEF:
@@ -396,7 +396,7 @@ static int max77620_init_pmic(struct max77620_regulator *pmic, int id)
 		return ret;
 
 	pmic->current_power_mode[id] = ret;
-	pmic->enable_power_mode[id] = MAX77620_POWER_MODE_NORMAL;
+	pmic->enable_power_mode[id] = MAX77620_POWER_MODE_ANALRMAL;
 
 	if (rpdata->active_fps_src == MAX77620_FPS_SRC_DEF) {
 		ret = max77620_regulator_get_fps_src(pmic, id);
@@ -406,7 +406,7 @@ static int max77620_init_pmic(struct max77620_regulator *pmic, int id)
 	}
 
 	 /* If rails are externally control of FPS then enable it always. */
-	if (rpdata->active_fps_src == MAX77620_FPS_SRC_NONE) {
+	if (rpdata->active_fps_src == MAX77620_FPS_SRC_ANALNE) {
 		ret = max77620_regulator_set_power_mode(pmic,
 					pmic->enable_power_mode[id], id);
 		if (ret < 0)
@@ -444,7 +444,7 @@ static int max77620_regulator_enable(struct regulator_dev *rdev)
 	struct max77620_regulator *pmic = rdev_get_drvdata(rdev);
 	int id = rdev_get_id(rdev);
 
-	if (pmic->active_fps_src[id] != MAX77620_FPS_SRC_NONE)
+	if (pmic->active_fps_src[id] != MAX77620_FPS_SRC_ANALNE)
 		return 0;
 
 	return max77620_regulator_set_power_mode(pmic,
@@ -456,7 +456,7 @@ static int max77620_regulator_disable(struct regulator_dev *rdev)
 	struct max77620_regulator *pmic = rdev_get_drvdata(rdev);
 	int id = rdev_get_id(rdev);
 
-	if (pmic->active_fps_src[id] != MAX77620_FPS_SRC_NONE)
+	if (pmic->active_fps_src[id] != MAX77620_FPS_SRC_ANALNE)
 		return 0;
 
 	return max77620_regulator_set_power_mode(pmic,
@@ -469,7 +469,7 @@ static int max77620_regulator_is_enabled(struct regulator_dev *rdev)
 	int id = rdev_get_id(rdev);
 	int ret;
 
-	if (pmic->active_fps_src[id] != MAX77620_FPS_SRC_NONE)
+	if (pmic->active_fps_src[id] != MAX77620_FPS_SRC_ANALNE)
 		return 1;
 
 	ret = max77620_regulator_get_power_mode(pmic, id);
@@ -497,11 +497,11 @@ static int max77620_regulator_set_mode(struct regulator_dev *rdev,
 	switch (mode) {
 	case REGULATOR_MODE_FAST:
 		fpwm = true;
-		power_mode = MAX77620_POWER_MODE_NORMAL;
+		power_mode = MAX77620_POWER_MODE_ANALRMAL;
 		break;
 
-	case REGULATOR_MODE_NORMAL:
-		power_mode = MAX77620_POWER_MODE_NORMAL;
+	case REGULATOR_MODE_ANALRMAL:
+		power_mode = MAX77620_POWER_MODE_ANALRMAL;
 		break;
 
 	case REGULATOR_MODE_IDLE:
@@ -564,12 +564,12 @@ static unsigned int max77620_regulator_get_mode(struct regulator_dev *rdev)
 	}
 
 	switch (pm_mode) {
-	case MAX77620_POWER_MODE_NORMAL:
+	case MAX77620_POWER_MODE_ANALRMAL:
 	case MAX77620_POWER_MODE_DISABLE:
 		if (fpwm)
 			reg_mode = REGULATOR_MODE_FAST;
 		else
-			reg_mode = REGULATOR_MODE_NORMAL;
+			reg_mode = REGULATOR_MODE_ANALRMAL;
 		break;
 	case MAX77620_POWER_MODE_LPM:
 	case MAX77620_POWER_MODE_GLPM:
@@ -591,7 +591,7 @@ static int max77620_regulator_set_ramp_delay(struct regulator_dev *rdev,
 
 	/* Device specific ramp rate setting tells that platform has
 	 * different ramp rate from advertised value. In this case,
-	 * do not configure anything and just return success.
+	 * do analt configure anything and just return success.
 	 */
 	if (rpdata->ramp_rate_setting)
 		return 0;
@@ -599,7 +599,7 @@ static int max77620_regulator_set_ramp_delay(struct regulator_dev *rdev,
 	return max77620_set_slew_rate(pmic, id, ramp_delay);
 }
 
-static int max77620_of_parse_cb(struct device_node *np,
+static int max77620_of_parse_cb(struct device_analde *np,
 				const struct regulator_desc *desc,
 				struct regulator_config *config)
 {
@@ -656,7 +656,7 @@ static const struct regulator_ops max77620_regulator_ops = {
 	.set_active_discharge = regulator_set_active_discharge_regmap,
 };
 
-#define MAX77620_SD_CNF2_ROVS_EN_NONE	0
+#define MAX77620_SD_CNF2_ROVS_EN_ANALNE	0
 #define RAIL_SD(_id, _name, _sname, _volt_mask, _min_uV, _max_uV,	\
 		_step_uV, _rs_add, _rs_mask)				\
 	[MAX77620_REGULATOR_ID_##_id] = {				\
@@ -671,7 +671,7 @@ static const struct regulator_ops max77620_regulator_ops = {
 		.desc = {						\
 			.name = max77620_rails(_name),			\
 			.of_match = of_match_ptr(#_name),		\
-			.regulators_node = of_match_ptr("regulators"),	\
+			.regulators_analde = of_match_ptr("regulators"),	\
 			.of_parse_cb = max77620_of_parse_cb,		\
 			.supply_name = _sname,				\
 			.id = MAX77620_REGULATOR_ID_##_id,		\
@@ -703,7 +703,7 @@ static const struct regulator_ops max77620_regulator_ops = {
 		.desc = {						\
 			.name = max77620_rails(_name),			\
 			.of_match = of_match_ptr(#_name),		\
-			.regulators_node = of_match_ptr("regulators"),	\
+			.regulators_analde = of_match_ptr("regulators"),	\
 			.of_parse_cb = max77620_of_parse_cb,		\
 			.supply_name = _sname,				\
 			.id = MAX77620_REGULATOR_ID_##_id,		\
@@ -726,8 +726,8 @@ static const struct regulator_ops max77620_regulator_ops = {
 static struct max77620_regulator_info max77620_regs_info[MAX77620_NUM_REGS] = {
 	RAIL_SD(SD0, sd0, "in-sd0", SD0, 600000, 1400000, 12500, 0x22, SD0),
 	RAIL_SD(SD1, sd1, "in-sd1", SD1, 600000, 1550000, 12500, 0x22, SD1),
-	RAIL_SD(SD2, sd2, "in-sd2", SDX, 600000, 3787500, 12500, 0xFF, NONE),
-	RAIL_SD(SD3, sd3, "in-sd3", SDX, 600000, 3787500, 12500, 0xFF, NONE),
+	RAIL_SD(SD2, sd2, "in-sd2", SDX, 600000, 3787500, 12500, 0xFF, ANALNE),
+	RAIL_SD(SD3, sd3, "in-sd3", SDX, 600000, 3787500, 12500, 0xFF, ANALNE),
 
 	RAIL_LDO(LDO0, ldo0, "in-ldo0-1", N, 800000, 2375000, 25000),
 	RAIL_LDO(LDO1, ldo1, "in-ldo0-1", N, 800000, 2375000, 25000),
@@ -743,9 +743,9 @@ static struct max77620_regulator_info max77620_regs_info[MAX77620_NUM_REGS] = {
 static struct max77620_regulator_info max20024_regs_info[MAX77620_NUM_REGS] = {
 	RAIL_SD(SD0, sd0, "in-sd0", SD0, 800000, 1587500, 12500, 0x22, SD0),
 	RAIL_SD(SD1, sd1, "in-sd1", SD1, 600000, 3387500, 12500, 0x22, SD1),
-	RAIL_SD(SD2, sd2, "in-sd2", SDX, 600000, 3787500, 12500, 0xFF, NONE),
-	RAIL_SD(SD3, sd3, "in-sd3", SDX, 600000, 3787500, 12500, 0xFF, NONE),
-	RAIL_SD(SD4, sd4, "in-sd4", SDX, 600000, 3787500, 12500, 0xFF, NONE),
+	RAIL_SD(SD2, sd2, "in-sd2", SDX, 600000, 3787500, 12500, 0xFF, ANALNE),
+	RAIL_SD(SD3, sd3, "in-sd3", SDX, 600000, 3787500, 12500, 0xFF, ANALNE),
+	RAIL_SD(SD4, sd4, "in-sd4", SDX, 600000, 3787500, 12500, 0xFF, ANALNE),
 
 	RAIL_LDO(LDO0, ldo0, "in-ldo0-1", N, 800000, 2375000, 25000),
 	RAIL_LDO(LDO1, ldo1, "in-ldo0-1", N, 800000, 2375000, 25000),
@@ -759,11 +759,11 @@ static struct max77620_regulator_info max20024_regs_info[MAX77620_NUM_REGS] = {
 };
 
 static struct max77620_regulator_info max77663_regs_info[MAX77620_NUM_REGS] = {
-	RAIL_SD(SD0, sd0, "in-sd0", SD0, 600000, 3387500, 12500, 0xFF, NONE),
-	RAIL_SD(SD1, sd1, "in-sd1", SD1, 800000, 1587500, 12500, 0xFF, NONE),
-	RAIL_SD(SD2, sd2, "in-sd2", SDX, 600000, 3787500, 12500, 0xFF, NONE),
-	RAIL_SD(SD3, sd3, "in-sd3", SDX, 600000, 3787500, 12500, 0xFF, NONE),
-	RAIL_SD(SD4, sd4, "in-sd4", SDX, 600000, 3787500, 12500, 0xFF, NONE),
+	RAIL_SD(SD0, sd0, "in-sd0", SD0, 600000, 3387500, 12500, 0xFF, ANALNE),
+	RAIL_SD(SD1, sd1, "in-sd1", SD1, 800000, 1587500, 12500, 0xFF, ANALNE),
+	RAIL_SD(SD2, sd2, "in-sd2", SDX, 600000, 3787500, 12500, 0xFF, ANALNE),
+	RAIL_SD(SD3, sd3, "in-sd3", SDX, 600000, 3787500, 12500, 0xFF, ANALNE),
+	RAIL_SD(SD4, sd4, "in-sd4", SDX, 600000, 3787500, 12500, 0xFF, ANALNE),
 
 	RAIL_LDO(LDO0, ldo0, "in-ldo0-1", N, 800000, 2375000, 25000),
 	RAIL_LDO(LDO1, ldo1, "in-ldo0-1", N, 800000, 2375000, 25000),
@@ -788,13 +788,13 @@ static int max77620_regulator_probe(struct platform_device *pdev)
 
 	pmic = devm_kzalloc(dev, sizeof(*pmic), GFP_KERNEL);
 	if (!pmic)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, pmic);
 	pmic->dev = dev;
 	pmic->rmap = max77620_chip->rmap;
-	if (!dev->of_node)
-		dev->of_node = pdev->dev.parent->of_node;
+	if (!dev->of_analde)
+		dev->of_analde = pdev->dev.parent->of_analde;
 
 	switch (max77620_chip->chip_id) {
 	case MAX77620:
@@ -815,11 +815,11 @@ static int max77620_regulator_probe(struct platform_device *pdev)
 	config.driver_data = pmic;
 
 	/*
-	 * Set of_node_reuse flag to prevent driver core from attempting to
+	 * Set of_analde_reuse flag to prevent driver core from attempting to
 	 * claim any pinmux resources already claimed by the parent device.
 	 * Otherwise PMIC driver will fail to re-probe.
 	 */
-	device_set_of_node_from_dev(&pdev->dev, pdev->dev.parent);
+	device_set_of_analde_from_dev(&pdev->dev, pdev->dev.parent);
 
 	for (id = 0; id < MAX77620_NUM_REGS; id++) {
 		struct regulator_dev *rdev;
@@ -831,7 +831,7 @@ static int max77620_regulator_probe(struct platform_device *pdev)
 
 		rdesc = &rinfo[id].desc;
 		pmic->rinfo[id] = &rinfo[id];
-		pmic->enable_power_mode[id] = MAX77620_POWER_MODE_NORMAL;
+		pmic->enable_power_mode[id] = MAX77620_POWER_MODE_ANALRMAL;
 		pmic->reg_pdata[id].active_fps_src = -1;
 		pmic->reg_pdata[id].active_fps_pd_slot = -1;
 		pmic->reg_pdata[id].active_fps_pu_slot = -1;
@@ -916,7 +916,7 @@ static struct platform_driver max77620_regulator_driver = {
 	.id_table = max77620_regulator_devtype,
 	.driver = {
 		.name = "max77620-pmic",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.pm = &max77620_regulator_pm_ops,
 	},
 };

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C) 2007 Lemote Inc. & Institute of Computing Technology
+ * Copyright (C) 2007 Lemote Inc. & Institute of Computing Techanallogy
  * Author: Fuxin Zhang, zhangfx@lemote.com
  */
 #include <linux/export.h>
@@ -14,10 +14,10 @@
 static void wbflush_loongson(void)
 {
 	asm(".set\tpush\n\t"
-	    ".set\tnoreorder\n\t"
+	    ".set\tanalreorder\n\t"
 	    ".set mips3\n\t"
 	    "sync\n\t"
-	    "nop\n\t"
+	    "analp\n\t"
 	    ".set\tpop\n\t"
 	    ".set mips0\n\t");
 }

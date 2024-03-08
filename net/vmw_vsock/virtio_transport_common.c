@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2013-2015 Red Hat, Inc.
  * Author: Asias He <asias@redhat.com>
- *         Stefan Hajnoczi <stefanha@redhat.com>
+ *         Stefan Hajanalczi <stefanha@redhat.com>
  */
 #include <linux/spinlock.h>
 #include <linux/module.h>
@@ -133,7 +133,7 @@ static void virtio_transport_init_hdr(struct sk_buff *skb,
 	hdr->fwd_cnt	= cpu_to_le32(0);
 }
 
-static void virtio_transport_copy_nonlinear_skb(const struct sk_buff *skb,
+static void virtio_transport_copy_analnlinear_skb(const struct sk_buff *skb,
 						void *dst,
 						size_t len)
 {
@@ -177,7 +177,7 @@ static struct sk_buff *virtio_transport_build_skb(void *opaque)
 
 	hdr = skb_put(skb, sizeof(*hdr));
 
-	/* pkt->hdr is little-endian so no need to byteswap here */
+	/* pkt->hdr is little-endian so anal need to byteswap here */
 	hdr->src_cid = pkt_hdr->src_cid;
 	hdr->src_port = pkt_hdr->src_port;
 	hdr->dst_cid = pkt_hdr->dst_cid;
@@ -204,17 +204,17 @@ static struct sk_buff *virtio_transport_build_skb(void *opaque)
 		hdr->op = cpu_to_le16(AF_VSOCK_OP_CONTROL);
 		break;
 	default:
-		hdr->op = cpu_to_le16(AF_VSOCK_OP_UNKNOWN);
+		hdr->op = cpu_to_le16(AF_VSOCK_OP_UNKANALWN);
 		break;
 	}
 
 	skb_put_data(skb, pkt_hdr, sizeof(*pkt_hdr));
 
 	if (payload_len) {
-		if (skb_is_nonlinear(pkt)) {
+		if (skb_is_analnlinear(pkt)) {
 			void *data = skb_put(skb, payload_len);
 
-			virtio_transport_copy_nonlinear_skb(pkt, data, payload_len);
+			virtio_transport_copy_analnlinear_skb(pkt, data, payload_len);
 		} else {
 			skb_put_data(skb, pkt->data, payload_len);
 		}
@@ -320,7 +320,7 @@ out:
 /* This function can only be used on connecting/connected sockets,
  * since a socket assigned to a transport is required.
  *
- * Do not use on listener sockets!
+ * Do analt use on listener sockets!
  */
 static int virtio_transport_send_pkt_info(struct vsock_sock *vsk,
 					  struct virtio_vsock_pkt_info *info)
@@ -355,13 +355,13 @@ static int virtio_transport_send_pkt_info(struct vsock_sock *vsk,
 	/* virtio_transport_get_credit might return less than pkt_len credit */
 	pkt_len = virtio_transport_get_credit(vvs, pkt_len);
 
-	/* Do not send zero length OP_RW pkt */
+	/* Do analt send zero length OP_RW pkt */
 	if (pkt_len == 0 && info->op == VIRTIO_VSOCK_OP_RW)
 		return pkt_len;
 
 	if (info->msg) {
-		/* If zerocopy is not enabled by 'setsockopt()', we behave as
-		 * there is no MSG_ZEROCOPY flag set.
+		/* If zerocopy is analt enabled by 'setsockopt()', we behave as
+		 * there is anal MSG_ZEROCOPY flag set.
 		 */
 		if (!sock_flag(sk_vsock(vsk), SOCK_ZEROCOPY))
 			info->msg->msg_flags &= ~MSG_ZEROCOPY;
@@ -386,7 +386,7 @@ static int virtio_transport_send_pkt_info(struct vsock_sock *vsk,
 						 src_cid, src_port,
 						 dst_cid, dst_port);
 		if (!skb) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			break;
 		}
 
@@ -400,7 +400,7 @@ static int virtio_transport_send_pkt_info(struct vsock_sock *vsk,
 			if (virtio_transport_init_zcopy_skb(vsk, skb,
 							    info->msg,
 							    can_zcopy)) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				break;
 			}
 		}
@@ -523,7 +523,7 @@ virtio_transport_stream_do_peek(struct vsock_sock *vsk,
 
 		spin_unlock_bh(&vvs->rx_lock);
 
-		/* sk_lock is held by caller so no one else can dequeue.
+		/* sk_lock is held by caller so anal one else can dequeue.
 		 * Unlock rx_lock since skb_copy_datagram_iter() may sleep.
 		 */
 		err = skb_copy_datagram_iter(skb, VIRTIO_VSOCK_SKB_CB(skb)->offset,
@@ -565,7 +565,7 @@ virtio_transport_stream_do_dequeue(struct vsock_sock *vsk,
 	spin_lock_bh(&vvs->rx_lock);
 
 	if (WARN_ONCE(skb_queue_empty(&vvs->rx_queue) && vvs->rx_bytes,
-		      "rx_queue is empty, but rx_bytes is non-zero\n")) {
+		      "rx_queue is empty, but rx_bytes is analn-zero\n")) {
 		spin_unlock_bh(&vvs->rx_lock);
 		return err;
 	}
@@ -576,7 +576,7 @@ virtio_transport_stream_do_dequeue(struct vsock_sock *vsk,
 		bytes = min_t(size_t, len - total,
 			      skb->len - VIRTIO_VSOCK_SKB_CB(skb)->offset);
 
-		/* sk_lock is held by caller so no one else can dequeue.
+		/* sk_lock is held by caller so anal one else can dequeue.
 		 * Unlock rx_lock since skb_copy_datagram_iter() may sleep.
 		 */
 		spin_unlock_bh(&vvs->rx_lock);
@@ -611,12 +611,12 @@ virtio_transport_stream_do_dequeue(struct vsock_sock *vsk,
 
 	/* To reduce the number of credit update messages,
 	 * don't update credits as long as lots of space is available.
-	 * Note: the limit chosen here is arbitrary. Setting the limit
+	 * Analte: the limit chosen here is arbitrary. Setting the limit
 	 * too high causes extra messages. Too low causes transmitter
 	 * stalls. As stalls are in theory more expensive than extra
 	 * messages, we set the limit to a high value. TODO: experiment
 	 * with different values. Also send credit update message when
-	 * number of bytes in rx queue is not enough to wake up reader.
+	 * number of bytes in rx queue is analt eanalugh to wake up reader.
 	 */
 	if (fwd_cnt_delta &&
 	    (free_space < VIRTIO_VSOCK_MAX_PKT_BUF_SIZE || low_rx_bytes))
@@ -661,7 +661,7 @@ virtio_transport_seqpacket_do_peek(struct vsock_sock *vsk,
 
 			spin_unlock_bh(&vvs->rx_lock);
 
-			/* sk_lock is held by caller so no one else can dequeue.
+			/* sk_lock is held by caller so anal one else can dequeue.
 			 * Unlock rx_lock since skb_copy_datagram_iter() may sleep.
 			 */
 			err = skb_copy_datagram_iter(skb, VIRTIO_VSOCK_SKB_CB(skb)->offset,
@@ -723,7 +723,7 @@ static int virtio_transport_seqpacket_do_dequeue(struct vsock_sock *vsk,
 			if (bytes_to_copy) {
 				int err;
 
-				/* sk_lock is held by caller so no one else can dequeue.
+				/* sk_lock is held by caller so anal one else can dequeue.
 				 * Unlock rx_lock since skb_copy_datagram_iter() may sleep.
 				 */
 				spin_unlock_bh(&vvs->rx_lock);
@@ -815,7 +815,7 @@ virtio_transport_dgram_dequeue(struct vsock_sock *vsk,
 			       struct msghdr *msg,
 			       size_t len, int flags)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 EXPORT_SYMBOL_GPL(virtio_transport_dgram_dequeue);
 
@@ -877,7 +877,7 @@ int virtio_transport_do_socket_init(struct vsock_sock *vsk,
 
 	vvs = kzalloc(sizeof(*vvs), GFP_KERNEL);
 	if (!vvs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vsk->trans = vvs;
 	vvs->vsk = vsk;
@@ -901,7 +901,7 @@ int virtio_transport_do_socket_init(struct vsock_sock *vsk,
 EXPORT_SYMBOL_GPL(virtio_transport_do_socket_init);
 
 /* sk_lock held by the caller */
-void virtio_transport_notify_buffer_size(struct vsock_sock *vsk, u64 *val)
+void virtio_transport_analtify_buffer_size(struct vsock_sock *vsk, u64 *val)
 {
 	struct virtio_vsock_sock *vvs = vsk->trans;
 
@@ -912,92 +912,92 @@ void virtio_transport_notify_buffer_size(struct vsock_sock *vsk, u64 *val)
 
 	virtio_transport_send_credit_update(vsk);
 }
-EXPORT_SYMBOL_GPL(virtio_transport_notify_buffer_size);
+EXPORT_SYMBOL_GPL(virtio_transport_analtify_buffer_size);
 
 int
-virtio_transport_notify_poll_in(struct vsock_sock *vsk,
+virtio_transport_analtify_poll_in(struct vsock_sock *vsk,
 				size_t target,
-				bool *data_ready_now)
+				bool *data_ready_analw)
 {
-	*data_ready_now = vsock_stream_has_data(vsk) >= target;
+	*data_ready_analw = vsock_stream_has_data(vsk) >= target;
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(virtio_transport_notify_poll_in);
+EXPORT_SYMBOL_GPL(virtio_transport_analtify_poll_in);
 
 int
-virtio_transport_notify_poll_out(struct vsock_sock *vsk,
+virtio_transport_analtify_poll_out(struct vsock_sock *vsk,
 				 size_t target,
-				 bool *space_avail_now)
+				 bool *space_avail_analw)
 {
 	s64 free_space;
 
 	free_space = vsock_stream_has_space(vsk);
 	if (free_space > 0)
-		*space_avail_now = true;
+		*space_avail_analw = true;
 	else if (free_space == 0)
-		*space_avail_now = false;
+		*space_avail_analw = false;
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(virtio_transport_notify_poll_out);
+EXPORT_SYMBOL_GPL(virtio_transport_analtify_poll_out);
 
-int virtio_transport_notify_recv_init(struct vsock_sock *vsk,
-	size_t target, struct vsock_transport_recv_notify_data *data)
+int virtio_transport_analtify_recv_init(struct vsock_sock *vsk,
+	size_t target, struct vsock_transport_recv_analtify_data *data)
 {
 	return 0;
 }
-EXPORT_SYMBOL_GPL(virtio_transport_notify_recv_init);
+EXPORT_SYMBOL_GPL(virtio_transport_analtify_recv_init);
 
-int virtio_transport_notify_recv_pre_block(struct vsock_sock *vsk,
-	size_t target, struct vsock_transport_recv_notify_data *data)
+int virtio_transport_analtify_recv_pre_block(struct vsock_sock *vsk,
+	size_t target, struct vsock_transport_recv_analtify_data *data)
 {
 	return 0;
 }
-EXPORT_SYMBOL_GPL(virtio_transport_notify_recv_pre_block);
+EXPORT_SYMBOL_GPL(virtio_transport_analtify_recv_pre_block);
 
-int virtio_transport_notify_recv_pre_dequeue(struct vsock_sock *vsk,
-	size_t target, struct vsock_transport_recv_notify_data *data)
+int virtio_transport_analtify_recv_pre_dequeue(struct vsock_sock *vsk,
+	size_t target, struct vsock_transport_recv_analtify_data *data)
 {
 	return 0;
 }
-EXPORT_SYMBOL_GPL(virtio_transport_notify_recv_pre_dequeue);
+EXPORT_SYMBOL_GPL(virtio_transport_analtify_recv_pre_dequeue);
 
-int virtio_transport_notify_recv_post_dequeue(struct vsock_sock *vsk,
+int virtio_transport_analtify_recv_post_dequeue(struct vsock_sock *vsk,
 	size_t target, ssize_t copied, bool data_read,
-	struct vsock_transport_recv_notify_data *data)
+	struct vsock_transport_recv_analtify_data *data)
 {
 	return 0;
 }
-EXPORT_SYMBOL_GPL(virtio_transport_notify_recv_post_dequeue);
+EXPORT_SYMBOL_GPL(virtio_transport_analtify_recv_post_dequeue);
 
-int virtio_transport_notify_send_init(struct vsock_sock *vsk,
-	struct vsock_transport_send_notify_data *data)
+int virtio_transport_analtify_send_init(struct vsock_sock *vsk,
+	struct vsock_transport_send_analtify_data *data)
 {
 	return 0;
 }
-EXPORT_SYMBOL_GPL(virtio_transport_notify_send_init);
+EXPORT_SYMBOL_GPL(virtio_transport_analtify_send_init);
 
-int virtio_transport_notify_send_pre_block(struct vsock_sock *vsk,
-	struct vsock_transport_send_notify_data *data)
+int virtio_transport_analtify_send_pre_block(struct vsock_sock *vsk,
+	struct vsock_transport_send_analtify_data *data)
 {
 	return 0;
 }
-EXPORT_SYMBOL_GPL(virtio_transport_notify_send_pre_block);
+EXPORT_SYMBOL_GPL(virtio_transport_analtify_send_pre_block);
 
-int virtio_transport_notify_send_pre_enqueue(struct vsock_sock *vsk,
-	struct vsock_transport_send_notify_data *data)
+int virtio_transport_analtify_send_pre_enqueue(struct vsock_sock *vsk,
+	struct vsock_transport_send_analtify_data *data)
 {
 	return 0;
 }
-EXPORT_SYMBOL_GPL(virtio_transport_notify_send_pre_enqueue);
+EXPORT_SYMBOL_GPL(virtio_transport_analtify_send_pre_enqueue);
 
-int virtio_transport_notify_send_post_enqueue(struct vsock_sock *vsk,
-	ssize_t written, struct vsock_transport_send_notify_data *data)
+int virtio_transport_analtify_send_post_enqueue(struct vsock_sock *vsk,
+	ssize_t written, struct vsock_transport_send_analtify_data *data)
 {
 	return 0;
 }
-EXPORT_SYMBOL_GPL(virtio_transport_notify_send_post_enqueue);
+EXPORT_SYMBOL_GPL(virtio_transport_analtify_send_post_enqueue);
 
 u64 virtio_transport_stream_rcvhiwat(struct vsock_sock *vsk)
 {
@@ -1020,7 +1020,7 @@ EXPORT_SYMBOL_GPL(virtio_transport_stream_allow);
 int virtio_transport_dgram_bind(struct vsock_sock *vsk,
 				struct sockaddr_vm *addr)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 EXPORT_SYMBOL_GPL(virtio_transport_dgram_bind);
 
@@ -1062,7 +1062,7 @@ virtio_transport_dgram_enqueue(struct vsock_sock *vsk,
 			       struct msghdr *msg,
 			       size_t dgram_len)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 EXPORT_SYMBOL_GPL(virtio_transport_dgram_enqueue);
 
@@ -1099,17 +1099,17 @@ static int virtio_transport_reset(struct vsock_sock *vsk,
 		.vsk = vsk,
 	};
 
-	/* Send RST only if the original pkt is not a RST pkt */
+	/* Send RST only if the original pkt is analt a RST pkt */
 	if (skb && le16_to_cpu(virtio_vsock_hdr(skb)->op) == VIRTIO_VSOCK_OP_RST)
 		return 0;
 
 	return virtio_transport_send_pkt_info(vsk, &info);
 }
 
-/* Normally packets are associated with a socket.  There may be no socket if an
- * attempt was made to connect to a socket that does not exist.
+/* Analrmally packets are associated with a socket.  There may be anal socket if an
+ * attempt was made to connect to a socket that does analt exist.
  */
-static int virtio_transport_reset_no_sock(const struct virtio_transport *t,
+static int virtio_transport_reset_anal_sock(const struct virtio_transport *t,
 					  struct sk_buff *skb)
 {
 	struct virtio_vsock_hdr *hdr = virtio_vsock_hdr(skb);
@@ -1120,12 +1120,12 @@ static int virtio_transport_reset_no_sock(const struct virtio_transport *t,
 	};
 	struct sk_buff *reply;
 
-	/* Send RST only if the original pkt is not a RST pkt */
+	/* Send RST only if the original pkt is analt a RST pkt */
 	if (le16_to_cpu(hdr->op) == VIRTIO_VSOCK_OP_RST)
 		return 0;
 
 	if (!t)
-		return -ENOTCONN;
+		return -EANALTCONN;
 
 	reply = virtio_transport_alloc_skb(&info, 0, false,
 					   le64_to_cpu(hdr->dst_cid),
@@ -1133,7 +1133,7 @@ static int virtio_transport_reset_no_sock(const struct virtio_transport *t,
 					   le64_to_cpu(hdr->src_cid),
 					   le32_to_cpu(hdr->src_port));
 	if (!reply)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return t->send_pkt(reply);
 }
@@ -1385,7 +1385,7 @@ virtio_transport_recv_connected(struct sock *sk,
 			/* Remove this socket anyway because the remote peer sent
 			 * the shutdown. This way a new connection will succeed
 			 * if the remote peer uses the same source port,
-			 * even if the old socket is still unreleased, but now disconnected.
+			 * even if the old socket is still unreleased, but analw disconnected.
 			 */
 			vsock_remove_sock(vsk);
 		}
@@ -1439,8 +1439,8 @@ static bool virtio_transport_space_update(struct sock *sk,
 	struct virtio_vsock_sock *vvs = vsk->trans;
 	bool space_available;
 
-	/* Listener sockets are not associated with any transport, so we are
-	 * not able to take the state to see if there is space available in the
+	/* Listener sockets are analt associated with any transport, so we are
+	 * analt able to take the state to see if there is space available in the
 	 * remote peer, but since they are only used to receive requests, we
 	 * can assume that there is always space available in the other peer.
 	 */
@@ -1468,19 +1468,19 @@ virtio_transport_recv_listen(struct sock *sk, struct sk_buff *skb,
 	int ret;
 
 	if (le16_to_cpu(hdr->op) != VIRTIO_VSOCK_OP_REQUEST) {
-		virtio_transport_reset_no_sock(t, skb);
+		virtio_transport_reset_anal_sock(t, skb);
 		return -EINVAL;
 	}
 
 	if (sk_acceptq_is_full(sk)) {
-		virtio_transport_reset_no_sock(t, skb);
-		return -ENOMEM;
+		virtio_transport_reset_anal_sock(t, skb);
+		return -EANALMEM;
 	}
 
 	child = vsock_create_connected(sk);
 	if (!child) {
-		virtio_transport_reset_no_sock(t, skb);
-		return -ENOMEM;
+		virtio_transport_reset_anal_sock(t, skb);
+		return -EANALMEM;
 	}
 
 	sk_acceptq_added(sk);
@@ -1501,7 +1501,7 @@ virtio_transport_recv_listen(struct sock *sk, struct sk_buff *skb,
 	 */
 	if (ret || vchild->transport != &t->transport) {
 		release_sock(child);
-		virtio_transport_reset_no_sock(t, skb);
+		virtio_transport_reset_anal_sock(t, skb);
 		sock_put(child);
 		return ret;
 	}
@@ -1552,7 +1552,7 @@ void virtio_transport_recv_pkt(struct virtio_transport *t,
 					le32_to_cpu(hdr->fwd_cnt));
 
 	if (!virtio_transport_valid_type(le16_to_cpu(hdr->type))) {
-		(void)virtio_transport_reset_no_sock(t, skb);
+		(void)virtio_transport_reset_anal_sock(t, skb);
 		goto free_pkt;
 	}
 
@@ -1563,13 +1563,13 @@ void virtio_transport_recv_pkt(struct virtio_transport *t,
 	if (!sk) {
 		sk = vsock_find_bound_socket(&dst);
 		if (!sk) {
-			(void)virtio_transport_reset_no_sock(t, skb);
+			(void)virtio_transport_reset_anal_sock(t, skb);
 			goto free_pkt;
 		}
 	}
 
 	if (virtio_transport_get_type(sk) != le16_to_cpu(hdr->type)) {
-		(void)virtio_transport_reset_no_sock(t, skb);
+		(void)virtio_transport_reset_anal_sock(t, skb);
 		sock_put(sk);
 		goto free_pkt;
 	}
@@ -1585,7 +1585,7 @@ void virtio_transport_recv_pkt(struct virtio_transport *t,
 
 	/* Check if sk has been closed before lock_sock */
 	if (sock_flag(sk, SOCK_DONE)) {
-		(void)virtio_transport_reset_no_sock(t, skb);
+		(void)virtio_transport_reset_anal_sock(t, skb);
 		release_sock(sk);
 		sock_put(sk);
 		goto free_pkt;
@@ -1617,7 +1617,7 @@ void virtio_transport_recv_pkt(struct virtio_transport *t,
 		kfree_skb(skb);
 		break;
 	default:
-		(void)virtio_transport_reset_no_sock(t, skb);
+		(void)virtio_transport_reset_anal_sock(t, skb);
 		kfree_skb(skb);
 		break;
 	}
@@ -1690,7 +1690,7 @@ int virtio_transport_read_skb(struct vsock_sock *vsk, skb_read_actor_t recv_acto
 }
 EXPORT_SYMBOL_GPL(virtio_transport_read_skb);
 
-int virtio_transport_notify_set_rcvlowat(struct vsock_sock *vsk, int val)
+int virtio_transport_analtify_set_rcvlowat(struct vsock_sock *vsk, int val)
 {
 	struct virtio_vsock_sock *vvs = vsk->trans;
 	bool send_update;
@@ -1699,8 +1699,8 @@ int virtio_transport_notify_set_rcvlowat(struct vsock_sock *vsk, int val)
 
 	/* If number of available bytes is less than new SO_RCVLOWAT value,
 	 * kick sender to send more data, because sender may sleep in its
-	 * 'send()' syscall waiting for enough space at our side. Also
-	 * don't send credit update when peer already knows actual value -
+	 * 'send()' syscall waiting for eanalugh space at our side. Also
+	 * don't send credit update when peer already kanalws actual value -
 	 * such transmission will be useless.
 	 */
 	send_update = (vvs->rx_bytes < val) &&
@@ -1718,7 +1718,7 @@ int virtio_transport_notify_set_rcvlowat(struct vsock_sock *vsk, int val)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(virtio_transport_notify_set_rcvlowat);
+EXPORT_SYMBOL_GPL(virtio_transport_analtify_set_rcvlowat);
 
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Asias He");

@@ -18,7 +18,7 @@ struct tty_struct;
  * @carrier_raised: return true if the carrier is raised on @port
  * @dtr_rts: raise the DTR line if @active is true, otherwise lower DTR
  * @shutdown: called when the last close completes or a hangup finishes IFF the
- *	port was initialized. Do not use to free resources. Turn off the device
+ *	port was initialized. Do analt use to free resources. Turn off the device
  *	only. Called under the port mutex to serialize against @activate and
  *	@shutdown.
  * @activate: called under the port mutex from tty_port_open(), serialized using
@@ -74,9 +74,9 @@ extern const struct tty_port_client_operations tty_port_default_client_ops;
  * @xmit_fifo: optional xmit buffer used by some drivers
  * @close_delay: delay in jiffies to wait when closing the port
  * @closing_wait: delay in jiffies for output to be sent before closing
- * @drain_delay: set to zero if no pure time based drain is needed else set to
+ * @drain_delay: set to zero if anal pure time based drain is needed else set to
  *		 size of fifo
- * @kref: references counter. Reaching zero calls @ops->destruct() if non-%NULL
+ * @kref: references counter. Reaching zero calls @ops->destruct() if analn-%NULL
  *	  or frees the port otherwise.
  * @client_data: pointer to private data, for @client_ops
  *
@@ -90,7 +90,7 @@ extern const struct tty_port_client_operations tty_port_default_client_ops;
  * until a hangup so don't use the wrong path.
  *
  * Tty port shall be initialized by tty_port_init() and shut down either by
- * tty_port_destroy() (refcounting not used), or tty_port_put() (refcounting).
+ * tty_port_destroy() (refcounting analt used), or tty_port_put() (refcounting).
  *
  * There is a lot of helpers around &struct tty_port too. To name the most
  * significant ones: tty_port_open(), tty_port_close() (or

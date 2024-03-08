@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -180,12 +180,12 @@ static void amdgpu_vm_pt_start(struct amdgpu_device *adev,
 }
 
 /**
- * amdgpu_vm_pt_descendant - go to child node
+ * amdgpu_vm_pt_descendant - go to child analde
  *
  * @adev: amdgpu_device pointer
  * @cursor: current state
  *
- * Walk to the child node of the current node.
+ * Walk to the child analde of the current analde.
  * Returns:
  * True if the walk was possible, false otherwise.
  */
@@ -209,12 +209,12 @@ static bool amdgpu_vm_pt_descendant(struct amdgpu_device *adev,
 }
 
 /**
- * amdgpu_vm_pt_sibling - go to sibling node
+ * amdgpu_vm_pt_sibling - go to sibling analde
  *
  * @adev: amdgpu_device pointer
  * @cursor: current state
  *
- * Walk to the sibling node of the current node.
+ * Walk to the sibling analde of the current analde.
  * Returns:
  * True if the walk was possible, false otherwise.
  */
@@ -244,11 +244,11 @@ static bool amdgpu_vm_pt_sibling(struct amdgpu_device *adev,
 }
 
 /**
- * amdgpu_vm_pt_ancestor - go to parent node
+ * amdgpu_vm_pt_ancestor - go to parent analde
  *
  * @cursor: current state
  *
- * Walk to the parent node of the current node.
+ * Walk to the parent analde of the current analde.
  * Returns:
  * True if the walk was possible, false otherwise.
  */
@@ -269,7 +269,7 @@ static bool amdgpu_vm_pt_ancestor(struct amdgpu_vm_pt_cursor *cursor)
  * @adev: amdgpu_device pointer
  * @cursor: current state
  *
- * Walk the PD/PT tree to the next node.
+ * Walk the PD/PT tree to the next analde.
  */
 static void amdgpu_vm_pt_next(struct amdgpu_device *adev,
 			      struct amdgpu_vm_pt_cursor *cursor)
@@ -280,7 +280,7 @@ static void amdgpu_vm_pt_next(struct amdgpu_device *adev,
 
 	/* If that didn't worked try to find a sibling */
 	while (!amdgpu_vm_pt_sibling(adev, cursor)) {
-		/* No sibling, go to our parents and grandparents */
+		/* Anal sibling, go to our parents and grandparents */
 		if (!amdgpu_vm_pt_ancestor(cursor)) {
 			cursor->pfn = ~0ll;
 			return;
@@ -328,12 +328,12 @@ static bool amdgpu_vm_pt_continue_dfs(struct amdgpu_vm_pt_cursor *start,
 }
 
 /**
- * amdgpu_vm_pt_next_dfs - get the next node for a deep first search
+ * amdgpu_vm_pt_next_dfs - get the next analde for a deep first search
  *
  * @adev: amdgpu_device structure
  * @cursor: current state
  *
- * Move the cursor to the next node in a deep first search.
+ * Move the cursor to the next analde in a deep first search.
  */
 static void amdgpu_vm_pt_next_dfs(struct amdgpu_device *adev,
 				  struct amdgpu_vm_pt_cursor *cursor)
@@ -370,7 +370,7 @@ static void amdgpu_vm_pt_next_dfs(struct amdgpu_device *adev,
  * Root PD needs to be reserved when calling this.
  *
  * Returns:
- * 0 on success, errno otherwise.
+ * 0 on success, erranal otherwise.
  */
 int amdgpu_vm_pt_clear(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 		       struct amdgpu_bo_vm *vmbo, bool immediate)
@@ -429,7 +429,7 @@ int amdgpu_vm_pt_clear(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 	}
 
 	if (!drm_dev_enter(adev_to_drm(adev), &idx))
-		return -ENODEV;
+		return -EANALDEV;
 
 	r = vm->update_funcs->map_table(vmbo);
 	if (r)
@@ -535,7 +535,7 @@ int amdgpu_vm_pt_create(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 		bp.flags |= AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED;
 
 	bp.type = ttm_bo_type_kernel;
-	bp.no_wait_gpu = immediate;
+	bp.anal_wait_gpu = immediate;
 	bp.xcp_id_plus1 = xcp_id + 1;
 
 	if (vm->root.bo)
@@ -591,7 +591,7 @@ int amdgpu_vm_pt_create(struct amdgpu_device *adev, struct amdgpu_vm *vm,
  *
  * Returns:
  * 1 if page table needed to be allocated, 0 if page table was already
- * allocated, negative errno if an error occurred.
+ * allocated, negative erranal if an error occurred.
  */
 static int amdgpu_vm_pt_alloc(struct amdgpu_device *adev,
 			      struct amdgpu_vm *vm,
@@ -734,7 +734,7 @@ void amdgpu_vm_pt_free_root(struct amdgpu_device *adev, struct amdgpu_vm *vm)
  * @vm: the VM to check
  *
  * Check all entries of the root PD, if any subsequent PDs are allocated,
- * it means there are page table creating and filling, and is no a clean
+ * it means there are page table creating and filling, and is anal a clean
  * VM
  *
  * Returns:
@@ -782,23 +782,23 @@ int amdgpu_vm_pde_update(struct amdgpu_vm_update_params *params,
 }
 
 /**
- * amdgpu_vm_pte_update_noretry_flags - Update PTE no-retry flags
+ * amdgpu_vm_pte_update_analretry_flags - Update PTE anal-retry flags
  *
  * @adev: amdgpu_device pointer
  * @flags: pointer to PTE flags
  *
- * Update PTE no-retry flags when TF is enabled.
+ * Update PTE anal-retry flags when TF is enabled.
  */
-static void amdgpu_vm_pte_update_noretry_flags(struct amdgpu_device *adev,
+static void amdgpu_vm_pte_update_analretry_flags(struct amdgpu_device *adev,
 						uint64_t *flags)
 {
 	/*
-	 * Update no-retry flags with the corresponding TF
-	 * no-retry combination.
+	 * Update anal-retry flags with the corresponding TF
+	 * anal-retry combination.
 	 */
-	if ((*flags & AMDGPU_VM_NORETRY_FLAGS) == AMDGPU_VM_NORETRY_FLAGS) {
-		*flags &= ~AMDGPU_VM_NORETRY_FLAGS;
-		*flags |= adev->gmc.noretry_flags;
+	if ((*flags & AMDGPU_VM_ANALRETRY_FLAGS) == AMDGPU_VM_ANALRETRY_FLAGS) {
+		*flags &= ~AMDGPU_VM_ANALRETRY_FLAGS;
+		*flags |= adev->gmc.analretry_flags;
 	}
 }
 
@@ -829,22 +829,22 @@ static void amdgpu_vm_pte_update_flags(struct amdgpu_vm_update_params *params,
 	}
 
 	/*
-	 * Update no-retry flags to use the no-retry flag combination
-	 * with TF enabled. The AMDGPU_VM_NORETRY_FLAGS flag combination
-	 * does not work when TF is enabled. So, replace them with
-	 * AMDGPU_VM_NORETRY_FLAGS_TF flag combination which works for
+	 * Update anal-retry flags to use the anal-retry flag combination
+	 * with TF enabled. The AMDGPU_VM_ANALRETRY_FLAGS flag combination
+	 * does analt work when TF is enabled. So, replace them with
+	 * AMDGPU_VM_ANALRETRY_FLAGS_TF flag combination which works for
 	 * all cases.
 	 */
 	if (level == AMDGPU_VM_PTB)
-		amdgpu_vm_pte_update_noretry_flags(adev, &flags);
+		amdgpu_vm_pte_update_analretry_flags(adev, &flags);
 
 	/* APUs mapping system memory may need different MTYPEs on different
-	 * NUMA nodes. Only do this for contiguous ranges that can be assumed
-	 * to be on the same NUMA node.
+	 * NUMA analdes. Only do this for contiguous ranges that can be assumed
+	 * to be on the same NUMA analde.
 	 */
 	if ((flags & AMDGPU_PTE_SYSTEM) && (adev->flags & AMD_IS_APU) &&
 	    adev->gmc.gmc_funcs->override_vm_pte_flags &&
-	    num_possible_nodes() > 1 && !params->pages_addr && params->allow_override)
+	    num_possible_analdes() > 1 && !params->pages_addr && params->allow_override)
 		amdgpu_gmc_override_vm_pte_flags(adev, params->vm, addr, &flags);
 
 	params->vm->update_funcs->update(params, pt, pe, addr, count, incr,
@@ -869,7 +869,7 @@ static void amdgpu_vm_pte_fragment(struct amdgpu_vm_update_params *params,
 {
 	/**
 	 * The MC L1 TLB supports variable sized pages, based on a fragment
-	 * field in the PTE. When this field is set to a non-zero value, page
+	 * field in the PTE. When this field is set to a analn-zero value, page
 	 * granularity is increased from 4KB to (1 << (12 + frag)). The PTE
 	 * flags are considered valid for all PTEs within the fragment range
 	 * and corresponding mappings are assumed to be physically contiguous.
@@ -886,7 +886,7 @@ static void amdgpu_vm_pte_fragment(struct amdgpu_vm_update_params *params,
 	 * allocation size to the fragment size.
 	 *
 	 * Starting with Vega10 the fragment size only controls the L1. The L2
-	 * is now directly feed with small/huge/giant pages from the walker.
+	 * is analw directly feed with small/huge/giant pages from the walker.
 	 */
 	unsigned int max_frag;
 
@@ -895,14 +895,14 @@ static void amdgpu_vm_pte_fragment(struct amdgpu_vm_update_params *params,
 	else
 		max_frag = 31;
 
-	/* system pages are non continuously */
+	/* system pages are analn continuously */
 	if (params->pages_addr) {
 		*frag = 0;
 		*frag_end = end;
 		return;
 	}
 
-	/* This intentionally wraps around if no bit is set */
+	/* This intentionally wraps around if anal bit is set */
 	*frag = min_t(unsigned int, ffs(start) - 1, fls64(end - start) - 1);
 	if (*frag >= max_frag) {
 		*frag = max_frag;
@@ -965,10 +965,10 @@ int amdgpu_vm_ptes_update(struct amdgpu_vm_update_params *params,
 				continue;
 		} else if (adev->asic_type < CHIP_VEGA10 &&
 			   (flags & AMDGPU_PTE_VALID)) {
-			/* No huge page support before GMC v9 */
+			/* Anal huge page support before GMC v9 */
 			if (cursor.level != AMDGPU_VM_PTB) {
 				if (!amdgpu_vm_pt_descendant(adev, &cursor))
-					return -ENOENT;
+					return -EANALENT;
 				continue;
 			}
 		} else if (frag < shift) {
@@ -991,7 +991,7 @@ int amdgpu_vm_ptes_update(struct amdgpu_vm_update_params *params,
 		if (!pt) {
 			/* We need all PDs and PTs for mapping something, */
 			if (flags & AMDGPU_PTE_VALID)
-				return -ENOENT;
+				return -EANALENT;
 
 			/* but unmapping something can happen at a higher
 			 * level.
@@ -1050,7 +1050,7 @@ int amdgpu_vm_ptes_update(struct amdgpu_vm_update_params *params,
 			/* Free all child entries.
 			 * Update the tables with the flags and addresses and free up subsequent
 			 * tables in the case of huge pages or freed up areas.
-			 * This is the maximum you can free, because all other page tables are not
+			 * This is the maximum you can free, because all other page tables are analt
 			 * completely covered by the range and so potentially still in use.
 			 */
 			while (cursor.pfn < frag_start) {

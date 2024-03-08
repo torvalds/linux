@@ -8,7 +8,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/skbuff.h>
 #include <linux/firmware.h>
 #include <linux/module.h>
@@ -62,11 +62,11 @@ static int mrvl_open(struct hci_uart *hu)
 	BT_DBG("hu %p", hu);
 
 	if (!hci_uart_has_flow_control(hu))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	mrvl = kzalloc(sizeof(*mrvl), GFP_KERNEL);
 	if (!mrvl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_queue_head_init(&mrvl->txq);
 	skb_queue_head_init(&mrvl->rawq);
@@ -148,7 +148,7 @@ static void mrvl_send_ack(struct hci_uart *hu, unsigned char type)
 	struct mrvl_data *mrvl = hu->priv;
 	struct sk_buff *skb;
 
-	/* No H4 payload, only 1 byte header */
+	/* Anal H4 payload, only 1 byte header */
 	skb = bt_skb_alloc(0, GFP_ATOMIC);
 	if (!skb) {
 		bt_dev_err(hu->hdev, "Unable to alloc ack/nak packet");
@@ -256,8 +256,8 @@ static int mrvl_recv(struct hci_uart *hu, const void *data, int count)
 	if (!test_bit(HCI_UART_REGISTERED, &hu->flags))
 		return -EUNATCH;
 
-	/* We might receive some noise when there is no firmware loaded. Therefore,
-	 * we drop data if the firmware is not loaded yet and if there is no fw load
+	/* We might receive some analise when there is anal firmware loaded. Therefore,
+	 * we drop data if the firmware is analt loaded yet and if there is anal fw load
 	 * request pending.
 	 */
 	if (!test_bit(STATE_FW_REQ_PENDING, &mrvl->flags) &&
@@ -343,7 +343,7 @@ static int mrvl_load_firmware(struct hci_dev *hdev, const char *name)
 		skb = bt_skb_alloc(mrvl->tx_len, GFP_KERNEL);
 		if (!skb) {
 			bt_dev_err(hdev, "Failed to alloc mem for FW packet");
-			err = -ENOMEM;
+			err = -EANALMEM;
 			break;
 		}
 		bt_cb(skb)->pkt_type = MRVL_RAW_DATA;
@@ -400,7 +400,7 @@ static int mrvl_set_baudrate(struct hci_uart *hu, unsigned int speed)
 	__le32 speed_le = cpu_to_le32(speed);
 
 	/* The firmware might be loaded by the Wifi driver over SDIO. We wait
-	 * up to 10s for the CTS to go up. Afterward, we know that the firmware
+	 * up to 10s for the CTS to go up. Afterward, we kanalw that the firmware
 	 * is ready.
 	 */
 	err = serdev_device_wait_for_cts(hu->serdev, true, 10000);
@@ -466,11 +466,11 @@ static int mrvl_serdev_probe(struct serdev_device *serdev)
 
 	mrvldev = devm_kzalloc(&serdev->dev, sizeof(*mrvldev), GFP_KERNEL);
 	if (!mrvldev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mrvldev->hu.oper_speed = mrvl_proto->oper_speed;
 	if (mrvl_proto->set_baudrate)
-		of_property_read_u32(serdev->dev.of_node, "max-speed", &mrvldev->hu.oper_speed);
+		of_property_read_u32(serdev->dev.of_analde, "max-speed", &mrvldev->hu.oper_speed);
 
 	mrvldev->hu.serdev = serdev;
 	serdev_device_set_drvdata(serdev, mrvldev);

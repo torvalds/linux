@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPI_LINUX_KD_H
 #define _UAPI_LINUX_KD_H
 #include <linux/types.h>
@@ -26,7 +26,7 @@ struct consolefontdesc {
 #define KDMKTONE	0x4B30	/* generate tone */
 
 #define KDGETLED	0x4B31	/* return current led state */
-#define KDSETLED	0x4B32	/* set led state [lights, not flags] */
+#define KDSETLED	0x4B32	/* set led state [lights, analt flags] */
 #define 	LED_SCR		0x01	/* scroll lock led */
 #define 	LED_NUM		0x02	/* num lock led */
 #define 	LED_CAP		0x04	/* caps lock led */
@@ -70,9 +70,9 @@ struct unimapdesc {
 #define PIO_UNIMAP	0x4B67	/* put unicode-to-font mapping in kernel */
 #define PIO_UNIMAPCLR	0x4B68	/* clear table, possibly advise hash algorithm */
 struct unimapinit {
-	unsigned short advised_hashsize;  /* 0 if no opinion */
-	unsigned short advised_hashstep;  /* 0 if no opinion */
-	unsigned short advised_hashlevel; /* 0 if no opinion */
+	unsigned short advised_hashsize;  /* 0 if anal opinion */
+	unsigned short advised_hashstep;  /* 0 if anal opinion */
+	unsigned short advised_hashlevel; /* 0 if anal opinion */
 };
 
 #define UNI_DIRECT_BASE 0xF000	/* start of Direct Font Region */
@@ -94,15 +94,15 @@ struct unimapinit {
 #define		K_SCROLLLOCK	0x01
 #define		K_NUMLOCK	0x02
 #define		K_CAPSLOCK	0x04
-#define	KDGKBLED	0x4B64	/* get led flags (not lights) */
-#define	KDSKBLED	0x4B65	/* set led flags (not lights) */
+#define	KDGKBLED	0x4B64	/* get led flags (analt lights) */
+#define	KDSKBLED	0x4B65	/* set led flags (analt lights) */
 
 struct kbentry {
 	unsigned char kb_table;
 	unsigned char kb_index;
 	unsigned short kb_value;
 };
-#define		K_NORMTAB	0x00
+#define		K_ANALRMTAB	0x00
 #define		K_SHIFTTAB	0x01
 #define		K_ALTTAB	0x02
 #define		K_ALTSHIFTTAB	0x03
@@ -177,14 +177,14 @@ struct console_font {
 #define KD_FONT_OP_SET		0	/* Set font */
 #define KD_FONT_OP_GET		1	/* Get font */
 #define KD_FONT_OP_SET_DEFAULT	2	/* Set font to default, data points to name / NULL */
-#define KD_FONT_OP_COPY		3	/* Obsolete, do not use */
+#define KD_FONT_OP_COPY		3	/* Obsolete, do analt use */
 #define KD_FONT_OP_SET_TALL	4	/* Set font with vpitch = height */
 #define KD_FONT_OP_GET_TALL	5	/* Get font with vpitch = height */
 
 #define KD_FONT_FLAG_DONT_RECALC 	1	/* Don't recalculate hw charcell size [compat] */
 
-/* note: 0x4B00-0x4B4E all have had a value at some time;
+/* analte: 0x4B00-0x4B4E all have had a value at some time;
    don't reuse for the time being */
-/* note: 0x4B60-0x4B6D, 0x4B70-0x4B72 used above */
+/* analte: 0x4B60-0x4B6D, 0x4B70-0x4B72 used above */
 
 #endif /* _UAPI_LINUX_KD_H */

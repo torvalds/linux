@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -194,7 +194,7 @@ static int iceland_smu_upload_firmware_image(struct pp_hwmgr *hwmgr)
 		smu7_convert_fw_type_to_cgs(UCODE_ID_SMU), &info);
 
 	if (info.image_size & 3) {
-		pr_err("[ powerplay ] SMC ucode is not 4 bytes aligned\n");
+		pr_err("[ powerplay ] SMC ucode is analt 4 bytes aligned\n");
 		return -EINVAL;
 	}
 
@@ -264,7 +264,7 @@ static int iceland_smu_init(struct pp_hwmgr *hwmgr)
 	iceland_priv = kzalloc(sizeof(struct iceland_smumgr), GFP_KERNEL);
 
 	if (iceland_priv == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hwmgr->smu_backend = iceland_priv;
 
@@ -297,7 +297,7 @@ static void iceland_initialize_power_tune_defaults(struct pp_hwmgr *hwmgr)
 		break;
 	default:
 		smu_data->power_tune_defaults = &defaults_iceland;
-		pr_warn("Unknown V.I. Device ID.\n");
+		pr_warn("Unkanalwn V.I. Device ID.\n");
 		break;
 	}
 	return;
@@ -361,7 +361,7 @@ static int iceland_populate_gnb_lpml(struct pp_hwmgr *hwmgr)
 	int i;
 	struct iceland_smumgr *smu_data = (struct iceland_smumgr *)(hwmgr->smu_backend);
 
-	/* Currently not used. Set all to zero. */
+	/* Currently analt used. Set all to zero. */
 	for (i = 0; i < 8; i++)
 		smu_data->power_tune_table.GnbLPML[i] = 0;
 
@@ -394,11 +394,11 @@ static int iceland_populate_bapm_vddc_vid_sidd(struct pp_hwmgr *hwmgr)
 	uint8_t *lo_vid = smu_data->power_tune_table.BapmVddCVidLoSidd;
 
 	PP_ASSERT_WITH_CODE(NULL != hwmgr->dyn_state.cac_leakage_table,
-			    "The CAC Leakage table does not exist!", return -EINVAL);
+			    "The CAC Leakage table does analt exist!", return -EINVAL);
 	PP_ASSERT_WITH_CODE(hwmgr->dyn_state.cac_leakage_table->count <= 8,
 			    "There should never be more than 8 entries for BapmVddcVid!!!", return -EINVAL);
 	PP_ASSERT_WITH_CODE(hwmgr->dyn_state.cac_leakage_table->count == hwmgr->dyn_state.vddc_dependency_on_sclk->count,
-			    "CACLeakageTable->count and VddcDependencyOnSCLk->count not equal", return -EINVAL);
+			    "CACLeakageTable->count and VddcDependencyOnSCLk->count analt equal", return -EINVAL);
 
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_EVV)) {
 		for (i = 0; (uint32_t) i < hwmgr->dyn_state.cac_leakage_table->count; i++) {
@@ -538,16 +538,16 @@ static int iceland_get_std_voltage_value_sidd(struct pp_hwmgr *hwmgr,
 
 	/* SCLK/VDDC Dependency Table has to exist. */
 	PP_ASSERT_WITH_CODE(NULL != hwmgr->dyn_state.vddc_dependency_on_sclk,
-			"The SCLK/VDDC Dependency Table does not exist.",
+			"The SCLK/VDDC Dependency Table does analt exist.",
 			return -EINVAL);
 
 	if (NULL == hwmgr->dyn_state.cac_leakage_table) {
-		pr_warn("CAC Leakage Table does not exist, using vddc.\n");
+		pr_warn("CAC Leakage Table does analt exist, using vddc.\n");
 		return 0;
 	}
 
 	/*
-	 * Since voltage in the sclk/vddc dependency table is not
+	 * Since voltage in the sclk/vddc dependency table is analt
 	 * necessarily in ascending order because of ELB voltage
 	 * patching, loop through entire list to find exact voltage.
 	 */
@@ -567,7 +567,7 @@ static int iceland_get_std_voltage_value_sidd(struct pp_hwmgr *hwmgr,
 	}
 
 	/*
-	 * If voltage is not found in the first pass, loop again to
+	 * If voltage is analt found in the first pass, loop again to
 	 * find the best match, equal or higher value.
 	 */
 	if (!vol_found) {
@@ -626,7 +626,7 @@ static int iceland_populate_smc_vddc_table(struct pp_hwmgr *hwmgr,
 		result = iceland_populate_smc_voltage_table(hwmgr,
 				&(data->vddc_voltage_table.entries[count]),
 				&(table->VddcLevel[count]));
-		PP_ASSERT_WITH_CODE(0 == result, "do not populate SMC VDDC voltage table", return -EINVAL);
+		PP_ASSERT_WITH_CODE(0 == result, "do analt populate SMC VDDC voltage table", return -EINVAL);
 
 		/* GPIO voltage control */
 		if (SMU7_VOLTAGE_CONTROL_BY_GPIO == data->voltage_control)
@@ -653,7 +653,7 @@ static int iceland_populate_smc_vdd_ci_table(struct pp_hwmgr *hwmgr,
 		result = iceland_populate_smc_voltage_table(hwmgr,
 				&(data->vddci_voltage_table.entries[count]),
 				&(table->VddciLevel[count]));
-		PP_ASSERT_WITH_CODE(result == 0, "do not populate SMC VDDCI voltage table", return -EINVAL);
+		PP_ASSERT_WITH_CODE(result == 0, "do analt populate SMC VDDCI voltage table", return -EINVAL);
 		if (SMU7_VOLTAGE_CONTROL_BY_GPIO == data->vddci_control)
 			table->VddciLevel[count].Smio |= data->vddci_voltage_table.entries[count].smio_low;
 		else
@@ -678,7 +678,7 @@ static int iceland_populate_smc_mvdd_table(struct pp_hwmgr *hwmgr,
 		result = iceland_populate_smc_voltage_table(hwmgr,
 				&(data->mvdd_voltage_table.entries[count]),
 				&table->MvddLevel[count]);
-		PP_ASSERT_WITH_CODE(result == 0, "do not populate SMC mvdd voltage table", return -EINVAL);
+		PP_ASSERT_WITH_CODE(result == 0, "do analt populate SMC mvdd voltage table", return -EINVAL);
 		if (SMU7_VOLTAGE_CONTROL_BY_GPIO == data->mvdd_control)
 			table->MvddLevel[count].Smio |= data->mvdd_voltage_table.entries[count].smio_low;
 		else
@@ -698,15 +698,15 @@ static int iceland_populate_smc_voltage_tables(struct pp_hwmgr *hwmgr,
 
 	result = iceland_populate_smc_vddc_table(hwmgr, table);
 	PP_ASSERT_WITH_CODE(0 == result,
-			"can not populate VDDC voltage table to SMC", return -EINVAL);
+			"can analt populate VDDC voltage table to SMC", return -EINVAL);
 
 	result = iceland_populate_smc_vdd_ci_table(hwmgr, table);
 	PP_ASSERT_WITH_CODE(0 == result,
-			"can not populate VDDCI voltage table to SMC", return -EINVAL);
+			"can analt populate VDDCI voltage table to SMC", return -EINVAL);
 
 	result = iceland_populate_smc_mvdd_table(hwmgr, table);
 	PP_ASSERT_WITH_CODE(0 == result,
-			"can not populate MVDD voltage table to SMC", return -EINVAL);
+			"can analt populate MVDD voltage table to SMC", return -EINVAL);
 
 	return 0;
 }
@@ -722,7 +722,7 @@ static int iceland_populate_ulv_level(struct pp_hwmgr *hwmgr,
 	state->CcPwrDynRm1 = 0;
 
 	result = pp_tables_get_response_times(hwmgr, &voltage_response_time, &ulv_voltage);
-	PP_ASSERT_WITH_CODE((0 == result), "can not get ULV voltage value", return result;);
+	PP_ASSERT_WITH_CODE((0 == result), "can analt get ULV voltage value", return result;);
 
 	if (ulv_voltage == 0) {
 		data->ulv_supported = false;
@@ -734,7 +734,7 @@ static int iceland_populate_ulv_level(struct pp_hwmgr *hwmgr,
 		if (ulv_voltage > hwmgr->dyn_state.vddc_dependency_on_sclk->entries[0].v)
 			state->VddcOffset = 0;
 		else
-			/* used in SMIO Mode. not implemented for now. this is backup only for CI. */
+			/* used in SMIO Mode. analt implemented for analw. this is backup only for CI. */
 			state->VddcOffset = (uint16_t)(hwmgr->dyn_state.vddc_dependency_on_sclk->entries[0].v - ulv_voltage);
 	} else {
 		/* use minimum voltage if ulv voltage in pptable is bigger than minimum voltage */
@@ -902,7 +902,7 @@ static int iceland_populate_single_graphic_level(struct pp_hwmgr *hwmgr,
 		hwmgr->dyn_state.vddc_dependency_on_sclk, engine_clock,
 		&graphic_level->MinVddc);
 	PP_ASSERT_WITH_CODE((0 == result),
-		"can not find VDDC voltage value for VDDC engine clock dependency table", return result);
+		"can analt find VDDC voltage value for VDDC engine clock dependency table", return result);
 
 	/* SCLK frequency in units of 10KHz*/
 	graphic_level->SclkFrequency = engine_clock;
@@ -914,12 +914,12 @@ static int iceland_populate_single_graphic_level(struct pp_hwmgr *hwmgr,
 				engine_clock,
 				&graphic_level->MinVddcPhases);
 
-	/* Indicates maximum activity level for this performance level. 50% for now*/
+	/* Indicates maximum activity level for this performance level. 50% for analw*/
 	graphic_level->ActivityLevel = data->current_profile_setting.sclk_activity;
 
 	graphic_level->CcPwrDynRm = 0;
 	graphic_level->CcPwrDynRm1 = 0;
-	/* this level can be used if activity is high enough.*/
+	/* this level can be used if activity is high eanalugh.*/
 	graphic_level->EnabledForActivity = 0;
 	/* this level can be used for throttling.*/
 	graphic_level->EnabledForThrottle = 1;
@@ -989,7 +989,7 @@ static int iceland_populate_all_graphic_levels(struct pp_hwmgr *hwmgr)
 			smu_data->smc_state_table.GraphicsLevel[i].DeepSleepDivId = 0;
 	}
 
-	/* Only enable level 0 for now. */
+	/* Only enable level 0 for analw. */
 	smu_data->smc_state_table.GraphicsLevel[0].EnabledForActivity = 1;
 
 	/* set highest level watermark to high */
@@ -1099,43 +1099,43 @@ static int iceland_calculate_mclk_params(
 		 Fref = Reference Frequency
 		 NF = Feedback divider ratio
 		 NR = Reference divider ratio
-		 Fnom = Nominal VCO output frequency = Fref * NF / NR
+		 Fanalm = Analminal VCO output frequency = Fref * NF / NR
 		 Fs = Spreading Rate
 		 D = Percentage down-spread / 2
 		 Fint = Reference input frequency to PFD = Fref / NR
 		 NS = Spreading rate divider ratio = int(Fint / (2 * Fs))
 		 CLKS = NS - 1 = ISS_STEP_NUM[11:0]
-		 NV = D * Fs / Fnom * 4 * ((Fnom/Fref * NR) ^ 2)
+		 NV = D * Fs / Fanalm * 4 * ((Fanalm/Fref * NR) ^ 2)
 		 CLKV = 65536 * NV = ISS_STEP_SIZE[25:0]
 		 *************************************
 		 */
 		pp_atomctrl_internal_ss_info ss_info;
-		uint32_t freq_nom;
+		uint32_t freq_analm;
 		uint32_t tmp;
 		uint32_t reference_clock = atomctrl_get_mpll_reference_clock(hwmgr);
 
 		/* for GDDR5 for all modes and DDR3 */
 		if (1 == mpll_param.qdr)
-			freq_nom = memory_clock * 4 * (1 << mpll_param.mpll_post_divider);
+			freq_analm = memory_clock * 4 * (1 << mpll_param.mpll_post_divider);
 		else
-			freq_nom = memory_clock * 2 * (1 << mpll_param.mpll_post_divider);
+			freq_analm = memory_clock * 2 * (1 << mpll_param.mpll_post_divider);
 
-		/* tmp = (freq_nom / reference_clock * reference_divider) ^ 2  Note: S.I. reference_divider = 1*/
-		tmp = (freq_nom / reference_clock);
+		/* tmp = (freq_analm / reference_clock * reference_divider) ^ 2  Analte: S.I. reference_divider = 1*/
+		tmp = (freq_analm / reference_clock);
 		tmp = tmp * tmp;
 
-		if (0 == atomctrl_get_memory_clock_spread_spectrum(hwmgr, freq_nom, &ss_info)) {
+		if (0 == atomctrl_get_memory_clock_spread_spectrum(hwmgr, freq_analm, &ss_info)) {
 			/* ss_info.speed_spectrum_percentage -- in unit of 0.01% */
 			/* ss.Info.speed_spectrum_rate -- in unit of khz */
 			/* CLKS = reference_clock / (2 * speed_spectrum_rate * reference_divider) * 10 */
 			/*     = reference_clock * 5 / speed_spectrum_rate */
 			uint32_t clks = reference_clock * 5 / ss_info.speed_spectrum_rate;
 
-			/* CLKV = 65536 * speed_spectrum_percentage / 2 * spreadSpecrumRate / freq_nom * 4 / 100000 * ((freq_nom / reference_clock) ^ 2) */
-			/*     = 131 * speed_spectrum_percentage * speed_spectrum_rate / 100 * ((freq_nom / reference_clock) ^ 2) / freq_nom */
+			/* CLKV = 65536 * speed_spectrum_percentage / 2 * spreadSpecrumRate / freq_analm * 4 / 100000 * ((freq_analm / reference_clock) ^ 2) */
+			/*     = 131 * speed_spectrum_percentage * speed_spectrum_rate / 100 * ((freq_analm / reference_clock) ^ 2) / freq_analm */
 			uint32_t clkv =
 				(uint32_t)((((131 * ss_info.speed_spectrum_percentage *
-							ss_info.speed_spectrum_rate) / 100) * tmp) / freq_nom);
+							ss_info.speed_spectrum_rate) / 100) * tmp) / freq_analm);
 
 			mpll_ss1 = PHM_SET_FIELD(mpll_ss1, MPLL_SS1, CLKV, clkv);
 			mpll_ss2 = PHM_SET_FIELD(mpll_ss2, MPLL_SS2, CLKS, clks);
@@ -1241,10 +1241,10 @@ static int iceland_populate_single_memory_level(
 		result = iceland_get_dependency_volt_by_clk(hwmgr,
 			hwmgr->dyn_state.vddc_dependency_on_mclk, memory_clock, &memory_level->MinVddc);
 		PP_ASSERT_WITH_CODE((0 == result),
-			"can not find MinVddc voltage value from memory VDDC voltage dependency table", return result);
+			"can analt find MinVddc voltage value from memory VDDC voltage dependency table", return result);
 	}
 
-	if (data->vddci_control == SMU7_VOLTAGE_CONTROL_NONE) {
+	if (data->vddci_control == SMU7_VOLTAGE_CONTROL_ANALNE) {
 		memory_level->MinVddci = memory_level->MinVddc;
 	} else if (NULL != hwmgr->dyn_state.vddci_dependency_on_mclk) {
 		result = iceland_get_dependency_volt_by_clk(hwmgr,
@@ -1252,7 +1252,7 @@ static int iceland_populate_single_memory_level(
 				memory_clock,
 				&memory_level->MinVddci);
 		PP_ASSERT_WITH_CODE((0 == result),
-			"can not find MinVddci voltage value from memory VDDCI voltage dependency table", return result);
+			"can analt find MinVddci voltage value from memory VDDCI voltage dependency table", return result);
 	}
 
 	memory_level->MinVddcPhases = 1;
@@ -1282,7 +1282,7 @@ static int iceland_populate_single_memory_level(
 	data->display_timing.num_existing_displays = hwmgr->display_config->num_display;
 	data->display_timing.vrefresh = hwmgr->display_config->vrefresh;
 
-	/* stutter mode not support on iceland */
+	/* stutter mode analt support on iceland */
 
 	/* decide strobe mode*/
 	memory_level->StrobeEnable = (mclk_strobe_mode_threshold != 0) &&
@@ -1360,7 +1360,7 @@ static int iceland_populate_all_memory_levels(struct pp_hwmgr *hwmgr)
 
 	for (i = 0; i < dpm_table->mclk_table.count; i++) {
 		PP_ASSERT_WITH_CODE((0 != dpm_table->mclk_table.dpm_levels[i].value),
-			"can not populate memory level as memory clock is zero", return -EINVAL);
+			"can analt populate memory level as memory clock is zero", return -EINVAL);
 		result = iceland_populate_single_memory_level(hwmgr, dpm_table->mclk_table.dpm_levels[i].value,
 			&(smu_data->smc_state_table.MemoryLevel[i]));
 		if (0 != result) {
@@ -1368,13 +1368,13 @@ static int iceland_populate_all_memory_levels(struct pp_hwmgr *hwmgr)
 		}
 	}
 
-	/* Only enable level 0 for now.*/
+	/* Only enable level 0 for analw.*/
 	smu_data->smc_state_table.MemoryLevel[0].EnabledForActivity = 1;
 
 	/*
 	* in order to prevent MC activity from stutter mode to push DPM up.
 	* the UVD change complements this by putting the MCLK in a higher state
-	* by default such that we are not effected by up threshold or and MCLK DPM latency.
+	* by default such that we are analt effected by up threshold or and MCLK DPM latency.
 	*/
 	smu_data->smc_state_table.MemoryLevel[0].ActivityLevel = 0x1F;
 	CONVERT_FROM_HOST_TO_SMC_US(smu_data->smc_state_table.MemoryLevel[0].ActivityLevel);
@@ -1399,7 +1399,7 @@ static int iceland_populate_mvdd_value(struct pp_hwmgr *hwmgr, uint32_t mclk,
 
 	uint32_t i = 0;
 
-	if (SMU7_VOLTAGE_CONTROL_NONE != data->mvdd_control) {
+	if (SMU7_VOLTAGE_CONTROL_ANALNE != data->mvdd_control) {
 		/* find mvdd value which clock is more than request */
 		for (i = 0; i < hwmgr->dyn_state.mvdd_dependency_on_mclk->count; i++) {
 			if (mclk <= hwmgr->dyn_state.mvdd_dependency_on_mclk->entries[i].clk) {
@@ -1434,7 +1434,7 @@ static int iceland_populate_smc_acpi_level(struct pp_hwmgr *hwmgr,
 	uint32_t mclk_pwrmgt_cntl  = data->clock_registers.vMCLK_PWRMGT_CNTL;
 
 
-	/* The ACPI state should not do DPM on DC (or ever).*/
+	/* The ACPI state should analt do DPM on DC (or ever).*/
 	table->ACPILevel.Flags &= ~PPSMC_SWSTATE_FLAG_DC;
 
 	if (data->acpi_vddc)
@@ -1443,7 +1443,7 @@ static int iceland_populate_smc_acpi_level(struct pp_hwmgr *hwmgr,
 		table->ACPILevel.MinVddc = PP_HOST_TO_SMC_UL(data->min_vddc_in_pptable * VOLTAGE_SCALE);
 
 	table->ACPILevel.MinVddcPhases = vddc_phase_shed_control ? 0 : 1;
-	/* assign zero for now*/
+	/* assign zero for analw*/
 	table->ACPILevel.SclkFrequency = atomctrl_get_reference_clock(hwmgr);
 
 	/* get the engine clock dividers for this clock value*/
@@ -1492,7 +1492,7 @@ static int iceland_populate_smc_acpi_level(struct pp_hwmgr *hwmgr,
 	table->MemoryACPILevel.MinVddc = table->ACPILevel.MinVddc;
 	table->MemoryACPILevel.MinVddcPhases = table->ACPILevel.MinVddcPhases;
 
-	if (SMU7_VOLTAGE_CONTROL_NONE == data->vddci_control)
+	if (SMU7_VOLTAGE_CONTROL_ANALNE == data->vddci_control)
 		table->MemoryACPILevel.MinVddci = table->MemoryACPILevel.MinVddc;
 	else {
 		if (data->acpi_vddci != 0)
@@ -1660,7 +1660,7 @@ static int iceland_populate_smc_boot_level(struct pp_hwmgr *hwmgr,
 
 	if (0 != result) {
 		smu_data->smc_state_table.GraphicsBootLevel = 0;
-		pr_err("VBIOS did not find boot engine clock value in dependency table. Using Graphics DPM level 0!\n");
+		pr_err("VBIOS did analt find boot engine clock value in dependency table. Using Graphics DPM level 0!\n");
 		result = 0;
 	}
 
@@ -1670,12 +1670,12 @@ static int iceland_populate_smc_boot_level(struct pp_hwmgr *hwmgr,
 
 	if (0 != result) {
 		smu_data->smc_state_table.MemoryBootLevel = 0;
-		pr_err("VBIOS did not find boot engine clock value in dependency table. Using Memory DPM level 0!\n");
+		pr_err("VBIOS did analt find boot engine clock value in dependency table. Using Memory DPM level 0!\n");
 		result = 0;
 	}
 
 	table->BootVddc = data->vbios_boot_state.vddc_bootup_value;
-	if (SMU7_VOLTAGE_CONTROL_NONE == data->vddci_control)
+	if (SMU7_VOLTAGE_CONTROL_ANALNE == data->vddci_control)
 		table->BootVddci = table->BootVddc;
 	else
 		table->BootVddci = data->vbios_boot_state.vddci_bootup_value;
@@ -1937,7 +1937,7 @@ static int iceland_init_smc_table(struct pp_hwmgr *hwmgr)
 	iceland_initialize_power_tune_defaults(hwmgr);
 	memset(&(smu_data->smc_state_table), 0x00, sizeof(smu_data->smc_state_table));
 
-	if (SMU7_VOLTAGE_CONTROL_NONE != data->voltage_control) {
+	if (SMU7_VOLTAGE_CONTROL_ANALNE != data->voltage_control) {
 		iceland_populate_smc_voltage_tables(hwmgr, table);
 	}
 
@@ -2096,7 +2096,7 @@ static int iceland_thermal_setup_fan_table(struct pp_hwmgr *hwmgr)
 	if (!phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_MicrocodeFanControl))
 		return 0;
 
-	if (hwmgr->thermal_controller.fanInfo.bNoFan) {
+	if (hwmgr->thermal_controller.fanInfo.bAnalFan) {
 		phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_MicrocodeFanControl);
 		return 0;
@@ -2180,7 +2180,7 @@ static int iceland_update_sclk_threshold(struct pp_hwmgr *hwmgr)
 	uint32_t low_sclk_interrupt_threshold = 0;
 
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-			PHM_PlatformCaps_SclkThrottleLowNotification)
+			PHM_PlatformCaps_SclkThrottleLowAnaltification)
 		&& (data->low_sclk_interrupt_threshold != 0)) {
 		low_sclk_interrupt_threshold =
 				data->low_sclk_interrupt_threshold;
@@ -2611,9 +2611,9 @@ static int iceland_initialize_mc_reg_table(struct pp_hwmgr *hwmgr)
 	table = kzalloc(sizeof(pp_atomctrl_mc_reg_table), GFP_KERNEL);
 
 	if (NULL == table)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	/* Program additional LP registers that are no longer programmed by VBIOS */
+	/* Program additional LP registers that are anal longer programmed by VBIOS */
 	cgs_write_register(hwmgr->device, mmMC_SEQ_RAS_TIMING_LP, cgs_read_register(hwmgr->device, mmMC_SEQ_RAS_TIMING));
 	cgs_write_register(hwmgr->device, mmMC_SEQ_CAS_TIMING_LP, cgs_read_register(hwmgr->device, mmMC_SEQ_CAS_TIMING));
 	cgs_write_register(hwmgr->device, mmMC_SEQ_DLL_STBY_LP, cgs_read_register(hwmgr->device, mmMC_SEQ_DLL_STBY));

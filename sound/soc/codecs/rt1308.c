@@ -346,7 +346,7 @@ static const struct snd_kcontrol_new rt1308_sto_dac_r =
 
 static const struct snd_soc_dapm_widget rt1308_dapm_widgets[] = {
 	/* Audio Interface */
-	SND_SOC_DAPM_AIF_IN("AIF1RX", "AIF1 Playback", 0, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("AIF1RX", "AIF1 Playback", 0, SND_SOC_ANALPM, 0, 0),
 
 	/* Supply Widgets */
 	SND_SOC_DAPM_SUPPLY("MBIAS20U", RT1308_POWER,
@@ -387,12 +387,12 @@ static const struct snd_soc_dapm_widget rt1308_dapm_widgets[] = {
 	/* Digital Interface */
 	SND_SOC_DAPM_SUPPLY("DAC Power", RT1308_POWER,
 		RT1308_POW_DAC1_BIT, 0, NULL, 0),
-	SND_SOC_DAPM_DAC("DAC", NULL, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_SWITCH("DAC L", SND_SOC_NOPM, 0, 0, &rt1308_sto_dac_l),
-	SND_SOC_DAPM_SWITCH("DAC R", SND_SOC_NOPM, 0, 0, &rt1308_sto_dac_r),
+	SND_SOC_DAPM_DAC("DAC", NULL, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_SWITCH("DAC L", SND_SOC_ANALPM, 0, 0, &rt1308_sto_dac_l),
+	SND_SOC_DAPM_SWITCH("DAC R", SND_SOC_ANALPM, 0, 0, &rt1308_sto_dac_r),
 
 	/* Output Lines */
-	SND_SOC_DAPM_PGA_E("CLASS D", SND_SOC_NOPM, 0, 0, NULL, 0,
+	SND_SOC_DAPM_PGA_E("CLASS D", SND_SOC_ANALPM, 0, 0, NULL, 0,
 		rt1308_classd_event,
 		SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMU),
 	SND_SOC_DAPM_OUTPUT("SPOL"),
@@ -656,7 +656,7 @@ static int rt1308_set_component_pll(struct snd_soc_component *component,
 		freq_in = 25000000;
 		break;
 	default:
-		dev_err(component->dev, "Unknown PLL Source %d\n", source);
+		dev_err(component->dev, "Unkanalwn PLL Source %d\n", source);
 		return -EINVAL;
 	}
 
@@ -820,7 +820,7 @@ static int rt1308_i2c_probe(struct i2c_client *i2c)
 	rt1308 = devm_kzalloc(&i2c->dev, sizeof(struct rt1308_priv),
 				GFP_KERNEL);
 	if (rt1308 == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(i2c, rt1308);
 
@@ -833,11 +833,11 @@ static int rt1308_i2c_probe(struct i2c_client *i2c)
 	}
 
 	regmap_read(rt1308->regmap, RT1308_VEN_DEV_ID, &val);
-	/* ignore last byte difference */
+	/* iganalre last byte difference */
 	if ((val & 0xFFFFFF00) != RT1308_DEVICE_ID_NUM) {
 		dev_err(&i2c->dev,
-			"Device with ID register %x is not rt1308\n", val);
-		return -ENODEV;
+			"Device with ID register %x is analt rt1308\n", val);
+		return -EANALDEV;
 	}
 
 	rt1308_efuse(rt1308);

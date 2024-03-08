@@ -94,10 +94,10 @@ static inline int copy_to_sockptr(sockptr_t dst, const void *src, size_t size)
 
 static inline void *memdup_sockptr(sockptr_t src, size_t len)
 {
-	void *p = kmalloc_track_caller(len, GFP_USER | __GFP_NOWARN);
+	void *p = kmalloc_track_caller(len, GFP_USER | __GFP_ANALWARN);
 
 	if (!p)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	if (copy_from_sockptr(p, src, len)) {
 		kfree(p);
 		return ERR_PTR(-EFAULT);
@@ -110,7 +110,7 @@ static inline void *memdup_sockptr_nul(sockptr_t src, size_t len)
 	char *p = kmalloc_track_caller(len + 1, GFP_KERNEL);
 
 	if (!p)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	if (copy_from_sockptr(p, src, len)) {
 		kfree(p);
 		return ERR_PTR(-EFAULT);

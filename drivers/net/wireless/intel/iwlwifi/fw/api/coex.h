@@ -133,19 +133,19 @@ enum iwl_bt_mxbox_dw3 {
 	BT_MBOX(3, UPDATE_REQUEST, 21, 1),
 };
 
-#define BT_MBOX_MSG(_notif, _num, _field)				     \
-	((le32_to_cpu((_notif)->mbox_msg[(_num)]) & BT_MBOX##_num##_##_field)\
+#define BT_MBOX_MSG(_analtif, _num, _field)				     \
+	((le32_to_cpu((_analtif)->mbox_msg[(_num)]) & BT_MBOX##_num##_##_field)\
 	>> BT_MBOX##_num##_##_field##_POS)
 
 #define BT_MBOX_PRINT(_num, _field, _end)				    \
 			pos += scnprintf(buf + pos, bufsz - pos,	    \
 					 "\t%s: %d%s",			    \
 					 #_field,			    \
-					 BT_MBOX_MSG(notif, _num, _field),  \
+					 BT_MBOX_MSG(analtif, _num, _field),  \
 					 true ? "\n" : ", ")
 enum iwl_bt_activity_grading {
 	BT_OFF			= 0,
-	BT_ON_NO_CONNECTION	= 1,
+	BT_ON_ANAL_CONNECTION	= 1,
 	BT_LOW_TRAFFIC		= 2,
 	BT_HIGH_TRAFFIC		= 3,
 	BT_VERY_HIGH_TRAFFIC	= 4,
@@ -154,14 +154,14 @@ enum iwl_bt_activity_grading {
 }; /* BT_COEX_BT_ACTIVITY_GRADING_API_E_VER_1 */
 
 enum iwl_bt_ci_compliance {
-	BT_CI_COMPLIANCE_NONE		= 0,
+	BT_CI_COMPLIANCE_ANALNE		= 0,
 	BT_CI_COMPLIANCE_PRIMARY	= 1,
 	BT_CI_COMPLIANCE_SECONDARY	= 2,
 	BT_CI_COMPLIANCE_BOTH		= 3,
 }; /* BT_COEX_CI_COMPLIENCE_E_VER_1 */
 
 /**
- * struct iwl_bt_coex_profile_notif - notification about BT coex
+ * struct iwl_bt_coex_profile_analtif - analtification about BT coex
  * @mbox_msg: message from BT to WiFi
  * @msg_idx: the index of the message
  * @bt_ci_compliance: enum %iwl_bt_ci_compliance
@@ -172,7 +172,7 @@ enum iwl_bt_ci_compliance {
  * @rrc_status: is RRC enabled - one bit per PHY
  * @reserved: reserved
  */
-struct iwl_bt_coex_profile_notif {
+struct iwl_bt_coex_profile_analtif {
 	__le32 mbox_msg[4];
 	__le32 msg_idx;
 	__le32 bt_ci_compliance;

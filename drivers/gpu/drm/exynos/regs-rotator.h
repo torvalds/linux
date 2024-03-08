@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
-/* drivers/gpu/drm/exynos/regs-rotator.h
+/* drivers/gpu/drm/exyanals/regs-rotator.h
  *
  * Copyright (c) 2012 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com/
@@ -7,8 +7,8 @@
  * Register definition file for Samsung Rotator Interface (Rotator) driver
 */
 
-#ifndef EXYNOS_REGS_ROTATOR_H
-#define EXYNOS_REGS_ROTATOR_H
+#ifndef EXYANALS_REGS_ROTATOR_H
+#define EXYANALS_REGS_ROTATOR_H
 
 /* Configuration */
 #define ROT_CONFIG			0x00
@@ -66,5 +66,5 @@
 /* Maximum limit value */
 #define ROT_MAX(max, mask)		((max) & (mask))
 
-#endif /* EXYNOS_REGS_ROTATOR_H */
+#endif /* EXYANALS_REGS_ROTATOR_H */
 

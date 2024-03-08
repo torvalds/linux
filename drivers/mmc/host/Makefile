@@ -49,7 +49,7 @@ obj-$(CONFIG_MMC_CAVIUM_THUNDERX) += thunderx-mmc.o
 obj-$(CONFIG_MMC_DW)		+= dw_mmc.o
 obj-$(CONFIG_MMC_DW_PLTFM)	+= dw_mmc-pltfm.o
 obj-$(CONFIG_MMC_DW_BLUEFIELD)	+= dw_mmc-bluefield.o
-obj-$(CONFIG_MMC_DW_EXYNOS)	+= dw_mmc-exynos.o
+obj-$(CONFIG_MMC_DW_EXYANALS)	+= dw_mmc-exyanals.o
 obj-$(CONFIG_MMC_DW_HI3798CV200) += dw_mmc-hi3798cv200.o
 obj-$(CONFIG_MMC_DW_K3)		+= dw_mmc-k3.o
 obj-$(CONFIG_MMC_DW_PCI)	+= dw_mmc-pci.o
@@ -107,5 +107,5 @@ ifeq ($(CONFIG_CB710_DEBUG),y)
 	CFLAGS-cb710-mmc	+= -DDEBUG
 endif
 
-obj-$(CONFIG_MMC_SDHCI_XENON)	+= sdhci-xenon-driver.o
-sdhci-xenon-driver-y		+= sdhci-xenon.o sdhci-xenon-phy.o
+obj-$(CONFIG_MMC_SDHCI_XEANALN)	+= sdhci-xeanaln-driver.o
+sdhci-xeanaln-driver-y		+= sdhci-xeanaln.o sdhci-xeanaln-phy.o

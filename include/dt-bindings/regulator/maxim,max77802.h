@@ -10,6 +10,6 @@
 
 /* Regulator operating modes */
 #define MAX77802_OPMODE_LP	1
-#define MAX77802_OPMODE_NORMAL	3
+#define MAX77802_OPMODE_ANALRMAL	3
 
 #endif /* _DT_BINDINGS_REGULATOR_MAXIM_MAX77802_H */

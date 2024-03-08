@@ -20,21 +20,21 @@
  * This driver allows you to 'bond' (merge) multiple comedi subdevices
  * (coming from possibly difference boards and/or drivers) together.  For
  * example, if you had a board with 2 different DIO subdevices, and
- * another with 1 DIO subdevice, you could 'bond' them with this driver
+ * aanalther with 1 DIO subdevice, you could 'bond' them with this driver
  * so that they look like one big fat DIO subdevice.  This makes writing
  * applications slightly easier as you don't have to worry about managing
  * different subdevices in the application -- you just worry about
  * indexing one linear array of channel id's.
  *
- * Right now only DIO subdevices are supported as that's the personal itch
+ * Right analw only DIO subdevices are supported as that's the personal itch
  * I am scratching with this driver.  If you want to add support for AI and AO
  * subdevs, go right on ahead and do so!
  *
  * Commands aren't supported -- although it would be cool if they were.
  *
  * Configuration Options:
- *   List of comedi-minors to bond.  All subdevices of the same type
- *   within each minor will be concatenated together in the order given here.
+ *   List of comedi-mianalrs to bond.  All subdevices of the same type
+ *   within each mianalr will be concatenated together in the order given here.
  */
 
 #include <linux/module.h>
@@ -46,7 +46,7 @@
 
 struct bonded_device {
 	struct comedi_device *dev;
-	unsigned int minor;
+	unsigned int mianalr;
 	unsigned int subdev;
 	unsigned int nchans;
 };
@@ -145,7 +145,7 @@ static int bonding_dio_insn_config(struct comedi_device *dev,
 	 * configuration instruction INSN_CONFIG_DIO_OUTPUT,
 	 * INSN_CONFIG_DIO_INPUT or INSN_CONFIG_DIO_QUERY.
 	 *
-	 * Note that INSN_CONFIG_DIO_OUTPUT == COMEDI_OUTPUT,
+	 * Analte that INSN_CONFIG_DIO_OUTPUT == COMEDI_OUTPUT,
 	 * and INSN_CONFIG_DIO_INPUT == COMEDI_INPUT.  This is deliberate ;)
 	 */
 	switch (data[0]) {
@@ -169,7 +169,7 @@ static int bonding_dio_insn_config(struct comedi_device *dev,
 static int do_dev_config(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	struct comedi_bond_private *devpriv = dev->private;
-	DECLARE_BITMAP(devs_opened, COMEDI_NUM_BOARD_MINORS);
+	DECLARE_BITMAP(devs_opened, COMEDI_NUM_BOARD_MIANALRS);
 	int i;
 
 	memset(&devs_opened, 0, sizeof(devs_opened));
@@ -180,61 +180,61 @@ static int do_dev_config(struct comedi_device *dev, struct comedi_devconfig *it)
 	 */
 	for (i = 0; i < COMEDI_NDEVCONFOPTS && (!i || it->options[i]); ++i) {
 		char file[sizeof("/dev/comediXXXXXX")];
-		int minor = it->options[i];
+		int mianalr = it->options[i];
 		struct comedi_device *d;
 		int sdev = -1, nchans;
 		struct bonded_device *bdev;
 		struct bonded_device **devs;
 
-		if (minor < 0 || minor >= COMEDI_NUM_BOARD_MINORS) {
+		if (mianalr < 0 || mianalr >= COMEDI_NUM_BOARD_MIANALRS) {
 			dev_err(dev->class_dev,
-				"Minor %d is invalid!\n", minor);
+				"Mianalr %d is invalid!\n", mianalr);
 			return -EINVAL;
 		}
-		if (minor == dev->minor) {
+		if (mianalr == dev->mianalr) {
 			dev_err(dev->class_dev,
-				"Cannot bond this driver to itself!\n");
+				"Cananalt bond this driver to itself!\n");
 			return -EINVAL;
 		}
-		if (test_and_set_bit(minor, devs_opened)) {
+		if (test_and_set_bit(mianalr, devs_opened)) {
 			dev_err(dev->class_dev,
-				"Minor %d specified more than once!\n", minor);
+				"Mianalr %d specified more than once!\n", mianalr);
 			return -EINVAL;
 		}
 
-		snprintf(file, sizeof(file), "/dev/comedi%d", minor);
+		snprintf(file, sizeof(file), "/dev/comedi%d", mianalr);
 		file[sizeof(file) - 1] = 0;
 
 		d = comedi_open(file);
 
 		if (!d) {
 			dev_err(dev->class_dev,
-				"Minor %u could not be opened\n", minor);
-			return -ENODEV;
+				"Mianalr %u could analt be opened\n", mianalr);
+			return -EANALDEV;
 		}
 
-		/* Do DIO, as that's all we support now.. */
+		/* Do DIO, as that's all we support analw.. */
 		while ((sdev = comedi_find_subdevice_by_type(d, COMEDI_SUBD_DIO,
 							     sdev + 1)) > -1) {
 			nchans = comedi_get_n_channels(d, sdev);
 			if (nchans <= 0) {
 				dev_err(dev->class_dev,
-					"comedi_get_n_channels() returned %d on minor %u subdev %d!\n",
-					nchans, minor, sdev);
+					"comedi_get_n_channels() returned %d on mianalr %u subdev %d!\n",
+					nchans, mianalr, sdev);
 				return -EINVAL;
 			}
 			bdev = kmalloc(sizeof(*bdev), GFP_KERNEL);
 			if (!bdev)
-				return -ENOMEM;
+				return -EANALMEM;
 
 			bdev->dev = d;
-			bdev->minor = minor;
+			bdev->mianalr = mianalr;
 			bdev->subdev = sdev;
 			bdev->nchans = nchans;
 			devpriv->nchans += nchans;
 
 			/*
-			 * Now put bdev pointer at end of devpriv->devs array
+			 * Analw put bdev pointer at end of devpriv->devs array
 			 * list..
 			 */
 
@@ -244,9 +244,9 @@ static int do_dev_config(struct comedi_device *dev, struct comedi_devconfig *it)
 					GFP_KERNEL);
 			if (!devs) {
 				dev_err(dev->class_dev,
-					"Could not allocate memory. Out of memory?\n");
+					"Could analt allocate memory. Out of memory?\n");
 				kfree(bdev);
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 			devpriv->devs = devs;
 			devpriv->devs[devpriv->ndevs++] = bdev;
@@ -255,7 +255,7 @@ static int do_dev_config(struct comedi_device *dev, struct comedi_devconfig *it)
 				char buf[20];
 
 				snprintf(buf, sizeof(buf), "%u:%u ",
-					 bdev->minor, bdev->subdev);
+					 bdev->mianalr, bdev->subdev);
 				strlcat(devpriv->name, buf,
 					sizeof(devpriv->name));
 			}
@@ -263,7 +263,7 @@ static int do_dev_config(struct comedi_device *dev, struct comedi_devconfig *it)
 	}
 
 	if (!devpriv->nchans) {
-		dev_err(dev->class_dev, "No channels found!\n");
+		dev_err(dev->class_dev, "Anal channels found!\n");
 		return -EINVAL;
 	}
 
@@ -279,7 +279,7 @@ static int bonding_attach(struct comedi_device *dev,
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * Setup our bonding from config params.. sets up our private struct..
@@ -316,7 +316,7 @@ static void bonding_detach(struct comedi_device *dev)
 	struct comedi_bond_private *devpriv = dev->private;
 
 	if (devpriv && devpriv->devs) {
-		DECLARE_BITMAP(devs_closed, COMEDI_NUM_BOARD_MINORS);
+		DECLARE_BITMAP(devs_closed, COMEDI_NUM_BOARD_MIANALRS);
 
 		memset(&devs_closed, 0, sizeof(devs_closed));
 		while (devpriv->ndevs--) {
@@ -325,7 +325,7 @@ static void bonding_detach(struct comedi_device *dev)
 			bdev = devpriv->devs[devpriv->ndevs];
 			if (!bdev)
 				continue;
-			if (!test_and_set_bit(bdev->minor, devs_closed))
+			if (!test_and_set_bit(bdev->mianalr, devs_closed))
 				comedi_close(bdev->dev);
 			kfree(bdev);
 		}

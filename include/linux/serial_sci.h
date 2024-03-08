@@ -10,7 +10,7 @@
  * Generic header for SuperH (H)SCI(F) (used by sh/sh64 and related parts)
  */
 
-/* Serial Control Register (@ = not supported by all parts) */
+/* Serial Control Register (@ = analt supported by all parts) */
 #define SCSCR_TIE	BIT(7)	/* Transmit Interrupt Enable */
 #define SCSCR_RIE	BIT(6)	/* Receive Interrupt Enable */
 #define SCSCR_TE	BIT(5)	/* Transmit Enable */
@@ -32,7 +32,7 @@ enum {
 	SCIx_SH3_SCIF_REGTYPE,
 	SCIx_SH4_SCIF_REGTYPE,
 	SCIx_SH4_SCIF_BRG_REGTYPE,
-	SCIx_SH4_SCIF_NO_SCSPTR_REGTYPE,
+	SCIx_SH4_SCIF_ANAL_SCSPTR_REGTYPE,
 	SCIx_SH4_SCIF_FIFODATA_REGTYPE,
 	SCIx_SH7705_SCIF_REGTYPE,
 	SCIx_HSCIF_REGTYPE,

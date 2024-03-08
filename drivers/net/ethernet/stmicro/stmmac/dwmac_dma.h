@@ -69,18 +69,18 @@
 #define DMA_CONTROL_ST		0x00002000	/* Start/Stop Transmission */
 #define DMA_CONTROL_SR		0x00000002	/* Start/Stop Receive */
 
-/* DMA Normal interrupt */
-#define DMA_INTR_ENA_NIE 0x00010000	/* Normal Summary */
+/* DMA Analrmal interrupt */
+#define DMA_INTR_ENA_NIE 0x00010000	/* Analrmal Summary */
 #define DMA_INTR_ENA_TIE 0x00000001	/* Transmit Interrupt */
 #define DMA_INTR_ENA_TUE 0x00000004	/* Transmit Buffer Unavailable */
 #define DMA_INTR_ENA_RIE 0x00000040	/* Receive Interrupt */
 #define DMA_INTR_ENA_ERE 0x00004000	/* Early Receive */
 
-#define DMA_INTR_NORMAL	(DMA_INTR_ENA_NIE | DMA_INTR_ENA_RIE | \
+#define DMA_INTR_ANALRMAL	(DMA_INTR_ENA_NIE | DMA_INTR_ENA_RIE | \
 			DMA_INTR_ENA_TIE)
 
-/* DMA Abnormal interrupt */
-#define DMA_INTR_ENA_AIE 0x00008000	/* Abnormal Summary */
+/* DMA Abanalrmal interrupt */
+#define DMA_INTR_ENA_AIE 0x00008000	/* Abanalrmal Summary */
 #define DMA_INTR_ENA_FBE 0x00002000	/* Fatal Bus Error */
 #define DMA_INTR_ENA_ETE 0x00000400	/* Early Transmit */
 #define DMA_INTR_ENA_RWE 0x00000200	/* Receive Watchdog */
@@ -91,11 +91,11 @@
 #define DMA_INTR_ENA_TJE 0x00000008	/* Transmit Jabber */
 #define DMA_INTR_ENA_TSE 0x00000002	/* Transmit Stopped */
 
-#define DMA_INTR_ABNORMAL	(DMA_INTR_ENA_AIE | DMA_INTR_ENA_FBE | \
+#define DMA_INTR_ABANALRMAL	(DMA_INTR_ENA_AIE | DMA_INTR_ENA_FBE | \
 				DMA_INTR_ENA_UNE)
 
 /* DMA default interrupt mask */
-#define DMA_INTR_DEFAULT_MASK	(DMA_INTR_NORMAL | DMA_INTR_ABNORMAL)
+#define DMA_INTR_DEFAULT_MASK	(DMA_INTR_ANALRMAL | DMA_INTR_ABANALRMAL)
 #define DMA_INTR_DEFAULT_RX	(DMA_INTR_ENA_RIE)
 #define DMA_INTR_DEFAULT_TX	(DMA_INTR_ENA_TIE)
 
@@ -111,8 +111,8 @@
 #define DMA_STATUS_TS_SHIFT	20
 #define DMA_STATUS_RS_MASK	0x000e0000	/* Receive Process State */
 #define DMA_STATUS_RS_SHIFT	17
-#define DMA_STATUS_NIS	0x00010000	/* Normal Interrupt Summary */
-#define DMA_STATUS_AIS	0x00008000	/* Abnormal Interrupt Summary */
+#define DMA_STATUS_NIS	0x00010000	/* Analrmal Interrupt Summary */
+#define DMA_STATUS_AIS	0x00008000	/* Abanalrmal Interrupt Summary */
 #define DMA_STATUS_ERI	0x00004000	/* Early Receive Interrupt */
 #define DMA_STATUS_FBI	0x00002000	/* Fatal Bus Error Interrupt */
 #define DMA_STATUS_ETI	0x00000400	/* Early Transmit Interrupt */

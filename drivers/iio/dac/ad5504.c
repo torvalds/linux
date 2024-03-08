@@ -27,7 +27,7 @@
 #define AD5504_ADDR(addr)		((addr) << 12)
 
 /* Registers */
-#define AD5504_ADDR_NOOP		0
+#define AD5504_ADDR_ANALOP		0
 #define AD5504_ADDR_DAC(x)		((x) + 1)
 #define AD5504_ADDR_ALL_DAC		5
 #define AD5504_ADDR_CTRL		7
@@ -195,8 +195,8 @@ static ssize_t ad5504_write_dac_powerdown(struct iio_dev *indio_dev,
 				AD5504_DAC_PWRDWN_MODE(st->pwr_down_mode) |
 				AD5504_DAC_PWR(st->pwr_down_mask));
 
-	/* writes to the CTRL register must be followed by a NOOP */
-	ad5504_spi_write(st, AD5504_ADDR_NOOP, 0);
+	/* writes to the CTRL register must be followed by a ANALOP */
+	ad5504_spi_write(st, AD5504_ADDR_ANALOP, 0);
 
 	return ret ? ret : len;
 }
@@ -278,7 +278,7 @@ static int ad5504_probe(struct spi_device *spi)
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 	reg = devm_regulator_get(&spi->dev, "vcc");
 	if (!IS_ERR(reg)) {
 		ret = regulator_enable(reg);

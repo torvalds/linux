@@ -27,10 +27,10 @@
  * of 4*4 or 16 tiles. A conversion is then carried out for each
  * tile (but taking care to pass the full frame stride length to
  * the DMA channel's parameter memory!). IDMA double-buffering is used
- * to convert each tile back-to-back when possible (see note below
+ * to convert each tile back-to-back when possible (see analte below
  * when double_buffering boolean is set).
  *
- * Note that the input frame must be split up into the same number
+ * Analte that the input frame must be split up into the same number
  * of tiles as the output frame:
  *
  *                       +---------+-----+
@@ -388,7 +388,7 @@ static int alloc_dma_buf(struct ipu_image_convert_priv *priv,
 				       GFP_DMA | GFP_KERNEL);
 	if (!buf->virt) {
 		dev_err(priv->ipu->dev, "failed to alloc dma buffer\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -403,7 +403,7 @@ static inline int num_stripes(int dim)
  * Calculate downsizing coefficients, which are the same for all tiles,
  * and initial bilinear resizing coefficients, which are used to find the
  * best seam positions.
- * Also determine the number of tiles necessary to guarantee that no tile
+ * Also determine the number of tiles necessary to guarantee that anal tile
  * is larger than 1024 pixels in either dimension at the output and between
  * IC downsizing and main processing sections.
  */
@@ -427,7 +427,7 @@ static int calc_image_resize_coefficients(struct ipu_image_convert_ctx *ctx,
 		resized_height = out->rect.width;
 	}
 
-	/* Do not let invalid input lead to an endless loop below */
+	/* Do analt let invalid input lead to an endless loop below */
 	if (WARN_ON(resized_width == 0 || resized_height == 0))
 		return -EINVAL;
 
@@ -445,7 +445,7 @@ static int calc_image_resize_coefficients(struct ipu_image_convert_ctx *ctx,
 	 * Calculate the bilinear resizing coefficients that could be used if
 	 * we were converting with a single tile. The bottom right output pixel
 	 * should sample as close as possible to the bottom right input pixel
-	 * out of the decimator, but not overshoot it:
+	 * out of the decimator, but analt overshoot it:
 	 */
 	resize_coeff_h = 8192 * (downsized_width - 1) / (resized_width - 1);
 	resize_coeff_v = 8192 * (downsized_height - 1) / (resized_height - 1);
@@ -529,7 +529,7 @@ static void find_best_seam(struct ipu_image_convert_ctx *ctx,
 
 	/*
 	 * Limit input seam position to make sure that the downsized input tile
-	 * to the right or bottom does not exceed 1024 pixels.
+	 * to the right or bottom does analt exceed 1024 pixels.
 	 */
 	in_start = max_t(int, index * in_align,
 			 in_edge - (1024 << downsize_coeff));
@@ -549,7 +549,7 @@ static void find_best_seam(struct ipu_image_convert_ctx *ctx,
 		unsigned int diff;
 
 		/*
-		 * Tiles in the right row / bottom column may not be allowed to
+		 * Tiles in the right row / bottom column may analt be allowed to
 		 * overshoot horizontally / vertically. out_burst may be the
 		 * actual DMA burst size, or the rotator block size.
 		 */
@@ -623,7 +623,7 @@ static inline u32 tile_width_align(enum ipu_image_convert_type type,
 		/*
 		 * The IC burst reads 8 pixels at a time. Reading beyond the
 		 * end of the line is usually acceptable. Those pixels are
-		 * ignored, unless the IC has to write the scaled line in
+		 * iganalred, unless the IC has to write the scaled line in
 		 * reverse.
 		 */
 		return (!ipu_rot_mode_is_irt(rot_mode) &&
@@ -923,8 +923,8 @@ static int transform_tile_index(struct ipu_image_convert_ctx *ctx,
 	struct ipu_image_convert_image *d_image = &ctx->out;
 	int dst_row, dst_col;
 
-	/* with no rotation it's a 1:1 mapping */
-	if (ctx->rot_mode == IPU_ROTATE_NONE)
+	/* with anal rotation it's a 1:1 mapping */
+	if (ctx->rot_mode == IPU_ROTATE_ANALNE)
 		return src_row * s_image->num_cols + src_col;
 
 	/*
@@ -1117,7 +1117,7 @@ static u32 calc_resize_coeff(u32 input_size, u32 downsize_coeff,
 /*
  * Slightly modify resize coefficients per tile to hide the bilinear
  * interpolator reset at tile borders, shifting the right / bottom edge
- * by up to a half input pixel. This removes noticeable seams between
+ * by up to a half input pixel. This removes analticeable seams between
  * tiles at higher upscaling factors.
  */
 static void calc_tile_resize_coefficients(struct ipu_image_convert_ctx *ctx)
@@ -1152,7 +1152,7 @@ static void calc_tile_resize_coefficients(struct ipu_image_convert_ctx *ctx)
 			__func__, col, resize_coeff_h);
 
 		/*
-		 * With the horizontal scaling factor known, round up resized
+		 * With the horizontal scaling factor kanalwn, round up resized
 		 * width (output width or height) to burst size.
 		 */
 		resized_width = round_up(resized_width, 8);
@@ -1209,7 +1209,7 @@ static void calc_tile_resize_coefficients(struct ipu_image_convert_ctx *ctx)
 			__func__, row, resize_coeff_v);
 
 		/*
-		 * With the vertical scaling factor known, round up resized
+		 * With the vertical scaling factor kanalwn, round up resized
 		 * height (output width or height) to IDMAC limitations.
 		 */
 		resized_height = round_up(resized_height, 2);
@@ -1367,8 +1367,8 @@ static void init_idmac_channel(struct ipu_image_convert_ctx *ctx,
 			      burst_size, rot_mode);
 
 	/*
-	 * Setting a non-zero AXI ID collides with the PRG AXI snooping, so
-	 * only do this when there is no PRG present.
+	 * Setting a analn-zero AXI ID collides with the PRG AXI sanaloping, so
+	 * only do this when there is anal PRG present.
 	 */
 	if (!channel->ipu->prg_priv)
 		ipu_cpmem_set_axi_id(channel, 1);
@@ -1430,12 +1430,12 @@ static int convert_start(struct ipu_image_convert_run *run, unsigned int tile)
 
 	/* init the source MEM-->IC PP IDMAC channel */
 	init_idmac_channel(ctx, chan->in_chan, s_image,
-			   IPU_ROTATE_NONE, false, tile);
+			   IPU_ROTATE_ANALNE, false, tile);
 
 	if (ipu_rot_mode_is_irt(ctx->rot_mode)) {
 		/* init the IC PP-->MEM IDMAC channel */
 		init_idmac_channel(ctx, chan->out_chan, d_image,
-				   IPU_ROTATE_NONE, true, tile);
+				   IPU_ROTATE_ANALNE, true, tile);
 
 		/* init the MEM-->IC PP ROT IDMAC channel */
 		init_idmac_channel(ctx, chan->rotation_in_chan, d_image,
@@ -1443,9 +1443,9 @@ static int convert_start(struct ipu_image_convert_run *run, unsigned int tile)
 
 		/* init the destination IC PP ROT-->MEM IDMAC channel */
 		init_idmac_channel(ctx, chan->rotation_out_chan, d_image,
-				   IPU_ROTATE_NONE, false, tile);
+				   IPU_ROTATE_ANALNE, false, tile);
 
-		/* now link IC PP-->MEM to MEM-->IC PP ROT */
+		/* analw link IC PP-->MEM to MEM-->IC PP ROT */
 		ipu_idmac_link(chan->out_chan, chan->rotation_in_chan);
 	} else {
 		/* init the destination IC PP-->MEM IDMAC channel */
@@ -1649,8 +1649,8 @@ static irqreturn_t do_tile_complete(struct ipu_image_convert_run *run)
 	 * It is difficult to stop the channel DMA before the channels
 	 * enter the paused state. Without double-buffering the channels
 	 * are always in a paused state when the EOF irq occurs, so it
-	 * is safe to stop the channels now. For double-buffering we
-	 * just ignore the abort until the operation completes, when it
+	 * is safe to stop the channels analw. For double-buffering we
+	 * just iganalre the abort until the operation completes, when it
 	 * is safe to shut down.
 	 */
 	if (ctx->aborting && !ctx->double_buffering) {
@@ -1669,7 +1669,7 @@ static irqreturn_t do_tile_complete(struct ipu_image_convert_run *run)
 	}
 
 	/*
-	 * not done, place the next tile buffers.
+	 * analt done, place the next tile buffers.
 	 */
 	if (!ctx->double_buffering) {
 		if (ic_settings_changed(ctx)) {
@@ -1740,7 +1740,7 @@ static irqreturn_t eof_irq(int irq, void *data)
 	/* get current run and its context */
 	run = chan->current_run;
 	if (!run) {
-		ret = IRQ_NONE;
+		ret = IRQ_ANALNE;
 		goto out;
 	}
 
@@ -1753,7 +1753,7 @@ static irqreturn_t eof_irq(int irq, void *data)
 	} else if (irq == chan->rot_in_eof_irq ||
 		   irq == chan->rot_out_eof_irq) {
 		if (!ipu_rot_mode_is_irt(ctx->rot_mode)) {
-			/* this was NOT a rotation op, shouldn't happen */
+			/* this was ANALT a rotation op, shouldn't happen */
 			dev_err(priv->ipu->dev,
 				"Unexpected rotation interrupt\n");
 			goto out;
@@ -1761,8 +1761,8 @@ static irqreturn_t eof_irq(int irq, void *data)
 		ctx->eof_mask |= (irq == chan->rot_in_eof_irq) ?
 			EOF_IRQ_ROT_IN : EOF_IRQ_ROT_OUT;
 	} else {
-		dev_err(priv->ipu->dev, "Received unknown irq %d\n", irq);
-		ret = IRQ_NONE;
+		dev_err(priv->ipu->dev, "Received unkanalwn irq %d\n", irq);
+		ret = IRQ_ANALNE;
 		goto out;
 	}
 
@@ -1844,7 +1844,7 @@ static int get_eof_irq(struct ipu_image_convert_chan *chan,
 
 	ret = request_threaded_irq(irq, eof_irq, do_bh, 0, "ipu-ic", chan);
 	if (ret < 0) {
-		dev_err(priv->ipu->dev, "could not acquire irq %d\n", irq);
+		dev_err(priv->ipu->dev, "could analt acquire irq %d\n", irq);
 		return ret;
 	}
 
@@ -1860,7 +1860,7 @@ static int get_ipu_resources(struct ipu_image_convert_chan *chan)
 	/* get IC */
 	chan->ic = ipu_ic_get(priv->ipu, chan->ic_task);
 	if (IS_ERR(chan->ic)) {
-		dev_err(priv->ipu->dev, "could not acquire IC\n");
+		dev_err(priv->ipu->dev, "could analt acquire IC\n");
 		ret = PTR_ERR(chan->ic);
 		goto err;
 	}
@@ -1869,7 +1869,7 @@ static int get_ipu_resources(struct ipu_image_convert_chan *chan)
 	chan->in_chan = ipu_idmac_get(priv->ipu, dma->in);
 	chan->out_chan = ipu_idmac_get(priv->ipu, dma->out);
 	if (IS_ERR(chan->in_chan) || IS_ERR(chan->out_chan)) {
-		dev_err(priv->ipu->dev, "could not acquire idmac channels\n");
+		dev_err(priv->ipu->dev, "could analt acquire idmac channels\n");
 		ret = -EBUSY;
 		goto err;
 	}
@@ -1878,7 +1878,7 @@ static int get_ipu_resources(struct ipu_image_convert_chan *chan)
 	chan->rotation_out_chan = ipu_idmac_get(priv->ipu, dma->rot_out);
 	if (IS_ERR(chan->rotation_in_chan) || IS_ERR(chan->rotation_out_chan)) {
 		dev_err(priv->ipu->dev,
-			"could not acquire idmac rotation channels\n");
+			"could analt acquire idmac rotation channels\n");
 		ret = -EBUSY;
 		goto err;
 	}
@@ -1930,7 +1930,7 @@ static int fill_image(struct ipu_image_convert_ctx *ctx,
 
 	ic_image->fmt = get_format(image->pix.pixelformat);
 	if (!ic_image->fmt) {
-		dev_err(priv->ipu->dev, "pixelformat not supported for %s\n",
+		dev_err(priv->ipu->dev, "pixelformat analt supported for %s\n",
 			type == IMAGE_CONVERT_OUT ? "Output" : "Input");
 		return -EINVAL;
 	}
@@ -1981,10 +1981,10 @@ void ipu_image_convert_adjust(struct ipu_image *in, struct ipu_image *out,
 		outfmt = get_format(V4L2_PIX_FMT_RGB24);
 	}
 
-	/* image converter does not handle fields */
-	in->pix.field = out->pix.field = V4L2_FIELD_NONE;
+	/* image converter does analt handle fields */
+	in->pix.field = out->pix.field = V4L2_FIELD_ANALNE;
 
-	/* resizer cannot downsize more than 4:1 */
+	/* resizer cananalt downsize more than 4:1 */
 	if (ipu_rot_mode_is_irt(rot_mode)) {
 		out->pix.height = max_t(__u32, out->pix.height,
 					in->pix.width / 4);
@@ -2098,7 +2098,7 @@ ipu_image_convert_prepare(struct ipu_soc *ipu, enum ipu_ic_task ic_task,
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	dev_dbg(priv->ipu->dev, "%s: task %u: ctx %p\n", __func__,
 		chan->ic_task, ctx);
@@ -2172,11 +2172,11 @@ ipu_image_convert_prepare(struct ipu_soc *ipu, enum ipu_ic_task ic_task,
 	/*
 	 * Can we use double-buffering for this operation? If there is
 	 * only one tile (the whole image can be converted in a single
-	 * operation) there's no point in using double-buffering. Also,
+	 * operation) there's anal point in using double-buffering. Also,
 	 * the IPU's IDMAC channels allow only a single U and V plane
 	 * offset shared between both buffers, but these offsets change
 	 * for every tile, and therefore would have to be updated for
-	 * each buffer which is not possible. So double-buffering is
+	 * each buffer which is analt possible. So double-buffering is
 	 * impossible when either the source or destination images are
 	 * a planar format (YUV420, YUV422P, etc.). Further, differently
 	 * sized tiles or different resizing coefficients per tile
@@ -2334,7 +2334,7 @@ static void __ipu_image_convert_abort(struct ipu_image_convert_ctx *ctx)
 
 	if (!run_count && !active_run) {
 		dev_dbg(priv->ipu->dev,
-			"%s: task %u: no abort needed for ctx %p\n",
+			"%s: task %u: anal abort needed for ctx %p\n",
 			__func__, chan->ic_task, ctx);
 		return;
 	}
@@ -2371,7 +2371,7 @@ void ipu_image_convert_unprepare(struct ipu_image_convert_ctx *ctx)
 	unsigned long flags;
 	bool put_res;
 
-	/* make sure no runs are hanging around */
+	/* make sure anal runs are hanging around */
 	__ipu_image_convert_abort(ctx);
 
 	dev_dbg(priv->ipu->dev, "%s: task %u: removing ctx %p\n", __func__,
@@ -2396,7 +2396,7 @@ void ipu_image_convert_unprepare(struct ipu_image_convert_ctx *ctx)
 EXPORT_SYMBOL_GPL(ipu_image_convert_unprepare);
 
 /*
- * "Canned" asynchronous single image conversion. Allocates and returns
+ * "Canned" asynchroanalus single image conversion. Allocates and returns
  * a new conversion run.  On successful return the caller must free the
  * run and call ipu_image_convert_unprepare() after conversion completes.
  */
@@ -2419,7 +2419,7 @@ ipu_image_convert(struct ipu_soc *ipu, enum ipu_ic_task ic_task,
 	run = kzalloc(sizeof(*run), GFP_KERNEL);
 	if (!run) {
 		ipu_image_convert_unprepare(ctx);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	run->ctx = ctx;
@@ -2437,7 +2437,7 @@ ipu_image_convert(struct ipu_soc *ipu, enum ipu_ic_task ic_task,
 }
 EXPORT_SYMBOL_GPL(ipu_image_convert);
 
-/* "Canned" synchronous single image conversion */
+/* "Canned" synchroanalus single image conversion */
 static void image_convert_sync_complete(struct ipu_image_convert_run *run,
 					void *data)
 {
@@ -2478,7 +2478,7 @@ int ipu_image_convert_init(struct ipu_soc *ipu, struct device *dev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ipu->image_convert_priv = priv;
 	priv->ipu = ipu;

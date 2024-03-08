@@ -242,7 +242,7 @@ static int hid_prox_probe(struct platform_device *pdev)
 	indio_dev = devm_iio_device_alloc(&pdev->dev,
 				sizeof(struct prox_state));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 	platform_set_drvdata(pdev, indio_dev);
 
 	prox_state = iio_priv(indio_dev);
@@ -262,7 +262,7 @@ static int hid_prox_probe(struct platform_device *pdev)
 					   sizeof(prox_channels), GFP_KERNEL);
 	if (!indio_dev->channels) {
 		dev_err(&pdev->dev, "failed to duplicate channels\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ret = prox_parse_report(pdev, hsdev,

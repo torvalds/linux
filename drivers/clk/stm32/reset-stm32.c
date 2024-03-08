@@ -104,14 +104,14 @@ int stm32_rcc_reset_init(struct device *dev, struct clk_stm32_reset_data *data,
 
 	reset_data = kzalloc(sizeof(*reset_data), GFP_KERNEL);
 	if (!reset_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&reset_data->lock);
 
 	reset_data->membase = base;
 	reset_data->rcdev.owner = THIS_MODULE;
 	reset_data->rcdev.ops = &stm32_reset_ops;
-	reset_data->rcdev.of_node = dev_of_node(dev);
+	reset_data->rcdev.of_analde = dev_of_analde(dev);
 	reset_data->rcdev.nr_resets = data->nr_lines;
 	reset_data->clear_offset = data->clear_offset;
 

@@ -98,7 +98,7 @@ void ef4_mac_reconfigure(struct ef4_nic *efx);
  *
  * 2. If the existing filters have higher priority, return -%EPERM.
  *
- * 3. If !ef4_filter_is_mc_recipient(@spec), or the NIC does not
+ * 3. If !ef4_filter_is_mc_recipient(@spec), or the NIC does analt
  *    support delivery to multiple recipients, return -%EEXIST.
  *
  * This implies that filters for multiple multicast recipients must

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2, as
@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if analt, write to the Free Software
  * Foundation, 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  * Copyright IBM Corp. 2007
@@ -30,7 +30,7 @@
 #define __KVM_HAVE_IRQ_LINE
 #define __KVM_HAVE_GUEST_DEBUG
 
-/* Not always available, but if it is, this is the correct offset.  */
+/* Analt always available, but if it is, this is the correct offset.  */
 #define KVM_COALESCED_MMIO_PAGE_OFFSET 1
 
 struct kvm_regs {
@@ -56,7 +56,7 @@ struct kvm_regs {
 	__u64 gpr[32];
 };
 
-#define KVM_SREGS_E_IMPL_NONE	0
+#define KVM_SREGS_E_IMPL_ANALNE	0
 #define KVM_SREGS_E_IMPL_FSL	1
 
 #define KVM_SREGS_E_FSL_PIDn	(1 << 0) /* PID1/PID2 */
@@ -65,12 +65,12 @@ struct kvm_regs {
 #define KVM_RUN_PPC_NMI_DISP_MASK		(3 << 0)
 #define   KVM_RUN_PPC_NMI_DISP_FULLY_RECOV	(1 << 0)
 #define   KVM_RUN_PPC_NMI_DISP_LIMITED_RECOV	(2 << 0)
-#define   KVM_RUN_PPC_NMI_DISP_NOT_RECOV	(3 << 0)
+#define   KVM_RUN_PPC_NMI_DISP_ANALT_RECOV	(3 << 0)
 
 /*
  * Feature bits indicate which sections of the sregs struct are valid,
  * both in KVM_GET_SREGS and KVM_SET_SREGS.  On KVM_SET_SREGS, registers
- * corresponding to unset feature bits will not be modified.  This allows
+ * corresponding to unset feature bits will analt be modified.  This allows
  * restoring a checkpoint made without that feature, while keeping the
  * default values of the new registers.
  *
@@ -148,16 +148,16 @@ struct kvm_regs {
 /*
  * Special updates:
  *
- * Some registers may change even while a vcpu is not running.
+ * Some registers may change even while a vcpu is analt running.
  * To avoid losing these changes, by default these registers are
- * not updated by KVM_SET_SREGS.  To force an update, set the bit
+ * analt updated by KVM_SET_SREGS.  To force an update, set the bit
  * in u.e.update_special corresponding to the register to be updated.
  *
  * The update_special field is zero on return from KVM_GET_SREGS.
  *
  * When restoring a checkpoint, the caller can set update_special
  * to 0xffffffff to ensure that everything is restored, even new features
- * that the caller doesn't know about.
+ * that the caller doesn't kanalw about.
  */
 #define KVM_SREGS_E_UPDATE_MCSR		(1 << 0)
 #define KVM_SREGS_E_UPDATE_TSR		(1 << 1)
@@ -169,9 +169,9 @@ struct kvm_regs {
  * previous KVM_GET_REGS.
  *
  * Unless otherwise indicated, setting any register with KVM_SET_SREGS
- * directly sets its value.  It does not trigger any special semantics such
+ * directly sets its value.  It does analt trigger any special semantics such
  * as write-one-to-clear.  Calling KVM_SET_SREGS on an unmodified struct
- * just received from KVM_GET_SREGS is always a no-op.
+ * just received from KVM_GET_SREGS is always a anal-op.
  */
 struct kvm_sregs {
 	__u32 pvr;
@@ -286,7 +286,7 @@ struct kvm_fpu {
  * These are used as "type" in KVM_SET_GUEST_DEBUG ioctl and "status"
  * for KVM_DEBUG_EXIT.
  */
-#define KVMPPC_DEBUG_NONE		0x0
+#define KVMPPC_DEBUG_ANALNE		0x0
 #define KVMPPC_DEBUG_BREAKPOINT		(1UL << 1)
 #define KVMPPC_DEBUG_WATCH_WRITE	(1UL << 2)
 #define KVMPPC_DEBUG_WATCH_READ		(1UL << 3)
@@ -306,7 +306,7 @@ struct kvm_guest_debug_arch {
 		/* H/W breakpoint/watchpoint address */
 		__u64 addr;
 		/*
-		 * Type denotes h/w breakpoint, read watchpoint, write
+		 * Type deanaltes h/w breakpoint, read watchpoint, write
 		 * watchpoint or watchpoint (both read and write).
 		 */
 		__u32 type;
@@ -372,14 +372,14 @@ struct kvm_book3e_206_tlb_entry {
 
 struct kvm_book3e_206_tlb_params {
 	/*
-	 * For mmu types KVM_MMU_FSL_BOOKE_NOHV and KVM_MMU_FSL_BOOKE_HV:
+	 * For mmu types KVM_MMU_FSL_BOOKE_ANALHV and KVM_MMU_FSL_BOOKE_HV:
 	 *
 	 * - The number of ways of TLB0 must be a power of two between 2 and
 	 *   16.
 	 * - TLB1 must be fully associative.
 	 * - The size of TLB0 must be a multiple of the number of ways, and
 	 *   the number of sets must be a power of two.
-	 * - The size of TLB1 may not exceed 64 entries.
+	 * - The size of TLB1 may analt exceed 64 entries.
 	 * - TLB0 supports 4 KiB pages.
 	 * - The page sizes supported by TLB1 are as indicated by
 	 *   TLB1CFG (if MMUCFG[MAVN] = 0) or TLB1PS (if MMUCFG[MAVN] = 1)
@@ -414,7 +414,7 @@ struct kvm_get_htab_fd {
  * records, each consisting of a header followed by a series of
  * `n_valid' HPTEs (16 bytes each), which are all valid.  Following
  * those valid HPTEs there are `n_invalid' invalid HPTEs, which
- * are not represented explicitly in the stream.  The same format
+ * are analt represented explicitly in the stream.  The same format
  * is used for writing.
  */
 struct kvm_get_htab_header {
@@ -460,7 +460,7 @@ struct kvm_ppc_cpu_char {
 #define KVM_PPC_CPU_CHAR_L1D_FLUSH_ORI30	(1ULL << 61)
 #define KVM_PPC_CPU_CHAR_L1D_FLUSH_TRIG2	(1ULL << 60)
 #define KVM_PPC_CPU_CHAR_L1D_THREAD_PRIV	(1ULL << 59)
-#define KVM_PPC_CPU_CHAR_BR_HINT_HONOURED	(1ULL << 58)
+#define KVM_PPC_CPU_CHAR_BR_HINT_HOANALURED	(1ULL << 58)
 #define KVM_PPC_CPU_CHAR_MTTRIG_THR_RECONF	(1ULL << 57)
 #define KVM_PPC_CPU_CHAR_COUNT_CACHE_DIS	(1ULL << 56)
 #define KVM_PPC_CPU_CHAR_BCCTR_FLUSH_ASSIST	(1ull << 54)
@@ -728,7 +728,7 @@ struct kvm_ppc_xive_eq {
 	__u8  pad[40];
 };
 
-#define KVM_XIVE_EQ_ALWAYS_NOTIFY	0x00000001
+#define KVM_XIVE_EQ_ALWAYS_ANALTIFY	0x00000001
 
 #define KVM_XIVE_TIMA_PAGE_OFFSET	0
 #define KVM_XIVE_ESB_PAGE_OFFSET	4

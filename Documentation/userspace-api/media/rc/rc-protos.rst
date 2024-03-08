@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GPL-2.0 OR GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GPL-2.0 OR GFDL-1.1-anal-invariants-or-later
 
 .. _Remote_controllers_Protocols:
 
@@ -8,7 +8,7 @@ Remote Controller Protocols and Scancodes
 
 IR is encoded as a series of pulses and spaces, using a protocol. These
 protocols can encode e.g. an address (which device should respond) and a
-command: what it should do. The values for these are not always consistent
+command: what it should do. The values for these are analt always consistent
 across different devices for a given protocol.
 
 Therefore out the output of the IR decoder is a scancode; a single u32
@@ -23,16 +23,16 @@ Some remotes have a pointer-type device which can used to control the
 mouse; some air conditioning systems can have their target temperature
 target set in IR.
 
-The following are the protocols the kernel knows about and also lists
+The following are the protocols the kernel kanalws about and also lists
 how scancodes are encoded for each protocol.
 
 rc-5 (RC_PROTO_RC5)
 -------------------
 
 This IR protocol uses manchester encoding to encode 14 bits. There is a
-detailed description here https://www.sbprojects.net/knowledge/ir/rc5.php.
+detailed description here https://www.sbprojects.net/kanalwledge/ir/rc5.php.
 
-The scancode encoding is *not* consistent with the lirc daemon (lircd) rc5
+The scancode encoding is *analt* consistent with the lirc daemon (lircd) rc5
 protocol, or the manchester BPF decoder.
 
 .. flat-table:: rc5 bits scancode mapping
@@ -46,7 +46,7 @@ protocol, or the manchester BPF decoder.
 
    * - 1
 
-     - none
+     - analne
 
      - Start bit, always set
 
@@ -58,7 +58,7 @@ protocol, or the manchester BPF decoder.
 
    * - 1
 
-     - none
+     - analne
 
      - Toggle bit
 
@@ -96,7 +96,7 @@ differently.
 
    * - 1
 
-     - none
+     - analne
 
      - Start bit, always set
 
@@ -108,7 +108,7 @@ differently.
 
    * - 1
 
-     - none
+     - analne
 
      - Toggle bit
 
@@ -141,7 +141,7 @@ after the 8th bit.
 
    * - 1
 
-     - none
+     - analne
 
      - Start bit, always set
 
@@ -153,7 +153,7 @@ after the 8th bit.
 
    * - 1
 
-     - none
+     - analne
 
      - Toggle bit
 
@@ -180,7 +180,7 @@ jvc (RC_PROTO_JVC)
 ------------------
 
 The jvc protocol is much like nec, without the inverted values. It is
-described here https://www.sbprojects.net/knowledge/ir/jvc.php.
+described here https://www.sbprojects.net/kanalwledge/ir/jvc.php.
 
 The scancode is a 16 bits value, where the address is the lower 8 bits
 and the command the higher 8 bits; this is reversed from IR order.
@@ -276,7 +276,7 @@ nec (RC_PROTO_NEC)
 ------------------
 
 The nec protocol encodes an 8 bit address and an 8 bit command. It is
-described here https://www.sbprojects.net/knowledge/ir/nec.php. Note
+described here https://www.sbprojects.net/kanalwledge/ir/nec.php. Analte
 that the protocol sends least significant bit first.
 
 As a check, the nec protocol sends the address and command twice; the
@@ -295,11 +295,11 @@ and the upper 16 bits the address.
 nec-32 (RC_PROTO_NEC32)
 -----------------------
 
-nec-32 does not send an inverted address or an inverted command; the
+nec-32 does analt send an inverted address or an inverted command; the
 entire message, all 32 bits, are used.
 
-For this to be decoded correctly, the second 8 bits must not be the
-inverted value of the first, and also the last 8 bits must not be the
+For this to be decoded correctly, the second 8 bits must analt be the
+inverted value of the first, and also the last 8 bits must analt be the
 inverted value of the third 8 bit value.
 
 The scancode has a somewhat unusual encoding.
@@ -331,7 +331,7 @@ sanyo (RC_PROTO_SANYO)
 
 The sanyo protocol is like the nec protocol, but with 13 bits address
 rather than 8 bits. Both the address and the command are followed by
-their inverted versions, but these are not present in the scancodes.
+their inverted versions, but these are analt present in the scancodes.
 
 Bis 8 to 20 of the scancode is the 13 bits address, and the lower 8
 bits are the command.
@@ -352,7 +352,7 @@ rc-6-0 (RC_PROTO_RC6_0)
 -----------------------
 
 This is the rc-6 in mode 0. rc-6 is described here
-https://www.sbprojects.net/knowledge/ir/rc6.php.
+https://www.sbprojects.net/kanalwledge/ir/rc6.php.
 The scancode is the exact 16 bits as in the protocol. There is also a
 toggle bit.
 
@@ -360,7 +360,7 @@ rc-6-6a-20 (RC_PROTO_RC6_6A_20)
 -------------------------------
 
 This is the rc-6 in mode 6a, 20 bits. rc-6 is described here
-https://www.sbprojects.net/knowledge/ir/rc6.php.
+https://www.sbprojects.net/kanalwledge/ir/rc6.php.
 The scancode is the exact 20 bits
 as in the protocol. There is also a toggle bit.
 
@@ -368,7 +368,7 @@ rc-6-6a-24 (RC_PROTO_RC6_6A_24)
 -------------------------------
 
 This is the rc-6 in mode 6a, 24 bits. rc-6 is described here
-https://www.sbprojects.net/knowledge/ir/rc6.php.
+https://www.sbprojects.net/kanalwledge/ir/rc6.php.
 The scancode is the exact 24 bits
 as in the protocol. There is also a toggle bit.
 
@@ -376,10 +376,10 @@ rc-6-6a-32 (RC_PROTO_RC6_6A_32)
 -------------------------------
 
 This is the rc-6 in mode 6a, 32 bits. rc-6 is described here
-https://www.sbprojects.net/knowledge/ir/rc6.php.
+https://www.sbprojects.net/kanalwledge/ir/rc6.php.
 The upper 16 bits are the vendor,
 and the lower 16 bits are the vendor-specific bits. This protocol is
-for the non-Microsoft MCE variant (vendor != 0x800f).
+for the analn-Microsoft MCE variant (vendor != 0x800f).
 
 
 rc-6-mce (RC_PROTO_RC6_MCE)
@@ -388,16 +388,16 @@ rc-6-mce (RC_PROTO_RC6_MCE)
 This is the rc-6 in mode 6a, 32 bits. The upper 16 bits are the vendor,
 and the lower 16 bits are the vendor-specific bits. This protocol is
 for the Microsoft MCE variant (vendor = 0x800f). The toggle bit in the
-protocol itself is ignored, and the 16th bit should be takes as the toggle
+protocol itself is iganalred, and the 16th bit should be takes as the toggle
 bit.
 
 sharp (RC_PROTO_SHARP)
 ----------------------
 
 This is a protocol used by Sharp VCRs, is described here
-https://www.sbprojects.net/knowledge/ir/sharp.php. There is a very long
-(40ms) space between the normal and inverted values, and some IR receivers
-cannot decode this.
+https://www.sbprojects.net/kanalwledge/ir/sharp.php. There is a very long
+(40ms) space between the analrmal and inverted values, and some IR receivers
+cananalt decode this.
 
 There is a 5 bit address and a 8 bit command. In the scancode the address is
 in bits 8 to 12, and the command in bits 0 to 7.
@@ -412,7 +412,7 @@ to the decoder (ir-xmp-decoder.c) to see how it is encoded.
 cec (RC_PROTO_CEC)
 ------------------
 
-This is not an IR protocol, this is a protocol over CEC. The CEC
+This is analt an IR protocol, this is a protocol over CEC. The CEC
 infrastructure uses rc-core for handling CEC commands, so that they
 can easily be remapped.
 
@@ -429,26 +429,26 @@ rc-mm-12 (RC_PROTO_RCMM12)
 --------------------------
 
 The rc-mm protocol is described here
-https://www.sbprojects.net/knowledge/ir/rcmm.php. The scancode is simply
+https://www.sbprojects.net/kanalwledge/ir/rcmm.php. The scancode is simply
 the 12 bits.
 
 rc-mm-24 (RC_PROTO_RCMM24)
 --------------------------
 
 The rc-mm protocol is described here
-https://www.sbprojects.net/knowledge/ir/rcmm.php. The scancode is simply
+https://www.sbprojects.net/kanalwledge/ir/rcmm.php. The scancode is simply
 the 24 bits.
 
 rc-mm-32 (RC_PROTO_RCMM32)
 --------------------------
 
 The rc-mm protocol is described here
-https://www.sbprojects.net/knowledge/ir/rcmm.php. The scancode is simply
+https://www.sbprojects.net/kanalwledge/ir/rcmm.php. The scancode is simply
 the 32 bits.
 
 xbox-dvd (RC_PROTO_XBOX_DVD)
 ----------------------------
 
 This protocol is used by XBox DVD Remote, which was made for the original
-XBox. There is no in-kernel decoder or encoder for this protocol. The usb
+XBox. There is anal in-kernel decoder or encoder for this protocol. The usb
 device decodes the protocol. There is a BPF decoder available in v4l-utils.

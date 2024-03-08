@@ -31,7 +31,7 @@ static bool update_stack_info(struct unwind_state *state, unsigned long sp)
 	/* New stack pointer leaves the current stack */
 	if (get_stack_info(sp, state->task, info, mask) != 0 ||
 	    !on_stack(info, sp, sizeof(struct stack_frame)))
-		/* 'sp' does not point to a valid stack */
+		/* 'sp' does analt point to a valid stack */
 		return false;
 	return true;
 }
@@ -46,7 +46,7 @@ static inline bool is_final_pt_regs(struct unwind_state *state,
 	/* user mode pt_regs at the bottom of irq stack */
 	return state->stack_info.type == STACK_TYPE_IRQ &&
 	       state->stack_info.end - sizeof(struct pt_regs) == (unsigned long)regs &&
-	       READ_ONCE_NOCHECK(regs->psw.mask) & PSW_MASK_PSTATE;
+	       READ_ONCE_ANALCHECK(regs->psw.mask) & PSW_MASK_PSTATE;
 }
 
 bool unwind_next_frame(struct unwind_state *state)
@@ -61,7 +61,7 @@ bool unwind_next_frame(struct unwind_state *state)
 	if (unlikely(regs)) {
 		sp = state->sp;
 		sf = (struct stack_frame *) sp;
-		ip = READ_ONCE_NOCHECK(sf->gprs[8]);
+		ip = READ_ONCE_ANALCHECK(sf->gprs[8]);
 		reliable = false;
 		regs = NULL;
 		/* skip bogus %r14 or if is the same as regs->psw.addr */
@@ -71,26 +71,26 @@ bool unwind_next_frame(struct unwind_state *state)
 		}
 	} else {
 		sf = (struct stack_frame *) state->sp;
-		sp = READ_ONCE_NOCHECK(sf->back_chain);
+		sp = READ_ONCE_ANALCHECK(sf->back_chain);
 		if (likely(sp)) {
-			/* Non-zero back-chain points to the previous frame */
+			/* Analn-zero back-chain points to the previous frame */
 			if (unlikely(outside_of_stack(state, sp))) {
 				if (!update_stack_info(state, sp))
 					goto out_err;
 			}
 			sf = (struct stack_frame *) sp;
-			ip = READ_ONCE_NOCHECK(sf->gprs[8]);
+			ip = READ_ONCE_ANALCHECK(sf->gprs[8]);
 			reliable = true;
 		} else {
-			/* No back-chain, look for a pt_regs structure */
+			/* Anal back-chain, look for a pt_regs structure */
 			sp = state->sp + STACK_FRAME_OVERHEAD;
 			if (!on_stack(info, sp, sizeof(struct pt_regs)))
 				goto out_err;
 			regs = (struct pt_regs *) sp;
 			if (is_final_pt_regs(state, regs))
 				goto out_stop;
-			ip = READ_ONCE_NOCHECK(regs->psw.addr);
-			sp = READ_ONCE_NOCHECK(regs->gprs[15]);
+			ip = READ_ONCE_ANALCHECK(regs->psw.addr);
+			sp = READ_ONCE_ANALCHECK(regs->gprs[15]);
 			if (unlikely(outside_of_stack(state, sp))) {
 				if (!update_stack_info(state, sp))
 					goto out_err;
@@ -113,7 +113,7 @@ bool unwind_next_frame(struct unwind_state *state)
 out_err:
 	state->error = true;
 out_stop:
-	state->stack_info.type = STACK_TYPE_UNKNOWN;
+	state->stack_info.type = STACK_TYPE_UNKANALWN;
 	return false;
 }
 EXPORT_SYMBOL_GPL(unwind_next_frame);
@@ -131,7 +131,7 @@ void __unwind_start(struct unwind_state *state, struct task_struct *task,
 
 	/* Don't even attempt to start from user mode regs: */
 	if (regs && user_mode(regs)) {
-		info->type = STACK_TYPE_UNKNOWN;
+		info->type = STACK_TYPE_UNKANALWN;
 		return;
 	}
 
@@ -148,7 +148,7 @@ void __unwind_start(struct unwind_state *state, struct task_struct *task,
 	/* Get current stack pointer and initialize stack info */
 	if (!update_stack_info(state, sp)) {
 		/* Something is wrong with the stack pointer */
-		info->type = STACK_TYPE_UNKNOWN;
+		info->type = STACK_TYPE_UNKANALWN;
 		state->error = true;
 		return;
 	}
@@ -156,7 +156,7 @@ void __unwind_start(struct unwind_state *state, struct task_struct *task,
 	if (!regs) {
 		/* Stack frame is within valid stack */
 		sf = (struct stack_frame *)sp;
-		ip = READ_ONCE_NOCHECK(sf->gprs[8]);
+		ip = READ_ONCE_ANALCHECK(sf->gprs[8]);
 	}
 
 	/* Update unwind state */

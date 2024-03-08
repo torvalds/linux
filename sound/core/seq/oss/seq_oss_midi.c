@@ -16,7 +16,7 @@
 #include "../seq_lock.h"
 #include <linux/init.h>
 #include <linux/slab.h>
-#include <linux/nospec.h>
+#include <linux/analspec.h>
 
 
 /*
@@ -72,12 +72,12 @@ snd_seq_oss_midi_lookup_ports(int client)
 	if (! clinfo || ! pinfo) {
 		kfree(clinfo);
 		kfree(pinfo);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	clinfo->client = -1;
 	while (snd_seq_kernel_client_ctl(client, SNDRV_SEQ_IOCTL_QUERY_NEXT_CLIENT, clinfo) == 0) {
 		if (clinfo->client == client)
-			continue; /* ignore myself */
+			continue; /* iganalre myself */
 		pinfo->addr.client = clinfo->client;
 		pinfo->addr.port = -1;
 		while (snd_seq_kernel_client_ctl(client, SNDRV_SEQ_IOCTL_QUERY_NEXT_PORT, pinfo) == 0)
@@ -165,7 +165,7 @@ snd_seq_oss_midi_check_new_port(struct snd_seq_port_info *pinfo)
 	 */
 	mdev = kzalloc(sizeof(*mdev), GFP_KERNEL);
 	if (!mdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* copy the port information */
 	mdev->client = pinfo->addr.client;
@@ -182,10 +182,10 @@ snd_seq_oss_midi_check_new_port(struct snd_seq_port_info *pinfo)
 	if (snd_midi_event_new(MAX_MIDI_EVENT_BUF, &mdev->coder) < 0) {
 		pr_err("ALSA: seq_oss: can't malloc midi coder\n");
 		kfree(mdev);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	/* OSS sequencer adds running status to all sequences */
-	snd_midi_event_no_status(mdev->coder, 1);
+	snd_midi_event_anal_status(mdev->coder, 1);
 
 	/*
 	 * look for en empty slot
@@ -200,7 +200,7 @@ snd_seq_oss_midi_check_new_port(struct snd_seq_port_info *pinfo)
 			spin_unlock_irqrestore(&register_lock, flags);
 			snd_midi_event_free(mdev->coder);
 			kfree(mdev);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		max_midi_devs++;
 	}
@@ -291,7 +291,7 @@ snd_seq_oss_midi_cleanup(struct seq_oss_devinfo *dp)
 
 
 /*
- * open all midi devices.  ignore errors.
+ * open all midi devices.  iganalre errors.
  */
 void
 snd_seq_oss_midi_open_all(struct seq_oss_devinfo *dp, int file_mode)
@@ -310,13 +310,13 @@ get_mididev(struct seq_oss_devinfo *dp, int dev)
 {
 	if (dev < 0 || dev >= dp->max_mididev)
 		return NULL;
-	dev = array_index_nospec(dev, dp->max_mididev);
+	dev = array_index_analspec(dev, dp->max_mididev);
 	return get_mdev(dev);
 }
 
 
 /*
- * open the midi device if not opened yet
+ * open the midi device if analt opened yet
  */
 int
 snd_seq_oss_midi_open(struct seq_oss_devinfo *dp, int dev, int fmode)
@@ -328,7 +328,7 @@ snd_seq_oss_midi_open(struct seq_oss_devinfo *dp, int dev, int fmode)
 
 	mdev = get_mididev(dp, dev);
 	if (!mdev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	mutex_lock(&mdev->open_mutex);
 	/* already used? */
@@ -400,7 +400,7 @@ snd_seq_oss_midi_close(struct seq_oss_devinfo *dp, int dev)
 
 	mdev = get_mididev(dp, dev);
 	if (!mdev)
-		return -ENODEV;
+		return -EANALDEV;
 	mutex_lock(&mdev->open_mutex);
 	if (!mdev->opened || mdev->devinfo != dp)
 		goto unlock;
@@ -484,7 +484,7 @@ snd_seq_oss_midi_reset(struct seq_oss_devinfo *dp, int dev)
 		for (c = 0; c < 16; c++) {
 			ev.type = SNDRV_SEQ_EVENT_CONTROLLER;
 			ev.data.control.channel = c;
-			ev.data.control.param = MIDI_CTL_ALL_NOTES_OFF;
+			ev.data.control.param = MIDI_CTL_ALL_ANALTES_OFF;
 			snd_seq_oss_dispatch(dp, &ev, 0, 0);
 			if (dp->seq_mode == SNDRV_SEQ_OSS_MODE_MUSIC) {
 				ev.data.control.param =
@@ -558,10 +558,10 @@ send_synth_event(struct seq_oss_devinfo *dp, struct snd_seq_event *ev, int dev)
 	memset(&ossev, 0, sizeof(ossev));
 
 	switch (ev->type) {
-	case SNDRV_SEQ_EVENT_NOTEON:
-		ossev.v.cmd = MIDI_NOTEON; break;
-	case SNDRV_SEQ_EVENT_NOTEOFF:
-		ossev.v.cmd = MIDI_NOTEOFF; break;
+	case SNDRV_SEQ_EVENT_ANALTEON:
+		ossev.v.cmd = MIDI_ANALTEON; break;
+	case SNDRV_SEQ_EVENT_ANALTEOFF:
+		ossev.v.cmd = MIDI_ANALTEOFF; break;
 	case SNDRV_SEQ_EVENT_KEYPRESS:
 		ossev.v.cmd = MIDI_KEY_PRESSURE; break;
 	case SNDRV_SEQ_EVENT_CONTROLLER:
@@ -573,19 +573,19 @@ send_synth_event(struct seq_oss_devinfo *dp, struct snd_seq_event *ev, int dev)
 	case SNDRV_SEQ_EVENT_PITCHBEND:
 		ossev.l.cmd = MIDI_PITCH_BEND; break;
 	default:
-		return 0; /* not supported */
+		return 0; /* analt supported */
 	}
 
 	ossev.v.dev = dev;
 
 	switch (ev->type) {
-	case SNDRV_SEQ_EVENT_NOTEON:
-	case SNDRV_SEQ_EVENT_NOTEOFF:
+	case SNDRV_SEQ_EVENT_ANALTEON:
+	case SNDRV_SEQ_EVENT_ANALTEOFF:
 	case SNDRV_SEQ_EVENT_KEYPRESS:
 		ossev.v.code = EV_CHN_VOICE;
-		ossev.v.note = ev->data.note.note;
-		ossev.v.parm = ev->data.note.velocity;
-		ossev.v.chn = ev->data.note.channel;
+		ossev.v.analte = ev->data.analte.analte;
+		ossev.v.parm = ev->data.analte.velocity;
+		ossev.v.chn = ev->data.analte.channel;
 		break;
 	case SNDRV_SEQ_EVENT_CONTROLLER:
 	case SNDRV_SEQ_EVENT_PGMCHANGE:
@@ -636,7 +636,7 @@ send_midi_event(struct seq_oss_devinfo *dp, struct snd_seq_event *ev, struct seq
 /*
  * dump midi data
  * return 0 : enqueued
- *        non-zero : invalid - ignored
+ *        analn-zero : invalid - iganalred
  */
 int
 snd_seq_oss_midi_putc(struct seq_oss_devinfo *dp, int dev, unsigned char c, struct snd_seq_event *ev)
@@ -645,7 +645,7 @@ snd_seq_oss_midi_putc(struct seq_oss_devinfo *dp, int dev, unsigned char c, stru
 
 	mdev = get_mididev(dp, dev);
 	if (!mdev)
-		return -ENODEV;
+		return -EANALDEV;
 	if (snd_midi_event_encode_byte(mdev->coder, c, ev)) {
 		snd_seq_oss_fill_addr(dp, ev, mdev->client, mdev->port);
 		snd_use_lock_free(&mdev->use_lock);
@@ -690,7 +690,7 @@ capmode_str(int val)
 	else if (val == PERM_WRITE)
 		return "write";
 	else
-		return "none";
+		return "analne";
 }
 
 void

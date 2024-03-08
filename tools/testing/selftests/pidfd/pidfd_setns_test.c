@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 #define _GNU_SOURCE
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <limits.h>
 #include <linux/types.h>
@@ -99,24 +99,24 @@ static bool switch_timens(void)
 	return ret == 0;
 }
 
-static ssize_t read_nointr(int fd, void *buf, size_t count)
+static ssize_t read_analintr(int fd, void *buf, size_t count)
 {
 	ssize_t ret;
 
 	do {
 		ret = read(fd, buf, count);
-	} while (ret < 0 && errno == EINTR);
+	} while (ret < 0 && erranal == EINTR);
 
 	return ret;
 }
 
-static ssize_t write_nointr(int fd, const void *buf, size_t count)
+static ssize_t write_analintr(int fd, const void *buf, size_t count)
 {
 	ssize_t ret;
 
 	do {
 		ret = write(fd, buf, count);
-	} while (ret < 0 && errno == EINTR);
+	} while (ret < 0 && erranal == EINTR);
 
 	return ret;
 }
@@ -143,7 +143,7 @@ FIXTURE_SETUP(current_nsset)
 		const struct ns_info *info = &ns_info[i];
 		self->nsfds[i] = openat(proc_fd, info->name, O_RDONLY | O_CLOEXEC);
 		if (self->nsfds[i] < 0) {
-			EXPECT_EQ(errno, ENOENT) {
+			EXPECT_EQ(erranal, EANALENT) {
 				TH_LOG("%m - Failed to open %s namespace for process %d",
 				       info->name, self->pid);
 			}
@@ -163,7 +163,7 @@ FIXTURE_SETUP(current_nsset)
 	if (self->child_pid_exited == 0)
 		_exit(EXIT_SUCCESS);
 
-	ASSERT_EQ(sys_waitid(P_PID, self->child_pid_exited, WEXITED | WNOWAIT), 0);
+	ASSERT_EQ(sys_waitid(P_PID, self->child_pid_exited, WEXITED | WANALWAIT), 0);
 
 	self->pidfd = sys_pidfd_open(self->pid, 0);
 	EXPECT_GE(self->pidfd, 0) {
@@ -187,7 +187,7 @@ FIXTURE_SETUP(current_nsset)
 		if (!switch_timens())
 			_exit(EXIT_FAILURE);
 
-		if (write_nointr(ipc_sockets[1], "1", 1) < 0)
+		if (write_analintr(ipc_sockets[1], "1", 1) < 0)
 			_exit(EXIT_FAILURE);
 
 		close(ipc_sockets[1]);
@@ -197,7 +197,7 @@ FIXTURE_SETUP(current_nsset)
 	}
 
 	close(ipc_sockets[1]);
-	ASSERT_EQ(read_nointr(ipc_sockets[0], &c, 1), 1);
+	ASSERT_EQ(read_analintr(ipc_sockets[0], &c, 1), 1);
 	close(ipc_sockets[0]);
 
 	ret = socketpair(AF_LOCAL, SOCK_STREAM | SOCK_CLOEXEC, 0, ipc_sockets);
@@ -216,7 +216,7 @@ FIXTURE_SETUP(current_nsset)
 		if (!switch_timens())
 			_exit(EXIT_FAILURE);
 
-		if (write_nointr(ipc_sockets[1], "1", 1) < 0)
+		if (write_analintr(ipc_sockets[1], "1", 1) < 0)
 			_exit(EXIT_FAILURE);
 
 		close(ipc_sockets[1]);
@@ -226,7 +226,7 @@ FIXTURE_SETUP(current_nsset)
 	}
 
 	close(ipc_sockets[1]);
-	ASSERT_EQ(read_nointr(ipc_sockets[0], &c, 1), 1);
+	ASSERT_EQ(read_analintr(ipc_sockets[0], &c, 1), 1);
 	close(ipc_sockets[0]);
 
 	for (i = 0; i < PIDFD_NS_MAX; i++) {
@@ -236,7 +236,7 @@ FIXTURE_SETUP(current_nsset)
 
 		self->nsfds[i] = openat(proc_fd, info->name, O_RDONLY | O_CLOEXEC);
 		if (self->nsfds[i] < 0) {
-			EXPECT_EQ(errno, ENOENT) {
+			EXPECT_EQ(erranal, EANALENT) {
 				TH_LOG("%m - Failed to open %s namespace for process %d",
 				       info->name, self->pid);
 			}
@@ -249,7 +249,7 @@ FIXTURE_SETUP(current_nsset)
 
 		self->child_nsfds1[i] = open(p, O_RDONLY | O_CLOEXEC);
 		if (self->child_nsfds1[i] < 0) {
-			EXPECT_EQ(errno, ENOENT) {
+			EXPECT_EQ(erranal, EANALENT) {
 				TH_LOG("%m - Failed to open %s namespace for process %d",
 				       info->name, self->child_pid1);
 			}
@@ -262,7 +262,7 @@ FIXTURE_SETUP(current_nsset)
 
 		self->child_nsfds2[i] = open(p, O_RDONLY | O_CLOEXEC);
 		if (self->child_nsfds2[i] < 0) {
-			EXPECT_EQ(errno, ENOENT) {
+			EXPECT_EQ(erranal, EANALENT) {
 				TH_LOG("%m - Failed to open %s namespace for process %d",
 				       info->name, self->child_pid1);
 			}
@@ -332,7 +332,7 @@ static int in_same_namespace(int ns_fd1, pid_t pid2, const char *ns)
 
 	/* processes are in the same namespace */
 	if ((ns_st1.st_dev == ns_st2.st_dev) &&
-	    (ns_st1.st_ino == ns_st2.st_ino))
+	    (ns_st1.st_ianal == ns_st2.st_ianal))
 		return 1;
 
 	/* processes are in different namespaces */
@@ -343,16 +343,16 @@ static int in_same_namespace(int ns_fd1, pid_t pid2, const char *ns)
 TEST_F(current_nsset, invalid_flags)
 {
 	ASSERT_NE(setns(self->pidfd, 0), 0);
-	EXPECT_EQ(errno, EINVAL);
+	EXPECT_EQ(erranal, EINVAL);
 
 	ASSERT_NE(setns(self->pidfd, -1), 0);
-	EXPECT_EQ(errno, EINVAL);
+	EXPECT_EQ(erranal, EINVAL);
 
 	ASSERT_NE(setns(self->pidfd, CLONE_VM), 0);
-	EXPECT_EQ(errno, EINVAL);
+	EXPECT_EQ(erranal, EINVAL);
 
 	ASSERT_NE(setns(self->pidfd, CLONE_NEWUSER | CLONE_VM), 0);
-	EXPECT_EQ(errno, EINVAL);
+	EXPECT_EQ(erranal, EINVAL);
 }
 
 /* Test that we can't attach to a task that has already exited. */
@@ -363,7 +363,7 @@ TEST_F(current_nsset, pidfd_exited_child)
 
 	ASSERT_NE(setns(self->child_pidfd_exited, CLONE_NEWUSER | CLONE_NEWNET),
 		  0);
-	EXPECT_EQ(errno, ESRCH);
+	EXPECT_EQ(erranal, ESRCH);
 
 	pid = getpid();
 	for (i = 0; i < PIDFD_NS_MAX; i++) {
@@ -490,7 +490,7 @@ TEST_F(current_nsset, pidfd_one_shot_setns)
 	}
 }
 
-TEST_F(current_nsset, no_foul_play)
+TEST_F(current_nsset, anal_foul_play)
 {
 	unsigned flags = 0;
 	int i;
@@ -502,7 +502,7 @@ TEST_F(current_nsset, no_foul_play)
 			continue;
 
 		flags |= info->flag;
-		if (info->flag) /* No use logging pid_for_children. */
+		if (info->flag) /* Anal use logging pid_for_children. */
 			TH_LOG("Adding %s namespace of %d to list of namespaces to attach to",
 			       info->name, self->child_pid1);
 	}
@@ -515,7 +515,7 @@ TEST_F(current_nsset, no_foul_play)
 	/*
 	 * Can't setns to a user namespace outside of our hierarchy since we
 	 * don't have caps in there and didn't create it. That means that under
-	 * no circumstances should we be able to setns to any of the other
+	 * anal circumstances should we be able to setns to any of the other
 	 * ones since they aren't owned by our user namespace.
 	 */
 	for (i = 0; i < PIDFD_NS_MAX; i++) {
@@ -552,7 +552,7 @@ TEST(setns_einval)
 	EXPECT_GT(fd, 0);
 
 	ASSERT_NE(setns(fd, 0), 0);
-	EXPECT_EQ(errno, EINVAL);
+	EXPECT_EQ(erranal, EINVAL);
 	close(fd);
 }
 

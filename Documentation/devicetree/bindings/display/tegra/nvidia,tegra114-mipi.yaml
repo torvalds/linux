@@ -11,7 +11,7 @@ maintainers:
   - Jon Hunter <jonathanh@nvidia.com>
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^mipi@[0-9a-f]+$"
 
   compatible:

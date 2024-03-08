@@ -21,21 +21,21 @@
  *   are met:
  *
  *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
+ *       analtice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above copy
- *       notice, this list of conditions and the following disclaimer in
+ *       analtice, this list of conditions and the following disclaimer in
  *       the documentation and/or other materials provided with the
  *       distribution.
- *     * Neither the name of Intel Corporation nor the names of its
+ *     * Neither the name of Intel Corporation analr the names of its
  *       contributors may be used to endorse or promote products derived
  *       from this software without specific prior written permission.
  *
  *   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- *   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ *   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  *   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- *   A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ *   A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT
  *   OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- *   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ *   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT
  *   LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
  *   DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
  *   THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
@@ -117,7 +117,7 @@ static void ntb_netdev_rx_handler(struct ntb_transport_qp *qp, void *qp_data,
 
 	skb_put(skb, len);
 	skb->protocol = eth_type_trans(skb, ndev);
-	skb->ip_summed = CHECKSUM_NONE;
+	skb->ip_summed = CHECKSUM_ANALNE;
 
 	if (__netif_rx(skb) == NET_RX_DROP) {
 		ndev->stats.rx_errors++;
@@ -254,7 +254,7 @@ static int ntb_netdev_open(struct net_device *ndev)
 	for (i = 0; i < NTB_RXQ_SIZE; i++) {
 		skb = netdev_alloc_skb(ndev, ndev->mtu + ETH_HLEN);
 		if (!skb) {
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto err;
 		}
 
@@ -322,7 +322,7 @@ static int ntb_netdev_change_mtu(struct net_device *ndev, int new_mtu)
 		for (; i; i--) {
 			skb = netdev_alloc_skb(ndev, new_mtu + ETH_HLEN);
 			if (!skb) {
-				rc = -ENOMEM;
+				rc = -EANALMEM;
 				goto err;
 			}
 
@@ -347,7 +347,7 @@ err:
 	while ((skb = ntb_transport_rx_remove(dev->qp, &len)))
 		dev_kfree_skb(skb);
 
-	netdev_err(ndev, "Error changing MTU, device inoperable\n");
+	netdev_err(ndev, "Error changing MTU, device ianalperable\n");
 	return rc;
 }
 
@@ -377,7 +377,7 @@ static int ntb_get_link_ksettings(struct net_device *dev,
 	ethtool_link_ksettings_zero_link_mode(cmd, advertising);
 	ethtool_link_ksettings_add_link_mode(cmd, advertising, Backplane);
 
-	cmd->base.speed = SPEED_UNKNOWN;
+	cmd->base.speed = SPEED_UNKANALWN;
 	cmd->base.duplex = DUPLEX_FULL;
 	cmd->base.port = PORT_OTHER;
 	cmd->base.phy_address = 0;
@@ -409,11 +409,11 @@ static int ntb_netdev_probe(struct device *client_dev)
 	ntb = dev_ntb(client_dev->parent);
 	pdev = ntb->pdev;
 	if (!pdev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ndev = alloc_etherdev(sizeof(*dev));
 	if (!ndev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	SET_NETDEV_DEV(ndev, client_dev);
 

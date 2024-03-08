@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included
+ * The above copyright analtice and this permission analtice shall be included
  * in all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
@@ -1039,14 +1039,14 @@
 #define SBRMI_COMMAND__WrDataLen__SHIFT                                                                       0x8
 #define SBRMI_COMMAND__RdDataLen__SHIFT                                                                       0x10
 #define SBRMI_COMMAND__CommandSent__SHIFT                                                                     0x18
-#define SBRMI_COMMAND__CommandNotSupported__SHIFT                                                             0x19
+#define SBRMI_COMMAND__CommandAnaltSupported__SHIFT                                                             0x19
 #define SBRMI_COMMAND__CommandAborted__SHIFT                                                                  0x1a
 #define SBRMI_COMMAND__Status__SHIFT                                                                          0x1c
 #define SBRMI_COMMAND__Command_MASK                                                                           0x000000FFL
 #define SBRMI_COMMAND__WrDataLen_MASK                                                                         0x0000FF00L
 #define SBRMI_COMMAND__RdDataLen_MASK                                                                         0x00FF0000L
 #define SBRMI_COMMAND__CommandSent_MASK                                                                       0x01000000L
-#define SBRMI_COMMAND__CommandNotSupported_MASK                                                               0x02000000L
+#define SBRMI_COMMAND__CommandAnaltSupported_MASK                                                               0x02000000L
 #define SBRMI_COMMAND__CommandAborted_MASK                                                                    0x04000000L
 #define SBRMI_COMMAND__Status_MASK                                                                            0xF0000000L
 //SBRMI_WRITE_DATA0
@@ -1119,12 +1119,12 @@
 #define SMBUS_CNTL0__SMB_DEFAULT_SLV_ADDR_OVERRIDE__SHIFT                                                     0x0
 #define SMBUS_CNTL0__SMB_DEFAULT_SLV_ADDR__SHIFT                                                              0x1
 #define SMBUS_CNTL0__SMB_CPL_DUMMY_BYTE__SHIFT                                                                0x8
-#define SMBUS_CNTL0__SMB_NOTIFY_ARP_MAX_TIMES__SHIFT                                                          0x10
+#define SMBUS_CNTL0__SMB_ANALTIFY_ARP_MAX_TIMES__SHIFT                                                          0x10
 #define SMBUS_CNTL0__THM_READY__SHIFT                                                                         0x14
 #define SMBUS_CNTL0__SMB_DEFAULT_SLV_ADDR_OVERRIDE_MASK                                                       0x00000001L
 #define SMBUS_CNTL0__SMB_DEFAULT_SLV_ADDR_MASK                                                                0x000000FEL
 #define SMBUS_CNTL0__SMB_CPL_DUMMY_BYTE_MASK                                                                  0x0000FF00L
-#define SMBUS_CNTL0__SMB_NOTIFY_ARP_MAX_TIMES_MASK                                                            0x00070000L
+#define SMBUS_CNTL0__SMB_ANALTIFY_ARP_MAX_TIMES_MASK                                                            0x00070000L
 #define SMBUS_CNTL0__THM_READY_MASK                                                                           0x00100000L
 //SMBUS_CNTL1
 #define SMBUS_CNTL1__SMB_TIMEOUT_EN__SHIFT                                                                    0x0
@@ -1190,9 +1190,9 @@
 #define SMBUS_TIMING_CNTL2__SMBCLK_LEVEL_CTRL_MARGIN_MASK                                                     0x07FFE000L
 //SMBUS_TRIGGER_CNTL
 #define SMBUS_TRIGGER_CNTL__SMB_SOFT_RESET_TRIGGER__SHIFT                                                     0x0
-#define SMBUS_TRIGGER_CNTL__SMB_NOTIFY_ARP_TRIGGER__SHIFT                                                     0x8
+#define SMBUS_TRIGGER_CNTL__SMB_ANALTIFY_ARP_TRIGGER__SHIFT                                                     0x8
 #define SMBUS_TRIGGER_CNTL__SMB_SOFT_RESET_TRIGGER_MASK                                                       0x00000001L
-#define SMBUS_TRIGGER_CNTL__SMB_NOTIFY_ARP_TRIGGER_MASK                                                       0x00000100L
+#define SMBUS_TRIGGER_CNTL__SMB_ANALTIFY_ARP_TRIGGER_MASK                                                       0x00000100L
 //SMBUS_UDID_CNTL0
 #define SMBUS_UDID_CNTL0__SMB_PRBS_INI_SEED__SHIFT                                                            0x0
 #define SMBUS_UDID_CNTL0__SMB_SRST_REGEN_UDID_EN__SHIFT                                                       0x1f

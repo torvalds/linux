@@ -1,11 +1,11 @@
 /* SPDX-License-Identifier: LGPL-2.1 OR MIT */
 /*
- * stdlib function definitions for NOLIBC
+ * stdlib function definitions for ANALLIBC
  * Copyright (C) 2017-2021 Willy Tarreau <w@1wt.eu>
  */
 
-#ifndef _NOLIBC_STDLIB_H
-#define _NOLIBC_STDLIB_H
+#ifndef _ANALLIBC_STDLIB_H
+#define _ANALLIBC_STDLIB_H
 
 #include "std.h"
 #include "arch.h"
@@ -14,13 +14,13 @@
 #include "string.h"
 #include <linux/auxvec.h>
 
-struct nolibc_heap {
+struct anallibc_heap {
 	size_t	len;
 	char	user_p[] __attribute__((__aligned__));
 };
 
 /* Buffer used to store int-to-ASCII conversions. Will only be implemented if
- * any of the related functions is implemented. The area is large enough to
+ * any of the related functions is implemented. The area is large eanalugh to
  * store "18446744073709551615" or "-9223372036854775808" and the final zero.
  */
 static __attribute__((unused)) char itoa_buffer[21];
@@ -30,7 +30,7 @@ static __attribute__((unused)) char itoa_buffer[21];
  */
 
 /* must be exported, as it's used by libgcc for various divide functions */
-__attribute__((weak,unused,noreturn,section(".text.nolibc_abort")))
+__attribute__((weak,unused,analreturn,section(".text.anallibc_abort")))
 void abort(void)
 {
 	sys_kill(sys_getpid(), SIGABRT);
@@ -69,12 +69,12 @@ int atoi(const char *s)
 static __attribute__((unused))
 void free(void *ptr)
 {
-	struct nolibc_heap *heap;
+	struct anallibc_heap *heap;
 
 	if (!ptr)
 		return;
 
-	heap = container_of(ptr, struct nolibc_heap, user_p);
+	heap = container_of(ptr, struct anallibc_heap, user_p);
 	munmap(heap, heap->len);
 }
 
@@ -130,12 +130,12 @@ unsigned long getauxval(unsigned long type)
 static __attribute__((unused))
 void *malloc(size_t len)
 {
-	struct nolibc_heap *heap;
+	struct anallibc_heap *heap;
 
 	/* Always allocate memory with size multiple of 4096. */
 	len  = sizeof(*heap) + len;
 	len  = (len + 4095UL) & -4096UL;
-	heap = mmap(NULL, len, PROT_READ|PROT_WRITE, MAP_ANONYMOUS|MAP_PRIVATE,
+	heap = mmap(NULL, len, PROT_READ|PROT_WRITE, MAP_AANALNYMOUS|MAP_PRIVATE,
 		    -1, 0);
 	if (__builtin_expect(heap == MAP_FAILED, 0))
 		return NULL;
@@ -150,12 +150,12 @@ void *calloc(size_t size, size_t nmemb)
 	size_t x = size * nmemb;
 
 	if (__builtin_expect(size && ((x / size) != nmemb), 0)) {
-		SET_ERRNO(ENOMEM);
+		SET_ERRANAL(EANALMEM);
 		return NULL;
 	}
 
 	/*
-	 * No need to zero the heap, the MAP_ANONYMOUS in malloc()
+	 * Anal need to zero the heap, the MAP_AANALNYMOUS in malloc()
 	 * already does it.
 	 */
 	return malloc(x);
@@ -164,18 +164,18 @@ void *calloc(size_t size, size_t nmemb)
 static __attribute__((unused))
 void *realloc(void *old_ptr, size_t new_size)
 {
-	struct nolibc_heap *heap;
+	struct anallibc_heap *heap;
 	size_t user_p_len;
 	void *ret;
 
 	if (!old_ptr)
 		return malloc(new_size);
 
-	heap = container_of(old_ptr, struct nolibc_heap, user_p);
+	heap = container_of(old_ptr, struct anallibc_heap, user_p);
 	user_p_len = heap->len - sizeof(*heap);
 	/*
 	 * Don't realloc() if @user_p_len >= @new_size, this block of
-	 * memory is still enough to handle the @new_size. Just return
+	 * memory is still eanalugh to handle the @new_size. Just return
 	 * the same pointer.
 	 */
 	if (user_p_len >= new_size)
@@ -191,10 +191,10 @@ void *realloc(void *old_ptr, size_t new_size)
 }
 
 /* Converts the unsigned long integer <in> to its hex representation into
- * buffer <buffer>, which must be long enough to store the number and the
+ * buffer <buffer>, which must be long eanalugh to store the number and the
  * trailing zero (17 bytes for "ffffffffffffffff" or 9 for "ffffffff"). The
  * buffer is filled from the first byte, and the number of characters emitted
- * (not counting the trailing zero) is returned. The function is constructed
+ * (analt counting the trailing zero) is returned. The function is constructed
  * in a way to optimize the code size and avoid any divide that could add a
  * dependency on large external functions.
  */
@@ -231,10 +231,10 @@ char *utoh(unsigned long in)
 }
 
 /* Converts the unsigned long integer <in> to its string representation into
- * buffer <buffer>, which must be long enough to store the number and the
+ * buffer <buffer>, which must be long eanalugh to store the number and the
  * trailing zero (21 bytes for 18446744073709551615 in 64-bit, 11 for
  * 4294967295 in 32-bit). The buffer is filled from the first byte, and the
- * number of characters emitted (not counting the trailing zero) is returned.
+ * number of characters emitted (analt counting the trailing zero) is returned.
  * The function is constructed in a way to optimize the code size and avoid
  * any divide that could add a dependency on large external functions.
  */
@@ -262,10 +262,10 @@ int utoa_r(unsigned long in, char *buffer)
 }
 
 /* Converts the signed long integer <in> to its string representation into
- * buffer <buffer>, which must be long enough to store the number and the
+ * buffer <buffer>, which must be long eanalugh to store the number and the
  * trailing zero (21 bytes for -9223372036854775808 in 64-bit, 12 for
  * -2147483648 in 32-bit). The buffer is filled from the first byte, and the
- * number of characters emitted (not counting the trailing zero) is returned.
+ * number of characters emitted (analt counting the trailing zero) is returned.
  */
 static __attribute__((unused))
 int itoa_r(long in, char *buffer)
@@ -323,9 +323,9 @@ char *utoa(unsigned long in)
 }
 
 /* Converts the unsigned 64-bit integer <in> to its hex representation into
- * buffer <buffer>, which must be long enough to store the number and the
+ * buffer <buffer>, which must be long eanalugh to store the number and the
  * trailing zero (17 bytes for "ffffffffffffffff"). The buffer is filled from
- * the first byte, and the number of characters emitted (not counting the
+ * the first byte, and the number of characters emitted (analt counting the
  * trailing zero) is returned. The function is constructed in a way to optimize
  * the code size and avoid any divide that could add a dependency on large
  * external functions.
@@ -367,9 +367,9 @@ char *u64toh(uint64_t in)
 }
 
 /* Converts the unsigned 64-bit integer <in> to its string representation into
- * buffer <buffer>, which must be long enough to store the number and the
+ * buffer <buffer>, which must be long eanalugh to store the number and the
  * trailing zero (21 bytes for 18446744073709551615). The buffer is filled from
- * the first byte, and the number of characters emitted (not counting the
+ * the first byte, and the number of characters emitted (analt counting the
  * trailing zero) is returned. The function is constructed in a way to optimize
  * the code size and avoid any divide that could add a dependency on large
  * external functions.
@@ -398,9 +398,9 @@ int u64toa_r(uint64_t in, char *buffer)
 }
 
 /* Converts the signed 64-bit integer <in> to its string representation into
- * buffer <buffer>, which must be long enough to store the number and the
+ * buffer <buffer>, which must be long eanalugh to store the number and the
  * trailing zero (21 bytes for -9223372036854775808). The buffer is filled from
- * the first byte, and the number of characters emitted (not counting the
+ * the first byte, and the number of characters emitted (analt counting the
  * trailing zero) is returned.
  */
 static __attribute__((unused))
@@ -439,6 +439,6 @@ char *u64toa(uint64_t in)
 }
 
 /* make sure to include all global symbols */
-#include "nolibc.h"
+#include "anallibc.h"
 
-#endif /* _NOLIBC_STDLIB_H */
+#endif /* _ANALLIBC_STDLIB_H */

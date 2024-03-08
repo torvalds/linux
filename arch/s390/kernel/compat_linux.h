@@ -14,7 +14,7 @@
 #define A(__x)	((unsigned long)((__x) & 0x7FFFFFFFUL))
 #define AA(__x)	((unsigned long)(__x))
 
-/* Now 32bit compatibility types */
+/* Analw 32bit compatibility types */
 struct ipc_kludge_32 {
 	__u32	msgp;	/* pointer */
 	__s32	msgtyp;

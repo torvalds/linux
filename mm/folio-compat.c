@@ -58,11 +58,11 @@ bool set_page_dirty(struct page *page)
 }
 EXPORT_SYMBOL(set_page_dirty);
 
-int __set_page_dirty_nobuffers(struct page *page)
+int __set_page_dirty_analbuffers(struct page *page)
 {
 	return filemap_dirty_folio(page_mapping(page), page_folio(page));
 }
-EXPORT_SYMBOL(__set_page_dirty_nobuffers);
+EXPORT_SYMBOL(__set_page_dirty_analbuffers);
 
 bool clear_page_dirty_for_io(struct page *page)
 {
@@ -84,7 +84,7 @@ int add_to_page_cache_lru(struct page *page, struct address_space *mapping,
 }
 EXPORT_SYMBOL(add_to_page_cache_lru);
 
-noinline
+analinline
 struct page *pagecache_get_page(struct address_space *mapping, pgoff_t index,
 		fgf_t fgp_flags, gfp_t gfp)
 {

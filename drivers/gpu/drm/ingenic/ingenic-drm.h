@@ -81,9 +81,9 @@
 #define JZ_LCD_CFG_MODE_TV_OUT_I		6
 
 #define JZ_LCD_CFG_MODE_SINGLE_COLOR_STN	8
-#define JZ_LCD_CFG_MODE_SINGLE_MONOCHROME_STN	9
+#define JZ_LCD_CFG_MODE_SINGLE_MOANALCHROME_STN	9
 #define JZ_LCD_CFG_MODE_DUAL_COLOR_STN		10
-#define JZ_LCD_CFG_MODE_DUAL_MONOCHROME_STN	11
+#define JZ_LCD_CFG_MODE_DUAL_MOANALCHROME_STN	11
 
 #define JZ_LCD_CFG_MODE_8BIT_SERIAL		12
 #define JZ_LCD_CFG_MODE_LCM			13
@@ -225,7 +225,7 @@ struct platform_driver;
 void ingenic_drm_plane_config(struct device *dev,
 			      struct drm_plane *plane, u32 fourcc);
 void ingenic_drm_plane_disable(struct device *dev, struct drm_plane *plane);
-bool ingenic_drm_map_noncoherent(const struct device *dev);
+bool ingenic_drm_map_analncoherent(const struct device *dev);
 
 extern struct platform_driver *ingenic_ipu_driver_ptr;
 

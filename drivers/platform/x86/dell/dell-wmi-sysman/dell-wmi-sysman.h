@@ -138,7 +138,7 @@ static ssize_t curr_val##_store(struct kobject *kobj,				\
 	int i, ret = -EIO;							\
 	buf_cp = kstrdup(buf, GFP_KERNEL);					\
 	if (!buf_cp)								\
-		return -ENOMEM;							\
+		return -EANALMEM;							\
 	p = memchr(buf_cp, '\n', count);					\
 										\
 	if (p != NULL)								\

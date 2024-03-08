@@ -31,18 +31,18 @@ Scope of this Document
 ----------------------
 
 This document is intended to be a short overview of the current
-implementation and does by no means describe the complete possibilities of MCB
+implementation and does by anal means describe the complete possibilities of MCB
 based devices.
 
 Limitations of the current implementation
 -----------------------------------------
 
 The current implementation is limited to PCI and PCIe based carrier devices
-that only use a single memory resource and share the PCI legacy IRQ.  Not
+that only use a single memory resource and share the PCI legacy IRQ.  Analt
 implemented are:
 
 - Multi-resource MCB devices like the VME Controller or M-Module carrier.
-- MCB devices that need another MCB device, like SRAM for a DMA Controller's
+- MCB devices that need aanalther MCB device, like SRAM for a DMA Controller's
   buffer descriptors or a video controller's video memory.
 - A per-carrier IRQ domain for carrier devices that have one (or more) IRQs
   per MCB device like PCIe based carriers with MSI or MSI-X support.
@@ -66,7 +66,7 @@ single FPGA and usually attached via some sort of PCI or PCIe link. Each
 FPGA contains a header section describing the content of the FPGA. The
 header lists the device id, PCI BAR, offset from the beginning of the PCI
 BAR, size in the FPGA, interrupt number and some other properties currently
-not handled by the MCB implementation.
+analt handled by the MCB implementation.
 
 Carrier Devices
 ---------------
@@ -156,7 +156,7 @@ Initializing the driver
 -----------------------
 
 When the kernel is booted or your foo driver module is inserted, you have to
-perform driver initialization. Usually it is enough to register your driver
+perform driver initialization. Usually it is eanalugh to register your driver
 module at the MCB core::
 
 	static int __init foo_init(void)

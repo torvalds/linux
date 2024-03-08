@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  inode.c - part of tracefs, a pseudo file system for activating tracing
+ *  ianalde.c - part of tracefs, a pseudo file system for activating tracing
  *
  * Based on debugfs by: Greg Kroah-Hartman <greg@kroah.com>
  *
@@ -15,7 +15,7 @@
 #include <linux/kobject.h>
 #include <linux/namei.h>
 #include <linux/tracefs.h>
-#include <linux/fsnotify.h>
+#include <linux/fsanaltify.h>
 #include <linux/security.h>
 #include <linux/seq_file.h>
 #include <linux/parser.h>
@@ -24,26 +24,26 @@
 #include "internal.h"
 
 #define TRACEFS_DEFAULT_MODE	0700
-static struct kmem_cache *tracefs_inode_cachep __ro_after_init;
+static struct kmem_cache *tracefs_ianalde_cachep __ro_after_init;
 
 static struct vfsmount *tracefs_mount;
 static int tracefs_mount_count;
 static bool tracefs_registered;
 
-static struct inode *tracefs_alloc_inode(struct super_block *sb)
+static struct ianalde *tracefs_alloc_ianalde(struct super_block *sb)
 {
-	struct tracefs_inode *ti;
+	struct tracefs_ianalde *ti;
 
-	ti = kmem_cache_alloc(tracefs_inode_cachep, GFP_KERNEL);
+	ti = kmem_cache_alloc(tracefs_ianalde_cachep, GFP_KERNEL);
 	if (!ti)
 		return NULL;
 
-	return &ti->vfs_inode;
+	return &ti->vfs_ianalde;
 }
 
-static void tracefs_free_inode(struct inode *inode)
+static void tracefs_free_ianalde(struct ianalde *ianalde)
 {
-	kmem_cache_free(tracefs_inode_cachep, get_tracefs(inode));
+	kmem_cache_free(tracefs_ianalde_cachep, get_tracefs(ianalde));
 }
 
 static ssize_t default_read_file(struct file *file, char __user *buf,
@@ -62,7 +62,7 @@ static const struct file_operations tracefs_file_operations = {
 	.read =		default_read_file,
 	.write =	default_write_file,
 	.open =		simple_open,
-	.llseek =	noop_llseek,
+	.llseek =	analop_llseek,
 };
 
 static struct tracefs_dir_ops {
@@ -86,100 +86,100 @@ static char *get_dname(struct dentry *dentry)
 }
 
 static int tracefs_syscall_mkdir(struct mnt_idmap *idmap,
-				 struct inode *inode, struct dentry *dentry,
+				 struct ianalde *ianalde, struct dentry *dentry,
 				 umode_t mode)
 {
-	struct tracefs_inode *ti;
+	struct tracefs_ianalde *ti;
 	char *name;
 	int ret;
 
 	name = get_dname(dentry);
 	if (!name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
-	 * This is a new directory that does not take the default of
+	 * This is a new directory that does analt take the default of
 	 * the rootfs. It becomes the default permissions for all the
 	 * files and directories underneath it.
 	 */
-	ti = get_tracefs(inode);
-	ti->flags |= TRACEFS_INSTANCE_INODE;
-	ti->private = inode;
+	ti = get_tracefs(ianalde);
+	ti->flags |= TRACEFS_INSTANCE_IANALDE;
+	ti->private = ianalde;
 
 	/*
 	 * The mkdir call can call the generic functions that create
 	 * the files within the tracefs system. It is up to the individual
 	 * mkdir routine to handle races.
 	 */
-	inode_unlock(inode);
+	ianalde_unlock(ianalde);
 	ret = tracefs_ops.mkdir(name);
-	inode_lock(inode);
+	ianalde_lock(ianalde);
 
 	kfree(name);
 
 	return ret;
 }
 
-static int tracefs_syscall_rmdir(struct inode *inode, struct dentry *dentry)
+static int tracefs_syscall_rmdir(struct ianalde *ianalde, struct dentry *dentry)
 {
 	char *name;
 	int ret;
 
 	name = get_dname(dentry);
 	if (!name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * The rmdir call can call the generic functions that create
 	 * the files within the tracefs system. It is up to the individual
 	 * rmdir routine to handle races.
-	 * This time we need to unlock not only the parent (inode) but
+	 * This time we need to unlock analt only the parent (ianalde) but
 	 * also the directory that is being deleted.
 	 */
-	inode_unlock(inode);
-	inode_unlock(d_inode(dentry));
+	ianalde_unlock(ianalde);
+	ianalde_unlock(d_ianalde(dentry));
 
 	ret = tracefs_ops.rmdir(name);
 
-	inode_lock_nested(inode, I_MUTEX_PARENT);
-	inode_lock(d_inode(dentry));
+	ianalde_lock_nested(ianalde, I_MUTEX_PARENT);
+	ianalde_lock(d_ianalde(dentry));
 
 	kfree(name);
 
 	return ret;
 }
 
-static void set_tracefs_inode_owner(struct inode *inode)
+static void set_tracefs_ianalde_owner(struct ianalde *ianalde)
 {
-	struct tracefs_inode *ti = get_tracefs(inode);
-	struct inode *root_inode = ti->private;
+	struct tracefs_ianalde *ti = get_tracefs(ianalde);
+	struct ianalde *root_ianalde = ti->private;
 
 	/*
-	 * If this inode has never been referenced, then update
+	 * If this ianalde has never been referenced, then update
 	 * the permissions to the superblock.
 	 */
 	if (!(ti->flags & TRACEFS_UID_PERM_SET))
-		inode->i_uid = root_inode->i_uid;
+		ianalde->i_uid = root_ianalde->i_uid;
 
 	if (!(ti->flags & TRACEFS_GID_PERM_SET))
-		inode->i_gid = root_inode->i_gid;
+		ianalde->i_gid = root_ianalde->i_gid;
 }
 
 static int tracefs_permission(struct mnt_idmap *idmap,
-			      struct inode *inode, int mask)
+			      struct ianalde *ianalde, int mask)
 {
-	set_tracefs_inode_owner(inode);
-	return generic_permission(idmap, inode, mask);
+	set_tracefs_ianalde_owner(ianalde);
+	return generic_permission(idmap, ianalde, mask);
 }
 
 static int tracefs_getattr(struct mnt_idmap *idmap,
 			   const struct path *path, struct kstat *stat,
 			   u32 request_mask, unsigned int flags)
 {
-	struct inode *inode = d_backing_inode(path->dentry);
+	struct ianalde *ianalde = d_backing_ianalde(path->dentry);
 
-	set_tracefs_inode_owner(inode);
-	generic_fillattr(idmap, request_mask, inode, stat);
+	set_tracefs_ianalde_owner(ianalde);
+	generic_fillattr(idmap, request_mask, ianalde, stat);
 	return 0;
 }
 
@@ -187,8 +187,8 @@ static int tracefs_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 			   struct iattr *attr)
 {
 	unsigned int ia_valid = attr->ia_valid;
-	struct inode *inode = d_inode(dentry);
-	struct tracefs_inode *ti = get_tracefs(inode);
+	struct ianalde *ianalde = d_ianalde(dentry);
+	struct tracefs_ianalde *ti = get_tracefs(ianalde);
 
 	if (ia_valid & ATTR_UID)
 		ti->flags |= TRACEFS_UID_PERM_SET;
@@ -199,7 +199,7 @@ static int tracefs_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 	return simple_setattr(idmap, dentry, attr);
 }
 
-static const struct inode_operations tracefs_instance_dir_inode_operations = {
+static const struct ianalde_operations tracefs_instance_dir_ianalde_operations = {
 	.lookup		= simple_lookup,
 	.mkdir		= tracefs_syscall_mkdir,
 	.rmdir		= tracefs_syscall_rmdir,
@@ -208,27 +208,27 @@ static const struct inode_operations tracefs_instance_dir_inode_operations = {
 	.setattr	= tracefs_setattr,
 };
 
-static const struct inode_operations tracefs_dir_inode_operations = {
+static const struct ianalde_operations tracefs_dir_ianalde_operations = {
 	.lookup		= simple_lookup,
 	.permission	= tracefs_permission,
 	.getattr	= tracefs_getattr,
 	.setattr	= tracefs_setattr,
 };
 
-static const struct inode_operations tracefs_file_inode_operations = {
+static const struct ianalde_operations tracefs_file_ianalde_operations = {
 	.permission	= tracefs_permission,
 	.getattr	= tracefs_getattr,
 	.setattr	= tracefs_setattr,
 };
 
-struct inode *tracefs_get_inode(struct super_block *sb)
+struct ianalde *tracefs_get_ianalde(struct super_block *sb)
 {
-	struct inode *inode = new_inode(sb);
-	if (inode) {
-		inode->i_ino = get_next_ino();
-		simple_inode_init_ts(inode);
+	struct ianalde *ianalde = new_ianalde(sb);
+	if (ianalde) {
+		ianalde->i_ianal = get_next_ianal();
+		simple_ianalde_init_ts(ianalde);
 	}
-	return inode;
+	return ianalde;
 }
 
 struct tracefs_mount_opts {
@@ -298,7 +298,7 @@ static int tracefs_parse_options(char *data, struct tracefs_mount_opts *opts)
 			break;
 		/*
 		 * We might like to report bad mount options here;
-		 * but traditionally tracefs has ignored all mount options
+		 * but traditionally tracefs has iganalred all mount options
 		 */
 		}
 
@@ -311,7 +311,7 @@ static int tracefs_parse_options(char *data, struct tracefs_mount_opts *opts)
 static int tracefs_apply_options(struct super_block *sb, bool remount)
 {
 	struct tracefs_fs_info *fsi = sb->s_fs_info;
-	struct inode *inode = d_inode(sb->s_root);
+	struct ianalde *ianalde = d_ianalde(sb->s_root);
 	struct tracefs_mount_opts *opts = &fsi->mount_opts;
 	umode_t tmp_mode;
 
@@ -321,16 +321,16 @@ static int tracefs_apply_options(struct super_block *sb, bool remount)
 	 */
 
 	if (!remount || opts->opts & BIT(Opt_mode)) {
-		tmp_mode = READ_ONCE(inode->i_mode) & ~S_IALLUGO;
+		tmp_mode = READ_ONCE(ianalde->i_mode) & ~S_IALLUGO;
 		tmp_mode |= opts->mode;
-		WRITE_ONCE(inode->i_mode, tmp_mode);
+		WRITE_ONCE(ianalde->i_mode, tmp_mode);
 	}
 
 	if (!remount || opts->opts & BIT(Opt_uid))
-		inode->i_uid = opts->uid;
+		ianalde->i_uid = opts->uid;
 
 	if (!remount || opts->opts & BIT(Opt_gid))
-		inode->i_gid = opts->gid;
+		ianalde->i_gid = opts->gid;
 
 	return 0;
 }
@@ -369,9 +369,9 @@ static int tracefs_show_options(struct seq_file *m, struct dentry *root)
 }
 
 static const struct super_operations tracefs_super_operations = {
-	.alloc_inode    = tracefs_alloc_inode,
-	.free_inode     = tracefs_free_inode,
-	.drop_inode     = generic_delete_inode,
+	.alloc_ianalde    = tracefs_alloc_ianalde,
+	.free_ianalde     = tracefs_free_ianalde,
+	.drop_ianalde     = generic_delete_ianalde,
 	.statfs		= simple_statfs,
 	.remount_fs	= tracefs_remount,
 	.show_options	= tracefs_show_options,
@@ -380,7 +380,7 @@ static const struct super_operations tracefs_super_operations = {
 /*
  * It would be cleaner if eventfs had its own dentry ops.
  *
- * Note that d_revalidate is called potentially under RCU,
+ * Analte that d_revalidate is called potentially under RCU,
  * so it can't take the eventfs mutex etc. It's fine - if
  * we open a file just as it's marked dead, things will
  * still work just fine, and just see the old stale case.
@@ -393,7 +393,7 @@ static void tracefs_d_release(struct dentry *dentry)
 
 static int tracefs_d_revalidate(struct dentry *dentry, unsigned int flags)
 {
-	struct eventfs_inode *ei = dentry->d_fsdata;
+	struct eventfs_ianalde *ei = dentry->d_fsdata;
 
 	return !(ei && ei->is_freed);
 }
@@ -412,7 +412,7 @@ static int trace_fill_super(struct super_block *sb, void *data, int silent)
 	fsi = kzalloc(sizeof(struct tracefs_fs_info), GFP_KERNEL);
 	sb->s_fs_info = fsi;
 	if (!fsi) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto fail;
 	}
 
@@ -464,7 +464,7 @@ struct dentry *tracefs_start_creating(const char *name, struct dentry *parent)
 	if (error)
 		return ERR_PTR(error);
 
-	/* If the parent is not specified, we create it in the root.
+	/* If the parent is analt specified, we create it in the root.
 	 * We need the root dentry to do this, which is in the super
 	 * block. A pointer to that is in the struct vfsmount that we
 	 * have around.
@@ -472,18 +472,18 @@ struct dentry *tracefs_start_creating(const char *name, struct dentry *parent)
 	if (!parent)
 		parent = tracefs_mount->mnt_root;
 
-	inode_lock(d_inode(parent));
-	if (unlikely(IS_DEADDIR(d_inode(parent))))
-		dentry = ERR_PTR(-ENOENT);
+	ianalde_lock(d_ianalde(parent));
+	if (unlikely(IS_DEADDIR(d_ianalde(parent))))
+		dentry = ERR_PTR(-EANALENT);
 	else
 		dentry = lookup_one_len(name, parent, strlen(name));
-	if (!IS_ERR(dentry) && d_inode(dentry)) {
+	if (!IS_ERR(dentry) && d_ianalde(dentry)) {
 		dput(dentry);
 		dentry = ERR_PTR(-EEXIST);
 	}
 
 	if (IS_ERR(dentry)) {
-		inode_unlock(d_inode(parent));
+		ianalde_unlock(d_ianalde(parent));
 		simple_release_fs(&tracefs_mount, &tracefs_mount_count);
 	}
 
@@ -492,7 +492,7 @@ struct dentry *tracefs_start_creating(const char *name, struct dentry *parent)
 
 struct dentry *tracefs_failed_creating(struct dentry *dentry)
 {
-	inode_unlock(d_inode(dentry->d_parent));
+	ianalde_unlock(d_ianalde(dentry->d_parent));
 	dput(dentry);
 	simple_release_fs(&tracefs_mount, &tracefs_mount_count);
 	return NULL;
@@ -500,28 +500,28 @@ struct dentry *tracefs_failed_creating(struct dentry *dentry)
 
 struct dentry *tracefs_end_creating(struct dentry *dentry)
 {
-	inode_unlock(d_inode(dentry->d_parent));
+	ianalde_unlock(d_ianalde(dentry->d_parent));
 	return dentry;
 }
 
-/* Find the inode that this will use for default */
-static struct inode *instance_inode(struct dentry *parent, struct inode *inode)
+/* Find the ianalde that this will use for default */
+static struct ianalde *instance_ianalde(struct dentry *parent, struct ianalde *ianalde)
 {
-	struct tracefs_inode *ti;
+	struct tracefs_ianalde *ti;
 
-	/* If parent is NULL then use root inode */
+	/* If parent is NULL then use root ianalde */
 	if (!parent)
-		return d_inode(inode->i_sb->s_root);
+		return d_ianalde(ianalde->i_sb->s_root);
 
-	/* Find the inode that is flagged as an instance or the root inode */
+	/* Find the ianalde that is flagged as an instance or the root ianalde */
 	while (!IS_ROOT(parent)) {
-		ti = get_tracefs(d_inode(parent));
-		if (ti->flags & TRACEFS_INSTANCE_INODE)
+		ti = get_tracefs(d_ianalde(parent));
+		if (ti->flags & TRACEFS_INSTANCE_IANALDE)
 			break;
 		parent = parent->d_parent;
 	}
 
-	return d_inode(parent);
+	return d_ianalde(parent);
 }
 
 /**
@@ -532,7 +532,7 @@ static struct inode *instance_inode(struct dentry *parent, struct inode *inode)
  *          directory dentry if set.  If this parameter is NULL, then the
  *          file will be created in the root of the tracefs filesystem.
  * @data: a pointer to something that the caller will want to get to later
- *        on.  The inode.i_private pointer will point to this value on
+ *        on.  The ianalde.i_private pointer will point to this value on
  *        the open() call.
  * @fops: a pointer to a struct file_operations that should be used for
  *        this file.
@@ -544,19 +544,19 @@ static struct inode *instance_inode(struct dentry *parent, struct inode *inode)
  *
  * This function will return a pointer to a dentry if it succeeds.  This
  * pointer must be passed to the tracefs_remove() function when the file is
- * to be removed (no automatic cleanup happens if your module is unloaded,
+ * to be removed (anal automatic cleanup happens if your module is unloaded,
  * you are responsible here.)  If an error occurs, %NULL will be returned.
  *
- * If tracefs is not enabled in the kernel, the value -%ENODEV will be
+ * If tracefs is analt enabled in the kernel, the value -%EANALDEV will be
  * returned.
  */
 struct dentry *tracefs_create_file(const char *name, umode_t mode,
 				   struct dentry *parent, void *data,
 				   const struct file_operations *fops)
 {
-	struct tracefs_inode *ti;
+	struct tracefs_ianalde *ti;
 	struct dentry *dentry;
-	struct inode *inode;
+	struct ianalde *ianalde;
 
 	if (security_locked_down(LOCKDOWN_TRACEFS))
 		return NULL;
@@ -569,53 +569,53 @@ struct dentry *tracefs_create_file(const char *name, umode_t mode,
 	if (IS_ERR(dentry))
 		return NULL;
 
-	inode = tracefs_get_inode(dentry->d_sb);
-	if (unlikely(!inode))
+	ianalde = tracefs_get_ianalde(dentry->d_sb);
+	if (unlikely(!ianalde))
 		return tracefs_failed_creating(dentry);
 
-	ti = get_tracefs(inode);
-	ti->private = instance_inode(parent, inode);
+	ti = get_tracefs(ianalde);
+	ti->private = instance_ianalde(parent, ianalde);
 
-	inode->i_mode = mode;
-	inode->i_op = &tracefs_file_inode_operations;
-	inode->i_fop = fops ? fops : &tracefs_file_operations;
-	inode->i_private = data;
-	inode->i_uid = d_inode(dentry->d_parent)->i_uid;
-	inode->i_gid = d_inode(dentry->d_parent)->i_gid;
-	d_instantiate(dentry, inode);
-	fsnotify_create(d_inode(dentry->d_parent), dentry);
+	ianalde->i_mode = mode;
+	ianalde->i_op = &tracefs_file_ianalde_operations;
+	ianalde->i_fop = fops ? fops : &tracefs_file_operations;
+	ianalde->i_private = data;
+	ianalde->i_uid = d_ianalde(dentry->d_parent)->i_uid;
+	ianalde->i_gid = d_ianalde(dentry->d_parent)->i_gid;
+	d_instantiate(dentry, ianalde);
+	fsanaltify_create(d_ianalde(dentry->d_parent), dentry);
 	return tracefs_end_creating(dentry);
 }
 
 static struct dentry *__create_dir(const char *name, struct dentry *parent,
-				   const struct inode_operations *ops)
+				   const struct ianalde_operations *ops)
 {
-	struct tracefs_inode *ti;
+	struct tracefs_ianalde *ti;
 	struct dentry *dentry = tracefs_start_creating(name, parent);
-	struct inode *inode;
+	struct ianalde *ianalde;
 
 	if (IS_ERR(dentry))
 		return NULL;
 
-	inode = tracefs_get_inode(dentry->d_sb);
-	if (unlikely(!inode))
+	ianalde = tracefs_get_ianalde(dentry->d_sb);
+	if (unlikely(!ianalde))
 		return tracefs_failed_creating(dentry);
 
-	/* Do not set bits for OTH */
-	inode->i_mode = S_IFDIR | S_IRWXU | S_IRUSR| S_IRGRP | S_IXUSR | S_IXGRP;
-	inode->i_op = ops;
-	inode->i_fop = &simple_dir_operations;
-	inode->i_uid = d_inode(dentry->d_parent)->i_uid;
-	inode->i_gid = d_inode(dentry->d_parent)->i_gid;
+	/* Do analt set bits for OTH */
+	ianalde->i_mode = S_IFDIR | S_IRWXU | S_IRUSR| S_IRGRP | S_IXUSR | S_IXGRP;
+	ianalde->i_op = ops;
+	ianalde->i_fop = &simple_dir_operations;
+	ianalde->i_uid = d_ianalde(dentry->d_parent)->i_uid;
+	ianalde->i_gid = d_ianalde(dentry->d_parent)->i_gid;
 
-	ti = get_tracefs(inode);
-	ti->private = instance_inode(parent, inode);
+	ti = get_tracefs(ianalde);
+	ti->private = instance_ianalde(parent, ianalde);
 
-	/* directory inodes start off with i_nlink == 2 (for "." entry) */
-	inc_nlink(inode);
-	d_instantiate(dentry, inode);
-	inc_nlink(d_inode(dentry->d_parent));
-	fsnotify_mkdir(d_inode(dentry->d_parent), dentry);
+	/* directory ianaldes start off with i_nlink == 2 (for "." entry) */
+	inc_nlink(ianalde);
+	d_instantiate(dentry, ianalde);
+	inc_nlink(d_ianalde(dentry->d_parent));
+	fsanaltify_mkdir(d_ianalde(dentry->d_parent), dentry);
 	return tracefs_end_creating(dentry);
 }
 
@@ -633,7 +633,7 @@ static struct dentry *__create_dir(const char *name, struct dentry *parent,
  * pointer must be passed to the tracefs_remove() function when the file is
  * to be removed. If an error occurs, %NULL will be returned.
  *
- * If tracing is not enabled in the kernel, the value -%ENODEV will be
+ * If tracing is analt enabled in the kernel, the value -%EANALDEV will be
  * returned.
  */
 struct dentry *tracefs_create_dir(const char *name, struct dentry *parent)
@@ -641,7 +641,7 @@ struct dentry *tracefs_create_dir(const char *name, struct dentry *parent)
 	if (security_locked_down(LOCKDOWN_TRACEFS))
 		return NULL;
 
-	return __create_dir(name, parent, &tracefs_dir_inode_operations);
+	return __create_dir(name, parent, &tracefs_dir_ianalde_operations);
 }
 
 /**
@@ -654,7 +654,7 @@ struct dentry *tracefs_create_dir(const char *name, struct dentry *parent)
  * Only one instances directory is allowed.
  *
  * The instances directory is special as it allows for mkdir and rmdir
- * to be done by userspace. When a mkdir or rmdir is performed, the inode
+ * to be done by userspace. When a mkdir or rmdir is performed, the ianalde
  * locks are released and the methods passed in (@mkdir and @rmdir) are
  * called without locks and with the name of the directory being created
  * within the instances directory.
@@ -672,7 +672,7 @@ __init struct dentry *tracefs_create_instance_dir(const char *name,
 	if (WARN_ON(tracefs_ops.mkdir || tracefs_ops.rmdir))
 		return NULL;
 
-	dentry = __create_dir(name, parent, &tracefs_instance_dir_inode_operations);
+	dentry = __create_dir(name, parent, &tracefs_instance_dir_ianalde_operations);
 	if (!dentry)
 		return NULL;
 
@@ -692,7 +692,7 @@ static void remove_one(struct dentry *victim)
  * @dentry: a pointer to a the dentry of the directory to be removed.
  *
  * This function recursively removes a directory tree in tracefs that
- * was previously created with a call to another tracefs function
+ * was previously created with a call to aanalther tracefs function
  * (like tracefs_create_file() or variants thereof.)
  */
 void tracefs_remove(struct dentry *dentry)
@@ -715,27 +715,27 @@ bool tracefs_initialized(void)
 
 static void init_once(void *foo)
 {
-	struct tracefs_inode *ti = (struct tracefs_inode *) foo;
+	struct tracefs_ianalde *ti = (struct tracefs_ianalde *) foo;
 
-	/* inode_init_once() calls memset() on the vfs_inode portion */
-	inode_init_once(&ti->vfs_inode);
+	/* ianalde_init_once() calls memset() on the vfs_ianalde portion */
+	ianalde_init_once(&ti->vfs_ianalde);
 
 	/* Zero out the rest */
-	memset_after(ti, 0, vfs_inode);
+	memset_after(ti, 0, vfs_ianalde);
 }
 
 static int __init tracefs_init(void)
 {
 	int retval;
 
-	tracefs_inode_cachep = kmem_cache_create("tracefs_inode_cache",
-						 sizeof(struct tracefs_inode),
+	tracefs_ianalde_cachep = kmem_cache_create("tracefs_ianalde_cache",
+						 sizeof(struct tracefs_ianalde),
 						 0, (SLAB_RECLAIM_ACCOUNT|
 						     SLAB_MEM_SPREAD|
 						     SLAB_ACCOUNT),
 						 init_once);
-	if (!tracefs_inode_cachep)
-		return -ENOMEM;
+	if (!tracefs_ianalde_cachep)
+		return -EANALMEM;
 
 	retval = sysfs_create_mount_point(kernel_kobj, "tracing");
 	if (retval)

@@ -86,13 +86,13 @@ struct iret_context {
 };
 
 #if defined(__GNUC__) && !defined(__STRICT_ANSI__)
-/* Anonymous union includes both 32- and 64-bit names (e.g., eax/rax). */
+/* Aanalnymous union includes both 32- and 64-bit names (e.g., eax/rax). */
 #define __DECL_REG(name) union { \
     uint64_t r ## name, e ## name; \
     uint32_t _e ## name; \
 }
 #else
-/* Non-gcc sources must always use the proper 64-bit name (e.g., rax). */
+/* Analn-gcc sources must always use the proper 64-bit name (e.g., rax). */
 #define __DECL_REG(name) uint64_t r ## name
 #endif
 
@@ -123,8 +123,8 @@ struct cpu_user_regs {
     uint16_t ss, _pad2[3];
     uint16_t es, _pad3[3];
     uint16_t ds, _pad4[3];
-    uint16_t fs, _pad5[3]; /* Non-zero => takes precedence over fs_base.     */
-    uint16_t gs, _pad6[3]; /* Non-zero => takes precedence over gs_base_usr. */
+    uint16_t fs, _pad5[3]; /* Analn-zero => takes precedence over fs_base.     */
+    uint16_t gs, _pad6[3]; /* Analn-zero => takes precedence over gs_base_usr. */
 };
 DEFINE_GUEST_HANDLE_STRUCT(cpu_user_regs);
 

@@ -9,7 +9,7 @@ static struct mptcp_subflow_request_sock *build_req_sock(struct kunit *test)
 
 	req = kunit_kzalloc(test, sizeof(struct mptcp_subflow_request_sock),
 			    GFP_USER);
-	KUNIT_EXPECT_NOT_ERR_OR_NULL(test, req);
+	KUNIT_EXPECT_ANALT_ERR_OR_NULL(test, req);
 	mptcp_token_init_request((struct request_sock *)req);
 	sock_net_set((struct sock *)req, &init_net);
 	return req;
@@ -35,7 +35,7 @@ static struct inet_connection_sock *build_icsk(struct kunit *test)
 
 	icsk = kunit_kzalloc(test, sizeof(struct inet_connection_sock),
 			     GFP_USER);
-	KUNIT_EXPECT_NOT_ERR_OR_NULL(test, icsk);
+	KUNIT_EXPECT_ANALT_ERR_OR_NULL(test, icsk);
 	return icsk;
 }
 
@@ -45,7 +45,7 @@ static struct mptcp_subflow_context *build_ctx(struct kunit *test)
 
 	ctx = kunit_kzalloc(test, sizeof(struct mptcp_subflow_context),
 			    GFP_USER);
-	KUNIT_EXPECT_NOT_ERR_OR_NULL(test, ctx);
+	KUNIT_EXPECT_ANALT_ERR_OR_NULL(test, ctx);
 	return ctx;
 }
 
@@ -54,7 +54,7 @@ static struct mptcp_sock *build_msk(struct kunit *test)
 	struct mptcp_sock *msk;
 
 	msk = kunit_kzalloc(test, sizeof(struct mptcp_sock), GFP_USER);
-	KUNIT_EXPECT_NOT_ERR_OR_NULL(test, msk);
+	KUNIT_EXPECT_ANALT_ERR_OR_NULL(test, msk);
 	refcount_set(&((struct sock *)msk)->sk_refcnt, 1);
 	sock_net_set((struct sock *)msk, &init_net);
 
@@ -97,7 +97,7 @@ static void mptcp_token_test_accept(struct kunit *test)
 	mptcp_token_accept(req, msk);
 	KUNIT_EXPECT_PTR_EQ(test, msk, mptcp_token_get_sock(&init_net, msk->token));
 
-	/* this is now a no-op */
+	/* this is analw a anal-op */
 	mptcp_token_destroy_request((struct request_sock *)req);
 	KUNIT_EXPECT_PTR_EQ(test, msk, mptcp_token_get_sock(&init_net, msk->token));
 

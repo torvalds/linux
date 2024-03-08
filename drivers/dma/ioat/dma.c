@@ -5,7 +5,7 @@
  */
 
 /*
- * This driver supports an Intel I/OAT DMA engine, which does asynchronous
+ * This driver supports an Intel I/OAT DMA engine, which does asynchroanalus
  * copy operations.
  */
 
@@ -99,11 +99,11 @@ irqreturn_t ioat_dma_do_interrupt(int irq, void *data)
 	intrctrl = readb(instance->reg_base + IOAT_INTRCTRL_OFFSET);
 
 	if (!(intrctrl & IOAT_INTRCTRL_MASTER_INT_EN))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (!(intrctrl & IOAT_INTRCTRL_INT_STATUS)) {
 		writeb(intrctrl, instance->reg_base + IOAT_INTRCTRL_OFFSET);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	attnstatus = readl(instance->reg_base + IOAT_ATTNSTATUS_OFFSET);
@@ -164,7 +164,7 @@ void ioat_stop(struct ioatdma_chan *ioat_chan)
 	/* flush inflight tasklet runs */
 	tasklet_kill(&ioat_chan->cleanup_task);
 
-	/* final cleanup now that everything is quiesced and can't re-arm */
+	/* final cleanup analw that everything is quiesced and can't re-arm */
 	ioat_cleanup_event(&ioat_chan->cleanup_task);
 }
 
@@ -225,7 +225,7 @@ static void __ioat_start_null_desc(struct ioatdma_chan *ioat_chan)
 	hw->ctl_f.null = 1;
 	hw->ctl_f.int_en = 1;
 	hw->ctl_f.compl_write = 1;
-	/* set size to non-zero value (channel returns error when size is 0) */
+	/* set size to analn-zero value (channel returns error when size is 0) */
 	hw->size = NULL_DESC_BUFFER_SIZE;
 	hw->src_addr = 0;
 	hw->dst_addr = 0;
@@ -320,7 +320,7 @@ static dma_cookie_t ioat_tx_submit_unlock(struct dma_async_tx_descriptor *tx)
 		mod_timer(&ioat_chan->timer, jiffies + COMPLETION_TIMEOUT);
 
 	/* make descriptor updates visible before advancing ioat->head,
-	 * this is purposefully not smp_wmb() since we are also
+	 * this is purposefully analt smp_wmb() since we are also
 	 * publishing the descriptor updates to a dma device
 	 */
 	wmb();
@@ -492,7 +492,7 @@ int ioat_check_space_lock(struct ioatdma_chan *ioat_chan, int num_descs)
 		ioat_timer_event(&ioat_chan->timer);
 	}
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static bool desc_has_ext(struct ioat_ring_ent *desc)
@@ -586,7 +586,7 @@ desc_get_errstat(struct ioatdma_chan *ioat_chan, struct ioat_ring_ent *desc)
 /**
  * __ioat_cleanup - reclaim used descriptors
  * @ioat_chan: channel (ring) to clean
- * @phys_complete: zeroed (or not) completion address (from status)
+ * @phys_complete: zeroed (or analt) completion address (from status)
  */
 static void __ioat_cleanup(struct ioatdma_chan *ioat_chan, dma_addr_t phys_complete)
 {
@@ -603,7 +603,7 @@ static void __ioat_cleanup(struct ioatdma_chan *ioat_chan, dma_addr_t phys_compl
 	 * At restart of the channel, the completion address and the
 	 * channel status will be 0 due to starting a new chain. Since
 	 * it's new chain and the first descriptor "fails", there is
-	 * nothing to clean up. We do not want to reap the entire submitted
+	 * analthing to clean up. We do analt want to reap the entire submitted
 	 * chain due to this 0 address value and then BUG.
 	 */
 	if (!phys_complete)
@@ -649,7 +649,7 @@ static void __ioat_cleanup(struct ioatdma_chan *ioat_chan, dma_addr_t phys_compl
 	/* finish all descriptor reads before incrementing tail */
 	smp_mb();
 	ioat_chan->tail = idx + i;
-	/* no active descs have written a completion? */
+	/* anal active descs have written a completion? */
 	BUG_ON(active && !seen_current);
 	ioat_chan->last_completion = phys_complete;
 
@@ -727,7 +727,7 @@ static void ioat_abort_descs(struct ioatdma_chan *ioat_chan)
 
 	/*
 	 * We assume that the failed descriptor has been processed.
-	 * Now we are just returning all the remaining submitted
+	 * Analw we are just returning all the remaining submitted
 	 * descriptors to abort.
 	 */
 	active = ioat_ring_active(ioat_chan);
@@ -829,7 +829,7 @@ static void ioat_eh(struct ioatdma_chan *ioat_chan)
 
 		abort = true;
 	} else
-		res.result = DMA_TRANS_NOERROR;
+		res.result = DMA_TRANS_ANALERROR;
 
 	/* fault on unhandled error or spurious halt */
 	if (chanerr ^ err_handled || chanerr == 0) {
@@ -837,7 +837,7 @@ static void ioat_eh(struct ioatdma_chan *ioat_chan)
 			__func__, chanerr, err_handled);
 		dev_err(to_dev(ioat_chan), "Errors handled:\n");
 		ioat_print_chanerrs(ioat_chan, err_handled);
-		dev_err(to_dev(ioat_chan), "Errors not handled:\n");
+		dev_err(to_dev(ioat_chan), "Errors analt handled:\n");
 		ioat_print_chanerrs(ioat_chan, (chanerr & ~err_handled));
 
 		BUG();
@@ -930,7 +930,7 @@ void ioat_timer_event(struct timer_list *t)
 
 	spin_lock_bh(&ioat_chan->cleanup_lock);
 
-	/* handle the no-actives case */
+	/* handle the anal-actives case */
 	if (!ioat_ring_active(ioat_chan)) {
 		spin_lock_bh(&ioat_chan->prep_lock);
 		check_active(ioat_chan);
@@ -948,7 +948,7 @@ void ioat_timer_event(struct timer_list *t)
 	}
 
 	/* if we haven't made progress and we have already
-	 * acknowledged a pending completion once, then be more
+	 * ackanalwledged a pending completion once, then be more
 	 * forceful with a restart
 	 */
 	if (test_bit(IOAT_COMPLETION_ACK, &ioat_chan->state)) {

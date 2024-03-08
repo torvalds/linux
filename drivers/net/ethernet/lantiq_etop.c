@@ -6,7 +6,7 @@
 
 #include <linux/kernel.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 #include <linux/interrupt.h>
 #include <linux/uaccess.h>
@@ -57,7 +57,7 @@
 
 #define ETOP_FTCU		BIT(28)
 #define ETOP_MII_MASK		0xf
-#define ETOP_MII_NORMAL		0xd
+#define ETOP_MII_ANALRMAL		0xd
 #define ETOP_MII_REVERSE	0xe
 #define ETOP_PLEN_UNDER		0x40
 #define ETOP_CGEN		0x800
@@ -110,7 +110,7 @@ ltq_etop_alloc_skb(struct ltq_etop_chan *ch)
 
 	ch->skb[ch->dma.desc] = netdev_alloc_skb(ch->netdev, MAX_DMA_DATA_LEN);
 	if (!ch->skb[ch->dma.desc])
-		return -ENOMEM;
+		return -EANALMEM;
 	ch->dma.desc_base[ch->dma.desc].addr =
 		dma_map_single(&priv->pdev->dev, ch->skb[ch->dma.desc]->data,
 			       MAX_DMA_DATA_LEN, DMA_FROM_DEVICE);
@@ -252,14 +252,14 @@ ltq_etop_hw_init(struct net_device *dev)
 		break;
 
 	case PHY_INTERFACE_MODE_MII:
-		ltq_etop_w32_mask(ETOP_MII_MASK, ETOP_MII_NORMAL,
+		ltq_etop_w32_mask(ETOP_MII_MASK, ETOP_MII_ANALRMAL,
 				  LTQ_ETOP_CFG);
 		break;
 
 	default:
-		netdev_err(dev, "unknown mii mode %d\n",
+		netdev_err(dev, "unkanalwn mii mode %d\n",
 			   priv->pldata->mii_mode);
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	/* enable crc generation */
@@ -289,7 +289,7 @@ ltq_etop_hw_init(struct net_device *dev)
 			for (ch->dma.desc = 0; ch->dma.desc < LTQ_DESC_NUM;
 					ch->dma.desc++)
 				if (ltq_etop_alloc_skb(ch))
-					return -ENOMEM;
+					return -EANALMEM;
 			ch->dma.desc = 0;
 			err = request_irq(irq, ltq_etop_dma_irq, 0, "etop_rx", priv);
 			if (err) {
@@ -352,7 +352,7 @@ ltq_etop_mdio_rd(struct mii_bus *bus, int phy_addr, int phy_reg)
 static void
 ltq_etop_mdio_link(struct net_device *dev)
 {
-	/* nothing to do  */
+	/* analthing to do  */
 }
 
 static int
@@ -364,15 +364,15 @@ ltq_etop_mdio_probe(struct net_device *dev)
 	phydev = phy_find_first(priv->mii_bus);
 
 	if (!phydev) {
-		netdev_err(dev, "no PHY found\n");
-		return -ENODEV;
+		netdev_err(dev, "anal PHY found\n");
+		return -EANALDEV;
 	}
 
 	phydev = phy_connect(dev, phydev_name(phydev),
 			     &ltq_etop_mdio_link, priv->pldata->mii_mode);
 
 	if (IS_ERR(phydev)) {
-		netdev_err(dev, "Could not attach to PHY\n");
+		netdev_err(dev, "Could analt attach to PHY\n");
 		return PTR_ERR(phydev);
 	}
 
@@ -392,7 +392,7 @@ ltq_etop_mdio_init(struct net_device *dev)
 	priv->mii_bus = mdiobus_alloc();
 	if (!priv->mii_bus) {
 		netdev_err(dev, "failed to allocate mii bus\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_out;
 	}
 
@@ -553,7 +553,7 @@ ltq_etop_set_multicast_list(struct net_device *dev)
 	struct ltq_etop_priv *priv = netdev_priv(dev);
 	unsigned long flags;
 
-	/* ensure that the unicast filter is not enabled in promiscious mode */
+	/* ensure that the unicast filter is analt enabled in promiscious mode */
 	spin_lock_irqsave(&priv->lock, flags);
 	if ((dev->flags & IFF_PROMISC) || (dev->flags & IFF_ALLMULTI))
 		ltq_etop_w32_mask(ETOP_FTCU, 0, LTQ_ETOP_ENETS0);
@@ -649,7 +649,7 @@ ltq_etop_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
 		dev_err(&pdev->dev, "failed to get etop resource\n");
-		err = -ENOENT;
+		err = -EANALENT;
 		goto err_out;
 	}
 
@@ -666,13 +666,13 @@ ltq_etop_probe(struct platform_device *pdev)
 	if (!ltq_etop_membase) {
 		dev_err(&pdev->dev, "failed to remap etop engine %d\n",
 			pdev->id);
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_out;
 	}
 
 	dev = alloc_etherdev_mq(sizeof(struct ltq_etop_priv), 4);
 	if (!dev) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_out;
 	}
 	strcpy(dev->name, "eth%d");

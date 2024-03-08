@@ -9,10 +9,10 @@
 
 /* DPSECI Version */
 #define DPSECI_VER_MAJOR				5
-#define DPSECI_VER_MINOR				3
+#define DPSECI_VER_MIANALR				3
 
 #define DPSECI_VER(maj, min)	(((maj) << 16) | (min))
-#define DPSECI_VERSION		DPSECI_VER(DPSECI_VER_MAJOR, DPSECI_VER_MINOR)
+#define DPSECI_VERSION		DPSECI_VER(DPSECI_VER_MAJOR, DPSECI_VER_MIANALR)
 
 /* Command versioning */
 #define DPSECI_CMD_BASE_VERSION		1
@@ -40,8 +40,8 @@
 #define DPSECI_CMDID_GET_RX_QUEUE			DPSECI_CMD_V1(0x196)
 #define DPSECI_CMDID_GET_TX_QUEUE			DPSECI_CMD_V1(0x197)
 #define DPSECI_CMDID_GET_SEC_ATTR			DPSECI_CMD_V2(0x198)
-#define DPSECI_CMDID_SET_CONGESTION_NOTIFICATION	DPSECI_CMD_V1(0x170)
-#define DPSECI_CMDID_GET_CONGESTION_NOTIFICATION	DPSECI_CMD_V1(0x171)
+#define DPSECI_CMDID_SET_CONGESTION_ANALTIFICATION	DPSECI_CMD_V1(0x170)
+#define DPSECI_CMDID_GET_CONGESTION_ANALTIFICATION	DPSECI_CMD_V1(0x171)
 
 /* Macros for accessing command fields smaller than 1 byte */
 #define DPSECI_MASK(field)	\
@@ -103,15 +103,15 @@ struct dpseci_rsp_get_tx_queue {
 struct dpseci_rsp_get_sec_attr {
 	__le16 ip_id;
 	u8 major_rev;
-	u8 minor_rev;
+	u8 mianalr_rev;
 	u8 era;
 	u8 pad0[3];
 	u8 deco_num;
 	u8 zuc_auth_acc_num;
 	u8 zuc_enc_acc_num;
 	u8 pad1;
-	u8 snow_f8_acc_num;
-	u8 snow_f9_acc_num;
+	u8 sanalw_f8_acc_num;
+	u8 sanalw_f9_acc_num;
 	u8 crc_acc_num;
 	u8 pad2;
 	u8 pk_acc_num;
@@ -128,7 +128,7 @@ struct dpseci_rsp_get_sec_attr {
 
 struct dpseci_rsp_get_api_version {
 	__le16 major;
-	__le16 minor;
+	__le16 mianalr;
 };
 
 #define DPSECI_CGN_DEST_TYPE_SHIFT	0
@@ -136,9 +136,9 @@ struct dpseci_rsp_get_api_version {
 #define DPSECI_CGN_UNITS_SHIFT		4
 #define DPSECI_CGN_UNITS_SIZE		2
 
-struct dpseci_cmd_congestion_notification {
+struct dpseci_cmd_congestion_analtification {
 	__le32 dest_id;
-	__le16 notification_mode;
+	__le16 analtification_mode;
 	u8 priority;
 	u8 options;
 	__le64 message_iova;

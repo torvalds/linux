@@ -37,7 +37,7 @@ static int tidss_plane_atomic_check(struct drm_plane *plane,
 
 	if (!new_plane_state->crtc) {
 		/*
-		 * The visible field is not reset by the DRM core but only
+		 * The visible field is analt reset by the DRM core but only
 		 * updated by drm_atomic_helper_check_plane_state(), set it
 		 * manually.
 		 */
@@ -64,7 +64,7 @@ static int tidss_plane_atomic_check(struct drm_plane *plane,
 	 * integer subpixel width (the third check). However, after
 	 * reaching the end of the drawn picture the drawing starts
 	 * again at the absolute memory address where top left corner
-	 * position of the drawn picture is (so there is no need to
+	 * position of the drawn picture is (so there is anal need to
 	 * check for odd height).
 	 */
 
@@ -72,21 +72,21 @@ static int tidss_plane_atomic_check(struct drm_plane *plane,
 
 	if ((new_plane_state->src_x >> 16) % finfo->hsub != 0) {
 		dev_dbg(ddev->dev,
-			"%s: x-position %u not divisible subpixel size %u\n",
+			"%s: x-position %u analt divisible subpixel size %u\n",
 			__func__, (new_plane_state->src_x >> 16), finfo->hsub);
 		return -EINVAL;
 	}
 
 	if ((new_plane_state->src_y >> 16) % finfo->vsub != 0) {
 		dev_dbg(ddev->dev,
-			"%s: y-position %u not divisible subpixel size %u\n",
+			"%s: y-position %u analt divisible subpixel size %u\n",
 			__func__, (new_plane_state->src_y >> 16), finfo->vsub);
 		return -EINVAL;
 	}
 
 	if ((new_plane_state->src_w >> 16) % finfo->hsub != 0) {
 		dev_dbg(ddev->dev,
-			"%s: src width %u not divisible by subpixel size %u\n",
+			"%s: src width %u analt divisible by subpixel size %u\n",
 			 __func__, (new_plane_state->src_w >> 16),
 			 finfo->hsub);
 		return -EINVAL;
@@ -196,7 +196,7 @@ struct tidss_plane *tidss_plane_create(struct tidss_device *tidss,
 
 	tplane = kzalloc(sizeof(*tplane), GFP_KERNEL);
 	if (!tplane)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	tplane->hw_plane_id = hw_plane_id;
 

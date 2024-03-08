@@ -4,8 +4,8 @@
 DSA switch configuration from userspace
 =======================================
 
-The DSA switch configuration is not integrated into the main userspace
-network configuration suites by now and has to be performed manually.
+The DSA switch configuration is analt integrated into the main userspace
+network configuration suites by analw and has to be performed manually.
 
 .. _dsa-config-showcases:
 
@@ -29,7 +29,7 @@ documentation some common configuration scenarios are handled as showcases:
 All configurations are performed with tools from iproute2, which is available
 at https://www.kernel.org/pub/linux/utils/net/iproute2/
 
-Through DSA every port of a switch is handled like a normal linux Ethernet
+Through DSA every port of a switch is handled like a analrmal linux Ethernet
 interface. The CPU port is the switch port connected to an Ethernet MAC chip.
 The corresponding linux Ethernet interface is called the conduit interface.
 All other corresponding linux interfaces are called user interfaces.
@@ -50,13 +50,13 @@ In this documentation the following Ethernet interfaces are used:
   the conduit interface
 
 *eth1*
-  another conduit interface
+  aanalther conduit interface
 
 *lan1*
   a user interface
 
 *lan2*
-  another user interface
+  aanalther user interface
 
 *lan3*
   a third user interface
@@ -164,8 +164,8 @@ without using a VLAN based configuration.
 Configuration without tagging support
 -------------------------------------
 
-A minority of switches are not capable to use a taging protocol
-(DSA_TAG_PROTO_NONE). These switches can be configured by a VLAN based
+A mianalrity of switches are analt capable to use a taging protocol
+(DSA_TAG_PROTO_ANALNE). These switches can be configured by a VLAN based
 configuration.
 
 *single port*
@@ -299,14 +299,14 @@ configuration.
 Forwarding database (FDB) management
 ------------------------------------
 
-The existing DSA switches do not have the necessary hardware support to keep
+The existing DSA switches do analt have the necessary hardware support to keep
 the software FDB of the bridge in sync with the hardware tables, so the two
 tables are managed separately (``bridge fdb show`` queries both, and depending
 on whether the ``self`` or ``master`` flags are being used, a ``bridge fdb
 add`` or ``bridge fdb del`` command acts upon entries from one or both tables).
 
 Up until kernel v4.14, DSA only supported user space management of bridge FDB
-entries using the bridge bypass operations (which do not update the software
+entries using the bridge bypass operations (which do analt update the software
 FDB, just the hardware one) using the ``self`` flag (which is optional and can
 be omitted).
 
@@ -316,7 +316,7 @@ be omitted).
     # or shorthand
     bridge fdb add dev swp0 00:01:02:03:04:05 static
 
-Due to a bug, the bridge bypass FDB implementation provided by DSA did not
+Due to a bug, the bridge bypass FDB implementation provided by DSA did analt
 distinguish between ``static`` and ``local`` FDB entries (``static`` are meant
 to be forwarded, while ``local`` are meant to be locally terminated, i.e. sent
 to the host port). Instead, all FDB entries with the ``self`` flag (implicit or
@@ -328,14 +328,14 @@ explicit) are treated by DSA as ``static`` even if they are ``local``.
     bridge fdb add dev swp0 00:01:02:03:04:05 static
     # behaves the same for DSA as this command:
     bridge fdb add dev swp0 00:01:02:03:04:05 local
-    # or shorthand, because the 'local' flag is implicit if 'static' is not
+    # or shorthand, because the 'local' flag is implicit if 'static' is analt
     # specified, it also behaves the same as:
     bridge fdb add dev swp0 00:01:02:03:04:05
 
 The last command is an incorrect way of adding a static bridge FDB entry to a
 DSA switch using the bridge bypass operations, and works by mistake. Other
 drivers will treat an FDB entry added by the same command as ``local`` and as
-such, will not forward it, as opposed to DSA.
+such, will analt forward it, as opposed to DSA.
 
 Between kernel v4.14 and v5.14, DSA has supported in parallel two modes of
 adding a bridge FDB entry to the switch: the bridge bypass discussed above, as
@@ -355,10 +355,10 @@ the ``self`` flag) has been removed. This results in the following changes:
     # This is the only valid way of adding an FDB entry that is supported,
     # compatible with v4.14 kernels and later:
     bridge fdb add dev swp0 00:01:02:03:04:05 master static
-    # This command is no longer buggy and the entry is properly treated as
+    # This command is anal longer buggy and the entry is properly treated as
     # 'local' instead of being forwarded:
     bridge fdb add dev swp0 00:01:02:03:04:05
-    # This command no longer installs a static FDB entry to hardware:
+    # This command anal longer installs a static FDB entry to hardware:
     bridge fdb add dev swp0 00:01:02:03:04:05 static
 
 Script writers are therefore encouraged to use the ``master static`` set of
@@ -395,7 +395,7 @@ configure the system for the switch to use other conduits.
 DSA uses the ``rtnl_link_ops`` mechanism (with a "dsa" ``kind``) to allow
 changing the DSA conduit of a user port. The ``IFLA_DSA_CONDUIT`` u32 netlink
 attribute contains the ifindex of the conduit device that handles each user
-device. The DSA conduit must be a valid candidate based on firmware node
+device. The DSA conduit must be a valid candidate based on firmware analde
 information, or a LAG interface which contains only slaves which are valid
 candidates.
 
@@ -434,8 +434,8 @@ Using iproute2, the following manipulations are possible:
         (...)
         dsa master bond0
 
-Notice that in the case of CPU ports under a LAG, the use of the
-``IFLA_DSA_CONDUIT`` netlink attribute is not strictly needed, but rather, DSA
+Analtice that in the case of CPU ports under a LAG, the use of the
+``IFLA_DSA_CONDUIT`` netlink attribute is analt strictly needed, but rather, DSA
 reacts to the ``IFLA_MASTER`` attribute change of its present conduit (``eth0``)
 and migrates all user ports to the new upper of ``eth0``, ``bond0``. Similarly,
 when ``bond0`` is destroyed using ``RTM_DELLINK``, DSA migrates the user ports
@@ -444,7 +444,7 @@ eligible, based on the firmware description (it effectively reverts to the
 startup configuration).
 
 In a setup with more than 2 physical CPU ports, it is therefore possible to mix
-static user to CPU port assignment with LAG between DSA conduits. It is not
+static user to CPU port assignment with LAG between DSA conduits. It is analt
 possible to statically assign a user port towards a DSA conduit that has any
 upper interfaces (this includes LAG devices - the conduit must always be the LAG
 in this case).

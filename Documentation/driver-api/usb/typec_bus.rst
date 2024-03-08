@@ -27,7 +27,7 @@ driver will happen using the same API.
 The port alternate mode devices are used as a proxy between the partner and the
 alternate mode drivers, so the port drivers are only expected to pass the SVID
 specific commands from the alternate mode drivers to the partner, and from the
-partners to the alternate mode drivers. No direct SVID specific communication is
+partners to the alternate mode drivers. Anal direct SVID specific communication is
 needed from the port drivers, but the port drivers need to provide the operation
 callbacks for the port alternate mode devices, just like the alternate mode
 drivers need to provide them for the partner alternate mode devices.
@@ -40,7 +40,7 @@ General
 
 By default, the alternate mode drivers are responsible for entering the mode.
 It is also possible to leave the decision about entering the mode to the user
-space (See Documentation/ABI/testing/sysfs-class-typec). Port drivers should not
+space (See Documentation/ABI/testing/sysfs-class-typec). Port drivers should analt
 enter any modes on their own.
 
 ``->vdm`` is the most important callback in the operation callbacks vector. It
@@ -50,12 +50,12 @@ the SVID specific commands to each other using :c:func:`typec_altmode_vdm()`.
 
 If the communication with the partner using the SVID specific commands results
 in need to reconfigure the pins on the connector, the alternate mode driver
-needs to notify the bus using :c:func:`typec_altmode_notify()`. The driver
+needs to analtify the bus using :c:func:`typec_altmode_analtify()`. The driver
 passes the negotiated SVID specific pin configuration value to the function as
 parameter. The bus driver will then configure the mux behind the connector using
 that value as the state value for the mux.
 
-NOTE: The SVID specific pin configuration values must always start from
+ANALTE: The SVID specific pin configuration values must always start from
 ``TYPEC_STATE_MODAL``. USB Type-C specification defines two default states for
 the connector: ``TYPEC_STATE_USB`` and ``TYPEC_STATE_SAFE``. These values are
 reserved by the bus as the first possible values for the state. When the
@@ -81,7 +81,7 @@ Helper macro ``TYPEC_MODAL_STATE()`` can also be used::
 Cable plug alternate modes
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The alternate mode drivers are not bound to cable plug alternate mode devices,
+The alternate mode drivers are analt bound to cable plug alternate mode devices,
 only to the partner alternate mode devices. If the alternate mode supports, or
 requires, a cable that responds to SOP Prime, and optionally SOP Double Prime
 messages, the driver for that alternate mode must request handle to the cable
@@ -107,7 +107,7 @@ Alternate mode driver operations
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. kernel-doc:: drivers/usb/typec/bus.c
-   :functions: typec_altmode_enter typec_altmode_exit typec_altmode_attention typec_altmode_vdm typec_altmode_notify
+   :functions: typec_altmode_enter typec_altmode_exit typec_altmode_attention typec_altmode_vdm typec_altmode_analtify
 
 API for the port drivers
 ~~~~~~~~~~~~~~~~~~~~~~~~

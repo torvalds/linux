@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -35,7 +35,7 @@
 #include "nvd.h"
 
 enum hqd_dequeue_request_type {
-	NO_ACTION = 0,
+	ANAL_ACTION = 0,
 	DRAIN_PIPE,
 	RESET_WAVES,
 	SAVE_WAVES
@@ -87,7 +87,7 @@ static void program_sh_mem_settings_v10_3(struct amdgpu_device *adev, uint32_t v
 
 	WREG32_SOC15(GC, 0, mmSH_MEM_CONFIG, sh_mem_config);
 	WREG32_SOC15(GC, 0, mmSH_MEM_BASES, sh_mem_bases);
-	/* APE1 no longer exists on GFX9 */
+	/* APE1 anal longer exists on GFX9 */
 
 	unlock_srbm(adev);
 }
@@ -221,7 +221,7 @@ static int hqd_load_v10_3(struct amdgpu_device *adev, void *mqd,
 
 	if (wptr) {
 		/* Don't read wptr with get_user because the user
-		 * context may not be accessible (if this function
+		 * context may analt be accessible (if this function
 		 * runs in a work queue). Instead trigger a one-shot
 		 * polling read from memory in the CP. This assumes
 		 * that wptr is GPU-accessible in the queue's VMID via
@@ -306,7 +306,7 @@ static int hiq_mqd_load_v10_3(struct amdgpu_device *adev, void *mqd,
 			  PACKET3_MAP_QUEUES_QUEUE(queue_id) |
 			  PACKET3_MAP_QUEUES_PIPE(pipe) |
 			  PACKET3_MAP_QUEUES_ME((mec - 1)) |
-			  PACKET3_MAP_QUEUES_QUEUE_TYPE(0) | /*queue_type: normal compute queue */
+			  PACKET3_MAP_QUEUES_QUEUE_TYPE(0) | /*queue_type: analrmal compute queue */
 			  PACKET3_MAP_QUEUES_ALLOC_FORMAT(0) | /* alloc format: all_on_one_pipe */
 			  PACKET3_MAP_QUEUES_ENGINE_SEL(1) | /* engine_sel: hiq */
 			  PACKET3_MAP_QUEUES_NUM_QUEUES(1)); /* num_queues: must be 1 */
@@ -340,7 +340,7 @@ static int hqd_dump_v10_3(struct amdgpu_device *adev,
 
 	*dump = kmalloc(HQD_N_REGS*2*sizeof(uint32_t), GFP_KERNEL);
 	if (*dump == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	acquire_queue(adev, pipe_id, queue_id);
 
@@ -379,7 +379,7 @@ static int hqd_sdma_load_v10_3(struct amdgpu_device *adev, void *mqd,
 		if (data & SDMA0_RLC0_CONTEXT_STATUS__IDLE_MASK)
 			break;
 		if (time_after(jiffies, end_jiffies)) {
-			pr_err("SDMA RLC not idle in %s\n", __func__);
+			pr_err("SDMA RLC analt idle in %s\n", __func__);
 			return -ETIME;
 		}
 		usleep_range(500, 1000);
@@ -396,7 +396,7 @@ static int hqd_sdma_load_v10_3(struct amdgpu_device *adev, void *mqd,
 	WREG32(sdma_rlc_reg_offset + mmSDMA0_RLC0_RB_RPTR_HI,
 				m->sdmax_rlcx_rb_rptr_hi);
 
-	WREG32(sdma_rlc_reg_offset + mmSDMA0_RLC0_MINOR_PTR_UPDATE, 1);
+	WREG32(sdma_rlc_reg_offset + mmSDMA0_RLC0_MIANALR_PTR_UPDATE, 1);
 	if (read_user_wptr(mm, wptr64, data64)) {
 		WREG32(sdma_rlc_reg_offset + mmSDMA0_RLC0_RB_WPTR,
 		       lower_32_bits(data64));
@@ -408,7 +408,7 @@ static int hqd_sdma_load_v10_3(struct amdgpu_device *adev, void *mqd,
 		WREG32(sdma_rlc_reg_offset + mmSDMA0_RLC0_RB_WPTR_HI,
 		       m->sdmax_rlcx_rb_rptr_hi);
 	}
-	WREG32(sdma_rlc_reg_offset + mmSDMA0_RLC0_MINOR_PTR_UPDATE, 0);
+	WREG32(sdma_rlc_reg_offset + mmSDMA0_RLC0_MIANALR_PTR_UPDATE, 0);
 
 	WREG32(sdma_rlc_reg_offset + mmSDMA0_RLC0_RB_BASE, m->sdmax_rlcx_rb_base);
 	WREG32(sdma_rlc_reg_offset + mmSDMA0_RLC0_RB_BASE_HI,
@@ -437,14 +437,14 @@ static int hqd_sdma_dump_v10_3(struct amdgpu_device *adev,
 
 	*dump = kmalloc(HQD_N_REGS*2*sizeof(uint32_t), GFP_KERNEL);
 	if (*dump == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (reg = mmSDMA0_RLC0_RB_CNTL; reg <= mmSDMA0_RLC0_DOORBELL; reg++)
 		DUMP_REG(sdma_rlc_reg_offset + reg);
 	for (reg = mmSDMA0_RLC0_STATUS; reg <= mmSDMA0_RLC0_CSA_ADDR_HI; reg++)
 		DUMP_REG(sdma_rlc_reg_offset + reg);
 	for (reg = mmSDMA0_RLC0_IB_SUB_REMAIN;
-	     reg <= mmSDMA0_RLC0_MINOR_PTR_UPDATE; reg++)
+	     reg <= mmSDMA0_RLC0_MIANALR_PTR_UPDATE; reg++)
 		DUMP_REG(sdma_rlc_reg_offset + reg);
 	for (reg = mmSDMA0_RLC0_MIDCMD_DATA0;
 	     reg <= mmSDMA0_RLC0_MIDCMD_CNTL; reg++)
@@ -568,7 +568,7 @@ static int hqd_sdma_destroy_v10_3(struct amdgpu_device *adev, void *mqd,
 		if (temp & SDMA0_RLC0_CONTEXT_STATUS__IDLE_MASK)
 			break;
 		if (time_after(jiffies, end_jiffies)) {
-			pr_err("SDMA RLC not idle in %s\n", __func__);
+			pr_err("SDMA RLC analt idle in %s\n", __func__);
 			return -ETIME;
 		}
 		usleep_range(500, 1000);

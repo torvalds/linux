@@ -19,7 +19,7 @@ void restore_from_user_fp(struct user_fp *user_fp);
  */
 #define  FPE_ILLE  (1 << 16)    /* Illegal instruction  */
 #define  FPE_FEC   (1 << 7)     /* Input float-point arithmetic exception */
-#define  FPE_IDC   (1 << 5)     /* Input denormalized exception */
+#define  FPE_IDC   (1 << 5)     /* Input deanalrmalized exception */
 #define  FPE_IXC   (1 << 4)     /* Inexact exception */
 #define  FPE_UFC   (1 << 3)     /* Underflow exception */
 #define  FPE_OFC   (1 << 2)     /* Overflow exception */

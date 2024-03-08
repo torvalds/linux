@@ -135,7 +135,7 @@ int cxgb4_clip_get(const struct net_device *dev, const u32 *lip, u8 v6)
 		dev_info(adap->pdev_dev, "CLIP table overflow, "
 			 "Connections using %pI6c wont be offloaded",
 			 (void *)lip);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	write_unlock_bh(&ctbl->lock);
 	refcount_set(&ce->refcnt, 1);

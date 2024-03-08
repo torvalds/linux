@@ -6,7 +6,7 @@ Required properties:
 - interrupts: Interrupt specifier for the controllers interrupt.
 - #gpio-cells: Should be 2. The first cell is the GPIO number and the
   second cell is used to specify optional parameters:
-  - bit 0: polarity (0: normal, 1: inverted)
+  - bit 0: polarity (0: analrmal, 1: inverted)
 - gpio-controller: Marks the device as a GPIO controller
 - nr-gpios: The number of pins supported by the controller.
 

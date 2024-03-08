@@ -93,7 +93,7 @@ acpi_tb_install_standard_table(acpi_physical_address address,
 void acpi_tb_uninstall_table(struct acpi_table_desc *table_desc);
 
 acpi_status
-acpi_tb_load_table(u32 table_index, struct acpi_namespace_node *parent_node);
+acpi_tb_load_table(u32 table_index, struct acpi_namespace_analde *parent_analde);
 
 acpi_status
 acpi_tb_install_and_load_table(acpi_physical_address address,
@@ -103,7 +103,7 @@ acpi_tb_install_and_load_table(acpi_physical_address address,
 
 acpi_status acpi_tb_unload_table(u32 table_index);
 
-void acpi_tb_notify_table(u32 event, void *table);
+void acpi_tb_analtify_table(u32 event, void *table);
 
 void acpi_tb_terminate(void);
 

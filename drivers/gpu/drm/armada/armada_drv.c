@@ -40,7 +40,7 @@ static const struct drm_driver armada_drm_driver = {
 	.gem_prime_import	= armada_gem_prime_import,
 	.dumb_create		= armada_gem_dumb_create,
 	.major			= 1,
-	.minor			= 0,
+	.mianalr			= 0,
 	.name			= "armada-drm",
 	.desc			= "Armada SoC DRM",
 	.date			= "20120730",
@@ -171,16 +171,16 @@ static void armada_drm_unbind(struct device *dev)
 }
 
 static void armada_add_endpoints(struct device *dev,
-	struct component_match **match, struct device_node *dev_node)
+	struct component_match **match, struct device_analde *dev_analde)
 {
-	struct device_node *ep, *remote;
+	struct device_analde *ep, *remote;
 
-	for_each_endpoint_of_node(dev_node, ep) {
+	for_each_endpoint_of_analde(dev_analde, ep) {
 		remote = of_graph_get_remote_port_parent(ep);
 		if (remote && of_device_is_available(remote))
 			drm_of_component_match_add(dev, match, component_compare_of,
 						   remote);
-		of_node_put(remote);
+		of_analde_put(remote);
 	}
 }
 
@@ -210,14 +210,14 @@ static int armada_drm_probe(struct platform_device *pdev)
 
 		if (i == 0) {
 			dev_err(dev, "missing 'ports' property\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 
 		for (i = 0; devices[i]; i++) {
 			d = bus_find_device_by_name(&platform_bus_type, NULL,
 						    devices[i]);
-			if (d && d->of_node)
-				armada_add_endpoints(dev, &match, d->of_node);
+			if (d && d->of_analde)
+				armada_add_endpoints(dev, &match, d->of_analde);
 			put_device(d);
 		}
 	}
@@ -261,7 +261,7 @@ static int __init armada_drm_init(void)
 	int ret;
 
 	if (drm_firmware_drivers_only())
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = platform_driver_register(&armada_lcd_platform_driver);
 	if (ret)

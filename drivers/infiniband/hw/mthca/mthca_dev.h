@@ -2,7 +2,7 @@
  * Copyright (c) 2004, 2005 Topspin Communications.  All rights reserved.
  * Copyright (c) 2005 Sun Microsystems, Inc. All rights reserved.
  * Copyright (c) 2005, 2006 Cisco Systems.  All rights reserved.
- * Copyright (c) 2005 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2005 Mellaanalx Techanallogies. All rights reserved.
  * Copyright (c) 2004 Voltaire, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -16,18 +16,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -58,7 +58,7 @@ enum {
 	MTHCA_FLAG_DDR_HIDDEN = 1 << 1,
 	MTHCA_FLAG_SRQ        = 1 << 2,
 	MTHCA_FLAG_MSI_X      = 1 << 3,
-	MTHCA_FLAG_NO_LAM     = 1 << 4,
+	MTHCA_FLAG_ANAL_LAM     = 1 << 4,
 	MTHCA_FLAG_FMR        = 1 << 5,
 	MTHCA_FLAG_MEMFREE    = 1 << 6,
 	MTHCA_FLAG_PCIE       = 1 << 7,
@@ -96,7 +96,7 @@ enum {
 };
 
 enum {
-	MTHCA_OPCODE_NOP            = 0x00,
+	MTHCA_OPCODE_ANALP            = 0x00,
 	MTHCA_OPCODE_RDMA_WRITE     = 0x08,
 	MTHCA_OPCODE_RDMA_WRITE_IMM = 0x09,
 	MTHCA_OPCODE_SEND           = 0x0a,
@@ -469,7 +469,7 @@ int mthca_write_mtt(struct mthca_dev *dev, struct mthca_mtt *mtt,
 		    int start_index, u64 *buffer_list, int list_len);
 int mthca_mr_alloc(struct mthca_dev *dev, u32 pd, int buffer_size_shift,
 		   u64 iova, u64 total_size, u32 access, struct mthca_mr *mr);
-int mthca_mr_alloc_notrans(struct mthca_dev *dev, u32 pd,
+int mthca_mr_alloc_analtrans(struct mthca_dev *dev, u32 pd,
 			   u32 access, struct mthca_mr *mr);
 int mthca_mr_alloc_phys(struct mthca_dev *dev, u32 pd,
 			u64 *buffer_list, int buffer_size_shift,
@@ -482,8 +482,8 @@ void mthca_unmap_eq_icm(struct mthca_dev *dev);
 
 int mthca_poll_cq(struct ib_cq *ibcq, int num_entries,
 		  struct ib_wc *entry);
-int mthca_tavor_arm_cq(struct ib_cq *cq, enum ib_cq_notify_flags flags);
-int mthca_arbel_arm_cq(struct ib_cq *cq, enum ib_cq_notify_flags flags);
+int mthca_tavor_arm_cq(struct ib_cq *cq, enum ib_cq_analtify_flags flags);
+int mthca_arbel_arm_cq(struct ib_cq *cq, enum ib_cq_analtify_flags flags);
 int mthca_init_cq(struct mthca_dev *dev, int nent,
 		  struct mthca_ucontext *ctx, u32 pdn,
 		  struct mthca_cq *cq);

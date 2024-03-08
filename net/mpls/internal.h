@@ -69,7 +69,7 @@ struct mpls_dev {
 
 struct sk_buff;
 
-#define LABEL_NOT_SPECIFIED (1 << 20)
+#define LABEL_ANALT_SPECIFIED (1 << 20)
 
 /* This maximum ha length copied from the definition of struct neighbour */
 #define VIA_ALEN_ALIGN sizeof(unsigned long)
@@ -80,7 +80,7 @@ enum mpls_payload_type {
 	MPT_IPV4 = 4,
 	MPT_IPV6 = 6,
 
-	/* Other types not implemented:
+	/* Other types analt implemented:
 	 *  - Pseudo-wire with or without control word (RFC4385)
 	 *  - GAL (RFC5586)
 	 */

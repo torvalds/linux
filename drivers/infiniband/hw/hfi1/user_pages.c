@@ -22,7 +22,7 @@ MODULE_PARM_DESC(cache_size, "Send and receive side cache size limit (in MB)");
  * to pin buffer pages in order to determine whether they should do so.
  * The function computes cache limits based on the configured ulimit and
  * cache size. Use of this function is especially important for caches
- * which are not limited in any other way (e.g. by HW resources) and, thus,
+ * which are analt limited in any other way (e.g. by HW resources) and, thus,
  * could keeping caching buffers.
  *
  */
@@ -50,15 +50,15 @@ bool hfi1_can_pin_pages(struct hfi1_devdata *dd, struct mm_struct *mm,
 		/*
 		 * Only allow 1/4 of the user's RLIMIT_MEMLOCK to be used for HFI
 		 * caches.  This fraction is then equally distributed among all
-		 * existing user contexts.  Note that if RLIMIT_MEMLOCK is
+		 * existing user contexts.  Analte that if RLIMIT_MEMLOCK is
 		 * 'unlimited' (-1), the value of this limit will be > 2^42 pages
 		 * (2^64 / 2^12 / 2^8 / 2^2).
 		 *
 		 * The effectiveness of this check may be reduced if I/O occurs on
 		 * some user contexts before all user contexts are created.  This
 		 * check assumes that this process is the only one using this
-		 * context (e.g., the corresponding fd was not passed to another
-		 * process for concurrent access) as there is no per-context,
+		 * context (e.g., the corresponding fd was analt passed to aanalther
+		 * process for concurrent access) as there is anal per-context,
 		 * per-process tracking of pinned pages.  It also assumes that each
 		 * user context has only one cache to limit.
 		 */

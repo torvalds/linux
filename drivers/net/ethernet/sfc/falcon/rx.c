@@ -32,7 +32,7 @@
  * the number of pages to store in the RX page recycle ring.
  */
 #define EF4_RECYCLE_RING_SIZE_IOMMU 4096
-#define EF4_RECYCLE_RING_SIZE_NOIOMMU (2 * EF4_RX_PREFERRED_BATCH)
+#define EF4_RECYCLE_RING_SIZE_ANALIOMMU (2 * EF4_RX_PREFERRED_BATCH)
 
 /* Size of buffer allocated for skb header area. */
 #define EF4_SKB_HEADERS  128u
@@ -118,7 +118,7 @@ static struct page *ef4_reuse_page(struct ef4_rx_queue *rx_queue)
 		return NULL;
 
 	rx_queue->page_ring[index] = NULL;
-	/* page_remove cannot exceed page_add. */
+	/* page_remove cananalt exceed page_add. */
 	if (rx_queue->page_remove != rx_queue->page_add)
 		++rx_queue->page_remove;
 
@@ -147,7 +147,7 @@ static struct page *ef4_reuse_page(struct ef4_rx_queue *rx_queue)
  * This allocates a batch of pages, maps them for DMA, and populates
  * struct ef4_rx_buffers for each one. Return a negative error code or
  * 0 on success. If a single page can be used for multiple buffers,
- * then the page will either be inserted fully, or not at all.
+ * then the page will either be inserted fully, or analt at all.
  */
 static int ef4_init_rx_buffers(struct ef4_rx_queue *rx_queue, bool atomic)
 {
@@ -167,7 +167,7 @@ static int ef4_init_rx_buffers(struct ef4_rx_queue *rx_queue, bool atomic)
 					   (atomic ? GFP_ATOMIC : GFP_KERNEL),
 					   efx->rx_buffer_order);
 			if (unlikely(page == NULL))
-				return -ENOMEM;
+				return -EANALMEM;
 			dma_addr =
 				dma_map_page(&efx->pci_dev->dev, page, 0,
 					     PAGE_SIZE << efx->rx_buffer_order,
@@ -324,7 +324,7 @@ static void ef4_discard_rx_packet(struct ef4_channel *channel,
  * memory to do so, a slow fill will be scheduled.
  * @atomic: control memory allocation flags
  *
- * The caller must provide serialisation (none is used here). In practise,
+ * The caller must provide serialisation (analne is used here). In practise,
  * this means this function must run from the NAPI handler, or be called
  * when NAPI is disabled.
  */
@@ -339,7 +339,7 @@ void ef4_fast_push_rx_descriptors(struct ef4_rx_queue *rx_queue, bool atomic)
 
 	/* Calculate current fill level, and exit if we don't need to fill */
 	fill_level = (rx_queue->added_count - rx_queue->removed_count);
-	EF4_BUG_ON_PARANOID(fill_level > rx_queue->efx->rxq_entries);
+	EF4_BUG_ON_PARAANALID(fill_level > rx_queue->efx->rxq_entries);
 	if (fill_level >= rx_queue->fast_fill_trigger)
 		goto out;
 
@@ -351,7 +351,7 @@ void ef4_fast_push_rx_descriptors(struct ef4_rx_queue *rx_queue, bool atomic)
 
 	batch_size = efx->rx_pages_per_batch * efx->rx_bufs_per_page;
 	space = rx_queue->max_fill - fill_level;
-	EF4_BUG_ON_PARANOID(space < batch_size);
+	EF4_BUG_ON_PARAANALID(space < batch_size);
 
 	netif_vdbg(rx_queue->efx, rx_status, rx_queue->efx->net_dev,
 		   "RX queue %d fast-filling descriptor ring from"
@@ -376,8 +376,8 @@ void ef4_fast_push_rx_descriptors(struct ef4_rx_queue *rx_queue, bool atomic)
 		   rx_queue->added_count - rx_queue->removed_count);
 
  out:
-	if (rx_queue->notified_count != rx_queue->added_count)
-		ef4_nic_notify_rx_desc(rx_queue);
+	if (rx_queue->analtified_count != rx_queue->added_count)
+		ef4_nic_analtify_rx_desc(rx_queue);
 }
 
 void ef4_rx_slow_fill(struct timer_list *t)
@@ -447,7 +447,7 @@ ef4_rx_packet_gro(struct ef4_channel *channel, struct ef4_rx_buffer *rx_buf,
 		skb_set_hash(skb, ef4_rx_buf_hash(efx, eh),
 			     PKT_HASH_TYPE_L3);
 	skb->ip_summed = ((rx_buf->flags & EF4_RX_PKT_CSUMMED) ?
-			  CHECKSUM_UNNECESSARY : CHECKSUM_NONE);
+			  CHECKSUM_UNNECESSARY : CHECKSUM_ANALNE);
 
 	for (;;) {
 		skb_fill_page_desc(skb, skb_shinfo(skb)->nr_frags,
@@ -483,11 +483,11 @@ static struct sk_buff *ef4_rx_mk_skb(struct ef4_channel *channel,
 			       efx->rx_ip_align + efx->rx_prefix_size +
 			       hdr_len);
 	if (unlikely(skb == NULL)) {
-		atomic_inc(&efx->n_rx_noskb_drops);
+		atomic_inc(&efx->n_rx_analskb_drops);
 		return NULL;
 	}
 
-	EF4_BUG_ON_PARANOID(rx_buf->len < hdr_len);
+	EF4_BUG_ON_PARAANALID(rx_buf->len < hdr_len);
 
 	memcpy(skb->data + efx->rx_ip_align, eh - efx->rx_prefix_size,
 	       efx->rx_prefix_size + hdr_len);
@@ -632,7 +632,7 @@ static void ef4_rx_deliver(struct ef4_channel *channel, u8 *eh,
 	skb_record_rx_queue(skb, channel->rx_queue.core_index);
 
 	/* Set the SKB flags */
-	skb_checksum_none_assert(skb);
+	skb_checksum_analne_assert(skb);
 	if (likely(rx_buf->flags & EF4_RX_PKT_CSUMMED))
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 
@@ -691,7 +691,7 @@ int ef4_probe_rx_queue(struct ef4_rx_queue *rx_queue)
 
 	/* Create the smallest power-of-two aligned ring */
 	entries = max(roundup_pow_of_two(efx->rxq_entries), EF4_MIN_DMAQ_SIZE);
-	EF4_BUG_ON_PARANOID(entries > EF4_MAX_DMAQ_SIZE);
+	EF4_BUG_ON_PARAANALID(entries > EF4_MAX_DMAQ_SIZE);
 	rx_queue->ptr_mask = entries - 1;
 
 	netif_dbg(efx, probe, efx->net_dev,
@@ -703,7 +703,7 @@ int ef4_probe_rx_queue(struct ef4_rx_queue *rx_queue)
 	rx_queue->buffer = kcalloc(entries, sizeof(*rx_queue->buffer),
 				   GFP_KERNEL);
 	if (!rx_queue->buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = ef4_nic_probe_rx(rx_queue);
 	if (rc) {
@@ -728,7 +728,7 @@ static void ef4_init_rx_recycle_ring(struct ef4_nic *efx,
 	if (domain && domain->type != IOMMU_DOMAIN_IDENTITY)
 		bufs_in_recycle_ring = EF4_RECYCLE_RING_SIZE_IOMMU;
 	else
-		bufs_in_recycle_ring = EF4_RECYCLE_RING_SIZE_NOIOMMU;
+		bufs_in_recycle_ring = EF4_RECYCLE_RING_SIZE_ANALIOMMU;
 #endif /* CONFIG_PPC64 */
 
 	page_ring_size = roundup_pow_of_two(bufs_in_recycle_ring /
@@ -751,7 +751,7 @@ void ef4_init_rx_queue(struct ef4_rx_queue *rx_queue)
 
 	/* Initialise ptr fields */
 	rx_queue->added_count = 0;
-	rx_queue->notified_count = 0;
+	rx_queue->analtified_count = 0;
 	rx_queue->removed_count = 0;
 	rx_queue->min_fill = -1U;
 	ef4_init_rx_recycle_ring(efx, rx_queue);
@@ -852,12 +852,12 @@ int ef4_filter_rfs(struct net_device *net_dev, const struct sk_buff *skb,
 		return -EINVAL;
 
 	if (!skb_flow_dissect_flow_keys(skb, &fk, 0))
-		return -EPROTONOSUPPORT;
+		return -EPROTOANALSUPPORT;
 
 	if (fk.basic.n_proto != htons(ETH_P_IP) && fk.basic.n_proto != htons(ETH_P_IPV6))
-		return -EPROTONOSUPPORT;
+		return -EPROTOANALSUPPORT;
 	if (fk.control.flags & FLOW_DIS_IS_FRAGMENT)
-		return -EPROTONOSUPPORT;
+		return -EPROTOANALSUPPORT;
 
 	ef4_filter_init_rx(&spec, EF4_FILTER_PRI_HINT,
 			   efx->rx_scatter ? EF4_FILTER_FLAG_RX_SCATTER : 0,
@@ -948,7 +948,7 @@ bool __ef4_filter_rfs_expire(struct ef4_nic *efx, unsigned int quota)
  * ef4_filter_is_mc_recipient - test whether spec is a multicast recipient
  * @spec: Specification to test
  *
- * Return: %true if the specification is a non-drop RX filter that
+ * Return: %true if the specification is a analn-drop RX filter that
  * matches a local MAC address I/G bit value of 1 or matches a local
  * IPv4 or IPv6 address value in the respective multicast address
  * range.  Otherwise %false.

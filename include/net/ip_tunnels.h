@@ -112,7 +112,7 @@ struct metadata_dst;
 
 struct ip_tunnel {
 	struct ip_tunnel __rcu	*next;
-	struct hlist_node hash_node;
+	struct hlist_analde hash_analde;
 
 	struct net_device	*dev;
 	netdevice_tracker	dev_tracker;
@@ -124,8 +124,8 @@ struct ip_tunnel {
 	int		err_count;	/* Number of arrived ICMP errors */
 
 	/* These four fields used only by GRE */
-	u32		i_seqno;	/* The last seen seqno	*/
-	atomic_t	o_seqno;	/* The last output seqno */
+	u32		i_seqanal;	/* The last seen seqanal	*/
+	atomic_t	o_seqanal;	/* The last output seqanal */
 	int		tun_hlen;	/* Precalculated header length */
 
 	/* These four fields used only by ERSPAN */
@@ -153,7 +153,7 @@ struct ip_tunnel {
 	struct gro_cells	gro_cells;
 	__u32			fwmark;
 	bool			collect_md;
-	bool			ignore_df;
+	bool			iganalre_df;
 };
 
 struct tnl_ptk_info {
@@ -216,7 +216,7 @@ ip_tunnel_dst_cache_usable(const struct sk_buff *skb,
 		return false;
 	if (!info)
 		return true;
-	if (info->key.tun_flags & TUNNEL_NOCACHE)
+	if (info->key.tun_flags & TUNNEL_ANALCACHE)
 		return false;
 
 	return true;
@@ -365,7 +365,7 @@ static inline int ip_encap_hlen(struct ip_tunnel_encap *e)
 	const struct ip_tunnel_encap_ops *ops;
 	int hlen = -EINVAL;
 
-	if (e->type == TUNNEL_ENCAP_NONE)
+	if (e->type == TUNNEL_ENCAP_ANALNE)
 		return 0;
 
 	if (e->type >= MAX_IPTUN_ENCAP_OPS)
@@ -387,7 +387,7 @@ static inline int ip_tunnel_encap(struct sk_buff *skb,
 	const struct ip_tunnel_encap_ops *ops;
 	int ret = -EINVAL;
 
-	if (e->type == TUNNEL_ENCAP_NONE)
+	if (e->type == TUNNEL_ENCAP_ANALNE)
 		return 0;
 
 	if (e->type >= MAX_IPTUN_ENCAP_OPS)

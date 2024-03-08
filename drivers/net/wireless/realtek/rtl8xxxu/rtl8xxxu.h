@@ -44,32 +44,32 @@
 #define TX_PAGE_NUM_PUBQ		0xe7
 #define TX_PAGE_NUM_HI_PQ		0x0c
 #define TX_PAGE_NUM_LO_PQ		0x02
-#define TX_PAGE_NUM_NORM_PQ		0x02
+#define TX_PAGE_NUM_ANALRM_PQ		0x02
 
 #define TX_PAGE_NUM_PUBQ_8188F		0xe5
 #define TX_PAGE_NUM_HI_PQ_8188F		0x0c
 #define TX_PAGE_NUM_LO_PQ_8188F		0x02
-#define TX_PAGE_NUM_NORM_PQ_8188F	0x02
+#define TX_PAGE_NUM_ANALRM_PQ_8188F	0x02
 
 #define TX_PAGE_NUM_PUBQ_8188E		0x47
 #define TX_PAGE_NUM_HI_PQ_8188E		0x29
 #define TX_PAGE_NUM_LO_PQ_8188E		0x1c
-#define TX_PAGE_NUM_NORM_PQ_8188E	0x1c
+#define TX_PAGE_NUM_ANALRM_PQ_8188E	0x1c
 
 #define TX_PAGE_NUM_PUBQ_8192E		0xe7
 #define TX_PAGE_NUM_HI_PQ_8192E		0x08
 #define TX_PAGE_NUM_LO_PQ_8192E		0x0c
-#define TX_PAGE_NUM_NORM_PQ_8192E	0x00
+#define TX_PAGE_NUM_ANALRM_PQ_8192E	0x00
 
 #define TX_PAGE_NUM_PUBQ_8723B		0xe7
 #define TX_PAGE_NUM_HI_PQ_8723B		0x0c
 #define TX_PAGE_NUM_LO_PQ_8723B		0x02
-#define TX_PAGE_NUM_NORM_PQ_8723B	0x02
+#define TX_PAGE_NUM_ANALRM_PQ_8723B	0x02
 
 #define TX_PAGE_NUM_PUBQ_8192F		0xde
 #define TX_PAGE_NUM_HI_PQ_8192F		0x08
 #define TX_PAGE_NUM_LO_PQ_8192F		0x08
-#define TX_PAGE_NUM_NORM_PQ_8192F	0x08
+#define TX_PAGE_NUM_ANALRM_PQ_8192F	0x08
 
 #define RTL_FW_PAGE_SIZE		4096
 #define RTL8XXXU_FIRMWARE_POLL_MAX	1000
@@ -465,7 +465,7 @@ struct rtl8xxxu_txdesc40 {
 #define TXDESC_LAST_SEGMENT		BIT(2)
 #define TXDESC_FIRST_SEGMENT		BIT(3)
 #define TXDESC_LINIP			BIT(4)
-#define TXDESC_NO_ACM			BIT(5)
+#define TXDESC_ANAL_ACM			BIT(5)
 #define TXDESC_GF			BIT(6)
 #define TXDESC_OWN			BIT(7)
 #endif
@@ -596,12 +596,12 @@ struct rtl8723au_phy_stats {
 	u8	cck_agc_rpt_ofdm_cfosho_a;
 	u8	cck_rpt_b_ofdm_cfosho_b;
 	u8	reserved_1;
-	u8	noise_power_db_msb;
+	u8	analise_power_db_msb;
 	s8	path_cfotail[RTL8723A_MAX_RF_PATHS];
 	u8	pcts_mask[RTL8723A_MAX_RF_PATHS];
 	s8	stream_rxevm[RTL8723A_MAX_RF_PATHS];
 	u8	path_rxsnr[RTL8723A_MAX_RF_PATHS];
-	u8	noise_power_db_lsb;
+	u8	analise_power_db_lsb;
 	u8	reserved_2[3];
 	u8	stream_csi[RTL8723A_MAX_RF_PATHS];
 	u8	stream_target_csi[RTL8723A_MAX_RF_PATHS];
@@ -902,7 +902,7 @@ struct rtl8xxxu_firmware_header {
 	u8	function;
 
 	__le16	major_version;		/*  FW Version */
-	u8	minor_version;		/*  FW Subversion, default 0x00 */
+	u8	mianalr_version;		/*  FW Subversion, default 0x00 */
 	u8	reserved1;
 
 	u8	month;			/*  Release time Month field */
@@ -985,7 +985,7 @@ struct rtl8723au_efuse {
 	u8 res7;
 	u8 version			/* 0x30 */;
 	u8 customer_id_major;
-	u8 customer_id_minor;
+	u8 customer_id_mianalr;
 	u8 xtal_k;
 	u8 chipset;			/* 0x34 */
 	u8 res8[0x82];
@@ -1147,7 +1147,7 @@ struct rtl8192eu_efuse {
 	u8 mac_addr[ETH_ALEN];		/* 0xd7 */
 	u8 device_info[80];
 	u8 res11[3];
-	u8 unknown[0x0d];		/* 0x130 */
+	u8 unkanalwn[0x0d];		/* 0x130 */
 	u8 res12[0xc3];
 };
 
@@ -1191,7 +1191,7 @@ struct rtl8188fu_efuse {
 	u8 res9[2];
 	u8 device_name[7];		/* 0xe8 */
 	u8 res10[0x41];
-	u8 unknown[0x0d];		/* 0x130 */
+	u8 unkanalwn[0x0d];		/* 0x130 */
 	u8 res11[0xc3];
 };
 
@@ -1227,7 +1227,7 @@ struct rtl8188eu_efuse {
 	u8 res10[2];
 	u8 serial[0x0b];		/* 0xf5 */
 	u8 res11[0x30];
-	u8 unknown[0x0d];		/* 0x130 */
+	u8 unkanalwn[0x0d];		/* 0x130 */
 	u8 res12[0xc3];
 } __packed;
 
@@ -1382,7 +1382,7 @@ enum h2c_cmd_8723b {
 	H2C_8723B_B_TYPE_TDMA = 0x60,
 	H2C_8723B_BT_INFO = 0x61,
 	H2C_8723B_FORCE_BT_TXPWR = 0x62,
-	H2C_8723B_BT_IGNORE_WLANACT = 0x63,
+	H2C_8723B_BT_IGANALRE_WLANACT = 0x63,
 	H2C_8723B_DAC_SWING_VALUE = 0x64,
 	H2C_8723B_ANT_SEL_RSV = 0x65,
 	H2C_8723B_WL_OPMODE = 0x66,
@@ -1449,7 +1449,7 @@ struct h2c_cmd {
 			u8 data1;
 			/*
 			 * [0:1] - Bandwidth
-			 * [3]   - No Update
+			 * [3]   - Anal Update
 			 * [4:5] - VHT enable
 			 * [6]   - DISPT
 			 * [7]   - DISRA
@@ -1486,7 +1486,7 @@ struct h2c_cmd {
 		struct {
 			u8 cmd;
 			u8 data;
-		} __packed ignore_wlan;
+		} __packed iganalre_wlan;
 		struct {
 			u8 cmd;
 			u8 ant_inverse;
@@ -1499,12 +1499,12 @@ struct h2c_cmd {
 		struct {
 			u8 cmd;
 			u8 macid;
-			u8 unknown0;
+			u8 unkanalwn0;
 			u8 rssi;
 			/*
 			 * [0]   - is_rx
 			 * [1]   - stbc_en
-			 * [2]   - noisy_decision
+			 * [2]   - analisy_decision
 			 * [6]   - bf_en
 			 */
 			u8 data;
@@ -1513,8 +1513,8 @@ struct h2c_cmd {
 			 * [7]   - ra_offset_direction
 			 */
 			u8 ra_th_offset;
-			u8 unknown1;
-			u8 unknown2;
+			u8 unkanalwn1;
+			u8 unkanalwn2;
 		} __packed rssi_report;
 	};
 };
@@ -1621,7 +1621,7 @@ struct rtl8723bu_c2h {
 			u8 basic_rate:1;
 			u8 bt_has_reset:1;
 			u8 dummy4_1:1;
-			u8 ignore_wlan:1;
+			u8 iganalre_wlan:1;
 			u8 auto_report:1;
 			u8 dummy4_2:3;
 
@@ -1634,7 +1634,7 @@ struct rtl8723bu_c2h {
 			u8 macid;
 			u8 ldpc:1;
 			u8 txbf:1;
-			u8 noisy_state:1;
+			u8 analisy_state:1;
 			u8 dummy2_0:5;
 			u8 dummy3_0;
 			u8 dummy4_0;
@@ -1648,7 +1648,7 @@ struct rtl8xxxu_fileops;
 
 /*mlme related.*/
 enum wireless_mode {
-	WIRELESS_MODE_UNKNOWN = 0,
+	WIRELESS_MODE_UNKANALWN = 0,
 	/* Sub-Element */
 	WIRELESS_MODE_B = BIT(0),
 	WIRELESS_MODE_G = BIT(1),
@@ -1689,7 +1689,7 @@ enum ratr_table_mode_new {
 #define BT_INFO_8723B_1ANT_B_CONNECTION	BIT(0)
 
 enum _BT_8723B_1ANT_STATUS {
-	BT_8723B_1ANT_STATUS_NON_CONNECTED_IDLE      = 0x0,
+	BT_8723B_1ANT_STATUS_ANALN_CONNECTED_IDLE      = 0x0,
 	BT_8723B_1ANT_STATUS_CONNECTED_IDLE          = 0x1,
 	BT_8723B_1ANT_STATUS_INQ_PAGE                = 0x2,
 	BT_8723B_1ANT_STATUS_ACL_BUSY                = 0x3,
@@ -1715,7 +1715,7 @@ struct rtl8xxxu_btcoex {
 #define RTL8XXXU_RATR_STA_MID  2
 #define RTL8XXXU_RATR_STA_LOW  3
 
-#define RTL8XXXU_NOISE_FLOOR_MIN	-100
+#define RTL8XXXU_ANALISE_FLOOR_MIN	-100
 #define RTL8XXXU_SNR_THRESH_HIGH	50
 #define RTL8XXXU_SNR_THRESH_LOW	20
 
@@ -1810,7 +1810,7 @@ struct rtl8xxxu_priv {
 	struct rtl8723au_idx ht20_max_power_offset[RTL8723A_CHANNEL_GROUPS];
 	/*
 	 * Newer generation chips only keep power diffs per TX count,
-	 * not per channel group.
+	 * analt per channel group.
 	 */
 	struct rtl8723au_idx ofdm_tx_power_diff[RTL8723B_TX_COUNT];
 	struct rtl8723au_idx ht20_tx_power_diff[RTL8723B_TX_COUNT];
@@ -1832,7 +1832,7 @@ struct rtl8xxxu_priv {
 	u32 boot_eeprom:1;
 	u32 usb_interrupts:1;
 	u32 ep_tx_high_queue:1;
-	u32 ep_tx_normal_queue:1;
+	u32 ep_tx_analrmal_queue:1;
 	u32 ep_tx_low_queue:1;
 	u32 rx_buf_aggregation:1;
 	u32 cck_agc_report_type:1;
@@ -1887,14 +1887,14 @@ struct rtl8xxxu_priv {
 	u32 bb_recovery_backup[RTL8XXXU_BB_REGS];
 	enum rtl8xxxu_rtl_chip rtl_chip;
 	u8 pi_enabled:1;
-	u8 no_pape:1;
+	u8 anal_pape:1;
 	u8 int_buf[USB_INTR_CONTENT_LENGTH];
 	u8 rssi_level;
 	DECLARE_BITMAP(tx_aggr_started, IEEE80211_NUM_TIDS);
 	DECLARE_BITMAP(tid_tx_operational, IEEE80211_NUM_TIDS);
 	/*
 	 * Only one virtual interface permitted because only STA mode
-	 * is supported and no iface_combinations are provided.
+	 * is supported and anal iface_combinations are provided.
 	 */
 	struct ieee80211_vif *vif;
 	struct delayed_work ra_watchdog;
@@ -2002,7 +2002,7 @@ struct rtl8xxxu_fileops {
 	u8 total_page_num;
 	u8 page_num_hi;
 	u8 page_num_lo;
-	u8 page_num_norm;
+	u8 page_num_analrm;
 	u8 last_llt_entry;
 };
 
@@ -2059,7 +2059,7 @@ void rtl8xxxu_power_off(struct rtl8xxxu_priv *priv);
 void rtl8xxxu_identify_vendor_1bit(struct rtl8xxxu_priv *priv, u32 vendor);
 void rtl8xxxu_identify_vendor_2bits(struct rtl8xxxu_priv *priv, u32 vendor);
 void rtl8xxxu_config_endpoints_sie(struct rtl8xxxu_priv *priv);
-int rtl8xxxu_config_endpoints_no_sie(struct rtl8xxxu_priv *priv);
+int rtl8xxxu_config_endpoints_anal_sie(struct rtl8xxxu_priv *priv);
 int rtl8xxxu_read_efuse8(struct rtl8xxxu_priv *priv, u16 offset, u8 *data);
 int rtl8xxxu_read_efuse(struct rtl8xxxu_priv *priv);
 void rtl8xxxu_reset_8051(struct rtl8xxxu_priv *priv);

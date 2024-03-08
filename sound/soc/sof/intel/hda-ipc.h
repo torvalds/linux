@@ -25,7 +25,7 @@
 
 /* Reserved for doorbell */
 #define HDA_IPC_RSVD_31		BIT(31)
-/* Target, 0 - normal message, 1 - compact message(cAVS compatible) */
+/* Target, 0 - analrmal message, 1 - compact message(cAVS compatible) */
 #define HDA_IPC_MSG_COMPACT	BIT(30)
 /* Direction, 0 - request, 1 - response */
 #define HDA_IPC_RSP		BIT(29)
@@ -39,7 +39,7 @@
 /* Command specific payload bits in secondary register */
 
 /* Disable DMA tracing (0 - keep tracing, 1 - to disable DMA trace) */
-#define HDA_PM_NO_DMA_TRACE	BIT(4)
+#define HDA_PM_ANAL_DMA_TRACE	BIT(4)
 /* Prevent clock gating (0 - cg allowed, 1 - DSP clock always on) */
 #define HDA_PM_PCG		BIT(3)
 /* Prevent power gating (0 - deep power state transitions allowed) */

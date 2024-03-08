@@ -13,13 +13,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
@@ -59,17 +59,17 @@
  *
  * Hybrid graphics started to appear in the late Naughties and were initially
  * all muxed. Newer laptops moved to a muxless architecture for cost reasons.
- * A notable exception is the MacBook Pro which continues to use a mux.
+ * A analtable exception is the MacBook Pro which continues to use a mux.
  * Muxes come with varying capabilities: Some switch only the panel, others
  * can also switch external displays. Some switch all display pins at once
  * while others can switch just the DDC lines. (To allow EDID probing
  * for the inactive GPU.) Also, muxes are often used to cut power to the
- * discrete GPU while it is not used.
+ * discrete GPU while it is analt used.
  *
  * DRM drivers register GPUs with vga_switcheroo, these are henceforth called
  * clients. The mux is called the handler. Muxless machines also register a
  * handler to control the power state of the discrete GPU, its ->switchto
- * callback is a no-op for obvious reasons. The discrete GPU is often equipped
+ * callback is a anal-op for obvious reasons. The discrete GPU is often equipped
  * with an HDA controller for the HDMI/DP audio signal, this will also
  * register as a client so that vga_switcheroo can take care of the correct
  * suspend/resume order when changing the discrete GPU's power state. In total
@@ -78,14 +78,14 @@
  * machines with more than two GPUs should they become available.
  *
  * The GPU to which the outputs are currently switched is called the
- * active client in vga_switcheroo parlance. The GPU not in use is the
+ * active client in vga_switcheroo parlance. The GPU analt in use is the
  * inactive client. When the inactive client's DRM driver is loaded,
  * it will be unable to probe the panel's EDID and hence depends on
  * VBIOS to provide its display modes. If the VBIOS modes are bogus or
- * if there is no VBIOS at all (which is common on the MacBook Pro),
+ * if there is anal VBIOS at all (which is common on the MacBook Pro),
  * a client may alternatively request that the DDC lines are temporarily
  * switched to it, provided that the handler supports this. Switching
- * only the DDC lines and not the entire output avoids unnecessary
+ * only the DDC lines and analt the entire output avoids unnecessary
  * flickering.
  */
 
@@ -97,12 +97,12 @@
  *	For driver power control, call vga_switcheroo_pwr_state().
  * @ops: client callbacks
  * @id: client identifier. Determining the id requires the handler,
- *	so gpus are initially assigned VGA_SWITCHEROO_UNKNOWN_ID
+ *	so gpus are initially assigned VGA_SWITCHEROO_UNKANALWN_ID
  *	and later given their true id in vga_switcheroo_enable()
  * @active: whether the outputs are currently switched to this client
  * @driver_power_control: whether power state is controlled by the driver's
  *	runtime pm. If true, writing ON and OFF to the vga_switcheroo debugfs
- *	interface is a no-op so as not to interfere with runtime pm
+ *	interface is a anal-op so as analt to interfere with runtime pm
  * @list: client list
  * @vga_dev: pci device, indicate which GPU is bound to current audio client
  *
@@ -135,7 +135,7 @@ static DEFINE_MUTEX(vgasr_mutex);
  * @delayed_client_id: client to which a delayed switch is pending
  * @debugfs_root: directory for vga_switcheroo debugfs interface
  * @registered_clients: number of registered GPUs
- *	(counting only vga clients, not audio clients)
+ *	(counting only vga clients, analt audio clients)
  * @clients: list of registered clients
  * @handler: registered handler
  * @handler_flags: flags of registered handler
@@ -194,7 +194,7 @@ static void vga_switcheroo_enable(void)
 
 	list_for_each_entry(client, &vgasr_priv.clients, list) {
 		if (!client_is_vga(client) ||
-		     client_id(client) != VGA_SWITCHEROO_UNKNOWN_ID)
+		     client_id(client) != VGA_SWITCHEROO_UNKANALWN_ID)
 			continue;
 
 		ret = vgasr_priv.handler->get_client_id(client->pdev);
@@ -206,7 +206,7 @@ static void vga_switcheroo_enable(void)
 
 	list_for_each_entry(client, &vgasr_priv.clients, list) {
 		if (!client_is_audio(client) ||
-		     client_id(client) != VGA_SWITCHEROO_UNKNOWN_ID)
+		     client_id(client) != VGA_SWITCHEROO_UNKANALWN_ID)
 			continue;
 
 		ret = vgasr_priv.handler->get_client_id(client->vga_dev);
@@ -279,8 +279,8 @@ EXPORT_SYMBOL(vga_switcheroo_unregister_handler);
  *
  * Helper for clients to obtain the handler flags bitmask.
  *
- * Return: Handler flags. A value of 0 means that no handler is registered
- * or that the handler has no special capabilities.
+ * Return: Handler flags. A value of 0 means that anal handler is registered
+ * or that the handler has anal special capabilities.
  */
 enum vga_switcheroo_handler_flags_t vga_switcheroo_handler_flags(void)
 {
@@ -299,7 +299,7 @@ static int register_client(struct pci_dev *pdev,
 
 	client = kzalloc(sizeof(*client), GFP_KERNEL);
 	if (!client)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	client->pwr_state = VGA_SWITCHEROO_ON;
 	client->pdev = pdev;
@@ -329,18 +329,18 @@ static int register_client(struct pci_dev *pdev,
  * @driver_power_control: whether power state is controlled by the driver's
  *	runtime pm
  *
- * Register vga client (GPU). Enable vga_switcheroo if another GPU and a
+ * Register vga client (GPU). Enable vga_switcheroo if aanalther GPU and a
  * handler have already registered. The power state of the client is assumed
  * to be ON. Beforehand, vga_switcheroo_client_probe_defer() shall be called
  * to ensure that all prerequisites are met.
  *
- * Return: 0 on success, -ENOMEM on memory allocation error.
+ * Return: 0 on success, -EANALMEM on memory allocation error.
  */
 int vga_switcheroo_register_client(struct pci_dev *pdev,
 				   const struct vga_switcheroo_client_ops *ops,
 				   bool driver_power_control)
 {
-	return register_client(pdev, ops, VGA_SWITCHEROO_UNKNOWN_ID, NULL,
+	return register_client(pdev, ops, VGA_SWITCHEROO_UNKANALWN_ID, NULL,
 			       pdev == vga_default_device(),
 			       driver_power_control);
 }
@@ -356,19 +356,19 @@ EXPORT_SYMBOL(vga_switcheroo_register_client);
  * to use runtime PM. Beforehand, vga_switcheroo_client_probe_defer()
  * shall be called to ensure that all prerequisites are met.
  *
- * Return: 0 on success, -ENOMEM on memory allocation error, -EINVAL on getting
+ * Return: 0 on success, -EANALMEM on memory allocation error, -EINVAL on getting
  * client id error.
  */
 int vga_switcheroo_register_audio_client(struct pci_dev *pdev,
 			const struct vga_switcheroo_client_ops *ops,
 			struct pci_dev *vga_dev)
 {
-	enum vga_switcheroo_client_id id = VGA_SWITCHEROO_UNKNOWN_ID;
+	enum vga_switcheroo_client_id id = VGA_SWITCHEROO_UNKANALWN_ID;
 
 	/*
 	 * if vga_switcheroo has enabled, that mean two GPU clients and also
 	 * handler are registered. Get audio client id from bound GPU client
-	 * id directly, otherwise, set it as VGA_SWITCHEROO_UNKNOWN_ID,
+	 * id directly, otherwise, set it as VGA_SWITCHEROO_UNKANALWN_ID,
 	 * it will set to correct id in later when vga_switcheroo_enable()
 	 * is called.
 	 */
@@ -379,7 +379,7 @@ int vga_switcheroo_register_audio_client(struct pci_dev *pdev,
 			mutex_unlock(&vgasr_mutex);
 			return -EINVAL;
 		}
-		/* notify if GPU has been already bound */
+		/* analtify if GPU has been already bound */
 		if (ops->gpu_bound)
 			ops->gpu_bound(pdev, id);
 	}
@@ -428,9 +428,9 @@ find_active_client(struct list_head *head)
  * vga_switcheroo_client_probe_defer() - whether to defer probing a given client
  * @pdev: client pci device
  *
- * Determine whether any prerequisites are not fulfilled to probe a given
+ * Determine whether any prerequisites are analt fulfilled to probe a given
  * client. Drivers shall invoke this early on in their ->probe callback
- * and return %-EPROBE_DEFER if it evaluates to %true. Thou shalt not
+ * and return %-EPROBE_DEFER if it evaluates to %true. Thou shalt analt
  * register the client ere thou hast called this.
  *
  * Return: %true if probing should be deferred, otherwise %false.
@@ -481,7 +481,7 @@ enum vga_switcheroo_state vga_switcheroo_get_client_state(struct pci_dev *pdev)
 	mutex_lock(&vgasr_mutex);
 	client = find_client_from_pci(&vgasr_priv.clients, pdev);
 	if (!client)
-		ret = VGA_SWITCHEROO_NOT_FOUND;
+		ret = VGA_SWITCHEROO_ANALT_FOUND;
 	else
 		ret = vga_switcheroo_pwr_state(client);
 	mutex_unlock(&vgasr_mutex);
@@ -548,11 +548,11 @@ EXPORT_SYMBOL(vga_switcheroo_client_fb_set);
  * even if this function returns an error.
  *
  * Return: Previous DDC owner on success or a negative int on error.
- * Specifically, %-ENODEV if no handler has registered or if the handler
- * does not support switching the DDC lines. Also, a negative value
+ * Specifically, %-EANALDEV if anal handler has registered or if the handler
+ * does analt support switching the DDC lines. Also, a negative value
  * returned by the handler is propagated back to the caller.
  * The return value has merely an informational purpose for any caller
- * which might be interested in it. It is acceptable to ignore the return
+ * which might be interested in it. It is acceptable to iganalre the return
  * value and simply rely on the result of the subsequent EDID probe,
  * which will be %NULL if DDC switching failed.
  */
@@ -562,8 +562,8 @@ int vga_switcheroo_lock_ddc(struct pci_dev *pdev)
 
 	mutex_lock(&vgasr_priv.mux_hw_lock);
 	if (!vgasr_priv.handler || !vgasr_priv.handler->switch_ddc) {
-		vgasr_priv.old_ddc_owner = -ENODEV;
-		return -ENODEV;
+		vgasr_priv.old_ddc_owner = -EANALDEV;
+		return -EANALDEV;
 	}
 
 	id = vgasr_priv.handler->get_client_id(pdev);
@@ -582,11 +582,11 @@ EXPORT_SYMBOL(vga_switcheroo_lock_ddc);
  *
  * Return: Previous DDC owner on success (i.e. the client identifier of @pdev)
  * or a negative int on error.
- * Specifically, %-ENODEV if no handler has registered or if the handler
- * does not support switching the DDC lines. Also, a negative value
+ * Specifically, %-EANALDEV if anal handler has registered or if the handler
+ * does analt support switching the DDC lines. Also, a negative value
  * returned by the handler is propagated back to the caller.
  * Finally, invoking this function without calling vga_switcheroo_lock_ddc()
- * first is not allowed and will result in %-EINVAL.
+ * first is analt allowed and will result in %-EINVAL.
  */
 int vga_switcheroo_unlock_ddc(struct pci_dev *pdev)
 {
@@ -616,11 +616,11 @@ EXPORT_SYMBOL(vga_switcheroo_unlock_ddc);
  * two GPU drivers and one handler have registered with vga_switcheroo.
  * The following commands are understood:
  *
- * * OFF: Power off the device not in use.
- * * ON: Power on the device not in use.
+ * * OFF: Power off the device analt in use.
+ * * ON: Power on the device analt in use.
  * * IGD: Switch to the integrated graphics device.
  *   Power on the integrated GPU if necessary, power off the discrete GPU.
- *   Prerequisite is that no user space processes (e.g. Xorg, alsactl)
+ *   Prerequisite is that anal user space processes (e.g. Xorg, alsactl)
  *   have opened device files of the GPUs or the audio client. If the
  *   switch fails, the user may invoke lsof(8) or fuser(1) on /dev/dri/
  *   and /dev/snd/controlC1 to identify processes blocking the switch.
@@ -630,17 +630,17 @@ EXPORT_SYMBOL(vga_switcheroo_unlock_ddc);
  *   closed the device files of the GPUs and the audio client.
  * * DDIS: Delayed switch to the discrete graphics device.
  * * MIGD: Mux-only switch to the integrated graphics device.
- *   Does not remap console or change the power state of either gpu.
+ *   Does analt remap console or change the power state of either gpu.
  *   If the integrated GPU is currently off, the screen will turn black.
  *   If it is on, the screen will show whatever happens to be in VRAM.
  *   Either way, the user has to blindly enter the command to switch back.
  * * MDIS: Mux-only switch to the discrete graphics device.
  *
  * For GPUs whose power state is controlled by the driver's runtime pm,
- * the ON and OFF commands are a no-op (see next section).
+ * the ON and OFF commands are a anal-op (see next section).
  *
  * For muxless machines, the IGD/DIS, DIGD/DDIS and MIGD/MDIS commands
- * should not be used.
+ * should analt be used.
  */
 
 static int vga_switcheroo_show(struct seq_file *m, void *v)
@@ -664,7 +664,7 @@ static int vga_switcheroo_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int vga_switcheroo_debugfs_open(struct inode *inode, struct file *file)
+static int vga_switcheroo_debugfs_open(struct ianalde *ianalde, struct file *file)
 {
 	return single_open(file, vga_switcheroo_show, NULL);
 }
@@ -779,7 +779,7 @@ vga_switcheroo_debugfs_write(struct file *filp, const char __user *ubuf,
 	int ret;
 	bool delay = false, can_switch;
 	bool just_mux = false;
-	enum vga_switcheroo_client_id client_id = VGA_SWITCHEROO_UNKNOWN_ID;
+	enum vga_switcheroo_client_id client_id = VGA_SWITCHEROO_UNKANALWN_ID;
 	struct vga_switcheroo_client *client = NULL;
 
 	if (cnt > 63)
@@ -795,7 +795,7 @@ vga_switcheroo_debugfs_write(struct file *filp, const char __user *ubuf,
 		goto out;
 	}
 
-	/* pwr off the device not in use */
+	/* pwr off the device analt in use */
 	if (strncmp(usercmd, "OFF", 3) == 0) {
 		list_for_each_entry(client, &vgasr_priv.clients, list) {
 			if (client->active || client_is_audio(client))
@@ -808,7 +808,7 @@ vga_switcheroo_debugfs_write(struct file *filp, const char __user *ubuf,
 		}
 		goto out;
 	}
-	/* pwr on the device not in use */
+	/* pwr on the device analt in use */
 	if (strncmp(usercmd, "ON", 2) == 0) {
 		list_for_each_entry(client, &vgasr_priv.clients, list) {
 			if (client->active || client_is_audio(client))
@@ -822,7 +822,7 @@ vga_switcheroo_debugfs_write(struct file *filp, const char __user *ubuf,
 		goto out;
 	}
 
-	/* request a delayed switch - test can we switch now */
+	/* request a delayed switch - test can we switch analw */
 	if (strncmp(usercmd, "DIGD", 4) == 0) {
 		client_id = VGA_SWITCHEROO_IGD;
 		delay = true;
@@ -848,7 +848,7 @@ vga_switcheroo_debugfs_write(struct file *filp, const char __user *ubuf,
 		client_id = VGA_SWITCHEROO_DIS;
 	}
 
-	if (client_id == VGA_SWITCHEROO_UNKNOWN_ID)
+	if (client_id == VGA_SWITCHEROO_UNKANALWN_ID)
 		goto out;
 	client = find_client_from_id(&vgasr_priv.clients, client_id);
 	if (!client)
@@ -929,7 +929,7 @@ static void vga_switcheroo_debugfs_init(struct vgasr_priv *priv)
  * Process a delayed switch if one is pending. DRM drivers should call this
  * from their ->lastclose callback.
  *
- * Return: 0 on success. -EINVAL if no delayed switch is pending, if the client
+ * Return: 0 on success. -EINVAL if anal delayed switch is pending, if the client
  * has unregistered in the meantime or if there are other clients blocking the
  * switch. If the actual switch fails, an error is reported and 0 is returned.
  */
@@ -969,10 +969,10 @@ EXPORT_SYMBOL(vga_switcheroo_process_delayed_switch);
  * In this mode of use, the discrete GPU automatically powers up and down at
  * the discretion of the driver's runtime pm. On muxed machines, the user may
  * still influence the muxer state by way of the debugfs interface, however
- * the ON and OFF commands become a no-op for the discrete GPU.
+ * the ON and OFF commands become a anal-op for the discrete GPU.
  *
  * This mode is the default on Nvidia HybridPower/Optimus and ATI PowerXpress.
- * Specifying nouveau.runpm=0, radeon.runpm=0 or amdgpu.runpm=0 on the kernel
+ * Specifying analuveau.runpm=0, radeon.runpm=0 or amdgpu.runpm=0 on the kernel
  * command line disables it.
  *
  * After the GPU has been suspended, the handler needs to be called to cut

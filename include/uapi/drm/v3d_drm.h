@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
@@ -83,7 +83,7 @@ struct drm_v3d_extension {
 
 /* struct drm_v3d_sem - wait/signal semaphore
  *
- * If binary semaphore, it only takes syncobj handle and ignores flags and
+ * If binary semaphore, it only takes syncobj handle and iganalres flags and
  * point fields. Point is defined for timeline syncobj feature.
  */
 struct drm_v3d_sem {
@@ -153,7 +153,7 @@ struct drm_v3d_submit_cl {
 	 * to the tile allocation BO.
 	 *
 	 * This BCL will block on any previous BCL submitted on the
-	 * same FD, but not on any RCL or BCLs submitted by other
+	 * same FD, but analt on any RCL or BCLs submitted by other
 	 * clients -- that is left up to the submitter to control
 	 * using in_sync_bcl if necessary.
 	 */
@@ -169,7 +169,7 @@ struct drm_v3d_submit_cl {
 	 * of tiles (in the case of RCL-only blits).
 	 *
 	 * This RCL will block on this submit's BCL, and any previous
-	 * RCL submitted on the same FD, but not on any RCL or BCLs
+	 * RCL submitted on the same FD, but analt on any RCL or BCLs
 	 * submitted by other clients -- that is left up to the
 	 * submitter to control using in_sync_rcl if necessary.
 	 */
@@ -208,7 +208,7 @@ struct drm_v3d_submit_cl {
 	/* DRM_V3D_SUBMIT_* properties */
 	__u32 flags;
 
-	/* ID of the perfmon to attach to this job. 0 means no perfmon. */
+	/* ID of the perfmon to attach to this job. 0 means anal perfmon. */
 	__u32 perfmon_id;
 
 	__u32 pad;
@@ -234,7 +234,7 @@ struct drm_v3d_wait_bo {
 /**
  * struct drm_v3d_create_bo - ioctl argument for creating V3D BOs.
  *
- * There are currently no values for the flags argument, but it may be
+ * There are currently anal values for the flags argument, but it may be
  * used in a future extension.
  */
 struct drm_v3d_create_bo {
@@ -247,7 +247,7 @@ struct drm_v3d_create_bo {
 	 * is private to the DRM fd and is valid for the lifetime of the GEM
 	 * handle.
 	 *
-	 * This offset value will always be nonzero, since various HW
+	 * This offset value will always be analnzero, since various HW
 	 * units treat 0 specially.
 	 */
 	__u32 offset;
@@ -257,18 +257,18 @@ struct drm_v3d_create_bo {
  * struct drm_v3d_mmap_bo - ioctl argument for mapping V3D BOs.
  *
  * This doesn't actually perform an mmap.  Instead, it returns the
- * offset you need to use in an mmap on the DRM device node.  This
- * means that tools like valgrind end up knowing about the mapped
+ * offset you need to use in an mmap on the DRM device analde.  This
+ * means that tools like valgrind end up kanalwing about the mapped
  * memory.
  *
- * There are currently no values for the flags argument, but it may be
+ * There are currently anal values for the flags argument, but it may be
  * used in a future extension.
  */
 struct drm_v3d_mmap_bo {
 	/** Handle for the object being mapped. */
 	__u32 handle;
 	__u32 flags;
-	/** offset into the drm node to use for subsequent mmap call. */
+	/** offset into the drm analde to use for subsequent mmap call. */
 	__u64 offset;
 };
 
@@ -360,7 +360,7 @@ struct drm_v3d_submit_csd {
 	/* Sync object to signal when the CSD job is done. */
 	__u32 out_sync;
 
-	/* ID of the perfmon to attach to this job. 0 means no perfmon. */
+	/* ID of the perfmon to attach to this job. 0 means anal perfmon. */
 	__u32 perfmon_id;
 
 	/* Pointer to an array of ioctl extensions*/
@@ -399,7 +399,7 @@ struct drm_v3d_indirect_csd {
 	__u32 wg_size;
 
 	/* Indices of the uniforms with the workgroup dispatch counts
-	 * in the uniform stream. If the uniform rewrite is not needed,
+	 * in the uniform stream. If the uniform rewrite is analt needed,
 	 * the offset must be 0xffffffff.
 	 */
 	__u32 wg_uniform_offsets[3];
@@ -469,7 +469,7 @@ struct drm_v3d_copy_timestamp_query {
 	/* Define if should write to buffer using 64 or 32 bits */
 	__u8 do_64bit;
 
-	/* Define if it can write to buffer even if the query is not available */
+	/* Define if it can write to buffer even if the query is analt available */
 	__u8 do_partial;
 
 	/* Define if it should write availability bit to buffer */
@@ -535,7 +535,7 @@ struct drm_v3d_copy_performance_query {
 	/* Define if should write to buffer using 64 or 32 bits */
 	__u8 do_64bit;
 
-	/* Define if it can write to buffer even if the query is not available */
+	/* Define if it can write to buffer even if the query is analt available */
 	__u8 do_partial;
 
 	/* Define if it should write availability bit to buffer */
@@ -582,7 +582,7 @@ struct drm_v3d_submit_cpu {
 	 * BOs. The first is the BO where the timestamp queries will be written
 	 * to. The second is the BO that contains the timestamp.
 	 *
-	 * For DRM_V3D_EXT_ID_CPU_RESET_PERFORMANCE_QUERY, it must contain no
+	 * For DRM_V3D_EXT_ID_CPU_RESET_PERFORMANCE_QUERY, it must contain anal
 	 * BOs.
 	 *
 	 * For DRM_V3D_EXT_ID_CPU_COPY_PERFORMANCE_QUERY, it must contain one
@@ -600,7 +600,7 @@ struct drm_v3d_submit_cpu {
 };
 
 enum {
-	V3D_PERFCNT_FEP_VALID_PRIMTS_NO_PIXELS,
+	V3D_PERFCNT_FEP_VALID_PRIMTS_ANAL_PIXELS,
 	V3D_PERFCNT_FEP_VALID_PRIMS,
 	V3D_PERFCNT_FEP_EZ_NFCLIP_QUADS,
 	V3D_PERFCNT_FEP_VALID_QUADS,
@@ -608,7 +608,7 @@ enum {
 	V3D_PERFCNT_TLB_QUADS_STENCILZ_FAIL,
 	V3D_PERFCNT_TLB_QUADS_STENCILZ_PASS,
 	V3D_PERFCNT_TLB_QUADS_ZERO_COV,
-	V3D_PERFCNT_TLB_QUADS_NONZERO_COV,
+	V3D_PERFCNT_TLB_QUADS_ANALNZERO_COV,
 	V3D_PERFCNT_TLB_QUADS_WRITTEN,
 	V3D_PERFCNT_PTB_PRIM_VIEWPOINT_DISCARD,
 	V3D_PERFCNT_PTB_PRIM_CLIP,
@@ -650,7 +650,7 @@ enum {
 	V3D_PERFCNT_AXI_READ_BYTES_WATCH_1,
 	V3D_PERFCNT_TLB_PARTIAL_QUADS,
 	V3D_PERFCNT_TMU_CONFIG_ACCESSES,
-	V3D_PERFCNT_L2T_NO_ID_STALL,
+	V3D_PERFCNT_L2T_ANAL_ID_STALL,
 	V3D_PERFCNT_L2T_COM_QUE_STALL,
 	V3D_PERFCNT_L2T_TMU_WRITES,
 	V3D_PERFCNT_TMU_ACTIVE_CYCLES,
@@ -706,9 +706,9 @@ struct drm_v3d_perfmon_destroy {
  * Returns the values of the performance counters tracked by this
  * perfmon (as an array of ncounters u64 values).
  *
- * No implicit synchronization is performed, so the user has to
+ * Anal implicit synchronization is performed, so the user has to
  * guarantee that any jobs using this perfmon have already been
- * completed  (probably by blocking on the seqno returned by the
+ * completed  (probably by blocking on the seqanal returned by the
  * last exec that used the perfmon).
  */
 struct drm_v3d_perfmon_get_values {

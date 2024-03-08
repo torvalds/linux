@@ -8,7 +8,7 @@ Introduction
 dm-era is a target that behaves similar to the linear target.  In
 addition it keeps track of which blocks were written within a user
 defined period of time called an 'era'.  Each era target instance
-maintains the current era as a monotonically increasing 32-bit
+maintains the current era as a moanaltonically increasing 32-bit
 counter.
 
 Use cases include tracking changed blocks for backup software, and
@@ -30,7 +30,7 @@ era <metadata dev> <origin dev> <block size>
 Messages
 ========
 
-None of the dm messages take any arguments.
+Analne of the dm messages take any arguments.
 
 checkpoint
 ----------
@@ -63,7 +63,7 @@ metadata block size	  Fixed block size for each metadata block in
 current era		  The current era
 held metadata root	  The location, in blocks, of the metadata root
 			  that has been 'held' for userspace read
-			  access. '-' indicates there is no held root
+			  access. '-' indicates there is anal held root
 ========================= ==============================================
 
 Detailed use case
@@ -76,9 +76,9 @@ Taking a vendor snapshot
 ------------------------
 
 - Send a checkpoint message to the era target
-- Make a note of the current era in its status line
+- Make a analte of the current era in its status line
 - Take vendor snapshot (the era and snapshot should be forever
-  associated now).
+  associated analw).
 
 Rolling back to an vendor snapshot
 ----------------------------------
@@ -104,7 +104,7 @@ Resilience
 ==========
 
 Metadata is updated on disk before a write to a previously unwritten
-block is performed.  As such dm-era should not be effected by a hard
+block is performed.  As such dm-era should analt be effected by a hard
 crash such as power failure.
 
 Userland tools

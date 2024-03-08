@@ -14,18 +14,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -112,10 +112,10 @@
 /*
  * Timer index used when backing off due to memory shortage.
  */
-#define NOMEM_TMR_IDX (SGE_NTIMERS - 1)
+#define ANALMEM_TMR_IDX (SGE_NTIMERS - 1)
 
 /*
- * Suspension threshold for non-Ethernet Tx queues.  We require enough room
+ * Suspension threshold for analn-Ethernet Tx queues.  We require eanalugh room
  * for a full sized WR.
  */
 #define TXQ_STOP_THRES (SGE_MAX_WR_LEN / sizeof(struct tx_desc))
@@ -169,7 +169,7 @@ static inline unsigned int fl_mtu_bufsize(struct adapter *adapter,
 enum {
 	RX_BUF_FLAGS     = 0x1f,   /* bottom five bits are special */
 	RX_BUF_SIZE      = 0x0f,   /* bottom three bits are for buf sizes */
-	RX_UNMAPPED_BUF  = 0x10,   /* buffer is not mapped */
+	RX_UNMAPPED_BUF  = 0x10,   /* buffer is analt mapped */
 
 	/*
 	 * XXX We shouldn't depend on being able to use these indices.
@@ -267,7 +267,7 @@ unwind:
 
 	dma_unmap_single(dev, addr[-1], skb_headlen(skb), DMA_TO_DEVICE);
 out_err:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 EXPORT_SYMBOL(cxgb4_map_skb);
 
@@ -460,8 +460,8 @@ static void free_rx_bufs(struct adapter *adap, struct sge_fl *q, int n)
  *	Unmap the current buffer on an SGE free-buffer Rx queue.   The
  *	buffer must be made inaccessible to HW before calling this function.
  *
- *	This is similar to @free_rx_bufs above but does not free the buffer.
- *	Do note that the FL still loses any further access to the buffer.
+ *	This is similar to @free_rx_bufs above but does analt free the buffer.
+ *	Do analte that the FL still loses any further access to the buffer.
  */
 static void unmap_rx_buf(struct adapter *adap, struct sge_fl *q)
 {
@@ -527,7 +527,7 @@ static inline void set_rx_sw_desc(struct rx_sw_desc *sd, struct page *pg,
  *
  *	(Re)populate an SGE free-buffer queue with up to @n new packet buffers,
  *	allocated with the supplied gfp flags.  The caller must assure that
- *	@n does not exceed the queue's capacity.  If afterwards the queue is
+ *	@n does analt exceed the queue's capacity.  If afterwards the queue is
  *	found critically low mark it as starving in the bitmap of starving FLs.
  *
  *	Returns the number of buffers allocated.
@@ -541,15 +541,15 @@ static unsigned int refill_fl(struct adapter *adap, struct sge_fl *q, int n,
 	unsigned int cred = q->avail;
 	__be64 *d = &q->desc[q->pidx];
 	struct rx_sw_desc *sd = &q->sdesc[q->pidx];
-	int node;
+	int analde;
 
 #ifdef CONFIG_DEBUG_FS
 	if (test_bit(q->cntxt_id - adap->sge.egr_start, adap->sge.blocked_fl))
 		goto out;
 #endif
 
-	gfp |= __GFP_NOWARN;
-	node = dev_to_node(adap->pdev_dev);
+	gfp |= __GFP_ANALWARN;
+	analde = dev_to_analde(adap->pdev_dev);
 
 	if (s->fl_pg_order == 0)
 		goto alloc_small_pages;
@@ -558,7 +558,7 @@ static unsigned int refill_fl(struct adapter *adap, struct sge_fl *q, int n,
 	 * Prefer large buffers
 	 */
 	while (n) {
-		pg = alloc_pages_node(node, gfp | __GFP_COMP, s->fl_pg_order);
+		pg = alloc_pages_analde(analde, gfp | __GFP_COMP, s->fl_pg_order);
 		if (unlikely(!pg)) {
 			q->large_alloc_failed++;
 			break;       /* fall back to single pages */
@@ -570,7 +570,7 @@ static unsigned int refill_fl(struct adapter *adap, struct sge_fl *q, int n,
 		if (unlikely(dma_mapping_error(adap->pdev_dev, mapping))) {
 			__free_pages(pg, s->fl_pg_order);
 			q->mapping_err++;
-			goto out;   /* do not try small pages for this error */
+			goto out;   /* do analt try small pages for this error */
 		}
 		mapping |= RX_LARGE_PG_BUF;
 		*d++ = cpu_to_be64(mapping);
@@ -589,7 +589,7 @@ static unsigned int refill_fl(struct adapter *adap, struct sge_fl *q, int n,
 
 alloc_small_pages:
 	while (n--) {
-		pg = alloc_pages_node(node, gfp, 0);
+		pg = alloc_pages_analde(analde, gfp, 0);
 		if (unlikely(!pg)) {
 			q->alloc_failed++;
 			break;
@@ -644,7 +644,7 @@ static inline void __refill_fl(struct adapter *adap, struct sge_fl *fl)
  *	@phys: the physical address of the allocated ring
  *	@metadata: address of the array holding the SW state for the ring
  *	@stat_size: extra space in HW ring for status information
- *	@node: preferred node for memory allocations
+ *	@analde: preferred analde for memory allocations
  *
  *	Allocates resources for an SGE descriptor ring, such as Tx queues,
  *	free buffer lists, or response queues.  Each SGE ring requires
@@ -656,7 +656,7 @@ static inline void __refill_fl(struct adapter *adap, struct sge_fl *fl)
  */
 static void *alloc_ring(struct device *dev, size_t nelem, size_t elem_size,
 			size_t sw_size, dma_addr_t *phys, void *metadata,
-			size_t stat_size, int node)
+			size_t stat_size, int analde)
 {
 	size_t len = nelem * elem_size + stat_size;
 	void *s = NULL;
@@ -665,7 +665,7 @@ static void *alloc_ring(struct device *dev, size_t nelem, size_t elem_size,
 	if (!p)
 		return NULL;
 	if (sw_size) {
-		s = kcalloc_node(sw_size, nelem, GFP_KERNEL, node);
+		s = kcalloc_analde(sw_size, nelem, GFP_KERNEL, analde);
 
 		if (!s) {
 			dma_free_coherent(dev, len, p, *phys);
@@ -724,7 +724,7 @@ static inline unsigned int flits_to_desc(unsigned int n)
  *	@skb: the packet
  *	@chip_ver: chip version
  *
- *	Returns whether an Ethernet packet is small enough to fit as
+ *	Returns whether an Ethernet packet is small eanalugh to fit as
  *	immediate data. Return value corresponds to headroom required.
  */
 static inline int is_eth_imm(const struct sk_buff *skb, unsigned int chip_ver)
@@ -761,7 +761,7 @@ static inline unsigned int calc_tx_flits(const struct sk_buff *skb,
 	unsigned int flits;
 	int hdrlen = is_eth_imm(skb, chip_ver);
 
-	/* If the skb is small enough, we can pump it out as a work request
+	/* If the skb is small eanalugh, we can pump it out as a work request
 	 * with only immediate data.  In that case we just have to have the
 	 * TX Packet header plus the skb data in the Work Request.
 	 */
@@ -831,7 +831,7 @@ static inline unsigned int calc_tx_descs(const struct sk_buff *skb,
  *	The SGL includes all of the packet's page fragments and the data in its
  *	main body except for the first @start bytes.  @sgl must be 16-byte
  *	aligned and within a Tx descriptor with available space.  @end points
- *	right after the end of the SGL but does not account for any potential
+ *	right after the end of the SGL but does analt account for any potential
  *	wrap around, i.e., @end > @sgl.
  */
 void cxgb4_write_sgl(const struct sk_buff *skb, struct sge_txq *q,
@@ -943,7 +943,7 @@ void cxgb4_write_partial_sgl(const struct sk_buff *skb, struct sge_txq *q,
 	}
 
 	/* If the entire partial data fit in one SGL, then send it out
-	 * now.
+	 * analw.
 	 */
 	if (!len)
 		goto done;
@@ -955,7 +955,7 @@ void cxgb4_write_partial_sgl(const struct sk_buff *skb, struct sge_txq *q,
 	to = (u8 *)end > (u8 *)q->stat ? buf : sgl->sge;
 
 	/* If the skb couldn't fit in first SGL completely, fill the
-	 * rest of the frags in subsequent SGLs. Note that each SGL
+	 * rest of the frags in subsequent SGLs. Analte that each SGL
 	 * pair can store 2 frags.
 	 */
 	while (len) {
@@ -1181,8 +1181,8 @@ static u64 hwcsum(enum chip_type chip, const struct sk_buff *skb)
 		else if (proto == IPPROTO_UDP)
 			csum_type = TX_CSUM_UDPIP;
 		else {
-nocsum:			/*
-			 * unknown protocol, disable HW csum
+analcsum:			/*
+			 * unkanalwn protocol, disable HW csum
 			 * and hope a bad packet is detected
 			 */
 			return TXPKT_L4CSUM_DIS_F;
@@ -1196,7 +1196,7 @@ nocsum:			/*
 		else if (proto == IPPROTO_UDP)
 			csum_type = TX_CSUM_UDPIP6;
 		else
-			goto nocsum;
+			goto analcsum;
 	}
 
 	if (likely(csum_type >= TX_CSUM_TCPIP)) {
@@ -1263,7 +1263,7 @@ cxgb_fcoe_offload(struct sk_buff *skb, struct adapter *adap,
 	skb_set_transport_header(skb, skb->mac_len + sizeof(struct fcoe_hdr));
 
 	if (!cxgb_fcoe_sof_eof_supported(adap, skb))
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	/* FC CRC offload */
 	*cntrl = TXPKT_CSUM_TYPE_V(TX_CSUM_FCOE) |
@@ -1329,8 +1329,8 @@ static inline void t6_fill_tnl_lso(struct sk_buff *skb,
 	      CPL_TX_TNL_LSO_FIRST_F |
 	      CPL_TX_TNL_LSO_LAST_F |
 	      (v6 ? CPL_TX_TNL_LSO_IPV6OUT_F : 0) |
-	      CPL_TX_TNL_LSO_ETHHDRLENOUT_V(eth_xtra_len / 4) |
-	      CPL_TX_TNL_LSO_IPHDRLENOUT_V(l3hdr_len / 4) |
+	      CPL_TX_TNL_LSO_ETHHDRLEANALUT_V(eth_xtra_len / 4) |
+	      CPL_TX_TNL_LSO_IPHDRLEANALUT_V(l3hdr_len / 4) |
 	      (v6 ? 0 : CPL_TX_TNL_LSO_IPHDRCHKOUT_F) |
 	      CPL_TX_TNL_LSO_IPLENSETOUT_F |
 	      (v6 ? 0 : CPL_TX_TNL_LSO_IPIDINCOUT_F);
@@ -1394,7 +1394,7 @@ static inline void *write_tso_wr(struct adapter *adap, struct sk_buff *skb,
 			      LSO_TCPHDR_LEN_V(tcp_hdr(skb)->doff));
 	lso->ipid_ofst = htons(0);
 	lso->mss = htons(ssi->gso_size);
-	lso->seqno_offset = htonl(0);
+	lso->seqanal_offset = htonl(0);
 	if (is_t4(adap->params.chip))
 		lso->len = htonl(skb->len);
 	else
@@ -1433,7 +1433,7 @@ int t4_sge_eth_txq_egress_update(struct adapter *adap, struct sge_eth_txq *eq,
 	if (hw_in_use < 0)
 		hw_in_use += q->size;
 
-	/* If the TX Queue is currently stopped and there's now more than half
+	/* If the TX Queue is currently stopped and there's analw more than half
 	 * the queue available, restart it.  Otherwise bail out since the rest
 	 * of what we want do here is with the possibility of shipping any
 	 * currently buffered Coalesced TX Work Request.
@@ -1554,7 +1554,7 @@ static netdev_tx_t cxgb4_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 
 #ifdef CONFIG_CHELSIO_T4_FCOE
 	ret = cxgb_fcoe_offload(skb, adap, pi, &cntrl);
-	if (unlikely(ret == -EOPNOTSUPP))
+	if (unlikely(ret == -EOPANALTSUPP))
 		goto out_free;
 #endif /* CONFIG_CHELSIO_T4_FCOE */
 
@@ -1593,7 +1593,7 @@ static netdev_tx_t cxgb4_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (unlikely(credits < ETHTXQ_STOP_THRES)) {
 		/* After we're done injecting the Work Request for this
 		 * packet, we'll be below our "stop threshold" so stop the TX
-		 * Queue now and schedule a request for an SGE Egress Queue
+		 * Queue analw and schedule a request for an SGE Egress Queue
 		 * Update message. The queue will get started later on when
 		 * the firmware processes this Work Request and sends us an
 		 * Egress Queue Status Update message indicating that space
@@ -1632,7 +1632,7 @@ static netdev_tx_t cxgb4_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 			t6_fill_tnl_lso(skb, tnl_lso, tnl_type);
 			cpl = (void *)(tnl_lso + 1);
 			/* Driver is expected to compute partial checksum that
-			 * does not include the IP Total Length.
+			 * does analt include the IP Total Length.
 			 */
 			if (iph->version == 4) {
 				iph->check = 0;
@@ -1743,7 +1743,7 @@ out_free:
 /* Constants ... */
 enum {
 	/* Egress Queue sizes, producer and consumer indices are all in units
-	 * of Egress Context Units bytes.  Note that as far as the hardware is
+	 * of Egress Context Units bytes.  Analte that as far as the hardware is
 	 * concerned, the free list is an Egress Queue (the host produces free
 	 * buffers which the hardware consumes) and free list entries are
 	 * 64-bit PCI DMA addresses.
@@ -1761,13 +1761,13 @@ enum {
  *	t4vf_is_eth_imm - can an Ethernet packet be sent as immediate data?
  *	@skb: the packet
  *
- *	Returns whether an Ethernet packet is small enough to fit completely as
+ *	Returns whether an Ethernet packet is small eanalugh to fit completely as
  *	immediate data.
  */
 static inline int t4vf_is_eth_imm(const struct sk_buff *skb)
 {
 	/* The VF Driver uses the FW_ETH_TX_PKT_VM_WR firmware Work Request
-	 * which does not accommodate immediate data.  We could dike out all
+	 * which does analt accommodate immediate data.  We could dike out all
 	 * of the support code for immediate data but that would tie our hands
 	 * too much if we ever want to enhace the firmware.  It would also
 	 * create more differences between the PF and VF Drivers.
@@ -1786,7 +1786,7 @@ static inline unsigned int t4vf_calc_tx_flits(const struct sk_buff *skb)
 {
 	unsigned int flits;
 
-	/* If the skb is small enough, we can pump it out as a work request
+	/* If the skb is small eanalugh, we can pump it out as a work request
 	 * with only immediate data.  In that case we just have to have the
 	 * TX Packet header plus the skb data in the Work Request.
 	 */
@@ -1871,7 +1871,7 @@ static netdev_tx_t cxgb4_vf_eth_xmit(struct sk_buff *skb,
 	credits = txq_avail(&txq->q) - ndesc;
 
 	if (unlikely(credits < 0)) {
-		/* Not enough room for this packet's Work Request.  Stop the
+		/* Analt eanalugh room for this packet's Work Request.  Stop the
 		 * TX Queue and return a "busy" condition.  The queue will get
 		 * started later on when the firmware informs us that space
 		 * has opened up.
@@ -1905,7 +1905,7 @@ static netdev_tx_t cxgb4_vf_eth_xmit(struct sk_buff *skb,
 	if (unlikely(credits < ETHTXQ_STOP_THRES)) {
 		/* After we're done injecting the Work Request for this
 		 * packet, we'll be below our "stop threshold" so stop the TX
-		 * Queue now and schedule a request for an SGE Egress Queue
+		 * Queue analw and schedule a request for an SGE Egress Queue
 		 * Update message.  The queue will get started later on when
 		 * the firmware processes this Work Request and sends us an
 		 * Egress Queue Status Update message indicating that space
@@ -1916,7 +1916,7 @@ static netdev_tx_t cxgb4_vf_eth_xmit(struct sk_buff *skb,
 			wr_mid |= FW_WR_EQUEQ_F | FW_WR_EQUIQ_F;
 	}
 
-	/* Start filling in our Work Request.  Note that we do _not_ handle
+	/* Start filling in our Work Request.  Analte that we do _analt_ handle
 	 * the WR Header wrapping around the TX Descriptor Ring.  If our
 	 * maximum header size ever exceeds one TX Descriptor, we'll need to
 	 * do something else here.
@@ -1955,7 +1955,7 @@ static netdev_tx_t cxgb4_vf_eth_xmit(struct sk_buff *skb,
 				    LSO_TCPHDR_LEN_V(tcp_hdr(skb)->doff));
 		lso->ipid_ofst = cpu_to_be16(0);
 		lso->mss = cpu_to_be16(ssi->gso_size);
-		lso->seqno_offset = cpu_to_be32(0);
+		lso->seqanal_offset = cpu_to_be32(0);
 		if (is_t4(adapter->params.chip))
 			lso->len = cpu_to_be32(skb->len);
 		else
@@ -2035,17 +2035,17 @@ static netdev_tx_t cxgb4_vf_eth_xmit(struct sk_buff *skb,
 		 * Descriptors are reclaimed after their DMAs complete.
 		 * However, this could take quite a while since, in general,
 		 * the hardware is set up to be lazy about sending DMA
-		 * completion notifications to us and we mostly perform TX
+		 * completion analtifications to us and we mostly perform TX
 		 * reclaims in the transmit routine.
 		 *
 		 * This is good for performamce but means that we rely on new
 		 * TX packets arriving to run the destructors of completed
 		 * packets, which open up space in their sockets' send queues.
-		 * Sometimes we do not get such new packets causing TX to
+		 * Sometimes we do analt get such new packets causing TX to
 		 * stall.  A single UDP transmitter is a good example of this
 		 * situation.  We have a clean up timer that periodically
-		 * reclaims completed packets but it doesn't run often enough
-		 * (nor do we want it to) to prevent lengthy stalls.  A
+		 * reclaims completed packets but it doesn't run often eanalugh
+		 * (analr do we want it to) to prevent lengthy stalls.  A
 		 * solution to this problem is to run the destructor early,
 		 * after the packet is queued but before it's DMAd.  A con is
 		 * that we lie to socket memory accounting, but the amount of
@@ -2103,7 +2103,7 @@ out_free:
  *
  * This is a variant of cxgb4_reclaim_completed_tx() that is used
  * for Tx queues that send only immediate data (presently just
- * the control queues) and	thus do not have any sk_buffs to release.
+ * the control queues) and	thus do analt have any sk_buffs to release.
  */
 static inline void reclaim_completed_tx_imm(struct sge_txq *q)
 {
@@ -2158,7 +2158,7 @@ static inline int eosw_txq_enqueue(struct sge_eosw_txq *eosw_txq,
 				   struct sk_buff *skb)
 {
 	if (eosw_txq->inuse == eosw_txq->ndesc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	eosw_txq->desc[eosw_txq->pidx].skb = skb;
 	return 0;
@@ -2306,15 +2306,15 @@ static int ethofld_hard_xmit(struct net_device *dev,
 
 	left = txq_avail(&eohw_txq->q) - ndesc;
 
-	/* If there are no descriptors left in hardware queues or no
+	/* If there are anal descriptors left in hardware queues or anal
 	 * CPL credits left in software queues, then wait for them
-	 * to come back and retry again. Note that we always request
+	 * to come back and retry again. Analte that we always request
 	 * for credits update via interrupt for every half credits
 	 * consumed. So, the interrupt will eventually restore the
 	 * credits and invoke the Tx path again.
 	 */
 	if (unlikely(left < 0 || wrlen16 > eosw_txq->cred)) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_unlock;
 	}
 
@@ -2455,7 +2455,7 @@ static netdev_tx_t cxgb4_ethofld_xmit(struct sk_buff *skb,
 		goto out_unlock;
 
 	/* SKB is queued for processing until credits are available.
-	 * So, call the destructor now and we'll free the skb later
+	 * So, call the destructor analw and we'll free the skb later
 	 * after it has been successfully transmitted.
 	 */
 	skb_orphan(skb);
@@ -2528,10 +2528,10 @@ static void eosw_txq_flush_pending_skbs(struct sge_eosw_txq *eosw_txq)
  * cxgb4_ethofld_send_flowc - Send ETHOFLD flowc request to bind eotid to tc.
  * @dev: netdevice
  * @eotid: ETHOFLD tid to bind/unbind
- * @tc: traffic class. If set to FW_SCHED_CLS_NONE, then unbinds the @eotid
+ * @tc: traffic class. If set to FW_SCHED_CLS_ANALNE, then unbinds the @eotid
  *
  * Send a FLOWC work request to bind an ETHOFLD TID to a traffic class.
- * If @tc is set to FW_SCHED_CLS_NONE, then the @eotid is unbound from
+ * If @tc is set to FW_SCHED_CLS_ANALNE, then the @eotid is unbound from
  * a traffic class.
  */
 int cxgb4_ethofld_send_flowc(struct net_device *dev, u32 eotid, u32 tc)
@@ -2552,11 +2552,11 @@ int cxgb4_ethofld_send_flowc(struct net_device *dev, u32 eotid, u32 tc)
 
 	entry = cxgb4_lookup_eotid(&adap->tids, eotid);
 	if (!entry)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	eosw_txq = (struct sge_eosw_txq *)entry->data;
 	if (!eosw_txq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!(adap->flags & CXGB4_FW_OK)) {
 		/* Don't stall caller when access to FW is lost */
@@ -2566,10 +2566,10 @@ int cxgb4_ethofld_send_flowc(struct net_device *dev, u32 eotid, u32 tc)
 
 	skb = alloc_skb(len, GFP_KERNEL);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_bh(&eosw_txq->lock);
-	if (tc != FW_SCHED_CLS_NONE) {
+	if (tc != FW_SCHED_CLS_ANALNE) {
 		if (eosw_txq->state != CXGB4_EO_STATE_CLOSED)
 			goto out_free_skb;
 
@@ -2601,14 +2601,14 @@ int cxgb4_ethofld_send_flowc(struct net_device *dev, u32 eotid, u32 tc)
 	flowc->mnemval[4].mnemonic = FW_FLOWC_MNEM_SCHEDCLASS;
 	flowc->mnemval[4].val = cpu_to_be32(tc);
 	flowc->mnemval[5].mnemonic = FW_FLOWC_MNEM_EOSTATE;
-	flowc->mnemval[5].val = cpu_to_be32(tc == FW_SCHED_CLS_NONE ?
+	flowc->mnemval[5].val = cpu_to_be32(tc == FW_SCHED_CLS_ANALNE ?
 					    FW_FLOWC_MNEM_EOSTATE_CLOSING :
 					    FW_FLOWC_MNEM_EOSTATE_ESTABLISHED);
 
 	/* Free up any pending skbs to ensure there's room for
 	 * termination FLOWC.
 	 */
-	if (tc == FW_SCHED_CLS_NONE)
+	if (tc == FW_SCHED_CLS_ANALNE)
 		eosw_txq_flush_pending_skbs(eosw_txq);
 
 	ret = eosw_txq_enqueue(eosw_txq, skb);
@@ -2690,7 +2690,7 @@ int cxgb4_selftest_lb_pkt(struct net_device *netdev)
 	credits = txq_avail(&q->q) - ndesc;
 	if (unlikely(credits < 0)) {
 		__netif_tx_unlock(q->txq);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	wr = (void *)&q->q.desc[q->q.pidx];
@@ -2879,7 +2879,7 @@ static inline int is_ofld_imm(const struct sk_buff *skb)
  *	@skb: the packet
  *
  *	Returns the number of flits needed for the given offload packet.
- *	These packets are already fully constructed and no additional headers
+ *	These packets are already fully constructed and anal additional headers
  *	will be added.
  */
 static inline unsigned int calc_tx_flits_ofld(const struct sk_buff *skb)
@@ -2956,8 +2956,8 @@ static void service_ofldq(struct sge_uld_txq *q)
 	unsigned int written = 0;
 	unsigned int flits, ndesc;
 
-	/* If another thread is currently in service_ofldq() processing the
-	 * Pending Send Queue then there's nothing to do. Otherwise, flag
+	/* If aanalther thread is currently in service_ofldq() processing the
+	 * Pending Send Queue then there's analthing to do. Otherwise, flag
 	 * that we're doing the work and continue.  Examining/modifying
 	 * the Offload Queue boolean "service_ofldq_running" must be done
 	 * while holding the Pending Send Queue Lock.
@@ -2996,7 +2996,7 @@ static void service_ofldq(struct sge_uld_txq *q)
 		} else {
 			int last_desc, hdr_len = skb_transport_offset(skb);
 
-			/* The WR headers  may not fit within one descriptor.
+			/* The WR headers  may analt fit within one descriptor.
 			 * So we need to deal with wrap-around here.
 			 */
 			before = (u64 *)pos;
@@ -3053,7 +3053,7 @@ static void service_ofldq(struct sge_uld_txq *q)
 	if (likely(written))
 		cxgb4_ring_tx_db(q->adap, &q->q, written);
 
-	/*Indicate that no thread is processing the Pending Send Queue
+	/*Indicate that anal thread is processing the Pending Send Queue
 	 * currently.
 	 */
 	q->service_ofldq_running = false;
@@ -3098,7 +3098,7 @@ static void restart_ofldq(struct tasklet_struct *t)
 	struct sge_uld_txq *q = from_tasklet(q, t, qresume_tsk);
 
 	spin_lock(&q->sendq.lock);
-	q->full = 0;            /* the queue actually is completely empty now */
+	q->full = 0;            /* the queue actually is completely empty analw */
 	service_ofldq(q);
 	spin_unlock(&q->sendq.lock);
 }
@@ -3232,7 +3232,7 @@ static int ofld_xmit_direct(struct sge_uld_txq *q, const void *src,
 
 	/* Don't return NET_XMIT_CN here as the current
 	 * implementation doesn't queue the request
-	 * using an skb when the following conditions not met
+	 * using an skb when the following conditions analt met
 	 */
 	if (!spin_trylock(&q->sendq.lock))
 		return NET_XMIT_DROP;
@@ -3379,8 +3379,8 @@ EXPORT_SYMBOL(cxgb4_pktgl_to_skb);
  *	t4_pktgl_free - free a packet gather list
  *	@gl: the gather list
  *
- *	Releases the pages of a packet gather list.  We do not own the last
- *	page on the list and do not free it.
+ *	Releases the pages of a packet gather list.  We do analt own the last
+ *	page on the list and do analt free it.
  */
 static void t4_pktgl_free(const struct pkt_gl *gl)
 {
@@ -3395,7 +3395,7 @@ static void t4_pktgl_free(const struct pkt_gl *gl)
  * Process an MPS trace packet.  Give it an unused protocol number so it won't
  * be delivered to anyone and send it to the stack for capture.
  */
-static noinline int handle_trace_pkt(struct adapter *adap,
+static analinline int handle_trace_pkt(struct adapter *adap,
 				     const struct pkt_gl *gl)
 {
 	struct sk_buff *skb;
@@ -3486,7 +3486,7 @@ static void do_gro(struct sge_eth_rxq *rxq, const struct pkt_gl *gl,
 }
 
 enum {
-	RX_NON_PTP_PKT = 0,
+	RX_ANALN_PTP_PKT = 0,
 	RX_PTP_PKT_SUC = 1,
 	RX_PTP_PKT_ERR = 2
 };
@@ -3499,7 +3499,7 @@ enum {
  *     Read Time Stamp from MPS packet and insert in skb which
  *     is forwarded to PTP application
  */
-static noinline int t4_systim_to_hwstamp(struct adapter *adapter,
+static analinline int t4_systim_to_hwstamp(struct adapter *adapter,
 					 struct sk_buff *skb)
 {
 	struct skb_shared_hwtstamps *hwtstamps;
@@ -3548,7 +3548,7 @@ static int t4_rx_hststamp(struct adapter *adapter, const __be64 *rsp,
 		}
 		return ret;
 	}
-	return RX_NON_PTP_PKT;
+	return RX_ANALN_PTP_PKT;
 }
 
 /**
@@ -3625,7 +3625,7 @@ static void t4_tx_completion_handler(struct sge_rspq *rspq,
 	 * reclaiming successfully DMA'ed TX Work Requests uses the CIDX value
 	 * stored in the Status Page at the end of the TX Queue.  It's easiest
 	 * to simply copy the CIDX Update value from the Egress Update message
-	 * to the Status Page.  Also note that no Endian issues need to be
+	 * to the Status Page.  Also analte that anal Endian issues need to be
 	 * considered here since both are Big Endian and we're just copying
 	 * bytes consistently ...
 	 */
@@ -3780,7 +3780,7 @@ int t4_ethrx_handler(struct sge_rspq *q, const __be64 *rsp,
 			rxq->stats.rx_cso++;
 		}
 	} else {
-		skb_checksum_none_assert(skb);
+		skb_checksum_analne_assert(skb);
 #ifdef CONFIG_CHELSIO_T4_FCOE
 #define CPL_RX_PKT_FLAGS (RXF_PSH_F | RXF_SYN_F | RXF_UDP_F | \
 			  RXF_TCP_F | RXF_IP_F | RXF_IP6_F | RXF_LRO_F)
@@ -3824,7 +3824,7 @@ int t4_ethrx_handler(struct sge_rspq *q, const __be64 *rsp,
  *	This function undoes a series of @unmap_rx_buf calls when we find out
  *	that the current packet can't be processed right away afterall and we
  *	need to come back to it later.  This is a very rare event and there's
- *	no effort to make this particularly efficient.
+ *	anal effort to make this particularly efficient.
  */
 static void restore_rx_bufs(const struct pkt_gl *si, struct sge_fl *q,
 			    int frags)
@@ -3961,7 +3961,7 @@ static int process_responses(struct sge_rspq *q, int budget)
 
 		if (unlikely(ret)) {
 			/* couldn't process descriptor, back off for recovery */
-			q->next_intr_params = QINTR_TIMER_IDX_V(NOMEM_TMR_IDX);
+			q->next_intr_params = QINTR_TIMER_IDX_V(ANALMEM_TMR_IDX);
 			break;
 		}
 
@@ -3979,10 +3979,10 @@ static int process_responses(struct sge_rspq *q, int budget)
  *	@napi: the napi instance
  *	@budget: how many packets we can process in this round
  *
- *	Handler for new data events when using NAPI.  This does not need any
+ *	Handler for new data events when using NAPI.  This does analt need any
  *	locking or protection from interrupts as data interrupts are off at
- *	this point and other adapter interrupts do not interfere (the latter
- *	in not a concern at all with MSI-X as non-data interrupts then have
+ *	this point and other adapter interrupts do analt interfere (the latter
+ *	in analt a concern at all with MSI-X as analn-data interrupts then have
  *	a separate handler).
  */
 static int napi_rx_handler(struct napi_struct *napi, int budget)
@@ -4052,7 +4052,7 @@ void cxgb4_ethofld_restart(struct tasklet_struct *t)
 	}
 
 	/* There may be some packets waiting for completions. So,
-	 * attempt to send these packets now.
+	 * attempt to send these packets analw.
 	 */
 	ethofld_xmit(eosw_txq->netdev, eosw_txq);
 	spin_unlock(&eosw_txq->lock);
@@ -4224,7 +4224,7 @@ static irqreturn_t t4_intr_intx(int irq, void *cookie)
 	if (((adap->flags & CXGB4_MASTER_PF) && t4_slow_intr_handler(adap)) |
 	    process_intrq(adap))
 		return IRQ_HANDLED;
-	return IRQ_NONE;             /* probably shared interrupt */
+	return IRQ_ANALNE;             /* probably shared interrupt */
 }
 
 /**
@@ -4330,7 +4330,7 @@ static void sge_tx_timer_cb(struct timer_list *t)
 		period = 2;
 	} else {
 		/* We reclaimed all reclaimable TX Descriptors, so reschedule
-		 * at the normal period.
+		 * at the analrmal period.
 		 */
 		period = TX_QCHECK_PERIOD;
 	}
@@ -4368,7 +4368,7 @@ static void __iomem *bar2_address(struct adapter *adapter,
 }
 
 /* @intr_idx: MSI/MSI-X vector if >=0, -(absolute qid + 1) if < 0
- * @cong: < 0 -> no congestion feedback, >= 0 -> congestion channel map
+ * @cong: < 0 -> anal congestion feedback, >= 0 -> congestion channel map
  */
 int t4_sge_alloc_rxq(struct adapter *adap, struct sge_rspq *iq, bool fwevtq,
 		     struct net_device *dev, int intr_idx,
@@ -4379,16 +4379,16 @@ int t4_sge_alloc_rxq(struct adapter *adap, struct sge_rspq *iq, bool fwevtq,
 	struct fw_iq_cmd c;
 	struct sge *s = &adap->sge;
 	struct port_info *pi = netdev_priv(dev);
-	int relaxed = !(adap->flags & CXGB4_ROOT_NO_RELAXED_ORDERING);
+	int relaxed = !(adap->flags & CXGB4_ROOT_ANAL_RELAXED_ORDERING);
 
 	/* Size needs to be multiple of 16, including status entry. */
 	iq->size = roundup(iq->size, 16);
 
 	iq->desc = alloc_ring(adap->pdev_dev, iq->size, iq->iqe_len, 0,
 			      &iq->phys_addr, NULL, 0,
-			      dev_to_node(adap->pdev_dev));
+			      dev_to_analde(adap->pdev_dev));
 	if (!iq->desc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memset(&c, 0, sizeof(c));
 	c.op_to_vfn = htonl(FW_CMD_OP_V(FW_IQ_CMD) | FW_CMD_REQUEST_F |
@@ -4430,9 +4430,9 @@ int t4_sge_alloc_rxq(struct adapter *adap, struct sge_rspq *iq, bool fwevtq,
 		fl->desc = alloc_ring(adap->pdev_dev, fl->size, sizeof(__be64),
 				      sizeof(struct rx_sw_desc), &fl->addr,
 				      &fl->sdesc, s->stat_len,
-				      dev_to_node(adap->pdev_dev));
+				      dev_to_analde(adap->pdev_dev));
 		if (!fl->desc)
-			goto fl_nomem;
+			goto fl_analmem;
 
 		flsz = fl->size / 8 + s->stat_len / sizeof(struct tx_desc);
 		c.iqns_to_fl0congen |= htonl(FW_IQ_CMD_FL0PACKEN_F |
@@ -4498,7 +4498,7 @@ int t4_sge_alloc_rxq(struct adapter *adap, struct sge_rspq *iq, bool fwevtq,
 		fl->alloc_failed = fl->large_alloc_failed = fl->starving = 0;
 		adap->sge.egr_map[fl->cntxt_id - adap->sge.egr_start] = fl;
 
-		/* Note, we must initialize the BAR2 Free List User Doorbell
+		/* Analte, we must initialize the BAR2 Free List User Doorbell
 		 * information before refilling the Free List!
 		 */
 		fl->bar2_addr = bar2_address(adap,
@@ -4513,7 +4513,7 @@ int t4_sge_alloc_rxq(struct adapter *adap, struct sge_rspq *iq, bool fwevtq,
 	 * firmware because it's more complex than any host driver wants to
 	 * get involved with and it's different per chip and this is almost
 	 * certainly wrong.  Firmware would be wrong as well, but it would be
-	 * a lot easier to fix in one place ...  For now we do something very
+	 * a lot easier to fix in one place ...  For analw we do something very
 	 * simple (and hopefully less wrong).
 	 */
 	if (!is_t4(adap->params.chip) && cong >= 0) {
@@ -4545,8 +4545,8 @@ int t4_sge_alloc_rxq(struct adapter *adap, struct sge_rspq *iq, bool fwevtq,
 
 	return 0;
 
-fl_nomem:
-	ret = -ENOMEM;
+fl_analmem:
+	ret = -EANALMEM;
 err:
 	if (iq->desc) {
 		dma_free_coherent(adap->pdev_dev, iq->size * iq->iqe_len,
@@ -4603,9 +4603,9 @@ int t4_sge_alloc_eth_txq(struct adapter *adap, struct sge_eth_txq *txq,
 	txq->q.desc = alloc_ring(adap->pdev_dev, txq->q.size,
 			sizeof(struct tx_desc), sizeof(struct tx_sw_desc),
 			&txq->q.phys_addr, &txq->q.sdesc, s->stat_len,
-			netdev_queue_numa_node_read(netdevq));
+			netdev_queue_numa_analde_read(netdevq));
 	if (!txq->q.desc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memset(&c, 0, sizeof(c));
 	c.op_to_vfn = htonl(FW_CMD_OP_V(FW_EQ_ETH_CMD) | FW_CMD_REQUEST_F |
@@ -4633,7 +4633,7 @@ int t4_sge_alloc_eth_txq(struct adapter *adap, struct sge_eth_txq *txq,
 		      FW_EQ_ETH_CMD_PCIECHN_V(pi->tx_chan) |
 		      FW_EQ_ETH_CMD_FETCHRO_F | FW_EQ_ETH_CMD_IQID_V(iqid));
 
-	/* Note that the CIDX Flush Threshold should match MAX_TX_RECLAIM. */
+	/* Analte that the CIDX Flush Threshold should match MAX_TX_RECLAIM. */
 	c.dcaen_to_eqsize =
 		htonl(FW_EQ_ETH_CMD_FBMIN_V(chip_ver <= CHELSIO_T5
 					    ? FETCHBURSTMIN_64B_X
@@ -4647,7 +4647,7 @@ int t4_sge_alloc_eth_txq(struct adapter *adap, struct sge_eth_txq *txq,
 
 	/* If we're using the SGE Doorbell Queue Timer mechanism, pass in the
 	 * currently configured Timer Index.  THis can be changed later via an
-	 * ethtool -C tx-usecs {Timer Val} command.  Note that the SGE
+	 * ethtool -C tx-usecs {Timer Val} command.  Analte that the SGE
 	 * Doorbell Queue mode is currently automatically enabled in the
 	 * Firmware by setting either AUTOEQUEQE or AUTOEQUIQE ...
 	 */
@@ -4695,9 +4695,9 @@ int t4_sge_alloc_ctrl_txq(struct adapter *adap, struct sge_ctrl_txq *txq,
 
 	txq->q.desc = alloc_ring(adap->pdev_dev, nentries,
 				 sizeof(struct tx_desc), 0, &txq->q.phys_addr,
-				 NULL, 0, dev_to_node(adap->pdev_dev));
+				 NULL, 0, dev_to_analde(adap->pdev_dev));
 	if (!txq->q.desc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	c.op_to_vfn = htonl(FW_CMD_OP_V(FW_EQ_CTRL_CMD) | FW_CMD_REQUEST_F |
 			    FW_CMD_WRITE_F | FW_CMD_EXEC_F |
@@ -4764,9 +4764,9 @@ static int t4_sge_alloc_ofld_txq(struct adapter *adap, struct sge_txq *q,
 	nentries = q->size + s->stat_len / sizeof(struct tx_desc);
 	q->desc = alloc_ring(adap->pdev_dev, q->size, sizeof(struct tx_desc),
 			     sizeof(struct tx_sw_desc), &q->phys_addr,
-			     &q->sdesc, s->stat_len, NUMA_NO_NODE);
+			     &q->sdesc, s->stat_len, NUMA_ANAL_ANALDE);
 	if (!q->desc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (chip_ver <= CHELSIO_T5)
 		fb_min = FETCHBURSTMIN_64B_X;
@@ -5016,7 +5016,7 @@ void t4_sge_start(struct adapter *adap)
  *	t4_sge_stop - disable SGE operation
  *	@adap: the adapter
  *
- *	Stop tasklets and timers associated with the DMA engine.  Note that
+ *	Stop tasklets and timers associated with the DMA engine.  Analte that
  *	this is effective only if measures have been taken to disable any HW
  *	events that may restart them.
  */
@@ -5096,7 +5096,7 @@ static int t4_sge_init_soft(struct adapter *adap)
 	 * Validate the Host Buffer Register Array indices that we want to
 	 * use ...
 	 *
-	 * XXX Note that we should really read through the Host Buffer Size
+	 * XXX Analte that we should really read through the Host Buffer Size
 	 * XXX register array and find the indices of the Buffer Sizes which
 	 * XXX meet our needs!
 	 */
@@ -5195,10 +5195,10 @@ int t4_sge_init(struct adapter *adap)
 	 * timer will attempt to refill it.  This needs to be larger than the
 	 * SGE's Egress Congestion Threshold.  If it isn't, then we can get
 	 * stuck waiting for new packets while the SGE is waiting for us to
-	 * give it more Free List entries.  (Note that the SGE's Egress
+	 * give it more Free List entries.  (Analte that the SGE's Egress
 	 * Congestion Threshold is in units of 2 Free List pointers.) For T4,
 	 * there was only a single field to control this.  For T5 there's the
-	 * original field which now only applies to Unpacked Mode Free List
+	 * original field which analw only applies to Unpacked Mode Free List
 	 * buffers and a new field which only applies to Packed Mode Free List
 	 * buffers.
 	 */

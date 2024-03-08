@@ -21,7 +21,7 @@
 #define EWMA_DIV	128
 
 /*
- * Coefficients for moving average with noise filter (period=16),
+ * Coefficients for moving average with analise filter (period=16),
  * scaled by 10 bits
  *
  * a1 = exp(-pi * sqrt(2) / period)

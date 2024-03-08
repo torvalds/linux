@@ -74,7 +74,7 @@ static int ufshcd_crypto_keyslot_program(struct blk_crypto_profile *profile,
 	}
 
 	if (WARN_ON(cap_idx < 0))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	cfg.data_unit_size = data_unit_mask;
 	cfg.crypto_cap_idx = cap_idx;
@@ -99,7 +99,7 @@ static int ufshcd_clear_keyslot(struct ufs_hba *hba, int slot)
 {
 	/*
 	 * Clear the crypto cfg on the device. Clearing CFGE
-	 * might not be sufficient, so just clear the entire cfg.
+	 * might analt be sufficient, so just clear the entire cfg.
 	 */
 	union ufs_crypto_cfg_entry cfg = {};
 
@@ -151,7 +151,7 @@ ufshcd_find_blk_crypto_mode(union ufs_crypto_cap_entry cap)
  *					 fields in hba
  * @hba: Per adapter instance
  *
- * Return: 0 if crypto was initialized or is not supported, else a -errno value.
+ * Return: 0 if crypto was initialized or is analt supported, else a -erranal value.
  */
 int ufshcd_hba_init_crypto_capabilities(struct ufs_hba *hba)
 {
@@ -176,7 +176,7 @@ int ufshcd_hba_init_crypto_capabilities(struct ufs_hba *hba)
 		devm_kcalloc(hba->dev, hba->crypto_capabilities.num_crypto_cap,
 			     sizeof(hba->crypto_cap_array[0]), GFP_KERNEL);
 	if (!hba->crypto_cap_array) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 

@@ -10,7 +10,7 @@ menuconfig ACCESSIBILITY
 	  remapping, etc.
 
 	  Say Y here to get to see options for accessibility.
-	  This option alone does not add any kernel code.
+	  This option alone does analt add any kernel code.
 
 	  If you say N, all options in this submenu will be skipped and disabled.
 
@@ -23,7 +23,7 @@ config A11Y_BRAILLE_CONSOLE
 	depends on SERIAL_CORE_CONSOLE
 	help
 	  Enables console output on a braille device connected to a 8250
-	  serial port. For now only the VisioBraille device is supported.
+	  serial port. For analw only the VisioBraille device is supported.
 
 	  To actually enable it, you need to pass option
 	  console=brl,ttyS0

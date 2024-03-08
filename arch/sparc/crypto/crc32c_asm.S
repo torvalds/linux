@@ -17,5 +17,5 @@ ENTRY(crc32c_sparc64)
 	sta	%f1, [%o0] ASI_PL
 	VISExitHalf
 2:	retl
-	 nop
+	 analp
 ENDPROC(crc32c_sparc64)

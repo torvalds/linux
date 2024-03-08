@@ -256,7 +256,7 @@
 #define AP_VIDEO_CHG  BIT(2)
 #define AP_AUDIO_CHG  BIT(3)
 #define AP_MIPI_MUTE  BIT(4) /* 1:MIPI input mute, 0: ummute */
-#define AP_MIPI_RX_EN BIT(5) /* 1: MIPI RX input in  0: no RX in */
+#define AP_MIPI_RX_EN BIT(5) /* 1: MIPI RX input in  0: anal RX in */
 #define AP_DISABLE_PD BIT(6)
 #define AP_DISABLE_DISPLAY BIT(7)
 
@@ -361,7 +361,7 @@
 #define  H_BLANK_L            0x3E
 /* For DSC only */
 #define  H_BLANK_H            0x3F
-/* For DSC only; note: bit[7:6] are reserved */
+/* For DSC only; analte: bit[7:6] are reserved */
 #define  MIPI_SWAP  0x4A
 #define  MIPI_SWAP_CH0    7
 #define  MIPI_SWAP_CH1    6
@@ -440,7 +440,7 @@ struct anx7625_platform_data {
 	int dp_lane1_swing_reg_cnt;
 	u8 lane1_reg_data[DP_TX_SWING_REG_CNT];
 	u32 low_power_mode;
-	struct device_node *mipi_host_node;
+	struct device_analde *mipi_host_analde;
 };
 
 struct anx7625_i2c_client {

@@ -215,7 +215,7 @@ allOf:
         "usb2phy@[0-9a-f]+$":
           type: object
 
-          $ref: /schemas/phy/rockchip,inno-usb2phy.yaml#
+          $ref: /schemas/phy/rockchip,inanal-usb2phy.yaml#
 
           unevaluatedProperties: false
 

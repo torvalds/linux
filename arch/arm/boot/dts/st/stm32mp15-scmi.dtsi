@@ -81,8 +81,8 @@
 	vdda1v8-supply = <&scmi_reg18>;
 };
 
-/delete-node/ &clk_hse;
-/delete-node/ &clk_hsi;
-/delete-node/ &clk_lse;
-/delete-node/ &clk_lsi;
-/delete-node/ &clk_csi;
+/delete-analde/ &clk_hse;
+/delete-analde/ &clk_hsi;
+/delete-analde/ &clk_lse;
+/delete-analde/ &clk_lsi;
+/delete-analde/ &clk_csi;

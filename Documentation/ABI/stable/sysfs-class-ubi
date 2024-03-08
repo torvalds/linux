@@ -13,9 +13,9 @@ KernelVersion:	2.6.22
 Contact:	Artem Bityutskiy <dedekind@infradead.org>
 Description:
 		This file contains version of the latest supported UBI on-media
-		format. Currently it is 1, and there is no plan to change this.
+		format. Currently it is 1, and there is anal plan to change this.
 		However, if in the future UBI needs on-flash format changes
-		which cannot be done in a compatible manner, a new format
+		which cananalt be done in a compatible manner, a new format
 		version will be added. So this is a mechanism for possible
 		future backward-compatible (but forward-incompatible)
 		improvements.
@@ -59,8 +59,8 @@ Date:		July 2006
 KernelVersion:	2.6.22
 Contact:	Artem Bityutskiy <dedekind@infradead.org>
 Description:
-		Major and minor numbers of the character device corresponding
-		to this UBI device (in <major>:<minor> format).
+		Major and mianalr numbers of the character device corresponding
+		to this UBI device (in <major>:<mianalr> format).
 
 What:		/sys/class/ubi/ubiX/eraseblock_size
 Date:		July 2006
@@ -121,7 +121,7 @@ Date:		July 2006
 KernelVersion:	2.6.22
 Contact:	Artem Bityutskiy <dedekind@infradead.org>
 Description:
-		Total number of good (not marked as bad) physical eraseblocks on
+		Total number of good (analt marked as bad) physical eraseblocks on
 		the underlying MTD device.
 
 What:		/sys/class/ubi/ubiX/volumes_count
@@ -173,8 +173,8 @@ Date:		July 2006
 KernelVersion:	2.6.22
 Contact:	Artem Bityutskiy <dedekind@infradead.org>
 Description:
-		Major and minor numbers of the character device corresponding
-		to this UBI volume (in <major>:<minor> format).
+		Major and mianalr numbers of the character device corresponding
+		to this UBI volume (in <major>:<mianalr> format).
 
 What:		/sys/class/ubi/ubiX/ubiX_Y/name
 Date:		July 2006
@@ -204,7 +204,7 @@ Date:		July 2006
 KernelVersion:	2.6.22
 Contact:	Artem Bityutskiy <dedekind@infradead.org>
 Description:
-		Contains ASCII "0\n" if the update marker is not set for this
+		Contains ASCII "0\n" if the update marker is analt set for this
 		volume, and "1\n" if it is set. The update marker is set when
 		volume update starts, and cleaned when it ends. So the presence
 		of the update marker indicates that the volume is being updated

@@ -7,8 +7,8 @@
  * TODO:
  * - add smart card reader support for Conditional Access (CA)
  *
- * Card reader in Anysee is nothing more than ISO 7816 card reader.
- * There is no hardware CAM in any Anysee device sold.
+ * Card reader in Anysee is analthing more than ISO 7816 card reader.
+ * There is anal hardware CAM in any Anysee device sold.
  * In my understanding it should be implemented by making own module
  * for ISO 7816 card reader, like dvb_ca_en50221 is implemented. This
  * module registers serial interface that can be used to communicate
@@ -55,10 +55,10 @@ static int anysee_ctrl_msg(struct dvb_usb_device *d,
 
 	/* TODO FIXME: dvb_usb_generic_rw() fails rarely with error code -32
 	 * (EPIPE, Broken pipe). Function supports currently msleep() as a
-	 * parameter but I would not like to use it, since according to
-	 * Documentation/timers/timers-howto.rst it should not be used such
+	 * parameter but I would analt like to use it, since according to
+	 * Documentation/timers/timers-howto.rst it should analt be used such
 	 * short, under < 20ms, sleeps. Repeating failed message would be
-	 * better choice as not to add unwanted delays...
+	 * better choice as analt to add unwanted delays...
 	 * Fixing that correctly is one of those or both;
 	 * 1) use repeat if possible
 	 * 2) add suitable delay
@@ -124,7 +124,7 @@ static int anysee_wr_reg_mask(struct dvb_usb_device *d, u16 reg, u8 val,
 	int ret;
 	u8 tmp;
 
-	/* no need for read if whole reg is written */
+	/* anal need for read if whole reg is written */
 	if (mask != 0xff) {
 		ret = anysee_read_reg(d, reg, &tmp);
 		if (ret)
@@ -167,10 +167,10 @@ static int anysee_get_hw_info(struct dvb_usb_device *d, u8 *id)
 	return anysee_ctrl_msg(d, buf, sizeof(buf), id, 3);
 }
 
-static int anysee_streaming_ctrl(struct dvb_frontend *fe, int onoff)
+static int anysee_streaming_ctrl(struct dvb_frontend *fe, int oanalff)
 {
-	u8 buf[] = {CMD_STREAMING_CTRL, (u8)onoff, 0x00};
-	dev_dbg(&fe_to_d(fe)->udev->dev, "%s: onoff=%d\n", __func__, onoff);
+	u8 buf[] = {CMD_STREAMING_CTRL, (u8)oanalff, 0x00};
+	dev_dbg(&fe_to_d(fe)->udev->dev, "%s: oanalff=%d\n", __func__, oanalff);
 	return anysee_ctrl_msg(fe_to_d(fe), buf, sizeof(buf), NULL, 0);
 }
 
@@ -182,10 +182,10 @@ static int anysee_led_ctrl(struct dvb_usb_device *d, u8 mode, u8 interval)
 	return anysee_ctrl_msg(d, buf, sizeof(buf), NULL, 0);
 }
 
-static int anysee_ir_ctrl(struct dvb_usb_device *d, u8 onoff)
+static int anysee_ir_ctrl(struct dvb_usb_device *d, u8 oanalff)
 {
-	u8 buf[] = {CMD_LED_AND_IR_CTRL, 0x02, onoff};
-	dev_dbg(&d->udev->dev, "%s: onoff=%d\n", __func__, onoff);
+	u8 buf[] = {CMD_LED_AND_IR_CTRL, 0x02, oanalff};
+	dev_dbg(&d->udev->dev, "%s: oanalff=%d\n", __func__, oanalff);
 	return anysee_ctrl_msg(d, buf, sizeof(buf), NULL, 0);
 }
 
@@ -203,7 +203,7 @@ static int anysee_master_xfer(struct i2c_adapter *adap, struct i2c_msg *msg,
 	while (i < num) {
 		if (num > i + 1 && (msg[i+1].flags & I2C_M_RD)) {
 			if (msg[i].len != 2 || msg[i + 1].len > 60) {
-				ret = -EOPNOTSUPP;
+				ret = -EOPANALTSUPP;
 				break;
 			}
 			buf[0] = CMD_I2C_READ;
@@ -217,7 +217,7 @@ static int anysee_master_xfer(struct i2c_adapter *adap, struct i2c_msg *msg,
 			inc = 2;
 		} else {
 			if (msg[i].len > 48) {
-				ret = -EOPNOTSUPP;
+				ret = -EOPANALTSUPP;
 				break;
 			}
 			buf[0] = CMD_I2C_WRITE;
@@ -296,7 +296,7 @@ static struct zl10353_config anysee_zl10353_tda18212_config2 = {
 	.demod_address = (0x1e >> 1),
 	.parallel_ts = 1,
 	.disable_i2c_gate_ctrl = 1,
-	.no_tuner = 1,
+	.anal_tuner = 1,
 	.if2 = 41500,
 };
 
@@ -304,7 +304,7 @@ static struct zl10353_config anysee_zl10353_tda18212_config = {
 	.demod_address = (0x18 >> 1),
 	.parallel_ts = 1,
 	.disable_i2c_gate_ctrl = 1,
-	.no_tuner = 1,
+	.anal_tuner = 1,
 	.if2 = 41500,
 };
 
@@ -376,22 +376,22 @@ static struct cxd2820r_config anysee_cxd2820r_config = {
  *
  * E30 VID=04b4 PID=861f HW=2 FW=2.1 Product=????????
  * PCB: ?
- * parts: DNOS404ZH102A(MT352, DTT7579(?))
+ * parts: DANALS404ZH102A(MT352, DTT7579(?))
  *
  * E30 VID=04b4 PID=861f HW=2 FW=2.1 "anysee-T(LP)"
  * PCB: PCB 507T (rev1.61)
- * parts: DNOS404ZH103A(ZL10353, DTT7579(?))
+ * parts: DANALS404ZH103A(ZL10353, DTT7579(?))
  * OEA=0a OEB=00 OEC=00 OED=ff OEE=00
  * IOA=45 IOB=ff IOC=00 IOD=ff IOE=00
  *
  * E30 Plus VID=04b4 PID=861f HW=6 FW=1.0 "anysee"
  * PCB: 507CD (rev1.1)
- * parts: DNOS404ZH103A(ZL10353, DTT7579(?)), CST56I01
+ * parts: DANALS404ZH103A(ZL10353, DTT7579(?)), CST56I01
  * OEA=80 OEB=00 OEC=00 OED=ff OEE=fe
  * IOA=4f IOB=ff IOC=00 IOD=06 IOE=01
  * IOD[0] ZL10353 1=enabled
  * IOA[7] TS 0=enabled
- * tuner is not behind ZL10353 I2C-gate (no care if gate disabled or not)
+ * tuner is analt behind ZL10353 I2C-gate (anal care if gate disabled or analt)
  *
  * E30 C Plus VID=04b4 PID=861f HW=10 FW=1.0 "anysee-DC(LP)"
  * PCB: 507DC (rev0.2)
@@ -431,7 +431,7 @@ static struct cxd2820r_config anysee_cxd2820r_config = {
  *
  * E7 TC VID=1c73 PID=861f HW=18 FW=0.7 AMTCI=0.5 "anysee-E7TC(LP)"
  * PCB: 508TC (rev0.6)
- * parts: ZL10353, TDA10023, DNOD44CDH086A(TDA18212)
+ * parts: ZL10353, TDA10023, DANALD44CDH086A(TDA18212)
  * OEA=80 OEB=00 OEC=03 OED=f7 OEE=ff
  * IOA=4d IOB=00 IOC=cc IOD=48 IOE=e4
  * IOA[7] TS 1=enabled
@@ -455,7 +455,7 @@ static struct cxd2820r_config anysee_cxd2820r_config = {
  *
  * E7 T2C VID=1c73 PID=861f HW=20 FW=0.1 AMTCI=0.5 "anysee-E7T2C(LP)"
  * PCB: 508T2C (rev0.3)
- * parts: DNOQ44QCH106A(CXD2820R, TDA18212), TDA8024
+ * parts: DANALQ44QCH106A(CXD2820R, TDA18212), TDA8024
  * OEA=80 OEB=00 OEC=03 OED=f7 OEE=ff
  * IOA=4d IOB=00 IOC=cc IOD=48 IOE=e4
  * IOA[7] TS 1=enabled
@@ -463,7 +463,7 @@ static struct cxd2820r_config anysee_cxd2820r_config = {
  *
  * E7 PTC VID=1c73 PID=861f HW=21 FW=0.1 AMTCI=?? "anysee-E7PTC(LP)"
  * PCB: 508PTC (rev0.5)
- * parts: ZL10353, TDA10023, DNOD44CDH086A(TDA18212)
+ * parts: ZL10353, TDA10023, DANALD44CDH086A(TDA18212)
  * OEA=80 OEB=00 OEC=03 OED=f7 OEE=ff
  * IOA=4d IOB=00 IOC=cc IOD=48 IOE=e4
  * IOA[7] TS 1=enabled
@@ -515,22 +515,22 @@ error:
 	return ret;
 }
 
-/* external I2C gate used for DNOD44CDH086A(TDA18212) tuner module */
+/* external I2C gate used for DANALD44CDH086A(TDA18212) tuner module */
 static int anysee_i2c_gate_ctrl(struct dvb_frontend *fe, int enable)
 {
 	/* enable / disable tuner access on IOE[4] */
 	return anysee_wr_reg_mask(fe_to_d(fe), REG_IOE, (enable << 4), 0x10);
 }
 
-static int anysee_frontend_ctrl(struct dvb_frontend *fe, int onoff)
+static int anysee_frontend_ctrl(struct dvb_frontend *fe, int oanalff)
 {
 	struct anysee_state *state = fe_to_priv(fe);
 	struct dvb_usb_device *d = fe_to_d(fe);
 	int ret;
-	dev_dbg(&d->udev->dev, "%s: fe=%d onoff=%d\n", __func__, fe->id, onoff);
+	dev_dbg(&d->udev->dev, "%s: fe=%d oanalff=%d\n", __func__, fe->id, oanalff);
 
-	/* no frontend sleep control */
-	if (onoff == 0)
+	/* anal frontend sleep control */
+	if (oanalff == 0)
 		return 0;
 
 	switch (state->hw) {
@@ -642,7 +642,7 @@ static int anysee_add_i2c_dev(struct dvb_usb_device *d, const char *type,
 	if (num == ANYSEE_I2C_CLIENT_MAX) {
 		dev_err(&d->udev->dev, "%s: I2C client out of index\n",
 				KBUILD_MODNAME);
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err;
 	}
 
@@ -651,14 +651,14 @@ static int anysee_add_i2c_dev(struct dvb_usb_device *d, const char *type,
 	/* register I2C device */
 	client = i2c_new_client_device(adapter, &board_info);
 	if (!i2c_client_has_driver(client)) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err;
 	}
 
 	/* increase I2C driver usage count */
 	if (!try_module_get(client->dev.driver->owner)) {
 		i2c_unregister_device(client);
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err;
 	}
 
@@ -824,7 +824,7 @@ static int anysee_frontend_attach(struct dvb_usb_adapter *adap)
 					&anysee_tda10023_tda18212_config,
 					&d->i2c_adap, 0x48);
 
-			/* I2C gate for DNOD44CDH086A(TDA18212) tuner module */
+			/* I2C gate for DANALD44CDH086A(TDA18212) tuner module */
 			if (adap->fe[0])
 				adap->fe[0]->ops.i2c_gate_ctrl =
 						anysee_i2c_gate_ctrl;
@@ -856,7 +856,7 @@ static int anysee_frontend_attach(struct dvb_usb_adapter *adap)
 					&anysee_zl10353_tda18212_config2,
 					&d->i2c_adap);
 
-			/* I2C gate for DNOD44CDH086A(TDA18212) tuner module */
+			/* I2C gate for DANALD44CDH086A(TDA18212) tuner module */
 			if (adap->fe[1])
 				adap->fe[1]->ops.i2c_gate_ctrl =
 						anysee_i2c_gate_ctrl;
@@ -888,7 +888,7 @@ static int anysee_frontend_attach(struct dvb_usb_adapter *adap)
 				&anysee_tda10023_tda18212_config,
 				&d->i2c_adap, 0x48);
 
-		/* I2C gate for DNOD44CDH086A(TDA18212) tuner module */
+		/* I2C gate for DANALD44CDH086A(TDA18212) tuner module */
 		if (adap->fe[0])
 			adap->fe[0]->ops.i2c_gate_ctrl = anysee_i2c_gate_ctrl;
 
@@ -911,7 +911,7 @@ static int anysee_frontend_attach(struct dvb_usb_adapter *adap)
 				&anysee_zl10353_tda18212_config,
 				&d->i2c_adap);
 
-		/* I2C gate for DNOD44CDH086A(TDA18212) tuner module */
+		/* I2C gate for DANALD44CDH086A(TDA18212) tuner module */
 		if (adap->fe[1])
 			adap->fe[1]->ops.i2c_gate_ctrl = anysee_i2c_gate_ctrl;
 
@@ -953,8 +953,8 @@ static int anysee_frontend_attach(struct dvb_usb_adapter *adap)
 	}
 
 	if (!adap->fe[0]) {
-		/* we have no frontend :-( */
-		ret = -ENODEV;
+		/* we have anal frontend :-( */
+		ret = -EANALDEV;
 		dev_err(&d->udev->dev,
 				"%s: Unsupported Anysee version. Please report to <linux-media@vger.kernel.org>.\n",
 				KBUILD_MODNAME);
@@ -1106,7 +1106,7 @@ static int anysee_tuner_attach(struct dvb_usb_adapter *adap)
 	if (fe)
 		ret = 0;
 	else
-		ret = -ENODEV;
+		ret = -EANALDEV;
 err:
 	return ret;
 }
@@ -1120,9 +1120,9 @@ static int anysee_rc_query(struct dvb_usb_device *d)
 
 	/* Remote controller is basic NEC using address byte 0x08.
 	   Anysee device RC query returns only two bytes, status and code,
-	   address byte is dropped. Also it does not return any value for
+	   address byte is dropped. Also it does analt return any value for
 	   NEC RCs having address byte other than 0x08. Due to that, we
-	   cannot use that device as standard NEC receiver.
+	   cananalt use that device as standard NEC receiver.
 	   It could be possible make hack which reads whole code directly
 	   from device memory... */
 
@@ -1322,7 +1322,7 @@ static int anysee_init(struct dvb_usb_device *d)
 
 	/* There is one interface with two alternate settings.
 	   Alternate setting 0 is for bulk transfer.
-	   Alternate setting 1 is for isochronous transfer.
+	   Alternate setting 1 is for isochroanalus transfer.
 	   We use bulk transfer (alternate setting 0). */
 	ret = usb_set_interface(d->udev, 0, 0);
 	if (ret)
@@ -1403,7 +1403,7 @@ static struct usb_driver anysee_usb_driver = {
 	.suspend = dvb_usbv2_suspend,
 	.resume = dvb_usbv2_resume,
 	.reset_resume = dvb_usbv2_reset_resume,
-	.no_dynamic_id = 1,
+	.anal_dynamic_id = 1,
 	.soft_unbind = 1,
 };
 

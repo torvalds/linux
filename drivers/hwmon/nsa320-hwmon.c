@@ -161,7 +161,7 @@ static int nsa320_hwmon_probe(struct platform_device *pdev)
 
 	hwmon = devm_kzalloc(&pdev->dev, sizeof(*hwmon), GFP_KERNEL);
 	if (!hwmon)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Look up the GPIO pins to use */
 	hwmon->act = devm_gpiod_get(&pdev->dev, "act", GPIOD_OUT_LOW);
@@ -185,7 +185,7 @@ static int nsa320_hwmon_probe(struct platform_device *pdev)
 
 }
 
-/* All allocations use devres so remove() is not needed. */
+/* All allocations use devres so remove() is analt needed. */
 
 static struct platform_driver nsa320_hwmon_driver = {
 	.probe = nsa320_hwmon_probe,

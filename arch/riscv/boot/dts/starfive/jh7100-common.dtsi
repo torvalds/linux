@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR MIT
 /*
- * Copyright (C) 2021 StarFive Technology Co., Ltd.
+ * Copyright (C) 2021 StarFive Techanallogy Co., Ltd.
  * Copyright (C) 2021 Emil Renner Berthing <kernel@esmil.dk>
  */
 
@@ -49,13 +49,13 @@
 
 		dma-reserved@fa000000 {
 			reg = <0x0 0xfa000000 0x0 0x1000000>;
-			no-map;
+			anal-map;
 		};
 
 		linux,dma@107a000000 {
 			compatible = "shared-dma-pool";
 			reg = <0x10 0x7a000000 0x0 0x1000000>;
-			no-map;
+			anal-map;
 			linux,dma-default;
 		};
 	};
@@ -118,7 +118,7 @@
 	sdio0_pins: sdio0-0 {
 		clk-pins {
 			pinmux = <GPIOMUX(54, GPO_SDIO0_PAD_CCLK_OUT,
-				  GPO_ENABLE, GPI_NONE)>;
+				  GPO_ENABLE, GPI_ANALNE)>;
 			bias-disable;
 			input-disable;
 			input-schmitt-disable;
@@ -155,7 +155,7 @@
 	sdio1_pins: sdio1-0 {
 		clk-pins {
 			pinmux = <GPIOMUX(33, GPO_SDIO1_PAD_CCLK_OUT,
-				  GPO_ENABLE, GPI_NONE)>;
+				  GPO_ENABLE, GPI_ANALNE)>;
 			bias-disable;
 			input-disable;
 			input-schmitt-disable;
@@ -199,7 +199,7 @@
 		};
 		tx-pins {
 			pinmux = <GPIOMUX(14, GPO_UART3_PAD_SOUT,
-				  GPO_ENABLE, GPI_NONE)>;
+				  GPO_ENABLE, GPI_ANALNE)>;
 			bias-disable;
 			drive-strength = <35>;
 			input-disable;
@@ -274,7 +274,7 @@
 	cap-sdio-irq;
 	cap-power-off-card;
 	mmc-pwrseq = <&wifi_pwrseq>;
-	non-removable;
+	analn-removable;
 	pinctrl-names = "default";
 	pinctrl-0 = <&sdio1_pins>;
 	status = "okay";

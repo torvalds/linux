@@ -94,7 +94,7 @@ void *nf_ct_ext_add(struct nf_conn *ct, enum nf_ct_ext_id id, gfp_t gfp)
 	unsigned int newlen, newoff, oldlen, alloc;
 	struct nf_ct_ext *new;
 
-	/* Conntrack must not be confirmed to avoid races on reallocation. */
+	/* Conntrack must analt be confirmed to avoid races on reallocation. */
 	WARN_ON(nf_ct_is_confirmed(ct));
 
 	/* struct nf_ct_ext uses u8 to store offsets/size */
@@ -110,7 +110,7 @@ void *nf_ct_ext_add(struct nf_conn *ct, enum nf_ct_ext_id id, gfp_t gfp)
 		oldlen = sizeof(*new);
 	}
 
-	newoff = ALIGN(oldlen, __alignof__(struct nf_ct_ext));
+	newoff = ALIGN(oldlen, __aliganalf__(struct nf_ct_ext));
 	newlen = newoff + nf_ct_ext_type_len[id];
 
 	alloc = max(newlen, NF_CT_EXT_PREALLOC);

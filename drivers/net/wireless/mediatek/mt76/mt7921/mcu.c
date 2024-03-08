@@ -410,7 +410,7 @@ static int mt7921_load_clc(struct mt792x_dev *dev, const char *fw_name)
 			goto out;
 		}
 
-		if ((region->feature_set & FW_FEATURE_NON_DL) &&
+		if ((region->feature_set & FW_FEATURE_ANALN_DL) &&
 		    region->type == FW_TYPE_CLC) {
 			clc_base = (u8 *)(fw->data + offset);
 			break;
@@ -424,7 +424,7 @@ static int mt7921_load_clc(struct mt792x_dev *dev, const char *fw_name)
 	for (offset = 0; offset < len; offset += le32_to_cpu(clc->len)) {
 		clc = (const struct mt7921_clc *)(clc_base + offset);
 
-		/* do not init buf again if chip reset triggered */
+		/* do analt init buf again if chip reset triggered */
 		if (phy->clc[clc->idx])
 			continue;
 
@@ -438,7 +438,7 @@ static int mt7921_load_clc(struct mt792x_dev *dev, const char *fw_name)
 						  GFP_KERNEL);
 
 		if (!phy->clc[clc->idx]) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out;
 		}
 	}
@@ -835,14 +835,14 @@ int mt7921_mcu_set_chan_info(struct mt792x_phy *phy, int cmd)
 
 	if (cmd == MCU_EXT_CMD(SET_RX_PATH) ||
 	    dev->mt76.hw->conf.flags & IEEE80211_CONF_MONITOR)
-		req.switch_reason = CH_SWITCH_NORMAL;
+		req.switch_reason = CH_SWITCH_ANALRMAL;
 	else if (dev->mt76.hw->conf.flags & IEEE80211_CONF_OFFCHANNEL)
 		req.switch_reason = CH_SWITCH_SCAN_BYPASS_DPD;
 	else if (!cfg80211_reg_can_beacon(dev->mt76.hw->wiphy, chandef,
 					  NL80211_IFTYPE_AP))
 		req.switch_reason = CH_SWITCH_DFS;
 	else
-		req.switch_reason = CH_SWITCH_NORMAL;
+		req.switch_reason = CH_SWITCH_ANALRMAL;
 
 	if (cmd == MCU_EXT_CMD(CHANNEL_SWITCH))
 		req.rx_streams = hweight8(req.rx_streams);
@@ -903,7 +903,7 @@ int mt7921_mcu_uni_bss_ps(struct mt792x_dev *dev, struct ieee80211_vif *vif)
 	};
 
 	if (vif->type != NL80211_IFTYPE_STATION)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return mt76_mcu_send_msg(&dev->mt76, MCU_UNI_CMD(BSS_INFO_UPDATE),
 				 &ps_req, sizeof(ps_req), true);
@@ -1106,7 +1106,7 @@ int mt7921_mcu_config_sniffer(struct mt792x_vif *vif,
 		[NL80211_BAND_6GHZ] = 3,
 	};
 	const u8 ch_width[] = {
-		[NL80211_CHAN_WIDTH_20_NOHT] = 0,
+		[NL80211_CHAN_WIDTH_20_ANALHT] = 0,
 		[NL80211_CHAN_WIDTH_20] = 0,
 		[NL80211_CHAN_WIDTH_40] = 0,
 		[NL80211_CHAN_WIDTH_80] = 1,
@@ -1211,7 +1211,7 @@ mt7921_mcu_uni_add_beacon_offload(struct mt792x_dev *dev,
 	 * disable flow would be handled in bss stop handler automatically
 	 */
 	if (!enable)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	skb = ieee80211_beacon_get_template(mt76_hw(dev), vif, &offs, 0);
 	if (!skb)
@@ -1280,7 +1280,7 @@ int __mt7921_mcu_set_clc(struct mt792x_dev *dev, u8 *alpha2,
 
 	if (dev->phy.chip_cap & MT792x_CHIP_CAP_CLC_EVT_EN)
 		req.cap |= CLC_CAP_EVT_EN;
-	if (mt76_find_power_limits_node(&dev->mt76))
+	if (mt76_find_power_limits_analde(&dev->mt76))
 		req.cap |= CLC_CAP_DTS_EN;
 
 	buf_len = le16_to_cpu(clc->len) - sizeof(*clc);
@@ -1304,7 +1304,7 @@ int __mt7921_mcu_set_clc(struct mt792x_dev *dev, u8 *alpha2,
 					   le16_to_cpu(req.len),
 					   sizeof(req), GFP_KERNEL);
 		if (!skb)
-			return -ENOMEM;
+			return -EANALMEM;
 		skb_put_data(skb, rule->data, len);
 
 		ret = mt76_mcu_skb_send_and_get_msg(&dev->mt76, skb,
@@ -1326,7 +1326,7 @@ int __mt7921_mcu_set_clc(struct mt792x_dev *dev, u8 *alpha2,
 	}
 
 	if (!valid_cnt)
-		return -ENOENT;
+		return -EANALENT;
 
 	return 0;
 }
@@ -1342,8 +1342,8 @@ int mt7921_mcu_set_clc(struct mt792x_dev *dev, u8 *alpha2,
 		ret = __mt7921_mcu_set_clc(dev, alpha2, env_cap,
 					   phy->clc[i], i);
 
-		/* If no country found, set "00" as default */
-		if (ret == -ENOENT)
+		/* If anal country found, set "00" as default */
+		if (ret == -EANALENT)
 			ret = __mt7921_mcu_set_clc(dev, "00",
 						   ENVIRON_INDOOR,
 						   phy->clc[i], i);

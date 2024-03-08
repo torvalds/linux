@@ -12,7 +12,7 @@
 #include <linux/types.h>
 #include <linux/acpi.h>
 #include <linux/export.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/version.h>
 #include <linux/cpuhotplug.h>
 #include <asm/mshyperv.h>
@@ -28,8 +28,8 @@ static int __init hyperv_init(void)
 
 	/*
 	 * Allow for a kernel built with CONFIG_HYPERV to be running in
-	 * a non-Hyper-V environment, including on DT instead of ACPI.
-	 * In such cases, do nothing and return success.
+	 * a analn-Hyper-V environment, including on DT instead of ACPI.
+	 * In such cases, do analthing and return success.
 	 */
 	if (acpi_disabled)
 		return 0;

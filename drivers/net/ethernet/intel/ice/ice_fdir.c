@@ -184,7 +184,7 @@ static const u8 ice_fdir_ipv6_nat_t_esp_pkt[] = {
 	0x11, 0x94, 0x00, 0x00, 0x00, 0x08,
 };
 
-static const u8 ice_fdir_ipv4_pfcp_node_pkt[] = {
+static const u8 ice_fdir_ipv4_pfcp_analde_pkt[] = {
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 	0x00, 0x00, 0x00, 0x00, 0x08, 0x00, 0x45, 0x00,
 	0x00, 0x2C, 0x00, 0x00, 0x40, 0x00, 0x40, 0x11,
@@ -206,7 +206,7 @@ static const u8 ice_fdir_ipv4_pfcp_session_pkt[] = {
 	0x00, 0x00,
 };
 
-static const u8 ice_fdir_ipv6_pfcp_node_pkt[] = {
+static const u8 ice_fdir_ipv6_pfcp_analde_pkt[] = {
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 	0x00, 0x00, 0x00, 0x00, 0x86, 0xDD, 0x60, 0x00,
 	0x00, 0x00, 0x00, 0x18, 0x11, 0x40, 0x00, 0x00,
@@ -232,7 +232,7 @@ static const u8 ice_fdir_ipv6_pfcp_session_pkt[] = {
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 };
 
-static const u8 ice_fdir_non_ip_l2_pkt[] = {
+static const u8 ice_fdir_analn_ip_l2_pkt[] = {
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -414,150 +414,150 @@ static const u8 ice_fdir_ip6_tun_pkt[] = {
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 };
 
-/* Flow Director no-op training packet table */
+/* Flow Director anal-op training packet table */
 static const struct ice_fdir_base_pkt ice_fdir_pkt[] = {
 	{
-		ICE_FLTR_PTYPE_NONF_IPV4_TCP,
+		ICE_FLTR_PTYPE_ANALNF_IPV4_TCP,
 		sizeof(ice_fdir_tcpv4_pkt), ice_fdir_tcpv4_pkt,
 		sizeof(ice_fdir_tcp4_tun_pkt), ice_fdir_tcp4_tun_pkt,
 	},
 	{
-		ICE_FLTR_PTYPE_NONF_IPV4_UDP,
+		ICE_FLTR_PTYPE_ANALNF_IPV4_UDP,
 		sizeof(ice_fdir_udpv4_pkt), ice_fdir_udpv4_pkt,
 		sizeof(ice_fdir_udp4_tun_pkt), ice_fdir_udp4_tun_pkt,
 	},
 	{
-		ICE_FLTR_PTYPE_NONF_IPV4_SCTP,
+		ICE_FLTR_PTYPE_ANALNF_IPV4_SCTP,
 		sizeof(ice_fdir_sctpv4_pkt), ice_fdir_sctpv4_pkt,
 		sizeof(ice_fdir_sctp4_tun_pkt), ice_fdir_sctp4_tun_pkt,
 	},
 	{
-		ICE_FLTR_PTYPE_NONF_IPV4_OTHER,
+		ICE_FLTR_PTYPE_ANALNF_IPV4_OTHER,
 		sizeof(ice_fdir_ipv4_pkt), ice_fdir_ipv4_pkt,
 		sizeof(ice_fdir_ip4_tun_pkt), ice_fdir_ip4_tun_pkt,
 	},
 	{
-		ICE_FLTR_PTYPE_NONF_IPV4_GTPU_IPV4_UDP,
+		ICE_FLTR_PTYPE_ANALNF_IPV4_GTPU_IPV4_UDP,
 		sizeof(ice_fdir_udp4_gtpu4_pkt),
 		ice_fdir_udp4_gtpu4_pkt,
 		sizeof(ice_fdir_udp4_gtpu4_pkt),
 		ice_fdir_udp4_gtpu4_pkt,
 	},
 	{
-		ICE_FLTR_PTYPE_NONF_IPV4_GTPU_IPV4_TCP,
+		ICE_FLTR_PTYPE_ANALNF_IPV4_GTPU_IPV4_TCP,
 		sizeof(ice_fdir_tcp4_gtpu4_pkt),
 		ice_fdir_tcp4_gtpu4_pkt,
 		sizeof(ice_fdir_tcp4_gtpu4_pkt),
 		ice_fdir_tcp4_gtpu4_pkt,
 	},
 	{
-		ICE_FLTR_PTYPE_NONF_IPV4_GTPU_IPV4_ICMP,
+		ICE_FLTR_PTYPE_ANALNF_IPV4_GTPU_IPV4_ICMP,
 		sizeof(ice_fdir_icmp4_gtpu4_pkt),
 		ice_fdir_icmp4_gtpu4_pkt,
 		sizeof(ice_fdir_icmp4_gtpu4_pkt),
 		ice_fdir_icmp4_gtpu4_pkt,
 	},
 	{
-		ICE_FLTR_PTYPE_NONF_IPV4_GTPU_IPV4_OTHER,
+		ICE_FLTR_PTYPE_ANALNF_IPV4_GTPU_IPV4_OTHER,
 		sizeof(ice_fdir_ipv4_gtpu4_pkt),
 		ice_fdir_ipv4_gtpu4_pkt,
 		sizeof(ice_fdir_ipv4_gtpu4_pkt),
 		ice_fdir_ipv4_gtpu4_pkt,
 	},
 	{
-		ICE_FLTR_PTYPE_NONF_IPV4_L2TPV3,
+		ICE_FLTR_PTYPE_ANALNF_IPV4_L2TPV3,
 		sizeof(ice_fdir_ipv4_l2tpv3_pkt), ice_fdir_ipv4_l2tpv3_pkt,
 		sizeof(ice_fdir_ipv4_l2tpv3_pkt), ice_fdir_ipv4_l2tpv3_pkt,
 	},
 	{
-		ICE_FLTR_PTYPE_NONF_IPV6_L2TPV3,
+		ICE_FLTR_PTYPE_ANALNF_IPV6_L2TPV3,
 		sizeof(ice_fdir_ipv6_l2tpv3_pkt), ice_fdir_ipv6_l2tpv3_pkt,
 		sizeof(ice_fdir_ipv6_l2tpv3_pkt), ice_fdir_ipv6_l2tpv3_pkt,
 	},
 	{
-		ICE_FLTR_PTYPE_NONF_IPV4_ESP,
+		ICE_FLTR_PTYPE_ANALNF_IPV4_ESP,
 		sizeof(ice_fdir_ipv4_esp_pkt), ice_fdir_ipv4_esp_pkt,
 		sizeof(ice_fdir_ipv4_esp_pkt), ice_fdir_ipv4_esp_pkt,
 	},
 	{
-		ICE_FLTR_PTYPE_NONF_IPV6_ESP,
+		ICE_FLTR_PTYPE_ANALNF_IPV6_ESP,
 		sizeof(ice_fdir_ipv6_esp_pkt), ice_fdir_ipv6_esp_pkt,
 		sizeof(ice_fdir_ipv6_esp_pkt), ice_fdir_ipv6_esp_pkt,
 	},
 	{
-		ICE_FLTR_PTYPE_NONF_IPV4_AH,
+		ICE_FLTR_PTYPE_ANALNF_IPV4_AH,
 		sizeof(ice_fdir_ipv4_ah_pkt), ice_fdir_ipv4_ah_pkt,
 		sizeof(ice_fdir_ipv4_ah_pkt), ice_fdir_ipv4_ah_pkt,
 	},
 	{
-		ICE_FLTR_PTYPE_NONF_IPV6_AH,
+		ICE_FLTR_PTYPE_ANALNF_IPV6_AH,
 		sizeof(ice_fdir_ipv6_ah_pkt), ice_fdir_ipv6_ah_pkt,
 		sizeof(ice_fdir_ipv6_ah_pkt), ice_fdir_ipv6_ah_pkt,
 	},
 	{
-		ICE_FLTR_PTYPE_NONF_IPV4_NAT_T_ESP,
+		ICE_FLTR_PTYPE_ANALNF_IPV4_NAT_T_ESP,
 		sizeof(ice_fdir_ipv4_nat_t_esp_pkt),
 		ice_fdir_ipv4_nat_t_esp_pkt,
 		sizeof(ice_fdir_ipv4_nat_t_esp_pkt),
 		ice_fdir_ipv4_nat_t_esp_pkt,
 	},
 	{
-		ICE_FLTR_PTYPE_NONF_IPV6_NAT_T_ESP,
+		ICE_FLTR_PTYPE_ANALNF_IPV6_NAT_T_ESP,
 		sizeof(ice_fdir_ipv6_nat_t_esp_pkt),
 		ice_fdir_ipv6_nat_t_esp_pkt,
 		sizeof(ice_fdir_ipv6_nat_t_esp_pkt),
 		ice_fdir_ipv6_nat_t_esp_pkt,
 	},
 	{
-		ICE_FLTR_PTYPE_NONF_IPV4_PFCP_NODE,
-		sizeof(ice_fdir_ipv4_pfcp_node_pkt),
-		ice_fdir_ipv4_pfcp_node_pkt,
-		sizeof(ice_fdir_ipv4_pfcp_node_pkt),
-		ice_fdir_ipv4_pfcp_node_pkt,
+		ICE_FLTR_PTYPE_ANALNF_IPV4_PFCP_ANALDE,
+		sizeof(ice_fdir_ipv4_pfcp_analde_pkt),
+		ice_fdir_ipv4_pfcp_analde_pkt,
+		sizeof(ice_fdir_ipv4_pfcp_analde_pkt),
+		ice_fdir_ipv4_pfcp_analde_pkt,
 	},
 	{
-		ICE_FLTR_PTYPE_NONF_IPV4_PFCP_SESSION,
+		ICE_FLTR_PTYPE_ANALNF_IPV4_PFCP_SESSION,
 		sizeof(ice_fdir_ipv4_pfcp_session_pkt),
 		ice_fdir_ipv4_pfcp_session_pkt,
 		sizeof(ice_fdir_ipv4_pfcp_session_pkt),
 		ice_fdir_ipv4_pfcp_session_pkt,
 	},
 	{
-		ICE_FLTR_PTYPE_NONF_IPV6_PFCP_NODE,
-		sizeof(ice_fdir_ipv6_pfcp_node_pkt),
-		ice_fdir_ipv6_pfcp_node_pkt,
-		sizeof(ice_fdir_ipv6_pfcp_node_pkt),
-		ice_fdir_ipv6_pfcp_node_pkt,
+		ICE_FLTR_PTYPE_ANALNF_IPV6_PFCP_ANALDE,
+		sizeof(ice_fdir_ipv6_pfcp_analde_pkt),
+		ice_fdir_ipv6_pfcp_analde_pkt,
+		sizeof(ice_fdir_ipv6_pfcp_analde_pkt),
+		ice_fdir_ipv6_pfcp_analde_pkt,
 	},
 	{
-		ICE_FLTR_PTYPE_NONF_IPV6_PFCP_SESSION,
+		ICE_FLTR_PTYPE_ANALNF_IPV6_PFCP_SESSION,
 		sizeof(ice_fdir_ipv6_pfcp_session_pkt),
 		ice_fdir_ipv6_pfcp_session_pkt,
 		sizeof(ice_fdir_ipv6_pfcp_session_pkt),
 		ice_fdir_ipv6_pfcp_session_pkt,
 	},
 	{
-		ICE_FLTR_PTYPE_NON_IP_L2,
-		sizeof(ice_fdir_non_ip_l2_pkt), ice_fdir_non_ip_l2_pkt,
-		sizeof(ice_fdir_non_ip_l2_pkt), ice_fdir_non_ip_l2_pkt,
+		ICE_FLTR_PTYPE_ANALN_IP_L2,
+		sizeof(ice_fdir_analn_ip_l2_pkt), ice_fdir_analn_ip_l2_pkt,
+		sizeof(ice_fdir_analn_ip_l2_pkt), ice_fdir_analn_ip_l2_pkt,
 	},
 	{
-		ICE_FLTR_PTYPE_NONF_IPV6_TCP,
+		ICE_FLTR_PTYPE_ANALNF_IPV6_TCP,
 		sizeof(ice_fdir_tcpv6_pkt), ice_fdir_tcpv6_pkt,
 		sizeof(ice_fdir_tcp6_tun_pkt), ice_fdir_tcp6_tun_pkt,
 	},
 	{
-		ICE_FLTR_PTYPE_NONF_IPV6_UDP,
+		ICE_FLTR_PTYPE_ANALNF_IPV6_UDP,
 		sizeof(ice_fdir_udpv6_pkt), ice_fdir_udpv6_pkt,
 		sizeof(ice_fdir_udp6_tun_pkt), ice_fdir_udp6_tun_pkt,
 	},
 	{
-		ICE_FLTR_PTYPE_NONF_IPV6_SCTP,
+		ICE_FLTR_PTYPE_ANALNF_IPV6_SCTP,
 		sizeof(ice_fdir_sctpv6_pkt), ice_fdir_sctpv6_pkt,
 		sizeof(ice_fdir_sctp6_tun_pkt), ice_fdir_sctp6_tun_pkt,
 	},
 	{
-		ICE_FLTR_PTYPE_NONF_IPV6_OTHER,
+		ICE_FLTR_PTYPE_ANALNF_IPV6_OTHER,
 		sizeof(ice_fdir_ipv6_pkt), ice_fdir_ipv6_pkt,
 		sizeof(ice_fdir_ip6_tun_pkt), ice_fdir_ip6_tun_pkt,
 	},
@@ -579,8 +579,8 @@ static void ice_set_dflt_val_fd_desc(struct ice_fd_fltr_desc_ctx *fd_fltr_ctx)
 	fd_fltr_ctx->toq = ICE_FXD_FLTR_QW0_TO_Q_EQUALS_QINDEX;
 	fd_fltr_ctx->toq_prio = ICE_FXD_FLTR_QW0_TO_Q_PRIO1;
 	fd_fltr_ctx->dpu_recipe = ICE_FXD_FLTR_QW0_DPU_RECIPE_DFLT;
-	fd_fltr_ctx->drop = ICE_FXD_FLTR_QW0_DROP_NO;
-	fd_fltr_ctx->flex_prio = ICE_FXD_FLTR_QW0_FLEX_PRI_NONE;
+	fd_fltr_ctx->drop = ICE_FXD_FLTR_QW0_DROP_ANAL;
+	fd_fltr_ctx->flex_prio = ICE_FXD_FLTR_QW0_FLEX_PRI_ANALNE;
 	fd_fltr_ctx->flex_mdid = ICE_FXD_FLTR_QW0_FLEX_MDID0;
 	fd_fltr_ctx->flex_val = ICE_FXD_FLTR_QW0_FLEX_VAL0;
 	fd_fltr_ctx->dtype = ICE_TX_DESC_DTYPE_FLTR_PROG;
@@ -652,17 +652,17 @@ ice_fdir_get_prgm_desc(struct ice_hw *hw, struct ice_fdir_fltr *input,
 	/* change sideband filtering values */
 	fdir_fltr_ctx.fdid = input->fltr_id;
 	if (input->dest_ctl == ICE_FLTR_PRGM_DESC_DEST_DROP_PKT) {
-		fdir_fltr_ctx.drop = ICE_FXD_FLTR_QW0_DROP_YES;
+		fdir_fltr_ctx.drop = ICE_FXD_FLTR_QW0_DROP_ANAL;
 		fdir_fltr_ctx.qindex = 0;
 	} else if (input->dest_ctl ==
 		   ICE_FLTR_PRGM_DESC_DEST_DIRECT_PKT_OTHER) {
-		fdir_fltr_ctx.drop = ICE_FXD_FLTR_QW0_DROP_NO;
+		fdir_fltr_ctx.drop = ICE_FXD_FLTR_QW0_DROP_ANAL;
 		fdir_fltr_ctx.qindex = 0;
 	} else {
 		if (input->dest_ctl ==
 		    ICE_FLTR_PRGM_DESC_DEST_DIRECT_PKT_QGROUP)
 			fdir_fltr_ctx.toq = input->q_region;
-		fdir_fltr_ctx.drop = ICE_FXD_FLTR_QW0_DROP_NO;
+		fdir_fltr_ctx.drop = ICE_FXD_FLTR_QW0_DROP_ANAL;
 		fdir_fltr_ctx.qindex = input->q_index;
 	}
 	fdir_fltr_ctx.cnt_ena = input->cnt_ena;
@@ -675,7 +675,7 @@ ice_fdir_get_prgm_desc(struct ice_hw *hw, struct ice_fdir_fltr *input,
 		fdir_fltr_ctx.toq_prio = 3;
 	fdir_fltr_ctx.pcmd = add ? ICE_FXD_FLTR_QW1_PCMD_ADD :
 		ICE_FXD_FLTR_QW1_PCMD_REMOVE;
-	fdir_fltr_ctx.swap = ICE_FXD_FLTR_QW1_SWAP_NOT_SET;
+	fdir_fltr_ctx.swap = ICE_FXD_FLTR_QW1_SWAP_ANALT_SET;
 	fdir_fltr_ctx.comp_q = ICE_FXD_FLTR_QW0_COMP_Q_ZERO;
 	fdir_fltr_ctx.comp_report = input->comp_report;
 	fdir_fltr_ctx.fdid_prio = input->fdid_prio;
@@ -792,7 +792,7 @@ static void ice_pkt_insert_u8(u8 *pkt, int offset, u8 data)
  * @data: 8 bit value to convert and insert into pkt at offset
  *
  * This function is designed for inserting Traffic Class (TC) for IPv6,
- * since that TC is not aligned in number of bytes. Here we split it out
+ * since that TC is analt aligned in number of bytes. Here we split it out
  * into two part and fill each byte with data copy from pkt, then insert
  * the two bytes data one by one.
  */
@@ -856,34 +856,34 @@ ice_fdir_get_gen_prgm_pkt(struct ice_hw *hw, struct ice_fdir_fltr *input,
 	u8 *loc;
 	u16 idx;
 
-	if (input->flow_type == ICE_FLTR_PTYPE_NONF_IPV4_OTHER) {
+	if (input->flow_type == ICE_FLTR_PTYPE_ANALNF_IPV4_OTHER) {
 		switch (input->ip.v4.proto) {
 		case IPPROTO_TCP:
-			flow = ICE_FLTR_PTYPE_NONF_IPV4_TCP;
+			flow = ICE_FLTR_PTYPE_ANALNF_IPV4_TCP;
 			break;
 		case IPPROTO_UDP:
-			flow = ICE_FLTR_PTYPE_NONF_IPV4_UDP;
+			flow = ICE_FLTR_PTYPE_ANALNF_IPV4_UDP;
 			break;
 		case IPPROTO_SCTP:
-			flow = ICE_FLTR_PTYPE_NONF_IPV4_SCTP;
+			flow = ICE_FLTR_PTYPE_ANALNF_IPV4_SCTP;
 			break;
 		default:
-			flow = ICE_FLTR_PTYPE_NONF_IPV4_OTHER;
+			flow = ICE_FLTR_PTYPE_ANALNF_IPV4_OTHER;
 			break;
 		}
-	} else if (input->flow_type == ICE_FLTR_PTYPE_NONF_IPV6_OTHER) {
+	} else if (input->flow_type == ICE_FLTR_PTYPE_ANALNF_IPV6_OTHER) {
 		switch (input->ip.v6.proto) {
 		case IPPROTO_TCP:
-			flow = ICE_FLTR_PTYPE_NONF_IPV6_TCP;
+			flow = ICE_FLTR_PTYPE_ANALNF_IPV6_TCP;
 			break;
 		case IPPROTO_UDP:
-			flow = ICE_FLTR_PTYPE_NONF_IPV6_UDP;
+			flow = ICE_FLTR_PTYPE_ANALNF_IPV6_UDP;
 			break;
 		case IPPROTO_SCTP:
-			flow = ICE_FLTR_PTYPE_NONF_IPV6_SCTP;
+			flow = ICE_FLTR_PTYPE_ANALNF_IPV6_SCTP;
 			break;
 		default:
-			flow = ICE_FLTR_PTYPE_NONF_IPV6_OTHER;
+			flow = ICE_FLTR_PTYPE_ANALNF_IPV6_OTHER;
 			break;
 		}
 	} else {
@@ -900,7 +900,7 @@ ice_fdir_get_gen_prgm_pkt(struct ice_hw *hw, struct ice_fdir_fltr *input,
 		loc = pkt;
 	} else {
 		if (!ice_get_open_tunnel_port(hw, &tnl_port, TNL_ALL))
-			return -ENOENT;
+			return -EANALENT;
 		if (!ice_fdir_pkt[idx].tun_pkt)
 			return -EINVAL;
 		memcpy(pkt, ice_fdir_pkt[idx].tun_pkt,
@@ -914,7 +914,7 @@ ice_fdir_get_gen_prgm_pkt(struct ice_hw *hw, struct ice_fdir_fltr *input,
 	 * perspective. The input from user is from Rx filter perspective.
 	 */
 	switch (flow) {
-	case ICE_FLTR_PTYPE_NONF_IPV4_TCP:
+	case ICE_FLTR_PTYPE_ANALNF_IPV4_TCP:
 		ice_pkt_insert_u32(loc, ICE_IPV4_DST_ADDR_OFFSET,
 				   input->ip.v4.src_ip);
 		ice_pkt_insert_u16(loc, ICE_IPV4_TCP_DST_PORT_OFFSET,
@@ -929,7 +929,7 @@ ice_fdir_get_gen_prgm_pkt(struct ice_hw *hw, struct ice_fdir_fltr *input,
 		if (frag)
 			loc[20] = ICE_FDIR_IPV4_PKT_FLAG_MF;
 		break;
-	case ICE_FLTR_PTYPE_NONF_IPV4_UDP:
+	case ICE_FLTR_PTYPE_ANALNF_IPV4_UDP:
 		ice_pkt_insert_u32(loc, ICE_IPV4_DST_ADDR_OFFSET,
 				   input->ip.v4.src_ip);
 		ice_pkt_insert_u16(loc, ICE_IPV4_UDP_DST_PORT_OFFSET,
@@ -944,7 +944,7 @@ ice_fdir_get_gen_prgm_pkt(struct ice_hw *hw, struct ice_fdir_fltr *input,
 		ice_pkt_insert_mac_addr(loc + ETH_ALEN,
 					input->ext_data.src_mac);
 		break;
-	case ICE_FLTR_PTYPE_NONF_IPV4_SCTP:
+	case ICE_FLTR_PTYPE_ANALNF_IPV4_SCTP:
 		ice_pkt_insert_u32(loc, ICE_IPV4_DST_ADDR_OFFSET,
 				   input->ip.v4.src_ip);
 		ice_pkt_insert_u16(loc, ICE_IPV4_SCTP_DST_PORT_OFFSET,
@@ -957,7 +957,7 @@ ice_fdir_get_gen_prgm_pkt(struct ice_hw *hw, struct ice_fdir_fltr *input,
 		ice_pkt_insert_u8(loc, ICE_IPV4_TTL_OFFSET, input->ip.v4.ttl);
 		ice_pkt_insert_mac_addr(loc, input->ext_data.dst_mac);
 		break;
-	case ICE_FLTR_PTYPE_NONF_IPV4_OTHER:
+	case ICE_FLTR_PTYPE_ANALNF_IPV4_OTHER:
 		ice_pkt_insert_u32(loc, ICE_IPV4_DST_ADDR_OFFSET,
 				   input->ip.v4.src_ip);
 		ice_pkt_insert_u32(loc, ICE_IPV4_SRC_ADDR_OFFSET,
@@ -968,10 +968,10 @@ ice_fdir_get_gen_prgm_pkt(struct ice_hw *hw, struct ice_fdir_fltr *input,
 				  input->ip.v4.proto);
 		ice_pkt_insert_mac_addr(loc, input->ext_data.dst_mac);
 		break;
-	case ICE_FLTR_PTYPE_NONF_IPV4_GTPU_IPV4_UDP:
-	case ICE_FLTR_PTYPE_NONF_IPV4_GTPU_IPV4_TCP:
-	case ICE_FLTR_PTYPE_NONF_IPV4_GTPU_IPV4_ICMP:
-	case ICE_FLTR_PTYPE_NONF_IPV4_GTPU_IPV4_OTHER:
+	case ICE_FLTR_PTYPE_ANALNF_IPV4_GTPU_IPV4_UDP:
+	case ICE_FLTR_PTYPE_ANALNF_IPV4_GTPU_IPV4_TCP:
+	case ICE_FLTR_PTYPE_ANALNF_IPV4_GTPU_IPV4_ICMP:
+	case ICE_FLTR_PTYPE_ANALNF_IPV4_GTPU_IPV4_OTHER:
 		ice_pkt_insert_u32(loc, ICE_IPV4_DST_ADDR_OFFSET,
 				   input->ip.v4.src_ip);
 		ice_pkt_insert_u32(loc, ICE_IPV4_SRC_ADDR_OFFSET,
@@ -981,31 +981,31 @@ ice_fdir_get_gen_prgm_pkt(struct ice_hw *hw, struct ice_fdir_fltr *input,
 		ice_pkt_insert_u6_qfi(loc, ICE_IPV4_GTPU_QFI_OFFSET,
 				      input->gtpu_data.qfi);
 		break;
-	case ICE_FLTR_PTYPE_NONF_IPV4_L2TPV3:
+	case ICE_FLTR_PTYPE_ANALNF_IPV4_L2TPV3:
 		ice_pkt_insert_u32(loc, ICE_IPV4_L2TPV3_SESS_ID_OFFSET,
 				   input->l2tpv3_data.session_id);
 		break;
-	case ICE_FLTR_PTYPE_NONF_IPV6_L2TPV3:
+	case ICE_FLTR_PTYPE_ANALNF_IPV6_L2TPV3:
 		ice_pkt_insert_u32(loc, ICE_IPV6_L2TPV3_SESS_ID_OFFSET,
 				   input->l2tpv3_data.session_id);
 		break;
-	case ICE_FLTR_PTYPE_NONF_IPV4_ESP:
+	case ICE_FLTR_PTYPE_ANALNF_IPV4_ESP:
 		ice_pkt_insert_u32(loc, ICE_IPV4_ESP_SPI_OFFSET,
 				   input->ip.v4.sec_parm_idx);
 		break;
-	case ICE_FLTR_PTYPE_NONF_IPV6_ESP:
+	case ICE_FLTR_PTYPE_ANALNF_IPV6_ESP:
 		ice_pkt_insert_u32(loc, ICE_IPV6_ESP_SPI_OFFSET,
 				   input->ip.v6.sec_parm_idx);
 		break;
-	case ICE_FLTR_PTYPE_NONF_IPV4_AH:
+	case ICE_FLTR_PTYPE_ANALNF_IPV4_AH:
 		ice_pkt_insert_u32(loc, ICE_IPV4_AH_SPI_OFFSET,
 				   input->ip.v4.sec_parm_idx);
 		break;
-	case ICE_FLTR_PTYPE_NONF_IPV6_AH:
+	case ICE_FLTR_PTYPE_ANALNF_IPV6_AH:
 		ice_pkt_insert_u32(loc, ICE_IPV6_AH_SPI_OFFSET,
 				   input->ip.v6.sec_parm_idx);
 		break;
-	case ICE_FLTR_PTYPE_NONF_IPV4_NAT_T_ESP:
+	case ICE_FLTR_PTYPE_ANALNF_IPV4_NAT_T_ESP:
 		ice_pkt_insert_u32(loc, ICE_IPV4_DST_ADDR_OFFSET,
 				   input->ip.v4.src_ip);
 		ice_pkt_insert_u32(loc, ICE_IPV4_SRC_ADDR_OFFSET,
@@ -1013,7 +1013,7 @@ ice_fdir_get_gen_prgm_pkt(struct ice_hw *hw, struct ice_fdir_fltr *input,
 		ice_pkt_insert_u32(loc, ICE_IPV4_NAT_T_ESP_SPI_OFFSET,
 				   input->ip.v4.sec_parm_idx);
 		break;
-	case ICE_FLTR_PTYPE_NONF_IPV6_NAT_T_ESP:
+	case ICE_FLTR_PTYPE_ANALNF_IPV6_NAT_T_ESP:
 		ice_pkt_insert_ipv6_addr(loc, ICE_IPV6_DST_ADDR_OFFSET,
 					 input->ip.v6.src_ip);
 		ice_pkt_insert_ipv6_addr(loc, ICE_IPV6_SRC_ADDR_OFFSET,
@@ -1021,21 +1021,21 @@ ice_fdir_get_gen_prgm_pkt(struct ice_hw *hw, struct ice_fdir_fltr *input,
 		ice_pkt_insert_u32(loc, ICE_IPV6_NAT_T_ESP_SPI_OFFSET,
 				   input->ip.v6.sec_parm_idx);
 		break;
-	case ICE_FLTR_PTYPE_NONF_IPV4_PFCP_NODE:
-	case ICE_FLTR_PTYPE_NONF_IPV4_PFCP_SESSION:
+	case ICE_FLTR_PTYPE_ANALNF_IPV4_PFCP_ANALDE:
+	case ICE_FLTR_PTYPE_ANALNF_IPV4_PFCP_SESSION:
 		ice_pkt_insert_u16(loc, ICE_IPV4_UDP_SRC_PORT_OFFSET,
 				   input->ip.v4.dst_port);
 		break;
-	case ICE_FLTR_PTYPE_NONF_IPV6_PFCP_NODE:
-	case ICE_FLTR_PTYPE_NONF_IPV6_PFCP_SESSION:
+	case ICE_FLTR_PTYPE_ANALNF_IPV6_PFCP_ANALDE:
+	case ICE_FLTR_PTYPE_ANALNF_IPV6_PFCP_SESSION:
 		ice_pkt_insert_u16(loc, ICE_IPV6_UDP_SRC_PORT_OFFSET,
 				   input->ip.v6.dst_port);
 		break;
-	case ICE_FLTR_PTYPE_NON_IP_L2:
+	case ICE_FLTR_PTYPE_ANALN_IP_L2:
 		ice_pkt_insert_u16(loc, ICE_MAC_ETHTYPE_OFFSET,
 				   input->ext_data.ether_type);
 		break;
-	case ICE_FLTR_PTYPE_NONF_IPV6_TCP:
+	case ICE_FLTR_PTYPE_ANALNF_IPV6_TCP:
 		ice_pkt_insert_ipv6_addr(loc, ICE_IPV6_DST_ADDR_OFFSET,
 					 input->ip.v6.src_ip);
 		ice_pkt_insert_ipv6_addr(loc, ICE_IPV6_SRC_ADDR_OFFSET,
@@ -1048,7 +1048,7 @@ ice_fdir_get_gen_prgm_pkt(struct ice_hw *hw, struct ice_fdir_fltr *input,
 		ice_pkt_insert_u8(loc, ICE_IPV6_HLIM_OFFSET, input->ip.v6.hlim);
 		ice_pkt_insert_mac_addr(loc, input->ext_data.dst_mac);
 		break;
-	case ICE_FLTR_PTYPE_NONF_IPV6_UDP:
+	case ICE_FLTR_PTYPE_ANALNF_IPV6_UDP:
 		ice_pkt_insert_ipv6_addr(loc, ICE_IPV6_DST_ADDR_OFFSET,
 					 input->ip.v6.src_ip);
 		ice_pkt_insert_ipv6_addr(loc, ICE_IPV6_SRC_ADDR_OFFSET,
@@ -1061,7 +1061,7 @@ ice_fdir_get_gen_prgm_pkt(struct ice_hw *hw, struct ice_fdir_fltr *input,
 		ice_pkt_insert_u8(loc, ICE_IPV6_HLIM_OFFSET, input->ip.v6.hlim);
 		ice_pkt_insert_mac_addr(loc, input->ext_data.dst_mac);
 		break;
-	case ICE_FLTR_PTYPE_NONF_IPV6_SCTP:
+	case ICE_FLTR_PTYPE_ANALNF_IPV6_SCTP:
 		ice_pkt_insert_ipv6_addr(loc, ICE_IPV6_DST_ADDR_OFFSET,
 					 input->ip.v6.src_ip);
 		ice_pkt_insert_ipv6_addr(loc, ICE_IPV6_SRC_ADDR_OFFSET,
@@ -1074,7 +1074,7 @@ ice_fdir_get_gen_prgm_pkt(struct ice_hw *hw, struct ice_fdir_fltr *input,
 		ice_pkt_insert_u8(loc, ICE_IPV6_HLIM_OFFSET, input->ip.v6.hlim);
 		ice_pkt_insert_mac_addr(loc, input->ext_data.dst_mac);
 		break;
-	case ICE_FLTR_PTYPE_NONF_IPV6_OTHER:
+	case ICE_FLTR_PTYPE_ANALNF_IPV6_OTHER:
 		ice_pkt_insert_ipv6_addr(loc, ICE_IPV6_DST_ADDR_OFFSET,
 					 input->ip.v6.src_ip);
 		ice_pkt_insert_ipv6_addr(loc, ICE_IPV6_SRC_ADDR_OFFSET,
@@ -1103,7 +1103,7 @@ ice_fdir_get_gen_prgm_pkt(struct ice_hw *hw, struct ice_fdir_fltr *input,
  */
 bool ice_fdir_has_frag(enum ice_fltr_ptype flow)
 {
-	if (flow == ICE_FLTR_PTYPE_NONF_IPV4_OTHER)
+	if (flow == ICE_FLTR_PTYPE_ANALNF_IPV4_OTHER)
 		return true;
 	else
 		return false;
@@ -1121,7 +1121,7 @@ ice_fdir_find_fltr_by_idx(struct ice_hw *hw, u32 fltr_idx)
 {
 	struct ice_fdir_fltr *rule;
 
-	list_for_each_entry(rule, &hw->fdir_list_head, fltr_node) {
+	list_for_each_entry(rule, &hw->fdir_list_head, fltr_analde) {
 		/* rule ID found in the list */
 		if (fltr_idx == rule->fltr_id)
 			return rule;
@@ -1132,15 +1132,15 @@ ice_fdir_find_fltr_by_idx(struct ice_hw *hw, u32 fltr_idx)
 }
 
 /**
- * ice_fdir_list_add_fltr - add a new node to the flow director filter list
+ * ice_fdir_list_add_fltr - add a new analde to the flow director filter list
  * @hw: hardware structure
- * @fltr: filter node to add to structure
+ * @fltr: filter analde to add to structure
  */
 void ice_fdir_list_add_fltr(struct ice_hw *hw, struct ice_fdir_fltr *fltr)
 {
 	struct ice_fdir_fltr *rule, *parent = NULL;
 
-	list_for_each_entry(rule, &hw->fdir_list_head, fltr_node) {
+	list_for_each_entry(rule, &hw->fdir_list_head, fltr_analde) {
 		/* rule ID found or pass its spot in the list */
 		if (rule->fltr_id >= fltr->fltr_id)
 			break;
@@ -1148,9 +1148,9 @@ void ice_fdir_list_add_fltr(struct ice_hw *hw, struct ice_fdir_fltr *fltr)
 	}
 
 	if (parent)
-		list_add(&fltr->fltr_node, &parent->fltr_node);
+		list_add(&fltr->fltr_analde, &parent->fltr_analde);
 	else
-		list_add(&fltr->fltr_node, &hw->fdir_list_head);
+		list_add(&fltr->fltr_analde, &hw->fdir_list_head);
 }
 
 /**
@@ -1167,8 +1167,8 @@ ice_fdir_update_cntrs(struct ice_hw *hw, enum ice_fltr_ptype flow, bool add)
 	incr = add ? 1 : -1;
 	hw->fdir_active_fltr += incr;
 
-	if (flow == ICE_FLTR_PTYPE_NONF_NONE || flow >= ICE_FLTR_PTYPE_MAX)
-		ice_debug(hw, ICE_DBG_SW, "Unknown filter type %d\n", flow);
+	if (flow == ICE_FLTR_PTYPE_ANALNF_ANALNE || flow >= ICE_FLTR_PTYPE_MAX)
+		ice_debug(hw, ICE_DBG_SW, "Unkanalwn filter type %d\n", flow);
 	else
 		hw->fdir_fltr_cnt[flow] += incr;
 }
@@ -1178,7 +1178,7 @@ ice_fdir_update_cntrs(struct ice_hw *hw, enum ice_fltr_ptype flow, bool add)
  * @a: IP v6 address
  * @b: IP v6 address
  *
- * Returns 0 on equal, returns non-0 if different
+ * Returns 0 on equal, returns analn-0 if different
  */
 static int ice_cmp_ipv6_addr(__be32 *a, __be32 *b)
 {
@@ -1202,15 +1202,15 @@ ice_fdir_comp_rules(struct ice_fdir_fltr *a,  struct ice_fdir_fltr *b, bool v6)
 	 * same flow_type.
 	 */
 	if (!v6) {
-		if (flow_type == ICE_FLTR_PTYPE_NONF_IPV4_TCP ||
-		    flow_type == ICE_FLTR_PTYPE_NONF_IPV4_UDP ||
-		    flow_type == ICE_FLTR_PTYPE_NONF_IPV4_SCTP) {
+		if (flow_type == ICE_FLTR_PTYPE_ANALNF_IPV4_TCP ||
+		    flow_type == ICE_FLTR_PTYPE_ANALNF_IPV4_UDP ||
+		    flow_type == ICE_FLTR_PTYPE_ANALNF_IPV4_SCTP) {
 			if (a->ip.v4.dst_ip == b->ip.v4.dst_ip &&
 			    a->ip.v4.src_ip == b->ip.v4.src_ip &&
 			    a->ip.v4.dst_port == b->ip.v4.dst_port &&
 			    a->ip.v4.src_port == b->ip.v4.src_port)
 				return true;
-		} else if (flow_type == ICE_FLTR_PTYPE_NONF_IPV4_OTHER) {
+		} else if (flow_type == ICE_FLTR_PTYPE_ANALNF_IPV4_OTHER) {
 			if (a->ip.v4.dst_ip == b->ip.v4.dst_ip &&
 			    a->ip.v4.src_ip == b->ip.v4.src_ip &&
 			    a->ip.v4.l4_header == b->ip.v4.l4_header &&
@@ -1220,9 +1220,9 @@ ice_fdir_comp_rules(struct ice_fdir_fltr *a,  struct ice_fdir_fltr *b, bool v6)
 				return true;
 		}
 	} else {
-		if (flow_type == ICE_FLTR_PTYPE_NONF_IPV6_UDP ||
-		    flow_type == ICE_FLTR_PTYPE_NONF_IPV6_TCP ||
-		    flow_type == ICE_FLTR_PTYPE_NONF_IPV6_SCTP) {
+		if (flow_type == ICE_FLTR_PTYPE_ANALNF_IPV6_UDP ||
+		    flow_type == ICE_FLTR_PTYPE_ANALNF_IPV6_TCP ||
+		    flow_type == ICE_FLTR_PTYPE_ANALNF_IPV6_SCTP) {
 			if (a->ip.v6.dst_port == b->ip.v6.dst_port &&
 			    a->ip.v6.src_port == b->ip.v6.src_port &&
 			    !ice_cmp_ipv6_addr(a->ip.v6.dst_ip,
@@ -1230,7 +1230,7 @@ ice_fdir_comp_rules(struct ice_fdir_fltr *a,  struct ice_fdir_fltr *b, bool v6)
 			    !ice_cmp_ipv6_addr(a->ip.v6.src_ip,
 					       b->ip.v6.src_ip))
 				return true;
-		} else if (flow_type == ICE_FLTR_PTYPE_NONF_IPV6_OTHER) {
+		} else if (flow_type == ICE_FLTR_PTYPE_ANALNF_IPV6_OTHER) {
 			if (a->ip.v6.dst_port == b->ip.v6.dst_port &&
 			    a->ip.v6.src_port == b->ip.v6.src_port)
 				return true;
@@ -1252,17 +1252,17 @@ bool ice_fdir_is_dup_fltr(struct ice_hw *hw, struct ice_fdir_fltr *input)
 	struct ice_fdir_fltr *rule;
 	bool ret = false;
 
-	list_for_each_entry(rule, &hw->fdir_list_head, fltr_node) {
+	list_for_each_entry(rule, &hw->fdir_list_head, fltr_analde) {
 		enum ice_fltr_ptype flow_type;
 
 		if (rule->flow_type != input->flow_type)
 			continue;
 
 		flow_type = input->flow_type;
-		if (flow_type == ICE_FLTR_PTYPE_NONF_IPV4_TCP ||
-		    flow_type == ICE_FLTR_PTYPE_NONF_IPV4_UDP ||
-		    flow_type == ICE_FLTR_PTYPE_NONF_IPV4_SCTP ||
-		    flow_type == ICE_FLTR_PTYPE_NONF_IPV4_OTHER)
+		if (flow_type == ICE_FLTR_PTYPE_ANALNF_IPV4_TCP ||
+		    flow_type == ICE_FLTR_PTYPE_ANALNF_IPV4_UDP ||
+		    flow_type == ICE_FLTR_PTYPE_ANALNF_IPV4_SCTP ||
+		    flow_type == ICE_FLTR_PTYPE_ANALNF_IPV4_OTHER)
 			ret = ice_fdir_comp_rules(rule, input, false);
 		else
 			ret = ice_fdir_comp_rules(rule, input, true);

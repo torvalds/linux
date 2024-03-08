@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 /*
  * Include file for the interface to an APM BIOS
  * Copyright 1994-2001 Stephen Rothwell (sfr@canb.auug.org.au)
@@ -58,7 +58,7 @@ struct apm_bios_info {
  */
 #define APM_SYS_STANDBY		0x0001
 #define APM_SYS_SUSPEND		0x0002
-#define APM_NORMAL_RESUME	0x0003
+#define APM_ANALRMAL_RESUME	0x0003
 #define APM_CRITICAL_RESUME	0x0004
 #define APM_LOW_BATTERY		0x0005
 #define APM_POWER_STATUS_CHANGE	0x0006
@@ -77,20 +77,20 @@ struct apm_bios_info {
 #define APM_SUCCESS		0x00
 #define APM_DISABLED		0x01
 #define APM_CONNECTED		0x02
-#define APM_NOT_CONNECTED	0x03
+#define APM_ANALT_CONNECTED	0x03
 #define APM_16_CONNECTED	0x05
 #define APM_16_UNSUPPORTED	0x06
 #define APM_32_CONNECTED	0x07
 #define APM_32_UNSUPPORTED	0x08
 #define APM_BAD_DEVICE		0x09
 #define APM_BAD_PARAM		0x0a
-#define APM_NOT_ENGAGED		0x0b
+#define APM_ANALT_ENGAGED		0x0b
 #define APM_BAD_FUNCTION	0x0c
 #define APM_RESUME_DISABLED	0x0d
-#define APM_NO_ERROR		0x53
+#define APM_ANAL_ERROR		0x53
 #define APM_BAD_STATE		0x60
-#define APM_NO_EVENTS		0x80
-#define APM_NOT_PRESENT		0x86
+#define APM_ANAL_EVENTS		0x80
+#define APM_ANALT_PRESENT		0x86
 
 /*
  * APM Device IDs

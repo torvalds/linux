@@ -16,7 +16,7 @@ SECTIONS
 {
 	/* palo loads at 0x60000 */
 	/* loaded kernel will move to 0x10000 */
-	. = 0xe0000;    /* should not overwrite palo code */
+	. = 0xe0000;    /* should analt overwrite palo code */
 
 	.head.text : {
 		_head = . ;
@@ -85,16 +85,16 @@ SECTIONS
 
 	STABS_DEBUG
 	ELF_DETAILS
-	.note 0 : { *(.note) }
+	.analte 0 : { *(.analte) }
 
 	/* Sections to be discarded */
 	DISCARDS
 	/DISCARD/ : {
 #ifdef CONFIG_64BIT
-		/* temporary hack until binutils is fixed to not emit these
+		/* temporary hack until binutils is fixed to analt emit these
 		 * for static binaries
 		 */
-		*(.PARISC.unwind)	/* no unwind data */
+		*(.PARISC.unwind)	/* anal unwind data */
 		*(.interp)
 		*(.dynsym)
 		*(.dynstr)

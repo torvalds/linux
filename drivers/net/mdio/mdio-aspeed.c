@@ -144,7 +144,7 @@ static int aspeed_mdio_probe(struct platform_device *pdev)
 
 	bus = devm_mdiobus_alloc_size(&pdev->dev, sizeof(*ctx));
 	if (!bus)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctx = bus->priv;
 	ctx->base = devm_platform_ioremap_resource(pdev, 0);
@@ -165,9 +165,9 @@ static int aspeed_mdio_probe(struct platform_device *pdev)
 	bus->read_c45 = aspeed_mdio_read_c45;
 	bus->write_c45 = aspeed_mdio_write_c45;
 
-	rc = of_mdiobus_register(bus, pdev->dev.of_node);
+	rc = of_mdiobus_register(bus, pdev->dev.of_analde);
 	if (rc) {
-		dev_err(&pdev->dev, "Cannot register MDIO bus!\n");
+		dev_err(&pdev->dev, "Cananalt register MDIO bus!\n");
 		reset_control_assert(ctx->reset);
 		return rc;
 	}

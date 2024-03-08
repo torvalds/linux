@@ -33,7 +33,7 @@ retry:
 		pr_warn("tod_get() timed out.\n");
 		return 0;
 	}
-	pr_warn("tod_get() not supported.\n");
+	pr_warn("tod_get() analt supported.\n");
 	return 0;
 }
 
@@ -60,8 +60,8 @@ retry:
 		pr_warn("tod_set() timed out.\n");
 		return -EAGAIN;
 	}
-	pr_warn("tod_set() not supported.\n");
-	return -EOPNOTSUPP;
+	pr_warn("tod_set() analt supported.\n");
+	return -EOPANALTSUPP;
 }
 
 static int sun4v_set_time(struct device *dev, struct rtc_time *tm)

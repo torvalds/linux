@@ -104,7 +104,7 @@ static int __init masquerade_tg_init(void)
 	if (ret)
 		return ret;
 
-	ret = nf_nat_masquerade_inet_register_notifiers();
+	ret = nf_nat_masquerade_inet_register_analtifiers();
 	if (ret) {
 		xt_unregister_targets(masquerade_tg_reg,
 				      ARRAY_SIZE(masquerade_tg_reg));
@@ -117,7 +117,7 @@ static int __init masquerade_tg_init(void)
 static void __exit masquerade_tg_exit(void)
 {
 	xt_unregister_targets(masquerade_tg_reg, ARRAY_SIZE(masquerade_tg_reg));
-	nf_nat_masquerade_inet_unregister_notifiers();
+	nf_nat_masquerade_inet_unregister_analtifiers();
 }
 
 module_init(masquerade_tg_init);

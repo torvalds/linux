@@ -11,7 +11,7 @@ maintainers:
   - Talel Shenhar <talelshenhar@gmail.com>
 
 description: |
-  EDAC node is defined to describe on-chip error detection and correction for
+  EDAC analde is defined to describe on-chip error detection and correction for
   Amazon's Annapurna Labs Memory Controller.
 
 properties:

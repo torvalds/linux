@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 /*
  * Copyright (c) 2023, Jack Matthews <jm5112356@gmail.com>
- * Copyright (c) 2023, Ivaylo Ivanov <ivo.ivanov.ivanov1@gmail.com>
+ * Copyright (c) 2023, Ivaylo Ivaanalv <ivo.ivaanalv.ivaanalv1@gmail.com>
  * Copyright (c) 2023, Dominik Kobinski <dominikkobinski314@gmail.com>
  * Copyright (c) 2023, Rayyan Ansari <rayyan@ansari.sh>
  */
@@ -11,10 +11,10 @@
 #include "qcom-msm8226-microsoft-common.dtsi"
 
 /* This device has touchscreen on i2c3 instead */
-/delete-node/ &touchscreen;
+/delete-analde/ &touchscreen;
 
 / {
-	model = "Nokia Lumia 735";
+	model = "Analkia Lumia 735";
 	compatible = "microsoft,superman-lte", "qcom,msm8926", "qcom,msm8226";
 	chassis-type = "handset";
 };
@@ -38,7 +38,7 @@
 
 		rmi4-f01@1 {
 			reg = <0x01>;
-			syna,nosleep-mode = <1>;
+			syna,analsleep-mode = <1>;
 		};
 
 		rmi4-f11@11 {

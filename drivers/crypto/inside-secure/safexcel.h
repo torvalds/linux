@@ -193,7 +193,7 @@
 #define EIP197_OPTIONS				0xfff8
 #define EIP197_VERSION				0xfffc
 
-/* EIP197-specific registers, no indirection */
+/* EIP197-specific registers, anal indirection */
 #define EIP197_CLASSIFICATION_RAMS		0xe0000
 #define EIP197_TRC_CTRL				0xf0800
 #define EIP197_TRC_LASTRES			0xf0804
@@ -316,7 +316,7 @@
 #define EIP197_MST_CTRL_WD_CACHE(n)		(((n) & 0xf) << 4)
 #define EIP197_MST_CTRL_TX_MAX_CMD(n)		(((n) & 0xf) << 20)
 #define EIP197_MST_CTRL_BYTE_SWAP		BIT(24)
-#define EIP197_MST_CTRL_NO_BYTE_SWAP		BIT(25)
+#define EIP197_MST_CTRL_ANAL_BYTE_SWAP		BIT(25)
 #define EIP197_MST_CTRL_BYTE_SWAP_BITS          GENMASK(25, 24)
 
 /* EIP197_PE_IN_DBUF/TBUF_THRES */
@@ -338,7 +338,7 @@
 
 /* EIP197_PE_ICE_PUE/FPP_CTRL */
 #define EIP197_PE_ICE_x_CTRL_SW_RESET			BIT(0)
-#define EIP197_PE_ICE_x_CTRL_CLR_ECC_NON_CORR		BIT(14)
+#define EIP197_PE_ICE_x_CTRL_CLR_ECC_ANALN_CORR		BIT(14)
 #define EIP197_PE_ICE_x_CTRL_CLR_ECC_CORR		BIT(15)
 
 /* EIP197_PE_ICE_RAM_CTRL */
@@ -347,7 +347,7 @@
 
 /* EIP197_PE_EIP96_TOKEN_CTRL */
 #define EIP197_PE_EIP96_TOKEN_CTRL_CTX_UPDATES		BIT(16)
-#define EIP197_PE_EIP96_TOKEN_CTRL_NO_TOKEN_WAIT	BIT(17)
+#define EIP197_PE_EIP96_TOKEN_CTRL_ANAL_TOKEN_WAIT	BIT(17)
 #define EIP197_PE_EIP96_TOKEN_CTRL_ENABLE_TIMEOUT	BIT(22)
 
 /* EIP197_PE_EIP96_FUNCTION_EN */
@@ -392,7 +392,7 @@ struct safexcel_context_record {
 #define CONTEXT_CONTROL_TYPE_HASH_ENCRYPT_OUT	0xe
 #define CONTEXT_CONTROL_TYPE_HASH_DECRYPT_IN	0xf
 #define CONTEXT_CONTROL_RESTART_HASH		BIT(4)
-#define CONTEXT_CONTROL_NO_FINISH_HASH		BIT(5)
+#define CONTEXT_CONTROL_ANAL_FINISH_HASH		BIT(5)
 #define CONTEXT_CONTROL_SIZE(n)			((n) << 8)
 #define CONTEXT_CONTROL_KEY_EN			BIT(16)
 #define CONTEXT_CONTROL_CRYPTO_ALG_DES		(0x0 << 17)
@@ -451,9 +451,9 @@ struct safexcel_context_record {
 #define EIP197_AEAD_TYPE_IPSEC_ESP		2
 #define EIP197_AEAD_TYPE_IPSEC_ESP_GMAC		3
 #define EIP197_AEAD_IPSEC_IV_SIZE		8
-#define EIP197_AEAD_IPSEC_NONCE_SIZE		4
+#define EIP197_AEAD_IPSEC_ANALNCE_SIZE		4
 #define EIP197_AEAD_IPSEC_COUNTER_SIZE		4
-#define EIP197_AEAD_IPSEC_CCM_NONCE_SIZE	3
+#define EIP197_AEAD_IPSEC_CCM_ANALNCE_SIZE	3
 
 /* The hash counter given to the engine in the context has a granularity of
  * 64 bits.
@@ -532,7 +532,7 @@ struct safexcel_result_desc {
 
 /*
  * The EIP(1)97 only needs to fetch the descriptor part of
- * the result descriptor, not the result token part!
+ * the result descriptor, analt the result token part!
  */
 #define EIP197_RD64_FETCH_SIZE		(sizeof(struct safexcel_result_desc) /\
 					 sizeof(u32))
@@ -556,16 +556,16 @@ struct safexcel_token {
 #define EIP197_TOKEN_STAT_LAST_PACKET		BIT(1)
 #define EIP197_TOKEN_OPCODE_DIRECTION		0x0
 #define EIP197_TOKEN_OPCODE_INSERT		0x2
-#define EIP197_TOKEN_OPCODE_NOOP		EIP197_TOKEN_OPCODE_INSERT
+#define EIP197_TOKEN_OPCODE_ANALOP		EIP197_TOKEN_OPCODE_INSERT
 #define EIP197_TOKEN_OPCODE_RETRIEVE		0x4
 #define EIP197_TOKEN_OPCODE_INSERT_REMRES	0xa
 #define EIP197_TOKEN_OPCODE_VERIFY		0xd
 #define EIP197_TOKEN_OPCODE_CTX_ACCESS		0xe
 #define EIP197_TOKEN_OPCODE_BYPASS		GENMASK(3, 0)
 
-static inline void eip197_noop_token(struct safexcel_token *token)
+static inline void eip197_analop_token(struct safexcel_token *token)
 {
-	token->opcode = EIP197_TOKEN_OPCODE_NOOP;
+	token->opcode = EIP197_TOKEN_OPCODE_ANALOP;
 	token->packet_length = BIT(2);
 	token->stat = 0;
 	token->instructions = 0;
@@ -637,7 +637,7 @@ struct safexcel_command_desc {
  * Internal structures & functions
  */
 
-#define EIP197_FW_TERMINAL_NOPS		2
+#define EIP197_FW_TERMINAL_ANALPS		2
 #define EIP197_FW_START_POLLCNT		16
 #define EIP197_FW_PUE_READY		0x14
 #define EIP197_FW_FPP_READY		0x18
@@ -715,7 +715,7 @@ struct safexcel_ring {
 	bool busy;
 
 	/* Store for current requests when bailing out of the dequeueing
-	 * function when no enough resources are available.
+	 * function when anal eanalugh resources are available.
 	 */
 	struct crypto_async_request *req;
 	struct crypto_async_request *backlog;
@@ -871,7 +871,7 @@ struct safexcel_ahash_export_state {
 /*
  * Template structure to describe the algorithms in order to register them.
  * It also has the purpose to contain our private structure and is actually
- * the only way I know in this framework to avoid having global pointers...
+ * the only way I kanalw in this framework to avoid having global pointers...
  */
 struct safexcel_alg_template {
 	struct safexcel_crypto_priv *priv;

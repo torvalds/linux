@@ -18,16 +18,16 @@ Required properties:
 Optional properties:
  - extcon : extcon specifier for the Power Delivery
 
-Required nodes : a sub-node is required for each port the phy provides.
-		 The sub-node name is used to identify dp or usb3 port,
+Required analdes : a sub-analde is required for each port the phy provides.
+		 The sub-analde name is used to identify dp or usb3 port,
 		 and shall be the following entries:
 	* "dp-port" : the name of DP port.
 	* "usb3-port" : the name of USB3 port.
 
-Required properties (port (child) node):
+Required properties (port (child) analde):
 - #phy-cells : must be 0, See ./phy-bindings.txt for details.
 
-Deprecated properties, do not use in new device tree sources, these
+Deprecated properties, do analt use in new device tree sources, these
 properties are determined by the compatible value:
  - rockchip,typec-conn-dir
  - rockchip,usb3tousb2-en

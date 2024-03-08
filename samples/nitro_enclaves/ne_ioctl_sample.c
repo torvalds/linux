@@ -11,9 +11,9 @@
  * -----
  *
  * Load the nitro_enclaves module, setting also the enclave CPU pool. The
- * enclave CPUs need to be full cores from the same NUMA node. CPU 0 and its
+ * enclave CPUs need to be full cores from the same NUMA analde. CPU 0 and its
  * siblings have to remain available for the primary / parent VM, so they
- * cannot be included in the enclave CPU pool.
+ * cananalt be included in the enclave CPU pool.
  *
  * See the cpu list section from the kernel documentation.
  * https://www.kernel.org/doc/html/latest/admin-guide/kernel-parameters.html#cpu-lists
@@ -40,19 +40,19 @@
  *
  *	dmesg
  *
- * Setup hugetlbfs huge pages. The memory needs to be from the same NUMA node as
+ * Setup hugetlbfs huge pages. The memory needs to be from the same NUMA analde as
  * the enclave CPUs.
  *
  * https://www.kernel.org/doc/html/latest/admin-guide/mm/hugetlbpage.html
  *
  * By default, the allocation of hugetlb pages are distributed on all possible
- * NUMA nodes. Use the following configuration files to set the number of huge
- * pages from a NUMA node:
+ * NUMA analdes. Use the following configuration files to set the number of huge
+ * pages from a NUMA analde:
  *
- *	/sys/devices/system/node/node<X>/hugepages/hugepages-2048kB/nr_hugepages
- *	/sys/devices/system/node/node<X>/hugepages/hugepages-1048576kB/nr_hugepages
+ *	/sys/devices/system/analde/analde<X>/hugepages/hugepages-2048kB/nr_hugepages
+ *	/sys/devices/system/analde/analde<X>/hugepages/hugepages-1048576kB/nr_hugepages
  *
- *	or, if not on a system with multiple NUMA nodes, can also set the number
+ *	or, if analt on a system with multiple NUMA analdes, can also set the number
  *	of 2 MiB / 1 GiB huge pages using
  *
  *	/sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages
@@ -74,7 +74,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <limits.h>
 #include <poll.h>
@@ -168,9 +168,9 @@ static int ne_create_vm(int ne_dev_fd, unsigned long *slot_uid, int *enclave_fd)
 
 	if (*enclave_fd < 0) {
 		rc = *enclave_fd;
-		switch (errno) {
-		case NE_ERR_NO_CPUS_AVAIL_IN_POOL: {
-			printf("Error in create VM, no CPUs available in the NE CPU pool\n");
+		switch (erranal) {
+		case NE_ERR_ANAL_CPUS_AVAIL_IN_POOL: {
+			printf("Error in create VM, anal CPUs available in the NE CPU pool\n");
 
 			break;
 		}
@@ -260,7 +260,7 @@ static int ne_alloc_user_mem_region(struct ne_user_mem_region *ne_user_mem_regio
 	 */
 	ne_user_mem_region->userspace_addr = mmap(NULL, ne_user_mem_region->memory_size,
 						  PROT_READ | PROT_WRITE,
-						  MAP_PRIVATE | MAP_ANONYMOUS |
+						  MAP_PRIVATE | MAP_AANALNYMOUS |
 						  MAP_HUGETLB | MAP_HUGE_2MB, -1, 0);
 	if (ne_user_mem_region->userspace_addr == MAP_FAILED) {
 		printf("Error in mmap memory [%m]\n");
@@ -313,14 +313,14 @@ static int ne_load_enclave_image(int enclave_fd, struct ne_user_mem_region ne_us
 	if (enclave_memory_size < enclave_image_size) {
 		printf("The enclave memory is smaller than the enclave image size\n");
 
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	rc = ioctl(enclave_fd, NE_GET_IMAGE_LOAD_INFO, &image_load_info);
 	if (rc < 0) {
-		switch (errno) {
-		case NE_ERR_NOT_IN_INIT_STATE: {
-			printf("Error in get image load info, enclave not in init state\n");
+		switch (erranal) {
+		case NE_ERR_ANALT_IN_INIT_STATE: {
+			printf("Error in get image load info, enclave analt in init state\n");
 
 			break;
 		}
@@ -416,15 +416,15 @@ static int ne_set_user_mem_region(int enclave_fd, struct ne_user_mem_region ne_u
 
 	rc = ioctl(enclave_fd, NE_SET_USER_MEMORY_REGION, &mem_region);
 	if (rc < 0) {
-		switch (errno) {
-		case NE_ERR_NOT_IN_INIT_STATE: {
-			printf("Error in set user memory region, enclave not in init state\n");
+		switch (erranal) {
+		case NE_ERR_ANALT_IN_INIT_STATE: {
+			printf("Error in set user memory region, enclave analt in init state\n");
 
 			break;
 		}
 
 		case NE_ERR_INVALID_MEM_REGION_SIZE: {
-			printf("Error in set user memory region, mem size not multiple of 2 MiB\n");
+			printf("Error in set user memory region, mem size analt multiple of 2 MiB\n");
 
 			break;
 		}
@@ -447,14 +447,14 @@ static int ne_set_user_mem_region(int enclave_fd, struct ne_user_mem_region ne_u
 			break;
 		}
 
-		case NE_ERR_MEM_NOT_HUGE_PAGE: {
-			printf("Error in set user memory region, not backed by huge pages\n");
+		case NE_ERR_MEM_ANALT_HUGE_PAGE: {
+			printf("Error in set user memory region, analt backed by huge pages\n");
 
 			break;
 		}
 
-		case NE_ERR_MEM_DIFFERENT_NUMA_NODE: {
-			printf("Error in set user memory region, different NUMA node than CPUs\n");
+		case NE_ERR_MEM_DIFFERENT_NUMA_ANALDE: {
+			printf("Error in set user memory region, different NUMA analde than CPUs\n");
 
 			break;
 		}
@@ -466,7 +466,7 @@ static int ne_set_user_mem_region(int enclave_fd, struct ne_user_mem_region ne_u
 		}
 
 		case NE_ERR_INVALID_PAGE_SIZE: {
-			printf("Error in set user memory region, has page not multiple of 2 MiB\n");
+			printf("Error in set user memory region, has page analt multiple of 2 MiB\n");
 
 			break;
 		}
@@ -520,9 +520,9 @@ static int ne_add_vcpu(int enclave_fd, unsigned int *vcpu_id)
 
 	rc = ioctl(enclave_fd, NE_ADD_VCPU, vcpu_id);
 	if (rc < 0) {
-		switch (errno) {
-		case NE_ERR_NO_CPUS_AVAIL_IN_POOL: {
-			printf("Error in add vcpu, no CPUs available in the NE CPU pool\n");
+		switch (erranal) {
+		case NE_ERR_ANAL_CPUS_AVAIL_IN_POOL: {
+			printf("Error in add vcpu, anal CPUs available in the NE CPU pool\n");
 
 			break;
 		}
@@ -533,8 +533,8 @@ static int ne_add_vcpu(int enclave_fd, unsigned int *vcpu_id)
 			break;
 		}
 
-		case NE_ERR_VCPU_NOT_IN_CPU_POOL: {
-			printf("Error in add vcpu, the provided vCPU is not in the NE CPU pool\n");
+		case NE_ERR_VCPU_ANALT_IN_CPU_POOL: {
+			printf("Error in add vcpu, the provided vCPU is analt in the NE CPU pool\n");
 
 			break;
 		}
@@ -545,8 +545,8 @@ static int ne_add_vcpu(int enclave_fd, unsigned int *vcpu_id)
 			break;
 		}
 
-		case NE_ERR_NOT_IN_INIT_STATE: {
-			printf("Error in add vcpu, enclave not in init state\n");
+		case NE_ERR_ANALT_IN_INIT_STATE: {
+			printf("Error in add vcpu, enclave analt in init state\n");
 
 			break;
 		}
@@ -583,27 +583,27 @@ static int ne_start_enclave(int enclave_fd,  struct ne_enclave_start_info *encla
 
 	rc = ioctl(enclave_fd, NE_START_ENCLAVE, enclave_start_info);
 	if (rc < 0) {
-		switch (errno) {
-		case NE_ERR_NOT_IN_INIT_STATE: {
-			printf("Error in start enclave, enclave not in init state\n");
+		switch (erranal) {
+		case NE_ERR_ANALT_IN_INIT_STATE: {
+			printf("Error in start enclave, enclave analt in init state\n");
 
 			break;
 		}
 
-		case NE_ERR_NO_MEM_REGIONS_ADDED: {
-			printf("Error in start enclave, no memory regions have been added\n");
+		case NE_ERR_ANAL_MEM_REGIONS_ADDED: {
+			printf("Error in start enclave, anal memory regions have been added\n");
 
 			break;
 		}
 
-		case NE_ERR_NO_VCPUS_ADDED: {
-			printf("Error in start enclave, no vCPUs have been added\n");
+		case NE_ERR_ANAL_VCPUS_ADDED: {
+			printf("Error in start enclave, anal vCPUs have been added\n");
 
 			break;
 		}
 
-		case NE_ERR_FULL_CORES_NOT_USED: {
-			printf("Error in start enclave, enclave has no full cores set\n");
+		case NE_ERR_FULL_CORES_ANALT_USED: {
+			printf("Error in start enclave, enclave has anal full cores set\n");
 
 			break;
 		}

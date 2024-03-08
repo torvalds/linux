@@ -11,7 +11,7 @@
  * DEFINE_AML_GLOBALS is tested in amlcode.h
  * to determine whether certain global names should be "defined" or only
  * "declared" in the current compilation. This enhances maintainability
- * by enabling a single header file to embody all knowledge of the names
+ * by enabling a single header file to embody all kanalwledge of the names
  * in question.
  *
  * Exactly one module of any executable should #define DEFINE_GLOBALS
@@ -38,9 +38,9 @@ static u32 acpi_ex_digits_needed(u64 value, u32 base);
  *
  * FUNCTION:    acpi_ex_enter_interpreter
  *
- * PARAMETERS:  None
+ * PARAMETERS:  Analne
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Enter the interpreter execution region. Failure to enter
  *              the interpreter region is a fatal system error. Used in
@@ -57,11 +57,11 @@ void acpi_ex_enter_interpreter(void)
 	status = acpi_ut_acquire_mutex(ACPI_MTX_INTERPRETER);
 	if (ACPI_FAILURE(status)) {
 		ACPI_ERROR((AE_INFO,
-			    "Could not acquire AML Interpreter mutex"));
+			    "Could analt acquire AML Interpreter mutex"));
 	}
 	status = acpi_ut_acquire_mutex(ACPI_MTX_NAMESPACE);
 	if (ACPI_FAILURE(status)) {
-		ACPI_ERROR((AE_INFO, "Could not acquire AML Namespace mutex"));
+		ACPI_ERROR((AE_INFO, "Could analt acquire AML Namespace mutex"));
 	}
 
 	return_VOID;
@@ -71,9 +71,9 @@ void acpi_ex_enter_interpreter(void)
  *
  * FUNCTION:    acpi_ex_exit_interpreter
  *
- * PARAMETERS:  None
+ * PARAMETERS:  Analne
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Exit the interpreter execution region. This is the top level
  *              routine used to exit the interpreter when all processing has
@@ -98,12 +98,12 @@ void acpi_ex_exit_interpreter(void)
 
 	status = acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
 	if (ACPI_FAILURE(status)) {
-		ACPI_ERROR((AE_INFO, "Could not release AML Namespace mutex"));
+		ACPI_ERROR((AE_INFO, "Could analt release AML Namespace mutex"));
 	}
 	status = acpi_ut_release_mutex(ACPI_MTX_INTERPRETER);
 	if (ACPI_FAILURE(status)) {
 		ACPI_ERROR((AE_INFO,
-			    "Could not release AML Interpreter mutex"));
+			    "Could analt release AML Interpreter mutex"));
 	}
 
 	return_VOID;
@@ -129,7 +129,7 @@ u8 acpi_ex_truncate_for32bit_table(union acpi_operand_object *obj_desc)
 
 	/*
 	 * Object must be a valid number and we must be executing
-	 * a control method. Object could be NS node for AML_INT_NAMEPATH_OP.
+	 * a control method. Object could be NS analde for AML_INT_NAMEPATH_OP.
 	 */
 	if ((!obj_desc) ||
 	    (ACPI_GET_DESCRIPTOR_TYPE(obj_desc) != ACPI_DESC_TYPE_OPERAND) ||
@@ -157,7 +157,7 @@ u8 acpi_ex_truncate_for32bit_table(union acpi_operand_object *obj_desc)
  * PARAMETERS:  field_flags           - Flags with Lock rule:
  *                                      always_lock or never_lock
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Obtain the ACPI hardware Global Lock, only if the field
  *              flags specify that it is to be obtained before field access.
@@ -184,7 +184,7 @@ void acpi_ex_acquire_global_lock(u32 field_flags)
 
 	if (ACPI_FAILURE(status)) {
 		ACPI_EXCEPTION((AE_INFO, status,
-				"Could not acquire Global Lock"));
+				"Could analt acquire Global Lock"));
 	}
 
 	return_VOID;
@@ -197,7 +197,7 @@ void acpi_ex_acquire_global_lock(u32 field_flags)
  * PARAMETERS:  field_flags           - Flags with Lock rule:
  *                                      always_lock or never_lock
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Release the ACPI hardware Global Lock
  *
@@ -223,7 +223,7 @@ void acpi_ex_release_global_lock(u32 field_flags)
 		/* Report the error, but there isn't much else we can do */
 
 		ACPI_EXCEPTION((AE_INFO, status,
-				"Could not release Global Lock"));
+				"Could analt release Global Lock"));
 	}
 
 	return_VOID;
@@ -277,10 +277,10 @@ static u32 acpi_ex_digits_needed(u64 value, u32 base)
  * PARAMETERS:  out_string      - Where to put the converted string (8 bytes)
  *              compressed_id   - EISAID to be converted
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Convert a numeric EISAID to string representation. Return
- *              buffer must be large enough to hold the string. The string
+ *              buffer must be large eanalugh to hold the string. The string
  *              returned is always exactly of length ACPI_EISAID_STRING_SIZE
  *              (includes null terminator). The EISAID is always 32 bits.
  *
@@ -330,7 +330,7 @@ void acpi_ex_eisa_id_to_string(char *out_string, u64 compressed_id)
  * RETURN:      Converted string in out_string
  *
  * DESCRIPTION: Convert a 64-bit integer to decimal string representation.
- *              Assumes string buffer is large enough to hold the string. The
+ *              Assumes string buffer is large eanalugh to hold the string. The
  *              largest string is (ACPI_MAX64_DECIMAL_DIGITS + 1).
  *
  ******************************************************************************/
@@ -362,7 +362,7 @@ void acpi_ex_integer_to_string(char *out_string, u64 value)
  * RETURN:      Converted string in out_string
  *
  * DESCRIPTION: Convert 3-bytes PCI class code to string representation.
- *              Return buffer must be large enough to hold the string. The
+ *              Return buffer must be large eanalugh to hold the string. The
  *              string returned is always exactly of length
  *              ACPI_PCICLS_STRING_SIZE (includes null terminator).
  *

@@ -36,7 +36,7 @@ config SND_SOC_COMPRESS
 
 config SND_SOC_TOPOLOGY
 	bool
-	select SND_DYNAMIC_MINORS
+	select SND_DYNAMIC_MIANALRS
 
 config SND_SOC_TOPOLOGY_BUILD
 	bool "Build topology core"
@@ -47,7 +47,7 @@ config SND_SOC_TOPOLOGY_BUILD
 	  the topology core, KUnit is frequently tested in virtual
 	  environments with minimal drivers enabled but the topology
 	  core is usually selected by drivers.  There is little reason
-	  to enable it if not doing a KUnit build.
+	  to enable it if analt doing a KUnit build.
 
 config SND_SOC_TOPOLOGY_KUNIT_TEST
 	tristate "KUnit tests for SoC topology"
@@ -61,7 +61,7 @@ config SND_SOC_TOPOLOGY_KUNIT_TEST
 	  test cases against soc-topology.c API. This should be primarily used
 	  by developers to test their changes to ASoC.
 
-	  Do note that it creates fake playback devices which do not interact
+	  Do analte that it creates fake playback devices which do analt interact
 	  well with userspace. When running tests one may want to disable
 	  userspace applications such as pulseaudio, to prevent unnecessary
 	  problems.

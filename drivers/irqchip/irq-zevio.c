@@ -66,20 +66,20 @@ static void __init zevio_init_irq_base(void __iomem *base)
 	readl(base + IO_RESET);
 }
 
-static int __init zevio_of_init(struct device_node *node,
-				struct device_node *parent)
+static int __init zevio_of_init(struct device_analde *analde,
+				struct device_analde *parent)
 {
-	unsigned int clr = IRQ_NOREQUEST | IRQ_NOPROBE | IRQ_NOAUTOEN;
+	unsigned int clr = IRQ_ANALREQUEST | IRQ_ANALPROBE | IRQ_ANALAUTOEN;
 	struct irq_chip_generic *gc;
 	int ret;
 
 	if (WARN_ON(zevio_irq_io || zevio_irq_domain))
 		return -EBUSY;
 
-	zevio_irq_io = of_iomap(node, 0);
+	zevio_irq_io = of_iomap(analde, 0);
 	BUG_ON(!zevio_irq_io);
 
-	/* Do not invert interrupt status bits */
+	/* Do analt invert interrupt status bits */
 	writel(~0, zevio_irq_io + IO_INVERT_SEL);
 
 	/* Disable sticky interrupts */
@@ -92,7 +92,7 @@ static int __init zevio_of_init(struct device_node *node,
 	zevio_init_irq_base(zevio_irq_io + IO_IRQ_BASE);
 	zevio_init_irq_base(zevio_irq_io + IO_FIQ_BASE);
 
-	zevio_irq_domain = irq_domain_add_linear(node, MAX_INTRS,
+	zevio_irq_domain = irq_domain_add_linear(analde, MAX_INTRS,
 						 &irq_generic_chip_ops, NULL);
 	BUG_ON(!zevio_irq_domain);
 

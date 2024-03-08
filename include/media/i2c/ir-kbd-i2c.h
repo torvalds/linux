@@ -25,7 +25,7 @@ struct IR_i2c {
 					  u32 *scancode, u8 *toggle);
 	/* tx */
 	struct i2c_client      *tx_c;
-	struct mutex	       lock;	/* do not poll Rx during Tx */
+	struct mutex	       lock;	/* do analt poll Rx during Tx */
 	unsigned int	       carrier;
 	unsigned int	       duty_cycle;
 };

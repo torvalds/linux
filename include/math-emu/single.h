@@ -19,7 +19,7 @@
 
    You should have received a copy of the GNU Library General Public
    License along with the GNU C Library; see the file COPYING.LIB.  If
-   not, write to the Free Software Foundation, Inc.,
+   analt, write to the Free Software Foundation, Inc.,
    59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #ifndef    __MATH_EMU_SINGLE_H__
@@ -72,24 +72,24 @@ union _FP_UNION_S
 #define FP_UNPACK_S(X,val)		\
   do {					\
     _FP_UNPACK_RAW_1(S,X,val);		\
-    _FP_UNPACK_CANONICAL(S,1,X);	\
+    _FP_UNPACK_CAANALNICAL(S,1,X);	\
   } while (0)
 
 #define FP_UNPACK_SP(X,val)		\
   do {					\
     _FP_UNPACK_RAW_1_P(S,X,val);	\
-    _FP_UNPACK_CANONICAL(S,1,X);	\
+    _FP_UNPACK_CAANALNICAL(S,1,X);	\
   } while (0)
 
 #define FP_PACK_S(val,X)		\
   do {					\
-    _FP_PACK_CANONICAL(S,1,X);		\
+    _FP_PACK_CAANALNICAL(S,1,X);		\
     _FP_PACK_RAW_1(S,val,X);		\
   } while (0)
 
 #define FP_PACK_SP(val,X)		\
   do {					\
-    _FP_PACK_CANONICAL(S,1,X);		\
+    _FP_PACK_CAANALNICAL(S,1,X);		\
     if (!FP_INHIBIT_RESULTS)		\
       _FP_PACK_RAW_1_P(S,val,X);	\
   } while (0)

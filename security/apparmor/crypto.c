@@ -4,7 +4,7 @@
  *
  * This file contains AppArmor policy loading interface function definitions.
  *
- * Copyright 2013 Canonical Ltd.
+ * Copyright 2013 Caanalnical Ltd.
  *
  * Fns to provide a checksum of policy that has been loaded this can be
  * compared to userspace policy compiles to check loaded policy is what
@@ -36,7 +36,7 @@ char *aa_calc_hash(void *data, size_t len)
 
 	hash = kzalloc(apparmor_hash_size, GFP_KERNEL);
 	if (!hash)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	desc->tfm = apparmor_tfm;
 
@@ -73,7 +73,7 @@ int aa_calc_profile_hash(struct aa_profile *profile, u32 version, void *start,
 
 	profile->hash = kzalloc(apparmor_hash_size, GFP_KERNEL);
 	if (!profile->hash)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	desc->tfm = apparmor_tfm;
 

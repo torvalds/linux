@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright Sunplus Technology Co., Ltd.
+/* Copyright Sunplus Techanallogy Co., Ltd.
  *       All rights reserved.
  */
 
@@ -76,7 +76,7 @@ static netdev_tx_t spl2sw_ethernet_start_xmit(struct sk_buff *skb,
 	u32 cmd2;
 
 	if (unlikely(comm->tx_desc_full == 1)) {
-		/* No TX descriptors left. Wait for tx interrupt. */
+		/* Anal TX descriptors left. Wait for tx interrupt. */
 		netdev_dbg(ndev, "TX descriptor queue full when xmit!\n");
 		return NETDEV_TX_BUSY;
 	}
@@ -218,7 +218,7 @@ static void spl2sw_check_mac_vendor_id_and_convert(u8 *mac_addr)
 	}
 }
 
-static int spl2sw_nvmem_get_mac_address(struct device *dev, struct device_node *np,
+static int spl2sw_nvmem_get_mac_address(struct device *dev, struct device_analde *np,
 					void *addrbuf)
 {
 	struct nvmem_cell *cell;
@@ -272,7 +272,7 @@ static u32 spl2sw_init_netdev(struct platform_device *pdev, u8 *mac_addr,
 	ndev = devm_alloc_etherdev(&pdev->dev, sizeof(*mac));
 	if (!ndev) {
 		*r_ndev = NULL;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	SET_NETDEV_DEV(ndev, &pdev->dev);
 	ndev->netdev_ops = &netdev_ops;
@@ -296,13 +296,13 @@ static u32 spl2sw_init_netdev(struct platform_device *pdev, u8 *mac_addr,
 	return 0;
 }
 
-static struct device_node *spl2sw_get_eth_child_node(struct device_node *ether_np, int id)
+static struct device_analde *spl2sw_get_eth_child_analde(struct device_analde *ether_np, int id)
 {
-	struct device_node *port_np;
+	struct device_analde *port_np;
 	int port_id;
 
-	for_each_child_of_node(ether_np, port_np) {
-		/* It is not a 'port' node, continue. */
+	for_each_child_of_analde(ether_np, port_np) {
+		/* It is analt a 'port' analde, continue. */
 		if (strcmp(port_np->name, "port"))
 			continue;
 
@@ -313,16 +313,16 @@ static struct device_node *spl2sw_get_eth_child_node(struct device_node *ether_n
 			return port_np;
 	}
 
-	/* Not found! */
+	/* Analt found! */
 	return NULL;
 }
 
 static int spl2sw_probe(struct platform_device *pdev)
 {
-	struct device_node *eth_ports_np;
-	struct device_node *port_np;
+	struct device_analde *eth_ports_np;
+	struct device_analde *port_np;
 	struct spl2sw_common *comm;
-	struct device_node *phy_np;
+	struct device_analde *phy_np;
 	phy_interface_t phy_mode;
 	struct net_device *ndev;
 	struct spl2sw_mac *mac;
@@ -330,12 +330,12 @@ static int spl2sw_probe(struct platform_device *pdev)
 	int irq, i, ret;
 
 	if (platform_get_drvdata(pdev))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Allocate memory for 'spl2sw_common' area. */
 	comm = devm_kzalloc(&pdev->dev, sizeof(*comm), GFP_KERNEL);
 	if (!comm)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	comm->pdev = pdev;
 	platform_set_drvdata(pdev, comm);
@@ -409,17 +409,17 @@ static int spl2sw_probe(struct platform_device *pdev)
 		goto out_clk_disable;
 	}
 
-	/* Get child node ethernet-ports. */
-	eth_ports_np = of_get_child_by_name(pdev->dev.of_node, "ethernet-ports");
+	/* Get child analde ethernet-ports. */
+	eth_ports_np = of_get_child_by_name(pdev->dev.of_analde, "ethernet-ports");
 	if (!eth_ports_np) {
-		dev_err(&pdev->dev, "No ethernet-ports child node found!\n");
-		ret = -ENODEV;
+		dev_err(&pdev->dev, "Anal ethernet-ports child analde found!\n");
+		ret = -EANALDEV;
 		goto out_free_mdio;
 	}
 
 	for (i = 0; i < MAX_NETDEV_NUM; i++) {
-		/* Get port@i of node ethernet-ports. */
-		port_np = spl2sw_get_eth_child_node(eth_ports_np, i);
+		/* Get port@i of analde ethernet-ports. */
+		port_np = spl2sw_get_eth_child_analde(eth_ports_np, i);
 		if (!port_np)
 			continue;
 
@@ -455,7 +455,7 @@ static int spl2sw_probe(struct platform_device *pdev)
 		ndev->irq = irq;
 		comm->ndev[i] = ndev;
 		mac = netdev_priv(ndev);
-		mac->phy_node = phy_np;
+		mac->phy_analde = phy_np;
 		mac->phy_mode = phy_mode;
 		mac->comm = comm;
 
@@ -477,8 +477,8 @@ static int spl2sw_probe(struct platform_device *pdev)
 			break;
 	}
 	if (i >= MAX_NETDEV_NUM) {
-		dev_err(&pdev->dev, "No valid ethernet port!\n");
-		ret = -ENODEV;
+		dev_err(&pdev->dev, "Anal valid ethernet port!\n");
+		ret = -EANALDEV;
 		goto out_free_mdio;
 	}
 

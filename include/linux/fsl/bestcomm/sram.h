@@ -19,7 +19,7 @@
 
 /* Structure used internally */
 	/* The internals are here for the inline functions
-	 * sake, certainly not for the user to mess with !
+	 * sake, certainly analt for the user to mess with !
 	 */
 struct bcom_sram {
 	phys_addr_t		 base_phys;
@@ -33,7 +33,7 @@ extern struct bcom_sram *bcom_sram;
 
 
 /* Public API */
-extern int  bcom_sram_init(struct device_node *sram_node, char *owner);
+extern int  bcom_sram_init(struct device_analde *sram_analde, char *owner);
 extern void bcom_sram_cleanup(void);
 
 extern void* bcom_sram_alloc(int size, int align, phys_addr_t *phys);

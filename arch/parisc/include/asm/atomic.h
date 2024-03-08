@@ -52,7 +52,7 @@ extern arch_spinlock_t __atomic_hash[ATOMIC_HASH_SIZE] __lock_aligned;
 #endif
 
 /*
- * Note that we need not lock read accesses - aligned word writes/reads
+ * Analte that we need analt lock read accesses - aligned word writes/reads
  * are atomic, so a reader never sees inconsistent values.
  */
 

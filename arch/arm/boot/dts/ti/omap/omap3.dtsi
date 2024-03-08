@@ -53,8 +53,8 @@
 	};
 
 	/*
-	 * The soc node represents the soc top level view. It is used for IPs
-	 * that are not memory mapped in the MPU view or for the MPU itself.
+	 * The soc analde represents the soc top level view. It is used for IPs
+	 * that are analt memory mapped in the MPU view or for the MPU itself.
 	 */
 	soc {
 		compatible = "ti,omap-infra";
@@ -76,7 +76,7 @@
 	/*
 	 * XXX: Use a flat representation of the OMAP3 interconnect.
 	 * The real OMAP interconnect network is quite complex.
-	 * Since it will not bring real advantage to represent that in DT for
+	 * Since it will analt bring real advantage to represent that in DT for
 	 * the moment, just use a fake OCP bus entry to represent the whole bus
 	 * hierarchy.
 	 */
@@ -165,7 +165,7 @@
 			reg-names = "rev", "sysc", "syss";
 			ti,sysc-mask = <(SYSC_OMAP2_AUTOIDLE)>;
 			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
-					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_ANAL>,
 					<SYSC_IDLE_SMART>;
 			ti,syss-mask = <1>;
 			clocks = <&aes1_ick>;
@@ -191,7 +191,7 @@
 			reg-names = "rev", "sysc", "syss";
 			ti,sysc-mask = <(SYSC_OMAP2_AUTOIDLE)>;
 			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
-					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_ANAL>,
 					<SYSC_IDLE_SMART>;
 			ti,syss-mask = <1>;
 			clocks = <&aes2_ick>;
@@ -242,7 +242,7 @@
 			      <0x48320004 0x4>;
 			reg-names = "rev", "sysc";
 			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
-					<SYSC_IDLE_NO>;
+					<SYSC_IDLE_ANAL>;
 			clocks = <&wkup_32k_fck>, <&omap_32ksync_ick>;
 			clock-names = "fck", "ick";
 			#address-cells = <1>;
@@ -273,10 +273,10 @@
 					 SYSC_OMAP2_SOFTRESET |
 					 SYSC_OMAP2_AUTOIDLE)>;
 			ti,sysc-midle = <SYSC_IDLE_FORCE>,
-					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_ANAL>,
 					<SYSC_IDLE_SMART>;
 			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
-					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_ANAL>,
 					<SYSC_IDLE_SMART>;
 			ti,syss-mask = <1>;
 			/* Domains (V, P, C): core, core_pwrdm, core_l3_clkdm */
@@ -586,7 +586,7 @@
 			reg-names = "rev", "sysc", "syss";
 			ti,sysc-mask = <(SYSC_OMAP2_AUTOIDLE)>;
 			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
-					<SYSC_IDLE_NO>;
+					<SYSC_IDLE_ANAL>;
 			ti,syss-mask = <1>;
 			clocks = <&rng_ick>;
 			clock-names = "ick";
@@ -699,7 +699,7 @@
 					 SYSC_OMAP2_SOFTRESET |
 					 SYSC_OMAP2_AUTOIDLE)>;
 			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
-					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_ANAL>,
 					<SYSC_IDLE_SMART>;
 			ti,syss-mask = <1>;
 			clocks = <&gpt1_fck>, <&gpt1_ick>;
@@ -730,7 +730,7 @@
 					 SYSC_OMAP2_SOFTRESET |
 					 SYSC_OMAP2_AUTOIDLE)>;
 			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
-					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_ANAL>,
 					<SYSC_IDLE_SMART>;
 			ti,syss-mask = <1>;
 			clocks = <&gpt2_fck>, <&gpt2_ick>;
@@ -829,7 +829,7 @@
 					 SYSC_OMAP2_SOFTRESET |
 					 SYSC_OMAP2_AUTOIDLE)>;
 			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
-					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_ANAL>,
 					<SYSC_IDLE_SMART>;
 			ti,syss-mask = <1>;
 			clocks = <&gpt12_fck>, <&gpt12_ick>;
@@ -903,10 +903,10 @@
 					 SYSC_OMAP2_SOFTRESET |
 					 SYSC_OMAP2_AUTOIDLE)>;
 			ti,sysc-midle = <SYSC_IDLE_FORCE>,
-					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_ANAL>,
 					<SYSC_IDLE_SMART>;
 			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
-					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_ANAL>,
 					<SYSC_IDLE_SMART>;
 			ti,syss-mask = <1>;
 			/* Clock defined in the SoC specific dtsi file */
@@ -1030,8 +1030,8 @@
 
 /* Preferred always-on timer for clockevent. Some boards must use dmtimer12 */
 &timer1_target {
-	ti,no-reset-on-init;
-	ti,no-idle;
+	ti,anal-reset-on-init;
+	ti,anal-idle;
 	timer@0 {
 		assigned-clocks = <&gpt1_fck>;
 		assigned-clock-parents = <&omap_32k_fck>;

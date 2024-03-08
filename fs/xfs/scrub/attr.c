@@ -10,7 +10,7 @@
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
 #include "xfs_log_format.h"
-#include "xfs_inode.h"
+#include "xfs_ianalde.h"
 #include "xfs_da_format.h"
 #include "xfs_da_btree.h"
 #include "xfs_attr.h"
@@ -61,8 +61,8 @@ xchk_xattr_want_freemap(
 }
 
 /*
- * Allocate enough memory to hold an attr value and attr block bitmaps,
- * reallocating the buffer if necessary.  Buffer contents are not preserved
+ * Allocate eanalugh memory to hold an attr value and attr block bitmaps,
+ * reallocating the buffer if necessary.  Buffer contents are analt preserved
  * across a reallocation.
  */
 static int
@@ -81,18 +81,18 @@ xchk_setup_xattr_buf(
 
 	ab = kvzalloc(sizeof(struct xchk_xattr_buf), XCHK_GFP_FLAGS);
 	if (!ab)
-		return -ENOMEM;
+		return -EANALMEM;
 	sc->buf = ab;
 	sc->buf_cleanup = xchk_xattr_buf_cleanup;
 
 	ab->usedmap = kvmalloc(bmp_sz, XCHK_GFP_FLAGS);
 	if (!ab->usedmap)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (xchk_xattr_want_freemap(sc)) {
 		ab->freemap = kvmalloc(bmp_sz, XCHK_GFP_FLAGS);
 		if (!ab->freemap)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 resize_value:
@@ -107,14 +107,14 @@ resize_value:
 
 	new_val = kvmalloc(value_size, XCHK_GFP_FLAGS);
 	if (!new_val)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ab->value = new_val;
 	ab->value_sz = value_size;
 	return 0;
 }
 
-/* Set us up to scrub an inode's extended attributes. */
+/* Set us up to scrub an ianalde's extended attributes. */
 int
 xchk_setup_xattr(
 	struct xfs_scrub	*sc)
@@ -124,7 +124,7 @@ xchk_setup_xattr(
 	/*
 	 * We failed to get memory while checking attrs, so this time try to
 	 * get all the memory we're ever going to need.  Allocate the buffer
-	 * without the inode lock held, which means we can sleep.
+	 * without the ianalde lock held, which means we can sleep.
 	 */
 	if (sc->flags & XCHK_TRY_HARDER) {
 		error = xchk_setup_xattr_buf(sc, XATTR_SIZE_MAX);
@@ -132,7 +132,7 @@ xchk_setup_xattr(
 			return error;
 	}
 
-	return xchk_setup_inode_contents(sc, 0);
+	return xchk_setup_ianalde_contents(sc, 0);
 }
 
 /* Extended Attributes */
@@ -146,7 +146,7 @@ struct xchk_xattr {
  * Check that an extended attribute key can be looked up by hash.
  *
  * We use the XFS attribute list iterator (i.e. xfs_attr_list_ilocked)
- * to call this function for every attribute key in an inode.  Once
+ * to call this function for every attribute key in an ianalde.  Once
  * we're here, we load the attribute value to see if any errors happen,
  * or if we get more or less data than we expected.
  */
@@ -159,7 +159,7 @@ xchk_xattr_listent(
 	int				valuelen)
 {
 	struct xfs_da_args		args = {
-		.op_flags		= XFS_DA_OP_NOTIME,
+		.op_flags		= XFS_DA_OP_ANALTIME,
 		.attr_filter		= flags & XFS_ATTR_NSP_ONDISK_MASK,
 		.geo			= context->dp->i_mount->m_attr_geo,
 		.whichfork		= XFS_ATTR_FORK,
@@ -178,25 +178,25 @@ xchk_xattr_listent(
 	ab = sx->sc->buf;
 
 	if (xchk_should_terminate(sx->sc, &error)) {
-		context->seen_enough = error;
+		context->seen_eanalugh = error;
 		return;
 	}
 
 	if (flags & XFS_ATTR_INCOMPLETE) {
-		/* Incomplete attr key, just mark the inode for preening. */
-		xchk_ino_set_preen(sx->sc, context->dp->i_ino);
+		/* Incomplete attr key, just mark the ianalde for preening. */
+		xchk_ianal_set_preen(sx->sc, context->dp->i_ianal);
 		return;
 	}
 
 	/* Only one namespace bit allowed. */
 	if (hweight32(flags & XFS_ATTR_NSP_ONDISK_MASK) > 1) {
-		xchk_fblock_set_corrupt(sx->sc, XFS_ATTR_FORK, args.blkno);
+		xchk_fblock_set_corrupt(sx->sc, XFS_ATTR_FORK, args.blkanal);
 		goto fail_xref;
 	}
 
 	/* Does this name make sense? */
 	if (!xfs_attr_namecheck(name, namelen)) {
-		xchk_fblock_set_corrupt(sx->sc, XFS_ATTR_FORK, args.blkno);
+		xchk_fblock_set_corrupt(sx->sc, XFS_ATTR_FORK, args.blkanal);
 		goto fail_xref;
 	}
 
@@ -209,33 +209,33 @@ xchk_xattr_listent(
 		goto fail_xref;
 
 	/*
-	 * Try to allocate enough memory to extrat the attr value.  If that
-	 * doesn't work, we overload the seen_enough variable to convey
+	 * Try to allocate eanalugh memory to extrat the attr value.  If that
+	 * doesn't work, we overload the seen_eanalugh variable to convey
 	 * the error message back to the main scrub function.
 	 */
 	error = xchk_setup_xattr_buf(sx->sc, valuelen);
-	if (error == -ENOMEM)
+	if (error == -EANALMEM)
 		error = -EDEADLOCK;
 	if (error) {
-		context->seen_enough = error;
+		context->seen_eanalugh = error;
 		return;
 	}
 
 	args.value = ab->value;
 
 	error = xfs_attr_get_ilocked(&args);
-	/* ENODATA means the hash lookup failed and the attr is bad */
-	if (error == -ENODATA)
+	/* EANALDATA means the hash lookup failed and the attr is bad */
+	if (error == -EANALDATA)
 		error = -EFSCORRUPTED;
-	if (!xchk_fblock_process_error(sx->sc, XFS_ATTR_FORK, args.blkno,
+	if (!xchk_fblock_process_error(sx->sc, XFS_ATTR_FORK, args.blkanal,
 			&error))
 		goto fail_xref;
 	if (args.valuelen != valuelen)
 		xchk_fblock_set_corrupt(sx->sc, XFS_ATTR_FORK,
-					     args.blkno);
+					     args.blkanal);
 fail_xref:
 	if (sx->sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
-		context->seen_enough = 1;
+		context->seen_eanalugh = 1;
 	return;
 }
 
@@ -381,10 +381,10 @@ xchk_xattr_block(
 	unsigned int			hdrsize;
 	int				i;
 
-	if (*last_checked == blk->blkno)
+	if (*last_checked == blk->blkanal)
 		return 0;
 
-	*last_checked = blk->blkno;
+	*last_checked = blk->blkanal;
 	bitmap_zero(ab->usedmap, mp->m_attr_geo->blksize);
 
 	/* Check all the padding. */
@@ -601,18 +601,18 @@ xchk_xattr(
 	xfs_dablk_t			last_checked = -1U;
 	int				error = 0;
 
-	if (!xfs_inode_hasattr(sc->ip))
-		return -ENOENT;
+	if (!xfs_ianalde_hasattr(sc->ip))
+		return -EANALENT;
 
 	/* Allocate memory for xattr checking. */
 	error = xchk_setup_xattr_buf(sc, 0);
-	if (error == -ENOMEM)
+	if (error == -EANALMEM)
 		return -EDEADLOCK;
 	if (error)
 		return error;
 
 	/* Check the physical structure of the xattr. */
-	if (sc->ip->i_af.if_format == XFS_DINODE_FMT_LOCAL)
+	if (sc->ip->i_af.if_format == XFS_DIANALDE_FMT_LOCAL)
 		error = xchk_xattr_check_sf(sc);
 	else
 		error = xchk_da_btree(sc, XFS_ATTR_FORK, xchk_xattr_rec,
@@ -627,7 +627,7 @@ xchk_xattr(
 	 * Look up every xattr in this file by name and hash.
 	 *
 	 * Use the backend implementation of xfs_attr_list to call
-	 * xchk_xattr_listent on every attribute key in this inode.
+	 * xchk_xattr_listent on every attribute key in this ianalde.
 	 * In other words, we use the same iterator/callback mechanism
 	 * that listattr uses to scrub extended attributes, though in our
 	 * _listent function, we check the value of the attribute.
@@ -644,8 +644,8 @@ xchk_xattr(
 		return error;
 
 	/* Did our listent function try to return any errors? */
-	if (sx.context.seen_enough < 0)
-		return sx.context.seen_enough;
+	if (sx.context.seen_eanalugh < 0)
+		return sx.context.seen_eanalugh;
 
 	return 0;
 }

@@ -1,9 +1,9 @@
 #
 # (c) Copyright 2020 Advanced Micro Devices, Inc. All the rights reserved
 #
-#  All rights reserved.  This notice is intended as a precaution against
-#  inadvertent publication and does not imply publication or any waiver
-#  of confidentiality.  The year included in the foregoing notice is the
+#  All rights reserved.  This analtice is intended as a precaution against
+#  inadvertent publication and does analt imply publication or any waiver
+#  of confidentiality.  The year included in the foregoing analtice is the
 #  year of creation of the work.
 #
 #  Authors: AMD

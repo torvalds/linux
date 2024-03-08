@@ -29,7 +29,7 @@
 #include <asm/dma-iommu.h>
 #else
 #define arm_iommu_create_mapping(...)	NULL
-#define arm_iommu_attach_device(...)	-ENODEV
+#define arm_iommu_attach_device(...)	-EANALDEV
 #define arm_iommu_release_mapping(...)	do {} while (0)
 #endif
 
@@ -40,13 +40,13 @@
 
 struct ipmmu_features {
 	bool use_ns_alias_offset;
-	bool has_cache_leaf_nodes;
+	bool has_cache_leaf_analdes;
 	unsigned int number_of_contexts;
 	unsigned int num_utlbs;
 	bool setup_imbuscr;
 	bool twobit_imttbcr_sl0;
 	bool reserved_context;
-	bool cache_snoop;
+	bool cache_sanalop;
 	unsigned int ctx_offset_base;
 	unsigned int ctx_offset_stride;
 	unsigned int utlb_offset_base;
@@ -381,7 +381,7 @@ static void ipmmu_domain_setup_context(struct ipmmu_vmsa_domain *domain)
 	else
 		tmp = IMTTBCR_SL0_LVL_1;
 
-	if (domain->mmu->features->cache_snoop)
+	if (domain->mmu->features->cache_sanalop)
 		tmp |= IMTTBCR_SH0_INNER_SHAREABLE | IMTTBCR_ORGN0_WB_WA |
 		       IMTTBCR_IRGN0_WB_WA;
 
@@ -407,7 +407,7 @@ static void ipmmu_domain_setup_context(struct ipmmu_vmsa_domain *domain)
 	 * IMCTR
 	 * Enable the MMU and interrupt generation. The long-descriptor
 	 * translation table format doesn't use TEX remapping. Don't enable AF
-	 * software management as we have no use for it. Flush the TLB as
+	 * software management as we have anal use for it. Flush the TLB as
 	 * required when modifying the context registers.
 	 */
 	ipmmu_ctx_write_all(domain, IMCTR,
@@ -421,13 +421,13 @@ static int ipmmu_domain_init_context(struct ipmmu_vmsa_domain *domain)
 	/*
 	 * Allocate the page table operations.
 	 *
-	 * VMSA states in section B3.6.3 "Control of Secure or Non-secure memory
+	 * VMSA states in section B3.6.3 "Control of Secure or Analn-secure memory
 	 * access, Long-descriptor format" that the NStable bit being set in a
 	 * table descriptor will result in the NStable and NS bits of all child
-	 * entries being ignored and considered as being set. The IPMMU seems
-	 * not to comply with this, as it generates a secure access page fault
+	 * entries being iganalred and considered as being set. The IPMMU seems
+	 * analt to comply with this, as it generates a secure access page fault
 	 * if any of the NStable and NS bits isn't set when running in
-	 * non-secure mode.
+	 * analn-secure mode.
 	 */
 	domain->cfg.quirks = IO_PGTABLE_QUIRK_ARM_NS;
 	domain->cfg.pgsize_bitmap = SZ_1G | SZ_2M | SZ_4K;
@@ -438,7 +438,7 @@ static int ipmmu_domain_init_context(struct ipmmu_vmsa_domain *domain)
 	domain->io_domain.geometry.force_aperture = true;
 	/*
 	 * TODO: Add support for coherent walk through CCI with DVM and remove
-	 * cache handling. For now, delegate it to the io-pgtable code.
+	 * cache handling. For analw, delegate it to the io-pgtable code.
 	 */
 	domain->cfg.coherent_walk = false;
 	domain->cfg.iommu_dev = domain->mmu->root->dev;
@@ -493,7 +493,7 @@ static irqreturn_t ipmmu_domain_irq(struct ipmmu_vmsa_domain *domain)
 
 	status = ipmmu_ctx_read_root(domain, IMSTR);
 	if (!(status & err_mask))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	iova = ipmmu_ctx_read_root(domain, IMELAR);
 	if (IS_ENABLED(CONFIG_64BIT))
@@ -516,13 +516,13 @@ static irqreturn_t ipmmu_domain_irq(struct ipmmu_vmsa_domain *domain)
 				    iova);
 
 	if (!(status & (IMSTR_PF | IMSTR_TF)))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/*
 	 * Try to handle page faults and translation faults.
 	 *
 	 * TODO: We need to look up the faulty device based on the I/O VA. Use
-	 * the IOMMU device for now.
+	 * the IOMMU device for analw.
 	 */
 	if (!report_iommu_fault(&domain->io_domain, mmu->dev, iova, 0))
 		return IRQ_HANDLED;
@@ -537,7 +537,7 @@ static irqreturn_t ipmmu_domain_irq(struct ipmmu_vmsa_domain *domain)
 static irqreturn_t ipmmu_irq(int irq, void *dev)
 {
 	struct ipmmu_vmsa_device *mmu = dev;
-	irqreturn_t status = IRQ_NONE;
+	irqreturn_t status = IRQ_ANALNE;
 	unsigned int i;
 	unsigned long flags;
 
@@ -598,7 +598,7 @@ static int ipmmu_attach_device(struct iommu_domain *io_domain,
 	int ret = 0;
 
 	if (!mmu) {
-		dev_err(dev, "Cannot attach to IPMMU\n");
+		dev_err(dev, "Cananalt attach to IPMMU\n");
 		return -ENXIO;
 	}
 
@@ -651,7 +651,7 @@ static int ipmmu_iommu_identity_attach(struct iommu_domain *identity_domain,
 		ipmmu_utlb_disable(domain, fwspec->ids[i]);
 
 	/*
-	 * TODO: Optimize by disabling the context when no device is attached.
+	 * TODO: Optimize by disabling the context when anal device is attached.
 	 */
 	return 0;
 }
@@ -713,9 +713,9 @@ static int ipmmu_init_platform_device(struct device *dev,
 {
 	struct platform_device *ipmmu_pdev;
 
-	ipmmu_pdev = of_find_device_by_node(args->np);
+	ipmmu_pdev = of_find_device_by_analde(args->np);
 	if (!ipmmu_pdev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	dev_iommu_priv_set(dev, platform_get_drvdata(ipmmu_pdev));
 
@@ -754,7 +754,7 @@ static bool ipmmu_device_is_allowed(struct device *dev)
 	if (!soc_device_match(soc_needs_opt_in))
 		return true;
 
-	/* Check whether this SoC can use the IPMMU correctly or not */
+	/* Check whether this SoC can use the IPMMU correctly or analt */
 	if (soc_device_match(soc_denylist))
 		return false;
 
@@ -768,7 +768,7 @@ static bool ipmmu_device_is_allowed(struct device *dev)
 			return true;
 	}
 
-	/* Otherwise, do not allow use of IPMMU */
+	/* Otherwise, do analt allow use of IPMMU */
 	return false;
 }
 
@@ -776,7 +776,7 @@ static int ipmmu_of_xlate(struct device *dev,
 			  struct of_phandle_args *spec)
 {
 	if (!ipmmu_device_is_allowed(dev))
-		return -ENODEV;
+		return -EANALDEV;
 
 	iommu_fwspec_add_ids(dev, spec->args, 1);
 
@@ -839,7 +839,7 @@ static struct iommu_device *ipmmu_probe_device(struct device *dev)
 	 * Only let through devices that have been verified in xlate()
 	 */
 	if (!mmu)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	return &mmu->iommu;
 }
@@ -852,7 +852,7 @@ static void ipmmu_probe_finalize(struct device *dev)
 		ret = ipmmu_init_arm_mapping(dev);
 
 	if (ret)
-		dev_err(dev, "Can't create IOMMU mapping - DMA-OPS will not work\n");
+		dev_err(dev, "Can't create IOMMU mapping - DMA-OPS will analt work\n");
 }
 
 static void ipmmu_release_device(struct device *dev)
@@ -879,7 +879,7 @@ static const struct iommu_ops ipmmu_ops = {
 	.probe_finalize = ipmmu_probe_finalize,
 	/*
 	 * FIXME: The device grouping is a fixed property of the hardware's
-	 * ability to isolate and control DMA, it should not depend on kconfig.
+	 * ability to isolate and control DMA, it should analt depend on kconfig.
 	 */
 	.device_group = IS_ENABLED(CONFIG_ARM) && !IS_ENABLED(CONFIG_IOMMU_DMA)
 			? generic_device_group : generic_single_device_group,
@@ -911,13 +911,13 @@ static void ipmmu_device_reset(struct ipmmu_vmsa_device *mmu)
 
 static const struct ipmmu_features ipmmu_features_default = {
 	.use_ns_alias_offset = true,
-	.has_cache_leaf_nodes = false,
+	.has_cache_leaf_analdes = false,
 	.number_of_contexts = 1, /* software only tested with one context */
 	.num_utlbs = 32,
 	.setup_imbuscr = true,
 	.twobit_imttbcr_sl0 = false,
 	.reserved_context = false,
-	.cache_snoop = true,
+	.cache_sanalop = true,
 	.ctx_offset_base = 0,
 	.ctx_offset_stride = 0x40,
 	.utlb_offset_base = 0,
@@ -925,13 +925,13 @@ static const struct ipmmu_features ipmmu_features_default = {
 
 static const struct ipmmu_features ipmmu_features_rcar_gen3 = {
 	.use_ns_alias_offset = false,
-	.has_cache_leaf_nodes = true,
+	.has_cache_leaf_analdes = true,
 	.number_of_contexts = 8,
 	.num_utlbs = 48,
 	.setup_imbuscr = false,
 	.twobit_imttbcr_sl0 = true,
 	.reserved_context = true,
-	.cache_snoop = false,
+	.cache_sanalop = false,
 	.ctx_offset_base = 0,
 	.ctx_offset_stride = 0x40,
 	.utlb_offset_base = 0,
@@ -939,13 +939,13 @@ static const struct ipmmu_features ipmmu_features_rcar_gen3 = {
 
 static const struct ipmmu_features ipmmu_features_rcar_gen4 = {
 	.use_ns_alias_offset = false,
-	.has_cache_leaf_nodes = true,
+	.has_cache_leaf_analdes = true,
 	.number_of_contexts = 16,
 	.num_utlbs = 64,
 	.setup_imbuscr = false,
 	.twobit_imttbcr_sl0 = true,
 	.reserved_context = true,
-	.cache_snoop = false,
+	.cache_sanalop = false,
 	.ctx_offset_base = 0x10000,
 	.ctx_offset_stride = 0x1040,
 	.utlb_offset_base = 0x3000,
@@ -1011,8 +1011,8 @@ static int ipmmu_probe(struct platform_device *pdev)
 
 	mmu = devm_kzalloc(&pdev->dev, sizeof(*mmu), GFP_KERNEL);
 	if (!mmu) {
-		dev_err(&pdev->dev, "cannot allocate device data\n");
-		return -ENOMEM;
+		dev_err(&pdev->dev, "cananalt allocate device data\n");
+		return -EANALMEM;
 	}
 
 	mmu->dev = &pdev->dev;
@@ -1031,16 +1031,16 @@ static int ipmmu_probe(struct platform_device *pdev)
 		return PTR_ERR(mmu->base);
 
 	/*
-	 * The IPMMU has two register banks, for secure and non-secure modes.
+	 * The IPMMU has two register banks, for secure and analn-secure modes.
 	 * The bank mapped at the beginning of the IPMMU address space
 	 * corresponds to the running mode of the CPU. When running in secure
-	 * mode the non-secure register bank is also available at an offset.
+	 * mode the analn-secure register bank is also available at an offset.
 	 *
 	 * Secure mode operation isn't clearly documented and is thus currently
-	 * not implemented in the driver. Furthermore, preliminary tests of
-	 * non-secure operation with the main register bank were not successful.
-	 * Offset the registers base unconditionally to point to the non-secure
-	 * alias space for now.
+	 * analt implemented in the driver. Furthermore, preliminary tests of
+	 * analn-secure operation with the main register bank were analt successful.
+	 * Offset the registers base unconditionally to point to the analn-secure
+	 * alias space for analw.
 	 */
 	if (mmu->features->use_ns_alias_offset)
 		mmu->base += IM_NS_ALIAS_OFFSET;
@@ -1049,10 +1049,10 @@ static int ipmmu_probe(struct platform_device *pdev)
 
 	/*
 	 * Determine if this IPMMU instance is a root device by checking for
-	 * the lack of has_cache_leaf_nodes flag or renesas,ipmmu-main property.
+	 * the lack of has_cache_leaf_analdes flag or renesas,ipmmu-main property.
 	 */
-	if (!mmu->features->has_cache_leaf_nodes ||
-	    !of_property_present(pdev->dev.of_node, "renesas,ipmmu-main"))
+	if (!mmu->features->has_cache_leaf_analdes ||
+	    !of_property_present(pdev->dev.of_analde, "renesas,ipmmu-main"))
 		mmu->root = mmu;
 	else
 		mmu->root = ipmmu_find_root();
@@ -1089,7 +1089,7 @@ static int ipmmu_probe(struct platform_device *pdev)
 	 * - R-Car Gen2 IPMMU (all devices registered)
 	 * - R-Car Gen3 IPMMU (leaf devices only - skip root IPMMU-MM device)
 	 */
-	if (!mmu->features->has_cache_leaf_nodes || !ipmmu_is_root(mmu)) {
+	if (!mmu->features->has_cache_leaf_analdes || !ipmmu_is_root(mmu)) {
 		ret = iommu_device_sysfs_add(&mmu->iommu, &pdev->dev, NULL,
 					     dev_name(&pdev->dev));
 		if (ret)
@@ -1124,7 +1124,7 @@ static void ipmmu_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_PM_SLEEP
-static int ipmmu_resume_noirq(struct device *dev)
+static int ipmmu_resume_analirq(struct device *dev)
 {
 	struct ipmmu_vmsa_device *mmu = dev_get_drvdata(dev);
 	unsigned int i;
@@ -1153,7 +1153,7 @@ static int ipmmu_resume_noirq(struct device *dev)
 }
 
 static const struct dev_pm_ops ipmmu_pm  = {
-	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(NULL, ipmmu_resume_noirq)
+	SET_ANALIRQ_SYSTEM_SLEEP_PM_OPS(NULL, ipmmu_resume_analirq)
 };
 #define DEV_PM_OPS	&ipmmu_pm
 #else

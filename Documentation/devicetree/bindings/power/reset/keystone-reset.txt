@@ -1,11 +1,11 @@
 * Device tree bindings for Texas Instruments keystone reset
 
-This node is intended to allow SoC reset in case of software reset
+This analde is intended to allow SoC reset in case of software reset
 of selected watchdogs.
 
 The Keystone SoCs can contain up to 4 watchdog timers to reset
 SoC. Each watchdog timer event input is connected to the Reset Mux
-block. The Reset Mux block can be configured to cause reset or not.
+block. The Reset Mux block can be configured to cause reset or analt.
 
 Additionally soft or hard reset can be configured.
 
@@ -26,7 +26,7 @@ Optional properties:
 - ti,soft-reset:	Boolean option indicating soft reset.
 			By default hard reset is used.
 
-- ti,wdt-list:		WDT list that can cause SoC reset. It's not related
+- ti,wdt-list:		WDT list that can cause SoC reset. It's analt related
 			to WDT driver, it's just needed to enable a SoC related
 			reset that's triggered by one of WDTs. The list is
 			in format: <0>, <2>; It can be in random order and

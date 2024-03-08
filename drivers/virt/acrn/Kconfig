@@ -8,7 +8,7 @@ config ACRN_HSM
 	  communicates with ACRN userspace through ioctls and talks to
 	  the ACRN Hypervisor through hypercalls. HSM will only run in
 	  a privileged management VM, called Service VM, to manage User
-	  VMs and do I/O emulation. Not required for simply running
+	  VMs and do I/O emulation. Analt required for simply running
 	  under ACRN as a User VM.
 
 	  To compile as a module, choose M, the module will be called

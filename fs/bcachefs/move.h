@@ -87,7 +87,7 @@ void bch2_moving_ctxt_flush_all(struct moving_context *);
 void bch2_move_ctxt_wait_for_io(struct moving_context *);
 int bch2_move_ratelimit(struct moving_context *);
 
-/* Inodes in different snapshots may have different IO options: */
+/* Ianaldes in different snapshots may have different IO options: */
 struct snapshot_io_opts_entry {
 	u32			snapshot;
 	struct bch_io_opts	io_opts;
@@ -102,7 +102,7 @@ struct per_snapshot_io_opts {
 static inline void per_snapshot_io_opts_init(struct per_snapshot_io_opts *io_opts, struct bch_fs *c)
 {
 	memset(io_opts, 0, sizeof(*io_opts));
-	io_opts->fs_io_opts = bch2_opts_to_inode_opts(c->opts);
+	io_opts->fs_io_opts = bch2_opts_to_ianalde_opts(c->opts);
 }
 
 static inline void per_snapshot_io_opts_exit(struct per_snapshot_io_opts *io_opts)
@@ -114,7 +114,7 @@ struct bch_io_opts *bch2_move_get_io_opts(struct btree_trans *,
 				struct per_snapshot_io_opts *, struct bkey_s_c);
 int bch2_move_get_io_opts_one(struct btree_trans *, struct bch_io_opts *, struct bkey_s_c);
 
-int bch2_scan_old_btree_nodes(struct bch_fs *, struct bch_move_stats *);
+int bch2_scan_old_btree_analdes(struct bch_fs *, struct bch_move_stats *);
 
 int bch2_move_extent(struct moving_context *,
 		     struct move_bucket_in_flight *,

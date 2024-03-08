@@ -12,10 +12,10 @@ maintainers:
 
 description:
   GPMC connected OneNAND (found on OMAP boards) are represented
-  as child nodes of the GPMC controller.
+  as child analdes of the GPMC controller.
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^onenand@[0-9],[0,9]$"
 
   compatible:

@@ -13,7 +13,7 @@
 	};
 
 	panel {
-		compatible = "yes-optoelectronics,ytc700tlag-05-201c";
+		compatible = "anal-optoelectronics,ytc700tlag-05-201c";
 		backlight = <&backlight>;
 		data-mapping = "vesa-24";
 		power-supply = <&vcc3v3_lcd>;

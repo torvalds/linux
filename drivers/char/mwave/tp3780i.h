@@ -17,19 +17,19 @@
 * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 * GNU General Public License for more details.
 *
-* NO WARRANTY
+* ANAL WARRANTY
 * THE PROGRAM IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OR
 * CONDITIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED INCLUDING, WITHOUT
-* LIMITATION, ANY WARRANTIES OR CONDITIONS OF TITLE, NON-INFRINGEMENT,
+* LIMITATION, ANY WARRANTIES OR CONDITIONS OF TITLE, ANALN-INFRINGEMENT,
 * MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE. Each Recipient is
 * solely responsible for determining the appropriateness of using and
 * distributing the Program and assumes all risks associated with its
-* exercise of rights under this Agreement, including but not limited to
+* exercise of rights under this Agreement, including but analt limited to
 * the risks and costs of program errors, damage to or loss of data,
 * programs or equipment, and unavailability or interruption of operations.
 *
 * DISCLAIMER OF LIABILITY
-* NEITHER RECIPIENT NOR ANY CONTRIBUTORS SHALL HAVE ANY LIABILITY FOR ANY
+* NEITHER RECIPIENT ANALR ANY CONTRIBUTORS SHALL HAVE ANY LIABILITY FOR ANY
 * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
 * DAMAGES (INCLUDING WITHOUT LIMITATION LOST PROFITS), HOWEVER CAUSED AND
 * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
@@ -38,7 +38,7 @@
 * HEREUNDER, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES
 *
 * You should have received a copy of the GNU General Public License
-* along with this program; if not, write to the Free Software
+* along with this program; if analt, write to the Free Software
 * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 *
 *
@@ -66,7 +66,7 @@
 #define TP_CFG_RerequestTimer   1	/* 2 usec */
 #define TP_CFG_MEMCS16          0	/* Disabled, 16-bit memory assumed */
 #define TP_CFG_IsaMemCmdWidth   3	/* 295 nsec (16-bit) */
-#define TP_CFG_GateIOCHRDY      0	/* No IOCHRDY gating */
+#define TP_CFG_GateIOCHRDY      0	/* Anal IOCHRDY gating */
 #define TP_CFG_EnablePwrMgmt    1	/* Enable low poser suspend/resume */
 #define TP_CFG_HBusTimerValue 255	/* HBus timer load value */
 #define TP_CFG_DisableLBusTimeout 0	/* Enable LBus timeout */

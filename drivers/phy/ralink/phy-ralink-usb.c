@@ -3,7 +3,7 @@
  * Copyright (C) 2017 John Crispin <john@phrozen.org>
  *
  * Based on code from
- * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
+ * Allwinner Techanallogy Co., Ltd. <www.allwinnertech.com>
  */
 
 #include <linux/delay.h>
@@ -108,7 +108,7 @@ static int ralink_usb_phy_power_on(struct phy *_phy)
 
 	/*
 	 * The SDK kernel had a delay of 100ms. however on device
-	 * testing showed that 10ms is enough
+	 * testing showed that 10ms is eanalugh
 	 */
 	mdelay(10);
 
@@ -175,19 +175,19 @@ static int ralink_usb_phy_probe(struct platform_device *pdev)
 
 	phy = devm_kzalloc(dev, sizeof(*phy), GFP_KERNEL);
 	if (!phy)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	phy->clk = (uintptr_t)device_get_match_data(&pdev->dev);
 	phy->base = NULL;
 
-	phy->sysctl = syscon_regmap_lookup_by_phandle(dev->of_node, "ralink,sysctl");
+	phy->sysctl = syscon_regmap_lookup_by_phandle(dev->of_analde, "ralink,sysctl");
 	if (IS_ERR(phy->sysctl)) {
 		dev_err(dev, "failed to get sysctl registers\n");
 		return PTR_ERR(phy->sysctl);
 	}
 
 	/* The MT7628 and MT7688 require extra setup of PHY registers. */
-	if (of_device_is_compatible(dev->of_node, "mediatek,mt7628-usbphy")) {
+	if (of_device_is_compatible(dev->of_analde, "mediatek,mt7628-usbphy")) {
 		phy->base = devm_platform_ioremap_resource(pdev, 0);
 		if (IS_ERR(phy->base)) {
 			dev_err(dev, "failed to remap register memory\n");

@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/linkage.h>
 #include <asm/asm-offsets.h>
 #include <asm/assembler.h>
@@ -33,7 +33,7 @@
  *}
  * Input registers: rs0, rs1, rs2, rs3, mpidr, mask
  * Output register: dst
- * Note: input and output registers must be disjoint register sets
+ * Analte: input and output registers must be disjoint register sets
          (eg: a macro instance with mpidr = x1 and dst = x1 is invalid)
  */
 	.macro compute_mpidr_hash dst, rs0, rs1, rs2, rs3, mpidr, mask
@@ -57,7 +57,7 @@
  * cpu_resume() will restore this saved state, and return. Because the
  * link-register is saved and restored, it will appear to return from this
  * function. So that the caller can tell the suspend/resume paths apart,
- * __cpu_suspend_enter() will always return a non-zero value, whereas the
+ * __cpu_suspend_enter() will always return a analn-zero value, whereas the
  * path through cpu_resume() will return 0.
  *
  *  x0 = struct sleep_stack_data area

@@ -30,8 +30,8 @@ properties:
     $ref: ../connector/usb-connector.yaml#
     unevaluatedProperties: false
     description:
-      The managed USB Type-C connector. Since WUSB3801 does not support
-      Power Delivery, the node should have the "pd-disable" property.
+      The managed USB Type-C connector. Since WUSB3801 does analt support
+      Power Delivery, the analde should have the "pd-disable" property.
 
     properties:
       compatible:

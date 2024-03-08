@@ -2,7 +2,7 @@
 /*
  * Marvell berlin4ct pinctrl driver
  *
- * Copyright (C) 2015 Marvell Technology Group Ltd.
+ * Copyright (C) 2015 Marvell Techanallogy Group Ltd.
  *
  * Author: Jisheng Zhang <jszhang@marvell.com>
  */
@@ -459,7 +459,7 @@ static int berlin4ct_pinctrl_probe(struct platform_device *pdev)
 
 	rmconfig = devm_kzalloc(&pdev->dev, sizeof(*rmconfig), GFP_KERNEL);
 	if (!rmconfig)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(base))

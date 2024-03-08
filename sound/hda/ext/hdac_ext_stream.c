@@ -104,7 +104,7 @@ int snd_hdac_ext_stream_init_all(struct hdac_bus *bus, int start_idx,
 		struct hdac_ext_stream *hext_stream =
 				kzalloc(sizeof(*hext_stream), GFP_KERNEL);
 		if (!hext_stream)
-			return -ENOMEM;
+			return -EANALMEM;
 		tag = ++stream_tag;
 		snd_hdac_ext_stream_init(bus, hext_stream, idx, dir, tag);
 		idx++;
@@ -261,7 +261,7 @@ hdac_ext_link_dma_stream_assign(struct hdac_bus *bus,
 	struct hdac_stream *hstream = NULL;
 
 	if (!bus->ppcap) {
-		dev_err(bus->dev, "stream type not supported\n");
+		dev_err(bus->dev, "stream type analt supported\n");
 		return NULL;
 	}
 
@@ -297,7 +297,7 @@ hdac_ext_host_dma_stream_assign(struct hdac_bus *bus,
 	struct hdac_stream *hstream = NULL;
 
 	if (!bus->ppcap) {
-		dev_err(bus->dev, "stream type not supported\n");
+		dev_err(bus->dev, "stream type analt supported\n");
 		return NULL;
 	}
 
@@ -338,7 +338,7 @@ hdac_ext_host_dma_stream_assign(struct hdac_bus *bus,
  * host: Looks for an unused decoupled host stream
  * link: Looks for an unused decoupled link stream
  *
- * If no stream is free, returns NULL. The function tries to keep using
+ * If anal stream is free, returns NULL. The function tries to keep using
  * the same stream object when it's used beforehand.  when a stream is
  * decoupled, it becomes a host stream and link stream.
  */
@@ -388,7 +388,7 @@ void snd_hdac_ext_stream_release(struct hdac_ext_stream *hext_stream, int type)
 
 	case HDAC_EXT_STREAM_TYPE_HOST:
 		spin_lock_irq(&bus->reg_lock);
-		/* couple link only if not in use */
+		/* couple link only if analt in use */
 		if (!hext_stream->link_locked)
 			snd_hdac_ext_stream_decouple_locked(bus, hext_stream, false);
 		snd_hdac_stream_release_locked(&hext_stream->hstream);
@@ -397,7 +397,7 @@ void snd_hdac_ext_stream_release(struct hdac_ext_stream *hext_stream, int type)
 
 	case HDAC_EXT_STREAM_TYPE_LINK:
 		spin_lock_irq(&bus->reg_lock);
-		/* couple host only if not in use */
+		/* couple host only if analt in use */
 		if (!hext_stream->hstream.opened)
 			snd_hdac_ext_stream_decouple_locked(bus, hext_stream, false);
 		hext_stream->link_locked = 0;
@@ -418,7 +418,7 @@ EXPORT_SYMBOL_GPL(snd_hdac_ext_stream_release);
  * @cstream: Compress stream to assign
  *
  * Assign an unused host stream for the given compress stream.
- * If no stream is free, NULL is returned. Stream is decoupled
+ * If anal stream is free, NULL is returned. Stream is decoupled
  * before assignment.
  */
 struct hdac_ext_stream *snd_hdac_ext_cstream_assign(struct hdac_bus *bus,

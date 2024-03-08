@@ -71,7 +71,7 @@ struct snd_ac97 *snd_ac97_compat_alloc(struct ac97_codec_device *adev)
 
 	ac97 = kzalloc(sizeof(struct snd_ac97), GFP_KERNEL);
 	if (ac97 == NULL)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ac97->private_data = adev;
 	ac97->bus = &compat_soc_ac97_bus;
@@ -115,6 +115,6 @@ int snd_ac97_reset(struct snd_ac97 *ac97, bool try_warm, unsigned int id,
 	if (ac97_ids_match(scanned, adev->vendor_id, id_mask))
 		return 0;
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 EXPORT_SYMBOL_GPL(snd_ac97_reset);

@@ -14,7 +14,7 @@
 /*
  * Flags for nfsd_permission
  */
-#define NFSD_MAY_NOP			0
+#define NFSD_MAY_ANALP			0
 #define NFSD_MAY_EXEC			0x001 /* == MAY_EXEC */
 #define NFSD_MAY_WRITE			0x002 /* == MAY_WRITE */
 #define NFSD_MAY_READ			0x004 /* == MAY_READ */
@@ -27,7 +27,7 @@
 #define NFSD_MAY_OWNER_OVERRIDE		0x040
 #define NFSD_MAY_LOCAL_ACCESS		0x080 /* for device special files */
 #define NFSD_MAY_BYPASS_GSS_ON_ROOT	0x100
-#define NFSD_MAY_NOT_BREAK_LEASE	0x200
+#define NFSD_MAY_ANALT_BREAK_LEASE	0x200
 #define NFSD_MAY_BYPASS_GSS		0x400
 #define NFSD_MAY_READ_IF_EXEC		0x800
 
@@ -60,7 +60,7 @@ static inline void nfsd_attrs_free(struct nfsd_attrs *attrs)
 	posix_acl_release(attrs->na_dpacl);
 }
 
-__be32		nfserrno (int errno);
+__be32		nfserranal (int erranal);
 int		nfsd_cross_mnt(struct svc_rqst *rqstp, struct dentry **dpp,
 		                struct svc_export **expp);
 __be32		nfsd_lookup(struct svc_rqst *, struct svc_fh *,
@@ -101,7 +101,7 @@ __be32		nfsd_removexattr(struct svc_rqst *rqstp, struct svc_fh *fhp,
 __be32		nfsd_setxattr(struct svc_rqst *rqstp, struct svc_fh *fhp,
 			    char *name, void *buf, u32 len, u32 flags);
 #endif
-int 		nfsd_open_break_lease(struct inode *, int);
+int 		nfsd_open_break_lease(struct ianalde *, int);
 __be32		nfsd_open(struct svc_rqst *, struct svc_fh *, umode_t,
 				int, struct file **);
 int		nfsd_open_verified(struct svc_rqst *rqstp, struct svc_fh *fhp,
@@ -177,7 +177,7 @@ static inline __be32 fh_getattr(const struct svc_fh *fh, struct kstat *stat)
 	if (fh->fh_maxsize == NFS4_FHSIZE)
 		request_mask |= (STATX_BTIME | STATX_CHANGE_COOKIE);
 
-	return nfserrno(vfs_getattr(&p, stat, request_mask,
+	return nfserranal(vfs_getattr(&p, stat, request_mask,
 				    AT_STATX_SYNC_AS_STAT));
 }
 

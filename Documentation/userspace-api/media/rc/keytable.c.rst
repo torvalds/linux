@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GPL-2.0 OR GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GPL-2.0 OR GFDL-1.1-anal-invariants-or-later
 
 file: uapi/v4l/keytable.c
 =========================
@@ -20,7 +20,7 @@ file: uapi/v4l/keytable.c
      */
 
     #include <ctype.h>
-    #include <errno.h>
+    #include <erranal.h>
     #include <fcntl.h>
     #include <stdio.h>
     #include <stdlib.h>
@@ -84,7 +84,7 @@ file: uapi/v4l/keytable.c
 
 		    if (value==-1) {
 			    value = strtol(argv[3], NULL, 0);
-			    if (errno)
+			    if (erranal)
 				    perror("value");
 		    }
 
@@ -145,7 +145,7 @@ file: uapi/v4l/keytable.c
 
 			    if (value==-1) {
 				    value = strtol(keycode, NULL, 0);
-				    if (errno)
+				    if (erranal)
 					    perror("value");
 			    }
 

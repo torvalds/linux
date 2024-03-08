@@ -8,7 +8,7 @@ Supported chips:
 
     Prefix: 'ds2482'
 
-    Addresses scanned: None
+    Addresses scanned: Analne
 
     Datasheets:
 
@@ -30,7 +30,7 @@ General Remarks
 
 Valid addresses are 0x18, 0x19, 0x1a, and 0x1b.
 
-However, the device cannot be detected without writing to the i2c bus, so no
+However, the device cananalt be detected without writing to the i2c bus, so anal
 detection is done. You should instantiate the device explicitly.
 
 ::

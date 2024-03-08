@@ -9,7 +9,7 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/nls.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 
 static const wchar_t charset2uni[256] = {
 	/* 0x00*/

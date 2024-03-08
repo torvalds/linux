@@ -99,7 +99,7 @@ static const struct omap_clkctrl_reg_data am3_l4hs_clkctrl_regs[] __initconst = 
 };
 
 static const struct omap_clkctrl_reg_data am3_pruss_ocp_clkctrl_regs[] __initconst = {
-	{ AM3_PRUSS_OCP_PRUSS_CLKCTRL, NULL, CLKF_SW_SUP | CLKF_NO_IDLEST, "pruss_ocp_gclk" },
+	{ AM3_PRUSS_OCP_PRUSS_CLKCTRL, NULL, CLKF_SW_SUP | CLKF_ANAL_IDLEST, "pruss_ocp_gclk" },
 	{ 0 },
 };
 
@@ -194,7 +194,7 @@ static const struct omap_clkctrl_reg_data am3_l3_aon_clkctrl_regs[] __initconst 
 };
 
 static const struct omap_clkctrl_reg_data am3_l4_wkup_aon_clkctrl_regs[] __initconst = {
-	{ AM3_L4_WKUP_AON_WKUP_M3_CLKCTRL, NULL, CLKF_NO_IDLEST, "dpll_core_m4_div2_ck" },
+	{ AM3_L4_WKUP_AON_WKUP_M3_CLKCTRL, NULL, CLKF_ANAL_IDLEST, "dpll_core_m4_div2_ck" },
 	{ 0 },
 };
 
@@ -209,7 +209,7 @@ static const struct omap_clkctrl_reg_data am3_l4_rtc_clkctrl_regs[] __initconst 
 };
 
 static const struct omap_clkctrl_reg_data am3_gfx_l3_clkctrl_regs[] __initconst = {
-	{ AM3_GFX_L3_GFX_CLKCTRL, NULL, CLKF_SW_SUP | CLKF_NO_IDLEST, "gfx_fck_div_ck" },
+	{ AM3_GFX_L3_GFX_CLKCTRL, NULL, CLKF_SW_SUP | CLKF_ANAL_IDLEST, "gfx_fck_div_ck" },
 	{ 0 },
 };
 
@@ -251,7 +251,7 @@ static struct ti_dt_clk am33xx_clks[] = {
 	DT_CLK(NULL, "stm_pmd_clock_mux_ck", "l3-aon-clkctrl:0000:22"),
 	DT_CLK(NULL, "trace_clk_div_ck", "l3-aon-clkctrl:0000:24"),
 	DT_CLK(NULL, "trace_pmd_clk_mux_ck", "l3-aon-clkctrl:0000:20"),
-	{ .node_name = NULL },
+	{ .analde_name = NULL },
 };
 
 static const char *enable_init_clks[] = {
@@ -280,7 +280,7 @@ int __init am33xx_dt_clk_init(void)
 	omap2_clk_enable_init_clocks(enable_init_clks,
 				     ARRAY_SIZE(enable_init_clks));
 
-	/* TRM ERRATA: Timer 3 & 6 default parent (TCLKIN) may not be always
+	/* TRM ERRATA: Timer 3 & 6 default parent (TCLKIN) may analt be always
 	 *    physically present, in such a case HWMOD enabling of
 	 *    clock would be failure with default parent. And timer
 	 *    probe thinks clock is already enabled, this leads to
@@ -296,10 +296,10 @@ int __init am33xx_dt_clk_init(void)
 	clk2 = clk_get_sys(NULL, "timer6_fck");
 	clk_set_parent(clk2, clk1);
 	/*
-	 * The On-Chip 32K RC Osc clock is not an accurate clock-source as per
+	 * The On-Chip 32K RC Osc clock is analt an accurate clock-source as per
 	 * the design/spec, so as a result, for example, timer which supposed
 	 * to get expired @60Sec, but will expire somewhere ~@40Sec, which is
-	 * not expected by any use-case, so change WDT1 clock source to PRCM
+	 * analt expected by any use-case, so change WDT1 clock source to PRCM
 	 * 32KHz clock.
 	 */
 	clk1 = clk_get_sys(NULL, "wdt1_fck");

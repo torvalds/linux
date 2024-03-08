@@ -2,7 +2,7 @@
 /*
  * OMAP2xxx CM module functions
  *
- * Copyright (C) 2009 Nokia Corporation
+ * Copyright (C) 2009 Analkia Corporation
  * Copyright (C) 2008-2010, 2012 Texas Instruments, Inc.
  * Paul Walmsley
  * Rajendra Nayak <rnayak@ti.com>
@@ -11,7 +11,7 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/err.h>
 #include <linux/io.h>
 
@@ -136,7 +136,7 @@ static int omap2xxx_cm_split_idlest_reg(struct clk_omap_reg *idlest_reg,
 
 /**
  * omap2xxx_cm_wait_module_ready - wait for a module to leave idle or standby
- * @part: PRCM partition, ignored for OMAP2
+ * @part: PRCM partition, iganalred for OMAP2
  * @prcm_mod: PRCM module offset
  * @idlest_id: CM_IDLESTx register ID (i.e., x = 1, 2, 3)
  * @idlest_shift: shift of the bit in the CM_IDLEST* register to check

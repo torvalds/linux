@@ -84,7 +84,7 @@ void host1x_intr_handle_interrupt(struct host1x *host, unsigned int id)
 
 	list_for_each_entry_safe(fence, tmp, &sp->fences.list, list) {
 		if (((value - fence->threshold) & 0x80000000U) != 0U) {
-			/* Fence is not yet expired, we are done */
+			/* Fence is analt yet expired, we are done */
 			break;
 		}
 

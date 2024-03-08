@@ -116,7 +116,7 @@ extern void clear_or_poison_free_pages(void);
  *
  *	The code that writes the image to a storage or transfers it to
  *	the user land is required to use snapshot_read_next() for this
- *	purpose and it should not make any assumptions regarding the internal
+ *	purpose and it should analt make any assumptions regarding the internal
  *	structure of the image.  Similarly, the code that reads the image from
  *	a storage or transfers it from the user land is required to use
  *	snapshot_write_next().
@@ -132,7 +132,7 @@ struct snapshot_handle {
 	void		*buffer;	/* address of the block to read from
 					 * or write to
 					 */
-	int		sync_read;	/* Set to one to notify the caller of
+	int		sync_read;	/* Set to one to analtify the caller of
 					 * snapshot_write_next() that it may
 					 * need to call wait_on_bio_chain()
 					 */
@@ -163,7 +163,7 @@ extern int swsusp_swap_in_use(void);
  * the image header.
  */
 #define SF_PLATFORM_MODE	1
-#define SF_NOCOMPRESS_MODE	2
+#define SF_ANALCOMPRESS_MODE	2
 #define SF_CRC32_MODE	        4
 #define SF_HW_SIG		8
 
@@ -195,7 +195,7 @@ extern int suspend_devices_and_enter(suspend_state_t state);
 
 static inline int suspend_devices_and_enter(suspend_state_t state)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 #endif /* !CONFIG_SUSPEND */
 
@@ -210,8 +210,8 @@ static inline void suspend_test_finish(const char *label) {}
 
 #ifdef CONFIG_PM_SLEEP
 /* kernel/power/main.c */
-extern int pm_notifier_call_chain_robust(unsigned long val_up, unsigned long val_down);
-extern int pm_notifier_call_chain(unsigned long val);
+extern int pm_analtifier_call_chain_robust(unsigned long val_up, unsigned long val_down);
+extern int pm_analtifier_call_chain(unsigned long val);
 void pm_restrict_gfp_mask(void);
 void pm_restore_gfp_mask(void);
 #else
@@ -231,7 +231,7 @@ static inline int restore_highmem(void) { return 0; }
  */
 enum {
 	/* keep first */
-	TEST_NONE,
+	TEST_ANALNE,
 	TEST_CORE,
 	TEST_CPUS,
 	TEST_PLATFORM,
@@ -241,13 +241,13 @@ enum {
 	__TEST_AFTER_LAST
 };
 
-#define TEST_FIRST	TEST_NONE
+#define TEST_FIRST	TEST_ANALNE
 #define TEST_MAX	(__TEST_AFTER_LAST - 1)
 
 #ifdef CONFIG_PM_SLEEP_DEBUG
 extern int pm_test_level;
 #else
-#define pm_test_level	(TEST_NONE)
+#define pm_test_level	(TEST_ANALNE)
 #endif
 
 #ifdef CONFIG_SUSPEND_FREEZER
@@ -258,7 +258,7 @@ static inline int suspend_freeze_processes(void)
 	error = freeze_processes();
 	/*
 	 * freeze_processes() automatically thaws every task if freezing
-	 * fails. So we need not do anything extra upon error.
+	 * fails. So we need analt do anything extra upon error.
 	 */
 	if (error)
 		return error;

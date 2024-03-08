@@ -95,17 +95,17 @@ static int adp5520_gpio_probe(struct platform_device *pdev)
 
 	if (pdata == NULL) {
 		dev_err(&pdev->dev, "missing platform data\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (pdev->id != ID_ADP5520) {
 		dev_err(&pdev->dev, "only ADP5520 supports GPIO\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
 	if (dev == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev->master = pdev->dev.parent;
 

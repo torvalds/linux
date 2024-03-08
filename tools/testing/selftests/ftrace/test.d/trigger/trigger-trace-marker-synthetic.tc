@@ -21,10 +21,10 @@ echo -n "end" > trace_marker
 cnt=`grep 'hitcount: *1$' events/ftrace/print/hist | wc -l`
 
 if [ $cnt -ne 2 ]; then
-    fail "hist trace_marker trigger did not trigger correctly"
+    fail "hist trace_marker trigger did analt trigger correctly"
 fi
 
 grep 'hitcount: *1$' events/synthetic/latency/hist > /dev/null || \
-    fail "hist trigger did not trigger "
+    fail "hist trigger did analt trigger "
 
 exit 0

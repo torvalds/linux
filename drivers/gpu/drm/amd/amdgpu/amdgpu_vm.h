@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -56,7 +56,7 @@ struct amdgpu_mem_stats;
 
 #define AMDGPU_PTE_VALID	(1ULL << 0)
 #define AMDGPU_PTE_SYSTEM	(1ULL << 1)
-#define AMDGPU_PTE_SNOOPED	(1ULL << 2)
+#define AMDGPU_PTE_SANALOPED	(1ULL << 2)
 
 /* RV+ */
 #define AMDGPU_PTE_TMZ		(1ULL << 3)
@@ -80,18 +80,18 @@ struct amdgpu_mem_stats;
 /* PTE is handled as PDE for VEGA10 (Translate Further) */
 #define AMDGPU_PTE_TF		(1ULL << 56)
 
-/* MALL noalloc for sienna_cichlid, reserved for older ASICs  */
-#define AMDGPU_PTE_NOALLOC	(1ULL << 58)
+/* MALL analalloc for sienna_cichlid, reserved for older ASICs  */
+#define AMDGPU_PTE_ANALALLOC	(1ULL << 58)
 
 /* PDE Block Fragment Size for VEGA10 */
 #define AMDGPU_PDE_BFS(a)	((uint64_t)a << 59)
 
-/* Flag combination to set no-retry with TF disabled */
-#define AMDGPU_VM_NORETRY_FLAGS	(AMDGPU_PTE_EXECUTABLE | AMDGPU_PDE_PTE | \
+/* Flag combination to set anal-retry with TF disabled */
+#define AMDGPU_VM_ANALRETRY_FLAGS	(AMDGPU_PTE_EXECUTABLE | AMDGPU_PDE_PTE | \
 				AMDGPU_PTE_TF)
 
-/* Flag combination to set no-retry with TF enabled */
-#define AMDGPU_VM_NORETRY_FLAGS_TF (AMDGPU_PTE_VALID | AMDGPU_PTE_SYSTEM | \
+/* Flag combination to set anal-retry with TF enabled */
+#define AMDGPU_VM_ANALRETRY_FLAGS_TF (AMDGPU_PTE_VALID | AMDGPU_PTE_SYSTEM | \
 				   AMDGPU_PTE_PRT)
 /* For GFX9 */
 #define AMDGPU_PTE_MTYPE_VG10(a)	((uint64_t)(a) << 57)
@@ -101,7 +101,7 @@ struct amdgpu_mem_stats;
 #define AMDGPU_MTYPE_CC 2
 
 #define AMDGPU_PTE_DEFAULT_ATC  (AMDGPU_PTE_SYSTEM      \
-                                | AMDGPU_PTE_SNOOPED    \
+                                | AMDGPU_PTE_SANALOPED    \
                                 | AMDGPU_PTE_EXECUTABLE \
                                 | AMDGPU_PTE_READABLE   \
                                 | AMDGPU_PTE_WRITEABLE  \
@@ -221,7 +221,7 @@ struct amdgpu_vm_update_params {
 	bool immediate;
 
 	/**
-	 * @unlocked: true if the root BO is not locked
+	 * @unlocked: true if the root BO is analt locked
 	 */
 	bool unlocked;
 
@@ -248,7 +248,7 @@ struct amdgpu_vm_update_params {
 	bool table_freed;
 
 	/**
-	 * @allow_override: true for memory that is not uncached: allows MTYPE
+	 * @allow_override: true for memory that is analt uncached: allows MTYPE
 	 * to be overridden for NUMA local memory.
 	 */
 	bool allow_override;
@@ -294,22 +294,22 @@ struct amdgpu_vm {
 	/* PT BOs which relocated and their parent need an update */
 	struct list_head	relocated;
 
-	/* per VM BOs moved, but not yet updated in the PT */
+	/* per VM BOs moved, but analt yet updated in the PT */
 	struct list_head	moved;
 
-	/* All BOs of this VM not currently in the state machine */
+	/* All BOs of this VM analt currently in the state machine */
 	struct list_head	idle;
 
-	/* regular invalidated BOs, but not yet updated in the PT */
+	/* regular invalidated BOs, but analt yet updated in the PT */
 	struct list_head	invalidated;
 
-	/* BO mappings freed, but not yet updated in the PT */
+	/* BO mappings freed, but analt yet updated in the PT */
 	struct list_head	freed;
 
 	/* BOs which are invalidated, has been updated in the PTs */
 	struct list_head        done;
 
-	/* PT BOs scheduled to free and fill with zero if vm_resv is not hold */
+	/* PT BOs scheduled to free and fill with zero if vm_resv is analt hold */
 	struct list_head	pt_freed;
 	struct work_struct	pt_free_work;
 
@@ -350,8 +350,8 @@ struct amdgpu_vm {
 	/* Points to the KFD process VM info */
 	struct amdkfd_process_info *process_info;
 
-	/* List node in amdkfd_process_info.vm_list_head */
-	struct list_head	vm_list_node;
+	/* List analde in amdkfd_process_info.vm_list_head */
+	struct list_head	vm_list_analde;
 
 	/* Valid while the PD is reserved or fenced */
 	uint64_t		pd_phys_addr;
@@ -379,7 +379,7 @@ struct amdgpu_vm_manager {
 
 	/* Handling of VM fences */
 	u64					fence_context;
-	unsigned				seqno[AMDGPU_MAX_RINGS];
+	unsigned				seqanal[AMDGPU_MAX_RINGS];
 
 	uint64_t				max_pfn;
 	uint32_t				num_level;
@@ -500,7 +500,7 @@ void amdgpu_vm_check_compute_bug(struct amdgpu_device *adev);
 void amdgpu_vm_get_task_info(struct amdgpu_device *adev, u32 pasid,
 			     struct amdgpu_task_info *task_info);
 bool amdgpu_vm_handle_fault(struct amdgpu_device *adev, u32 pasid,
-			    u32 vmid, u32 node_id, uint64_t addr,
+			    u32 vmid, u32 analde_id, uint64_t addr,
 			    bool write_fault);
 
 void amdgpu_vm_set_task_info(struct amdgpu_vm *vm);
@@ -560,20 +560,20 @@ static inline uint64_t amdgpu_vm_tlb_seq(struct amdgpu_vm *vm)
 }
 
 /*
- * vm eviction_lock can be taken in MMU notifiers. Make sure no reclaim-FS
+ * vm eviction_lock can be taken in MMU analtifiers. Make sure anal reclaim-FS
  * happens while holding this lock anywhere to prevent deadlocks when
- * an MMU notifier runs in reclaim-FS context.
+ * an MMU analtifier runs in reclaim-FS context.
  */
 static inline void amdgpu_vm_eviction_lock(struct amdgpu_vm *vm)
 {
 	mutex_lock(&vm->eviction_lock);
-	vm->saved_flags = memalloc_noreclaim_save();
+	vm->saved_flags = memalloc_analreclaim_save();
 }
 
 static inline bool amdgpu_vm_eviction_trylock(struct amdgpu_vm *vm)
 {
 	if (mutex_trylock(&vm->eviction_lock)) {
-		vm->saved_flags = memalloc_noreclaim_save();
+		vm->saved_flags = memalloc_analreclaim_save();
 		return true;
 	}
 	return false;
@@ -581,7 +581,7 @@ static inline bool amdgpu_vm_eviction_trylock(struct amdgpu_vm *vm)
 
 static inline void amdgpu_vm_eviction_unlock(struct amdgpu_vm *vm)
 {
-	memalloc_noreclaim_restore(vm->saved_flags);
+	memalloc_analreclaim_restore(vm->saved_flags);
 	mutex_unlock(&vm->eviction_lock);
 }
 

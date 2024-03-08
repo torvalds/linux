@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only OR MIT
-/* Copyright (c) 2023 Imagination Technologies Ltd. */
+/* Copyright (c) 2023 Imagination Techanallogies Ltd. */
 
 #include "pvr_device.h"
 #include "pvr_rogue_fwif_stream.h"
@@ -13,16 +13,16 @@
 static __always_inline bool
 stream_def_is_supported(struct pvr_device *pvr_dev, const struct pvr_stream_def *stream_def)
 {
-	if (stream_def->feature == PVR_FEATURE_NONE)
+	if (stream_def->feature == PVR_FEATURE_ANALNE)
 		return true;
 
-	if (!(stream_def->feature & PVR_FEATURE_NOT) &&
+	if (!(stream_def->feature & PVR_FEATURE_ANALT) &&
 	    pvr_device_has_feature(pvr_dev, stream_def->feature)) {
 		return true;
 	}
 
-	if ((stream_def->feature & PVR_FEATURE_NOT) &&
-	    !pvr_device_has_feature(pvr_dev, stream_def->feature & ~PVR_FEATURE_NOT)) {
+	if ((stream_def->feature & PVR_FEATURE_ANALT) &&
+	    !pvr_device_has_feature(pvr_dev, stream_def->feature & ~PVR_FEATURE_ANALT)) {
 		return true;
 	}
 
@@ -178,8 +178,8 @@ pvr_stream_process_ext_stream(struct pvr_device *pvr_dev,
 	} while (ext_header & PVR_STREAM_EXTHDR_CONTINUATION);
 
 	/*
-	 * Verify that "must have" mask is now zero. If it isn't then one of the "must have" quirks
-	 * for this command was not present.
+	 * Verify that "must have" mask is analw zero. If it isn't then one of the "must have" quirks
+	 * for this command was analt present.
 	 */
 	for (i = 0; i < cmd_defs->ext_nr_headers; i++) {
 		if (musthave_masks[i])
@@ -201,7 +201,7 @@ pvr_stream_process_ext_stream(struct pvr_device *pvr_dev,
  *
  * Returns:
  *  * 0 on success,
- *  * -%ENOMEM on out of memory, or
+ *  * -%EANALMEM on out of memory, or
  *  * -%EINVAL on malformed stream.
  */
 int
@@ -248,7 +248,7 @@ pvr_stream_process(struct pvr_device *pvr_dev, const struct pvr_stream_cmd_defs 
 		u32 i;
 
 		/*
-		 * If we don't have an extension stream then there must not be any "must have"
+		 * If we don't have an extension stream then there must analt be any "must have"
 		 * quirks for this command.
 		 */
 		for (i = 0; i < cmd_defs->ext_nr_headers; i++) {

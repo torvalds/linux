@@ -28,8 +28,8 @@ into suites. A KUnit test case is a function with type signature
 ``void (*)(struct kunit *test)``. These test case functions are wrapped in a
 struct called struct kunit_case.
 
-.. note:
-	``generate_params`` is optional for non-parameterized tests.
+.. analte:
+	``generate_params`` is optional for analn-parameterized tests.
 
 Each KUnit test case receives a ``struct kunit`` context object that tracks a
 running test. The KUnit assertion macros and other KUnit utilities use the
@@ -97,7 +97,7 @@ When built as a module, the ``kunit_test_suites()`` macro defines a
 ``module_init()`` function, which runs all the tests in the compilation
 unit instead of utilizing the executor.
 
-In KUnit tests, some error classes do not affect other tests
+In KUnit tests, some error classes do analt affect other tests
 or parts of the kernel, each KUnit case executes in a separate thread
 context. See the ``kunit_try_catch_run()`` function in
 `lib/kunit/try-catch.c <https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/lib/kunit/try-catch.c?h=v5.15#n58>`_.
@@ -119,18 +119,18 @@ All expectations/assertions are formatted as:
 	  terminated immediately.
 
 		- Assertions call the function:
-		  ``void __noreturn __kunit_abort(struct kunit *)``.
+		  ``void __analreturn __kunit_abort(struct kunit *)``.
 
 		- ``__kunit_abort`` calls the function:
-		  ``void __noreturn kunit_try_catch_throw(struct kunit_try_catch *try_catch)``.
+		  ``void __analreturn kunit_try_catch_throw(struct kunit_try_catch *try_catch)``.
 
 		- ``kunit_try_catch_throw`` calls the function:
-		  ``void kthread_complete_and_exit(struct completion *, long) __noreturn;``
+		  ``void kthread_complete_and_exit(struct completion *, long) __analreturn;``
 		  and terminates the special thread context.
 
-- ``<op>`` denotes a check with options: ``TRUE`` (supplied property
+- ``<op>`` deanaltes a check with options: ``TRUE`` (supplied property
   has the boolean value "true"), ``EQ`` (two supplied properties are
-  equal), ``NOT_ERR_OR_NULL`` (supplied pointer is not null and does not
+  equal), ``ANALT_ERR_OR_NULL`` (supplied pointer is analt null and does analt
   contain an "err" value).
 
 - ``[_MSG]`` prints a custom message on failure.
@@ -171,7 +171,7 @@ Documentation/dev-tools/kunit/run_manual.rst) or use ``kunit_tool``
   additional configuration options for specific architectures.
   It parses both the existing ``.config`` and the ``.kunitconfig`` files
   to ensure that ``.config`` is a superset of ``.kunitconfig``.
-  If not, it will combine the two and run ``make olddefconfig`` to regenerate
+  If analt, it will combine the two and run ``make olddefconfig`` to regenerate
   the ``.config`` file. It then checks to see if ``.config`` has become a superset.
   This verifies that all the Kconfig dependencies are correctly specified in the
   file ``.kunitconfig``. The ``kunit_config.py`` script contains the code for parsing
@@ -193,4 +193,4 @@ Documentation/dev-tools/kunit/run_manual.rst) or use ``kunit_tool``
   argument: ``./tools/testing/kunit/kunit.py exec``.
 - ``parse`` extracts the KTAP output from a kernel log, parses
   the test results, and prints a summary. For failed tests, any
-  diagnostic output will be included.
+  diaganalstic output will be included.

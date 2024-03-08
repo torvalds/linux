@@ -16,7 +16,7 @@
  * on the VPU AHB bus, either manually or triggered by an internal IRQ
  * event like VSYNC or a line input counter.
  * The initial implementation handles a single channel (over 8), triggered
- * by the VSYNC irq and does not handle the RDMA irq.
+ * by the VSYNC irq and does analt handle the RDMA irq.
  */
 
 #define RDMA_DESC_SIZE	(sizeof(uint32_t) * 2)
@@ -30,7 +30,7 @@ int meson_rdma_init(struct meson_drm *priv)
 					   &priv->rdma.addr_dma,
 					   GFP_KERNEL);
 		if (!priv->rdma.addr)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	priv->rdma.offset = 0;
@@ -61,7 +61,7 @@ void meson_rdma_free(struct meson_drm *priv)
 
 void meson_rdma_setup(struct meson_drm *priv)
 {
-	/* Channel 1: Write Flag, No Address Increment */
+	/* Channel 1: Write Flag, Anal Address Increment */
 	writel_bits_relaxed(RDMA_ACCESS_RW_FLAG_CHAN1 |
 			    RDMA_ACCESS_ADDR_INC_CHAN1,
 			    RDMA_ACCESS_RW_FLAG_CHAN1,

@@ -57,21 +57,21 @@ static struct snd_soc_card mop500_card = {
 	.num_links = ARRAY_SIZE(mop500_dai_links),
 };
 
-static void mop500_of_node_put(void)
+static void mop500_of_analde_put(void)
 {
 	int i;
 
 	for (i = 0; i < 2; i++)
-		of_node_put(mop500_dai_links[i].cpus->of_node);
+		of_analde_put(mop500_dai_links[i].cpus->of_analde);
 
 	/* Both links use the same codec, which is refcounted only once */
-	of_node_put(mop500_dai_links[0].codecs->of_node);
+	of_analde_put(mop500_dai_links[0].codecs->of_analde);
 }
 
 static int mop500_of_probe(struct platform_device *pdev,
-			   struct device_node *np)
+			   struct device_analde *np)
 {
-	struct device_node *codec_np, *msp_np[2];
+	struct device_analde *codec_np, *msp_np[2];
 	int i;
 
 	msp_np[0] = of_parse_phandle(np, "stericsson,cpu-dai", 0);
@@ -81,17 +81,17 @@ static int mop500_of_probe(struct platform_device *pdev,
 	if (!(msp_np[0] && msp_np[1] && codec_np)) {
 		dev_err(&pdev->dev, "Phandle missing or invalid\n");
 		for (i = 0; i < 2; i++)
-			of_node_put(msp_np[i]);
-		of_node_put(codec_np);
+			of_analde_put(msp_np[i]);
+		of_analde_put(codec_np);
 		return -EINVAL;
 	}
 
 	for (i = 0; i < 2; i++) {
-		mop500_dai_links[i].cpus->of_node = msp_np[i];
+		mop500_dai_links[i].cpus->of_analde = msp_np[i];
 		mop500_dai_links[i].cpus->dai_name = NULL;
-		mop500_dai_links[i].platforms->of_node = msp_np[i];
+		mop500_dai_links[i].platforms->of_analde = msp_np[i];
 		mop500_dai_links[i].platforms->name = NULL;
-		mop500_dai_links[i].codecs->of_node = codec_np;
+		mop500_dai_links[i].codecs->of_analde = codec_np;
 		mop500_dai_links[i].codecs->name = NULL;
 	}
 
@@ -102,7 +102,7 @@ static int mop500_of_probe(struct platform_device *pdev,
 
 static int mop500_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	int ret;
 
 	dev_dbg(&pdev->dev, "%s: Enter.\n", __func__);
@@ -142,7 +142,7 @@ static void mop500_remove(struct platform_device *pdev)
 
 	snd_soc_unregister_card(card);
 	mop500_ab8500_remove(card);
-	mop500_of_node_put();
+	mop500_of_analde_put();
 }
 
 static const struct of_device_id snd_soc_mop500_match[] = {

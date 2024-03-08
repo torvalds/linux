@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2022 Loongson Techanallogy Corporation Limited
  */
 #include <linux/delay.h>
 #include <linux/kernel.h>
@@ -14,18 +14,18 @@
 #include <asm/time.h>
 
 /*
- * No lock; only written during early bootup by CPU 0.
+ * Anal lock; only written during early bootup by CPU 0.
  */
-static RAW_NOTIFIER_HEAD(proc_cpuinfo_chain);
+static RAW_ANALTIFIER_HEAD(proc_cpuinfo_chain);
 
-int __ref register_proc_cpuinfo_notifier(struct notifier_block *nb)
+int __ref register_proc_cpuinfo_analtifier(struct analtifier_block *nb)
 {
-	return raw_notifier_chain_register(&proc_cpuinfo_chain, nb);
+	return raw_analtifier_chain_register(&proc_cpuinfo_chain, nb);
 }
 
-int proc_cpuinfo_notifier_call_chain(unsigned long val, void *v)
+int proc_cpuinfo_analtifier_call_chain(unsigned long val, void *v)
 {
-	return raw_notifier_call_chain(&proc_cpuinfo_chain, val, v);
+	return raw_analtifier_call_chain(&proc_cpuinfo_chain, val, v);
 }
 
 static int show_cpuinfo(struct seq_file *m, void *v)
@@ -33,7 +33,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	unsigned long n = (unsigned long) v - 1;
 	unsigned int version = cpu_data[n].processor_id & 0xff;
 	unsigned int fp_version = cpu_data[n].fpu_vers;
-	struct proc_cpuinfo_notifier_args proc_cpuinfo_notifier_args;
+	struct proc_cpuinfo_analtifier_args proc_cpuinfo_analtifier_args;
 
 #ifdef CONFIG_SMP
 	if (!cpu_online(n))
@@ -88,17 +88,17 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	seq_printf(m, "\n");
 
 	seq_printf(m, "Hardware Watchpoint\t: %s",
-		      cpu_has_watch ? "yes, " : "no\n");
+		      cpu_has_watch ? "anal, " : "anal\n");
 	if (cpu_has_watch) {
 		seq_printf(m, "iwatch count: %d, dwatch count: %d\n",
 		      cpu_data[n].watch_ireg_count, cpu_data[n].watch_dreg_count);
 	}
 
-	proc_cpuinfo_notifier_args.m = m;
-	proc_cpuinfo_notifier_args.n = n;
+	proc_cpuinfo_analtifier_args.m = m;
+	proc_cpuinfo_analtifier_args.n = n;
 
-	raw_notifier_call_chain(&proc_cpuinfo_chain, 0,
-				&proc_cpuinfo_notifier_args);
+	raw_analtifier_call_chain(&proc_cpuinfo_chain, 0,
+				&proc_cpuinfo_analtifier_args);
 
 	seq_printf(m, "\n");
 

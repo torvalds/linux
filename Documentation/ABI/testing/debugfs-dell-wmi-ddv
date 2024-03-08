@@ -29,6 +29,6 @@ Description:
 		- current temperature (single byte)
 		- min. temperature (single byte)
 		- max. temperature (single byte)
-		- unknown field (single byte)
+		- unkanalwn field (single byte)
 
 		See Documentation/wmi/devices/dell-wmi-ddv.rst for details.

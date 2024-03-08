@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -79,7 +79,7 @@ static void enable_memory_low_power(struct dc *dc)
 	int i;
 
 	if (dc->debug.enable_mem_low_power.bits.dmcu) {
-		// Force ERAM to shutdown if DMCU is not enabled
+		// Force ERAM to shutdown if DMCU is analt enabled
 		if (dc->debug.disable_dmcu || dc->config.disable_dmcu) {
 			REG_UPDATE(DMU_MEM_PWR_CNTL, DMCU_ERAM_MEM_PWR_FORCE, 3);
 		}
@@ -118,7 +118,7 @@ void dcn35_set_dmu_fgcg(struct dce_hwseq *hws, bool enable)
 	REG_UPDATE_3(DMU_CLK_CNTL,
 		RBBMIF_FGCG_REP_DIS, !enable,
 		IHC_FGCG_REP_DIS, !enable,
-		LONO_FGCG_REP_DIS, !enable
+		LOANAL_FGCG_REP_DIS, !enable
 	);
 }
 
@@ -156,7 +156,7 @@ void dcn35_init_hw(struct dc *dc)
 				PHYBSYMCLK_ROOT_GATE_DISABLE, 1,
 				PHYCSYMCLK_ROOT_GATE_DISABLE, 1,
 				PHYDSYMCLK_ROOT_GATE_DISABLE, 1,
-				PHYESYMCLK_ROOT_GATE_DISABLE, 1);
+				PHANALYMCLK_ROOT_GATE_DISABLE, 1);
 
 		REG_UPDATE_4(DCCG_GATE_DISABLE_CNTL4,
 				DPIASYMCLK0_GATE_DISABLE, 0,
@@ -198,7 +198,7 @@ void dcn35_init_hw(struct dc *dc)
 				res_pool->ref_clocks.dccg_ref_clock_inKhz,
 				&res_pool->ref_clocks.dchub_ref_clock_inKhz);
 		} else {
-			// Not all ASICs have DCCG sw component
+			// Analt all ASICs have DCCG sw component
 			res_pool->ref_clocks.dccg_ref_clock_inKhz =
 				res_pool->ref_clocks.xtalin_clock_inKhz;
 			res_pool->ref_clocks.dchub_ref_clock_inKhz =
@@ -238,14 +238,14 @@ void dcn35_init_hw(struct dc *dc)
 	if (res_pool->hubbub->funcs->dchubbub_init)
 		res_pool->hubbub->funcs->dchubbub_init(dc->res_pool->hubbub);
 	/* If taking control over from VBIOS, we may want to optimize our first
-	 * mode set, so we need to skip powering down pipes until we know which
+	 * mode set, so we need to skip powering down pipes until we kanalw which
 	 * pipes we want to use.
-	 * Otherwise, if taking control is not possible, we need to power
+	 * Otherwise, if taking control is analt possible, we need to power
 	 * everything down.
 	 */
 	if (dcb->funcs->is_accelerated_mode(dcb) || !dc->config.seamless_boot_edp_requested) {
 
-		// we want to turn off edp displays if odm is enabled and no seamless boot
+		// we want to turn off edp displays if odm is enabled and anal seamless boot
 		if (!dc->caps.seamless_odm) {
 			for (i = 0; i < dc->res_pool->timing_generator_count; i++) {
 				struct timing_generator *tg = dc->res_pool->timing_generators[i];
@@ -328,8 +328,8 @@ void dcn35_init_hw(struct dc *dc)
 	if (!dcb->funcs->is_accelerated_mode(dcb) && dc->res_pool->hubbub->funcs->init_watermarks)
 		dc->res_pool->hubbub->funcs->init_watermarks(dc->res_pool->hubbub);
 
-	if (dc->clk_mgr->funcs->notify_wm_ranges)
-		dc->clk_mgr->funcs->notify_wm_ranges(dc->clk_mgr);
+	if (dc->clk_mgr->funcs->analtify_wm_ranges)
+		dc->clk_mgr->funcs->analtify_wm_ranges(dc->clk_mgr);
 
 	if (dc->clk_mgr->funcs->set_hard_max_memclk && !dc->clk_mgr->dc_mode_softmax_enabled)
 		dc->clk_mgr->funcs->set_hard_max_memclk(dc->clk_mgr);
@@ -515,7 +515,7 @@ void dcn35_update_odm(struct dc *dc, struct dc_state *context, struct pipe_ctx *
 
 		update_dsc_on_stream(pipe_ctx, pipe_ctx->stream->timing.flags.DSC);
 
-		/* Check if no longer using pipe for ODM, then need to disconnect DSC for that pipe */
+		/* Check if anal longer using pipe for ODM, then need to disconnect DSC for that pipe */
 		if (!pipe_ctx->next_odm_pipe && current_pipe_ctx->next_odm_pipe &&
 				current_pipe_ctx->next_odm_pipe->stream_res.dsc) {
 			struct display_stream_compressor *dsc = current_pipe_ctx->next_odm_pipe->stream_res.dsc;
@@ -547,7 +547,7 @@ void dcn35_dsc_pg_control(
 
 	if (hws->ctx->dc->debug.disable_dsc_power_gate)
 		return;
-	if (hws->ctx->dc->debug.ignore_pg)
+	if (hws->ctx->dc->debug.iganalre_pg)
 		return;
 	REG_GET(DC_IP_REQUEST_CNTL, IP_REQUEST_EN, &org_ip_request_cntl);
 	if (org_ip_request_cntl == 0)
@@ -602,7 +602,7 @@ void dcn35_enable_power_gating_plane(struct dce_hwseq *hws, bool enable)
 
 	if (hws->ctx->dc->debug.disable_hubp_power_gate)
 		return;
-	if (hws->ctx->dc->debug.ignore_pg)
+	if (hws->ctx->dc->debug.iganalre_pg)
 		return;
 	REG_GET(DC_IP_REQUEST_CNTL, IP_REQUEST_EN, &org_ip_request_cntl);
 	if (org_ip_request_cntl == 0)
@@ -668,7 +668,7 @@ void dcn35_power_down_on_boot(struct dc *dc)
 	/*
 	 * Call update_clocks with empty context
 	 * to send DISPLAY_OFF
-	 * Otherwise DISPLAY_OFF may not be asserted
+	 * Otherwise DISPLAY_OFF may analt be asserted
 	 */
 	if (dc->clk_mgr->funcs->set_low_power_state)
 		dc->clk_mgr->funcs->set_low_power_state(dc->clk_mgr);
@@ -732,8 +732,8 @@ void dcn35_init_pipes(struct dc *dc, struct dc_state *context)
 		struct timing_generator *tg = dc->res_pool->timing_generators[i];
 		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
 
-		/* There is assumption that pipe_ctx is not mapping irregularly
-		 * to non-preferred front end. If pipe_ctx->stream is not NULL,
+		/* There is assumption that pipe_ctx is analt mapping irregularly
+		 * to analn-preferred front end. If pipe_ctx->stream is analt NULL,
 		 * we will use the pipe, so don't disable
 		 */
 		if (pipe_ctx->stream != NULL && can_apply_seamless_boot)
@@ -759,7 +759,7 @@ void dcn35_init_pipes(struct dc *dc, struct dc_state *context)
 		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
 		struct hubp *hubp = dc->res_pool->hubps[i];
 
-		/* Do not need to reset for seamless boot */
+		/* Do analt need to reset for seamless boot */
 		if (pipe_ctx->stream != NULL && can_apply_seamless_boot)
 			continue;
 
@@ -773,7 +773,7 @@ void dcn35_init_pipes(struct dc *dc, struct dc_state *context)
 	for (i = 0; i < dc->res_pool->res_cap->num_opp; i++) {
 		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
 
-		/* Cannot reset the MPC mux if seamless boot */
+		/* Cananalt reset the MPC mux if seamless boot */
 		if (pipe_ctx->stream != NULL && can_apply_seamless_boot)
 			continue;
 
@@ -787,16 +787,16 @@ void dcn35_init_pipes(struct dc *dc, struct dc_state *context)
 		struct dpp *dpp = dc->res_pool->dpps[i];
 		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
 
-		/* There is assumption that pipe_ctx is not mapping irregularly
-		 * to non-preferred front end. If pipe_ctx->stream is not NULL,
+		/* There is assumption that pipe_ctx is analt mapping irregularly
+		 * to analn-preferred front end. If pipe_ctx->stream is analt NULL,
 		 * we will use the pipe, so don't disable
 		 */
 		if (can_apply_seamless_boot &&
 			pipe_ctx->stream != NULL &&
 			pipe_ctx->stream_res.tg->funcs->is_tg_enabled(
 				pipe_ctx->stream_res.tg)) {
-			// Enable double buffering for OTG_BLANK no matter if
-			// seamless boot is enabled or not to suppress global sync
+			// Enable double buffering for OTG_BLANK anal matter if
+			// seamless boot is enabled or analt to suppress global sync
 			// signals when OTG blanked. This is to prevent pipe from
 			// requesting data while in PSR.
 			tg->funcs->tg_init(tg);
@@ -851,7 +851,7 @@ void dcn35_init_pipes(struct dc *dc, struct dc_state *context)
 			// Step 1: To find out which OPTC is running & OPTC DSC is ON
 			// We can't use res_pool->res_cap->num_timing_generator to check
 			// Because it records display pipes default setting built in driver,
-			// not display pipes of the current chip.
+			// analt display pipes of the current chip.
 			// Some ASICs would be fused display pipes less than the default setting.
 			// In dcnxx_resource_construct function, driver would obatin real information.
 			for (i = 0; i < dc->res_pool->timing_generator_count; i++) {
@@ -862,7 +862,7 @@ void dcn35_init_pipes(struct dc *dc, struct dc_state *context)
 					if (tg->funcs->get_dsc_status)
 						tg->funcs->get_dsc_status(tg, &optc_dsc_state);
 					// Only one OPTC with DSC is ON, so if we got one result,
-					// we would exit this block. non-zero value is DSC enabled
+					// we would exit this block. analn-zero value is DSC enabled
 					if (optc_dsc_state != 0) {
 						tg->funcs->get_optc_source(tg, &num_opps, &opp_id_src0, &opp_id_src1);
 						break;
@@ -920,7 +920,7 @@ void dcn35_enable_plane(struct dc *dc, struct pipe_ctx *pipe_ctx,
 }
 
 /* disable HW used by plane.
- * note:  cannot disable until disconnect is complete
+ * analte:  cananalt disable until disconnect is complete
  */
 void dcn35_plane_atomic_disable(struct dc *dc, struct pipe_ctx *pipe_ctx)
 {
@@ -1042,7 +1042,7 @@ void dcn35_calc_blocks_to_gate(struct dc *dc, struct dc_state *context,
 	if (edp_num == 0 ||
 		((!edp_links[0] || !edp_links[0]->edp_sink_present) &&
 			(!edp_links[1] || !edp_links[1]->edp_sink_present))) {
-		/*eDP not exist on this config, keep Domain24 power on, for S0i3, this will be handled in dmubfw*/
+		/*eDP analt exist on this config, keep Domain24 power on, for S0i3, this will be handled in dmubfw*/
 		update_state->pg_pipe_res_update[PG_OPTC][0] = false;
 	}
 
@@ -1134,20 +1134,20 @@ void dcn35_calc_blocks_to_ungate(struct dc *dc, struct dc_state *context,
 /**
  * dcn35_hw_block_power_down() - power down sequence
  *
- * The following sequence describes the ON-OFF (ONO) for power down:
+ * The following sequence describes the ON-OFF (OANAL) for power down:
  *
- *	ONO Region 3, DCPG 25: hpo - SKIPPED
- *	ONO Region 4, DCPG 0: dchubp0, dpp0
- *	ONO Region 6, DCPG 1: dchubp1, dpp1
- *	ONO Region 8, DCPG 2: dchubp2, dpp2
- *	ONO Region 10, DCPG 3: dchubp3, dpp3
- *	ONO Region 1, DCPG 23: dchubbub dchvm dchubbubmem - SKIPPED. PMFW will pwr dwn at IPS2 entry
- *	ONO Region 5, DCPG 16: dsc0
- *	ONO Region 7, DCPG 17: dsc1
- *	ONO Region 9, DCPG 18: dsc2
- *	ONO Region 11, DCPG 19: dsc3
- *	ONO Region 2, DCPG 24: mpc opp optc dwb
- *	ONO Region 0, DCPG 22: dccg dio dcio - SKIPPED. will be pwr dwn after lono timer is armed
+ *	OANAL Region 3, DCPG 25: hpo - SKIPPED
+ *	OANAL Region 4, DCPG 0: dchubp0, dpp0
+ *	OANAL Region 6, DCPG 1: dchubp1, dpp1
+ *	OANAL Region 8, DCPG 2: dchubp2, dpp2
+ *	OANAL Region 10, DCPG 3: dchubp3, dpp3
+ *	OANAL Region 1, DCPG 23: dchubbub dchvm dchubbubmem - SKIPPED. PMFW will pwr dwn at IPS2 entry
+ *	OANAL Region 5, DCPG 16: dsc0
+ *	OANAL Region 7, DCPG 17: dsc1
+ *	OANAL Region 9, DCPG 18: dsc2
+ *	OANAL Region 11, DCPG 19: dsc3
+ *	OANAL Region 2, DCPG 24: mpc opp optc dwb
+ *	OANAL Region 0, DCPG 22: dccg dio dcio - SKIPPED. will be pwr dwn after loanal timer is armed
  *
  * @dc: Current DC state
  * @update_state: update PG sequence states for HW block
@@ -1160,7 +1160,7 @@ void dcn35_hw_block_power_down(struct dc *dc,
 
 	if (!pg_cntl)
 		return;
-	if (dc->debug.ignore_pg)
+	if (dc->debug.iganalre_pg)
 		return;
 
 	if (update_state->pg_res_update[PG_HPO]) {
@@ -1193,20 +1193,20 @@ void dcn35_hw_block_power_down(struct dc *dc,
 /**
  * dcn35_hw_block_power_up() - power up sequence
  *
- * The following sequence describes the ON-OFF (ONO) for power up:
+ * The following sequence describes the ON-OFF (OANAL) for power up:
  *
- *	ONO Region 0, DCPG 22: dccg dio dcio - SKIPPED
- *	ONO Region 2, DCPG 24: mpc opp optc dwb
- *	ONO Region 5, DCPG 16: dsc0
- *	ONO Region 7, DCPG 17: dsc1
- *	ONO Region 9, DCPG 18: dsc2
- *	ONO Region 11, DCPG 19: dsc3
- *	ONO Region 1, DCPG 23: dchubbub dchvm dchubbubmem - SKIPPED. PMFW will power up at IPS2 exit
- *	ONO Region 4, DCPG 0: dchubp0, dpp0
- *	ONO Region 6, DCPG 1: dchubp1, dpp1
- *	ONO Region 8, DCPG 2: dchubp2, dpp2
- *	ONO Region 10, DCPG 3: dchubp3, dpp3
- *	ONO Region 3, DCPG 25: hpo - SKIPPED
+ *	OANAL Region 0, DCPG 22: dccg dio dcio - SKIPPED
+ *	OANAL Region 2, DCPG 24: mpc opp optc dwb
+ *	OANAL Region 5, DCPG 16: dsc0
+ *	OANAL Region 7, DCPG 17: dsc1
+ *	OANAL Region 9, DCPG 18: dsc2
+ *	OANAL Region 11, DCPG 19: dsc3
+ *	OANAL Region 1, DCPG 23: dchubbub dchvm dchubbubmem - SKIPPED. PMFW will power up at IPS2 exit
+ *	OANAL Region 4, DCPG 0: dchubp0, dpp0
+ *	OANAL Region 6, DCPG 1: dchubp1, dpp1
+ *	OANAL Region 8, DCPG 2: dchubp2, dpp2
+ *	OANAL Region 10, DCPG 3: dchubp3, dpp3
+ *	OANAL Region 3, DCPG 25: hpo - SKIPPED
  *
  * @dc: Current DC state
  * @update_state: update PG sequence states for HW block
@@ -1219,7 +1219,7 @@ void dcn35_hw_block_power_up(struct dc *dc,
 
 	if (!pg_cntl)
 		return;
-	if (dc->debug.ignore_pg)
+	if (dc->debug.iganalre_pg)
 		return;
 	//domain22, 23, 25 currently always on.
 	/*this will need all the clients to unregister optc interruts let dmubfw handle this*/
@@ -1344,7 +1344,7 @@ void dcn35_set_drr(struct pipe_ctx **pipe_ctx,
 	struct drr_params params = {0};
 	// DRR set trigger event mapped to OTG_TRIG_A (bit 11) for manual control flow
 	unsigned int event_triggers = 0x800;
-	// Note DRR trigger events are generated regardless of whether num frames met.
+	// Analte DRR trigger events are generated regardless of whether num frames met.
 	unsigned int num_frames = 2;
 
 	params.vertical_total_max = adjust.v_total_max;

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C) 2007 Lemote, Inc. & Institute of Computing Technology
+ * Copyright (C) 2007 Lemote, Inc. & Institute of Computing Techanallogy
  * Author: Fuxin Zhang, zhangfx@lemote.com
  */
 #include <linux/pci.h>
@@ -60,7 +60,7 @@ static void __init setup_pcimap(void)
 	/* avoid deadlock of PCI reading/writing lock operation */
 	LOONGSON_PCI_ISR4C = 0xd2000001ul;
 
-	/* can not change gnt to break pci transfer when device's gnt not
+	/* can analt change gnt to break pci transfer when device's gnt analt
 	deassert for some broken device */
 	LOONGSON_PXARB_CFG = 0x00fe0105ul;
 

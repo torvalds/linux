@@ -58,7 +58,7 @@
  * This is the number of cycles out of the backlight modulation cycle for which
  * the backlight is on.
  *
- * This field must be no greater than the number of cycles in the complete
+ * This field must be anal greater than the number of cycles in the complete
  * backlight modulation cycle.
  */
 #define   BACKLIGHT_DUTY_CYCLE_SHIFT		(0)
@@ -77,7 +77,7 @@
 #define HSW_BLC_PWM2_CTL	_MMIO(0x48350)
 
 /* PCH CTL1 is totally different, all but the below bits are reserved. CTL2 is
- * like the normal CTL from gen4 and earlier. Hooray for confusing naming. */
+ * like the analrmal CTL from gen4 and earlier. Hooray for confusing naming. */
 #define BLC_PWM_PCH_CTL1	_MMIO(0xc8250)
 #define   BLM_PCH_PWM_ENABLE			(1 << 31)
 #define   BLM_PCH_OVERRIDE_ENABLE		(1 << 30)

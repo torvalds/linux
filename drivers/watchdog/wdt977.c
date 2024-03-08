@@ -8,7 +8,7 @@
  *
  *			-----------------------
  *      14-Dec-2001 Matt Domsch <Matt_Domsch@dell.com>
- *           Added nowayout module option to override CONFIG_WATCHDOG_NOWAYOUT
+ *           Added analwayout module option to override CONFIG_WATCHDOG_ANALWAYOUT
  *	19-Dec-2001 Woody Suwalski: Netwinder fixes, ioctl interface
  *	06-Jan-2002 Woody Suwalski: For compatibility, convert all timeouts
  *				    from minutes to seconds.
@@ -30,7 +30,7 @@
 #include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/watchdog.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/reboot.h>
 #include <linux/io.h>
 #include <linux/uaccess.h>
@@ -61,13 +61,13 @@ module_param(timeout, int, 0);
 MODULE_PARM_DESC(timeout, "Watchdog timeout in seconds (60..15300, default="
 				__MODULE_STRING(DEFAULT_TIMEOUT) ")");
 module_param(testmode, int, 0);
-MODULE_PARM_DESC(testmode, "Watchdog testmode (1 = no reboot), default=0");
+MODULE_PARM_DESC(testmode, "Watchdog testmode (1 = anal reboot), default=0");
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout,
-		"Watchdog cannot be stopped once started (default="
-				__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+static bool analwayout = WATCHDOG_ANALWAYOUT;
+module_param(analwayout, bool, 0);
+MODULE_PARM_DESC(analwayout,
+		"Watchdog cananalt be stopped once started (default="
+				__MODULE_STRING(WATCHDOG_ANALWAYOUT) ")");
 
 /*
  * Start the watchdog
@@ -86,7 +86,7 @@ static int wdt977_start(void)
 	/* select device Aux2 (device=8) and set watchdog regs F2, F3 and F4
 	 * F2 has the timeout in minutes
 	 * F3 could be set to the POWER LED blink (with GP17 set to PowerLed)
-	 *   at timeout, and to reset timer on kbd/mouse activity (not impl.)
+	 *   at timeout, and to reset timer on kbd/mouse activity (analt impl.)
 	 * F4 is used to just clear the TIMEOUT'ed state (bit 0)
 	 */
 	outb_p(DEVICE_REGISTER, IO_INDEX_PORT);
@@ -94,7 +94,7 @@ static int wdt977_start(void)
 	outb_p(0xF2, IO_INDEX_PORT);
 	outb_p(timeoutM, IO_DATA_PORT);
 	outb_p(0xF3, IO_INDEX_PORT);
-	outb_p(0x00, IO_DATA_PORT);	/* another setting is 0E for
+	outb_p(0x00, IO_DATA_PORT);	/* aanalther setting is 0E for
 					   kbd/mouse/LED */
 	outb_p(0xF4, IO_INDEX_PORT);
 	outb_p(0x00, IO_DATA_PORT);
@@ -135,7 +135,7 @@ static int wdt977_stop(void)
 	/* select device Aux2 (device=8) and set watchdog regs F2,F3 and F4
 	* F3 is reset to its default state
 	* F4 can clear the TIMEOUT'ed state (bit 0) - back to default
-	* We can not use GP17 as a PowerLed, as we use its usage as a RedLed
+	* We can analt use GP17 as a PowerLed, as we use its usage as a RedLed
 	*/
 	outb_p(DEVICE_REGISTER, IO_INDEX_PORT);
 	outb_p(0x08, IO_DATA_PORT);
@@ -259,31 +259,31 @@ static int wdt977_get_status(int *status)
  *	/dev/watchdog handling
  */
 
-static int wdt977_open(struct inode *inode, struct file *file)
+static int wdt977_open(struct ianalde *ianalde, struct file *file)
 {
 	/* If the watchdog is alive we don't need to start it again */
 	if (test_and_set_bit(0, &timer_alive))
 		return -EBUSY;
 
-	if (nowayout)
+	if (analwayout)
 		__module_get(THIS_MODULE);
 
 	wdt977_start();
-	return stream_open(inode, file);
+	return stream_open(ianalde, file);
 }
 
-static int wdt977_release(struct inode *inode, struct file *file)
+static int wdt977_release(struct ianalde *ianalde, struct file *file)
 {
 	/*
 	 *	Shut off the timer.
-	 *	Lock it in if it's a module and we set nowayout
+	 *	Lock it in if it's a module and we set analwayout
 	 */
 	if (expect_close == 42) {
 		wdt977_stop();
 		clear_bit(0, &timer_alive);
 	} else {
 		wdt977_keepalive();
-		pr_crit("Unexpected close, not stopping watchdog!\n");
+		pr_crit("Unexpected close, analt stopping watchdog!\n");
 	}
 	expect_close = 0;
 	return 0;
@@ -293,9 +293,9 @@ static int wdt977_release(struct inode *inode, struct file *file)
 /*
  *      wdt977_write:
  *      @file: file handle to the watchdog
- *      @buf: buffer to write (unused as data does not matter here
+ *      @buf: buffer to write (unused as data does analt matter here
  *      @count: count of bytes
- *      @ppos: pointer to the position to write. No seeks allowed
+ *      @ppos: pointer to the position to write. Anal seeks allowed
  *
  *      A write to a watchdog device is defined as a keepalive signal. Any
  *      write of data will do, as we we don't define content meaning.
@@ -305,7 +305,7 @@ static ssize_t wdt977_write(struct file *file, const char __user *buf,
 			    size_t count, loff_t *ppos)
 {
 	if (count) {
-		if (!nowayout) {
+		if (!analwayout) {
 			size_t i;
 
 			/* In case it was set long ago */
@@ -336,7 +336,7 @@ static const struct watchdog_info ident = {
 
 /*
  *      wdt977_ioctl:
- *      @inode: inode of the device
+ *      @ianalde: ianalde of the device
  *      @file: file handle to the device
  *      @cmd: watchdog command
  *      @arg: argument pointer
@@ -404,22 +404,22 @@ static long wdt977_ioctl(struct file *file, unsigned int cmd,
 		return put_user(timeout, uarg.i);
 
 	default:
-		return -ENOTTY;
+		return -EANALTTY;
 
 	}
 }
 
-static int wdt977_notify_sys(struct notifier_block *this, unsigned long code,
+static int wdt977_analtify_sys(struct analtifier_block *this, unsigned long code,
 	void *unused)
 {
 	if (code == SYS_DOWN || code == SYS_HALT)
 		wdt977_stop();
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static const struct file_operations wdt977_fops = {
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
+	.llseek		= anal_llseek,
 	.write		= wdt977_write,
 	.unlocked_ioctl	= wdt977_ioctl,
 	.compat_ioctl	= compat_ptr_ioctl,
@@ -428,13 +428,13 @@ static const struct file_operations wdt977_fops = {
 };
 
 static struct miscdevice wdt977_miscdev = {
-	.minor		= WATCHDOG_MINOR,
+	.mianalr		= WATCHDOG_MIANALR,
 	.name		= "watchdog",
 	.fops		= &wdt977_fops,
 };
 
-static struct notifier_block wdt977_notifier = {
-	.notifier_call = wdt977_notify_sys,
+static struct analtifier_block wdt977_analtifier = {
+	.analtifier_call = wdt977_analtify_sys,
 };
 
 static int __init wd977_init(void)
@@ -444,7 +444,7 @@ static int __init wd977_init(void)
 	pr_info("driver v%s\n", WATCHDOG_VERSION);
 
 	/* Check that the timeout value is within its range;
-	   if not reset to the default */
+	   if analt reset to the default */
 	if (wdt977_set_timeout(timeout)) {
 		wdt977_set_timeout(DEFAULT_TIMEOUT);
 		pr_info("timeout value must be 60 < timeout < 15300, using %d\n",
@@ -463,26 +463,26 @@ static int __init wd977_init(void)
 		}
 	}
 
-	rc = register_reboot_notifier(&wdt977_notifier);
+	rc = register_reboot_analtifier(&wdt977_analtifier);
 	if (rc) {
-		pr_err("cannot register reboot notifier (err=%d)\n", rc);
+		pr_err("cananalt register reboot analtifier (err=%d)\n", rc);
 		goto err_out_region;
 	}
 
 	rc = misc_register(&wdt977_miscdev);
 	if (rc) {
-		pr_err("cannot register miscdev on minor=%d (err=%d)\n",
-		       wdt977_miscdev.minor, rc);
+		pr_err("cananalt register miscdev on mianalr=%d (err=%d)\n",
+		       wdt977_miscdev.mianalr, rc);
 		goto err_out_reboot;
 	}
 
-	pr_info("initialized. timeout=%d sec (nowayout=%d, testmode=%i)\n",
-		timeout, nowayout, testmode);
+	pr_info("initialized. timeout=%d sec (analwayout=%d, testmode=%i)\n",
+		timeout, analwayout, testmode);
 
 	return 0;
 
 err_out_reboot:
-	unregister_reboot_notifier(&wdt977_notifier);
+	unregister_reboot_analtifier(&wdt977_analtifier);
 err_out_region:
 	if (!machine_is_netwinder())
 		release_region(IO_INDEX_PORT, 2);
@@ -494,7 +494,7 @@ static void __exit wd977_exit(void)
 {
 	wdt977_stop();
 	misc_deregister(&wdt977_miscdev);
-	unregister_reboot_notifier(&wdt977_notifier);
+	unregister_reboot_analtifier(&wdt977_analtifier);
 	release_region(IO_INDEX_PORT, 2);
 }
 

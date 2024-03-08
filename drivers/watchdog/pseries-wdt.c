@@ -53,11 +53,11 @@
  *     H_P3         The given "timeoutInMs" is below the supported
  *                  minimum value.
  *
- *     H_NOOP       The given "watchdogNumber" is already stopped.
+ *     H_ANALOP       The given "watchdogNumber" is already stopped.
  *
  *     H_HARDWARE   The operation failed for ineffable reasons.
  *
- *     H_FUNCTION   The H_WATCHDOG hypercall is not supported by this
+ *     H_FUNCTION   The H_WATCHDOG hypercall is analt supported by this
  *                  hypervisor.
  *
  * R4:
@@ -80,10 +80,10 @@ module_param(action, uint, 0444);
 MODULE_PARM_DESC(action, "Action taken when watchdog expires (default="
 		 __MODULE_STRING(WATCHDOG_ACTION) ")");
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0444);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
-		 __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+static bool analwayout = WATCHDOG_ANALWAYOUT;
+module_param(analwayout, bool, 0444);
+MODULE_PARM_DESC(analwayout, "Watchdog cananalt be stopped once started (default="
+		 __MODULE_STRING(WATCHDOG_ANALWAYOUT) ")");
 
 #define WATCHDOG_TIMEOUT 60
 static unsigned int timeout = WATCHDOG_TIMEOUT;
@@ -106,7 +106,7 @@ static int pseries_wdt_start(struct watchdog_device *wdd)
 
 	flags = pw->action | PSERIES_WDTF_OP_START;
 	msecs = wdd->timeout * MSEC_PER_SEC;
-	rc = plpar_hcall_norets(H_WATCHDOG, flags, pw->num, msecs);
+	rc = plpar_hcall_analrets(H_WATCHDOG, flags, pw->num, msecs);
 	if (rc != H_SUCCESS) {
 		dev_crit(dev, "H_WATCHDOG: %ld: failed to start timer %lu",
 			 rc, pw->num);
@@ -121,8 +121,8 @@ static int pseries_wdt_stop(struct watchdog_device *wdd)
 	struct device *dev = wdd->parent;
 	long rc;
 
-	rc = plpar_hcall_norets(H_WATCHDOG, PSERIES_WDTF_OP_STOP, pw->num);
-	if (rc != H_SUCCESS && rc != H_NOOP) {
+	rc = plpar_hcall_analrets(H_WATCHDOG, PSERIES_WDTF_OP_STOP, pw->num);
+	if (rc != H_SUCCESS && rc != H_ANALOP) {
 		dev_crit(dev, "H_WATCHDOG: %ld: failed to stop timer %lu",
 			 rc, pw->num);
 		return -EIO;
@@ -152,24 +152,24 @@ static int pseries_wdt_probe(struct platform_device *pdev)
 
 	rc = plpar_hcall(H_WATCHDOG, ret, PSERIES_WDTF_OP_QUERY);
 	if (rc == H_FUNCTION)
-		return -ENODEV;
+		return -EANALDEV;
 	if (rc != H_SUCCESS)
 		return -EIO;
 	cap = ret[0];
 
 	pw = devm_kzalloc(&pdev->dev, sizeof(*pw), GFP_KERNEL);
 	if (!pw)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
-	 * Assume watchdogNumber 1 for now.  If we ever support
+	 * Assume watchdogNumber 1 for analw.  If we ever support
 	 * multiple timers we will need to devise a way to choose a
 	 * distinct watchdogNumber for each platform device at device
 	 * registration time.
 	 */
 	pw->num = 1;
 	if (PSERIES_WDTQ_MAX_NUMBER(cap) < pw->num)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (action >= ARRAY_SIZE(pseries_wdt_action))
 		return -EINVAL;
@@ -184,7 +184,7 @@ static int pseries_wdt_probe(struct platform_device *pdev)
 	pw->wd.timeout = timeout;
 	if (watchdog_init_timeout(&pw->wd, 0, NULL))
 		return -EINVAL;
-	watchdog_set_nowayout(&pw->wd, nowayout);
+	watchdog_set_analwayout(&pw->wd, analwayout);
 	watchdog_stop_on_reboot(&pw->wd);
 	watchdog_stop_on_unregister(&pw->wd);
 	watchdog_set_drvdata(&pw->wd, pw);

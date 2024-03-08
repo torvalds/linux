@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause) */
 /*
- * Copyright (C) Sunplus Technology Co., Ltd.
+ * Copyright (C) Sunplus Techanallogy Co., Ltd.
  *       All rights reserved.
  */
 #ifndef _DT_BINDINGS_RST_SUNPLUS_SP7021_H
@@ -11,7 +11,7 @@
 #define RST_IOCTL               2
 #define RST_IOP                 3
 #define RST_OTPRX               4
-#define RST_NOC                 5
+#define RST_ANALC                 5
 #define RST_BR                  6
 #define RST_RBUS_L00            7
 #define RST_SPIFL               8

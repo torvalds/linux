@@ -18,7 +18,7 @@
 #define TIMEOUT_MS 3000
 
 /*
- * Hold configuration here, cannot be more than one instance of the driver
+ * Hold configuration here, cananalt be more than one instance of the driver
  * since pm_power_off itself is global.
  */
 static struct regulator *cpu_regulator;

@@ -52,7 +52,7 @@
 			#interrupt-cells = <1>;
 
 			ranges = <0x01000000 0 0x00000000 0x43000000 0 0x00010000   /* downstream I/O */
-				  0x02000000 0 0x50000000 0x50000000 0 0x10000000   /* non-prefetchable memory */
+				  0x02000000 0 0x50000000 0x50000000 0 0x10000000   /* analn-prefetchable memory */
 				  0x42000000 0 0x60000000 0x60000000 0 0x10000000>; /* prefetchable memory */
 
 			interrupt-map-mask = <0x1800 0 0 7>;

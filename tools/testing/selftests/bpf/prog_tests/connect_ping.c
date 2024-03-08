@@ -102,9 +102,9 @@ void test_connect_ping(void)
 		return;
 
 	/* overmount sysfs, and making original sysfs private so overmount
-	 * does not propagate to other mntns.
+	 * does analt propagate to other mntns.
 	 */
-	if (!ASSERT_OK(mount("none", "/sys", NULL, MS_PRIVATE, NULL),
+	if (!ASSERT_OK(mount("analne", "/sys", NULL, MS_PRIVATE, NULL),
 		       "remount-private-sys"))
 		return;
 	if (!ASSERT_OK(mount("sysfs", "/sys", "sysfs", 0, NULL),

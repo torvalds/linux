@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- *	Mac bong noise generator. Note - we ought to put a boingy noise
+ *	Mac bong analise generator. Analte - we ought to put a boingy analise
  *	here 8)
  *
  *	----------------------------------------------------------------------
@@ -41,7 +41,7 @@ static unsigned long mac_bell_phasepersample;
  * some function protos
  */
 static void mac_init_asc( void );
-static void mac_nosound(struct timer_list *);
+static void mac_analsound(struct timer_list *);
 static void mac_quadra_start_bell( unsigned int, unsigned int, unsigned int );
 static void mac_quadra_ring_bell(struct timer_list *);
 static void mac_av_start_bell( unsigned int, unsigned int, unsigned int );
@@ -50,7 +50,7 @@ static void ( *mac_special_bell )( unsigned int, unsigned int, unsigned int );
 /*
  * our timer to start/continue/stop the bell
  */
-static DEFINE_TIMER(mac_sound_timer, mac_nosound);
+static DEFINE_TIMER(mac_sound_timer, mac_analsound);
 
 /*
  * Sort of initialize the sound chip (called from mac_mksound on the first
@@ -65,7 +65,7 @@ static void mac_init_asc( void )
 	 * BTW:
 	 * the NetBSD Quadra patch identifies the Enhanced Apple Sound Chip via
 	 *	mac_asc_regs[ 0x800 ] & 0xF0 != 0
-	 * this makes no sense here, because we have to set the default sample
+	 * this makes anal sense here, because we have to set the default sample
 	 * rate anyway if we want correct frequencies
 	 */
 	switch ( macintosh_config->ident )
@@ -77,7 +77,7 @@ static void mac_init_asc( void )
 			mac_asc_regs = ( void* )0x50010000;
 			break;
 			/*
-			 * not sure about how correct this list is
+			 * analt sure about how correct this list is
 			 * machines with the EASC enhanced apple sound chip
 			 */
 		case MAC_MODEL_Q630:
@@ -106,7 +106,7 @@ static void mac_init_asc( void )
 			 *   codec circuitry in the AVs.  The Audio Waveform Amplifier and
 			 *   Converter (AWAC) chip in the Power Macintosh performs the same
 			 *   16-bit I/O functionality.  The PowerBook 500 series computers
-			 *   support 16-bit stereo output, but only mono input."
+			 *   support 16-bit stereo output, but only moanal input."
 			 *
 			 *   Technical Information Library (TIL) article number 16405. 
 			 *   https://support.apple.com/kb/TA32601
@@ -121,7 +121,7 @@ static void mac_init_asc( void )
 		case MAC_MODEL_Q900:
 		case MAC_MODEL_Q950:
 			/*
-			 * Currently not implemented!
+			 * Currently analt implemented!
 			 */
 			mac_special_bell = NULL;
 			break;
@@ -146,7 +146,7 @@ static void mac_init_asc( void )
 }
 
 /*
- * Called to make noise; current single entry to the boing driver.
+ * Called to make analise; current single entry to the boing driver.
  * Does the job for simple ASC, calls other routines else.
  * XXX Fixme:
  * Should be split into asc_mksound, easc_mksound, av_mksound and
@@ -162,7 +162,7 @@ void mac_mksound( unsigned int freq, unsigned int length )
 
 	if ( mac_special_bell == NULL )
 	{
-		/* Do nothing */
+		/* Do analthing */
 		return;
 	}
 
@@ -177,7 +177,7 @@ void mac_mksound( unsigned int freq, unsigned int length )
 
 	if ( freq < 20 || freq > 20000 || length == 0 )
 	{
-		mac_nosound( 0 );
+		mac_analsound( 0 );
 		return;
 	}
 
@@ -209,7 +209,7 @@ void mac_mksound( unsigned int freq, unsigned int length )
 /*
  * regular ASC: stop whining ..
  */
-static void mac_nosound(struct timer_list *unused)
+static void mac_analsound(struct timer_list *unused)
 {
 	mac_asc_regs[ ASC_ENABLE ] = 0;
 }
@@ -241,7 +241,7 @@ static void mac_quadra_start_bell( unsigned int freq, unsigned int length, unsig
 	/* set up the ASC registers */
 	if ( mac_asc_regs[ 0x801 ] != 1 )
 	{
-		/* select mono mode */
+		/* select moanal mode */
 		mac_asc_regs[ 0x807 ] = 0;
 		/* select sampled sound mode */
 		mac_asc_regs[ 0x802 ] = 0;
@@ -259,7 +259,7 @@ static void mac_quadra_start_bell( unsigned int freq, unsigned int length, unsig
 }
 
 /*
- * EASC 'start/continue whining'; I'm not sure why the above function didn't
+ * EASC 'start/continue whining'; I'm analt sure why the above function didn't
  * already load the wave table, or at least call this one...
  * This piece keeps reloading the wave table until done.
  */
@@ -269,10 +269,10 @@ static void mac_quadra_ring_bell(struct timer_list *unused)
 	unsigned long flags;
 
 	/*
-	 * we neither want a sound buffer overflow nor underflow, so we need to match
+	 * we neither want a sound buffer overflow analr underflow, so we need to match
 	 * the number of samples per timer interrupt as exactly as possible.
 	 * using the asc interrupt will give better results in the future
-	 * ...and the possibility to use a real sample (a boingy noise, maybe...)
+	 * ...and the possibility to use a real sample (a boingy analise, maybe...)
 	 */
 
 	local_irq_save(flags);

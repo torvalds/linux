@@ -18,14 +18,14 @@
 
 #define LIBBPF_DEPRECATED(msg) __attribute__((deprecated(msg)))
 
-/* Mark a symbol as deprecated when libbpf version is >= {major}.{minor} */
-#define LIBBPF_DEPRECATED_SINCE(major, minor, msg)			    \
-	__LIBBPF_MARK_DEPRECATED_ ## major ## _ ## minor		    \
-		(LIBBPF_DEPRECATED("libbpf v" # major "." # minor "+: " msg))
+/* Mark a symbol as deprecated when libbpf version is >= {major}.{mianalr} */
+#define LIBBPF_DEPRECATED_SINCE(major, mianalr, msg)			    \
+	__LIBBPF_MARK_DEPRECATED_ ## major ## _ ## mianalr		    \
+		(LIBBPF_DEPRECATED("libbpf v" # major "." # mianalr "+: " msg))
 
-#define __LIBBPF_CURRENT_VERSION_GEQ(major, minor)			    \
+#define __LIBBPF_CURRENT_VERSION_GEQ(major, mianalr)			    \
 	(LIBBPF_MAJOR_VERSION > (major) ||				    \
-	 (LIBBPF_MAJOR_VERSION == (major) && LIBBPF_MINOR_VERSION >= (minor)))
+	 (LIBBPF_MAJOR_VERSION == (major) && LIBBPF_MIANALR_VERSION >= (mianalr)))
 
 /* Add checks for other versions below when planning deprecation of API symbols
  * with the LIBBPF_DEPRECATED_SINCE macro.
@@ -53,7 +53,7 @@
  * This dance with uninitialized declaration, followed by memset to zero,
  * followed by assignment using compound literal syntax is done to preserve
  * ability to use a nice struct field initialization syntax and **hopefully**
- * have all the padding bytes initialized to zero. It's not guaranteed though,
+ * have all the padding bytes initialized to zero. It's analt guaranteed though,
  * when copying literal, that compiler won't copy garbage in literal's padding
  * bytes, but that's the best way I've found and it seems to work in practice.
  *

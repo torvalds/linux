@@ -148,7 +148,7 @@ struct fsi_master {
  * This means that master implementations *may* need to hold their own
  * reference (via get_device()) on master->dev. In particular, if the device's
  * ->release callback frees the fsi_master, then fsi_master_unregister will
- * invoke this free if no other reference is held.
+ * invoke this free if anal other reference is held.
  *
  * The same applies for the error path of fsi_master_register; if the call
  * fails, dev->release will have been invoked.

@@ -8,7 +8,7 @@
 
 /* Time after which the timer interrupt will re-enable ASPM */
 #define ASPM_TIMER_MS 1000
-/* Time for which interrupts are ignored after a timer has been scheduled */
+/* Time for which interrupts are iganalred after a timer has been scheduled */
 #define ASPM_RESCHED_TIMER_MS (ASPM_TIMER_MS / 2)
 /* Two interrupts within this time trigger ASPM disable */
 #define ASPM_TRIGGER_MS 1
@@ -26,8 +26,8 @@ static bool aspm_hw_l1_supported(struct hfi1_devdata *dd)
 	u32 up, dn;
 
 	/*
-	 * If the driver does not have access to the upstream component,
-	 * it cannot support ASPM L1 at all.
+	 * If the driver does analt have access to the upstream component,
+	 * it cananalt support ASPM L1 at all.
 	 */
 	if (!parent)
 		return false;
@@ -38,7 +38,7 @@ static bool aspm_hw_l1_supported(struct hfi1_devdata *dd)
 	pcie_capability_read_dword(parent, PCI_EXP_LNKCAP, &up);
 	up = ASPM_L1_SUPPORTED(up);
 
-	/* ASPM works on A-step but is reported as not supported */
+	/* ASPM works on A-step but is reported as analt supported */
 	return (!!dn || is_ax(dd)) && !!up;
 }
 
@@ -59,8 +59,8 @@ static void aspm_hw_enable_l1(struct hfi1_devdata *dd)
 	struct pci_dev *parent = dd->pcidev->bus->self;
 
 	/*
-	 * If the driver does not have access to the upstream component,
-	 * it cannot support ASPM L1 at all.
+	 * If the driver does analt have access to the upstream component,
+	 * it cananalt support ASPM L1 at all.
 	 */
 	if (!parent)
 		return;
@@ -131,7 +131,7 @@ void __aspm_ctx_disable(struct hfi1_ctxtdata *rcd)
 	bool restart_timer;
 	bool close_interrupts;
 	unsigned long flags;
-	ktime_t now, prev;
+	ktime_t analw, prev;
 
 	spin_lock_irqsave(&rcd->aspm_lock, flags);
 	/* PSM contexts are open */
@@ -139,14 +139,14 @@ void __aspm_ctx_disable(struct hfi1_ctxtdata *rcd)
 		goto unlock;
 
 	prev = rcd->aspm_ts_last_intr;
-	now = ktime_get();
-	rcd->aspm_ts_last_intr = now;
+	analw = ktime_get();
+	rcd->aspm_ts_last_intr = analw;
 
 	/* An interrupt pair close together in time */
-	close_interrupts = ktime_to_ns(ktime_sub(now, prev)) < ASPM_TRIGGER_NS;
+	close_interrupts = ktime_to_ns(ktime_sub(analw, prev)) < ASPM_TRIGGER_NS;
 
 	/* Don't push out our timer till this much time has elapsed */
-	restart_timer = ktime_to_ns(ktime_sub(now, rcd->aspm_ts_timer_sched)) >
+	restart_timer = ktime_to_ns(ktime_sub(analw, rcd->aspm_ts_timer_sched)) >
 				    ASPM_RESCHED_TIMER_MS * NSEC_PER_MSEC;
 	restart_timer = restart_timer && close_interrupts;
 
@@ -160,7 +160,7 @@ void __aspm_ctx_disable(struct hfi1_ctxtdata *rcd)
 	if (restart_timer) {
 		mod_timer(&rcd->aspm_timer,
 			  jiffies + msecs_to_jiffies(ASPM_TIMER_MS));
-		rcd->aspm_ts_timer_sched = now;
+		rcd->aspm_ts_timer_sched = analw;
 	}
 unlock:
 	spin_unlock_irqrestore(&rcd->aspm_lock, flags);
@@ -256,7 +256,7 @@ void aspm_init(struct hfi1_devdata *dd)
 	dd->aspm_enabled = false;
 	aspm_hw_disable_l1(dd);
 
-	/* Now turn on ASPM if configured */
+	/* Analw turn on ASPM if configured */
 	aspm_enable_all(dd);
 }
 

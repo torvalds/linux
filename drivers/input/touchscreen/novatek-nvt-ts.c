@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Driver for Novatek NT11205 i2c touchscreen controller as found
+ * Driver for Analvatek NT11205 i2c touchscreen controller as found
  * on the Acer Iconia One 7 B1-750 tablet.
  *
  * Copyright (c) 2023 Hans de Goede <hdegoede@redhat.com>
@@ -107,7 +107,7 @@ static irqreturn_t nvt_ts_irq(int irq, void *dev_id)
 
 		slot = touch[0] >> NVT_TS_TOUCH_SLOT_SHIFT;
 		if (slot < 1 || slot > data->max_touches) {
-			dev_warn(dev, "slot %d out of range, ignoring\n", slot);
+			dev_warn(dev, "slot %d out of range, iganalring\n", slot);
 			continue;
 		}
 
@@ -120,7 +120,7 @@ static irqreturn_t nvt_ts_irq(int irq, void *dev_id)
 			active = false;
 			break;
 		default:
-			dev_warn(dev, "slot %d unknown state %d\n", slot, touch[0] & 7);
+			dev_warn(dev, "slot %d unkanalwn state %d\n", slot, touch[0] & 7);
 			continue;
 		}
 
@@ -191,13 +191,13 @@ static int nvt_ts_probe(struct i2c_client *client)
 	struct input_dev *input;
 
 	if (!client->irq) {
-		dev_err(dev, "Error no irq specified\n");
+		dev_err(dev, "Error anal irq specified\n");
 		return -EINVAL;
 	}
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->client = client;
 	i2c_set_clientdata(client, data);
@@ -236,11 +236,11 @@ static int nvt_ts_probe(struct i2c_client *client)
 		width, height, data->max_touches);
 
 	if (data->buf[NVT_TS_PARAMS_MAX_BUTTONS])
-		dev_warn(dev, "Touchscreen buttons are not supported\n");
+		dev_warn(dev, "Touchscreen buttons are analt supported\n");
 
 	input = devm_input_allocate_device(dev);
 	if (!input)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	input->name = client->name;
 	input->id.bustype = BUS_I2C;
@@ -260,7 +260,7 @@ static int nvt_ts_probe(struct i2c_client *client)
 	input_set_drvdata(input, data);
 
 	error = devm_request_threaded_irq(dev, client->irq, NULL, nvt_ts_irq,
-					  IRQF_ONESHOT | IRQF_NO_AUTOEN |
+					  IRQF_ONESHOT | IRQF_ANAL_AUTOEN |
 						nvt_ts_irq_type[irq_type],
 					  client->name, data);
 	if (error) {
@@ -285,7 +285,7 @@ MODULE_DEVICE_TABLE(i2c, nvt_ts_i2c_id);
 
 static struct i2c_driver nvt_ts_driver = {
 	.driver = {
-		.name	= "novatek-nvt-ts",
+		.name	= "analvatek-nvt-ts",
 		.pm	= pm_sleep_ptr(&nvt_ts_pm_ops),
 	},
 	.probe = nvt_ts_probe,
@@ -294,6 +294,6 @@ static struct i2c_driver nvt_ts_driver = {
 
 module_i2c_driver(nvt_ts_driver);
 
-MODULE_DESCRIPTION("Novatek NT11205 touchscreen driver");
+MODULE_DESCRIPTION("Analvatek NT11205 touchscreen driver");
 MODULE_AUTHOR("Hans de Goede <hdegoede@redhat.com>");
 MODULE_LICENSE("GPL");

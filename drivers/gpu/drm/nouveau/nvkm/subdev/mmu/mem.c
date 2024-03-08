@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -149,7 +149,7 @@ nvkm_mem_new_host(struct nvkm_mmu *mmu, int type, u8 page, u64 size,
 		struct nvif_mem_ram_vn vn;
 		struct nvif_mem_ram_v0 v0;
 	} *args = argv;
-	int ret = -ENOSYS;
+	int ret = -EANALSYS;
 	enum nvkm_memory_target target;
 	struct nvkm_mem *mem;
 	gfp_t gfp = GFP_USER | __GFP_ZERO;
@@ -164,7 +164,7 @@ nvkm_mem_new_host(struct nvkm_mmu *mmu, int type, u8 page, u64 size,
 		return -EINVAL;
 
 	if (!(mem = kzalloc(sizeof(*mem), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 	mem->target = target;
 	mem->mmu = mmu;
 	*pmemory = &mem->memory;
@@ -192,9 +192,9 @@ nvkm_mem_new_host(struct nvkm_mmu *mmu, int type, u8 page, u64 size,
 	size = ALIGN(size, PAGE_SIZE) >> PAGE_SHIFT;
 
 	if (!(mem->mem = kvmalloc_array(size, sizeof(*mem->mem), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 	if (!(mem->dma = kvmalloc_array(size, sizeof(*mem->dma), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (mmu->dma_bits > 32)
 		gfp |= GFP_HIGHUSER;
@@ -204,14 +204,14 @@ nvkm_mem_new_host(struct nvkm_mmu *mmu, int type, u8 page, u64 size,
 	for (mem->pages = 0; size; size--, mem->pages++) {
 		struct page *p = alloc_page(gfp);
 		if (!p)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		mem->dma[mem->pages] = dma_map_page(mmu->subdev.device->dev,
 						    p, 0, PAGE_SIZE,
 						    DMA_BIDIRECTIONAL);
 		if (dma_mapping_error(dev, mem->dma[mem->pages])) {
 			__free_page(p);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		mem->mem[mem->pages] = p;

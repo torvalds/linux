@@ -7,7 +7,7 @@ Required properties:
 - compatible: should be one of:
   - "marvell,armada-370-pmsu" for Armada 370 or Armada XP
   - "marvell,armada-380-pmsu" for Armada 38x
-  - "marvell,armada-370-xp-pmsu" was used for Armada 370/XP but is now
+  - "marvell,armada-370-xp-pmsu" was used for Armada 370/XP but is analw
     deprecated and will be removed
 
 - reg: Should contain PMSU registers location and length.

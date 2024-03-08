@@ -101,7 +101,7 @@ enum FRAME_TYPE {
 
 #define SIZE_WORKSPACE	ALIGN(LMEM_OFFSET + LMEM_SIZE, 64 * SZ_1K)
 
-#define NONE           -1
+#define ANALNE           -1
 #define INTRA_FRAME     0
 #define LAST_FRAME      1
 #define GOLDEN_FRAME    2
@@ -561,7 +561,7 @@ vp9_loop_filter_init(struct amvdec_core *core, struct codec_vp9 *vp9)
 		amvdec_write_dos(core, HEVC_DBLK_CFGB,
 				 (0x3 << 14) | /* dw fifo thres r and b */
 				 (0x3 << 12) | /* dw fifo thres r or b */
-				 (0x3 << 10) | /* dw fifo thres not r/b */
+				 (0x3 << 10) | /* dw fifo thres analt r/b */
 				 BIT(0)); /* VP9 video format */
 	else if (core->platform->revision >= VDEC_REVISION_G12A)
 		/* VP9 video format */
@@ -620,7 +620,7 @@ vp9_loop_filter_frame_init(struct amvdec_core *core, struct segmentation *seg,
 		if (!lf->mode_ref_delta_enabled) {
 			/*
 			 * We could get rid of this if we assume that deltas
-			 * are set to zero when not in use.
+			 * are set to zero when analt in use.
 			 * encoder always uses deltas
 			 */
 			memset(lfi->lvl[seg_id], lvl_seg,
@@ -671,7 +671,7 @@ static void codec_vp9_flush_output(struct amvdec_session *sess)
 		if (!tmp->done) {
 			if (tmp->show)
 				amvdec_dst_buf_done(sess, tmp->vbuf,
-						    V4L2_FIELD_NONE);
+						    V4L2_FIELD_ANALNE);
 			else
 				v4l2_m2m_buf_queue(sess->m2m_ctx, tmp->vbuf);
 
@@ -703,7 +703,7 @@ static int codec_vp9_alloc_workspace(struct amvdec_core *core,
 						  GFP_KERNEL);
 	if (!vp9->workspace_vaddr) {
 		dev_err(core->dev, "Failed to allocate VP9 Workspace\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -764,7 +764,7 @@ static int codec_vp9_start(struct amvdec_session *sess)
 
 	vp9 = kzalloc(sizeof(*vp9), GFP_KERNEL);
 	if (!vp9)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = codec_vp9_alloc_workspace(core, vp9);
 	if (ret)
@@ -962,7 +962,7 @@ static void codec_vp9_set_sao(struct amvdec_session *sess,
 	amvdec_write_dos(core, HEVC_SAO_CTRL1, val);
 	pr_debug("HEVC_SAO_CTRL1: %08X\n", val);
 
-	/* no downscale for NV12 */
+	/* anal downscale for NV12 */
 	val = amvdec_read_dos(core, HEVC_SAO_CTRL5) & ~0xff0000;
 	amvdec_write_dos(core, HEVC_SAO_CTRL5, val);
 
@@ -1198,7 +1198,7 @@ static struct vp9_frame *codec_vp9_get_new_frame(struct amvdec_session *sess)
 
 	vbuf = v4l2_m2m_dst_buf_remove(sess->m2m_ctx);
 	if (!vbuf) {
-		dev_err(sess->core->dev, "No dst buffer available\n");
+		dev_err(sess->core->dev, "Anal dst buffer available\n");
 		kfree(new_frame);
 		return NULL;
 	}
@@ -1209,7 +1209,7 @@ static struct vp9_frame *codec_vp9_get_new_frame(struct amvdec_session *sess)
 		vbuf = v4l2_m2m_dst_buf_remove(sess->m2m_ctx);
 		v4l2_m2m_buf_queue(sess->m2m_ctx, old_vbuf);
 		if (!vbuf) {
-			dev_err(sess->core->dev, "No dst buffer available\n");
+			dev_err(sess->core->dev, "Anal dst buffer available\n");
 			kfree(new_frame);
 			return NULL;
 		}
@@ -1238,7 +1238,7 @@ static void codec_vp9_show_existing_frame(struct codec_vp9 *vp9)
 	pr_debug("showing frame %u\n", param->p.frame_to_show_idx);
 }
 
-static void codec_vp9_rm_noshow_frame(struct amvdec_session *sess)
+static void codec_vp9_rm_analshow_frame(struct amvdec_session *sess)
 {
 	struct codec_vp9 *vp9 = sess->priv;
 	struct vp9_frame *tmp;
@@ -1247,7 +1247,7 @@ static void codec_vp9_rm_noshow_frame(struct amvdec_session *sess)
 		if (tmp->show)
 			continue;
 
-		pr_debug("rm noshow: %u\n", tmp->index);
+		pr_debug("rm analshow: %u\n", tmp->index);
 		v4l2_m2m_buf_queue(sess->m2m_ctx, tmp->vbuf);
 		list_del(&tmp->list);
 		kfree(tmp);
@@ -1264,7 +1264,7 @@ static void codec_vp9_process_frame(struct amvdec_session *sess)
 	int intra_only;
 
 	if (!param->p.show_frame)
-		codec_vp9_rm_noshow_frame(sess);
+		codec_vp9_rm_analshow_frame(sess);
 
 	vp9->cur_frame = codec_vp9_get_new_frame(sess);
 	if (!vp9->cur_frame)
@@ -1425,7 +1425,7 @@ static void codec_vp9_show_frame(struct amvdec_session *sess)
 
 		if (!tmp->done) {
 			pr_debug("Doning %u\n", tmp->index);
-			amvdec_dst_buf_done(sess, tmp->vbuf, V4L2_FIELD_NONE);
+			amvdec_dst_buf_done(sess, tmp->vbuf, V4L2_FIELD_ANALNE);
 			tmp->done = 1;
 			vp9->frames_num--;
 		}
@@ -1441,16 +1441,16 @@ static void codec_vp9_show_frame(struct amvdec_session *sess)
 
 static void vp9_tree_merge_probs(unsigned int *prev_prob,
 				 unsigned int *cur_prob,
-				 int coef_node_start, int tree_left,
+				 int coef_analde_start, int tree_left,
 				 int tree_right,
-				 int tree_i, int node)
+				 int tree_i, int analde)
 {
 	int prob_32, prob_res, prob_shift;
 	int pre_prob, new_prob;
 	int den, m_count, get_prob, factor;
 
-	prob_32 = prev_prob[coef_node_start / 4 * 2];
-	prob_res = coef_node_start & 3;
+	prob_32 = prev_prob[coef_analde_start / 4 * 2];
+	prob_res = coef_analde_start & 3;
 	prob_shift = prob_res * 8;
 	pre_prob = (prob_32 >> prob_shift) & 0xff;
 
@@ -1471,8 +1471,8 @@ static void vp9_tree_merge_probs(unsigned int *prev_prob,
 					      get_prob * factor, 8);
 	}
 
-	cur_prob[coef_node_start / 4 * 2] =
-		(cur_prob[coef_node_start / 4 * 2] & (~(0xff << prob_shift))) |
+	cur_prob[coef_analde_start / 4 * 2] =
+		(cur_prob[coef_analde_start / 4 * 2] & (~(0xff << prob_shift))) |
 		(new_prob << prob_shift);
 }
 
@@ -1487,7 +1487,7 @@ static void adapt_coef_probs_cxt(unsigned int *prev_prob,
 	int prob_32, prob_res, prob_shift;
 	int pre_prob, new_prob;
 	int num, den, m_count, get_prob, factor;
-	int node, coef_node_start;
+	int analde, coef_analde_start;
 	int count_sat = 24;
 	int cxt;
 
@@ -1503,16 +1503,16 @@ static void adapt_coef_probs_cxt(unsigned int *prev_prob,
 			{ n1, n2 }
 		};
 
-		coef_node_start = coef_cxt_start;
-		for (node = 0 ; node < 3 ; node++) {
-			prob_32 = prev_prob[coef_node_start / 4 * 2];
-			prob_res = coef_node_start & 3;
+		coef_analde_start = coef_cxt_start;
+		for (analde = 0 ; analde < 3 ; analde++) {
+			prob_32 = prev_prob[coef_analde_start / 4 * 2];
+			prob_res = coef_analde_start & 3;
 			prob_shift = prob_res * 8;
 			pre_prob = (prob_32 >> prob_shift) & 0xff;
 
 			/* get binary prob */
-			num = branch_ct[node][0];
-			den = branch_ct[node][0] + branch_ct[node][1];
+			num = branch_ct[analde][0];
+			den = branch_ct[analde][0] + branch_ct[analde][1];
 			m_count = min(den, count_sat);
 
 			get_prob = (den == 0) ?
@@ -1525,12 +1525,12 @@ static void adapt_coef_probs_cxt(unsigned int *prev_prob,
 				round_power_of_two(pre_prob * (256 - factor) +
 						   get_prob * factor, 8);
 
-			cur_prob[coef_node_start / 4 * 2] =
-				(cur_prob[coef_node_start / 4 * 2] &
+			cur_prob[coef_analde_start / 4 * 2] =
+				(cur_prob[coef_analde_start / 4 * 2] &
 				 (~(0xff << prob_shift))) |
 				(new_prob << prob_shift);
 
-			coef_node_start += 1;
+			coef_analde_start += 1;
 		}
 
 		coef_cxt_start = coef_cxt_start + 3;
@@ -1548,7 +1548,7 @@ static void adapt_coef_probs(int prev_kf, int cur_kf, int pre_fc,
 	int band, coef_band_start, coef_count_band_start;
 	int cxt_num;
 	int coef_cxt_start, coef_count_cxt_start;
-	int node, coef_node_start, coef_count_node_start;
+	int analde, coef_analde_start, coef_count_analde_start;
 
 	int tree_i, tree_left, tree_right;
 	int mvd_i;
@@ -1621,42 +1621,42 @@ static void adapt_coef_probs(int prev_kf, int cur_kf, int pre_fc,
 
 	if (cur_kf == 0) {
 		/* mode_mv_merge_probs - merge_intra_inter_prob */
-		for (coef_count_node_start = VP9_INTRA_INTER_COUNT_START;
-		     coef_count_node_start < (VP9_MV_CLASS0_HP_1_COUNT_START +
+		for (coef_count_analde_start = VP9_INTRA_INTER_COUNT_START;
+		     coef_count_analde_start < (VP9_MV_CLASS0_HP_1_COUNT_START +
 					      VP9_MV_CLASS0_HP_1_COUNT_SIZE);
-		     coef_count_node_start += 2) {
-			if (coef_count_node_start ==
+		     coef_count_analde_start += 2) {
+			if (coef_count_analde_start ==
 					VP9_INTRA_INTER_COUNT_START)
-				coef_node_start = VP9_INTRA_INTER_START;
-			else if (coef_count_node_start ==
+				coef_analde_start = VP9_INTRA_INTER_START;
+			else if (coef_count_analde_start ==
 					VP9_COMP_INTER_COUNT_START)
-				coef_node_start = VP9_COMP_INTER_START;
-			else if (coef_count_node_start ==
+				coef_analde_start = VP9_COMP_INTER_START;
+			else if (coef_count_analde_start ==
 					VP9_TX_MODE_COUNT_START)
-				coef_node_start = VP9_TX_MODE_START;
-			else if (coef_count_node_start ==
+				coef_analde_start = VP9_TX_MODE_START;
+			else if (coef_count_analde_start ==
 					VP9_SKIP_COUNT_START)
-				coef_node_start = VP9_SKIP_START;
-			else if (coef_count_node_start ==
+				coef_analde_start = VP9_SKIP_START;
+			else if (coef_count_analde_start ==
 					VP9_MV_SIGN_0_COUNT_START)
-				coef_node_start = VP9_MV_SIGN_0_START;
-			else if (coef_count_node_start ==
+				coef_analde_start = VP9_MV_SIGN_0_START;
+			else if (coef_count_analde_start ==
 					VP9_MV_SIGN_1_COUNT_START)
-				coef_node_start = VP9_MV_SIGN_1_START;
-			else if (coef_count_node_start ==
+				coef_analde_start = VP9_MV_SIGN_1_START;
+			else if (coef_count_analde_start ==
 					VP9_MV_BITS_0_COUNT_START)
-				coef_node_start = VP9_MV_BITS_0_START;
-			else if (coef_count_node_start ==
+				coef_analde_start = VP9_MV_BITS_0_START;
+			else if (coef_count_analde_start ==
 					VP9_MV_BITS_1_COUNT_START)
-				coef_node_start = VP9_MV_BITS_1_START;
-			else /* node_start == VP9_MV_CLASS0_HP_0_COUNT_START */
-				coef_node_start = VP9_MV_CLASS0_HP_0_START;
+				coef_analde_start = VP9_MV_BITS_1_START;
+			else /* analde_start == VP9_MV_CLASS0_HP_0_COUNT_START */
+				coef_analde_start = VP9_MV_CLASS0_HP_0_START;
 
-			den = count[coef_count_node_start] +
-			      count[coef_count_node_start + 1];
+			den = count[coef_count_analde_start] +
+			      count[coef_count_analde_start + 1];
 
-			prob_32 = prev_prob[coef_node_start / 4 * 2];
-			prob_res = coef_node_start & 3;
+			prob_32 = prev_prob[coef_analde_start / 4 * 2];
+			prob_res = coef_analde_start & 3;
 			prob_shift = prob_res * 8;
 			pre_prob = (prob_32 >> prob_shift) & 0xff;
 
@@ -1666,7 +1666,7 @@ static void adapt_coef_probs(int prev_kf, int cur_kf, int pre_fc,
 				m_count = min(den, MODE_MV_COUNT_SAT);
 				get_prob =
 				clip_prob(div_r32(((int64_t)
-					count[coef_count_node_start] * 256 +
+					count[coef_count_analde_start] * 256 +
 					(den >> 1)),
 					den));
 
@@ -1679,21 +1679,21 @@ static void adapt_coef_probs(int prev_kf, int cur_kf, int pre_fc,
 							   8);
 			}
 
-			cur_prob[coef_node_start / 4 * 2] =
-				(cur_prob[coef_node_start / 4 * 2] &
+			cur_prob[coef_analde_start / 4 * 2] =
+				(cur_prob[coef_analde_start / 4 * 2] &
 				 (~(0xff << prob_shift))) |
 				(new_prob << prob_shift);
 
-			coef_node_start = coef_node_start + 1;
+			coef_analde_start = coef_analde_start + 1;
 		}
 
-		coef_node_start = VP9_INTER_MODE_START;
-		coef_count_node_start = VP9_INTER_MODE_COUNT_START;
+		coef_analde_start = VP9_INTER_MODE_START;
+		coef_count_analde_start = VP9_INTER_MODE_COUNT_START;
 		for (tree_i = 0 ; tree_i < 7 ; tree_i++) {
-			for (node = 0 ; node < 3 ; node++) {
-				unsigned int start = coef_count_node_start;
+			for (analde = 0 ; analde < 3 ; analde++) {
+				unsigned int start = coef_count_analde_start;
 
-				switch (node) {
+				switch (analde) {
 				case 2:
 					tree_left = count[start + 1];
 					tree_right = count[start + 3];
@@ -1712,23 +1712,23 @@ static void adapt_coef_probs(int prev_kf, int cur_kf, int pre_fc,
 				}
 
 				vp9_tree_merge_probs(prev_prob, cur_prob,
-						     coef_node_start,
+						     coef_analde_start,
 						     tree_left, tree_right,
-						     tree_i, node);
+						     tree_i, analde);
 
-				coef_node_start = coef_node_start + 1;
+				coef_analde_start = coef_analde_start + 1;
 			}
 
-			coef_count_node_start = coef_count_node_start + 4;
+			coef_count_analde_start = coef_count_analde_start + 4;
 		}
 
-		coef_node_start = VP9_IF_Y_MODE_START;
-		coef_count_node_start = VP9_IF_Y_MODE_COUNT_START;
+		coef_analde_start = VP9_IF_Y_MODE_START;
+		coef_count_analde_start = VP9_IF_Y_MODE_COUNT_START;
 		for (tree_i = 0 ; tree_i < 14 ; tree_i++) {
-			for (node = 0 ; node < 9 ; node++) {
-				unsigned int start = coef_count_node_start;
+			for (analde = 0 ; analde < 9 ; analde++) {
+				unsigned int start = coef_count_analde_start;
 
-				switch (node) {
+				switch (analde) {
 				case 8:
 					tree_left =
 						count[start + D153_PRED];
@@ -1816,22 +1816,22 @@ static void adapt_coef_probs(int prev_kf, int cur_kf, int pre_fc,
 				}
 
 				vp9_tree_merge_probs(prev_prob, cur_prob,
-						     coef_node_start,
+						     coef_analde_start,
 						     tree_left, tree_right,
-						     tree_i, node);
+						     tree_i, analde);
 
-				coef_node_start = coef_node_start + 1;
+				coef_analde_start = coef_analde_start + 1;
 			}
-			coef_count_node_start = coef_count_node_start + 10;
+			coef_count_analde_start = coef_count_analde_start + 10;
 		}
 
-		coef_node_start = VP9_PARTITION_P_START;
-		coef_count_node_start = VP9_PARTITION_P_COUNT_START;
+		coef_analde_start = VP9_PARTITION_P_START;
+		coef_count_analde_start = VP9_PARTITION_P_COUNT_START;
 		for (tree_i = 0 ; tree_i < 16 ; tree_i++) {
-			for (node = 0 ; node < 3 ; node++) {
-				unsigned int start = coef_count_node_start;
+			for (analde = 0 ; analde < 3 ; analde++) {
+				unsigned int start = coef_count_analde_start;
 
-				switch (node) {
+				switch (analde) {
 				case 2:
 					tree_left = count[start + 2];
 					tree_right = count[start + 3];
@@ -1850,23 +1850,23 @@ static void adapt_coef_probs(int prev_kf, int cur_kf, int pre_fc,
 				}
 
 				vp9_tree_merge_probs(prev_prob, cur_prob,
-						     coef_node_start,
+						     coef_analde_start,
 						     tree_left, tree_right,
-						     tree_i, node);
+						     tree_i, analde);
 
-				coef_node_start = coef_node_start + 1;
+				coef_analde_start = coef_analde_start + 1;
 			}
 
-			coef_count_node_start = coef_count_node_start + 4;
+			coef_count_analde_start = coef_count_analde_start + 4;
 		}
 
-		coef_node_start = VP9_INTERP_START;
-		coef_count_node_start = VP9_INTERP_COUNT_START;
+		coef_analde_start = VP9_INTERP_START;
+		coef_count_analde_start = VP9_INTERP_COUNT_START;
 		for (tree_i = 0 ; tree_i < 4 ; tree_i++) {
-			for (node = 0 ; node < 2 ; node++) {
-				unsigned int start = coef_count_node_start;
+			for (analde = 0 ; analde < 2 ; analde++) {
+				unsigned int start = coef_count_analde_start;
 
-				switch (node) {
+				switch (analde) {
 				case 1:
 					tree_left = count[start + 1];
 					tree_right = count[start + 2];
@@ -1879,22 +1879,22 @@ static void adapt_coef_probs(int prev_kf, int cur_kf, int pre_fc,
 				}
 
 				vp9_tree_merge_probs(prev_prob, cur_prob,
-						     coef_node_start,
+						     coef_analde_start,
 						     tree_left, tree_right,
-						     tree_i, node);
+						     tree_i, analde);
 
-				coef_node_start = coef_node_start + 1;
+				coef_analde_start = coef_analde_start + 1;
 			}
-			coef_count_node_start = coef_count_node_start + 3;
+			coef_count_analde_start = coef_count_analde_start + 3;
 		}
 
-		coef_node_start = VP9_MV_JOINTS_START;
-		coef_count_node_start = VP9_MV_JOINTS_COUNT_START;
+		coef_analde_start = VP9_MV_JOINTS_START;
+		coef_count_analde_start = VP9_MV_JOINTS_COUNT_START;
 		for (tree_i = 0 ; tree_i < 1 ; tree_i++) {
-			for (node = 0 ; node < 3 ; node++) {
-				unsigned int start = coef_count_node_start;
+			for (analde = 0 ; analde < 3 ; analde++) {
+				unsigned int start = coef_count_analde_start;
 
-				switch (node) {
+				switch (analde) {
 				case 2:
 					tree_left = count[start + 2];
 					tree_right = count[start + 3];
@@ -1913,26 +1913,26 @@ static void adapt_coef_probs(int prev_kf, int cur_kf, int pre_fc,
 				}
 
 				vp9_tree_merge_probs(prev_prob, cur_prob,
-						     coef_node_start,
+						     coef_analde_start,
 						     tree_left, tree_right,
-						     tree_i, node);
+						     tree_i, analde);
 
-				coef_node_start = coef_node_start + 1;
+				coef_analde_start = coef_analde_start + 1;
 			}
-			coef_count_node_start = coef_count_node_start + 4;
+			coef_count_analde_start = coef_count_analde_start + 4;
 		}
 
 		for (mvd_i = 0 ; mvd_i < 2 ; mvd_i++) {
-			coef_node_start = mvd_i ? VP9_MV_CLASSES_1_START :
+			coef_analde_start = mvd_i ? VP9_MV_CLASSES_1_START :
 						  VP9_MV_CLASSES_0_START;
-			coef_count_node_start = mvd_i ?
+			coef_count_analde_start = mvd_i ?
 					VP9_MV_CLASSES_1_COUNT_START :
 					VP9_MV_CLASSES_0_COUNT_START;
 			tree_i = 0;
-			for (node = 0; node < 10; node++) {
-				unsigned int start = coef_count_node_start;
+			for (analde = 0; analde < 10; analde++) {
+				unsigned int start = coef_count_analde_start;
 
-				switch (node) {
+				switch (analde) {
 				case 9:
 					tree_left = count[start + 9];
 					tree_right = count[start + 10];
@@ -2010,38 +2010,38 @@ static void adapt_coef_probs(int prev_kf, int cur_kf, int pre_fc,
 				}
 
 				vp9_tree_merge_probs(prev_prob, cur_prob,
-						     coef_node_start,
+						     coef_analde_start,
 						     tree_left, tree_right,
-						     tree_i, node);
+						     tree_i, analde);
 
-				coef_node_start = coef_node_start + 1;
+				coef_analde_start = coef_analde_start + 1;
 			}
 
-			coef_node_start = mvd_i ? VP9_MV_CLASS0_1_START :
+			coef_analde_start = mvd_i ? VP9_MV_CLASS0_1_START :
 						  VP9_MV_CLASS0_0_START;
-			coef_count_node_start =	mvd_i ?
+			coef_count_analde_start =	mvd_i ?
 						VP9_MV_CLASS0_1_COUNT_START :
 						VP9_MV_CLASS0_0_COUNT_START;
 			tree_i = 0;
-			node = 0;
-			tree_left = count[coef_count_node_start + 0];
-			tree_right = count[coef_count_node_start + 1];
+			analde = 0;
+			tree_left = count[coef_count_analde_start + 0];
+			tree_right = count[coef_count_analde_start + 1];
 
 			vp9_tree_merge_probs(prev_prob, cur_prob,
-					     coef_node_start,
+					     coef_analde_start,
 					     tree_left, tree_right,
-					     tree_i, node);
-			coef_node_start = mvd_i ? VP9_MV_CLASS0_FP_1_START :
+					     tree_i, analde);
+			coef_analde_start = mvd_i ? VP9_MV_CLASS0_FP_1_START :
 						  VP9_MV_CLASS0_FP_0_START;
-			coef_count_node_start =	mvd_i ?
+			coef_count_analde_start =	mvd_i ?
 					VP9_MV_CLASS0_FP_1_COUNT_START :
 					VP9_MV_CLASS0_FP_0_COUNT_START;
 
 			for (tree_i = 0; tree_i < 3; tree_i++) {
-				for (node = 0; node < 3; node++) {
+				for (analde = 0; analde < 3; analde++) {
 					unsigned int start =
-						coef_count_node_start;
-					switch (node) {
+						coef_count_analde_start;
+					switch (analde) {
 					case 2:
 						tree_left = count[start + 2];
 						tree_right = count[start + 3];
@@ -2061,15 +2061,15 @@ static void adapt_coef_probs(int prev_kf, int cur_kf, int pre_fc,
 
 					vp9_tree_merge_probs(prev_prob,
 							     cur_prob,
-							     coef_node_start,
+							     coef_analde_start,
 							     tree_left,
 							     tree_right,
-							     tree_i, node);
+							     tree_i, analde);
 
-					coef_node_start = coef_node_start + 1;
+					coef_analde_start = coef_analde_start + 1;
 				}
-				coef_count_node_start =
-					coef_count_node_start + 4;
+				coef_count_analde_start =
+					coef_count_analde_start + 4;
 			}
 		}
 	}
@@ -2132,7 +2132,7 @@ static irqreturn_t codec_vp9_threaded_isr(struct amvdec_session *sess)
 	if (codec_vp9_process_rpm(vp9)) {
 		amvdec_src_change(sess, vp9->width, vp9->height, 16);
 
-		/* No frame is actually processed */
+		/* Anal frame is actually processed */
 		vp9->cur_frame = NULL;
 
 		/* Show the remaining frame */

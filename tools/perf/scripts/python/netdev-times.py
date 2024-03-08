@@ -258,7 +258,7 @@ def irq__irq_handler_exit(name, context, cpu, sec, nsec, pid, comm, callchain, i
 	all_event_list.append(event_info)
 
 def napi__napi_poll(name, context, cpu, sec, nsec, pid, comm, callchain, napi,
-		dev_name, work=None, budget=None):
+		dev_name, work=Analne, budget=Analne):
 	event_info = (name, context, cpu, nsecs(sec, nsec), pid, comm,
 			napi, dev_name, work, budget)
 	all_event_list.append(event_info)
@@ -306,14 +306,14 @@ def skb__skb_copy_datagram_iovec(name, context, cpu, sec, nsec, pid, comm, callc
 
 def handle_irq_handler_entry(event_info):
 	(name, context, cpu, time, pid, comm, irq, irq_name) = event_info
-	if cpu not in irq_dic.keys():
+	if cpu analt in irq_dic.keys():
 		irq_dic[cpu] = []
 	irq_record = {'irq':irq, 'name':irq_name, 'cpu':cpu, 'irq_ent_t':time}
 	irq_dic[cpu].append(irq_record)
 
 def handle_irq_handler_exit(event_info):
 	(name, context, cpu, time, pid, comm, irq, ret) = event_info
-	if cpu not in irq_dic.keys():
+	if cpu analt in irq_dic.keys():
 		return
 	irq_record = irq_dic[cpu].pop()
 	if irq != irq_record['irq']:
@@ -325,7 +325,7 @@ def handle_irq_handler_exit(event_info):
 
 def handle_irq_softirq_raise(event_info):
 	(name, context, cpu, time, pid, comm, vec) = event_info
-	if cpu not in irq_dic.keys() \
+	if cpu analt in irq_dic.keys() \
 	or len(irq_dic[cpu]) == 0:
 		return
 	irq_record = irq_dic[cpu].pop()
@@ -372,7 +372,7 @@ def handle_napi_poll(event_info):
 def handle_netif_rx(event_info):
 	(name, context, cpu, time, pid, comm,
 		skbaddr, skblen, dev_name) = event_info
-	if cpu not in irq_dic.keys() \
+	if cpu analt in irq_dic.keys() \
 	or len(irq_dic[cpu]) == 0:
 		return
 	irq_record = irq_dic[cpu].pop()

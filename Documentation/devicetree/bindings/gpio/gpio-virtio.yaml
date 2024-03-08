@@ -17,7 +17,7 @@ description:
   details.
 
 properties:
-  $nodename:
+  $analdename:
     const: gpio
 
   compatible:

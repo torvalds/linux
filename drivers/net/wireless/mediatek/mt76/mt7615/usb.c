@@ -141,13 +141,13 @@ static int mt7663u_probe(struct usb_interface *usb_intf,
 	ops = devm_kmemdup(&usb_intf->dev, &mt7615_ops, sizeof(mt7615_ops),
 			   GFP_KERNEL);
 	if (!ops)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ops->stop = mt7663u_stop;
 
 	mdev = mt76_alloc_device(&usb_intf->dev, sizeof(*dev), ops, &drv_ops);
 	if (!mdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev = container_of(mdev, struct mt7615_dev, mt76);
 	udev = usb_get_dev(udev);

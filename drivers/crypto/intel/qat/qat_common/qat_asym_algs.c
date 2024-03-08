@@ -257,7 +257,7 @@ static int qat_dh_compute_value(struct kpp_request *req)
 					    QAT_COMN_CD_FLD_TYPE_64BIT_ADR);
 
 	/*
-	 * If no source is provided use g as base
+	 * If anal source is provided use g as base
 	 */
 	if (req->src) {
 		qat_req->in.dh.in.xa = ctx->dma_xa;
@@ -276,7 +276,7 @@ static int qat_dh_compute_value(struct kpp_request *req)
 		}
 	}
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	if (req->src) {
 		/*
 		 * src can be of any size in valid range, but HW expects it to
@@ -350,7 +350,7 @@ static int qat_dh_compute_value(struct kpp_request *req)
 	msg->output_param_count = 1;
 
 	ret = qat_alg_send_asym_message(qat_req, inst, &req->base);
-	if (ret == -ENOSPC)
+	if (ret == -EANALSPC)
 		goto unmap_all;
 
 	return ret;
@@ -404,7 +404,7 @@ static int qat_dh_set_params(struct qat_dh_ctx *ctx, struct dh *params)
 	ctx->p_size = params->p_size;
 	ctx->p = dma_alloc_coherent(dev, ctx->p_size, &ctx->dma_p, GFP_KERNEL);
 	if (!ctx->p)
-		return -ENOMEM;
+		return -EANALMEM;
 	memcpy(ctx->p, params->p, ctx->p_size);
 
 	/* If g equals 2 don't copy it */
@@ -415,7 +415,7 @@ static int qat_dh_set_params(struct qat_dh_ctx *ctx, struct dh *params)
 
 	ctx->g = dma_alloc_coherent(dev, ctx->p_size, &ctx->dma_g, GFP_KERNEL);
 	if (!ctx->g)
-		return -ENOMEM;
+		return -EANALMEM;
 	memcpy(ctx->g + (ctx->p_size - params->g_size), params->g,
 	       params->g_size);
 
@@ -464,7 +464,7 @@ static int qat_dh_set_secret(struct crypto_kpp *tfm, const void *buf,
 	ctx->xa = dma_alloc_coherent(dev, ctx->p_size, &ctx->dma_xa,
 				     GFP_KERNEL);
 	if (!ctx->xa) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_clear_ctx;
 	}
 	memcpy(ctx->xa + (ctx->p_size - params.key_size), params.key,
@@ -488,7 +488,7 @@ static int qat_dh_init_tfm(struct crypto_kpp *tfm)
 {
 	struct qat_dh_ctx *ctx = kpp_tfm_ctx(tfm);
 	struct qat_crypto_instance *inst =
-			qat_crypto_get_instance_node(numa_node_id());
+			qat_crypto_get_instance_analde(numa_analde_id());
 
 	if (!inst)
 		return -EINVAL;
@@ -683,7 +683,7 @@ static int qat_rsa_enc(struct akcipher_request *req)
 
 	qat_req->in.rsa.enc.e = ctx->dma_e;
 	qat_req->in.rsa.enc.n = ctx->dma_n;
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 
 	/*
 	 * src can be of any size in valid range, but HW expects it to be the
@@ -748,7 +748,7 @@ static int qat_rsa_enc(struct akcipher_request *req)
 	msg->output_param_count = 1;
 
 	ret = qat_alg_send_asym_message(qat_req, inst, &req->base);
-	if (ret == -ENOSPC)
+	if (ret == -EANALSPC)
 		goto unmap_all;
 
 	return ret;
@@ -827,7 +827,7 @@ static int qat_rsa_dec(struct akcipher_request *req)
 		qat_req->in.rsa.dec.d = ctx->dma_d;
 		qat_req->in.rsa.dec.n = ctx->dma_n;
 	}
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 
 	/*
 	 * src can be of any size in valid range, but HW expects it to be the
@@ -898,7 +898,7 @@ static int qat_rsa_dec(struct akcipher_request *req)
 	msg->output_param_count = 1;
 
 	ret = qat_alg_send_asym_message(qat_req, inst, &req->base);
-	if (ret == -ENOSPC)
+	if (ret == -EANALSPC)
 		goto unmap_all;
 
 	return ret;
@@ -945,7 +945,7 @@ static int qat_rsa_set_n(struct qat_rsa_ctx *ctx, const char *value,
 	if (!qat_rsa_enc_fn_id(ctx->key_sz))
 		goto err;
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	ctx->n = dma_alloc_coherent(dev, ctx->key_sz, &ctx->dma_n, GFP_KERNEL);
 	if (!ctx->n)
 		goto err;
@@ -977,7 +977,7 @@ static int qat_rsa_set_e(struct qat_rsa_ctx *ctx, const char *value,
 
 	ctx->e = dma_alloc_coherent(dev, ctx->key_sz, &ctx->dma_e, GFP_KERNEL);
 	if (!ctx->e)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy(ctx->e + (ctx->key_sz - vlen), ptr, vlen);
 	return 0;
@@ -1000,7 +1000,7 @@ static int qat_rsa_set_d(struct qat_rsa_ctx *ctx, const char *value,
 	if (!ctx->key_sz || !vlen || vlen > ctx->key_sz)
 		goto err;
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	ctx->d = dma_alloc_coherent(dev, ctx->key_sz, &ctx->dma_d, GFP_KERNEL);
 	if (!ctx->d)
 		goto err;
@@ -1225,7 +1225,7 @@ static int qat_rsa_init_tfm(struct crypto_akcipher *tfm)
 {
 	struct qat_rsa_ctx *ctx = akcipher_tfm_ctx(tfm);
 	struct qat_crypto_instance *inst =
-			qat_crypto_get_instance_node(numa_node_id());
+			qat_crypto_get_instance_analde(numa_analde_id());
 
 	if (!inst)
 		return -EINVAL;

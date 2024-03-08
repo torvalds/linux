@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -76,7 +76,7 @@ static void dce_ipp_cursor_set_attributes(
 
 	/* Program cursor control */
 	switch (attributes->color_format) {
-	case CURSOR_MODE_MONO:
+	case CURSOR_MODE_MOANAL:
 		mode = 0;
 		break;
 	case CURSOR_MODE_COLOR_1BIT_AND:
@@ -98,7 +98,7 @@ static void dce_ipp_cursor_set_attributes(
 		CURSOR_2X_MAGNIFY, attributes->attribute_flags.bits.ENABLE_MAGNIFICATION,
 		CUR_INV_TRANS_CLAMP, attributes->attribute_flags.bits.INVERSE_TRANSPARENT_CLAMPING);
 
-	if (attributes->color_format == CURSOR_MODE_MONO) {
+	if (attributes->color_format == CURSOR_MODE_MOANAL) {
 		REG_SET_3(CUR_COLOR1, 0,
 			CUR_COLOR1_BLUE, 0,
 			CUR_COLOR1_GREEN, 0,
@@ -111,7 +111,7 @@ static void dce_ipp_cursor_set_attributes(
 	}
 
 	/*
-	 * Program cursor size -- NOTE: HW spec specifies that HW register
+	 * Program cursor size -- ANALTE: HW spec specifies that HW register
 	 * stores size as (height - 1, width - 1)
 	 */
 	REG_SET_2(CUR_SIZE, 0,
@@ -238,7 +238,7 @@ static void dce60_ipp_set_degamma(
 	uint32_t degamma_type = (mode == IPP_DEGAMMA_MODE_HW_sRGB) ? 1 : 0;
 
 	ASSERT(mode == IPP_DEGAMMA_MODE_BYPASS || mode == IPP_DEGAMMA_MODE_HW_sRGB);
-	/* DCE6 does not have CURSOR2_DEGAMMA_MODE bit in DEGAMMA_CONTROL reg */
+	/* DCE6 does analt have CURSOR2_DEGAMMA_MODE bit in DEGAMMA_CONTROL reg */
 	REG_SET_2(DEGAMMA_CONTROL, 0,
 		  GRPH_DEGAMMA_MODE, degamma_type,
 		  CURSOR_DEGAMMA_MODE, degamma_type);

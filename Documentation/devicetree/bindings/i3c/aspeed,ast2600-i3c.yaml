@@ -38,7 +38,7 @@ properties:
     $ref: /schemas/types.yaml#/definitions/phandle-array
     items:
       - items:
-          - description: phandle to i3c global register syscon node
+          - description: phandle to i3c global register syscon analde
           - description: index of this i3c controller in the global register set
     description: |
       A (phandle, controller index) reference to the i3c global register set

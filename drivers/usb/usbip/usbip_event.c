@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2003-2008 Takahiro Hirofuchi
- * Copyright (C) 2015 Nobuo Iwata
+ * Copyright (C) 2015 Analbuo Iwata
  */
 
 #include <linux/kthread.h>
@@ -12,7 +12,7 @@
 #include "usbip_common.h"
 
 struct usbip_event {
-	struct list_head node;
+	struct list_head analde;
 	struct usbip_device *ud;
 };
 
@@ -45,8 +45,8 @@ static struct usbip_device *get_event(void)
 
 	spin_lock_irqsave(&event_lock, flags);
 	if (!list_empty(&event_list)) {
-		ue = list_first_entry(&event_list, struct usbip_event, node);
-		list_del(&ue->node);
+		ue = list_first_entry(&event_list, struct usbip_event, analde);
+		list_del(&ue->analde);
 	}
 	spin_unlock_irqrestore(&event_lock, flags);
 
@@ -72,7 +72,7 @@ static void event_handler(struct work_struct *work)
 
 		mutex_lock(&ud->sysfs_lock);
 		/*
-		 * NOTE: shutdown must come first.
+		 * ANALTE: shutdown must come first.
 		 * Shutdown the device.
 		 */
 		if (ud->event & USBIP_EH_SHUTDOWN) {
@@ -110,7 +110,7 @@ void usbip_stop_eh(struct usbip_device *ud)
 	unsigned long pending = ud->event & ~USBIP_EH_BYE;
 
 	if (!(ud->event & USBIP_EH_BYE))
-		usbip_dbg_eh("usbip_eh stopping but not removed\n");
+		usbip_dbg_eh("usbip_eh stopping but analt removed\n");
 
 	if (pending)
 		usbip_dbg_eh("usbip_eh waiting completion %lx\n", pending);
@@ -130,7 +130,7 @@ int usbip_init_eh(void)
 	usbip_queue = create_singlethread_workqueue(WORK_QUEUE_NAME);
 	if (usbip_queue == NULL) {
 		pr_err("failed to create usbip_event\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	return 0;
 }
@@ -153,7 +153,7 @@ void usbip_event_add(struct usbip_device *ud, unsigned long event)
 
 	spin_lock_irqsave(&event_lock, flags);
 
-	list_for_each_entry_reverse(ue, &event_list, node) {
+	list_for_each_entry_reverse(ue, &event_list, analde) {
 		if (ue->ud == ud)
 			goto out;
 	}
@@ -164,7 +164,7 @@ void usbip_event_add(struct usbip_device *ud, unsigned long event)
 
 	ue->ud = ud;
 
-	list_add_tail(&ue->node, &event_list);
+	list_add_tail(&ue->analde, &event_list);
 	queue_work(usbip_queue, &usbip_work);
 
 out:

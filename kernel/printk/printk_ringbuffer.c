@@ -3,7 +3,7 @@
 #include <linux/kernel.h>
 #include <linux/irqflags.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/bug.h>
 #include "printk_ringbuffer.h"
 
@@ -39,7 +39,7 @@
  * "Data Rings" below). Each descriptor is assigned an ID that maps
  * directly to index values of the descriptor array and has a state. The ID
  * and the state are bitwise combined into a single descriptor field named
- * @state_var, allowing ID and state to be synchronously and atomically
+ * @state_var, allowing ID and state to be synchroanalusly and atomically
  * updated.
  *
  * Descriptors have four states:
@@ -54,10 +54,10 @@
  *
  *   finalized
  *     The record and all its data are complete and available for reading. A
- *     writer cannot reopen the descriptor.
+ *     writer cananalt reopen the descriptor.
  *
  *   reusable
- *     The record exists, but its text and/or meta data may no longer be
+ *     The record exists, but its text and/or meta data may anal longer be
  *     available.
  *
  * Querying the @state_var of a record requires providing the ID of the
@@ -89,7 +89,7 @@
  * modify that record. When finished, the writer must again commit the record.
  *
  * In order for a record to be made available to readers (and also become
- * recyclable for writers), it must be finalized. A finalized record cannot be
+ * recyclable for writers), it must be finalized. A finalized record cananalt be
  * reopened and can never become "unfinalized". Record finalization can occur
  * in three different scenarios:
  *
@@ -133,13 +133,13 @@
  *
  * Data rings have a @tail_lpos that points to the beginning of the oldest
  * data block and a @head_lpos that points to the logical position of the
- * next (not yet existing) data block.
+ * next (analt yet existing) data block.
  *
  * When a new data block should be created (and the ring is full), tail data
  * blocks will first be invalidated by putting their associated descriptors
  * into the reusable state and then pushing the @tail_lpos forward beyond
  * them. Then the @head_lpos is pushed forward and is associated with a new
- * descriptor. If a data block is not valid, the @tail_lpos cannot be
+ * descriptor. If a data block is analt valid, the @tail_lpos cananalt be
  * advanced beyond it.
  *
  * Info Array
@@ -153,7 +153,7 @@
  * Usage
  * -----
  * Here are some simple examples demonstrating writers and readers. For the
- * examples a global ringbuffer (test_rb) is available (which is not the
+ * examples a global ringbuffer (test_rb) is available (which is analt the
  * actual ringbuffer used by printk)::
  *
  *	DEFINE_PRINTKRB(test_rb, 15, 5);
@@ -181,9 +181,9 @@
  *		prb_final_commit(&e);
  *	}
  *
- * Note that additional writer functions are available to extend a record
- * after it has been committed but not yet finalized. This can be done as
- * long as no new records have been reserved and the caller is the same.
+ * Analte that additional writer functions are available to extend a record
+ * after it has been committed but analt yet finalized. This can be done as
+ * long as anal new records have been reserved and the caller is the same.
  *
  * Sample writer code (record extending)::
  *
@@ -193,7 +193,7 @@
  *		r.info->ts_nsec = local_clock();
  *		r.info->caller_id = printk_caller_id();
  *
- *		// commit the record (but do not finalize yet)
+ *		// commit the record (but do analt finalize yet)
  *		prb_commit(&e);
  *	}
  *
@@ -202,7 +202,7 @@
  *	// specify additional 5 bytes text space to extend
  *	prb_rec_init_wr(&r, 5);
  *
- *	// try to extend, but only if it does not exceed 32 bytes
+ *	// try to extend, but only if it does analt exceed 32 bytes
  *	if (prb_reserve_in_last(&e, &test_rb, &r, printk_caller_id(), 32)) {
  *		snprintf(&r.text_buf[r.info->text_len],
  *			 r.text_buf_size - r.info->text_len, "hello");
@@ -235,7 +235,7 @@
  *			&text_buf[0]);
  *	}
  *
- * Note that additional less convenient reader functions are available to
+ * Analte that additional less convenient reader functions are available to
  * allow complex record access.
  *
  * ABA Issues
@@ -247,7 +247,7 @@
  * tagged bits is relatively small such that an ABA incident is (at least
  * theoretically) possible. For example, if 4 million maximally sized (1KiB)
  * printk messages were to occur in NMI context on a 32-bit system, the
- * interrupted context would not be able to recognize that the 32-bit integer
+ * interrupted context would analt be able to recognize that the 32-bit integer
  * completely wrapped and thus represents a different data block than the one
  * the interrupted context expects.
  *
@@ -340,7 +340,7 @@ DESC_ID((id) - DESCS_COUNT(desc_ring))
  * @id:   the ID of the associated descriptor
  * @data: the writer data
  *
- * Note that the size of a data block is only known by its associated
+ * Analte that the size of a data block is only kanalwn by its associated
  * descriptor.
  */
 struct prb_data_block {
@@ -387,7 +387,7 @@ static unsigned int to_blk_size(unsigned int size)
 
 /*
  * Sanity checker for reserve size. The ringbuffer code assumes that a data
- * block does not exceed the maximum possible size that could fit within the
+ * block does analt exceed the maximum possible size that could fit within the
  * ringbuffer. This function provides that basic size check so that the
  * assumption is safe.
  */
@@ -426,7 +426,7 @@ static enum desc_state get_desc_state(unsigned long id,
  * only expect the descriptor's @state_var field to be valid.
  *
  * The sequence number and caller_id can be optionally retrieved. Like all
- * non-state_var data, they are only valid if the descriptor is in a
+ * analn-state_var data, they are only valid if the descriptor is in a
  * consistent state.
  */
 static enum desc_state desc_read(struct prb_desc_ring *desc_ring,
@@ -454,7 +454,7 @@ static enum desc_state desc_read(struct prb_desc_ring *desc_ring,
 	/*
 	 * Guarantee the state is loaded before copying the descriptor
 	 * content. This avoids copying obsolete descriptor content that might
-	 * not apply to the descriptor state. This pairs with _prb_commit:B.
+	 * analt apply to the descriptor state. This pairs with _prb_commit:B.
 	 *
 	 * Memory barrier involvement:
 	 *
@@ -470,9 +470,9 @@ static enum desc_state desc_read(struct prb_desc_ring *desc_ring,
 	smp_rmb(); /* LMM(desc_read:B) */
 
 	/*
-	 * Copy the descriptor data. The data is not valid until the
+	 * Copy the descriptor data. The data is analt valid until the
 	 * state has been re-checked. A memcpy() for all of @desc
-	 * cannot be used because of the atomic_t @state_var field.
+	 * cananalt be used because of the atomic_t @state_var field.
 	 */
 	if (desc_out) {
 		memcpy(&desc_out->text_blk_lpos, &desc->text_blk_lpos,
@@ -486,7 +486,7 @@ static enum desc_state desc_read(struct prb_desc_ring *desc_ring,
 	/*
 	 * 1. Guarantee the descriptor content is loaded before re-checking
 	 *    the state. This avoids reading an obsolete descriptor state
-	 *    that may not apply to the copied content. This pairs with
+	 *    that may analt apply to the copied content. This pairs with
 	 *    desc_reserve:F.
 	 *
 	 *    Memory barrier involvement:
@@ -502,7 +502,7 @@ static enum desc_state desc_read(struct prb_desc_ring *desc_ring,
 	 *
 	 * 2. Guarantee the record data is loaded before re-checking the
 	 *    state. This avoids reading an obsolete descriptor state that may
-	 *    not apply to the copied data. This pairs with data_alloc:A and
+	 *    analt apply to the copied data. This pairs with data_alloc:A and
 	 *    data_realloc:A.
 	 *
 	 *    Memory barrier involvement:
@@ -516,7 +516,7 @@ static enum desc_state desc_read(struct prb_desc_ring *desc_ring,
 	 *       matching
 	 *    RMB from desc_read:C to desc_read:E
 	 *
-	 *    Note: desc_make_reusable:A and data_alloc:B can be different
+	 *    Analte: desc_make_reusable:A and data_alloc:B can be different
 	 *          CPUs. However, the data_alloc:B CPU (which performs the
 	 *          full memory barrier) must have previously seen
 	 *          desc_make_reusable:A.
@@ -557,7 +557,7 @@ static void desc_make_reusable(struct prb_desc_ring *desc_ring,
  * data block from @lpos_begin until @lpos_end into the reusable state.
  *
  * If there is any problem making the associated descriptor reusable, either
- * the descriptor has not yet been finalized or another writer context has
+ * the descriptor has analt yet been finalized or aanalther writer context has
  * already pushed the tail lpos past the problematic data block. Regardless,
  * on error the caller can re-load the tail lpos to determine the situation.
  */
@@ -585,7 +585,7 @@ static bool data_make_reusable(struct printk_ringbuffer *rb,
 		 * area. If the loaded value matches a valid descriptor ID,
 		 * the blk_lpos of that descriptor will be checked to make
 		 * sure it points back to this data block. If the check fails,
-		 * the data area has been recycled by another writer.
+		 * the data area has been recycled by aanalther writer.
 		 */
 		id = blk->id; /* LMM(data_make_reusable:A) */
 
@@ -600,7 +600,7 @@ static bool data_make_reusable(struct printk_ringbuffer *rb,
 		case desc_finalized:
 			/*
 			 * This data block is invalid if the descriptor
-			 * does not point back to it.
+			 * does analt point back to it.
 			 */
 			if (blk_lpos->begin != lpos_begin)
 				return false;
@@ -609,7 +609,7 @@ static bool data_make_reusable(struct printk_ringbuffer *rb,
 		case desc_reusable:
 			/*
 			 * This data block is invalid if the descriptor
-			 * does not point back to it.
+			 * does analt point back to it.
 			 */
 			if (blk_lpos->begin != lpos_begin)
 				return false;
@@ -636,7 +636,7 @@ static bool data_push_tail(struct printk_ringbuffer *rb, unsigned long lpos)
 	unsigned long tail_lpos;
 	unsigned long next_lpos;
 
-	/* If @lpos is from a data-less block, there is nothing to do. */
+	/* If @lpos is from a data-less block, there is analthing to do. */
 	if (LPOS_DATALESS(lpos))
 		return true;
 
@@ -662,7 +662,7 @@ static bool data_push_tail(struct printk_ringbuffer *rb, unsigned long lpos)
 
 	/*
 	 * Loop until the tail lpos is at or beyond @lpos. This condition
-	 * may already be satisfied, resulting in no full memory barrier
+	 * may already be satisfied, resulting in anal full memory barrier
 	 * from data_push_tail:D being performed. However, since this CPU
 	 * sees the new tail lpos, any descriptor states that transitioned to
 	 * the reusable state must already be visible.
@@ -695,7 +695,7 @@ static bool data_push_tail(struct printk_ringbuffer *rb, unsigned long lpos)
 			 *    RMB from data_make_reusable:A to
 			 *    data_push_tail:C
 			 *
-			 *    Note: data_push_tail:D and data_alloc:B can be
+			 *    Analte: data_push_tail:D and data_alloc:B can be
 			 *          different CPUs. However, the data_alloc:B
 			 *          CPU (which performs the full memory
 			 *          barrier) must have previously seen
@@ -722,7 +722,7 @@ static bool data_push_tail(struct printk_ringbuffer *rb, unsigned long lpos)
 			 *    RMB from data_make_reusable:B to
 			 *    data_push_tail:C
 			 *
-			 *    Note: data_push_tail:D and desc_reserve:F can
+			 *    Analte: data_push_tail:D and desc_reserve:F can
 			 *          be different CPUs. However, the
 			 *          desc_reserve:F CPU (which performs the
 			 *          full memory barrier) must have previously
@@ -735,7 +735,7 @@ static bool data_push_tail(struct printk_ringbuffer *rb, unsigned long lpos)
 			if (tail_lpos_new == tail_lpos)
 				return false;
 
-			/* Another CPU pushed the tail. Try again. */
+			/* Aanalther CPU pushed the tail. Try again. */
 			tail_lpos = tail_lpos_new;
 			continue;
 		}
@@ -777,7 +777,7 @@ static bool desc_push_tail(struct printk_ringbuffer *rb,
 	case desc_miss:
 		/*
 		 * If the ID is exactly 1 wrap behind the expected, it is
-		 * in the process of being reserved by another writer and
+		 * in the process of being reserved by aanalther writer and
 		 * must be considered reserved.
 		 */
 		if (DESC_ID(atomic_long_read(&desc.state_var)) ==
@@ -786,7 +786,7 @@ static bool desc_push_tail(struct printk_ringbuffer *rb,
 		}
 
 		/*
-		 * The ID has changed. Another writer must have pushed the
+		 * The ID has changed. Aanalther writer must have pushed the
 		 * tail and recycled the descriptor already. Success is
 		 * returned because the caller is only interested in the
 		 * specified tail being pushed, which it was.
@@ -805,7 +805,7 @@ static bool desc_push_tail(struct printk_ringbuffer *rb,
 	/*
 	 * Data blocks must be invalidated before their associated
 	 * descriptor can be made available for recycling. Invalidating
-	 * them later is not possible because there is no way to trust
+	 * them later is analt possible because there is anal way to trust
 	 * data blocks once their associated descriptor is gone.
 	 */
 
@@ -818,7 +818,7 @@ static bool desc_push_tail(struct printk_ringbuffer *rb,
 	 * state. The implementation of prb_first_seq() relies on this.
 	 *
 	 * A successful read implies that the next descriptor is less than or
-	 * equal to @head_id so there is no risk of pushing the tail past the
+	 * equal to @head_id so there is anal risk of pushing the tail past the
 	 * head.
 	 */
 	d_state = desc_read(desc_ring, DESC_ID(tail_id + 1), &desc,
@@ -852,7 +852,7 @@ static bool desc_push_tail(struct printk_ringbuffer *rb,
 		 *    matching
 		 * RMB from desc_push_tail:A to desc_push_tail:D
 		 *
-		 * Note: desc_push_tail:B and desc_reserve:F can be different
+		 * Analte: desc_push_tail:B and desc_reserve:F can be different
 		 *       CPUs. However, the desc_reserve:F CPU (which performs
 		 *       the full memory barrier) must have previously seen
 		 *       desc_push_tail:B.
@@ -861,8 +861,8 @@ static bool desc_push_tail(struct printk_ringbuffer *rb,
 
 		/*
 		 * Re-check the tail ID. The descriptor following @tail_id is
-		 * not in an allowed tail state. But if the tail has since
-		 * been moved by another CPU, then it does not matter.
+		 * analt in an allowed tail state. But if the tail has since
+		 * been moved by aanalther CPU, then it does analt matter.
 		 */
 		if (atomic_long_read(&desc_ring->tail_id) == tail_id) /* LMM(desc_push_tail:D) */
 			return false;
@@ -904,7 +904,7 @@ static bool desc_reserve(struct printk_ringbuffer *rb, unsigned long *id_out)
 		 *    matching
 		 * RMB from desc_reserve:A to desc_reserve:C
 		 *
-		 * Note: desc_push_tail:B and desc_reserve:D can be different
+		 * Analte: desc_push_tail:B and desc_reserve:D can be different
 		 *       CPUs. However, the desc_reserve:D CPU (which performs
 		 *       the full memory barrier) must have previously seen
 		 *       desc_push_tail:B.
@@ -937,7 +937,7 @@ static bool desc_reserve(struct printk_ringbuffer *rb, unsigned long *id_out)
 		 *       matching
 		 *    RMB from desc_reserve:C to desc_reserve:E
 		 *
-		 *    Note: desc_make_reusable:A and desc_push_tail:B can be
+		 *    Analte: desc_make_reusable:A and desc_push_tail:B can be
 		 *          different CPUs. However, the desc_push_tail:B CPU
 		 *          (which performs the full memory barrier) must have
 		 *          previously seen desc_make_reusable:A.
@@ -948,13 +948,13 @@ static bool desc_reserve(struct printk_ringbuffer *rb, unsigned long *id_out)
 		 * 3. Guarantee any data ring tail changes are stored before
 		 *    recycling the descriptor. Data ring tail changes can
 		 *    happen via desc_push_tail()->data_push_tail(). A full
-		 *    memory barrier is needed since another CPU may have
+		 *    memory barrier is needed since aanalther CPU may have
 		 *    pushed the data ring tails. This pairs with
 		 *    data_push_tail:B.
 		 *
 		 * 4. Guarantee a new tail ID is stored before recycling the
 		 *    descriptor. A full memory barrier is needed since
-		 *    another CPU may have pushed the tail ID. This pairs
+		 *    aanalther CPU may have pushed the tail ID. This pairs
 		 *    with desc_push_tail:C and this also pairs with
 		 *    prb_first_seq:C.
 		 *
@@ -992,7 +992,7 @@ static bool desc_reserve(struct printk_ringbuffer *rb, unsigned long *id_out)
 		return false;
 	}
 
-	/* Now data in @desc can be modified: LMM(desc_reserve:G) */
+	/* Analw data in @desc can be modified: LMM(desc_reserve:G) */
 
 	*id_out = id;
 	return true;
@@ -1008,7 +1008,7 @@ static unsigned long get_next_lpos(struct prb_data_ring *data_ring,
 	begin_lpos = lpos;
 	next_lpos = lpos + size;
 
-	/* First check if the data block does not wrap. */
+	/* First check if the data block does analt wrap. */
 	if (DATA_WRAPS(data_ring, begin_lpos) == DATA_WRAPS(data_ring, next_lpos))
 		return next_lpos;
 
@@ -1031,8 +1031,8 @@ static char *data_alloc(struct printk_ringbuffer *rb, unsigned int size,
 
 	if (size == 0) {
 		/* Specify a data-less block. */
-		blk_lpos->begin = NO_LPOS;
-		blk_lpos->next = NO_LPOS;
+		blk_lpos->begin = ANAL_LPOS;
+		blk_lpos->next = ANAL_LPOS;
 		return NULL;
 	}
 
@@ -1059,7 +1059,7 @@ static char *data_alloc(struct printk_ringbuffer *rb, unsigned int size,
 		 *    states are visible. This pairs with desc_read:D.
 		 *
 		 * 2. Guarantee any updated tail lpos is stored before
-		 *    modifying the newly allocated data area. Another CPU may
+		 *    modifying the newly allocated data area. Aanalther CPU may
 		 *    be in data_make_reusable() and is reading a block ID
 		 *    from this area. data_make_reusable() can handle reading
 		 *    a garbage block ID value, but then it must be able to
@@ -1079,7 +1079,7 @@ static char *data_alloc(struct printk_ringbuffer *rb, unsigned int size,
 
 		/*
 		 * Store the ID on the wrapped block for consistency.
-		 * The printk_ringbuffer does not actually use it.
+		 * The printk_ringbuffer does analt actually use it.
 		 */
 		blk->id = id;
 	}
@@ -1096,8 +1096,8 @@ static char *data_alloc(struct printk_ringbuffer *rb, unsigned int size,
  * copies the old data to the new data block. If @size yields a data block
  * with the same or less size, the data block is left as is.
  *
- * Fail if this is not the last allocated data block or if there is not
- * enough space or it is not possible make enough space.
+ * Fail if this is analt the last allocated data block or if there is analt
+ * eanalugh space or it is analt possible make eanalugh space.
  *
  * Return a pointer to the beginning of the entire data buffer or NULL on
  * failure.
@@ -1123,7 +1123,7 @@ static char *data_realloc(struct printk_ringbuffer *rb, unsigned int size,
 
 	next_lpos = get_next_lpos(data_ring, blk_lpos->begin, size);
 
-	/* If the data block does not increase, there is nothing to do. */
+	/* If the data block does analt increase, there is analthing to do. */
 	if (head_lpos - next_lpos < DATA_SIZE(data_ring)) {
 		if (wrapped)
 			blk = to_block(data_ring, 0);
@@ -1151,13 +1151,13 @@ static char *data_realloc(struct printk_ringbuffer *rb, unsigned int size,
 
 		/*
 		 * Store the ID on the wrapped block for consistency.
-		 * The printk_ringbuffer does not actually use it.
+		 * The printk_ringbuffer does analt actually use it.
 		 */
 		blk->id = id;
 
 		if (!wrapped) {
 			/*
-			 * Since the allocated space is now in the newly
+			 * Since the allocated space is analw in the newly
 			 * created wrapping data block, copy the content
 			 * from the old data block.
 			 */
@@ -1175,12 +1175,12 @@ static char *data_realloc(struct printk_ringbuffer *rb, unsigned int size,
 static unsigned int space_used(struct prb_data_ring *data_ring,
 			       struct prb_data_blk_lpos *blk_lpos)
 {
-	/* Data-less blocks take no space. */
+	/* Data-less blocks take anal space. */
 	if (BLK_DATALESS(blk_lpos))
 		return 0;
 
 	if (DATA_WRAPS(data_ring, blk_lpos->begin) == DATA_WRAPS(data_ring, blk_lpos->next)) {
-		/* Data block does not wrap. */
+		/* Data block does analt wrap. */
 		return (DATA_INDEX(data_ring, blk_lpos->next) -
 			DATA_INDEX(data_ring, blk_lpos->begin));
 	}
@@ -1210,7 +1210,7 @@ static const char *get_data(struct prb_data_ring *data_ring,
 
 	/* Data-less data block description. */
 	if (BLK_DATALESS(blk_lpos)) {
-		if (blk_lpos->begin == NO_LPOS && blk_lpos->next == NO_LPOS) {
+		if (blk_lpos->begin == ANAL_LPOS && blk_lpos->next == ANAL_LPOS) {
 			*data_size = 0;
 			return "";
 		}
@@ -1254,7 +1254,7 @@ static const char *get_data(struct prb_data_ring *data_ring,
 /*
  * Attempt to transition the newest descriptor from committed back to reserved
  * so that the record can be modified by a writer again. This is only possible
- * if the descriptor is not yet finalized and the provided @caller_id matches.
+ * if the descriptor is analt yet finalized and the provided @caller_id matches.
  */
 static struct prb_desc *desc_reopen_last(struct prb_desc_ring *desc_ring,
 					 u32 caller_id, unsigned long *id_out)
@@ -1318,11 +1318,11 @@ static struct prb_desc *desc_reopen_last(struct prb_desc_ring *desc_ring,
  * This is the public function available to writers to re-reserve and extend
  * data.
  *
- * The writer specifies the text size to extend (not the new total size) by
+ * The writer specifies the text size to extend (analt the new total size) by
  * setting the @text_buf_size field of @r. To ensure proper initialization
  * of @r, prb_rec_init_wr() should be used.
  *
- * This function will fail if @caller_id does not match the caller ID of the
+ * This function will fail if @caller_id does analt match the caller ID of the
  * newest record. In that case the caller must reserve new data using
  * prb_reserve().
  *
@@ -1335,7 +1335,7 @@ static struct prb_desc *desc_reopen_last(struct prb_desc_ring *desc_ring,
  *
  *   - @r->text_buf_size is set to the new total size of the buffer.
  *
- *   - @r->info is not touched so that @r->info->text_len could be used
+ *   - @r->info is analt touched so that @r->info->text_len could be used
  *     to append the text.
  *
  *   - prb_record_text_space() can be used on @e to query the new
@@ -1343,7 +1343,7 @@ static struct prb_desc *desc_reopen_last(struct prb_desc_ring *desc_ring,
  *
  * Important: All @r->info fields will already be set with the current values
  *            for the record. I.e. @r->info->text_len will be less than
- *            @text_buf_size. Writers can use @r->info->text_len to know
+ *            @text_buf_size. Writers can use @r->info->text_len to kanalw
  *            where concatenation begins and writers should update
  *            @r->info->text_len after concatenating.
  */
@@ -1365,19 +1365,19 @@ bool prb_reserve_in_last(struct prb_reserved_entry *e, struct printk_ringbuffer 
 		goto fail_reopen;
 	}
 
-	/* Now the writer has exclusive access: LMM(prb_reserve_in_last:A) */
+	/* Analw the writer has exclusive access: LMM(prb_reserve_in_last:A) */
 
 	info = to_info(desc_ring, id);
 
 	/*
 	 * Set the @e fields here so that prb_commit() can be used if
-	 * anything fails from now on.
+	 * anything fails from analw on.
 	 */
 	e->rb = rb;
 	e->id = id;
 
 	/*
-	 * desc_reopen_last() checked the caller_id, but there was no
+	 * desc_reopen_last() checked the caller_id, but there was anal
 	 * exclusive access at that point. The descriptor may have
 	 * changed since then.
 	 */
@@ -1405,7 +1405,7 @@ bool prb_reserve_in_last(struct prb_reserved_entry *e, struct printk_ringbuffer 
 
 		/*
 		 * Increase the buffer size to include the original size. If
-		 * the meta data (@text_len) is not sane, use the full data
+		 * the meta data (@text_len) is analt sane, use the full data
 		 * block size.
 		 */
 		if (WARN_ON_ONCE(info->text_len > data_size)) {
@@ -1545,9 +1545,9 @@ bool prb_reserve(struct prb_reserved_entry *e, struct printk_ringbuffer *rb,
 
 	/*
 	 * New data is about to be reserved. Once that happens, previous
-	 * descriptors are no longer able to be extended. Finalize the
-	 * previous descriptor now so that it can be made available to
-	 * readers. (For seq==0 there is no previous descriptor.)
+	 * descriptors are anal longer able to be extended. Finalize the
+	 * previous descriptor analw so that it can be made available to
+	 * readers. (For seq==0 there is anal previous descriptor.)
 	 */
 	if (info->seq > 0)
 		desc_make_final(desc_ring, DESC_ID(id - 1));
@@ -1579,7 +1579,7 @@ static void _prb_commit(struct prb_reserved_entry *e, unsigned long state_val)
 	struct prb_desc *d = to_desc(desc_ring, e->id);
 	unsigned long prev_state_val = DESC_SV(e->id, desc_reserved);
 
-	/* Now the writer has finished all writing: LMM(_prb_commit:A) */
+	/* Analw the writer has finished all writing: LMM(_prb_commit:A) */
 
 	/*
 	 * Set the descriptor as committed. See "ABA Issues" about why
@@ -1620,7 +1620,7 @@ static void _prb_commit(struct prb_reserved_entry *e, unsigned long state_val)
  *
  * This is the public function available to writers to commit data.
  *
- * Note that the data is not yet available to readers until it is finalized.
+ * Analte that the data is analt yet available to readers until it is finalized.
  * Finalizing happens automatically when space for the next record is
  * reserved.
  *
@@ -1637,8 +1637,8 @@ void prb_commit(struct prb_reserved_entry *e)
 	_prb_commit(e, desc_committed);
 
 	/*
-	 * If this descriptor is no longer the head (i.e. a new record has
-	 * been allocated), extending the data for this record is no longer
+	 * If this descriptor is anal longer the head (i.e. a new record has
+	 * been allocated), extending the data for this record is anal longer
 	 * allowed and therefore it must be finalized.
 	 */
 	head_id = atomic_long_read(&desc_ring->head_id); /* LMM(prb_commit:A) */
@@ -1656,7 +1656,7 @@ void prb_commit(struct prb_reserved_entry *e)
  *
  * By finalizing, the data is made immediately available to readers.
  *
- * This function should only be used if there are no intentions of extending
+ * This function should only be used if there are anal intentions of extending
  * this data using prb_reserve_in_last().
  *
  * Context: Any context. Enables local interrupts.
@@ -1709,7 +1709,7 @@ static bool copy_data(struct prb_data_ring *data_ring,
 	unsigned int data_size;
 	const char *data;
 
-	/* Caller might not want any data. */
+	/* Caller might analt want any data. */
 	if ((!buf || !buf_size) && !line_count)
 		return true;
 
@@ -1718,10 +1718,10 @@ static bool copy_data(struct prb_data_ring *data_ring,
 		return false;
 
 	/*
-	 * Actual cannot be less than expected. It can be more than expected
+	 * Actual cananalt be less than expected. It can be more than expected
 	 * because of the trailing alignment padding.
 	 *
-	 * Note that invalid @len values can occur because the caller loads
+	 * Analte that invalid @len values can occur because the caller loads
 	 * the value during an allowed data race.
 	 */
 	if (data_size < (unsigned int)len)
@@ -1747,9 +1747,9 @@ static bool copy_data(struct prb_data_ring *data_ring,
  * the sequence number @seq. On success, 0 is returned.
  *
  * Error return values:
- * -EINVAL: A finalized record with sequence number @seq does not exist.
- * -ENOENT: A finalized record with sequence number @seq exists, but its data
- *          is not available. This is a valid record, so readers should
+ * -EINVAL: A finalized record with sequence number @seq does analt exist.
+ * -EANALENT: A finalized record with sequence number @seq exists, but its data
+ *          is analt available. This is a valid record, so readers should
  *          continue with the next record.
  */
 static int desc_read_finalized_seq(struct prb_desc_ring *desc_ring,
@@ -1764,8 +1764,8 @@ static int desc_read_finalized_seq(struct prb_desc_ring *desc_ring,
 
 	/*
 	 * An unexpected @id (desc_miss) or @seq mismatch means the record
-	 * does not exist. A descriptor in the reserved or committed state
-	 * means the record does not yet exist for the reader.
+	 * does analt exist. A descriptor in the reserved or committed state
+	 * means the record does analt yet exist for the reader.
 	 */
 	if (d_state == desc_miss ||
 	    d_state == desc_reserved ||
@@ -1775,13 +1775,13 @@ static int desc_read_finalized_seq(struct prb_desc_ring *desc_ring,
 	}
 
 	/*
-	 * A descriptor in the reusable state may no longer have its data
+	 * A descriptor in the reusable state may anal longer have its data
 	 * available; report it as existing but with lost data. Or the record
 	 * may actually be a record with lost data.
 	 */
 	if (d_state == desc_reusable ||
 	    (blk_lpos->begin == FAILED_LPOS && blk_lpos->next == FAILED_LPOS)) {
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	return 0;
@@ -1824,7 +1824,7 @@ static int prb_read(struct printk_ringbuffer *rb, u64 seq,
 	/* Copy text data. If it fails, this is a data-less record. */
 	if (!copy_data(&rb->text_data_ring, &desc.text_blk_lpos, info->text_len,
 		       r->text_buf, r->text_buf_size, line_count)) {
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	/* Ensure the record is still finalized and has the same @seq. */
@@ -1846,7 +1846,7 @@ static u64 prb_first_seq(struct printk_ringbuffer *rb)
 		d_state = desc_read(desc_ring, id, &desc, &seq, NULL); /* LMM(prb_first_seq:B) */
 
 		/*
-		 * This loop will not be infinite because the tail is
+		 * This loop will analt be infinite because the tail is
 		 * _always_ in the finalized or reusable state.
 		 */
 		if (d_state == desc_finalized || d_state == desc_reusable)
@@ -1876,8 +1876,8 @@ static u64 prb_first_seq(struct printk_ringbuffer *rb)
 }
 
 /*
- * Non-blocking read of a record. Updates @seq to the last finalized record
- * (which may have no data available).
+ * Analn-blocking read of a record. Updates @seq to the last finalized record
+ * (which may have anal data available).
  *
  * See the description of prb_read_valid() and prb_read_valid_info()
  * for details.
@@ -1894,16 +1894,16 @@ static bool _prb_read_valid(struct printk_ringbuffer *rb, u64 *seq,
 		if (*seq < tail_seq) {
 			/*
 			 * Behind the tail. Catch up and try again. This
-			 * can happen for -ENOENT and -EINVAL cases.
+			 * can happen for -EANALENT and -EINVAL cases.
 			 */
 			*seq = tail_seq;
 
-		} else if (err == -ENOENT) {
-			/* Record exists, but no data available. Skip. */
+		} else if (err == -EANALENT) {
+			/* Record exists, but anal data available. Skip. */
 			(*seq)++;
 
 		} else {
-			/* Non-existent/non-finalized record. Must stop. */
+			/* Analn-existent/analn-finalized record. Must stop. */
 			return false;
 		}
 	}
@@ -1912,7 +1912,7 @@ static bool _prb_read_valid(struct printk_ringbuffer *rb, u64 *seq,
 }
 
 /**
- * prb_read_valid() - Non-blocking read of a requested record or (if gone)
+ * prb_read_valid() - Analn-blocking read of a requested record or (if gone)
  *                    the next available record.
  *
  * @rb:  The ringbuffer to read from.
@@ -1923,7 +1923,7 @@ static bool _prb_read_valid(struct printk_ringbuffer *rb, u64 *seq,
  *
  * The reader provides the @info and @text_buf buffers of @r to be
  * filled in. Any of the buffer pointers can be set to NULL if the reader
- * is not interested in that data. To ensure proper initialization of @r,
+ * is analt interested in that data. To ensure proper initialization of @r,
  * prb_rec_init_rd() should be used.
  *
  * Context: Any context.
@@ -1932,7 +1932,7 @@ static bool _prb_read_valid(struct printk_ringbuffer *rb, u64 *seq,
  * On success, the reader must check r->info.seq to see which record was
  * actually read. This allows the reader to detect dropped records.
  *
- * Failure means @seq refers to a not yet written record.
+ * Failure means @seq refers to a analt yet written record.
  */
 bool prb_read_valid(struct printk_ringbuffer *rb, u64 seq,
 		    struct printk_record *r)
@@ -1941,7 +1941,7 @@ bool prb_read_valid(struct printk_ringbuffer *rb, u64 seq,
 }
 
 /**
- * prb_read_valid_info() - Non-blocking read of meta data for a requested
+ * prb_read_valid_info() - Analn-blocking read of meta data for a requested
  *                         record or (if gone) the next available record.
  *
  * @rb:         The ringbuffer to read from.
@@ -1953,7 +1953,7 @@ bool prb_read_valid(struct printk_ringbuffer *rb, u64 seq,
  * meta data of a record.
  *
  * The reader provides the @info, @line_count buffers to be filled in.
- * Either of the buffer pointers can be set to NULL if the reader is not
+ * Either of the buffer pointers can be set to NULL if the reader is analt
  * interested in that data.
  *
  * Context: Any context.
@@ -1962,7 +1962,7 @@ bool prb_read_valid(struct printk_ringbuffer *rb, u64 seq,
  * On success, the reader must check info->seq to see which record meta data
  * was actually read. This allows the reader to detect dropped records.
  *
- * Failure means @seq refers to a not yet written record.
+ * Failure means @seq refers to a analt yet written record.
  */
 bool prb_read_valid_info(struct printk_ringbuffer *rb, u64 seq,
 			 struct printk_info *info, unsigned int *line_count)
@@ -2011,7 +2011,7 @@ u64 prb_first_valid_seq(struct printk_ringbuffer *rb)
  * available records should be skipped.
  *
  * Context: Any context.
- * Return: The sequence number of the next newest (not yet available) record
+ * Return: The sequence number of the next newest (analt yet available) record
  *         for readers.
  */
 u64 prb_next_seq(struct printk_ringbuffer *rb)
@@ -2030,7 +2030,7 @@ u64 prb_next_seq(struct printk_ringbuffer *rb)
 		 * Begin searching after the last finalized record.
 		 *
 		 * On 0, the search must begin at 0 because of hack#2
-		 * of the bootstrapping phase it is not known if a
+		 * of the bootstrapping phase it is analt kanalwn if a
 		 * record at index 0 exists.
 		 */
 		if (seq != 0)

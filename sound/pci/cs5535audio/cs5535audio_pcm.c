@@ -114,14 +114,14 @@ static int cs5535audio_build_dma_packets(struct cs5535audio *cs5535au,
 	struct cs5535audio_dma_desc *lastdesc;
 
 	if (periods > CS5535AUDIO_MAX_DESCRIPTORS)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (dma->desc_buf.area == NULL) {
 		if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV,
 					&cs5535au->pci->dev,
 					CS5535AUDIO_DESC_LIST_SIZE+1,
 					&dma->desc_buf) < 0)
-			return -ENOMEM;
+			return -EANALMEM;
 		dma->period_bytes = dma->periods = 0;
 	}
 

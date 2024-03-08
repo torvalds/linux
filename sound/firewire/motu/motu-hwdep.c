@@ -8,8 +8,8 @@
 /*
  * This codes have five functionalities.
  *
- * 1.get information about firewire node
- * 2.get notification about starting/stopping stream
+ * 1.get information about firewire analde
+ * 2.get analtification about starting/stopping stream
  * 3.lock/unlock streaming
  *
  */
@@ -54,8 +54,8 @@ static long hwdep_read(struct snd_hwdep *hwdep, char __user *buf, long count,
 		if (copy_to_user(buf, &event, count))
 			return -EFAULT;
 	} else if (motu->msg > 0) {
-		event.motu_notification.type = SNDRV_FIREWIRE_EVENT_MOTU_NOTIFICATION;
-		event.motu_notification.message = motu->msg;
+		event.motu_analtification.type = SNDRV_FIREWIRE_EVENT_MOTU_ANALTIFICATION;
+		event.motu_analtification.message = motu->msg;
 		motu->msg = 0;
 		spin_unlock_irq(&motu->lock);
 
@@ -106,7 +106,7 @@ static __poll_t hwdep_poll(struct snd_hwdep *hwdep, struct file *file,
 
 	spin_lock_irq(&motu->lock);
 	if (motu->dev_lock_changed || motu->msg || has_dsp_event(motu))
-		events = EPOLLIN | EPOLLRDNORM;
+		events = EPOLLIN | EPOLLRDANALRM;
 	else
 		events = 0;
 	spin_unlock_irq(&motu->lock);
@@ -203,7 +203,7 @@ static int hwdep_ioctl(struct snd_hwdep *hwdep, struct file *file,
 
 		meter = kzalloc(sizeof(*meter), GFP_KERNEL);
 		if (!meter)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		snd_motu_register_dsp_message_parser_copy_meter(motu, meter);
 
@@ -225,7 +225,7 @@ static int hwdep_ioctl(struct snd_hwdep *hwdep, struct file *file,
 
 		meter = kzalloc(sizeof(*meter), GFP_KERNEL);
 		if (!meter)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		snd_motu_command_dsp_message_parser_copy_meter(motu, meter);
 
@@ -247,7 +247,7 @@ static int hwdep_ioctl(struct snd_hwdep *hwdep, struct file *file,
 
 		param = kzalloc(sizeof(*param), GFP_KERNEL);
 		if (!param)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		snd_motu_register_dsp_message_parser_copy_parameter(motu, param);
 
@@ -259,7 +259,7 @@ static int hwdep_ioctl(struct snd_hwdep *hwdep, struct file *file,
 		return 0;
 	}
 	default:
-		return -ENOIOCTLCMD;
+		return -EANALIOCTLCMD;
 	}
 }
 

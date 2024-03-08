@@ -79,7 +79,7 @@ static int __init set_permissions(pte_t *ptep, unsigned long addr, void *data)
 
 int __init efi_set_mapping_permissions(struct mm_struct *mm,
 				       efi_memory_desc_t *md,
-				       bool ignored)
+				       bool iganalred)
 {
 	BUG_ON(md->type != EFI_RUNTIME_SERVICES_CODE &&
 	       md->type != EFI_RUNTIME_SERVICES_DATA);
@@ -89,7 +89,7 @@ int __init efi_set_mapping_permissions(struct mm_struct *mm,
 	 * guaranteed to be mapped down to pages. Since we are only called
 	 * for regions that have been mapped using efi_create_mapping() above
 	 * (and this is checked by the generic Memory Attributes table parsing
-	 * routines), there is no need to check that again here.
+	 * routines), there is anal need to check that again here.
 	 */
 	return apply_to_page_range(mm, md->virt_addr,
 				   md->num_pages << EFI_PAGE_SHIFT,

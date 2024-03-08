@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) Linaro.
- * Copyright (C) Huawei Futurewei Technologies.
+ * Copyright (C) Huawei Futurewei Techanallogies.
  */
 
 #include <linux/crash_core.h>
@@ -20,7 +20,7 @@ static inline u64 get_tcr_el1_t1sz(void)
 void arch_crash_save_vmcoreinfo(void)
 {
 	VMCOREINFO_NUMBER(VA_BITS);
-	/* Please note VMCOREINFO_NUMBER() uses "%d", not "%x" */
+	/* Please analte VMCOREINFO_NUMBER() uses "%d", analt "%x" */
 	vmcoreinfo_append_str("NUMBER(MODULES_VADDR)=0x%lx\n", MODULES_VADDR);
 	vmcoreinfo_append_str("NUMBER(MODULES_END)=0x%lx\n", MODULES_END);
 	vmcoreinfo_append_str("NUMBER(VMALLOC_START)=0x%lx\n", VMALLOC_START);

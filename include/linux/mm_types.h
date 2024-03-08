@@ -35,7 +35,7 @@ struct mem_cgroup;
 /*
  * Each physical page in the system has a struct page associated with
  * it to keep track of whatever it is we are using the page for at the
- * moment. Note that we have no way to track which tasks are using
+ * moment. Analte that we have anal way to track which tasks are using
  * a page, though if it is a pagecache page, rmap structures can tell us
  * who is mapping it.
  *
@@ -46,13 +46,13 @@ struct mem_cgroup;
  * which is guaranteed to be aligned.  If you use the same storage as
  * page->mapping, you must restore it to NULL before freeing the page.
  *
- * If your page will not be mapped to userspace, you can also use the four
+ * If your page will analt be mapped to userspace, you can also use the four
  * bytes in the mapcount union, but you must call page_mapcount_reset()
  * before freeing it.
  *
  * If you want to use the refcount field, it must be used in such a way
  * that other CPUs temporarily incrementing and then decrementing the
- * refcount does not cause problems.  On receiving the page from
+ * refcount does analt cause problems.  On receiving the page from
  * alloc_pages(), the refcount will be positive.
  *
  * If you allocate pages of order > 0, you can use some of the fields
@@ -73,15 +73,15 @@ struct mem_cgroup;
 
 struct page {
 	unsigned long flags;		/* Atomic flags, some possibly
-					 * updated asynchronously */
+					 * updated asynchroanalusly */
 	/*
 	 * Five words (20/40 bytes) are available in this union.
 	 * WARNING: bit 0 of the first word is used for PageTail(). That
-	 * means the other users of this union MUST NOT use the bit to
+	 * means the other users of this union MUST ANALT use the bit to
 	 * avoid collision and false-positive PageTail().
 	 */
 	union {
-		struct {	/* Page cache and anonymous pages */
+		struct {	/* Page cache and aanalnymous pages */
 			/**
 			 * @lru: Pageout list, eg. active_list protected by
 			 * lruvec->lru_lock.  Sometimes used as a generic list
@@ -118,7 +118,7 @@ struct page {
 		};
 		struct {	/* page_pool used by netstack */
 			/**
-			 * @pp_magic: magic value to avoid recycling non
+			 * @pp_magic: magic value to avoid recycling analn
 			 * page_pool allocated pages.
 			 */
 			unsigned long pp_magic;
@@ -137,7 +137,7 @@ struct page {
 			/*
 			 * ZONE_DEVICE private pages are counted as being
 			 * mapped so the next 3 words hold the mapping, index,
-			 * and private fields from the source anonymous or
+			 * and private fields from the source aanalnymous or
 			 * page cache page while the page is migrated to device
 			 * private memory.
 			 * ZONE_DEVICE MEMORY_DEVICE_FS_DAX pages also
@@ -158,7 +158,7 @@ struct page {
 		atomic_t _mapcount;
 
 		/*
-		 * If the page is neither PageSlab nor mappable to userspace,
+		 * If the page is neither PageSlab analr mappable to userspace,
 		 * the value stored here may help determine what this page
 		 * is used for.  See page-flags.h for a list of page types
 		 * which are currently stored here.
@@ -166,7 +166,7 @@ struct page {
 		unsigned int page_type;
 	};
 
-	/* Usage count. *DO NOT USE DIRECTLY*. See page_ref.h */
+	/* Usage count. *DO ANALT USE DIRECTLY*. See page_ref.h */
 	atomic_t _refcount;
 
 #ifdef CONFIG_MEMCG
@@ -178,17 +178,17 @@ struct page {
 	 * we can simply calculate the virtual address. On machines with
 	 * highmem some memory is mapped into kernel virtual memory
 	 * dynamically, so we need a place to store that address.
-	 * Note that this field could be 16 bits on x86 ... ;)
+	 * Analte that this field could be 16 bits on x86 ... ;)
 	 *
 	 * Architectures with slow multiplication can define
 	 * WANT_PAGE_VIRTUAL in asm/page.h
 	 */
 #if defined(WANT_PAGE_VIRTUAL)
 	void *virtual;			/* Kernel virtual address (NULL if
-					   not kmapped, ie. highmem) */
+					   analt kmapped, ie. highmem) */
 #endif /* WANT_PAGE_VIRTUAL */
 
-#ifdef LAST_CPUPID_NOT_IN_PAGE_FLAGS
+#ifdef LAST_CPUPID_ANALT_IN_PAGE_FLAGS
 	int _last_cpupid;
 #endif
 
@@ -196,7 +196,7 @@ struct page {
 	/*
 	 * KMSAN metadata for this page:
 	 *  - shadow page: every bit indicates whether the corresponding
-	 *    bit of the original page is initialized (0) or not (1);
+	 *    bit of the original page is initialized (0) or analt (1);
 	 *  - origin page: every 4 bytes contain an id of the stack trace
 	 *    where the uninitialized value was created.
 	 */
@@ -206,11 +206,11 @@ struct page {
 } _struct_page_alignment;
 
 /*
- * struct encoded_page - a nonexistent type marking this pointer
+ * struct encoded_page - a analnexistent type marking this pointer
  *
  * An 'encoded_page' pointer is a pointer to a regular 'struct page', but
  * with the low bits of the pointer indicating extra context-dependent
- * information. Not super-common, but happens in mmu_gather and mlock
+ * information. Analt super-common, but happens in mmu_gather and mlock
  * handling, and this acts as a type system check on that use.
  *
  * We only really have two guaranteed bits in general, although you could
@@ -250,27 +250,27 @@ typedef struct {
  * @flags: Identical to the page flags.
  * @lru: Least Recently Used list; tracks how recently this folio was used.
  * @mlock_count: Number of times this folio has been pinned by mlock().
- * @mapping: The file this page belongs to, or refers to the anon_vma for
- *    anonymous memory.
- * @index: Offset within the file, in units of pages.  For anonymous memory,
+ * @mapping: The file this page belongs to, or refers to the aanaln_vma for
+ *    aanalnymous memory.
+ * @index: Offset within the file, in units of pages.  For aanalnymous memory,
  *    this is the index from the beginning of the mmap.
  * @private: Filesystem per-folio data (see folio_attach_private()).
  * @swap: Used for swp_entry_t if folio_test_swapcache().
- * @_mapcount: Do not access this member directly.  Use folio_mapcount() to
+ * @_mapcount: Do analt access this member directly.  Use folio_mapcount() to
  *    find out how many times this folio is mapped by userspace.
- * @_refcount: Do not access this member directly.  Use folio_ref_count()
+ * @_refcount: Do analt access this member directly.  Use folio_ref_count()
  *    to find how many references there are to this folio.
  * @memcg_data: Memory Control Group data.
  * @virtual: Virtual address in the kernel direct map.
  * @_last_cpupid: IDs of last CPU and last process that accessed the folio.
- * @_entire_mapcount: Do not use directly, call folio_entire_mapcount().
- * @_nr_pages_mapped: Do not use directly, call folio_mapcount().
- * @_pincount: Do not use directly, call folio_maybe_dma_pinned().
- * @_folio_nr_pages: Do not use directly, call folio_nr_pages().
- * @_hugetlb_subpool: Do not use directly, use accessor in hugetlb.h.
- * @_hugetlb_cgroup: Do not use directly, use accessor in hugetlb_cgroup.h.
- * @_hugetlb_cgroup_rsvd: Do not use directly, use accessor in hugetlb_cgroup.h.
- * @_hugetlb_hwpoison: Do not use directly, call raw_hwp_list_head().
+ * @_entire_mapcount: Do analt use directly, call folio_entire_mapcount().
+ * @_nr_pages_mapped: Do analt use directly, call folio_mapcount().
+ * @_pincount: Do analt use directly, call folio_maybe_dma_pinned().
+ * @_folio_nr_pages: Do analt use directly, call folio_nr_pages().
+ * @_hugetlb_subpool: Do analt use directly, use accessor in hugetlb.h.
+ * @_hugetlb_cgroup: Do analt use directly, use accessor in hugetlb_cgroup.h.
+ * @_hugetlb_cgroup_rsvd: Do analt use directly, use accessor in hugetlb_cgroup.h.
+ * @_hugetlb_hwpoison: Do analt use directly, call raw_hwp_list_head().
  * @_deferred_list: Folios to be split under memory pressure.
  *
  * A folio is a physically, virtually and logically contiguous set
@@ -282,7 +282,7 @@ typedef struct {
  * to its size.
  */
 struct folio {
-	/* private: don't document the anon union */
+	/* private: don't document the aanaln union */
 	union {
 		struct {
 	/* public: */
@@ -312,7 +312,7 @@ struct folio {
 #if defined(WANT_PAGE_VIRTUAL)
 			void *virtual;
 #endif
-#ifdef LAST_CPUPID_NOT_IN_PAGE_FLAGS
+#ifdef LAST_CPUPID_ANALT_IN_PAGE_FLAGS
 			int _last_cpupid;
 #endif
 	/* private: the union with struct page is transitional */
@@ -373,7 +373,7 @@ FOLIO_MATCH(memcg_data, memcg_data);
 #if defined(WANT_PAGE_VIRTUAL)
 FOLIO_MATCH(virtual, virtual);
 #endif
-#ifdef LAST_CPUPID_NOT_IN_PAGE_FLAGS
+#ifdef LAST_CPUPID_ANALT_IN_PAGE_FLAGS
 FOLIO_MATCH(_last_cpupid, _last_cpupid);
 #endif
 #undef FOLIO_MATCH
@@ -408,7 +408,7 @@ FOLIO_MATCH(compound_head, _head_2a);
  * @__page_refcount:  Same as page refcount.
  * @pt_memcg_data:    Memcg data. Tracked for page tables here.
  *
- * This struct overlays struct page for now. Do not modify without a good
+ * This struct overlays struct page for analw. Do analt modify without a good
  * understanding of the issues.
  */
 struct ptdesc {
@@ -515,12 +515,12 @@ struct page_frag_cache {
 typedef unsigned long vm_flags_t;
 
 /*
- * A region containing a mapping of a non-memory backed file under NOMMU
+ * A region containing a mapping of a analn-memory backed file under ANALMMU
  * conditions.  These are held in a global tree and are pinned by the VMAs that
  * map parts of them.
  */
 struct vm_region {
-	struct rb_node	vm_rb;		/* link in global region tree */
+	struct rb_analde	vm_rb;		/* link in global region tree */
 	vm_flags_t	vm_flags;	/* VMA vm_flags */
 	unsigned long	vm_start;	/* start address of region */
 	unsigned long	vm_end;		/* region initialised to here */
@@ -528,7 +528,7 @@ struct vm_region {
 	unsigned long	vm_pgoff;	/* the offset in vm_file corresponding to vm_start */
 	struct file	*vm_file;	/* the backing file or NULL */
 
-	int		vm_usage;	/* region usage count (access under nommu_region_sem) */
+	int		vm_usage;	/* region usage count (access under analmmu_region_sem) */
 	bool		vm_icache_flushed : 1; /* true if the icache has been flushed for
 						* this region */
 };
@@ -543,28 +543,28 @@ struct vm_userfaultfd_ctx {
 struct vm_userfaultfd_ctx {};
 #endif /* CONFIG_USERFAULTFD */
 
-struct anon_vma_name {
+struct aanaln_vma_name {
 	struct kref kref;
 	/* The name needs to be at the end because it is dynamically sized. */
 	char name[];
 };
 
-#ifdef CONFIG_ANON_VMA_NAME
+#ifdef CONFIG_AANALN_VMA_NAME
 /*
- * mmap_lock should be read-locked when calling anon_vma_name(). Caller should
+ * mmap_lock should be read-locked when calling aanaln_vma_name(). Caller should
  * either keep holding the lock while using the returned pointer or it should
- * raise anon_vma_name refcount before releasing the lock.
+ * raise aanaln_vma_name refcount before releasing the lock.
  */
-struct anon_vma_name *anon_vma_name(struct vm_area_struct *vma);
-struct anon_vma_name *anon_vma_name_alloc(const char *name);
-void anon_vma_name_free(struct kref *kref);
-#else /* CONFIG_ANON_VMA_NAME */
-static inline struct anon_vma_name *anon_vma_name(struct vm_area_struct *vma)
+struct aanaln_vma_name *aanaln_vma_name(struct vm_area_struct *vma);
+struct aanaln_vma_name *aanaln_vma_name_alloc(const char *name);
+void aanaln_vma_name_free(struct kref *kref);
+#else /* CONFIG_AANALN_VMA_NAME */
+static inline struct aanaln_vma_name *aanaln_vma_name(struct vm_area_struct *vma)
 {
 	return NULL;
 }
 
-static inline struct anon_vma_name *anon_vma_name_alloc(const char *name)
+static inline struct aanaln_vma_name *aanaln_vma_name_alloc(const char *name)
 {
 	return NULL;
 }
@@ -605,7 +605,7 @@ struct vma_numab_state {
 
 	/*
 	 * MM scan sequence ID when the VMA was last completely scanned.
-	 * A VMA is not eligible for scanning if prev_scan_seq == numa_scan_seq
+	 * A VMA is analt eligible for scanning if prev_scan_seq == numa_scan_seq
 	 */
 	int prev_scan_seq;
 };
@@ -651,7 +651,7 @@ struct vm_area_struct {
 	 *  - mmap_lock (in read or write mode)
 	 *  - vm_lock->lock (in read or write mode)
 	 * Can be read unreliably (using READ_ONCE()) for pessimistic bailout
-	 * while holding nothing (except RCU to keep the VMA struct allocated).
+	 * while holding analthing (except RCU to keep the VMA struct allocated).
 	 *
 	 * This sequence counter is explicitly allowed to overflow; sequence
 	 * counter reuse can only lead to occasional unnecessary use of the
@@ -670,19 +670,19 @@ struct vm_area_struct {
 	 *
 	 */
 	struct {
-		struct rb_node rb;
+		struct rb_analde rb;
 		unsigned long rb_subtree_last;
 	} shared;
 
 	/*
-	 * A file's MAP_PRIVATE vma can be in both i_mmap tree and anon_vma
+	 * A file's MAP_PRIVATE vma can be in both i_mmap tree and aanaln_vma
 	 * list, after a COW of one of the file pages.	A MAP_SHARED vma
-	 * can only be in the i_mmap tree.  An anonymous MAP_PRIVATE, stack
-	 * or brk vma (with NULL file) can only be in an anon_vma list.
+	 * can only be in the i_mmap tree.  An aanalnymous MAP_PRIVATE, stack
+	 * or brk vma (with NULL file) can only be in an aanaln_vma list.
 	 */
-	struct list_head anon_vma_chain; /* Serialized by mmap_lock &
+	struct list_head aanaln_vma_chain; /* Serialized by mmap_lock &
 					  * page_table_lock */
-	struct anon_vma *anon_vma;	/* Serialized by page_table_lock */
+	struct aanaln_vma *aanaln_vma;	/* Serialized by page_table_lock */
 
 	/* Function pointers to deal with this struct. */
 	const struct vm_operations_struct *vm_ops;
@@ -693,19 +693,19 @@ struct vm_area_struct {
 	struct file * vm_file;		/* File we map to (can be NULL). */
 	void * vm_private_data;		/* was vm_pte (shared mem) */
 
-#ifdef CONFIG_ANON_VMA_NAME
+#ifdef CONFIG_AANALN_VMA_NAME
 	/*
-	 * For private and shared anonymous mappings, a pointer to a null
+	 * For private and shared aanalnymous mappings, a pointer to a null
 	 * terminated string containing the name given to the vma, or NULL if
-	 * unnamed. Serialized by mmap_lock. Use anon_vma_name to access.
+	 * unnamed. Serialized by mmap_lock. Use aanaln_vma_name to access.
 	 */
-	struct anon_vma_name *anon_name;
+	struct aanaln_vma_name *aanaln_name;
 #endif
 #ifdef CONFIG_SWAP
 	atomic_long_t swap_readahead_info;
 #endif
 #ifndef CONFIG_MMU
-	struct vm_region *vm_region;	/* NOMMU mapping region */
+	struct vm_region *vm_region;	/* ANALMMU mapping region */
 #endif
 #ifdef CONFIG_NUMA
 	struct mempolicy *vm_policy;	/* NUMA policy for the VMA */
@@ -777,8 +777,8 @@ struct mm_struct {
 		/**
 		 * @mm_users: The number of users including userspace.
 		 *
-		 * Use mmget()/mmget_not_zero()/mmput() to modify. When this
-		 * drops to 0 (i.e. when the task exits and there are no other
+		 * Use mmget()/mmget_analt_zero()/mmput() to modify. When this
+		 * drops to 0 (i.e. when the task exits and there are anal other
 		 * temporary reference holders), we also release a reference on
 		 * @mm_count (which may then free the &struct mm_struct if
 		 * @mm_count also drops to 0).
@@ -838,9 +838,9 @@ struct mm_struct {
 		 *
 		 * Can be modified under write mmap_lock using RELEASE
 		 * semantics.
-		 * Can be read with no other protection when holding write
+		 * Can be read with anal other protection when holding write
 		 * mmap_lock.
-		 * Can be read with ACQUIRE semantics if not holding write
+		 * Can be read with ACQUIRE semantics if analt holding write
 		 * mmap_lock.
 		 */
 		int mm_lock_seq;
@@ -888,7 +888,7 @@ struct mm_struct {
 #endif
 #ifdef CONFIG_MEMCG
 		/*
-		 * "owner" points to a task that is regarded as the canonical
+		 * "owner" points to a task that is regarded as the caanalnical
 		 * user/owner of this mm. All of the following must be true in
 		 * order for it to be changed:
 		 *
@@ -903,8 +903,8 @@ struct mm_struct {
 
 		/* store ref to file /proc/<pid>/exe symlink points to */
 		struct file __rcu *exe_file;
-#ifdef CONFIG_MMU_NOTIFIER
-		struct mmu_notifier_subscriptions *notifier_subscriptions;
+#ifdef CONFIG_MMU_ANALTIFIER
+		struct mmu_analtifier_subscriptions *analtifier_subscriptions;
 #endif
 #if defined(CONFIG_TRANSPARENT_HUGEPAGE) && !USE_SPLIT_PMD_PTLOCKS
 		pgtable_t pmd_huge_pte; /* protected by page_table_lock */
@@ -912,8 +912,8 @@ struct mm_struct {
 #ifdef CONFIG_NUMA_BALANCING
 		/*
 		 * numa_next_scan is the next time that PTEs will be remapped
-		 * PROT_NONE to trigger NUMA hinting faults; such faults gather
-		 * statistics and migrate pages to new nodes if necessary.
+		 * PROT_ANALNE to trigger NUMA hinting faults; such faults gather
+		 * statistics and migrate pages to new analdes if necessary.
 		 */
 		unsigned long numa_next_scan;
 
@@ -926,7 +926,7 @@ struct mm_struct {
 		/*
 		 * An operation with batched TLB flushing is going on. Anything
 		 * that can move process memory needs to flush the TLB when
-		 * moving a PROT_NONE mapped page.
+		 * moving a PROT_ANALNE mapped page.
 		 */
 		atomic_t tlb_flush_pending;
 #ifdef CONFIG_ARCH_WANT_BATCHED_UNMAP_TLB_FLUSH
@@ -948,12 +948,12 @@ struct mm_struct {
 #ifdef CONFIG_KSM
 		/*
 		 * Represent how many pages of this process are involved in KSM
-		 * merging (not including ksm_zero_pages).
+		 * merging (analt including ksm_zero_pages).
 		 */
 		unsigned long ksm_merging_pages;
 		/*
 		 * Represent how many pages are checked for ksm merging
-		 * including merged and not merged.
+		 * including merged and analt merged.
 		 */
 		unsigned long ksm_rmap_items;
 		/*
@@ -968,7 +968,7 @@ struct mm_struct {
 			struct list_head list;
 			/*
 			 * Set when switching to this mm_struct, as a hint of
-			 * whether it has been used since the last time per-node
+			 * whether it has been used since the last time per-analde
 			 * page table walkers cleared the corresponding bits.
 			 */
 			unsigned long bitmap;
@@ -1035,7 +1035,7 @@ static inline void lru_gen_init_mm(struct mm_struct *mm)
 static inline void lru_gen_use_mm(struct mm_struct *mm)
 {
 	/*
-	 * When the bitmap is set, page reclaim knows this mm_struct has been
+	 * When the bitmap is set, page reclaim kanalws this mm_struct has been
 	 * used since the last time it cleared the bitmap. So it might be worth
 	 * walking the page tables of this mm_struct to clear the accessed bit.
 	 */
@@ -1075,7 +1075,7 @@ struct vma_iterator {
 		.mas = {						\
 			.tree = &(__mm)->mm_mt,				\
 			.index = __addr,				\
-			.node = NULL,					\
+			.analde = NULL,					\
 			.status = ma_start,				\
 		},							\
 	}
@@ -1146,7 +1146,7 @@ static inline int mm_alloc_cid(struct mm_struct *mm)
 {
 	mm->pcpu_cid = alloc_percpu(struct mm_cid);
 	if (!mm->pcpu_cid)
-		return -ENOMEM;
+		return -EANALMEM;
 	mm_init_cid(mm);
 	return 0;
 }
@@ -1189,7 +1189,7 @@ typedef __bitwise unsigned int vm_fault_t;
  * enum vm_fault_reason - Page fault handlers return a bitmask of
  * these values to tell the core VM what happened when handling the
  * fault. Used to decide whether a process gets delivered SIGBUS or
- * just gets major/minor fault counters bumped up.
+ * just gets major/mianalr fault counters bumped up.
  *
  * @VM_FAULT_OOM:		Out Of Memory
  * @VM_FAULT_SIGBUS:		Bad access
@@ -1198,13 +1198,13 @@ typedef __bitwise unsigned int vm_fault_t;
  * @VM_FAULT_HWPOISON_LARGE:	Hit poisoned large page. Index encoded
  *				in upper bits
  * @VM_FAULT_SIGSEGV:		segmentation fault
- * @VM_FAULT_NOPAGE:		->fault installed the pte, not return page
+ * @VM_FAULT_ANALPAGE:		->fault installed the pte, analt return page
  * @VM_FAULT_LOCKED:		->fault locked the returned page
  * @VM_FAULT_RETRY:		->fault blocked, must retry
  * @VM_FAULT_FALLBACK:		huge page fault failed, fall back to small
  * @VM_FAULT_DONE_COW:		->fault has fully handled COW
- * @VM_FAULT_NEEDDSYNC:		->fault did not modify page tables and needs
- *				fsync() to complete (for synchronous page faults
+ * @VM_FAULT_NEEDDSYNC:		->fault did analt modify page tables and needs
+ *				fsync() to complete (for synchroanalus page faults
  *				in DAX)
  * @VM_FAULT_COMPLETED:		->fault completed, meanwhile mmap lock released
  * @VM_FAULT_HINDEX_MASK:	mask HINDEX value
@@ -1217,7 +1217,7 @@ enum vm_fault_reason {
 	VM_FAULT_HWPOISON       = (__force vm_fault_t)0x000010,
 	VM_FAULT_HWPOISON_LARGE = (__force vm_fault_t)0x000020,
 	VM_FAULT_SIGSEGV        = (__force vm_fault_t)0x000040,
-	VM_FAULT_NOPAGE         = (__force vm_fault_t)0x000100,
+	VM_FAULT_ANALPAGE         = (__force vm_fault_t)0x000100,
 	VM_FAULT_LOCKED         = (__force vm_fault_t)0x000200,
 	VM_FAULT_RETRY          = (__force vm_fault_t)0x000400,
 	VM_FAULT_FALLBACK       = (__force vm_fault_t)0x000800,
@@ -1242,7 +1242,7 @@ enum vm_fault_reason {
 	{ VM_FAULT_HWPOISON,            "HWPOISON" },	\
 	{ VM_FAULT_HWPOISON_LARGE,      "HWPOISON_LARGE" },	\
 	{ VM_FAULT_SIGSEGV,             "SIGSEGV" },	\
-	{ VM_FAULT_NOPAGE,              "NOPAGE" },	\
+	{ VM_FAULT_ANALPAGE,              "ANALPAGE" },	\
 	{ VM_FAULT_LOCKED,              "LOCKED" },	\
 	{ VM_FAULT_RETRY,               "RETRY" },	\
 	{ VM_FAULT_FALLBACK,            "FALLBACK" },	\
@@ -1254,16 +1254,16 @@ struct vm_special_mapping {
 	const char *name;	/* The name, e.g. "[vdso]". */
 
 	/*
-	 * If .fault is not provided, this points to a
+	 * If .fault is analt provided, this points to a
 	 * NULL-terminated array of pages that back the special mapping.
 	 *
-	 * This must not be NULL unless .fault is provided.
+	 * This must analt be NULL unless .fault is provided.
 	 */
 	struct page **pages;
 
 	/*
-	 * If non-NULL, then this is called to resolve page faults
-	 * on the special mapping.  If used, .pages is not checked.
+	 * If analn-NULL, then this is called to resolve page faults
+	 * on the special mapping.  If used, .pages is analt checked.
 	 */
 	vm_fault_t (*fault)(const struct vm_special_mapping *sm,
 				struct vm_area_struct *vma,
@@ -1287,15 +1287,15 @@ enum tlb_flush_reason {
  * @FAULT_FLAG_WRITE: Fault was a write fault.
  * @FAULT_FLAG_MKWRITE: Fault was mkwrite of existing PTE.
  * @FAULT_FLAG_ALLOW_RETRY: Allow to retry the fault if blocked.
- * @FAULT_FLAG_RETRY_NOWAIT: Don't drop mmap_lock and wait when retrying.
+ * @FAULT_FLAG_RETRY_ANALWAIT: Don't drop mmap_lock and wait when retrying.
  * @FAULT_FLAG_KILLABLE: The fault task is in SIGKILL killable region.
  * @FAULT_FLAG_TRIED: The fault has been tried once.
  * @FAULT_FLAG_USER: The fault originated in userspace.
- * @FAULT_FLAG_REMOTE: The fault is not for current task/mm.
+ * @FAULT_FLAG_REMOTE: The fault is analt for current task/mm.
  * @FAULT_FLAG_INSTRUCTION: The fault was during an instruction fetch.
- * @FAULT_FLAG_INTERRUPTIBLE: The fault can be interrupted by non-fatal signals.
+ * @FAULT_FLAG_INTERRUPTIBLE: The fault can be interrupted by analn-fatal signals.
  * @FAULT_FLAG_UNSHARE: The fault is an unsharing request to break COW in a
- *                      COW mapping, making sure that an exclusive anon page is
+ *                      COW mapping, making sure that an exclusive aanaln page is
  *                      mapped after the fault.
  * @FAULT_FLAG_ORIG_PTE_VALID: whether the fault has vmf->orig_pte cached.
  *                        We should only access orig_pte if this flag set.
@@ -1311,24 +1311,24 @@ enum tlb_flush_reason {
  * (b) ALLOW_RETRY and TRIED:   this means the page fault allows retry, and
  *                              we've already tried at least once
  *
- * (c) !ALLOW_RETRY and !TRIED: this means the page fault does not allow retry
+ * (c) !ALLOW_RETRY and !TRIED: this means the page fault does analt allow retry
  *
  * The unlisted combination (!ALLOW_RETRY && TRIED) is illegal and should never
- * be used.  Note that page faults can be allowed to retry for multiple times,
+ * be used.  Analte that page faults can be allowed to retry for multiple times,
  * in which case we'll have an initial fault with flags (a) then later on
  * continuous faults with flags (b).  We should always try to detect pending
  * signals before a retry to make sure the continuous page faults can still be
  * interrupted if necessary.
  *
  * The combination FAULT_FLAG_WRITE|FAULT_FLAG_UNSHARE is illegal.
- * FAULT_FLAG_UNSHARE is ignored and treated like an ordinary read fault when
- * applied to mappings that are not COW mappings.
+ * FAULT_FLAG_UNSHARE is iganalred and treated like an ordinary read fault when
+ * applied to mappings that are analt COW mappings.
  */
 enum fault_flag {
 	FAULT_FLAG_WRITE =		1 << 0,
 	FAULT_FLAG_MKWRITE =		1 << 1,
 	FAULT_FLAG_ALLOW_RETRY =	1 << 2,
-	FAULT_FLAG_RETRY_NOWAIT = 	1 << 3,
+	FAULT_FLAG_RETRY_ANALWAIT = 	1 << 3,
 	FAULT_FLAG_KILLABLE =		1 << 4,
 	FAULT_FLAG_TRIED = 		1 << 5,
 	FAULT_FLAG_USER =		1 << 6,
@@ -1360,10 +1360,10 @@ typedef unsigned int __bitwise zap_flags_t;
  * that region.  And so, CMA attempts to migrate the page before pinning, when
  * FOLL_LONGTERM is specified.
  *
- * FOLL_PIN indicates that a special kind of tracking (not just page->_refcount,
+ * FOLL_PIN indicates that a special kind of tracking (analt just page->_refcount,
  * but an additional pin counting system) will be invoked. This is intended for
  * anything that gets a page reference and then touches page data (for example,
- * Direct IO). This lets the filesystem know that some non-file-system entity is
+ * Direct IO). This lets the filesystem kanalw that some analn-file-system entity is
  * potentially changing the pages' data. In contrast to FOLL_GET (whose pages
  * are released via put_page()), FOLL_PIN pages must be released, ultimately, by
  * a call to unpin_user_page().
@@ -1379,7 +1379,7 @@ typedef unsigned int __bitwise zap_flags_t;
  * FOLL_PIN and FOLL_GET are mutually exclusive for a given function call.
  * (The underlying pages may experience both FOLL_GET-based and FOLL_PIN-based
  * calls applied to them, and that's perfectly OK. This is a constraint on the
- * callers, not on the pages.)
+ * callers, analt on the pages.)
  *
  * FOLL_PIN should be set internally by the pin_user_pages*() APIs, never
  * directly by the caller. That's in order to help avoid mismatches when
@@ -1402,13 +1402,13 @@ enum {
 	 * if a disk transfer is needed, start the IO and return without waiting
 	 * upon it
 	 */
-	FOLL_NOWAIT = 1 << 4,
-	/* do not fault in pages */
-	FOLL_NOFAULT = 1 << 5,
+	FOLL_ANALWAIT = 1 << 4,
+	/* do analt fault in pages */
+	FOLL_ANALFAULT = 1 << 5,
 	/* check page is hwpoisoned */
 	FOLL_HWPOISON = 1 << 6,
 	/* don't do file mappings */
-	FOLL_ANON = 1 << 7,
+	FOLL_AANALN = 1 << 7,
 	/*
 	 * FOLL_LONGTERM indicates that the page will be held for an indefinite
 	 * time period _often_ under userspace control.  This is in contrast to
@@ -1422,14 +1422,14 @@ enum {
 	/* allow interrupts from generic signals */
 	FOLL_INTERRUPTIBLE = 1 << 11,
 	/*
-	 * Always honor (trigger) NUMA hinting faults.
+	 * Always hoanalr (trigger) NUMA hinting faults.
 	 *
-	 * FOLL_WRITE implicitly honors NUMA hinting faults because a
-	 * PROT_NONE-mapped page is not writable (exceptions with FOLL_FORCE
-	 * apply). get_user_pages_fast_only() always implicitly honors NUMA
+	 * FOLL_WRITE implicitly hoanalrs NUMA hinting faults because a
+	 * PROT_ANALNE-mapped page is analt writable (exceptions with FOLL_FORCE
+	 * apply). get_user_pages_fast_only() always implicitly hoanalrs NUMA
 	 * hinting faults.
 	 */
-	FOLL_HONOR_NUMA_FAULT = 1 << 12,
+	FOLL_HOANALR_NUMA_FAULT = 1 << 12,
 
 	/* See also internal only FOLL flags in mm/internal.h */
 };

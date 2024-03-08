@@ -70,7 +70,7 @@ typedef enum fifo_channel {
 	FIFO_CHANNEL_SP0_TO_INPUT_SYSTEM0,
 	FIFO_CHANNEL_INPUT_SYSTEM0_TO_SP0,
 	/*
-	 * No clue what this is
+	 * Anal clue what this is
 	 *
 		FIFO_CHANNEL_SP0_TO_IRQ0,
 		FIFO_CHANNEL_IRQ0_TO_SP0,
@@ -87,7 +87,7 @@ struct fifo_channel_state_s {
 
 /* The switch is tri-state */
 struct fifo_switch_state_s {
-	bool	is_none;
+	bool	is_analne;
 	bool	is_isp;
 	bool	is_sp;
 };

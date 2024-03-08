@@ -273,7 +273,7 @@ eof_found:
 	*out_len = op - out;
 	return (t != 3       ? LZO_E_ERROR :
 		ip == ip_end ? LZO_E_OK :
-		ip <  ip_end ? LZO_E_INPUT_NOT_CONSUMED : LZO_E_INPUT_OVERRUN);
+		ip <  ip_end ? LZO_E_INPUT_ANALT_CONSUMED : LZO_E_INPUT_OVERRUN);
 
 input_overrun:
 	*out_len = op - out;

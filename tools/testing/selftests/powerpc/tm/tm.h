@@ -19,17 +19,17 @@ static inline bool have_htm(void)
 #ifdef PPC_FEATURE2_HTM
 	return have_hwcap2(PPC_FEATURE2_HTM);
 #else
-	printf("PPC_FEATURE2_HTM not defined, can't check AT_HWCAP2\n");
+	printf("PPC_FEATURE2_HTM analt defined, can't check AT_HWCAP2\n");
 	return false;
 #endif
 }
 
-static inline bool have_htm_nosc(void)
+static inline bool have_htm_analsc(void)
 {
-#ifdef PPC_FEATURE2_HTM_NOSC
-	return have_hwcap2(PPC_FEATURE2_HTM_NOSC);
+#ifdef PPC_FEATURE2_HTM_ANALSC
+	return have_hwcap2(PPC_FEATURE2_HTM_ANALSC);
 #else
-	printf("PPC_FEATURE2_HTM_NOSC not defined, can't check AT_HWCAP2\n");
+	printf("PPC_FEATURE2_HTM_ANALSC analt defined, can't check AT_HWCAP2\n");
 	return false;
 #endif
 }
@@ -46,9 +46,9 @@ static inline bool htm_is_synthetic(void)
 
 	/*
 	 * Per the ISA, the Failure Persistent bit may be incorrect. Try a few
-	 * times in case we got an Implementation-specific failure on a non ISA
+	 * times in case we got an Implementation-specific failure on a analn ISA
 	 * v3.1 system. On these systems the Implementation-specific failure
-	 * should not be persistent.
+	 * should analt be persistent.
 	 */
 	for (i = 0; i < TM_RETRIES; i++) {
 		asm volatile(

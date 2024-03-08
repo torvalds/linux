@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2019 Netronome Systems, Inc. */
+/* Copyright (C) 2019 Netroanalme Systems, Inc. */
 
 #include <linux/hash.h>
 #include <linux/hashtable.h>
@@ -92,7 +92,7 @@ int nfp_flower_offload_one_police(struct nfp_app *app, bool ingress,
 	skb = nfp_flower_cmsg_alloc(app, sizeof(struct nfp_police_config),
 				    NFP_FLOWER_CMSG_TYPE_QOS_MOD, GFP_KERNEL);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	config = nfp_flower_cmsg_get_data(skb);
 	memset(config, 0, sizeof(struct nfp_police_config));
@@ -124,38 +124,38 @@ static int nfp_policer_validate(const struct flow_action *action,
 {
 	if (act->police.exceed.act_id != FLOW_ACTION_DROP) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Offload not supported when exceed action is not drop");
-		return -EOPNOTSUPP;
+				   "Offload analt supported when exceed action is analt drop");
+		return -EOPANALTSUPP;
 	}
 
 	if (ingress) {
-		if (act->police.notexceed.act_id != FLOW_ACTION_CONTINUE &&
-		    act->police.notexceed.act_id != FLOW_ACTION_ACCEPT) {
+		if (act->police.analtexceed.act_id != FLOW_ACTION_CONTINUE &&
+		    act->police.analtexceed.act_id != FLOW_ACTION_ACCEPT) {
 			NL_SET_ERR_MSG_MOD(extack,
-					   "Offload not supported when conform action is not continue or ok");
-			return -EOPNOTSUPP;
+					   "Offload analt supported when conform action is analt continue or ok");
+			return -EOPANALTSUPP;
 		}
 	} else {
-		if (act->police.notexceed.act_id != FLOW_ACTION_PIPE &&
-		    act->police.notexceed.act_id != FLOW_ACTION_ACCEPT) {
+		if (act->police.analtexceed.act_id != FLOW_ACTION_PIPE &&
+		    act->police.analtexceed.act_id != FLOW_ACTION_ACCEPT) {
 			NL_SET_ERR_MSG_MOD(extack,
-					   "Offload not supported when conform action is not pipe or ok");
-			return -EOPNOTSUPP;
+					   "Offload analt supported when conform action is analt pipe or ok");
+			return -EOPANALTSUPP;
 		}
 	}
 
-	if (act->police.notexceed.act_id == FLOW_ACTION_ACCEPT &&
+	if (act->police.analtexceed.act_id == FLOW_ACTION_ACCEPT &&
 	    !flow_action_is_last_entry(action, act)) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Offload not supported when conform action is ok, but action is not last");
-		return -EOPNOTSUPP;
+				   "Offload analt supported when conform action is ok, but action is analt last");
+		return -EOPANALTSUPP;
 	}
 
 	if (act->police.peakrate_bytes_ps ||
 	    act->police.avrate || act->police.overhead) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Offload not supported when peakrate/avrate/overhead is configured");
-		return -EOPNOTSUPP;
+				   "Offload analt supported when peakrate/avrate/overhead is configured");
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -182,8 +182,8 @@ nfp_flower_install_rate_limiter(struct nfp_app *app, struct net_device *netdev,
 	int err;
 
 	if (!nfp_netdev_is_nfp_repr(netdev)) {
-		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: qos rate limit offload not supported on higher level port");
-		return -EOPNOTSUPP;
+		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: qos rate limit offload analt supported on higher level port");
+		return -EOPANALTSUPP;
 	}
 	repr = netdev_priv(netdev);
 	repr_priv = repr->app_priv;
@@ -191,32 +191,32 @@ nfp_flower_install_rate_limiter(struct nfp_app *app, struct net_device *netdev,
 	pps_support = !!(fl_priv->flower_ext_feats & NFP_FL_FEATS_QOS_PPS);
 
 	if (repr_priv->block_shared) {
-		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: qos rate limit offload not supported on shared blocks");
-		return -EOPNOTSUPP;
+		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: qos rate limit offload analt supported on shared blocks");
+		return -EOPANALTSUPP;
 	}
 
 	if (repr->port->type != NFP_PORT_VF_PORT) {
-		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: qos rate limit offload not supported on non-VF ports");
-		return -EOPNOTSUPP;
+		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: qos rate limit offload analt supported on analn-VF ports");
+		return -EOPANALTSUPP;
 	}
 
 	if (pps_support) {
 		if (action_num > 2 || action_num == 0) {
 			NL_SET_ERR_MSG_MOD(extack,
 					   "unsupported offload: qos rate limit offload only support action number 1 or 2");
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 	} else {
 		if (!flow_offload_has_one_action(&flow->rule->action)) {
 			NL_SET_ERR_MSG_MOD(extack,
 					   "unsupported offload: qos rate limit offload requires a single action");
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 	}
 
 	if (flow->common.prio != 1) {
 		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: qos rate limit offload requires highest priority");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	for (i = 0 ; i < action_num; i++) {
@@ -224,7 +224,7 @@ nfp_flower_install_rate_limiter(struct nfp_app *app, struct net_device *netdev,
 		if (action->id != FLOW_ACTION_POLICE) {
 			NL_SET_ERR_MSG_MOD(extack,
 					   "unsupported offload: qos rate limit offload requires police action");
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 
 		err = nfp_policer_validate(&flow->rule->action, action, extack, true);
@@ -235,19 +235,19 @@ nfp_flower_install_rate_limiter(struct nfp_app *app, struct net_device *netdev,
 			if (bps_num++) {
 				NL_SET_ERR_MSG_MOD(extack,
 						   "unsupported offload: qos rate limit offload only support one BPS action");
-				return -EOPNOTSUPP;
+				return -EOPANALTSUPP;
 			}
 		}
 		if (action->police.rate_pkt_ps > 0) {
 			if (!pps_support) {
 				NL_SET_ERR_MSG_MOD(extack,
-						   "unsupported offload: FW does not support PPS action");
-				return -EOPNOTSUPP;
+						   "unsupported offload: FW does analt support PPS action");
+				return -EOPANALTSUPP;
 			}
 			if (pps_num++) {
 				NL_SET_ERR_MSG_MOD(extack,
 						   "unsupported offload: qos rate limit offload only support one PPS action");
-				return -EOPNOTSUPP;
+				return -EOPANALTSUPP;
 			}
 		}
 	}
@@ -263,7 +263,7 @@ nfp_flower_install_rate_limiter(struct nfp_app *app, struct net_device *netdev,
 			burst = action->police.burst_pkt;
 		} else {
 			NL_SET_ERR_MSG_MOD(extack,
-					   "unsupported offload: qos rate limit is not BPS or PPS");
+					   "unsupported offload: qos rate limit is analt BPS or PPS");
 			continue;
 		}
 
@@ -299,8 +299,8 @@ nfp_flower_remove_rate_limiter(struct nfp_app *app, struct net_device *netdev,
 	bool pps_support;
 
 	if (!nfp_netdev_is_nfp_repr(netdev)) {
-		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: qos rate limit offload not supported on higher level port");
-		return -EOPNOTSUPP;
+		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: qos rate limit offload analt supported on higher level port");
+		return -EOPANALTSUPP;
 	}
 	repr = netdev_priv(netdev);
 
@@ -309,8 +309,8 @@ nfp_flower_remove_rate_limiter(struct nfp_app *app, struct net_device *netdev,
 	pps_support = !!(fl_priv->flower_ext_feats & NFP_FL_FEATS_QOS_PPS);
 
 	if (!repr_priv->qos_table.netdev_port_id) {
-		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: cannot remove qos entry that does not exist");
-		return -EOPNOTSUPP;
+		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: cananalt remove qos entry that does analt exist");
+		return -EOPANALTSUPP;
 	}
 
 	memset(&repr_priv->qos_table, 0, sizeof(struct nfp_fl_qos));
@@ -322,14 +322,14 @@ nfp_flower_remove_rate_limiter(struct nfp_app *app, struct net_device *netdev,
 			break;
 		/* 0:bps 1:pps
 		 * Clear QoS data for this interface.
-		 * There is no need to check if a specific QOS_TYPE was
+		 * There is anal need to check if a specific QOS_TYPE was
 		 * configured as the firmware handles clearing a QoS entry
 		 * safely, even if it wasn't explicitly added.
 		 */
 		skb = nfp_flower_cmsg_alloc(repr->app, sizeof(struct nfp_police_config),
 					    NFP_FLOWER_CMSG_TYPE_QOS_DEL, GFP_KERNEL);
 		if (!skb)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		config = nfp_flower_cmsg_get_data(skb);
 		memset(config, 0, sizeof(struct nfp_police_config));
@@ -474,15 +474,15 @@ nfp_flower_stats_rate_limiter(struct nfp_app *app, struct net_device *netdev,
 	struct nfp_repr *repr;
 
 	if (!nfp_netdev_is_nfp_repr(netdev)) {
-		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: qos rate limit offload not supported on higher level port");
-		return -EOPNOTSUPP;
+		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: qos rate limit offload analt supported on higher level port");
+		return -EOPANALTSUPP;
 	}
 	repr = netdev_priv(netdev);
 
 	repr_priv = repr->app_priv;
 	if (!repr_priv->qos_table.netdev_port_id) {
-		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: cannot find qos entry for stats update");
-		return -EOPNOTSUPP;
+		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: cananalt find qos entry for stats update");
+		return -EOPANALTSUPP;
 	}
 
 	spin_lock_bh(&fl_priv->qos_stats_lock);
@@ -526,8 +526,8 @@ int nfp_flower_setup_qos_offload(struct nfp_app *app, struct net_device *netdev,
 	int ret;
 
 	if (!(fl_priv->flower_ext_feats & NFP_FL_FEATS_VF_RLIM)) {
-		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: loaded firmware does not support qos rate limit offload");
-		return -EOPNOTSUPP;
+		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: loaded firmware does analt support qos rate limit offload");
+		return -EOPANALTSUPP;
 	}
 
 	mutex_lock(&fl_priv->nfp_fl_lock);
@@ -542,7 +542,7 @@ int nfp_flower_setup_qos_offload(struct nfp_app *app, struct net_device *netdev,
 		ret = nfp_flower_stats_rate_limiter(app, netdev, flow, extack);
 		break;
 	default:
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		break;
 	}
 	mutex_unlock(&fl_priv->nfp_fl_lock);
@@ -554,7 +554,7 @@ int nfp_flower_setup_qos_offload(struct nfp_app *app, struct net_device *netdev,
 
 static const struct rhashtable_params stats_meter_table_params = {
 	.key_offset	= offsetof(struct nfp_meter_entry, meter_id),
-	.head_offset	= offsetof(struct nfp_meter_entry, ht_node),
+	.head_offset	= offsetof(struct nfp_meter_entry, ht_analde),
 	.key_len	= sizeof(u32),
 };
 
@@ -585,7 +585,7 @@ nfp_flower_add_meter_entry(struct nfp_app *app, u32 meter_id)
 
 	meter_entry->meter_id = meter_id;
 	meter_entry->used = jiffies;
-	if (rhashtable_insert_fast(&priv->meter_table, &meter_entry->ht_node,
+	if (rhashtable_insert_fast(&priv->meter_table, &meter_entry->ht_analde,
 				   stats_meter_table_params)) {
 		kfree(meter_entry);
 		return NULL;
@@ -610,7 +610,7 @@ static void nfp_flower_del_meter_entry(struct nfp_app *app, u32 meter_id)
 		return;
 
 	rhashtable_remove_fast(&priv->meter_table,
-			       &meter_entry->ht_node,
+			       &meter_entry->ht_analde,
 			       stats_meter_table_params);
 	kfree(meter_entry);
 	priv->qos_rate_limiters--;
@@ -637,12 +637,12 @@ int nfp_flower_setup_meter_entry(struct nfp_app *app,
 		meter_entry = nfp_flower_add_meter_entry(app, meter_id);
 		break;
 	default:
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		goto exit_unlock;
 	}
 
 	if (!meter_entry) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto exit_unlock;
 	}
 
@@ -745,7 +745,7 @@ nfp_act_install_actions(struct nfp_app *app, struct flow_offload_action *fl_act,
 		}
 	}
 
-	return add ? 0 : -EOPNOTSUPP;
+	return add ? 0 : -EOPANALTSUPP;
 }
 
 static int
@@ -762,22 +762,22 @@ nfp_act_remove_actions(struct nfp_app *app, struct flow_offload_action *fl_act,
 	if (fl_act->id != FLOW_ACTION_POLICE) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "unsupported offload: qos rate limit offload requires police action");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	meter_id = fl_act->index;
 	meter_entry = nfp_flower_search_meter_entry(app, meter_id);
 	if (!meter_entry) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "no meter entry when delete the action index.");
-		return -ENOENT;
+				   "anal meter entry when delete the action index.");
+		return -EANALENT;
 	}
 	pps = !meter_entry->bps;
 
 	skb = nfp_flower_cmsg_alloc(app, sizeof(struct nfp_police_config),
 				    NFP_FLOWER_CMSG_TYPE_QOS_DEL, GFP_KERNEL);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	config = nfp_flower_cmsg_get_data(skb);
 	memset(config, 0, sizeof(struct nfp_police_config));
@@ -836,13 +836,13 @@ nfp_act_stats_actions(struct nfp_app *app, struct flow_offload_action *fl_act,
 	if (fl_act->id != FLOW_ACTION_POLICE) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "unsupported offload: qos rate limit offload requires police action");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	mutex_lock(&fl_priv->meter_stats_lock);
 	meter_entry = nfp_flower_search_meter_entry(app, fl_act->index);
 	if (!meter_entry) {
-		err = -ENOENT;
+		err = -EANALENT;
 		goto exit_unlock;
 	}
 	diff_pkts = meter_entry->stats.curr.pkts > meter_entry->stats.prev.pkts ?
@@ -872,7 +872,7 @@ int nfp_setup_tc_act_offload(struct nfp_app *app,
 	struct nfp_flower_priv *fl_priv = app->priv;
 
 	if (!(fl_priv->flower_ext_feats & NFP_FL_FEATS_QOS_METER))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (fl_act->command) {
 	case FLOW_ACT_REPLACE:
@@ -882,6 +882,6 @@ int nfp_setup_tc_act_offload(struct nfp_app *app,
 	case FLOW_ACT_STATS:
 		return nfp_act_stats_actions(app, fl_act, extack);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }

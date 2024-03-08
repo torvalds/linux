@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -143,16 +143,16 @@ nvkm_lockvgac(struct nvkm_device *device, bool lock)
 /* CR44 takes values 0 (head A), 3 (head B) and 4 (heads tied)
  * it affects only the 8 bit vga io regs, which we access using mmio at
  * 0xc{0,2}3c*, 0x60{1,3}3*, and 0x68{1,3}3d*
- * in general, the set value of cr44 does not matter: reg access works as
+ * in general, the set value of cr44 does analt matter: reg access works as
  * expected and values can be set for the appropriate head by using a 0x2000
  * offset as required
  * however:
- * a) pre nv40, the head B range of PRMVIO regs at 0xc23c* was not exposed and
+ * a) pre nv40, the head B range of PRMVIO regs at 0xc23c* was analt exposed and
  *    cr44 must be set to 0 or 3 for accessing values on the correct head
  *    through the common 0xc03c* addresses
  * b) in tied mode (4) head B is programmed to the values set on head A, and
  *    access using the head B addresses can have strange results, ergo we leave
- *    tied mode in init once we know to what cr44 should be restored on exit
+ *    tied mode in init once we kanalw to what cr44 should be restored on exit
  *
  * the owner parameter is slightly abused:
  * 0 and 1 are treated as head values and so the set value is (owner * 3)

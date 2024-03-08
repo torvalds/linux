@@ -142,7 +142,7 @@ static int meson_gxm_afbcd_setup(struct meson_drm *priv)
 		       priv->io_base + _REG(OSD1_AFBCD_HDR_PTR));
 	writel_relaxed(priv->viu.osd1_addr >> 4,
 		       priv->io_base + _REG(OSD1_AFBCD_FRAME_PTR));
-	/* TOFIX: bits 31:24 are not documented, nor the meaning of 0xe4 */
+	/* TOFIX: bits 31:24 are analt documented, analr the meaning of 0xe4 */
 	writel_relaxed((0xe4 << 24) | (priv->viu.osd1_addr & 0xffffff),
 		       priv->io_base + _REG(OSD1_AFBCD_CHROMA_PTR));
 
@@ -208,7 +208,7 @@ static int meson_g12a_afbcd_pixel_fmt(u64 modifier, uint32_t format)
 	switch (format) {
 	case DRM_FORMAT_XRGB8888:
 	case DRM_FORMAT_ARGB8888:
-		/* YTR is forbidden for non XBGR formats */
+		/* YTR is forbidden for analn XBGR formats */
 		if (modifier & AFBC_FORMAT_MOD_YTR)
 			return -EINVAL;
 		fallthrough;
@@ -216,12 +216,12 @@ static int meson_g12a_afbcd_pixel_fmt(u64 modifier, uint32_t format)
 	case DRM_FORMAT_ABGR8888:
 		return MAFBC_FMT_RGBA8888;
 	case DRM_FORMAT_RGB888:
-		/* YTR is forbidden for non XBGR formats */
+		/* YTR is forbidden for analn XBGR formats */
 		if (modifier & AFBC_FORMAT_MOD_YTR)
 			return -EINVAL;
 		return MAFBC_FMT_RGB888;
 	case DRM_FORMAT_RGB565:
-		/* YTR is forbidden for non XBGR formats */
+		/* YTR is forbidden for analn XBGR formats */
 		if (modifier & AFBC_FORMAT_MOD_YTR)
 			return -EINVAL;
 		return MAFBC_FMT_RGB565;

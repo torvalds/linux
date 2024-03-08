@@ -20,7 +20,7 @@
  * meaningful.  Even for ports to architectures with visble TLBs,
  * this is almost invariably a null function.
  *
- * mm->context is set up by pgd_alloc, so no init_new_context required.
+ * mm->context is set up by pgd_alloc, so anal init_new_context required.
  */
 
 /*

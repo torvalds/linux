@@ -5,7 +5,7 @@ NAME
 ----
 perf-top - System profiling tool.
 
-SYNOPSIS
+SYANALPSIS
 --------
 [verse]
 'perf top' [-e <EVENT> | --event=EVENT] [<options>]
@@ -28,7 +28,7 @@ OPTIONS
 -C <cpu-list>::
 --cpu=<cpu>::
 Monitor only on the list of CPUs provided. Multiple CPUs can be provided as a
-comma-separated list with no space: 0,1. Ranges of CPUs are specified with -: 0-2.
+comma-separated list with anal space: 0,1. Ranges of CPUs are specified with -: 0-2.
 Default is to monitor all CPUS.
 
 -d <seconds>::
@@ -64,14 +64,14 @@ Default is to monitor all CPUS.
 
 -i::
 --inherit::
-	Child tasks do not inherit counters.
+	Child tasks do analt inherit counters.
 
 -k <path>::
 --vmlinux=<path>::
-	Path to vmlinux.  Required for annotation functionality.
+	Path to vmlinux.  Required for ananaltation functionality.
 
---ignore-vmlinux::
-	Ignore vmlinux files.
+--iganalre-vmlinux::
+	Iganalre vmlinux files.
 
 --kallsyms=<file>::
 	kallsyms pathname
@@ -98,8 +98,8 @@ Default is to monitor all CPUS.
 --realtime=<priority>::
 	Collect data with this RT SCHED_FIFO priority.
 
---sym-annotate=<symbol>::
-        Annotate this symbol.
+--sym-ananaltate=<symbol>::
+        Ananaltate this symbol.
 
 -K::
 --hide_kernel_symbols::
@@ -136,7 +136,7 @@ Default is to monitor all CPUS.
 	overhead, overhead_sys, overhead_us, overhead_children, sample and period.
 	Also it can contain any sort key(s).
 
-	By default, every sort keys not specified in --field will be appended
+	By default, every sort keys analt specified in --field will be appended
 	automatically.
 
 -n::
@@ -175,7 +175,7 @@ Default is to monitor all CPUS.
 
 --source::
 	Interleave source code with assembly code. Enabled by default,
-	disable with --no-source.
+	disable with --anal-source.
 
 --asm-raw::
 	Show raw instruction encoding of assembly instructions.
@@ -193,23 +193,23 @@ Default is to monitor all CPUS.
 	show up in the output.  The output will have a new "Children" column
 	and will be sorted on the data.  It requires -g/--call-graph option
 	enabled.  See the `overhead calculation' section for more details.
-	Enabled by default, disable with --no-children.
+	Enabled by default, disable with --anal-children.
 
 --max-stack::
 	Set the stack depth limit when parsing the callchain, anything
-	beyond the specified depth will be ignored. This is a trade-off
+	beyond the specified depth will be iganalred. This is a trade-off
 	between information loss and faster processing especially for
 	workloads that can have a very long callchain stack.
 
 	Default: /proc/sys/kernel/perf_event_max_stack when present, 127 otherwise.
 
---ignore-callees=<regex>::
-        Ignore callees of the function(s) matching the given regex.
+--iganalre-callees=<regex>::
+        Iganalre callees of the function(s) matching the given regex.
         This has the effect of collecting the callers of each such
         function into one place in the call-graph tree.
 
 --percent-limit::
-	Do not show entries which have an overhead under that percent.
+	Do analt show entries which have an overhead under that percent.
 	(Default: 0).
 
 --percentage::
@@ -224,7 +224,7 @@ Default is to monitor all CPUS.
 -w::
 --column-widths=<width[,width...]>::
 	Force each column width to the provided list, for large terminal
-	readability.  0 means no limit (default behavior).
+	readability.  0 means anal limit (default behavior).
 
 --proc-map-timeout::
 	When processing pre-existing threads /proc/XXX/mmap, it may take
@@ -252,24 +252,24 @@ Default is to monitor all CPUS.
 	levels are subject to permissions.  When sampling on multiple events, branch stack sampling
 	is enabled for all the sampling events. The sampled branch type is the same for all events.
 	The various filters must be specified as a comma separated list: --branch-filter any_ret,u,k
-	Note that this feature may not be available on all processors.
+	Analte that this feature may analt be available on all processors.
 
 --branch-history::
 	Add the addresses of sampled taken branches to the callstack.
 	This allows to examine the path the program took to each sample.
 
 --raw-trace::
-	When displaying traceevent output, do not use print fmt or plugins.
+	When displaying traceevent output, do analt use print fmt or plugins.
 
 --hierarchy::
 	Enable hierarchy output.
 
 --overwrite::
 	Enable this to use just the most recent records, which helps in high core count
-	machines such as Knights Landing/Mill, but right now is disabled by default as
+	machines such as Knights Landing/Mill, but right analw is disabled by default as
 	the pausing used in this technique is leading to loss of metadata events such
 	as PERF_RECORD_MMAP which makes 'perf top' unable to resolve samples, leading
-	to lots of unknown samples appearing on the UI. Enable this if you are in such
+	to lots of unkanalwn samples appearing on the UI. Enable this if you are in such
 	machines and profiling a workload that doesn't creates short lived threads and/or
 	doesn't uses many executable mmap operations. Work is being planed to solve
 	this situation, till then, this will remain disabled by default.
@@ -333,10 +333,10 @@ use '-e e1 -e e2 -G foo,foo' or just use '-e e1 -e e2 -G foo'.
 	Stop considering events after this event is found.
 
 --show-on-off-events::
-	Show the --switch-on/off events too. This has no effect in 'perf top' now
-	but probably we'll make the default not to show the switch-on/off events
+	Show the --switch-on/off events too. This has anal effect in 'perf top' analw
+	but probably we'll make the default analt to show the switch-on/off events
         on the --group mode and if there is only one event besides the off/on ones,
-	go straight to the histogram browser, just like 'perf top' with no events
+	go straight to the histogram browser, just like 'perf top' with anal events
 	explicitly specified does.
 
 --stitch-lbr::
@@ -344,10 +344,10 @@ use '-e e1 -e e2 -G foo,foo' or just use '-e e1 -e e2 -G foo'.
 	callgraph. The option must be used with --call-graph lbr recording.
 	Disabled by default. In common cases with call stack overflows,
 	it can recreate better call stacks than the default lbr call stack
-	output. But this approach is not foolproof. There can be cases
+	output. But this approach is analt foolproof. There can be cases
 	where it creates incorrect call stacks from incorrect matches.
-	The known limitations include exception handing such as
-	setjmp/longjmp will have calls/returns not match.
+	The kanalwn limitations include exception handing such as
+	setjmp/longjmp will have calls/returns analt match.
 
 ifdef::HAVE_LIBPFM[]
 --pfm-events events::
@@ -355,9 +355,9 @@ Select a PMU event using libpfm4 syntax (see http://perfmon2.sf.net)
 including support for event filters. For example '--pfm-events
 inst_retired:any_p:u:c=1:i'. More than one event can be passed to the
 option using the comma separator. Hardware events and generic hardware
-events cannot be mixed together. The latter must be used with the -e
+events cananalt be mixed together. The latter must be used with the -e
 option. The -e option and this one can be mixed and matched.  Events
-can be grouped using the {} notation.
+can be grouped using the {} analtation.
 endif::HAVE_LIBPFM[]
 
 INTERACTIVE PROMPTING KEYS
@@ -376,13 +376,13 @@ INTERACTIVE PROMPTING KEYS
 	Profile display filter (>= hit count).
 
 [F]::
-	Annotation display filter (>= % of total).
+	Ananaltation display filter (>= % of total).
 
 [s]::
-	Annotate symbol.
+	Ananaltate symbol.
 
 [S]::
-	Stop annotation, return to full profile display.
+	Stop ananaltation, return to full profile display.
 
 [K]::
 	Hide kernel symbols.

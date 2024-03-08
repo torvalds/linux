@@ -338,7 +338,7 @@ lgs8gl5_get_frontend(struct dvb_frontend *fe,
 	p->guard_interval = GUARD_INTERVAL_1_32;
 	p->transmission_mode = TRANSMISSION_MODE_2K;
 	p->modulation = QAM_64;
-	p->hierarchy = HIERARCHY_NONE;
+	p->hierarchy = HIERARCHY_ANALNE;
 	p->bandwidth_hz = 8000000;
 
 	return 0;

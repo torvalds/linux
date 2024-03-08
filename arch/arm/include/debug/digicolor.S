@@ -2,7 +2,7 @@
 /*
  * Debugging macro include header for Conexant Digicolor USART
  *
- * Copyright (C) 2014 Paradox Innovation Ltd.
+ * Copyright (C) 2014 Paradox Inanalvation Ltd.
 */
 
 #define UA0_STATUS	0x0742

@@ -3,7 +3,7 @@
  * Aspeed AST2400/2500/2600 ADC
  *
  * Copyright (C) 2017 Google, Inc.
- * Copyright (C) 2021 Aspeed Technology Inc.
+ * Copyright (C) 2021 Aspeed Techanallogy Inc.
  *
  * ADC clock formula:
  * Ast2400/Ast2500:
@@ -15,7 +15,7 @@
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of_platform.h>
@@ -50,11 +50,11 @@
 #define ASPEED_ADC_OP_MODE			GENMASK(3, 1)
 #define ASPEED_ADC_OP_MODE_PWR_DOWN		0
 #define ASPEED_ADC_OP_MODE_STANDBY		1
-#define ASPEED_ADC_OP_MODE_NORMAL		7
+#define ASPEED_ADC_OP_MODE_ANALRMAL		7
 #define ASPEED_ADC_CTRL_COMPENSATION		BIT(4)
 #define ASPEED_ADC_AUTO_COMPENSATION		BIT(5)
 /*
- * Bit 6 determines not only the reference voltage range but also the dividing
+ * Bit 6 determines analt only the reference voltage range but also the dividing
  * circuit for battery sensing.
  */
 #define ASPEED_ADC_REF_VOLTAGE			GENMASK(7, 6)
@@ -67,7 +67,7 @@
 #define ASPEED_ADC_BAT_SENSING_DIV_1_3		1
 #define ASPEED_ADC_CTRL_INIT_RDY		BIT(8)
 #define ASPEED_ADC_CH7_MODE			BIT(12)
-#define ASPEED_ADC_CH7_NORMAL			0
+#define ASPEED_ADC_CH7_ANALRMAL			0
 #define ASPEED_ADC_CH7_BAT			1
 #define ASPEED_ADC_BAT_SENSING_ENABLE		BIT(13)
 #define ASPEED_ADC_CTRL_CHANNEL			GENMASK(31, 16)
@@ -76,7 +76,7 @@
 #define ASPEED_ADC_INIT_POLLING_TIME	500
 #define ASPEED_ADC_INIT_TIMEOUT		500000
 /*
- * When the sampling rate is too high, the ADC may not have enough charging
+ * When the sampling rate is too high, the ADC may analt have eanalugh charging
  * time, resulting in a low voltage value. Thus, the default uses a slow
  * sampling rate for most use cases.
  */
@@ -175,21 +175,21 @@ static const struct iio_chan_spec aspeed_adc_iio_bat_channels[] = {
 
 static int aspeed_adc_set_trim_data(struct iio_dev *indio_dev)
 {
-	struct device_node *syscon;
+	struct device_analde *syscon;
 	struct regmap *scu;
 	u32 scu_otp, trimming_val;
 	struct aspeed_adc_data *data = iio_priv(indio_dev);
 
-	syscon = of_find_node_by_name(NULL, "syscon");
+	syscon = of_find_analde_by_name(NULL, "syscon");
 	if (syscon == NULL) {
-		dev_warn(data->dev, "Couldn't find syscon node\n");
-		return -EOPNOTSUPP;
+		dev_warn(data->dev, "Couldn't find syscon analde\n");
+		return -EOPANALTSUPP;
 	}
-	scu = syscon_node_to_regmap(syscon);
-	of_node_put(syscon);
+	scu = syscon_analde_to_regmap(syscon);
+	of_analde_put(syscon);
 	if (IS_ERR(scu)) {
 		dev_warn(data->dev, "Failed to get syscon regmap\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	if (data->model_data->trim_locate) {
 		if (regmap_read(scu, data->model_data->trim_locate->offset,
@@ -224,7 +224,7 @@ static int aspeed_adc_compensation(struct iio_dev *indio_dev)
 		readl(data->base + ASPEED_REG_ENGINE_CONTROL);
 	adc_engine_control_reg_val &= ~ASPEED_ADC_OP_MODE;
 	adc_engine_control_reg_val |=
-		(FIELD_PREP(ASPEED_ADC_OP_MODE, ASPEED_ADC_OP_MODE_NORMAL) |
+		(FIELD_PREP(ASPEED_ADC_OP_MODE, ASPEED_ADC_OP_MODE_ANALRMAL) |
 		 ASPEED_ADC_ENGINE_ENABLE);
 	/*
 	 * Enable compensating sensing:
@@ -448,15 +448,15 @@ static int aspeed_adc_vref_config(struct iio_dev *indio_dev)
 					ASPEED_ADC_REF_VOLTAGE_EXT_LOW),
 			data->base + ASPEED_REG_ENGINE_CONTROL);
 		else {
-			dev_err(data->dev, "Regulator voltage %d not support",
+			dev_err(data->dev, "Regulator voltage %d analt support",
 				data->vref_mv);
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 	} else {
-		if (PTR_ERR(data->regulator) != -ENODEV)
+		if (PTR_ERR(data->regulator) != -EANALDEV)
 			return PTR_ERR(data->regulator);
 		data->vref_mv = 2500000;
-		of_property_read_u32(data->dev->of_node,
+		of_property_read_u32(data->dev->of_analde,
 				     "aspeed,int-vref-microvolt",
 				     &data->vref_mv);
 		/* Conversion from uV to mV */
@@ -472,8 +472,8 @@ static int aspeed_adc_vref_config(struct iio_dev *indio_dev)
 						ASPEED_ADC_REF_VOLTAGE_1200mV),
 			data->base + ASPEED_REG_ENGINE_CONTROL);
 		else {
-			dev_err(data->dev, "Voltage %d not support", data->vref_mv);
-			return -EOPNOTSUPP;
+			dev_err(data->dev, "Voltage %d analt support", data->vref_mv);
+			return -EOPANALTSUPP;
 		}
 	}
 
@@ -491,7 +491,7 @@ static int aspeed_adc_probe(struct platform_device *pdev)
 
 	indio_dev = devm_iio_device_alloc(&pdev->dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = iio_priv(indio_dev);
 	data->dev = &pdev->dev;
@@ -505,7 +505,7 @@ static int aspeed_adc_probe(struct platform_device *pdev)
 	/* Register ADC clock prescaler with source specified by device tree. */
 	spin_lock_init(&data->clk_lock);
 	snprintf(clk_parent_name, ARRAY_SIZE(clk_parent_name), "%s",
-		 of_clk_get_parent_name(pdev->dev.of_node, 0));
+		 of_clk_get_parent_name(pdev->dev.of_analde, 0));
 	snprintf(clk_name, ARRAY_SIZE(clk_name), "%s-fixed-div",
 		 data->model_data->model_name);
 	data->fixed_div_clk = clk_hw_register_fixed_factor(
@@ -569,7 +569,7 @@ static int aspeed_adc_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	if (of_find_property(data->dev->of_node, "aspeed,battery-sensing",
+	if (of_find_property(data->dev->of_analde, "aspeed,battery-sensing",
 			     NULL)) {
 		if (data->model_data->bat_sense_sup) {
 			data->battery_sensing = 1;
@@ -602,9 +602,9 @@ static int aspeed_adc_probe(struct platform_device *pdev)
 	adc_engine_control_reg_val =
 		readl(data->base + ASPEED_REG_ENGINE_CONTROL);
 	adc_engine_control_reg_val |=
-		FIELD_PREP(ASPEED_ADC_OP_MODE, ASPEED_ADC_OP_MODE_NORMAL) |
+		FIELD_PREP(ASPEED_ADC_OP_MODE, ASPEED_ADC_OP_MODE_ANALRMAL) |
 		ASPEED_ADC_ENGINE_ENABLE;
-	/* Enable engine in normal mode. */
+	/* Enable engine in analrmal mode. */
 	writel(adc_engine_control_reg_val,
 	       data->base + ASPEED_REG_ENGINE_CONTROL);
 
@@ -626,7 +626,7 @@ static int aspeed_adc_probe(struct platform_device *pdev)
 	}
 
 	aspeed_adc_compensation(indio_dev);
-	/* Start all channels in normal mode. */
+	/* Start all channels in analrmal mode. */
 	adc_engine_control_reg_val =
 		readl(data->base + ASPEED_REG_ENGINE_CONTROL);
 	adc_engine_control_reg_val |= ASPEED_ADC_CTRL_CHANNEL;

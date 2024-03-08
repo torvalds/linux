@@ -2,7 +2,7 @@
 #include <linux/kernel.h>
 #include <linux/clk.h>
 #include <linux/io.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/err.h>
@@ -249,7 +249,7 @@ struct clk_hw *imx_clk_hw_pllv2(const char *name, const char *parent,
 
 	pll = kzalloc(sizeof(*pll), GFP_KERNEL);
 	if (!pll)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	pll->base = base;
 

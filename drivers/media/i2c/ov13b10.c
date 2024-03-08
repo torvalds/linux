@@ -10,7 +10,7 @@
 #include <linux/pm_runtime.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 
 #define OV13B10_REG_VALUE_08BIT		1
 #define OV13B10_REG_VALUE_16BIT		2
@@ -764,9 +764,9 @@ static int ov13b10_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 	try_fmt->width = default_mode->width;
 	try_fmt->height = default_mode->height;
 	try_fmt->code = MEDIA_BUS_FMT_SGRBG10_1X10;
-	try_fmt->field = V4L2_FIELD_NONE;
+	try_fmt->field = V4L2_FIELD_ANALNE;
 
-	/* No crop or compose */
+	/* Anal crop or compose */
 	mutex_unlock(&ov13b->mutex);
 
 	return 0;
@@ -942,7 +942,7 @@ static int ov13b10_set_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	default:
 		dev_info(&client->dev,
-			 "ctrl(id:0x%x,val:0x%x) is not handled\n",
+			 "ctrl(id:0x%x,val:0x%x) is analt handled\n",
 			 ctrl->id, ctrl->val);
 		break;
 	}
@@ -993,7 +993,7 @@ static void ov13b10_update_pad_format(const struct ov13b10_mode *mode,
 	fmt->format.width = mode->width;
 	fmt->format.height = mode->height;
 	fmt->format.code = MEDIA_BUS_FMT_SGRBG10_1X10;
-	fmt->format.field = V4L2_FIELD_NONE;
+	fmt->format.field = V4L2_FIELD_ANALNE;
 }
 
 static int ov13b10_do_get_pad_format(struct ov13b10 *ov13b,
@@ -1282,7 +1282,7 @@ static const struct v4l2_subdev_internal_ops ov13b10_internal_ops = {
 static int ov13b10_init_controls(struct ov13b10 *ov13b)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&ov13b->sd);
-	struct v4l2_fwnode_device_properties props;
+	struct v4l2_fwanalde_device_properties props;
 	struct v4l2_ctrl_handler *ctrl_hdlr;
 	s64 exposure_max;
 	s64 vblank_def;
@@ -1369,11 +1369,11 @@ static int ov13b10_init_controls(struct ov13b10 *ov13b)
 		goto error;
 	}
 
-	ret = v4l2_fwnode_device_parse(&client->dev, &props);
+	ret = v4l2_fwanalde_device_parse(&client->dev, &props);
 	if (ret)
 		goto error;
 
-	ret = v4l2_ctrl_new_fwnode_properties(ctrl_hdlr, &ov13b10_ctrl_ops,
+	ret = v4l2_ctrl_new_fwanalde_properties(ctrl_hdlr, &ov13b10_ctrl_ops,
 					      &props);
 	if (ret)
 		goto error;
@@ -1415,7 +1415,7 @@ static int ov13b10_get_pm_resources(struct device *dev)
 	if (IS_ERR(ov13b->avdd)) {
 		ret = PTR_ERR(ov13b->avdd);
 		ov13b->avdd = NULL;
-		if (ret != -ENODEV)
+		if (ret != -EANALDEV)
 			return dev_err_probe(dev, ret,
 					     "failed to get avdd regulator\n");
 	}
@@ -1425,23 +1425,23 @@ static int ov13b10_get_pm_resources(struct device *dev)
 
 static int ov13b10_check_hwcfg(struct device *dev)
 {
-	struct v4l2_fwnode_endpoint bus_cfg = {
+	struct v4l2_fwanalde_endpoint bus_cfg = {
 		.bus_type = V4L2_MBUS_CSI2_DPHY
 	};
-	struct fwnode_handle *ep;
-	struct fwnode_handle *fwnode = dev_fwnode(dev);
+	struct fwanalde_handle *ep;
+	struct fwanalde_handle *fwanalde = dev_fwanalde(dev);
 	unsigned int i, j;
 	int ret;
 	u32 ext_clk;
 
-	if (!fwnode)
+	if (!fwanalde)
 		return -ENXIO;
 
-	ep = fwnode_graph_get_next_endpoint(fwnode, NULL);
+	ep = fwanalde_graph_get_next_endpoint(fwanalde, NULL);
 	if (!ep)
 		return -EPROBE_DEFER;
 
-	ret = fwnode_property_read_u32(dev_fwnode(dev), "clock-frequency",
+	ret = fwanalde_property_read_u32(dev_fwanalde(dev), "clock-frequency",
 				       &ext_clk);
 	if (ret) {
 		dev_err(dev, "can't get clock frequency");
@@ -1449,25 +1449,25 @@ static int ov13b10_check_hwcfg(struct device *dev)
 	}
 
 	if (ext_clk != OV13B10_EXT_CLK) {
-		dev_err(dev, "external clock %d is not supported",
+		dev_err(dev, "external clock %d is analt supported",
 			ext_clk);
 		return -EINVAL;
 	}
 
-	ret = v4l2_fwnode_endpoint_alloc_parse(ep, &bus_cfg);
-	fwnode_handle_put(ep);
+	ret = v4l2_fwanalde_endpoint_alloc_parse(ep, &bus_cfg);
+	fwanalde_handle_put(ep);
 	if (ret)
 		return ret;
 
 	if (bus_cfg.bus.mipi_csi2.num_data_lanes != OV13B10_DATA_LANES) {
-		dev_err(dev, "number of CSI2 data lanes %d is not supported",
+		dev_err(dev, "number of CSI2 data lanes %d is analt supported",
 			bus_cfg.bus.mipi_csi2.num_data_lanes);
 		ret = -EINVAL;
 		goto out_err;
 	}
 
 	if (!bus_cfg.nr_of_link_frequencies) {
-		dev_err(dev, "no link frequencies defined");
+		dev_err(dev, "anal link frequencies defined");
 		ret = -EINVAL;
 		goto out_err;
 	}
@@ -1480,7 +1480,7 @@ static int ov13b10_check_hwcfg(struct device *dev)
 		}
 
 		if (j == bus_cfg.nr_of_link_frequencies) {
-			dev_err(dev, "no link frequency %lld supported",
+			dev_err(dev, "anal link frequency %lld supported",
 				link_freq_menu_items[i]);
 			ret = -EINVAL;
 			goto out_err;
@@ -1488,7 +1488,7 @@ static int ov13b10_check_hwcfg(struct device *dev)
 	}
 
 out_err:
-	v4l2_fwnode_endpoint_free(&bus_cfg);
+	v4l2_fwanalde_endpoint_free(&bus_cfg);
 
 	return ret;
 }
@@ -1508,7 +1508,7 @@ static int ov13b10_probe(struct i2c_client *client)
 
 	ov13b = devm_kzalloc(&client->dev, sizeof(*ov13b), GFP_KERNEL);
 	if (!ov13b)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Initialize subdev */
 	v4l2_i2c_subdev_init(&ov13b->sd, client, &ov13b10_subdev_ops);
@@ -1542,7 +1542,7 @@ static int ov13b10_probe(struct i2c_client *client)
 
 	/* Initialize subdev */
 	ov13b->sd.internal_ops = &ov13b10_internal_ops;
-	ov13b->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	ov13b->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 	ov13b->sd.entity.ops = &ov13b10_subdev_entity_ops;
 	ov13b->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;
 

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPI__LINUX_NETFILTER_H
 #define _UAPI__LINUX_NETFILTER_H
 
@@ -17,14 +17,14 @@
 #define NF_MAX_VERDICT NF_STOP
 
 /* we overload the higher bits for encoding auxiliary data such as the queue
- * number or errno values. Not nice, but better than additional function
+ * number or erranal values. Analt nice, but better than additional function
  * arguments. */
 #define NF_VERDICT_MASK 0x000000ff
 
 /* extra verdict flags have mask 0x0000ff00 */
 #define NF_VERDICT_FLAG_QUEUE_BYPASS	0x00008000
 
-/* queue number (NF_QUEUE) or errno (NF_DROP) */
+/* queue number (NF_QUEUE) or erranal (NF_DROP) */
 #define NF_VERDICT_QMASK 0xffff0000
 #define NF_VERDICT_QBITS 16
 
@@ -35,7 +35,7 @@
 /* only for userspace compatibility */
 #ifndef __KERNEL__
 
-/* NF_VERDICT_BITS should be 8 now, but userspace might break if this changes */
+/* NF_VERDICT_BITS should be 8 analw, but userspace might break if this changes */
 #define NF_VERDICT_BITS 16
 #endif
 
@@ -63,7 +63,7 @@ enum {
 	NFPROTO_NETDEV =  5,
 	NFPROTO_BRIDGE =  7,
 	NFPROTO_IPV6   = 10,
-#ifndef __KERNEL__ /* no longer supported by kernel */
+#ifndef __KERNEL__ /* anal longer supported by kernel */
 	NFPROTO_DECNET = 12,
 #endif
 	NFPROTO_NUMPROTO,

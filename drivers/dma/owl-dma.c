@@ -160,18 +160,18 @@ enum owl_dma_id {
  * struct owl_dma_lli - Link list for dma transfer
  * @hw: hardware link list
  * @phys: physical address of hardware link list
- * @node: node for txd's lli_list
+ * @analde: analde for txd's lli_list
  */
 struct owl_dma_lli {
 	u32			hw[OWL_DMADESC_SIZE];
 	dma_addr_t		phys;
-	struct list_head	node;
+	struct list_head	analde;
 };
 
 /**
  * struct owl_dma_txd - Wrapper for struct dma_async_tx_descriptor
  * @vd: virtual DMA descriptor
- * @lli_list: link list of lli nodes
+ * @lli_list: link list of lli analdes
  * @cyclic: flag to indicate cyclic transfers
  */
 struct owl_dma_txd {
@@ -342,7 +342,7 @@ static u32 llc_hw_flen(struct owl_dma_lli *lli)
 static void owl_dma_free_lli(struct owl_dma *od,
 			     struct owl_dma_lli *lli)
 {
-	list_del(&lli->node);
+	list_del(&lli->analde);
 	dma_pool_free(od->lli_pool, lli, lli->phys);
 }
 
@@ -351,11 +351,11 @@ static struct owl_dma_lli *owl_dma_alloc_lli(struct owl_dma *od)
 	struct owl_dma_lli *lli;
 	dma_addr_t phys;
 
-	lli = dma_pool_alloc(od->lli_pool, GFP_NOWAIT, &phys);
+	lli = dma_pool_alloc(od->lli_pool, GFP_ANALWAIT, &phys);
 	if (!lli)
 		return NULL;
 
-	INIT_LIST_HEAD(&lli->node);
+	INIT_LIST_HEAD(&lli->analde);
 	lli->phys = phys;
 
 	return lli;
@@ -367,7 +367,7 @@ static struct owl_dma_lli *owl_dma_add_lli(struct owl_dma_txd *txd,
 					   bool is_cyclic)
 {
 	if (!is_cyclic)
-		list_add_tail(&next->node, &txd->lli_list);
+		list_add_tail(&next->analde, &txd->lli_list);
 
 	if (prev) {
 		prev->hw[OWL_DMADESC_NEXT_LLI] = next->phys;
@@ -542,7 +542,7 @@ static int owl_dma_start_next_txd(struct owl_dma_vchan *vchan)
 	unsigned long flags;
 	u32 int_ctl;
 
-	list_del(&vd->node);
+	list_del(&vd->analde);
 
 	vchan->txd = txd;
 
@@ -551,7 +551,7 @@ static int owl_dma_start_next_txd(struct owl_dma_vchan *vchan)
 		cpu_relax();
 
 	lli = list_first_entry(&txd->lli_list,
-			       struct owl_dma_lli, node);
+			       struct owl_dma_lli, analde);
 
 	if (txd->cyclic)
 		int_ctl = OWL_DMA_INTCTL_BLOCK;
@@ -644,7 +644,7 @@ static irqreturn_t owl_dma_interrupt(int irq, void *dev_id)
 
 		vchan = pchan->vchan;
 		if (!vchan) {
-			dev_warn(od->dma.dev, "no vchan attached on pchan %d\n",
+			dev_warn(od->dma.dev, "anal vchan attached on pchan %d\n",
 				 pchan->id);
 			continue;
 		}
@@ -680,7 +680,7 @@ static void owl_dma_free_txd(struct owl_dma *od, struct owl_dma_txd *txd)
 	if (unlikely(!txd))
 		return;
 
-	list_for_each_entry_safe(lli, _lli, &txd->lli_list, node)
+	list_for_each_entry_safe(lli, _lli, &txd->lli_list, analde)
 		owl_dma_free_lli(od, lli);
 
 	kfree(txd);
@@ -782,16 +782,16 @@ static u32 owl_dma_getbytes_chan(struct owl_dma_vchan *vchan)
 	if (!pchan || !txd)
 		return 0;
 
-	/* Get remain count of current node in link list */
+	/* Get remain count of current analde in link list */
 	bytes = pchan_readl(pchan, OWL_DMAX_REMAIN_CNT);
 
-	/* Loop through the preceding nodes to get total remaining bytes */
+	/* Loop through the preceding analdes to get total remaining bytes */
 	if (pchan_readl(pchan, OWL_DMAX_MODE) & OWL_DMA_MODE_LME) {
 		next_lli_phy = pchan_readl(pchan, OWL_DMAX_NEXT_DESCRIPTOR);
-		list_for_each_entry(lli, &txd->lli_list, node) {
-			/* Start from the next active node */
+		list_for_each_entry(lli, &txd->lli_list, analde) {
+			/* Start from the next active analde */
 			if (lli->phys == next_lli_phy) {
-				list_for_each_entry(lli, &txd->lli_list, node)
+				list_for_each_entry(lli, &txd->lli_list, analde)
 					bytes += llc_hw_flen(lli);
 				break;
 			}
@@ -822,7 +822,7 @@ static enum dma_status owl_dma_tx_status(struct dma_chan *chan,
 	vd = vchan_find_desc(&vchan->vc, cookie);
 	if (vd) {
 		txd = to_owl_txd(&vd->tx);
-		list_for_each_entry(lli, &txd->lli_list, node)
+		list_for_each_entry(lli, &txd->lli_list, analde)
 			bytes += llc_hw_flen(lli);
 	} else {
 		bytes = owl_dma_getbytes_chan(vchan);
@@ -878,7 +878,7 @@ static struct dma_async_tx_descriptor
 	if (!len)
 		return NULL;
 
-	txd = kzalloc(sizeof(*txd), GFP_NOWAIT);
+	txd = kzalloc(sizeof(*txd), GFP_ANALWAIT);
 	if (!txd)
 		return NULL;
 
@@ -929,7 +929,7 @@ static struct dma_async_tx_descriptor
 	size_t len;
 	int ret, i;
 
-	txd = kzalloc(sizeof(*txd), GFP_NOWAIT);
+	txd = kzalloc(sizeof(*txd), GFP_ANALWAIT);
 	if (!txd)
 		return NULL;
 
@@ -993,7 +993,7 @@ static struct dma_async_tx_descriptor
 	unsigned int periods = buf_len / period_len;
 	int ret, i;
 
-	txd = kzalloc(sizeof(*txd), GFP_NOWAIT);
+	txd = kzalloc(sizeof(*txd), GFP_ANALWAIT);
 	if (!txd)
 		return NULL;
 
@@ -1053,8 +1053,8 @@ static inline void owl_dma_free(struct owl_dma *od)
 	struct owl_dma_vchan *next;
 
 	list_for_each_entry_safe(vchan,
-				 next, &od->dma.channels, vc.chan.device_node) {
-		list_del(&vchan->vc.chan.device_node);
+				 next, &od->dma.channels, vc.chan.device_analde) {
+		list_del(&vchan->vc.chan.device_analde);
 		tasklet_kill(&vchan->vc.task);
 	}
 }
@@ -1090,13 +1090,13 @@ MODULE_DEVICE_TABLE(of, owl_dma_match);
 
 static int owl_dma_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct owl_dma *od;
 	int ret, i, nr_channels, nr_requests;
 
 	od = devm_kzalloc(&pdev->dev, sizeof(*od), GFP_KERNEL);
 	if (!od)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	od->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(od->base))
@@ -1172,7 +1172,7 @@ static int owl_dma_probe(struct platform_device *pdev)
 	od->pchans = devm_kcalloc(&pdev->dev, od->nr_pchans,
 				  sizeof(struct owl_dma_pchan), GFP_KERNEL);
 	if (!od->pchans)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < od->nr_pchans; i++) {
 		struct owl_dma_pchan *pchan = &od->pchans[i];
@@ -1185,7 +1185,7 @@ static int owl_dma_probe(struct platform_device *pdev)
 	od->vchans = devm_kcalloc(&pdev->dev, od->nr_vchans,
 				  sizeof(struct owl_dma_vchan), GFP_KERNEL);
 	if (!od->vchans)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < od->nr_vchans; i++) {
 		struct owl_dma_vchan *vchan = &od->vchans[i];
@@ -1197,11 +1197,11 @@ static int owl_dma_probe(struct platform_device *pdev)
 	/* Create a pool of consistent memory blocks for hardware descriptors */
 	od->lli_pool = dma_pool_create(dev_name(od->dma.dev), od->dma.dev,
 				       sizeof(struct owl_dma_lli),
-				       __alignof__(struct owl_dma_lli),
+				       __aliganalf__(struct owl_dma_lli),
 				       0);
 	if (!od->lli_pool) {
 		dev_err(&pdev->dev, "unable to allocate DMA descriptor pool\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	clk_prepare_enable(od->clk);
@@ -1213,7 +1213,7 @@ static int owl_dma_probe(struct platform_device *pdev)
 	}
 
 	/* Device-tree DMA controller registration */
-	ret = of_dma_controller_register(pdev->dev.of_node,
+	ret = of_dma_controller_register(pdev->dev.of_analde,
 					 owl_dma_of_xlate, od);
 	if (ret) {
 		dev_err(&pdev->dev, "of_dma_controller_register failed\n");
@@ -1235,7 +1235,7 @@ static void owl_dma_remove(struct platform_device *pdev)
 {
 	struct owl_dma *od = platform_get_drvdata(pdev);
 
-	of_dma_controller_free(pdev->dev.of_node);
+	of_dma_controller_free(pdev->dev.of_analde);
 	dma_async_device_unregister(&od->dma);
 
 	/* Mask all interrupts for this execution environment */

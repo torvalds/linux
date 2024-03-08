@@ -5,7 +5,7 @@ config INTEL_IDLE
 	depends on X86
 	depends on CPU_SUP_INTEL
 	help
-	  Enable intel_idle, a cpuidle driver that includes knowledge of
+	  Enable intel_idle, a cpuidle driver that includes kanalwledge of
 	  native Intel hardware idle features.  The acpi_idle driver
 	  can be configured at the same time, in order to handle
-	  processors intel_idle does not support.
+	  processors intel_idle does analt support.

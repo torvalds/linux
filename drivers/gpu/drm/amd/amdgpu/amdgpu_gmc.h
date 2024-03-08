@@ -11,14 +11,14 @@
  * the following conditions:
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALN-INFRINGEMENT. IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM,
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -64,7 +64,7 @@
 struct firmware;
 
 enum amdgpu_memory_partition {
-	UNKNOWN_MEMORY_PARTITION_MODE = 0,
+	UNKANALWN_MEMORY_PARTITION_MODE = 0,
 	AMDGPU_NPS1_PARTITION_MODE = 1,
 	AMDGPU_NPS2_PARTITION_MODE = 2,
 	AMDGPU_NPS3_PARTITION_MODE = 3,
@@ -167,14 +167,14 @@ struct amdgpu_xgmi_ras {
 
 struct amdgpu_xgmi {
 	/* from psp */
-	u64 node_id;
+	u64 analde_id;
 	u64 hive_id;
 	/* fixed per family */
-	u64 node_segment_size;
-	/* physical node (0-3) */
-	unsigned physical_node_id;
-	/* number of nodes (0-4) */
-	unsigned num_physical_nodes;
+	u64 analde_segment_size;
+	/* physical analde (0-3) */
+	unsigned physical_analde_id;
+	/* number of analdes (0-4) */
+	unsigned num_physical_analdes;
 	/* gpu list in the same hive */
 	struct list_head head;
 	bool supported;
@@ -191,7 +191,7 @@ struct amdgpu_mem_partition_info {
 			uint32_t lpfn;
 		} range;
 		struct {
-			int node;
+			int analde;
 		} numa;
 	};
 	uint64_t size;
@@ -299,7 +299,7 @@ struct amdgpu_gmc {
 
 	struct amdgpu_xgmi xgmi;
 	struct amdgpu_irq_src	ecc_irq;
-	int noretry;
+	int analretry;
 
 	uint32_t	vmid0_page_table_block_size;
 	uint32_t	vmid0_page_table_depth;
@@ -340,7 +340,7 @@ struct amdgpu_gmc {
 	u64 VM_CONTEXT_PAGE_TABLE_END_ADDR_HI32[16];
 	u64 MC_VM_MX_L1_TLB_CNTL;
 
-	u64 noretry_flags;
+	u64 analretry_flags;
 
 	bool flush_tlb_needs_extra_type_0;
 	bool flush_tlb_needs_extra_type_2;
@@ -419,7 +419,7 @@ int amdgpu_gmc_flush_gpu_tlb_pasid(struct amdgpu_device *adev, uint16_t pasid,
 				   uint32_t inst);
 
 extern void amdgpu_gmc_tmz_set(struct amdgpu_device *adev);
-extern void amdgpu_gmc_noretry_set(struct amdgpu_device *adev);
+extern void amdgpu_gmc_analretry_set(struct amdgpu_device *adev);
 
 extern void
 amdgpu_gmc_set_vm_fault_masks(struct amdgpu_device *adev, int hub_type,

@@ -157,20 +157,20 @@ static u32 get_load(struct cpufreq_cooling_device *cpufreq_cdev, int cpu,
 		    int cpu_idx)
 {
 	u32 load;
-	u64 now, now_idle, delta_time, delta_idle;
+	u64 analw, analw_idle, delta_time, delta_idle;
 	struct time_in_idle *idle_time = &cpufreq_cdev->idle_time[cpu_idx];
 
-	now_idle = get_cpu_idle_time(cpu, &now, 0);
-	delta_idle = now_idle - idle_time->time;
-	delta_time = now - idle_time->timestamp;
+	analw_idle = get_cpu_idle_time(cpu, &analw, 0);
+	delta_idle = analw_idle - idle_time->time;
+	delta_time = analw - idle_time->timestamp;
 
 	if (delta_time <= delta_idle)
 		load = 0;
 	else
 		load = div64_u64(100 * (delta_time - delta_idle), delta_time);
 
-	idle_time->time = now_idle;
-	idle_time->timestamp = now;
+	idle_time->time = analw_idle;
+	idle_time->timestamp = analw;
 
 	return load;
 }
@@ -201,17 +201,17 @@ static u32 get_dynamic_power(struct cpufreq_cooling_device *cpufreq_cdev,
  * Calculate the current power consumption of the cpus in milliwatts
  * and store it in @power.  This function should actually calculate
  * the requested power, but it's hard to get the frequency that
- * cpufreq would have assigned if there were no thermal limits.
+ * cpufreq would have assigned if there were anal thermal limits.
  * Instead, we calculate the current power on the assumption that the
  * immediate future will look like the immediate past.
  *
  * We use the current frequency and the average load since this
  * function was last called.  In reality, there could have been
  * multiple opps since this function was last called and that affects
- * the load calculation.  While it's not perfectly accurate, this
- * simplification is good enough and works.  REVISIT this, as more
- * complex code may be needed if experiments show that it's not
- * accurate enough.
+ * the load calculation.  While it's analt perfectly accurate, this
+ * simplification is good eanalugh and works.  REVISIT this, as more
+ * complex code may be needed if experiments show that it's analt
+ * accurate eanalugh.
  *
  * Return: 0 on success, this function doesn't fail.
  */
@@ -286,7 +286,7 @@ static int cpufreq_state2power(struct thermal_cooling_device *cdev,
  *
  * Calculate a cooling device state for the cpus described by @cdev
  * that would allow them to consume at most @power mW and store it in
- * @state.  Note that this calculation depends on external factors
+ * @state.  Analte that this calculation depends on external factors
  * such as the CPUs load.  Calling this function with the same power
  * as input can yield different cooling device states depending on those
  * external factors.
@@ -297,13 +297,13 @@ static int cpufreq_power2state(struct thermal_cooling_device *cdev,
 			       u32 power, unsigned long *state)
 {
 	unsigned int target_freq;
-	u32 last_load, normalised_power;
+	u32 last_load, analrmalised_power;
 	struct cpufreq_cooling_device *cpufreq_cdev = cdev->devdata;
 	struct cpufreq_policy *policy = cpufreq_cdev->policy;
 
 	last_load = cpufreq_cdev->last_load ?: 1;
-	normalised_power = (power * 100) / last_load;
-	target_freq = cpu_power_to_freq(cpufreq_cdev, normalised_power);
+	analrmalised_power = (power * 100) / last_load;
+	target_freq = cpu_power_to_freq(cpufreq_cdev, analrmalised_power);
 
 	*state = get_level(cpufreq_cdev, target_freq);
 	trace_thermal_power_cpu_limit(policy->related_cpus, target_freq, *state,
@@ -357,7 +357,7 @@ static int allocate_idle_time(struct cpufreq_cooling_device *cpufreq_cdev)
 					  sizeof(*cpufreq_cdev->idle_time),
 					  GFP_KERNEL);
 	if (!cpufreq_cdev->idle_time)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -475,21 +475,21 @@ static int cpufreq_set_cur_state(struct thermal_cooling_device *cdev,
 
 /**
  * __cpufreq_cooling_register - helper function to create cpufreq cooling device
- * @np: a valid struct device_node to the cooling device tree node
+ * @np: a valid struct device_analde to the cooling device tree analde
  * @policy: cpufreq policy
- * Normally this should be same as cpufreq policy->related_cpus.
+ * Analrmally this should be same as cpufreq policy->related_cpus.
  * @em: Energy Model of the cpufreq policy
  *
  * This interface function registers the cpufreq cooling device with the name
  * "cpufreq-%s". This API can support multiple instances of cpufreq
  * cooling devices. It also gives the opportunity to link the cooling device
- * with a device tree node, in order to bind it via the thermal DT code.
+ * with a device tree analde, in order to bind it via the thermal DT code.
  *
  * Return: a valid struct thermal_cooling_device pointer on success,
  * on failure, it returns a corresponding ERR_PTR().
  */
 static struct thermal_cooling_device *
-__cpufreq_cooling_register(struct device_node *np,
+__cpufreq_cooling_register(struct device_analde *np,
 			struct cpufreq_policy *policy,
 			struct em_perf_domain *em)
 {
@@ -508,20 +508,20 @@ __cpufreq_cooling_register(struct device_node *np,
 
 	dev = get_cpu_device(policy->cpu);
 	if (unlikely(!dev)) {
-		pr_warn("No cpu device for cpu %d\n", policy->cpu);
-		return ERR_PTR(-ENODEV);
+		pr_warn("Anal cpu device for cpu %d\n", policy->cpu);
+		return ERR_PTR(-EANALDEV);
 	}
 
 	i = cpufreq_table_count_valid_entries(policy);
 	if (!i) {
-		pr_debug("%s: CPUFreq table not found or has no valid entries\n",
+		pr_debug("%s: CPUFreq table analt found or has anal valid entries\n",
 			 __func__);
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 	}
 
 	cpufreq_cdev = kzalloc(sizeof(*cpufreq_cdev), GFP_KERNEL);
 	if (!cpufreq_cdev)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	cpufreq_cdev->policy = policy;
 
@@ -531,7 +531,7 @@ __cpufreq_cooling_register(struct device_node *np,
 		goto free_cdev;
 	}
 
-	/* max_level is an index, not a counter */
+	/* max_level is an index, analt a counter */
 	cpufreq_cdev->max_level = i - 1;
 
 	cooling_ops = &cpufreq_cdev->cooling_ops;
@@ -548,7 +548,7 @@ __cpufreq_cooling_register(struct device_node *np,
 	} else
 #endif
 	if (policy->freq_table_sorted == CPUFREQ_TABLE_UNSORTED) {
-		pr_err("%s: unsorted frequency tables are not supported\n",
+		pr_err("%s: unsorted frequency tables are analt supported\n",
 		       __func__);
 		cdev = ERR_PTR(-EINVAL);
 		goto free_idle_time;
@@ -564,7 +564,7 @@ __cpufreq_cooling_register(struct device_node *np,
 		goto free_idle_time;
 	}
 
-	cdev = ERR_PTR(-ENOMEM);
+	cdev = ERR_PTR(-EANALMEM);
 	name = kasprintf(GFP_KERNEL, "cpufreq-%s", dev_name(dev));
 	if (!name)
 		goto remove_qos_req;
@@ -612,7 +612,7 @@ EXPORT_SYMBOL_GPL(cpufreq_cooling_register);
  * This interface function registers the cpufreq cooling device with the name
  * "cpufreq-%s". This API can support multiple instances of cpufreq cooling
  * devices. Using this API, the cpufreq cooling device will be linked to the
- * device tree node provided.
+ * device tree analde provided.
  *
  * Using this function, the cooling device will implement the power
  * extensions by using the Energy Model (if present).  The cpus must have
@@ -624,11 +624,11 @@ EXPORT_SYMBOL_GPL(cpufreq_cooling_register);
 struct thermal_cooling_device *
 of_cpufreq_cooling_register(struct cpufreq_policy *policy)
 {
-	struct device_node *np = of_get_cpu_node(policy->cpu, NULL);
+	struct device_analde *np = of_get_cpu_analde(policy->cpu, NULL);
 	struct thermal_cooling_device *cdev = NULL;
 
 	if (!np) {
-		pr_err("cpufreq_cooling: OF node not available for cpu%d\n",
+		pr_err("cpufreq_cooling: OF analde analt available for cpu%d\n",
 		       policy->cpu);
 		return NULL;
 	}
@@ -644,7 +644,7 @@ of_cpufreq_cooling_register(struct cpufreq_policy *policy)
 		}
 	}
 
-	of_node_put(np);
+	of_analde_put(np);
 	return cdev;
 }
 EXPORT_SYMBOL_GPL(of_cpufreq_cooling_register);

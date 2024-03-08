@@ -3,7 +3,7 @@
  * Texas Instruments System Control Interface Protocol Driver
  *
  * Copyright (C) 2015-2022 Texas Instruments Incorporated - https://www.ti.com/
- *	Nishanth Menon
+ *	Nishanth Meanaln
  */
 
 #define pr_fmt(fmt) "%s: " fmt, __func__
@@ -87,7 +87,7 @@ struct ti_sci_desc {
  * struct ti_sci_info - Structure representing a TI SCI instance
  * @dev:	Device pointer
  * @desc:	SoC description for this instance
- * @nb:	Reboot Notifier block
+ * @nb:	Reboot Analtifier block
  * @d:		Debugfs file entry
  * @debug_region: Memory region where the debug message are available
  * @debug_region_size: Debug region size
@@ -97,13 +97,13 @@ struct ti_sci_desc {
  * @chan_tx:	Transmit mailbox channel
  * @chan_rx:	Receive mailbox channel
  * @minfo:	Message info
- * @node:	list head
+ * @analde:	list head
  * @host_id:	Host ID
  * @users:	Number of users of this instance
  */
 struct ti_sci_info {
 	struct device *dev;
-	struct notifier_block nb;
+	struct analtifier_block nb;
 	const struct ti_sci_desc *desc;
 	struct dentry *d;
 	void __iomem *debug_region;
@@ -114,7 +114,7 @@ struct ti_sci_info {
 	struct mbox_chan *chan_tx;
 	struct mbox_chan *chan_rx;
 	struct ti_sci_xfers_info minfo;
-	struct list_head node;
+	struct list_head analde;
 	u8 host_id;
 	/* protected by ti_sci_list_mutex */
 	int users;
@@ -141,7 +141,7 @@ static int ti_sci_debug_show(struct seq_file *s, void *unused)
 		      info->debug_region_size);
 	/*
 	 * We don't trust firmware to leave NULL terminated last byte (hence
-	 * we have allocated 1 extra 0 byte). Since we cannot guarantee any
+	 * we have allocated 1 extra 0 byte). Since we cananalt guarantee any
 	 * specific data format for debug messages, We just present the data
 	 * in the buffer as is - we expect the messages to be self explanatory.
 	 */
@@ -177,7 +177,7 @@ static int ti_sci_debugfs_create(struct platform_device *pdev,
 	info->debug_buffer = devm_kcalloc(dev, info->debug_region_size + 1,
 					  sizeof(char), GFP_KERNEL);
 	if (!info->debug_buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 	/* Setup NULL termination */
 	info->debug_buffer[info->debug_region_size] = 0;
 
@@ -226,7 +226,7 @@ static inline void ti_sci_dump_header_dbg(struct device *dev,
  * Processes one received message to appropriate transfer information and
  * signals completion of the transfer.
  *
- * NOTE: This function will be invoked in IRQ context, hence should be
+ * ANALTE: This function will be invoked in IRQ context, hence should be
  * as optimal as possible.
  */
 static void ti_sci_rx_callback(struct mbox_client *cl, void *m)
@@ -243,10 +243,10 @@ static void ti_sci_rx_callback(struct mbox_client *cl, void *m)
 
 	/*
 	 * Are we even expecting this?
-	 * NOTE: barriers were implicit in locks used for modifying the bitmap
+	 * ANALTE: barriers were implicit in locks used for modifying the bitmap
 	 */
 	if (!test_bit(xfer_id, minfo->xfer_alloc_table)) {
-		dev_err(dev, "Message for %d is not expected!\n", xfer_id);
+		dev_err(dev, "Message for %d is analt expected!\n", xfer_id);
 		return;
 	}
 
@@ -328,7 +328,7 @@ static struct ti_sci_xfer *ti_sci_get_one_xfer(struct ti_sci_info *info,
 
 	/*
 	 * We already ensured in probe that we can have max messages that can
-	 * fit in  hdr.seq - NOTE: this improves access latencies
+	 * fit in  hdr.seq - ANALTE: this improves access latencies
 	 * to predictable O(1) access, BUT, it opens us to risk if
 	 * remote misbehaves with corrupted message sequence responses.
 	 * If that happens, we are going to be messed up anyways..
@@ -372,7 +372,7 @@ static void ti_sci_put_one_xfer(struct ti_sci_xfers_info *minfo,
 
 	/*
 	 * Keep the locked section as small as possible
-	 * NOTE: we might escape with smp_mb and no lock here..
+	 * ANALTE: we might escape with smp_mb and anal lock here..
 	 * but just be conservative and symmetric.
 	 */
 	spin_lock_irqsave(&minfo->xfer_lock, flags);
@@ -388,7 +388,7 @@ static void ti_sci_put_one_xfer(struct ti_sci_xfers_info *minfo,
  * @info:	Pointer to SCI entity information
  * @xfer:	Transfer to initiate and wait for response
  *
- * Return: -ETIMEDOUT in case of no response, if transmit error,
+ * Return: -ETIMEDOUT in case of anal response, if transmit error,
  *	   return corresponding error, else if all goes well,
  *	   return 0.
  */
@@ -413,8 +413,8 @@ static inline int ti_sci_do_xfer(struct ti_sci_info *info,
 			ret = -ETIMEDOUT;
 	} else {
 		/*
-		 * If we are !running, we cannot use wait_for_completion_timeout
-		 * during noirq phase, so we must manually poll the completion.
+		 * If we are !running, we cananalt use wait_for_completion_timeout
+		 * during analirq phase, so we must manually poll the completion.
 		 */
 		ret = read_poll_timeout_atomic(try_wait_for_completion, done_state,
 					       done_state, 1,
@@ -427,7 +427,7 @@ static inline int ti_sci_do_xfer(struct ti_sci_info *info,
 			(void *)_RET_IP_);
 
 	/*
-	 * NOTE: we might prefer not to need the mailbox ticker to manage the
+	 * ANALTE: we might prefer analt to need the mailbox ticker to manage the
 	 * transfer queueing since the protocol layer queues things by itself.
 	 * Unfortunately, we have to kick the mailbox framework after we have
 	 * received our message.
@@ -473,7 +473,7 @@ static int ti_sci_cmd_get_revision(struct ti_sci_info *info)
 	}
 
 	ver->abi_major = rev_info->abi_major;
-	ver->abi_minor = rev_info->abi_minor;
+	ver->abi_mianalr = rev_info->abi_mianalr;
 	ver->firmware_revision = rev_info->firmware_revision;
 	strscpy(ver->firmware_description, rev_info->firmware_description,
 		sizeof(ver->firmware_description));
@@ -543,7 +543,7 @@ static int ti_sci_set_device_state(const struct ti_sci_handle *handle,
 
 	resp = (struct ti_sci_msg_hdr *)xfer->xfer_buf;
 
-	ret = ti_sci_is_response_ack(resp) ? 0 : -ENODEV;
+	ret = ti_sci_is_response_ack(resp) ? 0 : -EANALDEV;
 
 fail:
 	ti_sci_put_one_xfer(&info->minfo, xfer);
@@ -603,7 +603,7 @@ static int ti_sci_get_device_state(const struct ti_sci_handle *handle,
 
 	resp = (struct ti_sci_msg_resp_get_device_state *)xfer->xfer_buf;
 	if (!ti_sci_is_response_ack(resp)) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto fail;
 	}
 
@@ -627,8 +627,8 @@ fail:
  * @handle:	Pointer to TISCI handle as retrieved by *ti_sci_get_handle
  * @id:		Device Identifier
  *
- * Request for the device - NOTE: the client MUST maintain integrity of
- * usage count by balancing get_device with put_device. No refcounting is
+ * Request for the device - ANALTE: the client MUST maintain integrity of
+ * usage count by balancing get_device with put_device. Anal refcounting is
  * managed by driver for that purpose.
  *
  * Return: 0 if all went fine, else return appropriate error.
@@ -646,8 +646,8 @@ static int ti_sci_cmd_get_device(const struct ti_sci_handle *handle, u32 id)
  * @handle:	Pointer to TISCI handle as retrieved by *ti_sci_get_handle
  * @id:		Device Identifier
  *
- * Request for the device - NOTE: the client MUST maintain integrity of
- * usage count by balancing get_device with put_device. No refcounting is
+ * Request for the device - ANALTE: the client MUST maintain integrity of
+ * usage count by balancing get_device with put_device. Anal refcounting is
  * managed by driver for that purpose.
  *
  * Return: 0 if all went fine, else return appropriate error.
@@ -665,8 +665,8 @@ static int ti_sci_cmd_get_device_exclusive(const struct ti_sci_handle *handle,
  * @handle:	Pointer to TISCI handle as retrieved by *ti_sci_get_handle
  * @id:		Device Identifier
  *
- * Request for the device - NOTE: the client MUST maintain integrity of
- * usage count by balancing get_device with put_device. No refcounting is
+ * Request for the device - ANALTE: the client MUST maintain integrity of
+ * usage count by balancing get_device with put_device. Anal refcounting is
  * managed by driver for that purpose.
  *
  * Return: 0 if all went fine, else return appropriate error.
@@ -684,8 +684,8 @@ static int ti_sci_cmd_idle_device(const struct ti_sci_handle *handle, u32 id)
  * @handle:	Pointer to TISCI handle as retrieved by *ti_sci_get_handle
  * @id:		Device Identifier
  *
- * Request for the device - NOTE: the client MUST maintain integrity of
- * usage count by balancing get_device with put_device. No refcounting is
+ * Request for the device - ANALTE: the client MUST maintain integrity of
+ * usage count by balancing get_device with put_device. Anal refcounting is
  * managed by driver for that purpose.
  *
  * Return: 0 if all went fine, else return appropriate error.
@@ -703,8 +703,8 @@ static int ti_sci_cmd_idle_device_exclusive(const struct ti_sci_handle *handle,
  * @handle:	Pointer to TISCI handle as retrieved by *ti_sci_get_handle
  * @id:		Device Identifier
  *
- * Request for the device - NOTE: the client MUST maintain integrity of
- * usage count by balancing get_device with put_device. No refcounting is
+ * Request for the device - ANALTE: the client MUST maintain integrity of
+ * usage count by balancing get_device with put_device. Anal refcounting is
  * managed by driver for that purpose.
  *
  * Return: 0 if all went fine, else return appropriate error.
@@ -906,7 +906,7 @@ static int ti_sci_cmd_set_device_resets(const struct ti_sci_handle *handle,
 
 	resp = (struct ti_sci_msg_hdr *)xfer->xfer_buf;
 
-	ret = ti_sci_is_response_ack(resp) ? 0 : -ENODEV;
+	ret = ti_sci_is_response_ack(resp) ? 0 : -EANALDEV;
 
 fail:
 	ti_sci_put_one_xfer(&info->minfo, xfer);
@@ -987,7 +987,7 @@ static int ti_sci_set_clock_state(const struct ti_sci_handle *handle,
 
 	resp = (struct ti_sci_msg_hdr *)xfer->xfer_buf;
 
-	ret = ti_sci_is_response_ack(resp) ? 0 : -ENODEV;
+	ret = ti_sci_is_response_ack(resp) ? 0 : -EANALDEV;
 
 fail:
 	ti_sci_put_one_xfer(&info->minfo, xfer);
@@ -1055,7 +1055,7 @@ static int ti_sci_cmd_get_clock_state(const struct ti_sci_handle *handle,
 	resp = (struct ti_sci_msg_resp_get_clock_state *)xfer->xfer_buf;
 
 	if (!ti_sci_is_response_ack(resp)) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto fail;
 	}
 
@@ -1105,7 +1105,7 @@ static int ti_sci_cmd_get_clock(const struct ti_sci_handle *handle, u32 dev_id,
  *		Each device has it's own set of clock inputs. This indexes
  *		which clock input to modify.
  *
- * NOTE: This clock must have been requested by get_clock previously.
+ * ANALTE: This clock must have been requested by get_clock previously.
  *
  * Return: 0 if all went well, else returns appropriate error value.
  */
@@ -1125,7 +1125,7 @@ static int ti_sci_cmd_idle_clock(const struct ti_sci_handle *handle,
  *		Each device has it's own set of clock inputs. This indexes
  *		which clock input to modify.
  *
- * NOTE: This clock must have been requested by get_clock previously.
+ * ANALTE: This clock must have been requested by get_clock previously.
  *
  * Return: 0 if all went well, else returns appropriate error value.
  */
@@ -1206,7 +1206,7 @@ static int ti_sci_cmd_clk_is_on(const struct ti_sci_handle *handle, u32 dev_id,
  *		Each device has it's own set of clock inputs. This indexes
  *		which clock input to modify.
  * @req_state: state indicating if the clock is managed by us and disabled
- * @curr_state: state indicating if the clock is NOT ready for operation
+ * @curr_state: state indicating if the clock is ANALT ready for operation
  *
  * Return: 0 if all went well, else returns appropriate error value.
  */
@@ -1227,7 +1227,7 @@ static int ti_sci_cmd_clk_is_off(const struct ti_sci_handle *handle, u32 dev_id,
 	if (req_state)
 		*req_state = (r_state == MSG_CLOCK_SW_STATE_UNREQ);
 	if (curr_state)
-		*curr_state = (c_state == MSG_CLOCK_HW_STATE_NOT_READY);
+		*curr_state = (c_state == MSG_CLOCK_HW_STATE_ANALT_READY);
 	return 0;
 }
 
@@ -1291,7 +1291,7 @@ static int ti_sci_cmd_clk_set_parent(const struct ti_sci_handle *handle,
 
 	resp = (struct ti_sci_msg_hdr *)xfer->xfer_buf;
 
-	ret = ti_sci_is_response_ack(resp) ? 0 : -ENODEV;
+	ret = ti_sci_is_response_ack(resp) ? 0 : -EANALDEV;
 
 fail:
 	ti_sci_put_one_xfer(&info->minfo, xfer);
@@ -1354,7 +1354,7 @@ static int ti_sci_cmd_clk_get_parent(const struct ti_sci_handle *handle,
 	resp = (struct ti_sci_msg_resp_get_clock_parent *)xfer->xfer_buf;
 
 	if (!ti_sci_is_response_ack(resp)) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 	} else {
 		if (resp->parent_id < 255)
 			*parent_id = resp->parent_id;
@@ -1424,7 +1424,7 @@ static int ti_sci_cmd_clk_get_num_parents(const struct ti_sci_handle *handle,
 	resp = (struct ti_sci_msg_resp_get_clock_num_parents *)xfer->xfer_buf;
 
 	if (!ti_sci_is_response_ack(resp)) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 	} else {
 		if (resp->num_parents < 255)
 			*num_parents = resp->num_parents;
@@ -1446,12 +1446,12 @@ fail:
  *		Each device has it's own set of clock inputs. This indexes
  *		which clock input to modify.
  * @min_freq:	The minimum allowable frequency in Hz. This is the minimum
- *		allowable programmed frequency and does not account for clock
+ *		allowable programmed frequency and does analt account for clock
  *		tolerances and jitter.
  * @target_freq: The target clock frequency in Hz. A frequency will be
  *		processed as close to this target frequency as possible.
  * @max_freq:	The maximum allowable frequency in Hz. This is the maximum
- *		allowable programmed frequency and does not account for clock
+ *		allowable programmed frequency and does analt account for clock
  *		tolerances and jitter.
  * @match_freq:	Frequency match in Hz response.
  *
@@ -1506,7 +1506,7 @@ static int ti_sci_cmd_clk_get_match_freq(const struct ti_sci_handle *handle,
 	resp = (struct ti_sci_msg_resp_query_clock_freq *)xfer->xfer_buf;
 
 	if (!ti_sci_is_response_ack(resp))
-		ret = -ENODEV;
+		ret = -EANALDEV;
 	else
 		*match_freq = resp->freq_hz;
 
@@ -1524,12 +1524,12 @@ fail:
  *		Each device has it's own set of clock inputs. This indexes
  *		which clock input to modify.
  * @min_freq:	The minimum allowable frequency in Hz. This is the minimum
- *		allowable programmed frequency and does not account for clock
+ *		allowable programmed frequency and does analt account for clock
  *		tolerances and jitter.
  * @target_freq: The target clock frequency in Hz. A frequency will be
  *		processed as close to this target frequency as possible.
  * @max_freq:	The maximum allowable frequency in Hz. This is the maximum
- *		allowable programmed frequency and does not account for clock
+ *		allowable programmed frequency and does analt account for clock
  *		tolerances and jitter.
  *
  * Return: 0 if all went well, else returns appropriate error value.
@@ -1581,7 +1581,7 @@ static int ti_sci_cmd_clk_set_freq(const struct ti_sci_handle *handle,
 
 	resp = (struct ti_sci_msg_hdr *)xfer->xfer_buf;
 
-	ret = ti_sci_is_response_ack(resp) ? 0 : -ENODEV;
+	ret = ti_sci_is_response_ack(resp) ? 0 : -EANALDEV;
 
 fail:
 	ti_sci_put_one_xfer(&info->minfo, xfer);
@@ -1644,7 +1644,7 @@ static int ti_sci_cmd_clk_get_freq(const struct ti_sci_handle *handle,
 	resp = (struct ti_sci_msg_resp_get_clock_freq *)xfer->xfer_buf;
 
 	if (!ti_sci_is_response_ack(resp))
-		ret = -ENODEV;
+		ret = -EANALDEV;
 	else
 		*freq = resp->freq_hz;
 
@@ -1690,7 +1690,7 @@ static int ti_sci_cmd_core_reboot(const struct ti_sci_handle *handle)
 	resp = (struct ti_sci_msg_hdr *)xfer->xfer_buf;
 
 	if (!ti_sci_is_response_ack(resp))
-		ret = -ENODEV;
+		ret = -EANALDEV;
 	else
 		ret = 0;
 
@@ -1756,10 +1756,10 @@ static int ti_sci_get_resource_range(const struct ti_sci_handle *handle,
 	resp = (struct ti_sci_msg_resp_get_resource_range *)xfer->xfer_buf;
 
 	if (!ti_sci_is_response_ack(resp)) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 	} else if (!resp->range_num && !resp->range_num_sec) {
 		/* Neither of the two resource range is valid */
-		ret = -ENODEV;
+		ret = -EANALDEV;
 	} else {
 		desc->start = resp->range_start;
 		desc->num = resp->range_num;
@@ -1882,7 +1882,7 @@ static int ti_sci_manage_irq(const struct ti_sci_handle *handle,
 
 	resp = (struct ti_sci_msg_hdr *)xfer->xfer_buf;
 
-	ret = ti_sci_is_response_ack(resp) ? 0 : -ENODEV;
+	ret = ti_sci_is_response_ack(resp) ? 0 : -EANALDEV;
 
 fail:
 	ti_sci_put_one_xfer(&info->minfo, xfer);
@@ -2346,8 +2346,8 @@ static int ti_sci_cmd_rm_udmap_rx_ch_cfg(const struct ti_sci_handle *handle,
 	req->rx_pause_on_err = params->rx_pause_on_err;
 	req->rx_atype = params->rx_atype;
 	req->rx_chan_type = params->rx_chan_type;
-	req->rx_ignore_short = params->rx_ignore_short;
-	req->rx_ignore_long = params->rx_ignore_long;
+	req->rx_iganalre_short = params->rx_iganalre_short;
+	req->rx_iganalre_long = params->rx_iganalre_long;
 	req->rx_burst_size = params->rx_burst_size;
 
 	ret = ti_sci_do_xfer(info, xfer);
@@ -2483,7 +2483,7 @@ static int ti_sci_cmd_proc_request(const struct ti_sci_handle *handle,
 
 	resp = (struct ti_sci_msg_hdr *)xfer->tx_message.buf;
 
-	ret = ti_sci_is_response_ack(resp) ? 0 : -ENODEV;
+	ret = ti_sci_is_response_ack(resp) ? 0 : -EANALDEV;
 
 fail:
 	ti_sci_put_one_xfer(&info->minfo, xfer);
@@ -2535,7 +2535,7 @@ static int ti_sci_cmd_proc_release(const struct ti_sci_handle *handle,
 
 	resp = (struct ti_sci_msg_hdr *)xfer->tx_message.buf;
 
-	ret = ti_sci_is_response_ack(resp) ? 0 : -ENODEV;
+	ret = ti_sci_is_response_ack(resp) ? 0 : -EANALDEV;
 
 fail:
 	ti_sci_put_one_xfer(&info->minfo, xfer);
@@ -2591,7 +2591,7 @@ static int ti_sci_cmd_proc_handover(const struct ti_sci_handle *handle,
 
 	resp = (struct ti_sci_msg_hdr *)xfer->tx_message.buf;
 
-	ret = ti_sci_is_response_ack(resp) ? 0 : -ENODEV;
+	ret = ti_sci_is_response_ack(resp) ? 0 : -EANALDEV;
 
 fail:
 	ti_sci_put_one_xfer(&info->minfo, xfer);
@@ -2654,7 +2654,7 @@ static int ti_sci_cmd_proc_set_config(const struct ti_sci_handle *handle,
 
 	resp = (struct ti_sci_msg_hdr *)xfer->tx_message.buf;
 
-	ret = ti_sci_is_response_ack(resp) ? 0 : -ENODEV;
+	ret = ti_sci_is_response_ack(resp) ? 0 : -EANALDEV;
 
 fail:
 	ti_sci_put_one_xfer(&info->minfo, xfer);
@@ -2712,7 +2712,7 @@ static int ti_sci_cmd_proc_set_control(const struct ti_sci_handle *handle,
 
 	resp = (struct ti_sci_msg_hdr *)xfer->tx_message.buf;
 
-	ret = ti_sci_is_response_ack(resp) ? 0 : -ENODEV;
+	ret = ti_sci_is_response_ack(resp) ? 0 : -EANALDEV;
 
 fail:
 	ti_sci_put_one_xfer(&info->minfo, xfer);
@@ -2770,7 +2770,7 @@ static int ti_sci_cmd_proc_get_status(const struct ti_sci_handle *handle,
 	resp = (struct ti_sci_msg_resp_get_status *)xfer->tx_message.buf;
 
 	if (!ti_sci_is_response_ack(resp)) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 	} else {
 		*bv = (resp->bootvector_low & TI_SCI_ADDR_LOW_MASK) |
 		      (((u64)resp->bootvector_high << TI_SCI_ADDR_HIGH_SHIFT) &
@@ -2865,17 +2865,17 @@ static void ti_sci_setup_ops(struct ti_sci_info *info)
  * ti_sci_get_handle() - Get the TI SCI handle for a device
  * @dev:	Pointer to device for which we want SCI handle
  *
- * NOTE: The function does not track individual clients of the framework
+ * ANALTE: The function does analt track individual clients of the framework
  * and is expected to be maintained by caller of TI SCI protocol library.
  * ti_sci_put_handle must be balanced with successful ti_sci_get_handle
  * Return: pointer to handle if successful, else:
- * -EPROBE_DEFER if the instance is not ready
- * -ENODEV if the required node handler is missing
+ * -EPROBE_DEFER if the instance is analt ready
+ * -EANALDEV if the required analde handler is missing
  * -EINVAL if invalid conditions are encountered.
  */
 const struct ti_sci_handle *ti_sci_get_handle(struct device *dev)
 {
-	struct device_node *ti_sci_np;
+	struct device_analde *ti_sci_np;
 	struct ti_sci_handle *handle = NULL;
 	struct ti_sci_info *info;
 
@@ -2883,22 +2883,22 @@ const struct ti_sci_handle *ti_sci_get_handle(struct device *dev)
 		pr_err("I need a device pointer\n");
 		return ERR_PTR(-EINVAL);
 	}
-	ti_sci_np = of_get_parent(dev->of_node);
+	ti_sci_np = of_get_parent(dev->of_analde);
 	if (!ti_sci_np) {
-		dev_err(dev, "No OF information\n");
+		dev_err(dev, "Anal OF information\n");
 		return ERR_PTR(-EINVAL);
 	}
 
 	mutex_lock(&ti_sci_list_mutex);
-	list_for_each_entry(info, &ti_sci_list, node) {
-		if (ti_sci_np == info->dev->of_node) {
+	list_for_each_entry(info, &ti_sci_list, analde) {
+		if (ti_sci_np == info->dev->of_analde) {
 			handle = &info->handle;
 			info->users++;
 			break;
 		}
 	}
 	mutex_unlock(&ti_sci_list_mutex);
-	of_node_put(ti_sci_np);
+	of_analde_put(ti_sci_np);
 
 	if (!handle)
 		return ERR_PTR(-EPROBE_DEFER);
@@ -2911,7 +2911,7 @@ EXPORT_SYMBOL_GPL(ti_sci_get_handle);
  * ti_sci_put_handle() - Release the handle acquired by ti_sci_get_handle
  * @handle:	Handle acquired by ti_sci_get_handle
  *
- * NOTE: The function does not track individual clients of the framework
+ * ANALTE: The function does analt track individual clients of the framework
  * and is expected to be maintained by caller of TI SCI protocol library.
  * ti_sci_put_handle must be balanced with successful ti_sci_get_handle
  *
@@ -2953,9 +2953,9 @@ static void devm_ti_sci_release(struct device *dev, void *res)
  * devm_ti_sci_get_handle() - Managed get handle
  * @dev:	device for which we want SCI handle for.
  *
- * NOTE: This releases the handle once the device resources are
- * no longer needed. MUST NOT BE released with ti_sci_put_handle.
- * The function does not track individual clients of the framework
+ * ANALTE: This releases the handle once the device resources are
+ * anal longer needed. MUST ANALT BE released with ti_sci_put_handle.
+ * The function does analt track individual clients of the framework
  * and is expected to be maintained by caller of TI SCI protocol library.
  *
  * Return: 0 if all went fine, else corresponding error.
@@ -2967,7 +2967,7 @@ const struct ti_sci_handle *devm_ti_sci_get_handle(struct device *dev)
 
 	ptr = devres_alloc(devm_ti_sci_release, sizeof(*ptr), GFP_KERNEL);
 	if (!ptr)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	handle = ti_sci_get_handle(dev);
 
 	if (!IS_ERR(handle)) {
@@ -2983,22 +2983,22 @@ EXPORT_SYMBOL_GPL(devm_ti_sci_get_handle);
 
 /**
  * ti_sci_get_by_phandle() - Get the TI SCI handle using DT phandle
- * @np:		device node
- * @property:	property name containing phandle on TISCI node
+ * @np:		device analde
+ * @property:	property name containing phandle on TISCI analde
  *
- * NOTE: The function does not track individual clients of the framework
+ * ANALTE: The function does analt track individual clients of the framework
  * and is expected to be maintained by caller of TI SCI protocol library.
  * ti_sci_put_handle must be balanced with successful ti_sci_get_by_phandle
  * Return: pointer to handle if successful, else:
- * -EPROBE_DEFER if the instance is not ready
- * -ENODEV if the required node handler is missing
+ * -EPROBE_DEFER if the instance is analt ready
+ * -EANALDEV if the required analde handler is missing
  * -EINVAL if invalid conditions are encountered.
  */
-const struct ti_sci_handle *ti_sci_get_by_phandle(struct device_node *np,
+const struct ti_sci_handle *ti_sci_get_by_phandle(struct device_analde *np,
 						  const char *property)
 {
 	struct ti_sci_handle *handle = NULL;
-	struct device_node *ti_sci_np;
+	struct device_analde *ti_sci_np;
 	struct ti_sci_info *info;
 
 	if (!np) {
@@ -3008,18 +3008,18 @@ const struct ti_sci_handle *ti_sci_get_by_phandle(struct device_node *np,
 
 	ti_sci_np = of_parse_phandle(np, property, 0);
 	if (!ti_sci_np)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	mutex_lock(&ti_sci_list_mutex);
-	list_for_each_entry(info, &ti_sci_list, node) {
-		if (ti_sci_np == info->dev->of_node) {
+	list_for_each_entry(info, &ti_sci_list, analde) {
+		if (ti_sci_np == info->dev->of_analde) {
 			handle = &info->handle;
 			info->users++;
 			break;
 		}
 	}
 	mutex_unlock(&ti_sci_list_mutex);
-	of_node_put(ti_sci_np);
+	of_analde_put(ti_sci_np);
 
 	if (!handle)
 		return ERR_PTR(-EPROBE_DEFER);
@@ -3031,11 +3031,11 @@ EXPORT_SYMBOL_GPL(ti_sci_get_by_phandle);
 /**
  * devm_ti_sci_get_by_phandle() - Managed get handle using phandle
  * @dev:	Device pointer requesting TISCI handle
- * @property:	property name containing phandle on TISCI node
+ * @property:	property name containing phandle on TISCI analde
  *
- * NOTE: This releases the handle once the device resources are
- * no longer needed. MUST NOT BE released with ti_sci_put_handle.
- * The function does not track individual clients of the framework
+ * ANALTE: This releases the handle once the device resources are
+ * anal longer needed. MUST ANALT BE released with ti_sci_put_handle.
+ * The function does analt track individual clients of the framework
  * and is expected to be maintained by caller of TI SCI protocol library.
  *
  * Return: 0 if all went fine, else corresponding error.
@@ -3048,8 +3048,8 @@ const struct ti_sci_handle *devm_ti_sci_get_by_phandle(struct device *dev,
 
 	ptr = devres_alloc(devm_ti_sci_release, sizeof(*ptr), GFP_KERNEL);
 	if (!ptr)
-		return ERR_PTR(-ENOMEM);
-	handle = ti_sci_get_by_phandle(dev_of_node(dev), property);
+		return ERR_PTR(-EANALMEM);
+	handle = ti_sci_get_by_phandle(dev_of_analde(dev), property);
 
 	if (!IS_ERR(handle)) {
 		*ptr = handle;
@@ -3159,20 +3159,20 @@ devm_ti_sci_get_resource_sets(const struct ti_sci_handle *handle,
 
 	res = devm_kzalloc(dev, sizeof(*res), GFP_KERNEL);
 	if (!res)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	res->sets = sets;
 	res->desc = devm_kcalloc(dev, res->sets, sizeof(*res->desc),
 				 GFP_KERNEL);
 	if (!res->desc)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	for (i = 0; i < res->sets; i++) {
 		ret = handle->ops.rm_core_ops.get_range(handle, dev_id,
 							sub_types[i],
 							&res->desc[i]);
 		if (ret) {
-			dev_dbg(dev, "dev = %d subtype %d not allocated for this host\n",
+			dev_dbg(dev, "dev = %d subtype %d analt allocated for this host\n",
 				dev_id, sub_types[i]);
 			memset(&res->desc[i], 0, sizeof(res->desc[i]));
 			continue;
@@ -3188,7 +3188,7 @@ devm_ti_sci_get_resource_sets(const struct ti_sci_handle *handle,
 		res->desc[i].res_map = devm_bitmap_zalloc(dev, res_count,
 							  GFP_KERNEL);
 		if (!res->desc[i].res_map)
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 	}
 	raw_spin_lock_init(&res->lock);
 
@@ -3216,18 +3216,18 @@ devm_ti_sci_get_of_resource(const struct ti_sci_handle *handle,
 	u32 *sub_types;
 	int sets;
 
-	sets = of_property_count_elems_of_size(dev_of_node(dev), of_prop,
+	sets = of_property_count_elems_of_size(dev_of_analde(dev), of_prop,
 					       sizeof(u32));
 	if (sets < 0) {
-		dev_err(dev, "%s resource type ids not available\n", of_prop);
+		dev_err(dev, "%s resource type ids analt available\n", of_prop);
 		return ERR_PTR(sets);
 	}
 
 	sub_types = kcalloc(sets, sizeof(*sub_types), GFP_KERNEL);
 	if (!sub_types)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
-	of_property_read_u32_array(dev_of_node(dev), of_prop, sub_types, sets);
+	of_property_read_u32_array(dev_of_analde(dev), of_prop, sub_types, sets);
 	res = devm_ti_sci_get_resource_sets(handle, dev, dev_id, sub_types,
 					    sets);
 
@@ -3254,7 +3254,7 @@ devm_ti_sci_get_resource(const struct ti_sci_handle *handle, struct device *dev,
 }
 EXPORT_SYMBOL_GPL(devm_ti_sci_get_resource);
 
-static int tisci_reboot_handler(struct notifier_block *nb, unsigned long mode,
+static int tisci_reboot_handler(struct analtifier_block *nb, unsigned long mode,
 				void *cmd)
 {
 	struct ti_sci_info *info = reboot_to_ti_sci_info(nb);
@@ -3262,8 +3262,8 @@ static int tisci_reboot_handler(struct notifier_block *nb, unsigned long mode,
 
 	ti_sci_cmd_core_reboot(handle);
 
-	/* call fail OR pass, we should not be here in the first place */
-	return NOTIFY_BAD;
+	/* call fail OR pass, we should analt be here in the first place */
+	return ANALTIFY_BAD;
 }
 
 /* Description for K2G */
@@ -3310,12 +3310,12 @@ static int ti_sci_probe(struct platform_device *pdev)
 
 	info = devm_kzalloc(dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	info->dev = dev;
 	info->desc = desc;
-	ret = of_property_read_u32(dev->of_node, "ti,host-id", &h_id);
-	/* if the property is not present in DT, use a default from desc */
+	ret = of_property_read_u32(dev->of_analde, "ti,host-id", &h_id);
+	/* if the property is analt present in DT, use a default from desc */
 	if (ret < 0) {
 		info->host_id = info->desc->default_host_id;
 	} else {
@@ -3327,9 +3327,9 @@ static int ti_sci_probe(struct platform_device *pdev)
 		}
 	}
 
-	reboot = of_property_read_bool(dev->of_node,
+	reboot = of_property_read_bool(dev->of_analde,
 				       "ti,system-reboot-controller");
-	INIT_LIST_HEAD(&info->node);
+	INIT_LIST_HEAD(&info->analde);
 	minfo = &info->minfo;
 
 	/*
@@ -3346,20 +3346,20 @@ static int ti_sci_probe(struct platform_device *pdev)
 					 sizeof(*minfo->xfer_block),
 					 GFP_KERNEL);
 	if (!minfo->xfer_block)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	minfo->xfer_alloc_table = devm_bitmap_zalloc(dev,
 						     desc->max_msgs,
 						     GFP_KERNEL);
 	if (!minfo->xfer_alloc_table)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Pre-initialize the buffer pointer to pre-allocated buffers */
 	for (i = 0, xfer = minfo->xfer_block; i < desc->max_msgs; i++, xfer++) {
 		xfer->xfer_buf = devm_kcalloc(dev, 1, desc->max_msg_size,
 					      GFP_KERNEL);
 		if (!xfer->xfer_buf)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		xfer->tx_message.buf = xfer->xfer_buf;
 		init_completion(&xfer->done);
@@ -3375,7 +3375,7 @@ static int ti_sci_probe(struct platform_device *pdev)
 	cl->dev = dev;
 	cl->tx_block = false;
 	cl->rx_callback = ti_sci_rx_callback;
-	cl->knows_txdone = true;
+	cl->kanalws_txdone = true;
 
 	spin_lock_init(&minfo->xfer_lock);
 	sema_init(&minfo->sem_xfer_count, desc->max_msgs);
@@ -3400,7 +3400,7 @@ static int ti_sci_probe(struct platform_device *pdev)
 	ti_sci_setup_ops(info);
 
 	if (reboot) {
-		info->nb.notifier_call = tisci_reboot_handler;
+		info->nb.analtifier_call = tisci_reboot_handler;
 		info->nb.priority = 128;
 
 		ret = register_restart_handler(&info->nb);
@@ -3411,15 +3411,15 @@ static int ti_sci_probe(struct platform_device *pdev)
 	}
 
 	dev_info(dev, "ABI: %d.%d (firmware rev 0x%04x '%s')\n",
-		 info->handle.version.abi_major, info->handle.version.abi_minor,
+		 info->handle.version.abi_major, info->handle.version.abi_mianalr,
 		 info->handle.version.firmware_revision,
 		 info->handle.version.firmware_description);
 
 	mutex_lock(&ti_sci_list_mutex);
-	list_add_tail(&info->node, &ti_sci_list);
+	list_add_tail(&info->analde, &ti_sci_list);
 	mutex_unlock(&ti_sci_list_mutex);
 
-	return of_platform_populate(dev->of_node, NULL, NULL, dev);
+	return of_platform_populate(dev->of_analde, NULL, NULL, dev);
 out:
 	if (!IS_ERR(info->chan_tx))
 		mbox_free_channel(info->chan_tx);
@@ -3441,5 +3441,5 @@ module_platform_driver(ti_sci_driver);
 
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("TI System Control Interface(SCI) driver");
-MODULE_AUTHOR("Nishanth Menon");
+MODULE_AUTHOR("Nishanth Meanaln");
 MODULE_ALIAS("platform:ti-sci");

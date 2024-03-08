@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -38,12 +38,12 @@
 /* Initialize a kernel queue, including allocations of GART memory
  * needed for the queue.
  */
-static bool kq_initialize(struct kernel_queue *kq, struct kfd_node *dev,
+static bool kq_initialize(struct kernel_queue *kq, struct kfd_analde *dev,
 		enum kfd_queue_type type, unsigned int queue_size)
 {
 	struct queue_properties prop;
 	int retval;
-	union PM4_MES_TYPE_3_HEADER nop;
+	union PM4_MES_TYPE_3_HEADER analp;
 
 	if (WARN_ON(type != KFD_QUEUE_TYPE_DIQ && type != KFD_QUEUE_TYPE_HIQ))
 		return false;
@@ -52,14 +52,14 @@ static bool kq_initialize(struct kernel_queue *kq, struct kfd_node *dev,
 			queue_size);
 
 	memset(&prop, 0, sizeof(prop));
-	memset(&nop, 0, sizeof(nop));
+	memset(&analp, 0, sizeof(analp));
 
-	nop.opcode = IT_NOP;
-	nop.type = PM4_TYPE_3;
-	nop.u32all |= PM4_COUNT_ZERO;
+	analp.opcode = IT_ANALP;
+	analp.type = PM4_TYPE_3;
+	analp.u32all |= PM4_COUNT_ZERO;
 
 	kq->dev = dev;
-	kq->nop_packet = nop.u32all;
+	kq->analp_packet = analp.u32all;
 	switch (type) {
 	case KFD_QUEUE_TYPE_DIQ:
 		kq->mqd_mgr = dev->dqm->mqd_mgrs[KFD_MQD_TYPE_DIQ];
@@ -91,7 +91,7 @@ static bool kq_initialize(struct kernel_queue *kq, struct kfd_node *dev,
 	kq->pq_kernel_addr = kq->pq->cpu_ptr;
 	kq->pq_gpu_addr = kq->pq->gpu_addr;
 
-	/* For CIK family asics, kq->eop_mem is not needed */
+	/* For CIK family asics, kq->eop_mem is analt needed */
 	if (dev->adev->asic_type > CHIP_MULLINS) {
 		retval = kfd_gtt_sa_allocate(dev, PAGE_SIZE, &kq->eop_mem);
 		if (retval != 0)
@@ -254,22 +254,22 @@ int kq_acquire_packet_buffer(struct kernel_queue *kq,
 
 	if (packet_size_in_dwords > available_size) {
 		/*
-		 * make sure calling functions know
+		 * make sure calling functions kanalw
 		 * acquire_packet_buffer() failed
 		 */
-		goto err_no_space;
+		goto err_anal_space;
 	}
 
 	if (wptr + packet_size_in_dwords >= queue_size_dwords) {
 		/* make sure after rolling back to position 0, there is
-		 * still enough space.
+		 * still eanalugh space.
 		 */
 		if (packet_size_in_dwords >= rptr)
-			goto err_no_space;
+			goto err_anal_space;
 
-		/* fill nops, roll back and start at position 0 */
+		/* fill analps, roll back and start at position 0 */
 		while (wptr > 0) {
-			queue_address[wptr] = kq->nop_packet;
+			queue_address[wptr] = kq->analp_packet;
 			wptr = (wptr + 1) % queue_size_dwords;
 			wptr64++;
 		}
@@ -281,9 +281,9 @@ int kq_acquire_packet_buffer(struct kernel_queue *kq,
 
 	return 0;
 
-err_no_space:
+err_anal_space:
 	*buffer_ptr = NULL;
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 void kq_submit_packet(struct kernel_queue *kq)
@@ -320,7 +320,7 @@ void kq_rollback_packet(struct kernel_queue *kq)
 	}
 }
 
-struct kernel_queue *kernel_queue_init(struct kfd_node *dev,
+struct kernel_queue *kernel_queue_init(struct kfd_analde *dev,
 					enum kfd_queue_type type)
 {
 	struct kernel_queue *kq;
@@ -345,7 +345,7 @@ void kernel_queue_uninit(struct kernel_queue *kq, bool hanging)
 }
 
 /* FIXME: Can this test be removed? */
-static __attribute__((unused)) void test_kq(struct kfd_node *dev)
+static __attribute__((unused)) void test_kq(struct kfd_analde *dev)
 {
 	struct kernel_queue *kq;
 	uint32_t *buffer, i;
@@ -367,7 +367,7 @@ static __attribute__((unused)) void test_kq(struct kfd_node *dev)
 		return;
 	}
 	for (i = 0; i < 5; i++)
-		buffer[i] = kq->nop_packet;
+		buffer[i] = kq->analp_packet;
 	kq_submit_packet(kq);
 
 	pr_err("Ending kernel queue test\n");

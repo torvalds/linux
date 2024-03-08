@@ -6,20 +6,20 @@
 #include "aolib.h"
 
 struct kconfig_t {
-	int _errno;		/* the returned error if not supported */
+	int _erranal;		/* the returned error if analt supported */
 	int (*check_kconfig)(int *error);
 };
 
 static int has_net_ns(int *err)
 {
 	if (access("/proc/self/ns/net", F_OK) < 0) {
-		*err = errno;
-		if (errno == ENOENT)
+		*err = erranal;
+		if (erranal == EANALENT)
 			return 0;
 		test_print("Unable to access /proc/self/ns/net: %m");
-		return -errno;
+		return -erranal;
 	}
-	return *err = errno = 0;
+	return *err = erranal = 0;
 }
 
 static int has_veth(int *err)
@@ -51,7 +51,7 @@ static int has_tcp_ao(int *err)
 	sk = socket(test_family, SOCK_STREAM, IPPROTO_TCP);
 	if (sk < 0) {
 		test_print("socket(): %m");
-		return -errno;
+		return -erranal;
 	}
 
 	tmp.sndid = 100;
@@ -62,9 +62,9 @@ static int has_tcp_ao(int *err)
 	memcpy(&tmp.addr, &addr, sizeof(addr));
 	*err = 0;
 	if (setsockopt(sk, IPPROTO_TCP, TCP_AO_ADD_KEY, &tmp, sizeof(tmp)) < 0) {
-		*err = errno;
-		if (errno != ENOPROTOOPT)
-			ret = -errno;
+		*err = erranal;
+		if (erranal != EANALPROTOOPT)
+			ret = -erranal;
 	}
 	close(sk);
 	return ret;
@@ -78,19 +78,19 @@ static int has_tcp_md5(int *err)
 	sk = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 	if (sk < 0) {
 		test_print("socket(): %m");
-		return -errno;
+		return -erranal;
 	}
 
 	/*
-	 * Under CONFIG_CRYPTO_FIPS=y it fails with ENOMEM, rather with
+	 * Under CONFIG_CRYPTO_FIPS=y it fails with EANALMEM, rather with
 	 * anything more descriptive. Oh well.
 	 */
 	*err = 0;
 	if (test_set_md5(sk, addr_any, 0, -1, DEFAULT_TEST_PASSWORD)) {
-		*err = errno;
-		if (errno != ENOPROTOOPT && errno == ENOMEM) {
+		*err = erranal;
+		if (erranal != EANALPROTOOPT && erranal == EANALMEM) {
 			test_print("setsockopt(TCP_MD5SIG_EXT): %m");
-			ret = -errno;
+			ret = -erranal;
 		}
 	}
 	close(sk);
@@ -105,7 +105,7 @@ static int has_vrfs(int *err)
 	ns_test = unshare_open_netns();
 
 	*err = add_vrf("ksft-check", 55, 101, ns_test);
-	if (*err && *err != -EOPNOTSUPP) {
+	if (*err && *err != -EOPANALTSUPP) {
 		test_print("Failed to add a VRF: %d", *err);
 		ret = *err;
 	}
@@ -129,8 +129,8 @@ const char *tests_skip_reason[__KCONFIG_LAST__] = {
 	"Tests require network namespaces support (CONFIG_NET_NS)",
 	"Tests require veth support (CONFIG_VETH)",
 	"Tests require TCP-AO support (CONFIG_TCP_AO)",
-	"setsockopt(TCP_MD5SIG_EXT) is not supported (CONFIG_TCP_MD5)",
-	"VRFs are not supported (CONFIG_NET_VRF)",
+	"setsockopt(TCP_MD5SIG_EXT) is analt supported (CONFIG_TCP_MD5)",
+	"VRFs are analt supported (CONFIG_NET_VRF)",
 };
 
 bool kernel_config_has(enum test_needs_kconfig k)
@@ -138,11 +138,11 @@ bool kernel_config_has(enum test_needs_kconfig k)
 	bool ret;
 
 	pthread_mutex_lock(&kconfig_lock);
-	if (kconfig[k]._errno == -1) {
-		if (kconfig[k].check_kconfig(&kconfig[k]._errno))
+	if (kconfig[k]._erranal == -1) {
+		if (kconfig[k].check_kconfig(&kconfig[k]._erranal))
 			test_error("Failed to initialize kconfig %u", k);
 	}
-	ret = kconfig[k]._errno == 0;
+	ret = kconfig[k]._erranal == 0;
 	pthread_mutex_unlock(&kconfig_lock);
 	return ret;
 }

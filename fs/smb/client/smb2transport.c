@@ -92,10 +92,10 @@ int smb2_get_sign_key(__u64 ses_id, struct TCP_Server_Info *server, u8 *key)
 		if (ses->Suid == ses_id)
 			goto found;
 	}
-	trace_smb3_ses_not_found(ses_id);
-	cifs_server_dbg(FYI, "%s: Could not find session 0x%llx\n",
+	trace_smb3_ses_analt_found(ses_id);
+	cifs_server_dbg(FYI, "%s: Could analt find session 0x%llx\n",
 			__func__, ses_id);
-	rc = -ENOENT;
+	rc = -EANALENT;
 	goto out;
 
 found:
@@ -133,9 +133,9 @@ found:
 	spin_unlock(&ses->ses_lock);
 
 	cifs_dbg(VFS,
-		 "%s: Could not find channel signing key for session 0x%llx\n",
+		 "%s: Could analt find channel signing key for session 0x%llx\n",
 		 __func__, ses_id);
-	rc = -ENOENT;
+	rc = -EANALENT;
 
 out:
 	spin_unlock(&cifs_tcp_ses_lock);
@@ -240,8 +240,8 @@ smb2_calc_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server,
 
 	ses = smb2_find_smb_ses(server, le64_to_cpu(shdr->SessionId));
 	if (unlikely(!ses)) {
-		cifs_server_dbg(VFS, "%s: Could not find session\n", __func__);
-		return -ENOENT;
+		cifs_server_dbg(VFS, "%s: Could analt find session\n", __func__);
+		return -EANALENT;
 	}
 
 	memset(smb2_signature, 0x0, SMB2_HMACSHA256_SIZE);
@@ -262,20 +262,20 @@ smb2_calc_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server,
 			SMB2_NTLMV2_SESSKEY_SIZE);
 	if (rc) {
 		cifs_server_dbg(VFS,
-				"%s: Could not update with response\n",
+				"%s: Could analt update with response\n",
 				__func__);
 		goto out;
 	}
 
 	rc = crypto_shash_init(shash);
 	if (rc) {
-		cifs_server_dbg(VFS, "%s: Could not init sha256", __func__);
+		cifs_server_dbg(VFS, "%s: Could analt init sha256", __func__);
 		goto out;
 	}
 
 	/*
 	 * For SMB2+, __cifs_calc_signature() expects to sign only the actual
-	 * data, that is, iov[0] should not contain a rfc1002 length.
+	 * data, that is, iov[0] should analt contain a rfc1002 length.
 	 *
 	 * Sign the rfc1002 length prior to passing the data (iov[1-N]) down to
 	 * __cifs_calc_signature().
@@ -286,7 +286,7 @@ smb2_calc_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server,
 					 iov[0].iov_len);
 		if (rc) {
 			cifs_server_dbg(VFS,
-					"%s: Could not update with payload\n",
+					"%s: Could analt update with payload\n",
 					__func__);
 			goto out;
 		}
@@ -330,37 +330,37 @@ static int generate_key(struct cifs_ses *ses, struct kvec label,
 	rc = crypto_shash_setkey(server->secmech.hmacsha256->tfm,
 		ses->auth_key.response, SMB2_NTLMV2_SESSKEY_SIZE);
 	if (rc) {
-		cifs_server_dbg(VFS, "%s: Could not set with session key\n", __func__);
+		cifs_server_dbg(VFS, "%s: Could analt set with session key\n", __func__);
 		goto smb3signkey_ret;
 	}
 
 	rc = crypto_shash_init(server->secmech.hmacsha256);
 	if (rc) {
-		cifs_server_dbg(VFS, "%s: Could not init sign hmac\n", __func__);
+		cifs_server_dbg(VFS, "%s: Could analt init sign hmac\n", __func__);
 		goto smb3signkey_ret;
 	}
 
 	rc = crypto_shash_update(server->secmech.hmacsha256, i, 4);
 	if (rc) {
-		cifs_server_dbg(VFS, "%s: Could not update with n\n", __func__);
+		cifs_server_dbg(VFS, "%s: Could analt update with n\n", __func__);
 		goto smb3signkey_ret;
 	}
 
 	rc = crypto_shash_update(server->secmech.hmacsha256, label.iov_base, label.iov_len);
 	if (rc) {
-		cifs_server_dbg(VFS, "%s: Could not update with label\n", __func__);
+		cifs_server_dbg(VFS, "%s: Could analt update with label\n", __func__);
 		goto smb3signkey_ret;
 	}
 
 	rc = crypto_shash_update(server->secmech.hmacsha256, &zero, 1);
 	if (rc) {
-		cifs_server_dbg(VFS, "%s: Could not update with zero\n", __func__);
+		cifs_server_dbg(VFS, "%s: Could analt update with zero\n", __func__);
 		goto smb3signkey_ret;
 	}
 
 	rc = crypto_shash_update(server->secmech.hmacsha256, context.iov_base, context.iov_len);
 	if (rc) {
-		cifs_server_dbg(VFS, "%s: Could not update with context\n", __func__);
+		cifs_server_dbg(VFS, "%s: Could analt update with context\n", __func__);
 		goto smb3signkey_ret;
 	}
 
@@ -371,13 +371,13 @@ static int generate_key(struct cifs_ses *ses, struct kvec label,
 		rc = crypto_shash_update(server->secmech.hmacsha256, L128, 4);
 	}
 	if (rc) {
-		cifs_server_dbg(VFS, "%s: Could not update with L\n", __func__);
+		cifs_server_dbg(VFS, "%s: Could analt update with L\n", __func__);
 		goto smb3signkey_ret;
 	}
 
 	rc = crypto_shash_final(server->secmech.hmacsha256, hashptr);
 	if (rc) {
-		cifs_server_dbg(VFS, "%s: Could not generate sha256 hash\n", __func__);
+		cifs_server_dbg(VFS, "%s: Could analt generate sha256 hash\n", __func__);
 		goto smb3signkey_ret;
 	}
 
@@ -429,7 +429,7 @@ generate_smb3signingkey(struct cifs_ses *ses,
 	 *
 	 * When we generate the keys, check if it is for a new channel
 	 * (binding) in which case we only need to generate a signing
-	 * key and store it in the channel as to not overwrite the
+	 * key and store it in the channel as to analt overwrite the
 	 * master connection signing key stored in the session
 	 */
 
@@ -570,7 +570,7 @@ smb3_calc_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server,
 
 	rc = smb2_get_sign_key(le64_to_cpu(shdr->SessionId), server, key);
 	if (unlikely(rc)) {
-		cifs_server_dbg(FYI, "%s: Could not get signing key\n", __func__);
+		cifs_server_dbg(FYI, "%s: Could analt get signing key\n", __func__);
 		return rc;
 	}
 
@@ -587,24 +587,24 @@ smb3_calc_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server,
 
 	rc = crypto_shash_setkey(shash->tfm, key, SMB2_CMACAES_SIZE);
 	if (rc) {
-		cifs_server_dbg(VFS, "%s: Could not set key for cmac aes\n", __func__);
+		cifs_server_dbg(VFS, "%s: Could analt set key for cmac aes\n", __func__);
 		goto out;
 	}
 
 	/*
 	 * we already allocate aes_cmac when we init smb3 signing key,
-	 * so unlike smb2 case we do not have to check here if secmech are
+	 * so unlike smb2 case we do analt have to check here if secmech are
 	 * initialized
 	 */
 	rc = crypto_shash_init(shash);
 	if (rc) {
-		cifs_server_dbg(VFS, "%s: Could not init cmac aes\n", __func__);
+		cifs_server_dbg(VFS, "%s: Could analt init cmac aes\n", __func__);
 		goto out;
 	}
 
 	/*
 	 * For SMB2+, __cifs_calc_signature() expects to sign only the actual
-	 * data, that is, iov[0] should not contain a rfc1002 length.
+	 * data, that is, iov[0] should analt contain a rfc1002 length.
 	 *
 	 * Sign the rfc1002 length prior to passing the data (iov[1-N]) down to
 	 * __cifs_calc_signature().
@@ -614,7 +614,7 @@ smb3_calc_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server,
 		rc = crypto_shash_update(shash, iov[0].iov_base,
 					 iov[0].iov_len);
 		if (rc) {
-			cifs_server_dbg(VFS, "%s: Could not update with payload\n",
+			cifs_server_dbg(VFS, "%s: Could analt update with payload\n",
 				 __func__);
 			goto out;
 		}
@@ -679,16 +679,16 @@ smb2_verify_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server)
 	if ((shdr->Command == SMB2_NEGOTIATE) ||
 	    (shdr->Command == SMB2_SESSION_SETUP) ||
 	    (shdr->Command == SMB2_OPLOCK_BREAK) ||
-	    server->ignore_signature ||
+	    server->iganalre_signature ||
 	    (!server->session_estab))
 		return 0;
 
 	/*
 	 * BB what if signatures are supposed to be on for session but
-	 * server does not send one? BB
+	 * server does analt send one? BB
 	 */
 
-	/* Do not need to verify session setups with signature "BSRSPYL " */
+	/* Do analt need to verify session setups with signature "BSRSPYL " */
 	if (memcmp(shdr->Signature, "BSRSPYL ", 8) == 0)
 		cifs_dbg(FYI, "dummy signature received for smb command 0x%x\n",
 			 shdr->Command);
@@ -742,7 +742,7 @@ smb2_mid_entry_alloc(const struct smb2_hdr *shdr,
 		return NULL;
 	}
 
-	temp = mempool_alloc(cifs_mid_poolp, GFP_NOFS);
+	temp = mempool_alloc(cifs_mid_poolp, GFP_ANALFS);
 	memset(temp, 0, sizeof(struct mid_q_entry));
 	kref_init(&temp->refcount);
 	temp->mid = le64_to_cpu(shdr->MessageId);
@@ -753,7 +753,7 @@ smb2_mid_entry_alloc(const struct smb2_hdr *shdr,
 	temp->server = server;
 
 	/*
-	 * The default is for the mid to be synchronous, so the
+	 * The default is for the mid to be synchroanalus, so the
 	 * default callback just wakes up the current task.
 	 */
 	get_task_struct(current);
@@ -776,7 +776,7 @@ smb2_get_mid_entry(struct cifs_ses *ses, struct TCP_Server_Info *server,
 	spin_lock(&server->srv_lock);
 	if (server->tcpStatus == CifsExiting) {
 		spin_unlock(&server->srv_lock);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	if (server->tcpStatus == CifsNeedReconnect) {
@@ -813,7 +813,7 @@ smb2_get_mid_entry(struct cifs_ses *ses, struct TCP_Server_Info *server,
 
 	*mid = smb2_mid_entry_alloc(shdr, server);
 	if (*mid == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	spin_lock(&server->mid_lock);
 	list_add_tail(&(*mid)->qhead, &server->pending_mid_q);
 	spin_unlock(&server->mid_lock);
@@ -895,7 +895,7 @@ smb2_setup_async_request(struct TCP_Server_Info *server, struct smb_rqst *rqst)
 	mid = smb2_mid_entry_alloc(shdr, server);
 	if (mid == NULL) {
 		revert_current_mid_from_hdr(server, shdr);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	rc = smb2_sign_rqst(rqst, server);

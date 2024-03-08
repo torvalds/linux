@@ -156,7 +156,7 @@ static int mma7660_read_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_SCALE:
 		*val = 0;
 		*val2 = mma7660_nscale;
-		return IIO_VAL_INT_PLUS_NANO;
+		return IIO_VAL_INT_PLUS_NAANAL;
 	default:
 		return -EINVAL;
 	}
@@ -178,7 +178,7 @@ static int mma7660_probe(struct i2c_client *client)
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev) {
 		dev_err(&client->dev, "iio allocation failed!\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	data = iio_priv(indio_dev);
@@ -215,7 +215,7 @@ static void mma7660_remove(struct i2c_client *client)
 
 	ret = mma7660_set_mode(iio_priv(indio_dev), MMA7660_MODE_STANDBY);
 	if (ret)
-		dev_warn(&client->dev, "Failed to put device in stand-by mode (%pe), ignoring\n",
+		dev_warn(&client->dev, "Failed to put device in stand-by mode (%pe), iganalring\n",
 			 ERR_PTR(ret));
 }
 

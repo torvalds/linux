@@ -26,7 +26,7 @@ struct proc_thermal_pci {
 	struct thermal_zone_device *tzone;
 	struct delayed_work work;
 	int stored_thres;
-	int no_legacy;
+	int anal_legacy;
 };
 
 enum proc_thermal_mmio_type {
@@ -63,8 +63,8 @@ static struct proc_thermal_mmio_info proc_thermal_mmio_info[] = {
 	{ PROC_THERMAL_MMIO_INT_STATUS_1, 0x7200, 8, 0x01 },
 };
 
-#define B0D4_THERMAL_NOTIFY_DELAY	1000
-static int notify_delay_ms = B0D4_THERMAL_NOTIFY_DELAY;
+#define B0D4_THERMAL_ANALTIFY_DELAY	1000
+static int analtify_delay_ms = B0D4_THERMAL_ANALTIFY_DELAY;
 
 static void proc_thermal_mmio_read(struct proc_thermal_pci *pci_info,
 				    enum proc_thermal_mmio_type type,
@@ -117,7 +117,7 @@ static void proc_thermal_threshold_work_fn(struct work_struct *work)
 
 static void pkg_thermal_schedule_work(struct delayed_work *work)
 {
-	unsigned long ms = msecs_to_jiffies(notify_delay_ms);
+	unsigned long ms = msecs_to_jiffies(analtify_delay_ms);
 
 	schedule_delayed_work(work, ms);
 }
@@ -166,8 +166,8 @@ static irqreturn_t proc_thermal_irq_handler(int irq, void *devid)
 	}
 
 	/*
-	 * Since now there are two sources of interrupts: one from thermal threshold
-	 * and another from workload hint, add a check if there was really a threshold
+	 * Since analw there are two sources of interrupts: one from thermal threshold
+	 * and aanalther from workload hint, add a check if there was really a threshold
 	 * interrupt before scheduling work function for thermal threshold.
 	 */
 	proc_thermal_mmio_read(pci_info, PROC_THERMAL_MMIO_INT_STATUS_0, &status);
@@ -243,8 +243,8 @@ static struct thermal_zone_device_ops tzone_ops = {
 };
 
 static struct thermal_zone_params tzone_params = {
-	.governor_name = "user_space",
-	.no_hwmon = true,
+	.goveranalr_name = "user_space",
+	.anal_hwmon = true,
 };
 
 static int proc_thermal_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
@@ -256,16 +256,16 @@ static int proc_thermal_pci_probe(struct pci_dev *pdev, const struct pci_device_
 
 	proc_priv = devm_kzalloc(&pdev->dev, sizeof(*proc_priv), GFP_KERNEL);
 	if (!proc_priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pci_info = devm_kzalloc(&pdev->dev, sizeof(*pci_info), GFP_KERNEL);
 	if (!pci_info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pci_info->pdev = pdev;
 	ret = pcim_enable_device(pdev);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "error: could not enable device\n");
+		dev_err(&pdev->dev, "error: could analt enable device\n");
 		return ret;
 	}
 
@@ -284,7 +284,7 @@ static int proc_thermal_pci_probe(struct pci_dev *pdev, const struct pci_device_
 	ret = proc_thermal_add(&pdev->dev, proc_priv);
 	if (ret) {
 		dev_err(&pdev->dev, "error: proc_thermal_add, will continue\n");
-		pci_info->no_legacy = 1;
+		pci_info->anal_legacy = 1;
 	}
 
 	psv_trip.temperature = get_trip_temp(pci_info);
@@ -333,7 +333,7 @@ err_free_vectors:
 err_ret_tzone:
 	thermal_zone_device_unregister(pci_info->tzone);
 err_del_legacy:
-	if (!pci_info->no_legacy)
+	if (!pci_info->anal_legacy)
 		proc_thermal_remove(proc_priv);
 	proc_thermal_mmio_remove(pdev, proc_priv);
 	pci_disable_device(pdev);
@@ -356,7 +356,7 @@ static void proc_thermal_pci_remove(struct pci_dev *pdev)
 
 	thermal_zone_device_unregister(pci_info->tzone);
 	proc_thermal_mmio_remove(pdev, pci_info->proc_priv);
-	if (!pci_info->no_legacy)
+	if (!pci_info->anal_legacy)
 		proc_thermal_remove(proc_priv);
 	pci_disable_device(pdev);
 }
@@ -371,7 +371,7 @@ static int proc_thermal_pci_suspend(struct device *dev)
 	proc_priv = pci_get_drvdata(pdev);
 	pci_info = proc_priv->priv_data;
 
-	if (!pci_info->no_legacy)
+	if (!pci_info->anal_legacy)
 		return proc_thermal_suspend(dev);
 
 	return 0;
@@ -391,7 +391,7 @@ static int proc_thermal_pci_resume(struct device *dev)
 		proc_thermal_mmio_write(pci_info, PROC_THERMAL_MMIO_INT_ENABLE_0, 1);
 	}
 
-	if (!pci_info->no_legacy)
+	if (!pci_info->anal_legacy)
 		return proc_thermal_resume(dev);
 
 	return 0;

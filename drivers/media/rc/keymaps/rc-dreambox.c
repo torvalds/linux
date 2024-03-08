@@ -9,7 +9,7 @@
 /*
  * Keytable for Dreambox RC10/RC0 and RC20/RC-BT remote controls
  *
- * Keys that are not IR addressable:
+ * Keys that are analt IR addressable:
  *
  * // DREAM switches to STB control mode
  * // TV switches to TV control mode

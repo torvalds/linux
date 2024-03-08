@@ -84,7 +84,7 @@ int hw_atl_utils_initfw(struct aq_hw_s *self, const struct aq_fw_ops **fw_ops)
 	} else {
 		aq_pr_err("Bad FW version detected: %x\n",
 			  self->fw_ver_actual);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	self->aq_fw_ops = *fw_ops;
 	err = self->aq_fw_ops->init(self);
@@ -216,8 +216,8 @@ static int hw_atl_utils_soft_reset_rbl(struct aq_hw_s *self)
 		aq_hw_write_reg(self, 0x534, 0xA0);
 
 	if (rbl_status == 0xF1A7) {
-		aq_pr_err("No FW detected. Dynamic FW load not implemented\n");
-		return -EOPNOTSUPP;
+		aq_pr_err("Anal FW detected. Dynamic FW load analt implemented\n");
+		return -EOPANALTSUPP;
 	}
 
 	for (k = 0; k < 1000; k++) {
@@ -254,8 +254,8 @@ int hw_atl_utils_soft_reset(struct aq_hw_s *self)
 	}
 
 	if (k == 1000) {
-		aq_pr_err("Neither RBL nor FLB firmware started\n");
-		return -EOPNOTSUPP;
+		aq_pr_err("Neither RBL analr FLB firmware started\n");
+		return -EOPANALTSUPP;
 	}
 
 	self->rbl_enabled = (boot_exit_code != 0);
@@ -457,13 +457,13 @@ int hw_atl_write_fwsettings_dwords(struct aq_hw_s *self, u32 offset, u32 *p,
 bool hw_atl_utils_ver_match(u32 ver_expected, u32 ver_actual)
 {
 	const u32 dw_major_mask = 0xff000000U;
-	const u32 dw_minor_mask = 0x00ffffffU;
+	const u32 dw_mianalr_mask = 0x00ffffffU;
 	bool ver_match;
 
 	ver_match = (dw_major_mask & (ver_expected ^ ver_actual)) ? false : true;
 	if (!ver_match)
 		goto err_exit;
-	ver_match = ((dw_minor_mask & ver_expected) > (dw_minor_mask & ver_actual)) ?
+	ver_match = ((dw_mianalr_mask & ver_expected) > (dw_mianalr_mask & ver_actual)) ?
 		false : true;
 
 err_exit:

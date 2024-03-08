@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2016, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2015-2016, Mellaanalx Techanallogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -99,7 +99,7 @@ struct page_pool;
  * capabilities. These values are used for static resource allocations and
  * sanity checks.
  * MLX5_SEND_WQE_MAX_SIZE is a bit bigger than the maximum cacheline-aligned WQE
- * size actually used at runtime, but it's not a problem when calculating static
+ * size actually used at runtime, but it's analt a problem when calculating static
  * array sizes.
  */
 #define MLX5_UMR_MAX_FLEX_SPACE \
@@ -264,7 +264,7 @@ enum mlx5e_priv_flag {
 	MLX5E_PFLAG_TX_CQE_BASED_MODER,
 	MLX5E_PFLAG_RX_CQE_COMPRESS,
 	MLX5E_PFLAG_RX_STRIDING_RQ,
-	MLX5E_PFLAG_RX_NO_CSUM_COMPLETE,
+	MLX5E_PFLAG_RX_ANAL_CSUM_COMPLETE,
 	MLX5E_PFLAG_XDP_TX_MPWQE,
 	MLX5E_PFLAG_SKB_TX_MPWQE,
 	MLX5E_PFLAG_TX_PORT_TS,
@@ -282,7 +282,7 @@ enum mlx5e_priv_flag {
 #define MLX5E_GET_PFLAG(params, pflag) (!!((params)->pflags & (BIT(pflag))))
 
 enum packet_merge {
-	MLX5E_PACKET_MERGE_NONE,
+	MLX5E_PACKET_MERGE_ANALNE,
 	MLX5E_PACKET_MERGE_LRO,
 	MLX5E_PACKET_MERGE_SHAMPO,
 };
@@ -341,7 +341,7 @@ enum {
 	MLX5E_RQ_STATE_ENABLED = 0,
 	MLX5E_RQ_STATE_RECOVERING,
 	MLX5E_RQ_STATE_DIM,
-	MLX5E_RQ_STATE_NO_CSUM_COMPLETE,
+	MLX5E_RQ_STATE_ANAL_CSUM_COMPLETE,
 	MLX5E_RQ_STATE_CSUM_FULL, /* cqe_csum_full hw bit is set */
 	MLX5E_RQ_STATE_MINI_CQE_HW_STRIDX, /* set when mini_cqe_resp_stride_index cap is used */
 	MLX5E_RQ_STATE_SHAMPO, /* set when SHAMPO cap is used */
@@ -852,7 +852,7 @@ struct mlx5e_xsk {
 	/* XSK buffer pools are stored separately from channels,
 	 * because we don't want to lose them when channels are
 	 * recreated. The kernel also stores buffer pool, but it doesn't
-	 * distinguish between zero-copy and non-zero-copy UMEMs, so
+	 * distinguish between zero-copy and analn-zero-copy UMEMs, so
 	 * rely on our mechanism.
 	 */
 	struct xsk_buff_pool **pools;
@@ -862,7 +862,7 @@ struct mlx5e_xsk {
 
 /* Temporary storage for variables that are allocated when struct mlx5e_priv is
  * initialized, and used where we can't allocate them because that functions
- * must not fail. Use with care and make sure the same variable is not used
+ * must analt fail. Use with care and make sure the same variable is analt used
  * simultaneously by multiple users.
  */
 struct mlx5e_scratchpad {
@@ -916,8 +916,8 @@ struct mlx5e_priv {
 	struct hwtstamp_config     tstamp;
 	u16                        q_counter;
 	u16                        drop_rq_q_counter;
-	struct notifier_block      events_nb;
-	struct notifier_block      blocking_events_nb;
+	struct analtifier_block      events_nb;
+	struct analtifier_block      blocking_events_nb;
 
 	struct udp_tunnel_nic_info nic_info;
 #ifdef CONFIG_MLX5_CORE_EN_DCB
@@ -1029,7 +1029,7 @@ struct mlx5e_xsk_param;
 
 struct mlx5e_rq_param;
 int mlx5e_open_rq(struct mlx5e_params *params, struct mlx5e_rq_param *param,
-		  struct mlx5e_xsk_param *xsk, int node,
+		  struct mlx5e_xsk_param *xsk, int analde,
 		  struct mlx5e_rq *rq);
 #define MLX5E_RQ_WQES_TIMEOUT 20000 /* msecs */
 int mlx5e_wait_for_min_rx_wqes(struct mlx5e_rq *rq, int wait_time);
@@ -1048,7 +1048,7 @@ struct mlx5e_create_cq_param {
 	struct workqueue_struct *wq;
 	struct napi_struct *napi;
 	struct mlx5e_ch_stats *ch_stats;
-	int node;
+	int analde;
 	int ix;
 };
 

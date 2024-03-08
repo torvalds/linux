@@ -14,13 +14,13 @@
 
 #include <linux/bits.h>
 
-#define CIF_NOHZ_DELAY		2	/* delay HZ disable for a tick */
+#define CIF_ANALHZ_DELAY		2	/* delay HZ disable for a tick */
 #define CIF_FPU			3	/* restore FPU registers */
 #define CIF_ENABLED_WAIT	5	/* in enabled wait state */
 #define CIF_MCCK_GUEST		6	/* machine check happening in guest */
 #define CIF_DEDICATED_CPU	7	/* this CPU is dedicated */
 
-#define _CIF_NOHZ_DELAY		BIT(CIF_NOHZ_DELAY)
+#define _CIF_ANALHZ_DELAY		BIT(CIF_ANALHZ_DELAY)
 #define _CIF_FPU		BIT(CIF_FPU)
 #define _CIF_ENABLED_WAIT	BIT(CIF_ENABLED_WAIT)
 #define _CIF_MCCK_GUEST		BIT(CIF_MCCK_GUEST)
@@ -76,8 +76,8 @@ static __always_inline bool test_and_clear_cpu_flag(int flag)
 }
 
 /*
- * Test CIF flag of another CPU. The caller needs to ensure that
- * CPU hotplug can not happen, e.g. by disabling preemption.
+ * Test CIF flag of aanalther CPU. The caller needs to ensure that
+ * CPU hotplug can analt happen, e.g. by disabling preemption.
  */
 static __always_inline bool test_cpu_flag_of(int flag, int cpu)
 {
@@ -86,7 +86,7 @@ static __always_inline bool test_cpu_flag_of(int flag, int cpu)
 	return lc->cpu_flags & (1UL << flag);
 }
 
-#define arch_needs_cpu() test_cpu_flag(CIF_NOHZ_DELAY)
+#define arch_needs_cpu() test_cpu_flag(CIF_ANALHZ_DELAY)
 
 static inline void get_cpu_id(struct cpuid *ptr)
 {
@@ -183,12 +183,12 @@ struct thread_struct {
 	struct runtime_instr_cb *ri_cb;
 	struct gs_cb *gs_cb;			/* Current guarded storage cb */
 	struct gs_cb *gs_bc_cb;			/* Broadcast guarded storage cb */
-	struct pgm_tdb trap_tdb;		/* Transaction abort diagnose block */
+	struct pgm_tdb trap_tdb;		/* Transaction abort diaganalse block */
 	struct fpu fpu;				/* FP and VX register save area */
 };
 
 /* Flag to disable transactions. */
-#define PER_FLAG_NO_TE			1UL
+#define PER_FLAG_ANAL_TE			1UL
 /* Flag to enable random transaction aborts. */
 #define PER_FLAG_TE_ABORT_RAND		2UL
 /* Flag to specify random transaction abort mode:
@@ -375,7 +375,7 @@ static inline unsigned long __rewind_psw(psw_t psw, unsigned long ilc)
 /*
  * Function to drop a processor into disabled wait state
  */
-static __always_inline void __noreturn disabled_wait(void)
+static __always_inline void __analreturn disabled_wait(void)
 {
 	psw_t psw;
 

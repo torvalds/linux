@@ -12,7 +12,7 @@ static inline void ubi_fastmap_init(struct ubi_device *ubi, int *count)
 {
 	if (ubi->fm_disabled)
 		ubi->fm_pool_rsv_cnt = 0;
-	/* Reserve enough LEBs to store two fastmaps and to fill pools. */
+	/* Reserve eanalugh LEBs to store two fastmaps and to fill pools. */
 	*count += (ubi->fm_size / ubi->leb_size) * 2 + ubi->fm_pool_rsv_cnt;
 	INIT_WORK(&ubi->fm_work, update_fastmap_work_fn);
 }

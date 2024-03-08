@@ -76,7 +76,7 @@
 
 /* Events for Channels 0-2 */
 #define MFC_DMA_TAG_STATUS_UPDATE_EVENT     0x00000001
-#define MFC_DMA_TAG_CMD_STALL_NOTIFY_EVENT  0x00000002
+#define MFC_DMA_TAG_CMD_STALL_ANALTIFY_EVENT  0x00000002
 #define MFC_DMA_QUEUE_AVAILABLE_EVENT       0x00000008
 #define MFC_SPU_MAILBOX_WRITTEN_EVENT       0x00000010
 #define MFC_DECREMENTER_EVENT               0x00000020
@@ -95,7 +95,7 @@
 struct spu_context;
 struct spu_runqueue;
 struct spu_lscsa;
-struct device_node;
+struct device_analde;
 
 enum spu_utilization_state {
 	SPU_UTIL_USER,
@@ -117,7 +117,7 @@ struct spu {
 	enum { SPU_FREE, SPU_USED } alloc_state;
 	int number;
 	unsigned int irqs[3];
-	u32 node;
+	u32 analde;
 	unsigned long flags;
 	u64 class_0_pending;
 	u64 class_0_dar;
@@ -147,7 +147,7 @@ struct spu {
 	void* pdata; /* platform private data */
 
 	/* of based platforms only */
-	struct device_node *devnode;
+	struct device_analde *devanalde;
 
 	/* native only */
 	struct spu_priv1 __iomem *priv1;
@@ -217,9 +217,9 @@ struct spufs_calls {
 					struct file *neighbor);
 	long (*spu_run)(struct file *filp, __u32 __user *unpc,
 						__u32 __user *ustatus);
-	int (*coredump_extra_notes_size)(void);
-	int (*coredump_extra_notes_write)(struct coredump_params *cprm);
-	void (*notify_spus_active)(void);
+	int (*coredump_extra_analtes_size)(void);
+	int (*coredump_extra_analtes_write)(struct coredump_params *cprm);
+	void (*analtify_spus_active)(void);
 	struct module *owner;
 };
 
@@ -235,7 +235,7 @@ struct spufs_calls {
  */
 #define SPU_CREATE_EVENTS_ENABLED	0x0001
 #define SPU_CREATE_GANG			0x0002
-#define SPU_CREATE_NOSCHED		0x0004
+#define SPU_CREATE_ANALSCHED		0x0004
 #define SPU_CREATE_ISOLATE		0x0008
 #define SPU_CREATE_AFFINITY_SPU		0x0010
 #define SPU_CREATE_AFFINITY_MEM		0x0020
@@ -252,8 +252,8 @@ void spu_remove_dev_attr(struct device_attribute *attr);
 int spu_add_dev_attr_group(const struct attribute_group *attrs);
 void spu_remove_dev_attr_group(const struct attribute_group *attrs);
 
-extern void notify_spus_active(void);
-extern void do_notify_spus_active(void);
+extern void analtify_spus_active(void);
+extern void do_analtify_spus_active(void);
 
 /*
  * This defines the Local Store, Problem Area and Privilege Area of an SPU.
@@ -335,11 +335,11 @@ struct spu_problem {
 	u32 spu_npc_RW;						/* 0x4034 */
 	u8  pad_0x4038_0x14000[0x14000 - 0x4038];		/* 0x4038 */
 
-	/* Signal Notification Area */
+	/* Signal Analtification Area */
 	u8  pad_0x14000_0x1400c[0xc];				/* 0x14000 */
-	u32 signal_notify1;					/* 0x1400c */
+	u32 signal_analtify1;					/* 0x1400c */
 	u8  pad_0x14010_0x1c00c[0x7ffc];			/* 0x14010 */
-	u32 signal_notify2;					/* 0x1c00c */
+	u32 signal_analtify2;					/* 0x1c00c */
 } __attribute__ ((aligned(0x20000)));
 
 /* SPU Privilege 2 State Area */
@@ -358,7 +358,7 @@ struct spu_priv2 {
 #define SLB_VSID_PROBLEM_STATE		(0x1ull << 10)
 #define SLB_VSID_PROBLEM_STATE_MASK	(0x1ull << 10)
 #define SLB_VSID_EXECUTE_SEGMENT	(0x1ull << 9)
-#define SLB_VSID_NO_EXECUTE_SEGMENT	(0x1ull << 9)
+#define SLB_VSID_ANAL_EXECUTE_SEGMENT	(0x1ull << 9)
 #define SLB_VSID_EXECUTE_SEGMENT_MASK	(0x1ull << 9)
 #define SLB_VSID_4K_PAGE		(0x0 << 8)
 #define SLB_VSID_LARGE_PAGE		(0x1ull << 8)
@@ -380,7 +380,7 @@ struct spu_priv2 {
 #define MFC_CNTL_SUSPEND_DMA_QUEUE		(1ull << 0)
 #define MFC_CNTL_SUSPEND_DMA_QUEUE_MASK		(1ull << 0)
 #define MFC_CNTL_SUSPEND_MASK			(1ull << 4)
-#define MFC_CNTL_NORMAL_DMA_QUEUE_OPERATION	(0ull << 8)
+#define MFC_CNTL_ANALRMAL_DMA_QUEUE_OPERATION	(0ull << 8)
 #define MFC_CNTL_SUSPEND_IN_PROGRESS		(1ull << 8)
 #define MFC_CNTL_SUSPEND_COMPLETE		(3ull << 8)
 #define MFC_CNTL_SUSPEND_DMA_STATUS_MASK	(3ull << 8)
@@ -407,13 +407,13 @@ struct spu_priv2 {
 
 	/* SPU Control */
 	u64 spu_privcntl_RW;					/* 0x4040 */
-#define SPU_PRIVCNTL_MODE_NORMAL		(0x0ull << 0)
+#define SPU_PRIVCNTL_MODE_ANALRMAL		(0x0ull << 0)
 #define SPU_PRIVCNTL_MODE_SINGLE_STEP		(0x1ull << 0)
 #define SPU_PRIVCNTL_MODE_MASK			(0x1ull << 0)
-#define SPU_PRIVCNTL_NO_ATTENTION_EVENT		(0x0ull << 1)
+#define SPU_PRIVCNTL_ANAL_ATTENTION_EVENT		(0x0ull << 1)
 #define SPU_PRIVCNTL_ATTENTION_EVENT		(0x1ull << 1)
 #define SPU_PRIVCNTL_ATTENTION_EVENT_MASK	(0x1ull << 1)
-#define SPU_PRIVCNT_LOAD_REQUEST_NORMAL		(0x0ull << 2)
+#define SPU_PRIVCNT_LOAD_REQUEST_ANALRMAL		(0x0ull << 2)
 #define SPU_PRIVCNT_LOAD_REQUEST_ENABLE_MASK	(0x1ull << 2)
 	u8  pad_0x4048_0x4058[0x10];				/* 0x4048 */
 	u64 spu_lslr_RW;					/* 0x4058 */
@@ -553,7 +553,7 @@ struct spu_priv1 {
 #define MFC_ACCR_LS_ACCESS_PUT		(1 << 4)
 	u8  pad_0x608_0x610[0x8];				/* 0x608 */
 	u64 mfc_dsisr_RW;					/* 0x610 */
-#define MFC_DSISR_PTE_NOT_FOUND		(1 << 30)
+#define MFC_DSISR_PTE_ANALT_FOUND		(1 << 30)
 #define MFC_DSISR_ACCESS_DENIED		(1 << 27)
 #define MFC_DSISR_ATOMIC		(1 << 26)
 #define MFC_DSISR_ACCESS_PUT		(1 << 25)

@@ -4,7 +4,7 @@
 #ifndef __ASSEMBLY__
 
 /*
- * These structs MUST NOT be changed.
+ * These structs MUST ANALT be changed.
  * They are the ABI between hypervisor and guest OS.
  * Both Xen and KVM are using this.
  *

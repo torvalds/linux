@@ -14,7 +14,7 @@ maintainers:
 description: |
   The ROHM BD99954 is a Battery Management LSI for 1-4 cell Lithium-Ion
   secondary battery intended to be used in space-constraint equipment such
-  as Low profile Notebook PC, Tablets and other applications. BD99954
+  as Low profile Analtebook PC, Tablets and other applications. BD99954
   provides a Dual-source Battery Charger, two port BC1.2 detection and a
   Battery Monitor.
 
@@ -121,7 +121,7 @@ properties:
 
   monitored-battery:
     description:
-      phandle of battery characteristics devicetree node
+      phandle of battery characteristics devicetree analde
 
   rohm,vsys-regulation-microvolt:
     description: system specific lower limit for system voltage.

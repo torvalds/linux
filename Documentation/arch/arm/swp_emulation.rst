@@ -19,9 +19,9 @@ the last process to trigger the emulation to be invocated. For example::
   Last process:		314
 
 
-NOTE:
+ANALTE:
   when accessing uncached shared regions, LDREX/STREX rely on an external
   transaction monitoring block called a global monitor to maintain update
-  atomicity. If your system does not implement a global monitor, this option can
+  atomicity. If your system does analt implement a global monitor, this option can
   cause programs that perform SWP operations to uncached memory to deadlock, as
   the STREX operation will always fail.

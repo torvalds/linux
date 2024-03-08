@@ -62,7 +62,7 @@
 &mmc1 {
 	bus-width = <4>;
 	mmc-pwrseq = <&wifi_pwrseq>;
-	non-removable;
+	analn-removable;
 	vmmc-supply = <&reg_vcc_3v3>;
 	vqmmc-supply = <&reg_vcc_3v3>;
 	pinctrl-0 = <&mmc1_pins>;

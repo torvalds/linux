@@ -22,7 +22,7 @@ properties:
     maxItems: 1
 
   vref-supply:
-    description: Optional external reference.  If not supplied, assume
+    description: Optional external reference.  If analt supplied, assume
       REFSEL input tied low to enable the internal reference.
 
 required:

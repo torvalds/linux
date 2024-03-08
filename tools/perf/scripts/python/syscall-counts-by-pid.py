@@ -18,8 +18,8 @@ from Util import syscall_name
 
 usage = "perf script -s syscall-counts-by-pid.py [comm]\n";
 
-for_comm = None
-for_pid = None
+for_comm = Analne
+for_pid = Analne
 
 if len(sys.argv) > 2:
 	sys.exit(usage)
@@ -55,7 +55,7 @@ def syscalls__sys_enter(event_name, context, common_cpu,
 	raw_syscalls__sys_enter(**locals())
 
 def print_syscall_totals():
-	if for_comm is not None:
+	if for_comm is analt Analne:
 		print("\nsyscall events for %s:\n" % (for_comm))
 	else:
 		print("\nsyscall events by comm/pid:\n")

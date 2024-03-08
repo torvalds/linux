@@ -104,7 +104,7 @@ static int bcm2835_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	/* set polarity */
 	val = readl(pc->base + PWM_CONTROL);
 
-	if (state->polarity == PWM_POLARITY_NORMAL)
+	if (state->polarity == PWM_POLARITY_ANALRMAL)
 		val &= ~(PWM_POLARITY << PWM_CONTROL_SHIFT(pwm->hwpwm));
 	else
 		val |= PWM_POLARITY << PWM_CONTROL_SHIFT(pwm->hwpwm);
@@ -140,7 +140,7 @@ static int bcm2835_pwm_probe(struct platform_device *pdev)
 
 	pc = devm_kzalloc(&pdev->dev, sizeof(*pc), GFP_KERNEL);
 	if (!pc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pc->dev = &pdev->dev;
 
@@ -151,7 +151,7 @@ static int bcm2835_pwm_probe(struct platform_device *pdev)
 	pc->clk = devm_clk_get_enabled(&pdev->dev, NULL);
 	if (IS_ERR(pc->clk))
 		return dev_err_probe(&pdev->dev, PTR_ERR(pc->clk),
-				     "clock not found\n");
+				     "clock analt found\n");
 
 	ret = clk_rate_exclusive_get(pc->clk);
 	if (ret)

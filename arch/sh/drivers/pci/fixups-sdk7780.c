@@ -6,7 +6,7 @@
  *
  * Copyright (C) 2003  Lineo uSolutions, Inc.
  * Copyright (C) 2004 - 2006  Paul Mundt
- * Copyright (C) 2006  Nobuhiro Iwamatsu
+ * Copyright (C) 2006  Analbuhiro Iwamatsu
  */
 #include <linux/pci.h>
 #include <linux/io.h>

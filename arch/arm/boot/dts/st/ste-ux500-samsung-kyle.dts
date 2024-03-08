@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Devicetree for the Samsung Galaxy Amp SGH-I407 also known as Kyle.
+ * Devicetree for the Samsung Galaxy Amp SGH-I407 also kanalwn as Kyle.
  *
  * The code also refers to "Kyle AT&T" reflecting that this mobile phone
  * was customized for the AT&T subsidiary Aio Wireless (All In One) and
@@ -247,7 +247,7 @@
 			arm,primecell-periphid = <0x10480180>;
 			max-frequency = <50000000>;
 			bus-width = <4>;
-			non-removable;
+			analn-removable;
 			cap-sd-highspeed;
 			vmmc-supply = <&wlan_en>;
 			pinctrl-names = "default", "sleep";
@@ -276,11 +276,11 @@
 			arm,primecell-periphid = <0x10480180>;
 		        max-frequency = <100000000>;
 			bus-width = <8>;
-			non-removable;
+			analn-removable;
 			cap-mmc-highspeed;
 			mmc-ddr-1_8v;
-			no-sdio;
-			no-sd;
+			anal-sdio;
+			anal-sd;
 			/* From datasheet page 26 figure 9: 300 ms set-up time for 4GB */
 			post-power-on-delay-ms = <300>;
 			vmmc-supply = <&ldo_3v3_reg>;
@@ -322,7 +322,7 @@
 				/* GPS_RSTN on GPIO21 */
 				reset-gpios = <&gpio0 21 GPIO_ACTIVE_LOW>;
 				/* GPS_ON_OFF on GPIO86 */
-				sirf,onoff-gpios = <&gpio2 22 GPIO_ACTIVE_HIGH>;
+				sirf,oanalff-gpios = <&gpio2 22 GPIO_ACTIVE_HIGH>;
 				/* GPS_1V8 (VSMPS2) */
 				vcc-supply = <&db8500_vsmps2_reg>;
 				pinctrl-names = "default";
@@ -489,7 +489,7 @@
 					 * here instead. In that case the boot loader needs to
 					 * modify this compatible.
 					 */
-					compatible = "hydis,hva40wv1", "novatek,nt35510";
+					compatible = "hydis,hva40wv1", "analvatek,nt35510";
 					reg = <0>;
 					/* v_lcd_3v0 2.3-4.8V */
 					vdd-supply = <&lcd_3v0_reg>;
@@ -533,7 +533,7 @@
 			};
 			default_cfg1 {
 				pins = "GPIO68_E1"; /* VSI0 */
-				ste,config = <&in_nopull>;
+				ste,config = <&in_analpull>;
 			};
 		};
 	};
@@ -547,7 +547,7 @@
 				 * on "PBA" which I guess is "prototype board A".
 				 */
 				pins = "GPIO93_B7";
-				ste,config = <&gpio_in_nopull>;
+				ste,config = <&gpio_in_analpull>;
 			};
 			kyle_cfg2 {
 				pins = "GPIO139_C9";
@@ -624,7 +624,7 @@
 		gp2ap002_kyle_default: gp2ap002_kyle {
 			kyle_cfg1 {
 				pins = "GPIO146_D13";
-				ste,config = <&gpio_in_nopull>;
+				ste,config = <&gpio_in_analpull>;
 			};
 		};
 	};
@@ -633,7 +633,7 @@
 		i2c_gpio_0_default: i2c_gpio_0 {
 			kyle_cfg1 {
 				pins = "GPIO143_D12", "GPIO144_B13";
-				ste,config = <&gpio_in_nopull>;
+				ste,config = <&gpio_in_analpull>;
 			};
 		};
 	};
@@ -642,7 +642,7 @@
 		i2c_gpio_1_default: i2c_gpio_1 {
 			kyle_cfg1 {
 				pins = "GPIO151_B17", "GPIO152_D16";
-				ste,config = <&gpio_in_nopull>;
+				ste,config = <&gpio_in_analpull>;
 			};
 		};
 	};
@@ -668,7 +668,7 @@
 			};
 			kyle_cfg2 {
 				pins = "GPIO97_D9";
-				ste,config = <&gpio_in_nopull>;
+				ste,config = <&gpio_in_analpull>;
 			};
 		};
 	};
@@ -685,7 +685,7 @@
 		mms134s_kyle_default: mms134s_kyle {
 			kyle_cfg1 {
 				pins = "GPIO218_AH11";
-				ste,config = <&gpio_in_nopull>;
+				ste,config = <&gpio_in_analpull>;
 			};
 		};
 	};

@@ -9,7 +9,7 @@
 #ifndef _ASM_X86_SMAP_H
 #define _ASM_X86_SMAP_H
 
-#include <asm/nops.h>
+#include <asm/analps.h>
 #include <asm/cpufeatures.h>
 #include <asm/alternative.h>
 
@@ -29,13 +29,13 @@
 
 static __always_inline void clac(void)
 {
-	/* Note: a barrier is implicit in alternative() */
+	/* Analte: a barrier is implicit in alternative() */
 	alternative("", __ASM_CLAC, X86_FEATURE_SMAP);
 }
 
 static __always_inline void stac(void)
 {
-	/* Note: a barrier is implicit in alternative() */
+	/* Analte: a barrier is implicit in alternative() */
 	alternative("", __ASM_STAC, X86_FEATURE_SMAP);
 }
 

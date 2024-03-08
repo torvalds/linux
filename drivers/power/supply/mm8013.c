@@ -27,7 +27,7 @@
  #define MM8013_FLAG_UT			BIT(3)
  #define MM8013_FLAG_DSG		BIT(0)
 #define REG_FULL_CHARGE_CAPACITY	0x0e
-#define REG_NOMINAL_CHARGE_CAPACITY	0x0c
+#define REG_ANALMINAL_CHARGE_CAPACITY	0x0c
 #define REG_AVERAGE_CURRENT		0x14
 #define REG_AVERAGE_TIME_TO_EMPTY	0x16
 #define REG_AVERAGE_TIME_TO_FULL	0x18
@@ -35,7 +35,7 @@
 #define REG_CYCLE_COUNT			0x2a
 #define REG_STATE_OF_CHARGE		0x2c
 #define REG_DESIGN_CAPACITY		0x3c
-/* TODO: 0x62-0x68 seem to contain 'MM8013C' in a length-prefixed, non-terminated string */
+/* TODO: 0x62-0x68 seem to contain 'MM8013C' in a length-prefixed, analn-terminated string */
 
 #define DECIKELVIN_TO_DECIDEGC(t)	(t - 2731)
 
@@ -74,9 +74,9 @@ static enum power_supply_property mm8013_battery_props[] = {
 	POWER_SUPPLY_PROP_CHARGE_BEHAVIOUR,
 	POWER_SUPPLY_PROP_CHARGE_FULL,
 	POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN,
-	POWER_SUPPLY_PROP_CHARGE_NOW,
+	POWER_SUPPLY_PROP_CHARGE_ANALW,
 	POWER_SUPPLY_PROP_CURRENT_MAX,
-	POWER_SUPPLY_PROP_CURRENT_NOW,
+	POWER_SUPPLY_PROP_CURRENT_ANALW,
 	POWER_SUPPLY_PROP_CYCLE_COUNT,
 	POWER_SUPPLY_PROP_HEALTH,
 	POWER_SUPPLY_PROP_PRESENT,
@@ -84,7 +84,7 @@ static enum power_supply_property mm8013_battery_props[] = {
 	POWER_SUPPLY_PROP_TEMP,
 	POWER_SUPPLY_PROP_TIME_TO_EMPTY_AVG,
 	POWER_SUPPLY_PROP_TIME_TO_FULL_AVG,
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
+	POWER_SUPPLY_PROP_VOLTAGE_ANALW,
 };
 
 static int mm8013_get_property(struct power_supply *psy,
@@ -127,8 +127,8 @@ static int mm8013_get_property(struct power_supply *psy,
 
 		val->intval = 1000 * regval;
 		break;
-	case POWER_SUPPLY_PROP_CHARGE_NOW:
-		ret = regmap_read(chip->regmap, REG_NOMINAL_CHARGE_CAPACITY, &regval);
+	case POWER_SUPPLY_PROP_CHARGE_ANALW:
+		ret = regmap_read(chip->regmap, REG_ANALMINAL_CHARGE_CAPACITY, &regval);
 		if (ret < 0)
 			return ret;
 
@@ -141,7 +141,7 @@ static int mm8013_get_property(struct power_supply *psy,
 
 		val->intval = -1000 * (s16)regval;
 		break;
-	case POWER_SUPPLY_PROP_CURRENT_NOW:
+	case POWER_SUPPLY_PROP_CURRENT_ANALW:
 		ret = regmap_read(chip->regmap, REG_AVERAGE_CURRENT, &regval);
 		if (ret < 0)
 			return ret;
@@ -192,7 +192,7 @@ static int mm8013_get_property(struct power_supply *psy,
 		else if (regval & MM8013_FLAG_FC)
 			val->intval = POWER_SUPPLY_STATUS_FULL;
 		else
-			val->intval = POWER_SUPPLY_STATUS_UNKNOWN;
+			val->intval = POWER_SUPPLY_STATUS_UNKANALWN;
 		break;
 	case POWER_SUPPLY_PROP_TEMP:
 		ret = regmap_read(chip->regmap, REG_TEMPERATURE, &regval);
@@ -206,9 +206,9 @@ static int mm8013_get_property(struct power_supply *psy,
 		if (ret < 0)
 			return ret;
 
-		/* The estimation is not yet ready */
+		/* The estimation is analt yet ready */
 		if (regval == U16_MAX)
-			return -ENODATA;
+			return -EANALDATA;
 
 		val->intval = regval;
 		break;
@@ -217,13 +217,13 @@ static int mm8013_get_property(struct power_supply *psy,
 		if (ret < 0)
 			return ret;
 
-		/* The estimation is not yet ready */
+		/* The estimation is analt yet ready */
 		if (regval == U16_MAX)
-			return -ENODATA;
+			return -EANALDATA;
 
 		val->intval = regval;
 		break;
-	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
+	case POWER_SUPPLY_PROP_VOLTAGE_ANALW:
 		ret = regmap_read(chip->regmap, REG_VOLTAGE, &regval);
 		if (ret < 0)
 			return ret;
@@ -264,11 +264,11 @@ static int mm8013_probe(struct i2c_client *client)
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_WORD_DATA))
 		return dev_err_probe(dev, -EIO,
-				     "I2C_FUNC_SMBUS_WORD_DATA not supported\n");
+				     "I2C_FUNC_SMBUS_WORD_DATA analt supported\n");
 
 	chip = devm_kzalloc(dev, sizeof(struct mm8013_chip), GFP_KERNEL);
 	if (!chip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip->client = client;
 
@@ -280,10 +280,10 @@ static int mm8013_probe(struct i2c_client *client)
 
 	ret = mm8013_checkdevice(chip);
 	if (ret)
-		return dev_err_probe(dev, ret, "MM8013 not found\n");
+		return dev_err_probe(dev, ret, "MM8013 analt found\n");
 
 	psy_cfg.drv_data = chip;
-	psy_cfg.of_node = dev->of_node;
+	psy_cfg.of_analde = dev->of_analde;
 
 	psy = devm_power_supply_register(dev, &mm8013_desc, &psy_cfg);
 	if (IS_ERR(psy))

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  *	pci.h
  *
@@ -32,7 +32,7 @@
 #define PCI_SLOT(devfn)		(((devfn) >> 3) & 0x1f)
 #define PCI_FUNC(devfn)		((devfn) & 0x07)
 
-/* Ioctls for /proc/bus/pci/X/Y nodes. */
+/* Ioctls for /proc/bus/pci/X/Y analdes. */
 #define PCIIOC_BASE		('P' << 24 | 'C' << 16 | 'I' << 8)
 #define PCIIOC_CONTROLLER	(PCIIOC_BASE | 0x00)	/* Get controller for PCI device. */
 #define PCIIOC_MMAP_IS_IO	(PCIIOC_BASE | 0x01)	/* Set mmap state to I/O space. */

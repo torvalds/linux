@@ -10,7 +10,7 @@
 #include <linux/workqueue.h>
 #include <linux/skbuff.h>
 #include <linux/timer.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/inetdevice.h>
 #include <linux/ip.h>
 #include <linux/tcp.h>
@@ -22,24 +22,24 @@
 
 static void __set_tcb_field_direct(struct chtls_sock *csk,
 				   struct cpl_set_tcb_field *req, u16 word,
-				   u64 mask, u64 val, u8 cookie, int no_reply)
+				   u64 mask, u64 val, u8 cookie, int anal_reply)
 {
 	struct ulptx_idata *sc;
 
 	INIT_TP_WR_CPL(req, CPL_SET_TCB_FIELD, csk->tid);
 	req->wr.wr_mid |= htonl(FW_WR_FLOWID_V(csk->tid));
-	req->reply_ctrl = htons(NO_REPLY_V(no_reply) |
-				QUEUENO_V(csk->rss_qid));
+	req->reply_ctrl = htons(ANAL_REPLY_V(anal_reply) |
+				QUEUEANAL_V(csk->rss_qid));
 	req->word_cookie = htons(TCB_WORD_V(word) | TCB_COOKIE_V(cookie));
 	req->mask = cpu_to_be64(mask);
 	req->val = cpu_to_be64(val);
 	sc = (struct ulptx_idata *)(req + 1);
-	sc->cmd_more = htonl(ULPTX_CMD_V(ULP_TX_SC_NOOP));
+	sc->cmd_more = htonl(ULPTX_CMD_V(ULP_TX_SC_ANALOP));
 	sc->len = htonl(0);
 }
 
 static void __set_tcb_field(struct sock *sk, struct sk_buff *skb, u16 word,
-			    u64 mask, u64 val, u8 cookie, int no_reply)
+			    u64 mask, u64 val, u8 cookie, int anal_reply)
 {
 	struct cpl_set_tcb_field *req;
 	struct chtls_sock *csk;
@@ -50,7 +50,7 @@ static void __set_tcb_field(struct sock *sk, struct sk_buff *skb, u16 word,
 	csk = rcu_dereference_sk_user_data(sk);
 
 	req = (struct cpl_set_tcb_field *)__skb_put(skb, wrlen);
-	__set_tcb_field_direct(csk, req, word, mask, val, cookie, no_reply);
+	__set_tcb_field_direct(csk, req, word, mask, val, cookie, anal_reply);
 	set_wr_txq(skb, CPL_PRIORITY_CONTROL, csk->port_id);
 }
 
@@ -72,7 +72,7 @@ static int chtls_set_tcb_field(struct sock *sk, u16 word, u64 mask, u64 val)
 
 	skb = alloc_skb(wrlen, GFP_ATOMIC);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	credits_needed = DIV_ROUND_UP(wrlen, 16);
 	csk = rcu_dereference_sk_user_data(sk);
@@ -98,7 +98,7 @@ void chtls_set_tcb_field_rpl_skb(struct sock *sk, u16 word,
 	wrlen = sizeof(struct cpl_set_tcb_field) + sizeof(struct ulptx_idata);
 	wrlen = roundup(wrlen, 16);
 
-	skb = alloc_skb(wrlen, GFP_KERNEL | __GFP_NOFAIL);
+	skb = alloc_skb(wrlen, GFP_KERNEL | __GFP_ANALFAIL);
 	if (!skb)
 		return;
 
@@ -120,7 +120,7 @@ static int chtls_set_tcb_keyid(struct sock *sk, int keyid)
 	return chtls_set_tcb_field(sk, 31, 0xFFFFFFFFULL, keyid);
 }
 
-static int chtls_set_tcb_seqno(struct sock *sk)
+static int chtls_set_tcb_seqanal(struct sock *sk)
 {
 	return chtls_set_tcb_field(sk, 28, ~0ULL, 0);
 }
@@ -168,7 +168,7 @@ int chtls_init_kmap(struct chtls_dev *cdev, struct cxgb4_lld_info *lldi)
 	ksize = sizeof(*cdev->kmap.addr) * bsize;
 	cdev->kmap.addr = kvzalloc(ksize, GFP_KERNEL);
 	if (!cdev->kmap.addr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cdev->kmap.start = lldi->vr->key.start;
 	spin_lock_init(&cdev->kmap.lock);
@@ -337,8 +337,8 @@ static void chtls_set_scmd(struct chtls_sock *csk)
 {
 	struct chtls_hws *hws = &csk->tlshws;
 
-	hws->scmd.seqno_numivs =
-		SCMD_SEQ_NO_CTRL_V(3) |
+	hws->scmd.seqanal_numivs =
+		SCMD_SEQ_ANAL_CTRL_V(3) |
 		SCMD_PROTO_VERSION_V(0) |
 		SCMD_ENC_DEC_CTRL_V(0) |
 		SCMD_CIPH_AUTH_SEQ_CTRL_V(1) |
@@ -384,12 +384,12 @@ int chtls_setkey(struct chtls_sock *csk, u32 keylen,
 
 	skb = alloc_skb(len, GFP_KERNEL);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	keyid = get_new_keyid(csk, optname);
 	if (keyid < 0) {
-		ret = -ENOSPC;
-		goto out_nokey;
+		ret = -EANALSPC;
+		goto out_analkey;
 	}
 
 	kaddr = keyid_to_addr(cdev->kmap.start, keyid);
@@ -422,10 +422,10 @@ int chtls_setkey(struct chtls_sock *csk, u32 keylen,
 	kctx = (struct _key_ctx *)(kwr + 1);
 	ret = chtls_key_info(csk, kctx, keylen, optname, cipher_type);
 	if (ret)
-		goto out_notcb;
+		goto out_analtcb;
 
 	if (unlikely(csk_flag(sk, CSK_ABORT_SHUTDOWN)))
-		goto out_notcb;
+		goto out_analtcb;
 
 	set_wr_txq(skb, CPL_PRIORITY_DATA, csk->tlshws.txqid);
 	csk->wr_credits -= DIV_ROUND_UP(len, 16);
@@ -439,7 +439,7 @@ int chtls_setkey(struct chtls_sock *csk, u32 keylen,
 	if (optname == TLS_RX) {
 		ret = chtls_set_tcb_keyid(sk, keyid);
 		if (ret)
-			goto out_notcb;
+			goto out_analtcb;
 		ret = chtls_set_tcb_field(sk, 0,
 					  TCB_ULP_RAW_V(TCB_ULP_RAW_M),
 					  TCB_ULP_RAW_V((TF_TLS_KEY_SIZE_V(1) |
@@ -447,25 +447,25 @@ int chtls_setkey(struct chtls_sock *csk, u32 keylen,
 					  TF_TLS_ACTIVE_V(1) |
 					  TF_TLS_ENABLE_V(1))));
 		if (ret)
-			goto out_notcb;
-		ret = chtls_set_tcb_seqno(sk);
+			goto out_analtcb;
+		ret = chtls_set_tcb_seqanal(sk);
 		if (ret)
-			goto out_notcb;
+			goto out_analtcb;
 		ret = chtls_set_tcb_quiesce(sk, 0);
 		if (ret)
-			goto out_notcb;
+			goto out_analtcb;
 		csk->tlshws.rxkey = keyid;
 	} else {
-		csk->tlshws.tx_seq_no = 0;
+		csk->tlshws.tx_seq_anal = 0;
 		csk->tlshws.txkey = keyid;
 	}
 
 	release_sock(sk);
 	return ret;
-out_notcb:
+out_analtcb:
 	release_sock(sk);
 	free_tls_keyid(sk);
-out_nokey:
+out_analkey:
 	kfree_skb(skb);
 	return ret;
 }

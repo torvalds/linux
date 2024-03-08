@@ -31,7 +31,7 @@ enum iwl_debug_cmds {
 	HOST_EVENT_CFG = 0x3,
 	/**
 	 * @INVALID_WR_PTR_CMD: invalid write pointer, set in the TFD
-	 *	when it's not in use
+	 *	when it's analt in use
 	 */
 	INVALID_WR_PTR_CMD = 0x6,
 	/**
@@ -62,19 +62,19 @@ enum iwl_debug_cmds {
 	/**
 	 * @FW_CLEAR_BUFFER:
 	 * clears the firmware's internal buffer
-	 * no payload
+	 * anal payload
 	 */
 	FW_CLEAR_BUFFER = 0xD,
 	/**
 	 * @MFU_ASSERT_DUMP_NTF:
-	 * &struct iwl_mfu_assert_dump_notif
+	 * &struct iwl_mfu_assert_dump_analtif
 	 */
 	MFU_ASSERT_DUMP_NTF = 0xFE,
 };
 
-/* Error response/notification */
+/* Error response/analtification */
 enum {
-	FW_ERR_UNKNOWN_CMD = 0x0,
+	FW_ERR_UNKANALWN_CMD = 0x0,
 	FW_ERR_INVALID_CMD_PARAM = 0x1,
 	FW_ERR_SERVICE = 0x2,
 	FW_ERR_ARC_MEMORY = 0x3,
@@ -125,24 +125,24 @@ struct iwl_error_resp {
 /**
  * struct iwl_shared_mem_cfg_v2 - Shared memory configuration information
  *
- * @shared_mem_addr: shared memory addr (pre 8000 HW set to 0x0 as MARBH is not
+ * @shared_mem_addr: shared memory addr (pre 8000 HW set to 0x0 as MARBH is analt
  *	accessible)
  * @shared_mem_size: shared memory size
  * @sample_buff_addr: internal sample (mon/adc) buff addr (pre 8000 HW set to
  *	0x0 as accessible only via DBGM RDAT)
  * @sample_buff_size: internal sample buff size
  * @txfifo_addr: start addr of TXF0 (excluding the context table 0.5KB), (pre
- *	8000 HW set to 0x0 as not accessible)
+ *	8000 HW set to 0x0 as analt accessible)
  * @txfifo_size: size of TXF0 ... TXF7
- * @rxfifo_size: RXF1, RXF2 sizes. If there is no RXF2, it'll have a value of 0
+ * @rxfifo_size: RXF1, RXF2 sizes. If there is anal RXF2, it'll have a value of 0
  * @page_buff_addr: used by UMAC and performance debug (page miss analysis),
- *	when paging is not supported this should be 0
+ *	when paging is analt supported this should be 0
  * @page_buff_size: size of %page_buff_addr
  * @rxfifo_addr: Start address of rxFifo
  * @internal_txfifo_addr: start address of internalFifo
  * @internal_txfifo_size: internal fifos' size
  *
- * NOTE: on firmware that don't have IWL_UCODE_TLV_CAPA_EXTEND_SHARED_MEM_CFG
+ * ANALTE: on firmware that don't have IWL_UCODE_TLV_CAPA_EXTEND_SHARED_MEM_CFG
  *	 set, the last 3 members don't exist.
  */
 struct iwl_shared_mem_cfg_v2 {
@@ -186,7 +186,7 @@ struct iwl_shared_mem_lmac_cfg {
  * @rxfifo2_addr: start addr of RXF2
  * @rxfifo2_size: size of RXF2
  * @page_buff_addr: used by UMAC and performance debug (page miss analysis),
- *	when paging is not supported this should be 0
+ *	when paging is analt supported this should be 0
  * @page_buff_size: size of %page_buff_addr
  * @lmac_num: number of LMACs (1 or 2)
  * @lmac_smem: per - LMAC smem data
@@ -209,14 +209,14 @@ struct iwl_shared_mem_cfg {
 } __packed; /* SHARED_MEM_ALLOC_API_S_VER_4 */
 
 /**
- * struct iwl_mfuart_load_notif_v1 - mfuart image version & status
- * ( MFUART_LOAD_NOTIFICATION = 0xb1 )
+ * struct iwl_mfuart_load_analtif_v1 - mfuart image version & status
+ * ( MFUART_LOAD_ANALTIFICATION = 0xb1 )
  * @installed_ver: installed image version
  * @external_ver: external image version
  * @status: MFUART loading status
  * @duration: MFUART loading time
 */
-struct iwl_mfuart_load_notif_v1 {
+struct iwl_mfuart_load_analtif_v1 {
 	__le32 installed_ver;
 	__le32 external_ver;
 	__le32 status;
@@ -224,15 +224,15 @@ struct iwl_mfuart_load_notif_v1 {
 } __packed; /* MFU_LOADER_NTFY_API_S_VER_1 */
 
 /**
- * struct iwl_mfuart_load_notif - mfuart image version & status
- * ( MFUART_LOAD_NOTIFICATION = 0xb1 )
+ * struct iwl_mfuart_load_analtif - mfuart image version & status
+ * ( MFUART_LOAD_ANALTIFICATION = 0xb1 )
  * @installed_ver: installed image version
  * @external_ver: external image version
  * @status: MFUART loading status
  * @duration: MFUART loading time
  * @image_size: MFUART image size in bytes
 */
-struct iwl_mfuart_load_notif {
+struct iwl_mfuart_load_analtif {
 	__le32 installed_ver;
 	__le32 external_ver;
 	__le32 status;
@@ -242,16 +242,16 @@ struct iwl_mfuart_load_notif {
 } __packed; /* MFU_LOADER_NTFY_API_S_VER_2 */
 
 /**
- * struct iwl_mfu_assert_dump_notif - mfuart dump logs
+ * struct iwl_mfu_assert_dump_analtif - mfuart dump logs
  * ( MFU_ASSERT_DUMP_NTF = 0xfe )
- * @assert_id: mfuart assert id that cause the notif
+ * @assert_id: mfuart assert id that cause the analtif
  * @curr_reset_num: number of asserts since uptime
  * @index_num: current chunk id
  * @parts_num: total number of chunks
  * @data_size: number of data bytes sent
  * @data: data buffer
  */
-struct iwl_mfu_assert_dump_notif {
+struct iwl_mfu_assert_dump_analtif {
 	__le32   assert_id;
 	__le32   curr_reset_num;
 	__le16   index_num;
@@ -497,7 +497,7 @@ struct iwl_mvm_tas_status_resp {
  *	multi user trigger mode
  * @TAS_DYNA_INACTIVE_BLOCK_LISTED: TAS is disabled because  current mcc
  *	is blocklisted mcc
- * @TAS_DYNA_INACTIVE_UHB_NON_US: TAS is disabled because current band is UHB
+ * @TAS_DYNA_INACTIVE_UHB_ANALN_US: TAS is disabled because current band is UHB
  *	and current mcc is USA
  * @TAS_DYNA_ACTIVE: TAS is currently active
  * @TAS_DYNA_STATUS_MAX: TAS status max value
@@ -507,7 +507,7 @@ enum iwl_mvm_tas_dyna_status {
 	TAS_DYNA_INACTIVE_MVM_MODE,
 	TAS_DYNA_INACTIVE_TRIGGER_MODE,
 	TAS_DYNA_INACTIVE_BLOCK_LISTED,
-	TAS_DYNA_INACTIVE_UHB_NON_US,
+	TAS_DYNA_INACTIVE_UHB_ANALN_US,
 	TAS_DYNA_ACTIVE,
 
 	TAS_DYNA_STATUS_MAX,

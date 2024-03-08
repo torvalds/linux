@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef __ASM_S390_UAPI_RAW3270_H
 #define __ASM_S390_UAPI_RAW3270_H
 
@@ -58,11 +58,11 @@
 #define TAC_DEFAULT	0x00
 
 /* Write Control Characters */
-#define TW_NONE		0x40		/* No particular action */
+#define TW_ANALNE		0x40		/* Anal particular action */
 #define TW_KR		0xc2		/* Keyboard restore */
 #define TW_PLUSALARM	0x04		/* Add this bit for alarm */
 
-#define RAW3270_FIRSTMINOR	1	/* First minor number */
+#define RAW3270_FIRSTMIANALR	1	/* First mianalr number */
 #define RAW3270_MAXDEVS		255	/* Max number of 3270 devices */
 
 #define AID_CLEAR		0x6d

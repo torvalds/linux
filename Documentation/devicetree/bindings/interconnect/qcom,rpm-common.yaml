@@ -12,7 +12,7 @@ maintainers:
 description:
   RPM interconnect providers support for managing system bandwidth requirements
   through manual requests based on either predefined values or as indicated by
-  the bus monitor hardware. Each provider node represents a NoC bus master,
+  the bus monitor hardware. Each provider analde represents a AnalC bus master,
   driven by a dedicated clock source.
 
 properties:

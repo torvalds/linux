@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2012 - 2018 Microchip Technology Inc., and its subsidiaries.
+ * Copyright (c) 2012 - 2018 Microchip Techanallogy Inc., and its subsidiaries.
  * All rights reserved.
  */
 
@@ -122,12 +122,12 @@ static int mon_mgmt_tx(struct net_device *dev, const u8 *buf, size_t len)
 	netif_stop_queue(dev);
 	mgmt_tx = kmalloc(sizeof(*mgmt_tx), GFP_ATOMIC);
 	if (!mgmt_tx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mgmt_tx->buff = kmemdup(buf, len, GFP_ATOMIC);
 	if (!mgmt_tx->buff) {
 		kfree(mgmt_tx);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	mgmt_tx->size = len;
@@ -162,7 +162,7 @@ static netdev_tx_t wilc_wfi_mon_xmit(struct sk_buff *skb,
 	if (skb->data[0] == 0xc0 && is_broadcast_ether_addr(&skb->data[4])) {
 		skb2 = dev_alloc_skb(skb->len + sizeof(*cb_hdr));
 		if (!skb2)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		skb_put_data(skb2, skb->data, skb->len);
 

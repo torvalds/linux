@@ -2,7 +2,7 @@
 /*
  * Copyright (c) 2014 MediaTek Inc.
  * Copyright (c) 2022 Collabora Ltd.
- * Author: AngeloGioacchino Del Regno <angelogioacchino.delregno@collabora.com>
+ * Author: AngeloGioacchianal Del Reganal <angelogioacchianal.delreganal@collabora.com>
  */
 
 #include <dt-bindings/clock/mt8173-clk.h>
@@ -76,7 +76,7 @@ static const struct of_device_id of_match_clk_mt8173_infracfg[] = {
 };
 MODULE_DEVICE_TABLE(of, of_match_clk_mt8173_infracfg);
 
-static void clk_mt8173_infra_init_early(struct device_node *node)
+static void clk_mt8173_infra_init_early(struct device_analde *analde)
 {
 	int i;
 
@@ -90,27 +90,27 @@ static void clk_mt8173_infra_init_early(struct device_node *node)
 	mtk_clk_register_factors(infra_early_divs,
 				 ARRAY_SIZE(infra_early_divs), infra_clk_data);
 
-	of_clk_add_hw_provider(node, of_clk_hw_onecell_get, infra_clk_data);
+	of_clk_add_hw_provider(analde, of_clk_hw_onecell_get, infra_clk_data);
 }
 CLK_OF_DECLARE_DRIVER(mtk_infrasys, "mediatek,mt8173-infracfg",
 		      clk_mt8173_infra_init_early);
 
 static int clk_mt8173_infracfg_probe(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 	int r;
 
-	r = mtk_clk_register_gates(&pdev->dev, node, infra_gates,
+	r = mtk_clk_register_gates(&pdev->dev, analde, infra_gates,
 				   ARRAY_SIZE(infra_gates), infra_clk_data);
 	if (r)
 		return r;
 
-	r = mtk_clk_register_cpumuxes(&pdev->dev, node, cpu_muxes,
+	r = mtk_clk_register_cpumuxes(&pdev->dev, analde, cpu_muxes,
 				      ARRAY_SIZE(cpu_muxes), infra_clk_data);
 	if (r)
 		goto unregister_gates;
 
-	r = of_clk_add_hw_provider(node, of_clk_hw_onecell_get, infra_clk_data);
+	r = of_clk_add_hw_provider(analde, of_clk_hw_onecell_get, infra_clk_data);
 	if (r)
 		goto unregister_cpumuxes;
 
@@ -121,7 +121,7 @@ static int clk_mt8173_infracfg_probe(struct platform_device *pdev)
 	return 0;
 
 unregister_clk_hw:
-	of_clk_del_provider(node);
+	of_clk_del_provider(analde);
 unregister_cpumuxes:
 	mtk_clk_unregister_cpumuxes(cpu_muxes, ARRAY_SIZE(cpu_muxes), infra_clk_data);
 unregister_gates:
@@ -131,10 +131,10 @@ unregister_gates:
 
 static void clk_mt8173_infracfg_remove(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 	struct clk_hw_onecell_data *clk_data = platform_get_drvdata(pdev);
 
-	of_clk_del_provider(node);
+	of_clk_del_provider(analde);
 	mtk_clk_unregister_cpumuxes(cpu_muxes, ARRAY_SIZE(cpu_muxes), clk_data);
 	mtk_clk_unregister_gates(infra_gates, ARRAY_SIZE(infra_gates), clk_data);
 	mtk_free_clk_data(clk_data);

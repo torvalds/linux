@@ -192,9 +192,9 @@ void mempool_destroy(mempool_t *pool)
 }
 EXPORT_SYMBOL(mempool_destroy);
 
-int mempool_init_node(mempool_t *pool, int min_nr, mempool_alloc_t *alloc_fn,
+int mempool_init_analde(mempool_t *pool, int min_nr, mempool_alloc_t *alloc_fn,
 		      mempool_free_t *free_fn, void *pool_data,
-		      gfp_t gfp_mask, int node_id)
+		      gfp_t gfp_mask, int analde_id)
 {
 	spin_lock_init(&pool->lock);
 	pool->min_nr	= min_nr;
@@ -203,10 +203,10 @@ int mempool_init_node(mempool_t *pool, int min_nr, mempool_alloc_t *alloc_fn,
 	pool->free	= free_fn;
 	init_waitqueue_head(&pool->wait);
 
-	pool->elements = kmalloc_array_node(min_nr, sizeof(void *),
-					    gfp_mask, node_id);
+	pool->elements = kmalloc_array_analde(min_nr, sizeof(void *),
+					    gfp_mask, analde_id);
 	if (!pool->elements)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * First pre-allocate the guaranteed number of buffers.
@@ -217,14 +217,14 @@ int mempool_init_node(mempool_t *pool, int min_nr, mempool_alloc_t *alloc_fn,
 		element = pool->alloc(gfp_mask, pool->pool_data);
 		if (unlikely(!element)) {
 			mempool_exit(pool);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		add_element(pool, element);
 	}
 
 	return 0;
 }
-EXPORT_SYMBOL(mempool_init_node);
+EXPORT_SYMBOL(mempool_init_analde);
 
 /**
  * mempool_init - initialize a memory pool
@@ -235,7 +235,7 @@ EXPORT_SYMBOL(mempool_init_node);
  * @free_fn:   user-defined element-freeing function.
  * @pool_data: optional private data available to the user-defined functions.
  *
- * Like mempool_create(), but initializes the pool in (i.e. embedded in another
+ * Like mempool_create(), but initializes the pool in (i.e. embedded in aanalther
  * structure).
  *
  * Return: %0 on success, negative error code otherwise.
@@ -243,8 +243,8 @@ EXPORT_SYMBOL(mempool_init_node);
 int mempool_init(mempool_t *pool, int min_nr, mempool_alloc_t *alloc_fn,
 		 mempool_free_t *free_fn, void *pool_data)
 {
-	return mempool_init_node(pool, min_nr, alloc_fn, free_fn,
-				 pool_data, GFP_KERNEL, NUMA_NO_NODE);
+	return mempool_init_analde(pool, min_nr, alloc_fn, free_fn,
+				 pool_data, GFP_KERNEL, NUMA_ANAL_ANALDE);
 
 }
 EXPORT_SYMBOL(mempool_init);
@@ -260,7 +260,7 @@ EXPORT_SYMBOL(mempool_init);
  * this function creates and allocates a guaranteed size, preallocated
  * memory pool. The pool can be used from the mempool_alloc() and mempool_free()
  * functions. This function might sleep. Both the alloc_fn() and the free_fn()
- * functions might sleep - as long as the mempool_alloc() function is not called
+ * functions might sleep - as long as the mempool_alloc() function is analt called
  * from IRQ contexts.
  *
  * Return: pointer to the created memory pool object or %NULL on error.
@@ -268,30 +268,30 @@ EXPORT_SYMBOL(mempool_init);
 mempool_t *mempool_create(int min_nr, mempool_alloc_t *alloc_fn,
 				mempool_free_t *free_fn, void *pool_data)
 {
-	return mempool_create_node(min_nr, alloc_fn, free_fn, pool_data,
-				   GFP_KERNEL, NUMA_NO_NODE);
+	return mempool_create_analde(min_nr, alloc_fn, free_fn, pool_data,
+				   GFP_KERNEL, NUMA_ANAL_ANALDE);
 }
 EXPORT_SYMBOL(mempool_create);
 
-mempool_t *mempool_create_node(int min_nr, mempool_alloc_t *alloc_fn,
+mempool_t *mempool_create_analde(int min_nr, mempool_alloc_t *alloc_fn,
 			       mempool_free_t *free_fn, void *pool_data,
-			       gfp_t gfp_mask, int node_id)
+			       gfp_t gfp_mask, int analde_id)
 {
 	mempool_t *pool;
 
-	pool = kzalloc_node(sizeof(*pool), gfp_mask, node_id);
+	pool = kzalloc_analde(sizeof(*pool), gfp_mask, analde_id);
 	if (!pool)
 		return NULL;
 
-	if (mempool_init_node(pool, min_nr, alloc_fn, free_fn, pool_data,
-			      gfp_mask, node_id)) {
+	if (mempool_init_analde(pool, min_nr, alloc_fn, free_fn, pool_data,
+			      gfp_mask, analde_id)) {
 		kfree(pool);
 		return NULL;
 	}
 
 	return pool;
 }
-EXPORT_SYMBOL(mempool_create_node);
+EXPORT_SYMBOL(mempool_create_analde);
 
 /**
  * mempool_resize - resize an existing memory pool
@@ -301,11 +301,11 @@ EXPORT_SYMBOL(mempool_create_node);
  *              allocated for this pool.
  *
  * This function shrinks/grows the pool. In the case of growing,
- * it cannot be guaranteed that the pool will be grown to the new
+ * it cananalt be guaranteed that the pool will be grown to the new
  * size immediately, but new mempool_free() calls will refill it.
  * This function may sleep.
  *
- * Note, the caller must guarantee that no mempool_destroy is called
+ * Analte, the caller must guarantee that anal mempool_destroy is called
  * while this function is running. mempool_alloc() & mempool_free()
  * might be called (eg. from IRQ contexts) while this function executes.
  *
@@ -337,7 +337,7 @@ int mempool_resize(mempool_t *pool, int new_min_nr)
 	new_elements = kmalloc_array(new_min_nr, sizeof(*new_elements),
 				     GFP_KERNEL);
 	if (!new_elements)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_irqsave(&pool->lock, flags);
 	if (unlikely(new_min_nr <= pool->min_nr)) {
@@ -380,10 +380,10 @@ EXPORT_SYMBOL(mempool_resize);
  * @gfp_mask:  the usual allocation bitmask.
  *
  * this function only sleeps if the alloc_fn() function sleeps or
- * returns NULL. Note that due to preallocation, this function
+ * returns NULL. Analte that due to preallocation, this function
  * *never* fails when called from process contexts. (it might
  * fail if called from an IRQ context.)
- * Note: using __GFP_ZERO is not supported.
+ * Analte: using __GFP_ZERO is analt supported.
  *
  * Return: pointer to the allocated element or %NULL on error.
  */
@@ -397,9 +397,9 @@ void *mempool_alloc(mempool_t *pool, gfp_t gfp_mask)
 	VM_WARN_ON_ONCE(gfp_mask & __GFP_ZERO);
 	might_alloc(gfp_mask);
 
-	gfp_mask |= __GFP_NOMEMALLOC;	/* don't allocate emergency reserves */
-	gfp_mask |= __GFP_NORETRY;	/* don't loop in __alloc_pages */
-	gfp_mask |= __GFP_NOWARN;	/* failures are OK */
+	gfp_mask |= __GFP_ANALMEMALLOC;	/* don't allocate emergency reserves */
+	gfp_mask |= __GFP_ANALRETRY;	/* don't loop in __alloc_pages */
+	gfp_mask |= __GFP_ANALWARN;	/* failures are OK */
 
 	gfp_temp = gfp_mask & ~(__GFP_DIRECT_RECLAIM|__GFP_IO);
 
@@ -433,7 +433,7 @@ repeat_alloc:
 		goto repeat_alloc;
 	}
 
-	/* We must not sleep if !__GFP_DIRECT_RECLAIM */
+	/* We must analt sleep if !__GFP_DIRECT_RECLAIM */
 	if (!(gfp_mask & __GFP_DIRECT_RECLAIM)) {
 		spin_unlock_irqrestore(&pool->lock, flags);
 		return NULL;
@@ -463,10 +463,10 @@ EXPORT_SYMBOL(mempool_alloc);
  *             mempool_create().
  *
  * This function is similar to mempool_alloc, but it only attempts allocating
- * an element from the preallocated elements. It does not sleep and immediately
- * returns if no preallocated elements are available.
+ * an element from the preallocated elements. It does analt sleep and immediately
+ * returns if anal preallocated elements are available.
  *
- * Return: pointer to the allocated element or %NULL if no elements are
+ * Return: pointer to the allocated element or %NULL if anal elements are
  * available.
  */
 void *mempool_alloc_preallocated(mempool_t *pool)
@@ -517,7 +517,7 @@ void mempool_free(void *element, mempool_t *pool)
 	 * barriers.
 	 *
 	 * For example, assume @p is %NULL at the beginning and one task
-	 * performs "p = mempool_alloc(...);" while another task is doing
+	 * performs "p = mempool_alloc(...);" while aanalther task is doing
 	 * "while (!p) cpu_relax(); mempool_free(p, ...);".  This function
 	 * may end up using curr_nr value which is from before allocation
 	 * of @p without the following rmb.

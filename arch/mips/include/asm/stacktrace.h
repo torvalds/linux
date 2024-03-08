@@ -42,7 +42,7 @@ static __always_inline void prepare_frametrace(struct pt_regs *regs)
 #endif
 	__asm__ __volatile__(
 		".set push\n\t"
-		".set noat\n\t"
+		".set analat\n\t"
 		/* Store $1 so we can use it */
 		STR_LONG_S " $1,"STR_LONGSIZE"(%1)\n\t"
 		/* Store the PC */

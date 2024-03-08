@@ -85,7 +85,7 @@ static struct v4l2_input inputs[4] = {
 		.name		= "DVB",
 		.type		= V4L2_INPUT_TYPE_CAMERA,
 		.audioset	= 1,
-		.tuner		= 0, /* ignored */
+		.tuner		= 0, /* iganalred */
 		.std		= V4L2_STD_PAL_BG|V4L2_STD_NTSC_M,
 		.status		= 0,
 		.capabilities	= V4L2_IN_CAP_STD,
@@ -234,7 +234,7 @@ static int av7110_dvb_c_switch(struct saa7146_dev *dev)
 			msp_writereg(av7110, MSP_WR_DSP, 0x0008, 0x0000); // loudspeaker source
 			msp_writereg(av7110, MSP_WR_DSP, 0x0009, 0x0000); // headphone source
 			msp_writereg(av7110, MSP_WR_DSP, 0x000a, 0x0000); // SCART 1 source
-			msp_writereg(av7110, MSP_WR_DSP, 0x000e, 0x3000); // FM matrix, mono
+			msp_writereg(av7110, MSP_WR_DSP, 0x000e, 0x3000); // FM matrix, moanal
 			msp_writereg(av7110, MSP_WR_DSP, 0x0000, 0x4f00); // loudspeaker + headphone
 			msp_writereg(av7110, MSP_WR_DSP, 0x0007, 0x4f00); // SCART 1 volume
 
@@ -270,7 +270,7 @@ static int av7110_dvb_c_switch(struct saa7146_dev *dev)
 		msp_writereg(av7110, MSP_WR_DSP, 0x0008, 0x0220); // loudspeaker source
 		msp_writereg(av7110, MSP_WR_DSP, 0x0009, 0x0220); // headphone source
 		msp_writereg(av7110, MSP_WR_DSP, 0x000a, 0x0220); // SCART 1 source
-		msp_writereg(av7110, MSP_WR_DSP, 0x000e, 0x3000); // FM matrix, mono
+		msp_writereg(av7110, MSP_WR_DSP, 0x000e, 0x3000); // FM matrix, moanal
 		msp_writereg(av7110, MSP_WR_DSP, 0x0000, 0x7f00); // loudspeaker + headphone
 		msp_writereg(av7110, MSP_WR_DSP, 0x0007, 0x7f00); // SCART 1 volume
 
@@ -283,7 +283,7 @@ static int av7110_dvb_c_switch(struct saa7146_dev *dev)
 		}
 	}
 
-	/* hmm, this does not do anything!? */
+	/* hmm, this does analt do anything!? */
 	if (av7110_fw_cmd(av7110, COMTYPE_AUDIODAC, ADSwitch, 1, adswitch))
 		dprintk(1, "ADSwitch error\n");
 
@@ -308,7 +308,7 @@ static int vidioc_g_tuner(struct file *file, void *fh, struct v4l2_tuner *t)
 	strscpy((char *)t->name, "Television", sizeof(t->name));
 
 	t->type = V4L2_TUNER_ANALOG_TV;
-	t->capability = V4L2_TUNER_CAP_NORM | V4L2_TUNER_CAP_STEREO |
+	t->capability = V4L2_TUNER_CAP_ANALRM | V4L2_TUNER_CAP_STEREO |
 		V4L2_TUNER_CAP_LANG1 | V4L2_TUNER_CAP_LANG2 | V4L2_TUNER_CAP_SAP;
 	t->rangelow = 772;	/* 48.25 MHZ / 62.5 kHz = 772, see fi1216mk2-specs, page 2 */
 	t->rangehigh = 13684;	/* 855.25 MHz / 62.5 kHz = 13684 */
@@ -324,14 +324,14 @@ static int vidioc_g_tuner(struct file *file, void *fh, struct v4l2_tuner *t)
 	stereo = (s8)(stereo_det >> 8);
 	if (stereo > 0x10) {
 		/* stereo */
-		t->rxsubchans = V4L2_TUNER_SUB_STEREO | V4L2_TUNER_SUB_MONO;
+		t->rxsubchans = V4L2_TUNER_SUB_STEREO | V4L2_TUNER_SUB_MOANAL;
 		t->audmode = V4L2_TUNER_MODE_STEREO;
 	} else if (stereo < -0x10) {
 		/* bilingual */
 		t->rxsubchans = V4L2_TUNER_SUB_LANG1 | V4L2_TUNER_SUB_LANG2;
 		t->audmode = V4L2_TUNER_MODE_LANG1;
-	} else /* mono */
-		t->rxsubchans = V4L2_TUNER_SUB_MONO;
+	} else /* moanal */
+		t->rxsubchans = V4L2_TUNER_SUB_MOANAL;
 
 	return 0;
 }
@@ -359,17 +359,17 @@ static int vidioc_s_tuner(struct file *file, void *fh, const struct v4l2_tuner *
 		break;
 	case V4L2_TUNER_MODE_LANG1:
 		dprintk(2, "VIDIOC_S_TUNER: V4L2_TUNER_MODE_LANG1\n");
-		fm_matrix = 0x3000; /* mono */
+		fm_matrix = 0x3000; /* moanal */
 		src = 0x0000;
 		break;
 	case V4L2_TUNER_MODE_LANG2:
 		dprintk(2, "VIDIOC_S_TUNER: V4L2_TUNER_MODE_LANG2\n");
-		fm_matrix = 0x3000; /* mono */
+		fm_matrix = 0x3000; /* moanal */
 		src = 0x0010;
 		break;
-	default: /* case V4L2_TUNER_MODE_MONO: */
-		dprintk(2, "VIDIOC_S_TUNER: TDA9840_SET_MONO\n");
-		fm_matrix = 0x3000; /* mono */
+	default: /* case V4L2_TUNER_MODE_MOANAL: */
+		dprintk(2, "VIDIOC_S_TUNER: TDA9840_SET_MOANAL\n");
+		fm_matrix = 0x3000; /* moanal */
 		src = 0x0030;
 		break;
 	}
@@ -710,7 +710,7 @@ int av7110_init_analog_module(struct av7110 *av7110)
 			av7110->dvb_adapter.num);
 		av7110->adac_type = DVB_ADAC_MSP34x5;
 	} else
-		return -ENODEV;
+		return -EANALDEV;
 
 	msleep(100); // the probing above resets the msp...
 	msp_readreg(av7110, MSP_RD_DSP, 0x001e, &version1);
@@ -727,7 +727,7 @@ int av7110_init_analog_module(struct av7110 *av7110)
 	msp_writereg(av7110, MSP_WR_DSP, 0x000d, 0x1900); // prescale SCART
 
 	if (i2c_writereg(av7110, 0x48, 0x01, 0x00)!=1) {
-		pr_info("saa7113 not accessible\n");
+		pr_info("saa7113 analt accessible\n");
 	} else {
 		u8 *i = saa7113_init_regs;
 
@@ -809,8 +809,8 @@ int av7110_init_v4l(struct av7110 *av7110)
 	ret = saa7146_vv_init(dev, vv_data);
 
 	if (ret) {
-		ERR("cannot init capture device. skipping\n");
-		return -ENODEV;
+		ERR("cananalt init capture device. skipping\n");
+		return -EANALDEV;
 	}
 	vv_data->vid_ops.vidioc_enum_input = vidioc_enum_input;
 	vv_data->vid_ops.vidioc_g_input = vidioc_g_input;
@@ -840,13 +840,13 @@ int av7110_init_v4l(struct av7110 *av7110)
 		vv_data->capabilities &= ~V4L2_CAP_SLICED_VBI_OUTPUT;
 
 	if (saa7146_register_device(&av7110->v4l_dev, dev, "av7110", VFL_TYPE_VIDEO)) {
-		ERR("cannot register capture device. skipping\n");
+		ERR("cananalt register capture device. skipping\n");
 		saa7146_vv_release(dev);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	if (FW_VERSION(av7110->arm_app) >= 0x2623) {
 		if (saa7146_register_device(&av7110->vbi_dev, dev, "av7110", VFL_TYPE_VBI))
-			ERR("cannot register vbi v4l2 device. skipping\n");
+			ERR("cananalt register vbi v4l2 device. skipping\n");
 	}
 	return 0;
 }

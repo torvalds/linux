@@ -83,16 +83,16 @@ TRACE_EVENT(wbt_lat,
  * @step: the current scale step count
  * @window: the current monitoring window
  * @bg: the current background queue limit
- * @normal: the current normal writeback limit
+ * @analrmal: the current analrmal writeback limit
  * @max: the current max throughput writeback limit
  */
 TRACE_EVENT(wbt_step,
 
 	TP_PROTO(struct backing_dev_info *bdi, const char *msg,
 		 int step, unsigned long window, unsigned int bg,
-		 unsigned int normal, unsigned int max),
+		 unsigned int analrmal, unsigned int max),
 
-	TP_ARGS(bdi, msg, step, window, bg, normal, max),
+	TP_ARGS(bdi, msg, step, window, bg, analrmal, max),
 
 	TP_STRUCT__entry(
 		__array(char, name, 32)
@@ -100,7 +100,7 @@ TRACE_EVENT(wbt_step,
 		__field(int, step)
 		__field(unsigned long, window)
 		__field(unsigned int, bg)
-		__field(unsigned int, normal)
+		__field(unsigned int, analrmal)
 		__field(unsigned int, max)
 	),
 
@@ -111,13 +111,13 @@ TRACE_EVENT(wbt_step,
 		__entry->step	= step;
 		__entry->window	= div_u64(window, 1000);
 		__entry->bg	= bg;
-		__entry->normal	= normal;
+		__entry->analrmal	= analrmal;
 		__entry->max	= max;
 	),
 
-	TP_printk("%s: %s: step=%d, window=%luus, background=%u, normal=%u, max=%u",
+	TP_printk("%s: %s: step=%d, window=%luus, background=%u, analrmal=%u, max=%u",
 		  __entry->name, __entry->msg, __entry->step, __entry->window,
-		  __entry->bg, __entry->normal, __entry->max)
+		  __entry->bg, __entry->analrmal, __entry->max)
 );
 
 /**

@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0
 
 /*
- * Test that MAP_FIXED_NOREPLACE works.
+ * Test that MAP_FIXED_ANALREPLACE works.
  *
  * Copyright 2018, Jann Horn <jannh@google.com>
  * Copyright 2018, Michael Ellerman, IBM Corporation.
  */
 
 #include <sys/mman.h>
-#include <errno.h>
+#include <erranal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -26,8 +26,8 @@ static unsigned long find_base_addr(unsigned long size)
 	void *addr;
 	unsigned long flags;
 
-	flags = MAP_PRIVATE | MAP_ANONYMOUS;
-	addr = mmap(NULL, size, PROT_NONE, flags, -1, 0);
+	flags = MAP_PRIVATE | MAP_AANALNYMOUS;
+	addr = mmap(NULL, size, PROT_ANALNE, flags, -1, 0);
 	if (addr == MAP_FAILED) {
 		printf("Error: couldn't map the space we need for the test\n");
 		return 0;
@@ -56,13 +56,13 @@ int main(void)
 		return 1;
 	}
 
-	flags = MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED_NOREPLACE;
+	flags = MAP_PRIVATE | MAP_AANALNYMOUS | MAP_FIXED_ANALREPLACE;
 
 	// Check we can map all the areas we need below
-	errno = 0;
+	erranal = 0;
 	addr = base_addr;
 	size = 5 * page_size;
-	p = mmap((void *)addr, size, PROT_NONE, flags, -1, 0);
+	p = mmap((void *)addr, size, PROT_ANALNE, flags, -1, 0);
 
 	printf("mmap() @ 0x%lx-0x%lx p=%p result=%m\n", addr, addr + size, p);
 
@@ -72,7 +72,7 @@ int main(void)
 		return 1;
 	}
 
-	errno = 0;
+	erranal = 0;
 	if (munmap((void *)addr, 5 * page_size) != 0) {
 		dump_maps();
 		printf("Error: munmap failed!?\n");
@@ -80,10 +80,10 @@ int main(void)
 	}
 	printf("unmap() successful\n");
 
-	errno = 0;
+	erranal = 0;
 	addr = base_addr + page_size;
 	size = 3 * page_size;
-	p = mmap((void *)addr, size, PROT_NONE, flags, -1, 0);
+	p = mmap((void *)addr, size, PROT_ANALNE, flags, -1, 0);
 	printf("mmap() @ 0x%lx-0x%lx p=%p result=%m\n", addr, addr + size, p);
 
 	if (p == MAP_FAILED) {
@@ -100,10 +100,10 @@ int main(void)
 	 *     +3 | mapped | new
 	 *     +4 |  free  | new
 	 */
-	errno = 0;
+	erranal = 0;
 	addr = base_addr;
 	size = 5 * page_size;
-	p = mmap((void *)addr, size, PROT_NONE, flags, -1, 0);
+	p = mmap((void *)addr, size, PROT_ANALNE, flags, -1, 0);
 	printf("mmap() @ 0x%lx-0x%lx p=%p result=%m\n", addr, addr + size, p);
 
 	if (p != MAP_FAILED) {
@@ -121,10 +121,10 @@ int main(void)
 	 *     +3 | mapped |
 	 *     +4 |  free  |
 	 */
-	errno = 0;
+	erranal = 0;
 	addr = base_addr + (2 * page_size);
 	size = page_size;
-	p = mmap((void *)addr, size, PROT_NONE, flags, -1, 0);
+	p = mmap((void *)addr, size, PROT_ANALNE, flags, -1, 0);
 	printf("mmap() @ 0x%lx-0x%lx p=%p result=%m\n", addr, addr + size, p);
 
 	if (p != MAP_FAILED) {
@@ -141,10 +141,10 @@ int main(void)
 	 *     +3 | mapped | new
 	 *     +4 |  free  | new
 	 */
-	errno = 0;
+	erranal = 0;
 	addr = base_addr + (3 * page_size);
 	size = 2 * page_size;
-	p = mmap((void *)addr, size, PROT_NONE, flags, -1, 0);
+	p = mmap((void *)addr, size, PROT_ANALNE, flags, -1, 0);
 	printf("mmap() @ 0x%lx-0x%lx p=%p result=%m\n", addr, addr + size, p);
 
 	if (p != MAP_FAILED) {
@@ -161,10 +161,10 @@ int main(void)
 	 *     +3 | mapped |
 	 *     +4 |  free  |
 	 */
-	errno = 0;
+	erranal = 0;
 	addr = base_addr;
 	size = 2 * page_size;
-	p = mmap((void *)addr, size, PROT_NONE, flags, -1, 0);
+	p = mmap((void *)addr, size, PROT_ANALNE, flags, -1, 0);
 	printf("mmap() @ 0x%lx-0x%lx p=%p result=%m\n", addr, addr + size, p);
 
 	if (p != MAP_FAILED) {
@@ -181,10 +181,10 @@ int main(void)
 	 *     +3 | mapped |
 	 *     +4 |  free  |
 	 */
-	errno = 0;
+	erranal = 0;
 	addr = base_addr;
 	size = page_size;
-	p = mmap((void *)addr, size, PROT_NONE, flags, -1, 0);
+	p = mmap((void *)addr, size, PROT_ANALNE, flags, -1, 0);
 	printf("mmap() @ 0x%lx-0x%lx p=%p result=%m\n", addr, addr + size, p);
 
 	if (p == MAP_FAILED) {
@@ -201,10 +201,10 @@ int main(void)
 	 *     +3 | mapped |
 	 *     +4 |  free  |  new
 	 */
-	errno = 0;
+	erranal = 0;
 	addr = base_addr + (4 * page_size);
 	size = page_size;
-	p = mmap((void *)addr, size, PROT_NONE, flags, -1, 0);
+	p = mmap((void *)addr, size, PROT_ANALNE, flags, -1, 0);
 	printf("mmap() @ 0x%lx-0x%lx p=%p result=%m\n", addr, addr + size, p);
 
 	if (p == MAP_FAILED) {

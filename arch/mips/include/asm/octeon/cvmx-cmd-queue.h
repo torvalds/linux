@@ -13,11 +13,11 @@
  * This file is distributed in the hope that it will be useful, but
  * AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
- * NONINFRINGEMENT.  See the GNU General Public License for more
+ * ANALNINFRINGEMENT.  See the GNU General Public License for more
  * details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this file; if not, write to the Free Software
+ * along with this file; if analt, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  * or visit http://www.gnu.org/licenses/.
  *
@@ -43,8 +43,8 @@
  * commands.
  *
  * Even though most software will never directly interact with
- * cvmx-cmd-queue, knowledge of its internal working can help
- * in diagnosing performance problems and help with debugging.
+ * cvmx-cmd-queue, kanalwledge of its internal working can help
+ * in diaganalsing performance problems and help with debugging.
  *
  * Command queue pointers are stored in a global named block
  * called "cvmx_cmd_queues". Except for the PKO queues, each
@@ -54,7 +54,7 @@
  * allows for queues being in separate cache lines when there
  * are low number of queues per port. With 16 queues per port,
  * the first queue for each port is in the same cache area. The
- * second queues for each port are in another area, etc. This
+ * second queues for each port are in aanalther area, etc. This
  * allows software to implement very efficient lockless PKO with
  * 16 queues per port using a minimum of cache lines per core.
  * All queues for a given core will be isolated in the same
@@ -62,10 +62,10 @@
  *
  * In addition to the memory pointer layout, cvmx-cmd-queue
  * provides an optimized fair ll/sc locking mechanism for the
- * queues. The lock uses a "ticket / now serving" model to
+ * queues. The lock uses a "ticket / analw serving" model to
  * maintain fair order on contended locks. In addition, it uses
  * predicted locking time to limit cache contention. When a core
- * know it must wait in line for a lock, it spins on the
+ * kanalw it must wait in line for a lock, it spins on the
  * internal cycle counter to completely eliminate any causes of
  * bus traffic.
  *
@@ -91,7 +91,7 @@
 /**
  * Enumeration representing all hardware blocks that use command
  * queues. Each hardware block has up to 65536 sub identifiers for
- * multiple command queues. Not all chips support all hardware
+ * multiple command queues. Analt all chips support all hardware
  * units.
  */
 typedef enum {
@@ -119,7 +119,7 @@ typedef enum {
  */
 typedef enum {
 	CVMX_CMD_QUEUE_SUCCESS = 0,
-	CVMX_CMD_QUEUE_NO_MEMORY = -1,
+	CVMX_CMD_QUEUE_ANAL_MEMORY = -1,
 	CVMX_CMD_QUEUE_FULL = -2,
 	CVMX_CMD_QUEUE_INVALID_PARAM = -3,
 	CVMX_CMD_QUEUE_ALREADY_SETUP = -4,
@@ -127,7 +127,7 @@ typedef enum {
 
 typedef struct {
 	/* You have lock when this is your ticket */
-	uint8_t now_serving;
+	uint8_t analw_serving;
 	uint64_t unused1:24;
 	/* Maximum outstanding command words */
 	uint32_t max_depth;
@@ -147,7 +147,7 @@ typedef struct {
  * It is stored in a bootmem named block and shared by all
  * applications running on Octeon. Tickets are stored in a different
  * cache line that queue information to reduce the contention on the
- * ll/sc used to get a ticket. If this is not the case, the update
+ * ll/sc used to get a ticket. If this is analt the case, the update
  * of queue state causes the ll/sc to fail quite often.
  */
 typedef struct {
@@ -195,7 +195,7 @@ int cvmx_cmd_queue_length(cvmx_cmd_queue_id_t queue_id);
 /**
  * Return the command buffer to be written to. The purpose of this
  * function is to allow CVMX routine access to the low level buffer
- * for initial hardware setup. User applications should not call this
+ * for initial hardware setup. User applications should analt call this
  * function directly.
  *
  * @queue_id: Command queue to query
@@ -227,7 +227,7 @@ static inline int __cvmx_cmd_queue_get_index(cvmx_cmd_queue_id_t queue_id)
 }
 
 /**
- * Lock the supplied queue so nobody else is updating it at the same
+ * Lock the supplied queue so analbody else is updating it at the same
  * time as us.
  *
  * @queue_id: Queue ID to lock
@@ -243,7 +243,7 @@ static inline void __cvmx_cmd_queue_lock(cvmx_cmd_queue_id_t queue_id,
 	prefetch(qptr);
 	asm volatile (
 		".set push\n"
-		".set noreorder\n"
+		".set analreorder\n"
 		"1:\n"
 		/* Atomic add one to ticket_ptr */
 		"ll	%[my_ticket], %[ticket_ptr]\n"
@@ -253,11 +253,11 @@ static inline void __cvmx_cmd_queue_lock(cvmx_cmd_queue_id_t queue_id,
 		"baddu	%[ticket], %[my_ticket]\n"
 		"sc	%[ticket], %[ticket_ptr]\n"
 		"beqz	%[ticket], 1b\n"
-		" nop\n"
-		/* Load the current now_serving ticket */
-		"lbu	%[ticket], %[now_serving]\n"
+		" analp\n"
+		/* Load the current analw_serving ticket */
+		"lbu	%[ticket], %[analw_serving]\n"
 		"2:\n"
-		/* Jump out if now_serving == my_ticket */
+		/* Jump out if analw_serving == my_ticket */
 		"beq	%[ticket], %[my_ticket], 4f\n"
 		/* Find out how many tickets are in front of me */
 		" subu	 %[ticket], %[my_ticket], %[ticket]\n"
@@ -271,12 +271,12 @@ static inline void __cvmx_cmd_queue_lock(cvmx_cmd_queue_id_t queue_id,
 		" subu	%[ticket], 1\n"
 		/* Jump back up to check out ticket again */
 		"b	2b\n"
-		/* Load the current now_serving ticket */
-		" lbu	%[ticket], %[now_serving]\n"
+		/* Load the current analw_serving ticket */
+		" lbu	%[ticket], %[analw_serving]\n"
 		"4:\n"
 		".set pop\n" :
 		[ticket_ptr] "=" GCC_OFF_SMALL_ASM()(__cvmx_cmd_queue_state_ptr->ticket[__cvmx_cmd_queue_get_index(queue_id)]),
-		[now_serving] "=m"(qptr->now_serving), [ticket] "=r"(tmp),
+		[analw_serving] "=m"(qptr->analw_serving), [ticket] "=r"(tmp),
 		[my_ticket] "=r"(my_ticket)
 	    );
 }
@@ -288,7 +288,7 @@ static inline void __cvmx_cmd_queue_lock(cvmx_cmd_queue_id_t queue_id,
  */
 static inline void __cvmx_cmd_queue_unlock(__cvmx_cmd_queue_state_t *qptr)
 {
-	qptr->now_serving++;
+	qptr->analw_serving++;
 	CVMX_SYNCWS;
 }
 
@@ -331,7 +331,7 @@ static inline cvmx_cmd_queue_result_t cvmx_cmd_queue_write(cvmx_cmd_queue_id_t
 {
 	__cvmx_cmd_queue_state_t *qptr = __cvmx_cmd_queue_get_state(queue_id);
 
-	/* Make sure nobody else is updating the same queue */
+	/* Make sure analbody else is updating the same queue */
 	if (likely(use_locking))
 		__cvmx_cmd_queue_lock(queue_id, qptr);
 
@@ -350,7 +350,7 @@ static inline cvmx_cmd_queue_result_t cvmx_cmd_queue_write(cvmx_cmd_queue_id_t
 	}
 
 	/*
-	 * Normally there is plenty of room in the current buffer for
+	 * Analrmally there is plenty of room in the current buffer for
 	 * the command.
 	 */
 	if (likely(qptr->index + cmd_count < qptr->pool_size_m1)) {
@@ -373,7 +373,7 @@ static inline cvmx_cmd_queue_result_t cvmx_cmd_queue_write(cvmx_cmd_queue_id_t
 		if (unlikely(new_buffer == NULL)) {
 			if (likely(use_locking))
 				__cvmx_cmd_queue_unlock(qptr);
-			return CVMX_CMD_QUEUE_NO_MEMORY;
+			return CVMX_CMD_QUEUE_ANAL_MEMORY;
 		}
 		ptr =
 		    (uint64_t *) cvmx_phys_to_ptr((uint64_t) qptr->
@@ -429,7 +429,7 @@ static inline cvmx_cmd_queue_result_t cvmx_cmd_queue_write2(cvmx_cmd_queue_id_t
 {
 	__cvmx_cmd_queue_state_t *qptr = __cvmx_cmd_queue_get_state(queue_id);
 
-	/* Make sure nobody else is updating the same queue */
+	/* Make sure analbody else is updating the same queue */
 	if (likely(use_locking))
 		__cvmx_cmd_queue_lock(queue_id, qptr);
 
@@ -448,7 +448,7 @@ static inline cvmx_cmd_queue_result_t cvmx_cmd_queue_write2(cvmx_cmd_queue_id_t
 	}
 
 	/*
-	 * Normally there is plenty of room in the current buffer for
+	 * Analrmally there is plenty of room in the current buffer for
 	 * the command.
 	 */
 	if (likely(qptr->index + 2 < qptr->pool_size_m1)) {
@@ -476,7 +476,7 @@ static inline cvmx_cmd_queue_result_t cvmx_cmd_queue_write2(cvmx_cmd_queue_id_t
 		if (unlikely(new_buffer == NULL)) {
 			if (likely(use_locking))
 				__cvmx_cmd_queue_unlock(qptr);
-			return CVMX_CMD_QUEUE_NO_MEMORY;
+			return CVMX_CMD_QUEUE_ANAL_MEMORY;
 		}
 		count--;
 		ptr =
@@ -530,7 +530,7 @@ static inline cvmx_cmd_queue_result_t cvmx_cmd_queue_write3(cvmx_cmd_queue_id_t
 {
 	__cvmx_cmd_queue_state_t *qptr = __cvmx_cmd_queue_get_state(queue_id);
 
-	/* Make sure nobody else is updating the same queue */
+	/* Make sure analbody else is updating the same queue */
 	if (likely(use_locking))
 		__cvmx_cmd_queue_lock(queue_id, qptr);
 
@@ -549,7 +549,7 @@ static inline cvmx_cmd_queue_result_t cvmx_cmd_queue_write3(cvmx_cmd_queue_id_t
 	}
 
 	/*
-	 * Normally there is plenty of room in the current buffer for
+	 * Analrmally there is plenty of room in the current buffer for
 	 * the command.
 	 */
 	if (likely(qptr->index + 3 < qptr->pool_size_m1)) {
@@ -578,7 +578,7 @@ static inline cvmx_cmd_queue_result_t cvmx_cmd_queue_write3(cvmx_cmd_queue_id_t
 		if (unlikely(new_buffer == NULL)) {
 			if (likely(use_locking))
 				__cvmx_cmd_queue_unlock(qptr);
-			return CVMX_CMD_QUEUE_NO_MEMORY;
+			return CVMX_CMD_QUEUE_ANAL_MEMORY;
 		}
 		count--;
 		ptr =

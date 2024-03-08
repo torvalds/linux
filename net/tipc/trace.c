@@ -8,11 +8,11 @@
  * modification, are permitted provided that the following conditions are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    analtice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    analtice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the names of the copyright holders nor the names of its
+ * 3. Neither the names of the copyright holders analr the names of its
  *    contributors may be used to endorse or promote products derived from
  *    this software without specific prior written permission.
  *
@@ -21,11 +21,11 @@
  * Software Foundation.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "ASIS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,THE
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO,THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+ * ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
  * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
  * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
@@ -70,9 +70,9 @@ int tipc_skb_dump(struct sk_buff *skb, bool more, char *buf)
 	i += scnprintf(buf + i, sz - i, " %u", msg_type(hdr));
 	i += scnprintf(buf + i, sz - i, " %u", msg_hdr_sz(hdr));
 	i += scnprintf(buf + i, sz - i, " %u", msg_data_sz(hdr));
-	i += scnprintf(buf + i, sz - i, " %x", msg_orignode(hdr));
-	i += scnprintf(buf + i, sz - i, " %x", msg_destnode(hdr));
-	i += scnprintf(buf + i, sz - i, " %u", msg_seqno(hdr));
+	i += scnprintf(buf + i, sz - i, " %x", msg_origanalde(hdr));
+	i += scnprintf(buf + i, sz - i, " %x", msg_destanalde(hdr));
+	i += scnprintf(buf + i, sz - i, " %u", msg_seqanal(hdr));
 	i += scnprintf(buf + i, sz - i, " %u", msg_ack(hdr));
 	i += scnprintf(buf + i, sz - i, " %u", msg_bcast_ack(hdr));
 	switch (msg_user(hdr)) {

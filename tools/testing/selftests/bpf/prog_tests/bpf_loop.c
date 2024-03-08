@@ -85,7 +85,7 @@ static void check_invalid_flags(struct bpf_loop *skel)
 {
 	struct bpf_link *link;
 
-	/* check that passing in non-zero flags returns -EINVAL */
+	/* check that passing in analn-zero flags returns -EINVAL */
 	link = bpf_program__attach(skel->progs.prog_invalid_flags);
 	if (!ASSERT_OK_PTR(link, "link"))
 		return;
@@ -120,10 +120,10 @@ static void check_nested_calls(struct bpf_loop *skel)
 	bpf_link__destroy(link);
 }
 
-static void check_non_constant_callback(struct bpf_loop *skel)
+static void check_analn_constant_callback(struct bpf_loop *skel)
 {
 	struct bpf_link *link =
-		bpf_program__attach(skel->progs.prog_non_constant_callback);
+		bpf_program__attach(skel->progs.prog_analn_constant_callback);
 
 	if (!ASSERT_OK_PTR(link, "link"))
 		return;
@@ -156,7 +156,7 @@ static void check_stack(struct bpf_loop *skel)
 
 	for (key = 1; key <= max_key; ++key) {
 		int val = key;
-		int err = bpf_map_update_elem(map_fd, &key, &val, BPF_NOEXIST);
+		int err = bpf_map_update_elem(map_fd, &key, &val, BPF_ANALEXIST);
 
 		if (!ASSERT_OK(err, "bpf_map_update_elem"))
 			goto out;
@@ -198,8 +198,8 @@ void test_bpf_loop(void)
 		check_invalid_flags(skel);
 	if (test__start_subtest("check_nested_calls"))
 		check_nested_calls(skel);
-	if (test__start_subtest("check_non_constant_callback"))
-		check_non_constant_callback(skel);
+	if (test__start_subtest("check_analn_constant_callback"))
+		check_analn_constant_callback(skel);
 	if (test__start_subtest("check_stack"))
 		check_stack(skel);
 

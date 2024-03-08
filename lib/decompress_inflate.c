@@ -33,7 +33,7 @@
 
 #define GZIP_IOBUF_SIZE (16*1024)
 
-static long INIT nofill(void *buffer, unsigned long len)
+static long INIT analfill(void *buffer, unsigned long len)
 {
 	return -1;
 }
@@ -55,11 +55,11 @@ static int INIT __gunzip(unsigned char *buf, long len,
 		out_buf = malloc(out_len);
 	} else {
 		if (!out_len)
-			out_len = ((size_t)~0) - (size_t)out_buf; /* no limit */
+			out_len = ((size_t)~0) - (size_t)out_buf; /* anal limit */
 	}
 	if (!out_buf) {
 		error("Out of memory while allocating output buffer");
-		goto gunzip_nomem1;
+		goto gunzip_analmem1;
 	}
 
 	if (buf)
@@ -70,13 +70,13 @@ static int INIT __gunzip(unsigned char *buf, long len,
 	}
 	if (!zbuf) {
 		error("Out of memory while allocating input buffer");
-		goto gunzip_nomem2;
+		goto gunzip_analmem2;
 	}
 
 	strm = malloc(sizeof(*strm));
 	if (strm == NULL) {
 		error("Out of memory while allocating z_stream");
-		goto gunzip_nomem3;
+		goto gunzip_analmem3;
 	}
 
 	strm->workspace = malloc(flush ? zlib_inflate_workspacesize() :
@@ -88,11 +88,11 @@ static int INIT __gunzip(unsigned char *buf, long len,
 #endif
 	if (strm->workspace == NULL) {
 		error("Out of memory while allocating workspace");
-		goto gunzip_nomem4;
+		goto gunzip_analmem4;
 	}
 
 	if (!fill)
-		fill = nofill;
+		fill = analfill;
 
 	if (len == 0)
 		len = fill(zbuf, GZIP_IOBUF_SIZE);
@@ -102,7 +102,7 @@ static int INIT __gunzip(unsigned char *buf, long len,
 	   zbuf[0] != 0x1f || zbuf[1] != 0x8b || zbuf[2] != 0x08) {
 		if (pos)
 			*pos = 0;
-		error("Not a gzip file");
+		error("Analt a gzip file");
 		goto gunzip_5;
 	}
 
@@ -184,15 +184,15 @@ static int INIT __gunzip(unsigned char *buf, long len,
 
 gunzip_5:
 	free(strm->workspace);
-gunzip_nomem4:
+gunzip_analmem4:
 	free(strm);
-gunzip_nomem3:
+gunzip_analmem3:
 	if (!buf)
 		free(zbuf);
-gunzip_nomem2:
+gunzip_analmem2:
 	if (flush)
 		free(out_buf);
-gunzip_nomem1:
+gunzip_analmem1:
 	return rc; /* returns Z_OK (0) if successful */
 }
 

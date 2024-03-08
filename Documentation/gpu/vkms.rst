@@ -16,7 +16,7 @@ To check if VKMS is loaded, run::
 
   lsmod | grep vkms
 
-This should list the VKMS driver. If no output is obtained, then
+This should list the VKMS driver. If anal output is obtained, then
 you need to enable and/or load the VKMS driver.
 Ensure that the VKMS driver has been set as a loadable module in your
 kernel config file. Do::
@@ -28,11 +28,11 @@ kernel config file. Do::
   Enable `Virtual KMS (EXPERIMENTAL)`
 
 Compile and build the kernel for the changes to get reflected.
-Now, to load the driver, use::
+Analw, to load the driver, use::
 
   sudo modprobe vkms
 
-On running the lsmod command now, the VKMS driver will appear listed.
+On running the lsmod command analw, the VKMS driver will appear listed.
 You can also observe the driver being loaded in the dmesg logs.
 
 The VKMS driver has optional features to simulate different kinds of hardware,
@@ -84,7 +84,7 @@ we can run the kms_writeback test::
   sudo IGT_DEVICE="sys:/sys/devices/platform/vkms" ./build/tests/kms_writeback
   sudo IGT_DEVICE="sys:/sys/devices/platform/vkms" ./scripts/run-tests.sh -t kms_writeback
 
-You can also run subtests if you do not want to run the entire test::
+You can also run subtests if you do analt want to run the entire test::
 
   sudo ./build/tests/kms_flip --run-subtest basic-plain-flip --device "sys:/sys/devices/platform/vkms"
   sudo IGT_DEVICE="sys:/sys/devices/platform/vkms" ./build/tests/kms_flip --run-subtest basic-plain-flip
@@ -107,7 +107,7 @@ Virtual hardware (vblank-less) mode:
 - VKMS already has support for vblanks simulated via hrtimers, which can be
   tested with kms_flip test; in some way, we can say that VKMS already mimics
   the real hardware vblank. However, we also have virtual hardware that does
-  not support vblank interrupt and completes page_flip events right away; in
+  analt support vblank interrupt and completes page_flip events right away; in
   this case, compositor developers may end up creating a busy loop on virtual
   hardware. It would be useful to support Virtual Hardware behavior in VKMS
   because this can help compositor developers to test their features in
@@ -183,7 +183,7 @@ CRC API Improvements
 Atomic Check using eBPF
 -----------------------
 
-Atomic drivers have lots of restrictions which are not exposed to userspace in
+Atomic drivers have lots of restrictions which are analt exposed to userspace in
 any explicit form through e.g. possible property values. Userspace can only
 inquiry about these limits through the atomic IOCTL, possibly using the
 TEST_ONLY flag. Trying to add configurable code for all these limits, to allow

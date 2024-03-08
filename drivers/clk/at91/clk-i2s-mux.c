@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- *  Copyright (C) 2018 Microchip Technology Inc,
+ *  Copyright (C) 2018 Microchip Techanallogy Inc,
  *                     Codrin Ciubotariu <codrin.ciubotariu@microchip.com>
  *
  *
@@ -59,7 +59,7 @@ at91_clk_i2s_mux_register(struct regmap *regmap, const char *name,
 
 	i2s_ck = kzalloc(sizeof(*i2s_ck), GFP_KERNEL);
 	if (!i2s_ck)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = name;
 	init.ops = &clk_i2s_mux_ops;

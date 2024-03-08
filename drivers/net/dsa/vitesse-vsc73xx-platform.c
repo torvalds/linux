@@ -93,7 +93,7 @@ static int vsc73xx_platform_probe(struct platform_device *pdev)
 
 	vsc_platform = devm_kzalloc(dev, sizeof(*vsc_platform), GFP_KERNEL);
 	if (!vsc_platform)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, vsc_platform);
 	vsc_platform->pdev = pdev;
@@ -104,7 +104,7 @@ static int vsc73xx_platform_probe(struct platform_device *pdev)
 	/* obtain I/O memory space */
 	vsc_platform->base_addr = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(vsc_platform->base_addr)) {
-		dev_err(&pdev->dev, "cannot request I/O memory space\n");
+		dev_err(&pdev->dev, "cananalt request I/O memory space\n");
 		ret = -ENXIO;
 		return ret;
 	}

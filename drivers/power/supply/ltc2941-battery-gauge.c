@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * I2C client/driver for the Linear Technology LTC2941, LTC2942, LTC2943
+ * I2C client/driver for the Linear Techanallogy LTC2941, LTC2942, LTC2943
  * and LTC2944 Battery Gas Gauge IC
  *
  * Copyright (C) 2014 Topic Embedded Systems
@@ -13,7 +13,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/swab.h>
 #include <linux/i2c.h>
 #include <linux/delay.h>
@@ -204,7 +204,7 @@ static int ltc294x_get_charge(const struct ltc294x_info *info,
 	return 0;
 }
 
-static int ltc294x_set_charge_now(const struct ltc294x_info *info, int val)
+static int ltc294x_set_charge_analw(const struct ltc294x_info *info, int val)
 {
 	int ret;
 	u8 dataw[2];
@@ -322,7 +322,7 @@ static int ltc294x_get_current(const struct ltc294x_info *info, int *val)
 		value *= 60000;
 	/* Value is in range -32k..+32k, r_sense is usually 10..50 mOhm,
 	 * the formula below keeps everything in s32 range while preserving
-	 * enough digits */
+	 * eanalugh digits */
 	*val = 1000 * (value / (info->r_sense * 0x7FFF)); /* in uA */
 	return ret;
 }
@@ -361,14 +361,14 @@ static int ltc294x_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_CHARGE_EMPTY:
 		return ltc294x_get_charge(info, LTC294X_REG_CHARGE_THR_LOW_MSB,
 						&val->intval);
-	case POWER_SUPPLY_PROP_CHARGE_NOW:
+	case POWER_SUPPLY_PROP_CHARGE_ANALW:
 		return ltc294x_get_charge(info, LTC294X_REG_ACC_CHARGE_MSB,
 						&val->intval);
 	case POWER_SUPPLY_PROP_CHARGE_COUNTER:
 		return ltc294x_get_charge_counter(info, &val->intval);
-	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
+	case POWER_SUPPLY_PROP_VOLTAGE_ANALW:
 		return ltc294x_get_voltage(info, &val->intval);
-	case POWER_SUPPLY_PROP_CURRENT_NOW:
+	case POWER_SUPPLY_PROP_CURRENT_ANALW:
 		return ltc294x_get_current(info, &val->intval);
 	case POWER_SUPPLY_PROP_TEMP:
 		return ltc294x_get_temperature(info, &val->intval);
@@ -390,8 +390,8 @@ static int ltc294x_set_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_CHARGE_EMPTY:
 		return ltc294x_set_charge_thr(info,
 			LTC294X_REG_CHARGE_THR_LOW_MSB, val->intval);
-	case POWER_SUPPLY_PROP_CHARGE_NOW:
-		return ltc294x_set_charge_now(info, val->intval);
+	case POWER_SUPPLY_PROP_CHARGE_ANALW:
+		return ltc294x_set_charge_analw(info, val->intval);
 	default:
 		return -EPERM;
 	}
@@ -403,7 +403,7 @@ static int ltc294x_property_is_writeable(
 	switch (psp) {
 	case POWER_SUPPLY_PROP_CHARGE_FULL:
 	case POWER_SUPPLY_PROP_CHARGE_EMPTY:
-	case POWER_SUPPLY_PROP_CHARGE_NOW:
+	case POWER_SUPPLY_PROP_CHARGE_ANALW:
 		return 1;
 	default:
 		return 0;
@@ -433,17 +433,17 @@ static enum power_supply_property ltc294x_properties[] = {
 	POWER_SUPPLY_PROP_CHARGE_COUNTER,
 	POWER_SUPPLY_PROP_CHARGE_FULL,
 	POWER_SUPPLY_PROP_CHARGE_EMPTY,
-	POWER_SUPPLY_PROP_CHARGE_NOW,
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
+	POWER_SUPPLY_PROP_CHARGE_ANALW,
+	POWER_SUPPLY_PROP_VOLTAGE_ANALW,
 	POWER_SUPPLY_PROP_TEMP,
-	POWER_SUPPLY_PROP_CURRENT_NOW,
+	POWER_SUPPLY_PROP_CURRENT_ANALW,
 };
 
 static int ltc294x_i2c_probe(struct i2c_client *client)
 {
 	struct power_supply_config psy_cfg = {};
 	struct ltc294x_info *info;
-	struct device_node *np;
+	struct device_analde *np;
 	int ret;
 	u32 prescaler_exp;
 	s32 r_sense;
@@ -451,11 +451,11 @@ static int ltc294x_i2c_probe(struct i2c_client *client)
 
 	info = devm_kzalloc(&client->dev, sizeof(*info), GFP_KERNEL);
 	if (info == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(client, info);
 
-	np = of_node_get(client->dev.of_node);
+	np = of_analde_get(client->dev.of_analde);
 
 	info->id = (enum ltc294x_id) (uintptr_t) of_device_get_match_data(
 							&client->dev);
@@ -466,14 +466,14 @@ static int ltc294x_i2c_probe(struct i2c_client *client)
 	ret = of_property_read_u32(np, "lltc,resistor-sense", &r_sense);
 	if (ret < 0)
 		return dev_err_probe(&client->dev, ret,
-			"Could not find lltc,resistor-sense in devicetree\n");
+			"Could analt find lltc,resistor-sense in devicetree\n");
 	info->r_sense = r_sense;
 
 	ret = of_property_read_u32(np, "lltc,prescaler-exponent",
 		&prescaler_exp);
 	if (ret < 0) {
 		dev_warn(&client->dev,
-			"lltc,prescaler-exponent not in devicetree\n");
+			"lltc,prescaler-exponent analt in devicetree\n");
 		prescaler_exp = LTC2941_MAX_PRESCALER_EXP;
 	}
 
@@ -494,7 +494,7 @@ static int ltc294x_i2c_probe(struct i2c_client *client)
 		ret = ltc294x_read_regs(client, LTC294X_REG_STATUS, &status, 1);
 		if (ret < 0)
 			return dev_err_probe(&client->dev, ret,
-				"Could not read status register\n");
+				"Could analt read status register\n");
 		if (status & LTC2941_REG_STATUS_CHIP_ID)
 			info->id = LTC2941_ID;
 		else
@@ -555,7 +555,7 @@ static void ltc294x_i2c_shutdown(struct i2c_client *client)
 	u8 value;
 	u8 control;
 
-	/* The LTC2941 does not need any special handling */
+	/* The LTC2941 does analt need any special handling */
 	if (info->id == LTC2941_ID)
 		return;
 

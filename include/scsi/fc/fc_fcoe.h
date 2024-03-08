@@ -19,7 +19,7 @@
 #define	FC_FCOE_OUI	0x0efc00	/* upper 24 bits of FCOE MAC */
 
 /*
- * Fabric Login (FLOGI) MAC for non-FIP use.  Non-FIP use is deprecated.
+ * Fabric Login (FLOGI) MAC for analn-FIP use.  Analn-FIP use is deprecated.
  */
 #define	FC_FCOE_FLOGI_MAC { 0x0e, 0xfc, 0x00, 0xff, 0xff, 0xfe }
 
@@ -38,7 +38,7 @@
  */
 struct fcoe_hdr {
 	__u8		fcoe_ver;	/* version field - upper 4 bits */
-	__u8		fcoe_resvd[12];	/* reserved - send zero and ignore */
+	__u8		fcoe_resvd[12];	/* reserved - send zero and iganalre */
 	__u8		fcoe_sof;	/* start of frame per RFC 3643 */
 };
 
@@ -51,7 +51,7 @@ struct fcoe_hdr {
 struct fcoe_crc_eof {
 	__le32		fcoe_crc32;	/* CRC for FC packet */
 	__u8		fcoe_eof;	/* EOF from RFC 3643 */
-	__u8		fcoe_resvd[3];	/* reserved - send zero and ignore */
+	__u8		fcoe_resvd[3];	/* reserved - send zero and iganalre */
 } __attribute__((packed));
 
 /*

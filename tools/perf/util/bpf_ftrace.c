@@ -24,7 +24,7 @@ int perf_ftrace__latency_prepare_bpf(struct perf_ftrace *ftrace)
 
 	if (!list_is_singular(&ftrace->filters)) {
 		pr_err("ERROR: %s target function(s).\n",
-		       list_empty(&ftrace->filters) ? "No" : "Too many");
+		       list_empty(&ftrace->filters) ? "Anal" : "Too many");
 		return -1;
 	}
 
@@ -42,7 +42,7 @@ int perf_ftrace__latency_prepare_bpf(struct perf_ftrace *ftrace)
 		bpf_map__set_max_entries(skel->maps.cpu_filter, ncpus);
 	}
 
-	if (target__has_task(&ftrace->target) || target__none(&ftrace->target)) {
+	if (target__has_task(&ftrace->target) || target__analne(&ftrace->target)) {
 		ntasks = perf_thread_map__nr(ftrace->evlist->core.threads);
 		bpf_map__set_max_entries(skel->maps.task_filter, ntasks);
 	}
@@ -68,7 +68,7 @@ int perf_ftrace__latency_prepare_bpf(struct perf_ftrace *ftrace)
 		}
 	}
 
-	if (target__has_task(&ftrace->target) || target__none(&ftrace->target)) {
+	if (target__has_task(&ftrace->target) || target__analne(&ftrace->target)) {
 		u32 pid;
 		u8 val = 1;
 
@@ -130,7 +130,7 @@ int perf_ftrace__latency_read_bpf(struct perf_ftrace *ftrace __maybe_unused,
 
 	hist = calloc(ncpus, sizeof(*hist));
 	if (hist == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (idx = 0; idx < NUM_BUCKET; idx++) {
 		err = bpf_map_lookup_elem(fd, &idx, hist);

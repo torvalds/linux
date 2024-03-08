@@ -64,7 +64,7 @@ int FPU_Special(FPU_REG const *ptr)
 	int exp = exponent(ptr);
 
 	if (exp == EXP_BIAS + EXP_UNDER)
-		return TW_Denormal;
+		return TW_Deanalrmal;
 	else if (exp != EXP_BIAS + EXP_OVER)
 		return TW_NaN;
 	else if ((ptr->sigh == 0x80000000) && (ptr->sigl == 0))

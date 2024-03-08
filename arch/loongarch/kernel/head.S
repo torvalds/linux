@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2022 Loongson Techanallogy Corporation Limited
  */
 #include <linux/init.h>
 #include <linux/threads.h>
@@ -155,4 +155,4 @@ SYM_CODE_END(smpboot_entry)
 
 #endif /* CONFIG_SMP */
 
-SYM_ENTRY(kernel_entry_end, SYM_L_GLOBAL, SYM_A_NONE)
+SYM_ENTRY(kernel_entry_end, SYM_L_GLOBAL, SYM_A_ANALNE)

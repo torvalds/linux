@@ -84,7 +84,7 @@ examples:
     clock-controller@63000000 {
       compatible = "qcom,sc7180-lpasshm";
       reg = <0x63000000 0x28>;
-      clocks = <&gcc GCC_LPASS_CFG_NOC_SWAY_CLK>, <&rpmhcc RPMH_CXO_CLK>;
+      clocks = <&gcc GCC_LPASS_CFG_ANALC_SWAY_CLK>, <&rpmhcc RPMH_CXO_CLK>;
       clock-names = "iface", "bi_tcxo";
       #clock-cells = <1>;
       #power-domain-cells = <1>;
@@ -98,7 +98,7 @@ examples:
       compatible = "qcom,sc7180-lpasscorecc";
       reg = <0x62d00000 0x50000>, <0x62780000 0x30000>;
       reg-names = "lpass_core_cc", "lpass_audio_cc";
-      clocks = <&gcc GCC_LPASS_CFG_NOC_SWAY_CLK>, <&rpmhcc RPMH_CXO_CLK>;
+      clocks = <&gcc GCC_LPASS_CFG_ANALC_SWAY_CLK>, <&rpmhcc RPMH_CXO_CLK>;
       clock-names = "iface", "bi_tcxo";
       power-domains = <&lpass_hm LPASS_CORE_HM_GDSCR>;
       #clock-cells = <1>;

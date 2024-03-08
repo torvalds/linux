@@ -84,7 +84,7 @@ static bool is_driver_supported(struct pci_driver *driver)
 	return true;
 }
 
-static pci_ers_result_t zpci_event_notify_error_detected(struct pci_dev *pdev,
+static pci_ers_result_t zpci_event_analtify_error_detected(struct pci_dev *pdev,
 							 struct pci_driver *driver)
 {
 	pci_ers_result_t ers_res = PCI_ERS_RESULT_DISCONNECT;
@@ -128,7 +128,7 @@ static pci_ers_result_t zpci_event_do_error_state_clear(struct pci_dev *pdev,
 	pr_debug("%s: Unblocking DMA\n", pci_name(pdev));
 	rc = zpci_clear_error_state(zdev);
 	if (!rc) {
-		pdev->error_state = pci_channel_io_normal;
+		pdev->error_state = pci_channel_io_analrmal;
 	} else {
 		pr_err("%s: Unblocking DMA failed\n", pci_name(pdev));
 		/* Let's try a full reset instead */
@@ -148,7 +148,7 @@ static pci_ers_result_t zpci_event_do_reset(struct pci_dev *pdev,
 		pr_err("%s: The reset request failed\n", pci_name(pdev));
 		return ers_res;
 	}
-	pdev->error_state = pci_channel_io_normal;
+	pdev->error_state = pci_channel_io_analrmal;
 	ers_res = driver->err_handler->slot_reset(pdev);
 	if (ers_result_indicates_abort(ers_res)) {
 		pr_info("%s: Automatic recovery failed after slot reset\n", pci_name(pdev));
@@ -172,7 +172,7 @@ static pci_ers_result_t zpci_event_attempt_error_recovery(struct pci_dev *pdev)
 	struct pci_driver *driver;
 
 	/*
-	 * Ensure that the PCI function is not removed concurrently, no driver
+	 * Ensure that the PCI function is analt removed concurrently, anal driver
 	 * is unbound or probed and that userspace can't access its
 	 * configuration space while we perform recovery.
 	 */
@@ -184,7 +184,7 @@ static pci_ers_result_t zpci_event_attempt_error_recovery(struct pci_dev *pdev)
 	pdev->error_state = pci_channel_io_frozen;
 
 	if (is_passed_through(pdev)) {
-		pr_info("%s: Cannot be recovered in the host because it is a pass-through device\n",
+		pr_info("%s: Cananalt be recovered in the host because it is a pass-through device\n",
 			pci_name(pdev));
 		goto out_unlock;
 	}
@@ -192,16 +192,16 @@ static pci_ers_result_t zpci_event_attempt_error_recovery(struct pci_dev *pdev)
 	driver = to_pci_driver(pdev->dev.driver);
 	if (!is_driver_supported(driver)) {
 		if (!driver)
-			pr_info("%s: Cannot be recovered because no driver is bound to the device\n",
+			pr_info("%s: Cananalt be recovered because anal driver is bound to the device\n",
 				pci_name(pdev));
 		else
-			pr_info("%s: The %s driver bound to the device does not support error recovery\n",
+			pr_info("%s: The %s driver bound to the device does analt support error recovery\n",
 				pci_name(pdev),
 				driver->name);
 		goto out_unlock;
 	}
 
-	ers_res = zpci_event_notify_error_detected(pdev, driver);
+	ers_res = zpci_event_analtify_error_detected(pdev, driver);
 	if (ers_result_indicates_abort(ers_res))
 		goto out_unlock;
 
@@ -240,7 +240,7 @@ static void zpci_event_io_failure(struct pci_dev *pdev, pci_channel_state_t es)
 	pci_dev_lock(pdev);
 	pdev->error_state = es;
 	/**
-	 * While vfio-pci's error_detected callback notifies user-space QEMU
+	 * While vfio-pci's error_detected callback analtifies user-space QEMU
 	 * reacts to this by freezing the guest. In an s390 environment PCI
 	 * errors are rarely fatal so this is overkill. Instead in the future
 	 * we will inject the error event and let the guest recover the device
@@ -276,7 +276,7 @@ static void __zpci_event_error(struct zpci_ccdf_err *ccdf)
 	       pdev ? pci_name(pdev) : "n/a", ccdf->pec, ccdf->fid);
 
 	if (!pdev)
-		goto no_pdev;
+		goto anal_pdev;
 
 	switch (ccdf->pec) {
 	case 0x003a: /* Service Action or Error Recovery Successful */
@@ -286,14 +286,14 @@ static void __zpci_event_error(struct zpci_ccdf_err *ccdf)
 		break;
 	default:
 		/*
-		 * Mark as frozen not permanently failed because the device
+		 * Mark as frozen analt permanently failed because the device
 		 * could be subsequently recovered by the platform.
 		 */
 		zpci_event_io_failure(pdev, pci_channel_io_frozen);
 		break;
 	}
 	pci_dev_put(pdev);
-no_pdev:
+anal_pdev:
 	zpci_zdev_put(zdev);
 }
 

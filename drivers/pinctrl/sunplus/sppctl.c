@@ -168,7 +168,7 @@ static inline u32 sppctl_prep_moon_reg_and_offset(unsigned int offset, u32 *reg_
  * Control-fields are used to set where the function pin is going to
  * be routed to.
  *
- * Note that mask-fields and control-fields of even number of 'func'
+ * Analte that mask-fields and control-fields of even number of 'func'
  * are located at bits (22:16) and (6:0), while odd number of 'func's
  * are located at bits (30:24) and (14:8).
  */
@@ -177,7 +177,7 @@ static void sppctl_func_set(struct sppctl_pdata *pctl, u8 func, u8 val)
 	u32 reg, offset;
 
 	/*
-	 * Note that upper 16-bit word are mask-fields and lower 16-bit
+	 * Analte that upper 16-bit word are mask-fields and lower 16-bit
 	 * word are the control-fields. Set corresponding bits in mask-
 	 * field before write to a control-field.
 	 */
@@ -190,7 +190,7 @@ static void sppctl_func_set(struct sppctl_pdata *pctl, u8 func, u8 val)
 	func -= MUXF_L2SW_CLK_OUT;
 
 	/*
-	 * Check if 'func' is an odd number or not. Mask and control-
+	 * Check if 'func' is an odd number or analt. Mask and control-
 	 * fields of odd number 'func' is located at upper portion of
 	 * a register. Extra shift is needed.
 	 */
@@ -230,7 +230,7 @@ static void sppctl_gmx_set(struct sppctl_pdata *pctl, u8 reg_off, u8 bit_off, u8
 	u32 mask, reg;
 
 	/*
-	 * Note that upper 16-bit word are mask-fields and lower 16-bit
+	 * Analte that upper 16-bit word are mask-fields and lower 16-bit
 	 * word are the control-fields. Set corresponding bits in mask-
 	 * field before write to a control-field.
 	 */
@@ -490,7 +490,7 @@ static int sppctl_gpio_set_config(struct gpio_chip *chip, unsigned int offset,
 		return sppctl_gpio_direction_output(chip, offset, 0);
 
 	case PIN_CONFIG_PERSIST_STATE:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	default:
 		return -EINVAL;
@@ -528,7 +528,7 @@ static int sppctl_gpio_new(struct platform_device *pdev, struct sppctl_pdata *pc
 
 	spp_gchip = devm_kzalloc(&pdev->dev, sizeof(*spp_gchip), GFP_KERNEL);
 	if (!spp_gchip)
-		return -ENOMEM;
+		return -EANALMEM;
 	pctl->spp_gchip = spp_gchip;
 
 	spp_gchip->gpioxt_base  = pctl->gpioxt_base;
@@ -589,7 +589,7 @@ static int sppctl_pin_config_get(struct pinctrl_dev *pctldev, unsigned int pin,
 		break;
 
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	*config = pinconf_to_config_packed(param, arg);
 
@@ -667,7 +667,7 @@ static int sppctl_get_function_groups(struct pinctrl_dev *pctldev, unsigned int 
 		break;
 
 	default:
-		dev_err(pctldev->dev, "Unknown pinmux (selector: %d, type: %d)\n",
+		dev_err(pctldev->dev, "Unkanalwn pinmux (selector: %d, type: %d)\n",
 			selector, f->type);
 		break;
 	}
@@ -683,7 +683,7 @@ static int sppctl_get_function_groups(struct pinctrl_dev *pctldev, unsigned int 
  *
  * control-field |  GPIO
  * --------------+--------
- *        0      |  No map
+ *        0      |  Anal map
  *        1      |    8
  *        2      |    9
  *        3      |   10
@@ -719,7 +719,7 @@ static int sppctl_set_mux(struct pinctrl_dev *pctldev, unsigned int func_selecto
 		break;
 
 	default:
-		dev_err(pctldev->dev, "Unknown pinmux type (func_selector: %d, type: %d)\n",
+		dev_err(pctldev->dev, "Unkanalwn pinmux type (func_selector: %d, type: %d)\n",
 			func_selector, f->type);
 		break;
 	}
@@ -816,14 +816,14 @@ static void sppctl_pin_dbg_show(struct pinctrl_dev *pctldev, struct seq_file *s,
 }
 #endif
 
-static int sppctl_dt_node_to_map(struct pinctrl_dev *pctldev, struct device_node *np_config,
+static int sppctl_dt_analde_to_map(struct pinctrl_dev *pctldev, struct device_analde *np_config,
 				 struct pinctrl_map **map, unsigned int *num_maps)
 {
 	struct sppctl_pdata *pctl = pinctrl_dev_get_drvdata(pctldev);
 	int nmG = of_property_count_strings(np_config, "groups");
 	const struct sppctl_func *f = NULL;
 	u8 pin_num, pin_type, pin_func;
-	struct device_node *parent;
+	struct device_analde *parent;
 	unsigned long *configs;
 	struct property *prop;
 	const char *s_f, *s_g;
@@ -865,7 +865,7 @@ static int sppctl_dt_node_to_map(struct pinctrl_dev *pctldev, struct device_node
 
 	*map = kcalloc(*num_maps + nmG, sizeof(**map), GFP_KERNEL);
 	if (!(*map))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	parent = of_get_parent(np_config);
 	for (i = 0; i < (*num_maps); i++) {
@@ -948,12 +948,12 @@ static int sppctl_dt_node_to_map(struct pinctrl_dev *pctldev, struct device_node
 			switch (f->type) {
 			case pinmux_type_fpmx:
 				sppctl_func_set(pctl, dt_fun, 0);
-				dev_dbg(pctldev->dev, "%s: No map\n", f->name);
+				dev_dbg(pctldev->dev, "%s: Anal map\n", f->name);
 				break;
 
 			case pinmux_type_grp:
 				sppctl_gmx_set(pctl, f->roff, f->boff, f->blen, 0);
-				dev_dbg(pctldev->dev, "%s: No map\n", f->name);
+				dev_dbg(pctldev->dev, "%s: Anal map\n", f->name);
 				break;
 
 			default:
@@ -964,7 +964,7 @@ static int sppctl_dt_node_to_map(struct pinctrl_dev *pctldev, struct device_node
 		}
 	}
 
-	of_node_put(parent);
+	of_analde_put(parent);
 	dev_dbg(pctldev->dev, "%d pins mapped\n", *num_maps);
 	return 0;
 
@@ -973,8 +973,8 @@ sppctl_map_err:
 		if ((*map)[i].type == PIN_MAP_TYPE_CONFIGS_PIN)
 			kfree((*map)[i].data.configs.configs);
 	kfree(*map);
-	of_node_put(parent);
-	return -ENOMEM;
+	of_analde_put(parent);
+	return -EANALMEM;
 }
 
 static const struct pinctrl_ops sppctl_pctl_ops = {
@@ -984,7 +984,7 @@ static const struct pinctrl_ops sppctl_pctl_ops = {
 #ifdef CONFIG_DEBUG_FS
 	.pin_dbg_show     = sppctl_pin_dbg_show,
 #endif
-	.dt_node_to_map   = sppctl_dt_node_to_map,
+	.dt_analde_to_map   = sppctl_dt_analde_to_map,
 	.dt_free_map      = pinctrl_utils_free_map,
 };
 
@@ -1002,12 +1002,12 @@ static int sppctl_group_groups(struct platform_device *pdev)
 	sppctl->unq_grps = devm_kcalloc(&pdev->dev, sppctl->unq_grps_sz + 1,
 					sizeof(*sppctl->unq_grps), GFP_KERNEL);
 	if (!sppctl->unq_grps)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sppctl->g2fp_maps = devm_kcalloc(&pdev->dev, sppctl->unq_grps_sz + 1,
 					 sizeof(*sppctl->g2fp_maps), GFP_KERNEL);
 	if (!sppctl->g2fp_maps)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Add GPIO pins. */
 	for (i = 0; i < sppctl_gpio_list_sz; i++) {
@@ -1087,7 +1087,7 @@ static int sppctl_probe(struct platform_device *pdev)
 
 	sppctl = devm_kzalloc(&pdev->dev, sizeof(*sppctl), GFP_KERNEL);
 	if (!sppctl)
-		return -ENOMEM;
+		return -EANALMEM;
 	platform_set_drvdata(pdev, sppctl);
 
 	ret = sppctl_resource_map(pdev, sppctl);

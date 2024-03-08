@@ -151,7 +151,7 @@ void gve_parse_device_option(struct gve_priv *priv,
 		/* If we don't recognize the option just continue
 		 * without doing anything.
 		 */
-		dev_dbg(&priv->pdev->dev, "Unrecognized device option 0x%hx not enabled.\n",
+		dev_dbg(&priv->pdev->dev, "Unrecognized device option 0x%hx analt enabled.\n",
 			option_id);
 	}
 }
@@ -197,12 +197,12 @@ int gve_adminq_alloc(struct device *dev, struct gve_priv *priv)
 	priv->adminq_pool = dma_pool_create("adminq_pool", dev,
 					    GVE_ADMINQ_BUFFER_SIZE, 0, 0);
 	if (unlikely(!priv->adminq_pool))
-		return -ENOMEM;
+		return -EANALMEM;
 	priv->adminq = dma_pool_alloc(priv->adminq_pool, GFP_KERNEL,
 				      &priv->adminq_bus_addr);
 	if (unlikely(!priv->adminq)) {
 		dma_pool_destroy(priv->adminq_pool);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	priv->adminq_mask =
@@ -315,7 +315,7 @@ static int gve_adminq_parse_err(struct gve_priv *priv, u32 status)
 	case GVE_ADMINQ_COMMAND_PASSED:
 		return 0;
 	case GVE_ADMINQ_COMMAND_UNSET:
-		dev_err(&priv->pdev->dev, "parse_aq_err: err and status both unset, this should not be possible.\n");
+		dev_err(&priv->pdev->dev, "parse_aq_err: err and status both unset, this should analt be possible.\n");
 		return -EINVAL;
 	case GVE_ADMINQ_COMMAND_ERROR_ABORTED:
 	case GVE_ADMINQ_COMMAND_ERROR_CANCELLED:
@@ -326,9 +326,9 @@ static int gve_adminq_parse_err(struct gve_priv *priv, u32 status)
 	case GVE_ADMINQ_COMMAND_ERROR_ALREADY_EXISTS:
 	case GVE_ADMINQ_COMMAND_ERROR_INTERNAL_ERROR:
 	case GVE_ADMINQ_COMMAND_ERROR_INVALID_ARGUMENT:
-	case GVE_ADMINQ_COMMAND_ERROR_NOT_FOUND:
+	case GVE_ADMINQ_COMMAND_ERROR_ANALT_FOUND:
 	case GVE_ADMINQ_COMMAND_ERROR_OUT_OF_RANGE:
-	case GVE_ADMINQ_COMMAND_ERROR_UNKNOWN_ERROR:
+	case GVE_ADMINQ_COMMAND_ERROR_UNKANALWN_ERROR:
 		return -EINVAL;
 	case GVE_ADMINQ_COMMAND_ERROR_DEADLINE_EXCEEDED:
 		return -ETIME;
@@ -336,11 +336,11 @@ static int gve_adminq_parse_err(struct gve_priv *priv, u32 status)
 	case GVE_ADMINQ_COMMAND_ERROR_UNAUTHENTICATED:
 		return -EACCES;
 	case GVE_ADMINQ_COMMAND_ERROR_RESOURCE_EXHAUSTED:
-		return -ENOMEM;
+		return -EANALMEM;
 	case GVE_ADMINQ_COMMAND_ERROR_UNIMPLEMENTED:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	default:
-		dev_err(&priv->pdev->dev, "parse_aq_err: unknown status code %d\n", status);
+		dev_err(&priv->pdev->dev, "parse_aq_err: unkanalwn status code %d\n", status);
 		return -EINVAL;
 	}
 }
@@ -360,7 +360,7 @@ static int gve_adminq_kick_and_wait(struct gve_priv *priv)
 	if (!gve_adminq_wait_for_cmd(priv, head)) {
 		dev_err(&priv->pdev->dev, "AQ commands timed out, need to reset AQ\n");
 		priv->adminq_timeouts++;
-		return -ENOTRECOVERABLE;
+		return -EANALTRECOVERABLE;
 	}
 
 	for (i = tail; i < head; i++) {
@@ -378,7 +378,7 @@ static int gve_adminq_kick_and_wait(struct gve_priv *priv)
 	return 0;
 }
 
-/* This function is not threadsafe - the caller is responsible for any
+/* This function is analt threadsafe - the caller is responsible for any
  * necessary locks.
  */
 static int gve_adminq_issue_cmd(struct gve_priv *priv,
@@ -405,8 +405,8 @@ static int gve_adminq_issue_cmd(struct gve_priv *priv,
 		if (((priv->adminq_prod_cnt + 1) & priv->adminq_mask) ==
 		    (tail & priv->adminq_mask)) {
 			// This should never happen. We just flushed the
-			// command queue so there should be enough space.
-			return -ENOMEM;
+			// command queue so there should be eanalugh space.
+			return -EANALMEM;
 		}
 	}
 
@@ -460,15 +460,15 @@ static int gve_adminq_issue_cmd(struct gve_priv *priv,
 		priv->adminq_verify_driver_compatibility_cnt++;
 		break;
 	default:
-		dev_err(&priv->pdev->dev, "unknown AQ command opcode %d\n", opcode);
+		dev_err(&priv->pdev->dev, "unkanalwn AQ command opcode %d\n", opcode);
 	}
 
 	return 0;
 }
 
-/* This function is not threadsafe - the caller is responsible for any
+/* This function is analt threadsafe - the caller is responsible for any
  * necessary locks.
- * The caller is also responsible for making sure there are no commands
+ * The caller is also responsible for making sure there are anal commands
  * waiting to be executed.
  */
 static int gve_adminq_execute_cmd(struct gve_priv *priv,
@@ -480,7 +480,7 @@ static int gve_adminq_execute_cmd(struct gve_priv *priv,
 	tail = ioread32be(&priv->reg_bar0->adminq_event_counter);
 	head = priv->adminq_prod_cnt;
 	if (tail != head)
-		// This is not a valid path
+		// This is analt a valid path
 		return -EINVAL;
 
 	err = gve_adminq_issue_cmd(priv, cmd_orig);
@@ -800,7 +800,7 @@ int gve_adminq_describe_device(struct gve_priv *priv)
 	descriptor = dma_pool_alloc(priv->adminq_pool, GFP_KERNEL,
 				    &descriptor_bus);
 	if (!descriptor)
-		return -ENOMEM;
+		return -EANALMEM;
 	cmd.opcode = cpu_to_be32(GVE_ADMINQ_DESCRIBE_DEVICE);
 	cmd.describe_device.device_descriptor_addr =
 						cpu_to_be64(descriptor_bus);
@@ -820,8 +820,8 @@ int gve_adminq_describe_device(struct gve_priv *priv)
 	if (err)
 		goto free_device_descriptor;
 
-	/* If the GQI_RAW_ADDRESSING option is not enabled and the queue format
-	 * is not set to GqiRda, choose the queue format in a priority order:
+	/* If the GQI_RAW_ADDRESSING option is analt enabled and the queue format
+	 * is analt set to GqiRda, choose the queue format in a priority order:
 	 * DqoRda, DqoQpl, GqiRda, GqiQpl. Use GqiQpl as default.
 	 */
 	if (dev_op_dqo_rda) {
@@ -878,7 +878,7 @@ int gve_adminq_describe_device(struct gve_priv *priv)
 	priv->rx_data_slot_cnt = be16_to_cpu(descriptor->rx_pages_per_qpl);
 
 	if (gve_is_gqi(priv) && priv->rx_data_slot_cnt < priv->rx_desc_cnt) {
-		dev_err(&priv->pdev->dev, "rx_data_slot_cnt cannot be smaller than rx_desc_cnt, setting rx_desc_cnt down to %d.\n",
+		dev_err(&priv->pdev->dev, "rx_data_slot_cnt cananalt be smaller than rx_desc_cnt, setting rx_desc_cnt down to %d.\n",
 			priv->rx_data_slot_cnt);
 		priv->rx_desc_cnt = priv->rx_data_slot_cnt;
 	}
@@ -907,7 +907,7 @@ int gve_adminq_register_page_list(struct gve_priv *priv,
 	memset(&cmd, 0, sizeof(cmd));
 	page_list = dma_alloc_coherent(hdev, size, &page_list_bus, GFP_KERNEL);
 	if (!page_list)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < num_entries; i++)
 		page_list[i] = cpu_to_be64(qpl->page_buses[i]);
@@ -996,7 +996,7 @@ int gve_adminq_report_link_speed(struct gve_priv *priv)
 				   &link_speed_region_bus, GFP_KERNEL);
 
 	if (!link_speed_region)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memset(&gvnic_cmd, 0, sizeof(gvnic_cmd));
 	gvnic_cmd.opcode = cpu_to_be32(GVE_ADMINQ_REPORT_LINK_SPEED);
@@ -1024,7 +1024,7 @@ int gve_adminq_get_ptype_map_dqo(struct gve_priv *priv,
 	ptype_map = dma_alloc_coherent(&priv->pdev->dev, sizeof(*ptype_map),
 				       &ptype_map_bus, GFP_KERNEL);
 	if (!ptype_map)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd.opcode = cpu_to_be32(GVE_ADMINQ_GET_PTYPE_MAP);
 	cmd.get_ptype_map = (struct gve_adminq_get_ptype_map) {

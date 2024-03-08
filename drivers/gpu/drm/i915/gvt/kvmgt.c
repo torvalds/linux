@@ -10,13 +10,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -45,7 +45,7 @@
 #include <linux/mdev.h>
 #include <linux/debugfs.h>
 
-#include <linux/nospec.h>
+#include <linux/analspec.h>
 
 #include <drm/drm_edid.h>
 
@@ -90,13 +90,13 @@ struct vfio_edid_region {
 
 struct kvmgt_pgfn {
 	gfn_t gfn;
-	struct hlist_node hnode;
+	struct hlist_analde hanalde;
 };
 
 struct gvt_dma {
 	struct intel_vgpu *vgpu;
-	struct rb_node gfn_node;
-	struct rb_node dma_addr_node;
+	struct rb_analde gfn_analde;
+	struct rb_analde dma_addr_analde;
 	gfn_t gfn;
 	dma_addr_t dma_addr;
 	unsigned long size;
@@ -107,9 +107,9 @@ struct gvt_dma {
 	container_of((vfio_dev), struct intel_vgpu, vfio_device)
 
 static void kvmgt_page_track_write(gpa_t gpa, const u8 *val, int len,
-				   struct kvm_page_track_notifier_node *node);
+				   struct kvm_page_track_analtifier_analde *analde);
 static void kvmgt_page_track_remove_region(gfn_t gfn, unsigned long nr_pages,
-					   struct kvm_page_track_notifier_node *node);
+					   struct kvm_page_track_analtifier_analde *analde);
 
 static ssize_t intel_vgpu_show_description(struct mdev_type *mtype, char *buf)
 {
@@ -132,7 +132,7 @@ static void gvt_unpin_guest_page(struct intel_vgpu *vgpu, unsigned long gfn,
 			 DIV_ROUND_UP(size, PAGE_SIZE));
 }
 
-/* Pin a normal or compound guest page for dma. */
+/* Pin a analrmal or compound guest page for dma. */
 static int gvt_pin_guest_page(struct intel_vgpu *vgpu, unsigned long gfn,
 		unsigned long size, struct page **page)
 {
@@ -191,7 +191,7 @@ static int gvt_dma_map_page(struct intel_vgpu *vgpu, unsigned long gfn,
 		gvt_vgpu_err("DMA mapping failed for pfn 0x%lx, ret %d\n",
 			     page_to_pfn(page), ret);
 		gvt_unpin_guest_page(vgpu, gfn, size);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -209,16 +209,16 @@ static void gvt_dma_unmap_page(struct intel_vgpu *vgpu, unsigned long gfn,
 static struct gvt_dma *__gvt_cache_find_dma_addr(struct intel_vgpu *vgpu,
 		dma_addr_t dma_addr)
 {
-	struct rb_node *node = vgpu->dma_addr_cache.rb_node;
+	struct rb_analde *analde = vgpu->dma_addr_cache.rb_analde;
 	struct gvt_dma *itr;
 
-	while (node) {
-		itr = rb_entry(node, struct gvt_dma, dma_addr_node);
+	while (analde) {
+		itr = rb_entry(analde, struct gvt_dma, dma_addr_analde);
 
 		if (dma_addr < itr->dma_addr)
-			node = node->rb_left;
+			analde = analde->rb_left;
 		else if (dma_addr > itr->dma_addr)
-			node = node->rb_right;
+			analde = analde->rb_right;
 		else
 			return itr;
 	}
@@ -227,16 +227,16 @@ static struct gvt_dma *__gvt_cache_find_dma_addr(struct intel_vgpu *vgpu,
 
 static struct gvt_dma *__gvt_cache_find_gfn(struct intel_vgpu *vgpu, gfn_t gfn)
 {
-	struct rb_node *node = vgpu->gfn_cache.rb_node;
+	struct rb_analde *analde = vgpu->gfn_cache.rb_analde;
 	struct gvt_dma *itr;
 
-	while (node) {
-		itr = rb_entry(node, struct gvt_dma, gfn_node);
+	while (analde) {
+		itr = rb_entry(analde, struct gvt_dma, gfn_analde);
 
 		if (gfn < itr->gfn)
-			node = node->rb_left;
+			analde = analde->rb_left;
 		else if (gfn > itr->gfn)
-			node = node->rb_right;
+			analde = analde->rb_right;
 		else
 			return itr;
 	}
@@ -247,11 +247,11 @@ static int __gvt_cache_add(struct intel_vgpu *vgpu, gfn_t gfn,
 		dma_addr_t dma_addr, unsigned long size)
 {
 	struct gvt_dma *new, *itr;
-	struct rb_node **link, *parent = NULL;
+	struct rb_analde **link, *parent = NULL;
 
 	new = kzalloc(sizeof(struct gvt_dma), GFP_KERNEL);
 	if (!new)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	new->vgpu = vgpu;
 	new->gfn = gfn;
@@ -260,33 +260,33 @@ static int __gvt_cache_add(struct intel_vgpu *vgpu, gfn_t gfn,
 	kref_init(&new->ref);
 
 	/* gfn_cache maps gfn to struct gvt_dma. */
-	link = &vgpu->gfn_cache.rb_node;
+	link = &vgpu->gfn_cache.rb_analde;
 	while (*link) {
 		parent = *link;
-		itr = rb_entry(parent, struct gvt_dma, gfn_node);
+		itr = rb_entry(parent, struct gvt_dma, gfn_analde);
 
 		if (gfn < itr->gfn)
 			link = &parent->rb_left;
 		else
 			link = &parent->rb_right;
 	}
-	rb_link_node(&new->gfn_node, parent, link);
-	rb_insert_color(&new->gfn_node, &vgpu->gfn_cache);
+	rb_link_analde(&new->gfn_analde, parent, link);
+	rb_insert_color(&new->gfn_analde, &vgpu->gfn_cache);
 
 	/* dma_addr_cache maps dma addr to struct gvt_dma. */
 	parent = NULL;
-	link = &vgpu->dma_addr_cache.rb_node;
+	link = &vgpu->dma_addr_cache.rb_analde;
 	while (*link) {
 		parent = *link;
-		itr = rb_entry(parent, struct gvt_dma, dma_addr_node);
+		itr = rb_entry(parent, struct gvt_dma, dma_addr_analde);
 
 		if (dma_addr < itr->dma_addr)
 			link = &parent->rb_left;
 		else
 			link = &parent->rb_right;
 	}
-	rb_link_node(&new->dma_addr_node, parent, link);
-	rb_insert_color(&new->dma_addr_node, &vgpu->dma_addr_cache);
+	rb_link_analde(&new->dma_addr_analde, parent, link);
+	rb_insert_color(&new->dma_addr_analde, &vgpu->dma_addr_cache);
 
 	vgpu->nr_cache_entries++;
 	return 0;
@@ -295,8 +295,8 @@ static int __gvt_cache_add(struct intel_vgpu *vgpu, gfn_t gfn,
 static void __gvt_cache_remove_entry(struct intel_vgpu *vgpu,
 				struct gvt_dma *entry)
 {
-	rb_erase(&entry->gfn_node, &vgpu->gfn_cache);
-	rb_erase(&entry->dma_addr_node, &vgpu->dma_addr_cache);
+	rb_erase(&entry->gfn_analde, &vgpu->gfn_cache);
+	rb_erase(&entry->dma_addr_analde, &vgpu->dma_addr_cache);
 	kfree(entry);
 	vgpu->nr_cache_entries--;
 }
@@ -304,16 +304,16 @@ static void __gvt_cache_remove_entry(struct intel_vgpu *vgpu,
 static void gvt_cache_destroy(struct intel_vgpu *vgpu)
 {
 	struct gvt_dma *dma;
-	struct rb_node *node = NULL;
+	struct rb_analde *analde = NULL;
 
 	for (;;) {
 		mutex_lock(&vgpu->cache_lock);
-		node = rb_first(&vgpu->gfn_cache);
-		if (!node) {
+		analde = rb_first(&vgpu->gfn_cache);
+		if (!analde) {
 			mutex_unlock(&vgpu->cache_lock);
 			break;
 		}
-		dma = rb_entry(node, struct gvt_dma, gfn_node);
+		dma = rb_entry(analde, struct gvt_dma, gfn_analde);
 		gvt_dma_unmap_page(vgpu, dma->gfn, dma->dma_addr, dma->size);
 		__gvt_cache_remove_entry(vgpu, dma);
 		mutex_unlock(&vgpu->cache_lock);
@@ -336,11 +336,11 @@ static void kvmgt_protect_table_init(struct intel_vgpu *info)
 static void kvmgt_protect_table_destroy(struct intel_vgpu *info)
 {
 	struct kvmgt_pgfn *p;
-	struct hlist_node *tmp;
+	struct hlist_analde *tmp;
 	int i;
 
-	hash_for_each_safe(info->ptable, i, tmp, p, hnode) {
-		hash_del(&p->hnode);
+	hash_for_each_safe(info->ptable, i, tmp, p, hanalde) {
+		hash_del(&p->hanalde);
 		kfree(p);
 	}
 }
@@ -352,7 +352,7 @@ __kvmgt_protect_table_find(struct intel_vgpu *info, gfn_t gfn)
 
 	lockdep_assert_held(&info->vgpu_lock);
 
-	hash_for_each_possible(info->ptable, p, hnode, gfn) {
+	hash_for_each_possible(info->ptable, p, hanalde, gfn) {
 		if (gfn == p->gfn) {
 			res = p;
 			break;
@@ -382,7 +382,7 @@ static void kvmgt_protect_table_add(struct intel_vgpu *info, gfn_t gfn)
 		return;
 
 	p->gfn = gfn;
-	hash_add(info->ptable, &p->hnode, gfn);
+	hash_add(info->ptable, &p->hanalde, gfn);
 }
 
 static void kvmgt_protect_table_del(struct intel_vgpu *info, gfn_t gfn)
@@ -391,7 +391,7 @@ static void kvmgt_protect_table_del(struct intel_vgpu *info, gfn_t gfn)
 
 	p = __kvmgt_protect_table_find(info, gfn);
 	if (p) {
-		hash_del(&p->hnode);
+		hash_del(&p->hanalde);
 		kfree(p);
 	}
 }
@@ -540,7 +540,7 @@ static int intel_vgpu_register_reg(struct intel_vgpu *vgpu,
 			(vgpu->num_regions + 1) * sizeof(*region),
 			GFP_KERNEL);
 	if (!region)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vgpu->region = region;
 	vgpu->region[vgpu->num_regions].type = type;
@@ -558,13 +558,13 @@ int intel_gvt_set_opregion(struct intel_vgpu *vgpu)
 	void *base;
 	int ret;
 
-	/* Each vgpu has its own opregion, although VFIO would create another
+	/* Each vgpu has its own opregion, although VFIO would create aanalther
 	 * one later. This one is used to expose opregion to VFIO. And the
 	 * other one created by VFIO later, is used by guest actually.
 	 */
 	base = vgpu_opregion(vgpu)->va;
 	if (!base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (memcmp(base, OPREGION_SIGNATURE, 16)) {
 		memunmap(base);
@@ -588,7 +588,7 @@ int intel_gvt_set_edid(struct intel_vgpu *vgpu, int port_num)
 
 	base = kzalloc(sizeof(*base), GFP_KERNEL);
 	if (!base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* TODO: Add multi-port and EDID extension block support */
 	base->vfio_edid_regs.edid_offset = EDID_BLOB_OFFSET;
@@ -659,10 +659,10 @@ static int intel_vgpu_open_device(struct vfio_device *vfio_dev)
 	if (__kvmgt_vgpu_exist(vgpu))
 		return -EEXIST;
 
-	vgpu->track_node.track_write = kvmgt_page_track_write;
-	vgpu->track_node.track_remove_region = kvmgt_page_track_remove_region;
-	ret = kvm_page_track_register_notifier(vgpu->vfio_device.kvm,
-					       &vgpu->track_node);
+	vgpu->track_analde.track_write = kvmgt_page_track_write;
+	vgpu->track_analde.track_remove_region = kvmgt_page_track_remove_region;
+	ret = kvm_page_track_register_analtifier(vgpu->vfio_device.kvm,
+					       &vgpu->track_analde);
 	if (ret) {
 		gvt_vgpu_err("KVM is required to use Intel vGPU\n");
 		return ret;
@@ -699,8 +699,8 @@ static void intel_vgpu_close_device(struct vfio_device *vfio_dev)
 
 	debugfs_lookup_and_remove(KVMGT_DEBUGFS_FILENAME, vgpu->debugfs);
 
-	kvm_page_track_unregister_notifier(vgpu->vfio_device.kvm,
-					   &vgpu->track_node);
+	kvm_page_track_unregister_analtifier(vgpu->vfio_device.kvm,
+					   &vgpu->track_analde);
 
 	kvmgt_protect_table_destroy(vgpu);
 	gvt_cache_destroy(vgpu);
@@ -732,7 +732,7 @@ static u64 intel_vgpu_get_bar_addr(struct intel_vgpu *vgpu, int bar)
 	case PCI_BASE_ADDRESS_MEM_TYPE_1M:
 		/* 1M mem BAR treated as 32-bit BAR */
 	default:
-		/* mem unknown type treated as 32-bit BAR */
+		/* mem unkanalwn type treated as 32-bit BAR */
 		start_hi = 0;
 		break;
 	}
@@ -1085,7 +1085,7 @@ static int intel_vgpu_set_msi_trigger(struct intel_vgpu *vgpu,
 			return PTR_ERR(trigger);
 		}
 		vgpu->msi_trigger = trigger;
-	} else if ((flags & VFIO_IRQ_SET_DATA_NONE) && !count)
+	} else if ((flags & VFIO_IRQ_SET_DATA_ANALNE) && !count)
 		intel_vgpu_release_msi_eventfd_ctx(vgpu);
 
 	return 0;
@@ -1127,7 +1127,7 @@ static int intel_vgpu_set_irqs(struct intel_vgpu *vgpu, u32 flags,
 	}
 
 	if (!func)
-		return -ENOTTY;
+		return -EANALTTY;
 
 	return func(vgpu, index, start, count, flags, data);
 }
@@ -1211,7 +1211,7 @@ static long intel_vgpu_ioctl(struct vfio_device *vfio_dev, unsigned int cmd,
 			sparse = kzalloc(struct_size(sparse, areas, nr_areas),
 					 GFP_KERNEL);
 			if (!sparse)
-				return -ENOMEM;
+				return -EANALMEM;
 
 			sparse->header.id = VFIO_REGION_INFO_CAP_SPARSE_MMAP;
 			sparse->header.version = 1;
@@ -1248,7 +1248,7 @@ static long intel_vgpu_ioctl(struct vfio_device *vfio_dev, unsigned int cmd,
 						vgpu->num_regions)
 					return -EINVAL;
 				info.index =
-					array_index_nospec(info.index,
+					array_index_analspec(info.index,
 							VFIO_PCI_NUM_REGIONS +
 							vgpu->num_regions);
 
@@ -1338,7 +1338,7 @@ static long intel_vgpu_ioctl(struct vfio_device *vfio_dev, unsigned int cmd,
 			info.flags |= (VFIO_IRQ_INFO_MASKABLE |
 				       VFIO_IRQ_INFO_AUTOMASKED);
 		else
-			info.flags |= VFIO_IRQ_INFO_NORESIZE;
+			info.flags |= VFIO_IRQ_INFO_ANALRESIZE;
 
 		return copy_to_user((void __user *)arg, &info, minsz) ?
 			-EFAULT : 0;
@@ -1353,7 +1353,7 @@ static long intel_vgpu_ioctl(struct vfio_device *vfio_dev, unsigned int cmd,
 		if (copy_from_user(&hdr, (void __user *)arg, minsz))
 			return -EFAULT;
 
-		if (!(hdr.flags & VFIO_IRQ_SET_DATA_NONE)) {
+		if (!(hdr.flags & VFIO_IRQ_SET_DATA_ANALNE)) {
 			int max = intel_vgpu_get_irq_count(vgpu, hdr.index);
 
 			ret = vfio_set_irqs_validate_and_prepare(&hdr, max,
@@ -1403,7 +1403,7 @@ static long intel_vgpu_ioctl(struct vfio_device *vfio_dev, unsigned int cmd,
 		return intel_vgpu_get_dmabuf(vgpu, dmabuf_id);
 	}
 
-	return -ENOTTY;
+	return -EANALTTY;
 }
 
 static ssize_t
@@ -1579,10 +1579,10 @@ int intel_gvt_page_track_remove(struct intel_vgpu *info, u64 gfn)
 }
 
 static void kvmgt_page_track_write(gpa_t gpa, const u8 *val, int len,
-				   struct kvm_page_track_notifier_node *node)
+				   struct kvm_page_track_analtifier_analde *analde)
 {
 	struct intel_vgpu *info =
-		container_of(node, struct intel_vgpu, track_node);
+		container_of(analde, struct intel_vgpu, track_analde);
 
 	mutex_lock(&info->vgpu_lock);
 
@@ -1594,11 +1594,11 @@ static void kvmgt_page_track_write(gpa_t gpa, const u8 *val, int len,
 }
 
 static void kvmgt_page_track_remove_region(gfn_t gfn, unsigned long nr_pages,
-					   struct kvm_page_track_notifier_node *node)
+					   struct kvm_page_track_analtifier_analde *analde)
 {
 	unsigned long i;
 	struct intel_vgpu *info =
-		container_of(node, struct intel_vgpu, track_node);
+		container_of(analde, struct intel_vgpu, track_analde);
 
 	mutex_lock(&info->vgpu_lock);
 
@@ -1686,7 +1686,7 @@ int intel_gvt_dma_pin_guest_page(struct intel_vgpu *vgpu, dma_addr_t dma_addr)
 	if (entry)
 		kref_get(&entry->ref);
 	else
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 	mutex_unlock(&vgpu->cache_lock);
 
 	return ret;
@@ -1851,7 +1851,7 @@ static int intel_gvt_init_device(struct drm_i915_private *i915)
 
 	gvt = kzalloc(sizeof(struct intel_gvt), GFP_KERNEL);
 	if (!gvt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gvt_dbg_core("init gvt device\n");
 

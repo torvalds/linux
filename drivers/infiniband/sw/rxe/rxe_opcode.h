@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
 /*
- * Copyright (c) 2016 Mellanox Technologies Ltd. All rights reserved.
+ * Copyright (c) 2016 Mellaanalx Techanallogies Ltd. All rights reserved.
  * Copyright (c) 2015 System Fabric Works, Inc. All rights reserved.
  */
 
@@ -96,7 +96,7 @@ enum rxe_hdr_mask {
 				   RXE_ATOMIC_MASK),
 };
 
-#define OPCODE_NONE		(-1)
+#define OPCODE_ANALNE		(-1)
 #define RXE_NUM_OPCODE		256
 
 struct rxe_opcode_info {

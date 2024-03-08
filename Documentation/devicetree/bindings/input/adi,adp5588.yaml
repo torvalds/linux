@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Analog Devices ADP5588 Keypad Controller
 
 maintainers:
-  - Nuno Sá <nuno.sa@analog.com>
+  - Nuanal Sá <nuanal.sa@analog.com>
 
 description: |
   Analog Devices Mobile I/O Expander and QWERTY Keypad Controller
@@ -59,7 +59,7 @@ properties:
       Specifies a maximum of 2 keys that can be used to unlock the keypad.
       If this property is set, the keyboard will be locked and only unlocked
       after these keys are pressed. If only one key is set, a double click is
-      needed to unlock the keypad. The value of this property cannot be bigger
+      needed to unlock the keypad. The value of this property cananalt be bigger
       or equal than keypad,num-rows * keypad,num-columns.
     $ref: /schemas/types.yaml#/definitions/uint32-array
     minItems: 1

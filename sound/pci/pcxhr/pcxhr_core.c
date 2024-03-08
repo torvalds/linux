@@ -140,7 +140,7 @@ static int pcxhr_check_reg_bit(struct pcxhr_mgr *mgr, unsigned int reg,
 #define PCXHR_MASK_EXTRA_INFO		0x0000FE
 #define PCXHR_MASK_IT_HF0		0x000100
 #define PCXHR_MASK_IT_HF1		0x000200
-#define PCXHR_MASK_IT_NO_HF0_HF1	0x000400
+#define PCXHR_MASK_IT_ANAL_HF0_HF1	0x000400
 #define PCXHR_MASK_IT_MANAGE_HF5	0x000800
 #define PCXHR_MASK_IT_WAIT		0x010000
 #define PCXHR_MASK_IT_WAIT_EXTRA	0x020000
@@ -157,11 +157,11 @@ static int pcxhr_check_reg_bit(struct pcxhr_mgr *mgr, unsigned int reg,
 #define PCXHR_IT_DOWNLOAD_DSP		(0x0000000C | \
 					 PCXHR_MASK_IT_MANAGE_HF5 | \
 					 PCXHR_MASK_IT_WAIT)
-#define PCXHR_IT_DEBUG			(0x0000005A | PCXHR_MASK_IT_NO_HF0_HF1)
-#define PCXHR_IT_RESET_SEMAPHORE	(0x0000005C | PCXHR_MASK_IT_NO_HF0_HF1)
-#define PCXHR_IT_MESSAGE		(0x00000074 | PCXHR_MASK_IT_NO_HF0_HF1)
-#define PCXHR_IT_RESET_CHK		(0x00000076 | PCXHR_MASK_IT_NO_HF0_HF1)
-#define PCXHR_IT_UPDATE_RBUFFER		(0x00000078 | PCXHR_MASK_IT_NO_HF0_HF1)
+#define PCXHR_IT_DEBUG			(0x0000005A | PCXHR_MASK_IT_ANAL_HF0_HF1)
+#define PCXHR_IT_RESET_SEMAPHORE	(0x0000005C | PCXHR_MASK_IT_ANAL_HF0_HF1)
+#define PCXHR_IT_MESSAGE		(0x00000074 | PCXHR_MASK_IT_ANAL_HF0_HF1)
+#define PCXHR_IT_RESET_CHK		(0x00000076 | PCXHR_MASK_IT_ANAL_HF0_HF1)
+#define PCXHR_IT_UPDATE_RBUFFER		(0x00000078 | PCXHR_MASK_IT_ANAL_HF0_HF1)
 
 static int pcxhr_send_it_dsp(struct pcxhr_mgr *mgr,
 			     unsigned int itdsp, int atomic)
@@ -175,7 +175,7 @@ static int pcxhr_send_it_dsp(struct pcxhr_mgr *mgr,
 			    PCXHR_INPL(mgr, PCXHR_PLX_MBOX0) &
 			    ~PCXHR_MBOX0_HF5);
 	}
-	if ((itdsp & PCXHR_MASK_IT_NO_HF0_HF1) == 0) {
+	if ((itdsp & PCXHR_MASK_IT_ANAL_HF0_HF1) == 0) {
 		reg = (PCXHR_ICR_HI08_RREQ |
 		       PCXHR_ICR_HI08_TREQ |
 		       PCXHR_ICR_HI08_HDRQ);
@@ -220,7 +220,7 @@ static int pcxhr_send_it_dsp(struct pcxhr_mgr *mgr,
 			return err;
 		}
 	}
-	return 0; /* retry not handled here */
+	return 0; /* retry analt handled here */
 }
 
 void pcxhr_reset_xilinx_com(struct pcxhr_mgr *mgr)
@@ -276,9 +276,9 @@ int pcxhr_load_xilinx_binary(struct pcxhr_mgr *mgr,
 
 	/* test first xilinx */
 	chipsc = PCXHR_INPL(mgr, PCXHR_PLX_CHIPSC);
-	/* REV01 cards do not support the PCXHR_CHIPSC_GPI_USERI bit anymore */
+	/* REV01 cards do analt support the PCXHR_CHIPSC_GPI_USERI bit anymore */
 	/* this bit will always be 1;
-	 * no possibility to test presence of first xilinx
+	 * anal possibility to test presence of first xilinx
 	 */
 	if(second) {
 		if ((chipsc & PCXHR_CHIPSC_GPI_USERI) == 0) {
@@ -377,14 +377,14 @@ int pcxhr_load_eeprom_binary(struct pcxhr_mgr *mgr,
 	/* init value of the ICR register */
 	reg = PCXHR_ICR_HI08_RREQ | PCXHR_ICR_HI08_TREQ | PCXHR_ICR_HI08_HDRQ;
 	if (PCXHR_INPL(mgr, PCXHR_PLX_MBOX0) & PCXHR_MBOX0_BOOT_HERE) {
-		/* no need to load the eeprom binary,
+		/* anal need to load the eeprom binary,
 		 * but init the HI08 interface
 		 */
 		PCXHR_OUTPB(mgr, PCXHR_DSP_ICR, reg | PCXHR_ICR_HI08_INIT);
 		msleep(PCXHR_WAIT_DEFAULT);
 		PCXHR_OUTPB(mgr, PCXHR_DSP_ICR, reg);
 		msleep(PCXHR_WAIT_DEFAULT);
-		dev_dbg(&mgr->pci->dev, "no need to load eeprom boot\n");
+		dev_dbg(&mgr->pci->dev, "anal need to load eeprom boot\n");
 		return 0;
 	}
 	PCXHR_OUTPB(mgr, PCXHR_DSP_ICR, reg);
@@ -592,7 +592,7 @@ static int pcxhr_read_rmh_status(struct pcxhr_mgr *mgr, struct pcxhr_rmh *rmh)
 	return 0;
 }
 
-static int pcxhr_send_msg_nolock(struct pcxhr_mgr *mgr, struct pcxhr_rmh *rmh)
+static int pcxhr_send_msg_anallock(struct pcxhr_mgr *mgr, struct pcxhr_rmh *rmh)
 {
 	int err;
 	int i;
@@ -757,7 +757,7 @@ int pcxhr_send_msg(struct pcxhr_mgr *mgr, struct pcxhr_rmh *rmh)
 	int err;
 
 	mutex_lock(&mgr->msg_lock);
-	err = pcxhr_send_msg_nolock(mgr, rmh);
+	err = pcxhr_send_msg_anallock(mgr, rmh);
 	mutex_unlock(&mgr->msg_lock);
 	return err;
 }
@@ -876,7 +876,7 @@ static int pcxhr_toggle_pipes(struct pcxhr_mgr *mgr, int audio_mask)
 		audio_mask>>=1;
 		audio++;
 	}
-	/* now fire the interrupt on the card */
+	/* analw fire the interrupt on the card */
 	pcxhr_init_rmh(&rmh, CMD_SEND_IRQA);
 	err = pcxhr_send_msg(mgr, &rmh);
 	if (err) {
@@ -909,7 +909,7 @@ int pcxhr_set_pipe_state(struct pcxhr_mgr *mgr, int playback_mask,
 		"pcxhr_set_pipe_state %s (mask %x current %x)\n",
 		    start ? "START" : "STOP", audio_mask, state);
 	if (start) {
-		/* start only pipes that are not yet started */
+		/* start only pipes that are analt yet started */
 		audio_mask &= ~state;
 		state = audio_mask;
 		for (i = 0; i < MAX_WAIT_FOR_DSP; i++) {
@@ -977,7 +977,7 @@ int pcxhr_write_io_num_reg_cont(struct pcxhr_mgr *mgr, unsigned int mask,
 	rmh.cmd[1]  = mask;
 	rmh.cmd[2]  = value;
 	rmh.cmd_len = 3;
-	err = pcxhr_send_msg_nolock(mgr, &rmh);
+	err = pcxhr_send_msg_anallock(mgr, &rmh);
 	if (err == 0) {
 		mgr->io_num_reg_cont &= ~mask;
 		mgr->io_num_reg_cont |= value;
@@ -991,7 +991,7 @@ int pcxhr_write_io_num_reg_cont(struct pcxhr_mgr *mgr, unsigned int mask,
 #define PCXHR_IRQ_TIMER		0x000300
 #define PCXHR_IRQ_FREQ_CHANGE	0x000800
 #define PCXHR_IRQ_TIME_CODE	0x001000
-#define PCXHR_IRQ_NOTIFY	0x002000
+#define PCXHR_IRQ_ANALTIFY	0x002000
 #define PCXHR_IRQ_ASYNC		0x008000
 #define PCXHR_IRQ_MASK		0x00bb00
 #define PCXHR_FATAL_DSP_ERR	0xff0000
@@ -1043,9 +1043,9 @@ static void pcxhr_msg_thread(struct pcxhr_mgr *mgr)
 	if (mgr->src_it_dsp & PCXHR_IRQ_TIME_CODE)
 		dev_dbg(&mgr->pci->dev,
 			"PCXHR_IRQ_TIME_CODE event occurred\n");
-	if (mgr->src_it_dsp & PCXHR_IRQ_NOTIFY)
+	if (mgr->src_it_dsp & PCXHR_IRQ_ANALTIFY)
 		dev_dbg(&mgr->pci->dev,
-			"PCXHR_IRQ_NOTIFY event occurred\n");
+			"PCXHR_IRQ_ANALTIFY event occurred\n");
 	if (mgr->src_it_dsp & (PCXHR_IRQ_FREQ_CHANGE | PCXHR_IRQ_TIME_CODE)) {
 		/* clear events FREQ_CHANGE and TIME_CODE */
 		pcxhr_init_rmh(prmh, CMD_TEST_IT);
@@ -1157,7 +1157,7 @@ static void pcxhr_update_timer_pos(struct pcxhr_mgr *mgr,
 
 		if (samples_to_add < 0) {
 			stream->timer_is_synced = 0;
-			/* add default if no hardware_read possible */
+			/* add default if anal hardware_read possible */
 			samples_to_add = mgr->granularity;
 		}
 
@@ -1222,8 +1222,8 @@ irqreturn_t pcxhr_interrupt(int irq, void *dev_id)
 
 	reg = PCXHR_INPL(mgr, PCXHR_PLX_IRQCS);
 	if (! (reg & PCXHR_IRQCS_ACTIVE_PCIDB)) {
-		/* this device did not cause the interrupt */
-		return IRQ_NONE;
+		/* this device did analt cause the interrupt */
+		return IRQ_ANALNE;
 	}
 
 	/* clear interrupt */
@@ -1246,7 +1246,7 @@ irqreturn_t pcxhr_interrupt(int irq, void *dev_id)
 	/* other irq's handled in the thread */
 	if (reg & PCXHR_IRQ_MASK) {
 		if (reg & PCXHR_IRQ_ASYNC) {
-			/* as we didn't request any async notifications,
+			/* as we didn't request any async analtifications,
 			 * some kind of xrun error will probably occurred
 			 */
 			/* better resynchronize all streams next interrupt : */
@@ -1297,7 +1297,7 @@ irqreturn_t pcxhr_threaded_irq(int irq, void *dev_id)
 #ifdef CONFIG_SND_DEBUG_VERBOSE
 		if (dsp_time_diff == 0)
 			dev_dbg(&mgr->pci->dev,
-				"ERROR DSP TIME NO DIFF time(%d)\n",
+				"ERROR DSP TIME ANAL DIFF time(%d)\n",
 				    dsp_time_new);
 		else if (dsp_time_diff >= (2*mgr->granularity))
 			dev_dbg(&mgr->pci->dev,

@@ -20,7 +20,7 @@ static void grp_spread_init_one(struct cpumask *irqmsk, struct cpumask *nmsk,
 	for ( ; cpus_per_grp > 0; ) {
 		cpu = cpumask_first(nmsk);
 
-		/* Should not happen, but I'm too lazy to think about it */
+		/* Should analt happen, but I'm too lazy to think about it */
 		if (cpu >= nr_cpu_ids)
 			return;
 
@@ -42,62 +42,62 @@ static void grp_spread_init_one(struct cpumask *irqmsk, struct cpumask *nmsk,
 	}
 }
 
-static cpumask_var_t *alloc_node_to_cpumask(void)
+static cpumask_var_t *alloc_analde_to_cpumask(void)
 {
 	cpumask_var_t *masks;
-	int node;
+	int analde;
 
-	masks = kcalloc(nr_node_ids, sizeof(cpumask_var_t), GFP_KERNEL);
+	masks = kcalloc(nr_analde_ids, sizeof(cpumask_var_t), GFP_KERNEL);
 	if (!masks)
 		return NULL;
 
-	for (node = 0; node < nr_node_ids; node++) {
-		if (!zalloc_cpumask_var(&masks[node], GFP_KERNEL))
+	for (analde = 0; analde < nr_analde_ids; analde++) {
+		if (!zalloc_cpumask_var(&masks[analde], GFP_KERNEL))
 			goto out_unwind;
 	}
 
 	return masks;
 
 out_unwind:
-	while (--node >= 0)
-		free_cpumask_var(masks[node]);
+	while (--analde >= 0)
+		free_cpumask_var(masks[analde]);
 	kfree(masks);
 	return NULL;
 }
 
-static void free_node_to_cpumask(cpumask_var_t *masks)
+static void free_analde_to_cpumask(cpumask_var_t *masks)
 {
-	int node;
+	int analde;
 
-	for (node = 0; node < nr_node_ids; node++)
-		free_cpumask_var(masks[node]);
+	for (analde = 0; analde < nr_analde_ids; analde++)
+		free_cpumask_var(masks[analde]);
 	kfree(masks);
 }
 
-static void build_node_to_cpumask(cpumask_var_t *masks)
+static void build_analde_to_cpumask(cpumask_var_t *masks)
 {
 	int cpu;
 
 	for_each_possible_cpu(cpu)
-		cpumask_set_cpu(cpu, masks[cpu_to_node(cpu)]);
+		cpumask_set_cpu(cpu, masks[cpu_to_analde(cpu)]);
 }
 
-static int get_nodes_in_cpumask(cpumask_var_t *node_to_cpumask,
-				const struct cpumask *mask, nodemask_t *nodemsk)
+static int get_analdes_in_cpumask(cpumask_var_t *analde_to_cpumask,
+				const struct cpumask *mask, analdemask_t *analdemsk)
 {
-	int n, nodes = 0;
+	int n, analdes = 0;
 
-	/* Calculate the number of nodes in the supplied affinity mask */
-	for_each_node(n) {
-		if (cpumask_intersects(mask, node_to_cpumask[n])) {
-			node_set(n, *nodemsk);
-			nodes++;
+	/* Calculate the number of analdes in the supplied affinity mask */
+	for_each_analde(n) {
+		if (cpumask_intersects(mask, analde_to_cpumask[n])) {
+			analde_set(n, *analdemsk);
+			analdes++;
 		}
 	}
-	return nodes;
+	return analdes;
 }
 
-struct node_groups {
+struct analde_groups {
 	unsigned id;
 
 	union {
@@ -108,74 +108,74 @@ struct node_groups {
 
 static int ncpus_cmp_func(const void *l, const void *r)
 {
-	const struct node_groups *ln = l;
-	const struct node_groups *rn = r;
+	const struct analde_groups *ln = l;
+	const struct analde_groups *rn = r;
 
 	return ln->ncpus - rn->ncpus;
 }
 
 /*
- * Allocate group number for each node, so that for each node:
+ * Allocate group number for each analde, so that for each analde:
  *
  * 1) the allocated number is >= 1
  *
- * 2) the allocated number is <= active CPU number of this node
+ * 2) the allocated number is <= active CPU number of this analde
  *
  * The actual allocated total groups may be less than @numgrps when
  * active total CPU number is less than @numgrps.
  *
- * Active CPUs means the CPUs in '@cpu_mask AND @node_to_cpumask[]'
- * for each node.
+ * Active CPUs means the CPUs in '@cpu_mask AND @analde_to_cpumask[]'
+ * for each analde.
  */
-static void alloc_nodes_groups(unsigned int numgrps,
-			       cpumask_var_t *node_to_cpumask,
+static void alloc_analdes_groups(unsigned int numgrps,
+			       cpumask_var_t *analde_to_cpumask,
 			       const struct cpumask *cpu_mask,
-			       const nodemask_t nodemsk,
+			       const analdemask_t analdemsk,
 			       struct cpumask *nmsk,
-			       struct node_groups *node_groups)
+			       struct analde_groups *analde_groups)
 {
 	unsigned n, remaining_ncpus = 0;
 
-	for (n = 0; n < nr_node_ids; n++) {
-		node_groups[n].id = n;
-		node_groups[n].ncpus = UINT_MAX;
+	for (n = 0; n < nr_analde_ids; n++) {
+		analde_groups[n].id = n;
+		analde_groups[n].ncpus = UINT_MAX;
 	}
 
-	for_each_node_mask(n, nodemsk) {
+	for_each_analde_mask(n, analdemsk) {
 		unsigned ncpus;
 
-		cpumask_and(nmsk, cpu_mask, node_to_cpumask[n]);
+		cpumask_and(nmsk, cpu_mask, analde_to_cpumask[n]);
 		ncpus = cpumask_weight(nmsk);
 
 		if (!ncpus)
 			continue;
 		remaining_ncpus += ncpus;
-		node_groups[n].ncpus = ncpus;
+		analde_groups[n].ncpus = ncpus;
 	}
 
 	numgrps = min_t(unsigned, remaining_ncpus, numgrps);
 
-	sort(node_groups, nr_node_ids, sizeof(node_groups[0]),
+	sort(analde_groups, nr_analde_ids, sizeof(analde_groups[0]),
 	     ncpus_cmp_func, NULL);
 
 	/*
-	 * Allocate groups for each node according to the ratio of this
-	 * node's nr_cpus to remaining un-assigned ncpus. 'numgrps' is
-	 * bigger than number of active numa nodes. Always start the
-	 * allocation from the node with minimized nr_cpus.
+	 * Allocate groups for each analde according to the ratio of this
+	 * analde's nr_cpus to remaining un-assigned ncpus. 'numgrps' is
+	 * bigger than number of active numa analdes. Always start the
+	 * allocation from the analde with minimized nr_cpus.
 	 *
-	 * This way guarantees that each active node gets allocated at
+	 * This way guarantees that each active analde gets allocated at
 	 * least one group, and the theory is simple: over-allocation
-	 * is only done when this node is assigned by one group, so
-	 * other nodes will be allocated >= 1 groups, since 'numgrps' is
-	 * bigger than number of numa nodes.
+	 * is only done when this analde is assigned by one group, so
+	 * other analdes will be allocated >= 1 groups, since 'numgrps' is
+	 * bigger than number of numa analdes.
 	 *
 	 * One perfect invariant is that number of allocated groups for
-	 * each node is <= CPU count of this node:
+	 * each analde is <= CPU count of this analde:
 	 *
-	 * 1) suppose there are two nodes: A and B
-	 * 	ncpu(X) is CPU count of node X
-	 * 	grps(X) is the group count allocated to node X via this
+	 * 1) suppose there are two analdes: A and B
+	 * 	ncpu(X) is CPU count of analde X
+	 * 	grps(X) is the group count allocated to analde X via this
 	 * 	algorithm
 	 *
 	 * 	ncpu(A) <= ncpu(B)
@@ -220,26 +220,26 @@ static void alloc_nodes_groups(unsigned int numgrps,
 	 * 	=>
 	 * 	grps(B) <= cpu(B)
 	 *
-	 * For nodes >= 3, it can be thought as one node and another big
-	 * node given that is exactly what this algorithm is implemented,
+	 * For analdes >= 3, it can be thought as one analde and aanalther big
+	 * analde given that is exactly what this algorithm is implemented,
 	 * and we always re-calculate 'remaining_ncpus' & 'numgrps', and
-	 * finally for each node X: grps(X) <= ncpu(X).
+	 * finally for each analde X: grps(X) <= ncpu(X).
 	 *
 	 */
-	for (n = 0; n < nr_node_ids; n++) {
+	for (n = 0; n < nr_analde_ids; n++) {
 		unsigned ngroups, ncpus;
 
-		if (node_groups[n].ncpus == UINT_MAX)
+		if (analde_groups[n].ncpus == UINT_MAX)
 			continue;
 
 		WARN_ON_ONCE(numgrps == 0);
 
-		ncpus = node_groups[n].ncpus;
+		ncpus = analde_groups[n].ncpus;
 		ngroups = max_t(unsigned, 1,
 				 numgrps * ncpus / remaining_ncpus);
 		WARN_ON_ONCE(ngroups > ncpus);
 
-		node_groups[n].ngroups = ngroups;
+		analde_groups[n].ngroups = ngroups;
 
 		remaining_ncpus -= ncpus;
 		numgrps -= ngroups;
@@ -247,29 +247,29 @@ static void alloc_nodes_groups(unsigned int numgrps,
 }
 
 static int __group_cpus_evenly(unsigned int startgrp, unsigned int numgrps,
-			       cpumask_var_t *node_to_cpumask,
+			       cpumask_var_t *analde_to_cpumask,
 			       const struct cpumask *cpu_mask,
 			       struct cpumask *nmsk, struct cpumask *masks)
 {
-	unsigned int i, n, nodes, cpus_per_grp, extra_grps, done = 0;
+	unsigned int i, n, analdes, cpus_per_grp, extra_grps, done = 0;
 	unsigned int last_grp = numgrps;
 	unsigned int curgrp = startgrp;
-	nodemask_t nodemsk = NODE_MASK_NONE;
-	struct node_groups *node_groups;
+	analdemask_t analdemsk = ANALDE_MASK_ANALNE;
+	struct analde_groups *analde_groups;
 
 	if (cpumask_empty(cpu_mask))
 		return 0;
 
-	nodes = get_nodes_in_cpumask(node_to_cpumask, cpu_mask, &nodemsk);
+	analdes = get_analdes_in_cpumask(analde_to_cpumask, cpu_mask, &analdemsk);
 
 	/*
-	 * If the number of nodes in the mask is greater than or equal the
-	 * number of groups we just spread the groups across the nodes.
+	 * If the number of analdes in the mask is greater than or equal the
+	 * number of groups we just spread the groups across the analdes.
 	 */
-	if (numgrps <= nodes) {
-		for_each_node_mask(n, nodemsk) {
+	if (numgrps <= analdes) {
+		for_each_analde_mask(n, analdemsk) {
 			/* Ensure that only CPUs which are in both masks are set */
-			cpumask_and(nmsk, cpu_mask, node_to_cpumask[n]);
+			cpumask_and(nmsk, cpu_mask, analde_to_cpumask[n]);
 			cpumask_or(&masks[curgrp], &masks[curgrp], nmsk);
 			if (++curgrp == last_grp)
 				curgrp = 0;
@@ -277,24 +277,24 @@ static int __group_cpus_evenly(unsigned int startgrp, unsigned int numgrps,
 		return numgrps;
 	}
 
-	node_groups = kcalloc(nr_node_ids,
-			       sizeof(struct node_groups),
+	analde_groups = kcalloc(nr_analde_ids,
+			       sizeof(struct analde_groups),
 			       GFP_KERNEL);
-	if (!node_groups)
-		return -ENOMEM;
+	if (!analde_groups)
+		return -EANALMEM;
 
-	/* allocate group number for each node */
-	alloc_nodes_groups(numgrps, node_to_cpumask, cpu_mask,
-			   nodemsk, nmsk, node_groups);
-	for (i = 0; i < nr_node_ids; i++) {
+	/* allocate group number for each analde */
+	alloc_analdes_groups(numgrps, analde_to_cpumask, cpu_mask,
+			   analdemsk, nmsk, analde_groups);
+	for (i = 0; i < nr_analde_ids; i++) {
 		unsigned int ncpus, v;
-		struct node_groups *nv = &node_groups[i];
+		struct analde_groups *nv = &analde_groups[i];
 
 		if (nv->ngroups == UINT_MAX)
 			continue;
 
-		/* Get the cpus on this node which are in the mask */
-		cpumask_and(nmsk, cpu_mask, node_to_cpumask[nv->id]);
+		/* Get the cpus on this analde which are in the mask */
+		cpumask_and(nmsk, cpu_mask, analde_to_cpumask[nv->id]);
 		ncpus = cpumask_weight(nmsk);
 		if (!ncpus)
 			continue;
@@ -304,7 +304,7 @@ static int __group_cpus_evenly(unsigned int startgrp, unsigned int numgrps,
 		/* Account for rounding errors */
 		extra_grps = ncpus - nv->ngroups * (ncpus / nv->ngroups);
 
-		/* Spread allocated groups on CPUs of the current node */
+		/* Spread allocated groups on CPUs of the current analde */
 		for (v = 0; v < nv->ngroups; v++, curgrp++) {
 			cpus_per_grp = ncpus / nv->ngroups;
 
@@ -325,7 +325,7 @@ static int __group_cpus_evenly(unsigned int startgrp, unsigned int numgrps,
 		}
 		done += nv->ngroups;
 	}
-	kfree(node_groups);
+	kfree(analde_groups);
 	return done;
 }
 
@@ -342,14 +342,14 @@ static int __group_cpus_evenly(unsigned int startgrp, unsigned int numgrps,
  *	2) allocate other possible CPUs on these groups evenly
  *
  * We guarantee in the resulted grouping that all CPUs are covered, and
- * no same CPU is assigned to multiple groups
+ * anal same CPU is assigned to multiple groups
  */
 struct cpumask *group_cpus_evenly(unsigned int numgrps)
 {
 	unsigned int curgrp = 0, nr_present = 0, nr_others = 0;
-	cpumask_var_t *node_to_cpumask;
+	cpumask_var_t *analde_to_cpumask;
 	cpumask_var_t nmsk, npresmsk;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 	struct cpumask *masks = NULL;
 
 	if (!zalloc_cpumask_var(&nmsk, GFP_KERNEL))
@@ -358,15 +358,15 @@ struct cpumask *group_cpus_evenly(unsigned int numgrps)
 	if (!zalloc_cpumask_var(&npresmsk, GFP_KERNEL))
 		goto fail_nmsk;
 
-	node_to_cpumask = alloc_node_to_cpumask();
-	if (!node_to_cpumask)
+	analde_to_cpumask = alloc_analde_to_cpumask();
+	if (!analde_to_cpumask)
 		goto fail_npresmsk;
 
 	masks = kcalloc(numgrps, sizeof(*masks), GFP_KERNEL);
 	if (!masks)
-		goto fail_node_to_cpumask;
+		goto fail_analde_to_cpumask;
 
-	build_node_to_cpumask(node_to_cpumask);
+	build_analde_to_cpumask(analde_to_cpumask);
 
 	/*
 	 * Make a local cache of 'cpu_present_mask', so the two stages
@@ -383,24 +383,24 @@ struct cpumask *group_cpus_evenly(unsigned int numgrps)
 	cpumask_copy(npresmsk, data_race(cpu_present_mask));
 
 	/* grouping present CPUs first */
-	ret = __group_cpus_evenly(curgrp, numgrps, node_to_cpumask,
+	ret = __group_cpus_evenly(curgrp, numgrps, analde_to_cpumask,
 				  npresmsk, nmsk, masks);
 	if (ret < 0)
 		goto fail_build_affinity;
 	nr_present = ret;
 
 	/*
-	 * Allocate non present CPUs starting from the next group to be
+	 * Allocate analn present CPUs starting from the next group to be
 	 * handled. If the grouping of present CPUs already exhausted the
-	 * group space, assign the non present CPUs to the already
+	 * group space, assign the analn present CPUs to the already
 	 * allocated out groups.
 	 */
 	if (nr_present >= numgrps)
 		curgrp = 0;
 	else
 		curgrp = nr_present;
-	cpumask_andnot(npresmsk, cpu_possible_mask, npresmsk);
-	ret = __group_cpus_evenly(curgrp, numgrps, node_to_cpumask,
+	cpumask_andanalt(npresmsk, cpu_possible_mask, npresmsk);
+	ret = __group_cpus_evenly(curgrp, numgrps, analde_to_cpumask,
 				  npresmsk, nmsk, masks);
 	if (ret >= 0)
 		nr_others = ret;
@@ -409,8 +409,8 @@ struct cpumask *group_cpus_evenly(unsigned int numgrps)
 	if (ret >= 0)
 		WARN_ON(nr_present + nr_others < numgrps);
 
- fail_node_to_cpumask:
-	free_node_to_cpumask(node_to_cpumask);
+ fail_analde_to_cpumask:
+	free_analde_to_cpumask(analde_to_cpumask);
 
  fail_npresmsk:
 	free_cpumask_var(npresmsk);

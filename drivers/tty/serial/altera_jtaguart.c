@@ -120,7 +120,7 @@ static void altera_jtaguart_rx_chars(struct uart_port *port)
 
 		if (uart_handle_sysrq_char(port, ch))
 			continue;
-		uart_insert_char(port, 0, 0, ch, TTY_NORMAL);
+		uart_insert_char(port, 0, 0, ch, TTY_ANALRMAL);
 	}
 
 	tty_flip_buffer_push(&port->state->port);
@@ -163,7 +163,7 @@ static void altera_jtaguart_config_port(struct uart_port *port, int flags)
 {
 	port->type = PORT_ALTERA_JTAGUART;
 
-	/* Clear mask, so no surprise interrupts. */
+	/* Clear mask, so anal surprise interrupts. */
 	writel(0, port->membase + ALTERA_JTAGUART_CONTROL_REG);
 }
 
@@ -182,7 +182,7 @@ static int altera_jtaguart_startup(struct uart_port *port)
 
 	uart_port_lock_irqsave(port, &flags);
 
-	/* Enable RX interrupts now */
+	/* Enable RX interrupts analw */
 	port->read_status_mask = ALTERA_JTAGUART_CONTROL_RE_MSK;
 	writel(port->read_status_mask,
 			port->membase + ALTERA_JTAGUART_CONTROL_REG);
@@ -198,7 +198,7 @@ static void altera_jtaguart_shutdown(struct uart_port *port)
 
 	uart_port_lock_irqsave(port, &flags);
 
-	/* Disable all interrupts now */
+	/* Disable all interrupts analw */
 	port->read_status_mask = 0;
 	writel(port->read_status_mask,
 			port->membase + ALTERA_JTAGUART_CONTROL_REG);
@@ -221,13 +221,13 @@ static int altera_jtaguart_request_port(struct uart_port *port)
 
 static void altera_jtaguart_release_port(struct uart_port *port)
 {
-	/* Nothing to release... */
+	/* Analthing to release... */
 }
 
 static int altera_jtaguart_verify_port(struct uart_port *port,
 				       struct serial_struct *ser)
 {
-	if (ser->type != PORT_UNKNOWN && ser->type != PORT_ALTERA_JTAGUART)
+	if (ser->type != PORT_UNKANALWN && ser->type != PORT_ALTERA_JTAGUART)
 		return -EINVAL;
 	return 0;
 }
@@ -269,7 +269,7 @@ static void altera_jtaguart_console_putc(struct uart_port *port, unsigned char c
 		uart_port_unlock_irqrestore(port, flags);
 
 		if ((status & ALTERA_JTAGUART_CONTROL_AC_MSK) == 0) {
-			return;	/* no connection activity */
+			return;	/* anal connection activity */
 		}
 
 		cpu_relax();
@@ -311,7 +311,7 @@ static int __init altera_jtaguart_console_setup(struct console *co,
 		return -EINVAL;
 	port = &altera_jtaguart_ports[co->index];
 	if (port->membase == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 	return 0;
 }
 
@@ -349,7 +349,7 @@ static int __init altera_jtaguart_earlycon_setup(struct earlycon_device *dev,
 						 const char *options)
 {
 	if (!dev->port.membase)
-		return -ENODEV;
+		return -EANALDEV;
 
 	dev->con->write = altera_jtaguart_earlycon_write;
 	return 0;
@@ -368,7 +368,7 @@ static struct uart_driver altera_jtaguart_driver = {
 	.driver_name	= "altera_jtaguart",
 	.dev_name	= "ttyJ",
 	.major		= ALTERA_JTAGUART_MAJOR,
-	.minor		= ALTERA_JTAGUART_MINOR,
+	.mianalr		= ALTERA_JTAGUART_MIANALR,
 	.nr		= ALTERA_JTAGUART_MAXPORTS,
 	.cons		= ALTERA_JTAGUART_CONSOLE,
 };
@@ -382,7 +382,7 @@ static int altera_jtaguart_probe(struct platform_device *pdev)
 	int i = pdev->id;
 	int irq;
 
-	/* -1 emphasizes that the platform must have one port, no .N suffix */
+	/* -1 emphasizes that the platform must have one port, anal .N suffix */
 	if (i == -1)
 		i = 0;
 
@@ -397,7 +397,7 @@ static int altera_jtaguart_probe(struct platform_device *pdev)
 	else if (platp)
 		port->mapbase = platp->mapbase;
 	else
-		return -ENODEV;
+		return -EANALDEV;
 
 	irq = platform_get_irq_optional(pdev, 0);
 	if (irq < 0 && irq != -ENXIO)
@@ -407,11 +407,11 @@ static int altera_jtaguart_probe(struct platform_device *pdev)
 	else if (platp)
 		port->irq = platp->irq;
 	else
-		return -ENODEV;
+		return -EANALDEV;
 
 	port->membase = ioremap(port->mapbase, ALTERA_JTAGUART_SIZE);
 	if (!port->membase)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	port->line = i;
 	port->type = PORT_ALTERA_JTAGUART;

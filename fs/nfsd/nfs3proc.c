@@ -18,7 +18,7 @@
 #define NFSDDBG_FACILITY		NFSDDBG_PROC
 
 static int	nfs3_ftypes[] = {
-	0,			/* NF3NON */
+	0,			/* NF3ANALN */
 	S_IFREG,		/* NF3REG */
 	S_IFDIR,		/* NF3DIR */
 	S_IFBLK,		/* NF3BLK */
@@ -51,7 +51,7 @@ nfsd3_proc_getattr(struct svc_rqst *rqstp)
 
 	fh_copy(&resp->fh, &argp->fh);
 	resp->status = fh_verify(rqstp, &resp->fh, 0,
-				 NFSD_MAY_NOP | NFSD_MAY_BYPASS_GSS_ON_ROOT);
+				 NFSD_MAY_ANALP | NFSD_MAY_BYPASS_GSS_ON_ROOT);
 	if (resp->status != nfs_ok)
 		goto out;
 
@@ -230,7 +230,7 @@ nfsd3_create_file(struct svc_rqst *rqstp, struct svc_fh *fhp,
 		.na_iattr	= iap,
 	};
 	__u32 v_mtime, v_atime;
-	struct inode *inode;
+	struct ianalde *ianalde;
 	__be32 status;
 	int host_err;
 
@@ -244,17 +244,17 @@ nfsd3_create_file(struct svc_rqst *rqstp, struct svc_fh *fhp,
 		return status;
 
 	parent = fhp->fh_dentry;
-	inode = d_inode(parent);
+	ianalde = d_ianalde(parent);
 
 	host_err = fh_want_write(fhp);
 	if (host_err)
-		return nfserrno(host_err);
+		return nfserranal(host_err);
 
-	inode_lock_nested(inode, I_MUTEX_PARENT);
+	ianalde_lock_nested(ianalde, I_MUTEX_PARENT);
 
 	child = lookup_one_len(argp->name, parent, argp->len);
 	if (IS_ERR(child)) {
-		status = nfserrno(PTR_ERR(child));
+		status = nfserranal(PTR_ERR(child));
 		goto out;
 	}
 
@@ -295,9 +295,9 @@ nfsd3_create_file(struct svc_rqst *rqstp, struct svc_fh *fhp,
 			status = nfserr_exist;
 			break;
 		case NFS3_CREATE_EXCLUSIVE:
-			if (inode_get_mtime_sec(d_inode(child)) == v_mtime &&
-			    inode_get_atime_sec(d_inode(child)) == v_atime &&
-			    d_inode(child)->i_size == 0) {
+			if (ianalde_get_mtime_sec(d_ianalde(child)) == v_mtime &&
+			    ianalde_get_atime_sec(d_ianalde(child)) == v_atime &&
+			    d_ianalde(child)->i_size == 0) {
 				break;
 			}
 			status = nfserr_exist;
@@ -305,15 +305,15 @@ nfsd3_create_file(struct svc_rqst *rqstp, struct svc_fh *fhp,
 		goto out;
 	}
 
-	if (!IS_POSIXACL(inode))
+	if (!IS_POSIXACL(ianalde))
 		iap->ia_mode &= ~current_umask();
 
 	status = fh_fill_pre_attrs(fhp);
 	if (status != nfs_ok)
 		goto out;
-	host_err = vfs_create(&nop_mnt_idmap, inode, child, iap->ia_mode, true);
+	host_err = vfs_create(&analp_mnt_idmap, ianalde, child, iap->ia_mode, true);
 	if (host_err < 0) {
-		status = nfserrno(host_err);
+		status = nfserranal(host_err);
 		goto out;
 	}
 	fh_fill_post_attrs(fhp);
@@ -334,7 +334,7 @@ set_attr:
 	status = nfsd_create_setattr(rqstp, fhp, resfhp, &attrs);
 
 out:
-	inode_unlock(inode);
+	ianalde_unlock(ianalde);
 	if (child && !IS_ERR(child))
 		dput(child);
 	fh_drop_write(fhp);
@@ -361,7 +361,7 @@ nfsd3_proc_create(struct svc_rqst *rqstp)
 }
 
 /*
- * Make directory. This operation is not idempotent.
+ * Make directory. This operation is analt idempotent.
  */
 static __be32
 nfsd3_proc_mkdir(struct svc_rqst *rqstp)
@@ -407,7 +407,7 @@ nfsd3_proc_symlink(struct svc_rqst *rqstp)
 						page_address(rqstp->rq_arg.pages[0]),
 						argp->tlen);
 	if (IS_ERR(argp->tname)) {
-		resp->status = nfserrno(PTR_ERR(argp->tname));
+		resp->status = nfserranal(PTR_ERR(argp->tname));
 		goto out;
 	}
 
@@ -429,9 +429,9 @@ out:
  * Make socket/fifo/device.
  */
 static __be32
-nfsd3_proc_mknod(struct svc_rqst *rqstp)
+nfsd3_proc_mkanald(struct svc_rqst *rqstp)
 {
-	struct nfsd3_mknodargs *argp = rqstp->rq_argp;
+	struct nfsd3_mkanaldargs *argp = rqstp->rq_argp;
 	struct nfsd3_diropres  *resp = rqstp->rq_resp;
 	struct nfsd_attrs attrs = {
 		.na_iattr	= &argp->attrs,
@@ -439,7 +439,7 @@ nfsd3_proc_mknod(struct svc_rqst *rqstp)
 	int type;
 	dev_t	rdev = 0;
 
-	dprintk("nfsd: MKNOD(3)    %s %.*s\n",
+	dprintk("nfsd: MKANALD(3)    %s %.*s\n",
 				SVCFH_fmt(&argp->fh),
 				argp->len,
 				argp->name);
@@ -448,9 +448,9 @@ nfsd3_proc_mknod(struct svc_rqst *rqstp)
 	fh_init(&resp->fh, NFS3_FHSIZE);
 
 	if (argp->ftype == NF3CHR || argp->ftype == NF3BLK) {
-		rdev = MKDEV(argp->major, argp->minor);
+		rdev = MKDEV(argp->major, argp->mianalr);
 		if (MAJOR(rdev) != argp->major ||
-		    MINOR(rdev) != argp->minor) {
+		    MIANALR(rdev) != argp->mianalr) {
 			resp->status = nfserr_inval;
 			goto out;
 		}
@@ -480,7 +480,7 @@ nfsd3_proc_remove(struct svc_rqst *rqstp)
 				argp->len,
 				argp->name);
 
-	/* Unlink. -S_IFDIR means file must not be a directory */
+	/* Unlink. -S_IFDIR means file must analt be a directory */
 	fh_copy(&resp->fh, &argp->fh);
 	resp->status = nfsd_unlink(rqstp, &resp->fh, -S_IFDIR,
 				   argp->name, argp->len);
@@ -603,7 +603,7 @@ nfsd3_proc_readdir(struct svc_rqst *rqstp)
 
 /*
  * Read a portion of a directory, including file handles and attrs.
- * For now, we choose to ignore the dircount parameter.
+ * For analw, we choose to iganalre the dircount parameter.
  */
 static __be32
 nfsd3_proc_readdirplus(struct svc_rqst *rqstp)
@@ -624,12 +624,12 @@ nfsd3_proc_readdirplus(struct svc_rqst *rqstp)
 	resp->rqstp = rqstp;
 	offset = argp->cookie;
 
-	resp->status = fh_verify(rqstp, &resp->fh, S_IFDIR, NFSD_MAY_NOP);
+	resp->status = fh_verify(rqstp, &resp->fh, S_IFDIR, NFSD_MAY_ANALP);
 	if (resp->status != nfs_ok)
 		goto out;
 
-	if (resp->fh.fh_export->ex_flags & NFSEXP_NOREADDIRPLUS) {
-		resp->status = nfserr_notsupp;
+	if (resp->fh.fh_export->ex_flags & NFSEXP_ANALREADDIRPLUS) {
+		resp->status = nfserr_analtsupp;
 		goto out;
 	}
 
@@ -686,15 +686,15 @@ nfsd3_proc_fsinfo(struct svc_rqst *rqstp)
 	resp->f_properties = NFS3_FSF_DEFAULT;
 
 	resp->status = fh_verify(rqstp, &argp->fh, 0,
-				 NFSD_MAY_NOP | NFSD_MAY_BYPASS_GSS_ON_ROOT);
+				 NFSD_MAY_ANALP | NFSD_MAY_BYPASS_GSS_ON_ROOT);
 
 	/* Check special features of the file system. May request
-	 * different read/write sizes for file systems known to have
+	 * different read/write sizes for file systems kanalwn to have
 	 * problems with large blocks */
 	if (resp->status == nfs_ok) {
 		struct super_block *sb = argp->fh.fh_dentry->d_sb;
 
-		/* Note that we don't care for remote fs's here */
+		/* Analte that we don't care for remote fs's here */
 		if (sb->s_magic == MSDOS_SUPER_MAGIC) {
 			resp->f_properties = NFS3_FSF_BILLYBOY;
 		}
@@ -720,17 +720,17 @@ nfsd3_proc_pathconf(struct svc_rqst *rqstp)
 	/* Set default pathconf */
 	resp->p_link_max = 255;		/* at least */
 	resp->p_name_max = 255;		/* at least */
-	resp->p_no_trunc = 0;
+	resp->p_anal_trunc = 0;
 	resp->p_chown_restricted = 1;
 	resp->p_case_insensitive = 0;
 	resp->p_case_preserving = 1;
 
-	resp->status = fh_verify(rqstp, &argp->fh, 0, NFSD_MAY_NOP);
+	resp->status = fh_verify(rqstp, &argp->fh, 0, NFSD_MAY_ANALP);
 
 	if (resp->status == nfs_ok) {
 		struct super_block *sb = argp->fh.fh_dentry->d_sb;
 
-		/* Note that we don't care for remote fs's here */
+		/* Analte that we don't care for remote fs's here */
 		switch (sb->s_magic) {
 		case EXT2_SUPER_MAGIC:
 			resp->p_link_max = EXT2_LINK_MAX;
@@ -764,7 +764,7 @@ nfsd3_proc_commit(struct svc_rqst *rqstp)
 
 	fh_copy(&resp->fh, &argp->fh);
 	resp->status = nfsd_file_acquire_gc(rqstp, &resp->fh, NFSD_MAY_WRITE |
-					    NFSD_MAY_NOT_BREAK_LEASE, &nf);
+					    NFSD_MAY_ANALT_BREAK_LEASE, &nf);
 	if (resp->status)
 		goto out;
 	resp->status = nfsd_commit(rqstp, &resp->fh, nf, argp->offset,
@@ -777,7 +777,7 @@ out:
 
 /*
  * NFSv3 Server procedures.
- * Only the results of non-idempotent operations are cached.
+ * Only the results of analn-idempotent operations are cached.
  */
 #define nfs3svc_encode_attrstatres	nfs3svc_encode_attrstat
 #define nfs3svc_encode_wccstatres	nfs3svc_encode_wccstat
@@ -802,7 +802,7 @@ static const struct svc_procedure nfsd_procedures3[22] = {
 		.pc_argsize = sizeof(struct nfsd_voidargs),
 		.pc_argzero = sizeof(struct nfsd_voidargs),
 		.pc_ressize = sizeof(struct nfsd_voidres),
-		.pc_cachetype = RC_NOCACHE,
+		.pc_cachetype = RC_ANALCACHE,
 		.pc_xdrressize = ST,
 		.pc_name = "NULL",
 	},
@@ -814,7 +814,7 @@ static const struct svc_procedure nfsd_procedures3[22] = {
 		.pc_argsize = sizeof(struct nfsd_fhandle),
 		.pc_argzero = sizeof(struct nfsd_fhandle),
 		.pc_ressize = sizeof(struct nfsd3_attrstatres),
-		.pc_cachetype = RC_NOCACHE,
+		.pc_cachetype = RC_ANALCACHE,
 		.pc_xdrressize = ST+AT,
 		.pc_name = "GETATTR",
 	},
@@ -838,7 +838,7 @@ static const struct svc_procedure nfsd_procedures3[22] = {
 		.pc_argsize = sizeof(struct nfsd3_diropargs),
 		.pc_argzero = sizeof(struct nfsd3_diropargs),
 		.pc_ressize = sizeof(struct nfsd3_diropres),
-		.pc_cachetype = RC_NOCACHE,
+		.pc_cachetype = RC_ANALCACHE,
 		.pc_xdrressize = ST+FH+pAT+pAT,
 		.pc_name = "LOOKUP",
 	},
@@ -850,7 +850,7 @@ static const struct svc_procedure nfsd_procedures3[22] = {
 		.pc_argsize = sizeof(struct nfsd3_accessargs),
 		.pc_argzero = sizeof(struct nfsd3_accessargs),
 		.pc_ressize = sizeof(struct nfsd3_accessres),
-		.pc_cachetype = RC_NOCACHE,
+		.pc_cachetype = RC_ANALCACHE,
 		.pc_xdrressize = ST+pAT+1,
 		.pc_name = "ACCESS",
 	},
@@ -862,7 +862,7 @@ static const struct svc_procedure nfsd_procedures3[22] = {
 		.pc_argsize = sizeof(struct nfsd_fhandle),
 		.pc_argzero = sizeof(struct nfsd_fhandle),
 		.pc_ressize = sizeof(struct nfsd3_readlinkres),
-		.pc_cachetype = RC_NOCACHE,
+		.pc_cachetype = RC_ANALCACHE,
 		.pc_xdrressize = ST+pAT+1+NFS3_MAXPATHLEN/4,
 		.pc_name = "READLINK",
 	},
@@ -874,7 +874,7 @@ static const struct svc_procedure nfsd_procedures3[22] = {
 		.pc_argsize = sizeof(struct nfsd3_readargs),
 		.pc_argzero = sizeof(struct nfsd3_readargs),
 		.pc_ressize = sizeof(struct nfsd3_readres),
-		.pc_cachetype = RC_NOCACHE,
+		.pc_cachetype = RC_ANALCACHE,
 		.pc_xdrressize = ST+pAT+4+NFSSVC_MAXBLKSIZE/4,
 		.pc_name = "READ",
 	},
@@ -926,17 +926,17 @@ static const struct svc_procedure nfsd_procedures3[22] = {
 		.pc_xdrressize = ST+(1+FH+pAT)+WC,
 		.pc_name = "SYMLINK",
 	},
-	[NFS3PROC_MKNOD] = {
-		.pc_func = nfsd3_proc_mknod,
-		.pc_decode = nfs3svc_decode_mknodargs,
+	[NFS3PROC_MKANALD] = {
+		.pc_func = nfsd3_proc_mkanald,
+		.pc_decode = nfs3svc_decode_mkanaldargs,
 		.pc_encode = nfs3svc_encode_createres,
 		.pc_release = nfs3svc_release_fhandle2,
-		.pc_argsize = sizeof(struct nfsd3_mknodargs),
-		.pc_argzero = sizeof(struct nfsd3_mknodargs),
+		.pc_argsize = sizeof(struct nfsd3_mkanaldargs),
+		.pc_argzero = sizeof(struct nfsd3_mkanaldargs),
 		.pc_ressize = sizeof(struct nfsd3_createres),
 		.pc_cachetype = RC_REPLBUFF,
 		.pc_xdrressize = ST+(1+FH+pAT)+WC,
-		.pc_name = "MKNOD",
+		.pc_name = "MKANALD",
 	},
 	[NFS3PROC_REMOVE] = {
 		.pc_func = nfsd3_proc_remove,
@@ -994,7 +994,7 @@ static const struct svc_procedure nfsd_procedures3[22] = {
 		.pc_argsize = sizeof(struct nfsd3_readdirargs),
 		.pc_argzero = sizeof(struct nfsd3_readdirargs),
 		.pc_ressize = sizeof(struct nfsd3_readdirres),
-		.pc_cachetype = RC_NOCACHE,
+		.pc_cachetype = RC_ANALCACHE,
 		.pc_name = "READDIR",
 	},
 	[NFS3PROC_READDIRPLUS] = {
@@ -1005,7 +1005,7 @@ static const struct svc_procedure nfsd_procedures3[22] = {
 		.pc_argsize = sizeof(struct nfsd3_readdirplusargs),
 		.pc_argzero = sizeof(struct nfsd3_readdirplusargs),
 		.pc_ressize = sizeof(struct nfsd3_readdirres),
-		.pc_cachetype = RC_NOCACHE,
+		.pc_cachetype = RC_ANALCACHE,
 		.pc_name = "READDIRPLUS",
 	},
 	[NFS3PROC_FSSTAT] = {
@@ -1015,7 +1015,7 @@ static const struct svc_procedure nfsd_procedures3[22] = {
 		.pc_argsize = sizeof(struct nfsd3_fhandleargs),
 		.pc_argzero = sizeof(struct nfsd3_fhandleargs),
 		.pc_ressize = sizeof(struct nfsd3_fsstatres),
-		.pc_cachetype = RC_NOCACHE,
+		.pc_cachetype = RC_ANALCACHE,
 		.pc_xdrressize = ST+pAT+2*6+1,
 		.pc_name = "FSSTAT",
 	},
@@ -1026,7 +1026,7 @@ static const struct svc_procedure nfsd_procedures3[22] = {
 		.pc_argsize = sizeof(struct nfsd3_fhandleargs),
 		.pc_argzero = sizeof(struct nfsd3_fhandleargs),
 		.pc_ressize = sizeof(struct nfsd3_fsinfores),
-		.pc_cachetype = RC_NOCACHE,
+		.pc_cachetype = RC_ANALCACHE,
 		.pc_xdrressize = ST+pAT+12,
 		.pc_name = "FSINFO",
 	},
@@ -1037,7 +1037,7 @@ static const struct svc_procedure nfsd_procedures3[22] = {
 		.pc_argsize = sizeof(struct nfsd3_fhandleargs),
 		.pc_argzero = sizeof(struct nfsd3_fhandleargs),
 		.pc_ressize = sizeof(struct nfsd3_pathconfres),
-		.pc_cachetype = RC_NOCACHE,
+		.pc_cachetype = RC_ANALCACHE,
 		.pc_xdrressize = ST+pAT+6,
 		.pc_name = "PATHCONF",
 	},
@@ -1049,7 +1049,7 @@ static const struct svc_procedure nfsd_procedures3[22] = {
 		.pc_argsize = sizeof(struct nfsd3_commitargs),
 		.pc_argzero = sizeof(struct nfsd3_commitargs),
 		.pc_ressize = sizeof(struct nfsd3_commitres),
-		.pc_cachetype = RC_NOCACHE,
+		.pc_cachetype = RC_ANALCACHE,
 		.pc_xdrressize = ST+WC+2,
 		.pc_name = "COMMIT",
 	},

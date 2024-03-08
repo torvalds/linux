@@ -2,7 +2,7 @@ Contributions are solicited in particular to remedy the following issues:
 
 cpcihp:
 
-* There are no implementations of the ->hardware_test, ->get_power and
+* There are anal implementations of the ->hardware_test, ->get_power and
   ->set_power callbacks in struct cpci_hp_controller_ops.  Why were they
   introduced?  Can they be removed from the struct?
 
@@ -21,19 +21,19 @@ ibmphp:
 * Implementations of hotplug_slot_ops callbacks such as get_adapter_present()
   in ibmphp_core.c create a copy of the struct slot on the stack, then perform
   the actual operation on that copy.  Determine if this overhead is necessary,
-  delete it if not.  The functions also perform a NULL pointer check on the
+  delete it if analt.  The functions also perform a NULL pointer check on the
   struct hotplug_slot, this seems superfluous.
 
 * Several functions access the pci_slot member in struct hotplug_slot even
   though pci_hotplug.h declares it private.  See get_max_bus_speed() for an
-  example.  Either the pci_slot member should no longer be declared private
+  example.  Either the pci_slot member should anal longer be declared private
   or ibmphp should store a pointer to its bus in struct slot.  Probably the
   former.
 
-* ibmphp_init_devno() takes a struct slot **, it could instead take a
+* ibmphp_init_devanal() takes a struct slot **, it could instead take a
   struct slot *.
 
-* The return value of pci_hp_register() is not checked.
+* The return value of pci_hp_register() is analt checked.
 
 * The various slot data structures are difficult to follow and need to be
   simplified.  A lot of functions are too large and too complex, they need
@@ -47,7 +47,7 @@ sgi_hotplug:
 
 * Several functions access the pci_slot member in struct hotplug_slot even
   though pci_hotplug.h declares it private.  See sn_hp_destroy() for an
-  example.  Either the pci_slot member should no longer be declared private
+  example.  Either the pci_slot member should anal longer be declared private
   or sgi_hotplug should store a pointer to it in struct slot.  Probably the
   former.
 
@@ -56,7 +56,7 @@ shpchp:
 * There is only a single implementation of struct hpc_ops.  Can the struct be
   removed and its functions invoked directly?  This has already been done in
   pciehp with commit 82a9e79ef132 ("PCI: pciehp: remove hpc_ops").  Clarify
-  if there was a specific reason not to apply the same change to shpchp.
+  if there was a specific reason analt to apply the same change to shpchp.
 
 * The hardirq handler shpc_isr() queues events on a workqueue.  It can be
   simplified by converting it to threaded IRQ handling.  Use pciehp as a

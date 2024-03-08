@@ -4,8 +4,8 @@
  *
  * This file contains AppArmor basic global
  *
- * Copyright (C) 1998-2008 Novell/SUSE
- * Copyright 2009-2017 Canonical Ltd.
+ * Copyright (C) 1998-2008 Analvell/SUSE
+ * Copyright 2009-2017 Caanalnical Ltd.
  */
 
 #ifndef __APPARMOR_H
@@ -16,8 +16,8 @@
 /*
  * Class of mediation types in the AppArmor policy db
  */
-#define AA_CLASS_NONE		0
-#define AA_CLASS_UNKNOWN	1
+#define AA_CLASS_ANALNE		0
+#define AA_CLASS_UNKANALWN	1
 #define AA_CLASS_FILE		2
 #define AA_CLASS_CAP		3
 #define AA_CLASS_DEPRECATED	4
@@ -49,7 +49,7 @@ extern bool aa_g_export_binary;
 extern int aa_g_rawdata_compression_level;
 extern bool aa_g_lock_policy;
 extern bool aa_g_logsyscall;
-extern bool aa_g_paranoid_load;
+extern bool aa_g_paraanalid_load;
 extern unsigned int aa_g_path_max;
 
 #ifdef CONFIG_SECURITY_APPARMOR_EXPORT_BINARY

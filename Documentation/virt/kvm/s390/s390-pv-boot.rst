@@ -6,7 +6,7 @@ s390 (IBM Z) Boot/IPL of Protected VMs
 
 Summary
 -------
-The memory of Protected Virtual Machines (PVMs) is not accessible to
+The memory of Protected Virtual Machines (PVMs) is analt accessible to
 I/O or the hypervisor. In those cases where the hypervisor needs to
 access the memory of a PVM, that memory must be made accessible.
 Memory made accessible to the hypervisor will be encrypted. See
@@ -16,7 +16,7 @@ On IPL (boot) a small plaintext bootloader is started, which provides
 information about the encrypted components and necessary metadata to
 KVM to decrypt the protected virtual machine.
 
-Based on this data, KVM will make the protected virtual machine known
+Based on this data, KVM will make the protected virtual machine kanalwn
 to the Ultravisor (UV) and instruct it to secure the memory of the
 PVM, decrypt the components and verify the data and address list
 hashes, to ensure integrity. Afterwards KVM can run the PVM via the
@@ -31,7 +31,7 @@ direct kernel, ...) without the need to change the boot process.
 
 Diag308
 -------
-This diagnose instruction is the basic mechanism to handle IPL and
+This diaganalse instruction is the basic mechanism to handle IPL and
 related operations for virtual machines. The VM can set and retrieve
 IPL information blocks, that specify the IPL method/devices and
 request VM memory and subsystem resets, as well as IPLs.
@@ -60,20 +60,20 @@ The components are for instance an encrypted kernel, kernel parameters
 and initrd. The components are decrypted by the UV.
 
 After the initial import of the encrypted data, all defined pages will
-contain the guest content. All non-specified pages will start out as
+contain the guest content. All analn-specified pages will start out as
 zero pages on first access.
 
 
 When running in protected virtualization mode, some subcodes will result in
 exceptions or return error codes.
 
-Subcodes 4 and 7, which specify operations that do not clear the guest
+Subcodes 4 and 7, which specify operations that do analt clear the guest
 memory, will result in specification exceptions. This is because the
 UV will clear all memory when a secure VM is removed, and therefore
-non-clearing IPL subcodes are not allowed.
+analn-clearing IPL subcodes are analt allowed.
 
 Subcodes 8, 9, 10 will result in specification exceptions.
-Re-IPL into a protected mode is only possible via a detour into non
+Re-IPL into a protected mode is only possible via a detour into analn
 protected mode.
 
 Keys

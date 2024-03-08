@@ -36,15 +36,15 @@
         "BriefDescription": "Predictable taken branch speculatively executed that hit any level of BTB that access the return predictor"
     },
     {
-        "PublicDescription": "Predictable unconditional branch speculatively executed that did not hit any level of BTB",
+        "PublicDescription": "Predictable unconditional branch speculatively executed that did analt hit any level of BTB",
         "EventCode": "0x114",
         "EventName": "BPU_UNCONDITIONAL_BRANCH_MISS_BTB",
-        "BriefDescription": "Predictable unconditional branch speculatively executed that did not hit any level of BTB"
+        "BriefDescription": "Predictable unconditional branch speculatively executed that did analt hit any level of BTB"
     },
     {
         "PublicDescription": "Predictable branch speculatively executed, unpredicted",
         "EventCode": "0x115",
-        "EventName": "BPU_BRANCH_NO_HIT",
+        "EventName": "BPU_BRANCH_ANAL_HIT",
         "BriefDescription": "Predictable branch speculatively executed, unpredicted"
     },
     {
@@ -80,7 +80,7 @@
     {
         "PublicDescription": "Predictable branch speculatively executed, unpredicted, that mispredict",
         "EventCode": "0x11b",
-        "EventName": "BPU_NO_PREDICTION_MISPREDICT",
+        "EventName": "BPU_ANAL_PREDICTION_MISPREDICT",
         "BriefDescription": "Predictable branch speculatively executed, unpredicted, that mispredict"
     },
     {
@@ -140,7 +140,7 @@
     {
         "PublicDescription": "Bus request sn",
         "EventCode": "0x156",
-        "EventName": "L2C_SNOOP",
+        "EventName": "L2C_SANALOP",
         "BriefDescription": "Bus request sn"
     },
     {

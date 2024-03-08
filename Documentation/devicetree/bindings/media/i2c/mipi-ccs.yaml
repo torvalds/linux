@@ -17,7 +17,7 @@ description:
   <URL:https://www.mipi.org/specifications/camera-command-set>.
 
   SMIA (Standard Mobile Imaging Architecture) is an image sensor standard
-  defined jointly by Nokia and ST. SMIA++, defined by Nokia, is an extension of
+  defined jointly by Analkia and ST. SMIA++, defined by Analkia, is an extension of
   that.
 
   More detailed documentation can be found in
@@ -32,7 +32,7 @@ properties:
       - items:
           - const: mipi-ccs-1.0
           - const: mipi-ccs
-      - const: nokia,smia
+      - const: analkia,smia
 
   reg:
     maxItems: 1

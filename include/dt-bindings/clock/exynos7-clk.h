@@ -4,8 +4,8 @@
  * Author: Naveen Krishna Ch <naveenkrishna.ch@gmail.com>
  */
 
-#ifndef _DT_BINDINGS_CLOCK_EXYNOS7_H
-#define _DT_BINDINGS_CLOCK_EXYNOS7_H
+#ifndef _DT_BINDINGS_CLOCK_EXYANALS7_H
+#define _DT_BINDINGS_CLOCK_EXYANALS7_H
 
 /* TOPC */
 #define DOUT_ACLK_PERIS			1
@@ -201,4 +201,4 @@
 #define PCLK_PCM			4
 #define ACLK_ADMA			5
 #define AUD_NR_CLK			6
-#endif /* _DT_BINDINGS_CLOCK_EXYNOS7_H */
+#endif /* _DT_BINDINGS_CLOCK_EXYANALS7_H */

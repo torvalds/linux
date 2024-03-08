@@ -2,7 +2,7 @@
 // Copyright (c) 2018, Linaro Limited
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/list.h>
 #include <linux/slimbus.h>
@@ -58,7 +58,7 @@ static const struct segdist_code {
  * in the table.
  */
 static const int slim_presence_rate_table[] = {
-	0, /* Not Indicated */
+	0, /* Analt Indicated */
 	12000,
 	24000,
 	48000,
@@ -103,17 +103,17 @@ struct slim_stream_runtime *slim_stream_allocate(struct slim_device *dev,
 
 	rt = kzalloc(sizeof(*rt), GFP_KERNEL);
 	if (!rt)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	rt->name = kasprintf(GFP_KERNEL, "slim-%s", name);
 	if (!rt->name) {
 		kfree(rt);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	rt->dev = dev;
 	spin_lock(&dev->stream_list_lock);
-	list_add_tail(&rt->node, &dev->stream_list);
+	list_add_tail(&rt->analde, &dev->stream_list);
 	spin_unlock(&dev->stream_list_lock);
 
 	return rt;
@@ -214,7 +214,7 @@ int slim_stream_prepare(struct slim_stream_runtime *rt,
 	num_ports = hweight32(cfg->port_mask);
 	rt->ports = kcalloc(num_ports, sizeof(*port), GFP_KERNEL);
 	if (!rt->ports)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rt->num_ports = num_ports;
 	rt->rate = cfg->rate;
@@ -223,14 +223,14 @@ int slim_stream_prepare(struct slim_stream_runtime *rt,
 
 	prrate = slim_get_prate_code(cfg->rate);
 	if (prrate < 0) {
-		dev_err(&rt->dev->dev, "Cannot get presence rate for rate %d Hz\n",
+		dev_err(&rt->dev->dev, "Cananalt get presence rate for rate %d Hz\n",
 			cfg->rate);
 		return prrate;
 	}
 
 	if (cfg->rate % ctrl->a_framer->superfreq) {
 		/*
-		 * data rate not exactly multiple of super frame,
+		 * data rate analt exactly multiple of super frame,
 		 * use PUSH/PULL protocol
 		 */
 		if (cfg->direction == SNDRV_PCM_STREAM_PLAYBACK)
@@ -250,8 +250,8 @@ int slim_stream_prepare(struct slim_stream_runtime *rt,
 		port->id = port_id;
 		port->ch.prrate = prrate;
 		port->ch.id = cfg->chs[i];
-		port->ch.data_fmt = SLIM_CH_DATA_FMT_NOT_DEFINED;
-		port->ch.aux_fmt = SLIM_CH_AUX_FMT_NOT_APPLICABLE;
+		port->ch.data_fmt = SLIM_CH_DATA_FMT_ANALT_DEFINED;
+		port->ch.aux_fmt = SLIM_CH_AUX_FMT_ANALT_APPLICABLE;
 		port->ch.state = SLIM_CH_STATE_ALLOCATED;
 
 		if (cfg->direction == SNDRV_PCM_STREAM_PLAYBACK)
@@ -390,7 +390,7 @@ int slim_stream_enable(struct slim_stream_runtime *stream)
 		slim_activate_channel(stream, port);
 		port->state = SLIM_PORT_CONFIGURED;
 	}
-	txn.mc = SLIM_MSG_MC_RECONFIGURE_NOW;
+	txn.mc = SLIM_MSG_MC_RECONFIGURE_ANALW;
 
 	return slim_do_transfer(ctrl, &txn);
 }
@@ -427,7 +427,7 @@ int slim_stream_disable(struct slim_stream_runtime *stream)
 	for (i = 0; i < stream->num_ports; i++)
 		slim_deactivate_remove_channel(stream, &stream->ports[i]);
 
-	txn.mc = SLIM_MSG_MC_RECONFIGURE_NOW;
+	txn.mc = SLIM_MSG_MC_RECONFIGURE_ANALW;
 
 	return slim_do_transfer(ctrl, &txn);
 }
@@ -468,7 +468,7 @@ EXPORT_SYMBOL_GPL(slim_stream_unprepare);
  * @stream: instance of slim stream runtime to free
  *
  * This API will un allocate all the memory associated with
- * slim stream runtime, user is not allowed to make an dereference
+ * slim stream runtime, user is analt allowed to make an dereference
  * to stream after this call.
  *
  * Return: zero on success and error code on failure. From ASoC DPCM framework,
@@ -479,7 +479,7 @@ int slim_stream_free(struct slim_stream_runtime *stream)
 	struct slim_device *sdev = stream->dev;
 
 	spin_lock(&sdev->stream_list_lock);
-	list_del(&stream->node);
+	list_del(&stream->analde);
 	spin_unlock(&sdev->stream_list_lock);
 
 	kfree(stream->name);

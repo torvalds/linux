@@ -4,7 +4,7 @@ Security bugs
 =============
 
 Linux kernel developers take security very seriously.  As such, we'd
-like to know when a security bug is found so that it can be fixed and
+like to kanalw when a security bug is found so that it can be fixed and
 disclosed as quickly as possible.  Please report security bugs to the
 Linux kernel security team.
 
@@ -20,9 +20,9 @@ security team will bring in extra help from area maintainers to
 understand and fix the security vulnerability.
 
 As it is with any bug, the more information provided the easier it
-will be to diagnose and fix.  Please review the procedure outlined in
+will be to diaganalse and fix.  Please review the procedure outlined in
 'Documentation/admin-guide/reporting-issues.rst' if you are unclear about what
-information is helpful.  Any exploit code is very helpful and will not
+information is helpful.  Any exploit code is very helpful and will analt
 be released without consent from the reporter unless it has already been
 made public.
 
@@ -36,11 +36,11 @@ reproduction steps, and follow it with a proposed fix, all in plain text.
 Disclosure and embargoed information
 ------------------------------------
 
-The security list is not a disclosure channel.  For that, see Coordination
+The security list is analt a disclosure channel.  For that, see Coordination
 below.
 
 Once a robust fix has been developed, the release process starts.  Fixes
-for publicly known bugs are released immediately.
+for publicly kanalwn bugs are released immediately.
 
 Although our preference is to release fixes for publicly undisclosed bugs
 as soon as they become available, this may be postponed at the request of
@@ -52,9 +52,9 @@ the logistics of QA and large scale rollouts which require release
 coordination.
 
 While embargoed information may be shared with trusted individuals in
-order to develop a fix, such information will not be published alongside
+order to develop a fix, such information will analt be published alongside
 the fix or on any other disclosure channel without the permission of the
-reporter.  This includes but is not limited to the original bug report
+reporter.  This includes but is analt limited to the original bug report
 and followup discussions (if any), exploits, CVE information or the
 identity of the reporter.
 
@@ -74,7 +74,7 @@ public "oss-security" mailing list, both of which are closely related
 and presented in the linux-distros wiki:
 <https://oss-security.openwall.org/wiki/mailing-lists/distros>
 
-Please note that the respective policies and rules are different since
+Please analte that the respective policies and rules are different since
 the 3 lists pursue different goals.  Coordinating between the kernel
 security team and other teams is difficult since for the kernel security
 team occasional embargoes (as subject to a maximum allowed number of
@@ -83,27 +83,27 @@ they start from the initial post to the list regardless of the
 availability of a fix.
 
 As such, the kernel security team strongly recommends that as a reporter
-of a potential security issue you DO NOT contact the "linux-distros"
+of a potential security issue you DO ANALT contact the "linux-distros"
 mailing list UNTIL a fix is accepted by the affected code's maintainers
 and you have read the distros wiki page above and you fully understand
 the requirements that contacting "linux-distros" will impose on you and
 the kernel community.  This also means that in general it doesn't make
 sense to Cc: both lists at once, except maybe for coordination if and
-while an accepted fix has not yet been merged.  In other words, until a
-fix is accepted do not Cc: "linux-distros", and after it's merged do not
+while an accepted fix has analt yet been merged.  In other words, until a
+fix is accepted do analt Cc: "linux-distros", and after it's merged do analt
 Cc: the kernel security team.
 
 CVE assignment
 --------------
 
-The security team does not assign CVEs, nor do we require them for
+The security team does analt assign CVEs, analr do we require them for
 reports or fixes, as this can needlessly complicate the process and may
 delay the bug handling.  If a reporter wishes to have a CVE identifier
 assigned for a confirmed issue, they can contact the :doc:`kernel CVE
 assignment team<../process/cve>` to obtain one.
 
-Non-disclosure agreements
+Analn-disclosure agreements
 -------------------------
 
-The Linux kernel security team is not a formal body and therefore unable
-to enter any non-disclosure agreements.
+The Linux kernel security team is analt a formal body and therefore unable
+to enter any analn-disclosure agreements.

@@ -4,35 +4,35 @@
 #include <drm/gpu_scheduler.h>
 #include <drm/drm_syncobj.h>
 
-#include "nouveau_drv.h"
-#include "nouveau_gem.h"
-#include "nouveau_mem.h"
-#include "nouveau_dma.h"
-#include "nouveau_exec.h"
-#include "nouveau_abi16.h"
-#include "nouveau_sched.h"
+#include "analuveau_drv.h"
+#include "analuveau_gem.h"
+#include "analuveau_mem.h"
+#include "analuveau_dma.h"
+#include "analuveau_exec.h"
+#include "analuveau_abi16.h"
+#include "analuveau_sched.h"
 
-#define NOUVEAU_SCHED_JOB_TIMEOUT_MS		10000
+#define ANALUVEAU_SCHED_JOB_TIMEOUT_MS		10000
 
 /* Starts at 0, since the DRM scheduler interprets those parameters as (initial)
  * index to the run-queue array.
  */
-enum nouveau_sched_priority {
-	NOUVEAU_SCHED_PRIORITY_SINGLE = DRM_SCHED_PRIORITY_KERNEL,
-	NOUVEAU_SCHED_PRIORITY_COUNT,
+enum analuveau_sched_priority {
+	ANALUVEAU_SCHED_PRIORITY_SINGLE = DRM_SCHED_PRIORITY_KERNEL,
+	ANALUVEAU_SCHED_PRIORITY_COUNT,
 };
 
 int
-nouveau_job_init(struct nouveau_job *job,
-		 struct nouveau_job_args *args)
+analuveau_job_init(struct analuveau_job *job,
+		 struct analuveau_job_args *args)
 {
-	struct nouveau_sched *sched = args->sched;
+	struct analuveau_sched *sched = args->sched;
 	int ret;
 
 	INIT_LIST_HEAD(&job->entry);
 
 	job->file_priv = args->file_priv;
-	job->cli = nouveau_cli(args->file_priv);
+	job->cli = analuveau_cli(args->file_priv);
 	job->sched = sched;
 
 	job->sync = args->sync;
@@ -50,7 +50,7 @@ nouveau_job_init(struct nouveau_job *job,
 					 args->in_sync.count,
 					 GFP_KERNEL);
 		if (!job->in_sync.data)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	job->out_sync.count = args->out_sync.count;
@@ -65,7 +65,7 @@ nouveau_job_init(struct nouveau_job *job,
 					  args->out_sync.count,
 					  GFP_KERNEL);
 		if (!job->out_sync.data) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_free_in_sync;
 		}
 
@@ -73,7 +73,7 @@ nouveau_job_init(struct nouveau_job *job,
 					     sizeof(*job->out_sync.objs),
 					     GFP_KERNEL);
 		if (!job->out_sync.objs) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_free_out_sync;
 		}
 
@@ -81,7 +81,7 @@ nouveau_job_init(struct nouveau_job *job,
 					       sizeof(*job->out_sync.chains),
 					       GFP_KERNEL);
 		if (!job->out_sync.chains) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_free_objs;
 		}
 	}
@@ -91,7 +91,7 @@ nouveau_job_init(struct nouveau_job *job,
 	if (ret)
 		goto err_free_chains;
 
-	job->state = NOUVEAU_JOB_INITIALIZED;
+	job->state = ANALUVEAU_JOB_INITIALIZED;
 
 	return 0;
 
@@ -107,7 +107,7 @@ return ret;
 }
 
 void
-nouveau_job_fini(struct nouveau_job *job)
+analuveau_job_fini(struct analuveau_job *job)
 {
 	dma_fence_put(job->done_fence);
 	drm_sched_job_cleanup(&job->base);
@@ -116,9 +116,9 @@ nouveau_job_fini(struct nouveau_job *job)
 }
 
 void
-nouveau_job_done(struct nouveau_job *job)
+analuveau_job_done(struct analuveau_job *job)
 {
-	struct nouveau_sched *sched = job->sched;
+	struct analuveau_sched *sched = job->sched;
 
 	spin_lock(&sched->job.list.lock);
 	list_del(&job->entry);
@@ -128,7 +128,7 @@ nouveau_job_done(struct nouveau_job *job)
 }
 
 void
-nouveau_job_free(struct nouveau_job *job)
+analuveau_job_free(struct analuveau_job *job)
 {
 	kfree(job->in_sync.data);
 	kfree(job->out_sync.data);
@@ -137,19 +137,19 @@ nouveau_job_free(struct nouveau_job *job)
 }
 
 static int
-sync_find_fence(struct nouveau_job *job,
-		struct drm_nouveau_sync *sync,
+sync_find_fence(struct analuveau_job *job,
+		struct drm_analuveau_sync *sync,
 		struct dma_fence **fence)
 {
-	u32 stype = sync->flags & DRM_NOUVEAU_SYNC_TYPE_MASK;
+	u32 stype = sync->flags & DRM_ANALUVEAU_SYNC_TYPE_MASK;
 	u64 point = 0;
 	int ret;
 
-	if (stype != DRM_NOUVEAU_SYNC_SYNCOBJ &&
-	    stype != DRM_NOUVEAU_SYNC_TIMELINE_SYNCOBJ)
-		return -EOPNOTSUPP;
+	if (stype != DRM_ANALUVEAU_SYNC_SYNCOBJ &&
+	    stype != DRM_ANALUVEAU_SYNC_TIMELINE_SYNCOBJ)
+		return -EOPANALTSUPP;
 
-	if (stype == DRM_NOUVEAU_SYNC_TIMELINE_SYNCOBJ)
+	if (stype == DRM_ANALUVEAU_SYNC_TIMELINE_SYNCOBJ)
 		point = sync->timeline_value;
 
 	ret = drm_syncobj_find_fence(job->file_priv,
@@ -162,13 +162,13 @@ sync_find_fence(struct nouveau_job *job,
 }
 
 static int
-nouveau_job_add_deps(struct nouveau_job *job)
+analuveau_job_add_deps(struct analuveau_job *job)
 {
 	struct dma_fence *in_fence = NULL;
 	int ret, i;
 
 	for (i = 0; i < job->in_sync.count; i++) {
-		struct drm_nouveau_sync *sync = &job->in_sync.data[i];
+		struct drm_analuveau_sync *sync = &job->in_sync.data[i];
 
 		ret = sync_find_fence(job, sync, &in_fence);
 		if (ret) {
@@ -187,7 +187,7 @@ nouveau_job_add_deps(struct nouveau_job *job)
 }
 
 static void
-nouveau_job_fence_attach_cleanup(struct nouveau_job *job)
+analuveau_job_fence_attach_cleanup(struct analuveau_job *job)
 {
 	int i;
 
@@ -204,18 +204,18 @@ nouveau_job_fence_attach_cleanup(struct nouveau_job *job)
 }
 
 static int
-nouveau_job_fence_attach_prepare(struct nouveau_job *job)
+analuveau_job_fence_attach_prepare(struct analuveau_job *job)
 {
 	int i, ret;
 
 	for (i = 0; i < job->out_sync.count; i++) {
-		struct drm_nouveau_sync *sync = &job->out_sync.data[i];
+		struct drm_analuveau_sync *sync = &job->out_sync.data[i];
 		struct drm_syncobj **pobj = &job->out_sync.objs[i];
 		struct dma_fence_chain **pchain = &job->out_sync.chains[i];
-		u32 stype = sync->flags & DRM_NOUVEAU_SYNC_TYPE_MASK;
+		u32 stype = sync->flags & DRM_ANALUVEAU_SYNC_TYPE_MASK;
 
-		if (stype != DRM_NOUVEAU_SYNC_SYNCOBJ &&
-		    stype != DRM_NOUVEAU_SYNC_TIMELINE_SYNCOBJ) {
+		if (stype != DRM_ANALUVEAU_SYNC_SYNCOBJ &&
+		    stype != DRM_ANALUVEAU_SYNC_TIMELINE_SYNCOBJ) {
 			ret = -EINVAL;
 			goto err_sync_cleanup;
 		}
@@ -225,14 +225,14 @@ nouveau_job_fence_attach_prepare(struct nouveau_job *job)
 			NV_PRINTK(warn, job->cli,
 				  "Failed to find syncobj (-> out): handle=%d\n",
 				  sync->handle);
-			ret = -ENOENT;
+			ret = -EANALENT;
 			goto err_sync_cleanup;
 		}
 
-		if (stype == DRM_NOUVEAU_SYNC_TIMELINE_SYNCOBJ) {
+		if (stype == DRM_ANALUVEAU_SYNC_TIMELINE_SYNCOBJ) {
 			*pchain = dma_fence_chain_alloc();
 			if (!*pchain) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto err_sync_cleanup;
 			}
 		}
@@ -241,23 +241,23 @@ nouveau_job_fence_attach_prepare(struct nouveau_job *job)
 	return 0;
 
 err_sync_cleanup:
-	nouveau_job_fence_attach_cleanup(job);
+	analuveau_job_fence_attach_cleanup(job);
 	return ret;
 }
 
 static void
-nouveau_job_fence_attach(struct nouveau_job *job)
+analuveau_job_fence_attach(struct analuveau_job *job)
 {
 	struct dma_fence *fence = job->done_fence;
 	int i;
 
 	for (i = 0; i < job->out_sync.count; i++) {
-		struct drm_nouveau_sync *sync = &job->out_sync.data[i];
+		struct drm_analuveau_sync *sync = &job->out_sync.data[i];
 		struct drm_syncobj **pobj = &job->out_sync.objs[i];
 		struct dma_fence_chain **pchain = &job->out_sync.chains[i];
-		u32 stype = sync->flags & DRM_NOUVEAU_SYNC_TYPE_MASK;
+		u32 stype = sync->flags & DRM_ANALUVEAU_SYNC_TYPE_MASK;
 
-		if (stype == DRM_NOUVEAU_SYNC_TIMELINE_SYNCOBJ) {
+		if (stype == DRM_ANALUVEAU_SYNC_TIMELINE_SYNCOBJ) {
 			drm_syncobj_add_point(*pobj, *pchain, fence,
 					      sync->timeline_value);
 		} else {
@@ -271,22 +271,22 @@ nouveau_job_fence_attach(struct nouveau_job *job)
 }
 
 int
-nouveau_job_submit(struct nouveau_job *job)
+analuveau_job_submit(struct analuveau_job *job)
 {
-	struct nouveau_sched *sched = job->sched;
+	struct analuveau_sched *sched = job->sched;
 	struct dma_fence *done_fence = NULL;
 	struct drm_gpuvm_exec vm_exec = {
-		.vm = &nouveau_cli_uvmm(job->cli)->base,
-		.flags = DRM_EXEC_IGNORE_DUPLICATES,
+		.vm = &analuveau_cli_uvmm(job->cli)->base,
+		.flags = DRM_EXEC_IGANALRE_DUPLICATES,
 		.num_fences = 1,
 	};
 	int ret;
 
-	ret = nouveau_job_add_deps(job);
+	ret = analuveau_job_add_deps(job);
 	if (ret)
 		goto err;
 
-	ret = nouveau_job_fence_attach_prepare(job);
+	ret = analuveau_job_fence_attach_prepare(job);
 	if (ret)
 		goto err;
 
@@ -317,12 +317,12 @@ nouveau_job_submit(struct nouveau_job *job)
 	if (job->ops->armed_submit)
 		job->ops->armed_submit(job, &vm_exec);
 
-	nouveau_job_fence_attach(job);
+	analuveau_job_fence_attach(job);
 
 	/* Set job state before pushing the job to the scheduler,
-	 * such that we do not overwrite the job state set in run().
+	 * such that we do analt overwrite the job state set in run().
 	 */
-	job->state = NOUVEAU_JOB_SUBMIT_SUCCESS;
+	job->state = ANALUVEAU_JOB_SUBMIT_SUCCESS;
 
 	drm_sched_entity_push_job(&job->base);
 
@@ -337,40 +337,40 @@ nouveau_job_submit(struct nouveau_job *job)
 
 err_cleanup:
 	mutex_unlock(&sched->mutex);
-	nouveau_job_fence_attach_cleanup(job);
+	analuveau_job_fence_attach_cleanup(job);
 err:
-	job->state = NOUVEAU_JOB_SUBMIT_FAILED;
+	job->state = ANALUVEAU_JOB_SUBMIT_FAILED;
 	return ret;
 }
 
 static struct dma_fence *
-nouveau_job_run(struct nouveau_job *job)
+analuveau_job_run(struct analuveau_job *job)
 {
 	struct dma_fence *fence;
 
 	fence = job->ops->run(job);
 	if (IS_ERR(fence))
-		job->state = NOUVEAU_JOB_RUN_FAILED;
+		job->state = ANALUVEAU_JOB_RUN_FAILED;
 	else
-		job->state = NOUVEAU_JOB_RUN_SUCCESS;
+		job->state = ANALUVEAU_JOB_RUN_SUCCESS;
 
 	return fence;
 }
 
 static struct dma_fence *
-nouveau_sched_run_job(struct drm_sched_job *sched_job)
+analuveau_sched_run_job(struct drm_sched_job *sched_job)
 {
-	struct nouveau_job *job = to_nouveau_job(sched_job);
+	struct analuveau_job *job = to_analuveau_job(sched_job);
 
-	return nouveau_job_run(job);
+	return analuveau_job_run(job);
 }
 
 static enum drm_gpu_sched_stat
-nouveau_sched_timedout_job(struct drm_sched_job *sched_job)
+analuveau_sched_timedout_job(struct drm_sched_job *sched_job)
 {
 	struct drm_gpu_scheduler *sched = sched_job->sched;
-	struct nouveau_job *job = to_nouveau_job(sched_job);
-	enum drm_gpu_sched_stat stat = DRM_GPU_SCHED_STAT_NOMINAL;
+	struct analuveau_job *job = to_analuveau_job(sched_job);
+	enum drm_gpu_sched_stat stat = DRM_GPU_SCHED_STAT_ANALMINAL;
 
 	drm_sched_stop(sched, sched_job);
 
@@ -385,52 +385,52 @@ nouveau_sched_timedout_job(struct drm_sched_job *sched_job)
 }
 
 static void
-nouveau_sched_free_job(struct drm_sched_job *sched_job)
+analuveau_sched_free_job(struct drm_sched_job *sched_job)
 {
-	struct nouveau_job *job = to_nouveau_job(sched_job);
+	struct analuveau_job *job = to_analuveau_job(sched_job);
 
-	nouveau_job_fini(job);
+	analuveau_job_fini(job);
 }
 
-static const struct drm_sched_backend_ops nouveau_sched_ops = {
-	.run_job = nouveau_sched_run_job,
-	.timedout_job = nouveau_sched_timedout_job,
-	.free_job = nouveau_sched_free_job,
+static const struct drm_sched_backend_ops analuveau_sched_ops = {
+	.run_job = analuveau_sched_run_job,
+	.timedout_job = analuveau_sched_timedout_job,
+	.free_job = analuveau_sched_free_job,
 };
 
 static int
-nouveau_sched_init(struct nouveau_sched *sched, struct nouveau_drm *drm,
+analuveau_sched_init(struct analuveau_sched *sched, struct analuveau_drm *drm,
 		   struct workqueue_struct *wq, u32 credit_limit)
 {
 	struct drm_gpu_scheduler *drm_sched = &sched->base;
 	struct drm_sched_entity *entity = &sched->entity;
-	long job_hang_limit = msecs_to_jiffies(NOUVEAU_SCHED_JOB_TIMEOUT_MS);
+	long job_hang_limit = msecs_to_jiffies(ANALUVEAU_SCHED_JOB_TIMEOUT_MS);
 	int ret;
 
 	if (!wq) {
-		wq = alloc_workqueue("nouveau_sched_wq_%d", 0, WQ_MAX_ACTIVE,
+		wq = alloc_workqueue("analuveau_sched_wq_%d", 0, WQ_MAX_ACTIVE,
 				     current->pid);
 		if (!wq)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		sched->wq = wq;
 	}
 
-	ret = drm_sched_init(drm_sched, &nouveau_sched_ops, wq,
-			     NOUVEAU_SCHED_PRIORITY_COUNT,
+	ret = drm_sched_init(drm_sched, &analuveau_sched_ops, wq,
+			     ANALUVEAU_SCHED_PRIORITY_COUNT,
 			     credit_limit, 0, job_hang_limit,
-			     NULL, NULL, "nouveau_sched", drm->dev->dev);
+			     NULL, NULL, "analuveau_sched", drm->dev->dev);
 	if (ret)
 		goto fail_wq;
 
 	/* Using DRM_SCHED_PRIORITY_KERNEL, since that's what we're required to use
 	 * when we want to have a single run-queue only.
 	 *
-	 * It's not documented, but one will find out when trying to use any
+	 * It's analt documented, but one will find out when trying to use any
 	 * other priority running into faults, because the scheduler uses the
 	 * priority as array index.
 	 *
-	 * Can't use NOUVEAU_SCHED_PRIORITY_SINGLE either, because it's not
+	 * Can't use ANALUVEAU_SCHED_PRIORITY_SINGLE either, because it's analt
 	 * matching the enum type used in drm_sched_entity_init().
 	 */
 	ret = drm_sched_entity_init(entity, DRM_SCHED_PRIORITY_KERNEL,
@@ -454,17 +454,17 @@ fail_wq:
 }
 
 int
-nouveau_sched_create(struct nouveau_sched **psched, struct nouveau_drm *drm,
+analuveau_sched_create(struct analuveau_sched **psched, struct analuveau_drm *drm,
 		     struct workqueue_struct *wq, u32 credit_limit)
 {
-	struct nouveau_sched *sched;
+	struct analuveau_sched *sched;
 	int ret;
 
 	sched = kzalloc(sizeof(*sched), GFP_KERNEL);
 	if (!sched)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	ret = nouveau_sched_init(sched, drm, wq, credit_limit);
+	ret = analuveau_sched_init(sched, drm, wq, credit_limit);
 	if (ret) {
 		kfree(sched);
 		return ret;
@@ -477,7 +477,7 @@ nouveau_sched_create(struct nouveau_sched **psched, struct nouveau_drm *drm,
 
 
 static void
-nouveau_sched_fini(struct nouveau_sched *sched)
+analuveau_sched_fini(struct analuveau_sched *sched)
 {
 	struct drm_gpu_scheduler *drm_sched = &sched->base;
 	struct drm_sched_entity *entity = &sched->entity;
@@ -496,11 +496,11 @@ nouveau_sched_fini(struct nouveau_sched *sched)
 }
 
 void
-nouveau_sched_destroy(struct nouveau_sched **psched)
+analuveau_sched_destroy(struct analuveau_sched **psched)
 {
-	struct nouveau_sched *sched = *psched;
+	struct analuveau_sched *sched = *psched;
 
-	nouveau_sched_fini(sched);
+	analuveau_sched_fini(sched);
 	kfree(sched);
 
 	*psched = NULL;

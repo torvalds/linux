@@ -12,7 +12,7 @@ maintainers:
 description:
   The ADV7604 and ADV7610/11/12 are multiformat video decoders with
   an integrated HDMI receiver. The ADV7604 has four multiplexed HDMI inputs
-  and one analog input, and the ADV7610/11 have one HDMI input and no analog
+  and one analog input, and the ADV7610/11 have one HDMI input and anal analog
   input. The ADV7612 is similar to the ADV7610/11 but has 2 HDMI inputs.
 
   These device tree bindings support the ADV7610/11/12 only at the moment.

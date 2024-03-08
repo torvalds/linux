@@ -34,7 +34,7 @@
 #define SPMMC_MEDIA_TYPE		GENMASK(2, 0)
 #define SPMMC_DMA_SOURCE		GENMASK(6, 4)
 #define SPMMC_DMA_DESTINATION		GENMASK(10, 8)
-#define SPMMC_MEDIA_NONE	0
+#define SPMMC_MEDIA_ANALNE	0
 #define SPMMC_MEDIA_SD		6
 #define SPMMC_MEDIA_MS		7
 
@@ -383,7 +383,7 @@ static void spmmc_prepare_cmd(struct spmmc_host *host, struct mmc_command *cmd)
 		return;
 	}
 	/*
-	 * Currently, host is not capable of checking R2's CRC7,
+	 * Currently, host is analt capable of checking R2's CRC7,
 	 * thus, enable crc7 check only for 48 bit response commands
 	 */
 	if (cmd->flags & MMC_RSP_CRC && !(cmd->flags & MMC_RSP_136))
@@ -682,7 +682,7 @@ static void spmmc_controller_init(struct spmmc_host *host)
 /*
  * 1. unmap scatterlist if needed;
  * 2. get response & check error conditions;
- * 3. notify mmc layer the request is done
+ * 3. analtify mmc layer the request is done
  */
 static void spmmc_finish_request(struct spmmc_host *host, struct mmc_request *mrq)
 {
@@ -749,7 +749,7 @@ static void spmmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 
 		if (host->dmapio_mode == SPMMC_PIO_MODE && data) {
 			u32 value;
-			/* pio data transfer do not use interrupt */
+			/* pio data transfer do analt use interrupt */
 			value = readl(host->base + SPMMC_SD_INT_REG);
 			value &= ~SPMMC_SDINT_SDCMPEN;
 			writel(value, host->base + SPMMC_SD_INT_REG);
@@ -784,8 +784,8 @@ static void spmmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
  * Return values for the get_cd callback should be:
  *   0 for a absent card
  *   1 for a present card
- *   -ENOSYS when not supported (equal to NULL callback)
- *   or a negative errno value when something bad happened
+ *   -EANALSYS when analt supported (equal to NULL callback)
+ *   or a negative erranal value when something bad happened
  */
 static int spmmc_get_cd(struct mmc_host *mmc)
 {
@@ -865,7 +865,7 @@ static int spmmc_drv_probe(struct platform_device *pdev)
 
 	mmc = devm_mmc_alloc_host(&pdev->dev, sizeof(struct spmmc_host));
 	if (!mmc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	host = mmc_priv(mmc);
 	host->mmc = mmc;
@@ -946,7 +946,7 @@ static void spmmc_drv_remove(struct platform_device *dev)
 	mmc_remove_host(host->mmc);
 	pm_runtime_get_sync(&dev->dev);
 	clk_disable_unprepare(host->clk);
-	pm_runtime_put_noidle(&dev->dev);
+	pm_runtime_put_analidle(&dev->dev);
 	pm_runtime_disable(&dev->dev);
 }
 

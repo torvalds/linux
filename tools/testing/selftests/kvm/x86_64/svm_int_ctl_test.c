@@ -34,7 +34,7 @@ static void l2_guest_code(struct svm_test_data *svm)
 {
 	/* This code raises interrupt INTR_IRQ_NUMBER in the L1's LAPIC,
 	 * and since L1 didn't enable virtual interrupt masking,
-	 * L2 should receive it and not L1.
+	 * L2 should receive it and analt L1.
 	 *
 	 * L2 also has virtual interrupt 'VINTR_IRQ_NUMBER' pending in V_IRQ
 	 * so it should also receive it after the following 'sti'.
@@ -44,7 +44,7 @@ static void l2_guest_code(struct svm_test_data *svm)
 
 	__asm__ __volatile__(
 		"sti\n"
-		"nop\n"
+		"analp\n"
 	);
 
 	GUEST_ASSERT(vintr_irq_called);
@@ -67,10 +67,10 @@ static void l1_guest_code(struct svm_test_data *svm)
 	generic_svm_setup(svm, l2_guest_code,
 			  &l2_guest_stack[L2_GUEST_STACK_SIZE]);
 
-	/* No virtual interrupt masking */
+	/* Anal virtual interrupt masking */
 	vmcb->control.int_ctl &= ~V_INTR_MASKING_MASK;
 
-	/* No intercepts for real and virtual interrupts */
+	/* Anal intercepts for real and virtual interrupts */
 	vmcb->control.intercept &= ~(BIT(INTERCEPT_INTR) | BIT(INTERCEPT_VINTR));
 
 	/* Make a virtual interrupt VINTR_IRQ_NUMBER pending */
@@ -109,11 +109,11 @@ int main(int argc, char *argv[])
 	case UCALL_ABORT:
 		REPORT_GUEST_ASSERT(uc);
 		break;
-		/* NOT REACHED */
+		/* ANALT REACHED */
 	case UCALL_DONE:
 		goto done;
 	default:
-		TEST_FAIL("Unknown ucall 0x%lx.", uc.cmd);
+		TEST_FAIL("Unkanalwn ucall 0x%lx.", uc.cmd);
 	}
 done:
 	kvm_vm_free(vm);

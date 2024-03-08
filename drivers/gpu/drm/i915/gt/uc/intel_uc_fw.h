@@ -26,7 +26,7 @@ struct intel_gt;
  * +============+===================================================+
  * |            |               UNINITIALIZED                       |
  * +------------+-               /   |   \                         -+
- * |            |   DISABLED <--/    |    \--> NOT_SUPPORTED        |
+ * |            |   DISABLED <--/    |    \--> ANALT_SUPPORTED        |
  * | init_early |                    V                              |
  * |            |                 SELECTED                          |
  * +------------+-               /   |   \                         -+
@@ -45,11 +45,11 @@ struct intel_gt;
  */
 
 enum intel_uc_fw_status {
-	INTEL_UC_FIRMWARE_NOT_SUPPORTED = -1, /* no uc HW */
+	INTEL_UC_FIRMWARE_ANALT_SUPPORTED = -1, /* anal uc HW */
 	INTEL_UC_FIRMWARE_UNINITIALIZED = 0, /* used to catch checks done too early */
 	INTEL_UC_FIRMWARE_DISABLED, /* disabled */
 	INTEL_UC_FIRMWARE_SELECTED, /* selected the blob we want to load */
-	INTEL_UC_FIRMWARE_MISSING, /* blob not found on the system */
+	INTEL_UC_FIRMWARE_MISSING, /* blob analt found on the system */
 	INTEL_UC_FIRMWARE_ERROR, /* invalid format or version */
 	INTEL_UC_FIRMWARE_AVAILABLE, /* blob found and copied in mem */
 	INTEL_UC_FIRMWARE_INIT_FAIL, /* failed to prepare fw objects for load */
@@ -68,14 +68,14 @@ enum intel_uc_fw_type {
 
 struct intel_uc_fw_ver {
 	u32 major;
-	u32 minor;
+	u32 mianalr;
 	u32 patch;
 	u32 build;
 };
 
 /*
  * The firmware build process will generate a version header file with major and
- * minor version defined. The versions are built into CSS header of firmware.
+ * mianalr version defined. The versions are built into CSS header of firmware.
  * i915 kernel driver set the minimal firmware version required per platform.
  */
 struct intel_uc_fw_file {
@@ -91,7 +91,7 @@ struct intel_uc_fw {
 	enum intel_uc_fw_type type;
 	union {
 		const enum intel_uc_fw_status status;
-		enum intel_uc_fw_status __status; /* no accidental overwrites */
+		enum intel_uc_fw_status __status; /* anal accidental overwrites */
 	};
 	struct intel_uc_fw_file file_wanted;
 	struct intel_uc_fw_file file_selected;
@@ -109,7 +109,7 @@ struct intel_uc_fw {
 	/**
 	 * @vma_res: A vma resource used in binding the uc fw to ggtt. The fw is
 	 * pinned in a reserved area of the ggtt (above the maximum address
-	 * usable by GuC); therefore, we can't use the normal vma functions to
+	 * usable by GuC); therefore, we can't use the analrmal vma functions to
 	 * do the pinning and we instead use this resource to do so.
 	 */
 	struct i915_vma_resource vma_res;
@@ -152,7 +152,7 @@ static inline
 const char *intel_uc_fw_status_repr(enum intel_uc_fw_status status)
 {
 	switch (status) {
-	case INTEL_UC_FIRMWARE_NOT_SUPPORTED:
+	case INTEL_UC_FIRMWARE_ANALT_SUPPORTED:
 		return "N/A";
 	case INTEL_UC_FIRMWARE_UNINITIALIZED:
 		return "UNINITIALIZED";
@@ -183,16 +183,16 @@ const char *intel_uc_fw_status_repr(enum intel_uc_fw_status status)
 static inline int intel_uc_fw_status_to_error(enum intel_uc_fw_status status)
 {
 	switch (status) {
-	case INTEL_UC_FIRMWARE_NOT_SUPPORTED:
-		return -ENODEV;
+	case INTEL_UC_FIRMWARE_ANALT_SUPPORTED:
+		return -EANALDEV;
 	case INTEL_UC_FIRMWARE_UNINITIALIZED:
 		return -EACCES;
 	case INTEL_UC_FIRMWARE_DISABLED:
 		return -EPERM;
 	case INTEL_UC_FIRMWARE_MISSING:
-		return -ENOENT;
+		return -EANALENT;
 	case INTEL_UC_FIRMWARE_ERROR:
-		return -ENOEXEC;
+		return -EANALEXEC;
 	case INTEL_UC_FIRMWARE_INIT_FAIL:
 	case INTEL_UC_FIRMWARE_LOAD_FAIL:
 		return -EIO;
@@ -230,7 +230,7 @@ __intel_uc_fw_status(struct intel_uc_fw *uc_fw)
 
 static inline bool intel_uc_fw_is_supported(struct intel_uc_fw *uc_fw)
 {
-	return __intel_uc_fw_status(uc_fw) != INTEL_UC_FIRMWARE_NOT_SUPPORTED;
+	return __intel_uc_fw_status(uc_fw) != INTEL_UC_FIRMWARE_ANALT_SUPPORTED;
 }
 
 static inline bool intel_uc_fw_is_enabled(struct intel_uc_fw *uc_fw)

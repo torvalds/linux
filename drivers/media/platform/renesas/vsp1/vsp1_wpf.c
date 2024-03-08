@@ -154,7 +154,7 @@ static int wpf_init_controls(struct vsp1_rwpf *wpf)
 		 */
 		num_flip_ctrls = 1;
 	} else {
-		/* Otherwise flipping is not supported. */
+		/* Otherwise flipping is analt supported. */
 		num_flip_ctrls = 0;
 	}
 
@@ -195,7 +195,7 @@ void vsp1_wpf_stop(struct vsp1_rwpf *wpf)
 
 	/*
 	 * Write to registers directly when stopping the stream as there will be
-	 * no pipeline run to apply the display list.
+	 * anal pipeline run to apply the display list.
 	 */
 	vsp1_write(vsp1, VI6_WPF_IRQ_ENB(wpf->entity.index), 0);
 	vsp1_write(vsp1, wpf->entity.index * VI6_WPF_OFFSET +
@@ -220,7 +220,7 @@ static int wpf_configure_writeback_chain(struct vsp1_rwpf *wpf,
 	if (!dl_next) {
 		dev_err(wpf->entity.vsp1->dev,
 			"Failed to obtain a dl list, disabling writeback\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	dlb = vsp1_dl_list_get_body0(dl_next);
@@ -293,7 +293,7 @@ static void wpf_configure_stream(struct vsp1_entity *entity,
 			   VI6_DPR_WPF_FPORCH_FP_WPFN);
 
 	/*
-	 * Sources. If the pipeline has a single input and BRx is not used,
+	 * Sources. If the pipeline has a single input and BRx is analt used,
 	 * configure it as the master layer. Otherwise configure all
 	 * inputs as sub-layers and select the virtual RPF as the master
 	 * layer.
@@ -407,8 +407,8 @@ static void wpf_configure_partition(struct vsp1_entity *entity,
 		       (height << VI6_WPF_SZCLIP_SIZE_SHIFT));
 
 	/*
-	 * For display pipelines without writeback enabled there's no memory
-	 * address to configure, return now.
+	 * For display pipelines without writeback enabled there's anal memory
+	 * address to configure, return analw.
 	 */
 	if (pipe->lif && !wpf->writeback)
 		return;
@@ -489,7 +489,7 @@ static void wpf_configure_partition(struct vsp1_entity *entity,
 	}
 
 	/*
-	 * On Gen3+ hardware the SPUVS bit has no effect on 3-planar
+	 * On Gen3+ hardware the SPUVS bit has anal effect on 3-planar
 	 * formats. Swap the U and V planes manually in that case.
 	 */
 	if (vsp1->info->gen >= 3 && format->num_planes == 3 &&
@@ -545,7 +545,7 @@ struct vsp1_rwpf *vsp1_wpf_create(struct vsp1_device *vsp1, unsigned int index)
 
 	wpf = devm_kzalloc(vsp1->dev, sizeof(*wpf), GFP_KERNEL);
 	if (wpf == NULL)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	if (vsp1->info->gen == 2) {
 		wpf->max_width = WPF_GEN2_MAX_WIDTH;
@@ -568,7 +568,7 @@ struct vsp1_rwpf *vsp1_wpf_create(struct vsp1_device *vsp1, unsigned int index)
 	/* Initialize the display list manager. */
 	wpf->dlm = vsp1_dlm_create(vsp1, index, 64);
 	if (!wpf->dlm) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error;
 	}
 

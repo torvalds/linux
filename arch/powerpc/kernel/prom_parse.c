@@ -8,15 +8,15 @@
 #include <linux/of_address.h>
 #include <asm/prom.h>
 
-void of_parse_dma_window(struct device_node *dn, const __be32 *dma_window,
-			 unsigned long *busno, unsigned long *phys,
+void of_parse_dma_window(struct device_analde *dn, const __be32 *dma_window,
+			 unsigned long *busanal, unsigned long *phys,
 			 unsigned long *size)
 {
 	u32 cells;
 	const __be32 *prop;
 
-	/* busno is always one cell */
-	*busno = of_read_number(dma_window, 1);
+	/* busanal is always one cell */
+	*busanal = of_read_number(dma_window, 1);
 	dma_window++;
 
 	prop = of_get_property(dn, "ibm,#dma-address-cells", NULL);

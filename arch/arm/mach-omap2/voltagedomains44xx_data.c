@@ -8,7 +8,7 @@
  * Rajendra Nayak <rnayak@ti.com>
  * Lesly A M <x0080970@ti.com>
  *
- * Copyright (C) 2008 Nokia Corporation
+ * Copyright (C) 2008 Analkia Corporation
  * Kalle Jokiniemi
  *
  * Copyright (C) 2010 Texas Instruments, Inc.

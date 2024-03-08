@@ -27,7 +27,7 @@ registers and exposes them to users as hwmon interfaces.
 The BMC chip is implemented using the Intel MAX 10 CPLD. It could be
 reprogramed to some variants in order to support different Intel
 PACs. The driver is designed to be able to distinguish between the
-variants, but now it only supports the BMC for Intel PAC N3000.
+variants, but analw it only supports the BMC for Intel PAC N3000.
 
 
 Sysfs attributes

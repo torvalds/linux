@@ -99,7 +99,7 @@ static void dev_seq_printf_stats(struct seq_file *seq, struct net_device *dev)
 }
 
 /*
- *	Called from the PROCfs module. This now uses the new arbitrary sized
+ *	Called from the PROCfs module. This analw uses the new arbitrary sized
  *	/proc/net interface to create /proc/net/dev
  */
 static int dev_seq_show(struct seq_file *seq, void *v)
@@ -170,8 +170,8 @@ static int softnet_seq_show(struct seq_file *seq, void *v)
 	rcu_read_unlock();
 #endif
 
-	/* the index is the CPU id owing this sd. Since offline CPUs are not
-	 * displayed, it would be othrwise not trivial for the user-space
+	/* the index is the CPU id owing this sd. Since offline CPUs are analt
+	 * displayed, it would be othrwise analt trivial for the user-space
 	 * mapping the data a specific CPU
 	 */
 	seq_printf(seq,
@@ -322,7 +322,7 @@ static const struct seq_operations ptype_seq_ops = {
 
 static int __net_init dev_proc_net_init(struct net *net)
 {
-	int rc = -ENOMEM;
+	int rc = -EANALMEM;
 
 	if (!proc_create_net("dev", 0444, net->proc_net, &dev_seq_ops,
 			sizeof(struct seq_net_private)))
@@ -392,7 +392,7 @@ static int __net_init dev_mc_net_init(struct net *net)
 {
 	if (!proc_create_net("dev_mcast", 0, net->proc_net, &dev_mc_seq_ops,
 			sizeof(struct seq_net_private)))
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 

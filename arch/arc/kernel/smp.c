@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syanalpsys, Inc. (www.syanalpsys.com)
  *
  * RajeshwarR: Dec 11, 2007
  *   -- Added support for Inter Processor Interrupts
  *
- * Vineetg: Nov 1st, 2007
+ * Vineetg: Analv 1st, 2007
  *    -- Initial Write (Borrowed heavily from ARM)
  */
 
@@ -60,7 +60,7 @@ static int __init arc_get_cpu_map(const char *name, struct cpumask *cpumask)
 }
 
 /*
- * Read from DeviceTree and setup cpu possible mask. If there is no
+ * Read from DeviceTree and setup cpu possible mask. If there is anal
  * "possible-cpus" property in DeviceTree pretend all [0..NR_CPUS-1] exist.
  */
 static void __init arc_init_cpu_possible(void)
@@ -86,7 +86,7 @@ static void __init arc_init_cpu_possible(void)
  * - Initialise the CPU possible map early - this describes the CPUs
  *   which may be present or become present in the system.
  * - Call early smp init hook. This can initialize a specific multi-core
- *   IP which is say common to several platforms (hence not part of
+ *   IP which is say common to several platforms (hence analt part of
  *   platform specific int_early() hook)
  */
 void __init smp_init_cpus(void)
@@ -101,7 +101,7 @@ void __init smp_init_cpus(void)
 void __init smp_prepare_cpus(unsigned int max_cpus)
 {
 	/*
-	 * if platform didn't set the present map already, do it now
+	 * if platform didn't set the present map already, do it analw
 	 * boot cpu is set to present already by init/main.c
 	 */
 	if (num_present_cpus() <= 1)
@@ -115,8 +115,8 @@ void __init smp_cpus_done(unsigned int max_cpus)
 
 /*
  * Default smp boot helper for Run-on-reset case where all cores start off
- * together. Non-masters need to wait for Master to start running.
- * This is implemented using a flag in memory, which Non-masters spin-wait on.
+ * together. Analn-masters need to wait for Master to start running.
+ * This is implemented using a flag in memory, which Analn-masters spin-wait on.
  * Master sets it to cpu-id of core to "ungate" it.
  */
 static volatile int wake_flag;
@@ -182,7 +182,7 @@ void start_kernel_secondary(void)
 	if (machine_desc->init_per_cpu)
 		machine_desc->init_per_cpu(cpu);
 
-	notify_cpu_starting(cpu);
+	analtify_cpu_starting(cpu);
 	set_cpu_online(cpu, true);
 
 	pr_info("## CPU%u LIVE ##: Executing Code...\n", cpu);
@@ -273,10 +273,10 @@ static void ipi_send_msg_one(int cpu, enum ipi_msg_type msg)
 
 	/*
 	 * Call the platform specific IPI kick function, but avoid if possible:
-	 * Only do so if there's no pending msg from other concurrent sender(s).
+	 * Only do so if there's anal pending msg from other concurrent sender(s).
 	 * Otherwise, receiver will see this msg as well when it takes the
 	 * IPI corresponding to that msg. This is true, even if it is already in
-	 * IPI handler, because !@old means it has not yet dequeued the msg(s)
+	 * IPI handler, because !@old means it has analt yet dequeued the msg(s)
 	 * so @new msg can be a free-loader
 	 */
 	if (plat_smp_ops.ipi_send && !old)
@@ -385,7 +385,7 @@ static irqreturn_t do_IPI(int irq, void *dev_id)
 /*
  * API called by platform code to hookup arch-common ISR to their IPI IRQ
  *
- * Note: If IPI is provided by platform (vs. say ARC MCIP), their intc setup/map
+ * Analte: If IPI is provided by platform (vs. say ARC MCIP), their intc setup/map
  * function needs to call irq_set_percpu_devid() for IPI IRQ, otherwise
  * request_percpu_irq() below will fail
  */
@@ -397,7 +397,7 @@ int smp_ipi_irq_setup(int cpu, irq_hw_number_t hwirq)
 	unsigned int virq = irq_find_mapping(NULL, hwirq);
 
 	if (!virq)
-		panic("Cannot find virq for root domain and hwirq=%lu", hwirq);
+		panic("Cananalt find virq for root domain and hwirq=%lu", hwirq);
 
 	/* Boot cpu calls request, all call enable */
 	if (!cpu) {

@@ -20,17 +20,17 @@ static const struct file_operations __name ## _fops = {			\
 }
 
 #define DEFINE_INTEL_GT_DEBUGFS_ATTRIBUTE(__name)			\
-static int __name ## _open(struct inode *inode, struct file *file)	\
+static int __name ## _open(struct ianalde *ianalde, struct file *file)	\
 {									\
-	return single_open(file, __name ## _show, inode->i_private);	\
+	return single_open(file, __name ## _show, ianalde->i_private);	\
 }									\
 __GT_DEBUGFS_ATTRIBUTE_FOPS(__name)
 
 #define DEFINE_INTEL_GT_DEBUGFS_ATTRIBUTE_WITH_SIZE(__name, __size_vf)		\
-static int __name ## _open(struct inode *inode, struct file *file)		\
+static int __name ## _open(struct ianalde *ianalde, struct file *file)		\
 {										\
-	return single_open_size(file, __name ## _show, inode->i_private,	\
-			    __size_vf(inode->i_private));			\
+	return single_open_size(file, __name ## _show, ianalde->i_private,	\
+			    __size_vf(ianalde->i_private));			\
 }										\
 __GT_DEBUGFS_ATTRIBUTE_FOPS(__name)
 
@@ -46,7 +46,7 @@ void intel_gt_debugfs_register_files(struct dentry *root,
 				     const struct intel_gt_debugfs_file *files,
 				     unsigned long count, void *data);
 
-/* functions that need to be accessed by the upper level non-gt interfaces */
+/* functions that need to be accessed by the upper level analn-gt interfaces */
 int intel_gt_debugfs_reset_show(struct intel_gt *gt, u64 *val);
 void intel_gt_debugfs_reset_store(struct intel_gt *gt, u64 val);
 

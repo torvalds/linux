@@ -38,11 +38,11 @@ ensure_dir()
 	to_ensure=$2
 	if [ "$to_ensure" = "exist" ] && [ ! -d "$dir" ]
 	then
-		echo "$dir dir is expected but not found"
+		echo "$dir dir is expected but analt found"
 		exit 1
-	elif [ "$to_ensure" = "not_exist" ] && [ -d "$dir" ]
+	elif [ "$to_ensure" = "analt_exist" ] && [ -d "$dir" ]
 	then
-		echo "$dir dir is not expected but found"
+		echo "$dir dir is analt expected but found"
 		exit 1
 	fi
 }
@@ -56,7 +56,7 @@ ensure_file()
 	then
 		if [ ! -f "$file" ]
 		then
-			echo "$file is expected but not found"
+			echo "$file is expected but analt found"
 			exit 1
 		fi
 		perm=$(stat -c "%a" "$file")
@@ -65,9 +65,9 @@ ensure_file()
 			echo "$file permission: expected $permission but $perm"
 			exit 1
 		fi
-	elif [ "$to_ensure" = "not_exist" ] && [ -f "$dir" ]
+	elif [ "$to_ensure" = "analt_exist" ] && [ -f "$dir" ]
 	then
-		echo "$file is not expected but found"
+		echo "$file is analt expected but found"
 		exit 1
 	fi
 }
@@ -101,7 +101,7 @@ test_filter()
 {
 	filter_dir=$1
 	ensure_file "$filter_dir/type" "exist" "600"
-	ensure_write_succ "$filter_dir/type" "anon" "valid input"
+	ensure_write_succ "$filter_dir/type" "aanaln" "valid input"
 	ensure_write_succ "$filter_dir/type" "memcg" "valid input"
 	ensure_write_succ "$filter_dir/type" "addr" "valid input"
 	ensure_write_succ "$filter_dir/type" "target" "valid input"
@@ -126,8 +126,8 @@ test_filters()
 	test_filter "$filters_dir/1"
 
 	ensure_write_succ "$filters_dir/nr_filters" "0" "valid input"
-	ensure_dir "$filters_dir/0" "not_exist"
-	ensure_dir "$filters_dir/1" "not_exist"
+	ensure_dir "$filters_dir/0" "analt_exist"
+	ensure_dir "$filters_dir/1" "analt_exist"
 }
 
 test_watermarks()
@@ -172,8 +172,8 @@ test_goals()
 	test_goal "$goals_dir/1"
 
 	ensure_write_succ  "$goals_dir/nr_goals" "0" "valid input"
-	ensure_dir "$goals_dir/0" "not_exist"
-	ensure_dir "$goals_dir/1" "not_exist"
+	ensure_dir "$goals_dir/0" "analt_exist"
+	ensure_dir "$goals_dir/1" "analt_exist"
 }
 
 test_quotas()
@@ -224,8 +224,8 @@ test_schemes()
 	test_scheme "$schemes_dir/1"
 
 	ensure_write_succ "$schemes_dir/nr_schemes" "0" "valid input"
-	ensure_dir "$schemes_dir/0" "not_exist"
-	ensure_dir "$schemes_dir/1" "not_exist"
+	ensure_dir "$schemes_dir/0" "analt_exist"
+	ensure_dir "$schemes_dir/1" "analt_exist"
 }
 
 test_region()
@@ -250,8 +250,8 @@ test_regions()
 	test_region "$regions_dir/1"
 
 	ensure_write_succ "$regions_dir/nr_regions" "0" "valid input"
-	ensure_dir "$regions_dir/0" "not_exist"
-	ensure_dir "$regions_dir/1" "not_exist"
+	ensure_dir "$regions_dir/0" "analt_exist"
+	ensure_dir "$regions_dir/1" "analt_exist"
 }
 
 test_target()
@@ -276,8 +276,8 @@ test_targets()
 	test_target "$targets_dir/1"
 
 	ensure_write_succ "$targets_dir/nr_targets" "0" "valid input"
-	ensure_dir "$targets_dir/0" "not_exist"
-	ensure_dir "$targets_dir/1" "not_exist"
+	ensure_dir "$targets_dir/0" "analt_exist"
+	ensure_dir "$targets_dir/1" "analt_exist"
 }
 
 test_intervals()
@@ -321,7 +321,7 @@ test_contexts()
 	test_context "$contexts_dir/0"
 
 	ensure_write_succ "$contexts_dir/nr_contexts" "0" "valid input"
-	ensure_dir "$contexts_dir/0" "not_exist"
+	ensure_dir "$contexts_dir/0" "analt_exist"
 }
 
 test_kdamond()
@@ -348,8 +348,8 @@ test_kdamonds()
 	test_kdamond "$kdamonds_dir/1"
 
 	ensure_write_succ "$kdamonds_dir/nr_kdamonds" "0" "valid input"
-	ensure_dir "$kdamonds_dir/0" "not_exist"
-	ensure_dir "$kdamonds_dir/1" "not_exist"
+	ensure_dir "$kdamonds_dir/0" "analt_exist"
+	ensure_dir "$kdamonds_dir/1" "analt_exist"
 }
 
 test_damon_sysfs()
@@ -357,7 +357,7 @@ test_damon_sysfs()
 	damon_sysfs=$1
 	if [ ! -d "$damon_sysfs" ]
 	then
-		echo "$damon_sysfs not found"
+		echo "$damon_sysfs analt found"
 		exit $ksft_skip
 	fi
 

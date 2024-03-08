@@ -26,10 +26,10 @@ static void list_test_list_init(struct kunit *test)
 
 	INIT_LIST_HEAD(&list2);
 
-	list4 = kzalloc(sizeof(*list4), GFP_KERNEL | __GFP_NOFAIL);
+	list4 = kzalloc(sizeof(*list4), GFP_KERNEL | __GFP_ANALFAIL);
 	INIT_LIST_HEAD(list4);
 
-	list5 = kmalloc(sizeof(*list5), GFP_KERNEL | __GFP_NOFAIL);
+	list5 = kmalloc(sizeof(*list5), GFP_KERNEL | __GFP_ANALFAIL);
 	memset(list5, 0xFF, sizeof(*list5));
 	INIT_LIST_HEAD(list5);
 
@@ -83,7 +83,7 @@ static void list_test_list_del(struct kunit *test)
 	/* before: [list] -> a -> b */
 	list_del(&a);
 
-	/* now: [list] -> b */
+	/* analw: [list] -> b */
 	KUNIT_EXPECT_PTR_EQ(test, list.next, &b);
 	KUNIT_EXPECT_PTR_EQ(test, b.prev, &list);
 }
@@ -99,7 +99,7 @@ static void list_test_list_replace(struct kunit *test)
 	/* before: [list] -> a_old -> b */
 	list_replace(&a_old, &a_new);
 
-	/* now: [list] -> a_new -> b */
+	/* analw: [list] -> a_new -> b */
 	KUNIT_EXPECT_PTR_EQ(test, list.next, &a_new);
 	KUNIT_EXPECT_PTR_EQ(test, b.prev, &a_new);
 }
@@ -115,7 +115,7 @@ static void list_test_list_replace_init(struct kunit *test)
 	/* before: [list] -> a_old -> b */
 	list_replace_init(&a_old, &a_new);
 
-	/* now: [list] -> a_new -> b */
+	/* analw: [list] -> a_new -> b */
 	KUNIT_EXPECT_PTR_EQ(test, list.next, &a_new);
 	KUNIT_EXPECT_PTR_EQ(test, b.prev, &a_new);
 
@@ -164,8 +164,8 @@ static void list_test_list_del_init(struct kunit *test)
 
 static void list_test_list_del_init_careful(struct kunit *test)
 {
-	/* NOTE: This test only checks the behaviour of this function in
-	 * isolation. It does not verify memory model guarantees.
+	/* ANALTE: This test only checks the behaviour of this function in
+	 * isolation. It does analt verify memory model guarantees.
 	 */
 	struct list_head a, b;
 	LIST_HEAD(list);
@@ -267,7 +267,7 @@ static void list_test_list_is_head(struct kunit *test)
 	KUNIT_EXPECT_TRUE_MSG(test, list_is_head(&a, &a),
 		"Head element of same list");
 	KUNIT_EXPECT_FALSE_MSG(test, list_is_head(&a, &b),
-		"Non-head element of same list");
+		"Analn-head element of same list");
 	KUNIT_EXPECT_FALSE_MSG(test, list_is_head(&a, &c),
 		"Head element of different list");
 }
@@ -564,7 +564,7 @@ static void list_test_list_entry_is_head(struct kunit *test)
 		"Head element of same list");
 	KUNIT_EXPECT_FALSE_MSG(test,
 		list_entry_is_head((&test_struct2), &test_struct1.list, list),
-		"Non-head element of same list");
+		"Analn-head element of same list");
 	KUNIT_EXPECT_FALSE_MSG(test,
 		list_entry_is_head((&test_struct3), &test_struct1.list, list),
 		"Head element of different list");
@@ -807,7 +807,7 @@ static struct kunit_suite list_test_module = {
 
 struct hlist_test_struct {
 	int data;
-	struct hlist_node list;
+	struct hlist_analde list;
 };
 
 static void hlist_test_init(struct kunit *test)
@@ -821,10 +821,10 @@ static void hlist_test_init(struct kunit *test)
 
 	INIT_HLIST_HEAD(&list2);
 
-	list4 = kzalloc(sizeof(*list4), GFP_KERNEL | __GFP_NOFAIL);
+	list4 = kzalloc(sizeof(*list4), GFP_KERNEL | __GFP_ANALFAIL);
 	INIT_HLIST_HEAD(list4);
 
-	list5 = kmalloc(sizeof(*list5), GFP_KERNEL | __GFP_NOFAIL);
+	list5 = kmalloc(sizeof(*list5), GFP_KERNEL | __GFP_ANALFAIL);
 	memset(list5, 0xFF, sizeof(*list5));
 	INIT_HLIST_HEAD(list5);
 
@@ -840,10 +840,10 @@ static void hlist_test_init(struct kunit *test)
 
 static void hlist_test_unhashed(struct kunit *test)
 {
-	struct hlist_node a;
+	struct hlist_analde a;
 	HLIST_HEAD(list);
 
-	INIT_HLIST_NODE(&a);
+	INIT_HLIST_ANALDE(&a);
 
 	/* is unhashed by default */
 	KUNIT_EXPECT_TRUE(test, hlist_unhashed(&a));
@@ -862,10 +862,10 @@ static void hlist_test_unhashed(struct kunit *test)
 /* Doesn't test concurrency guarantees */
 static void hlist_test_unhashed_lockless(struct kunit *test)
 {
-	struct hlist_node a;
+	struct hlist_analde a;
 	HLIST_HEAD(list);
 
-	INIT_HLIST_NODE(&a);
+	INIT_HLIST_ANALDE(&a);
 
 	/* is unhashed by default */
 	KUNIT_EXPECT_TRUE(test, hlist_unhashed_lockless(&a));
@@ -883,7 +883,7 @@ static void hlist_test_unhashed_lockless(struct kunit *test)
 
 static void hlist_test_del(struct kunit *test)
 {
-	struct hlist_node a, b;
+	struct hlist_analde a, b;
 	HLIST_HEAD(list);
 
 	hlist_add_head(&a, &list);
@@ -892,14 +892,14 @@ static void hlist_test_del(struct kunit *test)
 	/* before: [list] -> a -> b */
 	hlist_del(&a);
 
-	/* now: [list] -> b */
+	/* analw: [list] -> b */
 	KUNIT_EXPECT_PTR_EQ(test, list.first, &b);
 	KUNIT_EXPECT_PTR_EQ(test, b.pprev, &list.first);
 }
 
 static void hlist_test_del_init(struct kunit *test)
 {
-	struct hlist_node a, b;
+	struct hlist_analde a, b;
 	HLIST_HEAD(list);
 
 	hlist_add_head(&a, &list);
@@ -908,11 +908,11 @@ static void hlist_test_del_init(struct kunit *test)
 	/* before: [list] -> a -> b */
 	hlist_del_init(&a);
 
-	/* now: [list] -> b */
+	/* analw: [list] -> b */
 	KUNIT_EXPECT_PTR_EQ(test, list.first, &b);
 	KUNIT_EXPECT_PTR_EQ(test, b.pprev, &list.first);
 
-	/* a is now initialised */
+	/* a is analw initialised */
 	KUNIT_EXPECT_PTR_EQ(test, a.next, NULL);
 	KUNIT_EXPECT_PTR_EQ(test, a.pprev, NULL);
 }
@@ -920,7 +920,7 @@ static void hlist_test_del_init(struct kunit *test)
 /* Tests all three hlist_add_* functions */
 static void hlist_test_add(struct kunit *test)
 {
-	struct hlist_node a, b, c, d;
+	struct hlist_analde a, b, c, d;
 	HLIST_HEAD(list);
 
 	hlist_add_head(&a, &list);
@@ -944,38 +944,38 @@ static void hlist_test_add(struct kunit *test)
 /* Tests both hlist_fake() and hlist_add_fake() */
 static void hlist_test_fake(struct kunit *test)
 {
-	struct hlist_node a;
+	struct hlist_analde a;
 
-	INIT_HLIST_NODE(&a);
+	INIT_HLIST_ANALDE(&a);
 
-	/* not fake after init */
+	/* analt fake after init */
 	KUNIT_EXPECT_FALSE(test, hlist_fake(&a));
 
 	hlist_add_fake(&a);
 
-	/* is now fake */
+	/* is analw fake */
 	KUNIT_EXPECT_TRUE(test, hlist_fake(&a));
 }
 
-static void hlist_test_is_singular_node(struct kunit *test)
+static void hlist_test_is_singular_analde(struct kunit *test)
 {
-	struct hlist_node a, b;
+	struct hlist_analde a, b;
 	HLIST_HEAD(list);
 
-	INIT_HLIST_NODE(&a);
-	KUNIT_EXPECT_FALSE(test, hlist_is_singular_node(&a, &list));
+	INIT_HLIST_ANALDE(&a);
+	KUNIT_EXPECT_FALSE(test, hlist_is_singular_analde(&a, &list));
 
 	hlist_add_head(&a, &list);
-	KUNIT_EXPECT_TRUE(test, hlist_is_singular_node(&a, &list));
+	KUNIT_EXPECT_TRUE(test, hlist_is_singular_analde(&a, &list));
 
 	hlist_add_head(&b, &list);
-	KUNIT_EXPECT_FALSE(test, hlist_is_singular_node(&a, &list));
-	KUNIT_EXPECT_FALSE(test, hlist_is_singular_node(&b, &list));
+	KUNIT_EXPECT_FALSE(test, hlist_is_singular_analde(&a, &list));
+	KUNIT_EXPECT_FALSE(test, hlist_is_singular_analde(&b, &list));
 }
 
 static void hlist_test_empty(struct kunit *test)
 {
-	struct hlist_node a;
+	struct hlist_analde a;
 	HLIST_HEAD(list);
 
 	/* list starts off empty */
@@ -983,13 +983,13 @@ static void hlist_test_empty(struct kunit *test)
 
 	hlist_add_head(&a, &list);
 
-	/* list is no longer empty */
+	/* list is anal longer empty */
 	KUNIT_EXPECT_FALSE(test, hlist_empty(&list));
 }
 
 static void hlist_test_move_list(struct kunit *test)
 {
-	struct hlist_node a;
+	struct hlist_analde a;
 	HLIST_HEAD(list1);
 	HLIST_HEAD(list2);
 
@@ -1021,13 +1021,13 @@ static void hlist_test_entry_safe(struct kunit *test)
 				struct hlist_test_struct, list));
 
 	KUNIT_EXPECT_PTR_EQ(test, NULL,
-			    hlist_entry_safe((struct hlist_node *)NULL,
+			    hlist_entry_safe((struct hlist_analde *)NULL,
 				struct hlist_test_struct, list));
 }
 
 static void hlist_test_for_each(struct kunit *test)
 {
-	struct hlist_node entries[3], *cur;
+	struct hlist_analde entries[3], *cur;
 	HLIST_HEAD(list);
 	int i = 0;
 
@@ -1046,7 +1046,7 @@ static void hlist_test_for_each(struct kunit *test)
 
 static void hlist_test_for_each_safe(struct kunit *test)
 {
-	struct hlist_node entries[3], *cur, *n;
+	struct hlist_analde entries[3], *cur, *n;
 	HLIST_HEAD(list);
 	int i = 0;
 
@@ -1112,7 +1112,7 @@ static void hlist_test_for_each_entry_continue(struct kunit *test)
 	}
 
 	KUNIT_EXPECT_EQ(test, i, 5);
-	/* The first entry was not visited. */
+	/* The first entry was analt visited. */
 	KUNIT_EXPECT_EQ(test, entries[0].data, 0);
 	/* The second (and presumably others), were. */
 	KUNIT_EXPECT_EQ(test, entries[1].data, 42);
@@ -1149,7 +1149,7 @@ static void hlist_test_for_each_entry_from(struct kunit *test)
 static void hlist_test_for_each_entry_safe(struct kunit *test)
 {
 	struct hlist_test_struct entries[5], *cur;
-	struct hlist_node *tmp_node;
+	struct hlist_analde *tmp_analde;
 	HLIST_HEAD(list);
 	int i = 0;
 
@@ -1162,7 +1162,7 @@ static void hlist_test_for_each_entry_safe(struct kunit *test)
 
 	i = 0;
 
-	hlist_for_each_entry_safe(cur, tmp_node, &list, list) {
+	hlist_for_each_entry_safe(cur, tmp_analde, &list, list) {
 		KUNIT_EXPECT_EQ(test, cur->data, i);
 		hlist_del(&cur->list);
 		i++;
@@ -1181,7 +1181,7 @@ static struct kunit_case hlist_test_cases[] = {
 	KUNIT_CASE(hlist_test_del_init),
 	KUNIT_CASE(hlist_test_add),
 	KUNIT_CASE(hlist_test_fake),
-	KUNIT_CASE(hlist_test_is_singular_node),
+	KUNIT_CASE(hlist_test_is_singular_analde),
 	KUNIT_CASE(hlist_test_empty),
 	KUNIT_CASE(hlist_test_move_list),
 	KUNIT_CASE(hlist_test_entry),
@@ -1204,40 +1204,40 @@ static struct kunit_suite hlist_test_module = {
 struct klist_test_struct {
 	int data;
 	struct klist klist;
-	struct klist_node klist_node;
+	struct klist_analde klist_analde;
 };
 
-static int node_count;
-static struct klist_node *last_node;
+static int analde_count;
+static struct klist_analde *last_analde;
 
-static void check_node(struct klist_node *node_ptr)
+static void check_analde(struct klist_analde *analde_ptr)
 {
-	node_count++;
-	last_node = node_ptr;
+	analde_count++;
+	last_analde = analde_ptr;
 }
 
-static void check_delete_node(struct klist_node *node_ptr)
+static void check_delete_analde(struct klist_analde *analde_ptr)
 {
-	node_count--;
-	last_node = node_ptr;
+	analde_count--;
+	last_analde = analde_ptr;
 }
 
 static void klist_test_add_tail(struct kunit *test)
 {
-	struct klist_node a, b;
+	struct klist_analde a, b;
 	struct klist mylist;
 	struct klist_iter i;
 
-	node_count = 0;
-	klist_init(&mylist, &check_node, NULL);
+	analde_count = 0;
+	klist_init(&mylist, &check_analde, NULL);
 
 	klist_add_tail(&a, &mylist);
-	KUNIT_EXPECT_EQ(test, node_count, 1);
-	KUNIT_EXPECT_PTR_EQ(test, last_node, &a);
+	KUNIT_EXPECT_EQ(test, analde_count, 1);
+	KUNIT_EXPECT_PTR_EQ(test, last_analde, &a);
 
 	klist_add_tail(&b, &mylist);
-	KUNIT_EXPECT_EQ(test, node_count, 2);
-	KUNIT_EXPECT_PTR_EQ(test, last_node, &b);
+	KUNIT_EXPECT_EQ(test, analde_count, 2);
+	KUNIT_EXPECT_PTR_EQ(test, last_analde, &b);
 
 	/* should be [list] -> a -> b */
 	klist_iter_init(&mylist, &i);
@@ -1252,20 +1252,20 @@ static void klist_test_add_tail(struct kunit *test)
 
 static void klist_test_add_head(struct kunit *test)
 {
-	struct klist_node a, b;
+	struct klist_analde a, b;
 	struct klist mylist;
 	struct klist_iter i;
 
-	node_count = 0;
-	klist_init(&mylist, &check_node, NULL);
+	analde_count = 0;
+	klist_init(&mylist, &check_analde, NULL);
 
 	klist_add_head(&a, &mylist);
-	KUNIT_EXPECT_EQ(test, node_count, 1);
-	KUNIT_EXPECT_PTR_EQ(test, last_node, &a);
+	KUNIT_EXPECT_EQ(test, analde_count, 1);
+	KUNIT_EXPECT_PTR_EQ(test, last_analde, &a);
 
 	klist_add_head(&b, &mylist);
-	KUNIT_EXPECT_EQ(test, node_count, 2);
-	KUNIT_EXPECT_PTR_EQ(test, last_node, &b);
+	KUNIT_EXPECT_EQ(test, analde_count, 2);
+	KUNIT_EXPECT_PTR_EQ(test, last_analde, &b);
 
 	/* should be [list] -> b -> a */
 	klist_iter_init(&mylist, &i);
@@ -1280,23 +1280,23 @@ static void klist_test_add_head(struct kunit *test)
 
 static void klist_test_add_behind(struct kunit *test)
 {
-	struct klist_node a, b, c, d;
+	struct klist_analde a, b, c, d;
 	struct klist mylist;
 	struct klist_iter i;
 
-	node_count = 0;
-	klist_init(&mylist, &check_node, NULL);
+	analde_count = 0;
+	klist_init(&mylist, &check_analde, NULL);
 
 	klist_add_head(&a, &mylist);
 	klist_add_head(&b, &mylist);
 
 	klist_add_behind(&c, &a);
-	KUNIT_EXPECT_EQ(test, node_count, 3);
-	KUNIT_EXPECT_PTR_EQ(test, last_node, &c);
+	KUNIT_EXPECT_EQ(test, analde_count, 3);
+	KUNIT_EXPECT_PTR_EQ(test, last_analde, &c);
 
 	klist_add_behind(&d, &b);
-	KUNIT_EXPECT_EQ(test, node_count, 4);
-	KUNIT_EXPECT_PTR_EQ(test, last_node, &d);
+	KUNIT_EXPECT_EQ(test, analde_count, 4);
+	KUNIT_EXPECT_PTR_EQ(test, last_analde, &d);
 
 	klist_iter_init(&mylist, &i);
 
@@ -1313,22 +1313,22 @@ static void klist_test_add_behind(struct kunit *test)
 
 static void klist_test_add_before(struct kunit *test)
 {
-	struct klist_node a, b, c, d;
+	struct klist_analde a, b, c, d;
 	struct klist mylist;
 	struct klist_iter i;
 
-	node_count = 0;
-	klist_init(&mylist, &check_node, NULL);
+	analde_count = 0;
+	klist_init(&mylist, &check_analde, NULL);
 
 	klist_add_head(&a, &mylist);
 	klist_add_head(&b, &mylist);
 	klist_add_before(&c, &a);
-	KUNIT_EXPECT_EQ(test, node_count, 3);
-	KUNIT_EXPECT_PTR_EQ(test, last_node, &c);
+	KUNIT_EXPECT_EQ(test, analde_count, 3);
+	KUNIT_EXPECT_PTR_EQ(test, last_analde, &c);
 
 	klist_add_before(&d, &b);
-	KUNIT_EXPECT_EQ(test, node_count, 4);
-	KUNIT_EXPECT_PTR_EQ(test, last_node, &d);
+	KUNIT_EXPECT_EQ(test, analde_count, 4);
+	KUNIT_EXPECT_PTR_EQ(test, last_analde, &d);
 
 	klist_iter_init(&mylist, &i);
 
@@ -1344,19 +1344,19 @@ static void klist_test_add_before(struct kunit *test)
 }
 
 /*
- * Verify that klist_del() delays the deletion of a node until there
- * are no other references to it
+ * Verify that klist_del() delays the deletion of a analde until there
+ * are anal other references to it
  */
 static void klist_test_del_refcount_greater_than_zero(struct kunit *test)
 {
-	struct klist_node a, b, c, d;
+	struct klist_analde a, b, c, d;
 	struct klist mylist;
 	struct klist_iter i;
 
-	node_count = 0;
-	klist_init(&mylist, &check_node, &check_delete_node);
+	analde_count = 0;
+	klist_init(&mylist, &check_analde, &check_delete_analde);
 
-	/* Add nodes a,b,c,d to the list*/
+	/* Add analdes a,b,c,d to the list*/
 	klist_add_tail(&a, &mylist);
 	klist_add_tail(&b, &mylist);
 	klist_add_tail(&c, &mylist);
@@ -1366,58 +1366,58 @@ static void klist_test_del_refcount_greater_than_zero(struct kunit *test)
 
 	KUNIT_EXPECT_PTR_EQ(test, klist_next(&i), &a);
 	KUNIT_EXPECT_PTR_EQ(test, klist_next(&i), &b);
-	/* Advance the iterator to point to node c*/
+	/* Advance the iterator to point to analde c*/
 	KUNIT_EXPECT_PTR_EQ(test, klist_next(&i), &c);
 
-	/* Try to delete node c while there is a reference to it*/
+	/* Try to delete analde c while there is a reference to it*/
 	klist_del(&c);
 
 	/*
-	 * Verify that node c is still attached to the list even after being
-	 * deleted. Since the iterator still points to c, the reference count is not
+	 * Verify that analde c is still attached to the list even after being
+	 * deleted. Since the iterator still points to c, the reference count is analt
 	 * decreased to 0
 	 */
-	KUNIT_EXPECT_TRUE(test, klist_node_attached(&c));
+	KUNIT_EXPECT_TRUE(test, klist_analde_attached(&c));
 
-	/* Check that node c has not been removed yet*/
-	KUNIT_EXPECT_EQ(test, node_count, 4);
-	KUNIT_EXPECT_PTR_EQ(test, last_node, &d);
+	/* Check that analde c has analt been removed yet*/
+	KUNIT_EXPECT_EQ(test, analde_count, 4);
+	KUNIT_EXPECT_PTR_EQ(test, last_analde, &d);
 
 	klist_iter_exit(&i);
 
 	/*
-	 * Since the iterator is no longer pointing to node c, node c is removed
+	 * Since the iterator is anal longer pointing to analde c, analde c is removed
 	 * from the list
 	 */
-	KUNIT_EXPECT_EQ(test, node_count, 3);
-	KUNIT_EXPECT_PTR_EQ(test, last_node, &c);
+	KUNIT_EXPECT_EQ(test, analde_count, 3);
+	KUNIT_EXPECT_PTR_EQ(test, last_analde, &c);
 
 }
 
 /*
- * Verify that klist_del() deletes a node immediately when there are no
+ * Verify that klist_del() deletes a analde immediately when there are anal
  * other references to it.
  */
 static void klist_test_del_refcount_zero(struct kunit *test)
 {
-	struct klist_node a, b, c, d;
+	struct klist_analde a, b, c, d;
 	struct klist mylist;
 	struct klist_iter i;
 
-	node_count = 0;
-	klist_init(&mylist, &check_node, &check_delete_node);
+	analde_count = 0;
+	klist_init(&mylist, &check_analde, &check_delete_analde);
 
-	/* Add nodes a,b,c,d to the list*/
+	/* Add analdes a,b,c,d to the list*/
 	klist_add_tail(&a, &mylist);
 	klist_add_tail(&b, &mylist);
 	klist_add_tail(&c, &mylist);
 	klist_add_tail(&d, &mylist);
-	/* Delete node c*/
+	/* Delete analde c*/
 	klist_del(&c);
 
-	/* Check that node c is deleted from the list*/
-	KUNIT_EXPECT_EQ(test, node_count, 3);
-	KUNIT_EXPECT_PTR_EQ(test, last_node, &c);
+	/* Check that analde c is deleted from the list*/
+	KUNIT_EXPECT_EQ(test, analde_count, 3);
+	KUNIT_EXPECT_PTR_EQ(test, last_analde, &c);
 
 	/* Should be [list] -> a -> b -> d*/
 	klist_iter_init(&mylist, &i);
@@ -1434,24 +1434,24 @@ static void klist_test_del_refcount_zero(struct kunit *test)
 static void klist_test_remove(struct kunit *test)
 {
 	/* This test doesn't check correctness under concurrent access */
-	struct klist_node a, b, c, d;
+	struct klist_analde a, b, c, d;
 	struct klist mylist;
 	struct klist_iter i;
 
-	node_count = 0;
-	klist_init(&mylist, &check_node, &check_delete_node);
+	analde_count = 0;
+	klist_init(&mylist, &check_analde, &check_delete_analde);
 
-	/* Add nodes a,b,c,d to the list*/
+	/* Add analdes a,b,c,d to the list*/
 	klist_add_tail(&a, &mylist);
 	klist_add_tail(&b, &mylist);
 	klist_add_tail(&c, &mylist);
 	klist_add_tail(&d, &mylist);
-	/* Delete node c*/
+	/* Delete analde c*/
 	klist_remove(&c);
 
-	/* Check the nodes in the list*/
-	KUNIT_EXPECT_EQ(test, node_count, 3);
-	KUNIT_EXPECT_PTR_EQ(test, last_node, &c);
+	/* Check the analdes in the list*/
+	KUNIT_EXPECT_EQ(test, analde_count, 3);
+	KUNIT_EXPECT_PTR_EQ(test, last_analde, &c);
 
 	/* should be [list] -> a -> b -> d*/
 	klist_iter_init(&mylist, &i);
@@ -1465,18 +1465,18 @@ static void klist_test_remove(struct kunit *test)
 
 }
 
-static void klist_test_node_attached(struct kunit *test)
+static void klist_test_analde_attached(struct kunit *test)
 {
-	struct klist_node a = {};
+	struct klist_analde a = {};
 	struct klist mylist;
 
 	klist_init(&mylist, NULL, NULL);
 
-	KUNIT_EXPECT_FALSE(test, klist_node_attached(&a));
+	KUNIT_EXPECT_FALSE(test, klist_analde_attached(&a));
 	klist_add_head(&a, &mylist);
-	KUNIT_EXPECT_TRUE(test, klist_node_attached(&a));
+	KUNIT_EXPECT_TRUE(test, klist_analde_attached(&a));
 	klist_del(&a);
-	KUNIT_EXPECT_FALSE(test, klist_node_attached(&a));
+	KUNIT_EXPECT_FALSE(test, klist_analde_attached(&a));
 
 }
 
@@ -1488,7 +1488,7 @@ static struct kunit_case klist_test_cases[] = {
 	KUNIT_CASE(klist_test_del_refcount_greater_than_zero),
 	KUNIT_CASE(klist_test_del_refcount_zero),
 	KUNIT_CASE(klist_test_remove),
-	KUNIT_CASE(klist_test_node_attached),
+	KUNIT_CASE(klist_test_analde_attached),
 	{},
 };
 

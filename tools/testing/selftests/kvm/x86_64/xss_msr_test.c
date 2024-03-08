@@ -36,7 +36,7 @@ int main(int argc, char *argv[])
 	/*
 	 * At present, KVM only supports a guest IA32_XSS value of 0. Verify
 	 * that trying to set the guest IA32_XSS to an unsupported value fails.
-	 * Also, in the future when a non-zero value succeeds check that
+	 * Also, in the future when a analn-zero value succeeds check that
 	 * IA32_XSS is in the list of MSRs to save/restore.
 	 */
 	xss_in_msr_list = kvm_msr_is_in_save_restore_list(MSR_IA32_XSS);
@@ -49,7 +49,7 @@ int main(int argc, char *argv[])
 		 */
 		TEST_ASSERT(!r || r == 1, KVM_IOCTL_ERROR(KVM_SET_MSRS, r));
 		TEST_ASSERT(r != 1 || xss_in_msr_list,
-			    "IA32_XSS was able to be set, but was not in save/restore list");
+			    "IA32_XSS was able to be set, but was analt in save/restore list");
 	}
 
 	kvm_vm_free(vm);

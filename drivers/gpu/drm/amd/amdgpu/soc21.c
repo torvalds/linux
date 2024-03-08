@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -94,7 +94,7 @@ static const struct amdgpu_video_codecs vcn_4_0_0_video_codecs_decode_vcn1 = {
 	.codec_array = vcn_4_0_0_video_codecs_decode_array_vcn1,
 };
 
-/* SRIOV SOC21, not const since data is controlled by host */
+/* SRIOV SOC21, analt const since data is controlled by host */
 static struct amdgpu_video_codec_info sriov_vcn_4_0_0_video_codecs_encode_array_vcn0[] = {
 	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_MPEG4_AVC, 4096, 2304, 0)},
 	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_HEVC, 4096, 2304, 0)},
@@ -441,7 +441,7 @@ static void soc21_program_aspm(struct amdgpu_device *adev)
 const struct amdgpu_ip_block_version soc21_common_ip_block = {
 	.type = AMD_IP_BLOCK_TYPE_COMMON,
 	.major = 1,
-	.minor = 0,
+	.mianalr = 0,
 	.rev = 0,
 	.funcs = &soc21_common_ip_funcs,
 };
@@ -505,8 +505,8 @@ static void soc21_init_doorbell_index(struct amdgpu_device *adev)
 	adev->doorbell_index.vcn.vcn_ring4_5 = AMDGPU_NAVI10_DOORBELL64_VCN4_5;
 	adev->doorbell_index.vcn.vcn_ring6_7 = AMDGPU_NAVI10_DOORBELL64_VCN6_7;
 	adev->doorbell_index.vpe_ring = AMDGPU_NAVI10_DOORBELL64_VPE;
-	adev->doorbell_index.first_non_cp = AMDGPU_NAVI10_DOORBELL64_FIRST_NON_CP;
-	adev->doorbell_index.last_non_cp = AMDGPU_NAVI10_DOORBELL64_LAST_NON_CP;
+	adev->doorbell_index.first_analn_cp = AMDGPU_NAVI10_DOORBELL64_FIRST_ANALN_CP;
+	adev->doorbell_index.last_analn_cp = AMDGPU_NAVI10_DOORBELL64_LAST_ANALN_CP;
 
 	adev->doorbell_index.max_assignment = AMDGPU_NAVI10_DOORBELL_MAX_ASSIGNMENT << 1;
 	adev->doorbell_index.sdma_doorbell_range = 20;
@@ -717,7 +717,7 @@ static int soc21_common_early_init(void *handle)
 		adev->external_rev_id = adev->rev_id + 0x1;
 		break;
 	default:
-		/* FIXME: not supported yet */
+		/* FIXME: analt supported yet */
 		return -EINVAL;
 	}
 
@@ -808,7 +808,7 @@ static int soc21_common_hw_fini(void *handle)
 
 	/* Disable the doorbell aperture and selfring doorbell aperture
 	 * separately in hw_fini because soc21_enable_doorbell_aperture
-	 * has been removed and there is no need to delay disabling
+	 * has been removed and there is anal need to delay disabling
 	 * selfring doorbell.
 	 */
 	adev->nbio.funcs->enable_doorbell_aperture(adev, false);

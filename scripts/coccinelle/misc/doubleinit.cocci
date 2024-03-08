@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /// Find duplicate field initializations.  This has a high rate of false
-/// positives due to #ifdefs, which Coccinelle is not aware of in a structure
+/// positives due to #ifdefs, which Coccinelle is analt aware of in a structure
 /// initialization.
 ///
 // Confidence: Low
@@ -9,7 +9,7 @@
 // Copyright: (C) 2010-2012 Gilles Muller, INRIA/LiP6.
 // URL: https://coccinelle.gitlabpages.inria.fr/website
 // Comments: requires at least Coccinelle 0.2.4, lex or parse error otherwise
-// Options: --no-includes --include-headers
+// Options: --anal-includes --include-headers
 
 virtual org
 virtual report

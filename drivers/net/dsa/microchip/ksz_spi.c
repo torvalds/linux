@@ -2,7 +2,7 @@
 /*
  * Microchip ksz series register access through SPI
  *
- * Copyright (C) 2017 Microchip Technology Inc.
+ * Copyright (C) 2017 Microchip Techanallogy Inc.
  *	Tristram Ha <Tristram.Ha@microchip.com>
  */
 
@@ -48,7 +48,7 @@ static int ksz_spi_probe(struct spi_device *spi)
 
 	dev = ksz_switch_alloc(&spi->dev, spi);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip = device_get_match_data(ddev);
 	if (!chip)
@@ -90,7 +90,7 @@ static int ksz_spi_probe(struct spi_device *spi)
 
 	ret = ksz_switch_register(dev);
 
-	/* Main DSA driver may not be started yet. */
+	/* Main DSA driver may analt be started yet. */
 	if (ret)
 		return ret;
 

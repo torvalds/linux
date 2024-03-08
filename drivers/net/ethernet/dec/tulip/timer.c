@@ -40,8 +40,8 @@ void tulip_media_task(struct work_struct *work)
 	default: {
 		struct medialeaf *mleaf;
 		unsigned char *p;
-		if (tp->mtable == NULL) {	/* No EEPROM info, use generic code. */
-			/* Not much that can be done.
+		if (tp->mtable == NULL) {	/* Anal EEPROM info, use generic code. */
+			/* Analt much that can be done.
 			   Assume this a generic MII or SYM transceiver. */
 			next_tick = 60*HZ;
 			if (tulip_debug > 2)
@@ -59,7 +59,7 @@ void tulip_media_task(struct work_struct *work)
 			s8 bitnum = p[offset];
 			if (p[offset+1] & 0x80) {
 				if (tulip_debug > 1)
-					netdev_dbg(dev, "Transceiver monitor tick CSR12=%#02x, no media sense\n",
+					netdev_dbg(dev, "Transceiver monitor tick CSR12=%#02x, anal media sense\n",
 						   csr12);
 				if (mleaf->type == 4) {
 					if (mleaf->media == 3 && (csr12 & 0x02))
@@ -95,7 +95,7 @@ void tulip_media_task(struct work_struct *work)
 			if (tulip_media_cap[dev->if_port] & MediaIsFD)
 				goto select_next_media; /* Skip FD entries. */
 			if (tulip_debug > 1)
-				netdev_dbg(dev, "No link beat on media %s, trying transceiver type %s\n",
+				netdev_dbg(dev, "Anal link beat on media %s, trying transceiver type %s\n",
 					   medianame[mleaf->media & MEDIA_MASK],
 					   medianame[tp->mtable->mleaf[tp->cur_index].media]);
 			tulip_select_media(dev, 0);
@@ -114,7 +114,7 @@ void tulip_media_task(struct work_struct *work)
 				next_tick = 60*HZ;
 			}
 			break;
-		case 2:					/* 21142 serial block has no link beat. */
+		case 2:					/* 21142 serial block has anal link beat. */
 		default:
 			break;
 		}

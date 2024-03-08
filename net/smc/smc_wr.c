@@ -58,7 +58,7 @@ static inline bool smc_wr_is_tx_pend(struct smc_link *link)
 }
 
 /* wait till all pending tx work requests on the given link are completed */
-void smc_wr_tx_wait_no_pending_sends(struct smc_link *link)
+void smc_wr_tx_wait_anal_pending_sends(struct smc_link *link)
 {
 	wait_event(link->wr_tx_wait, !smc_wr_is_tx_pend(link));
 }
@@ -146,7 +146,7 @@ again:
 		memset(&wc, 0, sizeof(wc));
 		rc = ib_poll_cq(dev->roce_cq_send, SMC_WR_MAX_POLL_CQE, wc);
 		if (polled == 1) {
-			ib_req_notify_cq(dev->roce_cq_send,
+			ib_req_analtify_cq(dev->roce_cq_send,
 					 IB_CQ_NEXT_COMP |
 					 IB_CQ_REPORT_MISSED_EVENTS);
 		}
@@ -172,7 +172,7 @@ static inline int smc_wr_tx_get_free_slot_index(struct smc_link *link, u32 *idx)
 {
 	*idx = link->wr_tx_cnt;
 	if (!smc_link_sendable(link))
-		return -ENOLINK;
+		return -EANALLINK;
 	for_each_clear_bit(*idx, link->wr_tx_mask, link->wr_tx_cnt) {
 		if (!test_and_set_bit(*idx, link->wr_tx_mask))
 			return 0;
@@ -190,7 +190,7 @@ static inline int smc_wr_tx_get_free_slot_index(struct smc_link *link, u32 *idx)
  * @wr_rdma_buf:	Out value returns pointer to rdma work request.
  * @wr_pend_priv:	Out value returns pointer serving as handler context.
  *
- * Return: 0 on success, or -errno on error.
+ * Return: 0 on success, or -erranal on error.
  */
 int smc_wr_tx_get_free_slot(struct smc_link *link,
 			    smc_wr_tx_handler handler,
@@ -306,7 +306,7 @@ int smc_wr_tx_send(struct smc_link *link, struct smc_wr_tx_pend_priv *priv)
 	struct smc_wr_tx_pend *pend;
 	int rc;
 
-	ib_req_notify_cq(link->smcibdev->roce_cq_send,
+	ib_req_analtify_cq(link->smcibdev->roce_cq_send,
 			 IB_CQ_NEXT_COMP | IB_CQ_REPORT_MISSED_EVENTS);
 	pend = container_of(priv, struct smc_wr_tx_pend, priv);
 	rc = ib_post_send(link->roce_qp, &link->wr_tx_ibs[pend->idx], NULL);
@@ -323,7 +323,7 @@ int smc_wr_tx_v2_send(struct smc_link *link, struct smc_wr_tx_pend_priv *priv,
 	int rc;
 
 	link->wr_tx_v2_ib->sg_list[0].length = len;
-	ib_req_notify_cq(link->smcibdev->roce_cq_send,
+	ib_req_analtify_cq(link->smcibdev->roce_cq_send,
 			 IB_CQ_NEXT_COMP | IB_CQ_REPORT_MISSED_EVENTS);
 	rc = ib_post_send(link->roce_qp, link->wr_tx_v2_ib, NULL);
 	if (rc) {
@@ -334,7 +334,7 @@ int smc_wr_tx_v2_send(struct smc_link *link, struct smc_wr_tx_pend_priv *priv,
 }
 
 /* Send prepared WR slot via ib_post_send and wait for send completion
- * notification.
+ * analtification.
  * @priv: pointer to smc_wr_tx_pend_priv identifying prepared message buffer
  */
 int smc_wr_tx_send_wait(struct smc_link *link, struct smc_wr_tx_pend_priv *priv,
@@ -356,7 +356,7 @@ int smc_wr_tx_send_wait(struct smc_link *link, struct smc_wr_tx_pend_priv *priv,
 	rc = wait_for_completion_interruptible_timeout(
 					&link->wr_tx_compl[pnd_idx], timeout);
 	if (rc <= 0)
-		rc = -ENODATA;
+		rc = -EANALDATA;
 	if (rc > 0)
 		rc = 0;
 	return rc;
@@ -367,7 +367,7 @@ int smc_wr_reg_send(struct smc_link *link, struct ib_mr *mr)
 {
 	int rc;
 
-	ib_req_notify_cq(link->smcibdev->roce_cq_send,
+	ib_req_analtify_cq(link->smcibdev->roce_cq_send,
 			 IB_CQ_NEXT_COMP | IB_CQ_REPORT_MISSED_EVENTS);
 	link->wr_reg_state = POSTED;
 	link->wr_reg.wr.wr_id = (u64)(uintptr_t)mr;
@@ -425,7 +425,7 @@ out_unlock:
 
 /* Demultiplex a received work request based on the message type to its handler.
  * Relies on smc_wr_rx_hash having been completely filled before any IB WRs,
- * and not being modified any more afterwards so we don't need to lock it.
+ * and analt being modified any more afterwards so we don't need to lock it.
  */
 static inline void smc_wr_rx_demultiplex(struct ib_wc *wc)
 {
@@ -489,7 +489,7 @@ again:
 		memset(&wc, 0, sizeof(wc));
 		rc = ib_poll_cq(dev->roce_cq_recv, SMC_WR_MAX_POLL_CQE, wc);
 		if (polled == 1) {
-			ib_req_notify_cq(dev->roce_cq_recv,
+			ib_req_analtify_cq(dev->roce_cq_recv,
 					 IB_CQ_SOLICITED_MASK
 					 | IB_CQ_REPORT_MISSED_EVENTS);
 		}
@@ -645,7 +645,7 @@ void smc_wr_free_link(struct smc_link *lnk)
 	smc_wr_wakeup_reg_wait(lnk);
 	smc_wr_wakeup_tx_wait(lnk);
 
-	smc_wr_tx_wait_no_pending_sends(lnk);
+	smc_wr_tx_wait_anal_pending_sends(lnk);
 	percpu_ref_kill(&lnk->wr_reg_refs);
 	wait_for_completion(&lnk->reg_ref_comp);
 	percpu_ref_kill(&lnk->wr_tx_refs);
@@ -727,11 +727,11 @@ int smc_wr_alloc_lgr_mem(struct smc_link_group *lgr)
 
 	lgr->wr_rx_buf_v2 = kzalloc(SMC_WR_BUF_V2_SIZE, GFP_KERNEL);
 	if (!lgr->wr_rx_buf_v2)
-		return -ENOMEM;
+		return -EANALMEM;
 	lgr->wr_tx_buf_v2 = kzalloc(SMC_WR_BUF_V2_SIZE, GFP_KERNEL);
 	if (!lgr->wr_tx_buf_v2) {
 		kfree(lgr->wr_rx_buf_v2);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	return 0;
 }
@@ -743,97 +743,97 @@ int smc_wr_alloc_link_mem(struct smc_link *link)
 	/* allocate link related memory */
 	link->wr_tx_bufs = kcalloc(SMC_WR_BUF_CNT, SMC_WR_BUF_SIZE, GFP_KERNEL);
 	if (!link->wr_tx_bufs)
-		goto no_mem;
+		goto anal_mem;
 	link->wr_rx_bufs = kcalloc(SMC_WR_BUF_CNT * 3, SMC_WR_BUF_SIZE,
 				   GFP_KERNEL);
 	if (!link->wr_rx_bufs)
-		goto no_mem_wr_tx_bufs;
+		goto anal_mem_wr_tx_bufs;
 	link->wr_tx_ibs = kcalloc(SMC_WR_BUF_CNT, sizeof(link->wr_tx_ibs[0]),
 				  GFP_KERNEL);
 	if (!link->wr_tx_ibs)
-		goto no_mem_wr_rx_bufs;
+		goto anal_mem_wr_rx_bufs;
 	link->wr_rx_ibs = kcalloc(SMC_WR_BUF_CNT * 3,
 				  sizeof(link->wr_rx_ibs[0]),
 				  GFP_KERNEL);
 	if (!link->wr_rx_ibs)
-		goto no_mem_wr_tx_ibs;
+		goto anal_mem_wr_tx_ibs;
 	link->wr_tx_rdmas = kcalloc(SMC_WR_BUF_CNT,
 				    sizeof(link->wr_tx_rdmas[0]),
 				    GFP_KERNEL);
 	if (!link->wr_tx_rdmas)
-		goto no_mem_wr_rx_ibs;
+		goto anal_mem_wr_rx_ibs;
 	link->wr_tx_rdma_sges = kcalloc(SMC_WR_BUF_CNT,
 					sizeof(link->wr_tx_rdma_sges[0]),
 					GFP_KERNEL);
 	if (!link->wr_tx_rdma_sges)
-		goto no_mem_wr_tx_rdmas;
+		goto anal_mem_wr_tx_rdmas;
 	link->wr_tx_sges = kcalloc(SMC_WR_BUF_CNT, sizeof(link->wr_tx_sges[0]),
 				   GFP_KERNEL);
 	if (!link->wr_tx_sges)
-		goto no_mem_wr_tx_rdma_sges;
+		goto anal_mem_wr_tx_rdma_sges;
 	link->wr_rx_sges = kcalloc(SMC_WR_BUF_CNT * 3,
 				   sizeof(link->wr_rx_sges[0]) * sges_per_buf,
 				   GFP_KERNEL);
 	if (!link->wr_rx_sges)
-		goto no_mem_wr_tx_sges;
+		goto anal_mem_wr_tx_sges;
 	link->wr_tx_mask = bitmap_zalloc(SMC_WR_BUF_CNT, GFP_KERNEL);
 	if (!link->wr_tx_mask)
-		goto no_mem_wr_rx_sges;
+		goto anal_mem_wr_rx_sges;
 	link->wr_tx_pends = kcalloc(SMC_WR_BUF_CNT,
 				    sizeof(link->wr_tx_pends[0]),
 				    GFP_KERNEL);
 	if (!link->wr_tx_pends)
-		goto no_mem_wr_tx_mask;
+		goto anal_mem_wr_tx_mask;
 	link->wr_tx_compl = kcalloc(SMC_WR_BUF_CNT,
 				    sizeof(link->wr_tx_compl[0]),
 				    GFP_KERNEL);
 	if (!link->wr_tx_compl)
-		goto no_mem_wr_tx_pends;
+		goto anal_mem_wr_tx_pends;
 
 	if (link->lgr->smc_version == SMC_V2) {
 		link->wr_tx_v2_ib = kzalloc(sizeof(*link->wr_tx_v2_ib),
 					    GFP_KERNEL);
 		if (!link->wr_tx_v2_ib)
-			goto no_mem_tx_compl;
+			goto anal_mem_tx_compl;
 		link->wr_tx_v2_sge = kzalloc(sizeof(*link->wr_tx_v2_sge),
 					     GFP_KERNEL);
 		if (!link->wr_tx_v2_sge)
-			goto no_mem_v2_ib;
+			goto anal_mem_v2_ib;
 		link->wr_tx_v2_pend = kzalloc(sizeof(*link->wr_tx_v2_pend),
 					      GFP_KERNEL);
 		if (!link->wr_tx_v2_pend)
-			goto no_mem_v2_sge;
+			goto anal_mem_v2_sge;
 	}
 	return 0;
 
-no_mem_v2_sge:
+anal_mem_v2_sge:
 	kfree(link->wr_tx_v2_sge);
-no_mem_v2_ib:
+anal_mem_v2_ib:
 	kfree(link->wr_tx_v2_ib);
-no_mem_tx_compl:
+anal_mem_tx_compl:
 	kfree(link->wr_tx_compl);
-no_mem_wr_tx_pends:
+anal_mem_wr_tx_pends:
 	kfree(link->wr_tx_pends);
-no_mem_wr_tx_mask:
+anal_mem_wr_tx_mask:
 	kfree(link->wr_tx_mask);
-no_mem_wr_rx_sges:
+anal_mem_wr_rx_sges:
 	kfree(link->wr_rx_sges);
-no_mem_wr_tx_sges:
+anal_mem_wr_tx_sges:
 	kfree(link->wr_tx_sges);
-no_mem_wr_tx_rdma_sges:
+anal_mem_wr_tx_rdma_sges:
 	kfree(link->wr_tx_rdma_sges);
-no_mem_wr_tx_rdmas:
+anal_mem_wr_tx_rdmas:
 	kfree(link->wr_tx_rdmas);
-no_mem_wr_rx_ibs:
+anal_mem_wr_rx_ibs:
 	kfree(link->wr_rx_ibs);
-no_mem_wr_tx_ibs:
+anal_mem_wr_tx_ibs:
 	kfree(link->wr_tx_ibs);
-no_mem_wr_rx_bufs:
+anal_mem_wr_rx_bufs:
 	kfree(link->wr_rx_bufs);
-no_mem_wr_tx_bufs:
+anal_mem_wr_tx_bufs:
 	kfree(link->wr_tx_bufs);
-no_mem:
-	return -ENOMEM;
+anal_mem:
+	return -EANALMEM;
 }
 
 void smc_wr_remove_dev(struct smc_ib_device *smcibdev)

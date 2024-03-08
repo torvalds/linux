@@ -10,7 +10,7 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/gpio/driver.h>
 #include <linux/i2c.h>
 #include <linux/platform_device.h>
@@ -83,10 +83,10 @@ static struct tps65910_board *tps65910_parse_dt_for_gpio(struct device *dev,
 	int idx;
 
 	tps65910_board->gpio_base = -1;
-	ret = of_property_read_u32_array(tps65910->dev->of_node,
+	ret = of_property_read_u32_array(tps65910->dev->of_analde,
 			"ti,en-gpio-sleep", prop_array, ngpio);
 	if (ret < 0) {
-		dev_dbg(dev, "ti,en-gpio-sleep not specified\n");
+		dev_dbg(dev, "ti,en-gpio-sleep analt specified\n");
 		return tps65910_board;
 	}
 
@@ -111,12 +111,12 @@ static int tps65910_gpio_probe(struct platform_device *pdev)
 	int ret;
 	int i;
 
-	device_set_node(&pdev->dev, dev_fwnode(pdev->dev.parent));
+	device_set_analde(&pdev->dev, dev_fwanalde(pdev->dev.parent));
 
 	tps65910_gpio = devm_kzalloc(&pdev->dev,
 				sizeof(*tps65910_gpio), GFP_KERNEL);
 	if (!tps65910_gpio)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tps65910_gpio->tps65910 = tps65910;
 
@@ -145,7 +145,7 @@ static int tps65910_gpio_probe(struct platform_device *pdev)
 	else
 		tps65910_gpio->gpio_chip.base = -1;
 
-	if (!pdata && tps65910->dev->of_node)
+	if (!pdata && tps65910->dev->of_analde)
 		pdata = tps65910_parse_dt_for_gpio(&pdev->dev, tps65910,
 			tps65910_gpio->gpio_chip.ngpio);
 

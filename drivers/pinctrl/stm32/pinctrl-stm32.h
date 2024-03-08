@@ -10,8 +10,8 @@
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/pinconf-generic.h>
 
-#define STM32_PIN_NO(x) ((x) << 8)
-#define STM32_GET_PIN_NO(x) ((x) >> 8)
+#define STM32_PIN_ANAL(x) ((x) << 8)
+#define STM32_GET_PIN_ANAL(x) ((x) >> 8)
 #define STM32_GET_PIN_FUNC(x) ((x) & 0xff)
 
 #define STM32_PIN_GPIO		0

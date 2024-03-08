@@ -4,7 +4,7 @@
  *
  * Copyright (c) 2020-2022 Microchip Corporation. All rights reserved.
  *
- * Author: Conor Dooley <conor.dooley@microchip.com>
+ * Author: Coanalr Dooley <coanalr.dooley@microchip.com>
  *
  */
 
@@ -36,8 +36,8 @@
 #define SCB_CTRL_ABORT (2)
 #define SCB_CTRL_ABORT_MASK BIT(SCB_CTRL_ABORT)
 
-#define SCB_CTRL_NOTIFY (3)
-#define SCB_CTRL_NOTIFY_MASK BIT(SCB_CTRL_NOTIFY)
+#define SCB_CTRL_ANALTIFY (3)
+#define SCB_CTRL_ANALTIFY_MASK BIT(SCB_CTRL_ANALTIFY)
 
 #define SCB_CTRL_POS (16)
 #define SCB_CTRL_MASK GENMASK(SCB_CTRL_POS + SCB_MASK_WIDTH - 1, SCB_CTRL_POS)
@@ -53,8 +53,8 @@
 #define SCB_STATUS_ABORT (2)
 #define SCB_STATUS_ABORT_MASK BIT(SCB_STATUS_ABORT)
 
-#define SCB_STATUS_NOTIFY (3)
-#define SCB_STATUS_NOTIFY_MASK BIT(SCB_STATUS_NOTIFY)
+#define SCB_STATUS_ANALTIFY (3)
+#define SCB_STATUS_ANALTIFY_MASK BIT(SCB_STATUS_ANALTIFY)
 
 #define SCB_STATUS_POS (16)
 #define SCB_STATUS_MASK GENMASK(SCB_STATUS_POS + SCB_MASK_WIDTH - 1, SCB_STATUS_POS)
@@ -91,9 +91,9 @@ static bool mpfs_mbox_last_tx_done(struct mbox_chan *chan)
 
 	/*
 	 * The service status is stored in bits 31:16 of the SERVICES_SR
-	 * register & is only valid when the system controller is not busy.
+	 * register & is only valid when the system controller is analt busy.
 	 * Failed services are intended to generated interrupts, but in reality
-	 * this does not happen, so the status must be checked here.
+	 * this does analt happen, so the status must be checked here.
 	 */
 	val = readl_relaxed(mbox->ctrl_base + SERVICES_SR_OFFSET);
 	response->resp_status = (val & SCB_STATUS_MASK) >> SCB_STATUS_POS;
@@ -142,7 +142,7 @@ static int mpfs_mbox_send_data(struct mbox_chan *chan, void *data)
 	opt_sel = ((msg->mbox_offset << 7u) | (msg->cmd_opcode & 0x7fu));
 
 	tx_trigger = (opt_sel << SCB_CTRL_POS) & SCB_CTRL_MASK;
-	tx_trigger |= SCB_CTRL_REQ_MASK | SCB_STATUS_NOTIFY_MASK;
+	tx_trigger |= SCB_CTRL_REQ_MASK | SCB_STATUS_ANALTIFY_MASK;
 	writel_relaxed(tx_trigger, mbox->ctrl_base + SERVICES_CR_OFFSET);
 
 	return 0;
@@ -156,14 +156,14 @@ static void mpfs_mbox_rx_data(struct mbox_chan *chan)
 	u32 i;
 
 	if (!response->resp_msg) {
-		dev_err(mbox->dev, "failed to assign memory for response %d\n", -ENOMEM);
+		dev_err(mbox->dev, "failed to assign memory for response %d\n", -EANALMEM);
 		return;
 	}
 
 	/*
 	 * We should *never* get an interrupt while the controller is
 	 * still in the busy state. If we do, something has gone badly
-	 * wrong & the content of the mailbox would not be valid.
+	 * wrong & the content of the mailbox would analt be valid.
 	 */
 	if (mpfs_mbox_busy(mbox)) {
 		dev_err(mbox->dev, "got an interrupt but system controller is busy\n");
@@ -229,7 +229,7 @@ static int mpfs_mbox_probe(struct platform_device *pdev)
 
 	mbox = devm_kzalloc(&pdev->dev, sizeof(*mbox), GFP_KERNEL);
 	if (!mbox)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mbox->ctrl_base = devm_platform_get_and_ioremap_resource(pdev, 0, &regs);
 	if (IS_ERR(mbox->ctrl_base))
@@ -283,5 +283,5 @@ static struct platform_driver mpfs_mbox_driver = {
 module_platform_driver(mpfs_mbox_driver);
 
 MODULE_LICENSE("GPL v2");
-MODULE_AUTHOR("Conor Dooley <conor.dooley@microchip.com>");
+MODULE_AUTHOR("Coanalr Dooley <coanalr.dooley@microchip.com>");
 MODULE_DESCRIPTION("MPFS mailbox controller driver");

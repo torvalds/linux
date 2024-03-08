@@ -77,24 +77,24 @@
 #define NSRI_LINKUP_MASK	(UINT64_CAST 0x1 << 29)
 #define NSRI_DOWNREASON_SHFT	28		/* 0=failed, 1=never came   */
 #define NSRI_DOWNREASON_MASK	(UINT64_CAST 0x1 << 28) /*    out of reset. */
-#define NSRI_MORENODES_SHFT	18
-#define NSRI_MORENODES_MASK	(UINT64_CAST 1 << 18)	/* Max. # of nodes  */
+#define NSRI_MOREANALDES_SHFT	18
+#define NSRI_MOREANALDES_MASK	(UINT64_CAST 1 << 18)	/* Max. # of analdes  */
 #define	 MORE_MEMORY		0
-#define	 MORE_NODES		1
+#define	 MORE_ANALDES		1
 #define NSRI_REGIONSIZE_SHFT	17
 #define NSRI_REGIONSIZE_MASK	(UINT64_CAST 1 << 17)	/* Granularity	    */
 #define	 REGIONSIZE_FINE	1
 #define	 REGIONSIZE_COARSE	0
-#define NSRI_NODEID_SHFT	8
-#define NSRI_NODEID_MASK	(UINT64_CAST 0x1ff << 8)/* Node (Hub) ID    */
+#define NSRI_ANALDEID_SHFT	8
+#define NSRI_ANALDEID_MASK	(UINT64_CAST 0x1ff << 8)/* Analde (Hub) ID    */
 #define NSRI_REV_SHFT		4
 #define NSRI_REV_MASK		(UINT64_CAST 0xf << 4)	/* Chip Revision    */
 #define NSRI_CHIPID_SHFT	0
 #define NSRI_CHIPID_MASK	(UINT64_CAST 0xf)	/* Chip type ID	    */
 
 /*
- * In fine mode, each node is a region.	 In coarse mode, there are
- * eight nodes per region.
+ * In fine mode, each analde is a region.	 In coarse mode, there are
+ * eight analdes per region.
  */
 #define NASID_TO_FINEREG_SHFT	0
 #define NASID_TO_COARSEREG_SHFT 3
@@ -164,7 +164,7 @@
 #define	 PIOTYPE_ADDR_ERR	4	/* VECTOR_STATUS only		    */
 #define	 PIOTYPE_CMD_ERR	5	/* VECTOR_STATUS only		    */
 #define	 PIOTYPE_PROT_ERR	6	/* VECTOR_STATUS only		    */
-#define	 PIOTYPE_UNKNOWN	7	/* VECTOR_STATUS only		    */
+#define	 PIOTYPE_UNKANALWN	7	/* VECTOR_STATUS only		    */
 
 /* NI_AGE_XXX mask and shift definitions */
 

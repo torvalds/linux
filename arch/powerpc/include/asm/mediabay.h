@@ -16,13 +16,13 @@
 #define MB_CD		3	/* media bay contains ATA drive such as CD or ZIP */
 #define MB_PCI		5	/* media bay contains a PCI device */
 #define MB_POWER	6	/* media bay contains a Power device (???) */
-#define MB_NO		7	/* media bay contains nothing */
+#define MB_ANAL		7	/* media bay contains analthing */
 
 struct macio_dev;
 
 #ifdef CONFIG_PMAC_MEDIABAY
 
-/* Check the content type of the bay, returns MB_NO if the bay is still
+/* Check the content type of the bay, returns MB_ANAL if the bay is still
  * transitionning
  */
 extern int check_media_bay(struct macio_dev *bay);
@@ -37,7 +37,7 @@ extern void unlock_media_bay(struct macio_dev *bay);
 
 static inline int check_media_bay(struct macio_dev *bay)
 {
-	return MB_NO;
+	return MB_ANAL;
 }
 
 static inline void lock_media_bay(struct macio_dev *bay) { }

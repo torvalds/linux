@@ -3,7 +3,7 @@
 // Renesas R-Car CMD support
 //
 // Copyright (C) 2015 Renesas Solutions Corp.
-// Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+// Kunianalri Morimoto <kunianalri.morimoto.gx@renesas.com>
 
 #include "rsnd.h"
 
@@ -168,7 +168,7 @@ int rsnd_cmd_probe(struct rsnd_priv *priv)
 
 	cmd = devm_kcalloc(dev, nr, sizeof(*cmd), GFP_KERNEL);
 	if (!cmd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->cmd_nr	= nr;
 	priv->cmd	= cmd;

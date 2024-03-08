@@ -31,7 +31,7 @@
 #define TWI_IRQEN	(TWI_IRQEN_COMPL | TWI_IRQEN_ANACK | TWI_IRQEN_DNACK)
 /* twi_addr_ctrl1 reg bits*/
 #define TWI_TRANSFER	0x100
-#define TWI_NOSTOP	0x200
+#define TWI_ANALSTOP	0x200
 #define TWI_SOFT_RESET	0x2000
 /* twi_clkdiv reg value */
 #define TWI_CLKDIV	156
@@ -107,8 +107,8 @@ irqreturn_t netup_i2c_interrupt(struct netup_i2c *i2c)
 			"%s(): want write\n", __func__);
 		goto irq_ok;
 	}
-	dev_warn(&i2c->adap.dev, "%s(): not mine interrupt\n", __func__);
-	iret = IRQ_NONE;
+	dev_warn(&i2c->adap.dev, "%s(): analt mine interrupt\n", __func__);
+	iret = IRQ_ANALNE;
 irq_ok:
 	spin_unlock_irqrestore(&i2c->lock, flags);
 	if (iret == IRQ_HANDLED)

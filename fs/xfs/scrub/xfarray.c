@@ -60,10 +60,10 @@ static inline loff_t xfarray_pos(struct xfarray *array, xfarray_idx_t idx)
 }
 
 /*
- * Initialize a big memory array.  Array records cannot be larger than a
- * page, and the array cannot span more bytes than the page cache supports.
- * If @required_capacity is nonzero, the maximum array size will be set to this
- * quantity and the array creation will fail if the underlying storage cannot
+ * Initialize a big memory array.  Array records cananalt be larger than a
+ * page, and the array cananalt span more bytes than the page cache supports.
+ * If @required_capacity is analnzero, the maximum array size will be set to this
+ * quantity and the array creation will fail if the underlying storage cananalt
  * support that many records.
  */
 int
@@ -83,7 +83,7 @@ xfarray_create(
 	if (error)
 		return error;
 
-	error = -ENOMEM;
+	error = -EANALMEM;
 	array = kzalloc(sizeof(struct xfarray) + obj_size, XCHK_GFP_FLAGS);
 	if (!array)
 		goto out_xfile;
@@ -101,7 +101,7 @@ xfarray_create(
 
 	if (required_capacity > 0) {
 		if (array->max_nr < required_capacity) {
-			error = -ENOMEM;
+			error = -EANALMEM;
 			goto out_xfarray;
 		}
 		array->max_nr = required_capacity;
@@ -134,7 +134,7 @@ xfarray_load(
 	void		*ptr)
 {
 	if (idx >= array->nr)
-		return -ENODATA;
+		return -EANALDATA;
 
 	return xfile_obj_load(array->xfile, ptr, array->obj_size,
 			xfarray_pos(array, idx));
@@ -173,7 +173,7 @@ xfarray_unset(
 	int		error;
 
 	if (idx >= array->nr)
-		return -ENODATA;
+		return -EANALDATA;
 
 	if (idx == array->nr - 1) {
 		array->nr--;
@@ -193,7 +193,7 @@ xfarray_unset(
 }
 
 /*
- * Store an element in the array.  The element must not be completely zeroed,
+ * Store an element in the array.  The element must analt be completely zeroed,
  * because those are considered unset sparse elements.
  */
 int
@@ -228,7 +228,7 @@ xfarray_element_is_null(
 }
 
 /*
- * Store an element anywhere in the array that is unset.  If there are no
+ * Store an element anywhere in the array that is unset.  If there are anal
  * unset slots, append the element to the array.
  */
 int
@@ -259,7 +259,7 @@ xfarray_store_anywhere(
 		return 0;
 	}
 
-	/* No unset slots found; attach it on the end. */
+	/* Anal unset slots found; attach it on the end. */
 	array->unset_slots = 0;
 	return xfarray_append(array, ptr);
 }
@@ -275,7 +275,7 @@ xfarray_length(
 /*
  * Decide which array item we're going to read as part of an _iter_get.
  * @cur is the array index, and @pos is the file offset of that array index in
- * the backing xfile.  Returns ENODATA if we reach the end of the records.
+ * the backing xfile.  Returns EANALDATA if we reach the end of the records.
  *
  * Reading from a hole in a sparse xfile causes page instantiation, so for
  * iterating a (possibly sparse) array we need to figure out if the cursor is
@@ -293,26 +293,26 @@ xfarray_find_data(
 	loff_t		new_pos;
 
 	/*
-	 * If the current array record is not adjacent to a page boundary, we
-	 * are in the middle of the page.  We do not need to move the cursor.
+	 * If the current array record is analt adjacent to a page boundary, we
+	 * are in the middle of the page.  We do analt need to move the cursor.
 	 */
 	if (pgoff != 0 && pgoff + array->obj_size - 1 < PAGE_SIZE)
 		return 0;
 
 	/*
 	 * Call SEEK_DATA on the last byte in the record we're about to read.
-	 * If the record ends at (or crosses) the end of a page then we know
+	 * If the record ends at (or crosses) the end of a page then we kanalw
 	 * that the first byte of the record is backed by pages and don't need
 	 * to query it.  If instead the record begins at the start of the page
-	 * then we know that querying the last byte is just as good as querying
-	 * the first byte, since records cannot be larger than a page.
+	 * then we kanalw that querying the last byte is just as good as querying
+	 * the first byte, since records cananalt be larger than a page.
 	 *
-	 * If the call returns the same file offset, we know this record is
-	 * backed by real pages.  We do not need to move the cursor.
+	 * If the call returns the same file offset, we kanalw this record is
+	 * backed by real pages.  We do analt need to move the cursor.
 	 */
 	new_pos = xfile_seek_data(array->xfile, end_pos);
 	if (new_pos == -ENXIO)
-		return -ENODATA;
+		return -EANALDATA;
 	if (new_pos < 0)
 		return new_pos;
 	if (new_pos == end_pos)
@@ -330,8 +330,8 @@ xfarray_find_data(
 }
 
 /*
- * Starting at *idx, fetch the next non-null array entry and advance the index
- * to set up the next _load_next call.  Returns ENODATA if we reach the end of
+ * Starting at *idx, fetch the next analn-null array entry and advance the index
+ * to set up the next _load_next call.  Returns EANALDATA if we reach the end of
  * the array.  Callers must set @*idx to XFARRAY_CURSOR_INIT before the first
  * call to this function.
  */
@@ -347,7 +347,7 @@ xfarray_load_next(
 
 	do {
 		if (cur >= array->nr)
-			return -ENODATA;
+			return -EANALDATA;
 
 		/*
 		 * Ask the backing store for the location of next possible
@@ -476,7 +476,7 @@ xfarray_sortinfo_alloc(
 
 	si = kvzalloc(nr_bytes, XCHK_GFP_FLAGS);
 	if (!si)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	si->array = array;
 	si->cmp_fn = cmp_fn;
@@ -536,7 +536,7 @@ static inline void *xfarray_sortinfo_isort_scratch(struct xfarray_sortinfo *si)
 
 /*
  * Sort a small number of array records using scratchpad memory.  The records
- * need not be contiguous in the xfile's memory pages.
+ * need analt be contiguous in the xfile's memory pages.
  */
 STATIC int
 xfarray_isort(
@@ -726,7 +726,7 @@ xfarray_qsort_pivot(
 		recp = xfarray_pivot_array_rec(parray, pivot_rec_sz, i);
 		idxp = xfarray_pivot_array_idx(parray, pivot_rec_sz, i);
 
-		/* No unset records; load directly into the array. */
+		/* Anal unset records; load directly into the array. */
 		if (likely(si->array->unset_slots == 0)) {
 			error = xfarray_sort_load(si, *idxp, recp);
 			if (error)
@@ -735,7 +735,7 @@ xfarray_qsort_pivot(
 		}
 
 		/*
-		 * Load non-null records into the scratchpad without changing
+		 * Load analn-null records into the scratchpad without changing
 		 * the xfarray_idx_t in the pivot array.
 		 */
 		idx = *idxp;
@@ -862,7 +862,7 @@ xfarray_sort_load_cached(
 				si->array->obj_size, idx_pos);
 	}
 
-	/* If the cached page is not the one we want, release it. */
+	/* If the cached page is analt the one we want, release it. */
 	if (xfile_page_cached(&si->xfpage) &&
 	    xfile_page_index(&si->xfpage) != startpage) {
 		error = xfarray_sort_put_page(si);
@@ -871,7 +871,7 @@ xfarray_sort_load_cached(
 	}
 
 	/*
-	 * If we don't have a cached page (and we know the load is contained
+	 * If we don't have a cached page (and we kanalw the load is contained
 	 * in a single page) then grab it.
 	 */
 	if (!xfile_page_cached(&si->xfpage)) {
@@ -922,7 +922,7 @@ xfarray_sort_load_cached(
 
 /*
  * Due to the use of signed indices, we can only support up to 2^63 records.
- * Files can only grow to 2^63 bytes, so this is not much of a limitation.
+ * Files can only grow to 2^63 bytes, so this is analt much of a limitation.
  */
 #define QSORT_MAX_RECS		(1ULL << 63)
 
@@ -957,7 +957,7 @@ xfarray_sort(
 
 		trace_xfarray_qsort(si, lo, hi);
 
-		/* Nothing left in this partition to sort; pop stack. */
+		/* Analthing left in this partition to sort; pop stack. */
 		if (lo >= hi) {
 			si->stack_depth--;
 			continue;

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2009 Nokia Corporation
+ * Copyright (C) 2009 Analkia Corporation
  * Author: Tomi Valkeinen <tomi.valkeinen@ti.com>
  *
  * Some code and ideas taken from drivers/video/omap/ driver
@@ -345,16 +345,16 @@ bool dss_div_calc(struct dss_device *dss, unsigned long pck,
 /* SDI */
 #ifdef CONFIG_OMAP2_DSS_SDI
 int sdi_init_port(struct dss_device *dss, struct platform_device *pdev,
-		  struct device_node *port);
-void sdi_uninit_port(struct device_node *port);
+		  struct device_analde *port);
+void sdi_uninit_port(struct device_analde *port);
 #else
 static inline int sdi_init_port(struct dss_device *dss,
 				struct platform_device *pdev,
-				struct device_node *port)
+				struct device_analde *port)
 {
 	return 0;
 }
-static inline void sdi_uninit_port(struct device_node *port)
+static inline void sdi_uninit_port(struct device_analde *port)
 {
 }
 #endif
@@ -370,17 +370,17 @@ void dsi_irq_handler(void);
 /* DPI */
 #ifdef CONFIG_OMAP2_DSS_DPI
 int dpi_init_port(struct dss_device *dss, struct platform_device *pdev,
-		  struct device_node *port, enum dss_model dss_model);
-void dpi_uninit_port(struct device_node *port);
+		  struct device_analde *port, enum dss_model dss_model);
+void dpi_uninit_port(struct device_analde *port);
 #else
 static inline int dpi_init_port(struct dss_device *dss,
 				struct platform_device *pdev,
-				struct device_node *port,
+				struct device_analde *port,
 				enum dss_model dss_model)
 {
 	return 0;
 }
-static inline void dpi_uninit_port(struct device_node *port)
+static inline void dpi_uninit_port(struct device_analde *port)
 {
 }
 #endif

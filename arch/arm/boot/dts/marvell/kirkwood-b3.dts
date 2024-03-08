@@ -5,7 +5,7 @@
  * Copyright (C) 2013, Andrew Lunn <andrew@lunn.ch>
  *
  *
- * Note: This requires a new'ish version of u-boot, which disables the
+ * Analte: This requires a new'ish version of u-boot, which disables the
  * L2 cache. If your B3 silently fails to boot, u-boot is probably too
  * old. Either upgrade, or consider the following email:
  *
@@ -60,7 +60,7 @@
 			m25p16@0 {
 				#address-cells = <1>;
 				#size-cells = <1>;
-				compatible = "st,m25p16", "jedec,spi-nor";
+				compatible = "st,m25p16", "jedec,spi-analr";
 				reg = <0>;
 				spi-max-frequency = <40000000>;
 				mode = <0>;
@@ -86,7 +86,7 @@
 			status = "okay";
 			/*
 			 * There is something on the bus at address 0x64.
-			 * Not yet identified what it is, maybe the eeprom
+			 * Analt yet identified what it is, maybe the eeprom
 			 * for the Atheros WiFi chip?
 			 */
 		};

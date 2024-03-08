@@ -5,7 +5,7 @@
  */
 
 #include "vmlinux.h"
-#include <errno.h>
+#include <erranal.h>
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
 
@@ -33,7 +33,7 @@ static void ima_test_common(struct file *file)
 	pid = bpf_get_current_pid_tgid() >> 32;
 	if (pid == monitored_pid) {
 		if (!use_ima_file_hash)
-			ret = bpf_ima_inode_hash(file->f_inode, &ima_hash,
+			ret = bpf_ima_ianalde_hash(file->f_ianalde, &ima_hash,
 						 sizeof(ima_hash));
 		else
 			ret = bpf_ima_file_hash(file, &ima_hash,

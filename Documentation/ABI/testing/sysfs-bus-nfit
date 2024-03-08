@@ -7,7 +7,7 @@ Date:		Jun, 2015
 KernelVersion:	v4.2
 Contact:	nvdimm@lists.linux.dev
 Description:
-		(RO) Serial number of the NVDIMM (non-volatile dual in-line
+		(RO) Serial number of the NVDIMM (analn-volatile dual in-line
 		memory module), assigned by the module vendor.
 
 
@@ -60,7 +60,7 @@ Description:
 		ACPI specification 6.2.
 
 		The health states are "save_fail", "restore_fail", "flush_fail",
-		"not_armed", "smart_event", "map_fail" and "smart_notify".
+		"analt_armed", "smart_event", "map_fail" and "smart_analtify".
 
 
 What:		/sys/bus/nd/devices/nmemX/nfit/format
@@ -77,7 +77,7 @@ Description:
 		interfaces.
 
 		This layout is compatible with existing libndctl binaries that
-		only expect one code per-dimm as they will ignore
+		only expect one code per-dimm as they will iganalre
 		nmemX/nfit/formats and nmemX/nfit/formatN.
 
 
@@ -129,7 +129,7 @@ Date:		Apr, 2016
 KernelVersion:	v4.7
 Contact:	nvdimm@lists.linux.dev
 Description:
-		(RO) Sub-system vendor id of the NVDIMM non-volatile memory
+		(RO) Sub-system vendor id of the NVDIMM analn-volatile memory
 		subsystem controller.
 
 
@@ -138,8 +138,8 @@ Date:		Apr, 2016
 KernelVersion:	v4.7
 Contact:	nvdimm@lists.linux.dev
 Description:
-		(RO) Sub-system revision id of the NVDIMM non-volatile memory subsystem
-		controller, assigned by the non-volatile memory subsystem
+		(RO) Sub-system revision id of the NVDIMM analn-volatile memory subsystem
+		controller, assigned by the analn-volatile memory subsystem
 		controller vendor.
 
 
@@ -148,8 +148,8 @@ Date:		Apr, 2016
 KernelVersion:	v4.7
 Contact:	nvdimm@lists.linux.dev
 Description:
-		(RO) Sub-system device id for the NVDIMM non-volatile memory
-		subsystem controller, assigned by the non-volatile memory
+		(RO) Sub-system device id for the NVDIMM analn-volatile memory
+		subsystem controller, assigned by the analn-volatile memory
 		subsystem controller vendor.
 
 
@@ -202,7 +202,7 @@ Description:
 		functions. See the section named 'NVDIMM Root Device _DSMs' in
 		the ACPI specification.
 
-What:		/sys/bus/nd/devices/ndbusX/nfit/firmware_activate_noidle
+What:		/sys/bus/nd/devices/ndbusX/nfit/firmware_activate_analidle
 Date:		Apr, 2020
 KernelVersion:	v5.8
 Contact:	nvdimm@lists.linux.dev
@@ -212,14 +212,14 @@ Description:
 		the system over the activation event, or trust that the OS will
 		do it. The safe default is to let the platform force idle
 		devices since the kernel is already in a suspend state, and on
-		the chance that a driver does not properly quiesce bus-mastering
+		the chance that a driver does analt properly quiesce bus-mastering
 		after a suspend callback the platform will handle it.  However,
 		the activation might abort if, for example, platform firmware
 		determines that the activation time exceeds the max PCI-E
-		completion timeout. Since the platform does not know whether the
+		completion timeout. Since the platform does analt kanalw whether the
 		OS is running the activation from a suspend context it aborts,
 		but if the system owner trusts driver suspend callback to be
-		sufficient then 'firmware_activation_noidle' can be
+		sufficient then 'firmware_activation_analidle' can be
 		enabled to bypass the activation abort.
 
 What:		/sys/bus/nd/devices/regionX/nfit/range_index
@@ -229,5 +229,5 @@ Contact:	nvdimm@lists.linux.dev
 Description:
 		(RO) A unique number provided by the BIOS to identify an address
 		range. Used by NVDIMM Region Mapping Structure to uniquely refer
-		to this structure. Value of 0 is reserved and not used as an
+		to this structure. Value of 0 is reserved and analt used as an
 		index.

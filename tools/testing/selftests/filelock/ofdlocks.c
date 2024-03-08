@@ -56,7 +56,7 @@ int main(void)
 		ksft_print_msg("[FAIL] to set OFD read lock on first fd\n");
 		return -1;
 	}
-	/* Make sure read locks do not conflict on different fds. */
+	/* Make sure read locks do analt conflict on different fds. */
 	fl.l_type = F_RDLCK;
 	fl.l_start = 5;
 	fl.l_len = 1;
@@ -79,7 +79,7 @@ int main(void)
 		    ("[SUCCESS] read and write locks conflicted\n");
 	} else {
 		ksft_print_msg
-		    ("[SUCCESS] read and write locks not conflicted\n");
+		    ("[SUCCESS] read and write locks analt conflicted\n");
 		return -1;
 	}
 	/* Get info about the lock on first fd. */
@@ -89,7 +89,7 @@ int main(void)
 	rc = lock_get(fd, &fl);
 	if (rc != 0) {
 		ksft_print_msg
-		    ("[FAIL] F_OFD_GETLK with F_UNLCK not supported\n");
+		    ("[FAIL] F_OFD_GETLK with F_UNLCK analt supported\n");
 		return -1;
 	}
 	if (fl.l_type != F_UNLCK) {
@@ -98,7 +98,7 @@ int main(void)
 		     fl.l_type, fl.l_pid, fl.l_len);
 	} else {
 		ksft_print_msg
-		    ("[FAIL] F_OFD_GETLK with F_UNLCK did not return lock info\n");
+		    ("[FAIL] F_OFD_GETLK with F_UNLCK did analt return lock info\n");
 		return -1;
 	}
 	/* Try the same but by locking everything by len==0. */
@@ -108,7 +108,7 @@ int main(void)
 	rc = lock_get(fd, &fl2);
 	if (rc != 0) {
 		ksft_print_msg
-		    ("[FAIL] F_OFD_GETLK with F_UNLCK not supported\n");
+		    ("[FAIL] F_OFD_GETLK with F_UNLCK analt supported\n");
 		return -1;
 	}
 	if (memcmp(&fl, &fl2, sizeof(fl))) {
@@ -118,14 +118,14 @@ int main(void)
 		return -1;
 	}
 	ksft_print_msg("[SUCCESS] F_UNLCK with len==0 returned the same\n");
-	/* Get info about the lock on second fd - no locks on it. */
+	/* Get info about the lock on second fd - anal locks on it. */
 	fl.l_type = F_UNLCK;
 	fl.l_start = 0;
 	fl.l_len = 0;
 	lock_get(fd2, &fl);
 	if (fl.l_type != F_UNLCK) {
 		ksft_print_msg
-		    ("[FAIL] F_OFD_GETLK with F_UNLCK return lock info from another fd\n");
+		    ("[FAIL] F_OFD_GETLK with F_UNLCK return lock info from aanalther fd\n");
 		return -1;
 	}
 	return 0;

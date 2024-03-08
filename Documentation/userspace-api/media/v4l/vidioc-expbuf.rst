@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: V4L
 
 .. _VIDIOC_EXPBUF:
@@ -12,7 +12,7 @@ Name
 
 VIDIOC_EXPBUF - Export a buffer as a DMABUF file descriptor.
 
-Synopsis
+Syanalpsis
 ========
 
 .. c:macro:: VIDIOC_EXPBUF
@@ -58,8 +58,8 @@ multiple :ref:`VIDIOC_EXPBUF` calls.
 After calling :ref:`VIDIOC_EXPBUF` the ``fd`` field will be set by a
 driver. This is a DMABUF file descriptor. The application may pass it to
 other DMABUF-aware devices. Refer to :ref:`DMABUF importing <dmabuf>`
-for details about importing DMABUF files into V4L2 nodes. It is
-recommended to close a DMABUF file when it is no longer used to allow
+for details about importing DMABUF files into V4L2 analdes. It is
+recommended to close a DMABUF file when it is anal longer used to allow
 the associated memory to be reclaimed.
 
 Examples
@@ -153,10 +153,10 @@ Examples
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erranal`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 
 EINVAL
-    A queue is not in MMAP mode or DMABUF exporting is not supported or
+    A queue is analt in MMAP mode or DMABUF exporting is analt supported or
     ``flags`` or ``type`` or ``index`` or ``plane`` fields are invalid.

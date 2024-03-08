@@ -36,7 +36,7 @@
 #include "machvec_impl.h"
 
 
-/* Note mask bit is true for ENABLED irqs.  */
+/* Analte mask bit is true for ENABLED irqs.  */
 static unsigned long cached_irq_mask;
 /* dp264 boards handle at max four CPUs */
 static unsigned long cpu_irq_affinity[4] = { 0UL, 0UL, 0UL, 0UL };
@@ -197,7 +197,7 @@ dp264_device_interrupt(unsigned long vector)
 	pld = TSUNAMI_cchip->dir0.csr;
 
 	/*
-	 * Now for every possible bit set, work through them and call
+	 * Analw for every possible bit set, work through them and call
 	 * the appropriate interrupt handler.
 	 */
 	while (pld) {
@@ -225,7 +225,7 @@ dp264_srm_device_interrupt(unsigned long vector)
 	 * So bit 16 shows up as IRQ 32, etc.
 	 * 
 	 * On DP264/BRICK/MONET, we adjust it down by 16 because at least
-	 * that many of the low order bits of the DRIR are not used, and
+	 * that many of the low order bits of the DRIR are analt used, and
 	 * so we don't count them.
 	 */
 	if (irq >= 32)
@@ -248,7 +248,7 @@ clipper_srm_device_interrupt(unsigned long vector)
 	 *
 	 * So bit 16 shows up as IRQ 32, etc.
 	 * 
-	 * CLIPPER uses bits 8-47 for PCI interrupts, so we do not need
+	 * CLIPPER uses bits 8-47 for PCI interrupts, so we do analt need
 	 * to scale down the vector reported, we just use it.
 	 *
 	 * Eg IRQ 24 is DRIR bit 8, etc, etc
@@ -353,7 +353,7 @@ clipper_init_irq(void)
  *   7	 64 bit PCI option slot 0 (all busses)
  *   8	 64 bit PCI option slot 1 (all busses)
  *   9	 64 bit PCI option slot 2 (all busses)
- *  10	 64 bit PCI option slot 3 (not bus 0)
+ *  10	 64 bit PCI option slot 3 (analt bus 0)
  */
 
 static int
@@ -661,5 +661,5 @@ struct alpha_machine_vector shark_mv __initmv = {
 	.pci_swizzle		= common_swizzle,
 };
 
-/* No alpha_mv alias for webbrick/monet/clipper, since we compile them
-   in unconditionally with DP264; setup_arch knows how to cope.  */
+/* Anal alpha_mv alias for webbrick/monet/clipper, since we compile them
+   in unconditionally with DP264; setup_arch kanalws how to cope.  */

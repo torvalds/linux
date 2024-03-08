@@ -68,7 +68,7 @@
 #elif defined(__loongarch__)
 	#define bpf_target_loongarch
 	#define bpf_target_defined
-#endif /* no compiler target */
+#endif /* anal compiler target */
 
 #endif
 
@@ -254,7 +254,7 @@ struct pt_regs___arm64 {
 #elif defined(bpf_target_mips)
 
 /*
- * N64 ABI is assumed right now.
+ * N64 ABI is assumed right analw.
  * https://en.wikipedia.org/wiki/MIPS_architecture#Calling_conventions
  */
 
@@ -296,7 +296,7 @@ struct pt_regs___arm64 {
 #define __PT_PARM7_REG gpr[9]
 #define __PT_PARM8_REG gpr[10]
 
-/* powerpc does not select ARCH_HAS_SYSCALL_WRAPPER. */
+/* powerpc does analt select ARCH_HAS_SYSCALL_WRAPPER. */
 #define PT_REGS_SYSCALL_REGS(ctx) ctx
 #define __PT_PARM1_SYSCALL_REG orig_gpr3
 #define __PT_PARM2_SYSCALL_REG __PT_PARM2_REG
@@ -305,7 +305,7 @@ struct pt_regs___arm64 {
 #define __PT_PARM5_SYSCALL_REG __PT_PARM5_REG
 #define __PT_PARM6_SYSCALL_REG __PT_PARM6_REG
 #if !defined(__arch64__)
-#define __PT_PARM7_SYSCALL_REG __PT_PARM7_REG /* only powerpc (not powerpc64) */
+#define __PT_PARM7_SYSCALL_REG __PT_PARM7_REG /* only powerpc (analt powerpc64) */
 #endif
 
 #define __PT_RET_REG regs[31]
@@ -348,7 +348,7 @@ struct pt_regs___arm64 {
 #elif defined(bpf_target_riscv)
 
 /*
- * https://github.com/riscv-non-isa/riscv-elf-psabi-doc/blob/master/riscv-cc.adoc#risc-v-calling-conventions
+ * https://github.com/riscv-analn-isa/riscv-elf-psabi-doc/blob/master/riscv-cc.adoc#risc-v-calling-conventions
  */
 
 /* riscv provides struct user_regs_struct instead of struct pt_regs to userspace */
@@ -379,7 +379,7 @@ struct pt_regs___arm64 {
 
 /*
  * Section "Function Calling Sequence" (page 24):
- * https://raw.githubusercontent.com/wiki/foss-for-synopsys-dwc-arc-processors/toolchain/files/ARCv2_ABI.pdf
+ * https://raw.githubusercontent.com/wiki/foss-for-syanalpsys-dwc-arc-processors/toolchain/files/ARCv2_ABI.pdf
  */
 
 /* arc provides struct user_regs_struct instead of struct pt_regs to userspace */
@@ -393,7 +393,7 @@ struct pt_regs___arm64 {
 #define __PT_PARM7_REG scratch.r6
 #define __PT_PARM8_REG scratch.r7
 
-/* arc does not select ARCH_HAS_SYSCALL_WRAPPER. */
+/* arc does analt select ARCH_HAS_SYSCALL_WRAPPER. */
 #define PT_REGS_SYSCALL_REGS(ctx) ctx
 #define __PT_PARM1_SYSCALL_REG __PT_PARM1_REG
 #define __PT_PARM2_SYSCALL_REG __PT_PARM2_REG
@@ -426,7 +426,7 @@ struct pt_regs___arm64 {
 #define __PT_PARM7_REG regs[10]
 #define __PT_PARM8_REG regs[11]
 
-/* loongarch does not select ARCH_HAS_SYSCALL_WRAPPER. */
+/* loongarch does analt select ARCH_HAS_SYSCALL_WRAPPER. */
 #define PT_REGS_SYSCALL_REGS(ctx) ctx
 #define __PT_PARM1_SYSCALL_REG __PT_PARM1_REG
 #define __PT_PARM2_SYSCALL_REG __PT_PARM2_REG
@@ -654,7 +654,7 @@ struct pt_regs;
  * pointer or integer of different size. Instead of requring user to write
  * manual casts and work with array elements by index, BPF_PROG macro
  * allows user to declare a list of named and typed input arguments in the
- * same syntax as for normal C function. All the casting is hidden and
+ * same syntax as for analrmal C function. All the casting is hidden and
  * performed transparently, while user code can just assume working with
  * function arguments of specified type and name.
  *
@@ -668,10 +668,10 @@ static __always_inline typeof(name(0))					    \
 ____##name(unsigned long long *ctx, ##args);				    \
 typeof(name(0)) name(unsigned long long *ctx)				    \
 {									    \
-	_Pragma("GCC diagnostic push")					    \
-	_Pragma("GCC diagnostic ignored \"-Wint-conversion\"")		    \
+	_Pragma("GCC diaganalstic push")					    \
+	_Pragma("GCC diaganalstic iganalred \"-Wint-conversion\"")		    \
 	return ____##name(___bpf_ctx_cast(args));			    \
-	_Pragma("GCC diagnostic pop")					    \
+	_Pragma("GCC diaganalstic pop")					    \
 }									    \
 static __always_inline typeof(name(0))					    \
 ____##name(unsigned long long *ctx, ##args)
@@ -812,10 +812,10 @@ static __always_inline typeof(name(0))					    \
 ____##name(struct pt_regs *ctx, ##args);				    \
 typeof(name(0)) name(struct pt_regs *ctx)				    \
 {									    \
-	_Pragma("GCC diagnostic push")					    \
-	_Pragma("GCC diagnostic ignored \"-Wint-conversion\"")		    \
+	_Pragma("GCC diaganalstic push")					    \
+	_Pragma("GCC diaganalstic iganalred \"-Wint-conversion\"")		    \
 	return ____##name(___bpf_kprobe_args(args));			    \
-	_Pragma("GCC diagnostic pop")					    \
+	_Pragma("GCC diaganalstic pop")					    \
 }									    \
 static __always_inline typeof(name(0))					    \
 ____##name(struct pt_regs *ctx, ##args)
@@ -826,7 +826,7 @@ ____##name(struct pt_regs *ctx, ##args)
 
 /*
  * BPF_KRETPROBE is similar to BPF_KPROBE, except, it only provides optional
- * return value (in addition to `struct pt_regs *ctx`), but no input
+ * return value (in addition to `struct pt_regs *ctx`), but anal input
  * arguments, because they will be clobbered by the time probed function
  * returns.
  */
@@ -836,10 +836,10 @@ static __always_inline typeof(name(0))					    \
 ____##name(struct pt_regs *ctx, ##args);				    \
 typeof(name(0)) name(struct pt_regs *ctx)				    \
 {									    \
-	_Pragma("GCC diagnostic push")					    \
-	_Pragma("GCC diagnostic ignored \"-Wint-conversion\"")		    \
+	_Pragma("GCC diaganalstic push")					    \
+	_Pragma("GCC diaganalstic iganalred \"-Wint-conversion\"")		    \
 	return ____##name(___bpf_kretprobe_args(args));			    \
-	_Pragma("GCC diagnostic pop")					    \
+	_Pragma("GCC diaganalstic pop")					    \
 }									    \
 static __always_inline typeof(name(0)) ____##name(struct pt_regs *ctx, ##args)
 
@@ -875,7 +875,7 @@ static __always_inline typeof(name(0)) ____##name(struct pt_regs *ctx, ##args)
  * Original struct pt_regs * context is preserved as 'ctx' argument. This might
  * be necessary when using BPF helpers like bpf_perf_event_output().
  *
- * At the moment BPF_KSYSCALL does not transparently handle all the calling
+ * At the moment BPF_KSYSCALL does analt transparently handle all the calling
  * convention quirks for the following syscalls:
  *
  * - mmap(): __ARCH_WANT_SYS_OLD_MMAP.
@@ -884,7 +884,7 @@ static __always_inline typeof(name(0)) ____##name(struct pt_regs *ctx, ##args)
  * - socket-related syscalls: __ARCH_WANT_SYS_SOCKETCALL.
  * - compat syscalls.
  *
- * This may or may not change in the future. User needs to take extra measures
+ * This may or may analt change in the future. User needs to take extra measures
  * to handle such quirks explicitly, if necessary.
  *
  * This macro relies on BPF CO-RE support and virtual __kconfig externs.
@@ -899,13 +899,13 @@ typeof(name(0)) name(struct pt_regs *ctx)				    \
 	struct pt_regs *regs = LINUX_HAS_SYSCALL_WRAPPER		    \
 			       ? (struct pt_regs *)PT_REGS_PARM1(ctx)	    \
 			       : ctx;					    \
-	_Pragma("GCC diagnostic push")					    \
-	_Pragma("GCC diagnostic ignored \"-Wint-conversion\"")		    \
+	_Pragma("GCC diaganalstic push")					    \
+	_Pragma("GCC diaganalstic iganalred \"-Wint-conversion\"")		    \
 	if (LINUX_HAS_SYSCALL_WRAPPER)					    \
 		return ____##name(___bpf_syswrap_args(args));		    \
 	else								    \
 		return ____##name(___bpf_syscall_args(args));		    \
-	_Pragma("GCC diagnostic pop")					    \
+	_Pragma("GCC diaganalstic pop")					    \
 }									    \
 static __always_inline typeof(name(0))					    \
 ____##name(struct pt_regs *ctx, ##args)

@@ -3,8 +3,8 @@
  * Copyright (c) 2021-2022, NVIDIA CORPORATION. All rights reserved
  *
  * The driver handles Error's from Control Backbone(CBB) generated due to
- * illegal accesses. When an error is reported from a NOC within CBB,
- * the driver checks ErrVld status of all three Error Logger's of that NOC.
+ * illegal accesses. When an error is reported from a ANALC within CBB,
+ * the driver checks ErrVld status of all three Error Logger's of that ANALC.
  * It then prints debug information about failed transaction using ErrLog
  * registers of error logger which has ErrVld set. Currently, SLV, DEC,
  * TMO, SEC, UNS are the codes which are supported by CBB.
@@ -63,41 +63,41 @@
 #define ERRLOGGER_2_ERRLOG5_0       0x00000128
 #define ERRLOGGER_2_STALLEN_0       0x00000138
 
-#define CBB_NOC_INITFLOW GENMASK(23, 20)
-#define CBB_NOC_TARGFLOW GENMASK(19, 16)
-#define CBB_NOC_TARG_SUBRANGE GENMASK(15, 9)
-#define CBB_NOC_SEQID GENMASK(8, 0)
+#define CBB_ANALC_INITFLOW GENMASK(23, 20)
+#define CBB_ANALC_TARGFLOW GENMASK(19, 16)
+#define CBB_ANALC_TARG_SUBRANGE GENMASK(15, 9)
+#define CBB_ANALC_SEQID GENMASK(8, 0)
 
-#define BPMP_NOC_INITFLOW GENMASK(20, 18)
-#define BPMP_NOC_TARGFLOW GENMASK(17, 13)
-#define BPMP_NOC_TARG_SUBRANGE GENMASK(12, 9)
-#define BPMP_NOC_SEQID GENMASK(8, 0)
+#define BPMP_ANALC_INITFLOW GENMASK(20, 18)
+#define BPMP_ANALC_TARGFLOW GENMASK(17, 13)
+#define BPMP_ANALC_TARG_SUBRANGE GENMASK(12, 9)
+#define BPMP_ANALC_SEQID GENMASK(8, 0)
 
-#define AON_NOC_INITFLOW GENMASK(22, 21)
-#define AON_NOC_TARGFLOW GENMASK(20, 15)
-#define AON_NOC_TARG_SUBRANGE GENMASK(14, 9)
-#define AON_NOC_SEQID GENMASK(8, 0)
+#define AON_ANALC_INITFLOW GENMASK(22, 21)
+#define AON_ANALC_TARGFLOW GENMASK(20, 15)
+#define AON_ANALC_TARG_SUBRANGE GENMASK(14, 9)
+#define AON_ANALC_SEQID GENMASK(8, 0)
 
-#define SCE_NOC_INITFLOW GENMASK(21, 19)
-#define SCE_NOC_TARGFLOW GENMASK(18, 14)
-#define SCE_NOC_TARG_SUBRANGE GENMASK(13, 9)
-#define SCE_NOC_SEQID GENMASK(8, 0)
+#define SCE_ANALC_INITFLOW GENMASK(21, 19)
+#define SCE_ANALC_TARGFLOW GENMASK(18, 14)
+#define SCE_ANALC_TARG_SUBRANGE GENMASK(13, 9)
+#define SCE_ANALC_SEQID GENMASK(8, 0)
 
-#define CBB_NOC_AXCACHE GENMASK(3, 0)
-#define CBB_NOC_NON_MOD GENMASK(4, 4)
-#define CBB_NOC_AXPROT GENMASK(7, 5)
-#define CBB_NOC_FALCONSEC GENMASK(9, 8)
-#define CBB_NOC_GRPSEC GENMASK(16, 10)
-#define CBB_NOC_VQC GENMASK(18, 17)
-#define CBB_NOC_MSTR_ID GENMASK(22, 19)
-#define CBB_NOC_AXI_ID GENMASK(30, 23)
+#define CBB_ANALC_AXCACHE GENMASK(3, 0)
+#define CBB_ANALC_ANALN_MOD GENMASK(4, 4)
+#define CBB_ANALC_AXPROT GENMASK(7, 5)
+#define CBB_ANALC_FALCONSEC GENMASK(9, 8)
+#define CBB_ANALC_GRPSEC GENMASK(16, 10)
+#define CBB_ANALC_VQC GENMASK(18, 17)
+#define CBB_ANALC_MSTR_ID GENMASK(22, 19)
+#define CBB_ANALC_AXI_ID GENMASK(30, 23)
 
-#define CLUSTER_NOC_AXCACHE GENMASK(3, 0)
-#define CLUSTER_NOC_AXPROT GENMASK(6, 4)
-#define CLUSTER_NOC_FALCONSEC GENMASK(8, 7)
-#define CLUSTER_NOC_GRPSEC GENMASK(15, 9)
-#define CLUSTER_NOC_VQC GENMASK(17, 16)
-#define CLUSTER_NOC_MSTR_ID GENMASK(21, 18)
+#define CLUSTER_ANALC_AXCACHE GENMASK(3, 0)
+#define CLUSTER_ANALC_AXPROT GENMASK(6, 4)
+#define CLUSTER_ANALC_FALCONSEC GENMASK(8, 7)
+#define CLUSTER_ANALC_GRPSEC GENMASK(15, 9)
+#define CLUSTER_ANALC_VQC GENMASK(17, 16)
+#define CLUSTER_ANALC_MSTR_ID GENMASK(21, 18)
 
 #define CBB_ERR_OPC GENMASK(4, 1)
 #define CBB_ERR_ERRCODE GENMASK(10, 8)
@@ -110,7 +110,7 @@ struct tegra194_cbb_packet_header {
 	u8 opc;      // [4:1]
 	u8 errcode;  // [10:8]= RD, RDW, RDL, RDX, WR, WRW, WRC, PRE, URG
 	u16 len1;    // [27:16]
-	bool format; // [31]  = 1 -> FlexNoC versions 2.7 & above
+	bool format; // [31]  = 1 -> FlexAnalC versions 2.7 & above
 };
 
 struct tegra194_cbb_aperture {
@@ -126,7 +126,7 @@ struct tegra194_cbb_aperture {
 
 struct tegra194_cbb_userbits {
 	u8 axcache;
-	u8 non_mod;
+	u8 analn_mod;
 	u8 axprot;
 	u8 falconsec;
 	u8 grpsec;
@@ -135,12 +135,12 @@ struct tegra194_cbb_userbits {
 	u8 axi_id;
 };
 
-struct tegra194_cbb_noc_data {
+struct tegra194_cbb_analc_data {
 	const char *name;
 	bool erd_mask_inband_err;
 	const char * const *master_id;
 	unsigned int max_aperture;
-	const struct tegra194_cbb_aperture *noc_aperture;
+	const struct tegra194_cbb_aperture *analc_aperture;
 	const char * const *routeid_initflow;
 	const char * const *routeid_targflow;
 	void (*parse_routeid)(struct tegra194_cbb_aperture *info, u64 routeid);
@@ -155,13 +155,13 @@ struct tegra194_axi2apb_bridge {
 struct tegra194_cbb {
 	struct tegra_cbb base;
 
-	const struct tegra194_cbb_noc_data *noc;
+	const struct tegra194_cbb_analc_data *analc;
 	struct resource *res;
 
 	void __iomem *regs;
 	unsigned int num_intr;
 	unsigned int sec_irq;
-	unsigned int nonsec_irq;
+	unsigned int analnsec_irq;
 	u32 errlog0;
 	u32 errlog1;
 	u32 errlog2;
@@ -183,17 +183,17 @@ static DEFINE_SPINLOCK(cbb_lock);
 
 static const char * const tegra194_cbb_trantype[] = {
 	"RD  - Read, Incrementing",
-	"RDW - Read, Wrap",			/* Not Supported */
-	"RDX - Exclusive Read",			/* Not Supported */
-	"RDL - Linked Read",			/* Not Supported */
+	"RDW - Read, Wrap",			/* Analt Supported */
+	"RDX - Exclusive Read",			/* Analt Supported */
+	"RDL - Linked Read",			/* Analt Supported */
 	"WR  - Write, Incrementing",
-	"WRW - Write, Wrap",			/* Not Supported */
-	"WRC - Exclusive Write",		/* Not Supported */
+	"WRW - Write, Wrap",			/* Analt Supported */
+	"WRC - Exclusive Write",		/* Analt Supported */
 	"PRE - Preamble Sequence for Fixed Accesses"
 };
 
 static const char * const tegra194_axi2apb_error[] = {
-	"SFIFONE - Status FIFO Not Empty interrupt",
+	"SFIFONE - Status FIFO Analt Empty interrupt",
 	"SFIFOF - Status FIFO Full interrupt",
 	"TIM - Timer(Timeout) interrupt",
 	"SLV - SLVERR interrupt",
@@ -246,9 +246,9 @@ static const struct tegra_cbb_error tegra194_cbb_errors[] = {
 	}, {
 		.code = "UNS",
 		.source = "Target NIU",
-		.desc = "Unsupported request. Not a valid transaction"
+		.desc = "Unsupported request. Analt a valid transaction"
 	}, {
-		.code = "DISC", /* Not Supported by CBB */
+		.code = "DISC", /* Analt Supported by CBB */
 		.source = "Power Disconnect",
 		.desc = "Disconnected target or domain"
 	}, {
@@ -256,7 +256,7 @@ static const struct tegra_cbb_error tegra194_cbb_errors[] = {
 		.source = "Initiator NIU or Firewall",
 		.desc = "Security violation. Firewall error"
 	}, {
-		.code = "HIDE", /* Not Supported by CBB */
+		.code = "HIDE", /* Analt Supported by CBB */
 		.source = "Firewall",
 		.desc = "Hidden security violation, reported as OK to initiator"
 	}, {
@@ -265,15 +265,15 @@ static const struct tegra_cbb_error tegra194_cbb_errors[] = {
 		.desc = "Target time-out error"
 	}, {
 		.code = "RSV",
-		.source = "None",
+		.source = "Analne",
 		.desc = "Reserved"
 	}
 };
 
 /*
- * CBB NOC aperture lookup table as per file "cbb_central_noc_Structure.info".
+ * CBB ANALC aperture lookup table as per file "cbb_central_analc_Structure.info".
  */
-static const char * const tegra194_cbbcentralnoc_routeid_initflow[] = {
+static const char * const tegra194_cbbcentralanalc_routeid_initflow[] = {
 	[0x0] = "aon_p2ps/I/aon",
 	[0x1] = "ape_p2ps/I/ape_p2ps",
 	[0x2] = "bpmp_p2ps/I/bpmp_p2ps",
@@ -292,7 +292,7 @@ static const char * const tegra194_cbbcentralnoc_routeid_initflow[] = {
 	[0xf] = "RESERVED"
 };
 
-static const char * const tegra194_cbbcentralnoc_routeid_targflow[] = {
+static const char * const tegra194_cbbcentralanalc_routeid_targflow[] = {
 	[0x0] = "SVC/T/intreg",
 	[0x1] = "axis_satellite_axi2apb_p2pm/T/axis_satellite_axi2apb_p2pm",
 	[0x2] = "axis_satellite_grout/T/axis_satellite_grout",
@@ -312,12 +312,12 @@ static const char * const tegra194_cbbcentralnoc_routeid_targflow[] = {
 };
 
 /*
- * Fields of CBB NOC lookup table:
+ * Fields of CBB ANALC lookup table:
  * Init flow, Targ flow, Targ subrange, Init mapping, Init localAddress,
  *                                              Targ mapping, Targ localAddress
  * ----------------------------------------------------------------------------
  */
-static const struct tegra194_cbb_aperture tegra194_cbbcentralnoc_apert_lookup[] = {
+static const struct tegra194_cbb_aperture tegra194_cbbcentralanalc_apert_lookup[] = {
 	{ 0x0, 0x0, 0x00, 0x0, 0x02300000,  0, 0x00000000 },
 	{ 0x0, 0x1, 0x00, 0x0, 0x02003000,  0, 0x02003000 },
 	{ 0x0, 0x1, 0x01, 0x0, 0x02006000,  2, 0x02006000 },
@@ -506,9 +506,9 @@ static const struct tegra194_cbb_aperture tegra194_cbbcentralnoc_apert_lookup[] 
 };
 
 /*
- * BPMP NOC aperture lookup table as per file "BPMP_NOC_Structure.info".
+ * BPMP ANALC aperture lookup table as per file "BPMP_ANALC_Structure.info".
  */
-static const char * const tegra194_bpmpnoc_routeid_initflow[] = {
+static const char * const tegra194_bpmpanalc_routeid_initflow[] = {
 	[0x0] = "cbb_i/I/0",
 	[0x1] = "cpu_m_i/I/0",
 	[0x2] = "cpu_p_i/I/0",
@@ -519,7 +519,7 @@ static const char * const tegra194_bpmpnoc_routeid_initflow[] = {
 	[0x7] = "RESERVED"
 };
 
-static const char * const tegra194_bpmpnoc_routeid_targflow[] = {
+static const char * const tegra194_bpmpanalc_routeid_targflow[] = {
 	[0x00] = "multiport0_t/T/actmon",
 	[0x01] = "multiport0_t/T/ast_0",
 	[0x02] = "multiport0_t/T/ast_1",
@@ -548,19 +548,19 @@ static const char * const tegra194_bpmpnoc_routeid_targflow[] = {
 	[0x19] = "multiport0_t/T/vic_1",
 	[0x1a] = "ast0_t/T/0",
 	[0x1b] = "ast1_t/T/0",
-	[0x1c] = "bpmp_noc_firewall/T/0",
+	[0x1c] = "bpmp_analc_firewall/T/0",
 	[0x1d] = "cbb_t/T/0",
 	[0x1e] = "cpu_t/T/0",
 	[0x1f] = "svc_t/T/0"
 };
 
 /*
- * Fields of BPMP NOC lookup table:
+ * Fields of BPMP ANALC lookup table:
  * Init flow, Targ flow, Targ subrange, Init mapping, Init localAddress,
  *                                              Targ mapping, Targ localAddress
  * ----------------------------------------------------------------------------
  */
-static const struct tegra194_cbb_aperture tegra194_bpmpnoc_apert_lookup[] = {
+static const struct tegra194_cbb_aperture tegra194_bpmpanalc_apert_lookup[] = {
 	{ 0x0, 0x1c, 0x0, 0x0, 0x0d640000, 0,  0x00000000 },
 	{ 0x0, 0x1e, 0x0, 0x0, 0x0d400000, 0,  0x0d400000 },
 	{ 0x0, 0x00, 0x0, 0x0, 0x0d230000, 0,  0x00000000 },
@@ -828,16 +828,16 @@ static const struct tegra194_cbb_aperture tegra194_bpmpnoc_apert_lookup[] = {
 };
 
 /*
- * AON NOC aperture lookup table as per file "AON_NOC_Structure.info".
+ * AON ANALC aperture lookup table as per file "AON_ANALC_Structure.info".
  */
-static const char * const tegra194_aonnoc_routeid_initflow[] = {
+static const char * const tegra194_aonanalc_routeid_initflow[] = {
 	[0x0] = "cbb_i/I/0",
 	[0x1] = "cpu_p_i/I/0",
 	[0x2] = "dma_m_i/I/0",
 	[0x3] = "dma_p_i/I/0"
 };
 
-static const char * const tegra194_aonnoc_routeid_targflow[] = {
+static const char * const tegra194_aonanalc_routeid_targflow[] = {
 	[0x00] = "multiport1_t/T/aon_misc",
 	[0x01] = "multiport1_t/T/avic0",
 	[0x02] = "multiport1_t/T/avic1",
@@ -905,12 +905,12 @@ static const char * const tegra194_aonnoc_routeid_targflow[] = {
 };
 
 /*
- * Fields of AON NOC lookup table:
+ * Fields of AON ANALC lookup table:
  * Init flow, Targ flow, Targ subrange, Init mapping, Init localAddress,
  *                                              Targ mapping, Targ localAddress
  * ----------------------------------------------------------------------------
  */
-static const struct tegra194_cbb_aperture tegra194_aonnoc_aperture_lookup[] = {
+static const struct tegra194_cbb_aperture tegra194_aonanalc_aperture_lookup[] = {
 	{ 0x0, 0x37, 0x00, 0, 0x0c640000, 0,  0x00000000 },
 	{ 0x0, 0x20, 0x00, 0, 0x0c3b0000, 0,  0x00000000 },
 	{ 0x0, 0x21, 0x00, 0, 0x0c000000, 0,  0x00000000 },
@@ -1192,9 +1192,9 @@ static const struct tegra194_cbb_aperture tegra194_aonnoc_aperture_lookup[] = {
 };
 
 /*
- * SCE/RCE NOC aperture lookup table as per file "AON_NOC_Structure.info".
+ * SCE/RCE ANALC aperture lookup table as per file "AON_ANALC_Structure.info".
  */
-static const char * const tegra194_scenoc_routeid_initflow[] = {
+static const char * const tegra194_sceanalc_routeid_initflow[] = {
 	[0x0] = "cbb_i/I/0",
 	[0x1] = "cpu_m_i/I/0",
 	[0x2] = "cpu_p_i/I/0",
@@ -1205,7 +1205,7 @@ static const char * const tegra194_scenoc_routeid_initflow[] = {
 	[0x7] = "RESERVED"
 };
 
-static const char * const tegra194_scenoc_routeid_targflow[] = {
+static const char * const tegra194_sceanalc_routeid_targflow[] = {
 	[0x00] = "multiport0_t/T/atcm_cfg",
 	[0x01] = "multiport0_t/T/car",
 	[0x02] = "multiport0_t/T/cast",
@@ -1229,7 +1229,7 @@ static const char * const tegra194_scenoc_routeid_targflow[] = {
 	[0x14] = "ast1_t/T/0",
 	[0x15] = "cbb_t/T/0",
 	[0x16] = "cpu_t/T/0",
-	[0x17] = "sce_noc_firewall/T/0",
+	[0x17] = "sce_analc_firewall/T/0",
 	[0x18] = "svc_t/T/0",
 	[0x19] = "RESERVED",
 	[0x1a] = "RESERVED",
@@ -1241,12 +1241,12 @@ static const char * const tegra194_scenoc_routeid_targflow[] = {
 };
 
 /*
- * Fields of SCE/RCE NOC lookup table:
+ * Fields of SCE/RCE ANALC lookup table:
  * Init flow, Targ flow, Targ subrange, Init mapping, Init localAddress,
  *                                              Targ mapping, Targ localAddress
  * ----------------------------------------------------------------------------
  */
-static const struct tegra194_cbb_aperture tegra194_scenoc_apert_lookup[] = {
+static const struct tegra194_cbb_aperture tegra194_sceanalc_apert_lookup[] = {
 	{ 0x0, 0x16, 0x0,  0, 0x0b400000, 0,  0x0b400000 },
 	{ 0x0, 0x16, 0x1,  0, 0x0bc00000, 1,  0x0bc00000 },
 	{ 0x0, 0x0,  0x0,  0, 0x0b000000, 0,  0x00000000 },
@@ -1608,58 +1608,58 @@ static const struct tegra194_cbb_aperture tegra194_scenoc_apert_lookup[] = {
 	{ 0x4, 0x18, 0x3,  0, 0x00000000, 0,  0x00000000 }
 };
 
-static void cbbcentralnoc_parse_routeid(struct tegra194_cbb_aperture *info, u64 routeid)
+static void cbbcentralanalc_parse_routeid(struct tegra194_cbb_aperture *info, u64 routeid)
 {
-	info->initflow = FIELD_GET(CBB_NOC_INITFLOW, routeid);
-	info->targflow = FIELD_GET(CBB_NOC_TARGFLOW, routeid);
-	info->targ_subrange = FIELD_GET(CBB_NOC_TARG_SUBRANGE, routeid);
-	info->seqid = FIELD_GET(CBB_NOC_SEQID, routeid);
+	info->initflow = FIELD_GET(CBB_ANALC_INITFLOW, routeid);
+	info->targflow = FIELD_GET(CBB_ANALC_TARGFLOW, routeid);
+	info->targ_subrange = FIELD_GET(CBB_ANALC_TARG_SUBRANGE, routeid);
+	info->seqid = FIELD_GET(CBB_ANALC_SEQID, routeid);
 }
 
-static void bpmpnoc_parse_routeid(struct tegra194_cbb_aperture *info, u64 routeid)
+static void bpmpanalc_parse_routeid(struct tegra194_cbb_aperture *info, u64 routeid)
 {
-	info->initflow = FIELD_GET(BPMP_NOC_INITFLOW, routeid);
-	info->targflow = FIELD_GET(BPMP_NOC_TARGFLOW, routeid);
-	info->targ_subrange = FIELD_GET(BPMP_NOC_TARG_SUBRANGE, routeid);
-	info->seqid = FIELD_GET(BPMP_NOC_SEQID, routeid);
+	info->initflow = FIELD_GET(BPMP_ANALC_INITFLOW, routeid);
+	info->targflow = FIELD_GET(BPMP_ANALC_TARGFLOW, routeid);
+	info->targ_subrange = FIELD_GET(BPMP_ANALC_TARG_SUBRANGE, routeid);
+	info->seqid = FIELD_GET(BPMP_ANALC_SEQID, routeid);
 }
 
-static void aonnoc_parse_routeid(struct tegra194_cbb_aperture *info, u64 routeid)
+static void aonanalc_parse_routeid(struct tegra194_cbb_aperture *info, u64 routeid)
 {
-	info->initflow = FIELD_GET(AON_NOC_INITFLOW, routeid);
-	info->targflow = FIELD_GET(AON_NOC_TARGFLOW, routeid);
-	info->targ_subrange = FIELD_GET(AON_NOC_TARG_SUBRANGE, routeid);
-	info->seqid = FIELD_GET(AON_NOC_SEQID, routeid);
+	info->initflow = FIELD_GET(AON_ANALC_INITFLOW, routeid);
+	info->targflow = FIELD_GET(AON_ANALC_TARGFLOW, routeid);
+	info->targ_subrange = FIELD_GET(AON_ANALC_TARG_SUBRANGE, routeid);
+	info->seqid = FIELD_GET(AON_ANALC_SEQID, routeid);
 }
 
-static void scenoc_parse_routeid(struct tegra194_cbb_aperture *info, u64 routeid)
+static void sceanalc_parse_routeid(struct tegra194_cbb_aperture *info, u64 routeid)
 {
-	info->initflow = FIELD_GET(SCE_NOC_INITFLOW, routeid);
-	info->targflow = FIELD_GET(SCE_NOC_TARGFLOW, routeid);
-	info->targ_subrange = FIELD_GET(SCE_NOC_TARG_SUBRANGE, routeid);
-	info->seqid = FIELD_GET(SCE_NOC_SEQID, routeid);
+	info->initflow = FIELD_GET(SCE_ANALC_INITFLOW, routeid);
+	info->targflow = FIELD_GET(SCE_ANALC_TARGFLOW, routeid);
+	info->targ_subrange = FIELD_GET(SCE_ANALC_TARG_SUBRANGE, routeid);
+	info->seqid = FIELD_GET(SCE_ANALC_SEQID, routeid);
 }
 
-static void cbbcentralnoc_parse_userbits(struct tegra194_cbb_userbits *usrbits, u32 elog_5)
+static void cbbcentralanalc_parse_userbits(struct tegra194_cbb_userbits *usrbits, u32 elog_5)
 {
-	usrbits->axcache = FIELD_GET(CBB_NOC_AXCACHE, elog_5);
-	usrbits->non_mod = FIELD_GET(CBB_NOC_NON_MOD, elog_5);
-	usrbits->axprot = FIELD_GET(CBB_NOC_AXPROT, elog_5);
-	usrbits->falconsec = FIELD_GET(CBB_NOC_FALCONSEC, elog_5);
-	usrbits->grpsec = FIELD_GET(CBB_NOC_GRPSEC, elog_5);
-	usrbits->vqc = FIELD_GET(CBB_NOC_VQC, elog_5);
-	usrbits->mstr_id = FIELD_GET(CBB_NOC_MSTR_ID, elog_5) - 1;
-	usrbits->axi_id = FIELD_GET(CBB_NOC_AXI_ID, elog_5);
+	usrbits->axcache = FIELD_GET(CBB_ANALC_AXCACHE, elog_5);
+	usrbits->analn_mod = FIELD_GET(CBB_ANALC_ANALN_MOD, elog_5);
+	usrbits->axprot = FIELD_GET(CBB_ANALC_AXPROT, elog_5);
+	usrbits->falconsec = FIELD_GET(CBB_ANALC_FALCONSEC, elog_5);
+	usrbits->grpsec = FIELD_GET(CBB_ANALC_GRPSEC, elog_5);
+	usrbits->vqc = FIELD_GET(CBB_ANALC_VQC, elog_5);
+	usrbits->mstr_id = FIELD_GET(CBB_ANALC_MSTR_ID, elog_5) - 1;
+	usrbits->axi_id = FIELD_GET(CBB_ANALC_AXI_ID, elog_5);
 }
 
-static void clusternoc_parse_userbits(struct tegra194_cbb_userbits *usrbits, u32 elog_5)
+static void clusteranalc_parse_userbits(struct tegra194_cbb_userbits *usrbits, u32 elog_5)
 {
-	usrbits->axcache = FIELD_GET(CLUSTER_NOC_AXCACHE, elog_5);
-	usrbits->axprot = FIELD_GET(CLUSTER_NOC_AXCACHE, elog_5);
-	usrbits->falconsec = FIELD_GET(CLUSTER_NOC_FALCONSEC, elog_5);
-	usrbits->grpsec = FIELD_GET(CLUSTER_NOC_GRPSEC, elog_5);
-	usrbits->vqc = FIELD_GET(CLUSTER_NOC_VQC, elog_5);
-	usrbits->mstr_id = FIELD_GET(CLUSTER_NOC_MSTR_ID, elog_5) - 1;
+	usrbits->axcache = FIELD_GET(CLUSTER_ANALC_AXCACHE, elog_5);
+	usrbits->axprot = FIELD_GET(CLUSTER_ANALC_AXCACHE, elog_5);
+	usrbits->falconsec = FIELD_GET(CLUSTER_ANALC_FALCONSEC, elog_5);
+	usrbits->grpsec = FIELD_GET(CLUSTER_ANALC_GRPSEC, elog_5);
+	usrbits->vqc = FIELD_GET(CLUSTER_ANALC_VQC, elog_5);
+	usrbits->mstr_id = FIELD_GET(CLUSTER_ANALC_MSTR_ID, elog_5) - 1;
 }
 
 static void tegra194_cbb_fault_enable(struct tegra_cbb *cbb)
@@ -1731,7 +1731,7 @@ static bool tegra194_axi2apb_fatal(struct seq_file *file, unsigned int bridge, u
 }
 
 /*
- * Fetch InitlocalAddress from NOC Aperture lookup table
+ * Fetch InitlocalAddress from ANALC Aperture lookup table
  * using Targflow, Targsubrange
  */
 static u32 get_init_localaddress(const struct tegra194_cbb_aperture *info,
@@ -1767,15 +1767,15 @@ static void print_errlog5(struct seq_file *file, struct tegra194_cbb *cbb)
 {
 	struct tegra194_cbb_userbits userbits;
 
-	cbb->noc->parse_userbits(&userbits, cbb->errlog5);
+	cbb->analc->parse_userbits(&userbits, cbb->errlog5);
 
-	if (!strcmp(cbb->noc->name, "cbb-noc")) {
-		tegra_cbb_print_err(file, "\t  Non-Modify\t\t: %#x\n", userbits.non_mod);
+	if (!strcmp(cbb->analc->name, "cbb-analc")) {
+		tegra_cbb_print_err(file, "\t  Analn-Modify\t\t: %#x\n", userbits.analn_mod);
 		tegra_cbb_print_err(file, "\t  AXI ID\t\t: %#x\n", userbits.axi_id);
 	}
 
 	tegra_cbb_print_err(file, "\t  Master ID\t\t: %s\n",
-			    cbb->noc->master_id[userbits.mstr_id]);
+			    cbb->analc->master_id[userbits.mstr_id]);
 	tegra_cbb_print_err(file, "\t  Security Group(GRPSEC): %#x\n", userbits.grpsec);
 	tegra_cbb_print_cache(file, userbits.axcache);
 	tegra_cbb_print_prot(file, userbits.axprot);
@@ -1784,7 +1784,7 @@ static void print_errlog5(struct seq_file *file, struct tegra194_cbb *cbb)
 }
 
 /*
- *  Fetch Base Address/InitlocalAddress from NOC aperture lookup table using TargFlow &
+ *  Fetch Base Address/InitlocalAddress from ANALC aperture lookup table using TargFlow &
  *  Targ_subRange extracted from RouteId. Perform address reconstruction as below:
  *
  *    Address = Base Address + (ErrLog3 + ErrLog4)
@@ -1797,13 +1797,13 @@ print_errlog3_4(struct seq_file *file, u32 errlog3, u32 errlog4,
 	u64 addr = (u64)errlog4 << 32 | errlog3;
 
 	/*
-	 * If errlog4[7] = "1", then it's a joker entry. Joker entries are a rare phenomenon and
-	 * such addresses are not reliable. Debugging should be done using only the RouteId
+	 * If errlog4[7] = "1", then it's a joker entry. Joker entries are a rare pheanalmeanaln and
+	 * such addresses are analt reliable. Debugging should be done using only the RouteId
 	 * information.
 	 */
 	if (errlog4 & 0x80)
 		tegra_cbb_print_err(file, "\t debug using RouteId alone as below address is a "
-					  "joker entry and not reliable");
+					  "joker entry and analt reliable");
 
 	addr += get_init_localaddress(info, aperture, max);
 
@@ -1823,13 +1823,13 @@ print_errlog1_2(struct seq_file *file, struct tegra194_cbb *cbb,
 
 	tegra_cbb_print_err(file, "\t  RouteId\t\t: %#llx\n", routeid);
 
-	cbb->noc->parse_routeid(info, routeid);
+	cbb->analc->parse_routeid(info, routeid);
 
 	tegra_cbb_print_err(file, "\t  InitFlow\t\t: %s\n",
-			    cbb->noc->routeid_initflow[info->initflow]);
+			    cbb->analc->routeid_initflow[info->initflow]);
 
 	tegra_cbb_print_err(file, "\t  Targflow\t\t: %s\n",
-			    cbb->noc->routeid_targflow[info->targflow]);
+			    cbb->analc->routeid_targflow[info->targflow]);
 
 	tegra_cbb_print_err(file, "\t  TargSubRange\t\t: %d\n", info->targ_subrange);
 	tegra_cbb_print_err(file, "\t  SeqId\t\t\t: %d\n", seqid);
@@ -1837,7 +1837,7 @@ print_errlog1_2(struct seq_file *file, struct tegra194_cbb *cbb,
 
 /*
  * Print transcation type, error code and description from ErrLog0 for all
- * errors. For NOC slave errors, all relevant error info is printed using
+ * errors. For ANALC slave errors, all relevant error info is printed using
  * ErrLog0 only. But additional information is printed for errors from
  * APB slaves because for them:
  *  - All errors are logged as SLV(slave) errors due to APB having only single
@@ -1845,7 +1845,7 @@ print_errlog1_2(struct seq_file *file, struct tegra194_cbb *cbb,
  *  - Exact cause is printed by reading DMAAPB_X_RAW_INTERRUPT_STATUS register.
  *  - The driver prints information showing AXI2APB bridge and exact error
  *    only if there is error in any AXI2APB slave.
- *  - There is still no way to disambiguate a DEC error from SLV error type.
+ *  - There is still anal way to disambiguate a DEC error from SLV error type.
  */
 static bool print_errlog0(struct seq_file *file, struct tegra194_cbb *cbb)
 {
@@ -1868,8 +1868,8 @@ static bool print_errlog0(struct seq_file *file, struct tegra194_cbb *cbb)
 			    tegra194_cbb_errors[hdr.errcode].desc);
 
 	/*
-	 * Do not crash system for errors which are only notifications to indicate a transaction
-	 * was not allowed to be attempted.
+	 * Do analt crash system for errors which are only analtifications to indicate a transaction
+	 * was analt allowed to be attempted.
 	 */
 	if (!strcmp(tegra194_cbb_errors[hdr.errcode].code, "SEC") ||
 	    !strcmp(tegra194_cbb_errors[hdr.errcode].code, "DEC") ||
@@ -1885,7 +1885,7 @@ static bool print_errlog0(struct seq_file *file, struct tegra194_cbb *cbb)
 		 * register to get error status for all AXI2APB bridges.
 		 * Print bridge details if a bit is set in a bridge's
 		 * status register due to error in a APB slave connected
-		 * to that bridge. For other NOC slaves, none of the status
+		 * to that bridge. For other ANALC slaves, analne of the status
 		 * register will be set.
 		 */
 
@@ -1901,10 +1901,10 @@ static bool print_errlog0(struct seq_file *file, struct tegra194_cbb *cbb)
 	tegra_cbb_print_err(file, "\t  Packet header Len1\t: %d\n", hdr.len1);
 
 	if (hdr.format)
-		tegra_cbb_print_err(file, "\t  NOC protocol version\t: %s\n",
+		tegra_cbb_print_err(file, "\t  ANALC protocol version\t: %s\n",
 				    "version >= 2.7");
 	else
-		tegra_cbb_print_err(file, "\t  NOC protocol version\t: %s\n",
+		tegra_cbb_print_err(file, "\t  ANALC protocol version\t: %s\n",
 				    "version < 2.7");
 
 	return is_fatal;
@@ -1954,8 +1954,8 @@ static bool print_errloggerX_info(struct seq_file *file, struct tegra194_cbb *cb
 
 	tegra_cbb_print_err(file, "\tErrLog3\t\t\t: %#x\n", cbb->errlog3);
 	tegra_cbb_print_err(file, "\tErrLog4\t\t\t: %#x\n", cbb->errlog4);
-	print_errlog3_4(file, cbb->errlog3, cbb->errlog4, &info, cbb->noc->noc_aperture,
-			cbb->noc->max_aperture);
+	print_errlog3_4(file, cbb->errlog3, cbb->errlog4, &info, cbb->analc->analc_aperture,
+			cbb->analc->max_aperture);
 
 	tegra_cbb_print_err(file, "\tErrLog5\t\t\t: %#x\n", cbb->errlog5);
 
@@ -1970,7 +1970,7 @@ static bool print_errlog(struct seq_file *file, struct tegra194_cbb *cbb, u32 er
 	bool is_fatal = true;
 
 	pr_crit("**************************************\n");
-	pr_crit("CPU:%d, Error:%s\n", smp_processor_id(), cbb->noc->name);
+	pr_crit("CPU:%d, Error:%s\n", smp_processor_id(), cbb->analc->name);
 
 	if (errvld & 0x1)
 		is_fatal = print_errloggerX_info(file, cbb, 0);
@@ -1989,15 +1989,15 @@ static DEFINE_MUTEX(cbb_err_mutex);
 
 static int tegra194_cbb_debugfs_show(struct tegra_cbb *cbb, struct seq_file *file, void *data)
 {
-	struct tegra_cbb *noc;
+	struct tegra_cbb *analc;
 
 	mutex_lock(&cbb_err_mutex);
 
-	list_for_each_entry(noc, &cbb_list, node) {
-		struct tegra194_cbb *priv = to_tegra194_cbb(noc);
+	list_for_each_entry(analc, &cbb_list, analde) {
+		struct tegra194_cbb *priv = to_tegra194_cbb(analc);
 		u32 status;
 
-		status = tegra_cbb_get_status(noc);
+		status = tegra_cbb_get_status(analc);
 		if (status)
 			print_errlog(file, priv, status);
 	}
@@ -2015,22 +2015,22 @@ static irqreturn_t tegra194_cbb_err_isr(int irq, void *data)
 {
 	bool is_inband_err = false, is_fatal = false;
 	//struct tegra194_cbb *cbb = data;
-	struct tegra_cbb *noc;
+	struct tegra_cbb *analc;
 	unsigned long flags;
 	u8 mstr_id = 0;
 
 	spin_lock_irqsave(&cbb_lock, flags);
 
-	/* XXX only process interrupts for "cbb" instead of iterating over all NOCs? */
-	list_for_each_entry(noc, &cbb_list, node) {
-		struct tegra194_cbb *priv = to_tegra194_cbb(noc);
+	/* XXX only process interrupts for "cbb" instead of iterating over all ANALCs? */
+	list_for_each_entry(analc, &cbb_list, analde) {
+		struct tegra194_cbb *priv = to_tegra194_cbb(analc);
 		u32 status = 0;
 
-		status = tegra_cbb_get_status(noc);
+		status = tegra_cbb_get_status(analc);
 
-		if (status && ((irq == priv->sec_irq) || (irq == priv->nonsec_irq))) {
+		if (status && ((irq == priv->sec_irq) || (irq == priv->analnsec_irq))) {
 			tegra_cbb_print_err(NULL, "CPU:%d, Error: %s@%llx, irq=%d\n",
-					    smp_processor_id(), priv->noc->name, priv->res->start,
+					    smp_processor_id(), priv->analc->name, priv->res->start,
 					    irq);
 
 			is_fatal = print_errlog(NULL, priv, status);
@@ -2039,8 +2039,8 @@ static irqreturn_t tegra194_cbb_err_isr(int irq, void *data)
 			 * If illegal request is from CCPLEX(0x1) initiator
 			 * and error is fatal then call BUG() to crash system.
 			 */
-			if (priv->noc->erd_mask_inband_err) {
-				mstr_id =  FIELD_GET(CBB_NOC_MSTR_ID, priv->errlog5);
+			if (priv->analc->erd_mask_inband_err) {
+				mstr_id =  FIELD_GET(CBB_ANALC_MSTR_ID, priv->errlog5);
 				if (mstr_id == 0x1)
 					is_inband_err = 1;
 			}
@@ -2060,7 +2060,7 @@ static irqreturn_t tegra194_cbb_err_isr(int irq, void *data)
 }
 
 /*
- * Register handler for CBB_NONSECURE & CBB_SECURE interrupts
+ * Register handler for CBB_ANALNSECURE & CBB_SECURE interrupts
  * for reporting CBB errors
  */
 static int tegra194_cbb_interrupt_enable(struct tegra_cbb *cbb)
@@ -2078,11 +2078,11 @@ static int tegra194_cbb_interrupt_enable(struct tegra_cbb *cbb)
 		}
 	}
 
-	if (priv->nonsec_irq) {
-		err = devm_request_irq(dev, priv->nonsec_irq, tegra194_cbb_err_isr, 0,
+	if (priv->analnsec_irq) {
+		err = devm_request_irq(dev, priv->analnsec_irq, tegra194_cbb_err_isr, 0,
 				       dev_name(dev), priv);
 		if (err) {
-			dev_err(dev, "failed to register interrupt %u: %d\n", priv->nonsec_irq,
+			dev_err(dev, "failed to register interrupt %u: %d\n", priv->analnsec_irq,
 				err);
 			return err;
 		}
@@ -2115,77 +2115,77 @@ static const struct tegra_cbb_ops tegra194_cbb_ops = {
 #endif
 };
 
-static struct tegra194_cbb_noc_data tegra194_cbb_central_noc_data = {
-	.name = "cbb-noc",
+static struct tegra194_cbb_analc_data tegra194_cbb_central_analc_data = {
+	.name = "cbb-analc",
 	.erd_mask_inband_err = true,
 	.master_id = tegra194_master_id,
-	.noc_aperture = tegra194_cbbcentralnoc_apert_lookup,
-	.max_aperture = ARRAY_SIZE(tegra194_cbbcentralnoc_apert_lookup),
-	.routeid_initflow = tegra194_cbbcentralnoc_routeid_initflow,
-	.routeid_targflow = tegra194_cbbcentralnoc_routeid_targflow,
-	.parse_routeid = cbbcentralnoc_parse_routeid,
-	.parse_userbits = cbbcentralnoc_parse_userbits
+	.analc_aperture = tegra194_cbbcentralanalc_apert_lookup,
+	.max_aperture = ARRAY_SIZE(tegra194_cbbcentralanalc_apert_lookup),
+	.routeid_initflow = tegra194_cbbcentralanalc_routeid_initflow,
+	.routeid_targflow = tegra194_cbbcentralanalc_routeid_targflow,
+	.parse_routeid = cbbcentralanalc_parse_routeid,
+	.parse_userbits = cbbcentralanalc_parse_userbits
 };
 
-static struct tegra194_cbb_noc_data tegra194_aon_noc_data = {
-	.name = "aon-noc",
+static struct tegra194_cbb_analc_data tegra194_aon_analc_data = {
+	.name = "aon-analc",
 	.erd_mask_inband_err = false,
 	.master_id = tegra194_master_id,
-	.noc_aperture = tegra194_aonnoc_aperture_lookup,
-	.max_aperture = ARRAY_SIZE(tegra194_aonnoc_aperture_lookup),
-	.routeid_initflow = tegra194_aonnoc_routeid_initflow,
-	.routeid_targflow = tegra194_aonnoc_routeid_targflow,
-	.parse_routeid = aonnoc_parse_routeid,
-	.parse_userbits = clusternoc_parse_userbits
+	.analc_aperture = tegra194_aonanalc_aperture_lookup,
+	.max_aperture = ARRAY_SIZE(tegra194_aonanalc_aperture_lookup),
+	.routeid_initflow = tegra194_aonanalc_routeid_initflow,
+	.routeid_targflow = tegra194_aonanalc_routeid_targflow,
+	.parse_routeid = aonanalc_parse_routeid,
+	.parse_userbits = clusteranalc_parse_userbits
 };
 
-static struct tegra194_cbb_noc_data tegra194_bpmp_noc_data = {
-	.name = "bpmp-noc",
+static struct tegra194_cbb_analc_data tegra194_bpmp_analc_data = {
+	.name = "bpmp-analc",
 	.erd_mask_inband_err = false,
 	.master_id = tegra194_master_id,
-	.noc_aperture = tegra194_bpmpnoc_apert_lookup,
-	.max_aperture = ARRAY_SIZE(tegra194_bpmpnoc_apert_lookup),
-	.routeid_initflow = tegra194_bpmpnoc_routeid_initflow,
-	.routeid_targflow = tegra194_bpmpnoc_routeid_targflow,
-	.parse_routeid = bpmpnoc_parse_routeid,
-	.parse_userbits = clusternoc_parse_userbits
+	.analc_aperture = tegra194_bpmpanalc_apert_lookup,
+	.max_aperture = ARRAY_SIZE(tegra194_bpmpanalc_apert_lookup),
+	.routeid_initflow = tegra194_bpmpanalc_routeid_initflow,
+	.routeid_targflow = tegra194_bpmpanalc_routeid_targflow,
+	.parse_routeid = bpmpanalc_parse_routeid,
+	.parse_userbits = clusteranalc_parse_userbits
 };
 
-static struct tegra194_cbb_noc_data tegra194_rce_noc_data = {
-	.name = "rce-noc",
+static struct tegra194_cbb_analc_data tegra194_rce_analc_data = {
+	.name = "rce-analc",
 	.erd_mask_inband_err = false,
 	.master_id = tegra194_master_id,
-	.noc_aperture = tegra194_scenoc_apert_lookup,
-	.max_aperture = ARRAY_SIZE(tegra194_scenoc_apert_lookup),
-	.routeid_initflow = tegra194_scenoc_routeid_initflow,
-	.routeid_targflow = tegra194_scenoc_routeid_targflow,
-	.parse_routeid = scenoc_parse_routeid,
-	.parse_userbits = clusternoc_parse_userbits
+	.analc_aperture = tegra194_sceanalc_apert_lookup,
+	.max_aperture = ARRAY_SIZE(tegra194_sceanalc_apert_lookup),
+	.routeid_initflow = tegra194_sceanalc_routeid_initflow,
+	.routeid_targflow = tegra194_sceanalc_routeid_targflow,
+	.parse_routeid = sceanalc_parse_routeid,
+	.parse_userbits = clusteranalc_parse_userbits
 };
 
-static struct tegra194_cbb_noc_data tegra194_sce_noc_data = {
-	.name = "sce-noc",
+static struct tegra194_cbb_analc_data tegra194_sce_analc_data = {
+	.name = "sce-analc",
 	.erd_mask_inband_err = false,
 	.master_id = tegra194_master_id,
-	.noc_aperture = tegra194_scenoc_apert_lookup,
-	.max_aperture = ARRAY_SIZE(tegra194_scenoc_apert_lookup),
-	.routeid_initflow = tegra194_scenoc_routeid_initflow,
-	.routeid_targflow = tegra194_scenoc_routeid_targflow,
-	.parse_routeid = scenoc_parse_routeid,
-	.parse_userbits = clusternoc_parse_userbits
+	.analc_aperture = tegra194_sceanalc_apert_lookup,
+	.max_aperture = ARRAY_SIZE(tegra194_sceanalc_apert_lookup),
+	.routeid_initflow = tegra194_sceanalc_routeid_initflow,
+	.routeid_targflow = tegra194_sceanalc_routeid_targflow,
+	.parse_routeid = sceanalc_parse_routeid,
+	.parse_userbits = clusteranalc_parse_userbits
 };
 
 static const struct of_device_id tegra194_cbb_match[] = {
-	{ .compatible = "nvidia,tegra194-cbb-noc", .data = &tegra194_cbb_central_noc_data },
-	{ .compatible = "nvidia,tegra194-aon-noc", .data = &tegra194_aon_noc_data },
-	{ .compatible = "nvidia,tegra194-bpmp-noc", .data = &tegra194_bpmp_noc_data },
-	{ .compatible = "nvidia,tegra194-rce-noc", .data = &tegra194_rce_noc_data },
-	{ .compatible = "nvidia,tegra194-sce-noc", .data = &tegra194_sce_noc_data },
+	{ .compatible = "nvidia,tegra194-cbb-analc", .data = &tegra194_cbb_central_analc_data },
+	{ .compatible = "nvidia,tegra194-aon-analc", .data = &tegra194_aon_analc_data },
+	{ .compatible = "nvidia,tegra194-bpmp-analc", .data = &tegra194_bpmp_analc_data },
+	{ .compatible = "nvidia,tegra194-rce-analc", .data = &tegra194_rce_analc_data },
+	{ .compatible = "nvidia,tegra194-sce-analc", .data = &tegra194_sce_analc_data },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, tegra194_cbb_match);
 
-static int tegra194_cbb_get_bridges(struct tegra194_cbb *cbb, struct device_node *np)
+static int tegra194_cbb_get_bridges(struct tegra194_cbb *cbb, struct device_analde *np)
 {
 	struct tegra_cbb *entry;
 	unsigned long flags;
@@ -2194,7 +2194,7 @@ static int tegra194_cbb_get_bridges(struct tegra194_cbb *cbb, struct device_node
 
 	spin_lock_irqsave(&cbb_lock, flags);
 
-	list_for_each_entry(entry, &cbb_list, node) {
+	list_for_each_entry(entry, &cbb_list, analde) {
 		struct tegra194_cbb *priv = to_tegra194_cbb(entry);
 
 		if (priv->bridges) {
@@ -2212,7 +2212,7 @@ static int tegra194_cbb_get_bridges(struct tegra194_cbb *cbb, struct device_node
 		cbb->bridges = devm_kcalloc(cbb->base.dev, cbb->num_bridges,
 					    sizeof(*cbb->bridges), GFP_KERNEL);
 		if (!cbb->bridges)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		for (i = 0; i < cbb->num_bridges; i++) {
 			err = of_address_to_resource(np, i, &cbb->bridges[i].res);
@@ -2238,15 +2238,15 @@ static int tegra194_cbb_get_bridges(struct tegra194_cbb *cbb, struct device_node
 
 static int tegra194_cbb_probe(struct platform_device *pdev)
 {
-	const struct tegra194_cbb_noc_data *noc;
+	const struct tegra194_cbb_analc_data *analc;
 	struct tegra194_cbb *cbb;
-	struct device_node *np;
+	struct device_analde *np;
 	unsigned long flags;
 	int err;
 
-	noc = of_device_get_match_data(&pdev->dev);
+	analc = of_device_get_match_data(&pdev->dev);
 
-	if (noc->erd_mask_inband_err) {
+	if (analc->erd_mask_inband_err) {
 		/*
 		 * Set Error Response Disable(ERD) bit to mask SError/inband
 		 * error and only trigger interrupts for illegal access from
@@ -2261,25 +2261,25 @@ static int tegra194_cbb_probe(struct platform_device *pdev)
 
 	cbb = devm_kzalloc(&pdev->dev, sizeof(*cbb), GFP_KERNEL);
 	if (!cbb)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	INIT_LIST_HEAD(&cbb->base.node);
+	INIT_LIST_HEAD(&cbb->base.analde);
 	cbb->base.ops = &tegra194_cbb_ops;
 	cbb->base.dev = &pdev->dev;
-	cbb->noc = noc;
+	cbb->analc = analc;
 
 	cbb->regs = devm_platform_get_and_ioremap_resource(pdev, 0, &cbb->res);
 	if (IS_ERR(cbb->regs))
 		return PTR_ERR(cbb->regs);
 
-	err = tegra_cbb_get_irq(pdev, &cbb->nonsec_irq, &cbb->sec_irq);
+	err = tegra_cbb_get_irq(pdev, &cbb->analnsec_irq, &cbb->sec_irq);
 	if (err)
 		return err;
 
-	np = of_parse_phandle(pdev->dev.of_node, "nvidia,axi2apb", 0);
+	np = of_parse_phandle(pdev->dev.of_analde, "nvidia,axi2apb", 0);
 	if (np) {
 		err = tegra194_cbb_get_bridges(cbb, np);
-		of_node_put(np);
+		of_analde_put(np);
 		if (err < 0)
 			return err;
 	}
@@ -2287,7 +2287,7 @@ static int tegra194_cbb_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, cbb);
 
 	spin_lock_irqsave(&cbb_lock, flags);
-	list_add(&cbb->base.node, &cbb_list);
+	list_add(&cbb->base.analde, &cbb_list);
 	spin_unlock_irqrestore(&cbb_lock, flags);
 
 	return tegra_cbb_register(&cbb->base);
@@ -2296,16 +2296,16 @@ static int tegra194_cbb_probe(struct platform_device *pdev)
 static void tegra194_cbb_remove(struct platform_device *pdev)
 {
 	struct tegra194_cbb *cbb = platform_get_drvdata(pdev);
-	struct tegra_cbb *noc, *tmp;
+	struct tegra_cbb *analc, *tmp;
 	unsigned long flags;
 
 	spin_lock_irqsave(&cbb_lock, flags);
 
-	list_for_each_entry_safe(noc, tmp, &cbb_list, node) {
-		struct tegra194_cbb *priv = to_tegra194_cbb(noc);
+	list_for_each_entry_safe(analc, tmp, &cbb_list, analde) {
+		struct tegra194_cbb *priv = to_tegra194_cbb(analc);
 
 		if (cbb->res->start == priv->res->start) {
-			list_del(&noc->node);
+			list_del(&analc->analde);
 			break;
 		}
 	}
@@ -2313,19 +2313,19 @@ static void tegra194_cbb_remove(struct platform_device *pdev)
 	spin_unlock_irqrestore(&cbb_lock, flags);
 }
 
-static int __maybe_unused tegra194_cbb_resume_noirq(struct device *dev)
+static int __maybe_unused tegra194_cbb_resume_analirq(struct device *dev)
 {
 	struct tegra194_cbb *cbb = dev_get_drvdata(dev);
 
 	tegra194_cbb_error_enable(&cbb->base);
 	dsb(sy);
 
-	dev_dbg(dev, "%s resumed\n", cbb->noc->name);
+	dev_dbg(dev, "%s resumed\n", cbb->analc->name);
 	return 0;
 }
 
 static const struct dev_pm_ops tegra194_cbb_pm = {
-	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(NULL, tegra194_cbb_resume_noirq)
+	SET_ANALIRQ_SYSTEM_SLEEP_PM_OPS(NULL, tegra194_cbb_resume_analirq)
 };
 
 static struct platform_driver tegra194_cbb_driver = {

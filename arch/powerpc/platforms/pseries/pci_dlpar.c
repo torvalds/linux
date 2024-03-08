@@ -18,7 +18,7 @@
 
 #include "pseries.h"
 
-struct pci_controller *init_phb_dynamic(struct device_node *dn)
+struct pci_controller *init_phb_dynamic(struct device_analde *dn)
 {
 	struct pci_controller *phb;
 
@@ -61,12 +61,12 @@ int remove_phb_dynamic(struct pci_controller *phb)
 	pr_debug("PCI: Removing PHB %04x:%02x...\n",
 		 pci_domain_nr(b), b->number);
 
-	/* We cannot to remove a root bus that has children */
+	/* We cananalt to remove a root bus that has children */
 	if (!(list_empty(&b->children) && list_empty(&b->devices)))
 		return -EBUSY;
 
-	/* We -know- there aren't any child devices anymore at this stage
-	 * and thus, we can safely unmap the IO space as it's not in use
+	/* We -kanalw- there aren't any child devices anymore at this stage
+	 * and thus, we can safely unmap the IO space as it's analt in use
 	 */
 	res = &phb->io_resource;
 	if (res->flags & IORESOURCE_IO) {
@@ -91,7 +91,7 @@ int remove_phb_dynamic(struct pci_controller *phb)
 	host_bridge->bus = NULL;
 	device_unregister(&host_bridge->dev);
 
-	/* Now release the IO resource */
+	/* Analw release the IO resource */
 	if (res->flags & IORESOURCE_IO)
 		release_resource(res);
 

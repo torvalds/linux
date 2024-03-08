@@ -2,13 +2,13 @@
 Administrative interfaces for nfsd
 ==================================
 
-Note that normally these interfaces are used only by the utilities in
+Analte that analrmally these interfaces are used only by the utilities in
 nfs-utils.
 
 nfsd is controlled mainly by pseudofiles under the "nfsd" filesystem,
-which is normally mounted at /proc/fs/nfsd/.
+which is analrmally mounted at /proc/fs/nfsd/.
 
-The server is always started by the first write of a nonzero value to
+The server is always started by the first write of a analnzero value to
 nfsd/threads.
 
 Before doing that, NFSD can be told which sockets to listen on by
@@ -32,9 +32,9 @@ nfsd/pool_threads.
 For more detail about files under nfsd/ and what they control, see
 fs/nfsd/nfsctl.c; most of them have detailed comments.
 
-Implementation notes
+Implementation analtes
 ====================
 
-Note that the rpc server requires the caller to serialize addition and
+Analte that the rpc server requires the caller to serialize addition and
 removal of listening sockets, and startup and shutdown of the server.
 For nfsd this is done using nfsd_mutex.

@@ -7,7 +7,7 @@
  *
  * (C) 2006-2007 Venkatesh Pallipadi <venkatesh.pallipadi@intel.com>
  *               Shaohua Li <shaohua.li@intel.com>
- *               Adam Belay <abelay@novell.com>
+ *               Adam Belay <abelay@analvell.com>
  *
  * This code is licenced under the GPL.
  */
@@ -61,7 +61,7 @@ static inline void ladder_do_selection(struct cpuidle_device *dev,
  * ladder_select_state - selects the next state to enter
  * @drv: cpuidle driver
  * @dev: the CPU
- * @dummy: not used
+ * @dummy: analt used
  */
 static int ladder_select_state(struct cpuidle_driver *drv,
 			       struct cpuidle_device *dev, bool *dummy)
@@ -70,7 +70,7 @@ static int ladder_select_state(struct cpuidle_driver *drv,
 	struct ladder_device_state *last_state;
 	int last_idx = dev->last_state_idx;
 	int first_idx = drv->states[0].flags & CPUIDLE_FLAG_POLLING ? 1 : 0;
-	s64 latency_req = cpuidle_governor_latency_req(dev->cpu);
+	s64 latency_req = cpuidle_goveranalr_latency_req(dev->cpu);
 	s64 last_residency;
 
 	/* Special case when user has set very strict latency requirement */
@@ -125,7 +125,7 @@ static int ladder_select_state(struct cpuidle_driver *drv,
 }
 
 /**
- * ladder_enable_device - setup for the governor
+ * ladder_enable_device - setup for the goveranalr
  * @drv: cpuidle driver
  * @dev: the CPU
  */
@@ -170,7 +170,7 @@ static void ladder_reflect(struct cpuidle_device *dev, int index)
 		dev->last_state_idx = index;
 }
 
-static struct cpuidle_governor ladder_governor = {
+static struct cpuidle_goveranalr ladder_goveranalr = {
 	.name =		"ladder",
 	.rating =	10,
 	.enable =	ladder_enable_device,
@@ -179,19 +179,19 @@ static struct cpuidle_governor ladder_governor = {
 };
 
 /**
- * init_ladder - initializes the governor
+ * init_ladder - initializes the goveranalr
  */
 static int __init init_ladder(void)
 {
 	/*
-	 * When NO_HZ is disabled, or when booting with nohz=off, the ladder
-	 * governor is better so give it a higher rating than the menu
-	 * governor.
+	 * When ANAL_HZ is disabled, or when booting with analhz=off, the ladder
+	 * goveranalr is better so give it a higher rating than the menu
+	 * goveranalr.
 	 */
-	if (!tick_nohz_enabled)
-		ladder_governor.rating = 25;
+	if (!tick_analhz_enabled)
+		ladder_goveranalr.rating = 25;
 
-	return cpuidle_register_governor(&ladder_governor);
+	return cpuidle_register_goveranalr(&ladder_goveranalr);
 }
 
 postcore_initcall(init_ladder);

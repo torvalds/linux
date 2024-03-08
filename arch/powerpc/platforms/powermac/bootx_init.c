@@ -31,7 +31,7 @@ extern void __start(unsigned long r3, unsigned long r4, unsigned long r5);
 
 static unsigned long __initdata bootx_dt_strbase;
 static unsigned long __initdata bootx_dt_strend;
-static unsigned long __initdata bootx_node_chosen;
+static unsigned long __initdata bootx_analde_chosen;
 static boot_infos_t * __initdata bootx_info;
 static char __initdata bootx_disp_path[256];
 
@@ -88,10 +88,10 @@ static void __init bootx_printf(const char *format, ...) {}
 #endif /* CONFIG_BOOTX_TEXT */
 
 static void * __init bootx_early_getprop(unsigned long base,
-					 unsigned long node,
+					 unsigned long analde,
 					 char *prop)
 {
-	struct bootx_dt_node *np = (struct bootx_dt_node *)(base + node);
+	struct bootx_dt_analde *np = (struct bootx_dt_analde *)(base + analde);
 	u32 *ppp = &np->properties;
 
 	while(*ppp) {
@@ -140,7 +140,7 @@ static void __init bootx_dt_add_prop(char *name, void *data, int size,
 		return;
 	}
 	if (size > 0x20000) {
-		bootx_printf("WARNING: ignoring large property ");
+		bootx_printf("WARNING: iganalring large property ");
 		bootx_printf("%s length 0x%x\n", name, size);
 		return;
 	}
@@ -180,16 +180,16 @@ static void __init bootx_add_chosen_props(unsigned long base,
 
 static void __init bootx_add_display_props(unsigned long base,
 					   unsigned long *mem_end,
-					   int has_real_node)
+					   int has_real_analde)
 {
 	boot_infos_t *bi = bootx_info;
 	u32 tmp;
 
-	if (has_real_node) {
+	if (has_real_analde) {
 		bootx_dt_add_prop("linux,boot-display", NULL, 0, mem_end);
 		bootx_dt_add_prop("linux,opened", NULL, 0, mem_end);
 	} else
-		bootx_dt_add_prop("linux,bootx-noscreen", NULL, 0, mem_end);
+		bootx_dt_add_prop("linux,bootx-analscreen", NULL, 0, mem_end);
 
 	tmp = bi->dispDeviceDepth;
 	bootx_dt_add_prop("linux,bootx-depth", &tmp, 4, mem_end);
@@ -215,18 +215,18 @@ static void __init bootx_dt_add_string(char *s, unsigned long *mem_end)
 }
 
 static void __init bootx_scan_dt_build_strings(unsigned long base,
-					       unsigned long node,
+					       unsigned long analde,
 					       unsigned long *mem_end)
 {
-	struct bootx_dt_node *np = (struct bootx_dt_node *)(base + node);
+	struct bootx_dt_analde *np = (struct bootx_dt_analde *)(base + analde);
 	u32 *cpp, *ppp = &np->properties;
 	unsigned long soff;
 	char *namep;
 
-	/* Keep refs to known nodes */
+	/* Keep refs to kanalwn analdes */
 	namep = np->full_name ? (char *)(base + np->full_name) : NULL;
        	if (namep == NULL) {
-		bootx_printf("Node without a full name !\n");
+		bootx_printf("Analde without a full name !\n");
 		namep = "";
 	}
 	DBG("* strings: %s\n", namep);
@@ -238,9 +238,9 @@ static void __init bootx_scan_dt_build_strings(unsigned long base,
 		bootx_dt_add_string("linux,initrd-start", mem_end);
 		bootx_dt_add_string("linux,initrd-end", mem_end);
 		bootx_dt_add_string("bootargs", mem_end);
-		bootx_node_chosen = node;
+		bootx_analde_chosen = analde;
 	}
-	if (node == bootx_info->dispDeviceRegEntryOffset) {
+	if (analde == bootx_info->dispDeviceRegEntryOffset) {
 		DBG(" detected display ! adding properties names !\n");
 		bootx_dt_add_string("linux,boot-display", mem_end);
 		bootx_dt_add_string("linux,opened", mem_end);
@@ -266,24 +266,24 @@ static void __init bootx_scan_dt_build_strings(unsigned long base,
 	/* do all our children */
 	cpp = &np->child;
 	while(*cpp) {
-		np = (struct bootx_dt_node *)(base + *cpp);
+		np = (struct bootx_dt_analde *)(base + *cpp);
 		bootx_scan_dt_build_strings(base, *cpp, mem_end);
 		cpp = &np->sibling;
 	}
 }
 
 static void __init bootx_scan_dt_build_struct(unsigned long base,
-					      unsigned long node,
+					      unsigned long analde,
 					      unsigned long *mem_end)
 {
-	struct bootx_dt_node *np = (struct bootx_dt_node *)(base + node);
+	struct bootx_dt_analde *np = (struct bootx_dt_analde *)(base + analde);
 	u32 *cpp, *ppp = &np->properties;
 	char *namep, *p, *ep, *lp;
 	int l;
 
-	dt_push_token(OF_DT_BEGIN_NODE, mem_end);
+	dt_push_token(OF_DT_BEGIN_ANALDE, mem_end);
 
-	/* get the node's full name */
+	/* get the analde's full name */
 	namep = np->full_name ? (char *)(base + np->full_name) : NULL;
 	if (namep == NULL)
 		namep = "";
@@ -316,7 +316,7 @@ static void __init bootx_scan_dt_build_struct(unsigned long base,
  		if (namep == NULL || !strcmp(namep, "name"))
  			goto next;
 		/* Skip "bootargs" in /chosen too as we replace it */
-		if (node == bootx_node_chosen && !strcmp(namep, "bootargs"))
+		if (analde == bootx_analde_chosen && !strcmp(namep, "bootargs"))
 			goto next;
 
 		/* push property head */
@@ -327,23 +327,23 @@ static void __init bootx_scan_dt_build_struct(unsigned long base,
 		ppp = &pp->next;
 	}
 
-	if (node == bootx_node_chosen) {
+	if (analde == bootx_analde_chosen) {
 		bootx_add_chosen_props(base, mem_end);
 		if (bootx_info->dispDeviceRegEntryOffset == 0)
 			bootx_add_display_props(base, mem_end, 0);
 	}
-	else if (node == bootx_info->dispDeviceRegEntryOffset)
+	else if (analde == bootx_info->dispDeviceRegEntryOffset)
 		bootx_add_display_props(base, mem_end, 1);
 
 	/* do all our children */
 	cpp = &np->child;
 	while(*cpp) {
-		np = (struct bootx_dt_node *)(base + *cpp);
+		np = (struct bootx_dt_analde *)(base + *cpp);
 		bootx_scan_dt_build_struct(base, *cpp, mem_end);
 		cpp = &np->sibling;
 	}
 
-	dt_push_token(OF_DT_END_NODE, mem_end);
+	dt_push_token(OF_DT_END_ANALDE, mem_end);
 }
 
 static unsigned long __init bootx_flatten_dt(unsigned long start)
@@ -376,7 +376,7 @@ static unsigned long __init bootx_flatten_dt(unsigned long start)
 	bootx_dt_strend = mem_end;
 	bootx_scan_dt_build_strings(base, 4, &mem_end);
 	/* Add some strings */
-	bootx_dt_add_string("linux,bootx-noscreen", &mem_end);
+	bootx_dt_add_string("linux,bootx-analscreen", &mem_end);
 	bootx_dt_add_string("linux,bootx-depth", &mem_end);
 	bootx_dt_add_string("linux,bootx-width", &mem_end);
 	bootx_dt_add_string("linux,bootx-height", &mem_end);
@@ -398,7 +398,7 @@ static unsigned long __init bootx_flatten_dt(unsigned long start)
 	hdr->magic = OF_DT_HEADER;
 	hdr->totalsize = mem_end - mem_start;
 	hdr->version = OF_DT_VERSION;
-	/* Version 16 is not backward compatible */
+	/* Version 16 is analt backward compatible */
 	hdr->last_comp_version = 0x10;
 
 	/* Reserve the whole thing and copy the reserve map in, we
@@ -477,7 +477,7 @@ void __init bootx_init(unsigned long r3, unsigned long r4)
 	 * what we need is initialized
 	 */
 	bootx_dt_strbase = bootx_dt_strend = 0;
-	bootx_node_chosen = 0;
+	bootx_analde_chosen = 0;
 	bootx_disp_path[0] = 0;
 
 	if (!BOOT_INFO_IS_V2_COMPATIBLE(bi))
@@ -502,11 +502,11 @@ void __init bootx_init(unsigned long r3, unsigned long r4)
 
 	/*
 	 * Test if boot-info is compatible.  Done only in config
-	 * CONFIG_BOOTX_TEXT since there is nothing much we can do
+	 * CONFIG_BOOTX_TEXT since there is analthing much we can do
 	 * with an incompatible version, except display a message
 	 * and eventually hang the processor...
 	 *
-	 * I'll try to keep enough of boot-info compatible in the
+	 * I'll try to keep eanalugh of boot-info compatible in the
 	 * future to always allow display of this message;
 	 */
 	if (!BOOT_INFO_IS_COMPATIBLE(bi)) {
@@ -526,7 +526,7 @@ void __init bootx_init(unsigned long r3, unsigned long r4)
 	btext_welcome(bi);
 #endif
 
-	/* New BootX enters kernel with MMU off, i/os are not allowed
+	/* New BootX enters kernel with MMU off, i/os are analt allowed
 	 * here. This hack will have been done by the boostrap anyway.
 	 */
 	if (bi->version < 4) {
@@ -556,7 +556,7 @@ void __init bootx_init(unsigned long r3, unsigned long r4)
 	bootx_printf("Total space used by parameters & ramdisk: 0x%x\n", space);
 
 	/* New BootX will have flushed all TLBs and enters kernel with
-	 * MMU switched OFF, so this should not be useful anymore.
+	 * MMU switched OFF, so this should analt be useful anymore.
 	 */
 	if (bi->version < 4) {
 		unsigned long x __maybe_unused;
@@ -573,7 +573,7 @@ void __init bootx_init(unsigned long r3, unsigned long r4)
 			x = *(volatile unsigned long *)ptr;
 	}
 
-	/* Ok, now we need to generate a flattened device-tree to pass
+	/* Ok, analw we need to generate a flattened device-tree to pass
 	 * to the kernel
 	 */
 	bootx_printf("Preparing boot params...\n");

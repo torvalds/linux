@@ -173,7 +173,7 @@ int venus_helper_alloc_dpb_bufs(struct venus_inst *inst)
 	int ret;
 	int id;
 
-	/* no need to allocate dpb buffers */
+	/* anal need to allocate dpb buffers */
 	if (!inst->dpb_fmt)
 		return 0;
 
@@ -194,18 +194,18 @@ int venus_helper_alloc_dpb_bufs(struct venus_inst *inst)
 	for (i = 0; i < count; i++) {
 		buf = kzalloc(sizeof(*buf), GFP_KERNEL);
 		if (!buf) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto fail;
 		}
 
 		buf->type = buftype;
 		buf->size = dpb_size;
 		buf->attrs = DMA_ATTR_WRITE_COMBINE |
-			     DMA_ATTR_NO_KERNEL_MAPPING;
+			     DMA_ATTR_ANAL_KERNEL_MAPPING;
 		buf->va = dma_alloc_attrs(dev, buf->size, &buf->da, GFP_KERNEL,
 					  buf->attrs);
 		if (!buf->va) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto fail;
 		}
 		buf->owned_by = DRIVER;
@@ -250,18 +250,18 @@ static int intbufs_set_buffer(struct venus_inst *inst, u32 type)
 	for (i = 0; i < bufreq.count_actual; i++) {
 		buf = kzalloc(sizeof(*buf), GFP_KERNEL);
 		if (!buf) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto fail;
 		}
 
 		buf->type = bufreq.type;
 		buf->size = bufreq.size;
 		buf->attrs = DMA_ATTR_WRITE_COMBINE |
-			     DMA_ATTR_NO_KERNEL_MAPPING;
+			     DMA_ATTR_ANAL_KERNEL_MAPPING;
 		buf->va = dma_alloc_attrs(dev, buf->size, &buf->da, GFP_KERNEL,
 					  buf->attrs);
 		if (!buf->va) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto fail;
 		}
 
@@ -460,7 +460,7 @@ put_ts_metadata(struct venus_inst *inst, struct vb2_v4l2_buffer *vbuf)
 	}
 
 	if (slot == -1) {
-		dev_dbg(inst->core->dev, VDBGL "no free slot\n");
+		dev_dbg(inst->core->dev, VDBGL "anal free slot\n");
 		return;
 	}
 
@@ -1086,7 +1086,7 @@ u32 venus_helper_get_framesz(u32 v4l2_fmt, u32 width, u32 height)
 	switch (v4l2_fmt) {
 	case V4L2_PIX_FMT_MPEG:
 	case V4L2_PIX_FMT_H264:
-	case V4L2_PIX_FMT_H264_NO_SC:
+	case V4L2_PIX_FMT_H264_ANAL_SC:
 	case V4L2_PIX_FMT_H264_MVC:
 	case V4L2_PIX_FMT_H263:
 	case V4L2_PIX_FMT_MPEG1:
@@ -1465,8 +1465,8 @@ int venus_helper_vb2_buf_prepare(struct vb2_buffer *vb)
 
 	if (V4L2_TYPE_IS_OUTPUT(vb->vb2_queue->type)) {
 		if (vbuf->field == V4L2_FIELD_ANY)
-			vbuf->field = V4L2_FIELD_NONE;
-		if (vbuf->field != V4L2_FIELD_NONE) {
+			vbuf->field = V4L2_FIELD_ANALNE;
+		if (vbuf->field != V4L2_FIELD_ANALNE) {
 			dev_err(inst->core->dev, "%s field isn't supported\n",
 				__func__);
 			return -EINVAL;

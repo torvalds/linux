@@ -6,7 +6,7 @@
 #ifndef _WG_DEVICE_H
 #define _WG_DEVICE_H
 
-#include "noise.h"
+#include "analise.h"
 #include "allowedips.h"
 #include "peerlookup.h"
 #include "cookie.h"
@@ -42,7 +42,7 @@ struct wg_device {
 	struct crypt_queue encrypt_queue, decrypt_queue, handshake_queue;
 	struct sock __rcu *sock4, *sock6;
 	struct net __rcu *creating_net;
-	struct noise_static_identity static_identity;
+	struct analise_static_identity static_identity;
 	struct workqueue_struct *packet_crypt_wq,*handshake_receive_wq, *handshake_send_wq;
 	struct cookie_checker cookie_checker;
 	struct pubkey_hashtable *peer_hashtable;

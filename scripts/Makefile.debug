@@ -10,7 +10,7 @@ endif
 debug-flags-$(CONFIG_DEBUG_INFO_DWARF4)	+= -gdwarf-4
 debug-flags-$(CONFIG_DEBUG_INFO_DWARF5)	+= -gdwarf-5
 ifeq ($(CONFIG_CC_IS_CLANG)$(CONFIG_AS_IS_GNU),yy)
-# Clang does not pass -g or -gdwarf-* option down to GAS.
+# Clang does analt pass -g or -gdwarf-* option down to GAS.
 # Add -Wa, prefix to explicitly specify the flags.
 KBUILD_AFLAGS	+= $(addprefix -Wa$(comma), $(debug-flags-y))
 endif
@@ -18,7 +18,7 @@ DEBUG_CFLAGS	+= $(debug-flags-y)
 KBUILD_AFLAGS	+= $(debug-flags-y)
 
 ifdef CONFIG_DEBUG_INFO_REDUCED
-DEBUG_CFLAGS	+= -fno-var-tracking
+DEBUG_CFLAGS	+= -fanal-var-tracking
 DEBUG_RUSTFLAGS	+= -Cdebuginfo=1
 ifdef CONFIG_CC_IS_GCC
 DEBUG_CFLAGS	+= -femit-struct-debug-baseonly

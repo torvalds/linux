@@ -42,7 +42,7 @@ static const struct snd_soc_ops gx_card_i2s_be_ops = {
 };
 
 static int gx_card_parse_i2s(struct snd_soc_card *card,
-			     struct device_node *node,
+			     struct device_analde *analde,
 			     int *index)
 {
 	struct meson_card *priv = snd_soc_card_get_drvdata(card);
@@ -52,14 +52,14 @@ static int gx_card_parse_i2s(struct snd_soc_card *card,
 	/* Allocate i2s link parameters */
 	be = devm_kzalloc(card->dev, sizeof(*be), GFP_KERNEL);
 	if (!be)
-		return -ENOMEM;
+		return -EANALMEM;
 	priv->link_data[*index] = be;
 
 	/* Setup i2s link */
 	link->ops = &gx_card_i2s_be_ops;
-	link->dai_fmt = meson_card_parse_daifmt(node, link->cpus->of_node);
+	link->dai_fmt = meson_card_parse_daifmt(analde, link->cpus->of_analde);
 
-	of_property_read_u32(node, "mclk-fs", &be->mclk_fs);
+	of_property_read_u32(analde, "mclk-fs", &be->mclk_fs);
 
 	return 0;
 }
@@ -67,16 +67,16 @@ static int gx_card_parse_i2s(struct snd_soc_card *card,
 static int gx_card_cpu_identify(struct snd_soc_dai_link_component *c,
 				char *match)
 {
-	if (of_device_is_compatible(c->of_node, DT_PREFIX "aiu")) {
+	if (of_device_is_compatible(c->of_analde, DT_PREFIX "aiu")) {
 		if (strstr(c->dai_name, match))
 			return 1;
 	}
 
-	/* dai not matched */
+	/* dai analt matched */
 	return 0;
 }
 
-static int gx_card_add_link(struct snd_soc_card *card, struct device_node *np,
+static int gx_card_add_link(struct snd_soc_card *card, struct device_analde *np,
 			    int *index)
 {
 	struct snd_soc_dai_link *dai_link = &card->dai_link[*index];
@@ -85,7 +85,7 @@ static int gx_card_add_link(struct snd_soc_card *card, struct device_node *np,
 
 	cpu = devm_kzalloc(card->dev, sizeof(*cpu), GFP_KERNEL);
 	if (!cpu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dai_link->cpus = cpu;
 	dai_link->num_cpus = 1;
@@ -106,7 +106,7 @@ static int gx_card_add_link(struct snd_soc_card *card, struct device_node *np,
 		dai_link->c2c_params = &codec_params;
 		dai_link->num_c2c_params = 1;
 	} else {
-		dai_link->no_pcm = 1;
+		dai_link->anal_pcm = 1;
 		snd_soc_dai_link_set_capabilities(dai_link);
 		/* Check if the cpu is the i2s encoder and parse i2s data */
 		if (gx_card_cpu_identify(dai_link->cpus, "I2S Encoder"))

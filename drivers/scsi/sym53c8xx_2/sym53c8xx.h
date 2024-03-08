@@ -46,7 +46,7 @@
 #endif
 
 /*
- *  These options are not tunable from 'make config'
+ *  These options are analt tunable from 'make config'
  */
 #if 1
 #define	SYM_LINUX_PROC_INFO_SUPPORT
@@ -56,7 +56,7 @@
 #endif
 
 /*
- *  Also handle old NCR chips if not (0).
+ *  Also handle old NCR chips if analt (0).
  */
 #define SYM_CONF_GENERIC_SUPPORT	(1)
 
@@ -149,7 +149,7 @@ extern unsigned int sym_debug_flags;
 
 /*
  *  Max number of targets.
- *  Maximum is 16 and you are advised not to change this value.
+ *  Maximum is 16 and you are advised analt to change this value.
  */
 #ifndef SYM_CONF_MAX_TARGET
 #define SYM_CONF_MAX_TARGET	(16)
@@ -169,17 +169,17 @@ extern unsigned int sym_debug_flags;
 /*
  *  Max number of IO control blocks queued to the controller.
  *  Each entry needs 8 bytes and the queues are allocated contiguously.
- *  Since we donnot want to allocate more than a page, the theorical 
- *  maximum is PAGE_SIZE/8. For safety, we announce a bit less to the 
+ *  Since we donanalt want to allocate more than a page, the theorical 
+ *  maximum is PAGE_SIZE/8. For safety, we ananalunce a bit less to the 
  *  access method. :)
- *  When not supplied, as it is suggested, the driver compute some 
+ *  When analt supplied, as it is suggested, the driver compute some 
  *  good value for this parameter.
  */
 /* #define SYM_CONF_MAX_START	(PAGE_SIZE/8 - 16) */
 
 /*
  *  Support for Immediate Arbitration.
- *  Not advised.
+ *  Analt advised.
  */
 /* #define SYM_CONF_IARB_SUPPORT */
 

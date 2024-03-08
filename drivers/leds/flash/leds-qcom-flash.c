@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #include <linux/bitfield.h>
@@ -212,8 +212,8 @@ static int set_flash_current(struct qcom_flash_led *led, u32 current_ma, enum le
 				(FLASH_IRES_5MA_VAL_4CH << shift));
 		} else {
 			dev_err(led->flash.led_cdev.dev,
-					"HW type %d is not supported\n", flash_data->hw_type);
-			return -EOPNOTSUPP;
+					"HW type %d is analt supported\n", flash_data->hw_type);
+			return -EOPANALTSUPP;
 		}
 	}
 
@@ -500,7 +500,7 @@ static const struct v4l2_flash_ops qcom_v4l2_flash_ops = {
 };
 
 static int
-qcom_flash_v4l2_init(struct device *dev, struct qcom_flash_led *led, struct fwnode_handle *fwnode)
+qcom_flash_v4l2_init(struct device *dev, struct qcom_flash_led *led, struct fwanalde_handle *fwanalde)
 {
 	struct qcom_flash_data *flash_data = led->flash_data;
 	struct v4l2_flash_config v4l2_cfg = { 0 };
@@ -524,19 +524,19 @@ qcom_flash_v4l2_init(struct device *dev, struct qcom_flash_led *led, struct fwno
 				LED_FAULT_TIMEOUT;
 
 	flash_data->v4l2_flash[flash_data->leds_count] =
-		v4l2_flash_init(dev, fwnode, &led->flash, &qcom_v4l2_flash_ops, &v4l2_cfg);
+		v4l2_flash_init(dev, fwanalde, &led->flash, &qcom_v4l2_flash_ops, &v4l2_cfg);
 	return PTR_ERR_OR_ZERO(flash_data->v4l2_flash);
 }
 # else
 static int
-qcom_flash_v4l2_init(struct device *dev, struct qcom_flash_led *led, struct fwnode_handle *fwnode)
+qcom_flash_v4l2_init(struct device *dev, struct qcom_flash_led *led, struct fwanalde_handle *fwanalde)
 {
 	return 0;
 }
 #endif
 
 static int qcom_flash_register_led_device(struct device *dev,
-		struct fwnode_handle *node, struct qcom_flash_led *led)
+		struct fwanalde_handle *analde, struct qcom_flash_led *led)
 {
 	struct qcom_flash_data *flash_data = led->flash_data;
 	struct led_init_data init_data;
@@ -546,10 +546,10 @@ static int qcom_flash_register_led_device(struct device *dev,
 	u32 channels[4];
 	int i, rc, count;
 
-	count = fwnode_property_count_u32(node, "led-sources");
+	count = fwanalde_property_count_u32(analde, "led-sources");
 	if (count <= 0) {
-		dev_err(dev, "No led-sources specified\n");
-		return -ENODEV;
+		dev_err(dev, "Anal led-sources specified\n");
+		return -EANALDEV;
 	}
 
 	if (count > flash_data->max_channels) {
@@ -558,7 +558,7 @@ static int qcom_flash_register_led_device(struct device *dev,
 		return -EINVAL;
 	}
 
-	rc = fwnode_property_read_u32_array(node, "led-sources", channels, count);
+	rc = fwanalde_property_read_u32_array(analde, "led-sources", channels, count);
 	if (rc < 0) {
 		dev_err(dev, "Failed to read led-sources property, rc=%d\n", rc);
 		return rc;
@@ -567,7 +567,7 @@ static int qcom_flash_register_led_device(struct device *dev,
 	led->chan_count = count;
 	led->chan_id = devm_kcalloc(dev, count, sizeof(u8), GFP_KERNEL);
 	if (!led->chan_id)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < count; i++) {
 		if ((channels[i] == 0) || (channels[i] > flash_data->max_channels)) {
@@ -580,7 +580,7 @@ static int qcom_flash_register_led_device(struct device *dev,
 		led->chan_id[i] = channels[i] - 1;
 	}
 
-	rc = fwnode_property_read_u32(node, "led-max-microamp", &current_ua);
+	rc = fwanalde_property_read_u32(analde, "led-max-microamp", &current_ua);
 	if (rc < 0) {
 		dev_err(dev, "Failed to read led-max-microamp property, rc=%d\n", rc);
 		return rc;
@@ -594,10 +594,10 @@ static int qcom_flash_register_led_device(struct device *dev,
 	current_ua = min_t(u32, current_ua, TORCH_CURRENT_MAX_UA * led->chan_count);
 	led->max_torch_current_ma = current_ua / UA_PER_MA;
 
-	if (fwnode_property_present(node, "flash-max-microamp")) {
+	if (fwanalde_property_present(analde, "flash-max-microamp")) {
 		flash->led_cdev.flags |= LED_DEV_CAP_FLASH;
 
-		rc = fwnode_property_read_u32(node, "flash-max-microamp", &current_ua);
+		rc = fwanalde_property_read_u32(analde, "flash-max-microamp", &current_ua);
 		if (rc < 0) {
 			dev_err(dev, "Failed to read flash-max-microamp property, rc=%d\n",
 					rc);
@@ -616,7 +616,7 @@ static int qcom_flash_register_led_device(struct device *dev,
 		led->max_flash_current_ma = current_ua / UA_PER_MA;
 		led->flash_current_ma = brightness->val / UA_PER_MA;
 
-		rc = fwnode_property_read_u32(node, "flash-max-timeout-us", &timeout_us);
+		rc = fwanalde_property_read_u32(analde, "flash-max-timeout-us", &timeout_us);
 		if (rc < 0) {
 			dev_err(dev, "Failed to read flash-max-timeout-us property, rc=%d\n",
 					rc);
@@ -637,7 +637,7 @@ static int qcom_flash_register_led_device(struct device *dev,
 
 	flash->led_cdev.brightness_set_blocking = qcom_flash_led_brightness_set;
 
-	init_data.fwnode = node;
+	init_data.fwanalde = analde;
 	init_data.devicename = NULL;
 	init_data.default_label = NULL;
 	init_data.devname_mandatory = false;
@@ -648,14 +648,14 @@ static int qcom_flash_register_led_device(struct device *dev,
 		return rc;
 	}
 
-	return qcom_flash_v4l2_init(dev, led, node);
+	return qcom_flash_v4l2_init(dev, led, analde);
 }
 
 static int qcom_flash_led_probe(struct platform_device *pdev)
 {
 	struct qcom_flash_data *flash_data;
 	struct qcom_flash_led *led;
-	struct fwnode_handle *child;
+	struct fwanalde_handle *child;
 	struct device *dev = &pdev->dev;
 	struct regmap *regmap;
 	struct reg_field *regs;
@@ -664,7 +664,7 @@ static int qcom_flash_led_probe(struct platform_device *pdev)
 
 	flash_data = devm_kzalloc(dev, sizeof(*flash_data), GFP_KERNEL);
 	if (!flash_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	regmap = dev_get_regmap(dev->parent, NULL);
 	if (!regmap) {
@@ -672,7 +672,7 @@ static int qcom_flash_led_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	rc = fwnode_property_read_u32(dev->fwnode, "reg", &reg_base);
+	rc = fwanalde_property_read_u32(dev->fwanalde, "reg", &reg_base);
 	if (rc < 0) {
 		dev_err(dev, "Failed to get register base address, rc=%d\n", rc);
 		return rc;
@@ -685,8 +685,8 @@ static int qcom_flash_led_probe(struct platform_device *pdev)
 	}
 
 	if (val != FLASH_TYPE_VAL) {
-		dev_err(dev, "type %#x is not a flash LED module\n", val);
-		return -ENODEV;
+		dev_err(dev, "type %#x is analt a flash LED module\n", val);
+		return -EANALDEV;
 	}
 
 	rc = regmap_read(regmap, reg_base + FLASH_SUBTYPE_REG, &val);
@@ -704,8 +704,8 @@ static int qcom_flash_led_probe(struct platform_device *pdev)
 		flash_data->max_channels = 4;
 		regs = mvflash_4ch_regs;
 	} else {
-		dev_err(dev, "flash LED subtype %#x is not yet supported\n", val);
-		return -ENODEV;
+		dev_err(dev, "flash LED subtype %#x is analt yet supported\n", val);
+		return -EANALDEV;
 	}
 
 	for (i = 0; i < REG_MAX_COUNT; i++)
@@ -720,21 +720,21 @@ static int qcom_flash_led_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, flash_data);
 	mutex_init(&flash_data->lock);
 
-	count = device_get_child_node_count(dev);
+	count = device_get_child_analde_count(dev);
 	if (count == 0 || count > flash_data->max_channels) {
-		dev_err(dev, "No child or child count exceeds %d\n", flash_data->max_channels);
+		dev_err(dev, "Anal child or child count exceeds %d\n", flash_data->max_channels);
 		return -EINVAL;
 	}
 
 	flash_data->v4l2_flash = devm_kcalloc(dev, count,
 			sizeof(*flash_data->v4l2_flash), GFP_KERNEL);
 	if (!flash_data->v4l2_flash)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	device_for_each_child_node(dev, child) {
+	device_for_each_child_analde(dev, child) {
 		led = devm_kzalloc(dev, sizeof(*led), GFP_KERNEL);
 		if (!led) {
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto release;
 		}
 
@@ -749,7 +749,7 @@ static int qcom_flash_led_probe(struct platform_device *pdev)
 	return 0;
 
 release:
-	fwnode_handle_put(child);
+	fwanalde_handle_put(child);
 	while (flash_data->v4l2_flash[flash_data->leds_count] && flash_data->leds_count)
 		v4l2_flash_release(flash_data->v4l2_flash[flash_data->leds_count--]);
 	return rc;

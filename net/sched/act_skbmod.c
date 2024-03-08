@@ -188,7 +188,7 @@ static int tcf_skbmod_init(struct net *net, struct nlattr *nla,
 
 	p = kzalloc(sizeof(struct tcf_skbmod_params), GFP_KERNEL);
 	if (unlikely(!p)) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto put_chain;
 	}
 

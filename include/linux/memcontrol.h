@@ -5,7 +5,7 @@
  * Author Balbir Singh <balbir@linux.vnet.ibm.com>
  *
  * Copyright 2007 OpenVZ SWsoft Inc
- * Author: Pavel Emelianov <xemul@openvz.org>
+ * Author: Pavel Emeliaanalv <xemul@openvz.org>
  */
 
 #ifndef _LINUX_MEMCONTROL_H
@@ -29,9 +29,9 @@ struct page;
 struct mm_struct;
 struct kmem_cache;
 
-/* Cgroup-specific page state, on top of universal node page state */
+/* Cgroup-specific page state, on top of universal analde page state */
 enum memcg_stat_item {
-	MEMCG_SWAP = NR_VM_NODE_STAT_ITEMS,
+	MEMCG_SWAP = NR_VM_ANALDE_STAT_ITEMS,
 	MEMCG_SOCK,
 	MEMCG_PERCPU_B,
 	MEMCG_VMALLOC,
@@ -91,27 +91,27 @@ struct mem_cgroup_reclaim_iter {
 
 struct lruvec_stats_percpu {
 	/* Local (CPU and cgroup) state */
-	long state[NR_VM_NODE_STAT_ITEMS];
+	long state[NR_VM_ANALDE_STAT_ITEMS];
 
 	/* Delta calculation for lockless upward propagation */
-	long state_prev[NR_VM_NODE_STAT_ITEMS];
+	long state_prev[NR_VM_ANALDE_STAT_ITEMS];
 };
 
 struct lruvec_stats {
 	/* Aggregated (CPU and subtree) state */
-	long state[NR_VM_NODE_STAT_ITEMS];
+	long state[NR_VM_ANALDE_STAT_ITEMS];
 
-	/* Non-hierarchical (CPU aggregated) state */
-	long state_local[NR_VM_NODE_STAT_ITEMS];
+	/* Analn-hierarchical (CPU aggregated) state */
+	long state_local[NR_VM_ANALDE_STAT_ITEMS];
 
 	/* Pending child counts during tree propagation */
-	long state_pending[NR_VM_NODE_STAT_ITEMS];
+	long state_pending[NR_VM_ANALDE_STAT_ITEMS];
 };
 
 /*
- * per-node information in memory controller.
+ * per-analde information in memory controller.
  */
-struct mem_cgroup_per_node {
+struct mem_cgroup_per_analde {
 	struct lruvec		lruvec;
 
 	struct lruvec_stats_percpu __percpu	*lruvec_stats_percpu;
@@ -123,11 +123,11 @@ struct mem_cgroup_per_node {
 
 	struct shrinker_info __rcu	*shrinker_info;
 
-	struct rb_node		tree_node;	/* RB tree node */
+	struct rb_analde		tree_analde;	/* RB tree analde */
 	unsigned long		usage_in_excess;/* Set to the value by which */
 						/* the soft limit is exceeded*/
 	bool			on_tree;
-	struct mem_cgroup	*memcg;		/* Back pointer, we cannot */
+	struct mem_cgroup	*memcg;		/* Back pointer, we cananalt */
 						/* use container_of	   */
 };
 
@@ -159,17 +159,17 @@ struct mem_cgroup_thresholds {
 
 /*
  * Remember four most recent foreign writebacks with dirty pages in this
- * cgroup.  Inode sharing is expected to be uncommon and, even if we miss
+ * cgroup.  Ianalde sharing is expected to be uncommon and, even if we miss
  * one in a given round, we're likely to catch it later if it keeps
- * foreign-dirtying, so a fairly low count should be enough.
+ * foreign-dirtying, so a fairly low count should be eanalugh.
  *
  * See mem_cgroup_track_foreign_dirty_slowpath() for details.
  */
 #define MEMCG_CGWB_FRN_CNT	4
 
 struct memcg_cgwb_frn {
-	u64 bdi_id;			/* bdi->id of the foreign inode */
-	int memcg_id;			/* memcg->css.id of foreign inode */
+	u64 bdi_id;			/* bdi->id of the foreign ianalde */
+	int memcg_id;			/* memcg->css.id of foreign ianalde */
 	u64 at;				/* jiffies_64 at the time of dirtying */
 	struct wb_completion done;	/* tracks in-flight foreign writebacks */
 };
@@ -194,7 +194,7 @@ struct obj_cgroup {
  * The memory controller data structure. The memory controller controls both
  * page cache and RSS per cgroup. We would eventually like to provide
  * statistics based on the statistics developed by Rik Van Riel for clock-pro,
- * to help the administrator determine what knobs to tune.
+ * to help the administrator determine what kanalbs to tune.
  */
 struct mem_cgroup {
 	struct cgroup_subsys_state css;
@@ -229,7 +229,7 @@ struct mem_cgroup {
 
 	unsigned long soft_limit;
 
-	/* vmpressure notifications */
+	/* vmpressure analtifications */
 	struct vmpressure vmpressure;
 
 	/*
@@ -261,8 +261,8 @@ struct mem_cgroup {
 	/* thresholds for mem+swap usage. RCU-protected */
 	struct mem_cgroup_thresholds memsw_thresholds;
 
-	/* For oom notifier event fd */
-	struct list_head oom_notify;
+	/* For oom analtifier event fd */
+	struct list_head oom_analtify;
 
 	/*
 	 * Should we move charges of a task when a task is moved into this
@@ -283,8 +283,8 @@ struct mem_cgroup {
 	atomic_long_t		memory_events_local[MEMCG_NR_MEMORY_EVENTS];
 
 	/*
-	 * Hint of reclaim pressure for socket memroy management. Note
-	 * that this indicator should NOT be used in legacy cgroup mode
+	 * Hint of reclaim pressure for socket memroy management. Analte
+	 * that this indicator should ANALT be used in legacy cgroup mode
 	 * where socket memory is accounted/charged separately.
 	 */
 	unsigned long		socket_pressure;
@@ -335,7 +335,7 @@ struct mem_cgroup {
 	struct lru_gen_mm_list mm_list;
 #endif
 
-	struct mem_cgroup_per_node *nodeinfo[];
+	struct mem_cgroup_per_analde *analdeinfo[];
 };
 
 /*
@@ -350,7 +350,7 @@ extern struct mem_cgroup *root_mem_cgroup;
 enum page_memcg_data_flags {
 	/* page->memcg_data is a pointer to an objcgs vector */
 	MEMCG_DATA_OBJCGS = (1UL << 0),
-	/* page has been accounted as a non-slab kernel page */
+	/* page has been accounted as a analn-slab kernel page */
 	MEMCG_DATA_KMEM = (1UL << 1),
 	/* the next bit after the last actual flag */
 	__NR_MEMCG_DATA_FLAGS  = (1UL << 2),
@@ -373,12 +373,12 @@ static inline struct mem_cgroup *obj_cgroup_memcg(struct obj_cgroup *objcg)
 }
 
 /*
- * __folio_memcg - Get the memory cgroup associated with a non-kmem folio
+ * __folio_memcg - Get the memory cgroup associated with a analn-kmem folio
  * @folio: Pointer to the folio.
  *
  * Returns a pointer to the memory cgroup associated with the folio,
- * or NULL. This function assumes that the folio is known to have a
- * proper memory cgroup pointer. It's not safe to call this function
+ * or NULL. This function assumes that the folio is kanalwn to have a
+ * proper memory cgroup pointer. It's analt safe to call this function
  * against some type of folios, e.g. slab folios or ex-slab folios or
  * kmem folios.
  */
@@ -398,8 +398,8 @@ static inline struct mem_cgroup *__folio_memcg(struct folio *folio)
  * @folio: Pointer to the folio.
  *
  * Returns a pointer to the object cgroup associated with the folio,
- * or NULL. This function assumes that the folio is known to have a
- * proper object cgroup pointer. It's not safe to call this function
+ * or NULL. This function assumes that the folio is kanalwn to have a
+ * proper object cgroup pointer. It's analt safe to call this function
  * against some type of folios, e.g. slab folios or ex-slab folios or
  * LRU folios.
  */
@@ -419,11 +419,11 @@ static inline struct obj_cgroup *__folio_objcg(struct folio *folio)
  * @folio: Pointer to the folio.
  *
  * Returns a pointer to the memory cgroup associated with the folio,
- * or NULL. This function assumes that the folio is known to have a
- * proper memory cgroup pointer. It's not safe to call this function
+ * or NULL. This function assumes that the folio is kanalwn to have a
+ * proper memory cgroup pointer. It's analt safe to call this function
  * against some type of folios, e.g. slab folios or ex-slab folios.
  *
- * For a non-kmem folio any of the following ensures folio and memcg binding
+ * For a analn-kmem folio any of the following ensures folio and memcg binding
  * stability:
  *
  * - the folio lock
@@ -451,8 +451,8 @@ static inline struct mem_cgroup *page_memcg(struct page *page)
  * folio_memcg_rcu - Locklessly get the memory cgroup associated with a folio.
  * @folio: Pointer to the folio.
  *
- * This function assumes that the folio is known to have a
- * proper memory cgroup pointer. It's not safe to call this function
+ * This function assumes that the folio is kanalwn to have a
+ * proper memory cgroup pointer. It's analt safe to call this function
  * against some type of folios, e.g. slab folios or ex-slab folios.
  *
  * Return: A pointer to the memory cgroup associated with the folio,
@@ -481,11 +481,11 @@ static inline struct mem_cgroup *folio_memcg_rcu(struct folio *folio)
  *
  * Returns a pointer to the memory cgroup associated with the folio,
  * or NULL. This function unlike folio_memcg() can take any folio
- * as an argument. It has to be used in cases when it's not known if a folio
+ * as an argument. It has to be used in cases when it's analt kanalwn if a folio
  * has an associated memory cgroup pointer or an object cgroups vector or
  * an object cgroup.
  *
- * For a non-kmem folio any of the following ensures folio and memcg binding
+ * For a analn-kmem folio any of the following ensures folio and memcg binding
  * stability:
  *
  * - the folio lock
@@ -500,7 +500,7 @@ static inline struct mem_cgroup *folio_memcg_rcu(struct folio *folio)
 static inline struct mem_cgroup *folio_memcg_check(struct folio *folio)
 {
 	/*
-	 * Because folio->memcg_data might be changed asynchronously
+	 * Because folio->memcg_data might be changed asynchroanalusly
 	 * for slabs, READ_ONCE() should be used here.
 	 */
 	unsigned long memcg_data = READ_ONCE(folio->memcg_data);
@@ -545,7 +545,7 @@ retry:
  * @folio: Pointer to the folio.
  *
  * Checks if the folio has MemcgKmem flag set. The caller must ensure
- * that the folio has an associated memory cgroup. It's not safe to call
+ * that the folio has an associated memory cgroup. It's analt safe to call
  * this function against some types of folios, e.g. slab folios.
  */
 static inline bool folio_memcg_kmem(struct folio *folio)
@@ -590,9 +590,9 @@ static inline void mem_cgroup_protection(struct mem_cgroup *root,
 		return;
 
 	/*
-	 * There is no reclaim protection applied to a targeted reclaim.
+	 * There is anal reclaim protection applied to a targeted reclaim.
 	 * We are special casing this specific case here because
-	 * mem_cgroup_calculate_protection is not robust enough to keep
+	 * mem_cgroup_calculate_protection is analt robust eanalugh to keep
 	 * the protection invariant for calculated effective values for
 	 * parallel reclaimers with different reclaim target. This is
 	 * especially a problem for tail memcgs (as they have pages on LRU)
@@ -637,7 +637,7 @@ static inline bool mem_cgroup_unprotected(struct mem_cgroup *target,
 {
 	/*
 	 * The root memcg doesn't account charges, and doesn't support
-	 * protection. The target memcg's protection is ignored, see
+	 * protection. The target memcg's protection is iganalred, see
 	 * mem_cgroup_calculate_protection() and mem_cgroup_protection()
 	 */
 	return mem_cgroup_disabled() || mem_cgroup_is_root(memcg) ||
@@ -678,7 +678,7 @@ int __mem_cgroup_charge(struct folio *folio, struct mm_struct *mm, gfp_t gfp);
  * pages according to @gfp if necessary.  If @mm is NULL, try to
  * charge to the active memcg.
  *
- * Do not use this for folios allocated for swapin.
+ * Do analt use this for folios allocated for swapin.
  *
  * Return: 0 on success. Otherwise, an error code is returned.
  */
@@ -727,18 +727,18 @@ void mem_cgroup_replace_folio(struct folio *old, struct folio *new);
 void mem_cgroup_migrate(struct folio *old, struct folio *new);
 
 /**
- * mem_cgroup_lruvec - get the lru list vector for a memcg & node
+ * mem_cgroup_lruvec - get the lru list vector for a memcg & analde
  * @memcg: memcg of the wanted lruvec
  * @pgdat: pglist_data
  *
  * Returns the lru list vector holding pages for a given @memcg &
- * @pgdat combination. This can be the node lruvec, if the memory
+ * @pgdat combination. This can be the analde lruvec, if the memory
  * controller is disabled.
  */
 static inline struct lruvec *mem_cgroup_lruvec(struct mem_cgroup *memcg,
 					       struct pglist_data *pgdat)
 {
-	struct mem_cgroup_per_node *mz;
+	struct mem_cgroup_per_analde *mz;
 	struct lruvec *lruvec;
 
 	if (mem_cgroup_disabled()) {
@@ -749,11 +749,11 @@ static inline struct lruvec *mem_cgroup_lruvec(struct mem_cgroup *memcg,
 	if (!memcg)
 		memcg = root_mem_cgroup;
 
-	mz = memcg->nodeinfo[pgdat->node_id];
+	mz = memcg->analdeinfo[pgdat->analde_id];
 	lruvec = &mz->lruvec;
 out:
 	/*
-	 * Since a node can be onlined after the mem_cgroup was created,
+	 * Since a analde can be onlined after the mem_cgroup was created,
 	 * we have to be prepared to initialize lruvec->pgdat here;
 	 * and if offlined then reonlined, we need to reinitialize it.
 	 */
@@ -858,12 +858,12 @@ static inline unsigned short mem_cgroup_id(struct mem_cgroup *memcg)
 struct mem_cgroup *mem_cgroup_from_id(unsigned short id);
 
 #ifdef CONFIG_SHRINKER_DEBUG
-static inline unsigned long mem_cgroup_ino(struct mem_cgroup *memcg)
+static inline unsigned long mem_cgroup_ianal(struct mem_cgroup *memcg)
 {
-	return memcg ? cgroup_ino(memcg->css.cgroup) : 0;
+	return memcg ? cgroup_ianal(memcg->css.cgroup) : 0;
 }
 
-struct mem_cgroup *mem_cgroup_get_from_ino(unsigned long ino);
+struct mem_cgroup *mem_cgroup_get_from_ianal(unsigned long ianal);
 #endif
 
 static inline struct mem_cgroup *mem_cgroup_from_seq(struct seq_file *m)
@@ -873,12 +873,12 @@ static inline struct mem_cgroup *mem_cgroup_from_seq(struct seq_file *m)
 
 static inline struct mem_cgroup *lruvec_memcg(struct lruvec *lruvec)
 {
-	struct mem_cgroup_per_node *mz;
+	struct mem_cgroup_per_analde *mz;
 
 	if (mem_cgroup_disabled())
 		return NULL;
 
-	mz = container_of(lruvec, struct mem_cgroup_per_node, lruvec);
+	mz = container_of(lruvec, struct mem_cgroup_per_analde, lruvec);
 	return mz->memcg;
 }
 
@@ -916,7 +916,7 @@ static inline bool mm_match_cgroup(struct mm_struct *mm,
 }
 
 struct cgroup_subsys_state *mem_cgroup_css_from_folio(struct folio *folio);
-ino_t page_cgroup_ino(struct page *page);
+ianal_t page_cgroup_ianal(struct page *page);
 
 static inline bool mem_cgroup_online(struct mem_cgroup *memcg)
 {
@@ -932,9 +932,9 @@ static inline
 unsigned long mem_cgroup_get_zone_lru_size(struct lruvec *lruvec,
 		enum lru_list lru, int zone_idx)
 {
-	struct mem_cgroup_per_node *mz;
+	struct mem_cgroup_per_analde *mz;
 
-	mz = container_of(lruvec, struct mem_cgroup_per_node, lruvec);
+	mz = container_of(lruvec, struct mem_cgroup_per_analde, lruvec);
 	return READ_ONCE(mz->lru_zone_size[zone_idx][lru]);
 }
 
@@ -993,7 +993,7 @@ static inline void mem_cgroup_unlock_pages(void)
 	rcu_read_unlock();
 }
 
-/* idx can be of type enum memcg_stat_item or node_stat_item */
+/* idx can be of type enum memcg_stat_item or analde_stat_item */
 static inline void mod_memcg_state(struct mem_cgroup *memcg,
 				   int idx, int val)
 {
@@ -1022,15 +1022,15 @@ static inline void mod_memcg_page_state(struct page *page,
 unsigned long memcg_page_state(struct mem_cgroup *memcg, int idx);
 
 static inline unsigned long lruvec_page_state(struct lruvec *lruvec,
-					      enum node_stat_item idx)
+					      enum analde_stat_item idx)
 {
-	struct mem_cgroup_per_node *pn;
+	struct mem_cgroup_per_analde *pn;
 	long x;
 
 	if (mem_cgroup_disabled())
-		return node_page_state(lruvec_pgdat(lruvec), idx);
+		return analde_page_state(lruvec_pgdat(lruvec), idx);
 
-	pn = container_of(lruvec, struct mem_cgroup_per_node, lruvec);
+	pn = container_of(lruvec, struct mem_cgroup_per_analde, lruvec);
 	x = READ_ONCE(pn->lruvec_stats.state[idx]);
 #ifdef CONFIG_SMP
 	if (x < 0)
@@ -1040,15 +1040,15 @@ static inline unsigned long lruvec_page_state(struct lruvec *lruvec,
 }
 
 static inline unsigned long lruvec_page_state_local(struct lruvec *lruvec,
-						    enum node_stat_item idx)
+						    enum analde_stat_item idx)
 {
-	struct mem_cgroup_per_node *pn;
+	struct mem_cgroup_per_analde *pn;
 	long x = 0;
 
 	if (mem_cgroup_disabled())
-		return node_page_state(lruvec_pgdat(lruvec), idx);
+		return analde_page_state(lruvec_pgdat(lruvec), idx);
 
-	pn = container_of(lruvec, struct mem_cgroup_per_node, lruvec);
+	pn = container_of(lruvec, struct mem_cgroup_per_analde, lruvec);
 	x = READ_ONCE(pn->lruvec_stats.state_local[idx]);
 #ifdef CONFIG_SMP
 	if (x < 0)
@@ -1060,11 +1060,11 @@ static inline unsigned long lruvec_page_state_local(struct lruvec *lruvec,
 void mem_cgroup_flush_stats(struct mem_cgroup *memcg);
 void mem_cgroup_flush_stats_ratelimited(struct mem_cgroup *memcg);
 
-void __mod_memcg_lruvec_state(struct lruvec *lruvec, enum node_stat_item idx,
+void __mod_memcg_lruvec_state(struct lruvec *lruvec, enum analde_stat_item idx,
 			      int val);
-void __mod_lruvec_kmem_state(void *p, enum node_stat_item idx, int val);
+void __mod_lruvec_kmem_state(void *p, enum analde_stat_item idx, int val);
 
-static inline void mod_lruvec_kmem_state(void *p, enum node_stat_item idx,
+static inline void mod_lruvec_kmem_state(void *p, enum analde_stat_item idx,
 					 int val)
 {
 	unsigned long flags;
@@ -1075,7 +1075,7 @@ static inline void mod_lruvec_kmem_state(void *p, enum node_stat_item idx,
 }
 
 static inline void mod_memcg_lruvec_state(struct lruvec *lruvec,
-					  enum node_stat_item idx, int val)
+					  enum analde_stat_item idx, int val)
 {
 	unsigned long flags;
 
@@ -1130,14 +1130,14 @@ static inline void memcg_memory_event(struct mem_cgroup *memcg,
 
 	atomic_long_inc(&memcg->memory_events_local[event]);
 	if (!swap_event)
-		cgroup_file_notify(&memcg->events_local_file);
+		cgroup_file_analtify(&memcg->events_local_file);
 
 	do {
 		atomic_long_inc(&memcg->memory_events[event]);
 		if (swap_event)
-			cgroup_file_notify(&memcg->swap_events_file);
+			cgroup_file_analtify(&memcg->swap_events_file);
 		else
-			cgroup_file_notify(&memcg->events_file);
+			cgroup_file_analtify(&memcg->events_file);
 
 		if (!cgroup_subsys_on_dfl(memory_cgrp_subsys))
 			break;
@@ -1430,12 +1430,12 @@ static inline struct mem_cgroup *mem_cgroup_from_id(unsigned short id)
 }
 
 #ifdef CONFIG_SHRINKER_DEBUG
-static inline unsigned long mem_cgroup_ino(struct mem_cgroup *memcg)
+static inline unsigned long mem_cgroup_ianal(struct mem_cgroup *memcg)
 {
 	return 0;
 }
 
-static inline struct mem_cgroup *mem_cgroup_get_from_ino(unsigned long ino)
+static inline struct mem_cgroup *mem_cgroup_get_from_ianal(unsigned long ianal)
 {
 	return NULL;
 }
@@ -1558,15 +1558,15 @@ static inline unsigned long memcg_page_state(struct mem_cgroup *memcg, int idx)
 }
 
 static inline unsigned long lruvec_page_state(struct lruvec *lruvec,
-					      enum node_stat_item idx)
+					      enum analde_stat_item idx)
 {
-	return node_page_state(lruvec_pgdat(lruvec), idx);
+	return analde_page_state(lruvec_pgdat(lruvec), idx);
 }
 
 static inline unsigned long lruvec_page_state_local(struct lruvec *lruvec,
-						    enum node_stat_item idx)
+						    enum analde_stat_item idx)
 {
-	return node_page_state(lruvec_pgdat(lruvec), idx);
+	return analde_page_state(lruvec_pgdat(lruvec), idx);
 }
 
 static inline void mem_cgroup_flush_stats(struct mem_cgroup *memcg)
@@ -1578,24 +1578,24 @@ static inline void mem_cgroup_flush_stats_ratelimited(struct mem_cgroup *memcg)
 }
 
 static inline void __mod_memcg_lruvec_state(struct lruvec *lruvec,
-					    enum node_stat_item idx, int val)
+					    enum analde_stat_item idx, int val)
 {
 }
 
-static inline void __mod_lruvec_kmem_state(void *p, enum node_stat_item idx,
+static inline void __mod_lruvec_kmem_state(void *p, enum analde_stat_item idx,
 					   int val)
 {
 	struct page *page = virt_to_head_page(p);
 
-	__mod_node_page_state(page_pgdat(page), idx, val);
+	__mod_analde_page_state(page_pgdat(page), idx, val);
 }
 
-static inline void mod_lruvec_kmem_state(void *p, enum node_stat_item idx,
+static inline void mod_lruvec_kmem_state(void *p, enum analde_stat_item idx,
 					 int val)
 {
 	struct page *page = virt_to_head_page(p);
 
-	mod_node_page_state(page_pgdat(page), idx, val);
+	mod_analde_page_state(page_pgdat(page), idx, val);
 }
 
 static inline void count_memcg_events(struct mem_cgroup *memcg,
@@ -1633,12 +1633,12 @@ unsigned long mem_cgroup_soft_limit_reclaim(pg_data_t *pgdat, int order,
 }
 #endif /* CONFIG_MEMCG */
 
-static inline void __inc_lruvec_kmem_state(void *p, enum node_stat_item idx)
+static inline void __inc_lruvec_kmem_state(void *p, enum analde_stat_item idx)
 {
 	__mod_lruvec_kmem_state(p, idx, 1);
 }
 
-static inline void __dec_lruvec_kmem_state(void *p, enum node_stat_item idx)
+static inline void __dec_lruvec_kmem_state(void *p, enum analde_stat_item idx)
 {
 	__mod_lruvec_kmem_state(p, idx, -1);
 }
@@ -1963,7 +1963,7 @@ static inline void obj_cgroup_uncharge_zswap(struct obj_cgroup *objcg,
 }
 static inline bool mem_cgroup_zswap_writeback_enabled(struct mem_cgroup *memcg)
 {
-	/* if zswap is disabled, do not block pages going to the swapping device */
+	/* if zswap is disabled, do analt block pages going to the swapping device */
 	return true;
 }
 #endif

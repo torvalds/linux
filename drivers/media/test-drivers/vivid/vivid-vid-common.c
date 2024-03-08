@@ -5,7 +5,7 @@
  * Copyright 2014 Cisco Systems, Inc. and/or its affiliates. All rights reserved.
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/videodev2.h>
@@ -970,11 +970,11 @@ int vidioc_g_std(struct file *file, void *priv, v4l2_std_id *id)
 
 	if (vdev->vfl_dir == VFL_DIR_RX) {
 		if (!vivid_is_sdtv_cap(dev))
-			return -ENODATA;
+			return -EANALDATA;
 		*id = dev->std_cap[dev->input];
 	} else {
 		if (!vivid_is_svid_out(dev))
-			return -ENODATA;
+			return -EANALDATA;
 		*id = dev->std_out;
 	}
 	return 0;
@@ -988,11 +988,11 @@ int vidioc_g_dv_timings(struct file *file, void *_fh,
 
 	if (vdev->vfl_dir == VFL_DIR_RX) {
 		if (!vivid_is_hdmi_cap(dev))
-			return -ENODATA;
+			return -EANALDATA;
 		*timings = dev->dv_timings_cap[dev->input];
 	} else {
 		if (!vivid_is_hdmi_out(dev))
-			return -ENODATA;
+			return -EANALDATA;
 		*timings = dev->dv_timings_out;
 	}
 	return 0;
@@ -1006,10 +1006,10 @@ int vidioc_enum_dv_timings(struct file *file, void *_fh,
 
 	if (vdev->vfl_dir == VFL_DIR_RX) {
 		if (!vivid_is_hdmi_cap(dev))
-			return -ENODATA;
+			return -EANALDATA;
 	} else {
 		if (!vivid_is_hdmi_out(dev))
-			return -ENODATA;
+			return -EANALDATA;
 	}
 	return v4l2_enum_dv_timings_cap(timings, &vivid_dv_timings_cap,
 			NULL, NULL);
@@ -1023,10 +1023,10 @@ int vidioc_dv_timings_cap(struct file *file, void *_fh,
 
 	if (vdev->vfl_dir == VFL_DIR_RX) {
 		if (!vivid_is_hdmi_cap(dev))
-			return -ENODATA;
+			return -EANALDATA;
 	} else {
 		if (!vivid_is_hdmi_out(dev))
-			return -ENODATA;
+			return -EANALDATA;
 	}
 	*cap = vivid_dv_timings_cap;
 	return 0;
@@ -1054,7 +1054,7 @@ int vidioc_g_edid(struct file *file, void *_fh,
 		if (dev->output_type[edid->pad] != HDMI)
 			return -EINVAL;
 		if (!dev->display_present[edid->pad])
-			return -ENODATA;
+			return -EANALDATA;
 		bus_idx = dev->cec_output2bus_map[edid->pad];
 		adap = dev->cec_tx_adap[bus_idx];
 	}
@@ -1063,7 +1063,7 @@ int vidioc_g_edid(struct file *file, void *_fh,
 		return 0;
 	}
 	if (dev->edid_blocks == 0)
-		return -ENODATA;
+		return -EANALDATA;
 	if (edid->start_block >= dev->edid_blocks)
 		return -EINVAL;
 	if (edid->blocks > dev->edid_blocks - edid->start_block)

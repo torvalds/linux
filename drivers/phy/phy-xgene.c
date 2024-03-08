@@ -31,9 +31,9 @@
  * The Serdes CSR is accessed indirectly from the SDS offset at 0x0400.
  *
  * The Ref PLL CMU can be located within the same PHY IP or outside the PHY IP
- * due to shared Ref PLL CMU. For PHY with Ref PLL CMU shared with another IP,
+ * due to shared Ref PLL CMU. For PHY with Ref PLL CMU shared with aanalther IP,
  * it is located outside the PHY IP. This is the case for the PHY located
- * at 0x1f23a000 (SATA Port 4/5). For such PHY, another resource is required
+ * at 0x1f23a000 (SATA Port 4/5). For such PHY, aanalther resource is required
  * to located the SDS/Ref PLL CMU module and its clock for that IP enabled.
  *
  * Currently, this driver only supports Gen3 SATA mode with external clock.
@@ -738,7 +738,7 @@ static void xgene_phy_cfg_cmu_clk_type(struct xgene_phy_ctx *ctx,
 		dev_dbg(ctx->dev, "Set internal reference clock\n");
 	} else if (clk_type == CLK_INT_SING) {
 		/*
-		 * NOTE: This clock type is NOT support for controller
+		 * ANALTE: This clock type is ANALT support for controller
 		 *	 whose internal clock shared in the PCIe controller
 		 *
 		 * Select internal clock mux
@@ -1228,7 +1228,7 @@ skip_manual_cal:
 	dev_dbg(ctx->dev, "PLL calibration successful\n");
 
 	cmu_rd(ctx, cmu_type, CMU_REG15, &val);
-	dev_dbg(ctx->dev, "PHY Tx is %sready\n", val & 0x300 ? "" : "not ");
+	dev_dbg(ctx->dev, "PHY Tx is %sready\n", val & 0x300 ? "" : "analt ");
 	return 0;
 }
 
@@ -1329,7 +1329,7 @@ static int xgene_phy_hw_initialize(struct xgene_phy_ctx *ctx,
 	} else {
 		dev_err(ctx->dev, "Un-supported customer pin mode %d\n",
 			ctx->mode);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -1631,13 +1631,13 @@ static void xgene_phy_get_param(struct platform_device *pdev,
 {
 	int i;
 
-	if (!of_property_read_u32_array(pdev->dev.of_node, name, buffer,
+	if (!of_property_read_u32_array(pdev->dev.of_analde, name, buffer,
 					count)) {
 		for (i = 0; i < count; i++)
 			buffer[i] /= conv_factor;
 		return;
 	}
-	/* Does not exist, load default */
+	/* Does analt exist, load default */
 	for (i = 0; i < count; i++)
 		buffer[i] = default_val[i % 3];
 }
@@ -1658,7 +1658,7 @@ static int xgene_phy_probe(struct platform_device *pdev)
 
 	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctx->dev = &pdev->dev;
 

@@ -4,7 +4,7 @@
  *
  *  Copyright (C) 1999-2007, Greg Ungerer (gerg@snapgear.com)
  *  Copyright (C) 1998  D. Jeff Dionne <jeff@lineo.ca>,
- *                      Kenneth Albanowski <kjahds@kjahds.com>,
+ *                      Kenneth Albaanalwski <kjahds@kjahds.com>,
  *  Copyright (C) 2000  Lineo Inc. (www.lineo.com)
  *  Copyright (C) 2004-2006  Macq Electronique SA. (www.macqel.com)
  *
@@ -26,7 +26,7 @@
 #include <linux/linkage.h>
 #include <asm/unistd.h>
 #include <asm/thread_info.h>
-#include <asm/errno.h>
+#include <asm/erranal.h>
 #include <asm/setup.h>
 #include <asm/asm-offsets.h>
 #include <asm/entry.h>
@@ -50,7 +50,7 @@ sw_usp:
 .globl sys_call_table
 .globl inthandler
 
-enosys:
+eanalsys:
 	mov.l	#sys_ni_syscall,%d3
 	bra	1f
 
@@ -60,11 +60,11 @@ ENTRY(system_call)
 	GET_CURRENT(%d2)
 
 	cmpl	#NR_syscalls,%d0
-	jcc	enosys
+	jcc	eanalsys
 	lea	sys_call_table,%a0
 	lsll	#2,%d0			/* movel %a0@(%d0:l:4),%d3 */
 	movel	%a0@(%d0),%d3
-	jeq	enosys
+	jeq	eanalsys
 
 1:
 	movel	%sp,%d2			/* get thread_info pointer */
@@ -80,7 +80,7 @@ ENTRY(system_call)
 	movel	%d0,%sp@(PT_OFF_D0)	/* save the return value */
 	jra	ret_from_exception
 1:
-	movel	#-ENOSYS,%d2		/* strace needs -ENOSYS in PT_OFF_D0 */
+	movel	#-EANALSYS,%d2		/* strace needs -EANALSYS in PT_OFF_D0 */
 	movel	%d2,PT_OFF_D0(%sp)	/* on syscall entry */
 	subql	#4,%sp
 	SAVE_SWITCH_STACK
@@ -147,7 +147,7 @@ Lsignal_return:
 	subql	#4,%sp			/* dummy return address */
 	SAVE_SWITCH_STACK
 	pea	%sp@(SWITCH_STACK_SIZE)
-	jsr	do_notify_resume
+	jsr	do_analtify_resume
 	addql	#4,%sp
 	RESTORE_SWITCH_STACK
 	addql	#4,%sp
@@ -175,7 +175,7 @@ ENTRY(inthandler)
 /*
  * Beware - when entering resume, prev (the current task) is
  * in a0, next (the new task) is in a1, so don't change these
- * registers until their contents are no longer needed.
+ * registers until their contents are anal longer needed.
  */
 ENTRY(resume)
 	movew	%sr,%d1				 /* save current status */

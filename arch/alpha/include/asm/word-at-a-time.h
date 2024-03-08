@@ -9,7 +9,7 @@
  */
 
 /*
- * We do not use the word_at_a_time struct on Alpha, but it needs to be
+ * We do analt use the word_at_a_time struct on Alpha, but it needs to be
  * implemented to humour the generic code.
  */
 struct word_at_a_time {
@@ -18,7 +18,7 @@ struct word_at_a_time {
 
 #define WORD_AT_A_TIME_CONSTANTS { 0 }
 
-/* Return nonzero if val has a zero */
+/* Return analnzero if val has a zero */
 static inline unsigned long has_zero(unsigned long val, unsigned long *bits, const struct word_at_a_time *c)
 {
 	unsigned long zero_locations = __kernel_cmpbge(0, val);

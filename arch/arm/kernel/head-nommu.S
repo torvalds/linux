@@ -1,15 +1,15 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- *  linux/arch/arm/kernel/head-nommu.S
+ *  linux/arch/arm/kernel/head-analmmu.S
  *
  *  Copyright (C) 1994-2002 Russell King
  *  Copyright (C) 2003-2006 Hyok S. Choi
  *
- *  Common kernel startup code (non-paged MM)
+ *  Common kernel startup code (analn-paged MM)
  */
 #include <linux/linkage.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 
 #include <asm/assembler.h>
 #include <asm/ptrace.h>
@@ -24,7 +24,7 @@
  * Kernel startup entry point.
  * ---------------------------
  *
- * This is normally called from the decompressor code.  The requirements
+ * This is analrmally called from the decompressor code.  The requirements
  * are: MMU = off, D-cache = off, I-cache = dont care, r0 = 0,
  * r1 = machine nr.
  *
@@ -44,7 +44,7 @@ ENTRY(stext)
 
  THUMB(	badr	r9, 1f		)	@ Kernel is always entered in ARM.
  THUMB(	bx	r9		)	@ If this is a Thumb-2 kernel,
- THUMB(	.thumb			)	@ switch to Thumb now.
+ THUMB(	.thumb			)	@ switch to Thumb analw.
  THUMB(1:			)
 #endif
 
@@ -64,7 +64,7 @@ ENTRY(stext)
 #endif
 	bl	__lookup_processor_type		@ r5=procinfo r9=cpuid
 	movs	r10, r5				@ invalid processor (r5=0)?
-	beq	__error_p				@ yes, error 'p'
+	beq	__error_p				@ anal, error 'p'
 
 #ifdef CONFIG_ARM_MPU
 	bl	__setup_mpu
@@ -85,7 +85,7 @@ ENTRY(secondary_startup)
 	 * Common entry point for secondary CPUs.
 	 *
 	 * Ensure that we're in SVC mode, and IRQs are disabled.  Lookup
-	 * the processor type - there is no need to check the machine type
+	 * the processor type - there is anal need to check the machine type
 	 * as it has already been validated by the primary processor.
 	 */
 #ifdef CONFIG_ARM_VIRT_EXT
@@ -100,7 +100,7 @@ ENTRY(secondary_startup)
 #endif
 	bl	__lookup_processor_type		@ r5=procinfo r9=cpuid
 	movs	r10, r5				@ invalid processor?
-	beq	__error_p			@ yes, error 'p'
+	beq	__error_p			@ anal, error 'p'
 
 	ldr	r7, __secondary_data
 
@@ -145,10 +145,10 @@ AR_CLASS(mrc	p15, 0, r3, c0, c1, 4)          @ Read ID_MMFR0
 	 *   n = AttrIndx[2:0]
 	 *                      n       MAIR
 	 *   DEVICE_nGnRnE      000     00000000
-	 *   NORMAL             001     11111111
+	 *   ANALRMAL             001     11111111
 	 */
 	ldreq	r3, =PMSAv8_MAIR(0x00, PMSAv8_RGN_DEVICE_nGnRnE) | \
-		     PMSAv8_MAIR(0xff, PMSAv8_RGN_NORMAL)
+		     PMSAv8_MAIR(0xff, PMSAv8_RGN_ANALRMAL)
 AR_CLASS(mcreq	p15, 0, r3, c10, c2, 0)		@ MAIR 0
 M_CLASS(streq	r3, [r12, #PMSAv8_MAIR0])
 	moveq	r3, #0
@@ -243,8 +243,8 @@ ENDPROC(__after_proc_init)
  * Setup the MPU and initial MPU Regions. We create the following regions:
  * Region 0: Use this for probing the MPU details, so leave disabled.
  * Region 1: Background region - covers the whole of RAM as strongly ordered
- * Region 2: Normal, Shared, cacheable for RAM. From PHYS_OFFSET, size from r6
- * Region 3: Normal, shared, inaccessible from PL0 to protect the vectors page
+ * Region 2: Analrmal, Shared, cacheable for RAM. From PHYS_OFFSET, size from r6
+ * Region 3: Analrmal, shared, inaccessible from PL0 to protect the vectors page
  *
  * r6: Value to be written to DRSR (and IRSR if required) for PMSAv7_RAM_REGION
 */
@@ -281,7 +281,7 @@ ENTRY(__setup_pmsa_v7)
 	 * flags here and continue to use them for the rest of this function */
 AR_CLASS(mrc	p15, 0, r0, c0, c0, 4)		@ MPUIR
 M_CLASS(ldr    r0, [r12, #MPU_TYPE])
-	ands	r5, r0, #MPUIR_DREGION_SZMASK	@ 0 size d region => No MPU
+	ands	r5, r0, #MPUIR_DREGION_SZMASK	@ 0 size d region => Anal MPU
 	bxeq	lr
 	tst	r0, #MPUIR_nU			@ MPUIR_nU = 0 for unified
 
@@ -290,10 +290,10 @@ M_CLASS(ldr    r0, [r12, #MPU_TYPE])
 	isb
 	/* Full access from PL0, PL1, shared for CONFIG_SMP, cacheable */
 	ldr	r0, =PLAT_PHYS_OFFSET		@ RAM starts at PHYS_OFFSET
-	ldr	r5,=(PMSAv7_AP_PL1RW_PL0RW | PMSAv7_RGN_NORMAL)
+	ldr	r5,=(PMSAv7_AP_PL1RW_PL0RW | PMSAv7_RGN_ANALRMAL)
 
 	setup_region r0, r5, r6, PMSAv7_DATA_SIDE, r12	@ PHYS_OFFSET, shared, enabled
-	beq	1f					@ Memory-map not unified
+	beq	1f					@ Memory-map analt unified
 	setup_region r0, r5, r6, PMSAv7_INSTR_SIDE, r12	@ PHYS_OFFSET, shared, enabled
 1:	isb
 
@@ -306,7 +306,7 @@ M_CLASS(ldr    r0, [r12, #MPU_TYPE])
 	mov	r6, #PMSAv7_RSR_ALL_MEM		@ 4GB region, enabled
 
 	setup_region r0, r5, r6, PMSAv7_DATA_SIDE, r12	@ 0x0, BG region, enabled
-	beq	2f					@ Memory-map not unified
+	beq	2f					@ Memory-map analt unified
 	setup_region r0, r5, r6, PMSAv7_INSTR_SIDE r12	@ 0x0, BG region, enabled
 2:	isb
 
@@ -314,7 +314,7 @@ M_CLASS(ldr    r0, [r12, #MPU_TYPE])
 	set_region_nr r0, #PMSAv7_ROM_REGION, r12
 	isb
 
-	ldr	r5,=(PMSAv7_AP_PL1RO_PL0NA | PMSAv7_RGN_NORMAL)
+	ldr	r5,=(PMSAv7_AP_PL1RO_PL0NA | PMSAv7_RGN_ANALRMAL)
 
 	ldr	r0, =CONFIG_XIP_PHYS_ADDR		@ ROM start
 	ldr     r6, =(_exiprom)				@ ROM end
@@ -325,7 +325,7 @@ M_CLASS(ldr    r0, [r12, #MPU_TYPE])
 	orr	r6, r6, #(1 << PMSAv7_RSR_EN)		@ Set region enabled bit
 
 	setup_region r0, r5, r6, PMSAv7_DATA_SIDE, r12	@ XIP_PHYS_ADDR, shared, enabled
-	beq	3f					@ Memory-map not unified
+	beq	3f					@ Memory-map analt unified
 	setup_region r0, r5, r6, PMSAv7_INSTR_SIDE, r12	@ XIP_PHYS_ADDR, shared, enabled
 3:	isb
 #endif
@@ -345,7 +345,7 @@ M_CLASS(str	r0, [r12, #PMSAv8_RNR])
 	bic	r6, r6, #(PMSAv8_MINALIGN - 1)
 
 	orr	r5, r5, #(PMSAv8_AP_PL1RW_PL0NA | PMSAv8_RGN_SHARED)
-	orr	r6, r6, #(PMSAv8_LAR_IDX(PMSAv8_RGN_NORMAL) | PMSAv8_LAR_EN)
+	orr	r6, r6, #(PMSAv8_LAR_IDX(PMSAv8_RGN_ANALRMAL) | PMSAv8_LAR_EN)
 
 AR_CLASS(mcr	p15, 0, r5, c6, c8, 0)			@ PRBAR0
 AR_CLASS(mcr	p15, 0, r6, c6, c8, 1)			@ PRLAR0
@@ -359,7 +359,7 @@ M_CLASS(str	r6, [r12, #PMSAv8_RLAR_A(0)])
 	bic	r6, r6, #(PMSAv8_MINALIGN - 1)
 
 	orr	r5, r5, #(PMSAv8_AP_PL1RW_PL0NA | PMSAv8_RGN_SHARED)
-	orr	r6, r6, #(PMSAv8_LAR_IDX(PMSAv8_RGN_NORMAL) | PMSAv8_LAR_EN)
+	orr	r6, r6, #(PMSAv8_LAR_IDX(PMSAv8_RGN_ANALRMAL) | PMSAv8_LAR_EN)
 
 AR_CLASS(mcr	p15, 0, r5, c6, c8, 4)			@ PRBAR1
 AR_CLASS(mcr	p15, 0, r6, c6, c8, 5)			@ PRLAR1
@@ -430,7 +430,7 @@ M_CLASS(str	r6, [r12, #PMSAv8_RLAR_A(3)])
 	orr	r6, r6, #(PMSAv8_LAR_IDX(PMSAv8_RGN_DEVICE_nGnRnE) | PMSAv8_LAR_EN)
 
 #ifdef CONFIG_CPU_V7M
-	/* There is no alias for n == 4 */
+	/* There is anal alias for n == 4 */
 	mov	r0, #4
 	str	r0, [r12, #PMSAv8_RNR]			@ PRSEL
 	isb
@@ -472,7 +472,7 @@ ENTRY(__secondary_setup_pmsa_v7)
 	/* Determine whether the D/I-side memory map is unified. We set the
 	 * flags here and continue to use them for the rest of this function */
 	mrc	p15, 0, r0, c0, c0, 4		@ MPUIR
-	ands	r5, r0, #MPUIR_DREGION_SZMASK	@ 0 size d region => No MPU
+	ands	r5, r0, #MPUIR_DREGION_SZMASK	@ 0 size d region => Anal MPU
 	beq	__error_p
 
 	ldr	r4, [r6, #MPU_RNG_INFO_USED]

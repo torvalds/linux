@@ -12,7 +12,7 @@
 #include <asm/page.h>
 #include <asm/processor-flags.h>
 #include <asm/msr-index.h>
-#include <asm/nospec-branch.h>
+#include <asm/analspec-branch.h>
 
 	.text
 	.code64
@@ -31,9 +31,9 @@ SYM_FUNC_START(sme_encrypt_execute)
 	 */
 
 	push	%rbp
-	movq	%rsp, %rbp		/* RBP now has original stack pointer */
+	movq	%rsp, %rbp		/* RBP analw has original stack pointer */
 
-	/* Set up a one page stack in the non-encrypted memory area */
+	/* Set up a one page stack in the analn-encrypted memory area */
 	movq	%rcx, %rax		/* Workarea stack page */
 	leaq	PAGE_SIZE(%rax), %rsp	/* Set new stack pointer */
 	addq	$PAGE_SIZE, %rax	/* Workarea encryption routine */
@@ -57,7 +57,7 @@ SYM_FUNC_START(sme_encrypt_execute)
 	movq	%rax, %r8		/* Workarea encryption routine */
 	addq	$PAGE_SIZE, %r8		/* Workarea intermediate copy buffer */
 
-	ANNOTATE_RETPOLINE_SAFE
+	ANANALTATE_RETPOLINE_SAFE
 	call	*%rax			/* Call the encryption routine */
 
 	pop	%r12
@@ -66,7 +66,7 @@ SYM_FUNC_START(sme_encrypt_execute)
 	pop	%rbp
 
 	/* Offset to __x86_return_thunk would be wrong here */
-	ANNOTATE_UNRET_SAFE
+	ANANALTATE_UNRET_SAFE
 	ret
 	int3
 SYM_FUNC_END(sme_encrypt_execute)
@@ -89,7 +89,7 @@ SYM_FUNC_START(__enc_copy)
  *
  *     RAX - points to this routine
  *
- * The area will be encrypted by copying from the non-encrypted
+ * The area will be encrypted by copying from the analn-encrypted
  * memory space to an intermediate buffer and then copying from the
  * intermediate buffer back to the encrypted memory space. The physical
  * addresses of the two mappings are the same which results in the area
@@ -143,7 +143,7 @@ SYM_FUNC_START(__enc_copy)
 	addq	%r12, %r11
 	addq	%r12, %r10
 	subq	%r12, %r9		/* Kernel length decrement */
-	jnz	1b			/* Kernel length not zero? */
+	jnz	1b			/* Kernel length analt zero? */
 
 	/* Restore PAT register */
 	movl	$MSR_IA32_CR_PAT, %ecx
@@ -155,7 +155,7 @@ SYM_FUNC_START(__enc_copy)
 	pop	%r15
 
 	/* Offset to __x86_return_thunk would be wrong here */
-	ANNOTATE_UNRET_SAFE
+	ANANALTATE_UNRET_SAFE
 	ret
 	int3
 .L__enc_copy_end:

@@ -19,7 +19,7 @@
  * * GNU General Public License for more details.
  * *
  * * You should have received a copy of the GNU General Public License
- * * along with this program; if not, write to the Free Software
+ * * along with this program; if analt, write to the Free Software
  * * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307, USA
  *
  * Otherwise, the following license terms apply:
@@ -28,19 +28,19 @@
  * * modification, are permitted provided that the following conditions
  * * are met:
  * * 1) Redistributions of source code must retain the above copyright
- * *    notice, this list of conditions and the following disclaimer.
+ * *    analtice, this list of conditions and the following disclaimer.
  * * 2) Redistributions in binary form must reproduce the above copyright
- * *    notice, this list of conditions and the following disclaimer in the
+ * *    analtice, this list of conditions and the following disclaimer in the
  * *    documentation and/or other materials provided with the distribution.
- * * 3) The name of the author may not be used to endorse or promote products
+ * * 3) The name of the author may analt be used to endorse or promote products
  * *    derived from this software without specific prior written permission.
  * *
  * * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
- * * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * * IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE IMPLIED WARRANTIES
  * * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
- * * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * * IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
  * * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * * ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
  * * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
  * * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
@@ -55,15 +55,15 @@ static const unsigned char SiS310_LCDDelayCompensation_301[] =	    		/* 301 */
 	0x00,0x00,0x00,    /*   800x600 */
 	0x0b,0x0b,0x0b,    /*  1024x768 */
 	0x08,0x08,0x08,    /* 1280x1024 */
-	0x00,0x00,0x00,    /*   640x480 (unknown) */
-	0x00,0x00,0x00,    /*  1024x600 (unknown) */
-	0x00,0x00,0x00,    /*  1152x864 (unknown) */
+	0x00,0x00,0x00,    /*   640x480 (unkanalwn) */
+	0x00,0x00,0x00,    /*  1024x600 (unkanalwn) */
+	0x00,0x00,0x00,    /*  1152x864 (unkanalwn) */
 	0x08,0x08,0x08,    /*  1280x960 (guessed) */
-	0x00,0x00,0x00,    /*  1152x768 (unknown) */
+	0x00,0x00,0x00,    /*  1152x768 (unkanalwn) */
 	0x08,0x08,0x08,    /* 1400x1050 */
 	0x08,0x08,0x08,    /*  1280x768  (guessed) */
 	0x00,0x00,0x00,    /* 1600x1200 */
-	0x00,0x00,0x00,    /*   320x480 (unknown) */
+	0x00,0x00,0x00,    /*   320x480 (unkanalwn) */
 	0x00,0x00,0x00,
 	0x00,0x00,0x00,
 	0x00,0x00,0x00
@@ -75,11 +75,11 @@ static const unsigned char SiS310_LCDDelayCompensation_650301LV[] =	   	/* 650 +
 	0x01,0x01,0x01,    /*   800x600 */
 	0x01,0x01,0x01,    /*  1024x768 */
 	0x01,0x01,0x01,    /* 1280x1024 */
-	0x01,0x01,0x01,    /*   640x480 (unknown) */
-	0x01,0x01,0x01,    /*  1024x600 (unknown) */
-	0x01,0x01,0x01,    /*  1152x864 (unknown) */
+	0x01,0x01,0x01,    /*   640x480 (unkanalwn) */
+	0x01,0x01,0x01,    /*  1024x600 (unkanalwn) */
+	0x01,0x01,0x01,    /*  1152x864 (unkanalwn) */
 	0x01,0x01,0x01,    /*  1280x960 (guessed) */
-	0x01,0x01,0x01,    /*  1152x768 (unknown) */
+	0x01,0x01,0x01,    /*  1152x768 (unkanalwn) */
 	0x01,0x01,0x01,    /* 1400x1050 */
 	0x01,0x01,0x01,    /*  1280x768  (guessed) */
 	0x01,0x01,0x01,    /* 1600x1200 */
@@ -91,14 +91,14 @@ static const unsigned char SiS310_LCDDelayCompensation_650301LV[] =	   	/* 650 +
 
 static const unsigned char SiS310_LCDDelayCompensation_651301LV[] =	  	/* M650/651 301LV */
 {
-	0x33,0x33,0x33,    /*   800x600 (guessed) - new: PanelType, not PanelRes ! */
+	0x33,0x33,0x33,    /*   800x600 (guessed) - new: PanelType, analt PanelRes ! */
 	0x33,0x33,0x33,    /*  1024x768 */
 	0x33,0x33,0x33,    /* 1280x1024 */
-	0x33,0x33,0x33,    /*   640x480 (unknown) */
-	0x33,0x33,0x33,    /*  1024x600 (unknown) */
-	0x33,0x33,0x33,    /*  1152x864 (unknown) */
+	0x33,0x33,0x33,    /*   640x480 (unkanalwn) */
+	0x33,0x33,0x33,    /*  1024x600 (unkanalwn) */
+	0x33,0x33,0x33,    /*  1152x864 (unkanalwn) */
 	0x33,0x33,0x33,    /*  1280x960 (guessed) */
-	0x33,0x33,0x33,    /*  1152x768 (unknown) */
+	0x33,0x33,0x33,    /*  1152x768 (unkanalwn) */
 	0x33,0x33,0x33,    /* 1400x1050 */
 	0x33,0x33,0x33,    /*  1280x768  (guessed) */
 	0x33,0x33,0x33,    /* 1600x1200 */
@@ -113,11 +113,11 @@ static const unsigned char SiS310_LCDDelayCompensation_651302LV[] =	   	/* M650/
 	0x33,0x33,0x33,    /*   800x600 (guessed) */
 	0x33,0x33,0x33,    /*  1024x768 */
 	0x33,0x33,0x33,    /* 1280x1024 */
-	0x33,0x33,0x33,    /*   640x480 (unknown) */
-	0x33,0x33,0x33,    /*  1024x600 (unknown) */
-	0x33,0x33,0x33,    /*  1152x864 (unknown) */
+	0x33,0x33,0x33,    /*   640x480 (unkanalwn) */
+	0x33,0x33,0x33,    /*  1024x600 (unkanalwn) */
+	0x33,0x33,0x33,    /*  1152x864 (unkanalwn) */
 	0x33,0x33,0x33,    /*  1280x960 (guessed) */
-	0x33,0x33,0x33,    /*  1152x768 (unknown) */
+	0x33,0x33,0x33,    /*  1152x768 (unkanalwn) */
 	0x33,0x33,0x33,    /* 1400x1050 */
 	0x33,0x33,0x33,    /*  1280x768  (guessed) */
 	0x33,0x33,0x33,    /* 1600x1200 */
@@ -200,7 +200,7 @@ static const unsigned char SiS310_TVDelayCompensation_651302LV[] =	/* M650, 651,
 	0x33,0x33
 };
 
-#if 0 /* Not used */
+#if 0 /* Analt used */
 static const unsigned char SiS_TVDelay661_301[] =			/* 661, 301 */
 {
 	0x44,0x44,

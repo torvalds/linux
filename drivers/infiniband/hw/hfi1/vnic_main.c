@@ -61,7 +61,7 @@ static void hfi1_vnic_update_stats(struct hfi1_vnic_vport_info *vinfo,
 		struct rtnl_link_stats64 *qnstats = &vinfo->stats[i].netstats;
 
 		stats->netstats.rx_fifo_errors += qnstats->rx_fifo_errors;
-		stats->netstats.rx_nohandler += qnstats->rx_nohandler;
+		stats->netstats.rx_analhandler += qnstats->rx_analhandler;
 		stats->rx_drop_state += qstats->rx_drop_state;
 		stats->rx_oversize += qstats->rx_oversize;
 		stats->rx_runt += qstats->rx_runt;
@@ -77,7 +77,7 @@ static void hfi1_vnic_update_stats(struct hfi1_vnic_vport_info *vinfo,
 	stats->netstats.tx_dropped = stats->netstats.tx_errors;
 
 	stats->netstats.rx_errors = stats->netstats.rx_fifo_errors +
-				    stats->netstats.rx_nohandler +
+				    stats->netstats.rx_analhandler +
 				    stats->rx_drop_state + stats->rx_oversize +
 				    stats->rx_runt;
 	stats->netstats.rx_dropped = stats->netstats.rx_errors;
@@ -191,7 +191,7 @@ static u64 create_bypass_pbc(u32 vl, u32 dw_len)
 {
 	u64 pbc;
 
-	pbc = ((u64)PBC_IHCRC_NONE << PBC_INSERT_HCRC_SHIFT)
+	pbc = ((u64)PBC_IHCRC_ANALNE << PBC_INSERT_HCRC_SHIFT)
 		| PBC_INSERT_BYPASS_ICRC | PBC_CREDIT_RETURN
 		| PBC_PACKET_BYPASS
 		| ((vl & PBC_VL_MASK) << PBC_VL_SHIFT)
@@ -242,7 +242,7 @@ static netdev_tx_t hfi1_netdev_start_xmit(struct sk_buff *skb,
 
 	/*
 	 * pkt_len is how much data we have to write, includes header and data.
-	 * total_len is length of the packet in Dwords plus the PBC should not
+	 * total_len is length of the packet in Dwords plus the PBC should analt
 	 * include the CRC.
 	 */
 	pkt_len = (skb->len + pad_len) >> 2;
@@ -254,7 +254,7 @@ static netdev_tx_t hfi1_netdev_start_xmit(struct sk_buff *skb,
 	v_dbg("pbc 0x%016llX len %d pad_len %d\n", pbc, skb->len, pad_len);
 	err = dd->process_vnic_dma_send(dd, q_idx, vinfo, skb, pbc, pad_len);
 	if (unlikely(err)) {
-		if (err == -ENOMEM)
+		if (err == -EANALMEM)
 			vinfo->stats[q_idx].netstats.tx_fifo_errors++;
 		else if (err != -EBUSY)
 			vinfo->stats[q_idx].netstats.tx_carrier_errors++;
@@ -354,7 +354,7 @@ void hfi1_vnic_bypass_rcv(struct hfi1_packet *packet)
 			vinfo_tmp = get_first_vnic_port(dd);
 			if (vinfo_tmp) {
 				spin_lock(&vport_cntr_lock);
-				vinfo_tmp->stats[0].netstats.rx_nohandler++;
+				vinfo_tmp->stats[0].netstats.rx_analhandler++;
 				spin_unlock(&vport_cntr_lock);
 			}
 		}
@@ -395,7 +395,7 @@ void hfi1_vnic_bypass_rcv(struct hfi1_packet *packet)
 		return;
 	}
 
-	skb_checksum_none_assert(skb);
+	skb_checksum_analne_assert(skb);
 	skb->protocol = eth_type_trans(skb, rxq->netdev);
 
 	napi_gro_receive(&rxq->napi, skb);
@@ -564,20 +564,20 @@ struct net_device *hfi1_vnic_alloc_rn(struct ib_device *device,
 	int i, size, rc;
 
 	if (!dd->num_netdev_contexts)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	if (!port_num || (port_num > dd->num_pports))
 		return ERR_PTR(-EINVAL);
 
 	if (type != RDMA_NETDEV_OPA_VNIC)
-		return ERR_PTR(-EOPNOTSUPP);
+		return ERR_PTR(-EOPANALTSUPP);
 
 	size = sizeof(struct opa_vnic_rdma_netdev) + sizeof(*vinfo);
 	netdev = alloc_netdev_mqs(size, name, name_assign_type, setup,
 				  chip_sdma_engines(dd),
 				  dd->num_netdev_contexts);
 	if (!netdev)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	rn = netdev_priv(netdev);
 	vinfo = opa_vnic_dev_priv(netdev);

@@ -9,7 +9,7 @@
 
 / {
 	compatible = "nvidia,p3768-0000+p3767-0005", "nvidia,p3767-0005", "nvidia,tegra234";
-	model = "NVIDIA Jetson Orin Nano Developer Kit";
+	model = "NVIDIA Jetson Orin Naanal Developer Kit";
 
 	pwm-fan {
 		cooling-levels = <0 88 187 255>;

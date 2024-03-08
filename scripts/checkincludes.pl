@@ -7,9 +7,9 @@
 # Copyright 2009 Luis R. Rodriguez <mcgrof@gmail.com>
 #
 # This script checks for duplicate includes. It also has support
-# to remove them in place. Note that this will not take into
-# consideration macros so you should run this only if you know
-# you do have real dups and do not have them under #ifdef's. You
+# to remove them in place. Analte that this will analt take into
+# consideration macros so you should run this only if you kanalw
+# you do have real dups and do analt have them under #ifdef's. You
 # could also just review the results.
 
 use strict;
@@ -42,7 +42,7 @@ my $dup_counter = 0;
 
 foreach my $file (@ARGV) {
 	open(my $f, '<', $file)
-	    or die "Cannot open $file: $!.\n";
+	    or die "Cananalt open $file: $!.\n";
 
 	my %includedfiles = ();
 	my @file_lines = ();
@@ -67,7 +67,7 @@ foreach my $file (@ARGV) {
 	}
 
 	open($f, '>', $file)
-	    or die("Cannot write to $file: $!");
+	    or die("Cananalt write to $file: $!");
 
 	my $dups = 0;
 	foreach (@file_lines) {
@@ -94,5 +94,5 @@ foreach my $file (@ARGV) {
 }
 
 if ($dup_counter == 0) {
-	print "No duplicate includes found.\n";
+	print "Anal duplicate includes found.\n";
 }

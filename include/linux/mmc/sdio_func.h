@@ -19,7 +19,7 @@ struct sdio_func;
 typedef void (sdio_irq_handler_t)(struct sdio_func *);
 
 /*
- * SDIO function CIS tuple (unknown to the core)
+ * SDIO function CIS tuple (unkanalwn to the core)
  */
 struct sdio_func_tuple {
 	struct sdio_func_tuple *next;
@@ -52,7 +52,7 @@ struct sdio_func {
 	u8			*tmpbuf;	/* DMA:able scratch buffer */
 
 	u8			major_rev;	/* major revision number */
-	u8			minor_rev;	/* minor revision number */
+	u8			mianalr_rev;	/* mianalr revision number */
 	unsigned		num_info;	/* number of info strings */
 	const char		**info;		/* info strings */
 
@@ -113,7 +113,7 @@ extern void sdio_unregister_driver(struct sdio_driver *);
  * module_sdio_driver() - Helper macro for registering a SDIO driver
  * @__sdio_driver: sdio_driver struct
  *
- * Helper macro for SDIO drivers which do not do anything special in module
+ * Helper macro for SDIO drivers which do analt do anything special in module
  * init/exit. This eliminates a lot of boilerplate. Each module may only
  * use this macro once, and calling it replaces module_init() and module_exit()
  */
@@ -172,7 +172,7 @@ extern int sdio_set_host_pm_flags(struct sdio_func *func, mmc_pm_flag_t flags);
 extern void sdio_retune_crc_disable(struct sdio_func *func);
 extern void sdio_retune_crc_enable(struct sdio_func *func);
 
-extern void sdio_retune_hold_now(struct sdio_func *func);
+extern void sdio_retune_hold_analw(struct sdio_func *func);
 extern void sdio_retune_release(struct sdio_func *func);
 
 #endif /* LINUX_MMC_SDIO_FUNC_H */

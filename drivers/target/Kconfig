@@ -19,7 +19,7 @@ config TCM_IBLOCK
 	tristate "TCM/IBLOCK Subsystem Plugin for Linux/BLOCK"
 	select BLK_DEV_INTEGRITY
 	help
-	Say Y here to enable the TCM/IBLOCK subsystem plugin for non-buffered
+	Say Y here to enable the TCM/IBLOCK subsystem plugin for analn-buffered
 	access to Linux/Block devices using BIO
 
 config TCM_FILEIO
@@ -32,7 +32,7 @@ config TCM_PSCSI
 	tristate "TCM/pSCSI Subsystem Plugin for Linux/SCSI"
 	depends on SCSI
 	help
-	Say Y here to enable the TCM/pSCSI subsystem plugin for non-buffered
+	Say Y here to enable the TCM/pSCSI subsystem plugin for analn-buffered
 	passthrough access to Linux/SCSI device
 
 config TCM_USER2

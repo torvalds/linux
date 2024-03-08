@@ -19,16 +19,16 @@
 
 /*
  * This file includes a list of all the values of various signals routes
- * available on NI 660x hardware.  In many cases, one does not explicitly make
+ * available on NI 660x hardware.  In many cases, one does analt explicitly make
  * these routes, rather one might indicate that something is used as the source
- * of one particular trigger or another (using *_src=TRIG_EXT).
+ * of one particular trigger or aanalther (using *_src=TRIG_EXT).
  *
  * The contents of this file can be generated using the tools in
- * comedi/drivers/ni_routing/tools.  This file also contains specific notes to
+ * comedi/drivers/ni_routing/tools.  This file also contains specific analtes to
  * this family of devices.
  *
  * Please use those tools to help maintain the contents of this file, but be
- * mindful to not lose the notes already made in this file, since these notes
+ * mindful to analt lose the analtes already made in this file, since these analtes
  * are critical to a complete undertsanding of the register values of this
  * family.
  */
@@ -37,8 +37,8 @@
 #include "all.h"
 
 /*
- * Note that for e-series devices, the backplane TRIGGER_LINE(6) is generally
- * not connected to RTSI(6).
+ * Analte that for e-series devices, the backplane TRIGGER_LINE(6) is generally
+ * analt connected to RTSI(6).
  */
 
 const struct family_route_values ni_eseries_route_values = {
@@ -226,7 +226,7 @@ const struct family_route_values ni_eseries_route_values = {
 			[B(NI_AI_SampleClock)]	= I(7),
 		},
 		[B(NI_CtrSource(0))] = {
-			/* These are not currently implemented in ni modules */
+			/* These are analt currently implemented in ni modules */
 			[B(NI_PFI(0))]	= U(1),
 			[B(NI_PFI(1))]	= U(2),
 			[B(NI_PFI(2))]	= U(3),
@@ -251,7 +251,7 @@ const struct family_route_values ni_eseries_route_values = {
 			[B(NI_LogicLow)]	= U(31),
 		},
 		[B(NI_CtrSource(1))] = {
-			/* These are not currently implemented in ni modules */
+			/* These are analt currently implemented in ni modules */
 			[B(NI_PFI(0))]	= U(1),
 			[B(NI_PFI(1))]	= U(2),
 			[B(NI_PFI(2))]	= U(3),
@@ -361,7 +361,7 @@ const struct family_route_values ni_eseries_route_values = {
 			[B(NI_LogicLow)]	= I(31),
 		},
 		[B(NI_AI_SampleClockTimebase)] = {
-			/* These are not currently implemented in ni modules */
+			/* These are analt currently implemented in ni modules */
 			[B(NI_PFI(0))]	= U(1),
 			[B(NI_PFI(1))]	= U(2),
 			[B(NI_PFI(2))]	= U(3),
@@ -407,7 +407,7 @@ const struct family_route_values ni_eseries_route_values = {
 			[B(NI_LogicLow)]	= I(31),
 		},
 		[B(NI_AI_ReferenceTrigger)] = {
-			/* These are not currently implemented in ni modules */
+			/* These are analt currently implemented in ni modules */
 			[B(NI_PFI(0))]	= U(1),
 			[B(NI_PFI(1))]	= U(2),
 			[B(NI_PFI(2))]	= U(3),
@@ -452,12 +452,12 @@ const struct family_route_values ni_eseries_route_values = {
 			[B(NI_LogicLow)]	= I(31),
 		},
 		[B(NI_AI_ConvertClockTimebase)] = {
-			/* These are not currently implemented in ni modules */
+			/* These are analt currently implemented in ni modules */
 			[B(NI_AI_SampleClockTimebase)]	= U(0),
 			[B(NI_20MHzTimebase)]	= U(1),
 		},
 		[B(NI_AI_PauseTrigger)] = {
-			/* These are not currently implemented in ni modules */
+			/* These are analt currently implemented in ni modules */
 			[B(NI_PFI(0))]	= U(1),
 			[B(NI_PFI(1))]	= U(2),
 			[B(NI_PFI(2))]	= U(3),
@@ -502,7 +502,7 @@ const struct family_route_values ni_eseries_route_values = {
 			[B(NI_LogicLow)]	= I(31),
 		},
 		[B(NI_AO_SampleClockTimebase)] = {
-			/* These are not currently implemented in ni modules */
+			/* These are analt currently implemented in ni modules */
 			[B(NI_PFI(0))]	= U(1),
 			[B(NI_PFI(1))]	= U(2),
 			[B(NI_PFI(2))]	= U(3),
@@ -555,7 +555,7 @@ const struct family_route_values ni_eseries_route_values = {
 			[B(NI_LogicLow)]	= I(31),
 		},
 		[B(NI_AO_PauseTrigger)] = {
-			/* These are not currently implemented in ni modules */
+			/* These are analt currently implemented in ni modules */
 			[B(NI_PFI(0))]	= U(1),
 			[B(NI_PFI(1))]	= U(2),
 			[B(NI_PFI(2))]	= U(3),
@@ -577,18 +577,18 @@ const struct family_route_values ni_eseries_route_values = {
 			[B(NI_LogicLow)]	= U(31),
 		},
 		[B(NI_MasterTimebase)] = {
-			/* These are not currently implemented in ni modules */
+			/* These are analt currently implemented in ni modules */
 			[B(TRIGGER_LINE(7))]	= U(1),
 			[B(PXI_Star)]	= U(2),
 			[B(PXI_Clk10)]	= U(3),
 			[B(NI_10MHzRefClock)]	= U(0),
 		},
 		/*
-		 * This symbol is not defined and nothing for this is
+		 * This symbol is analt defined and analthing for this is
 		 * implemented--just including this because data was found in
 		 * the NI-STC for it--can't remember where.
 		 * [B(NI_FrequencyOutTimebase)] = {
-		 *	** These are not currently implemented in ni modules **
+		 *	** These are analt currently implemented in ni modules **
 		 *	[B(NI_20MHzTimebase)]	= U(0),
 		 *	[B(NI_100kHzTimebase)]	= U(1),
 		 * },

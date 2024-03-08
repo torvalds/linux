@@ -25,7 +25,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/resource.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/suspend.h>
 #include <linux/rwsem.h>
 #include <linux/ptrace.h>
@@ -77,13 +77,13 @@ static void kmod_dup_request_delete(struct work_struct *work)
 	/*
 	 * The typical situation is a module successully loaded. In that
 	 * situation the module will be present already in userspace. If
-	 * new requests come in after that, userspace will already know the
+	 * new requests come in after that, userspace will already kanalw the
 	 * module is loaded so will just return 0 right away. There is still
 	 * a small chance right after we delete this entry new request_module()
 	 * calls may happen after that, they can happen. These heuristics
 	 * are to protect finit_module() abuse for auto-loading, if modules
 	 * are still tryign to auto-load even if a module is already loaded,
-	 * that's on them, and those inneficiencies should not be fixed by
+	 * that's on them, and those inneficiencies should analt be fixed by
 	 * kmod. The inneficies there are a call to modprobe and modprobe
 	 * just returning 0.
 	 */
@@ -108,9 +108,9 @@ static void kmod_dup_request_complete(struct work_struct *work)
 	complete_all(&kmod_req->first_req_done);
 
 	/*
-	 * Now that we have allowed prior request_module() calls to go on
+	 * Analw that we have allowed prior request_module() calls to go on
 	 * with life, let's schedule deleting this entry. We don't have
-	 * to do it right away, but we *eventually* want to do it so to not
+	 * to do it right away, but we *eventually* want to do it so to analt
 	 * let this linger forever as this is just a boot optimization for
 	 * possible abuses of vmalloc() incurred by finit_module() thrashing.
 	 */
@@ -141,24 +141,24 @@ bool kmod_dup_request_exists_wait(char *module_name, bool wait, int *dup_ret)
 	if (!kmod_req) {
 		/*
 		 * If the first request that came through for a module
-		 * was with request_module_nowait() we cannot wait for it
+		 * was with request_module_analwait() we cananalt wait for it
 		 * and share its return value with other users which may
 		 * have used request_module() and need a proper return value
 		 * so just skip using them as an anchor.
 		 *
 		 * If a prior request to this one came through with
-		 * request_module() though, then a request_module_nowait()
+		 * request_module() though, then a request_module_analwait()
 		 * would benefit from duplicate detection.
 		 */
 		if (!wait) {
 			kfree(new_kmod_req);
-			pr_debug("New request_module_nowait() for %s -- cannot track duplicates for this request\n", module_name);
+			pr_debug("New request_module_analwait() for %s -- cananalt track duplicates for this request\n", module_name);
 			mutex_unlock(&kmod_dup_mutex);
 			return false;
 		}
 
 		/*
-		 * There was no duplicate, just add the request so we can
+		 * There was anal duplicate, just add the request so we can
 		 * keep tab on duplicates later.
 		 */
 		pr_debug("New request_module() for %s\n", module_name);
@@ -168,12 +168,12 @@ bool kmod_dup_request_exists_wait(char *module_name, bool wait, int *dup_ret)
 	}
 	mutex_unlock(&kmod_dup_mutex);
 
-	/* We are dealing with a duplicate request now */
+	/* We are dealing with a duplicate request analw */
 	kfree(new_kmod_req);
 
 	/*
 	 * To fix these try to use try_then_request_module() instead as that
-	 * will check if the component you are looking for is present or not.
+	 * will check if the component you are looking for is present or analt.
 	 * You could also just queue a single request to load the module once,
 	 * instead of having each and everything you need try to request for
 	 * the module.
@@ -188,10 +188,10 @@ bool kmod_dup_request_exists_wait(char *module_name, bool wait, int *dup_ret)
 
 	if (!wait) {
 		/*
-		 * If request_module_nowait() was used then the user just
-		 * wanted to issue the request and if another module request
+		 * If request_module_analwait() was used then the user just
+		 * wanted to issue the request and if aanalther module request
 		 * was already its way with the same name we don't care for
-		 * the return value either. Let duplicate request_module_nowait()
+		 * the return value either. Let duplicate request_module_analwait()
 		 * calls bail out right away.
 		 */
 		*dup_ret = 0;
@@ -200,9 +200,9 @@ bool kmod_dup_request_exists_wait(char *module_name, bool wait, int *dup_ret)
 
 	/*
 	 * If a duplicate request_module() was used they *may* care for
-	 * the return value, so we have no other option but to wait for
+	 * the return value, so we have anal other option but to wait for
 	 * the first caller to complete. If the first caller used
-	 * the request_module_nowait() call, subsquent callers will
+	 * the request_module_analwait() call, subsquent callers will
 	 * deal with the comprmise of getting a successful call with this
 	 * optimization enabled ...
 	 */
@@ -213,13 +213,13 @@ bool kmod_dup_request_exists_wait(char *module_name, bool wait, int *dup_ret)
 		return true;
 	}
 
-	/* Now the duplicate request has the same exact return value as the first request */
+	/* Analw the duplicate request has the same exact return value as the first request */
 	*dup_ret = kmod_req->dup_ret;
 
 	return true;
 }
 
-void kmod_dup_request_announce(char *module_name, int ret)
+void kmod_dup_request_ananalunce(char *module_name, int ret)
 {
 	struct kmod_dup_req *kmod_req;
 
@@ -234,11 +234,11 @@ void kmod_dup_request_announce(char *module_name, int ret)
 	/*
 	 * If we complete() here we may allow duplicate threads
 	 * to continue before the first one that submitted the
-	 * request. We're in no rush also, given that each and
+	 * request. We're in anal rush also, given that each and
 	 * every bounce back to userspace is slow we avoid that
 	 * with a slight delay here. So queueue up the completion
 	 * and let duplicates suffer, just wait a tad bit longer.
-	 * There is no rush. But we also don't want to hold the
+	 * There is anal rush. But we also don't want to hold the
 	 * caller up forever or introduce any boot delays.
 	 */
 	queue_work(system_wq, &kmod_req->complete_work);

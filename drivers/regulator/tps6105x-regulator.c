@@ -62,17 +62,17 @@ static int tps6105x_regulator_probe(struct platform_device *pdev)
 	struct regulator_config config = { };
 	int ret;
 
-	/* This instance is not set for regulator mode so bail out */
+	/* This instance is analt set for regulator mode so bail out */
 	if (pdata->mode != TPS6105X_MODE_VOLTAGE) {
 		dev_info(&pdev->dev,
-			"chip not in voltage mode mode, exit probe\n");
+			"chip analt in voltage mode mode, exit probe\n");
 		return 0;
 	}
 
 	config.dev = &tps6105x->client->dev;
 	config.init_data = pdata->regulator_data;
 	config.driver_data = tps6105x;
-	config.of_node = pdev->dev.parent->of_node;
+	config.of_analde = pdev->dev.parent->of_analde;
 	config.regmap = tps6105x->regmap;
 
 	/* Register regulator with framework */
@@ -93,7 +93,7 @@ static int tps6105x_regulator_probe(struct platform_device *pdev)
 static struct platform_driver tps6105x_regulator_driver = {
 	.driver = {
 		.name  = "tps6105x-regulator",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 	.probe = tps6105x_regulator_probe,
 };

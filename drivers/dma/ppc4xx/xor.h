@@ -4,7 +4,7 @@
  *
  * 2006-2009 (C) DENX Software Engineering.
  *
- * Author: Yuri Tikhonov <yur@emcraft.com>
+ * Author: Yuri Tikhoanalv <yur@emcraft.com>
  */
 
 #ifndef _PPC440SPE_XOR_H
@@ -24,8 +24,8 @@
 #define XOR_CBCR_LNK_BIT        (1<<31) /* link present */
 #define XOR_CBCR_TGT_BIT        (1<<30) /* target present */
 #define XOR_CBCR_CBCE_BIT       (1<<29) /* command block compete enable */
-#define XOR_CBCR_RNZE_BIT       (1<<28) /* result not zero enable */
-#define XOR_CBCR_XNOR_BIT       (1<<15) /* XOR/XNOR */
+#define XOR_CBCR_RNZE_BIT       (1<<28) /* result analt zero enable */
+#define XOR_CBCR_XANALR_BIT       (1<<15) /* XOR/XANALR */
 #define XOR_CDCR_OAC_MSK        (0x7F)  /* operand address count */
 
 /*
@@ -35,7 +35,7 @@
 #define XOR_SR_ICB_BIT		(1<<17)	/* invalid CB */
 #define XOR_SR_IC_BIT		(1<<16)	/* invalid command */
 #define XOR_SR_IPE_BIT		(1<<15)	/* internal parity error */
-#define XOR_SR_RNZ_BIT		(1<<2)	/* result not Zero */
+#define XOR_SR_RNZ_BIT		(1<<2)	/* result analt Zero */
 #define XOR_SR_CBC_BIT		(1<<1)	/* CB complete */
 #define XOR_SR_CBLC_BIT		(1<<0)	/* CB list complete */
 

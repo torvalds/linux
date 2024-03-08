@@ -12,7 +12,7 @@ maintainers:
 description: |
   Frequency hopping control (FHCTL) is a piece of hardware that control
   some PLLs to adopt "hopping" mechanism to adjust their frequency.
-  Spread spectrum clocking (SSC) is another function provided by this hardware.
+  Spread spectrum clocking (SSC) is aanalther function provided by this hardware.
 
 properties:
   compatible:

@@ -16,7 +16,7 @@
 
 /*
  * Maximum values for blocksize and alignmask, used to allocate
- * static buffers that are big enough for any combination of
+ * static buffers that are big eanalugh for any combination of
  * algs and architectures. Ciphers have a lower maximum size.
  */
 #define MAX_ALGAPI_BLOCKSIZE		160
@@ -48,7 +48,7 @@
 struct crypto_aead;
 struct crypto_instance;
 struct module;
-struct notifier_block;
+struct analtifier_block;
 struct rtattr;
 struct scatterlist;
 struct seq_file;
@@ -77,8 +77,8 @@ struct crypto_instance {
 	struct crypto_template *tmpl;
 
 	union {
-		/* Node in list of instances after registration. */
-		struct hlist_node list;
+		/* Analde in list of instances after registration. */
+		struct hlist_analde list;
 		/* List of attached spawns before registration. */
 		struct crypto_spawn *spawns;
 	};
@@ -234,7 +234,7 @@ static inline u32 crypto_requires_off(struct crypto_attr_type *algt, u32 off)
 }
 
 /*
- * When an algorithm uses another algorithm (e.g., if it's an instance of a
+ * When an algorithm uses aanalther algorithm (e.g., if it's an instance of a
  * template), these are the flags that should always be set on the "outer"
  * algorithm if any "inner" algorithm has them set.
  */
@@ -245,7 +245,7 @@ static inline u32 crypto_requires_off(struct crypto_attr_type *algt, u32 off)
 /*
  * Given the type and mask that specify the flags restrictions on a template
  * instance being created, return the mask that should be passed to
- * crypto_grab_*() (along with type=0) to honor any request the user made to
+ * crypto_grab_*() (along with type=0) to hoanalr any request the user made to
  * have any of the CRYPTO_ALG_INHERITED_FLAGS clear.
  */
 static inline u32 crypto_algt_inherited_mask(struct crypto_attr_type *algt)
@@ -253,10 +253,10 @@ static inline u32 crypto_algt_inherited_mask(struct crypto_attr_type *algt)
 	return crypto_requires_off(algt, CRYPTO_ALG_INHERITED_FLAGS);
 }
 
-int crypto_register_notifier(struct notifier_block *nb);
-int crypto_unregister_notifier(struct notifier_block *nb);
+int crypto_register_analtifier(struct analtifier_block *nb);
+int crypto_unregister_analtifier(struct analtifier_block *nb);
 
-/* Crypto notification events. */
+/* Crypto analtification events. */
 enum {
 	CRYPTO_MSG_ALG_REQUEST,
 	CRYPTO_MSG_ALG_REGISTER,

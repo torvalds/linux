@@ -39,7 +39,7 @@ bindgen)
 	echo 0.65.1
 	;;
 *)
-	echo "$1: unknown tool" >&2
+	echo "$1: unkanalwn tool" >&2
 	exit 1
 	;;
 esac

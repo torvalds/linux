@@ -2,7 +2,7 @@
 /*
  * Register read and write tracepoints
  *
- * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2022 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #include <linux/ftrace.h>

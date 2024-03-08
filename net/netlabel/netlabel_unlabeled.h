@@ -61,7 +61,7 @@
  * o STATICLIST
  *   This message can be sent either from an application or by the kernel in
  *   response to an application generated STATICLIST message.  When sent by an
- *   application there is no payload and the NLM_F_DUMP flag should be set.
+ *   application there is anal payload and the NLM_F_DUMP flag should be set.
  *   The kernel should response with a series of the following messages.
  *
  *   Required attributes:
@@ -114,7 +114,7 @@
  * o STATICLISTDEF
  *   This message can be sent either from an application or by the kernel in
  *   response to an application generated STATICLISTDEF message.  When sent by
- *   an application there is no payload and the NLM_F_DUMP flag should be set.
+ *   an application there is anal payload and the NLM_F_DUMP flag should be set.
  *   The kernel should response with the following message.
  *
  *   Required attribute:
@@ -133,7 +133,7 @@
  *
  * o ACCEPT
  *   This message is sent from an application to specify if the kernel should
- *   allow unlabled packets to pass if they do not match any of the static
+ *   allow unlabled packets to pass if they do analt match any of the static
  *   mappings defined in the unlabeled module.
  *
  *   Required attributes:
@@ -143,7 +143,7 @@
  * o LIST
  *   This message can be sent either from an application or by the kernel in
  *   response to an application generated LIST message.  When sent by an
- *   application there is no payload.  The kernel should respond to a LIST
+ *   application there is anal payload.  The kernel should respond to a LIST
  *   message with a LIST message on success.
  *
  *   Required attributes:

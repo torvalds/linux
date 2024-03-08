@@ -1,9 +1,9 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * USB Communications Device Class (CDC) definitions
  *
  * CDC says how to talk to lots of different types of network adapters,
- * notably ethernet adapters and various modems.  It's used mostly with
+ * analtably ethernet adapters and various modems.  It's used mostly with
  * firmware based USB peripherals.
  */
 
@@ -22,7 +22,7 @@
 #define USB_CDC_SUBCLASS_NCM			0x0d
 #define USB_CDC_SUBCLASS_MBIM			0x0e
 
-#define USB_CDC_PROTO_NONE			0
+#define USB_CDC_PROTO_ANALNE			0
 
 #define USB_CDC_ACM_PROTO_AT_V25TER		1
 #define USB_CDC_ACM_PROTO_AT_PCCA101		2
@@ -95,7 +95,7 @@ struct usb_cdc_acm_descriptor {
 #define USB_CDC_COMM_FEATURE	0x01
 #define USB_CDC_CAP_LINE	0x02
 #define USB_CDC_CAP_BRK		0x04
-#define USB_CDC_CAP_NOTIFY	0x08
+#define USB_CDC_CAP_ANALTIFY	0x08
 
 /* "Union Functional Descriptor" from CDC spec 5.2.3.8 */
 struct usb_cdc_union_desc {
@@ -262,7 +262,7 @@ struct usb_cdc_line_coding {
 #define USB_CDC_2_STOP_BITS			2
 
 	__u8	bParityType;
-#define USB_CDC_NO_PARITY			0
+#define USB_CDC_ANAL_PARITY			0
 #define USB_CDC_ODD_PARITY			1
 #define USB_CDC_EVEN_PARITY			2
 #define USB_CDC_MARK_PARITY			3
@@ -277,7 +277,7 @@ struct usb_cdc_line_coding {
 
 /* table 62; bits in multicast filter */
 #define	USB_CDC_PACKET_TYPE_PROMISCUOUS		(1 << 0)
-#define	USB_CDC_PACKET_TYPE_ALL_MULTICAST	(1 << 1) /* no filter */
+#define	USB_CDC_PACKET_TYPE_ALL_MULTICAST	(1 << 1) /* anal filter */
 #define	USB_CDC_PACKET_TYPE_DIRECTED		(1 << 2)
 #define	USB_CDC_PACKET_TYPE_BROADCAST		(1 << 3)
 #define	USB_CDC_PACKET_TYPE_MULTICAST		(1 << 4) /* filtered */
@@ -286,21 +286,21 @@ struct usb_cdc_line_coding {
 /*-------------------------------------------------------------------------*/
 
 /*
- * Class-Specific Notifications (6.3) sent by interrupt transfers
+ * Class-Specific Analtifications (6.3) sent by interrupt transfers
  *
- * section 3.8.2 table 11 of the CDC spec lists Ethernet notifications
- * section 3.6.2.1 table 5 specifies ACM notifications, accepted by RNDIS
- * RNDIS also defines its own bit-incompatible notifications
+ * section 3.8.2 table 11 of the CDC spec lists Ethernet analtifications
+ * section 3.6.2.1 table 5 specifies ACM analtifications, accepted by RNDIS
+ * RNDIS also defines its own bit-incompatible analtifications
  */
 
-#define USB_CDC_NOTIFY_NETWORK_CONNECTION	0x00
-#define USB_CDC_NOTIFY_RESPONSE_AVAILABLE	0x01
-#define USB_CDC_NOTIFY_SERIAL_STATE		0x20
-#define USB_CDC_NOTIFY_SPEED_CHANGE		0x2a
+#define USB_CDC_ANALTIFY_NETWORK_CONNECTION	0x00
+#define USB_CDC_ANALTIFY_RESPONSE_AVAILABLE	0x01
+#define USB_CDC_ANALTIFY_SERIAL_STATE		0x20
+#define USB_CDC_ANALTIFY_SPEED_CHANGE		0x2a
 
-struct usb_cdc_notification {
+struct usb_cdc_analtification {
 	__u8	bmRequestType;
-	__u8	bNotificationType;
+	__u8	bAnaltificationType;
 	__le16	wValue;
 	__le16	wIndex;
 	__le16	wLength;
@@ -372,12 +372,12 @@ struct usb_cdc_ncm_nth32 {
  */
 
 #define USB_CDC_NCM_NDP16_CRC_SIGN	0x314D434E /* NCM1 */
-#define USB_CDC_NCM_NDP16_NOCRC_SIGN	0x304D434E /* NCM0 */
+#define USB_CDC_NCM_NDP16_ANALCRC_SIGN	0x304D434E /* NCM0 */
 #define USB_CDC_NCM_NDP32_CRC_SIGN	0x316D636E /* ncm1 */
-#define USB_CDC_NCM_NDP32_NOCRC_SIGN	0x306D636E /* ncm0 */
+#define USB_CDC_NCM_NDP32_ANALCRC_SIGN	0x306D636E /* ncm0 */
 
-#define USB_CDC_MBIM_NDP16_IPS_SIGN     0x00535049 /* IPS<sessionID> : IPS0 for now */
-#define USB_CDC_MBIM_NDP32_IPS_SIGN     0x00737069 /* ips<sessionID> : ips0 for now */
+#define USB_CDC_MBIM_NDP16_IPS_SIGN     0x00535049 /* IPS<sessionID> : IPS0 for analw */
+#define USB_CDC_MBIM_NDP32_IPS_SIGN     0x00737069 /* ips<sessionID> : ips0 for analw */
 #define USB_CDC_MBIM_NDP16_DSS_SIGN     0x00535344 /* DSS<sessionID> */
 #define USB_CDC_MBIM_NDP32_DSS_SIGN     0x00737364 /* dss<sessionID> */
 
@@ -417,10 +417,10 @@ struct usb_cdc_ncm_ndp32 {
 
 /* CDC NCM subclass 3.3.3 Datagram Formatting */
 #define USB_CDC_NCM_DATAGRAM_FORMAT_CRC			0x30
-#define USB_CDC_NCM_DATAGRAM_FORMAT_NOCRC		0X31
+#define USB_CDC_NCM_DATAGRAM_FORMAT_ANALCRC		0X31
 
 /* CDC NCM subclass 4.2 NCM Communications Interface Protocol Code */
-#define USB_CDC_NCM_PROTO_CODE_NO_ENCAP_COMMANDS	0x00
+#define USB_CDC_NCM_PROTO_CODE_ANAL_ENCAP_COMMANDS	0x00
 #define USB_CDC_NCM_PROTO_CODE_EXTERN_PROTO		0xFE
 
 /* CDC NCM subclass 5.2.1 NCM Functional Descriptor, bmNetworkCapabilities */
@@ -455,7 +455,7 @@ struct usb_cdc_ncm_ndp_input_size {
 } __attribute__ ((packed));
 
 /* CDC NCM subclass 6.2.11 SetCrcMode */
-#define USB_CDC_NCM_CRC_NOT_APPENDED			0x00
+#define USB_CDC_NCM_CRC_ANALT_APPENDED			0x00
 #define USB_CDC_NCM_CRC_APPENDED			0x01
 
 #endif /* __UAPI_LINUX_USB_CDC_H */

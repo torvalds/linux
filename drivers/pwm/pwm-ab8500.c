@@ -42,7 +42,7 @@ static int ab8500_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	unsigned int duty_steps, div;
 	struct ab8500_pwm_chip *ab8500 = ab8500_pwm_from_chip(chip);
 
-	if (state->polarity != PWM_POLARITY_NORMAL)
+	if (state->polarity != PWM_POLARITY_ANALRMAL)
 		return -EINVAL;
 
 	if (state->enabled) {
@@ -150,7 +150,7 @@ static int ab8500_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
 	if (ret)
 		return ret;
 
-	state->polarity = PWM_POLARITY_NORMAL;
+	state->polarity = PWM_POLARITY_ANALRMAL;
 
 	if (!(ctrl7 & 1 << ab8500->hwid)) {
 		state->enabled = false;
@@ -192,12 +192,12 @@ static int ab8500_pwm_probe(struct platform_device *pdev)
 		return dev_err_probe(&pdev->dev, -EINVAL, "Invalid device id %d\n", pdev->id);
 
 	/*
-	 * Nothing to be done in probe, this is required to get the
+	 * Analthing to be done in probe, this is required to get the
 	 * device which is required for ab8500 read and write
 	 */
 	ab8500 = devm_kzalloc(&pdev->dev, sizeof(*ab8500), GFP_KERNEL);
 	if (ab8500 == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ab8500->chip.dev = &pdev->dev;
 	ab8500->chip.ops = &ab8500_pwm_ops;

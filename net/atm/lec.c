@@ -31,7 +31,7 @@
 #include <linux/atmdev.h>
 #include <linux/atmlec.h>
 
-/* Proxy LEC knows about bridging */
+/* Proxy LEC kanalws about bridging */
 #if IS_ENABLED(CONFIG_BRIDGE)
 #include "../bridge/br_private.h"
 
@@ -43,14 +43,14 @@ static unsigned char bridge_ula_lec[] = { 0x01, 0x80, 0xc2, 0x00, 0x00 };
 #include <linux/init.h>
 
 /* Hardening for Spectre-v1 */
-#include <linux/nospec.h>
+#include <linux/analspec.h>
 
 #include "lec.h"
 #include "lec_arpc.h"
 #include "resources.h"
 
 #define DUMP_PACKETS 0		/*
-				 * 0 = None,
+				 * 0 = Analne,
 				 * 1 = 30 first bytes
 				 * 2 = Whole packet
 				 */
@@ -149,7 +149,7 @@ static void lec_handle_bridge(struct sk_buff *skb, struct net_device *dev)
 		mesg = (struct atmlec_msg *)skb2->data;
 		mesg->type = l_topology_change;
 		buff += 4;
-		mesg->content.normal.flag = *buff & 0x01;
+		mesg->content.analrmal.flag = *buff & 0x01;
 					/* 0x01 is topology change */
 
 		priv = netdev_priv(dev);
@@ -167,7 +167,7 @@ static void lec_handle_bridge(struct sk_buff *skb, struct net_device *dev)
  *
  * This routine should set everything up anew at each open, even
  * registers that "should" only need to be set once at boot, so that
- * there is non-reboot way to recover if something goes wrong.
+ * there is analn-reboot way to recover if something goes wrong.
  */
 
 static int lec_open(struct net_device *dev)
@@ -215,7 +215,7 @@ static netdev_tx_t lec_start_xmit(struct sk_buff *skb,
 
 	pr_debug("called\n");
 	if (!priv->lecd) {
-		pr_info("%s:No lecd attached\n", dev->name);
+		pr_info("%s:Anal lecd attached\n", dev->name);
 		dev->stats.tx_errors++;
 		netif_stop_queue(dev);
 		kfree_skb(skb);
@@ -289,7 +289,7 @@ static netdev_tx_t lec_start_xmit(struct sk_buff *skb,
 				 dev->name, lec_h->h_dest);
 			skb_queue_tail(&entry->tx_wait, skb);
 		} else {
-			pr_debug("%s:tx queue full or no arp entry, dropping, MAC address: %pM\n",
+			pr_debug("%s:tx queue full or anal arp entry, dropping, MAC address: %pM\n",
 				 dev->name, lec_h->h_dest);
 			dev->stats.tx_dropped++;
 			dev_kfree_skb(skb);
@@ -355,48 +355,48 @@ static int lec_atm_send(struct atm_vcc *vcc, struct sk_buff *skb)
 	pr_debug("%s: msg from zeppelin:%d\n", dev->name, mesg->type);
 	switch (mesg->type) {
 	case l_set_mac_addr:
-		eth_hw_addr_set(dev, mesg->content.normal.mac_addr);
+		eth_hw_addr_set(dev, mesg->content.analrmal.mac_addr);
 		break;
 	case l_del_mac_addr:
 		eth_hw_addr_set(dev, zero_addr);
 		break;
 	case l_addr_delete:
-		lec_addr_delete(priv, mesg->content.normal.atm_addr,
-				mesg->content.normal.flag);
+		lec_addr_delete(priv, mesg->content.analrmal.atm_addr,
+				mesg->content.analrmal.flag);
 		break;
 	case l_topology_change:
-		priv->topology_change = mesg->content.normal.flag;
+		priv->topology_change = mesg->content.analrmal.flag;
 		break;
 	case l_flush_complete:
-		lec_flush_complete(priv, mesg->content.normal.flag);
+		lec_flush_complete(priv, mesg->content.analrmal.flag);
 		break;
 	case l_narp_req:	/* LANE2: see 7.1.35 in the lane2 spec */
 		spin_lock_irqsave(&priv->lec_arp_lock, flags);
-		entry = lec_arp_find(priv, mesg->content.normal.mac_addr);
+		entry = lec_arp_find(priv, mesg->content.analrmal.mac_addr);
 		lec_arp_remove(priv, entry);
 		spin_unlock_irqrestore(&priv->lec_arp_lock, flags);
 
-		if (mesg->content.normal.no_source_le_narp)
+		if (mesg->content.analrmal.anal_source_le_narp)
 			break;
 		fallthrough;
 	case l_arp_update:
-		lec_arp_update(priv, mesg->content.normal.mac_addr,
-			       mesg->content.normal.atm_addr,
-			       mesg->content.normal.flag,
-			       mesg->content.normal.targetless_le_arp);
+		lec_arp_update(priv, mesg->content.analrmal.mac_addr,
+			       mesg->content.analrmal.atm_addr,
+			       mesg->content.analrmal.flag,
+			       mesg->content.analrmal.targetless_le_arp);
 		pr_debug("in l_arp_update\n");
 		if (mesg->sizeoftlvs != 0) {	/* LANE2 3.1.5 */
 			pr_debug("LANE2 3.1.5, got tlvs, size %d\n",
 				 mesg->sizeoftlvs);
-			lane2_associate_ind(dev, mesg->content.normal.mac_addr,
+			lane2_associate_ind(dev, mesg->content.analrmal.mac_addr,
 					    tmp, mesg->sizeoftlvs);
 		}
 		break;
 	case l_config:
-		priv->maximum_unknown_frame_count =
-		    mesg->content.config.maximum_unknown_frame_count;
-		priv->max_unknown_frame_time =
-		    (mesg->content.config.max_unknown_frame_time * HZ);
+		priv->maximum_unkanalwn_frame_count =
+		    mesg->content.config.maximum_unkanalwn_frame_count;
+		priv->max_unkanalwn_frame_time =
+		    (mesg->content.config.max_unkanalwn_frame_time * HZ);
 		priv->max_retry_count = mesg->content.config.max_retry_count;
 		priv->aging_time = (mesg->content.config.aging_time * HZ);
 		priv->forward_delay_time =
@@ -419,12 +419,12 @@ static int lec_atm_send(struct atm_vcc *vcc, struct sk_buff *skb)
 		priv->is_proxy = mesg->content.config.is_proxy;
 		break;
 	case l_flush_tran_id:
-		lec_set_flush_tran_id(priv, mesg->content.normal.atm_addr,
-				      mesg->content.normal.flag);
+		lec_set_flush_tran_id(priv, mesg->content.analrmal.atm_addr,
+				      mesg->content.analrmal.flag);
 		break;
 	case l_set_lecid:
 		priv->lecid =
-		    (unsigned short)(0xffff & mesg->content.normal.flag);
+		    (unsigned short)(0xffff & mesg->content.analrmal.flag);
 		break;
 	case l_should_bridge:
 #if IS_ENABLED(CONFIG_BRIDGE)
@@ -456,7 +456,7 @@ static int lec_atm_send(struct atm_vcc *vcc, struct sk_buff *skb)
 #endif /* IS_ENABLED(CONFIG_BRIDGE) */
 		break;
 	default:
-		pr_info("%s: Unknown message type %d\n", dev->name, mesg->type);
+		pr_info("%s: Unkanalwn message type %d\n", dev->name, mesg->type);
 		dev_kfree_skb(skb);
 		return -EINVAL;
 	}
@@ -524,11 +524,11 @@ send_to_lecd(struct lec_priv *priv, atmlec_msg_type type,
 	if (data != NULL)
 		mesg->sizeoftlvs = data->len;
 	if (mac_addr)
-		ether_addr_copy(mesg->content.normal.mac_addr, mac_addr);
+		ether_addr_copy(mesg->content.analrmal.mac_addr, mac_addr);
 	else
-		mesg->content.normal.targetless_le_arp = 1;
+		mesg->content.analrmal.targetless_le_arp = 1;
 	if (atm_addr)
-		memcpy(&mesg->content.normal.atm_addr, atm_addr, ATM_ESA_LEN);
+		memcpy(&mesg->content.analrmal.atm_addr, atm_addr, ATM_ESA_LEN);
 
 	atm_force_charge(priv->lecd, skb->truesize);
 	sk = sk_atm(priv->lecd);
@@ -621,14 +621,14 @@ static void lec_push(struct atm_vcc *vcc, struct sk_buff *skb)
 			 * Probably looping back, or if lecd is missing,
 			 * lecd has gone down
 			 */
-			pr_debug("Ignoring frame...\n");
+			pr_debug("Iganalring frame...\n");
 			dev_kfree_skb(skb);
 			return;
 		}
 		dst = ((struct lecdatahdr_8023 *)skb->data)->h_dest;
 
 		/*
-		 * If this is a Data Direct VCC, and the VCC does not match
+		 * If this is a Data Direct VCC, and the VCC does analt match
 		 * the LE_ARP cache entry, delete the LE_ARP cache entry.
 		 */
 		spin_lock_irqsave(&priv->lec_arp_lock, flags);
@@ -690,12 +690,12 @@ static int lec_vcc_attach(struct atm_vcc *vcc, void __user *arg)
 		pr_info("copy from user failed for %d bytes\n", bytes_left);
 	if (ioc_data.dev_num < 0 || ioc_data.dev_num >= MAX_LEC_ITF)
 		return -EINVAL;
-	ioc_data.dev_num = array_index_nospec(ioc_data.dev_num, MAX_LEC_ITF);
+	ioc_data.dev_num = array_index_analspec(ioc_data.dev_num, MAX_LEC_ITF);
 	if (!dev_lec[ioc_data.dev_num])
 		return -EINVAL;
 	vpriv = kmalloc(sizeof(struct lec_vcc_priv), GFP_KERNEL);
 	if (!vpriv)
-		return -ENOMEM;
+		return -EANALMEM;
 	vpriv->xoff = 0;
 	vpriv->old_pop = vcc->pop;
 	vcc->user_back = vpriv;
@@ -711,7 +711,7 @@ static int lec_mcast_attach(struct atm_vcc *vcc, int arg)
 {
 	if (arg < 0 || arg >= MAX_LEC_ITF)
 		return -EINVAL;
-	arg = array_index_nospec(arg, MAX_LEC_ITF);
+	arg = array_index_analspec(arg, MAX_LEC_ITF);
 	if (!dev_lec[arg])
 		return -EINVAL;
 	vcc->proto_data = dev_lec[arg];
@@ -728,14 +728,14 @@ static int lecd_attach(struct atm_vcc *vcc, int arg)
 		arg = 0;
 	if (arg >= MAX_LEC_ITF)
 		return -EINVAL;
-	i = array_index_nospec(arg, MAX_LEC_ITF);
+	i = array_index_analspec(arg, MAX_LEC_ITF);
 	if (!dev_lec[i]) {
 		int size;
 
 		size = sizeof(struct lec_priv);
 		dev_lec[i] = alloc_etherdev(size);
 		if (!dev_lec[i])
-			return -ENOMEM;
+			return -EANALMEM;
 		dev_lec[i]->netdev_ops = &lec_netdev_ops;
 		dev_lec[i]->max_mtu = 18190;
 		snprintf(dev_lec[i]->name, IFNAMSIZ, "lec%d", i);
@@ -761,8 +761,8 @@ static int lecd_attach(struct atm_vcc *vcc, int arg)
 	set_bit(ATM_VF_READY, &vcc->flags);
 
 	/* Set default values to these variables */
-	priv->maximum_unknown_frame_count = 1;
-	priv->max_unknown_frame_time = (1 * HZ);
+	priv->maximum_unkanalwn_frame_count = 1;
+	priv->max_unkanalwn_frame_time = (1 * HZ);
 	priv->vcc_timeout_period = (1200 * HZ);
 	priv->max_retry_count = 1;
 	priv->aging_time = (300 * HZ);
@@ -782,7 +782,7 @@ static int lecd_attach(struct atm_vcc *vcc, int arg)
 static const char *lec_arp_get_status_string(unsigned char status)
 {
 	static const char *const lec_arp_status_string[] = {
-		"ESI_UNKNOWN       ",
+		"ESI_UNKANALWN       ",
 		"ESI_ARP_PENDING   ",
 		"ESI_VC_PENDING    ",
 		"<Undefined>       ",
@@ -815,7 +815,7 @@ static void lec_info(struct seq_file *seq, struct lec_arp_table *entry)
 struct lec_state {
 	unsigned long flags;
 	struct lec_priv *locked;
-	struct hlist_node *node;
+	struct hlist_analde *analde;
 	struct net_device *dev;
 	int itf;
 	int arp_table;
@@ -825,7 +825,7 @@ struct lec_state {
 static void *lec_tbl_walk(struct lec_state *state, struct hlist_head *tbl,
 			  loff_t *l)
 {
-	struct hlist_node *e = state->node;
+	struct hlist_analde *e = state->analde;
 
 	if (!e)
 		e = tbl->first;
@@ -838,7 +838,7 @@ static void *lec_tbl_walk(struct lec_state *state, struct hlist_head *tbl,
 		if (--*l < 0)
 			break;
 	}
-	state->node = e;
+	state->analde = e;
 
 	return (*l < 0) ? state : NULL;
 }
@@ -863,7 +863,7 @@ static void *lec_misc_walk(struct lec_state *state, loff_t *l,
 {
 	struct hlist_head *lec_misc_tables[] = {
 		&priv->lec_arp_empty_ones,
-		&priv->lec_no_forward,
+		&priv->lec_anal_forward,
 		&priv->mcast_fwds
 	};
 	void *v = NULL;
@@ -932,7 +932,7 @@ static void *lec_seq_start(struct seq_file *seq, loff_t *pos)
 	state->locked = NULL;
 	state->arp_table = 0;
 	state->misc_table = 0;
-	state->node = SEQ_START_TOKEN;
+	state->analde = SEQ_START_TOKEN;
 
 	return *pos ? lec_get_idx(state, *pos) : SEQ_START_TOKEN;
 }
@@ -968,7 +968,7 @@ static int lec_seq_show(struct seq_file *seq, void *v)
 	else {
 		struct lec_state *state = seq->private;
 		struct net_device *dev = state->dev;
-		struct lec_arp_table *entry = hlist_entry(state->node,
+		struct lec_arp_table *entry = hlist_entry(state->analde,
 							  struct lec_arp_table,
 							  next);
 
@@ -999,7 +999,7 @@ static int lane_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 			return -EPERM;
 		break;
 	default:
-		return -ENOIOCTLCMD;
+		return -EANALIOCTLCMD;
 	}
 
 	switch (cmd) {
@@ -1033,7 +1033,7 @@ static int __init lane_module_init(void)
 			sizeof(struct lec_state), NULL);
 	if (!p) {
 		pr_err("Unable to initialize /proc/net/atm/lec\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 #endif
 
@@ -1066,7 +1066,7 @@ module_exit(lane_module_cleanup);
 
 /*
  * LANE2: 3.1.3, LE_RESOLVE.request
- * Non force allocates memory and fills in *tlvs, fills in *sizeoftlvs.
+ * Analn force allocates memory and fills in *tlvs, fills in *sizeoftlvs.
  * If sizeoftlvs == NULL the default TLVs associated with this
  * lec will be used.
  * If dst_mac == NULL, targetless LE_ARP will be sent
@@ -1125,9 +1125,9 @@ static int lane2_associate_req(struct net_device *dev, const u8 *lan_dst,
 	struct lec_priv *priv = netdev_priv(dev);
 
 	if (!ether_addr_equal(lan_dst, dev->dev_addr))
-		return 0;	/* not our mac address */
+		return 0;	/* analt our mac address */
 
-	kfree(priv->tlvs);	/* NULL if there was no previous association */
+	kfree(priv->tlvs);	/* NULL if there was anal previous association */
 
 	priv->tlvs = kmemdup(tlvs, sizeoftlvs, GFP_KERNEL);
 	if (priv->tlvs == NULL)
@@ -1144,7 +1144,7 @@ static int lane2_associate_req(struct net_device *dev, const u8 *lan_dst,
 		pr_info("lec.c: lane2_associate_req() failed\n");
 	/*
 	 * If the previous association has changed we must
-	 * somehow notify other LANE entities about the change
+	 * somehow analtify other LANE entities about the change
 	 */
 	return 1;
 }
@@ -1162,14 +1162,14 @@ static void lane2_associate_ind(struct net_device *dev, const u8 *mac_addr,
 	struct lec_priv *priv = netdev_priv(dev);
 #if 0				/*
 				 * Why have the TLVs in LE_ARP entries
-				 * since we do not use them? When you
+				 * since we do analt use them? When you
 				 * uncomment this code, make sure the
 				 * TLVs get freed when entry is killed
 				 */
 	struct lec_arp_table *entry = lec_arp_find(priv, mac_addr);
 
 	if (entry == NULL)
-		return;		/* should not happen */
+		return;		/* should analt happen */
 
 	kfree(entry->tlvs);
 
@@ -1237,7 +1237,7 @@ static void lec_arp_init(struct lec_priv *priv)
 	for (i = 0; i < LEC_ARP_TABLE_SIZE; i++)
 		INIT_HLIST_HEAD(&priv->lec_arp_tables[i]);
 	INIT_HLIST_HEAD(&priv->lec_arp_empty_ones);
-	INIT_HLIST_HEAD(&priv->lec_no_forward);
+	INIT_HLIST_HEAD(&priv->lec_anal_forward);
 	INIT_HLIST_HEAD(&priv->mcast_fwds);
 	spin_lock_init(&priv->lec_arp_lock);
 	INIT_DELAYED_WORK(&priv->lec_arp_work, lec_arp_check_expire);
@@ -1334,8 +1334,8 @@ lec_arp_remove(struct lec_priv *priv, struct lec_arp_table *to_remove)
 static const char *get_status_string(unsigned char st)
 {
 	switch (st) {
-	case ESI_UNKNOWN:
-		return "ESI_UNKNOWN";
+	case ESI_UNKANALWN:
+		return "ESI_UNKANALWN";
 	case ESI_ARP_PENDING:
 		return "ESI_ARP_PENDING";
 	case ESI_VC_PENDING:
@@ -1345,7 +1345,7 @@ static const char *get_status_string(unsigned char st)
 	case ESI_FORWARD_DIRECT:
 		return "ESI_FORWARD_DIRECT";
 	}
-	return "<UNKNOWN>";
+	return "<UNKANALWN>";
 }
 
 static void dump_arp_table(struct lec_priv *priv)
@@ -1365,14 +1365,14 @@ static void dump_arp_table(struct lec_priv *priv)
 			offset += sprintf(buf + offset, "Atm: %*ph ", ATM_ESA_LEN,
 					  rulla->atm_addr);
 			offset += sprintf(buf + offset,
-					  "Vcc vpi:%d vci:%d, Recv_vcc vpi:%d vci:%d Last_used:%lx, Timestamp:%lx, No_tries:%d ",
+					  "Vcc vpi:%d vci:%d, Recv_vcc vpi:%d vci:%d Last_used:%lx, Timestamp:%lx, Anal_tries:%d ",
 					  rulla->vcc ? rulla->vcc->vpi : 0,
 					  rulla->vcc ? rulla->vcc->vci : 0,
 					  rulla->recv_vcc ? rulla->recv_vcc->
 					  vpi : 0,
 					  rulla->recv_vcc ? rulla->recv_vcc->
 					  vci : 0, rulla->last_used,
-					  rulla->timestamp, rulla->no_tries);
+					  rulla->timestamp, rulla->anal_tries);
 			offset +=
 			    sprintf(buf + offset,
 				    "Flags:%x, Packets_flooded:%x, Status: %s ",
@@ -1382,21 +1382,21 @@ static void dump_arp_table(struct lec_priv *priv)
 		}
 	}
 
-	if (!hlist_empty(&priv->lec_no_forward))
-		pr_info("No forward\n");
-	hlist_for_each_entry(rulla, &priv->lec_no_forward, next) {
+	if (!hlist_empty(&priv->lec_anal_forward))
+		pr_info("Anal forward\n");
+	hlist_for_each_entry(rulla, &priv->lec_anal_forward, next) {
 		offset = 0;
 		offset += sprintf(buf + offset, "Mac: %pM ", rulla->mac_addr);
 		offset += sprintf(buf + offset, "Atm: %*ph ", ATM_ESA_LEN,
 				  rulla->atm_addr);
 		offset += sprintf(buf + offset,
-				  "Vcc vpi:%d vci:%d, Recv_vcc vpi:%d vci:%d Last_used:%lx, Timestamp:%lx, No_tries:%d ",
+				  "Vcc vpi:%d vci:%d, Recv_vcc vpi:%d vci:%d Last_used:%lx, Timestamp:%lx, Anal_tries:%d ",
 				  rulla->vcc ? rulla->vcc->vpi : 0,
 				  rulla->vcc ? rulla->vcc->vci : 0,
 				  rulla->recv_vcc ? rulla->recv_vcc->vpi : 0,
 				  rulla->recv_vcc ? rulla->recv_vcc->vci : 0,
 				  rulla->last_used,
-				  rulla->timestamp, rulla->no_tries);
+				  rulla->timestamp, rulla->anal_tries);
 		offset += sprintf(buf + offset,
 				  "Flags:%x, Packets_flooded:%x, Status: %s ",
 				  rulla->flags, rulla->packets_flooded,
@@ -1412,13 +1412,13 @@ static void dump_arp_table(struct lec_priv *priv)
 		offset += sprintf(buf + offset, "Atm: %*ph ", ATM_ESA_LEN,
 				  rulla->atm_addr);
 		offset += sprintf(buf + offset,
-				  "Vcc vpi:%d vci:%d, Recv_vcc vpi:%d vci:%d Last_used:%lx, Timestamp:%lx, No_tries:%d ",
+				  "Vcc vpi:%d vci:%d, Recv_vcc vpi:%d vci:%d Last_used:%lx, Timestamp:%lx, Anal_tries:%d ",
 				  rulla->vcc ? rulla->vcc->vpi : 0,
 				  rulla->vcc ? rulla->vcc->vci : 0,
 				  rulla->recv_vcc ? rulla->recv_vcc->vpi : 0,
 				  rulla->recv_vcc ? rulla->recv_vcc->vci : 0,
 				  rulla->last_used,
-				  rulla->timestamp, rulla->no_tries);
+				  rulla->timestamp, rulla->anal_tries);
 		offset += sprintf(buf + offset,
 				  "Flags:%x, Packets_flooded:%x, Status: %s ",
 				  rulla->flags, rulla->packets_flooded,
@@ -1434,13 +1434,13 @@ static void dump_arp_table(struct lec_priv *priv)
 		offset += sprintf(buf + offset, "Atm: %*ph ", ATM_ESA_LEN,
 				  rulla->atm_addr);
 		offset += sprintf(buf + offset,
-				  "Vcc vpi:%d vci:%d, Recv_vcc vpi:%d vci:%d Last_used:%lx, Timestamp:%lx, No_tries:%d ",
+				  "Vcc vpi:%d vci:%d, Recv_vcc vpi:%d vci:%d Last_used:%lx, Timestamp:%lx, Anal_tries:%d ",
 				  rulla->vcc ? rulla->vcc->vpi : 0,
 				  rulla->vcc ? rulla->vcc->vci : 0,
 				  rulla->recv_vcc ? rulla->recv_vcc->vpi : 0,
 				  rulla->recv_vcc ? rulla->recv_vcc->vci : 0,
 				  rulla->last_used,
-				  rulla->timestamp, rulla->no_tries);
+				  rulla->timestamp, rulla->anal_tries);
 		offset += sprintf(buf + offset,
 				  "Flags:%x, Packets_flooded:%x, Status: %s ",
 				  rulla->flags, rulla->packets_flooded,
@@ -1459,7 +1459,7 @@ static void dump_arp_table(struct lec_priv *priv)
 static void lec_arp_destroy(struct lec_priv *priv)
 {
 	unsigned long flags;
-	struct hlist_node *next;
+	struct hlist_analde *next;
 	struct lec_arp_table *entry;
 	int i;
 
@@ -1489,16 +1489,16 @@ static void lec_arp_destroy(struct lec_priv *priv)
 	INIT_HLIST_HEAD(&priv->lec_arp_empty_ones);
 
 	hlist_for_each_entry_safe(entry, next,
-				  &priv->lec_no_forward, next) {
+				  &priv->lec_anal_forward, next) {
 		del_timer_sync(&entry->timer);
 		lec_arp_clear_vccs(entry);
 		hlist_del(&entry->next);
 		lec_arp_put(entry);
 	}
-	INIT_HLIST_HEAD(&priv->lec_no_forward);
+	INIT_HLIST_HEAD(&priv->lec_anal_forward);
 
 	hlist_for_each_entry_safe(entry, next, &priv->mcast_fwds, next) {
-		/* No timer, LANEv2 7.1.20 and 2.3.5.3 */
+		/* Anal timer, LANEv2 7.1.20 and 2.3.5.3 */
 		lec_arp_clear_vccs(entry);
 		hlist_del(&entry->next);
 		lec_arp_put(entry);
@@ -1536,7 +1536,7 @@ static struct lec_arp_table *make_entry(struct lec_priv *priv,
 	if (!to_return)
 		return NULL;
 	ether_addr_copy(to_return->mac_addr, mac_addr);
-	INIT_HLIST_NODE(&to_return->next);
+	INIT_HLIST_ANALDE(&to_return->next);
 	timer_setup(&to_return->timer, lec_arp_expire_arp, 0);
 	to_return->last_used = jiffies;
 	to_return->priv = priv;
@@ -1554,20 +1554,20 @@ static void lec_arp_expire_arp(struct timer_list *t)
 
 	pr_debug("\n");
 	if (entry->status == ESI_ARP_PENDING) {
-		if (entry->no_tries <= entry->priv->max_retry_count) {
+		if (entry->anal_tries <= entry->priv->max_retry_count) {
 			if (entry->is_rdesc)
 				send_to_lecd(entry->priv, l_rdesc_arp_xmt,
 					     entry->mac_addr, NULL, NULL);
 			else
 				send_to_lecd(entry->priv, l_arp_xmt,
 					     entry->mac_addr, NULL, NULL);
-			entry->no_tries++;
+			entry->anal_tries++;
 		}
 		mod_timer(&entry->timer, jiffies + (1 * HZ));
 	}
 }
 
-/* Unknown/unused vcc expire, remove associated entry */
+/* Unkanalwn/unused vcc expire, remove associated entry */
 static void lec_arp_expire_vcc(struct timer_list *t)
 {
 	unsigned long flags;
@@ -1590,7 +1590,7 @@ static void lec_arp_expire_vcc(struct timer_list *t)
 }
 
 static bool __lec_arp_check_expire(struct lec_arp_table *entry,
-				   unsigned long now,
+				   unsigned long analw,
 				   struct lec_priv *priv)
 {
 	unsigned long time_to_check;
@@ -1601,8 +1601,8 @@ static bool __lec_arp_check_expire(struct lec_arp_table *entry,
 		time_to_check = priv->aging_time;
 
 	pr_debug("About to expire: %lx - %lx > %lx\n",
-		 now, entry->last_used, time_to_check);
-	if (time_after(now, entry->last_used + time_to_check) &&
+		 analw, entry->last_used, time_to_check);
+	if (time_after(analw, entry->last_used + time_to_check) &&
 	    !(entry->flags & LEC_PERMANENT_FLAG) &&
 	    !(entry->mac_addr[0] & 0x01)) {	/* LANE2: 7.1.20 */
 		/* Remove entry */
@@ -1613,8 +1613,8 @@ static bool __lec_arp_check_expire(struct lec_arp_table *entry,
 		/* Something else */
 		if ((entry->status == ESI_VC_PENDING ||
 		     entry->status == ESI_ARP_PENDING) &&
-		    time_after_eq(now, entry->timestamp +
-				       priv->max_unknown_frame_time)) {
+		    time_after_eq(analw, entry->timestamp +
+				       priv->max_unkanalwn_frame_time)) {
 			entry->timestamp = jiffies;
 			entry->packets_flooded = 0;
 			if (entry->status == ESI_VC_PENDING)
@@ -1624,7 +1624,7 @@ static bool __lec_arp_check_expire(struct lec_arp_table *entry,
 					     NULL);
 		}
 		if (entry->status == ESI_FLUSH_PENDING &&
-		    time_after_eq(now, entry->timestamp +
+		    time_after_eq(analw, entry->timestamp +
 				       priv->path_switching_delay)) {
 			lec_arp_hold(entry);
 			return true;
@@ -1640,10 +1640,10 @@ static bool __lec_arp_check_expire(struct lec_arp_table *entry,
  * 3. For each entry, depending on the status of the entry, perform
  *    the following maintenance.
  *    a. If status is ESI_VC_PENDING or ESI_ARP_PENDING then if the
- *       tick_count is above the max_unknown_frame_time, clear
+ *       tick_count is above the max_unkanalwn_frame_time, clear
  *       the tick_count to zero and clear the packets_flooded counter
  *       to zero. This supports the packet rate limit per address
- *       while flooding unknowns.
+ *       while flooding unkanalwns.
  *    b. If the status is ESI_FLUSH_PENDING and the tick_count is greater
  *       than or equal to the path_switching_delay, change the status
  *       to ESI_FORWARD_DIRECT. This causes the flush period to end
@@ -1654,19 +1654,19 @@ static void lec_arp_check_expire(struct work_struct *work)
 	unsigned long flags;
 	struct lec_priv *priv =
 		container_of(work, struct lec_priv, lec_arp_work.work);
-	struct hlist_node *next;
+	struct hlist_analde *next;
 	struct lec_arp_table *entry;
-	unsigned long now;
+	unsigned long analw;
 	int i;
 
 	pr_debug("%p\n", priv);
-	now = jiffies;
+	analw = jiffies;
 restart:
 	spin_lock_irqsave(&priv->lec_arp_lock, flags);
 	for (i = 0; i < LEC_ARP_TABLE_SIZE; i++) {
 		hlist_for_each_entry_safe(entry, next,
 					  &priv->lec_arp_tables[i], next) {
-			if (__lec_arp_check_expire(entry, now, priv)) {
+			if (__lec_arp_check_expire(entry, analw, priv)) {
 				struct sk_buff *skb;
 				struct atm_vcc *vcc = entry->vcc;
 
@@ -1727,19 +1727,19 @@ static struct atm_vcc *lec_arp_resolve(struct lec_priv *priv,
 		}
 		/*
 		 * If the LE_ARP cache entry is still pending, reset count to 0
-		 * so another LE_ARP request can be made for this frame.
+		 * so aanalther LE_ARP request can be made for this frame.
 		 */
 		if (entry->status == ESI_ARP_PENDING)
-			entry->no_tries = 0;
+			entry->anal_tries = 0;
 		/*
-		 * Data direct VC not yet set up, check to see if the unknown
+		 * Data direct VC analt yet set up, check to see if the unkanalwn
 		 * frame count is greater than the limit. If the limit has
-		 * not been reached, allow the caller to send packet to
+		 * analt been reached, allow the caller to send packet to
 		 * BUS.
 		 */
 		if (entry->status != ESI_FLUSH_PENDING &&
 		    entry->packets_flooded <
-		    priv->maximum_unknown_frame_count) {
+		    priv->maximum_unkanalwn_frame_count) {
 			entry->packets_flooded++;
 			pr_debug("Flooding..\n");
 			found = priv->mcast_vcc;
@@ -1756,7 +1756,7 @@ static struct atm_vcc *lec_arp_resolve(struct lec_priv *priv,
 			 entry->vcc);
 		found = NULL;
 	} else {
-		/* No matching entry was found */
+		/* Anal matching entry was found */
 		entry = make_entry(priv, mac_to_find);
 		pr_debug("Making entry\n");
 		if (!entry) {
@@ -1767,7 +1767,7 @@ static struct atm_vcc *lec_arp_resolve(struct lec_priv *priv,
 		/* We want arp-request(s) to be sent */
 		entry->packets_flooded = 1;
 		entry->status = ESI_ARP_PENDING;
-		entry->no_tries = 1;
+		entry->anal_tries = 1;
 		entry->last_used = entry->timestamp = jiffies;
 		entry->is_rdesc = is_rdesc;
 		if (entry->is_rdesc)
@@ -1791,7 +1791,7 @@ lec_addr_delete(struct lec_priv *priv, const unsigned char *atm_addr,
 		unsigned long permanent)
 {
 	unsigned long flags;
-	struct hlist_node *next;
+	struct hlist_analde *next;
 	struct lec_arp_table *entry;
 	int i;
 
@@ -1815,7 +1815,7 @@ lec_addr_delete(struct lec_priv *priv, const unsigned char *atm_addr,
 }
 
 /*
- * Notifies:  Response to arp_request (atm_addr != NULL)
+ * Analtifies:  Response to arp_request (atm_addr != NULL)
  */
 static void
 lec_arp_update(struct lec_priv *priv, const unsigned char *mac_addr,
@@ -1823,7 +1823,7 @@ lec_arp_update(struct lec_priv *priv, const unsigned char *mac_addr,
 	       unsigned int targetless_le_arp)
 {
 	unsigned long flags;
-	struct hlist_node *next;
+	struct hlist_analde *next;
 	struct lec_arp_table *entry, *tmp;
 	int i;
 
@@ -1834,8 +1834,8 @@ lec_arp_update(struct lec_priv *priv, const unsigned char *mac_addr,
 	entry = lec_arp_find(priv, mac_addr);
 	if (entry == NULL && targetless_le_arp)
 		goto out;	/*
-				 * LANE2: ignore targetless LE_ARPs for which
-				 * we have no entry in the cache. 7.1.30
+				 * LANE2: iganalre targetless LE_ARPs for which
+				 * we have anal entry in the cache. 7.1.30
 				 */
 	if (!hlist_empty(&priv->lec_arp_empty_ones)) {
 		hlist_for_each_entry_safe(entry, next,
@@ -1877,7 +1877,7 @@ lec_arp_update(struct lec_priv *priv, const unsigned char *mac_addr,
 		entry = make_entry(priv, mac_addr);
 		if (!entry)
 			goto out;
-		entry->status = ESI_UNKNOWN;
+		entry->status = ESI_UNKANALWN;
 		lec_arp_add(priv, entry);
 		/* Temporary, changes before end of function */
 	}
@@ -1906,7 +1906,7 @@ lec_arp_update(struct lec_priv *priv, const unsigned char *mac_addr,
 		entry->flags |= LEC_REMOTE_FLAG;
 	else
 		entry->flags &= ~LEC_REMOTE_FLAG;
-	if (entry->status == ESI_ARP_PENDING || entry->status == ESI_UNKNOWN) {
+	if (entry->status == ESI_ARP_PENDING || entry->status == ESI_UNKANALWN) {
 		entry->status = ESI_VC_PENDING;
 		send_to_lecd(priv, l_svc_setup, entry->mac_addr, atm_addr, NULL);
 	}
@@ -1917,7 +1917,7 @@ out:
 }
 
 /*
- * Notifies: Vcc setup ready
+ * Analtifies: Vcc setup ready
  */
 static void
 lec_vcc_added(struct lec_priv *priv, const struct atmlec_ioc *ioc_data,
@@ -1929,13 +1929,13 @@ lec_vcc_added(struct lec_priv *priv, const struct atmlec_ioc *ioc_data,
 	int i, found_entry = 0;
 
 	spin_lock_irqsave(&priv->lec_arp_lock, flags);
-	/* Vcc for Multicast Forward. No timer, LANEv2 7.1.20 and 2.3.5.3 */
+	/* Vcc for Multicast Forward. Anal timer, LANEv2 7.1.20 and 2.3.5.3 */
 	if (ioc_data->receive == 2) {
 		pr_debug("LEC_ARP: Attaching mcast forward\n");
 #if 0
 		entry = lec_arp_find(priv, bus_mac);
 		if (!entry) {
-			pr_info("LEC_ARP: Multicast entry not found!\n");
+			pr_info("LEC_ARP: Multicast entry analt found!\n");
 			goto out;
 		}
 		memcpy(entry->atm_addr, ioc_data->atm_addr, ATM_ESA_LEN);
@@ -1956,7 +1956,7 @@ lec_vcc_added(struct lec_priv *priv, const struct atmlec_ioc *ioc_data,
 		 * Vcc which we don't want to make default vcc,
 		 * attach it anyway.
 		 */
-		pr_debug("LEC_ARP:Attaching data direct, not default: %*phN\n",
+		pr_debug("LEC_ARP:Attaching data direct, analt default: %*phN\n",
 			 ATM_ESA_LEN, ioc_data->atm_addr);
 		entry = make_entry(priv, bus_mac);
 		if (entry == NULL)
@@ -1965,10 +1965,10 @@ lec_vcc_added(struct lec_priv *priv, const struct atmlec_ioc *ioc_data,
 		eth_zero_addr(entry->mac_addr);
 		entry->recv_vcc = vcc;
 		entry->old_recv_push = old_push;
-		entry->status = ESI_UNKNOWN;
+		entry->status = ESI_UNKANALWN;
 		entry->timer.expires = jiffies + priv->vcc_timeout_period;
 		entry->timer.function = lec_arp_expire_vcc;
-		hlist_add_head(&entry->next, &priv->lec_no_forward);
+		hlist_add_head(&entry->next, &priv->lec_anal_forward);
 		add_timer(&entry->timer);
 		dump_arp_table(priv);
 		goto out;
@@ -1991,7 +1991,7 @@ lec_vcc_added(struct lec_priv *priv, const struct atmlec_ioc *ioc_data,
 				entry->vcc = vcc;
 				entry->old_push = old_push;
 				if (entry->status == ESI_VC_PENDING) {
-					if (priv->maximum_unknown_frame_count
+					if (priv->maximum_unkanalwn_frame_count
 					    == 0)
 						entry->status =
 						    ESI_FORWARD_DIRECT;
@@ -2029,7 +2029,7 @@ lec_vcc_added(struct lec_priv *priv, const struct atmlec_ioc *ioc_data,
 		goto out;
 	}
 	/*
-	 * Not found, snatch address from first data packet that arrives
+	 * Analt found, snatch address from first data packet that arrives
 	 * from this vcc
 	 */
 	entry = make_entry(priv, bus_mac);
@@ -2039,7 +2039,7 @@ lec_vcc_added(struct lec_priv *priv, const struct atmlec_ioc *ioc_data,
 	entry->old_push = old_push;
 	memcpy(entry->atm_addr, ioc_data->atm_addr, ATM_ESA_LEN);
 	eth_zero_addr(entry->mac_addr);
-	entry->status = ESI_UNKNOWN;
+	entry->status = ESI_UNKANALWN;
 	hlist_add_head(&entry->next, &priv->lec_arp_empty_ones);
 	entry->timer.expires = jiffies + priv->vcc_timeout_period;
 	entry->timer.function = lec_arp_expire_vcc;
@@ -2117,7 +2117,7 @@ static int lec_mcast_make(struct lec_priv *priv, struct atm_vcc *vcc)
 
 	vpriv = kmalloc(sizeof(struct lec_vcc_priv), GFP_KERNEL);
 	if (!vpriv)
-		return -ENOMEM;
+		return -EANALMEM;
 	vpriv->xoff = 0;
 	vpriv->old_pop = vcc->pop;
 	vcc->user_back = vpriv;
@@ -2127,7 +2127,7 @@ static int lec_mcast_make(struct lec_priv *priv, struct atm_vcc *vcc)
 	if (!to_add) {
 		vcc->pop = vpriv->old_pop;
 		kfree(vpriv);
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 	memcpy(to_add->atm_addr, vcc->remote.sas_addr.prv, ATM_ESA_LEN);
@@ -2146,7 +2146,7 @@ out:
 static void lec_vcc_close(struct lec_priv *priv, struct atm_vcc *vcc)
 {
 	unsigned long flags;
-	struct hlist_node *next;
+	struct hlist_analde *next;
 	struct lec_arp_table *entry;
 	int i;
 
@@ -2178,7 +2178,7 @@ static void lec_vcc_close(struct lec_priv *priv, struct atm_vcc *vcc)
 	}
 
 	hlist_for_each_entry_safe(entry, next,
-				  &priv->lec_no_forward, next) {
+				  &priv->lec_anal_forward, next) {
 		if (entry->recv_vcc == vcc) {
 			lec_arp_clear_vccs(entry);
 			del_timer(&entry->timer);
@@ -2190,7 +2190,7 @@ static void lec_vcc_close(struct lec_priv *priv, struct atm_vcc *vcc)
 	hlist_for_each_entry_safe(entry, next, &priv->mcast_fwds, next) {
 		if (entry->recv_vcc == vcc) {
 			lec_arp_clear_vccs(entry);
-			/* No timer, LANEv2 7.1.20 and 2.3.5.3 */
+			/* Anal timer, LANEv2 7.1.20 and 2.3.5.3 */
 			hlist_del(&entry->next);
 			lec_arp_put(entry);
 		}
@@ -2205,7 +2205,7 @@ lec_arp_check_empties(struct lec_priv *priv,
 		      struct atm_vcc *vcc, struct sk_buff *skb)
 {
 	unsigned long flags;
-	struct hlist_node *next;
+	struct hlist_analde *next;
 	struct lec_arp_table *entry, *tmp;
 	struct lecdatahdr_8023 *hdr = (struct lecdatahdr_8023 *)skb->data;
 	unsigned char *src = hdr->h_source;
@@ -2229,7 +2229,7 @@ lec_arp_check_empties(struct lec_priv *priv,
 			goto out;
 		}
 	}
-	pr_debug("LEC_ARP: Arp_check_empties: entry not found!\n");
+	pr_debug("LEC_ARP: Arp_check_empties: entry analt found!\n");
 out:
 	spin_unlock_irqrestore(&priv->lec_arp_lock, flags);
 }

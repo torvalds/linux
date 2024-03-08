@@ -2,7 +2,7 @@
 /*
  * nau8822.h  --  NAU8822 ALSA SoC Audio driver
  *
- * Copyright 2017 Nuvoton Technology Crop.
+ * Copyright 2017 Nuvoton Techanallogy Crop.
  *
  * Author: David Lin <ctlin0@nuvoton.com>
  * Co-author: John Hsu <kchsu0@nuvoton.com>
@@ -36,14 +36,14 @@
 #define NAU8822_REG_EQ5				0x16
 #define NAU8822_REG_DAC_LIMITER_1		0x18
 #define NAU8822_REG_DAC_LIMITER_2		0x19
-#define NAU8822_REG_NOTCH_FILTER_1		0x1B
-#define NAU8822_REG_NOTCH_FILTER_2		0x1C
-#define NAU8822_REG_NOTCH_FILTER_3		0x1D
-#define NAU8822_REG_NOTCH_FILTER_4		0x1E
+#define NAU8822_REG_ANALTCH_FILTER_1		0x1B
+#define NAU8822_REG_ANALTCH_FILTER_2		0x1C
+#define NAU8822_REG_ANALTCH_FILTER_3		0x1D
+#define NAU8822_REG_ANALTCH_FILTER_4		0x1E
 #define NAU8822_REG_ALC_CONTROL_1		0x20
 #define NAU8822_REG_ALC_CONTROL_2		0x21
 #define NAU8822_REG_ALC_CONTROL_3		0x22
-#define NAU8822_REG_NOISE_GATE			0x23
+#define NAU8822_REG_ANALISE_GATE			0x23
 #define NAU8822_REG_PLL_N			0x24
 #define NAU8822_REG_PLL_K1			0x25
 #define NAU8822_REG_PLL_K2			0x26

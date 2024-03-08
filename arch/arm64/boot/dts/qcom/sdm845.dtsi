@@ -100,7 +100,7 @@
 			dynamic-power-coefficient = <154>;
 			qcom,freq-domain = <&cpufreq_hw 0>;
 			operating-points-v2 = <&cpu0_opp_table>;
-			interconnects = <&gladiator_noc MASTER_APPSS_PROC 3 &mem_noc SLAVE_EBI1 3>,
+			interconnects = <&gladiator_analc MASTER_APPSS_PROC 3 &mem_analc SLAVE_EBI1 3>,
 					<&osm_l3 MASTER_OSM_L3_APPS &osm_l3 SLAVE_OSM_L3>;
 			power-domains = <&CPU_PD0>;
 			power-domain-names = "psci";
@@ -129,7 +129,7 @@
 			dynamic-power-coefficient = <154>;
 			qcom,freq-domain = <&cpufreq_hw 0>;
 			operating-points-v2 = <&cpu0_opp_table>;
-			interconnects = <&gladiator_noc MASTER_APPSS_PROC 3 &mem_noc SLAVE_EBI1 3>,
+			interconnects = <&gladiator_analc MASTER_APPSS_PROC 3 &mem_analc SLAVE_EBI1 3>,
 					<&osm_l3 MASTER_OSM_L3_APPS &osm_l3 SLAVE_OSM_L3>;
 			power-domains = <&CPU_PD1>;
 			power-domain-names = "psci";
@@ -153,7 +153,7 @@
 			dynamic-power-coefficient = <154>;
 			qcom,freq-domain = <&cpufreq_hw 0>;
 			operating-points-v2 = <&cpu0_opp_table>;
-			interconnects = <&gladiator_noc MASTER_APPSS_PROC 3 &mem_noc SLAVE_EBI1 3>,
+			interconnects = <&gladiator_analc MASTER_APPSS_PROC 3 &mem_analc SLAVE_EBI1 3>,
 					<&osm_l3 MASTER_OSM_L3_APPS &osm_l3 SLAVE_OSM_L3>;
 			power-domains = <&CPU_PD2>;
 			power-domain-names = "psci";
@@ -177,7 +177,7 @@
 			dynamic-power-coefficient = <154>;
 			qcom,freq-domain = <&cpufreq_hw 0>;
 			operating-points-v2 = <&cpu0_opp_table>;
-			interconnects = <&gladiator_noc MASTER_APPSS_PROC 3 &mem_noc SLAVE_EBI1 3>,
+			interconnects = <&gladiator_analc MASTER_APPSS_PROC 3 &mem_analc SLAVE_EBI1 3>,
 					<&osm_l3 MASTER_OSM_L3_APPS &osm_l3 SLAVE_OSM_L3>;
 			#cooling-cells = <2>;
 			power-domains = <&CPU_PD3>;
@@ -201,7 +201,7 @@
 			dynamic-power-coefficient = <442>;
 			qcom,freq-domain = <&cpufreq_hw 1>;
 			operating-points-v2 = <&cpu4_opp_table>;
-			interconnects = <&gladiator_noc MASTER_APPSS_PROC 3 &mem_noc SLAVE_EBI1 3>,
+			interconnects = <&gladiator_analc MASTER_APPSS_PROC 3 &mem_analc SLAVE_EBI1 3>,
 					<&osm_l3 MASTER_OSM_L3_APPS &osm_l3 SLAVE_OSM_L3>;
 			power-domains = <&CPU_PD4>;
 			power-domain-names = "psci";
@@ -225,7 +225,7 @@
 			dynamic-power-coefficient = <442>;
 			qcom,freq-domain = <&cpufreq_hw 1>;
 			operating-points-v2 = <&cpu4_opp_table>;
-			interconnects = <&gladiator_noc MASTER_APPSS_PROC 3 &mem_noc SLAVE_EBI1 3>,
+			interconnects = <&gladiator_analc MASTER_APPSS_PROC 3 &mem_analc SLAVE_EBI1 3>,
 					<&osm_l3 MASTER_OSM_L3_APPS &osm_l3 SLAVE_OSM_L3>;
 			power-domains = <&CPU_PD5>;
 			power-domain-names = "psci";
@@ -249,7 +249,7 @@
 			dynamic-power-coefficient = <442>;
 			qcom,freq-domain = <&cpufreq_hw 1>;
 			operating-points-v2 = <&cpu4_opp_table>;
-			interconnects = <&gladiator_noc MASTER_APPSS_PROC 3 &mem_noc SLAVE_EBI1 3>,
+			interconnects = <&gladiator_analc MASTER_APPSS_PROC 3 &mem_analc SLAVE_EBI1 3>,
 					<&osm_l3 MASTER_OSM_L3_APPS &osm_l3 SLAVE_OSM_L3>;
 			power-domains = <&CPU_PD6>;
 			power-domain-names = "psci";
@@ -273,7 +273,7 @@
 			dynamic-power-coefficient = <442>;
 			qcom,freq-domain = <&cpufreq_hw 1>;
 			operating-points-v2 = <&cpu4_opp_table>;
-			interconnects = <&gladiator_noc MASTER_APPSS_PROC 3 &mem_noc SLAVE_EBI1 3>,
+			interconnects = <&gladiator_analc MASTER_APPSS_PROC 3 &mem_analc SLAVE_EBI1 3>,
 					<&osm_l3 MASTER_OSM_L3_APPS &osm_l3 SLAVE_OSM_L3>;
 			power-domains = <&CPU_PD7>;
 			power-domain-names = "psci";
@@ -655,7 +655,7 @@
 
 		opp-358000000 {
 			opp-hz = /bits/ 64 <358000000>;
-			required-opps = <&rpmhpd_opp_nom>;
+			required-opps = <&rpmhpd_opp_analm>;
 		};
 	};
 
@@ -679,7 +679,7 @@
 
 		opp-300000000 {
 			opp-hz = /bits/ 64 <300000000>;
-			required-opps = <&rpmhpd_opp_nom>;
+			required-opps = <&rpmhpd_opp_analm>;
 		};
 	};
 
@@ -703,7 +703,7 @@
 
 		opp-128000000 {
 			opp-hz = /bits/ 64 <128000000>;
-			required-opps = <&rpmhpd_opp_nom>;
+			required-opps = <&rpmhpd_opp_analm>;
 		};
 	};
 
@@ -777,41 +777,41 @@
 
 		hyp_mem: hyp-mem@85700000 {
 			reg = <0 0x85700000 0 0x600000>;
-			no-map;
+			anal-map;
 		};
 
 		xbl_mem: xbl-mem@85e00000 {
 			reg = <0 0x85e00000 0 0x100000>;
-			no-map;
+			anal-map;
 		};
 
 		aop_mem: aop-mem@85fc0000 {
 			reg = <0 0x85fc0000 0 0x20000>;
-			no-map;
+			anal-map;
 		};
 
 		aop_cmd_db_mem: aop-cmd-db-mem@85fe0000 {
 			compatible = "qcom,cmd-db";
 			reg = <0x0 0x85fe0000 0 0x20000>;
-			no-map;
+			anal-map;
 		};
 
 		smem@86000000 {
 			compatible = "qcom,smem";
 			reg = <0x0 0x86000000 0 0x200000>;
-			no-map;
+			anal-map;
 			hwlocks = <&tcsr_mutex 3>;
 		};
 
 		tz_mem: tz@86200000 {
 			reg = <0 0x86200000 0 0x2d00000>;
-			no-map;
+			anal-map;
 		};
 
 		rmtfs_mem: rmtfs@88f00000 {
 			compatible = "qcom,rmtfs-mem";
 			reg = <0 0x88f00000 0 0x200000>;
-			no-map;
+			anal-map;
 
 			qcom,client-id = <1>;
 			qcom,vmid = <QCOM_SCM_VMID_MSS_MSA>;
@@ -819,73 +819,73 @@
 
 		qseecom_mem: qseecom@8ab00000 {
 			reg = <0 0x8ab00000 0 0x1400000>;
-			no-map;
+			anal-map;
 		};
 
 		camera_mem: camera-mem@8bf00000 {
 			reg = <0 0x8bf00000 0 0x500000>;
-			no-map;
+			anal-map;
 		};
 
 		ipa_fw_mem: ipa-fw@8c400000 {
 			reg = <0 0x8c400000 0 0x10000>;
-			no-map;
+			anal-map;
 		};
 
 		ipa_gsi_mem: ipa-gsi@8c410000 {
 			reg = <0 0x8c410000 0 0x5000>;
-			no-map;
+			anal-map;
 		};
 
 		gpu_mem: gpu@8c415000 {
 			reg = <0 0x8c415000 0 0x2000>;
-			no-map;
+			anal-map;
 		};
 
 		adsp_mem: adsp@8c500000 {
 			reg = <0 0x8c500000 0 0x1a00000>;
-			no-map;
+			anal-map;
 		};
 
 		wlan_msa_mem: wlan-msa@8df00000 {
 			reg = <0 0x8df00000 0 0x100000>;
-			no-map;
+			anal-map;
 		};
 
 		mpss_region: mpss@8e000000 {
 			reg = <0 0x8e000000 0 0x7800000>;
-			no-map;
+			anal-map;
 		};
 
 		venus_mem: venus@95800000 {
 			reg = <0 0x95800000 0 0x500000>;
-			no-map;
+			anal-map;
 		};
 
 		cdsp_mem: cdsp@95d00000 {
 			reg = <0 0x95d00000 0 0x800000>;
-			no-map;
+			anal-map;
 		};
 
 		mba_region: mba@96500000 {
 			reg = <0 0x96500000 0 0x200000>;
-			no-map;
+			anal-map;
 		};
 
 		slpi_mem: slpi@96700000 {
 			reg = <0 0x96700000 0 0x1400000>;
-			no-map;
+			anal-map;
 		};
 
 		spss_mem: spss@97b00000 {
 			reg = <0 0x97b00000 0 0x100000>;
-			no-map;
+			anal-map;
 		};
 
 		mdata_mem: mpss-metadata {
 			alloc-ranges = <0 0xa0000000 0 0x20000000>;
 			size = <0 0x4000>;
-			no-map;
+			anal-map;
 		};
 
 		fastrpc_mem: fastrpc {
@@ -980,7 +980,7 @@
 				compatible = "qcom,fastrpc";
 				qcom,glink-channels = "fastrpcglink-apps-dsp";
 				label = "adsp";
-				qcom,non-secure-domain;
+				qcom,analn-secure-domain;
 				#address-cells = <1>;
 				#size-cells = <0>;
 
@@ -1031,7 +1031,7 @@
 				compatible = "qcom,fastrpc";
 				qcom,glink-channels = "fastrpcglink-apps-dsp";
 				label = "cdsp";
-				qcom,non-secure-domain;
+				qcom,analn-secure-domain;
 				#address-cells = <1>;
 				#size-cells = <0>;
 
@@ -1268,7 +1268,7 @@
 			#address-cells = <2>;
 			#size-cells = <2>;
 			ranges;
-			interconnects = <&aggre1_noc MASTER_QUP_1 0 &config_noc SLAVE_BLSP_1 0>;
+			interconnects = <&aggre1_analc MASTER_QUP_1 0 &config_analc SLAVE_BLSP_1 0>;
 			interconnect-names = "qup-core";
 			status = "disabled";
 
@@ -1284,9 +1284,9 @@
 				#size-cells = <0>;
 				power-domains = <&rpmhpd SDM845_CX>;
 				operating-points-v2 = <&qup_opp_table>;
-				interconnects = <&aggre1_noc MASTER_QUP_1 0 &config_noc SLAVE_BLSP_1 0>,
-						<&gladiator_noc MASTER_APPSS_PROC 0 &config_noc SLAVE_BLSP_1 0>,
-						<&aggre1_noc MASTER_QUP_1 0 &mem_noc SLAVE_EBI1 0>;
+				interconnects = <&aggre1_analc MASTER_QUP_1 0 &config_analc SLAVE_BLSP_1 0>,
+						<&gladiator_analc MASTER_APPSS_PROC 0 &config_analc SLAVE_BLSP_1 0>,
+						<&aggre1_analc MASTER_QUP_1 0 &mem_analc SLAVE_EBI1 0>;
 				interconnect-names = "qup-core", "qup-config", "qup-memory";
 				dmas = <&gpi_dma0 0 0 QCOM_GPI_I2C>,
 				       <&gpi_dma0 1 0 QCOM_GPI_I2C>;
@@ -1304,8 +1304,8 @@
 				interrupts = <GIC_SPI 601 IRQ_TYPE_LEVEL_HIGH>;
 				#address-cells = <1>;
 				#size-cells = <0>;
-				interconnects = <&aggre1_noc MASTER_QUP_1 0 &config_noc SLAVE_BLSP_1 0>,
-						<&gladiator_noc MASTER_APPSS_PROC 0 &config_noc SLAVE_BLSP_1 0>;
+				interconnects = <&aggre1_analc MASTER_QUP_1 0 &config_analc SLAVE_BLSP_1 0>,
+						<&gladiator_analc MASTER_APPSS_PROC 0 &config_analc SLAVE_BLSP_1 0>;
 				interconnect-names = "qup-core", "qup-config";
 				dmas = <&gpi_dma0 0 0 QCOM_GPI_SPI>,
 				       <&gpi_dma0 1 0 QCOM_GPI_SPI>;
@@ -1323,8 +1323,8 @@
 				interrupts = <GIC_SPI 601 IRQ_TYPE_LEVEL_HIGH>;
 				power-domains = <&rpmhpd SDM845_CX>;
 				operating-points-v2 = <&qup_opp_table>;
-				interconnects = <&aggre1_noc MASTER_QUP_1 0 &config_noc SLAVE_BLSP_1 0>,
-						<&gladiator_noc MASTER_APPSS_PROC 0 &config_noc SLAVE_BLSP_1 0>;
+				interconnects = <&aggre1_analc MASTER_QUP_1 0 &config_analc SLAVE_BLSP_1 0>,
+						<&gladiator_analc MASTER_APPSS_PROC 0 &config_analc SLAVE_BLSP_1 0>;
 				interconnect-names = "qup-core", "qup-config";
 				status = "disabled";
 			};
@@ -1341,9 +1341,9 @@
 				#size-cells = <0>;
 				power-domains = <&rpmhpd SDM845_CX>;
 				operating-points-v2 = <&qup_opp_table>;
-				interconnects = <&aggre1_noc MASTER_QUP_1 0 &config_noc SLAVE_BLSP_1 0>,
-						<&gladiator_noc MASTER_APPSS_PROC 0 &config_noc SLAVE_BLSP_1 0>,
-						<&aggre1_noc MASTER_QUP_1 0 &mem_noc SLAVE_EBI1 0>;
+				interconnects = <&aggre1_analc MASTER_QUP_1 0 &config_analc SLAVE_BLSP_1 0>,
+						<&gladiator_analc MASTER_APPSS_PROC 0 &config_analc SLAVE_BLSP_1 0>,
+						<&aggre1_analc MASTER_QUP_1 0 &mem_analc SLAVE_EBI1 0>;
 				interconnect-names = "qup-core", "qup-config", "qup-memory";
 				dmas = <&gpi_dma0 0 1 QCOM_GPI_I2C>,
 				       <&gpi_dma0 1 1 QCOM_GPI_I2C>;
@@ -1361,8 +1361,8 @@
 				interrupts = <GIC_SPI 602 IRQ_TYPE_LEVEL_HIGH>;
 				#address-cells = <1>;
 				#size-cells = <0>;
-				interconnects = <&aggre1_noc MASTER_QUP_1 0 &config_noc SLAVE_BLSP_1 0>,
-						<&gladiator_noc MASTER_APPSS_PROC 0 &config_noc SLAVE_BLSP_1 0>;
+				interconnects = <&aggre1_analc MASTER_QUP_1 0 &config_analc SLAVE_BLSP_1 0>,
+						<&gladiator_analc MASTER_APPSS_PROC 0 &config_analc SLAVE_BLSP_1 0>;
 				interconnect-names = "qup-core", "qup-config";
 				dmas = <&gpi_dma0 0 1 QCOM_GPI_SPI>,
 				       <&gpi_dma0 1 1 QCOM_GPI_SPI>;
@@ -1380,8 +1380,8 @@
 				interrupts = <GIC_SPI 602 IRQ_TYPE_LEVEL_HIGH>;
 				power-domains = <&rpmhpd SDM845_CX>;
 				operating-points-v2 = <&qup_opp_table>;
-				interconnects = <&aggre1_noc MASTER_QUP_1 0 &config_noc SLAVE_BLSP_1 0>,
-						<&gladiator_noc MASTER_APPSS_PROC 0 &config_noc SLAVE_BLSP_1 0>;
+				interconnects = <&aggre1_analc MASTER_QUP_1 0 &config_analc SLAVE_BLSP_1 0>,
+						<&gladiator_analc MASTER_APPSS_PROC 0 &config_analc SLAVE_BLSP_1 0>;
 				interconnect-names = "qup-core", "qup-config";
 				status = "disabled";
 			};
@@ -1398,9 +1398,9 @@
 				#size-cells = <0>;
 				power-domains = <&rpmhpd SDM845_CX>;
 				operating-points-v2 = <&qup_opp_table>;
-				interconnects = <&aggre1_noc MASTER_QUP_1 0 &config_noc SLAVE_BLSP_1 0>,
-						<&gladiator_noc MASTER_APPSS_PROC 0 &config_noc SLAVE_BLSP_1 0>,
-						<&aggre1_noc MASTER_QUP_1 0 &mem_noc SLAVE_EBI1 0>;
+				interconnects = <&aggre1_analc MASTER_QUP_1 0 &config_analc SLAVE_BLSP_1 0>,
+						<&gladiator_analc MASTER_APPSS_PROC 0 &config_analc SLAVE_BLSP_1 0>,
+						<&aggre1_analc MASTER_QUP_1 0 &mem_analc SLAVE_EBI1 0>;
 				interconnect-names = "qup-core", "qup-config", "qup-memory";
 				dmas = <&gpi_dma0 0 2 QCOM_GPI_I2C>,
 				       <&gpi_dma0 1 2 QCOM_GPI_I2C>;
@@ -1418,8 +1418,8 @@
 				interrupts = <GIC_SPI 603 IRQ_TYPE_LEVEL_HIGH>;
 				#address-cells = <1>;
 				#size-cells = <0>;
-				interconnects = <&aggre1_noc MASTER_QUP_1 0 &config_noc SLAVE_BLSP_1 0>,
-						<&gladiator_noc MASTER_APPSS_PROC 0 &config_noc SLAVE_BLSP_1 0>;
+				interconnects = <&aggre1_analc MASTER_QUP_1 0 &config_analc SLAVE_BLSP_1 0>,
+						<&gladiator_analc MASTER_APPSS_PROC 0 &config_analc SLAVE_BLSP_1 0>;
 				interconnect-names = "qup-core", "qup-config";
 				dmas = <&gpi_dma0 0 2 QCOM_GPI_SPI>,
 				       <&gpi_dma0 1 2 QCOM_GPI_SPI>;
@@ -1437,8 +1437,8 @@
 				interrupts = <GIC_SPI 603 IRQ_TYPE_LEVEL_HIGH>;
 				power-domains = <&rpmhpd SDM845_CX>;
 				operating-points-v2 = <&qup_opp_table>;
-				interconnects = <&aggre1_noc MASTER_QUP_1 0 &config_noc SLAVE_BLSP_1 0>,
-						<&gladiator_noc MASTER_APPSS_PROC 0 &config_noc SLAVE_BLSP_1 0>;
+				interconnects = <&aggre1_analc MASTER_QUP_1 0 &config_analc SLAVE_BLSP_1 0>,
+						<&gladiator_analc MASTER_APPSS_PROC 0 &config_analc SLAVE_BLSP_1 0>;
 				interconnect-names = "qup-core", "qup-config";
 				status = "disabled";
 			};
@@ -1455,9 +1455,9 @@
 				#size-cells = <0>;
 				power-domains = <&rpmhpd SDM845_CX>;
 				operating-points-v2 = <&qup_opp_table>;
-				interconnects = <&aggre1_noc MASTER_QUP_1 0 &config_noc SLAVE_BLSP_1 0>,
-						<&gladiator_noc MASTER_APPSS_PROC 0 &config_noc SLAVE_BLSP_1 0>,
-						<&aggre1_noc MASTER_QUP_1 0 &mem_noc SLAVE_EBI1 0>;
+				interconnects = <&aggre1_analc MASTER_QUP_1 0 &config_analc SLAVE_BLSP_1 0>,
+						<&gladiator_analc MASTER_APPSS_PROC 0 &config_analc SLAVE_BLSP_1 0>,
+						<&aggre1_analc MASTER_QUP_1 0 &mem_analc SLAVE_EBI1 0>;
 				interconnect-names = "qup-core", "qup-config", "qup-memory";
 				dmas = <&gpi_dma0 0 3 QCOM_GPI_I2C>,
 				       <&gpi_dma0 1 3 QCOM_GPI_I2C>;
@@ -1475,8 +1475,8 @@
 				interrupts = <GIC_SPI 604 IRQ_TYPE_LEVEL_HIGH>;
 				#address-cells = <1>;
 				#size-cells = <0>;
-				interconnects = <&aggre1_noc MASTER_QUP_1 0 &config_noc SLAVE_BLSP_1 0>,
-						<&gladiator_noc MASTER_APPSS_PROC 0 &config_noc SLAVE_BLSP_1 0>;
+				interconnects = <&aggre1_analc MASTER_QUP_1 0 &config_analc SLAVE_BLSP_1 0>,
+						<&gladiator_analc MASTER_APPSS_PROC 0 &config_analc SLAVE_BLSP_1 0>;
 				interconnect-names = "qup-core", "qup-config";
 				dmas = <&gpi_dma0 0 3 QCOM_GPI_SPI>,
 				       <&gpi_dma0 1 3 QCOM_GPI_SPI>;
@@ -1494,8 +1494,8 @@
 				interrupts = <GIC_SPI 604 IRQ_TYPE_LEVEL_HIGH>;
 				power-domains = <&rpmhpd SDM845_CX>;
 				operating-points-v2 = <&qup_opp_table>;
-				interconnects = <&aggre1_noc MASTER_QUP_1 0 &config_noc SLAVE_BLSP_1 0>,
-						<&gladiator_noc MASTER_APPSS_PROC 0 &config_noc SLAVE_BLSP_1 0>;
+				interconnects = <&aggre1_analc MASTER_QUP_1 0 &config_analc SLAVE_BLSP_1 0>,
+						<&gladiator_analc MASTER_APPSS_PROC 0 &config_analc SLAVE_BLSP_1 0>;
 				interconnect-names = "qup-core", "qup-config";
 				status = "disabled";
 			};
@@ -1512,9 +1512,9 @@
 				#size-cells = <0>;
 				power-domains = <&rpmhpd SDM845_CX>;
 				operating-points-v2 = <&qup_opp_table>;
-				interconnects = <&aggre1_noc MASTER_QUP_1 0 &config_noc SLAVE_BLSP_1 0>,
-						<&gladiator_noc MASTER_APPSS_PROC 0 &config_noc SLAVE_BLSP_1 0>,
-						<&aggre1_noc MASTER_QUP_1 0 &mem_noc SLAVE_EBI1 0>;
+				interconnects = <&aggre1_analc MASTER_QUP_1 0 &config_analc SLAVE_BLSP_1 0>,
+						<&gladiator_analc MASTER_APPSS_PROC 0 &config_analc SLAVE_BLSP_1 0>,
+						<&aggre1_analc MASTER_QUP_1 0 &mem_analc SLAVE_EBI1 0>;
 				interconnect-names = "qup-core", "qup-config", "qup-memory";
 				dmas = <&gpi_dma0 0 4 QCOM_GPI_I2C>,
 				       <&gpi_dma0 1 4 QCOM_GPI_I2C>;
@@ -1532,8 +1532,8 @@
 				interrupts = <GIC_SPI 605 IRQ_TYPE_LEVEL_HIGH>;
 				#address-cells = <1>;
 				#size-cells = <0>;
-				interconnects = <&aggre1_noc MASTER_QUP_1 0 &config_noc SLAVE_BLSP_1 0>,
-						<&gladiator_noc MASTER_APPSS_PROC 0 &config_noc SLAVE_BLSP_1 0>;
+				interconnects = <&aggre1_analc MASTER_QUP_1 0 &config_analc SLAVE_BLSP_1 0>,
+						<&gladiator_analc MASTER_APPSS_PROC 0 &config_analc SLAVE_BLSP_1 0>;
 				interconnect-names = "qup-core", "qup-config";
 				dmas = <&gpi_dma0 0 4 QCOM_GPI_SPI>,
 				       <&gpi_dma0 1 4 QCOM_GPI_SPI>;
@@ -1551,8 +1551,8 @@
 				interrupts = <GIC_SPI 605 IRQ_TYPE_LEVEL_HIGH>;
 				power-domains = <&rpmhpd SDM845_CX>;
 				operating-points-v2 = <&qup_opp_table>;
-				interconnects = <&aggre1_noc MASTER_QUP_1 0 &config_noc SLAVE_BLSP_1 0>,
-						<&gladiator_noc MASTER_APPSS_PROC 0 &config_noc SLAVE_BLSP_1 0>;
+				interconnects = <&aggre1_analc MASTER_QUP_1 0 &config_analc SLAVE_BLSP_1 0>,
+						<&gladiator_analc MASTER_APPSS_PROC 0 &config_analc SLAVE_BLSP_1 0>;
 				interconnect-names = "qup-core", "qup-config";
 				status = "disabled";
 			};
@@ -1569,9 +1569,9 @@
 				#size-cells = <0>;
 				power-domains = <&rpmhpd SDM845_CX>;
 				operating-points-v2 = <&qup_opp_table>;
-				interconnects = <&aggre1_noc MASTER_QUP_1 0 &config_noc SLAVE_BLSP_1 0>,
-						<&gladiator_noc MASTER_APPSS_PROC 0 &config_noc SLAVE_BLSP_1 0>,
-						<&aggre1_noc MASTER_QUP_1 0 &mem_noc SLAVE_EBI1 0>;
+				interconnects = <&aggre1_analc MASTER_QUP_1 0 &config_analc SLAVE_BLSP_1 0>,
+						<&gladiator_analc MASTER_APPSS_PROC 0 &config_analc SLAVE_BLSP_1 0>,
+						<&aggre1_analc MASTER_QUP_1 0 &mem_analc SLAVE_EBI1 0>;
 				interconnect-names = "qup-core", "qup-config", "qup-memory";
 				dmas = <&gpi_dma0 0 5 QCOM_GPI_I2C>,
 				       <&gpi_dma0 1 5 QCOM_GPI_I2C>;
@@ -1589,8 +1589,8 @@
 				interrupts = <GIC_SPI 606 IRQ_TYPE_LEVEL_HIGH>;
 				#address-cells = <1>;
 				#size-cells = <0>;
-				interconnects = <&aggre1_noc MASTER_QUP_1 0 &config_noc SLAVE_BLSP_1 0>,
-						<&gladiator_noc MASTER_APPSS_PROC 0 &config_noc SLAVE_BLSP_1 0>;
+				interconnects = <&aggre1_analc MASTER_QUP_1 0 &config_analc SLAVE_BLSP_1 0>,
+						<&gladiator_analc MASTER_APPSS_PROC 0 &config_analc SLAVE_BLSP_1 0>;
 				interconnect-names = "qup-core", "qup-config";
 				dmas = <&gpi_dma0 0 5 QCOM_GPI_SPI>,
 				       <&gpi_dma0 1 5 QCOM_GPI_SPI>;
@@ -1608,8 +1608,8 @@
 				interrupts = <GIC_SPI 606 IRQ_TYPE_LEVEL_HIGH>;
 				power-domains = <&rpmhpd SDM845_CX>;
 				operating-points-v2 = <&qup_opp_table>;
-				interconnects = <&aggre1_noc MASTER_QUP_1 0 &config_noc SLAVE_BLSP_1 0>,
-						<&gladiator_noc MASTER_APPSS_PROC 0 &config_noc SLAVE_BLSP_1 0>;
+				interconnects = <&aggre1_analc MASTER_QUP_1 0 &config_analc SLAVE_BLSP_1 0>,
+						<&gladiator_analc MASTER_APPSS_PROC 0 &config_analc SLAVE_BLSP_1 0>;
 				interconnect-names = "qup-core", "qup-config";
 				status = "disabled";
 			};
@@ -1626,9 +1626,9 @@
 				#size-cells = <0>;
 				power-domains = <&rpmhpd SDM845_CX>;
 				operating-points-v2 = <&qup_opp_table>;
-				interconnects = <&aggre1_noc MASTER_QUP_1 0 &config_noc SLAVE_BLSP_1 0>,
-						<&gladiator_noc MASTER_APPSS_PROC 0 &config_noc SLAVE_BLSP_1 0>,
-						<&aggre1_noc MASTER_QUP_1 0 &mem_noc SLAVE_EBI1 0>;
+				interconnects = <&aggre1_analc MASTER_QUP_1 0 &config_analc SLAVE_BLSP_1 0>,
+						<&gladiator_analc MASTER_APPSS_PROC 0 &config_analc SLAVE_BLSP_1 0>,
+						<&aggre1_analc MASTER_QUP_1 0 &mem_analc SLAVE_EBI1 0>;
 				interconnect-names = "qup-core", "qup-config", "qup-memory";
 				dmas = <&gpi_dma0 0 6 QCOM_GPI_I2C>,
 				       <&gpi_dma0 1 6 QCOM_GPI_I2C>;
@@ -1646,8 +1646,8 @@
 				interrupts = <GIC_SPI 607 IRQ_TYPE_LEVEL_HIGH>;
 				#address-cells = <1>;
 				#size-cells = <0>;
-				interconnects = <&aggre1_noc MASTER_QUP_1 0 &config_noc SLAVE_BLSP_1 0>,
-						<&gladiator_noc MASTER_APPSS_PROC 0 &config_noc SLAVE_BLSP_1 0>;
+				interconnects = <&aggre1_analc MASTER_QUP_1 0 &config_analc SLAVE_BLSP_1 0>,
+						<&gladiator_analc MASTER_APPSS_PROC 0 &config_analc SLAVE_BLSP_1 0>;
 				interconnect-names = "qup-core", "qup-config";
 				dmas = <&gpi_dma0 0 6 QCOM_GPI_SPI>,
 				       <&gpi_dma0 1 6 QCOM_GPI_SPI>;
@@ -1665,8 +1665,8 @@
 				interrupts = <GIC_SPI 607 IRQ_TYPE_LEVEL_HIGH>;
 				power-domains = <&rpmhpd SDM845_CX>;
 				operating-points-v2 = <&qup_opp_table>;
-				interconnects = <&aggre1_noc MASTER_QUP_1 0 &config_noc SLAVE_BLSP_1 0>,
-						<&gladiator_noc MASTER_APPSS_PROC 0 &config_noc SLAVE_BLSP_1 0>;
+				interconnects = <&aggre1_analc MASTER_QUP_1 0 &config_analc SLAVE_BLSP_1 0>,
+						<&gladiator_analc MASTER_APPSS_PROC 0 &config_analc SLAVE_BLSP_1 0>;
 				interconnect-names = "qup-core", "qup-config";
 				status = "disabled";
 			};
@@ -1696,8 +1696,8 @@
 				interrupts = <GIC_SPI 608 IRQ_TYPE_LEVEL_HIGH>;
 				#address-cells = <1>;
 				#size-cells = <0>;
-				interconnects = <&aggre1_noc MASTER_QUP_1 0 &config_noc SLAVE_BLSP_1 0>,
-						<&gladiator_noc MASTER_APPSS_PROC 0 &config_noc SLAVE_BLSP_1 0>;
+				interconnects = <&aggre1_analc MASTER_QUP_1 0 &config_analc SLAVE_BLSP_1 0>,
+						<&gladiator_analc MASTER_APPSS_PROC 0 &config_analc SLAVE_BLSP_1 0>;
 				interconnect-names = "qup-core", "qup-config";
 				dmas = <&gpi_dma0 0 7 QCOM_GPI_SPI>,
 				       <&gpi_dma0 1 7 QCOM_GPI_SPI>;
@@ -1715,8 +1715,8 @@
 				interrupts = <GIC_SPI 608 IRQ_TYPE_LEVEL_HIGH>;
 				power-domains = <&rpmhpd SDM845_CX>;
 				operating-points-v2 = <&qup_opp_table>;
-				interconnects = <&aggre1_noc MASTER_QUP_1 0 &config_noc SLAVE_BLSP_1 0>,
-						<&gladiator_noc MASTER_APPSS_PROC 0 &config_noc SLAVE_BLSP_1 0>;
+				interconnects = <&aggre1_analc MASTER_QUP_1 0 &config_analc SLAVE_BLSP_1 0>,
+						<&gladiator_analc MASTER_APPSS_PROC 0 &config_analc SLAVE_BLSP_1 0>;
 				interconnect-names = "qup-core", "qup-config";
 				status = "disabled";
 			};
@@ -1755,7 +1755,7 @@
 			#address-cells = <2>;
 			#size-cells = <2>;
 			ranges;
-			interconnects = <&aggre2_noc MASTER_QUP_2 0 &config_noc SLAVE_BLSP_2 0>;
+			interconnects = <&aggre2_analc MASTER_QUP_2 0 &config_analc SLAVE_BLSP_2 0>;
 			interconnect-names = "qup-core";
 			status = "disabled";
 
@@ -1771,9 +1771,9 @@
 				#size-cells = <0>;
 				power-domains = <&rpmhpd SDM845_CX>;
 				operating-points-v2 = <&qup_opp_table>;
-				interconnects = <&aggre2_noc MASTER_QUP_2 0 &config_noc SLAVE_BLSP_2 0>,
-						<&gladiator_noc MASTER_APPSS_PROC 0 &config_noc SLAVE_BLSP_2 0>,
-						<&aggre2_noc MASTER_QUP_2 0 &mem_noc SLAVE_EBI1 0>;
+				interconnects = <&aggre2_analc MASTER_QUP_2 0 &config_analc SLAVE_BLSP_2 0>,
+						<&gladiator_analc MASTER_APPSS_PROC 0 &config_analc SLAVE_BLSP_2 0>,
+						<&aggre2_analc MASTER_QUP_2 0 &mem_analc SLAVE_EBI1 0>;
 				interconnect-names = "qup-core", "qup-config", "qup-memory";
 				dmas = <&gpi_dma1 0 0 QCOM_GPI_I2C>,
 				       <&gpi_dma1 1 0 QCOM_GPI_I2C>;
@@ -1791,8 +1791,8 @@
 				interrupts = <GIC_SPI 353 IRQ_TYPE_LEVEL_HIGH>;
 				#address-cells = <1>;
 				#size-cells = <0>;
-				interconnects = <&aggre2_noc MASTER_QUP_2 0 &config_noc SLAVE_BLSP_2 0>,
-						<&gladiator_noc MASTER_APPSS_PROC 0 &config_noc SLAVE_BLSP_2 0>;
+				interconnects = <&aggre2_analc MASTER_QUP_2 0 &config_analc SLAVE_BLSP_2 0>,
+						<&gladiator_analc MASTER_APPSS_PROC 0 &config_analc SLAVE_BLSP_2 0>;
 				interconnect-names = "qup-core", "qup-config";
 				dmas = <&gpi_dma1 0 0 QCOM_GPI_SPI>,
 				       <&gpi_dma1 1 0 QCOM_GPI_SPI>;
@@ -1810,8 +1810,8 @@
 				interrupts = <GIC_SPI 353 IRQ_TYPE_LEVEL_HIGH>;
 				power-domains = <&rpmhpd SDM845_CX>;
 				operating-points-v2 = <&qup_opp_table>;
-				interconnects = <&aggre2_noc MASTER_QUP_2 0 &config_noc SLAVE_BLSP_2 0>,
-						<&gladiator_noc MASTER_APPSS_PROC 0 &config_noc SLAVE_BLSP_2 0>;
+				interconnects = <&aggre2_analc MASTER_QUP_2 0 &config_analc SLAVE_BLSP_2 0>,
+						<&gladiator_analc MASTER_APPSS_PROC 0 &config_analc SLAVE_BLSP_2 0>;
 				interconnect-names = "qup-core", "qup-config";
 				status = "disabled";
 			};
@@ -1828,9 +1828,9 @@
 				#size-cells = <0>;
 				power-domains = <&rpmhpd SDM845_CX>;
 				operating-points-v2 = <&qup_opp_table>;
-				interconnects = <&aggre2_noc MASTER_QUP_2 0 &config_noc SLAVE_BLSP_2 0>,
-						<&gladiator_noc MASTER_APPSS_PROC 0 &config_noc SLAVE_BLSP_2 0>,
-						<&aggre2_noc MASTER_QUP_2 0 &mem_noc SLAVE_EBI1 0>;
+				interconnects = <&aggre2_analc MASTER_QUP_2 0 &config_analc SLAVE_BLSP_2 0>,
+						<&gladiator_analc MASTER_APPSS_PROC 0 &config_analc SLAVE_BLSP_2 0>,
+						<&aggre2_analc MASTER_QUP_2 0 &mem_analc SLAVE_EBI1 0>;
 				interconnect-names = "qup-core", "qup-config", "qup-memory";
 				dmas = <&gpi_dma1 0 1 QCOM_GPI_I2C>,
 				       <&gpi_dma1 1 1 QCOM_GPI_I2C>;
@@ -1848,8 +1848,8 @@
 				interrupts = <GIC_SPI 354 IRQ_TYPE_LEVEL_HIGH>;
 				#address-cells = <1>;
 				#size-cells = <0>;
-				interconnects = <&aggre2_noc MASTER_QUP_2 0 &config_noc SLAVE_BLSP_2 0>,
-						<&gladiator_noc MASTER_APPSS_PROC 0 &config_noc SLAVE_BLSP_2 0>;
+				interconnects = <&aggre2_analc MASTER_QUP_2 0 &config_analc SLAVE_BLSP_2 0>,
+						<&gladiator_analc MASTER_APPSS_PROC 0 &config_analc SLAVE_BLSP_2 0>;
 				interconnect-names = "qup-core", "qup-config";
 				dmas = <&gpi_dma1 0 1 QCOM_GPI_SPI>,
 				       <&gpi_dma1 1 1 QCOM_GPI_SPI>;
@@ -1867,8 +1867,8 @@
 				interrupts = <GIC_SPI 354 IRQ_TYPE_LEVEL_HIGH>;
 				power-domains = <&rpmhpd SDM845_CX>;
 				operating-points-v2 = <&qup_opp_table>;
-				interconnects = <&aggre2_noc MASTER_QUP_2 0 &config_noc SLAVE_BLSP_2 0>,
-						<&gladiator_noc MASTER_APPSS_PROC 0 &config_noc SLAVE_BLSP_2 0>;
+				interconnects = <&aggre2_analc MASTER_QUP_2 0 &config_analc SLAVE_BLSP_2 0>,
+						<&gladiator_analc MASTER_APPSS_PROC 0 &config_analc SLAVE_BLSP_2 0>;
 				interconnect-names = "qup-core", "qup-config";
 				status = "disabled";
 			};
@@ -1885,9 +1885,9 @@
 				#size-cells = <0>;
 				power-domains = <&rpmhpd SDM845_CX>;
 				operating-points-v2 = <&qup_opp_table>;
-				interconnects = <&aggre2_noc MASTER_QUP_2 0 &config_noc SLAVE_BLSP_2 0>,
-						<&gladiator_noc MASTER_APPSS_PROC 0 &config_noc SLAVE_BLSP_2 0>,
-						<&aggre2_noc MASTER_QUP_2 0 &mem_noc SLAVE_EBI1 0>;
+				interconnects = <&aggre2_analc MASTER_QUP_2 0 &config_analc SLAVE_BLSP_2 0>,
+						<&gladiator_analc MASTER_APPSS_PROC 0 &config_analc SLAVE_BLSP_2 0>,
+						<&aggre2_analc MASTER_QUP_2 0 &mem_analc SLAVE_EBI1 0>;
 				interconnect-names = "qup-core", "qup-config", "qup-memory";
 				dmas = <&gpi_dma1 0 2 QCOM_GPI_I2C>,
 				       <&gpi_dma1 1 2 QCOM_GPI_I2C>;
@@ -1905,8 +1905,8 @@
 				interrupts = <GIC_SPI 355 IRQ_TYPE_LEVEL_HIGH>;
 				#address-cells = <1>;
 				#size-cells = <0>;
-				interconnects = <&aggre2_noc MASTER_QUP_2 0 &config_noc SLAVE_BLSP_2 0>,
-						<&gladiator_noc MASTER_APPSS_PROC 0 &config_noc SLAVE_BLSP_2 0>;
+				interconnects = <&aggre2_analc MASTER_QUP_2 0 &config_analc SLAVE_BLSP_2 0>,
+						<&gladiator_analc MASTER_APPSS_PROC 0 &config_analc SLAVE_BLSP_2 0>;
 				interconnect-names = "qup-core", "qup-config";
 				dmas = <&gpi_dma1 0 2 QCOM_GPI_SPI>,
 				       <&gpi_dma1 1 2 QCOM_GPI_SPI>;
@@ -1924,8 +1924,8 @@
 				interrupts = <GIC_SPI 355 IRQ_TYPE_LEVEL_HIGH>;
 				power-domains = <&rpmhpd SDM845_CX>;
 				operating-points-v2 = <&qup_opp_table>;
-				interconnects = <&aggre2_noc MASTER_QUP_2 0 &config_noc SLAVE_BLSP_2 0>,
-						<&gladiator_noc MASTER_APPSS_PROC 0 &config_noc SLAVE_BLSP_2 0>;
+				interconnects = <&aggre2_analc MASTER_QUP_2 0 &config_analc SLAVE_BLSP_2 0>,
+						<&gladiator_analc MASTER_APPSS_PROC 0 &config_analc SLAVE_BLSP_2 0>;
 				interconnect-names = "qup-core", "qup-config";
 				status = "disabled";
 			};
@@ -1942,9 +1942,9 @@
 				#size-cells = <0>;
 				power-domains = <&rpmhpd SDM845_CX>;
 				operating-points-v2 = <&qup_opp_table>;
-				interconnects = <&aggre2_noc MASTER_QUP_2 0 &config_noc SLAVE_BLSP_2 0>,
-						<&gladiator_noc MASTER_APPSS_PROC 0 &config_noc SLAVE_BLSP_2 0>,
-						<&aggre2_noc MASTER_QUP_2 0 &mem_noc SLAVE_EBI1 0>;
+				interconnects = <&aggre2_analc MASTER_QUP_2 0 &config_analc SLAVE_BLSP_2 0>,
+						<&gladiator_analc MASTER_APPSS_PROC 0 &config_analc SLAVE_BLSP_2 0>,
+						<&aggre2_analc MASTER_QUP_2 0 &mem_analc SLAVE_EBI1 0>;
 				interconnect-names = "qup-core", "qup-config", "qup-memory";
 				dmas = <&gpi_dma1 0 3 QCOM_GPI_I2C>,
 				       <&gpi_dma1 1 3 QCOM_GPI_I2C>;
@@ -1962,8 +1962,8 @@
 				interrupts = <GIC_SPI 356 IRQ_TYPE_LEVEL_HIGH>;
 				#address-cells = <1>;
 				#size-cells = <0>;
-				interconnects = <&aggre2_noc MASTER_QUP_2 0 &config_noc SLAVE_BLSP_2 0>,
-						<&gladiator_noc MASTER_APPSS_PROC 0 &config_noc SLAVE_BLSP_2 0>;
+				interconnects = <&aggre2_analc MASTER_QUP_2 0 &config_analc SLAVE_BLSP_2 0>,
+						<&gladiator_analc MASTER_APPSS_PROC 0 &config_analc SLAVE_BLSP_2 0>;
 				interconnect-names = "qup-core", "qup-config";
 				dmas = <&gpi_dma1 0 3 QCOM_GPI_SPI>,
 				       <&gpi_dma1 1 3 QCOM_GPI_SPI>;
@@ -1981,8 +1981,8 @@
 				interrupts = <GIC_SPI 356 IRQ_TYPE_LEVEL_HIGH>;
 				power-domains = <&rpmhpd SDM845_CX>;
 				operating-points-v2 = <&qup_opp_table>;
-				interconnects = <&aggre2_noc MASTER_QUP_2 0 &config_noc SLAVE_BLSP_2 0>,
-						<&gladiator_noc MASTER_APPSS_PROC 0 &config_noc SLAVE_BLSP_2 0>;
+				interconnects = <&aggre2_analc MASTER_QUP_2 0 &config_analc SLAVE_BLSP_2 0>,
+						<&gladiator_analc MASTER_APPSS_PROC 0 &config_analc SLAVE_BLSP_2 0>;
 				interconnect-names = "qup-core", "qup-config";
 				status = "disabled";
 			};
@@ -1999,9 +1999,9 @@
 				#size-cells = <0>;
 				power-domains = <&rpmhpd SDM845_CX>;
 				operating-points-v2 = <&qup_opp_table>;
-				interconnects = <&aggre2_noc MASTER_QUP_2 0 &config_noc SLAVE_BLSP_2 0>,
-						<&gladiator_noc MASTER_APPSS_PROC 0 &config_noc SLAVE_BLSP_2 0>,
-						<&aggre2_noc MASTER_QUP_2 0 &mem_noc SLAVE_EBI1 0>;
+				interconnects = <&aggre2_analc MASTER_QUP_2 0 &config_analc SLAVE_BLSP_2 0>,
+						<&gladiator_analc MASTER_APPSS_PROC 0 &config_analc SLAVE_BLSP_2 0>,
+						<&aggre2_analc MASTER_QUP_2 0 &mem_analc SLAVE_EBI1 0>;
 				interconnect-names = "qup-core", "qup-config", "qup-memory";
 				dmas = <&gpi_dma1 0 4 QCOM_GPI_I2C>,
 				       <&gpi_dma1 1 4 QCOM_GPI_I2C>;
@@ -2019,8 +2019,8 @@
 				interrupts = <GIC_SPI 357 IRQ_TYPE_LEVEL_HIGH>;
 				#address-cells = <1>;
 				#size-cells = <0>;
-				interconnects = <&aggre2_noc MASTER_QUP_2 0 &config_noc SLAVE_BLSP_2 0>,
-						<&gladiator_noc MASTER_APPSS_PROC 0 &config_noc SLAVE_BLSP_2 0>;
+				interconnects = <&aggre2_analc MASTER_QUP_2 0 &config_analc SLAVE_BLSP_2 0>,
+						<&gladiator_analc MASTER_APPSS_PROC 0 &config_analc SLAVE_BLSP_2 0>;
 				interconnect-names = "qup-core", "qup-config";
 				dmas = <&gpi_dma1 0 4 QCOM_GPI_SPI>,
 				       <&gpi_dma1 1 4 QCOM_GPI_SPI>;
@@ -2038,8 +2038,8 @@
 				interrupts = <GIC_SPI 357 IRQ_TYPE_LEVEL_HIGH>;
 				power-domains = <&rpmhpd SDM845_CX>;
 				operating-points-v2 = <&qup_opp_table>;
-				interconnects = <&aggre2_noc MASTER_QUP_2 0 &config_noc SLAVE_BLSP_2 0>,
-						<&gladiator_noc MASTER_APPSS_PROC 0 &config_noc SLAVE_BLSP_2 0>;
+				interconnects = <&aggre2_analc MASTER_QUP_2 0 &config_analc SLAVE_BLSP_2 0>,
+						<&gladiator_analc MASTER_APPSS_PROC 0 &config_analc SLAVE_BLSP_2 0>;
 				interconnect-names = "qup-core", "qup-config";
 				status = "disabled";
 			};
@@ -2056,9 +2056,9 @@
 				#size-cells = <0>;
 				power-domains = <&rpmhpd SDM845_CX>;
 				operating-points-v2 = <&qup_opp_table>;
-				interconnects = <&aggre2_noc MASTER_QUP_2 0 &config_noc SLAVE_BLSP_2 0>,
-						<&gladiator_noc MASTER_APPSS_PROC 0 &config_noc SLAVE_BLSP_2 0>,
-						<&aggre2_noc MASTER_QUP_2 0 &mem_noc SLAVE_EBI1 0>;
+				interconnects = <&aggre2_analc MASTER_QUP_2 0 &config_analc SLAVE_BLSP_2 0>,
+						<&gladiator_analc MASTER_APPSS_PROC 0 &config_analc SLAVE_BLSP_2 0>,
+						<&aggre2_analc MASTER_QUP_2 0 &mem_analc SLAVE_EBI1 0>;
 				interconnect-names = "qup-core", "qup-config", "qup-memory";
 				dmas = <&gpi_dma1 0 5 QCOM_GPI_I2C>,
 				       <&gpi_dma1 1 5 QCOM_GPI_I2C>;
@@ -2076,8 +2076,8 @@
 				interrupts = <GIC_SPI 358 IRQ_TYPE_LEVEL_HIGH>;
 				#address-cells = <1>;
 				#size-cells = <0>;
-				interconnects = <&aggre2_noc MASTER_QUP_2 0 &config_noc SLAVE_BLSP_2 0>,
-						<&gladiator_noc MASTER_APPSS_PROC 0 &config_noc SLAVE_BLSP_2 0>;
+				interconnects = <&aggre2_analc MASTER_QUP_2 0 &config_analc SLAVE_BLSP_2 0>,
+						<&gladiator_analc MASTER_APPSS_PROC 0 &config_analc SLAVE_BLSP_2 0>;
 				interconnect-names = "qup-core", "qup-config";
 				dmas = <&gpi_dma1 0 5 QCOM_GPI_SPI>,
 				       <&gpi_dma1 1 5 QCOM_GPI_SPI>;
@@ -2095,8 +2095,8 @@
 				interrupts = <GIC_SPI 358 IRQ_TYPE_LEVEL_HIGH>;
 				power-domains = <&rpmhpd SDM845_CX>;
 				operating-points-v2 = <&qup_opp_table>;
-				interconnects = <&aggre2_noc MASTER_QUP_2 0 &config_noc SLAVE_BLSP_2 0>,
-						<&gladiator_noc MASTER_APPSS_PROC 0 &config_noc SLAVE_BLSP_2 0>;
+				interconnects = <&aggre2_analc MASTER_QUP_2 0 &config_analc SLAVE_BLSP_2 0>,
+						<&gladiator_analc MASTER_APPSS_PROC 0 &config_analc SLAVE_BLSP_2 0>;
 				interconnect-names = "qup-core", "qup-config";
 				status = "disabled";
 			};
@@ -2113,9 +2113,9 @@
 				#size-cells = <0>;
 				power-domains = <&rpmhpd SDM845_CX>;
 				operating-points-v2 = <&qup_opp_table>;
-				interconnects = <&aggre2_noc MASTER_QUP_2 0 &config_noc SLAVE_BLSP_2 0>,
-						<&gladiator_noc MASTER_APPSS_PROC 0 &config_noc SLAVE_BLSP_2 0>,
-						<&aggre2_noc MASTER_QUP_2 0 &mem_noc SLAVE_EBI1 0>;
+				interconnects = <&aggre2_analc MASTER_QUP_2 0 &config_analc SLAVE_BLSP_2 0>,
+						<&gladiator_analc MASTER_APPSS_PROC 0 &config_analc SLAVE_BLSP_2 0>,
+						<&aggre2_analc MASTER_QUP_2 0 &mem_analc SLAVE_EBI1 0>;
 				interconnect-names = "qup-core", "qup-config", "qup-memory";
 				dmas = <&gpi_dma1 0 6 QCOM_GPI_I2C>,
 				       <&gpi_dma1 1 6 QCOM_GPI_I2C>;
@@ -2133,8 +2133,8 @@
 				interrupts = <GIC_SPI 359 IRQ_TYPE_LEVEL_HIGH>;
 				#address-cells = <1>;
 				#size-cells = <0>;
-				interconnects = <&aggre2_noc MASTER_QUP_2 0 &config_noc SLAVE_BLSP_2 0>,
-						<&gladiator_noc MASTER_APPSS_PROC 0 &config_noc SLAVE_BLSP_2 0>;
+				interconnects = <&aggre2_analc MASTER_QUP_2 0 &config_analc SLAVE_BLSP_2 0>,
+						<&gladiator_analc MASTER_APPSS_PROC 0 &config_analc SLAVE_BLSP_2 0>;
 				interconnect-names = "qup-core", "qup-config";
 				dmas = <&gpi_dma1 0 6 QCOM_GPI_SPI>,
 				       <&gpi_dma1 1 6 QCOM_GPI_SPI>;
@@ -2152,8 +2152,8 @@
 				interrupts = <GIC_SPI 359 IRQ_TYPE_LEVEL_HIGH>;
 				power-domains = <&rpmhpd SDM845_CX>;
 				operating-points-v2 = <&qup_opp_table>;
-				interconnects = <&aggre2_noc MASTER_QUP_2 0 &config_noc SLAVE_BLSP_2 0>,
-						<&gladiator_noc MASTER_APPSS_PROC 0 &config_noc SLAVE_BLSP_2 0>;
+				interconnects = <&aggre2_analc MASTER_QUP_2 0 &config_analc SLAVE_BLSP_2 0>,
+						<&gladiator_analc MASTER_APPSS_PROC 0 &config_analc SLAVE_BLSP_2 0>;
 				interconnect-names = "qup-core", "qup-config";
 				status = "disabled";
 			};
@@ -2171,9 +2171,9 @@
 				power-domains = <&rpmhpd SDM845_CX>;
 				operating-points-v2 = <&qup_opp_table>;
 				status = "disabled";
-				interconnects = <&aggre2_noc MASTER_QUP_2 0 &config_noc SLAVE_BLSP_2 0>,
-						<&gladiator_noc MASTER_APPSS_PROC 0 &config_noc SLAVE_BLSP_2 0>,
-						<&aggre2_noc MASTER_QUP_2 0 &mem_noc SLAVE_EBI1 0>;
+				interconnects = <&aggre2_analc MASTER_QUP_2 0 &config_analc SLAVE_BLSP_2 0>,
+						<&gladiator_analc MASTER_APPSS_PROC 0 &config_analc SLAVE_BLSP_2 0>,
+						<&aggre2_analc MASTER_QUP_2 0 &mem_analc SLAVE_EBI1 0>;
 				interconnect-names = "qup-core", "qup-config", "qup-memory";
 				dmas = <&gpi_dma1 0 7 QCOM_GPI_I2C>,
 				       <&gpi_dma1 1 7 QCOM_GPI_I2C>;
@@ -2190,8 +2190,8 @@
 				interrupts = <GIC_SPI 360 IRQ_TYPE_LEVEL_HIGH>;
 				#address-cells = <1>;
 				#size-cells = <0>;
-				interconnects = <&aggre2_noc MASTER_QUP_2 0 &config_noc SLAVE_BLSP_2 0>,
-						<&gladiator_noc MASTER_APPSS_PROC 0 &config_noc SLAVE_BLSP_2 0>;
+				interconnects = <&aggre2_analc MASTER_QUP_2 0 &config_analc SLAVE_BLSP_2 0>,
+						<&gladiator_analc MASTER_APPSS_PROC 0 &config_analc SLAVE_BLSP_2 0>;
 				interconnect-names = "qup-core", "qup-config";
 				dmas = <&gpi_dma1 0 7 QCOM_GPI_SPI>,
 				       <&gpi_dma1 1 7 QCOM_GPI_SPI>;
@@ -2209,8 +2209,8 @@
 				interrupts = <GIC_SPI 360 IRQ_TYPE_LEVEL_HIGH>;
 				power-domains = <&rpmhpd SDM845_CX>;
 				operating-points-v2 = <&qup_opp_table>;
-				interconnects = <&aggre2_noc MASTER_QUP_2 0 &config_noc SLAVE_BLSP_2 0>,
-						<&gladiator_noc MASTER_APPSS_PROC 0 &config_noc SLAVE_BLSP_2 0>;
+				interconnects = <&aggre2_analc MASTER_QUP_2 0 &config_analc SLAVE_BLSP_2 0>,
+						<&gladiator_analc MASTER_APPSS_PROC 0 &config_analc SLAVE_BLSP_2 0>;
 				interconnect-names = "qup-core", "qup-config";
 				status = "disabled";
 			};
@@ -2236,7 +2236,7 @@
 			compatible = "qcom,sdm845-llcc-bwmon";
 			reg = <0 0x0114a000 0 0x1000>;
 			interrupts = <GIC_SPI 580 IRQ_TYPE_LEVEL_HIGH>;
-			interconnects = <&mem_noc MASTER_LLCC 3 &mem_noc SLAVE_EBI1 3>;
+			interconnects = <&mem_analc MASTER_LLCC 3 &mem_analc SLAVE_EBI1 3>;
 
 			operating-points-v2 = <&llcc_bwmon_opp_table>;
 
@@ -2245,7 +2245,7 @@
 
 				/*
 				 * The interconnect path bandwidth taken from
-				 * cpu4_opp_table bandwidth for gladiator_noc-mem_noc
+				 * cpu4_opp_table bandwidth for gladiator_analc-mem_analc
 				 * interconnect.  This also matches the
 				 * bandwidth table of qcom,llccbw (qcom,bw-tbl,
 				 * bus width: 4 bytes) from msm-4.9 downstream
@@ -2273,7 +2273,7 @@
 			compatible = "qcom,sdm845-cpu-bwmon", "qcom,sdm845-bwmon";
 			reg = <0 0x01436400 0 0x600>;
 			interrupts = <GIC_SPI 581 IRQ_TYPE_LEVEL_HIGH>;
-			interconnects = <&gladiator_noc MASTER_APPSS_PROC 3 &mem_noc SLAVE_LLCC 3>;
+			interconnects = <&gladiator_analc MASTER_APPSS_PROC 3 &mem_analc SLAVE_LLCC 3>;
 
 			operating-points-v2 = <&cpu_bwmon_opp_table>;
 
@@ -2340,7 +2340,7 @@
 				 <&gcc GCC_PCIE_0_MSTR_AXI_CLK>,
 				 <&gcc GCC_PCIE_0_SLV_AXI_CLK>,
 				 <&gcc GCC_PCIE_0_SLV_Q2A_AXI_CLK>,
-				 <&gcc GCC_AGGRE_NOC_PCIE_TBU_CLK>;
+				 <&gcc GCC_AGGRE_ANALC_PCIE_TBU_CLK>;
 			clock-names = "pipe",
 				      "aux",
 				      "cfg",
@@ -2440,7 +2440,7 @@
 				 <&gcc GCC_PCIE_1_SLV_AXI_CLK>,
 				 <&gcc GCC_PCIE_1_SLV_Q2A_AXI_CLK>,
 				 <&gcc GCC_PCIE_1_CLKREF_CLK>,
-				 <&gcc GCC_AGGRE_NOC_PCIE_TBU_CLK>;
+				 <&gcc GCC_AGGRE_ANALC_PCIE_TBU_CLK>;
 			clock-names = "pipe",
 				      "aux",
 				      "cfg",
@@ -2509,50 +2509,50 @@
 			status = "disabled";
 		};
 
-		mem_noc: interconnect@1380000 {
-			compatible = "qcom,sdm845-mem-noc";
+		mem_analc: interconnect@1380000 {
+			compatible = "qcom,sdm845-mem-analc";
 			reg = <0 0x01380000 0 0x27200>;
 			#interconnect-cells = <2>;
 			qcom,bcm-voters = <&apps_bcm_voter>;
 		};
 
-		dc_noc: interconnect@14e0000 {
-			compatible = "qcom,sdm845-dc-noc";
+		dc_analc: interconnect@14e0000 {
+			compatible = "qcom,sdm845-dc-analc";
 			reg = <0 0x014e0000 0 0x400>;
 			#interconnect-cells = <2>;
 			qcom,bcm-voters = <&apps_bcm_voter>;
 		};
 
-		config_noc: interconnect@1500000 {
-			compatible = "qcom,sdm845-config-noc";
+		config_analc: interconnect@1500000 {
+			compatible = "qcom,sdm845-config-analc";
 			reg = <0 0x01500000 0 0x5080>;
 			#interconnect-cells = <2>;
 			qcom,bcm-voters = <&apps_bcm_voter>;
 		};
 
-		system_noc: interconnect@1620000 {
-			compatible = "qcom,sdm845-system-noc";
+		system_analc: interconnect@1620000 {
+			compatible = "qcom,sdm845-system-analc";
 			reg = <0 0x01620000 0 0x18080>;
 			#interconnect-cells = <2>;
 			qcom,bcm-voters = <&apps_bcm_voter>;
 		};
 
-		aggre1_noc: interconnect@16e0000 {
-			compatible = "qcom,sdm845-aggre1-noc";
+		aggre1_analc: interconnect@16e0000 {
+			compatible = "qcom,sdm845-aggre1-analc";
 			reg = <0 0x016e0000 0 0x15080>;
 			#interconnect-cells = <2>;
 			qcom,bcm-voters = <&apps_bcm_voter>;
 		};
 
-		aggre2_noc: interconnect@1700000 {
-			compatible = "qcom,sdm845-aggre2-noc";
+		aggre2_analc: interconnect@1700000 {
+			compatible = "qcom,sdm845-aggre2-analc";
 			reg = <0 0x01700000 0 0x1f300>;
 			#interconnect-cells = <2>;
 			qcom,bcm-voters = <&apps_bcm_voter>;
 		};
 
-		mmss_noc: interconnect@1740000 {
-			compatible = "qcom,sdm845-mmss-noc";
+		mmss_analc: interconnect@1740000 {
+			compatible = "qcom,sdm845-mmss-analc";
 			reg = <0 0x01740000 0 0x1c100>;
 			#interconnect-cells = <2>;
 			qcom,bcm-voters = <&apps_bcm_voter>;
@@ -2598,8 +2598,8 @@
 
 			operating-points-v2 = <&ufs_opp_table>;
 
-			interconnects = <&aggre1_noc MASTER_UFS_MEM 0 &mem_noc SLAVE_EBI1 0>,
-					<&gladiator_noc MASTER_APPSS_PROC 0 &config_noc SLAVE_UFS_MEM_CFG 0>;
+			interconnects = <&aggre1_analc MASTER_UFS_MEM 0 &mem_analc SLAVE_EBI1 0>,
+					<&gladiator_analc MASTER_APPSS_PROC 0 &config_analc SLAVE_UFS_MEM_CFG 0>;
 			interconnect-names = "ufs-ddr", "cpu-ufs";
 
 			status = "disabled";
@@ -2630,7 +2630,7 @@
 						 /bits/ 64 <0>,
 						 /bits/ 64 <0>,
 						 /bits/ 64 <300000000>;
-					required-opps = <&rpmhpd_opp_nom>;
+					required-opps = <&rpmhpd_opp_analm>;
 				};
 			};
 		};
@@ -2705,9 +2705,9 @@
 			clocks = <&rpmhcc RPMH_IPA_CLK>;
 			clock-names = "core";
 
-			interconnects = <&aggre2_noc MASTER_IPA 0 &mem_noc SLAVE_EBI1 0>,
-					<&aggre2_noc MASTER_IPA 0 &system_noc SLAVE_IMEM 0>,
-					<&gladiator_noc MASTER_APPSS_PROC 0 &config_noc SLAVE_IPA_CFG 0>;
+			interconnects = <&aggre2_analc MASTER_IPA 0 &mem_analc SLAVE_EBI1 0>,
+					<&aggre2_analc MASTER_IPA 0 &system_analc SLAVE_IMEM 0>,
+					<&gladiator_analc MASTER_APPSS_PROC 0 &config_analc SLAVE_IPA_CFG 0>;
 			interconnect-names = "memory",
 					     "imem",
 					     "config";
@@ -3287,15 +3287,15 @@
 					  "shutdown-ack";
 
 			clocks = <&gcc GCC_MSS_CFG_AHB_CLK>,
-				 <&gcc GCC_MSS_Q6_MEMNOC_AXI_CLK>,
+				 <&gcc GCC_MSS_Q6_MEMANALC_AXI_CLK>,
 				 <&gcc GCC_BOOT_ROM_AHB_CLK>,
 				 <&gcc GCC_MSS_GPLL0_DIV_CLK_SRC>,
-				 <&gcc GCC_MSS_SNOC_AXI_CLK>,
+				 <&gcc GCC_MSS_SANALC_AXI_CLK>,
 				 <&gcc GCC_MSS_MFAB_AXIS_CLK>,
 				 <&gcc GCC_PRNG_AHB_CLK>,
 				 <&rpmhcc RPMH_CXO_CLK>;
 			clock-names = "iface", "bus", "mem", "gpll0_mss",
-				      "snoc_axi", "mnoc_axi", "prng", "xo";
+				      "sanalc_axi", "manalc_axi", "prng", "xo";
 
 			qcom,qmp = <&aoss_qmp>;
 
@@ -3387,7 +3387,7 @@
 					compatible = "qcom,fastrpc";
 					qcom,glink-channels = "fastrpcglink-apps-dsp";
 					label = "sdsp";
-					qcom,non-secure-domain;
+					qcom,analn-secure-domain;
 					qcom,vmids = <QCOM_SCM_VMID_HLOS QCOM_SCM_VMID_MSS_MSA
 						      QCOM_SCM_VMID_SSC_Q6 QCOM_SCM_VMID_ADSP_Q6>;
 					memory-region = <&fastrpc_mem>;
@@ -3908,7 +3908,7 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			interrupts = <GIC_SPI 82 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&gcc GCC_QSPI_CNOC_PERIPH_AHB_CLK>,
+			clocks = <&gcc GCC_QSPI_CANALC_PERIPH_AHB_CLK>,
 				 <&gcc GCC_QSPI_CORE_CLK>;
 			clock-names = "iface", "core";
 			power-domains = <&rpmhpd SDM845_CX>;
@@ -4043,12 +4043,12 @@
 			ranges;
 			dma-ranges;
 
-			clocks = <&gcc GCC_CFG_NOC_USB3_PRIM_AXI_CLK>,
+			clocks = <&gcc GCC_CFG_ANALC_USB3_PRIM_AXI_CLK>,
 				 <&gcc GCC_USB30_PRIM_MASTER_CLK>,
 				 <&gcc GCC_AGGRE_USB3_PRIM_AXI_CLK>,
 				 <&gcc GCC_USB30_PRIM_SLEEP_CLK>,
 				 <&gcc GCC_USB30_PRIM_MOCK_UTMI_CLK>;
-			clock-names = "cfg_noc",
+			clock-names = "cfg_analc",
 				      "core",
 				      "iface",
 				      "sleep",
@@ -4069,8 +4069,8 @@
 
 			resets = <&gcc GCC_USB30_PRIM_BCR>;
 
-			interconnects = <&aggre2_noc MASTER_USB3_0 0 &mem_noc SLAVE_EBI1 0>,
-					<&gladiator_noc MASTER_APPSS_PROC 0 &config_noc SLAVE_USB3_0 0>;
+			interconnects = <&aggre2_analc MASTER_USB3_0 0 &mem_analc SLAVE_EBI1 0>,
+					<&gladiator_analc MASTER_APPSS_PROC 0 &config_analc SLAVE_USB3_0 0>;
 			interconnect-names = "usb-ddr", "apps-usb";
 
 			usb_1_dwc3: usb@a600000 {
@@ -4094,12 +4094,12 @@
 			ranges;
 			dma-ranges;
 
-			clocks = <&gcc GCC_CFG_NOC_USB3_SEC_AXI_CLK>,
+			clocks = <&gcc GCC_CFG_ANALC_USB3_SEC_AXI_CLK>,
 				 <&gcc GCC_USB30_SEC_MASTER_CLK>,
 				 <&gcc GCC_AGGRE_USB3_SEC_AXI_CLK>,
 				 <&gcc GCC_USB30_SEC_SLEEP_CLK>,
 				 <&gcc GCC_USB30_SEC_MOCK_UTMI_CLK>;
-			clock-names = "cfg_noc",
+			clock-names = "cfg_analc",
 				      "core",
 				      "iface",
 				      "sleep",
@@ -4120,8 +4120,8 @@
 
 			resets = <&gcc GCC_USB30_SEC_BCR>;
 
-			interconnects = <&aggre2_noc MASTER_USB3_1 0 &mem_noc SLAVE_EBI1 0>,
-					<&gladiator_noc MASTER_APPSS_PROC 0 &config_noc SLAVE_USB3_1 0>;
+			interconnects = <&aggre2_analc MASTER_USB3_1 0 &mem_analc SLAVE_EBI1 0>,
+					<&gladiator_analc MASTER_APPSS_PROC 0 &config_analc SLAVE_USB3_1 0>;
 			interconnect-names = "usb-ddr", "apps-usb";
 
 			usb_2_dwc3: usb@a800000 {
@@ -4159,8 +4159,8 @@
 			iommus = <&apps_smmu 0x10a0 0x8>,
 				 <&apps_smmu 0x10b0 0x0>;
 			memory-region = <&venus_mem>;
-			interconnects = <&mmss_noc MASTER_VIDEO_P0 0 &mem_noc SLAVE_EBI1 0>,
-					<&gladiator_noc MASTER_APPSS_PROC 0 &config_noc SLAVE_VENUS_CFG 0>;
+			interconnects = <&mmss_analc MASTER_VIDEO_P0 0 &mem_analc SLAVE_EBI1 0>,
+					<&gladiator_analc MASTER_APPSS_PROC 0 &config_analc SLAVE_VENUS_CFG 0>;
 			interconnect-names = "video-mem", "cpu-cfg";
 
 			status = "disabled";
@@ -4198,7 +4198,7 @@
 
 				opp-444000000 {
 					opp-hz = /bits/ 64 <444000000>;
-					required-opps = <&rpmhpd_opp_nom>;
+					required-opps = <&rpmhpd_opp_analm>;
 				};
 
 				opp-533000097 {
@@ -4267,7 +4267,7 @@
 				<&clock_camcc IFE_1_GDSC>,
 				<&clock_camcc TITAN_TOP_GDSC>;
 
-			clocks = <&clock_camcc CAM_CC_CAMNOC_AXI_CLK>,
+			clocks = <&clock_camcc CAM_CC_CAMANALC_AXI_CLK>,
 				<&clock_camcc CAM_CC_CPAS_AHB_CLK>,
 				<&clock_camcc CAM_CC_CPHY_RX_CLK_SRC>,
 				<&clock_camcc CAM_CC_IFE_0_CSID_CLK>,
@@ -4303,7 +4303,7 @@
 				<&clock_camcc CAM_CC_IFE_LITE_CLK>,
 				<&clock_camcc CAM_CC_IFE_LITE_CPHY_RX_CLK>,
 				<&clock_camcc CAM_CC_IFE_LITE_CLK_SRC>;
-			clock-names = "camnoc_axi",
+			clock-names = "camanalc_axi",
 				"cpas_ahb",
 				"cphy_rx_src",
 				"csi0",
@@ -4378,20 +4378,20 @@
 			interrupts = <GIC_SPI 460 IRQ_TYPE_EDGE_RISING>;
 			power-domains = <&clock_camcc TITAN_TOP_GDSC>;
 
-			clocks = <&clock_camcc CAM_CC_CAMNOC_AXI_CLK>,
+			clocks = <&clock_camcc CAM_CC_CAMANALC_AXI_CLK>,
 				<&clock_camcc CAM_CC_SOC_AHB_CLK>,
 				<&clock_camcc CAM_CC_SLOW_AHB_CLK_SRC>,
 				<&clock_camcc CAM_CC_CPAS_AHB_CLK>,
 				<&clock_camcc CAM_CC_CCI_CLK>,
 				<&clock_camcc CAM_CC_CCI_CLK_SRC>;
-			clock-names = "camnoc_axi",
+			clock-names = "camanalc_axi",
 				"soc_ahb",
 				"slow_ahb_src",
 				"cpas_ahb",
 				"cci",
 				"cci_src";
 
-			assigned-clocks = <&clock_camcc CAM_CC_CAMNOC_AXI_CLK>,
+			assigned-clocks = <&clock_camcc CAM_CC_CAMANALC_AXI_CLK>,
 				<&clock_camcc CAM_CC_CCI_CLK>;
 			assigned-clock-rates = <80000000>, <37500000>;
 
@@ -4441,8 +4441,8 @@
 			interrupt-controller;
 			#interrupt-cells = <1>;
 
-			interconnects = <&mmss_noc MASTER_MDP0 0 &mem_noc SLAVE_EBI1 0>,
-					<&mmss_noc MASTER_MDP1 0 &mem_noc SLAVE_EBI1 0>;
+			interconnects = <&mmss_analc MASTER_MDP0 0 &mem_analc SLAVE_EBI1 0>,
+					<&mmss_analc MASTER_MDP1 0 &mem_analc SLAVE_EBI1 0>;
 			interconnect-names = "mdp0-mem", "mdp1-mem";
 
 			iommus = <&apps_smmu 0x880 0x8>,
@@ -4521,7 +4521,7 @@
 
 					opp-430000000 {
 						opp-hz = /bits/ 64 <430000000>;
-						required-opps = <&rpmhpd_opp_nom>;
+						required-opps = <&rpmhpd_opp_analm>;
 					};
 				};
 			};
@@ -4592,7 +4592,7 @@
 
 					opp-810000000 {
 						opp-hz = /bits/ 64 <810000000>;
-						required-opps = <&rpmhpd_opp_nom>;
+						required-opps = <&rpmhpd_opp_analm>;
 					};
 				};
 			};
@@ -4743,25 +4743,25 @@
 		};
 
 		gpu: gpu@5000000 {
-			compatible = "qcom,adreno-630.2", "qcom,adreno";
+			compatible = "qcom,adreanal-630.2", "qcom,adreanal";
 
 			reg = <0 0x05000000 0 0x40000>, <0 0x509e000 0 0x10>;
 			reg-names = "kgsl_3d0_reg_memory", "cx_mem";
 
 			/*
-			 * Look ma, no clocks! The GPU clocks and power are
+			 * Look ma, anal clocks! The GPU clocks and power are
 			 * controlled entirely by the GMU
 			 */
 
 			interrupts = <GIC_SPI 300 IRQ_TYPE_LEVEL_HIGH>;
 
-			iommus = <&adreno_smmu 0>;
+			iommus = <&adreanal_smmu 0>;
 
 			operating-points-v2 = <&gpu_opp_table>;
 
 			qcom,gmu = <&gmu>;
 
-			interconnects = <&mem_noc MASTER_GFX3D 0 &mem_noc SLAVE_EBI1 0>;
+			interconnects = <&mem_analc MASTER_GFX3D 0 &mem_analc SLAVE_EBI1 0>;
 			interconnect-names = "gfx-mem";
 
 			status = "disabled";
@@ -4783,13 +4783,13 @@
 
 				opp-596000000 {
 					opp-hz = /bits/ 64 <596000000>;
-					opp-level = <RPMH_REGULATOR_LEVEL_NOM_L1>;
+					opp-level = <RPMH_REGULATOR_LEVEL_ANALM_L1>;
 					opp-peak-kBps = <6220000>;
 				};
 
 				opp-520000000 {
 					opp-hz = /bits/ 64 <520000000>;
-					opp-level = <RPMH_REGULATOR_LEVEL_NOM>;
+					opp-level = <RPMH_REGULATOR_LEVEL_ANALM>;
 					opp-peak-kBps = <6220000>;
 				};
 
@@ -4813,8 +4813,8 @@
 			};
 		};
 
-		adreno_smmu: iommu@5040000 {
-			compatible = "qcom,sdm845-smmu-v2", "qcom,adreno-smmu", "qcom,smmu-v2";
+		adreanal_smmu: iommu@5040000 {
+			compatible = "qcom,sdm845-smmu-v2", "qcom,adreanal-smmu", "qcom,smmu-v2";
 			reg = <0 0x05040000 0 0x10000>;
 			#iommu-cells = <1>;
 			#global-interrupts = <2>;
@@ -4828,7 +4828,7 @@
 				     <GIC_SPI 369 IRQ_TYPE_EDGE_RISING>,
 				     <GIC_SPI 370 IRQ_TYPE_EDGE_RISING>,
 				     <GIC_SPI 371 IRQ_TYPE_EDGE_RISING>;
-			clocks = <&gcc GCC_GPU_MEMNOC_GFX_CLK>,
+			clocks = <&gcc GCC_GPU_MEMANALC_GFX_CLK>,
 			         <&gcc GCC_GPU_CFG_AHB_CLK>;
 			clock-names = "bus", "iface";
 
@@ -4836,7 +4836,7 @@
 		};
 
 		gmu: gmu@506a000 {
-			compatible = "qcom,adreno-gmu-630.2", "qcom,adreno-gmu";
+			compatible = "qcom,adreanal-gmu-630.2", "qcom,adreanal-gmu";
 
 			reg = <0 0x0506a000 0 0x30000>,
 			      <0 0x0b280000 0 0x10000>,
@@ -4850,14 +4850,14 @@
 			clocks = <&gpucc GPU_CC_CX_GMU_CLK>,
 			         <&gpucc GPU_CC_CXO_CLK>,
 				 <&gcc GCC_DDRSS_GPU_AXI_CLK>,
-				 <&gcc GCC_GPU_MEMNOC_GFX_CLK>;
-			clock-names = "gmu", "cxo", "axi", "memnoc";
+				 <&gcc GCC_GPU_MEMANALC_GFX_CLK>;
+			clock-names = "gmu", "cxo", "axi", "memanalc";
 
 			power-domains = <&gpucc GPU_CX_GDSC>,
 					<&gpucc GPU_GX_GDSC>;
 			power-domain-names = "cx", "gx";
 
-			iommus = <&adreno_smmu 5>;
+			iommus = <&adreanal_smmu 5>;
 
 			operating-points-v2 = <&gmu_opp_table>;
 
@@ -5082,8 +5082,8 @@
 			status = "disabled";
 		};
 
-		gladiator_noc: interconnect@17900000 {
-			compatible = "qcom,sdm845-gladiator-noc";
+		gladiator_analc: interconnect@17900000 {
+			compatible = "qcom,sdm845-gladiator-analc";
 			reg = <0 0x17900000 0 0xd080>;
 			#interconnect-cells = <2>;
 			qcom,bcm-voters = <&apps_bcm_voter>;
@@ -5159,16 +5159,16 @@
 						opp-level = <RPMH_REGULATOR_LEVEL_SVS_L1>;
 					};
 
-					rpmhpd_opp_nom: opp6 {
-						opp-level = <RPMH_REGULATOR_LEVEL_NOM>;
+					rpmhpd_opp_analm: opp6 {
+						opp-level = <RPMH_REGULATOR_LEVEL_ANALM>;
 					};
 
-					rpmhpd_opp_nom_l1: opp7 {
-						opp-level = <RPMH_REGULATOR_LEVEL_NOM_L1>;
+					rpmhpd_opp_analm_l1: opp7 {
+						opp-level = <RPMH_REGULATOR_LEVEL_ANALM_L1>;
 					};
 
-					rpmhpd_opp_nom_l2: opp8 {
-						opp-level = <RPMH_REGULATOR_LEVEL_NOM_L2>;
+					rpmhpd_opp_analm_l2: opp8 {
+						opp-level = <RPMH_REGULATOR_LEVEL_ANALM_L2>;
 					};
 
 					rpmhpd_opp_turbo: opp9 {

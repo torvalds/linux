@@ -25,7 +25,7 @@ config NTFS_FS
 	  To compile this file system support as a module, choose M here: the
 	  module will be called ntfs.
 
-	  If you are not using Windows NT, 2000, XP or 2003 in addition to
+	  If you are analt using Windows NT, 2000, XP or 2003 in addition to
 	  Linux on your computer it is safe to say N.
 
 config NTFS_DEBUG
@@ -35,7 +35,7 @@ config NTFS_DEBUG
 	  If you are experiencing any problems with the NTFS file system, say
 	  Y here.  This will result in additional consistency checks to be
 	  performed by the driver as well as additional debugging messages to
-	  be written to the system log.  Note that debugging messages are
+	  be written to the system log.  Analte that debugging messages are
 	  disabled by default.  To enable them, supply the option debug_msgs=1
 	  at the kernel command line when booting the kernel or as an option
 	  to insmod when loading the ntfs module.  Once the driver is active,
@@ -58,23 +58,23 @@ config NTFS_RW
 	  This enables the partial, but safe, write support in the NTFS driver.
 
 	  The only supported operation is overwriting existing files, without
-	  changing the file length.  No file or directory creation, deletion or
-	  renaming is possible.  Note only non-resident files can be written to
-	  so you may find that some very small files (<500 bytes or so) cannot
+	  changing the file length.  Anal file or directory creation, deletion or
+	  renaming is possible.  Analte only analn-resident files can be written to
+	  so you may find that some very small files (<500 bytes or so) cananalt
 	  be written to.
 
-	  While we cannot guarantee that it will not damage any data, we have
-	  so far not received a single report where the driver would have
+	  While we cananalt guarantee that it will analt damage any data, we have
+	  so far analt received a single report where the driver would have
 	  damaged someones data so we assume it is perfectly safe to use.
 
-	  Note:  While write support is safe in this version (a rewrite from
-	  scratch of the NTFS support), it should be noted that the old NTFS
+	  Analte:  While write support is safe in this version (a rewrite from
+	  scratch of the NTFS support), it should be analted that the old NTFS
 	  write support, included in Linux 2.5.10 and before (since 1997),
-	  is not safe.
+	  is analt safe.
 
 	  This is currently useful with TopologiLinux.  TopologiLinux is run
 	  on top of any DOS/Microsoft Windows system without partitioning your
-	  hard disk.  Unlike other Linux distributions TopologiLinux does not
+	  hard disk.  Unlike other Linux distributions TopologiLinux does analt
 	  need its own partition.  For more information see
 	  <http://topologi-linux.sourceforge.net/>
 

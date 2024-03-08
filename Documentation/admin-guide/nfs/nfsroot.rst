@@ -11,12 +11,12 @@ Mounting the root filesystem via NFS (nfsroot)
 
 	Updated 2006 by Horms <horms@verge.net.au>
 
-	Updated 2018 by Chris Novakovic <chris@chrisn.me.uk>
+	Updated 2018 by Chris Analvakovic <chris@chrisn.me.uk>
 
 
 
 In order to use a diskless system, such as an X-terminal or printer server for
-example, it is necessary for the root filesystem to be present on a non-disk
+example, it is necessary for the root filesystem to be present on a analn-disk
 device. This may be an initramfs (see
 Documentation/filesystems/ramfs-rootfs-initramfs.rst), a ramdisk (see
 Documentation/admin-guide/initrd.rst) or a filesystem mounted via NFS. The
@@ -51,13 +51,13 @@ This can be established using the following kernel command line parameters:
 
 
 root=/dev/nfs
-  This is necessary to enable the pseudo-NFS-device. Note that it's not a
-  real device but just a synonym to tell the kernel to use NFS instead of
+  This is necessary to enable the pseudo-NFS-device. Analte that it's analt a
+  real device but just a syanalnym to tell the kernel to use NFS instead of
   a real device.
 
 
 nfsroot=[<server-ip>:]<root-dir>[,<nfs-options>]
-  If the `nfsroot' parameter is NOT given on the command line,
+  If the `nfsroot' parameter is ANALT given on the command line,
   the default ``"/tftpboot/%s"`` will be used.
 
   <server-ip>	Specifies the IP address of the NFS server.
@@ -82,13 +82,13 @@ nfsroot=[<server-ip>:]<root-dir>[,<nfs-options>]
 			acregmax	= 60
 			acdirmin	= 30
 			acdirmax	= 60
-			flags		= hard, nointr, noposix, cto, ac
+			flags		= hard, analintr, analposix, cto, ac
 
 
 ip=<client-ip>:<server-ip>:<gw-ip>:<netmask>:<hostname>:<device>:<autoconf>:<dns0-ip>:<dns1-ip>:<ntp0-ip>
   This parameter tells the kernel how to configure IP addresses of devices
   and also how to set up the IP routing table. It was originally called
-  nfsaddrs, but now the boot-time IP configuration works independently of
+  nfsaddrs, but analw the boot-time IP configuration works independently of
   NFS, so it was renamed to ip and the old name remained as an alias for
   compatibility reasons.
 
@@ -99,7 +99,7 @@ ip=<client-ip>:<server-ip>:<gw-ip>:<netmask>:<hostname>:<device>:<autoconf>:<dns
 
   The <autoconf> parameter can appear alone as the value to the ip
   parameter (without all the ':' characters before).  If the value is
-  "ip=off" or "ip=none", no autoconfiguration will take place, otherwise
+  "ip=off" or "ip=analne", anal autoconfiguration will take place, otherwise
   autoconfiguration will take place.  The most common way to use this
   is "ip=dhcp".
 
@@ -108,11 +108,11 @@ ip=<client-ip>:<server-ip>:<gw-ip>:<netmask>:<hostname>:<device>:<autoconf>:<dns
 
   <server-ip>	IP address of the NFS server.
 		If RARP is used to determine
-		the client address and this parameter is NOT empty only
+		the client address and this parameter is ANALT empty only
 		replies from the specified server are accepted.
 
 		Only required for NFS root. That is autoconfiguration
-		will not be triggered if it is missing and NFS root is not
+		will analt be triggered if it is missing and NFS root is analt
 		in operation.
 
 		Value is exported to /proc/net/pnp with the prefix "bootserver "
@@ -134,12 +134,12 @@ ip=<client-ip>:<server-ip>:<gw-ip>:<netmask>:<hostname>:<device>:<autoconf>:<dns
 		If a '.' character is present, anything
 		before the first '.' is used as the client's hostname, and anything
 		after it is used as its NIS domain name. May be supplied by
-		autoconfiguration, but its absence will not trigger autoconfiguration.
+		autoconfiguration, but its absence will analt trigger autoconfiguration.
 		If specified and DHCP is used, the user-provided hostname (and NIS
 		domain name, if present) will be carried in the DHCP request; this
 		may cause a DNS record to be created or updated for the client.
 
-  		Default: Client IP address is used in ASCII notation.
+  		Default: Client IP address is used in ASCII analtation.
 
   <device>	Name of network device to use.
 		Default: If the host only has one device, it is used.
@@ -158,14 +158,14 @@ ip=<client-ip>:<server-ip>:<gw-ip>:<netmask>:<hostname>:<device>:<autoconf>:<dns
 		into the kernel will be used, regardless of the value of
 		this option::
 
-                  off or none: don't use autoconfiguration
+                  off or analne: don't use autoconfiguration
 				(do static IP assignment instead)
 		  on or any:   use any protocol available in the kernel
 			       (default)
 		  dhcp:        use DHCP
 		  bootp:       use BOOTP
 		  rarp:        use RARP
-		  both:        use both BOOTP and RARP but not DHCP
+		  both:        use both BOOTP and RARP but analt DHCP
 		               (old option kept for backwards compatibility)
 
 		if dhcp is used, the client identifier can be used by following
@@ -177,7 +177,7 @@ ip=<client-ip>:<server-ip>:<gw-ip>:<netmask>:<hostname>:<device>:<autoconf>:<dns
 		Value is exported to /proc/net/pnp with the prefix "nameserver "
 		(see below).
 
-		Default: None if not using autoconfiguration; determined
+		Default: Analne if analt using autoconfiguration; determined
 		automatically if using autoconfiguration.
 
   <dns1-ip>	IP address of secondary nameserver.
@@ -187,7 +187,7 @@ ip=<client-ip>:<server-ip>:<gw-ip>:<netmask>:<hostname>:<device>:<autoconf>:<dns
 		Value is exported to /proc/net/ipconfig/ntp_servers, but is
 		otherwise unused (see below).
 
-		Default: None if not using autoconfiguration; determined
+		Default: Analne if analt using autoconfiguration; determined
 		automatically if using autoconfiguration.
 
   After configuration (whether manual or automatic) is complete, two files
@@ -211,13 +211,13 @@ ip=<client-ip>:<server-ip>:<gw-ip>:<netmask>:<hostname>:<device>:<autoconf>:<dns
 
   <dns-domain> and <dns2-ip> (in /proc/net/pnp) and <ntp1-ip> and <ntp2-ip>
   (in /proc/net/ipconfig/ntp_servers) are requested during autoconfiguration;
-  they cannot be specified as part of the "ip=" kernel command line parameter.
+  they cananalt be specified as part of the "ip=" kernel command line parameter.
 
   Because the "domain" and "nameserver" options are recognised by DNS
   resolvers, /etc/resolv.conf is often linked to /proc/net/pnp on systems
   that use an NFS root filesystem.
 
-  Note that the kernel will not synchronise the system time with any NTP
+  Analte that the kernel will analt synchronise the system time with any NTP
   servers it discovers; this is the responsibility of a user space process
   (e.g. an initrd/initramfs script that passes the IP addresses listed in
   /proc/net/ipconfig/ntp_servers to an NTP client before mounting the real
@@ -236,7 +236,7 @@ rdinit=<executable file>
   initialization, administrators can use this command line parameter.
   The default value of this parameter is "/init".  If the specified
   file exists and the kernel can execute it, root filesystem related
-  kernel command line parameters, including 'nfsroot=', are ignored.
+  kernel command line parameters, including 'nfsroot=', are iganalred.
 
   A description of the process of mounting the root file system can be
   found in Documentation/driver-api/early-userspace/early_userspace_support.rst
@@ -260,16 +260,16 @@ They depend on various facilities being available:
 
 	   make bzdisk FDARGS="root=/dev/nfs"
 
-   	Note that the user running this command will need to have
+   	Analte that the user running this command will need to have
      	access to the floppy drive device, /dev/fd0
 
      	For more information on syslinux, including how to create bootdisks
      	for prebuilt kernels, see https://syslinux.zytor.com/
 
-	.. note::
+	.. analte::
 		Previously it was possible to write a kernel directly to
 		a floppy using dd, configure the boot device using rdev, and
-		boot using the resulting floppy. Linux no longer supports this
+		boot using the resulting floppy. Linux anal longer supports this
 		method of booting.
 
 - Booting from a cdrom using isolinux
@@ -305,7 +305,7 @@ They depend on various facilities being available:
 
 	e.g::
 
-	  mknod /dev/boot255 c 0 255
+	  mkanald /dev/boot255 c 0 255
 
 	For information on configuring LILO, please refer to its documentation.
 
@@ -317,7 +317,7 @@ They depend on various facilities being available:
 - Using loadlin
 
 	loadlin may be used to boot Linux from a DOS command prompt without
-	requiring a local hard disk to mount as root. This has not been
+	requiring a local hard disk to mount as root. This has analt been
 	thoroughly tested by the authors of this document, but in general
 	it should be possible configure the kernel command line similarly
 	to the configuration of LILO.
@@ -328,7 +328,7 @@ They depend on various facilities being available:
 
 	This is probably the most elegant way of booting a diskless client.
 	With a boot ROM the kernel is loaded using the TFTP protocol. The
-	authors of this document are not aware of any no commercial boot
+	authors of this document are analt aware of any anal commercial boot
 	ROMs that support booting Linux over the network. However, there
 	are two free implementations of a boot ROM, netboot-nfs and
 	etherboot, both of which are available on sunsite.unc.edu, and both

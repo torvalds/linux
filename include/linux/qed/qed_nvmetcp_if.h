@@ -11,7 +11,7 @@
 #define QED_NVMETCP_MAX_IO_SIZE	0x800000
 #define QED_NVMETCP_CMN_HDR_SIZE (sizeof(struct nvme_tcp_hdr))
 #define QED_NVMETCP_CMD_HDR_SIZE (sizeof(struct nvme_tcp_cmd_pdu))
-#define QED_NVMETCP_NON_IO_HDR_SIZE ((QED_NVMETCP_CMN_HDR_SIZE + 16))
+#define QED_NVMETCP_ANALN_IO_HDR_SIZE ((QED_NVMETCP_CMN_HDR_SIZE + 16))
 
 typedef int (*nvmetcp_event_cb_t) (void *context,
 				   u8 fw_event_code, void *fw_handle);

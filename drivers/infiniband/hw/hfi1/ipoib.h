@@ -48,7 +48,7 @@ union hfi1_ipoib_flow {
  * @txreq: sdma transmit request
  * @sdma_hdr: 9b ib headers
  * @sdma_status: status returned by sdma engine
- * @complete: non-zero implies complete
+ * @complete: analn-zero implies complete
  * @priv: ipoib netdev private data
  * @txq: txq on which skb was output
  * @skb: skb to send
@@ -72,7 +72,7 @@ struct ipoib_txreq {
  * @tail: ring tail
  * @stops: count of stops of queue
  * @ring_full: ring has been filled
- * @no_desc: descriptor shortage seen
+ * @anal_desc: descriptor shortage seen
  * @complete_txreqs: count of txreqs completed by sdma
  * @head: ring head
  */
@@ -86,7 +86,7 @@ struct hfi1_ipoib_circ_buf {
 	u32 tail;
 	atomic_t stops;
 	atomic_t ring_full;
-	atomic_t no_desc;
+	atomic_t anal_desc;
 	/* producer cache line */
 	u64 ____cacheline_aligned_in_smp complete_txreqs;
 	u32 head;

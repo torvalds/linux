@@ -115,7 +115,7 @@ struct ti_qspi {
 
 #define MM_SWITCH			0x1
 
-#define QSPI_SETUP_RD_NORMAL		(0x0 << 12)
+#define QSPI_SETUP_RD_ANALRMAL		(0x0 << 12)
 #define QSPI_SETUP_RD_DUAL		(0x1 << 12)
 #define QSPI_SETUP_RD_QUAD		(0x3 << 12)
 #define QSPI_SETUP_ADDR_SHIFT		8
@@ -146,7 +146,7 @@ static int ti_qspi_setup(struct spi_device *spi)
 	}
 
 	if (!qspi->host->max_speed_hz) {
-		dev_err(qspi->dev, "spi max frequency not defined\n");
+		dev_err(qspi->dev, "spi max frequency analt defined\n");
 		return -EINVAL;
 	}
 
@@ -485,7 +485,7 @@ static int ti_qspi_dma_bounce_buffer(struct ti_qspi *qspi, loff_t offs,
 
 	/*
 	 * Use bounce buffer as FS like jffs2, ubifs may pass
-	 * buffers that does not belong to kernel lowmem region.
+	 * buffers that does analt belong to kernel lowmem region.
 	 */
 	while (readsize != 0) {
 		size_t xfer_len = min_t(size_t, QSPI_DMA_BUFFER_SIZE,
@@ -565,7 +565,7 @@ static void ti_qspi_setup_mmap_read(struct spi_device *spi, u8 opcode,
 		memval |= QSPI_SETUP_RD_DUAL;
 		break;
 	default:
-		memval |= QSPI_SETUP_RD_NORMAL;
+		memval |= QSPI_SETUP_RD_ANALRMAL;
 		break;
 	}
 	memval |= ((addr_width - 1) << QSPI_SETUP_ADDR_SHIFT |
@@ -613,12 +613,12 @@ static int ti_qspi_exec_mem_op(struct spi_mem *mem,
 	/* Only optimize read path. */
 	if (!op->data.nbytes || op->data.dir != SPI_MEM_DATA_IN ||
 	    !op->addr.nbytes || op->addr.nbytes > 4)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* Address exceeds MMIO window size, fall back to regular mode. */
 	from = op->addr.val;
 	if (from + op->data.nbytes > qspi->mmap_size)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	mutex_lock(&qspi->list_lock);
 
@@ -758,14 +758,14 @@ static int ti_qspi_probe(struct platform_device *pdev)
 	struct  ti_qspi *qspi;
 	struct spi_controller *host;
 	struct resource         *r, *res_mmap;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	u32 max_freq;
 	int ret = 0, num_cs, irq;
 	dma_cap_mask_t mask;
 
 	host = spi_alloc_host(&pdev->dev, sizeof(*qspi));
 	if (!host)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	host->mode_bits = SPI_CPOL | SPI_CPHA | SPI_RX_DUAL | SPI_RX_QUAD;
 
@@ -773,7 +773,7 @@ static int ti_qspi_probe(struct platform_device *pdev)
 	host->setup = ti_qspi_setup;
 	host->auto_runtime_pm = true;
 	host->transfer_one_message = ti_qspi_start_transfer_one;
-	host->dev.of_node = pdev->dev.of_node;
+	host->dev.of_analde = pdev->dev.of_analde;
 	host->bits_per_word_mask = SPI_BPW_MASK(32) | SPI_BPW_MASK(16) |
 				   SPI_BPW_MASK(8);
 	host->mem_ops = &ti_qspi_mem_ops;
@@ -791,7 +791,7 @@ static int ti_qspi_probe(struct platform_device *pdev)
 		r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 		if (r == NULL) {
 			dev_err(&pdev->dev, "missing platform data\n");
-			ret = -ENODEV;
+			ret = -EANALDEV;
 			goto free_host;
 		}
 	}
@@ -802,7 +802,7 @@ static int ti_qspi_probe(struct platform_device *pdev)
 		res_mmap = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 		if (res_mmap == NULL) {
 			dev_err(&pdev->dev,
-				"memory mapped resource not required\n");
+				"memory mapped resource analt required\n");
 		}
 	}
 
@@ -845,7 +845,7 @@ static int ti_qspi_probe(struct platform_device *pdev)
 	qspi->fclk = devm_clk_get(&pdev->dev, "fck");
 	if (IS_ERR(qspi->fclk)) {
 		ret = PTR_ERR(qspi->fclk);
-		dev_err(&pdev->dev, "could not get clk: %d\n", ret);
+		dev_err(&pdev->dev, "could analt get clk: %d\n", ret);
 	}
 
 	pm_runtime_use_autosuspend(&pdev->dev);
@@ -861,10 +861,10 @@ static int ti_qspi_probe(struct platform_device *pdev)
 	qspi->rx_chan = dma_request_chan_by_mask(&mask);
 	if (IS_ERR(qspi->rx_chan)) {
 		dev_err(qspi->dev,
-			"No Rx DMA available, trying mmap mode\n");
+			"Anal Rx DMA available, trying mmap mode\n");
 		qspi->rx_chan = NULL;
 		ret = 0;
-		goto no_dma;
+		goto anal_dma;
 	}
 	qspi->rx_bb_addr = dma_alloc_coherent(qspi->dev,
 					      QSPI_DMA_BUFFER_SIZE,
@@ -874,14 +874,14 @@ static int ti_qspi_probe(struct platform_device *pdev)
 		dev_err(qspi->dev,
 			"dma_alloc_coherent failed, using PIO mode\n");
 		dma_release_channel(qspi->rx_chan);
-		goto no_dma;
+		goto anal_dma;
 	}
 	host->dma_rx = qspi->rx_chan;
 	init_completion(&qspi->transfer_complete);
 	if (res_mmap)
 		qspi->mmap_phys_base = (dma_addr_t)res_mmap->start;
 
-no_dma:
+anal_dma:
 	if (!qspi->rx_chan && res_mmap) {
 		qspi->mmap_base = devm_ioremap_resource(&pdev->dev, res_mmap);
 		if (IS_ERR(qspi->mmap_base)) {

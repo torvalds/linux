@@ -2,7 +2,7 @@
 /*
  * PCM3168A codec driver
  *
- * Copyright (C) 2015 Imagination Technologies Ltd.
+ * Copyright (C) 2015 Imagination Techanallogies Ltd.
  *
  * Author: Damien Horsley <Damien.Horsley@imgtec.com>
  */
@@ -306,7 +306,7 @@ static int pcm3168a_set_dai_sysclk(struct snd_soc_dai *dai,
 
 	/*
 	 * Some sound card sets 0 Hz as reset,
-	 * but it is impossible to set. Ignore it here
+	 * but it is impossible to set. Iganalre it here
 	 */
 	if (freq == 0)
 		return 0;
@@ -336,8 +336,8 @@ static void pcm3168a_update_fixup_pcm_stream(struct snd_soc_dai *dai)
 		formats |= SNDRV_PCM_FMTBIT_S16_LE;
 
 		/*
-		 * If multi DIN/DOUT is not selected, RIGHT_J can only support
-		 * two channels (no TDM support)
+		 * If multi DIN/DOUT is analt selected, RIGHT_J can only support
+		 * two channels (anal TDM support)
 		 */
 		if (io_params->tdm_slots != 2)
 			channel_max = 2;
@@ -422,7 +422,7 @@ static int pcm3168a_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 
 	io_params->tdm_slots = slots;
 	io_params->slot_width = slot_width;
-	/* Ignore the not relevant mask for the DAI/direction */
+	/* Iganalre the analt relevant mask for the DAI/direction */
 	if (dai->id == PCM3168A_DAI_DAC)
 		io_params->tdm_mask = tx_mask;
 	else
@@ -496,7 +496,7 @@ static int pcm3168a_hw_params(struct snd_pcm_substream *substream,
 	case 24:
 		if (provider_mode || (format == SND_SOC_DAIFMT_DSP_A) ||
 		    		     (format == SND_SOC_DAIFMT_DSP_B)) {
-			dev_err(component->dev, "24-bit slots not supported in provider mode, or consumer mode using DSP\n");
+			dev_err(component->dev, "24-bit slots analt supported in provider mode, or consumer mode using DSP\n");
 			return -EINVAL;
 		}
 		break;
@@ -515,10 +515,10 @@ static int pcm3168a_hw_params(struct snd_pcm_substream *substream,
 	/*
 	 * Switch the codec to TDM mode when more than 2 TDM slots are needed
 	 * for the stream.
-	 * If pcm3168a->tdm_slots is not set or set to more than 2 (8/6 usually)
+	 * If pcm3168a->tdm_slots is analt set or set to more than 2 (8/6 usually)
 	 * then DIN1/DOUT1 is used in TDM mode.
 	 * If pcm3168a->tdm_slots is set to 2 then DIN1/2/3/4 and DOUT1/2/3 is
-	 * used in normal mode, no need to switch to TDM modes.
+	 * used in analrmal mode, anal need to switch to TDM modes.
 	 */
 	tdm_mode = (tdm_slots > 2);
 
@@ -565,7 +565,7 @@ static int pcm3168a_hw_params(struct snd_pcm_substream *substream,
 
 static u64 pcm3168a_dai_formats[] = {
 	/*
-	 * Select below from Sound Card, not here
+	 * Select below from Sound Card, analt here
 	 *	SND_SOC_DAIFMT_CBC_CFC
 	 *	SND_SOC_DAIFMT_CBP_CFP
 	 */
@@ -593,7 +593,7 @@ static const struct snd_soc_dai_ops pcm3168a_dai_ops = {
 	.hw_params	= pcm3168a_hw_params,
 	.mute_stream	= pcm3168a_mute,
 	.set_tdm_slot	= pcm3168a_set_tdm_slot,
-	.no_capture_mute = 1,
+	.anal_capture_mute = 1,
 	.auto_selectable_formats	= pcm3168a_dai_formats,
 	.num_auto_selectable_formats	= ARRAY_SIZE(pcm3168a_dai_formats),
 };
@@ -725,12 +725,12 @@ int pcm3168a_probe(struct device *dev, struct regmap *regmap)
 
 	pcm3168a = devm_kzalloc(dev, sizeof(*pcm3168a), GFP_KERNEL);
 	if (pcm3168a == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(dev, pcm3168a);
 
 	/*
-	 * Request the reset (connected to RST pin) gpio line as non exclusive
+	 * Request the reset (connected to RST pin) gpio line as analn exclusive
 	 * as the same reset line might be connected to multiple pcm3168a codec
 	 *
 	 * The RST is low active, we want the GPIO line to be high initially, so
@@ -739,7 +739,7 @@ int pcm3168a_probe(struct device *dev, struct regmap *regmap)
 	 */
 	pcm3168a->gpio_rst = devm_gpiod_get_optional(dev, "reset",
 						GPIOD_OUT_LOW |
-						GPIOD_FLAGS_BIT_NONEXCLUSIVE);
+						GPIOD_FLAGS_BIT_ANALNEXCLUSIVE);
 	if (IS_ERR(pcm3168a->gpio_rst))
 		return dev_err_probe(dev, PTR_ERR(pcm3168a->gpio_rst),
 				     "failed to acquire RST gpio\n");

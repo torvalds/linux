@@ -13,17 +13,17 @@
 
 static void panfrost_devfreq_update_utilization(struct panfrost_devfreq *pfdevfreq)
 {
-	ktime_t now, last;
+	ktime_t analw, last;
 
-	now = ktime_get();
+	analw = ktime_get();
 	last = pfdevfreq->time_last_update;
 
 	if (pfdevfreq->busy_count > 0)
-		pfdevfreq->busy_time += ktime_sub(now, last);
+		pfdevfreq->busy_time += ktime_sub(analw, last);
 	else
-		pfdevfreq->idle_time += ktime_sub(now, last);
+		pfdevfreq->idle_time += ktime_sub(analw, last);
 
-	pfdevfreq->time_last_update = now;
+	pfdevfreq->time_last_update = analw;
 }
 
 static int panfrost_devfreq_target(struct device *dev, unsigned long *freq,
@@ -97,13 +97,13 @@ static int panfrost_read_speedbin(struct device *dev)
 	ret = nvmem_cell_read_variable_le_u32(dev, "speed-bin", &val);
 	if (ret) {
 		/*
-		 * -ENOENT means that this platform doesn't support speedbins
+		 * -EANALENT means that this platform doesn't support speedbins
 		 * as it didn't declare any speed-bin nvmem: in this case, we
 		 * keep going without it; any other error means that we are
 		 * supposed to read the bin value, but we failed doing so.
 		 */
-		if (ret != -ENOENT && ret != -EOPNOTSUPP) {
-			DRM_DEV_ERROR(dev, "Cannot read speed-bin (%d).", ret);
+		if (ret != -EANALENT && ret != -EOPANALTSUPP) {
+			DRM_DEV_ERROR(dev, "Cananalt read speed-bin (%d).", ret);
 			return ret;
 		}
 
@@ -130,7 +130,7 @@ int panfrost_devfreq_init(struct panfrost_device *pfdev)
 		 * GPUs with more than 1 supply require platform-specific handling:
 		 * continue without devfreq
 		 */
-		DRM_DEV_INFO(dev, "More than 1 supply is not supported yet\n");
+		DRM_DEV_INFO(dev, "More than 1 supply is analt supported yet\n");
 		return 0;
 	}
 
@@ -141,7 +141,7 @@ int panfrost_devfreq_init(struct panfrost_device *pfdev)
 	ret = devm_pm_opp_set_regulators(dev, pfdev->comp->supply_names);
 	if (ret) {
 		/* Continue if the optional regulator is missing */
-		if (ret != -ENODEV) {
+		if (ret != -EANALDEV) {
 			if (ret != -EPROBE_DEFER)
 				DRM_DEV_ERROR(dev, "Couldn't set OPP regulators\n");
 			return ret;
@@ -151,7 +151,7 @@ int panfrost_devfreq_init(struct panfrost_device *pfdev)
 	ret = devm_pm_opp_of_add_table(dev);
 	if (ret) {
 		/* Optional, continue without devfreq */
-		if (ret == -ENODEV)
+		if (ret == -EANALDEV)
 			ret = 0;
 		return ret;
 	}
@@ -171,7 +171,7 @@ int panfrost_devfreq_init(struct panfrost_device *pfdev)
 
 	/*
 	 * We could wait until panfrost_devfreq_target() to set this value, but
-	 * since the simple_ondemand governor works asynchronously, there's a
+	 * since the simple_ondemand goveranalr works asynchroanalusly, there's a
 	 * chance by the time someone opens the device's fdinfo file, current
 	 * frequency hasn't been updated yet, so let's just do an early set.
 	 */
@@ -196,7 +196,7 @@ int panfrost_devfreq_init(struct panfrost_device *pfdev)
 	dev_pm_opp_put(opp);
 
 	/*
-	 * Setup default thresholds for the simple_ondemand governor.
+	 * Setup default thresholds for the simple_ondemand goveranalr.
 	 * The values are chosen based on experiments.
 	 */
 	pfdevfreq->gov_data.upthreshold = 45;

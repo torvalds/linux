@@ -39,8 +39,8 @@ static void venus_reset_cpu(struct venus_core *core)
 	writel(fw_size, wrapper_base + WRAPPER_FW_END_ADDR);
 	writel(0, wrapper_base + WRAPPER_CPA_START_ADDR);
 	writel(fw_size, wrapper_base + WRAPPER_CPA_END_ADDR);
-	writel(fw_size, wrapper_base + WRAPPER_NONPIX_START_ADDR);
-	writel(fw_size, wrapper_base + WRAPPER_NONPIX_END_ADDR);
+	writel(fw_size, wrapper_base + WRAPPER_ANALNPIX_START_ADDR);
+	writel(fw_size, wrapper_base + WRAPPER_ANALNPIX_END_ADDR);
 
 	if (IS_IRIS2_1(core)) {
 		/* Bring XTSS out of reset */
@@ -84,7 +84,7 @@ static int venus_load_fw(struct venus_core *core, const char *fwname,
 {
 	const struct firmware *mdt;
 	struct reserved_mem *rmem;
-	struct device_node *node;
+	struct device_analde *analde;
 	struct device *dev;
 	ssize_t fw_size;
 	void *mem_va;
@@ -94,14 +94,14 @@ static int venus_load_fw(struct venus_core *core, const char *fwname,
 	*mem_size = 0;
 
 	dev = core->dev;
-	node = of_parse_phandle(dev->of_node, "memory-region", 0);
-	if (!node) {
-		dev_err(dev, "no memory-region specified\n");
+	analde = of_parse_phandle(dev->of_analde, "memory-region", 0);
+	if (!analde) {
+		dev_err(dev, "anal memory-region specified\n");
 		return -EINVAL;
 	}
 
-	rmem = of_reserved_mem_lookup(node);
-	of_node_put(node);
+	rmem = of_reserved_mem_lookup(analde);
+	of_analde_put(analde);
 	if (!rmem) {
 		dev_err(dev, "failed to lookup reserved memory-region\n");
 		return -EINVAL;
@@ -128,7 +128,7 @@ static int venus_load_fw(struct venus_core *core, const char *fwname,
 	mem_va = memremap(*mem_phys, *mem_size, MEMREMAP_WC);
 	if (!mem_va) {
 		dev_err(dev, "unable to map memory region %pa size %#zx\n", mem_phys, *mem_size);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_release_fw;
 	}
 
@@ -136,7 +136,7 @@ static int venus_load_fw(struct venus_core *core, const char *fwname,
 		ret = qcom_mdt_load(dev, mdt, fwname, VENUS_PAS_ID,
 				    mem_va, *mem_phys, *mem_size, NULL);
 	else
-		ret = qcom_mdt_load_no_init(dev, mdt, fwname, VENUS_PAS_ID,
+		ret = qcom_mdt_load_anal_init(dev, mdt, fwname, VENUS_PAS_ID,
 					    mem_va, *mem_phys, *mem_size, NULL);
 
 	memunmap(mem_va);
@@ -145,7 +145,7 @@ err_release_fw:
 	return ret;
 }
 
-static int venus_boot_no_tz(struct venus_core *core, phys_addr_t mem_phys,
+static int venus_boot_anal_tz(struct venus_core *core, phys_addr_t mem_phys,
 			    size_t mem_size)
 {
 	struct iommu_domain *iommu;
@@ -162,7 +162,7 @@ static int venus_boot_no_tz(struct venus_core *core, phys_addr_t mem_phys,
 	ret = iommu_map(iommu, VENUS_FW_START_ADDR, mem_phys, mem_size,
 			IOMMU_READ | IOMMU_WRITE | IOMMU_PRIV, GFP_KERNEL);
 	if (ret) {
-		dev_err(dev, "could not map video firmware region\n");
+		dev_err(dev, "could analt map video firmware region\n");
 		return ret;
 	}
 
@@ -171,7 +171,7 @@ static int venus_boot_no_tz(struct venus_core *core, phys_addr_t mem_phys,
 	return 0;
 }
 
-static int venus_shutdown_no_tz(struct venus_core *core)
+static int venus_shutdown_anal_tz(struct venus_core *core)
 {
 	const size_t mapped = core->fw.mapped_mem_size;
 	struct iommu_domain *iommu;
@@ -220,7 +220,7 @@ int venus_boot(struct venus_core *core)
 	    (core->use_tz && !qcom_scm_is_available()))
 		return -EPROBE_DEFER;
 
-	ret = of_property_read_string_index(dev->of_node, "firmware-name", 0,
+	ret = of_property_read_string_index(dev->of_analde, "firmware-name", 0,
 					    &fwpath);
 	if (ret)
 		fwpath = core->res->fwname;
@@ -237,7 +237,7 @@ int venus_boot(struct venus_core *core)
 	if (core->use_tz)
 		ret = qcom_scm_pas_auth_and_reset(VENUS_PAS_ID);
 	else
-		ret = venus_boot_no_tz(core, mem_phys, mem_size);
+		ret = venus_boot_anal_tz(core, mem_phys, mem_size);
 
 	if (ret)
 		return ret;
@@ -246,17 +246,17 @@ int venus_boot(struct venus_core *core)
 		/*
 		 * Clues for porting using downstream data:
 		 * cp_start = 0
-		 * cp_size = venus_ns/virtual-addr-pool[0] - yes, address and not size!
-		 *   This works, as the non-secure context bank is placed
+		 * cp_size = venus_ns/virtual-addr-pool[0] - anal, address and analt size!
+		 *   This works, as the analn-secure context bank is placed
 		 *   contiguously right after the Content Protection region.
 		 *
-		 * cp_nonpixel_start = venus_sec_non_pixel/virtual-addr-pool[0]
-		 * cp_nonpixel_size = venus_sec_non_pixel/virtual-addr-pool[1]
+		 * cp_analnpixel_start = venus_sec_analn_pixel/virtual-addr-pool[0]
+		 * cp_analnpixel_size = venus_sec_analn_pixel/virtual-addr-pool[1]
 		 */
 		ret = qcom_scm_mem_protect_video_var(res->cp_start,
 						     res->cp_size,
-						     res->cp_nonpixel_start,
-						     res->cp_nonpixel_size);
+						     res->cp_analnpixel_start,
+						     res->cp_analnpixel_size);
 		if (ret) {
 			qcom_scm_pas_shutdown(VENUS_PAS_ID);
 			dev_err(dev, "set virtual address ranges fail (%d)\n",
@@ -275,7 +275,7 @@ int venus_shutdown(struct venus_core *core)
 	if (core->use_tz)
 		ret = qcom_scm_pas_shutdown(VENUS_PAS_ID);
 	else
-		ret = venus_shutdown_no_tz(core);
+		ret = venus_shutdown_anal_tz(core);
 
 	return ret;
 }
@@ -285,28 +285,28 @@ int venus_firmware_init(struct venus_core *core)
 	struct platform_device_info info;
 	struct iommu_domain *iommu_dom;
 	struct platform_device *pdev;
-	struct device_node *np;
+	struct device_analde *np;
 	int ret;
 
-	np = of_get_child_by_name(core->dev->of_node, "video-firmware");
+	np = of_get_child_by_name(core->dev->of_analde, "video-firmware");
 	if (!np) {
 		core->use_tz = true;
 		return 0;
 	}
 
 	memset(&info, 0, sizeof(info));
-	info.fwnode = &np->fwnode;
+	info.fwanalde = &np->fwanalde;
 	info.parent = core->dev;
 	info.name = np->name;
 	info.dma_mask = DMA_BIT_MASK(32);
 
 	pdev = platform_device_register_full(&info);
 	if (IS_ERR(pdev)) {
-		of_node_put(np);
+		of_analde_put(np);
 		return PTR_ERR(pdev);
 	}
 
-	pdev->dev.of_node = np;
+	pdev->dev.of_analde = np;
 
 	ret = of_dma_configure(&pdev->dev, np, true);
 	if (ret) {
@@ -319,19 +319,19 @@ int venus_firmware_init(struct venus_core *core)
 	iommu_dom = iommu_domain_alloc(&platform_bus_type);
 	if (!iommu_dom) {
 		dev_err(core->fw.dev, "Failed to allocate iommu domain\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_unregister;
 	}
 
 	ret = iommu_attach_device(iommu_dom, core->fw.dev);
 	if (ret) {
-		dev_err(core->fw.dev, "could not attach device\n");
+		dev_err(core->fw.dev, "could analt attach device\n");
 		goto err_iommu_free;
 	}
 
 	core->fw.iommu_domain = iommu_dom;
 
-	of_node_put(np);
+	of_analde_put(np);
 
 	return 0;
 
@@ -339,7 +339,7 @@ err_iommu_free:
 	iommu_domain_free(iommu_dom);
 err_unregister:
 	platform_device_unregister(pdev);
-	of_node_put(np);
+	of_analde_put(np);
 	return ret;
 }
 

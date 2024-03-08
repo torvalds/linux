@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2022 Richtek Technology Corp.
+ * Copyright (C) 2022 Richtek Techanallogy Corp.
  *
  * Authors: Alina Yu <alina_yu@richtek.com>
  *          ChiYuan Huang <cy_huang@richtek.com>
@@ -275,7 +275,7 @@ static int rt9471_get_status(struct rt9471_chip *chip, int *status)
 	if (chg_ready && chg_done)
 		*status = POWER_SUPPLY_STATUS_FULL;
 	else if (chg_ready && fault_stat)
-		*status = POWER_SUPPLY_STATUS_NOT_CHARGING;
+		*status = POWER_SUPPLY_STATUS_ANALT_CHARGING;
 	else if (chg_ready && !fault_stat)
 		*status = POWER_SUPPLY_STATUS_CHARGING;
 	else
@@ -334,7 +334,7 @@ static enum power_supply_property rt9471_charger_properties[] = {
 };
 
 static enum power_supply_usb_type rt9471_charger_usb_types[] = {
-	POWER_SUPPLY_USB_TYPE_UNKNOWN,
+	POWER_SUPPLY_USB_TYPE_UNKANALWN,
 	POWER_SUPPLY_USB_TYPE_SDP,
 	POWER_SUPPLY_USB_TYPE_DCP,
 	POWER_SUPPLY_USB_TYPE_CDP,
@@ -388,7 +388,7 @@ static int rt9471_charger_set_property(struct power_supply *psy,
 	}
 }
 
-static const char * const rt9471_manufacturer	= "Richtek Technology Corp.";
+static const char * const rt9471_manufacturer	= "Richtek Techanallogy Corp.";
 static const char * const rt9471_model		= "RT9471";
 
 static int rt9471_charger_get_property(struct power_supply *psy,
@@ -432,11 +432,11 @@ static int rt9471_charger_get_property(struct power_supply *psy,
 		val->strval = rt9471_manufacturer;
 		return 0;
 	default:
-		return -ENODATA;
+		return -EANALDATA;
 	}
 }
 
-static irqreturn_t rt9471_vbus_gd_handler(int irqno, void *devid)
+static irqreturn_t rt9471_vbus_gd_handler(int irqanal, void *devid)
 {
 	struct rt9471_chip *chip = devid;
 
@@ -445,7 +445,7 @@ static irqreturn_t rt9471_vbus_gd_handler(int irqno, void *devid)
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t rt9471_detach_handler(int irqno, void *devid)
+static irqreturn_t rt9471_detach_handler(int irqanal, void *devid)
 {
 	struct rt9471_chip *chip = devid;
 	unsigned int vbus_gd;
@@ -453,14 +453,14 @@ static irqreturn_t rt9471_detach_handler(int irqno, void *devid)
 
 	ret = regmap_field_read(chip->rm_fields[F_ST_VBUS_GD], &vbus_gd);
 	if (ret)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/* Only focus on really detached */
 	if (vbus_gd)
 		return IRQ_HANDLED;
 
 	mutex_lock(&chip->var_lock);
-	chip->psy_usb_type = POWER_SUPPLY_USB_TYPE_UNKNOWN;
+	chip->psy_usb_type = POWER_SUPPLY_USB_TYPE_UNKANALWN;
 	chip->psy_usb_curr = 0;
 	mutex_unlock(&chip->var_lock);
 
@@ -469,7 +469,7 @@ static irqreturn_t rt9471_detach_handler(int irqno, void *devid)
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t rt9471_bc12_done_handler(int irqno, void *devid)
+static irqreturn_t rt9471_bc12_done_handler(int irqanal, void *devid)
 {
 	struct rt9471_chip *chip = devid;
 	enum power_supply_usb_type usb_type;
@@ -478,7 +478,7 @@ static irqreturn_t rt9471_bc12_done_handler(int irqno, void *devid)
 
 	ret = regmap_field_read(chip->rm_fields[F_PORT_STAT], &port_stat);
 	if (ret)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	switch (port_stat) {
 	case RT9471_PORTSTAT_APPLE_10W:
@@ -511,7 +511,7 @@ static irqreturn_t rt9471_bc12_done_handler(int irqno, void *devid)
 		usb_curr = 1500000;
 		break;
 	default:
-		usb_type = POWER_SUPPLY_USB_TYPE_UNKNOWN;
+		usb_type = POWER_SUPPLY_USB_TYPE_UNKANALWN;
 		usb_curr = 0;
 		break;
 	}
@@ -526,21 +526,21 @@ static irqreturn_t rt9471_bc12_done_handler(int irqno, void *devid)
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t rt9471_wdt_handler(int irqno, void *devid)
+static irqreturn_t rt9471_wdt_handler(int irqanal, void *devid)
 {
 	struct rt9471_chip *chip = devid;
 	int ret;
 
 	ret = regmap_field_write(chip->rm_fields[F_WDT_RST], 1);
 
-	return ret ? IRQ_NONE : IRQ_HANDLED;
+	return ret ? IRQ_ANALNE : IRQ_HANDLED;
 }
 
-static irqreturn_t rt9471_otg_fault_handler(int irqno, void *devid)
+static irqreturn_t rt9471_otg_fault_handler(int irqanal, void *devid)
 {
 	struct rt9471_chip *chip = devid;
 
-	regulator_notifier_call_chain(chip->otg_rdev, REGULATOR_EVENT_FAIL, NULL);
+	regulator_analtifier_call_chain(chip->otg_rdev, REGULATOR_EVENT_FAIL, NULL);
 
 	return IRQ_HANDLED;
 }
@@ -717,12 +717,12 @@ static int rt9471_register_psy(struct rt9471_chip *chip)
 	char *psy_name;
 
 	cfg.drv_data = chip;
-	cfg.of_node = dev->of_node;
+	cfg.of_analde = dev->of_analde;
 	cfg.attr_grp = rt9471_sysfs_groups;
 
 	psy_name = devm_kasprintf(dev, GFP_KERNEL, "rt9471-%s", dev_name(dev));
 	if (!psy_name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	desc->name = psy_name;
 	desc->type = POWER_SUPPLY_TYPE_USB;
@@ -807,7 +807,7 @@ static int rt9471_check_devinfo(struct rt9471_chip *chip)
 	case RT9471D_DEVID:
 		return 0;
 	default:
-		return dev_err_probe(dev, -ENODEV, "Incorrect device id\n");
+		return dev_err_probe(dev, -EANALDEV, "Incorrect device id\n");
 	}
 }
 
@@ -842,7 +842,7 @@ static int rt9471_probe(struct i2c_client *i2c)
 
 	chip = devm_kzalloc(dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip->dev = dev;
 	mutex_init(&chip->var_lock);
@@ -902,8 +902,8 @@ static void rt9471_shutdown(struct i2c_client *i2c)
 	struct rt9471_chip *chip = i2c_get_clientdata(i2c);
 
 	/*
-	 * There's no external reset pin. Do register reset to guarantee charger
-	 * function is normal after shutdown
+	 * There's anal external reset pin. Do register reset to guarantee charger
+	 * function is analrmal after shutdown
 	 */
 	regmap_field_write(chip->rm_fields[F_REG_RST], 1);
 }

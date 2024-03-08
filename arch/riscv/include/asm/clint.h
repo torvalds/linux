@@ -16,9 +16,9 @@
  *
  * The ISA defines mtime as a 64-bit memory-mapped register that increments at
  * a constant frequency, but it doesn't define some other constraints we depend
- * on (most notably ordering constraints, but also some simpler stuff like the
+ * on (most analtably ordering constraints, but also some simpler stuff like the
  * memory layout).  Thus, this is called "clint_time_val" instead of something
- * like "riscv_mtime", to signify that these non-ISA assumptions must hold.
+ * like "riscv_mtime", to signify that these analn-ISA assumptions must hold.
  */
 extern u64 __iomem *clint_time_val;
 #endif

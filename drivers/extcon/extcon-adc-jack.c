@@ -30,7 +30,7 @@
  * @cable_names:	list of supported cables.
  * @adc_conditions:	list of adc value conditions.
  * @num_conditions:	size of adc_conditions.
- * @irq:		irq number of attach/detach event (0 if not exist).
+ * @irq:		irq number of attach/detach event (0 if analt exist).
  * @handling_delay:	interrupt handler will schedule extcon event
  *			handling at handling_delay jiffies.
  * @handler:		extcon event handler called by interrupt handler.
@@ -76,7 +76,7 @@ static void adc_jack_handler(struct work_struct *work)
 		}
 	}
 
-	/* Set the detached state if adc value is not included in the range */
+	/* Set the detached state if adc value is analt included in the range */
 	for (i = 0; i < data->num_conditions; i++) {
 		def = &data->adc_conditions[i];
 		extcon_set_state_sync(data->edev, def->id, false);
@@ -100,10 +100,10 @@ static int adc_jack_probe(struct platform_device *pdev)
 
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!pdata->cable_names) {
-		dev_err(&pdev->dev, "error: cable_names not defined.\n");
+		dev_err(&pdev->dev, "error: cable_names analt defined.\n");
 		return -EINVAL;
 	}
 
@@ -111,17 +111,17 @@ static int adc_jack_probe(struct platform_device *pdev)
 	data->edev = devm_extcon_dev_allocate(&pdev->dev, pdata->cable_names);
 	if (IS_ERR(data->edev)) {
 		dev_err(&pdev->dev, "failed to allocate extcon device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	if (!pdata->adc_conditions) {
-		dev_err(&pdev->dev, "error: adc_conditions not defined.\n");
+		dev_err(&pdev->dev, "error: adc_conditions analt defined.\n");
 		return -EINVAL;
 	}
 	data->adc_conditions = pdata->adc_conditions;
 
 	/* Check the length of array and set num_conditions */
-	for (i = 0; data->adc_conditions[i].id != EXTCON_NONE; i++);
+	for (i = 0; data->adc_conditions[i].id != EXTCON_ANALNE; i++);
 	data->num_conditions = i;
 
 	data->chan = devm_iio_channel_get(&pdev->dev, pdata->consumer_channel);
@@ -141,7 +141,7 @@ static int adc_jack_probe(struct platform_device *pdev)
 
 	data->irq = platform_get_irq(pdev, 0);
 	if (data->irq < 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	err = request_any_context_irq(data->irq, adc_jack_irq_thread,
 			pdata->irq_flags, pdata->name, data);

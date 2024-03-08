@@ -12,7 +12,7 @@
 #include <linux/kernel.h>
 #include <linux/kernel_stat.h>
 #include <linux/percpu.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/init.h>
 #include <linux/export.h>
 #include <linux/miscdevice.h>
@@ -27,7 +27,7 @@ enum cpumf_ctr_set {
 	CPUMF_CTR_SET_USER    = 1,    /* Problem-State Counter Set */
 	CPUMF_CTR_SET_CRYPTO  = 2,    /* Crypto-Activity Counter Set */
 	CPUMF_CTR_SET_EXT     = 3,    /* Extended Counter Set */
-	CPUMF_CTR_SET_MT_DIAG = 4,    /* MT-diagnostic Counter Set */
+	CPUMF_CTR_SET_MT_DIAG = 4,    /* MT-diaganalstic Counter Set */
 
 	/* Maximum number of counter sets */
 	CPUMF_CTR_SET_MAX,
@@ -95,7 +95,7 @@ static debug_info_t *cf_dbg;
 /*
  * The CPU Measurement query counter information instruction contains
  * information which varies per machine generation, but is constant and
- * does not change when running on a particular machine, such as counter
+ * does analt change when running on a particular machine, such as counter
  * first and second version number. This is needed to determine the size
  * of counter sets. Extract this information at device driver initialization.
  */
@@ -130,7 +130,7 @@ static DEFINE_MUTEX(pmc_reserve_mutex);
  *
  * Function get_cpu_cfhw() is called from
  * - cfset_copy_all(): This function is protected by cpus_read_lock(), so
- *   CPU hot plug remove can not happen. Event removal requires a close()
+ *   CPU hot plug remove can analt happen. Event removal requires a close()
  *   first.
  *
  * Function this_cpu_cfhw() is called from perf common code functions:
@@ -187,7 +187,7 @@ static int cpum_cf_alloc_root(void)
 {
 	int rc = 0;
 
-	if (refcount_inc_not_zero(&cpu_cf_root.refcnt))
+	if (refcount_inc_analt_zero(&cpu_cf_root.refcnt))
 		return rc;
 
 	/* The memory is already zeroed. */
@@ -197,7 +197,7 @@ static int cpum_cf_alloc_root(void)
 		on_each_cpu(cpum_cf_reset_cpu, NULL, 1);
 		irq_subclass_register(IRQ_SUBCLASS_MEASUREMENT_ALERT);
 	} else {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 	}
 
 	return rc;
@@ -211,8 +211,8 @@ static void cpum_cf_free_cpu(int cpu)
 
 	mutex_lock(&pmc_reserve_mutex);
 	/*
-	 * When invoked via CPU hotplug handler, there might be no events
-	 * installed or that particular CPU might not have an
+	 * When invoked via CPU hotplug handler, there might be anal events
+	 * installed or that particular CPU might analt have an
 	 * event installed. This anchor pointer can be NULL!
 	 */
 	if (!cpu_cf_root.cfptr)
@@ -220,7 +220,7 @@ static void cpum_cf_free_cpu(int cpu)
 	p = per_cpu_ptr(cpu_cf_root.cfptr, cpu);
 	cpuhw = p->cpucf;
 	/*
-	 * Might be zero when called from CPU hotplug handler and no event
+	 * Might be zero when called from CPU hotplug handler and anal event
 	 * installed on that CPU, but on different CPUs.
 	 */
 	if (!cpuhw)
@@ -255,7 +255,7 @@ static int cpum_cf_alloc_cpu(int cpu)
 			p->cpucf = cpuhw;
 			refcount_set(&cpuhw->refcnt, 1);
 		} else {
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 		}
 	} else {
 		refcount_inc(&cpuhw->refcnt);
@@ -263,7 +263,7 @@ static int cpum_cf_alloc_cpu(int cpu)
 	if (rc) {
 		/*
 		 * Error in allocation of event, decrement anchor. Since
-		 * cpu_cf_event in not created, its destroy() function is not
+		 * cpu_cf_event in analt created, its destroy() function is analt
 		 * invoked. Adjust the reference counter for the anchor.
 		 */
 		cpum_cf_free_root();
@@ -279,7 +279,7 @@ unlock:
  * If cpu is -1, track task on all available CPUs. This requires
  * allocation of hardware data structures for all CPUs. This setup handles
  * perf_event_open() with task context and /dev/hwctr interface.
- * If cpu is non-zero install event on this CPU only. This setup handles
+ * If cpu is analn-zero install event on this CPU only. This setup handles
  * perf_event_open() with CPU context.
  */
 static int cpum_cf_alloc(int cpu)
@@ -289,7 +289,7 @@ static int cpum_cf_alloc(int cpu)
 
 	if (cpu == -1) {
 		if (!zalloc_cpumask_var(&mask, GFP_KERNEL))
-			return -ENOMEM;
+			return -EANALMEM;
 		for_each_online_cpu(cpu) {
 			rc = cpum_cf_alloc_cpu(cpu);
 			if (rc) {
@@ -333,7 +333,7 @@ static void cpum_cf_free(int cpu)
  * The trailer consists of a:
  * - flag field indicating valid fields when corresponding bit set
  * - the counter facility first and second version number
- * - the CPU speed if nonzero
+ * - the CPU speed if analnzero
  * - the time stamp the counter sets have been collected
  * - the time of day (TOD) base value
  * - the machine type.
@@ -468,10 +468,10 @@ static size_t cpum_cf_read_setsize(enum cpumf_ctr_set ctrset)
  *
  * The functions returns the number of bytes occupied by this counter set
  * including the header.
- * If there is no counter in the counter set, this counter set is useless and
+ * If there is anal counter in the counter set, this counter set is useless and
  * zero is returned on this case.
  *
- * Note that the counter sets may not be enabled or active and the stcctm
+ * Analte that the counter sets may analt be enabled or active and the stcctm
  * instruction might return error 3. Depending on error_ok value this is ok,
  * for example when called from cpumf_pmu_start() call back function.
  */
@@ -525,7 +525,7 @@ static size_t cfdiag_getctr(void *data, size_t sz, unsigned long auth,
 		struct cf_ctrset_entry *ctrdata = data + offset;
 
 		if (!(auth & cpumf_ctr_ctl[i]))
-			continue;	/* Counter set not authorized */
+			continue;	/* Counter set analt authorized */
 
 		done = cfdiag_getctrset(ctrdata, i, sz - offset, error_ok);
 		offset += done;
@@ -612,31 +612,31 @@ static int validate_ctr_version(const u64 config, enum cpumf_ctr_set set)
 	case CPUMF_CTR_SET_BASIC:
 	case CPUMF_CTR_SET_USER:
 		if (cpumf_ctr_info.cfvn < 1)
-			err = -EOPNOTSUPP;
+			err = -EOPANALTSUPP;
 		break;
 	case CPUMF_CTR_SET_CRYPTO:
 		if ((cpumf_ctr_info.csvn >= 1 && cpumf_ctr_info.csvn <= 5 &&
 		     config > 79) || (cpumf_ctr_info.csvn >= 6 && config > 83))
-			err = -EOPNOTSUPP;
+			err = -EOPANALTSUPP;
 		break;
 	case CPUMF_CTR_SET_EXT:
 		if (cpumf_ctr_info.csvn < 1)
-			err = -EOPNOTSUPP;
+			err = -EOPANALTSUPP;
 		if ((cpumf_ctr_info.csvn == 1 && config > 159) ||
 		    (cpumf_ctr_info.csvn == 2 && config > 175) ||
 		    (cpumf_ctr_info.csvn >= 3 && cpumf_ctr_info.csvn <= 5 &&
 		     config > 255) ||
 		    (cpumf_ctr_info.csvn >= 6 && config > 287))
-			err = -EOPNOTSUPP;
+			err = -EOPANALTSUPP;
 		break;
 	case CPUMF_CTR_SET_MT_DIAG:
 		if (cpumf_ctr_info.csvn <= 3)
-			err = -EOPNOTSUPP;
+			err = -EOPANALTSUPP;
 		/*
-		 * MT-diagnostic counters are read-only.  The counter set
+		 * MT-diaganalstic counters are read-only.  The counter set
 		 * is automatically enabled and activated on all CPUs with
 		 * multithreading (SMT).  Deactivation of multithreading
-		 * also disables the counter set.  State changes are ignored
+		 * also disables the counter set.  State changes are iganalred
 		 * by lcctl().	Because Linux controls SMT enablement through
 		 * a kernel parameter only, the counter set is either disabled
 		 * or enabled and active.
@@ -648,10 +648,10 @@ static int validate_ctr_version(const u64 config, enum cpumf_ctr_set set)
 		if (!((cpumf_ctr_info.auth_ctl & mtdiag_ctl) &&
 		      (cpumf_ctr_info.enable_ctl & mtdiag_ctl) &&
 		      (cpumf_ctr_info.act_ctl & mtdiag_ctl)))
-			err = -EOPNOTSUPP;
+			err = -EOPANALTSUPP;
 		break;
 	case CPUMF_CTR_SET_MAX:
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 	}
 
 	return err;
@@ -743,16 +743,16 @@ static int __hw_perf_event_init(struct perf_event *event, unsigned int type)
 	switch (type) {
 	case PERF_TYPE_RAW:
 		/* Raw events are used to access counters directly,
-		 * hence do not permit excludes */
+		 * hence do analt permit excludes */
 		if (attr->exclude_kernel || attr->exclude_user ||
 		    attr->exclude_hv)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		ev = attr->config;
 		break;
 
 	case PERF_TYPE_HARDWARE:
-		if (is_sampling_event(event))	/* No sampling support */
-			return -ENOENT;
+		if (is_sampling_event(event))	/* Anal sampling support */
+			return -EANALENT;
 		ev = attr->config;
 		if (!attr->exclude_user && attr->exclude_kernel) {
 			/*
@@ -761,31 +761,31 @@ static int __hw_perf_event_init(struct perf_event *event, unsigned int type)
 			 */
 			if (!is_userspace_event(ev)) {
 				if (ev >= ARRAY_SIZE(cpumf_generic_events_user))
-					return -EOPNOTSUPP;
+					return -EOPANALTSUPP;
 				ev = cpumf_generic_events_user[ev];
 			}
 		} else if (!attr->exclude_kernel && attr->exclude_user) {
-			/* No support for kernel space counters only */
-			return -EOPNOTSUPP;
+			/* Anal support for kernel space counters only */
+			return -EOPANALTSUPP;
 		} else {
 			/* Count user and kernel space, incl. events 32 + 33 */
 			if (!is_userspace_event(ev)) {
 				if (ev >= ARRAY_SIZE(cpumf_generic_events_basic))
-					return -EOPNOTSUPP;
+					return -EOPANALTSUPP;
 				ev = cpumf_generic_events_basic[ev];
 			}
 		}
 		break;
 
 	default:
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	if (ev == -1)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (ev > PERF_CPUM_CF_MAX_CTR)
-		return -ENOENT;
+		return -EANALENT;
 
 	/* Obtain the counter set to which the specified counter belongs */
 	set = get_counter_set(ev);
@@ -805,23 +805,23 @@ static int __hw_perf_event_init(struct perf_event *event, unsigned int type)
 		hwc->config_base = cpumf_ctr_ctl[set];
 		break;
 	case CPUMF_CTR_SET_MAX:
-		/* The counter could not be associated to a counter set */
+		/* The counter could analt be associated to a counter set */
 		return -EINVAL;
 	}
 
 	/* Initialize for using the CPU-measurement counter facility */
 	if (cpum_cf_alloc(event->cpu))
-		return -ENOMEM;
+		return -EANALMEM;
 	event->destroy = hw_perf_event_destroy;
 
 	/*
 	 * Finally, validate version and authorization of the counter set.
-	 * If the particular CPU counter set is not authorized,
-	 * return with -ENOENT in order to fall back to other
+	 * If the particular CPU counter set is analt authorized,
+	 * return with -EANALENT in order to fall back to other
 	 * PMUs that might suffice the event request.
 	 */
 	if (!(hwc->config_base & cpumf_ctr_info.auth_ctl))
-		return -ENOENT;
+		return -EANALENT;
 	return validate_ctr_version(hwc->config, set);
 }
 
@@ -853,10 +853,10 @@ static int cpumf_pmu_event_init(struct perf_event *event)
 	if (type == PERF_TYPE_HARDWARE || type == PERF_TYPE_RAW)
 		err = __hw_perf_event_init(event, type);
 	else if (event->pmu->type == type)
-		/* Registered as unknown PMU */
+		/* Registered as unkanalwn PMU */
 		err = __hw_perf_event_init(event, cpumf_pmu_event_type(event));
 	else
-		return -ENOENT;
+		return -EANALENT;
 
 	if (unlikely(err) && event->destroy)
 		event->destroy(event);
@@ -875,7 +875,7 @@ static int hw_perf_event_reset(struct perf_event *event)
 		if (err) {
 			if (err != 3)
 				break;
-			/* The counter is not (yet) available. This
+			/* The counter is analt (yet) available. This
 			 * might happen if the counter set to which
 			 * this counter belongs is in the disabled
 			 * state.
@@ -951,7 +951,7 @@ static void cpumf_pmu_start(struct perf_event *event, int flags)
  * possible event overflows. If an event overflow occurs, the PMU is
  * stopped.
  *
- * Return non-zero if an event overflow occurred.
+ * Return analn-zero if an event overflow occurred.
  */
 static int cfdiag_push_sample(struct perf_event *event,
 			      struct cpu_cf_events *cpuhw)
@@ -1038,11 +1038,11 @@ static void cpumf_pmu_del(struct perf_event *event, int flags)
 
 	cpumf_pmu_stop(event, PERF_EF_UPDATE);
 
-	/* Check if any counter in the counter set is still used.  If not used,
+	/* Check if any counter in the counter set is still used.  If analt used,
 	 * change the counter set to the disabled state.  This also clears the
 	 * content of all counters in the set.
 	 *
-	 * When a new perf event has been added but not yet started, this can
+	 * When a new perf event has been added but analt yet started, this can
 	 * clear enable control and resets all counters in a set.  Therefore,
 	 * cpumf_pmu_start() always has to reenable a counter set.
 	 */
@@ -1054,7 +1054,7 @@ static void cpumf_pmu_del(struct perf_event *event, int flags)
 /* Performance monitoring unit for s390x */
 static struct pmu cpumf_pmu = {
 	.task_ctx_nr  = perf_sw_context,
-	.capabilities = PERF_PMU_CAP_NO_INTERRUPT,
+	.capabilities = PERF_PMU_CAP_ANAL_INTERRUPT,
 	.pmu_enable   = cpumf_pmu_enable,
 	.pmu_disable  = cpumf_pmu_disable,
 	.event_init   = cpumf_pmu_event_init,
@@ -1089,7 +1089,7 @@ static DEFINE_MUTEX(cfset_ctrset_mutex);
  * CPU hotplug handles only /dev/hwctr device.
  * For perf_event_open() the CPU hotplug handling is done on kernel common
  * code:
- * - CPU add: Nothing is done since a file descriptor can not be created
+ * - CPU add: Analthing is done since a file descriptor can analt be created
  *   and returned to the user.
  * - CPU delete: Handled by common code via pmu_disable(), pmu_stop() and
  *   pmu_delete(). The event itself is removed when the file descriptor is
@@ -1102,7 +1102,7 @@ static int cpum_cf_online_cpu(unsigned int cpu)
 	int rc = 0;
 
 	/*
-	 * Ignore notification for perf_event_open().
+	 * Iganalre analtification for perf_event_open().
 	 * Handle only /dev/hwctr device sessions.
 	 */
 	mutex_lock(&cfset_ctrset_mutex);
@@ -1122,7 +1122,7 @@ static int cpum_cf_offline_cpu(unsigned int cpu)
 	/*
 	 * During task exit processing of grouped perf events triggered by CPU
 	 * hotplug processing, pmu_disable() is called as part of perf context
-	 * removal process. Therefore do not trigger event removal now for
+	 * removal process. Therefore do analt trigger event removal analw for
 	 * perf_event_open() created events. Perf common code triggers event
 	 * destruction when the event file descriptor is closed.
 	 *
@@ -1156,7 +1156,7 @@ static void cpumf_measurement_alert(struct ext_code ext_code,
 
 	/*
 	 * Measurement alerts are shared and might happen when the PMU
-	 * is not reserved.  Ignore these alerts in this case.
+	 * is analt reserved.  Iganalre these alerts in this case.
 	 */
 	cpuhw = this_cpu_cfhw();
 	if (!cpuhw)
@@ -1183,7 +1183,7 @@ static int __init cpumf_pmu_init(void)
 
 	/* Extract counter measurement facility information */
 	if (!cpum_cf_avail() || qctri(&cpumf_ctr_info))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Determine and store counter set sizes for later reference */
 	for (rc = CPUMF_CTR_SET_BASIC; rc < CPUMF_CTR_SET_MAX; ++rc)
@@ -1207,7 +1207,7 @@ static int __init cpumf_pmu_init(void)
 	cf_dbg = debug_register(KMSG_COMPONENT, 2, 1, 128);
 	if (!cf_dbg) {
 		pr_err("Registration of s390dbf(cpum_cf) failed\n");
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out1;
 	}
 	debug_register_view(cf_dbg, &debug_sprintf_view);
@@ -1236,7 +1236,7 @@ out1:
 
 /* Support for the CPU Measurement Facility counter set extraction using
  * device /dev/hwctr. This allows user space programs to extract complete
- * counter set via normal file operations.
+ * counter set via analrmal file operations.
  */
 
 struct cfset_call_on_cpu_parm {		/* Parm struct for smp_call_on_cpu */
@@ -1247,7 +1247,7 @@ struct cfset_call_on_cpu_parm {		/* Parm struct for smp_call_on_cpu */
 struct cfset_request {			/* CPUs and counter set bit mask */
 	unsigned long ctrset;		/* Bit mask of counter set to read */
 	cpumask_t mask;			/* CPU mask to read from */
-	struct list_head node;		/* Chain to cfset_session.head */
+	struct list_head analde;		/* Chain to cfset_session.head */
 };
 
 static void cfset_session_init(void)
@@ -1261,7 +1261,7 @@ static void cfset_session_init(void)
  */
 static void cfset_session_del(struct cfset_request *p)
 {
-	list_del(&p->node);
+	list_del(&p->analde);
 }
 
 /* Add current request to global bookkeeping. Maintain a counter set bit mask
@@ -1270,14 +1270,14 @@ static void cfset_session_del(struct cfset_request *p)
  */
 static void cfset_session_add(struct cfset_request *p)
 {
-	list_add(&p->node, &cfset_session.head);
+	list_add(&p->analde, &cfset_session.head);
 }
 
 /* The /dev/hwctr device access uses PMU_F_IN_USE to mark the device access
  * path is currently used.
- * The cpu_cf_events::dev_state is used to denote counter sets in use by this
- * interface. It is always or'ed in. If this interface is not active, its
- * value is zero and no additional counter sets will be included.
+ * The cpu_cf_events::dev_state is used to deanalte counter sets in use by this
+ * interface. It is always or'ed in. If this interface is analt active, its
+ * value is zero and anal additional counter sets will be included.
  *
  * The cpu_cf_events::state is used by the perf_event_open SVC and remains
  * unchanged.
@@ -1297,7 +1297,7 @@ static void cfset_session_add(struct cfset_request *p)
  * to run.
  * When /dev/hwctr interface is also used at the same time, the counter sets
  * will keep running, even when the process is scheduled off a CPU.
- * However this is not a problem and does not lead to wrong counter values
+ * However this is analt a problem and does analt lead to wrong counter values
  * for the perf_event_open() SVC. The current counter value will be recorded
  * during schedule-in. At schedule-out time the current counter value is
  * extracted again and the delta is calculated and added to the event.
@@ -1362,7 +1362,7 @@ static void cfset_release_cpu(void *p)
 }
 
 /* This modifies the process CPU mask to adopt it to the currently online
- * CPUs. Offline CPUs can not be addresses. This call terminates the access
+ * CPUs. Offline CPUs can analt be addresses. This call terminates the access
  * and is usually followed by close() or a new iotcl(..., START, ...) which
  * creates a new request structure.
  */
@@ -1379,10 +1379,10 @@ static void cfset_all_stop(struct cfset_request *req)
 /* Release function is also called when application gets terminated without
  * doing a proper ioctl(..., S390_HWCTR_STOP, ...) command.
  */
-static int cfset_release(struct inode *inode, struct file *file)
+static int cfset_release(struct ianalde *ianalde, struct file *file)
 {
 	mutex_lock(&cfset_ctrset_mutex);
-	/* Open followed by close/exit has no private_data */
+	/* Open followed by close/exit has anal private_data */
 	if (file->private_data) {
 		cfset_all_stop(file->private_data);
 		cfset_session_del(file->private_data);
@@ -1404,7 +1404,7 @@ static int cfset_release(struct inode *inode, struct file *file)
  * These invocations are handled via reference counting on the per CPU data
  * structures.
  */
-static int cfset_open(struct inode *inode, struct file *file)
+static int cfset_open(struct ianalde *ianalde, struct file *file)
 {
 	int rc = 0;
 
@@ -1413,7 +1413,7 @@ static int cfset_open(struct inode *inode, struct file *file)
 	file->private_data = NULL;
 
 	mutex_lock(&cfset_ctrset_mutex);
-	if (!refcount_inc_not_zero(&cfset_opencnt)) {	/* First open */
+	if (!refcount_inc_analt_zero(&cfset_opencnt)) {	/* First open */
 		rc = cpum_cf_alloc(-1);
 		if (!rc) {
 			cfset_session_init();
@@ -1422,8 +1422,8 @@ static int cfset_open(struct inode *inode, struct file *file)
 	}
 	mutex_unlock(&cfset_ctrset_mutex);
 
-	/* nonseekable_open() never fails */
-	return rc ?: nonseekable_open(inode, file);
+	/* analnseekable_open() never fails */
+	return rc ?: analnseekable_open(ianalde, file);
 }
 
 static int cfset_all_start(struct cfset_request *req)
@@ -1436,7 +1436,7 @@ static int cfset_all_start(struct cfset_request *req)
 	int rc = 0;
 
 	if (!alloc_cpumask_var(&mask, GFP_KERNEL))
-		return -ENOMEM;
+		return -EANALMEM;
 	cpumask_and(mask, &req->mask, cpu_online_mask);
 	on_each_cpu_mask(mask, cfset_ioctl_on, &p, 1);
 	if (atomic_read(&p.cpus_ack) != cpumask_weight(mask)) {
@@ -1462,11 +1462,11 @@ static size_t cfset_needspace(unsigned int sets)
 			continue;
 		bytes += cpum_cf_read_setsize(i) * sizeof(u64) +
 			 sizeof(((struct s390_ctrset_setdata *)0)->set) +
-			 sizeof(((struct s390_ctrset_setdata *)0)->no_cnts);
+			 sizeof(((struct s390_ctrset_setdata *)0)->anal_cnts);
 	}
-	bytes = sizeof(((struct s390_ctrset_read *)0)->no_cpus) + nr_cpu_ids *
+	bytes = sizeof(((struct s390_ctrset_read *)0)->anal_cpus) + nr_cpu_ids *
 		(bytes + sizeof(((struct s390_ctrset_cpudata *)0)->cpu_nr) +
-		     sizeof(((struct s390_ctrset_cpudata *)0)->no_sets));
+		     sizeof(((struct s390_ctrset_cpudata *)0)->anal_sets));
 	return bytes;
 }
 
@@ -1484,7 +1484,7 @@ static int cfset_all_copy(unsigned long arg, cpumask_t *mask)
 
 		ctrset_cpudata = uptr;
 		rc  = put_user(cpu, &ctrset_cpudata->cpu_nr);
-		rc |= put_user(cpuhw->sets, &ctrset_cpudata->no_sets);
+		rc |= put_user(cpuhw->sets, &ctrset_cpudata->anal_sets);
 		rc |= copy_to_user(ctrset_cpudata->data, cpuhw->data,
 				   cpuhw->used);
 		if (rc) {
@@ -1495,7 +1495,7 @@ static int cfset_all_copy(unsigned long arg, cpumask_t *mask)
 		cond_resched();
 	}
 	cpus = cpumask_weight(mask);
-	if (put_user(cpus, &ctrset_read->no_cpus))
+	if (put_user(cpus, &ctrset_read->anal_cpus))
 		rc = -EFAULT;
 out:
 	return rc;
@@ -1510,9 +1510,9 @@ static size_t cfset_cpuset_read(struct s390_ctrset_setdata *p, int ctrset,
 	need = sizeof(*p) + sizeof(u64) * ctrset_size;
 	if (need <= room) {
 		p->set = cpumf_ctr_ctl[ctrset];
-		p->no_cnts = ctrset_size;
+		p->anal_cnts = ctrset_size;
 		rc = ctr_stcctm(ctrset, ctrset_size, (u64 *)p->cv);
-		if (rc == 3)		/* Nothing stored */
+		if (rc == 3)		/* Analthing stored */
 			need = 0;
 	}
 	return need;
@@ -1526,7 +1526,7 @@ static void cfset_cpu_read(void *parm)
 	int set, set_size;
 	size_t space;
 
-	/* No data saved yet */
+	/* Anal data saved yet */
 	cpuhw->used = 0;
 	cpuhw->sets = 0;
 	memset(cpuhw->data, 0, sizeof(cpuhw->data));
@@ -1537,7 +1537,7 @@ static void cfset_cpu_read(void *parm)
 						 cpuhw->used;
 
 		if (!(p->sets & cpumf_ctr_ctl[set]))
-			continue;	/* Counter set not in list */
+			continue;	/* Counter set analt in list */
 		set_size = cpum_cf_read_setsize(set);
 		space = sizeof(cpuhw->data) - cpuhw->used;
 		space = cfset_cpuset_read(sp, set, set_size, space);
@@ -1555,7 +1555,7 @@ static int cfset_all_read(unsigned long arg, struct cfset_request *req)
 	int rc;
 
 	if (!alloc_cpumask_var(&mask, GFP_KERNEL))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	p.sets = req->ctrset;
 	cpumask_and(mask, &req->mask, cpu_online_mask);
@@ -1567,7 +1567,7 @@ static int cfset_all_read(unsigned long arg, struct cfset_request *req)
 
 static long cfset_ioctl_read(unsigned long arg, struct cfset_request *req)
 {
-	int ret = -ENODATA;
+	int ret = -EANALDATA;
 
 	if (req && req->ctrset)
 		ret = cfset_all_read(arg, req);
@@ -1613,11 +1613,11 @@ static long cfset_ioctl_start(unsigned long arg, struct file *file)
 				   cpumf_ctr_ctl[CPUMF_CTR_SET_MT_DIAG]))
 		return -EINVAL;		/* Invalid counter set */
 	if (!start.counter_sets)
-		return -EINVAL;		/* No counter set at all? */
+		return -EINVAL;		/* Anal counter set at all? */
 
 	preq = kzalloc(sizeof(*preq), GFP_KERNEL);
 	if (!preq)
-		return -ENOMEM;
+		return -EANALMEM;
 	cpumask_clear(&preq->mask);
 	len = min_t(u64, start.cpumask_len, cpumask_size());
 	umask = (void __user *)start.cpumask;
@@ -1649,7 +1649,7 @@ static long cfset_ioctl_start(unsigned long arg, struct file *file)
  * The ioctl system call supports three subcommands:
  * S390_HWCTR_START: Start the specified counter sets on a CPU list. The
  *    counter set keeps running until explicitly stopped. Returns the number
- *    of bytes needed to store the counter values. If another S390_HWCTR_START
+ *    of bytes needed to store the counter values. If aanalther S390_HWCTR_START
  *    ioctl subcommand is called without a previous S390_HWCTR_STOP stop
  *    command on the same file descriptor, -EBUSY is returned.
  * S390_HWCTR_READ: Read the counter set values from specified CPU list given
@@ -1674,7 +1674,7 @@ static long cfset_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		ret = cfset_ioctl_read(arg, file->private_data);
 		break;
 	default:
-		ret = -ENOTTY;
+		ret = -EANALTTY;
 		break;
 	}
 	mutex_unlock(&cfset_ctrset_mutex);
@@ -1688,12 +1688,12 @@ static const struct file_operations cfset_fops = {
 	.release = cfset_release,
 	.unlocked_ioctl	= cfset_ioctl,
 	.compat_ioctl = cfset_ioctl,
-	.llseek = no_llseek
+	.llseek = anal_llseek
 };
 
 static struct miscdevice cfset_dev = {
 	.name	= S390_HWCTR_DEVICE,
-	.minor	= MISC_DYNAMIC_MINOR,
+	.mianalr	= MISC_DYNAMIC_MIANALR,
 	.fops	= &cfset_fops,
 	.mode	= 0666,
 };
@@ -1707,7 +1707,7 @@ static int cfset_online_cpu(unsigned int cpu)
 	struct cfset_request *rp;
 
 	if (!list_empty(&cfset_session.head)) {
-		list_for_each_entry(rp, &cfset_session.head, node) {
+		list_for_each_entry(rp, &cfset_session.head, analde) {
 			p.sets = rp->ctrset;
 			cfset_ioctl_on(&p);
 			cpumask_set_cpu(cpu, &rp->mask);
@@ -1726,7 +1726,7 @@ static int cfset_offline_cpu(unsigned int cpu)
 	struct cfset_request *rp;
 
 	if (!list_empty(&cfset_session.head)) {
-		list_for_each_entry(rp, &cfset_session.head, node) {
+		list_for_each_entry(rp, &cfset_session.head, analde) {
 			p.sets = rp->ctrset;
 			cfset_ioctl_off(&p);
 			cpumask_clear_cpu(cpu, &rp->mask);
@@ -1771,13 +1771,13 @@ static int cfdiag_event_init2(struct perf_event *event)
 	 * the hardware init function is either called per-cpu or just once
 	 * for all CPUS (event->cpu == -1).  This depends on the whether
 	 * counting is started for all CPUs or on a per workload base where
-	 * the perf event moves from one CPU to another CPU.
+	 * the perf event moves from one CPU to aanalther CPU.
 	 * Checking the authorization on any CPU is fine as the hardware
 	 * applies the same authorization settings to all CPUs.
 	 */
 	event->hw.config_base = get_authctrsets();
 
-	/* No authorized counter sets, nothing to count/sample */
+	/* Anal authorized counter sets, analthing to count/sample */
 	if (!event->hw.config_base)
 		err = -EINVAL;
 
@@ -1787,26 +1787,26 @@ static int cfdiag_event_init2(struct perf_event *event)
 static int cfdiag_event_init(struct perf_event *event)
 {
 	struct perf_event_attr *attr = &event->attr;
-	int err = -ENOENT;
+	int err = -EANALENT;
 
 	if (event->attr.config != PERF_EVENT_CPUM_CF_DIAG ||
 	    event->attr.type != event->pmu->type)
 		goto out;
 
 	/* Raw events are used to access counters directly,
-	 * hence do not permit excludes.
+	 * hence do analt permit excludes.
 	 * This event is useless without PERF_SAMPLE_RAW to return counter set
 	 * values as raw data.
 	 */
 	if (attr->exclude_kernel || attr->exclude_user || attr->exclude_hv ||
 	    !(attr->sample_type & (PERF_SAMPLE_CPU | PERF_SAMPLE_RAW))) {
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		goto out;
 	}
 
 	/* Initialize for using the CPU-measurement counter facility */
 	if (cpum_cf_alloc(event->cpu))
-		return -ENOMEM;
+		return -EANALMEM;
 	event->destroy = hw_perf_event_destroy;
 
 	err = cfdiag_event_init2(event);
@@ -1853,7 +1853,7 @@ static const struct attribute_group *cfdiag_attr_groups[] = {
 
 /* Performance monitoring unit for event CF_DIAG. Since this event
  * is also started and stopped via the perf_event_open() system call, use
- * the same event enable/disable call back functions. They do not
+ * the same event enable/disable call back functions. They do analt
  * have a pointer to the perf_event strcture as first parameter.
  *
  * The functions XXX_add, XXX_del, XXX_start and XXX_stop are also common.
@@ -1927,7 +1927,7 @@ static int cfset_init(void)
 	if (need > sizeof(((struct cpu_cf_events *)0)->start)) {
 		pr_err("Insufficient memory for PMU(cpum_cf_diag) need=%zu\n",
 		       need);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	rc = misc_register(&cfset_dev);

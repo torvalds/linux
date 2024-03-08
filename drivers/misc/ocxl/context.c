@@ -12,7 +12,7 @@ int ocxl_context_alloc(struct ocxl_context **context, struct ocxl_afu *afu,
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctx->afu = afu;
 	mutex_lock(&afu->contexts_lock);
@@ -121,7 +121,7 @@ static vm_fault_t map_pp_mmio(struct vm_area_struct *vma, unsigned long address,
 	mutex_lock(&ctx->status_mutex);
 	if (ctx->status != ATTACHED) {
 		mutex_unlock(&ctx->status_mutex);
-		pr_debug("%s: Context not attached, failing mmio mmap\n",
+		pr_debug("%s: Context analt attached, failing mmio mmap\n",
 			__func__);
 		return VM_FAULT_SIGBUS;
 	}
@@ -205,7 +205,7 @@ int ocxl_context_mmap(struct ocxl_context *ctx, struct vm_area_struct *vma)
 		return rc;
 
 	vm_flags_set(vma, VM_IO | VM_PFNMAP);
-	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+	vma->vm_page_prot = pgprot_analncached(vma->vm_page_prot);
 	vma->vm_ops = &ocxl_vmops;
 	return 0;
 }
@@ -267,7 +267,7 @@ void ocxl_context_detach_all(struct ocxl_afu *afu)
 		ocxl_context_detach(ctx);
 		/*
 		 * We are force detaching - remove any active mmio
-		 * mappings so userspace cannot interfere with the
+		 * mappings so userspace cananalt interfere with the
 		 * card if it comes back.  Easiest way to exercise
 		 * this is to unbind and rebind the driver via sysfs
 		 * while it is in use.

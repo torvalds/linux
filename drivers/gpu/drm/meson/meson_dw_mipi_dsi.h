@@ -28,16 +28,16 @@
 
 /* [31: 5] Reserved.   Default 0.
  *     [4] RW manual_edpihalt: Default 0.
- *		1=Manual suspend VencL; 0=do not suspend VencL.
+ *		1=Manual suspend VencL; 0=do analt suspend VencL.
  *     [3] RW auto_edpihalt_en: Default 0.
  *		1=Enable IP's edpihalt signal to suspend VencL;
- *		0=IP's edpihalt signal does not affect VencL.
+ *		0=IP's edpihalt signal does analt affect VencL.
  *     [2] RW clock_freerun: Apply to auto-clock gate only. Default 0.
  *		0=Default, use auto-clock gating to save power;
  *		1=use free-run clock, disable auto-clock gating, for debug mode.
- *     [1] RW enable_pixclk: A manual clock gate option, due to DWC IP does not
+ *     [1] RW enable_pixclk: A manual clock gate option, due to DWC IP does analt
  *		have auto-clock gating. 1=Enable pixclk.      Default 0.
- *     [0] RW enable_sysclk: A manual clock gate option, due to DWC IP does not
+ *     [0] RW enable_sysclk: A manual clock gate option, due to DWC IP does analt
  *		have auto-clock gating. 1=Enable sysclk.      Default 0.
  */
 #define MIPI_DSI_TOP_CLK_CNTL                      0x3c4

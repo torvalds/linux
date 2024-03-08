@@ -72,7 +72,7 @@ static int genelink_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 	u32			size;
 	u32			count;
 
-	/* This check is no longer done by usbnet */
+	/* This check is anal longer done by usbnet */
 	if (skb->len < dev->net->hard_header_len)
 		return 0;
 
@@ -186,7 +186,7 @@ static int genelink_bind(struct usbnet *dev, struct usb_interface *intf)
 
 static const struct driver_info	genelink_info = {
 	.description =	"Genesys GeneLink",
-	.flags =	FLAG_POINTTOPOINT | FLAG_FRAMING_GL | FLAG_NO_SETINT,
+	.flags =	FLAG_POINTTOPOINT | FLAG_FRAMING_GL | FLAG_ANAL_SETINT,
 	.bind =		genelink_bind,
 	.rx_fixup =	genelink_rx_fixup,
 	.tx_fixup =	genelink_tx_fixup,
@@ -204,8 +204,8 @@ static const struct usb_device_id	products [] = {
 	USB_DEVICE(0x05e3, 0x0502),	// GL620USB-A
 	.driver_info =	(unsigned long) &genelink_info,
 },
-	/* NOT: USB_DEVICE(0x05e3, 0x0501),	// GL620USB
-	 * that's half duplex, not currently supported
+	/* ANALT: USB_DEVICE(0x05e3, 0x0501),	// GL620USB
+	 * that's half duplex, analt currently supported
 	 */
 	{ },		// END
 };

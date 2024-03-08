@@ -14,7 +14,7 @@
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/fs.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
@@ -36,7 +36,7 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-event.h>
 #include <media/v4l2-ioctl.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 
 #include <media/videobuf2-dma-sg.h>
 
@@ -181,7 +181,7 @@
 
 /**
  * enum pxa_mbus_packing - data packing types on the media-bus
- * @PXA_MBUS_PACKING_NONE:	no packing, bit-for-bit transfer to RAM, one
+ * @PXA_MBUS_PACKING_ANALNE:	anal packing, bit-for-bit transfer to RAM, one
  *				sample represents one pixel
  * @PXA_MBUS_PACKING_2X8_PADHI:	16 bits transferred in 2 8-bit samples, in the
  *				possibly incomplete byte high bits are padding
@@ -189,7 +189,7 @@
  *				to 16 bits
  */
 enum pxa_mbus_packing {
-	PXA_MBUS_PACKING_NONE,
+	PXA_MBUS_PACKING_ANALNE,
 	PXA_MBUS_PACKING_2X8_PADHI,
 	PXA_MBUS_PACKING_EXTEND16,
 };
@@ -338,7 +338,7 @@ static const struct pxa_mbus_lookup mbus_fmt[] = {
 		.fourcc			= V4L2_PIX_FMT_SBGGR8,
 		.name			= "Bayer 8 BGGR",
 		.bits_per_sample	= 8,
-		.packing		= PXA_MBUS_PACKING_NONE,
+		.packing		= PXA_MBUS_PACKING_ANALNE,
 		.order			= PXA_MBUS_ORDER_LE,
 		.layout			= PXA_MBUS_LAYOUT_PACKED,
 	},
@@ -348,7 +348,7 @@ static const struct pxa_mbus_lookup mbus_fmt[] = {
 		.fourcc			= V4L2_PIX_FMT_SGBRG8,
 		.name			= "Bayer 8 GBRG",
 		.bits_per_sample	= 8,
-		.packing		= PXA_MBUS_PACKING_NONE,
+		.packing		= PXA_MBUS_PACKING_ANALNE,
 		.order			= PXA_MBUS_ORDER_LE,
 		.layout			= PXA_MBUS_LAYOUT_PACKED,
 	},
@@ -358,7 +358,7 @@ static const struct pxa_mbus_lookup mbus_fmt[] = {
 		.fourcc			= V4L2_PIX_FMT_SGRBG8,
 		.name			= "Bayer 8 GRBG",
 		.bits_per_sample	= 8,
-		.packing		= PXA_MBUS_PACKING_NONE,
+		.packing		= PXA_MBUS_PACKING_ANALNE,
 		.order			= PXA_MBUS_ORDER_LE,
 		.layout			= PXA_MBUS_LAYOUT_PACKED,
 	},
@@ -368,7 +368,7 @@ static const struct pxa_mbus_lookup mbus_fmt[] = {
 		.fourcc			= V4L2_PIX_FMT_SRGGB8,
 		.name			= "Bayer 8 RGGB",
 		.bits_per_sample	= 8,
-		.packing		= PXA_MBUS_PACKING_NONE,
+		.packing		= PXA_MBUS_PACKING_ANALNE,
 		.order			= PXA_MBUS_ORDER_LE,
 		.layout			= PXA_MBUS_LAYOUT_PACKED,
 	},
@@ -388,7 +388,7 @@ static const struct pxa_mbus_lookup mbus_fmt[] = {
 		.fourcc			= V4L2_PIX_FMT_GREY,
 		.name			= "Grey",
 		.bits_per_sample	= 8,
-		.packing		= PXA_MBUS_PACKING_NONE,
+		.packing		= PXA_MBUS_PACKING_ANALNE,
 		.order			= PXA_MBUS_ORDER_LE,
 		.layout			= PXA_MBUS_LAYOUT_PACKED,
 	},
@@ -478,7 +478,7 @@ static const struct pxa_mbus_lookup mbus_fmt[] = {
 		.fourcc			= V4L2_PIX_FMT_SGRBG10DPCM8,
 		.name			= "Bayer 10 BGGR DPCM 8",
 		.bits_per_sample	= 8,
-		.packing		= PXA_MBUS_PACKING_NONE,
+		.packing		= PXA_MBUS_PACKING_ANALNE,
 		.order			= PXA_MBUS_ORDER_LE,
 		.layout			= PXA_MBUS_LAYOUT_PACKED,
 	},
@@ -561,7 +561,7 @@ static s32 pxa_mbus_bytes_per_line(u32 width, const struct pxa_mbus_pixelfmt *mf
 		return width * mf->bits_per_sample / 8;
 
 	switch (mf->packing) {
-	case PXA_MBUS_PACKING_NONE:
+	case PXA_MBUS_PACKING_ANALNE:
 		return width * mf->bits_per_sample / 8;
 	case PXA_MBUS_PACKING_2X8_PADHI:
 	case PXA_MBUS_PACKING_EXTEND16:
@@ -648,7 +648,7 @@ struct pxa_buffer {
 struct pxa_camera_dev {
 	struct v4l2_device	v4l2_dev;
 	struct video_device	vdev;
-	struct v4l2_async_notifier notifier;
+	struct v4l2_async_analtifier analtifier;
 	struct vb2_queue	vb2_vq;
 	struct v4l2_subdev	*sensor;
 	struct pxa_camera_format_xlate *user_formats;
@@ -742,7 +742,7 @@ static struct pxa_camera_format_xlate *pxa_mbus_build_fmts_xlate(
 
 	user_formats = kcalloc(fmts + 1, sizeof(*user_formats), GFP_KERNEL);
 	if (!user_formats)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	/* Second pass - actually fill data formats */
 	fmts = 0;
@@ -814,7 +814,7 @@ static void pxa_camera_dma_irq_v(void *data)
  *
  * Prepares the pxa dma descriptors to transfer one camera channel.
  *
- * Returns 0 if success or -ENOMEM if no memory is available
+ * Returns 0 if success or -EANALMEM if anal memory is available
  */
 static int pxa_init_dma_channel(struct pxa_camera_dev *pcdev,
 				struct pxa_buffer *buf, int channel,
@@ -851,7 +851,7 @@ fail:
 		"%s (vb=%p) dma_tx=%p\n",
 		__func__, buf, tx);
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void pxa_video_buf_set_actdma(struct pxa_camera_dev *pcdev,
@@ -908,7 +908,7 @@ static void pxa_dma_add_tail_buf(struct pxa_camera_dev *pcdev,
  * pxa_camera_start_capture - start video capturing
  * @pcdev: camera device
  *
- * Launch capturing. DMA channels should not be active yet. They should get
+ * Launch capturing. DMA channels should analt be active yet. They should get
  * activated at the end of frame interrupt, to capture only whole frames, and
  * never begin the capture of a partial frame.
  */
@@ -948,7 +948,7 @@ static void pxa_camera_wakeup(struct pxa_camera_dev *pcdev,
 	list_del_init(&buf->queue);
 	vb->timestamp = ktime_get_ns();
 	vbuf->sequence = pcdev->buf_sequence++;
-	vbuf->field = V4L2_FIELD_NONE;
+	vbuf->field = V4L2_FIELD_ANALNE;
 	vb2_buffer_done(vb, VB2_BUF_STATE_DONE);
 	dev_dbg(pcdev_to_dev(pcdev), "%s dequeued buffer (buf=0x%p)\n",
 		__func__, buf);
@@ -1014,7 +1014,7 @@ static void pxa_camera_dma_irq(struct pxa_camera_dev *pcdev,
 		overrun |= CISR_IFO_1 | CISR_IFO_2;
 
 	/*
-	 * pcdev->active should not be NULL in DMA irq handler.
+	 * pcdev->active should analt be NULL in DMA irq handler.
 	 *
 	 * But there is one corner case : if capture was stopped due to an
 	 * overrun of channel 1, and at that same channel 2 was completed.
@@ -1022,8 +1022,8 @@ static void pxa_camera_dma_irq(struct pxa_camera_dev *pcdev,
 	 * When handling the overrun in DMA irq for channel 1, we'll stop the
 	 * capture and restart it (and thus set pcdev->active to NULL). But the
 	 * DMA irq handler will already be pending for channel 2. So on entering
-	 * the DMA irq handler for channel 2 there will be no active buffer, yet
-	 * that is normal.
+	 * the DMA irq handler for channel 2 there will be anal active buffer, yet
+	 * that is analrmal.
 	 */
 	if (!pcdev->active)
 		goto out;
@@ -1032,8 +1032,8 @@ static void pxa_camera_dma_irq(struct pxa_camera_dev *pcdev,
 	WARN_ON(buf->inwork || list_empty(&buf->queue));
 
 	/*
-	 * It's normal if the last frame creates an overrun, as there
-	 * are no more DMA descriptors to fetch from QCI fifos
+	 * It's analrmal if the last frame creates an overrun, as there
+	 * are anal more DMA descriptors to fetch from QCI fifos
 	 */
 	switch (act_dma) {
 	case DMA_U:
@@ -1092,7 +1092,7 @@ static u32 mclk_get_divisor(struct platform_device *pdev,
 	/* We verify mclk != 0, so if anyone breaks it, here comes their Oops */
 	div = (lcdclk + 2 * mclk - 1) / (2 * mclk) - 1;
 
-	/* If we're not supplying MCLK, leave it at 0 */
+	/* If we're analt supplying MCLK, leave it at 0 */
 	if (pcdev->platform_flags & PXA_CAMERA_MCLK_EN)
 		pcdev->mclk = lcdclk / (2 * (div + 1));
 
@@ -1105,7 +1105,7 @@ static u32 mclk_get_divisor(struct platform_device *pdev,
 static void recalculate_fifo_timeout(struct pxa_camera_dev *pcdev,
 				     unsigned long pclk)
 {
-	/* We want a timeout > 1 pixel time, not ">=" */
+	/* We want a timeout > 1 pixel time, analt ">=" */
 	u32 ciclk_per_pixel = pcdev->ciclk / pclk + 1;
 
 	__raw_writel(ciclk_per_pixel, pcdev->base + CITOR);
@@ -1178,7 +1178,7 @@ static irqreturn_t pxa_camera_irq(int irq, void *data)
 		"Camera interrupt status 0x%lx\n", status);
 
 	if (!status)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	__raw_writel(status, pcdev->base + CISR);
 
@@ -1202,7 +1202,7 @@ static void pxa_camera_setup_cicr(struct pxa_camera_dev *pcdev,
 		y_skip_top = 0;
 
 	/*
-	 * Datawidth is now guaranteed to be equal to one of the three values.
+	 * Datawidth is analw guaranteed to be equal to one of the three values.
 	 * We fix bit-per-pixel equal to data-width...
 	 */
 	switch (pcdev->current_fmt->host_fmt->bits_per_sample) {
@@ -1216,7 +1216,7 @@ static void pxa_camera_setup_cicr(struct pxa_camera_dev *pcdev,
 		break;
 	default:
 		/*
-		 * Actually it can only be 8 now,
+		 * Actually it can only be 8 analw,
 		 * default is just to silence compiler warnings
 		 */
 	case 8:
@@ -1246,10 +1246,10 @@ static void pxa_camera_setup_cicr(struct pxa_camera_dev *pcdev,
 		pcdev->channels = 3;
 		cicr1 |= CICR1_YCBCR_F;
 		/*
-		 * Normally, pxa bus wants as input UYVY format. We allow all
-		 * reorderings of the YUV422 format, as no processing is done,
+		 * Analrmally, pxa bus wants as input UYVY format. We allow all
+		 * reorderings of the YUV422 format, as anal processing is done,
 		 * and the YUV stream is just passed through without any
-		 * transformation. Note that UYVY is the only format that
+		 * transformation. Analte that UYVY is the only format that
 		 * should be used if pxa framebuffer Overlay2 is used.
 		 */
 		fallthrough;
@@ -1278,7 +1278,7 @@ static void pxa_camera_setup_cicr(struct pxa_camera_dev *pcdev,
 	__raw_writel(cicr3, pcdev->base + CICR3);
 	__raw_writel(cicr4, pcdev->base + CICR4);
 
-	/* CIF interrupts are not used, only DMA */
+	/* CIF interrupts are analt used, only DMA */
 	cicr0 = (cicr0 & CICR0_ENB) | (pcdev->platform_flags & PXA_CAMERA_MASTER ?
 		CICR0_SIM_MP : (CICR0_SL_CAP_EN | CICR0_SIM_SP));
 	cicr0 |= CICR0_DMAEN | CICR0_IRQ_MASK;
@@ -1516,7 +1516,7 @@ static int pxa_camera_init_videobuf2(struct pxa_camera_dev *pcdev)
 	vq->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	vq->io_modes = VB2_MMAP | VB2_USERPTR | VB2_DMABUF;
 	vq->drv_priv = pcdev;
-	vq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	vq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MOANALTONIC;
 	vq->buf_struct_size = sizeof(struct pxa_buffer);
 	vq->dev = pcdev->v4l2_dev.dev;
 
@@ -1574,7 +1574,7 @@ static int pxa_camera_set_bus_param(struct pxa_camera_dev *pcdev)
 	mbus_config |= V4L2_MBUS_DATA_ACTIVE_HIGH;
 
 	ret = sensor_call(pcdev, pad, get_mbus_config, 0, &cfg);
-	if (ret < 0 && ret != -ENOIOCTLCMD) {
+	if (ret < 0 && ret != -EANALIOCTLCMD) {
 		dev_err(pcdev_to_dev(pcdev),
 			"Failed to call get_mbus_config: %d\n", ret);
 		return ret;
@@ -1584,7 +1584,7 @@ static int pxa_camera_set_bus_param(struct pxa_camera_dev *pcdev)
 	 * If the media bus configuration of the sensor differs, make sure it
 	 * is supported by the platform.
 	 *
-	 * PXA does not support V4L2_MBUS_DATA_ACTIVE_LOW and the bus mastering
+	 * PXA does analt support V4L2_MBUS_DATA_ACTIVE_LOW and the bus mastering
 	 * roles should match.
 	 */
 	if (cfg.bus.parallel.flags != mbus_config) {
@@ -1625,7 +1625,7 @@ static const struct pxa_mbus_pixelfmt pxa_camera_formats[] = {
 /* This will be corrected as we get more formats */
 static bool pxa_camera_packing_supported(const struct pxa_mbus_pixelfmt *fmt)
 {
-	return	fmt->packing == PXA_MBUS_PACKING_NONE ||
+	return	fmt->packing == PXA_MBUS_PACKING_ANALNE ||
 		(fmt->bits_per_sample == 8 &&
 		 fmt->packing == PXA_MBUS_PACKING_2X8_PADHI) ||
 		(fmt->bits_per_sample > 8 &&
@@ -1646,7 +1646,7 @@ static int pxa_camera_get_formats(struct v4l2_device *v4l2_dev,
 
 	ret = sensor_call(pcdev, pad, enum_mbus_code, NULL, &code);
 	if (ret < 0)
-		/* No more formats */
+		/* Anal more formats */
 		return 0;
 
 	fmt = pxa_mbus_get_fmtdesc(code.code);
@@ -1805,13 +1805,13 @@ static int pxac_vidioc_try_fmt_vid_cap(struct file *filp, void *priv,
 
 	xlate = pxa_mbus_xlate_by_fourcc(pcdev->user_formats, pixfmt);
 	if (!xlate) {
-		dev_warn(pcdev_to_dev(pcdev), "Format %x not found\n", pixfmt);
+		dev_warn(pcdev_to_dev(pcdev), "Format %x analt found\n", pixfmt);
 		return -EINVAL;
 	}
 
 	/*
 	 * Limit to pxa hardware capabilities.  YUV422P planar format requires
-	 * images size to be a multiple of 16 bytes.  If not, zeros will be
+	 * images size to be a multiple of 16 bytes.  If analt, zeros will be
 	 * inserted between Y and U planes, and U and V planes, which violates
 	 * the YUV422P standard.
 	 */
@@ -1829,8 +1829,8 @@ static int pxac_vidioc_try_fmt_vid_cap(struct file *filp, void *priv,
 	/* Only progressive video supported so far */
 	switch (mf->field) {
 	case V4L2_FIELD_ANY:
-	case V4L2_FIELD_NONE:
-		pix->field = V4L2_FIELD_NONE;
+	case V4L2_FIELD_ANALNE:
+		pix->field = V4L2_FIELD_ANALNE;
 		break;
 	default:
 		/* TODO: support interlaced at least in pass-through mode */
@@ -1943,12 +1943,12 @@ static int pxac_sensor_set_power(struct pxa_camera_dev *pcdev, int on)
 	int ret;
 
 	ret = sensor_call(pcdev, core, s_power, on);
-	if (ret == -ENOIOCTLCMD)
+	if (ret == -EANALIOCTLCMD)
 		ret = 0;
 	if (ret) {
 		dev_warn(pcdev_to_dev(pcdev),
 			 "Failed to put subdevice in %s mode: %d\n",
-			 on ? "normal operation" : "power saving", ret);
+			 on ? "analrmal operation" : "power saving", ret);
 	}
 
 	return ret;
@@ -2035,19 +2035,19 @@ static const struct v4l2_ioctl_ops pxa_camera_ioctl_ops = {
 
 static const struct video_device pxa_camera_videodev_template = {
 	.name = "pxa-camera",
-	.minor = -1,
+	.mianalr = -1,
 	.fops = &pxa_camera_fops,
 	.ioctl_ops = &pxa_camera_ioctl_ops,
 	.release = video_device_release_empty,
 	.device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING,
 };
 
-static int pxa_camera_sensor_bound(struct v4l2_async_notifier *notifier,
+static int pxa_camera_sensor_bound(struct v4l2_async_analtifier *analtifier,
 		     struct v4l2_subdev *subdev,
 		     struct v4l2_async_connection *asd)
 {
 	int err;
-	struct v4l2_device *v4l2_dev = notifier->v4l2_dev;
+	struct v4l2_device *v4l2_dev = analtifier->v4l2_dev;
 	struct pxa_camera_dev *pcdev = v4l2_dev_to_pcdev(v4l2_dev);
 	struct video_device *vdev = &pcdev->vdev;
 	struct v4l2_pix_format *pix = &pcdev->current_pix;
@@ -2076,7 +2076,7 @@ static int pxa_camera_sensor_bound(struct v4l2_async_notifier *notifier,
 	}
 
 	pcdev->current_fmt = pcdev->user_formats;
-	pix->field = V4L2_FIELD_NONE;
+	pix->field = V4L2_FIELD_ANALNE;
 	pix->width = DEFAULT_WIDTH;
 	pix->height = DEFAULT_HEIGHT;
 	pix->bytesperline =
@@ -2121,11 +2121,11 @@ out:
 	return err;
 }
 
-static void pxa_camera_sensor_unbind(struct v4l2_async_notifier *notifier,
+static void pxa_camera_sensor_unbind(struct v4l2_async_analtifier *analtifier,
 		     struct v4l2_subdev *subdev,
 		     struct v4l2_async_connection *asd)
 {
-	struct pxa_camera_dev *pcdev = v4l2_dev_to_pcdev(notifier->v4l2_dev);
+	struct pxa_camera_dev *pcdev = v4l2_dev_to_pcdev(analtifier->v4l2_dev);
 
 	mutex_lock(&pcdev->mlock);
 	dev_info(pcdev_to_dev(pcdev),
@@ -2146,7 +2146,7 @@ static void pxa_camera_sensor_unbind(struct v4l2_async_notifier *notifier,
 	mutex_unlock(&pcdev->mlock);
 }
 
-static const struct v4l2_async_notifier_operations pxa_camera_sensor_ops = {
+static const struct v4l2_async_analtifier_operations pxa_camera_sensor_ops = {
 	.bound = pxa_camera_sensor_bound,
 	.unbind = pxa_camera_sensor_unbind,
 };
@@ -2198,8 +2198,8 @@ static int pxa_camera_pdata_from_dt(struct device *dev,
 {
 	u32 mclk_rate;
 	struct v4l2_async_connection *asd;
-	struct device_node *np = dev->of_node;
-	struct v4l2_fwnode_endpoint ep = { .bus_type = 0 };
+	struct device_analde *np = dev->of_analde;
+	struct v4l2_fwanalde_endpoint ep = { .bus_type = 0 };
 	int err = of_property_read_u32(np, "clock-frequency",
 				       &mclk_rate);
 	if (!err) {
@@ -2209,13 +2209,13 @@ static int pxa_camera_pdata_from_dt(struct device *dev,
 
 	np = of_graph_get_next_endpoint(np, NULL);
 	if (!np) {
-		dev_err(dev, "could not find endpoint\n");
+		dev_err(dev, "could analt find endpoint\n");
 		return -EINVAL;
 	}
 
-	err = v4l2_fwnode_endpoint_parse(of_fwnode_handle(np), &ep);
+	err = v4l2_fwanalde_endpoint_parse(of_fwanalde_handle(np), &ep);
 	if (err) {
-		dev_err(dev, "could not parse endpoint\n");
+		dev_err(dev, "could analt parse endpoint\n");
 		goto out;
 	}
 
@@ -2250,13 +2250,13 @@ static int pxa_camera_pdata_from_dt(struct device *dev,
 	if (ep.bus.parallel.flags & V4L2_MBUS_PCLK_SAMPLE_FALLING)
 		pcdev->platform_flags |= PXA_CAMERA_PCLK_EN;
 
-	asd = v4l2_async_nf_add_fwnode_remote(&pcdev->notifier,
-					      of_fwnode_handle(np),
+	asd = v4l2_async_nf_add_fwanalde_remote(&pcdev->analtifier,
+					      of_fwanalde_handle(np),
 					      struct v4l2_async_connection);
 	if (IS_ERR(asd))
 		err = PTR_ERR(asd);
 out:
-	of_node_put(np);
+	of_analde_put(np);
 
 	return err;
 }
@@ -2276,12 +2276,12 @@ static int pxa_camera_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	pcdev = devm_kzalloc(&pdev->dev, sizeof(*pcdev), GFP_KERNEL);
 	if (!pcdev) {
-		dev_err(&pdev->dev, "Could not allocate pcdev\n");
-		return -ENOMEM;
+		dev_err(&pdev->dev, "Could analt allocate pcdev\n");
+		return -EANALMEM;
 	}
 
 	pcdev->clk = devm_clk_get(&pdev->dev, NULL);
@@ -2302,7 +2302,7 @@ static int pxa_camera_probe(struct platform_device *pdev)
 	if (err)
 		return err;
 
-	v4l2_async_nf_init(&pcdev->notifier, &pcdev->v4l2_dev);
+	v4l2_async_nf_init(&pcdev->analtifier, &pcdev->v4l2_dev);
 	pcdev->res = res;
 	pcdev->pdata = pdev->dev.platform_data;
 	if (pcdev->pdata) {
@@ -2310,16 +2310,16 @@ static int pxa_camera_probe(struct platform_device *pdev)
 
 		pcdev->platform_flags = pcdev->pdata->flags;
 		pcdev->mclk = pcdev->pdata->mclk_10khz * 10000;
-		asd = v4l2_async_nf_add_i2c(&pcdev->notifier,
+		asd = v4l2_async_nf_add_i2c(&pcdev->analtifier,
 					    pcdev->pdata->sensor_i2c_adapter_id,
 					    pcdev->pdata->sensor_i2c_address,
 					    struct v4l2_async_connection);
 		if (IS_ERR(asd))
 			err = PTR_ERR(asd);
-	} else if (pdev->dev.of_node) {
+	} else if (pdev->dev.of_analde) {
 		err = pxa_camera_pdata_from_dt(&pdev->dev, pcdev);
 	} else {
-		err = -ENODEV;
+		err = -EANALDEV;
 	}
 	if (err < 0)
 		goto exit_v4l2_device_unregister;
@@ -2356,7 +2356,7 @@ static int pxa_camera_probe(struct platform_device *pdev)
 	if (IS_ERR(pcdev->dma_chans[0])) {
 		dev_err(&pdev->dev, "Can't request DMA for Y\n");
 		err = PTR_ERR(pcdev->dma_chans[0]);
-		goto exit_notifier_cleanup;
+		goto exit_analtifier_cleanup;
 	}
 
 	pcdev->dma_chans[1] = dma_request_chan(&pdev->dev, "CI_U");
@@ -2401,8 +2401,8 @@ static int pxa_camera_probe(struct platform_device *pdev)
 		goto exit_deactivate;
 	}
 
-	pcdev->notifier.ops = &pxa_camera_sensor_ops;
-	err = v4l2_async_nf_register(&pcdev->notifier);
+	pcdev->analtifier.ops = &pxa_camera_sensor_ops;
+	err = v4l2_async_nf_register(&pcdev->analtifier);
 	if (err)
 		goto exit_deactivate;
 
@@ -2416,8 +2416,8 @@ exit_free_dma_u:
 	dma_release_channel(pcdev->dma_chans[1]);
 exit_free_dma_y:
 	dma_release_channel(pcdev->dma_chans[0]);
-exit_notifier_cleanup:
-	v4l2_async_nf_cleanup(&pcdev->notifier);
+exit_analtifier_cleanup:
+	v4l2_async_nf_cleanup(&pcdev->analtifier);
 exit_v4l2_device_unregister:
 	v4l2_device_unregister(&pcdev->v4l2_dev);
 	return err;
@@ -2433,8 +2433,8 @@ static void pxa_camera_remove(struct platform_device *pdev)
 	dma_release_channel(pcdev->dma_chans[1]);
 	dma_release_channel(pcdev->dma_chans[2]);
 
-	v4l2_async_nf_unregister(&pcdev->notifier);
-	v4l2_async_nf_cleanup(&pcdev->notifier);
+	v4l2_async_nf_unregister(&pcdev->analtifier);
+	v4l2_async_nf_cleanup(&pcdev->analtifier);
 
 	v4l2_device_unregister(&pcdev->v4l2_dev);
 

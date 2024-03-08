@@ -14,7 +14,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
 #include <linux/io.h>
@@ -26,7 +26,7 @@
 #include <linux/platform_device.h>
 #include <linux/clk/tegra.h>
 
-#include <media/cec-notifier.h>
+#include <media/cec-analtifier.h>
 
 #include "tegra_cec.h"
 
@@ -37,7 +37,7 @@ struct tegra_cec {
 	struct device		*dev;
 	struct clk		*clk;
 	void __iomem		*cec_base;
-	struct cec_notifier	*notifier;
+	struct cec_analtifier	*analtifier;
 	int			tegra_cec_irq;
 	bool			rx_done;
 	bool			tx_done;
@@ -117,13 +117,13 @@ static irqreturn_t tegra_cec_irq_handler(int irq, void *data)
 	}
 
 	if ((status & TEGRA_CEC_INT_STAT_TX_ARBITRATION_FAILED) ||
-		   (status & TEGRA_CEC_INT_STAT_TX_BUS_ANOMALY_DETECTED)) {
+		   (status & TEGRA_CEC_INT_STAT_TX_BUS_AANALMALY_DETECTED)) {
 		tegra_cec_error_recovery(cec);
 		cec_write(cec, TEGRA_CEC_INT_MASK,
 			  mask & ~TEGRA_CEC_INT_MASK_TX_REGISTER_EMPTY);
 
 		cec->tx_done = true;
-		if (status & TEGRA_CEC_INT_STAT_TX_BUS_ANOMALY_DETECTED)
+		if (status & TEGRA_CEC_INT_STAT_TX_BUS_AANALMALY_DETECTED)
 			cec->tx_status = CEC_TX_STATUS_LOW_DRIVE;
 		else
 			cec->tx_status = CEC_TX_STATUS_ARB_LOST;
@@ -238,7 +238,7 @@ static int tegra_cec_adap_enable(struct cec_adapter *adap, bool enable)
 		  TEGRA_CEC_INT_MASK_TX_REGISTER_UNDERRUN |
 		  TEGRA_CEC_INT_MASK_TX_FRAME_OR_BLOCK_NAKD |
 		  TEGRA_CEC_INT_MASK_TX_ARBITRATION_FAILED |
-		  TEGRA_CEC_INT_MASK_TX_BUS_ANOMALY_DETECTED |
+		  TEGRA_CEC_INT_MASK_TX_BUS_AANALMALY_DETECTED |
 		  TEGRA_CEC_INT_MASK_TX_FRAME_TRANSMITTED |
 		  TEGRA_CEC_INT_MASK_RX_REGISTER_FULL |
 		  TEGRA_CEC_INT_MASK_RX_START_BIT_DETECTED);
@@ -268,9 +268,9 @@ static int tegra_cec_adap_monitor_all_enable(struct cec_adapter *adap,
 	u32 reg = cec_read(cec, TEGRA_CEC_HW_CONTROL);
 
 	if (enable)
-		reg |= TEGRA_CEC_HWCTRL_RX_SNOOP;
+		reg |= TEGRA_CEC_HWCTRL_RX_SANALOP;
 	else
-		reg &= ~TEGRA_CEC_HWCTRL_RX_SNOOP;
+		reg &= ~TEGRA_CEC_HWCTRL_RX_SANALOP;
 	cec_write(cec, TEGRA_CEC_HW_CONTROL, reg);
 	return 0;
 }
@@ -321,7 +321,7 @@ static int tegra_cec_probe(struct platform_device *pdev)
 	struct resource *res;
 	int ret = 0;
 
-	hdmi_dev = cec_notifier_parse_hdmi_phandle(&pdev->dev);
+	hdmi_dev = cec_analtifier_parse_hdmi_phandle(&pdev->dev);
 
 	if (IS_ERR(hdmi_dev))
 		return PTR_ERR(hdmi_dev);
@@ -329,7 +329,7 @@ static int tegra_cec_probe(struct platform_device *pdev)
 	cec = devm_kzalloc(&pdev->dev, sizeof(struct tegra_cec), GFP_KERNEL);
 
 	if (!cec)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
@@ -363,7 +363,7 @@ static int tegra_cec_probe(struct platform_device *pdev)
 
 	if (IS_ERR_OR_NULL(cec->clk)) {
 		dev_err(&pdev->dev, "Can't get clock for CEC\n");
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	ret = clk_prepare_enable(cec->clk);
@@ -392,28 +392,28 @@ static int tegra_cec_probe(struct platform_device *pdev)
 			CEC_CAP_CONNECTOR_INFO,
 			CEC_MAX_LOG_ADDRS);
 	if (IS_ERR(cec->adap)) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		dev_err(&pdev->dev, "Couldn't create cec adapter\n");
 		goto err_clk;
 	}
 
-	cec->notifier = cec_notifier_cec_adap_register(hdmi_dev, NULL,
+	cec->analtifier = cec_analtifier_cec_adap_register(hdmi_dev, NULL,
 						       cec->adap);
-	if (!cec->notifier) {
-		ret = -ENOMEM;
+	if (!cec->analtifier) {
+		ret = -EANALMEM;
 		goto err_adapter;
 	}
 
 	ret = cec_register_adapter(cec->adap, &pdev->dev);
 	if (ret) {
 		dev_err(&pdev->dev, "Couldn't register device\n");
-		goto err_notifier;
+		goto err_analtifier;
 	}
 
 	return 0;
 
-err_notifier:
-	cec_notifier_cec_adap_unregister(cec->notifier, cec->adap);
+err_analtifier:
+	cec_analtifier_cec_adap_unregister(cec->analtifier, cec->adap);
 err_adapter:
 	cec_delete_adapter(cec->adap);
 err_clk:
@@ -427,7 +427,7 @@ static void tegra_cec_remove(struct platform_device *pdev)
 
 	clk_disable_unprepare(cec->clk);
 
-	cec_notifier_cec_adap_unregister(cec->notifier, cec->adap);
+	cec_analtifier_cec_adap_unregister(cec->analtifier, cec->adap);
 	cec_unregister_adapter(cec->adap);
 }
 
@@ -438,7 +438,7 @@ static int tegra_cec_suspend(struct platform_device *pdev, pm_message_t state)
 
 	clk_disable_unprepare(cec->clk);
 
-	dev_notice(&pdev->dev, "suspended\n");
+	dev_analtice(&pdev->dev, "suspended\n");
 	return 0;
 }
 
@@ -446,7 +446,7 @@ static int tegra_cec_resume(struct platform_device *pdev)
 {
 	struct tegra_cec *cec = platform_get_drvdata(pdev);
 
-	dev_notice(&pdev->dev, "Resuming\n");
+	dev_analtice(&pdev->dev, "Resuming\n");
 
 	return clk_prepare_enable(cec->clk);
 }

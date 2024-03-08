@@ -19,8 +19,8 @@
 
 /* Used to determine what checkpoint state to get and set. */
 enum {
-	VMCI_NOTIFICATION_CPT_STATE = 1,
-	VMCI_WELLKNOWN_CPT_STATE    = 2,
+	VMCI_ANALTIFICATION_CPT_STATE = 1,
+	VMCI_WELLKANALWN_CPT_STATE    = 2,
 	VMCI_DG_OUT_STATE           = 3,
 	VMCI_DG_IN_STATE            = 4,
 	VMCI_DG_IN_SIZE_STATE       = 5,
@@ -33,7 +33,7 @@ struct vmci_host {
 };
 
 struct vmci_handle_list {
-	struct list_head node;
+	struct list_head analde;
 	struct vmci_handle handle;
 };
 
@@ -58,8 +58,8 @@ struct vmci_ctx {
 	 * from the code for QP API, and there
 	 * it is protected by the QP lock.  It
 	 * is also accessed from the context
-	 * clean up path, which does not
-	 * require a lock.  VMCILock is not
+	 * clean up path, which does analt
+	 * require a lock.  VMCILock is analt
 	 * used to protect the QP array field.
 	 */
 	struct vmci_handle_arr *queue_pair_array;
@@ -71,18 +71,18 @@ struct vmci_ctx {
 	struct vmci_handle_arr *pending_doorbell_array;
 
 	/* Contexts current context is subscribing to. */
-	struct list_head notifier_list;
-	unsigned int n_notifiers;
+	struct list_head analtifier_list;
+	unsigned int n_analtifiers;
 
 	struct vmci_host host_context;
 	u32 priv_flags;
 
 	const struct cred *cred;
-	bool *notify;		/* Notify flag pointer - hosted only. */
-	struct page *notify_page;	/* Page backing the notify UVA. */
+	bool *analtify;		/* Analtify flag pointer - hosted only. */
+	struct page *analtify_page;	/* Page backing the analtify UVA. */
 };
 
-/* VMCINotifyAddRemoveInfo: Used to add/remove remote context notifications. */
+/* VMCIAnaltifyAddRemoveInfo: Used to add/remove remote context analtifications. */
 struct vmci_ctx_info {
 	u32 remote_cid;
 	int result;
@@ -98,10 +98,10 @@ struct vmci_ctx_chkpt_buf_info {
 };
 
 /*
- * VMCINotificationReceiveInfo: Used to recieve pending notifications
+ * VMCIAnaltificationReceiveInfo: Used to recieve pending analtifications
  * for doorbells and queue pairs.
  */
-struct vmci_ctx_notify_recv_info {
+struct vmci_ctx_analtify_recv_info {
 	u64 db_handle_buf_uva;
 	u64 db_handle_buf_size;
 	u64 qp_handle_buf_uva;
@@ -137,8 +137,8 @@ struct vmci_ctx *vmci_ctx_get(u32 cid);
 void vmci_ctx_put(struct vmci_ctx *context);
 bool vmci_ctx_exists(u32 cid);
 
-int vmci_ctx_add_notification(u32 context_id, u32 remote_cid);
-int vmci_ctx_remove_notification(u32 context_id, u32 remote_cid);
+int vmci_ctx_add_analtification(u32 context_id, u32 remote_cid);
+int vmci_ctx_remove_analtification(u32 context_id, u32 remote_cid);
 int vmci_ctx_get_chkpt_state(u32 context_id, u32 cpt_type,
 			     u32 *num_cids, void **cpt_buf_ptr);
 int vmci_ctx_set_chkpt_state(u32 context_id, u32 cpt_type,
@@ -148,19 +148,19 @@ int vmci_ctx_qp_create(struct vmci_ctx *context, struct vmci_handle handle);
 int vmci_ctx_qp_destroy(struct vmci_ctx *context, struct vmci_handle handle);
 bool vmci_ctx_qp_exists(struct vmci_ctx *context, struct vmci_handle handle);
 
-void vmci_ctx_check_signal_notify(struct vmci_ctx *context);
-void vmci_ctx_unset_notify(struct vmci_ctx *context);
+void vmci_ctx_check_signal_analtify(struct vmci_ctx *context);
+void vmci_ctx_unset_analtify(struct vmci_ctx *context);
 
 int vmci_ctx_dbell_create(u32 context_id, struct vmci_handle handle);
 int vmci_ctx_dbell_destroy(u32 context_id, struct vmci_handle handle);
 int vmci_ctx_dbell_destroy_all(u32 context_id);
-int vmci_ctx_notify_dbell(u32 cid, struct vmci_handle handle,
+int vmci_ctx_analtify_dbell(u32 cid, struct vmci_handle handle,
 			  u32 src_priv_flags);
 
-int vmci_ctx_rcv_notifications_get(u32 context_id, struct vmci_handle_arr
+int vmci_ctx_rcv_analtifications_get(u32 context_id, struct vmci_handle_arr
 				   **db_handle_array, struct vmci_handle_arr
 				   **qp_handle_array);
-void vmci_ctx_rcv_notifications_release(u32 context_id, struct vmci_handle_arr
+void vmci_ctx_rcv_analtifications_release(u32 context_id, struct vmci_handle_arr
 					*db_handle_array, struct vmci_handle_arr
 					*qp_handle_array, bool success);
 

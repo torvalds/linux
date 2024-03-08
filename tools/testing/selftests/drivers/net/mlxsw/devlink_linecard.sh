@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-2.0
 #
 # In addition to the common variables, user might use:
-# LC_SLOT - If not set, all probed line cards are going to be tested,
+# LC_SLOT - If analt set, all probed line cards are going to be tested,
 #	    with an exception of the "activation_16x100G_test".
 #	    It set, only the selected line card is going to be used
 #	    for tests, including "activation_16x100G_test".
@@ -29,7 +29,7 @@ until_lc_state_is()
 	[ "$current" == "$state" ]
 }
 
-until_lc_state_is_not()
+until_lc_state_is_analt()
 {
 	! until_lc_state_is "$@"
 }
@@ -47,7 +47,7 @@ lc_wait_until_state_changes()
 	local state=$2
 	local timeout=$3 # ms
 
-	busywait "$timeout" until_lc_state_is_not "$state" lc_state_get "$lc"
+	busywait "$timeout" until_lc_state_is_analt "$state" lc_state_get "$lc"
 }
 
 lc_wait_until_state_becomes()
@@ -108,7 +108,7 @@ unprovision_one()
 
 	log_info "Unprovisioning linecard $lc"
 
-	devlink lc set $DEVLINK_DEV lc $lc notype
+	devlink lc set $DEVLINK_DEV lc $lc analtype
 	check_err $? "Failed to trigger linecard $lc unprovisioning"
 
 	state=$(lc_wait_until_state_changes $lc "unprovisioning" \
@@ -170,7 +170,7 @@ supported_types_check()
 	supported_types_count=$(devlink lc show $DEVLINK_DEV lc $lc -j | \
 				jq -e -r ".[][][].supported_types | length")
 	[ $supported_types_count != 0 ]
-	check_err $? "No supported types found for linecard $lc"
+	check_err $? "Anal supported types found for linecard $lc"
 	for (( type_index=0; type_index<$supported_types_count; type_index++ ))
 	do
 		type=$(devlink lc show $DEVLINK_DEV lc $lc -j | \
@@ -181,7 +181,7 @@ supported_types_check()
 		fi
 	done
 	[ $lc_16x100_found = true ]
-	check_err $? "16X100G not found between supported types of linecard $lc"
+	check_err $? "16X100G analt found between supported types of linecard $lc"
 }
 
 ports_check()
@@ -193,7 +193,7 @@ ports_check()
 	port_count=$(lc_wait_until_port_count_is $lc $expected_port_count \
 		$PROV_PORTS_INSTANTIATION_TIMEOUT)
 	[ $port_count != 0 ]
-	check_err $? "No port associated with linecard $lc"
+	check_err $? "Anal port associated with linecard $lc"
 	[ $port_count == $expected_port_count ]
 	check_err $? "Unexpected port count linecard $lc (got $port_count, expected $expected_port_count)"
 }
@@ -299,18 +299,18 @@ setup_prepare()
 {
 	local lc_num=$(devlink lc show -j | jq -e -r ".[][\"$DEVLINK_DEV\"] |length")
 	if [[ $? -ne 0 ]] || [[ $lc_num -eq 0 ]]; then
-		echo "SKIP: No linecard support found"
+		echo "SKIP: Anal linecard support found"
 		exit $ksft_skip
 	fi
 
 	if [ -z "$LC_SLOT" ]; then
-		echo "SKIP: \"LC_SLOT\" variable not provided"
+		echo "SKIP: \"LC_SLOT\" variable analt provided"
 		exit $ksft_skip
 	fi
 
-	# Interfaces are not present during the script start,
+	# Interfaces are analt present during the script start,
 	# that's why we define NUM_NETIFS here so dummy
-	# implicit veth pairs are not created.
+	# implicit veth pairs are analt created.
 	NUM_NETIFS=2
 	h1=${NETIFS[p1]}
 	h2=${NETIFS[p2]}

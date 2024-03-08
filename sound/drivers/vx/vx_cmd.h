@@ -42,8 +42,8 @@ enum {
 	CMD_AUDIO_LEVEL_ADJUST,
 	CMD_AUDIO_VU_PIC_METER,
 	CMD_GET_AUDIO_LEVELS,
-	CMD_GET_NOTIFY_EVENT,
-	CMD_INFO_NOTIFIED,
+	CMD_GET_ANALTIFY_EVENT,
+	CMD_INFO_ANALTIFIED,
 	CMD_ACCESS_IO_FCT,
 	CMD_STATUS_R_BUFFERS,
 	CMD_UPDATE_R_BUFFERS,
@@ -52,11 +52,11 @@ enum {
 	CMD_MODIFY_CLOCK,
 	CMD_STREAM1_OUT_SET_N_LEVELS,
 	CMD_PURGE_STREAM_DCMDS,
-	CMD_NOTIFY_PIPE_TIME,
+	CMD_ANALTIFY_PIPE_TIME,
 	CMD_LOAD_EFFECT_CONTEXT_PACKET,
 	CMD_RELIC_R_BUFFER,
 	CMD_RESYNC_AUDIO_INPUTS,
-	CMD_NOTIFY_STREAM_TIME,
+	CMD_ANALTIFY_STREAM_TIME,
 	CMD_STREAM_SAMPLE_COUNT,
 	CMD_CONFIG_TIME_CODE,
 	CMD_GET_TIME_CODE,
@@ -70,7 +70,7 @@ enum {
 	CMD_CONNECT_MONITORING,
 	CMD_STREAM2_OUT_SET_N_LEVELS,
 	CMD_CANCEL_R_BUFFERS,
-	CMD_NOTIFY_END_OF_BUFFER,
+	CMD_ANALTIFY_END_OF_BUFFER,
 	CMD_GET_STREAM_VU_METER,
 	CMD_LAST_INDEX
 };
@@ -95,11 +95,11 @@ struct vx_cmd_info {
 #define CODE_OP_OUT_STREAM_EXTRAPARAMETER       0x00910000
 #define CODE_OP_OUT_AUDIO_LEVEL                 0x00c20000
 
-#define NOTIFY_LAST_COMMAND     0x00400000
+#define ANALTIFY_LAST_COMMAND     0x00400000
 
 /* Values for a user delay */
 #define DC_DIFFERED_DELAY       (1<<BIT_DIFFERED_COMMAND)
-#define DC_NOTIFY_DELAY         (1<<BIT_NOTIFIED_COMMAND)
+#define DC_ANALTIFY_DELAY         (1<<BIT_ANALTIFIED_COMMAND)
 #define DC_HBUFFER_DELAY        (1<<BIT_TIME_RELATIVE_TO_BUFFER)
 #define DC_MULTIPLE_DELAY       (1<<BIT_RESERVED)
 #define DC_STREAM_TIME_DELAY    (1<<BIT_STREAM_TIME)
@@ -109,32 +109,32 @@ struct vx_cmd_info {
  * and for pbPause field in PLAY_BUFFER_INFO structure
  */
 #define BIT_DIFFERED_COMMAND                0
-#define BIT_NOTIFIED_COMMAND                1
+#define BIT_ANALTIFIED_COMMAND                1
 #define BIT_TIME_RELATIVE_TO_BUFFER         2
 #define BIT_RESERVED                        3
 #define BIT_STREAM_TIME                     4
 #define BIT_CANCELLED_COMMAND               5
 
-/* Access to the "Size" field of the response of the CMD_GET_NOTIFY_EVENT request. */
-#define GET_NOTIFY_EVENT_SIZE_FIELD_MASK    0x000000ff
+/* Access to the "Size" field of the response of the CMD_GET_ANALTIFY_EVENT request. */
+#define GET_ANALTIFY_EVENT_SIZE_FIELD_MASK    0x000000ff
 
 /* DSP commands general masks */
 #define OPCODE_MASK                 0x00ff0000
 #define DSP_DIFFERED_COMMAND_MASK   0x0000C000
 
-/* Notifications (NOTIFY_INFO) */
-#define ALL_CMDS_NOTIFIED                   0x0000  // reserved
-#define START_STREAM_NOTIFIED               0x0001
-#define PAUSE_STREAM_NOTIFIED               0x0002
-#define OUT_STREAM_LEVEL_NOTIFIED           0x0003
-#define OUT_STREAM_PARAMETER_NOTIFIED       0x0004  // left for backward compatibility
-#define OUT_STREAM_FORMAT_NOTIFIED          0x0004
-#define PIPE_TIME_NOTIFIED                  0x0005
-#define OUT_AUDIO_LEVEL_NOTIFIED            0x0006
-#define OUT_STREAM_LEVEL_CURVE_NOTIFIED     0x0007
-#define STREAM_TIME_NOTIFIED                0x0008
-#define OUT_STREAM_EXTRAPARAMETER_NOTIFIED  0x0009
-#define UNKNOWN_COMMAND_NOTIFIED            0xffff
+/* Analtifications (ANALTIFY_INFO) */
+#define ALL_CMDS_ANALTIFIED                   0x0000  // reserved
+#define START_STREAM_ANALTIFIED               0x0001
+#define PAUSE_STREAM_ANALTIFIED               0x0002
+#define OUT_STREAM_LEVEL_ANALTIFIED           0x0003
+#define OUT_STREAM_PARAMETER_ANALTIFIED       0x0004  // left for backward compatibility
+#define OUT_STREAM_FORMAT_ANALTIFIED          0x0004
+#define PIPE_TIME_ANALTIFIED                  0x0005
+#define OUT_AUDIO_LEVEL_ANALTIFIED            0x0006
+#define OUT_STREAM_LEVEL_CURVE_ANALTIFIED     0x0007
+#define STREAM_TIME_ANALTIFIED                0x0008
+#define OUT_STREAM_EXTRAPARAMETER_ANALTIFIED  0x0009
+#define UNKANALWN_COMMAND_ANALTIFIED            0xffff
 
 /* Output pipe parameters setting */
 #define MASK_VALID_PIPE_MPEG_PARAM      0x000040
@@ -153,7 +153,7 @@ struct vx_cmd_info {
 /* PipeManagement definition bits (PIPE_DECL_INFO) */
 #define P_UNDERRUN_SKIP_SOUND_MASK				0x01
 #define P_PREPARE_FOR_MPEG3_MASK				0x02
-#define P_DO_NOT_RESET_ANALOG_LEVELS			0x04
+#define P_DO_ANALT_RESET_ANALOG_LEVELS			0x04
 #define P_ALLOW_UNDER_ALLOCATION_MASK			0x08
 #define P_DATA_MODE_MASK				0x10
 #define P_ASIO_BUFFER_MANAGEMENT_MASK			0x20
@@ -188,7 +188,7 @@ struct vx_cmd_info {
 #define HBUFFER_TIME_HIGH       0x00200000
 #define HBUFFER_TIME_LOW        0x00000000
 
-#define NOTIFY_MASK_TIME_HIGH   0x00400000
+#define ANALTIFY_MASK_TIME_HIGH   0x00400000
 #define MULTIPLE_MASK_TIME_HIGH 0x00100000
 #define STREAM_MASK_TIME_HIGH   0x00800000
 

@@ -222,7 +222,7 @@ static int stk_panel_get_modes(struct drm_panel *panel,
 		dev_err(panel->dev, "failed to add mode %ux%ux@%u\n",
 			default_mode.hdisplay, default_mode.vdisplay,
 			drm_mode_vrefresh(&default_mode));
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	drm_mode_set_name(mode);
@@ -313,14 +313,14 @@ static int stk_panel_add(struct stk_panel *stk)
 	stk->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(stk->reset_gpio)) {
 		ret = PTR_ERR(stk->reset_gpio);
-		dev_err(dev, "cannot get reset-gpios %d\n", ret);
+		dev_err(dev, "cananalt get reset-gpios %d\n", ret);
 		return ret;
 	}
 
 	stk->enable_gpio = devm_gpiod_get(dev, "enable", GPIOD_OUT_LOW);
 	if (IS_ERR(stk->enable_gpio)) {
 		ret = PTR_ERR(stk->enable_gpio);
-		dev_err(dev, "cannot get enable-gpio %d\n", ret);
+		dev_err(dev, "cananalt get enable-gpio %d\n", ret);
 		return ret;
 	}
 
@@ -350,7 +350,7 @@ static int stk_panel_probe(struct mipi_dsi_device *dsi)
 
 	stk = devm_kzalloc(&dsi->dev, sizeof(*stk), GFP_KERNEL);
 	if (!stk)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mipi_dsi_set_drvdata(dsi, stk);
 

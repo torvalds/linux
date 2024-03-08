@@ -19,20 +19,20 @@
 #include "datastream.h"
 #include "io.h"
 
-const befs_inode_addr BAD_IADDR = { 0, 0, 0 };
+const befs_ianalde_addr BAD_IADDR = { 0, 0, 0 };
 
 static int befs_find_brun_direct(struct super_block *sb,
 				 const befs_data_stream *data,
-				 befs_blocknr_t blockno, befs_block_run *run);
+				 befs_blocknr_t blockanal, befs_block_run *run);
 
 static int befs_find_brun_indirect(struct super_block *sb,
 				   const befs_data_stream *data,
-				   befs_blocknr_t blockno,
+				   befs_blocknr_t blockanal,
 				   befs_block_run *run);
 
 static int befs_find_brun_dblindirect(struct super_block *sb,
 				      const befs_data_stream *data,
-				      befs_blocknr_t blockno,
+				      befs_blocknr_t blockanal,
 				      befs_block_run *run);
 
 /**
@@ -43,7 +43,7 @@ static int befs_find_brun_dblindirect(struct super_block *sb,
  * @off: offset of data in buffer_head->b_data
  *
  * Returns pointer to buffer_head containing data starting with offset @off,
- * if you don't need to know offset just set @off = NULL.
+ * if you don't need to kanalw offset just set @off = NULL.
  */
 struct buffer_head *
 befs_read_datastream(struct super_block *sb, const befs_data_stream *ds,
@@ -110,7 +110,7 @@ befs_fblock2brun(struct super_block *sb, const befs_data_stream *data,
 	} else {
 		befs_error(sb,
 			   "befs_fblock2brun() was asked to find block %lu, "
-			   "which is not mapped by the datastream\n",
+			   "which is analt mapped by the datastream\n",
 			   (unsigned long)fblock);
 		err = BEFS_ERR;
 	}
@@ -163,7 +163,7 @@ befs_read_lsymlink(struct super_block *sb, const befs_data_stream *ds,
  * @ds: Datastream of the file
  *
  * Counts the number of fs blocks that the file represented by
- * inode occupies on the filesystem, counting both regular file
+ * ianalde occupies on the filesystem, counting both regular file
  * data and filesystem metadata (and eventually attribute data
  * when we support attributes)
 */
@@ -182,7 +182,7 @@ befs_count_blocks(struct super_block *sb, const befs_data_stream *ds)
 	if (ds->size & (befs_sb->block_size - 1))
 		datablocks += 1;
 
-	metablocks = 1;		/* Start with 1 block for inode */
+	metablocks = 1;		/* Start with 1 block for ianalde */
 
 	/* Size of indirect block */
 	if (ds->size > ds->max_direct_range)
@@ -191,9 +191,9 @@ befs_count_blocks(struct super_block *sb, const befs_data_stream *ds)
 	/*
 	 * Double indir block, plus all the indirect blocks it maps.
 	 * In the double-indirect range, all block runs of data are
-	 * BEFS_DBLINDIR_BRUN_LEN blocks long. Therefore, we know
+	 * BEFS_DBLINDIR_BRUN_LEN blocks long. Therefore, we kanalw
 	 * how many data block runs are in the double-indirect region,
-	 * and from that we know how many indirect blocks it takes to
+	 * and from that we kanalw how many indirect blocks it takes to
 	 * map them. We assume that the indirect blocks are also
 	 * BEFS_DBLINDIR_BRUN_LEN blocks long.
 	 */
@@ -222,19 +222,19 @@ befs_count_blocks(struct super_block *sb, const befs_data_stream *ds)
  * befs_find_brun_direct - find a direct block run in the datastream
  * @sb: the superblock
  * @data: the datastream
- * @blockno: the blocknumber to find
+ * @blockanal: the blocknumber to find
  * @run: The found run is passed back through this pointer
  *
- * Finds the block run that starts at file block number blockno
+ * Finds the block run that starts at file block number blockanal
  * in the file represented by the datastream data, if that
- * blockno is in the direct region of the datastream.
+ * blockanal is in the direct region of the datastream.
  *
  * Return value is BEFS_OK if the blockrun is found, BEFS_ERR
  * otherwise.
  *
  * Algorithm:
  * Linear search. Checks each element of array[] to see if it
- * contains the blockno-th filesystem block. This is necessary
+ * contains the blockanal-th filesystem block. This is necessary
  * because the block runs map variable amounts of data. Simply
  * keeps a count of the number of blocks searched so far (sum),
  * incrementing this by the length of each block run as we come
@@ -242,25 +242,25 @@ befs_count_blocks(struct super_block *sb, const befs_data_stream *ds)
  * you can search multiple arrays that are logicaly one array,
  * as in the indirect region code).
  *
- * When/if blockno is found, if blockno is inside of a block
+ * When/if blockanal is found, if blockanal is inside of a block
  * run as stored on disk, we offset the start and length members
- * of the block run, so that blockno is the start and len is
+ * of the block run, so that blockanal is the start and len is
  * still valid (the run ends in the same place).
  */
 static int
 befs_find_brun_direct(struct super_block *sb, const befs_data_stream *data,
-		      befs_blocknr_t blockno, befs_block_run *run)
+		      befs_blocknr_t blockanal, befs_block_run *run)
 {
 	int i;
 	const befs_block_run *array = data->direct;
 	befs_blocknr_t sum;
 
-	befs_debug(sb, "---> %s, find %lu", __func__, (unsigned long)blockno);
+	befs_debug(sb, "---> %s, find %lu", __func__, (unsigned long)blockanal);
 
 	for (i = 0, sum = 0; i < BEFS_NUM_DIRECT_BLOCKS;
 	     sum += array[i].len, i++) {
-		if (blockno >= sum && blockno < sum + (array[i].len)) {
-			int offset = blockno - sum;
+		if (blockanal >= sum && blockanal < sum + (array[i].len)) {
+			int offset = blockanal - sum;
 
 			run->allocation_group = array[i].allocation_group;
 			run->start = array[i].start + offset;
@@ -268,13 +268,13 @@ befs_find_brun_direct(struct super_block *sb, const befs_data_stream *data,
 
 			befs_debug(sb, "---> %s, "
 				   "found %lu at direct[%d]", __func__,
-				   (unsigned long)blockno, i);
+				   (unsigned long)blockanal, i);
 			return BEFS_OK;
 		}
 	}
 
 	befs_error(sb, "%s failed to find file block %lu", __func__,
-		   (unsigned long)blockno);
+		   (unsigned long)blockanal);
 	befs_debug(sb, "---> %s ERROR", __func__);
 	return BEFS_ERR;
 }
@@ -283,12 +283,12 @@ befs_find_brun_direct(struct super_block *sb, const befs_data_stream *data,
  * befs_find_brun_indirect - find a block run in the datastream
  * @sb: the superblock
  * @data: the datastream
- * @blockno: the blocknumber to find
+ * @blockanal: the blocknumber to find
  * @run: The found run is passed back through this pointer
  *
- * Finds the block run that starts at file block number blockno
+ * Finds the block run that starts at file block number blockanal
  * in the file represented by the datastream data, if that
- * blockno is in the indirect region of the datastream.
+ * blockanal is in the indirect region of the datastream.
  *
  * Return value is BEFS_OK if the blockrun is found, BEFS_ERR
  * otherwise.
@@ -298,13 +298,13 @@ befs_find_brun_direct(struct super_block *sb, const befs_data_stream *data,
  * it in and search through it for search_blk.
  *
  * XXX:
- * Really should check to make sure blockno is inside indirect
+ * Really should check to make sure blockanal is inside indirect
  * region.
  */
 static int
 befs_find_brun_indirect(struct super_block *sb,
 			const befs_data_stream *data,
-			befs_blocknr_t blockno,
+			befs_blocknr_t blockanal,
 			befs_block_run *run)
 {
 	int i, j;
@@ -315,21 +315,21 @@ befs_find_brun_indirect(struct super_block *sb,
 	befs_disk_block_run *array;
 
 	befs_block_run indirect = data->indirect;
-	befs_blocknr_t indirblockno = iaddr2blockno(sb, &indirect);
+	befs_blocknr_t indirblockanal = iaddr2blockanal(sb, &indirect);
 	int arraylen = befs_iaddrs_per_block(sb);
 
-	befs_debug(sb, "---> %s, find %lu", __func__, (unsigned long)blockno);
+	befs_debug(sb, "---> %s, find %lu", __func__, (unsigned long)blockanal);
 
 	indir_start_blk = data->max_direct_range >> BEFS_SB(sb)->block_shift;
-	search_blk = blockno - indir_start_blk;
+	search_blk = blockanal - indir_start_blk;
 
 	/* Examine blocks of the indirect run one at a time */
 	for (i = 0; i < indirect.len; i++) {
-		indirblock = sb_bread(sb, indirblockno + i);
+		indirblock = sb_bread(sb, indirblockanal + i);
 		if (indirblock == NULL) {
 			befs_error(sb, "---> %s failed to read "
 				   "disk block %lu from the indirect brun",
-				   __func__, (unsigned long)indirblockno + i);
+				   __func__, (unsigned long)indirblockanal + i);
 			befs_debug(sb, "<--- %s ERROR", __func__);
 			return BEFS_ERR;
 		}
@@ -352,7 +352,7 @@ befs_find_brun_indirect(struct super_block *sb,
 				befs_debug(sb,
 					   "<--- %s found file block "
 					   "%lu at indirect[%d]", __func__,
-					   (unsigned long)blockno,
+					   (unsigned long)blockanal,
 					   j + (i * arraylen));
 				return BEFS_OK;
 			}
@@ -364,7 +364,7 @@ befs_find_brun_indirect(struct super_block *sb,
 
 	/* Only fallthrough is an error */
 	befs_error(sb, "BeFS: %s failed to find "
-		   "file block %lu", __func__, (unsigned long)blockno);
+		   "file block %lu", __func__, (unsigned long)blockanal);
 
 	befs_debug(sb, "<--- %s ERROR", __func__);
 	return BEFS_ERR;
@@ -374,12 +374,12 @@ befs_find_brun_indirect(struct super_block *sb,
  * befs_find_brun_dblindirect - find a block run in the datastream
  * @sb: the superblock
  * @data: the datastream
- * @blockno: the blocknumber to find
+ * @blockanal: the blocknumber to find
  * @run: The found run is passed back through this pointer
  *
- * Finds the block run that starts at file block number blockno
+ * Finds the block run that starts at file block number blockanal
  * in the file represented by the datastream data, if that
- * blockno is in the double-indirect region of the datastream.
+ * blockanal is in the double-indirect region of the datastream.
  *
  * Return value is BEFS_OK if the blockrun is found, BEFS_ERR
  * otherwise.
@@ -393,13 +393,13 @@ befs_find_brun_indirect(struct super_block *sb,
  * maps a particular filesystem block.
  *
  * We do this in two stages. First we calculate which of the
- * inode addresses in the double-indirect block will point us
+ * ianalde addresses in the double-indirect block will point us
  * to the indirect block that contains the mapping for the data,
- * then we calculate which of the inode addresses in that
+ * then we calculate which of the ianalde addresses in that
  * indirect block maps the data block we are after.
  *
  * Oh, and once we've done that, we actually read in the blocks
- * that contain the inode addresses we calculated above. Even
+ * that contain the ianalde addresses we calculated above. Even
  * though the double-indirect run may be several blocks long,
  * we can calculate which of those blocks will contain the index
  * we are after and only read that one. We then follow it to
@@ -413,7 +413,7 @@ befs_find_brun_indirect(struct super_block *sb,
 static int
 befs_find_brun_dblindirect(struct super_block *sb,
 			   const befs_data_stream *data,
-			   befs_blocknr_t blockno,
+			   befs_blocknr_t blockanal,
 			   befs_block_run *run)
 {
 	int dblindir_indx;
@@ -424,16 +424,16 @@ befs_find_brun_dblindirect(struct super_block *sb,
 	int dbl_block_indx;
 	int block_indx;
 	off_t dblindir_leftover;
-	befs_blocknr_t blockno_at_run_start;
+	befs_blocknr_t blockanal_at_run_start;
 	struct buffer_head *dbl_indir_block;
 	struct buffer_head *indir_block;
 	befs_block_run indir_run;
-	befs_disk_inode_addr *iaddr_array;
+	befs_disk_ianalde_addr *iaddr_array;
 
 	befs_blocknr_t indir_start_blk =
 	    data->max_indirect_range >> BEFS_SB(sb)->block_shift;
 
-	off_t dbl_indir_off = blockno - indir_start_blk;
+	off_t dbl_indir_off = blockanal - indir_start_blk;
 
 	/* number of data blocks mapped by each of the iaddrs in
 	 * the indirect block pointed to by the double indirect block
@@ -446,7 +446,7 @@ befs_find_brun_dblindirect(struct super_block *sb,
 	size_t diblklen = iblklen * befs_iaddrs_per_block(sb)
 	    * BEFS_DBLINDIR_BRUN_LEN;
 
-	befs_debug(sb, "---> %s find %lu", __func__, (unsigned long)blockno);
+	befs_debug(sb, "---> %s find %lu", __func__, (unsigned long)blockanal);
 
 	/* First, discover which of the double_indir->indir blocks
 	 * contains pos. Then figure out how much of pos that
@@ -469,20 +469,20 @@ befs_find_brun_dblindirect(struct super_block *sb,
 	}
 
 	dbl_indir_block =
-	    sb_bread(sb, iaddr2blockno(sb, &data->double_indirect) +
+	    sb_bread(sb, iaddr2blockanal(sb, &data->double_indirect) +
 					dbl_which_block);
 	if (dbl_indir_block == NULL) {
 		befs_error(sb, "%s couldn't read the "
-			   "double-indirect block at blockno %lu", __func__,
+			   "double-indirect block at blockanal %lu", __func__,
 			   (unsigned long)
-			   iaddr2blockno(sb, &data->double_indirect) +
+			   iaddr2blockanal(sb, &data->double_indirect) +
 			   dbl_which_block);
 		return BEFS_ERR;
 	}
 
 	dbl_block_indx =
 	    dblindir_indx - (dbl_which_block * befs_iaddrs_per_block(sb));
-	iaddr_array = (befs_disk_inode_addr *) dbl_indir_block->b_data;
+	iaddr_array = (befs_disk_ianalde_addr *) dbl_indir_block->b_data;
 	indir_run = fsrun_to_cpu(sb, iaddr_array[dbl_block_indx]);
 	brelse(dbl_indir_block);
 
@@ -496,30 +496,30 @@ befs_find_brun_dblindirect(struct super_block *sb,
 	}
 
 	indir_block =
-	    sb_bread(sb, iaddr2blockno(sb, &indir_run) + which_block);
+	    sb_bread(sb, iaddr2blockanal(sb, &indir_run) + which_block);
 	if (indir_block == NULL) {
 		befs_error(sb, "%s couldn't read the indirect block "
-			   "at blockno %lu", __func__, (unsigned long)
-			   iaddr2blockno(sb, &indir_run) + which_block);
+			   "at blockanal %lu", __func__, (unsigned long)
+			   iaddr2blockanal(sb, &indir_run) + which_block);
 		return BEFS_ERR;
 	}
 
 	block_indx = indir_indx - (which_block * befs_iaddrs_per_block(sb));
-	iaddr_array = (befs_disk_inode_addr *) indir_block->b_data;
+	iaddr_array = (befs_disk_ianalde_addr *) indir_block->b_data;
 	*run = fsrun_to_cpu(sb, iaddr_array[block_indx]);
 	brelse(indir_block);
 
-	blockno_at_run_start = indir_start_blk;
-	blockno_at_run_start += diblklen * dblindir_indx;
-	blockno_at_run_start += iblklen * indir_indx;
-	offset = blockno - blockno_at_run_start;
+	blockanal_at_run_start = indir_start_blk;
+	blockanal_at_run_start += diblklen * dblindir_indx;
+	blockanal_at_run_start += iblklen * indir_indx;
+	offset = blockanal - blockanal_at_run_start;
 
 	run->start += offset;
 	run->len -= offset;
 
 	befs_debug(sb, "Found file block %lu in double_indirect[%d][%d],"
 		   " double_indirect_leftover = %lu", (unsigned long)
-		   blockno, dblindir_indx, indir_indx, dblindir_leftover);
+		   blockanal, dblindir_indx, indir_indx, dblindir_leftover);
 
 	return BEFS_OK;
 }

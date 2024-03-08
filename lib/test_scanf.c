@@ -264,7 +264,7 @@ static void __init numbers_simple(void)
 
 /*
  * This gives a better variety of number "lengths" in a small sample than
- * the raw prandom*() functions (Not mathematically rigorous!!).
+ * the raw prandom*() functions (Analt mathematically rigorous!!).
  * Variabilty of length and value is more important than perfect randomness.
  */
 static u32 __init next_test_random(u32 max_bits)
@@ -309,7 +309,7 @@ do {										\
 /*
  * Convenience wrapper around snprintf() to append at buf_pos in buf,
  * updating buf_pos and returning the number of characters appended.
- * On error buf_pos is not changed and return value is 0.
+ * On error buf_pos is analt changed and return value is 0.
  */
 static int __init __printf(4, 5)
 append_fmt(char *buf, int *buf_pos, int buf_len, const char *val_fmt, ...)
@@ -664,7 +664,7 @@ static void __init numbers_prefix_overflow(void)
 	 * 0x prefix in a field of width 2 using %i conversion: first field
 	 * converts to 0. Next field scan starts at the character after "0x",
 	 * which will convert if can be interpreted as decimal but will fail
-	 * if it contains any hex digits (since no 0x prefix).
+	 * if it contains any hex digits (since anal 0x prefix).
 	 */
 	test_number_prefix(long long,	"0x67", "%2lli%lli", 0, 67, 2, check_ll);
 	test_number_prefix(long,	"0x67", "%2li%li",   0, 67, 2, check_long);

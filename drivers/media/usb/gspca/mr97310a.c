@@ -92,27 +92,27 @@ struct sensor_w_data {
 static void sd_stopN(struct gspca_dev *gspca_dev);
 
 static const struct v4l2_pix_format vga_mode[] = {
-	{160, 120, V4L2_PIX_FMT_MR97310A, V4L2_FIELD_NONE,
+	{160, 120, V4L2_PIX_FMT_MR97310A, V4L2_FIELD_ANALNE,
 		.bytesperline = 160,
 		.sizeimage = 160 * 120,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 4},
-	{176, 144, V4L2_PIX_FMT_MR97310A, V4L2_FIELD_NONE,
+	{176, 144, V4L2_PIX_FMT_MR97310A, V4L2_FIELD_ANALNE,
 		.bytesperline = 176,
 		.sizeimage = 176 * 144,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 3},
-	{320, 240, V4L2_PIX_FMT_MR97310A, V4L2_FIELD_NONE,
+	{320, 240, V4L2_PIX_FMT_MR97310A, V4L2_FIELD_ANALNE,
 		.bytesperline = 320,
 		.sizeimage = 320 * 240,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 2},
-	{352, 288, V4L2_PIX_FMT_MR97310A, V4L2_FIELD_NONE,
+	{352, 288, V4L2_PIX_FMT_MR97310A, V4L2_FIELD_ANALNE,
 		.bytesperline = 352,
 		.sizeimage = 352 * 288,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 1},
-	{640, 480, V4L2_PIX_FMT_MR97310A, V4L2_FIELD_NONE,
+	{640, 480, V4L2_PIX_FMT_MR97310A, V4L2_FIELD_ANALNE,
 		.bytesperline = 640,
 		.sizeimage = 640 * 480,
 		.colorspace = V4L2_COLORSPACE_SRGB,
@@ -353,7 +353,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	 * to start the initialization process in order to determine which
 	 * camera is present. Some of the supported cameras require the
 	 * memory pointer to be set to 0 as the very first item of business
-	 * or else they will not stream. So we do that immediately.
+	 * or else they will analt stream. So we do that immediately.
 	 */
 	err_code = zero_the_pointer(gspca_dev);
 	if (err_code < 0)
@@ -363,7 +363,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	if (err_code < 0)
 		return err_code;
 
-	/* Now, the query for sensor type. */
+	/* Analw, the query for sensor type. */
 	err_code = cam_get_response16(gspca_dev, 0x07, 1);
 	if (err_code < 0)
 		return err_code;
@@ -372,19 +372,19 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		sd->cam_type = CAM_TYPE_CIF;
 		cam->nmodes--;
 		/*
-		 * All but one of the known CIF cameras share the same USB ID,
+		 * All but one of the kanalwn CIF cameras share the same USB ID,
 		 * but two different init routines are in use, and the control
 		 * settings are different, too. We need to detect which camera
-		 * of the two known varieties is connected!
+		 * of the two kanalwn varieties is connected!
 		 *
-		 * A list of known CIF cameras follows. They all report either
+		 * A list of kanalwn CIF cameras follows. They all report either
 		 * 0200 for type 0 or 0300 for type 1.
-		 * If you have another to report, please do
+		 * If you have aanalther to report, please do
 		 *
 		 * Name		sd->sensor_type		reported by
 		 *
 		 * Sakar 56379 Spy-shot	0		T. Kilgore
-		 * Innovage		0		T. Kilgore
+		 * Inanalvage		0		T. Kilgore
 		 * Vivitar Mini		0		H. De Goede
 		 * Vivitar Mini		0		E. Rodriguez
 		 * Vivitar Mini		1		T. Kilgore
@@ -400,9 +400,9 @@ static int sd_config(struct gspca_dev *gspca_dev,
 			sd->sensor_type = 1;
 			break;
 		default:
-			pr_err("Unknown CIF Sensor id : %02x\n",
+			pr_err("Unkanalwn CIF Sensor id : %02x\n",
 			       gspca_dev->usb_buf[1]);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 		gspca_dbg(gspca_dev, D_PROBE, "MR97310A CIF camera detected, sensor: %d\n",
 			  sd->sensor_type);
@@ -411,7 +411,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 
 		/*
 		 * Here is a table of the responses to the query for sensor
-		 * type, from the known MR97310A VGA cameras. Six different
+		 * type, from the kanalwn MR97310A VGA cameras. Six different
 		 * cameras of which five share the same USB ID.
 		 *
 		 * Name			gspca_dev->usb_buf[]	sd->sensor_type
@@ -435,9 +435,9 @@ static int sd_config(struct gspca_dev *gspca_dev,
 			sd->sensor_type = 2;
 		} else if ((gspca_dev->usb_buf[0] != 0x03) &&
 					(gspca_dev->usb_buf[0] != 0x04)) {
-			pr_err("Unknown VGA Sensor id Byte 0: %02x\n",
+			pr_err("Unkanalwn VGA Sensor id Byte 0: %02x\n",
 			       gspca_dev->usb_buf[0]);
-			pr_err("Defaults assumed, may not work\n");
+			pr_err("Defaults assumed, may analt work\n");
 			pr_err("Please report this\n");
 		}
 		/* Sakar Digital color needs to be adjusted. */
@@ -452,12 +452,12 @@ static int sd_config(struct gspca_dev *gspca_dev,
 				gspca_dbg(gspca_dev, D_PROBE, "sensor_type corrected to 0\n");
 				break;
 			case 0x20:
-				/* Nothing to do here. */
+				/* Analthing to do here. */
 				break;
 			default:
-				pr_err("Unknown VGA Sensor id Byte 1: %02x\n",
+				pr_err("Unkanalwn VGA Sensor id Byte 1: %02x\n",
 				       gspca_dev->usb_buf[1]);
-				pr_err("Defaults assumed, may not work\n");
+				pr_err("Defaults assumed, may analt work\n");
 				pr_err("Please report this\n");
 			}
 		}
@@ -501,7 +501,7 @@ static int start_cif_cam(struct gspca_dev *gspca_dev)
 		0xc0
 	};
 
-	/* Note: Some of the above descriptions guessed from MR97113A driver */
+	/* Analte: Some of the above descriptions guessed from MR97113A driver */
 
 	memcpy(data, startup_string, 11);
 	if (sd->sensor_type)
@@ -661,7 +661,7 @@ static int start_vga_cam(struct gspca_dev *gspca_dev)
 				0x05, 0x01, 0x04}, 8}
 		};
 
-		static const struct sensor_w_data color_no_adj[] = {
+		static const struct sensor_w_data color_anal_adj[] = {
 			{0x02, 0x00, {0x06, 0x59, 0x0c, 0x16, 0x00,
 				/* default blue, green, red gain settings */
 				0x07, 0x00, 0x01}, 8}
@@ -683,8 +683,8 @@ static int start_vga_cam(struct gspca_dev *gspca_dev)
 			err_code = sensor_write_regs(gspca_dev, color_adj,
 					 ARRAY_SIZE(color_adj));
 		else
-			err_code = sensor_write_regs(gspca_dev, color_no_adj,
-					 ARRAY_SIZE(color_no_adj));
+			err_code = sensor_write_regs(gspca_dev, color_anal_adj,
+					 ARRAY_SIZE(color_anal_adj));
 
 		if (err_code < 0)
 			return err_code;
@@ -772,7 +772,7 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	stream_stop(gspca_dev);
-	/* Not all the cams need this, but even if not, probably a good idea */
+	/* Analt all the cams need this, but even if analt, probably a good idea */
 	zero_the_pointer(gspca_dev);
 	if (sd->do_lcd_stop)
 		lcd_stop(gspca_dev);
@@ -791,7 +791,7 @@ static void setbrightness(struct gspca_dev *gspca_dev, s32 val)
 		value_reg += 4;
 	}
 
-	/* Note register 7 is also seen as 0x8x or 0xCx in some dumps */
+	/* Analte register 7 is also seen as 0x8x or 0xCx in some dumps */
 	if (val > 0) {
 		sensor_write1(gspca_dev, sign_reg, 0x00);
 	} else {
@@ -812,7 +812,7 @@ static void setexposure(struct gspca_dev *gspca_dev, s32 expo, s32 min_clockdiv)
 	u8 buf[2];
 
 	if (sd->cam_type == CAM_TYPE_CIF && sd->sensor_type == 1) {
-		/* This cam does not like exposure settings < 300,
+		/* This cam does analt like exposure settings < 300,
 		   so scale 0 - 4095 to 300 - 4095 */
 		exposure = (expo * 9267) / 10000 + 300;
 		sensor_write1(gspca_dev, 3, exposure >> 4);
@@ -828,11 +828,11 @@ static void setexposure(struct gspca_dev *gspca_dev, s32 expo, s32 min_clockdiv)
 		   the maximum exposure and then we calculate the exposure
 		   register setting (which goes from 0 - 511).
 
-		   Note our 0 - 4095 exposure is mapped to 0 - 511
+		   Analte our 0 - 4095 exposure is mapped to 0 - 511
 		   milliseconds exposure time */
 		u8 clockdiv = (60 * expo + 7999) / 8000;
 
-		/* Limit framerate to not exceed usb bandwidth */
+		/* Limit framerate to analt exceed usb bandwidth */
 		if (clockdiv < min_clockdiv && gspca_dev->pixfmt.width >= 320)
 			clockdiv = min_clockdiv;
 		else if (clockdiv < 2)
@@ -938,7 +938,7 @@ static int sd_init_controls(struct gspca_dev *gspca_dev)
 
 	/* Setup controls depending on camera type */
 	if (sd->cam_type == CAM_TYPE_CIF) {
-		/* No brightness for sensor_type 0 */
+		/* Anal brightness for sensor_type 0 */
 		if (sd->sensor_type == 0)
 			has_exposure = has_gain = has_clockdiv = true;
 		else
@@ -946,7 +946,7 @@ static int sd_init_controls(struct gspca_dev *gspca_dev)
 	} else {
 		/* All controls need to be disabled if VGA sensor_type is 0 */
 		if (sd->sensor_type == 0)
-			; /* no controls! */
+			; /* anal controls! */
 		else if (sd->sensor_type == 2)
 			has_exposure = has_cs_gain = has_contrast = true;
 		else if (sd->do_lcd_stop)
@@ -962,7 +962,7 @@ static int sd_init_controls(struct gspca_dev *gspca_dev)
 	 * control for Sakar CyberPix camera. */
 	/*
 	 * This control is disabled for CIF type 1 and VGA type 0 cameras.
-	 * It does not quite act linearly for the Argus QuickClix camera,
+	 * It does analt quite act linearly for the Argus QuickClix camera,
 	 * but it does control brightness. The values are 0 - 15 only, and
 	 * the table above makes them act consecutively.
 	 */
@@ -994,7 +994,7 @@ static int sd_init_controls(struct gspca_dev *gspca_dev)
 		sd->min_clockdiv = v4l2_ctrl_new_custom(hdl, &clockdiv, NULL);
 
 	if (hdl->error) {
-		pr_err("Could not initialize controls\n");
+		pr_err("Could analt initialize controls\n");
 		return hdl->error;
 	}
 	if (has_exposure && has_clockdiv)
@@ -1048,8 +1048,8 @@ static const struct sd_desc sd_desc = {
 static const struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x08ca, 0x0110)},	/* Trust Spyc@m 100 */
 	{USB_DEVICE(0x08ca, 0x0111)},	/* Aiptek Pencam VGA+ */
-	{USB_DEVICE(0x093a, 0x010f)},	/* All other known MR97310A VGA cams */
-	{USB_DEVICE(0x093a, 0x010e)},	/* All known MR97310A CIF cams */
+	{USB_DEVICE(0x093a, 0x010f)},	/* All other kanalwn MR97310A VGA cams */
+	{USB_DEVICE(0x093a, 0x010e)},	/* All kanalwn MR97310A CIF cams */
 	{}
 };
 MODULE_DEVICE_TABLE(usb, device_table);

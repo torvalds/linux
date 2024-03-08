@@ -82,7 +82,7 @@ static int convert_endian(u32 size, u8 *d)
 	switch (size & 3) {
 	case 0:
 	case 1:
-		/* do nothing */
+		/* do analthing */
 		break;
 	case 2:
 		d[i + 0] ^= d[i + 1];
@@ -126,8 +126,8 @@ static void mxl692_tx_swap(enum MXL_EAGLE_OPCODE_E opcode, u8 *buffer)
 		buffer += convert_endian(2 * sizeof(u32), buffer);
 		break;
 	default:
-		/* no swapping - all get opcodes */
-		/* ATSC/OOB no swapping */
+		/* anal swapping - all get opcodes */
+		/* ATSC/OOB anal swapping */
 		break;
 	}
 }
@@ -186,7 +186,7 @@ static void mxl692_rx_swap(enum MXL_EAGLE_OPCODE_E opcode, u8 *buffer)
 		buffer += convert_endian(sizeof(u32), buffer);
 		break;
 	default:
-		/* no swapping - all set opcodes */
+		/* anal swapping - all set opcodes */
 		break;
 	}
 }
@@ -548,7 +548,7 @@ static int mxl692_i2c_writeread(struct mxl692_dev *dev,
 
 	if (rx_header->payload_size > 0) {
 		if (!rx_payload) {
-			dev_dbg(&dev->i2c_client->dev, "no rx payload?!?\n");
+			dev_dbg(&dev->i2c_client->dev, "anal rx payload?!?\n");
 			status = -EREMOTEIO;
 			goto err_finish;
 		}
@@ -915,13 +915,13 @@ warm:
 
 	/* Init stats here to indicate which stats are supported */
 	c->cnr.len = 1;
-	c->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->cnr.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	c->post_bit_error.len = 1;
-	c->post_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->post_bit_error.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	c->post_bit_count.len = 1;
-	c->post_bit_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->post_bit_count.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	c->block_error.len = 1;
-	c->block_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->block_error.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 
 	dev->init_done = 1;
 	return 0;
@@ -1272,12 +1272,12 @@ static int mxl692_read_status(struct dvb_frontend *fe,
 	}
 
 	if ((*status & FE_HAS_LOCK) == 0) {
-		/* No lock, reset all statistics */
+		/* Anal lock, reset all statistics */
 		c->cnr.len = 1;
-		c->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
-		c->block_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
-		c->post_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
-		c->post_bit_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		c->cnr.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
+		c->block_error.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
+		c->post_bit_error.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
+		c->post_bit_count.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 		return 0;
 	}
 
@@ -1316,7 +1316,7 @@ static int mxl692_probe(struct i2c_client *client)
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		dev_dbg(&client->dev, "kzalloc() failed\n");
 		goto err;
 	}
@@ -1333,7 +1333,7 @@ static int mxl692_probe(struct i2c_client *client)
 	return 0;
 err:
 	dev_dbg(&client->dev, "failed %d\n", ret);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static void mxl692_remove(struct i2c_client *client)

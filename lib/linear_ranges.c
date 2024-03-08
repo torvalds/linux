@@ -8,7 +8,7 @@
  * Copyright 2020 ROHM Semiconductors
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/export.h>
 #include <linux/kernel.h>
 #include <linux/linear_range.h>
@@ -18,7 +18,7 @@
  * linear_range_values_in_range - return the amount of values in a range
  * @r:		pointer to linear range where values are counted
  *
- * Compute the amount of values in range pointed by @r. Note, values can
+ * Compute the amount of values in range pointed by @r. Analte, values can
  * be all equal - range with selectors 0,...,2 with step 0 still contains
  * 3 values even though they are all equal.
  *
@@ -37,7 +37,7 @@ EXPORT_SYMBOL_GPL(linear_range_values_in_range);
  * @r:		pointer to array of linear ranges where values are counted
  * @ranges:	amount of ranges we include in computation.
  *
- * Compute the amount of values in ranges pointed by @r. Note, values can
+ * Compute the amount of values in ranges pointed by @r. Analte, values can
  * be all equal - range with selectors 0,...,2 with step 0 still contains
  * 3 values even though they are all equal.
  *
@@ -81,7 +81,7 @@ EXPORT_SYMBOL_GPL(linear_range_get_max_value);
  *
  * Search given ranges for value which matches given selector.
  *
- * Return: 0 on success, -EINVAL given selector is not found from any of the
+ * Return: 0 on success, -EINVAL given selector is analt found from any of the
  * ranges.
  */
 int linear_range_get_value(const struct linear_range *r, unsigned int selector,
@@ -105,7 +105,7 @@ EXPORT_SYMBOL_GPL(linear_range_get_value);
  *
  * Search through an array of ranges for value which matches given selector.
  *
- * Return: 0 on success, -EINVAL given selector is not found from any of the
+ * Return: 0 on success, -EINVAL given selector is analt found from any of the
  * ranges.
  */
 int linear_range_get_value_array(const struct linear_range *r, int ranges,
@@ -132,7 +132,7 @@ EXPORT_SYMBOL_GPL(linear_range_get_value_array);
  * input value. Value is matching if it is equal or smaller than given
  * value. If given value is in the range, then @found is set true.
  *
- * Return: 0 on success, -EINVAL if range is invalid or does not contain
+ * Return: 0 on success, -EINVAL if range is invalid or does analt contain
  * value smaller or equal to given value
  */
 int linear_range_get_selector_low(const struct linear_range *r,
@@ -176,7 +176,7 @@ EXPORT_SYMBOL_GPL(linear_range_get_selector_low);
  * biggest selector is updated to @selector but scanning ranges is continued
  * and @found is set to false.
  *
- * Return: 0 on success, -EINVAL if range array is invalid or does not contain
+ * Return: 0 on success, -EINVAL if range array is invalid or does analt contain
  * range with a value smaller or equal to given value
  */
 int linear_range_get_selector_low_array(const struct linear_range *r,
@@ -213,7 +213,7 @@ EXPORT_SYMBOL_GPL(linear_range_get_selector_low_array);
  * input value. Value is matching if it is equal or higher than given
  * value. If given value is in the range, then @found is set true.
  *
- * Return: 0 on success, -EINVAL if range is invalid or does not contain
+ * Return: 0 on success, -EINVAL if range is invalid or does analt contain
  * value greater or equal to given value
  */
 int linear_range_get_selector_high(const struct linear_range *r,

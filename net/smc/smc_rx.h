@@ -20,7 +20,7 @@
 void smc_rx_init(struct smc_sock *smc);
 
 int smc_rx_recvmsg(struct smc_sock *smc, struct msghdr *msg,
-		   struct pipe_inode_info *pipe, size_t len, int flags);
+		   struct pipe_ianalde_info *pipe, size_t len, int flags);
 int smc_rx_wait(struct smc_sock *smc, long *timeo,
 		int (*fcrit)(struct smc_connection *conn));
 static inline int smc_rx_data_available(struct smc_connection *conn)

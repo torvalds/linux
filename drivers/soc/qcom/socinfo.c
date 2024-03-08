@@ -22,11 +22,11 @@
 #include <dt-bindings/arm/qcom,ids.h>
 
 /*
- * SoC version type with major number in the upper 16 bits and minor
+ * SoC version type with major number in the upper 16 bits and mianalr
  * number in the lower 16 bits.
  */
 #define SOCINFO_MAJOR(ver) (((ver) >> 16) & 0xffff)
-#define SOCINFO_MINOR(ver) ((ver) & 0xffff)
+#define SOCINFO_MIANALR(ver) ((ver) & 0xffff)
 #define SOCINFO_VERSION(maj, min)  ((((maj) & 0xffff) << 16)|((min) & 0xffff))
 
 /* Helper macros to create soc_id table */
@@ -78,7 +78,7 @@ static const char *const socinfo_image_names[] = {
 };
 
 static const char *const pmic_models[] = {
-	[0]  = "Unknown PMIC model",
+	[0]  = "Unkanalwn PMIC model",
 	[1]  = "PM8941",
 	[2]  = "PM8841",
 	[3]  = "PM8019",
@@ -455,9 +455,9 @@ static const char *socinfo_machine(struct device *dev, unsigned int id)
 #ifdef CONFIG_DEBUG_FS
 
 #define QCOM_OPEN(name, _func)						\
-static int qcom_open_##name(struct inode *inode, struct file *file)	\
+static int qcom_open_##name(struct ianalde *ianalde, struct file *file)	\
 {									\
-	return single_open(file, _func, inode->i_private);		\
+	return single_open(file, _func, ianalde->i_private);		\
 }									\
 									\
 static const struct file_operations qcom_ ##name## _ops = {		\
@@ -485,7 +485,7 @@ static int qcom_show_build_id(struct seq_file *seq, void *p)
 static int qcom_show_pmic_model(struct seq_file *seq, void *p)
 {
 	struct socinfo *socinfo = seq->private;
-	int model = SOCINFO_MINOR(le32_to_cpu(socinfo->pmic_model));
+	int model = SOCINFO_MIANALR(le32_to_cpu(socinfo->pmic_model));
 
 	if (model < 0)
 		return -EINVAL;
@@ -493,7 +493,7 @@ static int qcom_show_pmic_model(struct seq_file *seq, void *p)
 	if (model < ARRAY_SIZE(pmic_models) && pmic_models[model])
 		seq_printf(seq, "%s\n", pmic_models[model]);
 	else
-		seq_printf(seq, "unknown (%d)\n", model);
+		seq_printf(seq, "unkanalwn (%d)\n", model);
 
 	return 0;
 }
@@ -508,17 +508,17 @@ static int qcom_show_pmic_model_array(struct seq_file *seq, void *p)
 
 	ptr += pmic_array_offset;
 
-	/* No need for bounds checking, it happened at socinfo_debugfs_init */
+	/* Anal need for bounds checking, it happened at socinfo_debugfs_init */
 	for (i = 0; i < num_pmics; i++) {
-		unsigned int model = SOCINFO_MINOR(get_unaligned_le32(ptr + 2 * i * sizeof(u32)));
+		unsigned int model = SOCINFO_MIANALR(get_unaligned_le32(ptr + 2 * i * sizeof(u32)));
 		unsigned int die_rev = get_unaligned_le32(ptr + (2 * i + 1) * sizeof(u32));
 
 		if (model < ARRAY_SIZE(pmic_models) && pmic_models[model])
 			seq_printf(seq, "%s %u.%u\n", pmic_models[model],
 				   SOCINFO_MAJOR(die_rev),
-				   SOCINFO_MINOR(die_rev));
+				   SOCINFO_MIANALR(die_rev));
 		else
-			seq_printf(seq, "unknown (%d)\n", model);
+			seq_printf(seq, "unkanalwn (%d)\n", model);
 	}
 
 	return 0;
@@ -530,7 +530,7 @@ static int qcom_show_pmic_die_revision(struct seq_file *seq, void *p)
 
 	seq_printf(seq, "%u.%u\n",
 		   SOCINFO_MAJOR(le32_to_cpu(socinfo->pmic_die_rev)),
-		   SOCINFO_MINOR(le32_to_cpu(socinfo->pmic_die_rev)));
+		   SOCINFO_MIANALR(le32_to_cpu(socinfo->pmic_die_rev)));
 
 	return 0;
 }
@@ -558,9 +558,9 @@ static int show_image_##type(struct seq_file *seq, void *p)		  \
 		seq_printf(seq, "%s\n", image_version->type);	  \
 	return 0;						  \
 }								  \
-static int open_image_##type(struct inode *inode, struct file *file)	  \
+static int open_image_##type(struct ianalde *ianalde, struct file *file)	  \
 {									  \
-	return single_open(file, show_image_##type, inode->i_private); \
+	return single_open(file, show_image_##type, ianalde->i_private); \
 }									  \
 									  \
 static const struct file_operations qcom_image_##type##_ops = {	  \
@@ -769,7 +769,7 @@ static int qcom_socinfo_probe(struct platform_device *pdev)
 
 	qs = devm_kzalloc(&pdev->dev, sizeof(*qs), GFP_KERNEL);
 	if (!qs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	qs->attr.family = "Snapdragon";
 	qs->attr.machine = socinfo_machine(&pdev->dev,
@@ -778,7 +778,7 @@ static int qcom_socinfo_probe(struct platform_device *pdev)
 					 le32_to_cpu(info->id));
 	qs->attr.revision = devm_kasprintf(&pdev->dev, GFP_KERNEL, "%u.%u",
 					   SOCINFO_MAJOR(le32_to_cpu(info->ver)),
-					   SOCINFO_MINOR(le32_to_cpu(info->ver)));
+					   SOCINFO_MIANALR(le32_to_cpu(info->ver)));
 	if (offsetof(struct socinfo, serial_num) <= item_size)
 		qs->attr.serial_number = devm_kasprintf(&pdev->dev, GFP_KERNEL,
 							"%u",

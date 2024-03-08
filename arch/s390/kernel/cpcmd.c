@@ -24,7 +24,7 @@
 static DEFINE_SPINLOCK(cpcmd_lock);
 static char cpcmd_buf[241];
 
-static int diag8_noresponse(int cmdlen)
+static int diag8_analresponse(int cmdlen)
 {
 	asm volatile(
 		"	diag	%[rx],%[ry],0x8\n"
@@ -59,7 +59,7 @@ static int diag8_response(int cmdlen, char *response, int *rlen)
 
 /*
  * __cpcmd has some restrictions over cpcmd
- *  - __cpcmd is unlocked and therefore not SMP-safe
+ *  - __cpcmd is unlocked and therefore analt SMP-safe
  */
 int  __cpcmd(const char *cmd, char *response, int rlen, int *response_code)
 {
@@ -79,7 +79,7 @@ int  __cpcmd(const char *cmd, char *response, int rlen, int *response_code)
 		rc = diag8_response(cmdlen, response, &rlen);
 		EBCASC(response, response_len);
         } else {
-		rc = diag8_noresponse(cmdlen);
+		rc = diag8_analresponse(cmdlen);
         }
 	if (response_code)
 		*response_code = rc;
@@ -97,7 +97,7 @@ int cpcmd(const char *cmd, char *response, int rlen, int *response_code)
 		lowbuf = kmalloc(rlen, GFP_KERNEL);
 		if (!lowbuf) {
 			pr_warn("The cpcmd kernel function failed to allocate a response buffer\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		spin_lock_irqsave(&cpcmd_lock, flags);
 		len = __cpcmd(cmd, lowbuf, rlen, response_code);

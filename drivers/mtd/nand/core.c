@@ -31,7 +31,7 @@ bool nanddev_isbad(struct nand_device *nand, const struct nand_pos *pos)
 		entry = nanddev_bbt_pos_to_entry(nand, pos);
 		status = nanddev_bbt_get_block_status(nand, entry);
 		/* Lazy block status retrieval */
-		if (status == NAND_BBT_BLOCK_STATUS_UNKNOWN) {
+		if (status == NAND_BBT_BLOCK_STATUS_UNKANALWN) {
 			if (nand->ops->isbad(nand, pos))
 				status = NAND_BBT_BLOCK_FACTORY_BAD;
 			else
@@ -94,11 +94,11 @@ out:
 EXPORT_SYMBOL_GPL(nanddev_markbad);
 
 /**
- * nanddev_isreserved() - Check whether an eraseblock is reserved or not
+ * nanddev_isreserved() - Check whether an eraseblock is reserved or analt
  * @nand: NAND device
  * @pos: NAND position to test
  *
- * Checks whether the eraseblock pointed by @pos is reserved or not.
+ * Checks whether the eraseblock pointed by @pos is reserved or analt.
  *
  * Return: true if the eraseblock is reserved, false otherwise.
  */
@@ -122,7 +122,7 @@ EXPORT_SYMBOL_GPL(nanddev_isreserved);
  * @nand: NAND device
  * @pos: position of the block to erase
  *
- * Erases the block if it's not bad.
+ * Erases the block if it's analt bad.
  *
  * Return: 0 in case of success, a negative error code otherwise.
  */
@@ -145,8 +145,8 @@ static int nanddev_erase(struct nand_device *nand, const struct nand_pos *pos)
  * This is a simple mtd->_erase() implementation iterating over all blocks
  * concerned by @einfo and calling nand->ops->erase() on each of them.
  *
- * Note that mtd->_erase should not be directly assigned to this helper,
- * because there's no locking here. NAND specialized layers should instead
+ * Analte that mtd->_erase should analt be directly assigned to this helper,
+ * because there's anal locking here. NAND specialized layers should instead
  * implement there own wrapper around nanddev_mtd_erase() taking the
  * appropriate lock before calling nanddev_mtd_erase().
  *
@@ -195,7 +195,7 @@ int nanddev_mtd_max_bad_blocks(struct mtd_info *mtd, loff_t offs, size_t len)
 	unsigned int max_bb = 0;
 
 	if (!nand->memorg.max_bad_eraseblocks_per_lun)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	nanddev_offs_to_pos(nand, offs, &pos);
 	nanddev_offs_to_pos(nand, offs + len, &end);
@@ -225,7 +225,7 @@ static int nanddev_get_ecc_engine(struct nand_device *nand)
 		engine_type = nand->ecc.defaults.engine_type;
 
 	switch (engine_type) {
-	case NAND_ECC_ENGINE_TYPE_NONE:
+	case NAND_ECC_ENGINE_TYPE_ANALNE:
 		return 0;
 	case NAND_ECC_ENGINE_TYPE_SOFT:
 		nand->ecc.engine = nand_ecc_get_sw_engine(nand);
@@ -258,7 +258,7 @@ static int nanddev_put_ecc_engine(struct nand_device *nand)
 	case NAND_ECC_ENGINE_TYPE_ON_HOST:
 		nand_ecc_put_on_host_hw_engine(nand);
 		break;
-	case NAND_ECC_ENGINE_TYPE_NONE:
+	case NAND_ECC_ENGINE_TYPE_ANALNE:
 	case NAND_ECC_ENGINE_TYPE_SOFT:
 	case NAND_ECC_ENGINE_TYPE_ON_DIE:
 	default:
@@ -277,13 +277,13 @@ static int nanddev_find_ecc_configuration(struct nand_device *nand)
 	int ret;
 
 	if (!nand->ecc.engine)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	ret = nand_ecc_init_ctx(nand);
 	if (ret)
 		return ret;
 
-	if (!nand_ecc_is_strong_enough(nand))
+	if (!nand_ecc_is_strong_eanalugh(nand))
 		pr_warn("WARNING: %s: the ECC used on your system is too weak compared to the one required by the NAND chip\n",
 			nand->mtd.name);
 
@@ -302,19 +302,19 @@ int nanddev_ecc_engine_init(struct nand_device *nand)
 	ret = nanddev_get_ecc_engine(nand);
 	if (ret) {
 		if (ret != -EPROBE_DEFER)
-			pr_err("No ECC engine found\n");
+			pr_err("Anal ECC engine found\n");
 
 		return ret;
 	}
 
-	/* No ECC engine requested */
+	/* Anal ECC engine requested */
 	if (!nand->ecc.engine)
 		return 0;
 
 	/* Configure the engine: balance user input and chip requirements */
 	ret = nanddev_find_ecc_configuration(nand);
 	if (ret) {
-		pr_err("No suitable ECC configuration\n");
+		pr_err("Anal suitable ECC configuration\n");
 		nanddev_put_ecc_engine(nand);
 
 		return ret;

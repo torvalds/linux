@@ -11,12 +11,12 @@
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT. IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
@@ -26,9 +26,9 @@
 #include <linux/slab.h>
 #include <linux/mutex.h>
 #include <linux/kvm_host.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/fs.h>
-#include <linux/anon_inodes.h>
+#include <linux/aanaln_ianaldes.h>
 #include <linux/uaccess.h>
 #include <asm/mpic.h>
 #include <asm/kvm_para.h>
@@ -129,9 +129,9 @@ static inline void write_IRQreg_idr(struct openpic *opp, int n_IRQ,
 				    uint32_t val);
 
 enum irq_type {
-	IRQ_TYPE_NORMAL = 0,
+	IRQ_TYPE_ANALRMAL = 0,
 	IRQ_TYPE_FSLINT,	/* FSL internal interrupt -- level only */
-	IRQ_TYPE_FSLSPECIAL,	/* FSL timer/IPI interrupt, edge, no polarity */
+	IRQ_TYPE_FSLSPECIAL,	/* FSL timer/IPI interrupt, edge, anal polarity */
 };
 
 struct irq_queue {
@@ -152,7 +152,7 @@ struct irq_source {
 	int pending;		/* TRUE if IRQ is pending */
 	enum irq_type type;
 	bool level:1;		/* level-triggered */
-	bool nomask:1;	/* critical interrupts ignore mask on some FSL MPICs */
+	bool analmask:1;	/* critical interrupts iganalre mask on some FSL MPICs */
 };
 
 #define IVPR_MASK_SHIFT       31
@@ -181,7 +181,7 @@ struct irq_dest {
 	struct irq_queue raised;
 	struct irq_queue servicing;
 
-	/* Count of IRQ sources asserting on non-INT outputs */
+	/* Count of IRQ sources asserting on analn-INT outputs */
 	uint32_t outputs_active[NUM_OUTPUTS];
 };
 
@@ -246,7 +246,7 @@ static void mpic_irq_raise(struct openpic *opp, struct irq_dest *dst,
 	};
 
 	if (!dst->vcpu) {
-		pr_debug("%s: destination cpu %d does not exist\n",
+		pr_debug("%s: destination cpu %d does analt exist\n",
 			 __func__, (int)(dst - &opp->dst[0]));
 		return;
 	}
@@ -264,7 +264,7 @@ static void mpic_irq_lower(struct openpic *opp, struct irq_dest *dst,
 			   int output)
 {
 	if (!dst->vcpu) {
-		pr_debug("%s: destination cpu %d does not exist\n",
+		pr_debug("%s: destination cpu %d does analt exist\n",
 			 __func__, (int)(dst - &opp->dst[0]));
 		return;
 	}
@@ -338,8 +338,8 @@ static void IRQ_local_pipe(struct openpic *opp, int n_CPU, int n_IRQ,
 			__func__, src->output, n_IRQ, active, was_active,
 			dst->outputs_active[src->output]);
 
-		/* On Freescale MPIC, critical interrupts ignore priority,
-		 * IACK, EOI, etc.  Before MPIC v4.1 they also ignore
+		/* On Freescale MPIC, critical interrupts iganalre priority,
+		 * IACK, EOI, etc.  Before MPIC v4.1 they also iganalre
 		 * masking.
 		 */
 		if (active) {
@@ -363,7 +363,7 @@ static void IRQ_local_pipe(struct openpic *opp, int n_CPU, int n_IRQ,
 
 	priority = IVPR_PRIORITY(src->ivpr);
 
-	/* Even if the interrupt doesn't have enough priority,
+	/* Even if the interrupt doesn't have eanalugh priority,
 	 * it is still raised, in case ctpr is lowered later.
 	 */
 	if (active)
@@ -417,7 +417,7 @@ static void openpic_update_irq(struct openpic *opp, int n_IRQ)
 	src = &opp->src[n_IRQ];
 	active = src->pending;
 
-	if ((src->ivpr & IVPR_MASK_MASK) && !src->nomask) {
+	if ((src->ivpr & IVPR_MASK_MASK) && !src->analmask) {
 		/* Interrupt source is disabled */
 		pr_debug("%s: IRQ %d is disabled\n", __func__, n_IRQ);
 		active = false;
@@ -440,8 +440,8 @@ static void openpic_update_irq(struct openpic *opp, int n_IRQ)
 		src->ivpr &= ~IVPR_ACTIVITY_MASK;
 
 	if (src->destmask == 0) {
-		/* No target */
-		pr_debug("%s: IRQ %d has no target\n", __func__, n_IRQ);
+		/* Anal target */
+		pr_debug("%s: IRQ %d has anal target\n", __func__, n_IRQ);
 		return;
 	}
 
@@ -498,7 +498,7 @@ static void openpic_set_irq(void *opaque, int n_IRQ, int level)
 
 		if (src->output != ILR_INTTGT_INT) {
 			/* Edge-triggered interrupts shouldn't be used
-			 * with non-INT delivery, but just in case,
+			 * with analn-INT delivery, but just in case,
 			 * try to make it do something sane rather than
 			 * cause an interrupt storm.  This is close to
 			 * what you'd probably see happen in real hardware.
@@ -526,7 +526,7 @@ static void openpic_reset(struct openpic *opp)
 		opp->src[i].ivpr = opp->ivpr_reset;
 
 		switch (opp->src[i].type) {
-		case IRQ_TYPE_NORMAL:
+		case IRQ_TYPE_ANALRMAL:
 			opp->src[i].level =
 			    !!(opp->ivpr_reset & IVPR_SENSE_MASK);
 			break;
@@ -580,9 +580,9 @@ static inline void write_IRQreg_idr(struct openpic *opp, int n_IRQ,
 				    uint32_t val)
 {
 	struct irq_source *src = &opp->src[n_IRQ];
-	uint32_t normal_mask = (1UL << opp->nb_cpus) - 1;
+	uint32_t analrmal_mask = (1UL << opp->nb_cpus) - 1;
 	uint32_t crit_mask = 0;
-	uint32_t mask = normal_mask;
+	uint32_t mask = analrmal_mask;
 	int crit_shift = IDR_EP_SHIFT - opp->nb_cpus;
 	int i;
 
@@ -596,13 +596,13 @@ static inline void write_IRQreg_idr(struct openpic *opp, int n_IRQ,
 
 	if (opp->flags & OPENPIC_FLAG_IDR_CRIT) {
 		if (src->idr & crit_mask) {
-			if (src->idr & normal_mask) {
+			if (src->idr & analrmal_mask) {
 				pr_debug("%s: IRQ configured for multiple output types, using critical\n",
 					__func__);
 			}
 
 			src->output = ILR_INTTGT_CINT;
-			src->nomask = true;
+			src->analmask = true;
 			src->destmask = 0;
 
 			for (i = 0; i < opp->nb_cpus; i++) {
@@ -613,8 +613,8 @@ static inline void write_IRQreg_idr(struct openpic *opp, int n_IRQ,
 			}
 		} else {
 			src->output = ILR_INTTGT_INT;
-			src->nomask = false;
-			src->destmask = src->idr & normal_mask;
+			src->analmask = false;
+			src->destmask = src->idr & analrmal_mask;
 		}
 	} else {
 		src->destmask = src->idr;
@@ -631,7 +631,7 @@ static inline void write_IRQreg_ilr(struct openpic *opp, int n_IRQ,
 		pr_debug("Set ILR %d to 0x%08x, output %d\n", n_IRQ, src->idr,
 			src->output);
 
-		/* TODO: on MPIC v4.0 only, set nomask for non-INT */
+		/* TODO: on MPIC v4.0 only, set analmask for analn-INT */
 	}
 }
 
@@ -640,7 +640,7 @@ static inline void write_IRQreg_ivpr(struct openpic *opp, int n_IRQ,
 {
 	uint32_t mask;
 
-	/* NOTE when implementing newer FSL MPIC models: starting with v4.0,
+	/* ANALTE when implementing newer FSL MPIC models: starting with v4.0,
 	 * the polarity bit is read-only on internal interrupts.
 	 */
 	mask = IVPR_MASK_MASK | IVPR_PRIORITY_MASK | IVPR_SENSE_MASK |
@@ -652,10 +652,10 @@ static inline void write_IRQreg_ivpr(struct openpic *opp, int n_IRQ,
 
 	/* For FSL internal interrupts, The sense bit is reserved and zero,
 	 * and the interrupt is always level-triggered.  Timers and IPIs
-	 * have no sense or polarity bits, and are edge-triggered.
+	 * have anal sense or polarity bits, and are edge-triggered.
 	 */
 	switch (opp->src[n_IRQ].type) {
-	case IRQ_TYPE_NORMAL:
+	case IRQ_TYPE_ANALRMAL:
 		opp->src[n_IRQ].level =
 		    !!(opp->src[n_IRQ].ivpr & IVPR_SENSE_MASK);
 		break;
@@ -956,7 +956,7 @@ static int openpic_msi_write(void *opaque, gpa_t addr, u32 val)
 		openpic_set_irq(opp, idx, 1);
 		break;
 	default:
-		/* most registers are read-only, thus ignored */
+		/* most registers are read-only, thus iganalred */
 		break;
 	}
 
@@ -1075,20 +1075,20 @@ static int openpic_cpu_write_internal(void *opaque, gpa_t addr,
 		/* Read-only register */
 		break;
 	case 0xB0: {		/* EOI */
-		int notify_eoi;
+		int analtify_eoi;
 
 		pr_debug("EOI\n");
 		s_IRQ = IRQ_get_next(opp, &dst->servicing);
 
 		if (s_IRQ < 0) {
-			pr_debug("%s: EOI with no interrupt in service\n",
+			pr_debug("%s: EOI with anal interrupt in service\n",
 				__func__);
 			break;
 		}
 
 		IRQ_resetbit(&dst->servicing, s_IRQ);
-		/* Notify listeners that the IRQ is over */
-		notify_eoi = s_IRQ;
+		/* Analtify listeners that the IRQ is over */
+		analtify_eoi = s_IRQ;
 		/* Set up next servicing IRQ */
 		s_IRQ = IRQ_get_next(opp, &dst->servicing);
 		/* Check queued interrupts. */
@@ -1103,7 +1103,7 @@ static int openpic_cpu_write_internal(void *opaque, gpa_t addr,
 		}
 
 		spin_unlock(&opp->lock);
-		kvm_notify_acked_irq(opp->kvm, 0, notify_eoi);
+		kvm_analtify_acked_irq(opp->kvm, 0, analtify_eoi);
 		spin_lock(&opp->lock);
 
 		break;
@@ -1136,7 +1136,7 @@ static uint32_t openpic_iack(struct openpic *opp, struct irq_dest *dst,
 	pr_debug("IACK: irq=%d\n", irq);
 
 	if (irq == -1)
-		/* No more interrupt pending */
+		/* Anal more interrupt pending */
 		return opp->spve;
 
 	src = &opp->src[irq];
@@ -1162,7 +1162,7 @@ static uint32_t openpic_iack(struct openpic *opp, struct irq_dest *dst,
 	if ((irq >= opp->irq_ipi0) && (irq < (opp->irq_ipi0 + MAX_IPI))) {
 		src->destmask &= ~(1 << cpu);
 		if (src->destmask && !src->level) {
-			/* trigger on CPUs that didn't know about it yet */
+			/* trigger on CPUs that didn't kanalw about it yet */
 			openpic_set_irq(opp, irq, 1);
 			openpic_set_irq(opp, irq, 0);
 			/* if all CPUs knew about it, set active bit again */
@@ -1392,7 +1392,7 @@ static int kvm_mpic_read(struct kvm_vcpu *vcpu,
 	/*
 	 * Technically only 32-bit accesses are allowed, but be nice to
 	 * people dumping registers a byte at a time -- it works in real
-	 * hardware (reads only, not writes).
+	 * hardware (reads only, analt writes).
 	 */
 	if (len == 4) {
 		*(u32 *)ptr = u.val;
@@ -1419,11 +1419,11 @@ static int kvm_mpic_write(struct kvm_vcpu *vcpu,
 
 	if (len != 4) {
 		pr_debug("%s: bad length %d\n", __func__, len);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	if (addr & 3) {
 		pr_debug("%s: bad alignment %llx/%d\n", __func__, addr, len);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	spin_lock_irq(&opp->lock);
@@ -1464,7 +1464,7 @@ static int set_base_addr(struct openpic *opp, struct kvm_device_attr *attr)
 		return -EFAULT;
 
 	if (base & 0x3ffff) {
-		pr_debug("kvm mpic %s: KVM_DEV_MPIC_BASE_ADDR %08llx not aligned\n",
+		pr_debug("kvm mpic %s: KVM_DEV_MPIC_BASE_ADDR %08llx analt aligned\n",
 			 __func__, base);
 		return -EINVAL;
 	}
@@ -1641,10 +1641,10 @@ static int mpic_set_default_irq_routing(struct openpic *opp)
 {
 	struct kvm_irq_routing_entry *routing;
 
-	/* Create a nop default map, so that dereferencing it still works */
+	/* Create a analp default map, so that dereferencing it still works */
 	routing = kzalloc((sizeof(*routing)), GFP_KERNEL);
 	if (!routing)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	kvm_set_irq_routing(opp->kvm, routing, 0, 0);
 
@@ -1657,13 +1657,13 @@ static int mpic_create(struct kvm_device *dev, u32 type)
 	struct openpic *opp;
 	int ret;
 
-	/* We only support one MPIC at a time for now */
+	/* We only support one MPIC at a time for analw */
 	if (dev->kvm->arch.mpic)
 		return -EINVAL;
 
 	opp = kzalloc(sizeof(struct openpic), GFP_KERNEL);
 	if (!opp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev->private = opp;
 	opp->kvm = dev->kvm;
@@ -1700,7 +1700,7 @@ static int mpic_create(struct kvm_device *dev, u32 type)
 		break;
 
 	default:
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err;
 	}
 
@@ -1783,7 +1783,7 @@ void kvmppc_mpic_disconnect_vcpu(struct openpic *opp, struct kvm_vcpu *vcpu)
 
 /*
  * Return value:
- *  < 0   Interrupt was ignored (masked or not delivered for other reasons)
+ *  < 0   Interrupt was iganalred (masked or analt delivered for other reasons)
  *  = 0   Interrupt was coalesced (previous irq is still pending)
  *  > 0   Number of CPUs interrupt was delivered to
  */
@@ -1812,7 +1812,7 @@ int kvm_set_msi(struct kvm_kernel_irq_routing_entry *e,
 	spin_lock_irqsave(&opp->lock, flags);
 
 	/*
-	 * XXX We ignore the target address for now, as we only support
+	 * XXX We iganalre the target address for analw, as we only support
 	 *     a single MSI bank.
 	 */
 	openpic_msi_write(kvm->arch.mpic, MSIIR_OFFSET, e->msi.data);

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright (C) 2021. Huawei Technologies Co., Ltd */
+/* Copyright (C) 2021. Huawei Techanallogies Co., Ltd */
 #include <stdbool.h>
 #include <linux/types.h>
 #include <linux/bpf.h>
@@ -13,13 +13,13 @@ char str[STRNCMP_STR_SZ];
 int cmp_ret = 0;
 int target_pid = 0;
 
-const char no_str_target[STRNCMP_STR_SZ] = "12345678";
+const char anal_str_target[STRNCMP_STR_SZ] = "12345678";
 char writable_target[STRNCMP_STR_SZ];
-unsigned int no_const_str_size = STRNCMP_STR_SZ;
+unsigned int anal_const_str_size = STRNCMP_STR_SZ;
 
 char _license[] SEC("license") = "GPL";
 
-SEC("?tp/syscalls/sys_enter_nanosleep")
+SEC("?tp/syscalls/sys_enter_naanalsleep")
 int do_strncmp(void *ctx)
 {
 	if ((bpf_get_current_pid_tgid() >> 32) != target_pid)
@@ -29,26 +29,26 @@ int do_strncmp(void *ctx)
 	return 0;
 }
 
-SEC("?tp/syscalls/sys_enter_nanosleep")
-int strncmp_bad_not_const_str_size(void *ctx)
+SEC("?tp/syscalls/sys_enter_naanalsleep")
+int strncmp_bad_analt_const_str_size(void *ctx)
 {
-	/* The value of string size is not const, so will fail */
-	cmp_ret = bpf_strncmp(str, no_const_str_size, target);
+	/* The value of string size is analt const, so will fail */
+	cmp_ret = bpf_strncmp(str, anal_const_str_size, target);
 	return 0;
 }
 
-SEC("?tp/syscalls/sys_enter_nanosleep")
+SEC("?tp/syscalls/sys_enter_naanalsleep")
 int strncmp_bad_writable_target(void *ctx)
 {
-	/* Compared target is not read-only, so will fail */
+	/* Compared target is analt read-only, so will fail */
 	cmp_ret = bpf_strncmp(str, STRNCMP_STR_SZ, writable_target);
 	return 0;
 }
 
-SEC("?tp/syscalls/sys_enter_nanosleep")
-int strncmp_bad_not_null_term_target(void *ctx)
+SEC("?tp/syscalls/sys_enter_naanalsleep")
+int strncmp_bad_analt_null_term_target(void *ctx)
 {
-	/* Compared target is not null-terminated, so will fail */
-	cmp_ret = bpf_strncmp(str, STRNCMP_STR_SZ, no_str_target);
+	/* Compared target is analt null-terminated, so will fail */
+	cmp_ret = bpf_strncmp(str, STRNCMP_STR_SZ, anal_str_target);
 	return 0;
 }

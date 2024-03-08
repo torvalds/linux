@@ -13,7 +13,7 @@
 #define AC97_RESET		0x00	/* Reset */
 #define AC97_MASTER		0x02	/* Master Volume */
 #define AC97_HEADPHONE		0x04	/* Headphone Volume (optional) */
-#define AC97_MASTER_MONO	0x06	/* Master Volume Mono (optional) */
+#define AC97_MASTER_MOANAL	0x06	/* Master Volume Moanal (optional) */
 #define AC97_MASTER_TONE	0x08	/* Master Tone (Bass & Treble) (optional) */
 #define AC97_PC_BEEP		0x0a	/* PC Beep Volume (optional) */
 #define AC97_PHONE		0x0c	/* Phone Volume (optional) */
@@ -52,8 +52,8 @@
 #define AC97_HANDSET_LEVEL	0x4a	/* Handset DAC/ADC Level */
 #define AC97_GPIO_CFG		0x4c	/* GPIO Configuration */
 #define AC97_GPIO_POLARITY	0x4e	/* GPIO Pin Polarity/Type, 0=low, 1=high active */
-#define AC97_GPIO_STICKY	0x50	/* GPIO Pin Sticky, 0=not, 1=sticky */
-#define AC97_GPIO_WAKEUP	0x52	/* GPIO Pin Wakeup, 0=no int, 1=yes int */
+#define AC97_GPIO_STICKY	0x50	/* GPIO Pin Sticky, 0=analt, 1=sticky */
+#define AC97_GPIO_WAKEUP	0x52	/* GPIO Pin Wakeup, 0=anal int, 1=anal int */
 #define AC97_GPIO_STATUS	0x54	/* GPIO Pin Status, slot 12 */
 #define AC97_MISC_AFE		0x56	/* Miscellaneous Modem AFE Status and Control */
 /* range 0x5a-0x7b - Vendor Specific */
@@ -68,7 +68,7 @@
 #define AC97_SENSE_INFO		0x6a	/* Sense Details */
 
 /* volume controls */
-#define AC97_MUTE_MASK_MONO	0x8000
+#define AC97_MUTE_MASK_MOANAL	0x8000
 #define AC97_MUTE_MASK_STEREO	0x8080
 
 /* slot allocation */
@@ -175,7 +175,7 @@
 
 /* S/PDIF control bit defines */
 #define AC97_SC_PRO		0x0001	/* Professional status */
-#define AC97_SC_NAUDIO		0x0002	/* Non audio stream */
+#define AC97_SC_NAUDIO		0x0002	/* Analn audio stream */
 #define AC97_SC_COPY		0x0004	/* Copyright status */
 #define AC97_SC_PRE		0x0008	/* Preemphasis status */
 #define AC97_SC_CC_MASK		0x07f0	/* Category Code mask */
@@ -210,7 +210,7 @@
 
 /* extended modem status and control bit defines */
 #define AC97_MEA_GPIO		0x0001	/* GPIO is ready (ro) */
-#define AC97_MEA_MREF		0x0002	/* Vref is up to nominal level (ro) */
+#define AC97_MEA_MREF		0x0002	/* Vref is up to analminal level (ro) */
 #define AC97_MEA_ADC1		0x0004	/* ADC1 operational (ro) */
 #define AC97_MEA_DAC1		0x0008	/* DAC1 operational (ro) */
 #define AC97_MEA_ADC2		0x0010	/* ADC2 operational (ro) */

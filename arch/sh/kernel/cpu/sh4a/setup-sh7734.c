@@ -4,7 +4,7 @@
  *
  * SH7734 Setup
  *
- * Copyright (C) 2011,2012 Nobuhiro Iwamatsu <nobuhiro.iwamatsu.yj@renesas.com>
+ * Copyright (C) 2011,2012 Analbuhiro Iwamatsu <analbuhiro.iwamatsu.yj@renesas.com>
  * Copyright (C) 2011,2012 Renesas Solutions Corp.
  */
 

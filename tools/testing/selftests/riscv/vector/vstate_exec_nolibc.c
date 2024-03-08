@@ -2,7 +2,7 @@
 
 #include <linux/wait.h>
 
-#define THIS_PROGRAM "./vstate_exec_nolibc"
+#define THIS_PROGRAM "./vstate_exec_anallibc"
 
 int main(int argc, char **argv)
 {
@@ -15,7 +15,7 @@ int main(int argc, char **argv)
 
 	ctrl = my_syscall1(__NR_prctl, PR_RISCV_V_GET_CONTROL);
 	if (ctrl < 0) {
-		puts("PR_RISCV_V_GET_CONTROL is not supported\n");
+		puts("PR_RISCV_V_GET_CONTROL is analt supported\n");
 		return ctrl;
 	}
 
@@ -50,7 +50,7 @@ int main(int argc, char **argv)
 		if (!pid) {
 			rc = my_syscall1(__NR_prctl, PR_RISCV_V_GET_CONTROL);
 			if (rc != ctrl) {
-				puts("child's vstate_ctrl not equal to parent's\n");
+				puts("child's vstate_ctrl analt equal to parent's\n");
 				exit(-1);
 			}
 			asm volatile (".option push\n\t"
@@ -65,7 +65,7 @@ int main(int argc, char **argv)
 	rc = waitpid(-1, &status, 0);
 
 	if (WIFEXITED(status) && WEXITSTATUS(status) == -1) {
-		puts("child exited abnormally\n");
+		puts("child exited abanalrmally\n");
 		exit(-1);
 	}
 
@@ -76,7 +76,7 @@ int main(int argc, char **argv)
 		}
 
 		if ((ctrl & PR_RISCV_V_VSTATE_CTRL_CUR_MASK) != PR_RISCV_V_VSTATE_CTRL_OFF) {
-			puts("child signaled by illegal V access but vstate_ctrl is not off\n");
+			puts("child signaled by illegal V access but vstate_ctrl is analt off\n");
 			exit(-1);
 		}
 
@@ -88,14 +88,14 @@ int main(int argc, char **argv)
 	if (test_inherit) {
 		if (ctrl & PR_RISCV_V_VSTATE_CTRL_INHERIT) {
 			if (!(ctrl_c & PR_RISCV_V_VSTATE_CTRL_INHERIT)) {
-				puts("parent has inherit bit, but child has not\n");
+				puts("parent has inherit bit, but child has analt\n");
 				exit(-1);
 			}
 		}
 		rc = (ctrl & PR_RISCV_V_VSTATE_CTRL_NEXT_MASK) >> 2;
 		if (rc != PR_RISCV_V_VSTATE_CTRL_DEFAULT) {
 			if (rc != (ctrl_c & PR_RISCV_V_VSTATE_CTRL_CUR_MASK)) {
-				puts("parent's next setting does not equal to child's\n");
+				puts("parent's next setting does analt equal to child's\n");
 				exit(-1);
 			}
 

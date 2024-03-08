@@ -59,7 +59,7 @@
 	};
 
 	chosen {
-		bootargs = "ignore_loglevel rw root=/dev/nfs ip=on";
+		bootargs = "iganalre_loglevel rw root=/dev/nfs ip=on";
 		stdout-path = "serial0:115200n8";
 	};
 
@@ -305,12 +305,12 @@
 	 * IIC0/I2C0 is routed to EXIO connector A, pins 114 (SCL) + 116 (SDA) only.
 	 * We use the I2C demuxer, so the desired IP core can be selected at runtime
 	 * depending on the use case (e.g. DMA with IIC0 or slave support with I2C0).
-	 * Note: For testing the I2C slave feature, it is convenient to connect this
+	 * Analte: For testing the I2C slave feature, it is convenient to connect this
 	 * bus with IIC3 on pins 110 (SCL) + 112 (SDA), select I2C0 at runtime, and
 	 * instantiate the slave device at runtime according to the documentation.
 	 * You can then communicate with the slave via IIC3.
 	 *
-	 * IIC0/I2C0 does not appear to support fallback to GPIO.
+	 * IIC0/I2C0 does analt appear to support fallback to GPIO.
 	 */
 	i2cexio0: i2c-mux1 {
 		compatible = "i2c-demux-pinctrl";
@@ -430,7 +430,7 @@
 
 	/*
 	 * IIC3 and I2C3 may be switched using pinmux.
-	 * IIC3/I2C3 does not appear to support fallback to GPIO.
+	 * IIC3/I2C3 does analt appear to support fallback to GPIO.
 	 */
 	i2cpwr: i2c-mux4 {
 		compatible = "i2c-demux-pinctrl";
@@ -709,7 +709,7 @@
 
 	vmmc-supply = <&fixedregulator3v3>;
 	bus-width = <8>;
-	non-removable;
+	analn-removable;
 	status = "okay";
 };
 
@@ -724,7 +724,7 @@
 	status = "okay";
 
 	flash: flash@0 {
-		compatible = "spansion,s25fl512s", "jedec,spi-nor";
+		compatible = "spansion,s25fl512s", "jedec,spi-analr";
 		reg = <0>;
 		spi-max-frequency = <30000000>;
 		spi-tx-bus-width = <4>;

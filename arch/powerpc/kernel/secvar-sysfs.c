@@ -43,7 +43,7 @@ static ssize_t size_show(struct kobject *kobj, struct kobj_attribute *attr,
 
 	rc = secvar_ops->get(kobj->name, strlen(kobj->name) + 1, NULL, &dsize);
 	if (rc) {
-		if (rc != -ENOENT)
+		if (rc != -EANALENT)
 			pr_err("Error retrieving %s variable size %d\n", kobj->name, rc);
 		return rc;
 	}
@@ -61,7 +61,7 @@ static ssize_t data_read(struct file *filep, struct kobject *kobj,
 
 	rc = secvar_ops->get(kobj->name, strlen(kobj->name) + 1, NULL, &dsize);
 	if (rc) {
-		if (rc != -ENOENT)
+		if (rc != -EANALENT)
 			pr_err("Error getting %s variable size %d\n", kobj->name, rc);
 		return rc;
 	}
@@ -69,7 +69,7 @@ static ssize_t data_read(struct file *filep, struct kobject *kobj,
 
 	data = kzalloc(dsize, GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = secvar_ops->get(kobj->name, strlen(kobj->name) + 1, data, &dsize);
 	if (rc) {
@@ -165,7 +165,7 @@ static int add_var(const char *name)
 
 	kobj = kzalloc(sizeof(*kobj), GFP_KERNEL);
 	if (!kobj)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	kobject_init(kobj, &secvar_ktype);
 
@@ -189,12 +189,12 @@ static int secvar_sysfs_load(void)
 
 	name = kzalloc(NAME_MAX_SIZE, GFP_KERNEL);
 	if (!name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	do {
 		rc = secvar_ops->get_next(name, &namesize, NAME_MAX_SIZE);
 		if (rc) {
-			if (rc != -ENOENT)
+			if (rc != -EANALENT)
 				pr_err("error getting secvar from firmware %d\n", rc);
 			else
 				rc = 0;
@@ -231,32 +231,32 @@ static int secvar_sysfs_init(void)
 
 	if (!secvar_ops) {
 		pr_warn("Failed to retrieve secvar operations\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	secvar_kobj = kobject_create_and_add("secvar", firmware_kobj);
 	if (!secvar_kobj) {
 		pr_err("Failed to create firmware kobj\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	rc = sysfs_create_file(secvar_kobj, &format_attr.attr);
 	if (rc) {
 		pr_err("Failed to create format object\n");
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err;
 	}
 
 	secvar_kset = kset_create_and_add("vars", NULL, secvar_kobj);
 	if (!secvar_kset) {
 		pr_err("sysfs kobject registration failed\n");
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err;
 	}
 
 	rc = update_kobj_size();
 	if (rc) {
-		pr_err("Cannot read the size of the attribute\n");
+		pr_err("Cananalt read the size of the attribute\n");
 		goto err;
 	}
 

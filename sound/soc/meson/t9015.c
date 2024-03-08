@@ -32,7 +32,7 @@
 #define  GAIN_H		31
 #define  GAIN_L		23
 #define VOL_CTRL1	0x08
-#define  DAC_MONO	8
+#define  DAC_MOANAL	8
 #define  RAMP_RATE	10
 #define  VC_RAMP_MODE	12
 #define  MUTE_MODE	13
@@ -110,12 +110,12 @@ static SOC_ENUM_SINGLE_DECL(dacr_in_enum, BLOCK_EN, DACR_SRC, dacr_in_txt);
 static const char * const dacl_in_txt[] = { "Left", "Right" };
 static SOC_ENUM_SINGLE_DECL(dacl_in_enum, BLOCK_EN, DACL_SRC, dacl_in_txt);
 
-static const char * const mono_txt[] = { "Stereo", "Mono"};
-static SOC_ENUM_SINGLE_DECL(mono_enum, VOL_CTRL1, DAC_MONO, mono_txt);
+static const char * const moanal_txt[] = { "Stereo", "Moanal"};
+static SOC_ENUM_SINGLE_DECL(moanal_enum, VOL_CTRL1, DAC_MOANAL, moanal_txt);
 
 static const struct snd_kcontrol_new t9015_snd_controls[] = {
 	/* Volume Controls */
-	SOC_ENUM("Playback Channel Mode", mono_enum),
+	SOC_ENUM("Playback Channel Mode", moanal_enum),
 	SOC_SINGLE("Playback Switch", VOL_CTRL1, DAC_SOFT_MUTE, 1, 1),
 	SOC_DOUBLE_TLV("Playback Volume", VOL_CTRL1, DACL_VC, DACR_VC,
 		       0xff, 0, dac_vol_tlv),
@@ -133,11 +133,11 @@ static const struct snd_kcontrol_new t9015_left_dac_mux =
 	SOC_DAPM_ENUM("Left DAC Source", dacl_in_enum);
 
 static const struct snd_soc_dapm_widget t9015_dapm_widgets[] = {
-	SND_SOC_DAPM_AIF_IN("Right IN", NULL, 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_IN("Left IN", NULL, 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_MUX("Right DAC Sel", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_AIF_IN("Right IN", NULL, 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("Left IN", NULL, 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_MUX("Right DAC Sel", SND_SOC_ANALPM, 0, 0,
 			 &t9015_right_dac_mux),
-	SND_SOC_DAPM_MUX("Left DAC Sel", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("Left DAC Sel", SND_SOC_ANALPM, 0, 0,
 			 &t9015_left_dac_mux),
 	SND_SOC_DAPM_DAC("Right DAC", NULL, BLOCK_EN, DACR_EN, 0),
 	SND_SOC_DAPM_DAC("Left DAC",  NULL, BLOCK_EN, DACL_EN, 0),
@@ -178,7 +178,7 @@ static int t9015_set_bias_level(struct snd_soc_component *component,
 				enum snd_soc_bias_level level)
 {
 	struct t9015 *priv = snd_soc_component_get_drvdata(component);
-	enum snd_soc_bias_level now =
+	enum snd_soc_bias_level analw =
 		snd_soc_component_get_bias_level(component);
 	int ret;
 
@@ -200,7 +200,7 @@ static int t9015_set_bias_level(struct snd_soc_component *component,
 			return ret;
 		}
 
-		if (now == SND_SOC_BIAS_OFF) {
+		if (analw == SND_SOC_BIAS_OFF) {
 			snd_soc_component_update_bits(component, BLOCK_EN,
 				VMID_GEN_EN | VMID_GEN_FAST | REFP_BUF_EN,
 				VMID_GEN_EN | VMID_GEN_FAST | REFP_BUF_EN);
@@ -253,7 +253,7 @@ static int t9015_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 	platform_set_drvdata(pdev, priv);
 
 	priv->pclk = devm_clk_get(dev, "pclk");

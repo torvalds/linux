@@ -45,7 +45,7 @@ struct command_chunk {
 	u8 *head;
 	dma_addr_t dma_addr;
 	u32 size; /* Chunk size, max CPT_INST_CHUNK_MAX_SIZE */
-	struct hlist_node nextchunk;
+	struct hlist_analde nextchunk;
 };
 
 struct command_queue {
@@ -96,7 +96,7 @@ struct cpt_vf {
 	u8 vfid; /* Device Index 0...CPT_MAX_VF_NUM */
 	u8 vftype; /* VF type of SE_TYPE(1) or AE_TYPE(1) */
 	u8 vfgrp; /* VF group (0 - 8) */
-	u8 node; /* Operating node: Bits (46:44) in BAR0 address */
+	u8 analde; /* Operating analde: Bits (46:44) in BAR0 address */
 	u8 priority; /* VF priority ring: 1-High proirity round
 		      * robin ring;0-Low priority round robin ring;
 		      */
@@ -124,6 +124,6 @@ int cptvf_check_pf_ready(struct cpt_vf *cptvf);
 void cptvf_handle_mbox_intr(struct cpt_vf *cptvf);
 void cvm_crypto_exit(void);
 int cvm_crypto_init(struct cpt_vf *cptvf);
-void vq_post_process(struct cpt_vf *cptvf, u32 qno);
+void vq_post_process(struct cpt_vf *cptvf, u32 qanal);
 void cptvf_write_vq_doorbell(struct cpt_vf *cptvf, u32 val);
 #endif /* __CPTVF_H */

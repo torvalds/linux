@@ -80,7 +80,7 @@ struct ocmem {
 #define OCMEM_REG_GFX_MPU_END			0x00001008
 
 #define OCMEM_HW_VERSION_MAJOR(val)		FIELD_GET(GENMASK(31, 28), val)
-#define OCMEM_HW_VERSION_MINOR(val)		FIELD_GET(GENMASK(27, 16), val)
+#define OCMEM_HW_VERSION_MIANALR(val)		FIELD_GET(GENMASK(27, 16), val)
 #define OCMEM_HW_VERSION_STEP(val)		FIELD_GET(GENMASK(15, 0), val)
 
 #define OCMEM_HW_PROFILE_NUM_PORTS(val)		FIELD_GET(0x0000000f, (val))
@@ -154,7 +154,7 @@ static unsigned long device_address(struct ocmem *ocmem,
 {
 	WARN_ON(client != OCMEM_GRAPHICS);
 
-	/* TODO: gpu uses phys_to_offset, but others do not.. */
+	/* TODO: gpu uses phys_to_offset, but others do analt.. */
 	return phys_to_offset(ocmem, addr);
 }
 
@@ -185,29 +185,29 @@ static void update_range(struct ocmem *ocmem, struct ocmem_buf *buf,
 struct ocmem *of_get_ocmem(struct device *dev)
 {
 	struct platform_device *pdev;
-	struct device_node *devnode;
+	struct device_analde *devanalde;
 	struct ocmem *ocmem;
 
-	devnode = of_parse_phandle(dev->of_node, "sram", 0);
-	if (!devnode || !devnode->parent) {
-		dev_err(dev, "Cannot look up sram phandle\n");
-		of_node_put(devnode);
-		return ERR_PTR(-ENODEV);
+	devanalde = of_parse_phandle(dev->of_analde, "sram", 0);
+	if (!devanalde || !devanalde->parent) {
+		dev_err(dev, "Cananalt look up sram phandle\n");
+		of_analde_put(devanalde);
+		return ERR_PTR(-EANALDEV);
 	}
 
-	pdev = of_find_device_by_node(devnode->parent);
+	pdev = of_find_device_by_analde(devanalde->parent);
 	if (!pdev) {
-		dev_err(dev, "Cannot find device node %s\n", devnode->name);
-		of_node_put(devnode);
+		dev_err(dev, "Cananalt find device analde %s\n", devanalde->name);
+		of_analde_put(devanalde);
 		return ERR_PTR(-EPROBE_DEFER);
 	}
-	of_node_put(devnode);
+	of_analde_put(devanalde);
 
 	ocmem = platform_get_drvdata(pdev);
 	if (!ocmem) {
-		dev_err(dev, "Cannot get ocmem\n");
+		dev_err(dev, "Cananalt get ocmem\n");
 		put_device(&pdev->dev);
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 	}
 	return ocmem;
 }
@@ -221,7 +221,7 @@ struct ocmem_buf *ocmem_allocate(struct ocmem *ocmem, enum ocmem_client client,
 
 	/* TODO: add support for other clients... */
 	if (WARN_ON(client != OCMEM_GRAPHICS))
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	if (size < OCMEM_MIN_ALLOC || !IS_ALIGNED(size, OCMEM_MIN_ALIGN))
 		return ERR_PTR(-EINVAL);
@@ -231,7 +231,7 @@ struct ocmem_buf *ocmem_allocate(struct ocmem *ocmem, enum ocmem_client client,
 
 	buf = kzalloc(sizeof(*buf), GFP_KERNEL);
 	if (!buf) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_unlock;
 	}
 
@@ -245,7 +245,7 @@ struct ocmem_buf *ocmem_allocate(struct ocmem *ocmem, enum ocmem_client client,
 		ret = qcom_scm_ocmem_lock(QCOM_SCM_OCMEM_GRAPHICS_ID,
 					  buf->offset, buf->len, WIDE_MODE);
 		if (ret) {
-			dev_err(ocmem->dev, "could not lock: %d\n", ret);
+			dev_err(ocmem->dev, "could analt lock: %d\n", ret);
 			ret = -EINVAL;
 			goto err_kfree;
 		}
@@ -284,7 +284,7 @@ void ocmem_free(struct ocmem *ocmem, enum ocmem_client client,
 		ret = qcom_scm_ocmem_unlock(QCOM_SCM_OCMEM_GRAPHICS_ID,
 					    buf->offset, buf->len);
 		if (ret)
-			dev_err(ocmem->dev, "could not unlock: %d\n", ret);
+			dev_err(ocmem->dev, "could analt unlock: %d\n", ret);
 	} else {
 		ocmem_write(ocmem, OCMEM_REG_GFX_MPU_START, 0x0);
 		ocmem_write(ocmem, OCMEM_REG_GFX_MPU_END, 0x0);
@@ -308,7 +308,7 @@ static int ocmem_dev_probe(struct platform_device *pdev)
 
 	ocmem = devm_kzalloc(dev, sizeof(*ocmem), GFP_KERNEL);
 	if (!ocmem)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ocmem->dev = dev;
 	ocmem->config = device_get_match_data(dev);
@@ -331,11 +331,11 @@ static int ocmem_dev_probe(struct platform_device *pdev)
 	ocmem->memory = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 						     "mem");
 	if (!ocmem->memory) {
-		dev_err(dev, "Could not get mem region\n");
+		dev_err(dev, "Could analt get mem region\n");
 		return -ENXIO;
 	}
 
-	/* The core clock is synchronous with graphics */
+	/* The core clock is synchroanalus with graphics */
 	WARN_ON(clk_set_rate(ocmem->core_clk, 1000) < 0);
 
 	ret = clk_prepare_enable(ocmem->core_clk);
@@ -352,7 +352,7 @@ static int ocmem_dev_probe(struct platform_device *pdev)
 		dev_dbg(dev, "configuring scm\n");
 		ret = qcom_scm_restore_sec_cfg(QCOM_SCM_OCMEM_DEV_ID, 0);
 		if (ret) {
-			dev_err_probe(dev, ret, "Could not enable secure configuration\n");
+			dev_err_probe(dev, ret, "Could analt enable secure configuration\n");
 			goto err_clk_disable;
 		}
 	}
@@ -360,7 +360,7 @@ static int ocmem_dev_probe(struct platform_device *pdev)
 	reg = ocmem_read(ocmem, OCMEM_REG_HW_VERSION);
 	dev_dbg(dev, "OCMEM hardware version: %lu.%lu.%lu\n",
 		OCMEM_HW_VERSION_MAJOR(reg),
-		OCMEM_HW_VERSION_MINOR(reg),
+		OCMEM_HW_VERSION_MIANALR(reg),
 		OCMEM_HW_VERSION_STEP(reg));
 
 	reg = ocmem_read(ocmem, OCMEM_REG_HW_PROFILE);
@@ -373,12 +373,12 @@ static int ocmem_dev_probe(struct platform_device *pdev)
 
 	dev_info(dev, "%u ports, %u regions, %u macros, %sinterleaved\n",
 		 ocmem->num_ports, ocmem->config->num_regions,
-		 ocmem->num_macros, ocmem->interleaved ? "" : "not ");
+		 ocmem->num_macros, ocmem->interleaved ? "" : "analt ");
 
 	ocmem->regions = devm_kcalloc(dev, ocmem->config->num_regions,
 				      sizeof(struct ocmem_region), GFP_KERNEL);
 	if (!ocmem->regions) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_clk_disable;
 	}
 

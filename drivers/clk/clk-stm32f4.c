@@ -18,7 +18,7 @@
 #include <linux/mfd/syscon.h>
 
 /*
- * Include list of clocks wich are not derived from system clock (SYSCLOCK)
+ * Include list of clocks wich are analt derived from system clock (SYSCLOCK)
  * The index of these clocks is the secondary index of DT bindings
  *
  */
@@ -39,10 +39,10 @@
 #define STM32F4_RCC_DCKCFGR		0x8c
 #define STM32F7_RCC_DCKCFGR2		0x90
 
-#define NONE -1
-#define NO_IDX  NONE
-#define NO_MUX  NONE
-#define NO_GATE NONE
+#define ANALNE -1
+#define ANAL_IDX  ANALNE
+#define ANAL_MUX  ANALNE
+#define ANAL_GATE ANALNE
 
 struct stm32f4_gate_data {
 	u8	offset;
@@ -84,7 +84,7 @@ static const struct stm32f4_gate_data stm32f429_gates[] __initconst = {
 	{ STM32F4_RCC_AHB2ENR,  7,	"otgfs",	"pll48" },
 
 	{ STM32F4_RCC_AHB3ENR,  0,	"fmc",		"ahb_div",
-		CLK_IGNORE_UNUSED },
+		CLK_IGANALRE_UNUSED },
 
 	{ STM32F4_RCC_APB1ENR,  0,	"tim2",		"apb1_mul" },
 	{ STM32F4_RCC_APB1ENR,  1,	"tim3",		"apb1_mul" },
@@ -163,9 +163,9 @@ static const struct stm32f4_gate_data stm32f469_gates[] __initconst = {
 	{ STM32F4_RCC_AHB2ENR,  7,	"otgfs",	"pll48" },
 
 	{ STM32F4_RCC_AHB3ENR,  0,	"fmc",		"ahb_div",
-		CLK_IGNORE_UNUSED },
+		CLK_IGANALRE_UNUSED },
 	{ STM32F4_RCC_AHB3ENR,  1,	"qspi",		"ahb_div",
-		CLK_IGNORE_UNUSED },
+		CLK_IGANALRE_UNUSED },
 
 	{ STM32F4_RCC_APB1ENR,  0,	"tim2",		"apb1_mul" },
 	{ STM32F4_RCC_APB1ENR,  1,	"tim3",		"apb1_mul" },
@@ -244,9 +244,9 @@ static const struct stm32f4_gate_data stm32f746_gates[] __initconst = {
 	{ STM32F4_RCC_AHB2ENR,  7,	"otgfs",	"pll48"   },
 
 	{ STM32F4_RCC_AHB3ENR,  0,	"fmc",		"ahb_div",
-		CLK_IGNORE_UNUSED },
+		CLK_IGANALRE_UNUSED },
 	{ STM32F4_RCC_AHB3ENR,  1,	"qspi",		"ahb_div",
-		CLK_IGNORE_UNUSED },
+		CLK_IGANALRE_UNUSED },
 
 	{ STM32F4_RCC_APB1ENR,  0,	"tim2",		"apb1_mul" },
 	{ STM32F4_RCC_APB1ENR,  1,	"tim3",		"apb1_mul" },
@@ -319,9 +319,9 @@ static const struct stm32f4_gate_data stm32f769_gates[] __initconst = {
 	{ STM32F4_RCC_AHB2ENR,  7,	"otgfs",	"pll48"   },
 
 	{ STM32F4_RCC_AHB3ENR,  0,	"fmc",		"ahb_div",
-		CLK_IGNORE_UNUSED },
+		CLK_IGANALRE_UNUSED },
 	{ STM32F4_RCC_AHB3ENR,  1,	"qspi",		"ahb_div",
-		CLK_IGNORE_UNUSED },
+		CLK_IGANALRE_UNUSED },
 
 	{ STM32F4_RCC_APB1ENR,  0,	"tim2",		"apb1_mul" },
 	{ STM32F4_RCC_APB1ENR,  1,	"tim3",		"apb1_mul" },
@@ -400,7 +400,7 @@ static int stm32fx_end_primary_clk;
 /*
  * "Multiplier" device for APBx clocks.
  *
- * The APBx dividers are power-of-two dividers and, if *not* running in 1:1
+ * The APBx dividers are power-of-two dividers and, if *analt* running in 1:1
  * mode, they also tap out the one of the low order state bits to run the
  * timers. ST datasheets represent this feature as a (conditional) clock
  * multiplier.
@@ -447,7 +447,7 @@ static int clk_apb_mul_set_rate(struct clk_hw *hw, unsigned long rate,
 	/*
 	 * We must report success but we can do so unconditionally because
 	 * clk_apb_mul_round_rate returns values that ensure this call is a
-	 * nop.
+	 * analp.
 	 */
 
 	return 0;
@@ -469,7 +469,7 @@ static struct clk *clk_register_apb_mul(struct device *dev, const char *name,
 
 	am = kzalloc(sizeof(*am), GFP_KERNEL);
 	if (!am)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	am->bit_idx = bit_idx;
 	am->hw.init = &init;
@@ -559,7 +559,7 @@ static const struct stm32f4_pll_post_div_data  post_div_data[MAX_POST_DIV] = {
 	{ CLK_SAIQ_PDIV, PLL_VCO_SAI, "pllsai-q-div", "pllsai-q",
 		CLK_SET_RATE_PARENT, STM32F4_RCC_DCKCFGR, 8, 5, 0, NULL },
 
-	{ NO_IDX, PLL_VCO_SAI, "pllsai-r-div", "pllsai-r", CLK_SET_RATE_PARENT,
+	{ ANAL_IDX, PLL_VCO_SAI, "pllsai-r-div", "pllsai-r", CLK_SET_RATE_PARENT,
 		STM32F4_RCC_DCKCFGR, 16, 2, 0, post_divr_table },
 };
 
@@ -752,7 +752,7 @@ static struct clk_hw *clk_register_pll_div(const char *name,
 	/* allocate the divider */
 	pll_div = kzalloc(sizeof(*pll_div), GFP_KERNEL);
 	if (!pll_div)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = name;
 	init.ops = &stm32f4_pll_div_ops;
@@ -796,7 +796,7 @@ static struct clk_hw *stm32f4_rcc_register_pll(const char *pllsrc,
 
 	pll = kzalloc(sizeof(*pll), GFP_KERNEL);
 	if (!pll)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	vco = &vco_data[data->pll_num];
 
@@ -966,7 +966,7 @@ static struct clk_hw *clk_register_rgate(struct device *dev, const char *name,
 
 	rgate = kzalloc(sizeof(*rgate), GFP_KERNEL);
 	if (!rgate)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = name;
 	init.ops = &rgclk_ops;
@@ -1045,7 +1045,7 @@ static int cclk_mux_set_parent(struct clk_hw *hw, u8 index)
 }
 
 static const struct clk_ops cclk_mux_ops = {
-	.determine_rate = clk_hw_determine_rate_no_reparent,
+	.determine_rate = clk_hw_determine_rate_anal_reparent,
 	.get_parent = cclk_mux_get_parent,
 	.set_parent = cclk_mux_set_parent,
 };
@@ -1114,7 +1114,7 @@ static const struct clk_div_table apb_div_table[] = {
 };
 
 static const char *rtc_parents[4] = {
-	"no-clock", "lse", "lsi", "hse-rtc"
+	"anal-clock", "lse", "lsi", "hse-rtc"
 };
 
 static const char *pll_src = "pll-src";
@@ -1128,7 +1128,7 @@ static const char *lcd_parent[1] = { "pllsai-r-div" };
 static const char *i2s_parents[2] = { "plli2s-r", NULL };
 
 static const char *sai_parents[4] = { "pllsai-q-div", "plli2s-q-div", NULL,
-	"no-clock" };
+	"anal-clock" };
 
 static const char *pll48_parents[2] = { "pll-q", "pllsai-p" };
 
@@ -1143,7 +1143,7 @@ static const char *lptim_parent[4] = { "apb1_mul", "lsi", "hsi", "lse" };
 static const char *uart_parents1[4] = { "apb2_div", "sys", "hsi", "lse" };
 static const char *uart_parents2[4] = { "apb1_div", "sys", "hsi", "lse" };
 
-static const char *i2c_parents[4] = { "apb1_div", "sys", "hsi", "no-clock" };
+static const char *i2c_parents[4] = { "apb1_div", "sys", "hsi", "anal-clock" };
 
 static const char * const dfsdm1_src[] = { "apb2_div", "sys" };
 static const char * const adsfdm1_parent[] = { "sai1_clk", "sai2_clk" };
@@ -1174,14 +1174,14 @@ struct stm32f4_clk_data {
 static const struct stm32_aux_clk stm32f429_aux_clk[] = {
 	{
 		CLK_LCD, "lcd-tft", lcd_parent, ARRAY_SIZE(lcd_parent),
-		NO_MUX, 0, 0,
+		ANAL_MUX, 0, 0,
 		STM32F4_RCC_APB2ENR, 26,
 		CLK_SET_RATE_PARENT
 	},
 	{
 		CLK_I2S, "i2s", i2s_parents, ARRAY_SIZE(i2s_parents),
 		STM32F4_RCC_CFGR, 23, 1,
-		NO_GATE, 0,
+		ANAL_GATE, 0,
 		CLK_SET_RATE_PARENT
 	},
 	{
@@ -1201,14 +1201,14 @@ static const struct stm32_aux_clk stm32f429_aux_clk[] = {
 static const struct stm32_aux_clk stm32f469_aux_clk[] = {
 	{
 		CLK_LCD, "lcd-tft", lcd_parent, ARRAY_SIZE(lcd_parent),
-		NO_MUX, 0, 0,
+		ANAL_MUX, 0, 0,
 		STM32F4_RCC_APB2ENR, 26,
 		CLK_SET_RATE_PARENT
 	},
 	{
 		CLK_I2S, "i2s", i2s_parents, ARRAY_SIZE(i2s_parents),
 		STM32F4_RCC_CFGR, 23, 1,
-		NO_GATE, 0,
+		ANAL_GATE, 0,
 		CLK_SET_RATE_PARENT
 	},
 	{
@@ -1224,36 +1224,36 @@ static const struct stm32_aux_clk stm32f469_aux_clk[] = {
 		CLK_SET_RATE_PARENT
 	},
 	{
-		NO_IDX, "pll48", pll48_parents, ARRAY_SIZE(pll48_parents),
+		ANAL_IDX, "pll48", pll48_parents, ARRAY_SIZE(pll48_parents),
 		STM32F4_RCC_DCKCFGR, 27, 1,
-		NO_GATE, 0,
+		ANAL_GATE, 0,
 		0
 	},
 	{
-		NO_IDX, "sdmux", sdmux_parents, ARRAY_SIZE(sdmux_parents),
+		ANAL_IDX, "sdmux", sdmux_parents, ARRAY_SIZE(sdmux_parents),
 		STM32F4_RCC_DCKCFGR, 28, 1,
-		NO_GATE, 0,
+		ANAL_GATE, 0,
 		0
 	},
 	{
 		CLK_F469_DSI, "dsi", dsi_parent, ARRAY_SIZE(dsi_parent),
 		STM32F4_RCC_DCKCFGR, 29, 1,
 		STM32F4_RCC_APB2ENR, 27,
-		CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT
+		CLK_SET_RATE_PARENT | CLK_SET_RATE_ANAL_REPARENT
 	},
 };
 
 static const struct stm32_aux_clk stm32f746_aux_clk[] = {
 	{
 		CLK_LCD, "lcd-tft", lcd_parent, ARRAY_SIZE(lcd_parent),
-		NO_MUX, 0, 0,
+		ANAL_MUX, 0, 0,
 		STM32F4_RCC_APB2ENR, 26,
 		CLK_SET_RATE_PARENT
 	},
 	{
 		CLK_I2S, "i2s", i2s_parents, ARRAY_SIZE(i2s_parents),
 		STM32F4_RCC_CFGR, 23, 1,
-		NO_GATE, 0,
+		ANAL_GATE, 0,
 		CLK_SET_RATE_PARENT
 	},
 	{
@@ -1269,22 +1269,22 @@ static const struct stm32_aux_clk stm32f746_aux_clk[] = {
 		CLK_SET_RATE_PARENT
 	},
 	{
-		NO_IDX, "pll48", pll48_parents, ARRAY_SIZE(pll48_parents),
+		ANAL_IDX, "pll48", pll48_parents, ARRAY_SIZE(pll48_parents),
 		STM32F7_RCC_DCKCFGR2, 27, 1,
-		NO_GATE, 0,
+		ANAL_GATE, 0,
 		0
 	},
 	{
-		NO_IDX, "sdmux", sdmux_parents, ARRAY_SIZE(sdmux_parents),
+		ANAL_IDX, "sdmux", sdmux_parents, ARRAY_SIZE(sdmux_parents),
 		STM32F7_RCC_DCKCFGR2, 28, 1,
-		NO_GATE, 0,
+		ANAL_GATE, 0,
 		0
 	},
 	{
 		CLK_HDMI_CEC, "hdmi-cec",
 		hdmi_parents, ARRAY_SIZE(hdmi_parents),
 		STM32F7_RCC_DCKCFGR2, 26, 1,
-		NO_GATE, 0,
+		ANAL_GATE, 0,
 		0
 	},
 	{
@@ -1392,14 +1392,14 @@ static const struct stm32_aux_clk stm32f746_aux_clk[] = {
 static const struct stm32_aux_clk stm32f769_aux_clk[] = {
 	{
 		CLK_LCD, "lcd-tft", lcd_parent, ARRAY_SIZE(lcd_parent),
-		NO_MUX, 0, 0,
+		ANAL_MUX, 0, 0,
 		STM32F4_RCC_APB2ENR, 26,
 		CLK_SET_RATE_PARENT
 	},
 	{
 		CLK_I2S, "i2s", i2s_parents, ARRAY_SIZE(i2s_parents),
 		STM32F4_RCC_CFGR, 23, 1,
-		NO_GATE, 0,
+		ANAL_GATE, 0,
 		CLK_SET_RATE_PARENT
 	},
 	{
@@ -1415,28 +1415,28 @@ static const struct stm32_aux_clk stm32f769_aux_clk[] = {
 		CLK_SET_RATE_PARENT
 	},
 	{
-		NO_IDX, "pll48", pll48_parents, ARRAY_SIZE(pll48_parents),
+		ANAL_IDX, "pll48", pll48_parents, ARRAY_SIZE(pll48_parents),
 		STM32F7_RCC_DCKCFGR2, 27, 1,
-		NO_GATE, 0,
+		ANAL_GATE, 0,
 		0
 	},
 	{
-		NO_IDX, "sdmux1", sdmux_parents, ARRAY_SIZE(sdmux_parents),
+		ANAL_IDX, "sdmux1", sdmux_parents, ARRAY_SIZE(sdmux_parents),
 		STM32F7_RCC_DCKCFGR2, 28, 1,
-		NO_GATE, 0,
+		ANAL_GATE, 0,
 		0
 	},
 	{
-		NO_IDX, "sdmux2", sdmux_parents, ARRAY_SIZE(sdmux_parents),
+		ANAL_IDX, "sdmux2", sdmux_parents, ARRAY_SIZE(sdmux_parents),
 		STM32F7_RCC_DCKCFGR2, 29, 1,
-		NO_GATE, 0,
+		ANAL_GATE, 0,
 		0
 	},
 	{
 		CLK_HDMI_CEC, "hdmi-cec",
 		hdmi_parents, ARRAY_SIZE(hdmi_parents),
 		STM32F7_RCC_DCKCFGR2, 26, 1,
-		NO_GATE, 0,
+		ANAL_GATE, 0,
 		0
 	},
 	{
@@ -1632,7 +1632,7 @@ static struct clk_hw *stm32_register_aux_clk(const char *name,
 	struct clk_hw *mux_hw = NULL, *gate_hw = NULL;
 	const struct clk_ops *mux_ops = NULL, *gate_ops = NULL;
 
-	if (offset_gate != NO_GATE) {
+	if (offset_gate != ANAL_GATE) {
 		gate = kzalloc(sizeof(*gate), GFP_KERNEL);
 		if (!gate) {
 			hw = ERR_PTR(-EINVAL);
@@ -1647,7 +1647,7 @@ static struct clk_hw *stm32_register_aux_clk(const char *name,
 		gate_ops = &clk_gate_ops;
 	}
 
-	if (offset_mux != NO_MUX) {
+	if (offset_mux != ANAL_MUX) {
 		mux = kzalloc(sizeof(*mux), GFP_KERNEL);
 		if (!mux) {
 			hw = ERR_PTR(-EINVAL);
@@ -1682,7 +1682,7 @@ fail:
 	return hw;
 }
 
-static void __init stm32f4_rcc_init(struct device_node *np)
+static void __init stm32f4_rcc_init(struct device_analde *np)
 {
 	const char *hse_clk, *i2s_in_clk;
 	int n;
@@ -1703,7 +1703,7 @@ static void __init stm32f4_rcc_init(struct device_node *np)
 		pr_warn("%s: Unable to get syscfg\n", __func__);
 	}
 
-	match = of_match_node(stm32f4_of_match, np);
+	match = of_match_analde(stm32f4_of_match, np);
 	if (WARN_ON(!match))
 		return;
 
@@ -1730,7 +1730,7 @@ static void __init stm32f4_rcc_init(struct device_node *np)
 	if (of_device_is_compatible(np, "st,stm32f769-rcc")) {
 		clk_hw_register_gate(NULL, "dfsdm1_apb", "apb2_div", 0,
 				     base + STM32F4_RCC_APB2ENR, 29,
-				     CLK_IGNORE_UNUSED, &stm32f4_clk_lock);
+				     CLK_IGANALRE_UNUSED, &stm32f4_clk_lock);
 		dsi_parent[0] = pll_src;
 		sai_parents[3] = pll_src;
 	}
@@ -1774,7 +1774,7 @@ static void __init stm32f4_rcc_init(struct device_node *np)
 				clks[post_div->pll_idx],
 				&stm32f4_clk_lock);
 
-		if (post_div->idx != NO_IDX)
+		if (post_div->idx != ANAL_IDX)
 			clks[post_div->idx] = hw;
 	}
 
@@ -1880,7 +1880,7 @@ static void __init stm32f4_rcc_init(struct device_node *np)
 			continue;
 		}
 
-		if (aux_clk->idx != NO_IDX)
+		if (aux_clk->idx != ANAL_IDX)
 			clks[aux_clk->idx] = hw;
 	}
 

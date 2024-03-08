@@ -26,7 +26,7 @@ static inline int br_vlan_tunid_cmp(struct rhashtable_compare_arg *arg,
 }
 
 static const struct rhashtable_params br_vlan_tunnel_rht_params = {
-	.head_offset = offsetof(struct net_bridge_vlan, tnode),
+	.head_offset = offsetof(struct net_bridge_vlan, tanalde),
 	.key_offset = offsetof(struct net_bridge_vlan, tinfo.tunnel_id),
 	.key_len = sizeof(__be64),
 	.nelem_hint = 3,
@@ -55,7 +55,7 @@ void vlan_tunnel_info_del(struct net_bridge_vlan_group *vg,
 {
 	if (!rcu_access_pointer(vlan->tinfo.tunnel_dst))
 		return;
-	rhashtable_remove_fast(&vg->tunnel_hash, &vlan->tnode,
+	rhashtable_remove_fast(&vg->tunnel_hash, &vlan->tanalde,
 			       br_vlan_tunnel_rht_params);
 	vlan_tunnel_info_release(vlan);
 }
@@ -79,7 +79,7 @@ static int __vlan_tunnel_info_add(struct net_bridge_vlan_group *vg,
 	rcu_assign_pointer(vlan->tinfo.tunnel_dst, metadata);
 	WRITE_ONCE(vlan->tinfo.tunnel_id, key);
 
-	err = rhashtable_lookup_insert_fast(&vg->tunnel_hash, &vlan->tnode,
+	err = rhashtable_lookup_insert_fast(&vg->tunnel_hash, &vlan->tanalde,
 					    br_vlan_tunnel_rht_params);
 	if (err)
 		goto out;
@@ -123,7 +123,7 @@ int nbp_vlan_tunnel_info_delete(const struct net_bridge_port *port, u16 vid)
 	vg = nbp_vlan_group(port);
 	v = br_vlan_find(vg, vid);
 	if (!v)
-		return -ENOENT;
+		return -EANALENT;
 
 	vlan_tunnel_info_del(vg, v);
 
@@ -168,7 +168,7 @@ void br_handle_ingress_vlan_tunnel(struct sk_buff *skb,
 	if (!vg || !tinfo)
 		return;
 
-	/* if already tagged, ignore */
+	/* if already tagged, iganalre */
 	if (skb_vlan_tagged(skb))
 		return;
 
@@ -205,7 +205,7 @@ int br_handle_egress_vlan_tunnel(struct sk_buff *skb,
 		tunnel_dst = __ip_tun_set_dst(0, 0, 0, 0, 0, TUNNEL_KEY,
 					      tunnel_id, 0);
 		if (!tunnel_dst)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		tunnel_dst->u.tun_info.mode |= IP_TUNNEL_INFO_TX |
 					       IP_TUNNEL_INFO_BRIDGE;

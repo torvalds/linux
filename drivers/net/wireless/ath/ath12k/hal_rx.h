@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-3-Clause-Clear */
 /*
  * Copyright (c) 2018-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #ifndef ATH12K_HAL_RX_H
@@ -98,14 +98,14 @@ enum hal_rx_legacy_rate {
 	HAL_RX_LEGACY_RATE_INVALID,
 };
 
-#define HAL_TLV_STATUS_PPDU_NOT_DONE            0
+#define HAL_TLV_STATUS_PPDU_ANALT_DONE            0
 #define HAL_TLV_STATUS_PPDU_DONE                1
 #define HAL_TLV_STATUS_BUF_DONE                 2
-#define HAL_TLV_STATUS_PPDU_NON_STD_DONE        3
+#define HAL_TLV_STATUS_PPDU_ANALN_STD_DONE        3
 #define HAL_RX_FCS_LEN                          4
 
 enum hal_rx_mon_status {
-	HAL_RX_MON_STATUS_PPDU_NOT_DONE,
+	HAL_RX_MON_STATUS_PPDU_ANALT_DONE,
 	HAL_RX_MON_STATUS_PPDU_DONE,
 	HAL_RX_MON_STATUS_BUF_DONE,
 };
@@ -199,7 +199,7 @@ struct hal_rx_mon_ppdu_info {
 	u16 he_per_user_1;
 	u16 he_per_user_2;
 	u8 he_per_user_position;
-	u8 he_per_user_known;
+	u8 he_per_user_kanalwn;
 	u16 he_flags1;
 	u16 he_flags2;
 	u8 he_RU[4];
@@ -339,7 +339,7 @@ struct hal_rx_vht_sig_a_info {
 } __packed;
 
 enum hal_rx_vht_sig_a_gi_setting {
-	HAL_RX_VHT_SIG_A_NORMAL_GI = 0,
+	HAL_RX_VHT_SIG_A_ANALRMAL_GI = 0,
 	HAL_RX_VHT_SIG_A_SHORT_GI = 1,
 	HAL_RX_VHT_SIG_A_SHORT_GI_AMBIGUITY = 3,
 };
@@ -536,25 +536,25 @@ struct hal_rx_resp_req_info {
 #define HE_EXT_SU_FORMAT_TYPE 0x0001
 #define HE_MU_FORMAT_TYPE  0x0002
 #define HE_TRIG_FORMAT_TYPE  0x0003
-#define HE_BEAM_CHANGE_KNOWN 0x0008
-#define HE_DL_UL_KNOWN 0x0010
-#define HE_MCS_KNOWN 0x0020
-#define HE_DCM_KNOWN 0x0040
-#define HE_CODING_KNOWN 0x0080
-#define HE_LDPC_EXTRA_SYMBOL_KNOWN 0x0100
-#define HE_STBC_KNOWN 0x0200
-#define HE_DATA_BW_RU_KNOWN 0x4000
-#define HE_DOPPLER_KNOWN 0x8000
-#define HE_BSS_COLOR_KNOWN 0x0004
+#define HE_BEAM_CHANGE_KANALWN 0x0008
+#define HE_DL_UL_KANALWN 0x0010
+#define HE_MCS_KANALWN 0x0020
+#define HE_DCM_KANALWN 0x0040
+#define HE_CODING_KANALWN 0x0080
+#define HE_LDPC_EXTRA_SYMBOL_KANALWN 0x0100
+#define HE_STBC_KANALWN 0x0200
+#define HE_DATA_BW_RU_KANALWN 0x4000
+#define HE_DOPPLER_KANALWN 0x8000
+#define HE_BSS_COLOR_KANALWN 0x0004
 
 /* HE Radiotap data2 Mask */
-#define HE_GI_KNOWN 0x0002
-#define HE_TXBF_KNOWN 0x0010
-#define HE_PE_DISAMBIGUITY_KNOWN 0x0020
-#define HE_TXOP_KNOWN 0x0040
-#define HE_LTF_SYMBOLS_KNOWN 0x0004
-#define HE_PRE_FEC_PADDING_KNOWN 0x0008
-#define HE_MIDABLE_PERIODICITY_KNOWN 0x0080
+#define HE_GI_KANALWN 0x0002
+#define HE_TXBF_KANALWN 0x0010
+#define HE_PE_DISAMBIGUITY_KANALWN 0x0020
+#define HE_TXOP_KANALWN 0x0040
+#define HE_LTF_SYMBOLS_KANALWN 0x0004
+#define HE_PRE_FEC_PADDING_KANALWN 0x0008
+#define HE_MIDABLE_PERIODICITY_KANALWN 0x0080
 
 /* HE radiotap data3 shift values */
 #define HE_BEAM_CHANGE_SHIFT 6
@@ -581,25 +581,25 @@ struct hal_rx_resp_req_info {
 #define HE_TXOP_SHIFT 8
 
 /* HE radiotap HE-MU flags1 */
-#define HE_SIG_B_MCS_KNOWN 0x0010
-#define HE_SIG_B_DCM_KNOWN 0x0040
-#define HE_SIG_B_SYM_NUM_KNOWN 0x8000
-#define HE_RU_0_KNOWN 0x0100
-#define HE_RU_1_KNOWN 0x0200
-#define HE_RU_2_KNOWN 0x0400
-#define HE_RU_3_KNOWN 0x0800
+#define HE_SIG_B_MCS_KANALWN 0x0010
+#define HE_SIG_B_DCM_KANALWN 0x0040
+#define HE_SIG_B_SYM_NUM_KANALWN 0x8000
+#define HE_RU_0_KANALWN 0x0100
+#define HE_RU_1_KANALWN 0x0200
+#define HE_RU_2_KANALWN 0x0400
+#define HE_RU_3_KANALWN 0x0800
 #define HE_DCM_FLAG_1_SHIFT 5
-#define HE_SPATIAL_REUSE_MU_KNOWN 0x0100
-#define HE_SIG_B_COMPRESSION_FLAG_1_KNOWN 0x4000
+#define HE_SPATIAL_REUSE_MU_KANALWN 0x0100
+#define HE_SIG_B_COMPRESSION_FLAG_1_KANALWN 0x4000
 
 /* HE radiotap HE-MU flags2 */
 #define HE_SIG_B_COMPRESSION_FLAG_2_SHIFT 3
-#define HE_BW_KNOWN 0x0004
+#define HE_BW_KANALWN 0x0004
 #define HE_NUM_SIG_B_SYMBOLS_SHIFT 4
-#define HE_SIG_B_COMPRESSION_FLAG_2_KNOWN 0x0100
+#define HE_SIG_B_COMPRESSION_FLAG_2_KANALWN 0x0100
 #define HE_NUM_SIG_B_FLAG_2_SHIFT 9
 #define HE_LTF_FLAG_2_SYMBOLS_SHIFT 12
-#define HE_LTF_KNOWN 0x8000
+#define HE_LTF_KANALWN 0x8000
 
 /* HE radiotap per_user_1 */
 #define HE_STA_SPATIAL_SHIFT 11
@@ -611,15 +611,15 @@ struct hal_rx_resp_req_info {
 #define HE_STA_MCS_SHIFT 4
 #define HE_STA_DCM_SHIFT 5
 
-/* HE radiotap per user known */
-#define HE_USER_FIELD_POSITION_KNOWN 0x01
-#define HE_STA_ID_PER_USER_KNOWN 0x02
-#define HE_STA_NSTS_KNOWN 0x04
-#define HE_STA_TX_BF_KNOWN 0x08
-#define HE_STA_SPATIAL_CONFIG_KNOWN 0x10
-#define HE_STA_MCS_KNOWN 0x20
-#define HE_STA_DCM_KNOWN 0x40
-#define HE_STA_CODING_KNOWN 0x80
+/* HE radiotap per user kanalwn */
+#define HE_USER_FIELD_POSITION_KANALWN 0x01
+#define HE_STA_ID_PER_USER_KANALWN 0x02
+#define HE_STA_NSTS_KANALWN 0x04
+#define HE_STA_TX_BF_KANALWN 0x08
+#define HE_STA_SPATIAL_CONFIG_KANALWN 0x10
+#define HE_STA_MCS_KANALWN 0x20
+#define HE_STA_DCM_KANALWN 0x40
+#define HE_STA_CODING_KANALWN 0x80
 
 #define HAL_RX_MPDU_ERR_FCS			BIT(0)
 #define HAL_RX_MPDU_ERR_DECRYPT			BIT(1)

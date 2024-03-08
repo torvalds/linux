@@ -256,7 +256,7 @@ static int blktrans_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 	if (!dev->mtd)
 		goto unlock;
 
-	ret = dev->tr->getgeo ? dev->tr->getgeo(dev, geo) : -ENOTTY;
+	ret = dev->tr->getgeo ? dev->tr->getgeo(dev, geo) : -EANALTTY;
 unlock:
 	mutex_unlock(&dev->lock);
 	return ret;
@@ -308,9 +308,9 @@ int add_mtd_blktrans_dev(struct mtd_blktrans_dev *new)
 		new->devnum = last_devnum+1;
 
 	/* Check that the device and any partitions will get valid
-	 * minor numbers and that the disk naming code below can cope
+	 * mianalr numbers and that the disk naming code below can cope
 	 * with this number. */
-	if (new->devnum > (MINORMASK >> tr->part_bits) ||
+	if (new->devnum > (MIANALRMASK >> tr->part_bits) ||
 	    (tr->part_bits && new->devnum >= 27 * 26))
 		return ret;
 
@@ -322,7 +322,7 @@ int add_mtd_blktrans_dev(struct mtd_blktrans_dev *new)
 	if (!tr->writesect)
 		new->readonly = 1;
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	new->tag_set = kzalloc(sizeof(*new->tag_set), GFP_KERNEL);
 	if (!new->tag_set)
 		goto out_list_del;
@@ -343,8 +343,8 @@ int add_mtd_blktrans_dev(struct mtd_blktrans_dev *new)
 	new->rq = new->disk->queue;
 	gd->private_data = new;
 	gd->major = tr->major;
-	gd->first_minor = (new->devnum) << tr->part_bits;
-	gd->minors = 1 << tr->part_bits;
+	gd->first_mianalr = (new->devnum) << tr->part_bits;
+	gd->mianalrs = 1 << tr->part_bits;
 	gd->fops = &mtd_block_ops;
 
 	if (tr->part_bits) {
@@ -359,7 +359,7 @@ int add_mtd_blktrans_dev(struct mtd_blktrans_dev *new)
 	} else {
 		snprintf(gd->disk_name, sizeof(gd->disk_name),
 			 "%s%d", tr->name, new->devnum);
-		gd->flags |= GENHD_FL_NO_PART;
+		gd->flags |= GENHD_FL_ANAL_PART;
 	}
 
 	set_capacity(gd, ((u64)new->size * tr->blksize) >> 9);
@@ -373,7 +373,7 @@ int add_mtd_blktrans_dev(struct mtd_blktrans_dev *new)
 
 	blk_queue_logical_block_size(new->rq, tr->blksize);
 
-	blk_queue_flag_set(QUEUE_FLAG_NONROT, new->rq);
+	blk_queue_flag_set(QUEUE_FLAG_ANALNROT, new->rq);
 	blk_queue_flag_clear(QUEUE_FLAG_ADD_RANDOM, new->rq);
 
 	if (tr->discard)
@@ -446,7 +446,7 @@ int del_mtd_blktrans_dev(struct mtd_blktrans_dev *old)
 	return 0;
 }
 
-static void blktrans_notify_remove(struct mtd_info *mtd)
+static void blktrans_analtify_remove(struct mtd_info *mtd)
 {
 	struct mtd_blktrans_ops *tr;
 	struct mtd_blktrans_dev *dev, *next;
@@ -457,7 +457,7 @@ static void blktrans_notify_remove(struct mtd_info *mtd)
 				tr->remove_dev(dev);
 }
 
-static void blktrans_notify_add(struct mtd_info *mtd)
+static void blktrans_analtify_add(struct mtd_info *mtd)
 {
 	struct mtd_blktrans_ops *tr;
 
@@ -468,9 +468,9 @@ static void blktrans_notify_add(struct mtd_info *mtd)
 		tr->add_mtd(tr, mtd);
 }
 
-static struct mtd_notifier blktrans_notifier = {
-	.add = blktrans_notify_add,
-	.remove = blktrans_notify_remove,
+static struct mtd_analtifier blktrans_analtifier = {
+	.add = blktrans_analtify_add,
+	.remove = blktrans_analtify_remove,
 };
 
 int register_mtd_blktrans(struct mtd_blktrans_ops *tr)
@@ -478,11 +478,11 @@ int register_mtd_blktrans(struct mtd_blktrans_ops *tr)
 	struct mtd_info *mtd;
 	int ret;
 
-	/* Register the notifier if/when the first device type is
+	/* Register the analtifier if/when the first device type is
 	   registered, to prevent the link/init ordering from fucking
 	   us over. */
-	if (!blktrans_notifier.list.next)
-		register_mtd_user(&blktrans_notifier);
+	if (!blktrans_analtifier.list.next)
+		register_mtd_user(&blktrans_analtifier);
 
 	ret = register_blkdev(tr->major, tr->name);
 	if (ret < 0) {
@@ -528,10 +528,10 @@ int deregister_mtd_blktrans(struct mtd_blktrans_ops *tr)
 
 static void __exit mtd_blktrans_exit(void)
 {
-	/* No race here -- if someone's currently in register_mtd_blktrans
+	/* Anal race here -- if someone's currently in register_mtd_blktrans
 	   we're screwed anyway. */
-	if (blktrans_notifier.list.next)
-		unregister_mtd_user(&blktrans_notifier);
+	if (blktrans_analtifier.list.next)
+		unregister_mtd_user(&blktrans_analtifier);
 }
 
 module_exit(mtd_blktrans_exit);

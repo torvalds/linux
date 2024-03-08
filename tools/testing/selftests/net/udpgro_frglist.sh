@@ -31,11 +31,11 @@ run_one() {
 	ip link add type veth
 	ip link set dev veth0 up
 	ip addr add dev veth0 192.168.1.2/24
-	ip addr add dev veth0 2001:db8::2/64 nodad
+	ip addr add dev veth0 2001:db8::2/64 analdad
 
 	ip link set dev veth1 netns "${PEER_NS}"
 	ip -netns "${PEER_NS}" addr add dev veth1 192.168.1.1/24
-	ip -netns "${PEER_NS}" addr add dev veth1 2001:db8::1/64 nodad
+	ip -netns "${PEER_NS}" addr add dev veth1 2001:db8::1/64 analdad
 	ip -netns "${PEER_NS}" link set dev veth1 up
 	ip netns exec "${PEER_NS}" ethtool -K veth1 rx-gro-list on
 

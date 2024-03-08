@@ -97,13 +97,13 @@ int cipso_v4_rbm_strictvalid = 1;
 /* Base length of the ranged categories bitmap tag (tag #5). */
 #define CIPSO_V4_TAG_RNG_BLEN         4
 /* The maximum number of category ranges permitted in the ranged category tag
- * (tag #5).  You may note that the IETF draft states that the maximum number
+ * (tag #5).  You may analte that the IETF draft states that the maximum number
  * of category ranges is 7, but if the low end of the last category range is
  * zero then it is possible to fit 8 category ranges because the zero should
  * be omitted. */
 #define CIPSO_V4_TAG_RNG_CAT_MAX      8
 
-/* Base length of the local tag (non-standard tag).
+/* Base length of the local tag (analn-standard tag).
  *  Tag definition (may change between kernel versions)
  *
  * 0          8          16         24         32
@@ -126,7 +126,7 @@ int cipso_v4_rbm_strictvalid = 1;
  *
  * Description:
  * This function frees the memory associated with a cache entry including the
- * LSM cache data if there are no longer any users, i.e. reference count == 0.
+ * LSM cache data if there are anal longer any users, i.e. reference count == 0.
  *
  */
 static void cipso_v4_cache_entry_free(struct cipso_v4_map_cache_entry *entry)
@@ -172,7 +172,7 @@ static int __init cipso_v4_cache_init(void)
 				 sizeof(struct cipso_v4_map_cache_bkt),
 				 GFP_KERNEL);
 	if (!cipso_v4_cache)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (iter = 0; iter < CIPSO_V4_CACHE_BUCKETS; iter++) {
 		spin_lock_init(&cipso_v4_cache[iter].lock);
@@ -218,7 +218,7 @@ void cipso_v4_cache_invalidate(void)
  * This function checks the cache to see if a label mapping already exists for
  * the given key.  If there is a match then the cache is adjusted and the
  * @secattr struct is populated with the correct LSM security attributes.  The
- * cache is adjusted in the following manner if the entry is not already the
+ * cache is adjusted in the following manner if the entry is analt already the
  * first in the cache bucket:
  *
  *  1. The cache entry's activity counter is incremented
@@ -226,7 +226,7 @@ void cipso_v4_cache_invalidate(void)
  *  3. If the difference between the two activity counters is geater than
  *     CIPSO_V4_CACHE_REORDERLIMIT the two entries are swapped
  *
- * Returns zero on success, -ENOENT for a cache miss, and other negative values
+ * Returns zero on success, -EANALENT for a cache miss, and other negative values
  * on error.
  *
  */
@@ -240,7 +240,7 @@ static int cipso_v4_cache_check(const unsigned char *key,
 	u32 hash;
 
 	if (!READ_ONCE(cipso_v4_cache_enabled))
-		return -ENOENT;
+		return -EANALENT;
 
 	hash = cipso_v4_map_cache_hash(key, key_len);
 	bkt = hash & (CIPSO_V4_CACHE_BUCKETS - 1);
@@ -277,7 +277,7 @@ static int cipso_v4_cache_check(const unsigned char *key,
 	}
 	spin_unlock_bh(&cipso_v4_cache[bkt].lock);
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 /**
@@ -288,8 +288,8 @@ static int cipso_v4_cache_check(const unsigned char *key,
  * Description:
  * Add a new entry into the CIPSO label mapping cache.  Add the new entry to
  * head of the cache bucket's list, if the cache bucket is out of room remove
- * the last entry in the list first.  It is important to note that there is
- * currently no checking for duplicate keys.  Returns zero on success,
+ * the last entry in the list first.  It is important to analte that there is
+ * currently anal checking for duplicate keys.  Returns zero on success,
  * negative values on failure.
  *
  */
@@ -310,10 +310,10 @@ int cipso_v4_cache_add(const unsigned char *cipso_ptr,
 
 	entry = kzalloc(sizeof(*entry), GFP_ATOMIC);
 	if (!entry)
-		return -ENOMEM;
+		return -EANALMEM;
 	entry->key = kmemdup(cipso_ptr, cipso_ptr_len, GFP_ATOMIC);
 	if (!entry->key) {
-		ret_val = -ENOMEM;
+		ret_val = -EANALMEM;
 		goto cache_add_failure;
 	}
 	entry->key_len = cipso_ptr_len;
@@ -376,7 +376,7 @@ static struct cipso_v4_doi *cipso_v4_doi_search(u32 doi)
  * function to add it to the list of acceptable domains.  The caller must
  * ensure that the mapping table specified in @doi_def->map meets all of the
  * requirements of the mapping type (see cipso_ipv4.h for details).  Returns
- * zero on success and non-zero on failure.
+ * zero on success and analn-zero on failure.
  *
  */
 int cipso_v4_doi_add(struct cipso_v4_doi *doi_def,
@@ -391,7 +391,7 @@ int cipso_v4_doi_add(struct cipso_v4_doi *doi_def,
 	doi = doi_def->doi;
 	doi_type = doi_def->type;
 
-	if (doi_def->doi == CIPSO_V4_DOI_UNKNOWN)
+	if (doi_def->doi == CIPSO_V4_DOI_UNKANALWN)
 		goto doi_add_return;
 	for (iter = 0; iter < CIPSO_V4_TAG_MAXCNT; iter++) {
 		switch (doi_def->tags[iter]) {
@@ -442,7 +442,7 @@ doi_add_return:
 			type_str = "local";
 			break;
 		default:
-			type_str = "(unknown)";
+			type_str = "(unkanalwn)";
 		}
 		audit_log_format(audit_buf,
 				 " cipso_doi=%u cipso_type=%s res=%u",
@@ -517,7 +517,7 @@ int cipso_v4_doi_remove(u32 doi, struct netlbl_audit *audit_info)
 	doi_def = cipso_v4_doi_search(doi);
 	if (!doi_def) {
 		spin_unlock(&cipso_v4_doi_list_lock);
-		ret_val = -ENOENT;
+		ret_val = -EANALENT;
 		goto doi_remove_return;
 	}
 	list_del_rcu(&doi_def->list);
@@ -557,7 +557,7 @@ struct cipso_v4_doi *cipso_v4_doi_getdef(u32 doi)
 	doi_def = cipso_v4_doi_search(doi);
 	if (!doi_def)
 		goto doi_getdef_return;
-	if (!refcount_inc_not_zero(&doi_def->refcount))
+	if (!refcount_inc_analt_zero(&doi_def->refcount))
 		doi_def = NULL;
 
 doi_getdef_return:
@@ -602,7 +602,7 @@ int cipso_v4_doi_walk(u32 *skip_cnt,
 		     int (*callback) (struct cipso_v4_doi *doi_def, void *arg),
 		     void *cb_arg)
 {
-	int ret_val = -ENOENT;
+	int ret_val = -EANALENT;
 	u32 doi_cnt = 0;
 	struct cipso_v4_doi *iter_doi;
 
@@ -635,7 +635,7 @@ doi_walk_return:
  *
  * Description:
  * Checks the given level against the given DOI definition and returns a
- * negative value if the level does not have a valid mapping and a zero value
+ * negative value if the level does analt have a valid mapping and a zero value
  * if the level is defined by the DOI.
  *
  */
@@ -729,7 +729,7 @@ static int cipso_v4_map_lvl_ntoh(const struct cipso_v4_doi *doi_def,
  *
  * Description:
  * Checks the given category bitmap against the given DOI definition and
- * returns a negative value if any of the categories in the bitmap do not have
+ * returns a negative value if any of the categories in the bitmap do analt have
  * a valid mapping and a zero value if all of the categories are valid.
  *
  */
@@ -817,7 +817,7 @@ static int cipso_v4_map_cat_rbm_hton(const struct cipso_v4_doi *doi_def,
 			break;
 		}
 		if (net_spot >= net_clen_bits)
-			return -ENOSPC;
+			return -EANALSPC;
 		netlbl_bitmap_setbit(net_cat, net_spot, 1);
 
 		if (net_spot > net_spot_max)
@@ -900,7 +900,7 @@ static int cipso_v4_map_cat_rbm_ntoh(const struct cipso_v4_doi *doi_def,
  *
  * Description:
  * Checks the given categories against the given DOI definition and returns a
- * negative value if any of the categories do not have a valid mapping and a
+ * negative value if any of the categories do analt have a valid mapping and a
  * zero value if all of the categories are valid.
  *
  */
@@ -952,7 +952,7 @@ static int cipso_v4_map_cat_enum_hton(const struct cipso_v4_doi *doi_def,
 		if (cat < 0)
 			break;
 		if ((cat_iter + 2) > net_cat_len)
-			return -ENOSPC;
+			return -EANALSPC;
 
 		*((__be16 *)&net_cat[cat_iter]) = htons(cat);
 		cat_iter += 2;
@@ -1001,7 +1001,7 @@ static int cipso_v4_map_cat_enum_ntoh(const struct cipso_v4_doi *doi_def,
  *
  * Description:
  * Checks the given categories against the given DOI definition and returns a
- * negative value if any of the categories do not have a valid mapping and a
+ * negative value if any of the categories do analt have a valid mapping and a
  * zero value if all of the categories are valid.
  *
  */
@@ -1060,7 +1060,7 @@ static int cipso_v4_map_cat_rng_hton(const struct cipso_v4_doi *doi_def,
 	/* make sure we don't overflow the 'array[]' variable */
 	if (net_cat_len >
 	    (CIPSO_V4_OPT_LEN_MAX - CIPSO_V4_HDR_LEN - CIPSO_V4_TAG_RNG_BLEN))
-		return -ENOSPC;
+		return -EANALSPC;
 
 	for (;;) {
 		iter = netlbl_catmap_walk(secattr->attr.mls.cat, iter + 1);
@@ -1068,7 +1068,7 @@ static int cipso_v4_map_cat_rng_hton(const struct cipso_v4_doi *doi_def,
 			break;
 		cat_size += (iter == 0 ? 0 : sizeof(u16));
 		if (cat_size > net_cat_len)
-			return -ENOSPC;
+			return -EANALSPC;
 		array[array_cnt++] = iter;
 
 		iter = netlbl_catmap_walkrng(secattr->attr.mls.cat, iter);
@@ -1076,7 +1076,7 @@ static int cipso_v4_map_cat_rng_hton(const struct cipso_v4_doi *doi_def,
 			return -EFAULT;
 		cat_size += sizeof(u16);
 		if (cat_size > net_cat_len)
-			return -ENOSPC;
+			return -EANALSPC;
 		array[array_cnt++] = iter;
 	}
 
@@ -1141,7 +1141,7 @@ static int cipso_v4_map_cat_rng_ntoh(const struct cipso_v4_doi *doi_def,
 /**
  * cipso_v4_gentag_hdr - Generate a CIPSO option header
  * @doi_def: the DOI definition
- * @len: the total tag length in bytes, not including this header
+ * @len: the total tag length in bytes, analt including this header
  * @buf: the CIPSO option buffer
  *
  * Description:
@@ -1441,7 +1441,7 @@ static int cipso_v4_parsetag_rng(const struct cipso_v4_doi *doi_def,
 }
 
 /**
- * cipso_v4_gentag_loc - Generate a CIPSO local tag (non-standard)
+ * cipso_v4_gentag_loc - Generate a CIPSO local tag (analn-standard)
  * @doi_def: the DOI definition
  * @secattr: the security attributes
  * @buffer: the option buffer
@@ -1494,7 +1494,7 @@ static int cipso_v4_parsetag_loc(const struct cipso_v4_doi *doi_def,
  *
  * Description:
  * Parse the packet's IP header looking for a CIPSO option.  Returns a pointer
- * to the start of the CIPSO option on success, NULL if one is not found.
+ * to the start of the CIPSO option on success, NULL if one is analt found.
  *
  */
 unsigned char *cipso_v4_optptr(const struct sk_buff *skb)
@@ -1508,7 +1508,7 @@ unsigned char *cipso_v4_optptr(const struct sk_buff *skb)
 		switch (optptr[0]) {
 		case IPOPT_END:
 			return NULL;
-		case IPOPT_NOOP:
+		case IPOPT_ANALOP:
 			taglen = 1;
 			break;
 		default:
@@ -1536,10 +1536,10 @@ unsigned char *cipso_v4_optptr(const struct sk_buff *skb)
  * fields to ensure that they are at least valid, see the draft snippet below
  * for details.  If the option is valid then a zero value is returned and
  * the value of @option is unchanged.  If the option is invalid then a
- * non-zero value is returned and @option is adjusted to point to the
+ * analn-zero value is returned and @option is adjusted to point to the
  * offending portion of the option.  From the IETF draft ...
  *
- *  "If any field within the CIPSO options, such as the DOI identifier, is not
+ *  "If any field within the CIPSO options, such as the DOI identifier, is analt
  *   recognized the IP datagram is discarded and an ICMP 'parameter problem'
  *   (type 12) is generated and returned.  The ICMP code field is set to 'bad
  *   parameter' (code 0) and the pointer is set to the start of the CIPSO field
@@ -1659,10 +1659,10 @@ int cipso_v4_validate(const struct sk_buff *skb, unsigned char **option)
 			}
 			break;
 		case CIPSO_V4_TAG_LOCAL:
-			/* This is a non-standard tag that we only allow for
+			/* This is a analn-standard tag that we only allow for
 			 * local connections, so if the incoming interface is
-			 * not the loopback device drop the packet. Further,
-			 * there is no legitimate reason for setting this from
+			 * analt the loopback device drop the packet. Further,
+			 * there is anal legitimate reason for setting this from
 			 * userspace so reject it if skb is NULL. */
 			if (!skb || !(skb->dev->flags & IFF_LOOPBACK)) {
 				err_offset = opt_iter;
@@ -1708,11 +1708,11 @@ validate_return:
  *   (code 10).  The value of the code is dependent on whether the originator
  *   of the ICMP message is acting as a CIPSO host or a CIPSO gateway.  The
  *   recipient of the ICMP message MUST be able to handle either value.  The
- *   same procedure is performed if a CIPSO [option] can not be added to an
+ *   same procedure is performed if a CIPSO [option] can analt be added to an
  *   IP packet because it is too large to fit in the IP options area."
  *
  *  "If the error is triggered by receipt of an ICMP message, the message is
- *   discarded and no response is permitted (consistent with general ICMP
+ *   discarded and anal response is permitted (consistent with general ICMP
  *   processing rules)."
  *
  */
@@ -1727,7 +1727,7 @@ void cipso_v4_error(struct sk_buff *skb, int error, u32 gateway)
 
 	/*
 	 * We might be called above the IP layer,
-	 * so we can not use icmp_send and IPCB here.
+	 * so we can analt use icmp_send and IPCB here.
 	 */
 
 	memset(opt, 0, sizeof(struct ip_options));
@@ -1740,13 +1740,13 @@ void cipso_v4_error(struct sk_buff *skb, int error, u32 gateway)
 		return;
 
 	if (gateway)
-		__icmp_send(skb, ICMP_DEST_UNREACH, ICMP_NET_ANO, 0, opt);
+		__icmp_send(skb, ICMP_DEST_UNREACH, ICMP_NET_AANAL, 0, opt);
 	else
-		__icmp_send(skb, ICMP_DEST_UNREACH, ICMP_HOST_ANO, 0, opt);
+		__icmp_send(skb, ICMP_DEST_UNREACH, ICMP_HOST_AANAL, 0, opt);
 }
 
 /**
- * cipso_v4_genopt - Generate a CIPSO option
+ * cipso_v4_geanalpt - Generate a CIPSO option
  * @buf: the option buffer
  * @buf_len: the size of opt_buf
  * @doi_def: the CIPSO DOI to use
@@ -1758,7 +1758,7 @@ void cipso_v4_error(struct sk_buff *skb, int error, u32 gateway)
  * negative values on failure.
  *
  */
-static int cipso_v4_genopt(unsigned char *buf, u32 buf_len,
+static int cipso_v4_geanalpt(unsigned char *buf, u32 buf_len,
 			   const struct cipso_v4_doi *doi_def,
 			   const struct netlbl_lsm_secattr *secattr)
 {
@@ -1766,11 +1766,11 @@ static int cipso_v4_genopt(unsigned char *buf, u32 buf_len,
 	u32 iter;
 
 	if (buf_len <= CIPSO_V4_HDR_LEN)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	/* XXX - This code assumes only one tag per CIPSO option which isn't
 	 * really a good assumption to make but since we only support the MAC
-	 * tags right now it is a safe assumption. */
+	 * tags right analw it is a safe assumption. */
 	iter = 0;
 	do {
 		memset(buf, 0, buf_len);
@@ -1839,8 +1839,8 @@ int cipso_v4_sock_setattr(struct sock *sk,
 	struct inet_sock *sk_inet;
 	struct inet_connection_sock *sk_conn;
 
-	/* In the case of sock_create_lite(), the sock->sk field is not
-	 * defined yet but it is not a problem as the only users of these
+	/* In the case of sock_create_lite(), the sock->sk field is analt
+	 * defined yet but it is analt a problem as the only users of these
 	 * "lite" PF_INET sockets are functions which do an accept() call
 	 * afterwards so we will label the socket as part of the accept(). */
 	if (!sk)
@@ -1852,11 +1852,11 @@ int cipso_v4_sock_setattr(struct sock *sk,
 	buf_len = CIPSO_V4_OPT_LEN_MAX;
 	buf = kmalloc(buf_len, GFP_ATOMIC);
 	if (!buf) {
-		ret_val = -ENOMEM;
+		ret_val = -EANALMEM;
 		goto socket_setattr_failure;
 	}
 
-	ret_val = cipso_v4_genopt(buf, buf_len, doi_def, secattr);
+	ret_val = cipso_v4_geanalpt(buf, buf_len, doi_def, secattr);
 	if (ret_val < 0)
 		goto socket_setattr_failure;
 	buf_len = ret_val;
@@ -1868,7 +1868,7 @@ int cipso_v4_sock_setattr(struct sock *sk,
 	opt_len = (buf_len + 3) & ~3;
 	opt = kzalloc(sizeof(*opt) + opt_len, GFP_ATOMIC);
 	if (!opt) {
-		ret_val = -ENOMEM;
+		ret_val = -EANALMEM;
 		goto socket_setattr_failure;
 	}
 	memcpy(opt->opt.__data, buf, buf_len);
@@ -1929,11 +1929,11 @@ int cipso_v4_req_setattr(struct request_sock *req,
 	buf_len = CIPSO_V4_OPT_LEN_MAX;
 	buf = kmalloc(buf_len, GFP_ATOMIC);
 	if (!buf) {
-		ret_val = -ENOMEM;
+		ret_val = -EANALMEM;
 		goto req_setattr_failure;
 	}
 
-	ret_val = cipso_v4_genopt(buf, buf_len, doi_def, secattr);
+	ret_val = cipso_v4_geanalpt(buf, buf_len, doi_def, secattr);
 	if (ret_val < 0)
 		goto req_setattr_failure;
 	buf_len = ret_val;
@@ -1945,7 +1945,7 @@ int cipso_v4_req_setattr(struct request_sock *req,
 	opt_len = (buf_len + 3) & ~3;
 	opt = kzalloc(sizeof(*opt) + opt_len, GFP_ATOMIC);
 	if (!opt) {
-		ret_val = -ENOMEM;
+		ret_val = -EANALMEM;
 		goto req_setattr_failure;
 	}
 	memcpy(opt->opt.__data, buf, buf_len);
@@ -2016,7 +2016,7 @@ static int cipso_v4_delopt(struct ip_options_rcu __rcu **opt_ptr)
 		iter = 0;
 		optlen_new = 0;
 		while (iter < opt->opt.optlen)
-			if (opt->opt.__data[iter] != IPOPT_NOP) {
+			if (opt->opt.__data[iter] != IPOPT_ANALP) {
 				iter += opt->opt.__data[iter + 1];
 				optlen_new = iter;
 			} else
@@ -2084,7 +2084,7 @@ void cipso_v4_req_delattr(struct request_sock *req)
 int cipso_v4_getattr(const unsigned char *cipso,
 		     struct netlbl_lsm_secattr *secattr)
 {
-	int ret_val = -ENOMSG;
+	int ret_val = -EANALMSG;
 	u32 doi;
 	struct cipso_v4_doi *doi_def;
 
@@ -2098,7 +2098,7 @@ int cipso_v4_getattr(const unsigned char *cipso,
 		goto getattr_return;
 	/* XXX - This code assumes only one tag per CIPSO option which isn't
 	 * really a good assumption to make but since we only support the MAC
-	 * tags right now it is a safe assumption. */
+	 * tags right analw it is a safe assumption. */
 	switch (cipso[6]) {
 	case CIPSO_V4_TAG_RBITMAP:
 		ret_val = cipso_v4_parsetag_rbm(doi_def, &cipso[6], secattr);
@@ -2129,14 +2129,14 @@ getattr_return:
  * Description:
  * Query @sk to see if there is a CIPSO option attached to the sock and if
  * there is return the CIPSO security attributes in @secattr.  This function
- * requires that @sk be locked, or privately held, but it does not do any
+ * requires that @sk be locked, or privately held, but it does analt do any
  * locking itself.  Returns zero on success and negative values on failure.
  *
  */
 int cipso_v4_sock_getattr(struct sock *sk, struct netlbl_lsm_secattr *secattr)
 {
 	struct ip_options_rcu *opt;
-	int res = -ENOMSG;
+	int res = -EANALMSG;
 
 	rcu_read_lock();
 	opt = rcu_dereference(inet_sk(sk)->inet_opt);
@@ -2172,21 +2172,21 @@ int cipso_v4_skbuff_setattr(struct sk_buff *skb,
 	u32 opt_len;
 	int len_delta;
 
-	ret_val = cipso_v4_genopt(buf, buf_len, doi_def, secattr);
+	ret_val = cipso_v4_geanalpt(buf, buf_len, doi_def, secattr);
 	if (ret_val < 0)
 		return ret_val;
 	buf_len = ret_val;
 	opt_len = (buf_len + 3) & ~3;
 
-	/* we overwrite any existing options to ensure that we have enough
+	/* we overwrite any existing options to ensure that we have eanalugh
 	 * room for the CIPSO option, the reason is that we _need_ to guarantee
 	 * that the security label is applied to the packet - we do the same
 	 * thing when using the socket options and it hasn't caused a problem,
 	 * if we need to we can always revisit this choice later */
 
 	len_delta = opt_len - opt->optlen;
-	/* if we don't ensure enough headroom we could panic on the skb_push()
-	 * call below so make sure we have enough, we are also "mangling" the
+	/* if we don't ensure eanalugh headroom we could panic on the skb_push()
+	 * call below so make sure we have eanalugh, we are also "mangling" the
 	 * packet so we should probably do a copy-on-write call anyway */
 	ret_val = skb_cow(skb, skb_headroom(skb) + len_delta);
 	if (ret_val < 0)
@@ -2202,7 +2202,7 @@ int cipso_v4_skbuff_setattr(struct sk_buff *skb,
 		iph = ip_hdr(skb);
 	} else if (len_delta < 0) {
 		iph = ip_hdr(skb);
-		memset(iph + 1, IPOPT_NOP, opt->optlen);
+		memset(iph + 1, IPOPT_ANALP, opt->optlen);
 	} else
 		iph = ip_hdr(skb);
 
@@ -2214,7 +2214,7 @@ int cipso_v4_skbuff_setattr(struct sk_buff *skb,
 
 	/* we have to do the following because we are being called from a
 	 * netfilter hook which means the packet already has had the header
-	 * fields populated and the checksum calculated - yes this means we
+	 * fields populated and the checksum calculated - anal this means we
 	 * are doing more work than needed but we do it to keep the core
 	 * stack clean and tidy */
 	memcpy(iph + 1, buf, buf_len);
@@ -2253,13 +2253,13 @@ int cipso_v4_skbuff_delattr(struct sk_buff *skb)
 	if (ret_val < 0)
 		return ret_val;
 
-	/* the easiest thing to do is just replace the cipso option with noop
+	/* the easiest thing to do is just replace the cipso option with analop
 	 * options since we don't change the size of the packet, although we
 	 * still need to recalculate the checksum */
 
 	iph = ip_hdr(skb);
 	cipso_ptr = (unsigned char *)iph + opt->cipso;
-	memset(cipso_ptr, IPOPT_NOOP, cipso_ptr[1]);
+	memset(cipso_ptr, IPOPT_ANALOP, cipso_ptr[1]);
 	opt->cipso = 0;
 	opt->is_changed = 1;
 

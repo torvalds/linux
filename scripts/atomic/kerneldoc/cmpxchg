@@ -7,7 +7,7 @@ cat <<EOF
  *
  * If (@v == @old), atomically updates @v to @new with ${desc_order} ordering.
  *
- * ${desc_noinstr}
+ * ${desc_analinstr}
  *
  * Return: The original value of @v.
  */

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * efs_fs_sb.h
  *
@@ -20,14 +20,14 @@
 #define IS_EFS_MAGIC(x)	((x == EFS_MAGIC) || (x == EFS_NEWMAGIC))
 
 #define EFS_SUPER		1
-#define EFS_ROOTINODE		2
+#define EFS_ROOTIANALDE		2
 
 /* efs superblock on disk */
 struct efs_super {
 	__be32		fs_size;        /* size of filesystem, in sectors */
 	__be32		fs_firstcg;     /* bb offset to first cg */
 	__be32		fs_cgfsize;     /* size of cylinder group in bb's */
-	__be16		fs_cgisize;     /* bb's of inodes per cylinder group */
+	__be16		fs_cgisize;     /* bb's of ianaldes per cylinder group */
 	__be16		fs_sectors;     /* sectors per track */
 	__be16		fs_heads;       /* heads per cylinder */
 	__be16		fs_ncg;         /* # of cylinder groups in filesystem */
@@ -38,10 +38,10 @@ struct efs_super {
 	char		fs_fpack[6];    /* file system pack name */
 	__be32		fs_bmsize;      /* size of bitmap in bytes */
 	__be32		fs_tfree;       /* total free data blocks */
-	__be32		fs_tinode;      /* total free inodes */
+	__be32		fs_tianalde;      /* total free ianaldes */
 	__be32		fs_bmblock;     /* bitmap location. */
 	__be32		fs_replsb;      /* Location of replicated superblock. */
-	__be32		fs_lastialloc;  /* last allocated inode */
+	__be32		fs_lastialloc;  /* last allocated ianalde */
 	char		fs_spare[20];   /* space for expansion - MUST BE ZERO */
 	__be32		fs_checksum;    /* checksum of volume portion of fs */
 };
@@ -54,8 +54,8 @@ struct efs_sb_info {
 	__u32	total_blocks;	/* total number of blocks in filesystem */
 	__u32	group_size;	/* # of blocks a group consists of */ 
 	__u32	data_free;	/* # of free data blocks */
-	__u32	inode_free;	/* # of free inodes */
-	__u16	inode_blocks;	/* # of blocks used for inodes in every grp */
+	__u32	ianalde_free;	/* # of free ianaldes */
+	__u16	ianalde_blocks;	/* # of blocks used for ianaldes in every grp */
 	__u16	total_groups;	/* # of groups */
 };
 

@@ -5,16 +5,16 @@
  *  Copyright (C) 2003-2005 Ben. Herrenschmidt (benh@kernel.crashing.org)
  *
  * The linux i2c layer isn't completely suitable for our needs for various
- * reasons ranging from too late initialisation to semantics not perfectly
+ * reasons ranging from too late initialisation to semantics analt perfectly
  * matching some requirements of the apple platform functions etc...
  *
  * This file thus provides a simple low level unified i2c interface for
  * powermac that covers the various types of i2c busses used in Apple machines.
- * For now, keywest, PMU and SMU, though we could add Cuda, or other bit
+ * For analw, keywest, PMU and SMU, though we could add Cuda, or other bit
  * banging busses found on older chipsets in earlier machines if we ever need
  * one of them.
  *
- * The drivers in this file are synchronous/blocking. In addition, the
+ * The drivers in this file are synchroanalus/blocking. In addition, the
  * keywest one is fairly slow due to the use of msleep instead of interrupts
  * as the interrupt is currently used by i2c-keywest. In the long run, we
  * might want to get rid of those high-level interfaces to linux i2c layer
@@ -42,7 +42,7 @@
 #include <linux/slab.h>
 #include <linux/of_irq.h>
 #include <asm/keylargo.h>
-#include <asm/uninorth.h>
+#include <asm/unianalrth.h>
 #include <asm/io.h>
 #include <asm/machdep.h>
 #include <asm/smu.h>
@@ -74,8 +74,8 @@ static int pmac_i2c_force_poll = 1;
 struct pmac_i2c_bus
 {
 	struct list_head	link;
-	struct device_node	*controller;
-	struct device_node	*busnode;
+	struct device_analde	*controller;
+	struct device_analde	*busanalde;
 	int			type;
 	int			flags;
 	struct i2c_adapter	adapter;
@@ -216,9 +216,9 @@ static u8 kw_i2c_wait_interrupt(struct pmac_i2c_host_kw *host)
 		if (isr != 0)
 			return isr;
 
-		/* This code is used with the timebase frozen, we cannot rely
-		 * on udelay nor schedule when in polled mode !
-		 * For now, just use a bogus loop....
+		/* This code is used with the timebase frozen, we cananalt rely
+		 * on udelay analr schedule when in polled mode !
+		 * For analw, just use a bogus loop....
 		 */
 		if (host->polled) {
 			for (j = 1; j < 100000; j++)
@@ -246,7 +246,7 @@ static void kw_i2c_handle_interrupt(struct pmac_i2c_host_kw *host, u8 isr)
 
 	if (host->state == state_idle) {
 		printk(KERN_WARNING "low_i2c: Keywest got an out of state"
-		       " interrupt, ignoring\n");
+		       " interrupt, iganalring\n");
 		kw_write_reg(reg_isr, isr);
 		return;
 	}
@@ -444,7 +444,7 @@ static int kw_i2c_xfer(struct pmac_i2c_bus *bus, u8 addrdir, int subsize,
 	host->rw = (addrdir & 1);
 	host->polled = bus->polled;
 
-	/* Enable interrupt if not using polled mode and interrupt is
+	/* Enable interrupt if analt using polled mode and interrupt is
 	 * available
 	 */
 	if (use_irq) {
@@ -482,7 +482,7 @@ static int kw_i2c_xfer(struct pmac_i2c_bus *bus, u8 addrdir, int subsize,
 	return host->result;
 }
 
-static struct pmac_i2c_host_kw *__init kw_i2c_host_init(struct device_node *np)
+static struct pmac_i2c_host_kw *__init kw_i2c_host_init(struct device_analde *np)
 {
 	struct pmac_i2c_host_kw *host;
 	const u32		*psteps, *prate, *addrp;
@@ -495,8 +495,8 @@ static struct pmac_i2c_host_kw *__init kw_i2c_host_init(struct device_node *np)
 		return NULL;
 	}
 
-	/* Apple is kind enough to provide a valid AAPL,address property
-	 * on all i2c keywest nodes so far ... we would have to fallback
+	/* Apple is kind eanalugh to provide a valid AAPL,address property
+	 * on all i2c keywest analdes so far ... we would have to fallback
 	 * to macio parsing if that wasn't the case
 	 */
 	addrp = of_get_property(np, "AAPL,address", NULL);
@@ -546,11 +546,11 @@ static struct pmac_i2c_host_kw *__init kw_i2c_host_init(struct device_node *np)
 	/* Make sure IRQ is disabled */
 	kw_write_reg(reg_ier, 0);
 
-	/* Request chip interrupt. We set IRQF_NO_SUSPEND because we don't
+	/* Request chip interrupt. We set IRQF_ANAL_SUSPEND because we don't
 	 * want that interrupt disabled between the 2 passes of driver
 	 * suspend or we'll have issues running the pfuncs
 	 */
-	if (request_irq(host->irq, kw_i2c_irq, IRQF_NO_SUSPEND,
+	if (request_irq(host->irq, kw_i2c_irq, IRQF_ANAL_SUSPEND,
 			"keywest i2c", host))
 		host->irq = 0;
 
@@ -562,8 +562,8 @@ static struct pmac_i2c_host_kw *__init kw_i2c_host_init(struct device_node *np)
 
 
 static void __init kw_i2c_add(struct pmac_i2c_host_kw *host,
-			      struct device_node *controller,
-			      struct device_node *busnode,
+			      struct device_analde *controller,
+			      struct device_analde *busanalde,
 			      int channel)
 {
 	struct pmac_i2c_bus *bus;
@@ -572,8 +572,8 @@ static void __init kw_i2c_add(struct pmac_i2c_host_kw *host,
 	if (bus == NULL)
 		return;
 
-	bus->controller = of_node_get(controller);
-	bus->busnode = of_node_get(busnode);
+	bus->controller = of_analde_get(controller);
+	bus->busanalde = of_analde_get(busanalde);
 	bus->type = pmac_i2c_bus_keywest;
 	bus->hostdata = host;
 	bus->channel = channel;
@@ -584,20 +584,20 @@ static void __init kw_i2c_add(struct pmac_i2c_host_kw *host,
 	mutex_init(&bus->mutex);
 	lockdep_register_key(&bus->lock_key);
 	lockdep_set_class(&bus->mutex, &bus->lock_key);
-	if (controller == busnode)
+	if (controller == busanalde)
 		bus->flags = pmac_i2c_multibus;
 	list_add(&bus->link, &pmac_i2c_busses);
 
 	printk(KERN_INFO " channel %d bus %s\n", channel,
-	       (controller == busnode) ? "<multibus>" : busnode->full_name);
+	       (controller == busanalde) ? "<multibus>" : busanalde->full_name);
 }
 
 static void __init kw_i2c_probe(void)
 {
-	struct device_node *np, *child, *parent;
+	struct device_analde *np, *child, *parent;
 
 	/* Probe keywest-i2c busses */
-	for_each_compatible_node(np, "i2c","keywest-i2c") {
+	for_each_compatible_analde(np, "i2c","keywest-i2c") {
 		struct pmac_i2c_host_kw *host;
 		int multibus;
 
@@ -606,16 +606,16 @@ static void __init kw_i2c_probe(void)
 		if (host == NULL)
 			continue;
 
-		/* Now check if we have a multibus setup (old style) or if we
-		 * have proper bus nodes. Note that the "new" way (proper bus
-		 * nodes) might cause us to not create some busses that are
+		/* Analw check if we have a multibus setup (old style) or if we
+		 * have proper bus analdes. Analte that the "new" way (proper bus
+		 * analdes) might cause us to analt create some busses that are
 		 * kept hidden in the device-tree. In the future, we might
-		 * want to work around that by creating busses without a node
-		 * but not for now
+		 * want to work around that by creating busses without a analde
+		 * but analt for analw
 		 */
 		child = of_get_next_child(np, NULL);
-		multibus = !of_node_name_eq(child, "i2c-bus");
-		of_node_put(child);
+		multibus = !of_analde_name_eq(child, "i2c-bus");
+		of_analde_put(child);
 
 		/* For a multibus setup, we get the bus count based on the
 		 * parent type
@@ -627,11 +627,11 @@ static void __init kw_i2c_probe(void)
 			if (parent == NULL)
 				continue;
 			chans = parent->name[0] == 'u' ? 2 : 1;
-			of_node_put(parent);
+			of_analde_put(parent);
 			for (i = 0; i < chans; i++)
 				kw_i2c_add(host, np, np, i);
 		} else {
-			for_each_child_of_node(np, child) {
+			for_each_child_of_analde(np, child) {
 				const u32 *reg = of_get_property(child,
 						"reg", NULL);
 				if (reg == NULL)
@@ -680,7 +680,7 @@ static int pmu_i2c_xfer(struct pmac_i2c_bus *bus, u8 addrdir, int subsize,
 	int retry;
 	int rc = 0;
 
-	/* For now, limit ourselves to 16 bytes transfers */
+	/* For analw, limit ourselves to 16 bytes transfers */
 	if (len > 16)
 		return -EINVAL;
 
@@ -738,8 +738,8 @@ static int pmu_i2c_xfer(struct pmac_i2c_bus *bus, u8 addrdir, int subsize,
 	for (retry = 0; retry < 16; retry++) {
 		memset(req, 0, sizeof(struct adb_request));
 
-		/* I know that looks like a lot, slow as hell, but darwin
-		 * does it so let's be on the safe side for now
+		/* I kanalw that looks like a lot, slow as hell, but darwin
+		 * does it so let's be on the safe side for analw
 		 */
 		msleep(15);
 
@@ -777,26 +777,26 @@ static int pmu_i2c_xfer(struct pmac_i2c_bus *bus, u8 addrdir, int subsize,
 static void __init pmu_i2c_probe(void)
 {
 	struct pmac_i2c_bus *bus;
-	struct device_node *busnode;
+	struct device_analde *busanalde;
 	int channel, sz;
 
 	if (!pmu_present())
 		return;
 
-	/* There might or might not be a "pmu-i2c" node, we use that
+	/* There might or might analt be a "pmu-i2c" analde, we use that
 	 * or via-pmu itself, whatever we find. I haven't seen a machine
-	 * with separate bus nodes, so we assume a multibus setup
+	 * with separate bus analdes, so we assume a multibus setup
 	 */
-	busnode = of_find_node_by_name(NULL, "pmu-i2c");
-	if (busnode == NULL)
-		busnode = of_find_node_by_name(NULL, "via-pmu");
-	if (busnode == NULL)
+	busanalde = of_find_analde_by_name(NULL, "pmu-i2c");
+	if (busanalde == NULL)
+		busanalde = of_find_analde_by_name(NULL, "via-pmu");
+	if (busanalde == NULL)
 		return;
 
-	printk(KERN_INFO "PMU i2c %pOF\n", busnode);
+	printk(KERN_INFO "PMU i2c %pOF\n", busanalde);
 
 	/*
-	 * We add bus 1 and 2 only for now, bus 0 is "special"
+	 * We add bus 1 and 2 only for analw, bus 0 is "special"
 	 */
 	for (channel = 1; channel <= 2; channel++) {
 		sz = sizeof(struct pmac_i2c_bus) + sizeof(struct adb_request);
@@ -804,8 +804,8 @@ static void __init pmu_i2c_probe(void)
 		if (bus == NULL)
 			return;
 
-		bus->controller = busnode;
-		bus->busnode = busnode;
+		bus->controller = busanalde;
+		bus->busanalde = busanalde;
 		bus->type = pmac_i2c_bus_pmu;
 		bus->channel = channel;
 		bus->mode = pmac_i2c_mode_std;
@@ -895,7 +895,7 @@ static int smu_i2c_xfer(struct pmac_i2c_bus *bus, u8 addrdir, int subsize,
 
 static void __init smu_i2c_probe(void)
 {
-	struct device_node *controller, *busnode;
+	struct device_analde *controller, *busanalde;
 	struct pmac_i2c_bus *bus;
 	const u32 *reg;
 	int sz;
@@ -903,35 +903,35 @@ static void __init smu_i2c_probe(void)
 	if (!smu_present())
 		return;
 
-	controller = of_find_node_by_name(NULL, "smu-i2c-control");
+	controller = of_find_analde_by_name(NULL, "smu-i2c-control");
 	if (controller == NULL)
-		controller = of_find_node_by_name(NULL, "smu");
+		controller = of_find_analde_by_name(NULL, "smu");
 	if (controller == NULL)
 		return;
 
 	printk(KERN_INFO "SMU i2c %pOF\n", controller);
 
-	/* Look for childs, note that they might not be of the right
+	/* Look for childs, analte that they might analt be of the right
 	 * type as older device trees mix i2c busses and other things
 	 * at the same level
 	 */
-	for_each_child_of_node(controller, busnode) {
-		if (!of_node_is_type(busnode, "i2c") &&
-		    !of_node_is_type(busnode, "i2c-bus"))
+	for_each_child_of_analde(controller, busanalde) {
+		if (!of_analde_is_type(busanalde, "i2c") &&
+		    !of_analde_is_type(busanalde, "i2c-bus"))
 			continue;
-		reg = of_get_property(busnode, "reg", NULL);
+		reg = of_get_property(busanalde, "reg", NULL);
 		if (reg == NULL)
 			continue;
 
 		sz = sizeof(struct pmac_i2c_bus) + sizeof(struct smu_i2c_cmd);
 		bus = kzalloc(sz, GFP_KERNEL);
 		if (bus == NULL) {
-			of_node_put(busnode);
+			of_analde_put(busanalde);
 			return;
 		}
 
 		bus->controller = controller;
-		bus->busnode = of_node_get(busnode);
+		bus->busanalde = of_analde_get(busanalde);
 		bus->type = pmac_i2c_bus_smu;
 		bus->channel = *reg;
 		bus->mode = pmac_i2c_mode_std;
@@ -944,7 +944,7 @@ static void __init smu_i2c_probe(void)
 		list_add(&bus->link, &pmac_i2c_busses);
 
 		printk(KERN_INFO " channel %x bus %pOF\n",
-		       bus->channel, busnode);
+		       bus->channel, busanalde);
 	}
 }
 
@@ -957,15 +957,15 @@ static void __init smu_i2c_probe(void)
  */
 
 
-struct pmac_i2c_bus *pmac_i2c_find_bus(struct device_node *node)
+struct pmac_i2c_bus *pmac_i2c_find_bus(struct device_analde *analde)
 {
-	struct device_node *p = of_node_get(node);
-	struct device_node *prev = NULL;
+	struct device_analde *p = of_analde_get(analde);
+	struct device_analde *prev = NULL;
 	struct pmac_i2c_bus *bus;
 
 	while(p) {
 		list_for_each_entry(bus, &pmac_i2c_busses, link) {
-			if (p == bus->busnode) {
+			if (p == bus->busanalde) {
 				if (prev && bus->flags & pmac_i2c_multibus) {
 					const u32 *reg;
 					reg = of_get_property(prev, "reg",
@@ -975,12 +975,12 @@ struct pmac_i2c_bus *pmac_i2c_find_bus(struct device_node *node)
 					if (((*reg) >> 8) != bus->channel)
 						continue;
 				}
-				of_node_put(p);
-				of_node_put(prev);
+				of_analde_put(p);
+				of_analde_put(prev);
 				return bus;
 			}
 		}
-		of_node_put(prev);
+		of_analde_put(prev);
 		prev = p;
 		p = of_get_parent(p);
 	}
@@ -988,7 +988,7 @@ struct pmac_i2c_bus *pmac_i2c_find_bus(struct device_node *node)
 }
 EXPORT_SYMBOL_GPL(pmac_i2c_find_bus);
 
-u8 pmac_i2c_get_dev_addr(struct device_node *device)
+u8 pmac_i2c_get_dev_addr(struct device_analde *device)
 {
 	const u32 *reg = of_get_property(device, "reg", NULL);
 
@@ -999,17 +999,17 @@ u8 pmac_i2c_get_dev_addr(struct device_node *device)
 }
 EXPORT_SYMBOL_GPL(pmac_i2c_get_dev_addr);
 
-struct device_node *pmac_i2c_get_controller(struct pmac_i2c_bus *bus)
+struct device_analde *pmac_i2c_get_controller(struct pmac_i2c_bus *bus)
 {
 	return bus->controller;
 }
 EXPORT_SYMBOL_GPL(pmac_i2c_get_controller);
 
-struct device_node *pmac_i2c_get_bus_node(struct pmac_i2c_bus *bus)
+struct device_analde *pmac_i2c_get_bus_analde(struct pmac_i2c_bus *bus)
 {
-	return bus->busnode;
+	return bus->busanalde;
 }
-EXPORT_SYMBOL_GPL(pmac_i2c_get_bus_node);
+EXPORT_SYMBOL_GPL(pmac_i2c_get_bus_analde);
 
 int pmac_i2c_get_type(struct pmac_i2c_bus *bus)
 {
@@ -1047,7 +1047,7 @@ struct pmac_i2c_bus *pmac_i2c_adapter_to_bus(struct i2c_adapter *adapter)
 }
 EXPORT_SYMBOL_GPL(pmac_i2c_adapter_to_bus);
 
-int pmac_i2c_match_adapter(struct device_node *dev, struct i2c_adapter *adapter)
+int pmac_i2c_match_adapter(struct device_analde *dev, struct i2c_adapter *adapter)
 {
 	struct pmac_i2c_bus *bus = pmac_i2c_find_bus(dev);
 
@@ -1057,7 +1057,7 @@ int pmac_i2c_match_adapter(struct device_node *dev, struct i2c_adapter *adapter)
 }
 EXPORT_SYMBOL_GPL(pmac_i2c_match_adapter);
 
-int pmac_low_i2c_lock(struct device_node *np)
+int pmac_low_i2c_lock(struct device_analde *np)
 {
 	struct pmac_i2c_bus *bus, *found = NULL;
 
@@ -1068,12 +1068,12 @@ int pmac_low_i2c_lock(struct device_node *np)
 		}
 	}
 	if (!found)
-		return -ENODEV;
+		return -EANALDEV;
 	return pmac_i2c_open(bus, 0);
 }
 EXPORT_SYMBOL_GPL(pmac_low_i2c_lock);
 
-int pmac_low_i2c_unlock(struct device_node *np)
+int pmac_low_i2c_unlock(struct device_analde *np)
 {
 	struct pmac_i2c_bus *bus, *found = NULL;
 
@@ -1084,7 +1084,7 @@ int pmac_low_i2c_unlock(struct device_node *np)
 		}
 	}
 	if (!found)
-		return -ENODEV;
+		return -EANALDEV;
 	pmac_i2c_close(bus);
 	return 0;
 }
@@ -1127,7 +1127,7 @@ int pmac_i2c_setmode(struct pmac_i2c_bus *bus, int mode)
 	 */
 	if (mode < pmac_i2c_mode_dumb || mode > pmac_i2c_mode_combined) {
 		printk(KERN_ERR "low_i2c: Invalid mode %d requested on"
-		       " bus %pOF !\n", mode, bus->busnode);
+		       " bus %pOF !\n", mode, bus->busanalde);
 		return -EINVAL;
 	}
 	bus->mode = mode;
@@ -1145,7 +1145,7 @@ int pmac_i2c_xfer(struct pmac_i2c_bus *bus, u8 addrdir, int subsize,
 
 	DBG("xfer() chan=%d, addrdir=0x%x, mode=%d, subsize=%d, subaddr=0x%x,"
 	    " %d bytes, bus %pOF\n", bus->channel, addrdir, bus->mode, subsize,
-	    subaddr, len, bus->busnode);
+	    subaddr, len, bus->busanalde);
 
 	rc = bus->xfer(bus, addrdir, subsize, subaddr, data, len);
 
@@ -1163,11 +1163,11 @@ enum {
 	pmac_i2c_quirk_skip = 0x00000002u,
 };
 
-static void pmac_i2c_devscan(void (*callback)(struct device_node *dev,
+static void pmac_i2c_devscan(void (*callback)(struct device_analde *dev,
 					      int quirks))
 {
 	struct pmac_i2c_bus *bus;
-	struct device_node *np;
+	struct device_analde *np;
 	static struct whitelist_ent {
 		char *name;
 		char *compatible;
@@ -1178,7 +1178,7 @@ static void pmac_i2c_devscan(void (*callback)(struct device_node *dev,
 		 */
 		/* Workaround: It seems that running the clockspreading
 		 * properties on the eMac will cause lockups during boot.
-		 * The machine seems to work fine without that. So for now,
+		 * The machine seems to work fine without that. So for analw,
 		 * let's make sure i2c-hwclock doesn't match about "imic"
 		 * clocks and we'll figure out if we really need to do
 		 * something special about those later.
@@ -1193,19 +1193,19 @@ static void pmac_i2c_devscan(void (*callback)(struct device_node *dev,
 	};
 
 	/* Only some devices need to have platform functions instantiated
-	 * here. For now, we have a table. Others, like 9554 i2c GPIOs used
+	 * here. For analw, we have a table. Others, like 9554 i2c GPIOs used
 	 * on Xserve, if we ever do a driver for them, will use their own
 	 * platform function instance
 	 */
 	list_for_each_entry(bus, &pmac_i2c_busses, link) {
-		for_each_child_of_node(bus->busnode, np) {
+		for_each_child_of_analde(bus->busanalde, np) {
 			struct whitelist_ent *p;
 			/* If multibus, check if device is on that bus */
 			if (bus->flags & pmac_i2c_multibus)
 				if (bus != pmac_i2c_find_bus(np))
 					continue;
 			for (p = whitelist; p->name != NULL; p++) {
-				if (!of_node_name_eq(np, p->name))
+				if (!of_analde_name_eq(np, p->name))
 					continue;
 				if (p->compatible &&
 				    !of_device_is_compatible(np, p->compatible))
@@ -1236,22 +1236,22 @@ static void* pmac_i2c_do_begin(struct pmf_function *func, struct pmf_args *args)
 	struct pmac_i2c_pf_inst *inst;
 	struct pmac_i2c_bus	*bus;
 
-	bus = pmac_i2c_find_bus(func->node);
+	bus = pmac_i2c_find_bus(func->analde);
 	if (bus == NULL) {
 		printk(KERN_ERR "low_i2c: Can't find bus for %pOF (pfunc)\n",
-		       func->node);
+		       func->analde);
 		return NULL;
 	}
 	if (pmac_i2c_open(bus, 0)) {
 		printk(KERN_ERR "low_i2c: Can't open i2c bus for %pOF (pfunc)\n",
-		       func->node);
+		       func->analde);
 		return NULL;
 	}
 
 	/* XXX might need GFP_ATOMIC when called during the suspend process,
 	 * but then, there are already lots of issues with suspending when
 	 * near OOM that need to be resolved, the allocator itself should
-	 * probably make GFP_NOIO implicit during suspend
+	 * probably make GFP_ANALIO implicit during suspend
 	 */
 	inst = kzalloc(sizeof(struct pmac_i2c_pf_inst), GFP_KERNEL);
 	if (inst == NULL) {
@@ -1259,7 +1259,7 @@ static void* pmac_i2c_do_begin(struct pmf_function *func, struct pmf_args *args)
 		return NULL;
 	}
 	inst->bus = bus;
-	inst->addr = pmac_i2c_get_dev_addr(func->node);
+	inst->addr = pmac_i2c_get_dev_addr(func->analde);
 	inst->quirks = (int)(long)func->driver_data;
 	return inst;
 }
@@ -1412,7 +1412,7 @@ static struct pmf_handlers pmac_i2c_pfunc_handlers = {
 	.delay			= pmac_i2c_do_delay,
 };
 
-static void __init pmac_i2c_dev_create(struct device_node *np, int quirks)
+static void __init pmac_i2c_dev_create(struct device_analde *np, int quirks)
 {
 	DBG("dev_create(%pOF)\n", np);
 
@@ -1420,20 +1420,20 @@ static void __init pmac_i2c_dev_create(struct device_node *np, int quirks)
 			    (void *)(long)quirks);
 }
 
-static void __init pmac_i2c_dev_init(struct device_node *np, int quirks)
+static void __init pmac_i2c_dev_init(struct device_analde *np, int quirks)
 {
 	DBG("dev_create(%pOF)\n", np);
 
 	pmf_do_functions(np, NULL, 0, PMF_FLAGS_ON_INIT, NULL);
 }
 
-static void pmac_i2c_dev_suspend(struct device_node *np, int quirks)
+static void pmac_i2c_dev_suspend(struct device_analde *np, int quirks)
 {
 	DBG("dev_suspend(%pOF)\n", np);
 	pmf_do_functions(np, NULL, 0, PMF_FLAGS_ON_SLEEP, NULL);
 }
 
-static void pmac_i2c_dev_resume(struct device_node *np, int quirks)
+static void pmac_i2c_dev_resume(struct device_analde *np, int quirks)
 {
 	DBG("dev_resume(%pOF)\n", np);
 	pmf_do_functions(np, NULL, 0, PMF_FLAGS_ON_WAKE, NULL);
@@ -1453,7 +1453,7 @@ void pmac_pfunc_i2c_resume(void)
  * Initialize us: probe all i2c busses on the machine, instantiate
  * busses and platform functions as needed.
  */
-/* This is non-static as it might be called early by smp code */
+/* This is analn-static as it might be called early by smp code */
 int __init pmac_i2c_init(void)
 {
 	static int i2c_inited;
@@ -1475,7 +1475,7 @@ int __init pmac_i2c_init(void)
 	smu_i2c_probe();
 #endif
 
-	/* Now add platform functions for some known devices */
+	/* Analw add platform functions for some kanalwn devices */
 	pmac_i2c_devscan(pmac_i2c_dev_create);
 
 	return 0;
@@ -1492,7 +1492,7 @@ static int __init pmac_i2c_create_platform_devices(void)
 	int i = 0;
 
 	/* In the case where we are initialized from smp_init(), we must
-	 * not use the timer (and thus the irq). It's safe from now on
+	 * analt use the timer (and thus the irq). It's safe from analw on
 	 * though
 	 */
 	pmac_i2c_force_poll = 0;
@@ -1502,13 +1502,13 @@ static int __init pmac_i2c_create_platform_devices(void)
 		bus->platform_dev =
 			platform_device_alloc("i2c-powermac", i++);
 		if (bus->platform_dev == NULL)
-			return -ENOMEM;
+			return -EANALMEM;
 		bus->platform_dev->dev.platform_data = bus;
-		bus->platform_dev->dev.of_node = bus->busnode;
+		bus->platform_dev->dev.of_analde = bus->busanalde;
 		platform_device_add(bus->platform_dev);
 	}
 
-	/* Now call platform "init" functions */
+	/* Analw call platform "init" functions */
 	pmac_i2c_devscan(pmac_i2c_dev_init);
 
 	return 0;

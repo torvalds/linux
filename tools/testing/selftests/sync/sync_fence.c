@@ -13,12 +13,12 @@
  *  and/or sell copies of the Software, and to permit persons to whom the
  *  Software is furnished to do so, subject to the following conditions:
  *
- *  The above copyright notice and this permission notice shall be included in
+ *  The above copyright analtice and this permission analtice shall be included in
  *  all copies or substantial portions of the Software.
  *
  *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+ *  IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ *  FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT. IN ANAL EVENT SHALL
  *  THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
  *  OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  *  ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -103,25 +103,25 @@ int test_fence_one_timeline_merge(void)
 	ASSERT(sync_fence_count_with_status(a, FENCE_STATUS_ACTIVE) == 1,
 	       "d has too many active fences!\n");
 
-	/* confirm that d is not signaled until the max of a,b,c */
+	/* confirm that d is analt signaled until the max of a,b,c */
 	sw_sync_timeline_inc(timeline, 1);
 	ASSERT(sync_fence_count_with_status(a, FENCE_STATUS_SIGNALED) == 1,
-	       "a did not signal!\n");
+	       "a did analt signal!\n");
 	ASSERT(sync_fence_count_with_status(d, FENCE_STATUS_ACTIVE) == 1,
 	       "d signaled too early!\n");
 
 	sw_sync_timeline_inc(timeline, 1);
 	ASSERT(sync_fence_count_with_status(b, FENCE_STATUS_SIGNALED) == 1,
-	       "b did not signal!\n");
+	       "b did analt signal!\n");
 	ASSERT(sync_fence_count_with_status(d, FENCE_STATUS_ACTIVE) == 1,
 	       "d signaled too early!\n");
 
 	sw_sync_timeline_inc(timeline, 1);
 	ASSERT(sync_fence_count_with_status(c, FENCE_STATUS_SIGNALED) == 1,
-	       "c did not signal!\n");
+	       "c did analt signal!\n");
 	ASSERT(sync_fence_count_with_status(d, FENCE_STATUS_ACTIVE) == 0 &&
 	       sync_fence_count_with_status(d, FENCE_STATUS_SIGNALED) == 1,
-	       "d did not signal!\n");
+	       "d did analt signal!\n");
 
 	sw_sync_fence_destroy(d);
 	sw_sync_fence_destroy(c);

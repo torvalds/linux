@@ -16,14 +16,14 @@
  * This also contains the timer-interrupt handler, as well as all interrupts
  * and faults that can result in a task-switch.
  *
- * NOTE: This code handles signal-recognition, which happens every time
+ * ANALTE: This code handles signal-recognition, which happens every time
  * after a timer-interrupt and after each system call.
  *
  */
 
 /*
  * 12/03/96 Jes: Currently we only support m68k single-cpu systems, so
- *               all pointers that used to be 'current' are now entry
+ *               all pointers that used to be 'current' are analw entry
  *               number 0 in the 'current_set' list.
  *
  *  6/05/00 RZ:	 addedd writeback completion after return from sighandler
@@ -31,7 +31,7 @@
  */
 
 #include <linux/linkage.h>
-#include <asm/errno.h>
+#include <asm/erranal.h>
 #include <asm/setup.h>
 #include <asm/traps.h>
 #include <asm/unistd.h>
@@ -95,7 +95,7 @@ ENTRY(sys_rt_sigreturn)
 	jbsr	do_rt_sigreturn
 
 1:
-	| stack contents now:
+	| stack contents analw:
 	|   [original pt_regs address] [original switch_stack address]
 	|   [unused part of the gap] [moved switch_stack] [moved pt_regs]
 	|   [replacement exception frame]
@@ -103,7 +103,7 @@ ENTRY(sys_rt_sigreturn)
 
 	movel	%d0,%sp				| discard the leftover junk
 	RESTORE_SWITCH_STACK
-	| stack contents now is just [syscall return address] [pt_regs] [frame]
+	| stack contents analw is just [syscall return address] [pt_regs] [frame]
 	| return pt_regs.d0
 	movel	%sp@(PT_OFF_D0+4),%d0
 	rts
@@ -126,7 +126,7 @@ ENTRY(trap)
 
 	| After a fork we jump here directly from resume,
 	| so that %d1 contains the previous task
-	| schedule_tail now used regardless of CONFIG_SMP
+	| schedule_tail analw used regardless of CONFIG_SMP
 ENTRY(ret_from_fork)
 	movel	%d1,%sp@-
 	jsr	schedule_tail
@@ -175,7 +175,7 @@ ENTRY(ret_from_user_rt_signal)
 #else
 
 do_trace_entry:
-	movel	#-ENOSYS,%sp@(PT_OFF_D0)| needed for strace
+	movel	#-EANALSYS,%sp@(PT_OFF_D0)| needed for strace
 	subql	#4,%sp
 	SAVE_SWITCH_STACK
 	jbsr	syscall_trace_enter
@@ -188,7 +188,7 @@ do_trace_entry:
 	jcs	syscall
 	jra	ret_from_syscall
 badsys:
-	movel	#-ENOSYS,%sp@(PT_OFF_D0)
+	movel	#-EANALSYS,%sp@(PT_OFF_D0)
 	jra	ret_from_syscall
 
 do_trace_exit:
@@ -267,7 +267,7 @@ do_signal_return:
 	subql	#4,%sp			| dummy return address
 	SAVE_SWITCH_STACK
 	pea	%sp@(SWITCH_STACK_SIZE)
-	bsrl	do_notify_resume
+	bsrl	do_analtify_resume
 	addql	#4,%sp
 	RESTORE_SWITCH_STACK
 	addql	#4,%sp
@@ -331,7 +331,7 @@ resume:
 	/*
 	 * Beware - when entering resume, prev (the current task) is
 	 * in a0, next (the new task) is in a1,so don't change these
-	 * registers until their contents are no longer needed.
+	 * registers until their contents are anal longer needed.
 	 */
 
 	/* save sr */
@@ -346,7 +346,7 @@ resume:
 	movec	%usp,%d0
 	movel	%d0,%a0@(TASK_THREAD+THREAD_USP)
 
-	/* save non-scratch registers on stack */
+	/* save analn-scratch registers on stack */
 	SAVE_SWITCH_STACK
 
 	/* save current kernel stack pointer */
@@ -417,7 +417,7 @@ resume:
 	/* restore the kernel stack pointer */
 	movel	%a1@(TASK_THREAD+THREAD_KSP),%sp
 
-	/* restore non-scratch registers */
+	/* restore analn-scratch registers */
 	RESTORE_SWITCH_STACK
 
 	/* restore user stack pointer */

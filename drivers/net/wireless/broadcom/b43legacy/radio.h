@@ -4,7 +4,7 @@
   Broadcom B43legacy wireless driver
 
   Copyright (c) 2005 Martin Langer <martin-langer@gmx.de>,
-		     Stefano Brivio <stefano.brivio@polimi.it>
+		     Stefaanal Brivio <stefaanal.brivio@polimi.it>
 		     Michael Buesch <m@bues.ch>
 		     Danny van Dyk <kugelfang@gentoo.org>
 		     Andreas Jaggi <andreas.jaggi@waterwave.ch>
@@ -33,8 +33,8 @@
 #define B43legacy_RADIO_TXANTENNA_LASTPLCP	3
 #define B43legacy_RADIO_TXANTENNA_DEFAULT	B43legacy_RADIO_TXANTENNA_LASTPLCP
 
-#define B43legacy_RADIO_INTERFMODE_NONE		0
-#define B43legacy_RADIO_INTERFMODE_NONWLAN	1
+#define B43legacy_RADIO_INTERFMODE_ANALNE		0
+#define B43legacy_RADIO_INTERFMODE_ANALNWLAN	1
 #define B43legacy_RADIO_INTERFMODE_MANUALWLAN	2
 #define B43legacy_RADIO_INTERFMODE_AUTOWLAN	3
 

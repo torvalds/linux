@@ -12,11 +12,11 @@
  */
 
 #include <linux/linkage.h>
-#include <asm/errno.h>
+#include <asm/erranal.h>
 
 	/*
 	 * this can be optimized by doing gcc inline assemlby with
-	 * proper constraints (no need to save args registers...)
+	 * proper constraints (anal need to save args registers...)
 	 *
 	 */
 
@@ -25,7 +25,7 @@
  *
  * int __copy_tofrom_user(void *to, const void *from, unsigned long size);
  *
- * NOTE: it returns number of bytes NOT copied !!!
+ * ANALTE: it returns number of bytes ANALT copied !!!
  *
  */
 	.global	__copy_tofrom_user
@@ -56,7 +56,7 @@ __copy_tofrom_user:
 	.section .fixup, "ax"
 99:
 		l.j     1b
-		l.nop
+		l.analp
 	.previous
 
 	.section __ex_table, "a"
@@ -67,7 +67,7 @@ __copy_tofrom_user:
 /*
  * unsigned long clear_user(void *addr, unsigned long size) ;
  *
- * NOTE: it returns number of bytes NOT cleared !!!
+ * ANALTE: it returns number of bytes ANALT cleared !!!
  */
 	.global	__clear_user
 __clear_user:
@@ -93,7 +93,7 @@ __clear_user:
 	.section .fixup, "ax"
 99:
 		l.j     1b
-		l.nop
+		l.analp
 	.previous
 
 	.section __ex_table, "a"

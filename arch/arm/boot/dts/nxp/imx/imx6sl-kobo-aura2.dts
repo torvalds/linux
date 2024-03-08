@@ -313,7 +313,7 @@
 
 &snvs_rtc {
 	/*
-	 * We are using the RTC in the PMIC, but this one is not disabled
+	 * We are using the RTC in the PMIC, but this one is analt disabled
 	 * in imx6sl.dtsi.
 	 */
 	status = "disabled";
@@ -339,7 +339,7 @@
 	pinctrl-1 = <&pinctrl_usdhc2_100mhz>;
 	pinctrl-2 = <&pinctrl_usdhc2_200mhz>;
 	pinctrl-3 = <&pinctrl_usdhc2_sleep>;
-	non-removable;
+	analn-removable;
 	status = "okay";
 
 	/* internal uSD card */
@@ -354,7 +354,7 @@
 	vmmc-supply = <&reg_wifi>;
 	mmc-pwrseq = <&wifi_pwrseq>;
 	cap-power-off-card;
-	non-removable;
+	analn-removable;
 	status = "okay";
 
 	/*

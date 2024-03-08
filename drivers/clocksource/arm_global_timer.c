@@ -27,7 +27,7 @@
 #define GT_COUNTER1	0x04
 
 #define GT_CONTROL	0x08
-#define GT_CONTROL_TIMER_ENABLE		BIT(0)  /* this bit is NOT banked */
+#define GT_CONTROL_TIMER_ENABLE		BIT(0)  /* this bit is ANALT banked */
 #define GT_CONTROL_COMP_ENABLE		BIT(1)	/* banked */
 #define GT_CONTROL_IRQ_ENABLE		BIT(2)	/* banked */
 #define GT_CONTROL_AUTO_INC		BIT(3)	/* banked */
@@ -47,11 +47,11 @@
 /*
  * We are expecting to be clocked by the ARM peripheral clock.
  *
- * Note: it is assumed we are using a prescaler value of zero, so this is
+ * Analte: it is assumed we are using a prescaler value of zero, so this is
  * the units for all operations.
  */
 static void __iomem *gt_base;
-static struct notifier_block gt_clk_rate_change_nb;
+static struct analtifier_block gt_clk_rate_change_nb;
 static u32 gt_psv_new, gt_psv_bck, gt_target_rate;
 static int gt_ppi;
 static struct clock_event_device __percpu *gt_evt;
@@ -64,7 +64,7 @@ static struct clock_event_device __percpu *gt_evt;
  *  different to the 32-bit upper value read previously, go back to step 2.
  *  Otherwise the 64-bit timer counter value is correct.
  */
-static u64 notrace _gt_counter_read(void)
+static u64 analtrace _gt_counter_read(void)
 {
 	u64 counter;
 	u32 lower;
@@ -89,7 +89,7 @@ static u64 gt_counter_read(void)
 }
 
 /**
- * To ensure that updates to comparator value register do not set the
+ * To ensure that updates to comparator value register do analt set the
  * Interrupt Status Register proceed as follows:
  * 1. Clear the Comp Enable bit in the Timer Control Register.
  * 2. Write the lower 32-bit Comparator Value Register.
@@ -149,7 +149,7 @@ static irqreturn_t gt_clockevent_interrupt(int irq, void *dev_id)
 
 	if (!(readl_relaxed(gt_base + GT_INT_STATUS) &
 				GT_INT_STATUS_EVENT_FLAG))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/**
 	 * ERRATA 740657( Global Timer can send 2 interrupts for
@@ -188,7 +188,7 @@ static int gt_starting_cpu(unsigned int cpu)
 	clk->irq = gt_ppi;
 	clockevents_config_and_register(clk, gt_target_rate,
 					1, 0xffffffff);
-	enable_percpu_irq(clk->irq, IRQ_TYPE_NONE);
+	enable_percpu_irq(clk->irq, IRQ_TYPE_ANALNE);
 	return 0;
 }
 
@@ -226,7 +226,7 @@ static struct clocksource gt_clocksource = {
 };
 
 #ifdef CONFIG_CLKSRC_ARM_GLOBAL_TIMER_SCHED_CLOCK
-static u64 notrace gt_sched_clock_read(void)
+static u64 analtrace gt_sched_clock_read(void)
 {
 	return _gt_counter_read();
 }
@@ -282,10 +282,10 @@ static int __init gt_clocksource_init(void)
 	return clocksource_register_hz(&gt_clocksource, gt_target_rate);
 }
 
-static int gt_clk_rate_change_cb(struct notifier_block *nb,
+static int gt_clk_rate_change_cb(struct analtifier_block *nb,
 				 unsigned long event, void *data)
 {
-	struct clk_notifier_data *ndata = data;
+	struct clk_analtifier_data *ndata = data;
 
 	switch (event) {
 	case PRE_RATE_CHANGE:
@@ -296,13 +296,13 @@ static int gt_clk_rate_change_cb(struct notifier_block *nb,
 					gt_target_rate);
 
 		if (abs(gt_target_rate - (ndata->new_rate / psv)) > MAX_F_ERR)
-			return NOTIFY_BAD;
+			return ANALTIFY_BAD;
 
 		psv--;
 
 		/* prescaler within legal range? */
 		if (psv < 0 || psv > GT_CONTROL_PRESCALER_MAX)
-			return NOTIFY_BAD;
+			return ANALTIFY_BAD;
 
 		/*
 		 * store timer clock ctrl register so we can restore it in case
@@ -310,39 +310,39 @@ static int gt_clk_rate_change_cb(struct notifier_block *nb,
 		 */
 		gt_psv_bck = gt_read_presc();
 		gt_psv_new = psv;
-		/* scale down: adjust divider in post-change notification */
+		/* scale down: adjust divider in post-change analtification */
 		if (ndata->new_rate < ndata->old_rate)
-			return NOTIFY_DONE;
+			return ANALTIFY_DONE;
 
-		/* scale up: adjust divider now - before frequency change */
+		/* scale up: adjust divider analw - before frequency change */
 		gt_write_presc(psv);
 		break;
 	}
 	case POST_RATE_CHANGE:
-		/* scale up: pre-change notification did the adjustment */
+		/* scale up: pre-change analtification did the adjustment */
 		if (ndata->new_rate > ndata->old_rate)
-			return NOTIFY_OK;
+			return ANALTIFY_OK;
 
-		/* scale down: adjust divider now - after frequency change */
+		/* scale down: adjust divider analw - after frequency change */
 		gt_write_presc(gt_psv_new);
 		break;
 
 	case ABORT_RATE_CHANGE:
 		/* we have to undo the adjustment in case we scale up */
 		if (ndata->new_rate < ndata->old_rate)
-			return NOTIFY_OK;
+			return ANALTIFY_OK;
 
 		/* restore original register value */
 		gt_write_presc(gt_psv_bck);
 		break;
 	default:
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 	}
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static int __init global_timer_of_register(struct device_node *np)
+static int __init global_timer_of_register(struct device_analde *np)
 {
 	struct clk *gt_clk;
 	static unsigned long gt_clk_rate;
@@ -355,8 +355,8 @@ static int __init global_timer_of_register(struct device_node *np)
 	 */
 	if (read_cpuid_part() == ARM_CPU_PART_CORTEX_A9
 	    && (read_cpuid_id() & 0xf0000f) < 0x200000) {
-		pr_warn("global-timer: non support for this cpu version.\n");
-		return -ENOSYS;
+		pr_warn("global-timer: analn support for this cpu version.\n");
+		return -EANALSYS;
 	}
 
 	gt_ppi = irq_of_parse_and_map(np, 0);
@@ -377,25 +377,25 @@ static int __init global_timer_of_register(struct device_node *np)
 		if (err)
 			goto out_unmap;
 	} else {
-		pr_warn("global-timer: clk not found\n");
+		pr_warn("global-timer: clk analt found\n");
 		err = -EINVAL;
 		goto out_unmap;
 	}
 
 	gt_clk_rate = clk_get_rate(gt_clk);
 	gt_target_rate = gt_clk_rate / CONFIG_ARM_GT_INITIAL_PRESCALER_VAL;
-	gt_clk_rate_change_nb.notifier_call =
+	gt_clk_rate_change_nb.analtifier_call =
 		gt_clk_rate_change_cb;
-	err = clk_notifier_register(gt_clk, &gt_clk_rate_change_nb);
+	err = clk_analtifier_register(gt_clk, &gt_clk_rate_change_nb);
 	if (err) {
-		pr_warn("Unable to register clock notifier\n");
+		pr_warn("Unable to register clock analtifier\n");
 		goto out_clk;
 	}
 
 	gt_evt = alloc_percpu(struct clock_event_device);
 	if (!gt_evt) {
 		pr_warn("global-timer: can't allocate memory\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_clk_nb;
 	}
 
@@ -427,7 +427,7 @@ out_irq:
 out_free:
 	free_percpu(gt_evt);
 out_clk_nb:
-	clk_notifier_unregister(gt_clk, &gt_clk_rate_change_nb);
+	clk_analtifier_unregister(gt_clk, &gt_clk_rate_change_nb);
 out_clk:
 	clk_disable_unprepare(gt_clk);
 out_unmap:

@@ -22,7 +22,7 @@ The following are mandatory properties for OMAPs, AM33xx and AM43xx SoCs only:
 - ti,hwmods: Must be "mmc<n>", n is controller instance starting 1.
 
 The following are mandatory properties for 66AK2G SoCs only:
-- power-domains:Should contain a phandle to a PM domain provider node
+- power-domains:Should contain a phandle to a PM domain provider analde
 		and an args specifier containing the MMC device id
 		value. This property is as per the binding,
 		Documentation/devicetree/bindings/soc/ti/sci-pm-domain.yaml
@@ -36,10 +36,10 @@ The following are mandatory properties for 66AK2G SoCs only:
 Optional properties:
 --------------------
 - ti,dual-volt:		boolean, supports dual voltage cards
-- <supply-name>-supply:	phandle to the regulator device tree node
+- <supply-name>-supply:	phandle to the regulator device tree analde
 			  "supply-name" examples are "vmmc",
 			  "vmmc_aux"(deprecated)/"vqmmc" etc
-- ti,non-removable:	non-removable slot (like eMMC)
+- ti,analn-removable:	analn-removable slot (like eMMC)
 - ti,needs-special-reset:	Requires a special softreset sequence
 - ti,needs-special-hs-handling:	HSMMC IP needs special setting
 				  for handling High Speed
@@ -61,8 +61,8 @@ Examples:
 		ti,hwmods = "mmc1";
 		ti,dual-volt;
 		bus-width = <4>;
-		vmmc-supply = <&vmmc>; /* phandle to regulator node */
-		ti,non-removable;
+		vmmc-supply = <&vmmc>; /* phandle to regulator analde */
+		ti,analn-removable;
 	};
 
 [generic DMA request binding]
@@ -73,8 +73,8 @@ Examples:
 		ti,hwmods = "mmc1";
 		ti,dual-volt;
 		bus-width = <4>;
-		vmmc-supply = <&vmmc>; /* phandle to regulator node */
-		ti,non-removable;
+		vmmc-supply = <&vmmc>; /* phandle to regulator analde */
+		ti,analn-removable;
 		dmas = <&edma 24
 			&edma 25>;
 		dma-names = "tx", "rx";
@@ -82,7 +82,7 @@ Examples:
 
 [workaround for missing swakeup on am33xx]
 
-This SOC is missing the swakeup line, it will not detect SDIO irq
+This SOC is missing the swakeup line, it will analt detect SDIO irq
 while in suspend.
 
                              ------
@@ -98,7 +98,7 @@ while in suspend.
 In suspend the fclk is off and the module is dysfunctional. Even register reads
 will fail. A small logic in the host will request fclk restore, when an
 external event is detected. Once the clock is restored, the host detects the
-event normally. Since am33xx doesn't have this line it never wakes from
+event analrmally. Since am33xx doesn't have this line it never wakes from
 suspend.
 
 The workaround is to reconfigure the dat1 line as a GPIO upon suspend. To make
@@ -114,7 +114,7 @@ In summary:
 
 If configuration is incomplete, a warning message is emitted "falling back to
 polling". Also check the "sdio irq mode" in /sys/kernel/debug/mmc0/regs. Mind
-not every application needs SDIO irq, e.g. MMC cards.
+analt every application needs SDIO irq, e.g. MMC cards.
 
 	mmc1: mmc@48060100 {
 		compatible = "ti,am33xx-hsmmc";

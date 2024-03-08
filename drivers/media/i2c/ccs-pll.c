@@ -5,7 +5,7 @@
  * Generic MIPI CCS/SMIA/SMIA++ PLL calculator
  *
  * Copyright (C) 2020 Intel Corporation
- * Copyright (C) 2011--2012 Nokia Corporation
+ * Copyright (C) 2011--2012 Analkia Corporation
  * Contact: Sakari Ailus <sakari.ailus@linux.intel.com>
  */
 
@@ -105,7 +105,7 @@ static void print_pll(struct device *dev, struct ccs_pll *pll)
 				br->fr->pll_op_clk_freq_hz);
 		}
 
-		if (!(pll->flags & CCS_PLL_FLAG_NO_OP_CLOCKS) ||
+		if (!(pll->flags & CCS_PLL_FLAG_ANAL_OP_CLOCKS) ||
 		    br->which == PLL_VT) {
 			dev_dbg(dev, "%s_sys_clk_div\t\t%u\n",  s,
 				br->bk->sys_clk_div);
@@ -198,7 +198,7 @@ static int check_bk_bounds(struct device *dev,
 	int rval;
 
 	if (which == PLL_OP) {
-		if (pll->flags & CCS_PLL_FLAG_NO_OP_CLOCKS)
+		if (pll->flags & CCS_PLL_FLAG_ANAL_OP_CLOCKS)
 			return 0;
 
 		lim_bk = &lim->op_bk;
@@ -234,13 +234,13 @@ static int check_ext_bounds(struct device *dev, struct ccs_pll *pll)
 {
 	if (!(pll->flags & CCS_PLL_FLAG_FIFO_DERATING) &&
 	    pll->pixel_rate_pixel_array > pll->pixel_rate_csi) {
-		dev_dbg(dev, "device does not support derating\n");
+		dev_dbg(dev, "device does analt support derating\n");
 		return -EINVAL;
 	}
 
 	if (!(pll->flags & CCS_PLL_FLAG_FIFO_OVERRATING) &&
 	    pll->pixel_rate_pixel_array < pll->pixel_rate_csi) {
-		dev_dbg(dev, "device does not support overrating\n");
+		dev_dbg(dev, "device does analt support overrating\n");
 		return -EINVAL;
 	}
 
@@ -254,7 +254,7 @@ ccs_pll_find_vt_sys_div(struct device *dev, const struct ccs_pll_limits *lim,
 			u16 *min_sys_div, u16 *max_sys_div)
 {
 	/*
-	 * Find limits for sys_clk_div. Not all values are possible with all
+	 * Find limits for sys_clk_div. Analt all values are possible with all
 	 * values of pix_clk_div.
 	 */
 	*min_sys_div = lim->vt_bk.min_sys_clk_div;
@@ -448,11 +448,11 @@ ccs_pll_calculate_vt(struct device *dev, const struct ccs_pll_limits *lim,
 	u16 min_vt_div, max_vt_div, vt_div;
 	u16 min_sys_div, max_sys_div;
 
-	if (pll->flags & CCS_PLL_FLAG_NO_OP_CLOCKS)
+	if (pll->flags & CCS_PLL_FLAG_ANAL_OP_CLOCKS)
 		goto out_calc_pixel_rate;
 
 	/*
-	 * Find out whether a sensor supports derating. If it does not, VT and
+	 * Find out whether a sensor supports derating. If it does analt, VT and
 	 * OP domains are required to run at the same pixel rate.
 	 */
 	if (!(pll->flags & CCS_PLL_FLAG_FIFO_DERATING)) {
@@ -480,7 +480,7 @@ ccs_pll_calculate_vt(struct device *dev, const struct ccs_pll_limits *lim,
 		 *
 		 * Horizontal binning can be used as a base for difference in
 		 * divisors. One must make sure that horizontal blanking is
-		 * enough to accommodate the CSI-2 sync codes.
+		 * eanalugh to accommodate the CSI-2 sync codes.
 		 *
 		 * Take scaling factor and number of VT lanes into account as well.
 		 *
@@ -522,7 +522,7 @@ ccs_pll_calculate_vt(struct device *dev, const struct ccs_pll_limits *lim,
 
 	/*
 	 * Find pix_div such that a legal pix_div * sys_div results
-	 * into a value which is not smaller than div, the desired
+	 * into a value which is analt smaller than div, the desired
 	 * divisor.
 	 */
 	for (vt_div = min_vt_div; vt_div <= max_vt_div; vt_div++) {
@@ -726,10 +726,10 @@ int ccs_pll_calculate(struct device *dev, const struct ccs_pll_limits *lim,
 		op_lim_bk = &lim->op_bk;
 		op_pll_fr = &pll->op_fr;
 		op_pll_bk = &pll->op_bk;
-	} else if (pll->flags & CCS_PLL_FLAG_NO_OP_CLOCKS) {
+	} else if (pll->flags & CCS_PLL_FLAG_ANAL_OP_CLOCKS) {
 		/*
-		 * If there's no OP PLL at all, use the VT values
-		 * instead. The OP values are ignored for the rest of
+		 * If there's anal OP PLL at all, use the VT values
+		 * instead. The OP values are iganalred for the rest of
 		 * the PLL calculation.
 		 */
 		op_lim_fr = &lim->vt_fr;
@@ -759,7 +759,7 @@ int ccs_pll_calculate(struct device *dev, const struct ccs_pll_limits *lim,
 	if (!(pll->flags & CCS_PLL_FLAG_FLEXIBLE_OP_PIX_CLK_DIV) &&
 	    (pll->bits_per_pixel * pll->op_lanes) %
 	    (pll->csi2.lanes * l << op_pix_ddr(pll->flags))) {
-		dev_dbg(dev, "op_pix_clk_div not an integer (bpp %u, op lanes %u, lanes %u, l %u)\n",
+		dev_dbg(dev, "op_pix_clk_div analt an integer (bpp %u, op lanes %u, lanes %u, l %u)\n",
 			pll->bits_per_pixel, pll->op_lanes, pll->csi2.lanes, l);
 		return -EINVAL;
 	}

@@ -11,7 +11,7 @@
  * Register page 1:
  *
  * Address	Description
- * 0x08		Unknown compressor related, must always be 8 except when not
+ * 0x08		Unkanalwn compressor related, must always be 8 except when analt
  *		in 640x480 resolution and page 4 reg 2 <= 3 then set it to 9 !
  * 0x1b		Auto white balance related, bit 0 is AWB enable (inverted)
  *		bits 345 seem to toggle per color gains on/off (inverted)
@@ -23,8 +23,8 @@
  *		0x2a Values >= this switch the camera to a lower compression,
  *		     using the same table for both luminance and chrominance.
  *		     This gives a sharper picture. Usable only at 640x480@ <
- *		     15 fps or 320x240 / 160x120. Note currently the driver
- *		     does not use this as the quality gain is small and the
+ *		     15 fps or 320x240 / 160x120. Analte currently the driver
+ *		     does analt use this as the quality gain is small and the
  *		     generated JPG-s are only understood by v4l-utils >= 0.8.9
  *		0x3f From usb captures under Windows for 320x240
  *		0x69 From usb captures under Windows for 160x120
@@ -35,9 +35,9 @@
  * 0x02		Clock divider 2-63, fps =~ 60 / val. Must be a multiple of 3 on
  *		the 7302, so one of 3, 6, 9, ..., except when between 6 and 12?
  * 0x0f		Master gain 1-245, low value = high gain
- * 0x10		Another gain 0-15, limited influence (1-2x gain I guess)
- * 0x21		Bitfield: 0-1 unused, 2-3 vflip/hflip, 4-5 unknown, 6-7 unused
- *		Note setting vflip disabled leads to a much lower image quality,
+ * 0x10		Aanalther gain 0-15, limited influence (1-2x gain I guess)
+ * 0x21		Bitfield: 0-1 unused, 2-3 vflip/hflip, 4-5 unkanalwn, 6-7 unused
+ *		Analte setting vflip disabled leads to a much lower image quality,
  *		so we always vflip, and tell userspace to flip it back
  * 0x27		Seems to toggle various gains on / off, Setting bit 7 seems to
  *		completely disable the analog amplification block. Set to 0x68
@@ -67,23 +67,23 @@ struct sd {
 	struct v4l2_ctrl *hflip;
 
 	u8 sof_read;
-	u8 autogain_ignore_frames;
+	u8 autogain_iganalre_frames;
 
 	atomic_t avg_lum;
 };
 
 static const struct v4l2_pix_format vga_mode[] = {
-	{160, 120, V4L2_PIX_FMT_PJPG, V4L2_FIELD_NONE,
+	{160, 120, V4L2_PIX_FMT_PJPG, V4L2_FIELD_ANALNE,
 		.bytesperline = 160,
 		.sizeimage = 160 * 120 * 3 / 8 + 590,
 		.colorspace = V4L2_COLORSPACE_JPEG,
 		.priv = 2},
-	{320, 240, V4L2_PIX_FMT_PJPG, V4L2_FIELD_NONE,
+	{320, 240, V4L2_PIX_FMT_PJPG, V4L2_FIELD_ANALNE,
 		.bytesperline = 320,
 		.sizeimage = 320 * 240 * 3 / 8 + 590,
 		.colorspace = V4L2_COLORSPACE_JPEG,
 		.priv = 1},
-	{640, 480, V4L2_PIX_FMT_PJPG, V4L2_FIELD_NONE,
+	{640, 480, V4L2_PIX_FMT_PJPG, V4L2_FIELD_ANALNE,
 		.bytesperline = 640,
 		.sizeimage = 640 * 480 * 3 / 8 + 590,
 		.colorspace = V4L2_COLORSPACE_JPEG,
@@ -266,7 +266,7 @@ static void reg_w_var(struct gspca_dev *gspca_dev,
 			}
 		}
 	}
-	/* not reached */
+	/* analt reached */
 }
 
 /* this function is called at probe time for pac7311 */
@@ -309,7 +309,7 @@ static void setexposure(struct gspca_dev *gspca_dev, s32 val)
 	reg_w(gspca_dev, 0x11, 0x01);
 
 	/*
-	 * Page 1 register 8 must always be 0x08 except when not in
+	 * Page 1 register 8 must always be 0x08 except when analt in
 	 *  640x480 mode and page 4 reg 2 <= 3 then it must be 9
 	 */
 	reg_w(gspca_dev, 0xff, 0x01);
@@ -319,7 +319,7 @@ static void setexposure(struct gspca_dev *gspca_dev, s32 val)
 		reg_w(gspca_dev, 0x08, 0x08);
 
 	/*
-	 * Page1 register 80 sets the compression balance, normally we
+	 * Page1 register 80 sets the compression balance, analrmally we
 	 * want / use 0x1c, but for 640x480@30fps we must allow the
 	 * camera to use higher compression or we may run out of
 	 * bandwidth.
@@ -368,7 +368,7 @@ static int sd_s_ctrl(struct v4l2_ctrl *ctrl)
 		   take effect before doing autogain. */
 		gspca_dev->exposure->val    = PAC7311_EXPOSURE_DEFAULT;
 		gspca_dev->gain->val        = PAC7311_GAIN_DEFAULT;
-		sd->autogain_ignore_frames  = PAC_AUTOGAIN_IGNORE_FRAMES;
+		sd->autogain_iganalre_frames  = PAC_AUTOGAIN_IGANALRE_FRAMES;
 	}
 
 	if (!gspca_dev->streaming)
@@ -420,7 +420,7 @@ static int sd_init_controls(struct gspca_dev *gspca_dev)
 		V4L2_CID_HFLIP, 0, 1, 1, 0);
 
 	if (hdl->error) {
-		pr_err("Could not initialize controls\n");
+		pr_err("Could analt initialize controls\n");
 		return hdl->error;
 	}
 
@@ -462,7 +462,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	}
 
 	sd->sof_read = 0;
-	sd->autogain_ignore_frames = 0;
+	sd->autogain_iganalre_frames = 0;
 	atomic_set(&sd->avg_lum, -1);
 
 	/* start stream */
@@ -498,11 +498,11 @@ static void do_autogain(struct gspca_dev *gspca_dev)
 	desired_lum = 170;
 	deadzone = 20;
 
-	if (sd->autogain_ignore_frames > 0)
-		sd->autogain_ignore_frames--;
+	if (sd->autogain_iganalre_frames > 0)
+		sd->autogain_iganalre_frames--;
 	else if (gspca_coarse_grained_expo_autogain(gspca_dev, avg_lum,
 						    desired_lum, deadzone))
-		sd->autogain_ignore_frames = PAC_AUTOGAIN_IGNORE_FRAMES;
+		sd->autogain_iganalre_frames = PAC_AUTOGAIN_IGANALRE_FRAMES;
 }
 
 /* JPEG header, part 1 */

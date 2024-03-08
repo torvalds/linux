@@ -16,7 +16,7 @@
 #include "ia_css_bayer_io.host.h"
 #include "dma.h"
 #include "math_support.h"
-#ifndef IA_CSS_NO_DEBUG
+#ifndef IA_CSS_ANAL_DEBUG
 #include "ia_css_debug.h"
 #endif
 #include "ia_css_isp_params.h"
@@ -45,7 +45,7 @@ int ia_css_bayer_io_config(const struct ia_css_binary      *binary,
 		struct ia_css_common_io_config *to = (struct ia_css_common_io_config *)
 						     &binary->mem_params.params[IA_CSS_PARAM_CLASS_PARAM][IA_CSS_ISP_DMEM].address[offset];
 		struct dma_port_config config;
-#ifndef IA_CSS_NO_DEBUG
+#ifndef IA_CSS_ANAL_DEBUG
 		ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE,
 				    "ia_css_bayer_io_config() get part enter:\n");
 #endif
@@ -58,7 +58,7 @@ int ia_css_bayer_io_config(const struct ia_css_binary      *binary,
 		to->height = in_frame_info->res.height;
 		to->stride = config.stride;
 		to->ddr_elems_per_word = ddr_elems_per_word;
-#ifndef IA_CSS_NO_DEBUG
+#ifndef IA_CSS_ANAL_DEBUG
 		ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE,
 				    "ia_css_bayer_io_config() get part leave:\n");
 #endif
@@ -73,7 +73,7 @@ int ia_css_bayer_io_config(const struct ia_css_binary      *binary,
 		struct ia_css_common_io_config *to = (struct ia_css_common_io_config *)
 						     &binary->mem_params.params[IA_CSS_PARAM_CLASS_PARAM][IA_CSS_ISP_DMEM].address[offset];
 		struct dma_port_config config;
-#ifndef IA_CSS_NO_DEBUG
+#ifndef IA_CSS_ANAL_DEBUG
 		ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE,
 				    "ia_css_bayer_io_config() put part enter:\n");
 #endif
@@ -87,7 +87,7 @@ int ia_css_bayer_io_config(const struct ia_css_binary      *binary,
 		to->stride = config.stride;
 		to->ddr_elems_per_word = ddr_elems_per_word;
 
-#ifndef IA_CSS_NO_DEBUG
+#ifndef IA_CSS_ANAL_DEBUG
 		ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE,
 				    "ia_css_bayer_io_config() put part leave:\n");
 #endif

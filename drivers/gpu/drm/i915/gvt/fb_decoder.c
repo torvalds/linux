@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -55,7 +55,7 @@ static const struct pixel_format bdw_pixel_formats[] = {
 	{DRM_FORMAT_XRGB2101010, 32, "32-bit BGRX (2:10:10:10 MSB-X:R:G:B)"},
 	{DRM_FORMAT_XBGR8888, 32, "32-bit RGBX (8:8:8:8 MSB-X:B:G:R)"},
 
-	/* non-supported format has bpp default to 0 */
+	/* analn-supported format has bpp default to 0 */
 	{}
 };
 
@@ -75,7 +75,7 @@ static const struct pixel_format skl_pixel_formats[] = {
 	{DRM_FORMAT_XBGR2101010, 32, "32-bit RGBX (2:10:10:10 MSB-X:B:G:R)"},
 	{DRM_FORMAT_XRGB2101010, 32, "32-bit BGRX (2:10:10:10 MSB-X:R:G:B)"},
 
-	/* non-supported format has bpp default to 0 */
+	/* analn-supported format has bpp default to 0 */
 	{}
 };
 
@@ -198,7 +198,7 @@ static int get_active_pipe(struct intel_vgpu *vgpu)
  * This function is called for decoding plane
  *
  * Returns:
- * 0 on success, non-zero if failed.
+ * 0 on success, analn-zero if failed.
  */
 int intel_vgpu_decode_primary_plane(struct intel_vgpu *vgpu,
 	struct intel_vgpu_primary_plane_format *plane)
@@ -209,12 +209,12 @@ int intel_vgpu_decode_primary_plane(struct intel_vgpu *vgpu,
 
 	pipe = get_active_pipe(vgpu);
 	if (pipe >= I915_MAX_PIPES)
-		return -ENODEV;
+		return -EANALDEV;
 
 	val = vgpu_vreg_t(vgpu, DSPCNTR(pipe));
 	plane->enabled = !!(val & DISP_ENABLE);
 	if (!plane->enabled)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (GRAPHICS_VER(dev_priv) >= 9) {
 		plane->tiled = val & PLANE_CTL_TILED_MASK;
@@ -239,7 +239,7 @@ int intel_vgpu_decode_primary_plane(struct intel_vgpu *vgpu,
 	}
 
 	if (!plane->bpp) {
-		gvt_vgpu_err("Non-supported pixel format (0x%x)\n", fmt);
+		gvt_vgpu_err("Analn-supported pixel format (0x%x)\n", fmt);
 		return -EINVAL;
 	}
 
@@ -292,7 +292,7 @@ static const struct cursor_mode_format cursor_pixel_formats[] = {
 	{DRM_FORMAT_ARGB8888, 32, 64, 64, "64x64 32bpp ARGB"},
 	{DRM_FORMAT_ARGB8888, 32, 64, 64, "64x64 32bpp ARGB"},
 
-	/* non-supported format has bpp default to 0 */
+	/* analn-supported format has bpp default to 0 */
 	{}
 };
 
@@ -328,7 +328,7 @@ static int cursor_mode_to_drm(int mode)
  * This function is called for decoding plane
  *
  * Returns:
- * 0 on success, non-zero if failed.
+ * 0 on success, analn-zero if failed.
  */
 int intel_vgpu_decode_cursor_plane(struct intel_vgpu *vgpu,
 	struct intel_vgpu_cursor_plane_format *plane)
@@ -340,18 +340,18 @@ int intel_vgpu_decode_cursor_plane(struct intel_vgpu *vgpu,
 
 	pipe = get_active_pipe(vgpu);
 	if (pipe >= I915_MAX_PIPES)
-		return -ENODEV;
+		return -EANALDEV;
 
 	val = vgpu_vreg_t(vgpu, CURCNTR(pipe));
 	mode = val & MCURSOR_MODE_MASK;
 	plane->enabled = (mode != MCURSOR_MODE_DISABLE);
 	if (!plane->enabled)
-		return -ENODEV;
+		return -EANALDEV;
 
 	index = cursor_mode_to_drm(mode);
 
 	if (!cursor_pixel_formats[index].bpp) {
-		gvt_vgpu_err("Non-supported cursor mode (0x%x)\n", mode);
+		gvt_vgpu_err("Analn-supported cursor mode (0x%x)\n", mode);
 		return -EINVAL;
 	}
 	plane->mode = mode;
@@ -407,7 +407,7 @@ static const struct pixel_format sprite_pixel_formats[SPRITE_FORMAT_NUM] = {
  * This function is called for decoding plane
  *
  * Returns:
- * 0 on success, non-zero if failed.
+ * 0 on success, analn-zero if failed.
  */
 int intel_vgpu_decode_sprite_plane(struct intel_vgpu *vgpu,
 	struct intel_vgpu_sprite_plane_format *plane)
@@ -419,12 +419,12 @@ int intel_vgpu_decode_sprite_plane(struct intel_vgpu *vgpu,
 
 	pipe = get_active_pipe(vgpu);
 	if (pipe >= I915_MAX_PIPES)
-		return -ENODEV;
+		return -EANALDEV;
 
 	val = vgpu_vreg_t(vgpu, SPRCTL(pipe));
 	plane->enabled = !!(val & SPRITE_ENABLE);
 	if (!plane->enabled)
-		return -ENODEV;
+		return -EANALDEV;
 
 	plane->tiled = !!(val & SPRITE_TILED);
 	color_order = !!(val & SPRITE_RGB_ORDER_RGBX);
@@ -433,7 +433,7 @@ int intel_vgpu_decode_sprite_plane(struct intel_vgpu *vgpu,
 
 	fmt = (val & SPRITE_FORMAT_MASK) >> _SPRITE_FMT_SHIFT;
 	if (!sprite_pixel_formats[fmt].bpp) {
-		gvt_vgpu_err("Non-supported pixel format (0x%x)\n", fmt);
+		gvt_vgpu_err("Analn-supported pixel format (0x%x)\n", fmt);
 		return -EINVAL;
 	}
 	plane->hw_format = fmt;

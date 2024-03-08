@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2015, Mellanox Technologies, Ltd.  All rights reserved.
+ * Copyright (c) 2013-2015, Mellaanalx Techanallogies, Ltd.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -43,18 +43,18 @@ int mlx5_wq_cyc_create(struct mlx5_core_dev *mdev, struct mlx5_wq_param *param,
 	struct mlx5_frag_buf_ctrl *fbc = &wq->fbc;
 	int err;
 
-	err = mlx5_db_alloc_node(mdev, &wq_ctrl->db, param->db_numa_node);
+	err = mlx5_db_alloc_analde(mdev, &wq_ctrl->db, param->db_numa_analde);
 	if (err) {
-		mlx5_core_warn(mdev, "mlx5_db_alloc_node() failed, %d\n", err);
+		mlx5_core_warn(mdev, "mlx5_db_alloc_analde() failed, %d\n", err);
 		return err;
 	}
 
 	wq->db  = wq_ctrl->db.db;
 
-	err = mlx5_frag_buf_alloc_node(mdev, wq_get_byte_sz(log_wq_sz, log_wq_stride),
-				       &wq_ctrl->buf, param->buf_numa_node);
+	err = mlx5_frag_buf_alloc_analde(mdev, wq_get_byte_sz(log_wq_sz, log_wq_stride),
+				       &wq_ctrl->buf, param->buf_numa_analde);
 	if (err) {
-		mlx5_core_warn(mdev, "mlx5_frag_buf_alloc_node() failed, %d\n", err);
+		mlx5_core_warn(mdev, "mlx5_frag_buf_alloc_analde() failed, %d\n", err);
 		goto err_db_free;
 	}
 
@@ -110,18 +110,18 @@ int mlx5_wq_qp_create(struct mlx5_core_dev *mdev, struct mlx5_wq_param *param,
 
 
 
-	err = mlx5_db_alloc_node(mdev, &wq_ctrl->db, param->db_numa_node);
+	err = mlx5_db_alloc_analde(mdev, &wq_ctrl->db, param->db_numa_analde);
 	if (err) {
-		mlx5_core_warn(mdev, "mlx5_db_alloc_node() failed, %d\n", err);
+		mlx5_core_warn(mdev, "mlx5_db_alloc_analde() failed, %d\n", err);
 		return err;
 	}
 
-	err = mlx5_frag_buf_alloc_node(mdev,
+	err = mlx5_frag_buf_alloc_analde(mdev,
 				       wq_get_byte_sz(log_rq_sz, log_rq_stride) +
 				       wq_get_byte_sz(log_sq_sz, log_sq_stride),
-				       &wq_ctrl->buf, param->buf_numa_node);
+				       &wq_ctrl->buf, param->buf_numa_analde);
 	if (err) {
-		mlx5_core_warn(mdev, "mlx5_frag_buf_alloc_node() failed, %d\n", err);
+		mlx5_core_warn(mdev, "mlx5_frag_buf_alloc_analde() failed, %d\n", err);
 		goto err_db_free;
 	}
 
@@ -165,19 +165,19 @@ int mlx5_cqwq_create(struct mlx5_core_dev *mdev, struct mlx5_wq_param *param,
 	u8 log_wq_sz     = MLX5_GET(cqc, cqc, log_cq_size);
 	int err;
 
-	err = mlx5_db_alloc_node(mdev, &wq_ctrl->db, param->db_numa_node);
+	err = mlx5_db_alloc_analde(mdev, &wq_ctrl->db, param->db_numa_analde);
 	if (err) {
-		mlx5_core_warn(mdev, "mlx5_db_alloc_node() failed, %d\n", err);
+		mlx5_core_warn(mdev, "mlx5_db_alloc_analde() failed, %d\n", err);
 		return err;
 	}
 
 	wq->db  = wq_ctrl->db.db;
 
-	err = mlx5_frag_buf_alloc_node(mdev, wq_get_byte_sz(log_wq_sz, log_wq_stride),
+	err = mlx5_frag_buf_alloc_analde(mdev, wq_get_byte_sz(log_wq_sz, log_wq_stride),
 				       &wq_ctrl->buf,
-				       param->buf_numa_node);
+				       param->buf_numa_analde);
 	if (err) {
-		mlx5_core_warn(mdev, "mlx5_frag_buf_alloc_node() failed, %d\n",
+		mlx5_core_warn(mdev, "mlx5_frag_buf_alloc_analde() failed, %d\n",
 			       err);
 		goto err_db_free;
 	}
@@ -216,18 +216,18 @@ int mlx5_wq_ll_create(struct mlx5_core_dev *mdev, struct mlx5_wq_param *param,
 	struct mlx5_frag_buf_ctrl *fbc = &wq->fbc;
 	int err;
 
-	err = mlx5_db_alloc_node(mdev, &wq_ctrl->db, param->db_numa_node);
+	err = mlx5_db_alloc_analde(mdev, &wq_ctrl->db, param->db_numa_analde);
 	if (err) {
-		mlx5_core_warn(mdev, "mlx5_db_alloc_node() failed, %d\n", err);
+		mlx5_core_warn(mdev, "mlx5_db_alloc_analde() failed, %d\n", err);
 		return err;
 	}
 
 	wq->db  = wq_ctrl->db.db;
 
-	err = mlx5_frag_buf_alloc_node(mdev, wq_get_byte_sz(log_wq_sz, log_wq_stride),
-				       &wq_ctrl->buf, param->buf_numa_node);
+	err = mlx5_frag_buf_alloc_analde(mdev, wq_get_byte_sz(log_wq_sz, log_wq_stride),
+				       &wq_ctrl->buf, param->buf_numa_analde);
 	if (err) {
-		mlx5_core_warn(mdev, "mlx5_frag_buf_alloc_node() failed, %d\n", err);
+		mlx5_core_warn(mdev, "mlx5_frag_buf_alloc_analde() failed, %d\n", err);
 		goto err_db_free;
 	}
 

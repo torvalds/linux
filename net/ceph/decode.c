@@ -25,7 +25,7 @@ ceph_decode_entity_addr_versioned(void **p, void *end,
 
 	ceph_decode_copy_safe(p, end, &addr->type, sizeof(addr->type), bad);
 
-	ceph_decode_copy_safe(p, end, &addr->nonce, sizeof(addr->nonce), bad);
+	ceph_decode_copy_safe(p, end, &addr->analnce, sizeof(addr->analnce), bad);
 
 	ceph_decode_32_safe(p, end, addr_len, bad);
 	if (addr_len > sizeof(addr->in_addr))
@@ -56,11 +56,11 @@ ceph_decode_entity_addr_legacy(void **p, void *end,
 	ceph_decode_skip_n(p, end, 3, bad);
 
 	/*
-	 * Clients that don't support ADDR2 always send TYPE_NONE, change it
+	 * Clients that don't support ADDR2 always send TYPE_ANALNE, change it
 	 * to TYPE_LEGACY for forward compatibility.
 	 */
 	addr->type = CEPH_ENTITY_ADDR_TYPE_LEGACY;
-	ceph_decode_copy_safe(p, end, &addr->nonce, sizeof(addr->nonce), bad);
+	ceph_decode_copy_safe(p, end, &addr->analnce, sizeof(addr->analnce), bad);
 	memset(&addr->in_addr, 0, sizeof(addr->in_addr));
 	ceph_decode_copy_safe(p, end, &addr->in_addr,
 			      sizeof(addr->in_addr), bad);
@@ -122,7 +122,7 @@ int ceph_decode_entity_addrvec(void **p, void *end, bool msgr2,
 		dout("%s i %d addr %s\n", __func__, i, ceph_pr_addr(&tmp_addr));
 		if (tmp_addr.type == my_type) {
 			if (found) {
-				pr_err("another match of type %d in addrvec\n",
+				pr_err("aanalther match of type %d in addrvec\n",
 				       le32_to_cpu(my_type));
 				return -EINVAL;
 			}
@@ -136,13 +136,13 @@ int ceph_decode_entity_addrvec(void **p, void *end, bool msgr2,
 		return 0;
 
 	if (!addr_cnt)
-		return 0;  /* normal -- e.g. unused OSD id/slot */
+		return 0;  /* analrmal -- e.g. unused OSD id/slot */
 
 	if (addr_cnt == 1 && !memchr_inv(&tmp_addr, 0, sizeof(tmp_addr)))
 		return 0;  /* weird but effectively the same as !addr_cnt */
 
-	pr_err("no match of type %d in addrvec\n", le32_to_cpu(my_type));
-	return -ENOENT;
+	pr_err("anal match of type %d in addrvec\n", le32_to_cpu(my_type));
+	return -EANALENT;
 
 e_inval:
 	return -EINVAL;
@@ -182,10 +182,10 @@ void ceph_encode_entity_addr(void **p, const struct ceph_entity_addr *addr)
 
 	ceph_encode_8(p, 1);  /* marker */
 	ceph_start_encoding(p, 1, 1, sizeof(addr->type) +
-				     sizeof(addr->nonce) +
+				     sizeof(addr->analnce) +
 				     sizeof(u32) + addr_len);
 	ceph_encode_copy(p, &addr->type, sizeof(addr->type));
-	ceph_encode_copy(p, &addr->nonce, sizeof(addr->nonce));
+	ceph_encode_copy(p, &addr->analnce, sizeof(addr->analnce));
 
 	ceph_encode_32(p, addr_len);
 	ceph_encode_16(p, family);

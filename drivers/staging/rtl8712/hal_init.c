@@ -70,7 +70,7 @@ int rtl871x_load_fw(struct _adapter *padapter)
 
 	init_completion(&padapter->rtl8712_fw_ready);
 	dev_info(dev, "r8712u: Loading firmware from \"%s\"\n", firmware_file);
-	rc = request_firmware_nowait(THIS_MODULE, 1, firmware_file, dev,
+	rc = request_firmware_analwait(THIS_MODULE, 1, firmware_file, dev,
 				     GFP_KERNEL, padapter, rtl871x_load_fw_cb);
 	if (rc)
 		dev_err(dev, "r8712u: Firmware request error %d\n", rc);

@@ -187,7 +187,7 @@ err:
 	return ret;
 }
 
-static int adf_no_dev_config(struct adf_accel_dev *accel_dev)
+static int adf_anal_dev_config(struct adf_accel_dev *accel_dev)
 {
 	unsigned long val;
 	int ret;
@@ -243,7 +243,7 @@ int adf_gen4_dev_config(struct adf_accel_dev *accel_dev)
 		ret = adf_comp_dev_config(accel_dev);
 		break;
 	default:
-		ret = adf_no_dev_config(accel_dev);
+		ret = adf_anal_dev_config(accel_dev);
 		break;
 	}
 

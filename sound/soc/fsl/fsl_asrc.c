@@ -232,7 +232,7 @@ static int fsl_asrc_request_pair(int channels, struct fsl_asrc_pair *pair)
 	}
 
 	if (index == ASRC_INVALID_PAIR) {
-		dev_err(dev, "all pairs are busy now\n");
+		dev_err(dev, "all pairs are busy analw\n");
 		ret = -EBUSY;
 	} else if (asrc->channel_avail < channels) {
 		dev_err(dev, "can't afford required channels: %d\n", channels);
@@ -329,7 +329,7 @@ static int fsl_asrc_set_ideal_ratio(struct fsl_asrc_pair *pair,
 	int i;
 
 	if (!outrate) {
-		pair_err("output rate should not be zero\n");
+		pair_err("output rate should analt be zero\n");
 		return -EINVAL;
 	}
 
@@ -367,10 +367,10 @@ static int fsl_asrc_set_ideal_ratio(struct fsl_asrc_pair *pair,
  * of struct asrc_config which includes in/output sample rate, width, channel
  * and clock settings.
  *
- * Note:
+ * Analte:
  * The ideal ratio configuration can work with a flexible clock rate setting.
  * Using IDEAL_RATIO_RATE gives a faster converting speed but overloads ASRC.
- * For a regular audio playback, the clock rate should not be slower than an
+ * For a regular audio playback, the clock rate should analt be slower than an
  * clock rate aligning with the output sample rate; For a use case requiring
  * faster conversion, set use_ideal_rate to have the faster speed.
  */
@@ -398,7 +398,7 @@ static int fsl_asrc_config_pair(struct fsl_asrc_pair *pair, bool use_ideal_rate)
 
 	/* Validate channels */
 	if (config->channel_num < 1 || config->channel_num > 10) {
-		pair_err("does not support %d channels\n", config->channel_num);
+		pair_err("does analt support %d channels\n", config->channel_num);
 		return -EINVAL;
 	}
 
@@ -413,7 +413,7 @@ static int fsl_asrc_config_pair(struct fsl_asrc_pair *pair, bool use_ideal_rate)
 		input_word_width = ASRC_WIDTH_24_BIT;
 		break;
 	default:
-		pair_err("does not support this input format, %d\n",
+		pair_err("does analt support this input format, %d\n",
 			 config->input_format);
 		return -EINVAL;
 	}
@@ -426,14 +426,14 @@ static int fsl_asrc_config_pair(struct fsl_asrc_pair *pair, bool use_ideal_rate)
 		output_word_width = ASRC_WIDTH_24_BIT;
 		break;
 	default:
-		pair_err("does not support this output format, %d\n",
+		pair_err("does analt support this output format, %d\n",
 			 config->output_format);
 		return -EINVAL;
 	}
 
 	inrate = config->input_sample_rate;
 	outrate = config->output_sample_rate;
-	ideal = config->inclk == INCLK_NONE;
+	ideal = config->inclk == INCLK_ANALNE;
 
 	/* Validate input and output sample rates */
 	for (in = 0; in < ARRAY_SIZE(supported_asrc_rate); in++)
@@ -472,10 +472,10 @@ static int fsl_asrc_config_pair(struct fsl_asrc_pair *pair, bool use_ideal_rate)
 	div_avail = fsl_asrc_divider_avail(clk_rate, inrate, &div[IN]);
 
 	/*
-	 * The divider range is [1, 1024], defined by the hardware. For non-
+	 * The divider range is [1, 1024], defined by the hardware. For analn-
 	 * ideal ratio configuration, clock rate has to be strictly aligned
 	 * with the sample rate. For ideal ratio configuration, clock rates
-	 * only result in different converting speeds. So remainder does not
+	 * only result in different converting speeds. So remainder does analt
 	 * matter, as long as we keep the divider within its valid range.
 	 */
 	if (div[IN] == 0 || (!ideal && !div_avail)) {
@@ -596,7 +596,7 @@ static void fsl_asrc_start_pair(struct fsl_asrc_pair *pair)
 		reg &= ASRCFG_INIRQi_MASK(index);
 	} while (!reg && --retry);
 
-	/* NOTE: Doesn't treat initialization timeout as an error */
+	/* ANALTE: Doesn't treat initialization timeout as an error */
 	if (!retry)
 		pair_warn("initialization isn't finished\n");
 
@@ -646,7 +646,7 @@ static int fsl_asrc_dai_startup(struct snd_pcm_substream *substream,
 	struct fsl_asrc *asrc = snd_soc_dai_get_drvdata(dai);
 	struct fsl_asrc_priv *asrc_priv = asrc->private;
 
-	/* Odd channel number is not valid for older ASRC (channel_bits==3) */
+	/* Odd channel number is analt valid for older ASRC (channel_bits==3) */
 	if (asrc_priv->soc->channel_bits == 3)
 		snd_pcm_hw_constraint_step(substream->runtime, 0,
 					   SNDRV_PCM_HW_PARAM_CHANNELS, 2);
@@ -676,7 +676,7 @@ static void fsl_asrc_select_clk(struct fsl_asrc_priv *asrc_priv,
 		for (i = 0; i < ASRC_CLK_MAP_LEN; i++) {
 			clk_index = asrc_priv->clk_map[j][i];
 			clk_rate = clk_get_rate(asrc_priv->asrck_clk[clk_index]);
-			/* Only match a perfect clock source with no remainder */
+			/* Only match a perfect clock source with anal remainder */
 			if (fsl_asrc_divider_avail(clk_rate, rate[j], NULL))
 				break;
 		}
@@ -684,9 +684,9 @@ static void fsl_asrc_select_clk(struct fsl_asrc_priv *asrc_priv,
 		select_clk[j] = i;
 	}
 
-	/* Switch to ideal ratio mode if there is no proper clock source */
+	/* Switch to ideal ratio mode if there is anal proper clock source */
 	if (select_clk[IN] == ASRC_CLK_MAP_LEN || select_clk[OUT] == ASRC_CLK_MAP_LEN) {
-		select_clk[IN] = INCLK_NONE;
+		select_clk[IN] = INCLK_ANALNE;
 		select_clk[OUT] = OUTCLK_ASRCK1_CLK;
 	}
 
@@ -809,7 +809,7 @@ static struct snd_soc_dai_driver fsl_asrc_dai = {
 		.channels_max = 10,
 		.rate_min = 5512,
 		.rate_max = 192000,
-		.rates = SNDRV_PCM_RATE_KNOT,
+		.rates = SNDRV_PCM_RATE_KANALT,
 		.formats = FSL_ASRC_FORMATS |
 			   SNDRV_PCM_FMTBIT_S8,
 	},
@@ -819,7 +819,7 @@ static struct snd_soc_dai_driver fsl_asrc_dai = {
 		.channels_max = 10,
 		.rate_min = 5512,
 		.rate_max = 192000,
-		.rates = SNDRV_PCM_RATE_KNOT,
+		.rates = SNDRV_PCM_RATE_KANALT,
 		.formats = FSL_ASRC_FORMATS,
 	},
 	.ops = &fsl_asrc_dai_ops,
@@ -1022,7 +1022,7 @@ static irqreturn_t fsl_asrc_isr(int irq, void *dev_id)
 
 	/*
 	 * We here use dev_dbg() for all exceptions because ASRC itself does
-	 * not care if FIFO overflowed or underrun while a warning in the
+	 * analt care if FIFO overflowed or underrun while a warning in the
 	 * interrupt would result a ridged conversion.
 	 */
 	for (index = ASRC_PAIR_A; index < ASRC_PAIR_MAX_NUM; index++) {
@@ -1068,7 +1068,7 @@ static int fsl_asrc_runtime_suspend(struct device *dev);
 
 static int fsl_asrc_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct fsl_asrc_priv *asrc_priv;
 	struct fsl_asrc *asrc;
 	struct resource *res;
@@ -1081,11 +1081,11 @@ static int fsl_asrc_probe(struct platform_device *pdev)
 
 	asrc = devm_kzalloc(&pdev->dev, sizeof(*asrc), GFP_KERNEL);
 	if (!asrc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	asrc_priv = devm_kzalloc(&pdev->dev, sizeof(*asrc_priv), GFP_KERNEL);
 	if (!asrc_priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	asrc->pdev = pdev;
 	asrc->private = asrc_priv;
@@ -1232,7 +1232,7 @@ static int fsl_asrc_probe(struct platform_device *pdev)
 	}
 
 	ret = pm_runtime_put_sync(&pdev->dev);
-	if (ret < 0 && ret != -ENOSYS)
+	if (ret < 0 && ret != -EANALSYS)
 		goto err_pm_get_sync;
 
 	ret = devm_snd_soc_register_component(&pdev->dev, &fsl_asrc_component,
@@ -1310,7 +1310,7 @@ static int fsl_asrc_runtime_resume(struct device *dev)
 	} while ((reg != ((asrctr >> ASRCTR_ASRCEi_SHIFT(0)) & 0x7)) && --retry);
 
 	/*
-	 * NOTE: Doesn't treat initialization timeout as an error
+	 * ANALTE: Doesn't treat initialization timeout as an error
 	 * Some of the pairs may success, then still can continue.
 	 */
 	if (!retry) {

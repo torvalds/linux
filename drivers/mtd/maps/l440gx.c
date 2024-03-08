@@ -2,7 +2,7 @@
 /*
  * BIOS Flash chip on Intel 440GX board.
  *
- * Bugs this currently does not work under linuxBIOS.
+ * Bugs this currently does analt work under linuxBIOS.
  */
 
 #include <linux/module.h>
@@ -73,9 +73,9 @@ static int __init init_l440gx(void)
 	pci_dev_put(dev);
 
 	if (!dev || !pm_dev) {
-		printk(KERN_NOTICE "L440GX flash mapping: failed to find PIIX4 ISA bridge, cannot continue\n");
+		printk(KERN_ANALTICE "L440GX flash mapping: failed to find PIIX4 ISA bridge, cananalt continue\n");
 		pci_dev_put(pm_dev);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	l440gx_map.virt = ioremap(WINDOW_ADDR, WINDOW_SIZE);
@@ -83,7 +83,7 @@ static int __init init_l440gx(void)
 	if (!l440gx_map.virt) {
 		printk(KERN_WARNING "Failed to ioremap L440GX flash region\n");
 		pci_dev_put(pm_dev);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	simple_map_init(&l440gx_map);
 	pr_debug("window_addr = %p\n", l440gx_map.virt);
@@ -112,7 +112,7 @@ static int __init init_l440gx(void)
 		if (pci_assign_resource(pm_dev, PIIXE_IOBASE_RESOURCE) != 0) {
 			pci_dev_put(dev);
 			pci_dev_put(pm_dev);
-			printk(KERN_WARNING "Could not allocate pm iobase resource\n");
+			printk(KERN_WARNING "Could analt allocate pm iobase resource\n");
 			iounmap(l440gx_map.virt);
 			return -ENXIO;
 		}
@@ -133,11 +133,11 @@ static int __init init_l440gx(void)
 	/* Enable the gate on the WE line */
 	outb(inb(TRIBUF_PORT) & ~1, TRIBUF_PORT);
 
-       	printk(KERN_NOTICE "Enabled WE line to L440GX BIOS flash chip.\n");
+       	printk(KERN_ANALTICE "Enabled WE line to L440GX BIOS flash chip.\n");
 
 	mymtd = do_map_probe("jedec_probe", &l440gx_map);
 	if (!mymtd) {
-		printk(KERN_NOTICE "JEDEC probe on BIOS chip failed. Using ROM\n");
+		printk(KERN_ANALTICE "JEDEC probe on BIOS chip failed. Using ROM\n");
 		mymtd = do_map_probe("map_rom", &l440gx_map);
 	}
 	if (mymtd) {

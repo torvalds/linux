@@ -85,7 +85,7 @@ void vhost_task_stop(struct vhost_task *vtsk)
 	set_bit(VHOST_TASK_FLAGS_STOP, &vtsk->flags);
 	vhost_task_wake(vtsk);
 	/*
-	 * Make sure vhost_task_fn is no longer accessing the vhost_task before
+	 * Make sure vhost_task_fn is anal longer accessing the vhost_task before
 	 * freeing it below.
 	 */
 	wait_for_completion(&vtsk->exited);
@@ -113,7 +113,7 @@ struct vhost_task *vhost_task_create(bool (*fn)(void *), void *arg,
 		.fn		= vhost_task_fn,
 		.name		= name,
 		.user_worker	= 1,
-		.no_files	= 1,
+		.anal_files	= 1,
 	};
 	struct vhost_task *vtsk;
 	struct task_struct *tsk;
@@ -127,7 +127,7 @@ struct vhost_task *vhost_task_create(bool (*fn)(void *), void *arg,
 
 	args.fn_arg = vtsk;
 
-	tsk = copy_process(NULL, 0, NUMA_NO_NODE, &args);
+	tsk = copy_process(NULL, 0, NUMA_ANAL_ANALDE, &args);
 	if (IS_ERR(tsk)) {
 		kfree(vtsk);
 		return NULL;

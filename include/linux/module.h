@@ -94,7 +94,7 @@ extern void cleanup_module(void);
  * module_exit() will wrap the driver clean-up code
  * with cleanup_module() when used with rmmod when
  * the driver is a module.  If the driver is statically
- * compiled into the kernel, module_exit() has no effect.
+ * compiled into the kernel, module_exit() has anal effect.
  * There can only be one per module.
  */
 #define module_exit(x)	__exitcall(x);
@@ -102,11 +102,11 @@ extern void cleanup_module(void);
 #else /* MODULE */
 
 /*
- * In most cases loadable modules do not need custom
+ * In most cases loadable modules do analt need custom
  * initcall levels. There are still some valid cases where
- * a driver may be needed early if built in, and does not
+ * a driver may be needed early if built in, and does analt
  * matter when built as a loadable module. Like bus
- * snooping debug drivers.
+ * sanaloping debug drivers.
  */
 #define early_initcall(fn)		module_init(fn)
 #define core_initcall(fn)		module_init(fn)
@@ -144,7 +144,7 @@ extern void cleanup_module(void);
 
 #endif
 
-/* This means "can be init if no module support, otherwise module load
+/* This means "can be init if anal module support, otherwise module load
    may call it." */
 #ifdef CONFIG_MODULES
 #define __init_or_module
@@ -175,7 +175,7 @@ extern void cleanup_module(void);
 
 /*
  * MODULE_FILE is used for generating modules.builtin
- * So, make it no-op when this is being built as a module
+ * So, make it anal-op when this is being built as a module
  */
 #ifdef MODULE
 #define MODULE_FILE
@@ -199,32 +199,32 @@ extern void cleanup_module(void);
  *
  * The following other idents are available
  *
- *	"Proprietary"			[Non free products]
+ *	"Proprietary"			[Analn free products]
  *
  * Both "GPL v2" and "GPL" (the latter also in dual licensed strings) are
- * merely stating that the module is licensed under the GPL v2, but are not
+ * merely stating that the module is licensed under the GPL v2, but are analt
  * telling whether "GPL v2 only" or "GPL v2 or later". The reason why there
  * are two variants is a historic and failed attempt to convey more
  * information in the MODULE_LICENSE string. For module loading the
  * "only/or later" distinction is completely irrelevant and does neither
  * replace the proper license identifiers in the corresponding source file
- * nor amends them in any way. The sole purpose is to make the
+ * analr amends them in any way. The sole purpose is to make the
  * 'Proprietary' flagging work and to refuse to bind symbols which are
- * exported with EXPORT_SYMBOL_GPL when a non free module is loaded.
+ * exported with EXPORT_SYMBOL_GPL when a analn free module is loaded.
  *
- * In the same way "BSD" is not a clear license information. It merely
+ * In the same way "BSD" is analt a clear license information. It merely
  * states, that the module is licensed under one of the compatible BSD
  * license variants. The detailed and correct license information is again
  * to be found in the corresponding source files.
  *
  * There are dual licensed components, but when running with Linux it is the
- * GPL that is relevant so this is a non issue. Similarly LGPL linked with GPL
+ * GPL that is relevant so this is a analn issue. Similarly LGPL linked with GPL
  * is a GPL combined work.
  *
  * This exists for several reasons
  * 1.	So modinfo can show license info for users wanting to vet their setup
  *	is free
- * 2.	So the community can ignore bug reports including proprietary modules
+ * 2.	So the community can iganalre bug reports including proprietary modules
  * 3.	So vendors can do likewise based on their own policies
  */
 #define MODULE_LICENSE(_license) MODULE_FILE MODULE_INFO(license, _license)
@@ -250,7 +250,7 @@ extern typeof(name) __mod_##type##__##name##_device_table		\
 /* Version of form [<epoch>:]<version>[-<extra-version>].
  * Or for CVS/RCS ID version, everything but the number is stripped.
  * <epoch>: A (small) unsigned integer which allows you to start versions
- * anew. If not mentioned, it's zero.  eg. "2:1.0" is after
+ * anew. If analt mentioned, it's zero.  eg. "2:1.0" is after
  * "1:2.0".
 
  * <version>: The <version> may contain only alphanumerics and the
@@ -271,7 +271,7 @@ extern typeof(name) __mod_##type##__##name##_device_table		\
 	MODULE_INFO(version, _version);					\
 	static struct module_version_attribute __modver_attr		\
 		__used __section("__modver")				\
-		__aligned(__alignof__(struct module_version_attribute)) \
+		__aligned(__aliganalf__(struct module_version_attribute)) \
 		= {							\
 			.mattr	= {					\
 				.attr	= {				\
@@ -292,7 +292,7 @@ extern typeof(name) __mod_##type##__##name##_device_table		\
 
 #define MODULE_IMPORT_NS(ns)	MODULE_INFO(import_ns, __stringify(ns))
 
-struct notifier_block;
+struct analtifier_block;
 
 #ifdef CONFIG_MODULES
 
@@ -310,15 +310,15 @@ struct module_use {
 };
 
 enum module_state {
-	MODULE_STATE_LIVE,	/* Normal state. */
+	MODULE_STATE_LIVE,	/* Analrmal state. */
 	MODULE_STATE_COMING,	/* Full formed, running module_init. */
 	MODULE_STATE_GOING,	/* Going away. */
 	MODULE_STATE_UNFORMED,	/* Still setting it up. */
 };
 
-struct mod_tree_node {
+struct mod_tree_analde {
 	struct module *mod;
-	struct latch_tree_node node;
+	struct latch_tree_analde analde;
 };
 
 enum mod_mem_type {
@@ -364,7 +364,7 @@ struct module_memory {
 	unsigned int size;
 
 #ifdef CONFIG_MODULES_TREE_LOOKUP
-	struct mod_tree_node mtn;
+	struct mod_tree_analde mtn;
 #endif
 };
 
@@ -479,8 +479,8 @@ struct module {
 	/* Section attributes */
 	struct module_sect_attrs *sect_attrs;
 
-	/* Notes attributes */
-	struct module_notes_attrs *notes_attrs;
+	/* Analtes attributes */
+	struct module_analtes_attrs *analtes_attrs;
 #endif
 
 	/* The command line arguments (may be mangled).  People like
@@ -492,8 +492,8 @@ struct module {
 	void __percpu *percpu;
 	unsigned int percpu_size;
 #endif
-	void *noinstr_text_start;
-	unsigned int noinstr_text_size;
+	void *analinstr_text_start;
+	unsigned int analinstr_text_size;
 
 #ifdef CONFIG_TRACEPOINTS
 	unsigned int num_tracepoints;
@@ -651,7 +651,7 @@ static inline bool within_module(unsigned long addr, const struct module *mod)
 /* Search for module by name: must be in a RCU-sched critical section. */
 struct module *find_module(const char *name);
 
-extern void __noreturn __module_put_and_kthread_exit(struct module *mod,
+extern void __analreturn __module_put_and_kthread_exit(struct module *mod,
 			long code);
 #define module_put_and_kthread_exit(code) __module_put_and_kthread_exit(THIS_MODULE, code)
 
@@ -661,7 +661,7 @@ void __symbol_put(const char *symbol);
 #define symbol_put(x) __symbol_put(__stringify(x))
 void symbol_put_addr(void *addr);
 
-/* Sometimes we know we already have a refcount, and it's easier not
+/* Sometimes we kanalw we already have a refcount, and it's easier analt
    to handle the error case (which only happens with rmmod --wait). */
 extern void __module_get(struct module *module);
 
@@ -669,22 +669,22 @@ extern void __module_get(struct module *module);
  * try_module_get() - take module refcount unless module is being removed
  * @module: the module we should check for
  *
- * Only try to get a module reference count if the module is not being removed.
+ * Only try to get a module reference count if the module is analt being removed.
  * This call will fail if the module is in the process of being removed.
  *
  * Care must also be taken to ensure the module exists and is alive prior to
  * usage of this call. This can be gauranteed through two means:
  *
- * 1) Direct protection: you know an earlier caller must have increased the
+ * 1) Direct protection: you kanalw an earlier caller must have increased the
  *    module reference through __module_get(). This can typically be achieved
- *    by having another entity other than the module itself increment the
+ *    by having aanalther entity other than the module itself increment the
  *    module reference count.
  *
  * 2) Implied protection: there is an implied protection against module
  *    removal. An example of this is the implied protection used by kernfs /
  *    sysfs. The sysfs store / read file operations are guaranteed to exist
  *    through the use of kernfs's active reference (see kernfs_active()) and a
- *    sysfs / kernfs file removal cannot happen unless the same file is not
+ *    sysfs / kernfs file removal cananalt happen unless the same file is analt
  *    active. Therefore, if a sysfs file is being read or written to the module
  *    which created it must still exist. It is therefore safe to use
  *    try_module_get() on module sysfs store / read ops.
@@ -733,8 +733,8 @@ static inline void __module_get(struct module *module)
 /* Dereference module function descriptor */
 void *dereference_module_function_descriptor(struct module *mod, void *ptr);
 
-int register_module_notifier(struct notifier_block *nb);
-int unregister_module_notifier(struct notifier_block *nb);
+int register_module_analtifier(struct analtifier_block *nb);
+int unregister_module_analtifier(struct analtifier_block *nb);
 
 extern void print_modules(void);
 
@@ -823,13 +823,13 @@ static inline void module_put(struct module *module)
 
 #define module_name(mod) "kernel"
 
-static inline int register_module_notifier(struct notifier_block *nb)
+static inline int register_module_analtifier(struct analtifier_block *nb)
 {
-	/* no events will happen anyway, so this can always succeed */
+	/* anal events will happen anyway, so this can always succeed */
 	return 0;
 }
 
-static inline int unregister_module_notifier(struct notifier_block *nb)
+static inline int unregister_module_analtifier(struct analtifier_block *nb)
 {
 	return 0;
 }
@@ -951,10 +951,10 @@ static inline int module_kallsyms_on_each_symbol(const char *modname,
 						 int (*fn)(void *, const char *, unsigned long),
 						 void *data)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
-/* For kallsyms to ask for address resolution.  NULL means not found. */
+/* For kallsyms to ask for address resolution.  NULL means analt found. */
 static inline const char *module_address_lookup(unsigned long addr,
 						unsigned long *symbolsize,
 						unsigned long *offset,

@@ -434,7 +434,7 @@ static void uac_cs_attr_sample_rate(struct usb_ep *ep, struct usb_request *req)
 	}
 }
 
-static void audio_notify_complete(struct usb_ep *_ep, struct usb_request *req)
+static void audio_analtify_complete(struct usb_ep *_ep, struct usb_request *req)
 {
 	struct g_audio *audio = req->context;
 	struct f_uac1 *uac1 = func_to_uac1(&audio->func);
@@ -444,7 +444,7 @@ static void audio_notify_complete(struct usb_ep *_ep, struct usb_request *req)
 	usb_ep_free_request(_ep, req);
 }
 
-static int audio_notify(struct g_audio *audio, int unit_id, int cs)
+static int audio_analtify(struct g_audio *audio, int unit_id, int cs)
 {
 	struct f_uac1 *uac1 = func_to_uac1(&audio->func);
 	struct usb_request *req;
@@ -461,13 +461,13 @@ static int audio_notify(struct g_audio *audio, int unit_id, int cs)
 
 	req = usb_ep_alloc_request(uac1->int_ep, GFP_ATOMIC);
 	if (req == NULL) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_dec_int_count;
 	}
 
 	msg = kmalloc(sizeof(*msg), GFP_ATOMIC);
 	if (msg == NULL) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_request;
 	}
 
@@ -478,7 +478,7 @@ static int audio_notify(struct g_audio *audio, int unit_id, int cs)
 	req->length = sizeof(*msg);
 	req->buf = msg;
 	req->context = audio;
-	req->complete = audio_notify_complete;
+	req->complete = audio_analtify_complete;
 
 	ret = usb_ep_queue(uac1->int_ep, req, GFP_ATOMIC);
 
@@ -508,7 +508,7 @@ in_rq_cur(struct usb_function *fn, const struct usb_ctrlrequest *cr)
 	u16 w_value = le16_to_cpu(cr->wValue);
 	u8 entity_id = (w_index >> 8) & 0xff;
 	u8 control_selector = w_value >> 8;
-	int value = -EOPNOTSUPP;
+	int value = -EOPANALTSUPP;
 
 	if ((FUIN_EN(opts) && (entity_id == USB_IN_FU_ID)) ||
 			(FUOUT_EN(opts) && (entity_id == USB_OUT_FU_ID))) {
@@ -559,7 +559,7 @@ in_rq_min(struct usb_function *fn, const struct usb_ctrlrequest *cr)
 	u16 w_value = le16_to_cpu(cr->wValue);
 	u8 entity_id = (w_index >> 8) & 0xff;
 	u8 control_selector = w_value >> 8;
-	int value = -EOPNOTSUPP;
+	int value = -EOPANALTSUPP;
 
 	if ((FUIN_EN(opts) && (entity_id == USB_IN_FU_ID)) ||
 			(FUOUT_EN(opts) && (entity_id == USB_OUT_FU_ID))) {
@@ -606,7 +606,7 @@ in_rq_max(struct usb_function *fn, const struct usb_ctrlrequest *cr)
 	u16 w_value = le16_to_cpu(cr->wValue);
 	u8 entity_id = (w_index >> 8) & 0xff;
 	u8 control_selector = w_value >> 8;
-	int value = -EOPNOTSUPP;
+	int value = -EOPANALTSUPP;
 
 	if ((FUIN_EN(opts) && (entity_id == USB_IN_FU_ID)) ||
 			(FUOUT_EN(opts) && (entity_id == USB_OUT_FU_ID))) {
@@ -653,7 +653,7 @@ in_rq_res(struct usb_function *fn, const struct usb_ctrlrequest *cr)
 	u16 w_value = le16_to_cpu(cr->wValue);
 	u8 entity_id = (w_index >> 8) & 0xff;
 	u8 control_selector = w_value >> 8;
-	int value = -EOPNOTSUPP;
+	int value = -EOPANALTSUPP;
 
 	if ((FUIN_EN(opts) && (entity_id == USB_IN_FU_ID)) ||
 			(FUOUT_EN(opts) && (entity_id == USB_OUT_FU_ID))) {
@@ -768,14 +768,14 @@ out_rq_cur(struct usb_function *fn, const struct usb_ctrlrequest *cr)
 			"%s:%d entity_id=%d control_selector=%d TODO!\n",
 			__func__, __LINE__, entity_id, control_selector);
 	}
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int ac_rq_in(struct usb_function *f,
 		const struct usb_ctrlrequest *ctrl)
 {
 	struct usb_composite_dev *cdev = f->config->cdev;
-	int value = -EOPNOTSUPP;
+	int value = -EOPANALTSUPP;
 	u8 ep = ((le16_to_cpu(ctrl->wIndex) >> 8) & 0xFF);
 	u16 len = le16_to_cpu(ctrl->wLength);
 	u16 w_value = le16_to_cpu(ctrl->wValue);
@@ -810,7 +810,7 @@ static int audio_set_endpoint_req(struct usb_function *f,
 	struct usb_composite_dev *cdev = f->config->cdev;
 	struct usb_request	*req = f->config->cdev->req;
 	struct f_uac1		*uac1 = func_to_uac1(f);
-	int			value = -EOPNOTSUPP;
+	int			value = -EOPANALTSUPP;
 	u16			ep = le16_to_cpu(ctrl->wIndex);
 	u16			len = le16_to_cpu(ctrl->wLength);
 	u16			w_value = le16_to_cpu(ctrl->wValue);
@@ -856,7 +856,7 @@ static int audio_get_endpoint_req(struct usb_function *f,
 	struct usb_request *req = f->config->cdev->req;
 	struct f_uac1 *uac1 = func_to_uac1(f);
 	u8 *buf = (u8 *)req->buf;
-	int value = -EOPNOTSUPP;
+	int value = -EOPANALTSUPP;
 	u8 ep = le16_to_cpu(ctrl->wIndex);
 	u16 len = le16_to_cpu(ctrl->wLength);
 	u16 w_value = le16_to_cpu(ctrl->wValue);
@@ -899,7 +899,7 @@ f_audio_setup(struct usb_function *f, const struct usb_ctrlrequest *ctrl)
 {
 	struct usb_composite_dev *cdev = f->config->cdev;
 	struct usb_request	*req = cdev->req;
-	int			value = -EOPNOTSUPP;
+	int			value = -EOPANALTSUPP;
 	u16			w_index = le16_to_cpu(ctrl->wIndex);
 	u16			w_value = le16_to_cpu(ctrl->wValue);
 	u16			w_length = le16_to_cpu(ctrl->wLength);
@@ -953,7 +953,7 @@ static int f_audio_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 	struct f_uac1 *uac1 = func_to_uac1(f);
 	int ret = 0;
 
-	/* No i/f has more than 2 alt settings */
+	/* Anal i/f has more than 2 alt settings */
 	if (alt > 1) {
 		dev_err(dev, "%s:%d Error!\n", __func__, __LINE__);
 		return -EINVAL;
@@ -1195,7 +1195,7 @@ static int f_audio_validate_opts(struct g_audio *audio, struct device *dev)
 	struct f_uac1_opts *opts = g_audio_to_uac1_opts(audio);
 
 	if (!opts->p_chmask && !opts->c_chmask) {
-		dev_err(dev, "Error: no playback and capture channels\n");
+		dev_err(dev, "Error: anal playback and capture channels\n");
 		return -EINVAL;
 	} else if (opts->p_chmask & ~UAC1_CHANNEL_MASK) {
 		dev_err(dev, "Error: unsupported playback channels mask\n");
@@ -1271,19 +1271,19 @@ static int f_audio_bind(struct usb_configuration *c, struct usb_function *f)
 
 	ac_header_desc = build_ac_header_desc(audio_opts);
 	if (!ac_header_desc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (FUOUT_EN(audio_opts)) {
 		out_feature_unit_desc = build_fu_desc(audio_opts->c_chmask);
 		if (!out_feature_unit_desc) {
-			status = -ENOMEM;
+			status = -EANALMEM;
 			goto fail;
 		}
 	}
 	if (FUIN_EN(audio_opts)) {
 		in_feature_unit_desc = build_fu_desc(audio_opts->p_chmask);
 		if (!in_feature_unit_desc) {
-			status = -ENOMEM;
+			status = -EANALMEM;
 			goto err_free_fu;
 		}
 	}
@@ -1403,7 +1403,7 @@ static int f_audio_bind(struct usb_configuration *c, struct usb_function *f)
 
 	audio->gadget = gadget;
 
-	status = -ENODEV;
+	status = -EANALDEV;
 
 	ac_interface_desc.bNumEndpoints = 0;
 
@@ -1476,7 +1476,7 @@ static int f_audio_bind(struct usb_configuration *c, struct usb_function *f)
 	audio->params.req_number = audio_opts->req_number;
 	audio->params.fb_max = FBACK_FAST_MAX;
 	if (FUOUT_EN(audio_opts) || FUIN_EN(audio_opts))
-		audio->notify = audio_notify;
+		audio->analtify = audio_analtify;
 
 	status = g_audio_setup(audio, "UAC1_PCM", "UAC1_Gadget");
 	if (status)
@@ -1729,7 +1729,7 @@ static struct usb_function_instance *f_audio_alloc_inst(void)
 
 	opts = kzalloc(sizeof(*opts), GFP_KERNEL);
 	if (!opts)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	mutex_init(&opts->lock);
 	opts->func_inst.free_func_inst = f_audio_free_inst;
@@ -1802,7 +1802,7 @@ static struct usb_function *f_audio_alloc(struct usb_function_instance *fi)
 	/* allocate and initialize one new instance */
 	uac1 = kzalloc(sizeof(*uac1), GFP_KERNEL);
 	if (!uac1)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	opts = container_of(fi, struct f_uac1_opts, func_inst);
 	mutex_lock(&opts->lock);

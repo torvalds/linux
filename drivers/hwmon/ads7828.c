@@ -117,15 +117,15 @@ static int ads7828_probe(struct i2c_client *client)
 
 	data = devm_kzalloc(dev, sizeof(struct ads7828_data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (pdata) {
 		diff_input = pdata->diff_input;
 		ext_vref = pdata->ext_vref;
 		if (ext_vref && pdata->vref_mv)
 			vref_mv = pdata->vref_mv;
-	} else if (dev->of_node) {
-		diff_input = of_property_read_bool(dev->of_node,
+	} else if (dev->of_analde) {
+		diff_input = of_property_read_bool(dev->of_analde,
 						   "ti,differential-input");
 		reg = devm_regulator_get_optional(dev, "vref");
 		if (!IS_ERR(reg)) {
@@ -138,7 +138,7 @@ static int ads7828_probe(struct i2c_client *client)
 		}
 	}
 
-	if (client->dev.of_node)
+	if (client->dev.of_analde)
 		chip = (uintptr_t)of_device_get_match_data(&client->dev);
 	else
 		chip = i2c_match_id(ads7828_device_ids, client)->driver_data;

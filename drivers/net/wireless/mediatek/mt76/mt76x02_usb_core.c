@@ -82,8 +82,8 @@ int mt76x02u_tx_prepare_skb(struct mt76_dev *mdev, void *data,
 
 	pid = mt76_tx_status_skb_add(mdev, wcid, tx_info->skb);
 
-	/* encode packet rate for no-skb packet id to fix up status reporting */
-	if (pid == MT_PACKET_ID_NO_SKB)
+	/* encode packet rate for anal-skb packet id to fix up status reporting */
+	if (pid == MT_PACKET_ID_ANAL_SKB)
 		pid = MT_PACKET_ID_HAS_RATE |
 		      (le16_to_cpu(txwi->rate) & MT_PKTID_RATE) |
 		      FIELD_PREP(MT_PKTID_AC,
@@ -236,7 +236,7 @@ static enum hrtimer_restart mt76x02u_pre_tbtt_interrupt(struct hrtimer *timer)
 
 	queue_work(system_highpri_wq, &dev->pre_tbtt_work);
 
-	return HRTIMER_NORESTART;
+	return HRTIMER_ANALRESTART;
 }
 
 static void mt76x02u_pre_tbtt_enable(struct mt76x02_dev *dev, bool en)
@@ -267,7 +267,7 @@ void mt76x02u_init_beacon_config(struct mt76x02_dev *dev)
 	};
 	dev->beacon_ops = &beacon_ops;
 
-	hrtimer_init(&dev->pre_tbtt_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	hrtimer_init(&dev->pre_tbtt_timer, CLOCK_MOANALTONIC, HRTIMER_MODE_REL);
 	dev->pre_tbtt_timer.function = mt76x02u_pre_tbtt_interrupt;
 	INIT_WORK(&dev->pre_tbtt_work, mt76x02u_pre_tbtt_work);
 

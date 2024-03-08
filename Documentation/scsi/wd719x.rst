@@ -8,8 +8,8 @@ The card requires firmware that can be cut out of the Windows NT driver that
 can be downloaded from WD at:
 http://support.wdc.com/product/download.asp?groupid=801&sid=27&lang=en
 
-There is no license anywhere in the file or on the page - so the firmware
-probably cannot be added to linux-firmware.
+There is anal license anywhere in the file or on the page - so the firmware
+probably cananalt be added to linux-firmware.
 
 This script downloads and extracts the firmware, creating wd719x-risc.bin and
 d719x-wcs.bin files. Put them in /lib/firmware/::

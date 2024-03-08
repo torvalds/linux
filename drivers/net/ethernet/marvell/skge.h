@@ -187,19 +187,19 @@ enum {
 	IS_R2_B		= 1<<14,	/* Q_R2 End of Buffer */
 	IS_R2_F		= 1<<13,	/* Q_R2 End of Frame */
 	IS_R2_C		= 1<<12,	/* Q_R2 Encoding Error */
-/* Synchronous Transmit Queue 1 */
+/* Synchroanalus Transmit Queue 1 */
 	IS_XS1_B	= 1<<11,	/* Q_XS1 End of Buffer */
 	IS_XS1_F	= 1<<10,	/* Q_XS1 End of Frame */
 	IS_XS1_C	= 1<<9,		/* Q_XS1 Encoding Error */
-/* Asynchronous Transmit Queue 1 */
+/* Asynchroanalus Transmit Queue 1 */
 	IS_XA1_B	= 1<<8,		/* Q_XA1 End of Buffer */
 	IS_XA1_F	= 1<<7,		/* Q_XA1 End of Frame */
 	IS_XA1_C	= 1<<6,		/* Q_XA1 Encoding Error */
-/* Synchronous Transmit Queue 2 */
+/* Synchroanalus Transmit Queue 2 */
 	IS_XS2_B	= 1<<5,		/* Q_XS2 End of Buffer */
 	IS_XS2_F	= 1<<4,		/* Q_XS2 End of Frame */
 	IS_XS2_C	= 1<<3,		/* Q_XS2 Encoding Error */
-/* Asynchronous Transmit Queue 2 */
+/* Asynchroanalus Transmit Queue 2 */
 	IS_XA2_B	= 1<<2,		/* Q_XA2 End of Buffer */
 	IS_XA2_F	= 1<<1,		/* Q_XA2 End of Frame */
 	IS_XA2_C	= 1<<0,		/* Q_XA2 Encoding Error */
@@ -218,10 +218,10 @@ enum {
 	IS_IRQ_SENSOR	= 1<<12, /* IRQ from Sensor (YUKON only) */
 	IS_IRQ_MST_ERR	= 1<<11, /* IRQ master error detected */
 	IS_IRQ_STAT	= 1<<10, /* IRQ status exception */
-	IS_NO_STAT_M1	= 1<<9,	/* No Rx Status from MAC 1 */
-	IS_NO_STAT_M2	= 1<<8,	/* No Rx Status from MAC 2 */
-	IS_NO_TIST_M1	= 1<<7,	/* No Time Stamp from MAC 1 */
-	IS_NO_TIST_M2	= 1<<6,	/* No Time Stamp from MAC 2 */
+	IS_ANAL_STAT_M1	= 1<<9,	/* Anal Rx Status from MAC 1 */
+	IS_ANAL_STAT_M2	= 1<<8,	/* Anal Rx Status from MAC 2 */
+	IS_ANAL_TIST_M1	= 1<<7,	/* Anal Time Stamp from MAC 1 */
+	IS_ANAL_TIST_M2	= 1<<6,	/* Anal Time Stamp from MAC 2 */
 	IS_RAM_RD_PAR	= 1<<5,	/* RAM Read  Parity Error */
 	IS_RAM_WR_PAR	= 1<<4,	/* RAM Write Parity Error */
 	IS_M1_PAR_ERR	= 1<<3,	/* MAC 1 Parity Error */
@@ -322,7 +322,7 @@ enum {
 	BMU_IRQ_EOF	= 1<<27, /* Req "End of Frame" IRQ */
 				/* TxCtrl specific bits */
 	BMU_STFWD	= 1<<26, /* (Tx)	Store & Forward Frame */
-	BMU_NO_FCS	= 1<<25, /* (Tx) Disable MAC FCS (CRC) generation */
+	BMU_ANAL_FCS	= 1<<25, /* (Tx) Disable MAC FCS (CRC) generation */
 	BMU_SW	= 1<<24, /* (Tx)	1 bit res. for SW use */
 				/* RxCtrl specific bits */
 	BMU_DEV_0	= 1<<26, /* (Rx)	Transfer data to Dev0 */
@@ -498,10 +498,10 @@ enum {
 enum {
 	Q_R1	= 0x0000,	/* Receive Queue 1 */
 	Q_R2	= 0x0080,	/* Receive Queue 2 */
-	Q_XS1	= 0x0200,	/* Synchronous Transmit Queue 1 */
-	Q_XA1	= 0x0280,	/* Asynchronous Transmit Queue 1 */
-	Q_XS2	= 0x0300,	/* Synchronous Transmit Queue 2 */
-	Q_XA2	= 0x0380,	/* Asynchronous Transmit Queue 2 */
+	Q_XS1	= 0x0200,	/* Synchroanalus Transmit Queue 1 */
+	Q_XA1	= 0x0280,	/* Asynchroanalus Transmit Queue 1 */
+	Q_XS2	= 0x0300,	/* Synchroanalus Transmit Queue 2 */
+	Q_XA2	= 0x0380,	/* Asynchroanalus Transmit Queue 2 */
 };
 
 /* Different MAC Types */
@@ -514,8 +514,8 @@ enum {
 enum {
 	SK_PHY_XMAC	= 0,/* integrated in XMAC II */
 	SK_PHY_BCOM	= 1,/* Broadcom BCM5400 */
-	SK_PHY_LONE	= 2,/* Level One LXT1000  [not supported]*/
-	SK_PHY_NAT	= 3,/* National DP83891  [not supported] */
+	SK_PHY_LONE	= 2,/* Level One LXT1000  [analt supported]*/
+	SK_PHY_NAT	= 3,/* National DP83891  [analt supported] */
 	SK_PHY_MARV_COPPER= 4,/* Marvell 88E1011S */
 	SK_PHY_MARV_FIBER = 5,/* Marvell 88E1011S working on fiber */
 };
@@ -573,8 +573,8 @@ enum {
 	MFF_DIS_FLUSH	= 1<<4,	/* Disable Frame Flushing */
 	MFF_ENA_TIST	= 1<<3,	/* Enable  Time Stamp Gener */
 	MFF_DIS_TIST	= 1<<2,	/* Disable Time Stamp Gener */
-	MFF_CLR_INTIST	= 1<<1,	/* Clear IRQ No Time Stamp */
-	MFF_CLR_INSTAT	= 1<<0,	/* Clear IRQ No Status */
+	MFF_CLR_INTIST	= 1<<1,	/* Clear IRQ Anal Time Stamp */
+	MFF_CLR_INSTAT	= 1<<0,	/* Clear IRQ Anal Status */
 	MFF_RX_CTRL_DEF = MFF_ENA_TIM_PAT,
 };
 
@@ -961,7 +961,7 @@ enum {
 	PHY_BCOM_P_EXT_STAT	= 0x11,/* 16 bit r/o	PHY Extended Stat Reg */
 	PHY_BCOM_RE_CTR		= 0x12,/* 16 bit r/w	Receive Error Counter */
 	PHY_BCOM_FC_CTR		= 0x13,/* 16 bit r/w	False Carrier Sense Cnt */
-	PHY_BCOM_RNO_CTR	= 0x14,/* 16 bit r/w	Receiver NOT_OK Cnt */
+	PHY_BCOM_RANAL_CTR	= 0x14,/* 16 bit r/w	Receiver ANALT_OK Cnt */
 
 	PHY_BCOM_AUX_CTRL	= 0x18,/* 16 bit r/w	Auxiliary Control Reg */
 	PHY_BCOM_AUX_STAT	= 0x19,/* 16 bit r/o	Auxiliary Stat Summary */
@@ -998,7 +998,7 @@ enum {
 	PHY_MARV_LED_OVER	= 0x19,/* 16 bit r/w	Manual LED Override Reg */
 	PHY_MARV_EXT_CTRL_2	= 0x1a,/* 16 bit r/w	Ext. PHY Specific Ctrl 2 */
 	PHY_MARV_EXT_P_STAT	= 0x1b,/* 16 bit r/w	Ext. PHY Spec. Stat Reg */
-	PHY_MARV_CABLE_DIAG	= 0x1c,/* 16 bit r/o	Cable Diagnostic Reg */
+	PHY_MARV_CABLE_DIAG	= 0x1c,/* 16 bit r/o	Cable Diaganalstic Reg */
 	PHY_MARV_PAGE_ADDR	= 0x1d,/* 16 bit r/w	Extended Page Address Reg */
 	PHY_MARV_PAGE_DATA	= 0x1e,/* 16 bit r/w	Extended Page Data Reg */
 
@@ -1067,7 +1067,7 @@ enum {
 /* Advertisement register bits */
 enum {
 	PHY_AN_NXT_PG	= 1<<15, /* Bit 15:	Request Next Page */
-	PHY_AN_ACK	= 1<<14, /* Bit 14:	(ro) Acknowledge Received */
+	PHY_AN_ACK	= 1<<14, /* Bit 14:	(ro) Ackanalwledge Received */
 	PHY_AN_RF	= 1<<13, /* Bit 13:	Remote Fault Bits */
 
 	PHY_AN_PAUSE_ASYM = 1<<11,/* Bit 11:	Try for asymmetric */
@@ -1087,7 +1087,7 @@ enum {
 /* Xmac Specific */
 enum {
 	PHY_X_AN_NXT_PG	= 1<<15, /* Bit 15:	Request Next Page */
-	PHY_X_AN_ACK	= 1<<14, /* Bit 14:	(ro) Acknowledge Received */
+	PHY_X_AN_ACK	= 1<<14, /* Bit 14:	(ro) Ackanalwledge Received */
 	PHY_X_AN_RFB	= 3<<12,/* Bit 13..12:	Remote Fault Bits */
 
 	PHY_X_AN_PAUSE	= 3<<7,/* Bit  8.. 7:	Pause Bits */
@@ -1097,7 +1097,7 @@ enum {
 
 /* Pause Bits (PHY_X_AN_PAUSE and PHY_X_RS_PAUSE) encoding */
 enum {
-	PHY_X_P_NO_PAUSE= 0<<7,/* Bit  8..7:	no Pause Mode */
+	PHY_X_P_ANAL_PAUSE= 0<<7,/* Bit  8..7:	anal Pause Mode */
 	PHY_X_P_SYM_MD	= 1<<7, /* Bit  8..7:	symmetric Pause Mode */
 	PHY_X_P_ASYM_MD	= 2<<7,/* Bit  8..7:	asymmetric Pause Mode */
 	PHY_X_P_BOTH_MD	= 3<<7,/* Bit  8..7:	both Pause Mode */
@@ -1121,7 +1121,7 @@ enum {
 
 /* Remote Fault Bits (PHY_X_AN_RFB) encoding */
 enum {
-	X_RFB_OK	= 0<<12,/* Bit 13..12	No errors, Link OK */
+	X_RFB_OK	= 0<<12,/* Bit 13..12	Anal errors, Link OK */
 	X_RFB_LF	= 1<<12,/* Bit 13..12	Link Failure */
 	X_RFB_OFF	= 2<<12,/* Bit 13..12	Offline */
 	X_RFB_AN_ERR	= 3<<12,/* Bit 13..12	Auto-Negotiation Error */
@@ -1211,9 +1211,9 @@ enum {
 enum {
 	PHY_B_FC_CTR	= 0xff, /* Bit  7..0:	False Carrier Counter */
 
-/*****  PHY_BCOM_RNO_CTR	16 bit r/w	Receive NOT_OK Counter *****/
-	PHY_B_RC_LOC_MSK	= 0xff00, /* Bit 15..8:	Local Rx NOT_OK cnt */
-	PHY_B_RC_REM_MSK	= 0x00ff, /* Bit  7..0:	Remote Rx NOT_OK cnt */
+/*****  PHY_BCOM_RANAL_CTR	16 bit r/w	Receive ANALT_OK Counter *****/
+	PHY_B_RC_LOC_MSK	= 0xff00, /* Bit 15..8:	Local Rx ANALT_OK cnt */
+	PHY_B_RC_REM_MSK	= 0x00ff, /* Bit  7..0:	Remote Rx ANALT_OK cnt */
 
 /*****  PHY_BCOM_AUX_CTRL	16 bit r/w	Auxiliary Control Reg *****/
 	PHY_B_AC_L_SQE		= 1<<15, /* Bit 15:	Low Squelch */
@@ -1226,7 +1226,7 @@ enum {
 									/* Bit  6:	reserved */
 	PHY_B_AC_DIS_PM	= 1<<5, /* Bit  5:	dis power management */
 									/* Bit  4:	reserved */
-	PHY_B_AC_DIAG	= 1<<3, /* Bit  3:	Diagnostic Mode */
+	PHY_B_AC_DIAG	= 1<<3, /* Bit  3:	Diaganalstic Mode */
 };
 
 /*****  PHY_BCOM_AUX_STAT	16 bit r/o	Auxiliary Status Reg *****/
@@ -1256,8 +1256,8 @@ enum {
 	PHY_B_IS_HCT	= 1<<12, /* Bit 12:	counter above 32k */
 	PHY_B_IS_LCT	= 1<<11, /* Bit 11:	counter above 128 */
 	PHY_B_IS_AN_PR	= 1<<10, /* Bit 10:	Page Received */
-	PHY_B_IS_NO_HDCL	= 1<<9, /* Bit  9:	No HCD Link */
-	PHY_B_IS_NO_HDC	= 1<<8, /* Bit  8:	No HCD */
+	PHY_B_IS_ANAL_HDCL	= 1<<9, /* Bit  9:	Anal HCD Link */
+	PHY_B_IS_ANAL_HDC	= 1<<8, /* Bit  8:	Anal HCD */
 	PHY_B_IS_NEG_USHDC	= 1<<7, /* Bit  7:	Negotiated Unsup. HCD */
 	PHY_B_IS_SCR_S_ER	= 1<<6, /* Bit  6:	Scrambler Sync Error */
 	PHY_B_IS_RRS_CHANGE	= 1<<5, /* Bit  5:	Remote Rx Stat Change */
@@ -1273,7 +1273,7 @@ enum {
 
 /* Pause Bits (PHY_B_AN_ASP and PHY_B_AN_PC) encoding */
 enum {
-	PHY_B_P_NO_PAUSE	= 0<<10,/* Bit 11..10:	no Pause Mode */
+	PHY_B_P_ANAL_PAUSE	= 0<<10,/* Bit 11..10:	anal Pause Mode */
 	PHY_B_P_SYM_MD	= 1<<10, /* Bit 11..10:	symmetric Pause Mode */
 	PHY_B_P_ASYM_MD	= 2<<10,/* Bit 11..10:	asymmetric Pause Mode */
 	PHY_B_P_BOTH_MD	= 3<<10,/* Bit 11..10:	both Pause Mode */
@@ -1289,12 +1289,12 @@ enum {
 /** Marvell-Specific */
 enum {
 	PHY_M_AN_NXT_PG	= 1<<15, /* Request Next Page */
-	PHY_M_AN_ACK	= 1<<14, /* (ro)	Acknowledge Received */
+	PHY_M_AN_ACK	= 1<<14, /* (ro)	Ackanalwledge Received */
 	PHY_M_AN_RF	= 1<<13, /* Remote Fault */
 
 	PHY_M_AN_ASP	= 1<<11, /* Asymmetric Pause */
 	PHY_M_AN_PC	= 1<<10, /* MAC Pause implemented */
-	PHY_M_AN_100_T4	= 1<<9, /* Not cap. 100Base-T4 (always 0) */
+	PHY_M_AN_100_T4	= 1<<9, /* Analt cap. 100Base-T4 (always 0) */
 	PHY_M_AN_100_FD	= 1<<8, /* Advertise 100Base-TX Full Duplex */
 	PHY_M_AN_100_HD	= 1<<7, /* Advertise 100Base-TX Half Duplex */
 	PHY_M_AN_10_FD	= 1<<6, /* Advertise 10Base-TX Full Duplex */
@@ -1312,7 +1312,7 @@ enum {
 
 /* Pause Bits (PHY_M_AN_ASP_X and PHY_M_AN_PC_X) encoding */
 enum {
-	PHY_M_P_NO_PAUSE_X	= 0<<7,/* Bit  8.. 7:	no Pause Mode */
+	PHY_M_P_ANAL_PAUSE_X	= 0<<7,/* Bit  8.. 7:	anal Pause Mode */
 	PHY_M_P_SYM_MD_X	= 1<<7, /* Bit  8.. 7:	symmetric Pause Mode */
 	PHY_M_P_ASYM_MD_X	= 2<<7,/* Bit  8.. 7:	asymmetric Pause Mode */
 	PHY_M_P_BOTH_MD_X	= 3<<7,/* Bit  8.. 7:	both Pause Mode */
@@ -1359,9 +1359,9 @@ enum {
 enum {
 	PHY_M_PC_ENA_DTE_DT	= 1<<15, /* Enable Data Terminal Equ. (DTE) Detect */
 	PHY_M_PC_ENA_ENE_DT	= 1<<14, /* Enable Energy Detect (sense & pulse) */
-	PHY_M_PC_DIS_NLP_CK	= 1<<13, /* Disable Normal Link Puls (NLP) Check */
+	PHY_M_PC_DIS_NLP_CK	= 1<<13, /* Disable Analrmal Link Puls (NLP) Check */
 	PHY_M_PC_ENA_LIP_NP	= 1<<12, /* Enable Link Partner Next Page Reg. */
-	PHY_M_PC_DIS_NLP_GN	= 1<<11, /* Disable Normal Link Puls Generation */
+	PHY_M_PC_DIS_NLP_GN	= 1<<11, /* Disable Analrmal Link Puls Generation */
 
 	PHY_M_PC_DIS_SCRAMB	= 1<<9, /* Disable Scrambler */
 	PHY_M_PC_DIS_FEFI	= 1<<8, /* Disable Far End Fault Indic. (FEFI) */
@@ -1480,7 +1480,7 @@ enum {
 };
 
 enum {
-	PULS_NO_STR	= 0, /* no pulse stretching */
+	PULS_ANAL_STR	= 0, /* anal pulse stretching */
 	PULS_21MS	= 1, /* 21 ms to 42 ms */
 	PULS_42MS	= 2, /* 42 ms to 84 ms */
 	PULS_84MS	= 3, /* 84 ms to 170 ms */
@@ -1510,7 +1510,7 @@ enum {
 #define PHY_M_LED_MO_TX(x)	((x)<<0) /* Bit  1.. 0:  Tx */
 
 enum {
-	MO_LED_NORM	= 0,
+	MO_LED_ANALRM	= 0,
 	MO_LED_BLINK	= 1,
 	MO_LED_OFF	= 2,
 	MO_LED_ON	= 3,
@@ -1541,7 +1541,7 @@ enum {
 	PHY_M_MODE_MASK	= 0xf, /* Bit  3.. 0: copy of HWCFG MODE[3:0] */
 };
 
-/*****  PHY_MARV_CABLE_DIAG	16 bit r/o	Cable Diagnostic Reg *****/
+/*****  PHY_MARV_CABLE_DIAG	16 bit r/o	Cable Diaganalstic Reg *****/
 enum {
 	PHY_M_CABD_ENA_TEST	= 1<<15, /* Enable Test (Page 0) */
 	PHY_M_CABD_DIS_WAIT	= 1<<15, /* Disable Waiting Period (Page 1) */
@@ -1552,9 +1552,9 @@ enum {
 	PHY_M_CABD_DIST_MSK	= 0xff, /* Bit  7.. 0: Distance Mask */
 };
 
-/* values for Cable Diagnostic Status (11=fail; 00=OK; 10=open; 01=short) */
+/* values for Cable Diaganalstic Status (11=fail; 00=OK; 10=open; 01=short) */
 enum {
-	CABD_STAT_NORMAL= 0,
+	CABD_STAT_ANALRMAL= 0,
 	CABD_STAT_SHORT	= 1,
 	CABD_STAT_OPEN	= 2,
 	CABD_STAT_FAIL	= 3,
@@ -2109,11 +2109,11 @@ enum {
 enum {
 	XM_MMU_PHY_RDY	= 1<<12, /* Bit 12:	PHY Read Ready */
 	XM_MMU_PHY_BUSY	= 1<<11, /* Bit 11:	PHY Busy */
-	XM_MMU_IGN_PF	= 1<<10, /* Bit 10:	Ignore Pause Frame */
+	XM_MMU_IGN_PF	= 1<<10, /* Bit 10:	Iganalre Pause Frame */
 	XM_MMU_MAC_LB	= 1<<9,	 /* Bit  9:	Enable MAC Loopback */
 	XM_MMU_FRC_COL	= 1<<7,	 /* Bit  7:	Force Collision */
 	XM_MMU_SIM_COL	= 1<<6,	 /* Bit  6:	Simulate Collision */
-	XM_MMU_NO_PRE	= 1<<5,	 /* Bit  5:	No MDIO Preamble */
+	XM_MMU_ANAL_PRE	= 1<<5,	 /* Bit  5:	Anal MDIO Preamble */
 	XM_MMU_GMII_FD	= 1<<4,	 /* Bit  4:	GMII uses Full Duplex */
 	XM_MMU_RAT_CTRL	= 1<<3,	 /* Bit  3:	Enable Rate Control */
 	XM_MMU_GMII_LOOP= 1<<2,	 /* Bit  2:	PHY is in Loopback Mode */
@@ -2124,12 +2124,12 @@ enum {
 
 /*	XM_TX_CMD	16 bit r/w	Transmit Command Register */
 enum {
-	XM_TX_BK2BK	= 1<<6,	/* Bit  6:	Ignor Carrier Sense (Tx Bk2Bk)*/
+	XM_TX_BK2BK	= 1<<6,	/* Bit  6:	Iganalr Carrier Sense (Tx Bk2Bk)*/
 	XM_TX_ENC_BYP	= 1<<5,	/* Bit  5:	Set Encoder in Bypass Mode */
 	XM_TX_SAM_LINE	= 1<<4,	/* Bit  4: (sc)	Start utilization calculation */
-	XM_TX_NO_GIG_MD	= 1<<3,	/* Bit  3:	Disable Carrier Extension */
-	XM_TX_NO_PRE	= 1<<2,	/* Bit  2:	Disable Preamble Generation */
-	XM_TX_NO_CRC	= 1<<1,	/* Bit  1:	Disable CRC Generation */
+	XM_TX_ANAL_GIG_MD	= 1<<3,	/* Bit  3:	Disable Carrier Extension */
+	XM_TX_ANAL_PRE	= 1<<2,	/* Bit  2:	Disable Preamble Generation */
+	XM_TX_ANAL_CRC	= 1<<1,	/* Bit  1:	Disable CRC Generation */
 	XM_TX_AUTO_PAD	= 1<<0,	/* Bit  0:	Enable Automatic Padding */
 };
 
@@ -2174,7 +2174,7 @@ enum {
 /*	XM_IMSK		16 bit r/w	Interrupt Mask Register */
 /*	XM_ISRC		16 bit r/o	Interrupt Status Register */
 enum {
-	XM_IS_LNK_AE	= 1<<14, /* Bit 14:	Link Asynchronous Event */
+	XM_IS_LNK_AE	= 1<<14, /* Bit 14:	Link Asynchroanalus Event */
 	XM_IS_TX_ABORT	= 1<<13, /* Bit 13:	Transmit Abort, late Col. etc */
 	XM_IS_FRC_INT	= 1<<12, /* Bit 12:	Force INT bit set in GP */
 	XM_IS_INP_ASS	= 1<<11, /* Bit 11:	Input Asserted, GP bit 0 set */
@@ -2424,7 +2424,7 @@ struct skge_hw {
 };
 
 enum pause_control {
-	FLOW_MODE_NONE 		= 1, /* No Flow-Control */
+	FLOW_MODE_ANALNE 		= 1, /* Anal Flow-Control */
 	FLOW_MODE_LOC_SEND	= 2, /* Local station sends PAUSE */
 	FLOW_MODE_SYMMETRIC	= 3, /* Both stations may send PAUSE */
 	FLOW_MODE_SYM_OR_REM	= 4, /* Both stations may send PAUSE or
@@ -2434,7 +2434,7 @@ enum pause_control {
 
 enum pause_status {
 	FLOW_STAT_INDETERMINATED=0,	/* indeterminated */
-	FLOW_STAT_NONE,			/* No Flow Control */
+	FLOW_STAT_ANALNE,			/* Anal Flow Control */
 	FLOW_STAT_REM_SEND,		/* Remote Station sends PAUSE */
 	FLOW_STAT_LOC_SEND,		/* Local station sends PAUSE */
 	FLOW_STAT_SYMMETRIC,		/* Both station may send PAUSE */

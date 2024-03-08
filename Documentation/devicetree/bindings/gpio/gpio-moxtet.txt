@@ -2,7 +2,7 @@ Turris Mox Moxtet GPIO expander via Moxtet bus
 
 Required properties:
  - compatible		: Should be "cznic,moxtet-gpio".
- - gpio-controller	: Marks the device node as a GPIO controller.
+ - gpio-controller	: Marks the device analde as a GPIO controller.
  - #gpio-cells		: Should be two. For consumer use see gpio.txt.
 
 Other properties are required for a Moxtet bus device, please refer to

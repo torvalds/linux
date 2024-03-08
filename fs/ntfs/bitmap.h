@@ -15,22 +15,22 @@
 
 #include "types.h"
 
-extern int __ntfs_bitmap_set_bits_in_run(struct inode *vi, const s64 start_bit,
+extern int __ntfs_bitmap_set_bits_in_run(struct ianalde *vi, const s64 start_bit,
 		const s64 count, const u8 value, const bool is_rollback);
 
 /**
  * ntfs_bitmap_set_bits_in_run - set a run of bits in a bitmap to a value
- * @vi:			vfs inode describing the bitmap
+ * @vi:			vfs ianalde describing the bitmap
  * @start_bit:		first bit to set
  * @count:		number of bits to set
  * @value:		value to set the bits to (i.e. 0 or 1)
  *
  * Set @count bits starting at bit @start_bit in the bitmap described by the
- * vfs inode @vi to @value, where @value is either 0 or 1.
+ * vfs ianalde @vi to @value, where @value is either 0 or 1.
  *
- * Return 0 on success and -errno on error.
+ * Return 0 on success and -erranal on error.
  */
-static inline int ntfs_bitmap_set_bits_in_run(struct inode *vi,
+static inline int ntfs_bitmap_set_bits_in_run(struct ianalde *vi,
 		const s64 start_bit, const s64 count, const u8 value)
 {
 	return __ntfs_bitmap_set_bits_in_run(vi, start_bit, count, value,
@@ -39,16 +39,16 @@ static inline int ntfs_bitmap_set_bits_in_run(struct inode *vi,
 
 /**
  * ntfs_bitmap_set_run - set a run of bits in a bitmap
- * @vi:		vfs inode describing the bitmap
+ * @vi:		vfs ianalde describing the bitmap
  * @start_bit:	first bit to set
  * @count:	number of bits to set
  *
  * Set @count bits starting at bit @start_bit in the bitmap described by the
- * vfs inode @vi.
+ * vfs ianalde @vi.
  *
- * Return 0 on success and -errno on error.
+ * Return 0 on success and -erranal on error.
  */
-static inline int ntfs_bitmap_set_run(struct inode *vi, const s64 start_bit,
+static inline int ntfs_bitmap_set_run(struct ianalde *vi, const s64 start_bit,
 		const s64 count)
 {
 	return ntfs_bitmap_set_bits_in_run(vi, start_bit, count, 1);
@@ -56,16 +56,16 @@ static inline int ntfs_bitmap_set_run(struct inode *vi, const s64 start_bit,
 
 /**
  * ntfs_bitmap_clear_run - clear a run of bits in a bitmap
- * @vi:		vfs inode describing the bitmap
+ * @vi:		vfs ianalde describing the bitmap
  * @start_bit:	first bit to clear
  * @count:	number of bits to clear
  *
  * Clear @count bits starting at bit @start_bit in the bitmap described by the
- * vfs inode @vi.
+ * vfs ianalde @vi.
  *
- * Return 0 on success and -errno on error.
+ * Return 0 on success and -erranal on error.
  */
-static inline int ntfs_bitmap_clear_run(struct inode *vi, const s64 start_bit,
+static inline int ntfs_bitmap_clear_run(struct ianalde *vi, const s64 start_bit,
 		const s64 count)
 {
 	return ntfs_bitmap_set_bits_in_run(vi, start_bit, count, 0);
@@ -73,28 +73,28 @@ static inline int ntfs_bitmap_clear_run(struct inode *vi, const s64 start_bit,
 
 /**
  * ntfs_bitmap_set_bit - set a bit in a bitmap
- * @vi:		vfs inode describing the bitmap
+ * @vi:		vfs ianalde describing the bitmap
  * @bit:	bit to set
  *
- * Set bit @bit in the bitmap described by the vfs inode @vi.
+ * Set bit @bit in the bitmap described by the vfs ianalde @vi.
  *
- * Return 0 on success and -errno on error.
+ * Return 0 on success and -erranal on error.
  */
-static inline int ntfs_bitmap_set_bit(struct inode *vi, const s64 bit)
+static inline int ntfs_bitmap_set_bit(struct ianalde *vi, const s64 bit)
 {
 	return ntfs_bitmap_set_run(vi, bit, 1);
 }
 
 /**
  * ntfs_bitmap_clear_bit - clear a bit in a bitmap
- * @vi:		vfs inode describing the bitmap
+ * @vi:		vfs ianalde describing the bitmap
  * @bit:	bit to clear
  *
- * Clear bit @bit in the bitmap described by the vfs inode @vi.
+ * Clear bit @bit in the bitmap described by the vfs ianalde @vi.
  *
- * Return 0 on success and -errno on error.
+ * Return 0 on success and -erranal on error.
  */
-static inline int ntfs_bitmap_clear_bit(struct inode *vi, const s64 bit)
+static inline int ntfs_bitmap_clear_bit(struct ianalde *vi, const s64 bit)
 {
 	return ntfs_bitmap_clear_run(vi, bit, 1);
 }

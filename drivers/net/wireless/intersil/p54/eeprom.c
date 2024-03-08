@@ -8,9 +8,9 @@
  *
  * Based on:
  * - the islsm (softmac prism54) driver, which is:
- *   Copyright 2004-2006 Jean-Baptiste Note <jbnote@gmail.com>, et al.
+ *   Copyright 2004-2006 Jean-Baptiste Analte <jbanalte@gmail.com>, et al.
  * - stlc45xx driver
- *   Copyright (C) 2008 Nokia Corporation and/or its subsidiary(-ies).
+ *   Copyright (C) 2008 Analkia Corporation and/or its subsidiary(-ies).
  */
 
 #include <linux/firmware.h>
@@ -149,7 +149,7 @@ static int p54_generate_band(struct ieee80211_hw *dev,
 	struct p54_common *priv = dev->priv;
 	struct ieee80211_supported_band *tmp, *old;
 	unsigned int i, j;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	if ((!list->entries) || (!list->band_channel_num[band]))
 		return -EINVAL;
@@ -193,7 +193,7 @@ static int p54_generate_band(struct ieee80211_hw *dev,
 		dest->center_freq = chan->freq;
 		dest->max_power = chan->max_power;
 		priv->survey[*chan_num].channel = &tmp->channels[j];
-		priv->survey[*chan_num].filled = SURVEY_INFO_NOISE_DBM |
+		priv->survey[*chan_num].filled = SURVEY_INFO_ANALISE_DBM |
 			SURVEY_INFO_TIME |
 			SURVEY_INFO_TIME_BUSY |
 			SURVEY_INFO_TIME_TX;
@@ -206,7 +206,7 @@ static int p54_generate_band(struct ieee80211_hw *dev,
 		wiphy_err(dev->wiphy, "Disabling totally damaged %d GHz band\n",
 			  (band == NL80211_BAND_2GHZ) ? 2 : 5);
 
-		ret = -ENODATA;
+		ret = -EANALDATA;
 		goto err_out;
 	}
 
@@ -248,7 +248,7 @@ static struct p54_channel_entry *p54_update_channel_param(struct p54_channel_lis
 	}
 
 	if ((i < 0) && (list->entries < list->max_entries)) {
-		/* entry does not exist yet. Initialize a new one. */
+		/* entry does analt exist yet. Initialize a new one. */
 		int band = p54_get_band_from_freq(freq);
 
 		/*
@@ -329,7 +329,7 @@ static int p54_generate_channel_lists(struct ieee80211_hw *dev)
 	    (priv->iq_autocal_len != priv->output_limit->entries))
 		wiphy_err(dev->wiphy,
 			  "Unsupported or damaged EEPROM detected. "
-			  "You may not be able to use all channels.\n");
+			  "You may analt be able to use all channels.\n");
 
 	max_channel_num = max_t(unsigned int, priv->output_limit->entries,
 				priv->iq_autocal_len);
@@ -338,14 +338,14 @@ static int p54_generate_channel_lists(struct ieee80211_hw *dev)
 
 	list = kzalloc(sizeof(*list), GFP_KERNEL);
 	if (!list) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free;
 	}
 	priv->chan_num = max_channel_num;
 	priv->survey = kcalloc(max_channel_num, sizeof(struct survey_info),
 			       GFP_KERNEL);
 	if (!priv->survey) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free;
 	}
 
@@ -354,7 +354,7 @@ static int p54_generate_channel_lists(struct ieee80211_hw *dev)
 				 sizeof(struct p54_channel_entry),
 				 GFP_KERNEL);
 	if (!list->channels) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free;
 	}
 
@@ -400,7 +400,7 @@ static int p54_generate_channel_lists(struct ieee80211_hw *dev)
 			j++;
 	}
 	if (j == 0) {
-		/* no useable band available. */
+		/* anal useable band available. */
 		ret = -EINVAL;
 	}
 
@@ -432,7 +432,7 @@ static int p54_convert_rev0(struct ieee80211_hw *dev,
 	priv->curve_data = kmalloc(sizeof(*priv->curve_data) + cd_len,
 				   GFP_KERNEL);
 	if (!priv->curve_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->curve_data->entries = curve_data->channels;
 	priv->curve_data->entry_size = sizeof(__le16) +
@@ -484,7 +484,7 @@ static int p54_convert_rev1(struct ieee80211_hw *dev,
 	priv->curve_data = kzalloc(cd_len + sizeof(*priv->curve_data),
 				   GFP_KERNEL);
 	if (!priv->curve_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->curve_data->entries = curve_data->channels;
 	priv->curve_data->entry_size = sizeof(__le16) +
@@ -550,7 +550,7 @@ static int p54_parse_rssical(struct ieee80211_hw *dev,
 	db_len = sizeof(*entry) * entries;
 	priv->rssi_db = kzalloc(db_len + sizeof(*priv->rssi_db), GFP_KERNEL);
 	if (!priv->rssi_db)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->rssi_db->offset = 0;
 	priv->rssi_db->entries = entries;
@@ -595,7 +595,7 @@ err_data:
 		  "rssi calibration data packing type:(%x) len:%d.\n",
 		  type, len);
 
-	print_hex_dump_bytes("rssical:", DUMP_PREFIX_NONE, data, len);
+	print_hex_dump_bytes("rssical:", DUMP_PREFIX_ANALNE, data, len);
 
 	wiphy_err(dev->wiphy, "please report this issue.\n");
 	return -EINVAL;
@@ -642,7 +642,7 @@ static void p54_parse_default_country(struct ieee80211_hw *dev,
 			  "found possible invalid default country eeprom entry. (entry size: %d)\n",
 			  len);
 
-		print_hex_dump_bytes("country:", DUMP_PREFIX_NONE,
+		print_hex_dump_bytes("country:", DUMP_PREFIX_ANALNE,
 				     data, len);
 
 		wiphy_err(dev->wiphy, "please report this issue.\n");
@@ -670,7 +670,7 @@ static int p54_convert_output_limits(struct ieee80211_hw *dev,
 		return -EINVAL;
 
 	if (data[0] != 0) {
-		wiphy_err(dev->wiphy, "unknown output power db revision:%x\n",
+		wiphy_err(dev->wiphy, "unkanalwn output power db revision:%x\n",
 			  data[0]);
 		return -EINVAL;
 	}
@@ -683,7 +683,7 @@ static int p54_convert_output_limits(struct ieee80211_hw *dev,
 		sizeof(*priv->output_limit), GFP_KERNEL);
 
 	if (!priv->output_limit)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->output_limit->offset = 0;
 	priv->output_limit->entries = data[1];
@@ -781,9 +781,9 @@ int p54_parse_eeprom(struct ieee80211_hw *dev, void *eeprom, int len)
 				break;
 			default:
 				wiphy_err(dev->wiphy,
-					  "unknown curve data revision %d\n",
+					  "unkanalwn curve data revision %d\n",
 					  curve_data->cal_method_rev);
-				err = -ENODEV;
+				err = -EANALDEV;
 				break;
 			}
 			if (err)
@@ -794,7 +794,7 @@ int p54_parse_eeprom(struct ieee80211_hw *dev, void *eeprom, int len)
 			priv->iq_autocal = kmemdup(entry->data, data_len,
 						   GFP_KERNEL);
 			if (!priv->iq_autocal) {
-				err = -ENOMEM;
+				err = -EANALMEM;
 				goto err;
 			}
 
@@ -865,7 +865,7 @@ int p54_parse_eeprom(struct ieee80211_hw *dev, void *eeprom, int len)
 			if (crc16 != le16_to_cpup((__le16 *)entry->data)) {
 				wiphy_err(dev->wiphy, "eeprom failed checksum "
 					 "test!\n");
-				err = -ENOMSG;
+				err = -EANALMSG;
 				goto err;
 			} else {
 				goto good_eeprom;
@@ -880,14 +880,14 @@ int p54_parse_eeprom(struct ieee80211_hw *dev, void *eeprom, int len)
 	}
 
 	wiphy_err(dev->wiphy, "unexpected end of eeprom data.\n");
-	err = -ENODATA;
+	err = -EANALDATA;
 	goto err;
 
 good_eeprom:
 	if (!synth || !priv->iq_autocal || !priv->output_limit ||
 	    !priv->curve_data) {
 		wiphy_err(dev->wiphy,
-			  "not all required entries found in eeprom!\n");
+			  "analt all required entries found in eeprom!\n");
 		err = -EINVAL;
 		goto err;
 	}
@@ -949,7 +949,7 @@ int p54_read_eeprom(struct ieee80211_hw *dev)
 {
 	struct p54_common *priv = dev->priv;
 	size_t eeprom_size = 0x2020, offset = 0, blocksize, maxblocksize;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 	void *eeprom;
 
 	maxblocksize = EEPROM_READBACK_LEN;

@@ -277,15 +277,15 @@ static int spm_dev_probe(struct platform_device *pdev)
 
 	drv = devm_kzalloc(&pdev->dev, sizeof(*drv), GFP_KERNEL);
 	if (!drv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drv->reg_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(drv->reg_base))
 		return PTR_ERR(drv->reg_base);
 
-	match_id = of_match_node(spm_match_table, pdev->dev.of_node);
+	match_id = of_match_analde(spm_match_table, pdev->dev.of_analde);
 	if (!match_id)
-		return -ENODEV;
+		return -EANALDEV;
 
 	drv->reg_data = match_id->data;
 	platform_set_drvdata(pdev, drv);

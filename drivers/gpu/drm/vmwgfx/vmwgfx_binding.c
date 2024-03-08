@@ -11,13 +11,13 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALN-INFRINGEMENT. IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM,
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
@@ -41,7 +41,7 @@
  * already killed if a resource to which a binding points
  * needs to be swapped out.
  *
- * Note that a resource can be pointed to by bindings from multiple contexts,
+ * Analte that a resource can be pointed to by bindings from multiple contexts,
  * Therefore we can't easily protect this data by a per context mutex
  * (unless we use deadlock-safe WW mutexes). So we use a global binding_mutex
  * to protect all binding manager data.
@@ -79,17 +79,17 @@
  * @per_shader: Per shader-type bindings.
  * @ua_views: UAV bindings.
  * @so_state: StreamOutput bindings.
- * @dirty: Bitmap tracking per binding-type changes that have not yet
+ * @dirty: Bitmap tracking per binding-type changes that have analt yet
  * been emitted to the device.
  * @dirty_vb: Bitmap tracking individual vertex buffer binding changes that
- * have not yet been emitted to the device.
+ * have analt yet been emitted to the device.
  * @bind_cmd_buffer: Scratch space used to construct binding commands.
  * @bind_cmd_count: Number of binding command data entries in @bind_cmd_buffer
  * @bind_first_slot: Used together with @bind_cmd_buffer to indicate the
  * device binding slot of the first command data entry in @bind_cmd_buffer.
  *
- * Note that this structure also provides storage space for the individual
- * struct vmw_ctx_binding objects, so that no dynamic allocation is needed
+ * Analte that this structure also provides storage space for the individual
+ * struct vmw_ctx_binding objects, so that anal dynamic allocation is needed
  * for individual bindings.
  *
  */
@@ -276,8 +276,8 @@ static const struct vmw_binding_info vmw_binding_infos[] = {
  *
  * Provided there are any active bindings, this function will return an
  * unreferenced pointer to the context resource that owns the context
- * binding state tracker. If there are no active bindings, this function
- * will return NULL. Note that the caller must somehow ensure that a reference
+ * binding state tracker. If there are anal active bindings, this function
+ * will return NULL. Analte that the caller must somehow ensure that a reference
  * is held on the context resource prior to calling this function.
  */
 static const struct vmw_resource *
@@ -295,7 +295,7 @@ vmw_cbs_context(const struct vmw_ctx_binding_state *cbs)
  *
  * @cbs: Pointer to a struct vmw_ctx_binding state which holds the slot.
  * @bt: The binding type.
- * @shader_slot: The shader slot of the binding. If none, then set to 0.
+ * @shader_slot: The shader slot of the binding. If analne, then set to 0.
  * @slot: The slot of the binding.
  */
 static struct vmw_ctx_bindinfo *
@@ -315,7 +315,7 @@ vmw_binding_loc(struct vmw_ctx_binding_state *cbs,
  *
  * Stops tracking a context binding, and re-initializes its storage.
  * Typically used when the context binding is replaced with a binding to
- * another (or the same, for that matter) resource.
+ * aanalther (or the same, for that matter) resource.
  */
 static void vmw_binding_drop(struct vmw_ctx_bindinfo *bi)
 {
@@ -580,7 +580,7 @@ static int vmw_binding_scrub_shader(struct vmw_ctx_bindinfo *bi, bool rebind)
 
 	cmd = VMW_CMD_RESERVE(dev_priv, sizeof(*cmd));
 	if (unlikely(cmd == NULL))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd->header.id = SVGA_3D_CMD_SET_SHADER;
 	cmd->header.size = sizeof(cmd->body);
@@ -612,7 +612,7 @@ static int vmw_binding_scrub_render_target(struct vmw_ctx_bindinfo *bi,
 
 	cmd = VMW_CMD_RESERVE(dev_priv, sizeof(*cmd));
 	if (unlikely(cmd == NULL))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd->header.id = SVGA_3D_CMD_SETRENDERTARGET;
 	cmd->header.size = sizeof(cmd->body);
@@ -651,7 +651,7 @@ static int vmw_binding_scrub_texture(struct vmw_ctx_bindinfo *bi,
 
 	cmd = VMW_CMD_RESERVE(dev_priv, sizeof(*cmd));
 	if (unlikely(cmd == NULL))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd->header.id = SVGA_3D_CMD_SETTEXTURESTATE;
 	cmd->header.size = sizeof(cmd->body);
@@ -682,7 +682,7 @@ static int vmw_binding_scrub_dx_shader(struct vmw_ctx_bindinfo *bi, bool rebind)
 
 	cmd = VMW_CMD_CTX_RESERVE(dev_priv, sizeof(*cmd), bi->ctx->id);
 	if (unlikely(cmd == NULL))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd->header.id = SVGA_3D_CMD_DX_SET_SHADER;
 	cmd->header.size = sizeof(cmd->body);
@@ -711,7 +711,7 @@ static int vmw_binding_scrub_cb(struct vmw_ctx_bindinfo *bi, bool rebind)
 
 	cmd = VMW_CMD_CTX_RESERVE(dev_priv, sizeof(*cmd), bi->ctx->id);
 	if (unlikely(cmd == NULL))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd->header.id = SVGA_3D_CMD_DX_SET_SINGLE_CONSTANT_BUFFER;
 	cmd->header.size = sizeof(cmd->body);
@@ -740,7 +740,7 @@ static int vmw_binding_scrub_cb(struct vmw_ctx_bindinfo *bi, bool rebind)
  * @max_num: Maximum number of entries in the @bi array.
  *
  * Scans the @bi array for bindings and builds a buffer of view id data.
- * Stops at the first non-existing binding in the @bi array.
+ * Stops at the first analn-existing binding in the @bi array.
  * On output, @cbs->bind_cmd_count contains the number of bindings to be
  * emitted, @cbs->bind_first_slot is set to zero, and @cbs->bind_cmd_buffer
  * contains the command data.
@@ -834,7 +834,7 @@ static int vmw_emit_set_sr(struct vmw_ctx_binding_state *cbs,
 	cmd_size = sizeof(*cmd) + view_id_size;
 	cmd = VMW_CMD_CTX_RESERVE(ctx->dev_priv, cmd_size, ctx->id);
 	if (unlikely(cmd == NULL))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd->header.id = SVGA_3D_CMD_DX_SET_SHADER_RESOURCES;
 	cmd->header.size = sizeof(cmd->body) + view_id_size;
@@ -870,7 +870,7 @@ static int vmw_emit_set_rt(struct vmw_ctx_binding_state *cbs)
 	cmd_size = sizeof(*cmd) + view_id_size;
 	cmd = VMW_CMD_CTX_RESERVE(ctx->dev_priv, cmd_size, ctx->id);
 	if (unlikely(cmd == NULL))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd->header.id = SVGA_3D_CMD_DX_SET_RENDERTARGETS;
 	cmd->header.size = sizeof(cmd->body) + view_id_size;
@@ -897,7 +897,7 @@ static int vmw_emit_set_rt(struct vmw_ctx_binding_state *cbs)
  * @max_num: Maximum number of entries in the @bi array.
  *
  * Scans the @bi array for bindings and builds a buffer of SVGA3dSoTarget data.
- * Stops at the first non-existing binding in the @bi array.
+ * Stops at the first analn-existing binding in the @bi array.
  * On output, @cbs->bind_cmd_count contains the number of bindings to be
  * emitted, @cbs->bind_first_slot is set to zero, and @cbs->bind_cmd_buffer
  * contains the command data.
@@ -952,7 +952,7 @@ static int vmw_emit_set_so_target(struct vmw_ctx_binding_state *cbs)
 	cmd_size = sizeof(*cmd) + so_target_size;
 	cmd = VMW_CMD_CTX_RESERVE(ctx->dev_priv, cmd_size, ctx->id);
 	if (unlikely(cmd == NULL))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd->header.id = SVGA_3D_CMD_DX_SET_SOTARGETS;
 	cmd->header.size = sizeof(cmd->body) + so_target_size;
@@ -1066,7 +1066,7 @@ static int vmw_emit_set_vb(struct vmw_ctx_binding_state *cbs)
 	cmd_size = sizeof(*cmd) + set_vb_size;
 	cmd = VMW_CMD_CTX_RESERVE(ctx->dev_priv, cmd_size, ctx->id);
 	if (unlikely(cmd == NULL))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd->header.id = SVGA_3D_CMD_DX_SET_VERTEX_BUFFERS;
 	cmd->header.size = sizeof(cmd->body) + set_vb_size;
@@ -1096,7 +1096,7 @@ static int vmw_emit_set_uav(struct vmw_ctx_binding_state *cbs)
 	cmd_size = sizeof(*cmd) + view_id_size;
 	cmd = VMW_CMD_CTX_RESERVE(ctx->dev_priv, cmd_size, ctx->id);
 	if (!cmd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd->header.id = SVGA_3D_CMD_DX_SET_UA_VIEWS;
 	cmd->header.size = sizeof(cmd->body) + view_id_size;
@@ -1126,7 +1126,7 @@ static int vmw_emit_set_cs_uav(struct vmw_ctx_binding_state *cbs)
 	cmd_size = sizeof(*cmd) + view_id_size;
 	cmd = VMW_CMD_CTX_RESERVE(ctx->dev_priv, cmd_size, ctx->id);
 	if (!cmd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd->header.id = SVGA_3D_CMD_DX_SET_CS_UA_VIEWS;
 	cmd->header.size = sizeof(cmd->body) + view_id_size;
@@ -1285,7 +1285,7 @@ static int vmw_binding_scrub_ib(struct vmw_ctx_bindinfo *bi, bool rebind)
 
 	cmd = VMW_CMD_CTX_RESERVE(dev_priv, sizeof(*cmd), bi->ctx->id);
 	if (unlikely(cmd == NULL))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd->header.id = SVGA_3D_CMD_DX_SET_INDEX_BUFFER;
 	cmd->header.size = sizeof(cmd->body);
@@ -1337,7 +1337,7 @@ static int vmw_binding_scrub_so(struct vmw_ctx_bindinfo *bi, bool rebind)
 
 	cmd = VMW_CMD_CTX_RESERVE(dev_priv, sizeof(*cmd), bi->ctx->id);
 	if (!cmd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd->header.id = SVGA_3D_CMD_DX_SET_STREAMOUTPUT;
 	cmd->header.size = sizeof(cmd->body);
@@ -1361,7 +1361,7 @@ vmw_binding_state_alloc(struct vmw_private *dev_priv)
 
 	cbs = vzalloc(sizeof(*cbs));
 	if (!cbs) {
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	cbs->dev_priv = dev_priv;
@@ -1399,7 +1399,7 @@ struct list_head *vmw_binding_state_list(struct vmw_ctx_binding_state *cbs)
  *
  * @cbs: Pointer to the struct vmw_ctx_binding_state to be cleared
  *
- * Drops all bindings registered in @cbs. No device binding actions are
+ * Drops all bindings registered in @cbs. Anal device binding actions are
  * performed.
  */
 void vmw_binding_state_reset(struct vmw_ctx_binding_state *cbs)
@@ -1418,7 +1418,7 @@ void vmw_binding_state_reset(struct vmw_ctx_binding_state *cbs)
  * context binding referencing it, we need to determine whether that resource
  * will be dirtied (written to by the GPU) as a result of the corresponding
  * GPU operation. Currently rendertarget-, depth-stencil-, stream-output-target
- * and unordered access view bindings are capable of dirtying its resource.
+ * and uanalrdered access view bindings are capable of dirtying its resource.
  *
  * Return: Whether the binding type dirties the resource its binding points to.
  */

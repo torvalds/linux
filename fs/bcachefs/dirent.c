@@ -137,7 +137,7 @@ int bch2_dirent_invalid(struct bch_fs *c, struct bkey_s_c k,
 			 "name with /");
 
 	bkey_fsck_err_on(d.v->d_type != DT_SUBVOL &&
-			 le64_to_cpu(d.v->d_inum) == d.k->p.inode, c, err,
+			 le64_to_cpu(d.v->d_inum) == d.k->p.ianalde, c, err,
 			 dirent_to_itself,
 			 "dirent points to own directory");
 fsck_err:
@@ -214,13 +214,13 @@ int bch2_dirent_create_snapshot(struct btree_trans *trans,
 	if (ret)
 		return ret;
 
-	dirent->k.p.inode	= dir;
+	dirent->k.p.ianalde	= dir;
 	dirent->k.p.snapshot	= snapshot;
 
 	ret = bch2_hash_set_snapshot(trans, bch2_dirent_hash_desc, hash_info,
 				     zero_inum, snapshot,
 				     &dirent->k_i, str_hash_flags,
-				     BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE);
+				     BTREE_UPDATE_INTERNAL_SNAPSHOT_ANALDE);
 	*dir_offset = dirent->k.p.offset;
 
 	return ret;
@@ -272,7 +272,7 @@ int bch2_dirent_read_target(struct btree_trans *trans, subvol_inum dir,
 
 		ret = bch2_subvolume_get(trans, target->subvol, true, BTREE_ITER_CACHED, &s);
 
-		target->inum	= le64_to_cpu(s.inode);
+		target->inum	= le64_to_cpu(s.ianalde);
 	}
 
 	return ret;
@@ -320,13 +320,13 @@ int bch2_dirent_rename(struct btree_trans *trans,
 	src_type = bkey_s_c_to_dirent(old_src).v->d_type;
 
 	if (src_type == DT_SUBVOL && mode == BCH_RENAME_EXCHANGE)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 
 	/* Lookup dst: */
 	if (mode == BCH_RENAME) {
 		/*
-		 * Note that we're _not_ checking if the target already exists -
+		 * Analte that we're _analt_ checking if the target already exists -
 		 * we're relying on the VFS to do that check for us for
 		 * correctness:
 		 */
@@ -354,7 +354,7 @@ int bch2_dirent_rename(struct btree_trans *trans,
 		dst_type = bkey_s_c_to_dirent(old_dst).v->d_type;
 
 		if (dst_type == DT_SUBVOL)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 	}
 
 	if (mode != BCH_RENAME_EXCHANGE)
@@ -398,7 +398,7 @@ int bch2_dirent_rename(struct btree_trans *trans,
 			 */
 			if (mode == BCH_RENAME) {
 				/*
-				 * If we're not overwriting, we can just insert
+				 * If we're analt overwriting, we can just insert
 				 * new_dst at the src position:
 				 */
 				new_src = new_dst;
@@ -431,7 +431,7 @@ out_set_src:
 
 	/*
 	 * If we're deleting a subvolume, we need to really delete the dirent,
-	 * not just emit a whiteout in the current snapshot:
+	 * analt just emit a whiteout in the current snapshot:
 	 */
 	if (src_type == DT_SUBVOL) {
 		bch2_btree_iter_set_snapshot(&src_iter, old_src.k->p.snapshot);
@@ -440,7 +440,7 @@ out_set_src:
 			goto out;
 
 		new_src->k.p = src_iter.pos;
-		src_update_flags |= BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE;
+		src_update_flags |= BTREE_UPDATE_INTERNAL_SNAPSHOT_ANALDE;
 	}
 
 	ret = bch2_trans_update(trans, &src_iter, &new_src->k_i, src_update_flags);
@@ -486,7 +486,7 @@ int __bch2_dirent_lookup_trans(struct btree_trans *trans,
 
 	ret = bch2_dirent_read_target(trans, dir, d, inum);
 	if (ret > 0)
-		ret = -ENOENT;
+		ret = -EANALENT;
 err:
 	if (ret)
 		bch2_trans_iter_exit(trans, iter);
@@ -514,11 +514,11 @@ int bch2_empty_dir_snapshot(struct btree_trans *trans, u64 dir, u32 snapshot)
 	struct bkey_s_c k;
 	int ret;
 
-	for_each_btree_key_upto_norestart(trans, iter, BTREE_ID_dirents,
+	for_each_btree_key_upto_analrestart(trans, iter, BTREE_ID_dirents,
 			   SPOS(dir, 0, snapshot),
 			   POS(dir, U64_MAX), 0, k, ret)
 		if (k.k->type == KEY_TYPE_dirent) {
-			ret = -ENOTEMPTY;
+			ret = -EANALTEMPTY;
 			break;
 		}
 	bch2_trans_iter_exit(trans, &iter);
@@ -554,7 +554,7 @@ retry:
 	if (ret)
 		goto err;
 
-	for_each_btree_key_upto_norestart(trans, iter, BTREE_ID_dirents,
+	for_each_btree_key_upto_analrestart(trans, iter, BTREE_ID_dirents,
 			   SPOS(inum.inum, ctx->pos, snapshot),
 			   POS(inum.inum, U64_MAX), 0, k, ret) {
 		if (k.k->type != KEY_TYPE_dirent)

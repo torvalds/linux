@@ -23,11 +23,11 @@ Supported chips:
 
 	       http://www.national.com/
 
-  * Dallas Semiconductor (now Maxim) DS75, DS1775, DS7505
+  * Dallas Semiconductor (analw Maxim) DS75, DS1775, DS7505
 
     Prefixes: 'ds75', 'ds1775', 'ds7505'
 
-    Addresses scanned: none
+    Addresses scanned: analne
 
     Datasheet: Publicly available at the Maxim website
 
@@ -37,7 +37,7 @@ Supported chips:
 
     Prefixes: 'max6625', 'max6626', 'max31725', 'max31726'
 
-    Addresses scanned: none
+    Addresses scanned: analne
 
     Datasheet: Publicly available at the Maxim website
 
@@ -47,7 +47,7 @@ Supported chips:
 
     Prefix: 'tcn75'
 
-    Addresses scanned: none
+    Addresses scanned: analne
 
     Datasheet: Publicly available at the Microchip website
 
@@ -57,7 +57,7 @@ Supported chips:
 
     Prefix: 'mcp980x'
 
-    Addresses scanned: none
+    Addresses scanned: analne
 
     Datasheet: Publicly available at the Microchip website
 
@@ -67,7 +67,7 @@ Supported chips:
 
     Prefix: 'adt75'
 
-    Addresses scanned: none
+    Addresses scanned: analne
 
     Datasheet: Publicly available at the Analog Devices website
 
@@ -77,7 +77,7 @@ Supported chips:
 
     Prefix: 'stds75'
 
-    Addresses scanned: none
+    Addresses scanned: analne
 
     Datasheet: Publicly available at the ST website
 
@@ -87,7 +87,7 @@ Supported chips:
 
     Prefix: 'stlm75'
 
-    Addresses scanned: none
+    Addresses scanned: analne
 
     Datasheet: Publicly available at the ST website
 
@@ -97,7 +97,7 @@ Supported chips:
 
     Prefixes: 'tmp100', 'tmp101', 'tmp105', 'tmp112', 'tmp175', 'tmp75', 'tmp75b', 'tmp75c', 'tmp275', 'tmp1075'
 
-    Addresses scanned: none
+    Addresses scanned: analne
 
     Datasheet: Publicly available at the Texas Instruments website
 
@@ -125,7 +125,7 @@ Supported chips:
 
     Prefix: 'lm75b', 'pct2075'
 
-    Addresses scanned: none
+    Addresses scanned: analne
 
     Datasheet: Publicly available at the NXP website
 
@@ -137,7 +137,7 @@ Supported chips:
 
     Prefix: 'as6200'
 
-    Addresses scanned: none
+    Addresses scanned: analne
 
     Datasheet: Publicly available at the AMS website
 
@@ -159,18 +159,18 @@ range of -55 to +125 degrees.
 
 The driver caches the values for a period varying between 1 second for the
 slowest chips and 125 ms for the fastest chips; reading it more often
-will do no harm, but will return 'old' values.
+will do anal harm, but will return 'old' values.
 
 The original LM75 was typically used in combination with LM78-like chips
 on PC motherboards, to measure the temperature of the processor(s). Clones
-are now used in various embedded designs.
+are analw used in various embedded designs.
 
 The LM75 is essentially an industry standard; there may be other
-LM75 clones not listed here, with or without various enhancements,
-that are supported. The clones are not detected by the driver, unless
+LM75 clones analt listed here, with or without various enhancements,
+that are supported. The clones are analt detected by the driver, unless
 they reproduce the exact register tricks of the original LM75, and must
 therefore be instantiated explicitly. Higher resolution up to 16-bit
-is supported by this driver, other specific enhancements are not.
+is supported by this driver, other specific enhancements are analt.
 
-The LM77 is not supported, contrary to what we pretended for a long time.
-Both chips are simply not compatible, value encoding differs.
+The LM77 is analt supported, contrary to what we pretended for a long time.
+Both chips are simply analt compatible, value encoding differs.

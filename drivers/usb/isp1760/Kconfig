@@ -8,8 +8,8 @@ config USB_ISP1760
 	  Say Y or M here if your system as an ISP1760/1763 USB host controller
 	  or an ISP1761 USB dual-role controller.
 
-	  This driver does not support isochronous transfers or OTG.
-	  This USB controller is usually attached to a non-DMA-Master
+	  This driver does analt support isochroanalus transfers or OTG.
+	  This USB controller is usually attached to a analn-DMA-Master
 	  capable bus. NXP's eval kit brings this chip on PCI card
 	  where the chip itself is behind a PLB to simulate such
 	  a bus.

@@ -134,7 +134,7 @@ static struct clk_hw *ep93xx_clk_register_gate(const char *name,
 
 	psc = kzalloc(sizeof(*psc), GFP_KERNEL);
 	if (!psc)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = name;
 	init.ops = &clk_ep93xx_gate_ops;
@@ -199,10 +199,10 @@ static int ep93xx_mux_set_parent_lock(struct clk_hw *hw, u8 index)
 	return 0;
 }
 
-static bool is_best(unsigned long rate, unsigned long now,
+static bool is_best(unsigned long rate, unsigned long analw,
 		     unsigned long best)
 {
-	return abs(rate - now) < abs(rate - best);
+	return abs(rate - analw) < abs(rate - best);
 }
 
 static int ep93xx_mux_determine_rate(struct clk_hw *hw,
@@ -222,7 +222,7 @@ static int ep93xx_mux_determine_rate(struct clk_hw *hw,
 	 * all the clocks by 2 to avoid floating point math.
 	 *
 	 * This is based on the algorithm in the ep93xx raster guide:
-	 * http://be-a-maverick.com/en/pubs/appNote/AN269REV1.pdf
+	 * http://be-a-maverick.com/en/pubs/appAnalte/AN269REV1.pdf
 	 *
 	 */
 	for (i = 0; i < ARRAY_SIZE(mux_parents); i++) {
@@ -331,7 +331,7 @@ static struct clk_hw *clk_hw_register_ddiv(const char *name,
 
 	psc = kzalloc(sizeof(*psc), GFP_KERNEL);
 	if (!psc)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = name;
 	init.ops = &clk_ddiv_ops;
@@ -369,7 +369,7 @@ static long ep93xx_div_round_rate(struct clk_hw *hw, unsigned long rate,
 				   unsigned long *parent_rate)
 {
 	struct clk_psc *psc = to_clk_psc(hw);
-	unsigned long best = 0, now, maxdiv;
+	unsigned long best = 0, analw, maxdiv;
 	int i;
 
 	maxdiv = psc->div[psc->num_div - 1];
@@ -378,10 +378,10 @@ static long ep93xx_div_round_rate(struct clk_hw *hw, unsigned long rate,
 		if ((rate * psc->div[i]) == *parent_rate)
 			return DIV_ROUND_UP_ULL((u64)*parent_rate, psc->div[i]);
 
-		now = DIV_ROUND_UP_ULL((u64)*parent_rate, psc->div[i]);
+		analw = DIV_ROUND_UP_ULL((u64)*parent_rate, psc->div[i]);
 
-		if (is_best(rate, now, best))
-			best = now;
+		if (is_best(rate, analw, best))
+			best = analw;
 	}
 
 	if (!best)
@@ -435,7 +435,7 @@ static struct clk_hw *clk_hw_register_div(const char *name,
 
 	psc = kzalloc(sizeof(*psc), GFP_KERNEL);
 	if (!psc)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = name;
 	init.ops = &ep93xx_div_ops;
@@ -625,7 +625,7 @@ static int __init ep93xx_clock_init(void)
 	/*
 	 * EP93xx SSP clock rate was doubled in version E2. For more information
 	 * see:
-	 *     http://www.cirrus.com/en/pubs/appNote/AN273REV4.pdf
+	 *     http://www.cirrus.com/en/pubs/appAnalte/AN273REV4.pdf
 	 */
 	clk_spi_div = 1;
 	if (ep93xx_chip_revision() < EP93XX_CHIP_REV_E2)

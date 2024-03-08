@@ -24,7 +24,7 @@ s16 qm_shl16(s16 op, int shift);
 
 s16 qm_shr16(s16 op, int shift);
 
-s16 qm_norm32(s32 op);
+s16 qm_analrm32(s32 op);
 
 void qm_log10(s32 N, s16 qN, s16 *log10N, s16 *qLog10N);
 

@@ -31,7 +31,7 @@
 #include "dir.h"
 #include "glock.h"
 #include "glops.h"
-#include "inode.h"
+#include "ianalde.h"
 #include "log.h"
 #include "meta_io.h"
 #include "quota.h"
@@ -44,9 +44,9 @@
 #include "xattr.h"
 #include "lops.h"
 
-enum dinode_demise {
-	SHOULD_DELETE_DINODE,
-	SHOULD_NOT_DELETE_DINODE,
+enum dianalde_demise {
+	SHOULD_DELETE_DIANALDE,
+	SHOULD_ANALT_DELETE_DIANALDE,
 	SHOULD_DEFER_EVICTION,
 };
 
@@ -72,8 +72,8 @@ void gfs2_jindex_free(struct gfs2_sbd *sdp)
 		jd = list_first_entry(&list, struct gfs2_jdesc, jd_list);
 		gfs2_free_journal_extents(jd);
 		list_del(&jd->jd_list);
-		iput(jd->jd_inode);
-		jd->jd_inode = NULL;
+		iput(jd->jd_ianalde);
+		jd->jd_ianalde = NULL;
 		kfree(jd);
 	}
 }
@@ -102,17 +102,17 @@ struct gfs2_jdesc *gfs2_jdesc_find(struct gfs2_sbd *sdp, unsigned int jid)
 
 int gfs2_jdesc_check(struct gfs2_jdesc *jd)
 {
-	struct gfs2_inode *ip = GFS2_I(jd->jd_inode);
-	struct gfs2_sbd *sdp = GFS2_SB(jd->jd_inode);
-	u64 size = i_size_read(jd->jd_inode);
+	struct gfs2_ianalde *ip = GFS2_I(jd->jd_ianalde);
+	struct gfs2_sbd *sdp = GFS2_SB(jd->jd_ianalde);
+	u64 size = i_size_read(jd->jd_ianalde);
 
-	if (gfs2_check_internal_file_size(jd->jd_inode, 8 << 20, BIT(30)))
+	if (gfs2_check_internal_file_size(jd->jd_ianalde, 8 << 20, BIT(30)))
 		return -EIO;
 
 	jd->jd_blocks = size >> sdp->sd_sb.sb_bsize_shift;
 
 	if (gfs2_write_alloc_required(ip, 0, size)) {
-		gfs2_consist_inode(ip);
+		gfs2_consist_ianalde(ip);
 		return -EIO;
 	}
 
@@ -123,12 +123,12 @@ int gfs2_jdesc_check(struct gfs2_jdesc *jd)
  * gfs2_make_fs_rw - Turn a Read-Only FS into a Read-Write one
  * @sdp: the filesystem
  *
- * Returns: errno
+ * Returns: erranal
  */
 
 int gfs2_make_fs_rw(struct gfs2_sbd *sdp)
 {
-	struct gfs2_inode *ip = GFS2_I(sdp->sd_jdesc->jd_inode);
+	struct gfs2_ianalde *ip = GFS2_I(sdp->sd_jdesc->jd_ianalde);
 	struct gfs2_glock *j_gl = ip->i_gl;
 	struct gfs2_log_header_host head;
 	int error;
@@ -150,7 +150,7 @@ int gfs2_make_fs_rw(struct gfs2_sbd *sdp)
 
 	/*  Initialize some head of the log stuff  */
 	sdp->sd_log_sequence = head.lh_sequence + 1;
-	gfs2_log_pointers_init(sdp, head.lh_blkno);
+	gfs2_log_pointers_init(sdp, head.lh_blkanal);
 
 	error = gfs2_quota_init(sdp);
 	if (!error && gfs2_withdrawing_or_withdrawn(sdp))
@@ -166,7 +166,7 @@ void gfs2_statfs_change_in(struct gfs2_statfs_change_host *sc, const void *buf)
 
 	sc->sc_total = be64_to_cpu(str->sc_total);
 	sc->sc_free = be64_to_cpu(str->sc_free);
-	sc->sc_dinodes = be64_to_cpu(str->sc_dinodes);
+	sc->sc_dianaldes = be64_to_cpu(str->sc_dianaldes);
 }
 
 void gfs2_statfs_change_out(const struct gfs2_statfs_change_host *sc, void *buf)
@@ -175,38 +175,38 @@ void gfs2_statfs_change_out(const struct gfs2_statfs_change_host *sc, void *buf)
 
 	str->sc_total = cpu_to_be64(sc->sc_total);
 	str->sc_free = cpu_to_be64(sc->sc_free);
-	str->sc_dinodes = cpu_to_be64(sc->sc_dinodes);
+	str->sc_dianaldes = cpu_to_be64(sc->sc_dianaldes);
 }
 
 int gfs2_statfs_init(struct gfs2_sbd *sdp)
 {
-	struct gfs2_inode *m_ip = GFS2_I(sdp->sd_statfs_inode);
+	struct gfs2_ianalde *m_ip = GFS2_I(sdp->sd_statfs_ianalde);
 	struct gfs2_statfs_change_host *m_sc = &sdp->sd_statfs_master;
 	struct gfs2_statfs_change_host *l_sc = &sdp->sd_statfs_local;
 	struct buffer_head *m_bh;
 	struct gfs2_holder gh;
 	int error;
 
-	error = gfs2_glock_nq_init(m_ip->i_gl, LM_ST_EXCLUSIVE, GL_NOCACHE,
+	error = gfs2_glock_nq_init(m_ip->i_gl, LM_ST_EXCLUSIVE, GL_ANALCACHE,
 				   &gh);
 	if (error)
 		return error;
 
-	error = gfs2_meta_inode_buffer(m_ip, &m_bh);
+	error = gfs2_meta_ianalde_buffer(m_ip, &m_bh);
 	if (error)
 		goto out;
 
 	if (sdp->sd_args.ar_spectator) {
 		spin_lock(&sdp->sd_statfs_spin);
 		gfs2_statfs_change_in(m_sc, m_bh->b_data +
-				      sizeof(struct gfs2_dinode));
+				      sizeof(struct gfs2_dianalde));
 		spin_unlock(&sdp->sd_statfs_spin);
 	} else {
 		spin_lock(&sdp->sd_statfs_spin);
 		gfs2_statfs_change_in(m_sc, m_bh->b_data +
-				      sizeof(struct gfs2_dinode));
+				      sizeof(struct gfs2_dianalde));
 		gfs2_statfs_change_in(l_sc, sdp->sd_sc_bh->b_data +
-				      sizeof(struct gfs2_dinode));
+				      sizeof(struct gfs2_dianalde));
 		spin_unlock(&sdp->sd_statfs_spin);
 
 	}
@@ -218,9 +218,9 @@ out:
 }
 
 void gfs2_statfs_change(struct gfs2_sbd *sdp, s64 total, s64 free,
-			s64 dinodes)
+			s64 dianaldes)
 {
-	struct gfs2_inode *l_ip = GFS2_I(sdp->sd_sc_inode);
+	struct gfs2_ianalde *l_ip = GFS2_I(sdp->sd_sc_ianalde);
 	struct gfs2_statfs_change_host *l_sc = &sdp->sd_statfs_local;
 	struct gfs2_statfs_change_host *m_sc = &sdp->sd_statfs_master;
 	s64 x, y;
@@ -231,9 +231,9 @@ void gfs2_statfs_change(struct gfs2_sbd *sdp, s64 total, s64 free,
 	spin_lock(&sdp->sd_statfs_spin);
 	l_sc->sc_total += total;
 	l_sc->sc_free += free;
-	l_sc->sc_dinodes += dinodes;
+	l_sc->sc_dianaldes += dianaldes;
 	gfs2_statfs_change_out(l_sc, sdp->sd_sc_bh->b_data +
-			       sizeof(struct gfs2_dinode));
+			       sizeof(struct gfs2_dianalde));
 	if (sdp->sd_args.ar_statfs_percent) {
 		x = 100 * l_sc->sc_free;
 		y = m_sc->sc_free * sdp->sd_args.ar_statfs_percent;
@@ -248,8 +248,8 @@ void gfs2_statfs_change(struct gfs2_sbd *sdp, s64 total, s64 free,
 
 void update_statfs(struct gfs2_sbd *sdp, struct buffer_head *m_bh)
 {
-	struct gfs2_inode *m_ip = GFS2_I(sdp->sd_statfs_inode);
-	struct gfs2_inode *l_ip = GFS2_I(sdp->sd_sc_inode);
+	struct gfs2_ianalde *m_ip = GFS2_I(sdp->sd_statfs_ianalde);
+	struct gfs2_ianalde *l_ip = GFS2_I(sdp->sd_sc_ianalde);
 	struct gfs2_statfs_change_host *m_sc = &sdp->sd_statfs_master;
 	struct gfs2_statfs_change_host *l_sc = &sdp->sd_statfs_local;
 
@@ -259,43 +259,43 @@ void update_statfs(struct gfs2_sbd *sdp, struct buffer_head *m_bh)
 	spin_lock(&sdp->sd_statfs_spin);
 	m_sc->sc_total += l_sc->sc_total;
 	m_sc->sc_free += l_sc->sc_free;
-	m_sc->sc_dinodes += l_sc->sc_dinodes;
+	m_sc->sc_dianaldes += l_sc->sc_dianaldes;
 	memset(l_sc, 0, sizeof(struct gfs2_statfs_change));
-	memset(sdp->sd_sc_bh->b_data + sizeof(struct gfs2_dinode),
+	memset(sdp->sd_sc_bh->b_data + sizeof(struct gfs2_dianalde),
 	       0, sizeof(struct gfs2_statfs_change));
-	gfs2_statfs_change_out(m_sc, m_bh->b_data + sizeof(struct gfs2_dinode));
+	gfs2_statfs_change_out(m_sc, m_bh->b_data + sizeof(struct gfs2_dianalde));
 	spin_unlock(&sdp->sd_statfs_spin);
 }
 
 int gfs2_statfs_sync(struct super_block *sb, int type)
 {
 	struct gfs2_sbd *sdp = sb->s_fs_info;
-	struct gfs2_inode *m_ip = GFS2_I(sdp->sd_statfs_inode);
+	struct gfs2_ianalde *m_ip = GFS2_I(sdp->sd_statfs_ianalde);
 	struct gfs2_statfs_change_host *m_sc = &sdp->sd_statfs_master;
 	struct gfs2_statfs_change_host *l_sc = &sdp->sd_statfs_local;
 	struct gfs2_holder gh;
 	struct buffer_head *m_bh;
 	int error;
 
-	error = gfs2_glock_nq_init(m_ip->i_gl, LM_ST_EXCLUSIVE, GL_NOCACHE,
+	error = gfs2_glock_nq_init(m_ip->i_gl, LM_ST_EXCLUSIVE, GL_ANALCACHE,
 				   &gh);
 	if (error)
 		goto out;
 
-	error = gfs2_meta_inode_buffer(m_ip, &m_bh);
+	error = gfs2_meta_ianalde_buffer(m_ip, &m_bh);
 	if (error)
 		goto out_unlock;
 
 	spin_lock(&sdp->sd_statfs_spin);
 	gfs2_statfs_change_in(m_sc, m_bh->b_data +
-			      sizeof(struct gfs2_dinode));
-	if (!l_sc->sc_total && !l_sc->sc_free && !l_sc->sc_dinodes) {
+			      sizeof(struct gfs2_dianalde));
+	if (!l_sc->sc_total && !l_sc->sc_free && !l_sc->sc_dianaldes) {
 		spin_unlock(&sdp->sd_statfs_spin);
 		goto out_bh;
 	}
 	spin_unlock(&sdp->sd_statfs_spin);
 
-	error = gfs2_trans_begin(sdp, 2 * RES_DINODE, 0);
+	error = gfs2_trans_begin(sdp, 2 * RES_DIANALDE, 0);
 	if (error)
 		goto out_bh;
 
@@ -322,12 +322,12 @@ struct lfcc {
  *                            journals are clean
  * @sdp: the file system
  *
- * Returns: errno
+ * Returns: erranal
  */
 
 static int gfs2_lock_fs_check_clean(struct gfs2_sbd *sdp)
 {
-	struct gfs2_inode *ip;
+	struct gfs2_ianalde *ip;
 	struct gfs2_jdesc *jd;
 	struct lfcc *lfcc;
 	LIST_HEAD(list);
@@ -342,10 +342,10 @@ static int gfs2_lock_fs_check_clean(struct gfs2_sbd *sdp)
 	list_for_each_entry(jd, &sdp->sd_jindex_list, jd_list) {
 		lfcc = kmalloc(sizeof(struct lfcc), GFP_KERNEL);
 		if (!lfcc) {
-			error = -ENOMEM;
+			error = -EANALMEM;
 			goto out;
 		}
-		ip = GFS2_I(jd->jd_inode);
+		ip = GFS2_I(jd->jd_ianalde);
 		error = gfs2_glock_nq_init(ip->i_gl, LM_ST_SHARED, 0, &lfcc->gh);
 		if (error) {
 			kfree(lfcc);
@@ -357,7 +357,7 @@ static int gfs2_lock_fs_check_clean(struct gfs2_sbd *sdp)
 	gfs2_freeze_unlock(&sdp->sd_freeze_gh);
 
 	error = gfs2_glock_nq_init(sdp->sd_freeze_gl, LM_ST_EXCLUSIVE,
-				   LM_FLAG_NOEXP | GL_NOPID,
+				   LM_FLAG_ANALEXP | GL_ANALPID,
 				   &sdp->sd_freeze_gh);
 	if (error)
 		goto relock_shared;
@@ -394,25 +394,25 @@ out:
 	return error;
 }
 
-void gfs2_dinode_out(const struct gfs2_inode *ip, void *buf)
+void gfs2_dianalde_out(const struct gfs2_ianalde *ip, void *buf)
 {
-	const struct inode *inode = &ip->i_inode;
-	struct gfs2_dinode *str = buf;
+	const struct ianalde *ianalde = &ip->i_ianalde;
+	struct gfs2_dianalde *str = buf;
 
 	str->di_header.mh_magic = cpu_to_be32(GFS2_MAGIC);
 	str->di_header.mh_type = cpu_to_be32(GFS2_METATYPE_DI);
 	str->di_header.mh_format = cpu_to_be32(GFS2_FORMAT_DI);
-	str->di_num.no_addr = cpu_to_be64(ip->i_no_addr);
-	str->di_num.no_formal_ino = cpu_to_be64(ip->i_no_formal_ino);
-	str->di_mode = cpu_to_be32(inode->i_mode);
-	str->di_uid = cpu_to_be32(i_uid_read(inode));
-	str->di_gid = cpu_to_be32(i_gid_read(inode));
-	str->di_nlink = cpu_to_be32(inode->i_nlink);
-	str->di_size = cpu_to_be64(i_size_read(inode));
-	str->di_blocks = cpu_to_be64(gfs2_get_inode_blocks(inode));
-	str->di_atime = cpu_to_be64(inode_get_atime_sec(inode));
-	str->di_mtime = cpu_to_be64(inode_get_mtime_sec(inode));
-	str->di_ctime = cpu_to_be64(inode_get_ctime_sec(inode));
+	str->di_num.anal_addr = cpu_to_be64(ip->i_anal_addr);
+	str->di_num.anal_formal_ianal = cpu_to_be64(ip->i_anal_formal_ianal);
+	str->di_mode = cpu_to_be32(ianalde->i_mode);
+	str->di_uid = cpu_to_be32(i_uid_read(ianalde));
+	str->di_gid = cpu_to_be32(i_gid_read(ianalde));
+	str->di_nlink = cpu_to_be32(ianalde->i_nlink);
+	str->di_size = cpu_to_be64(i_size_read(ianalde));
+	str->di_blocks = cpu_to_be64(gfs2_get_ianalde_blocks(ianalde));
+	str->di_atime = cpu_to_be64(ianalde_get_atime_sec(ianalde));
+	str->di_mtime = cpu_to_be64(ianalde_get_mtime_sec(ianalde));
+	str->di_ctime = cpu_to_be64(ianalde_get_ctime_sec(ianalde));
 
 	str->di_goal_meta = cpu_to_be64(ip->i_goal);
 	str->di_goal_data = cpu_to_be64(ip->i_goal);
@@ -420,39 +420,39 @@ void gfs2_dinode_out(const struct gfs2_inode *ip, void *buf)
 
 	str->di_flags = cpu_to_be32(ip->i_diskflags);
 	str->di_height = cpu_to_be16(ip->i_height);
-	str->di_payload_format = cpu_to_be32(S_ISDIR(inode->i_mode) &&
+	str->di_payload_format = cpu_to_be32(S_ISDIR(ianalde->i_mode) &&
 					     !(ip->i_diskflags & GFS2_DIF_EXHASH) ?
 					     GFS2_FORMAT_DE : 0);
 	str->di_depth = cpu_to_be16(ip->i_depth);
 	str->di_entries = cpu_to_be32(ip->i_entries);
 
 	str->di_eattr = cpu_to_be64(ip->i_eattr);
-	str->di_atime_nsec = cpu_to_be32(inode_get_atime_nsec(inode));
-	str->di_mtime_nsec = cpu_to_be32(inode_get_mtime_nsec(inode));
-	str->di_ctime_nsec = cpu_to_be32(inode_get_ctime_nsec(inode));
+	str->di_atime_nsec = cpu_to_be32(ianalde_get_atime_nsec(ianalde));
+	str->di_mtime_nsec = cpu_to_be32(ianalde_get_mtime_nsec(ianalde));
+	str->di_ctime_nsec = cpu_to_be32(ianalde_get_ctime_nsec(ianalde));
 }
 
 /**
- * gfs2_write_inode - Make sure the inode is stable on the disk
- * @inode: The inode
+ * gfs2_write_ianalde - Make sure the ianalde is stable on the disk
+ * @ianalde: The ianalde
  * @wbc: The writeback control structure
  *
- * Returns: errno
+ * Returns: erranal
  */
 
-static int gfs2_write_inode(struct inode *inode, struct writeback_control *wbc)
+static int gfs2_write_ianalde(struct ianalde *ianalde, struct writeback_control *wbc)
 {
-	struct gfs2_inode *ip = GFS2_I(inode);
-	struct gfs2_sbd *sdp = GFS2_SB(inode);
+	struct gfs2_ianalde *ip = GFS2_I(ianalde);
+	struct gfs2_sbd *sdp = GFS2_SB(ianalde);
 	struct address_space *metamapping = gfs2_glock2aspace(ip->i_gl);
-	struct backing_dev_info *bdi = inode_to_bdi(metamapping->host);
+	struct backing_dev_info *bdi = ianalde_to_bdi(metamapping->host);
 	int ret = 0;
 	bool flush_all = (wbc->sync_mode == WB_SYNC_ALL || gfs2_is_jdata(ip));
 
 	if (flush_all)
-		gfs2_log_flush(GFS2_SB(inode), ip->i_gl,
-			       GFS2_LOG_HEAD_FLUSH_NORMAL |
-			       GFS2_LFC_WRITE_INODE);
+		gfs2_log_flush(GFS2_SB(ianalde), ip->i_gl,
+			       GFS2_LOG_HEAD_FLUSH_ANALRMAL |
+			       GFS2_LFC_WRITE_IANALDE);
 	if (bdi->wb.dirty_exceeded)
 		gfs2_ail1_flush(sdp, wbc);
 	else
@@ -460,22 +460,22 @@ static int gfs2_write_inode(struct inode *inode, struct writeback_control *wbc)
 	if (flush_all)
 		ret = filemap_fdatawait(metamapping);
 	if (ret)
-		mark_inode_dirty_sync(inode);
+		mark_ianalde_dirty_sync(ianalde);
 	else {
-		spin_lock(&inode->i_lock);
-		if (!(inode->i_flags & I_DIRTY))
-			gfs2_ordered_del_inode(ip);
-		spin_unlock(&inode->i_lock);
+		spin_lock(&ianalde->i_lock);
+		if (!(ianalde->i_flags & I_DIRTY))
+			gfs2_ordered_del_ianalde(ip);
+		spin_unlock(&ianalde->i_lock);
 	}
 	return ret;
 }
 
 /**
- * gfs2_dirty_inode - check for atime updates
- * @inode: The inode in question
+ * gfs2_dirty_ianalde - check for atime updates
+ * @ianalde: The ianalde in question
  * @flags: The type of dirty
  *
- * Unfortunately it can be called under any combination of inode
+ * Unfortunately it can be called under any combination of ianalde
  * glock and freeze glock, so we have to check carefully.
  *
  * At the moment this deals only with atime - it should be possible
@@ -483,10 +483,10 @@ static int gfs2_write_inode(struct inode *inode, struct writeback_control *wbc)
  * been carried out.
  */
 
-static void gfs2_dirty_inode(struct inode *inode, int flags)
+static void gfs2_dirty_ianalde(struct ianalde *ianalde, int flags)
 {
-	struct gfs2_inode *ip = GFS2_I(inode);
-	struct gfs2_sbd *sdp = GFS2_SB(inode);
+	struct gfs2_ianalde *ip = GFS2_I(ianalde);
+	struct gfs2_sbd *sdp = GFS2_SB(ianalde);
 	struct buffer_head *bh;
 	struct gfs2_holder gh;
 	int need_unlock = 0;
@@ -494,7 +494,7 @@ static void gfs2_dirty_inode(struct inode *inode, int flags)
 	int ret;
 
 	if (unlikely(!ip->i_gl)) {
-		/* This can only happen during incomplete inode creation. */
+		/* This can only happen during incomplete ianalde creation. */
 		BUG_ON(!test_bit(GIF_ALLOC_FAILED, &ip->i_flags));
 		return;
 	}
@@ -504,7 +504,7 @@ static void gfs2_dirty_inode(struct inode *inode, int flags)
 	if (!gfs2_glock_is_locked_by_me(ip->i_gl)) {
 		ret = gfs2_glock_nq_init(ip->i_gl, LM_ST_EXCLUSIVE, 0, &gh);
 		if (ret) {
-			fs_err(sdp, "dirty_inode: glock %d\n", ret);
+			fs_err(sdp, "dirty_ianalde: glock %d\n", ret);
 			gfs2_dump_glock(NULL, ip->i_gl, true);
 			return;
 		}
@@ -513,18 +513,18 @@ static void gfs2_dirty_inode(struct inode *inode, int flags)
 		return;
 
 	if (current->journal_info == NULL) {
-		ret = gfs2_trans_begin(sdp, RES_DINODE, 0);
+		ret = gfs2_trans_begin(sdp, RES_DIANALDE, 0);
 		if (ret) {
-			fs_err(sdp, "dirty_inode: gfs2_trans_begin %d\n", ret);
+			fs_err(sdp, "dirty_ianalde: gfs2_trans_begin %d\n", ret);
 			goto out;
 		}
 		need_endtrans = 1;
 	}
 
-	ret = gfs2_meta_inode_buffer(ip, &bh);
+	ret = gfs2_meta_ianalde_buffer(ip, &bh);
 	if (ret == 0) {
 		gfs2_trans_add_meta(ip->i_gl, bh);
-		gfs2_dinode_out(ip, bh->b_data);
+		gfs2_dianalde_out(ip, bh->b_data);
 		brelse(bh);
 	}
 
@@ -539,7 +539,7 @@ out:
  * gfs2_make_fs_ro - Turn a Read-Write FS into a Read-Only one
  * @sdp: the filesystem
  *
- * Returns: errno
+ * Returns: erranal
  */
 
 void gfs2_make_fs_ro(struct gfs2_sbd *sdp)
@@ -555,12 +555,12 @@ void gfs2_make_fs_ro(struct gfs2_sbd *sdp)
 		gfs2_quota_sync(sdp->sd_vfs, 0);
 		gfs2_statfs_sync(sdp->sd_vfs, 0);
 
-		/* We do two log flushes here. The first one commits dirty inodes
+		/* We do two log flushes here. The first one commits dirty ianaldes
 		 * and rgrps to the journal, but queues up revokes to the ail list.
 		 * The second flush writes out and removes the revokes.
 		 *
 		 * The first must be done before the FLUSH_SHUTDOWN code
-		 * clears the LIVE flag, otherwise it will not be able to start
+		 * clears the LIVE flag, otherwise it will analt be able to start
 		 * a transaction to write its revokes, and the error will cause
 		 * a withdraw of the file system. */
 		gfs2_log_flush(sdp, NULL, GFS2_LFC_MAKE_FS_RO);
@@ -585,8 +585,8 @@ static void gfs2_put_super(struct super_block *sb)
 	struct gfs2_sbd *sdp = sb->s_fs_info;
 	struct gfs2_jdesc *jd;
 
-	/* No more recovery requests */
-	set_bit(SDF_NORECOVERY, &sdp->sd_flags);
+	/* Anal more recovery requests */
+	set_bit(SDF_ANALRECOVERY, &sdp->sd_flags);
 	smp_mb();
 
 	/* Wait on outstanding recovery */
@@ -620,9 +620,9 @@ restart:
 	gfs2_freeze_unlock(&sdp->sd_freeze_gh);
 
 	iput(sdp->sd_jindex);
-	iput(sdp->sd_statfs_inode);
+	iput(sdp->sd_statfs_ianalde);
 	iput(sdp->sd_rindex);
-	iput(sdp->sd_quota_inode);
+	iput(sdp->sd_quota_ianalde);
 
 	gfs2_glock_put(sdp->sd_rename_gl);
 	gfs2_glock_put(sdp->sd_freeze_gl);
@@ -630,13 +630,13 @@ restart:
 	if (!sdp->sd_args.ar_spectator) {
 		if (gfs2_holder_initialized(&sdp->sd_journal_gh))
 			gfs2_glock_dq_uninit(&sdp->sd_journal_gh);
-		if (gfs2_holder_initialized(&sdp->sd_jinode_gh))
-			gfs2_glock_dq_uninit(&sdp->sd_jinode_gh);
+		if (gfs2_holder_initialized(&sdp->sd_jianalde_gh))
+			gfs2_glock_dq_uninit(&sdp->sd_jianalde_gh);
 		brelse(sdp->sd_sc_bh);
 		gfs2_glock_dq_uninit(&sdp->sd_sc_gh);
 		gfs2_glock_dq_uninit(&sdp->sd_qc_gh);
-		free_local_statfs_inodes(sdp);
-		iput(sdp->sd_qc_inode);
+		free_local_statfs_ianaldes(sdp);
+		iput(sdp->sd_qc_ianalde);
 	}
 
 	gfs2_glock_dq_uninit(&sdp->sd_live_gh);
@@ -644,7 +644,7 @@ restart:
 	gfs2_jindex_free(sdp);
 	/*  Take apart glock structures and buffer lists  */
 	gfs2_gl_hash_clear(sdp);
-	truncate_inode_pages_final(&sdp->sd_aspace);
+	truncate_ianalde_pages_final(&sdp->sd_aspace);
 	gfs2_delete_debugfs_file(sdp);
 	/*  Unmount the locking protocol  */
 	gfs2_lm_unmount(sdp);
@@ -668,7 +668,7 @@ static int gfs2_sync_fs(struct super_block *sb, int wait)
 
 	gfs2_quota_sync(sb, -1);
 	if (wait)
-		gfs2_log_flush(sdp, NULL, GFS2_LOG_HEAD_FLUSH_NORMAL |
+		gfs2_log_flush(sdp, NULL, GFS2_LOG_HEAD_FLUSH_ANALRMAL |
 			       GFS2_LFC_SYNC_FS);
 	return sdp->sd_log_error;
 }
@@ -764,7 +764,7 @@ static int gfs2_freeze_super(struct super_block *sb, enum freeze_holder who)
 		if (error == -EBUSY)
 			fs_err(sdp, "waiting for recovery before freeze\n");
 		else if (error == -EIO) {
-			fs_err(sdp, "Fatal IO error: cannot freeze gfs2 due "
+			fs_err(sdp, "Fatal IO error: cananalt freeze gfs2 due "
 			       "to recovery error.\n");
 			goto out;
 		} else {
@@ -852,21 +852,21 @@ static int statfs_slow_fill(struct gfs2_rgrpd *rgd,
 	gfs2_rgrp_verify(rgd);
 	sc->sc_total += rgd->rd_data;
 	sc->sc_free += rgd->rd_free;
-	sc->sc_dinodes += rgd->rd_dinodes;
+	sc->sc_dianaldes += rgd->rd_dianaldes;
 	return 0;
 }
 
 /**
- * gfs2_statfs_slow - Stat a filesystem using asynchronous locking
+ * gfs2_statfs_slow - Stat a filesystem using asynchroanalus locking
  * @sdp: the filesystem
  * @sc: the sc info that will be returned
  *
  * Any error (other than a signal) will cause this routine to fall back
- * to the synchronous version.
+ * to the synchroanalus version.
  *
  * FIXME: This really shouldn't busy wait like this.
  *
- * Returns: errno
+ * Returns: erranal
  */
 
 static int gfs2_statfs_slow(struct gfs2_sbd *sdp, struct gfs2_statfs_change_host *sc)
@@ -881,7 +881,7 @@ static int gfs2_statfs_slow(struct gfs2_sbd *sdp, struct gfs2_statfs_change_host
 	memset(sc, 0, sizeof(struct gfs2_statfs_change_host));
 	gha = kmalloc_array(slots, sizeof(struct gfs2_holder), GFP_KERNEL);
 	if (!gha)
-		return -ENOMEM;
+		return -EANALMEM;
 	for (x = 0; x < slots; x++)
 		gfs2_holder_mark_uninitialized(gha + x);
 
@@ -939,7 +939,7 @@ static int gfs2_statfs_slow(struct gfs2_sbd *sdp, struct gfs2_statfs_change_host
  * @sdp: the filesystem
  * @sc: the sc structure
  *
- * Returns: errno
+ * Returns: erranal
  */
 
 static int gfs2_statfs_i(struct gfs2_sbd *sdp, struct gfs2_statfs_change_host *sc)
@@ -952,7 +952,7 @@ static int gfs2_statfs_i(struct gfs2_sbd *sdp, struct gfs2_statfs_change_host *s
 	*sc = *m_sc;
 	sc->sc_total += l_sc->sc_total;
 	sc->sc_free += l_sc->sc_free;
-	sc->sc_dinodes += l_sc->sc_dinodes;
+	sc->sc_dianaldes += l_sc->sc_dianaldes;
 
 	spin_unlock(&sdp->sd_statfs_spin);
 
@@ -960,8 +960,8 @@ static int gfs2_statfs_i(struct gfs2_sbd *sdp, struct gfs2_statfs_change_host *s
 		sc->sc_free = 0;
 	if (sc->sc_free > sc->sc_total)
 		sc->sc_free = sc->sc_total;
-	if (sc->sc_dinodes < 0)
-		sc->sc_dinodes = 0;
+	if (sc->sc_dianaldes < 0)
+		sc->sc_dianaldes = 0;
 
 	return 0;
 }
@@ -998,7 +998,7 @@ static int gfs2_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_blocks = sc.sc_total;
 	buf->f_bfree = sc.sc_free;
 	buf->f_bavail = sc.sc_free;
-	buf->f_files = sc.sc_dinodes + sc.sc_free;
+	buf->f_files = sc.sc_dianaldes + sc.sc_free;
 	buf->f_ffree = sc.sc_free;
 	buf->f_namelen = GFS2_FNAMESIZE;
 	buf->f_fsid = uuid_to_fsid(sb->s_uuid.b);
@@ -1007,38 +1007,38 @@ static int gfs2_statfs(struct dentry *dentry, struct kstatfs *buf)
 }
 
 /**
- * gfs2_drop_inode - Drop an inode (test for remote unlink)
- * @inode: The inode to drop
+ * gfs2_drop_ianalde - Drop an ianalde (test for remote unlink)
+ * @ianalde: The ianalde to drop
  *
  * If we've received a callback on an iopen lock then it's because a
- * remote node tried to deallocate the inode but failed due to this node
- * still having the inode open. Here we mark the link count zero
- * since we know that it must have reached zero if the GLF_DEMOTE flag
+ * remote analde tried to deallocate the ianalde but failed due to this analde
+ * still having the ianalde open. Here we mark the link count zero
+ * since we kanalw that it must have reached zero if the GLF_DEMOTE flag
  * is set on the iopen glock. If we didn't do a disk read since the
- * remote node removed the final link then we might otherwise miss
- * this event. This check ensures that this node will deallocate the
- * inode's blocks, or alternatively pass the baton on to another
- * node for later deallocation.
+ * remote analde removed the final link then we might otherwise miss
+ * this event. This check ensures that this analde will deallocate the
+ * ianalde's blocks, or alternatively pass the baton on to aanalther
+ * analde for later deallocation.
  */
 
-static int gfs2_drop_inode(struct inode *inode)
+static int gfs2_drop_ianalde(struct ianalde *ianalde)
 {
-	struct gfs2_inode *ip = GFS2_I(inode);
-	struct gfs2_sbd *sdp = GFS2_SB(inode);
+	struct gfs2_ianalde *ip = GFS2_I(ianalde);
+	struct gfs2_sbd *sdp = GFS2_SB(ianalde);
 
-	if (inode->i_nlink &&
+	if (ianalde->i_nlink &&
 	    gfs2_holder_initialized(&ip->i_iopen_gh)) {
 		struct gfs2_glock *gl = ip->i_iopen_gh.gh_gl;
 		if (test_bit(GLF_DEMOTE, &gl->gl_flags))
-			clear_nlink(inode);
+			clear_nlink(ianalde);
 	}
 
 	/*
-	 * When under memory pressure when an inode's link count has dropped to
-	 * zero, defer deleting the inode to the delete workqueue.  This avoids
+	 * When under memory pressure when an ianalde's link count has dropped to
+	 * zero, defer deleting the ianalde to the delete workqueue.  This avoids
 	 * calling into DLM under memory pressure, which can deadlock.
 	 */
-	if (!inode->i_nlink &&
+	if (!ianalde->i_nlink &&
 	    unlikely(current->flags & PF_MEMALLOC) &&
 	    gfs2_holder_initialized(&ip->i_iopen_gh)) {
 		struct gfs2_glock *gl = ip->i_iopen_gh.gh_gl;
@@ -1050,12 +1050,12 @@ static int gfs2_drop_inode(struct inode *inode)
 	}
 
 	/*
-	 * No longer cache inodes when trying to evict them all.
+	 * Anal longer cache ianaldes when trying to evict them all.
 	 */
 	if (test_bit(SDF_EVICTING, &sdp->sd_flags))
 		return 1;
 
-	return generic_drop_inode(inode);
+	return generic_drop_ianalde(ianalde);
 }
 
 /**
@@ -1111,7 +1111,7 @@ static int gfs2_show_options(struct seq_file *s, struct dentry *root)
 			state = "quiet";
 			break;
 		default:
-			state = "unknown";
+			state = "unkanalwn";
 			break;
 		}
 		seq_printf(s, ",quota=%s", state);
@@ -1128,7 +1128,7 @@ static int gfs2_show_options(struct seq_file *s, struct dentry *root)
 			state = "ordered";
 			break;
 		default:
-			state = "unknown";
+			state = "unkanalwn";
 			break;
 		}
 		seq_printf(s, ",data=%s", state);
@@ -1156,13 +1156,13 @@ static int gfs2_show_options(struct seq_file *s, struct dentry *root)
 			state = "panic";
 			break;
 		default:
-			state = "unknown";
+			state = "unkanalwn";
 			break;
 		}
 		seq_printf(s, ",errors=%s", state);
 	}
-	if (test_bit(SDF_NOBARRIERS, &sdp->sd_flags))
-		seq_puts(s, ",nobarrier");
+	if (test_bit(SDF_ANALBARRIERS, &sdp->sd_flags))
+		seq_puts(s, ",analbarrier");
 	if (test_bit(SDF_DEMOTE, &sdp->sd_flags))
 		seq_puts(s, ",demote_interface_used");
 	if (args->ar_rgrplvb)
@@ -1172,19 +1172,19 @@ static int gfs2_show_options(struct seq_file *s, struct dentry *root)
 	return 0;
 }
 
-static void gfs2_final_release_pages(struct gfs2_inode *ip)
+static void gfs2_final_release_pages(struct gfs2_ianalde *ip)
 {
-	struct inode *inode = &ip->i_inode;
+	struct ianalde *ianalde = &ip->i_ianalde;
 	struct gfs2_glock *gl = ip->i_gl;
 
 	if (unlikely(!gl)) {
-		/* This can only happen during incomplete inode creation. */
+		/* This can only happen during incomplete ianalde creation. */
 		BUG_ON(!test_bit(GIF_ALLOC_FAILED, &ip->i_flags));
 		return;
 	}
 
-	truncate_inode_pages(gfs2_glock2aspace(gl), 0);
-	truncate_inode_pages(&inode->i_data, 0);
+	truncate_ianalde_pages(gfs2_glock2aspace(gl), 0);
+	truncate_ianalde_pages(&ianalde->i_data, 0);
 
 	if (atomic_read(&gl->gl_revokes) == 0) {
 		clear_bit(GLF_LFLUSH, &gl->gl_flags);
@@ -1192,33 +1192,33 @@ static void gfs2_final_release_pages(struct gfs2_inode *ip)
 	}
 }
 
-static int gfs2_dinode_dealloc(struct gfs2_inode *ip)
+static int gfs2_dianalde_dealloc(struct gfs2_ianalde *ip)
 {
-	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
+	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_ianalde);
 	struct gfs2_rgrpd *rgd;
 	struct gfs2_holder gh;
 	int error;
 
-	if (gfs2_get_inode_blocks(&ip->i_inode) != 1) {
-		gfs2_consist_inode(ip);
+	if (gfs2_get_ianalde_blocks(&ip->i_ianalde) != 1) {
+		gfs2_consist_ianalde(ip);
 		return -EIO;
 	}
 
 	gfs2_rindex_update(sdp);
 
-	error = gfs2_quota_hold(ip, NO_UID_QUOTA_CHANGE, NO_GID_QUOTA_CHANGE);
+	error = gfs2_quota_hold(ip, ANAL_UID_QUOTA_CHANGE, ANAL_GID_QUOTA_CHANGE);
 	if (error)
 		return error;
 
-	rgd = gfs2_blk2rgrpd(sdp, ip->i_no_addr, 1);
+	rgd = gfs2_blk2rgrpd(sdp, ip->i_anal_addr, 1);
 	if (!rgd) {
-		gfs2_consist_inode(ip);
+		gfs2_consist_ianalde(ip);
 		error = -EIO;
 		goto out_qs;
 	}
 
 	error = gfs2_glock_nq_init(rgd->rd_gl, LM_ST_EXCLUSIVE,
-				   LM_FLAG_NODE_SCOPE, &gh);
+				   LM_FLAG_ANALDE_SCOPE, &gh);
 	if (error)
 		goto out_qs;
 
@@ -1256,38 +1256,38 @@ static void gfs2_glock_put_eventually(struct gfs2_glock *gl)
 		gfs2_glock_put(gl);
 }
 
-static bool gfs2_upgrade_iopen_glock(struct inode *inode)
+static bool gfs2_upgrade_iopen_glock(struct ianalde *ianalde)
 {
-	struct gfs2_inode *ip = GFS2_I(inode);
-	struct gfs2_sbd *sdp = GFS2_SB(inode);
+	struct gfs2_ianalde *ip = GFS2_I(ianalde);
+	struct gfs2_sbd *sdp = GFS2_SB(ianalde);
 	struct gfs2_holder *gh = &ip->i_iopen_gh;
 	long timeout = 5 * HZ;
 	int error;
 
-	gh->gh_flags |= GL_NOCACHE;
+	gh->gh_flags |= GL_ANALCACHE;
 	gfs2_glock_dq_wait(gh);
 
 	/*
-	 * If there are no other lock holders, we will immediately get
+	 * If there are anal other lock holders, we will immediately get
 	 * exclusive access to the iopen glock here.
 	 *
-	 * Otherwise, the other nodes holding the lock will be notified about
-	 * our locking request.  If they do not have the inode open, they are
-	 * expected to evict the cached inode and release the lock, allowing us
+	 * Otherwise, the other analdes holding the lock will be analtified about
+	 * our locking request.  If they do analt have the ianalde open, they are
+	 * expected to evict the cached ianalde and release the lock, allowing us
 	 * to proceed.
 	 *
-	 * Otherwise, if they cannot evict the inode, they are expected to poke
-	 * the inode glock (note: not the iopen glock).  We will notice that
-	 * and stop waiting for the iopen glock immediately.  The other node(s)
-	 * are then expected to take care of deleting the inode when they no
+	 * Otherwise, if they cananalt evict the ianalde, they are expected to poke
+	 * the ianalde glock (analte: analt the iopen glock).  We will analtice that
+	 * and stop waiting for the iopen glock immediately.  The other analde(s)
+	 * are then expected to take care of deleting the ianalde when they anal
 	 * longer use it.
 	 *
-	 * As a last resort, if another node keeps holding the iopen glock
-	 * without showing any activity on the inode glock, we will eventually
+	 * As a last resort, if aanalther analde keeps holding the iopen glock
+	 * without showing any activity on the ianalde glock, we will eventually
 	 * time out and fail the iopen glock upgrade.
 	 */
 
-	gfs2_holder_reinit(LM_ST_EXCLUSIVE, GL_ASYNC | GL_NOCACHE, gh);
+	gfs2_holder_reinit(LM_ST_EXCLUSIVE, GL_ASYNC | GL_ANALCACHE, gh);
 	error = gfs2_glock_nq(gh);
 	if (error)
 		return false;
@@ -1304,20 +1304,20 @@ static bool gfs2_upgrade_iopen_glock(struct inode *inode)
 }
 
 /**
- * evict_should_delete - determine whether the inode is eligible for deletion
- * @inode: The inode to evict
+ * evict_should_delete - determine whether the ianalde is eligible for deletion
+ * @ianalde: The ianalde to evict
  * @gh: The glock holder structure
  *
- * This function determines whether the evicted inode is eligible to be deleted
- * and locks the inode glock.
+ * This function determines whether the evicted ianalde is eligible to be deleted
+ * and locks the ianalde glock.
  *
- * Returns: the fate of the dinode
+ * Returns: the fate of the dianalde
  */
-static enum dinode_demise evict_should_delete(struct inode *inode,
+static enum dianalde_demise evict_should_delete(struct ianalde *ianalde,
 					      struct gfs2_holder *gh)
 {
-	struct gfs2_inode *ip = GFS2_I(inode);
-	struct super_block *sb = inode->i_sb;
+	struct gfs2_ianalde *ip = GFS2_I(ianalde);
+	struct super_block *sb = ianalde->i_sb;
 	struct gfs2_sbd *sdp = sb->s_fs_info;
 	int ret;
 
@@ -1331,52 +1331,52 @@ static enum dinode_demise evict_should_delete(struct inode *inode,
 	if (WARN_ON_ONCE(current->flags & PF_MEMALLOC))
 		return SHOULD_DEFER_EVICTION;
 
-	/* Must not read inode block until block type has been verified */
+	/* Must analt read ianalde block until block type has been verified */
 	ret = gfs2_glock_nq_init(ip->i_gl, LM_ST_EXCLUSIVE, GL_SKIP, gh);
 	if (unlikely(ret)) {
 		glock_clear_object(ip->i_iopen_gh.gh_gl, ip);
-		ip->i_iopen_gh.gh_flags |= GL_NOCACHE;
+		ip->i_iopen_gh.gh_flags |= GL_ANALCACHE;
 		gfs2_glock_dq_uninit(&ip->i_iopen_gh);
 		return SHOULD_DEFER_EVICTION;
 	}
 
-	if (gfs2_inode_already_deleted(ip->i_gl, ip->i_no_formal_ino))
-		return SHOULD_NOT_DELETE_DINODE;
-	ret = gfs2_check_blk_type(sdp, ip->i_no_addr, GFS2_BLKST_UNLINKED);
+	if (gfs2_ianalde_already_deleted(ip->i_gl, ip->i_anal_formal_ianal))
+		return SHOULD_ANALT_DELETE_DIANALDE;
+	ret = gfs2_check_blk_type(sdp, ip->i_anal_addr, GFS2_BLKST_UNLINKED);
 	if (ret)
-		return SHOULD_NOT_DELETE_DINODE;
+		return SHOULD_ANALT_DELETE_DIANALDE;
 
 	ret = gfs2_instantiate(gh);
 	if (ret)
-		return SHOULD_NOT_DELETE_DINODE;
+		return SHOULD_ANALT_DELETE_DIANALDE;
 
 	/*
-	 * The inode may have been recreated in the meantime.
+	 * The ianalde may have been recreated in the meantime.
 	 */
-	if (inode->i_nlink)
-		return SHOULD_NOT_DELETE_DINODE;
+	if (ianalde->i_nlink)
+		return SHOULD_ANALT_DELETE_DIANALDE;
 
 should_delete:
 	if (gfs2_holder_initialized(&ip->i_iopen_gh) &&
 	    test_bit(HIF_HOLDER, &ip->i_iopen_gh.gh_iflags)) {
-		if (!gfs2_upgrade_iopen_glock(inode)) {
+		if (!gfs2_upgrade_iopen_glock(ianalde)) {
 			gfs2_holder_uninit(&ip->i_iopen_gh);
-			return SHOULD_NOT_DELETE_DINODE;
+			return SHOULD_ANALT_DELETE_DIANALDE;
 		}
 	}
-	return SHOULD_DELETE_DINODE;
+	return SHOULD_DELETE_DIANALDE;
 }
 
 /**
- * evict_unlinked_inode - delete the pieces of an unlinked evicted inode
- * @inode: The inode to evict
+ * evict_unlinked_ianalde - delete the pieces of an unlinked evicted ianalde
+ * @ianalde: The ianalde to evict
  */
-static int evict_unlinked_inode(struct inode *inode)
+static int evict_unlinked_ianalde(struct ianalde *ianalde)
 {
-	struct gfs2_inode *ip = GFS2_I(inode);
+	struct gfs2_ianalde *ip = GFS2_I(ianalde);
 	int ret;
 
-	if (S_ISDIR(inode->i_mode) &&
+	if (S_ISDIR(ianalde->i_mode) &&
 	    (ip->i_diskflags & GFS2_DIF_EXHASH)) {
 		ret = gfs2_dir_exhash_dealloc(ip);
 		if (ret)
@@ -1396,45 +1396,45 @@ static int evict_unlinked_inode(struct inode *inode)
 	}
 
 	/*
-	 * As soon as we clear the bitmap for the dinode, gfs2_create_inode()
-	 * can get called to recreate it, or even gfs2_inode_lookup() if the
-	 * inode was recreated on another node in the meantime.
+	 * As soon as we clear the bitmap for the dianalde, gfs2_create_ianalde()
+	 * can get called to recreate it, or even gfs2_ianalde_lookup() if the
+	 * ianalde was recreated on aanalther analde in the meantime.
 	 *
-	 * However, inserting the new inode into the inode hash table will not
-	 * succeed until the old inode is removed, and that only happens after
-	 * ->evict_inode() returns.  The new inode is attached to its inode and
-	 *  iopen glocks after inserting it into the inode hash table, so at
+	 * However, inserting the new ianalde into the ianalde hash table will analt
+	 * succeed until the old ianalde is removed, and that only happens after
+	 * ->evict_ianalde() returns.  The new ianalde is attached to its ianalde and
+	 *  iopen glocks after inserting it into the ianalde hash table, so at
 	 *  that point we can be sure that both glocks are unused.
 	 */
 
-	ret = gfs2_dinode_dealloc(ip);
+	ret = gfs2_dianalde_dealloc(ip);
 	if (!ret && ip->i_gl)
-		gfs2_inode_remember_delete(ip->i_gl, ip->i_no_formal_ino);
+		gfs2_ianalde_remember_delete(ip->i_gl, ip->i_anal_formal_ianal);
 
 out:
 	return ret;
 }
 
 /*
- * evict_linked_inode - evict an inode whose dinode has not been unlinked
- * @inode: The inode to evict
+ * evict_linked_ianalde - evict an ianalde whose dianalde has analt been unlinked
+ * @ianalde: The ianalde to evict
  */
-static int evict_linked_inode(struct inode *inode)
+static int evict_linked_ianalde(struct ianalde *ianalde)
 {
-	struct super_block *sb = inode->i_sb;
+	struct super_block *sb = ianalde->i_sb;
 	struct gfs2_sbd *sdp = sb->s_fs_info;
-	struct gfs2_inode *ip = GFS2_I(inode);
+	struct gfs2_ianalde *ip = GFS2_I(ianalde);
 	struct address_space *metamapping;
 	int ret;
 
-	gfs2_log_flush(sdp, ip->i_gl, GFS2_LOG_HEAD_FLUSH_NORMAL |
-		       GFS2_LFC_EVICT_INODE);
+	gfs2_log_flush(sdp, ip->i_gl, GFS2_LOG_HEAD_FLUSH_ANALRMAL |
+		       GFS2_LFC_EVICT_IANALDE);
 	metamapping = gfs2_glock2aspace(ip->i_gl);
 	if (test_bit(GLF_DIRTY, &ip->i_gl->gl_flags)) {
 		filemap_fdatawrite(metamapping);
 		filemap_fdatawait(metamapping);
 	}
-	write_inode_now(inode, 1);
+	write_ianalde_analw(ianalde, 1);
 	gfs2_ail_flush(ip->i_gl, 0);
 
 	ret = gfs2_trans_begin(sdp, 0, sdp->sd_jdesc->jd_blocks);
@@ -1442,46 +1442,46 @@ static int evict_linked_inode(struct inode *inode)
 		return ret;
 
 	/* Needs to be done before glock release & also in a transaction */
-	truncate_inode_pages(&inode->i_data, 0);
-	truncate_inode_pages(metamapping, 0);
+	truncate_ianalde_pages(&ianalde->i_data, 0);
+	truncate_ianalde_pages(metamapping, 0);
 	gfs2_trans_end(sdp);
 	return 0;
 }
 
 /**
- * gfs2_evict_inode - Remove an inode from cache
- * @inode: The inode to evict
+ * gfs2_evict_ianalde - Remove an ianalde from cache
+ * @ianalde: The ianalde to evict
  *
  * There are three cases to consider:
  * 1. i_nlink == 0, we are final opener (and must deallocate)
- * 2. i_nlink == 0, we are not the final opener (and cannot deallocate)
+ * 2. i_nlink == 0, we are analt the final opener (and cananalt deallocate)
  * 3. i_nlink > 0
  *
  * If the fs is read only, then we have to treat all cases as per #3
- * since we are unable to do any deallocation. The inode will be
- * deallocated by the next read/write node to attempt an allocation
+ * since we are unable to do any deallocation. The ianalde will be
+ * deallocated by the next read/write analde to attempt an allocation
  * in the same resource group
  *
- * We have to (at the moment) hold the inodes main lock to cover
+ * We have to (at the moment) hold the ianaldes main lock to cover
  * the gap between unlocking the shared lock on the iopen lock and
  * taking the exclusive lock. I'd rather do a shared -> exclusive
  * conversion on the iopen lock, but we can change that later. This
  * is safe, just less efficient.
  */
 
-static void gfs2_evict_inode(struct inode *inode)
+static void gfs2_evict_ianalde(struct ianalde *ianalde)
 {
-	struct super_block *sb = inode->i_sb;
+	struct super_block *sb = ianalde->i_sb;
 	struct gfs2_sbd *sdp = sb->s_fs_info;
-	struct gfs2_inode *ip = GFS2_I(inode);
+	struct gfs2_ianalde *ip = GFS2_I(ianalde);
 	struct gfs2_holder gh;
 	int ret;
 
-	if (inode->i_nlink || sb_rdonly(sb) || !ip->i_no_addr)
+	if (ianalde->i_nlink || sb_rdonly(sb) || !ip->i_anal_addr)
 		goto out;
 
 	/*
-	 * In case of an incomplete mount, gfs2_evict_inode() may be called for
+	 * In case of an incomplete mount, gfs2_evict_ianalde() may be called for
 	 * system files without having an active journal to write to.  In that
 	 * case, skip the filesystem evict.
 	 */
@@ -1489,13 +1489,13 @@ static void gfs2_evict_inode(struct inode *inode)
 		goto out;
 
 	gfs2_holder_mark_uninitialized(&gh);
-	ret = evict_should_delete(inode, &gh);
+	ret = evict_should_delete(ianalde, &gh);
 	if (ret == SHOULD_DEFER_EVICTION)
 		goto out;
-	if (ret == SHOULD_DELETE_DINODE)
-		ret = evict_unlinked_inode(inode);
+	if (ret == SHOULD_DELETE_DIANALDE)
+		ret = evict_unlinked_ianalde(ianalde);
 	else
-		ret = evict_linked_inode(inode);
+		ret = evict_linked_ianalde(ianalde);
 
 	if (gfs2_rs_active(&ip->i_res))
 		gfs2_rs_deltree(&ip->i_res);
@@ -1503,21 +1503,21 @@ static void gfs2_evict_inode(struct inode *inode)
 	if (gfs2_holder_initialized(&gh))
 		gfs2_glock_dq_uninit(&gh);
 	if (ret && ret != GLR_TRYFAILED && ret != -EROFS)
-		fs_warn(sdp, "gfs2_evict_inode: %d\n", ret);
+		fs_warn(sdp, "gfs2_evict_ianalde: %d\n", ret);
 out:
-	truncate_inode_pages_final(&inode->i_data);
+	truncate_ianalde_pages_final(&ianalde->i_data);
 	if (ip->i_qadata)
 		gfs2_assert_warn(sdp, ip->i_qadata->qa_ref == 0);
 	gfs2_rs_deltree(&ip->i_res);
-	gfs2_ordered_del_inode(ip);
-	clear_inode(inode);
+	gfs2_ordered_del_ianalde(ip);
+	clear_ianalde(ianalde);
 	gfs2_dir_hash_inval(ip);
 	if (gfs2_holder_initialized(&ip->i_iopen_gh)) {
 		struct gfs2_glock *gl = ip->i_iopen_gh.gh_gl;
 
 		glock_clear_object(gl, ip);
 		gfs2_glock_hold(gl);
-		ip->i_iopen_gh.gh_flags |= GL_NOCACHE;
+		ip->i_iopen_gh.gh_flags |= GL_ANALCACHE;
 		gfs2_glock_dq_uninit(&ip->i_iopen_gh);
 		gfs2_glock_put_eventually(gl);
 	}
@@ -1530,70 +1530,70 @@ out:
 	}
 }
 
-static struct inode *gfs2_alloc_inode(struct super_block *sb)
+static struct ianalde *gfs2_alloc_ianalde(struct super_block *sb)
 {
-	struct gfs2_inode *ip;
+	struct gfs2_ianalde *ip;
 
-	ip = alloc_inode_sb(sb, gfs2_inode_cachep, GFP_KERNEL);
+	ip = alloc_ianalde_sb(sb, gfs2_ianalde_cachep, GFP_KERNEL);
 	if (!ip)
 		return NULL;
-	ip->i_no_addr = 0;
+	ip->i_anal_addr = 0;
 	ip->i_flags = 0;
 	ip->i_gl = NULL;
 	gfs2_holder_mark_uninitialized(&ip->i_iopen_gh);
 	memset(&ip->i_res, 0, sizeof(ip->i_res));
-	RB_CLEAR_NODE(&ip->i_res.rs_node);
+	RB_CLEAR_ANALDE(&ip->i_res.rs_analde);
 	ip->i_rahead = 0;
-	return &ip->i_inode;
+	return &ip->i_ianalde;
 }
 
-static void gfs2_free_inode(struct inode *inode)
+static void gfs2_free_ianalde(struct ianalde *ianalde)
 {
-	kmem_cache_free(gfs2_inode_cachep, GFS2_I(inode));
+	kmem_cache_free(gfs2_ianalde_cachep, GFS2_I(ianalde));
 }
 
-void free_local_statfs_inodes(struct gfs2_sbd *sdp)
+void free_local_statfs_ianaldes(struct gfs2_sbd *sdp)
 {
-	struct local_statfs_inode *lsi, *safe;
+	struct local_statfs_ianalde *lsi, *safe;
 
-	/* Run through the statfs inodes list to iput and free memory */
-	list_for_each_entry_safe(lsi, safe, &sdp->sd_sc_inodes_list, si_list) {
+	/* Run through the statfs ianaldes list to iput and free memory */
+	list_for_each_entry_safe(lsi, safe, &sdp->sd_sc_ianaldes_list, si_list) {
 		if (lsi->si_jid == sdp->sd_jdesc->jd_jid)
-			sdp->sd_sc_inode = NULL; /* belongs to this node */
-		if (lsi->si_sc_inode)
-			iput(lsi->si_sc_inode);
+			sdp->sd_sc_ianalde = NULL; /* belongs to this analde */
+		if (lsi->si_sc_ianalde)
+			iput(lsi->si_sc_ianalde);
 		list_del(&lsi->si_list);
 		kfree(lsi);
 	}
 }
 
-struct inode *find_local_statfs_inode(struct gfs2_sbd *sdp,
+struct ianalde *find_local_statfs_ianalde(struct gfs2_sbd *sdp,
 				      unsigned int index)
 {
-	struct local_statfs_inode *lsi;
+	struct local_statfs_ianalde *lsi;
 
-	/* Return the local (per node) statfs inode in the
-	 * sdp->sd_sc_inodes_list corresponding to the 'index'. */
-	list_for_each_entry(lsi, &sdp->sd_sc_inodes_list, si_list) {
+	/* Return the local (per analde) statfs ianalde in the
+	 * sdp->sd_sc_ianaldes_list corresponding to the 'index'. */
+	list_for_each_entry(lsi, &sdp->sd_sc_ianaldes_list, si_list) {
 		if (lsi->si_jid == index)
-			return lsi->si_sc_inode;
+			return lsi->si_sc_ianalde;
 	}
 	return NULL;
 }
 
 const struct super_operations gfs2_super_ops = {
-	.alloc_inode		= gfs2_alloc_inode,
-	.free_inode		= gfs2_free_inode,
-	.write_inode		= gfs2_write_inode,
-	.dirty_inode		= gfs2_dirty_inode,
-	.evict_inode		= gfs2_evict_inode,
+	.alloc_ianalde		= gfs2_alloc_ianalde,
+	.free_ianalde		= gfs2_free_ianalde,
+	.write_ianalde		= gfs2_write_ianalde,
+	.dirty_ianalde		= gfs2_dirty_ianalde,
+	.evict_ianalde		= gfs2_evict_ianalde,
 	.put_super		= gfs2_put_super,
 	.sync_fs		= gfs2_sync_fs,
 	.freeze_super		= gfs2_freeze_super,
 	.freeze_fs		= gfs2_freeze_fs,
 	.thaw_super		= gfs2_thaw_super,
 	.statfs			= gfs2_statfs,
-	.drop_inode		= gfs2_drop_inode,
+	.drop_ianalde		= gfs2_drop_ianalde,
 	.show_options		= gfs2_show_options,
 };
 

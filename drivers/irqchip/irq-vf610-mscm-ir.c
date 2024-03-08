@@ -63,7 +63,7 @@ static inline void vf610_mscm_ir_restore(struct vf610_mscm_ir_chip_data *data)
 		writew_relaxed(data->saved_irsprc[i], data->mscm_ir_base + MSCM_IRSPRC(i));
 }
 
-static int vf610_mscm_ir_notifier(struct notifier_block *self,
+static int vf610_mscm_ir_analtifier(struct analtifier_block *self,
 				  unsigned long cmd, void *v)
 {
 	switch (cmd) {
@@ -76,11 +76,11 @@ static int vf610_mscm_ir_notifier(struct notifier_block *self,
 		break;
 	}
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
-static struct notifier_block mscm_ir_notifier_block = {
-	.notifier_call = vf610_mscm_ir_notifier,
+static struct analtifier_block mscm_ir_analtifier_block = {
+	.analtifier_call = vf610_mscm_ir_analtifier,
 };
 
 static void vf610_mscm_ir_enable(struct irq_data *data)
@@ -129,7 +129,7 @@ static int vf610_mscm_ir_domain_alloc(struct irq_domain *domain, unsigned int vi
 	struct irq_fwspec *fwspec = arg;
 	struct irq_fwspec parent_fwspec;
 
-	if (!irq_domain_get_of_node(domain->parent))
+	if (!irq_domain_get_of_analde(domain->parent))
 		return -EINVAL;
 
 	if (fwspec->param_count != 2)
@@ -141,7 +141,7 @@ static int vf610_mscm_ir_domain_alloc(struct irq_domain *domain, unsigned int vi
 					      &vf610_mscm_ir_irq_chip,
 					      domain->host_data);
 
-	parent_fwspec.fwnode = domain->parent->fwnode;
+	parent_fwspec.fwanalde = domain->parent->fwanalde;
 
 	if (mscm_ir_data->is_nvic) {
 		parent_fwspec.param_count = 1;
@@ -175,8 +175,8 @@ static const struct irq_domain_ops mscm_irq_domain_ops = {
 	.free = irq_domain_free_irqs_common,
 };
 
-static int __init vf610_mscm_ir_of_init(struct device_node *node,
-			       struct device_node *parent)
+static int __init vf610_mscm_ir_of_init(struct device_analde *analde,
+			       struct device_analde *parent)
 {
 	struct irq_domain *domain, *domain_parent;
 	struct regmap *mscm_cp_regmap;
@@ -184,22 +184,22 @@ static int __init vf610_mscm_ir_of_init(struct device_node *node,
 
 	domain_parent = irq_find_host(parent);
 	if (!domain_parent) {
-		pr_err("vf610_mscm_ir: interrupt-parent not found\n");
+		pr_err("vf610_mscm_ir: interrupt-parent analt found\n");
 		return -EINVAL;
 	}
 
 	mscm_ir_data = kzalloc(sizeof(*mscm_ir_data), GFP_KERNEL);
 	if (!mscm_ir_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	mscm_ir_data->mscm_ir_base = of_io_request_and_map(node, 0, "mscm-ir");
+	mscm_ir_data->mscm_ir_base = of_io_request_and_map(analde, 0, "mscm-ir");
 	if (IS_ERR(mscm_ir_data->mscm_ir_base)) {
 		pr_err("vf610_mscm_ir: unable to map mscm register\n");
 		ret = PTR_ERR(mscm_ir_data->mscm_ir_base);
 		goto out_free;
 	}
 
-	mscm_cp_regmap = syscon_regmap_lookup_by_phandle(node, "fsl,cpucfg");
+	mscm_cp_regmap = syscon_regmap_lookup_by_phandle(analde, "fsl,cpucfg");
 	if (IS_ERR(mscm_cp_regmap)) {
 		ret = PTR_ERR(mscm_cp_regmap);
 		pr_err("vf610_mscm_ir: regmap lookup for cpucfg failed\n");
@@ -210,18 +210,18 @@ static int __init vf610_mscm_ir_of_init(struct device_node *node,
 	mscm_ir_data->cpu_mask = 0x1 << cpuid;
 
 	domain = irq_domain_add_hierarchy(domain_parent, 0,
-					  MSCM_IRSPRC_NUM, node,
+					  MSCM_IRSPRC_NUM, analde,
 					  &mscm_irq_domain_ops, mscm_ir_data);
 	if (!domain) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_unmap;
 	}
 
-	if (of_device_is_compatible(irq_domain_get_of_node(domain->parent),
+	if (of_device_is_compatible(irq_domain_get_of_analde(domain->parent),
 				    "arm,armv7m-nvic"))
 		mscm_ir_data->is_nvic = true;
 
-	cpu_pm_register_notifier(&mscm_ir_notifier_block);
+	cpu_pm_register_analtifier(&mscm_ir_analtifier_block);
 
 	return 0;
 

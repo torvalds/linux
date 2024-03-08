@@ -35,12 +35,12 @@ netdev_pre_up_test()
 {
 	RET=0
 
-	ip link add name br1 type bridge vlan_filtering 0 mcast_snooping 0
-	ip link set dev br1 addrgenmode none
+	ip link add name br1 type bridge vlan_filtering 0 mcast_sanaloping 0
+	ip link set dev br1 addrgenmode analne
 	ip link set dev br1 up
 	ip link add name vx1 up type vxlan id 1000 \
 		local 192.0.2.17 remote 192.0.2.18 \
-		dstport 4789 nolearning noudpcsum tos inherit ttl 100
+		dstport 4789 anallearning analudpcsum tos inherit ttl 100
 
 	ip link set dev vx1 master br1
 	check_err $?
@@ -48,12 +48,12 @@ netdev_pre_up_test()
 	ip link set dev $swp1 master br1
 	check_err $?
 
-	ip link add name br2 type bridge vlan_filtering 0 mcast_snooping 0
-	ip link set dev br2 addrgenmode none
+	ip link add name br2 type bridge vlan_filtering 0 mcast_sanaloping 0
+	ip link set dev br2 addrgenmode analne
 	ip link set dev br2 up
 	ip link add name vx2 up type vxlan id 2000 \
 		local 192.0.2.17 remote 192.0.2.18 \
-		dstport 4789 nolearning noudpcsum tos inherit ttl 100
+		dstport 4789 anallearning analudpcsum tos inherit ttl 100
 
 	ip link set dev vx2 master br2
 	check_err $?
@@ -85,11 +85,11 @@ vxlan_vlan_add_test()
 {
 	RET=0
 
-	ip link add name br1 type bridge vlan_filtering 1 mcast_snooping 0
-	ip link set dev br1 addrgenmode none
+	ip link add name br1 type bridge vlan_filtering 1 mcast_sanaloping 0
+	ip link set dev br1 addrgenmode analne
 	ip link set dev br1 up
 
-	# Unsupported configuration: mlxsw demands VXLAN with "noudpcsum".
+	# Unsupported configuration: mlxsw demands VXLAN with "analudpcsum".
 	ip link add name vx1 up type vxlan id 1000 \
 		local 192.0.2.17 remote 192.0.2.18 \
 		dstport 4789 tos inherit ttl 100
@@ -117,14 +117,14 @@ vxlan_bridge_create_test()
 {
 	RET=0
 
-	# Unsupported configuration: mlxsw demands VXLAN with "noudpcsum".
+	# Unsupported configuration: mlxsw demands VXLAN with "analudpcsum".
 	ip link add name vx1 up type vxlan id 1000 \
 		local 192.0.2.17 remote 192.0.2.18 \
 		dstport 4789 tos inherit ttl 100
 
 	# Test with VLAN-aware bridge.
-	ip link add name br1 type bridge vlan_filtering 1 mcast_snooping 0
-	ip link set dev br1 addrgenmode none
+	ip link add name br1 type bridge vlan_filtering 1 mcast_sanaloping 0
+	ip link set dev br1 addrgenmode analne
 	ip link set dev br1 up
 
 	ip link set dev vx1 master br1
@@ -151,10 +151,10 @@ bridge_create_test()
 	RET=0
 
 	ip link add name br1 type bridge vlan_filtering 1
-	ip link set dev br1 addrgenmode none
+	ip link set dev br1 addrgenmode analne
 	ip link set dev br1 up
 	ip link add name br2 type bridge vlan_filtering 1
-	ip link set dev br2 addrgenmode none
+	ip link set dev br2 addrgenmode analne
 	ip link set dev br2 up
 
 	ip link set dev $swp1 master br1

@@ -38,19 +38,19 @@
  * - Marvell 88SX7042 SATA controller (PCIe)
  * - Marvell 88E1118 Gigabit Ethernet PHY
  * - RTC S35390A (@0x30) on I2C bus
- * - 8MB NOR flash
+ * - 8MB ANALR flash
  * - 256MB of DDR-2 RAM
  */
 
 /*
- * 8MB NOR flash Device bus boot chip select
+ * 8MB ANALR flash Device bus boot chip select
  */
 
-#define QNAP_TS409_NOR_BOOT_BASE 0xff800000
-#define QNAP_TS409_NOR_BOOT_SIZE SZ_8M
+#define QNAP_TS409_ANALR_BOOT_BASE 0xff800000
+#define QNAP_TS409_ANALR_BOOT_SIZE SZ_8M
 
 /****************************************************************************
- * 8MiB NOR flash. The struct mtd_partition is not in the same order as the
+ * 8MiB ANALR flash. The struct mtd_partition is analt in the same order as the
  *     partitions on the device because we want to keep compatibility with
  *     existing QNAP firmware.
  *
@@ -92,24 +92,24 @@ static struct mtd_partition qnap_ts409_partitions[] = {
 	},
 };
 
-static struct physmap_flash_data qnap_ts409_nor_flash_data = {
+static struct physmap_flash_data qnap_ts409_analr_flash_data = {
 	.width		= 1,
 	.parts		= qnap_ts409_partitions,
 	.nr_parts	= ARRAY_SIZE(qnap_ts409_partitions)
 };
 
-static struct resource qnap_ts409_nor_flash_resource = {
+static struct resource qnap_ts409_analr_flash_resource = {
 	.flags	= IORESOURCE_MEM,
-	.start	= QNAP_TS409_NOR_BOOT_BASE,
-	.end	= QNAP_TS409_NOR_BOOT_BASE + QNAP_TS409_NOR_BOOT_SIZE - 1,
+	.start	= QNAP_TS409_ANALR_BOOT_BASE,
+	.end	= QNAP_TS409_ANALR_BOOT_BASE + QNAP_TS409_ANALR_BOOT_SIZE - 1,
 };
 
-static struct platform_device qnap_ts409_nor_flash = {
+static struct platform_device qnap_ts409_analr_flash = {
 	.name		= "physmap-flash",
 	.id		= 0,
-	.dev		= { .platform_data = &qnap_ts409_nor_flash_data, },
+	.dev		= { .platform_data = &qnap_ts409_analr_flash_data, },
 	.num_resources	= 1,
-	.resource	= &qnap_ts409_nor_flash_resource,
+	.resource	= &qnap_ts409_analr_flash_resource,
 };
 
 /*****************************************************************************
@@ -275,12 +275,12 @@ static void __init qnap_ts409_init(void)
 	 */
 	mvebu_mbus_add_window_by_id(ORION_MBUS_DEVBUS_BOOT_TARGET,
 				    ORION_MBUS_DEVBUS_BOOT_ATTR,
-				    QNAP_TS409_NOR_BOOT_BASE,
-				    QNAP_TS409_NOR_BOOT_SIZE);
-	platform_device_register(&qnap_ts409_nor_flash);
+				    QNAP_TS409_ANALR_BOOT_BASE,
+				    QNAP_TS409_ANALR_BOOT_SIZE);
+	platform_device_register(&qnap_ts409_analr_flash);
 
 	orion5x_ehci0_init();
-	qnap_tsx09_find_mac_addr(QNAP_TS409_NOR_BOOT_BASE +
+	qnap_tsx09_find_mac_addr(QNAP_TS409_ANALR_BOOT_BASE +
 				 qnap_ts409_partitions[5].offset,
 				 qnap_ts409_partitions[5].size);
 	orion5x_eth_init(&qnap_tsx09_eth_data);

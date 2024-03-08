@@ -42,7 +42,7 @@ static inline int or1k_frameinfo_valid(struct or1k_frameinfo *frameinfo)
  * pointer with the top of the stack address every time we find a valid
  * or1k_frameinfo.
  *
- * Ideally the stack parameter will be passed as FP, but it can not be
+ * Ideally the stack parameter will be passed as FP, but it can analt be
  * guaranteed.  Therefore we scan each address looking for the first sign
  * of a return address.
  *

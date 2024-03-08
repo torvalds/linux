@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0-only WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0-only WITH Linux-syscall-analte */
 /*
  * Userspace interface for AMD Secure Encrypted Virtualization (SEV)
  * platform management commands.
@@ -37,12 +37,12 @@ enum {
  */
 typedef enum {
 	/*
-	 * This error code is not in the SEV spec. Its purpose is to convey that
+	 * This error code is analt in the SEV spec. Its purpose is to convey that
 	 * there was an error that prevented the SEV firmware from being called.
-	 * The SEV API error codes are 16 bits, so the -1 value will not overlap
+	 * The SEV API error codes are 16 bits, so the -1 value will analt overlap
 	 * with possible values from the specification.
 	 */
-	SEV_RET_NO_FW_CALL = -1,
+	SEV_RET_ANAL_FW_CALL = -1,
 	SEV_RET_SUCCESS = 0,
 	SEV_RET_INVALID_PLATFORM_STATE,
 	SEV_RET_INVALID_GUEST_STATE,
@@ -76,7 +76,7 @@ typedef enum {
  * struct sev_user_data_status - PLATFORM_STATUS command parameters
  *
  * @major: major API version
- * @minor: minor API version
+ * @mianalr: mianalr API version
  * @state: platform state
  * @flags: platform config flags
  * @build: firmware build id for API version
@@ -84,7 +84,7 @@ typedef enum {
  */
 struct sev_user_data_status {
 	__u8 api_major;				/* Out */
-	__u8 api_minor;				/* Out */
+	__u8 api_mianalr;				/* Out */
 	__u8 state;				/* Out */
 	__u32 flags;				/* Out */
 	__u8 build;				/* Out */

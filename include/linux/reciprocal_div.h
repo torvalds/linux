@@ -51,7 +51,7 @@ struct reciprocal_value_adv {
  * multiplier and other control variables, but then could reduce the required
  * emulation operations.
  *
- * It makes no sense to use this advanced version for host divide emulation,
+ * It makes anal sense to use this advanced version for host divide emulation,
  * those extra complexities for calculating multiplier etc could completely
  * waive our saving on emulation operations.
  *

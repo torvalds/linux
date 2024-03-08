@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /// Find &&/|| operations that include the same argument more than once
 //# A common source of false positives is when the expression, or
-//# another expresssion in the same && or || operation, performs a
+//# aanalther expresssion in the same && or || operation, performs a
 //# side effect.
 ///
 // Confidence: Moderate
@@ -10,7 +10,7 @@
 // Copyright: (C) 2010 Gilles Muller, INRIA/LiP6.
 // URL: https://coccinelle.gitlabpages.inria.fr/website
 // Comments:
-// Options: --no-includes --include-headers
+// Options: --anal-includes --include-headers
 
 virtual context
 virtual org

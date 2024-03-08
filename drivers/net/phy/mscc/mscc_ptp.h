@@ -430,7 +430,7 @@ enum {
 };
 
 enum ptp_cmd {
-	PTP_NOP = 0,
+	PTP_ANALP = 0,
 	PTP_WRITE_1588 = 5,
 	PTP_WRITE_NS = 7,
 	PTP_SAVE_IN_TS_FIFO = 11, /* invalid when writing in reg */

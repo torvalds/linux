@@ -435,47 +435,47 @@ static int setup_type_id_case_local(struct core_reloc_test_case *test)
 		return -EINVAL;
 	}
 
-	exp->local_anon_struct = -1;
-	exp->local_anon_union = -1;
-	exp->local_anon_enum = -1;
-	exp->local_anon_func_proto_ptr = -1;
-	exp->local_anon_void_ptr = -1;
-	exp->local_anon_arr = -1;
+	exp->local_aanaln_struct = -1;
+	exp->local_aanaln_union = -1;
+	exp->local_aanaln_enum = -1;
+	exp->local_aanaln_func_proto_ptr = -1;
+	exp->local_aanaln_void_ptr = -1;
+	exp->local_aanaln_arr = -1;
 
 	for (i = 1; i < btf__type_cnt(local_btf); i++)
 	{
 		t = btf__type_by_id(local_btf, i);
-		/* we are interested only in anonymous types */
+		/* we are interested only in aanalnymous types */
 		if (t->name_off)
 			continue;
 
 		if (btf_is_struct(t) && btf_vlen(t) &&
 		    (name = btf__name_by_offset(local_btf, btf_members(t)[0].name_off)) &&
 		    strcmp(name, "marker_field") == 0) {
-			exp->local_anon_struct = i;
+			exp->local_aanaln_struct = i;
 		} else if (btf_is_union(t) && btf_vlen(t) &&
 			 (name = btf__name_by_offset(local_btf, btf_members(t)[0].name_off)) &&
 			 strcmp(name, "marker_field") == 0) {
-			exp->local_anon_union = i;
+			exp->local_aanaln_union = i;
 		} else if (btf_is_enum(t) && btf_vlen(t) &&
 			 (name = btf__name_by_offset(local_btf, btf_enum(t)[0].name_off)) &&
 			 strcmp(name, "MARKER_ENUM_VAL") == 0) {
-			exp->local_anon_enum = i;
+			exp->local_aanaln_enum = i;
 		} else if (btf_is_ptr(t) && (t = btf__type_by_id(local_btf, t->type))) {
 			if (btf_is_func_proto(t) && (t = btf__type_by_id(local_btf, t->type)) &&
 			    btf_is_int(t) && (name = btf__name_by_offset(local_btf, t->name_off)) &&
 			    strcmp(name, "_Bool") == 0) {
 				/* ptr -> func_proto -> _Bool */
-				exp->local_anon_func_proto_ptr = i;
+				exp->local_aanaln_func_proto_ptr = i;
 			} else if (btf_is_void(t)) {
 				/* ptr -> void */
-				exp->local_anon_void_ptr = i;
+				exp->local_aanaln_void_ptr = i;
 			}
 		} else if (btf_is_array(t) && (t = btf__type_by_id(local_btf, btf_array(t)->type)) &&
 			   btf_is_int(t) && (name = btf__name_by_offset(local_btf, t->name_off)) &&
 			   strcmp(name, "_Bool") == 0) {
 			/* _Bool[] */
-			exp->local_anon_arr = i;
+			exp->local_aanaln_arr = i;
 		}
 	}
 
@@ -575,7 +575,7 @@ static const struct core_reloc_test_case test_cases[] = {
 
 	/* various struct/enum nesting and resolution scenarios */
 	NESTING_CASE(nesting),
-	NESTING_CASE(nesting___anon_embed),
+	NESTING_CASE(nesting___aanaln_embed),
 	NESTING_CASE(nesting___struct_union_mixup),
 	NESTING_CASE(nesting___extra_nesting),
 	NESTING_CASE(nesting___dup_compat_types),
@@ -583,7 +583,7 @@ static const struct core_reloc_test_case test_cases[] = {
 	NESTING_ERR_CASE(nesting___err_missing_field),
 	NESTING_ERR_CASE(nesting___err_array_field),
 	NESTING_ERR_CASE(nesting___err_missing_container),
-	NESTING_ERR_CASE(nesting___err_nonstruct_container),
+	NESTING_ERR_CASE(nesting___err_analnstruct_container),
 	NESTING_ERR_CASE(nesting___err_array_container),
 	NESTING_ERR_CASE(nesting___err_dup_incompat_types),
 	NESTING_ERR_CASE(nesting___err_partial_match_dups),
@@ -598,7 +598,7 @@ static const struct core_reloc_test_case test_cases[] = {
 
 	ARRAYS_ERR_CASE(arrays___err_too_small),
 	ARRAYS_ERR_CASE(arrays___err_too_shallow),
-	ARRAYS_ERR_CASE(arrays___err_non_array),
+	ARRAYS_ERR_CASE(arrays___err_analn_array),
 	ARRAYS_ERR_CASE(arrays___err_wrong_val_type),
 	ARRAYS_ERR_CASE(arrays___err_bad_zero_sz_arr),
 
@@ -608,9 +608,9 @@ static const struct core_reloc_test_case test_cases[] = {
 	PRIMITIVES_CASE(primitives___diff_func_proto),
 	PRIMITIVES_CASE(primitives___diff_ptr_type),
 
-	PRIMITIVES_ERR_CASE(primitives___err_non_enum),
-	PRIMITIVES_ERR_CASE(primitives___err_non_int),
-	PRIMITIVES_ERR_CASE(primitives___err_non_ptr),
+	PRIMITIVES_ERR_CASE(primitives___err_analn_enum),
+	PRIMITIVES_ERR_CASE(primitives___err_analn_int),
+	PRIMITIVES_ERR_CASE(primitives___err_analn_ptr),
 
 	/* const/volatile/restrict and typedefs scenarios */
 	MODS_CASE(mods),
@@ -633,7 +633,7 @@ static const struct core_reloc_test_case test_cases[] = {
 		.btf_src_file = "btf__core_reloc_misc.bpf.o",
 		.input = (const char *)&(struct core_reloc_misc_extensible[]){
 			{ .a = 1 },
-			{ .a = 2 }, /* not read */
+			{ .a = 2 }, /* analt read */
 			{ .a = 3 },
 		},
 		.input_len = 4 * sizeof(int),
@@ -740,7 +740,7 @@ static const struct core_reloc_test_case test_cases[] = {
 		.u32 = -0x76543,
 		.s32 = 0x0ADEADBEEFBADB0BLL,
 	}),
-	BITFIELDS_CASE(bitfields___just_big_enough, {
+	BITFIELDS_CASE(bitfields___just_big_eanalugh, {
 		.ub1 = 0xFLL,
 		.ub2 = 0x0812345678FEDCBALL,
 	}),
@@ -759,7 +759,7 @@ static const struct core_reloc_test_case test_cases[] = {
 		.union_exists = 1,
 		.enum_exists = 1,
 		.typedef_named_struct_exists = 1,
-		.typedef_anon_struct_exists = 1,
+		.typedef_aanaln_struct_exists = 1,
 		.typedef_struct_ptr_exists = 1,
 		.typedef_int_exists = 1,
 		.typedef_enum_exists = 1,
@@ -773,7 +773,7 @@ static const struct core_reloc_test_case test_cases[] = {
 		.union_matches = 1,
 		.enum_matches = 1,
 		.typedef_named_struct_matches = 1,
-		.typedef_anon_struct_matches = 1,
+		.typedef_aanaln_struct_matches = 1,
 		.typedef_struct_ptr_matches = 1,
 		.typedef_int_matches = 1,
 		.typedef_enum_matches = 1,
@@ -786,7 +786,7 @@ static const struct core_reloc_test_case test_cases[] = {
 		.union_sz = sizeof(union a_union),
 		.enum_sz = sizeof(enum an_enum),
 		.typedef_named_struct_sz = sizeof(named_struct_typedef),
-		.typedef_anon_struct_sz = sizeof(anon_struct_typedef),
+		.typedef_aanaln_struct_sz = sizeof(aanaln_struct_typedef),
 		.typedef_struct_ptr_sz = sizeof(struct_ptr_typedef),
 		.typedef_int_sz = sizeof(int_typedef),
 		.typedef_enum_sz = sizeof(enum_typedef),
@@ -803,7 +803,7 @@ static const struct core_reloc_test_case test_cases[] = {
 		.union_exists = 1,
 		.enum_exists = 1,
 		.typedef_named_struct_exists = 1,
-		.typedef_anon_struct_exists = 1,
+		.typedef_aanaln_struct_exists = 1,
 		.typedef_struct_ptr_exists = 1,
 		.typedef_int_exists = 1,
 		.typedef_enum_exists = 1,
@@ -816,7 +816,7 @@ static const struct core_reloc_test_case test_cases[] = {
 		.union_matches = 1,
 		.enum_matches = 1,
 		.typedef_named_struct_matches = 1,
-		.typedef_anon_struct_matches = 1,
+		.typedef_aanaln_struct_matches = 1,
 		.typedef_struct_ptr_matches = 1,
 		.typedef_int_matches = 0,
 		.typedef_enum_matches = 1,
@@ -828,7 +828,7 @@ static const struct core_reloc_test_case test_cases[] = {
 		.union_sz = sizeof(union a_union___diff),
 		.enum_sz = sizeof(enum an_enum___diff),
 		.typedef_named_struct_sz = sizeof(named_struct_typedef___diff),
-		.typedef_anon_struct_sz = sizeof(anon_struct_typedef___diff),
+		.typedef_aanaln_struct_sz = sizeof(aanaln_struct_typedef___diff),
 		.typedef_struct_ptr_sz = sizeof(struct_ptr_typedef___diff),
 		.typedef_int_sz = sizeof(int_typedef___diff),
 		.typedef_enum_sz = sizeof(enum_typedef___diff),
@@ -841,7 +841,7 @@ static const struct core_reloc_test_case test_cases[] = {
 		.union_exists = 1,
 		.enum_exists = 1,
 		.typedef_named_struct_exists = 1,
-		.typedef_anon_struct_exists = 1,
+		.typedef_aanaln_struct_exists = 1,
 		.typedef_struct_ptr_exists = 1,
 		.typedef_int_exists = 1,
 		.typedef_enum_exists = 1,
@@ -853,7 +853,7 @@ static const struct core_reloc_test_case test_cases[] = {
 		.union_matches = 0,
 		.enum_matches = 0,
 		.typedef_named_struct_matches = 0,
-		.typedef_anon_struct_matches = 0,
+		.typedef_aanaln_struct_matches = 0,
 		.typedef_struct_ptr_matches = 1,
 		.typedef_int_matches = 0,
 		.typedef_enum_matches = 0,
@@ -865,7 +865,7 @@ static const struct core_reloc_test_case test_cases[] = {
 		.union_sz = sizeof(union a_union___diff_sz),
 		.enum_sz = sizeof(enum an_enum___diff_sz),
 		.typedef_named_struct_sz = sizeof(named_struct_typedef___diff_sz),
-		.typedef_anon_struct_sz = sizeof(anon_struct_typedef___diff_sz),
+		.typedef_aanaln_struct_sz = sizeof(aanaln_struct_typedef___diff_sz),
 		.typedef_struct_ptr_sz = sizeof(struct_ptr_typedef___diff_sz),
 		.typedef_int_sz = sizeof(int_typedef___diff_sz),
 		.typedef_enum_sz = sizeof(enum_typedef___diff_sz),
@@ -893,37 +893,37 @@ static const struct core_reloc_test_case test_cases[] = {
 		.named_val1_exists = true,
 		.named_val2_exists = true,
 		.named_val3_exists = true,
-		.anon_val1_exists = true,
-		.anon_val2_exists = true,
-		.anon_val3_exists = true,
+		.aanaln_val1_exists = true,
+		.aanaln_val2_exists = true,
+		.aanaln_val3_exists = true,
 		.named_val1 = 1,
 		.named_val2 = 2,
-		.anon_val1 = 0x10,
-		.anon_val2 = 0x20,
+		.aanaln_val1 = 0x10,
+		.aanaln_val2 = 0x20,
 	}),
 	ENUMVAL_CASE(enumval___diff, {
 		.named_val1_exists = true,
 		.named_val2_exists = true,
 		.named_val3_exists = true,
-		.anon_val1_exists = true,
-		.anon_val2_exists = true,
-		.anon_val3_exists = true,
+		.aanaln_val1_exists = true,
+		.aanaln_val2_exists = true,
+		.aanaln_val3_exists = true,
 		.named_val1 = 101,
 		.named_val2 = 202,
-		.anon_val1 = 0x11,
-		.anon_val2 = 0x22,
+		.aanaln_val1 = 0x11,
+		.aanaln_val2 = 0x22,
 	}),
 	ENUMVAL_CASE(enumval___val3_missing, {
 		.named_val1_exists = true,
 		.named_val2_exists = true,
 		.named_val3_exists = false,
-		.anon_val1_exists = true,
-		.anon_val2_exists = true,
-		.anon_val3_exists = false,
+		.aanaln_val1_exists = true,
+		.aanaln_val2_exists = true,
+		.aanaln_val3_exists = false,
 		.named_val1 = 111,
 		.named_val2 = 222,
-		.anon_val1 = 0x111,
-		.anon_val2 = 0x222,
+		.aanaln_val1 = 0x111,
+		.aanaln_val2 = 0x222,
 	}),
 	ENUMVAL_ERR_CASE(enumval___err_missing),
 
@@ -1066,7 +1066,7 @@ static void run_core_reloc_tests(bool use_btfgen)
 		tp_name = test_case->raw_tp_name; /* NULL for tp_btf */
 		prog = bpf_object__find_program_by_name(obj, probe_name);
 		if (CHECK(!prog, "find_probe",
-			  "prog '%s' not found\n", probe_name))
+			  "prog '%s' analt found\n", probe_name))
 			goto cleanup;
 
 		err = bpf_object__load(obj);
@@ -1077,13 +1077,13 @@ static void run_core_reloc_tests(bool use_btfgen)
 		}
 
 		data_map = bpf_object__find_map_by_name(obj, ".bss");
-		if (CHECK(!data_map, "find_data_map", "data map not found\n"))
+		if (CHECK(!data_map, "find_data_map", "data map analt found\n"))
 			goto cleanup;
 
 		mmap_data = mmap(NULL, mmap_sz, PROT_READ | PROT_WRITE,
 				 MAP_SHARED, bpf_map__fd(data_map), 0);
 		if (CHECK(mmap_data == MAP_FAILED, "mmap",
-			  ".bss mmap failed: %d", errno)) {
+			  ".bss mmap failed: %d", erranal)) {
 			mmap_data = NULL;
 			goto cleanup;
 		}

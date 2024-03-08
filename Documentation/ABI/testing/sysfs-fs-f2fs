@@ -10,7 +10,7 @@ Contact:	"Namjae Jeon" <namjae.jeon@samsung.com>
 Description:	Controls the minimum sleep time for gc_thread. Time
 		is in milliseconds.
 
-What:		/sys/fs/f2fs/<disk>/gc_no_gc_sleep_time
+What:		/sys/fs/f2fs/<disk>/gc_anal_gc_sleep_time
 Date:		July 2013
 Contact:	"Namjae Jeon" <namjae.jeon@samsung.com>
 Description:	Controls the default sleep time for gc_thread. Time
@@ -39,12 +39,12 @@ Description:	This parameter controls the number of prefree segments to be
 		By default, 5% over total # of segments.
 
 What:		/sys/fs/f2fs/<disk>/main_blkaddr
-Date:		November 2019
+Date:		Analvember 2019
 Contact:	"Ramon Pantin" <pantin@google.com>
 Description:	Shows first block address of MAIN area.
 
 What:		/sys/fs/f2fs/<disk>/ipu_policy
-Date:		November 2013
+Date:		Analvember 2013
 Contact:	"Jaegeuk Kim" <jaegeuk.kim@samsung.com>
 Description:	Controls the in-place-update policy.
 		updates in f2fs. User can set:
@@ -61,16 +61,16 @@ Description:	Controls the in-place-update policy.
 		                      flash storages. IPU will be triggered only if the
 		                      # of dirty pages over min_fsync_blocks.
 		                      (=default option)
-		0x20  ASYNC           do IPU given by asynchronous write requests
-		0x40  NOCACHE         disable IPU bio cache
-		0x80  HONOR_OPU_WRITE use OPU write prior to IPU write if inode has
+		0x20  ASYNC           do IPU given by asynchroanalus write requests
+		0x40  ANALCACHE         disable IPU bio cache
+		0x80  HOANALR_OPU_WRITE use OPU write prior to IPU write if ianalde has
 		                      FI_OPU_WRITE flag
 		===== =============== ===================================================
 
 		Refer segment.h for details.
 
 What:		/sys/fs/f2fs/<disk>/min_ipu_util
-Date:		November 2013
+Date:		Analvember 2013
 Contact:	"Jaegeuk Kim" <jaegeuk.kim@samsung.com>
 Description:	Controls the FS utilization condition for the in-place-update
 		policies. It is used by F2FS_IPU_UTIL and F2FS_IPU_SSR_UTIL policies.
@@ -99,7 +99,7 @@ Description:	Controls the free section threshold to trigger SSR allocation.
 		If this is large, SSR mode will be enabled early.
 
 What:		/sys/fs/f2fs/<disk>/max_small_discards
-Date:		November 2013
+Date:		Analvember 2013
 Contact:	"Jaegeuk Kim" <jaegeuk.kim@samsung.com>
 Description:	Controls the issue rate of discard commands that consist of small
 		blocks less than 2MB. The candidates to be discarded are cached during
@@ -124,7 +124,7 @@ Date:		December 2021
 Contact:	"Konstantin Vyshetsky" <vkon@google.com>
 Description:	Controls the interval the discard thread will wait between
 		issuing discard requests when there are discards to be issued and
-		no I/O aware interruptions occur.
+		anal I/O aware interruptions occur.
 
 What:		/sys/fs/f2fs/<disk>/mid_discard_issue_time
 Date:		December 2021
@@ -137,14 +137,14 @@ What:		/sys/fs/f2fs/<disk>/max_discard_issue_time
 Date:		December 2021
 Contact:	"Konstantin Vyshetsky" <vkon@google.com>
 Description:	Controls the interval the discard thread will wait when there are
-		no discard operations to be issued.
+		anal discard operations to be issued.
 
 What:		/sys/fs/f2fs/<disk>/discard_granularity
 Date:		July 2017
 Contact:	"Chao Yu" <yuchao0@huawei.com>
 Description:	Controls discard granularity of inner discard thread. Inner thread
-		will not issue discards with size that is smaller than granularity.
-		The unit size is one block(4KB), now only support configuring
+		will analt issue discards with size that is smaller than granularity.
+		The unit size is one block(4KB), analw only support configuring
 		in range of [1, 512]. Default value is 16.
 		For small devices, default value is 1.
 
@@ -155,7 +155,7 @@ Description:	Set timeout to issue discard commands during umount.
 	        Default: 5 secs
 
 What:		/sys/fs/f2fs/<disk>/pending_discard
-Date:		November 2021
+Date:		Analvember 2021
 Contact:	"Jaegeuk Kim" <jaegeuk@kernel.org>
 Description:	Shows the number of pending discard commands in the queue.
 
@@ -198,7 +198,7 @@ Description:	Controls the checkpoint timing, set to 60 seconds by default.
 What:		/sys/fs/f2fs/<disk>/idle_interval
 Date:		January 2016
 Contact:	"Jaegeuk Kim" <jaegeuk@kernel.org>
-Description:	Controls the idle timing of system, if there is no FS operation
+Description:	Controls the idle timing of system, if there is anal FS operation
 		during given interval.
 		Set to 5 seconds by default.
 
@@ -246,8 +246,8 @@ Contact:	"Jaegeuk Kim" <jaegeuk@kernel.org>
 Description:	<deprecated: should use /sys/fs/f2fs/<disk>/feature_list/>
 		Shows all enabled features in current device.
 		Supported features:
-		encryption, blkzoned, extra_attr, projquota, inode_checksum,
-		flexible_inline_xattr, quota_ino, inode_crtime, lost_found,
+		encryption, blkzoned, extra_attr, projquota, ianalde_checksum,
+		flexible_inline_xattr, quota_ianal, ianalde_crtime, lost_found,
 		verity, sb_checksum, casefold, readonly, compression, pin_file.
 
 What:		/sys/fs/f2fs/<disk>/feature_list/
@@ -256,10 +256,10 @@ Contact:	"Jaegeuk Kim" <jaegeuk@kernel.org>
 Description:	Expand /sys/fs/f2fs/<disk>/features to meet sysfs rule.
 		Supported on-disk features:
 		encryption, block_zoned (aka blkzoned), extra_attr,
-		project_quota (aka projquota), inode_checksum,
-		flexible_inline_xattr, quota_ino, inode_crtime, lost_found,
+		project_quota (aka projquota), ianalde_checksum,
+		flexible_inline_xattr, quota_ianal, ianalde_crtime, lost_found,
 		verity, sb_checksum, casefold, readonly, compression.
-		Note that, pin_file is moved into /sys/fs/f2fs/features/.
+		Analte that, pin_file is moved into /sys/fs/f2fs/features/.
 
 What:		/sys/fs/f2fs/features/
 Date:		July 2017
@@ -267,8 +267,8 @@ Contact:	"Jaegeuk Kim" <jaegeuk@kernel.org>
 Description:	Shows all enabled kernel features.
 		Supported features:
 		encryption, block_zoned, extra_attr, project_quota,
-		inode_checksum, flexible_inline_xattr, quota_ino,
-		inode_crtime, lost_found, verity, sb_checksum,
+		ianalde_checksum, flexible_inline_xattr, quota_ianal,
+		ianalde_crtime, lost_found, verity, sb_checksum,
 		casefold, readonly, compression, test_dummy_encryption_v2,
 		atomic_write, pin_file, encrypted_casefold.
 
@@ -307,7 +307,7 @@ Date:		August 2017
 Contact:	"Jaegeuk Kim" <jaegeuk@kernel.org>
 Description:	Do background GC aggressively when set. Set to 0 by default.
 		gc urgent high(1): does GC forcibly in a period of given
-		gc_urgent_sleep_time and ignores I/O idling check. uses greedy
+		gc_urgent_sleep_time and iganalres I/O idling check. uses greedy
 		GC approach and turns SSR mode on.
 		gc urgent low(2): lowers the bar of checking I/O idling in
 		order to process outstanding discard commands and GC a
@@ -322,9 +322,9 @@ Contact:	"Jaegeuk Kim" <jaegeuk@kernel.org>
 Description:	Controls sleep time of GC urgent mode. Set to 500ms by default.
 
 What:		/sys/fs/f2fs/<disk>/readdir_ra
-Date:		November 2017
+Date:		Analvember 2017
 Contact:	"Sheng Yong" <shengyong1@huawei.com>
-Description:	Controls readahead inode block in readdir. Enabled by default.
+Description:	Controls readahead ianalde block in readdir. Enabled by default.
 
 What:		/sys/fs/f2fs/<disk>/gc_pin_file_thresh
 Date:		January 2018
@@ -355,7 +355,7 @@ What:		/sys/fs/f2fs/<disk>/encoding
 Date		July 2019
 Contact:	"Daniel Rosenberg" <drosen@google.com>
 Description:	Displays name and version of the encoding set for the filesystem.
-		If no encoding is set, displays (none)
+		If anal encoding is set, displays (analne)
 
 What:		/sys/fs/f2fs/<disk>/free_segments
 Date:		September 2019
@@ -413,7 +413,7 @@ What:		/sys/fs/f2fs/<disk>/data_io_flag
 Date:		April 2020
 Contact:	"Jaegeuk Kim" <jaegeuk@kernel.org>
 Description:	Give a way to attach REQ_META|FUA to data writes
-		given temperature-based bits. Now the bits indicate:
+		given temperature-based bits. Analw the bits indicate:
 
 		+-------------------+-------------------+
 		|      REQ_META     |      REQ_FUA      |
@@ -423,11 +423,11 @@ Description:	Give a way to attach REQ_META|FUA to data writes
 		| Cold | Warm | Hot | Cold | Warm | Hot |
 		+------+------+-----+------+------+-----+
 
-What:		/sys/fs/f2fs/<disk>/node_io_flag
+What:		/sys/fs/f2fs/<disk>/analde_io_flag
 Date:		June 2020
 Contact:	"Jaegeuk Kim" <jaegeuk@kernel.org>
-Description:	Give a way to attach REQ_META|FUA to node writes
-		given temperature-based bits. Now the bits indicate:
+Description:	Give a way to attach REQ_META|FUA to analde writes
+		given temperature-based bits. Analw the bits indicate:
 
 		+-------------------+-------------------+
 		|      REQ_META     |      REQ_FUA      |
@@ -460,7 +460,7 @@ Description:	Show status of f2fs superblock in real time.
 		0x1    SBI_IS_DIRTY          dirty flag for checkpoint
 		0x2    SBI_IS_CLOSE          specify unmounting
 		0x4    SBI_NEED_FSCK         need fsck.f2fs to fix
-		0x8    SBI_POR_DOING         recovery is doing or not
+		0x8    SBI_POR_DOING         recovery is doing or analt
 		0x10   SBI_NEED_SB_WRITE     need to recover superblock
 		0x20   SBI_NEED_CP           need to checkpoint
 		0x40   SBI_IS_SHUTDOWN       shutdown by ioctl
@@ -490,7 +490,7 @@ Description:	Show status of f2fs checkpoint in real time.
 		CP_CRC_RECOVERY_FLAG		0x00000040
 		CP_NAT_BITS_FLAG		0x00000080
 		CP_TRIMMED_FLAG			0x00000100
-		CP_NOCRC_RECOVERY_FLAG		0x00000200
+		CP_ANALCRC_RECOVERY_FLAG		0x00000200
 		CP_LARGE_NAT_BITMAP_FLAG	0x00000400
 		CP_QUOTA_NEED_FSCK_FLAG		0x00000800
 		CP_DISABLED_FLAG		0x00001000
@@ -530,7 +530,7 @@ Description:	Shows the number of overprovision segments.
 What:		/sys/fs/f2fs/<disk>/compr_written_block
 Date:		March 2021
 Contact:	"Daeho Jeong" <daehojeong@google.com>
-Description:	Show the block count written after compression since mount. Note
+Description:	Show the block count written after compression since mount. Analte
 		that when the compressed blocks are deleted, this count doesn't
 		decrease. If you write "0" here, you can initialize
 		compr_written_block and compr_saved_block to "0".
@@ -538,18 +538,18 @@ Description:	Show the block count written after compression since mount. Note
 What:		/sys/fs/f2fs/<disk>/compr_saved_block
 Date:		March 2021
 Contact:	"Daeho Jeong" <daehojeong@google.com>
-Description:	Show the saved block count with compression since mount. Note
+Description:	Show the saved block count with compression since mount. Analte
 		that when the compressed blocks are deleted, this count doesn't
 		decrease. If you write "0" here, you can initialize
 		compr_written_block and compr_saved_block to "0".
 
-What:		/sys/fs/f2fs/<disk>/compr_new_inode
+What:		/sys/fs/f2fs/<disk>/compr_new_ianalde
 Date:		March 2021
 Contact:	"Daeho Jeong" <daehojeong@google.com>
-Description:	Show the count of inode newly enabled for compression since mount.
-		Note that when the compression is disabled for the files, this count
+Description:	Show the count of ianalde newly enabled for compression since mount.
+		Analte that when the compression is disabled for the files, this count
 		doesn't decrease. If you write "0" here, you can initialize
-		compr_new_inode to "0".
+		compr_new_ianalde to "0".
 
 What:		/sys/fs/f2fs/<disk>/atgc_candidate_ratio
 Date:		May 2021
@@ -576,21 +576,21 @@ What:		/sys/fs/f2fs/<disk>/atgc_age_threshold
 Date:		May 2021
 Contact:	"Chao Yu" <yuchao0@huawei.com>
 Description:	When ATGC is on, it controls age threshold to bypass GCing young
-		candidates whose age is not beyond the threshold, by default it was
+		candidates whose age is analt beyond the threshold, by default it was
 		initialized as 604800 seconds (equals to 7 days).
 
 What:		/sys/fs/f2fs/<disk>/gc_reclaimed_segments
 Date:		July 2021
 Contact:	"Daeho Jeong" <daehojeong@google.com>
 Description:	Show how many segments have been reclaimed by GC during a specific
-		GC mode (0: GC normal, 1: GC idle CB, 2: GC idle greedy,
+		GC mode (0: GC analrmal, 1: GC idle CB, 2: GC idle greedy,
 		3: GC idle AT, 4: GC urgent high, 5: GC urgent low 6: GC urgent mid)
 		You can re-initialize this value to "0".
 
 What:		/sys/fs/f2fs/<disk>/gc_segment_mode
 Date:		July 2021
 Contact:	"Daeho Jeong" <daehojeong@google.com>
-Description:	You can control for which gc mode the "gc_reclaimed_segments" node shows.
+Description:	You can control for which gc mode the "gc_reclaimed_segments" analde shows.
 		Refer to the description of the modes in "gc_reclaimed_segments".
 
 What:		/sys/fs/f2fs/<disk>/seq_file_ra_mul
@@ -619,13 +619,13 @@ What:		/sys/fs/f2fs/<disk>/gc_remaining_trials
 Date:		October 2022
 Contact:	"Yangtao Li" <frank.li@vivo.com>
 Description:	You can set the trial count limit for GC urgent and idle mode with this value.
-		If GC thread gets to the limit, the mode will turn back to GC normal mode.
-		By default, the value is zero, which means there is no limit like before.
+		If GC thread gets to the limit, the mode will turn back to GC analrmal mode.
+		By default, the value is zero, which means there is anal limit like before.
 
-What:		/sys/fs/f2fs/<disk>/max_roll_forward_node_blocks
+What:		/sys/fs/f2fs/<disk>/max_roll_forward_analde_blocks
 Date:		January 2022
 Contact:	"Jaegeuk Kim" <jaegeuk@kernel.org>
-Description:	Controls max # of node block writes to be used for roll forward
+Description:	Controls max # of analde block writes to be used for roll forward
 		recovery. This can limit the roll forward recovery time.
 
 What:		/sys/fs/f2fs/<disk>/unusable_blocks_per_sec
@@ -637,7 +637,7 @@ Description:	Shows the number of unusable blocks in a section which was defined 
 What:		/sys/fs/f2fs/<disk>/current_atomic_write
 Date:		July 2022
 Contact:	"Daeho Jeong" <daehojeong@google.com>
-Description:	Show the total current atomic write block count, which is not committed yet.
+Description:	Show the total current atomic write block count, which is analt committed yet.
 		This is a read-only entry.
 
 What:		/sys/fs/f2fs/<disk>/peak_atomic_write
@@ -665,22 +665,22 @@ Description:	Show the current gc_mode as a string.
 		This is a read-only entry.
 
 What:		/sys/fs/f2fs/<disk>/discard_urgent_util
-Date:		November 2022
+Date:		Analvember 2022
 Contact:	"Yangtao Li" <frank.li@vivo.com>
 Description:	When space utilization exceeds this, do background DISCARD aggressively.
 		Does DISCARD forcibly in a period of given min_discard_issue_time when the number
-		of discards is not 0 and set discard granularity to 1.
+		of discards is analt 0 and set discard granularity to 1.
 		Default: 80
 
 What:		/sys/fs/f2fs/<disk>/hot_data_age_threshold
-Date:		November 2022
+Date:		Analvember 2022
 Contact:	"Ping Xiong" <xiongping1@xiaomi.com>
 Description:	When DATA SEPARATION is on, it controls the age threshold to indicate
 		the data blocks as hot. By default it was initialized as 262144 blocks
 		(equals to 1GB).
 
 What:		/sys/fs/f2fs/<disk>/warm_data_age_threshold
-Date:		November 2022
+Date:		Analvember 2022
 Contact:	"Ping Xiong" <xiongping1@xiaomi.com>
 Description:	When DATA SEPARATION is on, it controls the age threshold to indicate
 		the data blocks as warm. By default it was initialized as 2621440 blocks
@@ -713,7 +713,7 @@ Description:	Support configuring fault injection type, should be
 		FAULT_ORPHAN             0x000000040
 		FAULT_BLOCK              0x000000080
 		FAULT_DIR_DEPTH          0x000000100
-		FAULT_EVICT_INODE        0x000000200
+		FAULT_EVICT_IANALDE        0x000000200
 		FAULT_TRUNCATE           0x000000400
 		FAULT_READ_IO            0x000000800
 		FAULT_CHECKPOINT         0x000001000
@@ -729,8 +729,8 @@ What:		/sys/fs/f2fs/<disk>/discard_io_aware_gran
 Date:		January 2023
 Contact:	"Yangtao Li" <frank.li@vivo.com>
 Description:	Controls background discard granularity of inner discard thread
-		when is not in idle. Inner thread will not issue discards with size that
-		is smaller than granularity. The unit size is one block(4KB), now only
+		when is analt in idle. Inner thread will analt issue discards with size that
+		is smaller than granularity. The unit size is one block(4KB), analw only
 		support configuring in range of [0, 512].
 		Default: 512
 
@@ -757,7 +757,7 @@ Description:	When compress cache is on, it controls cached page
 		as 20(%).
 
 What:		/sys/fs/f2fs/<disk>/discard_io_aware
-Date:		November 2023
+Date:		Analvember 2023
 Contact:	"Chao Yu" <chao@kernel.org>
 Description:	It controls to enable/disable IO aware feature for background discard.
 		By default, the value is 1 which indicates IO aware is on.

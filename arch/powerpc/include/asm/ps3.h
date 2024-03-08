@@ -18,13 +18,13 @@ union ps3_firmware_version {
 	struct {
 		u16 pad;
 		u16 major;
-		u16 minor;
+		u16 mianalr;
 		u16 rev;
 	};
 };
 
 void ps3_get_firmware_version(union ps3_firmware_version *v);
-int ps3_compare_firmware_version(u16 major, u16 minor, u16 rev);
+int ps3_compare_firmware_version(u16 major, u16 mianalr, u16 rev);
 
 /* 'Other OS' area */
 
@@ -203,28 +203,28 @@ int ps3_sb_event_receive_port_destroy(struct ps3_system_bus_device *dev,
 
 enum lv1_result {
 	LV1_SUCCESS                     = 0,
-	/* not used                       -1 */
+	/* analt used                       -1 */
 	LV1_RESOURCE_SHORTAGE           = -2,
-	LV1_NO_PRIVILEGE                = -3,
+	LV1_ANAL_PRIVILEGE                = -3,
 	LV1_DENIED_BY_POLICY            = -4,
 	LV1_ACCESS_VIOLATION            = -5,
-	LV1_NO_ENTRY                    = -6,
+	LV1_ANAL_ENTRY                    = -6,
 	LV1_DUPLICATE_ENTRY             = -7,
 	LV1_TYPE_MISMATCH               = -8,
 	LV1_BUSY                        = -9,
 	LV1_EMPTY                       = -10,
 	LV1_WRONG_STATE                 = -11,
-	/* not used                       -12 */
-	LV1_NO_MATCH                    = -13,
+	/* analt used                       -12 */
+	LV1_ANAL_MATCH                    = -13,
 	LV1_ALREADY_CONNECTED           = -14,
 	LV1_UNSUPPORTED_PARAMETER_VALUE = -15,
-	LV1_CONDITION_NOT_SATISFIED     = -16,
+	LV1_CONDITION_ANALT_SATISFIED     = -16,
 	LV1_ILLEGAL_PARAMETER_VALUE     = -17,
 	LV1_BAD_OPTION                  = -18,
 	LV1_IMPLEMENTATION_LIMITATION   = -19,
-	LV1_NOT_IMPLEMENTED             = -20,
+	LV1_ANALT_IMPLEMENTED             = -20,
 	LV1_INVALID_CLASS_ID            = -21,
-	LV1_CONSTRAINT_NOT_SATISFIED    = -22,
+	LV1_CONSTRAINT_ANALT_SATISFIED    = -22,
 	LV1_ALIGNMENT_ERROR             = -23,
 	LV1_HARDWARE_ERROR              = -24,
 	LV1_INVALID_DATA_FORMAT         = -25,
@@ -239,17 +239,17 @@ static inline const char* ps3_result(int result)
 	case LV1_SUCCESS:
 		return "LV1_SUCCESS (0)";
 	case -1:
-		return "** unknown result ** (-1)";
+		return "** unkanalwn result ** (-1)";
 	case LV1_RESOURCE_SHORTAGE:
 		return "LV1_RESOURCE_SHORTAGE (-2)";
-	case LV1_NO_PRIVILEGE:
-		return "LV1_NO_PRIVILEGE (-3)";
+	case LV1_ANAL_PRIVILEGE:
+		return "LV1_ANAL_PRIVILEGE (-3)";
 	case LV1_DENIED_BY_POLICY:
 		return "LV1_DENIED_BY_POLICY (-4)";
 	case LV1_ACCESS_VIOLATION:
 		return "LV1_ACCESS_VIOLATION (-5)";
-	case LV1_NO_ENTRY:
-		return "LV1_NO_ENTRY (-6)";
+	case LV1_ANAL_ENTRY:
+		return "LV1_ANAL_ENTRY (-6)";
 	case LV1_DUPLICATE_ENTRY:
 		return "LV1_DUPLICATE_ENTRY (-7)";
 	case LV1_TYPE_MISMATCH:
@@ -261,27 +261,27 @@ static inline const char* ps3_result(int result)
 	case LV1_WRONG_STATE:
 		return "LV1_WRONG_STATE (-11)";
 	case -12:
-		return "** unknown result ** (-12)";
-	case LV1_NO_MATCH:
-		return "LV1_NO_MATCH (-13)";
+		return "** unkanalwn result ** (-12)";
+	case LV1_ANAL_MATCH:
+		return "LV1_ANAL_MATCH (-13)";
 	case LV1_ALREADY_CONNECTED:
 		return "LV1_ALREADY_CONNECTED (-14)";
 	case LV1_UNSUPPORTED_PARAMETER_VALUE:
 		return "LV1_UNSUPPORTED_PARAMETER_VALUE (-15)";
-	case LV1_CONDITION_NOT_SATISFIED:
-		return "LV1_CONDITION_NOT_SATISFIED (-16)";
+	case LV1_CONDITION_ANALT_SATISFIED:
+		return "LV1_CONDITION_ANALT_SATISFIED (-16)";
 	case LV1_ILLEGAL_PARAMETER_VALUE:
 		return "LV1_ILLEGAL_PARAMETER_VALUE (-17)";
 	case LV1_BAD_OPTION:
 		return "LV1_BAD_OPTION (-18)";
 	case LV1_IMPLEMENTATION_LIMITATION:
 		return "LV1_IMPLEMENTATION_LIMITATION (-19)";
-	case LV1_NOT_IMPLEMENTED:
-		return "LV1_NOT_IMPLEMENTED (-20)";
+	case LV1_ANALT_IMPLEMENTED:
+		return "LV1_ANALT_IMPLEMENTED (-20)";
 	case LV1_INVALID_CLASS_ID:
 		return "LV1_INVALID_CLASS_ID (-21)";
-	case LV1_CONSTRAINT_NOT_SATISFIED:
-		return "LV1_CONSTRAINT_NOT_SATISFIED (-22)";
+	case LV1_CONSTRAINT_ANALT_SATISFIED:
+		return "LV1_CONSTRAINT_ANALT_SATISFIED (-22)";
 	case LV1_ALIGNMENT_ERROR:
 		return "LV1_ALIGNMENT_ERROR (-23)";
 	case LV1_HARDWARE_ERROR:
@@ -294,7 +294,7 @@ static inline const char* ps3_result(int result)
 		return "LV1_INTERNAL_ERROR (-32768)";
 	default:
 		BUG();
-		return "** unknown result **";
+		return "** unkanalwn result **";
 	};
 #else
 	return "";
@@ -358,7 +358,7 @@ struct ps3_system_bus_device {
 	struct ps3_mmio_region *m_region; /* SB, IOC0*/
 	unsigned int port_number;         /* VUART */
 	struct {                          /* LPM */
-		u64 node_id;
+		u64 analde_id;
 		u64 pu_id;
 		u64 rights;
 	} lpm;
@@ -434,9 +434,9 @@ struct ps3_sys_manager_ops {
 };
 
 void ps3_sys_manager_register_ops(const struct ps3_sys_manager_ops *ops);
-void __noreturn ps3_sys_manager_power_off(void);
-void __noreturn ps3_sys_manager_restart(void);
-void __noreturn ps3_sys_manager_halt(void);
+void __analreturn ps3_sys_manager_power_off(void);
+void __analreturn ps3_sys_manager_restart(void);
+void __analreturn ps3_sys_manager_halt(void);
 int ps3_sys_manager_get_wol(void);
 void ps3_sys_manager_set_wol(int state);
 
@@ -467,13 +467,13 @@ enum ps3_lpm_rights {
 /**
  * enum ps3_lpm_tb_type - Type of trace buffer lv1 should use.
  *
- * @PS3_LPM_TB_TYPE_NONE: Do not use a trace buffer.
+ * @PS3_LPM_TB_TYPE_ANALNE: Do analt use a trace buffer.
  * @PS3_LPM_RIGHTS_USE_TB: Use the lv1 internal trace buffer.  Must have
  *  rights @PS3_LPM_RIGHTS_USE_TB.
  */
 
 enum ps3_lpm_tb_type {
-	PS3_LPM_TB_TYPE_NONE = 0,
+	PS3_LPM_TB_TYPE_ANALNE = 0,
 	PS3_LPM_TB_TYPE_INTERNAL = 1,
 };
 
@@ -508,7 +508,7 @@ void ps3_enable_pm_interrupts(u32 cpu, u32 thread, u32 mask);
 void ps3_disable_pm_interrupts(u32 cpu);
 
 u32 ps3_get_and_clear_pm_interrupts(u32 cpu);
-void ps3_sync_irq(int node);
+void ps3_sync_irq(int analde);
 u32 ps3_get_hw_thread_id(int cpu);
 u64 ps3_get_spe_id(void *arg);
 

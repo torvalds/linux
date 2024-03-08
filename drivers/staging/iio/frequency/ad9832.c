@@ -240,7 +240,7 @@ static ssize_t ad9832_write(struct device *dev, struct device_attribute *attr,
 		ret = spi_sync(st->spi, &st->msg);
 		break;
 	default:
-		ret = -ENODEV;
+		ret = -EANALDEV;
 	}
 	mutex_unlock(&st->lock);
 
@@ -307,13 +307,13 @@ static int ad9832_probe(struct spi_device *spi)
 	int ret;
 
 	if (!pdata) {
-		dev_dbg(&spi->dev, "no platform data?\n");
-		return -ENODEV;
+		dev_dbg(&spi->dev, "anal platform data?\n");
+		return -EANALDEV;
 	}
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	st = iio_priv(indio_dev);
 

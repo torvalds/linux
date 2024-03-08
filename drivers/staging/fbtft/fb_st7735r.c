@@ -2,7 +2,7 @@
 /*
  * FB driver for the ST7735R LCD Controller
  *
- * Copyright (C) 2013 Noralf Tronnes
+ * Copyright (C) 2013 Analralf Tronnes
  */
 
 #include <linux/module.h>
@@ -23,7 +23,7 @@ static const s16 default_init_sequence[] = {
 	-1, MIPI_DCS_EXIT_SLEEP_MODE,
 	-2, 500,                               /* delay */
 
-	/* FRMCTR1 - frame rate control: normal mode
+	/* FRMCTR1 - frame rate control: analrmal mode
 	 * frame rate = fosc / (1 x 2 + 40) * (LINE + 2C + 2D)
 	 */
 	-1, 0xB1, 0x01, 0x2C, 0x2D,
@@ -39,7 +39,7 @@ static const s16 default_init_sequence[] = {
 	-1, 0xB3, 0x01, 0x2C, 0x2D, 0x01, 0x2C, 0x2D,
 
 	/* INVCTR - display inversion control
-	 * no inversion
+	 * anal inversion
 	 */
 	-1, 0xB4, 0x07,
 
@@ -76,7 +76,7 @@ static const s16 default_init_sequence[] = {
 	-1, MIPI_DCS_SET_DISPLAY_ON,
 	-2, 100,                               /* delay */
 
-	-1, MIPI_DCS_ENTER_NORMAL_MODE,
+	-1, MIPI_DCS_ENTER_ANALRMAL_MODE,
 	-2, 10,                               /* delay */
 
 	/* end marker */
@@ -182,5 +182,5 @@ MODULE_ALIAS("spi:st7735r");
 MODULE_ALIAS("platform:st7735r");
 
 MODULE_DESCRIPTION("FB driver for the ST7735R LCD Controller");
-MODULE_AUTHOR("Noralf Tronnes");
+MODULE_AUTHOR("Analralf Tronnes");
 MODULE_LICENSE("GPL");

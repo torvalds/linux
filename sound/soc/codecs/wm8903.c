@@ -285,7 +285,7 @@ static int wm8903_dcs_event(struct snd_soc_dapm_widget *w,
 #define WM8903_DCS_MODE_WRITE_STOP 0
 #define WM8903_DCS_MODE_START_STOP 2
 
-static void wm8903_seq_notifier(struct snd_soc_component *component,
+static void wm8903_seq_analtifier(struct snd_soc_component *component,
 				enum snd_soc_dapm_type event, int subseq)
 {
 	struct wm8903_priv *wm8903 = snd_soc_component_get_drvdata(component);
@@ -297,7 +297,7 @@ static void wm8903_seq_notifier(struct snd_soc_component *component,
 		dev_dbg(component->dev, "Starting DC servo for %x\n",
 			wm8903->dcs_pending);
 
-		/* If we've no cached values then we need to do startup */
+		/* If we've anal cached values then we need to do startup */
 		for (i = 0; i < ARRAY_SIZE(wm8903->dcs_cache); i++) {
 			if (!(wm8903->dcs_pending & (1 << i)))
 				continue;
@@ -350,7 +350,7 @@ static void wm8903_seq_notifier(struct snd_soc_component *component,
 			break;
 
 		default:
-			pr_warn("DCS mode %d delay not set\n", dcs_mode);
+			pr_warn("DCS mode %d delay analt set\n", dcs_mode);
 			break;
 		}
 
@@ -399,7 +399,7 @@ static int wm8903_class_w_put(struct snd_kcontrol *kcontrol,
 		wm8903->class_w_users--;
 	}
 
-	dev_dbg(component->dev, "Bypass use count now %d\n",
+	dev_dbg(component->dev, "Bypass use count analw %d\n",
 		wm8903->class_w_users);
 
 	return ret;
@@ -611,7 +611,7 @@ static SOC_ENUM_SINGLE_DECL(rinput_inv_enum,
 
 
 static const char *sidetone_text[] = {
-	"None", "Left", "Right"
+	"Analne", "Left", "Right"
 };
 
 static SOC_ENUM_SINGLE_DECL(lsidetone_enum,
@@ -645,7 +645,7 @@ static SOC_ENUM_SINGLE_DECL(rplay_enum,
 
 static const struct snd_kcontrol_new wm8903_snd_controls[] = {
 
-/* Input PGAs - No TLV since the scale depends on PGA mode */
+/* Input PGAs - Anal TLV since the scale depends on PGA mode */
 SOC_SINGLE("Left Input PGA Switch", WM8903_ANALOGUE_LEFT_INPUT_0,
 	   7, 1, 1),
 SOC_SINGLE("Left Input PGA Volume", WM8903_ANALOGUE_LEFT_INPUT_0,
@@ -698,7 +698,7 @@ SOC_DOUBLE_R_TLV("Digital Playback Volume", WM8903_DAC_DIGITAL_VOLUME_LEFT,
 		 WM8903_DAC_DIGITAL_VOLUME_RIGHT, 1, 120, 0, digital_tlv),
 SOC_ENUM("DAC Soft Mute Rate", soft_mute),
 SOC_ENUM("DAC Mute Mode", mute_mode),
-SOC_SINGLE("DAC Mono Switch", WM8903_DAC_DIGITAL_1, 12, 1, 0),
+SOC_SINGLE("DAC Moanal Switch", WM8903_DAC_DIGITAL_1, 12, 1, 0),
 SOC_ENUM("DAC Companding Mode", dac_companding),
 SOC_SINGLE("DAC Companding Switch", WM8903_AUDIO_INTERFACE_0, 1, 1, 0),
 SOC_SINGLE_TLV("DAC Boost Volume", WM8903_AUDIO_INTERFACE_0, 9, 3, 0,
@@ -828,39 +828,39 @@ SND_SOC_DAPM_OUTPUT("RON"),
 
 SND_SOC_DAPM_SUPPLY("MICBIAS", WM8903_MIC_BIAS_CONTROL_0, 0, 0, NULL, 0),
 
-SND_SOC_DAPM_MUX("Left Input Mux", SND_SOC_NOPM, 0, 0, &linput_mux),
-SND_SOC_DAPM_MUX("Left Input Inverting Mux", SND_SOC_NOPM, 0, 0,
+SND_SOC_DAPM_MUX("Left Input Mux", SND_SOC_ANALPM, 0, 0, &linput_mux),
+SND_SOC_DAPM_MUX("Left Input Inverting Mux", SND_SOC_ANALPM, 0, 0,
 		 &linput_inv_mux),
-SND_SOC_DAPM_MUX("Left Input Mode Mux", SND_SOC_NOPM, 0, 0, &linput_mode_mux),
+SND_SOC_DAPM_MUX("Left Input Mode Mux", SND_SOC_ANALPM, 0, 0, &linput_mode_mux),
 
-SND_SOC_DAPM_MUX("Right Input Mux", SND_SOC_NOPM, 0, 0, &rinput_mux),
-SND_SOC_DAPM_MUX("Right Input Inverting Mux", SND_SOC_NOPM, 0, 0,
+SND_SOC_DAPM_MUX("Right Input Mux", SND_SOC_ANALPM, 0, 0, &rinput_mux),
+SND_SOC_DAPM_MUX("Right Input Inverting Mux", SND_SOC_ANALPM, 0, 0,
 		 &rinput_inv_mux),
-SND_SOC_DAPM_MUX("Right Input Mode Mux", SND_SOC_NOPM, 0, 0, &rinput_mode_mux),
+SND_SOC_DAPM_MUX("Right Input Mode Mux", SND_SOC_ANALPM, 0, 0, &rinput_mode_mux),
 
 SND_SOC_DAPM_PGA("Left Input PGA", WM8903_POWER_MANAGEMENT_0, 1, 0, NULL, 0),
 SND_SOC_DAPM_PGA("Right Input PGA", WM8903_POWER_MANAGEMENT_0, 0, 0, NULL, 0),
 
-SND_SOC_DAPM_MUX("Left ADC Input", SND_SOC_NOPM, 0, 0, &adcinput_mux),
-SND_SOC_DAPM_MUX("Right ADC Input", SND_SOC_NOPM, 0, 0, &adcinput_mux),
+SND_SOC_DAPM_MUX("Left ADC Input", SND_SOC_ANALPM, 0, 0, &adcinput_mux),
+SND_SOC_DAPM_MUX("Right ADC Input", SND_SOC_ANALPM, 0, 0, &adcinput_mux),
 
 SND_SOC_DAPM_ADC("ADCL", NULL, WM8903_POWER_MANAGEMENT_6, 1, 0),
 SND_SOC_DAPM_ADC("ADCR", NULL, WM8903_POWER_MANAGEMENT_6, 0, 0),
 
-SND_SOC_DAPM_MUX("Left Capture Mux", SND_SOC_NOPM, 0, 0, &lcapture_mux),
-SND_SOC_DAPM_MUX("Right Capture Mux", SND_SOC_NOPM, 0, 0, &rcapture_mux),
+SND_SOC_DAPM_MUX("Left Capture Mux", SND_SOC_ANALPM, 0, 0, &lcapture_mux),
+SND_SOC_DAPM_MUX("Right Capture Mux", SND_SOC_ANALPM, 0, 0, &rcapture_mux),
 
-SND_SOC_DAPM_AIF_OUT("AIFTXL", "Left HiFi Capture", 0, SND_SOC_NOPM, 0, 0),
-SND_SOC_DAPM_AIF_OUT("AIFTXR", "Right HiFi Capture", 0, SND_SOC_NOPM, 0, 0),
+SND_SOC_DAPM_AIF_OUT("AIFTXL", "Left HiFi Capture", 0, SND_SOC_ANALPM, 0, 0),
+SND_SOC_DAPM_AIF_OUT("AIFTXR", "Right HiFi Capture", 0, SND_SOC_ANALPM, 0, 0),
 
-SND_SOC_DAPM_MUX("DACL Sidetone", SND_SOC_NOPM, 0, 0, &lsidetone_mux),
-SND_SOC_DAPM_MUX("DACR Sidetone", SND_SOC_NOPM, 0, 0, &rsidetone_mux),
+SND_SOC_DAPM_MUX("DACL Sidetone", SND_SOC_ANALPM, 0, 0, &lsidetone_mux),
+SND_SOC_DAPM_MUX("DACR Sidetone", SND_SOC_ANALPM, 0, 0, &rsidetone_mux),
 
-SND_SOC_DAPM_AIF_IN("AIFRXL", "Left Playback", 0, SND_SOC_NOPM, 0, 0),
-SND_SOC_DAPM_AIF_IN("AIFRXR", "Right Playback", 0, SND_SOC_NOPM, 0, 0),
+SND_SOC_DAPM_AIF_IN("AIFRXL", "Left Playback", 0, SND_SOC_ANALPM, 0, 0),
+SND_SOC_DAPM_AIF_IN("AIFRXR", "Right Playback", 0, SND_SOC_ANALPM, 0, 0),
 
-SND_SOC_DAPM_MUX("Left Playback Mux", SND_SOC_NOPM, 0, 0, &lplay_mux),
-SND_SOC_DAPM_MUX("Right Playback Mux", SND_SOC_NOPM, 0, 0, &rplay_mux),
+SND_SOC_DAPM_MUX("Left Playback Mux", SND_SOC_ANALPM, 0, 0, &lplay_mux),
+SND_SOC_DAPM_MUX("Right Playback Mux", SND_SOC_ANALPM, 0, 0, &rplay_mux),
 
 SND_SOC_DAPM_DAC("DACL", NULL, WM8903_POWER_MANAGEMENT_6, 3, 0),
 SND_SOC_DAPM_DAC("DACR", NULL, WM8903_POWER_MANAGEMENT_6, 2, 0),
@@ -912,13 +912,13 @@ SND_SOC_DAPM_PGA_S("LINEOUTR_ENA", 1, WM8903_ANALOGUE_LINEOUT_0, 0, 0,
 		   NULL, 0),
 
 SND_SOC_DAPM_SUPPLY("DCS Master", WM8903_DC_SERVO_0, 4, 0, NULL, 0),
-SND_SOC_DAPM_PGA_S("HPL_DCS", 3, SND_SOC_NOPM, 3, 0, wm8903_dcs_event,
+SND_SOC_DAPM_PGA_S("HPL_DCS", 3, SND_SOC_ANALPM, 3, 0, wm8903_dcs_event,
 		   SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
-SND_SOC_DAPM_PGA_S("HPR_DCS", 3, SND_SOC_NOPM, 2, 0, wm8903_dcs_event,
+SND_SOC_DAPM_PGA_S("HPR_DCS", 3, SND_SOC_ANALPM, 2, 0, wm8903_dcs_event,
 		   SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
-SND_SOC_DAPM_PGA_S("LINEOUTL_DCS", 3, SND_SOC_NOPM, 1, 0, wm8903_dcs_event,
+SND_SOC_DAPM_PGA_S("LINEOUTL_DCS", 3, SND_SOC_ANALPM, 1, 0, wm8903_dcs_event,
 		   SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
-SND_SOC_DAPM_PGA_S("LINEOUTR_DCS", 3, SND_SOC_NOPM, 0, 0, wm8903_dcs_event,
+SND_SOC_DAPM_PGA_S("LINEOUTR_DCS", 3, SND_SOC_ANALPM, 0, 0, wm8903_dcs_event,
 		   SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 
 SND_SOC_DAPM_PGA("Left Speaker PGA", WM8903_POWER_MANAGEMENT_5, 1, 0,
@@ -1165,7 +1165,7 @@ static int wm8903_set_bias_level(struct snd_soc_component *component,
 					    WM8903_BIAS_ENA | WM8903_POBCTRL,
 					    WM8903_BIAS_ENA);
 
-			/* By default no bypass paths are enabled so
+			/* By default anal bypass paths are enabled so
 			 * enable Class W support.
 			 */
 			dev_dbg(component->dev, "Enabling Class W\n");
@@ -1267,7 +1267,7 @@ static int wm8903_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_DSP_A:
 	case SND_SOC_DAIFMT_DSP_B:
-		/* frame inversion not valid for DSP modes */
+		/* frame inversion analt valid for DSP modes */
 		switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
 		case SND_SOC_DAIFMT_NB_NF:
 			break;
@@ -1503,7 +1503,7 @@ static int wm8903_hw_params(struct snd_pcm_substream *substream,
 	dev_dbg(component->dev, "MCLK = %dHz, target sample rate = %dHz\n",
 		wm8903->sysclk, fs);
 
-	/* We may not have an MCLK which allows us to generate exactly
+	/* We may analt have an MCLK which allows us to generate exactly
 	 * the clock we want, particularly with USB derived inputs, so
 	 * approximate.
 	 */
@@ -1542,9 +1542,9 @@ static int wm8903_hw_params(struct snd_pcm_substream *substream,
 
 	dev_dbg(component->dev, "Actual CLK_SYS = %dHz\n", clk_sys);
 
-	/* We may not get quite the right frequency if using
+	/* We may analt get quite the right frequency if using
 	 * approximate clocks so look for the closest match that is
-	 * higher than the target (we need to ensure that there enough
+	 * higher than the target (we need to ensure that there eanalugh
 	 * BCLKs to clock out the samples).
 	 */
 	bclk_div = 0;
@@ -1622,7 +1622,7 @@ int wm8903_mic_detect(struct snd_soc_component *component, struct snd_soc_jack *
 			    irq_mask);
 
 	if (det || shrt) {
-		/* Enable mic detection, this may not have been set through
+		/* Enable mic detection, this may analt have been set through
 		 * platform data (eg, if the defaults are OK). */
 		snd_soc_component_update_bits(component, WM8903_WRITE_SEQUENCER_0,
 				    WM8903_WSEQ_ENA, WM8903_WSEQ_ENA);
@@ -1647,13 +1647,13 @@ static irqreturn_t wm8903_irq(int irq, void *data)
 			  &mask);
 	if (ret != 0) {
 		dev_err(wm8903->dev, "Failed to read IRQ mask: %d\n", ret);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	ret = regmap_read(wm8903->regmap, WM8903_INTERRUPT_STATUS_1, &int_val);
 	if (ret != 0) {
 		dev_err(wm8903->dev, "Failed to read IRQ status: %d\n", ret);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	int_val &= ~mask;
@@ -1737,7 +1737,7 @@ static const struct snd_soc_dai_ops wm8903_dai_ops = {
 	.mute_stream	= wm8903_mute,
 	.set_fmt	= wm8903_set_dai_fmt,
 	.set_sysclk	= wm8903_set_dai_sysclk,
-	.no_capture_mute = 1,
+	.anal_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver wm8903_dai = {
@@ -1881,7 +1881,7 @@ static void wm8903_free_gpio(struct wm8903_priv *wm8903)
 static const struct snd_soc_component_driver soc_component_dev_wm8903 = {
 	.resume			= wm8903_resume,
 	.set_bias_level		= wm8903_set_bias_level,
-	.seq_notifier		= wm8903_seq_notifier,
+	.seq_analtifier		= wm8903_seq_analtifier,
 	.controls		= wm8903_snd_controls,
 	.num_controls		= ARRAY_SIZE(wm8903_snd_controls),
 	.dapm_widgets		= wm8903_dapm_widgets,
@@ -1918,10 +1918,10 @@ static int wm8903_set_pdata_irq_trigger(struct i2c_client *i2c,
 	}
 
 	switch (irqd_get_trigger_type(irq_data)) {
-	case IRQ_TYPE_NONE:
+	case IRQ_TYPE_ANALNE:
 	default:
 		/*
-		* We assume the controller imposes no restrictions,
+		* We assume the controller imposes anal restrictions,
 		* so we are able to select active-high
 		*/
 		fallthrough;
@@ -1939,7 +1939,7 @@ static int wm8903_set_pdata_irq_trigger(struct i2c_client *i2c,
 static int wm8903_set_pdata_from_of(struct i2c_client *i2c,
 				    struct wm8903_platform_data *pdata)
 {
-	const struct device_node *np = i2c->dev.of_node;
+	const struct device_analde *np = i2c->dev.of_analde;
 	u32 val32;
 	int i;
 
@@ -1958,10 +1958,10 @@ static int wm8903_set_pdata_from_of(struct i2c_client *i2c,
 		 * In platform data: 0 means "don't touch",
 		 * 0x8000 means "write 0".
 		 *
-		 * Note: WM8903_GPIO_CONFIG_ZERO == 0x8000.
+		 * Analte: WM8903_GPIO_CONFIG_ZERO == 0x8000.
 		 *
 		 *  Convert from DT to pdata representation here,
-		 * so no other code needs to change.
+		 * so anal other code needs to change.
 		 */
 		for (i = 0; i < ARRAY_SIZE(pdata->gpio_cfg); i++) {
 			if (pdata->gpio_cfg[i] == 0) {
@@ -1990,7 +1990,7 @@ static int wm8903_i2c_probe(struct i2c_client *i2c)
 
 	wm8903 = devm_kzalloc(&i2c->dev, sizeof(*wm8903), GFP_KERNEL);
 	if (wm8903 == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&wm8903->lock);
 	wm8903->dev = &i2c->dev;
@@ -2005,14 +2005,14 @@ static int wm8903_i2c_probe(struct i2c_client *i2c)
 
 	i2c_set_clientdata(i2c, wm8903);
 
-	/* If no platform data was supplied, create storage for defaults */
+	/* If anal platform data was supplied, create storage for defaults */
 	if (pdata) {
 		wm8903->pdata = pdata;
 	} else {
 		wm8903->pdata = devm_kzalloc(&i2c->dev, sizeof(*wm8903->pdata),
 					     GFP_KERNEL);
 		if (!wm8903->pdata)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		if (i2c->irq) {
 			ret = wm8903_set_pdata_irq_trigger(i2c, wm8903->pdata);
@@ -2020,7 +2020,7 @@ static int wm8903_i2c_probe(struct i2c_client *i2c)
 				return ret;
 		}
 
-		if (i2c->dev.of_node) {
+		if (i2c->dev.of_analde) {
 			ret = wm8903_set_pdata_from_of(i2c, wm8903->pdata);
 			if (ret != 0)
 				return ret;
@@ -2052,8 +2052,8 @@ static int wm8903_i2c_probe(struct i2c_client *i2c)
 		goto err;
 	}
 	if (val != 0x8903) {
-		dev_err(&i2c->dev, "Device with ID %x is not a WM8903\n", val);
-		ret = -ENODEV;
+		dev_err(&i2c->dev, "Device with ID %x is analt a WM8903\n", val);
+		ret = -EANALDEV;
 		goto err;
 	}
 

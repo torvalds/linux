@@ -55,13 +55,13 @@ int main(int argc, char *argv[])
 		switch (get_ucall(vcpu, &uc)) {
 		case UCALL_ABORT:
 			REPORT_GUEST_ASSERT(uc);
-			/* NOT REACHED */
+			/* ANALT REACHED */
 		case UCALL_SYNC:
 			break;
 		case UCALL_DONE:
 			goto done;
 		default:
-			TEST_FAIL("Unknown ucall 0x%lx.", uc.cmd);
+			TEST_FAIL("Unkanalwn ucall 0x%lx.", uc.cmd);
 		}
 	}
 done:

@@ -69,7 +69,7 @@ static enum usb_role hd3ss3220_get_attached_state(struct hd3ss3220 *hd3ss3220)
 		attached_state = USB_ROLE_DEVICE;
 		break;
 	default:
-		attached_state = USB_ROLE_NONE;
+		attached_state = USB_ROLE_ANALNE;
 		break;
 	}
 
@@ -108,7 +108,7 @@ static void hd3ss3220_set_role(struct hd3ss3220 *hd3ss3220)
 	enum usb_role role_state = hd3ss3220_get_attached_state(hd3ss3220);
 
 	usb_role_switch_set_role(hd3ss3220->role_sw, role_state);
-	if (role_state == USB_ROLE_NONE)
+	if (role_state == USB_ROLE_ANALNE)
 		hd3ss3220_set_source_pref(hd3ss3220,
 				HD3SS3220_REG_GEN_CTRL_SRC_PREF_DRP_DEFAULT);
 
@@ -149,7 +149,7 @@ static irqreturn_t hd3ss3220_irq(struct hd3ss3220 *hd3ss3220)
 				HD3SS3220_REG_CN_STAT_CTRL_INT_STATUS,
 				HD3SS3220_REG_CN_STAT_CTRL_INT_STATUS);
 	if (err < 0)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	return IRQ_HANDLED;
 }
@@ -172,14 +172,14 @@ static int hd3ss3220_probe(struct i2c_client *client)
 {
 	struct typec_capability typec_cap = { };
 	struct hd3ss3220 *hd3ss3220;
-	struct fwnode_handle *connector, *ep;
+	struct fwanalde_handle *connector, *ep;
 	int ret;
 	unsigned int data;
 
 	hd3ss3220 = devm_kzalloc(&client->dev, sizeof(struct hd3ss3220),
 				 GFP_KERNEL);
 	if (!hd3ss3220)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(client, hd3ss3220);
 
@@ -190,32 +190,32 @@ static int hd3ss3220_probe(struct i2c_client *client)
 
 	hd3ss3220_set_source_pref(hd3ss3220,
 				  HD3SS3220_REG_GEN_CTRL_SRC_PREF_DRP_DEFAULT);
-	/* For backward compatibility check the connector child node first */
-	connector = device_get_named_child_node(hd3ss3220->dev, "connector");
+	/* For backward compatibility check the connector child analde first */
+	connector = device_get_named_child_analde(hd3ss3220->dev, "connector");
 	if (connector) {
-		hd3ss3220->role_sw = fwnode_usb_role_switch_get(connector);
+		hd3ss3220->role_sw = fwanalde_usb_role_switch_get(connector);
 	} else {
-		ep = fwnode_graph_get_next_endpoint(dev_fwnode(hd3ss3220->dev), NULL);
+		ep = fwanalde_graph_get_next_endpoint(dev_fwanalde(hd3ss3220->dev), NULL);
 		if (!ep)
-			return -ENODEV;
-		connector = fwnode_graph_get_remote_port_parent(ep);
-		fwnode_handle_put(ep);
+			return -EANALDEV;
+		connector = fwanalde_graph_get_remote_port_parent(ep);
+		fwanalde_handle_put(ep);
 		if (!connector)
-			return -ENODEV;
+			return -EANALDEV;
 		hd3ss3220->role_sw = usb_role_switch_get(hd3ss3220->dev);
 	}
 
 	if (IS_ERR(hd3ss3220->role_sw)) {
 		ret = PTR_ERR(hd3ss3220->role_sw);
-		goto err_put_fwnode;
+		goto err_put_fwanalde;
 	}
 
-	typec_cap.prefer_role = TYPEC_NO_PREFERRED_ROLE;
+	typec_cap.prefer_role = TYPEC_ANAL_PREFERRED_ROLE;
 	typec_cap.driver_data = hd3ss3220;
 	typec_cap.type = TYPEC_PORT_DRP;
 	typec_cap.data = TYPEC_PORT_DRD;
 	typec_cap.ops = &hd3ss3220_ops;
-	typec_cap.fwnode = connector;
+	typec_cap.fwanalde = connector;
 
 	hd3ss3220->port = typec_register_port(&client->dev, &typec_cap);
 	if (IS_ERR(hd3ss3220->port)) {
@@ -252,7 +252,7 @@ static int hd3ss3220_probe(struct i2c_client *client)
 	if (ret < 0)
 		goto err_unreg_port;
 
-	fwnode_handle_put(connector);
+	fwanalde_handle_put(connector);
 
 	if (hd3ss3220->poll)
 		schedule_delayed_work(&hd3ss3220->output_poll_work, HZ);
@@ -264,8 +264,8 @@ err_unreg_port:
 	typec_unregister_port(hd3ss3220->port);
 err_put_role:
 	usb_role_switch_put(hd3ss3220->role_sw);
-err_put_fwnode:
-	fwnode_handle_put(connector);
+err_put_fwanalde:
+	fwanalde_handle_put(connector);
 
 	return ret;
 }

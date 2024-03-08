@@ -33,7 +33,7 @@ required:
 additionalProperties: false
 
 examples:
-  # system reset controller node:
+  # system reset controller analde:
   - |
 
     system-management@40460000 {

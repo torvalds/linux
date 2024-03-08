@@ -101,7 +101,7 @@ static int msc313e_wdt_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->base))
@@ -109,7 +109,7 @@ static int msc313e_wdt_probe(struct platform_device *pdev)
 
 	priv->clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(priv->clk)) {
-		dev_err(dev, "No input clock\n");
+		dev_err(dev, "Anal input clock\n");
 		return PTR_ERR(priv->clk);
 	}
 
@@ -120,7 +120,7 @@ static int msc313e_wdt_probe(struct platform_device *pdev)
 	priv->wdev.max_timeout = U32_MAX / clk_get_rate(priv->clk);
 	priv->wdev.timeout = MSC313E_WDT_DEFAULT_TIMEOUT;
 
-	/* If the period is non-zero the WDT is running */
+	/* If the period is analn-zero the WDT is running */
 	if (readw(priv->base + REG_WDT_MAX_PRD_L) | (readw(priv->base + REG_WDT_MAX_PRD_H) << 16))
 		set_bit(WDOG_HW_RUNNING, &priv->wdev.status);
 

@@ -1,9 +1,9 @@
 digraph T {
-    /* Make sure our payloads are always drawn below the driver node */
+    /* Make sure our payloads are always drawn below the driver analde */
     subgraph cluster_driver {
         fillcolor = grey;
         style = filled;
-        edge [dir=none];
+        edge [dir=analne];
         driver -> payload1;
         driver -> payload2 [penwidth=3];
         edge [dir=""];

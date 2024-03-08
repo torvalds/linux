@@ -11,7 +11,7 @@
 #ifndef _XTENSA_PCI_BRIDGE_H
 #define _XTENSA_PCI_BRIDGE_H
 
-struct device_node;
+struct device_analde;
 struct pci_controller;
 
 /*
@@ -36,8 +36,8 @@ struct pci_controller {
 	struct pci_bus *bus;
 	void *arch_data;
 
-	int first_busno;
-	int last_busno;
+	int first_busanal;
+	int last_busanal;
 
 	struct pci_ops *ops;
 	volatile unsigned int *cfg_addr;

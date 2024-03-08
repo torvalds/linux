@@ -125,7 +125,7 @@ static int adm8211_read_eeprom(struct ieee80211_hw *dev)
 	priv->eeprom_len = words * 2;
 	priv->eeprom = kmalloc(priv->eeprom_len, GFP_KERNEL);
 	if (!priv->eeprom)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	eeprom_93cx6_multiread(&eeprom, 0, (__le16 *)priv->eeprom, words);
 
@@ -145,7 +145,7 @@ static int adm8211_read_eeprom(struct ieee80211_hw *dev)
 		else
 			priv->rf_type = ADM8211_TYPE_AIROHA;
 
-		printk(KERN_WARNING "%s (adm8211): Unknown RFtype %d\n",
+		printk(KERN_WARNING "%s (adm8211): Unkanalwn RFtype %d\n",
 		       pci_name(priv->pdev), (cr49 >> 3) & 0x7);
 	}
 
@@ -163,7 +163,7 @@ static int adm8211_read_eeprom(struct ieee80211_hw *dev)
 		else
 			priv->bbp_type = ADM8211_TYPE_ADMTEK;
 
-		printk(KERN_WARNING "%s (adm8211): Unknown BBPtype: %d\n",
+		printk(KERN_WARNING "%s (adm8211): Unkanalwn BBPtype: %d\n",
 		       pci_name(priv->pdev), cr49 >> 3);
 	}
 
@@ -203,7 +203,7 @@ static int adm8211_read_eeprom(struct ieee80211_hw *dev)
 		else
 			priv->specific_bbptype = ADM8211_BBP_ADM8011;
 
-		printk(KERN_WARNING "%s (adm8211): Unknown specific BBP: %d\n",
+		printk(KERN_WARNING "%s (adm8211): Unkanalwn specific BBP: %d\n",
 		       pci_name(priv->pdev), priv->eeprom->specific_bbptype);
 	}
 
@@ -224,7 +224,7 @@ static int adm8211_read_eeprom(struct ieee80211_hw *dev)
 		else if (priv->pdev->revision == ADM8211_REV_AB)
 			priv->transceiver_type = ADM8211_RFMD2948;
 
-		printk(KERN_WARNING "%s (adm8211): Unknown transceiver: %d\n",
+		printk(KERN_WARNING "%s (adm8211): Unkanalwn transceiver: %d\n",
 		       pci_name(priv->pdev), priv->eeprom->specific_rftype);
 
 		break;
@@ -330,7 +330,7 @@ static void adm8211_interrupt_tci(struct ieee80211_hw *dev)
 
 		skb_pull(skb, sizeof(struct adm8211_tx_hdr));
 		memcpy(skb_push(skb, info->hdrlen), skb->cb, info->hdrlen);
-		if (!(txi->flags & IEEE80211_TX_CTL_NO_ACK) &&
+		if (!(txi->flags & IEEE80211_TX_CTL_ANAL_ACK) &&
 		    !(status & TDES0_STATUS_ES))
 			txi->flags |= IEEE80211_TX_STAT_ACK;
 
@@ -732,7 +732,7 @@ static int adm8211_rf_set_channel(struct ieee80211_hw *dev, unsigned int chan)
 
 	ADM8211_CSR_WRITE(SYNRF, 0);
 
-	/* Nothing to do for ADMtek BBP */
+	/* Analthing to do for ADMtek BBP */
 	} else if (priv->bbp_type != ADM8211_TYPE_ADMTEK)
 		wiphy_debug(dev->wiphy, "unsupported BBP type %d\n",
 			    priv->bbp_type);
@@ -906,7 +906,7 @@ static int adm8211_hw_init_bbp(struct ieee80211_hw *dev)
 	/* write BBP regs */
 	if (priv->bbp_type == ADM8211_TYPE_RFMD) {
 		/* RF3000 BBP */
-		/* another set:
+		/* aanalther set:
 		 * 11: c8
 		 * 14: 14
 		 * 15: 50 (chan 1..13; chan 14: d0)
@@ -1195,7 +1195,7 @@ static void adm8211_hw_init(struct ieee80211_hw *dev)
 	/* ACK interrupts */
 	ADM8211_CSR_WRITE(STSR, ADM8211_CSR_READ(STSR));
 
-	/* Setup WEP (turns it off for now) */
+	/* Setup WEP (turns it off for analw) */
 	reg = ADM8211_CSR_READ(MACTEST);
 	reg &= ~(7 << 20);
 	ADM8211_CSR_WRITE(MACTEST, reg);
@@ -1393,14 +1393,14 @@ static int adm8211_add_interface(struct ieee80211_hw *dev,
 {
 	struct adm8211_priv *priv = dev->priv;
 	if (priv->mode != NL80211_IFTYPE_MONITOR)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (vif->type) {
 	case NL80211_IFTYPE_STATION:
 		priv->mode = vif->type;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	ADM8211_IDLE();
@@ -1631,7 +1631,7 @@ static int adm8211_tx_raw(struct ieee80211_hw *dev, struct sk_buff *skb,
 	mapping = dma_map_single(&priv->pdev->dev, skb->data, skb->len,
 				 DMA_TO_DEVICE);
 	if (dma_mapping_error(&priv->pdev->dev, mapping))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_irqsave(&priv->lock, flags);
 
@@ -1733,7 +1733,7 @@ static int adm8211_alloc_rings(struct ieee80211_hw *dev)
 	priv->rx_buffers = kmalloc(sizeof(*priv->rx_buffers) * priv->rx_ring_size +
 				   sizeof(*priv->tx_buffers) * priv->tx_ring_size, GFP_KERNEL);
 	if (!priv->rx_buffers)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->tx_buffers = (void *)priv->rx_buffers +
 			   sizeof(*priv->rx_buffers) * priv->rx_ring_size;
@@ -1748,7 +1748,7 @@ static int adm8211_alloc_rings(struct ieee80211_hw *dev)
 		kfree(priv->rx_buffers);
 		priv->rx_buffers = NULL;
 		priv->tx_buffers = NULL;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	priv->tx_ring = priv->rx_ring + priv->rx_ring_size;
@@ -1786,7 +1786,7 @@ static int adm8211_probe(struct pci_dev *pdev,
 
 	err = pci_enable_device(pdev);
 	if (err) {
-		printk(KERN_ERR "%s (adm8211): Cannot enable new PCI device\n",
+		printk(KERN_ERR "%s (adm8211): Cananalt enable new PCI device\n",
 		       pci_name(pdev));
 		return err;
 	}
@@ -1796,7 +1796,7 @@ static int adm8211_probe(struct pci_dev *pdev,
 	if (io_len < 256 || mem_len < 1024) {
 		printk(KERN_ERR "%s (adm8211): Too short PCI resources\n",
 		       pci_name(pdev));
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_disable_pdev;
 	}
 
@@ -1812,14 +1812,14 @@ static int adm8211_probe(struct pci_dev *pdev,
 
 	err = pci_request_regions(pdev, "adm8211");
 	if (err) {
-		printk(KERN_ERR "%s (adm8211): Cannot obtain PCI resources\n",
+		printk(KERN_ERR "%s (adm8211): Cananalt obtain PCI resources\n",
 		       pci_name(pdev));
 		return err; /* someone else grabbed it? don't disable it */
 	}
 
 	err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
 	if (err) {
-		printk(KERN_ERR "%s (adm8211): No suitable DMA available\n",
+		printk(KERN_ERR "%s (adm8211): Anal suitable DMA available\n",
 		       pci_name(pdev));
 		goto err_free_reg;
 	}
@@ -1830,7 +1830,7 @@ static int adm8211_probe(struct pci_dev *pdev,
 	if (!dev) {
 		printk(KERN_ERR "%s (adm8211): ieee80211 alloc failed\n",
 		       pci_name(pdev));
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_free_reg;
 	}
 	priv = dev->priv;
@@ -1847,9 +1847,9 @@ static int adm8211_probe(struct pci_dev *pdev,
 		priv->map = pci_iomap(pdev, 0, io_len);
 
 	if (!priv->map) {
-		printk(KERN_ERR "%s (adm8211): Cannot map device memory\n",
+		printk(KERN_ERR "%s (adm8211): Cananalt map device memory\n",
 		       pci_name(pdev));
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_free_dev;
 	}
 
@@ -1858,7 +1858,7 @@ static int adm8211_probe(struct pci_dev *pdev,
 
 	err = adm8211_alloc_rings(dev);
 	if (err) {
-		printk(KERN_ERR "%s (adm8211): Cannot allocate TX/RX ring\n",
+		printk(KERN_ERR "%s (adm8211): Cananalt allocate TX/RX ring\n",
 		       pci_name(pdev));
 		goto err_iounmap;
 	}
@@ -1914,7 +1914,7 @@ static int adm8211_probe(struct pci_dev *pdev,
 
 	err = ieee80211_register_hw(dev);
 	if (err) {
-		printk(KERN_ERR "%s (adm8211): Cannot register device\n",
+		printk(KERN_ERR "%s (adm8211): Cananalt register device\n",
 		       pci_name(pdev));
 		goto err_free_eeprom;
 	}

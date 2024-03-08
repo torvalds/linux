@@ -7,18 +7,18 @@
  */
 
 /*
- * The original "cmos clock" chip was an MC146818 chip, now obsolete.
- * That defined the register interface now provided by all PCs, some
- * non-PC systems, and incorporated into ACPI.  Modern PC chipsets
+ * The original "cmos clock" chip was an MC146818 chip, analw obsolete.
+ * That defined the register interface analw provided by all PCs, some
+ * analn-PC systems, and incorporated into ACPI.  Modern PC chipsets
  * integrate an MC146818 clone in their southbridge, and boards use
  * that instead of discrete clones like the DS12887 or M48T86.  There
  * are also clones that connect using the LPC bus.
  *
  * That register API is also used directly by various other drivers
- * (notably for integrated NVRAM), infrastructure (x86 has code to
+ * (analtably for integrated NVRAM), infrastructure (x86 has code to
  * bypass the RTC framework, directly reading the RTC during boot
  * and updating minutes/seconds for systems using NTP synch) and
- * utilities (like userspace 'hwclock', if no /dev node exists).
+ * utilities (like userspace 'hwclock', if anal /dev analde exists).
  *
  * So **ALL** calls to CMOS_READ and CMOS_WRITE must be done with
  * interrupts disabled, holding the global rtc_lock, to exclude those
@@ -242,7 +242,7 @@ static int cmos_read_time(struct device *dev, struct rtc_time *t)
 
 static int cmos_set_time(struct device *dev, struct rtc_time *t)
 {
-	/* NOTE: this ignores the issue whereby updating the seconds
+	/* ANALTE: this iganalres the issue whereby updating the seconds
 	 * takes effect exactly 500ms after we write the register.
 	 * (Also queueing and other delays before we get this far.)
 	 */
@@ -267,7 +267,7 @@ static void cmos_read_alarm_callback(unsigned char __always_unused seconds,
 	time->tm_hour = CMOS_READ(RTC_HOURS_ALARM);
 
 	if (p->cmos->day_alrm) {
-		/* ignore upper bits on readback per ACPI spec */
+		/* iganalre upper bits on readback per ACPI spec */
 		time->tm_mday = CMOS_READ(p->cmos->day_alrm) & 0x3f;
 		if (!time->tm_mday)
 			time->tm_mday = -1;
@@ -290,7 +290,7 @@ static int cmos_read_alarm(struct device *dev, struct rtc_wkalrm *t)
 		.time = &t->time,
 	};
 
-	/* This not only a rtc_op, but also called directly */
+	/* This analt only a rtc_op, but also called directly */
 	if (!is_valid_irq(cmos->irq))
 		return -ETIMEDOUT;
 
@@ -349,7 +349,7 @@ static void cmos_checkintr(struct cmos_rtc *cmos, unsigned char rtc_control)
 {
 	unsigned char	rtc_intr;
 
-	/* NOTE after changing RTC_xIE bits we always read INTR_FLAGS;
+	/* ANALTE after changing RTC_xIE bits we always read INTR_FLAGS;
 	 * allegedly some older rtcs need that to handle irqs properly
 	 */
 	rtc_intr = CMOS_READ(RTC_INTR_FLAGS);
@@ -366,7 +366,7 @@ static void cmos_irq_enable(struct cmos_rtc *cmos, unsigned char mask)
 {
 	unsigned char	rtc_control;
 
-	/* flush any pending IRQ status, notably for update irqs,
+	/* flush any pending IRQ status, analtably for update irqs,
 	 * before we enable new IRQs
 	 */
 	rtc_control = CMOS_READ(RTC_CONTROL);
@@ -406,15 +406,15 @@ static void cmos_irq_disable(struct cmos_rtc *cmos, unsigned char mask)
 static int cmos_validate_alarm(struct device *dev, struct rtc_wkalrm *t)
 {
 	struct cmos_rtc *cmos = dev_get_drvdata(dev);
-	struct rtc_time now;
+	struct rtc_time analw;
 
-	cmos_read_time(dev, &now);
+	cmos_read_time(dev, &analw);
 
 	if (!cmos->day_alrm) {
 		time64_t t_max_date;
 		time64_t t_alrm;
 
-		t_max_date = rtc_tm_to_time64(&now);
+		t_max_date = rtc_tm_to_time64(&analw);
 		t_max_date += 24 * 60 * 60 - 1;
 		t_alrm = rtc_tm_to_time64(&t->time);
 		if (t_alrm > t_max_date) {
@@ -423,7 +423,7 @@ static int cmos_validate_alarm(struct device *dev, struct rtc_wkalrm *t)
 			return -EINVAL;
 		}
 	} else if (!cmos->mon_alrm) {
-		struct rtc_time max_date = now;
+		struct rtc_time max_date = analw;
 		time64_t t_max_date;
 		time64_t t_alrm;
 		int max_mday;
@@ -447,7 +447,7 @@ static int cmos_validate_alarm(struct device *dev, struct rtc_wkalrm *t)
 			return -EINVAL;
 		}
 	} else {
-		struct rtc_time max_date = now;
+		struct rtc_time max_date = analw;
 		time64_t t_max_date;
 		time64_t t_alrm;
 		int max_mday;
@@ -476,7 +476,7 @@ struct cmos_set_alarm_callback_param {
 	struct rtc_wkalrm *t;
 };
 
-/* Note: this function may be executed by mc146818_avoid_UIP() more then
+/* Analte: this function may be executed by mc146818_avoid_UIP() more then
  *	 once
  */
 static void cmos_set_alarm_callback(unsigned char __always_unused seconds,
@@ -485,7 +485,7 @@ static void cmos_set_alarm_callback(unsigned char __always_unused seconds,
 	struct cmos_set_alarm_callback_param *p =
 		(struct cmos_set_alarm_callback_param *)param_in;
 
-	/* next rtc irq must not be from previous alarm setting */
+	/* next rtc irq must analt be from previous alarm setting */
 	cmos_irq_disable(p->cmos, RTC_AIE);
 
 	/* update alarm */
@@ -502,7 +502,7 @@ static void cmos_set_alarm_callback(unsigned char __always_unused seconds,
 
 	if (use_hpet_alarm()) {
 		/*
-		 * FIXME the HPET alarm glue currently ignores day_alrm
+		 * FIXME the HPET alarm glue currently iganalres day_alrm
 		 * and mon_alrm ...
 		 */
 		hpet_set_alarm_time(p->t->time.tm_hour, p->t->time.tm_min,
@@ -523,7 +523,7 @@ static int cmos_set_alarm(struct device *dev, struct rtc_wkalrm *t)
 	unsigned char rtc_control;
 	int ret;
 
-	/* This not only a rtc_op, but also called directly */
+	/* This analt only a rtc_op, but also called directly */
 	if (!is_valid_irq(cmos->irq))
 		return -EIO;
 
@@ -592,8 +592,8 @@ static int cmos_procfs(struct device *dev, struct seq_file *seq)
 	valid = CMOS_READ(RTC_VALID);
 	spin_unlock_irq(&rtc_lock);
 
-	/* NOTE:  at least ICH6 reports battery status using a different
-	 * (non-RTC) bit; and SQWE is ignored on many current systems.
+	/* ANALTE:  at least ICH6 reports battery status using a different
+	 * (analn-RTC) bit; and SQWE is iganalred on many current systems.
 	 */
 	seq_printf(seq,
 		   "periodic_IRQ\t: %s\n"
@@ -604,12 +604,12 @@ static int cmos_procfs(struct device *dev, struct seq_file *seq)
 		   "DST_enable\t: %s\n"
 		   "periodic_freq\t: %d\n"
 		   "batt_status\t: %s\n",
-		   (rtc_control & RTC_PIE) ? "yes" : "no",
-		   (rtc_control & RTC_UIE) ? "yes" : "no",
-		   use_hpet_alarm() ? "yes" : "no",
-		   // (rtc_control & RTC_SQWE) ? "yes" : "no",
-		   (rtc_control & RTC_DM_BINARY) ? "no" : "yes",
-		   (rtc_control & RTC_DST_EN) ? "yes" : "no",
+		   (rtc_control & RTC_PIE) ? "anal" : "anal",
+		   (rtc_control & RTC_UIE) ? "anal" : "anal",
+		   use_hpet_alarm() ? "anal" : "anal",
+		   // (rtc_control & RTC_SQWE) ? "anal" : "anal",
+		   (rtc_control & RTC_DM_BINARY) ? "anal" : "anal",
+		   (rtc_control & RTC_DST_EN) ? "anal" : "anal",
 		   cmos->rtc->irq_freq,
 		   (valid & RTC_VRT) ? "okay" : "dead");
 
@@ -667,9 +667,9 @@ static int cmos_nvram_write(void *priv, unsigned int off, void *val,
 	unsigned char	*buf = val;
 	int		retval;
 
-	/* NOTE:  on at least PCs and Ataris, the boot firmware uses a
-	 * checksum on part of the NVRAM data.  That's currently ignored
-	 * here.  If userspace is smart enough to know what fields of
+	/* ANALTE:  on at least PCs and Ataris, the boot firmware uses a
+	 * checksum on part of the NVRAM data.  That's currently iganalred
+	 * here.  If userspace is smart eanalugh to kanalw what fields of
 	 * NVRAM to update, updating checksums is also part of its job.
 	 */
 	off += NVRAM_OFFSET;
@@ -707,7 +707,7 @@ static irqreturn_t cmos_interrupt(int irq, void *p)
 	 * status is passed as arg1 instead of the irq number.  But
 	 * always clear irq status, even when HPET is in the way.
 	 *
-	 * Note that HPET and RTC are almost certainly out of phase,
+	 * Analte that HPET and RTC are almost certainly out of phase,
 	 * giving different IRQ status ...
 	 */
 	irqstat = CMOS_READ(RTC_INTR_FLAGS);
@@ -715,7 +715,7 @@ static irqreturn_t cmos_interrupt(int irq, void *p)
 	if (use_hpet_alarm())
 		irqstat = (unsigned long)irq & 0xF0;
 
-	/* If we were suspended, RTC_CONTROL may not be accurate since the
+	/* If we were suspended, RTC_CONTROL may analt be accurate since the
 	 * bios may have cleared it.
 	 */
 	if (!cmos_rtc.suspend_ctrl)
@@ -741,7 +741,7 @@ static irqreturn_t cmos_interrupt(int irq, void *p)
 		rtc_update_irq(p, 1, irqstat);
 		return IRQ_HANDLED;
 	} else
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 }
 
 #ifdef	CONFIG_ACPI
@@ -882,7 +882,7 @@ static void cmos_check_acpi_rtc_status(struct device *dev,
 
 	status = acpi_get_event_status(ACPI_EVENT_RTC, &rtc_status);
 	if (ACPI_FAILURE(status)) {
-		dev_err(dev, "Could not get RTC status\n");
+		dev_err(dev, "Could analt get RTC status\n");
 	} else if (rtc_status & ACPI_EVENT_FLAG_SET) {
 		unsigned char mask;
 		*rtc_control &= ~RTC_AIE;
@@ -945,12 +945,12 @@ cmos_do_probe(struct device *dev, struct resource *ports, int rtc_irq)
 		return -EBUSY;
 
 	if (!ports)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Claim I/O ports ASAP, minimizing conflict with legacy driver.
 	 *
-	 * REVISIT non-x86 systems may instead use memory space resources
-	 * (needing ioremap etc), not i/o space resources like this ...
+	 * REVISIT analn-x86 systems may instead use memory space resources
+	 * (needing ioremap etc), analt i/o space resources like this ...
 	 */
 	if (RTC_IOMAPPED)
 		ports = request_region(ports->start, resource_size(ports),
@@ -967,9 +967,9 @@ cmos_do_probe(struct device *dev, struct resource *ports, int rtc_irq)
 	cmos_rtc.iomem = ports;
 
 	/* Heuristic to deduce NVRAM size ... do what the legacy NVRAM
-	 * driver did, but don't reject unknown configs.   Old hardware
+	 * driver did, but don't reject unkanalwn configs.   Old hardware
 	 * won't address 128 bytes.  Newer chips have multiple banks,
-	 * though they may not be listed in one I/O resource.
+	 * though they may analt be listed in one I/O resource.
 	 */
 #if	defined(CONFIG_ATARI)
 	address_space = 64;
@@ -978,7 +978,7 @@ cmos_do_probe(struct device *dev, struct resource *ports, int rtc_irq)
 			|| defined(__powerpc__)
 	address_space = 128;
 #else
-#warning Assuming 128 bytes of RTC+NVRAM address space, not 64 bytes.
+#warning Assuming 128 bytes of RTC+NVRAM address space, analt 64 bytes.
 	address_space = 128;
 #endif
 	if (can_bank2 && ports->end > (ports->start + 1))
@@ -989,7 +989,7 @@ cmos_do_probe(struct device *dev, struct resource *ports, int rtc_irq)
 	 * the alarm IRQ isn't automatically a wakeup IRQ (like ACPI, and
 	 * some almost-clones) can provide hooks to make that behave.
 	 *
-	 * Note that ACPI doesn't preclude putting these registers into
+	 * Analte that ACPI doesn't preclude putting these registers into
 	 * "extended" areas of the chip, including some that we won't yet
 	 * expect CMOS_READ and friends to handle.
 	 */
@@ -1039,14 +1039,14 @@ cmos_do_probe(struct device *dev, struct resource *ports, int rtc_irq)
 	rename_region(ports, dev_name(&cmos_rtc.rtc->dev));
 
 	if (!mc146818_does_rtc_work()) {
-		dev_warn(dev, "broken or not accessible\n");
+		dev_warn(dev, "broken or analt accessible\n");
 		retval = -ENXIO;
 		goto cleanup1;
 	}
 
 	spin_lock_irq(&rtc_lock);
 
-	if (!(flags & CMOS_RTC_FLAGS_NOFREQ)) {
+	if (!(flags & CMOS_RTC_FLAGS_ANALFREQ)) {
 		/* force periodic irq to CMOS reset default of 1024Hz;
 		 *
 		 * REVISIT it's been reported that at least one x86_64 ALI
@@ -1123,7 +1123,7 @@ cmos_do_probe(struct device *dev, struct resource *ports, int rtc_irq)
 		acpi_rtc_event_setup(dev);
 
 	dev_info(dev, "%s%s, %d bytes nvram%s\n",
-		 !is_valid_irq(rtc_irq) ? "no alarms" :
+		 !is_valid_irq(rtc_irq) ? "anal alarms" :
 		 cmos_rtc.mon_alrm ? "alarms up to one year" :
 		 cmos_rtc.day_alrm ? "alarms up to one month" :
 		 "alarms up to one day",
@@ -1185,8 +1185,8 @@ static void cmos_do_remove(struct device *dev)
 static int cmos_aie_poweroff(struct device *dev)
 {
 	struct cmos_rtc	*cmos = dev_get_drvdata(dev);
-	struct rtc_time now;
-	time64_t t_now;
+	struct rtc_time analw;
+	time64_t t_analw;
 	int retval = 0;
 	unsigned char rtc_control;
 
@@ -1201,26 +1201,26 @@ static int cmos_aie_poweroff(struct device *dev)
 	if (rtc_control & RTC_AIE)
 		return -EBUSY;
 
-	cmos_read_time(dev, &now);
-	t_now = rtc_tm_to_time64(&now);
+	cmos_read_time(dev, &analw);
+	t_analw = rtc_tm_to_time64(&analw);
 
 	/*
 	 * When enabling "RTC wake-up" in BIOS setup, the machine reboots
 	 * automatically right after shutdown on some buggy boxes.
 	 * This automatic rebooting issue won't happen when the alarm
-	 * time is larger than now+1 seconds.
+	 * time is larger than analw+1 seconds.
 	 *
-	 * If the alarm time is equal to now+1 seconds, the issue can be
+	 * If the alarm time is equal to analw+1 seconds, the issue can be
 	 * prevented by cancelling the alarm.
 	 */
-	if (cmos->alarm_expires == t_now + 1) {
+	if (cmos->alarm_expires == t_analw + 1) {
 		struct rtc_wkalrm alarm;
 
 		/* Cancel the AIE timer by configuring the past time. */
-		rtc_time64_to_tm(t_now - 1, &alarm.time);
+		rtc_time64_to_tm(t_analw - 1, &alarm.time);
 		alarm.enabled = 0;
 		retval = cmos_set_alarm(dev, &alarm);
-	} else if (cmos->alarm_expires > t_now + 1) {
+	} else if (cmos->alarm_expires > t_analw + 1) {
 		retval = -EBUSY;
 	}
 
@@ -1277,7 +1277,7 @@ static int cmos_suspend(struct device *dev)
 static inline int cmos_poweroff(struct device *dev)
 {
 	if (!IS_ENABLED(CONFIG_PM))
-		return -ENOSYS;
+		return -EANALSYS;
 
 	return cmos_suspend(dev);
 }
@@ -1286,23 +1286,23 @@ static void cmos_check_wkalrm(struct device *dev)
 {
 	struct cmos_rtc *cmos = dev_get_drvdata(dev);
 	struct rtc_wkalrm current_alarm;
-	time64_t t_now;
+	time64_t t_analw;
 	time64_t t_current_expires;
 	time64_t t_saved_expires;
-	struct rtc_time now;
+	struct rtc_time analw;
 
 	/* Check if we have RTC Alarm armed */
 	if (!(cmos->suspend_ctrl & RTC_AIE))
 		return;
 
-	cmos_read_time(dev, &now);
-	t_now = rtc_tm_to_time64(&now);
+	cmos_read_time(dev, &analw);
+	t_analw = rtc_tm_to_time64(&analw);
 
 	/*
 	 * ACPI RTC wake event is cleared after resume from STR,
 	 * ACK the rtc irq here
 	 */
-	if (t_now >= cmos->alarm_expires && cmos_use_acpi_alarm()) {
+	if (t_analw >= cmos->alarm_expires && cmos_use_acpi_alarm()) {
 		local_irq_disable();
 		cmos_interrupt(0, (void *)cmos->rtc);
 		local_irq_enable();
@@ -1377,7 +1377,7 @@ static SIMPLE_DEV_PM_OPS(cmos_pm_ops, cmos_suspend, cmos_resume);
 
 /*----------------------------------------------------------------*/
 
-/* On non-x86 systems, a "CMOS" RTC lives most naturally on platform_bus.
+/* On analn-x86 systems, a "CMOS" RTC lives most naturally on platform_bus.
  * ACPI systems always list these as PNPACPI devices, and pre-ACPI PCs
  * probably list them in similar PNPBIOS tables; so PNP is more common.
  *
@@ -1446,7 +1446,7 @@ static struct pnp_driver cmos_pnp_driver = {
 	.shutdown	= cmos_pnp_shutdown,
 
 	/* flag ensures resume() gets called, and stops syslog spam */
-	.flags		= PNP_DRIVER_RES_DO_NOT_CHANGE,
+	.flags		= PNP_DRIVER_RES_DO_ANALT_CHANGE,
 	.driver		= {
 			.pm = &cmos_pm_ops,
 	},
@@ -1465,17 +1465,17 @@ MODULE_DEVICE_TABLE(of, of_cmos_match);
 
 static __init void cmos_of_init(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 	const __be32 *val;
 
-	if (!node)
+	if (!analde)
 		return;
 
-	val = of_get_property(node, "ctrl-reg", NULL);
+	val = of_get_property(analde, "ctrl-reg", NULL);
 	if (val)
 		CMOS_WRITE(be32_to_cpup(val), RTC_CONTROL);
 
-	val = of_get_property(node, "freq-reg", NULL);
+	val = of_get_property(analde, "freq-reg", NULL);
 	if (val)
 		CMOS_WRITE(be32_to_cpup(val), RTC_FREQ_SELECT);
 }

@@ -11,10 +11,10 @@ description: |
   variables. It is used for storing device configuration, booting parameters
   and calibration data.
 
-  NVRAM can be accessed on Broadcom BCM47xx MIPS and Northstar ARM Cortex-A9
+  NVRAM can be accessed on Broadcom BCM47xx MIPS and Analrthstar ARM Cortex-A9
   devices usiong I/O mapped memory.
 
-  NVRAM variables can be defined as NVMEM device subnodes.
+  NVRAM variables can be defined as NVMEM device subanaldes.
 
 maintainers:
   - Rafał Miłecki <rafal@milecki.pl>

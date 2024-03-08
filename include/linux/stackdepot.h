@@ -46,7 +46,7 @@ typedef u32 depot_flags_t;
  * Using stack depot requires its initialization, which can be done in 3 ways:
  *
  * 1. Selecting CONFIG_STACKDEPOT_ALWAYS_INIT. This option is suitable in
- *    scenarios where it's known at compile time that stack depot will be used.
+ *    scenarios where it's kanalwn at compile time that stack depot will be used.
  *    Enabling this config makes the kernel initialize stack depot in mm_init().
  *
  * 2. Calling stack_depot_request_early_init() during early boot, before
@@ -58,7 +58,7 @@ typedef u32 depot_flags_t;
  *    mm_init() completes.
  *
  * stack_depot_init() and stack_depot_request_early_init() can be called
- * regardless of whether CONFIG_STACKDEPOT is enabled and are no-op when this
+ * regardless of whether CONFIG_STACKDEPOT is enabled and are anal-op when this
  * config is disabled. The save/fetch/print stack depot functions can only be
  * called from the code that makes sure CONFIG_STACKDEPOT is enabled _and_
  * initializes stack depot via one of the ways listed above.
@@ -89,22 +89,22 @@ static inline int stack_depot_early_init(void)	{ return 0; }
  * Saves a stack trace from @entries array of size @nr_entries.
  *
  * If STACK_DEPOT_FLAG_CAN_ALLOC is set in @depot_flags, stack depot can
- * replenish the stack pools in case no space is left (allocates using GFP
+ * replenish the stack pools in case anal space is left (allocates using GFP
  * flags of @alloc_flags). Otherwise, stack depot avoids any allocations and
- * fails if no space is left to store the stack trace.
+ * fails if anal space is left to store the stack trace.
  *
  * If STACK_DEPOT_FLAG_GET is set in @depot_flags, stack depot will increment
  * the refcount on the saved stack trace if it already exists in stack depot.
  * Users of this flag must also call stack_depot_put() when keeping the stack
- * trace is no longer required to avoid overflowing the refcount.
+ * trace is anal longer required to avoid overflowing the refcount.
  *
  * If the provided stack trace comes from the interrupt context, only the part
  * up to the interrupt entry is saved.
  *
  * Context: Any context, but setting STACK_DEPOT_FLAG_CAN_ALLOC is required if
- *          alloc_pages() cannot be used from the current context. Currently
- *          this is the case for contexts where neither %GFP_ATOMIC nor
- *          %GFP_NOWAIT can be used (NMI, raw_spin_lock).
+ *          alloc_pages() cananalt be used from the current context. Currently
+ *          this is the case for contexts where neither %GFP_ATOMIC analr
+ *          %GFP_ANALWAIT can be used (NMI, raw_spin_lock).
  *
  * Return: Handle of the stack struct stored in depot, 0 on failure
  */
@@ -120,7 +120,7 @@ depot_stack_handle_t stack_depot_save_flags(unsigned long *entries,
  * @nr_entries:		Number of frames in the stack
  * @alloc_flags:	Allocation GFP flags
  *
- * Does not increment the refcount on the saved stack trace; see
+ * Does analt increment the refcount on the saved stack trace; see
  * stack_depot_save_flags() for more details.
  *
  * Context: Contexts where allocations via alloc_pages() are allowed;

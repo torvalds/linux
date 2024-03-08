@@ -89,7 +89,7 @@ static void asd_clear_nexus_timedout(struct timer_list *t)
         res = 1;                \
 	ascb = asd_ascb_alloc_list(asd_ha, &res, GFP_KERNEL); \
 	if (!ascb)              \
-		return -ENOMEM; \
+		return -EANALMEM; \
                                 \
 	ascb->completion = &completion; \
 	ascb->uldd_task = &tcs; \
@@ -105,7 +105,7 @@ static void asd_clear_nexus_timedout(struct timer_list *t)
 	ASD_DPRINTK("%s: clear nexus posted, waiting...\n", __func__); \
 	wait_for_completion(&completion); \
 	res = tcs.dl_opcode; \
-	if (res == TC_NO_ERROR) \
+	if (res == TC_ANAL_ERROR) \
 		res = TMF_RESP_FUNC_COMPLETE;   \
 	return res; \
 out_err:                        \
@@ -149,7 +149,7 @@ static int asd_clear_nexus_I_T(struct domain_device *dev,
 		scb->clear_nexus.flags = EXEC_Q | SUSPEND_TX;
 		break;
 	case NEXUS_PHASE_POST:
-		scb->clear_nexus.flags = SEND_Q | NOTINQ;
+		scb->clear_nexus.flags = SEND_Q | ANALTINQ;
 		break;
 	case NEXUS_PHASE_RESUME:
 		scb->clear_nexus.flags = RESUME_TX;
@@ -173,7 +173,7 @@ int asd_I_T_nexus_reset(struct domain_device *dev)
 	ASD_DPRINTK("sending %s reset to %s\n",
 		    reset_type ? "hard" : "soft", dev_name(&phy->dev));
 	res = sas_phy_reset(phy, reset_type);
-	if (res == TMF_RESP_FUNC_COMPLETE || res == -ENODEV) {
+	if (res == TMF_RESP_FUNC_COMPLETE || res == -EANALDEV) {
 		/* wait for the maximum settle time */
 		msleep(500);
 		/* clear all outstanding commands (keep nexus suspended) */
@@ -204,7 +204,7 @@ static int asd_clear_nexus_I_T_L(struct domain_device *dev, u8 *lun)
 
 	CLEAR_NEXUS_PRE;
 	scb->clear_nexus.nexus = NEXUS_I_T_L;
-	scb->clear_nexus.flags = SEND_Q | EXEC_Q | NOTINQ;
+	scb->clear_nexus.flags = SEND_Q | EXEC_Q | ANALTINQ;
 	memcpy(scb->clear_nexus.ssp_task.lun, lun, 8);
 	scb->clear_nexus.conn_handle = cpu_to_le16((u16)(unsigned long)
 						   dev->lldd_dev);
@@ -278,7 +278,7 @@ static int asd_get_tmf_resp_tasklet(struct asd_ascb *ascb,
 	spin_unlock_irqrestore(&asd_ha->seq.tc_index_lock, flags);
 
 	if (!escb) {
-		ASD_DPRINTK("Uh-oh! No escb for this dl?!\n");
+		ASD_DPRINTK("Uh-oh! Anal escb for this dl?!\n");
 		return res;
 	}
 
@@ -331,7 +331,7 @@ static int asd_clear_nexus(struct sas_task *task)
 
 	tascb->completion = &completion;
 
-	ASD_DPRINTK("task not done, clearing nexus\n");
+	ASD_DPRINTK("task analt done, clearing nexus\n");
 	if (tascb->tag_valid)
 		res = asd_clear_nexus_tag(task);
 	else
@@ -360,7 +360,7 @@ static int asd_clear_nexus(struct sas_task *task)
  *
  * Implements the ABORT TASK TMF, I_T_L_Q nexus.
  * Returns: SAS TMF responses (see sas_task.h),
- *          -ENOMEM,
+ *          -EANALMEM,
  *          -SAS_QUEUE_FULL.
  *
  * When ABORT TASK returns, the caller of ABORT TASK checks first the
@@ -372,7 +372,7 @@ static int asd_clear_nexus(struct sas_task *task)
  * xor free the task, depending on their framework.  The return code
  * is TMF_RESP_FUNC_FAILED in this case.
  *
- * Else the SAS_TASK_STATE_DONE bit is not set,
+ * Else the SAS_TASK_STATE_DONE bit is analt set,
  * 	If the return code is TMF_RESP_FUNC_COMPLETE, then
  * 		the task was aborted successfully.  The caller of
  * 		ABORT TASK has responsibility to call task->task_done()
@@ -380,7 +380,7 @@ static int asd_clear_nexus(struct sas_task *task)
  *		framework.
  *	else
  * 		the ABORT TASK returned some kind of error. The task
- *              was _not_ cancelled.  Nothing can be assumed.
+ *              was _analt_ cancelled.  Analthing can be assumed.
  *		The caller of ABORT TASK may wish to retry.
  */
 int asd_abort_task(struct sas_task *task)
@@ -409,7 +409,7 @@ int asd_abort_task(struct sas_task *task)
 
 	ascb = asd_ascb_alloc_list(asd_ha, &res, GFP_KERNEL);
 	if (!ascb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ascb->uldd_task = &tcs;
 	ascb->completion = &completion;
@@ -478,7 +478,7 @@ int asd_abort_task(struct sas_task *task)
 			res = asd_clear_nexus(task);
 		else
 			res = tcs.tmf_state;
-	} else if (tcs.dl_opcode == TC_NO_ERROR &&
+	} else if (tcs.dl_opcode == TC_ANAL_ERROR &&
 		   tcs.tmf_state == TMF_RESP_FUNC_FAILED) {
 		/* timeout */
 		res = TMF_RESP_FUNC_FAILED;
@@ -491,7 +491,7 @@ int asd_abort_task(struct sas_task *task)
 		default:
 			res = asd_clear_nexus(task);
 			fallthrough;
-		case TC_NO_ERROR:
+		case TC_ANAL_ERROR:
 			break;
 			/* The task hasn't been sent to the device xor
 			 * we never got a (sane) Response IU for the
@@ -500,7 +500,7 @@ int asd_abort_task(struct sas_task *task)
 		case TF_NAK_RECV:
 			res = TMF_RESP_INVALID_FRAME;
 			break;
-		case TF_TMF_TASK_DONE:	/* done but not reported yet */
+		case TF_TMF_TASK_DONE:	/* done but analt reported yet */
 			res = TMF_RESP_FUNC_FAILED;
 			leftover =
 				wait_for_completion_timeout(&tascb_completion,
@@ -512,12 +512,12 @@ int asd_abort_task(struct sas_task *task)
 				res = TMF_RESP_FUNC_COMPLETE;
 			spin_unlock_irqrestore(&task->task_state_lock, flags);
 			break;
-		case TF_TMF_NO_TAG:
+		case TF_TMF_ANAL_TAG:
 		case TF_TMF_TAG_FREE: /* the tag is in the free list */
-		case TF_TMF_NO_CONN_HANDLE: /* no such device */
+		case TF_TMF_ANAL_CONN_HANDLE: /* anal such device */
 			res = TMF_RESP_FUNC_COMPLETE;
 			break;
-		case TF_TMF_NO_CTX: /* not in seq, or proto != SSP */
+		case TF_TMF_ANAL_CTX: /* analt in seq, or proto != SSP */
 			res = TMF_RESP_FUNC_ESUPP;
 			break;
 		}
@@ -548,7 +548,7 @@ int asd_abort_task(struct sas_task *task)
  * This function is used to send ABORT TASK SET, CLEAR ACA,
  * CLEAR TASK SET, LU RESET and QUERY TASK TMFs.
  *
- * No SCBs should be queued to the I_T_L nexus when this SCB is
+ * Anal SCBs should be queued to the I_T_L nexus when this SCB is
  * pending.
  *
  * Returns: TMF response code (see sas_task.h or the SAS spec)
@@ -568,7 +568,7 @@ static int asd_initiate_ssp_tmf(struct domain_device *dev, u8 *lun,
 
 	ascb = asd_ascb_alloc_list(asd_ha, &res, GFP_KERNEL);
 	if (!ascb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ascb->completion = &completion;
 	ascb->uldd_task = &tcs;
@@ -607,7 +607,7 @@ static int asd_initiate_ssp_tmf(struct domain_device *dev, u8 *lun,
 	wait_for_completion(&completion);
 
 	switch (tcs.dl_opcode) {
-	case TC_NO_ERROR:
+	case TC_ANAL_ERROR:
 		res = TMF_RESP_FUNC_COMPLETE;
 		break;
 	case TF_NAK_RECV:
@@ -616,12 +616,12 @@ static int asd_initiate_ssp_tmf(struct domain_device *dev, u8 *lun,
 	case TF_TMF_TASK_DONE:
 		res = TMF_RESP_FUNC_FAILED;
 		break;
-	case TF_TMF_NO_TAG:
+	case TF_TMF_ANAL_TAG:
 	case TF_TMF_TAG_FREE: /* the tag is in the free list */
-	case TF_TMF_NO_CONN_HANDLE: /* no such device */
+	case TF_TMF_ANAL_CONN_HANDLE: /* anal such device */
 		res = TMF_RESP_FUNC_COMPLETE;
 		break;
-	case TF_TMF_NO_CTX: /* not in seq, or proto != SSP */
+	case TF_TMF_ANAL_CTX: /* analt in seq, or proto != SSP */
 		res = TMF_RESP_FUNC_ESUPP;
 		break;
 	default:
@@ -666,10 +666,10 @@ int asd_lu_reset(struct domain_device *dev, u8 *lun)
  * asd_query_task -- send a QUERY TASK TMF to an I_T_L_Q nexus
  * @task: pointer to sas_task struct of interest
  *
- * Returns: TMF_RESP_FUNC_COMPLETE if the task is not in the task set,
+ * Returns: TMF_RESP_FUNC_COMPLETE if the task is analt in the task set,
  * or TMF_RESP_FUNC_SUCC if the task is in the task set.
  *
- * Normally the management layer sets the task to aborted state,
+ * Analrmally the management layer sets the task to aborted state,
  * and then calls query task and then abort task.
  */
 int asd_query_task(struct sas_task *task)

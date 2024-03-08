@@ -46,7 +46,7 @@ static int rt2x00lib_request_firmware(struct rt2x00_dev *rt2x00dev)
 	if (!fw || !fw->size || !fw->data) {
 		rt2x00_err(rt2x00dev, "Failed to read Firmware\n");
 		release_firmware(fw);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	rt2x00_info(rt2x00dev, "Firmware detected - version: %d.%d\n",
@@ -67,7 +67,7 @@ static int rt2x00lib_request_firmware(struct rt2x00_dev *rt2x00dev)
 			   fw->size);
 		goto exit;
 	case FW_BAD_VERSION:
-		rt2x00_err(rt2x00dev, "Current firmware does not support detected chipset\n");
+		rt2x00_err(rt2x00dev, "Current firmware does analt support detected chipset\n");
 		goto exit;
 	}
 
@@ -78,7 +78,7 @@ static int rt2x00lib_request_firmware(struct rt2x00_dev *rt2x00dev)
 exit:
 	release_firmware(fw);
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 int rt2x00lib_load_firmware(struct rt2x00_dev *rt2x00dev)
@@ -104,7 +104,7 @@ int rt2x00lib_load_firmware(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * When the firmware is uploaded to the hardware the LED
 	 * association status might have been triggered, for correct
-	 * LED handling it should now be reset.
+	 * LED handling it should analw be reset.
 	 */
 	rt2x00leds_led_assoc(rt2x00dev, false);
 

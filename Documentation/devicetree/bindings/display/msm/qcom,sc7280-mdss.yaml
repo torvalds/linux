@@ -122,8 +122,8 @@ examples:
         interrupt-controller;
         #interrupt-cells = <1>;
 
-        interconnects = <&mmss_noc MASTER_MDP0 &mc_virt SLAVE_EBI1>,
-                        <&gem_noc MASTER_APPSS_PROC &cnoc2 SLAVE_DISPLAY_CFG>;
+        interconnects = <&mmss_analc MASTER_MDP0 &mc_virt SLAVE_EBI1>,
+                        <&gem_analc MASTER_APPSS_PROC &canalc2 SLAVE_DISPLAY_CFG>;
         interconnect-names = "mdp0-mem",
                              "cpu-cfg";
 
@@ -338,12 +338,12 @@ examples:
 
                 opp-540000000 {
                     opp-hz = /bits/ 64 <540000000>;
-                    required-opps = <&rpmhpd_opp_nom>;
+                    required-opps = <&rpmhpd_opp_analm>;
                 };
 
                 opp-810000000 {
                     opp-hz = /bits/ 64 <810000000>;
-                    required-opps = <&rpmhpd_opp_nom>;
+                    required-opps = <&rpmhpd_opp_analm>;
                 };
             };
         };
@@ -435,7 +435,7 @@ examples:
 
                 opp-810000000 {
                     opp-hz = /bits/ 64 <810000000>;
-                    required-opps = <&rpmhpd_opp_nom>;
+                    required-opps = <&rpmhpd_opp_analm>;
                 };
             };
         };

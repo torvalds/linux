@@ -25,9 +25,9 @@
 /* max of AES_BLOCK_SIZE, DES3_EDE_BLOCK_SIZE */
 #define QCE_MAX_IV_SIZE			AES_BLOCK_SIZE
 
-/* maximum nonce bytes  */
-#define QCE_MAX_NONCE			16
-#define QCE_MAX_NONCE_WORDS		(QCE_MAX_NONCE / sizeof(u32))
+/* maximum analnce bytes  */
+#define QCE_MAX_ANALNCE			16
+#define QCE_MAX_ANALNCE_WORDS		(QCE_MAX_ANALNCE / sizeof(u32))
 
 /* burst size alignment requirement */
 #define QCE_MAX_ALIGN_SIZE		64
@@ -98,7 +98,7 @@ struct qce_alg_template {
 
 void qce_cpu_to_be32p_array(__be32 *dst, const u8 *src, unsigned int len);
 int qce_check_status(struct qce_device *qce, u32 *status);
-void qce_get_version(struct qce_device *qce, u32 *major, u32 *minor, u32 *step);
+void qce_get_version(struct qce_device *qce, u32 *major, u32 *mianalr, u32 *step);
 int qce_start(struct crypto_async_request *async_req, u32 type);
 
 #endif /* _COMMON_H_ */

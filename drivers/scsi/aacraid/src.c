@@ -38,17 +38,17 @@ static irqreturn_t aac_src_intr_message(int irq, void *dev_id)
 	struct aac_msix_ctx *ctx;
 	struct aac_dev *dev;
 	unsigned long bellbits, bellbits_shifted;
-	int vector_no;
+	int vector_anal;
 	int isFastResponse, mode;
 	u32 index, handle;
 
 	ctx = (struct aac_msix_ctx *)dev_id;
 	dev = ctx->dev;
-	vector_no = ctx->vector_no;
+	vector_anal = ctx->vector_anal;
 
 	if (dev->msi_enabled) {
 		mode = AAC_INT_MODE_MSI;
-		if (vector_no == 0) {
+		if (vector_anal == 0) {
 			bellbits = src_readl(dev, MUnit.ODR_MSI);
 			if (bellbits & 0x40000)
 				mode |= AAC_INT_MODE_AIF;
@@ -109,7 +109,7 @@ static irqreturn_t aac_src_intr_message(int irq, void *dev_id)
 			}
 			spin_unlock_irqrestore(&dev->sync_lock, sflags);
 			if (send_it) {
-				aac_adapter_sync_cmd(dev, SEND_SYNCHRONOUS_FIB,
+				aac_adapter_sync_cmd(dev, SEND_SYNCHROANALUS_FIB,
 					(u32)dev->sync_fib->hw_fib_pa,
 					0, 0, 0, 0, 0,
 					NULL, NULL, NULL, NULL, NULL);
@@ -125,12 +125,12 @@ static irqreturn_t aac_src_intr_message(int irq, void *dev_id)
 		if (dev->sa_firmware) {
 			u32 events = src_readl(dev, MUnit.SCR0);
 
-			aac_intr_normal(dev, events, 1, 0, NULL);
+			aac_intr_analrmal(dev, events, 1, 0, NULL);
 			writel(events, &dev->IndexRegs->Mailbox[0]);
 			src_writel(dev, MUnit.IDR, 1 << 23);
 		} else {
 			if (dev->aif_thread && dev->fsa_dev)
-				aac_intr_normal(dev, 0, 2, 0, NULL);
+				aac_intr_analrmal(dev, 0, 2, 0, NULL);
 		}
 		if (dev->msi_enabled)
 			aac_src_access_devreg(dev, AAC_CLEAR_AIF_BIT);
@@ -138,7 +138,7 @@ static irqreturn_t aac_src_intr_message(int irq, void *dev_id)
 	}
 
 	if (mode) {
-		index = dev->host_rrq_idx[vector_no];
+		index = dev->host_rrq_idx[vector_anal];
 
 		for (;;) {
 			isFastResponse = 0;
@@ -153,12 +153,12 @@ static irqreturn_t aac_src_intr_message(int irq, void *dev_id)
 				break;
 			handle >>= 2;
 			if (dev->msi_enabled && dev->max_msix > 1)
-				atomic_dec(&dev->rrq_outstanding[vector_no]);
-			aac_intr_normal(dev, handle, 0, isFastResponse, NULL);
+				atomic_dec(&dev->rrq_outstanding[vector_anal]);
+			aac_intr_analrmal(dev, handle, 0, isFastResponse, NULL);
 			dev->host_rrq[index++] = 0;
-			if (index == (vector_no + 1) * dev->vector_cap)
-				index = vector_no * dev->vector_cap;
-			dev->host_rrq_idx[vector_no] = index;
+			if (index == (vector_anal + 1) * dev->vector_cap)
+				index = vector_anal * dev->vector_cap;
+			dev->host_rrq_idx[vector_anal] = index;
 		}
 		mode = 0;
 	}
@@ -202,7 +202,7 @@ static void aac_src_enable_interrupt_message(struct aac_dev *dev)
  *	@r3: third return value
  *	@r4: forth return value
  *
- *	This routine will send a synchronous command to the adapter and wait
+ *	This routine will send a synchroanalus command to the adapter and wait
  *	for its	completion.
  */
 
@@ -250,7 +250,7 @@ static int src_sync_cmd(struct aac_dev *dev, u32 command,
 	 */
 	src_writel(dev, MUnit.IDR, INBOUNDDOORBELL_0 << SRC_IDR_SHIFT);
 
-	if ((!dev->sync_mode || command != SEND_SYNCHRONOUS_FIB) &&
+	if ((!dev->sync_mode || command != SEND_SYNCHROANALUS_FIB) &&
 		!dev->in_soft_reset) {
 		ok = 0;
 		start = jiffies;
@@ -340,31 +340,31 @@ static void aac_src_interrupt_adapter(struct aac_dev *dev)
 }
 
 /**
- *	aac_src_notify_adapter		-	send an event to the adapter
+ *	aac_src_analtify_adapter		-	send an event to the adapter
  *	@dev: Adapter
  *	@event: Event to send
  *
- *	Notify the i960 that something it probably cares about has
+ *	Analtify the i960 that something it probably cares about has
  *	happened.
  */
 
-static void aac_src_notify_adapter(struct aac_dev *dev, u32 event)
+static void aac_src_analtify_adapter(struct aac_dev *dev, u32 event)
 {
 	switch (event) {
 
-	case AdapNormCmdQue:
+	case AdapAnalrmCmdQue:
 		src_writel(dev, MUnit.ODR_C,
 			INBOUNDDOORBELL_1 << SRC_ODR_SHIFT);
 		break;
-	case HostNormRespNotFull:
+	case HostAnalrmRespAnaltFull:
 		src_writel(dev, MUnit.ODR_C,
 			INBOUNDDOORBELL_4 << SRC_ODR_SHIFT);
 		break;
-	case AdapNormRespQue:
+	case AdapAnalrmRespQue:
 		src_writel(dev, MUnit.ODR_C,
 			INBOUNDDOORBELL_2 << SRC_ODR_SHIFT);
 		break;
-	case HostNormCmdNotFull:
+	case HostAnalrmCmdAnaltFull:
 		src_writel(dev, MUnit.ODR_C,
 			INBOUNDDOORBELL_3 << SRC_ODR_SHIFT);
 		break;
@@ -400,7 +400,7 @@ static void aac_src_start_adapter(struct aac_dev *dev)
 		atomic_set(&dev->rrq_outstanding[i], 0);
 	}
 	atomic_set(&dev->msix_counter, 0);
-	dev->fibs_pushed_no = 0;
+	dev->fibs_pushed_anal = 0;
 
 	init = dev->init;
 	if (dev->comm_interface == AAC_COMM_MESSAGE_TYPE3) {
@@ -483,7 +483,7 @@ static inline u32 aac_get_vector(struct aac_dev *dev)
 static int aac_src_deliver_message(struct fib *fib)
 {
 	struct aac_dev *dev = fib->dev;
-	struct aac_queue *q = &dev->queues->queue[AdapNormCmdQueue];
+	struct aac_queue *q = &dev->queues->queue[AdapAnalrmCmdQueue];
 	u32 fibsize;
 	dma_addr_t address;
 	struct aac_fib_xporthdr *pFibX;
@@ -492,7 +492,7 @@ static int aac_src_deliver_message(struct fib *fib)
 	unsigned long flags;
 #endif
 
-	u16 vector_no;
+	u16 vector_anal;
 
 	atomic_inc(&q->numpending);
 
@@ -504,9 +504,9 @@ static int aac_src_deliver_message(struct fib *fib)
 
 		if ((dev->comm_interface == AAC_COMM_MESSAGE_TYPE3)
 			&& dev->sa_firmware)
-			vector_no = aac_get_vector(dev);
+			vector_anal = aac_get_vector(dev);
 		else
-			vector_no = fib->vector_no;
+			vector_anal = fib->vector_anal;
 
 		if (native_hba) {
 			if (fib->flags & FIB_CONTEXT_FLAG_NATIVE_HBA_TMF) {
@@ -518,34 +518,34 @@ static int aac_src_deliver_message(struct fib *fib)
 					HBA_IU_TYPE_SCSI_TM_REQ) {
 					((struct aac_hba_tm_req *)
 						fib->hw_fib_va)->reply_qid
-							= vector_no;
+							= vector_anal;
 					((struct aac_hba_tm_req *)
 						fib->hw_fib_va)->request_id
-							+= (vector_no << 16);
+							+= (vector_anal << 16);
 				} else {
 					((struct aac_hba_reset_req *)
 						fib->hw_fib_va)->reply_qid
-							= vector_no;
+							= vector_anal;
 					((struct aac_hba_reset_req *)
 						fib->hw_fib_va)->request_id
-							+= (vector_no << 16);
+							+= (vector_anal << 16);
 				}
 			} else {
 				((struct aac_hba_cmd_req *)
 					fib->hw_fib_va)->reply_qid
-						= vector_no;
+						= vector_anal;
 				((struct aac_hba_cmd_req *)
 					fib->hw_fib_va)->request_id
-						+= (vector_no << 16);
+						+= (vector_anal << 16);
 			}
 		} else {
-			fib->hw_fib_va->header.Handle += (vector_no << 16);
+			fib->hw_fib_va->header.Handle += (vector_anal << 16);
 		}
 	} else {
-		vector_no = 0;
+		vector_anal = 0;
 	}
 
-	atomic_inc(&dev->rrq_outstanding[vector_no]);
+	atomic_inc(&dev->rrq_outstanding[vector_anal]);
 
 	if (native_hba) {
 		address = fib->hw_fib_pa;
@@ -753,7 +753,7 @@ static void aac_src_drop_io(struct aac_dev *dev)
 			0, 0, 0, 0, 0, 0, NULL, NULL, NULL, NULL, NULL);
 }
 
-static void aac_notify_fw_of_iop_reset(struct aac_dev *dev)
+static void aac_analtify_fw_of_iop_reset(struct aac_dev *dev)
 {
 	aac_adapter_sync_cmd(dev, IOP_RESET_ALWAYS, 0, 0, 0, 0, 0, 0, NULL,
 						NULL, NULL, NULL, NULL);
@@ -764,7 +764,7 @@ static void aac_send_iop_reset(struct aac_dev *dev)
 {
 	aac_dump_fw_fib_iop_reset(dev);
 
-	aac_notify_fw_of_iop_reset(dev);
+	aac_analtify_fw_of_iop_reset(dev);
 
 	aac_set_intx_mode(dev);
 
@@ -798,7 +798,7 @@ static int aac_src_restart_adapter(struct aac_dev *dev, int bled, u8 reset_type)
 		dev_err(&dev->pdev->dev, "adapter kernel panic'd %x.\n", bled);
 
 	/*
-	 * When there is a BlinkLED, IOP_RESET has not effect
+	 * When there is a BlinkLED, IOP_RESET has analt effect
 	 */
 	if (bled >= 2 && dev->sa_firmware && reset_type & HW_IOP_RESET)
 		reset_type &= ~HW_IOP_RESET;
@@ -825,7 +825,7 @@ static int aac_src_restart_adapter(struct aac_dev *dev, int bled, u8 reset_type)
 
 	if (!dev->sa_firmware) {
 		dev_err(&dev->pdev->dev, "ARC Reset attempt failed\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out;
 	}
 
@@ -837,7 +837,7 @@ static int aac_src_restart_adapter(struct aac_dev *dev, int bled, u8 reset_type)
 		is_ctrl_up = aac_is_ctrl_up_and_running(dev);
 		if (!is_ctrl_up) {
 			dev_err(&dev->pdev->dev, "SOFT reset failed\n");
-			ret = -ENODEV;
+			ret = -EANALDEV;
 			goto out;
 		} else
 			dev_info(&dev->pdev->dev, "SOFT reset succeeded\n");
@@ -852,7 +852,7 @@ out:
 
 invalid_out:
 	if (src_readl(dev, MUnit.OMR) & KERNEL_PANIC)
-		ret = -ENODEV;
+		ret = -EANALDEV;
 goto out;
 }
 
@@ -968,7 +968,7 @@ int aac_src_init(struct aac_dev *dev)
 	dev->a_ops.adapter_interrupt = aac_src_interrupt_adapter;
 	dev->a_ops.adapter_disable_int = aac_src_disable_interrupt;
 	dev->a_ops.adapter_enable_int = aac_src_disable_interrupt;
-	dev->a_ops.adapter_notify = aac_src_notify_adapter;
+	dev->a_ops.adapter_analtify = aac_src_analtify_adapter;
 	dev->a_ops.adapter_sync_cmd = src_sync_cmd;
 	dev->a_ops.adapter_check_health = aac_src_check_health;
 	dev->a_ops.adapter_restart = aac_src_restart_adapter;
@@ -990,7 +990,7 @@ int aac_src_init(struct aac_dev *dev)
 
 	dev->msi = !pci_enable_msi(dev->pdev);
 
-	dev->aac_msix[0].vector_no = 0;
+	dev->aac_msix[0].vector_anal = 0;
 	dev->aac_msix[0].dev = dev;
 
 	if (request_irq(dev->pdev->irq, dev->a_ops.adapter_intr,
@@ -1096,7 +1096,7 @@ static int aac_src_soft_reset(struct aac_dev *dev)
 	char *state_str[7] = {
 		"GET_ADAPTER_PROPERTIES Failed",
 		"GET_ADAPTER_PROPERTIES timeout",
-		"SOFT_RESET not supported",
+		"SOFT_RESET analt supported",
 		"DROP_IO Failed",
 		"DROP_IO timeout",
 		"Check Health failed"
@@ -1106,7 +1106,7 @@ static int aac_src_soft_reset(struct aac_dev *dev)
 		return 1;       // pcie hosed
 
 	if (!(status_omr & KERNEL_UP_AND_RUNNING))
-		return 1;       // not up and running
+		return 1;       // analt up and running
 
 	/*
 	 * We go into soft reset mode to allow us to handle response
@@ -1218,8 +1218,8 @@ int aac_srcv_init(struct aac_dev *dev)
 		} while (!(status & FLASH_UPD_SUCCESS) &&
 			 !(status & FLASH_UPD_FAILED));
 		/* Delay 10 seconds.
-		 * Because right now FW is doing a soft reset,
-		 * do not read scratch pad register at this time
+		 * Because right analw FW is doing a soft reset,
+		 * do analt read scratch pad register at this time
 		 */
 		ssleep(10);
 	}
@@ -1287,7 +1287,7 @@ int aac_srcv_init(struct aac_dev *dev)
 	dev->a_ops.adapter_interrupt = aac_src_interrupt_adapter;
 	dev->a_ops.adapter_disable_int = aac_src_disable_interrupt;
 	dev->a_ops.adapter_enable_int = aac_src_disable_interrupt;
-	dev->a_ops.adapter_notify = aac_src_notify_adapter;
+	dev->a_ops.adapter_analtify = aac_src_analtify_adapter;
 	dev->a_ops.adapter_sync_cmd = src_sync_cmd;
 	dev->a_ops.adapter_check_health = aac_src_check_health;
 	dev->a_ops.adapter_restart = aac_src_restart_adapter;
@@ -1421,9 +1421,9 @@ static int aac_src_get_sync_status(struct aac_dev *dev)
 
 	if (!dev->msi_enabled) {
 		/*
-		 * if Legacy int status indicates cmd is not complete
+		 * if Legacy int status indicates cmd is analt complete
 		 * sample MSIx register to see if it indiactes cmd complete,
-		 * if yes set the controller in MSIx mode and consider cmd
+		 * if anal set the controller in MSIx mode and consider cmd
 		 * completed
 		 */
 		legacy_val = src_readl(dev, MUnit.ODR_R) >> SRC_ODR_SHIFT;

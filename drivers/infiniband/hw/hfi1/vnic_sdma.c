@@ -46,7 +46,7 @@ static void vnic_sdma_complete(struct sdma_txreq *txreq,
 	kmem_cache_free(vnic_sdma->dd->vnic.txreq_cache, tx);
 }
 
-static noinline int build_vnic_ulp_payload(struct sdma_engine *sde,
+static analinline int build_vnic_ulp_payload(struct sdma_engine *sde,
 					   struct vnic_txreq *tx)
 {
 	int i, ret = 0;
@@ -140,7 +140,7 @@ int hfi1_vnic_send_dma(struct hfi1_devdata *dd, u8 q_idx,
 
 	tx = kmem_cache_alloc(dd->vnic.txreq_cache, GFP_ATOMIC);
 	if (unlikely(!tx)) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto tx_err;
 	}
 
@@ -178,7 +178,7 @@ tx_err:
 /*
  * hfi1_vnic_sdma_sleep - vnic sdma sleep function
  *
- * This function gets called from sdma_send_txreq() when there are not enough
+ * This function gets called from sdma_send_txreq() when there are analt eanalugh
  * sdma descriptors available to send the packet. It adds Tx queue's wait
  * structure to sdma engine's dmawait list to be woken up when descriptors
  * become available.
@@ -212,7 +212,7 @@ static int hfi1_vnic_sdma_sleep(struct sdma_engine *sde,
  *
  * This function gets called when SDMA descriptors becomes available and Tx
  * queue's wait structure was previously added to sdma engine's dmawait list.
- * It notifies the upper driver about Tx queue wakeup.
+ * It analtifies the upper driver about Tx queue wakeup.
  */
 static void hfi1_vnic_sdma_wakeup(struct iowait *wait, int reason)
 {
@@ -271,7 +271,7 @@ int hfi1_vnic_txreq_init(struct hfi1_devdata *dd)
 						 0, SLAB_HWCACHE_ALIGN,
 						 NULL);
 	if (!dd->vnic.txreq_cache)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 

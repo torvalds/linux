@@ -346,7 +346,7 @@ int qla4_83xx_drv_lock(struct scsi_qla_host *ha)
 				/* Some other driver got lock, OR same driver
 				 * got lock again (counter value changed), when
 				 * we were waiting for lock.
-				 * Retry for another 2 sec */
+				 * Retry for aanalther 2 sec */
 				ql4_printk(KERN_INFO, ha, "%s: IDC lock failed for func %d\n",
 					   __func__, ha->func_num);
 				timeout = 0;
@@ -423,7 +423,7 @@ int qla4_83xx_idc_dontreset(struct scsi_qla_host *ha)
 /*-------------------------IDC State Machine ---------------------*/
 
 enum {
-	UNKNOWN_CLASS = 0,
+	UNKANALWN_CLASS = 0,
 	NIC_CLASS,
 	FCOE_CLASS,
 	ISCSI_CLASS
@@ -491,7 +491,7 @@ int qla4_83xx_can_perform_reset(struct scsi_qla_host *ha)
 	 * present. */
 	if (!nic_present && (ha->func_num == iscsi_func_low)) {
 		DEBUG2(ql4_printk(KERN_INFO, ha,
-				  "%s: can reset - NIC not present and lower iSCSI function is %d\n",
+				  "%s: can reset - NIC analt present and lower iSCSI function is %d\n",
 				  __func__, ha->func_num));
 		return 1;
 	}
@@ -503,7 +503,7 @@ int qla4_83xx_can_perform_reset(struct scsi_qla_host *ha)
  * qla4_83xx_need_reset_handler - Code to start reset sequence
  * @ha: pointer to adapter structure
  *
- * Note: IDC lock must be held upon entry
+ * Analte: IDC lock must be held upon entry
  **/
 void qla4_83xx_need_reset_handler(struct scsi_qla_host *ha)
 {
@@ -514,17 +514,17 @@ void qla4_83xx_need_reset_handler(struct scsi_qla_host *ha)
 		   __func__);
 
 	if (!test_bit(AF_8XXX_RST_OWNER, &ha->flags)) {
-		DEBUG2(ql4_printk(KERN_INFO, ha, "%s: reset acknowledged\n",
+		DEBUG2(ql4_printk(KERN_INFO, ha, "%s: reset ackanalwledged\n",
 				  __func__));
 		qla4_8xxx_set_rst_ready(ha);
 
-		/* Non-reset owners ACK Reset and wait for device INIT state
+		/* Analn-reset owners ACK Reset and wait for device INIT state
 		 * as part of Reset Recovery by Reset Owner */
 		dev_init_timeout = jiffies + (ha->nx_dev_init_timeout * HZ);
 
 		do {
 			if (time_after_eq(jiffies, dev_init_timeout)) {
-				ql4_printk(KERN_INFO, ha, "%s: Non Reset owner dev init timeout\n",
+				ql4_printk(KERN_INFO, ha, "%s: Analn Reset owner dev init timeout\n",
 					   __func__);
 				break;
 			}
@@ -564,7 +564,7 @@ void qla4_83xx_need_reset_handler(struct scsi_qla_host *ha)
 		}
 
 		if (drv_state != drv_active) {
-			ql4_printk(KERN_INFO, ha, "%s: Reset_owner turning off drv_active of non-acking function 0x%x\n",
+			ql4_printk(KERN_INFO, ha, "%s: Reset_owner turning off drv_active of analn-acking function 0x%x\n",
 				   __func__, (drv_active ^ drv_state));
 			drv_active = drv_active & drv_state;
 			qla4_8xxx_wr_direct(ha, QLA8XXX_CRB_DRV_ACTIVE,
@@ -1127,7 +1127,7 @@ static void qla4_83xx_process_reset_template(struct scsi_qla_host *ha,
 
 		p_hdr = (struct qla4_83xx_reset_entry_hdr *)p_entry;
 		switch (p_hdr->cmd) {
-		case OPCODE_NOP:
+		case OPCODE_ANALP:
 			break;
 		case OPCODE_WRITE_LIST:
 			qla4_83xx_write_list(ha, p_hdr);
@@ -1157,7 +1157,7 @@ static void qla4_83xx_process_reset_template(struct scsi_qla_host *ha,
 			qla4_83xx_poll_read_list(ha, p_hdr);
 			break;
 		default:
-			ql4_printk(KERN_ERR, ha, "%s: Unknown command ==> 0x%04x on entry = %d\n",
+			ql4_printk(KERN_ERR, ha, "%s: Unkanalwn command ==> 0x%04x on entry = %d\n",
 				   __func__, p_hdr->cmd, index);
 			break;
 		}
@@ -1213,7 +1213,7 @@ static int qla4_83xx_restart(struct scsi_qla_host *ha)
 	if (idc_ctrl & GRACEFUL_RESET_BIT1) {
 		qla4_83xx_wr_reg(ha, QLA83XX_IDC_DRV_CTRL,
 				 (idc_ctrl & ~GRACEFUL_RESET_BIT1));
-		ql4_printk(KERN_INFO, ha, "%s: Graceful RESET: Not collecting minidump\n",
+		ql4_printk(KERN_INFO, ha, "%s: Graceful RESET: Analt collecting minidump\n",
 			   __func__);
 	} else {
 		qla4_8xxx_get_minidump(ha);
@@ -1250,7 +1250,7 @@ int qla4_83xx_start_firmware(struct scsi_qla_host *ha)
 
 	ret_val = qla4_83xx_check_cmd_peg_status(ha);
 	if (ret_val == QLA_ERROR)
-		ql4_printk(KERN_ERR, ha, "%s: Peg not initialized\n",
+		ql4_printk(KERN_ERR, ha, "%s: Peg analt initialized\n",
 			   __func__);
 
 exit_start_fw:
@@ -1372,7 +1372,7 @@ int qla4_83xx_isp_reset(struct scsi_qla_host *ha)
 	} else {
 		/* If device_state is NEED_RESET, go ahead with
 		 * Reset,irrespective of ql4xdontresethba. This is to allow a
-		 * non-reset-owner to force a reset. Non-reset-owner sets
+		 * analn-reset-owner to force a reset. Analn-reset-owner sets
 		 * the IDC_CTRL BIT0 to prevent Reset-owner from doing a Reset
 		 * and then forces a Reset by setting device_state to
 		 * NEED_RESET. */
@@ -1383,7 +1383,7 @@ int qla4_83xx_isp_reset(struct scsi_qla_host *ha)
 
 	/* For ISP8324 and ISP8042, Reset owner is NIC, iSCSI or FCOE based on
 	 * priority and which drivers are present. Unlike ISP8022, the function
-	 * setting NEED_RESET, may not be the Reset owner. */
+	 * setting NEED_RESET, may analt be the Reset owner. */
 	if (qla4_83xx_can_perform_reset(ha))
 		set_bit(AF_8XXX_RST_OWNER, &ha->flags);
 
@@ -1556,7 +1556,7 @@ static void qla4_83xx_eport_init(struct scsi_qla_host *ha)
 void qla4_83xx_disable_pause(struct scsi_qla_host *ha)
 {
 	ha->isp_ops->idc_lock(ha);
-	/* Before disabling pause frames, ensure that eport is not in reset */
+	/* Before disabling pause frames, ensure that eport is analt in reset */
 	qla4_83xx_eport_init(ha);
 	qla4_83xx_dump_pause_control_regs(ha);
 	__qla4_83xx_disable_pause(ha);

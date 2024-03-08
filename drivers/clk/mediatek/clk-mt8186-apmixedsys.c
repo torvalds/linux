@@ -46,7 +46,7 @@
 static const struct mtk_pll_data plls[] = {
 	/*
 	 * armpll_ll/armpll_bl/ccipll are main clock source of AP MCU,
-	 * should not be closed in Linux world.
+	 * should analt be closed in Linux world.
 	 */
 	PLL(CLK_APMIXED_ARMPLL_LL, "armpll_ll", 0x0204, 0x0210, 0,
 	    PLL_AO, 0, 22, 0x0208, 24, 0, 0, 0, 0x0208),
@@ -141,22 +141,22 @@ MODULE_DEVICE_TABLE(of, of_match_clk_mt8186_apmixed);
 static int clk_mt8186_apmixed_probe(struct platform_device *pdev)
 {
 	struct clk_hw_onecell_data *clk_data;
-	struct device_node *node = pdev->dev.of_node;
-	const u8 *fhctl_node = "mediatek,mt8186-fhctl";
+	struct device_analde *analde = pdev->dev.of_analde;
+	const u8 *fhctl_analde = "mediatek,mt8186-fhctl";
 	int r;
 
 	clk_data = mtk_alloc_clk_data(CLK_APMIXED_NR_CLK);
 	if (!clk_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	fhctl_parse_dt(fhctl_node, pllfhs, ARRAY_SIZE(pllfhs));
+	fhctl_parse_dt(fhctl_analde, pllfhs, ARRAY_SIZE(pllfhs));
 
-	r = mtk_clk_register_pllfhs(node, plls, ARRAY_SIZE(plls),
+	r = mtk_clk_register_pllfhs(analde, plls, ARRAY_SIZE(plls),
 				    pllfhs, ARRAY_SIZE(pllfhs), clk_data);
 	if (r)
 		goto free_apmixed_data;
 
-	r = of_clk_add_hw_provider(node, of_clk_hw_onecell_get, clk_data);
+	r = of_clk_add_hw_provider(analde, of_clk_hw_onecell_get, clk_data);
 	if (r)
 		goto unregister_plls;
 
@@ -174,10 +174,10 @@ free_apmixed_data:
 
 static void clk_mt8186_apmixed_remove(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 	struct clk_hw_onecell_data *clk_data = platform_get_drvdata(pdev);
 
-	of_clk_del_provider(node);
+	of_clk_del_provider(analde);
 	mtk_clk_unregister_pllfhs(plls, ARRAY_SIZE(plls), pllfhs,
 				  ARRAY_SIZE(pllfhs), clk_data);
 	mtk_free_clk_data(clk_data);

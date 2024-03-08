@@ -23,7 +23,7 @@ static void xdr_decode_AFSFid(const __be32 **_bp, struct afs_fid *fid)
 	const __be32 *bp = *_bp;
 
 	fid->vid		= ntohl(*bp++);
-	fid->vnode		= ntohl(*bp++);
+	fid->vanalde		= ntohl(*bp++);
 	fid->unique		= ntohl(*bp++);
 	*_bp = bp;
 }
@@ -36,16 +36,16 @@ static void xdr_dump_bad(const __be32 *bp)
 	__be32 x[4];
 	int i;
 
-	pr_notice("AFS XDR: Bad status record\n");
+	pr_analtice("AFS XDR: Bad status record\n");
 	for (i = 0; i < 5 * 4 * 4; i += 16) {
 		memcpy(x, bp, 16);
 		bp += 4;
-		pr_notice("%03x: %08x %08x %08x %08x\n",
+		pr_analtice("%03x: %08x %08x %08x %08x\n",
 			  i, ntohl(x[0]), ntohl(x[1]), ntohl(x[2]), ntohl(x[3]));
 	}
 
 	memcpy(x, bp, 4);
-	pr_notice("0x50: %08x\n", ntohl(x[0]));
+	pr_analtice("0x50: %08x\n", ntohl(x[0]));
 }
 
 /*
@@ -76,7 +76,7 @@ static void xdr_decode_AFSFetchStatus(const __be32 **_bp,
 			goto advance;
 		}
 
-		pr_warn("Unknown AFSFetchStatus version %u\n", ntohl(xdr->if_version));
+		pr_warn("Unkanalwn AFSFetchStatus version %u\n", ntohl(xdr->if_version));
 		goto bad;
 	}
 
@@ -101,7 +101,7 @@ static void xdr_decode_AFSFetchStatus(const __be32 **_bp,
 	status->author		= ntohl(xdr->author);
 	status->owner		= ntohl(xdr->owner);
 	status->caller_access	= ntohl(xdr->caller_access); /* Ticket dependent */
-	status->anon_access	= ntohl(xdr->anon_access);
+	status->aanaln_access	= ntohl(xdr->aanaln_access);
 	status->mode		= ntohl(xdr->mode) & S_IALLUGO;
 	status->group		= ntohl(xdr->group);
 	status->lock_count	= ntohl(xdr->lock_count);
@@ -238,7 +238,7 @@ static void xdr_decode_AFSFetchVolumeStatus(const __be32 **_bp,
 static int afs_deliver_fs_fetch_status(struct afs_call *call)
 {
 	struct afs_operation *op = call->op;
-	struct afs_vnode_param *vp = &op->file[op->fetch_status.which];
+	struct afs_vanalde_param *vp = &op->file[op->fetch_status.which];
 	const __be32 *bp;
 	int ret;
 
@@ -271,28 +271,28 @@ static const struct afs_call_type afs_RXFSFetchStatus = {
  */
 void afs_fs_fetch_status(struct afs_operation *op)
 {
-	struct afs_vnode_param *vp = &op->file[op->fetch_status.which];
+	struct afs_vanalde_param *vp = &op->file[op->fetch_status.which];
 	struct afs_call *call;
 	__be32 *bp;
 
 	_enter(",%x,{%llx:%llu},,",
-	       key_serial(op->key), vp->fid.vid, vp->fid.vnode);
+	       key_serial(op->key), vp->fid.vid, vp->fid.vanalde);
 
 	call = afs_alloc_flat_call(op->net, &afs_RXFSFetchStatus,
 				   16, (21 + 3 + 6) * 4);
 	if (!call)
-		return afs_op_nomem(op);
+		return afs_op_analmem(op);
 
 	/* marshall the parameters */
 	bp = call->request;
 	bp[0] = htonl(FSFETCHSTATUS);
 	bp[1] = htonl(vp->fid.vid);
-	bp[2] = htonl(vp->fid.vnode);
+	bp[2] = htonl(vp->fid.vanalde);
 	bp[3] = htonl(vp->fid.unique);
 
 	call->fid = vp->fid;
 	trace_afs_make_fs_call(call, &vp->fid);
-	afs_make_op_call(op, call, GFP_NOFS);
+	afs_make_op_call(op, call, GFP_ANALFS);
 }
 
 /*
@@ -301,7 +301,7 @@ void afs_fs_fetch_status(struct afs_operation *op)
 static int afs_deliver_fs_fetch_data(struct afs_call *call)
 {
 	struct afs_operation *op = call->op;
-	struct afs_vnode_param *vp = &op->file[0];
+	struct afs_vanalde_param *vp = &op->file[0];
 	struct afs_read *req = op->fetch.req;
 	const __be32 *bp;
 	int ret;
@@ -336,7 +336,7 @@ static int afs_deliver_fs_fetch_data(struct afs_call *call)
 		_debug("DATA length: %llu", req->actual_len);
 
 		if (req->actual_len == 0)
-			goto no_more_data;
+			goto anal_more_data;
 
 		call->iter = req->iter;
 		call->iov_len = min(req->actual_len, req->len);
@@ -354,7 +354,7 @@ static int afs_deliver_fs_fetch_data(struct afs_call *call)
 
 		call->iter = &call->def_iter;
 		if (req->actual_len <= req->len)
-			goto no_more_data;
+			goto anal_more_data;
 
 		/* Discard any excess data the server gave us */
 		afs_extract_discard(call, req->actual_len - req->len);
@@ -369,7 +369,7 @@ static int afs_deliver_fs_fetch_data(struct afs_call *call)
 		if (ret < 0)
 			return ret;
 
-	no_more_data:
+	anal_more_data:
 		call->unmarshall = 4;
 		afs_extract_to_buf(call, (21 + 3 + 6) * 4);
 		fallthrough;
@@ -421,7 +421,7 @@ static const struct afs_call_type afs_RXFSFetchData64 = {
  */
 static void afs_fs_fetch_data64(struct afs_operation *op)
 {
-	struct afs_vnode_param *vp = &op->file[0];
+	struct afs_vanalde_param *vp = &op->file[0];
 	struct afs_read *req = op->fetch.req;
 	struct afs_call *call;
 	__be32 *bp;
@@ -430,13 +430,13 @@ static void afs_fs_fetch_data64(struct afs_operation *op)
 
 	call = afs_alloc_flat_call(op->net, &afs_RXFSFetchData64, 32, (21 + 3 + 6) * 4);
 	if (!call)
-		return afs_op_nomem(op);
+		return afs_op_analmem(op);
 
 	/* marshall the parameters */
 	bp = call->request;
 	bp[0] = htonl(FSFETCHDATA64);
 	bp[1] = htonl(vp->fid.vid);
-	bp[2] = htonl(vp->fid.vnode);
+	bp[2] = htonl(vp->fid.vanalde);
 	bp[3] = htonl(vp->fid.unique);
 	bp[4] = htonl(upper_32_bits(req->pos));
 	bp[5] = htonl(lower_32_bits(req->pos));
@@ -445,7 +445,7 @@ static void afs_fs_fetch_data64(struct afs_operation *op)
 
 	call->fid = vp->fid;
 	trace_afs_make_fs_call(call, &vp->fid);
-	afs_make_op_call(op, call, GFP_NOFS);
+	afs_make_op_call(op, call, GFP_ANALFS);
 }
 
 /*
@@ -453,7 +453,7 @@ static void afs_fs_fetch_data64(struct afs_operation *op)
  */
 void afs_fs_fetch_data(struct afs_operation *op)
 {
-	struct afs_vnode_param *vp = &op->file[0];
+	struct afs_vanalde_param *vp = &op->file[0];
 	struct afs_call *call;
 	struct afs_read *req = op->fetch.req;
 	__be32 *bp;
@@ -465,7 +465,7 @@ void afs_fs_fetch_data(struct afs_operation *op)
 
 	call = afs_alloc_flat_call(op->net, &afs_RXFSFetchData, 24, (21 + 3 + 6) * 4);
 	if (!call)
-		return afs_op_nomem(op);
+		return afs_op_analmem(op);
 
 	req->call_debug_id = call->debug_id;
 
@@ -473,24 +473,24 @@ void afs_fs_fetch_data(struct afs_operation *op)
 	bp = call->request;
 	bp[0] = htonl(FSFETCHDATA);
 	bp[1] = htonl(vp->fid.vid);
-	bp[2] = htonl(vp->fid.vnode);
+	bp[2] = htonl(vp->fid.vanalde);
 	bp[3] = htonl(vp->fid.unique);
 	bp[4] = htonl(lower_32_bits(req->pos));
 	bp[5] = htonl(lower_32_bits(req->len));
 
 	call->fid = vp->fid;
 	trace_afs_make_fs_call(call, &vp->fid);
-	afs_make_op_call(op, call, GFP_NOFS);
+	afs_make_op_call(op, call, GFP_ANALFS);
 }
 
 /*
  * deliver reply data to an FS.CreateFile or an FS.MakeDir
  */
-static int afs_deliver_fs_create_vnode(struct afs_call *call)
+static int afs_deliver_fs_create_vanalde(struct afs_call *call)
 {
 	struct afs_operation *op = call->op;
-	struct afs_vnode_param *dvp = &op->file[0];
-	struct afs_vnode_param *vp = &op->file[1];
+	struct afs_vanalde_param *dvp = &op->file[0];
+	struct afs_vanalde_param *vp = &op->file[1];
 	const __be32 *bp;
 	int ret;
 
@@ -516,7 +516,7 @@ static int afs_deliver_fs_create_vnode(struct afs_call *call)
 static const struct afs_call_type afs_RXFSCreateFile = {
 	.name		= "FS.CreateFile",
 	.op		= afs_FS_CreateFile,
-	.deliver	= afs_deliver_fs_create_vnode,
+	.deliver	= afs_deliver_fs_create_vanalde,
 	.destructor	= afs_flat_call_destructor,
 };
 
@@ -526,7 +526,7 @@ static const struct afs_call_type afs_RXFSCreateFile = {
 void afs_fs_create_file(struct afs_operation *op)
 {
 	const struct qstr *name = &op->dentry->d_name;
-	struct afs_vnode_param *dvp = &op->file[0];
+	struct afs_vanalde_param *dvp = &op->file[0];
 	struct afs_call *call;
 	size_t namesz, reqsz, padsz;
 	__be32 *bp;
@@ -540,13 +540,13 @@ void afs_fs_create_file(struct afs_operation *op)
 	call = afs_alloc_flat_call(op->net, &afs_RXFSCreateFile,
 				   reqsz, (3 + 21 + 21 + 3 + 6) * 4);
 	if (!call)
-		return afs_op_nomem(op);
+		return afs_op_analmem(op);
 
 	/* marshall the parameters */
 	bp = call->request;
 	*bp++ = htonl(FSCREATEFILE);
 	*bp++ = htonl(dvp->fid.vid);
-	*bp++ = htonl(dvp->fid.vnode);
+	*bp++ = htonl(dvp->fid.vanalde);
 	*bp++ = htonl(dvp->fid.unique);
 	*bp++ = htonl(namesz);
 	memcpy(bp, name->name, namesz);
@@ -564,13 +564,13 @@ void afs_fs_create_file(struct afs_operation *op)
 
 	call->fid = dvp->fid;
 	trace_afs_make_fs_call1(call, &dvp->fid, name);
-	afs_make_op_call(op, call, GFP_NOFS);
+	afs_make_op_call(op, call, GFP_ANALFS);
 }
 
 static const struct afs_call_type afs_RXFSMakeDir = {
 	.name		= "FS.MakeDir",
 	.op		= afs_FS_MakeDir,
-	.deliver	= afs_deliver_fs_create_vnode,
+	.deliver	= afs_deliver_fs_create_vanalde,
 	.destructor	= afs_flat_call_destructor,
 };
 
@@ -580,7 +580,7 @@ static const struct afs_call_type afs_RXFSMakeDir = {
 void afs_fs_make_dir(struct afs_operation *op)
 {
 	const struct qstr *name = &op->dentry->d_name;
-	struct afs_vnode_param *dvp = &op->file[0];
+	struct afs_vanalde_param *dvp = &op->file[0];
 	struct afs_call *call;
 	size_t namesz, reqsz, padsz;
 	__be32 *bp;
@@ -594,13 +594,13 @@ void afs_fs_make_dir(struct afs_operation *op)
 	call = afs_alloc_flat_call(op->net, &afs_RXFSMakeDir,
 				   reqsz, (3 + 21 + 21 + 3 + 6) * 4);
 	if (!call)
-		return afs_op_nomem(op);
+		return afs_op_analmem(op);
 
 	/* marshall the parameters */
 	bp = call->request;
 	*bp++ = htonl(FSMAKEDIR);
 	*bp++ = htonl(dvp->fid.vid);
-	*bp++ = htonl(dvp->fid.vnode);
+	*bp++ = htonl(dvp->fid.vanalde);
 	*bp++ = htonl(dvp->fid.unique);
 	*bp++ = htonl(namesz);
 	memcpy(bp, name->name, namesz);
@@ -618,7 +618,7 @@ void afs_fs_make_dir(struct afs_operation *op)
 
 	call->fid = dvp->fid;
 	trace_afs_make_fs_call1(call, &dvp->fid, name);
-	afs_make_op_call(op, call, GFP_NOFS);
+	afs_make_op_call(op, call, GFP_ANALFS);
 }
 
 /*
@@ -627,7 +627,7 @@ void afs_fs_make_dir(struct afs_operation *op)
 static int afs_deliver_fs_file_status_and_vol(struct afs_call *call)
 {
 	struct afs_operation *op = call->op;
-	struct afs_vnode_param *vp = &op->file[0];
+	struct afs_vanalde_param *vp = &op->file[0];
 	const __be32 *bp;
 	int ret;
 
@@ -660,7 +660,7 @@ static const struct afs_call_type afs_RXFSRemoveFile = {
 void afs_fs_remove_file(struct afs_operation *op)
 {
 	const struct qstr *name = &op->dentry->d_name;
-	struct afs_vnode_param *dvp = &op->file[0];
+	struct afs_vanalde_param *dvp = &op->file[0];
 	struct afs_call *call;
 	size_t namesz, reqsz, padsz;
 	__be32 *bp;
@@ -674,13 +674,13 @@ void afs_fs_remove_file(struct afs_operation *op)
 	call = afs_alloc_flat_call(op->net, &afs_RXFSRemoveFile,
 				   reqsz, (21 + 6) * 4);
 	if (!call)
-		return afs_op_nomem(op);
+		return afs_op_analmem(op);
 
 	/* marshall the parameters */
 	bp = call->request;
 	*bp++ = htonl(FSREMOVEFILE);
 	*bp++ = htonl(dvp->fid.vid);
-	*bp++ = htonl(dvp->fid.vnode);
+	*bp++ = htonl(dvp->fid.vanalde);
 	*bp++ = htonl(dvp->fid.unique);
 	*bp++ = htonl(namesz);
 	memcpy(bp, name->name, namesz);
@@ -692,7 +692,7 @@ void afs_fs_remove_file(struct afs_operation *op)
 
 	call->fid = dvp->fid;
 	trace_afs_make_fs_call1(call, &dvp->fid, name);
-	afs_make_op_call(op, call, GFP_NOFS);
+	afs_make_op_call(op, call, GFP_ANALFS);
 }
 
 static const struct afs_call_type afs_RXFSRemoveDir = {
@@ -708,7 +708,7 @@ static const struct afs_call_type afs_RXFSRemoveDir = {
 void afs_fs_remove_dir(struct afs_operation *op)
 {
 	const struct qstr *name = &op->dentry->d_name;
-	struct afs_vnode_param *dvp = &op->file[0];
+	struct afs_vanalde_param *dvp = &op->file[0];
 	struct afs_call *call;
 	size_t namesz, reqsz, padsz;
 	__be32 *bp;
@@ -722,13 +722,13 @@ void afs_fs_remove_dir(struct afs_operation *op)
 	call = afs_alloc_flat_call(op->net, &afs_RXFSRemoveDir,
 				   reqsz, (21 + 6) * 4);
 	if (!call)
-		return afs_op_nomem(op);
+		return afs_op_analmem(op);
 
 	/* marshall the parameters */
 	bp = call->request;
 	*bp++ = htonl(FSREMOVEDIR);
 	*bp++ = htonl(dvp->fid.vid);
-	*bp++ = htonl(dvp->fid.vnode);
+	*bp++ = htonl(dvp->fid.vanalde);
 	*bp++ = htonl(dvp->fid.unique);
 	*bp++ = htonl(namesz);
 	memcpy(bp, name->name, namesz);
@@ -740,7 +740,7 @@ void afs_fs_remove_dir(struct afs_operation *op)
 
 	call->fid = dvp->fid;
 	trace_afs_make_fs_call1(call, &dvp->fid, name);
-	afs_make_op_call(op, call, GFP_NOFS);
+	afs_make_op_call(op, call, GFP_ANALFS);
 }
 
 /*
@@ -749,8 +749,8 @@ void afs_fs_remove_dir(struct afs_operation *op)
 static int afs_deliver_fs_link(struct afs_call *call)
 {
 	struct afs_operation *op = call->op;
-	struct afs_vnode_param *dvp = &op->file[0];
-	struct afs_vnode_param *vp = &op->file[1];
+	struct afs_vanalde_param *dvp = &op->file[0];
+	struct afs_vanalde_param *vp = &op->file[1];
 	const __be32 *bp;
 	int ret;
 
@@ -786,8 +786,8 @@ static const struct afs_call_type afs_RXFSLink = {
 void afs_fs_link(struct afs_operation *op)
 {
 	const struct qstr *name = &op->dentry->d_name;
-	struct afs_vnode_param *dvp = &op->file[0];
-	struct afs_vnode_param *vp = &op->file[1];
+	struct afs_vanalde_param *dvp = &op->file[0];
+	struct afs_vanalde_param *vp = &op->file[1];
 	struct afs_call *call;
 	size_t namesz, reqsz, padsz;
 	__be32 *bp;
@@ -800,13 +800,13 @@ void afs_fs_link(struct afs_operation *op)
 
 	call = afs_alloc_flat_call(op->net, &afs_RXFSLink, reqsz, (21 + 21 + 6) * 4);
 	if (!call)
-		return afs_op_nomem(op);
+		return afs_op_analmem(op);
 
 	/* marshall the parameters */
 	bp = call->request;
 	*bp++ = htonl(FSLINK);
 	*bp++ = htonl(dvp->fid.vid);
-	*bp++ = htonl(dvp->fid.vnode);
+	*bp++ = htonl(dvp->fid.vanalde);
 	*bp++ = htonl(dvp->fid.unique);
 	*bp++ = htonl(namesz);
 	memcpy(bp, name->name, namesz);
@@ -816,12 +816,12 @@ void afs_fs_link(struct afs_operation *op)
 		bp = (void *) bp + padsz;
 	}
 	*bp++ = htonl(vp->fid.vid);
-	*bp++ = htonl(vp->fid.vnode);
+	*bp++ = htonl(vp->fid.vanalde);
 	*bp++ = htonl(vp->fid.unique);
 
 	call->fid = vp->fid;
 	trace_afs_make_fs_call1(call, &vp->fid, name);
-	afs_make_op_call(op, call, GFP_NOFS);
+	afs_make_op_call(op, call, GFP_ANALFS);
 }
 
 /*
@@ -830,8 +830,8 @@ void afs_fs_link(struct afs_operation *op)
 static int afs_deliver_fs_symlink(struct afs_call *call)
 {
 	struct afs_operation *op = call->op;
-	struct afs_vnode_param *dvp = &op->file[0];
-	struct afs_vnode_param *vp = &op->file[1];
+	struct afs_vanalde_param *dvp = &op->file[0];
+	struct afs_vanalde_param *vp = &op->file[1];
 	const __be32 *bp;
 	int ret;
 
@@ -868,7 +868,7 @@ static const struct afs_call_type afs_RXFSSymlink = {
 void afs_fs_symlink(struct afs_operation *op)
 {
 	const struct qstr *name = &op->dentry->d_name;
-	struct afs_vnode_param *dvp = &op->file[0];
+	struct afs_vanalde_param *dvp = &op->file[0];
 	struct afs_call *call;
 	size_t namesz, reqsz, padsz, c_namesz, c_padsz;
 	__be32 *bp;
@@ -886,13 +886,13 @@ void afs_fs_symlink(struct afs_operation *op)
 	call = afs_alloc_flat_call(op->net, &afs_RXFSSymlink, reqsz,
 				   (3 + 21 + 21 + 6) * 4);
 	if (!call)
-		return afs_op_nomem(op);
+		return afs_op_analmem(op);
 
 	/* marshall the parameters */
 	bp = call->request;
 	*bp++ = htonl(FSSYMLINK);
 	*bp++ = htonl(dvp->fid.vid);
-	*bp++ = htonl(dvp->fid.vnode);
+	*bp++ = htonl(dvp->fid.vanalde);
 	*bp++ = htonl(dvp->fid.unique);
 	*bp++ = htonl(namesz);
 	memcpy(bp, name->name, namesz);
@@ -917,7 +917,7 @@ void afs_fs_symlink(struct afs_operation *op)
 
 	call->fid = dvp->fid;
 	trace_afs_make_fs_call1(call, &dvp->fid, name);
-	afs_make_op_call(op, call, GFP_NOFS);
+	afs_make_op_call(op, call, GFP_ANALFS);
 }
 
 /*
@@ -926,8 +926,8 @@ void afs_fs_symlink(struct afs_operation *op)
 static int afs_deliver_fs_rename(struct afs_call *call)
 {
 	struct afs_operation *op = call->op;
-	struct afs_vnode_param *orig_dvp = &op->file[0];
-	struct afs_vnode_param *new_dvp = &op->file[1];
+	struct afs_vanalde_param *orig_dvp = &op->file[0];
+	struct afs_vanalde_param *new_dvp = &op->file[1];
 	const __be32 *bp;
 	int ret;
 
@@ -962,8 +962,8 @@ static const struct afs_call_type afs_RXFSRename = {
  */
 void afs_fs_rename(struct afs_operation *op)
 {
-	struct afs_vnode_param *orig_dvp = &op->file[0];
-	struct afs_vnode_param *new_dvp = &op->file[1];
+	struct afs_vanalde_param *orig_dvp = &op->file[0];
+	struct afs_vanalde_param *new_dvp = &op->file[1];
 	const struct qstr *orig_name = &op->dentry->d_name;
 	const struct qstr *new_name = &op->dentry_2->d_name;
 	struct afs_call *call;
@@ -985,13 +985,13 @@ void afs_fs_rename(struct afs_operation *op)
 
 	call = afs_alloc_flat_call(op->net, &afs_RXFSRename, reqsz, (21 + 21 + 6) * 4);
 	if (!call)
-		return afs_op_nomem(op);
+		return afs_op_analmem(op);
 
 	/* marshall the parameters */
 	bp = call->request;
 	*bp++ = htonl(FSRENAME);
 	*bp++ = htonl(orig_dvp->fid.vid);
-	*bp++ = htonl(orig_dvp->fid.vnode);
+	*bp++ = htonl(orig_dvp->fid.vanalde);
 	*bp++ = htonl(orig_dvp->fid.unique);
 	*bp++ = htonl(o_namesz);
 	memcpy(bp, orig_name->name, o_namesz);
@@ -1002,7 +1002,7 @@ void afs_fs_rename(struct afs_operation *op)
 	}
 
 	*bp++ = htonl(new_dvp->fid.vid);
-	*bp++ = htonl(new_dvp->fid.vnode);
+	*bp++ = htonl(new_dvp->fid.vanalde);
 	*bp++ = htonl(new_dvp->fid.unique);
 	*bp++ = htonl(n_namesz);
 	memcpy(bp, new_name->name, n_namesz);
@@ -1014,7 +1014,7 @@ void afs_fs_rename(struct afs_operation *op)
 
 	call->fid = orig_dvp->fid;
 	trace_afs_make_fs_call2(call, &orig_dvp->fid, orig_name, new_name);
-	afs_make_op_call(op, call, GFP_NOFS);
+	afs_make_op_call(op, call, GFP_ANALFS);
 }
 
 /*
@@ -1023,7 +1023,7 @@ void afs_fs_rename(struct afs_operation *op)
 static int afs_deliver_fs_store_data(struct afs_call *call)
 {
 	struct afs_operation *op = call->op;
-	struct afs_vnode_param *vp = &op->file[0];
+	struct afs_vanalde_param *vp = &op->file[0];
 	const __be32 *bp;
 	int ret;
 
@@ -1064,18 +1064,18 @@ static const struct afs_call_type afs_RXFSStoreData64 = {
  */
 static void afs_fs_store_data64(struct afs_operation *op)
 {
-	struct afs_vnode_param *vp = &op->file[0];
+	struct afs_vanalde_param *vp = &op->file[0];
 	struct afs_call *call;
 	__be32 *bp;
 
 	_enter(",%x,{%llx:%llu},,",
-	       key_serial(op->key), vp->fid.vid, vp->fid.vnode);
+	       key_serial(op->key), vp->fid.vid, vp->fid.vanalde);
 
 	call = afs_alloc_flat_call(op->net, &afs_RXFSStoreData64,
 				   (4 + 6 + 3 * 2) * 4,
 				   (21 + 6) * 4);
 	if (!call)
-		return afs_op_nomem(op);
+		return afs_op_analmem(op);
 
 	call->write_iter = op->store.write_iter;
 
@@ -1083,7 +1083,7 @@ static void afs_fs_store_data64(struct afs_operation *op)
 	bp = call->request;
 	*bp++ = htonl(FSSTOREDATA64);
 	*bp++ = htonl(vp->fid.vid);
-	*bp++ = htonl(vp->fid.vnode);
+	*bp++ = htonl(vp->fid.vanalde);
 	*bp++ = htonl(vp->fid.unique);
 
 	*bp++ = htonl(AFS_SET_MTIME); /* mask */
@@ -1102,7 +1102,7 @@ static void afs_fs_store_data64(struct afs_operation *op)
 
 	call->fid = vp->fid;
 	trace_afs_make_fs_call(call, &vp->fid);
-	afs_make_op_call(op, call, GFP_NOFS);
+	afs_make_op_call(op, call, GFP_ANALFS);
 }
 
 /*
@@ -1110,12 +1110,12 @@ static void afs_fs_store_data64(struct afs_operation *op)
  */
 void afs_fs_store_data(struct afs_operation *op)
 {
-	struct afs_vnode_param *vp = &op->file[0];
+	struct afs_vanalde_param *vp = &op->file[0];
 	struct afs_call *call;
 	__be32 *bp;
 
 	_enter(",%x,{%llx:%llu},,",
-	       key_serial(op->key), vp->fid.vid, vp->fid.vnode);
+	       key_serial(op->key), vp->fid.vid, vp->fid.vanalde);
 
 	_debug("size %llx, at %llx, i_size %llx",
 	       (unsigned long long)op->store.size,
@@ -1129,7 +1129,7 @@ void afs_fs_store_data(struct afs_operation *op)
 				   (4 + 6 + 3) * 4,
 				   (21 + 6) * 4);
 	if (!call)
-		return afs_op_nomem(op);
+		return afs_op_analmem(op);
 
 	call->write_iter = op->store.write_iter;
 
@@ -1137,7 +1137,7 @@ void afs_fs_store_data(struct afs_operation *op)
 	bp = call->request;
 	*bp++ = htonl(FSSTOREDATA);
 	*bp++ = htonl(vp->fid.vid);
-	*bp++ = htonl(vp->fid.vnode);
+	*bp++ = htonl(vp->fid.vanalde);
 	*bp++ = htonl(vp->fid.unique);
 
 	*bp++ = htonl(AFS_SET_MTIME); /* mask */
@@ -1153,7 +1153,7 @@ void afs_fs_store_data(struct afs_operation *op)
 
 	call->fid = vp->fid;
 	trace_afs_make_fs_call(call, &vp->fid);
-	afs_make_op_call(op, call, GFP_NOFS);
+	afs_make_op_call(op, call, GFP_ANALFS);
 }
 
 /*
@@ -1186,13 +1186,13 @@ static const struct afs_call_type afs_RXFSStoreData64_as_Status = {
  */
 static void afs_fs_setattr_size64(struct afs_operation *op)
 {
-	struct afs_vnode_param *vp = &op->file[0];
+	struct afs_vanalde_param *vp = &op->file[0];
 	struct afs_call *call;
 	struct iattr *attr = op->setattr.attr;
 	__be32 *bp;
 
 	_enter(",%x,{%llx:%llu},,",
-	       key_serial(op->key), vp->fid.vid, vp->fid.vnode);
+	       key_serial(op->key), vp->fid.vid, vp->fid.vanalde);
 
 	ASSERT(attr->ia_valid & ATTR_SIZE);
 
@@ -1200,13 +1200,13 @@ static void afs_fs_setattr_size64(struct afs_operation *op)
 				   (4 + 6 + 3 * 2) * 4,
 				   (21 + 6) * 4);
 	if (!call)
-		return afs_op_nomem(op);
+		return afs_op_analmem(op);
 
 	/* marshall the parameters */
 	bp = call->request;
 	*bp++ = htonl(FSSTOREDATA64);
 	*bp++ = htonl(vp->fid.vid);
-	*bp++ = htonl(vp->fid.vnode);
+	*bp++ = htonl(vp->fid.vanalde);
 	*bp++ = htonl(vp->fid.unique);
 
 	xdr_encode_AFS_StoreStatus(&bp, attr);
@@ -1220,7 +1220,7 @@ static void afs_fs_setattr_size64(struct afs_operation *op)
 
 	call->fid = vp->fid;
 	trace_afs_make_fs_call(call, &vp->fid);
-	afs_make_op_call(op, call, GFP_NOFS);
+	afs_make_op_call(op, call, GFP_ANALFS);
 }
 
 /*
@@ -1229,13 +1229,13 @@ static void afs_fs_setattr_size64(struct afs_operation *op)
  */
 static void afs_fs_setattr_size(struct afs_operation *op)
 {
-	struct afs_vnode_param *vp = &op->file[0];
+	struct afs_vanalde_param *vp = &op->file[0];
 	struct afs_call *call;
 	struct iattr *attr = op->setattr.attr;
 	__be32 *bp;
 
 	_enter(",%x,{%llx:%llu},,",
-	       key_serial(op->key), vp->fid.vid, vp->fid.vnode);
+	       key_serial(op->key), vp->fid.vid, vp->fid.vanalde);
 
 	ASSERT(attr->ia_valid & ATTR_SIZE);
 	if (test_bit(AFS_SERVER_FL_HAS_FS64, &op->server->flags))
@@ -1245,13 +1245,13 @@ static void afs_fs_setattr_size(struct afs_operation *op)
 				   (4 + 6 + 3) * 4,
 				   (21 + 6) * 4);
 	if (!call)
-		return afs_op_nomem(op);
+		return afs_op_analmem(op);
 
 	/* marshall the parameters */
 	bp = call->request;
 	*bp++ = htonl(FSSTOREDATA);
 	*bp++ = htonl(vp->fid.vid);
-	*bp++ = htonl(vp->fid.vnode);
+	*bp++ = htonl(vp->fid.vanalde);
 	*bp++ = htonl(vp->fid.unique);
 
 	xdr_encode_AFS_StoreStatus(&bp, attr);
@@ -1262,7 +1262,7 @@ static void afs_fs_setattr_size(struct afs_operation *op)
 
 	call->fid = vp->fid;
 	trace_afs_make_fs_call(call, &vp->fid);
-	afs_make_op_call(op, call, GFP_NOFS);
+	afs_make_op_call(op, call, GFP_ANALFS);
 }
 
 /*
@@ -1271,7 +1271,7 @@ static void afs_fs_setattr_size(struct afs_operation *op)
  */
 void afs_fs_setattr(struct afs_operation *op)
 {
-	struct afs_vnode_param *vp = &op->file[0];
+	struct afs_vanalde_param *vp = &op->file[0];
 	struct afs_call *call;
 	struct iattr *attr = op->setattr.attr;
 	__be32 *bp;
@@ -1280,26 +1280,26 @@ void afs_fs_setattr(struct afs_operation *op)
 		return afs_fs_setattr_size(op);
 
 	_enter(",%x,{%llx:%llu},,",
-	       key_serial(op->key), vp->fid.vid, vp->fid.vnode);
+	       key_serial(op->key), vp->fid.vid, vp->fid.vanalde);
 
 	call = afs_alloc_flat_call(op->net, &afs_RXFSStoreStatus,
 				   (4 + 6) * 4,
 				   (21 + 6) * 4);
 	if (!call)
-		return afs_op_nomem(op);
+		return afs_op_analmem(op);
 
 	/* marshall the parameters */
 	bp = call->request;
 	*bp++ = htonl(FSSTORESTATUS);
 	*bp++ = htonl(vp->fid.vid);
-	*bp++ = htonl(vp->fid.vnode);
+	*bp++ = htonl(vp->fid.vanalde);
 	*bp++ = htonl(vp->fid.unique);
 
 	xdr_encode_AFS_StoreStatus(&bp, op->setattr.attr);
 
 	call->fid = vp->fid;
 	trace_afs_make_fs_call(call, &vp->fid);
-	afs_make_op_call(op, call, GFP_NOFS);
+	afs_make_op_call(op, call, GFP_ANALFS);
 }
 
 /*
@@ -1445,7 +1445,7 @@ static const struct afs_call_type afs_RXFSGetVolumeStatus = {
  */
 void afs_fs_get_volume_status(struct afs_operation *op)
 {
-	struct afs_vnode_param *vp = &op->file[0];
+	struct afs_vanalde_param *vp = &op->file[0];
 	struct afs_call *call;
 	__be32 *bp;
 
@@ -1454,7 +1454,7 @@ void afs_fs_get_volume_status(struct afs_operation *op)
 	call = afs_alloc_flat_call(op->net, &afs_RXFSGetVolumeStatus, 2 * 4,
 				   max(12 * 4, AFSOPAQUEMAX + 1));
 	if (!call)
-		return afs_op_nomem(op);
+		return afs_op_analmem(op);
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -1463,7 +1463,7 @@ void afs_fs_get_volume_status(struct afs_operation *op)
 
 	call->fid = vp->fid;
 	trace_afs_make_fs_call(call, &vp->fid);
-	afs_make_op_call(op, call, GFP_NOFS);
+	afs_make_op_call(op, call, GFP_ANALFS);
 }
 
 /*
@@ -1526,7 +1526,7 @@ static const struct afs_call_type afs_RXFSReleaseLock = {
  */
 void afs_fs_set_lock(struct afs_operation *op)
 {
-	struct afs_vnode_param *vp = &op->file[0];
+	struct afs_vanalde_param *vp = &op->file[0];
 	struct afs_call *call;
 	__be32 *bp;
 
@@ -1534,19 +1534,19 @@ void afs_fs_set_lock(struct afs_operation *op)
 
 	call = afs_alloc_flat_call(op->net, &afs_RXFSSetLock, 5 * 4, 6 * 4);
 	if (!call)
-		return afs_op_nomem(op);
+		return afs_op_analmem(op);
 
 	/* marshall the parameters */
 	bp = call->request;
 	*bp++ = htonl(FSSETLOCK);
 	*bp++ = htonl(vp->fid.vid);
-	*bp++ = htonl(vp->fid.vnode);
+	*bp++ = htonl(vp->fid.vanalde);
 	*bp++ = htonl(vp->fid.unique);
 	*bp++ = htonl(op->lock.type);
 
 	call->fid = vp->fid;
 	trace_afs_make_fs_calli(call, &vp->fid, op->lock.type);
-	afs_make_op_call(op, call, GFP_NOFS);
+	afs_make_op_call(op, call, GFP_ANALFS);
 }
 
 /*
@@ -1554,7 +1554,7 @@ void afs_fs_set_lock(struct afs_operation *op)
  */
 void afs_fs_extend_lock(struct afs_operation *op)
 {
-	struct afs_vnode_param *vp = &op->file[0];
+	struct afs_vanalde_param *vp = &op->file[0];
 	struct afs_call *call;
 	__be32 *bp;
 
@@ -1562,18 +1562,18 @@ void afs_fs_extend_lock(struct afs_operation *op)
 
 	call = afs_alloc_flat_call(op->net, &afs_RXFSExtendLock, 4 * 4, 6 * 4);
 	if (!call)
-		return afs_op_nomem(op);
+		return afs_op_analmem(op);
 
 	/* marshall the parameters */
 	bp = call->request;
 	*bp++ = htonl(FSEXTENDLOCK);
 	*bp++ = htonl(vp->fid.vid);
-	*bp++ = htonl(vp->fid.vnode);
+	*bp++ = htonl(vp->fid.vanalde);
 	*bp++ = htonl(vp->fid.unique);
 
 	call->fid = vp->fid;
 	trace_afs_make_fs_call(call, &vp->fid);
-	afs_make_op_call(op, call, GFP_NOFS);
+	afs_make_op_call(op, call, GFP_ANALFS);
 }
 
 /*
@@ -1581,7 +1581,7 @@ void afs_fs_extend_lock(struct afs_operation *op)
  */
 void afs_fs_release_lock(struct afs_operation *op)
 {
-	struct afs_vnode_param *vp = &op->file[0];
+	struct afs_vanalde_param *vp = &op->file[0];
 	struct afs_call *call;
 	__be32 *bp;
 
@@ -1589,18 +1589,18 @@ void afs_fs_release_lock(struct afs_operation *op)
 
 	call = afs_alloc_flat_call(op->net, &afs_RXFSReleaseLock, 4 * 4, 6 * 4);
 	if (!call)
-		return afs_op_nomem(op);
+		return afs_op_analmem(op);
 
 	/* marshall the parameters */
 	bp = call->request;
 	*bp++ = htonl(FSRELEASELOCK);
 	*bp++ = htonl(vp->fid.vid);
-	*bp++ = htonl(vp->fid.vnode);
+	*bp++ = htonl(vp->fid.vanalde);
 	*bp++ = htonl(vp->fid.unique);
 
 	call->fid = vp->fid;
 	trace_afs_make_fs_call(call, &vp->fid);
-	afs_make_op_call(op, call, GFP_NOFS);
+	afs_make_op_call(op, call, GFP_ANALFS);
 }
 
 /*
@@ -1635,7 +1635,7 @@ int afs_fs_give_up_all_callbacks(struct afs_net *net, struct afs_server *server,
 
 	call = afs_alloc_flat_call(net, &afs_RXFSGiveUpAllCallBacks, 1 * 4, 0);
 	if (!call)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	call->key	= key;
 	call->peer	= rxrpc_kernel_get_peer(addr->peer);
@@ -1646,7 +1646,7 @@ int afs_fs_give_up_all_callbacks(struct afs_net *net, struct afs_server *server,
 	*bp++ = htonl(FSGIVEUPALLCALLBACKS);
 
 	call->server = afs_use_server(server, afs_server_trace_give_up_cb);
-	afs_make_call(call, GFP_NOFS);
+	afs_make_call(call, GFP_ANALFS);
 	afs_wait_for_call_to_complete(call);
 	ret = call->error;
 	if (call->responded)
@@ -1733,7 +1733,7 @@ static const struct afs_call_type afs_RXFSGetCapabilities = {
 
 /*
  * Probe a fileserver for the capabilities that it supports.  This RPC can
- * reply with up to 196 words.  The operation is asynchronous and if we managed
+ * reply with up to 196 words.  The operation is asynchroanalus and if we managed
  * to allocate a call, true is returned the result is delivered through the
  * ->done() - otherwise we return false to indicate we didn't even try.
  */
@@ -1765,7 +1765,7 @@ bool afs_fs_get_capabilities(struct afs_net *net, struct afs_server *server,
 	*bp++ = htonl(FSGETCAPABILITIES);
 
 	trace_afs_make_fs_call(call, NULL);
-	afs_make_call(call, GFP_NOFS);
+	afs_make_call(call, GFP_ANALFS);
 	afs_put_call(call);
 	return true;
 }
@@ -1909,9 +1909,9 @@ static void afs_done_fs_inline_bulk_status(struct afs_call *call)
 {
 	if (call->error == -ECONNABORTED &&
 	    call->abort_code == RX_INVALID_OPERATION) {
-		set_bit(AFS_SERVER_FL_NO_IBULK, &call->server->flags);
+		set_bit(AFS_SERVER_FL_ANAL_IBULK, &call->server->flags);
 		if (call->op)
-			set_bit(AFS_VOLUME_MAYBE_NO_IBULK, &call->op->volume->flags);
+			set_bit(AFS_VOLUME_MAYBE_ANAL_IBULK, &call->op->volume->flags);
 	}
 }
 
@@ -1931,45 +1931,45 @@ static const struct afs_call_type afs_RXFSInlineBulkStatus = {
  */
 void afs_fs_inline_bulk_status(struct afs_operation *op)
 {
-	struct afs_vnode_param *dvp = &op->file[0];
-	struct afs_vnode_param *vp = &op->file[1];
+	struct afs_vanalde_param *dvp = &op->file[0];
+	struct afs_vanalde_param *vp = &op->file[1];
 	struct afs_call *call;
 	__be32 *bp;
 	int i;
 
-	if (test_bit(AFS_SERVER_FL_NO_IBULK, &op->server->flags)) {
-		afs_op_set_error(op, -ENOTSUPP);
+	if (test_bit(AFS_SERVER_FL_ANAL_IBULK, &op->server->flags)) {
+		afs_op_set_error(op, -EANALTSUPP);
 		return;
 	}
 
 	_enter(",%x,{%llx:%llu},%u",
-	       key_serial(op->key), vp->fid.vid, vp->fid.vnode, op->nr_files);
+	       key_serial(op->key), vp->fid.vid, vp->fid.vanalde, op->nr_files);
 
 	call = afs_alloc_flat_call(op->net, &afs_RXFSInlineBulkStatus,
 				   (2 + op->nr_files * 3) * 4,
 				   21 * 4);
 	if (!call)
-		return afs_op_nomem(op);
+		return afs_op_analmem(op);
 
 	/* marshall the parameters */
 	bp = call->request;
 	*bp++ = htonl(FSINLINEBULKSTATUS);
 	*bp++ = htonl(op->nr_files);
 	*bp++ = htonl(dvp->fid.vid);
-	*bp++ = htonl(dvp->fid.vnode);
+	*bp++ = htonl(dvp->fid.vanalde);
 	*bp++ = htonl(dvp->fid.unique);
 	*bp++ = htonl(vp->fid.vid);
-	*bp++ = htonl(vp->fid.vnode);
+	*bp++ = htonl(vp->fid.vanalde);
 	*bp++ = htonl(vp->fid.unique);
 	for (i = 0; i < op->nr_files - 2; i++) {
 		*bp++ = htonl(op->more_files[i].fid.vid);
-		*bp++ = htonl(op->more_files[i].fid.vnode);
+		*bp++ = htonl(op->more_files[i].fid.vanalde);
 		*bp++ = htonl(op->more_files[i].fid.unique);
 	}
 
 	call->fid = vp->fid;
 	trace_afs_make_fs_call(call, &vp->fid);
-	afs_make_op_call(op, call, GFP_NOFS);
+	afs_make_op_call(op, call, GFP_ANALFS);
 }
 
 /*
@@ -1978,7 +1978,7 @@ void afs_fs_inline_bulk_status(struct afs_operation *op)
 static int afs_deliver_fs_fetch_acl(struct afs_call *call)
 {
 	struct afs_operation *op = call->op;
-	struct afs_vnode_param *vp = &op->file[0];
+	struct afs_vanalde_param *vp = &op->file[0];
 	struct afs_acl *acl;
 	const __be32 *bp;
 	unsigned int size;
@@ -2003,7 +2003,7 @@ static int afs_deliver_fs_fetch_acl(struct afs_call *call)
 
 		acl = kmalloc(struct_size(acl, data, size), GFP_KERNEL);
 		if (!acl)
-			return -ENOMEM;
+			return -EANALMEM;
 		op->acl = acl;
 		acl->size = call->count2;
 		afs_extract_begin(call, acl->data, size);
@@ -2055,22 +2055,22 @@ static const struct afs_call_type afs_RXFSFetchACL = {
  */
 void afs_fs_fetch_acl(struct afs_operation *op)
 {
-	struct afs_vnode_param *vp = &op->file[0];
+	struct afs_vanalde_param *vp = &op->file[0];
 	struct afs_call *call;
 	__be32 *bp;
 
 	_enter(",%x,{%llx:%llu},,",
-	       key_serial(op->key), vp->fid.vid, vp->fid.vnode);
+	       key_serial(op->key), vp->fid.vid, vp->fid.vanalde);
 
 	call = afs_alloc_flat_call(op->net, &afs_RXFSFetchACL, 16, (21 + 6) * 4);
 	if (!call)
-		return afs_op_nomem(op);
+		return afs_op_analmem(op);
 
 	/* marshall the parameters */
 	bp = call->request;
 	bp[0] = htonl(FSFETCHACL);
 	bp[1] = htonl(vp->fid.vid);
-	bp[2] = htonl(vp->fid.vnode);
+	bp[2] = htonl(vp->fid.vanalde);
 	bp[3] = htonl(vp->fid.unique);
 
 	call->fid = vp->fid;
@@ -2093,26 +2093,26 @@ static const struct afs_call_type afs_RXFSStoreACL = {
  */
 void afs_fs_store_acl(struct afs_operation *op)
 {
-	struct afs_vnode_param *vp = &op->file[0];
+	struct afs_vanalde_param *vp = &op->file[0];
 	struct afs_call *call;
 	const struct afs_acl *acl = op->acl;
 	size_t size;
 	__be32 *bp;
 
 	_enter(",%x,{%llx:%llu},,",
-	       key_serial(op->key), vp->fid.vid, vp->fid.vnode);
+	       key_serial(op->key), vp->fid.vid, vp->fid.vanalde);
 
 	size = round_up(acl->size, 4);
 	call = afs_alloc_flat_call(op->net, &afs_RXFSStoreACL,
 				   5 * 4 + size, (21 + 6) * 4);
 	if (!call)
-		return afs_op_nomem(op);
+		return afs_op_analmem(op);
 
 	/* marshall the parameters */
 	bp = call->request;
 	bp[0] = htonl(FSSTOREACL);
 	bp[1] = htonl(vp->fid.vid);
-	bp[2] = htonl(vp->fid.vnode);
+	bp[2] = htonl(vp->fid.vanalde);
 	bp[3] = htonl(vp->fid.unique);
 	bp[4] = htonl(acl->size);
 	memcpy(&bp[5], acl->data, acl->size);

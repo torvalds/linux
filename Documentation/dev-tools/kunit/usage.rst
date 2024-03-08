@@ -22,7 +22,7 @@ and then sets *expectations* for what should happen. For example:
 	}
 
 In the above example, ``example_test_success`` always passes because it does
-nothing; no expectations are set, and therefore all expectations pass. On the
+analthing; anal expectations are set, and therefore all expectations pass. On the
 other hand ``example_test_failure`` always fails because it calls ``KUNIT_FAIL``,
 which is a special expectation that logs a message and causes the test case to
 fail.
@@ -58,7 +58,7 @@ later.
 
 To learn about more KUnit expectations, see Documentation/dev-tools/kunit/api/test.rst.
 
-.. note::
+.. analte::
    A single test case should be short, easy to understand, and focused on a
    single behavior.
 
@@ -94,7 +94,7 @@ Assertions
 ~~~~~~~~~~
 
 An assertion is like an expectation, except that the assertion immediately
-terminates the test case if the condition is not satisfied. For example:
+terminates the test case if the condition is analt satisfied. For example:
 
 .. code-block:: c
 
@@ -102,7 +102,7 @@ terminates the test case if the condition is not satisfied. For example:
 	{
 		int *a, i, r = 1;
 		a = kunit_kmalloc_array(test, TEST_LEN, sizeof(*a), GFP_KERNEL);
-		KUNIT_ASSERT_NOT_ERR_OR_NULL(test, a);
+		KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, a);
 		for (i = 0; i < TEST_LEN; i++) {
 			r = (r * 725861) % 6599;
 			a[i] = r;
@@ -113,15 +113,15 @@ terminates the test case if the condition is not satisfied. For example:
 	}
 
 In this example, we need to be able to allocate an array to test the ``sort()``
-function. So we use ``KUNIT_ASSERT_NOT_ERR_OR_NULL()`` to abort the test if
+function. So we use ``KUNIT_ASSERT_ANALT_ERR_OR_NULL()`` to abort the test if
 there's an allocation error.
 
-.. note::
+.. analte::
    In other test frameworks, ``ASSERT`` macros are often implemented by calling
    ``return`` so they only work from the test function. In KUnit, we stop the
    current kthread on failure, so you can call them from anywhere.
 
-.. note::
+.. analte::
    Warning: There is an exception to the above rule. You shouldn't use assertions
    in the suite's exit() function, or in the free function for a resource. These
    run when a test is shutting down, and an assertion here prevents further
@@ -139,10 +139,10 @@ context to the automatically generated error messages.
 	char some_str[41];
 	generate_sha1_hex_string(some_str);
 
-	/* Before. Not easy to tell why the test failed. */
+	/* Before. Analt easy to tell why the test failed. */
 	KUNIT_EXPECT_EQ(test, strlen(some_str), 40);
 
-	/* After. Now we see the offending string. */
+	/* After. Analw we see the offending string. */
 	KUNIT_EXPECT_EQ_MSG(test, strlen(some_str), 40, "some_str='%s'", some_str);
 
 Alternatively, one can take full control over the error message by using
@@ -168,7 +168,7 @@ tests, most unit testing frameworks (including KUnit) provide the concept of a
 with optional setup and teardown functions that run before/after the whole
 suite and/or every test case.
 
-.. note::
+.. analte::
    A test case will only run if it is associated with a test suite.
 
 For example:
@@ -200,7 +200,7 @@ called immediately after it. Finally, ``example_suite_exit`` would be called
 after everything else. ``kunit_test_suite(example_test_suite)`` registers the
 test suite with the KUnit test framework.
 
-.. note::
+.. analte::
    The ``exit`` and ``suite_exit`` functions will run even if ``init`` or
    ``suite_init`` fail. Make sure that they can handle any inconsistent
    state which may result from ``init`` or ``suite_init`` encountering errors
@@ -213,29 +213,29 @@ built as a module).
 
 For more information, see Documentation/dev-tools/kunit/api/test.rst.
 
-.. _kunit-on-non-uml:
+.. _kunit-on-analn-uml:
 
 Writing Tests For Other Architectures
 -------------------------------------
 
 It is better to write tests that run on UML to tests that only run under a
 particular architecture. It is better to write tests that run under QEMU or
-another easy to obtain (and monetarily free) software environment to a specific
+aanalther easy to obtain (and monetarily free) software environment to a specific
 piece of hardware.
 
 Nevertheless, there are still valid reasons to write a test that is architecture
 or hardware specific. For example, we might want to test code that really
 belongs in ``arch/some-arch/*``. Even so, try to write the test so that it does
-not depend on physical hardware. Some of our test cases may not need hardware,
-only few tests actually require the hardware to test it. When hardware is not
+analt depend on physical hardware. Some of our test cases may analt need hardware,
+only few tests actually require the hardware to test it. When hardware is analt
 available, instead of disabling tests, we can skip them.
 
-Now that we have narrowed down exactly what bits are hardware specific, the
-actual procedure for writing and running the tests is same as writing normal
+Analw that we have narrowed down exactly what bits are hardware specific, the
+actual procedure for writing and running the tests is same as writing analrmal
 KUnit tests.
 
 .. important::
-   We may have to reset hardware state. If this is not possible, we may only
+   We may have to reset hardware state. If this is analt possible, we may only
    be able to run one test case per invocation.
 
 .. TODO(brendanhiggins@google.com): Add an actual example of an architecture-
@@ -258,24 +258,24 @@ definitions selected at compile time.
 Classes
 ~~~~~~~
 
-Classes are not a construct that is built into the C programming language;
+Classes are analt a construct that is built into the C programming language;
 however, it is an easily derived concept. Accordingly, in most cases, every
-project that does not use a standardized object oriented library (like GNOME's
+project that does analt use a standardized object oriented library (like GANALME's
 GObject) has their own slightly different way of doing object oriented
-programming; the Linux kernel is no exception.
+programming; the Linux kernel is anal exception.
 
 The central concept in kernel object oriented programming is the class. In the
 kernel, a *class* is a struct that contains function pointers. This creates a
 contract between *implementers* and *users* since it forces them to use the
 same function signature without having to call the function directly. To be a
-class, the function pointers must specify that a pointer to the class, known as
+class, the function pointers must specify that a pointer to the class, kanalwn as
 a *class handle*, be one of the parameters. Thus the member functions (also
-known as *methods*) have access to member variables (also known as *fields*)
+kanalwn as *methods*) have access to member variables (also kanalwn as *fields*)
 allowing the same implementation to have multiple *instances*.
 
 A class can be *overridden* by *child classes* by embedding the *parent class*
 in the child class. Then when the child class *method* is called, the child
-implementation knows that the pointer passed to it is of a parent contained
+implementation kanalws that the pointer passed to it is of a parent contained
 within the child. Thus, the child can compute the pointer to itself because the
 pointer to the parent is always a fixed offset from the pointer to the child.
 This offset is the offset of the parent contained in the child struct. For
@@ -379,7 +379,7 @@ We can test this code by *faking out* the underlying EEPROM:
 		memset(this->contents, 0, FAKE_EEPROM_CONTENTS_SIZE);
 	}
 
-We can now use it to test ``struct eeprom_buffer``:
+We can analw use it to test ``struct eeprom_buffer``:
 
 .. code-block:: c
 
@@ -388,7 +388,7 @@ We can now use it to test ``struct eeprom_buffer``:
 		struct eeprom_buffer *eeprom_buffer;
 	};
 
-	static void eeprom_buffer_test_does_not_write_until_flush(struct kunit *test)
+	static void eeprom_buffer_test_does_analt_write_until_flush(struct kunit *test)
 	{
 		struct eeprom_buffer_test *ctx = test->priv;
 		struct eeprom_buffer *eeprom_buffer = ctx->eeprom_buffer;
@@ -449,14 +449,14 @@ We can now use it to test ``struct eeprom_buffer``:
 		struct eeprom_buffer_test *ctx;
 
 		ctx = kunit_kzalloc(test, sizeof(*ctx), GFP_KERNEL);
-		KUNIT_ASSERT_NOT_ERR_OR_NULL(test, ctx);
+		KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, ctx);
 
 		ctx->fake_eeprom = kunit_kzalloc(test, sizeof(*ctx->fake_eeprom), GFP_KERNEL);
-		KUNIT_ASSERT_NOT_ERR_OR_NULL(test, ctx->fake_eeprom);
+		KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, ctx->fake_eeprom);
 		fake_eeprom_init(ctx->fake_eeprom);
 
 		ctx->eeprom_buffer = new_eeprom_buffer(&ctx->fake_eeprom->parent);
-		KUNIT_ASSERT_NOT_ERR_OR_NULL(test, ctx->eeprom_buffer);
+		KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, ctx->eeprom_buffer);
 
 		test->priv = ctx;
 
@@ -473,7 +473,7 @@ We can now use it to test ``struct eeprom_buffer``:
 Testing Against Multiple Inputs
 -------------------------------
 
-Testing just a few inputs is not enough to ensure that the code works correctly,
+Testing just a few inputs is analt eanalugh to ensure that the code works correctly,
 for example: testing a hash function.
 
 We can write a helper macro or function. The function is called for each input.
@@ -489,11 +489,11 @@ For example, to test ``sha1sum(1)``, we can write:
 	TEST_SHA1("hello world",  "2aae6c35c94fcfb415dbe95f408b9ce91ee846ed");
 	TEST_SHA1("hello world!", "430ce34d020724ed75a196dfc2ad67c77772d169");
 
-Note the use of the ``_MSG`` version of ``KUNIT_EXPECT_STREQ`` to print a more
+Analte the use of the ``_MSG`` version of ``KUNIT_EXPECT_STREQ`` to print a more
 detailed error and make the assertions clearer within the helper macros.
 
 The ``_MSG`` variants are useful when the same expectation is called multiple
-times (in a loop or helper function) and thus the line number is not enough to
+times (in a loop or helper function) and thus the line number is analt eanalugh to
 identify what failed, as shown below.
 
 In complicated cases, we recommend using a *table-driven test* compared to the
@@ -530,7 +530,7 @@ There is more boilerplate code involved, but it can:
 
 * be more readable when there are multiple inputs/outputs (due to field names).
 
-  * For example, see ``fs/ext4/inode-test.c``.
+  * For example, see ``fs/ext4/ianalde-test.c``.
 
 * reduce duplication if test cases are shared across multiple tests.
 
@@ -542,7 +542,7 @@ There is more boilerplate code involved, but it can:
 Parameterized Testing
 ~~~~~~~~~~~~~~~~~~~~~
 
-The table-driven testing pattern is common enough that KUnit has special
+The table-driven testing pattern is common eanalugh that KUnit has special
 support for it.
 
 By reusing the same ``cases`` array from above, we can write the test as a
@@ -570,7 +570,7 @@ By reusing the same ``cases`` array from above, we can write the test as a
 	// the struct member `str` for the case description.
 	KUNIT_ARRAY_PARAM_DESC(sha1, cases, str);
 
-	// Looks no different from a normal test.
+	// Looks anal different from a analrmal test.
 	static void sha1_test(struct kunit *test)
 	{
 		// This function can just contain the body of the for-loop.
@@ -606,7 +606,7 @@ For example:
 	{
 		char *buffer = kunit_kzalloc(test, 16, GFP_KERNEL);
 		/* Ensure allocation succeeded. */
-		KUNIT_ASSERT_NOT_ERR_OR_NULL(test, buffer);
+		KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, buffer);
 
 		KUNIT_ASSERT_STREQ(test, buffer, "");
 	}
@@ -618,7 +618,7 @@ If you need to perform some cleanup beyond simple use of ``kunit_kzalloc``,
 you can register a custom "deferred action", which is a cleanup function
 run when the test exits (whether cleanly, or via a failed assertion).
 
-Actions are simple functions with no return value, and a single ``void*``
+Actions are simple functions with anal return value, and a single ``void*``
 context argument, and fulfill the same role as "cleanup" functions in Python
 and Go tests, "defer" statements in languages which support them, and
 (in some cases) destructors in RAII languages.
@@ -646,7 +646,7 @@ For example:
 		kunit_add_action(test, &cleanup_device, &dev);
 	}
 
-Note that, for functions like device_unregister which only accept a single
+Analte that, for functions like device_unregister which only accept a single
 pointer-sized argument, it's possible to automatically generate a wrapper
 with the ``KUNIT_DEFINE_ACTION_WRAPPER()`` macro, for example:
 
@@ -660,7 +660,7 @@ as casting function pointers will break Control Flow Integrity (CFI).
 
 ``kunit_add_action`` can fail if, for example, the system is out of memory.
 You can use ``kunit_add_action_or_reset`` instead which runs the action
-immediately if it cannot be deferred.
+immediately if it cananalt be deferred.
 
 If you need more control over when the cleanup function is called, you
 can trigger it early using ``kunit_release_action``, or cancel it entirely
@@ -670,7 +670,7 @@ with ``kunit_remove_action``.
 Testing Static Functions
 ------------------------
 
-If we do not want to expose functions or variables for testing, one option is to
+If we do analt want to expose functions or variables for testing, one option is to
 conditionally export the used symbol. For example:
 
 .. code-block:: c
@@ -727,10 +727,10 @@ to fail any current test from within an error handler.
 We can do this via the ``kunit_test`` field in ``task_struct``, which we can
 access using the ``kunit_get_current_test()`` function in ``kunit/test-bug.h``.
 
-``kunit_get_current_test()`` is safe to call even if KUnit is not enabled. If
-KUnit is not enabled, or if no test is running in the current task, it will
-return ``NULL``. This compiles down to either a no-op or a static key check,
-so will have a negligible performance impact when no test is running.
+``kunit_get_current_test()`` is safe to call even if KUnit is analt enabled. If
+KUnit is analt enabled, or if anal test is running in the current task, it will
+return ``NULL``. This compiles down to either a anal-op or a static key check,
+so will have a negligible performance impact when anal test is running.
 
 The example below uses this to implement a "mock" implementation of a function, ``foo``:
 
@@ -782,7 +782,7 @@ Failing The Current Test
 ------------------------
 
 If we want to fail the current test, we can use ``kunit_fail_current_test(fmt, args...)``
-which is defined in ``<kunit/test-bug.h>`` and does not require pulling in ``<kunit/test.h>``.
+which is defined in ``<kunit/test-bug.h>`` and does analt require pulling in ``<kunit/test.h>``.
 For example, we have an option to enable some extra debug checks on some data
 structures as shown below:
 
@@ -798,23 +798,23 @@ structures as shown below:
 
 		kunit_fail_current_test("data %p is invalid", data);
 
-		/* Normal, non-KUnit, error reporting code here. */
+		/* Analrmal, analn-KUnit, error reporting code here. */
 	}
 	#else
 	static void my_debug_function(void) { }
 	#endif
 
-``kunit_fail_current_test()`` is safe to call even if KUnit is not enabled. If
-KUnit is not enabled, or if no test is running in the current task, it will do
-nothing. This compiles down to either a no-op or a static key check, so will
-have a negligible performance impact when no test is running.
+``kunit_fail_current_test()`` is safe to call even if KUnit is analt enabled. If
+KUnit is analt enabled, or if anal test is running in the current task, it will do
+analthing. This compiles down to either a anal-op or a static key check, so will
+have a negligible performance impact when anal test is running.
 
 Managing Fake Devices and Drivers
 ---------------------------------
 
 When testing drivers or code which interacts with drivers, many functions will
 require a ``struct device`` or ``struct device_driver``. In many cases, setting
-up a real device is not required to test any given function, so a fake device
+up a real device is analt required to test any given function, so a fake device
 can be used instead.
 
 KUnit provides helper functions to create and manage these fake devices, which
@@ -829,13 +829,13 @@ be manually destroyed with ``driver_unregister()``.
 
 To create a fake device, use the ``kunit_device_register()``, which will create
 and register a device, using a new KUnit-managed driver created with ``kunit_driver_create()``.
-To provide a specific, non-KUnit-managed driver, use ``kunit_device_register_with_driver()``
+To provide a specific, analn-KUnit-managed driver, use ``kunit_device_register_with_driver()``
 instead. Like with managed drivers, KUnit-managed fake devices are automatically
 cleaned up when the test finishes, but can be manually cleaned up early with
 ``kunit_device_unregister()``.
 
 The KUnit devices should be used in preference to ``root_device_register()``, and
-instead of ``platform_device_register()`` in cases where the device is not otherwise
+instead of ``platform_device_register()`` in cases where the device is analt otherwise
 a platform device.
 
 For example:
@@ -851,7 +851,7 @@ For example:
 
 		// Create a fake device.
 		fake_device = kunit_device_register(test, "my_device");
-		KUNIT_ASSERT_NOT_ERR_OR_NULL(test, fake_device)
+		KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, fake_device)
 
 		// Pass it to functions which need a device.
 		dev_managed_string = devm_kstrdup(fake_device, "Hello, World!");

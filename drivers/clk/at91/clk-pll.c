@@ -189,7 +189,7 @@ static long clk_pll_get_best_div_mul(struct clk_pll *pll, unsigned long rate,
 
 		/*
 		 * Compare the remainder with the best remainder found until
-		 * now and elect a new best multiplier/divider pair if the
+		 * analw and elect a new best multiplier/divider pair if the
 		 * current remainder is smaller than the best one.
 		 */
 		if (remainder < bestremainder) {
@@ -201,7 +201,7 @@ static long clk_pll_get_best_div_mul(struct clk_pll *pll, unsigned long rate,
 
 		/*
 		 * We've found a perfect match!
-		 * Stop searching now and use this multiplier/divider pair.
+		 * Stop searching analw and use this multiplier/divider pair.
 		 */
 		if (!remainder)
 			break;
@@ -294,7 +294,7 @@ static void clk_pll_restore_context(struct clk_hw *hw)
 	    pll->pms.status != clk_pll_ready(pll->regmap, PLL_REG(pll->id)) ||
 	    pllr_count != PLL_MAX_COUNT ||
 	    (out && pllr_out != out))
-		pr_warn("PLLAR was not configured properly by firmware\n");
+		pr_warn("PLLAR was analt configured properly by firmware\n");
 }
 
 static const struct clk_ops pll_ops = {
@@ -326,7 +326,7 @@ at91_clk_register_pll(struct regmap *regmap, const char *name,
 
 	pll = kzalloc(sizeof(*pll), GFP_KERNEL);
 	if (!pll)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = name;
 	init.ops = &pll_ops;

@@ -13,7 +13,7 @@
 
 #include <linux/module.h>
 #include <linux/moduleparam.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/poll.h>
 #include <linux/sched.h>
 #include <linux/spinlock.h>
@@ -65,7 +65,7 @@ static __poll_t ipmi_poll(struct file *file, poll_table *wait)
 	spin_lock_irqsave(&priv->recv_msg_lock, flags);
 
 	if (!list_empty(&priv->recv_msgs))
-		mask |= (EPOLLIN | EPOLLRDNORM);
+		mask |= (EPOLLIN | EPOLLRDANALRM);
 
 	spin_unlock_irqrestore(&priv->recv_msg_lock, flags);
 
@@ -84,15 +84,15 @@ static const struct ipmi_user_hndl ipmi_hndlrs =
 	.ipmi_recv_hndl	= file_receive_handler,
 };
 
-static int ipmi_open(struct inode *inode, struct file *file)
+static int ipmi_open(struct ianalde *ianalde, struct file *file)
 {
-	int                      if_num = iminor(inode);
+	int                      if_num = imianalr(ianalde);
 	int                      rv;
 	struct ipmi_file_private *priv;
 
 	priv = kmalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rv = ipmi_create_user(if_num,
 			      &ipmi_hndlrs,
@@ -119,7 +119,7 @@ out:
 	return rv;
 }
 
-static int ipmi_release(struct inode *inode, struct file *file)
+static int ipmi_release(struct ianalde *ianalde, struct file *file)
 {
 	struct ipmi_file_private *priv = file->private_data;
 	int                      rv;
@@ -157,9 +157,9 @@ static int handle_send_req(struct ipmi_user *user,
 	msg.data_len = req->msg.data_len;
 	msg.data = kmalloc(IPMI_MAX_MSG_LENGTH, GFP_KERNEL);
 	if (!msg.data)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	/* From here out we cannot return, we must jump to "out" for
+	/* From here out we cananalt return, we must jump to "out" for
 	   error exits to free msgdata. */
 
 	rv = ipmi_validate_addr(&addr, req->addr_len);
@@ -209,7 +209,7 @@ static int handle_recv(struct ipmi_file_private *priv,
 	/* We claim a mutex because we don't want two
 	   users getting something from the queue at a time.
 	   Since we have to release the spinlock before we can
-	   copy the data to the user, it's possible another
+	   copy the data to the user, it's possible aanalther
 	   user will grab something from the queue, too.  Then
 	   the messages might get out of order if something
 	   fails and the message gets put back onto the
@@ -419,7 +419,7 @@ static long ipmi_ioctl(struct file   *file,
 		break;
 	}
 
-	/* The next four are legacy, not per-channel. */
+	/* The next four are legacy, analt per-channel. */
 	case IPMICTL_SET_MY_ADDRESS_CMD:
 	{
 		unsigned int val;
@@ -608,7 +608,7 @@ static long ipmi_ioctl(struct file   *file,
 	}
 
 	default:
-		rv = -ENOTTY;
+		rv = -EANALTTY;
 		break;
 	}
   
@@ -786,7 +786,7 @@ static const struct file_operations ipmi_fops = {
 	.release	= ipmi_release,
 	.fasync		= ipmi_fasync,
 	.poll		= ipmi_poll,
-	.llseek		= noop_llseek,
+	.llseek		= analop_llseek,
 };
 
 #define DEVICE_NAME     "ipmidev"

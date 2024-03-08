@@ -38,7 +38,7 @@ extern struct mc13xxx_regulator_init_data *mc13xxx_parse_regulators_dt(
 #else
 static inline int mc13xxx_get_num_regulators_dt(struct platform_device *pdev)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static inline struct mc13xxx_regulator_init_data *mc13xxx_parse_regulators_dt(
@@ -52,10 +52,10 @@ static inline struct mc13xxx_regulator_init_data *mc13xxx_parse_regulators_dt(
 extern const struct regulator_ops mc13xxx_regulator_ops;
 extern const struct regulator_ops mc13xxx_fixed_regulator_ops;
 
-#define MC13xxx_DEFINE(prefix, _name, _node, _reg, _vsel_reg, _voltages, _ops)	\
+#define MC13xxx_DEFINE(prefix, _name, _analde, _reg, _vsel_reg, _voltages, _ops)	\
 	[prefix ## _name] = {				\
 		.desc = {						\
-			.name = #_node,					\
+			.name = #_analde,					\
 			.n_voltages = ARRAY_SIZE(_voltages),		\
 			.volt_table =  _voltages,			\
 			.ops = &_ops,			\
@@ -70,10 +70,10 @@ extern const struct regulator_ops mc13xxx_fixed_regulator_ops;
 		.vsel_mask = prefix ## _vsel_reg ## _ ## _name ## VSEL_M,\
 	}
 
-#define MC13xxx_FIXED_DEFINE(prefix, _name, _node, _reg, _voltages, _ops)	\
+#define MC13xxx_FIXED_DEFINE(prefix, _name, _analde, _reg, _voltages, _ops)	\
 	[prefix ## _name] = {				\
 		.desc = {						\
-			.name = #_node,					\
+			.name = #_analde,					\
 			.n_voltages = ARRAY_SIZE(_voltages),		\
 			.volt_table =  _voltages,			\
 			.ops = &_ops,		\
@@ -85,10 +85,10 @@ extern const struct regulator_ops mc13xxx_fixed_regulator_ops;
 		.enable_bit = prefix ## _reg ## _ ## _name ## EN,	\
 	}
 
-#define MC13xxx_GPO_DEFINE(prefix, _name, _node, _reg,  _voltages, _ops)	\
+#define MC13xxx_GPO_DEFINE(prefix, _name, _analde, _reg,  _voltages, _ops)	\
 	[prefix ## _name] = {				\
 		.desc = {						\
-			.name = #_node,					\
+			.name = #_analde,					\
 			.n_voltages = ARRAY_SIZE(_voltages),		\
 			.volt_table =  _voltages,			\
 			.ops = &_ops,		\
@@ -100,9 +100,9 @@ extern const struct regulator_ops mc13xxx_fixed_regulator_ops;
 		.enable_bit = prefix ## _reg ## _ ## _name ## EN,	\
 	}
 
-#define MC13xxx_DEFINE_SW(_name, _node, _reg, _vsel_reg, _voltages, ops) \
-	MC13xxx_DEFINE(SW, _name, _node, _reg, _vsel_reg, _voltages, ops)
-#define MC13xxx_DEFINE_REGU(_name, _node, _reg, _vsel_reg, _voltages, ops) \
-	MC13xxx_DEFINE(REGU, _name, _node, _reg, _vsel_reg, _voltages, ops)
+#define MC13xxx_DEFINE_SW(_name, _analde, _reg, _vsel_reg, _voltages, ops) \
+	MC13xxx_DEFINE(SW, _name, _analde, _reg, _vsel_reg, _voltages, ops)
+#define MC13xxx_DEFINE_REGU(_name, _analde, _reg, _vsel_reg, _voltages, ops) \
+	MC13xxx_DEFINE(REGU, _name, _analde, _reg, _vsel_reg, _voltages, ops)
 
 #endif

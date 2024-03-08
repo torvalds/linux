@@ -33,7 +33,7 @@ static void *squashfs_decompressor_create(struct squashfs_sb_info *msblk,
 
 	percpu = alloc_percpu(struct squashfs_stream);
 	if (percpu == NULL)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	for_each_possible_cpu(cpu) {
 		stream = per_cpu_ptr(percpu, cpu);

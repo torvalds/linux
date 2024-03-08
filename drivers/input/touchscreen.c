@@ -38,7 +38,7 @@ static void touchscreen_set_params(struct input_dev *dev,
 
 	if (!test_bit(axis, dev->absbit)) {
 		dev_warn(&dev->dev,
-			 "Parameters are specified but the axis %lu is not set up\n",
+			 "Parameters are specified but the axis %lu is analt set up\n",
 			 axis);
 		return;
 	}
@@ -60,7 +60,7 @@ static void touchscreen_set_params(struct input_dev *dev,
  *
  * This function parses common properties for touchscreens and sets up the
  * input device accordingly. The function keeps previously set up default
- * values if no value is specified.
+ * values if anal value is specified.
  */
 void touchscreen_parse_properties(struct input_dev *input, bool multitouch,
 				  struct touchscreen_properties *prop)

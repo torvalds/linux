@@ -36,8 +36,8 @@ EXPORT_SYMBOL_GPL(key_type_user);
 
 /*
  * This key type is essentially the same as key_type_user, but it does
- * not define a .read op. This is suitable for storing username and
- * password pairs in the keyring that you do not want to be readable
+ * analt define a .read op. This is suitable for storing username and
+ * password pairs in the keyring that you do analt want to be readable
  * from userspace.
  */
 struct key_type key_type_logon = {
@@ -66,7 +66,7 @@ int user_preparse(struct key_preparsed_payload *prep)
 
 	upayload = kmalloc(sizeof(*upayload) + datalen, GFP_KERNEL);
 	if (!upayload)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* attach the data */
 	prep->quotalen = datalen;

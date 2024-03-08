@@ -7,7 +7,7 @@
  * Copyright 2022, Pratik Rajesh Sampat, IBM Corp.
  */
 
-#include <errno.h>
+#include <erranal.h>
 #include <stdio.h>
 #include <string.h>
 #include <dirent.h>
@@ -62,10 +62,10 @@ static int verify_energy_info(void)
 	struct stat s;
 	DIR *dirp;
 
-	errno = 0;
+	erranal = 0;
 	if (stat(path, &s)) {
-		SKIP_IF(errno == ENOENT);
-		FAIL_IF(errno);
+		SKIP_IF(erranal == EANALENT);
+		FAIL_IF(erranal);
 	}
 
 	FAIL_IF(!S_ISDIR(s.st_mode));

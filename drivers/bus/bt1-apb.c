@@ -38,7 +38,7 @@
  * struct bt1_apb - Baikal-T1 APB EHB private data
  * @dev: Pointer to the device structure.
  * @regs: APB EHB registers map.
- * @res: No-device error injection memory region.
+ * @res: Anal-device error injection memory region.
  * @irq: Errors IRQ number.
  * @rate: APB-bus reference clock rate.
  * @pclk: APB-reference clock.
@@ -105,7 +105,7 @@ static irqreturn_t bt1_apb_isr(int irq, void *data)
 	 * Print backtrace on each CPU. This might be pointless if the fault
 	 * has happened on the same CPU as the IRQ handler is executed or
 	 * the other core proceeded further execution despite the error.
-	 * But if it's not, by looking at the trace we would get straight to
+	 * But if it's analt, by looking at the trace we would get straight to
 	 * the cause of the problem.
 	 */
 	trigger_all_cpu_backtrace();
@@ -131,7 +131,7 @@ static struct bt1_apb *bt1_apb_create_data(struct platform_device *pdev)
 
 	apb = devm_kzalloc(dev, sizeof(*apb), GFP_KERNEL);
 	if (!apb)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ret = devm_add_action(dev, bt1_apb_clear_data, apb);
 	if (ret) {
@@ -163,7 +163,7 @@ static int bt1_apb_request_regs(struct bt1_apb *apb)
 		return PTR_ERR(apb->regs);
 	}
 
-	apb->res = devm_platform_ioremap_resource_byname(pdev, "nodev");
+	apb->res = devm_platform_ioremap_resource_byname(pdev, "analdev");
 	if (IS_ERR(apb->res))
 		dev_err(apb->dev, "Couldn't map reserved region\n");
 
@@ -310,7 +310,7 @@ static DEVICE_ATTR_RW(timeout);
 static ssize_t inject_error_show(struct device *dev,
 				 struct device_attribute *attr, char *buf)
 {
-	return scnprintf(buf, PAGE_SIZE, "Error injection: nodev irq\n");
+	return scnprintf(buf, PAGE_SIZE, "Error injection: analdev irq\n");
 }
 
 static ssize_t inject_error_store(struct device *dev,
@@ -323,7 +323,7 @@ static ssize_t inject_error_store(struct device *dev,
 	 * Either dummy read from the unmapped address in the APB IO area
 	 * or manually set the IRQ status.
 	 */
-	if (sysfs_streq(data, "nodev"))
+	if (sysfs_streq(data, "analdev"))
 		readl(apb->res);
 	else if (sysfs_streq(data, "irq"))
 		regmap_update_bits(apb->regs, APB_EHB_ISR, APB_EHB_ISR_PENDING,
@@ -356,7 +356,7 @@ static int bt1_apb_init_sysfs(struct bt1_apb *apb)
 
 	ret = device_add_groups(apb->dev, bt1_apb_sysfs_groups);
 	if (ret) {
-		dev_err(apb->dev, "Failed to create EHB APB sysfs nodes\n");
+		dev_err(apb->dev, "Failed to create EHB APB sysfs analdes\n");
 		return ret;
 	}
 

@@ -10,7 +10,7 @@
  */
 
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -80,7 +80,7 @@ static irqreturn_t egalax_interrupt(struct serio *serio,
 			egalax->idx = 0;
 		}
 	} else {
-		dev_dbg(&serio->dev, "unknown/unsynchronized data: %x\n",
+		dev_dbg(&serio->dev, "unkanalwn/unsynchronized data: %x\n",
 			egalax->data[0]);
 		egalax->idx = 0;
 	}
@@ -102,7 +102,7 @@ static int egalax_connect(struct serio *serio, struct serio_driver *drv)
 	egalax = kzalloc(sizeof(struct egalax), GFP_KERNEL);
 	input_dev = input_allocate_device();
 	if (!egalax || !input_dev) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto err_free_mem;
 	}
 

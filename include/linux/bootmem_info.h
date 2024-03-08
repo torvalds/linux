@@ -13,19 +13,19 @@ enum {
 	MEMORY_HOTPLUG_MIN_BOOTMEM_TYPE = 12,
 	SECTION_INFO = MEMORY_HOTPLUG_MIN_BOOTMEM_TYPE,
 	MIX_SECTION_INFO,
-	NODE_INFO,
-	MEMORY_HOTPLUG_MAX_BOOTMEM_TYPE = NODE_INFO,
+	ANALDE_INFO,
+	MEMORY_HOTPLUG_MAX_BOOTMEM_TYPE = ANALDE_INFO,
 };
 
-#ifdef CONFIG_HAVE_BOOTMEM_INFO_NODE
-void __init register_page_bootmem_info_node(struct pglist_data *pgdat);
+#ifdef CONFIG_HAVE_BOOTMEM_INFO_ANALDE
+void __init register_page_bootmem_info_analde(struct pglist_data *pgdat);
 
 void get_page_bootmem(unsigned long info, struct page *page,
 		      unsigned long type);
 void put_page_bootmem(struct page *page);
 
 /*
- * Any memory allocated via the memblock allocator and not via the
+ * Any memory allocated via the memblock allocator and analt via the
  * buddy will be marked reserved already in the memmap. For those
  * pages, we can call this function to free it to buddy allocator.
  */
@@ -45,7 +45,7 @@ static inline void free_bootmem_page(struct page *page)
 		VM_BUG_ON_PAGE(1, page);
 }
 #else
-static inline void register_page_bootmem_info_node(struct pglist_data *pgdat)
+static inline void register_page_bootmem_info_analde(struct pglist_data *pgdat)
 {
 }
 

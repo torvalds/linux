@@ -4,13 +4,13 @@
  *
  * Serpent Cipher Algorithm.
  *
- * Copyright (C) 2002 Dag Arne Osvik <osvik@ii.uib.no>
+ * Copyright (C) 2002 Dag Arne Osvik <osvik@ii.uib.anal>
  */
 
 #include <crypto/algapi.h>
 #include <linux/init.h>
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <asm/unaligned.h>
 #include <linux/types.h>
 #include <crypto/serpent.h>
@@ -225,7 +225,7 @@
  * producing horrible object code from spilling temporary variables
  * on the stack. Forcing this part out of line avoids that.
  */
-static noinline void __serpent_setkey_sbox(u32 r0, u32 r1, u32 r2,
+static analinline void __serpent_setkey_sbox(u32 r0, u32 r1, u32 r2,
 					   u32 r3, u32 r4, u32 *k)
 {
 	k += 100;
@@ -294,7 +294,7 @@ int __serpent_setkey(struct serpent_ctx *ctx, const u8 *key,
 	k[6] = le32_to_cpu(lk[6]);
 	k[7] = le32_to_cpu(lk[7]);
 
-	/* Expand key using polynomial */
+	/* Expand key using polyanalmial */
 
 	r0 = k[3];
 	r1 = k[4];
@@ -604,6 +604,6 @@ module_exit(serpent_mod_fini);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Serpent Cipher Algorithm");
-MODULE_AUTHOR("Dag Arne Osvik <osvik@ii.uib.no>");
+MODULE_AUTHOR("Dag Arne Osvik <osvik@ii.uib.anal>");
 MODULE_ALIAS_CRYPTO("serpent");
 MODULE_ALIAS_CRYPTO("serpent-generic");

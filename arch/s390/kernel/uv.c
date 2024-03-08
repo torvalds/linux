@@ -64,7 +64,7 @@ void __init setup_uv(void)
 
 	uv_stor_base = memblock_alloc_try_nid(
 		uv_info.uv_base_stor_len, SZ_1M, SZ_2G,
-		MEMBLOCK_ALLOC_ACCESSIBLE, NUMA_NO_NODE);
+		MEMBLOCK_ALLOC_ACCESSIBLE, NUMA_ANAL_ANALDE);
 	if (!uv_stor_base) {
 		pr_warn("Failed to reserve %lu bytes for ultravisor base storage\n",
 			uv_info.uv_base_stor_len);
@@ -119,8 +119,8 @@ static int uv_destroy_page(unsigned long paddr)
 
 	if (uv_call(0, (u64)&uvcb)) {
 		/*
-		 * Older firmware uses 107/d as an indication of a non secure
-		 * page. Let us emulate the newer variant (no-op).
+		 * Older firmware uses 107/d as an indication of a analn secure
+		 * page. Let us emulate the newer variant (anal-op).
 		 */
 		if (uvcb.header.rc == 0x107 && uvcb.header.rrc == 0xd)
 			return 0;
@@ -181,10 +181,10 @@ int uv_convert_owned_from_secure(unsigned long paddr)
 }
 
 /*
- * Calculate the expected ref_count for a page that would otherwise have no
+ * Calculate the expected ref_count for a page that would otherwise have anal
  * further pins. This was cribbed from similar functions in other places in
- * the kernel, but with some slight modifications. We know that a secure
- * page can not be a huge page for example.
+ * the kernel, but with some slight modifications. We kanalw that a secure
+ * page can analt be a huge page for example.
  */
 static int expected_page_refs(struct page *page)
 {
@@ -212,8 +212,8 @@ static int make_page_secure(struct page *page, struct uv_cb_header *uvcb)
 		return -EBUSY;
 	set_bit(PG_arch_1, &page->flags);
 	/*
-	 * If the UVC does not succeed or fail immediately, we don't want to
-	 * loop for long, or we might get stall notifications.
+	 * If the UVC does analt succeed or fail immediately, we don't want to
+	 * loop for long, or we might get stall analtifications.
 	 * On the other hand, this is a complex scenario and we are holding a lot of
 	 * locks, so we can't easily sleep and reschedule. We try only once,
 	 * and if the UVC returned busy or partial completion, we return
@@ -222,7 +222,7 @@ static int make_page_secure(struct page *page, struct uv_cb_header *uvcb)
 	cc = __uv_call(0, (u64)uvcb);
 	page_ref_unfreeze(page, expected);
 	/*
-	 * Return -ENXIO if the page was not mapped, -EINVAL for other errors.
+	 * Return -ENXIO if the page was analt mapped, -EINVAL for other errors.
 	 * If busy or partially completed, return -EAGAIN.
 	 */
 	if (cc == UVC_CC_OK)
@@ -242,11 +242,11 @@ static int make_page_secure(struct page *page, struct uv_cb_header *uvcb)
  * This is needed for shared pages, which don't trigger a secure storage
  * exception when accessed from a different guest.
  *
- * Although considered as one, the Unpin Page UVC is not an actual import,
- * so it is not affected.
+ * Although considered as one, the Unpin Page UVC is analt an actual import,
+ * so it is analt affected.
  *
- * No export is needed also when there is only one protected VM, because the
- * page cannot belong to the wrong VM in that case (there is no "other VM"
+ * Anal export is needed also when there is only one protected VM, because the
+ * page cananalt belong to the wrong VM in that case (there is anal "other VM"
  * it can belong to).
  *
  * Return: true if an export is needed before every import, otherwise false.
@@ -292,7 +292,7 @@ again:
 	if (!vma)
 		goto out;
 	/*
-	 * Secure pages cannot be huge and userspace should not combine both.
+	 * Secure pages cananalt be huge and userspace should analt combine both.
 	 * In case userspace does it anyway this will result in an -EFAULT for
 	 * the unpack. The guest is thus never reaching secure mode. If
 	 * userspace is playing dirty tricky with mapping huge pages later
@@ -328,7 +328,7 @@ out:
 	} else if (rc == -EBUSY) {
 		/*
 		 * If we have tried a local drain and the page refcount
-		 * still does not match our expected safe value, try with a
+		 * still does analt match our expected safe value, try with a
 		 * system wide drain. This is needed if the pagevecs holding
 		 * the page are on a different CPU.
 		 */
@@ -338,7 +338,7 @@ out:
 			return -EAGAIN;
 		}
 		/*
-		 * We are here if the page refcount does not match the
+		 * We are here if the page refcount does analt match the
 		 * expected safe value. The main culprits are usually
 		 * pagevecs. With lru_add_drain() we drain the pagevecs
 		 * on the local CPU so that hopefully the refcount will
@@ -346,7 +346,7 @@ out:
 		 */
 		lru_add_drain();
 		local_drain = true;
-		/* And now we try again immediately after draining */
+		/* And analw we try again immediately after draining */
 		goto again;
 	} else if (rc == -ENXIO) {
 		if (gmap_fault(gmap, gaddr, FAULT_FLAG_WRITE))
@@ -396,7 +396,7 @@ int gmap_destroy_page(struct gmap *gmap, unsigned long gaddr)
 	if (!vma)
 		goto out;
 	/*
-	 * Huge pages should not be able to become secure
+	 * Huge pages should analt be able to become secure
 	 */
 	if (is_vm_hugetlb_page(vma))
 		goto out;
@@ -412,8 +412,8 @@ int gmap_destroy_page(struct gmap *gmap, unsigned long gaddr)
 	 * on the same secure page. One CPU can destroy the page, reboot,
 	 * re-enter secure mode and import it, while the second CPU was
 	 * stuck at the beginning of the handler. At some point the second
-	 * CPU will be able to progress, and it will not be able to destroy
-	 * the page. In that case we do not want to terminate the process,
+	 * CPU will be able to progress, and it will analt be able to destroy
+	 * the page. In that case we do analt want to terminate the process,
 	 * we instead try to export the page.
 	 */
 	if (rc)
@@ -429,13 +429,13 @@ EXPORT_SYMBOL_GPL(gmap_destroy_page);
  * To be called with the page locked or with an extra reference! This will
  * prevent gmap_make_secure from touching the page concurrently. Having 2
  * parallel make_page_accessible is fine, as the UV calls will become a
- * no-op if the page is already exported.
+ * anal-op if the page is already exported.
  */
 int arch_make_page_accessible(struct page *page)
 {
 	int rc = 0;
 
-	/* Hugepage cannot be protected, so nothing to do */
+	/* Hugepage cananalt be protected, so analthing to do */
 	if (PageHuge(page))
 		return 0;
 
@@ -682,14 +682,14 @@ static struct kobject *uv_kobj;
 
 static int __init uv_info_init(void)
 {
-	int rc = -ENOMEM;
+	int rc = -EANALMEM;
 
 	if (!test_facility(158))
 		return 0;
 
 	uv_kobj = kobject_create_and_add("uv", firmware_kobj);
 	if (!uv_kobj)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = sysfs_create_files(uv_kobj, uv_prot_virt_attrs);
 	if (rc)
@@ -697,7 +697,7 @@ static int __init uv_info_init(void)
 
 	uv_query_kset = kset_create_and_add("query", NULL, uv_kobj);
 	if (!uv_query_kset) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out_ind_files;
 	}
 

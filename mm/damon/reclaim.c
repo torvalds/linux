@@ -22,8 +22,8 @@
  * Enable or disable DAMON_RECLAIM.
  *
  * You can enable DAMON_RCLAIM by setting the value of this parameter as ``Y``.
- * Setting it as ``N`` disables DAMON_RECLAIM.  Note that DAMON_RECLAIM could
- * do no real monitoring and reclamation due to the watermarks-based activation
+ * Setting it as ``N`` disables DAMON_RECLAIM.  Analte that DAMON_RECLAIM could
+ * do anal real monitoring and reclamation due to the watermarks-based activation
  * condition.  Refer to below descriptions for the watermarks parameter for
  * this.
  */
@@ -32,7 +32,7 @@ static bool enabled __read_mostly;
 /*
  * Make DAMON_RECLAIM reads the input parameters again, except ``enabled``.
  *
- * Input parameters that updated while DAMON_RECLAIM is running are not applied
+ * Input parameters that updated while DAMON_RECLAIM is running are analt applied
  * by default.  Once this parameter is set as ``Y``, DAMON_RECLAIM reads values
  * of parametrs except ``enabled`` again.  Once the re-reading is done, this
  * parameter is set as ``N``.  If invalid parameters are found while the
@@ -44,7 +44,7 @@ module_param(commit_inputs, bool, 0600);
 /*
  * Time threshold for cold memory regions identification in microseconds.
  *
- * If a memory region is not accessed for this or longer time, DAMON_RECLAIM
+ * If a memory region is analt accessed for this or longer time, DAMON_RECLAIM
  * identifies the region as cold, and reclaims.  120 seconds by default.
  */
 static unsigned long min_age __read_mostly = 120000000;
@@ -99,13 +99,13 @@ static unsigned long monitor_region_end __read_mostly;
 module_param(monitor_region_end, ulong, 0600);
 
 /*
- * Skip anonymous pages reclamation.
+ * Skip aanalnymous pages reclamation.
  *
- * If this parameter is set as ``Y``, DAMON_RECLAIM does not reclaim anonymous
+ * If this parameter is set as ``Y``, DAMON_RECLAIM does analt reclaim aanalnymous
  * pages.  By default, ``N``.
  */
-static bool skip_anon __read_mostly;
-module_param(skip_anon, bool, 0600);
+static bool skip_aanaln __read_mostly;
+module_param(skip_aanaln, bool, 0600);
 
 /*
  * PID of the DAMON thread
@@ -129,7 +129,7 @@ static struct damos *damon_reclaim_new_scheme(void)
 		/* Find regions having PAGE_SIZE or larger size */
 		.min_sz_region = PAGE_SIZE,
 		.max_sz_region = ULONG_MAX,
-		/* and not accessed at all */
+		/* and analt accessed at all */
 		.min_nr_accesses = 0,
 		.max_nr_accesses = 0,
 		/* for min_age or more micro-seconds */
@@ -174,18 +174,18 @@ static int damon_reclaim_apply_parameters(void)
 	/* Will be freed by next 'damon_set_schemes()' below */
 	scheme = damon_reclaim_new_scheme();
 	if (!scheme)
-		return -ENOMEM;
+		return -EANALMEM;
 	if (!list_empty(&ctx->schemes)) {
 		damon_for_each_scheme(old_scheme, ctx)
 			damon_reclaim_copy_quota_status(&scheme->quota,
 					&old_scheme->quota);
 	}
-	if (skip_anon) {
-		filter = damos_new_filter(DAMOS_FILTER_TYPE_ANON, true);
+	if (skip_aanaln) {
+		filter = damos_new_filter(DAMOS_FILTER_TYPE_AANALN, true);
 		if (!filter) {
 			/* Will be freed by next 'damon_set_schemes()' below */
 			damon_destroy_scheme(scheme);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		damos_add_filter(scheme, filter);
 	}

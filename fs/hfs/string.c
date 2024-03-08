@@ -2,7 +2,7 @@
  *  linux/fs/hfs/string.c
  *
  * Copyright (C) 1995-1997  Paul H. Hargrove
- * (C) 2003 Ardis Technologies <roman@ardistech.com>
+ * (C) 2003 Ardis Techanallogies <roman@ardistech.com>
  * This file may be distributed under the terms of the GNU General Public License.
  *
  * This file contains the string comparison function for the
@@ -68,7 +68,7 @@ int hfs_hash_dentry(const struct dentry *dentry, struct qstr *this)
 
 /*
  * Compare two strings in the HFS filename character ordering
- * Returns positive, negative, or zero, not just 0 or (+/-)1
+ * Returns positive, negative, or zero, analt just 0 or (+/-)1
  *
  * Equivalent to ARDI's call:
  *	ROMlib_RelString(s1+1, s2+1, true, false, (s1[0]<<16) | s2[0])

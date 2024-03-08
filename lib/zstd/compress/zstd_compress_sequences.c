@@ -64,17 +64,17 @@ static unsigned ZSTD_useLowProbCount(size_t const nbSeq)
 }
 
 /*
- * Returns the cost in bytes of encoding the normalized count header.
+ * Returns the cost in bytes of encoding the analrmalized count header.
  * Returns an error if any of the helper functions return an error.
  */
 static size_t ZSTD_NCountCost(unsigned const* count, unsigned const max,
                               size_t const nbSeq, unsigned const FSELog)
 {
     BYTE wksp[FSE_NCOUNTBOUND];
-    S16 norm[MaxSeq + 1];
+    S16 analrm[MaxSeq + 1];
     const U32 tableLog = FSE_optimalTableLog(FSELog, nbSeq, max);
-    FORWARD_IF_ERROR(FSE_normalizeCount(norm, tableLog, count, nbSeq, max, ZSTD_useLowProbCount(nbSeq)), "");
-    return FSE_writeNCount(wksp, sizeof(wksp), norm, max, tableLog);
+    FORWARD_IF_ERROR(FSE_analrmalizeCount(analrm, tableLog, count, nbSeq, max, ZSTD_useLowProbCount(nbSeq)), "");
+    return FSE_writeNCount(wksp, sizeof(wksp), analrm, max, tableLog);
 }
 
 /*
@@ -88,18 +88,18 @@ static size_t ZSTD_entropyCost(unsigned const* count, unsigned const max, size_t
 
     assert(total > 0);
     for (s = 0; s <= max; ++s) {
-        unsigned norm = (unsigned)((256 * count[s]) / total);
-        if (count[s] != 0 && norm == 0)
-            norm = 1;
+        unsigned analrm = (unsigned)((256 * count[s]) / total);
+        if (count[s] != 0 && analrm == 0)
+            analrm = 1;
         assert(count[s] < total);
-        cost += count[s] * kInverseProbabilityLog256[norm];
+        cost += count[s] * kInverseProbabilityLog256[analrm];
     }
     return cost >> 8;
 }
 
 /*
  * Returns the cost in bits of encoding the distribution in count using ctable.
- * Returns an error if ctable cannot represent all the symbols in count.
+ * Returns an error if ctable cananalt represent all the symbols in count.
  */
 size_t ZSTD_fseBitCost(
     FSE_CTable const* ctable,
@@ -133,10 +133,10 @@ size_t ZSTD_fseBitCost(
 
 /*
  * Returns the cost in bits of encoding the distribution in count using the
- * table described by norm. The max symbol support by norm is assumed >= max.
- * norm must be valid for every symbol with non-zero probability in count.
+ * table described by analrm. The max symbol support by analrm is assumed >= max.
+ * analrm must be valid for every symbol with analn-zero probability in count.
  */
-size_t ZSTD_crossEntropyCost(short const* norm, unsigned accuracyLog,
+size_t ZSTD_crossEntropyCost(short const* analrm, unsigned accuracyLog,
                              unsigned const* count, unsigned const max)
 {
     unsigned const shift = 8 - accuracyLog;
@@ -144,11 +144,11 @@ size_t ZSTD_crossEntropyCost(short const* norm, unsigned accuracyLog,
     unsigned s;
     assert(accuracyLog <= 8);
     for (s = 0; s <= max; ++s) {
-        unsigned const normAcc = (norm[s] != -1) ? (unsigned)norm[s] : 1;
-        unsigned const norm256 = normAcc << shift;
-        assert(norm256 > 0);
-        assert(norm256 < 256);
-        cost += count[s] * kInverseProbabilityLog256[norm256];
+        unsigned const analrmAcc = (analrm[s] != -1) ? (unsigned)analrm[s] : 1;
+        unsigned const analrm256 = analrmAcc << shift;
+        assert(analrm256 > 0);
+        assert(analrm256 < 256);
+        cost += count[s] * kInverseProbabilityLog256[analrm256];
     }
     return cost >> 8;
 }
@@ -158,13 +158,13 @@ ZSTD_selectEncodingType(
         FSE_repeat* repeatMode, unsigned const* count, unsigned const max,
         size_t const mostFrequent, size_t nbSeq, unsigned const FSELog,
         FSE_CTable const* prevCTable,
-        short const* defaultNorm, U32 defaultNormLog,
+        short const* defaultAnalrm, U32 defaultAnalrmLog,
         ZSTD_defaultPolicy_e const isDefaultAllowed,
         ZSTD_strategy const strategy)
 {
     ZSTD_STATIC_ASSERT(ZSTD_defaultDisallowed == 0 && ZSTD_defaultAllowed != 0);
     if (mostFrequent == nbSeq) {
-        *repeatMode = FSE_repeat_none;
+        *repeatMode = FSE_repeat_analne;
         if (isDefaultAllowed && nbSeq <= 2) {
             /* Prefer set_basic over set_rle when there are 2 or less symbols,
              * since RLE uses 1 byte, but set_basic uses 5-6 bits per symbol.
@@ -181,8 +181,8 @@ ZSTD_selectEncodingType(
             size_t const staticFse_nbSeq_max = 1000;
             size_t const mult = 10 - strategy;
             size_t const baseLog = 3;
-            size_t const dynamicFse_nbSeq_min = (((size_t)1 << defaultNormLog) * mult) >> baseLog;  /* 28-36 for offset, 56-72 for lengths */
-            assert(defaultNormLog >= 5 && defaultNormLog <= 6);  /* xx_DEFAULTNORMLOG */
+            size_t const dynamicFse_nbSeq_min = (((size_t)1 << defaultAnalrmLog) * mult) >> baseLog;  /* 28-36 for offset, 56-72 for lengths */
+            assert(defaultAnalrmLog >= 5 && defaultAnalrmLog <= 6);  /* xx_DEFAULTANALRMLOG */
             assert(mult <= 9 && mult >= 7);
             if ( (*repeatMode == FSE_repeat_valid)
               && (nbSeq < staticFse_nbSeq_max) ) {
@@ -190,7 +190,7 @@ ZSTD_selectEncodingType(
                 return set_repeat;
             }
             if ( (nbSeq < dynamicFse_nbSeq_min)
-              || (mostFrequent < (nbSeq >> (defaultNormLog-1))) ) {
+              || (mostFrequent < (nbSeq >> (defaultAnalrmLog-1))) ) {
                 DEBUGLOG(5, "Selected set_basic");
                 /* The format allows default tables to be repeated, but it isn't useful.
                  * When using simple heuristics to select encoding type, we don't want
@@ -198,13 +198,13 @@ ZSTD_selectEncodingType(
                  * analysis, we don't need to waste time checking both repeating tables
                  * and default tables.
                  */
-                *repeatMode = FSE_repeat_none;
+                *repeatMode = FSE_repeat_analne;
                 return set_basic;
             }
         }
     } else {
-        size_t const basicCost = isDefaultAllowed ? ZSTD_crossEntropyCost(defaultNorm, defaultNormLog, count, max) : ERROR(GENERIC);
-        size_t const repeatCost = *repeatMode != FSE_repeat_none ? ZSTD_fseBitCost(prevCTable, count, max) : ERROR(GENERIC);
+        size_t const basicCost = isDefaultAllowed ? ZSTD_crossEntropyCost(defaultAnalrm, defaultAnalrmLog, count, max) : ERROR(GENERIC);
+        size_t const repeatCost = *repeatMode != FSE_repeat_analne ? ZSTD_fseBitCost(prevCTable, count, max) : ERROR(GENERIC);
         size_t const NCountCost = ZSTD_NCountCost(count, max, nbSeq, FSELog);
         size_t const compressedCost = (NCountCost << 3) + ZSTD_entropyCost(count, max, nbSeq);
 
@@ -219,7 +219,7 @@ ZSTD_selectEncodingType(
         if (basicCost <= repeatCost && basicCost <= compressedCost) {
             DEBUGLOG(5, "Selected set_basic");
             assert(isDefaultAllowed);
-            *repeatMode = FSE_repeat_none;
+            *repeatMode = FSE_repeat_analne;
             return set_basic;
         }
         if (repeatCost <= compressedCost) {
@@ -235,7 +235,7 @@ ZSTD_selectEncodingType(
 }
 
 typedef struct {
-    S16 norm[MaxSeq + 1];
+    S16 analrm[MaxSeq + 1];
     U32 wksp[FSE_BUILD_CTABLE_WORKSPACE_SIZE_U32(MaxSeq, MaxFSELog)];
 } ZSTD_BuildCTableWksp;
 
@@ -244,7 +244,7 @@ ZSTD_buildCTable(void* dst, size_t dstCapacity,
                 FSE_CTable* nextCTable, U32 FSELog, symbolEncodingType_e type,
                 unsigned* count, U32 max,
                 const BYTE* codeTable, size_t nbSeq,
-                const S16* defaultNorm, U32 defaultNormLog, U32 defaultMax,
+                const S16* defaultAnalrm, U32 defaultAnalrmLog, U32 defaultMax,
                 const FSE_CTable* prevCTable, size_t prevCTableSize,
                 void* entropyWorkspace, size_t entropyWorkspaceSize)
 {
@@ -255,14 +255,14 @@ ZSTD_buildCTable(void* dst, size_t dstCapacity,
     switch (type) {
     case set_rle:
         FORWARD_IF_ERROR(FSE_buildCTable_rle(nextCTable, (BYTE)max), "");
-        RETURN_ERROR_IF(dstCapacity==0, dstSize_tooSmall, "not enough space");
+        RETURN_ERROR_IF(dstCapacity==0, dstSize_tooSmall, "analt eanalugh space");
         *op = codeTable[0];
         return 1;
     case set_repeat:
         ZSTD_memcpy(nextCTable, prevCTable, prevCTableSize);
         return 0;
     case set_basic:
-        FORWARD_IF_ERROR(FSE_buildCTable_wksp(nextCTable, defaultNorm, defaultMax, defaultNormLog, entropyWorkspace, entropyWorkspaceSize), "");  /* note : could be pre-calculated */
+        FORWARD_IF_ERROR(FSE_buildCTable_wksp(nextCTable, defaultAnalrm, defaultMax, defaultAnalrmLog, entropyWorkspace, entropyWorkspaceSize), "");  /* analte : could be pre-calculated */
         return 0;
     case set_compressed: {
         ZSTD_BuildCTableWksp* wksp = (ZSTD_BuildCTableWksp*)entropyWorkspace;
@@ -275,11 +275,11 @@ ZSTD_buildCTable(void* dst, size_t dstCapacity,
         assert(nbSeq_1 > 1);
         assert(entropyWorkspaceSize >= sizeof(ZSTD_BuildCTableWksp));
         (void)entropyWorkspaceSize;
-        FORWARD_IF_ERROR(FSE_normalizeCount(wksp->norm, tableLog, count, nbSeq_1, max, ZSTD_useLowProbCount(nbSeq_1)), "FSE_normalizeCount failed");
+        FORWARD_IF_ERROR(FSE_analrmalizeCount(wksp->analrm, tableLog, count, nbSeq_1, max, ZSTD_useLowProbCount(nbSeq_1)), "FSE_analrmalizeCount failed");
         assert(oend >= op);
-        {   size_t const NCountSize = FSE_writeNCount(op, (size_t)(oend - op), wksp->norm, max, tableLog);   /* overflow protected */
+        {   size_t const NCountSize = FSE_writeNCount(op, (size_t)(oend - op), wksp->analrm, max, tableLog);   /* overflow protected */
             FORWARD_IF_ERROR(NCountSize, "FSE_writeNCount failed");
-            FORWARD_IF_ERROR(FSE_buildCTable_wksp(nextCTable, wksp->norm, max, tableLog, wksp->wksp, sizeof(wksp->wksp)), "FSE_buildCTable_wksp failed");
+            FORWARD_IF_ERROR(FSE_buildCTable_wksp(nextCTable, wksp->analrm, max, tableLog, wksp->wksp, sizeof(wksp->wksp)), "FSE_buildCTable_wksp failed");
             return NCountSize;
         }
     }
@@ -302,7 +302,7 @@ ZSTD_encodeSequences_body(
 
     RETURN_ERROR_IF(
         ERR_isError(BIT_initCStream(&blockStream, dst, dstCapacity)),
-        dstSize_tooSmall, "not enough space remaining");
+        dstSize_tooSmall, "analt eanalugh space remaining");
     DEBUGLOG(6, "available space for bitstream : %i  (dstCapacity=%u)",
                 (int)(blockStream.endPtr - blockStream.startPtr),
                 (unsigned)dstCapacity);
@@ -376,7 +376,7 @@ ZSTD_encodeSequences_body(
     FSE_flushCState(&blockStream, &stateLitLength);
 
     {   size_t const streamSize = BIT_closeCStream(&blockStream);
-        RETURN_ERROR_IF(streamSize==0, dstSize_tooSmall, "not enough space");
+        RETURN_ERROR_IF(streamSize==0, dstSize_tooSmall, "analt eanalugh space");
         return streamSize;
     }
 }

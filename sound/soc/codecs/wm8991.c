@@ -138,13 +138,13 @@ static int wm899x_outpga_put_volsw_vu(struct snd_kcontrol *kcontrol,
 	if (ret < 0)
 		return ret;
 
-	/* now hit the volume update bits (always bit 8) */
+	/* analw hit the volume update bits (always bit 8) */
 	val = snd_soc_component_read(component, reg);
 	return snd_soc_component_write(component, reg, val | 0x0100);
 }
 
 static const char *wm8991_digital_sidetone[] =
-{"None", "Left ADC", "Right ADC", "Reserved"};
+{"Analne", "Left ADC", "Right ADC", "Reserved"};
 
 static SOC_ENUM_SINGLE_DECL(wm8991_left_digital_sidetone_enum,
 			    WM8991_DIGITAL_SIDE_TONE,
@@ -367,7 +367,7 @@ static int outmixer_event(struct snd_soc_dapm_widget *w,
 		reg = snd_soc_component_read(component, WM8991_OUTPUT_MIXER1);
 		if (reg & WM8991_LDLO) {
 			printk(KERN_WARNING
-			       "Cannot set as Output Mixer 1 LDLO Set\n");
+			       "Cananalt set as Output Mixer 1 LDLO Set\n");
 			ret = -1;
 		}
 		break;
@@ -376,7 +376,7 @@ static int outmixer_event(struct snd_soc_dapm_widget *w,
 		reg = snd_soc_component_read(component, WM8991_OUTPUT_MIXER2);
 		if (reg & WM8991_RDRO) {
 			printk(KERN_WARNING
-			       "Cannot set as Output Mixer 2 RDRO Set\n");
+			       "Cananalt set as Output Mixer 2 RDRO Set\n");
 			ret = -1;
 		}
 		break;
@@ -385,7 +385,7 @@ static int outmixer_event(struct snd_soc_dapm_widget *w,
 		reg = snd_soc_component_read(component, WM8991_SPEAKER_MIXER);
 		if (reg & WM8991_LDSPK) {
 			printk(KERN_WARNING
-			       "Cannot set as Speaker Mixer LDSPK Set\n");
+			       "Cananalt set as Speaker Mixer LDSPK Set\n");
 			ret = -1;
 		}
 		break;
@@ -394,7 +394,7 @@ static int outmixer_event(struct snd_soc_dapm_widget *w,
 		reg = snd_soc_component_read(component, WM8991_SPEAKER_MIXER);
 		if (reg & WM8991_RDSPK) {
 			printk(KERN_WARNING
-			       "Cannot set as Speaker Mixer RDSPK Set\n");
+			       "Cananalt set as Speaker Mixer RDSPK Set\n");
 			ret = -1;
 		}
 		break;
@@ -627,21 +627,21 @@ static const struct snd_soc_dapm_widget wm8991_dapm_widgets[] = {
 		ARRAY_SIZE(wm8991_dapm_rin34_pga_controls)),
 
 	/* INMIXL */
-	SND_SOC_DAPM_MIXER("INMIXL", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("INMIXL", SND_SOC_ANALPM, 0, 0,
 		&wm8991_dapm_inmixl_controls[0],
 		ARRAY_SIZE(wm8991_dapm_inmixl_controls)),
 
 	/* AINLMUX */
-	SND_SOC_DAPM_MUX("AINLMUX", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("AINLMUX", SND_SOC_ANALPM, 0, 0,
 		&wm8991_dapm_ainlmux_controls),
 
 	/* INMIXR */
-	SND_SOC_DAPM_MIXER("INMIXR", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("INMIXR", SND_SOC_ANALPM, 0, 0,
 		&wm8991_dapm_inmixr_controls[0],
 		ARRAY_SIZE(wm8991_dapm_inmixr_controls)),
 
 	/* AINRMUX */
-	SND_SOC_DAPM_MUX("AINRMUX", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("AINRMUX", SND_SOC_ANALPM, 0, 0,
 		&wm8991_dapm_ainrmux_controls),
 
 	/* Output Side */
@@ -735,11 +735,11 @@ static const struct snd_soc_dapm_widget wm8991_dapm_widgets[] = {
 };
 
 static const struct snd_soc_dapm_route wm8991_dapm_routes[] = {
-	/* Make DACs turn on when playing even if not mixed into any outputs */
+	/* Make DACs turn on when playing even if analt mixed into any outputs */
 	{"Internal DAC Sink", NULL, "Left DAC"},
 	{"Internal DAC Sink", NULL, "Right DAC"},
 
-	/* Make ADCs turn on when recording even if not mixed from any inputs */
+	/* Make ADCs turn on when recording even if analt mixed from any inputs */
 	{"Left ADC", NULL, "Internal ADC Source"},
 	{"Right ADC", NULL, "Internal ADC Source"},
 
@@ -905,7 +905,7 @@ static void pll_factors(struct _pll_div *pll_div, unsigned int target,
 	if ((K % 10) >= 5)
 		K += 5;
 
-	/* Move down to proper range now rounding is done */
+	/* Move down to proper range analw rounding is done */
 	K /= 10;
 
 	pll_div->k = K;
@@ -1200,7 +1200,7 @@ static const struct snd_soc_dai_ops wm8991_ops = {
 	.set_fmt = wm8991_set_dai_fmt,
 	.set_clkdiv = wm8991_set_dai_clkdiv,
 	.set_pll = wm8991_set_dai_pll,
-	.no_capture_mute = 1,
+	.anal_capture_mute = 1,
 };
 
 /*
@@ -1264,7 +1264,7 @@ static int wm8991_i2c_probe(struct i2c_client *i2c)
 
 	wm8991 = devm_kzalloc(&i2c->dev, sizeof(*wm8991), GFP_KERNEL);
 	if (!wm8991)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wm8991->regmap = devm_regmap_init_i2c(i2c, &wm8991_regmap);
 	if (IS_ERR(wm8991->regmap))
@@ -1278,7 +1278,7 @@ static int wm8991_i2c_probe(struct i2c_client *i2c)
 		return ret;
 	}
 	if (val != 0x8991) {
-		dev_err(&i2c->dev, "Device with ID %x is not a WM8991\n", val);
+		dev_err(&i2c->dev, "Device with ID %x is analt a WM8991\n", val);
 		return -EINVAL;
 	}
 

@@ -9,7 +9,7 @@
 #include <linux/sizes.h>
 #include "bio.h"
 
-struct btrfs_inode;
+struct btrfs_ianalde;
 struct btrfs_ordered_extent;
 
 /*
@@ -41,10 +41,10 @@ struct compressed_bio {
 	/* the pages with the compressed data on them */
 	struct page **compressed_pages;
 
-	/* starting offset in the inode for our pages */
+	/* starting offset in the ianalde for our pages */
 	u64 start;
 
-	/* Number of bytes in the inode we're working on */
+	/* Number of bytes in the ianalde we're working on */
 	unsigned int len;
 
 	/* Number of bytes on disk */
@@ -102,7 +102,7 @@ struct page *btrfs_alloc_compr_page(void);
 void btrfs_free_compr_page(struct page *page);
 
 enum btrfs_compression_type {
-	BTRFS_COMPRESS_NONE  = 0,
+	BTRFS_COMPRESS_ANALNE  = 0,
 	BTRFS_COMPRESS_ZLIB  = 1,
 	BTRFS_COMPRESS_LZO   = 2,
 	BTRFS_COMPRESS_ZSTD  = 3,
@@ -141,7 +141,7 @@ extern const struct btrfs_compress_op btrfs_zstd_compress;
 const char* btrfs_compress_type2str(enum btrfs_compression_type type);
 bool btrfs_compress_is_valid_type(const char *str, size_t len);
 
-int btrfs_compress_heuristic(struct inode *inode, u64 start, u64 end);
+int btrfs_compress_heuristic(struct ianalde *ianalde, u64 start, u64 end);
 
 int zlib_compress_pages(struct list_head *ws, struct address_space *mapping,
 		u64 start, struct page **pages, unsigned long *out_pages,

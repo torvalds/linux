@@ -38,7 +38,7 @@
 /*
  * The LNBf fake parameters here are the ranges used by an
  * Universal (extended) European LNBf, which is likely the most common LNBf
- * found on Satellite digital TV system nowadays.
+ * found on Satellite digital TV system analwadays.
  */
 #define LNB_CUT_FREQUENCY	11700000	/* high IF frequency */
 #define LNB_LOW_FREQ		9750000		/* low IF frequency */
@@ -194,7 +194,7 @@ static int vidtv_start_streaming(struct vidtv_dvb *dvb)
 	dvb->streaming = true;
 	dvb->mux = vidtv_mux_init(dvb->fe[0], dev, &mux_args);
 	if (!dvb->mux)
-		return -ENOMEM;
+		return -EANALMEM;
 	vidtv_mux_start_thread(dvb->mux);
 
 	dev_dbg_ratelimited(dev, "Started streaming\n");
@@ -268,7 +268,7 @@ static int vidtv_master_xfer(struct i2c_adapter *i2c_adap,
 			     int num)
 {
 	/*
-	 * Right now, this virtual driver doesn't really send or receive
+	 * Right analw, this virtual driver doesn't really send or receive
 	 * messages from I2C. A real driver will require an implementation
 	 * here.
 	 */
@@ -349,9 +349,9 @@ static int vidtv_bridge_probe_demod(struct vidtv_dvb *dvb, u32 n)
 						    DEMOD_DEFAULT_ADDR,
 						    &cfg);
 
-	/* driver will not work anyways so bail out */
+	/* driver will analt work anyways so bail out */
 	if (!dvb->i2c_client_demod[n])
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* retrieve a ptr to the frontend state */
 	dvb->fe[n] = vidtv_get_frontend_ptr(dvb->i2c_client_demod[n]);
@@ -402,7 +402,7 @@ static int vidtv_bridge_probe_tuner(struct vidtv_dvb *dvb, u32 n)
 						    TUNER_DEFAULT_ADDR,
 						    &cfg);
 
-	return (dvb->i2c_client_tuner[n]) ? 0 : -ENODEV;
+	return (dvb->i2c_client_tuner[n]) ? 0 : -EANALDEV;
 }
 
 static int vidtv_bridge_dvb_init(struct vidtv_dvb *dvb)
@@ -486,7 +486,7 @@ static int vidtv_bridge_probe(struct platform_device *pdev)
 
 	dvb = kzalloc(sizeof(*dvb), GFP_KERNEL);
 	if (!dvb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dvb->pdev = pdev;
 

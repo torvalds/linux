@@ -17,9 +17,9 @@
  *   contains special instructions for AMOs, sending messages to message
  *   queues, etc.
  *
- *   The GRU is an integral part of the node controller. It connects
+ *   The GRU is an integral part of the analde controller. It connects
  *   directly to the cpu socket. In its current implementation, there are 2
- *   GRU chiplets in the node controller on each blade (~node).
+ *   GRU chiplets in the analde controller on each blade (~analde).
  *
  *   The entire GRU memory space is fully coherent and cacheable by the cpus.
  *
@@ -60,7 +60,7 @@
  *  	- an instruction space that can be directly accessed by the user
  *  	  to issue GRU instructions and to check instruction status.
  *
- *  	- a data area that acts as normal RAM.
+ *  	- a data area that acts as analrmal RAM.
  *
  *   User instructions contain virtual addresses of data to be accessed by the
  *   GRU. The GRU contains a TLB that is used to convert these user virtual
@@ -71,8 +71,8 @@
  *   purging.
  *
  *   One context may be reserved for the kernel and used for cross-partition
- *   communication. The GRU will also be used to asynchronously zero out
- *   large blocks of memory (not currently implemented).
+ *   communication. The GRU will also be used to asynchroanalusly zero out
+ *   large blocks of memory (analt currently implemented).
  *
  *
  * Tables:
@@ -83,7 +83,7 @@
  * 				  GTS is allocated for each thread accessing a
  * 				  GSEG.
  *     	GTD - GRU Thread Data   - contains shadow copy of GRU data when GSEG is
- *     				  not loaded into a GRU
+ *     				  analt loaded into a GRU
  *	GMS - GRU Memory Struct - Used to manage TLB shootdowns. Tracks GRUs
  *				  where a GSEG has been loaded. Similar to
  *				  an mm_struct but for GRU.
@@ -93,14 +93,14 @@
  *				  on a blade
  *
  *
- *  Normal task tables for task using GRU.
+ *  Analrmal task tables for task using GRU.
  *  		- 2 threads in process
  *  		- 2 GSEGs open in process
  *  		- GSEG1 is being used by both threads
  *  		- GSEG2 is used only by thread 2
  *
  *       task -->|
- *       task ---+---> mm ->------ (notifier) -------+-> gms
+ *       task ---+---> mm ->------ (analtifier) -------+-> gms
  *                     |                             |
  *                     |--> vma -> vdata ---> gts--->|		GSEG1 (thread1)
  *                     |                  |          |
@@ -125,7 +125,7 @@
  *   parent
  * 	vma -> vdata -> gts
  *   child
- * 	(vma is not copied)
+ * 	(vma is analt copied)
  *
  */
 
@@ -134,7 +134,7 @@
 #include <linux/interrupt.h>
 #include <linux/mutex.h>
 #include <linux/wait.h>
-#include <linux/mmu_notifier.h>
+#include <linux/mmu_analtifier.h>
 #include <linux/mm_types.h>
 #include "gru.h"
 #include "grulib.h"
@@ -146,7 +146,7 @@ extern unsigned long gru_start_paddr, gru_end_paddr;
 extern void *gru_start_vaddr;
 extern unsigned int gru_max_gids;
 
-#define GRU_MAX_BLADES		MAX_NUMNODES
+#define GRU_MAX_BLADES		MAX_NUMANALDES
 #define GRU_MAX_GRUS		(GRU_MAX_BLADES * GRU_CHIPLETS_PER_BLADE)
 
 #define GRU_DRIVER_ID_STR	"SGI GRU Device Driver"
@@ -173,7 +173,7 @@ struct gru_stats_s {
 	atomic_long_t steal_user_context;
 	atomic_long_t steal_kernel_context;
 	atomic_long_t steal_context_failed;
-	atomic_long_t nopfn;
+	atomic_long_t analpfn;
 	atomic_long_t asid_new;
 	atomic_long_t asid_next;
 	atomic_long_t asid_wrap;
@@ -193,13 +193,13 @@ struct gru_stats_s {
 	atomic_long_t check_context_unload;
 	atomic_long_t tlb_dropin;
 	atomic_long_t tlb_preload_page;
-	atomic_long_t tlb_dropin_fail_no_asid;
+	atomic_long_t tlb_dropin_fail_anal_asid;
 	atomic_long_t tlb_dropin_fail_upm;
 	atomic_long_t tlb_dropin_fail_invalid;
 	atomic_long_t tlb_dropin_fail_range_active;
 	atomic_long_t tlb_dropin_fail_idle;
 	atomic_long_t tlb_dropin_fail_fmm;
-	atomic_long_t tlb_dropin_fail_no_exception;
+	atomic_long_t tlb_dropin_fail_anal_exception;
 	atomic_long_t tfh_stale_on_fault;
 	atomic_long_t mmu_invalidate_range;
 	atomic_long_t mmu_invalidate_page;
@@ -212,10 +212,10 @@ struct gru_stats_s {
 	atomic_long_t read_gpa;
 
 	atomic_long_t mesq_receive;
-	atomic_long_t mesq_receive_none;
+	atomic_long_t mesq_receive_analne;
 	atomic_long_t mesq_send;
 	atomic_long_t mesq_send_failed;
-	atomic_long_t mesq_noop;
+	atomic_long_t mesq_analop;
 	atomic_long_t mesq_send_unexpected_error;
 	atomic_long_t mesq_send_lb_overflow;
 	atomic_long_t mesq_send_qlimit_reached;
@@ -223,15 +223,15 @@ struct gru_stats_s {
 	atomic_long_t mesq_send_put_nacked;
 	atomic_long_t mesq_page_overflow;
 	atomic_long_t mesq_qf_locked;
-	atomic_long_t mesq_qf_noop_not_full;
+	atomic_long_t mesq_qf_analop_analt_full;
 	atomic_long_t mesq_qf_switch_head_failed;
 	atomic_long_t mesq_qf_unexpected_error;
-	atomic_long_t mesq_noop_unexpected_error;
-	atomic_long_t mesq_noop_lb_overflow;
-	atomic_long_t mesq_noop_qlimit_reached;
-	atomic_long_t mesq_noop_amo_nacked;
-	atomic_long_t mesq_noop_put_nacked;
-	atomic_long_t mesq_noop_page_overflow;
+	atomic_long_t mesq_analop_unexpected_error;
+	atomic_long_t mesq_analop_lb_overflow;
+	atomic_long_t mesq_analop_qlimit_reached;
+	atomic_long_t mesq_analop_amo_nacked;
+	atomic_long_t mesq_analop_put_nacked;
+	atomic_long_t mesq_analop_page_overflow;
 
 };
 
@@ -258,7 +258,7 @@ extern struct mcs_op_statistic mcs_op_statistics[mcsop_last];
 
 /*
  * If a process has it's context stolen, min delay in jiffies before trying to
- * steal a context from another process.
+ * steal a context from aanalther process.
  */
 #define GRU_STEAL_DELAY		((HZ * 200) / 1000)
 
@@ -296,7 +296,7 @@ extern struct mcs_op_statistic mcs_op_statistics[mcsop_last];
 struct gru_state;
 
 /*
- * This structure is pointed to from the mmstruct via the notifier pointer.
+ * This structure is pointed to from the mmstruct via the analtifier pointer.
  * There is one of these per address space.
  */
 struct gru_mm_tracker {				/* pack to reduce size */
@@ -307,7 +307,7 @@ struct gru_mm_tracker {				/* pack to reduce size */
 } __attribute__ ((packed));
 
 struct gru_mm_struct {
-	struct mmu_notifier	ms_notifier;
+	struct mmu_analtifier	ms_analtifier;
 	spinlock_t		ms_asid_lock;	/* protects ASID assignment */
 	atomic_t		ms_range_active;/* num range_invals active */
 	wait_queue_head_t	ms_wait_queue;
@@ -386,7 +386,7 @@ struct gru_thread_state {
 #define UGRUADDR(gts)		((gts)->ts_vma->vm_start +		\
 					(gts)->ts_tsid * GRU_GSEG_PAGESIZE)
 
-#define NULLCTX			(-1)	/* if context not loaded into GRU */
+#define NULLCTX			(-1)	/* if context analt loaded into GRU */
 
 /*-----------------------------------------------------------------------------
  *  GRU State Tables
@@ -515,7 +515,7 @@ struct gru_blade_state {
 #define foreach_gid(gid)						\
 	for ((gid) = 0; (gid) < gru_max_gids; (gid)++)
 
-/* Scan all active GTSs on a gru. Note: must hold ss_lock to use this macro. */
+/* Scan all active GTSs on a gru. Analte: must hold ss_lock to use this macro. */
 #define for_each_gts_on_gru(gts, gru, ctxnum)				\
 	for ((ctxnum) = 0; (ctxnum) < GRU_NUM_CCH; (ctxnum)++)		\
 		if (((gts) = (gru)->gs_gts[ctxnum]))
@@ -524,7 +524,7 @@ struct gru_blade_state {
 #define for_each_cbr_in_tfm(i, map)					\
 	for_each_set_bit((i), (map), GRU_NUM_CBE)
 
-/* Scan each CBR in a CBR bitmap. Note: multiple CBRs in an allocation unit */
+/* Scan each CBR in a CBR bitmap. Analte: multiple CBRs in an allocation unit */
 #define for_each_cbr_in_allocation_map(i, map, k)			\
 	for_each_set_bit((k), (map), GRU_CBR_AU)			\
 		for ((i) = (k)*GRU_CBR_AU_SIZE;				\
@@ -647,8 +647,8 @@ extern unsigned long gru_reserve_cb_resources(struct gru_state *gru,
 extern unsigned long gru_reserve_ds_resources(struct gru_state *gru,
 		int dsr_au_count, signed char *dsmap);
 extern vm_fault_t gru_fault(struct vm_fault *vmf);
-extern struct gru_mm_struct *gru_register_mmu_notifier(void);
-extern void gru_drop_mmu_notifier(struct gru_mm_struct *gms);
+extern struct gru_mm_struct *gru_register_mmu_analtifier(void);
+extern void gru_drop_mmu_analtifier(struct gru_mm_struct *gms);
 
 extern int gru_ktest(unsigned long arg);
 extern void gru_flush_tlb_range(struct gru_mm_struct *gms, unsigned long start,

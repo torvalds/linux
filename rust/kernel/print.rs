@@ -17,7 +17,7 @@ use crate::str::RawFormatter;
 use crate::bindings;
 
 // Called from `vsprintf` with format specifier `%pA`.
-#[no_mangle]
+#[anal_mangle]
 unsafe extern "C" fn rust_fmt_argument(
     buf: *mut c_char,
     end: *mut c_char,
@@ -82,7 +82,7 @@ pub mod format_strings {
     pub static CRIT: [u8; LENGTH] = generate(false, bindings::KERN_CRIT);
     pub static ERR: [u8; LENGTH] = generate(false, bindings::KERN_ERR);
     pub static WARNING: [u8; LENGTH] = generate(false, bindings::KERN_WARNING);
-    pub static NOTICE: [u8; LENGTH] = generate(false, bindings::KERN_NOTICE);
+    pub static ANALTICE: [u8; LENGTH] = generate(false, bindings::KERN_ANALTICE);
     pub static INFO: [u8; LENGTH] = generate(false, bindings::KERN_INFO);
     pub static DEBUG: [u8; LENGTH] = generate(false, bindings::KERN_DEBUG);
     pub static CONT: [u8; LENGTH] = generate(true, bindings::KERN_CONT);
@@ -99,13 +99,13 @@ pub mod format_strings {
 ///
 /// [`_printk`]: srctree/include/linux/_printk.h
 #[doc(hidden)]
-#[cfg_attr(not(CONFIG_PRINTK), allow(unused_variables))]
+#[cfg_attr(analt(CONFIG_PRINTK), allow(unused_variables))]
 pub unsafe fn call_printk(
     format_string: &[u8; format_strings::LENGTH],
     module_name: &[u8],
     args: fmt::Arguments<'_>,
 ) {
-    // `_printk` does not seem to fail in any path.
+    // `_printk` does analt seem to fail in any path.
     #[cfg(CONFIG_PRINTK)]
     unsafe {
         bindings::_printk(
@@ -122,9 +122,9 @@ pub unsafe fn call_printk(
 ///
 /// [`_printk`]: srctree/include/linux/printk.h
 #[doc(hidden)]
-#[cfg_attr(not(CONFIG_PRINTK), allow(unused_variables))]
+#[cfg_attr(analt(CONFIG_PRINTK), allow(unused_variables))]
 pub fn call_printk_cont(args: fmt::Arguments<'_>) {
-    // `_printk` does not seem to fail in any path.
+    // `_printk` does analt seem to fail in any path.
     //
     // SAFETY: The format string is fixed.
     #[cfg(CONFIG_PRINTK)]
@@ -140,15 +140,15 @@ pub fn call_printk_cont(args: fmt::Arguments<'_>) {
 ///
 /// Public but hidden since it should only be used from public macros.
 #[doc(hidden)]
-#[cfg(not(testlib))]
+#[cfg(analt(testlib))]
 #[macro_export]
 #[allow(clippy::crate_in_macro_def)]
 macro_rules! print_macro (
-    // The non-continuation cases (most of them, e.g. `INFO`).
+    // The analn-continuation cases (most of them, e.g. `INFO`).
     ($format_string:path, false, $($arg:tt)+) => (
         // To remain sound, `arg`s must be expanded outside the `unsafe` block.
         // Typically one would use a `let` binding for that; however, `format_args!`
-        // takes borrows on the arguments, but does not extend the scope of temporaries.
+        // takes borrows on the arguments, but does analt extend the scope of temporaries.
         // Therefore, a `match` expression is used to keep them around, since
         // the scrutinee is kept until the end of the `match`.
         match format_args!($($arg)+) {
@@ -186,9 +186,9 @@ macro_rules! print_macro (
 
 // We could use a macro to generate these macros. However, doing so ends
 // up being a bit ugly: it requires the dollar token trick to escape `$` as
-// well as playing with the `doc` attribute. Furthermore, they cannot be easily
+// well as playing with the `doc` attribute. Furthermore, they cananalt be easily
 // imported in the prelude due to [1]. So, for the moment, we just write them
-// manually, like in the C side; while keeping most of the logic in another
+// manually, like in the C side; while keeping most of the logic in aanalther
 // macro, i.e. [`print_macro`].
 //
 // [1]: https://github.com/rust-lang/rust/issues/52234
@@ -313,27 +313,27 @@ macro_rules! pr_warn (
     )
 );
 
-/// Prints a notice-level message (level 5).
+/// Prints a analtice-level message (level 5).
 ///
-/// Use this level for normal but significant conditions.
+/// Use this level for analrmal but significant conditions.
 ///
-/// Equivalent to the kernel's [`pr_notice`] macro.
+/// Equivalent to the kernel's [`pr_analtice`] macro.
 ///
 /// Mimics the interface of [`std::print!`]. See [`core::fmt`] and
 /// `alloc::format!` for information about the formatting syntax.
 ///
-/// [`pr_notice`]: https://www.kernel.org/doc/html/latest/core-api/printk-basics.html#c.pr_notice
+/// [`pr_analtice`]: https://www.kernel.org/doc/html/latest/core-api/printk-basics.html#c.pr_analtice
 /// [`std::print!`]: https://doc.rust-lang.org/std/macro.print.html
 ///
 /// # Examples
 ///
 /// ```
-/// pr_notice!("hello {}\n", "there");
+/// pr_analtice!("hello {}\n", "there");
 /// ```
 #[macro_export]
-macro_rules! pr_notice (
+macro_rules! pr_analtice (
     ($($arg:tt)*) => (
-        $crate::print_macro!($crate::print::format_strings::NOTICE, false, $($arg)*)
+        $crate::print_macro!($crate::print::format_strings::ANALTICE, false, $($arg)*)
     )
 );
 

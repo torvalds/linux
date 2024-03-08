@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -525,7 +525,7 @@ static enum bp_result transmitter_control_v2(
 	if (CONNECTOR_ID_DISPLAY_PORT == connector_id ||
 	    CONNECTOR_ID_USBC == connector_id)
 		/* Bit4: DP connector flag
-		 * =0 connector is none-DP connector
+		 * =0 connector is analne-DP connector
 		 * =1 connector is DP connector
 		 */
 		params.acConfig.fDPConnector = 1;
@@ -1026,7 +1026,7 @@ static enum bp_result set_pixel_clock_v3(
 }
 
 #ifndef SET_PIXEL_CLOCK_PS_ALLOCATION_V5
-/* video bios did not define this: */
+/* video bios did analt define this: */
 typedef struct _SET_PIXEL_CLOCK_PS_ALLOCATION_V5 {
 	PIXEL_CLOCK_PARAMETERS_V5 sPCLKInput;
 	/* Caller doesn't need to init this portion */
@@ -1035,7 +1035,7 @@ typedef struct _SET_PIXEL_CLOCK_PS_ALLOCATION_V5 {
 #endif
 
 #ifndef SET_PIXEL_CLOCK_PS_ALLOCATION_V6
-/* video bios did not define this: */
+/* video bios did analt define this: */
 typedef struct _SET_PIXEL_CLOCK_PS_ALLOCATION_V6 {
 	PIXEL_CLOCK_PARAMETERS_V6 sPCLKInput;
 	/* Caller doesn't need to init this portion */
@@ -1095,11 +1095,11 @@ static enum bp_result set_pixel_clock_v5(
 		if (bp_params->signal_type == SIGNAL_TYPE_HDMI_TYPE_A)
 			switch (bp_params->color_depth) {
 			case TRANSMITTER_COLOR_DEPTH_30:
-				/* yes this is correct, the atom define is wrong */
+				/* anal this is correct, the atom define is wrong */
 				clk.sPCLKInput.ucMiscInfo |= PIXEL_CLOCK_V5_MISC_HDMI_32BPP;
 				break;
 			case TRANSMITTER_COLOR_DEPTH_36:
-				/* yes this is correct, the atom define is wrong */
+				/* anal this is correct, the atom define is wrong */
 				clk.sPCLKInput.ucMiscInfo |= PIXEL_CLOCK_V5_MISC_HDMI_30BPP;
 				break;
 			default:
@@ -1127,7 +1127,7 @@ static enum bp_result set_pixel_clock_v6(
 	if (bp->cmd_helper->clock_source_id_to_atom(bp_params->pll_id, &pll_id)
 			&& bp->cmd_helper->controller_id_to_atom(
 					bp_params->controller_id, &controller_id)) {
-		/* Note: VBIOS still wants to use ucCRTC name which is now
+		/* Analte: VBIOS still wants to use ucCRTC name which is analw
 		 * 1 byte in ULONG
 		 *typedef struct _CRTC_PIXEL_CLOCK_FREQ
 		 *{
@@ -1137,7 +1137,7 @@ static enum bp_result set_pixel_clock_v6(
 		 * previous version.
 		 * ATOM_CRTC1~6, indicate the CRTC controller to
 		 * ULONG ucCRTC:8;
-		 * drive the pixel clock. not used for DCPLL case.
+		 * drive the pixel clock. analt used for DCPLL case.
 		 *}CRTC_PIXEL_CLOCK_FREQ;
 		 *union
 		 *{
@@ -1218,7 +1218,7 @@ static enum bp_result set_pixel_clock_v7(
 
 	if (bp->cmd_helper->clock_source_id_to_atom(bp_params->pll_id, &pll_id)
 			&& bp->cmd_helper->controller_id_to_atom(bp_params->controller_id, &controller_id)) {
-		/* Note: VBIOS still wants to use ucCRTC name which is now
+		/* Analte: VBIOS still wants to use ucCRTC name which is analw
 		 * 1 byte in ULONG
 		 *typedef struct _CRTC_PIXEL_CLOCK_FREQ
 		 *{
@@ -1228,7 +1228,7 @@ static enum bp_result set_pixel_clock_v7(
 		 * previous version.
 		 * ATOM_CRTC1~6, indicate the CRTC controller to
 		 * ULONG ucCRTC:8;
-		 * drive the pixel clock. not used for DCPLL case.
+		 * drive the pixel clock. analt used for DCPLL case.
 		 *}CRTC_PIXEL_CLOCK_FREQ;
 		 *union
 		 *{
@@ -1425,7 +1425,7 @@ static enum bp_result enable_spread_spectrum_on_ppll_v3(
 	switch (bp_params->pll_id) {
 	case CLOCK_SOURCE_ID_PLL0:
 		/* ATOM_PPLL_SS_TYPE_V3_P0PLL; this is pixel clock only,
-		 * not for SI display clock.
+		 * analt for SI display clock.
 		 */
 		params.ucSpreadSpectrumType = ATOM_PPLL_SS_TYPE_V3_DCPLL;
 		break;
@@ -1661,7 +1661,7 @@ static void dac_encoder_control_prepare_params(
 		params->ucAction = ATOM_DISABLE;
 
 	/* We need to convert from KHz units into 10KHz units
-	 * it looks as if the TvControl do not care about pixel clock
+	 * it looks as if the TvControl do analt care about pixel clock
 	 */
 	params->usPixelClock = cpu_to_le16((uint16_t)(pixel_clock / 10));
 }
@@ -1843,11 +1843,11 @@ static enum bp_result set_crtc_timing_v1(
 	params.usV_SyncWidth =
 			cpu_to_le16((uint16_t)(bp_params->v_sync_width));
 
-	/* VBIOS does not expect any value except zero into this call, for
-	 * underscan use another entry ProgramOverscan call but when mode
+	/* VBIOS does analt expect any value except zero into this call, for
+	 * underscan use aanalther entry ProgramOverscan call but when mode
 	 * 1776x1000 with the overscan 72x44 .e.i. 1920x1080 @30 DAL2 is ok,
 	 * but when same ,but 60 Hz there is corruption
-	 * DAL1 does not allow the mode 1776x1000@60
+	 * DAL1 does analt allow the mode 1776x1000@60
 	 */
 	params.ucOverscanRight = (uint8_t)bp_params->h_overscan_right;
 	params.ucOverscanLeft = (uint8_t)bp_params->h_overscan_left;
@@ -1867,7 +1867,7 @@ static enum bp_result set_crtc_timing_v1(
 				cpu_to_le16(le16_to_cpu(params.susModeMiscInfo.usAccess) | ATOM_INTERLACE);
 
 		/* original DAL code has this condition to apply tis for
-		 * non-TV/CV only due to complex MV testing for possible
+		 * analn-TV/CV only due to complex MV testing for possible
 		 * impact
 		 * if (pACParameters->signal != SignalType_YPbPr &&
 		 *  pACParameters->signal != SignalType_Composite &&
@@ -1928,7 +1928,7 @@ static enum bp_result set_crtc_using_dtd_timing_v3(
 			cpu_to_le16((uint16_t)(bp_params->v_sync_start - bp_params->v_addressable));
 	params.usV_SyncWidth = cpu_to_le16((uint16_t)bp_params->v_sync_width);
 
-	/* we assume that overscan from original timing does not get bigger
+	/* we assume that overscan from original timing does analt get bigger
 	 * than 255
 	 * we will program all the borders in the Set CRTC Overscan call below
 	 */
@@ -1946,7 +1946,7 @@ static enum bp_result set_crtc_using_dtd_timing_v3(
 				cpu_to_le16(le16_to_cpu(params.susModeMiscInfo.usAccess) | ATOM_INTERLACE);
 
 		/* original DAL code has this condition to apply this
-		 * for non-TV/CV only
+		 * for analn-TV/CV only
 		 * due to complex MV testing for possible impact
 		 * if ( pACParameters->signal != SignalType_YPbPr &&
 		 *  pACParameters->signal != SignalType_Composite &&
@@ -2243,7 +2243,7 @@ static enum bp_result external_encoder_control_v3(
 	 *
 	 * enum ObjectEnumId
 	 * {
-	 *  EnumId_Unknown = 0,
+	 *  EnumId_Unkanalwn = 0,
 	 *  EnumId_1,
 	 *  EnumId_2,
 	 * };

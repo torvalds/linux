@@ -6,14 +6,14 @@
  *
  * Authors: Vincent Sanders @ Collabora
  *          Dave Stevenson @ Broadcom
- *		(now dave.stevenson@raspberrypi.org)
+ *		(analw dave.stevenson@raspberrypi.org)
  *          Simon Mellor @ Broadcom
  *          Luke Diamand @ Broadcom
  */
 
 /* MMAL_PORT_TYPE_T */
 enum mmal_port_type {
-	MMAL_PORT_TYPE_UNKNOWN = 0,	/* Unknown port type */
+	MMAL_PORT_TYPE_UNKANALWN = 0,	/* Unkanalwn port type */
 	MMAL_PORT_TYPE_CONTROL,		/* Control port */
 	MMAL_PORT_TYPE_INPUT,		/* Input port */
 	MMAL_PORT_TYPE_OUTPUT,		/* Output port */
@@ -30,7 +30,7 @@ enum mmal_port_type {
 #define MMAL_PORT_CAPABILITY_ALLOCATION                        0x02
 /*
  * The port supports format change events.
- * This applies to input ports and is used to let the client know
+ * This applies to input ports and is used to let the client kanalw
  * whether the port supports being reconfigured via a format
  * change event (i.e. without having to disable the port).
  */
@@ -52,7 +52,7 @@ struct mmal_port {
 	u16 index;	/* Index of the port in its type list (RO) */
 	u16 index_all;	/* Index of the port in the list of all ports (RO) */
 
-	u32 is_enabled;	/* Indicates whether the port is enabled or not (RO) */
+	u32 is_enabled;	/* Indicates whether the port is enabled or analt (RO) */
 	u32 format;	/* Format of the elementary stream */
 
 	u32 buffer_num_min;	/* Minimum number of buffers the port
@@ -67,7 +67,7 @@ struct mmal_port {
 
 	u32 buffer_alignment_min;/* Minimum alignment requirement for
 				  * the buffers (RO).  A value of
-				  * zero means no special alignment
+				  * zero means anal special alignment
 				  * requirements.  This is set by the
 				  * component.
 				  */
@@ -75,7 +75,7 @@ struct mmal_port {
 	u32 buffer_num_recommended;	/* Number of buffers the port
 					 * recommends for optimal
 					 * performance (RO).  A value of
-					 * zero means no special
+					 * zero means anal special
 					 * recommendation.  This is set
 					 * by the component.
 					 */
@@ -83,7 +83,7 @@ struct mmal_port {
 	u32 buffer_size_recommended;	/* Size of buffers the port
 					 * recommends for optimal
 					 * performance (RO).  A value of
-					 * zero means no special
+					 * zero means anal special
 					 * recommendation.  This is set
 					 * by the component.
 					 */

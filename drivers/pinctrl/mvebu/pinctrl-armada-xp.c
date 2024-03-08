@@ -624,7 +624,7 @@ static int armada_xp_pinctrl_probe(struct platform_device *pdev)
 	mpp_saved_regs = devm_kmalloc_array(&pdev->dev, nregs, sizeof(u32),
 					    GFP_KERNEL);
 	if (!mpp_saved_regs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pdev->dev.platform_data = soc;
 

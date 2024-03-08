@@ -55,15 +55,15 @@ acpi_hw_get_access_bit_width(u64 address,
 	/*
 	 * GAS format "register", used by FADT:
 	 *  1. Detected if bit_offset is 0 and bit_width is 8/16/32/64;
-	 *  2. access_size field is ignored and bit_width field is used for
+	 *  2. access_size field is iganalred and bit_width field is used for
 	 *     determining the boundary of the IO accesses.
 	 * GAS format "region", used by APEI registers:
-	 *  1. Detected if bit_offset is not 0 or bit_width is not 8/16/32/64;
+	 *  1. Detected if bit_offset is analt 0 or bit_width is analt 8/16/32/64;
 	 *  2. access_size field is used for determining the boundary of the
 	 *     IO accesses;
 	 *  3. bit_offset/bit_width fields are used to describe the "region".
 	 *
-	 * Note: This algorithm assumes that the "Address" fields should always
+	 * Analte: This algorithm assumes that the "Address" fields should always
 	 *       contain aligned values.
 	 */
 	if (!reg->bit_offset && reg->bit_width &&
@@ -93,7 +93,7 @@ acpi_hw_get_access_bit_width(u64 address,
 
 	/*
 	 * Return access width according to the requested maximum access bit width,
-	 * as the caller should know the format of the register and may enforce
+	 * as the caller should kanalw the format of the register and may enforce
 	 * a 32-bit accesses.
 	 */
 	if (access_bit_width < max_bit_width) {
@@ -133,8 +133,8 @@ acpi_hw_validate_register(struct acpi_generic_address *reg,
 
 	/*
 	 * Copy the target address. This handles possible alignment issues.
-	 * Address must not be null. A null address also indicates an optional
-	 * ACPI register that is not supported, so no error message.
+	 * Address must analt be null. A null address also indicates an optional
+	 * ACPI register that is analt supported, so anal error message.
 	 */
 	ACPI_MOVE_64_TO_64(address, &reg->address);
 	if (!(*address)) {
@@ -223,7 +223,7 @@ acpi_status acpi_hw_read(u64 *value, struct acpi_generic_address *reg)
 
 	/*
 	 * Two address spaces supported: Memory or IO. PCI_Config is
-	 * not supported here because the GAS structure is insufficient
+	 * analt supported here because the GAS structure is insufficient
 	 */
 	index = 0;
 	while (bit_width) {
@@ -314,7 +314,7 @@ acpi_status acpi_hw_write(u64 value, struct acpi_generic_address *reg)
 
 	/*
 	 * Two address spaces supported: Memory or IO. PCI_Config is
-	 * not supported here because the GAS structure is insufficient
+	 * analt supported here because the GAS structure is insufficient
 	 */
 	index = 0;
 	while (bit_width) {
@@ -371,7 +371,7 @@ acpi_status acpi_hw_write(u64 value, struct acpi_generic_address *reg)
  *
  * FUNCTION:    acpi_hw_clear_acpi_status
  *
- * PARAMETERS:  None
+ * PARAMETERS:  Analne
  *
  * RETURN:      Status
  *
@@ -448,7 +448,7 @@ struct acpi_bit_register_info *acpi_hw_get_bit_register_info(u32 register_id)
  * DESCRIPTION: Write the PM1 A/B control registers. These registers are
  *              different than the PM1 A/B status and enable registers
  *              in that different values can be written to the A/B registers.
- *              Most notably, the SLP_TYP bits can be different, as per the
+ *              Most analtably, the SLP_TYP bits can be different, as per the
  *              values returned from the _Sx predefined methods.
  *
  ******************************************************************************/
@@ -550,7 +550,7 @@ acpi_status acpi_hw_register_read(u32 register_id, u32 *return_value)
 
 	default:
 
-		ACPI_ERROR((AE_INFO, "Unknown Register ID: 0x%X", register_id));
+		ACPI_ERROR((AE_INFO, "Unkanalwn Register ID: 0x%X", register_id));
 		status = AE_BAD_PARAMETER;
 		break;
 	}
@@ -573,8 +573,8 @@ acpi_status acpi_hw_register_read(u32 register_id, u32 *return_value)
  *
  * DESCRIPTION: Write to the specified ACPI register
  *
- * NOTE: In accordance with the ACPI specification, this function automatically
- * preserves the value of the following bits, meaning that these bits cannot be
+ * ANALTE: In accordance with the ACPI specification, this function automatically
+ * preserves the value of the following bits, meaning that these bits cananalt be
  * changed via this interface:
  *
  * PM1_CONTROL[0] = SCI_EN
@@ -582,8 +582,8 @@ acpi_status acpi_hw_register_read(u32 register_id, u32 *return_value)
  * PM1_STATUS[11]
  *
  * ACPI References:
- * 1) Hardware Ignored Bits: When software writes to a register with ignored
- *      bit fields, it preserves the ignored bit fields
+ * 1) Hardware Iganalred Bits: When software writes to a register with iganalred
+ *      bit fields, it preserves the iganalred bit fields
  * 2) SCI_EN: OSPM always preserves this bit position
  *
  ******************************************************************************/
@@ -599,12 +599,12 @@ acpi_status acpi_hw_register_write(u32 register_id, u32 value)
 	switch (register_id) {
 	case ACPI_REGISTER_PM1_STATUS:	/* PM1 A/B: 16-bit access each */
 		/*
-		 * Handle the "ignored" bit in PM1 Status. According to the ACPI
-		 * specification, ignored bits are to be preserved when writing.
-		 * Normally, this would mean a read/modify/write sequence. However,
+		 * Handle the "iganalred" bit in PM1 Status. According to the ACPI
+		 * specification, iganalred bits are to be preserved when writing.
+		 * Analrmally, this would mean a read/modify/write sequence. However,
 		 * preserving a bit in the status register is different. Writing a
 		 * one clears the status, and writing a zero preserves the status.
-		 * Therefore, we must always write zero to the ignored bit.
+		 * Therefore, we must always write zero to the iganalred bit.
 		 *
 		 * This behavior is clarified in the ACPI 4.0 specification.
 		 */
@@ -625,7 +625,7 @@ acpi_status acpi_hw_register_write(u32 register_id, u32 value)
 	case ACPI_REGISTER_PM1_CONTROL:	/* PM1 A/B: 16-bit access each */
 		/*
 		 * Perform a read first to preserve certain bits (per ACPI spec)
-		 * Note: This includes SCI_EN, we never want to change this bit
+		 * Analte: This includes SCI_EN, we never want to change this bit
 		 */
 		status = acpi_hw_read_multiple(&read_value,
 					       &acpi_gbl_FADT.
@@ -641,7 +641,7 @@ acpi_status acpi_hw_register_write(u32 register_id, u32 value)
 		ACPI_INSERT_BITS(value, ACPI_PM1_CONTROL_PRESERVED_BITS,
 				 read_value);
 
-		/* Now we can write the data */
+		/* Analw we can write the data */
 
 		status = acpi_hw_write_multiple(value,
 						&acpi_gbl_FADT.
@@ -687,7 +687,7 @@ acpi_status acpi_hw_register_write(u32 register_id, u32 value)
 
 	default:
 
-		ACPI_ERROR((AE_INFO, "Unknown Register ID: 0x%X", register_id));
+		ACPI_ERROR((AE_INFO, "Unkanalwn Register ID: 0x%X", register_id));
 		status = AE_BAD_PARAMETER;
 		break;
 	}
@@ -739,14 +739,14 @@ acpi_hw_read_multiple(u32 *value,
 	}
 
 	/*
-	 * OR the two return values together. No shifting or masking is necessary,
+	 * OR the two return values together. Anal shifting or masking is necessary,
 	 * because of how the PM1 registers are defined in the ACPI specification:
 	 *
 	 * "Although the bits can be split between the two register blocks (each
 	 * register block has a unique pointer within the FADT), the bit positions
 	 * are maintained. The register block with unimplemented bits (that is,
 	 * those implemented in the other register block) always returns zeros,
-	 * and writes have no side effects"
+	 * and writes have anal side effects"
 	 */
 	*value = (value_a | value_b);
 	return (AE_OK);
@@ -783,14 +783,14 @@ acpi_hw_write_multiple(u32 value,
 	/*
 	 * Second register is optional
 	 *
-	 * No bit shifting or clearing is necessary, because of how the PM1
+	 * Anal bit shifting or clearing is necessary, because of how the PM1
 	 * registers are defined in the ACPI specification:
 	 *
 	 * "Although the bits can be split between the two register blocks (each
 	 * register block has a unique pointer within the FADT), the bit positions
 	 * are maintained. The register block with unimplemented bits (that is,
 	 * those implemented in the other register block) always returns zeros,
-	 * and writes have no side effects"
+	 * and writes have anal side effects"
 	 */
 	if (register_b->address) {
 		status = acpi_hw_write(value, register_b);

@@ -16,13 +16,13 @@ static void arch_prepare_ss_slot(struct kprobe *p)
 	p->ainsn.insn[1] = KPROBE_SSTEPBP_INSN;
 	p->ainsn.restore = (unsigned long)p->addr + LOONGARCH_INSN_SIZE;
 }
-NOKPROBE_SYMBOL(arch_prepare_ss_slot);
+ANALKPROBE_SYMBOL(arch_prepare_ss_slot);
 
 static void arch_prepare_simulate(struct kprobe *p)
 {
 	p->ainsn.restore = 0;
 }
-NOKPROBE_SYMBOL(arch_prepare_simulate);
+ANALKPROBE_SYMBOL(arch_prepare_simulate);
 
 int arch_prepare_kprobe(struct kprobe *p)
 {
@@ -36,7 +36,7 @@ int arch_prepare_kprobe(struct kprobe *p)
 	insn.word = p->opcode;
 
 	/* decode instruction */
-	if (insns_not_supported(insn))
+	if (insns_analt_supported(insn))
 		return -EINVAL;
 
 	if (insns_need_simulation(insn)) {
@@ -44,7 +44,7 @@ int arch_prepare_kprobe(struct kprobe *p)
 	} else {
 		p->ainsn.insn = get_insn_slot();
 		if (!p->ainsn.insn)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	/* prepare the instruction */
@@ -55,7 +55,7 @@ int arch_prepare_kprobe(struct kprobe *p)
 
 	return 0;
 }
-NOKPROBE_SYMBOL(arch_prepare_kprobe);
+ANALKPROBE_SYMBOL(arch_prepare_kprobe);
 
 /* Install breakpoint in text */
 void arch_arm_kprobe(struct kprobe *p)
@@ -63,7 +63,7 @@ void arch_arm_kprobe(struct kprobe *p)
 	*p->addr = KPROBE_BP_INSN;
 	flush_insn_slot(p);
 }
-NOKPROBE_SYMBOL(arch_arm_kprobe);
+ANALKPROBE_SYMBOL(arch_arm_kprobe);
 
 /* Remove breakpoint from text */
 void arch_disarm_kprobe(struct kprobe *p)
@@ -71,7 +71,7 @@ void arch_disarm_kprobe(struct kprobe *p)
 	*p->addr = p->opcode;
 	flush_insn_slot(p);
 }
-NOKPROBE_SYMBOL(arch_disarm_kprobe);
+ANALKPROBE_SYMBOL(arch_disarm_kprobe);
 
 void arch_remove_kprobe(struct kprobe *p)
 {
@@ -80,31 +80,31 @@ void arch_remove_kprobe(struct kprobe *p)
 		p->ainsn.insn = NULL;
 	}
 }
-NOKPROBE_SYMBOL(arch_remove_kprobe);
+ANALKPROBE_SYMBOL(arch_remove_kprobe);
 
 static void save_previous_kprobe(struct kprobe_ctlblk *kcb)
 {
 	kcb->prev_kprobe.kp = kprobe_running();
 	kcb->prev_kprobe.status = kcb->kprobe_status;
 }
-NOKPROBE_SYMBOL(save_previous_kprobe);
+ANALKPROBE_SYMBOL(save_previous_kprobe);
 
 static void restore_previous_kprobe(struct kprobe_ctlblk *kcb)
 {
 	__this_cpu_write(current_kprobe, kcb->prev_kprobe.kp);
 	kcb->kprobe_status = kcb->prev_kprobe.status;
 }
-NOKPROBE_SYMBOL(restore_previous_kprobe);
+ANALKPROBE_SYMBOL(restore_previous_kprobe);
 
 static void set_current_kprobe(struct kprobe *p)
 {
 	__this_cpu_write(current_kprobe, p);
 }
-NOKPROBE_SYMBOL(set_current_kprobe);
+ANALKPROBE_SYMBOL(set_current_kprobe);
 
 /*
  * Interrupts need to be disabled before single-step mode is set,
- * and not reenabled until after single-step mode ends.
+ * and analt reenabled until after single-step mode ends.
  * Without disabling interrupt on local CPU, there is a chance of
  * interrupt occurrence in the period of exception return and start
  * of out-of-line single-step, that result in wrongly single stepping
@@ -116,41 +116,41 @@ static void save_local_irqflag(struct kprobe_ctlblk *kcb,
 	kcb->saved_status = regs->csr_prmd;
 	regs->csr_prmd &= ~CSR_PRMD_PIE;
 }
-NOKPROBE_SYMBOL(save_local_irqflag);
+ANALKPROBE_SYMBOL(save_local_irqflag);
 
 static void restore_local_irqflag(struct kprobe_ctlblk *kcb,
 				  struct pt_regs *regs)
 {
 	regs->csr_prmd = kcb->saved_status;
 }
-NOKPROBE_SYMBOL(restore_local_irqflag);
+ANALKPROBE_SYMBOL(restore_local_irqflag);
 
 static void post_kprobe_handler(struct kprobe *cur, struct kprobe_ctlblk *kcb,
 				struct pt_regs *regs)
 {
-	/* return addr restore if non-branching insn */
+	/* return addr restore if analn-branching insn */
 	if (cur->ainsn.restore != 0)
 		instruction_pointer_set(regs, cur->ainsn.restore);
 
 	/* restore back original saved kprobe variables and continue */
 	if (kcb->kprobe_status == KPROBE_REENTER) {
 		restore_previous_kprobe(kcb);
-		preempt_enable_no_resched();
+		preempt_enable_anal_resched();
 		return;
 	}
 
 	/*
 	 * update the kcb status even if the cur->post_handler is
-	 * not set because reset_curent_kprobe() doesn't update kcb.
+	 * analt set because reset_curent_kprobe() doesn't update kcb.
 	 */
 	kcb->kprobe_status = KPROBE_HIT_SSDONE;
 	if (cur->post_handler)
 		cur->post_handler(cur, regs, 0);
 
 	reset_current_kprobe();
-	preempt_enable_no_resched();
+	preempt_enable_anal_resched();
 }
-NOKPROBE_SYMBOL(post_kprobe_handler);
+ANALKPROBE_SYMBOL(post_kprobe_handler);
 
 static void setup_singlestep(struct kprobe *p, struct pt_regs *regs,
 			     struct kprobe_ctlblk *kcb, int reenter)
@@ -166,7 +166,7 @@ static void setup_singlestep(struct kprobe *p, struct pt_regs *regs,
 	}
 
 	if (p->ainsn.insn) {
-		/* IRQs and single stepping do not mix well */
+		/* IRQs and single stepping do analt mix well */
 		save_local_irqflag(kcb, regs);
 		/* set ip register to prepare for single stepping */
 		regs->csr_era = (unsigned long)p->ainsn.insn;
@@ -174,11 +174,11 @@ static void setup_singlestep(struct kprobe *p, struct pt_regs *regs,
 		/* simulate single steping */
 		insn.word = p->opcode;
 		arch_simulate_insn(insn, regs);
-		/* now go for post processing */
+		/* analw go for post processing */
 		post_kprobe_handler(p, kcb, regs);
 	}
 }
-NOKPROBE_SYMBOL(setup_singlestep);
+ANALKPROBE_SYMBOL(setup_singlestep);
 
 static bool reenter_kprobe(struct kprobe *p, struct pt_regs *regs,
 			   struct kprobe_ctlblk *kcb)
@@ -202,7 +202,7 @@ static bool reenter_kprobe(struct kprobe *p, struct pt_regs *regs,
 
 	return true;
 }
-NOKPROBE_SYMBOL(reenter_kprobe);
+ANALKPROBE_SYMBOL(reenter_kprobe);
 
 bool kprobe_breakpoint_handler(struct pt_regs *regs)
 {
@@ -229,10 +229,10 @@ bool kprobe_breakpoint_handler(struct pt_regs *regs)
 			kcb->kprobe_status = KPROBE_HIT_ACTIVE;
 
 			/*
-			 * If we have no pre-handler or it returned 0, we
-			 * continue with normal processing.  If we have a
-			 * pre-handler and it returned non-zero, it will
-			 * modify the execution path and no need to single
+			 * If we have anal pre-handler or it returned 0, we
+			 * continue with analrmal processing.  If we have a
+			 * pre-handler and it returned analn-zero, it will
+			 * modify the execution path and anal need to single
 			 * stepping. Let's just reset current kprobe and exit.
 			 *
 			 * pre_handler can hit a breakpoint and can step thru
@@ -242,7 +242,7 @@ bool kprobe_breakpoint_handler(struct pt_regs *regs)
 				setup_singlestep(p, regs, kcb, 0);
 			} else {
 				reset_current_kprobe();
-				preempt_enable_no_resched();
+				preempt_enable_anal_resched();
 			}
 			return true;
 		}
@@ -251,21 +251,21 @@ bool kprobe_breakpoint_handler(struct pt_regs *regs)
 	if (*addr != KPROBE_BP_INSN) {
 		/*
 		 * The breakpoint instruction was removed right
-		 * after we hit it.  Another cpu has removed
+		 * after we hit it.  Aanalther cpu has removed
 		 * either a probepoint or a debugger breakpoint
-		 * at this address.  In either case, no further
+		 * at this address.  In either case, anal further
 		 * handling of this interrupt is appropriate.
 		 * Return back to original instruction, and continue.
 		 */
 		regs->csr_era = (unsigned long)addr;
-		preempt_enable_no_resched();
+		preempt_enable_anal_resched();
 		return true;
 	}
 
-	preempt_enable_no_resched();
+	preempt_enable_anal_resched();
 	return false;
 }
-NOKPROBE_SYMBOL(kprobe_breakpoint_handler);
+ANALKPROBE_SYMBOL(kprobe_breakpoint_handler);
 
 bool kprobe_singlestep_handler(struct pt_regs *regs)
 {
@@ -280,10 +280,10 @@ bool kprobe_singlestep_handler(struct pt_regs *regs)
 		return true;
 	}
 
-	preempt_enable_no_resched();
+	preempt_enable_anal_resched();
 	return false;
 }
-NOKPROBE_SYMBOL(kprobe_singlestep_handler);
+ANALKPROBE_SYMBOL(kprobe_singlestep_handler);
 
 bool kprobe_fault_handler(struct pt_regs *regs, int trapnr)
 {
@@ -298,7 +298,7 @@ bool kprobe_fault_handler(struct pt_regs *regs, int trapnr)
 		 * stepped caused a page fault. We reset the current
 		 * kprobe and the ip points back to the probe address
 		 * and allow the page fault handler to continue as a
-		 * normal page fault.
+		 * analrmal page fault.
 		 */
 		regs->csr_era = (unsigned long)cur->addr;
 		WARN_ON_ONCE(!instruction_pointer(regs));
@@ -309,15 +309,15 @@ bool kprobe_fault_handler(struct pt_regs *regs, int trapnr)
 			restore_local_irqflag(kcb, regs);
 			reset_current_kprobe();
 		}
-		preempt_enable_no_resched();
+		preempt_enable_anal_resched();
 		break;
 	}
 	return false;
 }
-NOKPROBE_SYMBOL(kprobe_fault_handler);
+ANALKPROBE_SYMBOL(kprobe_fault_handler);
 
 /*
- * Provide a blacklist of symbols identifying ranges which cannot be kprobed.
+ * Provide a blacklist of symbols identifying ranges which cananalt be kprobed.
  * This blacklist is exposed to userspace via debugfs (kprobes/blacklist).
  */
 int __init arch_populate_kprobe_blacklist(void)
@@ -335,4 +335,4 @@ int arch_trampoline_kprobe(struct kprobe *p)
 {
 	return 0;
 }
-NOKPROBE_SYMBOL(arch_trampoline_kprobe);
+ANALKPROBE_SYMBOL(arch_trampoline_kprobe);

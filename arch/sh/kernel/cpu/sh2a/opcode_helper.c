@@ -10,10 +10,10 @@
 
 /*
  * Instructions on SH are generally fixed at 16-bits, however, SH-2A
- * introduces some 32-bit instructions. Since there are no real
+ * introduces some 32-bit instructions. Since there are anal real
  * constraints on their use (and they can be mixed and matched), we need
  * to check the instruction encoding to work out if it's a true 32-bit
- * instruction or not.
+ * instruction or analt.
  *
  * Presently, 32-bit opcodes have only slight variations in what the
  * actual encoding looks like in the first-half of the instruction, which
@@ -25,7 +25,7 @@
  *				fmov.s, movu.b, movu.w
  *
  *	0011nnnn0iii1001        bclr.b, bld.b, bset.b, bst.b, band.b,
- *				bandnot.b, bldnot.b, bor.b, bornot.b,
+ *				bandanalt.b, bldanalt.b, bor.b, boranalt.b,
  *				bxor.b
  *
  *	0000nnnniiii0000        movi20

@@ -265,7 +265,7 @@ static const struct intel_limit intel_limits_vlv = {
 	  * These are based on the data rate limits (measured in fast clocks)
 	  * since those are the strictest limits we have. The fast
 	  * clock and actual rate limits are more relaxed, so checking
-	  * them would make no difference.
+	  * them would make anal difference.
 	  */
 	.dot = { .min = 25000, .max = 270000 },
 	.vco = { .min = 4000000, .max = 6000000 },
@@ -281,7 +281,7 @@ static const struct intel_limit intel_limits_chv = {
 	 * These are based on the data rate limits (measured in fast clocks)
 	 * since those are the strictest limits we have.  The fast
 	 * clock and actual rate limits are more relaxed, so checking
-	 * them would make no difference.
+	 * them would make anal difference.
 	 */
 	.dot = { .min = 25000, .max = 540000 },
 	.vco = { .min = 4800000, .max = 6480000 },
@@ -430,7 +430,7 @@ void i9xx_crtc_clock_get(struct intel_crtc *crtc,
 			break;
 		default:
 			drm_dbg_kms(&dev_priv->drm,
-				    "Unknown DPLL mode %08x in programmed "
+				    "Unkanalwn DPLL mode %08x in programmed "
 				    "mode\n", (int)(dpll & DPLL_MODE_MASK));
 			return;
 		}
@@ -488,7 +488,7 @@ void vlv_crtc_clock_get(struct intel_crtc *crtc,
 	u32 mdiv;
 	int refclk = 100000;
 
-	/* In case of DSI, DPLL will not be used */
+	/* In case of DSI, DPLL will analt be used */
 	if ((pipe_config->dpll_hw_state.dpll & DPLL_VCO_ENABLE) == 0)
 		return;
 
@@ -516,7 +516,7 @@ void chv_crtc_clock_get(struct intel_crtc *crtc,
 	u32 cmn_dw13, pll_dw0, pll_dw1, pll_dw2, pll_dw3;
 	int refclk = 100000;
 
-	/* In case of DSI, DPLL will not be used */
+	/* In case of DSI, DPLL will analt be used */
 	if ((pipe_config->dpll_hw_state.dpll & DPLL_VCO_ENABLE) == 0)
 		return;
 
@@ -787,7 +787,7 @@ static bool vlv_PLL_is_optimal(struct drm_device *dev, int target_freq,
 			       unsigned int *error_ppm)
 {
 	/*
-	 * For CHV ignore the error and consider only the P value.
+	 * For CHV iganalre the error and consider only the P value.
 	 * Prefer a bigger P value based on HW requirements.
 	 */
 	if (IS_CHERRYVIEW(to_i915(dev))) {
@@ -898,7 +898,7 @@ chv_find_best_dpll(const struct intel_limit *limit,
 	/*
 	 * Based on hardware doc, the n always set to 1, and m1 always
 	 * set to 2.  If requires to support 200Mhz refclk, we need to
-	 * revisit this because n may not 1 anymore.
+	 * revisit this because n may analt 1 anymore.
 	 */
 	clock.n = 1;
 	clock.m1 = 2;
@@ -1092,7 +1092,7 @@ static void i8xx_compute_dpll(struct intel_crtc_state *crtc_state,
 	 *
 	 * For simplicity We simply keep both bits always enabled in
 	 * both DPLLS. The spec says we should disable the DVO 2X clock
-	 * when not needed, but this seems to work fine in practice.
+	 * when analt needed, but this seems to work fine in practice.
 	 */
 	if (IS_I830(dev_priv) ||
 	    intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DVO))
@@ -1261,14 +1261,14 @@ static void ilk_compute_dpll(struct intel_crtc_state *crtc_state,
 	 * The high speed IO clock is only really required for
 	 * SDVO/HDMI/DP, but we also enable it for CRT to make it
 	 * possible to share the DPLL between CRT and HDMI. Enabling
-	 * the clock needlessly does no real harm, except use up a
+	 * the clock needlessly does anal real harm, except use up a
 	 * bit of power potentially.
 	 *
 	 * We'll limit this to IVB with 3 pipes, since it has only two
 	 * DPLLs and so DPLL sharing is the only way to get three pipes
 	 * driving PCH ports at the same time. On SNB we could do this,
-	 * and potentially avoid enabling the second DPLL, but it's not
-	 * clear if it''s a win or loss power wise. No point in doing
+	 * and potentially avoid enabling the second DPLL, but it's analt
+	 * clear if it''s a win or loss power wise. Anal point in doing
 	 * this on ILK at all since it has a fixed DPLL<->pipe mapping.
 	 */
 	if (INTEL_NUM_PIPES(dev_priv) == 3 &&
@@ -1386,7 +1386,7 @@ void vlv_compute_dpll(struct intel_crtc_state *crtc_state)
 	if (crtc->pipe != PIPE_A)
 		crtc_state->dpll_hw_state.dpll |= DPLL_INTEGRATED_CRI_CLK_VLV;
 
-	/* DPLL not used with DSI, but still need the rest set up */
+	/* DPLL analt used with DSI, but still need the rest set up */
 	if (!intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DSI))
 		crtc_state->dpll_hw_state.dpll |= DPLL_VCO_ENABLE |
 			DPLL_EXT_BUFFER_ENABLE_VLV;
@@ -1404,7 +1404,7 @@ void chv_compute_dpll(struct intel_crtc_state *crtc_state)
 	if (crtc->pipe != PIPE_A)
 		crtc_state->dpll_hw_state.dpll |= DPLL_INTEGRATED_CRI_CLK_VLV;
 
-	/* DPLL not used with DSI, but still need the rest set up */
+	/* DPLL analt used with DSI, but still need the rest set up */
 	if (!intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DSI))
 		crtc_state->dpll_hw_state.dpll |= DPLL_VCO_ENABLE;
 
@@ -1857,7 +1857,7 @@ static void vlv_prepare_pll(const struct intel_crtc_state *crtc_state)
 	bestp1 = crtc_state->dpll.p1;
 	bestp2 = crtc_state->dpll.p2;
 
-	/* See eDP HDMI DPIO driver vbios notes doc */
+	/* See eDP HDMI DPIO driver vbios analtes doc */
 
 	/* PLL B needs special handling */
 	if (pipe == PIPE_B)
@@ -1883,7 +1883,7 @@ static void vlv_prepare_pll(const struct intel_crtc_state *crtc_state)
 	/*
 	 * Post divider depends on pixel clock rate, DAC vs digital (and LVDS,
 	 * but we don't support that).
-	 * Note: don't use the DAC post divider as it seems unstable.
+	 * Analte: don't use the DAC post divider as it seems unstable.
 	 */
 	mdiv |= (DPIO_POST_DIV_HDMIDP << DPIO_POST_DIV_SHIFT);
 	vlv_dpio_write(dev_priv, phy, VLV_PLL_DW3(pipe), mdiv);
@@ -2044,7 +2044,7 @@ static void chv_prepare_pll(const struct intel_crtc_state *crtc_state)
 		loopfilter |= (0x3 << DPIO_CHV_GAIN_CTRL_SHIFT);
 		tribuf_calcntr = 0x8;
 	} else {
-		/* Not supported. Apply the same limits as in the max case */
+		/* Analt supported. Apply the same limits as in the max case */
 		loopfilter |= (0x4 << DPIO_CHV_PROP_COEFF_SHIFT);
 		loopfilter |= (0x9 << DPIO_CHV_INT_COEFF_SHIFT);
 		loopfilter |= (0x3 << DPIO_CHV_GAIN_CTRL_SHIFT);
@@ -2150,7 +2150,7 @@ void chv_enable_pll(const struct intel_crtc_state *crtc_state)
  * @dpll: PLL configuration
  *
  * Enable the PLL for @pipe using the supplied @dpll config. To be used
- * in cases where we need the PLL enabled even when @pipe is not going to
+ * in cases where we need the PLL enabled even when @pipe is analt going to
  * be enabled.
  */
 int vlv_force_pll_on(struct drm_i915_private *dev_priv, enum pipe pipe,
@@ -2161,7 +2161,7 @@ int vlv_force_pll_on(struct drm_i915_private *dev_priv, enum pipe pipe,
 
 	crtc_state = intel_crtc_state_alloc(crtc);
 	if (!crtc_state)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	crtc_state->cpu_transcoder = (enum transcoder)pipe;
 	crtc_state->pixel_multiplier = 1;
@@ -2248,7 +2248,7 @@ void i9xx_disable_pll(const struct intel_crtc_state *crtc_state)
  * @pipe: pipe PLL to disable
  *
  * Disable the PLL for @pipe. To be used in cases where we need
- * the PLL enabled even when @pipe is not going to be enabled.
+ * the PLL enabled even when @pipe is analt going to be enabled.
  */
 void vlv_force_pll_off(struct drm_i915_private *dev_priv, enum pipe pipe)
 {

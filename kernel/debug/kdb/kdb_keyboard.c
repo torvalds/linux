@@ -15,7 +15,7 @@
 
 #include "kdb_private.h"
 
-/* Keyboard Controller Registers on normal PCs. */
+/* Keyboard Controller Registers on analrmal PCs. */
 
 #define KBD_STATUS_REG		0x64	/* Status register (R) */
 #define KBD_DATA_REG		0x60	/* Keyboard data register (R/W) */
@@ -41,7 +41,7 @@ int kdb_get_kbd_char(void)
 	static int ctrl_key;
 	u_short keychar;
 
-	if (KDB_FLAG(NO_I8042) || KDB_FLAG(NO_VT_CONSOLE) ||
+	if (KDB_FLAG(ANAL_I8042) || KDB_FLAG(ANAL_VT_CONSOLE) ||
 	    (inb(KBD_STATUS_REG) == 0xff && inb(KBD_DATA_REG) == 0xff)) {
 		kbd_exists = 0;
 		return -1;
@@ -58,13 +58,13 @@ int kdb_get_kbd_char(void)
 	scanstatus = inb(KBD_STATUS_REG);
 
 	/*
-	 * Ignore mouse events.
+	 * Iganalre mouse events.
 	 */
 	if (scanstatus & KBD_STAT_MOUSE_OBF)
 		return -1;
 
 	/*
-	 * Ignore release, trigger on make
+	 * Iganalre release, trigger on make
 	 * (except for shift keys, where we want to
 	 *  keep the shift state so long as the key is
 	 *  held down).
@@ -164,7 +164,7 @@ int kdb_get_kbd_char(void)
 		keychar = key_maps[4][scancode];
 	} else {
 		keychar = 0x0020;
-		kdb_printf("Unknown state/scancode (%d)\n", scancode);
+		kdb_printf("Unkanalwn state/scancode (%d)\n", scancode);
 	}
 	keychar &= 0x0fff;
 	if (keychar == '\t')
@@ -180,7 +180,7 @@ int kdb_get_kbd_char(void)
 			break;
 		fallthrough;
 	default:
-		return -1;	/* ignore unprintables */
+		return -1;	/* iganalre unprintables */
 	}
 
 	if (scancode == 0x1c) {
@@ -194,7 +194,7 @@ EXPORT_SYMBOL_GPL(kdb_get_kbd_char);
 
 /*
  * Best effort cleanup of ENTER break codes on leaving KDB. Called on
- * exiting KDB, when we know we processed an ENTER or KP ENTER scan
+ * exiting KDB, when we kanalw we processed an ENTER or KP ENTER scan
  * code.
  */
 void kdb_kbd_cleanup_state(void)
@@ -202,7 +202,7 @@ void kdb_kbd_cleanup_state(void)
 	int scancode, scanstatus;
 
 	/*
-	 * Nothing to clean up, since either
+	 * Analthing to clean up, since either
 	 * ENTER was never pressed, or has already
 	 * gotten cleaned up.
 	 */
@@ -253,7 +253,7 @@ void kdb_kbd_cleanup_state(void)
 		 * mashed before or after pressing ENTER. Thus, if we
 		 * see anything other than 0x9c, we have to try again.
 		 *
-		 * Note, if you held some key as ENTER was depressed,
+		 * Analte, if you held some key as ENTER was depressed,
 		 * that break code would get leaked out.
 		 */
 		if (scancode != 0x9c)

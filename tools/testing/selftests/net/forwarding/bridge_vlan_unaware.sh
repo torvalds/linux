@@ -29,7 +29,7 @@ switch_create()
 {
 	ip link add dev br0 type bridge \
 		ageing_time $LOW_AGEING_TIME \
-		mcast_snooping 0
+		mcast_sanaloping 0
 
 	ip link set dev $swp1 master br0
 	ip link set dev $swp2 master br0

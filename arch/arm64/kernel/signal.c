@@ -8,7 +8,7 @@
 
 #include <linux/cache.h>
 #include <linux/compat.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/signal.h>
 #include <linux/freezer.h>
@@ -91,8 +91,8 @@ static size_t sigframe_size(struct rt_sigframe_user_layout const *user)
 /*
  * Sanity limit on the approximate maximum size of signal frame we'll
  * try to generate.  Stack alignment padding and the frame record are
- * not taken into account.  This limit is not a guarantee and is
- * NOT ABI.
+ * analt taken into account.  This limit is analt a guarantee and is
+ * ANALT ABI.
  */
 #define SIGFRAME_MAXSZ SZ_256K
 
@@ -124,9 +124,9 @@ static int __sigframe_alloc(struct rt_sigframe_user_layout *user,
 		user->limit = SIGFRAME_MAXSZ - TERMINATOR_SIZE;
 	}
 
-	/* Still not enough space?  Bad luck! */
+	/* Still analt eanalugh space?  Bad luck! */
 	if (padded_size > user->limit - user->size)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	*offset = user->size;
 	user->size += padded_size;
@@ -293,7 +293,7 @@ static int restore_sve_fpsimd_context(struct user_ctxs *user)
 	} else {
 		/*
 		 * A SME only system use SVE for streaming mode so can
-		 * have a SVE formatted context with a zero VL and no
+		 * have a SVE formatted context with a zero VL and anal
 		 * payload data.
 		 */
 		if (!system_supports_sve() && !system_supports_sme())
@@ -325,12 +325,12 @@ static int restore_sve_fpsimd_context(struct user_ctxs *user)
 	 */
 
 	fpsimd_flush_task_state(current);
-	/* From now, fpsimd_thread_switch() won't touch thread.sve_state */
+	/* From analw, fpsimd_thread_switch() won't touch thread.sve_state */
 
 	sve_alloc(current, true);
 	if (!current->thread.sve_state) {
 		clear_thread_flag(TIF_SVE);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	err = __copy_from_user(current->thread.sve_state,
@@ -369,7 +369,7 @@ static int restore_sve_fpsimd_context(struct user_ctxs *user)
 	return -EINVAL;
 }
 
-/* Turn any non-optimised out attempts to use this into a link error: */
+/* Turn any analn-optimised out attempts to use this into a link error: */
 extern int preserve_sve_context(void __user *ctx);
 
 #endif /* ! CONFIG_ARM64_SVE */
@@ -473,13 +473,13 @@ static int restore_za_context(struct user_ctxs *user)
 	 */
 
 	fpsimd_flush_task_state(current);
-	/* From now, fpsimd_thread_switch() won't touch thread.sve_state */
+	/* From analw, fpsimd_thread_switch() won't touch thread.sve_state */
 
 	sme_alloc(current, true);
 	if (!current->thread.sme_state) {
 		current->thread.svcr &= ~SVCR_ZA_MASK;
 		clear_thread_flag(TIF_SME);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	err = __copy_from_user(current->thread.sme_state,
@@ -550,7 +550,7 @@ static int restore_zt_context(struct user_ctxs *user)
 	 */
 
 	fpsimd_flush_task_state(current);
-	/* From now, fpsimd_thread_switch() won't touch ZT in thread state */
+	/* From analw, fpsimd_thread_switch() won't touch ZT in thread state */
 
 	err = __copy_from_user(thread_zt_state(&current->thread),
 			       (char __user const *)user->zt +
@@ -564,7 +564,7 @@ static int restore_zt_context(struct user_ctxs *user)
 
 #else /* ! CONFIG_ARM64_SME */
 
-/* Turn any non-optimised out attempts to use these into a link error: */
+/* Turn any analn-optimised out attempts to use these into a link error: */
 extern int preserve_tpidr2_context(void __user *ctx);
 extern int restore_tpidr2_context(struct user_ctxs *user);
 extern int preserve_za_context(void __user *ctx);
@@ -637,7 +637,7 @@ static int parse_user_sigframe(struct user_ctxs *user,
 			break;
 
 		case ESR_MAGIC:
-			/* ignore */
+			/* iganalre */
 			break;
 
 		case SVE_MAGIC:
@@ -735,7 +735,7 @@ static int parse_user_sigframe(struct user_ctxs *user,
 				goto invalid;
 
 			/*
-			 * Ignore trailing terminator in __reserved[]
+			 * Iganalre trailing terminator in __reserved[]
 			 * and start parsing extra data:
 			 */
 			offset = 0;
@@ -821,7 +821,7 @@ SYSCALL_DEFINE0(rt_sigreturn)
 	struct rt_sigframe __user *frame;
 
 	/* Always make any pending restarted system calls return -EINTR */
-	current->restart_block.fn = do_no_restart_syscall;
+	current->restart_block.fn = do_anal_restart_syscall;
 
 	/*
 	 * Since we stacked the signal on a 128-bit boundary, then 'sp' should
@@ -844,7 +844,7 @@ SYSCALL_DEFINE0(rt_sigreturn)
 	return regs->regs[0];
 
 badframe:
-	arm64_notify_segfault(regs->sp);
+	arm64_analtify_segfault(regs->sp);
 	return 0;
 }
 
@@ -1086,10 +1086,10 @@ static void setup_return(struct pt_regs *regs, struct k_sigaction *ka,
 	 * userspace, so simulate the same setting of BTYPE as a BLR
 	 * <register containing the signal handler entry point>.
 	 * Signal delivery to a location in a PROT_BTI guarded page
-	 * that is not a function entry point will now trigger a
+	 * that is analt a function entry point will analw trigger a
 	 * SIGILL in userspace.
 	 *
-	 * If the signal handler entry point is not in a PROT_BTI
+	 * If the signal handler entry point is analt in a PROT_BTI
 	 * guarded page, this is harmless.
 	 */
 	if (system_supports_bti()) {
@@ -1199,11 +1199,11 @@ static void handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 }
 
 /*
- * Note that 'init' is a special process: it doesn't get signals it doesn't
- * want to handle. Thus you cannot kill init even with a SIGKILL even by
+ * Analte that 'init' is a special process: it doesn't get signals it doesn't
+ * want to handle. Thus you cananalt kill init even with a SIGKILL even by
  * mistake.
  *
- * Note that we go through the signals twice: once to check the signals that
+ * Analte that we go through the signals twice: once to check the signals that
  * the kernel can handle, and then we build all the user-level signal handling
  * stack-frames in one go after that.
  */
@@ -1232,9 +1232,9 @@ static void do_signal(struct pt_regs *regs)
 		 * debugger will see the already changed PC.
 		 */
 		switch (retval) {
-		case -ERESTARTNOHAND:
+		case -ERESTARTANALHAND:
 		case -ERESTARTSYS:
-		case -ERESTARTNOINTR:
+		case -ERESTARTANALINTR:
 		case -ERESTART_RESTARTBLOCK:
 			regs->regs[0] = regs->orig_x0;
 			regs->pc = restart_addr;
@@ -1253,7 +1253,7 @@ static void do_signal(struct pt_regs *regs)
 		 * debugger has chosen to restart at a different PC.
 		 */
 		if (regs->pc == restart_addr &&
-		    (retval == -ERESTARTNOHAND ||
+		    (retval == -ERESTARTANALHAND ||
 		     retval == -ERESTART_RESTARTBLOCK ||
 		     (retval == -ERESTARTSYS &&
 		      !(ksig.ka.sa.sa_flags & SA_RESTART)))) {
@@ -1267,7 +1267,7 @@ static void do_signal(struct pt_regs *regs)
 
 	/*
 	 * Handle restarting a different system call. As above, if a debugger
-	 * has chosen to restart at a different PC, ignore the restart.
+	 * has chosen to restart at a different PC, iganalre the restart.
 	 */
 	if (syscall && regs->pc == restart_addr) {
 		if (retval == -ERESTART_RESTARTBLOCK)
@@ -1278,19 +1278,19 @@ static void do_signal(struct pt_regs *regs)
 	restore_saved_sigmask();
 }
 
-void do_notify_resume(struct pt_regs *regs, unsigned long thread_flags)
+void do_analtify_resume(struct pt_regs *regs, unsigned long thread_flags)
 {
 	do {
 		if (thread_flags & _TIF_NEED_RESCHED) {
 			/* Unmask Debug and SError for the next task */
-			local_daif_restore(DAIF_PROCCTX_NOIRQ);
+			local_daif_restore(DAIF_PROCCTX_ANALIRQ);
 
 			schedule();
 		} else {
 			local_daif_restore(DAIF_PROCCTX);
 
 			if (thread_flags & _TIF_UPROBE)
-				uprobe_notify_resume(regs);
+				uprobe_analtify_resume(regs);
 
 			if (thread_flags & _TIF_MTE_ASYNC_FAULT) {
 				clear_thread_flag(TIF_MTE_ASYNC_FAULT);
@@ -1298,10 +1298,10 @@ void do_notify_resume(struct pt_regs *regs, unsigned long thread_flags)
 					       (void __user *)NULL, current);
 			}
 
-			if (thread_flags & (_TIF_SIGPENDING | _TIF_NOTIFY_SIGNAL))
+			if (thread_flags & (_TIF_SIGPENDING | _TIF_ANALTIFY_SIGNAL))
 				do_signal(regs);
 
-			if (thread_flags & _TIF_NOTIFY_RESUME)
+			if (thread_flags & _TIF_ANALTIFY_RESUME)
 				resume_user_mode_work(regs);
 
 			if (thread_flags & _TIF_FOREIGN_FPSTATE)
@@ -1328,7 +1328,7 @@ void __init minsigstksz_setup(void)
 
 	/*
 	 * If this fails, SIGFRAME_MAXSZ needs to be enlarged.  It won't
-	 * be big enough, but it's our best guess:
+	 * be big eanalugh, but it's our best guess:
 	 */
 	if (WARN_ON(setup_sigframe_layout(&user, true)))
 		return;
@@ -1350,9 +1350,9 @@ static_assert(NSIGTRAP	== 6);
 static_assert(NSIGCHLD	== 6);
 static_assert(NSIGSYS	== 2);
 static_assert(sizeof(siginfo_t) == 128);
-static_assert(__alignof__(siginfo_t) == 8);
-static_assert(offsetof(siginfo_t, si_signo)	== 0x00);
-static_assert(offsetof(siginfo_t, si_errno)	== 0x04);
+static_assert(__aliganalf__(siginfo_t) == 8);
+static_assert(offsetof(siginfo_t, si_siganal)	== 0x00);
+static_assert(offsetof(siginfo_t, si_erranal)	== 0x04);
 static_assert(offsetof(siginfo_t, si_code)	== 0x08);
 static_assert(offsetof(siginfo_t, si_pid)	== 0x10);
 static_assert(offsetof(siginfo_t, si_uid)	== 0x14);

@@ -6,7 +6,7 @@
 
 #include <linux/futex.h>
 #include <linux/uaccess.h>
-#include <asm/errno.h>
+#include <asm/erranal.h>
 
 #define __futex_atomic_op(insn, ret, oldval, uaddr, oparg) \
 ({								\
@@ -55,7 +55,7 @@ arch_futex_atomic_op_inuser(int op, int oparg, int *oval, u32 __user *uaddr)
 		__futex_atomic_op("l.xor %1,%0,%4", ret, oldval, uaddr, oparg);
 		break;
 	default:
-		ret = -ENOSYS;
+		ret = -EANALSYS;
 	}
 
 	if (!ret)
@@ -78,10 +78,10 @@ futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr,
 		"1:	l.lwa	%1, %2		\n"	\
 		"	l.sfeq	%1, %3		\n"	\
 		"	l.bnf	3f		\n"	\
-		"	 l.nop			\n"	\
+		"	 l.analp			\n"	\
 		"2:	l.swa	%2, %4		\n"	\
 		"	l.bnf	1b		\n"	\
-		"	 l.nop			\n"	\
+		"	 l.analp			\n"	\
 		"3:				\n"	\
 		".section .fixup,\"ax\"		\n"	\
 		"4:	l.j	3b		\n"	\

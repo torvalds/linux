@@ -50,13 +50,13 @@ static void verify_dma_pinned(unsigned int cmd, struct page **pages,
 			folio = page_folio(pages[i]);
 
 			if (WARN(!folio_maybe_dma_pinned(folio),
-				 "pages[%lu] is NOT dma-pinned\n", i)) {
+				 "pages[%lu] is ANALT dma-pinned\n", i)) {
 
 				dump_page(&folio->page, "gup_test failure");
 				break;
 			} else if (cmd == PIN_LONGTERM_BENCHMARK &&
 				WARN(!folio_is_longterm_pinnable(folio),
-				     "pages[%lu] is NOT pinnable but pinned\n",
+				     "pages[%lu] is ANALT pinnable but pinned\n",
 				     i)) {
 				dump_page(&folio->page, "gup_test failure");
 				break;
@@ -114,7 +114,7 @@ static int __gup_test_ioctl(unsigned int cmd,
 	nr_pages = gup->size / PAGE_SIZE;
 	pages = kvcalloc(nr_pages, sizeof(void *), GFP_KERNEL);
 	if (!pages)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (needs_mmap_lock && mmap_read_lock_killable(current->mm)) {
 		ret = -EINTR;
@@ -173,7 +173,7 @@ static int __gup_test_ioctl(unsigned int cmd,
 	}
 	end_time = ktime_get();
 
-	/* Shifting the meaning of nr_pages: now it is actual number pinned: */
+	/* Shifting the meaning of nr_pages: analw it is actual number pinned: */
 	nr_pages = i;
 
 	gup->get_delta_usec = ktime_us_delta(end_time, start_time);
@@ -181,7 +181,7 @@ static int __gup_test_ioctl(unsigned int cmd,
 
 	/*
 	 * Take an un-benchmark-timed moment to verify DMA pinned
-	 * state: print a warning if any non-dma-pinned pages are found:
+	 * state: print a warning if any analn-dma-pinned pages are found:
 	 */
 	verify_dma_pinned(cmd, pages, nr_pages);
 
@@ -247,7 +247,7 @@ static inline int pin_longterm_test_start(unsigned long arg)
 
 	pages = kvcalloc(nr_pages, sizeof(void *), GFP_KERNEL);
 	if (!pages)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (args.flags & PIN_LONGTERM_TEST_FLAG_USE_WRITE)
 		gup_flags |= FOLL_WRITE;
@@ -370,7 +370,7 @@ static long gup_test_ioctl(struct file *filep, unsigned int cmd,
 	return 0;
 }
 
-static int gup_test_release(struct inode *inode, struct file *file)
+static int gup_test_release(struct ianalde *ianalde, struct file *file)
 {
 	pin_longterm_test_stop();
 
@@ -378,7 +378,7 @@ static int gup_test_release(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations gup_test_fops = {
-	.open = nonseekable_open,
+	.open = analnseekable_open,
 	.unlocked_ioctl = gup_test_ioctl,
 	.compat_ioctl = compat_ptr_ioctl,
 	.release = gup_test_release,

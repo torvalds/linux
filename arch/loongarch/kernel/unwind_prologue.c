@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2022 Loongson Techanallogy Corporation Limited
  */
 #include <linux/cpumask.h>
 #include <linux/ftrace.h>
@@ -101,7 +101,7 @@ static inline bool unwind_state_fixup(struct unwind_state *state)
 
 /*
  * LoongArch function prologue is like follows,
- *     [instructions not use stack var]
+ *     [instructions analt use stack var]
  *     addi.d sp, sp, -imm
  *     st.d   xx, sp, offset <- save callee saved regs and
  *     st.d   yy, sp, offset    save ra if function is nest.
@@ -130,7 +130,7 @@ static bool unwind_by_prologue(struct unwind_state *state)
 	}
 
 	/*
-	 * When first is not set, the PC is a return address in the previous frame.
+	 * When first is analt set, the PC is a return address in the previous frame.
 	 * We need to adjust its value in case overflow to the next symbol.
 	 */
 	pc = state->pc - (state->first ? 0 : LOONGARCH_INSN_SIZE);
@@ -227,7 +227,7 @@ static bool next_frame(struct unwind_state *state)
 	} while (!get_stack_info(state->sp, state->task, info));
 
 out:
-	state->stack_info.type = STACK_TYPE_UNKNOWN;
+	state->stack_info.type = STACK_TYPE_UNKANALWN;
 	return false;
 }
 
@@ -245,7 +245,7 @@ void unwind_start(struct unwind_state *state, struct task_struct *task,
 	state->first = true;
 
 	/*
-	 * The current PC is not kernel text address, we cannot find its
+	 * The current PC is analt kernel text address, we cananalt find its
 	 * relative symbol. Thus, prologue analysis will be broken. Luckily,
 	 * we can use the default_next_frame().
 	 */

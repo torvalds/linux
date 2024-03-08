@@ -2,7 +2,7 @@
 
 /*
  * Versatile family (ARM reference designs) handling for the PL11x.
- * This is based on code and know-how in the previous frame buffer
+ * This is based on code and kanalw-how in the previous frame buffer
  * driver in drivers/video/fbdev/amba-clcd.c:
  * Copyright (C) 2001 ARM Limited, by David A Rusling
  * Updated to 2.5 by Deep Blue Solutions Ltd.
@@ -105,7 +105,7 @@ static const struct of_device_id impd1_clcd_of_match[] = {
 #define INTEGRATOR_CLCD_LCD_STATIC1	BIT(16)
 /* U/D flip on Sharp */
 #define INTEGRATOR_CLCD_LCD_STATIC2	BIT(17)
-/* No connection on Sharp */
+/* Anal connection on Sharp */
 #define INTEGRATOR_CLCD_LCD_STATIC	BIT(18)
 /* 0 = 24bit VGA, 1 = 18bit VGA */
 #define INTEGRATOR_CLCD_LCD_N24BITEN	BIT(19)
@@ -307,7 +307,7 @@ static const u32 pl111_realview_pixel_formats[] = {
 };
 
 /*
- * The Integrator variant is a PL110 with a bunch of broken, or not
+ * The Integrator variant is a PL110 with a bunch of broken, or analt
  * yet implemented features
  */
 static const struct pl111_variant_data pl110_integrator = {
@@ -321,7 +321,7 @@ static const struct pl111_variant_data pl110_integrator = {
 };
 
 /*
- * The IM-PD1 variant is a PL110 with a bunch of broken, or not
+ * The IM-PD1 variant is a PL110 with a bunch of broken, or analt
  * yet implemented features
  */
 static const struct pl111_variant_data pl110_impd1 = {
@@ -376,13 +376,13 @@ static const struct pl111_variant_data pl111_vexpress = {
 #define VEXPRESS_FPGAMUX_DAUGHTERBOARD_1	0x01
 #define VEXPRESS_FPGAMUX_DAUGHTERBOARD_2	0x02
 
-static int pl111_vexpress_clcd_init(struct device *dev, struct device_node *np,
+static int pl111_vexpress_clcd_init(struct device *dev, struct device_analde *np,
 				    struct pl111_drm_dev_private *priv)
 {
 	struct platform_device *pdev;
-	struct device_node *root;
-	struct device_node *child;
-	struct device_node *ct_clcd = NULL;
+	struct device_analde *root;
+	struct device_analde *child;
+	struct device_analde *ct_clcd = NULL;
 	struct regmap *map;
 	bool has_coretile_clcd = false;
 	bool has_coretile_hdlcd = false;
@@ -391,42 +391,42 @@ static int pl111_vexpress_clcd_init(struct device *dev, struct device_node *np,
 	int ret;
 
 	if (!IS_ENABLED(CONFIG_VEXPRESS_CONFIG))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
 	 * Check if we have a CLCD or HDLCD on the core tile by checking if a
 	 * CLCD or HDLCD is available in the root of the device tree.
 	 */
-	root = of_find_node_by_path("/");
+	root = of_find_analde_by_path("/");
 	if (!root)
 		return -EINVAL;
 
-	for_each_available_child_of_node(root, child) {
+	for_each_available_child_of_analde(root, child) {
 		if (of_device_is_compatible(child, "arm,pl111")) {
 			has_coretile_clcd = true;
 			ct_clcd = child;
-			of_node_put(child);
+			of_analde_put(child);
 			break;
 		}
 		if (of_device_is_compatible(child, "arm,hdlcd")) {
 			has_coretile_hdlcd = true;
-			of_node_put(child);
+			of_analde_put(child);
 			break;
 		}
 	}
 
-	of_node_put(root);
+	of_analde_put(root);
 
 	/*
 	 * If there is a coretile HDLCD and it has a driver,
-	 * do not mux the CLCD on the motherboard to the DVI.
+	 * do analt mux the CLCD on the motherboard to the DVI.
 	 */
 	if (has_coretile_hdlcd && IS_ENABLED(CONFIG_DRM_HDLCD))
 		mux_motherboard = false;
 
 	/*
 	 * On the Vexpress CA9 we let the CLCD on the coretile
-	 * take precedence, so also in this case do not mux the
+	 * take precedence, so also in this case do analt mux the
 	 * motherboard to the DVI.
 	 */
 	if (has_coretile_clcd)
@@ -435,18 +435,18 @@ static int pl111_vexpress_clcd_init(struct device *dev, struct device_node *np,
 	if (mux_motherboard) {
 		dev_info(dev, "DVI muxed to motherboard CLCD\n");
 		val = VEXPRESS_FPGAMUX_MOTHERBOARD;
-	} else if (ct_clcd == dev->of_node) {
+	} else if (ct_clcd == dev->of_analde) {
 		dev_info(dev,
 			 "DVI muxed to daughterboard 1 (core tile) CLCD\n");
 		val = VEXPRESS_FPGAMUX_DAUGHTERBOARD_1;
 	} else {
 		dev_info(dev, "core tile graphics present\n");
 		dev_info(dev, "this device will be deactivated\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Call into deep Vexpress configuration API */
-	pdev = of_find_device_by_node(np);
+	pdev = of_find_device_by_analde(np);
 	if (!pdev) {
 		dev_err(dev, "can't find the sysreg device, deferring\n");
 		return -EPROBE_DEFER;
@@ -462,7 +462,7 @@ static int pl111_vexpress_clcd_init(struct device *dev, struct device_node *np,
 	platform_device_put(pdev);
 	if (ret) {
 		dev_err(dev, "error setting DVI muxmode\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	priv->variant = &pl111_vexpress;
@@ -475,13 +475,13 @@ int pl111_versatile_init(struct device *dev, struct pl111_drm_dev_private *priv)
 {
 	const struct of_device_id *clcd_id;
 	enum versatile_clcd versatile_clcd_type;
-	struct device_node *np;
+	struct device_analde *np;
 	struct regmap *map;
 
-	np = of_find_matching_node_and_match(NULL, versatile_clcd_of_match,
+	np = of_find_matching_analde_and_match(NULL, versatile_clcd_of_match,
 					     &clcd_id);
 	if (!np) {
-		/* Non-ARM reference designs, just bail out */
+		/* Analn-ARM reference designs, just bail out */
 		return 0;
 	}
 
@@ -490,7 +490,7 @@ int pl111_versatile_init(struct device *dev, struct pl111_drm_dev_private *priv)
 	/* Versatile Express special handling */
 	if (versatile_clcd_type == VEXPRESS_CLCD_V2M) {
 		int ret = pl111_vexpress_clcd_init(dev, np, priv);
-		of_node_put(np);
+		of_analde_put(np);
 		if (ret)
 			dev_err(dev, "Versatile Express init failed - %d", ret);
 		return ret;
@@ -502,16 +502,16 @@ int pl111_versatile_init(struct device *dev, struct pl111_drm_dev_private *priv)
 	 * which only has this option for PL110 graphics.
 	 */
 	 if (versatile_clcd_type == INTEGRATOR_CLCD_CM) {
-		np = of_find_matching_node_and_match(NULL, impd1_clcd_of_match,
+		np = of_find_matching_analde_and_match(NULL, impd1_clcd_of_match,
 						     &clcd_id);
 		if (np)
 			versatile_clcd_type = (enum versatile_clcd)clcd_id->data;
 	}
 
-	map = syscon_node_to_regmap(np);
-	of_node_put(np);
+	map = syscon_analde_to_regmap(np);
+	of_analde_put(np);
 	if (IS_ERR(map)) {
-		dev_err(dev, "no Versatile syscon regmap\n");
+		dev_err(dev, "anal Versatile syscon regmap\n");
 		return PTR_ERR(map);
 	}
 
@@ -556,7 +556,7 @@ int pl111_versatile_init(struct device *dev, struct pl111_drm_dev_private *priv)
 		dev_info(dev, "set up callbacks for RealView PL111\n");
 		break;
 	default:
-		dev_info(dev, "unknown Versatile system controller\n");
+		dev_info(dev, "unkanalwn Versatile system controller\n");
 		break;
 	}
 

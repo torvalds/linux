@@ -8,7 +8,7 @@
  *
  * THE COPYRIGHT HOLDERS AND/OR OTHER PARTIES PROVIDE THE PROGRAM "AS IS"
  * WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
- * BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+ * BUT ANALT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
  * FOR A PARTICULAR PURPOSE. THE ENTIRE RISK AS TO THE QUALITY AND PERFORMANCE
  * OF THE PROGRAM IS WITH YOU. SHOULD THE PROGRAM PROVE DEFECTIVE, YOU ASSUME
  * THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
@@ -21,7 +21,7 @@
 #include <linux/rhashtable.h>
 #include <linux/spinlock_types.h>
 #include <linux/types.h>
-#include <net/fib_notifier.h>
+#include <net/fib_analtifier.h>
 #include <net/inet_dscp.h>
 #include <net/ip_fib.h>
 #include <net/ip6_fib.h>
@@ -43,14 +43,14 @@ struct nsim_per_fib_data {
 };
 
 struct nsim_fib_data {
-	struct notifier_block fib_nb;
+	struct analtifier_block fib_nb;
 	struct nsim_per_fib_data ipv4;
 	struct nsim_per_fib_data ipv6;
 	struct nsim_fib_entry nexthops;
 	struct rhashtable fib_rt_ht;
 	struct list_head fib_rt_list;
 	struct mutex fib_lock; /* Protects FIB HT and list */
-	struct notifier_block nexthop_nb;
+	struct analtifier_block nexthop_nb;
 	struct rhashtable nexthop_ht;
 	struct devlink *devlink;
 	struct work_struct fib_event_work;
@@ -74,7 +74,7 @@ struct nsim_fib_rt_key {
 
 struct nsim_fib_rt {
 	struct nsim_fib_rt_key key;
-	struct rhash_head ht_node;
+	struct rhash_head ht_analde;
 	struct list_head list;	/* Member of fib_rt_list */
 };
 
@@ -102,9 +102,9 @@ struct nsim_fib6_event {
 };
 
 struct nsim_fib_event {
-	struct list_head list; /* node in fib queue */
+	struct list_head list; /* analde in fib queue */
 	union {
-		struct fib_entry_notifier_info fen_info;
+		struct fib_entry_analtifier_info fen_info;
 		struct nsim_fib6_event fib6_event;
 	};
 	struct nsim_fib_data *data;
@@ -114,13 +114,13 @@ struct nsim_fib_event {
 
 static const struct rhashtable_params nsim_fib_rt_ht_params = {
 	.key_offset = offsetof(struct nsim_fib_rt, key),
-	.head_offset = offsetof(struct nsim_fib_rt, ht_node),
+	.head_offset = offsetof(struct nsim_fib_rt, ht_analde),
 	.key_len = sizeof(struct nsim_fib_rt_key),
 	.automatic_shrinking = true,
 };
 
 struct nsim_nexthop {
-	struct rhash_head ht_node;
+	struct rhash_head ht_analde;
 	u64 occ;
 	u32 id;
 	bool is_resilient;
@@ -128,7 +128,7 @@ struct nsim_nexthop {
 
 static const struct rhashtable_params nsim_nexthop_ht_params = {
 	.key_offset = offsetof(struct nsim_nexthop, id),
-	.head_offset = offsetof(struct nsim_nexthop, ht_node),
+	.head_offset = offsetof(struct nsim_nexthop, ht_analde),
 	.key_len = sizeof(u32),
 	.automatic_shrinking = true,
 };
@@ -196,7 +196,7 @@ static int nsim_fib_rule_account(struct nsim_fib_entry *entry, bool add,
 
 	if (add) {
 		if (!atomic64_add_unless(&entry->num, 1, entry->max)) {
-			err = -ENOSPC;
+			err = -EANALSPC;
 			NL_SET_ERR_MSG_MOD(extack, "Exceeded number of supported fib rule entries");
 		}
 	} else {
@@ -207,7 +207,7 @@ static int nsim_fib_rule_account(struct nsim_fib_entry *entry, bool add,
 }
 
 static int nsim_fib_rule_event(struct nsim_fib_data *data,
-			       struct fib_notifier_info *info, bool add)
+			       struct fib_analtifier_info *info, bool add)
 {
 	struct netlink_ext_ack *extack = info->extack;
 	int err = 0;
@@ -230,7 +230,7 @@ static int nsim_fib_account(struct nsim_fib_entry *entry, bool add)
 
 	if (add) {
 		if (!atomic64_add_unless(&entry->num, 1, entry->max))
-			err = -ENOSPC;
+			err = -EANALSPC;
 	} else {
 		atomic64_dec_if_positive(&entry->num);
 	}
@@ -273,7 +273,7 @@ static struct nsim_fib_rt *nsim_fib_rt_lookup(struct rhashtable *fib_rt_ht,
 
 static struct nsim_fib4_rt *
 nsim_fib4_rt_create(struct nsim_fib_data *data,
-		    struct fib_entry_notifier_info *fen_info)
+		    struct fib_entry_analtifier_info *fen_info)
 {
 	struct nsim_fib4_rt *fib4_rt;
 
@@ -301,7 +301,7 @@ static void nsim_fib4_rt_destroy(struct nsim_fib4_rt *fib4_rt)
 
 static struct nsim_fib4_rt *
 nsim_fib4_rt_lookup(struct rhashtable *fib_rt_ht,
-		    const struct fib_entry_notifier_info *fen_info)
+		    const struct fib_entry_analtifier_info *fen_info)
 {
 	struct nsim_fib_rt *fib_rt;
 
@@ -316,7 +316,7 @@ nsim_fib4_rt_lookup(struct rhashtable *fib_rt_ht,
 
 static void
 nsim_fib4_rt_offload_failed_flag_set(struct net *net,
-				     struct fib_entry_notifier_info *fen_info)
+				     struct fib_entry_analtifier_info *fen_info)
 {
 	u32 *p_dst = (u32 *)&fen_info->dst;
 	struct fib_rt_info fri;
@@ -360,7 +360,7 @@ static int nsim_fib4_rt_add(struct nsim_fib_data *data,
 	int err;
 
 	err = rhashtable_insert_fast(&data->fib_rt_ht,
-				     &fib4_rt->common.ht_node,
+				     &fib4_rt->common.ht_analde,
 				     nsim_fib_rt_ht_params);
 	if (err)
 		goto err_fib_dismiss;
@@ -372,7 +372,7 @@ static int nsim_fib4_rt_add(struct nsim_fib_data *data,
 	return 0;
 
 err_fib_dismiss:
-	/* Drop the accounting that was increased from the notification
+	/* Drop the accounting that was increased from the analtification
 	 * context when FIB_EVENT_ENTRY_REPLACE was triggered.
 	 */
 	nsim_fib_account(&data->ipv4.fib, false);
@@ -393,8 +393,8 @@ static int nsim_fib4_rt_replace(struct nsim_fib_data *data,
 	if (err)
 		return err;
 	err = rhashtable_replace_fast(&data->fib_rt_ht,
-				      &fib4_rt_old->common.ht_node,
-				      &fib4_rt->common.ht_node,
+				      &fib4_rt_old->common.ht_analde,
+				      &fib4_rt->common.ht_analde,
 				      nsim_fib_rt_ht_params);
 	if (err)
 		return err;
@@ -409,7 +409,7 @@ static int nsim_fib4_rt_replace(struct nsim_fib_data *data,
 }
 
 static int nsim_fib4_rt_insert(struct nsim_fib_data *data,
-			       struct fib_entry_notifier_info *fen_info)
+			       struct fib_entry_analtifier_info *fen_info)
 {
 	struct nsim_fib4_rt *fib4_rt, *fib4_rt_old;
 	int err;
@@ -425,7 +425,7 @@ static int nsim_fib4_rt_insert(struct nsim_fib_data *data,
 
 	fib4_rt = nsim_fib4_rt_create(data, fen_info);
 	if (!fib4_rt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fib4_rt_old = nsim_fib4_rt_lookup(&data->fib_rt_ht, fen_info);
 	if (!fib4_rt_old)
@@ -440,7 +440,7 @@ static int nsim_fib4_rt_insert(struct nsim_fib_data *data,
 }
 
 static void nsim_fib4_rt_remove(struct nsim_fib_data *data,
-				const struct fib_entry_notifier_info *fen_info)
+				const struct fib_entry_analtifier_info *fen_info)
 {
 	struct nsim_fib4_rt *fib4_rt;
 
@@ -448,13 +448,13 @@ static void nsim_fib4_rt_remove(struct nsim_fib_data *data,
 	if (!fib4_rt)
 		return;
 
-	rhashtable_remove_fast(&data->fib_rt_ht, &fib4_rt->common.ht_node,
+	rhashtable_remove_fast(&data->fib_rt_ht, &fib4_rt->common.ht_analde,
 			       nsim_fib_rt_ht_params);
 	nsim_fib4_rt_destroy(fib4_rt);
 }
 
 static int nsim_fib4_event(struct nsim_fib_data *data,
-			   struct fib_entry_notifier_info *fen_info,
+			   struct fib_entry_analtifier_info *fen_info,
 			   unsigned long event)
 {
 	int err = 0;
@@ -499,7 +499,7 @@ static int nsim_fib6_rt_nh_add(struct nsim_fib6_rt *fib6_rt,
 
 	fib6_rt_nh = kzalloc(sizeof(*fib6_rt_nh), GFP_KERNEL);
 	if (!fib6_rt_nh)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fib6_info_hold(rt);
 	fib6_rt_nh->rt = rt;
@@ -546,7 +546,7 @@ nsim_fib6_rt_create(struct nsim_fib_data *data,
 
 	fib6_rt = kzalloc(sizeof(*fib6_rt), GFP_KERNEL);
 	if (!fib6_rt)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	nsim_fib_rt_init(data, &fib6_rt->common, &rt->fib6_dst.addr,
 			 sizeof(rt->fib6_dst.addr), rt->fib6_dst.plen, AF_INET6,
@@ -684,7 +684,7 @@ static int nsim_fib6_rt_add(struct nsim_fib_data *data,
 	int err;
 
 	err = rhashtable_insert_fast(&data->fib_rt_ht,
-				     &fib6_rt->common.ht_node,
+				     &fib6_rt->common.ht_analde,
 				     nsim_fib_rt_ht_params);
 
 	if (err)
@@ -696,7 +696,7 @@ static int nsim_fib6_rt_add(struct nsim_fib_data *data,
 	return 0;
 
 err_fib_dismiss:
-	/* Drop the accounting that was increased from the notification
+	/* Drop the accounting that was increased from the analtification
 	 * context when FIB_EVENT_ENTRY_REPLACE was triggered.
 	 */
 	nsim_fib_account(&data->ipv6.fib, false);
@@ -717,8 +717,8 @@ static int nsim_fib6_rt_replace(struct nsim_fib_data *data,
 		return err;
 
 	err = rhashtable_replace_fast(&data->fib_rt_ht,
-				      &fib6_rt_old->common.ht_node,
-				      &fib6_rt->common.ht_node,
+				      &fib6_rt_old->common.ht_analde,
+				      &fib6_rt->common.ht_analde,
 				      nsim_fib_rt_ht_params);
 
 	if (err)
@@ -774,15 +774,15 @@ static void nsim_fib6_rt_remove(struct nsim_fib_data *data,
 	int i;
 
 	/* Multipath routes are first added to the FIB trie and only then
-	 * notified. If we vetoed the addition, we will get a delete
-	 * notification for a route we do not have. Therefore, do not warn if
-	 * route was not found.
+	 * analtified. If we vetoed the addition, we will get a delete
+	 * analtification for a route we do analt have. Therefore, do analt warn if
+	 * route was analt found.
 	 */
 	fib6_rt = nsim_fib6_rt_lookup(&data->fib_rt_ht, rt);
 	if (!fib6_rt)
 		return;
 
-	/* If not all the nexthops are deleted, then only reduce the nexthop
+	/* If analt all the nexthops are deleted, then only reduce the nexthop
 	 * group.
 	 */
 	if (fib6_event->nrt6 != fib6_rt->nhs) {
@@ -791,13 +791,13 @@ static void nsim_fib6_rt_remove(struct nsim_fib_data *data,
 		return;
 	}
 
-	rhashtable_remove_fast(&data->fib_rt_ht, &fib6_rt->common.ht_node,
+	rhashtable_remove_fast(&data->fib_rt_ht, &fib6_rt->common.ht_analde,
 			       nsim_fib_rt_ht_params);
 	nsim_fib6_rt_destroy(fib6_rt);
 }
 
 static int nsim_fib6_event_init(struct nsim_fib6_event *fib6_event,
-				struct fib6_entry_notifier_info *fen6_info)
+				struct fib6_entry_analtifier_info *fen6_info)
 {
 	struct fib6_info *rt = fen6_info->rt;
 	struct fib6_info **rt_arr;
@@ -809,7 +809,7 @@ static int nsim_fib6_event_init(struct nsim_fib6_event *fib6_event,
 
 	rt_arr = kcalloc(nrt6, sizeof(struct fib6_info *), GFP_ATOMIC);
 	if (!rt_arr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fib6_event->rt_arr = rt_arr;
 	fib6_event->nrt6 = nrt6;
@@ -893,16 +893,16 @@ static void nsim_fib_event(struct nsim_fib_event *fib_event)
 	}
 }
 
-static int nsim_fib4_prepare_event(struct fib_notifier_info *info,
+static int nsim_fib4_prepare_event(struct fib_analtifier_info *info,
 				   struct nsim_fib_event *fib_event,
 				   unsigned long event)
 {
 	struct nsim_fib_data *data = fib_event->data;
-	struct fib_entry_notifier_info *fen_info;
+	struct fib_entry_analtifier_info *fen_info;
 	struct netlink_ext_ack *extack;
 	int err = 0;
 
-	fen_info = container_of(info, struct fib_entry_notifier_info,
+	fen_info = container_of(info, struct fib_entry_analtifier_info,
 				info);
 	fib_event->fen_info = *fen_info;
 	extack = info->extack;
@@ -932,16 +932,16 @@ static int nsim_fib4_prepare_event(struct fib_notifier_info *info,
 	return 0;
 }
 
-static int nsim_fib6_prepare_event(struct fib_notifier_info *info,
+static int nsim_fib6_prepare_event(struct fib_analtifier_info *info,
 				   struct nsim_fib_event *fib_event,
 				   unsigned long event)
 {
 	struct nsim_fib_data *data = fib_event->data;
-	struct fib6_entry_notifier_info *fen6_info;
+	struct fib6_entry_analtifier_info *fen6_info;
 	struct netlink_ext_ack *extack;
 	int err = 0;
 
-	fen6_info = container_of(info, struct fib6_entry_notifier_info,
+	fen6_info = container_of(info, struct fib6_entry_analtifier_info,
 				 info);
 
 	err = nsim_fib6_event_init(&fib_event->fib6_event, fen6_info);
@@ -975,17 +975,17 @@ err_fib6_event_fini:
 }
 
 static int nsim_fib_event_schedule_work(struct nsim_fib_data *data,
-					struct fib_notifier_info *info,
+					struct fib_analtifier_info *info,
 					unsigned long event)
 {
 	struct nsim_fib_event *fib_event;
 	int err;
 
 	if (info->family != AF_INET && info->family != AF_INET6)
-		/* netdevsim does not support 'RTNL_FAMILY_IP6MR' and
-		 * 'RTNL_FAMILY_IPMR' and should ignore them.
+		/* netdevsim does analt support 'RTNL_FAMILY_IP6MR' and
+		 * 'RTNL_FAMILY_IPMR' and should iganalre them.
 		 */
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	fib_event = kzalloc(sizeof(*fib_event), GFP_ATOMIC);
 	if (!fib_event)
@@ -1013,22 +1013,22 @@ static int nsim_fib_event_schedule_work(struct nsim_fib_data *data,
 	spin_unlock_bh(&data->fib_event_queue_lock);
 	schedule_work(&data->fib_event_work);
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 
 err_fib_prepare_event:
 	kfree(fib_event);
 err_fib_event_alloc:
 	if (event == FIB_EVENT_ENTRY_DEL)
 		schedule_work(&data->fib_flush_work);
-	return NOTIFY_BAD;
+	return ANALTIFY_BAD;
 }
 
-static int nsim_fib_event_nb(struct notifier_block *nb, unsigned long event,
+static int nsim_fib_event_nb(struct analtifier_block *nb, unsigned long event,
 			     void *ptr)
 {
 	struct nsim_fib_data *data = container_of(nb, struct nsim_fib_data,
 						  fib_nb);
-	struct fib_notifier_info *info = ptr;
+	struct fib_analtifier_info *info = ptr;
 	int err;
 
 	switch (event) {
@@ -1036,14 +1036,14 @@ static int nsim_fib_event_nb(struct notifier_block *nb, unsigned long event,
 	case FIB_EVENT_RULE_DEL:
 		err = nsim_fib_rule_event(data, info,
 					  event == FIB_EVENT_RULE_ADD);
-		return notifier_from_errno(err);
+		return analtifier_from_erranal(err);
 	case FIB_EVENT_ENTRY_REPLACE:
 	case FIB_EVENT_ENTRY_APPEND:
 	case FIB_EVENT_ENTRY_DEL:
 		return nsim_fib_event_schedule_work(data, info, event);
 	}
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static void nsim_fib4_rt_free(struct nsim_fib_rt *fib_rt,
@@ -1087,20 +1087,20 @@ static void nsim_fib_rt_free(void *ptr, void *arg)
 }
 
 /* inconsistent dump, trying again */
-static void nsim_fib_dump_inconsistent(struct notifier_block *nb)
+static void nsim_fib_dump_inconsistent(struct analtifier_block *nb)
 {
 	struct nsim_fib_data *data = container_of(nb, struct nsim_fib_data,
 						  fib_nb);
 	struct nsim_fib_rt *fib_rt, *fib_rt_tmp;
 
-	/* Flush the work to make sure there is no race with notifications. */
+	/* Flush the work to make sure there is anal race with analtifications. */
 	flush_work(&data->fib_event_work);
 
-	/* The notifier block is still not registered, so we do not need to
+	/* The analtifier block is still analt registered, so we do analt need to
 	 * take any locks here.
 	 */
 	list_for_each_entry_safe(fib_rt, fib_rt_tmp, &data->fib_rt_list, list) {
-		rhashtable_remove_fast(&data->fib_rt_ht, &fib_rt->ht_node,
+		rhashtable_remove_fast(&data->fib_rt_ht, &fib_rt->ht_analde,
 				       nsim_fib_rt_ht_params);
 		nsim_fib_rt_free(fib_rt, data);
 	}
@@ -1110,7 +1110,7 @@ static void nsim_fib_dump_inconsistent(struct notifier_block *nb)
 }
 
 static struct nsim_nexthop *nsim_nexthop_create(struct nsim_fib_data *data,
-						struct nh_notifier_info *info)
+						struct nh_analtifier_info *info)
 {
 	struct nsim_nexthop *nexthop;
 	u64 occ = 0;
@@ -1118,7 +1118,7 @@ static struct nsim_nexthop *nsim_nexthop_create(struct nsim_fib_data *data,
 
 	nexthop = kzalloc(sizeof(*nexthop), GFP_KERNEL);
 	if (!nexthop)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	nexthop->id = info->id;
 
@@ -1127,21 +1127,21 @@ static struct nsim_nexthop *nsim_nexthop_create(struct nsim_fib_data *data,
 	 */
 
 	switch (info->type) {
-	case NH_NOTIFIER_INFO_TYPE_SINGLE:
+	case NH_ANALTIFIER_INFO_TYPE_SINGLE:
 		occ = 1;
 		break;
-	case NH_NOTIFIER_INFO_TYPE_GRP:
+	case NH_ANALTIFIER_INFO_TYPE_GRP:
 		for (i = 0; i < info->nh_grp->num_nh; i++)
 			occ += info->nh_grp->nh_entries[i].weight;
 		break;
-	case NH_NOTIFIER_INFO_TYPE_RES_TABLE:
+	case NH_ANALTIFIER_INFO_TYPE_RES_TABLE:
 		occ = info->nh_res_table->num_nh_buckets;
 		nexthop->is_resilient = true;
 		break;
 	default:
 		NL_SET_ERR_MSG_MOD(info->extack, "Unsupported nexthop type");
 		kfree(nexthop);
-		return ERR_PTR(-EOPNOTSUPP);
+		return ERR_PTR(-EOPANALTSUPP);
 	}
 
 	nexthop->occ = occ;
@@ -1162,7 +1162,7 @@ static int nsim_nexthop_account(struct nsim_fib_data *data, u64 occ,
 		for (i = 0; i < occ; i++)
 			if (!atomic64_add_unless(&data->nexthops.num, 1,
 						 data->nexthops.max)) {
-				err = -ENOSPC;
+				err = -EANALSPC;
 				NL_SET_ERR_MSG_MOD(extack, "Exceeded number of supported nexthops");
 				goto err_num_decrease;
 			}
@@ -1206,7 +1206,7 @@ static int nsim_nexthop_add(struct nsim_fib_data *data,
 	if (err)
 		return err;
 
-	err = rhashtable_insert_fast(&data->nexthop_ht, &nexthop->ht_node,
+	err = rhashtable_insert_fast(&data->nexthop_ht, &nexthop->ht_analde,
 				     nsim_nexthop_ht_params);
 	if (err) {
 		NL_SET_ERR_MSG_MOD(extack, "Failed to insert nexthop");
@@ -1235,7 +1235,7 @@ static int nsim_nexthop_replace(struct nsim_fib_data *data,
 		return err;
 
 	err = rhashtable_replace_fast(&data->nexthop_ht,
-				      &nexthop_old->ht_node, &nexthop->ht_node,
+				      &nexthop_old->ht_analde, &nexthop->ht_analde,
 				      nsim_nexthop_ht_params);
 	if (err) {
 		NL_SET_ERR_MSG_MOD(extack, "Failed to replace nexthop");
@@ -1254,7 +1254,7 @@ err_nexthop_dismiss:
 }
 
 static int nsim_nexthop_insert(struct nsim_fib_data *data,
-			       struct nh_notifier_info *info)
+			       struct nh_analtifier_info *info)
 {
 	struct nsim_nexthop *nexthop, *nexthop_old;
 	int err;
@@ -1278,7 +1278,7 @@ static int nsim_nexthop_insert(struct nsim_fib_data *data,
 }
 
 static void nsim_nexthop_remove(struct nsim_fib_data *data,
-				struct nh_notifier_info *info)
+				struct nh_analtifier_info *info)
 {
 	struct nsim_nexthop *nexthop;
 
@@ -1287,14 +1287,14 @@ static void nsim_nexthop_remove(struct nsim_fib_data *data,
 	if (!nexthop)
 		return;
 
-	rhashtable_remove_fast(&data->nexthop_ht, &nexthop->ht_node,
+	rhashtable_remove_fast(&data->nexthop_ht, &nexthop->ht_analde,
 			       nsim_nexthop_ht_params);
 	nsim_nexthop_account(data, nexthop->occ, false, info->extack);
 	nsim_nexthop_destroy(nexthop);
 }
 
 static int nsim_nexthop_res_table_pre_replace(struct nsim_fib_data *data,
-					      struct nh_notifier_info *info)
+					      struct nh_analtifier_info *info)
 {
 	if (data->fail_res_nexthop_group_replace) {
 		NL_SET_ERR_MSG_MOD(info->extack, "Failed to replace a resilient nexthop group");
@@ -1305,7 +1305,7 @@ static int nsim_nexthop_res_table_pre_replace(struct nsim_fib_data *data,
 }
 
 static int nsim_nexthop_bucket_replace(struct nsim_fib_data *data,
-				       struct nh_notifier_info *info)
+				       struct nh_analtifier_info *info)
 {
 	if (data->fail_nexthop_bucket_replace) {
 		NL_SET_ERR_MSG_MOD(info->extack, "Failed to replace nexthop bucket");
@@ -1319,12 +1319,12 @@ static int nsim_nexthop_bucket_replace(struct nsim_fib_data *data,
 	return 0;
 }
 
-static int nsim_nexthop_event_nb(struct notifier_block *nb, unsigned long event,
+static int nsim_nexthop_event_nb(struct analtifier_block *nb, unsigned long event,
 				 void *ptr)
 {
 	struct nsim_fib_data *data = container_of(nb, struct nsim_fib_data,
 						  nexthop_nb);
-	struct nh_notifier_info *info = ptr;
+	struct nh_analtifier_info *info = ptr;
 	int err = 0;
 
 	mutex_lock(&data->nh_lock);
@@ -1346,7 +1346,7 @@ static int nsim_nexthop_event_nb(struct notifier_block *nb, unsigned long event,
 	}
 
 	mutex_unlock(&data->nh_lock);
-	return notifier_from_errno(err);
+	return analtifier_from_erranal(err);
 }
 
 static void nsim_nexthop_free(void *ptr, void *arg)
@@ -1396,7 +1396,7 @@ static ssize_t nsim_nexthop_bucket_activity_write(struct file *file,
 
 	activity = bitmap_zalloc(nexthop->occ, GFP_KERNEL);
 	if (!activity) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
@@ -1414,7 +1414,7 @@ out:
 static const struct file_operations nsim_nexthop_bucket_activity_fops = {
 	.open = simple_open,
 	.write = nsim_nexthop_bucket_activity_write,
-	.llseek = no_llseek,
+	.llseek = anal_llseek,
 	.owner = THIS_MODULE,
 };
 
@@ -1508,7 +1508,7 @@ static void nsim_fib_flush_work(struct work_struct *work)
 
 	mutex_lock(&data->fib_lock);
 	list_for_each_entry_safe(fib_rt, fib_rt_tmp, &data->fib_rt_list, list) {
-		rhashtable_remove_fast(&data->fib_rt_ht, &fib_rt->ht_node,
+		rhashtable_remove_fast(&data->fib_rt_ht, &fib_rt->ht_analde,
 				       nsim_fib_rt_ht_params);
 		nsim_fib_rt_free(fib_rt, data);
 	}
@@ -1557,7 +1557,7 @@ struct nsim_fib_data *nsim_fib_create(struct devlink *devlink,
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	data->devlink = devlink;
 
 	nsim_dev = devlink_priv(devlink);
@@ -1583,19 +1583,19 @@ struct nsim_fib_data *nsim_fib_create(struct devlink *devlink,
 
 	nsim_fib_set_max_all(data, devlink);
 
-	data->nexthop_nb.notifier_call = nsim_nexthop_event_nb;
-	err = register_nexthop_notifier(devlink_net(devlink), &data->nexthop_nb,
+	data->nexthop_nb.analtifier_call = nsim_nexthop_event_nb;
+	err = register_nexthop_analtifier(devlink_net(devlink), &data->nexthop_nb,
 					extack);
 	if (err) {
-		pr_err("Failed to register nexthop notifier\n");
+		pr_err("Failed to register nexthop analtifier\n");
 		goto err_rhashtable_fib_destroy;
 	}
 
-	data->fib_nb.notifier_call = nsim_fib_event_nb;
-	err = register_fib_notifier(devlink_net(devlink), &data->fib_nb,
+	data->fib_nb.analtifier_call = nsim_fib_event_nb;
+	err = register_fib_analtifier(devlink_net(devlink), &data->fib_nb,
 				    nsim_fib_dump_inconsistent, extack);
 	if (err) {
-		pr_err("Failed to register fib notifier\n");
+		pr_err("Failed to register fib analtifier\n");
 		goto err_nexthop_nb_unregister;
 	}
 
@@ -1622,7 +1622,7 @@ struct nsim_fib_data *nsim_fib_create(struct devlink *devlink,
 	return data;
 
 err_nexthop_nb_unregister:
-	unregister_nexthop_notifier(devlink_net(devlink), &data->nexthop_nb);
+	unregister_nexthop_analtifier(devlink_net(devlink), &data->nexthop_nb);
 err_rhashtable_fib_destroy:
 	cancel_work_sync(&data->fib_flush_work);
 	flush_work(&data->fib_event_work);
@@ -1652,8 +1652,8 @@ void nsim_fib_destroy(struct devlink *devlink, struct nsim_fib_data *data)
 					 NSIM_RESOURCE_IPV4_FIB_RULES);
 	devl_resource_occ_get_unregister(devlink,
 					 NSIM_RESOURCE_IPV4_FIB);
-	unregister_fib_notifier(devlink_net(devlink), &data->fib_nb);
-	unregister_nexthop_notifier(devlink_net(devlink), &data->nexthop_nb);
+	unregister_fib_analtifier(devlink_net(devlink), &data->fib_nb);
+	unregister_nexthop_analtifier(devlink_net(devlink), &data->nexthop_nb);
 	cancel_work_sync(&data->fib_flush_work);
 	flush_work(&data->fib_event_work);
 	rhashtable_free_and_destroy(&data->fib_rt_ht, nsim_fib_rt_free,

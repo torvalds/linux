@@ -21,7 +21,7 @@ static inline bool dcr_map_ok_mmio(dcr_host_mmio_t host)
 	return host.token != NULL;
 }
 
-extern dcr_host_mmio_t dcr_map_mmio(struct device_node *dev,
+extern dcr_host_mmio_t dcr_map_mmio(struct device_analde *dev,
 				    unsigned int dcr_n,
 				    unsigned int dcr_c);
 extern void dcr_unmap_mmio(dcr_host_mmio_t host, unsigned int dcr_c);

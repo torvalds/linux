@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (c) 2018-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #include <net/mac80211.h>
@@ -180,20 +180,20 @@ static struct ieee80211_rate ath12k_legacy_rates[] = {
 static const int
 ath12k_phymodes[NUM_NL80211_BANDS][ATH12K_CHAN_WIDTH_NUM] = {
 	[NL80211_BAND_2GHZ] = {
-			[NL80211_CHAN_WIDTH_5] = MODE_UNKNOWN,
-			[NL80211_CHAN_WIDTH_10] = MODE_UNKNOWN,
-			[NL80211_CHAN_WIDTH_20_NOHT] = MODE_11BE_EHT20_2G,
+			[NL80211_CHAN_WIDTH_5] = MODE_UNKANALWN,
+			[NL80211_CHAN_WIDTH_10] = MODE_UNKANALWN,
+			[NL80211_CHAN_WIDTH_20_ANALHT] = MODE_11BE_EHT20_2G,
 			[NL80211_CHAN_WIDTH_20] = MODE_11BE_EHT20_2G,
 			[NL80211_CHAN_WIDTH_40] = MODE_11BE_EHT40_2G,
-			[NL80211_CHAN_WIDTH_80] = MODE_UNKNOWN,
-			[NL80211_CHAN_WIDTH_80P80] = MODE_UNKNOWN,
-			[NL80211_CHAN_WIDTH_160] = MODE_UNKNOWN,
-			[NL80211_CHAN_WIDTH_320] = MODE_UNKNOWN,
+			[NL80211_CHAN_WIDTH_80] = MODE_UNKANALWN,
+			[NL80211_CHAN_WIDTH_80P80] = MODE_UNKANALWN,
+			[NL80211_CHAN_WIDTH_160] = MODE_UNKANALWN,
+			[NL80211_CHAN_WIDTH_320] = MODE_UNKANALWN,
 	},
 	[NL80211_BAND_5GHZ] = {
-			[NL80211_CHAN_WIDTH_5] = MODE_UNKNOWN,
-			[NL80211_CHAN_WIDTH_10] = MODE_UNKNOWN,
-			[NL80211_CHAN_WIDTH_20_NOHT] = MODE_11BE_EHT20,
+			[NL80211_CHAN_WIDTH_5] = MODE_UNKANALWN,
+			[NL80211_CHAN_WIDTH_10] = MODE_UNKANALWN,
+			[NL80211_CHAN_WIDTH_20_ANALHT] = MODE_11BE_EHT20,
 			[NL80211_CHAN_WIDTH_20] = MODE_11BE_EHT20,
 			[NL80211_CHAN_WIDTH_40] = MODE_11BE_EHT40,
 			[NL80211_CHAN_WIDTH_80] = MODE_11BE_EHT80,
@@ -202,9 +202,9 @@ ath12k_phymodes[NUM_NL80211_BANDS][ATH12K_CHAN_WIDTH_NUM] = {
 			[NL80211_CHAN_WIDTH_320] = MODE_11BE_EHT320,
 	},
 	[NL80211_BAND_6GHZ] = {
-			[NL80211_CHAN_WIDTH_5] = MODE_UNKNOWN,
-			[NL80211_CHAN_WIDTH_10] = MODE_UNKNOWN,
-			[NL80211_CHAN_WIDTH_20_NOHT] = MODE_11BE_EHT20,
+			[NL80211_CHAN_WIDTH_5] = MODE_UNKANALWN,
+			[NL80211_CHAN_WIDTH_10] = MODE_UNKANALWN,
+			[NL80211_CHAN_WIDTH_20_ANALHT] = MODE_11BE_EHT20,
 			[NL80211_CHAN_WIDTH_20] = MODE_11BE_EHT20,
 			[NL80211_CHAN_WIDTH_40] = MODE_11BE_EHT40,
 			[NL80211_CHAN_WIDTH_80] = MODE_11BE_EHT80,
@@ -237,8 +237,8 @@ const struct htt_rx_ring_tlv_filter ath12k_mac_mon_status_filter_default = {
 static const u32 ath12k_smps_map[] = {
 	[WLAN_HT_CAP_SM_PS_STATIC] = WMI_PEER_SMPS_STATIC,
 	[WLAN_HT_CAP_SM_PS_DYNAMIC] = WMI_PEER_SMPS_DYNAMIC,
-	[WLAN_HT_CAP_SM_PS_INVALID] = WMI_PEER_SMPS_PS_NONE,
-	[WLAN_HT_CAP_SM_PS_DISABLED] = WMI_PEER_SMPS_PS_NONE,
+	[WLAN_HT_CAP_SM_PS_INVALID] = WMI_PEER_SMPS_PS_ANALNE,
+	[WLAN_HT_CAP_SM_PS_DISABLED] = WMI_PEER_SMPS_PS_ANALNE,
 };
 
 static int ath12k_start_vdev_delay(struct ieee80211_hw *hw,
@@ -313,16 +313,16 @@ static const char *ath12k_mac_phymode_str(enum wmi_phy_mode mode)
 		return "11be-eht20-2g";
 	case MODE_11BE_EHT40_2G:
 		return "11be-eht40-2g";
-	case MODE_UNKNOWN:
+	case MODE_UNKANALWN:
 		/* skip */
 		break;
 
-		/* no default handler to allow compiler to check that the
+		/* anal default handler to allow compiler to check that the
 		 * enum is fully handled
 		 */
 	}
 
-	return "<unknown>";
+	return "<unkanalwn>";
 }
 
 enum rate_info_bw
@@ -433,7 +433,7 @@ ath12k_mac_max_vht_nss(const u16 *vht_mcs_mask)
 static u8 ath12k_parse_mpdudensity(u8 mpdudensity)
 {
 /*  From IEEE Std 802.11-2020 defined values for "Minimum MPDU Start Spacing":
- *   0 for no restriction
+ *   0 for anal restriction
  *   1 for 1/4 us
  *   2 for 1/2 us
  *   3 for 1 us
@@ -474,7 +474,7 @@ static int ath12k_mac_vif_chan(struct ieee80211_vif *vif,
 	conf = rcu_dereference(vif->bss_conf.chanctx_conf);
 	if (!conf) {
 		rcu_read_unlock();
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	*def = conf->def;
@@ -547,7 +547,7 @@ struct ath12k_vif *ath12k_mac_get_arvif(struct ath12k *ar, u32 vdev_id)
 						   ath12k_get_arvif_iter,
 						   &arvif_iter);
 	if (!arvif_iter.arvif) {
-		ath12k_warn(ar->ab, "No VIF found for vdev %d\n", vdev_id);
+		ath12k_warn(ar->ab, "Anal VIF found for vdev %d\n", vdev_id);
 		return NULL;
 	}
 
@@ -708,7 +708,7 @@ static int ath12k_recalc_rtscts_prot(struct ath12k_vif *arvif)
 	else
 		rts_cts |= WMI_RTSCTS_FOR_SECOND_RATESERIES << 4;
 
-	/* Need not send duplicate param value to firmware */
+	/* Need analt send duplicate param value to firmware */
 	if (arvif->rtscts_prot_mode == rts_cts)
 		return 0;
 
@@ -849,7 +849,7 @@ static int ath12k_mac_monitor_vdev_start(struct ath12k *ar, int vdev_id,
 	arg.pref_rx_streams = ar->num_rx_chains;
 	arg.punct_bitmap = 0xFFFFFFFF;
 
-	arg.passive |= !!(chandef->chan->flags & IEEE80211_CHAN_NO_IR);
+	arg.passive |= !!(chandef->chan->flags & IEEE80211_CHAN_ANAL_IR);
 
 	reinit_completion(&ar->vdev_setup_done);
 	reinit_completion(&ar->vdev_delete_done);
@@ -930,7 +930,7 @@ static int ath12k_mac_monitor_vdev_create(struct ath12k *ar)
 
 	if (ar->ab->free_vdev_map == 0) {
 		ath12k_warn(ar->ab, "failed to find free vdev id for monitor vdev\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	bit = __ffs64(ar->ab->free_vdev_map);
@@ -939,7 +939,7 @@ static int ath12k_mac_monitor_vdev_create(struct ath12k *ar)
 
 	arg.if_id = ar->monitor_vdev_id;
 	arg.type = WMI_VDEV_TYPE_MONITOR;
-	arg.subtype = WMI_VDEV_SUBTYPE_NONE;
+	arg.subtype = WMI_VDEV_SUBTYPE_ANALNE;
 	arg.pdev_id = pdev->pdev_id;
 	arg.if_stats_id = ATH12K_INVAL_VDEV_STATS_ID;
 
@@ -1435,7 +1435,7 @@ static void ath12k_peer_assoc_h_ht(struct ath12k *ar,
 		}
 
 	/* This is a workaround for HT-enabled STAs which break the spec
-	 * and have no HT capabilities RX mask (no HT RX MCS map).
+	 * and have anal HT capabilities RX mask (anal HT RX MCS map).
 	 *
 	 * As per spec, in section 20.3.5 Modulation and coding scheme (MCS),
 	 * MCS 0 through 7 are mandatory in 20MHz with 800 ns GI at all STAs.
@@ -1506,7 +1506,7 @@ ath12k_peer_assoc_h_vht_limit(u16 tx_mcs_set,
 			WARN_ON(1);
 			fallthrough;
 		case -1:
-			mcs = IEEE80211_VHT_MCS_NOT_SUPPORTED;
+			mcs = IEEE80211_VHT_MCS_ANALT_SUPPORTED;
 			break;
 		}
 
@@ -1580,7 +1580,7 @@ static void ath12k_peer_assoc_h_vht(struct ath12k *ar,
 		vht_mcs = __le16_to_cpu(vht_cap->vht_mcs.rx_mcs_map) >>
 			  (2 * i) & 3;
 
-		if (vht_mcs != IEEE80211_VHT_MCS_NOT_SUPPORTED &&
+		if (vht_mcs != IEEE80211_VHT_MCS_ANALT_SUPPORTED &&
 		    vht_mcs_mask[i])
 			max_nss = i + 1;
 	}
@@ -1593,14 +1593,14 @@ static void ath12k_peer_assoc_h_vht(struct ath12k *ar,
 	arg->tx_mcs_set = ath12k_peer_assoc_h_vht_limit(tx_mcs_map, vht_mcs_mask);
 
 	/* In QCN9274 platform, VHT MCS rate 10 and 11 is enabled by default.
-	 * VHT MCS rate 10 and 11 is not supported in 11ac standard.
+	 * VHT MCS rate 10 and 11 is analt supported in 11ac standard.
 	 * so explicitly disable the VHT MCS rate 10 and 11 in 11ac mode.
 	 */
 	arg->tx_mcs_set &= ~IEEE80211_VHT_MCS_SUPPORT_0_11_MASK;
 	arg->tx_mcs_set |= IEEE80211_DISABLE_VHT_MCS_SUPPORT_0_11;
 
-	if ((arg->tx_mcs_set & IEEE80211_VHT_MCS_NOT_SUPPORTED) ==
-			IEEE80211_VHT_MCS_NOT_SUPPORTED)
+	if ((arg->tx_mcs_set & IEEE80211_VHT_MCS_ANALT_SUPPORTED) ==
+			IEEE80211_VHT_MCS_ANALT_SUPPORTED)
 		arg->peer_vht_caps &= ~IEEE80211_VHT_CAP_MU_BEAMFORMEE_CAPABLE;
 
 	/* TODO:  Check */
@@ -1640,7 +1640,7 @@ static void ath12k_peer_assoc_h_he(struct ath12k *ar,
 		for (i = 7; i >= 0; i--) {
 			u8 mcs_160 = (mcs_160_map >> (2 * i)) & 3;
 
-			if (mcs_160 != IEEE80211_HE_MCS_NOT_SUPPORTED) {
+			if (mcs_160 != IEEE80211_HE_MCS_ANALT_SUPPORTED) {
 				rx_mcs_160 = i + 1;
 				break;
 			}
@@ -1650,7 +1650,7 @@ static void ath12k_peer_assoc_h_he(struct ath12k *ar,
 	for (i = 7; i >= 0; i--) {
 		u8 mcs_80 = (mcs_80_map >> (2 * i)) & 3;
 
-		if (mcs_80 != IEEE80211_HE_MCS_NOT_SUPPORTED) {
+		if (mcs_80 != IEEE80211_HE_MCS_ANALT_SUPPORTED) {
 			rx_mcs_80 = i + 1;
 			break;
 		}
@@ -1675,12 +1675,12 @@ static void ath12k_peer_assoc_h_he(struct ath12k *ar,
 	/* As per section 26.6.1 IEEE Std 802.11ax‐2022, if the Max AMPDU
 	 * Exponent Extension in HE cap is zero, use the arg->peer_max_mpdu
 	 * as calculated while parsing VHT caps(if VHT caps is present)
-	 * or HT caps (if VHT caps is not present).
+	 * or HT caps (if VHT caps is analt present).
 	 *
-	 * For non-zero value of Max AMPDU Exponent Extension in HE MAC caps,
+	 * For analn-zero value of Max AMPDU Exponent Extension in HE MAC caps,
 	 * if a HE STA sends VHT cap and HE cap IE in assoc request then, use
 	 * MAX_AMPDU_LEN_FACTOR as 20 to calculate max_ampdu length.
-	 * If a HE STA that does not send VHT cap, but HE and HT cap in assoc
+	 * If a HE STA that does analt send VHT cap, but HE and HT cap in assoc
 	 * request, then use MAX_AMPDU_LEN_FACTOR as 16 to calculate max_ampdu
 	 * length.
 	 */
@@ -1913,7 +1913,7 @@ static enum wmi_phy_mode ath12k_mac_get_phymode_vht(struct ath12k *ar,
 		case IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160_80PLUS80MHZ:
 			return MODE_11AC_VHT80_80;
 		default:
-			/* not sure if this is a valid case? */
+			/* analt sure if this is a valid case? */
 			return MODE_11AC_VHT160;
 		}
 	}
@@ -1927,7 +1927,7 @@ static enum wmi_phy_mode ath12k_mac_get_phymode_vht(struct ath12k *ar,
 	if (sta->deflink.bandwidth == IEEE80211_STA_RX_BW_20)
 		return MODE_11AC_VHT20;
 
-	return MODE_UNKNOWN;
+	return MODE_UNKANALWN;
 }
 
 static enum wmi_phy_mode ath12k_mac_get_phymode_he(struct ath12k *ar,
@@ -1940,7 +1940,7 @@ static enum wmi_phy_mode ath12k_mac_get_phymode_he(struct ath12k *ar,
 		else if (sta->deflink.he_cap.he_cap_elem.phy_cap_info[0] &
 		     IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_80PLUS80_MHZ_IN_5G)
 			return MODE_11AX_HE80_80;
-		/* not sure if this is a valid case? */
+		/* analt sure if this is a valid case? */
 		return MODE_11AX_HE160;
 	}
 
@@ -1953,7 +1953,7 @@ static enum wmi_phy_mode ath12k_mac_get_phymode_he(struct ath12k *ar,
 	if (sta->deflink.bandwidth == IEEE80211_STA_RX_BW_20)
 		return MODE_11AX_HE20;
 
-	return MODE_UNKNOWN;
+	return MODE_UNKANALWN;
 }
 
 static enum wmi_phy_mode ath12k_mac_get_phymode_eht(struct ath12k *ar,
@@ -1988,7 +1988,7 @@ static enum wmi_phy_mode ath12k_mac_get_phymode_eht(struct ath12k *ar,
 	if (sta->deflink.bandwidth == IEEE80211_STA_RX_BW_20)
 		return MODE_11BE_EHT20;
 
-	return MODE_UNKNOWN;
+	return MODE_UNKANALWN;
 }
 
 static void ath12k_peer_assoc_h_phymode(struct ath12k *ar,
@@ -2001,7 +2001,7 @@ static void ath12k_peer_assoc_h_phymode(struct ath12k *ar,
 	enum nl80211_band band;
 	const u8 *ht_mcs_mask;
 	const u16 *vht_mcs_mask;
-	enum wmi_phy_mode phymode = MODE_UNKNOWN;
+	enum wmi_phy_mode phymode = MODE_UNKANALWN;
 
 	if (WARN_ON(ath12k_mac_vif_chan(vif, &def)))
 		return;
@@ -2070,7 +2070,7 @@ static void ath12k_peer_assoc_h_phymode(struct ath12k *ar,
 		   sta->addr, ath12k_mac_phymode_str(phymode));
 
 	arg->peer_phymode = phymode;
-	WARN_ON(phymode == MODE_UNKNOWN);
+	WARN_ON(phymode == MODE_UNKANALWN);
 }
 
 static void ath12k_mac_set_eht_mcs(u8 rx_tx_mcs7, u8 rx_tx_mcs9,
@@ -2428,7 +2428,7 @@ static void ath12k_recalculate_mgmt_rate(struct ath12k *ar,
 
 	hw_rate_code = ath12k_mac_get_rate_hw_value(bitrate);
 	if (hw_rate_code < 0) {
-		ath12k_warn(ar->ab, "bitrate not supported %d\n", bitrate);
+		ath12k_warn(ar->ab, "bitrate analt supported %d\n", bitrate);
 		return;
 	}
 
@@ -2619,7 +2619,7 @@ static void ath12k_mac_op_bss_info_changed(struct ieee80211_hw *hw,
 				ath12k_dbg(ar->ab, ATH12K_DBG_MAC, "Set CTS prot: %d for VDEV: %d\n",
 					   cts_prot, arvif->vdev_id);
 		} else {
-			ath12k_dbg(ar->ab, ATH12K_DBG_MAC, "defer protection mode setup, vdev is not ready yet\n");
+			ath12k_dbg(ar->ab, ATH12K_DBG_MAC, "defer protection mode setup, vdev is analt ready yet\n");
 		}
 	}
 
@@ -2783,7 +2783,7 @@ void __ath12k_mac_scan_finish(struct ath12k *ar)
 		break;
 	case ATH12K_SCAN_RUNNING:
 	case ATH12K_SCAN_ABORTING:
-		if (ar->scan.is_roc && ar->scan.roc_notify)
+		if (ar->scan.is_roc && ar->scan.roc_analtify)
 			ieee80211_remain_on_channel_expired(ar->hw);
 		fallthrough;
 	case ATH12K_SCAN_STARTING:
@@ -2924,7 +2924,7 @@ static int ath12k_start_scan(struct ath12k *ar,
 
 	/* If we failed to start the scan, return error code at
 	 * this point.  This is probably due to some issue in the
-	 * firmware, but no need to wedge the driver due to that...
+	 * firmware, but anal need to wedge the driver due to that...
 	 */
 	spin_lock_bh(&ar->data_lock);
 	if (ar->scan.state == ATH12K_SCAN_IDLE) {
@@ -2977,7 +2977,7 @@ static int ath12k_mac_op_hw_scan(struct ieee80211_hw *hw,
 	if (req->ie_len) {
 		arg.extraie.ptr = kmemdup(req->ie, req->ie_len, GFP_KERNEL);
 		if (!arg.extraie.ptr) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto exit;
 		}
 		arg.extraie.len = req->ie_len;
@@ -2997,7 +2997,7 @@ static int ath12k_mac_op_hw_scan(struct ieee80211_hw *hw,
 					GFP_KERNEL);
 
 		if (!arg.chan_list) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto exit;
 		}
 
@@ -3064,8 +3064,8 @@ static int ath12k_install_key(struct ath12k_vif *arvif,
 		return 0;
 
 	if (cmd == DISABLE_KEY) {
-		/* TODO: Check if FW expects  value other than NONE for del */
-		/* arg.key_cipher = WMI_CIPHER_NONE; */
+		/* TODO: Check if FW expects  value other than ANALNE for del */
+		/* arg.key_cipher = WMI_CIPHER_ANALNE; */
 		arg.key_len = 0;
 		arg.key_data = NULL;
 		goto install;
@@ -3090,8 +3090,8 @@ static int ath12k_install_key(struct ath12k_vif *arvif,
 		arg.key_cipher = WMI_CIPHER_AES_GCM;
 		break;
 	default:
-		ath12k_warn(ar->ab, "cipher %d is not supported\n", key->cipher);
-		return -EOPNOTSUPP;
+		ath12k_warn(ar->ab, "cipher %d is analt supported\n", key->cipher);
+		return -EOPANALTSUPP;
 	}
 
 	if (test_bit(ATH12K_FLAG_RAW_MODE, &ar->ab->dev_flags))
@@ -3119,7 +3119,7 @@ static int ath12k_clear_peer_keys(struct ath12k_vif *arvif,
 	struct ath12k *ar = arvif->ar;
 	struct ath12k_base *ab = ar->ab;
 	struct ath12k_peer *peer;
-	int first_errno = 0;
+	int first_erranal = 0;
 	int ret;
 	int i;
 	u32 flags = 0;
@@ -3131,17 +3131,17 @@ static int ath12k_clear_peer_keys(struct ath12k_vif *arvif,
 	spin_unlock_bh(&ab->base_lock);
 
 	if (!peer)
-		return -ENOENT;
+		return -EANALENT;
 
 	for (i = 0; i < ARRAY_SIZE(peer->keys); i++) {
 		if (!peer->keys[i])
 			continue;
 
-		/* key flags are not required to delete the key */
+		/* key flags are analt required to delete the key */
 		ret = ath12k_install_key(arvif, peer->keys[i],
 					 DISABLE_KEY, addr, flags);
-		if (ret < 0 && first_errno == 0)
-			first_errno = ret;
+		if (ret < 0 && first_erranal == 0)
+			first_erranal = ret;
 
 		if (ret < 0)
 			ath12k_warn(ab, "failed to remove peer key %d: %d\n",
@@ -3152,7 +3152,7 @@ static int ath12k_clear_peer_keys(struct ath12k_vif *arvif,
 		spin_unlock_bh(&ab->base_lock);
 	}
 
-	return first_errno;
+	return first_erranal;
 }
 
 static int ath12k_mac_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
@@ -3179,7 +3179,7 @@ static int ath12k_mac_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		return 1;
 
 	if (key->keyidx > WMI_MAX_KEY_INDEX)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	mutex_lock(&ar->conf_mutex);
 
@@ -3192,8 +3192,8 @@ static int ath12k_mac_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 
 	key->hw_key_idx = key->keyidx;
 
-	/* the peer should not disappear in mid-way (unless FW goes awry) since
-	 * we already hold conf_mutex. we just make sure its there now.
+	/* the peer should analt disappear in mid-way (unless FW goes awry) since
+	 * we already hold conf_mutex. we just make sure its there analw.
 	 */
 	spin_lock_bh(&ab->base_lock);
 	peer = ath12k_peer_find(ab, arvif->vdev_id, peer_addr);
@@ -3201,12 +3201,12 @@ static int ath12k_mac_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 
 	if (!peer) {
 		if (cmd == SET_KEY) {
-			ath12k_warn(ab, "cannot install key for non-existent peer %pM\n",
+			ath12k_warn(ab, "cananalt install key for analn-existent peer %pM\n",
 				    peer_addr);
-			ret = -EOPNOTSUPP;
+			ret = -EOPANALTSUPP;
 			goto exit;
 		} else {
-			/* if the peer doesn't exist there is no key to disable
+			/* if the peer doesn't exist there is anal key to disable
 			 * anymore
 			 */
 			goto exit;
@@ -3263,10 +3263,10 @@ static int ath12k_mac_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 			if (cmd == SET_KEY)
 				arsta->pn_type = HAL_PN_TYPE_WPA;
 			else
-				arsta->pn_type = HAL_PN_TYPE_NONE;
+				arsta->pn_type = HAL_PN_TYPE_ANALNE;
 			break;
 		default:
-			arsta->pn_type = HAL_PN_TYPE_NONE;
+			arsta->pn_type = HAL_PN_TYPE_ANALNE;
 			break;
 		}
 	}
@@ -3315,13 +3315,13 @@ ath12k_mac_set_peer_vht_fixed_rate(struct ath12k_vif *arvif,
 	}
 
 	if (!nss) {
-		ath12k_warn(ar->ab, "No single VHT Fixed rate found to set for %pM",
+		ath12k_warn(ar->ab, "Anal single VHT Fixed rate found to set for %pM",
 			    sta->addr);
 		return -EINVAL;
 	}
 
 	ath12k_dbg(ar->ab, ATH12K_DBG_MAC,
-		   "Setting Fixed VHT Rate for peer %pM. Device will not switch to any other selected rates",
+		   "Setting Fixed VHT Rate for peer %pM. Device will analt switch to any other selected rates",
 		   sta->addr);
 
 	rate_code = ATH12K_HW_RATE_CODE(vht_rate, nss - 1,
@@ -3377,9 +3377,9 @@ static int ath12k_station_assoc(struct ath12k *ar,
 	num_vht_rates = ath12k_mac_bitrate_mask_num_vht_rates(ar, band, mask);
 
 	/* If single VHT rate is configured (by set_bitrate_mask()),
-	 * peer_assoc will disable VHT. This is now enabled by a peer specific
+	 * peer_assoc will disable VHT. This is analw enabled by a peer specific
 	 * fixed param.
-	 * Note that all other rates and NSS will be disabled for this peer.
+	 * Analte that all other rates and NSS will be disabled for this peer.
 	 */
 	if (sta->deflink.vht_cap.vht_supported && num_vht_rates == 1) {
 		ret = ath12k_mac_set_peer_vht_fixed_rate(arvif, sta, mask,
@@ -3570,12 +3570,12 @@ static void ath12k_sta_rc_update_wk(struct work_struct *wk)
 								      mask);
 
 		/* Peer_assoc_prepare will reject vht rates in
-		 * bitrate_mask if its not available in range format and
+		 * bitrate_mask if its analt available in range format and
 		 * sets vht tx_rateset as unsupported. So multiple VHT MCS
-		 * setting(eg. MCS 4,5,6) per peer is not supported here.
+		 * setting(eg. MCS 4,5,6) per peer is analt supported here.
 		 * But, Single rate in VHT mask can be set as per-peer
 		 * fixed rate. But even if any HT rates are configured in
-		 * the bitrate mask, device will not switch to those rates
+		 * the bitrate mask, device will analt switch to those rates
 		 * when per-peer Fixed rate is set.
 		 * TODO: Check RATEMASK_CMDID to support auto rates selection
 		 * across HT/VHT and for multiple VHT MCS support.
@@ -3584,7 +3584,7 @@ static void ath12k_sta_rc_update_wk(struct work_struct *wk)
 			ath12k_mac_set_peer_vht_fixed_rate(arvif, sta, mask,
 							   band);
 		} else {
-			/* If the peer is non-VHT or no fixed VHT rate
+			/* If the peer is analn-VHT or anal fixed VHT rate
 			 * is provided in the new bitrate mask we set the
 			 * other rates using peer_assoc command.
 			 */
@@ -3616,7 +3616,7 @@ static int ath12k_mac_inc_num_stations(struct ath12k_vif *arvif,
 		return 0;
 
 	if (ar->num_stations >= ar->max_num_stations)
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	ar->num_stations++;
 
@@ -3657,7 +3657,7 @@ static int ath12k_mac_station_add(struct ath12k *ar,
 
 	arsta->rx_stats = kzalloc(sizeof(*arsta->rx_stats), GFP_KERNEL);
 	if (!arsta->rx_stats) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto dec_num_station;
 	}
 
@@ -3757,14 +3757,14 @@ static int ath12k_mac_op_sta_state(struct ieee80211_hw *hw,
 	int ret = 0;
 
 	/* cancel must be done outside the mutex to avoid deadlock */
-	if ((old_state == IEEE80211_STA_NONE &&
-	     new_state == IEEE80211_STA_NOTEXIST))
+	if ((old_state == IEEE80211_STA_ANALNE &&
+	     new_state == IEEE80211_STA_ANALTEXIST))
 		cancel_work_sync(&arsta->update_wk);
 
 	mutex_lock(&ar->conf_mutex);
 
-	if (old_state == IEEE80211_STA_NOTEXIST &&
-	    new_state == IEEE80211_STA_NONE) {
+	if (old_state == IEEE80211_STA_ANALTEXIST &&
+	    new_state == IEEE80211_STA_ANALNE) {
 		memset(arsta, 0, sizeof(*arsta));
 		arsta->arvif = arvif;
 		INIT_WORK(&arsta->update_wk, ath12k_sta_rc_update_wk);
@@ -3773,8 +3773,8 @@ static int ath12k_mac_op_sta_state(struct ieee80211_hw *hw,
 		if (ret)
 			ath12k_warn(ar->ab, "Failed to add station: %pM for VDEV: %d\n",
 				    sta->addr, arvif->vdev_id);
-	} else if ((old_state == IEEE80211_STA_NONE &&
-		    new_state == IEEE80211_STA_NOTEXIST)) {
+	} else if ((old_state == IEEE80211_STA_ANALNE &&
+		    new_state == IEEE80211_STA_ANALTEXIST)) {
 		ath12k_dp_peer_cleanup(ar, arvif->vdev_id, sta->addr);
 
 		ret = ath12k_peer_delete(ar, arvif->vdev_id, sta->addr);
@@ -3934,12 +3934,12 @@ static void ath12k_mac_op_sta_rc_update(struct ieee80211_hw *hw,
 		arsta->nss = sta->deflink.rx_nss;
 
 	if (changed & IEEE80211_RC_SMPS_CHANGED) {
-		smps = WMI_PEER_SMPS_PS_NONE;
+		smps = WMI_PEER_SMPS_PS_ANALNE;
 
 		switch (sta->deflink.smps_mode) {
 		case IEEE80211_SMPS_AUTOMATIC:
 		case IEEE80211_SMPS_OFF:
-			smps = WMI_PEER_SMPS_PS_NONE;
+			smps = WMI_PEER_SMPS_PS_ANALNE;
 			break;
 		case IEEE80211_SMPS_STATIC:
 			smps = WMI_PEER_SMPS_STATIC;
@@ -3950,7 +3950,7 @@ static void ath12k_mac_op_sta_rc_update(struct ieee80211_hw *hw,
 		default:
 			ath12k_warn(ar->ab, "Invalid smps %d in sta rc update for %pM\n",
 				    sta->deflink.smps_mode, sta->addr);
-			smps = WMI_PEER_SMPS_PS_NONE;
+			smps = WMI_PEER_SMPS_PS_ANALNE;
 			break;
 		}
 
@@ -4002,7 +4002,7 @@ static int ath12k_conf_tx_uapsd(struct ath12k *ar, struct ieee80211_vif *vif,
 					  WMI_STA_PS_PARAM_UAPSD,
 					  arvif->u.sta.uapsd);
 	if (ret) {
-		ath12k_warn(ar->ab, "could not set uapsd params %d\n", ret);
+		ath12k_warn(ar->ab, "could analt set uapsd params %d\n", ret);
 		goto exit;
 	}
 
@@ -4015,7 +4015,7 @@ static int ath12k_conf_tx_uapsd(struct ath12k *ar, struct ieee80211_vif *vif,
 					  WMI_STA_PS_PARAM_RX_WAKE_POLICY,
 					  value);
 	if (ret)
-		ath12k_warn(ar->ab, "could not set rx wake param %d\n", ret);
+		ath12k_warn(ar->ab, "could analt set rx wake param %d\n", ret);
 
 exit:
 	return ret;
@@ -4087,7 +4087,7 @@ ath12k_create_ht_cap(struct ath12k *ar, u32 ar_ht_cap, u32 rate_cap_rx_chainmask
 
 	ht_cap.ht_supported = 1;
 	ht_cap.ampdu_factor = IEEE80211_HT_MAX_AMPDU_64K;
-	ht_cap.ampdu_density = IEEE80211_HT_MPDU_DENSITY_NONE;
+	ht_cap.ampdu_density = IEEE80211_HT_MPDU_DENSITY_ANALNE;
 	ht_cap.cap |= IEEE80211_HT_CAP_SUP_WIDTH_20_40;
 	ht_cap.cap |= IEEE80211_HT_CAP_DSSSCCK40;
 	ht_cap.cap |= WLAN_HT_CAP_SM_PS_STATIC << IEEE80211_HT_CAP_SM_PS_SHIFT;
@@ -4201,11 +4201,11 @@ static void ath12k_set_vht_txbf_cap(struct ath12k *ar, u32 *vht_cap)
 		subfer = false;
 	}
 
-	/* If SU Beaformer is not set, then disable MU Beamformer Capability */
+	/* If SU Beaformer is analt set, then disable MU Beamformer Capability */
 	if (!subfer)
 		*vht_cap &= ~(IEEE80211_VHT_CAP_MU_BEAMFORMER_CAPABLE);
 
-	/* If SU Beaformee is not set, then disable MU Beamformee Capability */
+	/* If SU Beaformee is analt set, then disable MU Beamformee Capability */
 	if (!subfee)
 		*vht_cap &= ~(IEEE80211_VHT_CAP_MU_BEAMFORMEE_CAPABLE);
 
@@ -4225,7 +4225,7 @@ static void ath12k_set_vht_txbf_cap(struct ath12k *ar, u32 *vht_cap)
 					    IEEE80211_VHT_CAP_SOUNDING_DIMENSIONS_MASK);
 	}
 
-	/* Use the STS advertised by FW unless SU Beamformee is not supported*/
+	/* Use the STS advertised by FW unless SU Beamformee is analt supported*/
 	if (!subfee)
 		*vht_cap &= ~(IEEE80211_VHT_CAP_BEAMFORMEE_STS_MASK);
 }
@@ -4254,12 +4254,12 @@ ath12k_create_vht_cap(struct ath12k *ar, u32 rate_cap_tx_chainmask,
 		if (i < ar->num_tx_chains && rate_cap_tx_chainmask & BIT(i))
 			txmcs_map |= IEEE80211_VHT_MCS_SUPPORT_0_9 << (i * 2);
 		else
-			txmcs_map |= IEEE80211_VHT_MCS_NOT_SUPPORTED << (i * 2);
+			txmcs_map |= IEEE80211_VHT_MCS_ANALT_SUPPORTED << (i * 2);
 
 		if (i < ar->num_rx_chains && rate_cap_rx_chainmask & BIT(i))
 			rxmcs_map |= IEEE80211_VHT_MCS_SUPPORT_0_9 << (i * 2);
 		else
-			rxmcs_map |= IEEE80211_VHT_MCS_NOT_SUPPORTED << (i * 2);
+			rxmcs_map |= IEEE80211_VHT_MCS_ANALT_SUPPORTED << (i * 2);
 	}
 
 	if (rate_cap_tx_chainmask <= 1)
@@ -4407,11 +4407,11 @@ ath12k_mac_filter_he_cap_mesh(struct ieee80211_he_cap_elem *he_cap_elem)
 	he_cap_elem->phy_cap_info[8] &= ~m;
 
 	m = IEEE80211_HE_PHY_CAP9_LONGER_THAN_16_SIGB_OFDM_SYM |
-	    IEEE80211_HE_PHY_CAP9_NON_TRIGGERED_CQI_FEEDBACK |
+	    IEEE80211_HE_PHY_CAP9_ANALN_TRIGGERED_CQI_FEEDBACK |
 	    IEEE80211_HE_PHY_CAP9_RX_1024_QAM_LESS_THAN_242_TONE_RU |
 	    IEEE80211_HE_PHY_CAP9_TX_1024_QAM_LESS_THAN_242_TONE_RU |
 	    IEEE80211_HE_PHY_CAP9_RX_FULL_BW_SU_USING_MU_WITH_COMP_SIGB |
-	    IEEE80211_HE_PHY_CAP9_RX_FULL_BW_SU_USING_MU_WITH_NON_COMP_SIGB;
+	    IEEE80211_HE_PHY_CAP9_RX_FULL_BW_SU_USING_MU_WITH_ANALN_COMP_SIGB;
 	he_cap_elem->phy_cap_info[9] &= ~m;
 }
 
@@ -4420,7 +4420,7 @@ static __le16 ath12k_mac_setup_he_6ghz_cap(struct ath12k_pdev_cap *pcap,
 {
 	u8 val;
 
-	bcap->he_6ghz_capa = IEEE80211_HT_MPDU_DENSITY_NONE;
+	bcap->he_6ghz_capa = IEEE80211_HT_MPDU_DENSITY_ANALNE;
 	if (bcap->ht_cap_info & WMI_HT_CAP_DYNAMIC_SMPS)
 		bcap->he_6ghz_capa |=
 			u32_encode_bits(WLAN_HT_CAP_SM_PS_DYNAMIC,
@@ -4586,7 +4586,7 @@ ath12k_mac_filter_eht_cap_mesh(struct ieee80211_eht_cap_elem_fixed
 	    IEEE80211_EHT_PHY_CAP4_EHT_MU_PPDU_4_EHT_LTF_08_GI;
 	eht_cap_elem->phy_cap_info[4] &= ~m;
 
-	m = IEEE80211_EHT_PHY_CAP5_NON_TRIG_CQI_FEEDBACK |
+	m = IEEE80211_EHT_PHY_CAP5_ANALN_TRIG_CQI_FEEDBACK |
 	    IEEE80211_EHT_PHY_CAP5_TX_LESS_242_TONE_RU_SUPP |
 	    IEEE80211_EHT_PHY_CAP5_RX_LESS_242_TONE_RU_SUPP |
 	    IEEE80211_EHT_PHY_CAP5_MAX_NUM_SUPP_EHT_LTF_MASK;
@@ -4595,9 +4595,9 @@ ath12k_mac_filter_eht_cap_mesh(struct ieee80211_eht_cap_elem_fixed
 	m = IEEE80211_EHT_PHY_CAP6_MAX_NUM_SUPP_EHT_LTF_MASK;
 	eht_cap_elem->phy_cap_info[6] &= ~m;
 
-	m = IEEE80211_EHT_PHY_CAP7_NON_OFDMA_UL_MU_MIMO_80MHZ |
-	    IEEE80211_EHT_PHY_CAP7_NON_OFDMA_UL_MU_MIMO_160MHZ |
-	    IEEE80211_EHT_PHY_CAP7_NON_OFDMA_UL_MU_MIMO_320MHZ |
+	m = IEEE80211_EHT_PHY_CAP7_ANALN_OFDMA_UL_MU_MIMO_80MHZ |
+	    IEEE80211_EHT_PHY_CAP7_ANALN_OFDMA_UL_MU_MIMO_160MHZ |
+	    IEEE80211_EHT_PHY_CAP7_ANALN_OFDMA_UL_MU_MIMO_320MHZ |
 	    IEEE80211_EHT_PHY_CAP7_MU_BEAMFORMER_80MHZ |
 	    IEEE80211_EHT_PHY_CAP7_MU_BEAMFORMER_160MHZ |
 	    IEEE80211_EHT_PHY_CAP7_MU_BEAMFORMER_320MHZ;
@@ -4634,9 +4634,9 @@ static void ath12k_mac_copy_eht_cap(struct ath12k *ar,
 		break;
 	case NL80211_IFTYPE_STATION:
 		eht_cap_elem->phy_cap_info[7] &=
-			~(IEEE80211_EHT_PHY_CAP7_NON_OFDMA_UL_MU_MIMO_80MHZ |
-			  IEEE80211_EHT_PHY_CAP7_NON_OFDMA_UL_MU_MIMO_160MHZ |
-			  IEEE80211_EHT_PHY_CAP7_NON_OFDMA_UL_MU_MIMO_320MHZ);
+			~(IEEE80211_EHT_PHY_CAP7_ANALN_OFDMA_UL_MU_MIMO_80MHZ |
+			  IEEE80211_EHT_PHY_CAP7_ANALN_OFDMA_UL_MU_MIMO_160MHZ |
+			  IEEE80211_EHT_PHY_CAP7_ANALN_OFDMA_UL_MU_MIMO_320MHZ);
 		eht_cap_elem->phy_cap_info[7] &=
 			~(IEEE80211_EHT_PHY_CAP7_MU_BEAMFORMER_80MHZ |
 			  IEEE80211_EHT_PHY_CAP7_MU_BEAMFORMER_160MHZ |
@@ -4849,7 +4849,7 @@ static int ath12k_mac_mgmt_tx_wmi(struct ath12k *ar, struct ath12k_vif *arvif,
 			   ATH12K_TX_MGMT_NUM_PENDING_MAX, GFP_ATOMIC);
 	spin_unlock_bh(&ar->txmgmt_idr_lock);
 	if (buf_id < 0)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	info = IEEE80211_SKB_CB(skb);
 	if (!(info->flags & IEEE80211_TX_CTL_HW_80211_ENCAP)) {
@@ -4908,7 +4908,7 @@ static void ath12k_mgmt_over_wmi_tx_work(struct work_struct *work)
 	while ((skb = skb_dequeue(&ar->wmi_mgmt_tx_queue)) != NULL) {
 		skb_cb = ATH12K_SKB_CB(skb);
 		if (!skb_cb->vif) {
-			ath12k_warn(ar->ab, "no vif found for mgmt frame\n");
+			ath12k_warn(ar->ab, "anal vif found for mgmt frame\n");
 			ath12k_mgmt_over_wmi_tx_drop(ar, skb);
 			continue;
 		}
@@ -4949,12 +4949,12 @@ static int ath12k_mac_mgmt_tx(struct ath12k *ar, struct sk_buff *skb,
 	    atomic_read(&ar->num_pending_mgmt_tx) > ATH12K_PRB_RSP_DROP_THRESHOLD) {
 		ath12k_warn(ar->ab,
 			    "dropping probe response as pending queue is almost full\n");
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 
 	if (skb_queue_len_lockless(q) >= ATH12K_TX_MGMT_NUM_PENDING_MAX) {
 		ath12k_warn(ar->ab, "mgmt tx queue is full\n");
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 
 	skb_queue_tail(q, skb);
@@ -5018,7 +5018,7 @@ void ath12k_mac_drain_tx(struct ath12k *ar)
 
 static int ath12k_mac_config_mon_status_default(struct ath12k *ar, bool enable)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 	/* TODO: Need to support new monitor mode */
 }
 
@@ -5130,15 +5130,15 @@ static int ath12k_mac_op_start(struct ieee80211_hw *hw)
 	 * such as rssi, rx_duration.
 	 */
 	ret = ath12k_mac_config_mon_status_default(ar, true);
-	if (ret && (ret != -ENOTSUPP)) {
+	if (ret && (ret != -EANALTSUPP)) {
 		ath12k_err(ab, "failed to configure monitor status ring with default rx_filter: (%d)\n",
 			   ret);
 		goto err;
 	}
 
-	if (ret == -ENOTSUPP)
+	if (ret == -EANALTSUPP)
 		ath12k_dbg(ar->ab, ATH12K_DBG_MAC,
-			   "monitor status config is not yet supported");
+			   "monitor status config is analt yet supported");
 
 	/* Configure the hash seed for hash based reo dest ring selection */
 	ath12k_wmi_pdev_lro_cfg(ar, ar->pdev->pdev_id);
@@ -5174,7 +5174,7 @@ int ath12k_mac_rfkill_config(struct ath12k *ar)
 	int ret;
 
 	if (ab->hw_params->rfkill_pin == 0)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ath12k_dbg(ab, ATH12K_DBG_MAC,
 		   "mac rfkill_pin %d rfkill_cfg %d rfkill_on_level %d",
@@ -5234,7 +5234,7 @@ static void ath12k_mac_op_stop(struct ieee80211_hw *hw)
 
 	mutex_lock(&ar->conf_mutex);
 	ret = ath12k_mac_config_mon_status_default(ar, false);
-	if (ret && (ret != -ENOTSUPP))
+	if (ret && (ret != -EANALTSUPP))
 		ath12k_err(ar->ab, "failed to clear rx_filter for monitor status ring: (%d)\n",
 			   ret);
 
@@ -5364,8 +5364,8 @@ static int ath12k_set_he_mu_sounding_mode(struct ath12k *ar,
 	param_id = WMI_VDEV_PARAM_SET_HE_SOUNDING_MODE;
 	param_value =
 		u32_encode_bits(HE_VHT_SOUNDING_MODE_ENABLE, HE_VHT_SOUNDING_MODE) |
-		u32_encode_bits(HE_TRIG_NONTRIG_SOUNDING_MODE_ENABLE,
-				HE_TRIG_NONTRIG_SOUNDING_MODE);
+		u32_encode_bits(HE_TRIG_ANALNTRIG_SOUNDING_MODE_ENABLE,
+				HE_TRIG_ANALNTRIG_SOUNDING_MODE);
 	ret = ath12k_wmi_vdev_set_param_cmd(ar, arvif->vdev_id,
 					    param_id, param_value);
 	if (ret) {
@@ -5444,7 +5444,7 @@ static int ath12k_mac_op_add_interface(struct ieee80211_hw *hw,
 	if (vif->type == NL80211_IFTYPE_AP &&
 	    ar->num_peers > (ar->max_num_peers - 1)) {
 		ath12k_warn(ab, "failed to create vdev due to insufficient peer entry resource in firmware\n");
-		ret = -ENOBUFS;
+		ret = -EANALBUFS;
 		goto err;
 	}
 
@@ -5477,7 +5477,7 @@ static int ath12k_mac_op_add_interface(struct ieee80211_hw *hw,
 	bit = __ffs64(ab->free_vdev_map);
 
 	arvif->vdev_id = bit;
-	arvif->vdev_subtype = WMI_VDEV_SUBTYPE_NONE;
+	arvif->vdev_subtype = WMI_VDEV_SUBTYPE_ANALNE;
 
 	switch (vif->type) {
 	case NL80211_IFTYPE_UNSPECIFIED:
@@ -5578,7 +5578,7 @@ static int ath12k_mac_op_add_interface(struct ieee80211_hw *hw,
 		}
 
 		param_id = WMI_STA_PS_PARAM_PSPOLL_COUNT;
-		param_value = WMI_STA_PS_PSPOLL_COUNT_NO_MAX;
+		param_value = WMI_STA_PS_PSPOLL_COUNT_ANAL_MAX;
 		ret = ath12k_wmi_set_sta_ps_param(ar, arvif->vdev_id,
 						  param_id, param_value);
 		if (ret) {
@@ -5850,7 +5850,7 @@ static int ath12k_mac_op_ampdu_action(struct ieee80211_hw *hw,
 		/* Tx A-MPDU aggregation offloaded to hw/fw so deny mac80211
 		 * Tx aggregation requests.
 		 */
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		break;
 	}
 
@@ -6000,7 +6000,7 @@ ath12k_mac_vdev_start_restart(struct ath12k_vif *arvif,
 		arg.ssid_len = arvif->u.ap.ssid_len;
 		arg.hidden_ssid = arvif->u.ap.hidden_ssid;
 
-		/* For now allow DFS for AP mode */
+		/* For analw allow DFS for AP mode */
 		arg.chan_radar = !!(chandef->chan->flags & IEEE80211_CHAN_RADAR);
 
 		arg.freq2_radar = ctx->radar_enabled;
@@ -6011,7 +6011,7 @@ ath12k_mac_vdev_start_restart(struct ath12k_vif *arvif,
 		arg.regdomain = ar->ab->dfs_region;
 		spin_unlock_bh(&ab->base_lock);
 
-		/* TODO: Notify if secondary 80Mhz also needs radar detection */
+		/* TODO: Analtify if secondary 80Mhz also needs radar detection */
 		if (he_support) {
 			ret = ath12k_set_he_mu_sounding_mode(ar, arvif);
 			if (ret) {
@@ -6022,7 +6022,7 @@ ath12k_mac_vdev_start_restart(struct ath12k_vif *arvif,
 		}
 	}
 
-	arg.passive |= !!(chandef->chan->flags & IEEE80211_CHAN_NO_IR);
+	arg.passive |= !!(chandef->chan->flags & IEEE80211_CHAN_ANAL_IR);
 
 	ath12k_dbg(ab, ATH12K_DBG_MAC,
 		   "mac vdev %d start center_freq %d phymode %s punct_bitmap 0x%x\n",
@@ -6204,7 +6204,7 @@ ath12k_mac_update_vif_chan(struct ath12k *ar,
 	}
 
 	/* All relevant vdevs are downed and associated channel resources
-	 * should be available for the channel switch now.
+	 * should be available for the channel switch analw.
 	 */
 
 	/* TODO: Update ar->rx_channel */
@@ -6271,7 +6271,7 @@ ath12k_mac_update_active_vif_chan(struct ath12k *ar,
 	lockdep_assert_held(&ar->conf_mutex);
 
 	ieee80211_iterate_active_interfaces_atomic(hw,
-						   IEEE80211_IFACE_ITER_NORMAL,
+						   IEEE80211_IFACE_ITER_ANALRMAL,
 						   ath12k_mac_change_chanctx_cnt_iter,
 						   &arg);
 	if (arg.n_vifs == 0)
@@ -6282,7 +6282,7 @@ ath12k_mac_update_active_vif_chan(struct ath12k *ar,
 		return;
 
 	ieee80211_iterate_active_interfaces_atomic(hw,
-						   IEEE80211_IFACE_ITER_NORMAL,
+						   IEEE80211_IFACE_ITER_ANALRMAL,
 						   ath12k_mac_change_chanctx_fill_iter,
 						   &arg);
 
@@ -6540,8 +6540,8 @@ static int ath12k_mac_op_set_rts_threshold(struct ieee80211_hw *hw, u32 value)
 
 static int ath12k_mac_op_set_frag_threshold(struct ieee80211_hw *hw, u32 value)
 {
-	/* Even though there's a WMI vdev param for fragmentation threshold no
-	 * known firmware actually implements it. Moreover it is not possible to
+	/* Even though there's a WMI vdev param for fragmentation threshold anal
+	 * kanalwn firmware actually implements it. Moreover it is analt possible to
 	 * rely frame fragmentation to mac80211 because firmware clears the
 	 * "more fragments" bit in frame control making it impossible for remote
 	 * devices to reassemble frames.
@@ -6550,7 +6550,7 @@ static int ath12k_mac_op_set_frag_threshold(struct ieee80211_hw *hw, u32 value)
 	 * supported. This effectively prevents mac80211 from doing frame
 	 * fragmentation in software.
 	 */
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static void ath12k_mac_op_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
@@ -6620,7 +6620,7 @@ ath12k_mac_bitrate_mask_get_single_nss(struct ath12k *ar,
 	u8 vht_nss_mask = 0;
 	int i;
 
-	/* No need to consider legacy here. Basic rates are always present
+	/* Anal need to consider legacy here. Basic rates are always present
 	 * in bitrate mask
 	 */
 
@@ -6791,7 +6791,7 @@ static void ath12k_mac_disable_peer_fixed_rate(void *data,
 	ret = ath12k_wmi_set_peer_param(ar, sta->addr,
 					arvif->vdev_id,
 					WMI_PEER_PARAM_FIXED_RATE,
-					WMI_FIXED_RATE_NONE);
+					WMI_FIXED_RATE_ANALNE);
 	if (ret)
 		ath12k_warn(ar->ab,
 			    "failed to disable peer fixed rate for STA %pM ret %d\n",
@@ -6832,7 +6832,7 @@ ath12k_mac_op_set_bitrate_mask(struct ieee80211_hw *hw,
 	/* mac80211 doesn't support sending a fixed HT/VHT MCS alone, rather it
 	 * requires passing at least one of used basic rates along with them.
 	 * Fixed rate setting across different preambles(legacy, HT, VHT) is
-	 * not supported by the FW. Hence use of FIXED_RATE vdev param is not
+	 * analt supported by the FW. Hence use of FIXED_RATE vdev param is analt
 	 * suitable for setting single HT/VHT rates.
 	 * But, there could be a single basic rate passed from userspace which
 	 * can be done through the FIXED_RATE param.
@@ -6850,10 +6850,10 @@ ath12k_mac_op_set_bitrate_mask(struct ieee80211_hw *hw,
 						  arvif);
 	} else if (ath12k_mac_bitrate_mask_get_single_nss(ar, band, mask,
 							  &single_nss)) {
-		rate = WMI_FIXED_RATE_NONE;
+		rate = WMI_FIXED_RATE_ANALNE;
 		nss = single_nss;
 	} else {
-		rate = WMI_FIXED_RATE_NONE;
+		rate = WMI_FIXED_RATE_ANALNE;
 		nss = min_t(u32, ar->num_tx_chains,
 			    max(ath12k_mac_max_ht_nss(ht_mcs_mask),
 				ath12k_mac_max_vht_nss(vht_mcs_mask)));
@@ -6887,7 +6887,7 @@ ath12k_mac_op_set_bitrate_mask(struct ieee80211_hw *hw,
 			 * RATEMASK CMD
 			 */
 			ath12k_warn(ar->ab,
-				    "Setting more than one MCS Value in bitrate mask not supported\n");
+				    "Setting more than one MCS Value in bitrate mask analt supported\n");
 			return -EINVAL;
 		}
 
@@ -6963,11 +6963,11 @@ ath12k_mac_op_reconfig_complete(struct ieee80211_hw *hw,
 			/* After trigger disconnect, then upper layer will
 			 * trigger connect again, then the PN number of
 			 * upper layer will be reset to keep up with AP
-			 * side, hence PN number mismatch will not happen.
+			 * side, hence PN number mismatch will analt happen.
 			 */
 			if (arvif->is_up &&
 			    arvif->vdev_type == WMI_VDEV_TYPE_STA &&
-			    arvif->vdev_subtype == WMI_VDEV_SUBTYPE_NONE) {
+			    arvif->vdev_subtype == WMI_VDEV_SUBTYPE_ANALNE) {
 				ieee80211_hw_restart_disconnect(arvif->vif);
 				ath12k_dbg(ab, ATH12K_DBG_BOOT,
 					   "restart disconnect\n");
@@ -6993,7 +6993,7 @@ ath12k_mac_update_bss_chan_survey(struct ath12k *ar,
 
 	if (ar->scan.state != ATH12K_SCAN_IDLE) {
 		ath12k_dbg(ar->ab, ATH12K_DBG_MAC,
-			   "ignoring bss chan info req while scanning..\n");
+			   "iganalring bss chan info req while scanning..\n");
 		return;
 	}
 
@@ -7019,7 +7019,7 @@ static int ath12k_mac_op_get_survey(struct ieee80211_hw *hw, int idx,
 	int ret = 0;
 
 	if (idx >= ATH12K_NUM_CHANS)
-		return -ENOENT;
+		return -EANALENT;
 
 	ar_survey = &ar->survey[idx];
 
@@ -7035,7 +7035,7 @@ static int ath12k_mac_op_get_survey(struct ieee80211_hw *hw, int idx,
 		sband = hw->wiphy->bands[NL80211_BAND_5GHZ];
 
 	if (!sband || idx >= sband->n_channels) {
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto exit;
 	}
 
@@ -7085,7 +7085,7 @@ static void ath12k_mac_op_sta_statistics(struct ieee80211_hw *hw,
 	sinfo->filled |= BIT_ULL(NL80211_STA_INFO_TX_BITRATE);
 
 	/* TODO: Use real NF instead of default one. */
-	sinfo->signal = arsta->rssi_comb + ATH12K_DEFAULT_NOISE_FLOOR;
+	sinfo->signal = arsta->rssi_comb + ATH12K_DEFAULT_ANALISE_FLOOR;
 	sinfo->filled |= BIT_ULL(NL80211_STA_INFO_SIGNAL);
 }
 
@@ -7178,7 +7178,7 @@ static int ath12k_mac_setup_channels_rates(struct ath12k *ar,
 				   sizeof(ath12k_2ghz_channels),
 				   GFP_KERNEL);
 		if (!channels)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		band = &ar->mac.sbands[NL80211_BAND_2GHZ];
 		band->band = NL80211_BAND_2GHZ;
@@ -7203,7 +7203,7 @@ static int ath12k_mac_setup_channels_rates(struct ath12k *ar,
 					   sizeof(ath12k_6ghz_channels), GFP_KERNEL);
 			if (!channels) {
 				kfree(ar->mac.sbands[NL80211_BAND_2GHZ].channels);
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 
 			ar->supports_6ghz = true;
@@ -7226,7 +7226,7 @@ static int ath12k_mac_setup_channels_rates(struct ath12k *ar,
 			if (!channels) {
 				kfree(ar->mac.sbands[NL80211_BAND_2GHZ].channels);
 				kfree(ar->mac.sbands[NL80211_BAND_6GHZ].channels);
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 
 			band = &ar->mac.sbands[NL80211_BAND_5GHZ];
@@ -7268,7 +7268,7 @@ static int ath12k_mac_setup_iface_combinations(struct ath12k *ar)
 
 	combinations = kzalloc(sizeof(*combinations), GFP_KERNEL);
 	if (!combinations)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (ap || mesh) {
 		n_limits = 2;
@@ -7281,7 +7281,7 @@ static int ath12k_mac_setup_iface_combinations(struct ath12k *ar)
 	limits = kcalloc(n_limits, sizeof(*limits), GFP_KERNEL);
 	if (!limits) {
 		kfree(combinations);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	limits[0].max = 1;
@@ -7301,7 +7301,7 @@ static int ath12k_mac_setup_iface_combinations(struct ath12k *ar)
 	combinations[0].num_different_channels = 1;
 	combinations[0].beacon_int_infra_match = true;
 	combinations[0].beacon_int_min_gcd = 100;
-	combinations[0].radar_detect_widths = BIT(NL80211_CHAN_WIDTH_20_NOHT) |
+	combinations[0].radar_detect_widths = BIT(NL80211_CHAN_WIDTH_20_ANALHT) |
 						BIT(NL80211_CHAN_WIDTH_20) |
 						BIT(NL80211_CHAN_WIDTH_40) |
 						BIT(NL80211_CHAN_WIDTH_80);
@@ -7314,18 +7314,18 @@ static int ath12k_mac_setup_iface_combinations(struct ath12k *ar)
 
 static const u8 ath12k_if_types_ext_capa[] = {
 	[0] = WLAN_EXT_CAPA1_EXT_CHANNEL_SWITCHING,
-	[7] = WLAN_EXT_CAPA8_OPMODE_NOTIF,
+	[7] = WLAN_EXT_CAPA8_OPMODE_ANALTIF,
 };
 
 static const u8 ath12k_if_types_ext_capa_sta[] = {
 	[0] = WLAN_EXT_CAPA1_EXT_CHANNEL_SWITCHING,
-	[7] = WLAN_EXT_CAPA8_OPMODE_NOTIF,
+	[7] = WLAN_EXT_CAPA8_OPMODE_ANALTIF,
 	[9] = WLAN_EXT_CAPA10_TWT_REQUESTER_SUPPORT,
 };
 
 static const u8 ath12k_if_types_ext_capa_ap[] = {
 	[0] = WLAN_EXT_CAPA1_EXT_CHANNEL_SWITCHING,
-	[7] = WLAN_EXT_CAPA8_OPMODE_NOTIF,
+	[7] = WLAN_EXT_CAPA8_OPMODE_ANALTIF,
 	[9] = WLAN_EXT_CAPA10_TWT_RESPONDER_SUPPORT,
 };
 
@@ -7623,7 +7623,7 @@ int ath12k_mac_allocate(struct ath12k_base *ab)
 		hw = ieee80211_alloc_hw(sizeof(struct ath12k), &ath12k_ops);
 		if (!hw) {
 			ath12k_warn(ab, "failed to allocate mac80211 hw device\n");
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_free_mac;
 		}
 

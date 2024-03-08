@@ -51,7 +51,7 @@
 #define GET_STT_LIMIT_HS2	0x21
 #define SET_P3T				0x23 /* P3T: Peak Package Power Limit */
 
-/* OS slider update notification */
+/* OS slider update analtification */
 #define DC_BEST_PERF		0
 #define DC_BETTER_PERF		1
 #define DC_BATTERY_SAVER	3
@@ -62,7 +62,7 @@
 /* Fan Index for Auto Mode */
 #define FAN_INDEX_AUTO		0xFFFFFFFF
 
-#define ARG_NONE 0
+#define ARG_ANALNE 0
 #define AVG_SAMPLE_SIZE 3
 
 /* Policy Actions */
@@ -87,7 +87,7 @@
 struct apmf_verify_interface {
 	u16 size;
 	u16 version;
-	u32 notification_mask;
+	u32 analtification_mask;
 	u32 supported_functions;
 } __packed;
 
@@ -217,7 +217,7 @@ struct amd_pmf_dev {
 	struct mutex update_mutex; /* protects race between ACPI handler and metrics thread */
 	bool cnqf_enabled;
 	bool cnqf_supported;
-	struct notifier_block pwr_src_notifier;
+	struct analtifier_block pwr_src_analtifier;
 	/* Smart PC solution builder */
 	struct dentry *esbin;
 	unsigned char *policy_buf;

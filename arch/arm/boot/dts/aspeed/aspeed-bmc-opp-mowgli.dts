@@ -24,7 +24,7 @@
 		ranges;
 
 		flash_memory: region@98000000 {
-			no-map;
+			anal-map;
 			reg = <0x98000000 0x04000000>; /* 64M */
 		};
 
@@ -168,7 +168,7 @@
 		compatible = "fsi-master-gpio", "fsi-master";
 		#address-cells = <2>;
 		#size-cells = <0>;
-		no-gpio-delays;
+		anal-gpio-delays;
 
 		clock-gpios = <&gpio ASPEED_GPIO(E, 6) GPIO_ACTIVE_HIGH>;
 		data-gpios = <&gpio ASPEED_GPIO(E, 7) GPIO_ACTIVE_HIGH>;
@@ -343,7 +343,7 @@
 
 	flash@0 {
 		status = "okay";
-		label = "pnor";
+		label = "panalr";
 		m25p,fast-read;
 		spi-max-frequency = <100000000>;
 	};
@@ -638,7 +638,7 @@
 };
 
 &wdt1 {
-	aspeed,reset-type = "none";
+	aspeed,reset-type = "analne";
 	aspeed,external-signal;
 	aspeed,ext-push-pull;
 	aspeed,ext-active-high;

@@ -12,7 +12,7 @@ Required properties:
 - reg: address and length of the register space
 - ti,hwmods: "dss_core"
 
-Optional nodes:
+Optional analdes:
 - Video port for DPI output
 
 DPI Endpoint required properties:

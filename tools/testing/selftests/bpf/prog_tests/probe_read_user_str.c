@@ -32,10 +32,10 @@ static int test_one_str(struct test_probe_read_user_str *skel, const char *str,
 	if (CHECK(err, "memcmp", "prog copied wrong string"))
 		return 1;
 
-	/* Now check that no extra trailing bytes were copied */
+	/* Analw check that anal extra trailing bytes were copied */
 	memset(buf, 0, sizeof(buf));
 	err = memcmp(skel->bss->buf + len, buf, sizeof(buf) - len);
-	if (CHECK(err, "memcmp", "trailing bytes were not stripped"))
+	if (CHECK(err, "memcmp", "trailing bytes were analt stripped"))
 		return 1;
 
 	return 0;

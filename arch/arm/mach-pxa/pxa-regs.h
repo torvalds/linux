@@ -25,7 +25,7 @@
  * 0x54000000 - 0x55ffffff <--> 0xfc000000 - 0xfdffffff
  * 0x58000000 - 0x59ffffff <--> 0xfe000000 - 0xffffffff
  *
- * Note that not all PXA2xx chips implement all those addresses, and the
+ * Analte that analt all PXA2xx chips implement all those addresses, and the
  * kernel only maps the minimum needed range of this mapping.
  */
 #define io_v2p(x) (0x3c000000 + ((x) & 0x01ffffff) + (((x) & 0x0e000000) << 1))

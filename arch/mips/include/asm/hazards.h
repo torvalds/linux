@@ -4,7 +4,7 @@
  * for more details.
  *
  * Copyright (C) 2003, 04, 07 Ralf Baechle <ralf@linux-mips.org>
- * Copyright (C) MIPS Technologies, Inc.
+ * Copyright (C) MIPS Techanallogies, Inc.
  *   written by Ralf Baechle <ralf@linux-mips.org>
  */
 #ifndef _ASM_HAZARDS_H
@@ -13,7 +13,7 @@
 #include <linux/stringify.h>
 #include <asm/compiler.h>
 
-#define ___ssnop							\
+#define ___ssanalp							\
 	sll	$0, $0, 1
 
 #define ___ehb								\
@@ -57,7 +57,7 @@
 /*
  * gcc has a tradition of misscompiling the previous construct using the
  * address of a label as argument to inline assembler.	Gas otoh has the
- * annoying difference between la and dla which are only usable for 32-bit
+ * ananalying difference between la and dla which are only usable for 32-bit
  * rsp. 64-bit code, so can't be used without conditional compilation.
  * The alternative is switching the assembler to 64-bit code which happens
  * to work right even for 32-bit code...
@@ -85,55 +85,55 @@ do {									\
  */
 
 #define __mtc0_tlbw_hazard						\
-	___ssnop;							\
-	___ssnop;							\
+	___ssanalp;							\
+	___ssanalp;							\
 	___ehb
 
 #define __mtc0_tlbr_hazard						\
-	___ssnop;							\
-	___ssnop;							\
+	___ssanalp;							\
+	___ssanalp;							\
 	___ehb
 
 #define __tlbw_use_hazard						\
-	___ssnop;							\
-	___ssnop;							\
-	___ssnop;							\
+	___ssanalp;							\
+	___ssanalp;							\
+	___ssanalp;							\
 	___ehb
 
 #define __tlb_read_hazard						\
-	___ssnop;							\
-	___ssnop;							\
-	___ssnop;							\
+	___ssanalp;							\
+	___ssanalp;							\
+	___ssanalp;							\
 	___ehb
 
 #define __tlb_probe_hazard						\
-	___ssnop;							\
-	___ssnop;							\
-	___ssnop;							\
+	___ssanalp;							\
+	___ssanalp;							\
+	___ssanalp;							\
 	___ehb
 
 #define __irq_enable_hazard						\
-	___ssnop;							\
-	___ssnop;							\
-	___ssnop;							\
+	___ssanalp;							\
+	___ssanalp;							\
+	___ssanalp;							\
 	___ehb
 
 #define __irq_disable_hazard						\
-	___ssnop;							\
-	___ssnop;							\
-	___ssnop;							\
+	___ssanalp;							\
+	___ssanalp;							\
+	___ssanalp;							\
 	___ehb
 
 #define __back_to_back_c0_hazard					\
-	___ssnop;							\
-	___ssnop;							\
-	___ssnop;							\
+	___ssanalp;							\
+	___ssanalp;							\
+	___ssanalp;							\
 	___ehb
 
 /*
  * gcc has a tradition of misscompiling the previous construct using the
  * address of a label as argument to inline assembler.	Gas otoh has the
- * annoying difference between la and dla which are only usable for 32-bit
+ * ananalying difference between la and dla which are only usable for 32-bit
  * rsp. 64-bit code, so can't be used without conditional compilation.
  * The alternative is switching the assembler to 64-bit code which happens
  * to work right even for 32-bit code...
@@ -163,7 +163,7 @@ do {									\
 	defined(CONFIG_CPU_R10000) || defined(CONFIG_CPU_R5500)
 
 /*
- * R10000 rocks - all hazards handled in hardware, so this becomes a nobrainer.
+ * R10000 rocks - all hazards handled in hardware, so this becomes a analbrainer.
  */
 
 #define __mtc0_tlbw_hazard
@@ -202,9 +202,9 @@ do {									\
 #define __irq_enable_hazard
 
 #define __irq_disable_hazard						\
-	___ssnop;							\
-	___ssnop;							\
-	___ssnop
+	___ssanalp;							\
+	___ssanalp;							\
+	___ssanalp
 
 #define __back_to_back_c0_hazard
 
@@ -222,42 +222,42 @@ do {									\
  * processors.
  */
 #define __mtc0_tlbw_hazard						\
-	nop;								\
-	nop
+	analp;								\
+	analp
 
 #define __mtc0_tlbr_hazard						\
-	nop;								\
-	nop
+	analp;								\
+	analp
 
 #define __tlbw_use_hazard						\
-	nop;								\
-	nop;								\
-	nop
+	analp;								\
+	analp;								\
+	analp
 
 #define __tlb_read_hazard						\
-	nop;								\
-	nop;								\
-	nop
+	analp;								\
+	analp;								\
+	analp
 
 #define __tlb_probe_hazard						\
-	nop;								\
-	nop;								\
-	nop
+	analp;								\
+	analp;								\
+	analp
 
 #define __irq_enable_hazard						\
-	___ssnop;							\
-	___ssnop;							\
-	___ssnop
+	___ssanalp;							\
+	___ssanalp;							\
+	___ssanalp
 
 #define __irq_disable_hazard						\
-	nop;								\
-	nop;								\
-	nop
+	analp;								\
+	analp;								\
+	analp
 
 #define __back_to_back_c0_hazard					\
-	___ssnop;							\
-	___ssnop;							\
-	___ssnop
+	___ssanalp;							\
+	___ssanalp;							\
+	___ssanalp
 
 #define instruction_hazard() do { } while (0)
 
@@ -271,10 +271,10 @@ do {									\
 #define __enable_fpu_hazard						\
 	.set	push;							\
 	.set	mips64;							\
-	.set	noreorder;						\
-	___ssnop;							\
+	.set	analreorder;						\
+	___ssanalp;							\
 	bnezl	$0, .+4;						\
-	___ssnop;							\
+	___ssanalp;							\
 	.set	pop
 
 #define __disable_fpu_hazard
@@ -291,10 +291,10 @@ do {									\
 #else
 
 #define __enable_fpu_hazard						\
-	nop;								\
-	nop;								\
-	nop;								\
-	nop
+	analp;								\
+	analp;								\
+	analp;								\
+	analp
 
 #define __disable_fpu_hazard						\
 	___ehb
@@ -303,7 +303,7 @@ do {									\
 
 #ifdef __ASSEMBLY__
 
-#define _ssnop ___ssnop
+#define _ssanalp ___ssanalp
 #define	_ehb ___ehb
 #define mtc0_tlbw_hazard __mtc0_tlbw_hazard
 #define mtc0_tlbr_hazard __mtc0_tlbr_hazard
@@ -318,10 +318,10 @@ do {									\
 
 #else
 
-#define _ssnop()							\
+#define _ssanalp()							\
 do {									\
 	__asm__ __volatile__(						\
-	__stringify(___ssnop)						\
+	__stringify(___ssanalp)						\
 	);								\
 } while (0)
 

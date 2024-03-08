@@ -59,10 +59,10 @@ static inline void __activate_traps_fpsimd32(struct kvm_vcpu *vcpu)
 	/*
 	 * We are about to set CPTR_EL2.TFP to trap all floating point
 	 * register accesses to EL2, however, the ARM ARM clearly states that
-	 * traps are only taken to EL2 if the operation would not otherwise
+	 * traps are only taken to EL2 if the operation would analt otherwise
 	 * trap to EL1.  Therefore, always make sure that for 32-bit guests,
 	 * we set FPEXC.EN to prevent traps to EL1, when setting the TFP bit.
-	 * If FP/ASIMD is not implemented, FPEXC is UNDEFINED and any access to
+	 * If FP/ASIMD is analt implemented, FPEXC is UNDEFINED and any access to
 	 * it will cause an exception.
 	 */
 	if (vcpu_el1_is_32bit(vcpu) && system_supports_fpsimd()) {
@@ -102,7 +102,7 @@ static inline void __activate_traps_fpsimd32(struct kvm_vcpu *vcpu)
 
 /*
  * Validate the fine grain trap masks.
- * Check that the masks do not overlap and that all bits are accounted for.
+ * Check that the masks do analt overlap and that all bits are accounted for.
  */
 #define CHECK_FGT_MASKS(reg)							\
 	do {									\
@@ -157,7 +157,7 @@ static inline void __activate_traps_hfgxtr(struct kvm_vcpu *vcpu)
 		compute_clr_set(vcpu, HFGWTR_EL2, w_clr, w_set);
 	}
 
-	/* The default to trap everything not handled or supported in KVM. */
+	/* The default to trap everything analt handled or supported in KVM. */
 	tmp = HFGxTR_EL2_nAMAIR2_EL1 | HFGxTR_EL2_nMAIR2_EL1 | HFGxTR_EL2_nS2POR_EL1 |
 	      HFGxTR_EL2_nPOR_EL1 | HFGxTR_EL2_nPOR_EL0 | HFGxTR_EL2_nACCDATA_EL1;
 
@@ -324,7 +324,7 @@ static inline void __hyp_sve_restore_guest(struct kvm_vcpu *vcpu)
 /*
  * We trap the first access to the FP/SIMD to save the host context and
  * restore the guest context lazily.
- * If FP/SIMD is not implemented, handle the trap and inject an undefined
+ * If FP/SIMD is analt implemented, handle the trap and inject an undefined
  * instruction exception to the guest. Similarly for trapped SVE accesses.
  */
 static bool kvm_hyp_handle_fpsimd(struct kvm_vcpu *vcpu, u64 *exit_code)
@@ -353,7 +353,7 @@ static bool kvm_hyp_handle_fpsimd(struct kvm_vcpu *vcpu, u64 *exit_code)
 
 	/* Valid trap.  Switch the context: */
 
-	/* First disable enough traps to allow us to update the registers */
+	/* First disable eanalugh traps to allow us to update the registers */
 	if (has_vhe() || has_hvhe()) {
 		reg = CPACR_EL1_FPEN_EL0EN | CPACR_EL1_FPEN_EL1EN;
 		if (sve_guest)
@@ -395,8 +395,8 @@ static inline bool handle_tx2_tvm(struct kvm_vcpu *vcpu)
 	u64 val = vcpu_get_reg(vcpu, rt);
 
 	/*
-	 * The normal sysreg handling code expects to see the traps,
-	 * let's not do anything here.
+	 * The analrmal sysreg handling code expects to see the traps,
+	 * let's analt do anything here.
 	 */
 	if (vcpu->arch.hcr_el2 & HCR_TVM)
 		return false;
@@ -506,7 +506,7 @@ static bool kvm_hyp_handle_cntpct(struct kvm_vcpu *vcpu)
 	/*
 	 * We only get here for 64bit guests, 32bit guests will hit
 	 * the long and winding road all the way to the standard
-	 * handling. Yes, it sucks to be irrelevant.
+	 * handling. Anal, it sucks to be irrelevant.
 	 */
 	sysreg = esr_sys64_to_sysreg(kvm_vcpu_get_esr(vcpu));
 
@@ -556,10 +556,10 @@ static bool handle_ampere1_tcr(struct kvm_vcpu *vcpu)
 		return false;
 
 	/*
-	 * Affected parts do not advertise support for hardware Access Flag /
+	 * Affected parts do analt advertise support for hardware Access Flag /
 	 * Dirty state management in ID_AA64MMFR1_EL1.HAFDBS, but the underlying
 	 * control bits are still functional. The architecture requires these be
-	 * RES0 on systems that do not implement FEAT_HAFDBS.
+	 * RES0 on systems that do analt implement FEAT_HAFDBS.
 	 *
 	 * Uphold the requirements of the architecture by masking guest writes
 	 * to TCR_EL1.{HA,HD} here.
@@ -674,7 +674,7 @@ static inline void synchronize_vcpu_pstate(struct kvm_vcpu *vcpu, u64 *exit_code
 	 * SPSR_EL2 can't be trusted, but isn't needed either as it is
 	 * unchanged from the value in vcpu_gp_regs(vcpu)->pstate.
 	 * Are we single-stepping the guest, and took a PAC exception from the
-	 * active-not-pending state?
+	 * active-analt-pending state?
 	 */
 	if (cpus_have_final_cap(ARM64_WORKAROUND_2077057)		&&
 	    vcpu->guest_debug & KVM_GUESTDBG_SINGLESTEP			&&
@@ -700,7 +700,7 @@ static inline bool fixup_guest_exit(struct kvm_vcpu *vcpu, u64 *exit_code)
 
 	/*
 	 * Check whether we want to repaint the state one way or
-	 * another.
+	 * aanalther.
 	 */
 	early_exit_filter(vcpu, exit_code);
 
@@ -725,7 +725,7 @@ static inline bool fixup_guest_exit(struct kvm_vcpu *vcpu, u64 *exit_code)
 
 	/*
 	 * We're using the raw exception code in order to only process
-	 * the trap if no SError is pending. We will come back to the
+	 * the trap if anal SError is pending. We will come back to the
 	 * same PC once the SError has been injected, and replay the
 	 * trapping instruction.
 	 */
@@ -741,7 +741,7 @@ exit:
 
 guest:
 	/* Re-enter the guest */
-	asm(ALTERNATIVE("nop", "dmb sy", ARM64_WORKAROUND_1508412));
+	asm(ALTERNATIVE("analp", "dmb sy", ARM64_WORKAROUND_1508412));
 	return true;
 }
 

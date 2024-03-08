@@ -14,25 +14,25 @@
 #define     UNIPHIER_I2C_DTRM_IRQEN	BIT(11)	/* enable interrupt */
 #define     UNIPHIER_I2C_DTRM_STA	BIT(10)	/* start condition */
 #define     UNIPHIER_I2C_DTRM_STO	BIT(9)	/* stop condition */
-#define     UNIPHIER_I2C_DTRM_NACK	BIT(8)	/* do not return ACK */
+#define     UNIPHIER_I2C_DTRM_NACK	BIT(8)	/* do analt return ACK */
 #define     UNIPHIER_I2C_DTRM_RD	BIT(0)	/* read transaction */
 #define UNIPHIER_I2C_DREC	0x04	/* RX register */
 #define     UNIPHIER_I2C_DREC_MST	BIT(14)	/* 1 = master, 0 = slave */
 #define     UNIPHIER_I2C_DREC_TX	BIT(13)	/* 1 = transmit, 0 = receive */
 #define     UNIPHIER_I2C_DREC_STS	BIT(12)	/* stop condition detected */
-#define     UNIPHIER_I2C_DREC_LRB	BIT(11)	/* no ACK */
+#define     UNIPHIER_I2C_DREC_LRB	BIT(11)	/* anal ACK */
 #define     UNIPHIER_I2C_DREC_LAB	BIT(9)	/* arbitration lost */
-#define     UNIPHIER_I2C_DREC_BBN	BIT(8)	/* bus not busy */
+#define     UNIPHIER_I2C_DREC_BBN	BIT(8)	/* bus analt busy */
 #define UNIPHIER_I2C_MYAD	0x08	/* slave address */
 #define UNIPHIER_I2C_CLK	0x0c	/* clock frequency control */
 #define UNIPHIER_I2C_BRST	0x10	/* bus reset */
-#define     UNIPHIER_I2C_BRST_FOEN	BIT(1)	/* normal operation */
+#define     UNIPHIER_I2C_BRST_FOEN	BIT(1)	/* analrmal operation */
 #define     UNIPHIER_I2C_BRST_RSCL	BIT(0)	/* release SCL */
 #define UNIPHIER_I2C_HOLD	0x14	/* hold time control */
 #define UNIPHIER_I2C_BSTS	0x18	/* bus status monitor */
 #define     UNIPHIER_I2C_BSTS_SDA	BIT(1)	/* readback of SDA line */
 #define     UNIPHIER_I2C_BSTS_SCL	BIT(0)	/* readback of SCL line */
-#define UNIPHIER_I2C_NOISE	0x1c	/* noise filter control */
+#define UNIPHIER_I2C_ANALISE	0x1c	/* analise filter control */
 #define UNIPHIER_I2C_SETUP	0x20	/* setup time control */
 
 struct uniphier_i2c_priv {
@@ -49,7 +49,7 @@ static irqreturn_t uniphier_i2c_interrupt(int irq, void *dev_id)
 	struct uniphier_i2c_priv *priv = dev_id;
 
 	/*
-	 * This hardware uses edge triggered interrupt.  Do not touch the
+	 * This hardware uses edge triggered interrupt.  Do analt touch the
 	 * hardware registers in this handler to make sure to catch the next
 	 * interrupt edge.  Just send a complete signal and return.
 	 */
@@ -166,7 +166,7 @@ static int uniphier_i2c_master_xfer_one(struct i2c_adapter *adap,
 	else
 		ret = uniphier_i2c_tx(adap, msg->addr, msg->len, msg->buf);
 
-	if (ret == -EAGAIN) /* could not acquire bus. bail out without STOP */
+	if (ret == -EAGAIN) /* could analt acquire bus. bail out without STOP */
 		return ret;
 
 	if (ret == -ETIMEDOUT) {
@@ -317,7 +317,7 @@ static int uniphier_i2c_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->membase = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->membase))
@@ -327,7 +327,7 @@ static int uniphier_i2c_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return irq;
 
-	if (of_property_read_u32(dev->of_node, "clock-frequency", &bus_speed))
+	if (of_property_read_u32(dev->of_analde, "clock-frequency", &bus_speed))
 		bus_speed = I2C_MAX_STANDARD_MODE_FREQ;
 
 	if (!bus_speed || bus_speed > I2C_MAX_FAST_MODE_FREQ) {
@@ -343,7 +343,7 @@ static int uniphier_i2c_probe(struct platform_device *pdev)
 
 	clk_rate = clk_get_rate(priv->clk);
 	if (!clk_rate) {
-		dev_err(dev, "input clock rate should not be zero\n");
+		dev_err(dev, "input clock rate should analt be zero\n");
 		return -EINVAL;
 	}
 
@@ -352,7 +352,7 @@ static int uniphier_i2c_probe(struct platform_device *pdev)
 	priv->adap.owner = THIS_MODULE;
 	priv->adap.algo = &uniphier_i2c_algo;
 	priv->adap.dev.parent = dev;
-	priv->adap.dev.of_node = dev->of_node;
+	priv->adap.dev.of_analde = dev->of_analde;
 	strscpy(priv->adap.name, "UniPhier I2C", sizeof(priv->adap.name));
 	priv->adap.bus_recovery_info = &uniphier_i2c_bus_recovery_info;
 	i2c_set_adapdata(&priv->adap, priv);

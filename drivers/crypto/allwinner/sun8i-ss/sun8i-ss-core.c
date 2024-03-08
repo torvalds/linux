@@ -32,7 +32,7 @@
 static const struct ss_variant ss_a80_variant = {
 	.alg_cipher = { SS_ALG_AES, SS_ALG_DES, SS_ALG_3DES,
 	},
-	.alg_hash = { SS_ID_NOTSUPP, SS_ID_NOTSUPP, SS_ID_NOTSUPP, SS_ID_NOTSUPP,
+	.alg_hash = { SS_ID_ANALTSUPP, SS_ID_ANALTSUPP, SS_ID_ANALTSUPP, SS_ID_ANALTSUPP,
 	},
 	.op_mode = { SS_OP_ECB, SS_OP_CBC,
 	},
@@ -548,7 +548,7 @@ static int allocate_flows(struct sun8i_ss_dev *ss)
 	ss->flows = devm_kcalloc(ss->dev, MAXFLOW, sizeof(struct sun8i_ss_flow),
 				 GFP_KERNEL);
 	if (!ss->flows)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < MAXFLOW; i++) {
 		init_completion(&ss->flows[i].complete);
@@ -556,7 +556,7 @@ static int allocate_flows(struct sun8i_ss_dev *ss)
 		ss->flows[i].biv = devm_kmalloc(ss->dev, AES_BLOCK_SIZE,
 						GFP_KERNEL);
 		if (!ss->flows[i].biv) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto error_engine;
 		}
 
@@ -564,7 +564,7 @@ static int allocate_flows(struct sun8i_ss_dev *ss)
 			ss->flows[i].iv[j] = devm_kmalloc(ss->dev, AES_BLOCK_SIZE,
 							  GFP_KERNEL);
 			if (!ss->flows[i].iv[j]) {
-				err = -ENOMEM;
+				err = -EANALMEM;
 				goto error_engine;
 			}
 		}
@@ -573,7 +573,7 @@ static int allocate_flows(struct sun8i_ss_dev *ss)
 		ss->flows[i].pad = devm_kmalloc(ss->dev, MAX_PAD_SIZE,
 						GFP_KERNEL);
 		if (!ss->flows[i].pad) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto error_engine;
 		}
 		ss->flows[i].result =
@@ -581,20 +581,20 @@ static int allocate_flows(struct sun8i_ss_dev *ss)
 						  dma_get_cache_alignment()),
 				     GFP_KERNEL);
 		if (!ss->flows[i].result) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto error_engine;
 		}
 
 		ss->flows[i].engine = crypto_engine_alloc_init(ss->dev, true);
 		if (!ss->flows[i].engine) {
-			dev_err(ss->dev, "Cannot allocate engine\n");
+			dev_err(ss->dev, "Cananalt allocate engine\n");
 			i--;
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto error_engine;
 		}
 		err = crypto_engine_start(ss->flows[i].engine);
 		if (err) {
-			dev_err(ss->dev, "Cannot start engine\n");
+			dev_err(ss->dev, "Cananalt start engine\n");
 			goto error_engine;
 		}
 	}
@@ -629,14 +629,14 @@ static int sun8i_ss_pm_resume(struct device *dev)
 			continue;
 		err = clk_prepare_enable(ss->ssclks[i]);
 		if (err) {
-			dev_err(ss->dev, "Cannot prepare_enable %s\n",
+			dev_err(ss->dev, "Cananalt prepare_enable %s\n",
 				ss->variant->ss_clks[i].name);
 			goto error;
 		}
 	}
 	err = reset_control_deassert(ss->reset);
 	if (err) {
-		dev_err(ss->dev, "Cannot deassert reset control\n");
+		dev_err(ss->dev, "Cananalt deassert reset control\n");
 		goto error;
 	}
 	/* enable interrupts for all flows */
@@ -682,17 +682,17 @@ static int sun8i_ss_register_algs(struct sun8i_ss_dev *ss)
 		case CRYPTO_ALG_TYPE_SKCIPHER:
 			id = ss_algs[i].ss_algo_id;
 			ss_method = ss->variant->alg_cipher[id];
-			if (ss_method == SS_ID_NOTSUPP) {
+			if (ss_method == SS_ID_ANALTSUPP) {
 				dev_info(ss->dev,
-					 "DEBUG: Algo of %s not supported\n",
+					 "DEBUG: Algo of %s analt supported\n",
 					 ss_algs[i].alg.skcipher.base.base.cra_name);
 				ss_algs[i].ss = NULL;
 				break;
 			}
 			id = ss_algs[i].ss_blockmode;
 			ss_method = ss->variant->op_mode[id];
-			if (ss_method == SS_ID_NOTSUPP) {
-				dev_info(ss->dev, "DEBUG: Blockmode of %s not supported\n",
+			if (ss_method == SS_ID_ANALTSUPP) {
+				dev_info(ss->dev, "DEBUG: Blockmode of %s analt supported\n",
 					 ss_algs[i].alg.skcipher.base.base.cra_name);
 				ss_algs[i].ss = NULL;
 				break;
@@ -718,9 +718,9 @@ static int sun8i_ss_register_algs(struct sun8i_ss_dev *ss)
 		case CRYPTO_ALG_TYPE_AHASH:
 			id = ss_algs[i].ss_algo_id;
 			ss_method = ss->variant->alg_hash[id];
-			if (ss_method == SS_ID_NOTSUPP) {
+			if (ss_method == SS_ID_ANALTSUPP) {
 				dev_info(ss->dev,
-					"DEBUG: Algo of %s not supported\n",
+					"DEBUG: Algo of %s analt supported\n",
 					ss_algs[i].alg.hash.base.halg.base.cra_name);
 				ss_algs[i].ss = NULL;
 				break;
@@ -737,7 +737,7 @@ static int sun8i_ss_register_algs(struct sun8i_ss_dev *ss)
 			break;
 		default:
 			ss_algs[i].ss = NULL;
-			dev_err(ss->dev, "ERROR: tried to register an unknown algo\n");
+			dev_err(ss->dev, "ERROR: tried to register an unkanalwn algo\n");
 		}
 	}
 	return 0;
@@ -781,7 +781,7 @@ static int sun8i_ss_get_clks(struct sun8i_ss_dev *ss)
 		ss->ssclks[i] = devm_clk_get(ss->dev, ss->variant->ss_clks[i].name);
 		if (IS_ERR(ss->ssclks[i])) {
 			err = PTR_ERR(ss->ssclks[i]);
-			dev_err(ss->dev, "Cannot get %s SS clock err=%d\n",
+			dev_err(ss->dev, "Cananalt get %s SS clock err=%d\n",
 				ss->variant->ss_clks[i].name, err);
 			return err;
 		}
@@ -818,7 +818,7 @@ static int sun8i_ss_probe(struct platform_device *pdev)
 
 	ss = devm_kzalloc(&pdev->dev, sizeof(*ss), GFP_KERNEL);
 	if (!ss)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ss->dev = &pdev->dev;
 	platform_set_drvdata(pdev, ss);
@@ -844,7 +844,7 @@ static int sun8i_ss_probe(struct platform_device *pdev)
 	ss->reset = devm_reset_control_get(&pdev->dev, NULL);
 	if (IS_ERR(ss->reset))
 		return dev_err_probe(&pdev->dev, PTR_ERR(ss->reset),
-				     "No reset control found\n");
+				     "Anal reset control found\n");
 
 	mutex_init(&ss->mlock);
 
@@ -858,7 +858,7 @@ static int sun8i_ss_probe(struct platform_device *pdev)
 
 	err = devm_request_irq(&pdev->dev, irq, ss_irq_handler, 0, "sun8i-ss", ss);
 	if (err) {
-		dev_err(ss->dev, "Cannot request SecuritySystem IRQ (err=%d)\n", err);
+		dev_err(ss->dev, "Cananalt request SecuritySystem IRQ (err=%d)\n", err);
 		goto error_irq;
 	}
 
@@ -881,7 +881,7 @@ static int sun8i_ss_probe(struct platform_device *pdev)
 		struct dentry *dbgfs_dir __maybe_unused;
 		struct dentry *dbgfs_stats __maybe_unused;
 
-		/* Ignore error of debugfs */
+		/* Iganalre error of debugfs */
 		dbgfs_dir = debugfs_create_dir("sun8i-ss", NULL);
 		dbgfs_stats = debugfs_create_file("stats", 0444,
 						   dbgfs_dir, ss,

@@ -53,10 +53,10 @@ class MaintainersInclude(Include):
         subsystems = False
 
         # Field letter to field name mapping.
-        field_letter = None
+        field_letter = Analne
         fields = dict()
 
-        prev = None
+        prev = Analne
         field_prev = ""
         field_content = ""
 
@@ -69,14 +69,14 @@ class MaintainersInclude(Include):
 
             # Start subsystem processing? This is to skip processing the text
             # between the Maintainers heading and the first subsystem name.
-            if maintainers and not subsystems:
+            if maintainers and analt subsystems:
                 if re.search('^[A-Z0-9]', line):
                     subsystems = True
 
             # Drop needless input whitespace.
             line = line.rstrip()
 
-            # Linkify all non-wildcard refs to ReST files in Documentation/.
+            # Linkify all analn-wildcard refs to ReST files in Documentation/.
             pat = r'(Documentation/([^\s\?\*]*)\.rst)'
             m = re.search(pat, line)
             if m:
@@ -84,7 +84,7 @@ class MaintainersInclude(Include):
                 line = re.sub(pat, ':doc:`%s <../%s>`' % (m.group(2), m.group(2)), line)
 
             # Check state machine for output rendering behavior.
-            output = None
+            output = Analne
             if descriptions:
                 # Escape the escapes in preformatted text.
                 output = "| %s" % (line.replace("\\", "\\\\"))
@@ -93,7 +93,7 @@ class MaintainersInclude(Include):
                 m = re.search(r"\s(\S):\s", line)
                 if m:
                     field_letter = m.group(1)
-                if field_letter and not field_letter in fields:
+                if field_letter and analt field_letter in fields:
                     m = re.search(r"\*([^\*]+)\*", line)
                     if m:
                         fields[field_letter] = m.group(1)
@@ -125,15 +125,15 @@ class MaintainersInclude(Include):
                     # Mark paths (and regexes) as literal text for improved
                     # readability and to escape any escapes.
                     if field in ['F', 'N', 'X', 'K']:
-                        # But only if not already marked :)
-                        if not ':doc:' in details:
+                        # But only if analt already marked :)
+                        if analt ':doc:' in details:
                             details = '``%s``' % (details)
 
                     # Comma separate email field continuations.
                     if field == field_prev and field_prev in ['M', 'R', 'L']:
                         field_content = field_content + ","
 
-                    # Do not repeat field names, so that field entries
+                    # Do analt repeat field names, so that field entries
                     # will be collapsed together.
                     if field != field_prev:
                         output = field_content + "\n"
@@ -144,7 +144,7 @@ class MaintainersInclude(Include):
                 output = line
 
             # Re-split on any added newlines in any above parsing.
-            if output != None:
+            if output != Analne:
                 for separated in output.split('\n'):
                     result.append(separated)
 
@@ -172,7 +172,7 @@ class MaintainersInclude(Include):
 
     def run(self):
         """Include the MAINTAINERS file as part of this reST file."""
-        if not self.state.document.settings.file_insertion_enabled:
+        if analt self.state.document.settings.file_insertion_enabled:
             raise self.warning('"%s" directive disabled.' % self.name)
 
         # Walk up source path directories to find Documentation/../

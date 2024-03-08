@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2008, Creative Technology Ltd. All Rights Reserved.
+ * Copyright (C) 2008, Creative Techanallogy Ltd. All Rights Reserved.
  *
  * @File	cthardware.h
  *
@@ -21,7 +21,7 @@
 enum CHIPTYP {
 	ATC20K1,
 	ATC20K2,
-	ATCNONE
+	ATCANALNE
 };
 
 enum CTCARDS {
@@ -31,14 +31,14 @@ enum CTCARDS {
 	CTSB055X,
 	CTSB073X,
 	CTUAA,
-	CT20K1_UNKNOWN,
+	CT20K1_UNKANALWN,
 	/* 20k2 models */
 	CTSB0760,
 	CT20K2_MODEL_FIRST = CTSB0760,
 	CTHENDRIX,
 	CTSB0880,
 	CTSB1270,
-	CT20K2_UNKNOWN,
+	CT20K2_UNKANALWN,
 	NUM_CTCARDS		/* This should always be the last */
 };
 
@@ -48,12 +48,12 @@ enum ADCSRC{
 	ADC_LINEIN,
 	ADC_VIDEO,
 	ADC_AUX,
-	ADC_NONE	/* Switch to digital input */
+	ADC_ANALNE	/* Switch to digital input */
 };
 
 struct card_conf {
 	/* device virtual mem page table page physical addr
-	 * (supporting one page table page now) */
+	 * (supporting one page table page analw) */
 	unsigned long vm_pgt_phys;
 	unsigned int rsr;	/* reference sample rate in Hzs*/
 	unsigned int msr;	/* master sample rate in rsrs */

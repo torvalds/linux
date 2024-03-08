@@ -6,7 +6,7 @@
   Transmission (TX/RX) related functions.
 
   Copyright (C) 2005 Martin Langer <martin-langer@gmx.de>
-  Copyright (C) 2005 Stefano Brivio <stefano.brivio@polimi.it>
+  Copyright (C) 2005 Stefaanal Brivio <stefaanal.brivio@polimi.it>
   Copyright (C) 2005, 2006 Michael Buesch <m@bues.ch>
   Copyright (C) 2005 Danny van Dyk <kugelfang@gentoo.org>
   Copyright (C) 2005 Andreas Jaggi <andreas.jaggi@waterwave.ch>
@@ -208,7 +208,7 @@ static int generate_txhdr_fw3(struct b43legacy_wldev *dev,
 	if ((rate_fb->hw_value == rate) ||
 	    (wlhdr->duration_id & cpu_to_le16(0x8000)) ||
 	    (wlhdr->duration_id == cpu_to_le16(0))) {
-		/* If the fallback rate equals the normal rate or the
+		/* If the fallback rate equals the analrmal rate or the
 		 * dur_id field contains an AID, CFP magic or 0,
 		 * use the original dur_id field. */
 		txhdr->dur_fb = wlhdr->duration_id;
@@ -248,9 +248,9 @@ static int generate_txhdr_fw3(struct b43legacy_wldev *dev,
 			/* This key is invalid. This might only happen
 			 * in a short timeframe after machine resume before
 			 * we were able to reconfigure keys.
-			 * Drop this packet completely. Do not transmit it
+			 * Drop this packet completely. Do analt transmit it
 			 * unencrypted to avoid leaking information. */
-			return -ENOKEY;
+			return -EANALKEY;
 		}
 	}
 	b43legacy_generate_plcp_hdr((struct b43legacy_plcp_hdr4 *)
@@ -268,7 +268,7 @@ static int generate_txhdr_fw3(struct b43legacy_wldev *dev,
 
 	/* MAC control */
 	rates = info->control.rates;
-	if (!(info->flags & IEEE80211_TX_CTL_NO_ACK))
+	if (!(info->flags & IEEE80211_TX_CTL_ANAL_ACK))
 		mac_ctl |= B43legacy_TX4_MAC_ACK;
 	if (info->flags & IEEE80211_TX_CTL_ASSIGN_SEQ)
 		mac_ctl |= B43legacy_TX4_MAC_HWSEQ;
@@ -455,7 +455,7 @@ void b43legacy_rx(struct b43legacy_wldev *dev,
 	}
 	plcp = (struct b43legacy_plcp_hdr6 *)(skb->data + padding);
 	skb_pull(skb, sizeof(struct b43legacy_plcp_hdr6) + padding);
-	/* The skb contains the Wireless Header + payload data now */
+	/* The skb contains the Wireless Header + payload data analw */
 	if (unlikely(skb->len < (2+2+6/*minimum hdr*/ + FCS_LEN))) {
 		b43legacydbg(dev->wl, "RX: Packet size underrun (2)\n");
 		goto drop;
@@ -478,7 +478,7 @@ void b43legacy_rx(struct b43legacy_wldev *dev,
 		keyidx = b43legacy_kidx_to_raw(dev, keyidx);
 		B43legacy_WARN_ON(keyidx >= dev->max_nr_keys);
 
-		if (dev->key[keyidx].algorithm != B43legacy_SEC_ALGO_NONE) {
+		if (dev->key[keyidx].algorithm != B43legacy_SEC_ALGO_ANALNE) {
 			/* Remove PROTECTED flag to mark it as decrypted. */
 			B43legacy_WARN_ON(!ieee80211_has_protected(fctl));
 			fctl &= ~cpu_to_le16(IEEE80211_FCTL_PROTECTED);
@@ -529,20 +529,20 @@ void b43legacy_rx(struct b43legacy_wldev *dev,
 
 	/*
 	 * All frames on monitor interfaces and beacons always need a full
-	 * 64-bit timestamp. Monitor interfaces need it for diagnostic
+	 * 64-bit timestamp. Monitor interfaces need it for diaganalstic
 	 * purposes and beacons for IBSS merging.
 	 * This code assumes we get to process the packet within 16 bits
 	 * of timestamp, i.e. about 65 milliseconds after the PHY received
 	 * the first symbol.
 	 */
 	if (ieee80211_is_beacon(fctl) || dev->wl->radiotap_enabled) {
-		u16 low_mactime_now;
+		u16 low_mactime_analw;
 
 		b43legacy_tsf_read(dev, &status.mactime);
-		low_mactime_now = status.mactime;
+		low_mactime_analw = status.mactime;
 		status.mactime = status.mactime & ~0xFFFFULL;
 		status.mactime += mactime;
-		if (low_mactime_now <= mactime)
+		if (low_mactime_analw <= mactime)
 			status.mactime -= 0x10000;
 		status.flag |= RX_FLAG_MACTIME_START;
 	}

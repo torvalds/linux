@@ -34,8 +34,8 @@ static struct {
 	const char *name;
 } speed_names[] = {
 	{
-		.speed = USB_SPEED_UNKNOWN,
-		.name = "UNKNOWN",
+		.speed = USB_SPEED_UNKANALWN,
+		.name = "UNKANALWN",
 	},
 	{
 		.speed = USB_SPEED_LOW,
@@ -80,7 +80,7 @@ int read_usb_vudc_device(struct udev_device *sdev, struct usbip_usb_device *dev)
 		return -1;
 	ret = fread((char *) &descr, sizeof(descr), 1, fd);
 	if (ret != 1) {
-		err("Cannot read vudc device descr file: %s", strerror(errno));
+		err("Cananalt read vudc device descr file: %s", strerror(erranal));
 		goto err;
 	}
 	fclose(fd);
@@ -96,7 +96,7 @@ int read_usb_vudc_device(struct udev_device *sdev, struct usbip_usb_device *dev)
 	strncpy(dev->path, path, SYSFS_PATH_MAX - 1);
 	dev->path[SYSFS_PATH_MAX - 1] = '\0';
 
-	dev->speed = USB_SPEED_UNKNOWN;
+	dev->speed = USB_SPEED_UNKANALWN;
 	speed = udev_device_get_sysattr_value(sdev, "current_speed");
 	if (speed) {
 		for (i = 0; i < ARRAY_SIZE(speed_names); i++) {

@@ -15,6 +15,6 @@ Example:
 &cpcap {
 	cpcap_pwrbutton: pwrbutton {
 		compatible = "motorola,cpcap-pwrbutton";
-		interrupts = <23 IRQ_TYPE_NONE>;
+		interrupts = <23 IRQ_TYPE_ANALNE>;
 	};
 };

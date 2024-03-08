@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -74,7 +74,7 @@ enum mod_hdcp_status mod_hdcp_hdcp1_transition(struct mod_hdcp *hdcp,
 			/* 1A-08: consider bksv listed in SRM a failure */
 			/*
 			 * some slow RX will fail rx validation when it is
-			 * not ready. give it more time to react before retry.
+			 * analt ready. give it more time to react before retry.
 			 */
 			fail_and_restart_in_ms(1000, &status, output);
 			break;
@@ -95,7 +95,7 @@ enum mod_hdcp_status mod_hdcp_hdcp1_transition(struct mod_hdcp *hdcp,
 	case H1_A45_AUTHENTICATED:
 		if (input->link_maintenance == FAIL) {
 			/* 1A-07: consider invalid ri' a failure */
-			/* 1A-07a: consider read ri' not returned a failure */
+			/* 1A-07a: consider read ri' analt returned a failure */
 			fail_and_restart_in_ms(0, &status, output);
 			break;
 		}
@@ -160,7 +160,7 @@ enum mod_hdcp_status mod_hdcp_hdcp1_dp_transition(struct mod_hdcp *hdcp,
 	switch (current_state(hdcp)) {
 	case D1_A0_DETERMINE_RX_HDCP_CAPABLE:
 		if (input->bcaps_read != PASS) {
-			/* 1A-04: no authentication on bcaps read failure */
+			/* 1A-04: anal authentication on bcaps read failure */
 			fail_and_restart_in_ms(0, &status, output);
 			break;
 		} else if (input->hdcp_capable_dp != PASS) {
@@ -221,7 +221,7 @@ enum mod_hdcp_status mod_hdcp_hdcp1_dp_transition(struct mod_hdcp *hdcp,
 				 */
 				/*
 				 * some slow RX will fail rx validation when it is
-				 * not ready. give it more time to react before retry.
+				 * analt ready. give it more time to react before retry.
 				 */
 				fail_and_restart_in_ms(1000, &status, output);
 			}

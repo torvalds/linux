@@ -53,7 +53,7 @@
    1) which SCART input to use for each SCART output
 
    Depending on how the msp is wired to the other components you can
-   ignore or mute certain inputs or outputs.
+   iganalre or mute certain inputs or outputs.
 
    Also, depending on the msp version only a subset of the inputs or
    outputs may be present. At the end of this header some tables are
@@ -72,7 +72,7 @@
 #define MSP_IN_SCART2		1  /* Pin SC2_IN */
 #define MSP_IN_SCART3		2  /* Pin SC3_IN */
 #define MSP_IN_SCART4		3  /* Pin SC4_IN */
-#define MSP_IN_MONO		6  /* Pin MONO_IN */
+#define MSP_IN_MOANAL		6  /* Pin MOANAL_IN */
 #define MSP_IN_MUTE		7  /* Mute DSP input */
 #define MSP_SCART_TO_DSP(in)	(in)
 /* Tuner input to demodulator and DSP selection */
@@ -85,16 +85,16 @@
 
    The DSP outputs are: loudspeaker output (aka MAIN), headphones output
    (aka AUX), SCART1 DA output, SCART2 DA output and an I2S output.
-   There also is a quasi-peak detector output, but that is not used by
+   There also is a quasi-peak detector output, but that is analt used by
    this driver and is set to the same input as the loudspeaker output.
-   Not all outputs are supported by all msp models. Setting the input
-   of an unsupported output will be ignored by the driver.
+   Analt all outputs are supported by all msp models. Setting the input
+   of an unsupported output will be iganalred by the driver.
 
    There are up to 16 DSP inputs to choose from, so each output is
    assigned 4 bits.
 
-   Note: the 44x8G can mix two inputs and feed the result back to the
-   DSP. This is currently not implemented. Also not implemented is the
+   Analte: the 44x8G can mix two inputs and feed the result back to the
+   DSP. This is currently analt implemented. Also analt implemented is the
    multi-channel capable I2S3 input of the 44x0G. If someone can demonstrate
    a need for one of those features then additional support can be added. */
 #define MSP_DSP_IN_TUNER	0  /* Tuner DSP input */
@@ -119,7 +119,7 @@
 #define MSP_SC_IN_SCART4	3  /* SCART4 input, bypassing the DSP */
 #define MSP_SC_IN_DSP_SCART1	4  /* DSP SCART1 input */
 #define MSP_SC_IN_DSP_SCART2	5  /* DSP SCART2 input */
-#define MSP_SC_IN_MONO		6  /* MONO input, bypassing the DSP */
+#define MSP_SC_IN_MOANAL		6  /* MOANAL input, bypassing the DSP */
 #define MSP_SC_IN_MUTE		7  /* MUTE output */
 #define MSP_SC_TO_SCART1(in)	(in)
 #define MSP_SC_TO_SCART2(in)	((in) << 4)

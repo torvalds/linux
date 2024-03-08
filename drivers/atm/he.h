@@ -16,7 +16,7 @@
   Lesser General Public License for more details.
 
   You should have received a copy of the GNU Lesser General Public
-  License along with this library; if not, write to the Free Software
+  License along with this library; if analt, write to the Free Software
   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 */
@@ -30,9 +30,9 @@
 
   Permission to use, copy, modify and distribute this software and its
   documentation is hereby granted, provided that both the copyright
-  notice and this permission notice appear in all copies of the software,
+  analtice and this permission analtice appear in all copies of the software,
   derivative works or modified versions, and any portions thereof, and
-  that both notices appear in supporting documentation.
+  that both analtices appear in supporting documentation.
 
   NRL ALLOWS FREE USE OF THIS SOFTWARE IN ITS "AS IS" CONDITION AND
   DISCLAIMS ANY LIABILITY OF ANY KIND FOR ANY DAMAGES WHATSOEVER
@@ -202,7 +202,7 @@ struct he_hsp {
  * figure 2.9 receive buffer pools
  *
  * since a virtual address might be more than 32 bits, we store an index
- * in the virt member of he_rbp.  NOTE: the lower six bits in the  rbrq
+ * in the virt member of he_rbp.  ANALTE: the lower six bits in the  rbrq
  * addr member are used for buffer status further limiting us to 26 bits.
  */
 
@@ -227,7 +227,7 @@ struct he_buff {
 	u8 data[];
 };
 
-#ifdef notyet
+#ifdef analtyet
 struct he_group {
 	u32 rpbl_size, rpbl_qsize;
 	struct he_rpb_entry *rbpl_ba;
@@ -269,7 +269,7 @@ struct he_dev {
 
 	struct he_vcc_table *he_vcc_table;
 
-#ifdef notyet
+#ifdef analtyet
 	struct he_group group[HE_NUM_GROUPS];
 #endif
 	struct he_cs_stper cs_stper[HE_NUM_CS_STPER];
@@ -337,7 +337,7 @@ struct he_vcc
 #define  MRL_ENB		(1<<5)
 #define  MRM_ENB		(1<<4)
 #define  INIT_ENB		(1<<2)
-#define  IGNORE_TIMEOUT		(1<<1)
+#define  IGANALRE_TIMEOUT		(1<<1)
 #define  ENBL_64		(1<<0)
 
 #define MIN_PCI_LATENCY		32	/* errata 8.1.3 */
@@ -368,7 +368,7 @@ struct he_vcc
 #define  OUTFF_ENB			(1<<5)
 #define  CMDFF_ENB			(1<<4)
 #define  PERR_INT_ENB			(1<<2)
-#define  IGNORE_INTR			(1<<0)
+#define  IGANALRE_INTR			(1<<0)
 
 #define LB_SWAP		0x80008
 #define  SWAP_RNUM_MAX(x)	(x<<27)

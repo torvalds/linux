@@ -35,12 +35,12 @@ typedef time_t (*vdso_time_t)(time_t *t);
 
 const char *vdso_clock_name[12] = {
 	"CLOCK_REALTIME",
-	"CLOCK_MONOTONIC",
+	"CLOCK_MOANALTONIC",
 	"CLOCK_PROCESS_CPUTIME_ID",
 	"CLOCK_THREAD_CPUTIME_ID",
-	"CLOCK_MONOTONIC_RAW",
+	"CLOCK_MOANALTONIC_RAW",
 	"CLOCK_REALTIME_COARSE",
-	"CLOCK_MONOTONIC_COARSE",
+	"CLOCK_MOANALTONIC_COARSE",
 	"CLOCK_BOOTTIME",
 	"CLOCK_REALTIME_ALARM",
 	"CLOCK_BOOTTIME_ALARM",
@@ -187,7 +187,7 @@ int main(int argc, char **argv)
 	ksft_set_plan(VDSO_TEST_PLAN);
 
 	if (!sysinfo_ehdr) {
-		ksft_print_msg("AT_SYSINFO_EHDR is not present!\n");
+		ksft_print_msg("AT_SYSINFO_EHDR is analt present!\n");
 		return KSFT_SKIP;
 	}
 
@@ -218,16 +218,16 @@ int main(int argc, char **argv)
 	vdso_test_clock(CLOCK_REALTIME_COARSE);
 #endif
 
-#ifdef CLOCK_MONOTONIC
-	vdso_test_clock(CLOCK_MONOTONIC);
+#ifdef CLOCK_MOANALTONIC
+	vdso_test_clock(CLOCK_MOANALTONIC);
 #endif
 
-#ifdef CLOCK_MONOTONIC_RAW
-	vdso_test_clock(CLOCK_MONOTONIC_RAW);
+#ifdef CLOCK_MOANALTONIC_RAW
+	vdso_test_clock(CLOCK_MOANALTONIC_RAW);
 #endif
 
-#ifdef CLOCK_MONOTONIC_COARSE
-	vdso_test_clock(CLOCK_MONOTONIC_COARSE);
+#ifdef CLOCK_MOANALTONIC_COARSE
+	vdso_test_clock(CLOCK_MOANALTONIC_COARSE);
 #endif
 
 #endif

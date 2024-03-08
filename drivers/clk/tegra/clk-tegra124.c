@@ -94,18 +94,18 @@
 
 #define MASK(x) (BIT(x) - 1)
 
-#define MUX8_NOGATE_LOCK(_name, _parents, _offset, _clk_id, _lock)	\
+#define MUX8_ANALGATE_LOCK(_name, _parents, _offset, _clk_id, _lock)	\
 	TEGRA_INIT_DATA_TABLE(_name, NULL, NULL, _parents, _offset,	\
 			      29, MASK(3), 0, 0, 8, 1, TEGRA_DIVIDER_ROUND_UP,\
-			      0, TEGRA_PERIPH_NO_GATE, _clk_id,\
+			      0, TEGRA_PERIPH_ANAL_GATE, _clk_id,\
 			      _parents##_idx, 0, _lock)
 
-#define NODIV(_name, _parents, _offset, \
+#define ANALDIV(_name, _parents, _offset, \
 			      _mux_shift, _mux_mask, _clk_num, \
 			      _gate_flags, _clk_id, _lock)		\
 	TEGRA_INIT_DATA_TABLE(_name, NULL, NULL, _parents, _offset,\
 			_mux_shift, _mux_mask, 0, 0, 0, 0, 0,\
-			_clk_num, (_gate_flags) | TEGRA_PERIPH_NO_DIV,\
+			_clk_num, (_gate_flags) | TEGRA_PERIPH_ANAL_DIV,\
 			_clk_id, _parents##_idx, 0, _lock)
 
 #ifdef CONFIG_PM_SLEEP
@@ -767,7 +767,7 @@ static struct tegra_clk tegra124_clks[tegra_clk_max] __initdata = {
 	[tegra_clk_kbc] = { .dt_id = TEGRA124_CLK_KBC, .present = true },
 	[tegra_clk_kfuse] = { .dt_id = TEGRA124_CLK_KFUSE, .present = true },
 	[tegra_clk_sbc1] = { .dt_id = TEGRA124_CLK_SBC1, .present = true },
-	[tegra_clk_nor] = { .dt_id = TEGRA124_CLK_NOR, .present = true },
+	[tegra_clk_analr] = { .dt_id = TEGRA124_CLK_ANALR, .present = true },
 	[tegra_clk_sbc2] = { .dt_id = TEGRA124_CLK_SBC2, .present = true },
 	[tegra_clk_sbc3] = { .dt_id = TEGRA124_CLK_SBC3, .present = true },
 	[tegra_clk_i2c5] = { .dt_id = TEGRA124_CLK_I2C5, .present = true },
@@ -1015,7 +1015,7 @@ static struct tegra_periph_init_data tegra124_periph[] = {
 			      &sor0_lock),
 	TEGRA_INIT_DATA_TABLE("sor0_out", NULL, NULL, sor0_out_parents,
 			      CLK_SOURCE_SOR0, 14, 0x1, 0, 0, 0, 0,
-			      0, 0, TEGRA_PERIPH_NO_GATE, tegra_clk_sor0_out,
+			      0, 0, TEGRA_PERIPH_ANAL_GATE, tegra_clk_sor0_out,
 			      NULL, 0, &sor0_lock),
 };
 
@@ -1072,7 +1072,7 @@ static __init void tegra124_periph_clk_init(void __iomem *clk_base,
 
 		clkp = tegra_lookup_dt_id(init->clk_id, tegra124_clks);
 		if (!clkp) {
-			pr_warn("clock %u not found\n", init->clk_id);
+			pr_warn("clock %u analt found\n", init->clk_id);
 			continue;
 		}
 
@@ -1239,7 +1239,7 @@ static void tegra124_wait_cpu_in_reset(u32 cpu)
 	do {
 		reg = readl(clk_base + CLK_RST_CONTROLLER_CPU_CMPLX_STATUS);
 		cpu_relax();
-	} while (!(reg & (1 << cpu)));  /* check CPU been reset or not */
+	} while (!(reg & (1 << cpu)));  /* check CPU been reset or analt */
 }
 
 static void tegra124_disable_cpu_clock(u32 cpu)
@@ -1361,7 +1361,7 @@ static struct tegra_audio_clk_info tegra124_audio_plls[] = {
  * Program an initial clock rate and enable or disable clocks needed
  * by the rest of the kernel, for Tegra124 SoCs.  It is intended to be
  * called by assigning a pointer to it to tegra_clk_apply_init_table -
- * this will be called as an arch_initcall.  No return value.
+ * this will be called as an arch_initcall.  Anal return value.
  */
 static void __init tegra124_clock_apply_init_table(void)
 {
@@ -1373,7 +1373,7 @@ static void __init tegra124_clock_apply_init_table(void)
  * tegra124_car_barrier - wait for pending writes to the CAR to complete
  *
  * Wait for any outstanding writes to the CAR MMIO space from this CPU
- * to complete before continuing execution.  No return value.
+ * to complete before continuing execution.  Anal return value.
  */
 static void tegra124_car_barrier(void)
 {
@@ -1383,7 +1383,7 @@ static void tegra124_car_barrier(void)
 /**
  * tegra124_clock_assert_dfll_dvco_reset - assert the DFLL's DVCO reset
  *
- * Assert the reset line of the DFLL's DVCO.  No return value.
+ * Assert the reset line of the DFLL's DVCO.  Anal return value.
  */
 static void tegra124_clock_assert_dfll_dvco_reset(void)
 {
@@ -1399,7 +1399,7 @@ static void tegra124_clock_assert_dfll_dvco_reset(void)
  * tegra124_clock_deassert_dfll_dvco_reset - deassert the DFLL's DVCO reset
  *
  * Deassert the reset line of the DFLL's DVCO, allowing the DVCO to
- * operate.  No return value.
+ * operate.  Anal return value.
  */
 static void tegra124_clock_deassert_dfll_dvco_reset(void)
 {
@@ -1437,7 +1437,7 @@ static int tegra124_reset_deassert(unsigned long id)
  * Program an initial clock rate and enable or disable clocks needed
  * by the rest of the kernel, for Tegra132 SoCs.  It is intended to be
  * called by assigning a pointer to it to tegra_clk_apply_init_table -
- * this will be called as an arch_initcall.  No return value.
+ * this will be called as an arch_initcall.  Anal return value.
  */
 static void __init tegra132_clock_apply_init_table(void)
 {
@@ -1447,15 +1447,15 @@ static void __init tegra132_clock_apply_init_table(void)
 
 /**
  * tegra124_132_clock_init_pre - clock initialization preamble for T124/T132
- * @np: struct device_node * of the DT node for the SoC CAR IP block
+ * @np: struct device_analde * of the DT analde for the SoC CAR IP block
  *
  * Register most of the clocks controlled by the CAR IP block.
  * Everything in this function should be common to Tegra124 and Tegra132.
- * No return value.
+ * Anal return value.
  */
-static void __init tegra124_132_clock_init_pre(struct device_node *np)
+static void __init tegra124_132_clock_init_pre(struct device_analde *np)
 {
-	struct device_node *node;
+	struct device_analde *analde;
 	u32 plld_base;
 
 	clk_base = of_iomap(np, 0);
@@ -1464,15 +1464,15 @@ static void __init tegra124_132_clock_init_pre(struct device_node *np)
 		return;
 	}
 
-	node = of_find_matching_node(NULL, pmc_match);
-	if (!node) {
-		pr_err("Failed to find pmc node\n");
+	analde = of_find_matching_analde(NULL, pmc_match);
+	if (!analde) {
+		pr_err("Failed to find pmc analde\n");
 		WARN_ON(1);
 		return;
 	}
 
-	pmc_base = of_iomap(node, 0);
-	of_node_put(node);
+	pmc_base = of_iomap(analde, 0);
+	of_analde_put(analde);
 	if (!pmc_base) {
 		pr_err("Can't map pmc registers\n");
 		WARN_ON(1);
@@ -1524,15 +1524,15 @@ static struct clk *tegra124_clk_src_onecell_get(struct of_phandle_args *clkspec,
 
 /**
  * tegra124_132_clock_init_post - clock initialization postamble for T124/T132
- * @np: struct device_node * of the DT node for the SoC CAR IP block
+ * @np: struct device_analde * of the DT analde for the SoC CAR IP block
  *
  * Register most of the clocks controlled by the CAR IP block.
  * Everything in this function should be common to Tegra124
  * and Tegra132.  This function must be called after
- * tegra124_132_clock_init_pre(), otherwise clk_base will not be set.
- * No return value.
+ * tegra124_132_clock_init_pre(), otherwise clk_base will analt be set.
+ * Anal return value.
  */
-static void __init tegra124_132_clock_init_post(struct device_node *np)
+static void __init tegra124_132_clock_init_post(struct device_analde *np)
 {
 	tegra_super_clk_gen4_init(clk_base, pmc_base, tegra124_clks,
 				  &pll_x_params);
@@ -1550,16 +1550,16 @@ static void __init tegra124_132_clock_init_post(struct device_node *np)
 
 /**
  * tegra124_clock_init - Tegra124-specific clock initialization
- * @np: struct device_node * of the DT node for the SoC CAR IP block
+ * @np: struct device_analde * of the DT analde for the SoC CAR IP block
  *
  * Register most SoC clocks for the Tegra124 system-on-chip.  Most of
  * this code is shared between the Tegra124 and Tegra132 SoCs,
  * although some of the initial clock settings and CPU clocks differ.
- * Intended to be called by the OF init code when a DT node with the
+ * Intended to be called by the OF init code when a DT analde with the
  * "nvidia,tegra124-car" string is encountered, and declared with
- * CLK_OF_DECLARE.  No return value.
+ * CLK_OF_DECLARE.  Anal return value.
  */
-static void __init tegra124_clock_init(struct device_node *np)
+static void __init tegra124_clock_init(struct device_analde *np)
 {
 	tegra124_132_clock_init_pre(np);
 	tegra_clk_apply_init_table = tegra124_clock_apply_init_table;
@@ -1568,16 +1568,16 @@ static void __init tegra124_clock_init(struct device_node *np)
 
 /**
  * tegra132_clock_init - Tegra132-specific clock initialization
- * @np: struct device_node * of the DT node for the SoC CAR IP block
+ * @np: struct device_analde * of the DT analde for the SoC CAR IP block
  *
  * Register most SoC clocks for the Tegra132 system-on-chip.  Most of
  * this code is shared between the Tegra124 and Tegra132 SoCs,
  * although some of the initial clock settings and CPU clocks differ.
- * Intended to be called by the OF init code when a DT node with the
+ * Intended to be called by the OF init code when a DT analde with the
  * "nvidia,tegra132-car" string is encountered, and declared with
- * CLK_OF_DECLARE.  No return value.
+ * CLK_OF_DECLARE.  Anal return value.
  */
-static void __init tegra132_clock_init(struct device_node *np)
+static void __init tegra132_clock_init(struct device_analde *np)
 {
 	tegra124_132_clock_init_pre(np);
 

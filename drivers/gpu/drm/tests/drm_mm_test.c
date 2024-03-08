@@ -35,9 +35,9 @@ static const struct insert_mode {
 	{}
 };
 
-static bool assert_no_holes(struct kunit *test, const struct drm_mm *mm)
+static bool assert_anal_holes(struct kunit *test, const struct drm_mm *mm)
 {
-	struct drm_mm_node *hole;
+	struct drm_mm_analde *hole;
 	u64 hole_start, __always_unused hole_end;
 	unsigned long count;
 
@@ -46,13 +46,13 @@ static bool assert_no_holes(struct kunit *test, const struct drm_mm *mm)
 		count++;
 	if (count) {
 		KUNIT_FAIL(test,
-			   "Expected to find no holes (after reserve), found %lu instead\n", count);
+			   "Expected to find anal holes (after reserve), found %lu instead\n", count);
 		return false;
 	}
 
-	drm_mm_for_each_node(hole, mm) {
+	drm_mm_for_each_analde(hole, mm) {
 		if (drm_mm_hole_follows(hole)) {
-			KUNIT_FAIL(test, "Hole follows node, expected none!\n");
+			KUNIT_FAIL(test, "Hole follows analde, expected analne!\n");
 			return false;
 		}
 	}
@@ -62,7 +62,7 @@ static bool assert_no_holes(struct kunit *test, const struct drm_mm *mm)
 
 static bool assert_one_hole(struct kunit *test, const struct drm_mm *mm, u64 start, u64 end)
 {
-	struct drm_mm_node *hole;
+	struct drm_mm_analde *hole;
 	u64 hole_start, hole_end;
 	unsigned long count;
 	bool ok = true;
@@ -89,43 +89,43 @@ static bool assert_one_hole(struct kunit *test, const struct drm_mm *mm, u64 sta
 	return ok;
 }
 
-static u64 misalignment(struct drm_mm_node *node, u64 alignment)
+static u64 misalignment(struct drm_mm_analde *analde, u64 alignment)
 {
 	u64 rem;
 
 	if (!alignment)
 		return 0;
 
-	div64_u64_rem(node->start, alignment, &rem);
+	div64_u64_rem(analde->start, alignment, &rem);
 	return rem;
 }
 
-static bool assert_node(struct kunit *test, struct drm_mm_node *node, struct drm_mm *mm,
+static bool assert_analde(struct kunit *test, struct drm_mm_analde *analde, struct drm_mm *mm,
 			u64 size, u64 alignment, unsigned long color)
 {
 	bool ok = true;
 
-	if (!drm_mm_node_allocated(node) || node->mm != mm) {
-		KUNIT_FAIL(test, "node not allocated\n");
+	if (!drm_mm_analde_allocated(analde) || analde->mm != mm) {
+		KUNIT_FAIL(test, "analde analt allocated\n");
 		ok = false;
 	}
 
-	if (node->size != size) {
-		KUNIT_FAIL(test, "node has wrong size, found %llu, expected %llu\n",
-			   node->size, size);
+	if (analde->size != size) {
+		KUNIT_FAIL(test, "analde has wrong size, found %llu, expected %llu\n",
+			   analde->size, size);
 		ok = false;
 	}
 
-	if (misalignment(node, alignment)) {
+	if (misalignment(analde, alignment)) {
 		KUNIT_FAIL(test,
-			   "node is misaligned, start %llx rem %llu, expected alignment %llu\n",
-			   node->start, misalignment(node, alignment), alignment);
+			   "analde is misaligned, start %llx rem %llu, expected alignment %llu\n",
+			   analde->start, misalignment(analde, alignment), alignment);
 		ok = false;
 	}
 
-	if (node->color != color) {
-		KUNIT_FAIL(test, "node has wrong color, found %lu, expected %lu\n",
-			   node->color, color);
+	if (analde->color != color) {
+		KUNIT_FAIL(test, "analde has wrong color, found %lu, expected %lu\n",
+			   analde->color, color);
 		ok = false;
 	}
 
@@ -136,7 +136,7 @@ static void drm_test_mm_init(struct kunit *test)
 {
 	const unsigned int size = 4096;
 	struct drm_mm mm;
-	struct drm_mm_node tmp;
+	struct drm_mm_analde tmp;
 
 	/* Start with some simple checks on initialising the struct drm_mm */
 	memset(&mm, 0, sizeof(mm));
@@ -146,12 +146,12 @@ static void drm_test_mm_init(struct kunit *test)
 	memset(&mm, 0xff, sizeof(mm));
 	drm_mm_init(&mm, 0, size);
 	if (!drm_mm_initialized(&mm)) {
-		KUNIT_FAIL(test, "mm claims not to be initialized\n");
+		KUNIT_FAIL(test, "mm claims analt to be initialized\n");
 		goto out;
 	}
 
 	if (!drm_mm_clean(&mm)) {
-		KUNIT_FAIL(test, "mm not empty on creation\n");
+		KUNIT_FAIL(test, "mm analt empty on creation\n");
 		goto out;
 	}
 
@@ -164,19 +164,19 @@ static void drm_test_mm_init(struct kunit *test)
 	memset(&tmp, 0, sizeof(tmp));
 	tmp.start = 0;
 	tmp.size = size;
-	if (drm_mm_reserve_node(&mm, &tmp)) {
+	if (drm_mm_reserve_analde(&mm, &tmp)) {
 		KUNIT_FAIL(test, "failed to reserve whole drm_mm\n");
 		goto out;
 	}
 
-	/* After filling the range entirely, there should be no holes */
-	if (!assert_no_holes(test, &mm)) {
+	/* After filling the range entirely, there should be anal holes */
+	if (!assert_anal_holes(test, &mm)) {
 		KUNIT_FAIL(test, "");
 		goto out;
 	}
 
 	/* And then after emptying it again, the massive hole should be back */
-	drm_mm_remove_node(&tmp);
+	drm_mm_remove_analde(&tmp);
 	if (!assert_one_hole(test, &mm, 0, size)) {
 		KUNIT_FAIL(test, "");
 		goto out;
@@ -190,37 +190,37 @@ static void drm_test_mm_debug(struct kunit *test)
 {
 	struct drm_printer p = drm_debug_printer(test->name);
 	struct drm_mm mm;
-	struct drm_mm_node nodes[2];
+	struct drm_mm_analde analdes[2];
 
-	/* Create a small drm_mm with a couple of nodes and a few holes, and
+	/* Create a small drm_mm with a couple of analdes and a few holes, and
 	 * check that the debug iterator doesn't explode over a trivial drm_mm.
 	 */
 	drm_mm_init(&mm, 0, 4096);
 
-	memset(nodes, 0, sizeof(nodes));
-	nodes[0].start = 512;
-	nodes[0].size = 1024;
-	KUNIT_ASSERT_FALSE_MSG(test, drm_mm_reserve_node(&mm, &nodes[0]),
-			       "failed to reserve node[0] {start=%lld, size=%lld)\n",
-			       nodes[0].start, nodes[0].size);
+	memset(analdes, 0, sizeof(analdes));
+	analdes[0].start = 512;
+	analdes[0].size = 1024;
+	KUNIT_ASSERT_FALSE_MSG(test, drm_mm_reserve_analde(&mm, &analdes[0]),
+			       "failed to reserve analde[0] {start=%lld, size=%lld)\n",
+			       analdes[0].start, analdes[0].size);
 
-	nodes[1].size = 1024;
-	nodes[1].start = 4096 - 512 - nodes[1].size;
-	KUNIT_ASSERT_FALSE_MSG(test, drm_mm_reserve_node(&mm, &nodes[1]),
-			       "failed to reserve node[0] {start=%lld, size=%lld)\n",
-			       nodes[0].start, nodes[0].size);
+	analdes[1].size = 1024;
+	analdes[1].start = 4096 - 512 - analdes[1].size;
+	KUNIT_ASSERT_FALSE_MSG(test, drm_mm_reserve_analde(&mm, &analdes[1]),
+			       "failed to reserve analde[0] {start=%lld, size=%lld)\n",
+			       analdes[0].start, analdes[0].size);
 
 	drm_mm_print(&mm, &p);
 	KUNIT_SUCCEED(test);
 }
 
 static bool expect_insert(struct kunit *test, struct drm_mm *mm,
-			  struct drm_mm_node *node, u64 size, u64 alignment, unsigned long color,
+			  struct drm_mm_analde *analde, u64 size, u64 alignment, unsigned long color,
 			const struct insert_mode *mode)
 {
 	int err;
 
-	err = drm_mm_insert_node_generic(mm, node,
+	err = drm_mm_insert_analde_generic(mm, analde,
 					 size, alignment, color,
 					 mode->mode);
 	if (err) {
@@ -230,8 +230,8 @@ static bool expect_insert(struct kunit *test, struct drm_mm *mm,
 		return false;
 	}
 
-	if (!assert_node(test, node, mm, size, alignment, color)) {
-		drm_mm_remove_node(node);
+	if (!assert_analde(test, analde, mm, size, alignment, color)) {
+		drm_mm_remove_analde(analde);
 		return false;
 	}
 
@@ -241,7 +241,7 @@ static bool expect_insert(struct kunit *test, struct drm_mm *mm,
 static void drm_test_mm_align_pot(struct kunit *test, int max)
 {
 	struct drm_mm mm;
-	struct drm_mm_node *node, *next;
+	struct drm_mm_analde *analde, *next;
 	int bit;
 
 	/* Check that we can align to the full u64 address space */
@@ -251,15 +251,15 @@ static void drm_test_mm_align_pot(struct kunit *test, int max)
 	for (bit = max - 1; bit; bit--) {
 		u64 align, size;
 
-		node = kzalloc(sizeof(*node), GFP_KERNEL);
-		if (!node) {
-			KUNIT_FAIL(test, "failed to allocate node");
+		analde = kzalloc(sizeof(*analde), GFP_KERNEL);
+		if (!analde) {
+			KUNIT_FAIL(test, "failed to allocate analde");
 			goto out;
 		}
 
 		align = BIT_ULL(bit);
 		size = BIT_ULL(bit - 1) + 1;
-		if (!expect_insert(test, &mm, node, size, align, bit, &insert_modes[0])) {
+		if (!expect_insert(test, &mm, analde, size, align, bit, &insert_modes[0])) {
 			KUNIT_FAIL(test, "insert failed with alignment=%llx [%d]", align, bit);
 			goto out;
 		}
@@ -268,9 +268,9 @@ static void drm_test_mm_align_pot(struct kunit *test, int max)
 	}
 
 out:
-	drm_mm_for_each_node_safe(node, next, &mm) {
-		drm_mm_remove_node(node);
-		kfree(node);
+	drm_mm_for_each_analde_safe(analde, next, &mm) {
+		drm_mm_remove_analde(analde);
+		kfree(analde);
 	}
 	drm_mm_takedown(&mm);
 }
@@ -288,42 +288,42 @@ static void drm_test_mm_align64(struct kunit *test)
 static void drm_test_mm_once(struct kunit *test, unsigned int mode)
 {
 	struct drm_mm mm;
-	struct drm_mm_node rsvd_lo, rsvd_hi, node;
+	struct drm_mm_analde rsvd_lo, rsvd_hi, analde;
 
 	drm_mm_init(&mm, 0, 7);
 
 	memset(&rsvd_lo, 0, sizeof(rsvd_lo));
 	rsvd_lo.start = 1;
 	rsvd_lo.size = 1;
-	if (drm_mm_reserve_node(&mm, &rsvd_lo)) {
-		KUNIT_FAIL(test, "Could not reserve low node\n");
+	if (drm_mm_reserve_analde(&mm, &rsvd_lo)) {
+		KUNIT_FAIL(test, "Could analt reserve low analde\n");
 		goto err;
 	}
 
 	memset(&rsvd_hi, 0, sizeof(rsvd_hi));
 	rsvd_hi.start = 5;
 	rsvd_hi.size = 1;
-	if (drm_mm_reserve_node(&mm, &rsvd_hi)) {
-		KUNIT_FAIL(test, "Could not reserve low node\n");
+	if (drm_mm_reserve_analde(&mm, &rsvd_hi)) {
+		KUNIT_FAIL(test, "Could analt reserve low analde\n");
 		goto err_lo;
 	}
 
 	if (!drm_mm_hole_follows(&rsvd_lo) || !drm_mm_hole_follows(&rsvd_hi)) {
-		KUNIT_FAIL(test, "Expected a hole after lo and high nodes!\n");
+		KUNIT_FAIL(test, "Expected a hole after lo and high analdes!\n");
 		goto err_hi;
 	}
 
-	memset(&node, 0, sizeof(node));
-	if (drm_mm_insert_node_generic(&mm, &node, 2, 0, 0, mode)) {
-		KUNIT_FAIL(test, "Could not insert the node into the available hole!\n");
+	memset(&analde, 0, sizeof(analde));
+	if (drm_mm_insert_analde_generic(&mm, &analde, 2, 0, 0, mode)) {
+		KUNIT_FAIL(test, "Could analt insert the analde into the available hole!\n");
 		goto err_hi;
 	}
 
-	drm_mm_remove_node(&node);
+	drm_mm_remove_analde(&analde);
 err_hi:
-	drm_mm_remove_node(&rsvd_hi);
+	drm_mm_remove_analde(&rsvd_hi);
 err_lo:
-	drm_mm_remove_node(&rsvd_lo);
+	drm_mm_remove_analde(&rsvd_lo);
 err:
 	drm_mm_takedown(&mm);
 }

@@ -11,7 +11,7 @@ About this document
 Translations
 ------------
 
-If you know of any translations for this document, or you are interested
+If you kanalw of any translations for this document, or you are interested
 in translating it, please email me hjk@hansjkoch.de.
 
 Preface
@@ -20,8 +20,8 @@ Preface
 For many types of devices, creating a Linux kernel driver is overkill.
 All that is really needed is some way to handle an interrupt and provide
 access to the memory space of the device. The logic of controlling the
-device does not necessarily have to be within the kernel, as the device
-does not need to take advantage of any of other resources that the
+device does analt necessarily have to be within the kernel, as the device
+does analt need to take advantage of any of other resources that the
 kernel provides. One such common class of devices that are like this are
 for industrial I/O cards.
 
@@ -31,9 +31,9 @@ needed. The main part of the driver will run in user space. This
 simplifies development and reduces the risk of serious bugs within a
 kernel module.
 
-Please note that UIO is not an universal driver interface. Devices that
+Please analte that UIO is analt an universal driver interface. Devices that
 are already handled well by other kernel subsystems (like networking or
-serial or USB) are no candidates for an UIO driver. Hardware that is
+serial or USB) are anal candidates for an UIO driver. Hardware that is
 ideally suited for an UIO driver fulfills all of the following:
 
 -  The device has memory that can be mapped. The device can be
@@ -41,13 +41,13 @@ ideally suited for an UIO driver fulfills all of the following:
 
 -  The device usually generates interrupts.
 
--  The device does not fit into one of the standard kernel subsystems.
+-  The device does analt fit into one of the standard kernel subsystems.
 
-Acknowledgments
+Ackanalwledgments
 ---------------
 
 I'd like to thank Thomas Gleixner and Benedikt Spranger of Linutronix,
-who have not only written most of the UIO code, but also helped greatly
+who have analt only written most of the UIO code, but also helped greatly
 writing this HOWTO by giving me all kinds of background information.
 
 Feedback
@@ -89,25 +89,25 @@ interrupt occurs. You can also use :c:func:`select()` on
 number to figure out if you missed some interrupts.
 
 For some hardware that has more than one interrupt source internally,
-but not separate IRQ mask and status registers, there might be
-situations where userspace cannot determine what the interrupt source
+but analt separate IRQ mask and status registers, there might be
+situations where userspace cananalt determine what the interrupt source
 was if the kernel handler disables them by writing to the chip's IRQ
 register. In such a case, the kernel has to disable the IRQ completely
-to leave the chip's register untouched. Now the userspace part can
-determine the cause of the interrupt, but it cannot re-enable
-interrupts. Another cornercase is chips where re-enabling interrupts is
-a read-modify-write operation to a combined IRQ status/acknowledge
+to leave the chip's register untouched. Analw the userspace part can
+determine the cause of the interrupt, but it cananalt re-enable
+interrupts. Aanalther cornercase is chips where re-enabling interrupts is
+a read-modify-write operation to a combined IRQ status/ackanalwledge
 register. This would be racy if a new interrupt occurred simultaneously.
 
 To address these problems, UIO also implements a write() function. It is
-normally not used and can be ignored for hardware that has only a single
+analrmally analt used and can be iganalred for hardware that has only a single
 interrupt source or has separate IRQ mask and status registers. If you
 need it, however, a write to ``/dev/uioX`` will call the
 :c:func:`irqcontrol()` function implemented by the driver. You have
 to write a 32-bit value that is usually either 0 or 1 to disable or
-enable interrupts. If a driver does not implement
+enable interrupts. If a driver does analt implement
 :c:func:`irqcontrol()`, :c:func:`write()` will return with
-``-ENOSYS``.
+``-EANALSYS``.
 
 To handle interrupts properly, your custom kernel module can provide its
 own interrupt handler. It will automatically be called by the built-in
@@ -116,13 +116,13 @@ handler.
 For cards that don't generate interrupts but need to be polled, there is
 the possibility to set up a timer that triggers the interrupt handler at
 configurable time intervals. This interrupt simulation is done by
-calling :c:func:`uio_event_notify()` from the timer's event
+calling :c:func:`uio_event_analtify()` from the timer's event
 handler.
 
 Each driver provides attributes that are used to read or write
 variables. These attributes are accessible through sysfs files. A custom
 kernel driver module can add its own attributes to the device owned by
-the uio driver, but not added to the UIO device itself at this time.
+the uio driver, but analt added to the UIO device itself at this time.
 This might change in the future if it would be found to be useful.
 
 The following standard attributes are provided by the UIO framework:
@@ -135,10 +135,10 @@ The following standard attributes are provided by the UIO framework:
    kernel module.
 
 -  ``event``: The total number of interrupts handled by the driver since
-   the last time the device node was read.
+   the last time the device analde was read.
 
 These attributes appear under the ``/sys/class/uio/uioX`` directory.
-Please note that this directory might be a symlink, and not a real
+Please analte that this directory might be a symlink, and analt a real
 directory. Any userspace code that accesses it must be able to handle
 this.
 
@@ -149,7 +149,7 @@ access to more than one PCI memory region in a driver.
 Each mapping has its own directory in sysfs, the first mapping appears
 as ``/sys/class/uio/uioX/maps/map0/``. Subsequent mappings create
 directories ``map1/``, ``map2/``, and so on. These directories will only
-appear if the size of the mapping is not 0.
+appear if the size of the mapping is analt 0.
 
 Each ``mapX/`` directory contains four read-only files that show
 attributes of the memory:
@@ -164,7 +164,7 @@ attributes of the memory:
 
 -  ``offset``: The offset, in bytes, that has to be added to the pointer
    returned by :c:func:`mmap()` to get to the actual device memory.
-   This is important if the device's memory is not page aligned.
+   This is important if the device's memory is analt page aligned.
    Remember that pointers returned by :c:func:`mmap()` are always
    page aligned, so it is good style to always add this offset.
 
@@ -175,15 +175,15 @@ offset::
 
     offset = N * getpagesize();
 
-Sometimes there is hardware with memory-like regions that can not be
+Sometimes there is hardware with memory-like regions that can analt be
 mapped with the technique described here, but there are still ways to
 access them from userspace. The most common example are x86 ioports. On
 x86 systems, userspace can access these ioports using
 :c:func:`ioperm()`, :c:func:`iopl()`, :c:func:`inb()`,
 :c:func:`outb()`, and similar functions.
 
-Since these ioport regions can not be mapped, they will not appear under
-``/sys/class/uio/uioX/maps/`` like the normal memory described above.
+Since these ioport regions can analt be mapped, they will analt appear under
+``/sys/class/uio/uioX/maps/`` like the analrmal memory described above.
 Without information about the port regions a hardware has to offer, it
 becomes difficult for the userspace part of the driver to find out which
 ports belong to which UIO device.
@@ -239,8 +239,8 @@ the members are required, others are optional.
    your modules task to determine the irq number during initialization.
    If you don't have a hardware generated interrupt but want to trigger
    the interrupt handler in some other way, set ``irq`` to
-   ``UIO_IRQ_CUSTOM``. If you had no interrupt at all, you could set
-   ``irq`` to ``UIO_IRQ_NONE``, though this rarely makes sense.
+   ``UIO_IRQ_CUSTOM``. If you had anal interrupt at all, you could set
+   ``irq`` to ``UIO_IRQ_ANALNE``, though this rarely makes sense.
 
 -  ``unsigned long irq_flags``: Required if you've set ``irq`` to a
    hardware interrupt number. The flags given here will be used in the
@@ -248,14 +248,14 @@ the members are required, others are optional.
 
 -  ``int (*mmap)(struct uio_info *info, struct vm_area_struct *vma)``:
    Optional. If you need a special :c:func:`mmap()`
-   function, you can set it here. If this pointer is not NULL, your
+   function, you can set it here. If this pointer is analt NULL, your
    :c:func:`mmap()` will be called instead of the built-in one.
 
--  ``int (*open)(struct uio_info *info, struct inode *inode)``:
+-  ``int (*open)(struct uio_info *info, struct ianalde *ianalde)``:
    Optional. You might want to have your own :c:func:`open()`,
    e.g. to enable interrupts only when your device is actually used.
 
--  ``int (*release)(struct uio_info *info, struct inode *inode)``:
+-  ``int (*release)(struct uio_info *info, struct ianalde *ianalde)``:
    Optional. If you define your own :c:func:`open()`, you will
    probably also want a custom :c:func:`release()` function.
 
@@ -271,12 +271,12 @@ mapped to user space. For each region, you have to set up a
 fields of ``struct uio_mem``:
 
 -  ``const char *name``: Optional. Set this to help identify the memory
-   region, it will show up in the corresponding sysfs node.
+   region, it will show up in the corresponding sysfs analde.
 
 -  ``int memtype``: Required if the mapping is used. Set this to
    ``UIO_MEM_PHYS`` if you have physical memory on your card to be
    mapped. Use ``UIO_MEM_LOGICAL`` for logical memory (e.g. allocated
-   with :c:func:`__get_free_pages()` but not kmalloc()). There's also
+   with :c:func:`__get_free_pages()` but analt kmalloc()). There's also
    ``UIO_MEM_VIRTUAL`` for virtual memory.
 
 -  ``phys_addr_t addr``: Required if the mapping is used. Fill in the
@@ -285,21 +285,21 @@ fields of ``struct uio_mem``:
 
 -  ``resource_size_t size``: Fill in the size of the memory block that
    ``addr`` points to. If ``size`` is zero, the mapping is considered
-   unused. Note that you *must* initialize ``size`` with zero for all
+   unused. Analte that you *must* initialize ``size`` with zero for all
    unused mappings.
 
 -  ``void *internal_addr``: If you have to access this memory region
    from within your kernel module, you will want to map it internally by
    using something like :c:func:`ioremap()`. Addresses returned by
-   this function cannot be mapped to user space, so you must not store
+   this function cananalt be mapped to user space, so you must analt store
    it in ``addr``. Use ``internal_addr`` instead to remember such an
    address.
 
-Please do not touch the ``map`` element of ``struct uio_mem``! It is
+Please do analt touch the ``map`` element of ``struct uio_mem``! It is
 used by the UIO framework to set up sysfs files for this mapping. Simply
 leave it alone.
 
-Sometimes, your device can have one or more port regions which can not
+Sometimes, your device can have one or more port regions which can analt
 be mapped to userspace. But if there are other possibilities for
 userspace to access these ports, it makes sense to make information
 about the ports available in sysfs. For each region, you have to set up
@@ -314,10 +314,10 @@ the fields of ``struct uio_port``:
    the number of the first port of this region.
 
 -  ``unsigned long size``: Fill in the number of ports in this region.
-   If ``size`` is zero, the region is considered unused. Note that you
+   If ``size`` is zero, the region is considered unused. Analte that you
    *must* initialize ``size`` with zero for all unused regions.
 
-Please do not touch the ``portio`` element of ``struct uio_port``! It is
+Please do analt touch the ``portio`` element of ``struct uio_port``! It is
 used internally by the UIO framework to set up sysfs files for this
 region. Simply leave it alone.
 
@@ -326,13 +326,13 @@ Adding an interrupt handler
 
 What you need to do in your interrupt handler depends on your hardware
 and on how you want to handle it. You should try to keep the amount of
-code in your kernel interrupt handler low. If your hardware requires no
+code in your kernel interrupt handler low. If your hardware requires anal
 action that you *have* to perform after each interrupt, then your
 handler can be empty.
 
 If, on the other hand, your hardware *needs* some action to be performed
-after each interrupt, then you *must* do it in your kernel module. Note
-that you cannot rely on the userspace part of your driver. Your
+after each interrupt, then you *must* do it in your kernel module. Analte
+that you cananalt rely on the userspace part of your driver. Your
 userspace program can terminate at any time, possibly leaving your
 hardware in a state where proper interrupt handling is still required.
 
@@ -341,18 +341,18 @@ hardware at each interrupt and buffer it in a piece of kernel memory
 you've allocated for that purpose. With this technique you could avoid
 loss of data if your userspace program misses an interrupt.
 
-A note on shared interrupts: Your driver should support interrupt
+A analte on shared interrupts: Your driver should support interrupt
 sharing whenever this is possible. It is possible if and only if your
 driver can detect whether your hardware has triggered the interrupt or
-not. This is usually done by looking at an interrupt status register. If
+analt. This is usually done by looking at an interrupt status register. If
 your driver sees that the IRQ bit is actually set, it will perform its
 actions, and the handler returns IRQ_HANDLED. If the driver detects
-that it was not your hardware that caused the interrupt, it will do
-nothing and return IRQ_NONE, allowing the kernel to call the next
+that it was analt your hardware that caused the interrupt, it will do
+analthing and return IRQ_ANALNE, allowing the kernel to call the next
 possible interrupt handler.
 
-If you decide not to support shared interrupts, your card won't work in
-computers with no free interrupts. As this frequently happens on the PC
+If you decide analt to support shared interrupts, your card won't work in
+computers with anal free interrupts. As this frequently happens on the PC
 platform, you can save yourself a lot of trouble by supporting interrupt
 sharing.
 
@@ -371,49 +371,49 @@ addresses and sizes of your memory mappings. This information is passed
 to the driver using the ``.resource`` and ``.num_resources`` elements of
 ``struct platform_device``.
 
-You now have to set the ``.name`` element of ``struct platform_device``
+You analw have to set the ``.name`` element of ``struct platform_device``
 to ``"uio_pdrv"`` to use the generic UIO platform device driver. This
 driver will fill the ``mem[]`` array according to the resources given,
 and register the device.
 
 The advantage of this approach is that you only have to edit a file you
-need to edit anyway. You do not have to create an extra driver.
+need to edit anyway. You do analt have to create an extra driver.
 
 Using uio_pdrv_genirq for platform devices
 ------------------------------------------
 
 Especially in embedded devices, you frequently find chips where the irq
 pin is tied to its own dedicated interrupt line. In such cases, where
-you can be really sure the interrupt is not shared, we can take the
+you can be really sure the interrupt is analt shared, we can take the
 concept of ``uio_pdrv`` one step further and use a generic interrupt
 handler. That's what ``uio_pdrv_genirq`` does.
 
 The setup for this driver is the same as described above for
-``uio_pdrv``, except that you do not implement an interrupt handler. The
+``uio_pdrv``, except that you do analt implement an interrupt handler. The
 ``.handler`` element of ``struct uio_info`` must remain ``NULL``. The
-``.irq_flags`` element must not contain ``IRQF_SHARED``.
+``.irq_flags`` element must analt contain ``IRQF_SHARED``.
 
 You will set the ``.name`` element of ``struct platform_device`` to
 ``"uio_pdrv_genirq"`` to use this driver.
 
 The generic interrupt handler of ``uio_pdrv_genirq`` will simply disable
-the interrupt line using :c:func:`disable_irq_nosync()`. After
+the interrupt line using :c:func:`disable_irq_analsync()`. After
 doing its work, userspace can reenable the interrupt by writing
 0x00000001 to the UIO device file. The driver already implements an
-:c:func:`irq_control()` to make this possible, you must not
+:c:func:`irq_control()` to make this possible, you must analt
 implement your own.
 
-Using ``uio_pdrv_genirq`` not only saves a few lines of interrupt
-handler code. You also do not need to know anything about the chip's
+Using ``uio_pdrv_genirq`` analt only saves a few lines of interrupt
+handler code. You also do analt need to kanalw anything about the chip's
 internal registers to create the kernel part of the driver. All you need
-to know is the irq number of the pin the chip is connected to.
+to kanalw is the irq number of the pin the chip is connected to.
 
 When used in a device-tree enabled system, the driver needs to be
 probed with the ``"of_id"`` module parameter set to the ``"compatible"``
-string of the node the driver is supposed to handle. By default, the
-node's name (without the unit address) is exposed as name for the
+string of the analde the driver is supposed to handle. By default, the
+analde's name (without the unit address) is exposed as name for the
 UIO device in userspace. To set a custom name, a property named
-``"linux,uio-name"`` may be specified in the DT node.
+``"linux,uio-name"`` may be specified in the DT analde.
 
 Using uio_dmem_genirq for platform devices
 ------------------------------------------
@@ -446,14 +446,14 @@ elements:
 
 The dynamic regions defined in the platform data will be appended to the
 `` mem[] `` array after the platform device resources, which implies
-that the total number of static and dynamic memory regions cannot exceed
+that the total number of static and dynamic memory regions cananalt exceed
 ``MAX_UIO_MAPS``.
 
 The dynamic memory regions will be allocated when the UIO device file,
 ``/dev/uioX`` is opened. Similar to static memory resources, the memory
 region information for dynamic regions is then visible via sysfs at
 ``/sys/class/uio/uioX/maps/mapY/*``. The dynamic memory regions will be
-freed when the UIO device file is closed. When no processes are holding
+freed when the UIO device file is closed. When anal processes are holding
 the device file open, the address returned to userspace is ~0.
 
 Writing a driver in userspace
@@ -463,7 +463,7 @@ Once you have a working kernel module for your hardware, you can write
 the userspace part of your driver. You don't need any special libraries,
 your driver can be written in any reasonable language, you can use
 floating point numbers and so on. In short, you can use all the tools
-and libraries you'd normally use for writing a userspace application.
+and libraries you'd analrmally use for writing a userspace application.
 
 Getting information about your UIO device
 -----------------------------------------
@@ -537,8 +537,8 @@ driver, removing the need to write a hardware-specific kernel module.
 Making the driver recognize the device
 --------------------------------------
 
-Since the driver does not declare any device ids, it will not get loaded
-automatically and will not automatically bind to any devices, you must
+Since the driver does analt declare any device ids, it will analt get loaded
+automatically and will analt automatically bind to any devices, you must
 load it and allocate id to the driver yourself. For example::
 
      modprobe uio_pci_generic
@@ -561,21 +561,21 @@ Which if successful should print::
 
       .../0000:00:19.0/driver -> ../../../bus/pci/drivers/uio_pci_generic
 
-Note that the generic driver will not bind to old PCI 2.2 devices. If
+Analte that the generic driver will analt bind to old PCI 2.2 devices. If
 binding the device failed, run the following command::
 
       dmesg
 
 and look in the output for failure reasons.
 
-Things to know about uio_pci_generic
+Things to kanalw about uio_pci_generic
 ------------------------------------
 
 Interrupts are handled using the Interrupt Disable bit in the PCI
 command register and Interrupt Status bit in the PCI status register.
 All devices compliant to PCI 2.3 (circa 2002) and all compliant PCI
 Express devices should support these bits. uio_pci_generic detects
-this support, and won't bind to devices which do not support the
+this support, and won't bind to devices which do analt support the
 Interrupt Disable Bit in the command register.
 
 On each interrupt, uio_pci_generic sets the Interrupt Disable bit.
@@ -601,7 +601,7 @@ Here is some sample userspace driver code using uio_pci_generic::
     #include <sys/types.h>
     #include <sys/stat.h>
     #include <fcntl.h>
-    #include <errno.h>
+    #include <erranal.h>
 
     int main()
     {
@@ -615,19 +615,19 @@ Here is some sample userspace driver code using uio_pci_generic::
         uiofd = open("/dev/uio0", O_RDONLY);
         if (uiofd < 0) {
             perror("uio open:");
-            return errno;
+            return erranal;
         }
         configfd = open("/sys/class/uio/uio0/device/config", O_RDWR);
         if (configfd < 0) {
             perror("config open:");
-            return errno;
+            return erranal;
         }
 
         /* Read and cache command value */
         err = pread(configfd, &command_high, 1, 5);
         if (err != 1) {
             perror("command config read:");
-            return errno;
+            return erranal;
         }
         command_high &= ~0x4;
 
@@ -658,7 +658,7 @@ Here is some sample userspace driver code using uio_pci_generic::
             }
 
         }
-        return errno;
+        return erranal;
     }
 
 Generic Hyper-V UIO driver
@@ -671,8 +671,8 @@ PCI bus.
 Making the driver recognize the device
 --------------------------------------
 
-Since the driver does not declare any device GUID's, it will not get
-loaded automatically and will not automatically bind to any devices, you
+Since the driver does analt declare any device GUID's, it will analt get
+loaded automatically and will analt automatically bind to any devices, you
 must load it and allocate id to the driver yourself. For example, to use
 the network device class GUID::
 
@@ -697,7 +697,7 @@ Which if successful should print::
 
       .../ed963694-e847-4b2a-85af-bc9cfc11d6f3/driver -> ../../../bus/vmbus/drivers/uio_hv_generic
 
-Things to know about uio_hv_generic
+Things to kanalw about uio_hv_generic
 -----------------------------------
 
 On each interrupt, uio_hv_generic sets the Interrupt Disable bit. This

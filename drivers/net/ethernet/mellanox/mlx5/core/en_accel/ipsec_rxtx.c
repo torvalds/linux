@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2017 Mellaanalx Techanallogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -156,7 +156,7 @@ void mlx5e_ipsec_set_iv_esn(struct sk_buff *skb, struct xfrm_state *x,
 	struct xfrm_replay_state_esn *replay_esn = x->replay_esn;
 	__u32 oseq = replay_esn->oseq;
 	int iv_offset;
-	__be64 seqno;
+	__be64 seqanal;
 	u32 seq_hi;
 
 	if (unlikely(skb_is_gso(skb) && oseq < MLX5E_IPSEC_ESN_SCOPE_MID &&
@@ -167,21 +167,21 @@ void mlx5e_ipsec_set_iv_esn(struct sk_buff *skb, struct xfrm_state *x,
 	}
 
 	/* Place the SN in the IV field */
-	seqno = cpu_to_be64(xo->seq.low + ((u64)seq_hi << 32));
+	seqanal = cpu_to_be64(xo->seq.low + ((u64)seq_hi << 32));
 	iv_offset = skb_transport_offset(skb) + sizeof(struct ip_esp_hdr);
-	skb_store_bits(skb, iv_offset, &seqno, 8);
+	skb_store_bits(skb, iv_offset, &seqanal, 8);
 }
 
 void mlx5e_ipsec_set_iv(struct sk_buff *skb, struct xfrm_state *x,
 			struct xfrm_offload *xo)
 {
 	int iv_offset;
-	__be64 seqno;
+	__be64 seqanal;
 
 	/* Place the SN in the IV field */
-	seqno = cpu_to_be64(xo->seq.low + ((u64)xo->seq.hi << 32));
+	seqanal = cpu_to_be64(xo->seq.low + ((u64)xo->seq.hi << 32));
 	iv_offset = skb_transport_offset(skb) + sizeof(struct ip_esp_hdr);
-	skb_store_bits(skb, iv_offset, &seqno, 8);
+	skb_store_bits(skb, iv_offset, &seqanal, 8);
 }
 
 void mlx5e_ipsec_handle_tx_wqe(struct mlx5e_tx_wqe *wqe,
@@ -276,14 +276,14 @@ bool mlx5e_ipsec_handle_tx_skb(struct net_device *netdev,
 
 	x = xfrm_input_state(skb);
 	if (unlikely(!x)) {
-		atomic64_inc(&priv->ipsec->sw_stats.ipsec_tx_drop_no_state);
+		atomic64_inc(&priv->ipsec->sw_stats.ipsec_tx_drop_anal_state);
 		goto drop;
 	}
 
 	if (unlikely(!x->xso.offload_handle ||
 		     (skb->protocol != htons(ETH_P_IP) &&
 		      skb->protocol != htons(ETH_P_IPV6)))) {
-		atomic64_inc(&priv->ipsec->sw_stats.ipsec_tx_drop_not_ip);
+		atomic64_inc(&priv->ipsec->sw_stats.ipsec_tx_drop_analt_ip);
 		goto drop;
 	}
 

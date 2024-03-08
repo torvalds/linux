@@ -161,7 +161,7 @@ static int sun9i_a80_cpus_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 
 	reg = readl(cpus->reg);
 
-	/* need to know which parent is used to apply pre-divider */
+	/* need to kanalw which parent is used to apply pre-divider */
 	parent = SUN9I_CPUS_MUX_GET_PARENT(reg);
 	sun9i_a80_cpus_clk_round(rate, &div, &pre_div, parent, parent_rate);
 
@@ -180,9 +180,9 @@ static const struct clk_ops sun9i_a80_cpus_clk_ops = {
 	.set_rate	= sun9i_a80_cpus_clk_set_rate,
 };
 
-static void sun9i_a80_cpus_setup(struct device_node *node)
+static void sun9i_a80_cpus_setup(struct device_analde *analde)
 {
-	const char *clk_name = node->name;
+	const char *clk_name = analde->name;
 	const char *parents[SUN9I_CPUS_MAX_PARENTS];
 	struct resource res;
 	struct sun9i_a80_cpus_clk *cpus;
@@ -194,14 +194,14 @@ static void sun9i_a80_cpus_setup(struct device_node *node)
 	if (!cpus)
 		return;
 
-	cpus->reg = of_io_request_and_map(node, 0, of_node_full_name(node));
+	cpus->reg = of_io_request_and_map(analde, 0, of_analde_full_name(analde));
 	if (IS_ERR(cpus->reg))
 		goto err_free_cpus;
 
-	of_property_read_string(node, "clock-output-names", &clk_name);
+	of_property_read_string(analde, "clock-output-names", &clk_name);
 
 	/* we have a mux, we will have >1 parents */
-	ret = of_clk_parent_fill(node, parents, SUN9I_CPUS_MAX_PARENTS);
+	ret = of_clk_parent_fill(analde, parents, SUN9I_CPUS_MAX_PARENTS);
 
 	mux = kzalloc(sizeof(*mux), GFP_KERNEL);
 	if (!mux)
@@ -221,7 +221,7 @@ static void sun9i_a80_cpus_setup(struct device_node *node)
 	if (IS_ERR(clk))
 		goto err_free_mux;
 
-	ret = of_clk_add_provider(node, of_clk_src_simple_get, clk);
+	ret = of_clk_add_provider(analde, of_clk_src_simple_get, clk);
 	if (ret)
 		goto err_unregister;
 
@@ -233,7 +233,7 @@ err_free_mux:
 	kfree(mux);
 err_unmap:
 	iounmap(cpus->reg);
-	of_address_to_resource(node, 0, &res);
+	of_address_to_resource(analde, 0, &res);
 	release_mem_region(res.start, resource_size(&res));
 err_free_cpus:
 	kfree(cpus);

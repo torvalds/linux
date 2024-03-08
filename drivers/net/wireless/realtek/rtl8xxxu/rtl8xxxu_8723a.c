@@ -4,7 +4,7 @@
  *
  * Copyright (c) 2014 - 2017 Jes Sorensen <Jes.Sorensen@gmail.com>
  *
- * Portions, notably calibration code:
+ * Portions, analtably calibration code:
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
  *
  * This driver was written as a replacement for the vendor provided
@@ -16,7 +16,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
@@ -139,7 +139,7 @@ static int rtl8723au_identify_chip(struct rtl8xxxu_priv *priv)
 	priv->chip_cut = u32_get_bits(sys_cfg, SYS_CFG_CHIP_VERSION_MASK);
 	if (sys_cfg & SYS_CFG_TRP_VAUX_EN) {
 		dev_info(dev, "Unsupported test chip\n");
-		ret = -ENOTSUPP;
+		ret = -EANALTSUPP;
 		goto out;
 	}
 
@@ -169,10 +169,10 @@ static int rtl8723au_identify_chip(struct rtl8xxxu_priv *priv)
 	rtl8xxxu_config_endpoints_sie(priv);
 
 	/*
-	 * Fallback for devices that do not provide REG_NORMAL_SIE_EP_TX
+	 * Fallback for devices that do analt provide REG_ANALRMAL_SIE_EP_TX
 	 */
 	if (!priv->ep_tx_count)
-		ret = rtl8xxxu_config_endpoints_no_sie(priv);
+		ret = rtl8xxxu_config_endpoints_anal_sie(priv);
 
 out:
 	return ret;
@@ -238,7 +238,7 @@ static int rtl8723au_load_firmware(struct rtl8xxxu_priv *priv)
 		if (priv->enable_bluetooth)
 			fw_name = "rtlwifi/rtl8723aufw_B.bin";
 		else
-			fw_name = "rtlwifi/rtl8723aufw_B_NoBT.bin";
+			fw_name = "rtlwifi/rtl8723aufw_B_AnalBT.bin";
 
 		break;
 	default:
@@ -344,7 +344,7 @@ static int rtl8723a_emu_to_active(struct rtl8xxxu_priv *priv)
 
 	/* 0x4C[23] = 0x4E[7] = 1, switch DPDT_SEL_P output from WL BB */
 	/*
-	 * Note: Vendor driver actually clears this bit, despite the
+	 * Analte: Vendor driver actually clears this bit, despite the
 	 * documentation claims it's being set!
 	 */
 	val8 = rtl8xxxu_read8(priv, REG_LEDCFG2);
@@ -521,5 +521,5 @@ struct rtl8xxxu_fileops rtl8723au_fops = {
 	.total_page_num = TX_TOTAL_PAGE_NUM,
 	.page_num_hi = TX_PAGE_NUM_HI_PQ,
 	.page_num_lo = TX_PAGE_NUM_LO_PQ,
-	.page_num_norm = TX_PAGE_NUM_NORM_PQ,
+	.page_num_analrm = TX_PAGE_NUM_ANALRM_PQ,
 };

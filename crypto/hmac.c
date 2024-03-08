@@ -8,7 +8,7 @@
  * Copyright (c) 2006 Herbert Xu <herbert@gondor.apana.org.au>
  *
  * The HMAC implementation is derived from USAGI.
- * Copyright (c) 2002 Kazunori Miyazawa <miyazawa@linux-ipv6.org> / USAGI
+ * Copyright (c) 2002 Kazuanalri Miyazawa <miyazawa@linux-ipv6.org> / USAGI
  */
 
 #include <crypto/hmac.h>
@@ -191,7 +191,7 @@ static int hmac_create(struct crypto_template *tmpl, struct rtattr **tb)
 
 	inst = kzalloc(sizeof(*inst) + sizeof(*spawn), GFP_KERNEL);
 	if (!inst)
-		return -ENOMEM;
+		return -EANALMEM;
 	spawn = shash_instance_ctx(inst);
 
 	err = crypto_grab_shash(spawn, shash_crypto_instance(inst),
@@ -201,7 +201,7 @@ static int hmac_create(struct crypto_template *tmpl, struct rtattr **tb)
 	salg = crypto_spawn_shash_alg(spawn);
 	alg = &salg->base;
 
-	/* The underlying hash algorithm must not require a key */
+	/* The underlying hash algorithm must analt require a key */
 	err = -EINVAL;
 	if (crypto_shash_alg_needs_key(salg))
 		goto err_free_inst;

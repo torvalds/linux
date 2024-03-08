@@ -45,7 +45,7 @@ static int do_compare(u64 addr, u64 value, u64 mask, u16 op)
 		passed = (rvalue & mask) <= (value & mask);
 		break;
 	default:
-		XE_WARN_ON("Not possible");
+		XE_WARN_ON("Analt possible");
 		return -EINVAL;
 	}
 
@@ -128,7 +128,7 @@ int xe_wait_user_fence_ioctl(struct drm_device *dev, void *data,
 	if (args->exec_queue_id) {
 		q = xe_exec_queue_lookup(xef, args->exec_queue_id);
 		if (XE_IOCTL_DBG(xe, !q))
-			return -ENOENT;
+			return -EANALENT;
 	}
 
 	timeout = to_jiffies_timeout(xe, args);

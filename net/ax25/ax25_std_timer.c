@@ -6,7 +6,7 @@
  * Copyright (C) Joerg Reuter DL1BKE (jreuter@yaina.de)
  * Copyright (C) Frederic Rible F1OAT (frible@teaser.fr)
  */
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 #include <linux/socket.h>
 #include <linux/in.h>

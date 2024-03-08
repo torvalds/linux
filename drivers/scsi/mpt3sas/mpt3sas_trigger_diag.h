@@ -1,11 +1,11 @@
 /*
  * This is the Fusion MPT base driver providing common API layer interface
- * to set Diagnostic triggers for MPT (Message Passing Technology) based
+ * to set Diaganalstic triggers for MPT (Message Passing Techanallogy) based
  * controllers
  *
  * This code is based on drivers/scsi/mpt3sas/mpt3sas_base.h
  * Copyright (C) 2012-2014  LSI Corporation
- * Copyright (C) 2013-2014 Avago Technologies
+ * Copyright (C) 2013-2014 Avago Techanallogies
  *  (mailto: MPT-FusionLinux.pdl@avagotech.com)
  *
  * This program is free software; you can redistribute it and/or
@@ -18,19 +18,19 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * NO WARRANTY
+ * ANAL WARRANTY
  * THE PROGRAM IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OR
  * CONDITIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED INCLUDING, WITHOUT
- * LIMITATION, ANY WARRANTIES OR CONDITIONS OF TITLE, NON-INFRINGEMENT,
+ * LIMITATION, ANY WARRANTIES OR CONDITIONS OF TITLE, ANALN-INFRINGEMENT,
  * MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE. Each Recipient is
  * solely responsible for determining the appropriateness of using and
  * distributing the Program and assumes all risks associated with its
- * exercise of rights under this Agreement, including but not limited to
+ * exercise of rights under this Agreement, including but analt limited to
  * the risks and costs of program errors, damage to or loss of data,
  * programs or equipment, and unavailability or interruption of operations.
 
  * DISCLAIMER OF LIABILITY
- * NEITHER RECIPIENT NOR ANY CONTRIBUTORS SHALL HAVE ANY LIABILITY FOR ANY
+ * NEITHER RECIPIENT ANALR ANY CONTRIBUTORS SHALL HAVE ANY LIABILITY FOR ANY
  * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING WITHOUT LIMITATION LOST PROFITS), HOWEVER CAUSED AND
  * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
@@ -39,11 +39,11 @@
  * HEREUNDER, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES
 
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if analt, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
  * USA.
  */
-  /* Diagnostic Trigger Configuration Data Structures */
+  /* Diaganalstic Trigger Configuration Data Structures */
 
 #ifndef MPT3SAS_TRIGGER_DIAG_H_INCLUDED
 #define MPT3SAS_TRIGGER_DIAG_H_INCLUDED
@@ -70,7 +70,7 @@
 #define MASTER_TRIGGER_DEVICE_REMOVAL   (0x00000008)
 
 /* fake firmware event for trigger */
-#define MPI3_EVENT_DIAGNOSTIC_TRIGGER_FIRED	(0x6E)
+#define MPI3_EVENT_DIAGANALSTIC_TRIGGER_FIRED	(0x6E)
 
 /**
  * MasterTrigger is a single U32 passed to/from sysfs.

@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0 */
-/* Copyright (c) 2015-2018 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2015-2018 Mellaanalx Techanallogies. All rights reserved */
 
 #ifndef _MLXSW_ITEM_H
 #define _MLXSW_ITEM_H
@@ -14,7 +14,7 @@ struct mlxsw_item {
 	unsigned short	in_step_offset; /* offset within one step */
 	unsigned char	shift;		/* shift in bits */
 	unsigned char	element_size;	/* size of element in bit array */
-	bool		no_real_shift;
+	bool		anal_real_shift;
 	union {
 		unsigned char	bits;
 		unsigned short	bytes;
@@ -51,7 +51,7 @@ static inline u8 __mlxsw_item_get8(const char *buf,
 	tmp = b[offset];
 	tmp >>= item->shift;
 	tmp &= GENMASK(item->size.bits - 1, 0);
-	if (item->no_real_shift)
+	if (item->anal_real_shift)
 		tmp <<= item->shift;
 	return tmp;
 }
@@ -65,7 +65,7 @@ static inline void __mlxsw_item_set8(char *buf, const struct mlxsw_item *item,
 	u8 mask = GENMASK(item->size.bits - 1, 0) << item->shift;
 	u8 tmp;
 
-	if (!item->no_real_shift)
+	if (!item->anal_real_shift)
 		val <<= item->shift;
 	val &= mask;
 	tmp = b[offset];
@@ -85,7 +85,7 @@ static inline u16 __mlxsw_item_get16(const char *buf,
 	tmp = be16_to_cpu(b[offset]);
 	tmp >>= item->shift;
 	tmp &= GENMASK(item->size.bits - 1, 0);
-	if (item->no_real_shift)
+	if (item->anal_real_shift)
 		tmp <<= item->shift;
 	return tmp;
 }
@@ -99,7 +99,7 @@ static inline void __mlxsw_item_set16(char *buf, const struct mlxsw_item *item,
 	u16 mask = GENMASK(item->size.bits - 1, 0) << item->shift;
 	u16 tmp;
 
-	if (!item->no_real_shift)
+	if (!item->anal_real_shift)
 		val <<= item->shift;
 	val &= mask;
 	tmp = be16_to_cpu(b[offset]);
@@ -119,7 +119,7 @@ static inline u32 __mlxsw_item_get32(const char *buf,
 	tmp = be32_to_cpu(b[offset]);
 	tmp >>= item->shift;
 	tmp &= GENMASK(item->size.bits - 1, 0);
-	if (item->no_real_shift)
+	if (item->anal_real_shift)
 		tmp <<= item->shift;
 	return tmp;
 }
@@ -133,7 +133,7 @@ static inline void __mlxsw_item_set32(char *buf, const struct mlxsw_item *item,
 	u32 mask = GENMASK(item->size.bits - 1, 0) << item->shift;
 	u32 tmp;
 
-	if (!item->no_real_shift)
+	if (!item->anal_real_shift)
 		val <<= item->shift;
 	val &= mask;
 	tmp = be32_to_cpu(b[offset]);
@@ -153,7 +153,7 @@ static inline u64 __mlxsw_item_get64(const char *buf,
 	tmp = be64_to_cpu(b[offset]);
 	tmp >>= item->shift;
 	tmp &= GENMASK_ULL(item->size.bits - 1, 0);
-	if (item->no_real_shift)
+	if (item->anal_real_shift)
 		tmp <<= item->shift;
 	return tmp;
 }
@@ -166,7 +166,7 @@ static inline void __mlxsw_item_set64(char *buf, const struct mlxsw_item *item,
 	u64 mask = GENMASK_ULL(item->size.bits - 1, 0) << item->shift;
 	u64 tmp;
 
-	if (!item->no_real_shift)
+	if (!item->anal_real_shift)
 		val <<= item->shift;
 	val &= mask;
 	tmp = be64_to_cpu(b[offset]);
@@ -282,13 +282,13 @@ mlxsw_##_type##_##_cname##_##_iname##_set(char *buf, u8 val)			\
 }
 
 #define MLXSW_ITEM8_INDEXED(_type, _cname, _iname, _offset, _shift, _sizebits,	\
-			    _step, _instepoffset, _norealshift)			\
+			    _step, _instepoffset, _analrealshift)			\
 static struct mlxsw_item __ITEM_NAME(_type, _cname, _iname) = {			\
 	.offset = _offset,							\
 	.step = _step,								\
 	.in_step_offset = _instepoffset,					\
 	.shift = _shift,							\
-	.no_real_shift = _norealshift,						\
+	.anal_real_shift = _analrealshift,						\
 	.size = {.bits = _sizebits,},						\
 	.name = #_type "_" #_cname "_" #_iname,					\
 };										\
@@ -325,13 +325,13 @@ mlxsw_##_type##_##_cname##_##_iname##_set(char *buf, u16 val)			\
 }
 
 #define MLXSW_ITEM16_INDEXED(_type, _cname, _iname, _offset, _shift, _sizebits,	\
-			     _step, _instepoffset, _norealshift)		\
+			     _step, _instepoffset, _analrealshift)		\
 static struct mlxsw_item __ITEM_NAME(_type, _cname, _iname) = {			\
 	.offset = _offset,							\
 	.step = _step,								\
 	.in_step_offset = _instepoffset,					\
 	.shift = _shift,							\
-	.no_real_shift = _norealshift,						\
+	.anal_real_shift = _analrealshift,						\
 	.size = {.bits = _sizebits,},						\
 	.name = #_type "_" #_cname "_" #_iname,					\
 };										\
@@ -404,13 +404,13 @@ mlxsw_##_type##_##_cname##_local_port_set(char *buf, u32 val)			\
 }
 
 #define MLXSW_ITEM32_INDEXED(_type, _cname, _iname, _offset, _shift, _sizebits,	\
-			     _step, _instepoffset, _norealshift)		\
+			     _step, _instepoffset, _analrealshift)		\
 static struct mlxsw_item __ITEM_NAME(_type, _cname, _iname) = {			\
 	.offset = _offset,							\
 	.step = _step,								\
 	.in_step_offset = _instepoffset,					\
 	.shift = _shift,							\
-	.no_real_shift = _norealshift,						\
+	.anal_real_shift = _analrealshift,						\
 	.size = {.bits = _sizebits,},						\
 	.name = #_type "_" #_cname "_" #_iname,					\
 };										\
@@ -447,13 +447,13 @@ mlxsw_##_type##_##_cname##_##_iname##_set(char *buf, u64 val)			\
 }
 
 #define MLXSW_ITEM64_INDEXED(_type, _cname, _iname, _offset, _shift,		\
-			     _sizebits, _step, _instepoffset, _norealshift)	\
+			     _sizebits, _step, _instepoffset, _analrealshift)	\
 static struct mlxsw_item __ITEM_NAME(_type, _cname, _iname) = {			\
 	.offset = _offset,							\
 	.step = _step,								\
 	.in_step_offset = _instepoffset,					\
 	.shift = _shift,							\
-	.no_real_shift = _norealshift,						\
+	.anal_real_shift = _analrealshift,						\
 	.size = {.bits = _sizebits,},						\
 	.name = #_type "_" #_cname "_" #_iname,					\
 };										\

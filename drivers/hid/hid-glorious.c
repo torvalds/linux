@@ -19,7 +19,7 @@ MODULE_DESCRIPTION("HID driver for Glorious PC Gaming Race mice");
 
 /*
  * Glorious Model O and O- specify the const flag in the consumer input
- * report descriptor, which leads to inputs being ignored. Fix this
+ * report descriptor, which leads to inputs being iganalred. Fix this
  * by patching the descriptor.
  *
  * Glorious Model I incorrectly specifes the Usage Minimum for its
@@ -76,9 +76,9 @@ static int glorious_probe(struct hid_device *hdev,
 }
 
 static const struct hid_device_id glorious_devices[] = {
-	{ HID_USB_DEVICE(USB_VENDOR_ID_SINOWEALTH,
+	{ HID_USB_DEVICE(USB_VENDOR_ID_SIANALWEALTH,
 		USB_DEVICE_ID_GLORIOUS_MODEL_O) },
-	{ HID_USB_DEVICE(USB_VENDOR_ID_SINOWEALTH,
+	{ HID_USB_DEVICE(USB_VENDOR_ID_SIANALWEALTH,
 		USB_DEVICE_ID_GLORIOUS_MODEL_D) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LAVIEW,
 		USB_DEVICE_ID_GLORIOUS_MODEL_I) },

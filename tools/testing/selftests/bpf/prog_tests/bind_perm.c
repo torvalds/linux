@@ -17,7 +17,7 @@ static int create_netns(void)
 	return 0;
 }
 
-void try_bind(int family, int port, int expected_errno)
+void try_bind(int family, int port, int expected_erranal)
 {
 	struct sockaddr_storage addr = {};
 	struct sockaddr_in6 *sin6;
@@ -38,9 +38,9 @@ void try_bind(int family, int port, int expected_errno)
 		sin6->sin6_port = htons(port);
 	}
 
-	errno = 0;
+	erranal = 0;
 	bind(fd, (struct sockaddr *)&addr, sizeof(addr));
-	ASSERT_EQ(errno, expected_errno, "bind");
+	ASSERT_EQ(erranal, expected_erranal, "bind");
 
 close_socket:
 	if (fd >= 0)

@@ -16,11 +16,11 @@
  * @ipc_imem:   Pointer to struct iosm_imem
  * @msg:        Message argument for tasklet function. (optional, can be NULL)
  * @completion: OS object used to wait for the tasklet function to finish for
- *              synchronous calls
+ *              synchroanalus calls
  * @func:       Function to be called in tasklet (tl) context
  * @arg:        Generic integer argument for tasklet function (optional)
  * @size:       Message size argument for tasklet function (optional)
- * @response:   Return code of tasklet function for synchronous calls
+ * @response:   Return code of tasklet function for synchroanalus calls
  * @is_copy:    Is true if msg contains a pointer to a copy of the original msg
  *              for async. calls that needs to be freed once the tasklet returns
  */
@@ -77,7 +77,7 @@ int ipc_task_init(struct ipc_task *ipc_task);
 void ipc_task_deinit(struct ipc_task *ipc_task);
 
 /**
- * ipc_task_queue_send_task - Synchronously/Asynchronously call a function in
+ * ipc_task_queue_send_task - Synchroanalusly/Asynchroanalusly call a function in
  *			      tasklet context.
  * @imem:		Pointer to iosm_imem struct
  * @func:		Function to be called in tasklet context
@@ -86,7 +86,7 @@ void ipc_task_deinit(struct ipc_task *ipc_task);
  * @size:		Size argument for func
  * @wait:		if true wait for result
  *
- * Returns: Result value returned by func or failure value if func could not
+ * Returns: Result value returned by func or failure value if func could analt
  *	    be called.
  */
 int ipc_task_queue_send_task(struct iosm_imem *imem,

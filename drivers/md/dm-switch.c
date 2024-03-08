@@ -7,7 +7,7 @@
  *
  * dm-switch is a device-mapper target that maps IO to underlying block
  * devices efficiently when there are a large number of fixed-sized
- * address regions but there is no simple pattern to allow for a compact
+ * address regions but there is anal simple pattern to allow for a compact
  * mapping representation such as dm-stripe.
  */
 
@@ -117,8 +117,8 @@ static int alloc_region_table(struct dm_target *ti, unsigned int nr_paths)
 	sctx->region_table = vmalloc(array_size(nr_slots,
 						sizeof(region_table_slot_t)));
 	if (!sctx->region_table) {
-		ti->error = "Cannot allocate region table";
-		return -ENOMEM;
+		ti->error = "Cananalt allocate region table";
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -165,7 +165,7 @@ static unsigned int switch_get_path_nr(struct switch_ctx *sctx, sector_t offset)
 
 	path_nr = switch_region_table_read(sctx, p);
 
-	/* This can only happen if the processor uses non-atomic stores. */
+	/* This can only happen if the processor uses analn-atomic stores. */
 	if (unlikely(path_nr >= sctx->nr_paths))
 		path_nr = 0;
 
@@ -286,8 +286,8 @@ static int switch_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 	sctx = alloc_switch_ctx(ti, nr_paths, region_size);
 	if (!sctx) {
-		ti->error = "Cannot allocate redirection context";
-		return -ENOMEM;
+		ti->error = "Cananalt allocate redirection context";
+		return -EANALMEM;
 	}
 
 	r = dm_set_target_max_io_len(ti, region_size);
@@ -555,7 +555,7 @@ static int switch_iterate_devices(struct dm_target *ti,
 static struct target_type switch_target = {
 	.name = "switch",
 	.version = {1, 1, 0},
-	.features = DM_TARGET_NOWAIT,
+	.features = DM_TARGET_ANALWAIT,
 	.module = THIS_MODULE,
 	.ctr = switch_ctr,
 	.dtr = switch_dtr,

@@ -69,7 +69,7 @@ static __net_init int rxrpc_init_net(struct net *net)
 	INIT_WORK(&rxnet->peer_keepalive_work, rxrpc_peer_keepalive_worker);
 	rxnet->peer_keepalive_base = ktime_get_seconds();
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	rxnet->proc_net = proc_net_mkdir(net, "rxrpc", net->proc_net);
 	if (!rxnet->proc_net)
 		goto err_proc;

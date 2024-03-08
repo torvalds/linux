@@ -57,7 +57,7 @@ struct qtnf_pcie_bus_priv {
 	u32 tx_bd_w_index;
 	u32 tx_bd_r_index;
 
-	/* diagnostics stats */
+	/* diaganalstics stats */
 	u32 pcie_irq_count;
 	u32 tx_full_count;
 	u32 tx_done_count;
@@ -79,7 +79,7 @@ void qtnf_pcie_init_shm_ipc(struct qtnf_pcie_bus_priv *priv,
 struct qtnf_bus *qtnf_pcie_pearl_alloc(struct pci_dev *pdev);
 struct qtnf_bus *qtnf_pcie_topaz_alloc(struct pci_dev *pdev);
 
-static inline void qtnf_non_posted_write(u32 val, void __iomem *basereg)
+static inline void qtnf_analn_posted_write(u32 val, void __iomem *basereg)
 {
 	writel(val, basereg);
 

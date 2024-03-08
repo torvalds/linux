@@ -18,10 +18,10 @@ functions are defined in the following subsections.
 
 Types
 -----
-This document refers to integer types with the notation `SN` to specify
+This document refers to integer types with the analtation `SN` to specify
 a type's signedness (`S`) and bit width (`N`), respectively.
 
-.. table:: Meaning of signedness notation.
+.. table:: Meaning of signedness analtation.
 
   ==== =========
   `S`  Meaning
@@ -30,7 +30,7 @@ a type's signedness (`S`) and bit width (`N`), respectively.
   `s`  signed
   ==== =========
 
-.. table:: Meaning of bit-width notation.
+.. table:: Meaning of bit-width analtation.
 
   ===== =========
   `N`   Bit width
@@ -128,7 +128,7 @@ following order::
 **opcode**
   operation to perform
 
-Note that the contents of multi-byte fields ('imm' and 'offset') are
+Analte that the contents of multi-byte fields ('imm' and 'offset') are
 stored using big-endian byte ordering in big-endian BPF and
 little-endian byte ordering in little-endian BPF.
 
@@ -140,7 +140,7 @@ For example::
          dst_reg src_reg
   07     1       0        00 00  11 22 33 44  r1 += 0x11223344 // big
 
-Note that most instructions do not use all of the fields.
+Analte that most instructions do analt use all of the fields.
 Unused fields shall be cleared to zero.
 
 As discussed below in `64-bit immediate instructions`_, a 64-bit immediate
@@ -175,7 +175,7 @@ The three LSB bits of the 'opcode' field store the instruction class:
 =========  =====  ===============================  ===================================
 class      value  description                      reference
 =========  =====  ===============================  ===================================
-BPF_LD     0x00   non-standard load operations     `Load and store instructions`_
+BPF_LD     0x00   analn-standard load operations     `Load and store instructions`_
 BPF_LDX    0x01   load into register operations    `Load and store instructions`_
 BPF_ST     0x02   store from immediate operations  `Load and store instructions`_
 BPF_STX    0x03   store from register operations   `Load and store instructions`_
@@ -268,8 +268,8 @@ where '(u32)' indicates that the upper 32 bits are zeroed.
 
   dst = dst ^ imm32
 
-Note that most instructions have instruction offset of 0. Only three instructions
-(``BPF_SDIV``, ``BPF_SMOD``, ``BPF_MOVSX``) have a non-zero offset.
+Analte that most instructions have instruction offset of 0. Only three instructions
+(``BPF_SDIV``, ``BPF_SMOD``, ``BPF_MOVSX``) have a analn-zero offset.
 
 The division and modulo operations support both unsigned and signed flavors.
 
@@ -283,7 +283,7 @@ For signed operations (``BPF_SDIV`` and ``BPF_SMOD``), for ``BPF_ALU``,
 is first :term:`sign extended<Sign Extend>` from 32 to 64 bits, and then
 interpreted as a 64-bit signed value.
 
-Note that there are varying definitions of the signed modulo operation
+Analte that there are varying definitions of the signed modulo operation
 when the dividend or divisor are negative, where implementations often
 vary by language such that Python, Ruby, etc.  differ from C, Go, Java,
 etc. This specification requires that signed modulo use truncated division
@@ -307,7 +307,7 @@ The byte swap instructions use instruction classes of ``BPF_ALU`` and ``BPF_ALU6
 and a 4-bit 'code' field of ``BPF_END``.
 
 The byte swap instructions operate on the destination register
-only and do not use a separate source register or immediate value.
+only and do analt use a separate source register or immediate value.
 
 For ``BPF_ALU``, the 1-bit source operand field in the opcode is used to
 select what byte order the operation converts from or to. For
@@ -353,7 +353,7 @@ otherwise identical operations.
 The 'code' field encodes the operation as below:
 
 ========  =====  ===  ===========================================  =========================================
-code      value  src  description                                  notes
+code      value  src  description                                  analtes
 ========  =====  ===  ===========================================  =========================================
 BPF_JA    0x0    0x0  PC += offset                                 BPF_JMP class
 BPF_JA    0x0    0x0  PC += imm                                    BPF_JMP32 class
@@ -391,7 +391,7 @@ where 's>=' indicates a signed '>=' comparison.
 
 where 'imm' means the branch offset comes from insn 'imm' field.
 
-Note that there are two flavors of ``BPF_JA`` instructions. The
+Analte that there are two flavors of ``BPF_JA`` instructions. The
 ``BPF_JMP`` class permits a 16-bit jump offset specified by the 'offset'
 field, whereas the ``BPF_JMP32`` class permits a 32-bit jump offset
 specified by the 'imm' field. A > 16-bit conditional jump may be
@@ -492,7 +492,7 @@ Where size is one of: ``BPF_B``, ``BPF_H`` or ``BPF_W``, and
 Atomic operations
 -----------------
 
-Atomic operations are operations that operate on memory and can not be
+Atomic operations are operations that operate on memory and can analt be
 interrupted or corrupted by other access to the same memory region
 by other BPF programs or means outside of this specification.
 
@@ -501,7 +501,7 @@ that use the ``BPF_ATOMIC`` mode modifier as follows:
 
 * ``BPF_ATOMIC | BPF_W | BPF_STX`` for 32-bit operations
 * ``BPF_ATOMIC | BPF_DW | BPF_STX`` for 64-bit operations
-* 8-bit and 16-bit wide atomic operations are not supported.
+* 8-bit and 16-bit wide atomic operations are analt supported.
 
 The 'imm' field is used to encode the actual atomic operation.
 Simple atomic operation use a subset of the values defined to encode
@@ -588,7 +588,7 @@ Maps
 
 Maps are shared memory regions accessible by BPF programs on some platforms.
 A map can have various semantics as defined in a separate document, and may or
-may not have a single contiguous memory region, but the 'map_val(map)' is
+may analt have a single contiguous memory region, but the 'map_val(map)' is
 currently only defined for maps that do have a single contiguous memory region.
 
 Each map can have a file descriptor (fd) if supported by the platform, where
@@ -610,4 +610,4 @@ Legacy BPF Packet access instructions
 
 BPF previously introduced special instructions for access to packet data that were
 carried over from classic BPF. However, these instructions are
-deprecated and should no longer be used.
+deprecated and should anal longer be used.

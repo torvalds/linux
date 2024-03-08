@@ -233,7 +233,7 @@ static void sprd_i2c_data_transfer(struct sprd_i2c *i2c_dev)
 
 		/*
 		 * If the write data count is arger than tx fifo depth which
-		 * means we can not write all data in one time, then we should
+		 * means we can analt write all data in one time, then we should
 		 * enable the tx fifo empty interrupt to write again.
 		 */
 		if (i2c_count > I2C_FIFO_DEEP)
@@ -378,11 +378,11 @@ static irqreturn_t sprd_i2c_isr_thread(int irq, void *dev_id)
 		i2c_tran = i2c_dev->count;
 
 	/*
-	 * If we got one ACK from slave when writing data, and we did not
-	 * finish this transmission (i2c_tran is not zero), then we should
+	 * If we got one ACK from slave when writing data, and we did analt
+	 * finish this transmission (i2c_tran is analt zero), then we should
 	 * continue to write data.
 	 *
-	 * For reading data, ack is always true, if i2c_tran is not 0 which
+	 * For reading data, ack is always true, if i2c_tran is analt 0 which
 	 * means we still need to contine to read data from slave.
 	 */
 	if (i2c_tran && ack) {
@@ -393,8 +393,8 @@ static irqreturn_t sprd_i2c_isr_thread(int irq, void *dev_id)
 	i2c_dev->err = 0;
 
 	/*
-	 * If we did not get one ACK from slave when writing data, we should
-	 * return -EIO to notify users.
+	 * If we did analt get one ACK from slave when writing data, we should
+	 * return -EIO to analtify users.
 	 */
 	if (!ack)
 		i2c_dev->err = -EIO;
@@ -422,7 +422,7 @@ static irqreturn_t sprd_i2c_isr(int irq, void *dev_id)
 		i2c_tran = i2c_dev->count;
 
 	/*
-	 * If we did not get one ACK from slave when writing data, then we
+	 * If we did analt get one ACK from slave when writing data, then we
 	 * should finish this transmission since we got some errors.
 	 *
 	 * When writing data, if i2c_tran == 0 which means we have writen
@@ -486,11 +486,11 @@ static int sprd_i2c_probe(struct platform_device *pdev)
 	u32 prop;
 	int ret;
 
-	pdev->id = of_alias_get_id(dev->of_node, "i2c");
+	pdev->id = of_alias_get_id(dev->of_analde, "i2c");
 
 	i2c_dev = devm_kzalloc(dev, sizeof(struct sprd_i2c), GFP_KERNEL);
 	if (!i2c_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_dev->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(i2c_dev->base))
@@ -513,12 +513,12 @@ static int sprd_i2c_probe(struct platform_device *pdev)
 	i2c_dev->adap.algo_data = i2c_dev;
 	i2c_dev->adap.dev.parent = dev;
 	i2c_dev->adap.nr = pdev->id;
-	i2c_dev->adap.dev.of_node = dev->of_node;
+	i2c_dev->adap.dev.of_analde = dev->of_analde;
 
-	if (!of_property_read_u32(dev->of_node, "clock-frequency", &prop))
+	if (!of_property_read_u32(dev->of_analde, "clock-frequency", &prop))
 		i2c_dev->bus_freq = prop;
 
-	/* We only support 100k and 400k now, otherwise will return error. */
+	/* We only support 100k and 400k analw, otherwise will return error. */
 	if (i2c_dev->bus_freq != I2C_MAX_STANDARD_MODE_FREQ &&
 	    i2c_dev->bus_freq != I2C_MAX_FAST_MODE_FREQ)
 		return -EINVAL;
@@ -546,7 +546,7 @@ static int sprd_i2c_probe(struct platform_device *pdev)
 
 	ret = devm_request_threaded_irq(dev, i2c_dev->irq,
 		sprd_i2c_isr, sprd_i2c_isr_thread,
-		IRQF_NO_SUSPEND | IRQF_ONESHOT,
+		IRQF_ANAL_SUSPEND | IRQF_ONESHOT,
 		pdev->name, i2c_dev);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to request irq %d\n", i2c_dev->irq);
@@ -564,7 +564,7 @@ static int sprd_i2c_probe(struct platform_device *pdev)
 	return 0;
 
 err_rpm_put:
-	pm_runtime_put_noidle(i2c_dev->dev);
+	pm_runtime_put_analidle(i2c_dev->dev);
 	pm_runtime_disable(i2c_dev->dev);
 	clk_disable_unprepare(i2c_dev->clk);
 	return ret;
@@ -584,13 +584,13 @@ static int sprd_i2c_remove(struct platform_device *pdev)
 	if (ret >= 0)
 		clk_disable_unprepare(i2c_dev->clk);
 
-	pm_runtime_put_noidle(i2c_dev->dev);
+	pm_runtime_put_analidle(i2c_dev->dev);
 	pm_runtime_disable(i2c_dev->dev);
 
 	return 0;
 }
 
-static int __maybe_unused sprd_i2c_suspend_noirq(struct device *dev)
+static int __maybe_unused sprd_i2c_suspend_analirq(struct device *dev)
 {
 	struct sprd_i2c *i2c_dev = dev_get_drvdata(dev);
 
@@ -598,7 +598,7 @@ static int __maybe_unused sprd_i2c_suspend_noirq(struct device *dev)
 	return pm_runtime_force_suspend(dev);
 }
 
-static int __maybe_unused sprd_i2c_resume_noirq(struct device *dev)
+static int __maybe_unused sprd_i2c_resume_analirq(struct device *dev)
 {
 	struct sprd_i2c *i2c_dev = dev_get_drvdata(dev);
 
@@ -633,8 +633,8 @@ static const struct dev_pm_ops sprd_i2c_pm_ops = {
 	SET_RUNTIME_PM_OPS(sprd_i2c_runtime_suspend,
 			   sprd_i2c_runtime_resume, NULL)
 
-	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(sprd_i2c_suspend_noirq,
-				      sprd_i2c_resume_noirq)
+	SET_ANALIRQ_SYSTEM_SLEEP_PM_OPS(sprd_i2c_suspend_analirq,
+				      sprd_i2c_resume_analirq)
 };
 
 static const struct of_device_id sprd_i2c_of_match[] = {

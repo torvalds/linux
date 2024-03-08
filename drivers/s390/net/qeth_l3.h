@@ -14,20 +14,20 @@
 #include <linux/hashtable.h>
 
 enum qeth_ip_types {
-	QETH_IP_TYPE_NORMAL,
+	QETH_IP_TYPE_ANALRMAL,
 	QETH_IP_TYPE_VIPA,
 	QETH_IP_TYPE_RXIP,
 };
 
 struct qeth_ipaddr {
-	struct hlist_node hnode;
+	struct hlist_analde hanalde;
 	enum qeth_ip_types type;
 	u8 is_multicast:1;
 	u8 disp_flag:2;
 	u8 ipato:1;			/* ucast only */
 
-	/* is changed only for normal ip addresses
-	 * for non-normal addresses it always is  1
+	/* is changed only for analrmal ip addresses
+	 * for analn-analrmal addresses it always is  1
 	 */
 	int  ref_counter;
 	enum qeth_prot_versions proto;
@@ -50,7 +50,7 @@ static inline void qeth_l3_init_ipaddr(struct qeth_ipaddr *addr,
 	memset(addr, 0, sizeof(*addr));
 	addr->type = type;
 	addr->proto = proto;
-	addr->disp_flag = QETH_DISP_ADDR_DO_NOTHING;
+	addr->disp_flag = QETH_DISP_ADDR_DO_ANALTHING;
 	addr->ref_counter = 1;
 }
 
@@ -71,7 +71,7 @@ static inline bool qeth_l3_addr_match_all(struct qeth_ipaddr *a1,
 	 * so 'proto' and 'addr' match for sure.
 	 *
 	 * For ucast:
-	 * -	'mask'/'pfxlen' for RXIP/VIPA is always 0. For NORMAL, matching
+	 * -	'mask'/'pfxlen' for RXIP/VIPA is always 0. For ANALRMAL, matching
 	 *	values are required to avoid mixups in takeover eligibility.
 	 *
 	 * For mcast,

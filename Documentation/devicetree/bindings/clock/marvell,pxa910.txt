@@ -15,7 +15,7 @@ Required Properties:
 - #clock-cells: should be 1.
 - #reset-cells: should be 1.
 
-Each clock is assigned an identifier and client nodes use this identifier
+Each clock is assigned an identifier and client analdes use this identifier
 to specify the clock which they consume.
 
 All these identifier could be found in <dt-bindings/clock/marvell-pxa910.h>.

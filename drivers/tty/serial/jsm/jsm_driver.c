@@ -22,14 +22,14 @@ MODULE_LICENSE("GPL");
 
 #define JSM_DRIVER_NAME "jsm"
 #define NR_PORTS	32
-#define JSM_MINOR_START	0
+#define JSM_MIANALR_START	0
 
 struct uart_driver jsm_uart_driver = {
 	.owner		= THIS_MODULE,
 	.driver_name	= JSM_DRIVER_NAME,
 	.dev_name	= "ttyn",
 	.major		= 0,
-	.minor		= JSM_MINOR_START,
+	.mianalr		= JSM_MIANALR_START,
 	.nr		= NR_PORTS,
 };
 
@@ -68,7 +68,7 @@ static int jsm_probe_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	brd = kzalloc(sizeof(*brd), GFP_KERNEL);
 	if (!brd) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out_release_regions;
 	}
 
@@ -156,8 +156,8 @@ static int jsm_probe_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 						pci_resource_len(pdev, 4));
 		if (!brd->re_map_membase) {
 			dev_err(&pdev->dev,
-				"Card has no PCI Memory resources, failing board.\n");
-			rc = -ENOMEM;
+				"Card has anal PCI Memory resources, failing board.\n");
+			rc = -EANALMEM;
 			goto out_kfree_brd;
 		}
 
@@ -204,8 +204,8 @@ static int jsm_probe_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 						pci_resource_len(pdev, 0));
 		if (!brd->re_map_membase) {
 			dev_err(&pdev->dev,
-				"Card has no PCI Memory resources, failing board.\n");
-			rc = -ENOMEM;
+				"Card has anal PCI Memory resources, failing board.\n");
+			rc = -EANALMEM;
 			goto out_kfree_brd;
 		}
 
@@ -269,7 +269,7 @@ static void jsm_remove_one(struct pci_dev *pdev)
 	case PCI_DEVICE_ID_CLASSIC_4_422:
 	case PCI_DEVICE_ID_CLASSIC_8:
 	case PCI_DEVICE_ID_CLASSIC_8_422:
-		/* Tell card not to interrupt anymore. */
+		/* Tell card analt to interrupt anymore. */
 		outb(0x0, brd->iobase + 0x4c);
 		break;
 	default:

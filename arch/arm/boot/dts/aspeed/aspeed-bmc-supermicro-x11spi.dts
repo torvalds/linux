@@ -24,7 +24,7 @@
 		ranges;
 
 		vga_memory: framebuffer@7f000000 {
-			no-map;
+			anal-map;
 			reg = <0x7f000000 0x01000000>;
 		};
 	};
@@ -61,7 +61,7 @@
 	flash@0 {
 		status = "okay";
 		m25p,fast-read;
-		label = "pnor";
+		label = "panalr";
 	};
 };
 
@@ -124,7 +124,7 @@
 };
 
 &pinctrl {
-	aspeed,external-nodes = <&gfx &lhc>;
+	aspeed,external-analdes = <&gfx &lhc>;
 };
 
 &pwm_tacho {

@@ -16,7 +16,7 @@
 
 #define MT6359_BUCK_MODE_AUTO		0
 #define MT6359_BUCK_MODE_FORCE_PWM	1
-#define MT6359_BUCK_MODE_NORMAL		0
+#define MT6359_BUCK_MODE_ANALRMAL		0
 #define MT6359_BUCK_MODE_LP		2
 
 /*
@@ -47,7 +47,7 @@ struct mt6359_regulator_info {
 	.desc = {						\
 		.name = #_name,					\
 		.of_match = of_match_ptr(match),		\
-		.regulators_node = of_match_ptr("regulators"),	\
+		.regulators_analde = of_match_ptr("regulators"),	\
 		.ops = &mt6359_volt_linear_ops,			\
 		.type = REGULATOR_VOLTAGE,			\
 		.id = MT6359_ID_##_name,			\
@@ -75,7 +75,7 @@ struct mt6359_regulator_info {
 	.desc = {						\
 		.name = #_name,					\
 		.of_match = of_match_ptr(match),		\
-		.regulators_node = of_match_ptr("regulators"),	\
+		.regulators_analde = of_match_ptr("regulators"),	\
 		.ops = &mt6359_volt_linear_ops,			\
 		.type = REGULATOR_VOLTAGE,			\
 		.id = MT6359_ID_##_name,			\
@@ -99,7 +99,7 @@ struct mt6359_regulator_info {
 	.desc = {						\
 		.name = #_name,					\
 		.of_match = of_match_ptr(match),		\
-		.regulators_node = of_match_ptr("regulators"),	\
+		.regulators_analde = of_match_ptr("regulators"),	\
 		.ops = &mt6359_volt_table_ops,			\
 		.type = REGULATOR_VOLTAGE,			\
 		.id = MT6359_ID_##_name,			\
@@ -122,7 +122,7 @@ struct mt6359_regulator_info {
 	.desc = {					\
 		.name = #_name,				\
 		.of_match = of_match_ptr(match),	\
-		.regulators_node = of_match_ptr("regulators"),	\
+		.regulators_analde = of_match_ptr("regulators"),	\
 		.ops = &mt6359_volt_fixed_ops,		\
 		.type = REGULATOR_VOLTAGE,		\
 		.id = MT6359_ID_##_name,		\
@@ -143,7 +143,7 @@ struct mt6359_regulator_info {
 	.desc = {					\
 		.name = #_name,				\
 		.of_match = of_match_ptr(match),	\
-		.regulators_node = of_match_ptr("regulators"),	\
+		.regulators_analde = of_match_ptr("regulators"),	\
 		.ops = &_ops,				\
 		.type = REGULATOR_VOLTAGE,		\
 		.id = MT6359_ID_##_name,		\
@@ -236,8 +236,8 @@ static const unsigned int vsim2_voltages[] = {
 static inline unsigned int mt6359_map_mode(unsigned int mode)
 {
 	switch (mode) {
-	case MT6359_BUCK_MODE_NORMAL:
-		return REGULATOR_MODE_NORMAL;
+	case MT6359_BUCK_MODE_ANALRMAL:
+		return REGULATOR_MODE_ANALRMAL;
 	case MT6359_BUCK_MODE_FORCE_PWM:
 		return REGULATOR_MODE_FAST;
 	case MT6359_BUCK_MODE_LP:
@@ -293,7 +293,7 @@ static unsigned int mt6359_regulator_get_mode(struct regulator_dev *rdev)
 	if (regval & info->lp_mode_mask)
 		return REGULATOR_MODE_IDLE;
 	else
-		return REGULATOR_MODE_NORMAL;
+		return REGULATOR_MODE_ANALRMAL;
 }
 
 static int mt6359_regulator_set_mode(struct regulator_dev *rdev,
@@ -313,7 +313,7 @@ static int mt6359_regulator_set_mode(struct regulator_dev *rdev,
 					 info->modeset_mask,
 					 val);
 		break;
-	case REGULATOR_MODE_NORMAL:
+	case REGULATOR_MODE_ANALRMAL:
 		if (curr_mode == REGULATOR_MODE_FAST) {
 			val = MT6359_BUCK_MODE_AUTO;
 			val <<= ffs(info->modeset_mask) - 1;
@@ -322,7 +322,7 @@ static int mt6359_regulator_set_mode(struct regulator_dev *rdev,
 						 info->modeset_mask,
 						 val);
 		} else if (curr_mode == REGULATOR_MODE_IDLE) {
-			val = MT6359_BUCK_MODE_NORMAL;
+			val = MT6359_BUCK_MODE_ANALRMAL;
 			val <<= ffs(info->lp_mode_mask) - 1;
 			ret = regmap_update_bits(rdev->regmap,
 						 info->lp_mode_reg,
@@ -985,7 +985,7 @@ MODULE_DEVICE_TABLE(platform, mt6359_platform_ids);
 static struct platform_driver mt6359_regulator_driver = {
 	.driver = {
 		.name = "mt6359-regulator",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 	.probe = mt6359_regulator_probe,
 	.id_table = mt6359_platform_ids,

@@ -21,7 +21,7 @@ static void host1x_memory_context_release(struct device *dev)
 int host1x_memory_context_list_init(struct host1x *host1x)
 {
 	struct host1x_memory_context_list *cdl = &host1x->context_list;
-	struct device_node *node = host1x->dev->of_node;
+	struct device_analde *analde = host1x->dev->of_analde;
 	struct host1x_memory_context *ctx;
 	unsigned int i;
 	int err;
@@ -30,14 +30,14 @@ int host1x_memory_context_list_init(struct host1x *host1x)
 	cdl->len = 0;
 	mutex_init(&cdl->lock);
 
-	err = of_property_count_u32_elems(node, "iommu-map");
+	err = of_property_count_u32_elems(analde, "iommu-map");
 	if (err < 0)
 		return 0;
 
 	cdl->len = err / 4;
 	cdl->devs = kcalloc(cdl->len, sizeof(*cdl->devs), GFP_KERNEL);
 	if (!cdl->devs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < cdl->len; i++) {
 		ctx = &cdl->devs[i];
@@ -48,7 +48,7 @@ int host1x_memory_context_list_init(struct host1x *host1x)
 
 		/*
 		 * Due to an issue with T194 NVENC, only 38 bits can be used.
-		 * Anyway, 256GiB of IOVA ought to be enough for anyone.
+		 * Anyway, 256GiB of IOVA ought to be eanalugh for anyone.
 		 */
 		ctx->dma_mask = DMA_BIT_MASK(38);
 		ctx->dev.dma_mask = &ctx->dma_mask;
@@ -62,12 +62,12 @@ int host1x_memory_context_list_init(struct host1x *host1x)
 
 		err = device_add(&ctx->dev);
 		if (err) {
-			dev_err(host1x->dev, "could not add context device %d: %d\n", i, err);
+			dev_err(host1x->dev, "could analt add context device %d: %d\n", i, err);
 			put_device(&ctx->dev);
 			goto unreg_devices;
 		}
 
-		err = of_dma_configure_id(&ctx->dev, node, true, &i);
+		err = of_dma_configure_id(&ctx->dev, analde, true, &i);
 		if (err) {
 			dev_err(host1x->dev, "IOMMU configuration failed for context device %d: %d\n",
 				i, err);
@@ -77,7 +77,7 @@ int host1x_memory_context_list_init(struct host1x *host1x)
 
 		if (!tegra_dev_iommu_get_stream_id(&ctx->dev, &ctx->stream_id) ||
 		    !device_iommu_mapped(&ctx->dev)) {
-			dev_err(host1x->dev, "Context device %d has no IOMMU!\n", i);
+			dev_err(host1x->dev, "Context device %d has anal IOMMU!\n", i);
 			device_unregister(&ctx->dev);
 
 			/*
@@ -124,7 +124,7 @@ struct host1x_memory_context *host1x_memory_context_alloc(struct host1x *host1x,
 	int i;
 
 	if (!cdl->len)
-		return ERR_PTR(-EOPNOTSUPP);
+		return ERR_PTR(-EOPANALTSUPP);
 
 	mutex_lock(&cdl->lock);
 

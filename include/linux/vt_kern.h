@@ -14,7 +14,7 @@
 #include <linux/console_struct.h>
 #include <linux/mm.h>
 #include <linux/consolemap.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 
 void kd_mksound(unsigned int hz, unsigned int ticks);
 int kbd_rate(struct kbd_repeat *rep);
@@ -133,15 +133,15 @@ extern struct vt_spawn_console vt_spawn_con;
 
 int vt_move_to_console(unsigned int vt, int alloc);
 
-/* Interfaces for VC notification of character events (for accessibility etc) */
+/* Interfaces for VC analtification of character events (for accessibility etc) */
 
-struct vt_notifier_param {
+struct vt_analtifier_param {
 	struct vc_data *vc;	/* VC on which the update happened */
 	unsigned int c;		/* Printed char */
 };
 
-int register_vt_notifier(struct notifier_block *nb);
-int unregister_vt_notifier(struct notifier_block *nb);
+int register_vt_analtifier(struct analtifier_block *nb);
+int unregister_vt_analtifier(struct analtifier_block *nb);
 
 void hide_boot_cursor(bool hide);
 

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-// Driver for the Texas Instruments TAS2780 Mono
+// Driver for the Texas Instruments TAS2780 Moanal
 //		Audio amplifier
 // Copyright (C) 2022 Texas Instruments Inc.
 
@@ -107,8 +107,8 @@ static const struct snd_kcontrol_new vsense_switch =
 			TAS2780_VSENSE_POWER_EN, 1, 1);
 
 static const struct snd_soc_dapm_widget tas2780_dapm_widgets[] = {
-	SND_SOC_DAPM_AIF_IN("ASI1", "ASI1 Playback", 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_MUX("ASI1 Sel", SND_SOC_NOPM, 0, 0, &tas2780_asi1_mux),
+	SND_SOC_DAPM_AIF_IN("ASI1", "ASI1 Playback", 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_MUX("ASI1 Sel", SND_SOC_ANALPM, 0, 0, &tas2780_asi1_mux),
 	SND_SOC_DAPM_SWITCH("ISENSE", TAS2780_PWR_CTRL,
 		TAS2780_ISENSE_POWER_EN, 1, &isense_switch),
 	SND_SOC_DAPM_SWITCH("VSENSE", TAS2780_PWR_CTRL,
@@ -309,7 +309,7 @@ static int tas2780_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		asi_cfg_1 = TAS2780_TDM_CFG1_RX_FALLING;
 		break;
 	default:
-		dev_err(tas2780->dev, "ASI format Inverse is not found\n");
+		dev_err(tas2780->dev, "ASI format Inverse is analt found\n");
 		return -EINVAL;
 	}
 
@@ -336,7 +336,7 @@ static int tas2780_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 			tdm_rx_start_slot = 0;
 		} else {
 			dev_err(tas2780->dev,
-				"%s:DAI Format is not found, fmt=0x%x\n",
+				"%s:DAI Format is analt found, fmt=0x%x\n",
 				__func__, fmt);
 			ret = -EINVAL;
 			goto err;
@@ -452,7 +452,7 @@ static const struct snd_soc_dai_ops tas2780_dai_ops = {
 	.hw_params  = tas2780_hw_params,
 	.set_fmt    = tas2780_set_fmt,
 	.set_tdm_slot = tas2780_set_dai_tdm_slot,
-	.no_capture_mute = 1,
+	.anal_capture_mute = 1,
 };
 
 #define TAS2780_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE |\
@@ -578,12 +578,12 @@ static int tas2780_parse_dt(struct device *dev, struct tas2780_priv *tas2780)
 		}
 	}
 
-	ret = fwnode_property_read_u32(dev->fwnode, "ti,imon-slot-no",
+	ret = fwanalde_property_read_u32(dev->fwanalde, "ti,imon-slot-anal",
 		&tas2780->i_sense_slot);
 	if (ret)
 		tas2780->i_sense_slot = 0;
 
-	ret = fwnode_property_read_u32(dev->fwnode, "ti,vmon-slot-no",
+	ret = fwanalde_property_read_u32(dev->fwanalde, "ti,vmon-slot-anal",
 		&tas2780->v_sense_slot);
 	if (ret)
 		tas2780->v_sense_slot = 2;
@@ -599,7 +599,7 @@ static int tas2780_i2c_probe(struct i2c_client *client)
 	tas2780 = devm_kzalloc(&client->dev, sizeof(struct tas2780_priv),
 		GFP_KERNEL);
 	if (!tas2780)
-		return -ENOMEM;
+		return -EANALMEM;
 	tas2780->dev = &client->dev;
 	i2c_set_clientdata(client, tas2780);
 	dev_set_drvdata(&client->dev, tas2780);
@@ -612,7 +612,7 @@ static int tas2780_i2c_probe(struct i2c_client *client)
 		return result;
 	}
 
-	if (client->dev.of_node) {
+	if (client->dev.of_analde) {
 		result = tas2780_parse_dt(&client->dev, tas2780);
 		if (result) {
 			dev_err(tas2780->dev,

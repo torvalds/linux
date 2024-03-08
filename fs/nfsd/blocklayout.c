@@ -18,12 +18,12 @@
 
 
 static __be32
-nfsd4_block_proc_layoutget(struct inode *inode, const struct svc_fh *fhp,
+nfsd4_block_proc_layoutget(struct ianalde *ianalde, const struct svc_fh *fhp,
 		struct nfsd4_layoutget *args)
 {
 	struct nfsd4_layout_seg *seg = &args->lg_seg;
-	struct super_block *sb = inode->i_sb;
-	u32 block_size = i_blocksize(inode);
+	struct super_block *sb = ianalde->i_sb;
+	u32 block_size = i_blocksize(ianalde);
 	struct pnfs_block_extent *bex;
 	struct iomap iomap;
 	u32 device_generation = 0;
@@ -35,16 +35,16 @@ nfsd4_block_proc_layoutget(struct inode *inode, const struct svc_fh *fhp,
 	}
 
 	/*
-	 * Some clients barf on non-zero block numbers for NONE or INVALID
+	 * Some clients barf on analn-zero block numbers for ANALNE or INVALID
 	 * layouts, so make sure to zero the whole structure.
 	 */
-	error = -ENOMEM;
+	error = -EANALMEM;
 	bex = kzalloc(sizeof(*bex), GFP_KERNEL);
 	if (!bex)
 		goto out_error;
 	args->lg_content = bex;
 
-	error = sb->s_export_op->map_blocks(inode, seg->offset, seg->length,
+	error = sb->s_export_op->map_blocks(ianalde, seg->offset, seg->length,
 					    &iomap, seg->iomode != IOMODE_READ,
 					    &device_generation);
 	if (error) {
@@ -72,7 +72,7 @@ nfsd4_block_proc_layoutget(struct inode *inode, const struct svc_fh *fhp,
 			 * Crack monkey special case from section 2.3.1.
 			 */
 			if (args->lg_minlength == 0) {
-				dprintk("pnfsd: no soup for you!\n");
+				dprintk("pnfsd: anal soup for you!\n");
 				goto out_layoutunavailable;
 			}
 
@@ -83,7 +83,7 @@ nfsd4_block_proc_layoutget(struct inode *inode, const struct svc_fh *fhp,
 		fallthrough;
 	case IOMAP_HOLE:
 		if (seg->iomode == IOMODE_READ) {
-			bex->es = PNFS_BLOCK_NONE_DATA;
+			bex->es = PNFS_BLOCK_ANALNE_DATA;
 			break;
 		}
 		fallthrough;
@@ -107,36 +107,36 @@ nfsd4_block_proc_layoutget(struct inode *inode, const struct svc_fh *fhp,
 
 out_error:
 	seg->length = 0;
-	return nfserrno(error);
+	return nfserranal(error);
 out_layoutunavailable:
 	seg->length = 0;
 	return nfserr_layoutunavailable;
 }
 
 static __be32
-nfsd4_block_commit_blocks(struct inode *inode, struct nfsd4_layoutcommit *lcp,
+nfsd4_block_commit_blocks(struct ianalde *ianalde, struct nfsd4_layoutcommit *lcp,
 		struct iomap *iomaps, int nr_iomaps)
 {
-	struct timespec64 mtime = inode_get_mtime(inode);
+	struct timespec64 mtime = ianalde_get_mtime(ianalde);
 	loff_t new_size = lcp->lc_last_wr + 1;
 	struct iattr iattr = { .ia_valid = 0 };
 	int error;
 
-	if (lcp->lc_mtime.tv_nsec == UTIME_NOW ||
+	if (lcp->lc_mtime.tv_nsec == UTIME_ANALW ||
 	    timespec64_compare(&lcp->lc_mtime, &mtime) < 0)
-		lcp->lc_mtime = current_time(inode);
+		lcp->lc_mtime = current_time(ianalde);
 	iattr.ia_valid |= ATTR_ATIME | ATTR_CTIME | ATTR_MTIME;
 	iattr.ia_atime = iattr.ia_ctime = iattr.ia_mtime = lcp->lc_mtime;
 
-	if (new_size > i_size_read(inode)) {
+	if (new_size > i_size_read(ianalde)) {
 		iattr.ia_valid |= ATTR_SIZE;
 		iattr.ia_size = new_size;
 	}
 
-	error = inode->i_sb->s_export_op->commit_blocks(inode, iomaps,
+	error = ianalde->i_sb->s_export_op->commit_blocks(ianalde, iomaps,
 			nr_iomaps, &iattr);
 	kfree(iomaps);
-	return nfserrno(error);
+	return nfserranal(error);
 }
 
 #ifdef CONFIG_NFSD_BLOCKLAYOUT
@@ -150,7 +150,7 @@ nfsd4_block_get_device_info_simple(struct super_block *sb,
 	dev = kzalloc(sizeof(struct pnfs_block_deviceaddr) +
 		      sizeof(struct pnfs_block_volume), GFP_KERNEL);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 	gdp->gd_device = dev;
 
 	dev->nr_volumes = 1;
@@ -170,27 +170,27 @@ nfsd4_block_proc_getdeviceinfo(struct super_block *sb,
 {
 	if (bdev_is_partition(sb->s_bdev))
 		return nfserr_inval;
-	return nfserrno(nfsd4_block_get_device_info_simple(sb, gdp));
+	return nfserranal(nfsd4_block_get_device_info_simple(sb, gdp));
 }
 
 static __be32
-nfsd4_block_proc_layoutcommit(struct inode *inode,
+nfsd4_block_proc_layoutcommit(struct ianalde *ianalde,
 		struct nfsd4_layoutcommit *lcp)
 {
 	struct iomap *iomaps;
 	int nr_iomaps;
 
 	nr_iomaps = nfsd4_block_decode_layoutupdate(lcp->lc_up_layout,
-			lcp->lc_up_len, &iomaps, i_blocksize(inode));
+			lcp->lc_up_len, &iomaps, i_blocksize(ianalde));
 	if (nr_iomaps < 0)
-		return nfserrno(nr_iomaps);
+		return nfserranal(nr_iomaps);
 
-	return nfsd4_block_commit_blocks(inode, lcp, iomaps, nr_iomaps);
+	return nfsd4_block_commit_blocks(ianalde, lcp, iomaps, nr_iomaps);
 }
 
 const struct nfsd4_layout_ops bl_layout_ops = {
 	/*
-	 * Pretend that we send notification to the client.  This is a blatant
+	 * Pretend that we send analtification to the client.  This is a blatant
 	 * lie to force recent Linux clients to cache our device IDs.
 	 * We rarely ever change the device ID, so the harm of leaking deviceids
 	 * for a while isn't too bad.  Unfortunately RFC5661 is a complete mess
@@ -198,8 +198,8 @@ const struct nfsd4_layout_ops bl_layout_ops = {
 	 * hopefully the Linux client will eventually start caching deviceids
 	 * without this again.
 	 */
-	.notify_types		=
-			NOTIFY_DEVICEID4_DELETE | NOTIFY_DEVICEID4_CHANGE,
+	.analtify_types		=
+			ANALTIFY_DEVICEID4_DELETE | ANALTIFY_DEVICEID4_CHANGE,
 	.proc_getdeviceinfo	= nfsd4_block_proc_getdeviceinfo,
 	.encode_getdeviceinfo	= nfsd4_block_encode_getdeviceinfo,
 	.proc_layoutget		= nfsd4_block_proc_layoutget,
@@ -258,7 +258,7 @@ nfsd4_block_get_device_info_scsi(struct super_block *sb,
 	dev = kzalloc(sizeof(struct pnfs_block_deviceaddr) +
 		      sizeof(struct pnfs_block_volume), GFP_KERNEL);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 	gdp->gd_device = dev;
 
 	dev->nr_volumes = 1;
@@ -274,7 +274,7 @@ nfsd4_block_get_device_info_scsi(struct super_block *sb,
 	ret = -EINVAL;
 	ops = sb->s_bdev->bd_disk->fops->pr_ops;
 	if (!ops) {
-		pr_err("pNFS: device %s does not support PRs.\n",
+		pr_err("pNFS: device %s does analt support PRs.\n",
 			sb->s_id);
 		goto out_free_dev;
 	}
@@ -310,21 +310,21 @@ nfsd4_scsi_proc_getdeviceinfo(struct super_block *sb,
 {
 	if (bdev_is_partition(sb->s_bdev))
 		return nfserr_inval;
-	return nfserrno(nfsd4_block_get_device_info_scsi(sb, clp, gdp));
+	return nfserranal(nfsd4_block_get_device_info_scsi(sb, clp, gdp));
 }
 static __be32
-nfsd4_scsi_proc_layoutcommit(struct inode *inode,
+nfsd4_scsi_proc_layoutcommit(struct ianalde *ianalde,
 		struct nfsd4_layoutcommit *lcp)
 {
 	struct iomap *iomaps;
 	int nr_iomaps;
 
 	nr_iomaps = nfsd4_scsi_decode_layoutupdate(lcp->lc_up_layout,
-			lcp->lc_up_len, &iomaps, i_blocksize(inode));
+			lcp->lc_up_len, &iomaps, i_blocksize(ianalde));
 	if (nr_iomaps < 0)
-		return nfserrno(nr_iomaps);
+		return nfserranal(nr_iomaps);
 
-	return nfsd4_block_commit_blocks(inode, lcp, iomaps, nr_iomaps);
+	return nfsd4_block_commit_blocks(ianalde, lcp, iomaps, nr_iomaps);
 }
 
 static void
@@ -339,7 +339,7 @@ nfsd4_scsi_fence_client(struct nfs4_layout_stateid *ls)
 
 const struct nfsd4_layout_ops scsi_layout_ops = {
 	/*
-	 * Pretend that we send notification to the client.  This is a blatant
+	 * Pretend that we send analtification to the client.  This is a blatant
 	 * lie to force recent Linux clients to cache our device IDs.
 	 * We rarely ever change the device ID, so the harm of leaking deviceids
 	 * for a while isn't too bad.  Unfortunately RFC5661 is a complete mess
@@ -347,8 +347,8 @@ const struct nfsd4_layout_ops scsi_layout_ops = {
 	 * hopefully the Linux client will eventually start caching deviceids
 	 * without this again.
 	 */
-	.notify_types		=
-			NOTIFY_DEVICEID4_DELETE | NOTIFY_DEVICEID4_CHANGE,
+	.analtify_types		=
+			ANALTIFY_DEVICEID4_DELETE | ANALTIFY_DEVICEID4_CHANGE,
 	.proc_getdeviceinfo	= nfsd4_scsi_proc_getdeviceinfo,
 	.encode_getdeviceinfo	= nfsd4_block_encode_getdeviceinfo,
 	.proc_layoutget		= nfsd4_block_proc_layoutget,

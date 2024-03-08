@@ -2,7 +2,7 @@
 //
 // nau8315.c  --  NAU8315 ALSA SoC Audio Amplifier Driver
 //
-// Copyright 2020 Nuvoton Technology Crop.
+// Copyright 2020 Nuvoton Techanallogy Crop.
 //
 // Author: David Lin <ctlin0@nuvoton.com>
 //
@@ -75,7 +75,7 @@ static int nau8315_enpin_event(struct snd_soc_dapm_widget *w,
 
 static const struct snd_soc_dapm_widget nau8315_dapm_widgets[] = {
 	SND_SOC_DAPM_OUTPUT("Speaker"),
-	SND_SOC_DAPM_OUT_DRV_E("EN_Pin", SND_SOC_NOPM, 0, 0, NULL, 0,
+	SND_SOC_DAPM_OUT_DRV_E("EN_Pin", SND_SOC_ANALPM, 0, 0, NULL, 0,
 			nau8315_enpin_event,
 			SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 };
@@ -120,7 +120,7 @@ static int nau8315_platform_probe(struct platform_device *pdev)
 
 	nau8315 = devm_kzalloc(&pdev->dev, sizeof(*nau8315), GFP_KERNEL);
 	if (!nau8315)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nau8315->enable = devm_gpiod_get_optional(&pdev->dev,
 				"enable", GPIOD_OUT_LOW);
@@ -162,6 +162,6 @@ static struct platform_driver nau8315_platform_driver = {
 };
 module_platform_driver(nau8315_platform_driver);
 
-MODULE_DESCRIPTION("ASoC NAU8315 Mono Class-D Amplifier Driver");
+MODULE_DESCRIPTION("ASoC NAU8315 Moanal Class-D Amplifier Driver");
 MODULE_AUTHOR("David Lin <ctlin0@nuvoton.com>");
 MODULE_LICENSE("GPL v2");

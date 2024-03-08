@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -57,14 +57,14 @@ enum dce_environment {
 	DCE_ENV_PRODUCTION_DRV = 0,
 	/* Emulation on FPGA, in "Maximus" System.
 	 * This environment enforces that *only* DC registers accessed.
-	 * (access to non-DC registers will hang FPGA) */
+	 * (access to analn-DC registers will hang FPGA) */
 	DCE_ENV_FPGA_MAXIMUS,
-	/* Emulation on real HW or on FPGA. Used by Diagnostics, enforces
-	 * requirements of Diagnostics team. */
+	/* Emulation on real HW or on FPGA. Used by Diaganalstics, enforces
+	 * requirements of Diaganalstics team. */
 	DCE_ENV_DIAG,
 	/*
-	 * Guest VM system, DC HW may exist but is not virtualized and
-	 * should not be used.  SW support for VDI only.
+	 * Guest VM system, DC HW may exist but is analt virtualized and
+	 * should analt be used.  SW support for VDI only.
 	 */
 	DCE_ENV_VIRTUAL_HW
 };
@@ -87,7 +87,7 @@ enum tiling_mode {
 };
 
 enum view_3d_format {
-	VIEW_3D_FORMAT_NONE = 0,
+	VIEW_3D_FORMAT_ANALNE = 0,
 	VIEW_3D_FORMAT_FRAME_SEQUENTIAL,
 	VIEW_3D_FORMAT_SIDE_BY_SIDE,
 	VIEW_3D_FORMAT_TOP_AND_BOTTOM,
@@ -96,7 +96,7 @@ enum view_3d_format {
 };
 
 enum plane_stereo_format {
-	PLANE_STEREO_FORMAT_NONE = 0,
+	PLANE_STEREO_FORMAT_ANALNE = 0,
 	PLANE_STEREO_FORMAT_SIDE_BY_SIDE = 1,
 	PLANE_STEREO_FORMAT_TOP_AND_BOTTOM = 2,
 	PLANE_STEREO_FORMAT_FRAME_ALTERNATE = 3,
@@ -111,7 +111,7 @@ enum plane_stereo_format {
  */
 
 enum dc_edid_connector_type {
-	DC_EDID_CONNECTOR_UNKNOWN = 0,
+	DC_EDID_CONNECTOR_UNKANALWN = 0,
 	DC_EDID_CONNECTOR_ANALOG = 1,
 	DC_EDID_CONNECTOR_DIGITAL = 10,
 	DC_EDID_CONNECTOR_DVI = 11,
@@ -123,7 +123,7 @@ enum dc_edid_connector_type {
 enum dc_edid_status {
 	EDID_OK,
 	EDID_BAD_INPUT,
-	EDID_NO_RESPONSE,
+	EDID_ANAL_RESPONSE,
 	EDID_BAD_CHECKSUM,
 	EDID_THE_SAME,
 	EDID_FALL_BACK,
@@ -154,7 +154,7 @@ struct dc_edid {
 	uint8_t raw_edid[DC_MAX_EDID_BUFFER_SIZE];
 };
 
-/* When speaker location data block is not available, DEFAULT_SPEAKER_LOCATION
+/* When speaker location data block is analt available, DEFAULT_SPEAKER_LOCATION
  * is used. In this case we assume speaker location are: front left, front
  * right and front center. */
 #define DEFAULT_SPEAKER_LOCATION 5
@@ -169,7 +169,7 @@ struct dc_panel_patch {
 	unsigned int extra_delay_backlight_off;
 	unsigned int extra_t7_ms;
 	unsigned int skip_scdc_overwrite;
-	unsigned int delay_ignore_msa;
+	unsigned int delay_iganalre_msa;
 	unsigned int disable_fec;
 	unsigned int extra_t3_ms;
 	unsigned int max_dsc_target_bpp_limit;
@@ -211,16 +211,16 @@ struct dc_edid_caps {
 };
 
 struct dc_mode_flags {
-	/* note: part of refresh rate flag*/
+	/* analte: part of refresh rate flag*/
 	uint32_t INTERLACE :1;
 	/* native display timing*/
 	uint32_t NATIVE :1;
 	/* preferred is the recommended mode, one per display */
 	uint32_t PREFERRED :1;
 	/* true if this mode should use reduced blanking timings
-	 *_not_ related to the Reduced Blanking adjustment*/
+	 *_analt_ related to the Reduced Blanking adjustment*/
 	uint32_t REDUCED_BLANKING :1;
-	/* note: part of refreshrate flag*/
+	/* analte: part of refreshrate flag*/
 	uint32_t VIDEO_OPTIMIZED_RATE :1;
 	/* should be reported to upper layers as mode_flags*/
 	uint32_t PACKED_PIXEL_FORMAT :1;
@@ -231,7 +231,7 @@ struct dc_mode_flags {
 	uint32_t DSE_MODE :1;
 	/* Refresh rate divider when Miracast sink is using a
 	 different rate than the output display device
-	 Must be zero for wired displays and non-zero for
+	 Must be zero for wired displays and analn-zero for
 	 Miracast displays*/
 	uint32_t MIRACAST_REFRESH_DIVIDER;
 };
@@ -269,7 +269,7 @@ enum dc_timing_source {
 	/* only used for custom base modes */
 	TIMING_SOURCE_CUSTOM_BASE,
 
-	/* these timing might not work, least important*/
+	/* these timing might analt work, least important*/
 	TIMING_SOURCE_RANGELIMIT,
 	TIMING_SOURCE_OS_FORCED,
 	TIMING_SOURCE_IMPLICIT,
@@ -337,7 +337,7 @@ enum dc_acpi_cm_power_state {
 };
 
 enum dc_connection_type {
-	dc_connection_none,
+	dc_connection_analne,
 	dc_connection_single,
 	dc_connection_mst_branch,
 	dc_connection_sst_branch
@@ -367,7 +367,7 @@ enum scaling_transformation {
 };
 
 enum display_content_type {
-	DISPLAY_CONTENT_TYPE_NO_DATA = 0,
+	DISPLAY_CONTENT_TYPE_ANAL_DATA = 0,
 	DISPLAY_CONTENT_TYPE_GRAPHICS = 1,
 	DISPLAY_CONTENT_TYPE_PHOTO = 2,
 	DISPLAY_CONTENT_TYPE_CINEMA = 4,
@@ -388,7 +388,7 @@ struct cm_grph_csc_adjustment {
 
 /* writeback */
 struct dwb_stereo_params {
-	bool				stereo_enabled;		/* false: normal mode, true: 3D stereo */
+	bool				stereo_enabled;		/* false: analrmal mode, true: 3D stereo */
 	enum dwb_stereo_type		stereo_type;		/* indicates stereo format */
 	bool				stereo_polarity;	/* indicates left eye or right eye comes first in stereo mode */
 	enum dwb_stereo_eye_select	stereo_eye_select;	/* indicate which eye should be captured */
@@ -404,7 +404,7 @@ struct dc_dwb_cnv_params {
 	unsigned int		crop_y;		/* cropped window start y value at cnv output */
 	enum dwb_cnv_out_bpc cnv_out_bpc;	/* cnv output pixel depth - 8bpc or 10bpc */
 	enum dwb_out_format	fc_out_format;	/* dwb output pixel format - 2101010 or 16161616 and ARGB or RGBA */
-	enum dwb_out_denorm	out_denorm_mode;/* dwb output denormalization mode */
+	enum dwb_out_deanalrm	out_deanalrm_mode;/* dwb output deanalrmalization mode */
 	unsigned int		out_max_pix_val;/* pixel values greater than out_max_pix_val are clamped to out_max_pix_val */
 	unsigned int		out_min_pix_val;/* pixel values less than out_min_pix_val are clamped to out_min_pix_val */
 };
@@ -618,7 +618,7 @@ union dmcu_psr_level {
 		unsigned int SKIP_AUX_ACK_CHECK:1;
 		unsigned int SKIP_CRTC_DISABLE:1;
 		unsigned int SKIP_AUX_RFB_CAPTURE_CHECK:1;
-		unsigned int SKIP_SMU_NOTIFICATION:1;
+		unsigned int SKIP_SMU_ANALTIFICATION:1;
 		unsigned int SKIP_AUTO_STATE_ADVANCE:1;
 		unsigned int DISABLE_PSR_ENTRY_ABORT:1;
 		unsigned int SKIP_SINGLE_OTG_DISABLE:1;
@@ -641,11 +641,11 @@ enum physical_phy_id {
 	PHYLD_8,
 	PHYLD_9,
 	PHYLD_COUNT,
-	PHYLD_UNKNOWN = (-1L)
+	PHYLD_UNKANALWN = (-1L)
 };
 
 enum phy_type {
-	PHY_TYPE_UNKNOWN  = 1,
+	PHY_TYPE_UNKANALWN  = 1,
 	PHY_TYPE_PCIE_PHY = 2,
 	PHY_TYPE_UNIPHY = 3,
 };
@@ -676,7 +676,7 @@ struct psr_context {
 	/* Whether fast link training is supported by the panel */
 	bool psrExitLinkTrainingRequired;
 	/* If RFB setup time is greater than the total VBLANK time,
-	 * it is not possible for the sink to capture the video frame
+	 * it is analt possible for the sink to capture the video frame
 	 * in the same frame the SDP is sent. In this case,
 	 * the frame capture indication bit should be set and an extra
 	 * static frame should be transmitted to the sink.
@@ -908,7 +908,7 @@ enum dc_psr_version {
 enum display_endpoint_type {
 	DISPLAY_ENDPOINT_PHY = 0, /* Physical connector. */
 	DISPLAY_ENDPOINT_USB4_DPIA, /* USB4 DisplayPort tunnel. */
-	DISPLAY_ENDPOINT_UNKNOWN = -1
+	DISPLAY_ENDPOINT_UNKANALWN = -1
 };
 
 /* Extends graphics_object_id with an additional member 'ep_type' for
@@ -1011,7 +1011,7 @@ struct psr_settings {
 };
 
 enum replay_coasting_vtotal_type {
-	PR_COASTING_TYPE_NOM = 0,
+	PR_COASTING_TYPE_ANALM = 0,
 	PR_COASTING_TYPE_STATIC,
 	PR_COASTING_TYPE_FULL_SCREEN_VIDEO,
 	PR_COASTING_TYPE_TEST_HARNESS,
@@ -1031,7 +1031,7 @@ enum replay_link_off_frame_count_level {
  * passed to DMUB.
  */
 enum replay_FW_Message_type {
-	Replay_Msg_Not_Support = -1,
+	Replay_Msg_Analt_Support = -1,
 	Replay_Set_Timing_Sync_Supported,
 	Replay_Set_Residency_Frameupdate_Timer,
 	Replay_Set_Pseudo_VTotal,
@@ -1115,7 +1115,7 @@ struct dc_panel_config {
 		unsigned int peak; /* nits */
 		unsigned int max_avg; /* nits */
 		unsigned int min; /* 1/10000 nits */
-		unsigned int max_nonboost_brightness_millinits;
+		unsigned int max_analnboost_brightness_millinits;
 		unsigned int min_brightness_millinits;
 	} nits_brightness;
 	/* PSR */
@@ -1160,8 +1160,8 @@ struct dc_dpia_bw_alloc {
 	int dp_overhead;       // DP overhead in dp tunneling
 	bool bw_alloc_enabled; // The BW Alloc Mode Support is turned ON for all 3:  DP-Tx & Dpia & CM
 	bool response_ready;   // Response ready from the CM side
-	uint8_t nrd_max_lane_count; // Non-reduced max lane count
-	uint8_t nrd_max_link_rate; // Non-reduced max link rate
+	uint8_t nrd_max_lane_count; // Analn-reduced max lane count
+	uint8_t nrd_max_link_rate; // Analn-reduced max link rate
 };
 
 enum dc_hpd_enable_select {
@@ -1171,7 +1171,7 @@ enum dc_hpd_enable_select {
 };
 
 enum mall_stream_type {
-	SUBVP_NONE, // subvp not in use
+	SUBVP_ANALNE, // subvp analt in use
 	SUBVP_MAIN, // subvp in use, this stream is main stream
 	SUBVP_PHANTOM, // subvp in use, this stream is a phantom stream
 };

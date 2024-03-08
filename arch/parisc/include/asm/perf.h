@@ -8,10 +8,10 @@
 #define PA_PERF_VERSION	_IOR('p', 3, int)
 
 #define PA_PERF_DEV	"perf"
-#define PA_PERF_MINOR	146
+#define PA_PERF_MIANALR	146
 
 /* Interface types */
-#define UNKNOWN_INTF    255
+#define UNKANALWN_INTF    255
 #define ONYX_INTF         0
 #define CUDA_INTF         1
 

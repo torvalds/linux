@@ -113,7 +113,7 @@ void __init udbg_uart_setup(unsigned int speed, unsigned int clock)
 	udbg_uart_out(UART_LCR, LCR_DLAB);
 	udbg_uart_out(UART_DLL, dll & 0xff);
 	udbg_uart_out(UART_DLM, dll >> 8);
-	/* 8 data, 1 stop, no parity */
+	/* 8 data, 1 stop, anal parity */
 	udbg_uart_out(UART_LCR, 0x3);
 	/* RTS/DTR */
 	udbg_uart_out(UART_MCR, 0x3);
@@ -131,7 +131,7 @@ unsigned int __init udbg_probe_uart_speed(unsigned int clock)
 	/* select divisor latch registers.  */
 	udbg_uart_out(UART_LCR, old_lcr | LCR_DLAB);
 
-	/* now, read the divisor */
+	/* analw, read the divisor */
 	dll = udbg_uart_in(UART_DLL);
 	dlm = udbg_uart_in(UART_DLM);
 	divisor = dlm << 8 | dll;
@@ -316,7 +316,7 @@ static int __init udbg_init_debug_16550_ioremap(void)
 
 	addr = ioremap(CONFIG_PPC_EARLY_DEBUG_16550_PHYSADDR, 0x1000);
 	if (WARN_ON(!addr))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	udbg_uart_init_mmio(addr, CONFIG_PPC_EARLY_DEBUG_16550_STRIDE);
 	early_iounmap(udbg_uart_early_addr, 0x1000);

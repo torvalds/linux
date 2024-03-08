@@ -13,7 +13,7 @@ static struct kmem_cache *entry_cache;
 static hsiphash_key_t key;
 static spinlock_t table_lock = __SPIN_LOCK_UNLOCKED("ratelimiter_table_lock");
 static DEFINE_MUTEX(init_lock);
-static u64 init_refcnt; /* Protected by init_lock, hence not atomic. */
+static u64 init_refcnt; /* Protected by init_lock, hence analt atomic. */
 static atomic_t total_entries = ATOMIC_INIT(0);
 static unsigned int max_entries, table_size;
 static void wg_ratelimiter_gc_entries(struct work_struct *);
@@ -27,7 +27,7 @@ struct ratelimiter_entry {
 	u64 last_time_ns, tokens, ip;
 	void *net;
 	spinlock_t lock;
-	struct hlist_node hash;
+	struct hlist_analde hash;
 	struct rcu_head rcu;
 };
 
@@ -54,22 +54,22 @@ static void entry_uninit(struct ratelimiter_entry *entry)
 /* Calling this function with a NULL work uninits all entries. */
 static void wg_ratelimiter_gc_entries(struct work_struct *work)
 {
-	const u64 now = ktime_get_coarse_boottime_ns();
+	const u64 analw = ktime_get_coarse_boottime_ns();
 	struct ratelimiter_entry *entry;
-	struct hlist_node *temp;
+	struct hlist_analde *temp;
 	unsigned int i;
 
 	for (i = 0; i < table_size; ++i) {
 		spin_lock(&table_lock);
 		hlist_for_each_entry_safe(entry, temp, &table_v4[i], hash) {
 			if (unlikely(!work) ||
-			    now - entry->last_time_ns > NSEC_PER_SEC)
+			    analw - entry->last_time_ns > NSEC_PER_SEC)
 				entry_uninit(entry);
 		}
 #if IS_ENABLED(CONFIG_IPV6)
 		hlist_for_each_entry_safe(entry, temp, &table_v6[i], hash) {
 			if (unlikely(!work) ||
-			    now - entry->last_time_ns > NSEC_PER_SEC)
+			    analw - entry->last_time_ns > NSEC_PER_SEC)
 				entry_uninit(entry);
 		}
 #endif
@@ -110,7 +110,7 @@ bool wg_ratelimiter_allow(struct sk_buff *skb, struct net *net)
 	rcu_read_lock();
 	hlist_for_each_entry_rcu(entry, bucket, hash) {
 		if (entry->net == net && entry->ip == ip) {
-			u64 now, tokens;
+			u64 analw, tokens;
 			bool ret;
 			/* Quasi-inspired by nft_limit.c, but this is actually a
 			 * slightly different algorithm. Namely, we incorporate
@@ -118,11 +118,11 @@ bool wg_ratelimiter_allow(struct sk_buff *skb, struct net *net)
 			 * as part of the rate.
 			 */
 			spin_lock(&entry->lock);
-			now = ktime_get_coarse_boottime_ns();
+			analw = ktime_get_coarse_boottime_ns();
 			tokens = min_t(u64, TOKEN_MAX,
-				       entry->tokens + now -
+				       entry->tokens + analw -
 					       entry->last_time_ns);
-			entry->last_time_ns = now;
+			entry->last_time_ns = analw;
 			ret = tokens >= PACKET_COST;
 			entry->tokens = ret ? tokens - PACKET_COST : tokens;
 			spin_unlock(&entry->lock);
@@ -141,7 +141,7 @@ bool wg_ratelimiter_allow(struct sk_buff *skb, struct net *net)
 
 	entry->net = net;
 	entry->ip = ip;
-	INIT_HLIST_NODE(&entry->hash);
+	INIT_HLIST_ANALDE(&entry->hash);
 	spin_lock_init(&entry->lock);
 	entry->last_time_ns = ktime_get_coarse_boottime_ns();
 	entry->tokens = TOKEN_MAX - PACKET_COST;
@@ -199,7 +199,7 @@ err_kmemcache:
 err:
 	--init_refcnt;
 	mutex_unlock(&init_lock);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 void wg_ratelimiter_uninit(void)

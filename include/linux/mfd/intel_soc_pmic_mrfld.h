@@ -16,7 +16,7 @@
 #define BCOVE_ID_MAJREV0	GENMASK(5, 3)
 #define BCOVE_ID_VENDID0	GENMASK(7, 6)
 
-#define BCOVE_MINOR(x)		(unsigned int)(((x) & BCOVE_ID_MINREV0) >> 0)
+#define BCOVE_MIANALR(x)		(unsigned int)(((x) & BCOVE_ID_MINREV0) >> 0)
 #define BCOVE_MAJOR(x)		(unsigned int)(((x) & BCOVE_ID_MAJREV0) >> 3)
 #define BCOVE_VENDOR(x)		(unsigned int)(((x) & BCOVE_ID_VENDID0) >> 6)
 

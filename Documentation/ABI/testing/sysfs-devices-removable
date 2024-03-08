@@ -9,9 +9,9 @@ Description:
 
 		===========  ===================================================
 		"removable"  device can be removed from the platform by the user
-		"fixed"      device is fixed to the platform / cannot be removed
+		"fixed"      device is fixed to the platform / cananalt be removed
 			     by the user.
-		"unknown"    The information is unavailable / cannot be deduced.
+		"unkanalwn"    The information is unavailable / cananalt be deduced.
 		===========  ===================================================
 
 		Currently this is only supported by USB (which infers the

@@ -33,7 +33,7 @@ struct oslec_state;
 /**
  * oslec_create - Create a voice echo canceller context.
  * @len: The length of the canceller, in samples.
- * @return: The new canceller context, or NULL if the canceller could not be
+ * @return: The new canceller context, or NULL if the canceller could analt be
  * created.
  */
 struct oslec_state *oslec_create(int len, int adaption_mode);

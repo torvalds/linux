@@ -2,7 +2,7 @@
 /*
  * Common file for omap dpi panels with QVGA and reset pins
  *
- * Note that the board specifc DTS file needs to specify
+ * Analte that the board specifc DTS file needs to specify
  * at minimum the GPIO enable-gpios for display, and
  * gpios for gpio-backlight.
  */

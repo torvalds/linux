@@ -7,7 +7,7 @@
 
 #include <linux/export.h>
 #include <linux/linkage.h>
-#include <asm/nospec-insn.h>
+#include <asm/analspec-insn.h>
 
 	GEN_BR_THUNK %r14
 

@@ -4,11 +4,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -115,7 +115,7 @@ static bool ath9k_check_chirping(struct ath_softc *sc, u8 *data,
 		ath_dbg(common, DFS, "HT40: datalen=%d, num_fft_packets=%d\n",
 			datalen, num_fft_packets);
 		if (num_fft_packets < FFT_NUM_SAMPLES) {
-			ath_dbg(common, DFS, "not enough packets for chirp\n");
+			ath_dbg(common, DFS, "analt eanalugh packets for chirp\n");
 			return false;
 		}
 		/* HW sometimes adds 2 garbage bytes in front of FFT samples */
@@ -137,7 +137,7 @@ static bool ath9k_check_chirping(struct ath_softc *sc, u8 *data,
 		ath_dbg(common, DFS, "HT20: datalen=%d, num_fft_packets=%d\n",
 			datalen, num_fft_packets);
 		if (num_fft_packets < FFT_NUM_SAMPLES) {
-			ath_dbg(common, DFS, "not enough packets for chirp\n");
+			ath_dbg(common, DFS, "analt eanalugh packets for chirp\n");
 			return false;
 		}
 		/* in ht20, this is a 6-bit signed number => shift it to 0 */
@@ -216,7 +216,7 @@ ath9k_postprocess_radar_event(struct ath_softc *sc,
 		dur = ard->pulse_length_pri;
 		DFS_STAT_INC(sc, pri_phy_errors);
 		/*
-		 * cannot use ctrl channel RSSI
+		 * cananalt use ctrl channel RSSI
 		 * if extension channel is stronger
 		 */
 		rssi = (ard->ext_rssi >= (ard->rssi + 3)) ? 0 : ard->rssi;
@@ -226,7 +226,7 @@ ath9k_postprocess_radar_event(struct ath_softc *sc,
 		dur = ard->pulse_length_ext;
 		DFS_STAT_INC(sc, ext_phy_errors);
 		/*
-		 * cannot use extension channel RSSI
+		 * cananalt use extension channel RSSI
 		 * if control channel is stronger
 		 */
 		rssi = (ard->rssi >= (ard->ext_rssi + 12)) ? 0 : ard->ext_rssi;
@@ -251,7 +251,7 @@ ath9k_postprocess_radar_event(struct ath_softc *sc,
 	default:
 		/*
 		 * Bogus bandwidth info was received in descriptor,
-		 * so ignore this PHY error
+		 * so iganalre this PHY error
 		 */
 		DFS_STAT_INC(sc, bwinfo_discards);
 		return false;
@@ -300,9 +300,9 @@ void ath9k_dfs_process_phyerr(struct ath_softc *sc, void *data,
 	if ((rs->rs_phyerr != ATH9K_PHYERR_RADAR) &&
 	    (rs->rs_phyerr != ATH9K_PHYERR_FALSE_RADAR_EXT)) {
 		ath_dbg(common, DFS,
-			"Error: rs_phyer=0x%x not a radar error\n",
+			"Error: rs_phyer=0x%x analt a radar error\n",
 			rs->rs_phyerr);
-		DFS_STAT_INC(sc, pulses_no_dfs);
+		DFS_STAT_INC(sc, pulses_anal_dfs);
 		return;
 	}
 

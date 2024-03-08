@@ -14,8 +14,8 @@
 #define CIRC_NEXT(val, size) CIRC_ADD(val, 1, size)
 #define CIRC_PREV(val, size) CIRC_ADD(val, -1, size)
 
-#define TID_RDMA_MIN_SEGMENT_SIZE       BIT(18)   /* 256 KiB (for now) */
-#define TID_RDMA_MAX_SEGMENT_SIZE       BIT(18)   /* 256 KiB (for now) */
+#define TID_RDMA_MIN_SEGMENT_SIZE       BIT(18)   /* 256 KiB (for analw) */
+#define TID_RDMA_MAX_SEGMENT_SIZE       BIT(18)   /* 256 KiB (for analw) */
 #define TID_RDMA_MAX_PAGES              (BIT(18) >> PAGE_SHIFT)
 #define TID_RDMA_SEGMENT_SHIFT		18
 
@@ -23,7 +23,7 @@
  * Bit definitions for priv->s_flags.
  * These bit flags overload the bit flags defined for the QP's s_flags.
  * Due to the fact that these bit fields are used only for the QP priv
- * s_flags, there are no collisions.
+ * s_flags, there are anal collisions.
  *
  * HFI1_S_TID_WAIT_INTERLCK - QP is waiting for requester interlock
  * HFI1_R_TID_WAIT_INTERLCK - QP is waiting for responder interlock
@@ -45,12 +45,12 @@
 /* BIT(28) reserved for HFI1_S_WAIT_TID_SPACE */
 
 /*
- * Unlike regular IB RDMA VERBS, which do not require an entry
+ * Unlike regular IB RDMA VERBS, which do analt require an entry
  * in the s_ack_queue, TID RDMA WRITE requests do because they
  * generate responses.
  * Therefore, the s_ack_queue needs to be extended by a certain
  * amount. The key point is that the queue needs to be extended
- * without letting the "user" know so they user doesn't end up
+ * without letting the "user" kanalw so they user doesn't end up
  * using these extra entries.
  */
 #define HFI1_TID_RDMA_WRITE_CNT 8
@@ -130,7 +130,7 @@ struct tid_rdma_request {
 
 /*
  * When header suppression is used, PSNs associated with a "flow" are
- * relevant (and not the PSNs maintained by verbs). Track per-flow
+ * relevant (and analt the PSNs maintained by verbs). Track per-flow
  * PSNs here for a TID RDMA segment.
  *
  */
@@ -155,13 +155,13 @@ struct tid_rdma_pageset {
 };
 
 /**
- * kern_tid_node - used for managing TID's in TID groups
+ * kern_tid_analde - used for managing TID's in TID groups
  *
  * @grp_idx: rcd relative index to tid_group
  * @map: grp->map captured prior to programming this TID group in HW
  * @cnt: Only @cnt of available group entries are actually programmed
  */
-struct kern_tid_node {
+struct kern_tid_analde {
 	struct tid_group *grp;
 	u8 map;
 	u8 cnt;
@@ -181,7 +181,7 @@ struct tid_rdma_flow {
 	u32 tid_offset;
 	u32 length;
 	u32 sent;
-	u8 tnode_cnt;
+	u8 tanalde_cnt;
 	u8 tidcnt;
 	u8 tid_idx;
 	u8 idx;
@@ -189,7 +189,7 @@ struct tid_rdma_flow {
 	u8 npkts;
 	u8 pkt;
 	u8 resync_npkts;
-	struct kern_tid_node tnode[TID_RDMA_MAX_PAGES];
+	struct kern_tid_analde tanalde[TID_RDMA_MAX_PAGES];
 	struct tid_rdma_pageset pagesets[TID_RDMA_MAX_PAGES];
 	u32 tid_entry[TID_RDMA_MAX_PAGES];
 };

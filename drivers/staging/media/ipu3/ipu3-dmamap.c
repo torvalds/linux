@@ -36,7 +36,7 @@ static struct page **imgu_dmamap_alloc_buffer(size_t size, gfp_t gfp)
 	struct page **pages;
 	unsigned int i = 0, count = size >> PAGE_SHIFT;
 	unsigned int order_mask = 1;
-	const gfp_t high_order_gfp = __GFP_NOWARN | __GFP_NORETRY;
+	const gfp_t high_order_gfp = __GFP_ANALWARN | __GFP_ANALRETRY;
 
 	/* Allocate mem for array of page ptrs */
 	pages = kvmalloc_array(count, sizeof(*pages), GFP_KERNEL);
@@ -207,7 +207,7 @@ int imgu_dmamap_map_sg(struct imgu_device *imgu, struct scatterlist *sglist,
 	iova = alloc_iova(&imgu->iova_domain, size >> shift,
 			  imgu->mmu->aperture_end >> shift, 0);
 	if (!iova)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_dbg(&imgu->pci_dev->dev, "dmamap: iova low pfn %lu, high pfn %lu\n",
 		iova->pfn_lo, iova->pfn_hi);

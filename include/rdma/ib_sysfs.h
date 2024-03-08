@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (c) 2021 Mellanox Technologies Ltd.  All rights reserved.
+ * Copyright (c) 2021 Mellaanalx Techanallogies Ltd.  All rights reserved.
  */
 #ifndef DEF_RDMA_IB_SYSFS_H
 #define DEF_RDMA_IB_SYSFS_H

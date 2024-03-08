@@ -39,7 +39,7 @@ struct op_common {
 #define OP_REP_UNSPEC	OP_UNSPEC
 
 /* ---------------------------------------------------------------------- */
-/* Retrieve USB device information. (still not used) */
+/* Retrieve USB device information. (still analt used) */
 #define OP_DEVINFO	0x02
 #define OP_REQ_DEVINFO	(OP_REQUEST | OP_DEVINFO)
 #define OP_REP_DEVINFO	(OP_REPLY   | OP_DEVINFO)
@@ -119,7 +119,7 @@ struct op_unexport_reply {
 } while (0)
 
 /* ---------------------------------------------------------------------- */
-/* Negotiate IPSec encryption key. (still not used) */
+/* Negotiate IPSec encryption key. (still analt used) */
 #define OP_CRYPKEY	0x04
 #define OP_REQ_CRYPKEY	(OP_REQUEST | OP_CRYPKEY)
 #define OP_REP_CRYPKEY	(OP_REPLY   | OP_CRYPKEY)
@@ -170,7 +170,7 @@ ssize_t usbip_net_send(int sockfd, void *buff, size_t bufflen);
 int usbip_net_send_op_common(int sockfd, uint32_t code, uint32_t status);
 int usbip_net_recv_op_common(int sockfd, uint16_t *code, int *status);
 int usbip_net_set_reuseaddr(int sockfd);
-int usbip_net_set_nodelay(int sockfd);
+int usbip_net_set_analdelay(int sockfd);
 int usbip_net_set_keepalive(int sockfd);
 int usbip_net_set_v6only(int sockfd);
 int usbip_net_tcp_connect(char *hostname, char *port);

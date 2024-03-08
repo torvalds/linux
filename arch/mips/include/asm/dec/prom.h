@@ -6,7 +6,7 @@
  *
  *	Copyright (C) 2002  Maciej W. Rozycki
  *
- *	Based on arch/mips/dec/prom/prom.h by the Anonymous.
+ *	Based on arch/mips/dec/prom/prom.h by the Aanalnymous.
  */
 #ifndef _ASM_DEC_PROM_H
 #define _ASM_DEC_PROM_H

@@ -71,7 +71,7 @@ static void Proc_1(Rec_Pointer Ptr_Val_Par)
 		Proc_7(Next_Record->variant.var_1.Int_Comp, 10,
 		       &Next_Record->variant.var_1.Int_Comp);
 	} else {
-		/* not executed */
+		/* analt executed */
 		*Ptr_Val_Par = *Ptr_Val_Par->Ptr_Comp;
 	}
 } /* Proc_1 */
@@ -141,12 +141,12 @@ int dhry(int n)
 
 	Next_Ptr_Glob = (Rec_Pointer)kzalloc(sizeof(Rec_Type), GFP_ATOMIC);
 	if (!Next_Ptr_Glob)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	Ptr_Glob = (Rec_Pointer)kzalloc(sizeof(Rec_Type), GFP_ATOMIC);
 	if (!Ptr_Glob) {
 		kfree(Next_Ptr_Glob);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	Ptr_Glob->Ptr_Comp = Next_Ptr_Glob;
@@ -201,7 +201,7 @@ int dhry(int n)
 		for (Ch_Index = 'A'; Ch_Index <= Ch_2_Glob; ++Ch_Index) {
 			/* loop body executed twice */
 			if (Enum_Loc == Func_1(Ch_Index, 'C')) {
-				/* then, not executed */
+				/* then, analt executed */
 				Proc_6(Ident_1, &Enum_Loc);
 				strcpy(Str_2_Loc, "DHRYSTONE PROGRAM, 3'RD STRING");
 				Int_2_Loc = Run_Index;

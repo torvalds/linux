@@ -38,7 +38,7 @@
 static inline int __init drm_pci_register_driver(struct pci_driver *pci_drv)
 {
 	if (drm_firmware_drivers_only())
-		return -ENODEV;
+		return -EANALDEV;
 
 	return pci_register_driver(pci_drv);
 }
@@ -62,9 +62,9 @@ static inline int __init
 drm_pci_register_driver_if_modeset(struct pci_driver *pci_drv, int modeset)
 {
 	if (drm_firmware_drivers_only() && modeset == -1)
-		return -ENODEV;
+		return -EANALDEV;
 	if (modeset == 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return pci_register_driver(pci_drv);
 }
@@ -101,7 +101,7 @@ static inline int __init
 drm_platform_driver_register(struct platform_driver *platform_drv)
 {
 	if (drm_firmware_drivers_only())
-		return -ENODEV;
+		return -EANALDEV;
 
 	return platform_driver_register(platform_drv);
 }

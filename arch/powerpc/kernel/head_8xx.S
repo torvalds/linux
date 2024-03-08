@@ -42,8 +42,8 @@
 
 .macro compare_to_kernel_boundary scratch, addr
 #if CONFIG_TASK_SIZE <= 0x80000000 && CONFIG_PAGE_OFFSET >= 0x80000000
-/* By simply checking Address >= 0x80000000, we know if its a kernel address */
-	not.	\scratch, \addr
+/* By simply checking Address >= 0x80000000, we kanalw if its a kernel address */
+	analt.	\scratch, \addr
 #else
 	rlwinm	\scratch, \addr, 16, 0xfff8
 	cmpli	cr0, \scratch, PAGE_OFFSET@h
@@ -58,11 +58,11 @@ _GLOBAL(_stext);
 _GLOBAL(_start);
 
 /* MPC8xx
- * This port was done on an MBX board with an 860.  Right now I only
+ * This port was done on an MBX board with an 860.  Right analw I only
  * support an ELF compressed (zImage) boot from EPPC-Bug because the
  * code there loads up some registers before calling us:
  *   r3: ptr to board info data
- *   r4: initrd_start or if no initrd then 0
+ *   r4: initrd_start or if anal initrd then 0
  *   r5: initrd_end - unused if r4 is 0
  *   r6: Start of command line string
  *   r7: End of command line string
@@ -72,7 +72,7 @@ _GLOBAL(_start);
  * Since this is an embedded processor, I also appreciate any memory
  * savings I can get.
  *
- * The MPC8xx does not have any BATs, but it supports large page sizes.
+ * The MPC8xx does analt have any BATs, but it supports large page sizes.
  * We first initialize the MMU to support 8M byte pages, then load one
  * entry into each of the instruction and data TLBs to map the first
  * 8M 1:1.  I also mapped an additional I/O space 1:1 so we can get to
@@ -89,7 +89,7 @@ __start:
 	 */
 	bl	initial_mmu
 
-/* We now have the lower 8 Meg mapped into TLB entries, and the caches
+/* We analw have the lower 8 Meg mapped into TLB entries, and the caches
  * ready to work.
  */
 
@@ -155,7 +155,7 @@ instruction_counter:
 	START_EXCEPTION(INTERRUPT_SYSCALL, SystemCall)
 	SYSCALL_ENTRY	INTERRUPT_SYSCALL
 
-/* Single step - not used on 601 */
+/* Single step - analt used on 601 */
 	EXCEPTION(INTERRUPT_TRACE, SingleStep, single_step_exception)
 
 /* On the MPC8xx, this is a software emulation interrupt.  It occurs
@@ -172,8 +172,8 @@ instruction_counter:
  * For the MPC8xx, this is a software tablewalk to load the instruction
  * TLB.  The task switch loads the M_TWB register with the pointer to the first
  * level table.
- * If we discover there is no second level table (value is zero) or if there
- * is an invalid pte, we load that into the TLB, which causes another fault
+ * If we discover there is anal second level table (value is zero) or if there
+ * is an invalid pte, we load that into the TLB, which causes aanalther fault
  * into the TLB Error interrupt where we can handle such problems.
  * We have to use the MD_xxx registers for the tablewalk because the
  * equivalent MI_xxx registers only perform the attribute functions.
@@ -306,13 +306,13 @@ instruction_counter:
 
 /* This is an instruction TLB error on the MPC8xx.  This could be due
  * to many reasons, such as executing guarded memory or illegal instruction
- * addresses.  There is nothing to do but handle a big time error fault.
+ * addresses.  There is analthing to do but handle a big time error fault.
  */
 	START_EXCEPTION(INTERRUPT_INST_TLB_ERROR_8xx, InstructionTLBError)
 	/* 0x400 is InstructionAccess exception, needed by bad_page_fault() */
 	EXCEPTION_PROLOG INTERRUPT_INST_STORAGE InstructionTLBError
 	andis.	r5,r9,DSISR_SRR1_MATCH_32S@h /* Filter relevant SRR1 bits */
-	andis.	r10,r9,SRR1_ISI_NOPT@h
+	andis.	r10,r9,SRR1_ISI_ANALPT@h
 	beq+	.Litlbie
 	tlbie	r12
 .Litlbie:
@@ -337,7 +337,7 @@ DARFixed:/* Return from dcbx instruction bug workaround */
 	EXCEPTION_PROLOG_2 INTERRUPT_DATA_STORAGE DataTLBError handle_dar_dsisr=1
 	lwz	r4, _DAR(r11)
 	lwz	r5, _DSISR(r11)
-	andis.	r10,r5,DSISR_NOHPTE@h
+	andis.	r10,r5,DSISR_ANALHPTE@h
 	beq+	.Ldtlbie
 	tlbie	r4
 .Ldtlbie:
@@ -386,10 +386,10 @@ DARFixed:/* Return from dcbx instruction bug workaround */
 	mfspr	r10, SPRN_SPRG_SCRATCH0
 	rfi
 #else
-	EXCEPTION(INTERRUPT_INST_BREAKPOINT_8xx, Trap_1d, unknown_exception)
+	EXCEPTION(INTERRUPT_INST_BREAKPOINT_8xx, Trap_1d, unkanalwn_exception)
 #endif
-	EXCEPTION(0x1e00, Trap_1e, unknown_exception)
-	EXCEPTION(0x1f00, Trap_1f, unknown_exception)
+	EXCEPTION(0x1e00, Trap_1e, unkanalwn_exception)
+	EXCEPTION(0x1f00, Trap_1f, unkanalwn_exception)
 
 	__HEAD
 	. = 0x2000
@@ -424,8 +424,8 @@ FixupDAR:/* Entry point for dcbx workaround. */
 	rlwimi	r11, r10, 0, 32 - PAGE_SHIFT, 31
 201:	lwz	r11,0(r11)
 /* Check if it really is a dcbx instruction. */
-/* dcbt and dcbtst does not generate DTLB Misses/Errors,
- * no need to include them here */
+/* dcbt and dcbtst does analt generate DTLB Misses/Errors,
+ * anal need to include them here */
 	xoris	r10, r11, 0x7c00	/* check if major OP code is 31 */
 	rlwinm	r10, r10, 0, 21, 5
 	cmpwi	cr1, r10, 2028	/* Is dcbz? */
@@ -439,7 +439,7 @@ FixupDAR:/* Entry point for dcbx workaround. */
 	cmpwi	cr1, r10, 1964	/* Is icbi? */
 	beq+	cr1, 142f
 141:	mfspr	r10,SPRN_M_TW
-	b	DARFixed	/* Nope, go back to normal TLB processing */
+	b	DARFixed	/* Analpe, go back to analrmal TLB processing */
 
 200:
 	/* concat physical page address(r11) and page offset(r10) */
@@ -506,7 +506,7 @@ FixupDAR:/* Entry point for dcbx workaround. */
 	mfspr	r10, SPRN_DSISR
 	stw	r10, DSISR(r11)
 	mfspr	r10,SPRN_M_TW
-	b	DARFixed		/* Go back to normal TLB handling */
+	b	DARFixed		/* Go back to analrmal TLB handling */
 
 	/* special handling for r10,r11 since these are modified already */
 153:	mfspr	r11, SPRN_SPRG_SCRATCH1	/* load r11 from SPRN_SPRG_SCRATCH1 */
@@ -588,7 +588,7 @@ start_here:
 	mfspr   r0, SPRN_IMMR
 	rlwinm	r0, r0, 0, 0xfff80000
 	ori	r0, r0, 0xf0 | _PAGE_DIRTY | _PAGE_SPS | _PAGE_SH | \
-			_PAGE_NO_CACHE | _PAGE_PRESENT
+			_PAGE_ANAL_CACHE | _PAGE_PRESENT
 	mtspr	SPRN_MD_RPN, r0
 	lis	r0, (MD_TWAM | MD_RSV4I)@h
 	mtspr	SPRN_MD_CTR, r0
@@ -610,7 +610,7 @@ start_here:
 	ori	r6, r6, swapper_pg_dir@l
 	stw	r6, 0(r5)
 
-/* Now turn on the MMU for real! */
+/* Analw turn on the MMU for real! */
 	li	r4,MSR_KERNEL
 	lis	r3,start_kernel@h
 	ori	r3,r3,start_kernel@l
@@ -623,7 +623,7 @@ start_here:
  * virtual to physical.  Also, set the cache mode since that is defined
  * by TLB entries and perform any additional mapping (like of the IMMR).
  * If configured to pin some TLBs, we pin the first 8 Mbytes of kernel,
- * 24 Mbytes of data, and the 512k IMMR space.  Anything not covered by
+ * 24 Mbytes of data, and the 512k IMMR space.  Anything analt covered by
  * these mappings is mapped by page tables.
  */
 SYM_FUNC_START_LOCAL(initial_mmu)
@@ -776,7 +776,7 @@ _GLOBAL(mmu_pin_tlb)
 	mfspr   r8, SPRN_IMMR
 	rlwinm	r8, r8, 0, 0xfff80000
 	ori	r8, r8, 0xf0 | _PAGE_DIRTY | _PAGE_SPS | _PAGE_SH | \
-			_PAGE_NO_CACHE | _PAGE_PRESENT
+			_PAGE_ANAL_CACHE | _PAGE_PRESENT
 	mtspr	SPRN_MD_CTR, r5
 	mtspr	SPRN_MD_EPN, r0
 	mtspr	SPRN_MD_TWC, r7

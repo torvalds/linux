@@ -44,7 +44,7 @@ struct lp8727_chg_param {
 
 /**
  * struct lp8727_platform_data
- * @get_batt_present  : check battery status - exists or not
+ * @get_batt_present  : check battery status - exists or analt
  * @get_batt_level    : get battery voltage (mV)
  * @get_batt_capacity : get battery capacity (%)
  * @get_batt_temp     : get battery temperature

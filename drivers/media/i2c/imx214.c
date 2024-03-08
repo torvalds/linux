@@ -2,7 +2,7 @@
 /*
  * imx214.c - imx214 sensor driver
  *
- * Copyright 2018 Qtechnology A/S
+ * Copyright 2018 Qtechanallogy A/S
  *
  * Ricardo Ribalda <ribalda@kernel.org>
  */
@@ -16,7 +16,7 @@
 #include <linux/regulator/consumer.h>
 #include <media/media-entity.h>
 #include <media/v4l2-ctrls.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 #include <media/v4l2-subdev.h>
 
 #define IMX214_REG_MODE_SELECT		0x0100
@@ -622,7 +622,7 @@ static int imx214_set_format(struct v4l2_subdev *sd,
 	__format->width = __crop->width;
 	__format->height = __crop->height;
 	__format->code = IMX214_MBUS_CODE;
-	__format->field = V4L2_FIELD_NONE;
+	__format->field = V4L2_FIELD_ANALNE;
 	__format->colorspace = V4L2_COLORSPACE_SRGB;
 	__format->ycbcr_enc = V4L2_MAP_YCBCR_ENC_DEFAULT(__format->colorspace);
 	__format->quantization = V4L2_MAP_QUANTIZATION_DEFAULT(true,
@@ -729,11 +729,11 @@ static int imx214_ctrls_init(struct imx214 *imx214)
 		.width = 1120,
 		.height = 1120,
 	};
-	struct v4l2_fwnode_device_properties props;
+	struct v4l2_fwanalde_device_properties props;
 	struct v4l2_ctrl_handler *ctrl_hdlr;
 	int ret;
 
-	ret = v4l2_fwnode_device_parse(imx214->dev, &props);
+	ret = v4l2_fwanalde_device_parse(imx214->dev, &props);
 	if (ret < 0)
 		return ret;
 
@@ -776,7 +776,7 @@ static int imx214_ctrls_init(struct imx214 *imx214)
 				V4L2_CID_UNIT_CELL_SIZE,
 				v4l2_ctrl_ptr_create((void *)&unit_size));
 
-	v4l2_ctrl_new_fwnode_properties(ctrl_hdlr, &imx214_ctrl_ops, &props);
+	v4l2_ctrl_new_fwanalde_properties(ctrl_hdlr, &imx214_ctrl_ops, &props);
 
 	ret = ctrl_hdlr->error;
 	if (ret) {
@@ -832,7 +832,7 @@ static int imx214_start_streaming(struct imx214 *imx214)
 	mutex_lock(&imx214->mutex);
 	ret = imx214_write_table(imx214, mode_table_common);
 	if (ret < 0) {
-		dev_err(imx214->dev, "could not sent common table %d\n", ret);
+		dev_err(imx214->dev, "could analt sent common table %d\n", ret);
 		goto error;
 	}
 
@@ -841,17 +841,17 @@ static int imx214_start_streaming(struct imx214 *imx214)
 				imx214->fmt.width, imx214->fmt.height);
 	ret = imx214_write_table(imx214, mode->reg_table);
 	if (ret < 0) {
-		dev_err(imx214->dev, "could not sent mode table %d\n", ret);
+		dev_err(imx214->dev, "could analt sent mode table %d\n", ret);
 		goto error;
 	}
 	ret = __v4l2_ctrl_handler_setup(&imx214->ctrls);
 	if (ret < 0) {
-		dev_err(imx214->dev, "could not sync v4l2 controls\n");
+		dev_err(imx214->dev, "could analt sync v4l2 controls\n");
 		goto error;
 	}
 	ret = regmap_write(imx214->regmap, IMX214_REG_MODE_SELECT, IMX214_MODE_STREAMING);
 	if (ret < 0) {
-		dev_err(imx214->dev, "could not sent start table %d\n", ret);
+		dev_err(imx214->dev, "could analt sent start table %d\n", ret);
 		goto error;
 	}
 
@@ -869,7 +869,7 @@ static int imx214_stop_streaming(struct imx214 *imx214)
 
 	ret = regmap_write(imx214->regmap, IMX214_REG_MODE_SELECT, IMX214_MODE_STANDBY);
 	if (ret < 0)
-		dev_err(imx214->dev, "could not sent stop table %d\n",	ret);
+		dev_err(imx214->dev, "could analt sent stop table %d\n",	ret);
 
 	return ret;
 }
@@ -913,7 +913,7 @@ static int imx214_get_frame_interval(struct v4l2_subdev *subdev,
 		return -EINVAL;
 
 	fival->interval.numerator = 1;
-	fival->interval.denominator = IMX214_FPS;
+	fival->interval.deanalminator = IMX214_FPS;
 
 	return 0;
 }
@@ -935,7 +935,7 @@ static int imx214_enum_frame_interval(struct v4l2_subdev *subdev,
 	fie->width = mode->width;
 	fie->height = mode->height;
 	fie->interval.numerator = 1;
-	fie->interval.denominator = IMX214_FPS;
+	fie->interval.deanalminator = IMX214_FPS;
 
 	return 0;
 }
@@ -982,24 +982,24 @@ static int imx214_get_regulators(struct device *dev, struct imx214 *imx214)
 				       imx214->supplies);
 }
 
-static int imx214_parse_fwnode(struct device *dev)
+static int imx214_parse_fwanalde(struct device *dev)
 {
-	struct fwnode_handle *endpoint;
-	struct v4l2_fwnode_endpoint bus_cfg = {
+	struct fwanalde_handle *endpoint;
+	struct v4l2_fwanalde_endpoint bus_cfg = {
 		.bus_type = V4L2_MBUS_CSI2_DPHY,
 	};
 	unsigned int i;
 	int ret;
 
-	endpoint = fwnode_graph_get_next_endpoint(dev_fwnode(dev), NULL);
+	endpoint = fwanalde_graph_get_next_endpoint(dev_fwanalde(dev), NULL);
 	if (!endpoint) {
-		dev_err(dev, "endpoint node not found\n");
+		dev_err(dev, "endpoint analde analt found\n");
 		return -EINVAL;
 	}
 
-	ret = v4l2_fwnode_endpoint_alloc_parse(endpoint, &bus_cfg);
+	ret = v4l2_fwanalde_endpoint_alloc_parse(endpoint, &bus_cfg);
 	if (ret) {
-		dev_err(dev, "parsing endpoint node failed\n");
+		dev_err(dev, "parsing endpoint analde failed\n");
 		goto done;
 	}
 
@@ -1008,15 +1008,15 @@ static int imx214_parse_fwnode(struct device *dev)
 			break;
 
 	if (i == bus_cfg.nr_of_link_frequencies) {
-		dev_err(dev, "link-frequencies %d not supported, Please review your DT\n",
+		dev_err(dev, "link-frequencies %d analt supported, Please review your DT\n",
 			IMX214_DEFAULT_LINK_FREQ);
 		ret = -EINVAL;
 		goto done;
 	}
 
 done:
-	v4l2_fwnode_endpoint_free(&bus_cfg);
-	fwnode_handle_put(endpoint);
+	v4l2_fwanalde_endpoint_free(&bus_cfg);
+	fwanalde_handle_put(endpoint);
 	return ret;
 }
 
@@ -1026,37 +1026,37 @@ static int imx214_probe(struct i2c_client *client)
 	struct imx214 *imx214;
 	int ret;
 
-	ret = imx214_parse_fwnode(dev);
+	ret = imx214_parse_fwanalde(dev);
 	if (ret)
 		return ret;
 
 	imx214 = devm_kzalloc(dev, sizeof(*imx214), GFP_KERNEL);
 	if (!imx214)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	imx214->dev = dev;
 
 	imx214->xclk = devm_clk_get(dev, NULL);
 	if (IS_ERR(imx214->xclk)) {
-		dev_err(dev, "could not get xclk");
+		dev_err(dev, "could analt get xclk");
 		return PTR_ERR(imx214->xclk);
 	}
 
 	ret = clk_set_rate(imx214->xclk, IMX214_DEFAULT_CLK_FREQ);
 	if (ret) {
-		dev_err(dev, "could not set xclk frequency\n");
+		dev_err(dev, "could analt set xclk frequency\n");
 		return ret;
 	}
 
 	ret = imx214_get_regulators(dev, imx214);
 	if (ret < 0) {
-		dev_err(dev, "cannot get regulators\n");
+		dev_err(dev, "cananalt get regulators\n");
 		return ret;
 	}
 
 	imx214->enable_gpio = devm_gpiod_get(dev, "enable", GPIOD_OUT_LOW);
 	if (IS_ERR(imx214->enable_gpio)) {
-		dev_err(dev, "cannot get enable gpio\n");
+		dev_err(dev, "cananalt get enable gpio\n");
 		return PTR_ERR(imx214->enable_gpio);
 	}
 
@@ -1086,14 +1086,14 @@ static int imx214_probe(struct i2c_client *client)
 	mutex_init(&imx214->mutex);
 	imx214->ctrls.lock = &imx214->mutex;
 
-	imx214->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	imx214->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 	imx214->pad.flags = MEDIA_PAD_FL_SOURCE;
 	imx214->sd.dev = &client->dev;
 	imx214->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;
 
 	ret = media_entity_pads_init(&imx214->sd.entity, 1, &imx214->pad);
 	if (ret < 0) {
-		dev_err(dev, "could not register media entity\n");
+		dev_err(dev, "could analt register media entity\n");
 		goto free_ctrl;
 	}
 
@@ -1101,7 +1101,7 @@ static int imx214_probe(struct i2c_client *client)
 
 	ret = v4l2_async_register_subdev_sensor(&imx214->sd);
 	if (ret < 0) {
-		dev_err(dev, "could not register v4l2 device\n");
+		dev_err(dev, "could analt register v4l2 device\n");
 		goto free_entity;
 	}
 

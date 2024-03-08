@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2017 Mellaanalx Techanallogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -175,7 +175,7 @@ static void mlx5e_ipsec_init_limits(struct mlx5e_ipsec_sa_entry *sa_entry,
 	 *      n >= 0
 	 *      start_value < 2^32, start_value >= 0
 	 *
-	 * These equations are not single-solution, there are often two choices:
+	 * These equations are analt single-solution, there are often two choices:
 	 *      hard_limit == start_value + n * 2^31
 	 *      hard_limit == (start_value+2^31) + (n-1) * 2^31
 	 *
@@ -214,7 +214,7 @@ static void mlx5e_ipsec_init_limits(struct mlx5e_ipsec_sa_entry *sa_entry,
 	 *      soft_value < 2^32, soft_value >= 0
 	 *      for n == 0 start_value > soft_value
 	 *
-	 * As with compute_hard_n_value() the equations are not single-solution.
+	 * As with compute_hard_n_value() the equations are analt single-solution.
 	 * The algorithm selects the solution that has:
 	 *      2^30 <= soft_limit < 2^31 + 2^30
 	 * for the interior iterations, which guarantees a large guard band
@@ -239,7 +239,7 @@ static void mlx5e_ipsec_init_limits(struct mlx5e_ipsec_sa_entry *sa_entry,
 	if (n != attrs->lft.numb_rounds_hard && start_value < BIT_ULL(30))
 		n += 1;
 
-	/* Note that the upper limit of soft_value happens naturally because we
+	/* Analte that the upper limit of soft_value happens naturally because we
 	 * always select the lowest soft_value.
 	 */
 
@@ -247,7 +247,7 @@ static void mlx5e_ipsec_init_limits(struct mlx5e_ipsec_sa_entry *sa_entry,
 	start_value = attrs->lft.hard_packet_limit + n * BIT_ULL(31) - start_value;
 
 	/* The best solution means: when there are multiple iterations we must
-	 * not fall below 2^30 as that would get too close to the false
+	 * analt fall below 2^30 as that would get too close to the false
 	 * hard_limit and when we reach an interior iteration for soft_limit it
 	 * has to be far away from 2**32-1 which is the counter reset point
 	 * after the +2^31 to accommodate latency.
@@ -401,21 +401,21 @@ static int mlx5e_xfrm_validate_state(struct mlx5_core_dev *mdev,
 				     struct xfrm_state *x,
 				     struct netlink_ext_ack *extack)
 {
-	if (x->props.aalgo != SADB_AALG_NONE) {
-		NL_SET_ERR_MSG_MOD(extack, "Cannot offload authenticated xfrm states");
+	if (x->props.aalgo != SADB_AALG_ANALNE) {
+		NL_SET_ERR_MSG_MOD(extack, "Cananalt offload authenticated xfrm states");
 		return -EINVAL;
 	}
 	if (x->props.ealgo != SADB_X_EALG_AES_GCM_ICV16) {
 		NL_SET_ERR_MSG_MOD(extack, "Only AES-GCM-ICV16 xfrm state may be offloaded");
 		return -EINVAL;
 	}
-	if (x->props.calgo != SADB_X_CALG_NONE) {
-		NL_SET_ERR_MSG_MOD(extack, "Cannot offload compressed xfrm states");
+	if (x->props.calgo != SADB_X_CALG_ANALNE) {
+		NL_SET_ERR_MSG_MOD(extack, "Cananalt offload compressed xfrm states");
 		return -EINVAL;
 	}
 	if (x->props.flags & XFRM_STATE_ESN &&
 	    !(mlx5_ipsec_device_caps(mdev) & MLX5_IPSEC_CAP_ESN)) {
-		NL_SET_ERR_MSG_MOD(extack, "Cannot offload ESN xfrm states");
+		NL_SET_ERR_MSG_MOD(extack, "Cananalt offload ESN xfrm states");
 		return -EINVAL;
 	}
 	if (x->props.family != AF_INET &&
@@ -429,12 +429,12 @@ static int mlx5e_xfrm_validate_state(struct mlx5_core_dev *mdev,
 	}
 	if (x->encap) {
 		if (!(mlx5_ipsec_device_caps(mdev) & MLX5_IPSEC_CAP_ESPINUDP)) {
-			NL_SET_ERR_MSG_MOD(extack, "Encapsulation is not supported");
+			NL_SET_ERR_MSG_MOD(extack, "Encapsulation is analt supported");
 			return -EINVAL;
 		}
 
 		if (x->encap->encap_type != UDP_ENCAP_ESPINUDP) {
-			NL_SET_ERR_MSG_MOD(extack, "Encapsulation other than UDP is not supported");
+			NL_SET_ERR_MSG_MOD(extack, "Encapsulation other than UDP is analt supported");
 			return -EINVAL;
 		}
 
@@ -449,34 +449,34 @@ static int mlx5e_xfrm_validate_state(struct mlx5_core_dev *mdev,
 		}
 	}
 	if (!x->aead) {
-		NL_SET_ERR_MSG_MOD(extack, "Cannot offload xfrm states without aead");
+		NL_SET_ERR_MSG_MOD(extack, "Cananalt offload xfrm states without aead");
 		return -EINVAL;
 	}
 	if (x->aead->alg_icv_len != 128) {
-		NL_SET_ERR_MSG_MOD(extack, "Cannot offload xfrm states with AEAD ICV length other than 128bit");
+		NL_SET_ERR_MSG_MOD(extack, "Cananalt offload xfrm states with AEAD ICV length other than 128bit");
 		return -EINVAL;
 	}
 	if ((x->aead->alg_key_len != 128 + 32) &&
 	    (x->aead->alg_key_len != 256 + 32)) {
-		NL_SET_ERR_MSG_MOD(extack, "Cannot offload xfrm states with AEAD key length other than 128/256 bit");
+		NL_SET_ERR_MSG_MOD(extack, "Cananalt offload xfrm states with AEAD key length other than 128/256 bit");
 		return -EINVAL;
 	}
 	if (x->tfcpad) {
-		NL_SET_ERR_MSG_MOD(extack, "Cannot offload xfrm states with tfc padding");
+		NL_SET_ERR_MSG_MOD(extack, "Cananalt offload xfrm states with tfc padding");
 		return -EINVAL;
 	}
 	if (!x->geniv) {
-		NL_SET_ERR_MSG_MOD(extack, "Cannot offload xfrm states without geniv");
+		NL_SET_ERR_MSG_MOD(extack, "Cananalt offload xfrm states without geniv");
 		return -EINVAL;
 	}
 	if (strcmp(x->geniv, "seqiv")) {
-		NL_SET_ERR_MSG_MOD(extack, "Cannot offload xfrm states with geniv other than seqiv");
+		NL_SET_ERR_MSG_MOD(extack, "Cananalt offload xfrm states with geniv other than seqiv");
 		return -EINVAL;
 	}
 
 	if (x->sel.proto != IPPROTO_IP && x->sel.proto != IPPROTO_UDP &&
 	    x->sel.proto != IPPROTO_TCP) {
-		NL_SET_ERR_MSG_MOD(extack, "Device does not support upper protocol other than TCP/UDP");
+		NL_SET_ERR_MSG_MOD(extack, "Device does analt support upper protocol other than TCP/UDP");
 		return -EINVAL;
 	}
 
@@ -488,7 +488,7 @@ static int mlx5e_xfrm_validate_state(struct mlx5_core_dev *mdev,
 	switch (x->xso.type) {
 	case XFRM_DEV_OFFLOAD_CRYPTO:
 		if (!(mlx5_ipsec_device_caps(mdev) & MLX5_IPSEC_CAP_CRYPTO)) {
-			NL_SET_ERR_MSG_MOD(extack, "Crypto offload is not supported");
+			NL_SET_ERR_MSG_MOD(extack, "Crypto offload is analt supported");
 			return -EINVAL;
 		}
 
@@ -496,13 +496,13 @@ static int mlx5e_xfrm_validate_state(struct mlx5_core_dev *mdev,
 	case XFRM_DEV_OFFLOAD_PACKET:
 		if (!(mlx5_ipsec_device_caps(mdev) &
 		      MLX5_IPSEC_CAP_PACKET_OFFLOAD)) {
-			NL_SET_ERR_MSG_MOD(extack, "Packet offload is not supported");
+			NL_SET_ERR_MSG_MOD(extack, "Packet offload is analt supported");
 			return -EINVAL;
 		}
 
 		if (x->props.mode == XFRM_MODE_TUNNEL &&
 		    !(mlx5_ipsec_device_caps(mdev) & MLX5_IPSEC_CAP_TUNNEL)) {
-			NL_SET_ERR_MSG_MOD(extack, "Packet offload is not supported for tunnel mode");
+			NL_SET_ERR_MSG_MOD(extack, "Packet offload is analt supported for tunnel mode");
 			return -EINVAL;
 		}
 
@@ -516,7 +516,7 @@ static int mlx5e_xfrm_validate_state(struct mlx5_core_dev *mdev,
 		}
 
 		if (!x->props.reqid) {
-			NL_SET_ERR_MSG_MOD(extack, "Cannot offload without reqid");
+			NL_SET_ERR_MSG_MOD(extack, "Cananalt offload without reqid");
 			return -EINVAL;
 		}
 
@@ -624,7 +624,7 @@ static int mlx5_ipsec_create_work(struct mlx5e_ipsec_sa_entry *sa_entry)
 
 	work = kzalloc(sizeof(*work), GFP_KERNEL);
 	if (!work)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	switch (x->xso.type) {
 	case XFRM_DEV_OFFLOAD_CRYPTO:
@@ -653,7 +653,7 @@ static int mlx5_ipsec_create_work(struct mlx5e_ipsec_sa_entry *sa_entry)
 
 free_work:
 	kfree(work);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int mlx5e_ipsec_create_dwork(struct mlx5e_ipsec_sa_entry *sa_entry)
@@ -672,7 +672,7 @@ static int mlx5e_ipsec_create_dwork(struct mlx5e_ipsec_sa_entry *sa_entry)
 
 	dwork = kzalloc(sizeof(*dwork), GFP_KERNEL);
 	if (!dwork)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dwork->sa_entry = sa_entry;
 	INIT_DELAYED_WORK(&dwork->dwork, mlx5e_ipsec_handle_sw_limits);
@@ -692,13 +692,13 @@ static int mlx5e_xfrm_add_state(struct xfrm_state *x,
 
 	priv = netdev_priv(netdev);
 	if (!priv->ipsec)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ipsec = priv->ipsec;
 	gfp = (x->xso.flags & XFRM_DEV_OFFLOAD_FLAG_ACQ) ? GFP_ATOMIC : GFP_KERNEL;
 	sa_entry = kzalloc(sizeof(*sa_entry), gfp);
 	if (!sa_entry)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sa_entry->x = x;
 	sa_entry->ipsec = ipsec;
@@ -803,7 +803,7 @@ static void mlx5e_xfrm_del_state(struct xfrm_state *x)
 
 	if (attrs->mode == XFRM_MODE_TUNNEL &&
 	    attrs->type == XFRM_DEV_OFFLOAD_PACKET)
-		/* Make sure that no ARP requests are running in parallel */
+		/* Make sure that anal ARP requests are running in parallel */
 		flush_workqueue(ipsec->wq);
 
 }
@@ -833,7 +833,7 @@ sa_entry_free:
 	kfree(sa_entry);
 }
 
-static int mlx5e_ipsec_netevent_event(struct notifier_block *nb,
+static int mlx5e_ipsec_netevent_event(struct analtifier_block *nb,
 				      unsigned long event, void *ptr)
 {
 	struct mlx5_accel_esp_xfrm_attrs *attrs;
@@ -846,7 +846,7 @@ static int mlx5e_ipsec_netevent_event(struct notifier_block *nb,
 	unsigned long idx;
 
 	if (event != NETEVENT_NEIGH_UPDATE || !(n->nud_state & NUD_VALID))
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	ipsec = container_of(nb, struct mlx5e_ipsec, netevent_nb);
 	xa_for_each_marked(&ipsec->sadb, idx, sa_entry, MLX5E_IPSEC_TUNNEL_SA) {
@@ -870,16 +870,16 @@ static int mlx5e_ipsec_netevent_event(struct notifier_block *nb,
 		queue_work(ipsec->wq, &sa_entry->work->work);
 	}
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 void mlx5e_ipsec_init(struct mlx5e_priv *priv)
 {
 	struct mlx5e_ipsec *ipsec;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	if (!mlx5_ipsec_device_caps(priv->mdev)) {
-		netdev_dbg(priv->netdev, "Not an IPSec offload device\n");
+		netdev_dbg(priv->netdev, "Analt an IPSec offload device\n");
 		return;
 	}
 
@@ -903,8 +903,8 @@ void mlx5e_ipsec_init(struct mlx5e_priv *priv)
 	}
 
 	if (mlx5_ipsec_device_caps(priv->mdev) & MLX5_IPSEC_CAP_TUNNEL) {
-		ipsec->netevent_nb.notifier_call = mlx5e_ipsec_netevent_event;
-		ret = register_netevent_notifier(&ipsec->netevent_nb);
+		ipsec->netevent_nb.analtifier_call = mlx5e_ipsec_netevent_event;
+		ret = register_netevent_analtifier(&ipsec->netevent_nb);
 		if (ret)
 			goto clear_aso;
 	}
@@ -921,7 +921,7 @@ void mlx5e_ipsec_init(struct mlx5e_priv *priv)
 
 err_fs_init:
 	if (mlx5_ipsec_device_caps(priv->mdev) & MLX5_IPSEC_CAP_TUNNEL)
-		unregister_netevent_notifier(&ipsec->netevent_nb);
+		unregister_netevent_analtifier(&ipsec->netevent_nb);
 clear_aso:
 	if (mlx5_ipsec_device_caps(priv->mdev) & MLX5_IPSEC_CAP_PACKET_OFFLOAD)
 		mlx5e_ipsec_aso_cleanup(ipsec);
@@ -941,9 +941,9 @@ void mlx5e_ipsec_cleanup(struct mlx5e_priv *priv)
 		return;
 
 	mlx5e_accel_ipsec_fs_cleanup(ipsec);
-	if (ipsec->netevent_nb.notifier_call) {
-		unregister_netevent_notifier(&ipsec->netevent_nb);
-		ipsec->netevent_nb.notifier_call = NULL;
+	if (ipsec->netevent_nb.analtifier_call) {
+		unregister_netevent_analtifier(&ipsec->netevent_nb);
+		ipsec->netevent_nb.analtifier_call = NULL;
 	}
 	if (ipsec->aso)
 		mlx5e_ipsec_aso_cleanup(ipsec);
@@ -955,11 +955,11 @@ void mlx5e_ipsec_cleanup(struct mlx5e_priv *priv)
 static bool mlx5e_ipsec_offload_ok(struct sk_buff *skb, struct xfrm_state *x)
 {
 	if (x->props.family == AF_INET) {
-		/* Offload with IPv4 options is not supported yet */
+		/* Offload with IPv4 options is analt supported yet */
 		if (ip_hdr(skb)->ihl > 5)
 			return false;
 	} else {
-		/* Offload with IPv6 extension headers is not support yet */
+		/* Offload with IPv6 extension headers is analt support yet */
 		if (ipv6_ext_hdr(ipv6_hdr(skb)->nexthdr))
 			return false;
 	}
@@ -1008,19 +1008,19 @@ static int mlx5e_xfrm_validate_policy(struct mlx5_core_dev *mdev,
 	struct xfrm_selector *sel = &x->selector;
 
 	if (x->type != XFRM_POLICY_TYPE_MAIN) {
-		NL_SET_ERR_MSG_MOD(extack, "Cannot offload non-main policy types");
+		NL_SET_ERR_MSG_MOD(extack, "Cananalt offload analn-main policy types");
 		return -EINVAL;
 	}
 
 	/* Please pay attention that we support only one template */
 	if (x->xfrm_nr > 1) {
-		NL_SET_ERR_MSG_MOD(extack, "Cannot offload more than one template");
+		NL_SET_ERR_MSG_MOD(extack, "Cananalt offload more than one template");
 		return -EINVAL;
 	}
 
 	if (x->xdo.dir != XFRM_DEV_OFFLOAD_IN &&
 	    x->xdo.dir != XFRM_DEV_OFFLOAD_OUT) {
-		NL_SET_ERR_MSG_MOD(extack, "Cannot offload forward policy");
+		NL_SET_ERR_MSG_MOD(extack, "Cananalt offload forward policy");
 		return -EINVAL;
 	}
 
@@ -1038,25 +1038,25 @@ static int mlx5e_xfrm_validate_policy(struct mlx5_core_dev *mdev,
 	if (x->selector.proto != IPPROTO_IP &&
 	    x->selector.proto != IPPROTO_UDP &&
 	    x->selector.proto != IPPROTO_TCP) {
-		NL_SET_ERR_MSG_MOD(extack, "Device does not support upper protocol other than TCP/UDP");
+		NL_SET_ERR_MSG_MOD(extack, "Device does analt support upper protocol other than TCP/UDP");
 		return -EINVAL;
 	}
 
 	if (x->priority) {
 		if (!(mlx5_ipsec_device_caps(mdev) & MLX5_IPSEC_CAP_PRIO)) {
-			NL_SET_ERR_MSG_MOD(extack, "Device does not support policy priority");
+			NL_SET_ERR_MSG_MOD(extack, "Device does analt support policy priority");
 			return -EINVAL;
 		}
 
 		if (x->priority == U32_MAX) {
-			NL_SET_ERR_MSG_MOD(extack, "Device does not support requested policy priority");
+			NL_SET_ERR_MSG_MOD(extack, "Device does analt support requested policy priority");
 			return -EINVAL;
 		}
 	}
 
 	if (x->xdo.type == XFRM_DEV_OFFLOAD_PACKET &&
 	    !(mlx5_ipsec_device_caps(mdev) & MLX5_IPSEC_CAP_PACKET_OFFLOAD)) {
-		NL_SET_ERR_MSG_MOD(extack, "Packet offload is not supported");
+		NL_SET_ERR_MSG_MOD(extack, "Packet offload is analt supported");
 		return -EINVAL;
 	}
 
@@ -1099,7 +1099,7 @@ static int mlx5e_xfrm_add_policy(struct xfrm_policy *x,
 	priv = netdev_priv(netdev);
 	if (!priv->ipsec) {
 		NL_SET_ERR_MSG_MOD(extack, "Device doesn't support IPsec packet offload");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	err = mlx5e_xfrm_validate_policy(priv->mdev, x, extack);
@@ -1108,7 +1108,7 @@ static int mlx5e_xfrm_add_policy(struct xfrm_policy *x,
 
 	pol_entry = kzalloc(sizeof(*pol_entry), GFP_KERNEL);
 	if (!pol_entry)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pol_entry->x = x;
 	pol_entry->ipsec = priv->ipsec;
@@ -1177,7 +1177,7 @@ void mlx5e_ipsec_build_netdev(struct mlx5e_priv *priv)
 	netdev->hw_enc_features |= NETIF_F_HW_ESP;
 
 	if (!MLX5_CAP_ETH(mdev, swp_csum)) {
-		mlx5_core_dbg(mdev, "mlx5e: SWP checksum not supported\n");
+		mlx5_core_dbg(mdev, "mlx5e: SWP checksum analt supported\n");
 		return;
 	}
 
@@ -1185,7 +1185,7 @@ void mlx5e_ipsec_build_netdev(struct mlx5e_priv *priv)
 	netdev->hw_enc_features |= NETIF_F_HW_ESP_TX_CSUM;
 
 	if (!MLX5_CAP_ETH(mdev, swp_lso)) {
-		mlx5_core_dbg(mdev, "mlx5e: ESP LSO not supported\n");
+		mlx5_core_dbg(mdev, "mlx5e: ESP LSO analt supported\n");
 		return;
 	}
 

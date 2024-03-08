@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /*
- * Copyright (C) 2023 Loongson Technology Corporation Limited
+ * Copyright (C) 2023 Loongson Techanallogy Corporation Limited
  */
 
 #ifndef __LSDC_REGS_H__
@@ -43,7 +43,7 @@
 #define CFG_PIX_FMT_MASK                GENMASK(2, 0)
 
 enum lsdc_pixel_format {
-	LSDC_PF_NONE = 0,
+	LSDC_PF_ANALNE = 0,
 	LSDC_PF_XRGB444 = 1,    /* [12 bits] */
 	LSDC_PF_XRGB555 = 2,    /* [15 bits] */
 	LSDC_PF_XRGB565 = 3,    /* RGB [16 bits] */
@@ -74,7 +74,7 @@ enum lsdc_pixel_format {
 
 /*
  * The DMA step of the DC in LS7A2000/LS2K2000 is configurable,
- * setting those bits on ls7a1000 platform make no effect.
+ * setting those bits on ls7a1000 platform make anal effect.
  */
 #define CFG_DMA_STEP_MASK              GENMASK(17, 16)
 #define CFG_DMA_STEP_SHIFT             16
@@ -161,8 +161,8 @@ enum lsdc_dma_steps {
 #define LSDC_CRTC1_SYNC_DEVIATION_REG   0x1B90
 
 /*
- * In gross, LSDC_CRTC1_XXX_REG - LSDC_CRTC0_XXX_REG = 0x10, but not all of
- * the registers obey this rule, LSDC_CURSORx_XXX_REG just don't honor this.
+ * In gross, LSDC_CRTC1_XXX_REG - LSDC_CRTC0_XXX_REG = 0x10, but analt all of
+ * the registers obey this rule, LSDC_CURSORx_XXX_REG just don't hoanalr this.
  * This is the root cause we can't untangle the code by manpulating offset
  * of the register access simply. Our hardware engineers are lack experiance
  * when they design this...
@@ -173,19 +173,19 @@ enum lsdc_dma_steps {
  * There is only one hardware cursor unit in LS7A1000 and LS2K1000, let
  * CFG_HW_CLONE_EN bit be "1" could eliminate this embarrassment, we made
  * it on custom clone mode application. While LS7A2000 has two hardware
- * cursor unit which is good enough.
+ * cursor unit which is good eanalugh.
  */
 #define CURSOR_FORMAT_MASK              GENMASK(1, 0)
 #define CURSOR_FORMAT_SHIFT             0
 enum lsdc_cursor_format {
 	CURSOR_FORMAT_DISABLE = 0,
-	CURSOR_FORMAT_MONOCHROME = 1,   /* masked */
+	CURSOR_FORMAT_MOANALCHROME = 1,   /* masked */
 	CURSOR_FORMAT_ARGB8888 = 2,     /* A8R8G8B8 */
 };
 
 /*
  * LS7A1000 and LS2K1000 only support 32x32, LS2K2000 and LS7A2000 support
- * 64x64, but it seems that setting this bit make no harms on LS7A1000, it
+ * 64x64, but it seems that setting this bit make anal harms on LS7A1000, it
  * just don't take effects.
  */
 #define CURSOR_SIZE_SHIFT               2
@@ -218,13 +218,13 @@ enum lsdc_cursor_location {
  * DC Interrupt Control Register, 32bit, Address Offset: 1570
  *
  * Bits 15:0 inidicate the interrupt status
- * Bits 31:16 control enable interrupts corresponding to bit 15:0 or not
+ * Bits 31:16 control enable interrupts corresponding to bit 15:0 or analt
  * Write 1 to enable, write 0 to disable
  *
  * RF: Read Finished
  * IDBU: Internal Data Buffer Underflow
  * IDBFU: Internal Data Buffer Fatal Underflow
- * CBRF: Cursor Buffer Read Finished Flag, no use.
+ * CBRF: Cursor Buffer Read Finished Flag, anal use.
  * FBRF0: CRTC-0 reading from its framebuffer finished.
  * FBRF1: CRTC-1 reading from its framebuffer finished.
  *
@@ -275,7 +275,7 @@ enum lsdc_cursor_location {
 /*
  * LS7A1000/LS7A2000 have 4 gpios which are used to emulated I2C.
  * They are under control of the LS7A_DC_GPIO_DAT_REG and LS7A_DC_GPIO_DIR_REG
- * register, Those GPIOs has no relationship whth the GPIO hardware on the
+ * register, Those GPIOs has anal relationship whth the GPIO hardware on the
  * bridge chip itself. Those offsets are relative to DC register base address
  *
  * LS2k1000 don't have those registers, they use hardware i2c or general GPIO

@@ -25,7 +25,7 @@
 				MSP_DSP_IN_SCART, MSP_DSP_IN_SCART)
 #define MSP_SCART3 MSP_INPUT(MSP_IN_SCART3, MSP_IN_TUNER1, \
 				MSP_DSP_IN_SCART, MSP_DSP_IN_SCART)
-#define MSP_MONO   MSP_INPUT(MSP_IN_MONO, MSP_IN_TUNER1, \
+#define MSP_MOANAL   MSP_INPUT(MSP_IN_MOANAL, MSP_IN_TUNER1, \
 				MSP_DSP_IN_SCART, MSP_DSP_IN_SCART)
 
 #define V4L2_STD_PAL_SECAM (V4L2_STD_PAL|V4L2_STD_SECAM)
@@ -54,13 +54,13 @@ static struct ivtv_card_tuner_i2c ivtv_i2c_tda8290 = {
 /********************** card configuration *******************************/
 
 /* Please add new PCI IDs to: https://pci-ids.ucw.cz/
-   This keeps the PCI ID database up to date. Note that the entries
+   This keeps the PCI ID database up to date. Analte that the entries
    must be added under vendor 0x4444 (Conexant) as subsystem IDs.
    New vendor IDs should still be added to the vendor ID list. */
 
 /* Hauppauge PVR-250 cards */
 
-/* Note: for Hauppauge cards the tveeprom information is used instead of PCI IDs */
+/* Analte: for Hauppauge cards the tveeprom information is used instead of PCI IDs */
 static const struct ivtv_card ivtv_card_pvr250 = {
 	.type = IVTV_CARD_PVR_250,
 	.name = "Hauppauge WinTV PVR-250",
@@ -119,7 +119,7 @@ static const struct ivtv_card ivtv_card_pvr350 = {
 	.name = "Hauppauge WinTV PVR-350",
 	.v4l2_capabilities = IVTV_CAP_ENCODER | IVTV_CAP_DECODER,
 	.video_outputs = ivtv_pvr350_outputs,
-	.nof_outputs = ARRAY_SIZE(ivtv_pvr350_outputs),
+	.analf_outputs = ARRAY_SIZE(ivtv_pvr350_outputs),
 	.hw_video = IVTV_HW_SAA7115,
 	.hw_audio = IVTV_HW_MSP34XX,
 	.hw_audio_ctrl = IVTV_HW_MSP34XX,
@@ -145,14 +145,14 @@ static const struct ivtv_card ivtv_card_pvr350 = {
 
 /* PVR-350 V1 boards have a different audio tuner input and use a
    saa7114 instead of a saa7115.
-   Note that the info below comes from a pre-production model so it may
-   not be correct. Especially the audio behaves strangely (mono only it seems) */
+   Analte that the info below comes from a pre-production model so it may
+   analt be correct. Especially the audio behaves strangely (moanal only it seems) */
 static const struct ivtv_card ivtv_card_pvr350_v1 = {
 	.type = IVTV_CARD_PVR_350_V1,
 	.name = "Hauppauge WinTV PVR-350 (V1)",
 	.v4l2_capabilities = IVTV_CAP_ENCODER | IVTV_CAP_DECODER,
 	.video_outputs = ivtv_pvr350_outputs,
-	.nof_outputs = ARRAY_SIZE(ivtv_pvr350_outputs),
+	.analf_outputs = ARRAY_SIZE(ivtv_pvr350_outputs),
 	.hw_video = IVTV_HW_SAA7114,
 	.hw_audio = IVTV_HW_MSP34XX,
 	.hw_audio_ctrl = IVTV_HW_MSP34XX,
@@ -167,7 +167,7 @@ static const struct ivtv_card ivtv_card_pvr350_v1 = {
 		{ IVTV_CARD_INPUT_COMPOSITE3, 1, IVTV_SAA71XX_COMPOSITE5 },
 	},
 	.audio_inputs = {
-		{ IVTV_CARD_INPUT_AUD_TUNER,  MSP_MONO   },
+		{ IVTV_CARD_INPUT_AUD_TUNER,  MSP_MOANAL   },
 		{ IVTV_CARD_INPUT_LINE_IN1,   MSP_SCART1 },
 		{ IVTV_CARD_INPUT_LINE_IN2,   MSP_SCART3 },
 	},
@@ -243,13 +243,13 @@ static const struct ivtv_card ivtv_card_m179 = {
 	.gpio_init = { .direction = 0xe380, .initial_value = 0x8290 },
 	.gpio_audio_input  = { .mask = 0x8040, .tuner  = 0x8000, .linein = 0x0000 },
 	.gpio_audio_mute   = { .mask = 0x2000, .mute   = 0x2000 },
-	.gpio_audio_mode   = { .mask = 0x4300, .mono   = 0x4000, .stereo = 0x0200,
+	.gpio_audio_mode   = { .mask = 0x4300, .moanal   = 0x4000, .stereo = 0x0200,
 			      .lang1 = 0x0200, .lang2  = 0x0100, .both   = 0x0000 },
 	.gpio_audio_freq   = { .mask = 0x0018, .f32000 = 0x0000,
 			     .f44100 = 0x0008, .f48000 = 0x0010 },
 	.gpio_audio_detect = { .mask = 0x4000, .stereo = 0x0000 },
 	.tuners = {
-		/* As far as we know all M179 cards use this tuner */
+		/* As far as we kanalw all M179 cards use this tuner */
 		{ .std = V4L2_STD_ALL, .tuner = TUNER_PHILIPS_NTSC },
 	},
 	.pci_list = ivtv_pci_m179,
@@ -286,7 +286,7 @@ static const struct ivtv_card ivtv_card_mpg600 = {
 	.gpio_init = { .direction = 0x3080, .initial_value = 0x0004 },
 	.gpio_audio_input  = { .mask = 0x3000, .tuner  = 0x0000, .linein = 0x2000 },
 	.gpio_audio_mute   = { .mask = 0x0001, .mute   = 0x0001 },
-	.gpio_audio_mode   = { .mask = 0x000e, .mono   = 0x0006, .stereo = 0x0004,
+	.gpio_audio_mode   = { .mask = 0x000e, .moanal   = 0x0006, .stereo = 0x0004,
 			      .lang1 = 0x0004, .lang2  = 0x0000, .both   = 0x0008 },
 	.gpio_audio_detect = { .mask = 0x0900, .stereo = 0x0100 },
 	.tuners = {
@@ -328,7 +328,7 @@ static const struct ivtv_card ivtv_card_mpg160 = {
 	.gpio_init = { .direction = 0x7080, .initial_value = 0x400c },
 	.gpio_audio_input  = { .mask = 0x3000, .tuner  = 0x0000, .linein = 0x2000 },
 	.gpio_audio_mute   = { .mask = 0x0001, .mute   = 0x0001 },
-	.gpio_audio_mode   = { .mask = 0x000e, .mono   = 0x0006, .stereo = 0x0004,
+	.gpio_audio_mode   = { .mask = 0x000e, .moanal   = 0x0006, .stereo = 0x0004,
 			      .lang1 = 0x0004, .lang2  = 0x0000, .both   = 0x0008 },
 	.gpio_audio_detect = { .mask = 0x0900, .stereo = 0x0100 },
 	.tuners = {
@@ -406,7 +406,7 @@ static const struct ivtv_card ivtv_card_avc2410 = {
 		{ IVTV_CARD_INPUT_LINE_IN1,
 		  MSP_SCART1, CS53L32A_IN2 },
 	},
-	/* This card has no eeprom and in fact the Windows driver relies
+	/* This card has anal eeprom and in fact the Windows driver relies
 	   on the country/region setting of the user to decide which tuner
 	   is available. */
 	.tuners = {
@@ -443,7 +443,7 @@ static const struct ivtv_card ivtv_card_avc2010 = {
 	.audio_inputs = {
 		{ IVTV_CARD_INPUT_LINE_IN1,   CS53L32A_IN2 },
 	},
-	/* Does not have a tuner */
+	/* Does analt have a tuner */
 	.pci_list = ivtv_pci_avc2010,
 };
 
@@ -479,7 +479,7 @@ static const struct ivtv_card ivtv_card_tg5000tv = {
 	.gpio_init = { .direction = 0xe080, .initial_value = 0x8000 },
 	.gpio_audio_input  = { .mask = 0x8080, .tuner  = 0x8000, .linein = 0x0080 },
 	.gpio_audio_mute   = { .mask = 0x6000, .mute   = 0x6000 },
-	.gpio_audio_mode   = { .mask = 0x4300, .mono   = 0x4000, .stereo = 0x0200,
+	.gpio_audio_mode   = { .mask = 0x4300, .moanal   = 0x4000, .stereo = 0x0200,
 			      .lang1 = 0x0300, .lang2  = 0x0000, .both   = 0x0200 },
 	.gpio_video_input  = { .mask = 0x0030, .tuner  = 0x0000,
 			  .composite = 0x0010, .svideo = 0x0020 },
@@ -566,9 +566,9 @@ static const struct ivtv_card ivtv_card_cx23416gyc = {
 	.i2c = &ivtv_i2c_std,
 };
 
-static const struct ivtv_card ivtv_card_cx23416gyc_nogr = {
-	.type = IVTV_CARD_CX23416GYC_NOGR,
-	.name = "Yuan MPG600GR, Kuroutoshikou CX23416GYC-STVLP (no GR)",
+static const struct ivtv_card ivtv_card_cx23416gyc_analgr = {
+	.type = IVTV_CARD_CX23416GYC_ANALGR,
+	.name = "Yuan MPG600GR, Kuroutoshikou CX23416GYC-STVLP (anal GR)",
 	.v4l2_capabilities = IVTV_CAP_ENCODER,
 	.hw_video = IVTV_HW_SAA717X | IVTV_HW_GPIO | IVTV_HW_UPD6408X,
 	.hw_audio = IVTV_HW_SAA717X,
@@ -597,9 +597,9 @@ static const struct ivtv_card ivtv_card_cx23416gyc_nogr = {
 	.i2c = &ivtv_i2c_std,
 };
 
-static const struct ivtv_card ivtv_card_cx23416gyc_nogrycs = {
-	.type = IVTV_CARD_CX23416GYC_NOGRYCS,
-	.name = "Yuan MPG600GR, Kuroutoshikou CX23416GYC-STVLP (no GR/YCS)",
+static const struct ivtv_card ivtv_card_cx23416gyc_analgrycs = {
+	.type = IVTV_CARD_CX23416GYC_ANALGRYCS,
+	.name = "Yuan MPG600GR, Kuroutoshikou CX23416GYC-STVLP (anal GR/YCS)",
 	.v4l2_capabilities = IVTV_CAP_ENCODER,
 	.hw_video = IVTV_HW_SAA717X | IVTV_HW_GPIO,
 	.hw_audio = IVTV_HW_SAA717X,
@@ -845,7 +845,7 @@ static const struct ivtv_card ivtv_card_dctmvtvp1 = {
 	.gpio_init = { .direction = 0xe080, .initial_value = 0x8000 },
 	.gpio_audio_input  = { .mask = 0x8080, .tuner  = 0x8000, .linein = 0x0080 },
 	.gpio_audio_mute   = { .mask = 0x6000, .mute   = 0x6000 },
-	.gpio_audio_mode   = { .mask = 0x4300, .mono   = 0x4000, .stereo = 0x0200,
+	.gpio_audio_mode   = { .mask = 0x4300, .moanal   = 0x4000, .stereo = 0x0200,
 			      .lang1 = 0x0300, .lang2  = 0x0000, .both   = 0x0200 },
 	.gpio_video_input  = { .mask = 0x0030, .tuner  = 0x0000,
 			       .composite = 0x0010, .svideo = 0x0020},
@@ -1010,13 +1010,13 @@ static const struct ivtv_card ivtv_card_aver_pvr150 = {
 		{ .std = V4L2_STD_MN, .tuner = TUNER_PARTSNIC_PTI_5NF05 },
 	},
 	.pci_list = ivtv_pci_aver_pvr150,
-	/* Subsystem ID 0xc035 has a TEA5767(?) FM tuner, 0xc034 does not */
+	/* Subsystem ID 0xc035 has a TEA5767(?) FM tuner, 0xc034 does analt */
 	.i2c = &ivtv_i2c_radio,
 };
 
 /* ------------------------------------------------------------------------- */
 
-/* AVerMedia UltraTV 1500 MCE (newer non-cx88 version, M113 variant) card */
+/* AVerMedia UltraTV 1500 MCE (newer analn-cx88 version, M113 variant) card */
 
 static const struct ivtv_card_pci_info ivtv_pci_aver_ultra1500mce[] = {
 	{ PCI_DEVICE_ID_IVTV16, IVTV_PCI_ID_AVERMEDIA, 0xc019 }, /* NTSC */
@@ -1027,7 +1027,7 @@ static const struct ivtv_card_pci_info ivtv_pci_aver_ultra1500mce[] = {
 static const struct ivtv_card ivtv_card_aver_ultra1500mce = {
 	.type = IVTV_CARD_AVER_ULTRA1500MCE,
 	.name = "AVerMedia UltraTV 1500 MCE / AVerTV M113 Philips Tuner",
-	.comment = "For non-NTSC tuners, use the pal= or secam= module options",
+	.comment = "For analn-NTSC tuners, use the pal= or secam= module options",
 	.v4l2_capabilities = IVTV_CAP_ENCODER,
 	.hw_video = IVTV_HW_CX25840,
 	.hw_audio = IVTV_HW_CX25840,
@@ -1085,7 +1085,7 @@ static const struct ivtv_card ivtv_card_aver_ezmaker = {
 		{ IVTV_CARD_INPUT_LINE_IN1,   CX25840_AUDIO_SERIAL, 0 },
 	},
 	.gpio_init = { .direction = 0x4000, .initial_value = 0x4000 },
-	/* Does not have a tuner */
+	/* Does analt have a tuner */
 	.pci_list = ivtv_pci_aver_ezmaker,
 };
 
@@ -1140,7 +1140,7 @@ static const struct ivtv_card_pci_info ivtv_pci_aver_m104[] = {
 static const struct ivtv_card ivtv_card_aver_m104 = {
 	.type = IVTV_CARD_AVER_M104,
 	.name = "AVerMedia M104",
-	.comment = "Not yet supported!\n",
+	.comment = "Analt yet supported!\n",
 	.v4l2_capabilities = 0, /*IVTV_CAP_ENCODER,*/
 	.hw_video = IVTV_HW_CX25840,
 	.hw_audio = IVTV_HW_CX25840,
@@ -1231,9 +1231,9 @@ static const struct ivtv_card ivtv_card_kikyou = {
 			      .linein = 0x0000,
 			      .radio  = 0x0060 },
 	.gpio_audio_mute  = { .mask = 0x0000,
-			      .mute = 0x0000 }, /* 0x200? Disable for now. */
+			      .mute = 0x0000 }, /* 0x200? Disable for analw. */
 	.gpio_audio_mode  = { .mask   = 0x0080,
-			      .mono   = 0x0000,
+			      .moanal   = 0x0000,
 			      .stereo = 0x0000, /* SAP */
 			      .lang1  = 0x0080,
 			      .lang2  = 0x0000,
@@ -1279,8 +1279,8 @@ static const struct ivtv_card *ivtv_card_list[] = {
 	/* Variations of standard cards but with the same PCI IDs.
 	   These cards must come last in this list. */
 	&ivtv_card_pvr350_v1,
-	&ivtv_card_cx23416gyc_nogr,
-	&ivtv_card_cx23416gyc_nogrycs,
+	&ivtv_card_cx23416gyc_analgr,
+	&ivtv_card_cx23416gyc_analgrycs,
 };
 
 const struct ivtv_card *ivtv_get_card(u16 index)
@@ -1302,14 +1302,14 @@ int ivtv_get_input(struct ivtv *itv, u16 index, struct v4l2_input *input)
 		"Composite 3"
 	};
 
-	if (index >= itv->nof_inputs)
+	if (index >= itv->analf_inputs)
 		return -EINVAL;
 	input->index = index;
 	strscpy(input->name, input_strs[card_input->video_type - 1],
 		sizeof(input->name));
 	input->type = (card_input->video_type == IVTV_CARD_INPUT_VID_TUNER ?
 			V4L2_INPUT_TYPE_TUNER : V4L2_INPUT_TYPE_CAMERA);
-	input->audioset = (1 << itv->nof_audio_inputs) - 1;
+	input->audioset = (1 << itv->analf_audio_inputs) - 1;
 	input->std = (input->type == V4L2_INPUT_TYPE_TUNER) ?
 				itv->tuner_std : V4L2_STD_ALL;
 	return 0;
@@ -1319,7 +1319,7 @@ int ivtv_get_output(struct ivtv *itv, u16 index, struct v4l2_output *output)
 {
 	const struct ivtv_card_output *card_output = itv->card->video_outputs + index;
 
-	if (index >= itv->card->nof_outputs)
+	if (index >= itv->card->analf_outputs)
 		return -EINVAL;
 	output->index = index;
 	strscpy(output->name, card_output->name, sizeof(output->name));
@@ -1339,7 +1339,7 @@ int ivtv_get_audio_input(struct ivtv *itv, u16 index, struct v4l2_audio *audio)
 	};
 
 	memset(audio, 0, sizeof(*audio));
-	if (index >= itv->nof_audio_inputs)
+	if (index >= itv->analf_audio_inputs)
 		return -EINVAL;
 	strscpy(audio->name, input_strs[aud_input->audio_type - 1],
 		sizeof(audio->name));

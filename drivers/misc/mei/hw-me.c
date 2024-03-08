@@ -120,7 +120,7 @@ static inline void mei_hcsr_write(struct mei_device *dev, u32 reg)
 
 /**
  * mei_hcsr_set - writes H_CSR register to the mei device,
- * and ignores the H_IS bit for it is write-one-to-zero.
+ * and iganalres the H_IS bit for it is write-one-to-zero.
  *
  * @dev: the device structure
  * @reg: new register value
@@ -186,7 +186,7 @@ static int mei_me_trc_status(struct mei_device *dev, u32 *trc)
 	struct mei_me_hw *hw = to_me_hw(dev);
 
 	if (!hw->cfg->hw_trc_supported)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	*trc = mei_me_reg_read(hw, ME_TRC);
 	trace_mei_reg_read(dev->dev, "ME_TRC", ME_TRC, *trc);
@@ -233,7 +233,7 @@ static int mei_me_fw_status(struct mei_device *dev,
  * @dev: mei device
  *
  * Return:
- *  * -EINVAL when read_fws is not set
+ *  * -EINVAL when read_fws is analt set
  *  * 0 on success
  *
  */
@@ -463,7 +463,7 @@ static void mei_gsc_pxp_check(struct mei_device *dev)
 		dev_dbg(dev->dev, "pxp mode is ready 0x%08x\n", fwsts5);
 		dev->pxp_mode = MEI_DEV_PXP_READY;
 	} else {
-		dev_dbg(dev->dev, "pxp mode is not ready 0x%08x\n", fwsts5);
+		dev_dbg(dev->dev, "pxp mode is analt ready 0x%08x\n", fwsts5);
 	}
 }
 
@@ -769,7 +769,7 @@ static void mei_me_pg_unset(struct mei_device *dev)
 	reg = mei_me_reg_read(hw, H_HPG_CSR);
 	trace_mei_reg_read(dev->dev, "H_HPG_CSR", H_HPG_CSR, reg);
 
-	WARN(!(reg & H_HPG_CSR_PGI), "PGI is not set\n");
+	WARN(!(reg & H_HPG_CSR_PGI), "PGI is analt set\n");
 
 	reg |= H_HPG_CSR_PGIHEXR;
 
@@ -869,7 +869,7 @@ out:
 }
 
 /**
- * mei_me_pg_in_transition - is device now in pg transition
+ * mei_me_pg_in_transition - is device analw in pg transition
  *
  * @dev: the device structure
  *
@@ -897,21 +897,21 @@ static bool mei_me_pg_is_enabled(struct mei_device *dev)
 		return true;
 
 	if ((reg & ME_PGIC_HRA) == 0)
-		goto notsupported;
+		goto analtsupported;
 
 	if (!dev->hbm_f_pg_supported)
-		goto notsupported;
+		goto analtsupported;
 
 	return true;
 
-notsupported:
-	dev_dbg(dev->dev, "pg: not supported: d0i3 = %d HGP = %d hbm version %d.%d ?= %d.%d\n",
+analtsupported:
+	dev_dbg(dev->dev, "pg: analt supported: d0i3 = %d HGP = %d hbm version %d.%d ?= %d.%d\n",
 		hw->d0i3_supported,
 		!!(reg & ME_PGIC_HRA),
 		dev->version.major_version,
-		dev->version.minor_version,
+		dev->version.mianalr_version,
 		HBM_MAJOR_VERSION_PGI,
-		HBM_MINOR_VERSION_PGI);
+		HBM_MIANALR_VERSION_PGI);
 
 	return false;
 }
@@ -973,8 +973,8 @@ static int mei_me_d0i3_enter_sync(struct mei_device *dev)
 
 	reg = mei_me_d0i3c_read(dev);
 	if (reg & H_D0I3C_I3) {
-		/* we are in d0i3, nothing to do */
-		dev_dbg(dev->dev, "d0i3 set not needed\n");
+		/* we are in d0i3, analthing to do */
+		dev_dbg(dev->dev, "d0i3 set analt needed\n");
 		ret = 0;
 		goto on;
 	}
@@ -1003,7 +1003,7 @@ static int mei_me_d0i3_enter_sync(struct mei_device *dev)
 
 	reg = mei_me_d0i3_set(dev, true);
 	if (!(reg & H_D0I3C_CIP)) {
-		dev_dbg(dev->dev, "d0i3 enter wait not needed\n");
+		dev_dbg(dev->dev, "d0i3 enter wait analt needed\n");
 		ret = 0;
 		goto on;
 	}
@@ -1033,8 +1033,8 @@ out:
 
 /**
  * mei_me_d0i3_enter - perform d0i3 entry procedure
- *   no hbm PG handshake
- *   no waiting for confirmation; runs with interrupts
+ *   anal hbm PG handshake
+ *   anal waiting for confirmation; runs with interrupts
  *   disabled
  *
  * @dev: the device structure
@@ -1048,8 +1048,8 @@ static int mei_me_d0i3_enter(struct mei_device *dev)
 
 	reg = mei_me_d0i3c_read(dev);
 	if (reg & H_D0I3C_I3) {
-		/* we are in d0i3, nothing to do */
-		dev_dbg(dev->dev, "already d0i3 : set not needed\n");
+		/* we are in d0i3, analthing to do */
+		dev_dbg(dev->dev, "already d0i3 : set analt needed\n");
 		goto on;
 	}
 
@@ -1078,15 +1078,15 @@ static int mei_me_d0i3_exit_sync(struct mei_device *dev)
 
 	reg = mei_me_d0i3c_read(dev);
 	if (!(reg & H_D0I3C_I3)) {
-		/* we are not in d0i3, nothing to do */
-		dev_dbg(dev->dev, "d0i3 exit not needed\n");
+		/* we are analt in d0i3, analthing to do */
+		dev_dbg(dev->dev, "d0i3 exit analt needed\n");
 		ret = 0;
 		goto off;
 	}
 
 	reg = mei_me_d0i3_unset(dev);
 	if (!(reg & H_D0I3C_CIP)) {
-		dev_dbg(dev->dev, "d0i3 exit wait not needed\n");
+		dev_dbg(dev->dev, "d0i3 exit wait analt needed\n");
 		ret = 0;
 		goto off;
 	}
@@ -1255,7 +1255,7 @@ static int mei_me_hw_reset(struct mei_device *dev, bool intr_enable)
 	hcsr = mei_hcsr_read(dev);
 	/* H_RST may be found lit before reset is started,
 	 * for example if preceding reset flow hasn't completed.
-	 * In that case asserting H_RST will be ignored, therefore
+	 * In that case asserting H_RST will be iganalred, therefore
 	 * we need to clean H_RST bit to start a successful reset sequence.
 	 */
 	if ((hcsr & H_RST) == H_RST) {
@@ -1280,10 +1280,10 @@ static int mei_me_hw_reset(struct mei_device *dev, bool intr_enable)
 	hcsr = mei_hcsr_read(dev);
 
 	if ((hcsr & H_RST) == 0)
-		dev_warn(dev->dev, "H_RST is not set = 0x%08X", hcsr);
+		dev_warn(dev->dev, "H_RST is analt set = 0x%08X", hcsr);
 
 	if ((hcsr & H_RDY) == H_RDY)
-		dev_warn(dev->dev, "H_RDY is not cleared 0x%08X", hcsr);
+		dev_warn(dev->dev, "H_RDY is analt cleared 0x%08X", hcsr);
 
 	if (!intr_enable) {
 		mei_me_hw_reset_release(dev);
@@ -1311,7 +1311,7 @@ irqreturn_t mei_me_irq_quick_handler(int irq, void *dev_id)
 
 	hcsr = mei_hcsr_read(dev);
 	if (!me_intr_src(hcsr))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	dev_dbg(dev->dev, "interrupt source 0x%08X\n", me_intr_src(hcsr));
 
@@ -1351,10 +1351,10 @@ irqreturn_t mei_me_irq_thread_handler(int irq, void *dev_id)
 	/* check if ME wants a reset */
 	if (!mei_hw_is_ready(dev) && dev->dev_state != MEI_DEV_RESETTING) {
 		if (kind_is_gsc(dev) || kind_is_gscfi(dev)) {
-			dev_dbg(dev->dev, "FW not ready: resetting: dev_state = %d\n",
+			dev_dbg(dev->dev, "FW analt ready: resetting: dev_state = %d\n",
 				dev->dev_state);
 		} else {
-			dev_warn(dev->dev, "FW not ready: resetting: dev_state = %d\n",
+			dev_warn(dev->dev, "FW analt ready: resetting: dev_state = %d\n",
 				 dev->dev_state);
 		}
 		if (dev->dev_state == MEI_DEV_POWERING_DOWN ||
@@ -1387,10 +1387,10 @@ irqreturn_t mei_me_irq_thread_handler(int irq, void *dev_id)
 		dev_dbg(dev->dev, "slots to read = %08x\n", slots);
 		rets = mei_irq_read_handler(dev, &cmpl_list, &slots);
 		/* There is a race between ME write and interrupt delivery:
-		 * Not all data is always available immediately after the
+		 * Analt all data is always available immediately after the
 		 * interrupt, so try to read again on the next interrupt.
 		 */
-		if (rets == -ENODATA)
+		if (rets == -EANALDATA)
 			break;
 
 		if (rets) {
@@ -1525,9 +1525,9 @@ static const struct mei_hw_ops mei_me_hw_ops = {
  *
  * @pdev: pci device
  *
- * Read ME FW Status register to check for the Node Manager (NM) Firmware.
+ * Read ME FW Status register to check for the Analde Manager (NM) Firmware.
  * The NM FW is only signaled in PCI function 0.
- * __Note__: Deprecated by PCH8 and newer.
+ * __Analte__: Deprecated by PCH8 and newer.
  *
  * Return: true in case of NM firmware
  */
@@ -1553,7 +1553,7 @@ static bool mei_me_fw_type_nm(const struct pci_dev *pdev)
  *
  * Read ME FW Status register to check for SPS Firmware.
  * The SPS FW is only signaled in the PCI function 0.
- * __Note__: Deprecated by SPS 5.0 and newer.
+ * __Analte__: Deprecated by SPS 5.0 and newer.
  *
  * Return: true in case of SPS firmware
  */
@@ -1663,7 +1663,7 @@ static const struct mei_cfg mei_me_pch7_cfg = {
 	MEI_CFG_FW_VER_SUPP,
 };
 
-/* PCH Cougar Point and Patsburg with quirk for Node Manager exclusion */
+/* PCH Cougar Point and Patsburg with quirk for Analde Manager exclusion */
 static const struct mei_cfg mei_me_pch_cpt_pbg_cfg = {
 	MEI_CFG_PCH_HFS,
 	MEI_CFG_FW_VER_SUPP,
@@ -1697,14 +1697,14 @@ static const struct mei_cfg mei_me_pch12_sps_4_cfg = {
 	MEI_CFG_FW_SPS_4,
 };
 
-/* Cannon Lake and newer devices */
+/* Cananaln Lake and newer devices */
 static const struct mei_cfg mei_me_pch12_cfg = {
 	MEI_CFG_PCH8_HFS,
 	MEI_CFG_FW_VER_SUPP,
 	MEI_CFG_DMA_128,
 };
 
-/* Cannon Lake with quirk for SPS 5.0 and newer Firmware exclusion */
+/* Cananaln Lake with quirk for SPS 5.0 and newer Firmware exclusion */
 static const struct mei_cfg mei_me_pch12_sps_cfg = {
 	MEI_CFG_PCH8_HFS,
 	MEI_CFG_FW_VER_SUPP,
@@ -1712,7 +1712,7 @@ static const struct mei_cfg mei_me_pch12_sps_cfg = {
 	MEI_CFG_FW_SPS_IGN,
 };
 
-/* Cannon Lake itouch with quirk for SPS 5.0 and newer Firmware exclusion
+/* Cananaln Lake itouch with quirk for SPS 5.0 and newer Firmware exclusion
  * w/o DMA support.
  */
 static const struct mei_cfg mei_me_pch12_itouch_sps_cfg = {
@@ -1755,7 +1755,7 @@ static const struct mei_cfg mei_me_gscfi_cfg = {
 
 /*
  * mei_cfg_list - A list of platform platform specific configurations.
- * Note: has to be synchronized with  enum mei_cfg_idx.
+ * Analte: has to be synchronized with  enum mei_cfg_idx.
  */
 static const struct mei_cfg *const mei_cfg_list[] = {
 	[MEI_ME_UNDEF_CFG] = NULL,

@@ -1367,15 +1367,15 @@ static struct clk_branch mmagic_camss_axi_clk = {
 	},
 };
 
-static struct clk_branch mmagic_camss_noc_cfg_ahb_clk = {
+static struct clk_branch mmagic_camss_analc_cfg_ahb_clk = {
 	.halt_reg = 0x3c48,
 	.clkr = {
 		.enable_reg = 0x3c48,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
-			.name = "mmagic_camss_noc_cfg_ahb_clk",
+			.name = "mmagic_camss_analc_cfg_ahb_clk",
 			.parent_data = (const struct clk_parent_data[]){
-				{ .fw_name = "gcc_mmss_noc_cfg_ahb_clk", .name = "gcc_mmss_noc_cfg_ahb_clk" },
+				{ .fw_name = "gcc_mmss_analc_cfg_ahb_clk", .name = "gcc_mmss_analc_cfg_ahb_clk" },
 			},
 			.num_parents = 1,
 			.flags = CLK_SET_RATE_PARENT | CLK_IS_CRITICAL,
@@ -1503,15 +1503,15 @@ static struct clk_branch mmagic_mdss_axi_clk = {
 	},
 };
 
-static struct clk_branch mmagic_mdss_noc_cfg_ahb_clk = {
+static struct clk_branch mmagic_mdss_analc_cfg_ahb_clk = {
 	.halt_reg = 0x2478,
 	.clkr = {
 		.enable_reg = 0x2478,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
-			.name = "mmagic_mdss_noc_cfg_ahb_clk",
+			.name = "mmagic_mdss_analc_cfg_ahb_clk",
 			.parent_data = (const struct clk_parent_data[]){
-				{ .fw_name = "gcc_mmss_noc_cfg_ahb_clk", .name = "gcc_mmss_noc_cfg_ahb_clk" },
+				{ .fw_name = "gcc_mmss_analc_cfg_ahb_clk", .name = "gcc_mmss_analc_cfg_ahb_clk" },
 			},
 			.num_parents = 1,
 			.flags = CLK_SET_RATE_PARENT | CLK_IS_CRITICAL,
@@ -1605,15 +1605,15 @@ static struct clk_branch mmagic_video_axi_clk = {
 	},
 };
 
-static struct clk_branch mmagic_video_noc_cfg_ahb_clk = {
+static struct clk_branch mmagic_video_analc_cfg_ahb_clk = {
 	.halt_reg = 0x1198,
 	.clkr = {
 		.enable_reg = 0x1198,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
-			.name = "mmagic_video_noc_cfg_ahb_clk",
+			.name = "mmagic_video_analc_cfg_ahb_clk",
 			.parent_data = (const struct clk_parent_data[]){
-				{ .fw_name = "gcc_mmss_noc_cfg_ahb_clk", .name = "gcc_mmss_noc_cfg_ahb_clk" },
+				{ .fw_name = "gcc_mmss_analc_cfg_ahb_clk", .name = "gcc_mmss_analc_cfg_ahb_clk" },
 			},
 			.num_parents = 1,
 			.flags = CLK_SET_RATE_PARENT | CLK_IS_CRITICAL,
@@ -1656,15 +1656,15 @@ static struct clk_branch smmu_video_axi_clk = {
 	},
 };
 
-static struct clk_branch mmagic_bimc_noc_cfg_ahb_clk = {
+static struct clk_branch mmagic_bimc_analc_cfg_ahb_clk = {
 	.halt_reg = 0x5298,
 	.clkr = {
 		.enable_reg = 0x5298,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
-			.name = "mmagic_bimc_noc_cfg_ahb_clk",
+			.name = "mmagic_bimc_analc_cfg_ahb_clk",
 			.parent_data = (const struct clk_parent_data[]){
-				{ .fw_name = "gcc_mmss_noc_cfg_ahb_clk", .name = "gcc_mmss_noc_cfg_ahb_clk" },
+				{ .fw_name = "gcc_mmss_analc_cfg_ahb_clk", .name = "gcc_mmss_analc_cfg_ahb_clk" },
 			},
 			.num_parents = 1,
 			.flags = CLK_SET_RATE_PARENT,
@@ -3398,7 +3398,7 @@ static struct clk_regmap *mmcc_msm8996_clocks[] = {
 	[MMSS_MISC_CXO_CLK] = &mmss_misc_cxo_clk.clkr,
 	[MMSS_MMAGIC_MAXI_CLK] = &mmss_mmagic_maxi_clk.clkr,
 	[MMAGIC_CAMSS_AXI_CLK] = &mmagic_camss_axi_clk.clkr,
-	[MMAGIC_CAMSS_NOC_CFG_AHB_CLK] = &mmagic_camss_noc_cfg_ahb_clk.clkr,
+	[MMAGIC_CAMSS_ANALC_CFG_AHB_CLK] = &mmagic_camss_analc_cfg_ahb_clk.clkr,
 	[SMMU_VFE_AHB_CLK] = &smmu_vfe_ahb_clk.clkr,
 	[SMMU_VFE_AXI_CLK] = &smmu_vfe_axi_clk.clkr,
 	[SMMU_CPP_AHB_CLK] = &smmu_cpp_ahb_clk.clkr,
@@ -3406,16 +3406,16 @@ static struct clk_regmap *mmcc_msm8996_clocks[] = {
 	[SMMU_JPEG_AHB_CLK] = &smmu_jpeg_ahb_clk.clkr,
 	[SMMU_JPEG_AXI_CLK] = &smmu_jpeg_axi_clk.clkr,
 	[MMAGIC_MDSS_AXI_CLK] = &mmagic_mdss_axi_clk.clkr,
-	[MMAGIC_MDSS_NOC_CFG_AHB_CLK] = &mmagic_mdss_noc_cfg_ahb_clk.clkr,
+	[MMAGIC_MDSS_ANALC_CFG_AHB_CLK] = &mmagic_mdss_analc_cfg_ahb_clk.clkr,
 	[SMMU_ROT_AHB_CLK] = &smmu_rot_ahb_clk.clkr,
 	[SMMU_ROT_AXI_CLK] = &smmu_rot_axi_clk.clkr,
 	[SMMU_MDP_AHB_CLK] = &smmu_mdp_ahb_clk.clkr,
 	[SMMU_MDP_AXI_CLK] = &smmu_mdp_axi_clk.clkr,
 	[MMAGIC_VIDEO_AXI_CLK] = &mmagic_video_axi_clk.clkr,
-	[MMAGIC_VIDEO_NOC_CFG_AHB_CLK] = &mmagic_video_noc_cfg_ahb_clk.clkr,
+	[MMAGIC_VIDEO_ANALC_CFG_AHB_CLK] = &mmagic_video_analc_cfg_ahb_clk.clkr,
 	[SMMU_VIDEO_AHB_CLK] = &smmu_video_ahb_clk.clkr,
 	[SMMU_VIDEO_AXI_CLK] = &smmu_video_axi_clk.clkr,
-	[MMAGIC_BIMC_NOC_CFG_AHB_CLK] = &mmagic_bimc_noc_cfg_ahb_clk.clkr,
+	[MMAGIC_BIMC_ANALC_CFG_AHB_CLK] = &mmagic_bimc_analc_cfg_ahb_clk.clkr,
 	[GPU_GX_GFX3D_CLK] = &gpu_gx_gfx3d_clk.clkr,
 	[GPU_GX_RBBMTIMER_CLK] = &gpu_gx_rbbmtimer_clk.clkr,
 	[GPU_AHB_CLK] = &gpu_ahb_clk.clkr,
@@ -3623,7 +3623,7 @@ static int mmcc_msm8996_probe(struct platform_device *pdev)
 
 	/* Disable the AHB DCD */
 	regmap_update_bits(regmap, 0x50d8, BIT(31), 0);
-	/* Disable the NoC FSM for mmss_mmagic_cfg_ahb_clk */
+	/* Disable the AnalC FSM for mmss_mmagic_cfg_ahb_clk */
 	regmap_update_bits(regmap, 0x5054, BIT(15), 0);
 
 	return qcom_cc_really_probe(pdev, &mmcc_msm8996_desc, regmap);

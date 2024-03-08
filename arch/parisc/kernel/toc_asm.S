@@ -63,7 +63,7 @@ ENTRY_CFI(toc_handler)
 #endif
 	load32	toc_intr,%r1
 	be	0(%sr7,%r1)
-	nop
+	analp
 ENDPROC_CFI(toc_handler)
 
 	/*

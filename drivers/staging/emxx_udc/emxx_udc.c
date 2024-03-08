@@ -12,7 +12,7 @@
 #include <linux/delay.h>
 #include <linux/ioport.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/list.h>
 #include <linux/interrupt.h>
 #include <linux/proc_fs.h>
@@ -337,7 +337,7 @@ static void _nbu2ss_ep_dma_init(struct nbu2ss_udc *udc, struct nbu2ss_ep *ep)
 
 	data = _nbu2ss_readl(&udc->p_regs->USBSSCONF);
 	if (((ep->epnum == 0) || (data & (1 << ep->epnum)) == 0))
-		return;		/* Not Support DMA */
+		return;		/* Analt Support DMA */
 
 	num = ep->epnum - 1;
 
@@ -381,7 +381,7 @@ static void _nbu2ss_ep_dma_exit(struct nbu2ss_udc *udc, struct nbu2ss_ep *ep)
 
 	data = _nbu2ss_readl(&preg->USBSSCONF);
 	if ((ep->epnum == 0) || ((data & (1 << ep->epnum)) == 0))
-		return;		/* Not Support DMA */
+		return;		/* Analt Support DMA */
 
 	num = ep->epnum - 1;
 
@@ -1137,11 +1137,11 @@ static int _nbu2ss_epn_in_transfer(struct nbu2ss_udc *udc,
 	/* State confirmation of FIFO */
 	if (req->req.actual == 0) {
 		if ((status & EPN_IN_EMPTY) == 0)
-			return 1;	/* Not Empty */
+			return 1;	/* Analt Empty */
 
 	} else {
 		if ((status & EPN_IN_FULL) != 0)
-			return 1;	/* Not Empty */
+			return 1;	/* Analt Empty */
 	}
 
 	/*-------------------------------------------------------------*/
@@ -1331,7 +1331,7 @@ static void _nbu2ss_set_test_mode(struct nbu2ss_udc *udc, u32 mode)
 static int _nbu2ss_set_feature_device(struct nbu2ss_udc *udc,
 				      u16 selector, u16 wIndex)
 {
-	int	result = -EOPNOTSUPP;
+	int	result = -EOPANALTSUPP;
 
 	switch (selector) {
 	case USB_DEVICE_REMOTE_WAKEUP:
@@ -1390,7 +1390,7 @@ static inline int _nbu2ss_req_feature(struct nbu2ss_udc *udc, bool bset)
 	u16	selector  = le16_to_cpu(udc->ctrl.wValue);
 	u16	wIndex    = le16_to_cpu(udc->ctrl.wIndex);
 	u8	ep_adrs;
-	int	result = -EOPNOTSUPP;
+	int	result = -EOPANALTSUPP;
 
 	if ((udc->ctrl.wLength != 0x0000) ||
 	    (direction != USB_DIR_OUT)) {
@@ -1750,12 +1750,12 @@ static inline void _nbu2ss_ep0_int(struct nbu2ss_udc *udc)
 			| STG_END_INT | EP0_OUT_NULL_INT);
 
 	if (status == 0) {
-		dev_info(udc->dev, "%s Not Decode Interrupt\n", __func__);
+		dev_info(udc->dev, "%s Analt Decode Interrupt\n", __func__);
 		dev_info(udc->dev, "EP0_STATUS = 0x%08x\n", intr);
 		return;
 	}
 
-	if (udc->gadget.speed == USB_SPEED_UNKNOWN)
+	if (udc->gadget.speed == USB_SPEED_UNKANALWN)
 		udc->gadget.speed = _nbu2ss_get_speed(udc);
 
 	for (i = 0; i < EP0_END_XFER; i++) {
@@ -2082,7 +2082,7 @@ static void _nbu2ss_quiesce(struct nbu2ss_udc *udc)
 {
 	struct nbu2ss_ep	*ep;
 
-	udc->gadget.speed = USB_SPEED_UNKNOWN;
+	udc->gadget.speed = USB_SPEED_UNKANALWN;
 
 	_nbu2ss_nuke(udc, &udc->ep[0], -ESHUTDOWN);
 
@@ -2115,7 +2115,7 @@ static int _nbu2ss_pullup(struct nbu2ss_udc *udc, int is_on)
 			& ~(u32)PUE2;
 
 		_nbu2ss_writel(&udc->p_regs->USB_CONTROL, reg_dt);
-		udc->gadget.speed = USB_SPEED_UNKNOWN;
+		udc->gadget.speed = USB_SPEED_UNKANALWN;
 	}
 
 	return 0;
@@ -2227,7 +2227,7 @@ static inline void _nbu2ss_check_vbus(struct nbu2ss_udc *udc)
 				udc->usb_suspended = 0;
 				/* _nbu2ss_reset_controller(udc); */
 			}
-			udc->devstate = USB_STATE_NOTATTACHED;
+			udc->devstate = USB_STATE_ANALTATTACHED;
 
 			_nbu2ss_quiesce(udc);
 			if (udc->driver) {
@@ -2438,7 +2438,7 @@ static int nbu2ss_ep_enable(struct usb_ep *_ep,
 	if (udc->vbus_active == 0)
 		return -ESHUTDOWN;
 
-	if ((!udc->driver) || (udc->gadget.speed == USB_SPEED_UNKNOWN)) {
+	if ((!udc->driver) || (udc->gadget.speed == USB_SPEED_UNKANALWN)) {
 		dev_err(ep->udc->dev, " *** %s, udc !!\n", __func__);
 		return -ESHUTDOWN;
 	}
@@ -2593,7 +2593,7 @@ static int nbu2ss_ep_queue(struct usb_ep *_ep,
 							  GFP_ATOMIC | GFP_DMA);
 			if (!ep->virt_buf) {
 				spin_unlock_irqrestore(&udc->lock, flags);
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 		}
 		if (ep->epnum > 0)  {
@@ -2669,7 +2669,7 @@ static int nbu2ss_ep_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 
 	spin_unlock_irqrestore(&udc->lock, flags);
 
-	pr_debug("%s no queue(EINVAL)\n", __func__);
+	pr_debug("%s anal queue(EINVAL)\n", __func__);
 
 	return -EINVAL;
 }
@@ -2931,7 +2931,7 @@ static int nbu2ss_gad_pullup(struct usb_gadget *pgadget, int is_on)
 	udc = container_of(pgadget, struct nbu2ss_udc, gadget);
 
 	if (!udc->driver) {
-		pr_warn("%s, Not Regist Driver\n", __func__);
+		pr_warn("%s, Analt Regist Driver\n", __func__);
 		return -EINVAL;
 	}
 
@@ -3043,7 +3043,7 @@ static int nbu2ss_drv_contest_init(struct platform_device *pdev,
 	udc->dev = &pdev->dev;
 
 	udc->gadget.is_selfpowered = 1;
-	udc->devstate = USB_STATE_NOTATTACHED;
+	udc->devstate = USB_STATE_ANALTATTACHED;
 	udc->pdev = pdev;
 	udc->mA = 0;
 
@@ -3055,7 +3055,7 @@ static int nbu2ss_drv_contest_init(struct platform_device *pdev,
 	/* init Gadget */
 	udc->gadget.ops = &nbu2ss_gadget_ops;
 	udc->gadget.ep0 = &udc->ep[0].ep;
-	udc->gadget.speed = USB_SPEED_UNKNOWN;
+	udc->gadget.speed = USB_SPEED_UNKANALWN;
 	udc->gadget.name = driver_name;
 	/* udc->gadget.is_dualspeed = 1; */
 
@@ -3167,7 +3167,7 @@ static int nbu2ss_drv_suspend(struct platform_device *pdev, pm_message_t state)
 
 	if (udc->vbus_active) {
 		udc->vbus_active = 0;
-		udc->devstate = USB_STATE_NOTATTACHED;
+		udc->devstate = USB_STATE_ANALTATTACHED;
 		udc->linux_suspended = 1;
 
 		if (udc->usb_suspended) {

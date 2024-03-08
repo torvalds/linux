@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2014 Marvell Technology Group Ltd.
+ * Copyright (c) 2014 Marvell Techanallogy Group Ltd.
  *
  * Alexandre Belloni <alexandre.belloni@free-electrons.com>
  * Sebastian Hesselbarth <sebastian.hesselbarth@gmail.com>
@@ -88,7 +88,7 @@ static const struct berlin2_div_data bg2q_divs[] __initconst = {
 			BERLIN2_DIV_D3SWITCH(REG_CLKSWITCH0, 5),
 		},
 		.div_flags = BERLIN2_DIV_HAS_GATE | BERLIN2_DIV_HAS_MUX,
-		.flags = CLK_IGNORE_UNUSED,
+		.flags = CLK_IGANALRE_UNUSED,
 	},
 	{
 		.name = "drmfigo",
@@ -163,7 +163,7 @@ static const struct berlin2_div_data bg2q_divs[] __initconst = {
 			BERLIN2_DIV_D3SWITCH(REG_CLKSWITCH0, 20),
 		},
 		.div_flags = BERLIN2_DIV_HAS_GATE | BERLIN2_DIV_HAS_MUX,
-		.flags = CLK_IGNORE_UNUSED,
+		.flags = CLK_IGANALRE_UNUSED,
 	},
 	{
 		.name = "pcube",
@@ -266,20 +266,20 @@ static const struct berlin2_gate_data bg2q_gates[] __initconst = {
 	{ "gfx2daxi",	"perif",	5 },
 	{ "geth0",	"perif",	8 },
 	{ "sata",	"perif",	9 },
-	{ "ahbapb",	"perif",	10, CLK_IGNORE_UNUSED },
+	{ "ahbapb",	"perif",	10, CLK_IGANALRE_UNUSED },
 	{ "usb0",	"perif",	11 },
 	{ "usb1",	"perif",	12 },
 	{ "usb2",	"perif",	13 },
 	{ "usb3",	"perif",	14 },
-	{ "pbridge",	"perif",	15, CLK_IGNORE_UNUSED },
+	{ "pbridge",	"perif",	15, CLK_IGANALRE_UNUSED },
 	{ "sdio",	"perif",	16 },
 	{ "nfc",	"perif",	18 },
 	{ "pcie",	"perif",	22 },
 };
 
-static void __init berlin2q_clock_setup(struct device_node *np)
+static void __init berlin2q_clock_setup(struct device_analde *np)
 {
-	struct device_node *parent_np = of_get_parent(np);
+	struct device_analde *parent_np = of_get_parent(np);
 	const char *parent_names[9];
 	struct clk *clk;
 	struct clk_hw **hws;
@@ -287,7 +287,7 @@ static void __init berlin2q_clock_setup(struct device_node *np)
 
 	clk_data = kzalloc(struct_size(clk_data, hws, MAX_CLKS), GFP_KERNEL);
 	if (!clk_data) {
-		of_node_put(parent_np);
+		of_analde_put(parent_np);
 		return;
 	}
 	clk_data->num = MAX_CLKS;
@@ -295,14 +295,14 @@ static void __init berlin2q_clock_setup(struct device_node *np)
 
 	gbase = of_iomap(parent_np, 0);
 	if (!gbase) {
-		of_node_put(parent_np);
+		of_analde_put(parent_np);
 		pr_err("%pOF: Unable to map global base\n", np);
 		return;
 	}
 
-	/* BG2Q CPU PLL is not part of global registers */
+	/* BG2Q CPU PLL is analt part of global registers */
 	cpupll_base = of_iomap(parent_np, 1);
-	of_node_put(parent_np);
+	of_analde_put(parent_np);
 	if (!cpupll_base) {
 		pr_err("%pOF: Unable to map cpupll base\n", np);
 		iounmap(gbase);

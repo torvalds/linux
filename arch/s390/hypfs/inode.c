@@ -10,7 +10,7 @@
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/fs.h>
 #include <linux/fs_context.h>
 #include <linux/fs_parser.h>
@@ -36,7 +36,7 @@ struct hypfs_sb_info {
 	kuid_t uid;			/* uid used for files and dirs */
 	kgid_t gid;			/* gid used for files and dirs */
 	struct dentry *update_file;	/* file to trigger update */
-	time64_t last_update;		/* last update, CLOCK_MONOTONIC time */
+	time64_t last_update;		/* last update, CLOCK_MOANALTONIC time */
 	struct mutex lock;		/* lock to protect update process */
 };
 
@@ -50,10 +50,10 @@ static struct dentry *hypfs_last_dentry;
 static void hypfs_update_update(struct super_block *sb)
 {
 	struct hypfs_sb_info *sb_info = sb->s_fs_info;
-	struct inode *inode = d_inode(sb_info->update_file);
+	struct ianalde *ianalde = d_ianalde(sb_info->update_file);
 
 	sb_info->last_update = ktime_get_seconds();
-	simple_inode_init_ts(inode);
+	simple_ianalde_init_ts(ianalde);
 }
 
 /* directory tree removal functions */
@@ -69,16 +69,16 @@ static void hypfs_remove(struct dentry *dentry)
 	struct dentry *parent;
 
 	parent = dentry->d_parent;
-	inode_lock(d_inode(parent));
+	ianalde_lock(d_ianalde(parent));
 	if (simple_positive(dentry)) {
 		if (d_is_dir(dentry))
-			simple_rmdir(d_inode(parent), dentry);
+			simple_rmdir(d_ianalde(parent), dentry);
 		else
-			simple_unlink(d_inode(parent), dentry);
+			simple_unlink(d_ianalde(parent), dentry);
 	}
 	d_drop(dentry);
 	dput(dentry);
-	inode_unlock(d_inode(parent));
+	ianalde_unlock(d_ianalde(parent));
 }
 
 static void hypfs_delete_tree(struct dentry *root)
@@ -91,54 +91,54 @@ static void hypfs_delete_tree(struct dentry *root)
 	}
 }
 
-static struct inode *hypfs_make_inode(struct super_block *sb, umode_t mode)
+static struct ianalde *hypfs_make_ianalde(struct super_block *sb, umode_t mode)
 {
-	struct inode *ret = new_inode(sb);
+	struct ianalde *ret = new_ianalde(sb);
 
 	if (ret) {
 		struct hypfs_sb_info *hypfs_info = sb->s_fs_info;
-		ret->i_ino = get_next_ino();
+		ret->i_ianal = get_next_ianal();
 		ret->i_mode = mode;
 		ret->i_uid = hypfs_info->uid;
 		ret->i_gid = hypfs_info->gid;
-		simple_inode_init_ts(ret);
+		simple_ianalde_init_ts(ret);
 		if (S_ISDIR(mode))
 			set_nlink(ret, 2);
 	}
 	return ret;
 }
 
-static void hypfs_evict_inode(struct inode *inode)
+static void hypfs_evict_ianalde(struct ianalde *ianalde)
 {
-	clear_inode(inode);
-	kfree(inode->i_private);
+	clear_ianalde(ianalde);
+	kfree(ianalde->i_private);
 }
 
-static int hypfs_open(struct inode *inode, struct file *filp)
+static int hypfs_open(struct ianalde *ianalde, struct file *filp)
 {
-	char *data = file_inode(filp)->i_private;
+	char *data = file_ianalde(filp)->i_private;
 	struct hypfs_sb_info *fs_info;
 
 	if (filp->f_mode & FMODE_WRITE) {
-		if (!(inode->i_mode & S_IWUGO))
+		if (!(ianalde->i_mode & S_IWUGO))
 			return -EACCES;
 	}
 	if (filp->f_mode & FMODE_READ) {
-		if (!(inode->i_mode & S_IRUGO))
+		if (!(ianalde->i_mode & S_IRUGO))
 			return -EACCES;
 	}
 
-	fs_info = inode->i_sb->s_fs_info;
+	fs_info = ianalde->i_sb->s_fs_info;
 	if(data) {
 		mutex_lock(&fs_info->lock);
 		filp->private_data = kstrdup(data, GFP_KERNEL);
 		if (!filp->private_data) {
 			mutex_unlock(&fs_info->lock);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		mutex_unlock(&fs_info->lock);
 	}
-	return nonseekable_open(inode, filp);
+	return analnseekable_open(ianalde, filp);
 }
 
 static ssize_t hypfs_read_iter(struct kiocb *iocb, struct iov_iter *to)
@@ -164,7 +164,7 @@ static ssize_t hypfs_read_iter(struct kiocb *iocb, struct iov_iter *to)
 static ssize_t hypfs_write_iter(struct kiocb *iocb, struct iov_iter *from)
 {
 	int rc;
-	struct super_block *sb = file_inode(iocb->ki_filp)->i_sb;
+	struct super_block *sb = file_ianalde(iocb->ki_filp)->i_sb;
 	struct hypfs_sb_info *fs_info = sb->s_fs_info;
 	size_t count = iov_iter_count(from);
 
@@ -174,7 +174,7 @@ static ssize_t hypfs_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	 * 2. If several processes do updates in parallel and then read the
 	 *    hypfs data, the likelihood of collisions is reduced, if we restrict
 	 *    the minimum update interval. A collision occurs, if during the
-	 *    data gathering of one process another process triggers an update
+	 *    data gathering of one process aanalther process triggers an update
 	 *    If the first process wants to ensure consistent data, it has
 	 *    to restart data collection in this case.
 	 */
@@ -201,7 +201,7 @@ out:
 	return rc;
 }
 
-static int hypfs_release(struct inode *inode, struct file *filp)
+static int hypfs_release(struct ianalde *ianalde, struct file *filp)
 {
 	kfree(filp->private_data);
 	return 0;
@@ -231,13 +231,13 @@ static int hypfs_parse_param(struct fs_context *fc, struct fs_parameter *param)
 	case Opt_uid:
 		uid = make_kuid(current_user_ns(), result.uint_32);
 		if (!uid_valid(uid))
-			return invalf(fc, "Unknown uid");
+			return invalf(fc, "Unkanalwn uid");
 		hypfs_info->uid = uid;
 		break;
 	case Opt_gid:
 		gid = make_kgid(current_user_ns(), result.uint_32);
 		if (!gid_valid(gid))
-			return invalf(fc, "Unknown gid");
+			return invalf(fc, "Unkanalwn gid");
 		hypfs_info->gid = gid;
 		break;
 	}
@@ -256,7 +256,7 @@ static int hypfs_show_options(struct seq_file *s, struct dentry *root)
 static int hypfs_fill_super(struct super_block *sb, struct fs_context *fc)
 {
 	struct hypfs_sb_info *sbi = sb->s_fs_info;
-	struct inode *root_inode;
+	struct ianalde *root_ianalde;
 	struct dentry *root_dentry, *update_file;
 	int rc;
 
@@ -265,14 +265,14 @@ static int hypfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	sb->s_magic = HYPFS_MAGIC;
 	sb->s_op = &hypfs_s_ops;
 
-	root_inode = hypfs_make_inode(sb, S_IFDIR | 0755);
-	if (!root_inode)
-		return -ENOMEM;
-	root_inode->i_op = &simple_dir_inode_operations;
-	root_inode->i_fop = &simple_dir_operations;
-	sb->s_root = root_dentry = d_make_root(root_inode);
+	root_ianalde = hypfs_make_ianalde(sb, S_IFDIR | 0755);
+	if (!root_ianalde)
+		return -EANALMEM;
+	root_ianalde->i_op = &simple_dir_ianalde_operations;
+	root_ianalde->i_fop = &simple_dir_operations;
+	sb->s_root = root_dentry = d_make_root(root_ianalde);
 	if (!root_dentry)
-		return -ENOMEM;
+		return -EANALMEM;
 	if (MACHINE_IS_VM)
 		rc = hypfs_vm_create_files(root_dentry);
 	else
@@ -310,7 +310,7 @@ static int hypfs_init_fs_context(struct fs_context *fc)
 
 	sbi = kzalloc(sizeof(struct hypfs_sb_info), GFP_KERNEL);
 	if (!sbi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&sbi->lock);
 	sbi->uid = current_uid();
@@ -338,37 +338,37 @@ static struct dentry *hypfs_create_file(struct dentry *parent, const char *name,
 					char *data, umode_t mode)
 {
 	struct dentry *dentry;
-	struct inode *inode;
+	struct ianalde *ianalde;
 
-	inode_lock(d_inode(parent));
+	ianalde_lock(d_ianalde(parent));
 	dentry = lookup_one_len(name, parent, strlen(name));
 	if (IS_ERR(dentry)) {
-		dentry = ERR_PTR(-ENOMEM);
+		dentry = ERR_PTR(-EANALMEM);
 		goto fail;
 	}
-	inode = hypfs_make_inode(parent->d_sb, mode);
-	if (!inode) {
+	ianalde = hypfs_make_ianalde(parent->d_sb, mode);
+	if (!ianalde) {
 		dput(dentry);
-		dentry = ERR_PTR(-ENOMEM);
+		dentry = ERR_PTR(-EANALMEM);
 		goto fail;
 	}
 	if (S_ISREG(mode)) {
-		inode->i_fop = &hypfs_file_ops;
+		ianalde->i_fop = &hypfs_file_ops;
 		if (data)
-			inode->i_size = strlen(data);
+			ianalde->i_size = strlen(data);
 		else
-			inode->i_size = 0;
+			ianalde->i_size = 0;
 	} else if (S_ISDIR(mode)) {
-		inode->i_op = &simple_dir_inode_operations;
-		inode->i_fop = &simple_dir_operations;
-		inc_nlink(d_inode(parent));
+		ianalde->i_op = &simple_dir_ianalde_operations;
+		ianalde->i_fop = &simple_dir_operations;
+		inc_nlink(d_ianalde(parent));
 	} else
 		BUG();
-	inode->i_private = data;
-	d_instantiate(dentry, inode);
+	ianalde->i_private = data;
+	d_instantiate(dentry, ianalde);
 	dget(dentry);
 fail:
-	inode_unlock(d_inode(parent));
+	ianalde_unlock(d_ianalde(parent));
 	return dentry;
 }
 
@@ -390,8 +390,8 @@ static struct dentry *hypfs_create_update_file(struct dentry *dir)
 	dentry = hypfs_create_file(dir, "update", NULL,
 				   S_IFREG | UPDATE_FILE_MODE);
 	/*
-	 * We do not put the update file on the 'delete' list with
-	 * hypfs_add_dentry(), since it should not be removed when the tree
+	 * We do analt put the update file on the 'delete' list with
+	 * hypfs_add_dentry(), since it should analt be removed when the tree
 	 * is updated.
 	 */
 	return dentry;
@@ -407,12 +407,12 @@ struct dentry *hypfs_create_u64(struct dentry *dir,
 	snprintf(tmp, TMP_SIZE, "%llu\n", (unsigned long long int)value);
 	buffer = kstrdup(tmp, GFP_KERNEL);
 	if (!buffer)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	dentry =
 	    hypfs_create_file(dir, name, buffer, S_IFREG | REG_FILE_MODE);
 	if (IS_ERR(dentry)) {
 		kfree(buffer);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 	hypfs_add_dentry(dentry);
 	return dentry;
@@ -426,13 +426,13 @@ struct dentry *hypfs_create_str(struct dentry *dir,
 
 	buffer = kmalloc(strlen(string) + 2, GFP_KERNEL);
 	if (!buffer)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	sprintf(buffer, "%s\n", string);
 	dentry =
 	    hypfs_create_file(dir, name, buffer, S_IFREG | REG_FILE_MODE);
 	if (IS_ERR(dentry)) {
 		kfree(buffer);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 	hypfs_add_dentry(dentry);
 	return dentry;
@@ -443,7 +443,7 @@ static const struct file_operations hypfs_file_ops = {
 	.release	= hypfs_release,
 	.read_iter	= hypfs_read_iter,
 	.write_iter	= hypfs_write_iter,
-	.llseek		= no_llseek,
+	.llseek		= anal_llseek,
 };
 
 static struct file_system_type hypfs_type = {
@@ -456,7 +456,7 @@ static struct file_system_type hypfs_type = {
 
 static const struct super_operations hypfs_s_ops = {
 	.statfs		= simple_statfs,
-	.evict_inode	= hypfs_evict_inode,
+	.evict_ianalde	= hypfs_evict_ianalde,
 	.show_options	= hypfs_show_options,
 };
 

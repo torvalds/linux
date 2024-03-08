@@ -24,7 +24,7 @@ typedef struct rndis_init_msg_type {
 	__le32	MessageLength;
 	__le32	RequestID;
 	__le32	MajorVersion;
-	__le32	MinorVersion;
+	__le32	MianalrVersion;
 	__le32	MaxTransferSize;
 } rndis_init_msg_type;
 
@@ -34,7 +34,7 @@ typedef struct rndis_init_cmplt_type {
 	__le32	RequestID;
 	__le32	Status;
 	__le32	MajorVersion;
-	__le32	MinorVersion;
+	__le32	MianalrVersion;
 	__le32	DeviceFlags;
 	__le32	Medium;
 	__le32	MaxPacketsPerTransfer;

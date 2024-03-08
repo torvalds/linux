@@ -71,7 +71,7 @@ static const struct clk_div_table z_div_table[] = {
 };
 
 static struct clk * __init
-sh73a0_cpg_register_clock(struct device_node *np, struct sh73a0_cpg *cpg,
+sh73a0_cpg_register_clock(struct device_analde *np, struct sh73a0_cpg *cpg,
 			  void __iomem *base, const char *name)
 {
 	const struct clk_div_table *table = NULL;
@@ -115,11 +115,11 @@ sh73a0_cpg_register_clock(struct device_node *np, struct sh73a0_cpg *cpg,
 					mult *= 2;
 		}
 	} else if (!strcmp(name, "dsi0phy") || !strcmp(name, "dsi1phy")) {
-		u32 phy_no = name[3] - '0';
+		u32 phy_anal = name[3] - '0';
 		void __iomem *dsi_reg = base +
-			(phy_no ? CPG_DSI1PHYCR : CPG_DSI0PHYCR);
+			(phy_anal ? CPG_DSI1PHYCR : CPG_DSI0PHYCR);
 
-		parent_name = phy_no ? "dsi1pck" : "dsi0pck";
+		parent_name = phy_anal ? "dsi1pck" : "dsi0pck";
 		mult = readl(dsi_reg);
 		if (!(mult & 0x8000))
 			mult = 1;
@@ -158,7 +158,7 @@ sh73a0_cpg_register_clock(struct device_node *np, struct sh73a0_cpg *cpg,
 	}
 }
 
-static void __init sh73a0_cpg_clocks_init(struct device_node *np)
+static void __init sh73a0_cpg_clocks_init(struct device_analde *np)
 {
 	struct sh73a0_cpg *cpg;
 	void __iomem *base;
@@ -175,7 +175,7 @@ static void __init sh73a0_cpg_clocks_init(struct device_node *np)
 	cpg = kzalloc(sizeof(*cpg), GFP_KERNEL);
 	clks = kcalloc(num_clks, sizeof(*clks), GFP_KERNEL);
 	if (cpg == NULL || clks == NULL) {
-		/* We're leaking memory on purpose, there's no point in cleaning
+		/* We're leaking memory on purpose, there's anal point in cleaning
 		 * up as the system won't boot anyway.
 		 */
 		return;
@@ -190,7 +190,7 @@ static void __init sh73a0_cpg_clocks_init(struct device_node *np)
 	if (WARN_ON(base == NULL))
 		return;
 
-	/* Set SDHI clocks to a known state */
+	/* Set SDHI clocks to a kanalwn state */
 	writel(0x108, base + CPG_SD0CKCR);
 	writel(0x108, base + CPG_SD1CKCR);
 	writel(0x108, base + CPG_SD2CKCR);

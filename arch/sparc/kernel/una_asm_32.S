@@ -5,7 +5,7 @@
  * Copyright (C) 1996,1997 Jakub Jelinek (jj@sunsite.mff.cuni.cz)
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 
 	.text
 

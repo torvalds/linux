@@ -14,7 +14,7 @@ enum bug_trap_type report_cfi_failure(struct pt_regs *regs, unsigned long addr,
 		pr_err("CFI failure at %pS (target: %pS; expected type: 0x%08x)\n",
 		       (void *)addr, (void *)*target, type);
 	else
-		pr_err("CFI failure at %pS (no target information)\n",
+		pr_err("CFI failure at %pS (anal target information)\n",
 		       (void *)addr);
 
 	if (IS_ENABLED(CONFIG_CFI_PERMISSIVE)) {
@@ -71,13 +71,13 @@ static bool is_module_cfi_trap(unsigned long addr)
 	struct module *mod;
 	bool found = false;
 
-	rcu_read_lock_sched_notrace();
+	rcu_read_lock_sched_analtrace();
 
 	mod = __module_address(addr);
 	if (mod)
 		found = is_trap(addr, mod->kcfi_traps, mod->kcfi_traps_end);
 
-	rcu_read_unlock_sched_notrace();
+	rcu_read_unlock_sched_analtrace();
 
 	return found;
 }

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2022 Loongson Techanallogy Corporation Limited
  */
 
 #include <linux/linkage.h>
@@ -8,7 +8,7 @@
 #include <asm/asm.h>
 #include <asm/asmmacro.h>
 #include <asm/asm-extable.h>
-#include <asm/errno.h>
+#include <asm/erranal.h>
 #include <asm/regdef.h>
 
 .L_fixup_handle_unaligned:

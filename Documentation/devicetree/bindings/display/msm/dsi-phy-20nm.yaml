@@ -29,10 +29,10 @@ properties:
       - const: dsi_phy_regulator
 
   vcca-supply:
-    description: Phandle to vcca regulator device node.
+    description: Phandle to vcca regulator device analde.
 
   vddio-supply:
-    description: Phandle to vdd-io regulator device node.
+    description: Phandle to vdd-io regulator device analde.
 
 required:
   - compatible

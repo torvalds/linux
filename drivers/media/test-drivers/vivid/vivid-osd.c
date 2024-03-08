@@ -6,7 +6,7 @@
  */
 
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/sched.h>
@@ -85,7 +85,7 @@ static int vivid_fb_ioctl(struct fb_info *info, unsigned cmd, unsigned long arg)
 	}
 
 	default:
-		dprintk(dev, 1, "Unknown ioctl %08x\n", cmd);
+		dprintk(dev, 1, "Unkanalwn ioctl %08x\n", cmd);
 		return -EINVAL;
 	}
 	return 0;
@@ -119,7 +119,7 @@ static int vivid_fb_get_fix(struct vivid_dev *dev, struct fb_fix_screeninfo *fix
 	fix->ypanstep = 1;
 	fix->ywrapstep = 0;
 	fix->line_length = dev->display_byte_stride;
-	fix->accel = FB_ACCEL_NONE;
+	fix->accel = FB_ACCEL_ANALNE;
 	return 0;
 }
 
@@ -152,10 +152,10 @@ static int _vivid_fb_check_var(struct fb_var_screeninfo *var, struct vivid_dev *
 	}
 	var->xoffset = var->yoffset = 0;
 	var->left_margin = var->upper_margin = 0;
-	var->nonstd = 0;
+	var->analnstd = 0;
 
 	var->vmode &= ~FB_VMODE_MASK;
-	var->vmode |= FB_VMODE_NONINTERLACED;
+	var->vmode |= FB_VMODE_ANALNINTERLACED;
 
 	/* Dummy values */
 	var->hsync_len = 24;
@@ -191,18 +191,18 @@ static int vivid_fb_set_par(struct fb_info *info)
 	return rc;
 }
 
-static int vivid_fb_setcolreg(unsigned regno, unsigned red, unsigned green,
+static int vivid_fb_setcolreg(unsigned reganal, unsigned red, unsigned green,
 				unsigned blue, unsigned transp,
 				struct fb_info *info)
 {
 	u32 color, *palette;
 
-	if (regno >= info->cmap.len)
+	if (reganal >= info->cmap.len)
 		return -EINVAL;
 
 	color = ((transp & 0xFF00) << 16) | ((red & 0xFF00) << 8) |
 		 (green & 0xFF00) | ((blue & 0xFF00) >> 8);
-	if (regno >= 16)
+	if (reganal >= 16)
 		return -EINVAL;
 
 	palette = info->pseudo_palette;
@@ -221,7 +221,7 @@ static int vivid_fb_setcolreg(unsigned regno, unsigned red, unsigned green,
 			break;
 		}
 	}
-	palette[regno] = color;
+	palette[reganal] = color;
 	return 0;
 }
 
@@ -235,7 +235,7 @@ static int vivid_fb_blank(int blank_mode, struct fb_info *info)
 	switch (blank_mode) {
 	case FB_BLANK_UNBLANK:
 		break;
-	case FB_BLANK_NORMAL:
+	case FB_BLANK_ANALRMAL:
 	case FB_BLANK_HSYNC_SUSPEND:
 	case FB_BLANK_VSYNC_SUSPEND:
 	case FB_BLANK_POWERDOWN:
@@ -289,11 +289,11 @@ static int vivid_fb_init_vidmode(struct vivid_dev *dev)
 	dev->fb_defined.xres_virtual = dev->display_width;
 	dev->fb_defined.yres_virtual = dev->display_height;
 	dev->fb_defined.bits_per_pixel = dev->bits_per_pixel;
-	dev->fb_defined.vmode = FB_VMODE_NONINTERLACED;
+	dev->fb_defined.vmode = FB_VMODE_ANALNINTERLACED;
 	dev->fb_defined.left_margin = start_window.left + 1;
 	dev->fb_defined.upper_margin = start_window.top + 1;
-	dev->fb_defined.accel_flags = FB_ACCEL_NONE;
-	dev->fb_defined.nonstd = 0;
+	dev->fb_defined.accel_flags = FB_ACCEL_ANALNE;
+	dev->fb_defined.analnstd = 0;
 	/* set default to 1:5:5:5 */
 	dev->fb_defined.green.length = 5;
 
@@ -307,14 +307,14 @@ static int vivid_fb_init_vidmode(struct vivid_dev *dev)
 
 	/* Generate valid fb_info */
 
-	dev->fb_info.node = -1;
+	dev->fb_info.analde = -1;
 	dev->fb_info.par = dev;
 	dev->fb_info.var = dev->fb_defined;
 	dev->fb_info.fix = dev->fb_fix;
 	dev->fb_info.screen_base = (u8 __iomem *)dev->video_vbase;
 	dev->fb_info.fbops = &vivid_fb_ops;
 
-	/* Supply some monitor specs. Bogus values will do for now */
+	/* Supply some monitor specs. Bogus values will do for analw */
 	dev->fb_info.monspecs.hfmin = 8000;
 	dev->fb_info.monspecs.hfmax = 70000;
 	dev->fb_info.monspecs.vfmin = 10;
@@ -323,13 +323,13 @@ static int vivid_fb_init_vidmode(struct vivid_dev *dev)
 	/* Allocate color map */
 	if (fb_alloc_cmap(&dev->fb_info.cmap, 256, 1)) {
 		pr_err("abort, unable to alloc cmap\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Allocate the pseudo palette */
 	dev->fb_info.pseudo_palette = kmalloc_array(16, sizeof(u32), GFP_KERNEL);
 
-	return dev->fb_info.pseudo_palette ? 0 : -ENOMEM;
+	return dev->fb_info.pseudo_palette ? 0 : -EANALMEM;
 }
 
 /* Release any memory we've grabbed */
@@ -356,7 +356,7 @@ int vivid_fb_init(struct vivid_dev *dev)
 	dev->video_buffer_size = MAX_OSD_HEIGHT * MAX_OSD_WIDTH * 2;
 	dev->video_vbase = kzalloc(dev->video_buffer_size, GFP_KERNEL);
 	if (dev->video_vbase == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	dev->video_pbase = virt_to_phys(dev->video_vbase);
 
 	pr_info("Framebuffer at 0x%lx, mapped to 0x%p, size %dk\n",

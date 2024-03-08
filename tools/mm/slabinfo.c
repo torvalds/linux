@@ -19,11 +19,11 @@
 #include <stdarg.h>
 #include <getopt.h>
 #include <regex.h>
-#include <errno.h>
+#include <erranal.h>
 
 #define MAX_SLABS 500
 #define MAX_ALIASES 500
-#define MAX_NODES 1024
+#define MAX_ANALDES 1024
 
 struct slabinfo {
 	char *name;
@@ -42,10 +42,10 @@ struct slabinfo {
 	unsigned long deactivate_to_head, deactivate_to_tail;
 	unsigned long deactivate_remote_frees, order_fallback;
 	unsigned long cmpxchg_double_cpu_fail, cmpxchg_double_fail;
-	unsigned long alloc_node_mismatch, deactivate_bypass;
+	unsigned long alloc_analde_mismatch, deactivate_bypass;
 	unsigned long cpu_partial_alloc, cpu_partial_free;
-	int numa[MAX_NODES];
-	int numa_partial[MAX_NODES];
+	int numa[MAX_ANALDES];
+	int numa_partial[MAX_ANALDES];
 } slabinfo[MAX_SLABS];
 
 struct aliasinfo {
@@ -58,7 +58,7 @@ int slabs;
 int actual_slabs;
 int aliases;
 int alias_targets;
-int highest_node;
+int highest_analde;
 
 char buffer[4096];
 
@@ -111,7 +111,7 @@ static void fatal(const char *x, ...)
 static void usage(void)
 {
 	printf("slabinfo 4/15/2011. (c) 2007 sgi/(c) 2011 Linux Foundation.\n\n"
-		"slabinfo [-aABDefhilLnoPrsStTUvXz1] [N=K] [-dafzput] [slab-regexp]\n"
+		"slabinfo [-aABDefhilLanalPrsStTUvXz1] [N=K] [-dafzput] [slab-regexp]\n"
 		"-a|--aliases           Show aliases\n"
 		"-A|--activity          Most active slabs first\n"
 		"-B|--Bytes             Show size in bytes\n"
@@ -159,8 +159,8 @@ static unsigned long read_obj(const char *name)
 
 	if (!f) {
 		buffer[0] = 0;
-		if (errno == EACCES)
-			fatal("%s, Try using superuser\n", strerror(errno));
+		if (erranal == EACCES)
+			fatal("%s, Try using superuser\n", strerror(erranal));
 	} else {
 		if (!fgets(buffer, sizeof(buffer), f))
 			buffer[0] = 0;
@@ -210,7 +210,7 @@ static void set_obj(struct slabinfo *s, const char *name, int n)
 	snprintf(x, 100, "%s/%s", s->name, name);
 	f = fopen(x, "w");
 	if (!f)
-		fatal("Cannot write to %s\n", x);
+		fatal("Cananalt write to %s\n", x);
 
 	fprintf(f, "%d\n", n);
 	fclose(f);
@@ -293,23 +293,23 @@ static int store_size(char *buffer, unsigned long value)
 
 static void decode_numa_list(int *numa, char *t)
 {
-	int node;
+	int analde;
 	int nr;
 
-	memset(numa, 0, MAX_NODES * sizeof(int));
+	memset(numa, 0, MAX_ANALDES * sizeof(int));
 
 	if (!t)
 		return;
 
 	while (*t == 'N') {
 		t++;
-		node = strtoul(t, &t, 10);
+		analde = strtoul(t, &t, 10);
 		if (*t == '=') {
 			t++;
 			nr = strtoul(t, &t, 10);
-			numa[node] = nr;
-			if (node > highest_node)
-				highest_node = node;
+			numa[analde] = nr;
+			if (analde > highest_analde)
+				highest_analde = analde;
 		}
 		while (*t == ' ')
 			t++;
@@ -382,13 +382,13 @@ static unsigned long slab_waste(struct slabinfo *s)
 
 static void slab_numa(struct slabinfo *s, int mode)
 {
-	int node;
+	int analde;
 
 	if (strcmp(s->name, "*") == 0)
 		return;
 
-	if (!highest_node) {
-		printf("\n%s: No NUMA information available.\n", s->name);
+	if (!highest_analde) {
+		printf("\n%s: Anal NUMA information available.\n", s->name);
 		return;
 	}
 
@@ -396,28 +396,28 @@ static void slab_numa(struct slabinfo *s, int mode)
 		return;
 
 	if (!line) {
-		printf("\n%-21s:", mode ? "NUMA nodes" : "Slab");
-		for(node = 0; node <= highest_node; node++)
-			printf(" %4d", node);
+		printf("\n%-21s:", mode ? "NUMA analdes" : "Slab");
+		for(analde = 0; analde <= highest_analde; analde++)
+			printf(" %4d", analde);
 		printf("\n----------------------");
-		for(node = 0; node <= highest_node; node++)
+		for(analde = 0; analde <= highest_analde; analde++)
 			printf("-----");
 		printf("\n");
 	}
 	printf("%-21s ", mode ? "All slabs" : s->name);
-	for(node = 0; node <= highest_node; node++) {
+	for(analde = 0; analde <= highest_analde; analde++) {
 		char b[20];
 
-		store_size(b, s->numa[node]);
+		store_size(b, s->numa[analde]);
 		printf(" %4s", b);
 	}
 	printf("\n");
 	if (mode) {
 		printf("%-21s ", "Partial slabs");
-		for(node = 0; node <= highest_node; node++) {
+		for(analde = 0; analde <= highest_analde; analde++) {
 			char b[20];
 
-			store_size(b, s->numa_partial[node]);
+			store_size(b, s->numa_partial[analde]);
 			printf(" %4s", b);
 		}
 		printf("\n");
@@ -434,7 +434,7 @@ static void show_tracking(struct slabinfo *s)
 	else if (read_slab_obj(s, "alloc_calls"))
 		printf("%s", buffer);
 	else
-		printf("No Data\n");
+		printf("Anal Data\n");
 
 	printf("\n%s: Kernel object freeing\n", s->name);
 	printf("------------------------------------------------------------------------\n");
@@ -443,7 +443,7 @@ static void show_tracking(struct slabinfo *s)
 	else if (read_slab_obj(s, "free_calls"))
 		printf("%s", buffer);
 	else
-		printf("No Data\n");
+		printf("Anal Data\n");
 
 }
 
@@ -457,10 +457,10 @@ static void ops(struct slabinfo *s)
 		printf("--------------------------------------------\n");
 		printf("%s", buffer);
 	} else
-		printf("\n%s has no kmem_cache operations\n", s->name);
+		printf("\n%s has anal kmem_cache operations\n", s->name);
 }
 
-static const char *onoff(int x)
+static const char *oanalff(int x)
 {
 	if (x)
 		return "On ";
@@ -540,8 +540,8 @@ static void slab_stats(struct slabinfo *s)
 			s->deactivate_bypass, (s->deactivate_bypass * 100) / total);
 		printf("Refilled from foreign frees   %7lu  %3lu%%\n",
 			s->alloc_refill, (s->alloc_refill * 100) / total);
-		printf("Node mismatch                 %7lu  %3lu%%\n",
-			s->alloc_node_mismatch, (s->alloc_node_mismatch * 100) / total);
+		printf("Analde mismatch                 %7lu  %3lu%%\n",
+			s->alloc_analde_mismatch, (s->alloc_analde_mismatch * 100) / total);
 	}
 
 	if (s->cmpxchg_double_fail || s->cmpxchg_double_cpu_fail) {
@@ -570,19 +570,19 @@ static void report(struct slabinfo *s)
 	printf("\nSizes (bytes)     Slabs              Debug                Memory\n");
 	printf("------------------------------------------------------------------------\n");
 	printf("Object : %7d  Total  : %7ld   Sanity Checks : %s  Total: %7ld\n",
-			s->object_size, s->slabs, onoff(s->sanity_checks),
+			s->object_size, s->slabs, oanalff(s->sanity_checks),
 			s->slabs * (page_size << s->order));
 	printf("SlabObj: %7d  Full   : %7ld   Redzoning     : %s  Used : %7ld\n",
 			s->slab_size, s->slabs - s->partial - s->cpu_slabs,
-			onoff(s->red_zone), s->objects * s->object_size);
+			oanalff(s->red_zone), s->objects * s->object_size);
 	printf("SlabSiz: %7d  Partial: %7ld   Poisoning     : %s  Loss : %7ld\n",
-			page_size << s->order, s->partial, onoff(s->poison),
+			page_size << s->order, s->partial, oanalff(s->poison),
 			s->slabs * (page_size << s->order) - s->objects * s->object_size);
 	printf("Loss   : %7d  CpuSlab: %7d   Tracking      : %s  Lalig: %7ld\n",
-			s->slab_size - s->object_size, s->cpu_slabs, onoff(s->store_user),
+			s->slab_size - s->object_size, s->cpu_slabs, oanalff(s->store_user),
 			(s->slab_size - s->object_size) * s->objects);
 	printf("Align  : %7d  Objects: %7d   Tracing       : %s  Lpadd: %7ld\n",
-			s->align, s->objs_per_slab, onoff(s->trace),
+			s->align, s->objs_per_slab, oanalff(s->trace),
 			((page_size << s->order) - s->objs_per_slab * s->slab_size) *
 			s->slabs);
 
@@ -729,7 +729,7 @@ static int slab_empty(struct slabinfo *s)
 		return 0;
 
 	/*
-	 * We may still have slabs even if there are no objects. Shrinking will
+	 * We may still have slabs even if there are anal objects. Shrinking will
 	 * remove them.
 	 */
 	if (s->slabs != 0)
@@ -750,43 +750,43 @@ static void slab_debug(struct slabinfo *s)
 		if (slab_empty(s))
 			set_obj(s, "sanity_checks", 0);
 		else
-			fprintf(stderr, "%s not empty cannot disable sanity checks\n", s->name);
+			fprintf(stderr, "%s analt empty cananalt disable sanity checks\n", s->name);
 	}
 	if (redzone && !s->red_zone) {
 		if (slab_empty(s))
 			set_obj(s, "red_zone", 1);
 		else
-			fprintf(stderr, "%s not empty cannot enable redzoning\n", s->name);
+			fprintf(stderr, "%s analt empty cananalt enable redzoning\n", s->name);
 	}
 	if (!redzone && s->red_zone) {
 		if (slab_empty(s))
 			set_obj(s, "red_zone", 0);
 		else
-			fprintf(stderr, "%s not empty cannot disable redzoning\n", s->name);
+			fprintf(stderr, "%s analt empty cananalt disable redzoning\n", s->name);
 	}
 	if (poison && !s->poison) {
 		if (slab_empty(s))
 			set_obj(s, "poison", 1);
 		else
-			fprintf(stderr, "%s not empty cannot enable poisoning\n", s->name);
+			fprintf(stderr, "%s analt empty cananalt enable poisoning\n", s->name);
 	}
 	if (!poison && s->poison) {
 		if (slab_empty(s))
 			set_obj(s, "poison", 0);
 		else
-			fprintf(stderr, "%s not empty cannot disable poisoning\n", s->name);
+			fprintf(stderr, "%s analt empty cananalt disable poisoning\n", s->name);
 	}
 	if (tracking && !s->store_user) {
 		if (slab_empty(s))
 			set_obj(s, "store_user", 1);
 		else
-			fprintf(stderr, "%s not empty cannot enable tracking\n", s->name);
+			fprintf(stderr, "%s analt empty cananalt enable tracking\n", s->name);
 	}
 	if (!tracking && s->store_user) {
 		if (slab_empty(s))
 			set_obj(s, "store_user", 0);
 		else
-			fprintf(stderr, "%s not empty cannot disable tracking\n", s->name);
+			fprintf(stderr, "%s analt empty cananalt disable tracking\n", s->name);
 	}
 	if (tracing && !s->trace) {
 		if (slabs == 1)
@@ -948,11 +948,11 @@ static void totals(void)
 	}
 
 	if (!total_objects) {
-		printf("No objects\n");
+		printf("Anal objects\n");
 		return;
 	}
 	if (!used_slabs) {
-		printf("No slabs\n");
+		printf("Anal slabs\n");
 		return;
 	}
 
@@ -1219,7 +1219,7 @@ static void read_slab_dir(void)
 	int count;
 
 	if (chdir("/sys/kernel/slab") && chdir("/sys/slab"))
-		fatal("SYSFS support for SLUB not active\n");
+		fatal("SYSFS support for SLUB analt active\n");
 
 	dir = opendir(".");
 	while ((de = readdir(dir))) {
@@ -1232,7 +1232,7 @@ static void read_slab_dir(void)
 			count = readlink(de->d_name, buffer, sizeof(buffer)-1);
 
 			if (count < 0)
-				fatal("Cannot read symlink %s\n", de->d_name);
+				fatal("Cananalt read symlink %s\n", de->d_name);
 
 			buffer[count] = 0;
 			p = buffer + count;
@@ -1295,7 +1295,7 @@ static void read_slab_dir(void)
 			slab->cmpxchg_double_fail = get_obj("cmpxchg_double_fail");
 			slab->cpu_partial_alloc = get_obj("cpu_partial_alloc");
 			slab->cpu_partial_free = get_obj("cpu_partial_free");
-			slab->alloc_node_mismatch = get_obj("alloc_node_mismatch");
+			slab->alloc_analde_mismatch = get_obj("alloc_analde_mismatch");
 			slab->deactivate_bypass = get_obj("deactivate_bypass");
 			chdir("..");
 			if (slab->name[0] == ':')
@@ -1303,7 +1303,7 @@ static void read_slab_dir(void)
 			slab++;
 			break;
 		   default :
-			fatal("Unknown file type %lx\n", de->d_type);
+			fatal("Unkanalwn file type %lx\n", de->d_type);
 		}
 	}
 	closedir(dir);
@@ -1386,31 +1386,31 @@ static void xtotals(void)
 }
 
 struct option opts[] = {
-	{ "aliases", no_argument, NULL, 'a' },
-	{ "activity", no_argument, NULL, 'A' },
-	{ "Bytes", no_argument, NULL, 'B'},
+	{ "aliases", anal_argument, NULL, 'a' },
+	{ "activity", anal_argument, NULL, 'A' },
+	{ "Bytes", anal_argument, NULL, 'B'},
 	{ "debug", optional_argument, NULL, 'd' },
-	{ "display-activity", no_argument, NULL, 'D' },
-	{ "empty", no_argument, NULL, 'e' },
-	{ "first-alias", no_argument, NULL, 'f' },
-	{ "help", no_argument, NULL, 'h' },
-	{ "inverted", no_argument, NULL, 'i'},
-	{ "slabs", no_argument, NULL, 'l' },
-	{ "Loss", no_argument, NULL, 'L'},
-	{ "numa", no_argument, NULL, 'n' },
+	{ "display-activity", anal_argument, NULL, 'D' },
+	{ "empty", anal_argument, NULL, 'e' },
+	{ "first-alias", anal_argument, NULL, 'f' },
+	{ "help", anal_argument, NULL, 'h' },
+	{ "inverted", anal_argument, NULL, 'i'},
+	{ "slabs", anal_argument, NULL, 'l' },
+	{ "Loss", anal_argument, NULL, 'L'},
+	{ "numa", anal_argument, NULL, 'n' },
 	{ "lines", required_argument, NULL, 'N'},
-	{ "ops", no_argument, NULL, 'o' },
-	{ "partial", no_argument, NULL, 'p'},
-	{ "report", no_argument, NULL, 'r' },
-	{ "shrink", no_argument, NULL, 's' },
-	{ "Size", no_argument, NULL, 'S'},
-	{ "tracking", no_argument, NULL, 't'},
-	{ "Totals", no_argument, NULL, 'T'},
-	{ "Unreclaim", no_argument, NULL, 'U'},
-	{ "validate", no_argument, NULL, 'v' },
-	{ "Xtotals", no_argument, NULL, 'X'},
-	{ "zero", no_argument, NULL, 'z' },
-	{ "1ref", no_argument, NULL, '1'},
+	{ "ops", anal_argument, NULL, 'o' },
+	{ "partial", anal_argument, NULL, 'p'},
+	{ "report", anal_argument, NULL, 'r' },
+	{ "shrink", anal_argument, NULL, 's' },
+	{ "Size", anal_argument, NULL, 'S'},
+	{ "tracking", anal_argument, NULL, 't'},
+	{ "Totals", anal_argument, NULL, 'T'},
+	{ "Unreclaim", anal_argument, NULL, 'U'},
+	{ "validate", anal_argument, NULL, 'v' },
+	{ "Xtotals", anal_argument, NULL, 'X'},
+	{ "zero", anal_argument, NULL, 'z' },
+	{ "1ref", anal_argument, NULL, '1'},
 	{ NULL, 0, NULL, 0 }
 };
 
@@ -1523,7 +1523,7 @@ int main(int argc, char *argv[])
 	else
 		pattern_source = ".*";
 
-	err = regcomp(&pattern, pattern_source, REG_ICASE|REG_NOSUB);
+	err = regcomp(&pattern, pattern_source, REG_ICASE|REG_ANALSUB);
 	if (err)
 		fatal("%s: Invalid pattern '%s' code %d\n",
 			argv[0], pattern_source, err);

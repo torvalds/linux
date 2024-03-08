@@ -45,13 +45,13 @@
 #define FNIC_TAG_ABORT		BIT(30)		/* tag bit indicating abort */
 #define FNIC_TAG_DEV_RST	BIT(29)		/* indicates device reset */
 #define FNIC_TAG_MASK		(BIT(24) - 1)	/* mask for lookup */
-#define FNIC_NO_TAG             -1
+#define FNIC_ANAL_TAG             -1
 
 /*
  * Command flags to identify the type of command and for other future
  * use.
  */
-#define FNIC_NO_FLAGS                   0
+#define FNIC_ANAL_FLAGS                   0
 #define FNIC_IO_INITIALIZED             BIT(0)
 #define FNIC_IO_ISSUED                  BIT(1)
 #define FNIC_IO_DONE                    BIT(2)
@@ -115,7 +115,7 @@ static inline u64 fnic_flags_and_state(struct scsi_cmnd *cmd)
 #define __FNIC_FLAGS_FWRESET		BIT(0) /* fwreset in progress */
 #define __FNIC_FLAGS_BLOCK_IO		BIT(1) /* IOs are blocked */
 
-#define FNIC_FLAGS_NONE			(0)
+#define FNIC_FLAGS_ANALNE			(0)
 #define FNIC_FLAGS_FWRESET		(__FNIC_FLAGS_FWRESET | \
 					__FNIC_FLAGS_BLOCK_IO)
 
@@ -167,7 +167,7 @@ do {								\
 				"fnic<%d>: %s: %d: " fmt, fnic_num,\
 				__func__, __LINE__, ##args);)
 
-#define FNIC_MAIN_NOTE(kern_level, host, fmt, args...)          \
+#define FNIC_MAIN_ANALTE(kern_level, host, fmt, args...)          \
 	shost_printk(kern_level, host, fmt, ##args)
 
 #define FNIC_WQ_COPY_MAX 64
@@ -183,7 +183,7 @@ extern const char *fnic_state_str[];
 enum fnic_intx_intr_index {
 	FNIC_INTX_WQ_RQ_COPYWQ,
 	FNIC_INTX_DUMMY,
-	FNIC_INTX_NOTIFY,
+	FNIC_INTX_ANALTIFY,
 	FNIC_INTX_ERR,
 	FNIC_INTX_INTR_MAX,
 };
@@ -192,7 +192,7 @@ enum fnic_msix_intr_index {
 	FNIC_MSIX_RQ,
 	FNIC_MSIX_WQ,
 	FNIC_MSIX_WQ_COPY,
-	FNIC_MSIX_ERR_NOTIFY = FNIC_MSIX_WQ_COPY + FNIC_WQ_COPY_MAX,
+	FNIC_MSIX_ERR_ANALTIFY = FNIC_MSIX_WQ_COPY + FNIC_WQ_COPY_MAX,
 	FNIC_MSIX_INTR_MAX,
 };
 
@@ -246,7 +246,7 @@ struct fnic {
 	unsigned long stats_reset_time; /* time of stats reset */
 	struct vnic_nic_cfg *nic_cfg;
 	char name[IFNAMSIZ];
-	struct timer_list notify_timer; /* used for MSI interrupts */
+	struct timer_list analtify_timer; /* used for MSI interrupts */
 
 	unsigned int fnic_max_tag_id;
 	unsigned int err_intr_offset;

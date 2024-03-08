@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only OR MIT
-/* Copyright (c) 2023 Imagination Technologies Ltd. */
+/* Copyright (c) 2023 Imagination Techanallogies Ltd. */
 
 #include "pvr_context.h"
 #include "pvr_device.h"
@@ -61,7 +61,7 @@ pvr_job_put(struct pvr_job *job)
  *
  * Returns:
  *  * 0 on success,
- *  * -%ENOMEM on out of memory, or
+ *  * -%EANALMEM on out of memory, or
  *  * -%EINVAL on malformed stream.
  */
 static int
@@ -72,7 +72,7 @@ pvr_job_process_stream(struct pvr_device *pvr_dev, const struct pvr_stream_cmd_d
 
 	job->cmd = kzalloc(cmd_defs->dest_size, GFP_KERNEL);
 	if (!job->cmd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	job->cmd_len = cmd_defs->dest_size;
 
@@ -92,7 +92,7 @@ static int pvr_fw_cmd_init(struct pvr_device *pvr_dev, struct pvr_job *job,
 
 	stream = kzalloc(stream_len, GFP_KERNEL);
 	if (!stream)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (copy_from_user(stream, u64_to_user_ptr(stream_userptr), stream_len)) {
 		err = -EFAULT;
@@ -424,7 +424,7 @@ create_job(struct pvr_device *pvr_dev,
 
 	job = kzalloc(sizeof(*job), GFP_KERNEL);
 	if (!job)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	kref_init(&job->ref_count);
 	job->type = args->type;
@@ -697,12 +697,12 @@ pvr_jobs_link_geom_frag(struct pvr_job_data *job_data, u32 *job_count)
  * @pvr_file: Pointer to PowerVR file structure.
  * @args: Ioctl args.
  *
- * This initial implementation is entirely synchronous; on return the GPU will
- * be idle. This will not be the case for future implementations.
+ * This initial implementation is entirely synchroanalus; on return the GPU will
+ * be idle. This will analt be the case for future implementations.
  *
  * Returns:
  *  * 0 on success,
- *  * -%EFAULT if arguments can not be copied from user space, or
+ *  * -%EFAULT if arguments can analt be copied from user space, or
  *  * -%EINVAL on invalid arguments, or
  *  * Any other error.
  */
@@ -727,7 +727,7 @@ pvr_submit_jobs(struct pvr_device *pvr_dev, struct pvr_file *pvr_file,
 	job_data = kvmalloc_array(args->jobs.count, sizeof(*job_data),
 				  GFP_KERNEL | __GFP_ZERO);
 	if (!job_data) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_free;
 	}
 
@@ -739,14 +739,14 @@ pvr_submit_jobs(struct pvr_device *pvr_dev, struct pvr_file *pvr_file,
 	jobs_alloced = args->jobs.count;
 
 	/*
-	 * Flush MMU if needed - this has been deferred until now to avoid
+	 * Flush MMU if needed - this has been deferred until analw to avoid
 	 * overuse of this expensive operation.
 	 */
 	err = pvr_mmu_flush_exec(pvr_dev, false);
 	if (err)
 		goto out_job_data_cleanup;
 
-	drm_exec_init(&exec, DRM_EXEC_INTERRUPTIBLE_WAIT | DRM_EXEC_IGNORE_DUPLICATES, 0);
+	drm_exec_init(&exec, DRM_EXEC_INTERRUPTIBLE_WAIT | DRM_EXEC_IGANALRE_DUPLICATES, 0);
 
 	xa_init_flags(&signal_array, XA_FLAGS_ALLOC);
 

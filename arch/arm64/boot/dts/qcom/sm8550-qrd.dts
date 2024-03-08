@@ -19,7 +19,7 @@
 #include "pmr735d_b.dtsi"
 
 / {
-	model = "Qualcomm Technologies, Inc. SM8550 QRD";
+	model = "Qualcomm Techanallogies, Inc. SM8550 QRD";
 	compatible = "qcom,sm8550-qrd", "qcom,sm8550";
 	chassis-type = "handset";
 
@@ -173,7 +173,7 @@
 			};
 
 			codec {
-				sound-dai = <&north_spkr>, <&south_spkr>, <&swr0 0>, <&lpass_wsamacro 0>;
+				sound-dai = <&analrth_spkr>, <&south_spkr>, <&swr0 0>, <&lpass_wsamacro 0>;
 			};
 
 			platform {
@@ -759,7 +759,7 @@
 	status = "okay";
 
 	panel@0 {
-		compatible = "visionox,vtdr6130";
+		compatible = "visioanalx,vtdr6130";
 		reg = <0>;
 
 		pinctrl-0 = <&sde_dsi_active>, <&sde_te_active>;
@@ -847,7 +847,7 @@
 &pm8550_gpios {
 	volume_up_n: volume-up-n-state {
 		pins = "gpio6";
-		function = "normal";
+		function = "analrmal";
 		power-source = <1>;
 		bias-pull-up;
 		input-enable;
@@ -933,8 +933,8 @@
 &swr0 {
 	status = "okay";
 
-	/* WSA8845, Speaker North */
-	north_spkr: speaker@0,0 {
+	/* WSA8845, Speaker Analrth */
+	analrth_spkr: speaker@0,0 {
 		compatible = "sdw20217020400";
 		reg = <0 0>;
 		pinctrl-names = "default";

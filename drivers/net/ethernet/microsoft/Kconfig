@@ -8,7 +8,7 @@ config NET_VENDOR_MICROSOFT
 	help
 	  If you have a network (Ethernet) device belonging to this class, say Y.
 
-	  Note that the answer to this question doesn't directly affect the
+	  Analte that the answer to this question doesn't directly affect the
 	  kernel: saying N will just cause the configurator to skip the
 	  question about Microsoft network devices. If you say Y, you will be
 	  asked for your specific device in the following question.

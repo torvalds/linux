@@ -57,7 +57,7 @@ static int panel_dpi_enable(struct omap_dss_device *dssdev)
 	int r;
 
 	if (!omapdss_device_is_connected(dssdev))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (omapdss_device_is_enabled(dssdev))
 		return 0;
@@ -138,7 +138,7 @@ static struct omap_dss_driver panel_dpi_ops = {
 static int panel_dpi_probe_of(struct platform_device *pdev)
 {
 	struct panel_drv_data *ddata = platform_get_drvdata(pdev);
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 	struct omap_dss_device *in;
 	int r;
 	struct display_timing timing;
@@ -151,7 +151,7 @@ static int panel_dpi_probe_of(struct platform_device *pdev)
 
 	ddata->enable_gpio = gpio;
 
-	r = of_get_display_timing(node, "panel-timing", &timing);
+	r = of_get_display_timing(analde, "panel-timing", &timing);
 	if (r) {
 		dev_err(&pdev->dev, "failed to get video timing\n");
 		return r;
@@ -160,7 +160,7 @@ static int panel_dpi_probe_of(struct platform_device *pdev)
 	videomode_from_timing(&timing, &vm);
 	videomode_to_omap_video_timings(&vm, &ddata->videomode);
 
-	in = omapdss_of_find_source_for_first_ep(node);
+	in = omapdss_of_find_source_for_first_ep(analde);
 	if (IS_ERR(in)) {
 		dev_err(&pdev->dev, "failed to find video source\n");
 		return PTR_ERR(in);
@@ -177,12 +177,12 @@ static int panel_dpi_probe(struct platform_device *pdev)
 	struct omap_dss_device *dssdev;
 	int r;
 
-	if (!pdev->dev.of_node)
-		return -ENODEV;
+	if (!pdev->dev.of_analde)
+		return -EANALDEV;
 
 	ddata = devm_kzalloc(&pdev->dev, sizeof(*ddata), GFP_KERNEL);
 	if (ddata == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, ddata);
 

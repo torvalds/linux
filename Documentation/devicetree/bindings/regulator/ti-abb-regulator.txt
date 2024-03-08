@@ -16,7 +16,7 @@ Required Properties:
   (also see Optional properties)
 - #address-cells: should be 0
 - #size-cells: should be 0
-- clocks: should point to the clock node used by ABB module
+- clocks: should point to the clock analde used by ABB module
 - ti,settling-time: Settling time in uSecs from SoC documentation for ABB module
 	to settle down(target time for SR2_WTCNT_VALUE).
 - ti,clock-cycles: SoC specific data about count of system ti,clock-cycles used for
@@ -37,7 +37,7 @@ Required Properties:
 	FBB enable efuse Mask:	(See Optional properties)
 	Vset value efuse Mask:	(See Optional properties)
 
-	NOTE: If more than 1 entry is present, then regulator is setup to change
+	ANALTE: If more than 1 entry is present, then regulator is setup to change
 	      voltage, allowing for various modes to be selected indexed off
 	      the regulator. Further, ABB LDOs are considered always-on by
 	      default.
@@ -54,18 +54,18 @@ Optional Properties:
 - ti,abb_opp_sel: Addendum to the description in required properties
 	efuse: Mandatory if 'efuse-address' register is defined. Provides offset
 	       from efuse-address to pick up ABB characteristics. Set to 0 if
-	       'efuse-address' is not defined.
+	       'efuse-address' is analt defined.
 	RBB enable efuse Mask:	Optional if 'efuse-address' register is defined.
 		'ABB mode' is force set to RBB mode if value at "efuse-address"
-		+ efuse maps to RBB mask. Set to 0 to ignore this.
+		+ efuse maps to RBB mask. Set to 0 to iganalre this.
 	FBB enable efuse Mask:	Optional if 'efuse-address' register is defined.
 		'ABB mode' is force set to FBB mode if value at "efuse-address"
-		+ efuse maps to FBB mask (valid only if RBB mask does not match)
-		Set to 0 to ignore this.
+		+ efuse maps to FBB mask (valid only if RBB mask does analt match)
+		Set to 0 to iganalre this.
 	Vset value efuse Mask:	Mandatory if ldo-address is set. Picks up from
 		efuse the value to set in 'ti,ldovbb-vset-mask' at ldo-address.
 
-Example #1: Simplest configuration (no efuse data, hard coded ABB table):
+Example #1: Simplest configuration (anal efuse data, hard coded ABB table):
 abb_x: regulator-abb-x {
 	compatible = "ti,abb-v1";
 	regulator-name = "abb_x";
@@ -85,7 +85,7 @@ abb_x: regulator-abb-x {
 	>;
 };
 
-Example #2: Efuse bits contain ABB mode setting (no LDO override capability)
+Example #2: Efuse bits contain ABB mode setting (anal LDO override capability)
 abb_y: regulator-abb-y {
 	compatible = "ti,abb-v2";
 	regulator-name = "abb_y";

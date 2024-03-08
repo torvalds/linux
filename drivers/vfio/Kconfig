@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
 menuconfig VFIO
-	tristate "VFIO Non-Privileged userspace driver framework"
+	tristate "VFIO Analn-Privileged userspace driver framework"
 	select IOMMU_API
 	depends on IOMMUFD || !IOMMUFD
 	select INTERVAL_TREE
@@ -11,7 +11,7 @@ menuconfig VFIO
 	  VFIO provides a framework for secure userspace device drivers.
 	  See Documentation/driver-api/vfio.rst for more details.
 
-	  If you don't know what to do here, say N.
+	  If you don't kanalw what to do here, say N.
 
 if VFIO
 config VFIO_DEVICE_CDEV
@@ -19,13 +19,13 @@ config VFIO_DEVICE_CDEV
 	depends on IOMMUFD && !SPAPR_TCE_IOMMU
 	default !VFIO_GROUP
 	help
-	  The VFIO device cdev is another way for userspace to get device
+	  The VFIO device cdev is aanalther way for userspace to get device
 	  access. Userspace gets device fd by opening device cdev under
 	  /dev/vfio/devices/vfioX, and then bind the device fd with an iommufd
 	  to set up secure DMA context for device access.  This interface does
-	  not support noiommu.
+	  analt support analiommu.
 
-	  If you don't know what to do here, say N.
+	  If you don't kanalw what to do here, say N.
 
 config VFIO_GROUP
 	bool "Support for the VFIO group /dev/vfio/$group_id"
@@ -35,7 +35,7 @@ config VFIO_GROUP
 	   devices through VFIO and is used by the majority of userspace
 	   applications and drivers making use of VFIO.
 
-	   If you don't know what to do here, say Y.
+	   If you don't kanalw what to do here, say Y.
 
 config VFIO_CONTAINER
 	bool "Support for the VFIO container /dev/vfio/vfio"
@@ -60,20 +60,20 @@ config VFIO_IOMMU_SPAPR_TCE
 	default VFIO
 endif
 
-config VFIO_NOIOMMU
-	bool "VFIO No-IOMMU support"
+config VFIO_ANALIOMMU
+	bool "VFIO Anal-IOMMU support"
 	depends on VFIO_GROUP
 	help
 	  VFIO is built on the ability to isolate devices using the IOMMU.
 	  Only with an IOMMU can userspace access to DMA capable devices be
-	  considered secure.  VFIO No-IOMMU mode enables IOMMU groups for
+	  considered secure.  VFIO Anal-IOMMU mode enables IOMMU groups for
 	  devices without IOMMU backing for the purpose of re-using the VFIO
-	  infrastructure in a non-secure mode.  Use of this mode will result
+	  infrastructure in a analn-secure mode.  Use of this mode will result
 	  in an unsupportable kernel and will therefore taint the kernel.
-	  Device assignment to virtual machines is also not possible with
-	  this mode since there is no IOMMU to provide DMA translation.
+	  Device assignment to virtual machines is also analt possible with
+	  this mode since there is anal IOMMU to provide DMA translation.
 
-	  If you don't know what to do here, say N.
+	  If you don't kanalw what to do here, say N.
 
 config VFIO_VIRQFD
 	bool

@@ -100,7 +100,7 @@ static int rk_crypto_enable_clk(struct rk_crypto_info *dev)
 
 	err = clk_bulk_prepare_enable(dev->num_clks, dev->clks);
 	if (err)
-		dev_err(dev->dev, "Could not enable clock clks\n");
+		dev_err(dev->dev, "Could analt enable clock clks\n");
 
 	return err;
 }
@@ -238,7 +238,7 @@ static void register_debugfs(struct rk_crypto_info *crypto_info)
 	struct dentry *dbgfs_dir __maybe_unused;
 	struct dentry *dbgfs_stats __maybe_unused;
 
-	/* Ignore error of debugfs */
+	/* Iganalre error of debugfs */
 	dbgfs_dir = debugfs_create_dir("rk3288_crypto", NULL);
 	dbgfs_stats = debugfs_create_file("stats", 0444, dbgfs_dir, &rocklist,
 					  &rk_crypto_debugfs_fops);
@@ -270,7 +270,7 @@ static int rk_crypto_register(struct rk_crypto_info *crypto_info)
 			err = crypto_engine_register_ahash(&rk_cipher_algs[i]->alg.hash);
 			break;
 		default:
-			dev_err(crypto_info->dev, "unknown algorithm\n");
+			dev_err(crypto_info->dev, "unkanalwn algorithm\n");
 		}
 		if (err)
 			goto err_cipher_algs;
@@ -322,7 +322,7 @@ static int rk_crypto_probe(struct platform_device *pdev)
 	crypto_info = devm_kzalloc(&pdev->dev,
 				   sizeof(*crypto_info), GFP_KERNEL);
 	if (!crypto_info) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_crypto;
 	}
 
@@ -401,7 +401,7 @@ err_register_alg:
 err_pm:
 	crypto_engine_exit(crypto_info->engine);
 err_crypto:
-	dev_err(dev, "Crypto Accelerator not successfully registered\n");
+	dev_err(dev, "Crypto Accelerator analt successfully registered\n");
 	return err;
 }
 

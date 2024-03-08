@@ -3,7 +3,7 @@
  * Watchdog driver for TQMx86 PLD.
  *
  * The watchdog supports power of 2 timeouts from 1 to 4096sec.
- * Once started, it cannot be stopped.
+ * Once started, it cananalt be stopped.
  *
  * Based on the vendor code written by Vadim V.Vlasov
  * <vvlasov@dev.rtsoft.ru>
@@ -77,15 +77,15 @@ static int tqmx86_wdt_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
 	if (!res)
-		return -ENODEV;
+		return -EANALDEV;
 
 	priv->io_base = devm_ioport_map(dev, res->start, resource_size(res));
 	if (!priv->io_base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	watchdog_set_drvdata(&priv->wdd, priv);
 
@@ -98,7 +98,7 @@ static int tqmx86_wdt_probe(struct platform_device *pdev)
 	priv->wdd.timeout = WDT_TIMEOUT;
 
 	watchdog_init_timeout(&priv->wdd, timeout, dev);
-	watchdog_set_nowayout(&priv->wdd, WATCHDOG_NOWAYOUT);
+	watchdog_set_analwayout(&priv->wdd, WATCHDOG_ANALWAYOUT);
 
 	tqmx86_wdt_set_timeout(&priv->wdd, priv->wdd.timeout);
 

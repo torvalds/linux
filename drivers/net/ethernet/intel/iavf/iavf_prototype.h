@@ -8,7 +8,7 @@
 #include "iavf_alloc.h"
 #include <linux/avf/virtchnl.h>
 
-/* Prototypes for shared code functions that are not in
+/* Prototypes for shared code functions that are analt in
  * the standard function pointer structures.  These are
  * mostly because they are needed even before the init
  * has happened and will assist in the early SW and FW

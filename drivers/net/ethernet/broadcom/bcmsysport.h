@@ -78,13 +78,13 @@ struct bcm_rsb {
 #define RX_STATUS_PARSE_FAIL		(1 << 6)
 
 /* Transmit Status bits */
-#define TX_STATUS_VLAN_NO_ACT		0x00
+#define TX_STATUS_VLAN_ANAL_ACT		0x00
 #define TX_STATUS_VLAN_PCP_TSB		0x01
 #define TX_STATUS_VLAN_QUEUE		0x02
 #define TX_STATUS_VLAN_VID_TSB		0x03
 #define TX_STATUS_OWR_CRC		(1 << 2)
 #define TX_STATUS_APP_CRC		(1 << 3)
-#define TX_STATUS_BRCM_TAG_NO_ACT	0
+#define TX_STATUS_BRCM_TAG_ANAL_ACT	0
 #define TX_STATUS_BRCM_TAG_ZERO		0x10
 #define TX_STATUS_BRCM_TAG_ONE_QUEUE	0x20
 #define TX_STATUS_BRCM_TAG_ONE_TSB	0x30
@@ -383,7 +383,7 @@ struct bcm_rsb {
 #define  RING_QID_MASK			0x7
 #define  RING_PORT_ID_SHIFT		3
 #define  RING_PORT_ID_MASK		0x7
-#define  RING_IGNORE_STATUS		(1 << 6)
+#define  RING_IGANALRE_STATUS		(1 << 6)
 #define  RING_FAILOVER_EN		(1 << 7)
 #define  RING_CREDIT_SHIFT		8
 #define  RING_CREDIT_MASK		0xffff
@@ -517,7 +517,7 @@ struct bcm_sysport_rx_counters {
 	u32	fcs;		/* RO # of Received FCS error  */
 	u32	cf;		/* RO # of Received control frame pkt*/
 	u32	pf;		/* RO # of Received pause frame pkt */
-	u32	uo;		/* RO # of unknown op code pkt */
+	u32	uo;		/* RO # of unkanalwn op code pkt */
 	u32	aln;		/* RO # of alignment error count */
 	u32	flr;		/* RO # of frame length out of range count */
 	u32	cde;		/* RO # of code error pkt */
@@ -737,7 +737,7 @@ struct bcm_sysport_priv {
 	u32			rx_coalesce_usecs;
 
 	/* PHY device */
-	struct device_node	*phy_dn;
+	struct device_analde	*phy_dn;
 	phy_interface_t		phy_interface;
 	int			old_pause;
 	int			old_link;
@@ -768,7 +768,7 @@ struct bcm_sysport_priv {
 	struct u64_stats_sync	syncp;
 
 	/* map information between switch port queues and local queues */
-	struct notifier_block	netdev_notifier;
+	struct analtifier_block	netdev_analtifier;
 	unsigned int		per_port_num_tx_queues;
 	struct bcm_sysport_tx_ring *ring_map[DSA_MAX_PORTS * 8];
 

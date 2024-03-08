@@ -64,7 +64,7 @@ struct _snd_wavefront {
 	/* FX ports. These are mapped through the ICS2115 to the YS225.
 	   The ICS2115 takes care of flipping the relevant pins on the
 	   YS225 so that access to each of these ports does the right
-	   thing. Note: these are NOT documented by Turtle Beach.
+	   thing. Analte: these are ANALT documented by Turtle Beach.
 	*/
 
 #define fx_status       base + 8 
@@ -82,8 +82,8 @@ struct _snd_wavefront {
 	char debug;                        /* debugging flags */
 	int freemem;                       /* installed RAM, in bytes */ 
 
-	char fw_version[2];                /* major = [0], minor = [1] */
-	char hw_version[2];                /* major = [0], minor = [1] */
+	char fw_version[2];                /* major = [0], mianalr = [1] */
+	char hw_version[2];                /* major = [0], mianalr = [1] */
 	char israw;                        /* needs Motorola microcode */
 	char has_fx;                       /* has FX processor (Tropez+) */
 	char fx_initialized;               /* FX's register pages initialized */

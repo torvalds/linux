@@ -20,7 +20,7 @@
 
 #include <linux/module.h>
 #include <linux/capability.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 #include <linux/socket.h>
 #include <linux/sockios.h>
@@ -63,11 +63,11 @@ int ip6_ra_control(struct sock *sk, int sel)
 
 	/* RA packet may be delivered ONLY to IPPROTO_RAW socket */
 	if (sk->sk_type != SOCK_RAW || inet_sk(sk)->inet_num != IPPROTO_RAW)
-		return -ENOPROTOOPT;
+		return -EANALPROTOOPT;
 
 	new_ra = (sel >= 0) ? kmalloc(sizeof(*new_ra), GFP_KERNEL) : NULL;
 	if (sel >= 0 && !new_ra)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	write_lock_bh(&ip6_ra_lock);
 	for (rap = &ip6_ra_chain; (ra = *rap) != NULL; rap = &ra->next) {
@@ -88,7 +88,7 @@ int ip6_ra_control(struct sock *sk, int sel)
 	}
 	if (!new_ra) {
 		write_unlock_bh(&ip6_ra_lock);
-		return -ENOBUFS;
+		return -EANALBUFS;
 	}
 	new_ra->sk = sk;
 	new_ra->sel = sel;
@@ -174,7 +174,7 @@ static int do_ipv6_mcast_group_source(struct sock *sk, int optname,
 
 	if (greqs.gsr_group.ss_family != AF_INET6 ||
 	    greqs.gsr_source.ss_family != AF_INET6)
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 
 	if (optname == MCAST_BLOCK_SOURCE) {
 		omode = MCAST_EXCLUDE;
@@ -211,14 +211,14 @@ static int ipv6_set_mcast_msfilter(struct sock *sk, sockptr_t optval,
 	if (optlen < GROUP_FILTER_SIZE(0))
 		return -EINVAL;
 	if (optlen > READ_ONCE(sock_net(sk)->core.sysctl_optmem_max))
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	gsf = memdup_sockptr(optval, optlen);
 	if (IS_ERR(gsf))
 		return PTR_ERR(gsf);
 
 	/* numsrc >= (4G-140)/128 overflow in 32 bits */
-	ret = -ENOBUFS;
+	ret = -EANALBUFS;
 	if (gsf->gf_numsrc >= 0x1ffffffU ||
 	    gsf->gf_numsrc > sysctl_mld_max_msf)
 		goto out_free_gsf;
@@ -245,11 +245,11 @@ static int compat_ipv6_set_mcast_msfilter(struct sock *sk, sockptr_t optval,
 	if (optlen < size0)
 		return -EINVAL;
 	if (optlen > READ_ONCE(sock_net(sk)->core.sysctl_optmem_max) - 4)
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	p = kmalloc(optlen + 4, GFP_KERNEL);
 	if (!p)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gf32 = p + 4; /* we want ->gf_group and ->gf_slist_flex aligned */
 	ret = -EFAULT;
@@ -257,7 +257,7 @@ static int compat_ipv6_set_mcast_msfilter(struct sock *sk, sockptr_t optval,
 		goto out_free_p;
 
 	/* numsrc >= (4G-140)/128 overflow in 32 bits */
-	ret = -ENOBUFS;
+	ret = -EANALBUFS;
 	n = gf32->gf_numsrc;
 	if (n >= 0x1ffffffU || n > sysctl_mld_max_msf)
 		goto out_free_p;
@@ -289,7 +289,7 @@ static int ipv6_mcast_join_leave(struct sock *sk, int optname,
 		return -EFAULT;
 
 	if (greq.gr_group.ss_family != AF_INET6)
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 	psin6 = (struct sockaddr_in6 *)&greq.gr_group;
 	if (optname == MCAST_JOIN_GROUP)
 		return ipv6_sock_mc_join(sk, greq.gr_interface,
@@ -309,7 +309,7 @@ static int compat_ipv6_mcast_join_leave(struct sock *sk, int optname,
 		return -EFAULT;
 
 	if (gr32.gr_group.ss_family != AF_INET6)
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 	psin6 = (struct sockaddr_in6 *)&gr32.gr_group;
 	if (optname == MCAST_JOIN_GROUP)
 		return ipv6_sock_mc_join(sk, gr32.gr_interface,
@@ -397,7 +397,7 @@ int do_ipv6_setsockopt(struct sock *sk, int level, int optname,
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	struct net *net = sock_net(sk);
 	int val, valbool;
-	int retv = -ENOPROTOOPT;
+	int retv = -EANALPROTOOPT;
 	bool needs_rtnl = setsockopt_needs_rtnl(optname);
 
 	if (sockptr_is_null(optval))
@@ -511,7 +511,7 @@ int do_ipv6_setsockopt(struct sock *sk, int level, int optname,
 		return ip6_sock_set_addr_preferences(sk, val);
 	case IPV6_MULTICAST_IF:
 		if (sk->sk_type == SOCK_STREAM)
-			return -ENOPROTOOPT;
+			return -EANALPROTOOPT;
 		if (optlen < sizeof(int))
 			return -EINVAL;
 		if (val) {
@@ -523,7 +523,7 @@ int do_ipv6_setsockopt(struct sock *sk, int level, int optname,
 			dev = dev_get_by_index_rcu(net, val);
 			if (!dev) {
 				rcu_read_unlock();
-				return -ENODEV;
+				return -EANALDEV;
 			}
 			midx = l3mdev_master_ifindex_rcu(dev);
 
@@ -553,7 +553,7 @@ int do_ipv6_setsockopt(struct sock *sk, int level, int optname,
 
 		dev = dev_get_by_index(net, ifindex);
 		if (!dev)
-			return -EADDRNOTAVAIL;
+			return -EADDRANALTAVAIL;
 		dev_put(dev);
 
 		if (READ_ONCE(sk->sk_bound_dev_if))
@@ -567,7 +567,7 @@ int do_ipv6_setsockopt(struct sock *sk, int level, int optname,
 		rtnl_lock();
 	sockopt_lock_sock(sk);
 
-	/* Another thread has converted the socket into IPv4 with
+	/* Aanalther thread has converted the socket into IPv4 with
 	 * IPV6_ADDRFORM concurrently.
 	 */
 	if (unlikely(sk->sk_family != AF_INET6))
@@ -599,13 +599,13 @@ int do_ipv6_setsockopt(struct sock *sk, int level, int optname,
 			}
 
 			if (sk->sk_state != TCP_ESTABLISHED) {
-				retv = -ENOTCONN;
+				retv = -EANALTCONN;
 				break;
 			}
 
 			if (ipv6_only_sock(sk) ||
 			    !ipv6_addr_v4mapped(&sk->sk_v6_daddr)) {
-				retv = -EADDRNOTAVAIL;
+				retv = -EADDRANALTAVAIL;
 				break;
 			}
 
@@ -640,7 +640,7 @@ int do_ipv6_setsockopt(struct sock *sk, int level, int optname,
 				WRITE_ONCE(sk->sk_family, PF_INET);
 			}
 
-			/* Disable all options not to allocate memory anymore,
+			/* Disable all options analt to allocate memory anymore,
 			 * but there is still a race.  See the lockless path
 			 * in udpv6_sendmsg() and ipv6_local_rxpmtu().
 			 */
@@ -845,14 +845,14 @@ int do_ipv6_setsockopt(struct sock *sk, int level, int optname,
 			goto update;
 
 		/* 1K is probably excessive
-		 * 1K is surely not enough, 2K per standard header is 16K.
+		 * 1K is surely analt eanalugh, 2K per standard header is 16K.
 		 */
 		retv = -EINVAL;
 		if (optlen > 64*1024)
 			break;
 
 		opt = sock_kmalloc(sk, sizeof(*opt) + optlen, GFP_KERNEL);
-		retv = -ENOBUFS;
+		retv = -EANALBUFS;
 		if (!opt)
 			break;
 
@@ -987,12 +987,12 @@ int ipv6_setsockopt(struct sock *sk, int level, int optname, sockptr_t optval,
 		return udp_prot.setsockopt(sk, level, optname, optval, optlen);
 
 	if (level != SOL_IPV6)
-		return -ENOPROTOOPT;
+		return -EANALPROTOOPT;
 
 	err = do_ipv6_setsockopt(sk, level, optname, optval, optlen);
 #ifdef CONFIG_NETFILTER
-	/* we need to exclude all possible ENOPROTOOPTs except default case */
-	if (err == -ENOPROTOOPT && optname != IPV6_IPSEC_POLICY &&
+	/* we need to exclude all possible EANALPROTOOPTs except default case */
+	if (err == -EANALPROTOOPT && optname != IPV6_IPSEC_POLICY &&
 			optname != IPV6_XFRM_POLICY)
 		err = nf_setsockopt(sk, PF_INET6, optname, optval, optlen);
 #endif
@@ -1022,7 +1022,7 @@ static int ipv6_getsockopt_sticky(struct sock *sk, struct ipv6_txoptions *opt,
 		hdr = opt->dst1opt;
 		break;
 	default:
-		return -EINVAL;	/* should not happen */
+		return -EINVAL;	/* should analt happen */
 	}
 
 	if (!hdr)
@@ -1047,7 +1047,7 @@ static int ipv6_get_msfilter(struct sock *sk, sockptr_t optval,
 	if (copy_from_sockptr(&gsf, optval, size0))
 		return -EFAULT;
 	if (gsf.gf_group.ss_family != AF_INET6)
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 	num = gsf.gf_numsrc;
 	sockopt_lock_sock(sk);
 	err = ip6_mc_msfget(sk, &gsf, optval, size0);
@@ -1083,7 +1083,7 @@ static int compat_ipv6_get_msfilter(struct sock *sk, sockptr_t optval,
 	gf.gf_group = gf32.gf_group;
 
 	if (gf.gf_group.ss_family != AF_INET6)
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 
 	sockopt_lock_sock(sk);
 	err = ip6_mc_msfget(sk, &gf, optval, size0);
@@ -1119,9 +1119,9 @@ int do_ipv6_getsockopt(struct sock *sk, int level, int optname,
 		if (sk->sk_protocol != IPPROTO_UDP &&
 		    sk->sk_protocol != IPPROTO_UDPLITE &&
 		    sk->sk_protocol != IPPROTO_TCP)
-			return -ENOPROTOOPT;
+			return -EANALPROTOOPT;
 		if (sk->sk_state != TCP_ESTABLISHED)
-			return -ENOTCONN;
+			return -EANALTCONN;
 		val = sk->sk_family;
 		break;
 	case MCAST_MSFILTER:
@@ -1134,7 +1134,7 @@ int do_ipv6_getsockopt(struct sock *sk, int level, int optname,
 		struct sk_buff *skb;
 
 		if (sk->sk_type != SOCK_STREAM)
-			return -ENOPROTOOPT;
+			return -EANALPROTOOPT;
 
 		if (optval.is_kernel) {
 			msg.msg_control_is_user = false;
@@ -1206,7 +1206,7 @@ int do_ipv6_getsockopt(struct sock *sk, int level, int optname,
 			val = dst_mtu(dst);
 		rcu_read_unlock();
 		if (!val)
-			return -ENOTCONN;
+			return -EANALTCONN;
 		break;
 	}
 
@@ -1305,7 +1305,7 @@ int do_ipv6_getsockopt(struct sock *sk, int level, int optname,
 			mtuinfo.ip6m_mtu = dst_mtu(dst);
 		rcu_read_unlock();
 		if (!mtuinfo.ip6m_mtu)
-			return -ENOTCONN;
+			return -EANALTCONN;
 
 		if (copy_to_sockptr(optlen, &len, sizeof(int)))
 			return -EFAULT;
@@ -1454,7 +1454,7 @@ int do_ipv6_getsockopt(struct sock *sk, int level, int optname,
 		break;
 
 	default:
-		return -ENOPROTOOPT;
+		return -EANALPROTOOPT;
 	}
 	len = min_t(unsigned int, sizeof(int), len);
 	if (copy_to_sockptr(optlen, &len, sizeof(int)))
@@ -1473,13 +1473,13 @@ int ipv6_getsockopt(struct sock *sk, int level, int optname,
 		return udp_prot.getsockopt(sk, level, optname, optval, optlen);
 
 	if (level != SOL_IPV6)
-		return -ENOPROTOOPT;
+		return -EANALPROTOOPT;
 
 	err = do_ipv6_getsockopt(sk, level, optname,
 				 USER_SOCKPTR(optval), USER_SOCKPTR(optlen));
 #ifdef CONFIG_NETFILTER
-	/* we need to exclude all possible ENOPROTOOPTs except default case */
-	if (err == -ENOPROTOOPT && optname != IPV6_2292PKTOPTIONS) {
+	/* we need to exclude all possible EANALPROTOOPTs except default case */
+	if (err == -EANALPROTOOPT && optname != IPV6_2292PKTOPTIONS) {
 		int len;
 
 		if (get_user(len, optlen))

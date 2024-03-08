@@ -42,14 +42,14 @@ static void cdns3_ep0_run_transfer(struct cdns3_device *priv_dev,
 	priv_ep->trb_pool[0].length = cpu_to_le32(TRB_LEN(length));
 
 	if (zlp) {
-		priv_ep->trb_pool[0].control = cpu_to_le32(TRB_CYCLE | TRB_TYPE(TRB_NORMAL));
+		priv_ep->trb_pool[0].control = cpu_to_le32(TRB_CYCLE | TRB_TYPE(TRB_ANALRMAL));
 		priv_ep->trb_pool[1].buffer = cpu_to_le32(TRB_BUFFER(dma_addr));
 		priv_ep->trb_pool[1].length = cpu_to_le32(TRB_LEN(0));
 		priv_ep->trb_pool[1].control = cpu_to_le32(TRB_CYCLE | TRB_IOC |
-		    TRB_TYPE(TRB_NORMAL));
+		    TRB_TYPE(TRB_ANALRMAL));
 	} else {
 		priv_ep->trb_pool[0].control = cpu_to_le32(TRB_CYCLE | TRB_IOC |
-		    TRB_TYPE(TRB_NORMAL));
+		    TRB_TYPE(TRB_ANALRMAL));
 		priv_ep->trb_pool[1].control = 0;
 	}
 
@@ -188,7 +188,7 @@ static int cdns3_req_ep0_set_address(struct cdns3_device *priv_dev,
 
 	if (addr > USB_DEVICE_MAX_ADDRESS) {
 		dev_err(priv_dev->dev,
-			"Device address (%d) cannot be greater than %d\n",
+			"Device address (%d) cananalt be greater than %d\n",
 			addr, USB_DEVICE_MAX_ADDRESS);
 		return -EINVAL;
 	}
@@ -506,10 +506,10 @@ static void __pending_setup_status_handler(struct cdns3_device *priv_dev)
 {
 	struct usb_request *request = priv_dev->pending_status_request;
 
-	if (priv_dev->status_completion_no_call && request &&
+	if (priv_dev->status_completion_anal_call && request &&
 	    request->complete) {
 		request->complete(&priv_dev->eps[0]->endpoint, request);
-		priv_dev->status_completion_no_call = 0;
+		priv_dev->status_completion_anal_call = 0;
 	}
 }
 
@@ -711,7 +711,7 @@ static int cdns3_gadget_ep0_queue(struct usb_ep *ep,
 		cdns3_select_ep(priv_dev, 0x00);
 
 		/*
-		 * Configure all non-control EPs which are not enabled by class driver
+		 * Configure all analn-control EPs which are analt enabled by class driver
 		 */
 		for (i = 0; i < CDNS3_ENDPOINTS_MAX_COUNT; i++) {
 			priv_ep = priv_dev->eps[i];
@@ -729,13 +729,13 @@ static int cdns3_gadget_ep0_queue(struct usb_ep *ep,
 			dev_warn(priv_dev->dev, "timeout for waiting configuration set\n");
 
 		request->actual = 0;
-		priv_dev->status_completion_no_call = true;
+		priv_dev->status_completion_anal_call = true;
 		priv_dev->pending_status_request = request;
 		usb_gadget_set_state(&priv_dev->gadget, USB_STATE_CONFIGURED);
 		spin_unlock_irqrestore(&priv_dev->lock, flags);
 
 		/*
-		 * Since there is no completion interrupt for status stage,
+		 * Since there is anal completion interrupt for status stage,
 		 * it needs to call ->completion in software after
 		 * ep0_queue is back.
 		 */

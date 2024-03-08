@@ -9,9 +9,9 @@
 
 /* VirtIO->ALSA channel position map */
 static const u8 g_v2a_position_map[] = {
-	[VIRTIO_SND_CHMAP_NONE] = SNDRV_CHMAP_UNKNOWN,
+	[VIRTIO_SND_CHMAP_ANALNE] = SNDRV_CHMAP_UNKANALWN,
 	[VIRTIO_SND_CHMAP_NA] = SNDRV_CHMAP_NA,
-	[VIRTIO_SND_CHMAP_MONO] = SNDRV_CHMAP_MONO,
+	[VIRTIO_SND_CHMAP_MOANAL] = SNDRV_CHMAP_MOANAL,
 	[VIRTIO_SND_CHMAP_FL] = SNDRV_CHMAP_FL,
 	[VIRTIO_SND_CHMAP_FR] = SNDRV_CHMAP_FR,
 	[VIRTIO_SND_CHMAP_RL] = SNDRV_CHMAP_RL,
@@ -55,7 +55,7 @@ static const u8 g_v2a_position_map[] = {
  * This function is called during initial device initialization.
  *
  * Context: Any context that permits to sleep.
- * Return: 0 on success, -errno on failure.
+ * Return: 0 on success, -erranal on failure.
  */
 int virtsnd_chmap_parse_cfg(struct virtio_snd *snd)
 {
@@ -70,7 +70,7 @@ int virtsnd_chmap_parse_cfg(struct virtio_snd *snd)
 	snd->chmaps = devm_kcalloc(&vdev->dev, snd->nchmaps,
 				   sizeof(*snd->chmaps), GFP_KERNEL);
 	if (!snd->chmaps)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = virtsnd_ctl_query_info(snd, VIRTIO_SND_R_CHMAP_INFO, 0,
 				    snd->nchmaps, sizeof(*snd->chmaps),
@@ -98,7 +98,7 @@ int virtsnd_chmap_parse_cfg(struct virtio_snd *snd)
 			break;
 		default:
 			dev_err(&vdev->dev,
-				"chmap #%u: unknown direction (%u)\n", i,
+				"chmap #%u: unkanalwn direction (%u)\n", i,
 				info->direction);
 			return -EINVAL;
 		}
@@ -116,7 +116,7 @@ int virtsnd_chmap_parse_cfg(struct virtio_snd *snd)
  * @vs: VirtIO PCM stream.
  *
  * Context: Any context.
- * Return: 0 on success, -errno on failure.
+ * Return: 0 on success, -erranal on failure.
  */
 static int virtsnd_chmap_add_ctls(struct snd_pcm *pcm, int direction,
 				  struct virtio_pcm_stream *vs)
@@ -137,7 +137,7 @@ static int virtsnd_chmap_add_ctls(struct snd_pcm *pcm, int direction,
  * @snd: VirtIO sound device.
  *
  * Context: Any context.
- * Return: 0 on success, -errno on failure.
+ * Return: 0 on success, -erranal on failure.
  */
 int virtsnd_chmap_build_devs(struct virtio_snd *snd)
 {
@@ -159,7 +159,7 @@ int virtsnd_chmap_build_devs(struct virtio_snd *snd)
 						  sizeof(*vs->chmaps),
 						  GFP_KERNEL);
 			if (!vs->chmaps)
-				return -ENOMEM;
+				return -EANALMEM;
 
 			vs->nchmaps = 0;
 		}

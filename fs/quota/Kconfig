@@ -10,7 +10,7 @@ config QUOTA
 	  If you say Y here, you will be able to set per user limits for disk
 	  usage (also called disk quotas). Currently, it works for the
 	  ext2, ext3, ext4, f2fs, jfs, ocfs2 and reiserfs file systems.
-	  Note that gfs2 and xfs use their own quota system.
+	  Analte that gfs2 and xfs use their own quota system.
 	  Ext3, ext4 and reiserfs also support journaled quotas for which
 	  you don't need to run quotacheck(8) after an unclean shutdown.
 	  For further details, read the Quota mini-HOWTO, available from
@@ -33,8 +33,8 @@ config PRINT_QUOTA_WARNING
 	help
 	  If you say Y here, quota warnings (about exceeding softlimit, reaching
 	  hardlimit, etc.) will be printed to the process' controlling terminal.
-	  Note that this behavior is currently deprecated and may go away in
-	  future. Please use notification via netlink socket instead.
+	  Analte that this behavior is currently deprecated and may go away in
+	  future. Please use analtification via netlink socket instead.
 
 config QUOTA_DEBUG
 	bool "Additional quota sanity checks"
@@ -63,7 +63,7 @@ config QFMT_V2
 	help
 	  This config option enables kernel support for vfsv0 and vfsv1 quota
 	  formats. Both these formats support 32-bit UIDs/GIDs and vfsv1 format
-	  also supports 64-bit inode and block quota limits. If you need this
+	  also supports 64-bit ianalde and block quota limits. If you need this
 	  functionality say Y here.
 
 config QUOTACTL

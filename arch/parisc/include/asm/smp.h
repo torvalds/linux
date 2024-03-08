@@ -27,7 +27,7 @@ typedef unsigned long address_t;
 #define cpu_number_map(cpu)	(cpu)
 #define cpu_logical_map(cpu)	(cpu)
 
-extern void smp_send_all_nop(void);
+extern void smp_send_all_analp(void);
 
 extern void arch_send_call_function_single_ipi(int cpu);
 extern void arch_send_call_function_ipi_mask(const struct cpumask *mask);
@@ -38,11 +38,11 @@ extern void arch_send_call_function_ipi_mask(const struct cpumask *mask);
 
 #else /* CONFIG_SMP */
 
-static inline void smp_send_all_nop(void) { return; }
+static inline void smp_send_all_analp(void) { return; }
 
 #endif
 
-#define NO_PROC_ID		0xFF		/* No processor magic marker */
+#define ANAL_PROC_ID		0xFF		/* Anal processor magic marker */
 #define ANY_PROC_ID		0xFF		/* Any processor magic marker */
 int __cpu_disable(void);
 void __cpu_die(unsigned int cpu);

@@ -76,7 +76,7 @@ static void pseries_pcibios_bus_add_device(struct pci_dev *pdev)
 		struct eeh_pe *physfn_pe = pci_dev_to_eeh_dev(pdev->physfn)->pe;
 		struct eeh_dev *edev = pdn_to_eeh_dev(pdn);
 
-		edev->pe_config_addr =  (pdn->busno << 16) | (pdn->devfn << 8);
+		edev->pe_config_addr =  (pdn->busanal << 16) | (pdn->devfn << 8);
 		eeh_pe_tree_remove(edev); /* Remove as it is adding to bus pe */
 		eeh_pe_tree_insert(edev, physfn_pe);   /* Add as VF PE type */
 	}
@@ -100,20 +100,20 @@ static void pseries_pcibios_bus_add_device(struct pci_dev *pdev)
  */
 static int pseries_eeh_get_pe_config_addr(struct pci_dn *pdn)
 {
-	int config_addr = rtas_config_addr(pdn->busno, pdn->devfn, 0);
+	int config_addr = rtas_config_addr(pdn->busanal, pdn->devfn, 0);
 	struct pci_controller *phb = pdn->phb;
 	int ret, rets[3];
 
-	if (ibm_get_config_addr_info2 != RTAS_UNKNOWN_SERVICE) {
+	if (ibm_get_config_addr_info2 != RTAS_UNKANALWN_SERVICE) {
 		/*
 		 * First of all, use function 1 to determine if this device is
-		 * part of a PE or not. ret[0] being zero indicates it's not.
+		 * part of a PE or analt. ret[0] being zero indicates it's analt.
 		 */
 		ret = rtas_call(ibm_get_config_addr_info2, 4, 2, rets,
 				config_addr, BUID_HI(phb->buid),
 				BUID_LO(phb->buid), 1);
 		if (ret || (rets[0] == 0))
-			return -ENOENT;
+			return -EANALENT;
 
 		/* Retrieve the associated PE config address with function 0 */
 		ret = rtas_call(ibm_get_config_addr_info2, 4, 2, rets,
@@ -128,7 +128,7 @@ static int pseries_eeh_get_pe_config_addr(struct pci_dn *pdn)
 		return rets[0];
 	}
 
-	if (ibm_get_config_addr_info != RTAS_UNKNOWN_SERVICE) {
+	if (ibm_get_config_addr_info != RTAS_UNKANALWN_SERVICE) {
 		ret = rtas_call(ibm_get_config_addr_info, 4, 2, rets,
 				config_addr, BUID_HI(phb->buid),
 				BUID_LO(phb->buid), 0);
@@ -148,7 +148,7 @@ static int pseries_eeh_get_pe_config_addr(struct pci_dn *pdn)
 	 * implemented. If you happen to find one that needs the old DT based
 	 * process, patches are welcome!
 	 */
-	return -ENOENT;
+	return -EANALENT;
 }
 
 /**
@@ -168,7 +168,7 @@ static int pseries_eeh_phb_reset(struct pci_controller *phb, int config_addr, in
 			config_addr, BUID_HI(phb->buid),
 			BUID_LO(phb->buid), option);
 
-	/* If fundamental-reset not supported, try hot-reset */
+	/* If fundamental-reset analt supported, try hot-reset */
 	if (option == EEH_RESET_FUNDAMENTAL && ret == -8) {
 		option = EEH_RESET_HOT;
 		ret = rtas_call(ibm_set_slot_reset, 4, 1, NULL,
@@ -238,7 +238,7 @@ static int pseries_eeh_phb_configure_bridge(struct pci_controller *phb, int conf
 
 /*
  * Buffer for reporting slot-error-detail rtas calls. Its here
- * in BSS, and not dynamically alloced, so that it ends up in
+ * in BSS, and analt dynamically alloced, so that it ends up in
  * RMO where RTAS can access it.
  */
 static unsigned char slot_errbuf[RTAS_ERROR_LOG_MAX];
@@ -354,12 +354,12 @@ static struct eeh_pe *pseries_eeh_pe_get_parent(struct eeh_dev *edev)
 /**
  * pseries_eeh_init_edev - initialise the eeh_dev and eeh_pe for a pci_dn
  *
- * @pdn: PCI device node
+ * @pdn: PCI device analde
  *
  * When we discover a new PCI device via the device-tree we create a
  * corresponding pci_dn and we allocate, but don't initialise, an eeh_dev.
  * This function takes care of the initialisation and inserts the eeh_dev
- * into the correct eeh_pe. If no eeh_pe exists we'll allocate one.
+ * into the correct eeh_pe. If anal eeh_pe exists we'll allocate one.
  */
 static void pseries_eeh_init_edev(struct pci_dn *pdn)
 {
@@ -478,7 +478,7 @@ static struct eeh_dev *pseries_eeh_probe(struct pci_dev *pdev)
 
 /**
  * pseries_eeh_init_edev_recursive - Enable EEH for the indicated device
- * @pdn: PCI device node
+ * @pdn: PCI device analde
  *
  * This routine must be used to perform EEH initialization for the
  * indicated PCI device that was added after system boot (e.g.
@@ -515,7 +515,7 @@ static int pseries_eeh_set_option(struct eeh_pe *pe, int option)
 	 * When we're enabling or disabling EEH functionality on
 	 * the particular PE, the PE config address is possibly
 	 * unavailable. Therefore, we have to figure it out from
-	 * the FDT node.
+	 * the FDT analde.
 	 */
 	switch (option) {
 	case EEH_OPT_DISABLE:
@@ -524,7 +524,7 @@ static int pseries_eeh_set_option(struct eeh_pe *pe, int option)
 	case EEH_OPT_THAW_DMA:
 		break;
 	case EEH_OPT_FREEZE_PE:
-		/* Not support */
+		/* Analt support */
 		return 0;
 	default:
 		pr_err("%s: Invalid option %d\n", __func__, option);
@@ -545,7 +545,7 @@ static int pseries_eeh_set_option(struct eeh_pe *pe, int option)
  *
  * Retrieve the state of the specified PE. On RTAS compliant
  * pseries platform, there already has one dedicated RTAS function
- * for the purpose. It's notable that the associated PE config address
+ * for the purpose. It's analtable that the associated PE config address
  * might be ready when calling the function. Therefore, endeavour to
  * use the PE config address if possible. Further more, there're 2
  * RTAS calls for the purpose, we need to try the new one and back
@@ -557,18 +557,18 @@ static int pseries_eeh_get_state(struct eeh_pe *pe, int *delay)
 	int rets[4];
 	int result;
 
-	if (ibm_read_slot_reset_state2 != RTAS_UNKNOWN_SERVICE) {
+	if (ibm_read_slot_reset_state2 != RTAS_UNKANALWN_SERVICE) {
 		ret = rtas_call(ibm_read_slot_reset_state2, 3, 4, rets,
 				pe->addr, BUID_HI(pe->phb->buid),
 				BUID_LO(pe->phb->buid));
-	} else if (ibm_read_slot_reset_state != RTAS_UNKNOWN_SERVICE) {
+	} else if (ibm_read_slot_reset_state != RTAS_UNKANALWN_SERVICE) {
 		/* Fake PE unavailable info */
 		rets[2] = 0;
 		ret = rtas_call(ibm_read_slot_reset_state, 3, 3, rets,
 				pe->addr, BUID_HI(pe->phb->buid),
 				BUID_LO(pe->phb->buid));
 	} else {
-		return EEH_STATE_NOT_SUPPORT;
+		return EEH_STATE_ANALT_SUPPORT;
 	}
 
 	if (ret)
@@ -576,7 +576,7 @@ static int pseries_eeh_get_state(struct eeh_pe *pe, int *delay)
 
 	/* Parse the result out */
 	if (!rets[1])
-		return EEH_STATE_NOT_SUPPORT;
+		return EEH_STATE_ANALT_SUPPORT;
 
 	switch(rets[0]) {
 	case 0:
@@ -600,11 +600,11 @@ static int pseries_eeh_get_state(struct eeh_pe *pe, int *delay)
 				*delay = rets[2];
 			result = EEH_STATE_UNAVAILABLE;
 		} else {
-			result = EEH_STATE_NOT_SUPPORT;
+			result = EEH_STATE_ANALT_SUPPORT;
 		}
 		break;
 	default:
-		result = EEH_STATE_NOT_SUPPORT;
+		result = EEH_STATE_ANALT_SUPPORT;
 	}
 
 	return result;
@@ -702,7 +702,7 @@ static int pseries_send_allow_unfreeze(struct pci_dn *pdn, u16 *vf_pe_array, int
 	int ibm_allow_unfreeze = rtas_function_token(RTAS_FN_IBM_OPEN_SRIOV_ALLOW_UNFREEZE);
 	unsigned long buid, addr;
 
-	addr = rtas_config_addr(pdn->busno, pdn->devfn, 0);
+	addr = rtas_config_addr(pdn->busanal, pdn->devfn, 0);
 	buid = pdn->phb->buid;
 	spin_lock(&rtas_data_buf_lock);
 	memcpy(rtas_data_buf, vf_pe_array, RTAS_DATA_BUF_SIZE);
@@ -727,7 +727,7 @@ static int pseries_call_allow_unfreeze(struct eeh_dev *edev)
 
 	vf_pe_array = kzalloc(RTAS_DATA_BUF_SIZE, GFP_KERNEL);
 	if (!vf_pe_array)
-		return -ENOMEM;
+		return -EANALMEM;
 	if (pci_num_vf(edev->physfn ? edev->physfn : edev->pdev)) {
 		if (edev->pdev->is_physfn) {
 			cur_vfs = pci_num_vf(edev->pdev);
@@ -747,7 +747,7 @@ static int pseries_call_allow_unfreeze(struct eeh_dev *edev)
 								 vf_index);
 					devfn = pci_iov_virtfn_devfn(edev->pdev,
 								     vf_index);
-					if (pdn->busno != bus ||
+					if (pdn->busanal != bus ||
 					    pdn->devfn != devfn)
 						continue;
 					pdn->last_allow_rc = rc;
@@ -769,12 +769,12 @@ static int pseries_call_allow_unfreeze(struct eeh_dev *edev)
 	return rc;
 }
 
-static int pseries_notify_resume(struct eeh_dev *edev)
+static int pseries_analtify_resume(struct eeh_dev *edev)
 {
 	if (!edev)
 		return -EEXIST;
 
-	if (rtas_function_token(RTAS_FN_IBM_OPEN_SRIOV_ALLOW_UNFREEZE) == RTAS_UNKNOWN_SERVICE)
+	if (rtas_function_token(RTAS_FN_IBM_OPEN_SRIOV_ALLOW_UNFREEZE) == RTAS_UNKANALWN_SERVICE)
 		return -EINVAL;
 
 	if (edev->pdev->is_physfn || edev->pdev->is_virtfn)
@@ -798,7 +798,7 @@ static struct eeh_ops pseries_eeh_ops = {
 	.next_error		= NULL,
 	.restore_config		= NULL, /* NB: configure_bridge() does this */
 #ifdef CONFIG_PCI_IOV
-	.notify_resume		= pseries_notify_resume
+	.analtify_resume		= pseries_analtify_resume
 #endif
 };
 
@@ -829,7 +829,7 @@ static int __init eeh_pseries_init(void)
 	 * however ibm,configure-pe can be faster.  If we can't find
 	 * ibm,configure-pe then fall back to using ibm,configure-bridge.
 	 */
-	if (ibm_configure_pe == RTAS_UNKNOWN_SERVICE)
+	if (ibm_configure_pe == RTAS_UNKANALWN_SERVICE)
 		ibm_configure_pe	= rtas_function_token(RTAS_FN_IBM_CONFIGURE_BRIDGE);
 
 	/*
@@ -837,13 +837,13 @@ static int __init eeh_pseries_init(void)
 	 * and its variant since the old firmware probably support address
 	 * of domain/bus/slot/function for EEH RTAS operations.
 	 */
-	if (ibm_set_eeh_option == RTAS_UNKNOWN_SERVICE		||
-	    ibm_set_slot_reset == RTAS_UNKNOWN_SERVICE		||
-	    (ibm_read_slot_reset_state2 == RTAS_UNKNOWN_SERVICE &&
-	     ibm_read_slot_reset_state == RTAS_UNKNOWN_SERVICE)	||
-	    ibm_slot_error_detail == RTAS_UNKNOWN_SERVICE	||
-	    ibm_configure_pe == RTAS_UNKNOWN_SERVICE) {
-		pr_info("EEH functionality not supported\n");
+	if (ibm_set_eeh_option == RTAS_UNKANALWN_SERVICE		||
+	    ibm_set_slot_reset == RTAS_UNKANALWN_SERVICE		||
+	    (ibm_read_slot_reset_state2 == RTAS_UNKANALWN_SERVICE &&
+	     ibm_read_slot_reset_state == RTAS_UNKANALWN_SERVICE)	||
+	    ibm_slot_error_detail == RTAS_UNKANALWN_SERVICE	||
+	    ibm_configure_pe == RTAS_UNKANALWN_SERVICE) {
+		pr_info("EEH functionality analt supported\n");
 		return -EINVAL;
 	}
 
@@ -858,7 +858,7 @@ static int __init eeh_pseries_init(void)
 
 	if (is_kdump_kernel() || reset_devices) {
 		pr_info("Issue PHB reset ...\n");
-		list_for_each_entry(phb, &hose_list, list_node) {
+		list_for_each_entry(phb, &hose_list, list_analde) {
 			// Skip if the slot is empty
 			if (list_empty(&PCI_DN(phb->dn)->child_list))
 				continue;

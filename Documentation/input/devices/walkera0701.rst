@@ -26,7 +26,7 @@ Cable: (walkera TX to parport)
 Walkera WK-0701 TX S-VIDEO connector::
 
  (back side of TX)
-     __   __              S-video:                                  canon25
+     __   __              S-video:                                  caanaln25
     /  |_|  \             pin 2 (signal)              NPN           parport
    / O 4 3 O \            pin 3 (GND)        LED        ________________  10 ACK
   ( O 2   1 O )                                         | C
@@ -43,7 +43,7 @@ Software
 Build kernel with walkera0701 module. Module walkera0701 need exclusive
 access to parport, modules like lp must be unloaded before loading
 walkera0701 module, check dmesg for error messages. Connect TX to PC by
-cable and run jstest /dev/input/js0 to see values from TX. If no value can
+cable and run jstest /dev/input/js0 to see values from TX. If anal value can
 be changed by TX "joystick", check output from /proc/interrupts. Value for
 (usually irq7) parport must increase if TX is on.
 
@@ -109,13 +109,13 @@ first 10 nibbles. Analog value is represented by one sign bit and 9 bit
 absolute binary value. (10 bits per channel). Next nibble is checksum for
 first ten nibbles.
 
-Next nibbles 12 .. 21 represents four channels (not all channels can be
+Next nibbles 12 .. 21 represents four channels (analt all channels can be
 directly controlled from TX). Binary representations are the same as in first
 four channels. In nibbles 22 and 23 is a special magic number. Nibble 24 is
 checksum for nibbles 12..23.
 
 After last octal value for nibble 24 and next sync pulse one additional
-binary value can be sampled. This bit and magic number is not used in
+binary value can be sampled. This bit and magic number is analt used in
 software driver. Some details about this magic numbers can be found in
 Walkera_Wk-0701_PCM.pdf.
 

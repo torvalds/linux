@@ -8,17 +8,17 @@
  * triggered. Following this event the interrupt will be disabled and
  * periodic transmission of uevents (HOT trip point) should define the
  * first level of temperature supervision. It is expected that any final
- * implementation of the thermal driver will include a .notify() function
+ * implementation of the thermal driver will include a .analtify() function
  * to implement these uevents to userspace.
  *
- * These uevents are intended to indicate non-invasive temperature control
+ * These uevents are intended to indicate analn-invasive temperature control
  * of the system, where the necessary measures for cooling are the
  * responsibility of the host software. Once the temperature falls again,
  * the IRQ is re-enabled so the start of a new over-temperature event can
  * be detected without constant software monitoring.
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -73,20 +73,20 @@ static void da9062_thermal_poll_on(struct work_struct *work)
 			   DA9062AA_E_TEMP_MASK);
 	if (ret < 0) {
 		dev_err(thermal->dev,
-			"Cannot clear the TJUNC temperature status\n");
+			"Cananalt clear the TJUNC temperature status\n");
 		goto err_enable_irq;
 	}
 
-	/* Now read E_TEMP again: it is acting like a status bit.
+	/* Analw read E_TEMP again: it is acting like a status bit.
 	 * If over-temperature, then this status will be true.
-	 * If not over-temperature, this status will be false.
+	 * If analt over-temperature, this status will be false.
 	 */
 	ret = regmap_read(thermal->hw->regmap,
 			  DA9062AA_EVENT_B,
 			  &val);
 	if (ret < 0) {
 		dev_err(thermal->dev,
-			"Cannot check the TJUNC temperature status\n");
+			"Cananalt check the TJUNC temperature status\n");
 		goto err_enable_irq;
 	}
 
@@ -119,7 +119,7 @@ static irqreturn_t da9062_thermal_irq_handler(int irq, void *data)
 {
 	struct da9062_thermal *thermal = data;
 
-	disable_irq_nosync(thermal->irq);
+	disable_irq_analsync(thermal->irq);
 	queue_delayed_work(system_freezable_wq, &thermal->work, 0);
 
 	return IRQ_HANDLED;
@@ -163,13 +163,13 @@ static int da9062_thermal_probe(struct platform_device *pdev)
 	const struct of_device_id *match;
 	int ret = 0;
 
-	match = of_match_node(da9062_compatible_reg_id_table,
-			      pdev->dev.of_node);
+	match = of_match_analde(da9062_compatible_reg_id_table,
+			      pdev->dev.of_analde);
 	if (!match)
 		return -ENXIO;
 
-	if (pdev->dev.of_node) {
-		if (!of_property_read_u32(pdev->dev.of_node,
+	if (pdev->dev.of_analde) {
+		if (!of_property_read_u32(pdev->dev.of_analde,
 					  "polling-delay-passive",
 					  &pp_tmp)) {
 			if (pp_tmp < DA9062_MIN_POLLING_MS_PERIOD ||
@@ -185,7 +185,7 @@ static int da9062_thermal_probe(struct platform_device *pdev)
 	thermal = devm_kzalloc(&pdev->dev, sizeof(struct da9062_thermal),
 			       GFP_KERNEL);
 	if (!thermal) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
@@ -201,13 +201,13 @@ static int da9062_thermal_probe(struct platform_device *pdev)
 								&da9062_thermal_ops, NULL, pp_tmp,
 								0);
 	if (IS_ERR(thermal->zone)) {
-		dev_err(&pdev->dev, "Cannot register thermal zone device\n");
+		dev_err(&pdev->dev, "Cananalt register thermal zone device\n");
 		ret = PTR_ERR(thermal->zone);
 		goto err;
 	}
 	ret = thermal_zone_device_enable(thermal->zone);
 	if (ret) {
-		dev_err(&pdev->dev, "Cannot enable thermal zone device\n");
+		dev_err(&pdev->dev, "Cananalt enable thermal zone device\n");
 		goto err_zone;
 	}
 

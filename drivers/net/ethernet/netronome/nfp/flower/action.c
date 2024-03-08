@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2017-2018 Netronome Systems, Inc. */
+/* Copyright (C) 2017-2018 Netroanalme Systems, Inc. */
 
 #include <linux/bitfield.h>
 #include <linux/mpls.h>
@@ -16,7 +16,7 @@
 #include "main.h"
 #include "../nfp_net_repr.h"
 
-/* The kernel versions of TUNNEL_* are not ABI and therefore vulnerable
+/* The kernel versions of TUNNEL_* are analt ABI and therefore vulnerable
  * to change. Such changes will break our FW ABI.
  */
 #define NFP_FL_TUNNEL_CSUM			cpu_to_be16(0x01)
@@ -40,15 +40,15 @@ nfp_fl_push_mpls(struct nfp_fl_push_mpls *push_mpls,
 	push_mpls->head.len_lw = act_size >> NFP_FL_LW_SIZ;
 
 	/* BOS is optional in the TC action but required for offload. */
-	if (act->mpls_push.bos != ACT_MPLS_BOS_NOT_SET) {
+	if (act->mpls_push.bos != ACT_MPLS_BOS_ANALT_SET) {
 		mpls_lse |= act->mpls_push.bos << MPLS_LS_S_SHIFT;
 	} else {
 		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: BOS field must explicitly be set for MPLS push");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
-	/* Leave MPLS TC as a default value of 0 if not explicitly set. */
-	if (act->mpls_push.tc != ACT_MPLS_TC_NOT_SET)
+	/* Leave MPLS TC as a default value of 0 if analt explicitly set. */
+	if (act->mpls_push.tc != ACT_MPLS_TC_ANALT_SET)
 		mpls_lse |= act->mpls_push.tc << MPLS_LS_TC_SHIFT;
 
 	/* Proto, label and TTL are enforced and verified for MPLS push. */
@@ -81,15 +81,15 @@ nfp_fl_set_mpls(struct nfp_fl_set_mpls *set_mpls,
 	set_mpls->head.jump_id = NFP_FL_ACTION_OPCODE_SET_MPLS;
 	set_mpls->head.len_lw = act_size >> NFP_FL_LW_SIZ;
 
-	if (act->mpls_mangle.label != ACT_MPLS_LABEL_NOT_SET) {
+	if (act->mpls_mangle.label != ACT_MPLS_LABEL_ANALT_SET) {
 		mpls_lse |= act->mpls_mangle.label << MPLS_LS_LABEL_SHIFT;
 		mpls_mask |= MPLS_LS_LABEL_MASK;
 	}
-	if (act->mpls_mangle.tc != ACT_MPLS_TC_NOT_SET) {
+	if (act->mpls_mangle.tc != ACT_MPLS_TC_ANALT_SET) {
 		mpls_lse |= act->mpls_mangle.tc << MPLS_LS_TC_SHIFT;
 		mpls_mask |= MPLS_LS_TC_MASK;
 	}
-	if (act->mpls_mangle.bos != ACT_MPLS_BOS_NOT_SET) {
+	if (act->mpls_mangle.bos != ACT_MPLS_BOS_ANALT_SET) {
 		mpls_lse |= act->mpls_mangle.bos << MPLS_LS_S_SHIFT;
 		mpls_mask |= MPLS_LS_S_MASK;
 	}
@@ -145,7 +145,7 @@ nfp_fl_pre_lag(struct nfp_app *app, const struct flow_action_entry *act,
 
 	if (act_len + act_size > NFP_FL_MAX_A_SIZ) {
 		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: maximum allowed action list size exceeded at LAG action");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	/* Pre_lag action must be first on action list.
@@ -187,7 +187,7 @@ nfp_fl_output(struct nfp_app *app, struct nfp_fl_output *output,
 	out_dev = act->dev;
 	if (!out_dev) {
 		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: invalid egress interface for mirred action");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	tmp_flags = last ? NFP_FL_OUT_FLAGS_LAST : 0;
@@ -195,13 +195,13 @@ nfp_fl_output(struct nfp_app *app, struct nfp_fl_output *output,
 	if (tun_type) {
 		/* Verify the egress netdev matches the tunnel type. */
 		if (!nfp_fl_netdev_is_tunnel_type(out_dev, tun_type)) {
-			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: egress interface does not match the required tunnel type");
-			return -EOPNOTSUPP;
+			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: egress interface does analt match the required tunnel type");
+			return -EOPANALTSUPP;
 		}
 
 		if (*tun_out_cnt) {
-			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: cannot offload more than one tunnel mirred output per filter");
-			return -EOPNOTSUPP;
+			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: cananalt offload more than one tunnel mirred output per filter");
+			return -EOPANALTSUPP;
 		}
 		(*tun_out_cnt)++;
 
@@ -215,20 +215,20 @@ nfp_fl_output(struct nfp_app *app, struct nfp_fl_output *output,
 		output->flags = cpu_to_be16(tmp_flags);
 		gid = nfp_flower_lag_get_output_id(app, out_dev);
 		if (gid < 0) {
-			NL_SET_ERR_MSG_MOD(extack, "invalid entry: cannot find group id for LAG action");
+			NL_SET_ERR_MSG_MOD(extack, "invalid entry: cananalt find group id for LAG action");
 			return gid;
 		}
 		output->port = cpu_to_be32(NFP_FL_LAG_OUT | gid);
 	} else if (nfp_flower_internal_port_can_offload(app, out_dev)) {
 		if (!(priv->flower_ext_feats & NFP_FL_FEATS_PRE_TUN_RULES) &&
 		    !(priv->flower_ext_feats & NFP_FL_FEATS_DECAP_V2)) {
-			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: pre-tunnel rules not supported in loaded firmware");
-			return -EOPNOTSUPP;
+			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: pre-tunnel rules analt supported in loaded firmware");
+			return -EOPANALTSUPP;
 		}
 
 		if (nfp_flow->pre_tun_rule.dev || !pkt_host) {
 			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: pre-tunnel rules require single egress dev and ptype HOST action");
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 
 		nfp_flow->pre_tun_rule.dev = out_dev;
@@ -242,19 +242,19 @@ nfp_fl_output(struct nfp_app *app, struct nfp_fl_output *output,
 			/* Confirm ingress and egress are on same device. */
 			if (!netdev_port_same_parent_id(in_dev, out_dev)) {
 				NL_SET_ERR_MSG_MOD(extack, "unsupported offload: ingress and egress interfaces are on different devices");
-				return -EOPNOTSUPP;
+				return -EOPANALTSUPP;
 			}
 		}
 
 		if (!nfp_netdev_is_nfp_repr(out_dev)) {
-			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: egress interface is not an nfp port");
-			return -EOPNOTSUPP;
+			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: egress interface is analt an nfp port");
+			return -EOPANALTSUPP;
 		}
 
 		output->port = cpu_to_be32(nfp_repr_get_port_id(out_dev));
 		if (!output->port) {
 			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: invalid port id for egress interface");
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 	}
 	nfp_flow->meta.shortcut = output->port;
@@ -301,7 +301,7 @@ nfp_fl_get_tun_from_act(struct nfp_app *app,
 			return NFP_FL_TUNNEL_GENEVE;
 		fallthrough;
 	default:
-		return NFP_FL_TUNNEL_NONE;
+		return NFP_FL_TUNNEL_ANALNE;
 	}
 }
 
@@ -349,14 +349,14 @@ nfp_fl_push_geneve_options(struct nfp_fl_payload *nfp_fl, int *list_len,
 		opt_cnt++;
 		if (opt_cnt > NFP_FL_MAX_GENEVE_OPT_CNT) {
 			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: maximum allowed number of geneve options exceeded");
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 
 		tot_push_len += sizeof(struct nfp_fl_push_geneve) +
 			       opt->length * 4;
 		if (tot_push_len > NFP_FL_MAX_GENEVE_OPT_ACT) {
 			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: maximum allowed action list size exceeded at push geneve options");
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 
 		opt_len -= sizeof(struct geneve_opt) + opt->length * 4;
@@ -365,7 +365,7 @@ nfp_fl_push_geneve_options(struct nfp_fl_payload *nfp_fl, int *list_len,
 
 	if (*list_len + tot_push_len > NFP_FL_MAX_A_SIZ) {
 		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: maximum allowed action list size exceeded at push geneve options");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	act_start = *list_len;
@@ -412,10 +412,10 @@ nfp_fl_set_tun(struct nfp_app *app, struct nfp_fl_set_tun *set_tun,
 	int pretun_idx = 0;
 
 	if (!IS_ENABLED(CONFIG_IPV6) && ipv6)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (ipv6 && !(priv->flower_ext_feats & NFP_FL_FEATS_IPV6_TUN))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	BUILD_BUG_ON(NFP_FL_TUNNEL_CSUM != TUNNEL_CSUM ||
 		     NFP_FL_TUNNEL_KEY	!= TUNNEL_KEY ||
@@ -423,14 +423,14 @@ nfp_fl_set_tun(struct nfp_app *app, struct nfp_fl_set_tun *set_tun,
 	if (ip_tun->options_len &&
 	    (tun_type != NFP_FL_TUNNEL_GENEVE ||
 	    !(priv->flower_ext_feats & NFP_FL_FEATS_GENEVE_OPT))) {
-		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: loaded firmware does not support geneve options offload");
-		return -EOPNOTSUPP;
+		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: loaded firmware does analt support geneve options offload");
+		return -EOPANALTSUPP;
 	}
 
 	if (ip_tun->key.tun_flags & ~NFP_FL_SUPPORTED_UDP_TUN_FLAGS) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "unsupported offload: loaded firmware does not support tunnel flag offload");
-		return -EOPNOTSUPP;
+				   "unsupported offload: loaded firmware does analt support tunnel flag offload");
+		return -EOPANALTSUPP;
 	}
 
 	set_tun->head.jump_id = NFP_FL_ACTION_OPCODE_SET_TUNNEL;
@@ -470,7 +470,7 @@ nfp_fl_set_tun(struct nfp_app *app, struct nfp_fl_set_tun *set_tun,
 		int err;
 
 		/* Do a route lookup to determine ttl - if fails then use
-		 * default. Note that CONFIG_INET is a requirement of
+		 * default. Analte that CONFIG_INET is a requirement of
 		 * CONFIG_NET_SWITCHDEV so must be defined here.
 		 */
 		flow.daddr = ip_tun->key.u.ipv4.dst;
@@ -524,7 +524,7 @@ nfp_fl_set_eth(const struct flow_action_entry *act, u32 off,
 
 	if (off + 4 > ETH_ALEN * 2) {
 		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: invalid pedit ethernet action");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	mask = ~act->mangle.mask;
@@ -532,7 +532,7 @@ nfp_fl_set_eth(const struct flow_action_entry *act, u32 off,
 
 	if (exact & ~mask) {
 		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: invalid pedit ethernet action");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	nfp_fl_set_helper32(exact, mask, &set_eth->eth_addr_val[off],
@@ -569,7 +569,7 @@ nfp_fl_set_ip4(const struct flow_action_entry *act, u32 off,
 
 	if (exact & ~mask) {
 		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: invalid pedit IPv4 action");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	switch (off) {
@@ -595,7 +595,7 @@ nfp_fl_set_ip4(const struct flow_action_entry *act, u32 off,
 
 		if (ttl_word_mask->protocol || ttl_word_mask->check) {
 			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: invalid pedit IPv4 ttl action");
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 
 		set_ip_ttl_tos->ipv4_ttl_mask |= ttl_word_mask->ttl;
@@ -613,7 +613,7 @@ nfp_fl_set_ip4(const struct flow_action_entry *act, u32 off,
 		if (tos_word_mask->version || tos_word_mask->ihl ||
 		    tos_word_mask->tot_len) {
 			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: invalid pedit IPv4 tos action");
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 
 		set_ip_ttl_tos->ipv4_tos_mask |= tos_word_mask->tos;
@@ -626,7 +626,7 @@ nfp_fl_set_ip4(const struct flow_action_entry *act, u32 off,
 		break;
 	default:
 		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: pedit on unsupported section of IPv4 header");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -666,7 +666,7 @@ nfp_fl_set_ip6_hop_limit_flow_label(u32 off, __be32 exact, __be32 mask,
 
 		if (fl_hl_mask->nexthdr || fl_hl_mask->payload_len) {
 			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: invalid pedit IPv6 hop limit action");
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 
 		ip_hl_fl->ipv6_hop_limit_mask |= fl_hl_mask->hop_limit;
@@ -678,7 +678,7 @@ nfp_fl_set_ip6_hop_limit_flow_label(u32 off, __be32 exact, __be32 mask,
 		if (mask & ~IPV6_FLOWINFO_MASK ||
 		    exact & ~IPV6_FLOWINFO_MASK) {
 			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: invalid pedit IPv6 flow info action");
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 
 		ip_hl_fl->ipv6_label_mask |= mask;
@@ -710,7 +710,7 @@ nfp_fl_set_ip6(const struct flow_action_entry *act, u32 off,
 
 	if (exact & ~mask) {
 		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: invalid pedit IPv6 action");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (off < offsetof(struct ipv6hdr, saddr)) {
@@ -727,7 +727,7 @@ nfp_fl_set_ip6(const struct flow_action_entry *act, u32 off,
 				      exact, mask, ip_dst);
 	} else {
 		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: pedit on unsupported section of IPv6 header");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return err;
@@ -742,7 +742,7 @@ nfp_fl_set_tport(const struct flow_action_entry *act, u32 off,
 
 	if (off) {
 		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: pedit on unsupported section of L4 header");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	mask = ~act->mangle.mask;
@@ -750,7 +750,7 @@ nfp_fl_set_tport(const struct flow_action_entry *act, u32 off,
 
 	if (exact & ~mask) {
 		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: invalid pedit L4 action");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	nfp_fl_set_helper32(exact, mask, set_tport->tp_port_val,
@@ -776,7 +776,7 @@ static u32 nfp_fl_csum_l4_to_flag(u8 ip_proto)
 	case IPPROTO_UDP:
 		return TCA_CSUM_UPDATE_FLAG_UDP;
 	default:
-		/* All other protocols will be ignored by FW */
+		/* All other protocols will be iganalred by FW */
 		return 0;
 	}
 }
@@ -920,7 +920,7 @@ nfp_fl_pedit(const struct flow_action_entry *act,
 					NFP_FL_ACTION_OPCODE_SET_UDP, extack);
 	default:
 		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: pedit on unsupported header");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -952,14 +952,14 @@ nfp_flower_meter_action(struct nfp_app *app,
 	if (*a_len + sizeof(struct nfp_fl_meter) > NFP_FL_MAX_A_SIZ) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "unsupported offload:meter action size beyond the allowed maximum");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	meter_id = action->hw_index;
 	if (!nfp_flower_search_meter_entry(app, meter_id)) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "can not offload flow table with unsupported police action.");
-		return -EOPNOTSUPP;
+				   "can analt offload flow table with unsupported police action.");
+		return -EOPANALTSUPP;
 	}
 
 	fl_meter = nfp_fl_meter(&nfp_fl->action_data[*a_len]);
@@ -982,17 +982,17 @@ nfp_flower_output_action(struct nfp_app *app,
 	struct nfp_fl_output *output;
 	int err, prelag_size;
 
-	/* If csum_updated has not been reset by now, it means HW will
-	 * incorrectly update csums when they are not requested.
+	/* If csum_updated has analt been reset by analw, it means HW will
+	 * incorrectly update csums when they are analt requested.
 	 */
 	if (*csum_updated) {
-		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: set actions without updating checksums are not supported");
-		return -EOPNOTSUPP;
+		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: set actions without updating checksums are analt supported");
+		return -EOPANALTSUPP;
 	}
 
 	if (*a_len + sizeof(struct nfp_fl_output) > NFP_FL_MAX_A_SIZ) {
 		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: mirred output increases action list size beyond the allowed maximum");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	output = (struct nfp_fl_output *)&nfp_fl->action_data[*a_len];
@@ -1005,14 +1005,14 @@ nfp_flower_output_action(struct nfp_app *app,
 
 	if (priv->flower_en_feats & NFP_FL_ENABLE_LAG) {
 		/* nfp_fl_pre_lag returns -err or size of prelag action added.
-		 * This will be 0 if it is not egressing to a lag dev.
+		 * This will be 0 if it is analt egressing to a lag dev.
 		 */
 		prelag_size = nfp_fl_pre_lag(app, act, nfp_fl, *a_len, extack);
 		if (prelag_size < 0) {
 			return prelag_size;
 		} else if (prelag_size > 0 && (!last || *out_cnt)) {
 			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: LAG action has to be last action in action list");
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 
 		*a_len += prelag_size;
@@ -1068,7 +1068,7 @@ nfp_flower_loop_action(struct nfp_app *app, const struct flow_action_entry *act,
 		if (*a_len +
 		    sizeof(struct nfp_fl_pop_vlan) > NFP_FL_MAX_A_SIZ) {
 			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: maximum allowed action list size exceeded at pop vlan");
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 
 		pop_v = (struct nfp_fl_pop_vlan *)&nfp_fl->action_data[*a_len];
@@ -1081,7 +1081,7 @@ nfp_flower_loop_action(struct nfp_app *app, const struct flow_action_entry *act,
 		if (*a_len +
 		    sizeof(struct nfp_fl_push_vlan) > NFP_FL_MAX_A_SIZ) {
 			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: maximum allowed action list size exceeded at push vlan");
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 
 		psh_v = (struct nfp_fl_push_vlan *)&nfp_fl->action_data[*a_len];
@@ -1094,24 +1094,24 @@ nfp_flower_loop_action(struct nfp_app *app, const struct flow_action_entry *act,
 		const struct ip_tunnel_info *ip_tun = act->tunnel;
 
 		*tun_type = nfp_fl_get_tun_from_act(app, rule, act, act_idx);
-		if (*tun_type == NFP_FL_TUNNEL_NONE) {
+		if (*tun_type == NFP_FL_TUNNEL_ANALNE) {
 			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: unsupported tunnel type in action list");
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 
 		if (ip_tun->mode & ~NFP_FL_SUPPORTED_TUNNEL_INFO_FLAGS) {
 			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: unsupported tunnel flags in action list");
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 
 		/* Pre-tunnel action is required for tunnel encap.
 		 * This checks for next hop entries on NFP.
-		 * If none, the packet falls back before applying other actions.
+		 * If analne, the packet falls back before applying other actions.
 		 */
 		if (*a_len + sizeof(struct nfp_fl_pre_tunnel) +
 		    sizeof(struct nfp_fl_set_tun) > NFP_FL_MAX_A_SIZ) {
 			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: maximum allowed action list size exceeded at tunnel encap");
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 
 		pre_tun = nfp_fl_pre_tunnel(nfp_fl->action_data, *a_len);
@@ -1136,13 +1136,13 @@ nfp_flower_loop_action(struct nfp_app *app, const struct flow_action_entry *act,
 	case FLOW_ACTION_MANGLE:
 		if (nfp_fl_pedit(act, &nfp_fl->action_data[*a_len],
 				 a_len, csum_updated, set_act, extack))
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		break;
 	case FLOW_ACTION_CSUM:
-		/* csum action requests recalc of something we have not fixed */
+		/* csum action requests recalc of something we have analt fixed */
 		if (act->csum_flags & ~*csum_updated) {
 			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: unsupported csum update action in action list");
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 		/* If we will correctly fix the csum we can remove it from the
 		 * csum update list. Which will later be used to check support.
@@ -1153,7 +1153,7 @@ nfp_flower_loop_action(struct nfp_app *app, const struct flow_action_entry *act,
 		if (*a_len +
 		    sizeof(struct nfp_fl_push_mpls) > NFP_FL_MAX_A_SIZ) {
 			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: maximum allowed action list size exceeded at push MPLS");
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 
 		psh_m = (struct nfp_fl_push_mpls *)&nfp_fl->action_data[*a_len];
@@ -1168,7 +1168,7 @@ nfp_flower_loop_action(struct nfp_app *app, const struct flow_action_entry *act,
 		if (*a_len +
 		    sizeof(struct nfp_fl_pop_mpls) > NFP_FL_MAX_A_SIZ) {
 			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: maximum allowed action list size exceeded at pop MPLS");
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 
 		pop_m = (struct nfp_fl_pop_mpls *)&nfp_fl->action_data[*a_len];
@@ -1181,7 +1181,7 @@ nfp_flower_loop_action(struct nfp_app *app, const struct flow_action_entry *act,
 		if (*a_len +
 		    sizeof(struct nfp_fl_set_mpls) > NFP_FL_MAX_A_SIZ) {
 			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: maximum allowed action list size exceeded at set MPLS");
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 
 		set_m = (struct nfp_fl_set_mpls *)&nfp_fl->action_data[*a_len];
@@ -1193,7 +1193,7 @@ nfp_flower_loop_action(struct nfp_app *app, const struct flow_action_entry *act,
 	case FLOW_ACTION_PTYPE:
 		/* TC ptype skbedit sets PACKET_HOST for ingress redirect. */
 		if (act->ptype != PACKET_HOST)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 
 		*pkt_host = true;
 		break;
@@ -1201,7 +1201,7 @@ nfp_flower_loop_action(struct nfp_app *app, const struct flow_action_entry *act,
 		if (!(fl_priv->flower_ext_feats & NFP_FL_FEATS_QOS_METER)) {
 			NL_SET_ERR_MSG_MOD(extack,
 					   "unsupported offload: unsupported police action in action list");
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 
 		err = nfp_flower_meter_action(app, act, nfp_fl, a_len, netdev,
@@ -1210,9 +1210,9 @@ nfp_flower_loop_action(struct nfp_app *app, const struct flow_action_entry *act,
 			return err;
 		break;
 	default:
-		/* Currently we do not handle any other actions. */
+		/* Currently we do analt handle any other actions. */
 		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: unsupported action in action list");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -1269,11 +1269,11 @@ int nfp_flower_compile_action(struct nfp_app *app,
 
 	if (!flow_action_hw_stats_check(&rule->action, extack,
 					FLOW_ACTION_HW_STATS_DELAYED_BIT))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	memset(nfp_flow->action_data, 0, NFP_FL_MAX_A_SIZ);
 	nfp_flow->meta.act_len = 0;
-	tun_type = NFP_FL_TUNNEL_NONE;
+	tun_type = NFP_FL_TUNNEL_ANALNE;
 	act_len = 0;
 	act_cnt = 0;
 	tun_out_cnt = 0;
@@ -1296,7 +1296,7 @@ int nfp_flower_compile_action(struct nfp_app *app,
 	}
 
 	/* We optimise when the action list is small, this can unfortunately
-	 * not happen once we have more than one action in the action list.
+	 * analt happen once we have more than one action in the action list.
 	 */
 	if (act_cnt > 1)
 		nfp_flow->meta.shortcut = cpu_to_be32(NFP_FL_SC_ACT_NULL);

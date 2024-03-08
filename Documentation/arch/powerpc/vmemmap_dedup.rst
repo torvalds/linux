@@ -12,7 +12,7 @@ with a 64K page size, only the devdax namespace with 1G alignment uses vmemmap
 deduplication.
 
 With 2M PMD level mapping, we require 32 struct pages and a single 64K vmemmap
-page can contain 1024 struct pages (64K/sizeof(struct page)). Hence there is no
+page can contain 1024 struct pages (64K/sizeof(struct page)). Hence there is anal
 vmemmap deduplication possible.
 
 With 1G PUD level mapping, we require 16384 struct pages and a single 64K

@@ -16,7 +16,7 @@ enum ceph_metric_type {
 	CLIENT_METRIC_TYPE_DENTRY_LEASE,
 	CLIENT_METRIC_TYPE_OPENED_FILES,
 	CLIENT_METRIC_TYPE_PINNED_ICAPS,
-	CLIENT_METRIC_TYPE_OPENED_INODES,
+	CLIENT_METRIC_TYPE_OPENED_IANALDES,
 	CLIENT_METRIC_TYPE_READ_IO_SIZES,
 	CLIENT_METRIC_TYPE_WRITE_IO_SIZES,
 	CLIENT_METRIC_TYPE_AVG_READ_LATENCY,
@@ -41,7 +41,7 @@ enum ceph_metric_type {
 	CLIENT_METRIC_TYPE_DENTRY_LEASE,	   \
 	CLIENT_METRIC_TYPE_OPENED_FILES,	   \
 	CLIENT_METRIC_TYPE_PINNED_ICAPS,	   \
-	CLIENT_METRIC_TYPE_OPENED_INODES,	   \
+	CLIENT_METRIC_TYPE_OPENED_IANALDES,	   \
 	CLIENT_METRIC_TYPE_READ_IO_SIZES,	   \
 	CLIENT_METRIC_TYPE_WRITE_IO_SIZES,	   \
 	CLIENT_METRIC_TYPE_AVG_READ_LATENCY,	   \
@@ -118,10 +118,10 @@ struct ceph_pinned_icaps {
 	__le64 total;
 } __packed;
 
-/* metric opened inodes header */
-struct ceph_opened_inodes {
+/* metric opened ianaldes header */
+struct ceph_opened_ianaldes {
 	struct ceph_metric_header header;
-	__le64 opened_inodes;
+	__le64 opened_ianaldes;
 	__le64 total;
 } __packed;
 
@@ -179,9 +179,9 @@ struct ceph_client_metric {
 	/* The total number of directories and files that are opened */
 	atomic64_t opened_files;
 
-	/* The total number of inodes that have opened files or directories */
-	struct percpu_counter opened_inodes;
-	struct percpu_counter total_inodes;
+	/* The total number of ianaldes that have opened files or directories */
+	struct percpu_counter opened_ianaldes;
+	struct percpu_counter total_ianaldes;
 
 	struct ceph_mds_session *session;
 	struct delayed_work delayed_work;  /* delayed work */

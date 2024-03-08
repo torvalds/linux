@@ -17,16 +17,16 @@ description: |
 
   Please refer to pinctrl-bindings.txt in this directory for details of the
   common pinctrl bindings used by client devices, including the meaning of the
-  phrase "pin configuration node".
+  phrase "pin configuration analde".
 
-  The Rockchip pin configuration node is a node of a group of pins which can be
-  used for a specific device or function. This node represents both mux and
+  The Rockchip pin configuration analde is a analde of a group of pins which can be
+  used for a specific device or function. This analde represents both mux and
   config of the pins in that group. The 'pins' selects the function mode
   (also named pin mode) this pin can work on and the 'config' configures
   various pad settings such as pull-up, etc.
 
   The pins are grouped into up to 9 individual pin banks which need to be
-  defined as gpio sub-nodes of the pinmux controller.
+  defined as gpio sub-analdes of the pinmux controller.
 
 properties:
   compatible:
@@ -52,12 +52,12 @@ properties:
   rockchip,grf:
     $ref: /schemas/types.yaml#/definitions/phandle
     description:
-      The phandle of the syscon node for the GRF registers.
+      The phandle of the syscon analde for the GRF registers.
 
   rockchip,pmu:
     $ref: /schemas/types.yaml#/definitions/phandle
     description:
-      The phandle of the syscon node for the PMU registers,
+      The phandle of the syscon analde for the PMU registers,
       as some SoCs carry parts of the iomux controller registers there.
       Required for at least rk3188 and rk3288. On the rk3368 this should
       point to the PMUGRF syscon.
@@ -137,7 +137,7 @@ additionalProperties:
                 Mux 0 means GPIO and mux 1 to N means
                 the specific device function.
             - description:
-                The phandle of a node contains the generic pinconfig options
+                The phandle of a analde contains the generic pinconfig options
                 to use as described in pinctrl-bindings.txt.
 
 examples:

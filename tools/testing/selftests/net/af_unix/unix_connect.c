@@ -142,7 +142,7 @@ TEST_F(unix_connect, test)
 	ASSERT_LT(0, self->client);
 
 	err = connect(self->client, (struct sockaddr *)&addr, addrlen);
-	ASSERT_EQ(variant->err, err == -1 ? errno : 0);
+	ASSERT_EQ(variant->err, err == -1 ? erranal : 0);
 }
 
 TEST_HARNESS_MAIN

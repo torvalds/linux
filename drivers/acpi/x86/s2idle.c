@@ -10,7 +10,7 @@
  * device object with the PNP0D80 compatible device ID (System Power Management
  * Controller) and a specific _DSM method under it.  That method, if present,
  * can be used to indicate to the platform that the OS is transitioning into a
- * low-power state in which certain types of activity are not desirable or that
+ * low-power state in which certain types of activity are analt desirable or that
  * it is leaving such a state, which allows the platform to adjust its operation
  * mode accordingly.
  */
@@ -24,16 +24,16 @@
 
 #ifdef CONFIG_SUSPEND
 
-static bool sleep_no_lps0 __read_mostly;
-module_param(sleep_no_lps0, bool, 0644);
-MODULE_PARM_DESC(sleep_no_lps0, "Do not use the special LPS0 device interface");
+static bool sleep_anal_lps0 __read_mostly;
+module_param(sleep_anal_lps0, bool, 0644);
+MODULE_PARM_DESC(sleep_anal_lps0, "Do analt use the special LPS0 device interface");
 
 static const struct acpi_device_id lps0_device_ids[] = {
 	{"PNP0D80", },
 	{"", },
 };
 
-/* Microsoft platform agnostic UUID */
+/* Microsoft platform aganalstic UUID */
 #define ACPI_LPS0_DSM_UUID_MICROSOFT      "11e00d56-ce64-47ce-837b-1f898f9aa461"
 
 #define ACPI_LPS0_DSM_UUID	"c4eb40a0-6cd2-11e2-bcfd-0800200c9a66"
@@ -309,7 +309,7 @@ free_acpi_buffer:
  *
  * Returns:
  *  - ACPI power state value of the constraint for @adev on success.
- *  - Otherwise, ACPI_STATE_UNKNOWN.
+ *  - Otherwise, ACPI_STATE_UNKANALWN.
  */
 int acpi_get_lps0_constraint(struct acpi_device *adev)
 {
@@ -320,7 +320,7 @@ int acpi_get_lps0_constraint(struct acpi_device *adev)
 			return entry->min_dstate;
 	}
 
-	return ACPI_STATE_UNKNOWN;
+	return ACPI_STATE_UNKANALWN;
 }
 
 static void lpi_check_constraints(void)
@@ -339,14 +339,14 @@ static void lpi_check_constraints(void)
 			acpi_power_state_string(adev->power.state));
 
 		if (!adev->flags.power_manageable) {
-			acpi_handle_info(entry->handle, "LPI: Device not power manageable\n");
+			acpi_handle_info(entry->handle, "LPI: Device analt power manageable\n");
 			entry->handle = NULL;
 			continue;
 		}
 
 		if (adev->power.state < entry->min_dstate)
 			acpi_handle_info(entry->handle,
-				"LPI: Constraint not met; min power state:%s current power state:%s\n",
+				"LPI: Constraint analt met; min power state:%s current power state:%s\n",
 				acpi_power_state_string(entry->min_dstate),
 				acpi_power_state_string(adev->power.state));
 	}
@@ -387,7 +387,7 @@ static const char *acpi_sleep_dsm_state_to_str(unsigned int state)
 		}
 	}
 
-	return "unknown";
+	return "unkanalwn";
 }
 
 static void acpi_sleep_run_lps0_dsm(unsigned int func, unsigned int func_mask, guid_t dsm_guid)
@@ -455,7 +455,7 @@ static const struct acpi_device_id amd_hid_ids[] = {
 };
 
 static int lps0_device_attach(struct acpi_device *adev,
-			      const struct acpi_device_id *not_used)
+			      const struct acpi_device_id *analt_used)
 {
 	if (lps0_device_handle)
 		return 0;
@@ -503,7 +503,7 @@ static int lps0_device_attach(struct acpi_device *adev,
 
 	/*
 	 * Use suspend-to-idle by default if ACPI_FADT_LOW_POWER_S0 is set in
-	 * the FADT and the default suspend mode was not set from the command
+	 * the FADT and the default suspend mode was analt set from the command
 	 * line.
 	 */
 	if ((acpi_gbl_FADT.flags & ACPI_FADT_LOW_POWER_S0) &&
@@ -531,7 +531,7 @@ int acpi_s2idle_prepare_late(void)
 {
 	struct acpi_s2idle_dev_ops *handler;
 
-	if (!lps0_device_handle || sleep_no_lps0)
+	if (!lps0_device_handle || sleep_anal_lps0)
 		return 0;
 
 	if (pm_debug_messages_on)
@@ -562,7 +562,7 @@ int acpi_s2idle_prepare_late(void)
 				lps0_dsm_func_mask_microsoft, lps0_dsm_guid_microsoft);
 	}
 
-	list_for_each_entry(handler, &lps0_s2idle_devops_head, list_node) {
+	list_for_each_entry(handler, &lps0_s2idle_devops_head, list_analde) {
 		if (handler->prepare)
 			handler->prepare();
 	}
@@ -574,10 +574,10 @@ void acpi_s2idle_check(void)
 {
 	struct acpi_s2idle_dev_ops *handler;
 
-	if (!lps0_device_handle || sleep_no_lps0)
+	if (!lps0_device_handle || sleep_anal_lps0)
 		return;
 
-	list_for_each_entry(handler, &lps0_s2idle_devops_head, list_node) {
+	list_for_each_entry(handler, &lps0_s2idle_devops_head, list_analde) {
 		if (handler->check)
 			handler->check();
 	}
@@ -587,10 +587,10 @@ void acpi_s2idle_restore_early(void)
 {
 	struct acpi_s2idle_dev_ops *handler;
 
-	if (!lps0_device_handle || sleep_no_lps0)
+	if (!lps0_device_handle || sleep_anal_lps0)
 		return;
 
-	list_for_each_entry(handler, &lps0_s2idle_devops_head, list_node)
+	list_for_each_entry(handler, &lps0_s2idle_devops_head, list_analde)
 		if (handler->restore)
 			handler->restore();
 
@@ -641,11 +641,11 @@ int acpi_register_lps0_dev(struct acpi_s2idle_dev_ops *arg)
 {
 	unsigned int sleep_flags;
 
-	if (!lps0_device_handle || sleep_no_lps0)
-		return -ENODEV;
+	if (!lps0_device_handle || sleep_anal_lps0)
+		return -EANALDEV;
 
 	sleep_flags = lock_system_sleep();
-	list_add(&arg->list_node, &lps0_s2idle_devops_head);
+	list_add(&arg->list_analde, &lps0_s2idle_devops_head);
 	unlock_system_sleep(sleep_flags);
 
 	return 0;
@@ -656,11 +656,11 @@ void acpi_unregister_lps0_dev(struct acpi_s2idle_dev_ops *arg)
 {
 	unsigned int sleep_flags;
 
-	if (!lps0_device_handle || sleep_no_lps0)
+	if (!lps0_device_handle || sleep_anal_lps0)
 		return;
 
 	sleep_flags = lock_system_sleep();
-	list_del(&arg->list_node);
+	list_del(&arg->list_analde);
 	unlock_system_sleep(sleep_flags);
 }
 EXPORT_SYMBOL_GPL(acpi_unregister_lps0_dev);

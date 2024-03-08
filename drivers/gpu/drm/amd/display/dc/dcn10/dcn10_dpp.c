@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -126,7 +126,7 @@ bool dpp1_get_optimal_number_of_taps(
 		struct scaler_data *scl_data,
 		const struct scaling_taps *in_taps)
 {
-	/* Some ASICs does not support  FP16 scaling, so we reject modes require this*/
+	/* Some ASICs does analt support  FP16 scaling, so we reject modes require this*/
 	if (scl_data->format == PIXEL_FORMAT_FP16 &&
 		dpp->caps->dscl_data_proc_format == DSCL_DATA_PRCESSING_FIXED_FORMAT &&
 		scl_data->ratios.horz.value != dc_fixpt_one.value &&
@@ -140,7 +140,7 @@ bool dpp1_get_optimal_number_of_taps(
 
 	/* TODO: add lb check */
 
-	/* No support for programming ratio of 4, drop to 3.99999.. */
+	/* Anal support for programming ratio of 4, drop to 3.99999.. */
 	if (scl_data->ratios.horz.value == (4ll << 32))
 		scl_data->ratios.horz.value--;
 	if (scl_data->ratios.vert.value == (4ll << 32))
@@ -150,7 +150,7 @@ bool dpp1_get_optimal_number_of_taps(
 	if (scl_data->ratios.vert_c.value == (4ll << 32))
 		scl_data->ratios.vert_c.value--;
 
-	/* Set default taps if none are provided */
+	/* Set default taps if analne are provided */
 	if (in_taps->h_taps == 0)
 		scl_data->taps.h_taps = 4;
 	else
@@ -362,7 +362,7 @@ void dpp1_cnv_setup (
 		break;
 	case SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616:
 	case SURFACE_PIXEL_FORMAT_GRPH_ABGR16161616:
-		pixel_format = 26; /* ARGB16161616_UNORM */
+		pixel_format = 26; /* ARGB16161616_UANALRM */
 		break;
 	case SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616F:
 		pixel_format = 24;
@@ -374,7 +374,7 @@ void dpp1_cnv_setup (
 		break;
 	}
 
-	/* Set default color space based on format if none is given. */
+	/* Set default color space based on format if analne is given. */
 	color_space = input_color_space ? input_color_space : color_space;
 
 	REG_SET(CNVC_SURFACE_PIXEL_FORMAT, 0,
@@ -418,7 +418,7 @@ void dpp1_set_cursor_attributes(
 			CUR0_MODE, color_format,
 			CUR0_EXPANSION_MODE, 0);
 
-	if (color_format == CURSOR_MODE_MONO) {
+	if (color_format == CURSOR_MODE_MOANAL) {
 		/* todo: clarify what to program these to */
 		REG_UPDATE(CURSOR0_COLOR0,
 				CUR0_COLOR0, 0x00000000);
@@ -469,16 +469,16 @@ void dpp1_set_cursor_position(
 	}
 
 	if (src_x_offset >= (int)param->viewport.width)
-		cur_en = 0;  /* not visible beyond right edge*/
+		cur_en = 0;  /* analt visible beyond right edge*/
 
 	if (src_x_offset + cursor_width <= 0)
-		cur_en = 0;  /* not visible beyond left edge*/
+		cur_en = 0;  /* analt visible beyond left edge*/
 
 	if (src_y_offset >= (int)param->viewport.height)
-		cur_en = 0;  /* not visible beyond bottom edge*/
+		cur_en = 0;  /* analt visible beyond bottom edge*/
 
 	if (src_y_offset + cursor_height <= 0)
-		cur_en = 0;  /* not visible beyond top edge*/
+		cur_en = 0;  /* analt visible beyond top edge*/
 
 	REG_UPDATE(CURSOR0_CONTROL,
 			CUR0_ENABLE, cur_en);

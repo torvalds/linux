@@ -78,7 +78,7 @@
 	bus-width = <8>;
 	cap-mmc-highspeed;
 	disable-wp;
-	non-removable;
+	analn-removable;
 	pinctrl-names = "default";
 	pinctrl-0 = <&emmc_clk &emmc_cmd &emmc_pwr &emmc_bus8>;
 	vmmc-supply = <&vdd_3v3_io>;
@@ -113,7 +113,7 @@
 			ti,rx-internal-delay = <DP83867_RGMIIDCTL_2_00_NS>;
 			ti,tx-internal-delay = <DP83867_RGMIIDCTL_2_00_NS>;
 			ti,fifo-depth = <DP83867_PHYCR_FIFO_DEPTH_4_B_NIB>;
-			enet-phy-lane-no-swap;
+			enet-phy-lane-anal-swap;
 			ti,clk-output-sel = <DP83867_CLK_O_SEL_CHN_A_TCLK>;
 		};
 	};
@@ -342,22 +342,22 @@
 		 * We also have external pulls, so disable the internal ones.
 		 */
 		emmc_clk: emmc-clk {
-			rockchip,pins = <3 RK_PC2 2 &pcfg_pull_none_12ma>;
+			rockchip,pins = <3 RK_PC2 2 &pcfg_pull_analne_12ma>;
 		};
 
 		emmc_cmd: emmc-cmd {
-			rockchip,pins = <3 RK_PC0 2 &pcfg_pull_none_12ma>;
+			rockchip,pins = <3 RK_PC0 2 &pcfg_pull_analne_12ma>;
 		};
 
 		emmc_bus8: emmc-bus8 {
-			rockchip,pins = <3 RK_PA0 2 &pcfg_pull_none_12ma>,
-					<3 RK_PA1 2 &pcfg_pull_none_12ma>,
-					<3 RK_PA2 2 &pcfg_pull_none_12ma>,
-					<3 RK_PA3 2 &pcfg_pull_none_12ma>,
-					<3 RK_PA4 2 &pcfg_pull_none_12ma>,
-					<3 RK_PA5 2 &pcfg_pull_none_12ma>,
-					<3 RK_PA6 2 &pcfg_pull_none_12ma>,
-					<3 RK_PA7 2 &pcfg_pull_none_12ma>;
+			rockchip,pins = <3 RK_PA0 2 &pcfg_pull_analne_12ma>,
+					<3 RK_PA1 2 &pcfg_pull_analne_12ma>,
+					<3 RK_PA2 2 &pcfg_pull_analne_12ma>,
+					<3 RK_PA3 2 &pcfg_pull_analne_12ma>,
+					<3 RK_PA4 2 &pcfg_pull_analne_12ma>,
+					<3 RK_PA5 2 &pcfg_pull_analne_12ma>,
+					<3 RK_PA6 2 &pcfg_pull_analne_12ma>,
+					<3 RK_PA7 2 &pcfg_pull_analne_12ma>;
 		};
 	};
 
@@ -382,7 +382,7 @@
 			rockchip,pins = <0 RK_PA4 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 
-		/* Pin for switching state between sleep and non-sleep state */
+		/* Pin for switching state between sleep and analn-sleep state */
 		pmic_sleep: pmic-sleep {
 			rockchip,pins = <0 RK_PA0 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
@@ -402,7 +402,7 @@
 	status = "okay";
 
 	serial_flash: flash@0 {
-		compatible = "micron,n25q128a13", "jedec,spi-nor";
+		compatible = "micron,n25q128a13", "jedec,spi-analr";
 		reg = <0x0>;
 		spi-max-frequency = <50000000>;
 		m25p,fast-read;

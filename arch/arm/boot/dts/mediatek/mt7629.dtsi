@@ -286,8 +286,8 @@
 		};
 
 		qspi: spi@11014000 {
-			compatible = "mediatek,mt7629-nor",
-				     "mediatek,mt8173-nor";
+			compatible = "mediatek,mt7629-analr",
+				     "mediatek,mt8173-analr";
 			reg = <0x11014000 0xe0>;
 			clocks = <&pericfg CLK_PERI_FLASH_PD>,
 				 <&topckgen CLK_TOP_FLASH_SEL>;

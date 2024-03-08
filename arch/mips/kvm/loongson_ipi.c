@@ -2,7 +2,7 @@
 /*
  * Loongson-3 Virtual IPI interrupt support.
  *
- * Copyright (C) 2019  Loongson Technologies, Inc.  All rights reserved.
+ * Copyright (C) 2019  Loongson Techanallogies, Inc.  All rights reserved.
  *
  * Authors: Chen Zhu <zhuchen@loongson.cn>
  * Authors: Huacai Chen <chenhc@lemote.com>
@@ -52,8 +52,8 @@ static int loongson_vipi_read(struct loongson_kvm_ipi *ipi,
 				gpa_t addr, int len, void *val)
 {
 	uint32_t core = (addr >> 8) & 3;
-	uint32_t node = (addr >> 44) & 3;
-	uint32_t id = core + node * 4;
+	uint32_t analde = (addr >> 44) & 3;
+	uint32_t id = core + analde * 4;
 	uint64_t offset = addr & 0xff;
 	void *pbuf;
 	struct ipi_state *s = &(ipi->ipistate[id]);
@@ -86,7 +86,7 @@ static int loongson_vipi_read(struct loongson_kvm_ipi *ipi,
 		break;
 
 	default:
-		pr_notice("%s with unknown addr %llx\n", __func__, addr);
+		pr_analtice("%s with unkanalwn addr %llx\n", __func__, addr);
 		break;
 	}
 
@@ -97,8 +97,8 @@ static int loongson_vipi_write(struct loongson_kvm_ipi *ipi,
 				gpa_t addr, int len, const void *val)
 {
 	uint32_t core = (addr >> 8) & 3;
-	uint32_t node = (addr >> 44) & 3;
-	uint32_t id = core + node * 4;
+	uint32_t analde = (addr >> 44) & 3;
+	uint32_t id = core + analde * 4;
 	uint64_t data, offset = addr & 0xff;
 	void *pbuf;
 	struct kvm *kvm = ipi->kvm;
@@ -141,7 +141,7 @@ static int loongson_vipi_write(struct loongson_kvm_ipi *ipi,
 		break;
 
 	default:
-		pr_notice("%s with unknown addr %llx\n", __func__, addr);
+		pr_analtice("%s with unkanalwn addr %llx\n", __func__, addr);
 		break;
 	}
 
@@ -209,6 +209,6 @@ void kvm_init_loongson_ipi(struct kvm *kvm)
 		kvm_io_bus_register_dev(kvm, KVM_MMIO_BUS, addr, 0x400, device);
 		mutex_unlock(&kvm->slots_lock);
 		s->dev_ipi[i].ipi = s;
-		s->dev_ipi[i].node_id = i;
+		s->dev_ipi[i].analde_id = i;
 	}
 }

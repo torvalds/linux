@@ -106,13 +106,13 @@ static int m_can_pci_probe(struct pci_dev *pci, const struct pci_device_id *id)
 
 	if (!base) {
 		dev_err(dev, "failed to map BARs\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	mcan_class = m_can_class_allocate_dev(&pci->dev,
 					      sizeof(struct m_can_pci_priv));
 	if (!mcan_class)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv = cdev_to_priv(mcan_class);
 
@@ -139,7 +139,7 @@ static int m_can_pci_probe(struct pci_dev *pci, const struct pci_device_id *id)
 
 	pm_runtime_set_autosuspend_delay(dev, 1000);
 	pm_runtime_use_autosuspend(dev);
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_analidle(dev);
 	pm_runtime_allow(dev);
 
 	return 0;
@@ -157,7 +157,7 @@ static void m_can_pci_remove(struct pci_dev *pci)
 	struct m_can_pci_priv *priv = cdev_to_priv(mcan_class);
 
 	pm_runtime_forbid(&pci->dev);
-	pm_runtime_get_noresume(&pci->dev);
+	pm_runtime_get_analresume(&pci->dev);
 
 	/* Disable interrupt control at CAN wrapper IP */
 	writel(0x0, priv->base + CTL_CSR_INT_CTL_OFFSET);

@@ -109,7 +109,7 @@
 /* Definition of PMIC reset status register */
 #define HWRST_STATUS_SECURITY		0x02
 #define HWRST_STATUS_RECOVERY		0x20
-#define HWRST_STATUS_NORMAL		0x40
+#define HWRST_STATUS_ANALRMAL		0x40
 #define HWRST_STATUS_ALARM		0x50
 #define HWRST_STATUS_SLEEP		0x60
 #define HWRST_STATUS_FASTBOOT		0x30
@@ -348,7 +348,7 @@ static int sprd_adi_transfer_one(struct spi_controller *ctlr,
 		val = *p;
 		ret = sprd_adi_write(sadi, reg, val);
 	} else {
-		dev_err(sadi->dev, "no buffer for transfer\n");
+		dev_err(sadi->dev, "anal buffer for transfer\n");
 		ret = -EINVAL;
 	}
 
@@ -374,7 +374,7 @@ static int sprd_adi_restart(struct sprd_adi *sadi, unsigned long mode,
 	u32 val, reboot_mode = 0;
 
 	if (!cmd)
-		reboot_mode = HWRST_STATUS_NORMAL;
+		reboot_mode = HWRST_STATUS_ANALRMAL;
 	else if (!strncmp(cmd, "recovery", 8))
 		reboot_mode = HWRST_STATUS_RECOVERY;
 	else if (!strncmp(cmd, "alarm", 5))
@@ -400,7 +400,7 @@ static int sprd_adi_restart(struct sprd_adi *sadi, unsigned long mode,
 	else if (!strncmp(cmd, "factorytest", 11))
 		reboot_mode = HWRST_STATUS_FACTORYTEST;
 	else
-		reboot_mode = HWRST_STATUS_NORMAL;
+		reboot_mode = HWRST_STATUS_ANALRMAL;
 
 	/* Record the reboot mode */
 	sprd_adi_read(sadi, wdg->rst_sts, &val);
@@ -425,7 +425,7 @@ static int sprd_adi_restart(struct sprd_adi *sadi, unsigned long mode,
 	val |= BIT_WDG_NEW;
 	sprd_adi_write(sadi, wdg->base + REG_WDG_CTRL, val);
 
-	/* Load the watchdog timeout value, 50ms is always enough. */
+	/* Load the watchdog timeout value, 50ms is always eanalugh. */
 	sprd_adi_write(sadi, wdg->base + REG_WDG_LOAD_HIGH, 0);
 	sprd_adi_write(sadi, wdg->base + REG_WDG_LOAD_LOW,
 		       WDG_LOAD_VAL & WDG_LOAD_MASK);
@@ -441,7 +441,7 @@ static int sprd_adi_restart(struct sprd_adi *sadi, unsigned long mode,
 	mdelay(1000);
 
 	dev_emerg(sadi->dev, "Unable to restart system\n");
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static int sprd_adi_restart_sc9860(struct sys_off_data *data)
@@ -458,7 +458,7 @@ static int sprd_adi_restart_sc9860(struct sys_off_data *data)
 
 static void sprd_adi_hw_init(struct sprd_adi *sadi)
 {
-	struct device_node *np = sadi->dev->of_node;
+	struct device_analde *np = sadi->dev->of_analde;
 	int i, size, chn_cnt;
 	const __be32 *list;
 	u32 tmp;
@@ -475,7 +475,7 @@ static void sprd_adi_hw_init(struct sprd_adi *sadi)
 	/* Set hardware channels setting */
 	list = of_get_property(np, "sprd,hw-channels", &size);
 	if (!list || !size) {
-		dev_info(sadi->dev, "no hw channels setting in node\n");
+		dev_info(sadi->dev, "anal hw channels setting in analde\n");
 		return;
 	}
 
@@ -506,7 +506,7 @@ static void sprd_adi_hw_init(struct sprd_adi *sadi)
 
 static int sprd_adi_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	const struct sprd_adi_data *data;
 	struct spi_controller *ctlr;
 	struct sprd_adi *sadi;
@@ -515,13 +515,13 @@ static int sprd_adi_probe(struct platform_device *pdev)
 	int ret;
 
 	if (!np) {
-		dev_err(&pdev->dev, "can not find the adi bus node\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "can analt find the adi bus analde\n");
+		return -EANALDEV;
 	}
 
 	data = of_device_get_match_data(&pdev->dev);
 	if (!data) {
-		dev_err(&pdev->dev, "no matching driver data found\n");
+		dev_err(&pdev->dev, "anal matching driver data found\n");
 		return -EINVAL;
 	}
 
@@ -530,7 +530,7 @@ static int sprd_adi_probe(struct platform_device *pdev)
 
 	ctlr = spi_alloc_host(&pdev->dev, sizeof(struct sprd_adi));
 	if (!ctlr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(&pdev->dev, ctlr);
 	sadi = spi_controller_get_devdata(ctlr);
@@ -557,8 +557,8 @@ static int sprd_adi_probe(struct platform_device *pdev)
 		}
 	} else {
 		switch (ret) {
-		case -ENOENT:
-			dev_info(&pdev->dev, "no hardware spinlock supplied\n");
+		case -EANALENT:
+			dev_info(&pdev->dev, "anal hardware spinlock supplied\n");
 			break;
 		default:
 			dev_err_probe(&pdev->dev, ret, "failed to find hwlock id\n");
@@ -571,7 +571,7 @@ static int sprd_adi_probe(struct platform_device *pdev)
 	if (sadi->data->wdg_rst)
 		sadi->data->wdg_rst(sadi);
 
-	ctlr->dev.of_node = pdev->dev.of_node;
+	ctlr->dev.of_analde = pdev->dev.of_analde;
 	ctlr->bus_num = pdev->id;
 	ctlr->num_chipselect = num_chipselect;
 	ctlr->flags = SPI_CONTROLLER_HALF_DUPLEX;
@@ -589,7 +589,7 @@ static int sprd_adi_probe(struct platform_device *pdev)
 						    sadi->data->restart,
 						    sadi);
 		if (ret) {
-			dev_err(&pdev->dev, "can not register restart handler\n");
+			dev_err(&pdev->dev, "can analt register restart handler\n");
 			goto put_ctlr;
 		}
 	}

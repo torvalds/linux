@@ -14,7 +14,7 @@
  * The LPC32XX has three CPU modes for controlling system power: run,
  * direct-run, and halt modes. When switching between halt and run modes,
  * the CPU transistions through direct-run mode. For Linux, direct-run
- * mode is not used in normal operation. Halt mode is used when the
+ * mode is analt used in analrmal operation. Halt mode is used when the
  * system is fully suspended.
  *
  * Run mode:
@@ -39,9 +39,9 @@
  * DRAM clocking and refresh are slightly different for systems with DDR
  * DRAM or regular SDRAM devices. If SDRAM is used in the system, the
  * SDRAM will still be accessible in direct-run mode. In DDR based systems,
- * a transition to direct-run mode will stop all DDR accesses (no clocks).
+ * a transition to direct-run mode will stop all DDR accesses (anal clocks).
  * Because of this, the code to switch power modes and the code to enter
- * and exit DRAM self-refresh modes must not be executed in DRAM. A small
+ * and exit DRAM self-refresh modes must analt be executed in DRAM. A small
  * section of IRAM is used instead for this.
  *
  * Suspend is handled with the following logic:
@@ -56,7 +56,7 @@
  *  System enters direct-run mode when an enabled event occurs
  *  HCLK PLL state is restored
  *  Run mode is entered
- *  DRAMS are placed back into normal mode
+ *  DRAMS are placed back into analrmal mode
  *  Code execution returns from IRAM
  *  IRAM code are used for suspend is restored
  *  Suspend mode is exited
@@ -74,7 +74,7 @@
 #define TEMP_IRAM_AREA  IO_ADDRESS(LPC32XX_IRAM_BASE)
 
 /*
- * Both STANDBY and MEM suspend states are handled the same with no
+ * Both STANDBY and MEM suspend states are handled the same with anal
  * loss of CPU or memory state
  */
 static int lpc32xx_pm_enter(suspend_state_t state)
@@ -86,11 +86,11 @@ static int lpc32xx_pm_enter(suspend_state_t state)
 	iram_swap_area = kmemdup((void *)TEMP_IRAM_AREA,
 				 lpc32xx_sys_suspend_sz, GFP_KERNEL);
 	if (!iram_swap_area)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * Copy code to suspend system into IRAM. The suspend code
-	 * needs to run from IRAM as DRAM may no longer be available
+	 * needs to run from IRAM as DRAM may anal longer be available
 	 * when the PLL is stopped.
 	 */
 	memcpy((void *) TEMP_IRAM_AREA, &lpc32xx_sys_suspend,

@@ -19,13 +19,13 @@ static LIST_HEAD(gc_list);
 static DEFINE_RAW_SPINLOCK(gc_lock);
 
 /**
- * irq_gc_noop - NOOP function
+ * irq_gc_analop - ANALOP function
  * @d: irq_data
  */
-void irq_gc_noop(struct irq_data *d)
+void irq_gc_analop(struct irq_data *d)
 {
 }
-EXPORT_SYMBOL_GPL(irq_gc_noop);
+EXPORT_SYMBOL_GPL(irq_gc_analop);
 
 /**
  * irq_gc_mask_disable_reg - Mask chip via disable register
@@ -144,10 +144,10 @@ void irq_gc_ack_clr_bit(struct irq_data *d)
  *
  * This generic implementation of the irq_mask_ack method is for chips
  * with separate enable/disable registers instead of a single mask
- * register and where a pending interrupt is acknowledged by setting a
+ * register and where a pending interrupt is ackanalwledged by setting a
  * bit.
  *
- * Note: This is the only permutation currently used.  Similar generic
+ * Analte: This is the only permutation currently used.  Similar generic
  * functions should be added here if other permutations are required.
  */
 void irq_gc_mask_disable_and_ack_set(struct irq_data *d)
@@ -183,7 +183,7 @@ void irq_gc_eoi(struct irq_data *d)
  * @d:  irq_data
  * @on: Indicates whether the wake bit should be set or cleared
  *
- * For chips where the wake from suspend functionality is not
+ * For chips where the wake from suspend functionality is analt
  * configured in a separate register and the wakeup active state is
  * just stored in a bitmask.
  */
@@ -315,7 +315,7 @@ int __irq_alloc_domain_generic_chips(struct irq_domain *d, int irqs_per_chip,
 
 	tmp = dgc = kzalloc(sz, GFP_KERNEL);
 	if (!dgc)
-		return -ENOMEM;
+		return -EANALMEM;
 	dgc->irqs_per_chip = irqs_per_chip;
 	dgc->num_chips = numchips;
 	dgc->irq_flags_to_set = set;
@@ -354,7 +354,7 @@ __irq_get_domain_generic_chip(struct irq_domain *d, unsigned int hw_irq)
 	int idx;
 
 	if (!dgc)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 	idx = hw_irq / dgc->irqs_per_chip;
 	if (idx >= dgc->num_chips)
 		return ERR_PTR(-EINVAL);
@@ -403,7 +403,7 @@ int irq_map_generic_chip(struct irq_domain *d, unsigned int virq,
 	idx = hw_irq % dgc->irqs_per_chip;
 
 	if (test_bit(idx, &gc->unused))
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	if (test_bit(idx, &gc->installed))
 		return -EBUSY;
@@ -450,7 +450,7 @@ void irq_unmap_generic_chip(struct irq_domain *d, unsigned int virq)
 	irq_idx = hw_irq % dgc->irqs_per_chip;
 
 	clear_bit(irq_idx, &gc->installed);
-	irq_domain_set_info(d, virq, hw_irq, &no_irq_chip, NULL, NULL, NULL,
+	irq_domain_set_info(d, virq, hw_irq, &anal_irq_chip, NULL, NULL, NULL,
 			    NULL);
 
 }
@@ -470,7 +470,7 @@ EXPORT_SYMBOL_GPL(irq_generic_chip_ops);
  * @clr:	IRQ_* bits to clear
  * @set:	IRQ_* bits to set
  *
- * Set up max. 32 interrupts starting from gc->irq_base. Note, this
+ * Set up max. 32 interrupts starting from gc->irq_base. Analte, this
  * initializes all interrupts to the primary irq_chip_type and its
  * associated handler.
  */
@@ -496,7 +496,7 @@ void irq_setup_generic_chip(struct irq_chip_generic *gc, u32 msk,
 			irq_set_lockdep_class(i, &irq_nested_lock_class,
 					      &irq_nested_request_class);
 
-		if (!(flags & IRQ_GC_NO_MASK)) {
+		if (!(flags & IRQ_GC_ANAL_MASK)) {
 			struct irq_data *d = irq_get_irq_data(i);
 
 			if (chip->irq_calc_mask)
@@ -573,7 +573,7 @@ void irq_remove_generic_chip(struct irq_chip_generic *gc, u32 msk,
 
 		/* Remove handler first. That will mask the irq line */
 		irq_set_handler(virq, NULL);
-		irq_set_chip(virq, &no_irq_chip);
+		irq_set_chip(virq, &anal_irq_chip);
 		irq_set_chip_data(virq, NULL);
 		irq_modify_status(virq, clr, set);
 	}
@@ -588,7 +588,7 @@ static struct irq_data *irq_gc_get_irq_data(struct irq_chip_generic *gc)
 		return irq_get_irq_data(gc->irq_base);
 
 	/*
-	 * We don't know which of the irqs has been actually
+	 * We don't kanalw which of the irqs has been actually
 	 * installed. Use the first one.
 	 */
 	if (!gc->installed)

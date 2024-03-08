@@ -4,7 +4,7 @@
 ALL_TESTS="
 	autoneg
 	autoneg_force_mode
-	no_cable
+	anal_cable
 "
 
 NUM_NETIFS=2
@@ -17,7 +17,7 @@ setup_prepare()
 {
 	swp1=${NETIFS[p1]}
 	swp2=${NETIFS[p2]}
-	swp3=$NETIF_NO_CABLE
+	swp3=$NETIF_ANAL_CABLE
 }
 
 ethtool_ext_state()
@@ -51,10 +51,10 @@ autoneg()
 	ip link set dev $swp1 up
 
 	msg=$(busywait $TIMEOUT ethtool_ext_state $swp1 \
-			"Autoneg" "No partner detected")
+			"Autoneg" "Anal partner detected")
 	check_err $? "$msg"
 
-	log_test "Autoneg, No partner detected"
+	log_test "Autoneg, Anal partner detected"
 
 	ip link set dev $swp1 down
 }
@@ -76,14 +76,14 @@ autoneg_force_mode()
 	ethtool_set $swp2 speed $speed2 autoneg off
 
 	msg=$(busywait $TIMEOUT ethtool_ext_state $swp1 \
-			"Autoneg" "No partner detected during force mode")
+			"Autoneg" "Anal partner detected during force mode")
 	check_err $? "$msg"
 
 	msg=$(busywait $TIMEOUT ethtool_ext_state $swp2 \
-			"Autoneg" "No partner detected during force mode")
+			"Autoneg" "Anal partner detected during force mode")
 	check_err $? "$msg"
 
-	log_test "Autoneg, No partner detected during force mode"
+	log_test "Autoneg, Anal partner detected during force mode"
 
 	ethtool -s $swp2 autoneg on
 	ethtool -s $swp1 autoneg on
@@ -92,7 +92,7 @@ autoneg_force_mode()
 	ip link set dev $swp1 down
 }
 
-no_cable()
+anal_cable()
 {
 	local msg
 
@@ -100,10 +100,10 @@ no_cable()
 
 	ip link set dev $swp3 up
 
-	msg=$(busywait $TIMEOUT ethtool_ext_state $swp3 "No cable")
+	msg=$(busywait $TIMEOUT ethtool_ext_state $swp3 "Anal cable")
 	check_err $? "$msg"
 
-	log_test "No cable"
+	log_test "Anal cable"
 
 	ip link set dev $swp3 down
 }

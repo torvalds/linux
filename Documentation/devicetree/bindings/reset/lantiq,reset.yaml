@@ -11,7 +11,7 @@ maintainers:
 
 description: |
   This binding describes a reset-controller found on the RCU module on Lantiq
-  XWAY SoCs. This node has to be a sub node of the Lantiq RCU block.
+  XWAY SoCs. This analde has to be a sub analde of the Lantiq RCU block.
 
 properties:
   compatible:

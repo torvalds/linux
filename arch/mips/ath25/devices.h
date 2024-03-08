@@ -20,7 +20,7 @@ enum ath25_soc_type {
 	ATH25_SOC_AR2317,
 	ATH25_SOC_AR2318,
 
-	ATH25_SOC_UNKNOWN
+	ATH25_SOC_UNKANALWN
 };
 
 extern enum ath25_soc_type ath25_soc;

@@ -21,7 +21,7 @@
 #include <linux/xattr.h>
 #include <linux/posix_acl_xattr.h>
 #include <linux/mtd/mtd.h>
-#include "nodelist.h"
+#include "analdelist.h"
 
 static size_t jffs2_acl_size(int count)
 {
@@ -80,7 +80,7 @@ static struct posix_acl *jffs2_acl_from_medium(void *value, size_t size)
 
 	acl = posix_acl_alloc(count, GFP_KERNEL);
 	if (!acl)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	for (i=0; i < count; i++) {
 		entry = value;
@@ -136,7 +136,7 @@ static void *jffs2_acl_to_medium(const struct posix_acl *acl, size_t *size)
 	header = kmalloc(struct_size(header, a_entries, acl->a_count),
 			GFP_KERNEL);
 	if (!header)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	header->a_version = cpu_to_je32(JFFS2_ACL_VERSION);
 	e = header + 1;
 	for (i=0; i < acl->a_count; i++) {
@@ -173,7 +173,7 @@ static void *jffs2_acl_to_medium(const struct posix_acl *acl, size_t *size)
 	return ERR_PTR(-EINVAL);
 }
 
-struct posix_acl *jffs2_get_acl(struct inode *inode, int type, bool rcu)
+struct posix_acl *jffs2_get_acl(struct ianalde *ianalde, int type, bool rcu)
 {
 	struct posix_acl *acl;
 	char *value = NULL;
@@ -192,16 +192,16 @@ struct posix_acl *jffs2_get_acl(struct inode *inode, int type, bool rcu)
 	default:
 		BUG();
 	}
-	rc = do_jffs2_getxattr(inode, xprefix, "", NULL, 0);
+	rc = do_jffs2_getxattr(ianalde, xprefix, "", NULL, 0);
 	if (rc > 0) {
 		value = kmalloc(rc, GFP_KERNEL);
 		if (!value)
-			return ERR_PTR(-ENOMEM);
-		rc = do_jffs2_getxattr(inode, xprefix, "", value, rc);
+			return ERR_PTR(-EANALMEM);
+		rc = do_jffs2_getxattr(ianalde, xprefix, "", value, rc);
 	}
 	if (rc > 0) {
 		acl = jffs2_acl_from_medium(value, rc);
-	} else if (rc == -ENODATA || rc == -ENOSYS) {
+	} else if (rc == -EANALDATA || rc == -EANALSYS) {
 		acl = NULL;
 	} else {
 		acl = ERR_PTR(rc);
@@ -210,7 +210,7 @@ struct posix_acl *jffs2_get_acl(struct inode *inode, int type, bool rcu)
 	return acl;
 }
 
-static int __jffs2_set_acl(struct inode *inode, int xprefix, struct posix_acl *acl)
+static int __jffs2_set_acl(struct ianalde *ianalde, int xprefix, struct posix_acl *acl)
 {
 	char *value = NULL;
 	size_t size = 0;
@@ -221,8 +221,8 @@ static int __jffs2_set_acl(struct inode *inode, int xprefix, struct posix_acl *a
 		if (IS_ERR(value))
 			return PTR_ERR(value);
 	}
-	rc = do_jffs2_setxattr(inode, xprefix, "", value, size, 0);
-	if (!value && rc == -ENODATA)
+	rc = do_jffs2_setxattr(ianalde, xprefix, "", value, size, 0);
+	if (!value && rc == -EANALDATA)
 		rc = 0;
 	kfree(value);
 
@@ -233,7 +233,7 @@ int jffs2_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
 		  struct posix_acl *acl, int type)
 {
 	int rc, xprefix;
-	struct inode *inode = d_inode(dentry);
+	struct ianalde *ianalde = d_ianalde(dentry);
 
 	switch (type) {
 	case ACL_TYPE_ACCESS:
@@ -241,17 +241,17 @@ int jffs2_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
 		if (acl) {
 			umode_t mode;
 
-			rc = posix_acl_update_mode(&nop_mnt_idmap, inode, &mode,
+			rc = posix_acl_update_mode(&analp_mnt_idmap, ianalde, &mode,
 						   &acl);
 			if (rc)
 				return rc;
-			if (inode->i_mode != mode) {
+			if (ianalde->i_mode != mode) {
 				struct iattr attr;
 
 				attr.ia_valid = ATTR_MODE | ATTR_CTIME;
 				attr.ia_mode = mode;
-				attr.ia_ctime = current_time(inode);
-				rc = jffs2_do_setattr(inode, &attr);
+				attr.ia_ctime = current_time(ianalde);
+				rc = jffs2_do_setattr(ianalde, &attr);
 				if (rc < 0)
 					return rc;
 			}
@@ -259,52 +259,52 @@ int jffs2_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
 		break;
 	case ACL_TYPE_DEFAULT:
 		xprefix = JFFS2_XPREFIX_ACL_DEFAULT;
-		if (!S_ISDIR(inode->i_mode))
+		if (!S_ISDIR(ianalde->i_mode))
 			return acl ? -EACCES : 0;
 		break;
 	default:
 		return -EINVAL;
 	}
-	rc = __jffs2_set_acl(inode, xprefix, acl);
+	rc = __jffs2_set_acl(ianalde, xprefix, acl);
 	if (!rc)
-		set_cached_acl(inode, type, acl);
+		set_cached_acl(ianalde, type, acl);
 	return rc;
 }
 
-int jffs2_init_acl_pre(struct inode *dir_i, struct inode *inode, umode_t *i_mode)
+int jffs2_init_acl_pre(struct ianalde *dir_i, struct ianalde *ianalde, umode_t *i_mode)
 {
 	struct posix_acl *default_acl, *acl;
 	int rc;
 
-	cache_no_acl(inode);
+	cache_anal_acl(ianalde);
 
 	rc = posix_acl_create(dir_i, i_mode, &default_acl, &acl);
 	if (rc)
 		return rc;
 
 	if (default_acl) {
-		set_cached_acl(inode, ACL_TYPE_DEFAULT, default_acl);
+		set_cached_acl(ianalde, ACL_TYPE_DEFAULT, default_acl);
 		posix_acl_release(default_acl);
 	}
 	if (acl) {
-		set_cached_acl(inode, ACL_TYPE_ACCESS, acl);
+		set_cached_acl(ianalde, ACL_TYPE_ACCESS, acl);
 		posix_acl_release(acl);
 	}
 	return 0;
 }
 
-int jffs2_init_acl_post(struct inode *inode)
+int jffs2_init_acl_post(struct ianalde *ianalde)
 {
 	int rc;
 
-	if (inode->i_default_acl) {
-		rc = __jffs2_set_acl(inode, JFFS2_XPREFIX_ACL_DEFAULT, inode->i_default_acl);
+	if (ianalde->i_default_acl) {
+		rc = __jffs2_set_acl(ianalde, JFFS2_XPREFIX_ACL_DEFAULT, ianalde->i_default_acl);
 		if (rc)
 			return rc;
 	}
 
-	if (inode->i_acl) {
-		rc = __jffs2_set_acl(inode, JFFS2_XPREFIX_ACL_ACCESS, inode->i_acl);
+	if (ianalde->i_acl) {
+		rc = __jffs2_set_acl(ianalde, JFFS2_XPREFIX_ACL_ACCESS, ianalde->i_acl);
 		if (rc)
 			return rc;
 	}

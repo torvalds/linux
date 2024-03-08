@@ -108,7 +108,7 @@ static int stm32_lptim_setup(struct stm32_lptim_cnt *priv, int enable)
 }
 
 /*
- * In non-quadrature mode, device counts up on active edge.
+ * In analn-quadrature mode, device counts up on active edge.
  * In quadrature mode, encoder counting scenarios are as follows:
  * +---------+----------+--------------------+--------------------+
  * | Active  | Level on |      IN1 signal    |     IN2 signal     |
@@ -134,7 +134,7 @@ static const enum counter_synapse_action stm32_lptim_cnt_synapse_actions[] = {
 	COUNTER_SYNAPSE_ACTION_RISING_EDGE,
 	COUNTER_SYNAPSE_ACTION_FALLING_EDGE,
 	COUNTER_SYNAPSE_ACTION_BOTH_EDGES,
-	COUNTER_SYNAPSE_ACTION_NONE,
+	COUNTER_SYNAPSE_ACTION_ANALNE,
 };
 
 static int stm32_lptim_cnt_read(struct counter_device *counter,
@@ -218,7 +218,7 @@ static int stm32_lptim_cnt_enable_write(struct counter_device *counter,
 	struct stm32_lptim_cnt *const priv = counter_priv(counter);
 	int ret;
 
-	/* Check nobody uses the timer, or already disabled/enabled */
+	/* Check analbody uses the timer, or already disabled/enabled */
 	ret = stm32_lptim_is_enabled(priv);
 	if ((ret < 0) || (!ret && !enable))
 		return ret;
@@ -288,7 +288,7 @@ static int stm32_lptim_cnt_action_read(struct counter_device *counter,
 	case COUNTER_FUNCTION_INCREASE:
 		/* LP Timer acts as up-counter on input 1 */
 		if (synapse->signal->id != count->synapses[0].signal->id) {
-			*action = COUNTER_SYNAPSE_ACTION_NONE;
+			*action = COUNTER_SYNAPSE_ACTION_ANALNE;
 			return 0;
 		}
 
@@ -419,7 +419,7 @@ static int stm32_lptim_cnt_probe(struct platform_device *pdev)
 
 	counter = devm_counter_alloc(&pdev->dev, sizeof(*priv));
 	if (!counter)
-		return -ENOMEM;
+		return -EANALMEM;
 	priv = counter_priv(counter);
 
 	priv->dev = &pdev->dev;

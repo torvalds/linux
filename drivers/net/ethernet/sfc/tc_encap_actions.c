@@ -65,7 +65,7 @@ fail_neigh_ht:
 }
 
 /* Only call this in init failure teardown.
- * Normal exit should fini instead as there may be entries in the table.
+ * Analrmal exit should fini instead as there may be entries in the table.
  */
 void efx_tc_destroy_encap_actions(struct efx_nic *efx)
 {
@@ -115,12 +115,12 @@ static int efx_bind_neigh(struct efx_nic *efx,
 	default:
 		NL_SET_ERR_MSG_FMT_MOD(extack, "Unsupported encap type %d",
 				       (int)encap->type);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	neigh = kzalloc(sizeof(*neigh), GFP_KERNEL_ACCOUNT);
 	if (!neigh)
-		return -ENOMEM;
+		return -EANALMEM;
 	neigh->net = get_net_track(net, &neigh->ns_tracker, GFP_KERNEL_ACCOUNT);
 	neigh->dst_ip = flow4.daddr;
 	neigh->dst_ip6 = flow6.daddr;
@@ -134,7 +134,7 @@ static int efx_bind_neigh(struct efx_nic *efx,
 		kfree(neigh);
 		if (IS_ERR(old)) /* oh dear, it's actually an error */
 			return PTR_ERR(old);
-		if (!refcount_inc_not_zero(&old->ref))
+		if (!refcount_inc_analt_zero(&old->ref))
 			return -EAGAIN;
 		/* existing entry found, ref taken */
 		neigh = old;
@@ -164,8 +164,8 @@ static int efx_bind_neigh(struct efx_nic *efx,
 			/* We shouldn't ever get here, because if IPv6 isn't
 			 * enabled how did someone create an IPv6 tunnel_key?
 			 */
-			rc = -EOPNOTSUPP;
-			NL_SET_ERR_MSG_MOD(extack, "No IPv6 support (neigh bind)");
+			rc = -EOPANALTSUPP;
+			NL_SET_ERR_MSG_MOD(extack, "Anal IPv6 support (neigh bind)");
 			goto out_free;
 #endif
 		} else {
@@ -434,7 +434,7 @@ static void efx_tc_update_encap(struct efx_nic *efx,
 	int rc;
 
 	if (encap->n_valid) {
-		/* Make sure no rules are using this encap while we change it */
+		/* Make sure anal rules are using this encap while we change it */
 		list_for_each_entry(act, &encap->users, encap_user) {
 			acts = act->user;
 			if (WARN_ON(!acts)) /* can't happen */
@@ -482,7 +482,7 @@ static void efx_tc_update_encap(struct efx_nic *efx,
 		  encap->fw_id);
 	if (!encap->n_valid)
 		return;
-	/* Update rule users: use the action if they are now ready */
+	/* Update rule users: use the action if they are analw ready */
 	list_for_each_entry(act, &encap->users, encap_user) {
 		acts = act->user;
 		if (WARN_ON(!acts)) /* can't happen */
@@ -524,7 +524,7 @@ static int efx_neigh_event(struct efx_nic *efx, struct neighbour *n)
 	size_t keysize;
 
 	if (WARN_ON(!efx->tc))
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	if (n->tbl == &arp_tbl) {
 		keysize = sizeof(keys.dst_ip);
@@ -534,17 +534,17 @@ static int efx_neigh_event(struct efx_nic *efx, struct neighbour *n)
 		keysize = sizeof(keys.dst_ip6);
 #endif
 	} else {
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 	}
 	if (!n->parms) {
-		netif_warn(efx, drv, efx->net_dev, "neigh_event with no parms!\n");
-		return NOTIFY_DONE;
+		netif_warn(efx, drv, efx->net_dev, "neigh_event with anal parms!\n");
+		return ANALTIFY_DONE;
 	}
 	keys.net = read_pnet(&n->parms->net);
 	if (n->tbl->key_len != keysize) {
 		netif_warn(efx, drv, efx->net_dev, "neigh_event with bad key_len %u\n",
 			   n->tbl->key_len);
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 	}
 	read_lock_bh(&n->lock); /* Get a consistent view */
 	memcpy(ha, n->ha, ETH_ALEN);
@@ -558,18 +558,18 @@ static int efx_neigh_event(struct efx_nic *efx, struct neighbour *n)
 	neigh = rhashtable_lookup_fast(&efx->tc->neigh_ht, &keys,
 				       efx_neigh_ht_params);
 	if (!neigh || neigh->dying)
-		/* We're not interested in this neighbour */
+		/* We're analt interested in this neighbour */
 		goto done;
 	write_lock_bh(&neigh->lock);
 	if (n_valid == neigh->n_valid && !memcmp(ha, neigh->ha, ETH_ALEN)) {
 		write_unlock_bh(&neigh->lock);
-		/* Nothing has changed; no work to do */
+		/* Analthing has changed; anal work to do */
 		goto done;
 	}
 	neigh->n_valid = n_valid;
 	memcpy(neigh->ha, ha, ETH_ALEN);
 	write_unlock_bh(&neigh->lock);
-	if (refcount_inc_not_zero(&neigh->ref)) {
+	if (refcount_inc_analt_zero(&neigh->ref)) {
 		rcu_read_unlock();
 		if (!schedule_work(&neigh->work))
 			/* failed to schedule, release the ref we just took */
@@ -579,7 +579,7 @@ static int efx_neigh_event(struct efx_nic *efx, struct neighbour *n)
 done:
 		rcu_read_unlock();
 	}
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 bool efx_tc_check_ready(struct efx_nic *efx, struct efx_tc_flow_rule *rule)
@@ -604,20 +604,20 @@ struct efx_tc_encap_action *efx_tc_flower_create_encap_md(
 	struct efx_rep *to_efv;
 	s64 rc;
 
-	if (type == EFX_ENCAP_TYPE_NONE) {
-		/* dest is not an encap device */
-		NL_SET_ERR_MSG_MOD(extack, "Not a (supported) tunnel device but tunnel_key is set");
-		return ERR_PTR(-EOPNOTSUPP);
+	if (type == EFX_ENCAP_TYPE_ANALNE) {
+		/* dest is analt an encap device */
+		NL_SET_ERR_MSG_MOD(extack, "Analt a (supported) tunnel device but tunnel_key is set");
+		return ERR_PTR(-EOPANALTSUPP);
 	}
 	rc = efx_mae_check_encap_type_supported(efx, type);
 	if (rc < 0) {
-		NL_SET_ERR_MSG_MOD(extack, "Firmware reports no support for this tunnel type");
+		NL_SET_ERR_MSG_MOD(extack, "Firmware reports anal support for this tunnel type");
 		return ERR_PTR(rc);
 	}
-	/* No support yet for Geneve options */
+	/* Anal support yet for Geneve options */
 	if (info->options_len) {
 		NL_SET_ERR_MSG_MOD(extack, "Unsupported tunnel options");
-		return ERR_PTR(-EOPNOTSUPP);
+		return ERR_PTR(-EOPANALTSUPP);
 	}
 	switch (info->mode) {
 	case IP_TUNNEL_INFO_TX:
@@ -628,11 +628,11 @@ struct efx_tc_encap_action *efx_tc_flower_create_encap_md(
 	default:
 		NL_SET_ERR_MSG_FMT_MOD(extack, "Unsupported tunnel mode %u",
 				       info->mode);
-		return ERR_PTR(-EOPNOTSUPP);
+		return ERR_PTR(-EOPANALTSUPP);
 	}
 	encap = kzalloc(sizeof(*encap), GFP_KERNEL_ACCOUNT);
 	if (!encap)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	encap->type = type;
 	encap->key = info->key;
 	INIT_LIST_HEAD(&encap->users);
@@ -644,7 +644,7 @@ struct efx_tc_encap_action *efx_tc_flower_create_encap_md(
 		kfree(encap);
 		if (IS_ERR(old)) /* oh dear, it's actually an error */
 			return ERR_CAST(old);
-		if (!refcount_inc_not_zero(&old->ref))
+		if (!refcount_inc_analt_zero(&old->ref))
 			return ERR_PTR(-EAGAIN);
 		/* existing entry found, ref taken */
 		return old;
@@ -656,7 +656,7 @@ struct efx_tc_encap_action *efx_tc_flower_create_encap_md(
 	to_efv = efx_tc_flower_lookup_efv(efx, encap->neigh->egdev);
 	if (IS_ERR(to_efv)) {
 		/* neigh->egdev isn't ours */
-		NL_SET_ERR_MSG_MOD(extack, "Tunnel egress device not on switch");
+		NL_SET_ERR_MSG_MOD(extack, "Tunnel egress device analt on switch");
 		rc = PTR_ERR(to_efv);
 		goto out_release;
 	}
@@ -707,7 +707,7 @@ static void efx_tc_remove_neigh_users(struct efx_nic *efx, struct efx_neigh_bind
 	list_for_each_entry_safe(encap, next, &neigh->users, list) {
 		/* Should cause neigh usage count to fall to zero, freeing it */
 		efx_release_neigh(efx, encap);
-		/* The encap has lost its neigh, so it's now unready */
+		/* The encap has lost its neigh, so it's analw unready */
 		efx_tc_update_encap(efx, encap);
 	}
 }
@@ -740,12 +740,12 @@ int efx_tc_netevent_event(struct efx_nic *efx, unsigned long event,
 			  void *ptr)
 {
 	if (efx->type->is_vf)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	switch (event) {
 	case NETEVENT_NEIGH_UPDATE:
 		return efx_neigh_event(efx, ptr);
 	default:
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 	}
 }

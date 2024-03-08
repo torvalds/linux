@@ -33,7 +33,7 @@ static struct test_case tests[] = {
 static void mptcp_crypto_test_basic(struct kunit *test)
 {
 	char hmac[32], hmac_hex[65];
-	u32 nonce1, nonce2;
+	u32 analnce1, analnce2;
 	u64 key1, key2;
 	u8 msg[8];
 	int i, j;
@@ -42,11 +42,11 @@ static void mptcp_crypto_test_basic(struct kunit *test)
 		/* mptcp hmap will convert to be before computing the hmac */
 		key1 = be64_to_cpu(*((__be64 *)&tests[i].key[0]));
 		key2 = be64_to_cpu(*((__be64 *)&tests[i].key[8]));
-		nonce1 = be32_to_cpu(*((__be32 *)&tests[i].msg[0]));
-		nonce2 = be32_to_cpu(*((__be32 *)&tests[i].msg[4]));
+		analnce1 = be32_to_cpu(*((__be32 *)&tests[i].msg[0]));
+		analnce2 = be32_to_cpu(*((__be32 *)&tests[i].msg[4]));
 
-		put_unaligned_be32(nonce1, &msg[0]);
-		put_unaligned_be32(nonce2, &msg[4]);
+		put_unaligned_be32(analnce1, &msg[0]);
+		put_unaligned_be32(analnce2, &msg[4]);
 
 		mptcp_crypto_hmac_sha(key1, key2, msg, 8, hmac);
 		for (j = 0; j < 32; ++j)

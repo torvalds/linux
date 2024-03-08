@@ -37,7 +37,7 @@ static void run_vcpu_with_invalid_state(struct kvm_vcpu *vcpu)
 	/*
 	 * Always run twice to verify KVM handles the case where _KVM_ queues
 	 * an exception with invalid state and then exits to userspace, i.e.
-	 * that KVM doesn't explode if userspace ignores the initial error.
+	 * that KVM doesn't explode if userspace iganalres the initial error.
 	 */
 	__run_vcpu_with_invalid_state(vcpu);
 	__run_vcpu_with_invalid_state(vcpu);
@@ -137,8 +137,8 @@ int main(int argc, char *argv[])
 	 */
 	clear_invalid_guest_state(vcpu);
 	TEST_ASSERT(signal(SIGALRM, sigalrm_handler) != SIG_ERR,
-		    "Failed to register SIGALRM handler, errno = %d (%s)",
-		    errno, strerror(errno));
+		    "Failed to register SIGALRM handler, erranal = %d (%s)",
+		    erranal, strerror(erranal));
 
 	set_timer();
 	run_vcpu_with_invalid_state(vcpu);

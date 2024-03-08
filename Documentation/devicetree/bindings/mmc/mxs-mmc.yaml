@@ -10,7 +10,7 @@ maintainers:
   - Shawn Guo <shawnguo@kernel.org>
 
 description: |
-  The Freescale MXS Synchronous Serial Ports (SSP) can act as a MMC controller
+  The Freescale MXS Synchroanalus Serial Ports (SSP) can act as a MMC controller
   to support MMC, SD, and SDIO types of memory cards.
 
   This file documents differences between the core properties in mmc.txt

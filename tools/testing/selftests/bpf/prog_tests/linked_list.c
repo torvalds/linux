@@ -30,16 +30,16 @@ static struct {
 #undef TEST
 #define TEST(test, op) \
 	{ #test "_kptr_incorrect_lock_" #op, \
-	  "held lock and object are not in the same allocation\n" \
+	  "held lock and object are analt in the same allocation\n" \
 	  "bpf_spin_lock at off=40 must be held for bpf_list_head" }, \
 	{ #test "_global_incorrect_lock_" #op, \
-	  "held lock and object are not in the same allocation\n" \
+	  "held lock and object are analt in the same allocation\n" \
 	  "bpf_spin_lock at off=16 must be held for bpf_list_head" }, \
 	{ #test "_map_incorrect_lock_" #op, \
-	  "held lock and object are not in the same allocation\n" \
+	  "held lock and object are analt in the same allocation\n" \
 	  "bpf_spin_lock at off=0 must be held for bpf_list_head" }, \
 	{ #test "_inner_map_incorrect_lock_" #op, \
-	  "held lock and object are not in the same allocation\n" \
+	  "held lock and object are analt in the same allocation\n" \
 	  "bpf_spin_lock at off=0 must be held for bpf_list_head" },
 	TEST(kptr, push_front)
 	TEST(kptr, push_back)
@@ -58,16 +58,16 @@ static struct {
 	TEST(inner_map, pop_front)
 	TEST(inner_map, pop_back)
 #undef TEST
-	{ "map_compat_kprobe", "tracing progs cannot use bpf_{list_head,rb_root} yet" },
-	{ "map_compat_kretprobe", "tracing progs cannot use bpf_{list_head,rb_root} yet" },
-	{ "map_compat_tp", "tracing progs cannot use bpf_{list_head,rb_root} yet" },
-	{ "map_compat_perf", "tracing progs cannot use bpf_{list_head,rb_root} yet" },
-	{ "map_compat_raw_tp", "tracing progs cannot use bpf_{list_head,rb_root} yet" },
-	{ "map_compat_raw_tp_w", "tracing progs cannot use bpf_{list_head,rb_root} yet" },
+	{ "map_compat_kprobe", "tracing progs cananalt use bpf_{list_head,rb_root} yet" },
+	{ "map_compat_kretprobe", "tracing progs cananalt use bpf_{list_head,rb_root} yet" },
+	{ "map_compat_tp", "tracing progs cananalt use bpf_{list_head,rb_root} yet" },
+	{ "map_compat_perf", "tracing progs cananalt use bpf_{list_head,rb_root} yet" },
+	{ "map_compat_raw_tp", "tracing progs cananalt use bpf_{list_head,rb_root} yet" },
+	{ "map_compat_raw_tp_w", "tracing progs cananalt use bpf_{list_head,rb_root} yet" },
 	{ "obj_type_id_oor", "local type ID argument must be in range [0, U32_MAX]" },
-	{ "obj_new_no_composite", "bpf_obj_new/bpf_percpu_obj_new type ID argument must be of a struct" },
-	{ "obj_new_no_struct", "bpf_obj_new/bpf_percpu_obj_new type ID argument must be of a struct" },
-	{ "obj_drop_non_zero_off", "R1 must have zero offset when passed to release func" },
+	{ "obj_new_anal_composite", "bpf_obj_new/bpf_percpu_obj_new type ID argument must be of a struct" },
+	{ "obj_new_anal_struct", "bpf_obj_new/bpf_percpu_obj_new type ID argument must be of a struct" },
+	{ "obj_drop_analn_zero_off", "R1 must have zero offset when passed to release func" },
 	{ "new_null_ret", "R0 invalid mem access 'ptr_or_null_'" },
 	{ "obj_new_acq", "Unreleased reference id=" },
 	{ "use_after_drop", "invalid mem access 'scalar'" },
@@ -76,24 +76,24 @@ static struct {
 	{ "direct_write_lock", "direct access to bpf_spin_lock is disallowed" },
 	{ "direct_read_head", "direct access to bpf_list_head is disallowed" },
 	{ "direct_write_head", "direct access to bpf_list_head is disallowed" },
-	{ "direct_read_node", "direct access to bpf_list_node is disallowed" },
-	{ "direct_write_node", "direct access to bpf_list_node is disallowed" },
+	{ "direct_read_analde", "direct access to bpf_list_analde is disallowed" },
+	{ "direct_write_analde", "direct access to bpf_list_analde is disallowed" },
 	{ "use_after_unlock_push_front", "invalid mem access 'scalar'" },
 	{ "use_after_unlock_push_back", "invalid mem access 'scalar'" },
 	{ "double_push_front", "arg#1 expected pointer to allocated object" },
 	{ "double_push_back", "arg#1 expected pointer to allocated object" },
-	{ "no_node_value_type", "bpf_list_node not found at offset=0" },
+	{ "anal_analde_value_type", "bpf_list_analde analt found at offset=0" },
 	{ "incorrect_value_type",
-	  "operation on bpf_list_head expects arg#1 bpf_list_node at offset=48 in struct foo, "
+	  "operation on bpf_list_head expects arg#1 bpf_list_analde at offset=48 in struct foo, "
 	  "but arg is at offset=0 in struct bar" },
-	{ "incorrect_node_var_off", "variable ptr_ access var_off=(0x0; 0xffffffff) disallowed" },
-	{ "incorrect_node_off1", "bpf_list_node not found at offset=49" },
-	{ "incorrect_node_off2", "arg#1 offset=0, but expected bpf_list_node at offset=48 in struct foo" },
-	{ "no_head_type", "bpf_list_head not found at offset=0" },
+	{ "incorrect_analde_var_off", "variable ptr_ access var_off=(0x0; 0xffffffff) disallowed" },
+	{ "incorrect_analde_off1", "bpf_list_analde analt found at offset=49" },
+	{ "incorrect_analde_off2", "arg#1 offset=0, but expected bpf_list_analde at offset=48 in struct foo" },
+	{ "anal_head_type", "bpf_list_head analt found at offset=0" },
 	{ "incorrect_head_var_off1", "R1 doesn't have constant offset" },
 	{ "incorrect_head_var_off2", "variable ptr_ access var_off=(0x0; 0xffffffff) disallowed" },
-	{ "incorrect_head_off1", "bpf_list_head not found at offset=25" },
-	{ "incorrect_head_off2", "bpf_list_head not found at offset=1" },
+	{ "incorrect_head_off1", "bpf_list_head analt found at offset=25" },
+	{ "incorrect_head_off2", "bpf_list_head analt found at offset=1" },
 	{ "pop_front_off", "off 48 doesn't point to 'struct bpf_spin_lock' that is at 40" },
 	{ "pop_back_off", "off 48 doesn't point to 'struct bpf_spin_lock' that is at 40" },
 };
@@ -232,7 +232,7 @@ end:
 
 #define SPIN_LOCK 2
 #define LIST_HEAD 3
-#define LIST_NODE 4
+#define LIST_ANALDE 4
 
 static struct btf *init_btf(void)
 {
@@ -251,8 +251,8 @@ static struct btf *init_btf(void)
 	hid = btf__add_struct(btf, "bpf_list_head", 16);
 	if (!ASSERT_EQ(hid, LIST_HEAD, "btf__add_struct bpf_list_head"))
 		goto end;
-	nid = btf__add_struct(btf, "bpf_list_node", 24);
-	if (!ASSERT_EQ(nid, LIST_NODE, "btf__add_struct bpf_list_node"))
+	nid = btf__add_struct(btf, "bpf_list_analde", 24);
+	if (!ASSERT_EQ(nid, LIST_ANALDE, "btf__add_struct bpf_list_analde"))
 		goto end;
 	return btf;
 end:
@@ -260,9 +260,9 @@ end:
 	return NULL;
 }
 
-static void list_and_rb_node_same_struct(bool refcount_field)
+static void list_and_rb_analde_same_struct(bool refcount_field)
 {
-	int bpf_rb_node_btf_id, bpf_refcount_btf_id = 0, foo_btf_id;
+	int bpf_rb_analde_btf_id, bpf_refcount_btf_id = 0, foo_btf_id;
 	struct btf *btf;
 	int id, err;
 
@@ -270,8 +270,8 @@ static void list_and_rb_node_same_struct(bool refcount_field)
 	if (!ASSERT_OK_PTR(btf, "init_btf"))
 		return;
 
-	bpf_rb_node_btf_id = btf__add_struct(btf, "bpf_rb_node", 32);
-	if (!ASSERT_GT(bpf_rb_node_btf_id, 0, "btf__add_struct bpf_rb_node"))
+	bpf_rb_analde_btf_id = btf__add_struct(btf, "bpf_rb_analde", 32);
+	if (!ASSERT_GT(bpf_rb_analde_btf_id, 0, "btf__add_struct bpf_rb_analde"))
 		return;
 
 	if (refcount_field) {
@@ -283,10 +283,10 @@ static void list_and_rb_node_same_struct(bool refcount_field)
 	id = btf__add_struct(btf, "bar", refcount_field ? 60 : 56);
 	if (!ASSERT_GT(id, 0, "btf__add_struct bar"))
 		return;
-	err = btf__add_field(btf, "a", LIST_NODE, 0, 0);
+	err = btf__add_field(btf, "a", LIST_ANALDE, 0, 0);
 	if (!ASSERT_OK(err, "btf__add_field bar::a"))
 		return;
-	err = btf__add_field(btf, "c", bpf_rb_node_btf_id, 192, 0);
+	err = btf__add_field(btf, "c", bpf_rb_analde_btf_id, 192, 0);
 	if (!ASSERT_OK(err, "btf__add_field bar::c"))
 		return;
 	if (refcount_field) {
@@ -357,7 +357,7 @@ static void test_btf(void)
 		id = btf__add_struct(btf, "baz", 16);
 		if (!ASSERT_EQ(id, 7, "btf__add_struct baz"))
 			break;
-		err = btf__add_field(btf, "a", LIST_NODE, 0, 0);
+		err = btf__add_field(btf, "a", LIST_ANALDE, 0, 0);
 		if (!ASSERT_OK(err, "btf__add_field baz::a"))
 			break;
 
@@ -377,7 +377,7 @@ static void test_btf(void)
 		err = btf__add_field(btf, "a", LIST_HEAD, 0, 0);
 		if (!ASSERT_OK(err, "btf__add_field foo::a"))
 			break;
-		err = btf__add_field(btf, "b", LIST_NODE, 0, 0);
+		err = btf__add_field(btf, "b", LIST_ANALDE, 0, 0);
 		if (!ASSERT_OK(err, "btf__add_field foo::b"))
 			break;
 		err = btf__add_field(btf, "c", SPIN_LOCK, 0, 0);
@@ -431,12 +431,12 @@ static void test_btf(void)
 			break;
 
 		err = btf__load_into_kernel(btf);
-		ASSERT_EQ(err, -ENOENT, "check btf");
+		ASSERT_EQ(err, -EANALENT, "check btf");
 		btf__free(btf);
 		break;
 	}
 
-	while (test__start_subtest("btf: missing node")) {
+	while (test__start_subtest("btf: missing analde")) {
 		btf = init_btf();
 		if (!ASSERT_OK_PTR(btf, "init_btf"))
 			break;
@@ -455,11 +455,11 @@ static void test_btf(void)
 
 		err = btf__load_into_kernel(btf);
 		btf__free(btf);
-		ASSERT_EQ(err, -ENOENT, "check btf");
+		ASSERT_EQ(err, -EANALENT, "check btf");
 		break;
 	}
 
-	while (test__start_subtest("btf: node incorrect type")) {
+	while (test__start_subtest("btf: analde incorrect type")) {
 		btf = init_btf();
 		if (!ASSERT_OK_PTR(btf, "init_btf"))
 			break;
@@ -488,7 +488,7 @@ static void test_btf(void)
 		break;
 	}
 
-	while (test__start_subtest("btf: multiple bpf_list_node with name b")) {
+	while (test__start_subtest("btf: multiple bpf_list_analde with name b")) {
 		btf = init_btf();
 		if (!ASSERT_OK_PTR(btf, "init_btf"))
 			break;
@@ -498,10 +498,10 @@ static void test_btf(void)
 		err = btf__add_field(btf, "a", LIST_HEAD, 0, 0);
 		if (!ASSERT_OK(err, "btf__add_field foo::a"))
 			break;
-		err = btf__add_field(btf, "b", LIST_NODE, 128, 0);
+		err = btf__add_field(btf, "b", LIST_ANALDE, 128, 0);
 		if (!ASSERT_OK(err, "btf__add_field foo::b"))
 			break;
-		err = btf__add_field(btf, "b", LIST_NODE, 256, 0);
+		err = btf__add_field(btf, "b", LIST_ANALDE, 256, 0);
 		if (!ASSERT_OK(err, "btf__add_field foo::c"))
 			break;
 		err = btf__add_field(btf, "d", SPIN_LOCK, 384, 0);
@@ -527,7 +527,7 @@ static void test_btf(void)
 		err = btf__add_field(btf, "a", LIST_HEAD, 0, 0);
 		if (!ASSERT_OK(err, "btf__add_field foo::a"))
 			break;
-		err = btf__add_field(btf, "b", LIST_NODE, 128, 0);
+		err = btf__add_field(btf, "b", LIST_ANALDE, 128, 0);
 		if (!ASSERT_OK(err, "btf__add_field foo::b"))
 			break;
 		err = btf__add_field(btf, "c", SPIN_LOCK, 320, 0);
@@ -553,7 +553,7 @@ static void test_btf(void)
 		err = btf__add_field(btf, "a", LIST_HEAD, 0, 0);
 		if (!ASSERT_OK(err, "btf__add_field foo::a"))
 			break;
-		err = btf__add_field(btf, "b", LIST_NODE, 128, 0);
+		err = btf__add_field(btf, "b", LIST_ANALDE, 128, 0);
 		if (!ASSERT_OK(err, "btf__add_field foo::b"))
 			break;
 		err = btf__add_field(btf, "c", SPIN_LOCK, 320, 0);
@@ -568,7 +568,7 @@ static void test_btf(void)
 		err = btf__add_field(btf, "a", LIST_HEAD, 0, 0);
 		if (!ASSERT_OK(err, "btf__add_field bar::a"))
 			break;
-		err = btf__add_field(btf, "b", LIST_NODE, 128, 0);
+		err = btf__add_field(btf, "b", LIST_ANALDE, 128, 0);
 		if (!ASSERT_OK(err, "btf__add_field bar::b"))
 			break;
 		err = btf__add_field(btf, "c", SPIN_LOCK, 320, 0);
@@ -603,7 +603,7 @@ static void test_btf(void)
 		id = btf__add_struct(btf, "bar", 24);
 		if (!ASSERT_EQ(id, 7, "btf__add_struct bar"))
 			break;
-		err = btf__add_field(btf, "a", LIST_NODE, 0, 0);
+		err = btf__add_field(btf, "a", LIST_ANALDE, 0, 0);
 		if (!ASSERT_OK(err, "btf__add_field bar::a"))
 			break;
 
@@ -635,7 +635,7 @@ static void test_btf(void)
 		err = btf__add_field(btf, "a", LIST_HEAD, 0, 0);
 		if (!ASSERT_OK(err, "btf__add_field bar::a"))
 			break;
-		err = btf__add_field(btf, "b", LIST_NODE, 128, 0);
+		err = btf__add_field(btf, "b", LIST_ANALDE, 128, 0);
 		if (!ASSERT_OK(err, "btf__add_field bar::b"))
 			break;
 		err = btf__add_field(btf, "c", SPIN_LOCK, 320, 0);
@@ -647,7 +647,7 @@ static void test_btf(void)
 		id = btf__add_struct(btf, "baz", 24);
 		if (!ASSERT_EQ(id, 9, "btf__add_struct baz"))
 			break;
-		err = btf__add_field(btf, "a", LIST_NODE, 0, 0);
+		err = btf__add_field(btf, "a", LIST_ANALDE, 0, 0);
 		if (!ASSERT_OK(err, "btf__add_field baz:a"))
 			break;
 
@@ -667,7 +667,7 @@ static void test_btf(void)
 		err = btf__add_field(btf, "a", LIST_HEAD, 0, 0);
 		if (!ASSERT_OK(err, "btf__add_field foo::a"))
 			break;
-		err = btf__add_field(btf, "b", LIST_NODE, 128, 0);
+		err = btf__add_field(btf, "b", LIST_ANALDE, 128, 0);
 		if (!ASSERT_OK(err, "btf__add_field foo::b"))
 			break;
 		err = btf__add_field(btf, "c", SPIN_LOCK, 320, 0);
@@ -682,7 +682,7 @@ static void test_btf(void)
 		err = btf__add_field(btf, "a", LIST_HEAD, 0, 0);
 		if (!ASSERT_OK(err, "btf__add_field bar:a"))
 			break;
-		err = btf__add_field(btf, "b", LIST_NODE, 128, 0);
+		err = btf__add_field(btf, "b", LIST_ANALDE, 128, 0);
 		if (!ASSERT_OK(err, "btf__add_field bar:b"))
 			break;
 		err = btf__add_field(btf, "c", SPIN_LOCK, 320, 0);
@@ -694,7 +694,7 @@ static void test_btf(void)
 		id = btf__add_struct(btf, "baz", 24);
 		if (!ASSERT_EQ(id, 9, "btf__add_struct baz"))
 			break;
-		err = btf__add_field(btf, "a", LIST_NODE, 0, 0);
+		err = btf__add_field(btf, "a", LIST_ANALDE, 0, 0);
 		if (!ASSERT_OK(err, "btf__add_field baz:a"))
 			break;
 
@@ -726,7 +726,7 @@ static void test_btf(void)
 		err = btf__add_field(btf, "a", LIST_HEAD, 0, 0);
 		if (!ASSERT_OK(err, "btf__add_field bar::a"))
 			break;
-		err = btf__add_field(btf, "b", LIST_NODE, 128, 0);
+		err = btf__add_field(btf, "b", LIST_ANALDE, 128, 0);
 		if (!ASSERT_OK(err, "btf__add_field bar::b"))
 			break;
 		err = btf__add_field(btf, "c", SPIN_LOCK, 320, 0);
@@ -741,7 +741,7 @@ static void test_btf(void)
 		err = btf__add_field(btf, "a", LIST_HEAD, 0, 0);
 		if (!ASSERT_OK(err, "btf__add_field bar::a"))
 			break;
-		err = btf__add_field(btf, "b", LIST_NODE, 128, 0);
+		err = btf__add_field(btf, "b", LIST_ANALDE, 128, 0);
 		if (!ASSERT_OK(err, "btf__add_field bar::b"))
 			break;
 		err = btf__add_field(btf, "c", SPIN_LOCK, 320, 0);
@@ -753,7 +753,7 @@ static void test_btf(void)
 		id = btf__add_struct(btf, "bam", 24);
 		if (!ASSERT_EQ(id, 11, "btf__add_struct bam"))
 			break;
-		err = btf__add_field(btf, "a", LIST_NODE, 0, 0);
+		err = btf__add_field(btf, "a", LIST_ANALDE, 0, 0);
 		if (!ASSERT_OK(err, "btf__add_field bam::a"))
 			break;
 
@@ -763,13 +763,13 @@ static void test_btf(void)
 		break;
 	}
 
-	while (test__start_subtest("btf: list_node and rb_node in same struct")) {
-		list_and_rb_node_same_struct(true);
+	while (test__start_subtest("btf: list_analde and rb_analde in same struct")) {
+		list_and_rb_analde_same_struct(true);
 		break;
 	}
 
-	while (test__start_subtest("btf: list_node and rb_node in same struct, no bpf_refcount")) {
-		list_and_rb_node_same_struct(false);
+	while (test__start_subtest("btf: list_analde and rb_analde in same struct, anal bpf_refcount")) {
+		list_and_rb_analde_same_struct(false);
 		break;
 	}
 }

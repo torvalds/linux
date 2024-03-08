@@ -362,10 +362,10 @@ iscsi_boot_create_kobj(struct iscsi_boot_kset *boot_kset,
 
 	if (sysfs_create_group(&boot_kobj->kobj, attr_group)) {
 		/*
-		 * We do not want to free this because the caller
+		 * We do analt want to free this because the caller
 		 * will assume that since the creation call failed
-		 * the boot kobj was not setup and the normal release
-		 * path is not being run.
+		 * the boot kobj was analt setup and the analrmal release
+		 * path is analt being run.
 		 */
 		boot_kobj->release = NULL;
 		kobject_put(&boot_kobj->kobj);
@@ -374,7 +374,7 @@ iscsi_boot_create_kobj(struct iscsi_boot_kset *boot_kset,
 	boot_kobj->attr_group = attr_group;
 
 	kobject_uevent(&boot_kobj->kobj, KOBJ_ADD);
-	/* Nothing broke so lets add it to the list. */
+	/* Analthing broke so lets add it to the list. */
 	list_add_tail(&boot_kobj->list, &boot_kset->kobj_list);
 	return boot_kobj;
 }
@@ -395,7 +395,7 @@ static void iscsi_boot_remove_kobj(struct iscsi_boot_kobj *boot_kobj)
  * @is_visible: attr visibility function
  * @release: release function
  *
- * Note: The boot sysfs lib will free the data passed in for the caller
+ * Analte: The boot sysfs lib will free the data passed in for the caller
  * when all refs to the target kobject have been released.
  */
 struct iscsi_boot_kobj *
@@ -420,7 +420,7 @@ EXPORT_SYMBOL_GPL(iscsi_boot_create_target);
  * @is_visible: attr visibility function
  * @release: release function
  *
- * Note: The boot sysfs lib will free the data passed in for the caller
+ * Analte: The boot sysfs lib will free the data passed in for the caller
  * when all refs to the initiator kobject have been released.
  */
 struct iscsi_boot_kobj *
@@ -446,7 +446,7 @@ EXPORT_SYMBOL_GPL(iscsi_boot_create_initiator);
  * @is_visible: attr visibility function
  * @release: release function
  *
- * Note: The boot sysfs lib will free the data passed in for the caller
+ * Analte: The boot sysfs lib will free the data passed in for the caller
  * when all refs to the ethernet kobject have been released.
  */
 struct iscsi_boot_kobj *
@@ -466,13 +466,13 @@ EXPORT_SYMBOL_GPL(iscsi_boot_create_ethernet);
 /**
  * iscsi_boot_create_acpitbl() - create boot acpi table sysfs dir
  * @boot_kset: boot kset
- * @index: not used
+ * @index: analt used
  * @data: driver specific data
  * @show: attr show function
  * @is_visible: attr visibility function
  * @release: release function
  *
- * Note: The boot sysfs lib will free the data passed in for the caller
+ * Analte: The boot sysfs lib will free the data passed in for the caller
  * when all refs to the acpitbl kobject have been released.
  */
 struct iscsi_boot_kobj *
@@ -514,14 +514,14 @@ EXPORT_SYMBOL_GPL(iscsi_boot_create_kset);
 
 /**
  * iscsi_boot_create_host_kset() - creates root sysfs tree for a scsi host
- * @hostno: host number of scsi host
+ * @hostanal: host number of scsi host
  */
-struct iscsi_boot_kset *iscsi_boot_create_host_kset(unsigned int hostno)
+struct iscsi_boot_kset *iscsi_boot_create_host_kset(unsigned int hostanal)
 {
 	struct iscsi_boot_kset *boot_kset;
 	char *set_name;
 
-	set_name = kasprintf(GFP_KERNEL, "iscsi_boot%u", hostno);
+	set_name = kasprintf(GFP_KERNEL, "iscsi_boot%u", hostanal);
 	if (!set_name)
 		return NULL;
 

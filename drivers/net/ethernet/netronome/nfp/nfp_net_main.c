@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2015-2018 Netronome Systems, Inc. */
+/* Copyright (C) 2015-2018 Netroanalme Systems, Inc. */
 
 /*
  * nfp_net_main.c
- * Netronome network device driver: Main entry point
- * Authors: Jakub Kicinski <jakub.kicinski@netronome.com>
- *          Alejandro Lucero <alejandro.lucero@netronome.com>
- *          Jason McMullan <jason.mcmullan@netronome.com>
- *          Rolf Neugebauer <rolf.neugebauer@netronome.com>
+ * Netroanalme network device driver: Main entry point
+ * Authors: Jakub Kicinski <jakub.kicinski@netroanalme.com>
+ *          Alejandro Lucero <alejandro.lucero@netroanalme.com>
+ *          Jason McMullan <jason.mcmullan@netroanalme.com>
+ *          Rolf Neugebauer <rolf.neugebauer@netroanalme.com>
  */
 
 #include <linux/etherdevice.h>
@@ -201,7 +201,7 @@ nfp_net_pf_alloc_vnics(struct nfp_pf *pf, void __iomem *ctrl_bar,
 	}
 
 	if (list_empty(&pf->vnics))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 
@@ -228,11 +228,11 @@ static int nfp_net_pf_alloc_irqs(struct nfp_pf *pf)
 	/* Get MSI-X vectors */
 	wanted_irqs = 0;
 	list_for_each_entry(nn, &pf->vnics, vnic_list)
-		wanted_irqs += NFP_NET_NON_Q_VECTORS + nn->dp.num_r_vecs;
+		wanted_irqs += NFP_NET_ANALN_Q_VECTORS + nn->dp.num_r_vecs;
 	pf->irq_entries = kcalloc(wanted_irqs, sizeof(*pf->irq_entries),
 				  GFP_KERNEL);
 	if (!pf->irq_entries)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	num_irqs = nfp_net_irqs_alloc(pf->pdev, pf->irq_entries,
 				      NFP_NET_MIN_VNIC_IRQS * pf->num_vnics,
@@ -240,7 +240,7 @@ static int nfp_net_pf_alloc_irqs(struct nfp_pf *pf)
 	if (!num_irqs) {
 		nfp_warn(pf->cpp, "Unable to allocate MSI-X vectors\n");
 		kfree(pf->irq_entries);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Distribute IRQs to vNICs */
@@ -249,7 +249,7 @@ static int nfp_net_pf_alloc_irqs(struct nfp_pf *pf)
 	list_for_each_entry(nn, &pf->vnics, vnic_list) {
 		unsigned int n;
 
-		n = min(NFP_NET_NON_Q_VECTORS + nn->dp.num_r_vecs,
+		n = min(NFP_NET_ANALN_Q_VECTORS + nn->dp.num_r_vecs,
 			DIV_ROUND_UP(irqs_left, vnics_left));
 		nfp_net_irqs_assign(nn, &pf->irq_entries[num_irqs - irqs_left],
 				    n);
@@ -455,7 +455,7 @@ static int nfp_net_pci_map_mem(struct nfp_pf *pf)
 						  "net.macstats", min_size,
 						  &pf->mac_stats_bar);
 		if (IS_ERR(pf->mac_stats_mem)) {
-			if (PTR_ERR(pf->mac_stats_mem) != -ENOENT) {
+			if (PTR_ERR(pf->mac_stats_mem) != -EANALENT) {
 				err = PTR_ERR(pf->mac_stats_mem);
 				goto err_unmap_ctrl;
 			}
@@ -467,7 +467,7 @@ static int nfp_net_pci_map_mem(struct nfp_pf *pf)
 					  NFP_NET_CFG_BAR_SZ * pf->limit_vfs,
 					  &pf->vf_cfg_bar);
 	if (IS_ERR(pf->vf_cfg_mem)) {
-		if (PTR_ERR(pf->vf_cfg_mem) != -ENOENT) {
+		if (PTR_ERR(pf->vf_cfg_mem) != -EANALENT) {
 			err = PTR_ERR(pf->vf_cfg_mem);
 			goto err_unmap_mac_stats;
 		}
@@ -479,7 +479,7 @@ static int nfp_net_pci_map_mem(struct nfp_pf *pf)
 					  "_pf%d_net_vf_cfg2",
 					  min_size, &pf->vfcfg_tbl2_area);
 	if (IS_ERR(pf->vfcfg_tbl2)) {
-		if (PTR_ERR(pf->vfcfg_tbl2) != -ENOENT) {
+		if (PTR_ERR(pf->vfcfg_tbl2) != -EANALENT) {
 			err = PTR_ERR(pf->vfcfg_tbl2);
 			goto err_unmap_vf_cfg;
 		}
@@ -514,7 +514,7 @@ err_unmap_ctrl:
 
 static const unsigned int lr_to_speed[] = {
 	[NFP_NET_CFG_STS_LINK_RATE_UNSUPPORTED]	= 0,
-	[NFP_NET_CFG_STS_LINK_RATE_UNKNOWN]	= SPEED_UNKNOWN,
+	[NFP_NET_CFG_STS_LINK_RATE_UNKANALWN]	= SPEED_UNKANALWN,
 	[NFP_NET_CFG_STS_LINK_RATE_1G]		= SPEED_1000,
 	[NFP_NET_CFG_STS_LINK_RATE_10G]		= SPEED_10000,
 	[NFP_NET_CFG_STS_LINK_RATE_25G]		= SPEED_25000,
@@ -528,7 +528,7 @@ unsigned int nfp_net_lr2speed(unsigned int linkrate)
 	if (linkrate < ARRAY_SIZE(lr_to_speed))
 		return lr_to_speed[linkrate];
 
-	return SPEED_UNKNOWN;
+	return SPEED_UNKANALWN;
 }
 
 unsigned int nfp_net_speed2lr(unsigned int speed)
@@ -540,10 +540,10 @@ unsigned int nfp_net_speed2lr(unsigned int speed)
 			return i;
 	}
 
-	return NFP_NET_CFG_STS_LINK_RATE_UNKNOWN;
+	return NFP_NET_CFG_STS_LINK_RATE_UNKANALWN;
 }
 
-static void nfp_net_notify_port_speed(struct nfp_port *port)
+static void nfp_net_analtify_port_speed(struct nfp_port *port)
 {
 	struct net_device *netdev = port->netdev;
 	struct nfp_net *nn;
@@ -556,7 +556,7 @@ static void nfp_net_notify_port_speed(struct nfp_port *port)
 	sts = nn_readw(nn, NFP_NET_CFG_STS);
 
 	if (!(sts & NFP_NET_CFG_STS_LINK)) {
-		nn_writew(nn, NFP_NET_CFG_STS_NSP_LINK_RATE, NFP_NET_CFG_STS_LINK_RATE_UNKNOWN);
+		nn_writew(nn, NFP_NET_CFG_STS_NSP_LINK_RATE, NFP_NET_CFG_STS_LINK_RATE_UNKANALWN);
 		return;
 	}
 
@@ -574,7 +574,7 @@ nfp_net_eth_port_update(struct nfp_cpp *cpp, struct nfp_port *port,
 	eth_port = nfp_net_find_port(eth_table, port->eth_id);
 	if (!eth_port) {
 		set_bit(NFP_PORT_CHANGED, &port->flags);
-		nfp_warn(cpp, "Warning: port #%d not present after reconfig\n",
+		nfp_warn(cpp, "Warning: port #%d analt present after reconfig\n",
 			 port->eth_id);
 		return -EIO;
 	}
@@ -584,7 +584,7 @@ nfp_net_eth_port_update(struct nfp_cpp *cpp, struct nfp_port *port,
 	}
 
 	memcpy(port->eth_port, eth_port, sizeof(*eth_port));
-	nfp_net_notify_port_speed(port);
+	nfp_net_analtify_port_speed(port);
 
 	return 0;
 }
@@ -698,7 +698,7 @@ int nfp_net_pci_probe(struct nfp_pf *pf)
 	INIT_WORK(&pf->port_refresh_work, nfp_net_refresh_vnics);
 
 	if (!pf->rtbl) {
-		nfp_err(pf->cpp, "No %s, giving up.\n",
+		nfp_err(pf->cpp, "Anal %s, giving up.\n",
 			pf->fw_loaded ? "symbol table" : "firmware found");
 		return -EINVAL;
 	}
@@ -721,9 +721,9 @@ int nfp_net_pci_probe(struct nfp_pf *pf)
 	nfp_net_get_fw_version(&fw_ver, ctrl_bar);
 	if (fw_ver.extend & NFP_NET_CFG_VERSION_RESERVED_MASK ||
 	    fw_ver.class != NFP_NET_CFG_VERSION_CLASS_GENERIC) {
-		nfp_err(pf->cpp, "Unknown Firmware ABI %d.%d.%d.%d\n",
+		nfp_err(pf->cpp, "Unkanalwn Firmware ABI %d.%d.%d.%d\n",
 			fw_ver.extend, fw_ver.class,
-			fw_ver.major, fw_ver.minor);
+			fw_ver.major, fw_ver.mianalr);
 		err = -EINVAL;
 		goto err_unmap;
 	}
@@ -731,7 +731,7 @@ int nfp_net_pci_probe(struct nfp_pf *pf)
 	/* Determine stride */
 	if (nfp_net_fw_ver_eq(&fw_ver, 0, 0, 0, 1)) {
 		stride = 2;
-		nfp_warn(pf->cpp, "OBSOLETE Firmware detected - VF isolation not available\n");
+		nfp_warn(pf->cpp, "OBSOLETE Firmware detected - VF isolation analt available\n");
 	} else {
 		switch (fw_ver.major) {
 		case 1 ... 5:
@@ -740,7 +740,7 @@ int nfp_net_pci_probe(struct nfp_pf *pf)
 		default:
 			nfp_err(pf->cpp, "Unsupported Firmware ABI %d.%d.%d.%d\n",
 				fw_ver.extend, fw_ver.class,
-				fw_ver.major, fw_ver.minor);
+				fw_ver.major, fw_ver.mianalr);
 			err = -EINVAL;
 			goto err_unmap;
 		}

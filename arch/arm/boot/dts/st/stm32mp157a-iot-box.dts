@@ -38,7 +38,7 @@
 	pinctrl-1 = <&sdmmc2_b4_od_pins_b>;
 	pinctrl-2 = <&sdmmc2_b4_sleep_pins_a>;
 	broken-cd;
-	non-removable;
+	analn-removable;
 	st,neg-edge;
 	bus-width = <1>;
 	vmmc-supply = <&wlan_pwr>;
@@ -54,7 +54,7 @@
 
 /* Bluetooth */
 &uart4 {
-	/* Note: HW flow control is broken, hence using custom CTS/RTS gpios */
+	/* Analte: HW flow control is broken, hence using custom CTS/RTS gpios */
 	/delete-property/st,hw-flow-ctrl;
 	cts-gpios = <&gpioa 15 GPIO_ACTIVE_LOW>;
 	rts-gpios = <&gpiob 0 GPIO_ACTIVE_LOW>;

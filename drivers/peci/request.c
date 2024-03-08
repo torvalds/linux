@@ -91,13 +91,13 @@ static u8 peci_request_data_cc(struct peci_request *req)
 }
 
 /**
- * peci_request_status() - return -errno based on PECI completion code
+ * peci_request_status() - return -erranal based on PECI completion code
  * @req: the PECI request that contains response data with completion code
  *
  * It can't be used for Ping(), GetDIB() and GetTemp() - for those commands we
  * don't expect completion code in the response.
  *
- * Return: -errno
+ * Return: -erranal
  */
 int peci_request_status(struct peci_request *req)
 {
@@ -124,7 +124,7 @@ int peci_request_status(struct peci_request *req)
 		return -EIO;
 	}
 
-	WARN_ONCE(1, "Unknown PECI completion code: %#02x\n", cc);
+	WARN_ONCE(1, "Unkanalwn PECI completion code: %#02x\n", cc);
 
 	return -EIO;
 }
@@ -199,7 +199,7 @@ struct peci_request *peci_request_alloc(struct peci_device *device, u8 tx_len, u
 	if (WARN_ON_ONCE(tx_len > PECI_REQUEST_MAX_BUF_SIZE || rx_len > PECI_REQUEST_MAX_BUF_SIZE))
 		return NULL;
 	/*
-	 * PECI controllers that we are using now don't support DMA, this
+	 * PECI controllers that we are using analw don't support DMA, this
 	 * should be converted to DMA API once support for controllers that do
 	 * allow it is added to avoid an extra copy.
 	 */
@@ -232,7 +232,7 @@ struct peci_request *peci_xfer_get_dib(struct peci_device *device)
 
 	req = peci_request_alloc(device, PECI_GET_DIB_WR_LEN, PECI_GET_DIB_RD_LEN);
 	if (!req)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	req->tx.buf[0] = PECI_GET_DIB_CMD;
 
@@ -253,7 +253,7 @@ struct peci_request *peci_xfer_get_temp(struct peci_device *device)
 
 	req = peci_request_alloc(device, PECI_GET_TEMP_WR_LEN, PECI_GET_TEMP_RD_LEN);
 	if (!req)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	req->tx.buf[0] = PECI_GET_TEMP_CMD;
 
@@ -275,7 +275,7 @@ __pkg_cfg_read(struct peci_device *device, u8 index, u16 param, u8 len)
 
 	req = peci_request_alloc(device, PECI_RDPKGCFG_WR_LEN, PECI_RDPKGCFG_RD_LEN_BASE + len);
 	if (!req)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	req->tx.buf[0] = PECI_RDPKGCFG_CMD;
 	req->tx.buf[1] = 0;
@@ -306,7 +306,7 @@ __pci_cfg_local_read(struct peci_device *device, u8 bus, u8 dev, u8 func, u16 re
 	req = peci_request_alloc(device, PECI_RDPCICFGLOCAL_WR_LEN,
 				 PECI_RDPCICFGLOCAL_RD_LEN_BASE + len);
 	if (!req)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	pci_addr = __get_pci_addr(bus, dev, func, reg);
 
@@ -334,7 +334,7 @@ __ep_pci_cfg_read(struct peci_device *device, u8 msg_type, u8 seg,
 	req = peci_request_alloc(device, PECI_RDENDPTCFG_PCI_WR_LEN,
 				 PECI_RDENDPTCFG_RD_LEN_BASE + len);
 	if (!req)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	pci_addr = __get_pci_addr(bus, dev, func, reg);
 
@@ -366,7 +366,7 @@ __ep_mmio_read(struct peci_device *device, u8 bar, u8 addr_type, u8 seg,
 
 	req = peci_request_alloc(device, tx_len, PECI_RDENDPTCFG_RD_LEN_BASE + len);
 	if (!req)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	req->tx.buf[0] = PECI_RDENDPTCFG_CMD;
 	req->tx.buf[1] = 0;

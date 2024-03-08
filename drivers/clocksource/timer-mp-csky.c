@@ -97,7 +97,7 @@ static int csky_mptimer_dying_cpu(unsigned int cpu)
 /*
  * clock source
  */
-static u64 notrace sched_clock_read(void)
+static u64 analtrace sched_clock_read(void)
 {
 	return (u64)mfcr(PTIM_CCVR);
 }
@@ -115,7 +115,7 @@ struct clocksource csky_clocksource = {
 	.read	= clksrc_read,
 };
 
-static int __init csky_mptimer_init(struct device_node *np)
+static int __init csky_mptimer_init(struct device_analde *np)
 {
 	int ret, cpu, cpu_rollback;
 	struct timer_of *to = NULL;

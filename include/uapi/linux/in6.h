@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 /*
  *	Types and definitions for AF_INET6 
  *	Linux INET6 implementation 
@@ -89,7 +89,7 @@ struct in6_flowlabel_req {
 #define IPV6_FL_F_REFLECT	4
 #define IPV6_FL_F_REMOTE	8
 
-#define IPV6_FL_S_NONE		0
+#define IPV6_FL_S_ANALNE		0
 #define IPV6_FL_S_EXCL		1
 #define IPV6_FL_S_PROCESS	2
 #define IPV6_FL_S_USER		3
@@ -100,7 +100,7 @@ struct in6_flowlabel_req {
  *	Bitmask constant declarations to help applications select out the 
  *	flow label and priority fields.
  *
- *	Note that this are in host byte order while the flowinfo field of
+ *	Analte that this are in host byte order while the flowinfo field of
  *	sockaddr_in6 is in network byte order.
  */
 
@@ -133,7 +133,7 @@ struct in6_flowlabel_req {
 #define IPPROTO_ROUTING		43	/* IPv6 routing header		*/
 #define IPPROTO_FRAGMENT	44	/* IPv6 fragmentation header	*/
 #define IPPROTO_ICMPV6		58	/* ICMPv6			*/
-#define IPPROTO_NONE		59	/* IPv6 no next header		*/
+#define IPPROTO_ANALNE		59	/* IPv6 anal next header		*/
 #define IPPROTO_DSTOPTS		60	/* IPv6 destination options	*/
 #define IPPROTO_MH		135	/* IPv6 mobility header		*/
 #endif /* __UAPI_DEF_IPPROTO_V6 */
@@ -221,7 +221,7 @@ struct in6_flowlabel_req {
 /*
  * Advanced API (RFC3542) (1)
  *
- * Note: IPV6_RECVRTHDRDSTOPTS does not exist. see net/ipv6/datagram.c.
+ * Analte: IPV6_RECVRTHDRDSTOPTS does analt exist. see net/ipv6/datagram.c.
  */
 
 #define IPV6_RECVPKTINFO	49
@@ -238,7 +238,7 @@ struct in6_flowlabel_req {
 #define IPV6_RECVPATHMTU	60
 #define IPV6_PATHMTU		61
 #define IPV6_DONTFRAG		62
-#if 0	/* not yet */
+#if 0	/* analt yet */
 #define IPV6_USE_MIN_MTU	63
 #endif
 
@@ -279,7 +279,7 @@ struct in6_flowlabel_req {
 #define IPV6_PREFER_SRC_COA		0x0004
 #define IPV6_PREFER_SRC_HOME		0x0400
 #define IPV6_PREFER_SRC_CGA		0x0008
-#define IPV6_PREFER_SRC_NONCGA		0x0800
+#define IPV6_PREFER_SRC_ANALNCGA		0x0800
 
 /* RFC5082: Generalized Ttl Security Mechanism */
 #define IPV6_MINHOPCOUNT		73

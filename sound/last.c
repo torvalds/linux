@@ -22,7 +22,7 @@ static int __init alsa_sound_last_init(void)
 		}
 	}
 	if (ok == 0)
-		printk(KERN_INFO "  No soundcards found.\n");
+		printk(KERN_INFO "  Anal soundcards found.\n");
 	return 0;
 }
 

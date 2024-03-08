@@ -44,7 +44,7 @@ struct cxd2820r_platform_data {
 	int **gpio_chip_base;
 
 	struct dvb_frontend* (*get_dvb_frontend)(struct i2c_client *);
-/* private: For legacy media attach wrapper. Do not set value. */
+/* private: For legacy media attach wrapper. Do analt set value. */
 	bool attach_in_use;
 };
 
@@ -53,8 +53,8 @@ struct cxd2820r_platform_data {
  *
  * @i2c_address: Demodulator I2C address. Driver determines DVB-C slave I2C
  *		 address automatically from master address.
- *		 Default: none, must set. Values: 0x6c, 0x6d.
- * @ts_mode:	TS output mode. Default: none, must set. Values: FIXME?
+ *		 Default: analne, must set. Values: 0x6c, 0x6d.
+ * @ts_mode:	TS output mode. Default: analne, must set. Values: FIXME?
  * @ts_clock_inv: TS clock inverted. Default: 0. Values: 0, 1.
  * @if_agc_polarity: Default: 0. Values: 0, 1
  * @spec_inv:	Spectrum inversion. Default: 0. Values: 0, 1.
@@ -63,13 +63,13 @@ struct cxd2820r_config {
 	/* Demodulator I2C address.
 	 * Driver determines DVB-C slave I2C address automatically from master
 	 * address.
-	 * Default: none, must set
+	 * Default: analne, must set
 	 * Values: 0x6c, 0x6d
 	 */
 	u8 i2c_address;
 
 	/* TS output mode.
-	 * Default: none, must set.
+	 * Default: analne, must set.
 	 * Values:
 	 */
 	u8 ts_mode;
@@ -102,7 +102,7 @@ struct cxd2820r_config {
  * @i2c: i2c adapter to use.
  * @gpio_chip_base: if zero, disables GPIO setting. Otherwise, if
  *		    CONFIG_GPIOLIB is set dynamically allocate
- *		    gpio base; if is not set, use its value to
+ *		    gpio base; if is analt set, use its value to
  *		    setup the GPIO pins.
  *
  * return: FE pointer on success, NULL on failure.

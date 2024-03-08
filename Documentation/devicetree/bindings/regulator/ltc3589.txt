@@ -1,19 +1,19 @@
-Linear Technology LTC3589, LTC3589-1, and LTC3589-2 8-output regulators
+Linear Techanallogy LTC3589, LTC3589-1, and LTC3589-2 8-output regulators
 
 Required properties:
 - compatible: "lltc,ltc3589", "lltc,ltc3589-1" or "lltc,ltc3589-2"
 - reg: I2C slave address
 
-Required child node:
-- regulators: Contains eight regulator child nodes sw1, sw2, sw3, bb-out,
+Required child analde:
+- regulators: Contains eight regulator child analdes sw1, sw2, sw3, bb-out,
   ldo1, ldo2, ldo3, and ldo4, specifying the initialization data as
   documented in Documentation/devicetree/bindings/regulator/regulator.txt.
 
 Each regulator is defined using the standard binding for regulators. The
-nodes for sw1, sw2, sw3, bb-out, ldo1, and ldo2 additionally need to specify
+analdes for sw1, sw2, sw3, bb-out, ldo1, and ldo2 additionally need to specify
 the resistor values of their external feedback voltage dividers:
 
-Required properties (not on ldo3, ldo4):
+Required properties (analt on ldo3, ldo4):
 - lltc,fb-voltage-divider: An array of two integers containing the resistor
   values R1 and R2 of the feedback voltage divider in ohms.
 
@@ -23,7 +23,7 @@ Regulators sw1, sw2, sw3, and ldo2 can regulate the feedback reference from
 have a fixed 0.8 V reference and thus output 0.8 * (1 + R1/R2) V. The ldo3
 regulator is fixed to 1.8 V on LTC3589 and to 2.8 V on LTC3589-1,2. The ldo4
 regulator can output between 1.8 V and 3.3 V on LTC3589 and between 1.2 V
-and 3.2 V on LTC3589-1,2 in four steps. The ldo1 standby regulator can not
+and 3.2 V on LTC3589-1,2 in four steps. The ldo1 standby regulator can analt
 be disabled and thus should have the regulator-always-on property set.
 
 Example:

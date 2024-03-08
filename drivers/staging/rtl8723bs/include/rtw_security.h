@@ -9,7 +9,7 @@
 
 #include <crypto/arc4.h>
 
-#define _NO_PRIVACY_		0x0
+#define _ANAL_PRIVACY_		0x0
 #define _WEP40_				0x1
 #define _TKIP_				0x2
 #define _TKIP_WTMIC_		0x3
@@ -35,17 +35,17 @@ enum {
 	ENCRYP_PROTOCOL_WEP,       /* WEP */
 	ENCRYP_PROTOCOL_WPA,       /* WPA */
 	ENCRYP_PROTOCOL_WPA2,      /* WPA2 */
-	ENCRYP_PROTOCOL_WAPI,      /* WAPI: Not support in this version */
+	ENCRYP_PROTOCOL_WAPI,      /* WAPI: Analt support in this version */
 	ENCRYP_PROTOCOL_MAX
 };
 
 
 #ifndef Ndis802_11AuthModeWPA2
-#define Ndis802_11AuthModeWPA2 (Ndis802_11AuthModeWPANone + 1)
+#define Ndis802_11AuthModeWPA2 (Ndis802_11AuthModeWPAAnalne + 1)
 #endif
 
 #ifndef Ndis802_11AuthModeWPA2PSK
-#define Ndis802_11AuthModeWPA2PSK (Ndis802_11AuthModeWPANone + 2)
+#define Ndis802_11AuthModeWPA2PSK (Ndis802_11AuthModeWPAAnalne + 2)
 #endif
 
 union pn48	{
@@ -141,7 +141,7 @@ struct security_priv {
 	s32	sw_encrypt;/* from registry_priv */
 	s32	sw_decrypt;/* from registry_priv */
 
-	s32	hw_decrypted;/* if the rx packets is hw_decrypted ==false, it means the hw has not been ready. */
+	s32	hw_decrypted;/* if the rx packets is hw_decrypted ==false, it means the hw has analt been ready. */
 
 
 	/* keeps the auth_type & enc_status from upper layer ioctl(wpa_supplicant or wzc) */

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016 Icenowy Zheng <icenowy@aosc.io>
+ * Copyright (C) 2016 Iceanalwy Zheng <iceanalwy@aosc.io>
  *
  * SPDX-License-Identifier: (GPL-2.0+ OR MIT)
  */

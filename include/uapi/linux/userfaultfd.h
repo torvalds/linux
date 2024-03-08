@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  *  include/linux/userfaultfd.h
  *
@@ -18,14 +18,14 @@
 
 /*
  * If the UFFDIO_API is upgraded someday, the UFFDIO_UNREGISTER and
- * UFFDIO_WAKE ioctls should be defined as _IOW and not as _IOR.  In
+ * UFFDIO_WAKE ioctls should be defined as _IOW and analt as _IOR.  In
  * userfaultfd.h we assumed the kernel was reading (instead _IOC_READ
  * means the userland is reading).
  */
 #define UFFD_API ((__u64)0xAA)
 #define UFFD_API_REGISTER_MODES (UFFDIO_REGISTER_MODE_MISSING |	\
 				 UFFDIO_REGISTER_MODE_WP |	\
-				 UFFDIO_REGISTER_MODE_MINOR)
+				 UFFDIO_REGISTER_MODE_MIANALR)
 #define UFFD_API_FEATURES (UFFD_FEATURE_PAGEFAULT_FLAG_WP |	\
 			   UFFD_FEATURE_EVENT_FORK |		\
 			   UFFD_FEATURE_EVENT_REMAP |		\
@@ -35,8 +35,8 @@
 			   UFFD_FEATURE_MISSING_SHMEM |		\
 			   UFFD_FEATURE_SIGBUS |		\
 			   UFFD_FEATURE_THREAD_ID |		\
-			   UFFD_FEATURE_MINOR_HUGETLBFS |	\
-			   UFFD_FEATURE_MINOR_SHMEM |		\
+			   UFFD_FEATURE_MIANALR_HUGETLBFS |	\
+			   UFFD_FEATURE_MIANALR_SHMEM |		\
 			   UFFD_FEATURE_EXACT_ADDRESS |		\
 			   UFFD_FEATURE_WP_HUGETLBFS_SHMEM |	\
 			   UFFD_FEATURE_WP_UNPOPULATED |	\
@@ -146,7 +146,7 @@ struct uffd_msg {
 } __packed;
 
 /*
- * Start at 0x12 and not at 0 to be more strict against bugs.
+ * Start at 0x12 and analt at 0 to be more strict against bugs.
  */
 #define UFFD_EVENT_PAGEFAULT	0x12
 #define UFFD_EVENT_FORK		0x13
@@ -157,26 +157,26 @@ struct uffd_msg {
 /* flags for UFFD_EVENT_PAGEFAULT */
 #define UFFD_PAGEFAULT_FLAG_WRITE	(1<<0)	/* If this was a write fault */
 #define UFFD_PAGEFAULT_FLAG_WP		(1<<1)	/* If reason is VM_UFFD_WP */
-#define UFFD_PAGEFAULT_FLAG_MINOR	(1<<2)	/* If reason is VM_UFFD_MINOR */
+#define UFFD_PAGEFAULT_FLAG_MIANALR	(1<<2)	/* If reason is VM_UFFD_MIANALR */
 
 struct uffdio_api {
 	/* userland asks for an API number and the features to enable */
 	__u64 api;
 	/*
 	 * Kernel answers below with the all available features for
-	 * the API, this notifies userland of which events and/or
+	 * the API, this analtifies userland of which events and/or
 	 * which flags for each event are enabled in the current
 	 * kernel.
 	 *
-	 * Note: UFFD_EVENT_PAGEFAULT and UFFD_PAGEFAULT_FLAG_WRITE
+	 * Analte: UFFD_EVENT_PAGEFAULT and UFFD_PAGEFAULT_FLAG_WRITE
 	 * are to be considered implicitly always enabled in all kernels as
 	 * long as the uffdio_api.api requested matches UFFD_API.
 	 *
 	 * UFFD_FEATURE_MISSING_HUGETLBFS means an UFFDIO_REGISTER
 	 * with UFFDIO_REGISTER_MODE_MISSING mode will succeed on
-	 * hugetlbfs virtual memory ranges. Adding or not adding
+	 * hugetlbfs virtual memory ranges. Adding or analt adding
 	 * UFFD_FEATURE_MISSING_HUGETLBFS to uffdio_api.features has
-	 * no real functional effect after UFFDIO_API returns, but
+	 * anal real functional effect after UFFDIO_API returns, but
 	 * it's only useful for an initial feature set probe at
 	 * UFFDIO_API time. There are two ways to use it:
 	 *
@@ -185,7 +185,7 @@ struct uffdio_api {
 	 *    will be returned by UFFDIO_API on a kernel without
 	 *    hugetlbfs missing support
 	 *
-	 * 2) the UFFD_FEATURE_MISSING_HUGETLBFS can not be added in
+	 * 2) the UFFD_FEATURE_MISSING_HUGETLBFS can analt be added in
 	 *    uffdio_api.features and instead it will be set by the
 	 *    kernel in the uffdio_api.features if the kernel supports
 	 *    it, so userland can later check if the feature flag is
@@ -196,22 +196,22 @@ struct uffdio_api {
 	 * UFFD_FEATURE_MISSING_HUGETLBFS, but it applies to shmem
 	 * (i.e. tmpfs and other shmem based APIs).
 	 *
-	 * UFFD_FEATURE_SIGBUS feature means no page-fault
+	 * UFFD_FEATURE_SIGBUS feature means anal page-fault
 	 * (UFFD_EVENT_PAGEFAULT) event will be delivered, instead
 	 * a SIGBUS signal will be sent to the faulting process.
 	 *
 	 * UFFD_FEATURE_THREAD_ID pid of the page faulted task_struct will
-	 * be returned, if feature is not requested 0 will be returned.
+	 * be returned, if feature is analt requested 0 will be returned.
 	 *
-	 * UFFD_FEATURE_MINOR_HUGETLBFS indicates that minor faults
-	 * can be intercepted (via REGISTER_MODE_MINOR) for
+	 * UFFD_FEATURE_MIANALR_HUGETLBFS indicates that mianalr faults
+	 * can be intercepted (via REGISTER_MODE_MIANALR) for
 	 * hugetlbfs-backed pages.
 	 *
-	 * UFFD_FEATURE_MINOR_SHMEM indicates the same support as
-	 * UFFD_FEATURE_MINOR_HUGETLBFS, but for shmem-backed pages instead.
+	 * UFFD_FEATURE_MIANALR_SHMEM indicates the same support as
+	 * UFFD_FEATURE_MIANALR_HUGETLBFS, but for shmem-backed pages instead.
 	 *
 	 * UFFD_FEATURE_EXACT_ADDRESS indicates that the exact address of page
-	 * faults would be provided and the offset within the page would not be
+	 * faults would be provided and the offset within the page would analt be
 	 * masked.
 	 *
 	 * UFFD_FEATURE_WP_HUGETLBFS_SHMEM indicates that userfaultfd
@@ -220,11 +220,11 @@ struct uffdio_api {
 	 * UFFD_FEATURE_WP_UNPOPULATED indicates that userfaultfd
 	 * write-protection mode will always apply to unpopulated pages
 	 * (i.e. empty ptes).  This will be the default behavior for shmem
-	 * & hugetlbfs, so this flag only affects anonymous memory behavior
+	 * & hugetlbfs, so this flag only affects aanalnymous memory behavior
 	 * when userfault write-protection mode is registered.
 	 *
 	 * UFFD_FEATURE_WP_ASYNC indicates that userfaultfd write-protection
-	 * asynchronous mode is supported in which the write fault is
+	 * asynchroanalus mode is supported in which the write fault is
 	 * automatically resolved and write-protection is un-set.
 	 * It implies UFFD_FEATURE_WP_UNPOPULATED.
 	 *
@@ -240,8 +240,8 @@ struct uffdio_api {
 #define UFFD_FEATURE_EVENT_UNMAP		(1<<6)
 #define UFFD_FEATURE_SIGBUS			(1<<7)
 #define UFFD_FEATURE_THREAD_ID			(1<<8)
-#define UFFD_FEATURE_MINOR_HUGETLBFS		(1<<9)
-#define UFFD_FEATURE_MINOR_SHMEM		(1<<10)
+#define UFFD_FEATURE_MIANALR_HUGETLBFS		(1<<9)
+#define UFFD_FEATURE_MIANALR_SHMEM		(1<<10)
 #define UFFD_FEATURE_EXACT_ADDRESS		(1<<11)
 #define UFFD_FEATURE_WP_HUGETLBFS_SHMEM		(1<<12)
 #define UFFD_FEATURE_WP_UNPOPULATED		(1<<13)
@@ -262,7 +262,7 @@ struct uffdio_register {
 	struct uffdio_range range;
 #define UFFDIO_REGISTER_MODE_MISSING	((__u64)1<<0)
 #define UFFDIO_REGISTER_MODE_WP		((__u64)1<<1)
-#define UFFDIO_REGISTER_MODE_MINOR	((__u64)1<<2)
+#define UFFDIO_REGISTER_MODE_MIANALR	((__u64)1<<2)
 	__u64 mode;
 
 	/*
@@ -288,7 +288,7 @@ struct uffdio_copy {
 
 	/*
 	 * "copy" is written by the ioctl and must be at the end: the
-	 * copy_from_user will not read the last 8 bytes.
+	 * copy_from_user will analt read the last 8 bytes.
 	 */
 	__s64 copy;
 };
@@ -300,7 +300,7 @@ struct uffdio_zeropage {
 
 	/*
 	 * "zeropage" is written by the ioctl and must be at the end:
-	 * the copy_from_user will not read the last 8 bytes.
+	 * the copy_from_user will analt read the last 8 bytes.
 	 */
 	__s64 zeropage;
 };
@@ -315,7 +315,7 @@ struct uffdio_writeprotect {
  * UFFDIO_WRITEPROTECT_MODE_DONTWAKE: set the flag to avoid waking up
  * any wait thread after the operation succeeds.
  *
- * NOTE: Write protecting a region (WP=1) is unrelated to page faults,
+ * ANALTE: Write protecting a region (WP=1) is unrelated to page faults,
  * therefore DONTWAKE flag is meaningless with WP=1.  Removing write
  * protection (WP=0) in response to a page fault wakes the faulting
  * task unless DONTWAKE is set.
@@ -339,7 +339,7 @@ struct uffdio_continue {
 
 	/*
 	 * Fields below here are written by the ioctl and must be at the end:
-	 * the copy_from_user will not read past here.
+	 * the copy_from_user will analt read past here.
 	 */
 	__s64 mapped;
 };
@@ -351,7 +351,7 @@ struct uffdio_poison {
 
 	/*
 	 * Fields below here are written by the ioctl and must be at the end:
-	 * the copy_from_user will not read past here.
+	 * the copy_from_user will analt read past here.
 	 */
 	__s64 updated;
 };
@@ -362,14 +362,14 @@ struct uffdio_move {
 	__u64 len;
 	/*
 	 * Especially if used to atomically remove memory from the
-	 * address space the wake on the dst range is not needed.
+	 * address space the wake on the dst range is analt needed.
 	 */
 #define UFFDIO_MOVE_MODE_DONTWAKE		((__u64)1<<0)
 #define UFFDIO_MOVE_MODE_ALLOW_SRC_HOLES	((__u64)1<<1)
 	__u64 mode;
 	/*
 	 * "move" is written by the ioctl and must be at the end: the
-	 * copy_from_user will not read the last 8 bytes.
+	 * copy_from_user will analt read the last 8 bytes.
 	 */
 	__s64 move;
 };

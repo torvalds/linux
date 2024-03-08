@@ -26,7 +26,7 @@
 			status = "okay";
 
 			flash@0 {
-				compatible = "jedec,spi-nor";
+				compatible = "jedec,spi-analr";
 				reg = <0>;
 				spi-max-frequency = <102000000>;
 				spi-tx-bus-width = <4>;
@@ -35,7 +35,7 @@
 		};
 
 		/*
-		 * This only exists on Jetson Orin Nano Developer Kit (SKU 5)
+		 * This only exists on Jetson Orin Naanal Developer Kit (SKU 5)
 		 * but UEFI needs this and will remove it on devices where it
 		 * doesn't exist.
 		 */

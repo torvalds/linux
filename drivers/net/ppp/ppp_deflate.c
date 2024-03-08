@@ -22,7 +22,7 @@
  * State for a Deflate (de)compressor.
  */
 struct ppp_deflate_state {
-    int		seqno;
+    int		seqanal;
     int		w_size;
     int		unit;
     int		mru;
@@ -80,7 +80,7 @@ static void z_comp_free(void *arg)
  *	data to be sent to it.
  *
  *	Returns the pointer to the private state for the compressor,
- *	or NULL if we could not allocate enough memory.
+ *	or NULL if we could analt allocate eanalugh memory.
  */
 static void *z_comp_alloc(unsigned char *options, int opt_len)
 {
@@ -125,9 +125,9 @@ out_free:
  *	@options: pointer to the CCP option data describing the
  *		compression that was negotiated with the peer
  *	@opt_len: length of the CCP option data at @options
- *	@unit:	PPP unit number for diagnostic messages
- *	@hdrlen: ignored (present for backwards compatibility)
- *	@debug:	debug flag; if non-zero, debug messages are printed.
+ *	@unit:	PPP unit number for diaganalstic messages
+ *	@hdrlen: iganalred (present for backwards compatibility)
+ *	@debug:	debug flag; if analn-zero, debug messages are printed.
  *
  *	The CCP options described by @options must match the options
  *	specified when the compressor was allocated.  The compressor
@@ -147,7 +147,7 @@ static int z_comp_init(void *arg, unsigned char *options, int opt_len,
 	    options[3] != DEFLATE_CHK_SEQUENCE)
 		return 0;
 
-	state->seqno = 0;
+	state->seqanal = 0;
 	state->unit  = unit;
 	state->debug = debug;
 
@@ -167,7 +167,7 @@ static void z_comp_reset(void *arg)
 {
 	struct ppp_deflate_state *state = (struct ppp_deflate_state *) arg;
 
-	state->seqno = 0;
+	state->seqanal = 0;
 	zlib_deflateReset(&state->strm);
 }
 
@@ -210,12 +210,12 @@ static int z_compress(void *arg, unsigned char *rptr, unsigned char *obuf,
 	wptr[1] = PPP_CONTROL(rptr);
 	put_unaligned_be16(PPP_COMP, wptr + 2);
 	wptr += PPP_HDRLEN;
-	put_unaligned_be16(state->seqno, wptr);
+	put_unaligned_be16(state->seqanal, wptr);
 	wptr += DEFLATE_OVHD;
 	olen = PPP_HDRLEN + DEFLATE_OVHD;
 	state->strm.next_out = wptr;
 	state->strm.avail_out = oavail = osize - olen;
-	++state->seqno;
+	++state->seqanal;
 
 	off = (proto > 0xff) ? 2 : 3;	/* skip 1st proto byte if 0 */
 	rptr += off;
@@ -296,7 +296,7 @@ static void z_decomp_free(void *arg)
  *	data to be sent to us.
  *
  *	Returns the pointer to the private state for the decompressor,
- *	or NULL if we could not allocate enough memory.
+ *	or NULL if we could analt allocate eanalugh memory.
  */
 static void *z_decomp_alloc(unsigned char *options, int opt_len)
 {
@@ -338,10 +338,10 @@ out_free:
  *	@options: pointer to the CCP option data describing the
  *		compression that was negotiated with the peer
  *	@opt_len: length of the CCP option data at @options
- *	@unit:	PPP unit number for diagnostic messages
- *	@hdrlen: ignored (present for backwards compatibility)
+ *	@unit:	PPP unit number for diaganalstic messages
+ *	@hdrlen: iganalred (present for backwards compatibility)
  *	@mru:	maximum length of decompressed packets
- *	@debug:	debug flag; if non-zero, debug messages are printed.
+ *	@debug:	debug flag; if analn-zero, debug messages are printed.
  *
  *	The CCP options described by @options must match the options
  *	specified when the decompressor was allocated.  The decompressor
@@ -361,7 +361,7 @@ static int z_decomp_init(void *arg, unsigned char *options, int opt_len,
 	    options[3] != DEFLATE_CHK_SEQUENCE)
 		return 0;
 
-	state->seqno = 0;
+	state->seqanal = 0;
 	state->unit  = unit;
 	state->debug = debug;
 	state->mru   = mru;
@@ -382,7 +382,7 @@ static void z_decomp_reset(void *arg)
 {
 	struct ppp_deflate_state *state = (struct ppp_deflate_state *) arg;
 
-	state->seqno = 0;
+	state->seqanal = 0;
 	zlib_inflateReset(&state->strm);
 }
 
@@ -424,13 +424,13 @@ static int z_decompress(void *arg, unsigned char *ibuf, int isize,
 
 	/* Check the sequence number. */
 	seq = get_unaligned_be16(ibuf + PPP_HDRLEN);
-	if (seq != (state->seqno & 0xffff)) {
+	if (seq != (state->seqanal & 0xffff)) {
 		if (state->debug)
 			printk(KERN_DEBUG "z_decompress%d: bad seq # %d, expected %d\n",
-			       state->unit, seq, state->seqno & 0xffff);
+			       state->unit, seq, state->seqanal & 0xffff);
 		return DECOMP_ERROR;
 	}
-	++state->seqno;
+	++state->seqanal;
 
 	/*
 	 * Fill in the first part of the PPP header.  The protocol field
@@ -478,7 +478,7 @@ static int z_decompress(void *arg, unsigned char *ibuf, int isize,
 			/*
 			 * We've filled up the output buffer; the only way to
 			 * find out whether inflate has any more characters
-			 * left is to give it another byte of output space.
+			 * left is to give it aanalther byte of output space.
 			 */
 			state->strm.next_out = overflow_buf;
 			state->strm.avail_out = 1;
@@ -525,7 +525,7 @@ static void z_incomp(void *arg, unsigned char *ibuf, int icnt)
 	if (proto > 0x3fff || proto == 0xfd || proto == 0xfb)
 		return;
 
-	++state->seqno;
+	++state->seqanal;
 
 	/*
 	 * We start at the either the 1st or 2nd byte of the protocol field,

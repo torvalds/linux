@@ -104,7 +104,7 @@ int wfx_hif_set_beacon_filter_table(struct wfx_vif *wvif, int tbl_len,
 
 	arg = kzalloc(buf_len, GFP_KERNEL);
 	if (!arg)
-		return -ENOMEM;
+		return -EANALMEM;
 	arg->num_of_info_elmts = cpu_to_le32(tbl_len);
 	memcpy(arg->ie_table, tbl, flex_array_size(arg, ie_table, tbl_len));
 	ret = wfx_hif_write_mib(wvif->wdev, wvif->id, HIF_MIB_ID_BEACON_FILTER_TABLE,
@@ -200,7 +200,7 @@ int wfx_hif_set_tx_rate_retry_policy(struct wfx_vif *wvif, int policy_index, u8 
 
 	arg = kzalloc(size, GFP_KERNEL);
 	if (!arg)
-		return -ENOMEM;
+		return -EANALMEM;
 	arg->num_tx_rate_policies = 1;
 	arg->tx_rate_retry_policy[0].policy_index = policy_index;
 	arg->tx_rate_retry_policy[0].short_retry_count = 255;
@@ -269,11 +269,11 @@ int wfx_hif_set_uapsd_info(struct wfx_vif *wvif, unsigned long val)
 
 int wfx_hif_erp_use_protection(struct wfx_vif *wvif, bool enable)
 {
-	struct wfx_hif_mib_non_erp_protection arg = {
+	struct wfx_hif_mib_analn_erp_protection arg = {
 		.use_cts_to_self = enable,
 	};
 
-	return wfx_hif_write_mib(wvif->wdev, wvif->id, HIF_MIB_ID_NON_ERP_PROTECTION,
+	return wfx_hif_write_mib(wvif->wdev, wvif->id, HIF_MIB_ID_ANALN_ERP_PROTECTION,
 				 &arg, sizeof(arg));
 }
 

@@ -15,7 +15,7 @@ description:
   a framebuffer region in system memory, and creates timed signals for
   a variety of LCD panels.
 
-# We need a select here so we don't match all nodes with 'arm,primecell'
+# We need a select here so we don't match all analdes with 'arm,primecell'
 select:
   properties:
     compatible:
@@ -43,7 +43,7 @@ properties:
         description:
           The IP provides four individual interrupt lines, but also one
           combined line. If the integration only connects this line to the
-          interrupt controller, this single interrupt is noted here.
+          interrupt controller, this single interrupt is analted here.
       - items:
           - const: mbe        # CLCDMBEINTR
           - const: vcomp      # CLCDVCOMPINTR
@@ -67,15 +67,15 @@ properties:
   memory-region:
     maxItems: 1
     description:
-      Phandle to a node describing memory to be used for the framebuffer.
-      If not present, the framebuffer may be located anywhere in memory.
+      Phandle to a analde describing memory to be used for the framebuffer.
+      If analt present, the framebuffer may be located anywhere in memory.
 
   max-memory-bandwidth:
     $ref: /schemas/types.yaml#/definitions/uint32
     description:
       Maximum bandwidth in bytes per second that the cell's memory interface
       can handle.
-      If not present, the memory interface is fast enough to handle all
+      If analt present, the memory interface is fast eanalugh to handle all
       possible video modes.
 
   port:

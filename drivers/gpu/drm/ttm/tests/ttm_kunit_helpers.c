@@ -17,7 +17,7 @@ int ttm_device_kunit_init(struct ttm_test_devices *priv,
 	int err;
 
 	err = ttm_device_init(ttm, &ttm_dev_funcs, drm->dev,
-			      drm->anon_inode->i_mapping,
+			      drm->aanaln_ianalde->i_mapping,
 			      drm->vma_offset_manager,
 			      use_dma_alloc, use_dma32);
 
@@ -33,7 +33,7 @@ struct ttm_buffer_object *ttm_bo_kunit_init(struct kunit *test,
 	struct ttm_buffer_object *bo;
 
 	bo = kunit_kzalloc(test, sizeof(*bo), GFP_KERNEL);
-	KUNIT_ASSERT_NOT_NULL(test, bo);
+	KUNIT_ASSERT_ANALT_NULL(test, bo);
 
 	bo->base = gem_obj;
 	bo->bdev = devs->ttm_dev;
@@ -47,15 +47,15 @@ struct ttm_test_devices *ttm_test_devices_basic(struct kunit *test)
 	struct ttm_test_devices *devs;
 
 	devs = kunit_kzalloc(test, sizeof(*devs), GFP_KERNEL);
-	KUNIT_ASSERT_NOT_NULL(test, devs);
+	KUNIT_ASSERT_ANALT_NULL(test, devs);
 
 	devs->dev = drm_kunit_helper_alloc_device(test);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, devs->dev);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, devs->dev);
 
 	devs->drm = __drm_kunit_helper_alloc_drm_device(test, devs->dev,
 							sizeof(*devs->drm), 0,
 							DRIVER_GEM);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, devs->drm);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, devs->drm);
 
 	return devs;
 }
@@ -70,7 +70,7 @@ struct ttm_test_devices *ttm_test_devices_all(struct kunit *test)
 	devs = ttm_test_devices_basic(test);
 
 	ttm_dev = kunit_kzalloc(test, sizeof(*ttm_dev), GFP_KERNEL);
-	KUNIT_ASSERT_NOT_NULL(test, ttm_dev);
+	KUNIT_ASSERT_ANALT_NULL(test, ttm_dev);
 
 	err = ttm_device_kunit_init(devs, ttm_dev, false, false);
 	KUNIT_ASSERT_EQ(test, err, 0);
@@ -95,7 +95,7 @@ int ttm_test_devices_init(struct kunit *test)
 	struct ttm_test_devices *priv;
 
 	priv = kunit_kzalloc(test, sizeof(*priv), GFP_KERNEL);
-	KUNIT_ASSERT_NOT_NULL(test, priv);
+	KUNIT_ASSERT_ANALT_NULL(test, priv);
 
 	priv = ttm_test_devices_basic(test);
 	test->priv = priv;

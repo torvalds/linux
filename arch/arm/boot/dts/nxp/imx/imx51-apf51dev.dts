@@ -99,7 +99,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_esdhc2>;
 	bus-width = <4>;
-	non-removable;
+	analn-removable;
 	status = "okay";
 };
 

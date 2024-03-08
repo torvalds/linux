@@ -55,7 +55,7 @@ properties:
 
   monitored-battery:
     $ref: /schemas/types.yaml#/definitions/phandle
-    description: phandle to the battery node being monitored
+    description: phandle to the battery analde being monitored
 
 required:
   - compatible

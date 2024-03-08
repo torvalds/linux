@@ -122,7 +122,7 @@ static int warrior_connect(struct serio *serio, struct serio_driver *drv)
 {
 	struct warrior *warrior;
 	struct input_dev *input_dev;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	warrior = kzalloc(sizeof(struct warrior), GFP_KERNEL);
 	input_dev = input_allocate_device();

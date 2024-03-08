@@ -6,8 +6,8 @@
 
 #include "sc8280xp.dtsi"
 
-/delete-node/ &cpu0_opp_table;
-/delete-node/ &cpu4_opp_table;
+/delete-analde/ &cpu0_opp_table;
+/delete-analde/ &cpu4_opp_table;
 
 / {
 	cpu0_opp_table: opp-table-cpu0 {

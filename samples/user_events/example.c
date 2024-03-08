@@ -6,7 +6,7 @@
  *   Beau Belgrave <beaub@linux.microsoft.com>
  */
 
-#include <errno.h>
+#include <erranal.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <sys/uio.h>
@@ -45,7 +45,7 @@ int main(int argc, char **argv)
 	data_fd = open(data_file, O_RDWR);
 
 	if (event_reg(data_fd, "test u32 count", &write, &enabled) == -1)
-		return errno;
+		return erranal;
 
 	/* Setup iovec */
 	io[0].iov_base = &write;

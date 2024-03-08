@@ -344,7 +344,7 @@ static irqreturn_t afe4404_trigger_handler(int irq, void *private)
 	iio_push_to_buffers_with_timestamp(indio_dev, afe->buffer,
 					   pf->timestamp);
 err:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -392,14 +392,14 @@ static const struct reg_sequence afe4404_reg_sequences[] = {
 	{ AFE440X_CONTROL2, AFE440X_CONTROL2_OSC_ENABLE	},
 };
 
-static const struct regmap_range afe4404_yes_ranges[] = {
+static const struct regmap_range afe4404_anal_ranges[] = {
 	regmap_reg_range(AFE440X_LED2VAL, AFE440X_LED1_ALED1VAL),
 	regmap_reg_range(AFE4404_AVG_LED2_ALED2VAL, AFE4404_AVG_LED1_ALED1VAL),
 };
 
 static const struct regmap_access_table afe4404_volatile_table = {
-	.yes_ranges = afe4404_yes_ranges,
-	.n_yes_ranges = ARRAY_SIZE(afe4404_yes_ranges),
+	.anal_ranges = afe4404_anal_ranges,
+	.n_anal_ranges = ARRAY_SIZE(afe4404_anal_ranges),
 };
 
 static const struct regmap_config afe4404_regmap_config = {
@@ -469,7 +469,7 @@ static int afe4404_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*afe));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	afe = iio_priv(indio_dev);
 	i2c_set_clientdata(client, indio_dev);
@@ -530,7 +530,7 @@ static int afe4404_probe(struct i2c_client *client)
 						   iio_device_id(indio_dev));
 		if (!afe->trig) {
 			dev_err(afe->dev, "Unable to allocate IIO trigger\n");
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto disable_reg;
 		}
 

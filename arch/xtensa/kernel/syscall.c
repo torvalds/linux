@@ -19,7 +19,7 @@
 #include <asm/syscall.h>
 #include <linux/linkage.h>
 #include <linux/stringify.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/syscalls.h>
 #include <linux/file.h>
 #include <linux/fs.h>
@@ -61,7 +61,7 @@ unsigned long arch_get_unmapped_area(struct file *filp, unsigned long addr,
 	struct vma_iterator vmi;
 
 	if (flags & MAP_FIXED) {
-		/* We do not accept a shared mapping if it would violate
+		/* We do analt accept a shared mapping if it would violate
 		 * cache aliasing constraints.
 		 */
 		if ((flags & MAP_SHARED) &&
@@ -71,7 +71,7 @@ unsigned long arch_get_unmapped_area(struct file *filp, unsigned long addr,
 	}
 
 	if (len > TASK_SIZE)
-		return -ENOMEM;
+		return -EANALMEM;
 	if (!addr)
 		addr = TASK_UNMAPPED_BASE;
 
@@ -92,7 +92,7 @@ unsigned long arch_get_unmapped_area(struct file *filp, unsigned long addr,
 	}
 
 	if (TASK_SIZE - len < addr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return addr;
 }

@@ -20,8 +20,8 @@
 #define USB2_PHY_USB_PHY_UTMI_CTRL0		(0x3c)
 #define SLEEPM					BIT(0)
 #define OPMODE_MASK				GENMASK(4, 3)
-#define OPMODE_NORMAL				(0x00)
-#define OPMODE_NONDRIVING			BIT(3)
+#define OPMODE_ANALRMAL				(0x00)
+#define OPMODE_ANALNDRIVING			BIT(3)
 #define TERMSEL					BIT(5)
 
 #define USB2_PHY_USB_PHY_UTMI_CTRL1		(0x40)
@@ -145,10 +145,10 @@ static int qcom_snps_hsphy_clk_init(struct qcom_snps_hsphy *hsphy)
 	hsphy->num_clks = 2;
 	hsphy->clks = devm_kcalloc(dev, hsphy->num_clks, sizeof(*hsphy->clks), GFP_KERNEL);
 	if (!hsphy->clks)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
-	 * TODO: Currently no device tree instantiation of the PHY is using the clock.
+	 * TODO: Currently anal device tree instantiation of the PHY is using the clock.
 	 * This needs to be fixed in order for this code to be able to use devm_clk_bulk_get().
 	 */
 	hsphy->clks[0].id = "cfg_ahb";
@@ -537,7 +537,7 @@ static void qcom_snps_hsphy_override_param_update_val(
 
 static void qcom_snps_hsphy_read_override_param_seq(struct device *dev)
 {
-	struct device_node *node = dev->of_node;
+	struct device_analde *analde = dev->of_analde;
 	s32 val;
 	int ret, i;
 	struct qcom_snps_hsphy *hsphy;
@@ -549,7 +549,7 @@ static void qcom_snps_hsphy_read_override_param_seq(struct device *dev)
 	hsphy = dev_get_drvdata(dev);
 
 	for (i = 0; cfg[i].prop_name != NULL; i++) {
-		ret = of_property_read_s32(node, cfg[i].prop_name, &val);
+		ret = of_property_read_s32(analde, cfg[i].prop_name, &val);
 		if (ret)
 			continue;
 
@@ -572,7 +572,7 @@ static int qcom_snps_hsphy_probe(struct platform_device *pdev)
 
 	hsphy = devm_kzalloc(dev, sizeof(*hsphy), GFP_KERNEL);
 	if (!hsphy)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hsphy->dev = dev;
 

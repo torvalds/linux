@@ -27,8 +27,8 @@ properties:
   qcom,mmio:
     $ref: /schemas/types.yaml#/definitions/phandle
     description: |
-      Reference to a node specifying the wcnss "ccu" and "dxe" register blocks.
-      The node must be compatible with one of the following::
+      Reference to a analde specifying the wcnss "ccu" and "dxe" register blocks.
+      The analde must be compatible with one of the following::
            - qcom,riva"
            - qcom,pronto"
 

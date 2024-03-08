@@ -22,7 +22,7 @@ int efx_mcdi_free_vis(struct efx_nic *efx)
 	int rc = efx_mcdi_rpc_quiet(efx, MC_CMD_FREE_VIS, NULL, 0,
 				    outbuf, sizeof(outbuf), &outlen);
 
-	/* -EALREADY means nothing to free, so ignore */
+	/* -EALREADY means analthing to free, so iganalre */
 	if (rc == -EALREADY)
 		rc = 0;
 	if (rc)
@@ -85,7 +85,7 @@ int efx_mcdi_ev_init(struct efx_channel *channel, bool v1_cut_thru, bool v2)
 
 	MCDI_SET_DWORD(inbuf, INIT_EVQ_IN_SIZE, channel->eventq_mask + 1);
 	MCDI_SET_DWORD(inbuf, INIT_EVQ_IN_INSTANCE, channel->channel);
-	/* INIT_EVQ expects index in vector table, not absolute */
+	/* INIT_EVQ expects index in vector table, analt absolute */
 	MCDI_SET_DWORD(inbuf, INIT_EVQ_IN_IRQ_NUM, channel->channel);
 	MCDI_SET_DWORD(inbuf, INIT_EVQ_IN_TMR_MODE,
 		       MC_CMD_INIT_EVQ_IN_TMR_MODE_DIS);
@@ -205,8 +205,8 @@ int efx_mcdi_tx_init(struct efx_tx_queue *tx_queue)
 		 */
 		MCDI_POPULATE_DWORD_6(inbuf, INIT_TXQ_IN_FLAGS,
 				/* This flag was removed from mcdi_pcol.h for
-				 * the non-_EXT version of INIT_TXQ.  However,
-				 * firmware still honours it.
+				 * the analn-_EXT version of INIT_TXQ.  However,
+				 * firmware still hoanalurs it.
 				 */
 				INIT_TXQ_EXT_IN_FLAG_TSOV2_EN, tso_v2,
 				INIT_TXQ_IN_FLAG_IP_CSUM_DIS, !(csum_offload && tso_v2),
@@ -217,11 +217,11 @@ int efx_mcdi_tx_init(struct efx_tx_queue *tx_queue)
 
 		rc = efx_mcdi_rpc_quiet(efx, MC_CMD_INIT_TXQ, inbuf, inlen,
 					NULL, 0, NULL);
-		if (rc == -ENOSPC && tso_v2) {
+		if (rc == -EANALSPC && tso_v2) {
 			/* Retry without TSOv2 if we're short on contexts. */
 			tx_queue->tso_version = 0;
 			netif_warn(efx, probe, efx->net_dev,
-				   "TSOv2 context not available to segment in "
+				   "TSOv2 context analt available to segment in "
 				   "hardware. TCP performance may be reduced.\n"
 				   );
 		} else if (rc) {
@@ -367,7 +367,7 @@ int efx_fini_dmaq(struct efx_nic *efx)
 		return 0;
 	}
 
-	/* Do not attempt to write to the NIC during EEH recovery */
+	/* Do analt attempt to write to the NIC during EEH recovery */
 	if (efx->state != STATE_RECOVERY) {
 		efx_for_each_channel(channel, efx) {
 			efx_for_each_channel_rx_queue(rx_queue, channel)

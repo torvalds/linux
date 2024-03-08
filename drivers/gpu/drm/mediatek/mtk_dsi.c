@@ -406,10 +406,10 @@ static void mtk_dsi_rxtx_control(struct mtk_dsi *dsi)
 		break;
 	}
 
-	if (dsi->mode_flags & MIPI_DSI_CLOCK_NON_CONTINUOUS)
+	if (dsi->mode_flags & MIPI_DSI_CLOCK_ANALN_CONTINUOUS)
 		tmp_reg |= HSTX_CKLP_EN;
 
-	if (dsi->mode_flags & MIPI_DSI_MODE_NO_EOT_PACKET)
+	if (dsi->mode_flags & MIPI_DSI_MODE_ANAL_EOT_PACKET)
 		tmp_reg |= DIS_EOT;
 
 	writel(tmp_reg, dsi->regs + DSI_TXRX_CTRL);
@@ -486,7 +486,7 @@ static void mtk_dsi_config_vdo_timing(struct mtk_dsi *dsi)
 			  timing->da_hs_zero + timing->da_hs_exit + 3;
 
 	delta = dsi->mode_flags & MIPI_DSI_MODE_VIDEO_BURST ? 18 : 12;
-	delta += dsi->mode_flags & MIPI_DSI_MODE_NO_EOT_PACKET ? 0 : 2;
+	delta += dsi->mode_flags & MIPI_DSI_MODE_ANAL_EOT_PACKET ? 0 : 2;
 
 	horizontal_frontporch_byte = vm->hfront_porch * dsi_tmp_buf_bpp;
 	horizontal_front_back_byte = horizontal_frontporch_byte + horizontal_backporch_byte;
@@ -868,7 +868,7 @@ static int mtk_dsi_encoder_init(struct drm_device *drm, struct mtk_dsi *dsi)
 	dsi->encoder.possible_crtcs = mtk_drm_find_possible_crtc_by_comp(drm, dsi->host.dev);
 
 	ret = drm_bridge_attach(&dsi->encoder, &dsi->bridge, NULL,
-				DRM_BRIDGE_ATTACH_NO_CONNECTOR);
+				DRM_BRIDGE_ATTACH_ANAL_CONNECTOR);
 	if (ret)
 		goto err_cleanup_encoder;
 
@@ -932,7 +932,7 @@ static int mtk_dsi_host_attach(struct mipi_dsi_host *host,
 	dsi->lanes = device->lanes;
 	dsi->format = device->format;
 	dsi->mode_flags = device->mode_flags;
-	dsi->next_bridge = devm_drm_of_get_bridge(dev, dev->of_node, 0, 0);
+	dsi->next_bridge = devm_drm_of_get_bridge(dev, dev->of_analde, 0, 0);
 	if (IS_ERR(dsi->next_bridge))
 		return PTR_ERR(dsi->next_bridge);
 
@@ -966,7 +966,7 @@ static void mtk_dsi_wait_for_idle(struct mtk_dsi *dsi)
 	ret = readl_poll_timeout(dsi->regs + DSI_INTSTA, val, !(val & DSI_BUSY),
 				 4, 2000000);
 	if (ret) {
-		DRM_WARN("polling dsi wait not busy timeout!\n");
+		DRM_WARN("polling dsi wait analt busy timeout!\n");
 
 		mtk_dsi_enable(dsi);
 		mtk_dsi_reset_engine(dsi);
@@ -985,11 +985,11 @@ static u32 mtk_dsi_recv_cnt(u8 type, u8 *read_data)
 	case MIPI_DSI_RX_GENERIC_LONG_READ_RESPONSE:
 	case MIPI_DSI_RX_DCS_LONG_READ_RESPONSE:
 		return read_data[1] + read_data[2] * 16;
-	case MIPI_DSI_RX_ACKNOWLEDGE_AND_ERROR_REPORT:
+	case MIPI_DSI_RX_ACKANALWLEDGE_AND_ERROR_REPORT:
 		DRM_INFO("type is 0x02, try again\n");
 		break;
 	default:
-		DRM_INFO("type(0x%x) not recognized\n", type);
+		DRM_INFO("type(0x%x) analt recognized\n", type);
 		break;
 	}
 
@@ -1133,7 +1133,7 @@ static int mtk_dsi_probe(struct platform_device *pdev)
 
 	dsi = devm_kzalloc(dev, sizeof(*dsi), GFP_KERNEL);
 	if (!dsi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dsi->host.ops = &mtk_dsi_ops;
 	dsi->host.dev = dev;
@@ -1192,7 +1192,7 @@ static int mtk_dsi_probe(struct platform_device *pdev)
 	}
 
 	ret = devm_request_irq(&pdev->dev, irq_num, mtk_dsi_irq,
-			       IRQF_TRIGGER_NONE, dev_name(&pdev->dev), dsi);
+			       IRQF_TRIGGER_ANALNE, dev_name(&pdev->dev), dsi);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to request mediatek dsi irq\n");
 		goto err_unregister_host;
@@ -1203,7 +1203,7 @@ static int mtk_dsi_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, dsi);
 
 	dsi->bridge.funcs = &mtk_dsi_bridge_funcs;
-	dsi->bridge.of_node = dev->of_node;
+	dsi->bridge.of_analde = dev->of_analde;
 	dsi->bridge.type = DRM_MODE_CONNECTOR_DSI;
 
 	return 0;

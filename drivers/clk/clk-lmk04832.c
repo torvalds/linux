@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * LMK04832 Ultra Low-Noise JESD204B Compliant Clock Jitter Cleaner
+ * LMK04832 Ultra Low-Analise JESD204B Compliant Clock Jitter Cleaner
  * Pin compatible with the LMK0482x family
  *
  * Datasheet: https://www.ti.com/lit/ds/symlink/lmk04832.pdf
@@ -66,11 +66,11 @@
 #define LMK04832_VAL_CLKOUT_FMT_CML24			0x08
 #define LMK04832_VAL_CLKOUT_FMT_CML32			0x09
 #define LMK04832_VAL_CLKOUT_FMT_CMOS_OFF_INV		0x0a
-#define LMK04832_VAL_CLKOUT_FMT_CMOS_NOR_OFF		0x0b
+#define LMK04832_VAL_CLKOUT_FMT_CMOS_ANALR_OFF		0x0b
 #define LMK04832_VAL_CLKOUT_FMT_CMOS_INV_INV		0x0c
-#define LMK04832_VAL_CLKOUT_FMT_CMOS_INV_NOR		0x0d
-#define LMK04832_VAL_CLKOUT_FMT_CMOS_NOR_INV		0x0e
-#define LMK04832_VAL_CLKOUT_FMT_CMOS_NOR_NOR		0x0f
+#define LMK04832_VAL_CLKOUT_FMT_CMOS_INV_ANALR		0x0d
+#define LMK04832_VAL_CLKOUT_FMT_CMOS_ANALR_INV		0x0e
+#define LMK04832_VAL_CLKOUT_FMT_CMOS_ANALR_ANALR		0x0f
 
 /* 0x138 - 0x145 SYSREF, SYNC, and Device Config */
 #define LMK04832_REG_VCO_OSCOUT		0x138
@@ -81,7 +81,7 @@
 #define LMK04832_REG_SYSREF_OUT		0x139
 #define LMK04832_BIT_SYSREF_REQ_EN		BIT(6)
 #define LMK04832_BIT_SYSREF_MUX			GENMASK(1, 0)
-#define LMK04832_VAL_SYSREF_MUX_NORMAL_SYNC		0x00
+#define LMK04832_VAL_SYSREF_MUX_ANALRMAL_SYNC		0x00
 #define LMK04832_VAL_SYSREF_MUX_RECLK			0x01
 #define LMK04832_VAL_SYSREF_MUX_PULSER			0x02
 #define LMK04832_VAL_SYSREF_MUX_CONTINUOUS		0x03
@@ -235,7 +235,7 @@ struct lmk_clkout {
  * @regmap: struct regmap instance use to access the chip
  * @sync_mode: operational mode for SYNC signal
  * @sysref_mux: select SYSREF source
- * @sysref_pulse_cnt: number of SYSREF pulses generated while not in continuous
+ * @sysref_pulse_cnt: number of SYSREF pulses generated while analt in continuous
  *                    mode.
  * @sysref_ddly: SYSREF digital delay value
  * @oscin: PLL2 input clock
@@ -321,7 +321,7 @@ static const struct regmap_config regmap_config = {
 	.write_flag_mask = 0x00,
 	.readable_reg = lmk04832_regmap_rd_regs,
 	.writeable_reg = lmk04832_regmap_wr_regs,
-	.cache_type = REGCACHE_NONE,
+	.cache_type = REGCACHE_ANALNE,
 	.max_register = LMK04832_REG_SPI_LOCK,
 };
 
@@ -418,7 +418,7 @@ static unsigned long lmk04832_vco_recalc_rate(struct clk_hw *hw,
  * The LMK04832 has 2 internal VCO, each with independent operating ranges.
  * Use the device_info structure to determine which VCO to use based on rate.
  *
- * Returns: VCO_MUX value or negative errno.
+ * Returns: VCO_MUX value or negative erranal.
  */
 static int lmk04832_check_vco_ranges(struct lmk04832 *lmk, unsigned long rate)
 {
@@ -455,7 +455,7 @@ static int lmk04832_check_vco_ranges(struct lmk04832 *lmk, unsigned long rate)
  *
  *	VCO = OSCin * 2 * PLL2_N * PLL2_P / PLL2_R
  *
- * Returns: vco rate or negative errno.
+ * Returns: vco rate or negative erranal.
  */
 static long lmk04832_calc_pll2_params(unsigned long prate, unsigned long rate,
 				      unsigned int *n, unsigned int *p,
@@ -721,7 +721,7 @@ static int lmk04832_clkout_set_ddly(struct lmk04832 *lmk, int id)
  *   (8.3.3.1 How to enable SYSREF)
  * - Ti forum: https://e2e.ti.com/support/clock-and-timing/f/48/t/970972
  *
- * Returns 0 or negative errno.
+ * Returns 0 or negative erranal.
  */
 static int lmk04832_sclk_sync_sequence(struct lmk04832 *lmk)
 {
@@ -743,7 +743,7 @@ static int lmk04832_sclk_sync_sequence(struct lmk04832 *lmk)
 	}
 
 	/*
-	 * 3. Configure SYNC_MODE to SYNC_PIN and SYSREF_MUX to Normal SYNC,
+	 * 3. Configure SYNC_MODE to SYNC_PIN and SYSREF_MUX to Analrmal SYNC,
 	 *    and clear SYSREF_REQ_EN (see 6.)
 	 */
 	ret = regmap_update_bits(lmk->regmap, LMK04832_REG_SYSREF_OUT,
@@ -751,7 +751,7 @@ static int lmk04832_sclk_sync_sequence(struct lmk04832 *lmk)
 				 LMK04832_BIT_SYSREF_MUX,
 				 FIELD_PREP(LMK04832_BIT_SYSREF_REQ_EN, 0) |
 				 FIELD_PREP(LMK04832_BIT_SYSREF_MUX,
-					    LMK04832_VAL_SYSREF_MUX_NORMAL_SYNC));
+					    LMK04832_VAL_SYSREF_MUX_ANALRMAL_SYNC));
 	if (ret)
 		return ret;
 
@@ -771,7 +771,7 @@ static int lmk04832_sclk_sync_sequence(struct lmk04832 *lmk)
 	 * 5. If SCLKX_Y_DDLY != 0, Set SYSREF_CLR=1 for at least 15 clock
 	 *    distribution path cycles (VCO cycles), then back to 0. In
 	 *    PLL2-only use case, this will be complete in less than one SPI
-	 *    transaction. If SYSREF local digital delay is not used, this step
+	 *    transaction. If SYSREF local digital delay is analt used, this step
 	 *    can be skipped.
 	 */
 	ret = regmap_update_bits(lmk->regmap, LMK04832_REG_SYNC,
@@ -787,10 +787,10 @@ static int lmk04832_sclk_sync_sequence(struct lmk04832 *lmk)
 		return ret;
 
 	/*
-	 * 6. Toggle SYNC_POL state between inverted and not inverted.
+	 * 6. Toggle SYNC_POL state between inverted and analt inverted.
 	 *    If you use an external signal on the SYNC pin instead of toggling
 	 *    SYNC_POL, make sure that SYSREF_REQ_EN=0 so that the SYSREF_MUX
-	 *    does not shift into continuous SYSREF mode.
+	 *    does analt shift into continuous SYSREF mode.
 	 */
 	ret = regmap_update_bits(lmk->regmap, LMK04832_REG_SYNC,
 			   LMK04832_BIT_SYNC_POL,
@@ -1319,7 +1319,7 @@ static int lmk04832_register_clkout(struct lmk04832 *lmk, const int num)
 		sprintf(dclk_name, "lmk-dclk%02d_%02d", num - 1, num);
 	}
 
-	if (of_property_read_string_index(lmk->dev->of_node,
+	if (of_property_read_string_index(lmk->dev->of_analde,
 					  "clock-output-names",
 					  num, &init.name)) {
 		sprintf(name, "lmk-clkout%02d", num);
@@ -1330,7 +1330,7 @@ static int lmk04832_register_clkout(struct lmk04832 *lmk, const int num)
 	parent_names[1] = clk_hw_get_name(&lmk->sclk);
 	init.parent_names = parent_names;
 	init.ops = &lmk04832_clkout_ops;
-	init.flags = CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT;
+	init.flags = CLK_SET_RATE_PARENT | CLK_SET_RATE_ANAL_REPARENT;
 	init.num_parents = ARRAY_SIZE(parent_names);
 
 	lmk->clkout[num].id = num;
@@ -1391,7 +1391,7 @@ static int lmk04832_probe(struct spi_device *spi)
 {
 	const struct lmk04832_device_info *info;
 	int rdbk_pin = RDBK_CLKIN_SEL1;
-	struct device_node *child;
+	struct device_analde *child;
 	struct lmk04832 *lmk;
 	u8 tmp[3];
 	int ret;
@@ -1401,7 +1401,7 @@ static int lmk04832_probe(struct spi_device *spi)
 
 	lmk = devm_kzalloc(&spi->dev, sizeof(struct lmk04832), GFP_KERNEL);
 	if (!lmk)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	lmk->dev = &spi->dev;
 
@@ -1421,14 +1421,14 @@ static int lmk04832_probe(struct spi_device *spi)
 	lmk->dclk = devm_kcalloc(lmk->dev, info->num_channels >> 1,
 				 sizeof(struct lmk_dclk), GFP_KERNEL);
 	if (!lmk->dclk) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_disable_oscin;
 	}
 
 	lmk->clkout = devm_kcalloc(lmk->dev, info->num_channels,
 				   sizeof(*lmk->clkout), GFP_KERNEL);
 	if (!lmk->clkout) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_disable_oscin;
 	}
 
@@ -1436,7 +1436,7 @@ static int lmk04832_probe(struct spi_device *spi)
 							   info->num_channels),
 				     GFP_KERNEL);
 	if (!lmk->clk_data) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_disable_oscin;
 	}
 
@@ -1457,14 +1457,14 @@ static int lmk04832_probe(struct spi_device *spi)
 	device_property_read_u32(lmk->dev, "ti,sysref-pulse-count",
 				 &lmk->sysref_pulse_cnt);
 
-	for_each_child_of_node(lmk->dev->of_node, child) {
+	for_each_child_of_analde(lmk->dev->of_analde, child) {
 		int reg;
 
 		ret = of_property_read_u32(child, "reg", &reg);
 		if (ret) {
 			dev_err(lmk->dev, "missing reg property in child: %s\n",
 				child->full_name);
-			of_node_put(child);
+			of_analde_put(child);
 			goto err_disable_oscin;
 		}
 

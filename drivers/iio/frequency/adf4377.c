@@ -13,7 +13,7 @@
 #include <linux/device.h>
 #include <linux/gpio/consumer.h>
 #include <linux/module.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/property.h>
 #include <linux/spi/spi.h>
 #include <linux/iio/iio.h>
@@ -406,7 +406,7 @@ struct adf4377_state {
 	struct clk		*clkin;
 	/* Protect against concurrent accesses to the device and data content */
 	struct mutex		lock;
-	struct notifier_block	nb;
+	struct analtifier_block	nb;
 	/* Reference Divider */
 	unsigned int		ref_div_factor;
 	/* PFD Frequency */
@@ -906,19 +906,19 @@ static int adf4377_properties_parse(struct adf4377_state *st)
 	return 0;
 }
 
-static int adf4377_freq_change(struct notifier_block *nb, unsigned long action, void *data)
+static int adf4377_freq_change(struct analtifier_block *nb, unsigned long action, void *data)
 {
 	struct adf4377_state *st = container_of(nb, struct adf4377_state, nb);
 	int ret;
 
 	if (action == POST_RATE_CHANGE) {
 		mutex_lock(&st->lock);
-		ret = notifier_from_errno(adf4377_init(st));
+		ret = analtifier_from_erranal(adf4377_init(st));
 		mutex_unlock(&st->lock);
 		return ret;
 	}
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 static int adf4377_probe(struct spi_device *spi)
@@ -930,7 +930,7 @@ static int adf4377_probe(struct spi_device *spi)
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	regmap = devm_regmap_init_spi(spi, &adf4377_regmap_config);
 	if (IS_ERR(regmap))
@@ -951,8 +951,8 @@ static int adf4377_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	st->nb.notifier_call = adf4377_freq_change;
-	ret = devm_clk_notifier_register(&spi->dev, st->clkin, &st->nb);
+	st->nb.analtifier_call = adf4377_freq_change;
+	ret = devm_clk_analtifier_register(&spi->dev, st->clkin, &st->nb);
 	if (ret)
 		return ret;
 

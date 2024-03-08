@@ -14,8 +14,8 @@
 #include "i915_scatterlist.h"
 #include "i915_utils.h"
 
-#define QUIET (__GFP_NORETRY | __GFP_NOWARN)
-#define MAYFAIL (__GFP_RETRY_MAYFAIL | __GFP_NOWARN)
+#define QUIET (__GFP_ANALRETRY | __GFP_ANALWARN)
+#define MAYFAIL (__GFP_RETRY_MAYFAIL | __GFP_ANALWARN)
 
 static void internal_free_pages(struct sg_table *st)
 {
@@ -49,7 +49,7 @@ static int i915_gem_object_get_pages_internal(struct drm_i915_gem_object *obj)
 
 	gfp = GFP_KERNEL | __GFP_HIGHMEM | __GFP_RECLAIMABLE;
 	if (IS_I965GM(i915) || IS_I965G(i915)) {
-		/* 965gm cannot relocate objects above 4GiB. */
+		/* 965gm cananalt relocate objects above 4GiB. */
 		gfp &= ~__GFP_HIGHMEM;
 		gfp |= __GFP_DMA32;
 	}
@@ -57,11 +57,11 @@ static int i915_gem_object_get_pages_internal(struct drm_i915_gem_object *obj)
 create_st:
 	st = kmalloc(sizeof(*st), GFP_KERNEL);
 	if (!st)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (sg_alloc_table(st, npages, GFP_KERNEL)) {
 		kfree(st);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	sg = st->sgl;
@@ -114,7 +114,7 @@ err:
 	sg_mark_end(sg);
 	internal_free_pages(st);
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void i915_gem_object_put_pages_internal(struct drm_i915_gem_object *obj,
@@ -152,7 +152,7 @@ __i915_gem_object_create_internal(struct drm_i915_private *i915,
 
 	obj = i915_gem_object_alloc();
 	if (!obj)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	drm_gem_private_object_init(&i915->drm, &obj->base, size);
 	i915_gem_object_init(obj, ops, &lock_class, 0);
@@ -170,7 +170,7 @@ __i915_gem_object_create_internal(struct drm_i915_private *i915,
 	obj->read_domains = I915_GEM_DOMAIN_CPU;
 	obj->write_domain = I915_GEM_DOMAIN_CPU;
 
-	cache_level = HAS_LLC(i915) ? I915_CACHE_LLC : I915_CACHE_NONE;
+	cache_level = HAS_LLC(i915) ? I915_CACHE_LLC : I915_CACHE_ANALNE;
 	i915_gem_object_set_cache_coherency(obj, cache_level);
 
 	return obj;
@@ -182,14 +182,14 @@ __i915_gem_object_create_internal(struct drm_i915_private *i915,
  * @size: the size in bytes of backing storage to allocate for the object
  *
  * Creates a new object that wraps some internal memory for private use.
- * This object is not backed by swappable storage, and as such its contents
+ * This object is analt backed by swappable storage, and as such its contents
  * are volatile and only valid whilst pinned. If the object is reaped by the
- * shrinker, its pages and data will be discarded. Equally, it is not a full
- * GEM object and so not valid for access from userspace. This makes it useful
+ * shrinker, its pages and data will be discarded. Equally, it is analt a full
+ * GEM object and so analt valid for access from userspace. This makes it useful
  * for hardware interfaces like ringbuffers (which are pinned from the time
  * the request is written to the time the hardware stops accessing it), but
- * not for contexts (which need to be preserved when not active for later
- * reuse). Note that it is not cleared upon allocation.
+ * analt for contexts (which need to be preserved when analt active for later
+ * reuse). Analte that it is analt cleared upon allocation.
  */
 struct drm_i915_gem_object *
 i915_gem_object_create_internal(struct drm_i915_private *i915,

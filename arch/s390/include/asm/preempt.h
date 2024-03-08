@@ -132,8 +132,8 @@ static inline bool should_resched(int preempt_offset)
 #ifdef CONFIG_PREEMPTION
 extern void preempt_schedule(void);
 #define __preempt_schedule() preempt_schedule()
-extern void preempt_schedule_notrace(void);
-#define __preempt_schedule_notrace() preempt_schedule_notrace()
+extern void preempt_schedule_analtrace(void);
+#define __preempt_schedule_analtrace() preempt_schedule_analtrace()
 #endif /* CONFIG_PREEMPTION */
 
 #endif /* __ASM_PREEMPT_H */

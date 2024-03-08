@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -73,9 +73,9 @@ dispatch_table:
 // mthd 0x0000, NAME
 .b16 0x000 1
 .b32 #ctx_object                     ~0xffffffff
-// mthd 0x0100, NOP
+// mthd 0x0100, ANALP
 .b16 0x040 1
-.b32 0x00010000 + #cmd_nop           ~0xffffffff
+.b32 0x00010000 + #cmd_analp           ~0xffffffff
 // mthd 0x0140, PM_TRIGGER
 .b16 0x050 1
 .b32 0x00010000 + #cmd_pm_trigger    ~0xffffffff
@@ -166,14 +166,14 @@ ih:
    iord $r1 I[$r0 + 0x200]
 
    and $r2 $r1 0x00000008
-   bra e #ih_no_chsw
+   bra e #ih_anal_chsw
       call #chsw
-   ih_no_chsw:
+   ih_anal_chsw:
    and $r2 $r1 0x00000004
-   bra e #ih_no_cmd
+   bra e #ih_anal_cmd
       call #dispatch
 
-   ih_no_cmd:
+   ih_anal_cmd:
    and $r1 $r1 0x0000000c
    iowr I[$r0 + 0x100] $r1
    iret
@@ -208,7 +208,7 @@ swctx:
    // get a chunk of stack space, aligned to 256 byte boundary
    sub b32 $r5 0x100
    mov $r6 0xff
-   not b32 $r6
+   analt b32 $r6
    and $r5 $r6
    sethi $r5 0x00020000
    xdld $r4 $r5
@@ -246,7 +246,7 @@ chsw:
 
    // if it's active, unload it and return
    xbit $r15 $r3 0x1e
-   bra e #chsw_no_unload
+   bra e #chsw_anal_unload
       bclr $flags $p1
       call #swctx
       bclr $r3 0x1e
@@ -256,7 +256,7 @@ chsw:
       ret
 
    // read next channel
-   chsw_no_unload:
+   chsw_anal_unload:
    iord $r3 I[$r2 + 0x100]
 
    // is there a channel waiting to be loaded?
@@ -290,7 +290,7 @@ dispatch:
    // $r2 will be used to store exception data
    shl b32 $r2 0x10
 
-   // lookup method in the dispatch table, ILLEGAL_MTHD if not found
+   // lookup method in the dispatch table, ILLEGAL_MTHD if analt found
    mov $r5 #dispatch_table
    clear b32 $r6
    clear b32 $r7
@@ -308,7 +308,7 @@ dispatch:
       add b32 $r5 $r7
       bra #dispatch_loop
 
-   // ensure no bits set in reserved fields, INVALID_BITFIELD
+   // ensure anal bits set in reserved fields, INVALID_BITFIELD
    dispatch_valid_mthd:
    sub b32 $r4 $r6
    shl b32 $r4 3
@@ -355,7 +355,7 @@ dispatch:
    iowr I[$r2] $r3
    ret
 
-// No-operation
+// Anal-operation
 //
 // Inputs:
 //    $r1: irqh state
@@ -367,7 +367,7 @@ dispatch:
 //    $p1: set on error
 //       $r2: hostirq state
 //       $r3: data
-cmd_nop:
+cmd_analp:
    ret
 
 // PM_TRIGGER
@@ -470,7 +470,7 @@ cmd_exec_set_format:
       cmpu b32 $r9 $r7
       bra c #ncomp_loop
 
-   // SRC_XCNT = (xcnt * src_cpp), or 0 if no src ref in swz (hw will hang)
+   // SRC_XCNT = (xcnt * src_cpp), or 0 if anal src ref in swz (hw will hang)
    mulu $r6 $r5
    st b32 D[$r0 + #ctx_src_cpp] $r6
    ld b32 $r8 D[$r0 + #ctx_xcnt]
@@ -665,7 +665,7 @@ cmd_exec_set_surface_tiled:
 
 // Setup to handle a linear surface
 //
-// Nothing to see here.. Sets ADDRESS and PITCH, pretty non-exciting
+// Analthing to see here.. Sets ADDRESS and PITCH, pretty analn-exciting
 //
 cmd_exec_set_surface_linear:
    xbit $r6 $flags $p2
@@ -697,7 +697,7 @@ cmd_exec_wait:
    ret
 
 cmd_exec_query:
-   // if QUERY_SHORT not set, write out { -, 0, TIME_LO, TIME_HI }
+   // if QUERY_SHORT analt set, write out { -, 0, TIME_LO, TIME_HI }
    xbit $r4 $r3 13
    bra ne #query_counter
       call #cmd_exec_wait
@@ -786,11 +786,11 @@ cmd_exec:
    // if format requested, call function to calculate it, otherwise
    // fill in cpp/xcnt for both surfaces as if (cpp == 1)
    xbit $r15 $r3 0
-   bra e #cmd_exec_no_format
+   bra e #cmd_exec_anal_format
       call #cmd_exec_set_format
       mov $r4 0x200
       bra #cmd_exec_init_src_surface
-   cmd_exec_no_format:
+   cmd_exec_anal_format:
       mov $r6 0x810
       shl b32 $r6 6
       mov $r7 1

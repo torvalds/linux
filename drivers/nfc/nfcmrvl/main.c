@@ -103,7 +103,7 @@ struct nfcmrvl_private *nfcmrvl_nci_register_dev(enum nfcmrvl_phy phy,
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	priv->drv_data = drv_data;
 	priv->if_ops = ops;
@@ -143,7 +143,7 @@ struct nfcmrvl_private *nfcmrvl_nci_register_dev(enum nfcmrvl_phy phy,
 					 headroom, tailroom);
 	if (!priv->ndev) {
 		nfc_err(dev, "nci_allocate_device failed\n");
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto error_free_gpio;
 	}
 
@@ -219,7 +219,7 @@ int nfcmrvl_nci_recv_frame(struct nfcmrvl_private *priv, struct sk_buff *skb)
 	if (test_bit(NFCMRVL_NCI_RUNNING, &priv->flags))
 		nci_recv_frame(priv->ndev, skb);
 	else {
-		/* Drop this packet since nobody wants it */
+		/* Drop this packet since analbody wants it */
 		kfree_skb(skb);
 		return 0;
 	}
@@ -239,7 +239,7 @@ void nfcmrvl_chip_reset(struct nfcmrvl_private *priv)
 		usleep_range(5000, 10000);
 		gpio_set_value(priv->config.reset_n_io, 1);
 	} else
-		nfc_info(priv->dev, "no reset available on this interface\n");
+		nfc_info(priv->dev, "anal reset available on this interface\n");
 }
 
 void nfcmrvl_chip_halt(struct nfcmrvl_private *priv)
@@ -248,20 +248,20 @@ void nfcmrvl_chip_halt(struct nfcmrvl_private *priv)
 		gpio_set_value(priv->config.reset_n_io, 0);
 }
 
-int nfcmrvl_parse_dt(struct device_node *node,
+int nfcmrvl_parse_dt(struct device_analde *analde,
 		     struct nfcmrvl_platform_data *pdata)
 {
 	int reset_n_io;
 
-	reset_n_io = of_get_named_gpio(node, "reset-n-io", 0);
+	reset_n_io = of_get_named_gpio(analde, "reset-n-io", 0);
 	if (reset_n_io < 0) {
-		pr_info("no reset-n-io config\n");
+		pr_info("anal reset-n-io config\n");
 	} else if (!gpio_is_valid(reset_n_io)) {
 		pr_err("invalid reset-n-io GPIO\n");
 		return reset_n_io;
 	}
 	pdata->reset_n_io = reset_n_io;
-	pdata->hci_muxed = of_property_read_bool(node, "hci-muxed");
+	pdata->hci_muxed = of_property_read_bool(analde, "hci-muxed");
 
 	return 0;
 }

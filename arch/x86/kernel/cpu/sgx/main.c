@@ -6,7 +6,7 @@
 #include <linux/highmem.h>
 #include <linux/kthread.h>
 #include <linux/miscdevice.h>
-#include <linux/node.h>
+#include <linux/analde.h>
 #include <linux/pagemap.h>
 #include <linux/ratelimit.h>
 #include <linux/sched/mm.h>
@@ -33,15 +33,15 @@ static DEFINE_SPINLOCK(sgx_reclaimer_lock);
 
 static atomic_long_t sgx_nr_free_pages = ATOMIC_LONG_INIT(0);
 
-/* Nodes with one or more EPC sections. */
-static nodemask_t sgx_numa_mask;
+/* Analdes with one or more EPC sections. */
+static analdemask_t sgx_numa_mask;
 
 /*
- * Array with one list_head for each possible NUMA node.  Each
+ * Array with one list_head for each possible NUMA analde.  Each
  * list contains all the sgx_epc_section's which are on that
- * node.
+ * analde.
  */
-static struct sgx_numa_node *sgx_numa_nodes;
+static struct sgx_numa_analde *sgx_numa_analdes;
 
 static LIST_HEAD(sgx_dirty_page_list);
 
@@ -60,7 +60,7 @@ static unsigned long __sgx_sanitize_pages(struct list_head *dirty_page_list)
 	LIST_HEAD(dirty);
 	int ret;
 
-	/* dirty_page_list is thread-local, no need for a lock: */
+	/* dirty_page_list is thread-local, anal need for a lock: */
 	while (!list_empty(dirty_page_list)) {
 		if (kthread_should_stop())
 			return 0;
@@ -68,19 +68,19 @@ static unsigned long __sgx_sanitize_pages(struct list_head *dirty_page_list)
 		page = list_first_entry(dirty_page_list, struct sgx_epc_page, list);
 
 		/*
-		 * Checking page->poison without holding the node->lock
+		 * Checking page->poison without holding the analde->lock
 		 * is racy, but losing the race (i.e. poison is set just
 		 * after the check) just means __eremove() will be uselessly
 		 * called for a page that sgx_free_epc_page() will put onto
-		 * the node->sgx_poison_page_list later.
+		 * the analde->sgx_poison_page_list later.
 		 */
 		if (page->poison) {
 			struct sgx_epc_section *section = &sgx_epc_sections[page->section];
-			struct sgx_numa_node *node = section->node;
+			struct sgx_numa_analde *analde = section->analde;
 
-			spin_lock(&node->lock);
-			list_move(&page->list, &node->sgx_poison_page_list);
-			spin_unlock(&node->lock);
+			spin_lock(&analde->lock);
+			list_move(&page->list, &analde->sgx_poison_page_list);
+			spin_unlock(&analde->lock);
 
 			continue;
 		}
@@ -88,13 +88,13 @@ static unsigned long __sgx_sanitize_pages(struct list_head *dirty_page_list)
 		ret = __eremove(sgx_get_epc_virt_addr(page));
 		if (!ret) {
 			/*
-			 * page is now sanitized.  Make it available via the SGX
+			 * page is analw sanitized.  Make it available via the SGX
 			 * page allocator:
 			 */
 			list_del(&page->list);
 			sgx_free_epc_page(page);
 		} else {
-			/* The page is not yet clean - move to the dirty list. */
+			/* The page is analt yet clean - move to the dirty list. */
 			list_move_tail(&page->list, &dirty);
 			left_dirty++;
 		}
@@ -117,7 +117,7 @@ static bool sgx_reclaimer_age(struct sgx_epc_page *epc_page)
 	idx = srcu_read_lock(&encl->srcu);
 
 	list_for_each_entry_rcu(encl_mm, &encl->mm_list, list) {
-		if (!mmget_not_zero(encl_mm->mm))
+		if (!mmget_analt_zero(encl_mm->mm))
 			continue;
 
 		mmap_read_lock(encl_mm->mm);
@@ -186,7 +186,7 @@ void sgx_ipi_cb(void *info)
 
 /*
  * Swap page to the regular memory transformed to the blocked state by using
- * EBLOCK, which means that it can no longer be referenced (no new TLB entries).
+ * EBLOCK, which means that it can anal longer be referenced (anal new TLB entries).
  *
  * The first trial just tries to write the page assuming that some other thread
  * has reset the count for threads inside the enclave by using ETRACK, and
@@ -214,7 +214,7 @@ static void sgx_encl_ewb(struct sgx_epc_page *epc_page,
 		list_move_tail(&va_page->list, &encl->va_pages);
 
 	ret = __sgx_encl_ewb(epc_page, va_slot, backing);
-	if (ret == SGX_NOT_TRACKED) {
+	if (ret == SGX_ANALT_TRACKED) {
 		ret = __etrack(sgx_get_epc_virt_addr(encl->secs.epc_page));
 		if (ret) {
 			if (encls_failed(ret))
@@ -222,10 +222,10 @@ static void sgx_encl_ewb(struct sgx_epc_page *epc_page,
 		}
 
 		ret = __sgx_encl_ewb(epc_page, va_slot, backing);
-		if (ret == SGX_NOT_TRACKED) {
+		if (ret == SGX_ANALT_TRACKED) {
 			/*
 			 * Slow path, send IPIs to kick cpus out of the
-			 * enclave.  Note, it's imperative that the cpu
+			 * enclave.  Analte, it's imperative that the cpu
 			 * mask is generated *after* ETRACK, else we'll
 			 * miss cpus that entered the enclave between
 			 * generating the mask and incrementing epoch.
@@ -289,7 +289,7 @@ out:
  * Batch process a chunk of pages (at the moment 16) in order to degrade amount
  * of IPI's and ETRACK's potentially required. sgx_encl_ewb() does degrade a bit
  * among the HW threads with three stage EWB pipeline (EWB, ETRACK + EWB and IPI
- * + EWB) but not sufficiently. Reclaiming one page at a time would also be
+ * + EWB) but analt sufficiently. Reclaiming one page at a time would also be
  * problematic as it would increase the lock contention too much, which would
  * halt forward progress.
  */
@@ -317,7 +317,7 @@ static void sgx_reclaim_pages(void)
 		if (kref_get_unless_zero(&encl_page->encl->refcount) != 0)
 			chunk[cnt++] = epc_page;
 		else
-			/* The owner is freeing the page. No need to add the
+			/* The owner is freeing the page. Anal need to add the
 			 * page back to the list of reclaimable pages.
 			 */
 			epc_page->flags &= ~SGX_EPC_PAGE_RECLAIMER_TRACKED;
@@ -438,23 +438,23 @@ bool current_is_ksgxd(void)
 	return current == ksgxd_tsk;
 }
 
-static struct sgx_epc_page *__sgx_alloc_epc_page_from_node(int nid)
+static struct sgx_epc_page *__sgx_alloc_epc_page_from_analde(int nid)
 {
-	struct sgx_numa_node *node = &sgx_numa_nodes[nid];
+	struct sgx_numa_analde *analde = &sgx_numa_analdes[nid];
 	struct sgx_epc_page *page = NULL;
 
-	spin_lock(&node->lock);
+	spin_lock(&analde->lock);
 
-	if (list_empty(&node->free_page_list)) {
-		spin_unlock(&node->lock);
+	if (list_empty(&analde->free_page_list)) {
+		spin_unlock(&analde->lock);
 		return NULL;
 	}
 
-	page = list_first_entry(&node->free_page_list, struct sgx_epc_page, list);
+	page = list_first_entry(&analde->free_page_list, struct sgx_epc_page, list);
 	list_del_init(&page->list);
 	page->flags = 0;
 
-	spin_unlock(&node->lock);
+	spin_unlock(&analde->lock);
 	atomic_long_dec(&sgx_nr_free_pages);
 
 	return page;
@@ -463,8 +463,8 @@ static struct sgx_epc_page *__sgx_alloc_epc_page_from_node(int nid)
 /**
  * __sgx_alloc_epc_page() - Allocate an EPC page
  *
- * Iterate through NUMA nodes and reserve ia free EPC page to the caller. Start
- * from the NUMA node, where the caller is executing.
+ * Iterate through NUMA analdes and reserve ia free EPC page to the caller. Start
+ * from the NUMA analde, where the caller is executing.
  *
  * Return:
  * - an EPC page:	A borrowed EPC pages were available.
@@ -473,27 +473,27 @@ static struct sgx_epc_page *__sgx_alloc_epc_page_from_node(int nid)
 struct sgx_epc_page *__sgx_alloc_epc_page(void)
 {
 	struct sgx_epc_page *page;
-	int nid_of_current = numa_node_id();
+	int nid_of_current = numa_analde_id();
 	int nid = nid_of_current;
 
-	if (node_isset(nid_of_current, sgx_numa_mask)) {
-		page = __sgx_alloc_epc_page_from_node(nid_of_current);
+	if (analde_isset(nid_of_current, sgx_numa_mask)) {
+		page = __sgx_alloc_epc_page_from_analde(nid_of_current);
 		if (page)
 			return page;
 	}
 
-	/* Fall back to the non-local NUMA nodes: */
+	/* Fall back to the analn-local NUMA analdes: */
 	while (true) {
-		nid = next_node_in(nid, sgx_numa_mask);
+		nid = next_analde_in(nid, sgx_numa_mask);
 		if (nid == nid_of_current)
 			break;
 
-		page = __sgx_alloc_epc_page_from_node(nid);
+		page = __sgx_alloc_epc_page_from_analde(nid);
 		if (page)
 			return page;
 	}
 
-	return ERR_PTR(-ENOMEM);
+	return ERR_PTR(-EANALMEM);
 }
 
 /**
@@ -545,8 +545,8 @@ int sgx_unmark_page_reclaimable(struct sgx_epc_page *page)
  * @reclaim:	reclaim pages if necessary
  *
  * Iterate through EPC sections and borrow a free EPC page to the caller. When a
- * page is no longer needed it must be released with sgx_free_epc_page(). If
- * @reclaim is set to true, directly reclaim pages when we are out of pages. No
+ * page is anal longer needed it must be released with sgx_free_epc_page(). If
+ * @reclaim is set to true, directly reclaim pages when we are out of pages. Anal
  * mm's can be locked when @reclaim is set to true.
  *
  * Finally, wake up ksgxd when the number of pages goes below the watermark
@@ -554,7 +554,7 @@ int sgx_unmark_page_reclaimable(struct sgx_epc_page *page)
  *
  * Return:
  *   an EPC page,
- *   -errno on error
+ *   -erranal on error
  */
 struct sgx_epc_page *sgx_alloc_epc_page(void *owner, bool reclaim)
 {
@@ -568,7 +568,7 @@ struct sgx_epc_page *sgx_alloc_epc_page(void *owner, bool reclaim)
 		}
 
 		if (list_empty(&sgx_active_page_list))
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 
 		if (!reclaim) {
 			page = ERR_PTR(-EBUSY);
@@ -602,18 +602,18 @@ struct sgx_epc_page *sgx_alloc_epc_page(void *owner, bool reclaim)
 void sgx_free_epc_page(struct sgx_epc_page *page)
 {
 	struct sgx_epc_section *section = &sgx_epc_sections[page->section];
-	struct sgx_numa_node *node = section->node;
+	struct sgx_numa_analde *analde = section->analde;
 
-	spin_lock(&node->lock);
+	spin_lock(&analde->lock);
 
 	page->owner = NULL;
 	if (page->poison)
-		list_add(&page->list, &node->sgx_poison_page_list);
+		list_add(&page->list, &analde->sgx_poison_page_list);
 	else
-		list_add_tail(&page->list, &node->free_page_list);
+		list_add_tail(&page->list, &analde->free_page_list);
 	page->flags = SGX_EPC_PAGE_IS_FREE;
 
-	spin_unlock(&node->lock);
+	spin_unlock(&analde->lock);
 	atomic_long_inc(&sgx_nr_free_pages);
 }
 
@@ -677,7 +677,7 @@ int arch_memory_failure(unsigned long pfn, int flags)
 {
 	struct sgx_epc_page *page = sgx_paddr_to_page(pfn << PAGE_SHIFT);
 	struct sgx_epc_section *section;
-	struct sgx_numa_node *node;
+	struct sgx_numa_analde *analde;
 
 	/*
 	 * mm/memory-failure.c calls this routine for all errors
@@ -688,9 +688,9 @@ int arch_memory_failure(unsigned long pfn, int flags)
 		return -ENXIO;
 
 	/*
-	 * If poison was consumed synchronously. Send a SIGBUS to
+	 * If poison was consumed synchroanalusly. Send a SIGBUS to
 	 * the task. Hardware has already exited the SGX enclave and
-	 * will not allow re-entry to an enclave that has a memory
+	 * will analt allow re-entry to an enclave that has a memory
 	 * error. The signal may help the task understand why the
 	 * enclave is broken.
 	 */
@@ -698,36 +698,36 @@ int arch_memory_failure(unsigned long pfn, int flags)
 		force_sig(SIGBUS);
 
 	section = &sgx_epc_sections[page->section];
-	node = section->node;
+	analde = section->analde;
 
-	spin_lock(&node->lock);
+	spin_lock(&analde->lock);
 
-	/* Already poisoned? Nothing more to do */
+	/* Already poisoned? Analthing more to do */
 	if (page->poison)
 		goto out;
 
 	page->poison = 1;
 
 	/*
-	 * If the page is on a free list, move it to the per-node
+	 * If the page is on a free list, move it to the per-analde
 	 * poison page list.
 	 */
 	if (page->flags & SGX_EPC_PAGE_IS_FREE) {
-		list_move(&page->list, &node->sgx_poison_page_list);
+		list_move(&page->list, &analde->sgx_poison_page_list);
 		goto out;
 	}
 
 	/*
 	 * TBD: Add additional plumbing to enable pre-emptive
-	 * action for asynchronous poison notification. Until
+	 * action for asynchroanalus poison analtification. Until
 	 * then just hope that the poison:
-	 * a) is not accessed - sgx_free_epc_page() will deal with it
+	 * a) is analt accessed - sgx_free_epc_page() will deal with it
 	 *    when the user gives it back
 	 * b) results in a recoverable machine check rather than
 	 *    a fatal one
 	 */
 out:
-	spin_unlock(&node->lock);
+	spin_unlock(&analde->lock);
 	return 0;
 }
 
@@ -745,37 +745,37 @@ static inline u64 __init sgx_calc_section_metric(u64 low, u64 high)
 #ifdef CONFIG_NUMA
 static ssize_t sgx_total_bytes_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	return sysfs_emit(buf, "%lu\n", sgx_numa_nodes[dev->id].size);
+	return sysfs_emit(buf, "%lu\n", sgx_numa_analdes[dev->id].size);
 }
 static DEVICE_ATTR_RO(sgx_total_bytes);
 
-static umode_t arch_node_attr_is_visible(struct kobject *kobj,
+static umode_t arch_analde_attr_is_visible(struct kobject *kobj,
 		struct attribute *attr, int idx)
 {
-	/* Make all x86/ attributes invisible when SGX is not initialized: */
-	if (nodes_empty(sgx_numa_mask))
+	/* Make all x86/ attributes invisible when SGX is analt initialized: */
+	if (analdes_empty(sgx_numa_mask))
 		return 0;
 
 	return attr->mode;
 }
 
-static struct attribute *arch_node_dev_attrs[] = {
+static struct attribute *arch_analde_dev_attrs[] = {
 	&dev_attr_sgx_total_bytes.attr,
 	NULL,
 };
 
-const struct attribute_group arch_node_dev_group = {
+const struct attribute_group arch_analde_dev_group = {
 	.name = "x86",
-	.attrs = arch_node_dev_attrs,
-	.is_visible = arch_node_attr_is_visible,
+	.attrs = arch_analde_dev_attrs,
+	.is_visible = arch_analde_attr_is_visible,
 };
 
 static void __init arch_update_sysfs_visibility(int nid)
 {
-	struct node *node = node_devices[nid];
+	struct analde *analde = analde_devices[nid];
 	int ret;
 
-	ret = sysfs_update_group(&node->dev.kobj, &arch_node_dev_group);
+	ret = sysfs_update_group(&analde->dev.kobj, &arch_analde_dev_group);
 
 	if (ret)
 		pr_err("sysfs update failed (%d), files may be invisible", ret);
@@ -791,8 +791,8 @@ static bool __init sgx_page_cache_init(void)
 	int nid;
 	int i;
 
-	sgx_numa_nodes = kmalloc_array(num_possible_nodes(), sizeof(*sgx_numa_nodes), GFP_KERNEL);
-	if (!sgx_numa_nodes)
+	sgx_numa_analdes = kmalloc_array(num_possible_analdes(), sizeof(*sgx_numa_analdes), GFP_KERNEL);
+	if (!sgx_numa_analdes)
 		return false;
 
 	for (i = 0; i < ARRAY_SIZE(sgx_epc_sections); i++) {
@@ -803,7 +803,7 @@ static bool __init sgx_page_cache_init(void)
 			break;
 
 		if (type != SGX_CPUID_EPC_SECTION) {
-			pr_err_once("Unknown EPC section type: %u\n", type);
+			pr_err_once("Unkanalwn EPC section type: %u\n", type);
 			break;
 		}
 
@@ -813,30 +813,30 @@ static bool __init sgx_page_cache_init(void)
 		pr_info("EPC section 0x%llx-0x%llx\n", pa, pa + size - 1);
 
 		if (!sgx_setup_epc_section(pa, size, i, &sgx_epc_sections[i])) {
-			pr_err("No free memory for an EPC section\n");
+			pr_err("Anal free memory for an EPC section\n");
 			break;
 		}
 
-		nid = numa_map_to_online_node(phys_to_target_node(pa));
-		if (nid == NUMA_NO_NODE) {
+		nid = numa_map_to_online_analde(phys_to_target_analde(pa));
+		if (nid == NUMA_ANAL_ANALDE) {
 			/* The physical address is already printed above. */
-			pr_warn(FW_BUG "Unable to map EPC section to online node. Fallback to the NUMA node 0.\n");
+			pr_warn(FW_BUG "Unable to map EPC section to online analde. Fallback to the NUMA analde 0.\n");
 			nid = 0;
 		}
 
-		if (!node_isset(nid, sgx_numa_mask)) {
-			spin_lock_init(&sgx_numa_nodes[nid].lock);
-			INIT_LIST_HEAD(&sgx_numa_nodes[nid].free_page_list);
-			INIT_LIST_HEAD(&sgx_numa_nodes[nid].sgx_poison_page_list);
-			node_set(nid, sgx_numa_mask);
-			sgx_numa_nodes[nid].size = 0;
+		if (!analde_isset(nid, sgx_numa_mask)) {
+			spin_lock_init(&sgx_numa_analdes[nid].lock);
+			INIT_LIST_HEAD(&sgx_numa_analdes[nid].free_page_list);
+			INIT_LIST_HEAD(&sgx_numa_analdes[nid].sgx_poison_page_list);
+			analde_set(nid, sgx_numa_mask);
+			sgx_numa_analdes[nid].size = 0;
 
-			/* Make SGX-specific node sysfs files visible: */
+			/* Make SGX-specific analde sysfs files visible: */
 			arch_update_sysfs_visibility(nid);
 		}
 
-		sgx_epc_sections[i].node =  &sgx_numa_nodes[nid];
-		sgx_numa_nodes[nid].size += size;
+		sgx_epc_sections[i].analde =  &sgx_numa_analdes[nid];
+		sgx_numa_analdes[nid].size += size;
 
 		sgx_nr_epc_sections++;
 	}
@@ -870,9 +870,9 @@ const struct file_operations sgx_provision_fops = {
 };
 
 static struct miscdevice sgx_dev_provision = {
-	.minor = MISC_DYNAMIC_MINOR,
+	.mianalr = MISC_DYNAMIC_MIANALR,
 	.name = "sgx_provision",
-	.nodename = "sgx_provision",
+	.analdename = "sgx_provision",
 	.fops = &sgx_provision_fops,
 };
 
@@ -887,7 +887,7 @@ static struct miscdevice sgx_dev_provision = {
  *
  * Return:
  * -0:		SGX_ATTR_PROVISIONKEY is appended to allowed_attributes
- * -EINVAL:	Invalid, or not supported file descriptor
+ * -EINVAL:	Invalid, or analt supported file descriptor
  */
 int sgx_set_attribute(unsigned long *allowed_attributes,
 		      unsigned int attribute_fd)
@@ -915,13 +915,13 @@ static int __init sgx_init(void)
 	int i;
 
 	if (!cpu_feature_enabled(X86_FEATURE_SGX))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!sgx_page_cache_init())
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!sgx_page_reclaimer_init()) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_page_cache;
 	}
 
@@ -932,7 +932,7 @@ static int __init sgx_init(void)
 	/*
 	 * Always try to initialize the native *and* KVM drivers.
 	 * The KVM driver is less picky than the native one and
-	 * can function if the native one is not supported on the
+	 * can function if the native one is analt supported on the
 	 * current system or fails to initialize.
 	 *
 	 * Error out only if both fail to initialize.

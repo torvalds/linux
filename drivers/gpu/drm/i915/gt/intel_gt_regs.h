@@ -13,9 +13,9 @@
 /*
  * The perf control registers are technically multicast registers, but the
  * driver never needs to read/write them directly; we only use them to build
- * lists of registers (where they're mixed in with other non-MCR registers)
- * and then operate on the offset directly.  For now we'll just define them
- * as non-multicast so we can place them on the same list, but we may want
+ * lists of registers (where they're mixed in with other analn-MCR registers)
+ * and then operate on the offset directly.  For analw we'll just define them
+ * as analn-multicast so we can place them on the same list, but we may want
  * to try to come up with a better way to handle heterogeneous lists of
  * registers in the future.
  */
@@ -44,7 +44,7 @@
 #define   GEN10_RPM_CONFIG0_CTC_SHIFT_PARAMETER_MASK	(0x3 << GEN10_RPM_CONFIG0_CTC_SHIFT_PARAMETER_SHIFT)
 
 #define RPM_CONFIG1				_MMIO(0xd04)
-#define   GEN10_GT_NOA_ENABLE			(1 << 9)
+#define   GEN10_GT_ANALA_ENABLE			(1 << 9)
 
 /* RCP unit config (Gen8+) */
 #define RCP_CONFIG				_MMIO(0xd08)
@@ -114,7 +114,7 @@
 #define _3D_CHICKEN2				_MMIO(0x208c)
 /* Disables pipelining of read flushes past the SF-WIZ interface.
  * Required on all Ironlake steppings according to the B-Spec, but the
- * particular danger of not doing so is not specified.
+ * particular danger of analt doing so is analt specified.
  */
 #define   _3D_CHICKEN2_WM_READ_PIPELINED	(1 << 14)
 
@@ -127,7 +127,7 @@
 #define   _3D_CHICKEN3_SF_DISABLE_PIPELINED_ATTR_FETCH	(1 << 1) /* gen6 */
 
 #define GEN2_INSTDONE				_MMIO(0x2090)
-#define NOPID					_MMIO(0x2094)
+#define ANALPID					_MMIO(0x2094)
 #define HWSTAM					_MMIO(0x2098)
 
 #define WAIT_FOR_RC6_EXIT			_MMIO(0x20cc)
@@ -208,14 +208,14 @@
  * Logical Context regs
  */
 /*
- * Notes on SNB/IVB/VLV context size:
+ * Analtes on SNB/IVB/VLV context size:
  * - Power context is saved elsewhere (LLC or stolen)
- * - Ring/execlist context is saved on SNB, not on IVB
+ * - Ring/execlist context is saved on SNB, analt on IVB
  * - Extended context size already includes render context size
  * - We always need to follow the extended context size.
  *   SNB BSpec has comments indicating that we should use the
  *   render context size instead if execlists are disabled, but
- *   based on empirical testing that's just nonsense.
+ *   based on empirical testing that's just analnsense.
  * - Pipelined/VF state is saved on SNB/IVB respectively
  * - GT1 size just indicates how much of render context
  *   doesn't need saving on GT1
@@ -478,11 +478,11 @@
 
 /* GEN8 chicken */
 #define HDC_CHICKEN0				_MMIO(0x7300)
-#define   HDC_FORCE_CSR_NON_COHERENT_OVR_DISABLE	(1 << 15)
+#define   HDC_FORCE_CSR_ANALN_COHERENT_OVR_DISABLE	(1 << 15)
 #define   HDC_FENCE_DEST_SLM_DISABLE		(1 << 14)
-#define   HDC_DONOT_FETCH_MEM_WHEN_MASKED	(1 << 11)
-#define   HDC_FORCE_CONTEXT_SAVE_RESTORE_NON_COHERENT	(1 << 5)
-#define   HDC_FORCE_NON_COHERENT		(1 << 4)
+#define   HDC_DOANALT_FETCH_MEM_WHEN_MASKED	(1 << 11)
+#define   HDC_FORCE_CONTEXT_SAVE_RESTORE_ANALN_COHERENT	(1 << 5)
+#define   HDC_FORCE_ANALN_COHERENT		(1 << 4)
 #define   HDC_BARRIER_PERFORMANCE_DISABLE	(1 << 10)
 
 #define COMMON_SLICE_CHICKEN4			_MMIO(0x7300)
@@ -761,7 +761,7 @@
 #define   SARBUNIT_CLKGATE_DIS			(1 << 5)
 #define   RCCUNIT_CLKGATE_DIS			(1 << 7)
 #define   MSCUNIT_CLKGATE_DIS			(1 << 10)
-#define   NODEDSS_CLKGATE_DIS			REG_BIT(12)
+#define   ANALDEDSS_CLKGATE_DIS			REG_BIT(12)
 #define   L3_CLKGATE_DIS			REG_BIT(16)
 #define   L3_CR2X_CLKGATE_DIS			REG_BIT(17)
 
@@ -811,7 +811,7 @@
 #define   GEN6_OFFSET(x)			((x) << 19)
 #define   GEN6_AGGRESSIVE_TURBO			(0 << 15)
 #define   GEN9_SW_REQ_UNSLICE_RATIO_SHIFT	23
-#define   GEN9_IGNORE_SLICE_RATIO		(0 << 0)
+#define   GEN9_IGANALRE_SLICE_RATIO		(0 << 0)
 #define   GEN12_MEDIA_FREQ_RATIO		REG_BIT(13)
 
 #define GEN6_RC_VIDEO_FREQ			_MMIO(0xa00c)
@@ -834,7 +834,7 @@
 #define   GEN6_RP_MEDIA_TURBO			(1 << 11)
 #define   GEN6_RP_MEDIA_MODE_MASK		(3 << 9)
 #define   GEN6_RP_MEDIA_HW_TURBO_MODE		(3 << 9)
-#define   GEN6_RP_MEDIA_HW_NORMAL_MODE		(2 << 9)
+#define   GEN6_RP_MEDIA_HW_ANALRMAL_MODE		(2 << 9)
 #define   GEN6_RP_MEDIA_HW_MODE			(1 << 9)
 #define   GEN6_RP_MEDIA_SW_MODE			(0 << 9)
 #define   GEN6_RP_MEDIA_IS_GFX			(1 << 8)
@@ -980,7 +980,7 @@
 #define   GEN11_HASH_CTRL_EXCL_BIT0		REG_FIELD_PREP(GEN11_HASH_CTRL_EXCL_MASK, 0x1)
 
 #define GEN9_SCRATCH_LNCF1			_MMIO(0xb008)
-#define   GEN9_LNCF_NONIA_COHERENT_ATOMICS_ENABLE	REG_BIT(0)
+#define   GEN9_LNCF_ANALNIA_COHERENT_ATOMICS_ENABLE	REG_BIT(0)
 
 #define GEN7_L3SQCREG1				_MMIO(0xb010)
 #define   VLV_B0_WA_L3SQCREG1_VALUE		0x00D30000
@@ -1014,12 +1014,12 @@
 #define GEN7_L3LOG(slice, i)			_MMIO(0xb070 + (slice) * 0x200 + (i) * 4)
 #define   GEN7_L3LOG_SIZE			0x80
 
-#define XEHP_L3NODEARBCFG			MCR_REG(0xb0b4)
+#define XEHP_L3ANALDEARBCFG			MCR_REG(0xb0b4)
 #define   XEHP_LNESPARE				REG_BIT(19)
 
 #define GEN8_L3SQCREG1				MCR_REG(0xb100)
 /*
- * Note that on CHV the following has an off-by-one error wrt. to BSpec.
+ * Analte that on CHV the following has an off-by-one error wrt. to BSpec.
  * Using the formula in BSpec leads to a hang, while the formula here works
  * fine and matches the formulas for all other platforms. A BSpec change
  * request has been filed to clarify this.
@@ -1032,7 +1032,7 @@
 #define   GEN11_LQSC_CLEAN_EVICT_DISABLE	(1 << 6)
 #define   GEN8_LQSC_RO_PERF_DIS			(1 << 27)
 #define   GEN8_LQSC_FLUSH_COHERENT_LINES	(1 << 21)
-#define   GEN8_LQSQ_NONIA_COHERENT_ATOMICS_ENABLE	REG_BIT(22)
+#define   GEN8_LQSQ_ANALNIA_COHERENT_ATOMICS_ENABLE	REG_BIT(22)
 
 #define GEN9_SCRATCH1				MCR_REG(0xb11c)
 #define   EVICTION_PERF_FIX_ENABLE		REG_BIT(8)
@@ -1058,7 +1058,7 @@
 #define   SCRUB_RATE_4B_PER_CLK			REG_FIELD_PREP(SCRUB_RATE_PER_BANK_MASK, 0x6)
 
 #define L3SQCREG1_CCS0				MCR_REG(0xb200)
-#define   FLUSHALLNONCOH			REG_BIT(5)
+#define   FLUSHALLANALNCOH			REG_BIT(5)
 
 #define GEN11_GLBLINVL				_MMIO(0xb404)
 #define   GEN11_BANK_HASH_ADDR_EXCL_MASK	(0x7f << 5)
@@ -1175,7 +1175,7 @@
 #define   FLOAT_BLEND_OPTIMIZATION_ENABLE	REG_BIT(4)
 /*
  * We have both ENABLE and DISABLE defines below using the same bit because the
- * meaning depends on the target platform. There are no platform prefix for them
+ * meaning depends on the target platform. There are anal platform prefix for them
  * because different steppings of DG2 pick one or the other semantics.
  */
 #define   ENABLE_PREFETCH_INTO_IC		REG_BIT(3)
@@ -1380,7 +1380,7 @@
 #define   RS2EN					(1 << 30)
 #define   RS3EN					(1 << 29)
 #define   D3RS3EN				(1 << 28) /* Display D3 imlies RS3 */
-#define   SWPROMORSX				(1 << 27) /* RSx promotion timers ignored */
+#define   SWPROMORSX				(1 << 27) /* RSx promotion timers iganalred */
 #define   RCWAKERW				(1 << 26) /* Resetwarn from PCH causes wakeup */
 #define   DPRSLPVREN				(1 << 25) /* Fast voltage ramp enable */
 #define   GFXTGHYST				(1 << 24) /* Hysteresis to allow trunk gating */
@@ -1399,15 +1399,15 @@
 #define   JRSC					(1 << 17) /* rsx coupled to cpu c-state */
 #define   RS2INC0				(1 << 16) /* allow rs2 in cpu c0 */
 #define   RS1CONTSAV_MASK			(3 << 14)
-#define   RS1CONTSAV_NO_RS1			(0 << 14) /* rs1 doesn't save/restore context */
+#define   RS1CONTSAV_ANAL_RS1			(0 << 14) /* rs1 doesn't save/restore context */
 #define   RS1CONTSAV_RSVD			(1 << 14)
 #define   RS1CONTSAV_SAVE_RS1			(2 << 14) /* rs1 saves context */
 #define   RS1CONTSAV_FULL_RS1			(3 << 14) /* rs1 saves and restores context */
-#define   NORMSLEXLAT_MASK			(3 << 12)
+#define   ANALRMSLEXLAT_MASK			(3 << 12)
 #define   SLOW_RS123				(0 << 12)
 #define   SLOW_RS23				(1 << 12)
 #define   SLOW_RS3				(2 << 12)
-#define   NORMAL_RS123				(3 << 12)
+#define   ANALRMAL_RS123				(3 << 12)
 #define   RCMODE_TIMEOUT			(1 << 11) /* 0 is eval interval method */
 #define   IMPROMOEN				(1 << 10) /* promo is immediate or delayed until next idle interval (only for timeout method above) */
 #define   RCENTSYNC				(1 << 9) /* rs coupled to cpu c-state (3/6/7) */
@@ -1417,8 +1417,8 @@
 #define   RS_CSTATE_C36_RS1_C7_RS2		(1 << 4)
 #define   RS_CSTATE_RSVD			(2 << 4)
 #define   RS_CSTATE_C367_RS2			(3 << 4)
-#define   REDSAVES				(1 << 3) /* no context save if was idle during rs0 */
-#define   REDRESTORES				(1 << 2) /* no restore if was idle during rs0 */
+#define   REDSAVES				(1 << 3) /* anal context save if was idle during rs0 */
+#define   REDRESTORES				(1 << 2) /* anal restore if was idle during rs0 */
 #define VIDCTL					_MMIO(0x111c0)
 #define VIDSTS					_MMIO(0x111c8)
 #define VIDSTART				_MMIO(0x111cc) /* 8 bits */
@@ -1685,7 +1685,7 @@
 #define GT0_PLATFORM_ENERGY_STATUS		_MMIO(0x25006c)
 
 /*
- * Standalone Media's non-engine GT registers are located at their regular GT
+ * Standalone Media's analn-engine GT registers are located at their regular GT
  * offsets plus 0x380000.  This extra offset is stored inside the intel_uncore
  * structure so that the existing code can be used for both GTs without
  * modification.

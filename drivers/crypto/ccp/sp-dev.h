@@ -25,8 +25,8 @@
 
 #define SP_MAX_NAME_LEN		32
 
-#define CACHE_NONE			0x00
-#define CACHE_WB_NO_ALLOC		0xb7
+#define CACHE_ANALNE			0x00
+#define CACHE_WB_ANAL_ALLOC		0xb7
 
 #define PLATFORM_FEATURE_DBC		0x1
 

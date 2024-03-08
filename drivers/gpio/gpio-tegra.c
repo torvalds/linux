@@ -64,7 +64,7 @@ struct tegra_gpio_bank {
 
 	/*
 	 * IRQ-core code uses raw locking, and thus, nested locking also
-	 * should be raw in order not to trip spinlock debug warnings.
+	 * should be raw in order analt to trip spinlock debug warnings.
 	 */
 	raw_spinlock_t lvl_lock[4];
 
@@ -261,7 +261,7 @@ static int tegra_gpio_set_config(struct gpio_chip *chip, unsigned int offset,
 	u32 debounce;
 
 	if (pinconf_to_config_param(config) != PIN_CONFIG_INPUT_DEBOUNCE)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	debounce = pinconf_to_config_argument(config);
 	return tegra_gpio_set_debounce(chip, offset, debounce);
@@ -447,7 +447,7 @@ static int tegra_gpio_populate_parent_fwspec(struct gpio_chip *chip,
 {
 	struct irq_fwspec *fwspec = &gfwspec->fwspec;
 
-	fwspec->fwnode = chip->irq.parent_domain->fwnode;
+	fwspec->fwanalde = chip->irq.parent_domain->fwanalde;
 	fwspec->param_count = 3;
 	fwspec->param[0] = 0;
 	fwspec->param[1] = parent_hwirq;
@@ -676,7 +676,7 @@ static inline void tegra_gpio_debuginit(struct tegra_gpio_info *tgi)
 #endif
 
 static const struct dev_pm_ops tegra_gpio_pm_ops = {
-	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(tegra_gpio_suspend, tegra_gpio_resume)
+	SET_ANALIRQ_SYSTEM_SLEEP_PM_OPS(tegra_gpio_suspend, tegra_gpio_resume)
 };
 
 static const struct of_device_id tegra_pmc_of_match[] = {
@@ -689,13 +689,13 @@ static int tegra_gpio_probe(struct platform_device *pdev)
 	struct tegra_gpio_bank *bank;
 	struct tegra_gpio_info *tgi;
 	struct gpio_irq_chip *irq;
-	struct device_node *np;
+	struct device_analde *np;
 	unsigned int i, j;
 	int ret;
 
 	tgi = devm_kzalloc(&pdev->dev, sizeof(*tgi), GFP_KERNEL);
 	if (!tgi)
-		return -ENODEV;
+		return -EANALDEV;
 
 	tgi->soc = of_device_get_match_data(&pdev->dev);
 	tgi->dev = &pdev->dev;
@@ -708,7 +708,7 @@ static int tegra_gpio_probe(struct platform_device *pdev)
 
 	if (!tgi->bank_count) {
 		dev_err(&pdev->dev, "Missing IRQ resource\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	tgi->gc.label			= "tegra-gpio";
@@ -731,12 +731,12 @@ static int tegra_gpio_probe(struct platform_device *pdev)
 	tgi->bank_info = devm_kcalloc(&pdev->dev, tgi->bank_count,
 				      sizeof(*tgi->bank_info), GFP_KERNEL);
 	if (!tgi->bank_info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tgi->irqs = devm_kcalloc(&pdev->dev, tgi->bank_count,
 				 sizeof(*tgi->irqs), GFP_KERNEL);
 	if (!tgi->irqs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < tgi->bank_count; i++) {
 		ret = platform_get_irq(pdev, i);
@@ -755,20 +755,20 @@ static int tegra_gpio_probe(struct platform_device *pdev)
 	}
 
 	irq = &tgi->gc.irq;
-	irq->fwnode = of_node_to_fwnode(pdev->dev.of_node);
+	irq->fwanalde = of_analde_to_fwanalde(pdev->dev.of_analde);
 	irq->child_to_parent_hwirq = tegra_gpio_child_to_parent_hwirq;
 	irq->populate_parent_alloc_arg = tegra_gpio_populate_parent_fwspec;
 	irq->handler = handle_simple_irq;
-	irq->default_type = IRQ_TYPE_NONE;
+	irq->default_type = IRQ_TYPE_ANALNE;
 	irq->parent_handler = tegra_gpio_irq_handler;
 	irq->parent_handler_data = tgi;
 	irq->num_parents = tgi->bank_count;
 	irq->parents = tgi->irqs;
 
-	np = of_find_matching_node(NULL, tegra_pmc_of_match);
+	np = of_find_matching_analde(NULL, tegra_pmc_of_match);
 	if (np) {
 		irq->parent_domain = irq_find_host(np);
-		of_node_put(np);
+		of_analde_put(np);
 
 		if (!irq->parent_domain)
 			return -EPROBE_DEFER;

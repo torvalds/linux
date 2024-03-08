@@ -10,8 +10,8 @@
  * Hypercalls for KVM on s390. The calling convention is similar to the
  * s390 ABI, so we use R2-R6 for parameters 1-5. In addition we use R1
  * as hypercall number and R7 as parameter 6. The return value is
- * written to R2. We use the diagnose instruction as hypercall. To avoid
- * conflicts with existing diagnoses for LPAR and z/VM, we do not use
+ * written to R2. We use the diaganalse instruction as hypercall. To avoid
+ * conflicts with existing diaganalses for LPAR and z/VM, we do analt use
  * the instruction encoded number, but specify the number in R1 and
  * use 0x500 as KVM hypercall
  *
@@ -104,7 +104,7 @@ static inline int kvm_para_available(void)
 	return 1;
 }
 
-/* No feature bits are currently assigned for kvm on s390 */
+/* Anal feature bits are currently assigned for kvm on s390 */
 static inline unsigned int kvm_arch_para_features(void)
 {
 	return 0;

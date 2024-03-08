@@ -11,12 +11,12 @@ maintainers:
 
 description: |
   RTQ2208 is a highly integrated power converter that offers functional safety dual
-  multi-configurable synchronous buck converters and two LDOs.
+  multi-configurable synchroanalus buck converters and two LDOs.
 
   Bucks support "regulator-allowed-modes" and "regulator-mode". The former defines the permitted
-  switching operation in normal mode; the latter defines the operation in suspend to RAM mode.
+  switching operation in analrmal mode; the latter defines the operation in suspend to RAM mode.
 
-  No matter the RTQ2208 is configured to normal or suspend to RAM mode, there are two switching
+  Anal matter the RTQ2208 is configured to analrmal or suspend to RAM mode, there are two switching
   operation modes for all buck rails, automatic power saving mode (Auto mode) and forced continuous
   conduction mode (FCCM).
 

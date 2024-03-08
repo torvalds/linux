@@ -83,7 +83,7 @@ struct ceph_connection_operations {
 	 * the holes between them.
 	 *
 	 * Returns amount of data to be read (in bytes), 0 if reading is
-	 * complete, or -errno if there was an error.
+	 * complete, or -erranal if there was an error.
 	 *
 	 * If @buf is set on a >0 return, then the data should be read into
 	 * the provided buffer. Otherwise, it should be read into the cursor.
@@ -116,7 +116,7 @@ struct ceph_messenger {
 };
 
 enum ceph_msg_data_type {
-	CEPH_MSG_DATA_NONE,	/* message contains no data payload */
+	CEPH_MSG_DATA_ANALNE,	/* message contains anal data payload */
 	CEPH_MSG_DATA_PAGES,	/* data source/destination is a page array */
 	CEPH_MSG_DATA_PAGELIST,	/* data source/destination is a pagelist */
 #ifdef CONFIG_BLOCK
@@ -233,7 +233,7 @@ struct ceph_msg_data_cursor {
 	size_t			total_resid;	/* across all data items */
 
 	struct ceph_msg_data	*data;		/* current data item */
-	size_t			resid;		/* bytes not yet consumed */
+	size_t			resid;		/* bytes analt yet consumed */
 	int			sr_resid;	/* residual sparse_read len */
 	bool			need_crc;	/* crc update needed */
 	union {
@@ -364,7 +364,7 @@ struct ceph_connection_v1_info {
 
 #define CEPH_CRC_LEN			4
 #define CEPH_GCM_KEY_LEN		16
-#define CEPH_GCM_IV_LEN			sizeof(struct ceph_gcm_nonce)
+#define CEPH_GCM_IV_LEN			sizeof(struct ceph_gcm_analnce)
 #define CEPH_GCM_BLOCK_LEN		16
 #define CEPH_GCM_TAG_LEN		16
 
@@ -386,7 +386,7 @@ struct ceph_frame_desc {
 	int fd_aligns[CEPH_FRAME_MAX_SEGMENT_COUNT];
 };
 
-struct ceph_gcm_nonce {
+struct ceph_gcm_analnce {
 	__le32 fixed;
 	__le64 counter __packed;
 };
@@ -416,8 +416,8 @@ struct ceph_connection_v2_info {
 	struct crypto_aead *gcm_tfm;  /* on-wire encryption */
 	struct aead_request *gcm_req;
 	struct crypto_wait gcm_wait;
-	struct ceph_gcm_nonce in_gcm_nonce;
-	struct ceph_gcm_nonce out_gcm_nonce;
+	struct ceph_gcm_analnce in_gcm_analnce;
+	struct ceph_gcm_analnce out_gcm_analnce;
 
 	struct page **in_enc_pages;
 	int in_enc_page_cnt;
@@ -461,7 +461,7 @@ struct ceph_connection_v2_info {
 };
 
 /*
- * A single connection with another host.
+ * A single connection with aanalther host.
  *
  * We maintain a queue of outgoing messages, and some session state to
  * ensure that we can preserve the lossless, ordered delivery of
@@ -582,7 +582,7 @@ extern void ceph_msgr_flush(void);
 extern void ceph_messenger_init(struct ceph_messenger *msgr,
 				struct ceph_entity_addr *myaddr);
 extern void ceph_messenger_fini(struct ceph_messenger *msgr);
-extern void ceph_messenger_reset_nonce(struct ceph_messenger *msgr);
+extern void ceph_messenger_reset_analnce(struct ceph_messenger *msgr);
 
 extern void ceph_con_init(struct ceph_connection *con, void *private,
 			const struct ceph_connection_operations *ops,

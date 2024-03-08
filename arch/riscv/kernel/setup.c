@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C) 2009 Sunplus Core Technology Co., Ltd.
+ * Copyright (C) 2009 Sunplus Core Techanallogy Co., Ltd.
  *  Chen Liqin <liqin.chen@sunplusct.com>
- *  Lennox Wu <lennox.wu@sunplusct.com>
+ *  Lenanalx Wu <lenanalx.wu@sunplusct.com>
  * Copyright (C) 2012 Regents of the University of California
  * Copyright (C) 2020 FORTH-ICS/CARV
  *  Nick Kossifidis <mick@ics.forth.gr>
@@ -20,7 +20,7 @@
 #include <linux/smp.h>
 #include <linux/efi.h>
 #include <linux/crash_dump.h>
-#include <linux/panic_notifier.h>
+#include <linux/panic_analtifier.h>
 
 #include <asm/acpi.h>
 #include <asm/alternative.h>
@@ -55,7 +55,7 @@ unsigned long boot_cpu_hartid;
  * Place kernel memory regions on the resource tree so that
  * kexec-tools can retrieve them from /proc/iomem. While there
  * also add "System RAM" regions for compatibility with other
- * archs, and the rest of the known regions for completeness.
+ * archs, and the rest of the kanalwn regions for completeness.
  */
 static struct resource kimage_res = { .name = "Kernel image", };
 static struct resource code_res = { .name = "Kernel code", };
@@ -89,7 +89,7 @@ static int __init add_kernel_resources(void)
 	 * The memory region of the kernel image is continuous and
 	 * was reserved on setup_bootmem, register it here as a
 	 * resource, with the various segments of the image as
-	 * child nodes.
+	 * child analdes.
 	 */
 
 	code_res.start = __pa_symbol(_text);
@@ -178,7 +178,7 @@ static void __init init_resources(void)
 		res->end = __pfn_to_phys(memblock_region_reserved_end_pfn(region)) - 1;
 
 		/*
-		 * Ignore any other reserved regions within
+		 * Iganalre any other reserved regions within
 		 * system memory.
 		 */
 		if (memblock_is_memory(res->start)) {
@@ -196,7 +196,7 @@ static void __init init_resources(void)
 	for_each_mem_region(region) {
 		res = &mem_res[res_idx--];
 
-		if (unlikely(memblock_is_nomap(region))) {
+		if (unlikely(memblock_is_analmap(region))) {
 			res->name = "Reserved";
 			res->flags = IORESOURCE_MEM | IORESOURCE_EXCLUSIVE;
 		} else {
@@ -235,7 +235,7 @@ static void __init parse_dtb(void)
 			dump_stack_set_arch_desc("%s (DT)", name);
 		}
 	} else {
-		pr_err("No DTB passed to the kernel\n");
+		pr_err("Anal DTB passed to the kernel\n");
 	}
 
 #ifdef CONFIG_CMDLINE_FORCE
@@ -291,7 +291,7 @@ void __init setup_arch(char **cmdline_p)
 
 	if (IS_ENABLED(CONFIG_RISCV_ISA_ZICBOM) &&
 	    riscv_isa_extension_available(NULL, ZICBOM))
-		riscv_noncoherent_supported();
+		riscv_analncoherent_supported();
 	riscv_set_dma_cache_alignment();
 
 	riscv_user_isa_enable();
@@ -313,7 +313,7 @@ void free_initmem(void)
 	free_initmem_default(POISON_FREE_INITMEM);
 }
 
-static int dump_kernel_offset(struct notifier_block *self,
+static int dump_kernel_offset(struct analtifier_block *self,
 			      unsigned long v, void *p)
 {
 	pr_emerg("Kernel Offset: 0x%lx from 0x%lx\n",
@@ -323,15 +323,15 @@ static int dump_kernel_offset(struct notifier_block *self,
 	return 0;
 }
 
-static struct notifier_block kernel_offset_notifier = {
-	.notifier_call = dump_kernel_offset
+static struct analtifier_block kernel_offset_analtifier = {
+	.analtifier_call = dump_kernel_offset
 };
 
 static int __init register_kernel_offset_dumper(void)
 {
 	if (IS_ENABLED(CONFIG_RANDOMIZE_BASE))
-		atomic_notifier_chain_register(&panic_notifier_list,
-					       &kernel_offset_notifier);
+		atomic_analtifier_chain_register(&panic_analtifier_list,
+					       &kernel_offset_analtifier);
 
 	return 0;
 }

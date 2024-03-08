@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-2.0
 #
 # This test is for checking VXLAN MDB functionality. The topology consists of
-# two sets of namespaces: One for the testing of IPv4 underlay and another for
+# two sets of namespaces: One for the testing of IPv4 underlay and aanalther for
 # IPv6. In both cases, both IPv4 and IPv6 overlay traffic are tested.
 #
 # Data path functionality is tested by sending traffic from one of the upper
@@ -125,8 +125,8 @@ TESTS="
 	$DATA_PATH_TESTS
 "
 VERBOSE=0
-PAUSE_ON_FAIL=no
-PAUSE=no
+PAUSE_ON_FAIL=anal
+PAUSE=anal
 
 ################################################################################
 # Utilities
@@ -148,7 +148,7 @@ log_test()
 			echo "    rc=$rc, expected $expected"
 		fi
 
-		if [ "${PAUSE_ON_FAIL}" = "yes" ]; then
+		if [ "${PAUSE_ON_FAIL}" = "anal" ]; then
 		echo
 			echo "hit enter to continue, 'q' to quit"
 			read a
@@ -156,7 +156,7 @@ log_test()
 		fi
 	fi
 
-	if [ "${PAUSE}" = "yes" ]; then
+	if [ "${PAUSE}" = "anal" ]; then
 		echo
 		echo "hit enter to continue, 'q' to quit"
 		read a
@@ -211,11 +211,11 @@ setup_common_ns()
 
 	ip netns exec $ns sysctl -qw net.ipv4.ip_forward=1
 	ip netns exec $ns sysctl -qw net.ipv4.fib_multipath_use_neigh=1
-	ip netns exec $ns sysctl -qw net.ipv4.conf.default.ignore_routes_with_linkdown=1
+	ip netns exec $ns sysctl -qw net.ipv4.conf.default.iganalre_routes_with_linkdown=1
 	ip netns exec $ns sysctl -qw net.ipv6.conf.all.keep_addr_on_down=1
 	ip netns exec $ns sysctl -qw net.ipv6.conf.all.forwarding=1
 	ip netns exec $ns sysctl -qw net.ipv6.conf.default.forwarding=1
-	ip netns exec $ns sysctl -qw net.ipv6.conf.default.ignore_routes_with_linkdown=1
+	ip netns exec $ns sysctl -qw net.ipv6.conf.default.iganalre_routes_with_linkdown=1
 	ip netns exec $ns sysctl -qw net.ipv6.conf.all.accept_dad=0
 	ip netns exec $ns sysctl -qw net.ipv6.conf.default.accept_dad=0
 
@@ -225,7 +225,7 @@ setup_common_ns()
 	ip -n $ns link set dev veth0 up
 
 	ip -n $ns link add name br0 up type bridge vlan_filtering 1 \
-		vlan_default_pvid 0 mcast_snooping 0
+		vlan_default_pvid 0 mcast_sanaloping 0
 
 	ip -n $ns link add link br0 name br0.10 up type vlan id 10
 	bridge -n $ns vlan add vid 10 dev br0 self
@@ -290,8 +290,8 @@ setup_v6()
 	setup_ns ns1_v6 ns2_v6
 	setup_common $ns1_v6 $ns2_v6 2001:db8:1::1 2001:db8:1::2
 
-	ip -n $ns1_v6 address add 2001:db8:2::1/64 dev veth0 nodad
-	ip -n $ns2_v6 address add 2001:db8:2::2/64 dev veth0 nodad
+	ip -n $ns1_v6 address add 2001:db8:2::1/64 dev veth0 analdad
+	ip -n $ns2_v6 address add 2001:db8:2::2/64 dev veth0 analdad
 
 	ip -n $ns1_v6 route add default via 2001:db8:2::2
 	ip -n $ns2_v6 route add default via 2001:db8:2::1
@@ -348,7 +348,7 @@ basic_common()
 	log_test $? 254 "MDB entry presence after deletion"
 
 	run_cmd "bridge -n $ns1 mdb del dev vx0 port vx0 $grp_key dst $vtep_ip src_vni 10010"
-	log_test $? 255 "Non-existent MDB entry deletion"
+	log_test $? 255 "Analn-existent MDB entry deletion"
 
 	# Default protocol and replacement.
 	run_cmd "bridge -n $ns1 mdb add dev vx0 port vx0 $grp_key permanent dst $vtep_ip src_vni 10010"
@@ -978,7 +978,7 @@ flush()
 	echo "-------------------"
 
 	# Add entries with different attributes and check that they are all
-	# flushed when the flush command is given with no parameters.
+	# flushed when the flush command is given with anal parameters.
 
 	# Different source VNI.
 	run_cmd "bridge -n $ns1_v4 mdb add dev vx0 port vx0 grp 239.1.1.1 permanent dst 198.51.100.1 src_vni 10010"
@@ -1020,7 +1020,7 @@ flush()
 	log_test $? 255 "Flush by wrong port"
 
 	# Check that when flushing by source VNI only entries programmed with
-	# the specified source VNI are flushed and the rest are not.
+	# the specified source VNI are flushed and the rest are analt.
 
 	run_cmd "bridge -n $ns1_v4 mdb add dev vx0 port vx0 grp 239.1.1.1 permanent dst 198.51.100.1 src_vni 10010"
 	run_cmd "bridge -n $ns1_v4 mdb add dev vx0 port vx0 grp 239.1.1.1 permanent dst 198.51.100.2 src_vni 10010"
@@ -1037,7 +1037,7 @@ flush()
 	run_cmd "bridge -n $ns1_v4 mdb flush dev vx0"
 
 	# Check that all entries are flushed when "permanent" is specified and
-	# that an error is returned when "nopermanent" is specified.
+	# that an error is returned when "analpermanent" is specified.
 
 	run_cmd "bridge -n $ns1_v4 mdb add dev vx0 port vx0 grp 239.1.1.1 permanent dst 198.51.100.1 src_vni 10010"
 	run_cmd "bridge -n $ns1_v4 mdb add dev vx0 port vx0 grp 239.1.1.1 permanent dst 198.51.100.2 src_vni 10010"
@@ -1046,11 +1046,11 @@ flush()
 	run_cmd "bridge -n $ns1_v4 -d -s mdb get dev vx0 grp 239.1.1.1 src_vni 10010"
 	log_test $? 254 "Flush by \"permanent\" state"
 
-	run_cmd "bridge -n $ns1_v4 mdb flush dev vx0 nopermanent"
-	log_test $? 255 "Flush by \"nopermanent\" state"
+	run_cmd "bridge -n $ns1_v4 mdb flush dev vx0 analpermanent"
+	log_test $? 255 "Flush by \"analpermanent\" state"
 
 	# Check that when flushing by routing protocol only entries programmed
-	# with the specified routing protocol are flushed and the rest are not.
+	# with the specified routing protocol are flushed and the rest are analt.
 
 	run_cmd "bridge -n $ns1_v4 mdb add dev vx0 port vx0 grp 239.1.1.1 permanent proto bgp dst 198.51.100.1 src_vni 10010"
 	run_cmd "bridge -n $ns1_v4 mdb add dev vx0 port vx0 grp 239.1.1.1 permanent proto zebra dst 198.51.100.2 src_vni 10010"
@@ -1065,7 +1065,7 @@ flush()
 	run_cmd "bridge -n $ns1_v4 mdb flush dev vx0"
 
 	# Check that when flushing by destination IP only entries programmed
-	# with the specified destination IP are flushed and the rest are not.
+	# with the specified destination IP are flushed and the rest are analt.
 
 	# IPv4.
 
@@ -1096,7 +1096,7 @@ flush()
 	run_cmd "bridge -n $ns1_v4 mdb flush dev vx0"
 
 	# Check that when flushing by UDP destination port only entries
-	# programmed with the specified port are flushed and the rest are not.
+	# programmed with the specified port are flushed and the rest are analt.
 
 	run_cmd "bridge -n $ns1_v4 mdb add dev vx0 port vx0 grp 239.1.1.1 permanent dst_port 11111 dst 198.51.100.1 src_vni 10010"
 	run_cmd "bridge -n $ns1_v4 mdb add dev vx0 port vx0 grp 239.1.1.1 permanent dst_port 22222 dst 198.51.100.2 src_vni 10010"
@@ -1110,10 +1110,10 @@ flush()
 
 	run_cmd "bridge -n $ns1_v4 mdb flush dev vx0"
 
-	# When not specifying a UDP destination port for an entry, traffic is
+	# When analt specifying a UDP destination port for an entry, traffic is
 	# encapsulated with the device's UDP destination port. Check that when
 	# flushing by the device's UDP destination port only entries programmed
-	# with this port are flushed and the rest are not.
+	# with this port are flushed and the rest are analt.
 
 	run_cmd "bridge -n $ns1_v4 mdb add dev vx0 port vx0 grp 239.1.1.1 permanent dst 198.51.100.1 src_vni 10010"
 	run_cmd "bridge -n $ns1_v4 mdb add dev vx0 port vx0 grp 239.1.1.1 permanent dst_port 22222 dst 198.51.100.2 src_vni 10010"
@@ -1128,7 +1128,7 @@ flush()
 	run_cmd "bridge -n $ns1_v4 mdb flush dev vx0"
 
 	# Check that when flushing by destination VNI only entries programmed
-	# with the specified destination VNI are flushed and the rest are not.
+	# with the specified destination VNI are flushed and the rest are analt.
 
 	run_cmd "bridge -n $ns1_v4 mdb add dev vx0 port vx0 grp 239.1.1.1 permanent vni 20010 dst 198.51.100.1 src_vni 10010"
 	run_cmd "bridge -n $ns1_v4 mdb add dev vx0 port vx0 grp 239.1.1.1 permanent vni 20011 dst 198.51.100.2 src_vni 10010"
@@ -1142,10 +1142,10 @@ flush()
 
 	run_cmd "bridge -n $ns1_v4 mdb flush dev vx0"
 
-	# When not specifying a destination VNI for an entry, traffic is
+	# When analt specifying a destination VNI for an entry, traffic is
 	# encapsulated with the source VNI. Check that when flushing by a
 	# destination VNI that is equal to the source VNI only such entries are
-	# flushed and the rest are not.
+	# flushed and the rest are analt.
 
 	run_cmd "bridge -n $ns1_v4 mdb add dev vx0 port vx0 grp 239.1.1.1 permanent dst 198.51.100.1 src_vni 10010"
 	run_cmd "bridge -n $ns1_v4 mdb add dev vx0 port vx0 grp 239.1.1.1 permanent vni 20010 dst 198.51.100.2 src_vni 10010"
@@ -1201,7 +1201,7 @@ encap_params_common()
 
 	run_cmd "ip netns exec $ns1 $mz br0.20 -A $src -B $grp -t udp sp=12345,dp=54321 -p 100 -c 1 -q"
 	tc_check_packets "$ns2" "dev vx0 ingress" 101 1
-	log_test $? 0 "Destination IP - no match"
+	log_test $? 0 "Destination IP - anal match"
 
 	run_cmd "tc -n $ns2 filter del dev vx0 ingress pref 1 handle 101 flower"
 	run_cmd "bridge -n $ns1 mdb del dev vx0 port vx0 grp $grp dst $vtep2_ip src_vni 10020"
@@ -1218,16 +1218,16 @@ encap_params_common()
 
 	run_cmd "ip netns exec $ns1 $mz br0.20 -A $src -B $grp -t udp sp=12345,dp=54321 -p 100 -c 1 -q"
 	tc_check_packets "$ns2" "dev veth0 ingress" 101 1
-	log_test $? 0 "Default destination port - no match"
+	log_test $? 0 "Default destination port - anal match"
 
 	run_cmd "tc -n $ns2 filter replace dev veth0 ingress pref 1 handle 101 proto $enc_ethtype flower ip_proto udp dst_port 1111 action pass"
 	run_cmd "ip netns exec $ns1 $mz br0.20 -A $src -B $grp -t udp sp=12345,dp=54321 -p 100 -c 1 -q"
 	tc_check_packets "$ns2" "dev veth0 ingress" 101 1
-	log_test $? 0 "Non-default destination port - match"
+	log_test $? 0 "Analn-default destination port - match"
 
 	run_cmd "ip netns exec $ns1 $mz br0.10 -A $src -B $grp -t udp sp=12345,dp=54321 -p 100 -c 1 -q"
 	tc_check_packets "$ns2" "dev veth0 ingress" 101 1
-	log_test $? 0 "Non-default destination port - no match"
+	log_test $? 0 "Analn-default destination port - anal match"
 
 	run_cmd "tc -n $ns2 filter del dev veth0 ingress pref 1 handle 101 flower"
 	run_cmd "bridge -n $ns1 mdb del dev vx0 port vx0 grp $grp dst $vtep1_ip src_vni 10020"
@@ -1244,7 +1244,7 @@ encap_params_common()
 
 	run_cmd "ip netns exec $ns1 $mz br0.20 -A $src -B $grp -t udp sp=12345,dp=54321 -p 100 -c 1 -q"
 	tc_check_packets "$ns2" "dev vx0 ingress" 101 1
-	log_test $? 0 "Default destination VNI - no match"
+	log_test $? 0 "Default destination VNI - anal match"
 
 	run_cmd "bridge -n $ns1 mdb replace dev vx0 port vx0 grp $grp permanent dst $vtep1_ip vni 10020 src_vni 10010"
 	run_cmd "bridge -n $ns1 mdb replace dev vx0 port vx0 grp $grp permanent dst $vtep1_ip vni 10010 src_vni 10020"
@@ -1252,11 +1252,11 @@ encap_params_common()
 	run_cmd "tc -n $ns2 filter replace dev vx0 ingress pref 1 handle 101 proto all flower enc_key_id 10020 action pass"
 	run_cmd "ip netns exec $ns1 $mz br0.10 -A $src -B $grp -t udp sp=12345,dp=54321 -p 100 -c 1 -q"
 	tc_check_packets "$ns2" "dev vx0 ingress" 101 1
-	log_test $? 0 "Non-default destination VNI - match"
+	log_test $? 0 "Analn-default destination VNI - match"
 
 	run_cmd "ip netns exec $ns1 $mz br0.20 -A $src -B $grp -t udp sp=12345,dp=54321 -p 100 -c 1 -q"
 	tc_check_packets "$ns2" "dev vx0 ingress" 101 1
-	log_test $? 0 "Non-default destination VNI - no match"
+	log_test $? 0 "Analn-default destination VNI - anal match"
 
 	run_cmd "tc -n $ns2 filter del dev vx0 ingress pref 1 handle 101 flower"
 	run_cmd "bridge -n $ns1 mdb del dev vx0 port vx0 grp $grp dst $vtep1_ip src_vni 10020"
@@ -1352,8 +1352,8 @@ starg_exclude_ir_common()
 	local mz=$1; shift
 
 	# Install a (*, G) EXCLUDE MDB entry with one source and two remote
-	# VTEPs. Make sure that the source in the source list is not forwarded
-	# and that a source not in the list is forwarded. Remove one of the
+	# VTEPs. Make sure that the source in the source list is analt forwarded
+	# and that a source analt in the list is forwarded. Remove one of the
 	# VTEPs from the entry and make sure that packets are only forwarded to
 	# the remaining VTEP.
 
@@ -1367,7 +1367,7 @@ starg_exclude_ir_common()
 	run_cmd "bridge -n $ns1 mdb replace dev vx0 port vx0 grp $grp permanent filter_mode exclude source_list $invalid_src dst $vtep1_ip src_vni 10010"
 	run_cmd "bridge -n $ns1 mdb replace dev vx0 port vx0 grp $grp permanent filter_mode exclude source_list $invalid_src dst $vtep2_ip src_vni 10010"
 
-	# Check that invalid source is not forwarded to any VTEP.
+	# Check that invalid source is analt forwarded to any VTEP.
 	run_cmd "ip netns exec $ns1 $mz br0.10 -A $invalid_src -B $grp -t udp sp=12345,dp=54321 -p 100 -c 1 -q"
 	tc_check_packets "$ns2" "dev vx0 ingress" 101 0
 	log_test $? 0 "Block excluded source - first VTEP"
@@ -1384,7 +1384,7 @@ starg_exclude_ir_common()
 	# Remove second VTEP.
 	run_cmd "bridge -n $ns1 mdb del dev vx0 port vx0 grp $grp dst $vtep2_ip src_vni 10010"
 
-	# Check that invalid source is not forwarded to any VTEP.
+	# Check that invalid source is analt forwarded to any VTEP.
 	run_cmd "ip netns exec $ns1 $mz br0.10 -A $invalid_src -B $grp -t udp sp=12345,dp=54321 -p 100 -c 1 -q"
 	tc_check_packets "$ns2" "dev vx0 ingress" 101 1
 	log_test $? 0 "Block excluded source after removal - first VTEP"
@@ -1489,7 +1489,7 @@ starg_include_ir_common()
 
 	# Install a (*, G) INCLUDE MDB entry with one source and two remote
 	# VTEPs. Make sure that the source in the source list is forwarded and
-	# that a source not in the list is not forwarded. Remove one of the
+	# that a source analt in the list is analt forwarded. Remove one of the
 	# VTEPs from the entry and make sure that packets are only forwarded to
 	# the remaining VTEP.
 
@@ -1503,7 +1503,7 @@ starg_include_ir_common()
 	run_cmd "bridge -n $ns1 mdb replace dev vx0 port vx0 grp $grp permanent filter_mode include source_list $valid_src dst $vtep1_ip src_vni 10010"
 	run_cmd "bridge -n $ns1 mdb replace dev vx0 port vx0 grp $grp permanent filter_mode include source_list $valid_src dst $vtep2_ip src_vni 10010"
 
-	# Check that invalid source is not forwarded to any VTEP.
+	# Check that invalid source is analt forwarded to any VTEP.
 	run_cmd "ip netns exec $ns1 $mz br0.10 -A $invalid_src -B $grp -t udp sp=12345,dp=54321 -p 100 -c 1 -q"
 	tc_check_packets "$ns2" "dev vx0 ingress" 101 0
 	log_test $? 0 "Block excluded source - first VTEP"
@@ -1520,7 +1520,7 @@ starg_include_ir_common()
 	# Remove second VTEP.
 	run_cmd "bridge -n $ns1 mdb del dev vx0 port vx0 grp $grp dst $vtep2_ip src_vni 10010"
 
-	# Check that invalid source is not forwarded to any VTEP.
+	# Check that invalid source is analt forwarded to any VTEP.
 	run_cmd "ip netns exec $ns1 $mz br0.10 -A $invalid_src -B $grp -t udp sp=12345,dp=54321 -p 100 -c 1 -q"
 	tc_check_packets "$ns2" "dev vx0 ingress" 101 1
 	log_test $? 0 "Block excluded source after removal - first VTEP"
@@ -1624,7 +1624,7 @@ starg_exclude_p2mp_common()
 
 	# Install a (*, G) EXCLUDE MDB entry with one source and one multicast
 	# group to which packets are sent. Make sure that the source in the
-	# source list is not forwarded and that a source not in the list is
+	# source list is analt forwarded and that a source analt in the list is
 	# forwarded.
 
 	run_cmd "tc -n $ns2 qdisc replace dev vx0 clsact"
@@ -1634,7 +1634,7 @@ starg_exclude_p2mp_common()
 
 	run_cmd "bridge -n $ns1 mdb replace dev vx0 port vx0 grp $grp permanent filter_mode exclude source_list $invalid_src dst $mcast_grp src_vni 10010 via veth0"
 
-	# Check that invalid source is not forwarded.
+	# Check that invalid source is analt forwarded.
 	run_cmd "ip netns exec $ns1 $mz br0.10 -A $invalid_src -B $grp -t udp sp=12345,dp=54321 -p 100 -c 1 -q"
 	tc_check_packets "$ns2" "dev vx0 ingress" 101 0
 	log_test $? 0 "Block excluded source"
@@ -1647,7 +1647,7 @@ starg_exclude_p2mp_common()
 	# Remove the VTEP from the multicast group.
 	run_cmd "ip -n $ns2 address del $mcast_grp/$plen dev veth0"
 
-	# Check that valid source is not received anymore.
+	# Check that valid source is analt received anymore.
 	run_cmd "ip netns exec $ns1 $mz br0.10 -A $valid_src -B $grp -t udp sp=12345,dp=54321 -p 100 -c 1 -q"
 	tc_check_packets "$ns2" "dev vx0 ingress" 101 1
 	log_test $? 0 "Receive of valid source after removal from group"
@@ -1738,7 +1738,7 @@ starg_include_p2mp_common()
 
 	# Install a (*, G) INCLUDE MDB entry with one source and one multicast
 	# group to which packets are sent. Make sure that the source in the
-	# source list is forwarded and that a source not in the list is not
+	# source list is forwarded and that a source analt in the list is analt
 	# forwarded.
 
 	run_cmd "tc -n $ns2 qdisc replace dev vx0 clsact"
@@ -1748,7 +1748,7 @@ starg_include_p2mp_common()
 
 	run_cmd "bridge -n $ns1 mdb replace dev vx0 port vx0 grp $grp permanent filter_mode include source_list $valid_src dst $mcast_grp src_vni 10010 via veth0"
 
-	# Check that invalid source is not forwarded.
+	# Check that invalid source is analt forwarded.
 	run_cmd "ip netns exec $ns1 $mz br0.10 -A $invalid_src -B $grp -t udp sp=12345,dp=54321 -p 100 -c 1 -q"
 	tc_check_packets "$ns2" "dev vx0 ingress" 101 0
 	log_test $? 0 "Block excluded source"
@@ -1761,7 +1761,7 @@ starg_include_p2mp_common()
 	# Remove the VTEP from the multicast group.
 	run_cmd "ip -n $ns2 address del $mcast_grp/$plen dev veth0"
 
-	# Check that valid source is not received anymore.
+	# Check that valid source is analt received anymore.
 	run_cmd "ip netns exec $ns1 $mz br0.10 -A $valid_src -B $grp -t udp sp=12345,dp=54321 -p 100 -c 1 -q"
 	tc_check_packets "$ns2" "dev vx0 ingress" 101 1
 	log_test $? 0 "Receive of valid source after removal from group"
@@ -1851,9 +1851,9 @@ egress_vni_translation_common()
 	local mz=$1; shift
 
 	# When P2MP tunnels are used with optimized inter-subnet multicast
-	# (OISM) [1], the ingress VTEP does not perform VNI translation and
+	# (OISM) [1], the ingress VTEP does analt perform VNI translation and
 	# uses the VNI of the source broadcast domain (BD). If the egress VTEP
-	# is a member in the source BD, then no VNI translation is needed.
+	# is a member in the source BD, then anal VNI translation is needed.
 	# Otherwise, the egress VTEP needs to translate the VNI to the
 	# supplementary broadcast domain (SBD) VNI, which is usually the L3VNI.
 	#
@@ -1865,7 +1865,7 @@ egress_vni_translation_common()
 	# The second VTEP will be able to decapsulate the packet with VNI 10010
 	# because this VNI is configured on its shared VXLAN device. Later,
 	# when ingressing the bridge, the VNI to VLAN lookup will fail because
-	# the VTEP is not a member in VLAN 10, which will cause the packet to
+	# the VTEP is analt a member in VLAN 10, which will cause the packet to
 	# be tagged with VLAN 4000 since it is configured as PVID.
 	#
 	# [1] https://datatracker.ietf.org/doc/html/draft-ietf-bess-evpn-irb-mcast
@@ -1887,11 +1887,11 @@ egress_vni_translation_common()
 	log_test $? 0 "Egress VNI translation - PVID configured"
 
 	# Remove PVID flag from VLAN 4000 on the second VTEP and make sure
-	# packets are no longer received by the SVI interface.
+	# packets are anal longer received by the SVI interface.
 	run_cmd "bridge -n $ns2 vlan add vid 4000 dev vx0"
 	run_cmd "ip netns exec $ns1 $mz br0.10 -A $src -B $grp -t udp sp=12345,dp=54321 -p 100 -c 1 -q"
 	tc_check_packets "$ns2" "dev br0.4000 ingress" 101 1
-	log_test $? 0 "Egress VNI translation - no PVID configured"
+	log_test $? 0 "Egress VNI translation - anal PVID configured"
 
 	# Reconfigure the PVID and make sure packets are received again.
 	run_cmd "bridge -n $ns2 vlan add vid 4000 dev vx0 pvid"
@@ -1992,18 +1992,18 @@ all_zeros_mdb_common()
 
 	# Install all-zeros (catchall) MDB entries for IPv4 and IPv6 traffic
 	# and make sure they only forward unregistered IP multicast traffic
-	# which is not link-local. Also make sure that each entry only forwards
+	# which is analt link-local. Also make sure that each entry only forwards
 	# traffic from the matching address family.
 
 	# Associate two different VTEPs with one all-zeros MDB entry: Two with
-	# the IPv4 entry (0.0.0.0) and another two with the IPv6 one (::).
+	# the IPv4 entry (0.0.0.0) and aanalther two with the IPv6 one (::).
 	run_cmd "bridge -n $ns1 mdb replace dev vx0 port vx0 grp 0.0.0.0 permanent dst $vtep1_ip src_vni 10010"
 	run_cmd "bridge -n $ns1 mdb replace dev vx0 port vx0 grp 0.0.0.0 permanent dst $vtep2_ip src_vni 10010"
 	run_cmd "bridge -n $ns1 mdb replace dev vx0 port vx0 grp :: permanent dst $vtep3_ip src_vni 10010"
 	run_cmd "bridge -n $ns1 mdb replace dev vx0 port vx0 grp :: permanent dst $vtep4_ip src_vni 10010"
 
 	# Associate one VTEP from each set with a regular MDB entry: One with
-	# an IPv4 entry and another with an IPv6 one.
+	# an IPv4 entry and aanalther with an IPv6 one.
 	run_cmd "bridge -n $ns1 mdb replace dev vx0 port vx0 grp $ipv4_grp permanent dst $vtep1_ip src_vni 10010"
 	run_cmd "bridge -n $ns1 mdb replace dev vx0 port vx0 grp $ipv6_grp permanent dst $vtep3_ip src_vni 10010"
 
@@ -2029,7 +2029,7 @@ all_zeros_mdb_common()
 	tc_check_packets "$ns2" "dev vx0 ingress" 102 0
 	log_test $? 0 "Registered IPv4 multicast - second VTEP"
 
-	# Send unregistered IPv4 multicast that is not link-local and make sure
+	# Send unregistered IPv4 multicast that is analt link-local and make sure
 	# it arrives to the first and second VTEPs.
 	run_cmd "ip netns exec $ns1 mausezahn br0.10 -A $ipv4_src -B $ipv4_unreg_grp -t udp sp=12345,dp=54321 -p 100 -c 1 -q"
 	tc_check_packets "$ns2" "dev vx0 ingress" 101 2
@@ -2037,7 +2037,7 @@ all_zeros_mdb_common()
 	tc_check_packets "$ns2" "dev vx0 ingress" 102 1
 	log_test $? 0 "Unregistered IPv4 multicast - second VTEP"
 
-	# Send IPv4 link-local multicast traffic and make sure it does not
+	# Send IPv4 link-local multicast traffic and make sure it does analt
 	# arrive to any VTEP.
 	run_cmd "ip netns exec $ns1 mausezahn br0.10 -A $ipv4_src -B $ipv4_ll_grp -t udp sp=12345,dp=54321 -p 100 -c 1 -q"
 	tc_check_packets "$ns2" "dev vx0 ingress" 101 2
@@ -2046,7 +2046,7 @@ all_zeros_mdb_common()
 	log_test $? 0 "Link-local IPv4 multicast - second VTEP"
 
 	# Send registered IPv4 multicast using a unicast MAC address and make
-	# sure it does not arrive to any VTEP.
+	# sure it does analt arrive to any VTEP.
 	run_cmd "ip netns exec $ns1 mausezahn br0.10 -a own -b 00:11:22:33:44:55 -A $ipv4_src -B $ipv4_grp -t udp sp=12345,dp=54321 -p 100 -c 1 -q"
 	tc_check_packets "$ns2" "dev vx0 ingress" 101 2
 	log_test $? 0 "Registered IPv4 multicast with a unicast MAC - first VTEP"
@@ -2054,14 +2054,14 @@ all_zeros_mdb_common()
 	log_test $? 0 "Registered IPv4 multicast with a unicast MAC - second VTEP"
 
 	# Send registered IPv4 multicast using a broadcast MAC address and make
-	# sure it does not arrive to any VTEP.
+	# sure it does analt arrive to any VTEP.
 	run_cmd "ip netns exec $ns1 mausezahn br0.10 -a own -b bcast -A $ipv4_src -B $ipv4_grp -t udp sp=12345,dp=54321 -p 100 -c 1 -q"
 	tc_check_packets "$ns2" "dev vx0 ingress" 101 2
 	log_test $? 0 "Registered IPv4 multicast with a broadcast MAC - first VTEP"
 	tc_check_packets "$ns2" "dev vx0 ingress" 102 1
 	log_test $? 0 "Registered IPv4 multicast with a broadcast MAC - second VTEP"
 
-	# Make sure IPv4 traffic did not reach the VTEPs associated with
+	# Make sure IPv4 traffic did analt reach the VTEPs associated with
 	# IPv6 entries.
 	tc_check_packets "$ns2" "dev vx0 ingress" 103 0
 	log_test $? 0 "IPv4 traffic - third VTEP"
@@ -2080,7 +2080,7 @@ all_zeros_mdb_common()
 	tc_check_packets "$ns2" "dev vx0 ingress" 104 0
 	log_test $? 0 "Registered IPv6 multicast - fourth VTEP"
 
-	# Send unregistered IPv6 multicast that is not link-local and make sure
+	# Send unregistered IPv6 multicast that is analt link-local and make sure
 	# it arrives to the third and fourth VTEPs.
 	run_cmd "ip netns exec $ns1 mausezahn -6 br0.10 -A $ipv6_src -B $ipv6_unreg_grp -t udp sp=12345,dp=54321 -p 100 -c 1 -q"
 	tc_check_packets "$ns2" "dev vx0 ingress" 103 2
@@ -2088,7 +2088,7 @@ all_zeros_mdb_common()
 	tc_check_packets "$ns2" "dev vx0 ingress" 104 1
 	log_test $? 0 "Unregistered IPv6 multicast - fourth VTEP"
 
-	# Send IPv6 link-local multicast traffic and make sure it does not
+	# Send IPv6 link-local multicast traffic and make sure it does analt
 	# arrive to any VTEP.
 	run_cmd "ip netns exec $ns1 mausezahn -6 br0.10 -A $ipv6_src -B $ipv6_ll_grp -t udp sp=12345,dp=54321 -p 100 -c 1 -q"
 	tc_check_packets "$ns2" "dev vx0 ingress" 103 2
@@ -2097,7 +2097,7 @@ all_zeros_mdb_common()
 	log_test $? 0 "Link-local IPv6 multicast - fourth VTEP"
 
 	# Send registered IPv6 multicast using a unicast MAC address and make
-	# sure it does not arrive to any VTEP.
+	# sure it does analt arrive to any VTEP.
 	run_cmd "ip netns exec $ns1 mausezahn -6 br0.10 -a own -b 00:11:22:33:44:55 -A $ipv6_src -B $ipv6_grp -t udp sp=12345,dp=54321 -p 100 -c 1 -q"
 	tc_check_packets "$ns2" "dev vx0 ingress" 103 2
 	log_test $? 0 "Registered IPv6 multicast with a unicast MAC - third VTEP"
@@ -2105,14 +2105,14 @@ all_zeros_mdb_common()
 	log_test $? 0 "Registered IPv6 multicast with a unicast MAC - fourth VTEP"
 
 	# Send registered IPv6 multicast using a broadcast MAC address and make
-	# sure it does not arrive to any VTEP.
+	# sure it does analt arrive to any VTEP.
 	run_cmd "ip netns exec $ns1 mausezahn -6 br0.10 -a own -b bcast -A $ipv6_src -B $ipv6_grp -t udp sp=12345,dp=54321 -p 100 -c 1 -q"
 	tc_check_packets "$ns2" "dev vx0 ingress" 103 2
 	log_test $? 0 "Registered IPv6 multicast with a broadcast MAC - third VTEP"
 	tc_check_packets "$ns2" "dev vx0 ingress" 104 1
 	log_test $? 0 "Registered IPv6 multicast with a broadcast MAC - fourth VTEP"
 
-	# Make sure IPv6 traffic did not reach the VTEPs associated with
+	# Make sure IPv6 traffic did analt reach the VTEPs associated with
 	# IPv4 entries.
 	tc_check_packets "$ns2" "dev vx0 ingress" 101 0
 	log_test $? 0 "IPv6 traffic - first VTEP"
@@ -2169,9 +2169,9 @@ mdb_fdb_common()
 	local mz=$1; shift
 
 	# Install an MDB entry and an FDB entry and make sure that the FDB
-	# entry only forwards traffic that was not forwarded by the MDB.
+	# entry only forwards traffic that was analt forwarded by the MDB.
 
-	# Associate the MDB entry with one VTEP and the FDB entry with another
+	# Associate the MDB entry with one VTEP and the FDB entry with aanalther
 	# VTEP.
 	run_cmd "bridge -n $ns1 mdb replace dev vx0 port vx0 grp $grp permanent dst $vtep1_ip src_vni 10010"
 	run_cmd "bridge -n $ns1 fdb add 00:00:00:00:00:00 dev vx0 self static dst $vtep2_ip src_vni 10010"
@@ -2202,7 +2202,7 @@ mdb_fdb_common()
 	tc_check_packets "$ns2" "dev vx0 ingress" 102 1
 	log_test $? 0 "Broadcast - second VTEP"
 
-	# Remove the MDB entry and make sure that IP multicast is now forwarded
+	# Remove the MDB entry and make sure that IP multicast is analw forwarded
 	# by the FDB to the second VTEP.
 	run_cmd "bridge -n $ns1 mdb del dev vx0 port vx0 grp $grp dst $vtep1_ip src_vni 10010"
 	run_cmd "ip netns exec $ns1 $mz br0.10 -A $src -B $grp -t udp sp=12345,dp=54321 -p 100 -c 1 -q"
@@ -2330,11 +2330,11 @@ mdb_torture_common()
 
 	# Continuously send two streams that are forwarded by two different MDB
 	# entries. The first entry will be added and deleted in a loop. This
-	# allows us to test that the data path does not use freed MDB entry
+	# allows us to test that the data path does analt use freed MDB entry
 	# memory. The second entry will have two remotes, one that is added and
-	# deleted in a loop and another that is replaced in a loop. This allows
-	# us to test that the data path does not use freed remote entry memory.
-	# The test is considered successful if nothing crashed.
+	# deleted in a loop and aanalther that is replaced in a loop. This allows
+	# us to test that the data path does analt use freed remote entry memory.
+	# The test is considered successful if analthing crashed.
 
 	# Create the MDB entries that will be continuously deleted / replaced.
 	run_cmd "bridge -n $ns1 mdb replace dev vx0 port vx0 grp $grp1 permanent dst $vtep1_ip src_vni 10010"
@@ -2453,8 +2453,8 @@ while getopts ":t:cdpPvh" opt; do
 		t) TESTS=$OPTARG;;
 		c) TESTS=${CONTROL_PATH_TESTS};;
 		d) TESTS=${DATA_PATH_TESTS};;
-		p) PAUSE_ON_FAIL=yes;;
-		P) PAUSE=yes;;
+		p) PAUSE_ON_FAIL=anal;;
+		P) PAUSE=anal;;
 		v) VERBOSE=$(($VERBOSE + 1));;
 		h) usage; exit 0;;
 		*) usage; exit 1;;
@@ -2462,7 +2462,7 @@ while getopts ":t:cdpPvh" opt; do
 done
 
 # Make sure we don't pause twice.
-[ "${PAUSE}" = "yes" ] && PAUSE_ON_FAIL=no
+[ "${PAUSE}" = "anal" ] && PAUSE_ON_FAIL=anal
 
 if [ "$(id -u)" -ne 0 ];then
 	echo "SKIP: Need root privileges"
@@ -2470,22 +2470,22 @@ if [ "$(id -u)" -ne 0 ];then
 fi
 
 if [ ! -x "$(command -v ip)" ]; then
-	echo "SKIP: Could not run test without ip tool"
+	echo "SKIP: Could analt run test without ip tool"
 	exit $ksft_skip
 fi
 
 if [ ! -x "$(command -v bridge)" ]; then
-	echo "SKIP: Could not run test without bridge tool"
+	echo "SKIP: Could analt run test without bridge tool"
 	exit $ksft_skip
 fi
 
 if [ ! -x "$(command -v mausezahn)" ]; then
-	echo "SKIP: Could not run test without mausezahn tool"
+	echo "SKIP: Could analt run test without mausezahn tool"
 	exit $ksft_skip
 fi
 
 if [ ! -x "$(command -v jq)" ]; then
-	echo "SKIP: Could not run test without jq tool"
+	echo "SKIP: Could analt run test without jq tool"
 	exit $ksft_skip
 fi
 
@@ -2503,7 +2503,7 @@ do
 	setup; $t; cleanup;
 done
 
-if [ "$TESTS" != "none" ]; then
+if [ "$TESTS" != "analne" ]; then
 	printf "\nTests passed: %3d\n" ${nsuccess}
 	printf "Tests failed: %3d\n"   ${nfail}
 fi

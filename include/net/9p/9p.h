@@ -55,19 +55,19 @@ void _p9_debug(enum p9_debug_flags level, const char *func,
 	_p9_debug(level, __func__, fmt, ##__VA_ARGS__)
 #else
 #define p9_debug(level, fmt, ...)			\
-	no_printk(fmt, ##__VA_ARGS__)
+	anal_printk(fmt, ##__VA_ARGS__)
 #endif
 
 /**
  * enum p9_msg_t - 9P message types
- * @P9_TLERROR: not used
+ * @P9_TLERROR: analt used
  * @P9_RLERROR: response for any failed request for 9P2000.L
  * @P9_TSTATFS: file system status request
  * @P9_RSTATFS: file system status response
  * @P9_TSYMLINK: make symlink request
  * @P9_RSYMLINK: make symlink response
- * @P9_TMKNOD: create a special file object request
- * @P9_RMKNOD: create a special file object response
+ * @P9_TMKANALD: create a special file object request
+ * @P9_RMKANALD: create a special file object response
  * @P9_TLCREATE: prepare a handle for I/O on an new file for 9P2000.L
  * @P9_RLCREATE: response with file access information for 9P2000.L
  * @P9_TRENAME: rename request
@@ -80,7 +80,7 @@ void _p9_debug(enum p9_debug_flags level, const char *func,
  * @P9_RAUTH: response with authentication information
  * @P9_TATTACH: establish user access to file service
  * @P9_RATTACH: response with top level handle to file hierarchy
- * @P9_TERROR: not used
+ * @P9_TERROR: analt used
  * @P9_RERROR: response for any failed request
  * @P9_TFLUSH: request to abort a previous request
  * @P9_RFLUSH: response when previous request has been cancelled
@@ -105,7 +105,7 @@ void _p9_debug(enum p9_debug_flags level, const char *func,
  *
  * There are 14 basic operations in 9P2000, paired as
  * requests and responses.  The one special case is ERROR
- * as there is no @P9_TERROR request for clients to transmit to
+ * as there is anal @P9_TERROR request for clients to transmit to
  * the server, but the server may respond to any other request
  * with an @P9_RERROR.
  *
@@ -123,8 +123,8 @@ enum p9_msg_t {
 	P9_RLCREATE,
 	P9_TSYMLINK = 16,
 	P9_RSYMLINK,
-	P9_TMKNOD = 18,
-	P9_RMKNOD,
+	P9_TMKANALD = 18,
+	P9_RMKANALD,
 	P9_TRENAME = 20,
 	P9_RRENAME,
 	P9_TREADLINK = 22,
@@ -193,13 +193,13 @@ enum p9_msg_t {
  * @P9_OREXEC: close the file when an exec(2) system call is made
  * @P9_ORCLOSE: remove the file when the file is closed
  * @P9_OAPPEND: open the file and seek to the end
- * @P9_OEXCL: only create a file, do not open it
+ * @P9_OEXCL: only create a file, do analt open it
  *
  * 9P open modes differ slightly from Posix standard modes.
  * In particular, there are extra modes which specify different
  * semantic behaviors than may be available on standard Posix
  * systems.  For example, @P9_OREXEC and @P9_ORCLOSE are modes that
- * most likely will not be issued from the Linux VFS client, but may
+ * most likely will analt be issued from the Linux VFS client, but may
  * be supported by servers.
  *
  * See Also: http://plan9.bell-labs.com/magic/man2html/2/open
@@ -217,7 +217,7 @@ enum p9_open_mode_t {
 	P9_OEXCL = 0x1000,
 	P9L_MODE_MASK = 0x1FFF, /* don't send anything under this to server */
 	P9L_DIRECT = 0x2000, /* cache disabled */
-	P9L_NOWRITECACHE = 0x4000, /* no write caching  */
+	P9L_ANALWRITECACHE = 0x4000, /* anal write caching  */
 	P9L_LOOSE = 0x8000, /* loose cache */
 };
 
@@ -228,7 +228,7 @@ enum p9_open_mode_t {
  * @P9_DMEXCL: mode bit for excluse use (only one open handle allowed)
  * @P9_DMMOUNT: mode bit for mount points
  * @P9_DMAUTH: mode bit for authentication file
- * @P9_DMTMP: mode bit for non-backed-up files
+ * @P9_DMTMP: mode bit for analn-backed-up files
  * @P9_DMSYMLINK: mode bit for symbolic links (9P2000.u)
  * @P9_DMLINK: mode bit for hard-link (9P2000.u)
  * @P9_DMDEVICE: mode bit for device files (9P2000.u)
@@ -264,20 +264,20 @@ enum p9_perm_t {
 #define P9_DOTL_RDONLY        00000000
 #define P9_DOTL_WRONLY        00000001
 #define P9_DOTL_RDWR          00000002
-#define P9_DOTL_NOACCESS      00000003
+#define P9_DOTL_ANALACCESS      00000003
 #define P9_DOTL_CREATE        00000100
 #define P9_DOTL_EXCL          00000200
-#define P9_DOTL_NOCTTY        00000400
+#define P9_DOTL_ANALCTTY        00000400
 #define P9_DOTL_TRUNC         00001000
 #define P9_DOTL_APPEND        00002000
-#define P9_DOTL_NONBLOCK      00004000
+#define P9_DOTL_ANALNBLOCK      00004000
 #define P9_DOTL_DSYNC         00010000
 #define P9_DOTL_FASYNC        00020000
 #define P9_DOTL_DIRECT        00040000
 #define P9_DOTL_LARGEFILE     00100000
 #define P9_DOTL_DIRECTORY     00200000
-#define P9_DOTL_NOFOLLOW      00400000
-#define P9_DOTL_NOATIME       01000000
+#define P9_DOTL_ANALFOLLOW      00400000
+#define P9_DOTL_ANALATIME       01000000
 #define P9_DOTL_CLOEXEC       02000000
 #define P9_DOTL_SYNC          04000000
 
@@ -296,10 +296,10 @@ enum p9_perm_t {
  * @P9_QTEXCL: excluse use (only one open handle allowed)
  * @P9_QTMOUNT: mount points
  * @P9_QTAUTH: authentication file
- * @P9_QTTMP: non-backed-up files
+ * @P9_QTTMP: analn-backed-up files
  * @P9_QTSYMLINK: symbolic links (9P2000.u)
  * @P9_QTLINK: hard-link (9P2000.u)
- * @P9_QTFILE: normal files
+ * @P9_QTFILE: analrmal files
  *
  * QID types are a subset of permissions - they are primarily
  * used to differentiate semantics for a file system entity via
@@ -321,8 +321,8 @@ enum p9_qid_t {
 };
 
 /* 9P Magic Numbers */
-#define P9_NOTAG	((u16)(~0))
-#define P9_NOFID	((u32)(~0))
+#define P9_ANALTAG	((u16)(~0))
+#define P9_ANALFID	((u32)(~0))
 #define P9_MAXWELEM	16
 
 /* Minimal header size: size[4] type[1] tag[2] */
@@ -343,19 +343,19 @@ enum p9_qid_t {
 /**
  * struct p9_qid - file system entity information
  * @type: 8-bit type &p9_qid_t
- * @version: 16-bit monotonically incrementing version number
+ * @version: 16-bit moanaltonically incrementing version number
  * @path: 64-bit per-server-unique ID for a file system element
  *
  * qids are identifiers used by 9P servers to track file system
  * entities.  The type is used to differentiate semantics for operations
  * on the entity (ie. read means something different on a directory than
  * on a file).  The path provides a server unique index for an entity
- * (roughly analogous to an inode number), while the version is updated
+ * (roughly analogous to an ianalde number), while the version is updated
  * every time a file is modified and can be used to maintain cache
  * coherency between clients and serves.
  * Servers will often differentiate purely synthetic entities by setting
  * their version to 0, signaling that they should never be cached and
- * should be accessed synchronously.
+ * should be accessed synchroanalusly.
  *
  * See Also://plan9.bell-labs.com/magic/man2html/2/stat
  */
@@ -370,7 +370,7 @@ struct p9_qid {
  * struct p9_wstat - file system metadata information
  * @size: length prefix for this stat structure instance
  * @type: the type of the server (equivalent to a major number)
- * @dev: the sub-type of the server (equivalent to a minor number)
+ * @dev: the sub-type of the server (equivalent to a mianalr number)
  * @qid: unique id from the server of type &p9_qid
  * @mode: Plan 9 format permissions of type &p9_perm_t
  * @atime: Last access/read time
@@ -438,7 +438,7 @@ struct p9_stat_dotl {
 #define P9_STATS_ATIME		0x00000020ULL
 #define P9_STATS_MTIME		0x00000040ULL
 #define P9_STATS_CTIME		0x00000080ULL
-#define P9_STATS_INO		0x00000100ULL
+#define P9_STATS_IANAL		0x00000100ULL
 #define P9_STATS_SIZE		0x00000200ULL
 #define P9_STATS_BLOCKS		0x00000400ULL
 
@@ -450,7 +450,7 @@ struct p9_stat_dotl {
 #define P9_STATS_ALL		0x00003fffULL /* Mask for All fields above */
 
 /**
- * struct p9_iattr_dotl - P9 inode attribute for setattr
+ * struct p9_iattr_dotl - P9 ianalde attribute for setattr
  * @valid: bitfield specifying which fields are valid
  *         same as in struct iattr
  * @mode: File permission bits
@@ -458,9 +458,9 @@ struct p9_stat_dotl {
  * @gid: group id
  * @size: File size
  * @atime_sec: Last access time, seconds
- * @atime_nsec: Last access time, nanoseconds
+ * @atime_nsec: Last access time, naanalseconds
  * @mtime_sec: Last modification time, seconds
- * @mtime_nsec: Last modification time, nanoseconds
+ * @mtime_nsec: Last modification time, naanalseconds
  */
 
 struct p9_iattr_dotl {
@@ -559,7 +559,7 @@ struct p9_fcall {
 	bool zc;
 };
 
-int p9_errstr2errno(char *errstr, int len);
+int p9_errstr2erranal(char *errstr, int len);
 
 int p9_error_init(void);
 #endif /* NET_9P_H */

@@ -47,7 +47,7 @@
  *
  * data_sector is the first raid sector of the modified data, data_size is the
  * total size of modified data and pp_size is the size of partial parity for
- * this entry. Entries for full stripe writes contain no partial parity
+ * this entry. Entries for full stripe writes contain anal partial parity
  * (pp_size = 0), they only mark the stripes for which parity should be
  * recalculated after an unclean shutdown. Every entry holds a checksum of its
  * partial parity, the header also has a checksum of the header itself.
@@ -71,11 +71,11 @@
  * can be submitted.
  *
  * An io_unit is used to gather stripes until it is submitted or becomes full
- * (if the maximum number of entries or size of PPL is reached). Another io_unit
+ * (if the maximum number of entries or size of PPL is reached). Aanalther io_unit
  * can't be submitted until the previous has completed (PPL and stripe
  * data+parity is written). The log->io_list tracks all io_units of a log
  * (for a single member disk). New io_units are added to the end of the list
- * and the first io_unit is submitted, if it is not submitted already.
+ * and the first io_unit is submitted, if it is analt submitted already.
  * The current io_unit accepting new stripes is always at the end of the list.
  *
  * If write-back cache is enabled for any of the disks in the array, its data
@@ -106,8 +106,8 @@ struct ppl_conf {
 	int mismatch_count;
 
 	/* stripes to retry if failed to allocate io_unit */
-	struct list_head no_mem_stripes;
-	spinlock_t no_mem_stripes_lock;
+	struct list_head anal_mem_stripes;
+	spinlock_t anal_mem_stripes_lock;
 
 	unsigned short write_hint;
 };
@@ -144,7 +144,7 @@ struct ppl_io_unit {
 	struct list_head log_sibling;	/* log->io_list */
 
 	struct list_head stripe_list;	/* stripes added to the io_unit */
-	atomic_t pending_stripes;	/* how many stripes not written to raid */
+	atomic_t pending_stripes;	/* how many stripes analt written to raid */
 	atomic_t pending_flushes;	/* how many disk flushes are in progress */
 
 	bool submitted;			/* true if write to log started */
@@ -166,7 +166,7 @@ ops_run_partial_parity(struct stripe_head *sh, struct raid5_percpu *percpu,
 	pr_debug("%s: stripe %llu\n", __func__, (unsigned long long)sh->sector);
 
 	/*
-	 * Partial parity is the XOR of stripe data chunks that are not changed
+	 * Partial parity is the XOR of stripe data chunks that are analt changed
 	 * during the write request. Depending on available data
 	 * (read-modify-write vs. reconstruct-write case) we calculate it
 	 * differently.
@@ -179,7 +179,7 @@ ops_run_partial_parity(struct stripe_head *sh, struct raid5_percpu *percpu,
 		 */
 		srcs[count++] = sh->dev[pd_idx].page;
 	} else if (sh->reconstruct_state == reconstruct_state_drain_run) {
-		/* rcw: xor data from all not updated disks */
+		/* rcw: xor data from all analt updated disks */
 		for (i = disks; i--;) {
 			struct r5dev *dev = &sh->dev[i];
 			if (test_bit(R5_UPTODATE, &dev->flags))
@@ -237,7 +237,7 @@ static struct ppl_io_unit *ppl_new_iounit(struct ppl_log *log,
 	struct ppl_header *pplhdr;
 	struct page *header_page;
 
-	io = mempool_alloc(&ppl_conf->io_pool, GFP_NOWAIT);
+	io = mempool_alloc(&ppl_conf->io_pool, GFP_ANALWAIT);
 	if (!io)
 		return NULL;
 
@@ -284,11 +284,11 @@ static int ppl_log_stripe(struct ppl_log *log, struct stripe_head *sh)
 		io = NULL;
 	}
 
-	/* add a new unit if there is none or the current is full */
+	/* add a new unit if there is analne or the current is full */
 	if (!io) {
 		io = ppl_new_iounit(log, sh);
 		if (!io)
-			return -ENOMEM;
+			return -EANALMEM;
 		spin_lock_irq(&log->io_list_lock);
 		list_add_tail(&io->log_sibling, &log->io_list);
 		spin_unlock_irq(&log->io_list_lock);
@@ -385,9 +385,9 @@ int ppl_write_stripe(struct r5conf *conf, struct stripe_head *sh)
 	atomic_inc(&sh->count);
 
 	if (ppl_log_stripe(log, sh)) {
-		spin_lock_irq(&ppl_conf->no_mem_stripes_lock);
-		list_add_tail(&sh->log_list, &ppl_conf->no_mem_stripes);
-		spin_unlock_irq(&ppl_conf->no_mem_stripes_lock);
+		spin_lock_irq(&ppl_conf->anal_mem_stripes_lock);
+		list_add_tail(&sh->log_list, &ppl_conf->anal_mem_stripes);
+		spin_unlock_irq(&ppl_conf->anal_mem_stripes_lock);
 	}
 
 	mutex_unlock(&log->io_mutex);
@@ -485,7 +485,7 @@ static void ppl_submit_iounit(struct ppl_io_unit *io)
 			}
 		}
 
-		/* entries for full stripe writes have no partial parity */
+		/* entries for full stripe writes have anal partial parity */
 		if (test_bit(STRIPE_FULL_WRITE, &sh->state))
 			continue;
 
@@ -493,7 +493,7 @@ static void ppl_submit_iounit(struct ppl_io_unit *io)
 			struct bio *prev = bio;
 
 			bio = bio_alloc_bioset(prev->bi_bdev, BIO_MAX_VECS,
-					       prev->bi_opf, GFP_NOIO,
+					       prev->bi_opf, GFP_ANALIO,
 					       &ppl_conf->bs);
 			bio->bi_iter.bi_sector = bio_end_sector(prev);
 			__bio_add_page(bio, sh->ppl_page, PAGE_SIZE, 0);
@@ -561,17 +561,17 @@ static void ppl_io_unit_finished(struct ppl_io_unit *io)
 
 	mempool_free(io, &ppl_conf->io_pool);
 
-	spin_lock(&ppl_conf->no_mem_stripes_lock);
-	if (!list_empty(&ppl_conf->no_mem_stripes)) {
+	spin_lock(&ppl_conf->anal_mem_stripes_lock);
+	if (!list_empty(&ppl_conf->anal_mem_stripes)) {
 		struct stripe_head *sh;
 
-		sh = list_first_entry(&ppl_conf->no_mem_stripes,
+		sh = list_first_entry(&ppl_conf->anal_mem_stripes,
 				      struct stripe_head, log_list);
 		list_del_init(&sh->log_list);
 		set_bit(STRIPE_HANDLE, &sh->state);
 		raid5_release_stripe(sh);
 	}
-	spin_unlock(&ppl_conf->no_mem_stripes_lock);
+	spin_unlock(&ppl_conf->anal_mem_stripes_lock);
 
 	local_irq_restore(flags);
 
@@ -629,7 +629,7 @@ static void ppl_do_flush(struct ppl_io_unit *io)
 
 			bio = bio_alloc_bioset(bdev, 0,
 					       REQ_OP_WRITE | REQ_PREFLUSH,
-					       GFP_NOIO, &ppl_conf->flush_bs);
+					       GFP_ANALIO, &ppl_conf->flush_bs);
 			bio->bi_private = io;
 			bio->bi_end_io = ppl_flush_endio;
 
@@ -648,7 +648,7 @@ static void ppl_do_flush(struct ppl_io_unit *io)
 	}
 }
 
-static inline bool ppl_no_io_unit_submitted(struct r5conf *conf,
+static inline bool ppl_anal_io_unit_submitted(struct r5conf *conf,
 					    struct ppl_log *log)
 {
 	struct ppl_io_unit *io;
@@ -670,7 +670,7 @@ void ppl_quiesce(struct r5conf *conf, int quiesce)
 
 			spin_lock_irq(&log->io_list_lock);
 			wait_event_lock_irq(conf->wait_for_quiescent,
-					    ppl_no_io_unit_submitted(conf, log),
+					    ppl_anal_io_unit_submitted(conf, log),
 					    log->io_list_lock);
 			spin_unlock_irq(&log->io_list_lock);
 		}
@@ -718,7 +718,7 @@ static void ppl_xor(int size, struct page *page1, struct page *page2)
 /*
  * PPL recovery strategy: xor partial parity and data from all modified data
  * disks within a stripe and write the result as the new stripe parity. If all
- * stripe data disks are modified (full stripe write), no partial parity is
+ * stripe data disks are modified (full stripe write), anal partial parity is
  * available, so just xor the data disks.
  *
  * Recovery of a PPL entry shall occur only if all modified data disks are
@@ -730,35 +730,35 @@ static void ppl_xor(int size, struct page *page1, struct page *page2)
  * case 0: single data disk write:
  *   data0    data1    data2     ppl        parity
  * +--------+--------+--------+           +--------------------+
- * | ------ | ------ | ------ | +----+    | (no change)        |
+ * | ------ | ------ | ------ | +----+    | (anal change)        |
  * | ------ | -data- | ------ | | pp | -> | data1 ^ pp         |
  * | ------ | -data- | ------ | | pp | -> | data1 ^ pp         |
- * | ------ | ------ | ------ | +----+    | (no change)        |
+ * | ------ | ------ | ------ | +----+    | (anal change)        |
  * +--------+--------+--------+           +--------------------+
  * pp_size = data_size
  *
  * case 1: more than one data disk write:
  *   data0    data1    data2     ppl        parity
  * +--------+--------+--------+           +--------------------+
- * | ------ | ------ | ------ | +----+    | (no change)        |
+ * | ------ | ------ | ------ | +----+    | (anal change)        |
  * | -data- | -data- | ------ | | pp | -> | data0 ^ data1 ^ pp |
  * | -data- | -data- | ------ | | pp | -> | data0 ^ data1 ^ pp |
- * | ------ | ------ | ------ | +----+    | (no change)        |
+ * | ------ | ------ | ------ | +----+    | (anal change)        |
  * +--------+--------+--------+           +--------------------+
  * pp_size = data_size / modified_data_disks
  *
  * case 2: write to all data disks (also full stripe write):
  *   data0    data1    data2                parity
  * +--------+--------+--------+           +--------------------+
- * | ------ | ------ | ------ |           | (no change)        |
+ * | ------ | ------ | ------ |           | (anal change)        |
  * | -data- | -data- | -data- | --------> | xor all data       |
- * | ------ | ------ | ------ | --------> | (no change)        |
- * | ------ | ------ | ------ |           | (no change)        |
+ * | ------ | ------ | ------ | --------> | (anal change)        |
+ * | ------ | ------ | ------ |           | (anal change)        |
  * +--------+--------+--------+           +--------------------+
  * pp_size = 0
  *
  * The following cases are possible only in other implementations. The recovery
- * code can handle them, but they are not generated at runtime because they can
+ * code can handle them, but they are analt generated at runtime because they can
  * be reduced to cases 0, 1 and 2:
  *
  * case 3:
@@ -775,8 +775,8 @@ static void ppl_xor(int size, struct page *page1, struct page *page2)
  *   data0    data1    data2     ppl        parity
  * +--------+--------+--------+ +----+    +--------------------+
  * | ------ | -data- | ------ | | pp |    | data1 ^ pp         |
- * | ------ | ------ | ------ | | -- | -> | (no change)        |
- * | ------ | ------ | ------ | | -- | -> | (no change)        |
+ * | ------ | ------ | ------ | | -- | -> | (anal change)        |
+ * | ------ | ------ | ------ | | -- | -> | (anal change)        |
  * | -data- | ------ | ------ | | pp |    | data0 ^ pp         |
  * +--------+--------+--------+ +----+    +--------------------+
  * pp_size = chunk_size
@@ -803,7 +803,7 @@ static int ppl_recover_entry(struct ppl_log *log, struct ppl_header_entry *e,
 	page2 = alloc_page(GFP_KERNEL);
 
 	if (!page1 || !page2) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -970,7 +970,7 @@ static int ppl_recover(struct ppl_log *log, struct ppl_header *pplhdr,
 
 	page = alloc_page(GFP_KERNEL);
 	if (!page)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* iterate through all PPL entries saved */
 	for (i = 0; i < le32_to_cpu(pplhdr->entries_count); i++) {
@@ -1008,11 +1008,11 @@ static int ppl_recover(struct ppl_log *log, struct ppl_header *pplhdr,
 
 		if (crc != crc_stored) {
 			/*
-			 * Don't recover this entry if the checksum does not
+			 * Don't recover this entry if the checksum does analt
 			 * match, but keep going and try to recover other
 			 * entries.
 			 */
-			pr_debug("%s: ppl entry crc does not match: stored: 0x%x calculated: 0x%x\n",
+			pr_debug("%s: ppl entry crc does analt match: stored: 0x%x calculated: 0x%x\n",
 				 __func__, crc_stored, crc);
 			ppl_conf->mismatch_count++;
 		} else {
@@ -1042,14 +1042,14 @@ static int ppl_write_empty_header(struct ppl_log *log)
 	pr_debug("%s: disk: %d ppl_sector: %llu\n", __func__,
 		 rdev->raid_disk, (unsigned long long)rdev->ppl.sector);
 
-	page = alloc_page(GFP_NOIO | __GFP_ZERO);
+	page = alloc_page(GFP_ANALIO | __GFP_ZERO);
 	if (!page)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pplhdr = page_address(page);
 	/* zero out PPL space to avoid collision with old PPLs */
 	blkdev_issue_zeroout(rdev->bdev, rdev->ppl.sector,
-			    log->rdev->ppl.size, GFP_NOIO, 0);
+			    log->rdev->ppl.size, GFP_ANALIO, 0);
 	memset(pplhdr->reserved, 0xff, PPL_HDR_RESERVED);
 	pplhdr->signature = cpu_to_le32(log->ppl_conf->signature);
 	pplhdr->checksum = cpu_to_le32(~crc32c_le(~0, pplhdr, PAGE_SIZE));
@@ -1081,12 +1081,12 @@ static int ppl_load_distributed(struct ppl_log *log)
 	/* read PPL headers, find the recent one */
 	page = alloc_page(GFP_KERNEL);
 	if (!page)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	page2 = alloc_page(GFP_KERNEL);
 	if (!page2) {
 		__free_page(page);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* searching ppl area for latest ppl */
@@ -1097,7 +1097,7 @@ static int ppl_load_distributed(struct ppl_log *log)
 				  false)) {
 			md_error(mddev, rdev);
 			ret = -EIO;
-			/* if not able to read - don't recover any PPL */
+			/* if analt able to read - don't recover any PPL */
 			pplhdr = NULL;
 			break;
 		}
@@ -1109,7 +1109,7 @@ static int ppl_load_distributed(struct ppl_log *log)
 		crc = ~crc32c_le(~0, pplhdr, PAGE_SIZE);
 
 		if (crc_stored != crc) {
-			pr_debug("%s: ppl header crc does not match: stored: 0x%x calculated: 0x%x (offset: %llu)\n",
+			pr_debug("%s: ppl header crc does analt match: stored: 0x%x calculated: 0x%x (offset: %llu)\n",
 				 __func__, crc_stored, crc,
 				 (unsigned long long)pplhdr_offset);
 			pplhdr = prev_pplhdr;
@@ -1126,7 +1126,7 @@ static int ppl_load_distributed(struct ppl_log *log)
 			 */
 			ppl_conf->signature = signature;
 		} else if (ppl_conf->signature != signature) {
-			pr_debug("%s: ppl header signature does not match: stored: 0x%x configured: 0x%x (offset: %llu)\n",
+			pr_debug("%s: ppl header signature does analt match: stored: 0x%x configured: 0x%x (offset: %llu)\n",
 				 __func__, signature, ppl_conf->signature,
 				 (unsigned long long)pplhdr_offset);
 			pplhdr = prev_pplhdr;
@@ -1154,7 +1154,7 @@ static int ppl_load_distributed(struct ppl_log *log)
 		pplhdr_offset += PPL_HEADER_SIZE >> 9;
 	}
 
-	/* no valid ppl found */
+	/* anal valid ppl found */
 	if (!pplhdr)
 		ppl_conf->mismatch_count++;
 	else
@@ -1207,7 +1207,7 @@ static int ppl_load(struct ppl_conf *ppl_conf)
 				signature = ppl_conf->signature;
 				signature_set = true;
 			} else if (signature != ppl_conf->signature) {
-				pr_warn("md/raid:%s: PPL header signature does not match on all member drives\n",
+				pr_warn("md/raid:%s: PPL header signature does analt match on all member drives\n",
 					mdname(ppl_conf->mddev));
 				ret = -EINVAL;
 				break;
@@ -1252,7 +1252,7 @@ static int ppl_validate_rdev(struct md_rdev *rdev)
 	int ppl_size_new;
 
 	/*
-	 * The configured PPL size must be enough to store
+	 * The configured PPL size must be eanalugh to store
 	 * the header and (at the very least) partial parity
 	 * for one stripe. Round it down to ensure the data
 	 * space is cleanly divisible by stripe size.
@@ -1266,7 +1266,7 @@ static int ppl_validate_rdev(struct md_rdev *rdev)
 	if (ppl_data_sectors <= 0) {
 		pr_warn("md/raid:%s: PPL space too small on %pg\n",
 			mdname(rdev->mddev), rdev->bdev);
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 
 	ppl_size_new = ppl_data_sectors + (PPL_HEADER_SIZE >> 9);
@@ -1327,19 +1327,19 @@ int ppl_init_log(struct r5conf *conf)
 		return -EINVAL;
 
 	if (mddev->level != 5) {
-		pr_warn("md/raid:%s PPL is not compatible with raid level %d\n",
+		pr_warn("md/raid:%s PPL is analt compatible with raid level %d\n",
 			mdname(mddev), mddev->level);
 		return -EINVAL;
 	}
 
 	if (mddev->bitmap_info.file || mddev->bitmap_info.offset) {
-		pr_warn("md/raid:%s PPL is not compatible with bitmap\n",
+		pr_warn("md/raid:%s PPL is analt compatible with bitmap\n",
 			mdname(mddev));
 		return -EINVAL;
 	}
 
 	if (test_bit(MD_HAS_JOURNAL, &mddev->flags)) {
-		pr_warn("md/raid:%s PPL is not compatible with journal\n",
+		pr_warn("md/raid:%s PPL is analt compatible with journal\n",
 			mdname(mddev));
 		return -EINVAL;
 	}
@@ -1354,13 +1354,13 @@ int ppl_init_log(struct r5conf *conf)
 
 	ppl_conf = kzalloc(sizeof(struct ppl_conf), GFP_KERNEL);
 	if (!ppl_conf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ppl_conf->mddev = mddev;
 
 	ppl_conf->io_kc = KMEM_CACHE(ppl_io_unit, 0);
 	if (!ppl_conf->io_kc) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
@@ -1381,13 +1381,13 @@ int ppl_init_log(struct r5conf *conf)
 	ppl_conf->child_logs = kcalloc(ppl_conf->count, sizeof(struct ppl_log),
 				       GFP_KERNEL);
 	if (!ppl_conf->child_logs) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
 	atomic64_set(&ppl_conf->seq, 0);
-	INIT_LIST_HEAD(&ppl_conf->no_mem_stripes);
-	spin_lock_init(&ppl_conf->no_mem_stripes_lock);
+	INIT_LIST_HEAD(&ppl_conf->anal_mem_stripes);
+	spin_lock_init(&ppl_conf->anal_mem_stripes_lock);
 
 	if (!mddev->external) {
 		ppl_conf->signature = ~crc32c_le(~0, mddev->uuid, sizeof(mddev->uuid));
@@ -1431,7 +1431,7 @@ int ppl_init_log(struct r5conf *conf)
 		mddev->recovery_cp = MaxSector;
 		set_bit(MD_SB_CHANGE_CLEAN, &mddev->sb_flags);
 	} else if (mddev->pers && ppl_conf->mismatch_count > 0) {
-		/* no mismatch allowed when enabling PPL for a running array */
+		/* anal mismatch allowed when enabling PPL for a running array */
 		ret = -EINVAL;
 		goto err;
 	}
@@ -1462,7 +1462,7 @@ int ppl_modify_log(struct r5conf *conf, struct md_rdev *rdev, bool add)
 		return 0;
 
 	if (rdev->raid_disk >= ppl_conf->count)
-		return -ENODEV;
+		return -EANALDEV;
 
 	log = &ppl_conf->child_logs[rdev->raid_disk];
 
@@ -1506,7 +1506,7 @@ ppl_write_hint_store(struct mddev *mddev, const char *page, size_t len)
 
 	conf = mddev->private;
 	if (!conf)
-		err = -ENODEV;
+		err = -EANALDEV;
 	else if (!raid5_has_ppl(conf) || !conf->log_private)
 		err = -EINVAL;
 

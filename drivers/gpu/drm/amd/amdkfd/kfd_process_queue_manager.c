@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -29,10 +29,10 @@
 #include "kfd_kernel_queue.h"
 #include "amdgpu_amdkfd.h"
 
-static inline struct process_queue_node *get_queue_by_qid(
+static inline struct process_queue_analde *get_queue_by_qid(
 			struct process_queue_manager *pqm, unsigned int qid)
 {
-	struct process_queue_node *pqn;
+	struct process_queue_analde *pqn;
 
 	list_for_each_entry(pqn, &pqm->queues, process_queue_list) {
 		if ((pqn->q && pqn->q->properties.queue_id == qid) ||
@@ -50,8 +50,8 @@ static int assign_queue_slot_by_qid(struct process_queue_manager *pqm,
 		return -EINVAL;
 
 	if (__test_and_set_bit(qid, pqm->queue_slot_bitmap)) {
-		pr_err("Cannot create new queue because requested qid(%u) is in use\n", qid);
-		return -ENOSPC;
+		pr_err("Cananalt create new queue because requested qid(%u) is in use\n", qid);
+		return -EANALSPC;
 	}
 
 	return 0;
@@ -68,9 +68,9 @@ static int find_available_queue_slot(struct process_queue_manager *pqm,
 	pr_debug("The new slot id %lu\n", found);
 
 	if (found >= KFD_MAX_NUM_OF_QUEUES_PER_PROCESS) {
-		pr_info("Cannot open more queues for process with pasid 0x%x\n",
+		pr_info("Cananalt open more queues for process with pasid 0x%x\n",
 				pqm->process->pasid);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	set_bit(found, pqm->queue_slot_bitmap);
@@ -81,7 +81,7 @@ static int find_available_queue_slot(struct process_queue_manager *pqm,
 
 void kfd_process_dequeue_from_device(struct kfd_process_device *pdd)
 {
-	struct kfd_node *dev = pdd->dev;
+	struct kfd_analde *dev = pdd->dev;
 
 	if (pdd->already_dequeued)
 		return;
@@ -96,22 +96,22 @@ int pqm_set_gws(struct process_queue_manager *pqm, unsigned int qid,
 			void *gws)
 {
 	struct mqd_update_info minfo = {0};
-	struct kfd_node *dev = NULL;
-	struct process_queue_node *pqn;
+	struct kfd_analde *dev = NULL;
+	struct process_queue_analde *pqn;
 	struct kfd_process_device *pdd;
 	struct kgd_mem *mem = NULL;
 	int ret;
 
 	pqn = get_queue_by_qid(pqm, qid);
 	if (!pqn) {
-		pr_err("Queue id does not match any known queue\n");
+		pr_err("Queue id does analt match any kanalwn queue\n");
 		return -EINVAL;
 	}
 
 	if (pqn->q)
 		dev = pqn->q->device;
 	if (WARN_ON(!dev))
-		return -ENODEV;
+		return -EANALDEV;
 
 	pdd = kfd_get_process_device_data(dev, pqm->process);
 	if (!pdd) {
@@ -138,12 +138,12 @@ int pqm_set_gws(struct process_queue_manager *pqm, unsigned int qid,
 		pqn->q->gws = mem;
 	} else {
 		/*
-		 * Intentionally set GWS to a non-NULL value
-		 * for devices that do not use GWS for global wave
+		 * Intentionally set GWS to a analn-NULL value
+		 * for devices that do analt use GWS for global wave
 		 * synchronization but require the formality
 		 * of setting GWS for cooperative groups.
 		 */
-		pqn->q->gws = gws ? ERR_PTR(-ENOMEM) : NULL;
+		pqn->q->gws = gws ? ERR_PTR(-EANALMEM) : NULL;
 	}
 
 	pdd->qpd.num_gws = gws ? dev->adev->gds.gws_size : 0;
@@ -167,16 +167,16 @@ int pqm_init(struct process_queue_manager *pqm, struct kfd_process *p)
 	pqm->queue_slot_bitmap = bitmap_zalloc(KFD_MAX_NUM_OF_QUEUES_PER_PROCESS,
 					       GFP_KERNEL);
 	if (!pqm->queue_slot_bitmap)
-		return -ENOMEM;
+		return -EANALMEM;
 	pqm->process = p;
 
 	return 0;
 }
 
 static void pqm_clean_queue_resource(struct process_queue_manager *pqm,
-				     struct process_queue_node *pqn)
+				     struct process_queue_analde *pqn)
 {
-	struct kfd_node *dev;
+	struct kfd_analde *dev;
 	struct kfd_process_device *pdd;
 
 	dev = pqn->q->device;
@@ -204,7 +204,7 @@ static void pqm_clean_queue_resource(struct process_queue_manager *pqm,
 
 void pqm_uninit(struct process_queue_manager *pqm)
 {
-	struct process_queue_node *pqn, *next;
+	struct process_queue_analde *pqn, *next;
 
 	list_for_each_entry_safe(pqn, next, &pqm->queues, process_queue_list) {
 		if (pqn->q)
@@ -221,7 +221,7 @@ void pqm_uninit(struct process_queue_manager *pqm)
 }
 
 static int init_user_queue(struct process_queue_manager *pqm,
-				struct kfd_node *dev, struct queue **q,
+				struct kfd_analde *dev, struct queue **q,
 				struct queue_properties *q_properties,
 				struct file *f, struct amdgpu_bo *wptr_bo,
 				unsigned int qid)
@@ -268,7 +268,7 @@ cleanup:
 }
 
 int pqm_create_queue(struct process_queue_manager *pqm,
-			    struct kfd_node *dev,
+			    struct kfd_analde *dev,
 			    struct file *f,
 			    struct queue_properties *properties,
 			    unsigned int *qid,
@@ -281,14 +281,14 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 	int retval;
 	struct kfd_process_device *pdd;
 	struct queue *q;
-	struct process_queue_node *pqn;
+	struct process_queue_analde *pqn;
 	struct kernel_queue *kq;
 	enum kfd_queue_type type = properties->type;
 	unsigned int max_queues = 127; /* HWS limit */
 
 	/*
 	 * On GFX 9.4.3, increase the number of queues that
-	 * can be created to 255. No HWS limit on GFX 9.4.3.
+	 * can be created to 255. Anal HWS limit on GFX 9.4.3.
 	 */
 	if (KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 3))
 		max_queues = 255;
@@ -305,14 +305,14 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 	/*
 	 * for debug process, verify that it is within the static queues limit
 	 * currently limit is set to half of the total avail HQD slots
-	 * If we are just about to create DIQ, the is_debug flag is not set yet
+	 * If we are just about to create DIQ, the is_debug flag is analt set yet
 	 * Hence we also check the type as well
 	 */
 	if ((pdd->qpd.is_debug) || (type == KFD_QUEUE_TYPE_DIQ))
-		max_queues = dev->kfd->device_info.max_no_of_hqd/2;
+		max_queues = dev->kfd->device_info.max_anal_of_hqd/2;
 
 	if (pdd->qpd.queue_count >= max_queues)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	if (q_data) {
 		retval = assign_queue_slot_by_qid(pqm, q_data->q_id);
@@ -329,15 +329,15 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 
 	pqn = kzalloc(sizeof(*pqn), GFP_KERNEL);
 	if (!pqn) {
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto err_allocate_pqn;
 	}
 
 	switch (type) {
 	case KFD_QUEUE_TYPE_SDMA:
 	case KFD_QUEUE_TYPE_SDMA_XGMI:
-		/* SDMA queues are always allocated statically no matter
-		 * which scheduler mode is used. We also do not need to
+		/* SDMA queues are always allocated statically anal matter
+		 * which scheduler mode is used. We also do analt need to
 		 * check whether a SDMA queue can be allocated here, because
 		 * allocate_sdma_queue() in create_queue() has the
 		 * corresponding check logic.
@@ -355,10 +355,10 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 	case KFD_QUEUE_TYPE_COMPUTE:
 		/* check if there is over subscription */
 		if ((dev->dqm->sched_policy ==
-		     KFD_SCHED_POLICY_HWS_NO_OVERSUBSCRIPTION) &&
+		     KFD_SCHED_POLICY_HWS_ANAL_OVERSUBSCRIPTION) &&
 		((dev->dqm->processes_count >= dev->vm_info.vmid_num_kfd) ||
 		(dev->dqm->active_queue_count >= get_cp_queues_num(dev->dqm)))) {
-			pr_debug("Over-subscription is not allowed when amdkfd.sched_policy == 1\n");
+			pr_debug("Over-subscription is analt allowed when amdkfd.sched_policy == 1\n");
 			retval = -EPERM;
 			goto err_create_queue;
 		}
@@ -375,7 +375,7 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 	case KFD_QUEUE_TYPE_DIQ:
 		kq = kernel_queue_init(dev, KFD_QUEUE_TYPE_DIQ);
 		if (!kq) {
-			retval = -ENOMEM;
+			retval = -EANALMEM;
 			goto err_create_queue;
 		}
 		kq->queue->properties.queue_id = *qid;
@@ -443,10 +443,10 @@ err_allocate_pqn:
 
 int pqm_destroy_queue(struct process_queue_manager *pqm, unsigned int qid)
 {
-	struct process_queue_node *pqn;
+	struct process_queue_analde *pqn;
 	struct kfd_process_device *pdd;
 	struct device_queue_manager *dqm;
-	struct kfd_node *dev;
+	struct kfd_analde *dev;
 	int retval;
 
 	dqm = NULL;
@@ -455,7 +455,7 @@ int pqm_destroy_queue(struct process_queue_manager *pqm, unsigned int qid)
 
 	pqn = get_queue_by_qid(pqm, qid);
 	if (!pqn) {
-		pr_err("Queue id does not match any known queue\n");
+		pr_err("Queue id does analt match any kanalwn queue\n");
 		return -EINVAL;
 	}
 
@@ -465,7 +465,7 @@ int pqm_destroy_queue(struct process_queue_manager *pqm, unsigned int qid)
 	if (pqn->q)
 		dev = pqn->q->device;
 	if (WARN_ON(!dev))
-		return -ENODEV;
+		return -EANALDEV;
 
 	pdd = kfd_get_process_device_data(dev, pqm->process);
 	if (!pdd) {
@@ -512,11 +512,11 @@ int pqm_update_queue_properties(struct process_queue_manager *pqm,
 				unsigned int qid, struct queue_properties *p)
 {
 	int retval;
-	struct process_queue_node *pqn;
+	struct process_queue_analde *pqn;
 
 	pqn = get_queue_by_qid(pqm, qid);
 	if (!pqn) {
-		pr_debug("No queue %d exists for update operation\n", qid);
+		pr_debug("Anal queue %d exists for update operation\n", qid);
 		return -EFAULT;
 	}
 
@@ -538,11 +538,11 @@ int pqm_update_mqd(struct process_queue_manager *pqm,
 				unsigned int qid, struct mqd_update_info *minfo)
 {
 	int retval;
-	struct process_queue_node *pqn;
+	struct process_queue_analde *pqn;
 
 	pqn = get_queue_by_qid(pqm, qid);
 	if (!pqn) {
-		pr_debug("No queue %d exists for update operation\n", qid);
+		pr_debug("Anal queue %d exists for update operation\n", qid);
 		return -EFAULT;
 	}
 
@@ -580,7 +580,7 @@ struct kernel_queue *pqm_get_kernel_queue(
 					struct process_queue_manager *pqm,
 					unsigned int qid)
 {
-	struct process_queue_node *pqn;
+	struct process_queue_analde *pqn;
 
 	pqn = get_queue_by_qid(pqm, qid);
 	if (pqn && pqn->kq)
@@ -592,7 +592,7 @@ struct kernel_queue *pqm_get_kernel_queue(
 struct queue *pqm_get_user_queue(struct process_queue_manager *pqm,
 					unsigned int qid)
 {
-	struct process_queue_node *pqn;
+	struct process_queue_analde *pqn;
 
 	pqn = get_queue_by_qid(pqm, qid);
 	return pqn ? pqn->q : NULL;
@@ -604,11 +604,11 @@ int pqm_get_wave_state(struct process_queue_manager *pqm,
 		       u32 *ctl_stack_used_size,
 		       u32 *save_area_used_size)
 {
-	struct process_queue_node *pqn;
+	struct process_queue_analde *pqn;
 
 	pqn = get_queue_by_qid(pqm, qid);
 	if (!pqn) {
-		pr_debug("amdkfd: No queue %d exists for operation\n",
+		pr_debug("amdkfd: Anal queue %d exists for operation\n",
 			 qid);
 		return -EFAULT;
 	}
@@ -626,7 +626,7 @@ int pqm_get_queue_snapshot(struct process_queue_manager *pqm,
 			   int *num_qss_entries,
 			   uint32_t *entry_size)
 {
-	struct process_queue_node *pqn;
+	struct process_queue_analde *pqn;
 	struct kfd_queue_snapshot_entry src;
 	uint32_t tmp_entry_size = *entry_size, tmp_qss_entries = *num_qss_entries;
 	int r = 0;
@@ -707,7 +707,7 @@ int kfd_process_get_queue_info(struct kfd_process *p,
 				extra_data_sizes += mqd_size + ctl_stack_size;
 			} else {
 				pr_err("Unsupported queue type (%d)\n", q->properties.type);
-				return -EOPNOTSUPP;
+				return -EOPANALTSUPP;
 			}
 		}
 	}
@@ -722,17 +722,17 @@ static int pqm_checkpoint_mqd(struct process_queue_manager *pqm,
 			      void *mqd,
 			      void *ctl_stack)
 {
-	struct process_queue_node *pqn;
+	struct process_queue_analde *pqn;
 
 	pqn = get_queue_by_qid(pqm, qid);
 	if (!pqn) {
-		pr_debug("amdkfd: No queue %d exists for operation\n", qid);
+		pr_debug("amdkfd: Anal queue %d exists for operation\n", qid);
 		return -EFAULT;
 	}
 
 	if (!pqn->q->device->dqm->ops.checkpoint_mqd) {
-		pr_err("amdkfd: queue dumping not supported on this device\n");
-		return -EOPNOTSUPP;
+		pr_err("amdkfd: queue dumping analt supported on this device\n");
+		return -EOPANALTSUPP;
 	}
 
 	return pqn->q->device->dqm->ops.checkpoint_mqd(pqn->q->device->dqm,
@@ -807,7 +807,7 @@ static int criu_checkpoint_queues_device(struct kfd_process_device *pdd,
 			q->properties.type != KFD_QUEUE_TYPE_SDMA_XGMI) {
 
 			pr_err("Unsupported queue type (%d)\n", q->properties.type);
-			ret = -EOPNOTSUPP;
+			ret = -EOPANALTSUPP;
 			break;
 		}
 
@@ -823,7 +823,7 @@ static int criu_checkpoint_queues_device(struct kfd_process_device *pdd,
 
 			q_private_data = kzalloc(q_data_size, GFP_KERNEL);
 			if (!q_private_data) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				break;
 			}
 			q_private_data_size = q_data_size;
@@ -916,7 +916,7 @@ int kfd_criu_restore_queue(struct kfd_process *p,
 
 	q_data = kmalloc(sizeof(*q_data), GFP_KERNEL);
 	if (!q_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = copy_from_user(q_data, user_priv_ptr + *priv_data_offset, sizeof(*q_data));
 	if (ret) {
@@ -934,7 +934,7 @@ int kfd_criu_restore_queue(struct kfd_process *p,
 
 	q_extra_data = kmalloc(q_extra_data_size, GFP_KERNEL);
 	if (!q_extra_data) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto exit;
 	}
 
@@ -988,17 +988,17 @@ int pqm_get_queue_checkpoint_info(struct process_queue_manager *pqm,
 				  uint32_t *mqd_size,
 				  uint32_t *ctl_stack_size)
 {
-	struct process_queue_node *pqn;
+	struct process_queue_analde *pqn;
 
 	pqn = get_queue_by_qid(pqm, qid);
 	if (!pqn) {
-		pr_debug("amdkfd: No queue %d exists for operation\n", qid);
+		pr_debug("amdkfd: Anal queue %d exists for operation\n", qid);
 		return -EFAULT;
 	}
 
 	if (!pqn->q->device->dqm->ops.get_queue_checkpoint_info) {
-		pr_err("amdkfd: queue dumping not supported on this device\n");
-		return -EOPNOTSUPP;
+		pr_err("amdkfd: queue dumping analt supported on this device\n");
+		return -EOPANALTSUPP;
 	}
 
 	pqn->q->device->dqm->ops.get_queue_checkpoint_info(pqn->q->device->dqm,
@@ -1012,7 +1012,7 @@ int pqm_get_queue_checkpoint_info(struct process_queue_manager *pqm,
 int pqm_debugfs_mqds(struct seq_file *m, void *data)
 {
 	struct process_queue_manager *pqm = data;
-	struct process_queue_node *pqn;
+	struct process_queue_analde *pqn;
 	struct queue *q;
 	enum KFD_MQD_TYPE mqd_type;
 	struct mqd_manager *mqd_mgr;
@@ -1062,7 +1062,7 @@ int pqm_debugfs_mqds(struct seq_file *m, void *data)
 			}
 		} else {
 			seq_printf(m,
-		"  Weird: Queue node with neither kernel nor user queue\n");
+		"  Weird: Queue analde with neither kernel analr user queue\n");
 			continue;
 		}
 

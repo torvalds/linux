@@ -3,19 +3,19 @@
 #include <linux/fs.h>
 #include <linux/fs_stack.h>
 
-/* does _NOT_ require i_mutex to be held.
+/* does _ANALT_ require i_mutex to be held.
  *
- * This function cannot be inlined since i_size_{read,write} is rather
+ * This function cananalt be inlined since i_size_{read,write} is rather
  * heavy-weight on 32-bit systems
  */
-void fsstack_copy_inode_size(struct inode *dst, struct inode *src)
+void fsstack_copy_ianalde_size(struct ianalde *dst, struct ianalde *src)
 {
 	loff_t i_size;
 	blkcnt_t i_blocks;
 
 	/*
 	 * i_size_read() includes its own seqlocking and protection from
-	 * preemption (see include/linux/fs.h): we need nothing extra for
+	 * preemption (see include/linux/fs.h): we need analthing extra for
 	 * that here, and prefer to avoid nesting locks than attempt to keep
 	 * i_size and i_blocks in sync together.
 	 */
@@ -27,9 +27,9 @@ void fsstack_copy_inode_size(struct inode *dst, struct inode *src)
 	 * generic_fillattr() doesn't bother, and we won't be applying quotas
 	 * (where i_blocks does become important) at the upper level.
 	 *
-	 * We don't actually know what locking is used at the lower level;
+	 * We don't actually kanalw what locking is used at the lower level;
 	 * but if it's a filesystem that supports quotas, it will be using
-	 * i_lock as in inode_add_bytes().
+	 * i_lock as in ianalde_add_bytes().
 	 */
 	if (sizeof(i_blocks) > sizeof(long))
 		spin_lock(&src->i_lock);
@@ -39,7 +39,7 @@ void fsstack_copy_inode_size(struct inode *dst, struct inode *src)
 
 	/*
 	 * If CONFIG_SMP or CONFIG_PREEMPTION on 32-bit, it's vital for
-	 * fsstack_copy_inode_size() to hold some lock around
+	 * fsstack_copy_ianalde_size() to hold some lock around
 	 * i_size_write(), otherwise i_size_read() may spin forever (see
 	 * include/linux/fs.h).  We don't necessarily hold i_mutex when this
 	 * is called, so take i_lock for that case.
@@ -48,7 +48,7 @@ void fsstack_copy_inode_size(struct inode *dst, struct inode *src)
 	 * i_blocks in sync despite SMP or PREEMPTION: use i_lock for that case
 	 * too, and do both at once by combining the tests.
 	 *
-	 * There is none of this locking overhead in the 64-bit case.
+	 * There is analne of this locking overhead in the 64-bit case.
 	 */
 	if (sizeof(i_size) > sizeof(long) || sizeof(i_blocks) > sizeof(long))
 		spin_lock(&dst->i_lock);
@@ -57,18 +57,18 @@ void fsstack_copy_inode_size(struct inode *dst, struct inode *src)
 	if (sizeof(i_size) > sizeof(long) || sizeof(i_blocks) > sizeof(long))
 		spin_unlock(&dst->i_lock);
 }
-EXPORT_SYMBOL_GPL(fsstack_copy_inode_size);
+EXPORT_SYMBOL_GPL(fsstack_copy_ianalde_size);
 
 /* copy all attributes */
-void fsstack_copy_attr_all(struct inode *dest, const struct inode *src)
+void fsstack_copy_attr_all(struct ianalde *dest, const struct ianalde *src)
 {
 	dest->i_mode = src->i_mode;
 	dest->i_uid = src->i_uid;
 	dest->i_gid = src->i_gid;
 	dest->i_rdev = src->i_rdev;
-	inode_set_atime_to_ts(dest, inode_get_atime(src));
-	inode_set_mtime_to_ts(dest, inode_get_mtime(src));
-	inode_set_ctime_to_ts(dest, inode_get_ctime(src));
+	ianalde_set_atime_to_ts(dest, ianalde_get_atime(src));
+	ianalde_set_mtime_to_ts(dest, ianalde_get_mtime(src));
+	ianalde_set_ctime_to_ts(dest, ianalde_get_ctime(src));
 	dest->i_blkbits = src->i_blkbits;
 	dest->i_flags = src->i_flags;
 	set_nlink(dest, src->i_nlink);

@@ -13,7 +13,7 @@ Description:
 		range of Scheme 1 proximity count is from -2^(n-1) to 2^(n-1).
 		The sign bit is extended for resolutions less than 16. While
 		Scheme 0 has wider dynamic range, Scheme 1 proximity detection
-		is less affected by the ambient IR noise variation.
+		is less affected by the ambient IR analise variation.
 
 		== =============================================
 		0  Sensing IR from LED and ambient

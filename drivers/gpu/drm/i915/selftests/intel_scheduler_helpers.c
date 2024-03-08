@@ -22,7 +22,7 @@ struct intel_engine_cs *intel_selftest_find_any_engine(struct intel_gt *gt)
 	for_each_engine(engine, gt, id)
 		return engine;
 
-	pr_err("No valid engine found!\n");
+	pr_err("Anal valid engine found!\n");
 	return NULL;
 }
 
@@ -42,7 +42,7 @@ int intel_selftest_modify_policy(struct intel_engine_cs *engine,
 		/*
 		 * Enable force pre-emption on time slice expiration
 		 * together with engine reset on pre-emption timeout.
-		 * This is required to make the GuC notice and reset
+		 * This is required to make the GuC analtice and reset
 		 * the single hanging context.
 		 * Also, reduce the preemption timeout to something
 		 * small to speed the test up.
@@ -53,7 +53,7 @@ int intel_selftest_modify_policy(struct intel_engine_cs *engine,
 		engine->props.preempt_timeout_ms = REDUCED_PREEMPT;
 		break;
 
-	case SELFTEST_SCHEDULER_MODIFY_NO_HANGCHECK:
+	case SELFTEST_SCHEDULER_MODIFY_ANAL_HANGCHECK:
 		engine->props.preempt_timeout_ms = 0;
 		break;
 

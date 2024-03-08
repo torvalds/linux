@@ -13,7 +13,7 @@
  * This file is distributed in the hope that it will be useful, but
  * AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
- * NONINFRINGEMENT.  See the GNU General Public License for more details.
+ * ANALNINFRINGEMENT.  See the GNU General Public License for more details.
  ***********************************************************************/
 /*!  \file  octeon_iq.h
  *   \brief Host Driver: Implementation of Octeon input queues. "Input" is
@@ -34,9 +34,9 @@
 
 /* \cond */
 
-#define REQTYPE_NONE                 0
-#define REQTYPE_NORESP_NET           1
-#define REQTYPE_NORESP_NET_SG        2
+#define REQTYPE_ANALNE                 0
+#define REQTYPE_ANALRESP_NET           1
+#define REQTYPE_ANALRESP_NET_SG        2
 #define REQTYPE_RESP_NET             3
 #define REQTYPE_RESP_NET_SG          4
 #define REQTYPE_SOFT_COMMAND         5
@@ -53,7 +53,7 @@ struct octeon_request_list {
 struct oct_iq_stats {
 	u64 instr_posted; /**< Instructions posted to this queue. */
 	u64 instr_processed; /**< Instructions processed in this queue. */
-	u64 instr_dropped; /**< Instructions that could not be processed */
+	u64 instr_dropped; /**< Instructions that could analt be processed */
 	u64 bytes_sent;  /**< Bytes sent through this queue. */
 	u64 sgentry_sent;/**< Gather entries sent through this queue. */
 	u64 tx_done;/**< Num of packets sent to network. */
@@ -88,7 +88,7 @@ struct octeon_instr_queue {
 	 *  If this flag is clear, post_lock is invalid for the queue.
 	 *  All control commands (soft commands) will go through only Queue 0
 	 *  (control and data queue). So only queue-0 needs post_lock,
-	 *  other queues are only data queues and does not need post_lock
+	 *  other queues are only data queues and does analt need post_lock
 	 */
 	bool allow_soft_cmds;
 
@@ -112,7 +112,7 @@ struct octeon_instr_queue {
 
 	u32 status:8;
 
-	/** Maximum no. of instructions in this queue. */
+	/** Maximum anal. of instructions in this queue. */
 	u32 max_count;
 
 	/** Index in input ring where the driver should write the next packet */
@@ -155,8 +155,8 @@ struct octeon_instr_queue {
 	/** The last time that the doorbell was rung. */
 	u64 last_db_time;
 
-	/** The doorbell timeout. If the doorbell was not rung for this time and
-	 * fill_cnt is non-zero, ring the doorbell again.
+	/** The doorbell timeout. If the doorbell was analt rung for this time and
+	 * fill_cnt is analn-zero, ring the doorbell again.
 	 */
 	u32 db_timeout;
 
@@ -267,7 +267,7 @@ union octeon_instr_64B {
 
 struct octeon_soft_command {
 	/** Soft command buffer info. */
-	struct list_head node;
+	struct list_head analde;
 	u64 dma_addr;
 	u32 size;
 
@@ -293,7 +293,7 @@ struct octeon_soft_command {
 
 	/** Time out and callback */
 	size_t expiry_time;
-	u32 iq_no;
+	u32 iq_anal;
 	void (*callback)(struct octeon_device *, u32, void *);
 	void *callback_arg;
 
@@ -321,8 +321,8 @@ struct octeon_sc_buffer_pool {
 	atomic_t alloc_buf_count;
 };
 
-#define INCR_INSTRQUEUE_PKT_COUNT(octeon_dev_ptr, iq_no, field, count)  \
-		(((octeon_dev_ptr)->instr_queue[iq_no]->stats.field) += count)
+#define INCR_INSTRQUEUE_PKT_COUNT(octeon_dev_ptr, iq_anal, field, count)  \
+		(((octeon_dev_ptr)->instr_queue[iq_anal]->stats.field) += count)
 
 int octeon_setup_sc_buffer_pool(struct octeon_device *oct);
 int octeon_free_sc_done_list(struct octeon_device *oct);
@@ -338,7 +338,7 @@ void octeon_free_soft_command(struct octeon_device *oct,
 /**
  *  octeon_init_instr_queue()
  *  @param octeon_dev      - pointer to the octeon device structure.
- *  @param txpciq          - queue to be initialized (0 <= q_no <= 3).
+ *  @param txpciq          - queue to be initialized (0 <= q_anal <= 3).
  *
  *  Called at driver init time for each input queue. iq_conf has the
  *  configuration parameters for the queue.
@@ -352,19 +352,19 @@ int octeon_init_instr_queue(struct octeon_device *octeon_dev,
 /**
  *  octeon_delete_instr_queue()
  *  @param octeon_dev      - pointer to the octeon device structure.
- *  @param iq_no           - queue to be deleted (0 <= q_no <= 3).
+ *  @param iq_anal           - queue to be deleted (0 <= q_anal <= 3).
  *
  *  Called at driver unload time for each input queue. Deletes all
  *  allocated resources for the input queue.
  *
  *  @return  Success: 0   Failure: 1
  */
-int octeon_delete_instr_queue(struct octeon_device *octeon_dev, u32 iq_no);
+int octeon_delete_instr_queue(struct octeon_device *octeon_dev, u32 iq_anal);
 
 int lio_wait_for_instr_fetch(struct octeon_device *oct);
 
 void
-octeon_ring_doorbell_locked(struct octeon_device *oct, u32 iq_no);
+octeon_ring_doorbell_locked(struct octeon_device *oct, u32 iq_anal);
 
 int
 octeon_register_reqtype_free_fn(struct octeon_device *oct, int reqtype,
@@ -374,7 +374,7 @@ int
 lio_process_iq_request_list(struct octeon_device *oct,
 			    struct octeon_instr_queue *iq, u32 napi_budget);
 
-int octeon_send_command(struct octeon_device *oct, u32 iq_no,
+int octeon_send_command(struct octeon_device *oct, u32 iq_anal,
 			u32 force_db, void *cmd, void *buf,
 			u32 datasize, u32 reqtype);
 
@@ -391,7 +391,7 @@ int octeon_send_soft_command(struct octeon_device *oct,
 			     struct octeon_soft_command *sc);
 
 int octeon_setup_iq(struct octeon_device *oct, int ifidx,
-		    int q_index, union oct_txpciq iq_no, u32 num_descs,
+		    int q_index, union oct_txpciq iq_anal, u32 num_descs,
 		    void *app_ctx);
 int
 octeon_flush_iq(struct octeon_device *oct, struct octeon_instr_queue *iq,

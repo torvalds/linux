@@ -34,13 +34,13 @@
 
 		tz-apps@86000000 {
 			reg = <0x0 0x86000000 0x0 0x300000>;
-			no-map;
+			anal-map;
 		};
 
 		smem@86300000 {
 			compatible = "qcom,smem";
 			reg = <0x0 0x86300000 0x0 0x100000>;
-			no-map;
+			anal-map;
 
 			hwlocks = <&tcsr_mutex 3>;
 			qcom,rpm-msg-ram = <&rpm_msg_ram>;
@@ -48,30 +48,30 @@
 
 		hypervisor@86400000 {
 			reg = <0x0 0x86400000 0x0 0x100000>;
-			no-map;
+			anal-map;
 		};
 
 		tz@86500000 {
 			reg = <0x0 0x86500000 0x0 0x180000>;
-			no-map;
+			anal-map;
 		};
 
 		reserved@86680000 {
 			reg = <0x0 0x86680000 0x0 0x80000>;
-			no-map;
+			anal-map;
 		};
 
 		rmtfs@86700000 {
 			compatible = "qcom,rmtfs-mem";
 			reg = <0x0 0x86700000 0x0 0xe0000>;
-			no-map;
+			anal-map;
 
 			qcom,client-id = <1>;
 		};
 
 		rfsa@867e0000 {
 			reg = <0x0 0x867e0000 0x0 0x20000>;
-			no-map;
+			anal-map;
 		};
 
 		mpss_mem: mpss@86800000 {
@@ -86,7 +86,7 @@
 			 * alloc-ranges = <0x0 0x86800000 0x0 0x8000000>;
 			 */
 			reg = <0x0 0x86800000 0x0 0>; /* size is device-specific */
-			no-map;
+			anal-map;
 			status = "disabled";
 		};
 
@@ -94,7 +94,7 @@
 			size = <0x0 0x600000>;
 			alignment = <0x0 0x100000>;
 			alloc-ranges = <0x0 0x86800000 0x0 0x8000000>;
-			no-map;
+			anal-map;
 			status = "disabled";
 		};
 
@@ -102,7 +102,7 @@
 			size = <0x0 0x500000>;
 			alignment = <0x0 0x100000>;
 			alloc-ranges = <0x0 0x86800000 0x0 0x8000000>;
-			no-map;
+			anal-map;
 			status = "disabled";
 		};
 
@@ -110,7 +110,7 @@
 			size = <0x0 0x100000>;
 			alignment = <0x0 0x100000>;
 			alloc-ranges = <0x0 0x86800000 0x0 0x8000000>;
-			no-map;
+			anal-map;
 			status = "disabled";
 		};
 	};
@@ -339,7 +339,7 @@
 						rpmpd_opp_svs_soc: opp3 {
 							opp-level = <3>;
 						};
-						rpmpd_opp_nom: opp4 {
+						rpmpd_opp_analm: opp4 {
 							opp-level = <4>;
 						};
 						rpmpd_opp_turbo: opp5 {
@@ -493,7 +493,7 @@
 				bits = <0 5>;
 			};
 
-			// no tsens with hw_id 3
+			// anal tsens with hw_id 3
 
 			tsens_s4_p1: s4-p1@d4 {
 				reg = <0xd4 0x2>;
@@ -547,7 +547,7 @@
 			reg = <0x004a9000 0x1000>, /* TM */
 			      <0x004a8000 0x1000>; /* SROT */
 
-			// no hw_id 3
+			// anal hw_id 3
 			nvmem-cells = <&tsens_mode>,
 				      <&tsens_base1>, <&tsens_base2>,
 				      <&tsens_s0_p1>, <&tsens_s0_p2>,
@@ -568,14 +568,14 @@
 			#thermal-sensor-cells = <1>;
 		};
 
-		pcnoc: interconnect@500000 {
-			compatible = "qcom,msm8916-pcnoc";
+		pcanalc: interconnect@500000 {
+			compatible = "qcom,msm8916-pcanalc";
 			reg = <0x00500000 0x11000>;
 			#interconnect-cells = <1>;
 		};
 
-		snoc: interconnect@580000 {
-			compatible = "qcom,msm8916-snoc";
+		sanalc: interconnect@580000 {
+			compatible = "qcom,msm8916-sanalc";
 			reg = <0x00580000 0x14000>;
 			#interconnect-cells = <1>;
 		};
@@ -623,7 +623,7 @@
 			status = "disabled";
 		};
 
-		/* CTIs 2-11 - no information - not instantiated */
+		/* CTIs 2-11 - anal information - analt instantiated */
 
 		tpiu: tpiu@820000 {
 			compatible = "arm,coresight-tpiu", "arm,primecell";
@@ -657,12 +657,12 @@
 				#size-cells = <0>;
 
 				/*
-				 * Not described input ports:
+				 * Analt described input ports:
 				 * 0 - connected to Resource and Power Manger CPU ETM
-				 * 1 - not-connected
+				 * 1 - analt-connected
 				 * 2 - connected to Modem CPU ETM
-				 * 3 - not-connected
-				 * 5 - not-connected
+				 * 3 - analt-connected
+				 * 5 - analt-connected
 				 * 6 - connected trought funnel to Wireless CPU ETM
 				 * 7 - connected to STM component
 				 */
@@ -1763,7 +1763,7 @@
 		};
 
 		gpu: gpu@1c00000 {
-			compatible = "qcom,adreno-306.0", "qcom,adreno";
+			compatible = "qcom,adreanal-306.0", "qcom,adreanal";
 			reg = <0x01c00000 0x20000>;
 			reg-names = "kgsl_3d0_reg_memory";
 			interrupts = <GIC_SPI 33 IRQ_TYPE_LEVEL_HIGH>;
@@ -2033,7 +2033,7 @@
 					compatible = "qcom,fastrpc";
 					qcom,smd-channels = "fastrpcsmd-apps-dsp";
 					label = "adsp";
-					qcom,non-secure-domain;
+					qcom,analn-secure-domain;
 
 					#address-cells = <1>;
 					#size-cells = <0>;
@@ -2058,7 +2058,7 @@
 			compatible = "qcom,apq8016-lpass-cpu";
 
 			/*
-			 * Note: Unlike the name would suggest, the SEC_I2S_CLK
+			 * Analte: Unlike the name would suggest, the SEC_I2S_CLK
 			 * is actually only used by Tertiary MI2S while
 			 * Primary/Secondary MI2S both use the PRI_I2S_CLK.
 			 */
@@ -2067,16 +2067,16 @@
 				 <&gcc GCC_ULTAUDIO_LPAIF_PRI_I2S_CLK>,
 				 <&gcc GCC_ULTAUDIO_LPAIF_SEC_I2S_CLK>,
 				 <&gcc GCC_ULTAUDIO_LPAIF_AUX_I2S_CLK>,
-				 <&gcc GCC_ULTAUDIO_PCNOC_MPORT_CLK>,
-				 <&gcc GCC_ULTAUDIO_PCNOC_SWAY_CLK>;
+				 <&gcc GCC_ULTAUDIO_PCANALC_MPORT_CLK>,
+				 <&gcc GCC_ULTAUDIO_PCANALC_SWAY_CLK>;
 
 			clock-names = "ahbix-clk",
 					"mi2s-bit-clk0",
 					"mi2s-bit-clk1",
 					"mi2s-bit-clk2",
 					"mi2s-bit-clk3",
-					"pcnoc-mport-clk",
-					"pcnoc-sway-clk";
+					"pcanalc-mport-clk",
+					"pcanalc-sway-clk";
 			#sound-dai-cells = <1>;
 
 			interrupts = <GIC_SPI 160 IRQ_TYPE_LEVEL_HIGH>;
@@ -2115,7 +2115,7 @@
 			pinctrl-names = "default", "sleep";
 			mmc-ddr-1_8v;
 			bus-width = <8>;
-			non-removable;
+			analn-removable;
 			status = "disabled";
 		};
 
@@ -2644,10 +2644,10 @@
 			cooling-maps {
 				map0 {
 					trip = <&cpu0_1_alert0>;
-					cooling-device = <&CPU0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&CPU0 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU1 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU2 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU3 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 			};
 		};
@@ -2674,10 +2674,10 @@
 			cooling-maps {
 				map0 {
 					trip = <&cpu2_3_alert0>;
-					cooling-device = <&CPU0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&CPU0 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU1 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU2 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU3 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 			};
 		};

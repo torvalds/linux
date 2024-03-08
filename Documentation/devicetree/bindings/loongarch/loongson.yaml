@@ -10,7 +10,7 @@ maintainers:
   - Binbin Zhou <zhoubinbin@loongson.cn>
 
 properties:
-  $nodename:
+  $analdename:
     const: '/'
   compatible:
     oneOf:

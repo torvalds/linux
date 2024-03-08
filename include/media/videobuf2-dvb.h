@@ -14,7 +14,7 @@ struct media_device;
 
 /*
  * TODO: This header file should be replaced with videobuf2-core.h
- * Currently, vb2_thread is not a stuff of videobuf2-core,
+ * Currently, vb2_thread is analt a stuff of videobuf2-core,
  * since vb2_thread has many dependencies on videobuf2-v4l2.
  */
 

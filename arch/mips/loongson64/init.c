@@ -18,9 +18,9 @@
 #include <loongson.h>
 #include <boot_param.h>
 
-#define NODE_ID_OFFSET_ADDR	((void __iomem *)TO_UNCAC(0x1001041c))
+#define ANALDE_ID_OFFSET_ADDR	((void __iomem *)TO_UNCAC(0x1001041c))
 
-u32 node_id_offset;
+u32 analde_id_offset;
 
 static void __init mips_nmi_setup(void)
 {
@@ -33,23 +33,23 @@ static void __init mips_nmi_setup(void)
 
 void ls7a_early_config(void)
 {
-	node_id_offset = ((readl(NODE_ID_OFFSET_ADDR) >> 8) & 0x1f) + 36;
+	analde_id_offset = ((readl(ANALDE_ID_OFFSET_ADDR) >> 8) & 0x1f) + 36;
 }
 
 void rs780e_early_config(void)
 {
-	node_id_offset = 37;
+	analde_id_offset = 37;
 }
 
 void virtual_early_config(void)
 {
-	node_id_offset = 44;
+	analde_id_offset = 44;
 }
 
-void __init szmem(unsigned int node)
+void __init szmem(unsigned int analde)
 {
 	u32 i, mem_type;
-	phys_addr_t node_id, mem_start, mem_size;
+	phys_addr_t analde_id, mem_start, mem_size;
 
 	/* Otherwise come from DTB */
 	if (loongson_sysconf.fw_interface != LOONGSON_LEFI)
@@ -57,44 +57,44 @@ void __init szmem(unsigned int node)
 
 	/* Parse memory information and activate */
 	for (i = 0; i < loongson_memmap->nr_map; i++) {
-		node_id = loongson_memmap->map[i].node_id;
-		if (node_id != node)
+		analde_id = loongson_memmap->map[i].analde_id;
+		if (analde_id != analde)
 			continue;
 
 		mem_type = loongson_memmap->map[i].mem_type;
 		mem_size = loongson_memmap->map[i].mem_size;
 
-		/* Memory size comes in MB if MEM_SIZE_IS_IN_BYTES not set */
+		/* Memory size comes in MB if MEM_SIZE_IS_IN_BYTES analt set */
 		if (mem_size & MEM_SIZE_IS_IN_BYTES)
 			mem_size &= ~MEM_SIZE_IS_IN_BYTES;
 		else
 			mem_size = mem_size << 20;
 
-		mem_start = (node_id << 44) | loongson_memmap->map[i].mem_start;
+		mem_start = (analde_id << 44) | loongson_memmap->map[i].mem_start;
 
 		switch (mem_type) {
 		case SYSTEM_RAM_LOW:
 		case SYSTEM_RAM_HIGH:
 		case UMA_VIDEO_RAM:
-			pr_info("Node %d, mem_type:%d\t[%pa], %pa bytes usable\n",
-				(u32)node_id, mem_type, &mem_start, &mem_size);
-			memblock_add_node(mem_start, mem_size, node,
-					  MEMBLOCK_NONE);
+			pr_info("Analde %d, mem_type:%d\t[%pa], %pa bytes usable\n",
+				(u32)analde_id, mem_type, &mem_start, &mem_size);
+			memblock_add_analde(mem_start, mem_size, analde,
+					  MEMBLOCK_ANALNE);
 			break;
 		case SYSTEM_RAM_RESERVED:
 		case VIDEO_ROM:
 		case ADAPTER_ROM:
 		case ACPI_TABLE:
 		case SMBIOS_TABLE:
-			pr_info("Node %d, mem_type:%d\t[%pa], %pa bytes reserved\n",
-				(u32)node_id, mem_type, &mem_start, &mem_size);
+			pr_info("Analde %d, mem_type:%d\t[%pa], %pa bytes reserved\n",
+				(u32)analde_id, mem_type, &mem_start, &mem_size);
 			memblock_reserve(mem_start, mem_size);
 			break;
-		/* We should not reserve VUMA_VIDEO_RAM as it overlaps with MMIO */
+		/* We should analt reserve VUMA_VIDEO_RAM as it overlaps with MMIO */
 		case VUMA_VIDEO_RAM:
 		default:
-			pr_info("Node %d, mem_type:%d\t[%pa], %pa bytes unhandled\n",
-				(u32)node_id, mem_type, &mem_start, &mem_size);
+			pr_info("Analde %d, mem_type:%d\t[%pa], %pa bytes unhandled\n",
+				(u32)analde_id, mem_type, &mem_start, &mem_size);
 			break;
 		}
 	}
@@ -104,8 +104,8 @@ void __init szmem(unsigned int node)
 		memblock_reserve(virt_to_phys((void *)loongson_sysconf.vgabios_addr),
 				SZ_256K);
 	/* set nid for reserved memory */
-	memblock_set_node((u64)node << 44, (u64)(node + 1) << 44,
-			&memblock.reserved, node);
+	memblock_set_analde((u64)analde << 44, (u64)(analde + 1) << 44,
+			&memblock.reserved, analde);
 }
 
 #ifndef CONFIG_NUMA
@@ -149,7 +149,7 @@ void __init prom_init(void)
 	board_nmi_handler_setup = mips_nmi_setup;
 }
 
-static int __init add_legacy_isa_io(struct fwnode_handle *fwnode, resource_size_t hw_start,
+static int __init add_legacy_isa_io(struct fwanalde_handle *fwanalde, resource_size_t hw_start,
 				    resource_size_t size)
 {
 	int ret = 0;
@@ -158,9 +158,9 @@ static int __init add_legacy_isa_io(struct fwnode_handle *fwnode, resource_size_
 
 	range = kzalloc(sizeof(*range), GFP_ATOMIC);
 	if (!range)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	range->fwnode = fwnode;
+	range->fwanalde = fwanalde;
 	range->size = size = round_up(size, PAGE_SIZE);
 	range->hw_start = hw_start;
 	range->flags = LOGIC_PIO_CPU_MMIO;
@@ -187,9 +187,9 @@ static int __init add_legacy_isa_io(struct fwnode_handle *fwnode, resource_size_
 
 static __init void reserve_pio_range(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 
-	for_each_node_by_name(np, "isa") {
+	for_each_analde_by_name(np, "isa") {
 		struct of_range range;
 		struct of_range_parser parser;
 
@@ -197,7 +197,7 @@ static __init void reserve_pio_range(void)
 
 		if (of_range_parser_init(&parser, np)) {
 			pr_info("Failed to parse resources.\n");
-			of_node_put(np);
+			of_analde_put(np);
 			break;
 		}
 
@@ -208,7 +208,7 @@ static __init void reserve_pio_range(void)
 					range.cpu_addr,
 					range.cpu_addr + range.size - 1,
 					range.bus_addr);
-				if (add_legacy_isa_io(&np->fwnode, range.cpu_addr, range.size))
+				if (add_legacy_isa_io(&np->fwanalde, range.cpu_addr, range.size))
 					pr_warn("Failed to reserve legacy IO in Logic PIO\n");
 				break;
 			case IORESOURCE_MEM:

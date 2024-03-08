@@ -22,7 +22,7 @@ properties:
     maxItems: 1
 
   spi-cpha:
-    description: Either this or spi-cpol but not both.
+    description: Either this or spi-cpol but analt both.
   spi-cpol: true
 
   adi,ext-dc-dc-compenstation-resistor:
@@ -68,7 +68,7 @@ required:
 patternProperties:
   "^channel@[0-7]$":
     type: object
-    description: Child node to describe a channel
+    description: Child analde to describe a channel
     properties:
       reg:
         maxItems: 1

@@ -28,7 +28,7 @@
 
 /* VFE halt timeout */
 #define VFE_HALT_TIMEOUT_MS 100
-/* Frame drop value. VAL + UPDATES - 1 should not exceed 31 */
+/* Frame drop value. VAL + UPDATES - 1 should analt exceed 31 */
 #define VFE_FRAME_DROP_VAL 30
 
 #define vfe_line_array(ptr_line)	\
@@ -48,7 +48,7 @@ enum vfe_output_state {
 };
 
 enum vfe_line_id {
-	VFE_LINE_NONE = -1,
+	VFE_LINE_ANALNE = -1,
 	VFE_LINE_RDI0 = 0,
 	VFE_LINE_RDI1 = 1,
 	VFE_LINE_RDI2 = 2,

@@ -29,11 +29,11 @@ properties:
 
   mediatek,dptx-codec:
     $ref: /schemas/types.yaml#/definitions/phandle
-    description: The phandle of MT8195 Display Port Tx codec node.
+    description: The phandle of MT8195 Display Port Tx codec analde.
 
   mediatek,hdmi-codec:
     $ref: /schemas/types.yaml#/definitions/phandle
-    description: The phandle of MT8195 HDMI codec node.
+    description: The phandle of MT8195 HDMI codec analde.
 
   mediatek,adsp:
     $ref: /schemas/types.yaml#/definitions/phandle

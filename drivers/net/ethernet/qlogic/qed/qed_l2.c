@@ -60,7 +60,7 @@ int qed_l2_alloc(struct qed_hwfn *p_hwfn)
 
 	p_l2_info = kzalloc(sizeof(*p_l2_info), GFP_KERNEL);
 	if (!p_l2_info)
-		return -ENOMEM;
+		return -EANALMEM;
 	p_hwfn->p_l2_info = p_l2_info;
 
 	if (IS_PF(p_hwfn->cdev)) {
@@ -77,13 +77,13 @@ int qed_l2_alloc(struct qed_hwfn *p_hwfn)
 	pp_qids = kcalloc(p_l2_info->queues, sizeof(unsigned long *),
 			  GFP_KERNEL);
 	if (!pp_qids)
-		return -ENOMEM;
+		return -EANALMEM;
 	p_l2_info->pp_qid_usage = pp_qids;
 
 	for (i = 0; i < p_l2_info->queues; i++) {
 		pp_qids[i] = kzalloc(MAX_QUEUES_PER_QZONE / 8, GFP_KERNEL);
 		if (!pp_qids[i])
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	return 0;
@@ -135,7 +135,7 @@ static bool qed_eth_queue_qid_usage_add(struct qed_hwfn *p_hwfn,
 	mutex_lock(&p_l2_info->lock);
 
 	if (queue_id >= p_l2_info->queues) {
-		DP_NOTICE(p_hwfn,
+		DP_ANALTICE(p_hwfn,
 			  "Requested to increase usage for qzone %04x out of %08x\n",
 			  queue_id, p_l2_info->queues);
 		b_rc = false;
@@ -315,7 +315,7 @@ qed_eth_queue_to_cid(struct qed_hwfn *p_hwfn,
 	if (IS_PF(p_hwfn->cdev) && !b_legacy_vf) {
 		if (_qed_cxt_acquire_cid(p_hwfn, PROTOCOLID_ETH,
 					 &cid, vfid)) {
-			DP_NOTICE(p_hwfn, "Failed to acquire cid\n");
+			DP_ANALTICE(p_hwfn, "Failed to acquire cid\n");
 			return NULL;
 		}
 	}
@@ -580,10 +580,10 @@ qed_sp_update_accept_mode(struct qed_hwfn *p_hwfn,
 		u16 state = 0;
 
 		SET_FIELD(state, ETH_VPORT_TX_MODE_UCAST_DROP_ALL,
-			  !!(accept_filter & QED_ACCEPT_NONE));
+			  !!(accept_filter & QED_ACCEPT_ANALNE));
 
 		SET_FIELD(state, ETH_VPORT_TX_MODE_MCAST_DROP_ALL,
-			  !!(accept_filter & QED_ACCEPT_NONE));
+			  !!(accept_filter & QED_ACCEPT_ANALNE));
 
 		SET_FIELD(state, ETH_VPORT_TX_MODE_MCAST_ACCEPT_ALL,
 			  (!!(accept_filter & QED_ACCEPT_MCAST_MATCHED) &&
@@ -935,7 +935,7 @@ qed_eth_rx_queue_start(struct qed_hwfn *p_hwfn,
 	/* Allocate a CID for the queue */
 	p_cid = qed_eth_queue_to_cid_pf(p_hwfn, opaque_fid, true, p_params);
 	if (!p_cid)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (IS_PF(p_hwfn->cdev)) {
 		rc = qed_eth_pf_rx_queue_start(p_hwfn, p_cid,
@@ -1340,8 +1340,8 @@ qed_filter_ucast_common(struct qed_hwfn *p_hwfn,
 		action = qed_filter_action(p_filter_cmd->opcode);
 
 		if (action == MAX_ETH_FILTER_ACTION) {
-			DP_NOTICE(p_hwfn,
-				  "%d is not supported yet\n",
+			DP_ANALTICE(p_hwfn,
+				  "%d is analt supported yet\n",
 				  p_filter_cmd->opcode);
 			qed_sp_destroy_request(p_hwfn, *pp_ent);
 			return -EINVAL;
@@ -1415,7 +1415,7 @@ int qed_sp_eth_filter_ucast(struct qed_hwfn *p_hwfn,
 /*******************************************************************************
  * Description:
  *         Calculates crc 32 on a buffer
- *         Note: crc32_length MUST be aligned to 8
+ *         Analte: crc32_length MUST be aligned to 8
  * Return:
  ******************************************************************************/
 static u32 qed_calc_crc32c(u8 *crc32_packet,
@@ -1611,7 +1611,7 @@ static void __qed_get_vport_pstats_addrlen(struct qed_hwfn *p_hwfn,
 	}
 }
 
-static noinline_for_stack void
+static analinline_for_stack void
 __qed_get_vport_pstats(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
 		       struct qed_eth_stats *p_stats, u16 statistics_bin)
 {
@@ -1640,7 +1640,7 @@ __qed_get_vport_pstats(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
 	    HILO_64_REGPAIR(pstats.error_drop_pkts);
 }
 
-static noinline_for_stack void
+static analinline_for_stack void
 __qed_get_vport_tstats(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
 		       struct qed_eth_stats *p_stats, u16 statistics_bin)
 {
@@ -1687,7 +1687,7 @@ static void __qed_get_vport_ustats_addrlen(struct qed_hwfn *p_hwfn,
 	}
 }
 
-static noinline_for_stack
+static analinline_for_stack
 void __qed_get_vport_ustats(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
 			    struct qed_eth_stats *p_stats, u16 statistics_bin)
 {
@@ -1728,7 +1728,7 @@ static void __qed_get_vport_mstats_addrlen(struct qed_hwfn *p_hwfn,
 	}
 }
 
-static noinline_for_stack void
+static analinline_for_stack void
 __qed_get_vport_mstats(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
 		       struct qed_eth_stats *p_stats, u16 statistics_bin)
 {
@@ -1741,8 +1741,8 @@ __qed_get_vport_mstats(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
 	memset(&mstats, 0, sizeof(mstats));
 	qed_memcpy_from(p_hwfn, p_ptt, &mstats, mstats_addr, mstats_len);
 
-	p_stats->common.no_buff_discards +=
-	    HILO_64_REGPAIR(mstats.no_buff_discard);
+	p_stats->common.anal_buff_discards +=
+	    HILO_64_REGPAIR(mstats.anal_buff_discard);
 	p_stats->common.packet_too_big_discard +=
 	    HILO_64_REGPAIR(mstats.packet_too_big_discard);
 	p_stats->common.ttl0_discard += HILO_64_REGPAIR(mstats.ttl0_discard);
@@ -1756,7 +1756,7 @@ __qed_get_vport_mstats(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
 	    HILO_64_REGPAIR(mstats.tpa_coalesced_bytes);
 }
 
-static noinline_for_stack void
+static analinline_for_stack void
 __qed_get_vport_port_stats(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
 			   struct qed_eth_stats *p_stats)
 {
@@ -1881,7 +1881,7 @@ static void _qed_get_vport_stats(struct qed_dev *cdev,
 		if (IS_PF(cdev)) {
 			/* The main vport index is relative first */
 			if (qed_fw_vport(p_hwfn, 0, &fw_vport)) {
-				DP_ERR(p_hwfn, "No vport available!\n");
+				DP_ERR(p_hwfn, "Anal vport available!\n");
 				goto out;
 			}
 		}
@@ -1962,12 +1962,12 @@ void qed_reset_vport_stats(struct qed_dev *cdev)
 			qed_ptt_release(p_hwfn, p_ptt);
 	}
 
-	/* PORT statistics are not necessarily reset, so we need to
+	/* PORT statistics are analt necessarily reset, so we need to
 	 * read and create a baseline for future statistics.
 	 * Link change stat is maintained by MFW, return its value as is.
 	 */
 	if (!cdev->reset_stats) {
-		DP_INFO(cdev, "Reset stats not allocated\n");
+		DP_INFO(cdev, "Reset stats analt allocated\n");
 	} else {
 		_qed_get_vport_stats(cdev, cdev->reset_stats, false);
 		cdev->reset_stats->common.link_change_count = 0;
@@ -2165,7 +2165,7 @@ int qed_get_queue_coalesce(struct qed_hwfn *p_hwfn, u16 *p_coal, void *handle)
 	if (IS_VF(p_hwfn->cdev)) {
 		rc = qed_vf_pf_get_coalesce(p_hwfn, p_coal, p_cid);
 		if (rc)
-			DP_NOTICE(p_hwfn, "Unable to read queue coalescing\n");
+			DP_ANALTICE(p_hwfn, "Unable to read queue coalescing\n");
 
 		return rc;
 	}
@@ -2318,7 +2318,7 @@ static int qed_start_vport(struct qed_dev *cdev,
 		struct qed_hwfn *p_hwfn = &cdev->hwfns[i];
 
 		start.tpa_mode = params->gro_enable ? QED_TPA_MODE_GRO :
-							QED_TPA_MODE_NONE;
+							QED_TPA_MODE_ANALNE;
 		start.remove_inner_vlan = params->remove_inner_vlan;
 		start.only_untagged = true;	/* untagged only */
 		start.drop_ttl0 = params->drop_ttl0;
@@ -2399,7 +2399,7 @@ static int qed_update_vport_rss(struct qed_dev *cdev,
 		return 0;
 	}
 
-	/* Start by copying the non-spcific information to the 2nd copy */
+	/* Start by copying the analn-spcific information to the 2nd copy */
 	memcpy(&rss[1], &rss[0], sizeof(struct qed_rss_params));
 
 	/* CMT should be round-robin */
@@ -2441,11 +2441,11 @@ static int qed_update_vport(struct qed_dev *cdev,
 	int rc = 0, i;
 
 	if (!cdev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	rss = vzalloc(array_size(sizeof(*rss), cdev->num_hwfns));
 	if (!rss)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memset(&sp_params, 0, sizeof(sp_params));
 
@@ -2707,8 +2707,8 @@ static int qed_configure_filter_ucast(struct qed_dev *cdev,
 	struct qed_filter_ucast ucast;
 
 	if (!params->vlan_valid && !params->mac_valid) {
-		DP_NOTICE(cdev,
-			  "Tried configuring a unicast filter, but both MAC and VLAN are not set\n");
+		DP_ANALTICE(cdev,
+			  "Tried configuring a unicast filter, but both MAC and VLAN are analt set\n");
 		return -EINVAL;
 	}
 
@@ -2724,7 +2724,7 @@ static int qed_configure_filter_ucast(struct qed_dev *cdev,
 		ucast.opcode = QED_FILTER_REPLACE;
 		break;
 	default:
-		DP_NOTICE(cdev, "Unknown unicast filter type %d\n",
+		DP_ANALTICE(cdev, "Unkanalwn unicast filter type %d\n",
 			  params->type);
 	}
 
@@ -2761,7 +2761,7 @@ static int qed_configure_filter_mcast(struct qed_dev *cdev,
 		mcast.opcode = QED_FILTER_REMOVE;
 		break;
 	default:
-		DP_NOTICE(cdev, "Unknown multicast filter type %d\n",
+		DP_ANALTICE(cdev, "Unkanalwn multicast filter type %d\n",
 			  params->type);
 	}
 
@@ -2826,7 +2826,7 @@ qed_ntuple_arfs_filter_config(struct qed_dev *cdev,
 
 	rc = qed_configure_rfs_ntuple_filter(p_hwfn, &cb, params);
 	if (rc)
-		DP_NOTICE(p_hwfn,
+		DP_ANALTICE(p_hwfn,
 			  "Failed to issue a-RFS filter configuration\n");
 	else
 		DP_VERBOSE(p_hwfn, NETIF_MSG_DRV,

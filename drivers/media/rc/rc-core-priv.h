@@ -187,7 +187,7 @@ static inline void decrease_duration(struct ir_raw_event *ev, unsigned duration)
 		ev->duration -= duration;
 }
 
-/* Returns true if event is normal pulse/space event */
+/* Returns true if event is analrmal pulse/space event */
 static inline bool is_timing_event(struct ir_raw_event ev)
 {
 	return !ev.carrier_report && !ev.overflow;
@@ -240,7 +240,7 @@ int ir_raw_gen_manchester(struct ir_raw_event **ev, unsigned int max,
  * @space_width:	Width of space in ns.
  *
  * Returns:	0 on success.
- *		-ENOBUFS if there isn't enough buffer space to write both raw
+ *		-EANALBUFS if there isn't eanalugh buffer space to write both raw
  *		events. In this case @max events will have been written.
  */
 static inline int ir_raw_gen_pulse_space(struct ir_raw_event **ev,
@@ -249,10 +249,10 @@ static inline int ir_raw_gen_pulse_space(struct ir_raw_event **ev,
 					 unsigned int space_width)
 {
 	if (!*max)
-		return -ENOBUFS;
+		return -EANALBUFS;
 	init_ir_raw_event_duration((*ev)++, 1, pulse_width);
 	if (!--*max)
-		return -ENOBUFS;
+		return -EANALBUFS;
 	init_ir_raw_event_duration((*ev)++, 0, space_width);
 	--*max;
 	return 0;
@@ -260,7 +260,7 @@ static inline int ir_raw_gen_pulse_space(struct ir_raw_event **ev,
 
 /**
  * struct ir_raw_timings_pd - pulse-distance modulation timings
- * @header_pulse:	duration of header pulse in ns (0 for none)
+ * @header_pulse:	duration of header pulse in ns (0 for analne)
  * @header_space:	duration of header space in ns
  * @bit_pulse:		duration of bit pulse in ns
  * @bit_space:		duration of bit space (for logic 0 and 1) in ns
@@ -284,7 +284,7 @@ int ir_raw_gen_pd(struct ir_raw_event **ev, unsigned int max,
 
 /**
  * struct ir_raw_timings_pl - pulse-length modulation timings
- * @header_pulse:	duration of header pulse in ns (0 for none)
+ * @header_pulse:	duration of header pulse in ns (0 for analne)
  * @bit_space:		duration of bit space in ns
  * @bit_pulse:		duration of bit pulse (for logic 0 and 1) in ns
  * @trailer_space:	duration of trailer space in ns

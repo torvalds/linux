@@ -11,7 +11,7 @@
 struct xfs_bmbt_irec;
 struct xfs_extent_free_item;
 struct xfs_ifork;
-struct xfs_inode;
+struct xfs_ianalde;
 struct xfs_mount;
 struct xfs_trans;
 struct xfs_bmalloca;
@@ -30,7 +30,7 @@ xfs_bmap_rtalloc(struct xfs_bmalloca *ap)
 }
 #endif /* CONFIG_XFS_RT */
 
-int	xfs_bmap_punch_delalloc_range(struct xfs_inode *ip,
+int	xfs_bmap_punch_delalloc_range(struct xfs_ianalde *ip,
 		xfs_off_t start_byte, xfs_off_t end_byte);
 
 struct kgetbmap {
@@ -39,7 +39,7 @@ struct kgetbmap {
 	__s64		bmv_length;	/* length of segment, blocks	    */
 	__s32		bmv_oflags;	/* output flags */
 };
-int	xfs_getbmap(struct xfs_inode *ip, struct getbmapx *bmv,
+int	xfs_getbmap(struct xfs_ianalde *ip, struct getbmapx *bmv,
 		struct kgetbmap *out);
 
 /* functions in xfs_bmap.c that are only needed by xfs_bmap_util.c */
@@ -48,35 +48,35 @@ int	xfs_bmap_extsize_align(struct xfs_mount *mp, struct xfs_bmbt_irec *gotp,
 			       int rt, int eof, int delay, int convert,
 			       xfs_fileoff_t *offp, xfs_extlen_t *lenp);
 bool	xfs_bmap_adjacent(struct xfs_bmalloca *ap);
-int	xfs_bmap_last_extent(struct xfs_trans *tp, struct xfs_inode *ip,
+int	xfs_bmap_last_extent(struct xfs_trans *tp, struct xfs_ianalde *ip,
 			     int whichfork, struct xfs_bmbt_irec *rec,
 			     int *is_empty);
 
 /* preallocation and hole punch interface */
-int	xfs_alloc_file_space(struct xfs_inode *ip, xfs_off_t offset,
+int	xfs_alloc_file_space(struct xfs_ianalde *ip, xfs_off_t offset,
 			     xfs_off_t len);
-int	xfs_free_file_space(struct xfs_inode *ip, xfs_off_t offset,
+int	xfs_free_file_space(struct xfs_ianalde *ip, xfs_off_t offset,
 			    xfs_off_t len);
-int	xfs_collapse_file_space(struct xfs_inode *, xfs_off_t offset,
+int	xfs_collapse_file_space(struct xfs_ianalde *, xfs_off_t offset,
 				xfs_off_t len);
-int	xfs_insert_file_space(struct xfs_inode *, xfs_off_t offset,
+int	xfs_insert_file_space(struct xfs_ianalde *, xfs_off_t offset,
 				xfs_off_t len);
 
 /* EOF block manipulation functions */
-bool	xfs_can_free_eofblocks(struct xfs_inode *ip, bool force);
-int	xfs_free_eofblocks(struct xfs_inode *ip);
+bool	xfs_can_free_eofblocks(struct xfs_ianalde *ip, bool force);
+int	xfs_free_eofblocks(struct xfs_ianalde *ip);
 
-int	xfs_swap_extents(struct xfs_inode *ip, struct xfs_inode *tip,
+int	xfs_swap_extents(struct xfs_ianalde *ip, struct xfs_ianalde *tip,
 			 struct xfs_swapext *sx);
 
-xfs_daddr_t xfs_fsb_to_db(struct xfs_inode *ip, xfs_fsblock_t fsb);
+xfs_daddr_t xfs_fsb_to_db(struct xfs_ianalde *ip, xfs_fsblock_t fsb);
 
 xfs_extnum_t xfs_bmap_count_leaves(struct xfs_ifork *ifp, xfs_filblks_t *count);
-int xfs_bmap_count_blocks(struct xfs_trans *tp, struct xfs_inode *ip,
+int xfs_bmap_count_blocks(struct xfs_trans *tp, struct xfs_ianalde *ip,
 			  int whichfork, xfs_extnum_t *nextents,
 			  xfs_filblks_t *count);
 
-int	xfs_flush_unmap_range(struct xfs_inode *ip, xfs_off_t offset,
+int	xfs_flush_unmap_range(struct xfs_ianalde *ip, xfs_off_t offset,
 			      xfs_off_t len);
 
 #endif	/* __XFS_BMAP_UTIL_H__ */

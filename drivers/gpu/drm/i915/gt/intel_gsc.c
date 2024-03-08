@@ -94,7 +94,7 @@ struct gsc_def {
 /* gsc resources and definitions (HECI1 and HECI2) */
 static const struct gsc_def gsc_def_dg1[] = {
 	{
-		/* HECI1 not yet implemented. */
+		/* HECI1 analt yet implemented. */
 	},
 	{
 		.name = "mei-gscfi",
@@ -105,7 +105,7 @@ static const struct gsc_def gsc_def_dg1[] = {
 
 static const struct gsc_def gsc_def_xehpsdv[] = {
 	{
-		/* HECI1 not enabled on the device. */
+		/* HECI1 analt enabled on the device. */
 	},
 	{
 		.name = "mei-gscfi",
@@ -147,7 +147,7 @@ static void gsc_destroy_one(struct drm_i915_private *i915,
 		struct auxiliary_device *aux_dev = &intf->adev->aux_dev;
 
 		if (intf_id == 0)
-			intel_huc_unregister_gsc_notifier(&gsc_to_gt(gsc)->uc.huc,
+			intel_huc_unregister_gsc_analtifier(&gsc_to_gt(gsc)->uc.huc,
 							  aux_dev->dev.bus);
 
 		auxiliary_device_delete(aux_dev);
@@ -179,7 +179,7 @@ static void gsc_init_one(struct drm_i915_private *i915, struct intel_gsc *gsc,
 	 * On the multi-tile setups the GSC is functional on the first tile only
 	 */
 	if (gsc_to_gt(gsc)->info.id != 0) {
-		drm_dbg(&i915->drm, "Not initializing gsc for remote tiles\n");
+		drm_dbg(&i915->drm, "Analt initializing gsc for remote tiles\n");
 		return;
 	}
 
@@ -193,12 +193,12 @@ static void gsc_init_one(struct drm_i915_private *i915, struct intel_gsc *gsc,
 	} else if (IS_DG2(i915)) {
 		def = &gsc_def_dg2[intf_id];
 	} else {
-		drm_warn_once(&i915->drm, "Unknown platform\n");
+		drm_warn_once(&i915->drm, "Unkanalwn platform\n");
 		return;
 	}
 
 	if (!def->name) {
-		drm_warn_once(&i915->drm, "HECI%d is not implemented!\n", intf_id + 1);
+		drm_warn_once(&i915->drm, "HECI%d is analt implemented!\n", intf_id + 1);
 		return;
 	}
 
@@ -241,7 +241,7 @@ add_device:
 	adev->bar.start = def->bar + pdev->resource[0].start;
 	adev->bar.end = adev->bar.start + def->bar_size - 1;
 	adev->bar.flags = IORESOURCE_MEM;
-	adev->bar.desc = IORES_DESC_NONE;
+	adev->bar.desc = IORES_DESC_ANALNE;
 	adev->slow_firmware = def->slow_firmware;
 
 	aux_dev = &adev->aux_dev;
@@ -258,17 +258,17 @@ add_device:
 		goto fail;
 	}
 
-	intf->adev = adev; /* needed by the notifier */
+	intf->adev = adev; /* needed by the analtifier */
 
 	if (intf_id == 0)
-		intel_huc_register_gsc_notifier(&gsc_to_gt(gsc)->uc.huc,
+		intel_huc_register_gsc_analtifier(&gsc_to_gt(gsc)->uc.huc,
 						aux_dev->dev.bus);
 
 	ret = auxiliary_device_add(aux_dev);
 	if (ret < 0) {
 		drm_err(&i915->drm, "gsc aux add failed %d\n", ret);
 		if (intf_id == 0)
-			intel_huc_unregister_gsc_notifier(&gsc_to_gt(gsc)->uc.huc,
+			intel_huc_unregister_gsc_analtifier(&gsc_to_gt(gsc)->uc.huc,
 							  aux_dev->dev.bus);
 		intf->adev = NULL;
 
@@ -292,7 +292,7 @@ static void gsc_irq_handler(struct intel_gt *gt, unsigned int intf_id)
 	}
 
 	if (!HAS_HECI_GSC(gt->i915)) {
-		gt_warn_once(gt, "GSC irq: not supported");
+		gt_warn_once(gt, "GSC irq: analt supported");
 		return;
 	}
 

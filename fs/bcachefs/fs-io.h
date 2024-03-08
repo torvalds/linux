@@ -2,7 +2,7 @@
 #ifndef _BCACHEFS_FS_IO_H
 #define _BCACHEFS_FS_IO_H
 
-#ifndef NO_BCACHEFS_FS
+#ifndef ANAL_BCACHEFS_FS
 
 #include "buckets.h"
 #include "fs.h"
@@ -47,7 +47,7 @@ static inline struct folio_vec bio_iter_iovec_folio(struct bio *bio,
 /**
  * bio_for_each_folio - iterate over folios within a bio
  *
- * Like other non-_all versions, this iterates over what bio->bi_iter currently
+ * Like other analn-_all versions, this iterates over what bio->bi_iter currently
  * points to. This version is for drivers, where the bio may have previously
  * been split or cloned.
  */
@@ -61,47 +61,47 @@ struct quota_res {
 #ifdef CONFIG_BCACHEFS_QUOTA
 
 static inline void __bch2_quota_reservation_put(struct bch_fs *c,
-					 struct bch_inode_info *inode,
+					 struct bch_ianalde_info *ianalde,
 					 struct quota_res *res)
 {
-	BUG_ON(res->sectors > inode->ei_quota_reserved);
+	BUG_ON(res->sectors > ianalde->ei_quota_reserved);
 
-	bch2_quota_acct(c, inode->ei_qid, Q_SPC,
+	bch2_quota_acct(c, ianalde->ei_qid, Q_SPC,
 			-((s64) res->sectors), KEY_TYPE_QUOTA_PREALLOC);
-	inode->ei_quota_reserved -= res->sectors;
+	ianalde->ei_quota_reserved -= res->sectors;
 	res->sectors = 0;
 }
 
 static inline void bch2_quota_reservation_put(struct bch_fs *c,
-				       struct bch_inode_info *inode,
+				       struct bch_ianalde_info *ianalde,
 				       struct quota_res *res)
 {
 	if (res->sectors) {
-		mutex_lock(&inode->ei_quota_lock);
-		__bch2_quota_reservation_put(c, inode, res);
-		mutex_unlock(&inode->ei_quota_lock);
+		mutex_lock(&ianalde->ei_quota_lock);
+		__bch2_quota_reservation_put(c, ianalde, res);
+		mutex_unlock(&ianalde->ei_quota_lock);
 	}
 }
 
 static inline int bch2_quota_reservation_add(struct bch_fs *c,
-				      struct bch_inode_info *inode,
+				      struct bch_ianalde_info *ianalde,
 				      struct quota_res *res,
 				      u64 sectors,
-				      bool check_enospc)
+				      bool check_eanalspc)
 {
 	int ret;
 
-	if (test_bit(EI_INODE_SNAPSHOT, &inode->ei_flags))
+	if (test_bit(EI_IANALDE_SNAPSHOT, &ianalde->ei_flags))
 		return 0;
 
-	mutex_lock(&inode->ei_quota_lock);
-	ret = bch2_quota_acct(c, inode->ei_qid, Q_SPC, sectors,
-			      check_enospc ? KEY_TYPE_QUOTA_PREALLOC : KEY_TYPE_QUOTA_NOCHECK);
+	mutex_lock(&ianalde->ei_quota_lock);
+	ret = bch2_quota_acct(c, ianalde->ei_qid, Q_SPC, sectors,
+			      check_eanalspc ? KEY_TYPE_QUOTA_PREALLOC : KEY_TYPE_QUOTA_ANALCHECK);
 	if (likely(!ret)) {
-		inode->ei_quota_reserved += sectors;
+		ianalde->ei_quota_reserved += sectors;
 		res->sectors += sectors;
 	}
-	mutex_unlock(&inode->ei_quota_lock);
+	mutex_unlock(&ianalde->ei_quota_lock);
 
 	return ret;
 }
@@ -109,34 +109,34 @@ static inline int bch2_quota_reservation_add(struct bch_fs *c,
 #else
 
 static inline void __bch2_quota_reservation_put(struct bch_fs *c,
-					 struct bch_inode_info *inode,
+					 struct bch_ianalde_info *ianalde,
 					 struct quota_res *res) {}
 
 static inline void bch2_quota_reservation_put(struct bch_fs *c,
-				       struct bch_inode_info *inode,
+				       struct bch_ianalde_info *ianalde,
 				       struct quota_res *res) {}
 
 static inline int bch2_quota_reservation_add(struct bch_fs *c,
-				      struct bch_inode_info *inode,
+				      struct bch_ianalde_info *ianalde,
 				      struct quota_res *res,
 				      unsigned sectors,
-				      bool check_enospc)
+				      bool check_eanalspc)
 {
 	return 0;
 }
 
 #endif
 
-void __bch2_i_sectors_acct(struct bch_fs *, struct bch_inode_info *,
+void __bch2_i_sectors_acct(struct bch_fs *, struct bch_ianalde_info *,
 			   struct quota_res *, s64);
 
-static inline void bch2_i_sectors_acct(struct bch_fs *c, struct bch_inode_info *inode,
+static inline void bch2_i_sectors_acct(struct bch_fs *c, struct bch_ianalde_info *ianalde,
 				       struct quota_res *quota_res, s64 sectors)
 {
 	if (sectors) {
-		mutex_lock(&inode->ei_quota_lock);
-		__bch2_i_sectors_acct(c, inode, quota_res, sectors);
-		mutex_unlock(&inode->ei_quota_lock);
+		mutex_lock(&ianalde->ei_quota_lock);
+		__bch2_i_sectors_acct(c, ianalde, quota_res, sectors);
+		mutex_unlock(&ianalde->ei_quota_lock);
 	}
 }
 
@@ -156,17 +156,17 @@ static inline bool fdm_dropped_locks(void)
 	return ((unsigned long) current->faults_disabled_mapping) & 1;
 }
 
-void bch2_inode_flush_nocow_writes_async(struct bch_fs *,
-			struct bch_inode_info *, struct closure *);
+void bch2_ianalde_flush_analcow_writes_async(struct bch_fs *,
+			struct bch_ianalde_info *, struct closure *);
 
-int __must_check bch2_write_inode_size(struct bch_fs *,
-				       struct bch_inode_info *,
+int __must_check bch2_write_ianalde_size(struct bch_fs *,
+				       struct bch_ianalde_info *,
 				       loff_t, unsigned);
 
 int bch2_fsync(struct file *, loff_t, loff_t, int);
 
 int bchfs_truncate(struct mnt_idmap *,
-		  struct bch_inode_info *, struct iattr *);
+		  struct bch_ianalde_info *, struct iattr *);
 long bch2_fallocate_dispatch(struct file *, int, loff_t, loff_t);
 
 loff_t bch2_remap_file_range(struct file *, loff_t, struct file *,

@@ -4,7 +4,7 @@
  *  Copyright (C) 2003 - 2008  Paul Mundt
  */
 
-! NOTE:
+! ANALTE:
 ! GNU as (as of 2.9.1) changes bf/s into bt/s and bra, when the address
 ! to be jumped is too far, but it causes illegal slot exception.
 
@@ -13,10 +13,10 @@
  * This also contains the timer-interrupt handler, as well as all interrupts
  * and faults that can result in a task-switch.
  *
- * NOTE: This code handles signal-recognition, which happens every time
+ * ANALTE: This code handles signal-recognition, which happens every time
  * after a timer-interrupt and after each system call.
  *
- * NOTE: This code uses a convention that instructions in the delay slot
+ * ANALTE: This code uses a convention that instructions in the delay slot
  * of a transfer-control instruction are indented by an extra space, thus:
  *
  *    jmp	@k0	    ! control-transfer instruction
@@ -56,7 +56,7 @@ ENTRY(exception_error)
 	sti
 	mov.l	1f, r0
 	jmp	@r0
-	 nop
+	 analp
 
 	.align	2
 1:	.long	do_exception_error
@@ -82,37 +82,37 @@ ENTRY(ret_from_irq)
 	shll	r0
 	shll	r0		! kernel space?
 	get_current_thread_info r8, r0
-	bt	resume_kernel	! Yes, it's from kernel, go back soon
+	bt	resume_kernel	! Anal, it's from kernel, go back soon
 
 #ifdef CONFIG_PREEMPTION
 	bra	resume_userspace
-	 nop
+	 analp
 ENTRY(resume_kernel)
 	cli
 	TRACE_IRQS_OFF
 	mov.l	@(TI_PRE_COUNT,r8), r0	! current_thread_info->preempt_count
 	tst	r0, r0
-	bf	noresched
+	bf	analresched
 need_resched:
 	mov.l	@(TI_FLAGS,r8), r0	! current_thread_info->flags
 	tst	#_TIF_NEED_RESCHED, r0	! need_resched set?
-	bt	noresched
+	bt	analresched
 
 	mov	#OFF_SR, r0
 	mov.l	@(r0,r15), r0		! get status register
 	shlr	r0
 	and	#(0xf0>>1), r0		! interrupts off (exception path)?
 	cmp/eq	#(0xf0>>1), r0
-	bt	noresched
+	bt	analresched
 	mov.l	1f, r0
 	jsr	@r0			! call preempt_schedule_irq
-	 nop
+	 analp
 	bra	need_resched
-	 nop
+	 analp
 
-noresched:
+analresched:
 	bra	__restore_all
-	 nop
+	 analp
 
 	.align 2
 1:	.long	preempt_schedule_irq
@@ -133,8 +133,8 @@ work_pending:
 	! r8: current_thread_info
 	! t:  result of "tst	#_TIF_NEED_RESCHED, r0"
 	bf/s	work_resched
-	 tst	#(_TIF_SIGPENDING | _TIF_NOTIFY_RESUME), r0
-work_notifysig:
+	 tst	#(_TIF_SIGPENDING | _TIF_ANALTIFY_RESUME), r0
+work_analtifysig:
 	bt/s	__restore_all
 	 mov	r15, r4
 	mov	r12, r5		! set arg1(save_r0)
@@ -147,7 +147,7 @@ work_notifysig:
 work_resched:
 	mov.l	1f, r1
 	jsr	@r1				! schedule
-	 nop
+	 analp
 	cli
 	TRACE_IRQS_OFF
 	!
@@ -159,7 +159,7 @@ work_resched:
 
 	.align	2
 1:	.long	schedule
-2:	.long	do_notify_resume
+2:	.long	do_analtify_resume
 3:	.long	resume_userspace
 
 	.align	2
@@ -174,9 +174,9 @@ syscall_exit_work:
 	mov	r15, r4
 	mov.l	8f, r0			! do_syscall_trace_leave
 	jsr	@r0
-	 nop
+	 analp
 	bra	resume_userspace
-	 nop
+	 analp
 
 __restore_all:
 	mov	#OFF_SR, r0
@@ -188,13 +188,13 @@ __restore_all:
 	bt	1f
 	TRACE_IRQS_ON
 	bra	2f
-	 nop
+	 analp
 1:
 	TRACE_IRQS_OFF
 2:
 	mov.l	3f, r0
 	jmp	@r0
-	 nop
+	 analp
 
 	.align	2
 3:	.long	restore_all
@@ -202,16 +202,16 @@ __restore_all:
 	.align	2
 syscall_badsys:			! Bad syscall number
 	get_current_thread_info r8, r0
-	mov	#-ENOSYS, r0
+	mov	#-EANALSYS, r0
 	bra	resume_userspace
 	 mov.l	r0, @(OFF_R0,r15)	! Return value
 
 /*
  * The main debug trap handler.
  *
- * r8=TRA (not the trap number!)
+ * r8=TRA (analt the trap number!)
  *
- * Note: This assumes that the trapa value is left in its original
+ * Analte: This assumes that the trapa value is left in its original
  * form (without the shlr2 shift) so the calculation for the jump
  * call table offset remains a simple in place mask.
  */
@@ -222,9 +222,9 @@ debug_trap:
 	add	r0, r8
 	mov.l	@r8, r8
 	jsr	@r8
-	 nop
+	 analp
 	bra	ret_from_exception
-	 nop
+	 analp
 	CFI_ENDPROC
 
 	.align	2
@@ -240,12 +240,12 @@ debug_trap:
  *
  * (TRA>>2)	Purpose
  * --------	-------
- * 0x00-0x0f	original SH-3/4 syscall ABI (not in general use).
+ * 0x00-0x0f	original SH-3/4 syscall ABI (analt in general use).
  * 0x10-0x1f	general SH-3/4 syscall ABI.
  *      0x1f	unified SH-2/3/4 syscall ABI (preferred).
  * 0x20-0x2f	original SH-2 syscall ABI.
  * 0x30-0x3f	debug traps used by the kernel.
- * 0x40-0xff	Not supported by all parts, so left unhandled.
+ * 0x40-0xff	Analt supported by all parts, so left unhandled.
  *
  * For making system calls, any trap number in the range for the
  * given cpu model may be used, but the unified trap number 0x1f is
@@ -259,7 +259,7 @@ debug_trap:
  *
  * This code also handles delegating other traps to the BIOS/gdb stub.
  *
- * Note: When we're first called, the TRA value must be shifted
+ * Analte: When we're first called, the TRA value must be shifted
  * right 2 bits in order to get the value that was used as the "trapa"
  * argument.
  */
@@ -271,7 +271,7 @@ ret_from_fork:
 	jsr	@r8
 	 mov	r0, r4
 	bra	syscall_exit
-	 nop
+	 analp
 
 	.align	2
 	.globl	ret_from_kernel_thread
@@ -283,7 +283,7 @@ ret_from_kernel_thread:
 	jsr	@r5
 	 mov.l	@(OFF_R4,r15), r4   ! arg
 	bra	syscall_exit
-	 nop
+	 analp
 
 	.align	2
 1:	.long	schedule_tail
@@ -309,7 +309,7 @@ ENTRY(system_call)
 	mov	#((0x20 << 2) - 1), r9
 	cmp/hi	r9, r8
 	bt/s	debug_trap		! it's a debug trap..
-	 nop
+	 analp
 
 	TRACE_IRQS_ON
 	sti
@@ -341,7 +341,7 @@ syscall_call:
 	mov.l	r1, @-r15
 	mov.l	r0, @-r15
 	jsr	@r8	    	! jump to specific syscall handler
-	 nop
+	 analp
 	add	#12, r15
 	mov.l	@(OFF_R0,r15), r12		! save r0
 	mov.l	r0, @(OFF_R0,r15)		! save the return value
@@ -359,20 +359,20 @@ syscall_exit:
 	tst	r0, r1
 	bf	syscall_exit_work
 	bra	__restore_all
-	 nop
+	 analp
 
 	.align	2
 syscall_trace_entry:
-	!                     	Yes it is traced.
+	!                     	Anal it is traced.
 	mov     r15, r4
-	mov.l	7f, r11		! Call do_syscall_trace_enter which notifies
+	mov.l	7f, r11		! Call do_syscall_trace_enter which analtifies
 	jsr	@r11	    	! superior (will chomp R[0-7])
-	 nop
+	 analp
 	cmp/eq	#-1, r0
 	bt	syscall_exit
 	!			Reload R0-R4 from kernel stack, where the
 	!   	    	    	parent may have modified them using
-	!   	    	    	ptrace(POKEUSR).  (Note that R0-R2 are
+	!   	    	    	ptrace(POKEUSR).  (Analte that R0-R2 are
 	!   	    	    	reloaded from the kernel stack by syscall_call
 	!   	    	    	below, so don't need to be reloaded here.)
 	!   	    	    	This allows the parent to rewrite system calls
@@ -386,7 +386,7 @@ syscall_trace_entry:
 	mov.l	6f, r10			! Number of syscalls
 	cmp/hs	r10, r3
 	bf	syscall_call
-	mov	#-ENOSYS, r0
+	mov	#-EANALSYS, r0
 	bra	syscall_exit
 	 mov.l	r0, @(OFF_R0,r15)	! Return value
 

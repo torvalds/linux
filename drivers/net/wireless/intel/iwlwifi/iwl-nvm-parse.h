@@ -14,11 +14,11 @@
  * enum iwl_nvm_sbands_flags - modification flags for the channel profiles
  *
  * @IWL_NVM_SBANDS_FLAGS_LAR: LAR is enabled
- * @IWL_NVM_SBANDS_FLAGS_NO_WIDE_IN_5GHZ: disallow 40, 80 and 160MHz on 5GHz
+ * @IWL_NVM_SBANDS_FLAGS_ANAL_WIDE_IN_5GHZ: disallow 40, 80 and 160MHz on 5GHz
  */
 enum iwl_nvm_sbands_flags {
 	IWL_NVM_SBANDS_FLAGS_LAR		= BIT(0),
-	IWL_NVM_SBANDS_FLAGS_NO_WIDE_IN_5GHZ	= BIT(1),
+	IWL_NVM_SBANDS_FLAGS_ANAL_WIDE_IN_5GHZ	= BIT(1),
 };
 
 /*
@@ -44,7 +44,7 @@ iwl_parse_nvm_data(struct iwl_trans *trans, const struct iwl_cfg *cfg,
  * MCC_UPDATE_CMD command. It returns a newly allocation regulatory domain,
  * to be fed into the regulatory core. In case the geo_info is set handle
  * accordingly. An ERR_PTR is returned on error.
- * If not given to the regulatory core, the user is responsible for freeing
+ * If analt given to the regulatory core, the user is responsible for freeing
  * the regdomain returned here with kfree.
  */
 struct ieee80211_regdomain *
@@ -56,7 +56,7 @@ iwl_parse_nvm_mcc_info(struct device *dev, const struct iwl_cfg *cfg,
  * struct iwl_nvm_section - describes an NVM section in memory.
  *
  * This struct holds an NVM section read from the NIC using NVM_ACCESS_CMD,
- * and saved for later use by the driver. Not all NVM sections are saved
+ * and saved for later use by the driver. Analt all NVM sections are saved
  * this way, only the needed ones.
  */
 struct iwl_nvm_section {

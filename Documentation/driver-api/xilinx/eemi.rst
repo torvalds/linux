@@ -4,7 +4,7 @@ Xilinx Zynq MPSoC EEMI Documentation
 
 Xilinx Zynq MPSoC Firmware Interface
 -------------------------------------
-The zynqmp-firmware node describes the interface to platform firmware.
+The zynqmp-firmware analde describes the interface to platform firmware.
 ZynqMP has an interface to communicate with secure firmware. Firmware
 driver provides an interface to firmware APIs. Interface APIs can be
 used by any driver to communicate with PMC(Platform Management Controller).
@@ -21,7 +21,7 @@ functions provided for each function.
 
 IOCTL
 ------
-IOCTL API is for device control and configuration. It is not a system
+IOCTL API is for device control and configuration. It is analt a system
 IOCTL but it is an EEMI API. This API can be used by master to control
 any device specific configuration. IOCTL definitions can be platform
 specific. This API also manage shared device configuration.

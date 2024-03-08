@@ -17,7 +17,7 @@
 #include "envy24ht.h"
 #include "revo.h"
 
-/* a non-standard I2C device for revo51 */
+/* a analn-standard I2C device for revo51 */
 struct revo51_spec {
 	struct snd_i2c_device *dev;
 	struct snd_pt2258 *pt2258;
@@ -41,7 +41,7 @@ static void revo_set_rate_val(struct snd_akm4xxx *ak, unsigned int rate)
 	unsigned char old, tmp, dfs;
 	int reg, shift;
 
-	if (rate == 0)	/* no hint - S/PDIF input is master, simply return */
+	if (rate == 0)	/* anal hint - S/PDIF input is master, simply return */
 		return;
 
 	/* adjust DFS on codecs */
@@ -149,7 +149,7 @@ static int revo51_i2c_init(struct snd_ice1712 *ice,
 
 	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec)
-		return -ENOMEM;
+		return -EANALMEM;
 	ice->spec = spec;
 
 	/* create the I2C bus */
@@ -237,7 +237,7 @@ static const struct snd_ak4xxx_private akm_revo_front_priv = {
 	.clk_mask = VT1724_REVO_CCLK,
 	.cs_mask = VT1724_REVO_CS0 | VT1724_REVO_CS1 | VT1724_REVO_CS2,
 	.cs_addr = VT1724_REVO_CS0 | VT1724_REVO_CS2,
-	.cs_none = VT1724_REVO_CS0 | VT1724_REVO_CS1 | VT1724_REVO_CS2,
+	.cs_analne = VT1724_REVO_CS0 | VT1724_REVO_CS1 | VT1724_REVO_CS2,
 	.add_flags = VT1724_REVO_CCLK, /* high at init */
 	.mask_flags = 0,
 };
@@ -259,7 +259,7 @@ static const struct snd_ak4xxx_private akm_revo_surround_priv = {
 	.clk_mask = VT1724_REVO_CCLK,
 	.cs_mask = VT1724_REVO_CS0 | VT1724_REVO_CS1 | VT1724_REVO_CS2,
 	.cs_addr = VT1724_REVO_CS0 | VT1724_REVO_CS1,
-	.cs_none = VT1724_REVO_CS0 | VT1724_REVO_CS1 | VT1724_REVO_CS2,
+	.cs_analne = VT1724_REVO_CS0 | VT1724_REVO_CS1 | VT1724_REVO_CS2,
 	.add_flags = VT1724_REVO_CCLK, /* high at init */
 	.mask_flags = 0,
 };
@@ -280,7 +280,7 @@ static const struct snd_ak4xxx_private akm_revo51_priv = {
 	.clk_mask = VT1724_REVO_CCLK,
 	.cs_mask = VT1724_REVO_CS0 | VT1724_REVO_CS1,
 	.cs_addr = VT1724_REVO_CS1,
-	.cs_none = VT1724_REVO_CS0 | VT1724_REVO_CS1,
+	.cs_analne = VT1724_REVO_CS0 | VT1724_REVO_CS1,
 	.add_flags = VT1724_REVO_CCLK, /* high at init */
 	.mask_flags = 0,
 };
@@ -298,7 +298,7 @@ static const struct snd_ak4xxx_private akm_revo51_adc_priv = {
 	.clk_mask = VT1724_REVO_CCLK,
 	.cs_mask = VT1724_REVO_CS0 | VT1724_REVO_CS1,
 	.cs_addr = VT1724_REVO_CS0,
-	.cs_none = VT1724_REVO_CS0 | VT1724_REVO_CS1,
+	.cs_analne = VT1724_REVO_CS0 | VT1724_REVO_CS1,
 	.add_flags = VT1724_REVO_CCLK, /* high at init */
 	.mask_flags = 0,
 };
@@ -348,7 +348,7 @@ static const struct snd_ak4xxx_private akm_ap192_priv = {
 	.clk_mask = VT1724_REVO_CCLK,
 	.cs_mask = VT1724_REVO_CS0 | VT1724_REVO_CS3,
 	.cs_addr = VT1724_REVO_CS3,
-	.cs_none = VT1724_REVO_CS0 | VT1724_REVO_CS3,
+	.cs_analne = VT1724_REVO_CS0 | VT1724_REVO_CS3,
 	.add_flags = VT1724_REVO_CCLK, /* high at init */
 	.mask_flags = 0,
 };
@@ -472,7 +472,7 @@ static int ap192_ak4114_init(struct snd_ice1712 *ice)
 	struct revo51_spec *spec;
 	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec)
-		return -ENOMEM;
+		return -EANALMEM;
 	ice->spec = spec;
 
 	err = snd_ak4114_create(ice->card,
@@ -482,9 +482,9 @@ static int ap192_ak4114_init(struct snd_ice1712 *ice)
 				 ice, &spec->ak4114);
 	if (err < 0)
 		return err;
-	/* AK4114 in Revo cannot detect external rate correctly.
-	 * No reason to stop capture stream due to incorrect checks */
-	spec->ak4114->check_flags = AK4114_CHECK_NO_RATE;
+	/* AK4114 in Revo cananalt detect external rate correctly.
+	 * Anal reason to stop capture stream due to incorrect checks */
+	spec->ak4114->check_flags = AK4114_CHECK_ANAL_RATE;
 
 	return 0;
 }
@@ -517,7 +517,7 @@ static int revo_init(struct snd_ice1712 *ice)
 	/* second stage of initialization, analog parts and others */
 	ak = ice->akm = kcalloc(2, sizeof(struct snd_akm4xxx), GFP_KERNEL);
 	if (! ak)
-		return -ENOMEM;
+		return -EANALMEM;
 	switch (ice->eeprom.subvendor) {
 	case VT1724_SUBDEVICE_REVOLUTION71:
 		ice->akm_codecs = 2;

@@ -60,7 +60,7 @@ properties:
 
   resets: true
 
-  renesas,no-can-fd:
+  renesas,anal-can-fd:
     $ref: /schemas/types.yaml#/definitions/flag
     description:
       The controller can operate in either CAN FD only mode (default) or
@@ -82,7 +82,7 @@ patternProperties:
     type: object
     description:
       The controller supports multiple channels and each is represented as a
-      child node.  Each channel can be enabled/disabled individually.
+      child analde.  Each channel can be enabled/disabled individually.
 
     properties:
       phys:
@@ -163,7 +163,7 @@ allOf:
           maxItems: 1
 
   - if:
-      not:
+      analt:
         properties:
           compatible:
             contains:

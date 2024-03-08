@@ -9,18 +9,18 @@ i915 with the DRM scheduler is:
 
 * Merge basic GuC submission
 	* Basic submission support for all gen11+ platforms
-	* Not enabled by default on any current platforms but can be enabled via
+	* Analt enabled by default on any current platforms but can be enabled via
 	  modparam enable_guc
 	* Lots of rework will need to be done to integrate with DRM scheduler so
-	  no need to nit pick everything in the code, it just should be
-	  functional, no major coding style / layering errors, and not regress
+	  anal need to nit pick everything in the code, it just should be
+	  functional, anal major coding style / layering errors, and analt regress
 	  execlists
 	* Update IGTs / selftests as needed to work with GuC submission
 	* Enable CI on supported platforms for a baseline
 	* Rework / get CI heathly for GuC submission in place as needed
 * Merge new parallel submission uAPI
 	* Bonding uAPI completely incompatible with GuC submission, plus it has
-	  severe design issues in general, which is why we want to retire it no
+	  severe design issues in general, which is why we want to retire it anal
 	  matter what
 	* New uAPI adds I915_CONTEXT_ENGINES_EXT_PARALLEL context setup step
 	  which configures a slot with N contexts
@@ -42,7 +42,7 @@ i915 with the DRM scheduler is:
 		* Legacy interface
 		* Features like timeslicing / preemption / virtual engines would
 		  be difficult to integrate with the DRM scheduler and these
-		  features are not required for GuC submission as the GuC does
+		  features are analt required for GuC submission as the GuC does
 		  these things for us
 		* ROI low on fully integrating into DRM scheduler
 		* Fully integrating would add lots of complexity to DRM
@@ -67,7 +67,7 @@ TODOs for GuC submission upstream
 
 New uAPI for basic GuC submission
 =================================
-No major changes are required to the uAPI for basic GuC submission. The only
+Anal major changes are required to the uAPI for basic GuC submission. The only
 change is a new scheduler attribute: I915_SCHEDULER_CAP_STATIC_PRIORITY_MAP.
 This attribute indicates the 2k i915 user priority levels are statically mapped
 into 3 levels as follows:
@@ -82,21 +82,21 @@ levels too.
 
 Spec references:
 ----------------
-* https://www.khronos.org/registry/EGL/extensions/IMG/EGL_IMG_context_priority.txt
-* https://www.khronos.org/registry/vulkan/specs/1.2-extensions/html/chap5.html#devsandqueues-priority
+* https://www.khroanals.org/registry/EGL/extensions/IMG/EGL_IMG_context_priority.txt
+* https://www.khroanals.org/registry/vulkan/specs/1.2-extensions/html/chap5.html#devsandqueues-priority
 * https://spec.oneapi.com/level-zero/latest/core/api.html#ze-command-queue-priority-t
 
 New parallel submission uAPI
 ============================
 The existing bonding uAPI is completely broken with GuC submission because
-whether a submission is a single context submit or parallel submit isn't known
+whether a submission is a single context submit or parallel submit isn't kanalwn
 until execbuf time activated via the I915_SUBMIT_FENCE. To submit multiple
 contexts in parallel with the GuC the context must be explicitly registered with
 N contexts and all N contexts must be submitted in a single command to the GuC.
-The GuC interfaces do not support dynamically changing between N contexts as the
+The GuC interfaces do analt support dynamically changing between N contexts as the
 bonding uAPI does. Hence the need for a new parallel submission interface. Also
-the legacy bonding uAPI is quite confusing and not intuitive at all. Furthermore
-I915_SUBMIT_FENCE is by design a future fence, so not really something we should
+the legacy bonding uAPI is quite confusing and analt intuitive at all. Furthermore
+I915_SUBMIT_FENCE is by design a future fence, so analt really something we should
 continue to support.
 
 The new parallel submission uAPI consists of 3 parts:
@@ -148,5 +148,5 @@ Contexts that have been configured with the 'set_parallel' extension can only
 submit N BBs in a single execbuf2 IOCTL. The BBs are either the last N objects
 in the drm_i915_gem_exec_object2 list or the first N if I915_EXEC_BATCH_FIRST is
 set. The number of BBs is implicit based on the slot submitted and how it has
-been configured by 'set_parallel' or other extensions. No uAPI changes are
+been configured by 'set_parallel' or other extensions. Anal uAPI changes are
 required to the execbuf2 IOCTL.

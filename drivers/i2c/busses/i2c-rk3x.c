@@ -11,7 +11,7 @@
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
 #include <linux/iopoll.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/err.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
@@ -177,9 +177,9 @@ struct rk3x_i2c_soc_data {
  * @regs: virtual memory area
  * @clk: function clk for rk3399 or function & Bus clks for others
  * @pclk: Bus clk for rk3399
- * @clk_rate_nb: i2c clk rate change notify
+ * @clk_rate_nb: i2c clk rate change analtify
  * @irq: irq number
- * @t: I2C known timing information
+ * @t: I2C kanalwn timing information
  * @lock: spinlock for the i2c bus
  * @wait: the waitqueue to wait for i2c transfer
  * @busy: the condition for the event to wait for
@@ -200,13 +200,13 @@ struct rk3x_i2c {
 	void __iomem *regs;
 	struct clk *clk;
 	struct clk *pclk;
-	struct notifier_block clk_rate_nb;
+	struct analtifier_block clk_rate_nb;
 	int irq;
 
 	/* Settings */
 	struct i2c_timings t;
 
-	/* Synchronization & notification */
+	/* Synchronization & analtification */
 	spinlock_t lock;
 	wait_queue_head_t wait;
 	bool busy;
@@ -254,7 +254,7 @@ static void rk3x_i2c_start(struct rk3x_i2c *i2c)
 	val |= REG_CON_EN | REG_CON_MOD(i2c->mode) | REG_CON_START;
 
 	/* if we want to react to NACK, set ACTACK bit */
-	if (!(i2c->msg->flags & I2C_M_IGNORE_NAK))
+	if (!(i2c->msg->flags & I2C_M_IGANALRE_NAK))
 		val |= REG_CON_ACTACK;
 
 	i2c_writel(i2c, val, REG_CON);
@@ -288,7 +288,7 @@ static void rk3x_i2c_stop(struct rk3x_i2c *i2c, int error)
 		i2c->state = STATE_IDLE;
 
 		/*
-		 * The HW is actually not capable of REPEATED START. But we can
+		 * The HW is actually analt capable of REPEATED START. But we can
 		 * get the intended effect by resetting its internal state
 		 * and issuing an ordinary START.
 		 */
@@ -477,7 +477,7 @@ static void rk3x_i2c_handle_stop(struct rk3x_i2c *i2c, unsigned int ipd)
 	wake_up(&i2c->wait);
 }
 
-static irqreturn_t rk3x_i2c_irq(int irqno, void *dev_id)
+static irqreturn_t rk3x_i2c_irq(int irqanal, void *dev_id)
 {
 	struct rk3x_i2c *i2c = dev_id;
 	unsigned int ipd;
@@ -499,14 +499,14 @@ static irqreturn_t rk3x_i2c_irq(int irqno, void *dev_id)
 	if (ipd & REG_INT_NAKRCV) {
 		/*
 		 * We got a NACK in the last operation. Depending on whether
-		 * IGNORE_NAK is set, we have to stop the operation and report
+		 * IGANALRE_NAK is set, we have to stop the operation and report
 		 * an error.
 		 */
 		i2c_writel(i2c, REG_INT_NAKRCV, REG_IPD);
 
 		ipd &= ~REG_INT_NAKRCV;
 
-		if (!(i2c->msg->flags & I2C_M_IGNORE_NAK))
+		if (!(i2c->msg->flags & I2C_M_IGANALRE_NAK))
 			rk3x_i2c_stop(i2c, -ENXIO);
 	}
 
@@ -555,7 +555,7 @@ static const struct i2c_spec_values *rk3x_i2c_get_spec(unsigned int speed)
 /**
  * rk3x_i2c_v0_calc_timings - Calculate divider values for desired SCL frequency
  * @clk_rate: I2C input clock rate
- * @t: Known I2C timing information
+ * @t: Kanalwn I2C timing information
  * @t_calc: Caculated rk3x private timings that would be written into regs
  *
  * Return: %0 on success, -%EINVAL if the goal SCL rate is too slow. In that case
@@ -597,7 +597,7 @@ static int rk3x_i2c_v0_calc_timings(unsigned long clk_rate,
 	 * max_low_ns:  The maximum number of ns we can hold low to meet
 	 *		I2C specification.
 	 *
-	 * Note: max_low_ns should be (maximum data hold time * 2 - buffer)
+	 * Analte: max_low_ns should be (maximum data hold time * 2 - buffer)
 	 *	 This is because the i2c host on Rockchip holds the data line
 	 *	 for half the low time.
 	 */
@@ -691,12 +691,12 @@ static int rk3x_i2c_v0_calc_timings(unsigned long clk_rate,
 
 	/*
 	 * Adjust to the fact that the hardware has an implicit "+1".
-	 * NOTE: Above calculations always produce div_low > 0 and div_high > 0.
+	 * ANALTE: Above calculations always produce div_low > 0 and div_high > 0.
 	 */
 	t_calc->div_low--;
 	t_calc->div_high--;
 
-	/* Give the tuning value 0, that would not update con register */
+	/* Give the tuning value 0, that would analt update con register */
 	t_calc->tuning = 0;
 	/* Maximum divider supported by hw is 0xffff */
 	if (t_calc->div_low > 0xffff) {
@@ -715,7 +715,7 @@ static int rk3x_i2c_v0_calc_timings(unsigned long clk_rate,
 /**
  * rk3x_i2c_v1_calc_timings - Calculate timing values for desired SCL frequency
  * @clk_rate: I2C input clock rate
- * @t: Known I2C timing information
+ * @t: Kanalwn I2C timing information
  * @t_calc: Caculated rk3x private timings that would be written into regs
  *
  * Return: %0 on success, -%EINVAL if the goal SCL rate is too slow. In that case
@@ -789,7 +789,7 @@ static int rk3x_i2c_v1_calc_timings(unsigned long clk_rate,
 
 	/*
 	 * Final divh and divl must be greater than 0, otherwise the
-	 * hardware would not output the i2c clk.
+	 * hardware would analt output the i2c clk.
 	 */
 	min_high_div = (min_high_div < 1) ? 2 : min_high_div;
 	min_low_div = (min_low_div < 1) ? 2 : min_low_div;
@@ -881,7 +881,7 @@ static void rk3x_i2c_adapt_div(struct rk3x_i2c *i2c, unsigned long clk_rate)
 	int ret;
 
 	ret = i2c->soc_data->calc_timings(clk_rate, t, &calc);
-	WARN_ONCE(ret != 0, "Could not reach SCL freq %u", t->bus_freq_hz);
+	WARN_ONCE(ret != 0, "Could analt reach SCL freq %u", t->bus_freq_hz);
 
 	clk_enable(i2c->pclk);
 
@@ -907,26 +907,26 @@ static void rk3x_i2c_adapt_div(struct rk3x_i2c *i2c, unsigned long clk_rate)
 }
 
 /**
- * rk3x_i2c_clk_notifier_cb - Clock rate change callback
- * @nb:		Pointer to notifier block
- * @event:	Notification reason
- * @data:	Pointer to notification data object
+ * rk3x_i2c_clk_analtifier_cb - Clock rate change callback
+ * @nb:		Pointer to analtifier block
+ * @event:	Analtification reason
+ * @data:	Pointer to analtification data object
  *
  * The callback checks whether a valid bus frequency can be generated after the
- * change. If so, the change is acknowledged, otherwise the change is aborted.
- * New dividers are written to the HW in the pre- or post change notification
+ * change. If so, the change is ackanalwledged, otherwise the change is aborted.
+ * New dividers are written to the HW in the pre- or post change analtification
  * depending on the scaling direction.
  *
  * Code adapted from i2c-cadence.c.
  *
- * Return:	NOTIFY_STOP if the rate change should be aborted, NOTIFY_OK
- *		to acknowledge the change, NOTIFY_DONE if the notification is
+ * Return:	ANALTIFY_STOP if the rate change should be aborted, ANALTIFY_OK
+ *		to ackanalwledge the change, ANALTIFY_DONE if the analtification is
  *		considered irrelevant.
  */
-static int rk3x_i2c_clk_notifier_cb(struct notifier_block *nb, unsigned long
+static int rk3x_i2c_clk_analtifier_cb(struct analtifier_block *nb, unsigned long
 				    event, void *data)
 {
-	struct clk_notifier_data *ndata = data;
+	struct clk_analtifier_data *ndata = data;
 	struct rk3x_i2c *i2c = container_of(nb, struct rk3x_i2c, clk_rate_nb);
 	struct rk3x_i2c_calced_timings calc;
 
@@ -939,25 +939,25 @@ static int rk3x_i2c_clk_notifier_cb(struct notifier_block *nb, unsigned long
 		 */
 		if (i2c->soc_data->calc_timings(ndata->new_rate, &i2c->t,
 						&calc) != 0)
-			return NOTIFY_STOP;
+			return ANALTIFY_STOP;
 
 		/* scale up */
 		if (ndata->new_rate > ndata->old_rate)
 			rk3x_i2c_adapt_div(i2c, ndata->new_rate);
 
-		return NOTIFY_OK;
+		return ANALTIFY_OK;
 	case POST_RATE_CHANGE:
 		/* scale down */
 		if (ndata->new_rate < ndata->old_rate)
 			rk3x_i2c_adapt_div(i2c, ndata->new_rate);
-		return NOTIFY_OK;
+		return ANALTIFY_OK;
 	case ABORT_RATE_CHANGE:
 		/* scale up */
 		if (ndata->new_rate > ndata->old_rate)
 			rk3x_i2c_adapt_div(i2c, ndata->old_rate);
-		return NOTIFY_OK;
+		return ANALTIFY_OK;
 	default:
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 	}
 }
 
@@ -1237,7 +1237,7 @@ MODULE_DEVICE_TABLE(of, rk3x_i2c_match);
 
 static int rk3x_i2c_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	const struct of_device_id *match;
 	struct rk3x_i2c *i2c;
 	int ret = 0;
@@ -1248,9 +1248,9 @@ static int rk3x_i2c_probe(struct platform_device *pdev)
 
 	i2c = devm_kzalloc(&pdev->dev, sizeof(struct rk3x_i2c), GFP_KERNEL);
 	if (!i2c)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	match = of_match_node(rk3x_i2c_match, np);
+	match = of_match_analde(rk3x_i2c_match, np);
 	i2c->soc_data = match->data;
 
 	/* use common interface to get I2C timing properties */
@@ -1260,7 +1260,7 @@ static int rk3x_i2c_probe(struct platform_device *pdev)
 	i2c->adap.owner = THIS_MODULE;
 	i2c->adap.algo = &rk3x_i2c_algorithm;
 	i2c->adap.retries = 3;
-	i2c->adap.dev.of_node = np;
+	i2c->adap.dev.of_analde = np;
 	i2c->adap.algo_data = i2c;
 	i2c->adap.dev.parent = &pdev->dev;
 
@@ -1295,7 +1295,7 @@ static int rk3x_i2c_probe(struct platform_device *pdev)
 			return -EINVAL;
 		}
 
-		/* rv1126 i2c2 uses non-sequential write mask 20, value 4 */
+		/* rv1126 i2c2 uses analn-sequential write mask 20, value 4 */
 		if (i2c->soc_data == &rv1126_soc_data && bus_nr == 2)
 			value = BIT(20) | BIT(4);
 		else
@@ -1304,7 +1304,7 @@ static int rk3x_i2c_probe(struct platform_device *pdev)
 
 		ret = regmap_write(grf, i2c->soc_data->grf_offset, value);
 		if (ret != 0) {
-			dev_err(i2c->dev, "Could not write to GRF: %d\n", ret);
+			dev_err(i2c->dev, "Could analt write to GRF: %d\n", ret);
 			return ret;
 		}
 	}
@@ -1317,7 +1317,7 @@ static int rk3x_i2c_probe(struct platform_device *pdev)
 	ret = devm_request_irq(&pdev->dev, irq, rk3x_i2c_irq,
 			       0, dev_name(&pdev->dev), i2c);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "cannot request IRQ\n");
+		dev_err(&pdev->dev, "cananalt request IRQ\n");
 		return ret;
 	}
 
@@ -1353,17 +1353,17 @@ static int rk3x_i2c_probe(struct platform_device *pdev)
 		goto err_clk;
 	}
 
-	i2c->clk_rate_nb.notifier_call = rk3x_i2c_clk_notifier_cb;
-	ret = clk_notifier_register(i2c->clk, &i2c->clk_rate_nb);
+	i2c->clk_rate_nb.analtifier_call = rk3x_i2c_clk_analtifier_cb;
+	ret = clk_analtifier_register(i2c->clk, &i2c->clk_rate_nb);
 	if (ret != 0) {
-		dev_err(&pdev->dev, "Unable to register clock notifier\n");
+		dev_err(&pdev->dev, "Unable to register clock analtifier\n");
 		goto err_pclk;
 	}
 
 	ret = clk_enable(i2c->clk);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Can't enable bus clk: %d\n", ret);
-		goto err_clk_notifier;
+		goto err_clk_analtifier;
 	}
 
 	clk_rate = clk_get_rate(i2c->clk);
@@ -1372,12 +1372,12 @@ static int rk3x_i2c_probe(struct platform_device *pdev)
 
 	ret = i2c_add_adapter(&i2c->adap);
 	if (ret < 0)
-		goto err_clk_notifier;
+		goto err_clk_analtifier;
 
 	return 0;
 
-err_clk_notifier:
-	clk_notifier_unregister(i2c->clk, &i2c->clk_rate_nb);
+err_clk_analtifier:
+	clk_analtifier_unregister(i2c->clk, &i2c->clk_rate_nb);
 err_pclk:
 	clk_unprepare(i2c->pclk);
 err_clk:
@@ -1391,7 +1391,7 @@ static void rk3x_i2c_remove(struct platform_device *pdev)
 
 	i2c_del_adapter(&i2c->adap);
 
-	clk_notifier_unregister(i2c->clk, &i2c->clk_rate_nb);
+	clk_analtifier_unregister(i2c->clk, &i2c->clk_rate_nb);
 	clk_unprepare(i2c->pclk);
 	clk_unprepare(i2c->clk);
 }

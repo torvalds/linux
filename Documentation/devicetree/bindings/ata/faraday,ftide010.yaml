@@ -4,14 +4,14 @@
 $id: http://devicetree.org/schemas/ata/faraday,ftide010.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Faraday Technology FTIDE010 PATA controller
+title: Faraday Techanallogy FTIDE010 PATA controller
 
 maintainers:
   - Linus Walleij <linus.walleij@linaro.org>
 
 description: |
   This controller is the first Faraday IDE interface block, used in the
-  StorLink SL3512 and SL3516, later known as the Cortina Systems Gemini
+  StorLink SL3512 and SL3516, later kanalwn as the Cortina Systems Gemini
   platform. The controller can do PIO modes 0 through 4, Multi-word DMA
   (MWDM) modes 0 through 2 and Ultra DMA modes 0 through 6.
 
@@ -19,7 +19,7 @@ description: |
   SATA bridge in order to support SATA. This is why a phandle to that
   controller is compulsory on that platform.
 
-  The timing properties are unique per-SoC, not per-board.
+  The timing properties are unique per-SoC, analt per-board.
 
 properties:
   compatible:

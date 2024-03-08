@@ -23,7 +23,7 @@
 /* MMC timing mode switch bit */
 #define CCU_MMC_NEW_TIMING_MODE		BIT(30)
 
-struct device_node;
+struct device_analde;
 
 struct ccu_common {
 	void __iomem	*base;
@@ -59,7 +59,7 @@ bool ccu_is_better_rate(struct ccu_common *common,
 			unsigned long best_rate);
 
 struct ccu_pll_nb {
-	struct notifier_block	clk_nb;
+	struct analtifier_block	clk_nb;
 	struct ccu_common	*common;
 
 	u32	enable;
@@ -68,11 +68,11 @@ struct ccu_pll_nb {
 
 #define to_ccu_pll_nb(_nb) container_of(_nb, struct ccu_pll_nb, clk_nb)
 
-int ccu_pll_notifier_register(struct ccu_pll_nb *pll_nb);
+int ccu_pll_analtifier_register(struct ccu_pll_nb *pll_nb);
 
 int devm_sunxi_ccu_probe(struct device *dev, void __iomem *reg,
 			 const struct sunxi_ccu_desc *desc);
-void of_sunxi_ccu_probe(struct device_node *node, void __iomem *reg,
+void of_sunxi_ccu_probe(struct device_analde *analde, void __iomem *reg,
 			const struct sunxi_ccu_desc *desc);
 
 #endif /* _COMMON_H_ */

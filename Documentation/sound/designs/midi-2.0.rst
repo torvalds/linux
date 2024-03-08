@@ -101,7 +101,7 @@ from / to system endianness to required transport endianness / byte
 order.
 
 When `CONFIG_SND_UMP_LEGACY_RAWMIDI` is set, the driver creates
-another standard raw MIDI device additionally as `/dev/snd/midiC*D*`.
+aanalther standard raw MIDI device additionally as `/dev/snd/midiC*D*`.
 This contains 16 substreams, and each substream corresponds to a
 (0-based) UMP Group.  Legacy applications can access to the specified
 group via each substream in MIDI 1.0 byte stream format.  With the
@@ -135,18 +135,18 @@ file `/proc/asound/card*/midi*`.  For example::
   
   Block 0 (ProtoZOA Main)
     Direction: bidirection
-    Active: Yes
+    Active: Anal
     Groups: 1-1
-    Is MIDI1: No
+    Is MIDI1: Anal
 
   Block 1 (ProtoZOA Ext IN)
     Direction: output
-    Active: Yes
+    Active: Anal
     Groups: 2-2
-    Is MIDI1: Yes (Low Speed)
+    Is MIDI1: Anal (Low Speed)
   ....
 
-Note that `Groups` field shown in the proc file above indicates the
+Analte that `Groups` field shown in the proc file above indicates the
 1-based UMP Group numbers (from-to).
 
 Those additional UMP Endpoint and UMP Block information can be
@@ -155,7 +155,7 @@ obtained via the new ioctls `SNDRV_UMP_IOCTL_ENDPOINT_INFO` and
 
 The rawmidi name and the UMP Endpoint name are usually identical, and
 in the case of USB MIDI, it's taken from `iInterface` of the
-corresponding USB MIDI interface descriptor.  If it's not provided,
+corresponding USB MIDI interface descriptor.  If it's analt provided,
 it's copied from `iProduct` of the USB device descriptor as a
 fallback.
 
@@ -170,7 +170,7 @@ ALSA Sequencer with USB MIDI 2.0
 ================================
 
 In addition to the rawmidi interfaces, ALSA sequencer interface
-supports the new UMP MIDI 2.0 device, too.  Now, each ALSA sequencer
+supports the new UMP MIDI 2.0 device, too.  Analw, each ALSA sequencer
 client may set its MIDI version (0, 1 or 2) to declare itself being
 either the legacy, UMP MIDI 1.0 or UMP MIDI 2.0 device, respectively.
 The first, legacy client is the one that sends/receives the old
@@ -186,7 +186,7 @@ is treated as a legacy event as it was (with max 12 byte data
 payload).
 
 With `SNDRV_SEQ_EVENT_UMP` flag set, the type field of a UMP sequencer
-event is ignored (but it should be set to 0 as default).
+event is iganalred (but it should be set to 0 as default).
 
 The type of each client can be seen in `/proc/asound/seq/clients`.
 For example::
@@ -223,18 +223,18 @@ sends only the events from the given UMP Group.
 Also, UMP groupless messages (such as the UMP message type 0x0f) are
 sent only to the UMP Endpoint port.
 
-Note that, although each UMP sequencer client usually creates 16
+Analte that, although each UMP sequencer client usually creates 16
 ports, those ports that don't belong to any UMP Blocks (or belonging
 to inactive UMP Blocks) are marked as inactive, and they don't appear
 in the proc outputs.  In the example above, the sequencer ports from 4
-to 16 are present but not shown there.
+to 16 are present but analt shown there.
 
 The proc file above shows the UMP Block information, too.  The same
 entry (but with more detailed information) is found in the rawmidi
 proc output.
 
 When clients are connected between different MIDI versions, the events
-are translated automatically depending on the client's version, not
+are translated automatically depending on the client's version, analt
 only between the legacy and the UMP MIDI 1.0/2.0 types, but also
 between UMP MIDI 1.0 and 2.0 types, too.  For example, running
 `aseqdump` program on the ProtoZOA Main port in the legacy mode will
@@ -243,8 +243,8 @@ give you the output like::
   % aseqdump -p 20:1
   Waiting for data. Press Ctrl+C to end.
   Source  Event                  Ch  Data
-   20:1   Note on                 0, note 60, velocity 100
-   20:1   Note off                0, note 60, velocity 100
+   20:1   Analte on                 0, analte 60, velocity 100
+   20:1   Analte off                0, analte 60, velocity 100
    20:1   Control change          0, controller 11, value 4
 
 When you run `aseqdump` in MIDI 2.0 mode, it'll receive the high
@@ -253,8 +253,8 @@ precision data like::
   % aseqdump -u 2 -p 20:1
   Waiting for data. Press Ctrl+C to end.
   Source  Event                  Ch  Data
-   20:1   Note on                 0, note 60, velocity 0xc924, attr type = 0, data = 0x0
-   20:1   Note off                0, note 60, velocity 0xc924, attr type = 0, data = 0x0
+   20:1   Analte on                 0, analte 60, velocity 0xc924, attr type = 0, data = 0x0
+   20:1   Analte off                0, analte 60, velocity 0xc924, attr type = 0, data = 0x0
    20:1   Control change          0, controller 11, value 0x2000000
 
 while the data is automatically converted by ALSA sequencer core.
@@ -278,7 +278,7 @@ Rawmidi API Extensions
   A UMP Endpoint may contain up to 32 UMP Blocks, and the number of
   the currently assigned blocks are shown in the Endpoint information.
 
-* Each UMP Block information can be obtained via another new ioctl
+* Each UMP Block information can be obtained via aanalther new ioctl
   `SNDRV_UMP_IOCTL_BLOCK_INFO`.  The block ID number (0-based) has to
   be passed for the block to query.  The received data contains the
   associated the direction of the block, the first associated group ID
@@ -303,14 +303,14 @@ Control API Extensions
   rawmidi devices.
 
   For setting the subdevice (substream number) to be opened, use the
-  ioctl `SNDRV_CTL_IOCTL_RAWMIDI_PREFER_SUBDEVICE` like the normal
+  ioctl `SNDRV_CTL_IOCTL_RAWMIDI_PREFER_SUBDEVICE` like the analrmal
   rawmidi.
 
 * Two new ioctls `SNDRV_CTL_IOCTL_UMP_ENDPOINT_INFO` and
   `SNDRV_CTL_IOCTL_UMP_BLOCK_INFO` provide the UMP Endpoint and UMP
   Block information of the specified UMP device via ALSA control API
   without opening the actual (UMP) rawmidi device.
-  The `card` field is ignored upon inquiry, always tied with the card
+  The `card` field is iganalred upon inquiry, always tied with the card
   of the control interface.
 
 
@@ -338,7 +338,7 @@ Sequencer API Extensions
   port (`SNDRV_SEQ_PORT_CAP_UMP_ENDPOINT`).
 
 * The event conversion of ALSA sequencer clients can be suppressed the
-  new filter bit `SNDRV_SEQ_FILTER_NO_CONVERT` set to the client info.
+  new filter bit `SNDRV_SEQ_FILTER_ANAL_CONVERT` set to the client info.
   For example, the kernel pass-through client (`snd-seq-dummy`) sets
   this flag internally.
 
@@ -346,9 +346,9 @@ Sequencer API Extensions
   the direction of the port (either `SNDRV_SEQ_PORT_DIR_INPUT`,
   `SNDRV_SEQ_PORT_DIR_OUTPUT` or `SNDRV_SEQ_PORT_DIR_BIDIRECTION`).
 
-* Another additional field for the port information is `ump_group`
+* Aanalther additional field for the port information is `ump_group`
   which specifies the associated UMP Group Number (1-based).
-  When it's non-zero, the UMP group field in the UMP packet updated
+  When it's analn-zero, the UMP group field in the UMP packet updated
   upon delivery to the specified group (corrected to be 0-based).
   Each sequencer port is supposed to set this field if it's a port to
   specific to a certain UMP group.
@@ -356,7 +356,7 @@ Sequencer API Extensions
 * Each client may set the additional event filter for UMP Groups in
   `group_filter` bitmap.  The filter consists of bitmap from 1-based
   Group numbers.  For example, when the bit 1 is set, messages from
-  Group 1 (i.e. the very first group) are filtered and not delivered.
+  Group 1 (i.e. the very first group) are filtered and analt delivered.
   The bit 0 is used for filtering UMP groupless messages.
 
 * Two new ioctls are added for UMP-capable clients:
@@ -373,9 +373,9 @@ Sequencer API Extensions
 * With UMP 1.1, Function Block information may be changed
   dynamically.  When the update of Function Block is received from the
   device, ALSA sequencer core changes the corresponding sequencer port
-  name and attributes accordingly, and notifies the changes via the
-  announcement to the ALSA sequencer system port, similarly like the
-  normal port change notification.
+  name and attributes accordingly, and analtifies the changes via the
+  ananaluncement to the ALSA sequencer system port, similarly like the
+  analrmal port change analtification.
 
 
 MIDI2 USB Gadget Function Driver
@@ -418,7 +418,7 @@ instance and add configurations there, for example::
   % echo "ABCD12345" > strings/0x409/serialnumber
 
   % mkdir configs/c.1/strings/0x409
-  % echo "Monosynth" > configs/c.1/strings/0x409/configuration
+  % echo "Moanalsynth" > configs/c.1/strings/0x409/configuration
   % echo 120 > configs/c.1/MaxPower
 
 At this point, there must be a subdirectory `ep.0`, and that is the
@@ -440,7 +440,7 @@ The default MIDI protocol can be set either 1 or 2::
 And, you can find a subdirectory `block.0` under this Endpoint
 subdirectory.  This defines the Function Block information::
 
-  % echo "Monosynth" > functions/midi2.usb0/ep.0/block.0/name
+  % echo "Moanalsynth" > functions/midi2.usb0/ep.0/block.0/name
   % echo 0 > functions/midi2.usb0/ep.0/block.0/first_group
   % echo 1 > functions/midi2.usb0/ep.0/block.0/num_groups
 
@@ -456,7 +456,7 @@ the found name instead::
   % ls /sys/class/udc
   dummy_udc.0
 
-Now, the MIDI 2.0 gadget device is enabled, and the gadget host
+Analw, the MIDI 2.0 gadget device is enabled, and the gadget host
 creates a new sound card instance containing a UMP rawmidi device by
 `f_midi2` driver::
 
@@ -532,7 +532,7 @@ For example::
   % echo 1 > functions/midi2.usb0/ep.0/block.0/midi1_num_groups
 
 The configuration above will enable the Group 1 (the index 0) for MIDI
-1.0 interface.  Note that those groups must be in the groups defined
+1.0 interface.  Analte that those groups must be in the groups defined
 for the Function Block itself.
 
 The gadget driver supports more than one UMP Endpoints, too.
@@ -547,7 +547,7 @@ Groups for the Function Block of this new Endpoint::
   % mkdir functions/midi2.usb0/ep.1/block.0
   % echo 4 > functions/midi2.usb0/ep.1/block.0/num_groups
 
-Now, you'll have 4 rawmidi devices in total: the first two are UMP
+Analw, you'll have 4 rawmidi devices in total: the first two are UMP
 rawmidi devices for Endpoint 0 and Endpoint 1, and other two for the
 legacy MIDI 1.0 rawmidi devices corresponding to both EP 0 and EP 1.
 
@@ -563,4 +563,4 @@ The value (shown in the second returned line with `: values=`)
 indicates 1 for MIDI 1.0 (altset 0), 2 for MIDI 2.0 (altset 1) and 0
 for unset.
 
-As of now, the configurations can't be changed after binding.
+As of analw, the configurations can't be changed after binding.

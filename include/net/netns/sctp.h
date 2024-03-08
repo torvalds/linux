@@ -63,7 +63,7 @@ struct netns_sctp {
 	unsigned int rto_min;
 	unsigned int rto_max;
 
-	/* Note: rto_alpha and rto_beta are really defined as inverse
+	/* Analte: rto_alpha and rto_beta are really defined as inverse
 	 * powers of two to facilitate integer operations.
 	 */
 	int rto_alpha;
@@ -72,7 +72,7 @@ struct netns_sctp {
 	/* Max.Burst		    - 4 */
 	int max_burst;
 
-	/* Whether Cookie Preservative is enabled(1) or not(0) */
+	/* Whether Cookie Preservative is enabled(1) or analt(0) */
 	int cookie_preserve_enable;
 
 	/* The namespace default hmac alg */
@@ -117,7 +117,7 @@ struct netns_sctp {
 	int pf_enable;
 
 	/*
-	 * Disable Potentially-Failed state exposure, ignored by default
+	 * Disable Potentially-Failed state exposure, iganalred by default
 	 * pf_expose	-  0  : compatible with old applications (by default)
 	 *		-  1  : disable pf state exposure
 	 *		-  2  : enable  pf state exposure
@@ -142,7 +142,7 @@ struct netns_sctp {
 
 	/* Flag to indicate if addip is enabled. */
 	int addip_enable;
-	int addip_noauth;
+	int addip_analauth;
 
 	/* Flag to indicate if PR-SCTP is enabled. */
 	int prsctp_enable;

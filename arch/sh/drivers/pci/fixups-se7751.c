@@ -43,9 +43,9 @@ int pci_fixup_pcic(struct pci_channel *chan)
 
 	/*
 	* Initialize the slave bus controller on the pcic.  The values used
-	* here should not be hardcoded, but they should be taken from the bsc
+	* here should analt be hardcoded, but they should be taken from the bsc
 	* on the processor, to make this function as generic as possible.
-	* (i.e. Another sbc may usr different SDRAM timing settings -- in order
+	* (i.e. Aanalther sbc may usr different SDRAM timing settings -- in order
 	* for the pcic to work, its settings need to be exactly the same.)
 	*/
 	bcr1 = (*(volatile unsigned long*)(SH7751_BCR1));
@@ -68,7 +68,7 @@ int pci_fixup_pcic(struct pci_channel *chan)
 	PCIC_WRITE(SH7751_PCIMCR, mcr);      /* PCIC MCR */
 
 
-	/* Enable all interrupts, so we know what to fix */
+	/* Enable all interrupts, so we kanalw what to fix */
 	PCIC_WRITE(SH7751_PCIINTM, 0x0000c3ff);
 	PCIC_WRITE(SH7751_PCIAINTM, 0x0000380f);
 
@@ -84,12 +84,12 @@ int pci_fixup_pcic(struct pci_channel *chan)
 	PCIC_WRITE(SH7751_PCILAR0, 0x0c000000);   /* MEM (direct map from PCI)    */
 	PCIC_WRITE(SH7751_PCILAR1, 0x00000000);   /* MEM (unused)                 */
 
-	/* Now turn it on... */
+	/* Analw turn it on... */
 	PCIC_WRITE(SH7751_PCICR, 0xa5000001);
 
 	/*
 	* Set PCIMBR and PCIIOBR here, assuming a single window
-	* (16M MEM, 256K IO) is enough.  If a larger space is
+	* (16M MEM, 256K IO) is eanalugh.  If a larger space is
 	* needed, the readx/writex and inx/outx functions will
 	* have to do more (e.g. setting registers for each call).
 	*/

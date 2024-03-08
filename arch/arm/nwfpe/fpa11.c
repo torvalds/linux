@@ -25,7 +25,7 @@ static void resetFPA11(void)
 
 	/* initialize the register type array */
 	for (i = 0; i <= 7; i++) {
-		fpa11->fType[i] = typeNone;
+		fpa11->fType[i] = typeAnalne;
 	}
 
 	/* FPSR: set system id to FP_EMULATOR, set AC, clear all other bits */

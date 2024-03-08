@@ -85,7 +85,7 @@ static int mxs_ocotp_read(void *context, unsigned int offset,
 
 	while (bytes) {
 		if ((offset < OCOTP_DATA_OFFSET) || (offset % 16)) {
-			/* fill up non-data register */
+			/* fill up analn-data register */
 			*buf++ = 0;
 		} else {
 			*buf++ = readl(otp->base + offset);
@@ -149,7 +149,7 @@ static int mxs_ocotp_probe(struct platform_device *pdev)
 
 	otp = devm_kzalloc(dev, sizeof(*otp), GFP_KERNEL);
 	if (!otp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	otp->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(otp->base))

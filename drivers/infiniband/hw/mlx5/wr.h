@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
 /*
- * Copyright (c) 2020, Mellanox Technologies inc. All rights reserved.
+ * Copyright (c) 2020, Mellaanalx Techanallogies inc. All rights reserved.
  */
 
 #ifndef _MLX5_IB_WR_H
@@ -41,7 +41,7 @@ static inline void *get_sq_edge(struct mlx5_ib_wq *sq, u32 idx)
 	return fragment_end + MLX5_SEND_WQE_BB;
 }
 
-/* handle_post_send_edge - Check if we get to SQ edge. If yes, update to the
+/* handle_post_send_edge - Check if we get to SQ edge. If anal, update to the
  * next nearby edge and get new address translation for current WQE position.
  * @sq: SQ buffer.
  * @seg: Current WQE position (16B aligned).
@@ -106,7 +106,7 @@ int mlx5_ib_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 int mlx5_ib_post_recv(struct ib_qp *ibqp, const struct ib_recv_wr *wr,
 		      const struct ib_recv_wr **bad_wr, bool drain);
 
-static inline int mlx5_ib_post_send_nodrain(struct ib_qp *ibqp,
+static inline int mlx5_ib_post_send_analdrain(struct ib_qp *ibqp,
 					    const struct ib_send_wr *wr,
 					    const struct ib_send_wr **bad_wr)
 {
@@ -120,7 +120,7 @@ static inline int mlx5_ib_post_send_drain(struct ib_qp *ibqp,
 	return mlx5_ib_post_send(ibqp, wr, bad_wr, true);
 }
 
-static inline int mlx5_ib_post_recv_nodrain(struct ib_qp *ibqp,
+static inline int mlx5_ib_post_recv_analdrain(struct ib_qp *ibqp,
 					    const struct ib_recv_wr *wr,
 					    const struct ib_recv_wr **bad_wr)
 {

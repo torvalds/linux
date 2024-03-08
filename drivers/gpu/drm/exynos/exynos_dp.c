@@ -27,13 +27,13 @@
 #include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_simple_kms_helper.h>
-#include <drm/exynos_drm.h>
+#include <drm/exyanals_drm.h>
 
-#include "exynos_drm_crtc.h"
+#include "exyanals_drm_crtc.h"
 
-#define to_dp(nm)	container_of(nm, struct exynos_dp_device, nm)
+#define to_dp(nm)	container_of(nm, struct exyanals_dp_device, nm)
 
-struct exynos_dp_device {
+struct exyanals_dp_device {
 	struct drm_encoder         encoder;
 	struct drm_connector       *connector;
 	struct drm_bridge          *ptn_bridge;
@@ -45,34 +45,34 @@ struct exynos_dp_device {
 	struct analogix_dp_plat_data plat_data;
 };
 
-static int exynos_dp_crtc_clock_enable(struct analogix_dp_plat_data *plat_data,
+static int exyanals_dp_crtc_clock_enable(struct analogix_dp_plat_data *plat_data,
 				bool enable)
 {
-	struct exynos_dp_device *dp = to_dp(plat_data);
+	struct exyanals_dp_device *dp = to_dp(plat_data);
 	struct drm_encoder *encoder = &dp->encoder;
 
 	if (!encoder->crtc)
 		return -EPERM;
 
-	exynos_drm_pipe_clk_enable(to_exynos_crtc(encoder->crtc), enable);
+	exyanals_drm_pipe_clk_enable(to_exyanals_crtc(encoder->crtc), enable);
 
 	return 0;
 }
 
-static int exynos_dp_poweron(struct analogix_dp_plat_data *plat_data)
+static int exyanals_dp_poweron(struct analogix_dp_plat_data *plat_data)
 {
-	return exynos_dp_crtc_clock_enable(plat_data, true);
+	return exyanals_dp_crtc_clock_enable(plat_data, true);
 }
 
-static int exynos_dp_poweroff(struct analogix_dp_plat_data *plat_data)
+static int exyanals_dp_poweroff(struct analogix_dp_plat_data *plat_data)
 {
-	return exynos_dp_crtc_clock_enable(plat_data, false);
+	return exyanals_dp_crtc_clock_enable(plat_data, false);
 }
 
-static int exynos_dp_get_modes(struct analogix_dp_plat_data *plat_data,
+static int exyanals_dp_get_modes(struct analogix_dp_plat_data *plat_data,
 			       struct drm_connector *connector)
 {
-	struct exynos_dp_device *dp = to_dp(plat_data);
+	struct exyanals_dp_device *dp = to_dp(plat_data);
 	struct drm_display_mode *mode;
 	int num_modes = 0;
 
@@ -97,11 +97,11 @@ static int exynos_dp_get_modes(struct analogix_dp_plat_data *plat_data,
 	return num_modes + 1;
 }
 
-static int exynos_dp_bridge_attach(struct analogix_dp_plat_data *plat_data,
+static int exyanals_dp_bridge_attach(struct analogix_dp_plat_data *plat_data,
 				   struct drm_bridge *bridge,
 				   struct drm_connector *connector)
 {
-	struct exynos_dp_device *dp = to_dp(plat_data);
+	struct exyanals_dp_device *dp = to_dp(plat_data);
 	int ret;
 
 	dp->connector = connector;
@@ -117,28 +117,28 @@ static int exynos_dp_bridge_attach(struct analogix_dp_plat_data *plat_data,
 	return 0;
 }
 
-static void exynos_dp_mode_set(struct drm_encoder *encoder,
+static void exyanals_dp_mode_set(struct drm_encoder *encoder,
 			       struct drm_display_mode *mode,
 			       struct drm_display_mode *adjusted_mode)
 {
 }
 
-static void exynos_dp_nop(struct drm_encoder *encoder)
+static void exyanals_dp_analp(struct drm_encoder *encoder)
 {
-	/* do nothing */
+	/* do analthing */
 }
 
-static const struct drm_encoder_helper_funcs exynos_dp_encoder_helper_funcs = {
-	.mode_set = exynos_dp_mode_set,
-	.enable = exynos_dp_nop,
-	.disable = exynos_dp_nop,
+static const struct drm_encoder_helper_funcs exyanals_dp_encoder_helper_funcs = {
+	.mode_set = exyanals_dp_mode_set,
+	.enable = exyanals_dp_analp,
+	.disable = exyanals_dp_analp,
 };
 
-static int exynos_dp_dt_parse_panel(struct exynos_dp_device *dp)
+static int exyanals_dp_dt_parse_panel(struct exyanals_dp_device *dp)
 {
 	int ret;
 
-	ret = of_get_videomode(dp->dev->of_node, &dp->vm, OF_USE_NATIVE_MODE);
+	ret = of_get_videomode(dp->dev->of_analde, &dp->vm, OF_USE_NATIVE_MODE);
 	if (ret) {
 		DRM_DEV_ERROR(dp->dev,
 			      "failed: of_get_videomode() : %d\n", ret);
@@ -147,9 +147,9 @@ static int exynos_dp_dt_parse_panel(struct exynos_dp_device *dp)
 	return 0;
 }
 
-static int exynos_dp_bind(struct device *dev, struct device *master, void *data)
+static int exyanals_dp_bind(struct device *dev, struct device *master, void *data)
 {
-	struct exynos_dp_device *dp = dev_get_drvdata(dev);
+	struct exyanals_dp_device *dp = dev_get_drvdata(dev);
 	struct drm_encoder *encoder = &dp->encoder;
 	struct drm_device *drm_dev = data;
 	int ret;
@@ -157,16 +157,16 @@ static int exynos_dp_bind(struct device *dev, struct device *master, void *data)
 	dp->drm_dev = drm_dev;
 
 	if (!dp->plat_data.panel && !dp->ptn_bridge) {
-		ret = exynos_dp_dt_parse_panel(dp);
+		ret = exyanals_dp_dt_parse_panel(dp);
 		if (ret)
 			return ret;
 	}
 
 	drm_simple_encoder_init(drm_dev, encoder, DRM_MODE_ENCODER_TMDS);
 
-	drm_encoder_helper_add(encoder, &exynos_dp_encoder_helper_funcs);
+	drm_encoder_helper_add(encoder, &exyanals_dp_encoder_helper_funcs);
 
-	ret = exynos_drm_set_possible_crtcs(encoder, EXYNOS_DISPLAY_TYPE_LCD);
+	ret = exyanals_drm_set_possible_crtcs(encoder, EXYANALS_DISPLAY_TYPE_LCD);
 	if (ret < 0)
 		return ret;
 
@@ -179,33 +179,33 @@ static int exynos_dp_bind(struct device *dev, struct device *master, void *data)
 	return ret;
 }
 
-static void exynos_dp_unbind(struct device *dev, struct device *master,
+static void exyanals_dp_unbind(struct device *dev, struct device *master,
 			     void *data)
 {
-	struct exynos_dp_device *dp = dev_get_drvdata(dev);
+	struct exyanals_dp_device *dp = dev_get_drvdata(dev);
 
 	analogix_dp_unbind(dp->adp);
 	dp->encoder.funcs->destroy(&dp->encoder);
 }
 
-static const struct component_ops exynos_dp_ops = {
-	.bind	= exynos_dp_bind,
-	.unbind	= exynos_dp_unbind,
+static const struct component_ops exyanals_dp_ops = {
+	.bind	= exyanals_dp_bind,
+	.unbind	= exyanals_dp_unbind,
 };
 
-static int exynos_dp_probe(struct platform_device *pdev)
+static int exyanals_dp_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np;
-	struct exynos_dp_device *dp;
+	struct device_analde *np;
+	struct exyanals_dp_device *dp;
 	struct drm_panel *panel;
 	struct drm_bridge *bridge;
 	int ret;
 
-	dp = devm_kzalloc(&pdev->dev, sizeof(struct exynos_dp_device),
+	dp = devm_kzalloc(&pdev->dev, sizeof(struct exyanals_dp_device),
 			  GFP_KERNEL);
 	if (!dp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dp->dev = dev;
 	/*
@@ -216,28 +216,28 @@ static int exynos_dp_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, dp);
 
 	/* This is for the backward compatibility. */
-	np = of_parse_phandle(dev->of_node, "panel", 0);
+	np = of_parse_phandle(dev->of_analde, "panel", 0);
 	if (np) {
 		dp->plat_data.panel = of_drm_find_panel(np);
 
-		of_node_put(np);
+		of_analde_put(np);
 		if (IS_ERR(dp->plat_data.panel))
 			return PTR_ERR(dp->plat_data.panel);
 
 		goto out;
 	}
 
-	ret = drm_of_find_panel_or_bridge(dev->of_node, 0, 0, &panel, &bridge);
+	ret = drm_of_find_panel_or_bridge(dev->of_analde, 0, 0, &panel, &bridge);
 	if (ret)
 		return ret;
 
 	/* The remote port can be either a panel or a bridge */
 	dp->plat_data.panel = panel;
-	dp->plat_data.dev_type = EXYNOS_DP;
-	dp->plat_data.power_on_start = exynos_dp_poweron;
-	dp->plat_data.power_off = exynos_dp_poweroff;
-	dp->plat_data.attach = exynos_dp_bridge_attach;
-	dp->plat_data.get_modes = exynos_dp_get_modes;
+	dp->plat_data.dev_type = EXYANALS_DP;
+	dp->plat_data.power_on_start = exyanals_dp_poweron;
+	dp->plat_data.power_off = exyanals_dp_poweroff;
+	dp->plat_data.attach = exyanals_dp_bridge_attach;
+	dp->plat_data.get_modes = exyanals_dp_get_modes;
 	dp->plat_data.skip_connector = !!bridge;
 
 	dp->ptn_bridge = bridge;
@@ -247,48 +247,48 @@ out:
 	if (IS_ERR(dp->adp))
 		return PTR_ERR(dp->adp);
 
-	return component_add(&pdev->dev, &exynos_dp_ops);
+	return component_add(&pdev->dev, &exyanals_dp_ops);
 }
 
-static void exynos_dp_remove(struct platform_device *pdev)
+static void exyanals_dp_remove(struct platform_device *pdev)
 {
-	struct exynos_dp_device *dp = platform_get_drvdata(pdev);
+	struct exyanals_dp_device *dp = platform_get_drvdata(pdev);
 
-	component_del(&pdev->dev, &exynos_dp_ops);
+	component_del(&pdev->dev, &exyanals_dp_ops);
 	analogix_dp_remove(dp->adp);
 }
 
-static int exynos_dp_suspend(struct device *dev)
+static int exyanals_dp_suspend(struct device *dev)
 {
-	struct exynos_dp_device *dp = dev_get_drvdata(dev);
+	struct exyanals_dp_device *dp = dev_get_drvdata(dev);
 
 	return analogix_dp_suspend(dp->adp);
 }
 
-static int exynos_dp_resume(struct device *dev)
+static int exyanals_dp_resume(struct device *dev)
 {
-	struct exynos_dp_device *dp = dev_get_drvdata(dev);
+	struct exyanals_dp_device *dp = dev_get_drvdata(dev);
 
 	return analogix_dp_resume(dp->adp);
 }
 
-static DEFINE_RUNTIME_DEV_PM_OPS(exynos_dp_pm_ops, exynos_dp_suspend,
-				 exynos_dp_resume, NULL);
+static DEFINE_RUNTIME_DEV_PM_OPS(exyanals_dp_pm_ops, exyanals_dp_suspend,
+				 exyanals_dp_resume, NULL);
 
-static const struct of_device_id exynos_dp_match[] = {
-	{ .compatible = "samsung,exynos5-dp" },
+static const struct of_device_id exyanals_dp_match[] = {
+	{ .compatible = "samsung,exyanals5-dp" },
 	{},
 };
-MODULE_DEVICE_TABLE(of, exynos_dp_match);
+MODULE_DEVICE_TABLE(of, exyanals_dp_match);
 
 struct platform_driver dp_driver = {
-	.probe		= exynos_dp_probe,
-	.remove_new	= exynos_dp_remove,
+	.probe		= exyanals_dp_probe,
+	.remove_new	= exyanals_dp_remove,
 	.driver		= {
-		.name	= "exynos-dp",
+		.name	= "exyanals-dp",
 		.owner	= THIS_MODULE,
-		.pm	= pm_ptr(&exynos_dp_pm_ops),
-		.of_match_table = exynos_dp_match,
+		.pm	= pm_ptr(&exyanals_dp_pm_ops),
+		.of_match_table = exyanals_dp_match,
 	},
 };
 

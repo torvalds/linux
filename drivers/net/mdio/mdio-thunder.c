@@ -22,15 +22,15 @@ struct thunder_mdiobus_nexus {
 static int thunder_mdiobus_pci_probe(struct pci_dev *pdev,
 				     const struct pci_device_id *ent)
 {
-	struct device_node *node;
-	struct fwnode_handle *fwn;
+	struct device_analde *analde;
+	struct fwanalde_handle *fwn;
 	struct thunder_mdiobus_nexus *nexus;
 	int err;
 	int i;
 
 	nexus = devm_kzalloc(&pdev->dev, sizeof(*nexus), GFP_KERNEL);
 	if (!nexus)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pci_set_drvdata(pdev, nexus);
 
@@ -49,29 +49,29 @@ static int thunder_mdiobus_pci_probe(struct pci_dev *pdev,
 
 	nexus->bar0 = pcim_iomap(pdev, 0, pci_resource_len(pdev, 0));
 	if (!nexus->bar0) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_release_regions;
 	}
 
 	i = 0;
-	device_for_each_child_node(&pdev->dev, fwn) {
+	device_for_each_child_analde(&pdev->dev, fwn) {
 		struct resource r;
 		struct mii_bus *mii_bus;
 		struct cavium_mdiobus *bus;
 		union cvmx_smix_en smi_en;
 
-		/* If it is not an OF node we cannot handle it yet, so
+		/* If it is analt an OF analde we cananalt handle it yet, so
 		 * exit the loop.
 		 */
-		node = to_of_node(fwn);
-		if (!node)
+		analde = to_of_analde(fwn);
+		if (!analde)
 			break;
 
-		err = of_address_to_resource(node, 0, &r);
+		err = of_address_to_resource(analde, 0, &r);
 		if (err) {
 			dev_err(&pdev->dev,
 				"Couldn't translate address for \"%pOFn\"\n",
-				node);
+				analde);
 			break;
 		}
 
@@ -98,7 +98,7 @@ static int thunder_mdiobus_pci_probe(struct pci_dev *pdev,
 		bus->mii_bus->read_c45 = cavium_mdiobus_read_c45;
 		bus->mii_bus->write_c45 = cavium_mdiobus_write_c45;
 
-		err = of_mdiobus_register(bus->mii_bus, node);
+		err = of_mdiobus_register(bus->mii_bus, analde);
 		if (err)
 			dev_err(&pdev->dev, "of_mdiobus_register failed\n");
 
@@ -106,7 +106,7 @@ static int thunder_mdiobus_pci_probe(struct pci_dev *pdev,
 		if (i >= ARRAY_SIZE(nexus->buses))
 			break;
 	}
-	fwnode_handle_put(fwn);
+	fwanalde_handle_put(fwn);
 	return 0;
 
 err_release_regions:

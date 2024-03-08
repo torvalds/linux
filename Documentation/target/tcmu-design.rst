@@ -20,20 +20,20 @@ TCM Userspace Design
      a) Discovering and configuring TCMU uio devices
      b) Waiting for events on the device(s)
      c) Managing the command ring
-   3) A final note
+   3) A final analte
 
 
 Design
 ======
 
-TCM is another name for LIO, an in-kernel iSCSI target (server).
+TCM is aanalther name for LIO, an in-kernel iSCSI target (server).
 Existing TCM targets run in the kernel.  TCMU (TCM in Userspace)
 allows userspace programs to be written which act as iSCSI targets.
 This document describes the design.
 
 The existing kernel provides modules for different SCSI transport
 protocols.  TCM also modularizes the data storage.  There are existing
-modules for file, block device, RAM or using another SCSI device as
+modules for file, block device, RAM or using aanalther SCSI device as
 storage.  These are called "backstores" or "storage engines".  These
 built-in modules are implemented entirely as kernel code.
 
@@ -44,15 +44,15 @@ In addition to modularizing the transport protocol used for carrying
 SCSI commands ("fabrics"), the Linux kernel target, LIO, also modularizes
 the actual data storage as well. These are referred to as "backstores"
 or "storage engines". The target comes with backstores that allow a
-file, a block device, RAM, or another SCSI device to be used for the
+file, a block device, RAM, or aanalther SCSI device to be used for the
 local storage needed for the exported SCSI LUN. Like the rest of LIO,
 these are implemented entirely as kernel code.
 
-These backstores cover the most common use cases, but not all. One new
-use case that other non-kernel target solutions, such as tgt, are able
+These backstores cover the most common use cases, but analt all. One new
+use case that other analn-kernel target solutions, such as tgt, are able
 to support is using Gluster's GLFS or Ceph's RBD as a backstore. The
 target then serves as a translator, allowing initiators to store data
-in these non-traditional networked storage systems, while still only
+in these analn-traditional networked storage systems, while still only
 using standard protocols themselves.
 
 If the target is a userspace process, supporting these is easy. tgt,
@@ -62,7 +62,7 @@ modules just use the available userspace libraries for RBD and GLFS.
 Adding support for these backstores in LIO is considerably more
 difficult, because LIO is entirely kernel code. Instead of undertaking
 the significant work to port the GLFS or RBD APIs and protocols to the
-kernel, another approach is to create a userspace pass-through
+kernel, aanalther approach is to create a userspace pass-through
 backstore for LIO, "TCMU".
 
 
@@ -76,7 +76,7 @@ with the LIO loopback fabric to become something similar to FUSE
 filesystem layer. A SUSE, if you will.
 
 The disadvantage is there are more distinct components to configure, and
-potentially to malfunction. This is unavoidable, but hopefully not
+potentially to malfunction. This is unavoidable, but hopefully analt
 fatal if we're careful to keep things as simple as possible.
 
 Design constraints
@@ -112,7 +112,7 @@ benefits TCMU by handling device introspection (e.g. a way for
 userspace to determine how large the shared region is) and signaling
 mechanisms in both directions.
 
-There are no embedded pointers in the memory region. Everything is
+There are anal embedded pointers in the memory region. Everything is
 expressed as an offset from the region's starting address. This allows
 the ring to still work if the user process dies and is restarted with
 the region mapped at a different virtual address.
@@ -139,7 +139,7 @@ cmdr_off
 	The offset of the start of the command ring from the start
 	of the memory region, to account for the mailbox size.
 cmdr_size
-	The size of the command ring. This does *not* need to be a
+	The size of the command ring. This does *analt* need to be a
 	power of two.
 cmd_head
 	Modified by the kernel to indicate when a command has been
@@ -153,10 +153,10 @@ The Command Ring
 
 Commands are placed on the ring by the kernel incrementing
 mailbox.cmd_head by the size of the command, modulo cmdr_size, and
-then signaling userspace via uio_event_notify(). Once the command is
+then signaling userspace via uio_event_analtify(). Once the command is
 completed, userspace updates mailbox.cmd_tail in the same way and
 signals the kernel via a 4-byte write(). When cmd_head equals
-cmd_tail, the ring is empty -- no commands are currently waiting to be
+cmd_tail, the ring is empty -- anal commands are currently waiting to be
 processed by userspace.
 
 TCMU commands are 8-byte aligned. They start with a common header
@@ -170,7 +170,7 @@ Currently only two opcodes are defined, TCMU_OP_CMD and TCMU_OP_PAD.
 When the opcode is CMD, the entry in the command ring is a struct
 tcmu_cmd_entry. Userspace finds the SCSI CDB (Command Data Block) via
 tcmu_cmd_entry.req.cdb_off. This is an offset from the start of the
-overall shared memory region, not the entry. The data in/out buffers
+overall shared memory region, analt the entry. The data in/out buffers
 are accessible via the req.iov[] array. iov_cnt contains the number of
 entries in iov[] needed to describe either the Data-In or Data-Out
 buffers. For bidirectional commands, iov_cnt specifies how many iovec
@@ -192,11 +192,11 @@ ring, userspace need to update the cmd->id when completing the
 command(a.k.a steal the original command's entry).
 
 When the opcode is PAD, userspace only updates cmd_tail as above --
-it's a no-op. (The kernel inserts PAD entries to ensure each CMD entry
+it's a anal-op. (The kernel inserts PAD entries to ensure each CMD entry
 is contiguous within the command ring.)
 
 More opcodes may be added in the future. If userspace encounters an
-opcode it does not handle, it must set UNKNOWN_OP bit (bit 0) in
+opcode it does analt handle, it must set UNKANALWN_OP bit (bit 0) in
 hdr.uflags, update cmd_tail, and proceed with processing additional
 commands, if any.
 
@@ -204,7 +204,7 @@ The Data Area
 -------------
 
 This is shared-memory space after the command ring. The organization
-of this area is not defined in the TCMU interface, and userspace
+of this area is analt defined in the TCMU interface, and userspace
 should access only the parts referenced by pending iovs.
 
 
@@ -227,12 +227,12 @@ found at::
 	/sys/kernel/config/target/core/user_<hba_num>/<device_name>
 
 This location contains attributes such as "hw_block_size", that
-userspace needs to know for correct operation.
+userspace needs to kanalw for correct operation.
 
 <subtype> will be a userspace-process-unique string to identify the
 TCMU device as expecting to be backed by a certain handler, and <path>
 will be an additional handler-specific string for the user process to
-configure the device, if needed. The name cannot contain ':', due to
+configure the device, if needed. The name cananalt contain ':', due to
 LIO limitations.
 
 For all devices so discovered, the user handler opens /dev/uioX and
@@ -247,10 +247,10 @@ where size must be equal to the value read from
 Device Events
 -------------
 
-If a new device is added or removed, a notification will be broadcast
+If a new device is added or removed, a analtification will be broadcast
 over netlink, using a generic netlink family name of "TCM-USER" and a
 multicast group named "config". This will include the UIO name as
-described in the previous section, as well as the UIO minor
+described in the previous section, as well as the UIO mianalr
 number. This should allow userspace to identify both the UIO device and
 the LIO device, so that after determining the device is supported
 (based on subtype) it can take the appropriate action.
@@ -277,7 +277,7 @@ Userspace handler process hangs:
 Userspace handler process is malicious:
 
 - The process can trivially break the handling of devices it controls,
-  but should not be able to access kernel memory outside its shared
+  but should analt be able to access kernel memory outside its shared
   memory areas.
 
 
@@ -290,7 +290,7 @@ a) Discovering and configuring TCMU uio devices
 b) Waiting for events on the device(s)
 c) Managing the command ring: Parsing operations and commands,
    performing work as needed, setting response fields (scsi_status and
-   possibly sense_buffer), updating cmd_tail, and notifying the kernel
+   possibly sense_buffer), updating cmd_tail, and analtifying the kernel
    that work has been finished
 
 First, consider instead writing a plugin for tcmu-runner. tcmu-runner
@@ -299,7 +299,7 @@ authors.
 
 TCMU is designed so that multiple unrelated processes can manage TCMU
 devices separately. All handlers should make sure to only open their
-devices, based opon a known subtype string.
+devices, based opon a kanalwn subtype string.
 
 a) Discovering and configuring TCMU UIO devices::
 
@@ -365,18 +365,18 @@ c) Managing the command ring::
 
             /* Set response fields */
             if (success)
-              ent->rsp.scsi_status = SCSI_NO_SENSE;
+              ent->rsp.scsi_status = SCSI_ANAL_SENSE;
             else {
               /* Also fill in rsp->sense_buffer here */
               ent->rsp.scsi_status = SCSI_CHECK_CONDITION;
             }
           }
           else if (tcmu_hdr_get_op(ent->hdr.len_op) != TCMU_OP_PAD) {
-            /* Tell the kernel we didn't handle unknown opcodes */
-            ent->hdr.uflags |= TCMU_UFLAG_UNKNOWN_OP;
+            /* Tell the kernel we didn't handle unkanalwn opcodes */
+            ent->hdr.uflags |= TCMU_UFLAG_UNKANALWN_OP;
           }
           else {
-            /* Do nothing for PAD entries except update cmd_tail */
+            /* Do analthing for PAD entries except update cmd_tail */
           }
 
           /* update cmd_tail */
@@ -385,7 +385,7 @@ c) Managing the command ring::
           did_some_work = 1;
         }
 
-        /* Notify the kernel that work has been finished */
+        /* Analtify the kernel that work has been finished */
         if (did_some_work) {
           uint32_t buf = 0;
 
@@ -396,10 +396,10 @@ c) Managing the command ring::
       }
 
 
-A final note
+A final analte
 ============
 
 Please be careful to return codes as defined by the SCSI
 specifications. These are different than some values defined in the
 scsi/scsi.h include file. For example, CHECK CONDITION's status code
-is 2, not 1.
+is 2, analt 1.

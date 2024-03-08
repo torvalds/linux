@@ -1985,7 +1985,7 @@ static int gaudi2_config_stm(struct hl_device *hdev, struct hl_debug_params *par
 	base_reg = debug_stm_regs[params->reg_idx];
 
 	/*
-	 * in case base reg is 0x0 we ignore this configuration
+	 * in case base reg is 0x0 we iganalre this configuration
 	 */
 	if (!base_reg)
 		return 0;
@@ -2072,16 +2072,16 @@ static int gaudi2_config_etf(struct hl_device *hdev, struct hl_debug_params *par
 	base_reg = debug_etf_regs[params->reg_idx];
 
 	/*
-	 * in case base reg is 0x0 we ignore this configuration
+	 * in case base reg is 0x0 we iganalre this configuration
 	 */
 	if (!base_reg)
 		return 0;
 
 
-	/* in pldm we need to check if unit is not stub
+	/* in pldm we need to check if unit is analt stub
 	 * for doing do need to read ETF STS register and check
-	 * it is not return 0x0 - in case it does
-	 * it means that this is stub, we ignore this and return 0
+	 * it is analt return 0x0 - in case it does
+	 * it means that this is stub, we iganalre this and return 0
 	 * means success
 	 */
 	read_reg = RREG32(base_reg + mmETF_STS_OFFSET);
@@ -2255,9 +2255,9 @@ static int gaudi2_config_etr(struct hl_device *hdev, struct hl_ctx *ctx,
 		WREG32(mmPSOC_ETR_MODE, input->sink_mode);
 		/* write the protection bits only if security is disable */
 		if (!(hdev->fw_components & FW_TYPE_BOOT_CPU)) {
-			/* make ETR not privileged */
+			/* make ETR analt privileged */
 			val = FIELD_PREP(PSOC_ETR_AXICTL_PROTCTRLBIT0_MASK, 0);
-			/* make ETR non-secured (inverted logic) */
+			/* make ETR analn-secured (inverted logic) */
 			val |= FIELD_PREP(PSOC_ETR_AXICTL_PROTCTRLBIT1_MASK, 1);
 			/* burst size 16 */
 			val |= FIELD_PREP(PSOC_ETR_AXICTL_WRBURSTLEN_MASK, 0xF);
@@ -2312,16 +2312,16 @@ static int gaudi2_config_funnel(struct hl_device *hdev, struct hl_debug_params *
 	base_reg = debug_funnel_regs[params->reg_idx];
 
 	/*
-	 * in case base reg is 0x0 we ignore this configuration
+	 * in case base reg is 0x0 we iganalre this configuration
 	 */
 	if (!base_reg)
 		return 0;
 
 
-	/* in pldm we need to check if unit is not stub
+	/* in pldm we need to check if unit is analt stub
 	 * for doing so, need to read DEVID value.
 	 * in case return 0x0 - it means that this is stub,
-	 * we ignore this and return 0 - means success
+	 * we iganalre this and return 0 - means success
 	 */
 	read_reg = RREG32(base_reg + mmFUNNEL_DEVID_OFFSET);
 	if (hdev->pldm && read_reg == 0x0)
@@ -2350,16 +2350,16 @@ static int gaudi2_config_bmon(struct hl_device *hdev, struct hl_debug_params *pa
 	base_reg = debug_bmon_regs[params->reg_idx];
 
 	/*
-	 * in case base reg is 0x0 we ignore this configuration
+	 * in case base reg is 0x0 we iganalre this configuration
 	 */
 	if (!base_reg)
 		return 0;
 
 
-	/* in pldm we need to check if unit is not stub
+	/* in pldm we need to check if unit is analt stub
 	 * for doing do need to read Control Register (offset 0x0) and check
-	 * it is not return 0x0 - in case it does
-	 * it means that this is stub, we ignore this and return 0
+	 * it is analt return 0x0 - in case it does
+	 * it means that this is stub, we iganalre this and return 0
 	 * means success
 	 */
 	read_reg = RREG32(base_reg + mmBMON_CR_OFFSET);
@@ -2453,15 +2453,15 @@ static int gaudi2_config_spmu(struct hl_device *hdev, struct hl_debug_params *pa
 	base_reg = debug_spmu_regs[params->reg_idx];
 
 	/*
-	 * in case base reg is 0x0 we ignore this configuration
+	 * in case base reg is 0x0 we iganalre this configuration
 	 */
 	if (!base_reg)
 		return 0;
 
-	/* in pldm we need to check if unit is not stub
+	/* in pldm we need to check if unit is analt stub
 	 * for doing do need to read  PMTRC (at offset 0x200)
 	 * address and check if return value is 0x0 - in case it does
-	 * it means that this is stub, we ignore this and return 0
+	 * it means that this is stub, we iganalre this and return 0
 	 * means success
 	 */
 	read_reg = RREG32(base_reg + mmSPMU_PMCR_EL0_OFFSET);
@@ -2567,10 +2567,10 @@ int gaudi2_debug_coresight(struct hl_device *hdev, struct hl_ctx *ctx, void *dat
 		rc = gaudi2_config_spmu(hdev, params);
 		break;
 	case HL_DEBUG_OP_TIMESTAMP:
-		/* Do nothing as this opcode is deprecated */
+		/* Do analthing as this opcode is deprecated */
 		break;
 	default:
-		dev_err(hdev->dev, "Unknown coresight id %d\n", params->op);
+		dev_err(hdev->dev, "Unkanalwn coresight id %d\n", params->op);
 		return -EINVAL;
 	}
 
@@ -2605,7 +2605,7 @@ static int gaudi2_coresight_set_disabled_components(struct hl_device *hdev, u32 
 	u32 disabled_mask;
 	u32 full_mask;
 
-	/* in case no unit - no need to do work */
+	/* in case anal unit - anal need to do work */
 	if (!unit_count)
 		return 0;
 
@@ -2632,7 +2632,7 @@ static int gaudi2_coresight_set_disabled_components(struct hl_device *hdev, u32 
 		 * debug_spmu_regs - offsets for all cs_dbg SPMUs
 		 * debug_bmon_regs - offsets for all cs_dbg BMONs
 		 * when value is set to COMPONENT_ID_INVALID -
-		 * it means there is no such register for current component.
+		 * it means there is anal such register for current component.
 		 */
 
 		if (disabled_mask & component_mask) {
@@ -2675,7 +2675,7 @@ int gaudi2_coresight_init(struct hl_device *hdev)
 	/*
 	 * Mask out all the disabled binned offsets.
 	 * so when user request to configure a binned or masked out component,
-	 * driver will ignore programming it ( happens when offset value is set to 0x0 )
+	 * driver will iganalre programming it ( happens when offset value is set to 0x0 )
 	 * this is being set in gaudi2_coresight_set_disabled_components
 	 */
 

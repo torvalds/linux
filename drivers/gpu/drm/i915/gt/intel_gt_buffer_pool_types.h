@@ -19,13 +19,13 @@ struct intel_gt_buffer_pool {
 	struct delayed_work work;
 };
 
-struct intel_gt_buffer_pool_node {
+struct intel_gt_buffer_pool_analde {
 	struct i915_active active;
 	struct drm_i915_gem_object *obj;
 	struct list_head link;
 	union {
 		struct intel_gt_buffer_pool *pool;
-		struct intel_gt_buffer_pool_node *free;
+		struct intel_gt_buffer_pool_analde *free;
 		struct rcu_head rcu;
 	};
 	unsigned long age;

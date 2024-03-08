@@ -8,11 +8,11 @@ Introduction
 Memblock is a boot time memory allocator[1] that manages memory regions before
 the actual memory management is initialized. Its APIs allow to register physical
 memory regions, mark them as available or reserved, allocate a block of memory
-within the requested range and/or in specific NUMA node, and many more.
+within the requested range and/or in specific NUMA analde, and many more.
 
 Because it is used so early in the booting process, testing and debugging it is
 difficult. This test suite, usually referred as memblock simulator, is
-an attempt at testing the memblock mechanism. It runs one monolithic test that
+an attempt at testing the memblock mechanism. It runs one moanallithic test that
 consist of a series of checks that exercise both the basic operations and
 allocation functionalities of memblock. The main data structure of the boot time
 memory allocator is initialized at the build time, so the checks here reuse its
@@ -33,7 +33,7 @@ To run the tests, build the main target and run it:
 
 $ make && ./main
 
-A successful run produces no output. It is possible to control the behavior
+A successful run produces anal output. It is possible to control the behavior
 by passing options from command line. For example, to include verbose output,
 append the `-v` options when you run the tests:
 
@@ -74,7 +74,7 @@ memblock
 |-- Makefile                     `- test runner
 |-- README
 |-- TODO
-|-- .gitignore
+|-- .gitiganalre
 
 Simulating physical memory
 ==========================
@@ -97,14 +97,14 @@ int memblock_alloc_foo_checks(void)
 	dummy_physical_memory_cleanup(); /* free the memory */
 }
 
-There's no need to explicitly free the dummy memory from memblock via
+There's anal need to explicitly free the dummy memory from memblock via
 memblock_free() call. The entry will be erased by reset_memblock_regions(),
 called at the beginning of each test.
 
-Known issues
+Kanalwn issues
 ============
 
-1. Requesting a specific NUMA node via memblock_alloc_node() does not work as
+1. Requesting a specific NUMA analde via memblock_alloc_analde() does analt work as
    intended. Once the fix is in place, tests for this function can be added.
 
 2. Tests for memblock_alloc_low() can't be easily implemented. The function uses

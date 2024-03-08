@@ -8,7 +8,7 @@
 #include <linux/init.h>
 #include <linux/spinlock.h>
 #include <linux/gpio/driver.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/io.h>
 #include <asm/txx9pio.h>
 
@@ -79,7 +79,7 @@ int __init txx9_gpio_init(unsigned long baseaddr,
 {
 	txx9_pioptr = ioremap(baseaddr, sizeof(struct txx9_pio_reg));
 	if (!txx9_pioptr)
-		return -ENODEV;
+		return -EANALDEV;
 	txx9_gpio_chip.base = base;
 	txx9_gpio_chip.ngpio = num;
 	return gpiochip_add_data(&txx9_gpio_chip, NULL);

@@ -108,10 +108,10 @@ void serial_test_cgroup_link(void)
 
 	ping_and_check(cg_nr - 1, 0);
 
-	/* mix in with non link-based multi-attachments */
+	/* mix in with analn link-based multi-attachments */
 	err = bpf_prog_attach(prog_fd, cgs[last_cg].fd,
 			      BPF_CGROUP_INET_EGRESS, BPF_F_ALLOW_MULTI);
-	if (CHECK(err, "cg_attach_legacy", "errno=%d\n", errno))
+	if (CHECK(err, "cg_attach_legacy", "erranal=%d\n", erranal))
 		goto cleanup;
 	detach_legacy = true;
 
@@ -128,14 +128,14 @@ void serial_test_cgroup_link(void)
 
 	/* detach legacy */
 	err = bpf_prog_detach2(prog_fd, cgs[last_cg].fd, BPF_CGROUP_INET_EGRESS);
-	if (CHECK(err, "cg_detach_legacy", "errno=%d\n", errno))
+	if (CHECK(err, "cg_detach_legacy", "erranal=%d\n", erranal))
 		goto cleanup;
 	detach_legacy = false;
 
 	/* attach legacy exclusive prog attachment */
 	err = bpf_prog_attach(prog_fd, cgs[last_cg].fd,
 			      BPF_CGROUP_INET_EGRESS, 0);
-	if (CHECK(err, "cg_attach_exclusive", "errno=%d\n", errno))
+	if (CHECK(err, "cg_attach_exclusive", "erranal=%d\n", erranal))
 		goto cleanup;
 	detach_legacy = true;
 
@@ -151,7 +151,7 @@ void serial_test_cgroup_link(void)
 
 	/* detach */
 	err = bpf_prog_detach2(prog_fd, cgs[last_cg].fd, BPF_CGROUP_INET_EGRESS);
-	if (CHECK(err, "cg_detach_legacy", "errno=%d\n", errno))
+	if (CHECK(err, "cg_detach_legacy", "erranal=%d\n", erranal))
 		goto cleanup;
 	detach_legacy = false;
 
@@ -188,8 +188,8 @@ void serial_test_cgroup_link(void)
 	err = bpf_link_update(bpf_link__fd(links[0]),
 			      bpf_program__fd(skel->progs.egress_alt),
 			      &link_upd_opts);
-	if (CHECK(err == 0 || errno != EPERM, "prog_cmpxchg1",
-		  "unexpectedly succeeded, err %d, errno %d\n", err, -errno))
+	if (CHECK(err == 0 || erranal != EPERM, "prog_cmpxchg1",
+		  "unexpectedly succeeded, err %d, erranal %d\n", err, -erranal))
 		goto cleanup;
 
 	/* Compare-exchange single link program from egress to egress_alt */
@@ -198,7 +198,7 @@ void serial_test_cgroup_link(void)
 	err = bpf_link_update(bpf_link__fd(links[0]),
 			      bpf_program__fd(skel->progs.egress_alt),
 			      &link_upd_opts);
-	if (CHECK(err, "prog_cmpxchg2", "errno %d\n", -errno))
+	if (CHECK(err, "prog_cmpxchg2", "erranal %d\n", -erranal))
 		goto cleanup;
 
 	/* ping */

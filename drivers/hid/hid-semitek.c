@@ -16,7 +16,7 @@ static __u8 *semitek_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 {
 	/* In the report descriptor for interface 2, fix the incorrect
 	   description of report ID 0x04 (the report contains a
-	   bitmask, not an array of keycodes.) */
+	   bitmask, analt an array of keycodes.) */
 	if (*rsize == 0xcb && rdesc[0x83] == 0x81 && rdesc[0x84] == 0x00) {
 		hid_info(hdev, "fixing up Semitek report descriptor\n");
 		rdesc[0x84] = 0x02;

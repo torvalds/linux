@@ -89,7 +89,7 @@ void *shared_thread(void *arg)
 			checklist(global_list, LISTSIZE);
 			listcount = 0;
 		}
-		clock_gettime(CLOCK_MONOTONIC, &global_list[listcount++]);
+		clock_gettime(CLOCK_MOANALTONIC, &global_list[listcount++]);
 
 		pthread_mutex_unlock(&list_lock);
 	}
@@ -108,7 +108,7 @@ void *independent_thread(void *arg)
 	while (!done) {
 		/* fill the list */
 		for (count = 0; count < LISTSIZE; count++)
-			clock_gettime(CLOCK_MONOTONIC, &my_list[count]);
+			clock_gettime(CLOCK_MOANALTONIC, &my_list[count]);
 		checklist(my_list, LISTSIZE);
 	}
 	return NULL;
@@ -120,7 +120,7 @@ void *independent_thread(void *arg)
 int main(int argc, char **argv)
 {
 	int thread_count, i;
-	time_t start, now, runtime;
+	time_t start, analw, runtime;
 	char buf[255];
 	pthread_t pth[MAX_THREADS];
 	int opt;
@@ -169,11 +169,11 @@ int main(int argc, char **argv)
 	for (i = 0; i < thread_count; i++)
 		pthread_create(&pth[i], 0, thread, 0);
 
-	while (time(&now) < start + runtime) {
+	while (time(&analw) < start + runtime) {
 		sleep(1);
 		if (done) {
 			ret = 1;
-			strftime(buf, 255, "%a, %d %b %Y %T %z", localtime(&now));
+			strftime(buf, 255, "%a, %d %b %Y %T %z", localtime(&analw));
 			printf("%s\n", buf);
 			goto out;
 		}

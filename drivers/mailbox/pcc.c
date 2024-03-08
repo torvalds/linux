@@ -7,10 +7,10 @@
  *  specification. It is a mailbox like mechanism to allow clients
  *  such as CPPC (Collaborative Processor Performance Control), RAS
  *  (Reliability, Availability and Serviceability) and MPST (Memory
- *  Node Power State Table) to talk to the platform (e.g. BMC) through
+ *  Analde Power State Table) to talk to the platform (e.g. BMC) through
  *  shared memory regions as defined in the PCC table entries. The PCC
  *  specification supports a Doorbell mechanism for the PCC clients
- *  to notify the platform about new data. This Doorbell information
+ *  to analtify the platform about new data. This Doorbell information
  *  is also specified in each PCC table entry.
  *
  *  Typical high level flow of operation is:
@@ -35,8 +35,8 @@
  *  * If command completes, then writes have succeeded and it can release
  *		the channel lock.
  *
- *  There is a Nominal latency defined for each channel which indicates
- *  how long to wait until a command completes. If command is not complete
+ *  There is a Analminal latency defined for each channel which indicates
+ *  how long to wait until a command completes. If command is analt complete
  *  the client needs to retry or assume failure.
  *
  *	For more details about PCC, please see the ACPI specification from
@@ -56,7 +56,7 @@
 #include <linux/platform_device.h>
 #include <linux/mailbox_controller.h>
 #include <linux/mailbox_client.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-analnatomic-lo-hi.h>
 #include <acpi/pcc.h>
 
 #include "mailbox.h"
@@ -85,7 +85,7 @@ struct pcc_chan_reg {
  *
  * @chan: PCC channel information with Shared Memory Region info
  * @db: PCC register bundle for the doorbell register
- * @plat_irq_ack: PCC register bundle for the platform interrupt acknowledge
+ * @plat_irq_ack: PCC register bundle for the platform interrupt ackanalwledge
  *	register
  * @cmd_complete: PCC register bundle for the command complete check register
  * @cmd_update: PCC register bundle for the command complete update register
@@ -96,9 +96,9 @@ struct pcc_chan_reg {
  * @chan_in_use: this flag is used just to check if the interrupt needs
  *		handling when it is shared. Since only one transfer can occur
  *		at a time and mailbox takes care of locking, this flag can be
- *		accessed without a lock. Note: the type only support the
+ *		accessed without a lock. Analte: the type only support the
  *		communication from OSPM to Platform, like type3, use it, and
- *		other types completely ignore it.
+ *		other types completely iganalre it.
  */
 struct pcc_chan_info {
 	struct pcc_mbox_chan chan;
@@ -260,7 +260,7 @@ static bool pcc_mbox_cmd_complete_check(struct pcc_chan_info *pchan)
 
 	/*
 	 * If this is PCC slave subspace channel, and the command complete
-	 * bit 0 indicates that Platform is sending a notification and OSPM
+	 * bit 0 indicates that Platform is sending a analtification and OSPM
 	 * needs to respond this interrupt to process this command.
 	 */
 	if (pchan->type == ACPI_PCCT_TYPE_EXT_PCC_SLAVE_SUBSPACE)
@@ -274,7 +274,7 @@ static bool pcc_mbox_cmd_complete_check(struct pcc_chan_info *pchan)
  * @irq:	interrupt number
  * @p: data/cookie passed from the caller to identify the channel
  *
- * Returns: IRQ_HANDLED if interrupt is handled or IRQ_NONE if not
+ * Returns: IRQ_HANDLED if interrupt is handled or IRQ_ANALNE if analt
  */
 static irqreturn_t pcc_mbox_irq(int irq, void *p)
 {
@@ -286,23 +286,23 @@ static irqreturn_t pcc_mbox_irq(int irq, void *p)
 	pchan = chan->con_priv;
 	if (pchan->type == ACPI_PCCT_TYPE_EXT_PCC_MASTER_SUBSPACE &&
 	    !pchan->chan_in_use)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (!pcc_mbox_cmd_complete_check(pchan))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	ret = pcc_chan_reg_read(&pchan->error, &val);
 	if (ret)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	val &= pchan->error.status_mask;
 	if (val) {
 		val &= ~pchan->error.status_mask;
 		pcc_chan_reg_write(&pchan->error, val);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	if (pcc_chan_reg_read_modify_write(&pchan->plat_irq_ack))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	mbox_chan_received_data(chan, NULL);
 
@@ -323,7 +323,7 @@ static irqreturn_t pcc_mbox_irq(int irq, void *p)
  * pcc_mbox_request_channel - PCC clients call this function to
  *		request a pointer to their PCC subspace, from which they
  *		can get the details of communicating with the remote.
- * @cl: Pointer to Mailbox client, so we know where to bind the
+ * @cl: Pointer to Mailbox client, so we kanalw where to bind the
  *		Channel.
  * @subspace_id: The PCC Subspace index as parsed in the PCC client
  *		ACPI package. This is used to lookup the array of PCC
@@ -339,12 +339,12 @@ pcc_mbox_request_channel(struct mbox_client *cl, int subspace_id)
 	int rc;
 
 	if (subspace_id < 0 || subspace_id >= pcc_chan_count)
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-EANALENT);
 
 	pchan = chan_info + subspace_id;
 	chan = pchan->chan.mchan;
 	if (IS_ERR(chan) || chan->cl) {
-		pr_err("Channel not found for idx: %d\n", subspace_id);
+		pr_err("Channel analt found for idx: %d\n", subspace_id);
 		return ERR_PTR(-EBUSY);
 	}
 
@@ -476,7 +476,7 @@ pcc_chan_reg_init(struct pcc_chan_reg *reg, struct acpi_generic_address *gas,
 	if (gas->space_id == ACPI_ADR_SPACE_SYSTEM_MEMORY) {
 		if (!(gas->bit_width >= 8 && gas->bit_width <= 64 &&
 		      is_power_of_2(gas->bit_width))) {
-			pr_err("Error: Cannot access register of %u bit width",
+			pr_err("Error: Cananalt access register of %u bit width",
 			       gas->bit_width);
 			return -EFAULT;
 		}
@@ -484,7 +484,7 @@ pcc_chan_reg_init(struct pcc_chan_reg *reg, struct acpi_generic_address *gas,
 		reg->vaddr = acpi_os_ioremap(gas->address, gas->bit_width / 8);
 		if (!reg->vaddr) {
 			pr_err("Failed to ioremap PCC %s register\n", name);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 	reg->gas = gas;
@@ -500,7 +500,7 @@ pcc_chan_reg_init(struct pcc_chan_reg *reg, struct acpi_generic_address *gas,
  * @pchan: Pointer to the PCC channel info structure.
  * @pcct_entry: Pointer to the ACPI subtable header.
  *
- * Return: 0 for Success, else errno.
+ * Return: 0 for Success, else erranal.
  *
  * There should be one entry per PCC channel. This gets called for each
  * entry in the PCC table. This uses PCCY Type1 structure for all applicable
@@ -520,7 +520,7 @@ static int pcc_parse_subspace_irq(struct pcc_chan_info *pchan,
 	pchan->plat_irq = pcc_map_interrupt(pcct_ss->platform_interrupt,
 					    (u32)pcct_ss->flags);
 	if (pchan->plat_irq <= 0) {
-		pr_err("PCC GSI %d not registered\n",
+		pr_err("PCC GSI %d analt registered\n",
 		       pcct_ss->platform_interrupt);
 		return -EINVAL;
 	}
@@ -548,7 +548,7 @@ static int pcc_parse_subspace_irq(struct pcc_chan_info *pchan,
 
 	if (pcc_chan_plat_irq_can_be_shared(pchan) &&
 	    !pchan->plat_irq_ack.gas) {
-		pr_err("PCC subspace has level IRQ with no ACK register\n");
+		pr_err("PCC subspace has level IRQ with anal ACK register\n");
 		return -EINVAL;
 	}
 
@@ -561,7 +561,7 @@ static int pcc_parse_subspace_irq(struct pcc_chan_info *pchan,
  * @pchan: Pointer to the PCC channel info structure.
  * @pcct_entry: Pointer to the ACPI subtable header.
  *
- * Return: 0 for Success, else errno.
+ * Return: 0 for Success, else erranal.
  */
 static int pcc_parse_subspace_db_reg(struct pcc_chan_info *pchan,
 				     struct acpi_subtable_header *pcct_entry)
@@ -647,7 +647,7 @@ static void pcc_parse_subspace_shmem(struct pcc_chan_info *pchan,
 /**
  * acpi_pcc_probe - Parse the ACPI tree for the PCCT.
  *
- * Return: 0 for Success, else errno.
+ * Return: 0 for Success, else erranal.
  */
 static int __init acpi_pcc_probe(void)
 {
@@ -658,7 +658,7 @@ static int __init acpi_pcc_probe(void)
 
 	status = acpi_get_table(ACPI_SIG_PCCT, 0, &pcct_tbl);
 	if (ACPI_FAILURE(status) || !pcct_tbl)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Set up the subtable handlers */
 	for (i = ACPI_PCCT_TYPE_GENERIC_SUBSPACE;
@@ -696,7 +696,7 @@ static int __init acpi_pcc_probe(void)
  * @pdev: Pointer to platform device returned when a match
  *	is found.
  *
- *	Return: 0 for Success, else errno.
+ *	Return: 0 for Success, else erranal.
  */
 static int pcc_mbox_probe(struct platform_device *pdev)
 {
@@ -713,24 +713,24 @@ static int pcc_mbox_probe(struct platform_device *pdev)
 	status = acpi_get_table(ACPI_SIG_PCCT, 0, &pcct_tbl);
 
 	if (ACPI_FAILURE(status) || !pcct_tbl)
-		return -ENODEV;
+		return -EANALDEV;
 
 	pcc_mbox_channels = devm_kcalloc(dev, count, sizeof(*pcc_mbox_channels),
 					 GFP_KERNEL);
 	if (!pcc_mbox_channels) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err;
 	}
 
 	chan_info = devm_kcalloc(dev, count, sizeof(*chan_info), GFP_KERNEL);
 	if (!chan_info) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err;
 	}
 
 	pcc_mbox_ctrl = devm_kzalloc(dev, sizeof(*pcc_mbox_ctrl), GFP_KERNEL);
 	if (!pcc_mbox_ctrl) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err;
 	}
 
@@ -803,14 +803,14 @@ static int __init pcc_init(void)
 	struct platform_device *pcc_pdev;
 
 	if (acpi_disabled)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Check if PCC support is available. */
 	ret = acpi_pcc_probe();
 
 	if (ret) {
 		pr_debug("ACPI PCC probe failed.\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	pcc_pdev = platform_create_bundle(&pcc_mbox_driver,

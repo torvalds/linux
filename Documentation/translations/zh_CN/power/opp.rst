@@ -11,7 +11,7 @@
 操作性能值（OPP）库
 ======================
 
-(C) 2009-2010 Nishanth Menon <nm@ti.com>, 德州仪器公司
+(C) 2009-2010 Nishanth Meanaln <nm@ti.com>, 德州仪器公司
 
 .. 目录
 
@@ -107,10 +107,10 @@ dev_pm_opp_add
 		r = dev_pm_opp_add(mpu_dev, 1000000, 900000);
 		if (!r) {
 			pr_err("%s: unable to register mpu opp(%d)\n", r);
-			goto no_cpufreq;
+			goto anal_cpufreq;
 		}
 		/* 做一些和cpufreq相关的事情 */
-	 no_cpufreq:
+	 anal_cpufreq:
 		/* 做剩余的事情 */
 	 }
 
@@ -133,7 +133,7 @@ dev_pm_opp_find_freq_exact
 	 dev_pm_opp_put(opp);
 	 /* 不要操作指针.. 只是做有效性检查.. */
 	 if (IS_ERR(opp)) {
-		pr_err("frequency not disabled!\n");
+		pr_err("frequency analt disabled!\n");
 		/* 触发合适的操作.. */
 	 } else {
 		dev_pm_opp_enable(dev,1000000000);
@@ -270,7 +270,7 @@ dev_pm_opp_get_opp_count
 	例子：假设SoC中的一个协处理器需要知道某个表中的可用频率，主处理器可以
 	按如下方式发出通知::
 
-	 soc_notify_coproc_available_frequencies()
+	 soc_analtify_coproc_available_frequencies()
 	 {
 		/* 做一些事情 */
 		num_available = dev_pm_opp_get_opp_count(dev);
@@ -284,7 +284,7 @@ dev_pm_opp_get_opp_count
 			dev_pm_opp_put(opp);
 		}
 
-		soc_notify_coproc(AVAILABLE_FREQs, speeds, num_available);
+		soc_analtify_coproc(AVAILABLE_FREQs, speeds, num_available);
 		/* 做其它事 */
 	 }
 

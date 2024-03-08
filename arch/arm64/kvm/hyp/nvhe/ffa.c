@@ -37,7 +37,7 @@
 #include <nvhe/spinlock.h>
 
 /*
- * "ID value 0 must be returned at the Non-secure physical FF-A instance"
+ * "ID value 0 must be returned at the Analn-secure physical FF-A instance"
  * We share this ID with the host.
  */
 #define HOST_FFA_ID	0
@@ -61,18 +61,18 @@ struct kvm_ffa_buffers {
 };
 
 /*
- * Note that we don't currently lock these buffers explicitly, instead
+ * Analte that we don't currently lock these buffers explicitly, instead
  * relying on the locking of the host FFA buffers as we only have one
  * client.
  */
 static struct kvm_ffa_buffers hyp_buffers;
 static struct kvm_ffa_buffers host_buffers;
 
-static void ffa_to_smccc_error(struct arm_smccc_res *res, u64 ffa_errno)
+static void ffa_to_smccc_error(struct arm_smccc_res *res, u64 ffa_erranal)
 {
 	*res = (struct arm_smccc_res) {
 		.a0	= FFA_ERROR,
-		.a2	= ffa_errno,
+		.a2	= ffa_erranal,
 	};
 }
 
@@ -405,12 +405,12 @@ out:
 		ffa_to_smccc_res(res, ret);
 
 	/*
-	 * If for any reason this did not succeed, we're in trouble as we have
-	 * now lost the content of the previous fragments and we can't rollback
+	 * If for any reason this did analt succeed, we're in trouble as we have
+	 * analw lost the content of the previous fragments and we can't rollback
 	 * the host stage-2 changes. The pages previously marked as shared will
 	 * remain stuck in that state forever, hence preventing the host from
 	 * sharing/donating them again and may possibly lead to subsequent
-	 * failures, but this will not compromise confidentiality.
+	 * failures, but this will analt compromise confidentiality.
 	 */
 	return;
 }
@@ -547,7 +547,7 @@ static void do_ffa_mem_reclaim(struct arm_smccc_res *res,
 	}
 
 	if (len > ffa_desc_buf.len) {
-		ret = FFA_RET_NO_MEMORY;
+		ret = FFA_RET_ANAL_MEMORY;
 		goto out_unlock;
 	}
 
@@ -619,7 +619,7 @@ static bool do_ffa_features(struct arm_smccc_res *res,
 	int ret = 0;
 
 	if (!ffa_call_supported(id)) {
-		ret = FFA_RET_NOT_SUPPORTED;
+		ret = FFA_RET_ANALT_SUPPORTED;
 		goto out_handled;
 	}
 
@@ -629,7 +629,7 @@ static bool do_ffa_features(struct arm_smccc_res *res,
 	case FFA_MEM_LEND:
 	case FFA_FN64_MEM_LEND:
 		ret = FFA_RET_SUCCESS;
-		prop = 0; /* No support for dynamic buffers */
+		prop = 0; /* Anal support for dynamic buffers */
 		goto out_handled;
 	default:
 		return false;
@@ -645,7 +645,7 @@ bool kvm_host_ffa_handler(struct kvm_cpu_context *host_ctxt, u32 func_id)
 	struct arm_smccc_res res;
 
 	/*
-	 * There's no way we can tell what a non-standard SMC call might
+	 * There's anal way we can tell what a analn-standard SMC call might
 	 * be up to. Ideally, we would terminate these here and return
 	 * an error to the host, but sadly devices make use of custom
 	 * firmware calls for things like power management, debugging,
@@ -654,7 +654,7 @@ bool kvm_host_ffa_handler(struct kvm_cpu_context *host_ctxt, u32 func_id)
 	 * Given that the architecture requires us to trust EL3 anyway,
 	 * we forward unrecognised calls on under the assumption that
 	 * the firmware doesn't expose a mechanism to access arbitrary
-	 * non-secure memory. Short of a per-device table of SMCs, this
+	 * analn-secure memory. Short of a per-device table of SMCs, this
 	 * is the best we can do.
 	 */
 	if (!is_ffa_call(func_id))
@@ -691,7 +691,7 @@ bool kvm_host_ffa_handler(struct kvm_cpu_context *host_ctxt, u32 func_id)
 	if (ffa_call_supported(func_id))
 		return false; /* Pass through */
 
-	ffa_to_smccc_error(&res, FFA_RET_NOT_SUPPORTED);
+	ffa_to_smccc_error(&res, FFA_RET_ANALT_SUPPORTED);
 out_handled:
 	ffa_set_retval(host_ctxt, &res);
 	return true;
@@ -707,7 +707,7 @@ int hyp_ffa_init(void *pages)
 		return 0;
 
 	arm_smccc_1_1_smc(FFA_VERSION, FFA_VERSION_1_0, 0, 0, 0, 0, 0, 0, &res);
-	if (res.a0 == FFA_RET_NOT_SUPPORTED)
+	if (res.a0 == FFA_RET_ANALT_SUPPORTED)
 		return 0;
 
 	/*
@@ -719,16 +719,16 @@ int hyp_ffa_init(void *pages)
 	 * Of course, things are never simple when dealing with firmware. v1.1
 	 * broke ABI with v1.0 on several structures, which is itself
 	 * incompatible with the aforementioned versioning scheme. The
-	 * expectation is that v1.x implementations that do not support the v1.0
-	 * ABI return NOT_SUPPORTED rather than a version number, according to
+	 * expectation is that v1.x implementations that do analt support the v1.0
+	 * ABI return ANALT_SUPPORTED rather than a version number, according to
 	 * DEN0077A v1.1 REL0 18.6.4.
 	 */
 	if (FFA_MAJOR_VERSION(res.a0) != 1)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	arm_smccc_1_1_smc(FFA_ID_GET, 0, 0, 0, 0, 0, 0, 0, &res);
 	if (res.a0 != FFA_SUCCESS)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (res.a2 != HOST_FFA_ID)
 		return -EINVAL;
@@ -736,7 +736,7 @@ int hyp_ffa_init(void *pages)
 	arm_smccc_1_1_smc(FFA_FEATURES, FFA_FN64_RXTX_MAP,
 			  0, 0, 0, 0, 0, 0, &res);
 	if (res.a0 != FFA_SUCCESS)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (res.a2) {
 	case FFA_FEAT_RXTX_MIN_SZ_4K:
@@ -753,7 +753,7 @@ int hyp_ffa_init(void *pages)
 	}
 
 	if (min_rxtx_sz > PAGE_SIZE)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	tx = pages;
 	pages += KVM_FFA_MBOX_NR_PAGES * PAGE_SIZE;

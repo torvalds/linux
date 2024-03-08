@@ -29,7 +29,7 @@
  *
  * If the MMR exists on all hub types but have different addresses,
  * use a conditional operator to define the value at runtime.  Any
- * that are not defined are blank.
+ * that are analt defined are blank.
  *	(UV4A variations only generated if different from uv4)
  *	#define UVHxxx (
  *		is_uv(UV5) ? UV5Hxxx value :
@@ -2778,50 +2778,50 @@ union uvh_ipi_int_u {
 };
 
 /* ========================================================================= */
-/*                               UVH_NODE_ID                                 */
+/*                               UVH_ANALDE_ID                                 */
 /* ========================================================================= */
-#define UVH_NODE_ID 0x0UL
+#define UVH_ANALDE_ID 0x0UL
 
 /* UVH common defines*/
-#define UVH_NODE_ID_FORCE1_SHFT				0
-#define UVH_NODE_ID_FORCE1_MASK				0x0000000000000001UL
-#define UVH_NODE_ID_MANUFACTURER_SHFT			1
-#define UVH_NODE_ID_MANUFACTURER_MASK			0x0000000000000ffeUL
-#define UVH_NODE_ID_PART_NUMBER_SHFT			12
-#define UVH_NODE_ID_PART_NUMBER_MASK			0x000000000ffff000UL
-#define UVH_NODE_ID_REVISION_SHFT			28
-#define UVH_NODE_ID_REVISION_MASK			0x00000000f0000000UL
-#define UVH_NODE_ID_NODE_ID_SHFT			32
-#define UVH_NODE_ID_NI_PORT_SHFT			57
+#define UVH_ANALDE_ID_FORCE1_SHFT				0
+#define UVH_ANALDE_ID_FORCE1_MASK				0x0000000000000001UL
+#define UVH_ANALDE_ID_MANUFACTURER_SHFT			1
+#define UVH_ANALDE_ID_MANUFACTURER_MASK			0x0000000000000ffeUL
+#define UVH_ANALDE_ID_PART_NUMBER_SHFT			12
+#define UVH_ANALDE_ID_PART_NUMBER_MASK			0x000000000ffff000UL
+#define UVH_ANALDE_ID_REVISION_SHFT			28
+#define UVH_ANALDE_ID_REVISION_MASK			0x00000000f0000000UL
+#define UVH_ANALDE_ID_ANALDE_ID_SHFT			32
+#define UVH_ANALDE_ID_NI_PORT_SHFT			57
 
 /* UVXH common defines */
-#define UVXH_NODE_ID_NODE_ID_MASK			0x00007fff00000000UL
-#define UVXH_NODE_ID_NODES_PER_BIT_SHFT			50
-#define UVXH_NODE_ID_NODES_PER_BIT_MASK			0x01fc000000000000UL
-#define UVXH_NODE_ID_NI_PORT_MASK			0x3e00000000000000UL
+#define UVXH_ANALDE_ID_ANALDE_ID_MASK			0x00007fff00000000UL
+#define UVXH_ANALDE_ID_ANALDES_PER_BIT_SHFT			50
+#define UVXH_ANALDE_ID_ANALDES_PER_BIT_MASK			0x01fc000000000000UL
+#define UVXH_ANALDE_ID_NI_PORT_MASK			0x3e00000000000000UL
 
 /* UVYH common defines */
-#define UVYH_NODE_ID_NODE_ID_MASK			0x0000007f00000000UL
-#define UVYH_NODE_ID_NI_PORT_MASK			0x7e00000000000000UL
+#define UVYH_ANALDE_ID_ANALDE_ID_MASK			0x0000007f00000000UL
+#define UVYH_ANALDE_ID_NI_PORT_MASK			0x7e00000000000000UL
 
 /* UV4 unique defines */
-#define UV4H_NODE_ID_ROUTER_SELECT_SHFT			48
-#define UV4H_NODE_ID_ROUTER_SELECT_MASK			0x0001000000000000UL
-#define UV4H_NODE_ID_RESERVED_2_SHFT			49
-#define UV4H_NODE_ID_RESERVED_2_MASK			0x0002000000000000UL
+#define UV4H_ANALDE_ID_ROUTER_SELECT_SHFT			48
+#define UV4H_ANALDE_ID_ROUTER_SELECT_MASK			0x0001000000000000UL
+#define UV4H_ANALDE_ID_RESERVED_2_SHFT			49
+#define UV4H_ANALDE_ID_RESERVED_2_MASK			0x0002000000000000UL
 
 /* UV3 unique defines */
-#define UV3H_NODE_ID_ROUTER_SELECT_SHFT			48
-#define UV3H_NODE_ID_ROUTER_SELECT_MASK			0x0001000000000000UL
-#define UV3H_NODE_ID_RESERVED_2_SHFT			49
-#define UV3H_NODE_ID_RESERVED_2_MASK			0x0002000000000000UL
+#define UV3H_ANALDE_ID_ROUTER_SELECT_SHFT			48
+#define UV3H_ANALDE_ID_ROUTER_SELECT_MASK			0x0001000000000000UL
+#define UV3H_ANALDE_ID_RESERVED_2_SHFT			49
+#define UV3H_ANALDE_ID_RESERVED_2_MASK			0x0002000000000000UL
 
 
-union uvh_node_id_u {
+union uvh_analde_id_u {
 	unsigned long	v;
 
 	/* UVH common struct */
-	struct uvh_node_id_s {
+	struct uvh_analde_id_s {
 		unsigned long	force1:1;			/* RO */
 		unsigned long	manufacturer:11;		/* RO */
 		unsigned long	part_number:16;			/* RO */
@@ -2830,160 +2830,160 @@ union uvh_node_id_u {
 	} s;
 
 	/* UVXH common struct */
-	struct uvxh_node_id_s {
+	struct uvxh_analde_id_s {
 		unsigned long	force1:1;			/* RO */
 		unsigned long	manufacturer:11;		/* RO */
 		unsigned long	part_number:16;			/* RO */
 		unsigned long	revision:4;			/* RO */
-		unsigned long	node_id:15;			/* RW */
+		unsigned long	analde_id:15;			/* RW */
 		unsigned long	rsvd_47_49:3;
-		unsigned long	nodes_per_bit:7;		/* RO */
+		unsigned long	analdes_per_bit:7;		/* RO */
 		unsigned long	ni_port:5;			/* RO */
 		unsigned long	rsvd_62_63:2;
 	} sx;
 
 	/* UVYH common struct */
-	struct uvyh_node_id_s {
+	struct uvyh_analde_id_s {
 		unsigned long	force1:1;			/* RO */
 		unsigned long	manufacturer:11;		/* RO */
 		unsigned long	part_number:16;			/* RO */
 		unsigned long	revision:4;			/* RO */
-		unsigned long	node_id:7;			/* RW */
+		unsigned long	analde_id:7;			/* RW */
 		unsigned long	rsvd_39_56:18;
 		unsigned long	ni_port:6;			/* RO */
 		unsigned long	rsvd_63:1;
 	} sy;
 
 	/* UV5 unique struct */
-	struct uv5h_node_id_s {
+	struct uv5h_analde_id_s {
 		unsigned long	force1:1;			/* RO */
 		unsigned long	manufacturer:11;		/* RO */
 		unsigned long	part_number:16;			/* RO */
 		unsigned long	revision:4;			/* RO */
-		unsigned long	node_id:7;			/* RW */
+		unsigned long	analde_id:7;			/* RW */
 		unsigned long	rsvd_39_56:18;
 		unsigned long	ni_port:6;			/* RO */
 		unsigned long	rsvd_63:1;
 	} s5;
 
 	/* UV4 unique struct */
-	struct uv4h_node_id_s {
+	struct uv4h_analde_id_s {
 		unsigned long	force1:1;			/* RO */
 		unsigned long	manufacturer:11;		/* RO */
 		unsigned long	part_number:16;			/* RO */
 		unsigned long	revision:4;			/* RO */
-		unsigned long	node_id:15;			/* RW */
+		unsigned long	analde_id:15;			/* RW */
 		unsigned long	rsvd_47:1;
 		unsigned long	router_select:1;		/* RO */
 		unsigned long	rsvd_49:1;
-		unsigned long	nodes_per_bit:7;		/* RO */
+		unsigned long	analdes_per_bit:7;		/* RO */
 		unsigned long	ni_port:5;			/* RO */
 		unsigned long	rsvd_62_63:2;
 	} s4;
 
 	/* UV3 unique struct */
-	struct uv3h_node_id_s {
+	struct uv3h_analde_id_s {
 		unsigned long	force1:1;			/* RO */
 		unsigned long	manufacturer:11;		/* RO */
 		unsigned long	part_number:16;			/* RO */
 		unsigned long	revision:4;			/* RO */
-		unsigned long	node_id:15;			/* RW */
+		unsigned long	analde_id:15;			/* RW */
 		unsigned long	rsvd_47:1;
 		unsigned long	router_select:1;		/* RO */
 		unsigned long	rsvd_49:1;
-		unsigned long	nodes_per_bit:7;		/* RO */
+		unsigned long	analdes_per_bit:7;		/* RO */
 		unsigned long	ni_port:5;			/* RO */
 		unsigned long	rsvd_62_63:2;
 	} s3;
 
 	/* UV2 unique struct */
-	struct uv2h_node_id_s {
+	struct uv2h_analde_id_s {
 		unsigned long	force1:1;			/* RO */
 		unsigned long	manufacturer:11;		/* RO */
 		unsigned long	part_number:16;			/* RO */
 		unsigned long	revision:4;			/* RO */
-		unsigned long	node_id:15;			/* RW */
+		unsigned long	analde_id:15;			/* RW */
 		unsigned long	rsvd_47_49:3;
-		unsigned long	nodes_per_bit:7;		/* RO */
+		unsigned long	analdes_per_bit:7;		/* RO */
 		unsigned long	ni_port:5;			/* RO */
 		unsigned long	rsvd_62_63:2;
 	} s2;
 };
 
 /* ========================================================================= */
-/*                            UVH_NODE_PRESENT_0                             */
+/*                            UVH_ANALDE_PRESENT_0                             */
 /* ========================================================================= */
-#define UVH_NODE_PRESENT_0 (						\
+#define UVH_ANALDE_PRESENT_0 (						\
 	is_uv(UV5) ? 0x1400UL :						\
 	0)
 
 
 /* UVYH common defines */
-#define UVYH_NODE_PRESENT_0_NODES_SHFT			0
-#define UVYH_NODE_PRESENT_0_NODES_MASK			0xffffffffffffffffUL
+#define UVYH_ANALDE_PRESENT_0_ANALDES_SHFT			0
+#define UVYH_ANALDE_PRESENT_0_ANALDES_MASK			0xffffffffffffffffUL
 
 
-union uvh_node_present_0_u {
+union uvh_analde_present_0_u {
 	unsigned long	v;
 
 	/* UVH common struct */
-	struct uvh_node_present_0_s {
-		unsigned long	nodes:64;			/* RW */
+	struct uvh_analde_present_0_s {
+		unsigned long	analdes:64;			/* RW */
 	} s;
 
 	/* UVYH common struct */
-	struct uvyh_node_present_0_s {
-		unsigned long	nodes:64;			/* RW */
+	struct uvyh_analde_present_0_s {
+		unsigned long	analdes:64;			/* RW */
 	} sy;
 
 	/* UV5 unique struct */
-	struct uv5h_node_present_0_s {
-		unsigned long	nodes:64;			/* RW */
+	struct uv5h_analde_present_0_s {
+		unsigned long	analdes:64;			/* RW */
 	} s5;
 };
 
 /* ========================================================================= */
-/*                            UVH_NODE_PRESENT_1                             */
+/*                            UVH_ANALDE_PRESENT_1                             */
 /* ========================================================================= */
-#define UVH_NODE_PRESENT_1 (						\
+#define UVH_ANALDE_PRESENT_1 (						\
 	is_uv(UV5) ? 0x1408UL :						\
 	0)
 
 
 /* UVYH common defines */
-#define UVYH_NODE_PRESENT_1_NODES_SHFT			0
-#define UVYH_NODE_PRESENT_1_NODES_MASK			0xffffffffffffffffUL
+#define UVYH_ANALDE_PRESENT_1_ANALDES_SHFT			0
+#define UVYH_ANALDE_PRESENT_1_ANALDES_MASK			0xffffffffffffffffUL
 
 
-union uvh_node_present_1_u {
+union uvh_analde_present_1_u {
 	unsigned long	v;
 
 	/* UVH common struct */
-	struct uvh_node_present_1_s {
-		unsigned long	nodes:64;			/* RW */
+	struct uvh_analde_present_1_s {
+		unsigned long	analdes:64;			/* RW */
 	} s;
 
 	/* UVYH common struct */
-	struct uvyh_node_present_1_s {
-		unsigned long	nodes:64;			/* RW */
+	struct uvyh_analde_present_1_s {
+		unsigned long	analdes:64;			/* RW */
 	} sy;
 
 	/* UV5 unique struct */
-	struct uv5h_node_present_1_s {
-		unsigned long	nodes:64;			/* RW */
+	struct uv5h_analde_present_1_s {
+		unsigned long	analdes:64;			/* RW */
 	} s5;
 };
 
 /* ========================================================================= */
-/*                          UVH_NODE_PRESENT_TABLE                           */
+/*                          UVH_ANALDE_PRESENT_TABLE                           */
 /* ========================================================================= */
-#define UVH_NODE_PRESENT_TABLE (					\
+#define UVH_ANALDE_PRESENT_TABLE (					\
 	is_uv(UV4) ? 0x1400UL :						\
 	is_uv(UV3) ? 0x1400UL :						\
 	is_uv(UV2) ? 0x1400UL :						\
 	0)
 
-#define UVH_NODE_PRESENT_TABLE_DEPTH (					\
+#define UVH_ANALDE_PRESENT_TABLE_DEPTH (					\
 	is_uv(UV4) ? 4 :						\
 	is_uv(UV3) ? 16 :						\
 	is_uv(UV2) ? 16 :						\
@@ -2991,36 +2991,36 @@ union uvh_node_present_1_u {
 
 
 /* UVXH common defines */
-#define UVXH_NODE_PRESENT_TABLE_NODES_SHFT		0
-#define UVXH_NODE_PRESENT_TABLE_NODES_MASK		0xffffffffffffffffUL
+#define UVXH_ANALDE_PRESENT_TABLE_ANALDES_SHFT		0
+#define UVXH_ANALDE_PRESENT_TABLE_ANALDES_MASK		0xffffffffffffffffUL
 
 
-union uvh_node_present_table_u {
+union uvh_analde_present_table_u {
 	unsigned long	v;
 
 	/* UVH common struct */
-	struct uvh_node_present_table_s {
-		unsigned long	nodes:64;			/* RW */
+	struct uvh_analde_present_table_s {
+		unsigned long	analdes:64;			/* RW */
 	} s;
 
 	/* UVXH common struct */
-	struct uvxh_node_present_table_s {
-		unsigned long	nodes:64;			/* RW */
+	struct uvxh_analde_present_table_s {
+		unsigned long	analdes:64;			/* RW */
 	} sx;
 
 	/* UV4 unique struct */
-	struct uv4h_node_present_table_s {
-		unsigned long	nodes:64;			/* RW */
+	struct uv4h_analde_present_table_s {
+		unsigned long	analdes:64;			/* RW */
 	} s4;
 
 	/* UV3 unique struct */
-	struct uv3h_node_present_table_s {
-		unsigned long	nodes:64;			/* RW */
+	struct uv3h_analde_present_table_s {
+		unsigned long	analdes:64;			/* RW */
 	} s3;
 
 	/* UV2 unique struct */
-	struct uv2h_node_present_table_s {
-		unsigned long	nodes:64;			/* RW */
+	struct uv2h_analde_present_table_s {
+		unsigned long	analdes:64;			/* RW */
 	} s2;
 };
 

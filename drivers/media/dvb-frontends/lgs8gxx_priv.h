@@ -47,7 +47,7 @@ struct lgs8gxx_state {
 
 #define TS_PARALLEL	0x00	/* Parallel TS Output a.k.a. SPI */
 #define TS_SERIAL	0x01	/* Serial TS Output a.k.a. SSI */
-#define TS_CLK_NORMAL		0x00	/* MPEG Clock Normal */
+#define TS_CLK_ANALRMAL		0x00	/* MPEG Clock Analrmal */
 #define TS_CLK_INVERTED		0x02	/* MPEG Clock Inverted */
 #define TS_CLK_GATED		0x00	/* MPEG clock gated */
 #define TS_CLK_FREERUN		0x04	/* MPEG clock free running*/

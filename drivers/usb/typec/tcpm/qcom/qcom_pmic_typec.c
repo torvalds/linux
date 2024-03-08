@@ -153,7 +153,7 @@ static int qcom_pmic_typec_probe(struct platform_device *pdev)
 {
 	struct pmic_typec *tcpm;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	const struct pmic_typec_resources *res;
 	struct regmap *regmap;
 	struct device *bridge_dev;
@@ -162,11 +162,11 @@ static int qcom_pmic_typec_probe(struct platform_device *pdev)
 
 	res = of_device_get_match_data(dev);
 	if (!res)
-		return -ENODEV;
+		return -EANALDEV;
 
 	tcpm = devm_kzalloc(dev, sizeof(*tcpm), GFP_KERNEL);
 	if (!tcpm)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tcpm->dev = dev;
 	tcpm->tcpc.init = qcom_pmic_typec_init;
@@ -184,7 +184,7 @@ static int qcom_pmic_typec_probe(struct platform_device *pdev)
 	regmap = dev_get_regmap(dev->parent, NULL);
 	if (!regmap) {
 		dev_err(dev, "Failed to get regmap\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ret = of_property_read_u32_array(np, "reg", base, 2);
@@ -212,34 +212,34 @@ static int qcom_pmic_typec_probe(struct platform_device *pdev)
 	mutex_init(&tcpm->lock);
 	platform_set_drvdata(pdev, tcpm);
 
-	tcpm->tcpc.fwnode = device_get_named_child_node(tcpm->dev, "connector");
-	if (!tcpm->tcpc.fwnode)
+	tcpm->tcpc.fwanalde = device_get_named_child_analde(tcpm->dev, "connector");
+	if (!tcpm->tcpc.fwanalde)
 		return -EINVAL;
 
-	bridge_dev = drm_dp_hpd_bridge_register(tcpm->dev, to_of_node(tcpm->tcpc.fwnode));
+	bridge_dev = drm_dp_hpd_bridge_register(tcpm->dev, to_of_analde(tcpm->tcpc.fwanalde));
 	if (IS_ERR(bridge_dev))
 		return PTR_ERR(bridge_dev);
 
 	tcpm->tcpm_port = tcpm_register_port(tcpm->dev, &tcpm->tcpc);
 	if (IS_ERR(tcpm->tcpm_port)) {
 		ret = PTR_ERR(tcpm->tcpm_port);
-		goto fwnode_remove;
+		goto fwanalde_remove;
 	}
 
 	ret = qcom_pmic_typec_port_start(tcpm->pmic_typec_port,
 					 tcpm->tcpm_port);
 	if (ret)
-		goto fwnode_remove;
+		goto fwanalde_remove;
 
 	ret = qcom_pmic_typec_pdphy_start(tcpm->pmic_typec_pdphy,
 					  tcpm->tcpm_port);
 	if (ret)
-		goto fwnode_remove;
+		goto fwanalde_remove;
 
 	return 0;
 
-fwnode_remove:
-	fwnode_remove_software_node(tcpm->tcpc.fwnode);
+fwanalde_remove:
+	fwanalde_remove_software_analde(tcpm->tcpc.fwanalde);
 
 	return ret;
 }
@@ -251,7 +251,7 @@ static void qcom_pmic_typec_remove(struct platform_device *pdev)
 	qcom_pmic_typec_pdphy_stop(tcpm->pmic_typec_pdphy);
 	qcom_pmic_typec_port_stop(tcpm->pmic_typec_port);
 	tcpm_unregister_port(tcpm->tcpm_port);
-	fwnode_remove_software_node(tcpm->tcpc.fwnode);
+	fwanalde_remove_software_analde(tcpm->tcpc.fwanalde);
 }
 
 static struct pmic_typec_pdphy_resources pm8150b_pdphy_res = {

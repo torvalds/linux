@@ -38,12 +38,12 @@
 #define ADAU1761_PLAY_MIXER_RIGHT0	0x401e
 #define ADAU1761_PLAY_MIXER_RIGHT1	0x401f
 #define ADAU1761_PLAY_LR_MIXER_RIGHT	0x4021
-#define ADAU1761_PLAY_MIXER_MONO	0x4022
+#define ADAU1761_PLAY_MIXER_MOANAL	0x4022
 #define ADAU1761_PLAY_HP_LEFT_VOL	0x4023
 #define ADAU1761_PLAY_HP_RIGHT_VOL	0x4024
 #define ADAU1761_PLAY_LINE_LEFT_VOL	0x4025
 #define ADAU1761_PLAY_LINE_RIGHT_VOL	0x4026
-#define ADAU1761_PLAY_MONO_OUTPUT_VOL	0x4027
+#define ADAU1761_PLAY_MOANAL_OUTPUT_VOL	0x4027
 #define ADAU1761_POP_CLICK_SUPPRESS	0x4028
 #define ADAU1761_JACK_DETECT_PIN	0x4031
 #define ADAU1761_DEJITTER		0x4036
@@ -55,8 +55,8 @@
 
 #define ADAU1761_DIFF_INPUT_VOL_LDEN		BIT(0)
 
-#define ADAU1761_PLAY_MONO_OUTPUT_VOL_MODE_HP	BIT(0)
-#define ADAU1761_PLAY_MONO_OUTPUT_VOL_UNMUTE	BIT(1)
+#define ADAU1761_PLAY_MOANAL_OUTPUT_VOL_MODE_HP	BIT(0)
+#define ADAU1761_PLAY_MOANAL_OUTPUT_VOL_UNMUTE	BIT(1)
 
 #define ADAU1761_PLAY_HP_RIGHT_VOL_MODE_HP	BIT(0)
 
@@ -86,12 +86,12 @@ static const struct reg_default adau1761_reg_defaults[] = {
 	{ ADAU1761_PLAY_MIXER_RIGHT0,		0x00 },
 	{ ADAU1761_PLAY_MIXER_RIGHT1,		0x00 },
 	{ ADAU1761_PLAY_LR_MIXER_RIGHT,		0x00 },
-	{ ADAU1761_PLAY_MIXER_MONO,		0x00 },
+	{ ADAU1761_PLAY_MIXER_MOANAL,		0x00 },
 	{ ADAU1761_PLAY_HP_LEFT_VOL,		0x00 },
 	{ ADAU1761_PLAY_HP_RIGHT_VOL,		0x00 },
 	{ ADAU1761_PLAY_LINE_LEFT_VOL,		0x00 },
 	{ ADAU1761_PLAY_LINE_RIGHT_VOL,		0x00 },
-	{ ADAU1761_PLAY_MONO_OUTPUT_VOL,	0x00 },
+	{ ADAU1761_PLAY_MOANAL_OUTPUT_VOL,	0x00 },
 	{ ADAU1761_POP_CLICK_SUPPRESS,		0x00 },
 	{ ADAU1761_JACK_DETECT_PIN,		0x00 },
 	{ ADAU1761_CLK_ENABLE0,			0x00 },
@@ -138,11 +138,11 @@ static const unsigned int adau1761_bias_select_values[] = {
 };
 
 static const char * const adau1761_bias_select_text[] = {
-	"Normal operation", "Enhanced performance", "Power saving",
+	"Analrmal operation", "Enhanced performance", "Power saving",
 };
 
 static const char * const adau1761_bias_select_extreme_text[] = {
-	"Normal operation", "Extreme power saving", "Enhanced performance",
+	"Analrmal operation", "Extreme power saving", "Enhanced performance",
 	"Power saving",
 };
 
@@ -281,10 +281,10 @@ static const struct snd_kcontrol_new adau1761_differential_mode_controls[] = {
 		0, 15, 0, adau1761_alc_target_tlv),
 	SOC_ENUM("ALC Capture Attack Time", adau1761_alc_decay_time_enum),
 	SOC_ENUM("ALC Capture Decay Time", adau1761_alc_attack_time_enum),
-	SOC_ENUM("ALC Capture Noise Gate Type", adau1761_alc_ng_type_enum),
-	SOC_SINGLE("ALC Capture Noise Gate Switch",
+	SOC_ENUM("ALC Capture Analise Gate Type", adau1761_alc_ng_type_enum),
+	SOC_SINGLE("ALC Capture Analise Gate Switch",
 		ADAU1761_ALC_CTRL3, 5, 1, 0),
-	SOC_SINGLE_TLV("ALC Capture Noise Gate Threshold Volume",
+	SOC_SINGLE_TLV("ALC Capture Analise Gate Threshold Volume",
 		ADAU1761_ALC_CTRL3, 0, 31, 0, adau1761_alc_ng_threshold_tlv),
 };
 
@@ -319,10 +319,10 @@ static const struct snd_kcontrol_new adau1761_controls[] = {
 	SOC_ENUM("Headphone Bias", adau1761_hp_bias_enum),
 };
 
-static const struct snd_kcontrol_new adau1761_mono_controls[] = {
-	SOC_SINGLE_TLV("Mono Playback Volume", ADAU1761_PLAY_MONO_OUTPUT_VOL,
+static const struct snd_kcontrol_new adau1761_moanal_controls[] = {
+	SOC_SINGLE_TLV("Moanal Playback Volume", ADAU1761_PLAY_MOANAL_OUTPUT_VOL,
 		2, 0x3f, 0, adau1761_out_tlv),
-	SOC_SINGLE("Mono Playback Switch", ADAU1761_PLAY_MONO_OUTPUT_VOL,
+	SOC_SINGLE("Moanal Playback Switch", ADAU1761_PLAY_MOANAL_OUTPUT_VOL,
 		1, 1, 0),
 };
 
@@ -409,7 +409,7 @@ static const struct snd_soc_dapm_widget adau1x61_dapm_widgets[] = {
 	SND_SOC_DAPM_SUPPLY("Headphone", ADAU1761_PLAY_HP_LEFT_VOL,
 		0, 0, NULL, 0),
 
-	SND_SOC_DAPM_SUPPLY_S("SYSCLK", 2, SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_SUPPLY_S("SYSCLK", 2, SND_SOC_ANALPM, 0, 0, NULL, 0),
 
 	SND_SOC_DAPM_POST("Dejitter fixup", adau1761_dejitter_fixup),
 
@@ -426,15 +426,15 @@ static const struct snd_soc_dapm_widget adau1x61_dapm_widgets[] = {
 	SND_SOC_DAPM_OUTPUT("RHP"),
 };
 
-static const struct snd_soc_dapm_widget adau1761_mono_dapm_widgets[] = {
-	SND_SOC_DAPM_MIXER("Mono Playback Mixer", ADAU1761_PLAY_MIXER_MONO,
+static const struct snd_soc_dapm_widget adau1761_moanal_dapm_widgets[] = {
+	SND_SOC_DAPM_MIXER("Moanal Playback Mixer", ADAU1761_PLAY_MIXER_MOANAL,
 		0, 0, NULL, 0),
 
-	SND_SOC_DAPM_OUTPUT("MONOOUT"),
+	SND_SOC_DAPM_OUTPUT("MOANALOUT"),
 };
 
 static const struct snd_soc_dapm_widget adau1761_capless_dapm_widgets[] = {
-	SND_SOC_DAPM_SUPPLY_S("Headphone VGND", 1, ADAU1761_PLAY_MIXER_MONO,
+	SND_SOC_DAPM_SUPPLY_S("Headphone VGND", 1, ADAU1761_PLAY_MIXER_MOANAL,
 		0, 0, NULL, 0),
 };
 
@@ -481,11 +481,11 @@ static const struct snd_soc_dapm_route adau1x61_dapm_routes[] = {
 	{ "Right Playback Mixer", "Right Bypass Volume", "Right Input Mixer" },
 };
 
-static const struct snd_soc_dapm_route adau1761_mono_dapm_routes[] = {
-	{ "Mono Playback Mixer", NULL, "Left Playback Mixer" },
-	{ "Mono Playback Mixer", NULL, "Right Playback Mixer" },
+static const struct snd_soc_dapm_route adau1761_moanal_dapm_routes[] = {
+	{ "Moanal Playback Mixer", NULL, "Left Playback Mixer" },
+	{ "Moanal Playback Mixer", NULL, "Right Playback Mixer" },
 
-	{ "MONOOUT", NULL, "Mono Playback Mixer" },
+	{ "MOANALOUT", NULL, "Moanal Playback Mixer" },
 };
 
 static const struct snd_soc_dapm_route adau1761_capless_dapm_routes[] = {
@@ -493,9 +493,9 @@ static const struct snd_soc_dapm_route adau1761_capless_dapm_routes[] = {
 };
 
 static const struct snd_soc_dapm_widget adau1761_dmic_widgets[] = {
-	SND_SOC_DAPM_MUX("Left Decimator Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("Left Decimator Mux", SND_SOC_ANALPM, 0, 0,
 		&adau1761_input_mux_control),
-	SND_SOC_DAPM_MUX("Right Decimator Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("Right Decimator Mux", SND_SOC_ANALPM, 0, 0,
 		&adau1761_input_mux_control),
 
 	SND_SOC_DAPM_INPUT("DMIC"),
@@ -511,7 +511,7 @@ static const struct snd_soc_dapm_route adau1761_dmic_routes[] = {
 	{ "Right Decimator", NULL, "Right Decimator Mux" },
 };
 
-static const struct snd_soc_dapm_route adau1761_no_dmic_routes[] = {
+static const struct snd_soc_dapm_route adau1761_anal_dmic_routes[] = {
 	{ "Left Decimator", NULL, "Left Input Mixer" },
 	{ "Right Decimator", NULL, "Right Input Mixer" },
 };
@@ -592,8 +592,8 @@ static int adau1761_compatibility_probe(struct device *dev)
 		ADAU17X1_CLOCK_CONTROL_SYSCLK_EN);
 
 	/*
-	 * ADAU17X1_SERIAL_SAMPLING_RATE doesn't exist in non-DSP chips;
-	 * reading it results in zero at all times, and write is a no-op.
+	 * ADAU17X1_SERIAL_SAMPLING_RATE doesn't exist in analn-DSP chips;
+	 * reading it results in zero at all times, and write is a anal-op.
 	 * Use this register to probe for ADAU1761.
 	 */
 	regmap_write(regmap, ADAU17X1_SERIAL_SAMPLING_RATE, 1);
@@ -668,7 +668,7 @@ static int adau1761_setup_digmic_jackdetect(struct snd_soc_component *component)
 	if (pdata)
 		mode = pdata->digmic_jackdetect_pin_mode;
 	else
-		mode = ADAU1761_DIGMIC_JACKDET_PIN_MODE_NONE;
+		mode = ADAU1761_DIGMIC_JACKDET_PIN_MODE_ANALNE;
 
 	switch (mode) {
 	case ADAU1761_DIGMIC_JACKDET_PIN_MODE_JACKDETECT:
@@ -691,9 +691,9 @@ static int adau1761_setup_digmic_jackdetect(struct snd_soc_component *component)
 		if (ret)
 			return ret;
 		fallthrough;
-	case ADAU1761_DIGMIC_JACKDET_PIN_MODE_NONE:
-		ret = snd_soc_dapm_add_routes(dapm, adau1761_no_dmic_routes,
-			ARRAY_SIZE(adau1761_no_dmic_routes));
+	case ADAU1761_DIGMIC_JACKDET_PIN_MODE_ANALNE:
+		ret = snd_soc_dapm_add_routes(dapm, adau1761_anal_dmic_routes,
+			ARRAY_SIZE(adau1761_anal_dmic_routes));
 		if (ret)
 			return ret;
 		break;
@@ -736,11 +736,11 @@ static int adau1761_setup_headphone_mode(struct snd_soc_component *component)
 	case ADAU1761_OUTPUT_MODE_LINE:
 		break;
 	case ADAU1761_OUTPUT_MODE_HEADPHONE_CAPLESS:
-		regmap_update_bits(adau->regmap, ADAU1761_PLAY_MONO_OUTPUT_VOL,
-			ADAU1761_PLAY_MONO_OUTPUT_VOL_MODE_HP |
-			ADAU1761_PLAY_MONO_OUTPUT_VOL_UNMUTE,
-			ADAU1761_PLAY_MONO_OUTPUT_VOL_MODE_HP |
-			ADAU1761_PLAY_MONO_OUTPUT_VOL_UNMUTE);
+		regmap_update_bits(adau->regmap, ADAU1761_PLAY_MOANAL_OUTPUT_VOL,
+			ADAU1761_PLAY_MOANAL_OUTPUT_VOL_MODE_HP |
+			ADAU1761_PLAY_MOANAL_OUTPUT_VOL_UNMUTE,
+			ADAU1761_PLAY_MOANAL_OUTPUT_VOL_MODE_HP |
+			ADAU1761_PLAY_MOANAL_OUTPUT_VOL_UNMUTE);
 		fallthrough;
 	case ADAU1761_OUTPUT_MODE_HEADPHONE:
 		regmap_update_bits(adau->regmap, ADAU1761_PLAY_HP_RIGHT_VOL,
@@ -761,18 +761,18 @@ static int adau1761_setup_headphone_mode(struct snd_soc_component *component)
 			adau1761_capless_dapm_routes,
 			ARRAY_SIZE(adau1761_capless_dapm_routes));
 	} else {
-		ret = snd_soc_add_component_controls(component, adau1761_mono_controls,
-			ARRAY_SIZE(adau1761_mono_controls));
+		ret = snd_soc_add_component_controls(component, adau1761_moanal_controls,
+			ARRAY_SIZE(adau1761_moanal_controls));
 		if (ret)
 			return ret;
 		ret = snd_soc_dapm_new_controls(dapm,
-			adau1761_mono_dapm_widgets,
-			ARRAY_SIZE(adau1761_mono_dapm_widgets));
+			adau1761_moanal_dapm_widgets,
+			ARRAY_SIZE(adau1761_moanal_dapm_widgets));
 		if (ret)
 			return ret;
 		ret = snd_soc_dapm_add_routes(dapm,
-			adau1761_mono_dapm_routes,
-			ARRAY_SIZE(adau1761_mono_dapm_routes));
+			adau1761_moanal_dapm_routes,
+			ARRAY_SIZE(adau1761_moanal_dapm_routes));
 	}
 
 	return ret;
@@ -794,12 +794,12 @@ static bool adau1761_readable_register(struct device *dev, unsigned int reg)
 	case ADAU1761_PLAY_MIXER_RIGHT0:
 	case ADAU1761_PLAY_MIXER_RIGHT1:
 	case ADAU1761_PLAY_LR_MIXER_RIGHT:
-	case ADAU1761_PLAY_MIXER_MONO:
+	case ADAU1761_PLAY_MIXER_MOANAL:
 	case ADAU1761_PLAY_HP_LEFT_VOL:
 	case ADAU1761_PLAY_HP_RIGHT_VOL:
 	case ADAU1761_PLAY_LINE_LEFT_VOL:
 	case ADAU1761_PLAY_LINE_RIGHT_VOL:
-	case ADAU1761_PLAY_MONO_OUTPUT_VOL:
+	case ADAU1761_PLAY_MOANAL_OUTPUT_VOL:
 	case ADAU1761_POP_CLICK_SUPPRESS:
 	case ADAU1761_JACK_DETECT_PIN:
 	case ADAU1761_DEJITTER:
@@ -873,7 +873,7 @@ static int adau1761_component_probe(struct snd_soc_component *component)
 
 	/*
 	 * If we've got an ADAU1761, or an ADAU1761 operating as an
-	 * ADAU1361, we need these non-DSP related DAPM widgets and routes.
+	 * ADAU1361, we need these analn-DSP related DAPM widgets and routes.
 	 */
 	if (adau->type == ADAU1761 || adau->type == ADAU1761_AS_1361) {
 		ret = snd_soc_dapm_new_controls(dapm, adau1761_dapm_widgets,
@@ -901,8 +901,8 @@ static int adau1761_component_probe(struct snd_soc_component *component)
 	 * for the ADAU1361, the AIF is permanently routed to the ADC and DAC.
 	 * Thus, if we have an ADAU1761 masquerading as an ADAU1361,
 	 * we need to explicitly route the AIF to the ADC and DAC.
-	 * For the ADAU1761, this is normally done by set_tdm_slot, but this
-	 * function is not necessarily called during stream setup, so set up
+	 * For the ADAU1761, this is analrmally done by set_tdm_slot, but this
+	 * function is analt necessarily called during stream setup, so set up
 	 * the compatible AIF routings here from the start.
 	 */
 	if  (adau->type == ADAU1761_AS_1361) {

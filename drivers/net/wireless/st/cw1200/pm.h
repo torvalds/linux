@@ -3,7 +3,7 @@
  * Mac80211 power management interface for ST-Ericsson CW1200 mac80211 drivers
  *
  * Copyright (c) 2011, ST-Ericsson
- * Author: Dmitry Tarnyagin <dmitry.tarnyagin@lockless.no>
+ * Author: Dmitry Tarnyagin <dmitry.tarnyagin@lockless.anal>
  */
 
 #ifndef PM_H_INCLUDED

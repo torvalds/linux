@@ -33,7 +33,7 @@ static int nf_ct_ipv4_gather_frags(struct net *net, struct sk_buff *skb,
 	local_bh_enable();
 
 	if (!err)
-		skb->ignore_df = 1;
+		skb->iganalre_df = 1;
 
 	return err;
 }
@@ -66,12 +66,12 @@ static unsigned int ipv4_conntrack_defrag(void *priv,
 	struct sock *sk = skb->sk;
 
 	if (sk && sk_fullsock(sk) && (sk->sk_family == PF_INET) &&
-	    inet_test_bit(NODEFRAG, sk))
+	    inet_test_bit(ANALDEFRAG, sk))
 		return NF_ACCEPT;
 
 #if IS_ENABLED(CONFIG_NF_CONNTRACK)
 #if !IS_ENABLED(CONFIG_NF_NAT)
-	/* Previously seen (loopback)?  Ignore.  Do this before
+	/* Previously seen (loopback)?  Iganalre.  Do this before
 	   fragment check. */
 	if (skb_nfct(skb) && !nf_ct_is_template((struct nf_conn *)skb_nfct(skb)))
 		return NF_ACCEPT;

@@ -7,7 +7,7 @@
 #include "am33xx.dtsi"
 
 / {
-	model = "Newflow AM335x NanoBone";
+	model = "Newflow AM335x NaanalBone";
 	compatible = "ti,am33xx";
 
 	cpus {
@@ -25,7 +25,7 @@
 		compatible = "gpio-leds";
 
 		led0 {
-			label = "nanobone:green:usr1";
+			label = "naanalbone:green:usr1";
 			gpios = <&gpio1 5 0>;
 			default-state = "off";
 		};
@@ -260,10 +260,10 @@
 
 	#address-cells = <2>;
 	#size-cells = <1>;
-	ranges = <0 0 0x08000000 0x08000000>,	/* CS0: NOR 128M */
+	ranges = <0 0 0x08000000 0x08000000>,	/* CS0: ANALR 128M */
 		 <1 0 0x1c000000 0x01000000>;	/* CS1: FRAM 16M */
 
-	nor@0,0 {
+	analr@0,0 {
 		reg = <0 0x00000000 0x08000000>;
 		compatible = "cfi-flash";
 		linux,mtd-name = "spansion,s29gl010p11t";
@@ -317,7 +317,7 @@
 		|            |-->0x03FFFFFF-> User data end
 		|            |-->0x04000000-> Data storage start
 		|            |
-		+------------+-->0x08000000-> NOR end (Free end)
+		+------------+-->0x08000000-> ANALR end (Free end)
 		*/
 		partition@0 {
 			label = "boot";

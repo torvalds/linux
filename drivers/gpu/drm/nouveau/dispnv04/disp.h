@@ -4,11 +4,11 @@
 #include <subdev/bios.h>
 #include <subdev/bios/pll.h>
 
-#include "nouveau_display.h"
+#include "analuveau_display.h"
 
 #include <nvif/event.h>
 
-struct nouveau_encoder;
+struct analuveau_encoder;
 
 enum nv04_fp_display_regs {
 	FP_DISPLAY_END,
@@ -85,21 +85,21 @@ struct nv04_display {
 	struct nv04_mode_state saved_reg;
 	uint32_t saved_vga_font[4][16384];
 	uint32_t dac_users[4];
-	struct nouveau_bo *image[2];
+	struct analuveau_bo *image[2];
 	struct nvif_event flip;
-	struct nouveau_drm *drm;
+	struct analuveau_drm *drm;
 };
 
 static inline struct nv04_display *
 nv04_display(struct drm_device *dev)
 {
-	return nouveau_display(dev)->priv;
+	return analuveau_display(dev)->priv;
 }
 
 /* nv04_display.c */
 int nv04_display_create(struct drm_device *);
-struct nouveau_connector *
-nv04_encoder_get_connector(struct nouveau_encoder *nv_encoder);
+struct analuveau_connector *
+nv04_encoder_get_connector(struct analuveau_encoder *nv_encoder);
 
 /* nv04_crtc.c */
 int nv04_crtc_create(struct drm_device *, int index);
@@ -127,12 +127,12 @@ int nv04_tv_create(struct drm_connector *, struct dcb_output *);
 int nv17_tv_create(struct drm_connector *, struct dcb_output *);
 
 /* overlay.c */
-void nouveau_overlay_init(struct drm_device *dev);
+void analuveau_overlay_init(struct drm_device *dev);
 
 static inline bool
 nv_two_heads(struct drm_device *dev)
 {
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct analuveau_drm *drm = analuveau_drm(dev);
 	const int impl = to_pci_dev(dev->dev)->device & 0x0ff0;
 
 	if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_CELSIUS && impl != 0x0100 &&
@@ -151,7 +151,7 @@ nv_gf4_disp_arch(struct drm_device *dev)
 static inline bool
 nv_two_reg_pll(struct drm_device *dev)
 {
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct analuveau_drm *drm = analuveau_drm(dev);
 	const int impl = to_pci_dev(dev->dev)->device & 0x0ff0;
 
 	if (impl == 0x0310 || impl == 0x0340 || drm->client.device.info.family >= NV_DEVICE_INFO_V0_CURIE)
@@ -173,10 +173,10 @@ nv_match_device(struct drm_device *dev, unsigned device,
 #include <subdev/bios/init.h>
 
 static inline void
-nouveau_bios_run_init_table(struct drm_device *dev, u16 table,
+analuveau_bios_run_init_table(struct drm_device *dev, u16 table,
 			    struct dcb_output *outp, int crtc)
 {
-	nvbios_init(&nvxx_bios(&nouveau_drm(dev)->client.device)->subdev, table,
+	nvbios_init(&nvxx_bios(&analuveau_drm(dev)->client.device)->subdev, table,
 		init.outp = outp;
 		init.head = crtc;
 	);

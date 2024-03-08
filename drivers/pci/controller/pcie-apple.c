@@ -26,7 +26,7 @@
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/msi.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/of_irq.h>
 #include <linux/pci-ecam.h>
 
@@ -126,7 +126,7 @@
  * matches what MacOS does, and it is possible to use any other
  * address (in the bottom 4GB, as the base register is only 32bit).
  * However, it has to be excluded from the IOVA range, and the DART
- * driver has to know about it.
+ * driver has to kanalw about it.
  */
 #define DOORBELL_ADDR		CONFIG_PCIE_APPLE_MSI_DOORBELL_ADDR
 
@@ -144,7 +144,7 @@ struct apple_pcie {
 
 struct apple_pcie_port {
 	struct apple_pcie	*pcie;
-	struct device_node	*np;
+	struct device_analde	*np;
 	void __iomem		*base;
 	struct irq_domain	*domain;
 	struct list_head	entry;
@@ -217,7 +217,7 @@ static int apple_msi_domain_alloc(struct irq_domain *domain, unsigned int virq,
 	mutex_unlock(&pcie->lock);
 
 	if (hwirq < 0)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	fwspec.param[fwspec.param_count - 2] += hwirq;
 
@@ -372,20 +372,20 @@ static void apple_port_irq_handler(struct irq_desc *desc)
 
 static int apple_pcie_port_setup_irq(struct apple_pcie_port *port)
 {
-	struct fwnode_handle *fwnode = &port->np->fwnode;
+	struct fwanalde_handle *fwanalde = &port->np->fwanalde;
 	unsigned int irq;
 
 	/* FIXME: consider moving each interrupt under each port */
-	irq = irq_of_parse_and_map(to_of_node(dev_fwnode(port->pcie->dev)),
+	irq = irq_of_parse_and_map(to_of_analde(dev_fwanalde(port->pcie->dev)),
 				   port->idx);
 	if (!irq)
 		return -ENXIO;
 
-	port->domain = irq_domain_create_linear(fwnode, 32,
+	port->domain = irq_domain_create_linear(fwanalde, 32,
 						&apple_port_irq_domain_ops,
 						port);
 	if (!port->domain)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Disable all interrupts */
 	writel_relaxed(~0, port->base + PORT_INTMSKSET);
@@ -421,7 +421,7 @@ static irqreturn_t apple_pcie_port_irq(int irq, void *data)
 				     port->np);
 		break;
 	default:
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	return IRQ_HANDLED;
@@ -440,7 +440,7 @@ static int apple_pcie_port_register_irqs(struct apple_pcie_port *port)
 
 	for (i = 0; i < ARRAY_SIZE(port_irqs); i++) {
 		struct irq_fwspec fwspec = {
-			.fwnode		= &port->np->fwnode,
+			.fwanalde		= &port->np->fwanalde,
 			.param_count	= 1,
 			.param		= {
 				[0]	= port_irqs[i].hwirq,
@@ -449,7 +449,7 @@ static int apple_pcie_port_register_irqs(struct apple_pcie_port *port)
 		unsigned int irq;
 		int ret;
 
-		irq = irq_domain_alloc_irqs(port->domain, 1, NUMA_NO_NODE,
+		irq = irq_domain_alloc_irqs(port->domain, 1, NUMA_ANAL_ANALDE,
 					    &fwspec);
 		if (WARN_ON(!irq))
 			continue;
@@ -508,7 +508,7 @@ static u32 apple_pcie_rid2sid_write(struct apple_pcie_port *port,
 }
 
 static int apple_pcie_setup_port(struct apple_pcie *pcie,
-				 struct device_node *np)
+				 struct device_analde *np)
 {
 	struct platform_device *platform = to_platform_device(pcie->dev);
 	struct apple_pcie_port *port;
@@ -516,14 +516,14 @@ static int apple_pcie_setup_port(struct apple_pcie *pcie,
 	u32 stat, idx;
 	int ret, i;
 
-	reset = devm_fwnode_gpiod_get(pcie->dev, of_fwnode_handle(np), "reset",
+	reset = devm_fwanalde_gpiod_get(pcie->dev, of_fwanalde_handle(np), "reset",
 				      GPIOD_OUT_LOW, "PERST#");
 	if (IS_ERR(reset))
 		return PTR_ERR(reset);
 
 	port = devm_kzalloc(pcie->dev, sizeof(*port), GFP_KERNEL);
 	if (!port)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = of_property_read_u32_index(np, "reg", 0, &idx);
 	if (ret)
@@ -598,17 +598,17 @@ static int apple_pcie_setup_port(struct apple_pcie *pcie,
 
 static int apple_msi_init(struct apple_pcie *pcie)
 {
-	struct fwnode_handle *fwnode = dev_fwnode(pcie->dev);
+	struct fwanalde_handle *fwanalde = dev_fwanalde(pcie->dev);
 	struct of_phandle_args args = {};
 	struct irq_domain *parent;
 	int ret;
 
-	ret = of_parse_phandle_with_args(to_of_node(fwnode), "msi-ranges",
+	ret = of_parse_phandle_with_args(to_of_analde(fwanalde), "msi-ranges",
 					 "#interrupt-cells", 0, &args);
 	if (ret)
 		return ret;
 
-	ret = of_property_read_u32_index(to_of_node(fwnode), "msi-ranges",
+	ret = of_property_read_u32_index(to_of_analde(fwanalde), "msi-ranges",
 					 args.args_count + 1, &pcie->nvecs);
 	if (ret)
 		return ret;
@@ -618,7 +618,7 @@ static int apple_msi_init(struct apple_pcie *pcie)
 
 	pcie->bitmap = devm_bitmap_zalloc(pcie->dev, pcie->nvecs, GFP_KERNEL);
 	if (!pcie->bitmap)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	parent = irq_find_matching_fwspec(&pcie->fwspec, DOMAIN_BUS_WIRED);
 	if (!parent) {
@@ -626,20 +626,20 @@ static int apple_msi_init(struct apple_pcie *pcie)
 		return -ENXIO;
 	}
 
-	parent = irq_domain_create_hierarchy(parent, 0, pcie->nvecs, fwnode,
+	parent = irq_domain_create_hierarchy(parent, 0, pcie->nvecs, fwanalde,
 					     &apple_msi_domain_ops, pcie);
 	if (!parent) {
 		dev_err(pcie->dev, "failed to create IRQ domain\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	irq_domain_update_bus_token(parent, DOMAIN_BUS_NEXUS);
 
-	pcie->domain = pci_msi_create_irq_domain(fwnode, &apple_msi_info,
+	pcie->domain = pci_msi_create_irq_domain(fwanalde, &apple_msi_info,
 						 parent);
 	if (!pcie->domain) {
 		dev_err(pcie->dev, "failed to create MSI domain\n");
 		irq_domain_remove(parent);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -655,7 +655,7 @@ static struct apple_pcie_port *apple_pcie_get_port(struct pci_dev *pdev)
 	/* Find the root port this device is on */
 	port_pdev = pcie_find_root_port(pdev);
 
-	/* If finding the port itself, nothing to do */
+	/* If finding the port itself, analthing to do */
 	if (WARN_ON(!port_pdev) || pdev == port_pdev)
 		return NULL;
 
@@ -676,7 +676,7 @@ static int apple_pcie_add_device(struct apple_pcie_port *port,
 	dev_dbg(&pdev->dev, "added to bus %s, index %d\n",
 		pci_name(pdev->bus->self), port->idx);
 
-	err = of_map_id(port->pcie->dev->of_node, rid, "iommu-map",
+	err = of_map_id(port->pcie->dev->of_analde, rid, "iommu-map",
 			"iommu-map-mask", NULL, &sid);
 	if (err)
 		return err;
@@ -695,7 +695,7 @@ static int apple_pcie_add_device(struct apple_pcie_port *port,
 
 	mutex_unlock(&port->pcie->lock);
 
-	return idx >= 0 ? 0 : -ENOSPC;
+	return idx >= 0 ? 0 : -EANALSPC;
 }
 
 static void apple_pcie_release_device(struct apple_pcie_port *port,
@@ -721,7 +721,7 @@ static void apple_pcie_release_device(struct apple_pcie_port *port,
 	mutex_unlock(&port->pcie->lock);
 }
 
-static int apple_pcie_bus_notifier(struct notifier_block *nb,
+static int apple_pcie_bus_analtifier(struct analtifier_block *nb,
 				   unsigned long action,
 				   void *data)
 {
@@ -731,46 +731,46 @@ static int apple_pcie_bus_notifier(struct notifier_block *nb,
 	int err;
 
 	/*
-	 * This is a bit ugly. We assume that if we get notified for
+	 * This is a bit ugly. We assume that if we get analtified for
 	 * any PCI device, we must be in charge of it, and that there
-	 * is no other PCI controller in the whole system. It probably
-	 * holds for now, but who knows for how long?
+	 * is anal other PCI controller in the whole system. It probably
+	 * holds for analw, but who kanalws for how long?
 	 */
 	port = apple_pcie_get_port(pdev);
 	if (!port)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	switch (action) {
-	case BUS_NOTIFY_ADD_DEVICE:
+	case BUS_ANALTIFY_ADD_DEVICE:
 		err = apple_pcie_add_device(port, pdev);
 		if (err)
-			return notifier_from_errno(err);
+			return analtifier_from_erranal(err);
 		break;
-	case BUS_NOTIFY_DEL_DEVICE:
+	case BUS_ANALTIFY_DEL_DEVICE:
 		apple_pcie_release_device(port, pdev);
 		break;
 	default:
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 	}
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
-static struct notifier_block apple_pcie_nb = {
-	.notifier_call = apple_pcie_bus_notifier,
+static struct analtifier_block apple_pcie_nb = {
+	.analtifier_call = apple_pcie_bus_analtifier,
 };
 
 static int apple_pcie_init(struct pci_config_window *cfg)
 {
 	struct device *dev = cfg->parent;
 	struct platform_device *platform = to_platform_device(dev);
-	struct device_node *of_port;
+	struct device_analde *of_port;
 	struct apple_pcie *pcie;
 	int ret;
 
 	pcie = devm_kzalloc(dev, sizeof(*pcie), GFP_KERNEL);
 	if (!pcie)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pcie->dev = dev;
 
@@ -787,11 +787,11 @@ static int apple_pcie_init(struct pci_config_window *cfg)
 	if (ret)
 		return ret;
 
-	for_each_child_of_node(dev->of_node, of_port) {
+	for_each_child_of_analde(dev->of_analde, of_port) {
 		ret = apple_pcie_setup_port(pcie, of_port);
 		if (ret) {
 			dev_err(pcie->dev, "Port %pOF setup fail: %d\n", of_port, ret);
-			of_node_put(of_port);
+			of_analde_put(of_port);
 			return ret;
 		}
 	}
@@ -803,13 +803,13 @@ static int apple_pcie_probe(struct platform_device *pdev)
 {
 	int ret;
 
-	ret = bus_register_notifier(&pci_bus_type, &apple_pcie_nb);
+	ret = bus_register_analtifier(&pci_bus_type, &apple_pcie_nb);
 	if (ret)
 		return ret;
 
 	ret = pci_host_common_probe(pdev);
 	if (ret)
-		bus_unregister_notifier(&pci_bus_type, &apple_pcie_nb);
+		bus_unregister_analtifier(&pci_bus_type, &apple_pcie_nb);
 
 	return ret;
 }

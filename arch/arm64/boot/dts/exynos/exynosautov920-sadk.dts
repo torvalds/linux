@@ -1,20 +1,20 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Samsung's ExynosAutov920 SADK board device tree source
+ * Samsung's ExyanalsAutov920 SADK board device tree source
  *
  * Copyright (c) 2023 Samsung Electronics Co., Ltd.
  *
  */
 
 /dts-v1/;
-#include "exynosautov920.dtsi"
-#include "exynos-pinctrl.h"
+#include "exyanalsautov920.dtsi"
+#include "exyanals-pinctrl.h"
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
 
 / {
-	model = "Samsung ExynosAutov920 SADK board";
-	compatible = "samsung,exynosautov920-sadk", "samsung,exynosautov920";
+	model = "Samsung ExyanalsAutov920 SADK board";
+	compatible = "samsung,exyanalsautov920-sadk", "samsung,exyanalsautov920";
 
 	#address-cells = <2>;
 	#size-cells = <2>;
@@ -57,14 +57,14 @@
 &pinctrl_alive {
 	key_wakeup: key-wakeup-pins {
 		samsung,pins = "gpa0-0";
-		samsung,pin-function = <EXYNOS_PIN_FUNC_EINT>;
+		samsung,pin-function = <EXYANALS_PIN_FUNC_EINT>;
 	};
 };
 
 &pinctrl_peric1 {
 	key_back: key-back-pins {
 		samsung,pins = "gpp6-3";
-		samsung,pin-function = <EXYNOS_PIN_FUNC_EINT>;
+		samsung,pin-function = <EXYANALS_PIN_FUNC_EINT>;
 	};
 };
 

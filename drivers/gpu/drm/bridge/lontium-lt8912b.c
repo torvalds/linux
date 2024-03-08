@@ -34,7 +34,7 @@ struct lt8912 {
 	struct i2c_client *i2c_client[I2C_MAX_IDX];
 	struct regmap *regmap[I2C_MAX_IDX];
 
-	struct device_node *host_node;
+	struct device_analde *host_analde;
 	struct drm_bridge *hdmi_port;
 
 	struct mipi_dsi_device *dsi;
@@ -166,7 +166,7 @@ static int lt8912_write_rxlogicres_config(struct lt8912 *lt)
 	return ret;
 };
 
-/* enable LVDS output with some hardcoded configuration, not required for the HDMI output */
+/* enable LVDS output with some hardcoded configuration, analt required for the HDMI output */
 static int lt8912_write_lvds_config(struct lt8912 *lt)
 {
 	const struct reg_sequence seq[] = {
@@ -229,7 +229,7 @@ static int lt8912_init_i2c(struct lt8912 *lt, struct i2c_client *client)
 	};
 
 	if (!lt)
-		return -ENODEV;
+		return -EANALDEV;
 
 	for (i = 0; i < ARRAY_SIZE(info); i++) {
 		if (i > 0) {
@@ -394,7 +394,7 @@ static enum drm_connector_status lt8912_check_cable_status(struct lt8912 *lt)
 
 	ret = regmap_read(lt->regmap[I2C_MAIN], 0xC1, &reg_val);
 	if (ret)
-		return connector_status_unknown;
+		return connector_status_unkanalwn;
 
 	if (reg_val & BIT(7))
 		return connector_status_connected;
@@ -492,10 +492,10 @@ static int lt8912_attach_dsi(struct lt8912 *lt)
 	int ret = -1;
 	const struct mipi_dsi_device_info info = { .type = "lt8912",
 						   .channel = 0,
-						   .node = NULL,
+						   .analde = NULL,
 						 };
 
-	host = of_find_mipi_dsi_host_by_node(lt->host_node);
+	host = of_find_mipi_dsi_host_by_analde(lt->host_analde);
 	if (!host) {
 		dev_err(dev, "failed to find dsi host\n");
 		return -EPROBE_DEFER;
@@ -515,7 +515,7 @@ static int lt8912_attach_dsi(struct lt8912 *lt)
 
 	dsi->mode_flags = MIPI_DSI_MODE_VIDEO |
 			  MIPI_DSI_MODE_LPM |
-			  MIPI_DSI_MODE_NO_EOT_PACKET;
+			  MIPI_DSI_MODE_ANAL_EOT_PACKET;
 
 	ret = devm_mipi_dsi_attach(dev, dsi);
 	if (ret < 0) {
@@ -570,13 +570,13 @@ static int lt8912_bridge_attach(struct drm_bridge *bridge,
 	int ret;
 
 	ret = drm_bridge_attach(bridge->encoder, lt->hdmi_port, bridge,
-				DRM_BRIDGE_ATTACH_NO_CONNECTOR);
+				DRM_BRIDGE_ATTACH_ANAL_CONNECTOR);
 	if (ret < 0) {
 		dev_err(lt->dev, "Failed to attach next bridge (%d)\n", ret);
 		return ret;
 	}
 
-	if (!(flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR)) {
+	if (!(flags & DRM_BRIDGE_ATTACH_ANAL_CONNECTOR)) {
 		ret = lt8912_bridge_connector_init(bridge);
 		if (ret) {
 			dev_err(lt->dev, "Failed to init bridge ! (%d)\n", ret);
@@ -627,12 +627,12 @@ static struct edid *lt8912_bridge_get_edid(struct drm_bridge *bridge,
 
 	/*
 	 * edid must be read through the ddc bus but it must be
-	 * given to the hdmi connector node.
+	 * given to the hdmi connector analde.
 	 */
 	if (lt->hdmi_port->ops & DRM_BRIDGE_OP_EDID)
 		return drm_bridge_get_edid(lt->hdmi_port, connector);
 
-	dev_warn(lt->dev, "The connected bridge does not supports DRM_BRIDGE_OP_EDID\n");
+	dev_warn(lt->dev, "The connected bridge does analt supports DRM_BRIDGE_OP_EDID\n");
 	return NULL;
 }
 
@@ -693,7 +693,7 @@ static int lt8912_parse_dt(struct lt8912 *lt)
 	struct device *dev = lt->dev;
 	int ret;
 	int data_lanes;
-	struct device_node *port_node;
+	struct device_analde *port_analde;
 
 	gp_reset = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(gp_reset)) {
@@ -704,7 +704,7 @@ static int lt8912_parse_dt(struct lt8912 *lt)
 	}
 	lt->gp_reset = gp_reset;
 
-	data_lanes = drm_of_get_data_lanes_count_ep(dev->of_node, 0, -1, 1, 4);
+	data_lanes = drm_of_get_data_lanes_count_ep(dev->of_analde, 0, -1, 1, 4);
 	if (data_lanes < 0) {
 		dev_err(lt->dev, "%s: Bad data-lanes property\n", __func__);
 		return data_lanes;
@@ -712,48 +712,48 @@ static int lt8912_parse_dt(struct lt8912 *lt)
 
 	lt->data_lanes = data_lanes;
 
-	lt->host_node = of_graph_get_remote_node(dev->of_node, 0, -1);
-	if (!lt->host_node) {
+	lt->host_analde = of_graph_get_remote_analde(dev->of_analde, 0, -1);
+	if (!lt->host_analde) {
 		dev_err(lt->dev, "%s: Failed to get remote port\n", __func__);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
-	port_node = of_graph_get_remote_node(dev->of_node, 1, -1);
-	if (!port_node) {
+	port_analde = of_graph_get_remote_analde(dev->of_analde, 1, -1);
+	if (!port_analde) {
 		dev_err(lt->dev, "%s: Failed to get connector port\n", __func__);
-		ret = -ENODEV;
-		goto err_free_host_node;
+		ret = -EANALDEV;
+		goto err_free_host_analde;
 	}
 
-	lt->hdmi_port = of_drm_find_bridge(port_node);
+	lt->hdmi_port = of_drm_find_bridge(port_analde);
 	if (!lt->hdmi_port) {
 		ret = -EPROBE_DEFER;
 		dev_err_probe(lt->dev, ret, "%s: Failed to get hdmi port\n", __func__);
-		goto err_free_host_node;
+		goto err_free_host_analde;
 	}
 
-	if (!of_device_is_compatible(port_node, "hdmi-connector")) {
+	if (!of_device_is_compatible(port_analde, "hdmi-connector")) {
 		dev_err(lt->dev, "%s: Failed to get hdmi port\n", __func__);
 		ret = -EINVAL;
-		goto err_free_host_node;
+		goto err_free_host_analde;
 	}
 
 	ret = lt8912_get_regulators(lt);
 	if (ret)
-		goto err_free_host_node;
+		goto err_free_host_analde;
 
-	of_node_put(port_node);
+	of_analde_put(port_analde);
 	return 0;
 
-err_free_host_node:
-	of_node_put(port_node);
-	of_node_put(lt->host_node);
+err_free_host_analde:
+	of_analde_put(port_analde);
+	of_analde_put(lt->host_analde);
 	return ret;
 }
 
 static int lt8912_put_dt(struct lt8912 *lt)
 {
-	of_node_put(lt->host_node);
+	of_analde_put(lt->host_analde);
 	return 0;
 }
 
@@ -765,7 +765,7 @@ static int lt8912_probe(struct i2c_client *client)
 
 	lt = devm_kzalloc(dev, sizeof(struct lt8912), GFP_KERNEL);
 	if (!lt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	lt->dev = dev;
 	lt->i2c_client[0] = client;
@@ -781,7 +781,7 @@ static int lt8912_probe(struct i2c_client *client)
 	i2c_set_clientdata(client, lt);
 
 	lt->bridge.funcs = &lt8912_bridge_funcs;
-	lt->bridge.of_node = dev->of_node;
+	lt->bridge.of_analde = dev->of_analde;
 	lt->bridge.ops = (DRM_BRIDGE_OP_EDID |
 			  DRM_BRIDGE_OP_DETECT);
 

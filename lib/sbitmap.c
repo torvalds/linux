@@ -15,7 +15,7 @@ static int init_alloc_hint(struct sbitmap *sb, gfp_t flags)
 
 	sb->alloc_hint = alloc_percpu_gfp(unsigned int, flags);
 	if (!sb->alloc_hint)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (depth && !sb->round_robin) {
 		int i;
@@ -73,15 +73,15 @@ static inline bool sbitmap_deferred_clear(struct sbitmap_word *map)
 	mask = xchg(&map->cleared, 0);
 
 	/*
-	 * Now clear the masked bits in our free word
+	 * Analw clear the masked bits in our free word
 	 */
-	atomic_long_andnot(mask, (atomic_long_t *)&map->word);
+	atomic_long_andanalt(mask, (atomic_long_t *)&map->word);
 	BUILD_BUG_ON(sizeof(atomic_long_t) != sizeof(map->word));
 	return true;
 }
 
-int sbitmap_init_node(struct sbitmap *sb, unsigned int depth, int shift,
-		      gfp_t flags, int node, bool round_robin,
+int sbitmap_init_analde(struct sbitmap *sb, unsigned int depth, int shift,
+		      gfp_t flags, int analde, bool round_robin,
 		      bool alloc_hint)
 {
 	unsigned int bits_per_word;
@@ -105,20 +105,20 @@ int sbitmap_init_node(struct sbitmap *sb, unsigned int depth, int shift,
 
 	if (alloc_hint) {
 		if (init_alloc_hint(sb, flags))
-			return -ENOMEM;
+			return -EANALMEM;
 	} else {
 		sb->alloc_hint = NULL;
 	}
 
-	sb->map = kvzalloc_node(sb->map_nr * sizeof(*sb->map), flags, node);
+	sb->map = kvzalloc_analde(sb->map_nr * sizeof(*sb->map), flags, analde);
 	if (!sb->map) {
 		free_percpu(sb->alloc_hint);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(sbitmap_init_node);
+EXPORT_SYMBOL_GPL(sbitmap_init_analde);
 
 void sbitmap_resize(struct sbitmap *sb, unsigned int depth)
 {
@@ -224,7 +224,7 @@ static int __sbitmap_get(struct sbitmap *sb, unsigned int alloc_hint)
 
 	/*
 	 * Unless we're doing round robin tag allocation, just use the
-	 * alloc_hint to find the right word index. No point in looping
+	 * alloc_hint to find the right word index. Anal point in looping
 	 * twice in find_next_zero_bit() for that case.
 	 */
 	if (sb->round_robin)
@@ -407,13 +407,13 @@ static unsigned int sbq_calc_wake_batch(struct sbitmap_queue *sbq,
 	return wake_batch;
 }
 
-int sbitmap_queue_init_node(struct sbitmap_queue *sbq, unsigned int depth,
-			    int shift, bool round_robin, gfp_t flags, int node)
+int sbitmap_queue_init_analde(struct sbitmap_queue *sbq, unsigned int depth,
+			    int shift, bool round_robin, gfp_t flags, int analde)
 {
 	int ret;
 	int i;
 
-	ret = sbitmap_init_node(&sbq->sb, depth, shift, flags, node,
+	ret = sbitmap_init_analde(&sbq->sb, depth, shift, flags, analde,
 				round_robin, true);
 	if (ret)
 		return ret;
@@ -425,10 +425,10 @@ int sbitmap_queue_init_node(struct sbitmap_queue *sbq, unsigned int depth,
 	atomic_set(&sbq->completion_cnt, 0);
 	atomic_set(&sbq->wakeup_cnt, 0);
 
-	sbq->ws = kzalloc_node(SBQ_WAIT_QUEUES * sizeof(*sbq->ws), flags, node);
+	sbq->ws = kzalloc_analde(SBQ_WAIT_QUEUES * sizeof(*sbq->ws), flags, analde);
 	if (!sbq->ws) {
 		sbitmap_free(&sbq->sb);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	for (i = 0; i < SBQ_WAIT_QUEUES; i++)
@@ -436,7 +436,7 @@ int sbitmap_queue_init_node(struct sbitmap_queue *sbq, unsigned int depth,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(sbitmap_queue_init_node);
+EXPORT_SYMBOL_GPL(sbitmap_queue_init_analde);
 
 static void sbitmap_queue_update_wake_batch(struct sbitmap_queue *sbq,
 					    unsigned int depth)
@@ -619,7 +619,7 @@ void sbitmap_queue_clear_batch(struct sbitmap_queue *sbq, int offset,
 		if (!addr) {
 			addr = this_addr;
 		} else if (addr != this_addr) {
-			atomic_long_andnot(mask, (atomic_long_t *) addr);
+			atomic_long_andanalt(mask, (atomic_long_t *) addr);
 			mask = 0;
 			addr = this_addr;
 		}
@@ -627,7 +627,7 @@ void sbitmap_queue_clear_batch(struct sbitmap_queue *sbq, int offset,
 	}
 
 	if (mask)
-		atomic_long_andnot(mask, (atomic_long_t *) addr);
+		atomic_long_andanalt(mask, (atomic_long_t *) addr);
 
 	smp_mb__after_atomic();
 	sbitmap_queue_wake_up(sbq, nr_tags);

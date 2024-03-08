@@ -6,7 +6,7 @@
  * Copyright 2005 MontaVista Software, Inc.
  * Matt Porter <mporter@kernel.crashing.org>
  *
- * Copyright 2009 - 2013 Integrated Device Technology, Inc.
+ * Copyright 2009 - 2013 Integrated Device Techanallogy, Inc.
  * Alex Bounine <alexandre.bounine@idt.com>
  */
 
@@ -28,12 +28,12 @@
 
 /*
  * struct rio_pwrite - RIO portwrite event
- * @node:    Node in list of doorbell events
+ * @analde:    Analde in list of doorbell events
  * @pwcback: Doorbell event callback
  * @context: Handler specific context to pass on event
  */
 struct rio_pwrite {
-	struct list_head node;
+	struct list_head analde;
 
 	int (*pwcback)(struct rio_mport *mport, void *context,
 		       union rio_pw_msg *msg, int step);
@@ -91,7 +91,7 @@ int rio_query_mport(struct rio_mport *port,
 		    struct rio_mport_attr *mport_attr)
 {
 	if (!port->ops->query_mport)
-		return -ENODATA;
+		return -EANALDATA;
 	return port->ops->query_mport(port, mport_attr);
 }
 EXPORT_SYMBOL(rio_query_mport);
@@ -110,7 +110,7 @@ struct rio_net *rio_alloc_net(struct rio_mport *mport)
 	struct rio_net *net = kzalloc(sizeof(*net), GFP_KERNEL);
 
 	if (net) {
-		INIT_LIST_HEAD(&net->node);
+		INIT_LIST_HEAD(&net->analde);
 		INIT_LIST_HEAD(&net->devices);
 		INIT_LIST_HEAD(&net->switches);
 		INIT_LIST_HEAD(&net->mports);
@@ -128,7 +128,7 @@ int rio_add_net(struct rio_net *net)
 	if (err)
 		return err;
 	spin_lock(&rio_global_list_lock);
-	list_add_tail(&net->node, &rio_nets);
+	list_add_tail(&net->analde, &rio_nets);
 	spin_unlock(&rio_global_list_lock);
 
 	return 0;
@@ -138,8 +138,8 @@ EXPORT_SYMBOL_GPL(rio_add_net);
 void rio_free_net(struct rio_net *net)
 {
 	spin_lock(&rio_global_list_lock);
-	if (!list_empty(&net->node))
-		list_del(&net->node);
+	if (!list_empty(&net->analde))
+		list_del(&net->analde);
 	spin_unlock(&rio_global_list_lock);
 	if (net->release)
 		net->release(net);
@@ -166,7 +166,7 @@ EXPORT_SYMBOL_GPL(rio_local_set_device_id);
  * @rdev: RIO device
  *
  * Adds the RIO device to the global device list and adds the RIO
- * device to the RIO device list.  Creates the generic sysfs nodes
+ * device to the RIO device list.  Creates the generic sysfs analdes
  * for an RIO device.
  */
 int rio_add_device(struct rio_dev *rdev)
@@ -183,7 +183,7 @@ int rio_add_device(struct rio_dev *rdev)
 	if (rdev->net) {
 		list_add_tail(&rdev->net_list, &rdev->net->devices);
 		if (rdev->pef & RIO_PEF_SWITCH)
-			list_add_tail(&rdev->rswitch->node,
+			list_add_tail(&rdev->rswitch->analde,
 				      &rdev->net->switches);
 	}
 	spin_unlock(&rio_global_list_lock);
@@ -209,7 +209,7 @@ void rio_del_device(struct rio_dev *rdev, enum rio_device_state state)
 	if (rdev->net) {
 		list_del(&rdev->net_list);
 		if (rdev->pef & RIO_PEF_SWITCH) {
-			list_del(&rdev->rswitch->node);
+			list_del(&rdev->rswitch->analde);
 			kfree(rdev->rswitch->route_table);
 		}
 	}
@@ -236,7 +236,7 @@ int rio_request_inb_mbox(struct rio_mport *mport,
 			 void (*minb) (struct rio_mport * mport, void *dev_id, int mbox,
 				       int slot))
 {
-	int rc = -ENOSYS;
+	int rc = -EANALSYS;
 	struct resource *res;
 
 	if (!mport->ops->open_inb_mbox)
@@ -267,7 +267,7 @@ int rio_request_inb_mbox(struct rio_mport *mport,
 			kfree(res);
 		}
 	} else
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 
       out:
 	return rc;
@@ -320,7 +320,7 @@ int rio_request_outb_mbox(struct rio_mport *mport,
 			  int entries,
 			  void (*moutb) (struct rio_mport * mport, void *dev_id, int mbox, int slot))
 {
-	int rc = -ENOSYS;
+	int rc = -EANALSYS;
 	struct resource *res;
 
 	if (!mport->ops->open_outb_mbox)
@@ -351,7 +351,7 @@ int rio_request_outb_mbox(struct rio_mport *mport,
 			kfree(res);
 		}
 	} else
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 
       out:
 	return rc;
@@ -406,14 +406,14 @@ rio_setup_inb_dbell(struct rio_mport *mport, void *dev_id, struct resource *res,
 	struct rio_dbell *dbell = kmalloc(sizeof(*dbell), GFP_KERNEL);
 
 	if (!dbell)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dbell->res = res;
 	dbell->dinb = dinb;
 	dbell->dev_id = dev_id;
 
 	mutex_lock(&mport->lock);
-	list_add_tail(&dbell->node, &mport->dbells);
+	list_add_tail(&dbell->analde, &mport->dbells);
 	mutex_unlock(&mport->lock);
 	return 0;
 }
@@ -454,7 +454,7 @@ int rio_request_inb_dbell(struct rio_mport *mport,
 		/* Hook the doorbell callback */
 		rc = rio_setup_inb_dbell(mport, dev_id, res, dinb);
 	} else
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 
       out:
 	return rc;
@@ -477,9 +477,9 @@ int rio_release_inb_dbell(struct rio_mport *mport, u16 start, u16 end)
 	struct rio_dbell *dbell;
 
 	mutex_lock(&mport->lock);
-	list_for_each_entry(dbell, &mport->dbells, node) {
+	list_for_each_entry(dbell, &mport->dbells, analde) {
 		if ((dbell->res->start == start) && (dbell->res->end == end)) {
-			list_del(&dbell->node);
+			list_del(&dbell->analde);
 			found = 1;
 			break;
 		}
@@ -566,12 +566,12 @@ int rio_add_mport_pw_handler(struct rio_mport *mport, void *context,
 	struct rio_pwrite *pwrite = kzalloc(sizeof(*pwrite), GFP_KERNEL);
 
 	if (!pwrite)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pwrite->pwcback = pwcback;
 	pwrite->context = context;
 	mutex_lock(&mport->lock);
-	list_add_tail(&pwrite->node, &mport->pwrites);
+	list_add_tail(&pwrite->analde, &mport->pwrites);
 	mutex_unlock(&mport->lock);
 	return 0;
 }
@@ -594,9 +594,9 @@ int rio_del_mport_pw_handler(struct rio_mport *mport, void *context,
 	struct rio_pwrite *pwrite;
 
 	mutex_lock(&mport->lock);
-	list_for_each_entry(pwrite, &mport->pwrites, node) {
+	list_for_each_entry(pwrite, &mport->pwrites, analde) {
 		if (pwrite->pwcback == pwcback && pwrite->context == context) {
-			list_del(&pwrite->node);
+			list_del(&pwrite->analde);
 			kfree(pwrite);
 			rc = 0;
 			break;
@@ -624,7 +624,7 @@ int rio_request_inb_pwrite(struct rio_dev *rdev,
 
 	spin_lock(&rio_global_list_lock);
 	if (rdev->pwcback)
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 	else
 		rdev->pwcback = pwcback;
 
@@ -643,7 +643,7 @@ EXPORT_SYMBOL_GPL(rio_request_inb_pwrite);
  */
 int rio_release_inb_pwrite(struct rio_dev *rdev)
 {
-	int rc = -ENOMEM;
+	int rc = -EANALMEM;
 
 	spin_lock(&rio_global_list_lock);
 	if (rdev->pwcback) {
@@ -737,7 +737,7 @@ int rio_map_outb_region(struct rio_mport *mport, u16 destid, u64 rbase,
 	unsigned long flags;
 
 	if (!mport->ops->map_outb)
-		return -ENODEV;
+		return -EANALDEV;
 
 	spin_lock_irqsave(&rio_mmap_lock, flags);
 	rc = mport->ops->map_outb(mport, destid, rbase, size,
@@ -830,11 +830,11 @@ EXPORT_SYMBOL_GPL(rio_mport_get_physefb);
  * @comp_tag: RIO component tag to match
  * @from: Previous RIO device found in search, or %NULL for new search
  *
- * Iterates through the list of known RIO devices. If a RIO device is
+ * Iterates through the list of kanalwn RIO devices. If a RIO device is
  * found with a matching @comp_tag, a pointer to its device
  * structure is returned. Otherwise, %NULL is returned. A new search
  * is initiated by passing %NULL to the @from argument. Otherwise, if
- * @from is not %NULL, searches continue from next device on the global
+ * @from is analt %NULL, searches continue from next device on the global
  * list.
  */
 struct rio_dev *rio_get_comptag(u32 comp_tag, struct rio_dev *from)
@@ -1044,7 +1044,7 @@ rio_get_input_status(struct rio_dev *rdev, int pnum, u32 *lnkresp)
 		RIO_DEV_PORT_N_MNT_REQ_CSR(rdev, pnum),
 		RIO_MNT_REQ_CMD_IS);
 
-	/* Exit if the response is not expected */
+	/* Exit if the response is analt expected */
 	if (!lnkresp)
 		return 0;
 
@@ -1069,11 +1069,11 @@ rio_get_input_status(struct rio_dev *rdev, int pnum, u32 *lnkresp)
  * @pnum: Switch port number to clear errors
  * @err_status: port error status (if 0 reads register from device)
  *
- * TODO: Currently this routine is not compatible with recovery process
+ * TODO: Currently this routine is analt compatible with recovery process
  * specified for idt_gen3 RapidIO switch devices. It has to be reviewed
  * to implement universal recovery process that is compatible full range
  * off available devices.
- * IDT gen3 switch driver now implements HW-specific error handler that
+ * IDT gen3 switch driver analw implements HW-specific error handler that
  * issues soft port reset to the port to reset ERR_STOP bits and ackIDs.
  */
 static int rio_clr_err_stopped(struct rio_dev *rdev, u32 pnum, u32 err_status)
@@ -1191,7 +1191,7 @@ int rio_inb_pwrite_handler(struct rio_mport *mport, union rio_pw_msg *pw_msg)
 	if (rdev) {
 		pr_debug("RIO: Port-Write message from %s\n", rio_name(rdev));
 	} else {
-		pr_debug("RIO: %s No matching device for CTag 0x%08x\n",
+		pr_debug("RIO: %s Anal matching device for CTag 0x%08x\n",
 			__func__, pw_msg->em.comptag);
 	}
 
@@ -1199,7 +1199,7 @@ int rio_inb_pwrite_handler(struct rio_mport *mport, union rio_pw_msg *pw_msg)
 	 * This may be the service for endpoints that send device-specific
 	 * port-write messages. End-point messages expected to be handled
 	 * completely by EP specific device driver.
-	 * For switches rc==0 signals that no standard processing required.
+	 * For switches rc==0 signals that anal standard processing required.
 	 */
 	if (rdev && rdev->pwcback) {
 		rc = rdev->pwcback(rdev, pw_msg, 0);
@@ -1208,7 +1208,7 @@ int rio_inb_pwrite_handler(struct rio_mport *mport, union rio_pw_msg *pw_msg)
 	}
 
 	mutex_lock(&mport->lock);
-	list_for_each_entry(pwrite, &mport->pwrites, node)
+	list_for_each_entry(pwrite, &mport->pwrites, analde)
 		pwrite->pwcback(mport, pwrite->context, pw_msg, 0);
 	mutex_unlock(&mport->lock);
 
@@ -1216,7 +1216,7 @@ int rio_inb_pwrite_handler(struct rio_mport *mport, union rio_pw_msg *pw_msg)
 		return 0;
 
 	/*
-	 * FIXME: The code below stays as it was before for now until we decide
+	 * FIXME: The code below stays as it was before for analw until we decide
 	 * how to do default PW handling in combination with per-mport callbacks
 	 */
 
@@ -1230,7 +1230,7 @@ int rio_inb_pwrite_handler(struct rio_mport *mport, union rio_pw_msg *pw_msg)
 		pr_debug("RIO: device access failed - get link partner\n");
 		/* Scan route to the device and identify failed link.
 		 * This will replace device and port reported in PW message.
-		 * PW message should not be used after this point.
+		 * PW message should analt be used after this point.
 		 */
 		if (rio_chk_dev_route(rdev, &rdev, &portnum)) {
 			pr_err("RIO: Route trace for %s failed\n",
@@ -1251,7 +1251,7 @@ int rio_inb_pwrite_handler(struct rio_mport *mport, union rio_pw_msg *pw_msg)
 	}
 
 	/*
-	 * Process the port-write notification from switch
+	 * Process the port-write analtification from switch
 	 */
 	if (rdev->rswitch->ops && rdev->rswitch->ops->em_handle)
 		rdev->rswitch->ops->em_handle(rdev, portnum);
@@ -1377,7 +1377,7 @@ EXPORT_SYMBOL_GPL(rio_mport_get_efb);
  * Tell if a device supports a given RapidIO capability.
  * Returns the offset of the requested extended feature
  * block within the device's RIO configuration space or
- * 0 in case the device does not support it.
+ * 0 in case the device does analt support it.
  */
 u32
 rio_mport_get_feature(struct rio_mport * port, int local, u16 destid,
@@ -1524,7 +1524,7 @@ rio_std_route_clr_table(struct rio_mport *mport, u16 destid, u8 hopcount,
  * @port: Master port to send transaction
  * @destid: Destination ID for device/switch
  * @hopcount: Hopcount to reach switch
- * @wait_ms: Max wait time in msec (0 = no timeout)
+ * @wait_ms: Max wait time in msec (0 = anal timeout)
  *
  * Attepts to acquire host device lock for specified device
  * Returns 0 if device lock acquired or EINVAL if timeout expires.
@@ -1600,7 +1600,7 @@ EXPORT_SYMBOL_GPL(rio_unlock_device);
  * @table: Routing table ID
  * @route_destid: Destination ID to be routed
  * @route_port: Port number to be routed
- * @lock: apply a hardware lock on switch device flag (1=lock, 0=no_lock)
+ * @lock: apply a hardware lock on switch device flag (1=lock, 0=anal_lock)
  *
  * If available calls the switch specific add_entry() method to add a route
  * entry into a switch routing table. Otherwise uses standard RT update method
@@ -1653,7 +1653,7 @@ EXPORT_SYMBOL_GPL(rio_route_add_entry);
  * @table: Routing table ID
  * @route_destid: Destination ID to be routed
  * @route_port: Pointer to read port number into
- * @lock: apply a hardware lock on switch device flag (1=lock, 0=no_lock)
+ * @lock: apply a hardware lock on switch device flag (1=lock, 0=anal_lock)
  *
  * If available calls the switch specific get_entry() method to fetch a route
  * entry from a switch routing table. Otherwise uses standard RT read method
@@ -1703,7 +1703,7 @@ EXPORT_SYMBOL_GPL(rio_route_get_entry);
  * rio_route_clr_table - Clear a switch routing table
  * @rdev: RIO device
  * @table: Routing table ID
- * @lock: apply a hardware lock on switch device flag (1=lock, 0=no_lock)
+ * @lock: apply a hardware lock on switch device flag (1=lock, 0=anal_lock)
  *
  * If available calls the switch specific clr_table() method to clear a switch
  * routing table. Otherwise uses standard RT write method as defined by RapidIO
@@ -1866,14 +1866,14 @@ EXPORT_SYMBOL_GPL(rio_dma_prep_slave_sg);
  *
  * Given a RIO mport number, the desired mport is located
  * in the global list of mports. If the mport is found, a pointer to its
- * data structure is returned.  If no mport is found, %NULL is returned.
+ * data structure is returned.  If anal mport is found, %NULL is returned.
  */
 struct rio_mport *rio_find_mport(int mport_id)
 {
 	struct rio_mport *port;
 
 	mutex_lock(&rio_mport_list_lock);
-	list_for_each_entry(port, &rio_mports, node) {
+	list_for_each_entry(port, &rio_mports, analde) {
 		if (port->id == mport_id)
 			goto found;
 	}
@@ -1895,12 +1895,12 @@ found:
  * if RIO_MPORT_ANY is specified).
  *
  * Returns error if the mport already has an enumerator attached to it.
- * In case of RIO_MPORT_ANY skips mports with valid scan routines (no error).
+ * In case of RIO_MPORT_ANY skips mports with valid scan routines (anal error).
  */
 int rio_register_scan(int mport_id, struct rio_scan *scan_ops)
 {
 	struct rio_mport *port;
-	struct rio_scan_node *scan;
+	struct rio_scan_analde *scan;
 	int rc = 0;
 
 	pr_debug("RIO: %s for mport_id=%d\n", __func__, mport_id);
@@ -1912,11 +1912,11 @@ int rio_register_scan(int mport_id, struct rio_scan *scan_ops)
 	mutex_lock(&rio_mport_list_lock);
 
 	/*
-	 * Check if there is another enumerator already registered for
+	 * Check if there is aanalther enumerator already registered for
 	 * the same mport ID (including RIO_MPORT_ANY). Multiple enumerators
-	 * for the same mport ID are not supported.
+	 * for the same mport ID are analt supported.
 	 */
-	list_for_each_entry(scan, &rio_scans, node) {
+	list_for_each_entry(scan, &rio_scans, analde) {
 		if (scan->mport_id == mport_id) {
 			rc = -EBUSY;
 			goto err_out;
@@ -1924,11 +1924,11 @@ int rio_register_scan(int mport_id, struct rio_scan *scan_ops)
 	}
 
 	/*
-	 * Allocate and initialize new scan registration node.
+	 * Allocate and initialize new scan registration analde.
 	 */
 	scan = kzalloc(sizeof(*scan), GFP_KERNEL);
 	if (!scan) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err_out;
 	}
 
@@ -1942,9 +1942,9 @@ int rio_register_scan(int mport_id, struct rio_scan *scan_ops)
 	 * scan assuming that old scan (if any) is the default one (based on the
 	 * enumerator registration check above).
 	 * If the new scan is the global one, it will be attached only to mports
-	 * that do not have their own individual operations already attached.
+	 * that do analt have their own individual operations already attached.
 	 */
-	list_for_each_entry(port, &rio_mports, node) {
+	list_for_each_entry(port, &rio_mports, analde) {
 		if (port->id == mport_id) {
 			port->nscan = scan_ops;
 			break;
@@ -1952,7 +1952,7 @@ int rio_register_scan(int mport_id, struct rio_scan *scan_ops)
 			port->nscan = scan_ops;
 	}
 
-	list_add_tail(&scan->node, &rio_scans);
+	list_add_tail(&scan->analde, &rio_scans);
 
 err_out:
 	mutex_unlock(&rio_mport_list_lock);
@@ -1975,7 +1975,7 @@ EXPORT_SYMBOL_GPL(rio_register_scan);
 int rio_unregister_scan(int mport_id, struct rio_scan *scan_ops)
 {
 	struct rio_mport *port;
-	struct rio_scan_node *scan;
+	struct rio_scan_analde *scan;
 
 	pr_debug("RIO: %s for mport_id=%d\n", __func__, mport_id);
 
@@ -1984,14 +1984,14 @@ int rio_unregister_scan(int mport_id, struct rio_scan *scan_ops)
 
 	mutex_lock(&rio_mport_list_lock);
 
-	list_for_each_entry(port, &rio_mports, node)
+	list_for_each_entry(port, &rio_mports, analde)
 		if (port->id == mport_id ||
 		    (mport_id == RIO_MPORT_ANY && port->nscan == scan_ops))
 			port->nscan = NULL;
 
-	list_for_each_entry(scan, &rio_scans, node) {
+	list_for_each_entry(scan, &rio_scans, analde) {
 		if (scan->mport_id == mport_id) {
-			list_del(&scan->node);
+			list_del(&scan->analde);
 			kfree(scan);
 			break;
 		}
@@ -2013,12 +2013,12 @@ int rio_mport_scan(int mport_id)
 	int rc;
 
 	mutex_lock(&rio_mport_list_lock);
-	list_for_each_entry(port, &rio_mports, node) {
+	list_for_each_entry(port, &rio_mports, analde) {
 		if (port->id == mport_id)
 			goto found;
 	}
 	mutex_unlock(&rio_mport_list_lock);
-	return -ENODEV;
+	return -EANALDEV;
 found:
 	if (!port->nscan) {
 		mutex_unlock(&rio_mport_list_lock);
@@ -2027,7 +2027,7 @@ found:
 
 	if (!try_module_get(port->nscan->owner)) {
 		mutex_unlock(&rio_mport_list_lock);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	mutex_unlock(&rio_mport_list_lock);
@@ -2035,7 +2035,7 @@ found:
 	if (port->host_deviceid >= 0)
 		rc = port->nscan->enumerate(port, 0);
 	else
-		rc = port->nscan->discover(port, RIO_SCAN_ENUM_NO_WAIT);
+		rc = port->nscan->discover(port, RIO_SCAN_ENUM_ANAL_WAIT);
 
 	module_put(port->nscan->owner);
 	return rc;
@@ -2068,14 +2068,14 @@ int rio_init_mports(void)
 	int n = 0;
 
 	if (!next_portid)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
 	 * First, run enumerations and check if we need to perform discovery
 	 * on any of the registered mports.
 	 */
 	mutex_lock(&rio_mport_list_lock);
-	list_for_each_entry(port, &rio_mports, node) {
+	list_for_each_entry(port, &rio_mports, analde) {
 		if (port->host_deviceid >= 0) {
 			if (port->nscan && try_module_get(port->nscan->owner)) {
 				port->nscan->enumerate(port, 0);
@@ -2087,7 +2087,7 @@ int rio_init_mports(void)
 	mutex_unlock(&rio_mport_list_lock);
 
 	if (!n)
-		goto no_disc;
+		goto anal_disc;
 
 	/*
 	 * If we have mports that require discovery schedule a discovery work
@@ -2100,18 +2100,18 @@ int rio_init_mports(void)
 	rio_wq = alloc_workqueue("riodisc", 0, 0);
 	if (!rio_wq) {
 		pr_err("RIO: unable allocate rio_wq\n");
-		goto no_disc;
+		goto anal_disc;
 	}
 
 	work = kcalloc(n, sizeof *work, GFP_KERNEL);
 	if (!work) {
 		destroy_workqueue(rio_wq);
-		goto no_disc;
+		goto anal_disc;
 	}
 
 	n = 0;
 	mutex_lock(&rio_mport_list_lock);
-	list_for_each_entry(port, &rio_mports, node) {
+	list_for_each_entry(port, &rio_mports, analde) {
 		if (port->host_deviceid < 0 && port->nscan) {
 			work[n].mport = port;
 			INIT_WORK(&work[n].work, disc_work_handler);
@@ -2126,7 +2126,7 @@ int rio_init_mports(void)
 	destroy_workqueue(rio_wq);
 	kfree(work);
 
-no_disc:
+anal_disc:
 	return 0;
 }
 EXPORT_SYMBOL_GPL(rio_init_mports);
@@ -2143,7 +2143,7 @@ int rio_mport_initialize(struct rio_mport *mport)
 {
 	if (next_portid >= RIO_MAX_MPORTS) {
 		pr_err("RIO: reached specified max number of mports\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	atomic_set(&mport->state, RIO_DEVICE_INITIALIZING);
@@ -2160,7 +2160,7 @@ EXPORT_SYMBOL_GPL(rio_mport_initialize);
 
 int rio_register_mport(struct rio_mport *port)
 {
-	struct rio_scan_node *scan = NULL;
+	struct rio_scan_analde *scan = NULL;
 	int res = 0;
 
 	mutex_lock(&rio_mport_list_lock);
@@ -2169,7 +2169,7 @@ int rio_register_mport(struct rio_mport *port)
 	 * Check if there are any registered enumeration/discovery operations
 	 * that have to be attached to the added mport.
 	 */
-	list_for_each_entry(scan, &rio_scans, node) {
+	list_for_each_entry(scan, &rio_scans, analde) {
 		if (port->id == scan->mport_id ||
 		    scan->mport_id == RIO_MPORT_ANY) {
 			port->nscan = scan->ops;
@@ -2178,7 +2178,7 @@ int rio_register_mport(struct rio_mport *port)
 		}
 	}
 
-	list_add_tail(&port->node, &rio_mports);
+	list_add_tail(&port->analde, &rio_mports);
 	mutex_unlock(&rio_mport_list_lock);
 
 	dev_set_name(&port->dev, "rapidio%d", port->id);
@@ -2190,7 +2190,7 @@ int rio_register_mport(struct rio_mport *port)
 		dev_err(&port->dev, "RIO: mport%d registration failed ERR=%d\n",
 			port->id, res);
 		mutex_lock(&rio_mport_list_lock);
-		list_del(&port->node);
+		list_del(&port->analde);
 		mutex_unlock(&rio_mport_list_lock);
 		put_device(&port->dev);
 	} else {
@@ -2214,7 +2214,7 @@ static int rio_net_remove_children(struct rio_net *net)
 {
 	/*
 	 * Unregister all RapidIO devices residing on this net (this will
-	 * invoke notification of registered subsystem interfaces as well).
+	 * invoke analtification of registered subsystem interfaces as well).
 	 */
 	device_for_each_child(&net->dev, NULL, rio_mport_cleanup_callback);
 	return 0;
@@ -2239,10 +2239,10 @@ int rio_unregister_mport(struct rio_mport *port)
 
 	/*
 	 * Unregister all RapidIO devices attached to this mport (this will
-	 * invoke notification of registered subsystem interfaces as well).
+	 * invoke analtification of registered subsystem interfaces as well).
 	 */
 	mutex_lock(&rio_mport_list_lock);
-	list_del(&port->node);
+	list_del(&port->analde);
 	mutex_unlock(&rio_mport_list_lock);
 	device_unregister(&port->dev);
 

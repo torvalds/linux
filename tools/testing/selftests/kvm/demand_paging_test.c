@@ -41,7 +41,7 @@ static void vcpu_worker(struct memstress_vcpu_args *vcpu_args)
 	struct timespec ts_diff;
 	int ret;
 
-	clock_gettime(CLOCK_MONOTONIC, &start);
+	clock_gettime(CLOCK_MOANALTONIC, &start);
 
 	/* Let the guest access its memory */
 	ret = _vcpu_run(vcpu);
@@ -66,7 +66,7 @@ static int handle_uffd_page_request(int uffd_mode, int uffd,
 	struct timespec ts_diff;
 	int r;
 
-	clock_gettime(CLOCK_MONOTONIC, &start);
+	clock_gettime(CLOCK_MOANALTONIC, &start);
 
 	if (uffd_mode == UFFDIO_REGISTER_MODE_MISSING) {
 		struct uffdio_copy copy;
@@ -78,11 +78,11 @@ static int handle_uffd_page_request(int uffd_mode, int uffd,
 
 		r = ioctl(uffd, UFFDIO_COPY, &copy);
 		if (r == -1) {
-			pr_info("Failed UFFDIO_COPY in 0x%lx from thread %d with errno: %d\n",
-				addr, tid, errno);
+			pr_info("Failed UFFDIO_COPY in 0x%lx from thread %d with erranal: %d\n",
+				addr, tid, erranal);
 			return r;
 		}
-	} else if (uffd_mode == UFFDIO_REGISTER_MODE_MINOR) {
+	} else if (uffd_mode == UFFDIO_REGISTER_MODE_MIANALR) {
 		struct uffdio_continue cont = {0};
 
 		cont.range.start = addr;
@@ -90,8 +90,8 @@ static int handle_uffd_page_request(int uffd_mode, int uffd,
 
 		r = ioctl(uffd, UFFDIO_CONTINUE, &cont);
 		if (r == -1) {
-			pr_info("Failed UFFDIO_CONTINUE in 0x%lx from thread %d with errno: %d\n",
-				addr, tid, errno);
+			pr_info("Failed UFFDIO_CONTINUE in 0x%lx from thread %d with erranal: %d\n",
+				addr, tid, erranal);
 			return r;
 		}
 	} else {
@@ -119,7 +119,7 @@ static void prefault_mem(void *alias, uint64_t len)
 {
 	size_t p;
 
-	TEST_ASSERT(alias != NULL, "Alias required for minor faults");
+	TEST_ASSERT(alias != NULL, "Alias required for mianalr faults");
 	for (p = 0; p < (len / demand_paging_size); ++p) {
 		memcpy(alias + (p * demand_paging_size),
 		       guest_data_prototype, demand_paging_size);
@@ -146,7 +146,7 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 		    "Failed to allocate buffer for guest data pattern");
 	memset(guest_data_prototype, 0xAB, demand_paging_size);
 
-	if (p->uffd_mode == UFFDIO_REGISTER_MODE_MINOR) {
+	if (p->uffd_mode == UFFDIO_REGISTER_MODE_MIANALR) {
 		for (i = 0; i < nr_vcpus; i++) {
 			vcpu_args = &memstress_args.vcpu_args[i];
 			prefault_mem(addr_gpa2alias(vm, vcpu_args->gpa),
@@ -177,7 +177,7 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 
 	pr_info("Finished creating vCPUs and starting uffd threads\n");
 
-	clock_gettime(CLOCK_MONOTONIC, &start);
+	clock_gettime(CLOCK_MOANALTONIC, &start);
 	memstress_start_vcpu_threads(nr_vcpus, vcpu_worker);
 	pr_info("Started all vCPUs\n");
 
@@ -211,11 +211,11 @@ static void help(char *name)
 	       "          [-b memory] [-s type] [-v vcpus] [-c cpu_list] [-o]\n", name);
 	guest_modes_help();
 	printf(" -u: use userfaultfd to handle vCPU page faults. Mode is a\n"
-	       "     UFFD registration mode: 'MISSING' or 'MINOR'.\n");
+	       "     UFFD registration mode: 'MISSING' or 'MIANALR'.\n");
 	kvm_print_vcpu_pinning_help();
 	printf(" -d: add a delay in usec to the User Fault\n"
 	       "     FD handler to simulate demand paging\n"
-	       "     overheads. Ignored without -u.\n");
+	       "     overheads. Iganalred without -u.\n");
 	printf(" -b: specify the size of the memory region which should be\n"
 	       "     demand paged by each vCPU. e.g. 10M or 3G.\n"
 	       "     Default: 1G\n");
@@ -247,13 +247,13 @@ int main(int argc, char *argv[])
 		case 'u':
 			if (!strcmp("MISSING", optarg))
 				p.uffd_mode = UFFDIO_REGISTER_MODE_MISSING;
-			else if (!strcmp("MINOR", optarg))
-				p.uffd_mode = UFFDIO_REGISTER_MODE_MINOR;
-			TEST_ASSERT(p.uffd_mode, "UFFD mode must be 'MISSING' or 'MINOR'.");
+			else if (!strcmp("MIANALR", optarg))
+				p.uffd_mode = UFFDIO_REGISTER_MODE_MIANALR;
+			TEST_ASSERT(p.uffd_mode, "UFFD mode must be 'MISSING' or 'MIANALR'.");
 			break;
 		case 'd':
 			p.uffd_delay = strtoul(optarg, NULL, 0);
-			TEST_ASSERT(p.uffd_delay >= 0, "A negative UFFD delay is not supported.");
+			TEST_ASSERT(p.uffd_delay >= 0, "A negative UFFD delay is analt supported.");
 			break;
 		case 'b':
 			guest_percpu_mem_size = parse_size(optarg);
@@ -279,9 +279,9 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if (p.uffd_mode == UFFDIO_REGISTER_MODE_MINOR &&
+	if (p.uffd_mode == UFFDIO_REGISTER_MODE_MIANALR &&
 	    !backing_src_is_shared(p.src_type)) {
-		TEST_FAIL("userfaultfd MINOR mode requires shared memory; pick a different -s");
+		TEST_FAIL("userfaultfd MIANALR mode requires shared memory; pick a different -s");
 	}
 
 	if (cpulist) {

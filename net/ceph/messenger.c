@@ -47,7 +47,7 @@
  *          | con_sock_state_init()
  *          v
  *      ----------
- *      | CLOSED |  initialized, but no socket (and no
+ *      | CLOSED |  initialized, but anal socket (and anal
  *      ----------  TCP connection)
  *       ^      \
  *       |       \ con_sock_state_connecting()
@@ -154,7 +154,7 @@ static void con_fault(struct ceph_connection *con);
 #define ADDR_STR_COUNT_LOG	5	/* log2(# address strings in array) */
 #define ADDR_STR_COUNT		(1 << ADDR_STR_COUNT_LOG)
 #define ADDR_STR_COUNT_MASK	(ADDR_STR_COUNT - 1)
-#define MAX_ADDR_STR_LEN	64	/* 54 is enough */
+#define MAX_ADDR_STR_LEN	64	/* 54 is eanalugh */
 
 static char addr_str[ADDR_STR_COUNT][MAX_ADDR_STR_LEN];
 static atomic_t addr_str_seq = ATOMIC_INIT(0);
@@ -186,7 +186,7 @@ const char *ceph_pr_addr(const struct ceph_entity_addr *addr)
 		break;
 
 	default:
-		snprintf(s, MAX_ADDR_STR_LEN, "(unknown sockaddr family %hu)",
+		snprintf(s, MAX_ADDR_STR_LEN, "(unkanalwn sockaddr family %hu)",
 			 ss.ss_family);
 	}
 
@@ -213,7 +213,7 @@ static int ceph_msgr_slab_init(void)
 	BUG_ON(ceph_msg_cache);
 	ceph_msg_cache = KMEM_CACHE(ceph_msg, 0);
 	if (!ceph_msg_cache)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -242,7 +242,7 @@ static void _ceph_msgr_exit(void)
 int __init ceph_msgr_init(void)
 {
 	if (ceph_msgr_slab_init())
-		return -ENOMEM;
+		return -EANALMEM;
 
 	BUG_ON(ceph_zero_page);
 	ceph_zero_page = ZERO_PAGE(0);
@@ -259,7 +259,7 @@ int __init ceph_msgr_init(void)
 	pr_err("msgr_init failed to create workqueue\n");
 	_ceph_msgr_exit();
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 void ceph_msgr_exit(void)
@@ -366,7 +366,7 @@ static void ceph_sock_write_space(struct sock *sk)
 
 	/* only queue to workqueue if there is data we want to write,
 	 * and there is sufficient space in the socket buffer to accept
-	 * more data.  clear SOCK_NOSPACE so that ceph_sock_write_space()
+	 * more data.  clear SOCK_ANALSPACE so that ceph_sock_write_space()
 	 * doesn't get called again until try_write() fills the socket
 	 * buffer. See net/ipv4/tcp_input.c:tcp_check_space()
 	 * and net/core/stream.c:sk_stream_write_space().
@@ -374,11 +374,11 @@ static void ceph_sock_write_space(struct sock *sk)
 	if (ceph_con_flag_test(con, CEPH_CON_F_WRITE_PENDING)) {
 		if (sk_stream_is_writeable(sk)) {
 			dout("%s %p queueing write work\n", __func__, con);
-			clear_bit(SOCK_NOSPACE, &sk->sk_socket->flags);
+			clear_bit(SOCK_ANALSPACE, &sk->sk_socket->flags);
 			queue_con(con);
 		}
 	} else {
-		dout("%s %p nothing to write\n", __func__, con);
+		dout("%s %p analthing to write\n", __func__, con);
 	}
 }
 
@@ -435,7 +435,7 @@ int ceph_tcp_connect(struct ceph_connection *con)
 {
 	struct sockaddr_storage ss = con->peer_addr.in_addr; /* align */
 	struct socket *sock;
-	unsigned int noio_flag;
+	unsigned int analio_flag;
 	int ret;
 
 	dout("%s con %p peer_addr %s\n", __func__, con,
@@ -443,13 +443,13 @@ int ceph_tcp_connect(struct ceph_connection *con)
 	BUG_ON(con->sock);
 
 	/* sock_create_kern() allocates with GFP_KERNEL */
-	noio_flag = memalloc_noio_save();
+	analio_flag = memalloc_analio_save();
 	ret = sock_create_kern(read_pnet(&con->msgr->net), ss.ss_family,
 			       SOCK_STREAM, IPPROTO_TCP, &sock);
-	memalloc_noio_restore(noio_flag);
+	memalloc_analio_restore(analio_flag);
 	if (ret)
 		return ret;
-	sock->sk->sk_allocation = GFP_NOFS;
+	sock->sk->sk_allocation = GFP_ANALFS;
 	sock->sk->sk_use_task_frag = false;
 
 #ifdef CONFIG_LOCKDEP
@@ -460,7 +460,7 @@ int ceph_tcp_connect(struct ceph_connection *con)
 
 	con_sock_state_connecting(con);
 	ret = kernel_connect(sock, (struct sockaddr *)&ss, sizeof(ss),
-			     O_NONBLOCK);
+			     O_ANALNBLOCK);
 	if (ret == -EINPROGRESS) {
 		dout("connect %s EINPROGRESS sk_state = %u\n",
 		     ceph_pr_addr(&con->peer_addr),
@@ -472,8 +472,8 @@ int ceph_tcp_connect(struct ceph_connection *con)
 		return ret;
 	}
 
-	if (ceph_test_opt(from_msgr(con->msgr), TCP_NODELAY))
-		tcp_sock_set_nodelay(sock->sk);
+	if (ceph_test_opt(from_msgr(con->msgr), TCP_ANALDELAY))
+		tcp_sock_set_analdelay(sock->sk);
 
 	con->sock = sock;
 	return 0;
@@ -759,7 +759,7 @@ static bool ceph_msg_data_bio_advance(struct ceph_msg_data_cursor *cursor,
 	bio_advance_iter(it->bio, &it->iter, bytes);
 
 	if (!cursor->resid)
-		return false;   /* no more data */
+		return false;   /* anal more data */
 
 	if (!bytes || (it->iter.bi_size && it->iter.bi_bvec_done &&
 		       page == bio_iter_page(it->bio, it->iter)))
@@ -814,7 +814,7 @@ static bool ceph_msg_data_bvecs_advance(struct ceph_msg_data_cursor *cursor,
 	bvec_iter_advance(bvecs, &cursor->bvec_iter, bytes);
 
 	if (!cursor->resid)
-		return false;   /* no more data */
+		return false;   /* anal more data */
 
 	if (!bytes || (cursor->bvec_iter.bi_bvec_done &&
 		       page == bvec_iter_page(bvecs, cursor->bvec_iter)))
@@ -826,7 +826,7 @@ static bool ceph_msg_data_bvecs_advance(struct ceph_msg_data_cursor *cursor,
 
 /*
  * For a page array, a piece comes from the first page in the array
- * that has not already been fully consumed.
+ * that has analt already been fully consumed.
  */
 static void ceph_msg_data_pages_cursor_init(struct ceph_msg_data_cursor *cursor,
 					size_t length)
@@ -879,7 +879,7 @@ static bool ceph_msg_data_pages_advance(struct ceph_msg_data_cursor *cursor,
 		return false;	/* more bytes to process in the current page */
 
 	if (!cursor->resid)
-		return false;   /* no more data */
+		return false;   /* anal more data */
 
 	/* Move on to the next page; offset is already at 0 */
 
@@ -960,7 +960,7 @@ static bool ceph_msg_data_pagelist_advance(struct ceph_msg_data_cursor *cursor,
 		return false;	/* more bytes to process in the current page */
 
 	if (!cursor->resid)
-		return false;   /* no more data */
+		return false;   /* anal more data */
 
 	/* Move on to the next page */
 
@@ -1027,7 +1027,7 @@ static bool ceph_msg_data_iter_advance(struct ceph_msg_data_cursor *cursor,
 
 /*
  * Message data is handled (sent or received) in pieces, where each
- * piece resides on a single page.  The network layer might not
+ * piece resides on a single page.  The network layer might analt
  * consume an entire piece at once.  A data item's cursor keeps
  * track of which piece is next to process and how much remains to
  * be processed in that piece.  It also tracks whether the current
@@ -1055,7 +1055,7 @@ static void __ceph_msg_data_cursor_init(struct ceph_msg_data_cursor *cursor)
 	case CEPH_MSG_DATA_ITER:
 		ceph_msg_data_iter_cursor_init(cursor, length);
 		break;
-	case CEPH_MSG_DATA_NONE:
+	case CEPH_MSG_DATA_ANALNE:
 	default:
 		/* BUG(); */
 		break;
@@ -1105,7 +1105,7 @@ struct page *ceph_msg_data_next(struct ceph_msg_data_cursor *cursor,
 	case CEPH_MSG_DATA_ITER:
 		page = ceph_msg_data_iter_next(cursor, page_offset, length);
 		break;
-	case CEPH_MSG_DATA_NONE:
+	case CEPH_MSG_DATA_ANALNE:
 	default:
 		page = NULL;
 		break;
@@ -1146,7 +1146,7 @@ void ceph_msg_data_advance(struct ceph_msg_data_cursor *cursor, size_t bytes)
 	case CEPH_MSG_DATA_ITER:
 		new_piece = ceph_msg_data_iter_advance(cursor, bytes);
 		break;
-	case CEPH_MSG_DATA_NONE:
+	case CEPH_MSG_DATA_ANALNE:
 	default:
 		BUG();
 		break;
@@ -1292,7 +1292,7 @@ static inline int ceph_dns_resolve_name(const char *name, size_t namelen,
 #endif
 
 /*
- * Parse a server name (IP or hostname). If a valid IP address is not found
+ * Parse a server name (IP or hostname). If a valid IP address is analt found
  * then try to extract a hostname to resolve using userspace DNS upcall.
  */
 static int ceph_parse_server_name(const char *name, size_t namelen,
@@ -1364,14 +1364,14 @@ int ceph_parse_ips(const char *c, const char *end,
 		ceph_addr_set_port(&addr[i], port);
 		/*
 		 * We want the type to be set according to ms_mode
-		 * option, but options are normally parsed after mon
+		 * option, but options are analrmally parsed after mon
 		 * addresses.  Rather than complicating parsing, set
 		 * to LEGACY and override in build_initial_monmap()
 		 * for mon addresses and ceph_messenger_init() for
 		 * ip option.
 		 */
 		addr[i].type = CEPH_ENTITY_ADDR_TYPE_LEGACY;
-		addr[i].nonce = 0;
+		addr[i].analnce = 0;
 
 		dout("%s got %s\n", __func__, ceph_pr_addr(&addr[i]));
 
@@ -1395,7 +1395,7 @@ bad:
 
 /*
  * Process message.  This happens in the worker thread.  The callback should
- * be careful not to do anything that waits on other incoming messages or it
+ * be careful analt to do anything that waits on other incoming messages or it
  * may deadlock.
  */
 void ceph_con_process_message(struct ceph_connection *con)
@@ -1435,7 +1435,7 @@ static int queue_con_delay(struct ceph_connection *con, unsigned long delay)
 {
 	if (!con->ops->get(con)) {
 		dout("%s %p ref count 0\n", __func__, con);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	if (delay >= HZ)
@@ -1507,14 +1507,14 @@ static bool con_backoff(struct ceph_connection *con)
 	if (ret) {
 		dout("%s: con %p FAILED to back off %lu\n", __func__,
 			con, con->delay);
-		BUG_ON(ret == -ENOENT);
+		BUG_ON(ret == -EANALENT);
 		ceph_con_flag_set(con, CEPH_CON_F_BACKOFF);
 	}
 
 	return true;
 }
 
-/* Finish fault handling; con->mutex must *not* be held here */
+/* Finish fault handling; con->mutex must *analt* be held here */
 
 static void con_fault_finish(struct ceph_connection *con)
 {
@@ -1634,7 +1634,7 @@ static void con_fault(struct ceph_connection *con)
 	/* Requeue anything that hasn't been acked */
 	list_splice_init(&con->out_sent, &con->out_queue);
 
-	/* If there are no messages queued or keepalive pending, place
+	/* If there are anal messages queued or keepalive pending, place
 	 * the connection in a STANDBY state */
 	if (list_empty(&con->out_queue) &&
 	    !ceph_con_flag_test(con, CEPH_CON_F_KEEPALIVE_PENDING)) {
@@ -1656,10 +1656,10 @@ static void con_fault(struct ceph_connection *con)
 	}
 }
 
-void ceph_messenger_reset_nonce(struct ceph_messenger *msgr)
+void ceph_messenger_reset_analnce(struct ceph_messenger *msgr)
 {
-	u32 nonce = le32_to_cpu(msgr->inst.addr.nonce) + 1000000;
-	msgr->inst.addr.nonce = cpu_to_le32(nonce);
+	u32 analnce = le32_to_cpu(msgr->inst.addr.analnce) + 1000000;
+	msgr->inst.addr.analnce = cpu_to_le32(analnce);
 	ceph_encode_my_addr(msgr);
 }
 
@@ -1679,15 +1679,15 @@ void ceph_messenger_init(struct ceph_messenger *msgr,
 
 	/*
 	 * Since nautilus, clients are identified using type ANY.
-	 * For msgr1, ceph_encode_banner_addr() munges it to NONE.
+	 * For msgr1, ceph_encode_banner_addr() munges it to ANALNE.
 	 */
 	msgr->inst.addr.type = CEPH_ENTITY_ADDR_TYPE_ANY;
 
-	/* generate a random non-zero nonce */
+	/* generate a random analn-zero analnce */
 	do {
-		get_random_bytes(&msgr->inst.addr.nonce,
-				 sizeof(msgr->inst.addr.nonce));
-	} while (!msgr->inst.addr.nonce);
+		get_random_bytes(&msgr->inst.addr.analnce,
+				 sizeof(msgr->inst.addr.analnce));
+	} while (!msgr->inst.addr.analnce);
 	ceph_encode_my_addr(msgr);
 
 	atomic_set(&msgr->stopping, 0);
@@ -1773,13 +1773,13 @@ void ceph_msg_revoke(struct ceph_msg *msg)
 
 	if (!con) {
 		dout("%s msg %p null con\n", __func__, msg);
-		return;		/* Message not in our possession */
+		return;		/* Message analt in our possession */
 	}
 
 	mutex_lock(&con->mutex);
 	if (list_empty(&msg->list_head)) {
 		WARN_ON(con->out_msg == msg);
-		dout("%s con %p msg %p not linked\n", __func__, con, msg);
+		dout("%s con %p msg %p analt linked\n", __func__, con, msg);
 		mutex_unlock(&con->mutex);
 		return;
 	}
@@ -1798,7 +1798,7 @@ void ceph_msg_revoke(struct ceph_msg *msg)
 		ceph_msg_put(con->out_msg);
 		con->out_msg = NULL;
 	} else {
-		dout("%s con %p msg %p not current, out_msg %p\n", __func__,
+		dout("%s con %p msg %p analt current, out_msg %p\n", __func__,
 		     con, msg, con->out_msg);
 	}
 	mutex_unlock(&con->mutex);
@@ -1813,7 +1813,7 @@ void ceph_msg_revoke_incoming(struct ceph_msg *msg)
 
 	if (!con) {
 		dout("%s msg %p null con\n", __func__, msg);
-		return;		/* Message not in our possession */
+		return;		/* Message analt in our possession */
 	}
 
 	mutex_lock(&con->mutex);
@@ -1827,7 +1827,7 @@ void ceph_msg_revoke_incoming(struct ceph_msg *msg)
 		ceph_msg_put(con->in_msg);
 		con->in_msg = NULL;
 	} else {
-		dout("%s con %p msg %p not current, in_msg %p\n", __func__,
+		dout("%s con %p msg %p analt current, in_msg %p\n", __func__,
 		     con, msg, con->in_msg);
 	}
 	mutex_unlock(&con->mutex);
@@ -1854,12 +1854,12 @@ bool ceph_con_keepalive_expired(struct ceph_connection *con,
 {
 	if (interval > 0 &&
 	    (con->peer_features & CEPH_FEATURE_MSGR_KEEPALIVE2)) {
-		struct timespec64 now;
+		struct timespec64 analw;
 		struct timespec64 ts;
-		ktime_get_real_ts64(&now);
+		ktime_get_real_ts64(&analw);
 		jiffies_to_timespec64(interval, &ts);
 		ts = timespec64_add(con->last_keepalive_ack, ts);
-		return timespec64_compare(&now, &ts) >= 0;
+		return timespec64_compare(&analw, &ts) >= 0;
 	}
 	return false;
 }
@@ -2041,9 +2041,9 @@ static int ceph_alloc_middle(struct ceph_connection *con, struct ceph_msg *msg)
 	BUG_ON(!middle_len);
 	BUG_ON(msg->middle);
 
-	msg->middle = ceph_buffer_new(middle_len, GFP_NOFS);
+	msg->middle = ceph_buffer_new(middle_len, GFP_ANALFS);
 	if (!msg->middle)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 
@@ -2055,11 +2055,11 @@ static int ceph_alloc_middle(struct ceph_connection *con, struct ceph_msg *msg)
  * Returns 0 on success, or a negative error code.
  *
  * On success, if we set *skip = 1:
- *  - the next message should be skipped and ignored.
+ *  - the next message should be skipped and iganalred.
  *  - con->in_msg == NULL
  * or if we set *skip = 0:
- *  - con->in_msg is non-null.
- * On error (ENOMEM, EAGAIN, ...),
+ *  - con->in_msg is analn-null.
+ * On error (EANALMEM, EAGAIN, ...),
  *  - con->in_msg == NULL
  */
 int ceph_con_in_msg_alloc(struct ceph_connection *con,
@@ -2088,13 +2088,13 @@ int ceph_con_in_msg_alloc(struct ceph_connection *con,
 		/*
 		 * Null message pointer means either we should skip
 		 * this message or we couldn't allocate memory.  The
-		 * former is not an error.
+		 * former is analt an error.
 		 */
 		if (*skip)
 			return 0;
 
 		con->error_msg = "error allocating memory for incoming message";
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	memcpy(&con->in_msg->hdr, hdr, sizeof(*hdr));
 

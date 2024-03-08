@@ -149,11 +149,11 @@ gen7_fill_surface_state(struct batch_chunk *state,
 	u32 offset = batch_offset(state, cs);
 
 #define SURFACE_2D 1
-#define SURFACEFORMAT_B8G8R8A8_UNORM 0x0C0
+#define SURFACEFORMAT_B8G8R8A8_UANALRM 0x0C0
 #define RENDER_CACHE_READ_WRITE 1
 
 	*cs++ = SURFACE_2D << 29 |
-		(SURFACEFORMAT_B8G8R8A8_UNORM << 18) |
+		(SURFACEFORMAT_B8G8R8A8_UANALRM << 18) |
 		(RENDER_CACHE_READ_WRITE << 8);
 
 	*cs++ = batch_addr(state) + dst_offset;
@@ -410,7 +410,7 @@ static void emit_batch(struct i915_vma * const vma,
 	/* Switch to the media pipeline and our base address */
 	gen7_emit_pipeline_invalidate(&cmds);
 	batch_add(&cmds, PIPELINE_SELECT | PIPELINE_SELECT_MEDIA);
-	batch_add(&cmds, MI_NOOP);
+	batch_add(&cmds, MI_ANALOP);
 	gen7_emit_pipeline_invalidate(&cmds);
 
 	gen7_emit_pipeline_flush(&cmds);

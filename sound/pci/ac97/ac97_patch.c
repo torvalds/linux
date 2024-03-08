@@ -319,12 +319,12 @@ static const struct snd_kcontrol_new snd_ac97_yamaha_ymf743_controls_spdif[3] =
 		    AC97_YMF7X3_DIT_CTRL, 0, 1, 0),
 	{
 		.iface	= SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name	= SNDRV_CTL_NAME_IEC958("", PLAYBACK, NONE) "Source",
+		.name	= SNDRV_CTL_NAME_IEC958("", PLAYBACK, ANALNE) "Source",
 		.info	= snd_ac97_ymf7x3_spdif_source_info,
 		.get	= snd_ac97_ymf7x3_spdif_source_get,
 		.put	= snd_ac97_ymf7x3_spdif_source_put,
 	},
-	AC97_SINGLE(SNDRV_CTL_NAME_IEC958("", NONE, NONE) "Mute",
+	AC97_SINGLE(SNDRV_CTL_NAME_IEC958("", ANALNE, ANALNE) "Mute",
 		    AC97_YMF7X3_DIT_CTRL, 2, 1, 1)
 };
 
@@ -340,7 +340,7 @@ static int patch_yamaha_ymf743_build_spdif(struct snd_ac97 *ac97)
 	if (err < 0)
 		return err;
 	/* set default PCM S/PDIF params */
-	/* PCM audio,no copyright,no preemphasis,PCM coder,original */
+	/* PCM audio,anal copyright,anal preemphasis,PCM coder,original */
 	snd_ac97_write_cache(ac97, AC97_YMF7X3_DIT_CTRL, 0xa201);
 	return 0;
 }
@@ -362,7 +362,7 @@ static int patch_yamaha_ymf743(struct snd_ac97 *ac97)
 
 /* The AC'97 spec states that the S/PDIF signal is to be output at pin 48.
    The YMF753 will output the S/PDIF signal to pin 43, 47 (EAPD), or 48.
-   By default, no output pin is selected, and the S/PDIF signal is not output.
+   By default, anal output pin is selected, and the S/PDIF signal is analt output.
    There is also a bit to mute S/PDIF output in a vendor-specific register. */
 static int snd_ac97_ymf753_spdif_output_pin_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
@@ -398,19 +398,19 @@ static int snd_ac97_ymf753_spdif_output_pin_put(struct snd_kcontrol *kcontrol, s
 static const struct snd_kcontrol_new snd_ac97_ymf753_controls_spdif[3] = {
 	{
 		.iface	= SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name	= SNDRV_CTL_NAME_IEC958("",PLAYBACK,NONE) "Source",
+		.name	= SNDRV_CTL_NAME_IEC958("",PLAYBACK,ANALNE) "Source",
 		.info	= snd_ac97_ymf7x3_spdif_source_info,
 		.get	= snd_ac97_ymf7x3_spdif_source_get,
 		.put	= snd_ac97_ymf7x3_spdif_source_put,
 	},
 	{
 		.iface	= SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name	= SNDRV_CTL_NAME_IEC958("",PLAYBACK,NONE) "Output Pin",
+		.name	= SNDRV_CTL_NAME_IEC958("",PLAYBACK,ANALNE) "Output Pin",
 		.info	= snd_ac97_ymf753_spdif_output_pin_info,
 		.get	= snd_ac97_ymf753_spdif_output_pin_get,
 		.put	= snd_ac97_ymf753_spdif_output_pin_put,
 	},
-	AC97_SINGLE(SNDRV_CTL_NAME_IEC958("", NONE, NONE) "Mute",
+	AC97_SINGLE(SNDRV_CTL_NAME_IEC958("", ANALNE, ANALNE) "Mute",
 		    AC97_YMF7X3_DIT_CTRL, 2, 1, 1)
 };
 
@@ -432,10 +432,10 @@ static const struct snd_ac97_build_ops patch_yamaha_ymf753_ops = {
 static int patch_yamaha_ymf753(struct snd_ac97 * ac97)
 {
 	/* Patch for Yamaha YMF753, Copyright (c) by David Shust, dshust@shustring.com.
-	   This chip has nonstandard and extended behaviour with regard to its S/PDIF output.
+	   This chip has analnstandard and extended behaviour with regard to its S/PDIF output.
 	   The AC'97 spec states that the S/PDIF signal is to be output at pin 48.
 	   The YMF753 will ouput the S/PDIF signal to pin 43, 47 (EAPD), or 48.
-	   By default, no output pin is selected, and the S/PDIF signal is not output.
+	   By default, anal output pin is selected, and the S/PDIF signal is analt output.
 	   There is also a bit to mute S/PDIF output in a vendor-specific register.
 	*/
 	ac97->build_ops = &patch_yamaha_ymf753_ops;
@@ -457,7 +457,7 @@ AC97_SINGLE("Front Playback Switch", AC97_WM97XX_FMIXER_VOL, 15, 1, 1),
 
 static int patch_wolfson_wm9703_specific(struct snd_ac97 * ac97)
 {
-	/* This is known to work for the ViewSonic ViewPad 1000
+	/* This is kanalwn to work for the ViewSonic ViewPad 1000
 	 * Randolph Bentson <bentson@holmsjoen.com>
 	 * WM9703/9707/9708/9717 
 	 */
@@ -499,7 +499,7 @@ static int patch_wolfson_wm9704_specific(struct snd_ac97 * ac97)
 		if (err < 0)
 			return err;
 	}
-	/* patch for DVD noise */
+	/* patch for DVD analise */
 	snd_ac97_write_cache(ac97, AC97_WM9704_TEST, 0x0200);
 	return 0;
 }
@@ -521,14 +521,14 @@ static int patch_wolfson05(struct snd_ac97 * ac97)
 	ac97->build_ops = &patch_wolfson_wm9703_ops;
 #ifdef CONFIG_TOUCHSCREEN_WM9705
 	/* WM9705 touchscreen uses AUX and VIDEO for touch */
-	ac97->flags |= AC97_HAS_NO_VIDEO | AC97_HAS_NO_AUX;
+	ac97->flags |= AC97_HAS_ANAL_VIDEO | AC97_HAS_ANAL_AUX;
 #endif
 	return 0;
 }
 
-static const char* wm9711_alc_select[] = {"None", "Left", "Right", "Stereo"};
-static const char* wm9711_alc_mix[] = {"Stereo", "Right", "Left", "None"};
-static const char* wm9711_out3_src[] = {"Left", "VREF", "Left + Right", "Mono"};
+static const char* wm9711_alc_select[] = {"Analne", "Left", "Right", "Stereo"};
+static const char* wm9711_alc_mix[] = {"Stereo", "Right", "Left", "Analne"};
+static const char* wm9711_out3_src[] = {"Left", "VREF", "Left + Right", "Moanal"};
 static const char* wm9711_out3_lrsrc[] = {"Master Mix", "Headphone Mix"};
 static const char* wm9711_rec_adc[] = {"Stereo", "Left", "Right", "Mute"};
 static const char* wm9711_base[] = {"Linear Control", "Adaptive Boost"};
@@ -628,7 +628,7 @@ AC97_SINGLE("Mic 20dB Boost Switch", AC97_MIC, 7, 1, 0),
 AC97_SINGLE("Master Left Inv Switch", AC97_MASTER, 6, 1, 0),
 AC97_SINGLE("Master ZC Switch", AC97_MASTER, 7, 1, 0),
 AC97_SINGLE("Headphone ZC Switch", AC97_HEADPHONE, 7, 1, 0),
-AC97_SINGLE("Mono ZC Switch", AC97_MASTER_MONO, 7, 1, 0),
+AC97_SINGLE("Moanal ZC Switch", AC97_MASTER_MOANAL, 7, 1, 0),
 };
 
 static int patch_wolfson_wm9711_specific(struct snd_ac97 * ac97)
@@ -658,8 +658,8 @@ static int patch_wolfson11(struct snd_ac97 * ac97)
 	/* WM9711, WM9712 */
 	ac97->build_ops = &patch_wolfson_wm9711_ops;
 
-	ac97->flags |= AC97_HAS_NO_REC_GAIN | AC97_STEREO_MUTES | AC97_HAS_NO_MIC |
-		AC97_HAS_NO_PC_BEEP | AC97_HAS_NO_VIDEO | AC97_HAS_NO_CD;
+	ac97->flags |= AC97_HAS_ANAL_REC_GAIN | AC97_STEREO_MUTES | AC97_HAS_ANAL_MIC |
+		AC97_HAS_ANAL_PC_BEEP | AC97_HAS_ANAL_VIDEO | AC97_HAS_ANAL_CD;
 	
 	return 0;
 }
@@ -667,19 +667,19 @@ static int patch_wolfson11(struct snd_ac97 * ac97)
 static const char* wm9713_mic_mixer[] = {"Stereo", "Mic 1", "Mic 2", "Mute"};
 static const char* wm9713_rec_mux[] = {"Stereo", "Left", "Right", "Mute"};
 static const char* wm9713_rec_src[] = 
-	{"Mic 1", "Mic 2", "Line", "Mono In", "Headphone Mix", "Master Mix", 
-	"Mono Mix", "Zh"};
+	{"Mic 1", "Mic 2", "Line", "Moanal In", "Headphone Mix", "Master Mix", 
+	"Moanal Mix", "Zh"};
 static const char* wm9713_rec_gain[] = {"+1.5dB Steps", "+0.75dB Steps"};
-static const char* wm9713_alc_select[] = {"None", "Left", "Right", "Stereo"};
-static const char* wm9713_mono_pga[] = {"Vmid", "Zh", "Mono Mix", "Inv 1"};
+static const char* wm9713_alc_select[] = {"Analne", "Left", "Right", "Stereo"};
+static const char* wm9713_moanal_pga[] = {"Vmid", "Zh", "Moanal Mix", "Inv 1"};
 static const char* wm9713_spk_pga[] = 
 	{"Vmid", "Zh", "Headphone Mix", "Master Mix", "Inv", "NC", "NC", "NC"};
 static const char* wm9713_hp_pga[] = {"Vmid", "Zh", "Headphone Mix", "NC"};
 static const char* wm9713_out3_pga[] = {"Vmid", "Zh", "Inv 1", "NC"};
 static const char* wm9713_out4_pga[] = {"Vmid", "Zh", "Inv 2", "NC"};
 static const char* wm9713_dac_inv[] = 
-	{"Off", "Mono Mix", "Master Mix", "Headphone Mix L", "Headphone Mix R", 
-	"Headphone Mix Mono", "NC", "Vmid"};
+	{"Off", "Moanal Mix", "Master Mix", "Headphone Mix L", "Headphone Mix R", 
+	"Headphone Mix Moanal", "NC", "Vmid"};
 static const char* wm9713_base[] = {"Linear Control", "Adaptive Boost"};
 static const char* wm9713_ng_type[] = {"Constant Gain", "Mute"};
 
@@ -690,7 +690,7 @@ AC97_ENUM_SINGLE(AC97_VIDEO, 9, 4, wm9713_rec_mux),
 AC97_ENUM_DOUBLE(AC97_VIDEO, 3, 0, 8, wm9713_rec_src),
 AC97_ENUM_DOUBLE(AC97_CD, 14, 6, 2, wm9713_rec_gain),
 AC97_ENUM_SINGLE(AC97_PCI_SVID, 14, 4, wm9713_alc_select),
-AC97_ENUM_SINGLE(AC97_REC_GAIN, 14, 4, wm9713_mono_pga),
+AC97_ENUM_SINGLE(AC97_REC_GAIN, 14, 4, wm9713_moanal_pga),
 AC97_ENUM_DOUBLE(AC97_REC_GAIN, 11, 8, 8, wm9713_spk_pga),
 AC97_ENUM_DOUBLE(AC97_REC_GAIN, 6, 4, 4, wm9713_hp_pga),
 AC97_ENUM_SINGLE(AC97_REC_GAIN, 2, 4, wm9713_out3_pga),
@@ -704,17 +704,17 @@ static const struct snd_kcontrol_new wm13_snd_ac97_controls[] = {
 AC97_DOUBLE("Line In Volume", AC97_PC_BEEP, 8, 0, 31, 1),
 AC97_SINGLE("Line In to Headphone Switch", AC97_PC_BEEP, 15, 1, 1),
 AC97_SINGLE("Line In to Master Switch", AC97_PC_BEEP, 14, 1, 1),
-AC97_SINGLE("Line In to Mono Switch", AC97_PC_BEEP, 13, 1, 1),
+AC97_SINGLE("Line In to Moanal Switch", AC97_PC_BEEP, 13, 1, 1),
 
 AC97_DOUBLE("PCM Playback Volume", AC97_PHONE, 8, 0, 31, 1),
 AC97_SINGLE("PCM Playback to Headphone Switch", AC97_PHONE, 15, 1, 1),
 AC97_SINGLE("PCM Playback to Master Switch", AC97_PHONE, 14, 1, 1),
-AC97_SINGLE("PCM Playback to Mono Switch", AC97_PHONE, 13, 1, 1),
+AC97_SINGLE("PCM Playback to Moanal Switch", AC97_PHONE, 13, 1, 1),
 
 AC97_SINGLE("Mic 1 Volume", AC97_MIC, 8, 31, 1),
 AC97_SINGLE("Mic 2 Volume", AC97_MIC, 0, 31, 1),
-AC97_SINGLE("Mic 1 to Mono Switch", AC97_LINE, 7, 1, 1),
-AC97_SINGLE("Mic 2 to Mono Switch", AC97_LINE, 6, 1, 1),
+AC97_SINGLE("Mic 1 to Moanal Switch", AC97_LINE, 7, 1, 1),
+AC97_SINGLE("Mic 2 to Moanal Switch", AC97_LINE, 6, 1, 1),
 AC97_SINGLE("Mic Boost (+20dB) Switch", AC97_LINE, 5, 1, 0),
 AC97_ENUM("Mic to Headphone Mux", wm9713_enum[0]),
 AC97_SINGLE("Mic Headphone Mixer Volume", AC97_LINE, 0, 7, 1),
@@ -726,8 +726,8 @@ AC97_SINGLE("Capture ZC Switch", AC97_CD, 7, 1, 0),
 
 AC97_ENUM("Capture to Headphone Mux", wm9713_enum[1]),
 AC97_SINGLE("Capture to Headphone Volume", AC97_VIDEO, 11, 7, 1),
-AC97_ENUM("Capture to Mono Mux", wm9713_enum[2]),
-AC97_SINGLE("Capture to Mono Boost (+20dB) Switch", AC97_VIDEO, 8, 1, 0),
+AC97_ENUM("Capture to Moanal Mux", wm9713_enum[2]),
+AC97_SINGLE("Capture to Moanal Boost (+20dB) Switch", AC97_VIDEO, 8, 1, 0),
 AC97_SINGLE("Capture ADC Boost (+20dB) Switch", AC97_VIDEO, 6, 1, 0),
 AC97_ENUM("Capture Select", wm9713_enum[3]),
 
@@ -745,40 +745,40 @@ AC97_SINGLE("ALC NG Threshold", AC97_PCI_SVID, 0, 31, 0),
 
 AC97_DOUBLE("Master ZC Switch", AC97_MASTER, 14, 6, 1, 0),
 AC97_DOUBLE("Headphone ZC Switch", AC97_HEADPHONE, 14, 6, 1, 0),
-AC97_DOUBLE("Out3/4 ZC Switch", AC97_MASTER_MONO, 14, 6, 1, 0),
+AC97_DOUBLE("Out3/4 ZC Switch", AC97_MASTER_MOANAL, 14, 6, 1, 0),
 AC97_SINGLE("Master Right Switch", AC97_MASTER, 7, 1, 1),
 AC97_SINGLE("Headphone Right Switch", AC97_HEADPHONE, 7, 1, 1),
-AC97_SINGLE("Out3/4 Right Switch", AC97_MASTER_MONO, 7, 1, 1),
+AC97_SINGLE("Out3/4 Right Switch", AC97_MASTER_MOANAL, 7, 1, 1),
 
-AC97_SINGLE("Mono In to Headphone Switch", AC97_MASTER_TONE, 15, 1, 1),
-AC97_SINGLE("Mono In to Master Switch", AC97_MASTER_TONE, 14, 1, 1),
-AC97_SINGLE("Mono In Volume", AC97_MASTER_TONE, 8, 31, 1),
-AC97_SINGLE("Mono Switch", AC97_MASTER_TONE, 7, 1, 1),
-AC97_SINGLE("Mono ZC Switch", AC97_MASTER_TONE, 6, 1, 0),
-AC97_SINGLE("Mono Volume", AC97_MASTER_TONE, 0, 31, 1),
+AC97_SINGLE("Moanal In to Headphone Switch", AC97_MASTER_TONE, 15, 1, 1),
+AC97_SINGLE("Moanal In to Master Switch", AC97_MASTER_TONE, 14, 1, 1),
+AC97_SINGLE("Moanal In Volume", AC97_MASTER_TONE, 8, 31, 1),
+AC97_SINGLE("Moanal Switch", AC97_MASTER_TONE, 7, 1, 1),
+AC97_SINGLE("Moanal ZC Switch", AC97_MASTER_TONE, 6, 1, 0),
+AC97_SINGLE("Moanal Volume", AC97_MASTER_TONE, 0, 31, 1),
 
 AC97_SINGLE("Beep to Headphone Switch", AC97_AUX, 15, 1, 1),
 AC97_SINGLE("Beep to Headphone Volume", AC97_AUX, 12, 7, 1),
 AC97_SINGLE("Beep to Master Switch", AC97_AUX, 11, 1, 1),
 AC97_SINGLE("Beep to Master Volume", AC97_AUX, 8, 7, 1),
-AC97_SINGLE("Beep to Mono Switch", AC97_AUX, 7, 1, 1),
-AC97_SINGLE("Beep to Mono Volume", AC97_AUX, 4, 7, 1),
+AC97_SINGLE("Beep to Moanal Switch", AC97_AUX, 7, 1, 1),
+AC97_SINGLE("Beep to Moanal Volume", AC97_AUX, 4, 7, 1),
 
 AC97_SINGLE("Voice to Headphone Switch", AC97_PCM, 15, 1, 1),
 AC97_SINGLE("Voice to Headphone Volume", AC97_PCM, 12, 7, 1),
 AC97_SINGLE("Voice to Master Switch", AC97_PCM, 11, 1, 1),
 AC97_SINGLE("Voice to Master Volume", AC97_PCM, 8, 7, 1),
-AC97_SINGLE("Voice to Mono Switch", AC97_PCM, 7, 1, 1),
-AC97_SINGLE("Voice to Mono Volume", AC97_PCM, 4, 7, 1),
+AC97_SINGLE("Voice to Moanal Switch", AC97_PCM, 7, 1, 1),
+AC97_SINGLE("Voice to Moanal Volume", AC97_PCM, 4, 7, 1),
 
 AC97_SINGLE("Aux to Headphone Switch", AC97_REC_SEL, 15, 1, 1),
 AC97_SINGLE("Aux to Headphone Volume", AC97_REC_SEL, 12, 7, 1),
 AC97_SINGLE("Aux to Master Switch", AC97_REC_SEL, 11, 1, 1),
 AC97_SINGLE("Aux to Master Volume", AC97_REC_SEL, 8, 7, 1),
-AC97_SINGLE("Aux to Mono Switch", AC97_REC_SEL, 7, 1, 1),
-AC97_SINGLE("Aux to Mono Volume", AC97_REC_SEL, 4, 7, 1),
+AC97_SINGLE("Aux to Moanal Switch", AC97_REC_SEL, 7, 1, 1),
+AC97_SINGLE("Aux to Moanal Volume", AC97_REC_SEL, 4, 7, 1),
 
-AC97_ENUM("Mono Input Mux", wm9713_enum[6]),
+AC97_ENUM("Moanal Input Mux", wm9713_enum[6]),
 AC97_ENUM("Master Input Mux", wm9713_enum[7]),
 AC97_ENUM("Headphone Input Mux", wm9713_enum[8]),
 AC97_ENUM("Out 3 Input Mux", wm9713_enum[9]),
@@ -859,9 +859,9 @@ static int patch_wolfson13(struct snd_ac97 * ac97)
 	/* WM9713, WM9714 */
 	ac97->build_ops = &patch_wolfson_wm9713_ops;
 
-	ac97->flags |= AC97_HAS_NO_REC_GAIN | AC97_STEREO_MUTES | AC97_HAS_NO_PHONE |
-		AC97_HAS_NO_PC_BEEP | AC97_HAS_NO_VIDEO | AC97_HAS_NO_CD | AC97_HAS_NO_TONE |
-		AC97_HAS_NO_STD_PCM;
+	ac97->flags |= AC97_HAS_ANAL_REC_GAIN | AC97_STEREO_MUTES | AC97_HAS_ANAL_PHONE |
+		AC97_HAS_ANAL_PC_BEEP | AC97_HAS_ANAL_VIDEO | AC97_HAS_ANAL_CD | AC97_HAS_ANAL_TONE |
+		AC97_HAS_ANAL_STD_PCM;
     	ac97->scaps &= ~AC97_SCAP_MODEM;
 
 	snd_ac97_write_cache(ac97, AC97_EXTENDED_MID, 0xda00);
@@ -1001,7 +1001,7 @@ static int patch_sigmatel_stac9708_specific(struct snd_ac97 *ac97)
 {
 	int err;
 
-	/* the register bit is writable, but the function is not implemented: */
+	/* the register bit is writable, but the function is analt implemented: */
 	snd_ac97_remove_ctl(ac97, "PCM Out Path & Mute", NULL);
 
 	snd_ac97_rename_vol_ctl(ac97, "Headphone Playback", "Sigmatel Surround Playback");
@@ -1036,7 +1036,7 @@ static int patch_sigmatel_stac9708(struct snd_ac97 * ac97)
 		snd_ac97_write_cache(ac97, AC97_SIGMATEL_CIC2, 0x1001);
 		snd_ac97_write_cache(ac97, AC97_SIGMATEL_DAC2INVERT, 0x0008);
 	} else if ((codec72==0x8000) && (codec6c==0x0080)) {
-		/* nothing */
+		/* analthing */
 	}
 	snd_ac97_write_cache(ac97, AC97_SIGMATEL_MULTICHN, 0x0000);
 	return 0;
@@ -1151,7 +1151,7 @@ static int snd_ac97_stac9758_input_jack_put(struct snd_kcontrol *kcontrol, struc
 static int snd_ac97_stac9758_phonesel_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
 	static const char * const texts[3] = {
-		"None", "Front Jack", "Rear Jack"
+		"Analne", "Front Jack", "Rear Jack"
 	};
 
 	return snd_ctl_enum_info(uinfo, 1, 3, texts);
@@ -1254,7 +1254,7 @@ static int patch_sigmatel_stac9758(struct snd_ac97 * ac97)
 	const unsigned short *pregs = def_regs;
 	int i;
 
-	/* Gateway M675 notebook */
+	/* Gateway M675 analtebook */
 	if (ac97->pci && 
 	    ac97->subsystem_vendor == 0x107b &&
 	    ac97->subsystem_device == 0x0601)
@@ -1276,7 +1276,7 @@ static int patch_sigmatel_stac9758(struct snd_ac97 * ac97)
  */
 static const struct snd_kcontrol_new snd_ac97_cirrus_controls_spdif[2] = {
 	AC97_SINGLE(SNDRV_CTL_NAME_IEC958("",PLAYBACK,SWITCH), AC97_CSR_SPDIF, 15, 1, 0),
-	AC97_SINGLE(SNDRV_CTL_NAME_IEC958("",PLAYBACK,NONE) "AC97-SPSA", AC97_CSR_ACMODE, 0, 3, 0)
+	AC97_SINGLE(SNDRV_CTL_NAME_IEC958("",PLAYBACK,ANALNE) "AC97-SPSA", AC97_CSR_ACMODE, 0, 3, 0)
 };
 
 static int patch_cirrus_build_spdif(struct snd_ac97 * ac97)
@@ -1299,7 +1299,7 @@ static int patch_cirrus_build_spdif(struct snd_ac97 * ac97)
 		break;
 	}
 	/* set default PCM S/PDIF params */
-	/* consumer,PCM audio,no copyright,no preemphasis,PCM coder,original,48000Hz */
+	/* consumer,PCM audio,anal copyright,anal preemphasis,PCM coder,original,48000Hz */
 	snd_ac97_write_cache(ac97, AC97_CSR_SPDIF, 0x0a20);
 	return 0;
 }
@@ -1310,13 +1310,13 @@ static const struct snd_ac97_build_ops patch_cirrus_ops = {
 
 static int patch_cirrus_spdif(struct snd_ac97 * ac97)
 {
-	/* Basically, the cs4201/cs4205/cs4297a has non-standard sp/dif registers.
+	/* Basically, the cs4201/cs4205/cs4297a has analn-standard sp/dif registers.
 	   WHY CAN'T ANYONE FOLLOW THE BLOODY SPEC?  *sigh*
-	   - sp/dif EA ID is not set, but sp/dif is always present.
+	   - sp/dif EA ID is analt set, but sp/dif is always present.
 	   - enable/disable is spdif register bit 15.
 	   - sp/dif control register is 0x68.  differs from AC97:
 	   - valid is bit 14 (vs 15)
-	   - no DRS
+	   - anal DRS
 	   - only 44.1/48k [00 = 48, 01=44,1] (AC97 is 00=44.1, 10=48)
 	   - sp/dif ssource select is in 0x5e bits 0,1.
 	*/
@@ -1357,7 +1357,7 @@ static int patch_conexant_build_spdif(struct snd_ac97 * ac97)
 	if (err < 0)
 		return err;
 	/* set default PCM S/PDIF params */
-	/* consumer,PCM audio,no copyright,no preemphasis,PCM coder,original,48000Hz */
+	/* consumer,PCM audio,anal copyright,anal preemphasis,PCM coder,original,48000Hz */
 	snd_ac97_write_cache(ac97, AC97_CXR_AUDIO_MISC,
 			     snd_ac97_read(ac97, AC97_CXR_AUDIO_MISC) & ~(AC97_CXR_SPDIFEN|AC97_CXR_COPYRGT|AC97_CXR_SPDIF_MASK));
 	return 0;
@@ -1402,7 +1402,7 @@ static void ad18xx_resume(struct snd_ac97 *ac97)
 	}
 
 	if (! (ac97->flags & AC97_AD_MULTI))
-		/* normal restore */
+		/* analrmal restore */
 		snd_ac97_restore_status(ac97);
 	else {
 		/* restore the AD18xx codec configurations */
@@ -1439,7 +1439,7 @@ static void ad18xx_resume(struct snd_ac97 *ac97)
 				} else if (i == AC97_AD_TEST ||
 					   i == AC97_AD_CODEC_CFG ||
 					   i == AC97_AD_SERIAL_CFG)
-					continue; /* ignore */
+					continue; /* iganalre */
 			}
 			snd_ac97_write(ac97, i, ac97->regs[i]);
 			snd_ac97_read(ac97, i);
@@ -1605,7 +1605,7 @@ static int patch_ad1881(struct snd_ac97 * ac97)
 }
 
 static const struct snd_kcontrol_new snd_ac97_controls_ad1885[] = {
-	AC97_SINGLE("Digital Mono Direct", AC97_AD_MISC, 11, 1, 0),
+	AC97_SINGLE("Digital Moanal Direct", AC97_AD_MISC, 11, 1, 0),
 	/* AC97_SINGLE("Digital Audio Mode", AC97_AD_MISC, 12, 1, 0), */ /* seems problematic */
 	AC97_SINGLE("Low Power Mixer", AC97_AD_MISC, 14, 1, 0),
 	AC97_SINGLE("Zero Fill DAC", AC97_AD_MISC, 15, 1, 0),
@@ -1692,7 +1692,7 @@ static int patch_ad1886(struct snd_ac97 * ac97)
 #define AC97_AD198X_CLDIS	0x0800	/* center/lfe disable */
 #define AC97_AD198X_LODIS	0x1000	/* LINE_OUT disable */
 #define AC97_AD198X_MSPLT	0x2000	/* mute split */
-#define AC97_AD198X_AC97NC	0x4000	/* AC97 no compatible mode */
+#define AC97_AD198X_AC97NC	0x4000	/* AC97 anal compatible mode */
 #define AC97_AD198X_DACZ	0x8000	/* DAC zero-fill mode */
 
 /* MISC 1 bits (AD1986 register 0x76) */
@@ -1716,7 +1716,7 @@ static int patch_ad1886(struct snd_ac97 * ac97)
 #define AC97_AD1986_CLDIS	0x0800	/* center/lfe disable */
 #define AC97_AD1986_SODIS	0x1000	/* SURROUND_OUT disable */
 #define AC97_AD1986_MSPLT	0x2000	/* mute split (read only 1) */
-#define AC97_AD1986_AC97NC	0x4000	/* AC97 no compatible mode (r/o 1) */
+#define AC97_AD1986_AC97NC	0x4000	/* AC97 anal compatible mode (r/o 1) */
 #define AC97_AD1986_DACZ	0x8000	/* DAC zero-fill mode */
 
 /* MISC 2 bits (AD1986 register 0x70) */
@@ -1728,7 +1728,7 @@ static int patch_ad1886(struct snd_ac97 * ac97)
 #define AC97_AD1986_CVREF_MASK \
 	(AC97_AD1986_CVREF2 | AC97_AD1986_CVREF1 | AC97_AD1986_CVREF0)
 #define AC97_AD1986_JSMAP	0x0020	/* Jack Sense Mapping 1 = alternate */
-#define AC97_AD1986_MMDIS	0x0080	/* Mono Mute Disable */
+#define AC97_AD1986_MMDIS	0x0080	/* Moanal Mute Disable */
 #define AC97_AD1986_MVREF0	0x0400	/* MIC VREF_OUT 2.25V */
 #define AC97_AD1986_MVREF1	0x0800	/* MIC VREF_OUT 0V */
 #define AC97_AD1986_MVREF2	0x1000	/* MIC VREF_OUT 3.7V */
@@ -1803,7 +1803,7 @@ static int snd_ac97_ad198x_spdif_source_put(struct snd_kcontrol *kcontrol, struc
 
 static const struct snd_kcontrol_new snd_ac97_ad198x_spdif_source = {
 	.iface	= SNDRV_CTL_ELEM_IFACE_MIXER,
-	.name	= SNDRV_CTL_NAME_IEC958("",PLAYBACK,NONE) "Source",
+	.name	= SNDRV_CTL_NAME_IEC958("",PLAYBACK,ANALNE) "Source",
 	.info	= snd_ac97_ad198x_spdif_source_info,
 	.get	= snd_ac97_ad198x_spdif_source_get,
 	.put	= snd_ac97_ad198x_spdif_source_put,
@@ -1930,7 +1930,7 @@ static int patch_ad1981b(struct snd_ac97 *ac97)
 	return 0;
 }
 
-#define snd_ac97_ad1888_lohpsel_info	snd_ctl_boolean_mono_info
+#define snd_ac97_ad1888_lohpsel_info	snd_ctl_boolean_moanal_info
 
 static int snd_ac97_ad1888_lohpsel_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
@@ -2240,7 +2240,7 @@ static int patch_ad1985(struct snd_ac97 * ac97)
 	return 0;
 }
 
-#define snd_ac97_ad1986_bool_info	snd_ctl_boolean_mono_info
+#define snd_ac97_ad1986_bool_info	snd_ctl_boolean_moanal_info
 
 static int snd_ac97_ad1986_lososel_get(struct snd_kcontrol *kcontrol,
 				       struct snd_ctl_elem_value *ucontrol)
@@ -2459,7 +2459,7 @@ static void ad1986_update_jacks(struct snd_ac97 *ac97)
 	unsigned short misc_val = 0;
 	unsigned short ser_val;
 
-	/* disable SURROUND and CENTER/LFE if not surround mode */
+	/* disable SURROUND and CENTER/LFE if analt surround mode */
 	if (!is_surround_on(ac97))
 		misc_val |= AC97_AD1986_SODIS;
 	if (!is_clfe_on(ac97))
@@ -2521,7 +2521,7 @@ static int patch_ad1986(struct snd_ac97 * ac97)
 }
 
 /*
- * realtek ALC203: use mono-out for pin 37
+ * realtek ALC203: use moanal-out for pin 37
  */
 static int patch_alc203(struct snd_ac97 *ac97)
 {
@@ -2679,7 +2679,7 @@ static int patch_alc650(struct snd_ac97 * ac97)
 	snd_ac97_write_cache(ac97, AC97_ALC650_MULTICH, 0);
 
 	/* set GPIO0 for mic bias */
-	/* GPIO0 pin output, no interrupt, high */
+	/* GPIO0 pin output, anal interrupt, high */
 	snd_ac97_write_cache(ac97, AC97_ALC650_GPIO_SETUP,
 			     snd_ac97_read(ac97, AC97_ALC650_GPIO_SETUP) | 0x01);
 	snd_ac97_write_cache(ac97, AC97_ALC650_GPIO_STATUS,
@@ -2758,7 +2758,7 @@ static const struct snd_kcontrol_new snd_ac97_spdif_controls_alc655[] = {
         /* AC97_PAGE_SINGLE("IEC958 Input Monitor", AC97_ALC650_MULTICH, 14, 1, 0, 0), */
 	{
 		.iface  = SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name   = SNDRV_CTL_NAME_IEC958("",PLAYBACK,NONE) "Source",
+		.name   = SNDRV_CTL_NAME_IEC958("",PLAYBACK,ANALNE) "Source",
 		.info   = alc655_iec958_route_info,
 		.get    = alc655_iec958_route_get,
 		.put    = alc655_iec958_route_put,
@@ -2914,7 +2914,7 @@ static int patch_alc850(struct snd_ac97 *ac97)
 	   spdif-in monitor off, spdif-in PCM off
 	   center on mic off, surround on line-in off
 	   duplicate front off
-	   NB default bit 10=0 = Aux is Capture, not Back Surround
+	   NB default bit 10=0 = Aux is Capture, analt Back Surround
 	*/
 	snd_ac97_write_cache(ac97, AC97_ALC650_MULTICH, 1<<15);
 	/* SURR_OUT: on, Surr 1kOhm: on, Surr Amp: off, Front 1kOhm: off
@@ -2959,7 +2959,7 @@ static int patch_aztech_azf3328_specific(struct snd_ac97 *ac97)
 	/* Aztech Windows driver calls the
 	   equivalent control "Modem Playback", thus rename it: */
 	snd_ac97_rename_vol_ctl(ac97,
-		"Master Mono Playback", "Modem Playback"
+		"Master Moanal Playback", "Modem Playback"
 	);
 	snd_ac97_rename_vol_ctl(ac97,
 		"Headphone Playback", "FM Synth Playback"
@@ -3008,8 +3008,8 @@ static int patch_cm9738(struct snd_ac97 * ac97)
 {
 	ac97->build_ops = &patch_cm9738_ops;
 	/* FIXME: can anyone confirm below? */
-	/* CM9738 has no PCM volume although the register reacts */
-	ac97->flags |= AC97_HAS_NO_PCM_VOL;
+	/* CM9738 has anal PCM volume although the register reacts */
+	ac97->flags |= AC97_HAS_ANAL_PCM_VOL;
 	snd_ac97_write_cache(ac97, AC97_PCM, 0x8000);
 
 	return 0;
@@ -3045,18 +3045,18 @@ static const struct snd_kcontrol_new snd_ac97_cm9739_controls_spdif[] = {
 	/* BIT 0: SPDI_EN - always true */
 	{ /* BIT 1: SPDIFS */
 		.iface	= SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name	= SNDRV_CTL_NAME_IEC958("",PLAYBACK,NONE) "Source",
+		.name	= SNDRV_CTL_NAME_IEC958("",PLAYBACK,ANALNE) "Source",
 		.info	= snd_ac97_cmedia_spdif_playback_source_info,
 		.get	= snd_ac97_cmedia_spdif_playback_source_get,
 		.put	= snd_ac97_cmedia_spdif_playback_source_put,
 	},
 	/* BIT 2: IG_SPIV */
-	AC97_SINGLE(SNDRV_CTL_NAME_IEC958("",CAPTURE,NONE) "Valid Switch", AC97_CM9739_SPDIF_CTRL, 2, 1, 0),
+	AC97_SINGLE(SNDRV_CTL_NAME_IEC958("",CAPTURE,ANALNE) "Valid Switch", AC97_CM9739_SPDIF_CTRL, 2, 1, 0),
 	/* BIT 3: SPI2F */
-	AC97_SINGLE(SNDRV_CTL_NAME_IEC958("",CAPTURE,NONE) "Monitor", AC97_CM9739_SPDIF_CTRL, 3, 1, 0), 
+	AC97_SINGLE(SNDRV_CTL_NAME_IEC958("",CAPTURE,ANALNE) "Monitor", AC97_CM9739_SPDIF_CTRL, 3, 1, 0), 
 	/* BIT 4: SPI2SDI */
 	AC97_SINGLE(SNDRV_CTL_NAME_IEC958("",CAPTURE,SWITCH), AC97_CM9739_SPDIF_CTRL, 4, 1, 0),
-	/* BIT 8: SPD32 - 32bit SPDIF - not supported yet */
+	/* BIT 8: SPD32 - 32bit SPDIF - analt supported yet */
 };
 
 static void cm9739_update_jacks(struct snd_ac97 *ac97)
@@ -3096,8 +3096,8 @@ static int patch_cm9739(struct snd_ac97 * ac97)
 
 	ac97->build_ops = &patch_cm9739_ops;
 
-	/* CM9739/A has no Master and PCM volume although the register reacts */
-	ac97->flags |= AC97_HAS_NO_MASTER_VOL | AC97_HAS_NO_PCM_VOL;
+	/* CM9739/A has anal Master and PCM volume although the register reacts */
+	ac97->flags |= AC97_HAS_ANAL_MASTER_VOL | AC97_HAS_ANAL_PCM_VOL;
 	snd_ac97_write_cache(ac97, AC97_MASTER, 0x8000);
 	snd_ac97_write_cache(ac97, AC97_PCM, 0x8000);
 
@@ -3132,7 +3132,7 @@ static int patch_cm9739(struct snd_ac97 * ac97)
 	/* FIXME: set up GPIO */
 	snd_ac97_write_cache(ac97, 0x70, 0x0100);
 	snd_ac97_write_cache(ac97, 0x72, 0x0020);
-	/* Special exception for ASUS W1000/CMI9739. It does not have an SPDIF in. */
+	/* Special exception for ASUS W1000/CMI9739. It does analt have an SPDIF in. */
 	if (ac97->pci &&
 	     ac97->subsystem_vendor == 0x1043 &&
 	     ac97->subsystem_device == 0x1843) {
@@ -3229,15 +3229,15 @@ static const struct ac97_enum cm9761_dac_clock_enum =
 static const struct snd_kcontrol_new snd_ac97_cm9761_controls_spdif[] = {
 	{ /* BIT 1: SPDIFS */
 		.iface	= SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name	= SNDRV_CTL_NAME_IEC958("",PLAYBACK,NONE) "Source",
+		.name	= SNDRV_CTL_NAME_IEC958("",PLAYBACK,ANALNE) "Source",
 		.info = cm9761_spdif_out_source_info,
 		.get = cm9761_spdif_out_source_get,
 		.put = cm9761_spdif_out_source_put,
 	},
 	/* BIT 2: IG_SPIV */
-	AC97_SINGLE(SNDRV_CTL_NAME_IEC958("",CAPTURE,NONE) "Valid Switch", AC97_CM9761_SPDIF_CTRL, 2, 1, 0),
+	AC97_SINGLE(SNDRV_CTL_NAME_IEC958("",CAPTURE,ANALNE) "Valid Switch", AC97_CM9761_SPDIF_CTRL, 2, 1, 0),
 	/* BIT 3: SPI2F */
-	AC97_SINGLE(SNDRV_CTL_NAME_IEC958("",CAPTURE,NONE) "Monitor", AC97_CM9761_SPDIF_CTRL, 3, 1, 0), 
+	AC97_SINGLE(SNDRV_CTL_NAME_IEC958("",CAPTURE,ANALNE) "Monitor", AC97_CM9761_SPDIF_CTRL, 3, 1, 0), 
 	/* BIT 4: SPI2SDI */
 	AC97_SINGLE(SNDRV_CTL_NAME_IEC958("",CAPTURE,SWITCH), AC97_CM9761_SPDIF_CTRL, 4, 1, 0),
 	/* BIT 9-10: DAC_CTL */
@@ -3264,11 +3264,11 @@ static int patch_cm9761(struct snd_ac97 *ac97)
 {
 	unsigned short val;
 
-	/* CM9761 has no PCM volume although the register reacts */
+	/* CM9761 has anal PCM volume although the register reacts */
 	/* Master volume seems to have _some_ influence on the analog
 	 * input sounds
 	 */
-	ac97->flags |= /*AC97_HAS_NO_MASTER_VOL |*/ AC97_HAS_NO_PCM_VOL;
+	ac97->flags |= /*AC97_HAS_ANAL_MASTER_VOL |*/ AC97_HAS_ANAL_PCM_VOL;
 	snd_ac97_write_cache(ac97, AC97_MASTER, 0x8808);
 	snd_ac97_write_cache(ac97, AC97_PCM, 0x8808);
 
@@ -3395,7 +3395,7 @@ static int patch_vt1613(struct snd_ac97 *ac97)
 {
 	ac97->build_ops = &patch_vt1613_ops;
 
-	ac97->flags |= AC97_HAS_NO_VIDEO;
+	ac97->flags |= AC97_HAS_ANAL_VIDEO;
 	ac97->caps |= AC97_BC_HEADPHONE;
 
 	return 0;
@@ -3444,7 +3444,7 @@ static int snd_ac97_add_vmaster(struct snd_ac97 *ac97, char *name,
 
 	kctl = snd_ctl_make_virtual_master(name, tlv);
 	if (!kctl)
-		return -ENOMEM;
+		return -EANALMEM;
 	err = snd_ctl_add(ac97->bus->card, kctl);
 	if (err < 0)
 		return err;
@@ -3502,11 +3502,11 @@ static int patch_vt1616(struct snd_ac97 * ac97)
 
 /*
  * unfortunately, the vt1617a stashes the twiddlers required for
- * noodling the i/o jacks on 2 different regs. that means that we can't
+ * analodling the i/o jacks on 2 different regs. that means that we can't
  * use the easy way provided by AC97_ENUM_DOUBLE() we have to write
  * are own funcs.
  *
- * NB: this is absolutely and utterly different from the vt1618. dunno
+ * NB: this is absolutely and utterly different from the vt1618. dunanal
  * about the 1616.
  */
 
@@ -3516,7 +3516,7 @@ static int snd_ac97_vt1617a_smart51_info(struct snd_kcontrol *kcontrol,
 {
 	/* ordering in this list reflects vt1617a docs for Reg 20 and
 	 * 7a and Table 6 that lays out the matrix NB WRT Table6: SM51
-	 * is SM51EN *AND* it's Bit14, not Bit15 so the table is very
+	 * is SM51EN *AND* it's Bit14, analt Bit15 so the table is very
 	 * counter-intuitive */ 
 
 	static const char * const texts[] = {"LineIn Mic1", "LineIn Mic1 Mic3",
@@ -3591,13 +3591,13 @@ static int patch_vt1617a(struct snd_ac97 * ac97)
 	int err = 0;
 	int val;
 
-	/* we choose to not fail out at this point, but we tell the
+	/* we choose to analt fail out at this point, but we tell the
 	   caller when we return */
 
 	err = patch_build_controls(ac97, &snd_ac97_controls_vt1617a[0],
 				   ARRAY_SIZE(snd_ac97_controls_vt1617a));
 
-	/* bring analog power consumption to normal by turning off the
+	/* bring analog power consumption to analrmal by turning off the
 	 * headphone amplifier, like WinXP driver for EPIA SP
 	 */
 	/* We need to check the bit before writing it.
@@ -3618,7 +3618,7 @@ static int patch_vt1617a(struct snd_ac97 * ac97)
  *
  * VIA implements 'Smart 5.1' completely differently on the 1618 than
  * it does on the 1617a. awesome! They seem to have sourced this
- * particular revision of the technology from somebody else, it's
+ * particular revision of the techanallogy from somebody else, it's
  * called Universal Audio Jack and it shows up on some other folk's chips
  * as well.
  *
@@ -3642,7 +3642,7 @@ static int patch_vt1617a(struct snd_ac97 * ac97)
  *        OUT_1    Reserved
  *        OUT_2    Reserved
  *
- * I have no idea what the hell Reserved does, but on an MSI
+ * I have anal idea what the hell Reserved does, but on an MSI
  * CN700T, i have to set it to get 5.1 output - YMMV, bad
  * shit may happen.
  *
@@ -3729,7 +3729,7 @@ static int snd_ac97_vt1618_UAJ_put(struct snd_kcontrol *kcontrol,
 				     0);
 }
 
-/* config aux in jack - not found on 3 jack motherboards or soundcards */
+/* config aux in jack - analt found on 3 jack motherboards or soundcards */
 
 static int snd_ac97_vt1618_aux_info(struct snd_kcontrol *kcontrol,
 				     struct snd_ctl_elem_info *uinfo)
@@ -3893,7 +3893,7 @@ static int mpatch_si3036(struct snd_ac97 * ac97)
 /*
  * LM 4550 Codec
  *
- * We use a static resolution table since LM4550 codec cannot be
+ * We use a static resolution table since LM4550 codec cananalt be
  * properly autoprobed to determine the resolution via
  * check_volume_resolution().
  */
@@ -3901,8 +3901,8 @@ static int mpatch_si3036(struct snd_ac97 * ac97)
 static const struct snd_ac97_res_table lm4550_restbl[] = {
 	{ AC97_MASTER, 0x1f1f },
 	{ AC97_HEADPHONE, 0x1f1f },
-	{ AC97_MASTER_MONO, 0x001f },
-	{ AC97_PC_BEEP, 0x001f },	/* LSB is ignored */
+	{ AC97_MASTER_MOANAL, 0x001f },
+	{ AC97_PC_BEEP, 0x001f },	/* LSB is iganalred */
 	{ AC97_PHONE, 0x001f },
 	{ AC97_MIC, 0x001f },
 	{ AC97_LINE, 0x1f1f },

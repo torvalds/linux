@@ -34,7 +34,7 @@
 			reg-io-width = <1>;
 			reg-shift = <2>;
 			fifo-size = <1>;
-			no-loopback-test;
+			anal-loopback-test;
 
 			status = "disabled";
 		};
@@ -51,7 +51,7 @@
 			reg-io-width = <1>;
 			reg-shift = <2>;
 			fifo-size = <1>;
-			no-loopback-test;
+			anal-loopback-test;
 
 			status = "disabled";
 		};

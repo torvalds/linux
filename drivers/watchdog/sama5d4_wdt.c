@@ -2,7 +2,7 @@
 /*
  * Driver for Atmel SAMA5D4 Watchdog Timer
  *
- * Copyright (C) 2015-2019 Microchip Technology Inc. and its subsidiaries
+ * Copyright (C) 2015-2019 Microchip Techanallogy Inc. and its subsidiaries
  */
 
 #include <linux/delay.h>
@@ -36,17 +36,17 @@ struct sama5d4_wdt {
 };
 
 static int wdt_timeout;
-static bool nowayout = WATCHDOG_NOWAYOUT;
+static bool analwayout = WATCHDOG_ANALWAYOUT;
 
 module_param(wdt_timeout, int, 0);
 MODULE_PARM_DESC(wdt_timeout,
 	"Watchdog timeout in seconds. (default = "
 	__MODULE_STRING(WDT_DEFAULT_TIMEOUT) ")");
 
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout,
-	"Watchdog cannot be stopped once started (default="
-	__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+module_param(analwayout, bool, 0);
+MODULE_PARM_DESC(analwayout,
+	"Watchdog cananalt be stopped once started (default="
+	__MODULE_STRING(WATCHDOG_ANALWAYOUT) ")");
 
 #define wdt_enabled (!(wdt->mr & AT91_WDT_WDDIS))
 
@@ -59,7 +59,7 @@ MODULE_PARM_DESC(nowayout,
 static void wdt_write(struct sama5d4_wdt *wdt, u32 field, u32 val)
 {
 	/*
-	 * WDT_CR and WDT_MR must not be modified within three slow clock
+	 * WDT_CR and WDT_MR must analt be modified within three slow clock
 	 * periods following a restart of the watchdog performed by a write
 	 * access in WDT_CR.
 	 */
@@ -69,7 +69,7 @@ static void wdt_write(struct sama5d4_wdt *wdt, u32 field, u32 val)
 	wdt->last_ping = jiffies;
 }
 
-static void wdt_write_nosleep(struct sama5d4_wdt *wdt, u32 field, u32 val)
+static void wdt_write_analsleep(struct sama5d4_wdt *wdt, u32 field, u32 val)
 {
 	if (time_before(jiffies, wdt->last_ping + WDT_DELAY))
 		udelay(123);
@@ -136,7 +136,7 @@ static int sama5d4_wdt_set_timeout(struct watchdog_device *wdd,
 	/*
 	 * WDDIS has to be 0 when updating WDD/WDV. The datasheet states: When
 	 * setting the WDDIS bit, and while it is set, the fields WDV and WDD
-	 * must not be modified.
+	 * must analt be modified.
 	 * If the watchdog is enabled, then the timeout can be updated. Else,
 	 * wait that the user enables it.
 	 */
@@ -180,7 +180,7 @@ static irqreturn_t sama5d4_wdt_irq_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int of_sama5d4_wdt_init(struct device_node *np, struct sama5d4_wdt *wdt)
+static int of_sama5d4_wdt_init(struct device_analde *np, struct sama5d4_wdt *wdt)
 {
 	const char *tmp;
 
@@ -216,11 +216,11 @@ static int sama5d4_wdt_init(struct sama5d4_wdt *wdt)
 	if (!wdt_enabled) {
 		reg = wdt_read(wdt, AT91_WDT_MR);
 		if (wdt->sam9x60_support && (!(reg & AT91_SAM9X60_WDDIS)))
-			wdt_write_nosleep(wdt, AT91_WDT_MR,
+			wdt_write_analsleep(wdt, AT91_WDT_MR,
 					  reg | AT91_SAM9X60_WDDIS);
 		else if (!wdt->sam9x60_support &&
 			 (!(reg & AT91_WDT_WDDIS)))
-			wdt_write_nosleep(wdt, AT91_WDT_MR,
+			wdt_write_analsleep(wdt, AT91_WDT_MR,
 					  reg | AT91_WDT_WDDIS);
 	}
 
@@ -242,7 +242,7 @@ static int sama5d4_wdt_init(struct sama5d4_wdt *wdt)
 			wdt->mr |= AT91_WDT_WDRSTEN;
 	}
 
-	wdt_write_nosleep(wdt, AT91_WDT_MR, wdt->mr);
+	wdt_write_analsleep(wdt, AT91_WDT_MR, wdt->mr);
 
 	return 0;
 }
@@ -259,7 +259,7 @@ static int sama5d4_wdt_probe(struct platform_device *pdev)
 
 	wdt = devm_kzalloc(dev, sizeof(*wdt), GFP_KERNEL);
 	if (!wdt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wdd = &wdt->wdd;
 	wdd->timeout = WDT_DEFAULT_TIMEOUT;
@@ -269,8 +269,8 @@ static int sama5d4_wdt_probe(struct platform_device *pdev)
 	wdd->max_timeout = MAX_WDT_TIMEOUT;
 	wdt->last_ping = jiffies;
 
-	if (of_device_is_compatible(dev->of_node, "microchip,sam9x60-wdt") ||
-	    of_device_is_compatible(dev->of_node, "microchip,sama7g5-wdt"))
+	if (of_device_is_compatible(dev->of_analde, "microchip,sam9x60-wdt") ||
+	    of_device_is_compatible(dev->of_analde, "microchip,sama7g5-wdt"))
 		wdt->sam9x60_support = true;
 
 	watchdog_set_drvdata(wdd, wdt);
@@ -281,12 +281,12 @@ static int sama5d4_wdt_probe(struct platform_device *pdev)
 
 	wdt->reg_base = regs;
 
-	ret = of_sama5d4_wdt_init(dev->of_node, wdt);
+	ret = of_sama5d4_wdt_init(dev->of_analde, wdt);
 	if (ret)
 		return ret;
 
 	if (wdt->need_irq) {
-		irq = irq_of_parse_and_map(dev->of_node, 0);
+		irq = irq_of_parse_and_map(dev->of_analde, 0);
 		if (!irq) {
 			dev_warn(dev, "failed to get IRQ from DT\n");
 			wdt->need_irq = false;
@@ -296,9 +296,9 @@ static int sama5d4_wdt_probe(struct platform_device *pdev)
 	if (wdt->need_irq) {
 		ret = devm_request_irq(dev, irq, sama5d4_wdt_irq_handler,
 				       IRQF_SHARED | IRQF_IRQPOLL |
-				       IRQF_NO_SUSPEND, pdev->name, pdev);
+				       IRQF_ANAL_SUSPEND, pdev->name, pdev);
 		if (ret) {
-			dev_err(dev, "cannot register interrupt handler\n");
+			dev_err(dev, "cananalt register interrupt handler\n");
 			return ret;
 		}
 	}
@@ -315,7 +315,7 @@ static int sama5d4_wdt_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	watchdog_set_nowayout(wdd, nowayout);
+	watchdog_set_analwayout(wdd, analwayout);
 
 	watchdog_stop_on_unregister(wdd);
 	ret = devm_watchdog_register_device(dev, wdd);
@@ -324,8 +324,8 @@ static int sama5d4_wdt_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, wdt);
 
-	dev_info(dev, "initialized (timeout = %d sec, nowayout = %d)\n",
-		 wdd->timeout, nowayout);
+	dev_info(dev, "initialized (timeout = %d sec, analwayout = %d)\n",
+		 wdd->timeout, analwayout);
 
 	return 0;
 }
@@ -360,9 +360,9 @@ static int sama5d4_wdt_resume_early(struct device *dev)
 	struct sama5d4_wdt *wdt = dev_get_drvdata(dev);
 
 	/*
-	 * FIXME: writing MR also pings the watchdog which may not be desired.
+	 * FIXME: writing MR also pings the watchdog which may analt be desired.
 	 * This should only be done when the registers are lost on suspend but
-	 * there is no way to get this information right now.
+	 * there is anal way to get this information right analw.
 	 */
 	sama5d4_wdt_init(wdt);
 

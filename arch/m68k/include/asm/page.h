@@ -59,7 +59,7 @@ extern unsigned long _ramend;
 #ifdef CONFIG_MMU
 #include <asm/page_mm.h>
 #else
-#include <asm/page_no.h>
+#include <asm/page_anal.h>
 #endif
 
 #include <asm-generic/getorder.h>

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause) */
+/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-analte) OR BSD-3-Clause) */
 /*
  * Copyright (C) 2021 Intel Corporation
  * Author: Johannes Berg <johannes@sipsolutions.net>
@@ -25,7 +25,7 @@
  * @VIRTIO_PCIDEV_OP_MSI: MSI(-X) interrupt, this message basically transports
  *	the 16- or 32-bit write that would otherwise be done into memory,
  *	analogous to the write messages (@VIRTIO_PCIDEV_OP_MMIO_WRITE) above
- * @VIRTIO_PCIDEV_OP_PME: Dummy message whose content is ignored (and should be
+ * @VIRTIO_PCIDEV_OP_PME: Dummy message whose content is iganalred (and should be
  *	all zeroes) to signal the PME# pin.
  */
 enum virtio_pcidev_ops {
@@ -47,10 +47,10 @@ enum virtio_pcidev_ops {
  * @reserved: reserved
  * @size: the size of the read/write (in bytes)
  * @addr: the address to read/write
- * @data: the data, normally @size long, but just one byte for
+ * @data: the data, analrmally @size long, but just one byte for
  *	%VIRTIO_PCIDEV_OP_MMIO_MEMSET
  *
- * Note: the fields are all in native (CPU) endian, however, the
+ * Analte: the fields are all in native (CPU) endian, however, the
  * @data values will often be in little endian (see the ops above.)
  */
 struct virtio_pcidev_msg {

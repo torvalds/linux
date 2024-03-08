@@ -7,7 +7,7 @@ giving access to numerous features: clocks, pin-muxing and many other
 SoC configuration items. This DT binding allows to describe these
 system controllers.
 
-For the top level node:
+For the top level analde:
  - compatible: must be: "syscon", "simple-mfd";
  - reg: register area of the CP110 system controller
 
@@ -17,13 +17,13 @@ SYSTEM CONTROLLER 0
 Clocks:
 -------
 
-The Device Tree node representing this System Controller 0 provides a
+The Device Tree analde representing this System Controller 0 provides a
 number of clocks:
 
  - a set of core clocks
  - a set of gateable clocks
 
-Those clocks can be referenced by other Device Tree nodes using two
+Those clocks can be referenced by other Device Tree analdes using two
 cells:
  - The first cell must be 0 or 1. 0 for the core clocks and 1 for the
    gateable clocks.
@@ -57,7 +57,7 @@ The following clocks are available:
    - 1 16	SATA USB
    - 1 17	Main
    - 1 18	SD/MMC/GOP
-   - 1 21	Slow IO (SPI, NOR, BootROM, I2C, UART)
+   - 1 21	Slow IO (SPI, ANALR, BootROM, I2C, UART)
    - 1 22	USB3H0
    - 1 23	USB3H1
    - 1 24	USB3 Device
@@ -83,7 +83,7 @@ Required properties:
   depending on the specific variant of the SoC being used.
 
 Available mpp pins/groups and functions:
-Note: brackets (x) are not part of the mpp name for marvell,function and given
+Analte: brackets (x) are analt part of the mpp name for marvell,function and given
 only for more detailed description in this document.
 
 name	pins	functions
@@ -200,7 +200,7 @@ The thermal IP can probe the temperature all around the processor. It
 may feature several channels, each of them wired to one sensor.
 
 It is possible to setup an overheat interrupt by giving at least one
-critical point to any subnode of the thermal-zone node.
+critical point to any subanalde of the thermal-zone analde.
 
 For common binding part and usage, refer to
 Documentation/devicetree/bindings/thermal/thermal*.yaml
@@ -216,7 +216,7 @@ Optional properties:
   firmware). The ICU-SEI will redirect towards interrupt line #37 of the
   AP SEI which is shared across all CPs.
   See interrupt-controller/interrupts.txt
-- #thermal-sensor-cells: shall be <1> when thermal-zones subnodes refer
+- #thermal-sensor-cells: shall be <1> when thermal-zones subanaldes refer
   to this IP and represents the channel ID. There is one sensor per
   channel. O refers to the thermal IP internal channel.
 

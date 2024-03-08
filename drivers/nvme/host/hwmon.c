@@ -104,7 +104,7 @@ static int nvme_hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 		*val = !!(log->critical_warning & NVME_SMART_CRIT_TEMPERATURE);
 		break;
 	default:
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		break;
 	}
 unlock:
@@ -126,7 +126,7 @@ static int nvme_hwmon_write(struct device *dev, enum hwmon_sensor_types type,
 		break;
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static const char * const nvme_hwmon_sensor_names[] = {
@@ -165,9 +165,9 @@ static umode_t nvme_hwmon_is_visible(const void *_data,
 		if ((!channel && data->ctrl->wctemp) ||
 		    (channel && data->log->temp_sensor[channel - 1] &&
 		     !(data->ctrl->quirks &
-		       NVME_QUIRK_NO_SECONDARY_TEMP_THRESH))) {
+		       NVME_QUIRK_ANAL_SECONDARY_TEMP_THRESH))) {
 			if (data->ctrl->quirks &
-			    NVME_QUIRK_NO_TEMP_THRESH_CHANGE)
+			    NVME_QUIRK_ANAL_TEMP_THRESH_CHANGE)
 				return 0444;
 			return 0644;
 		}
@@ -232,11 +232,11 @@ int nvme_hwmon_init(struct nvme_ctrl *ctrl)
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->log = kzalloc(sizeof(*data->log), GFP_KERNEL);
 	if (!data->log) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_free_data;
 	}
 

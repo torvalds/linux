@@ -6,7 +6,7 @@ controller can support upto 16 Fan tachometer inputs.
 There can be upto 8 fans supported. Each fan can have one PWM output and
 one/two Fan tach inputs.
 
-Required properties for pwm-tacho node:
+Required properties for pwm-tacho analde:
 - #address-cells : should be 1.
 
 - #size-cells : should be 1.
@@ -26,15 +26,15 @@ Required properties for pwm-tacho node:
 
 - resets : phandle to reset controller with the reset number in the second cell
 
-fan subnode format:
+fan subanalde format:
 ===================
-Under fan subnode there can upto 8 child nodes, with each child node
+Under fan subanalde there can upto 8 child analdes, with each child analde
 representing a fan. If there are 8 fans each fan can have one PWM port and
 one/two Fan tach inputs.
 For PWM port can be configured cooling-levels to create cooling device.
 Cooling device could be bound to a thermal zone for the thermal control.
 
-Required properties for each child node:
+Required properties for each child analde:
 - reg : should specify PWM source port.
 	integer value in the range 0 to 7 with 0 indicating PWM port A and
 	7 indicating PWM port H.

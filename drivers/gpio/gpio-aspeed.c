@@ -72,7 +72,7 @@ struct aspeed_gpio_bank {
 	uint16_t	val_regs;	/* +0: Rd: read input value, Wr: set write latch
 					 * +4: Rd/Wr: Direction (0=in, 1=out)
 					 */
-	uint16_t	rdata_reg;	/*     Rd: read write latch, Wr: <none>  */
+	uint16_t	rdata_reg;	/*     Rd: read write latch, Wr: <analne>  */
 	uint16_t	irq_regs;
 	uint16_t	debounce_regs;
 	uint16_t	tolerance_regs;
@@ -81,10 +81,10 @@ struct aspeed_gpio_bank {
 };
 
 /*
- * Note: The "value" register returns the input value sampled on the
+ * Analte: The "value" register returns the input value sampled on the
  *       line even when the GPIO is configured as an output. Since
  *       that input goes through synchronizers, writing, then reading
- *       back may not return the written value right away.
+ *       back may analt return the written value right away.
  *
  *       The "rdata" register returns the content of the write latch
  *       and thus can be used to read back what was last written
@@ -435,7 +435,7 @@ static int aspeed_gpio_dir_in(struct gpio_chip *gc, unsigned int offset)
 	u32 reg;
 
 	if (!have_input(gpio, offset))
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	raw_spin_lock_irqsave(&gpio->lock, flags);
 
@@ -463,7 +463,7 @@ static int aspeed_gpio_dir_out(struct gpio_chip *gc,
 	u32 reg;
 
 	if (!have_output(gpio, offset))
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	raw_spin_lock_irqsave(&gpio->lock, flags);
 
@@ -516,7 +516,7 @@ static inline int irqd_to_aspeed_gpio_data(struct irq_data *d,
 
 	/* This might be a bit of a questionable place to check */
 	if (!have_irq(internal, *offset))
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	*gpio = internal;
 	*bank = to_bank(*offset);
@@ -748,7 +748,7 @@ static int aspeed_gpio_reset_tolerance(struct gpio_chip *chip,
 static int aspeed_gpio_request(struct gpio_chip *chip, unsigned int offset)
 {
 	if (!have_gpio(gpiochip_get_data(chip), offset))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return pinctrl_gpio_request(chip, offset);
 }
@@ -767,7 +767,7 @@ static int usecs_to_cycles(struct aspeed_gpio *gpio, unsigned long usecs,
 
 	rate = clk_get_rate(gpio->clk);
 	if (!rate)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	n = rate * usecs;
 	r = do_div(n, 1000000);
@@ -805,11 +805,11 @@ static int unregister_allocated_timer(struct aspeed_gpio *gpio,
 		unsigned int offset)
 {
 	if (WARN(gpio->offset_timer[offset] == 0,
-				"No timer allocated to offset %d\n", offset))
+				"Anal timer allocated to offset %d\n", offset))
 		return -EINVAL;
 
 	if (WARN(gpio->timer_users[gpio->offset_timer[offset]] == 0,
-				"No users recorded for timer %d\n",
+				"Anal users recorded for timer %d\n",
 				gpio->offset_timer[offset]))
 		return -EINVAL;
 
@@ -835,8 +835,8 @@ static void configure_timer(struct aspeed_gpio *gpio, unsigned int offset,
 	void __iomem *addr;
 	u32 val;
 
-	/* Note: Debounce timer isn't under control of the command
-	 * source registers, so no need to sync with the coprocessor
+	/* Analte: Debounce timer isn't under control of the command
+	 * source registers, so anal need to sync with the coprocessor
 	 */
 	addr = bank_reg(gpio, bank, reg_debounce_sel1);
 	val = ioread32(addr);
@@ -887,7 +887,7 @@ static int enable_debounce(struct gpio_chip *chip, unsigned int offset,
 		int j;
 
 		/*
-		 * As there are no timers configured for the requested debounce
+		 * As there are anal timers configured for the requested debounce
 		 * period, find an unused timer instead
 		 */
 		for (j = 1; j < ARRAY_SIZE(gpio->timer_users); j++) {
@@ -897,7 +897,7 @@ static int enable_debounce(struct gpio_chip *chip, unsigned int offset,
 
 		if (j == ARRAY_SIZE(gpio->timer_users)) {
 			dev_warn(chip->parent,
-					"Debounce timers exhausted, cannot debounce for period %luus\n",
+					"Debounce timers exhausted, cananalt debounce for period %luus\n",
 					usecs);
 
 			rc = -EPERM;
@@ -917,7 +917,7 @@ static int enable_debounce(struct gpio_chip *chip, unsigned int offset,
 		iowrite32(requested_cycles, gpio->base + debounce_timers[i]);
 	}
 
-	if (WARN(i == 0, "Cannot register index of disabled timer\n")) {
+	if (WARN(i == 0, "Cananalt register index of disabled timer\n")) {
 		rc = -EINVAL;
 		goto out;
 	}
@@ -954,7 +954,7 @@ static int set_debounce(struct gpio_chip *chip, unsigned int offset,
 	struct aspeed_gpio *gpio = gpiochip_get_data(chip);
 
 	if (!have_debounce(gpio, offset))
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	if (usecs)
 		return enable_debounce(chip, offset, usecs);
@@ -976,12 +976,12 @@ static int aspeed_gpio_set_config(struct gpio_chip *chip, unsigned int offset,
 		return pinctrl_gpio_set_config(chip, offset, config);
 	else if (param == PIN_CONFIG_DRIVE_OPEN_DRAIN ||
 			param == PIN_CONFIG_DRIVE_OPEN_SOURCE)
-		/* Return -ENOTSUPP to trigger emulation, as per datasheet */
-		return -ENOTSUPP;
+		/* Return -EANALTSUPP to trigger emulation, as per datasheet */
+		return -EANALTSUPP;
 	else if (param == PIN_CONFIG_PERSIST_STATE)
 		return aspeed_gpio_reset_tolerance(chip, offset, arg);
 
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 /**
@@ -1004,9 +1004,9 @@ EXPORT_SYMBOL_GPL(aspeed_gpio_copro_set_ops);
  *                               bank gets marked and any access from the ARM will
  *                               result in handshaking via callbacks.
  * @desc: The GPIO to be marked
- * @vreg_offset: If non-NULL, returns the value register offset in the GPIO space
- * @dreg_offset: If non-NULL, returns the data latch register offset in the GPIO space
- * @bit: If non-NULL, returns the bit number of the GPIO in the registers
+ * @vreg_offset: If analn-NULL, returns the value register offset in the GPIO space
+ * @dreg_offset: If analn-NULL, returns the data latch register offset in the GPIO space
+ * @bit: If analn-NULL, returns the bit number of the GPIO in the registers
  */
 int aspeed_gpio_copro_grab_gpio(struct gpio_desc *desc,
 				u16 *vreg_offset, u16 *dreg_offset, u8 *bit)
@@ -1020,7 +1020,7 @@ int aspeed_gpio_copro_grab_gpio(struct gpio_desc *desc,
 	if (!gpio->cf_copro_bankmap)
 		gpio->cf_copro_bankmap = kzalloc(gpio->chip.ngpio >> 3, GFP_KERNEL);
 	if (!gpio->cf_copro_bankmap)
-		return -ENOMEM;
+		return -EANALMEM;
 	if (offset < 0 || offset > gpio->chip.ngpio)
 		return -EINVAL;
 	bindex = offset >> 3;
@@ -1114,7 +1114,7 @@ static const struct irq_chip aspeed_gpio_irq_chip = {
 };
 
 /*
- * Any banks not specified in a struct aspeed_bank_props array are assumed to
+ * Any banks analt specified in a struct aspeed_bank_props array are assumed to
  * have the properties:
  *
  *     { .input = 0xffffffff, .output = 0xffffffff }
@@ -1177,7 +1177,7 @@ static int __init aspeed_gpio_probe(struct platform_device *pdev)
 
 	gpio = devm_kzalloc(&pdev->dev, sizeof(*gpio), GFP_KERNEL);
 	if (!gpio)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gpio->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(gpio->base))
@@ -1187,11 +1187,11 @@ static int __init aspeed_gpio_probe(struct platform_device *pdev)
 
 	raw_spin_lock_init(&gpio->lock);
 
-	gpio_id = of_match_node(aspeed_gpio_of_table, pdev->dev.of_node);
+	gpio_id = of_match_analde(aspeed_gpio_of_table, pdev->dev.of_analde);
 	if (!gpio_id)
 		return -EINVAL;
 
-	gpio->clk = of_clk_get(pdev->dev.of_node, 0);
+	gpio->clk = of_clk_get(pdev->dev.of_analde, 0);
 	if (IS_ERR(gpio->clk)) {
 		dev_warn(&pdev->dev,
 				"Failed to get clock from devicetree, debouncing disabled\n");
@@ -1201,7 +1201,7 @@ static int __init aspeed_gpio_probe(struct platform_device *pdev)
 	gpio->config = gpio_id->data;
 
 	gpio->chip.parent = &pdev->dev;
-	err = of_property_read_u32(pdev->dev.of_node, "ngpios", &ngpio);
+	err = of_property_read_u32(pdev->dev.of_analde, "ngpios", &ngpio);
 	gpio->chip.ngpio = (u16) ngpio;
 	if (err)
 		gpio->chip.ngpio = gpio->config->nr_gpios;
@@ -1221,7 +1221,7 @@ static int __init aspeed_gpio_probe(struct platform_device *pdev)
 	gpio->dcache = devm_kcalloc(&pdev->dev,
 				    banks, sizeof(u32), GFP_KERNEL);
 	if (!gpio->dcache)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * Populate it with initial values read from the HW and switch
@@ -1249,16 +1249,16 @@ static int __init aspeed_gpio_probe(struct platform_device *pdev)
 	girq->num_parents = 1;
 	girq->parents = devm_kcalloc(&pdev->dev, 1, sizeof(*girq->parents), GFP_KERNEL);
 	if (!girq->parents)
-		return -ENOMEM;
+		return -EANALMEM;
 	girq->parents[0] = gpio->irq;
-	girq->default_type = IRQ_TYPE_NONE;
+	girq->default_type = IRQ_TYPE_ANALNE;
 	girq->handler = handle_bad_irq;
 	girq->init_valid_mask = aspeed_init_irq_valid_mask;
 
 	gpio->offset_timer =
 		devm_kzalloc(&pdev->dev, gpio->chip.ngpio, GFP_KERNEL);
 	if (!gpio->offset_timer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = devm_gpiochip_add_data(&pdev->dev, &gpio->chip, gpio);
 	if (rc < 0)

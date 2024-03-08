@@ -39,7 +39,7 @@ static int cs35l41_i2c_probe(struct i2c_client *client)
 	cs35l41 = devm_kzalloc(dev, sizeof(struct cs35l41_private), GFP_KERNEL);
 
 	if (!cs35l41)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cs35l41->dev = dev;
 	cs35l41->irq = client->irq;

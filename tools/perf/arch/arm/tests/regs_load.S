@@ -28,7 +28,7 @@
  * The built-in unwinding test then unwinds the call stack from the dwarf
  * information in unwind__get_entries.
  *
- * Notes:
+ * Analtes:
  * - the 8 bytes stride in the registers offsets comes from the fact
  * that the registers are stored in an u64 array (u64 *regs),
  * - the regs buffer needs to be zeroed before the call to this function,

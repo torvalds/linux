@@ -164,11 +164,11 @@ static int venc_enum_frameintervals(struct file *file, void *fh, struct v4l2_frm
 
 	fival->type = V4L2_FRMIVAL_TYPE_CONTINUOUS;
 	fival->stepwise.min.numerator = 1;
-	fival->stepwise.min.denominator = USHRT_MAX;
+	fival->stepwise.min.deanalminator = USHRT_MAX;
 	fival->stepwise.max.numerator = USHRT_MAX;
-	fival->stepwise.max.denominator = 1;
+	fival->stepwise.max.deanalminator = 1;
 	fival->stepwise.step.numerator = 1;
-	fival->stepwise.step.denominator = 1;
+	fival->stepwise.step.deanalminator = 1;
 
 	return 0;
 }
@@ -283,7 +283,7 @@ static int venc_g_parm(struct file *file, void *fh, struct v4l2_streamparm *parm
 	parm->parm.capture.capability = V4L2_CAP_TIMEPERFRAME;
 	parm->parm.capture.readbuffers = 0;
 	timeperframe->numerator = venc->params.frame_rate.numerator;
-	timeperframe->denominator = venc->params.frame_rate.denominator;
+	timeperframe->deanalminator = venc->params.frame_rate.deanalminator;
 
 	return 0;
 }
@@ -307,19 +307,19 @@ static int venc_s_parm(struct file *file, void *fh, struct v4l2_streamparm *parm
 	timeperframe = &parm->parm.capture.timeperframe;
 	if (!timeperframe->numerator)
 		timeperframe->numerator = venc->params.frame_rate.numerator;
-	if (!timeperframe->denominator)
-		timeperframe->denominator = venc->params.frame_rate.denominator;
+	if (!timeperframe->deanalminator)
+		timeperframe->deanalminator = venc->params.frame_rate.deanalminator;
 
 	venc->params.frame_rate.numerator = timeperframe->numerator;
-	venc->params.frame_rate.denominator = timeperframe->denominator;
+	venc->params.frame_rate.deanalminator = timeperframe->deanalminator;
 
 	rational_best_approximation(venc->params.frame_rate.numerator,
-				    venc->params.frame_rate.denominator,
+				    venc->params.frame_rate.deanalminator,
 				    venc->params.frame_rate.numerator,
-				    venc->params.frame_rate.denominator,
+				    venc->params.frame_rate.deanalminator,
 				    &n, &d);
 	venc->params.frame_rate.numerator = n;
-	venc->params.frame_rate.denominator = d;
+	venc->params.frame_rate.deanalminator = d;
 
 	parm->parm.capture.capability = V4L2_CAP_TIMEPERFRAME;
 	memset(parm->parm.capture.reserved, 0, sizeof(parm->parm.capture.reserved));
@@ -801,7 +801,7 @@ static int venc_get_one_encoded_frame(struct vpu_inst *inst,
 	}
 	if (frame->bytesused > vbuf->vb2_buf.planes[0].length) {
 		v4l2_m2m_buf_done(vbuf, VB2_BUF_STATE_ERROR);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	venc_precheck_encoded_frame(inst, frame);
@@ -861,7 +861,7 @@ static int venc_frame_encoded(struct vpu_inst *inst, void *arg)
 	venc = inst->priv;
 	frame = vzalloc(sizeof(*frame));
 	if (!frame)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy(&frame->info, info, sizeof(frame->info));
 	frame->bytesused = info->frame_size;
@@ -895,7 +895,7 @@ static void venc_stop_done(struct vpu_inst *inst)
 	wake_up_all(&venc->wq);
 }
 
-static void venc_event_notify(struct vpu_inst *inst, u32 event, void *data)
+static void venc_event_analtify(struct vpu_inst *inst, u32 event, void *data)
 {
 }
 
@@ -966,7 +966,7 @@ static int venc_start_session(struct vpu_inst *inst, u32 type)
 	venc->stopped = false;
 	vpu_process_output_buffer(inst);
 	if (venc->frame_count == 0)
-		dev_err(inst->dev, "[%d] there is no input when starting\n", inst->id);
+		dev_err(inst->dev, "[%d] there is anal input when starting\n", inst->id);
 
 	return 0;
 error:
@@ -1169,7 +1169,7 @@ static int venc_get_debug_info(struct vpu_inst *inst, char *str, u32 size, u32 i
 	case 2:
 		num = scnprintf(str, size, "fps = %d/%d\n",
 				venc->params.frame_rate.numerator,
-				venc->params.frame_rate.denominator);
+				venc->params.frame_rate.deanalminator);
 		break;
 	case 3:
 		num = scnprintf(str, size, "%d x %d -> %d x %d\n",
@@ -1240,7 +1240,7 @@ static struct vpu_inst_ops venc_inst_ops = {
 	.input_done = venc_input_done,
 	.get_one_frame = venc_frame_encoded,
 	.stop_done = venc_stop_done,
-	.event_notify = venc_event_notify,
+	.event_analtify = venc_event_analtify,
 	.release = venc_release,
 	.cleanup = venc_cleanup,
 	.start = venc_start_session,
@@ -1273,7 +1273,7 @@ static void venc_init(struct file *file)
 	f.fmt.pix_mp.pixelformat = V4L2_PIX_FMT_NV12M;
 	f.fmt.pix_mp.width = 1280;
 	f.fmt.pix_mp.height = 720;
-	f.fmt.pix_mp.field = V4L2_FIELD_NONE;
+	f.fmt.pix_mp.field = V4L2_FIELD_ANALNE;
 	venc_s_fmt(file, &inst->fh, &f);
 
 	memset(&f, 0, sizeof(f));
@@ -1281,13 +1281,13 @@ static void venc_init(struct file *file)
 	f.fmt.pix_mp.pixelformat = V4L2_PIX_FMT_H264;
 	f.fmt.pix_mp.width = 1280;
 	f.fmt.pix_mp.height = 720;
-	f.fmt.pix_mp.field = V4L2_FIELD_NONE;
+	f.fmt.pix_mp.field = V4L2_FIELD_ANALNE;
 	venc_s_fmt(file, &inst->fh, &f);
 
 	memset(&parm, 0, sizeof(parm));
 	parm.type = V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE;
 	parm.parm.capture.timeperframe.numerator = 1;
-	parm.parm.capture.timeperframe.denominator = 30;
+	parm.parm.capture.timeperframe.deanalminator = 30;
 	venc_s_parm(file, &inst->fh, &parm);
 }
 
@@ -1299,12 +1299,12 @@ static int venc_open(struct file *file)
 
 	inst = vzalloc(sizeof(*inst));
 	if (!inst)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	venc = vzalloc(sizeof(*venc));
 	if (!venc) {
 		vfree(inst);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	inst->ops = &venc_inst_ops;

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright 1998-2008 VIA Technologies, Inc. All Rights Reserved.
+ * Copyright 1998-2008 VIA Techanallogies, Inc. All Rights Reserved.
  * Copyright 2001-2008 S3 Graphics, Inc. All Rights Reserved.
 
  */
@@ -222,7 +222,7 @@ void viafb_get_gamma_table(unsigned int *gamma_table)
 void viafb_get_gamma_support_state(int bpp, unsigned int *support_state)
 {
 	if (bpp == 8)
-		*support_state = None_Device;
+		*support_state = Analne_Device;
 	else
 		*support_state = CRT_Device | DVI_Device | LCD_Device;
 }

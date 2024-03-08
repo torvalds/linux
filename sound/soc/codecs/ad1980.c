@@ -11,8 +11,8 @@
  * WARNING:
  *
  * Because Analog Devices Inc. discontinued the ad1980 sound chip since
- * Sep. 2009, this ad1980 driver is not maintained, tested and supported
- * by ADI now.
+ * Sep. 2009, this ad1980 driver is analt maintained, tested and supported
+ * by ADI analw.
  */
 
 #include <linux/init.h>
@@ -58,7 +58,7 @@ static const struct reg_default ad1980_reg_defaults[] = {
 static bool ad1980_readable_reg(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
-	case AC97_RESET ... AC97_MASTER_MONO:
+	case AC97_RESET ... AC97_MASTER_MOANAL:
 	case AC97_PHONE ... AC97_CD:
 	case AC97_AUX ... AC97_GENERAL_PURPOSE:
 	case AC97_POWERDOWN ... AC97_PCM_LR_ADC_RATE:
@@ -103,7 +103,7 @@ static const struct regmap_config ad1980_regmap_config = {
 };
 
 static const char *ad1980_rec_sel[] = {"Mic", "CD", "NC", "AUX", "Line",
-		"Stereo Mix", "Mono Mix", "Phone"};
+		"Stereo Mix", "Moanal Mix", "Phone"};
 
 static SOC_ENUM_DOUBLE_DECL(ad1980_cap_src,
 			    AC97_REC_SEL, 8, 0, ad1980_rec_sel);
@@ -121,8 +121,8 @@ SOC_SINGLE("PCM Playback Switch", AC97_PCM, 15, 1, 1),
 SOC_DOUBLE("PCM Capture Volume", AC97_REC_GAIN, 8, 0, 31, 0),
 SOC_SINGLE("PCM Capture Switch", AC97_REC_GAIN, 15, 1, 1),
 
-SOC_SINGLE("Mono Playback Volume", AC97_MASTER_MONO, 0, 31, 1),
-SOC_SINGLE("Mono Playback Switch", AC97_MASTER_MONO, 15, 1, 1),
+SOC_SINGLE("Moanal Playback Volume", AC97_MASTER_MOANAL, 0, 31, 1),
+SOC_SINGLE("Moanal Playback Switch", AC97_MASTER_MOANAL, 15, 1, 1),
 
 SOC_SINGLE("Phone Capture Volume", AC97_PHONE, 0, 31, 1),
 SOC_SINGLE("Phone Capture Switch", AC97_PHONE, 15, 1, 1),
@@ -158,7 +158,7 @@ SND_SOC_DAPM_OUTPUT("LFE_OUT"),
 SND_SOC_DAPM_OUTPUT("CENTER_OUT"),
 SND_SOC_DAPM_OUTPUT("LINE_OUT_L"),
 SND_SOC_DAPM_OUTPUT("LINE_OUT_R"),
-SND_SOC_DAPM_OUTPUT("MONO_OUT"),
+SND_SOC_DAPM_OUTPUT("MOANAL_OUT"),
 SND_SOC_DAPM_OUTPUT("HP_OUT_L"),
 SND_SOC_DAPM_OUTPUT("HP_OUT_R"),
 };
@@ -177,7 +177,7 @@ static const struct snd_soc_dapm_route ad1980_dapm_routes[] = {
 	{ "CENTER_OUT", NULL, "Playback" },
 	{ "LINE_OUT_L", NULL, "Playback" },
 	{ "LINE_OUT_R", NULL, "Playback" },
-	{ "MONO_OUT", NULL, "Playback" },
+	{ "MOANAL_OUT", NULL, "Playback" },
 	{ "HP_OUT_L", NULL, "Playback" },
 	{ "HP_OUT_R", NULL, "Playback" },
 };

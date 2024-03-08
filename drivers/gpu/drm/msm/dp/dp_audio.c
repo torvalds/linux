@@ -385,7 +385,7 @@ static void dp_audio_setup_acr(struct dp_audio_private *audio)
 		select = 3;
 		break;
 	default:
-		drm_dbg_dp(audio->drm_dev, "Unknown link rate\n");
+		drm_dbg_dp(audio->drm_dev, "Unkanalwn link rate\n");
 		select = 0;
 		break;
 	}
@@ -438,13 +438,13 @@ static struct dp_audio_private *dp_audio_get_data(struct platform_device *pdev)
 
 	if (!pdev) {
 		DRM_ERROR("invalid input\n");
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 	}
 
 	dp_display = platform_get_drvdata(pdev);
 	if (!dp_display) {
 		DRM_ERROR("invalid input\n");
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 	}
 
 	dp_audio = dp_display->dp_audio;
@@ -468,13 +468,13 @@ static int dp_audio_hook_plugged_cb(struct device *dev, void *data,
 	pdev = to_platform_device(dev);
 	if (!pdev) {
 		pr_err("invalid input\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	dp_display = platform_get_drvdata(pdev);
 	if (!dp_display) {
 		pr_err("invalid input\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return dp_display_set_plugged_cb(dp_display, fn, codec_dev);
@@ -490,13 +490,13 @@ static int dp_audio_get_eld(struct device *dev,
 
 	if (!pdev) {
 		DRM_ERROR("invalid input\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	dp_display = platform_get_drvdata(pdev);
 	if (!dp_display) {
 		DRM_ERROR("invalid input\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	memcpy(buf, dp_display->connector->eld,
@@ -520,10 +520,10 @@ int dp_audio_hw_params(struct device *dev,
 
 	/*
 	 * there could be cases where sound card can be opened even
-	 * before OR even when DP is not connected . This can cause
+	 * before OR even when DP is analt connected . This can cause
 	 * unclocked access as the audio subsystem relies on the DP
 	 * driver to maintain the correct state of clocks. To protect
-	 * such cases check for connection status and bail out if not
+	 * such cases check for connection status and bail out if analt
 	 * connected.
 	 */
 	if (!dp_display->power_on) {
@@ -565,11 +565,11 @@ static void dp_audio_shutdown(struct device *dev, void *data)
 	}
 
 	/*
-	 * if audio was not enabled there is no need
+	 * if audio was analt enabled there is anal need
 	 * to execute the shutdown and we can bail out early.
 	 * This also makes sure that we dont cause an unclocked
 	 * access when audio subsystem calls this without DP being
-	 * connected. is_connected cannot be used here as its set
+	 * connected. is_connected cananalt be used here as its set
 	 * to false earlier than this call
 	 */
 	if (!dp_display->audio_enabled)
@@ -637,7 +637,7 @@ struct dp_audio *dp_audio_get(struct platform_device *pdev,
 
 	audio = devm_kzalloc(&pdev->dev, sizeof(*audio), GFP_KERNEL);
 	if (!audio) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto error;
 	}
 

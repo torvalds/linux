@@ -63,8 +63,8 @@ MODULE_PARM_DESC(dev3, "Describes third attached device (<parport#>,<type>)");
 #define DB9_FIRE3		0x40
 #define DB9_FIRE4		0x80
 
-#define DB9_NORMAL		0x0a
-#define DB9_NOSELECT		0x08
+#define DB9_ANALRMAL		0x0a
+#define DB9_ANALSELECT		0x08
 
 #define DB9_GENESIS6_DELAY	14
 #define DB9_REFRESH_TIME	HZ/100
@@ -87,7 +87,7 @@ struct db9 {
 	struct pardevice *pd;
 	int mode;
 	int used;
-	int parportno;
+	int parportanal;
 	struct mutex mutex;
 	char phys[DB9_MAX_DEVICES][32];
 };
@@ -194,7 +194,7 @@ static unsigned char db9_saturn_read_packet(struct parport *port, unsigned char 
 	data[0] = db9_saturn_read_sub(port, type);
 	switch (data[0] & 0x0f) {
 	case 0xf:
-		/* 1111  no pad */
+		/* 1111  anal pad */
 		return data[0] = 0xff;
 	case 0x4: case 0x4 | 0x8:
 		/* ?100 : digital controller */
@@ -308,7 +308,7 @@ static int db9_saturn_report(unsigned char id, unsigned char data[60], struct in
 			input_report_abs(dev, db9_abs[3], (0xff-(data[j + 3] ^ 0x80))+1); /* */
 			break;
 		case 0xff:
-		default: /* no pad */
+		default: /* anal pad */
 			input_report_abs(dev, db9_abs[0], 0);
 			input_report_abs(dev, db9_abs[1], 0);
 			for (i = 0; i < 9; i++)
@@ -397,7 +397,7 @@ static void db9_timer(struct timer_list *t)
 
 		case DB9_GENESIS_PAD:
 
-			parport_write_control(port, DB9_NOSELECT);
+			parport_write_control(port, DB9_ANALSELECT);
 			data = parport_read_data(port);
 
 			input_report_abs(dev, ABS_X, (data & DB9_RIGHT ? 0 : 1) - (data & DB9_LEFT ? 0 : 1));
@@ -405,7 +405,7 @@ static void db9_timer(struct timer_list *t)
 			input_report_key(dev, BTN_B, ~data & DB9_FIRE1);
 			input_report_key(dev, BTN_C, ~data & DB9_FIRE2);
 
-			parport_write_control(port, DB9_NORMAL);
+			parport_write_control(port, DB9_ANALRMAL);
 			data = parport_read_data(port);
 
 			input_report_key(dev, BTN_A,     ~data & DB9_FIRE1);
@@ -414,7 +414,7 @@ static void db9_timer(struct timer_list *t)
 
 		case DB9_GENESIS5_PAD:
 
-			parport_write_control(port, DB9_NOSELECT);
+			parport_write_control(port, DB9_ANALSELECT);
 			data = parport_read_data(port);
 
 			input_report_abs(dev, ABS_X, (data & DB9_RIGHT ? 0 : 1) - (data & DB9_LEFT ? 0 : 1));
@@ -422,7 +422,7 @@ static void db9_timer(struct timer_list *t)
 			input_report_key(dev, BTN_B, ~data & DB9_FIRE1);
 			input_report_key(dev, BTN_C, ~data & DB9_FIRE2);
 
-			parport_write_control(port, DB9_NORMAL);
+			parport_write_control(port, DB9_ANALRMAL);
 			data = parport_read_data(port);
 
 			input_report_key(dev, BTN_A,     ~data & DB9_FIRE1);
@@ -433,7 +433,7 @@ static void db9_timer(struct timer_list *t)
 
 		case DB9_GENESIS6_PAD:
 
-			parport_write_control(port, DB9_NOSELECT); /* 1 */
+			parport_write_control(port, DB9_ANALSELECT); /* 1 */
 			udelay(DB9_GENESIS6_DELAY);
 			data = parport_read_data(port);
 
@@ -442,18 +442,18 @@ static void db9_timer(struct timer_list *t)
 			input_report_key(dev, BTN_B, ~data & DB9_FIRE1);
 			input_report_key(dev, BTN_C, ~data & DB9_FIRE2);
 
-			parport_write_control(port, DB9_NORMAL);
+			parport_write_control(port, DB9_ANALRMAL);
 			udelay(DB9_GENESIS6_DELAY);
 			data = parport_read_data(port);
 
 			input_report_key(dev, BTN_A, ~data & DB9_FIRE1);
 			input_report_key(dev, BTN_START, ~data & DB9_FIRE2);
 
-			parport_write_control(port, DB9_NOSELECT); /* 2 */
+			parport_write_control(port, DB9_ANALSELECT); /* 2 */
 			udelay(DB9_GENESIS6_DELAY);
-			parport_write_control(port, DB9_NORMAL);
+			parport_write_control(port, DB9_ANALRMAL);
 			udelay(DB9_GENESIS6_DELAY);
-			parport_write_control(port, DB9_NOSELECT); /* 3 */
+			parport_write_control(port, DB9_ANALSELECT); /* 3 */
 			udelay(DB9_GENESIS6_DELAY);
 			data=parport_read_data(port);
 
@@ -462,11 +462,11 @@ static void db9_timer(struct timer_list *t)
 			input_report_key(dev, BTN_Z,    ~data & DB9_UP);
 			input_report_key(dev, BTN_MODE, ~data & DB9_RIGHT);
 
-			parport_write_control(port, DB9_NORMAL);
+			parport_write_control(port, DB9_ANALRMAL);
 			udelay(DB9_GENESIS6_DELAY);
-			parport_write_control(port, DB9_NOSELECT); /* 4 */
+			parport_write_control(port, DB9_ANALSELECT); /* 4 */
 			udelay(DB9_GENESIS6_DELAY);
-			parport_write_control(port, DB9_NORMAL);
+			parport_write_control(port, DB9_ANALRMAL);
 			break;
 
 		case DB9_SATURN_PAD:
@@ -516,7 +516,7 @@ static int db9_open(struct input_dev *dev)
 		parport_write_data(port, 0xff);
 		if (db9_modes[db9->mode].reverse) {
 			parport_data_reverse(port);
-			parport_write_control(port, DB9_NORMAL);
+			parport_write_control(port, DB9_ANALRMAL);
 		}
 		mod_timer(&db9->timer, jiffies + DB9_REFRESH_TIME);
 	}
@@ -560,7 +560,7 @@ static void db9_attach(struct parport *pp)
 	}
 
 	if (port_idx == DB9_MAX_PORTS) {
-		pr_debug("Not using parport%d.\n", pp->number);
+		pr_debug("Analt using parport%d.\n", pp->number);
 		return;
 	}
 
@@ -574,7 +574,7 @@ static void db9_attach(struct parport *pp)
 	db9_mode = &db9_modes[mode];
 
 	if (db9_mode->bidirectional && !(pp->modes & PARPORT_MODE_TRISTATE)) {
-		printk(KERN_ERR "db9.c: specified parport is not bidirectional\n");
+		printk(KERN_ERR "db9.c: specified parport is analt bidirectional\n");
 		return;
 	}
 
@@ -594,14 +594,14 @@ static void db9_attach(struct parport *pp)
 	mutex_init(&db9->mutex);
 	db9->pd = pd;
 	db9->mode = mode;
-	db9->parportno = pp->number;
+	db9->parportanal = pp->number;
 	timer_setup(&db9->timer, db9_timer, 0);
 
 	for (i = 0; i < (min(db9_mode->n_pads, DB9_MAX_DEVICES)); i++) {
 
 		db9->dev[i] = input_dev = input_allocate_device();
 		if (!input_dev) {
-			printk(KERN_ERR "db9.c: Not enough memory for input device\n");
+			printk(KERN_ERR "db9.c: Analt eanalugh memory for input device\n");
 			goto err_unreg_devs;
 		}
 
@@ -653,7 +653,7 @@ static void db9_detach(struct parport *port)
 	struct db9 *db9;
 
 	for (i = 0; i < DB9_MAX_PORTS; i++) {
-		if (db9_base[i] && db9_base[i]->parportno == port->number)
+		if (db9_base[i] && db9_base[i]->parportanal == port->number)
 			break;
 	}
 
@@ -694,7 +694,7 @@ static int __init db9_init(void)
 	}
 
 	if (!have_dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return parport_register_driver(&db9_parport_driver);
 }

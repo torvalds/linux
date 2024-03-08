@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -217,9 +217,9 @@ static uint32_t lpt_memory_control_config(struct dce112_compressor *cp110,
 		/* The mapping for LOW_POWER_TILING_ROW_SIZE is in
 		 * DMIF_ADDR_CALC.ADDR_CONFIG_ROW_SIZE register field
 		 * for Carrizo. Specifies the size of dram row in bytes.
-		 * This should match up with NOOFCOLS field in
+		 * This should match up with ANALOFCOLS field in
 		 * MC_ARB_RAMCFG (ROW_SIZE = 4 * 2 ^^ columns).
-		 * This register DMIF_ADDR_CALC is not used by the
+		 * This register DMIF_ADDR_CALC is analt used by the
 		 * hardware as it is only used for addrlib assertions.
 		 * POSSIBLE VALUES:
 		 * 00 - ADDR_CONFIG_1KB_ROW: Treat 1KB as DRAM row
@@ -258,7 +258,7 @@ static uint32_t lpt_memory_control_config(struct dce112_compressor *cp110,
 		}
 	} else {
 		DC_LOG_WARNING(
-			"%s: LPT MC Configuration is not provided",
+			"%s: LPT MC Configuration is analt provided",
 			__func__);
 	}
 
@@ -308,7 +308,7 @@ static void wait_for_fbc_state_changed(
 
 	if (counter == 10) {
 		DC_LOG_WARNING(
-			"%s: wait counter exceeded, changes to HW not applied",
+			"%s: wait counter exceeded, changes to HW analt applied",
 			__func__);
 	}
 }
@@ -549,25 +549,25 @@ void dce112_compressor_disable_lpt(struct compressor *compressor)
 		value =
 			dm_read_reg(
 				compressor->ctx,
-				DMIF_REG(mmDPG_PIPE_STUTTER_CONTROL_NONLPTCH));
+				DMIF_REG(mmDPG_PIPE_STUTTER_CONTROL_ANALNLPTCH));
 		set_reg_field_value(
 			value,
 			0,
-			DPG_PIPE_STUTTER_CONTROL_NONLPTCH,
-			STUTTER_ENABLE_NONLPTCH);
+			DPG_PIPE_STUTTER_CONTROL_ANALNLPTCH,
+			STUTTER_ENABLE_ANALNLPTCH);
 		dm_write_reg(
 			compressor->ctx,
-			DMIF_REG(mmDPG_PIPE_STUTTER_CONTROL_NONLPTCH),
+			DMIF_REG(mmDPG_PIPE_STUTTER_CONTROL_ANALNLPTCH),
 			value);
 	}
 	/* Disable Underlay pipe LPT Stutter */
-	addr = mmDPGV0_PIPE_STUTTER_CONTROL_NONLPTCH;
+	addr = mmDPGV0_PIPE_STUTTER_CONTROL_ANALNLPTCH;
 	value = dm_read_reg(compressor->ctx, addr);
 	set_reg_field_value(
 		value,
 		0,
-		DPGV0_PIPE_STUTTER_CONTROL_NONLPTCH,
-		STUTTER_ENABLE_NONLPTCH);
+		DPGV0_PIPE_STUTTER_CONTROL_ANALNLPTCH,
+		STUTTER_ENABLE_ANALNLPTCH);
 	dm_write_reg(compressor->ctx, addr, value);
 
 	/* Disable LPT */
@@ -601,23 +601,23 @@ void dce112_compressor_enable_lpt(struct compressor *compressor)
 
 	/* Enable LPT Stutter from Display pipe */
 	value = dm_read_reg(compressor->ctx,
-		DMIF_REG(mmDPG_PIPE_STUTTER_CONTROL_NONLPTCH));
+		DMIF_REG(mmDPG_PIPE_STUTTER_CONTROL_ANALNLPTCH));
 	set_reg_field_value(
 		value,
 		1,
-		DPG_PIPE_STUTTER_CONTROL_NONLPTCH,
-		STUTTER_ENABLE_NONLPTCH);
+		DPG_PIPE_STUTTER_CONTROL_ANALNLPTCH,
+		STUTTER_ENABLE_ANALNLPTCH);
 	dm_write_reg(compressor->ctx,
-		DMIF_REG(mmDPG_PIPE_STUTTER_CONTROL_NONLPTCH), value);
+		DMIF_REG(mmDPG_PIPE_STUTTER_CONTROL_ANALNLPTCH), value);
 
 	/* Enable Underlay pipe LPT Stutter */
-	addr = mmDPGV0_PIPE_STUTTER_CONTROL_NONLPTCH;
+	addr = mmDPGV0_PIPE_STUTTER_CONTROL_ANALNLPTCH;
 	value = dm_read_reg(compressor->ctx, addr);
 	set_reg_field_value(
 		value,
 		1,
-		DPGV0_PIPE_STUTTER_CONTROL_NONLPTCH,
-		STUTTER_ENABLE_NONLPTCH);
+		DPGV0_PIPE_STUTTER_CONTROL_ANALNLPTCH,
+		STUTTER_ENABLE_ANALNLPTCH);
 	dm_write_reg(compressor->ctx, addr, value);
 
 	/* Selection of Channel(s) containing Compressed Surface: 0xfffffff
@@ -633,7 +633,7 @@ void dce112_compressor_enable_lpt(struct compressor *compressor)
 	value = dm_read_reg(compressor->ctx, addr);
 	set_reg_field_value(
 		value,
-		channels + 1, /* not mentioned in programming guide,
+		channels + 1, /* analt mentioned in programming guide,
 				but follow DCE8.1 */
 		GMCON_LPT_TARGET,
 		STCTRL_LPT_TARGET);
@@ -674,7 +674,7 @@ void dce112_compressor_program_lpt_control(
 	 * 03 - reserved */
 	switch (compressor->lpt_channels_num) {
 	/* case 2:
-	 * Use Channel 0 & 1 / Not used for DCE 11 */
+	 * Use Channel 0 & 1 / Analt used for DCE 11 */
 	case 1:
 		/*Use Channel 0 for LPT for DCE 11 */
 		set_reg_field_value(
@@ -732,7 +732,7 @@ void dce112_compressor_set_fbc_invalidation_triggers(
 	uint32_t fbc_trigger)
 {
 	/* Disable region hit event, FBC_MEMORY_REGION_MASK = 0 (bits 16-19)
-	 * for DCE 11 regions cannot be used - does not work with S/G
+	 * for DCE 11 regions cananalt be used - does analt work with S/G
 	 */
 	uint32_t addr = mmFBC_CLIENT_REGION_MASK;
 	uint32_t value = dm_read_reg(compressor->ctx, addr);
@@ -746,11 +746,11 @@ void dce112_compressor_set_fbc_invalidation_triggers(
 
 	/* Setup events when to clear all CSM entries (effectively marking
 	 * current compressed data invalid)
-	 * For DCE 11 CSM metadata 11111 means - "Not Compressed"
+	 * For DCE 11 CSM metadata 11111 means - "Analt Compressed"
 	 * Used as the initial value of the metadata sent to the compressor
 	 * after invalidation, to indicate that the compressor should attempt
 	 * to compress all chunks on the current pass.  Also used when the chunk
-	 * is not successfully written to memory.
+	 * is analt successfully written to memory.
 	 * When this CSM value is detected, FBC reads from the uncompressed
 	 * buffer. Set events according to passed in value, these events are
 	 * valid for DCE11:
@@ -798,7 +798,7 @@ void dce112_compressor_construct(struct dce112_compressor *compressor,
 	compressor->base.options.bits.DUMMY_BACKEND = false;
 
 	/* Check if this system has more than 1 DRAM channel; if only 1 then LPT
-	 * should not be supported */
+	 * should analt be supported */
 	if (compressor->base.memory_bus_width == 64)
 		compressor->base.options.bits.LPT_SUPPORT = false;
 

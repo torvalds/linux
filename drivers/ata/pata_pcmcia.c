@@ -52,9 +52,9 @@ static int pcmcia_set_mode(struct ata_link *link, struct ata_device **r_failed_d
 			   ATA_ID_FW_REV_LEN + ATA_ID_PROD_LEN) == 0) {
 		/* Suspicious match, but could be two cards from
 		   the same vendor - check serial */
-		if (memcmp(master->id + ATA_ID_SERNO, slave->id + ATA_ID_SERNO,
-			   ATA_ID_SERNO_LEN) == 0 && master->id[ATA_ID_SERNO] >> 8) {
-			ata_dev_warn(slave, "is a ghost device, ignoring\n");
+		if (memcmp(master->id + ATA_ID_SERANAL, slave->id + ATA_ID_SERANAL,
+			   ATA_ID_SERANAL_LEN) == 0 && master->id[ATA_ID_SERANAL] >> 8) {
+			ata_dev_warn(slave, "is a ghost device, iganalring\n");
 			ata_dev_disable(slave);
 		}
 	}
@@ -169,7 +169,7 @@ static int pcmcia_check_one_config(struct pcmcia_device *pdev, void *priv_data)
 		pdev->resource[1]->end = (*is_kme) ? 2 : 1;
 	} else {
 		if (pdev->resource[0]->end < 16)
-			return -ENODEV;
+			return -EANALDEV;
 	}
 
 	return pcmcia_request_io(pdev);
@@ -187,7 +187,7 @@ static int pcmcia_init_one(struct pcmcia_device *pdev)
 {
 	struct ata_host *host;
 	struct ata_port *ap;
-	int is_kme = 0, ret = -ENOMEM, p;
+	int is_kme = 0, ret = -EANALMEM, p;
 	unsigned long io_base, ctl_base;
 	void __iomem *io_addr, *ctl_addr;
 	int n_ports = 1;
@@ -206,7 +206,7 @@ static int pcmcia_init_one(struct pcmcia_device *pdev)
 	if (pcmcia_loop_config(pdev, pcmcia_check_one_config, &is_kme)) {
 		pdev->config_flags &= ~CONF_AUTO_CHECK_VCC;
 		if (pcmcia_loop_config(pdev, pcmcia_check_one_config, &is_kme))
-			goto failed; /* No suitable config found */
+			goto failed; /* Anal suitable config found */
 	}
 	io_base = pdev->resource[0]->start;
 	if (pdev->resource[1]->end)
@@ -222,7 +222,7 @@ static int pcmcia_init_one(struct pcmcia_device *pdev)
 		goto failed;
 
 	/* iomap */
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	io_addr = devm_ioport_map(&pdev->dev, io_base, 8);
 	ctl_addr = devm_ioport_map(&pdev->dev, ctl_base, 1);
 	if (!io_addr || !ctl_addr)
@@ -234,7 +234,7 @@ static int pcmcia_init_one(struct pcmcia_device *pdev)
 		iowrite8(0x81, ctl_addr + 0x01);
 
 	/* FIXME: Could be more ports at base + 0x10 but we only deal with
-	   one right now */
+	   one right analw */
 	if (resource_size(pdev->resource[0]) >= 0x20)
 		n_ports = 2;
 
@@ -244,7 +244,7 @@ static int pcmcia_init_one(struct pcmcia_device *pdev)
 	 *	Having done the PCMCIA plumbing the ATA side is relatively
 	 *	sane.
 	 */
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	host = ata_host_alloc(&pdev->dev, n_ports);
 	if (!host)
 		goto failed;
@@ -321,7 +321,7 @@ static const struct pcmcia_device_id pcmcia_devices[] = {
 	PCMCIA_DEVICE_PROD_ID12("ARGOSY", "PnPIDE", 0x78f308dc, 0x0c694728),
 	PCMCIA_DEVICE_PROD_ID12("CNF   ", "CD-ROM", 0x46d7db81, 0x66536591),
 	PCMCIA_DEVICE_PROD_ID12("CNF CD-M", "CD-ROM", 0x7d93b852, 0x66536591),
-	PCMCIA_DEVICE_PROD_ID12("Creative Technology Ltd.", "PCMCIA CD-ROM Interface Card", 0xff8c8a45, 0xfe8020c4),
+	PCMCIA_DEVICE_PROD_ID12("Creative Techanallogy Ltd.", "PCMCIA CD-ROM Interface Card", 0xff8c8a45, 0xfe8020c4),
 	PCMCIA_DEVICE_PROD_ID12("Digital Equipment Corporation.", "Digital Mobile Media CD-ROM", 0x17692a66, 0xef1dcbde),
 	PCMCIA_DEVICE_PROD_ID12("EXP", "CD+GAME", 0x6f58c983, 0x63c13aaf),
 	PCMCIA_DEVICE_PROD_ID12("EXP   ", "CD-ROM", 0x0a5c52fd, 0x66536591),
@@ -344,7 +344,7 @@ static const struct pcmcia_device_id pcmcia_devices[] = {
 	PCMCIA_DEVICE_PROD_ID2("NinjaATA-", 0xebe0bd79),
 	PCMCIA_DEVICE_PROD_ID12("PCMCIA", "CD-ROM", 0x281f1c5d, 0x66536591),
 	PCMCIA_DEVICE_PROD_ID12("PCMCIA", "PnPIDE", 0x281f1c5d, 0x0c694728),
-	PCMCIA_DEVICE_PROD_ID12("SHUTTLE TECHNOLOGY LTD.", "PCCARD-IDE/ATAPI Adapter", 0x4a3f0ba0, 0x322560e1),
+	PCMCIA_DEVICE_PROD_ID12("SHUTTLE TECHANALLOGY LTD.", "PCCARD-IDE/ATAPI Adapter", 0x4a3f0ba0, 0x322560e1),
 	PCMCIA_DEVICE_PROD_ID12("SEAGATE", "ST1", 0x87c1b330, 0xe1f30883),
 	PCMCIA_DEVICE_PROD_ID12("SAMSUNG", "04/05/06", 0x43d74cb4, 0x6a22777d),
 	PCMCIA_DEVICE_PROD_ID12("SMI VENDOR", "SMI PRODUCT", 0x30896c92, 0x703cc5f6),

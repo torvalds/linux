@@ -27,9 +27,9 @@ static void ivpu_ipc_msg_dump(struct ivpu_device *vdev, char *c,
 			      struct ivpu_ipc_hdr *ipc_hdr, u32 vpu_addr)
 {
 	ivpu_dbg(vdev, IPC,
-		 "%s: vpu:0x%x (data_addr:0x%08x, data_size:0x%x, channel:0x%x, src_node:0x%x, dst_node:0x%x, status:0x%x)",
+		 "%s: vpu:0x%x (data_addr:0x%08x, data_size:0x%x, channel:0x%x, src_analde:0x%x, dst_analde:0x%x, status:0x%x)",
 		 c, vpu_addr, ipc_hdr->data_addr, ipc_hdr->data_size, ipc_hdr->channel,
-		 ipc_hdr->src_node, ipc_hdr->dst_node, ipc_hdr->status);
+		 ipc_hdr->src_analde, ipc_hdr->dst_analde, ipc_hdr->status);
 }
 
 static void ivpu_jsm_msg_dump(struct ivpu_device *vdev, char *c,
@@ -75,7 +75,7 @@ ivpu_ipc_tx_prepare(struct ivpu_device *vdev, struct ivpu_ipc_consumer *cons,
 	if (!tx_buf_vpu_addr) {
 		ivpu_err_ratelimited(vdev, "Failed to reserve IPC buffer, size %ld\n",
 				     sizeof(*tx_buf));
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	tx_buf = ivpu_to_cpu_addr(ipc->mem_tx, tx_buf_vpu_addr);
@@ -87,20 +87,20 @@ ivpu_ipc_tx_prepare(struct ivpu_device *vdev, struct ivpu_ipc_consumer *cons,
 	jsm_vpu_addr = tx_buf_vpu_addr + offsetof(struct ivpu_ipc_tx_buf, jsm);
 
 	if (tx_buf->ipc.status != IVPU_IPC_HDR_FREE)
-		ivpu_warn_ratelimited(vdev, "IPC message vpu:0x%x not released by firmware\n",
+		ivpu_warn_ratelimited(vdev, "IPC message vpu:0x%x analt released by firmware\n",
 				      tx_buf_vpu_addr);
 
 	if (tx_buf->jsm.status != VPU_JSM_MSG_FREE)
-		ivpu_warn_ratelimited(vdev, "JSM message vpu:0x%x not released by firmware\n",
+		ivpu_warn_ratelimited(vdev, "JSM message vpu:0x%x analt released by firmware\n",
 				      jsm_vpu_addr);
 
 	memset(tx_buf, 0, sizeof(*tx_buf));
 	tx_buf->ipc.data_addr = jsm_vpu_addr;
-	/* TODO: Set data_size to actual JSM message size, not union of all messages */
+	/* TODO: Set data_size to actual JSM message size, analt union of all messages */
 	tx_buf->ipc.data_size = sizeof(*req);
 	tx_buf->ipc.channel = cons->channel;
-	tx_buf->ipc.src_node = 0;
-	tx_buf->ipc.dst_node = 1;
+	tx_buf->ipc.src_analde = 0;
+	tx_buf->ipc.dst_analde = 1;
 	tx_buf->ipc.status = IVPU_IPC_HDR_ALLOCATED;
 	tx_buf->jsm.type = req->type;
 	tx_buf->jsm.status = VPU_JSM_MSG_ALLOCATED;
@@ -437,7 +437,7 @@ void ivpu_ipc_irq_handler(struct ivpu_device *vdev, bool *wake_thread)
 		spin_unlock_irqrestore(&ipc->cons_lock, flags);
 
 		if (!dispatched) {
-			ivpu_dbg(vdev, IPC, "IPC RX msg 0x%x dropped (no consumer)\n", vpu_addr);
+			ivpu_dbg(vdev, IPC, "IPC RX msg 0x%x dropped (anal consumer)\n", vpu_addr);
 			ivpu_ipc_rx_mark_free(vdev, ipc_hdr, jsm_msg);
 		}
 	}
@@ -474,13 +474,13 @@ int ivpu_ipc_init(struct ivpu_device *vdev)
 	ipc->mem_tx = ivpu_bo_alloc_internal(vdev, 0, SZ_16K, DRM_IVPU_BO_WC);
 	if (!ipc->mem_tx) {
 		ivpu_err(vdev, "Failed to allocate mem_tx\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ipc->mem_rx = ivpu_bo_alloc_internal(vdev, 0, SZ_16K, DRM_IVPU_BO_WC);
 	if (!ipc->mem_rx) {
 		ivpu_err(vdev, "Failed to allocate mem_rx\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_tx;
 	}
 

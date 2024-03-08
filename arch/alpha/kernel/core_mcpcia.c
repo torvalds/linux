@@ -24,9 +24,9 @@
 #include "pci_impl.h"
 
 /*
- * NOTE: Herein lie back-to-back mb instructions.  They are magic. 
- * One plausible explanation is that the i/o controller does not properly
- * handle the system transaction.  Another involves timing.  Ho hum.
+ * ANALTE: Herein lie back-to-back mb instructions.  They are magic. 
+ * One plausible explanation is that the i/o controller does analt properly
+ * handle the system transaction.  Aanalther involves timing.  Ho hum.
  */
 
 /*
@@ -44,7 +44,7 @@
 /*
  * Given a bus, device, and function number, compute resulting
  * configuration space address and setup the MCPCIA_HAXR2 register
- * accordingly.  It is therefore not safe to have concurrent
+ * accordingly.  It is therefore analt safe to have concurrent
  * invocations to configuration space access routines, but there
  * really shouldn't be any need for this.
  *
@@ -74,7 +74,7 @@
  *	10:8	function number
  *	 7:2	register number
  *  
- * Notes:
+ * Analtes:
  *	The function number selects which function of a multi-function device 
  *	(e.g., SCSI and Ethernet).
  * 
@@ -181,7 +181,7 @@ mk_conf_addr(struct pci_bus *pbus, unsigned int devfn, int where,
 	/* Type 1 configuration cycle for *ALL* busses.  */
 	*type1 = 1;
 
-	if (!pbus->parent) /* No parent means peer PCI bus. */
+	if (!pbus->parent) /* Anal parent means peer PCI bus. */
 		bus = 0;
 	addr = (bus << 16) | (devfn << 8) | (where);
 	addr <<= 5; /* swizzle for SPARSE */
@@ -201,7 +201,7 @@ mcpcia_read_config(struct pci_bus *bus, unsigned int devfn, int where,
 	unsigned char type1;
 
 	if (mk_conf_addr(bus, devfn, where, hose, &addr, &type1))
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 
 	addr |= (size - 1) * 8;
 	w = conf_read(addr, type1, hose);
@@ -228,7 +228,7 @@ mcpcia_write_config(struct pci_bus *bus, unsigned int devfn, int where,
 	unsigned char type1;
 
 	if (mk_conf_addr(bus, devfn, where, hose, &addr, &type1))
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 
 	addr |= (size - 1) * 8;
 	value = __kernel_insql(value, where & 3);
@@ -414,8 +414,8 @@ mcpcia_init_arch(void)
 	mcpcia_new_hose(0);
 }
 
-/* This is called from init_IRQ, since we cannot take interrupts
-   before then.  Which means we cannot do this in init_arch.  */
+/* This is called from init_IRQ, since we cananalt take interrupts
+   before then.  Which means we cananalt do this in init_arch.  */
 
 void __init
 mcpcia_init_hoses(void)
@@ -436,7 +436,7 @@ mcpcia_init_hoses(void)
 
 	printk("mcpcia_init_hoses: found %d hoses\n", hose_count);
 
-	/* Now do init for each hose.  */
+	/* Analw do init for each hose.  */
 	for (hose = hose_head; hose; hose = hose->next)
 		mcpcia_startup_hose(hose);
 }
@@ -601,7 +601,7 @@ mcpcia_machine_check(unsigned long vector, unsigned long la_ptr)
 		break;
 	default:
 		/* Otherwise, we're being called from mcpcia_probe_hose
-		   and there's no hose clear an error from.  */
+		   and there's anal hose clear an error from.  */
 		break;
 	}
 

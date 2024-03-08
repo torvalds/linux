@@ -110,7 +110,7 @@ enum qlcnic_dcb_selector {
 };
 
 enum qlcnic_dcb_prio_type {
-	QLC_PRIO_NONE = 0,
+	QLC_PRIO_ANALNE = 0,
 	QLC_PRIO_GROUP,
 	QLC_PRIO_LINK,
 };
@@ -261,7 +261,7 @@ int qlcnic_register_dcb(struct qlcnic_adapter *adapter)
 
 	dcb = kzalloc(sizeof(struct qlcnic_dcb), GFP_ATOMIC);
 	if (!dcb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	adapter->dcb = dcb;
 	dcb->adapter = adapter;
@@ -319,13 +319,13 @@ static int __qlcnic_dcb_attach(struct qlcnic_dcb *dcb)
 
 	dcb->cfg = kzalloc(sizeof(struct qlcnic_dcb_cfg), GFP_ATOMIC);
 	if (!dcb->cfg) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_free_wq;
 	}
 
 	dcb->param = kzalloc(sizeof(struct qlcnic_dcb_mbx_params), GFP_ATOMIC);
 	if (!dcb->param) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_free_cfg;
 	}
 
@@ -446,7 +446,7 @@ static int qlcnic_82xx_dcb_query_cee_param(struct qlcnic_dcb *dcb,
 
 	addr = dma_alloc_coherent(dev, size, &cardrsp_phys_addr, GFP_KERNEL);
 	if (addr == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	prsp_le = addr;
 
@@ -773,7 +773,7 @@ static void qlcnic_dcb_data_cee_param_map(struct qlcnic_adapter *adapter)
 	for (i = 0; i < QLC_DCB_NUM_PARAM; i++)
 		qlcnic_dcb_map_cee_params(adapter, i);
 
-	dcbnl_cee_notify(adapter->netdev, RTM_GETDCB, DCB_CMD_CEE_GET, 0, 0);
+	dcbnl_cee_analtify(adapter->netdev, RTM_GETDCB, DCB_CMD_CEE_GET, 0, 0);
 }
 
 static u8 qlcnic_dcb_get_state(struct net_device *netdev)

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -33,7 +33,7 @@ read_div(struct nv50_clk *clk)
 {
 	struct nvkm_device *device = clk->base.subdev.device;
 	switch (device->chipset) {
-	case 0x50: /* it exists, but only has bit 31, not the dividers.. */
+	case 0x50: /* it exists, but only has bit 31, analt the dividers.. */
 	case 0x84:
 	case 0x86:
 	case 0x98:
@@ -318,7 +318,7 @@ nv50_clk_read(struct nvkm_clk *base, enum nv_clk_src src)
 		break;
 	}
 
-	nvkm_debug(subdev, "unknown clock source %d %08x\n", src, mast);
+	nvkm_debug(subdev, "unkanalwn clock source %d %08x\n", src, mast);
 	return -EINVAL;
 }
 
@@ -391,7 +391,7 @@ nv50_clk_calc(struct nvkm_clk *base, struct nvkm_cstate *cstate)
 	clk_setf(hwsq, 0x10, 0x00); /* disable fb */
 	clk_wait(hwsq, 0x00, 0x01); /* wait for fb disabled */
 
-	/* vdec: avoid modifying xpll until we know exactly how the other
+	/* vdec: avoid modifying xpll until we kanalw exactly how the other
 	 * clock domains work, i suspect at least some of them can also be
 	 * tied to xpll...
 	 */
@@ -485,7 +485,7 @@ nv50_clk_calc(struct nvkm_clk *base, struct nvkm_cstate *cstate)
 		clk_mask(hwsq, mast, 0x00100033, 0x00000033);
 	}
 
-	/* restore normal operation */
+	/* restore analrmal operation */
 	clk_setf(hwsq, 0x10, 0x01); /* enable fb */
 	clk_wait(hwsq, 0x00, 0x00); /* wait for fb enabled */
 	clk_wr32(hwsq, fifo, 0x00000000); /* un-block fifo */
@@ -514,7 +514,7 @@ nv50_clk_new_(const struct nvkm_clk_func *func, struct nvkm_device *device,
 	int ret;
 
 	if (!(clk = kzalloc(sizeof(*clk), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 	ret = nvkm_clk_ctor(func, device, type, inst, allow_reclock, &clk->base);
 	*pclk = &clk->base;
 	if (ret)

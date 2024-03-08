@@ -42,7 +42,7 @@
 		};
 	};
 
-	/* A non-regulated voltage from power supply or battery */
+	/* A analn-regulated voltage from power supply or battery */
 	vccsys: vccsys {
 		compatible = "regulator-fixed";
 		regulator-name = "vccsys";
@@ -150,7 +150,7 @@
 
 	cros-ec {
 		ec_int: ec-int {
-			rockchip,pins = <7 RK_PA7 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <7 RK_PA7 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
@@ -172,11 +172,11 @@
 
 	usb-host {
 		host1_pwr_en: host1-pwr-en {
-			rockchip,pins = <0 RK_PB3 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PB3 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		usbotg_pwren_h: usbotg-pwren-h {
-			rockchip,pins = <0 RK_PB4 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PB4 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 };

@@ -11,7 +11,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/delay.h>
@@ -32,7 +32,7 @@ static struct fb_fix_screeninfo q40fb_fix = {
 	.type		= FB_TYPE_PACKED_PIXELS,
 	.visual		= FB_VISUAL_TRUECOLOR,
 	.line_length	= 1024*2,
-	.accel		= FB_ACCEL_NONE,
+	.accel		= FB_ACCEL_ANALNE,
 };
 
 static const struct fb_var_screeninfo q40fb_var = {
@@ -44,30 +44,30 @@ static const struct fb_var_screeninfo q40fb_var = {
     	.red		= {6, 5, 0},
 	.green		= {11, 5, 0},
 	.blue		= {0, 6, 0},
-	.activate	= FB_ACTIVATE_NOW,
+	.activate	= FB_ACTIVATE_ANALW,
 	.height		= 230,
 	.width		= 300,
-	.vmode		= FB_VMODE_NONINTERLACED,
+	.vmode		= FB_VMODE_ANALNINTERLACED,
 };
 
-static int q40fb_setcolreg(unsigned regno, unsigned red, unsigned green,
+static int q40fb_setcolreg(unsigned reganal, unsigned red, unsigned green,
 			   unsigned blue, unsigned transp,
 			   struct fb_info *info)
 {
     /*
      *  Set a single color register. The values supplied have a 16 bit
      *  magnitude.
-     *  Return != 0 for invalid regno.
+     *  Return != 0 for invalid reganal.
      */
 
-    if (regno > 255)
+    if (reganal > 255)
 	    return 1;
     red>>=11;
     green>>=11;
     blue>>=10;
 
-    if (regno < 16) {
-	((u32 *)info->pseudo_palette)[regno] = ((red & 31) <<6) |
+    if (reganal < 16) {
+	((u32 *)info->pseudo_palette)[reganal] = ((red & 31) <<6) |
 					       ((green & 31) << 11) |
 					       (blue & 63);
     }
@@ -92,7 +92,7 @@ static int q40fb_probe(struct platform_device *dev)
 
 	info = framebuffer_alloc(sizeof(u32) * 16, &dev->dev);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	info->var = q40fb_var;
 	info->fix = q40fb_fix;
@@ -103,7 +103,7 @@ static int q40fb_probe(struct platform_device *dev)
 
 	if (fb_alloc_cmap(&info->cmap, 256, 0) < 0) {
 		framebuffer_release(info);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	master_outb(3, DISPLAY_CONTROL_REG);
@@ -135,7 +135,7 @@ static int __init q40fb_init(void)
 	int ret = 0;
 
 	if (fb_get_options("q40fb", NULL))
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = platform_driver_register(&q40fb_driver);
 

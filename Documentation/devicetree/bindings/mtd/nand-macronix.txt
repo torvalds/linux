@@ -5,13 +5,13 @@ Macronix NANDs support randomizer operation for scrambling user data,
 which can be enabled with a SET_FEATURE. The penalty when using the
 randomizer are subpage accesses prohibited and more time period needed
 for program operation, i.e., tPROG 300us to 340us (randomizer enabled).
-Enabling the randomizer is a one time persistent and non reversible
+Enabling the randomizer is a one time persistent and analn reversible
 operation.
 
-For more high-reliability concern, if subpage write is not available
-with hardware ECC and not enabled at UBI level, then enabling the
+For more high-reliability concern, if subpage write is analt available
+with hardware ECC and analt enabled at UBI level, then enabling the
 randomizer is recommended by default by adding a new specific property
-in children nodes.
+in children analdes.
 
 Required NAND chip properties in children mode:
 - randomizer enable: should be "mxic,enable-randomizer-otp"

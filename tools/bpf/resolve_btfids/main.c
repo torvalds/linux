@@ -69,7 +69,7 @@
 #include <gelf.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <errno.h>
+#include <erranal.h>
 #include <linux/rbtree.h>
 #include <linux/zalloc.h>
 #include <linux/err.h>
@@ -90,7 +90,7 @@
 #define ADDR_CNT	100
 
 struct btf_id {
-	struct rb_node	 rb_node;
+	struct rb_analde	 rb_analde;
 	char		*name;
 	union {
 		int	 id;
@@ -166,12 +166,12 @@ static bool is_btf_id(const char *name)
 
 static struct btf_id *btf_id__find(struct rb_root *root, const char *name)
 {
-	struct rb_node *p = root->rb_node;
+	struct rb_analde *p = root->rb_analde;
 	struct btf_id *id;
 	int cmp;
 
 	while (p) {
-		id = rb_entry(p, struct btf_id, rb_node);
+		id = rb_entry(p, struct btf_id, rb_analde);
 		cmp = strcmp(id->name, name);
 		if (cmp < 0)
 			p = p->rb_left;
@@ -186,14 +186,14 @@ static struct btf_id *btf_id__find(struct rb_root *root, const char *name)
 static struct btf_id *
 btf_id__add(struct rb_root *root, char *name, bool unique)
 {
-	struct rb_node **p = &root->rb_node;
-	struct rb_node *parent = NULL;
+	struct rb_analde **p = &root->rb_analde;
+	struct rb_analde *parent = NULL;
 	struct btf_id *id;
 	int cmp;
 
 	while (*p != NULL) {
 		parent = *p;
-		id = rb_entry(parent, struct btf_id, rb_node);
+		id = rb_entry(parent, struct btf_id, rb_analde);
 		cmp = strcmp(id->name, name);
 		if (cmp < 0)
 			p = &(*p)->rb_left;
@@ -207,8 +207,8 @@ btf_id__add(struct rb_root *root, char *name, bool unique)
 	if (id) {
 		pr_debug("adding symbol %s\n", name);
 		id->name = name;
-		rb_link_node(&id->rb_node, parent, p);
-		rb_insert_color(&id->rb_node, root);
+		rb_link_analde(&id->rb_analde, parent, p);
+		rb_insert_color(&id->rb_analde, root);
 	}
 	return id;
 }
@@ -277,7 +277,7 @@ static struct btf_id *add_symbol(struct rb_root *root, char *name, size_t size)
 	return btf_id__add(root, id, false);
 }
 
-/* Older libelf.h and glibc elf.h might not yet define the ELF compression types. */
+/* Older libelf.h and glibc elf.h might analt yet define the ELF compression types. */
 #ifndef SHF_COMPRESSED
 #define SHF_COMPRESSED (1 << 11) /* Section with compressed data. */
 #endif
@@ -308,7 +308,7 @@ static int compressed_section_fix(Elf *elf, Elf_Scn *scn, GElf_Shdr *sh)
 	sh->sh_addralign = expected;
 
 	if (gelf_update_shdr(scn, sh) == 0) {
-		pr_err("FAILED cannot update section header: %s\n",
+		pr_err("FAILED cananalt update section header: %s\n",
 			elf_errmsg(-1));
 		return -1;
 	}
@@ -325,8 +325,8 @@ static int elf_collect(struct object *obj)
 
 	fd = open(obj->path, O_RDWR, 0666);
 	if (fd == -1) {
-		pr_err("FAILED cannot open %s: %s\n",
-			obj->path, strerror(errno));
+		pr_err("FAILED cananalt open %s: %s\n",
+			obj->path, strerror(erranal));
 		return -1;
 	}
 
@@ -335,7 +335,7 @@ static int elf_collect(struct object *obj)
 	elf = elf_begin(fd, ELF_C_RDWR_MMAP, NULL);
 	if (!elf) {
 		close(fd);
-		pr_err("FAILED cannot create ELF descriptor: %s\n",
+		pr_err("FAILED cananalt create ELF descriptor: %s\n",
 			elf_errmsg(-1));
 		return -1;
 	}
@@ -346,7 +346,7 @@ static int elf_collect(struct object *obj)
 	elf_flagelf(elf, ELF_C_SET, ELF_F_LAYOUT);
 
 	if (elf_getshdrstrndx(elf, &shdrstrndx) != 0) {
-		pr_err("FAILED cannot get shdr str ndx\n");
+		pr_err("FAILED cananalt get shdr str ndx\n");
 		return -1;
 	}
 
@@ -489,7 +489,7 @@ static int symbols_collect(struct object *obj)
 		}
 
 		if (!id)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		if (id->addr_cnt >= ADDR_CNT) {
 			pr_err("FAILED symbol %s crossed the number of allowed lists\n",
@@ -624,12 +624,12 @@ static int id_patch(struct object *obj, struct btf_id *id)
 
 static int __symbols_patch(struct object *obj, struct rb_root *root)
 {
-	struct rb_node *next;
+	struct rb_analde *next;
 	struct btf_id *id;
 
 	next = rb_first(root);
 	while (next) {
-		id = rb_entry(next, struct btf_id, rb_node);
+		id = rb_entry(next, struct btf_id, rb_analde);
 
 		if (id_patch(obj, id))
 			return -1;
@@ -650,7 +650,7 @@ static int sets_patch(struct object *obj)
 {
 	Elf_Data *data = obj->efile.idlist;
 	int *ptr = data->d_buf;
-	struct rb_node *next;
+	struct rb_analde *next;
 
 	next = rb_first(&obj->sets);
 	while (next) {
@@ -659,7 +659,7 @@ static int sets_patch(struct object *obj)
 		int *base;
 		int cnt;
 
-		id   = rb_entry(next, struct btf_id, rb_node);
+		id   = rb_entry(next, struct btf_id, rb_analde);
 		addr = id->addr[0];
 		idx  = addr - obj->efile.idlist_addr;
 
@@ -744,7 +744,7 @@ int main(int argc, const char **argv)
 	int err = -1;
 
 	argc = parse_options(argc, argv, btfid_options, resolve_btfids_usage,
-			     PARSE_OPT_STOP_AT_NON_OPTION);
+			     PARSE_OPT_STOP_AT_ANALN_OPTION);
 	if (argc != 1)
 		usage_with_options(resolve_btfids_usage, btfid_options);
 
@@ -754,12 +754,12 @@ int main(int argc, const char **argv)
 		goto out;
 
 	/*
-	 * We did not find .BTF_ids section or symbols section,
-	 * nothing to do..
+	 * We did analt find .BTF_ids section or symbols section,
+	 * analthing to do..
 	 */
 	if (obj.efile.idlist_shndx == -1 ||
 	    obj.efile.symbols_shndx == -1) {
-		pr_debug("Cannot find .BTF_ids or symbols sections, nothing to do\n");
+		pr_debug("Cananalt find .BTF_ids or symbols sections, analthing to do\n");
 		err = 0;
 		goto out;
 	}

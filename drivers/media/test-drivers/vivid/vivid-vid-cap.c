@@ -5,7 +5,7 @@
  * Copyright 2014 Cisco Systems, Inc. and/or its affiliates. All rights reserved.
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/vmalloc.h>
@@ -83,8 +83,8 @@ static int vid_cap_queue_setup(struct vb2_queue *vq,
 
 	if (dev->field_cap == V4L2_FIELD_ALTERNATE) {
 		/*
-		 * You cannot use read() with FIELD_ALTERNATE since the field
-		 * information (TOP/BOTTOM) cannot be passed back to the user.
+		 * You cananalt use read() with FIELD_ALTERNATE since the field
+		 * information (TOP/BOTTOM) cananalt be passed back to the user.
 		 */
 		if (vb2_fileio_is_active(vq))
 			return -EINVAL;
@@ -153,7 +153,7 @@ static int vid_cap_buf_prepare(struct vb2_buffer *vb)
 			dev->fmt_cap->data_offset[p];
 
 		if (vb2_plane_size(vb, p) < size) {
-			dprintk(dev, 1, "%s data will not fit into plane %u (%lu < %lu)\n",
+			dprintk(dev, 1, "%s data will analt fit into plane %u (%lu < %lu)\n",
 					__func__, p, vb2_plane_size(vb, p), size);
 			return -EINVAL;
 		}
@@ -267,7 +267,7 @@ const struct vb2_ops vivid_vid_cap_qops = {
 /*
  * Determine the 'picture' quality based on the current TV frequency: either
  * COLOR for a good 'signal', GRAY (grayscale picture) for a slightly off
- * signal or NOISE for no signal.
+ * signal or ANALISE for anal signal.
  */
 void vivid_update_quality(struct vivid_dev *dev)
 {
@@ -275,20 +275,20 @@ void vivid_update_quality(struct vivid_dev *dev)
 
 	if (dev->loop_video && (vivid_is_svid_cap(dev) || vivid_is_hdmi_cap(dev))) {
 		/*
-		 * The 'noise' will only be replaced by the actual video
+		 * The 'analise' will only be replaced by the actual video
 		 * if the output video matches the input video settings.
 		 */
-		tpg_s_quality(&dev->tpg, TPG_QUAL_NOISE, 0);
+		tpg_s_quality(&dev->tpg, TPG_QUAL_ANALISE, 0);
 		return;
 	}
 	if (vivid_is_hdmi_cap(dev) &&
 	    VIVID_INVALID_SIGNAL(dev->dv_timings_signal_mode[dev->input])) {
-		tpg_s_quality(&dev->tpg, TPG_QUAL_NOISE, 0);
+		tpg_s_quality(&dev->tpg, TPG_QUAL_ANALISE, 0);
 		return;
 	}
 	if (vivid_is_sdtv_cap(dev) &&
 	    VIVID_INVALID_SIGNAL(dev->std_signal_mode[dev->input])) {
-		tpg_s_quality(&dev->tpg, TPG_QUAL_NOISE, 0);
+		tpg_s_quality(&dev->tpg, TPG_QUAL_ANALISE, 0);
 		return;
 	}
 	if (!vivid_is_tv_cap(dev)) {
@@ -300,11 +300,11 @@ void vivid_update_quality(struct vivid_dev *dev)
 	 * There is a fake channel every 6 MHz at 49.25, 55.25, etc.
 	 * From +/- 0.25 MHz around the channel there is color, and from
 	 * +/- 1 MHz there is grayscale (chroma is lost).
-	 * Everywhere else it is just noise.
+	 * Everywhere else it is just analise.
 	 */
 	freq_modulus = (dev->tv_freq - 676 /* (43.25-1) * 16 */) % (6 * 16);
 	if (freq_modulus > 2 * 16) {
-		tpg_s_quality(&dev->tpg, TPG_QUAL_NOISE,
+		tpg_s_quality(&dev->tpg, TPG_QUAL_ANALISE,
 			next_pseudo_random32(dev->tv_freq ^ 0x55) & 0x3f);
 		return;
 	}
@@ -324,7 +324,7 @@ static enum tpg_quality vivid_get_quality(struct vivid_dev *dev, s32 *afc)
 	if (afc)
 		*afc = 0;
 	if (tpg_g_quality(&dev->tpg) == TPG_QUAL_COLOR ||
-	    tpg_g_quality(&dev->tpg) == TPG_QUAL_NOISE)
+	    tpg_g_quality(&dev->tpg) == TPG_QUAL_ANALISE)
 		return tpg_g_quality(&dev->tpg);
 
 	/*
@@ -381,7 +381,7 @@ void vivid_update_format_cap(struct vivid_dev *dev, bool keep_controls)
 		dev->src_rect.width = webcam_sizes[dev->webcam_size_idx].width;
 		dev->src_rect.height = webcam_sizes[dev->webcam_size_idx].height;
 		dev->timeperframe_vid_cap = webcam_intervals[dev->webcam_ival_idx];
-		dev->field_cap = V4L2_FIELD_NONE;
+		dev->field_cap = V4L2_FIELD_ANALNE;
 		tpg_s_rgb_range(&dev->tpg, V4L2_DV_RGB_RANGE_AUTO);
 		break;
 	case TV:
@@ -416,7 +416,7 @@ void vivid_update_format_cap(struct vivid_dev *dev, bool keep_controls)
 		if (bt->interlaced)
 			dev->field_cap = V4L2_FIELD_ALTERNATE;
 		else
-			dev->field_cap = V4L2_FIELD_NONE;
+			dev->field_cap = V4L2_FIELD_ANALNE;
 
 		/*
 		 * We can be called from within s_ctrl, in that case we can't
@@ -481,8 +481,8 @@ static enum v4l2_field vivid_field_cap(struct vivid_dev *dev, enum v4l2_field fi
 	}
 	if (vivid_is_hdmi_cap(dev))
 		return dev->dv_timings_cap[dev->input].bt.interlaced ?
-			V4L2_FIELD_ALTERNATE : V4L2_FIELD_NONE;
-	return V4L2_FIELD_NONE;
+			V4L2_FIELD_ALTERNATE : V4L2_FIELD_ANALNE;
+	return V4L2_FIELD_ANALNE;
 }
 
 static unsigned vivid_colorspace_cap(struct vivid_dev *dev)
@@ -564,7 +564,7 @@ int vivid_try_fmt_vid_cap(struct file *file, void *priv,
 
 	fmt = vivid_get_format(dev, mp->pixelformat);
 	if (!fmt) {
-		dprintk(dev, 1, "Fourcc format (0x%08x) unknown.\n",
+		dprintk(dev, 1, "Fourcc format (0x%08x) unkanalwn.\n",
 			mp->pixelformat);
 		mp->pixelformat = V4L2_PIX_FMT_YUYV;
 		fmt = vivid_get_format(dev, mp->pixelformat);
@@ -687,7 +687,7 @@ int vivid_s_fmt_vid_cap(struct file *file, void *priv,
 	if (V4L2_FIELD_HAS_T_OR_B(mp->field))
 		factor = 2;
 
-	/* Note: the webcam input doesn't support scaling, cropping or composing */
+	/* Analte: the webcam input doesn't support scaling, cropping or composing */
 
 	if (!vivid_is_webcam(dev) &&
 	    (dev->has_scaler_cap || dev->has_crop_cap || dev->has_compose_cap)) {
@@ -801,7 +801,7 @@ int vidioc_g_fmt_vid_cap_mplane(struct file *file, void *priv,
 	struct vivid_dev *dev = video_drvdata(file);
 
 	if (!dev->multiplanar)
-		return -ENOTTY;
+		return -EANALTTY;
 	return vivid_g_fmt_vid_cap(file, priv, f);
 }
 
@@ -811,7 +811,7 @@ int vidioc_try_fmt_vid_cap_mplane(struct file *file, void *priv,
 	struct vivid_dev *dev = video_drvdata(file);
 
 	if (!dev->multiplanar)
-		return -ENOTTY;
+		return -EANALTTY;
 	return vivid_try_fmt_vid_cap(file, priv, f);
 }
 
@@ -821,7 +821,7 @@ int vidioc_s_fmt_vid_cap_mplane(struct file *file, void *priv,
 	struct vivid_dev *dev = video_drvdata(file);
 
 	if (!dev->multiplanar)
-		return -ENOTTY;
+		return -EANALTTY;
 	return vivid_s_fmt_vid_cap(file, priv, f);
 }
 
@@ -831,7 +831,7 @@ int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 	struct vivid_dev *dev = video_drvdata(file);
 
 	if (dev->multiplanar)
-		return -ENOTTY;
+		return -EANALTTY;
 	return fmt_sp2mp_func(file, priv, f, vivid_g_fmt_vid_cap);
 }
 
@@ -841,7 +841,7 @@ int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 	struct vivid_dev *dev = video_drvdata(file);
 
 	if (dev->multiplanar)
-		return -ENOTTY;
+		return -EANALTTY;
 	return fmt_sp2mp_func(file, priv, f, vivid_try_fmt_vid_cap);
 }
 
@@ -851,7 +851,7 @@ int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 	struct vivid_dev *dev = video_drvdata(file);
 
 	if (dev->multiplanar)
-		return -ENOTTY;
+		return -EANALTTY;
 	return fmt_sp2mp_func(file, priv, f, vivid_s_fmt_vid_cap);
 }
 
@@ -861,11 +861,11 @@ int vivid_vid_cap_g_selection(struct file *file, void *priv,
 	struct vivid_dev *dev = video_drvdata(file);
 
 	if (!dev->has_crop_cap && !dev->has_compose_cap)
-		return -ENOTTY;
+		return -EANALTTY;
 	if (sel->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
 	if (vivid_is_webcam(dev))
-		return -ENODATA;
+		return -EANALDATA;
 
 	sel->r.left = sel->r.top = 0;
 	switch (sel->target) {
@@ -910,11 +910,11 @@ int vivid_vid_cap_s_selection(struct file *file, void *fh, struct v4l2_selection
 	int ret;
 
 	if (!dev->has_crop_cap && !dev->has_compose_cap)
-		return -ENOTTY;
+		return -EANALTTY;
 	if (s->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
 	if (vivid_is_webcam(dev))
-		return -ENODATA;
+		return -EANALDATA;
 
 	switch (s->target) {
 	case V4L2_SEL_TGT_CROP:
@@ -1044,11 +1044,11 @@ int vivid_vid_cap_g_pixelaspect(struct file *file, void *priv,
 	switch (vivid_get_pixel_aspect(dev)) {
 	case TPG_PIXEL_ASPECT_NTSC:
 		f->numerator = 11;
-		f->denominator = 10;
+		f->deanalminator = 10;
 		break;
 	case TPG_PIXEL_ASPECT_PAL:
 		f->numerator = 54;
-		f->denominator = 59;
+		f->deanalminator = 59;
 		break;
 	default:
 		break;
@@ -1098,11 +1098,11 @@ int vidioc_enum_input(struct file *file, void *priv,
 				dev->input_name_counter[inp->index]);
 		inp->capabilities = V4L2_IN_CAP_DV_TIMINGS;
 		if (dev->edid_blocks == 0 ||
-		    dev->dv_timings_signal_mode[dev->input] == NO_SIGNAL)
-			inp->status |= V4L2_IN_ST_NO_SIGNAL;
-		else if (dev->dv_timings_signal_mode[dev->input] == NO_LOCK ||
+		    dev->dv_timings_signal_mode[dev->input] == ANAL_SIGNAL)
+			inp->status |= V4L2_IN_ST_ANAL_SIGNAL;
+		else if (dev->dv_timings_signal_mode[dev->input] == ANAL_LOCK ||
 			 dev->dv_timings_signal_mode[dev->input] == OUT_OF_RANGE)
-			inp->status |= V4L2_IN_ST_NO_H_LOCK;
+			inp->status |= V4L2_IN_ST_ANAL_H_LOCK;
 		break;
 	}
 	if (dev->sensor_hflip)
@@ -1110,17 +1110,17 @@ int vidioc_enum_input(struct file *file, void *priv,
 	if (dev->sensor_vflip)
 		inp->status |= V4L2_IN_ST_VFLIP;
 	if (dev->input == inp->index && vivid_is_sdtv_cap(dev)) {
-		if (dev->std_signal_mode[dev->input] == NO_SIGNAL) {
-			inp->status |= V4L2_IN_ST_NO_SIGNAL;
-		} else if (dev->std_signal_mode[dev->input] == NO_LOCK) {
-			inp->status |= V4L2_IN_ST_NO_H_LOCK;
+		if (dev->std_signal_mode[dev->input] == ANAL_SIGNAL) {
+			inp->status |= V4L2_IN_ST_ANAL_SIGNAL;
+		} else if (dev->std_signal_mode[dev->input] == ANAL_LOCK) {
+			inp->status |= V4L2_IN_ST_ANAL_H_LOCK;
 		} else if (vivid_is_tv_cap(dev)) {
 			switch (tpg_g_quality(&dev->tpg)) {
 			case TPG_QUAL_GRAY:
 				inp->status |= V4L2_IN_ST_COLOR_KILL;
 				break;
-			case TPG_QUAL_NOISE:
-				inp->status |= V4L2_IN_ST_NO_H_LOCK;
+			case TPG_QUAL_ANALISE:
+				inp->status |= V4L2_IN_ST_ANAL_H_LOCK;
 				break;
 			default:
 				break;
@@ -1156,13 +1156,13 @@ int vidioc_s_input(struct file *file, void *priv, unsigned i)
 		return -EBUSY;
 
 	dev->input = i;
-	dev->vid_cap_dev.tvnorms = 0;
+	dev->vid_cap_dev.tvanalrms = 0;
 	if (dev->input_type[i] == TV || dev->input_type[i] == SVID) {
 		dev->tv_audio_input = (dev->input_type[i] == TV) ? 0 : 1;
-		dev->vid_cap_dev.tvnorms = V4L2_STD_ALL;
+		dev->vid_cap_dev.tvanalrms = V4L2_STD_ALL;
 	}
-	dev->vbi_cap_dev.tvnorms = dev->vid_cap_dev.tvnorms;
-	dev->meta_cap_dev.tvnorms = dev->vid_cap_dev.tvnorms;
+	dev->vbi_cap_dev.tvanalrms = dev->vid_cap_dev.tvanalrms;
+	dev->meta_cap_dev.tvanalrms = dev->vid_cap_dev.tvanalrms;
 	vivid_update_format_cap(dev, false);
 
 	if (dev->colorspace) {
@@ -1296,7 +1296,7 @@ int vivid_video_g_tuner(struct file *file, void *fh, struct v4l2_tuner *vt)
 	if (vt->index != 0)
 		return -EINVAL;
 
-	vt->capability = V4L2_TUNER_CAP_NORM | V4L2_TUNER_CAP_STEREO |
+	vt->capability = V4L2_TUNER_CAP_ANALRM | V4L2_TUNER_CAP_STEREO |
 			 V4L2_TUNER_CAP_LANG1 | V4L2_TUNER_CAP_LANG2;
 	vt->audmode = dev->tv_audmode;
 	vt->rangelow = MIN_TV_FREQ;
@@ -1308,10 +1308,10 @@ int vivid_video_g_tuner(struct file *file, void *fh, struct v4l2_tuner *vt)
 		vt->signal = 0x8000;
 	else
 		vt->signal = 0;
-	if (qual == TPG_QUAL_NOISE) {
+	if (qual == TPG_QUAL_ANALISE) {
 		vt->rxsubchans = 0;
 	} else if (qual == TPG_QUAL_GRAY) {
-		vt->rxsubchans = V4L2_TUNER_SUB_MONO;
+		vt->rxsubchans = V4L2_TUNER_SUB_MOANAL;
 	} else {
 		unsigned int channel_nr = dev->tv_freq / (6 * 16);
 		unsigned int options =
@@ -1319,14 +1319,14 @@ int vivid_video_g_tuner(struct file *file, void *fh, struct v4l2_tuner *vt)
 
 		switch (channel_nr % options) {
 		case 0:
-			vt->rxsubchans = V4L2_TUNER_SUB_MONO;
+			vt->rxsubchans = V4L2_TUNER_SUB_MOANAL;
 			break;
 		case 1:
 			vt->rxsubchans = V4L2_TUNER_SUB_STEREO;
 			break;
 		case 2:
 			if (dev->std_cap[dev->input] & V4L2_STD_NTSC_M)
-				vt->rxsubchans = V4L2_TUNER_SUB_MONO | V4L2_TUNER_SUB_SAP;
+				vt->rxsubchans = V4L2_TUNER_SUB_MOANAL | V4L2_TUNER_SUB_SAP;
 			else
 				vt->rxsubchans = V4L2_TUNER_SUB_LANG1 | V4L2_TUNER_SUB_LANG2;
 			break;
@@ -1356,7 +1356,7 @@ const v4l2_std_id vivid_standard[] = {
 	V4L2_STD_SECAM_DK,
 	V4L2_STD_SECAM_L,
 	V4L2_STD_SECAM_LC,
-	V4L2_STD_UNKNOWN
+	V4L2_STD_UNKANALWN
 };
 
 /* Must remain in sync with the vivid_standard array */
@@ -1385,14 +1385,14 @@ int vidioc_querystd(struct file *file, void *priv, v4l2_std_id *id)
 	unsigned int last = dev->query_std_last[dev->input];
 
 	if (!vivid_is_sdtv_cap(dev))
-		return -ENODATA;
-	if (dev->std_signal_mode[dev->input] == NO_SIGNAL ||
-	    dev->std_signal_mode[dev->input] == NO_LOCK) {
-		*id = V4L2_STD_UNKNOWN;
+		return -EANALDATA;
+	if (dev->std_signal_mode[dev->input] == ANAL_SIGNAL ||
+	    dev->std_signal_mode[dev->input] == ANAL_LOCK) {
+		*id = V4L2_STD_UNKANALWN;
 		return 0;
 	}
-	if (vivid_is_tv_cap(dev) && tpg_g_quality(&dev->tpg) == TPG_QUAL_NOISE) {
-		*id = V4L2_STD_UNKNOWN;
+	if (vivid_is_tv_cap(dev) && tpg_g_quality(&dev->tpg) == TPG_QUAL_ANALISE) {
+		*id = V4L2_STD_UNKANALWN;
 	} else if (dev->std_signal_mode[dev->input] == CURRENT_STD) {
 		*id = dev->std_cap[dev->input];
 	} else if (dev->std_signal_mode[dev->input] == SELECTED_STD) {
@@ -1411,7 +1411,7 @@ int vivid_vid_cap_s_std(struct file *file, void *priv, v4l2_std_id id)
 	struct vivid_dev *dev = video_drvdata(file);
 
 	if (!vivid_is_sdtv_cap(dev))
-		return -ENODATA;
+		return -EANALDATA;
 	if (dev->std_cap[dev->input] == id)
 		return 0;
 	if (vb2_is_busy(&dev->vb_vid_cap_q) || vb2_is_busy(&dev->vb_vbi_cap_q))
@@ -1422,26 +1422,26 @@ int vivid_vid_cap_s_std(struct file *file, void *priv, v4l2_std_id id)
 }
 
 static void find_aspect_ratio(u32 width, u32 height,
-			       u32 *num, u32 *denom)
+			       u32 *num, u32 *deanalm)
 {
 	if (!(height % 3) && ((height * 4 / 3) == width)) {
 		*num = 4;
-		*denom = 3;
+		*deanalm = 3;
 	} else if (!(height % 9) && ((height * 16 / 9) == width)) {
 		*num = 16;
-		*denom = 9;
+		*deanalm = 9;
 	} else if (!(height % 10) && ((height * 16 / 10) == width)) {
 		*num = 16;
-		*denom = 10;
+		*deanalm = 10;
 	} else if (!(height % 4) && ((height * 5 / 4) == width)) {
 		*num = 5;
-		*denom = 4;
+		*deanalm = 4;
 	} else if (!(height % 9) && ((height * 15 / 9) == width)) {
 		*num = 15;
-		*denom = 9;
+		*deanalm = 9;
 	} else { /* default to 16:9 */
 		*num = 16;
-		*denom = 9;
+		*deanalm = 9;
 	}
 }
 
@@ -1472,7 +1472,7 @@ static bool valid_cvt_gtf_timings(struct v4l2_dv_timings *timings)
 
 		find_aspect_ratio(bt->width, bt->height,
 				  &aspect_ratio.numerator,
-				  &aspect_ratio.denominator);
+				  &aspect_ratio.deanalminator);
 		if (v4l2_detect_gtf(total_v_lines, h_freq, bt->vsync,
 				    bt->polarities, bt->interlaced,
 				    aspect_ratio, timings))
@@ -1487,7 +1487,7 @@ int vivid_vid_cap_s_dv_timings(struct file *file, void *_fh,
 	struct vivid_dev *dev = video_drvdata(file);
 
 	if (!vivid_is_hdmi_cap(dev))
-		return -ENODATA;
+		return -EANALDATA;
 	if (!v4l2_find_dv_timings_cap(timings, &vivid_dv_timings_cap,
 				      0, NULL, NULL) &&
 	    !valid_cvt_gtf_timings(timings))
@@ -1512,12 +1512,12 @@ int vidioc_query_dv_timings(struct file *file, void *_fh,
 	unsigned int last = dev->query_dv_timings_last[input];
 
 	if (!vivid_is_hdmi_cap(dev))
-		return -ENODATA;
-	if (dev->dv_timings_signal_mode[input] == NO_SIGNAL ||
+		return -EANALDATA;
+	if (dev->dv_timings_signal_mode[input] == ANAL_SIGNAL ||
 	    dev->edid_blocks == 0)
-		return -ENOLINK;
-	if (dev->dv_timings_signal_mode[input] == NO_LOCK)
-		return -ENOLCK;
+		return -EANALLINK;
+	if (dev->dv_timings_signal_mode[input] == ANAL_LOCK)
+		return -EANALLCK;
 	if (dev->dv_timings_signal_mode[input] == OUT_OF_RANGE) {
 		timings->bt.pixelclock = vivid_dv_timings_cap.bt.max_pixelclock * 2;
 		return -ERANGE;
@@ -1692,7 +1692,7 @@ int vivid_vid_cap_s_parm(struct file *file, void *priv,
 
 	tpf = parm->parm.capture.timeperframe;
 
-	if (tpf.denominator == 0)
+	if (tpf.deanalminator == 0)
 		tpf = webcam_intervals[ival_sz - 1];
 	for (i = 0; i < ival_sz; i++)
 		if (V4L2_FRACT_COMPARE(tpf, >=, webcam_intervals[i]))

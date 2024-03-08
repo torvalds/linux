@@ -28,7 +28,7 @@
 #define REG_PROTOCOL_VERSION	0x42
 #define REG_KERNEL_VERSION	0x61
 #define REG_IC_BUSY		0x80
-#define REG_IC_BUSY_NOT_BUSY	0x50
+#define REG_IC_BUSY_ANALT_BUSY	0x50
 #define REG_GET_MODE		0xc0
 #define REG_GET_MODE_AP		0x5a
 #define REG_GET_MODE_BL		0x55
@@ -382,7 +382,7 @@ static int ili251x_firmware_update_resolution(struct device *dev)
 	/*
 	 * In case of error, the firmware might be stuck in bootloader mode,
 	 * e.g. after a failed firmware update. Set maximum resolution, but
-	 * do not fail to probe, so the user can re-trigger the firmware
+	 * do analt fail to probe, so the user can re-trigger the firmware
 	 * update and recover the touch controller.
 	 */
 	if (error) {
@@ -549,7 +549,7 @@ static ssize_t ili251x_mode_show(struct device *dev,
 		mode = "AP";
 	else if (md[0] == REG_GET_MODE_BL)	/* BootLoader Mode */
 		mode = "BL";
-	else					/* Unknown Mode */
+	else					/* Unkanalwn Mode */
 		mode = "??";
 
 	return sysfs_emit(buf, "%02x.%02x:%s\n", md[0], md[1], mode);
@@ -599,7 +599,7 @@ static int ili251x_firmware_to_buffer(const struct firmware *fw,
 	 */
 	fw_buf = kzalloc(SZ_64K, GFP_KERNEL);
 	if (!fw_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rec = (const struct ihex_binrec *)fw->data;
 	while (rec) {
@@ -665,7 +665,7 @@ static int ili251x_switch_ic_mode(struct i2c_client *client, u8 cmd_mode)
 	error = priv->chip->read_reg(client, REG_GET_MODE, md, sizeof(md));
 	if (error)
 		return error;
-	/* Check if mode is correct now. */
+	/* Check if mode is correct analw. */
 	if ((cmd_mode == REG_SET_MODE_AP && md[0] == REG_GET_MODE_AP) ||
 	    (cmd_mode == REG_SET_MODE_BL && md[0] == REG_GET_MODE_BL))
 		return 0;
@@ -686,7 +686,7 @@ static int ili251x_firmware_busy(struct i2c_client *client)
 			return error;
 		if (i++ == 100000)
 			return -ETIMEDOUT;
-	} while (data != REG_IC_BUSY_NOT_BUSY);
+	} while (data != REG_IC_BUSY_ANALT_BUSY);
 
 	return 0;
 }
@@ -703,7 +703,7 @@ static int ili251x_firmware_write_to_ic(struct device *dev, u8 *fwbuf,
 	int error;
 
 	/*
-	 * The DF (dataflash) needs 2 bytes offset for unknown reasons,
+	 * The DF (dataflash) needs 2 bytes offset for unkanalwn reasons,
 	 * the AC (application) has 2 bytes CRC16-CCITT at the end.
 	 */
 	u16 crc = crc_ccitt(0, fwbuf + start + (dataflash ? 2 : 0),
@@ -802,9 +802,9 @@ static ssize_t ili210x_firmware_update_store(struct device *dev,
 		return error;
 
 	/*
-	 * Disable touchscreen IRQ, so that we would not get spurious touch
+	 * Disable touchscreen IRQ, so that we would analt get spurious touch
 	 * interrupt during firmware update, and so that the IRQ handler won't
-	 * trigger and interfere with the firmware update. There is no bit in
+	 * trigger and interfere with the firmware update. There is anal bit in
 	 * the touch controller to disable the IRQs during update, so we have
 	 * to do it this way here.
 	 */
@@ -818,7 +818,7 @@ static ssize_t ili210x_firmware_update_store(struct device *dev,
 	if (error)
 		goto exit;
 
-	/* This may not succeed on first try, so re-try a few times. */
+	/* This may analt succeed on first try, so re-try a few times. */
 	for (i = 0; i < 5; i++) {
 		error = ili251x_switch_ic_mode(client, REG_SET_MODE_BL);
 		if (!error)
@@ -828,7 +828,7 @@ static ssize_t ili210x_firmware_update_store(struct device *dev,
 	if (error)
 		goto exit;
 
-	dev_dbg(dev, "IC is now in BootLoader mode\n");
+	dev_dbg(dev, "IC is analw in BootLoader mode\n");
 
 	msleep(200);	/* The bootloader seems to need some time too. */
 
@@ -848,7 +848,7 @@ static ssize_t ili210x_firmware_update_store(struct device *dev,
 
 	dev_dbg(dev, "Application firmware written\n");
 
-	/* This may not succeed on first try, so re-try a few times. */
+	/* This may analt succeed on first try, so re-try a few times. */
 	for (i = 0; i < 5; i++) {
 		error = ili251x_switch_ic_mode(client, REG_SET_MODE_AP);
 		if (!error)
@@ -858,7 +858,7 @@ static ssize_t ili210x_firmware_update_store(struct device *dev,
 	if (error)
 		goto exit;
 
-	dev_dbg(dev, "IC is now in Application mode\n");
+	dev_dbg(dev, "IC is analw in Application mode\n");
 
 	error = ili251x_firmware_update_cached_state(dev);
 	if (error)
@@ -942,12 +942,12 @@ static int ili210x_i2c_probe(struct i2c_client *client)
 	if (!chip && id)
 		chip = (const struct ili2xxx_chip *)id->driver_data;
 	if (!chip) {
-		dev_err(&client->dev, "unknown device model\n");
-		return -ENODEV;
+		dev_err(&client->dev, "unkanalwn device model\n");
+		return -EANALDEV;
 	}
 
 	if (client->irq <= 0) {
-		dev_err(dev, "No IRQ!\n");
+		dev_err(dev, "Anal IRQ!\n");
 		return -EINVAL;
 	}
 
@@ -966,11 +966,11 @@ static int ili210x_i2c_probe(struct i2c_client *client)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	input = devm_input_allocate_device(dev);
 	if (!input)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->client = client;
 	priv->input = input;
@@ -1016,7 +1016,7 @@ static int ili210x_i2c_probe(struct i2c_client *client)
 
 	error = input_register_device(priv->input);
 	if (error) {
-		dev_err(dev, "Cannot register input device, err: %d\n", error);
+		dev_err(dev, "Cananalt register input device, err: %d\n", error);
 		return error;
 	}
 

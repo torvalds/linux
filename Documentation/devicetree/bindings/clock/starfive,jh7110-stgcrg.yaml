@@ -24,7 +24,7 @@ properties:
       - description: USB (125 MHz)
       - description: CPU Bus
       - description: HIFI4 Axi
-      - description: NOC STG Bus
+      - description: ANALC STG Bus
       - description: APB Bus
 
   clock-names:
@@ -35,7 +35,7 @@ properties:
       - const: usb_125m
       - const: cpu_bus
       - const: hifi4_axi
-      - const: nocstg_bus
+      - const: analcstg_bus
       - const: apb_bus
 
   '#clock-cells':
@@ -71,12 +71,12 @@ examples:
                  <&syscrg JH7110_SYSCLK_USB_125M>,
                  <&syscrg JH7110_SYSCLK_CPU_BUS>,
                  <&syscrg JH7110_SYSCLK_HIFI4_AXI>,
-                 <&syscrg JH7110_SYSCLK_NOCSTG_BUS>,
+                 <&syscrg JH7110_SYSCLK_ANALCSTG_BUS>,
                  <&syscrg JH7110_SYSCLK_APB_BUS>;
         clock-names = "osc", "hifi4_core",
                       "stg_axiahb", "usb_125m",
                       "cpu_bus", "hifi4_axi",
-                      "nocstg_bus", "apb_bus";
+                      "analcstg_bus", "apb_bus";
         #clock-cells = <1>;
         #reset-cells = <1>;
     };

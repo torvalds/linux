@@ -25,7 +25,7 @@ static const struct cec_error_inj_cmd cec_error_inj_cmds[] = {
 	{ CEC_ERROR_INJ_RX_ARB_LOST_OFFSET,
 	  CEC_ERROR_INJ_RX_ARB_LOST_ARG_IDX, "rx-arb-lost" },
 
-	{ CEC_ERROR_INJ_TX_NO_EOM_OFFSET, -1, "tx-no-eom" },
+	{ CEC_ERROR_INJ_TX_ANAL_EOM_OFFSET, -1, "tx-anal-eom" },
 	{ CEC_ERROR_INJ_TX_EARLY_EOM_OFFSET, -1, "tx-early-eom" },
 	{ CEC_ERROR_INJ_TX_ADD_BYTES_OFFSET,
 	  CEC_ERROR_INJ_TX_ADD_BYTES_ARG_IDX, "tx-add-bytes" },
@@ -90,7 +90,7 @@ bool cec_pin_error_inj_parse_line(struct cec_adapter *adap, char *line)
 	if (!strcmp(token, "clear")) {
 		memset(pin->error_inj, 0, sizeof(pin->error_inj));
 		pin->rx_toggle = pin->tx_toggle = false;
-		pin->tx_ignore_nack_until_eom = false;
+		pin->tx_iganalre_nack_until_eom = false;
 		pin->tx_custom_pulse = false;
 		pin->tx_custom_low_usecs = CEC_TIM_CUSTOM_DEFAULT;
 		pin->tx_custom_high_usecs = CEC_TIM_CUSTOM_DEFAULT;
@@ -106,14 +106,14 @@ bool cec_pin_error_inj_parse_line(struct cec_adapter *adap, char *line)
 		for (i = 0; i <= CEC_ERROR_INJ_OP_ANY; i++)
 			pin->error_inj[i] &= ~CEC_ERROR_INJ_TX_MASK;
 		pin->tx_toggle = false;
-		pin->tx_ignore_nack_until_eom = false;
+		pin->tx_iganalre_nack_until_eom = false;
 		pin->tx_custom_pulse = false;
 		pin->tx_custom_low_usecs = CEC_TIM_CUSTOM_DEFAULT;
 		pin->tx_custom_high_usecs = CEC_TIM_CUSTOM_DEFAULT;
 		return true;
 	}
-	if (!strcmp(token, "tx-ignore-nack-until-eom")) {
-		pin->tx_ignore_nack_until_eom = true;
+	if (!strcmp(token, "tx-iganalre-nack-until-eom")) {
+		pin->tx_iganalre_nack_until_eom = true;
 		return true;
 	}
 	if (!strcmp(token, "tx-custom-pulse")) {
@@ -221,7 +221,7 @@ bool cec_pin_error_inj_parse_line(struct cec_adapter *adap, char *line)
 				return false;
 			if (has_op && pos < 10 + 8)
 				return false;
-			/* Invalid bit position may not be the Ack bit */
+			/* Invalid bit position may analt be the Ack bit */
 			if ((mode_offset == CEC_ERROR_INJ_TX_SHORT_BIT_OFFSET ||
 			     mode_offset == CEC_ERROR_INJ_TX_LONG_BIT_OFFSET ||
 			     mode_offset == CEC_ERROR_INJ_TX_CUSTOM_BIT_OFFSET) &&
@@ -280,13 +280,13 @@ int cec_pin_error_inj_show(struct cec_adapter *adap, struct seq_file *sf)
 	seq_puts(sf, "#    any[,<mode>] rx-arb-lost [<poll>] generate a POLL message to trigger an arbitration lost\n");
 	seq_puts(sf, "#\n");
 	seq_puts(sf, "# TX error injection settings:\n");
-	seq_puts(sf, "#   tx-ignore-nack-until-eom           ignore early NACKs until EOM\n");
+	seq_puts(sf, "#   tx-iganalre-nack-until-eom           iganalre early NACKs until EOM\n");
 	seq_puts(sf, "#   tx-custom-low-usecs <usecs>        define the 'low' time for the custom pulse\n");
 	seq_puts(sf, "#   tx-custom-high-usecs <usecs>       define the 'high' time for the custom pulse\n");
 	seq_puts(sf, "#   tx-custom-pulse                    transmit the custom pulse once the bus is idle\n");
 	seq_puts(sf, "#\n");
 	seq_puts(sf, "# TX error injection:\n");
-	seq_puts(sf, "#   <op>[,<mode>] tx-no-eom            don't set the EOM bit\n");
+	seq_puts(sf, "#   <op>[,<mode>] tx-anal-eom            don't set the EOM bit\n");
 	seq_puts(sf, "#   <op>[,<mode>] tx-early-eom         set the EOM bit one byte too soon\n");
 	seq_puts(sf, "#   <op>[,<mode>] tx-add-bytes <num>   append <num> (1-255) spurious bytes to the message\n");
 	seq_puts(sf, "#   <op>[,<mode>] tx-remove-byte       drop the last byte from the message\n");
@@ -331,8 +331,8 @@ int cec_pin_error_inj_show(struct cec_adapter *adap, struct seq_file *sf)
 		}
 	}
 
-	if (pin->tx_ignore_nack_until_eom)
-		seq_puts(sf, "tx-ignore-nack-until-eom\n");
+	if (pin->tx_iganalre_nack_until_eom)
+		seq_puts(sf, "tx-iganalre-nack-until-eom\n");
 	if (pin->tx_custom_pulse)
 		seq_puts(sf, "tx-custom-pulse\n");
 	if (pin->tx_custom_low_usecs != CEC_TIM_CUSTOM_DEFAULT)

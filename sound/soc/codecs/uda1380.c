@@ -15,7 +15,7 @@
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/gpio.h>
 #include <linux/delay.h>
 #include <linux/i2c.h>
@@ -192,7 +192,7 @@ static void uda1380_flush_work(struct work_struct *work)
 
 /* declarations of ALSA reg_elem_REAL controls */
 static const char *uda1380_deemp[] = {
-	"None",
+	"Analne",
 	"32kHz",
 	"44.1kHz",
 	"48kHz",
@@ -236,8 +236,8 @@ static const char *uda1380_sdet_setting[] = {
 };
 static const char *uda1380_os_setting[] = {
 	"single-speed",
-	"double-speed (no mixing)",
-	"quad-speed (no mixing)"
+	"double-speed (anal mixing)",
+	"quad-speed (anal mixing)"
 };
 
 static const struct soc_enum uda1380_deemp_enum[] = {
@@ -269,7 +269,7 @@ static SOC_ENUM_SINGLE_DECL(uda1380_os_enum,
 static DECLARE_TLV_DB_SCALE(amix_tlv, -4950, 150, 1);
 
 /*
- * from -78 dB in 1 dB steps (3 dB steps, really. LSB are ignored),
+ * from -78 dB in 1 dB steps (3 dB steps, really. LSB are iganalred),
  * from -66 dB in 0.5 dB steps (2 dB steps, really) and
  * from -52 dB in 0.25 dB steps
  */
@@ -322,7 +322,7 @@ static const struct snd_kcontrol_new uda1380_snd_controls[] = {
 	SOC_SINGLE("PCM Playback Switch", UDA1380_DEEMP, 3, 1, 1),		/* MT1, from digital data input */
 	SOC_ENUM("PCM Playback De-emphasis", uda1380_deemp_enum[1]),		/* DE1 */
 	SOC_SINGLE("DAC Polarity inverting Switch", UDA1380_MIXER, 15, 1, 0),	/* DA_POL_INV */
-	SOC_ENUM("Noise Shaper", uda1380_sel_ns_enum),				/* SEL_NS */
+	SOC_ENUM("Analise Shaper", uda1380_sel_ns_enum),				/* SEL_NS */
 	SOC_ENUM("Digital Mixer Signal Control", uda1380_mix_enum),		/* MIX_POS, MIX */
 	SOC_SINGLE("Silence Detector Switch", UDA1380_MIXER, 6, 1, 0),		/* SDET_ON */
 	SOC_ENUM("Silence Detector Setting", uda1380_sdet_enum),		/* SD_VALUE */
@@ -354,11 +354,11 @@ static const struct snd_kcontrol_new uda1380_capture_mux_control =
 
 
 static const struct snd_soc_dapm_widget uda1380_dapm_widgets[] = {
-	SND_SOC_DAPM_MUX("Input Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("Input Mux", SND_SOC_ANALPM, 0, 0,
 		&uda1380_input_mux_control),
-	SND_SOC_DAPM_MUX("Output Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("Output Mux", SND_SOC_ANALPM, 0, 0,
 		&uda1380_output_mux_control),
-	SND_SOC_DAPM_MUX("Capture Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("Capture Mux", SND_SOC_ANALPM, 0, 0,
 		&uda1380_capture_mux_control),
 	SND_SOC_DAPM_PGA("Left PGA", UDA1380_PM, 3, 0, NULL, 0),
 	SND_SOC_DAPM_PGA("Right PGA", UDA1380_PM, 1, 0, NULL, 0),
@@ -750,7 +750,7 @@ static int uda1380_i2c_probe(struct i2c_client *i2c)
 	uda1380 = devm_kzalloc(&i2c->dev, sizeof(struct uda1380_priv),
 			       GFP_KERNEL);
 	if (uda1380 == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (gpio_is_valid(pdata->gpio_reset)) {
 		ret = devm_gpio_request_one(&i2c->dev, pdata->gpio_reset,
@@ -771,7 +771,7 @@ static int uda1380_i2c_probe(struct i2c_client *i2c)
 					ARRAY_SIZE(uda1380_reg) * sizeof(u16),
 					GFP_KERNEL);
 	if (!uda1380->reg_cache)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(i2c, uda1380);
 	uda1380->i2c = i2c;

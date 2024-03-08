@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (c) 2018-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #include <crypto/hash.h>
@@ -49,7 +49,7 @@ int ath12k_dp_peer_setup(struct ath12k *ar, int vdev_id, const u8 *addr)
 	u32 reo_dest;
 	int ret = 0, tid;
 
-	/* NOTE: reo_dest ring id starts from 1 unlike mac_id which starts from 0 */
+	/* ANALTE: reo_dest ring id starts from 1 unlike mac_id which starts from 0 */
 	reo_dest = ar->dp.mac_id + 1;
 	ret = ath12k_wmi_set_peer_param(ar, addr, vdev_id,
 					WMI_PEER_SET_DEFAULT_ROUTING,
@@ -63,7 +63,7 @@ int ath12k_dp_peer_setup(struct ath12k *ar, int vdev_id, const u8 *addr)
 
 	for (tid = 0; tid <= IEEE80211_NUM_TIDS; tid++) {
 		ret = ath12k_dp_rx_peer_tid_setup(ar, addr, vdev_id, tid, 1, 0,
-						  HAL_PN_TYPE_NONE);
+						  HAL_PN_TYPE_ANALNE);
 		if (ret) {
 			ath12k_warn(ab, "failed to setup rxd tid queue for tid %d: %d\n",
 				    tid, ret);
@@ -88,7 +88,7 @@ peer_clean:
 	if (!peer) {
 		ath12k_warn(ab, "failed to find the peer to del rx tid\n");
 		spin_unlock_bh(&ab->base_lock);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	for (; tid >= 0; tid--)
@@ -121,7 +121,7 @@ static int ath12k_dp_srng_find_ring_in_mask(int ring_num, const u8 *grp_mask)
 			return ext_group_num;
 	}
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static int ath12k_dp_srng_calculate_msi_group(struct ath12k_base *ab,
@@ -169,7 +169,7 @@ static int ath12k_dp_srng_calculate_msi_group(struct ath12k_base *ab,
 	case HAL_CE_DST:
 	case HAL_CE_DST_STATUS:
 	default:
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	return ath12k_dp_srng_find_ring_in_mask(ring_num, grp_mask);
@@ -193,7 +193,7 @@ static void ath12k_dp_srng_msi_setup(struct ath12k_base *ab,
 							      ring_num);
 	if (msi_group_number < 0) {
 		ath12k_dbg(ab, ATH12K_DBG_PCI,
-			   "ring not part of an ext_group; ring_type: %d,ring_num %d",
+			   "ring analt part of an ext_group; ring_type: %d,ring_num %d",
 			   type, ring_num);
 		ring_params->msi_addr = 0;
 		ring_params->msi_data = 0;
@@ -235,7 +235,7 @@ int ath12k_dp_srng_setup(struct ath12k_base *ab, struct dp_srng *ring,
 						   &ring->paddr_unaligned,
 						   GFP_KERNEL);
 	if (!ring->vaddr_unaligned)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ring->vaddr = PTR_ALIGN(ring->vaddr_unaligned, HAL_RING_BASE_ALIGN);
 	ring->paddr = ring->paddr_unaligned + ((unsigned long)ring->vaddr -
@@ -295,7 +295,7 @@ int ath12k_dp_srng_setup(struct ath12k_base *ab, struct dp_srng *ring,
 	case HAL_RXDMA_DIR_BUF:
 		break;
 	default:
-		ath12k_warn(ab, "Not a valid ring type in dp :%d\n", type);
+		ath12k_warn(ab, "Analt a valid ring type in dp :%d\n", type);
 		return -EINVAL;
 	}
 
@@ -331,7 +331,7 @@ u32 ath12k_dp_tx_get_vdev_bank_config(struct ath12k_base *ab, struct ath12k_vif 
 			u32_encode_bits(0, HAL_TX_BANK_CONFIG_LINK_META_SWAP) |
 			u32_encode_bits(0, HAL_TX_BANK_CONFIG_EPD);
 
-	/* only valid if idx_lookup_override is not set in tcl_data_cmd */
+	/* only valid if idx_lookup_override is analt set in tcl_data_cmd */
 	bank_config |= u32_encode_bits(0, HAL_TX_BANK_CONFIG_INDEX_LOOKUP_EN);
 
 	bank_config |= u32_encode_bits(arvif->hal_addr_search_flags & HAL_TX_ADDRX_EN,
@@ -426,7 +426,7 @@ static int ath12k_dp_init_bank_profiles(struct ath12k_base *ab)
 					  sizeof(struct ath12k_dp_tx_bank_profile),
 					  GFP_KERNEL);
 	if (!dp->bank_profiles)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&dp->tx_bank_lock);
 
@@ -556,7 +556,7 @@ static int ath12k_dp_srng_common_setup(struct ath12k_base *ab)
 	 * the hash values to the ring will be configured. Each hash entry uses
 	 * four bits to map to a particular ring. The ring mapping will be
 	 * 0:TCL, 1:SW1, 2:SW2, 3:SW3, 4:SW4, 5:Release, 6:FW and 7:SW5
-	 * 8:SW6, 9:SW7, 10:SW8, 11:Not used.
+	 * 8:SW6, 9:SW7, 10:SW8, 11:Analt used.
 	 */
 	ring_hash_map = HAL_HASH_ROUTING_RING_SW1 |
 			HAL_HASH_ROUTING_RING_SW2 << 4 |
@@ -624,7 +624,7 @@ static int ath12k_dp_scatter_idle_link_desc_setup(struct ath12k_base *ab,
 						    HAL_WBM_IDLE_SCATTER_BUF_SIZE_MAX,
 						    &slist[i].paddr, GFP_KERNEL);
 		if (!slist[i].vaddr) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err;
 		}
 	}
@@ -705,7 +705,7 @@ static int ath12k_dp_link_desc_bank_alloc(struct ath12k_base *ab,
 							   &desc_bank[i].paddr_unaligned,
 							   GFP_KERNEL);
 		if (!desc_bank[i].vaddr_unaligned) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err;
 		}
 
@@ -1081,7 +1081,7 @@ static void ath12k_dp_update_vdev_search(struct ath12k_vif *arvif)
 	switch (arvif->vdev_type) {
 	case WMI_VDEV_TYPE_STA:
 		/* TODO: Verify the search type and flags since ast hash
-		 * is not part of peer mapv3
+		 * is analt part of peer mapv3
 		 */
 		arvif->hal_addr_search_flags = HAL_TX_ADDRY_EN;
 		arvif->search_type = HAL_TX_ADDR_SEARCH_DEFAULT;
@@ -1363,7 +1363,7 @@ static int ath12k_dp_cc_desc_init(struct ath12k_base *ab)
 
 		if (!rx_descs) {
 			spin_unlock_bh(&dp->rx_desc_lock);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		dp->spt_info->rxbaddr[i] = &rx_descs[0];
@@ -1390,7 +1390,7 @@ static int ath12k_dp_cc_desc_init(struct ath12k_base *ab)
 			if (!tx_descs) {
 				spin_unlock_bh(&dp->tx_desc_lock[pool_id]);
 				/* Caller takes care of TX pending and RX desc cleanup */
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 
 			tx_spt_page = i + pool_id * ATH12K_TX_SPT_PAGES_PER_POOL;
@@ -1439,7 +1439,7 @@ static int ath12k_dp_cc_init(struct ath12k_base *ab)
 
 	if (!dp->spt_info) {
 		ath12k_warn(ab, "SPT page allocation failure");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	cmem_base = ab->qmi.dev_mem[ATH12K_QMI_DEVMEM_CMEM_INDEX].start;
@@ -1451,12 +1451,12 @@ static int ath12k_dp_cc_init(struct ath12k_base *ab)
 							   GFP_KERNEL);
 
 		if (!dp->spt_info[i].vaddr) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto free;
 		}
 
 		if (dp->spt_info[i].paddr & ATH12K_SPT_4K_ALIGN_CHECK) {
-			ath12k_warn(ab, "SPT allocated memory is not 4K aligned");
+			ath12k_warn(ab, "SPT allocated memory is analt 4K aligned");
 			ret = -EINVAL;
 			goto free;
 		}
@@ -1491,7 +1491,7 @@ static int ath12k_dp_reoq_lut_setup(struct ath12k_base *ab)
 						GFP_KERNEL | __GFP_ZERO);
 	if (!dp->reoq_lut.vaddr) {
 		ath12k_warn(ab, "failed to allocate memory for reoq table");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ath12k_hif_write32(ab, HAL_SEQ_WCSS_UMAC_REO_REG + HAL_REO1_QDESC_LUT_BASE0(ab),
@@ -1562,8 +1562,8 @@ int ath12k_dp_alloc(struct ath12k_base *ab)
 		dp->tx_ring[i].tx_status_tail = DP_TX_COMP_RING_SIZE - 1;
 		dp->tx_ring[i].tx_status = kmalloc(size, GFP_KERNEL);
 		if (!dp->tx_ring[i].tx_status) {
-			ret = -ENOMEM;
-			/* FIXME: The allocated tx status is not freed
+			ret = -EANALMEM;
+			/* FIXME: The allocated tx status is analt freed
 			 * properly here
 			 */
 			goto fail_cmn_reoq_cleanup;

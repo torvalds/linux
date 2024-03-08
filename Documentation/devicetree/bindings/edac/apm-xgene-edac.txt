@@ -1,6 +1,6 @@
-* APM X-Gene SoC EDAC node
+* APM X-Gene SoC EDAC analde
 
-EDAC node is defined to describe on-chip error detection and correction.
+EDAC analde is defined to describe on-chip error detection and correction.
 The follow error types are supported:
 
   memory controller	- Memory controller
@@ -8,7 +8,7 @@ The follow error types are supported:
   L3			- L3 cache controller
   SoC			- SoC IP's such as Ethernet, SATA, and etc
 
-The following section describes the EDAC DT node binding.
+The following section describes the EDAC DT analde binding.
 
 Required properties:
 - compatible		: Shall be "apm,xgene-edac".
@@ -18,30 +18,30 @@ Required properties:
 - regmap-efuse		: Regmap of the PMD efuse resource.
 - regmap-rb		: Regmap of the register bus resource. This property
 			  is optional only for compatibility. If the RB
-			  error conditions are not cleared, it will
+			  error conditions are analt cleared, it will
 			  continuously generate interrupt.
 - reg			: First resource shall be the CPU bus (PCP) resource.
 - interrupts            : Interrupt-specifier for MCU, PMD, L3, or SoC error
 			  IRQ(s).
 
-Required properties for memory controller subnode:
+Required properties for memory controller subanalde:
 - compatible		: Shall be "apm,xgene-edac-mc".
 - reg			: First resource shall be the memory controller unit
                           (MCU) resource.
 - memory-controller	: Instance number of the memory controller.
 
-Required properties for PMD subnode:
+Required properties for PMD subanalde:
 - compatible		: Shall be "apm,xgene-edac-pmd" or
                           "apm,xgene-edac-pmd-v2".
 - reg			: First resource shall be the PMD resource.
 - pmd-controller	: Instance number of the PMD controller.
 
-Required properties for L3 subnode:
+Required properties for L3 subanalde:
 - compatible		: Shall be "apm,xgene-edac-l3" or
                           "apm,xgene-edac-l3-v2".
 - reg			: First resource shall be the L3 EDAC resource.
 
-Required properties for SoC subnode:
+Required properties for SoC subanalde:
 - compatible		: Shall be "apm,xgene-edac-soc-v1" for revision 1 or
                           "apm,xgene-edac-l3-soc" for general value reporting
                           only.

@@ -5,12 +5,12 @@ Required parameters:
 - compatible :		"st,pwm"
 - #pwm-cells : 		Number of cells used to specify a PWM. First cell
 			specifies the per-chip index of the PWM to use and the
-			second cell is the period in nanoseconds - fixed to 2
+			second cell is the period in naanalseconds - fixed to 2
 			for STiH41x.
 - reg :			Physical base address and length of the controller's
 			registers.
 - pinctrl-names: 	Set to "default".
-- pinctrl-0: 		List of phandles pointing to pin configuration nodes
+- pinctrl-0: 		List of phandles pointing to pin configuration analdes
 			for PWM module.
 			For Pinctrl properties, please refer to [1].
 - clock-names: 		Valid entries are "pwm" and/or "capture".

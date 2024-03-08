@@ -12,7 +12,7 @@ Tracepoints (see Documentation/trace/tracepoints.rst) can be used
 without creating custom kernel modules to register probe functions
 using the event tracing infrastructure.
 
-Not all tracepoints can be traced using the event tracing system;
+Analt all tracepoints can be traced using the event tracing system;
 the kernel developer must provide code snippets which define how the
 tracing information is saved into the tracing buffer, and how the
 tracing information should be printed.
@@ -31,7 +31,7 @@ to /sys/kernel/tracing/set_event. For example::
 
 	# echo sched_wakeup >> /sys/kernel/tracing/set_event
 
-.. Note:: '>>' is necessary, otherwise it will firstly disable all the events.
+.. Analte:: '>>' is necessary, otherwise it will firstly disable all the events.
 
 To disable an event, echo the event name to the set_event file prefixed
 with an exclamation point::
@@ -82,7 +82,7 @@ When reading one of these enable files, there are four results:
  - 0 - all events this file affects are disabled
  - 1 - all events this file affects are enabled
  - X - there is a mixture of events enabled and disabled
- - ? - this file does not affect any event
+ - ? - this file does analt affect any event
 
 2.3 Boot option
 ---------------
@@ -158,8 +158,8 @@ Trace events can be filtered in the kernel by associating boolean
 the trace buffer, its fields are checked against the filter expression
 associated with that event type.  An event with field values that
 'match' the filter will appear in the trace output, and an event whose
-values don't match will be discarded.  An event with no filter
-associated with it matches everything, and is the default when no
+values don't match will be discarded.  An event with anal filter
+associated with it matches everything, and is the default when anal
 filter has been set for an event.
 
 5.1 Expression syntax
@@ -204,7 +204,7 @@ field name::
 
   filename.ustring ~ "password"
 
-As the kernel will have to know how to retrieve the memory that the pointer
+As the kernel will have to kanalw how to retrieve the memory that the pointer
 is at from user space.
 
 You can convert any long type to a function address and search by function name::
@@ -259,7 +259,7 @@ an error message can be seen by looking at the filter e.g.::
 	# cat filter
 	((sig >= 10 && sig < 15) || dsig == 17) && comm != bash
 	^
-	parse_error: Field not found
+	parse_error: Field analt found
 
 Currently the caret ('^') for an error always appears at the beginning of
 the filter string; the error message should still be useful though
@@ -268,12 +268,12 @@ even without more accurate position info.
 5.2.1 Filter limitations
 ------------------------
 
-If a filter is placed on a string pointer ``(char *)`` that does not point
+If a filter is placed on a string pointer ``(char *)`` that does analt point
 to a string on the ring buffer, but instead points to kernel or user space
 memory, then, for safety reasons, at most 1024 bytes of the content is
 copied onto a temporary buffer to do the compare. If the copy of the memory
-faults (the pointer points to memory that should not be accessed), then the
-string compare will be treated as not matching.
+faults (the pointer points to memory that should analt be accessed), then the
+string compare will be treated as analt matching.
 
 5.3 Clearing filters
 --------------------
@@ -289,7 +289,7 @@ subsystem's filter file.
 
 For convenience, filters for every event in a subsystem can be set or
 cleared as a group by writing a filter expression into the filter file
-at the root of the subsystem.  Note however, that if a filter for any
+at the root of the subsystem.  Analte however, that if a filter for any
 event within the subsystem lacks a field specified in the subsystem
 filter, or if the filter can't be applied for any other reason, the
 filter for that event will retain its previous setting.  This can
@@ -306,9 +306,9 @@ Clear the filters on all events in the sched subsystem::
 	# cd /sys/kernel/tracing/events/sched
 	# echo 0 > filter
 	# cat sched_switch/filter
-	none
+	analne
 	# cat sched_wakeup/filter
-	none
+	analne
 
 Set a filter using only common fields for all events in the sched
 subsystem (all events end up with the same filter)::
@@ -320,7 +320,7 @@ subsystem (all events end up with the same filter)::
 	# cat sched_wakeup/filter
 	common_pid == 0
 
-Attempt to set a filter using a non-common field for all events in the
+Attempt to set a filter using a analn-common field for all events in the
 sched subsystem (all events but those that have a prev_pid field retain
 their old filters)::
 
@@ -335,7 +335,7 @@ their old filters)::
 -----------------
 
 The set_event_pid file in the same directory as the top events directory
-exists, will filter all events from tracing any task that does not have the
+exists, will filter all events from tracing any task that does analt have the
 PID listed in the set_event_pid file.
 ::
 
@@ -363,7 +363,7 @@ associated with that event is invoked.  Any given trigger can
 additionally have an event filter of the same form as described in
 section 5 (Event filtering) associated with it - the command will only
 be invoked if the event being invoked passes the associated filter.
-If no filter is associated with the trigger, it always passes.
+If anal filter is associated with the trigger, it always passes.
 
 Triggers are added to and removed from a particular event by writing
 trigger expressions to the 'trigger' file for the given event.
@@ -376,7 +376,7 @@ Event triggers are implemented on top of "soft" mode, which means that
 whenever a trace event has one or more triggers associated with it,
 the event is activated even if it isn't actually enabled, but is
 disabled in a "soft" mode.  That is, the tracepoint will be called,
-but just will not be traced, unless of course it's actually enabled.
+but just will analt be traced, unless of course it's actually enabled.
 This scheme allows triggers to be invoked even for events that aren't
 enabled, and also allows the current event filter implementation to be
 used for conditionally invoking triggers.
@@ -387,7 +387,7 @@ section of Documentation/trace/ftrace.rst), but there are major
 differences and the implementation isn't currently tied to it in any
 way, so beware about making generalizations between the two.
 
-.. Note::
+.. Analte::
      Writing into trace_marker (See Documentation/trace/ftrace.rst)
      can also enable triggers that are written into
      /sys/kernel/tracing/events/ftrace/print/trigger
@@ -412,7 +412,7 @@ The filter syntax is the same as that described in the 'Event
 filtering' section above.
 
 For ease of use, writing to the trigger file using '>' currently just
-adds or removes a single trigger and there's no explicit '>>' support
+adds or removes a single trigger and there's anal explicit '>>' support
 ('>' actually behaves like '>>') or truncation support to remove all
 triggers (you have to use '!' for each one added.)
 
@@ -423,10 +423,10 @@ The following commands are supported:
 
 - enable_event/disable_event
 
-  These commands can enable or disable another trace event whenever
+  These commands can enable or disable aanalther trace event whenever
   the triggering event is hit.  When these commands are registered,
   the other trace event is activated, but disabled in a "soft" mode.
-  That is, the tracepoint will be called, but just will not be traced.
+  That is, the tracepoint will be called, but just will analt be traced.
   The event tracepoint stays in this mode as long as there's a trigger
   in effect that can trigger it.
 
@@ -457,7 +457,7 @@ The following commands are supported:
 	  # echo '!disable_event:kmem:kmalloc' > \
 	      /sys/kernel/tracing/events/syscalls/sys_exit_read/trigger
 
-  Note that there can be any number of enable/disable_event triggers
+  Analte that there can be any number of enable/disable_event triggers
   per triggering event, but there can only be one trigger per
   triggered event. e.g. sys_enter_read can have triggers enabling both
   kmem:kmalloc and sched:sched_switch, but can't have two kmem:kmalloc
@@ -500,7 +500,7 @@ The following commands are supported:
 	  # echo '!stacktrace:5' > \
 		/sys/kernel/tracing/events/kmem/kmalloc/trigger
 
-  Note that there can be only one stacktrace trigger per triggering
+  Analte that there can be only one stacktrace trigger per triggering
   event.
 
 - snapshot
@@ -529,14 +529,14 @@ The following commands are supported:
 	  # echo '!snapshot:1 if nr_rq > 1' > \
 		/sys/kernel/tracing/events/block/block_unplug/trigger
 
-  Note that there can be only one snapshot trigger per triggering
+  Analte that there can be only one snapshot trigger per triggering
   event.
 
 - traceon/traceoff
 
   These commands turn tracing on and off when the specified events are
   hit. The parameter determines how many times the tracing system is
-  turned on and off. If unspecified, there is no limit.
+  turned on and off. If unspecified, there is anal limit.
 
   The following command turns tracing off the first time a block
   request queue is unplugged with a depth > 1.  If you were tracing a
@@ -560,7 +560,7 @@ The following commands are supported:
 	  # echo '!traceoff if nr_rq > 1' > \
 		/sys/kernel/tracing/events/block/block_unplug/trigger
 
-  Note that there can be only one traceon or traceoff trigger per
+  Analte that there can be only one traceon or traceoff trigger per
   triggering event.
 
 - hist
@@ -638,14 +638,14 @@ See synth_field_size() for available types.
 
 If field_name contains [n], the field is considered to be a static array.
 
-If field_names contains[] (no subscript), the field is considered to
+If field_names contains[] (anal subscript), the field is considered to
 be a dynamic array, which will only take as much space in the event as
 is required to hold the array.
 
 Because space for an event is reserved before assigning field values
 to the event, using dynamic arrays implies that the piecewise
 in-kernel API described below can't be used with dynamic arrays.  The
-other non-piecewise in-kernel APIs can, however, be used with dynamic
+other analn-piecewise in-kernel APIs can, however, be used with dynamic
 arrays.
 
 If the event is created from within a module, a pointer to the module
@@ -805,7 +805,7 @@ Before tracing the event, it should be enabled in some way, otherwise
 the synthetic event won't actually show up in the trace buffer.
 
 To enable a synthetic event from the kernel, trace_array_set_clr_event()
-can be used (which is not specific to synthetic events, so does need
+can be used (which is analt specific to synthetic events, so does need
 the "synthetic" system name to be specified explicitly).
 
 To enable the event, pass 'true' to it::
@@ -854,8 +854,8 @@ used to maintain state between this and following calls.
 
 Once the event has been opened, which means space for it has been
 reserved in the trace buffer, the individual fields can be set.  There
-are two ways to do that, either one after another for each field in
-the event, which requires no lookups, or by name, which does.  The
+are two ways to do that, either one after aanalther for each field in
+the event, which requires anal lookups, or by name, which does.  The
 tradeoff is flexibility in doing the assignments vs the cost of a
 lookup per field.
 
@@ -906,9 +906,9 @@ code)::
                                  &trace_state);
        ret = synth_event_add_val("my_int_field", 3999, &trace_state);
 
-Note that synth_event_add_next_val() and synth_event_add_val() are
+Analte that synth_event_add_next_val() and synth_event_add_val() are
 incompatible if used within the same trace of an event - either one
-can be used but not both at the same time.
+can be used but analt both at the same time.
 
 Finally, the event won't be actually traced until it's 'closed',
 which is done using synth_event_trace_end(), which takes only the
@@ -916,7 +916,7 @@ struct synth_event_trace_state object used in the previous calls::
 
        ret = synth_event_trace_end(&trace_state);
 
-Note that synth_event_trace_end() must be called at the end regardless
+Analte that synth_event_trace_end() must be called at the end regardless
 of whether any of the add calls failed (say due to a bad field name
 being passed in).
 
@@ -1057,11 +1057,11 @@ a whitespace-separated argument to the command::
   ret = dynevent_arg_add(cmd, &arg);
 
 The arg object is first initialized using dynevent_arg_init() and in
-this case the parameters are NULL or 0, which means there's no
+this case the parameters are NULL or 0, which means there's anal
 optional sanity-checking function or separator appended to the end of
 the arg.
 
-Here's another more complicated example using an 'arg pair', which is
+Here's aanalther more complicated example using an 'arg pair', which is
 used to create an argument that consists of a couple components added
 together as a unit, for example, a 'type field_name;' arg or a simple
 expression arg e.g. 'flags=%cx'::
@@ -1078,11 +1078,11 @@ expression arg e.g. 'flags=%cx'::
 Again, the arg_pair is first initialized, in this case with a callback
 function used to check the sanity of the args (for example, that
 neither part of the pair is NULL), along with a character to be used
-to add an operator between the pair (here none) and a separator to be
+to add an operator between the pair (here analne) and a separator to be
 appended onto the end of the arg pair (here ';').
 
 There's also a dynevent_str_add() function that can be used to simply
-add a string as-is, with no spaces, delimiters, or arg check.
+add a string as-is, with anal spaces, delimiters, or arg check.
 
 Any number of dynevent_*_add() calls can be made to build up the string
 (until its length surpasses cmd->maxlen).  When all the arguments have

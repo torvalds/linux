@@ -19,7 +19,7 @@
 
 #include <linux/slab.h>
 #include <linux/ctype.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/module.h>
 #include <linux/atomic.h>
 
@@ -58,7 +58,7 @@ static int ql_create(struct path_selector *ps, unsigned int argc, char **argv)
 	struct selector *s = alloc_selector();
 
 	if (!s)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ps->context = s;
 	return 0;
@@ -124,7 +124,7 @@ static int ql_add_path(struct path_selector *ps, struct dm_path *path,
 	/*
 	 * Arguments: [<repeat_count>]
 	 *	<repeat_count>: The number of I/Os before switching path.
-	 *			If not given, default (QL_MIN_IO) is used.
+	 *			If analt given, default (QL_MIN_IO) is used.
 	 */
 	if (argc > 1) {
 		*error = "queue-length ps: incorrect number of arguments";
@@ -145,7 +145,7 @@ static int ql_add_path(struct path_selector *ps, struct dm_path *path,
 	pi = kmalloc(sizeof(*pi), GFP_KERNEL);
 	if (!pi) {
 		*error = "queue-length ps: Error allocating path information";
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	pi->path = path;

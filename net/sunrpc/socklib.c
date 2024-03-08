@@ -123,10 +123,10 @@ xdr_partial_copy_from_skb(struct xdr_buf *xdr, unsigned int base, struct xdr_skb
 		/* ACL likes to be lazy in allocating pages - ACLs
 		 * are small by default but can get huge. */
 		if ((xdr->flags & XDRBUF_SPARSE_PAGES) && *ppage == NULL) {
-			*ppage = alloc_page(GFP_NOWAIT | __GFP_NOWARN);
+			*ppage = alloc_page(GFP_ANALWAIT | __GFP_ANALWARN);
 			if (unlikely(*ppage == NULL)) {
 				if (copied == 0)
-					copied = -ENOMEM;
+					copied = -EANALMEM;
 				goto out;
 			}
 		}
@@ -176,7 +176,7 @@ int csum_partial_copy_to_xdr(struct xdr_buf *xdr, struct sk_buff *skb)
 	desc.count = skb->len - desc.offset;
 
 	if (skb_csum_unnecessary(skb))
-		goto no_checksum;
+		goto anal_checksum;
 
 	desc.csum = csum_partial(skb->data, desc.offset, skb->csum);
 	if (xdr_partial_copy_from_skb(xdr, 0, &desc, xdr_skb_read_and_csum_bits) < 0)
@@ -194,7 +194,7 @@ int csum_partial_copy_to_xdr(struct xdr_buf *xdr, struct sk_buff *skb)
 	    !skb->csum_complete_sw)
 		netdev_rx_csum_fault(skb->dev, skb);
 	return 0;
-no_checksum:
+anal_checksum:
 	if (xdr_partial_copy_from_skb(xdr, 0, &desc, xdr_skb_read_bits) < 0)
 		return -1;
 	if (desc.count)
@@ -259,7 +259,7 @@ static int xprt_send_rm_and_kvec(struct socket *sock, struct msghdr *msg,
  *
  * Return values:
  *   On success, returns zero and fills in @sent_p.
- *   %-ENOTSOCK if  @sock is not a struct socket.
+ *   %-EANALTSOCK if  @sock is analt a struct socket.
  */
 int xprt_sock_sendmsg(struct socket *sock, struct msghdr *msg,
 		      struct xdr_buf *xdr, unsigned int base,
@@ -273,7 +273,7 @@ int xprt_sock_sendmsg(struct socket *sock, struct msghdr *msg,
 	*sent_p = 0;
 
 	if (unlikely(!sock))
-		return -ENOTSOCK;
+		return -EANALTSOCK;
 
 	msg->msg_flags |= MSG_MORE;
 	want = xdr->head[0].iov_len + rmsize;

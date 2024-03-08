@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-#include <errno.h>
+#include <erranal.h>
 #include <error.h>
 #include <netdb.h>
 #include <stdbool.h>
@@ -83,9 +83,9 @@ struct options {
 };
 
 static struct timespec time_start_real;
-static struct timespec time_start_mono;
+static struct timespec time_start_moanal;
 
-static void __attribute__((noreturn)) cs_usage(const char *bin)
+static void __attribute__((analreturn)) cs_usage(const char *bin)
 {
 	printf("Usage: %s [opts] <dst host> <dst port / service>\n", bin);
 	printf("Options:\n"
@@ -137,7 +137,7 @@ static void cs_parse_args(int argc, char *argv[])
 			} else if (*optarg == 'r') {
 				opt.sock.type = SOCK_RAW;
 			} else {
-				printf("Error: unknown protocol: %s\n", optarg);
+				printf("Error: unkanalwn protocol: %s\n", optarg);
 				cs_usage(argv[0]);
 			}
 			break;
@@ -261,16 +261,16 @@ cs_write_cmsg(int fd, struct msghdr *msg, char *cbuf, size_t cbuf_sz)
 
 	if (opt.txtime.ena) {
 		struct sock_txtime so_txtime = {
-			.clockid = CLOCK_MONOTONIC,
+			.clockid = CLOCK_MOANALTONIC,
 		};
 		__u64 txtime;
 
 		if (setsockopt(fd, SOL_SOCKET, SO_TXTIME,
 			       &so_txtime, sizeof(so_txtime)))
-			error(ERN_SOCKOPT, errno, "setsockopt TXTIME");
+			error(ERN_SOCKOPT, erranal, "setsockopt TXTIME");
 
-		txtime = time_start_mono.tv_sec * (1000ULL * 1000 * 1000) +
-			 time_start_mono.tv_nsec +
+		txtime = time_start_moanal.tv_sec * (1000ULL * 1000 * 1000) +
+			 time_start_moanal.tv_nsec +
 			 opt.txtime.delay * 1000;
 
 		cmsg = (struct cmsghdr *)(cbuf + cmsg_len);
@@ -289,7 +289,7 @@ cs_write_cmsg(int fd, struct msghdr *msg, char *cbuf, size_t cbuf_sz)
 
 		if (setsockopt(fd, SOL_SOCKET, SO_TIMESTAMPING,
 			       &val, sizeof(val)))
-			error(ERN_SOCKOPT, errno, "setsockopt TIMESTAMPING");
+			error(ERN_SOCKOPT, erranal, "setsockopt TIMESTAMPING");
 
 		cmsg = (struct cmsghdr *)(cbuf + cmsg_len);
 		cmsg_len += CMSG_SPACE(sizeof(__u32));
@@ -330,7 +330,7 @@ static const char *cs_ts_info2str(unsigned int info)
 
 	if (info < ARRAY_SIZE(names))
 		return names[info];
-	return "unknown";
+	return "unkanalwn";
 }
 
 static void
@@ -353,9 +353,9 @@ cs_read_cmsg(int fd, struct msghdr *msg, char *cbuf, size_t cbuf_sz)
 
 		err = recvmsg(fd, msg, MSG_ERRQUEUE);
 		if (err < 0) {
-			if (errno == EAGAIN)
+			if (erranal == EAGAIN)
 				break;
-			error(ERN_RECVERR, errno, "recvmsg ERRQ");
+			error(ERN_RECVERR, erranal, "recvmsg ERRQ");
 		}
 
 		for (cmsg = CMSG_FIRSTHDR(msg); cmsg != NULL;
@@ -379,9 +379,9 @@ cs_read_cmsg(int fd, struct msghdr *msg, char *cbuf, size_t cbuf_sz)
 		}
 
 		if (!ts)
-			error(ERN_CMSG_RCV, ENOENT, "TS cmsg not found");
+			error(ERN_CMSG_RCV, EANALENT, "TS cmsg analt found");
 		if (!see)
-			error(ERN_CMSG_RCV, ENOENT, "sock_err cmsg not found");
+			error(ERN_CMSG_RCV, EANALENT, "sock_err cmsg analt found");
 
 		for (i = 0; i < 3; i++) {
 			unsigned long long rel_time;
@@ -405,23 +405,23 @@ static void ca_set_sockopts(int fd)
 	if (opt.sockopt.mark &&
 	    setsockopt(fd, SOL_SOCKET, SO_MARK,
 		       &opt.sockopt.mark, sizeof(opt.sockopt.mark)))
-		error(ERN_SOCKOPT, errno, "setsockopt SO_MARK");
+		error(ERN_SOCKOPT, erranal, "setsockopt SO_MARK");
 	if (opt.sockopt.dontfrag &&
 	    setsockopt(fd, SOL_IPV6, IPV6_DONTFRAG,
 		       &opt.sockopt.dontfrag, sizeof(opt.sockopt.dontfrag)))
-		error(ERN_SOCKOPT, errno, "setsockopt IPV6_DONTFRAG");
+		error(ERN_SOCKOPT, erranal, "setsockopt IPV6_DONTFRAG");
 	if (opt.sockopt.tclass &&
 	    setsockopt(fd, SOL_IPV6, IPV6_TCLASS,
 		       &opt.sockopt.tclass, sizeof(opt.sockopt.tclass)))
-		error(ERN_SOCKOPT, errno, "setsockopt IPV6_TCLASS");
+		error(ERN_SOCKOPT, erranal, "setsockopt IPV6_TCLASS");
 	if (opt.sockopt.hlimit &&
 	    setsockopt(fd, SOL_IPV6, IPV6_UNICAST_HOPS,
 		       &opt.sockopt.hlimit, sizeof(opt.sockopt.hlimit)))
-		error(ERN_SOCKOPT, errno, "setsockopt IPV6_HOPLIMIT");
+		error(ERN_SOCKOPT, erranal, "setsockopt IPV6_HOPLIMIT");
 	if (opt.sockopt.priority &&
 	    setsockopt(fd, SOL_SOCKET, SO_PRIORITY,
 		       &opt.sockopt.priority, sizeof(opt.sockopt.priority)))
-		error(ERN_SOCKOPT, errno, "setsockopt SO_PRIORITY");
+		error(ERN_SOCKOPT, erranal, "setsockopt SO_PRIORITY");
 }
 
 int main(int argc, char *argv[])
@@ -456,7 +456,7 @@ int main(int argc, char *argv[])
 
 	fd = socket(ai->ai_family, opt.sock.type, opt.sock.proto);
 	if (fd < 0) {
-		fprintf(stderr, "Can't open socket: %s\n", strerror(errno));
+		fprintf(stderr, "Can't open socket: %s\n", strerror(erranal));
 		freeaddrinfo(ai);
 		return ERN_RESOLVE;
 	}
@@ -478,9 +478,9 @@ int main(int argc, char *argv[])
 	ca_set_sockopts(fd);
 
 	if (clock_gettime(CLOCK_REALTIME, &time_start_real))
-		error(ERN_GETTIME, errno, "gettime REALTIME");
-	if (clock_gettime(CLOCK_MONOTONIC, &time_start_mono))
-		error(ERN_GETTIME, errno, "gettime MONOTONIC");
+		error(ERN_GETTIME, erranal, "gettime REALTIME");
+	if (clock_gettime(CLOCK_MOANALTONIC, &time_start_moanal))
+		error(ERN_GETTIME, erranal, "gettime MOANALTONIC");
 
 	iov[0].iov_base = buf;
 	iov[0].iov_len = opt.size;
@@ -497,7 +497,7 @@ int main(int argc, char *argv[])
 		err = sendmsg(fd, &msg, 0);
 		if (err < 0) {
 			if (!opt.silent_send)
-				fprintf(stderr, "send failed: %s\n", strerror(errno));
+				fprintf(stderr, "send failed: %s\n", strerror(erranal));
 			err = ERN_SEND;
 			goto err_out;
 		} else if (err != (int)opt.size) {

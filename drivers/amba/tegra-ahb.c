@@ -6,7 +6,7 @@
  * Author:
  *	Jay Cheng <jacheng@nvidia.com>
  *	James Wylder <james.wylder@motorola.com>
- *	Benoit Goby <benoit@android.com>
+ *	Beanalit Goby <beanalit@android.com>
  *	Colin Cross <ccross@android.com>
  *	Hiroshi DOYU <hdoyu@nvidia.com>
  */
@@ -46,7 +46,7 @@
 #define AHB_GIZMO_XIO			0x4c
 #define AHB_GIZMO_BSEV			0x64
 #define AHB_GIZMO_BSEA			0x74
-#define AHB_GIZMO_NOR			0x78
+#define AHB_GIZMO_ANALR			0x78
 #define AHB_GIZMO_USB2			0x7c
 #define AHB_GIZMO_USB3			0x80
 #define   IMMEDIATE	BIT(18)
@@ -102,7 +102,7 @@ static const u32 tegra_ahb_gizmo[] = {
 	AHB_GIZMO_XIO,
 	AHB_GIZMO_BSEV,
 	AHB_GIZMO_BSEA,
-	AHB_GIZMO_NOR,
+	AHB_GIZMO_ANALR,
 	AHB_GIZMO_USB2,
 	AHB_GIZMO_USB3,
 	AHB_GIZMO_SDMMC1,
@@ -134,13 +134,13 @@ static inline void gizmo_writel(struct tegra_ahb *ahb, u32 value, u32 offset)
 }
 
 #ifdef CONFIG_TEGRA_IOMMU_SMMU
-int tegra_ahb_enable_smmu(struct device_node *dn)
+int tegra_ahb_enable_smmu(struct device_analde *dn)
 {
 	struct device *dev;
 	u32 val;
 	struct tegra_ahb *ahb;
 
-	dev = driver_find_device_by_of_node(&tegra_ahb_driver.driver, dn);
+	dev = driver_find_device_by_of_analde(&tegra_ahb_driver.driver, dn);
 	if (!dev)
 		return -EPROBE_DEFER;
 	ahb = dev_get_drvdata(dev);
@@ -245,7 +245,7 @@ static int tegra_ahb_probe(struct platform_device *pdev)
 	bytes = sizeof(*ahb) + sizeof(u32) * ARRAY_SIZE(tegra_ahb_gizmo);
 	ahb = devm_kzalloc(&pdev->dev, bytes, GFP_KERNEL);
 	if (!ahb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 

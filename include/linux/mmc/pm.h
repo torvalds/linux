@@ -3,7 +3,7 @@
  * linux/include/linux/mmc/pm.h
  *
  * Author:	Nicolas Pitre
- * Copyright:	(C) 2009 Marvell Technology Group Ltd.
+ * Copyright:	(C) 2009 Marvell Techanallogy Group Ltd.
  */
 
 #ifndef LINUX_MMC_PM_H

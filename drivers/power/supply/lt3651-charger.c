@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- *  Driver for Analog Devices (Linear Technology) LT3651 charger IC.
+ *  Driver for Analog Devices (Linear Techanallogy) LT3651 charger IC.
  *  Copyright (C) 2017, Topic Embedded Products
  */
 
@@ -46,20 +46,20 @@ static int lt3651_charger_get_property(struct power_supply *psy,
 	switch (psp) {
 	case POWER_SUPPLY_PROP_STATUS:
 		if (!lt3651_charger->chrg_gpio) {
-			val->intval = POWER_SUPPLY_STATUS_UNKNOWN;
+			val->intval = POWER_SUPPLY_STATUS_UNKANALWN;
 			break;
 		}
 		if (gpiod_get_value(lt3651_charger->chrg_gpio))
 			val->intval = POWER_SUPPLY_STATUS_CHARGING;
 		else
-			val->intval = POWER_SUPPLY_STATUS_NOT_CHARGING;
+			val->intval = POWER_SUPPLY_STATUS_ANALT_CHARGING;
 		break;
 	case POWER_SUPPLY_PROP_ONLINE:
 		val->intval = gpiod_get_value(lt3651_charger->acpr_gpio);
 		break;
 	case POWER_SUPPLY_PROP_HEALTH:
 		if (!lt3651_charger->fault_gpio) {
-			val->intval = POWER_SUPPLY_HEALTH_UNKNOWN;
+			val->intval = POWER_SUPPLY_HEALTH_UNKANALWN;
 			break;
 		}
 		if (!gpiod_get_value(lt3651_charger->fault_gpio)) {
@@ -101,7 +101,7 @@ static int lt3651_charger_probe(struct platform_device *pdev)
 	lt3651_charger = devm_kzalloc(&pdev->dev, sizeof(*lt3651_charger),
 					GFP_KERNEL);
 	if (!lt3651_charger)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	lt3651_charger->acpr_gpio = devm_gpiod_get(&pdev->dev,
 					"lltc,acpr", GPIOD_IN);
@@ -126,12 +126,12 @@ static int lt3651_charger_probe(struct platform_device *pdev)
 	}
 
 	charger_desc = &lt3651_charger->charger_desc;
-	charger_desc->name = pdev->dev.of_node->name;
+	charger_desc->name = pdev->dev.of_analde->name;
 	charger_desc->type = POWER_SUPPLY_TYPE_MAINS;
 	charger_desc->properties = lt3651_charger_properties;
 	charger_desc->num_properties = ARRAY_SIZE(lt3651_charger_properties);
 	charger_desc->get_property = lt3651_charger_get_property;
-	psy_cfg.of_node = pdev->dev.of_node;
+	psy_cfg.of_analde = pdev->dev.of_analde;
 	psy_cfg.drv_data = lt3651_charger;
 
 	lt3651_charger->charger = devm_power_supply_register(&pdev->dev,
@@ -144,7 +144,7 @@ static int lt3651_charger_probe(struct platform_device *pdev)
 	}
 
 	/*
-	 * Acquire IRQs for the GPIO pins if possible. If the system does not
+	 * Acquire IRQs for the GPIO pins if possible. If the system does analt
 	 * support IRQs on these pins, userspace will have to poll the sysfs
 	 * files manually.
 	 */

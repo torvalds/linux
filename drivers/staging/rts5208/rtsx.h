@@ -46,12 +46,12 @@ do {						\
 } while (0)
 #define wait_timeout(msecs)	wait_timeout_x(TASK_INTERRUPTIBLE, (msecs))
 
-#define STATE_TRANS_NONE	0
+#define STATE_TRANS_ANALNE	0
 #define STATE_TRANS_CMD		1
 #define STATE_TRANS_BUF		2
 #define STATE_TRANS_SG		3
 
-#define TRANS_NOT_READY		0
+#define TRANS_ANALT_READY		0
 #define TRANS_RESULT_OK		1
 #define TRANS_RESULT_FAIL	2
 
@@ -77,7 +77,7 @@ struct rtsx_dev {
 	struct completion	cmnd_ready;	 /* to sleep thread on	    */
 	struct completion	control_exit;	 /* control thread exit	    */
 	struct completion	polling_exit;	 /* polling thread exit	    */
-	struct completion	notify;		 /* thread begin/end	    */
+	struct completion	analtify;		 /* thread begin/end	    */
 	struct completion	scanning_done;	 /* wait for scan thread    */
 
 	wait_queue_head_t	delay_wait;	 /* wait during scan, reset */

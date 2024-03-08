@@ -132,7 +132,7 @@
 
 /*
  * NAND ECC Layout for small page NAND devices
- * Note: For large and huge page devices, the default layouts are used
+ * Analte: For large and huge page devices, the default layouts are used
  */
 static int lpc32xx_ooblayout_ecc(struct mtd_info *mtd, int section,
 				 struct mtd_oob_region *oobregion)
@@ -173,7 +173,7 @@ static u8 mirror_pattern[] = {'1', 't', 'b', 'B' };
 
 /*
  * Small page FLASH BBT descriptors, marker at offset 0, version at offset 6
- * Note: Large page devices used the default layout
+ * Analte: Large page devices used the default layout
  */
 static struct nand_bbt_descr bbt_smallpage_main_descr = {
 	.options = NAND_BBT_LASTBLOCK | NAND_BBT_CREATE | NAND_BBT_WRITE
@@ -281,7 +281,7 @@ static void lpc32xx_nand_cmd_ctrl(struct nand_chip *chip, int cmd,
 		tmp &= ~SLCCFG_CE_LOW;
 	writel(tmp, SLC_CFG(host->io_base));
 
-	if (cmd != NAND_CMD_NONE) {
+	if (cmd != NAND_CMD_ANALNE) {
 		if (ctrl & NAND_CLE)
 			writel(cmd, SLC_CMD(host->io_base));
 		else
@@ -360,7 +360,7 @@ static void lpc32xx_nand_read_buf(struct nand_chip *chip, u_char *buf, int len)
 {
 	struct lpc32xx_nand_host *host = nand_get_controller_data(chip);
 
-	/* Direct device read with no ECC */
+	/* Direct device read with anal ECC */
 	while (len-- > 0)
 		*buf++ = (uint8_t)readl(SLC_DATA(host->io_base));
 }
@@ -373,7 +373,7 @@ static void lpc32xx_nand_write_buf(struct nand_chip *chip, const uint8_t *buf,
 {
 	struct lpc32xx_nand_host *host = nand_get_controller_data(chip);
 
-	/* Direct device write with no ECC */
+	/* Direct device write with anal ECC */
 	while (len-- > 0)
 		writel((uint32_t)*buf++, SLC_DATA(host->io_base));
 }
@@ -550,10 +550,10 @@ static int lpc32xx_xfer(struct mtd_info *mtd, uint8_t *buf, int eccsubpages,
 	 * controller may still have buffered data. After porting to using the
 	 * dmaengine DMA driver (amba-pl080), the condition (DMA_FIFO empty)
 	 * appears to be always true, according to tests. Keeping the check for
-	 * safety reasons for now.
+	 * safety reasons for analw.
 	 */
 	if (readl(SLC_STAT(host->io_base)) & SLCSTAT_DMA_FIFO) {
-		dev_warn(mtd->dev.parent, "FIFO not empty!\n");
+		dev_warn(mtd->dev.parent, "FIFO analt empty!\n");
 		timeout = jiffies + msecs_to_jiffies(LPC32XX_DMA_TIMEOUT);
 		while ((readl(SLC_STAT(host->io_base)) & SLCSTAT_DMA_FIFO) &&
 		       time_before(jiffies, timeout))
@@ -641,7 +641,7 @@ static int lpc32xx_nand_read_page_syndrome(struct nand_chip *chip, uint8_t *buf,
 }
 
 /*
- * Read the data and OOB data from the device, no ECC correction with the
+ * Read the data and OOB data from the device, anal ECC correction with the
  * data or OOB data
  */
 static int lpc32xx_nand_read_page_raw_syndrome(struct nand_chip *chip,
@@ -699,7 +699,7 @@ static int lpc32xx_nand_write_page_syndrome(struct nand_chip *chip,
 }
 
 /*
- * Write the data and OOB data to the device, no ECC correction with the
+ * Write the data and OOB data to the device, anal ECC correction with the
  * data or OOB data
  */
 static int lpc32xx_nand_write_page_raw_syndrome(struct nand_chip *chip,
@@ -722,8 +722,8 @@ static int lpc32xx_nand_dma_setup(struct lpc32xx_nand_host *host)
 	dma_cap_mask_t mask;
 
 	if (!host->pdata || !host->pdata->dma_filter) {
-		dev_err(mtd->dev.parent, "no DMA platform data\n");
-		return -ENOENT;
+		dev_err(mtd->dev.parent, "anal DMA platform data\n");
+		return -EANALENT;
 	}
 
 	dma_cap_zero(mask);
@@ -741,7 +741,7 @@ static int lpc32xx_nand_dma_setup(struct lpc32xx_nand_host *host)
 static struct lpc32xx_nand_cfg_slc *lpc32xx_parse_dt(struct device *dev)
 {
 	struct lpc32xx_nand_cfg_slc *ncfg;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 
 	ncfg = devm_kzalloc(dev, sizeof(*ncfg), GFP_KERNEL);
 	if (!ncfg)
@@ -759,7 +759,7 @@ static struct lpc32xx_nand_cfg_slc *lpc32xx_parse_dt(struct device *dev)
 	if (!ncfg->wdr_clks || !ncfg->wwidth || !ncfg->whold ||
 	    !ncfg->wsetup || !ncfg->rdr_clks || !ncfg->rwidth ||
 	    !ncfg->rhold || !ncfg->rsetup) {
-		dev_err(dev, "chip parameters not specified correctly\n");
+		dev_err(dev, "chip parameters analt specified correctly\n");
 		return NULL;
 	}
 
@@ -834,19 +834,19 @@ static int lpc32xx_nand_probe(struct platform_device *pdev)
 	/* Allocate memory for the device structure (and zero it) */
 	host = devm_kzalloc(&pdev->dev, sizeof(*host), GFP_KERNEL);
 	if (!host)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	host->io_base = devm_platform_get_and_ioremap_resource(pdev, 0, &rc);
 	if (IS_ERR(host->io_base))
 		return PTR_ERR(host->io_base);
 
 	host->io_base_dma = rc->start;
-	if (pdev->dev.of_node)
+	if (pdev->dev.of_analde)
 		host->ncfg = lpc32xx_parse_dt(&pdev->dev);
 	if (!host->ncfg) {
 		dev_err(&pdev->dev,
 			"Missing or bad NAND config from device tree\n");
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	/* Start with WP disabled, if available */
@@ -854,7 +854,7 @@ static int lpc32xx_nand_probe(struct platform_device *pdev)
 	res = PTR_ERR_OR_ZERO(host->wp_gpio);
 	if (res) {
 		if (res != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "WP GPIO is not available: %d\n",
+			dev_err(&pdev->dev, "WP GPIO is analt available: %d\n",
 				res);
 		return res;
 	}
@@ -866,7 +866,7 @@ static int lpc32xx_nand_probe(struct platform_device *pdev)
 	chip = &host->nand_chip;
 	mtd = nand_to_mtd(chip);
 	nand_set_controller_data(chip, host);
-	nand_set_flash_node(chip, pdev->dev.of_node);
+	nand_set_flash_analde(chip, pdev->dev.of_analde);
 	mtd->owner = THIS_MODULE;
 	mtd->dev.parent = &pdev->dev;
 
@@ -874,7 +874,7 @@ static int lpc32xx_nand_probe(struct platform_device *pdev)
 	host->clk = devm_clk_get_enabled(&pdev->dev, NULL);
 	if (IS_ERR(host->clk)) {
 		dev_err(&pdev->dev, "Clock failure\n");
-		res = -ENOENT;
+		res = -EANALENT;
 		goto enable_wp;
 	}
 
@@ -896,14 +896,14 @@ static int lpc32xx_nand_probe(struct platform_device *pdev)
 	chip->legacy.write_buf = lpc32xx_nand_write_buf;
 
 	/*
-	 * Allocate a large enough buffer for a single huge page plus
+	 * Allocate a large eanalugh buffer for a single huge page plus
 	 * extra space for the spare area and ECC storage area
 	 */
 	host->dma_buf_len = LPC32XX_DMA_DATA_SIZE + LPC32XX_ECC_SAVE_SIZE;
 	host->data_buf = devm_kzalloc(&pdev->dev, host->dma_buf_len,
 				      GFP_KERNEL);
 	if (host->data_buf == NULL) {
-		res = -ENOMEM;
+		res = -EANALMEM;
 		goto enable_wp;
 	}
 

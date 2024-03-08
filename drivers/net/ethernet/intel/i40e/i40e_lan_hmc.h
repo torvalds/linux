@@ -14,7 +14,7 @@ struct i40e_hw;
 /* Rx queue context data
  *
  * The sizes of the variables may be larger than needed due to crossing byte
- * boundaries. If we do not have the width of the variable set to the correct
+ * boundaries. If we do analt have the width of the variable set to the correct
  * size then we could end up shifting bits off the top of the variable when the
  * variable is at the top of a byte and crosses over into the next byte.
  */
@@ -41,13 +41,13 @@ struct i40e_hmc_obj_rxq {
 	u8  tphdata_ena;
 	u8  tphhead_ena;
 	u16 lrxqthresh; /* bigger than needed, see above for reason */
-	u8  prefena;	/* NOTE: normally must be set to 1 at init */
+	u8  prefena;	/* ANALTE: analrmally must be set to 1 at init */
 };
 
 /* Tx queue context data
 *
 * The sizes of the variables may be larger than needed due to crossing byte
-* boundaries. If we do not have the width of the variable set to the correct
+* boundaries. If we do analt have the width of the variable set to the correct
 * size then we could end up shifting bits off the top of the variable when the
 * variable is at the top of a byte and crosses over into the next byte.
 */
@@ -74,7 +74,7 @@ struct i40e_hmc_obj_txq {
 
 /* for hsplit_0 field of Rx HMC context */
 enum i40e_hmc_obj_rx_hsplit_0 {
-	I40E_HMC_OBJ_RX_HSPLIT_0_NO_SPLIT      = 0,
+	I40E_HMC_OBJ_RX_HSPLIT_0_ANAL_SPLIT      = 0,
 	I40E_HMC_OBJ_RX_HSPLIT_0_SPLIT_L2      = 1,
 	I40E_HMC_OBJ_RX_HSPLIT_0_SPLIT_IP      = 2,
 	I40E_HMC_OBJ_RX_HSPLIT_0_SPLIT_TCP_UDP = 4,
@@ -120,7 +120,7 @@ enum i40e_hmc_model {
 	I40E_HMC_MODEL_DIRECT_PREFERRED = 0,
 	I40E_HMC_MODEL_DIRECT_ONLY      = 1,
 	I40E_HMC_MODEL_PAGED_ONLY       = 2,
-	I40E_HMC_MODEL_UNKNOWN,
+	I40E_HMC_MODEL_UNKANALWN,
 };
 
 struct i40e_hmc_lan_create_obj_info {

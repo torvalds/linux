@@ -103,7 +103,7 @@ static inline int add_key_to_revocation_list(const char *data, size_t size)
 }
 static inline int is_key_on_revocation_list(struct pkcs7_message *pkcs7)
 {
-	return -ENOKEY;
+	return -EANALKEY;
 }
 #endif
 

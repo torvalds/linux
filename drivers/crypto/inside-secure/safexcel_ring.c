@@ -24,7 +24,7 @@ int safexcel_init_ring_descriptors(struct safexcel_crypto_priv *priv,
 					cdr->offset * EIP197_DEFAULT_RING_SIZE,
 					&cdr->base_dma, GFP_KERNEL);
 	if (!cdr->base)
-		return -ENOMEM;
+		return -EANALMEM;
 	cdr->write = cdr->base;
 	cdr->base_end = cdr->base + cdr->offset * (EIP197_DEFAULT_RING_SIZE - 1);
 	cdr->read = cdr->base;
@@ -36,14 +36,14 @@ int safexcel_init_ring_descriptors(struct safexcel_crypto_priv *priv,
 					  EIP197_DEFAULT_RING_SIZE,
 					  &cdr->shbase_dma, GFP_KERNEL);
 	if (!cdr->shbase)
-		return -ENOMEM;
+		return -EANALMEM;
 	cdr->shwrite = cdr->shbase;
 	cdr->shbase_end = cdr->shbase + cdr->shoffset *
 					(EIP197_DEFAULT_RING_SIZE - 1);
 
 	/*
 	 * Populate command descriptors with physical pointers to shadow descs.
-	 * Note that we only need to do this once if we don't overwrite them.
+	 * Analte that we only need to do this once if we don't overwrite them.
 	 */
 	cdesc = cdr->base;
 	atok = cdr->shbase_dma;
@@ -61,7 +61,7 @@ int safexcel_init_ring_descriptors(struct safexcel_crypto_priv *priv,
 					rdr->offset * EIP197_DEFAULT_RING_SIZE,
 					&rdr->base_dma, GFP_KERNEL);
 	if (!rdr->base)
-		return -ENOMEM;
+		return -EANALMEM;
 	rdr->write = rdr->base;
 	rdr->base_end = rdr->base + rdr->offset  * (EIP197_DEFAULT_RING_SIZE - 1);
 	rdr->read = rdr->base;
@@ -86,7 +86,7 @@ static void *safexcel_ring_next_cwptr(struct safexcel_crypto_priv *priv,
 
 	if ((ring->write == ring->read - ring->offset) ||
 	    (ring->read == ring->base && ring->write == ring->base_end))
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	if (ring->write == ring->base_end) {
 		ring->write = ring->base;
@@ -110,7 +110,7 @@ static void *safexcel_ring_next_rwptr(struct safexcel_crypto_priv *priv,
 
 	if ((ring->write == ring->read - ring->offset) ||
 	    (ring->read == ring->base && ring->write == ring->base_end))
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	if (ring->write == ring->base_end)
 		ring->write = ring->base;
@@ -126,7 +126,7 @@ void *safexcel_ring_next_rptr(struct safexcel_crypto_priv *priv,
 	void *ptr = ring->read;
 
 	if (ring->write == ring->read)
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-EANALENT);
 
 	if (ring->read == ring->base_end)
 		ring->read = ring->base;
@@ -202,7 +202,7 @@ struct safexcel_command_desc *safexcel_add_cdesc(struct safexcel_crypto_priv *pr
 
 	if (first) {
 		/*
-		 * Note that the length here MUST be >0 or else the EIP(1)97
+		 * Analte that the length here MUST be >0 or else the EIP(1)97
 		 * may hang. Newer EIP197 firmware actually incorporates this
 		 * fix already, but that doesn't help the EIP97 and we may
 		 * also be running older firmware.
@@ -247,7 +247,7 @@ struct safexcel_result_desc *safexcel_add_rdesc(struct safexcel_crypto_priv *pri
 
 	/* Clear length in result token */
 	rtoken->packet_length = 0;
-	/* Assume errors - HW will clear if not the case */
+	/* Assume errors - HW will clear if analt the case */
 	rtoken->error_code = 0x7fff;
 
 	return rdesc;

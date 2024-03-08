@@ -30,14 +30,14 @@ MODULE_AUTHOR("Andrey Utkin <andrey.utkin@corp.bluecherry.net>");
 MODULE_LICENSE("GPL");
 
 /*
- * BEWARE OF KNOWN ISSUES WITH VIDEO QUALITY
+ * BEWARE OF KANALWN ISSUES WITH VIDEO QUALITY
  *
  * This driver was developed by Bluecherry LLC by deducing behaviour of
  * original manufacturer's driver, from both source code and execution traces.
- * It is known that there are some artifacts on output video with this driver:
- *  - on all known hardware samples: random pixels of wrong color (mostly
+ * It is kanalwn that there are some artifacts on output video with this driver:
+ *  - on all kanalwn hardware samples: random pixels of wrong color (mostly
  *    white, red or blue) appearing and disappearing on sequences of P-frames;
- *  - on some hardware samples (known with H.264 core version e006:2800):
+ *  - on some hardware samples (kanalwn with H.264 core version e006:2800):
  *    total madness on P-frames: blocks of wrong luminance; blocks of wrong
  *    colors "creeping" across the picture.
  * There is a workaround for both issues: avoid P-frames by setting GOP size
@@ -45,11 +45,11 @@ MODULE_LICENSE("GPL");
  *
  * v4l2-ctl --device /dev/videoX --set-ctrl=video_gop_size=1
  *
- * These issues are not decoding errors; all produced H.264 streams are decoded
- * properly. Streams without P-frames don't have these artifacts so it's not
- * analog-to-digital conversion issues nor internal memory errors; we conclude
+ * These issues are analt decoding errors; all produced H.264 streams are decoded
+ * properly. Streams without P-frames don't have these artifacts so it's analt
+ * analog-to-digital conversion issues analr internal memory errors; we conclude
  * it's internal H.264 encoder issues.
- * We cannot even check the original driver's behaviour because it has never
+ * We cananalt even check the original driver's behaviour because it has never
  * worked properly at all in our development environment. So these issues may
  * be actually related to firmware or hardware. However it may be that there's
  * just some more register settings missing in the driver which would please
@@ -66,7 +66,7 @@ MODULE_PARM_DESC(video_nr, "video devices numbers array");
 
 /*
  * Please add any new PCI IDs to: https://pci-ids.ucw.cz.  This keeps
- * the PCI ID database up to date.  Note that the entries must be
+ * the PCI ID database up to date.  Analte that the entries must be
  * added under vendor 0x1797 (Techwell Inc.) as subsystem IDs.
  */
 static const struct pci_device_id tw5864_pci_tbl[] = {
@@ -101,7 +101,7 @@ static irqreturn_t tw5864_isr(int irq, void *dev_id)
 	status = tw_readl(TW5864_INTR_STATUS_L) |
 		tw_readl(TW5864_INTR_STATUS_H) << 16;
 	if (!status)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	tw_writel(TW5864_INTR_CLR_L, 0xffff);
 	tw_writel(TW5864_INTR_CLR_H, 0xffff);
@@ -113,7 +113,7 @@ static irqreturn_t tw5864_isr(int irq, void *dev_id)
 		tw5864_timer_isr(dev);
 
 	if (!(status & (TW5864_INTR_TIMER | TW5864_INTR_VLC_DONE))) {
-		dev_dbg(&dev->pci->dev, "Unknown interrupt, status 0x%08X\n",
+		dev_dbg(&dev->pci->dev, "Unkanalwn interrupt, status 0x%08X\n",
 			status);
 	}
 
@@ -140,8 +140,8 @@ static void tw5864_h264_isr(struct tw5864_dev *dev)
 		cur_frame->checksum = tw_readl(TW5864_VLC_CRC_REG);
 		cur_frame->input = input;
 		cur_frame->timestamp = ktime_get_ns();
-		cur_frame->seqno = input->frame_seqno;
-		cur_frame->gop_seqno = input->frame_gop_seqno;
+		cur_frame->seqanal = input->frame_seqanal;
+		cur_frame->gop_seqanal = input->frame_gop_seqanal;
 
 		dev->h264_buf_w_index = next_frame_index;
 		tasklet_schedule(&dev->tasklet);
@@ -149,10 +149,10 @@ static void tw5864_h264_isr(struct tw5864_dev *dev)
 		cur_frame = next_frame;
 
 		spin_lock(&input->slock);
-		input->frame_seqno++;
-		input->frame_gop_seqno++;
-		if (input->frame_gop_seqno >= input->gop)
-			input->frame_gop_seqno = 0;
+		input->frame_seqanal++;
+		input->frame_gop_seqanal++;
+		if (input->frame_gop_seqanal >= input->gop)
+			input->frame_gop_seqanal = 0;
 		spin_unlock(&input->slock);
 	} else {
 		dev_err(&dev->pci->dev,
@@ -224,7 +224,7 @@ static void tw5864_timer_isr(struct tw5864_dev *dev)
 			break;
 		}
 
-		/* No new raw frame; check if channel is stuck */
+		/* Anal new raw frame; check if channel is stuck */
 		if (time_is_after_jiffies(input->new_frame_deadline)) {
 			/* If stuck, request new raw frames again */
 			tw_mask_shift_writel(TW5864_ENC_BUF_PTR_REC1, 0x3,
@@ -244,7 +244,7 @@ static int tw5864_initdev(struct pci_dev *pci_dev,
 
 	dev = devm_kzalloc(&pci_dev->dev, sizeof(*dev), GFP_KERNEL);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	snprintf(dev->name, sizeof(dev->name), "tw5864:%s", pci_name(pci_dev));
 
@@ -264,14 +264,14 @@ static int tw5864_initdev(struct pci_dev *pci_dev,
 
 	err = dma_set_mask(&pci_dev->dev, DMA_BIT_MASK(32));
 	if (err) {
-		dev_err(&dev->pci->dev, "32 bit PCI DMA is not supported\n");
+		dev_err(&dev->pci->dev, "32 bit PCI DMA is analt supported\n");
 		goto unreg_v4l2;
 	}
 
 	/* get mmio */
 	err = pcim_iomap_regions(pci_dev, BIT(0), dev->name);
 	if (err) {
-		dev_err(&dev->pci->dev, "Cannot request regions for MMIO\n");
+		dev_err(&dev->pci->dev, "Cananalt request regions for MMIO\n");
 		goto unreg_v4l2;
 	}
 	dev->mmio = pcim_iomap_table(pci_dev)[0];
@@ -296,7 +296,7 @@ static int tw5864_initdev(struct pci_dev *pci_dev,
 		goto fini_video;
 	}
 
-	dev_info(&pci_dev->dev, "Note: there are known video quality issues. For details\n");
+	dev_info(&pci_dev->dev, "Analte: there are kanalwn video quality issues. For details\n");
 	dev_info(&pci_dev->dev, "see the comment in drivers/media/pci/tw5864/tw5864-core.c.\n");
 
 	return 0;

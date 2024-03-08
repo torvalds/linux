@@ -104,7 +104,7 @@ static int rb4xx_transfer_one(struct spi_controller *host,
 	/*
 	 * Prime the SPI register with the SPI device selected. The m25p80 boot
 	 * flash and CPLD share the CS0 pin. This works because the CPLD's
-	 * command set was designed to almost not clash with that of the
+	 * command set was designed to almost analt clash with that of the
 	 * boot flash.
 	 */
 	if (spi_get_chipselect(spi, 0) == 2)
@@ -145,13 +145,13 @@ static int rb4xx_spi_probe(struct platform_device *pdev)
 
 	host = devm_spi_alloc_host(&pdev->dev, sizeof(*rbspi));
 	if (!host)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ahb_clk = devm_clk_get(&pdev->dev, "ahb");
 	if (IS_ERR(ahb_clk))
 		return PTR_ERR(ahb_clk);
 
-	host->dev.of_node = pdev->dev.of_node;
+	host->dev.of_analde = pdev->dev.of_analde;
 	host->bus_num = 0;
 	host->num_chipselect = 3;
 	host->mode_bits = SPI_TX_DUAL;

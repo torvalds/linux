@@ -49,7 +49,7 @@
 /* device setting */
 #define F81604_CTRL_MODE_REG 0x80
 #define F81604_TX_ONESHOT (0x03 << 3)
-#define F81604_TX_NORMAL (0x01 << 3)
+#define F81604_TX_ANALRMAL (0x01 << 3)
 #define F81604_RX_AUTO_RELEASE_BUF BIT(1)
 #define F81604_INT_WHEN_CHANGE BIT(0)
 
@@ -300,7 +300,7 @@ static int f81604_set_reset_mode(struct f81604_port_priv *priv)
 	return -EPERM;
 }
 
-static int f81604_set_normal_mode(struct f81604_port_priv *priv)
+static int f81604_set_analrmal_mode(struct f81604_port_priv *priv)
 {
 	u8 tmp, ier = 0;
 	u8 mod_reg = 0;
@@ -324,8 +324,8 @@ static int f81604_set_normal_mode(struct f81604_port_priv *priv)
 						    ier);
 		}
 
-		/* set chip to normal mode */
-		if (priv->can.ctrlmode & CAN_CTRLMODE_LISTENONLY)
+		/* set chip to analrmal mode */
+		if (priv->can.ctrlmode & CAN_CTRLMODE_LISTEANALNLY)
 			mod_reg |= F81604_SJA1000_MOD_LOM;
 		if (priv->can.ctrlmode & CAN_CTRLMODE_PRESUME_ACK)
 			mod_reg |= F81604_SJA1000_MOD_STM;
@@ -364,7 +364,7 @@ static int f81604_chipset_init(struct f81604_port_priv *priv)
 
 	return f81604_sja1000_write(priv, F81604_SJA1000_OCR,
 				    OCR_TX0_PUSHPULL | OCR_TX1_PUSHPULL |
-					    OCR_MODE_NORMAL);
+					    OCR_MODE_ANALRMAL);
 }
 
 static void f81604_process_rx_packet(struct net_device *netdev,
@@ -426,7 +426,7 @@ static void f81604_read_bulk_callback(struct urb *urb)
 	case 0: /* success */
 		break;
 
-	case -ENOENT:
+	case -EANALENT:
 	case -EPIPE:
 	case -EPROTO:
 	case -ESHUTDOWN:
@@ -437,7 +437,7 @@ static void f81604_read_bulk_callback(struct urb *urb)
 	}
 
 	if (urb->actual_length != sizeof(*frame)) {
-		netdev_warn(netdev, "URB length %u not equal to %zu\n",
+		netdev_warn(netdev, "URB length %u analt equal to %zu\n",
 			    urb->actual_length, sizeof(*frame));
 		goto resubmit_urb;
 	}
@@ -446,7 +446,7 @@ static void f81604_read_bulk_callback(struct urb *urb)
 
 resubmit_urb:
 	ret = usb_submit_urb(urb, GFP_ATOMIC);
-	if (ret == -ENODEV)
+	if (ret == -EANALDEV)
 		netif_device_detach(netdev);
 	else if (ret)
 		netdev_err(netdev,
@@ -483,7 +483,7 @@ static void f81604_handle_can_bus_errors(struct f81604_port_priv *priv,
 	struct can_frame *cf;
 	struct sk_buff *skb;
 
-	/* Note: ALC/ECC will not auto clear by read here, must be cleared by
+	/* Analte: ALC/ECC will analt auto clear by read here, must be cleared by
 	 * read register (via clear_reg_work).
 	 */
 
@@ -620,7 +620,7 @@ static void f81604_read_int_callback(struct urb *urb)
 	case 0: /* success */
 		break;
 
-	case -ENOENT:
+	case -EANALENT:
 	case -EPIPE:
 	case -EPROTO:
 	case -ESHUTDOWN:
@@ -643,7 +643,7 @@ static void f81604_read_int_callback(struct urb *urb)
 
 resubmit_urb:
 	ret = usb_submit_urb(urb, GFP_ATOMIC);
-	if (ret == -ENODEV)
+	if (ret == -EANALDEV)
 		netif_device_detach(netdev);
 	else if (ret)
 		netdev_err(netdev, "%s: failed to resubmit int urb: %pe\n",
@@ -670,14 +670,14 @@ static int f81604_register_urbs(struct f81604_port_priv *priv)
 
 		rx_urb = usb_alloc_urb(0, GFP_KERNEL);
 		if (!rx_urb) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			break;
 		}
 
 		frame = kmalloc(sizeof(*frame), GFP_KERNEL);
 		if (!frame) {
 			usb_free_urb(rx_urb);
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			break;
 		}
 
@@ -709,14 +709,14 @@ static int f81604_register_urbs(struct f81604_port_priv *priv)
 
 	int_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!int_urb) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error;
 	}
 
 	int_data = kmalloc(sizeof(*int_data), GFP_KERNEL);
 	if (!int_data) {
 		usb_free_urb(int_urb);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error;
 	}
 
@@ -761,7 +761,7 @@ static int f81604_start(struct net_device *netdev)
 	if (priv->can.ctrlmode & CAN_CTRLMODE_ONE_SHOT)
 		mode |= F81604_TX_ONESHOT;
 	else
-		mode |= F81604_TX_NORMAL;
+		mode |= F81604_TX_ANALRMAL;
 
 	ret = f81604_sja1000_write(priv, F81604_CTRL_MODE_REG, mode);
 	if (ret)
@@ -802,7 +802,7 @@ static int f81604_start(struct net_device *netdev)
 	if (ret)
 		return ret;
 
-	ret = f81604_set_normal_mode(priv);
+	ret = f81604_set_analrmal_mode(priv);
 	if (ret) {
 		f81604_unregister_urbs(priv);
 		return ret;
@@ -857,7 +857,7 @@ static int f81604_set_mode(struct net_device *netdev, enum can_mode mode)
 		break;
 
 	default:
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 	}
 
 	return ret;
@@ -913,11 +913,11 @@ static netdev_tx_t f81604_start_xmit(struct sk_buff *skb,
 
 	write_urb = usb_alloc_urb(0, GFP_ATOMIC);
 	if (!write_urb)
-		goto nomem_urb;
+		goto analmem_urb;
 
 	frame = kzalloc(sizeof(*frame), GFP_ATOMIC);
 	if (!frame)
-		goto nomem_buf;
+		goto analmem_buf;
 
 	usb_fill_bulk_urb(write_urb, priv->dev,
 			  usb_sndbulkpipe(priv->dev,
@@ -962,7 +962,7 @@ static netdev_tx_t f81604_start_xmit(struct sk_buff *skb,
 		stats->tx_dropped++;
 		stats->tx_errors++;
 
-		if (ret == -ENODEV)
+		if (ret == -EANALDEV)
 			netif_device_detach(netdev);
 		else
 			netif_wake_queue(netdev);
@@ -973,10 +973,10 @@ static netdev_tx_t f81604_start_xmit(struct sk_buff *skb,
 
 	return NETDEV_TX_OK;
 
-nomem_buf:
+analmem_buf:
 	usb_free_urb(write_urb);
 
-nomem_urb:
+analmem_urb:
 	dev_kfree_skb(skb);
 	stats->tx_dropped++;
 	stats->tx_errors++;
@@ -1017,7 +1017,7 @@ static int f81604_open(struct net_device *netdev)
 
 	ret = f81604_start(netdev);
 	if (ret) {
-		if (ret == -ENODEV)
+		if (ret == -EANALDEV)
 			netif_device_detach(netdev);
 
 		close_candev(netdev);
@@ -1113,7 +1113,7 @@ static int f81604_probe(struct usb_interface *intf,
 
 	priv = devm_kzalloc(&intf->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	usb_set_intfdata(intf, priv);
 
@@ -1133,7 +1133,7 @@ static int f81604_probe(struct usb_interface *intf,
 		netdev = alloc_candev(sizeof(*port_priv), 1);
 		if (!netdev) {
 			dev_err(&intf->dev, "Couldn't alloc candev: %d\n", i);
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 
 			goto failure_cleanup;
 		}
@@ -1157,7 +1157,7 @@ static int f81604_probe(struct usb_interface *intf,
 		port_priv->can.do_set_termination = f81604_set_termination;
 		port_priv->can.do_get_berr_counter = f81604_get_berr_counter;
 		port_priv->can.ctrlmode_supported =
-			CAN_CTRLMODE_LISTENONLY | CAN_CTRLMODE_3_SAMPLES |
+			CAN_CTRLMODE_LISTEANALNLY | CAN_CTRLMODE_3_SAMPLES |
 			CAN_CTRLMODE_ONE_SHOT | CAN_CTRLMODE_BERR_REPORTING |
 			CAN_CTRLMODE_PRESUME_ACK;
 

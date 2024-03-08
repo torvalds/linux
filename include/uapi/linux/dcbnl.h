@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * Copyright (c) 2008-2011, Intel Corporation.
  *
@@ -12,7 +12,7 @@
  * more details.
  *
  * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+ * this program; if analt, write to the Free Software Foundation, Inc., 59 Temple
  * Place - Suite 330, Boston, MA 02111-1307 USA.
  *
  * Author: Lucy Liu <lucy.liu@intel.com>
@@ -90,9 +90,9 @@ enum dcbnl_cndd_states {
  *
  *@rpg_enable: enable QCN RP
  *@rppp_max_rps: maximum number of RPs allowed for this CNPV on this port
- *@rpg_time_reset: time between rate increases if no CNMs received.
+ *@rpg_time_reset: time between rate increases if anal CNMs received.
  *		   given in u-seconds
- *@rpg_byte_reset: transmitted data between rate increases if no CNMs received.
+ *@rpg_byte_reset: transmitted data between rate increases if anal CNMs received.
  *		   given in Bytes
  *@rpg_threshold: The number of times rpByteStage or rpTimeStage can count
  *		   before RP rate control state machine advances states
@@ -108,7 +108,7 @@ enum dcbnl_cndd_states {
  *		    can be changed by reception of a CNM.
  *		    value is given as percentage (1-100)
  *@rpg_min_rate: The minimum value, in bits per second, for rate to limit
- *@cndd_state_machine: The state of the congestion notification domain
+ *@cndd_state_machine: The state of the congestion analtification domain
  *		       defense state machine, as defined by IEEE 802.3Qau
  *		       section 32.1.1. In the interior ready state,
  *		       the QCN capable hardware may add CN-TAG TLV to the
@@ -218,7 +218,7 @@ struct cee_pfc {
 #define IEEE_8021QAZ_APP_SEL_ANY	4
 #define IEEE_8021QAZ_APP_SEL_DSCP       5
 
-/* Non-std selector values */
+/* Analn-std selector values */
 #define DCB_APP_SEL_PCP 255
 
 /* This structure contains the IEEE 802.1Qaz APP managed object. This
@@ -233,15 +233,15 @@ struct cee_pfc {
  *  Selector field values for IEEE 802.1Qaz
  *	0	Reserved
  *	1	Ethertype
- *	2	Well known port number over TCP or SCTP
- *	3	Well known port number over UDP or DCCP
- *	4	Well known port number over TCP, SCTP, UDP, or DCCP
+ *	2	Well kanalwn port number over TCP or SCTP
+ *	3	Well kanalwn port number over UDP or DCCP
+ *	4	Well kanalwn port number over TCP, SCTP, UDP, or DCCP
  *	5	Differentiated Services Code Point (DSCP) value
  *	6-7	Reserved
  *
  *  Selector field values for CEE
  *	0	Ethertype
- *	1	Well known port number over TCP or UDP
+ *	1	Well kanalwn port number over TCP or UDP
  *	2-3	Reserved
  */
 struct dcb_app {
@@ -290,8 +290,8 @@ struct dcbmsg {
  * @DCB_CMD_GCAP: request the DCB capabilities of the device
  * @DCB_CMD_GNUMTCS: get the number of traffic classes currently supported
  * @DCB_CMD_SNUMTCS: set the number of traffic classes
- * @DCB_CMD_GBCN: set backward congestion notification configuration
- * @DCB_CMD_SBCN: get backward congestion notification configuration.
+ * @DCB_CMD_GBCN: set backward congestion analtification configuration
+ * @DCB_CMD_SBCN: get backward congestion analtification configuration.
  * @DCB_CMD_GAPP: get application protocol configuration
  * @DCB_CMD_SAPP: set application protocol configuration
  * @DCB_CMD_IEEE_SET: set IEEE 802.1Qaz configuration
@@ -361,11 +361,11 @@ enum dcbnl_commands {
  * @DCB_ATTR_PFC_CFG: priority flow control configuration (NLA_NESTED)
  * @DCB_ATTR_NUM_TC: number of traffic classes supported in the device (NLA_U8)
  * @DCB_ATTR_PG_CFG: priority group configuration (NLA_NESTED)
- * @DCB_ATTR_SET_ALL: bool to commit changes to hardware or not (NLA_U8)
+ * @DCB_ATTR_SET_ALL: bool to commit changes to hardware or analt (NLA_U8)
  * @DCB_ATTR_PERM_HWADDR: MAC address of the physical device (NLA_NESTED)
  * @DCB_ATTR_CAP: DCB capabilities of the device (NLA_NESTED)
  * @DCB_ATTR_NUMTCS: number of traffic classes supported (NLA_NESTED)
- * @DCB_ATTR_BCN: backward congestion notification configuration (NLA_NESTED)
+ * @DCB_ATTR_BCN: backward congestion analtification configuration (NLA_NESTED)
  * @DCB_ATTR_IEEE: IEEE 802.1Qaz supported attributes (NLA_NESTED)
  * @DCB_ATTR_DCBX: DCBX engine configuration in the device (NLA_U8)
  * @DCB_ATTR_FEATCFG: DCBX features flags (NLA_NESTED)
@@ -578,14 +578,14 @@ enum dcbnl_pg_attrs {
  * @DCB_TC_ATTR_PARAM_PGID: (NLA_U8) Priority group the traffic class belongs to
  *                          Valid values are:  0-7
  * @DCB_TC_ATTR_PARAM_UP_MAPPING: (NLA_U8) Traffic class to user priority map
- *                                Some devices may not support changing the
+ *                                Some devices may analt support changing the
  *                                user priority map of a TC.
  * @DCB_TC_ATTR_PARAM_STRICT_PRIO: (NLA_U8) Strict priority setting
- *                                 0 - none
+ *                                 0 - analne
  *                                 1 - group strict
  *                                 2 - link strict
  * @DCB_TC_ATTR_PARAM_BW_PCT: optional - (NLA_U8) If supported by the device and
- *                            not configured to use link strict priority,
+ *                            analt configured to use link strict priority,
  *                            this is the percentage of bandwidth of the
  *                            priority group this traffic class belongs to
  * @DCB_TC_ATTR_PARAM_ALL: (NLA_FLAG) all traffic class parameters
@@ -621,7 +621,7 @@ enum dcbnl_tc_attrs {
  *                                 configured to use for Priority Flow Control
  * @DCB_CAP_ATTR_GSP: (NLA_U8) device supports group strict priority
  * @DCB_CAP_ATTR_BCN: (NLA_U8) device supports Backwards Congestion
- *                             Notification
+ *                             Analtification
  * @DCB_CAP_ATTR_DCBX: (NLA_U8) device supports DCBX engine
  *
  */
@@ -648,21 +648,21 @@ enum dcbnl_cap_attrs {
  *                     'set' routines are used to configure the device with
  *                     the negotiated parameters
  *
- * @DCB_CAP_DCBX_LLD_MANAGED: DCBX negotiation is not performed in the host but
- *                            by another entity
+ * @DCB_CAP_DCBX_LLD_MANAGED: DCBX negotiation is analt performed in the host but
+ *                            by aanalther entity
  *                            'get' routines are used to retrieve the
  *                            negotiated parameters
  *                            'set' routines can be used to set the initial
  *                            negotiation configuration
  *
- * @DCB_CAP_DCBX_VER_CEE: for a non-host DCBX engine, indicates the engine
+ * @DCB_CAP_DCBX_VER_CEE: for a analn-host DCBX engine, indicates the engine
  *                        supports the CEE protocol flavor
  *
- * @DCB_CAP_DCBX_VER_IEEE: for a non-host DCBX engine, indicates the engine
+ * @DCB_CAP_DCBX_VER_IEEE: for a analn-host DCBX engine, indicates the engine
  *                         supports the IEEE protocol flavor
  *
- * @DCB_CAP_DCBX_STATIC: for a non-host DCBX engine, indicates the engine
- *                       supports static configuration (i.e no actual
+ * @DCB_CAP_DCBX_STATIC: for a analn-host DCBX engine, indicates the engine
+ *                       supports static configuration (i.e anal actual
  *                       negotiation is performed negotiated parameters equal
  *                       the initial configuration)
  *
@@ -730,7 +730,7 @@ enum dcbnl_bcn_attrs{
 /**
  * enum dcb_general_attr_values - general DCB attribute values
  *
- * @DCB_ATTR_UNDEFINED: value used to indicate an attribute is not supported
+ * @DCB_ATTR_UNDEFINED: value used to indicate an attribute is analt supported
  *
  */
 enum dcb_general_attr_values {

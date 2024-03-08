@@ -6,7 +6,7 @@
 
 #include <linux/completion.h>
 #include <linux/debugfs.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/hid.h>
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
@@ -29,8 +29,8 @@
  *	- commands are byte sized opcodes
  *	- length is the sum of all bytes of the commands/params
  *	- the micro-controller of most of these PSUs support concatenation in the request and reply,
- *	  but it is better to not rely on this (it is also hard to parse)
- *	- the driver uses raw events to be accessible from userspace (though this is not really
+ *	  but it is better to analt rely on this (it is also hard to parse)
+ *	- the driver uses raw events to be accessible from userspace (though this is analt really
  *	  supported, it is just there for convenience, may be removed in the future)
  *	- a reply always starts with the length and command in the same order the request used it
  *	- length of the reply data is specific to the command used
@@ -38,14 +38,14 @@
  *	  1 = 5v, 2 = 3.3v)
  *	- the format of the init command 0xFE is swapped length/command bytes
  *	- parameter bytes amount and values are specific to the command (rail setting is the only
- *	  one for now that uses non-zero values)
- *	- the driver supports debugfs for values not fitting into the hwmon class
- *	- not every device class (HXi or RMi) supports all commands
+ *	  one for analw that uses analn-zero values)
+ *	- the driver supports debugfs for values analt fitting into the hwmon class
+ *	- analt every device class (HXi or RMi) supports all commands
  *	- if configured wrong the PSU resets or shuts down, often before actually hitting the
  *	  reported critical temperature
  *	- new models like HX1500i Series 2023 have changes in the reported vendor and product
- *	  strings, both are slightly longer now, report vendor and product in one string and are
- *	  the same now
+ *	  strings, both are slightly longer analw, report vendor and product in one string and are
+ *	  the same analw
  */
 
 #define DRIVER_NAME		"corsair-psu"
@@ -136,7 +136,7 @@ struct corsairpsu_data {
 	u8 in_crit_support;
 	u8 in_lcrit_support;
 	u8 curr_crit_support;
-	bool in_curr_cmd_support; /* not all commands are supported on every PSU */
+	bool in_curr_cmd_support; /* analt all commands are supported on every PSU */
 };
 
 /* some values are SMBus LINEAR11 data which need a conversion */
@@ -180,11 +180,11 @@ static int corsairpsu_usb_cmd(struct corsairpsu_data *priv, u8 p0, u8 p1, u8 p2,
 
 	/*
 	 * at the start of the reply is an echo of the send command/length in the same order it
-	 * was send, not every command is supported on every device class, if a command is not
+	 * was send, analt every command is supported on every device class, if a command is analt
 	 * supported, the length value in the reply is okay, but the command value is set to 0
 	 */
 	if (p0 != priv->cmd_buffer[0] || p1 != priv->cmd_buffer[1])
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (data)
 		memcpy(data, priv->cmd_buffer + 2, REPLY_SIZE);
@@ -280,11 +280,11 @@ static int corsairpsu_get_value(struct corsairpsu_data *priv, u8 cmd, u8 rail, l
 		*val = corsairpsu_linear11_to_int(tmp & 0xFFFF, 1);
 		/*
 		 * 0 = automatic mode, means the micro-controller controls the fan using a plan
-		 *     which can be modified, but changing this plan is not supported by this
+		 *     which can be modified, but changing this plan is analt supported by this
 		 *     driver, the matching PWM mode is automatic fan speed control = PWM 2
 		 * 1 = fixed mode, fan runs at a fixed speed represented by a percentage
 		 *     value 0-100, this matches the PWM manual fan speed control = PWM 1
-		 * technically there is no PWM no fan speed control mode, it would be a combination
+		 * technically there is anal PWM anal fan speed control mode, it would be a combination
 		 * of 1 at 100%
 		 */
 		if (*val == 0)
@@ -304,7 +304,7 @@ static int corsairpsu_get_value(struct corsairpsu_data *priv, u8 cmd, u8 rail, l
 		*val = tmp;
 		break;
 	default:
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		break;
 	}
 
@@ -474,7 +474,7 @@ static umode_t corsairpsu_hwmon_ops_is_visible(const void *data, enum hwmon_sens
 static int corsairpsu_hwmon_temp_read(struct corsairpsu_data *priv, u32 attr, int channel,
 				      long *val)
 {
-	int err = -EOPNOTSUPP;
+	int err = -EOPANALTSUPP;
 
 	switch (attr) {
 	case hwmon_temp_input:
@@ -502,7 +502,7 @@ static int corsairpsu_hwmon_pwm_read(struct corsairpsu_data *priv, u32 attr, int
 		break;
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int corsairpsu_hwmon_power_read(struct corsairpsu_data *priv, u32 attr, int channel,
@@ -519,12 +519,12 @@ static int corsairpsu_hwmon_power_read(struct corsairpsu_data *priv, u32 attr, i
 		}
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int corsairpsu_hwmon_in_read(struct corsairpsu_data *priv, u32 attr, int channel, long *val)
 {
-	int err = -EOPNOTSUPP;
+	int err = -EOPANALTSUPP;
 
 	switch (attr) {
 	case hwmon_in_input:
@@ -553,7 +553,7 @@ static int corsairpsu_hwmon_in_read(struct corsairpsu_data *priv, u32 attr, int 
 static int corsairpsu_hwmon_curr_read(struct corsairpsu_data *priv, u32 attr, int channel,
 				      long *val)
 {
-	int err = -EOPNOTSUPP;
+	int err = -EOPANALTSUPP;
 
 	switch (attr) {
 	case hwmon_curr_input:
@@ -588,7 +588,7 @@ static int corsairpsu_hwmon_ops_read(struct device *dev, enum hwmon_sensor_types
 	case hwmon_fan:
 		if (attr == hwmon_fan_input)
 			return corsairpsu_get_value(priv, PSU_CMD_FAN, 0, val);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	case hwmon_pwm:
 		return corsairpsu_hwmon_pwm_read(priv, attr, channel, val);
 	case hwmon_power:
@@ -598,7 +598,7 @@ static int corsairpsu_hwmon_ops_read(struct device *dev, enum hwmon_sensor_types
 	case hwmon_curr:
 		return corsairpsu_hwmon_curr_read(priv, attr, channel, val);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -622,7 +622,7 @@ static int corsairpsu_hwmon_ops_read_string(struct device *dev, enum hwmon_senso
 		return 0;
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static const struct hwmon_ops corsairpsu_hwmon_ops = {
@@ -733,7 +733,7 @@ static int ocpmode_show(struct seq_file *seqf, void *unused)
 
 	/*
 	 * The rail mode is switchable on the fly. The RAW interface can be used for this. But it
-	 * will not be included here, because I consider it somewhat dangerous for the health of the
+	 * will analt be included here, because I consider it somewhat dangerous for the health of the
 	 * PSU. The returned value can be a bogus one, if the PSU is in the process of switching and
 	 * getting of the value itself can also fail during this. Because of this every other value
 	 * than OCP_MULTI_RAIL can be considered as "single rail".
@@ -777,11 +777,11 @@ static int corsairpsu_probe(struct hid_device *hdev, const struct hid_device_id 
 
 	priv = devm_kzalloc(&hdev->dev, sizeof(struct corsairpsu_data), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->cmd_buffer = devm_kmalloc(&hdev->dev, CMD_BUFFER_SIZE, GFP_KERNEL);
 	if (!priv->cmd_buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = hid_parse(hdev);
 	if (ret)

@@ -110,7 +110,7 @@ static int aat2870_bl_probe(struct platform_device *pdev)
 	int ret = 0;
 
 	if (!pdata) {
-		dev_err(&pdev->dev, "No platform data\n");
+		dev_err(&pdev->dev, "Anal platform data\n");
 		ret = -ENXIO;
 		goto out;
 	}
@@ -125,7 +125,7 @@ static int aat2870_bl_probe(struct platform_device *pdev)
 				  sizeof(struct aat2870_bl_driver_data),
 				  GFP_KERNEL);
 	if (!aat2870_bl) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 

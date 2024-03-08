@@ -66,7 +66,7 @@ enum __ccs_data_block_id {
 
 struct __ccs_data_block_version {
 	u8 static_data_version_major[2];
-	u8 static_data_version_minor[2];
+	u8 static_data_version_mianalr[2];
 	u8 year[2];
 	u8 month;
 	u8 day;

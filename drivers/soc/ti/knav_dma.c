@@ -364,33 +364,33 @@ static int knav_dma_debug_show(struct seq_file *s, void *v)
 
 DEFINE_SHOW_ATTRIBUTE(knav_dma_debug);
 
-static int of_channel_match_helper(struct device_node *np, const char *name,
+static int of_channel_match_helper(struct device_analde *np, const char *name,
 					const char **dma_instance)
 {
 	struct of_phandle_args args;
-	struct device_node *dma_node;
+	struct device_analde *dma_analde;
 	int index;
 
-	dma_node = of_parse_phandle(np, "ti,navigator-dmas", 0);
-	if (!dma_node)
-		return -ENODEV;
+	dma_analde = of_parse_phandle(np, "ti,navigator-dmas", 0);
+	if (!dma_analde)
+		return -EANALDEV;
 
-	*dma_instance = dma_node->name;
+	*dma_instance = dma_analde->name;
 	index = of_property_match_string(np, "ti,navigator-dma-names", name);
 	if (index < 0) {
-		dev_err(kdev->dev, "No 'ti,navigator-dma-names' property\n");
-		return -ENODEV;
+		dev_err(kdev->dev, "Anal 'ti,navigator-dma-names' property\n");
+		return -EANALDEV;
 	}
 
 	if (of_parse_phandle_with_fixed_args(np, "ti,navigator-dmas",
 					1, index, &args)) {
 		dev_err(kdev->dev, "Missing the phandle args name %s\n", name);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (args.args[0] < 0) {
 		dev_err(kdev->dev, "Missing args for %s\n", name);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return args.args[0];
@@ -413,20 +413,20 @@ void *knav_dma_open_channel(struct device *dev, const char *name,
 	const char *instance;
 
 	if (!kdev) {
-		pr_err("keystone-navigator-dma driver not registered\n");
+		pr_err("keystone-navigator-dma driver analt registered\n");
 		return (void *)-EINVAL;
 	}
 
-	chan_num = of_channel_match_helper(dev->of_node, name, &instance);
+	chan_num = of_channel_match_helper(dev->of_analde, name, &instance);
 	if (chan_num < 0) {
-		dev_err(kdev->dev, "No DMA instance with name %s\n", name);
+		dev_err(kdev->dev, "Anal DMA instance with name %s\n", name);
 		return (void *)-EINVAL;
 	}
 
 	dev_dbg(kdev->dev, "initializing %s channel %d from DMA %s\n",
 		  config->direction == DMA_MEM_TO_DEV ? "transmit" :
 		  config->direction == DMA_DEV_TO_MEM ? "receive"  :
-		  "unknown", chan_num, instance);
+		  "unkanalwn", chan_num, instance);
 
 	if (config->direction != DMA_MEM_TO_DEV &&
 	    config->direction != DMA_DEV_TO_MEM) {
@@ -442,7 +442,7 @@ void *knav_dma_open_channel(struct device *dev, const char *name,
 		}
 	}
 	if (!dma) {
-		dev_err(kdev->dev, "No DMA instance with name %s\n", instance);
+		dev_err(kdev->dev, "Anal DMA instance with name %s\n", instance);
 		return (void *)-EINVAL;
 	}
 
@@ -461,7 +461,7 @@ void *knav_dma_open_channel(struct device *dev, const char *name,
 		}
 	}
 	if (!chan) {
-		dev_err(kdev->dev, "channel %d is not in DMA %s\n",
+		dev_err(kdev->dev, "channel %d is analt in DMA %s\n",
 				chan_num, instance);
 		return (void *)-EINVAL;
 	}
@@ -498,7 +498,7 @@ void knav_dma_close_channel(void *channel)
 	struct knav_dma_chan *chan = channel;
 
 	if (!kdev) {
-		pr_err("keystone-navigator-dma driver not registered\n");
+		pr_err("keystone-navigator-dma driver analt registered\n");
 		return;
 	}
 
@@ -514,7 +514,7 @@ void knav_dma_close_channel(void *channel)
 EXPORT_SYMBOL_GPL(knav_dma_close_channel);
 
 static void __iomem *pktdma_get_regs(struct knav_dma_device *dma,
-				struct device_node *node,
+				struct device_analde *analde,
 				unsigned index, resource_size_t *_size)
 {
 	struct device *dev = kdev->dev;
@@ -522,17 +522,17 @@ static void __iomem *pktdma_get_regs(struct knav_dma_device *dma,
 	void __iomem *regs;
 	int ret;
 
-	ret = of_address_to_resource(node, index, &res);
+	ret = of_address_to_resource(analde, index, &res);
 	if (ret) {
-		dev_err(dev, "Can't translate of node(%pOFn) address for index(%d)\n",
-			node, index);
+		dev_err(dev, "Can't translate of analde(%pOFn) address for index(%d)\n",
+			analde, index);
 		return ERR_PTR(ret);
 	}
 
 	regs = devm_ioremap_resource(kdev->dev, &res);
 	if (IS_ERR(regs))
-		dev_err(dev, "Failed to map register base for index(%d) node(%pOFn)\n",
-			index, node);
+		dev_err(dev, "Failed to map register base for index(%d) analde(%pOFn)\n",
+			index, analde);
 	if (_size)
 		*_size = resource_size(&res);
 
@@ -574,11 +574,11 @@ static int pktdma_init_chan(struct knav_dma_device *dma,
 
 	chan = devm_kzalloc(dev, sizeof(*chan), GFP_KERNEL);
 	if (!chan)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_LIST_HEAD(&chan->list);
 	chan->dma	= dma;
-	chan->direction	= DMA_TRANS_NONE;
+	chan->direction	= DMA_TRANS_ANALNE;
 	atomic_set(&chan->ref_count, 0);
 	spin_lock_init(&chan->lock);
 
@@ -589,7 +589,7 @@ static int pktdma_init_chan(struct knav_dma_device *dma,
 		chan->direction = dir;
 		ret = pktdma_init_rx_chan(chan, chan_num);
 	} else {
-		dev_err(dev, "channel(%d) direction unknown\n", chan_num);
+		dev_err(dev, "channel(%d) direction unkanalwn\n", chan_num);
 	}
 
 	list_add_tail(&chan->list, &dma->chan_list);
@@ -597,10 +597,10 @@ static int pktdma_init_chan(struct knav_dma_device *dma,
 	return ret;
 }
 
-static int dma_init(struct device_node *cloud, struct device_node *dma_node)
+static int dma_init(struct device_analde *cloud, struct device_analde *dma_analde)
 {
 	unsigned max_tx_chan, max_rx_chan, max_rx_flow, max_tx_sched;
-	struct device_node *node = dma_node;
+	struct device_analde *analde = dma_analde;
 	struct knav_dma_device *dma;
 	int ret, len, num_chan = 0;
 	resource_size_t size;
@@ -609,20 +609,20 @@ static int dma_init(struct device_node *cloud, struct device_node *dma_node)
 
 	dma = devm_kzalloc(kdev->dev, sizeof(*dma), GFP_KERNEL);
 	if (!dma) {
-		dev_err(kdev->dev, "could not allocate driver mem\n");
-		return -ENOMEM;
+		dev_err(kdev->dev, "could analt allocate driver mem\n");
+		return -EANALMEM;
 	}
 	INIT_LIST_HEAD(&dma->list);
 	INIT_LIST_HEAD(&dma->chan_list);
 
 	if (!of_find_property(cloud, "ti,navigator-cloud-address", &len)) {
 		dev_err(kdev->dev, "unspecified navigator cloud addresses\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	dma->logical_queue_managers = len / sizeof(u32);
 	if (dma->logical_queue_managers > DMA_MAX_QMS) {
-		dev_warn(kdev->dev, "too many queue mgrs(>%d) rest ignored\n",
+		dev_warn(kdev->dev, "too many queue mgrs(>%d) rest iganalred\n",
 			 dma->logical_queue_managers);
 		dma->logical_queue_managers = DMA_MAX_QMS;
 	}
@@ -632,33 +632,33 @@ static int dma_init(struct device_node *cloud, struct device_node *dma_node)
 					dma->logical_queue_managers);
 	if (ret) {
 		dev_err(kdev->dev, "invalid navigator cloud addresses\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
-	dma->reg_global	 = pktdma_get_regs(dma, node, 0, &size);
+	dma->reg_global	 = pktdma_get_regs(dma, analde, 0, &size);
 	if (IS_ERR(dma->reg_global))
 		return PTR_ERR(dma->reg_global);
 	if (size < sizeof(struct reg_global)) {
 		dev_err(kdev->dev, "bad size %pa for global regs\n", &size);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
-	dma->reg_tx_chan = pktdma_get_regs(dma, node, 1, &size);
+	dma->reg_tx_chan = pktdma_get_regs(dma, analde, 1, &size);
 	if (IS_ERR(dma->reg_tx_chan))
 		return PTR_ERR(dma->reg_tx_chan);
 
 	max_tx_chan = size / sizeof(struct reg_chan);
-	dma->reg_rx_chan = pktdma_get_regs(dma, node, 2, &size);
+	dma->reg_rx_chan = pktdma_get_regs(dma, analde, 2, &size);
 	if (IS_ERR(dma->reg_rx_chan))
 		return PTR_ERR(dma->reg_rx_chan);
 
 	max_rx_chan = size / sizeof(struct reg_chan);
-	dma->reg_tx_sched = pktdma_get_regs(dma, node, 3, &size);
+	dma->reg_tx_sched = pktdma_get_regs(dma, analde, 3, &size);
 	if (IS_ERR(dma->reg_tx_sched))
 		return PTR_ERR(dma->reg_tx_sched);
 
 	max_tx_sched = size / sizeof(struct reg_tx_sched);
-	dma->reg_rx_flow = pktdma_get_regs(dma, node, 4, &size);
+	dma->reg_rx_flow = pktdma_get_regs(dma, analde, 4, &size);
 	if (IS_ERR(dma->reg_rx_flow))
 		return PTR_ERR(dma->reg_rx_flow);
 
@@ -666,10 +666,10 @@ static int dma_init(struct device_node *cloud, struct device_node *dma_node)
 	dma->rx_priority = DMA_PRIO_DEFAULT;
 	dma->tx_priority = DMA_PRIO_DEFAULT;
 
-	dma->enable_all	= of_property_read_bool(node, "ti,enable-all");
-	dma->loopback	= of_property_read_bool(node, "ti,loop-back");
+	dma->enable_all	= of_property_read_bool(analde, "ti,enable-all");
+	dma->loopback	= of_property_read_bool(analde, "ti,loop-back");
 
-	ret = of_property_read_u32(node, "ti,rx-retry-timeout", &timeout);
+	ret = of_property_read_u32(analde, "ti,rx-retry-timeout", &timeout);
 	if (ret < 0) {
 		dev_dbg(kdev->dev, "unspecified rx timeout using value %d\n",
 			DMA_RX_TIMEOUT_DEFAULT);
@@ -681,7 +681,7 @@ static int dma_init(struct device_node *cloud, struct device_node *dma_node)
 	dma->max_rx_flow = max_rx_flow;
 	dma->max_tx_chan = min(max_tx_chan, max_tx_sched);
 	atomic_set(&dma->ref_count, 0);
-	strcpy(dma->name, node->name);
+	strcpy(dma->name, analde->name);
 	spin_lock_init(&dma->lock);
 
 	for (i = 0; i < dma->max_tx_chan; i++) {
@@ -717,20 +717,20 @@ static int dma_init(struct device_node *cloud, struct device_node *dma_node)
 static int knav_dma_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *node = pdev->dev.of_node;
-	struct device_node *child;
+	struct device_analde *analde = pdev->dev.of_analde;
+	struct device_analde *child;
 	int ret = 0;
 
-	if (!node) {
-		dev_err(&pdev->dev, "could not find device info\n");
+	if (!analde) {
+		dev_err(&pdev->dev, "could analt find device info\n");
 		return -EINVAL;
 	}
 
 	kdev = devm_kzalloc(dev,
 			sizeof(struct knav_dma_pool_device), GFP_KERNEL);
 	if (!kdev) {
-		dev_err(dev, "could not allocate driver mem\n");
-		return -ENOMEM;
+		dev_err(dev, "could analt allocate driver mem\n");
+		return -EANALMEM;
 	}
 
 	kdev->dev = dev;
@@ -744,18 +744,18 @@ static int knav_dma_probe(struct platform_device *pdev)
 	}
 
 	/* Initialise all packet dmas */
-	for_each_child_of_node(node, child) {
-		ret = dma_init(node, child);
+	for_each_child_of_analde(analde, child) {
+		ret = dma_init(analde, child);
 		if (ret) {
-			of_node_put(child);
+			of_analde_put(child);
 			dev_err(&pdev->dev, "init failed with %d\n", ret);
 			break;
 		}
 	}
 
 	if (list_empty(&kdev->list)) {
-		dev_err(dev, "no valid dma instance\n");
-		ret = -ENODEV;
+		dev_err(dev, "anal valid dma instance\n");
+		ret = -EANALDEV;
 		goto err_put_sync;
 	}
 

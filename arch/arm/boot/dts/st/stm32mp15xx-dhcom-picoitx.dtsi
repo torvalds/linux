@@ -42,10 +42,10 @@
 
 &gpioa {
 	/*
-	 * NOTE: The USB Port on the PicoITX needs a PWR_EN signal to enable
+	 * ANALTE: The USB Port on the PicoITX needs a PWR_EN signal to enable
 	 * port power. This signal should be handled by USB power sequencing
 	 * in order to turn on port power when USB bus is powered up, but so
-	 * far there is no such functionality.
+	 * far there is anal such functionality.
 	 */
 	usb-port-power-hog {
 		gpio-hog;

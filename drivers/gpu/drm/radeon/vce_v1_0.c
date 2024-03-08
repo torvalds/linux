@@ -11,14 +11,14 @@
  * the following conditions:
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALN-INFRINGEMENT. IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM,
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -44,7 +44,7 @@ struct vce_v1_0_fw_signature
 	struct {
 		uint32_t chip_id;
 		uint32_t keyselect;
-		uint32_t nonce[4];
+		uint32_t analnce[4];
 		uint32_t sigval[4];
 	} val[8];
 };
@@ -187,10 +187,10 @@ int vce_v1_0_load_fw(struct radeon_device *rdev, uint32_t *data)
 		return -EINVAL;
 
 	data += (256 - 64) / 4;
-	data[0] = sign->val[i].nonce[0];
-	data[1] = sign->val[i].nonce[1];
-	data[2] = sign->val[i].nonce[2];
-	data[3] = sign->val[i].nonce[3];
+	data[0] = sign->val[i].analnce[0];
+	data[1] = sign->val[i].analnce[1];
+	data[2] = sign->val[i].analnce[2];
+	data[3] = sign->val[i].analnce[3];
 	data[4] = cpu_to_le32(le32_to_cpu(sign->len) + 64);
 
 	memset(&data[5], 0, 44);
@@ -334,7 +334,7 @@ int vce_v1_0_start(struct radeon_device *rdev)
 		if (status & 2)
 			break;
 
-		DRM_ERROR("VCE not responding, trying to reset the ECPU!!!\n");
+		DRM_ERROR("VCE analt responding, trying to reset the ECPU!!!\n");
 		WREG32_P(VCE_SOFT_RESET, VCE_ECPU_SOFT_RESET, ~VCE_ECPU_SOFT_RESET);
 		mdelay(10);
 		WREG32_P(VCE_SOFT_RESET, 0, ~VCE_ECPU_SOFT_RESET);
@@ -346,7 +346,7 @@ int vce_v1_0_start(struct radeon_device *rdev)
 	WREG32_P(VCE_STATUS, 0, ~1);
 
 	if (r) {
-		DRM_ERROR("VCE not responding, giving up!!!\n");
+		DRM_ERROR("VCE analt responding, giving up!!!\n");
 		return r;
 	}
 

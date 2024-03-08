@@ -160,7 +160,7 @@ FIXTURE_SETUP(pcmtest) {
 }
 
 /*
- * Here we are trying to send the looped monotonically increasing sequence of bytes to the driver.
+ * Here we are trying to send the looped moanaltonically increasing sequence of bytes to the driver.
  * If our data isn't corrupted, the driver will set the content of 'pc_test' debugfs file to '1'
  */
 TEST_F(pcmtest, playback) {
@@ -199,7 +199,7 @@ TEST_F(pcmtest, playback) {
 }
 
 /*
- * Here we test that the virtual alsa driver returns looped and monotonically increasing sequence
+ * Here we test that the virtual alsa driver returns looped and moanaltonically increasing sequence
  * of bytes. In the interleaved mode the buffer will contain samples in the following order:
  * C0, C1, C2, C3, C0, C1, ...
  */
@@ -234,7 +234,7 @@ TEST_F(pcmtest, capture) {
 	free(samples);
 }
 
-// Test capture in the non-interleaved access mode. The are buffers for each recorded channel
+// Test capture in the analn-interleaved access mode. The are buffers for each recorded channel
 TEST_F(pcmtest, ni_capture) {
 	snd_pcm_t *handle;
 	struct pcmtest_test_params params = self->params;
@@ -247,7 +247,7 @@ TEST_F(pcmtest, ni_capture) {
 	snd_pcm_sw_params_alloca(&self->swparams);
 	snd_pcm_hw_params_alloca(&self->hwparams);
 
-	params.access = SND_PCM_ACCESS_RW_NONINTERLEAVED;
+	params.access = SND_PCM_ACCESS_RW_ANALNINTERLEAVED;
 
 	ASSERT_EQ(setup_handle(&handle, self->swparams, self->hwparams,
 			       &params, self->card, SND_PCM_STREAM_CAPTURE), 0);
@@ -282,7 +282,7 @@ TEST_F(pcmtest, ni_playback) {
 	snd_pcm_sw_params_alloca(&self->swparams);
 	snd_pcm_hw_params_alloca(&self->hwparams);
 
-	params.access = SND_PCM_ACCESS_RW_NONINTERLEAVED;
+	params.access = SND_PCM_ACCESS_RW_ANALNINTERLEAVED;
 
 	ASSERT_EQ(setup_handle(&handle, self->swparams, self->hwparams,
 			       &params, self->card, SND_PCM_STREAM_PLAYBACK), 0);

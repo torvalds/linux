@@ -3,7 +3,7 @@
  * PIC32 watchdog driver
  *
  * Joshua Henderson <joshua.henderson@microchip.com>
- * Copyright (c) 2016, Microchip Technology Inc.
+ * Copyright (c) 2016, Microchip Techanallogy Inc.
  */
 #include <linux/clk.h>
 #include <linux/device.h>
@@ -120,10 +120,10 @@ static int pic32_wdt_stop(struct watchdog_device *wdd)
 	writel(WDTCON_ON, PIC32_CLR(wdt->regs + WDTCON_REG));
 
 	/*
-	 * Cannot touch registers in the CPU cycle following clearing the
+	 * Cananalt touch registers in the CPU cycle following clearing the
 	 * ON bit.
 	 */
-	nop();
+	analp();
 
 	return 0;
 }
@@ -170,7 +170,7 @@ static int pic32_wdt_drv_probe(struct platform_device *pdev)
 
 	wdt = devm_kzalloc(dev, sizeof(*wdt), GFP_KERNEL);
 	if (!wdt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wdt->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(wdt->regs))
@@ -178,17 +178,17 @@ static int pic32_wdt_drv_probe(struct platform_device *pdev)
 
 	wdt->rst_base = devm_ioremap(dev, PIC32_BASE_RESET, 0x10);
 	if (!wdt->rst_base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wdt->clk = devm_clk_get_enabled(dev, NULL);
 	if (IS_ERR(wdt->clk)) {
-		dev_err(dev, "clk not found\n");
+		dev_err(dev, "clk analt found\n");
 		return PTR_ERR(wdt->clk);
 	}
 
 	if (pic32_wdt_is_win_enabled(wdt)) {
-		dev_err(dev, "windowed-clear mode is not supported.\n");
-		return -ENODEV;
+		dev_err(dev, "windowed-clear mode is analt supported.\n");
+		return -EANALDEV;
 	}
 
 	wdd->timeout = pic32_wdt_get_timeout_secs(wdt, dev);
@@ -201,7 +201,7 @@ static int pic32_wdt_drv_probe(struct platform_device *pdev)
 
 	wdd->bootstatus = pic32_wdt_bootstatus(wdt) ? WDIOF_CARDRESET : 0;
 
-	watchdog_set_nowayout(wdd, WATCHDOG_NOWAYOUT);
+	watchdog_set_analwayout(wdd, WATCHDOG_ANALWAYOUT);
 	watchdog_set_drvdata(wdd, wdt);
 
 	ret = devm_watchdog_register_device(dev, wdd);

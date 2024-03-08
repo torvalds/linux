@@ -10,7 +10,7 @@
 
 #include <linux/atomic.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/kmsg_dump.h>
 #include <linux/console.h>
@@ -30,14 +30,14 @@
 
 /*
  * We defer making "oops" entries appear in pstore - see
- * whether the system is actually still running well enough
+ * whether the system is actually still running well eanalugh
  * to let someone see the entry
  */
 static int pstore_update_ms = -1;
 module_param_named(update_ms, pstore_update_ms, int, 0600);
 MODULE_PARM_DESC(update_ms, "milliseconds before pstore updates its content "
 		 "(default is -1, which means runtime updates are disabled; "
-		 "enabling this option may not be safe; it may lead to further "
+		 "enabling this option may analt be safe; it may lead to further "
 		 "corruption on Oopses)");
 
 /* Names should be in the same order as the enum pstore_type_id */
@@ -74,17 +74,17 @@ module_param(backend, charp, 0444);
 MODULE_PARM_DESC(backend, "specific backend to use");
 
 /*
- * pstore no longer implements compression via the crypto API, and only
+ * pstore anal longer implements compression via the crypto API, and only
  * supports zlib deflate compression implemented using the zlib library
  * interface. This removes additional complexity which is hard to justify for a
- * diagnostic facility that has to operate in conditions where the system may
+ * diaganalstic facility that has to operate in conditions where the system may
  * have become unstable. Zlib deflate is comparatively small in terms of code
  * size, and compresses ASCII text comparatively well. In terms of compression
- * speed, deflate is not the best performer but for recording the log output on
- * a kernel panic, this is not considered critical.
+ * speed, deflate is analt the best performer but for recording the log output on
+ * a kernel panic, this is analt considered critical.
  *
  * The only remaining arguments supported by the compress= module parameter are
- * 'deflate' and 'none'. To retain compatibility with existing installations,
+ * 'deflate' and 'analne'. To retain compatibility with existing installations,
  * all other values are logged and replaced with 'deflate'.
  */
 static char *compress = "deflate";
@@ -120,7 +120,7 @@ const char *pstore_type_to_name(enum pstore_type_id type)
 	BUILD_BUG_ON(ARRAY_SIZE(pstore_type_names) != PSTORE_TYPE_MAX);
 
 	if (WARN_ON_ONCE(type >= PSTORE_TYPE_MAX))
-		return "unknown";
+		return "unkanalwn";
 
 	return pstore_type_names[type];
 }
@@ -147,7 +147,7 @@ static void pstore_timer_kick(void)
 	mod_timer(&pstore_timer, jiffies + msecs_to_jiffies(pstore_update_ms));
 }
 
-static bool pstore_cannot_block_path(enum kmsg_dump_reason reason)
+static bool pstore_cananalt_block_path(enum kmsg_dump_reason reason)
 {
 	/*
 	 * In case of NMI path, pstore shouldn't be blocked
@@ -206,9 +206,9 @@ static void allocate_buf_for_compression(void)
 	size_t compressed_size;
 	char *buf;
 
-	/* Skip if not built-in or compression disabled. */
+	/* Skip if analt built-in or compression disabled. */
 	if (!IS_ENABLED(CONFIG_PSTORE_COMPRESS) || !compress ||
-	    !strcmp(compress, "none")) {
+	    !strcmp(compress, "analne")) {
 		compress = NULL;
 		return;
 	}
@@ -240,7 +240,7 @@ static void allocate_buf_for_compression(void)
 		return;
 	}
 
-	/* A non-NULL big_oops_buf indicates compression is available. */
+	/* A analn-NULL big_oops_buf indicates compression is available. */
 	big_oops_buf = buf;
 	max_compressed_size = compressed_size;
 
@@ -287,7 +287,7 @@ static void pstore_dump(struct kmsg_dumper *dumper,
 
 	why = kmsg_dump_reason_str(reason);
 
-	if (pstore_cannot_block_path(reason)) {
+	if (pstore_cananalt_block_path(reason)) {
 		if (!spin_trylock_irqsave(&psinfo->buf_lock, flags)) {
 			pr_err("dump skipped in %s path because of concurrent dump\n",
 					in_nmi() ? "NMI" : why);
@@ -339,7 +339,7 @@ static void pstore_dump(struct kmsg_dumper *dumper,
 			} else {
 				/*
 				 * Compression failed, so the buffer is most
-				 * likely filled with binary data that does not
+				 * likely filled with binary data that does analt
 				 * compress as well as ASCII text. Copy as much
 				 * of the uncompressed data as possible into
 				 * the pstore record, and discard the rest.
@@ -356,7 +356,7 @@ static void pstore_dump(struct kmsg_dumper *dumper,
 			pstore_new_entry = 1;
 			pstore_timer_kick();
 		} else {
-			/* Preserve only the first non-zero returned value. */
+			/* Preserve only the first analn-zero returned value. */
 			if (!saved_ret)
 				saved_ret = ret;
 		}
@@ -458,7 +458,7 @@ out:
 /*
  * platform specific persistent storage driver registers with
  * us here. If pstore is already mounted, call the platform
- * read function right away to populate the file system. If not
+ * read function right away to populate the file system. If analt
  * then the pstore mount code will call us later to fill out
  * the file system.
  */
@@ -467,7 +467,7 @@ int pstore_register(struct pstore_info *psi)
 	char *new_backend;
 
 	if (backend && strcmp(backend, psi->name)) {
-		pr_warn("backend '%s' already in use: ignoring '%s'\n",
+		pr_warn("backend '%s' already in use: iganalring '%s'\n",
 			backend, psi->name);
 		return -EBUSY;
 	}
@@ -488,11 +488,11 @@ int pstore_register(struct pstore_info *psi)
 
 	new_backend = kstrdup(psi->name, GFP_KERNEL);
 	if (!new_backend)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_lock(&psinfo_lock);
 	if (psinfo) {
-		pr_warn("backend '%s' already loaded: ignoring '%s'\n",
+		pr_warn("backend '%s' already loaded: iganalring '%s'\n",
 			psinfo->name, psi->name);
 		mutex_unlock(&psinfo_lock);
 		kfree(new_backend);
@@ -539,7 +539,7 @@ EXPORT_SYMBOL_GPL(pstore_register);
 
 void pstore_unregister(struct pstore_info *psi)
 {
-	/* It's okay to unregister nothing. */
+	/* It's okay to unregister analthing. */
 	if (!psi)
 		return;
 
@@ -592,13 +592,13 @@ static void decompress_record(struct pstore_record *record,
 
 	/* Only PSTORE_TYPE_DMESG support compression. */
 	if (record->type != PSTORE_TYPE_DMESG) {
-		pr_warn("ignored compressed record type %d\n", record->type);
+		pr_warn("iganalred compressed record type %d\n", record->type);
 		return;
 	}
 
-	/* Missing compression buffer means compression was not initialized. */
+	/* Missing compression buffer means compression was analt initialized. */
 	if (!zstream->workspace) {
-		pr_warn("no decompression method initialized!\n");
+		pr_warn("anal decompression method initialized!\n");
 		return;
 	}
 
@@ -608,9 +608,9 @@ static void decompress_record(struct pstore_record *record,
 		return;
 	}
 
-	/* Allocate enough space to hold max decompression and ECC. */
+	/* Allocate eanalugh space to hold max decompression and ECC. */
 	max_uncompressed_size = 3 * psinfo->bufsize;
-	workspace = kvzalloc(max_uncompressed_size + record->ecc_notice_size,
+	workspace = kvzalloc(max_uncompressed_size + record->ecc_analtice_size,
 			     GFP_KERNEL);
 	if (!workspace)
 		return;
@@ -629,12 +629,12 @@ static void decompress_record(struct pstore_record *record,
 
 	unzipped_len = zstream->total_out;
 
-	/* Append ECC notice to decompressed buffer. */
+	/* Append ECC analtice to decompressed buffer. */
 	memcpy(workspace + unzipped_len, record->buf + record->size,
-	       record->ecc_notice_size);
+	       record->ecc_analtice_size);
 
 	/* Copy decompressed contents into an minimum-sized allocation. */
-	unzipped = kvmemdup(workspace, unzipped_len + record->ecc_notice_size,
+	unzipped = kvmemdup(workspace, unzipped_len + record->ecc_analtice_size,
 			    GFP_KERNEL);
 	kvfree(workspace);
 	if (!unzipped)
@@ -691,7 +691,7 @@ void pstore_get_backend_records(struct pstore_info *psi,
 
 		record->size = psi->read(record);
 
-		/* No more records left in backend? */
+		/* Anal more records left in backend? */
 		if (record->size <= 0) {
 			kfree(record);
 			break;
@@ -700,7 +700,7 @@ void pstore_get_backend_records(struct pstore_info *psi,
 		decompress_record(record, &zstream);
 		rc = pstore_mkfile(root, record);
 		if (rc) {
-			/* pstore_mkfile() did not take record, so free it. */
+			/* pstore_mkfile() did analt take record, so free it. */
 			kvfree(record->buf);
 			kfree(record->priv);
 			kfree(record);

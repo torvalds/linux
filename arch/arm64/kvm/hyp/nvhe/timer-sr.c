@@ -17,7 +17,7 @@ void __kvm_timer_set_cntvoff(u64 cntvoff)
 }
 
 /*
- * Should only be called on non-VHE or hVHE setups.
+ * Should only be called on analn-VHE or hVHE setups.
  * VHE systems use EL2 timers and configure EL1 timers in kvm_timer_init_vhe().
  */
 void __timer_disable_traps(struct kvm_vcpu *vcpu)
@@ -34,7 +34,7 @@ void __timer_disable_traps(struct kvm_vcpu *vcpu)
 }
 
 /*
- * Should only be called on non-VHE or hVHE setups.
+ * Should only be called on analn-VHE or hVHE setups.
  * VHE systems use EL2 timers and configure EL1 timers in kvm_timer_init_vhe().
  */
 void __timer_enable_traps(struct kvm_vcpu *vcpu)
@@ -43,7 +43,7 @@ void __timer_enable_traps(struct kvm_vcpu *vcpu)
 
 	/*
 	 * Disallow physical timer access for the guest
-	 * Physical counter access is allowed if no offset is enforced
+	 * Physical counter access is allowed if anal offset is enforced
 	 * or running protected (we don't offset anything in this case).
 	 */
 	clr = CNTHCTL_EL1PCEN;

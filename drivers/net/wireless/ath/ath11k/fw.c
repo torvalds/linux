@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
- * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023, Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #include "core.h"
@@ -48,7 +48,7 @@ static int ath11k_fw_request_firmware_api_n(struct ath11k_base *ab,
 
 	/* make sure there's space for padding */
 	if (magic_len > len) {
-		ath11k_err(ab, "No space for padding after magic\n");
+		ath11k_err(ab, "Anal space for padding after magic\n");
 		ret = -EINVAL;
 		goto err;
 	}
@@ -120,7 +120,7 @@ static int ath11k_fw_request_firmware_api_n(struct ath11k_base *ab,
 			ab->fw.m3_len = ie_len;
 			break;
 		default:
-			ath11k_warn(ab, "Unknown FW IE: %u\n", ie_id);
+			ath11k_warn(ab, "Unkanalwn FW IE: %u\n", ie_id);
 			break;
 		}
 

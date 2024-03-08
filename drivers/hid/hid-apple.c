@@ -27,17 +27,17 @@
 #include "hid-ids.h"
 
 #define APPLE_RDESC_JIS		BIT(0)
-#define APPLE_IGNORE_MOUSE	BIT(1)
+#define APPLE_IGANALRE_MOUSE	BIT(1)
 #define APPLE_HAS_FN		BIT(2)
 /* BIT(3) reserved, was: APPLE_HIDDEV */
 #define APPLE_ISO_TILDE_QUIRK	BIT(4)
 #define APPLE_MIGHTYMOUSE	BIT(5)
 #define APPLE_INVERT_HWHEEL	BIT(6)
-/* BIT(7) reserved, was: APPLE_IGNORE_HIDINPUT */
+/* BIT(7) reserved, was: APPLE_IGANALRE_HIDINPUT */
 #define APPLE_NUMLOCK_EMULATION	BIT(8)
 #define APPLE_RDESC_BATTERY	BIT(9)
 #define APPLE_BACKLIGHT_CTL	BIT(10)
-#define APPLE_IS_NON_APPLE	BIT(11)
+#define APPLE_IS_ANALN_APPLE	BIT(11)
 
 #define APPLE_FLAG_FKEY		0x01
 
@@ -64,7 +64,7 @@ static unsigned int swap_ctrl_cmd;
 module_param(swap_ctrl_cmd, uint, 0644);
 MODULE_PARM_DESC(swap_ctrl_cmd, "Swap the Control (\"Ctrl\") and Command (\"Flag\") keys. "
 		"(For people who are used to Mac shortcuts involving Command instead of Control. "
-		"[0] = No change. 1 = Swapped.)");
+		"[0] = Anal change. 1 = Swapped.)");
 
 static unsigned int swap_fn_leftctrl;
 module_param(swap_fn_leftctrl, uint, 0644);
@@ -72,7 +72,7 @@ MODULE_PARM_DESC(swap_fn_leftctrl, "Swap the Fn and left Control keys. "
 		"(For people who want to keep PC keyboard muscle memory. "
 		"[0] = as-is, Mac layout, 1 = swapped, PC layout)");
 
-struct apple_non_apple_keyboard {
+struct apple_analn_apple_keyboard {
 	char *name;
 };
 
@@ -196,7 +196,7 @@ static const struct apple_key_translation macbookair_fn_keys[] = {
 	{ }
 };
 
-static const struct apple_key_translation macbookpro_no_esc_fn_keys[] = {
+static const struct apple_key_translation macbookpro_anal_esc_fn_keys[] = {
 	{ KEY_BACKSPACE, KEY_DELETE },
 	{ KEY_ENTER,	KEY_INSERT },
 	{ KEY_GRAVE,	KEY_ESC },
@@ -339,7 +339,7 @@ static const struct apple_key_translation swapped_fn_leftctrl_keys[] = {
 	{ }
 };
 
-static const struct apple_non_apple_keyboard non_apple_keyboards[] = {
+static const struct apple_analn_apple_keyboard analn_apple_keyboards[] = {
 	{ "SONiX USB DEVICE" },
 	{ "Keychron" },
 	{ "AONE" },
@@ -351,14 +351,14 @@ static const struct apple_non_apple_keyboard non_apple_keyboards[] = {
 	{ "WKB603" },
 };
 
-static bool apple_is_non_apple_keyboard(struct hid_device *hdev)
+static bool apple_is_analn_apple_keyboard(struct hid_device *hdev)
 {
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(non_apple_keyboards); i++) {
-		char *non_apple = non_apple_keyboards[i].name;
+	for (i = 0; i < ARRAY_SIZE(analn_apple_keyboards); i++) {
+		char *analn_apple = analn_apple_keyboards[i].name;
 
-		if (strncmp(hdev->name, non_apple, strlen(non_apple)) == 0)
+		if (strncmp(hdev->name, analn_apple, strlen(analn_apple)) == 0)
 			return true;
 	}
 
@@ -406,7 +406,7 @@ static int hidinput_apple_event(struct hid_device *hid, struct input_dev *input,
 	unsigned int real_fnmode;
 
 	if (fnmode == 3) {
-		real_fnmode = (asc->quirks & APPLE_IS_NON_APPLE) ? 2 : 1;
+		real_fnmode = (asc->quirks & APPLE_IS_ANALN_APPLE) ? 2 : 1;
 	} else {
 		real_fnmode = fnmode;
 	}
@@ -467,7 +467,7 @@ static int hidinput_apple_event(struct hid_device *hid, struct input_dev *input,
 		else if (hid->product == USB_DEVICE_ID_APPLE_WELLSPRINGT2_J132 ||
 			 hid->product == USB_DEVICE_ID_APPLE_WELLSPRINGT2_J680 ||
 			 hid->product == USB_DEVICE_ID_APPLE_WELLSPRINGT2_J213)
-				table = macbookpro_no_esc_fn_keys;
+				table = macbookpro_anal_esc_fn_keys;
 		else if (hid->product == USB_DEVICE_ID_APPLE_WELLSPRINGT2_J214K ||
 			 hid->product == USB_DEVICE_ID_APPLE_WELLSPRINGT2_J223 ||
 			 hid->product == USB_DEVICE_ID_APPLE_WELLSPRINGT2_J152F)
@@ -663,7 +663,7 @@ static void apple_setup_input(struct input_dev *input)
 	apple_setup_key_translation(input, magic_keyboard_alu_fn_keys);
 	apple_setup_key_translation(input, magic_keyboard_2015_fn_keys);
 	apple_setup_key_translation(input, apple2021_fn_keys);
-	apple_setup_key_translation(input, macbookpro_no_esc_fn_keys);
+	apple_setup_key_translation(input, macbookpro_anal_esc_fn_keys);
 	apple_setup_key_translation(input, macbookpro_dedicated_esc_fn_keys);
 }
 
@@ -684,7 +684,7 @@ static int apple_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 		return 1;
 	}
 
-	/* we want the hid layer to go through standard path (set and ignore) */
+	/* we want the hid layer to go through standard path (set and iganalre) */
 	return 0;
 }
 
@@ -712,13 +712,13 @@ static int apple_input_configured(struct hid_device *hdev,
 	struct apple_sc *asc = hid_get_drvdata(hdev);
 
 	if ((asc->quirks & APPLE_HAS_FN) && !asc->fn_found) {
-		hid_info(hdev, "Fn key not found (Apple Wireless Keyboard clone?), disabling Fn key handling\n");
+		hid_info(hdev, "Fn key analt found (Apple Wireless Keyboard clone?), disabling Fn key handling\n");
 		asc->quirks &= ~APPLE_HAS_FN;
 	}
 
-	if (apple_is_non_apple_keyboard(hdev)) {
-		hid_info(hdev, "Non-apple keyboard detected; function keys will default to fnmode=2 behavior\n");
-		asc->quirks |= APPLE_IS_NON_APPLE;
+	if (apple_is_analn_apple_keyboard(hdev)) {
+		hid_info(hdev, "Analn-apple keyboard detected; function keys will default to fnmode=2 behavior\n");
+		asc->quirks |= APPLE_IS_ANALN_APPLE;
 	}
 
 	return 0;
@@ -748,7 +748,7 @@ static int apple_backlight_set(struct hid_device *hdev, u16 value, u16 rate)
 
 	rep = kmalloc(sizeof(*rep), GFP_KERNEL);
 	if (rep == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rep->report_id = 0xB0;
 	rep->version = 1;
@@ -782,7 +782,7 @@ static int apple_backlight_init(struct hid_device *hdev)
 
 	rep = kmalloc(0x200, GFP_KERNEL);
 	if (rep == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = hid_hw_raw_request(hdev, 0xBFu, (u8 *) rep, sizeof(*rep),
 				 HID_FEATURE_REPORT, HID_REQ_GET_REPORT);
@@ -801,7 +801,7 @@ static int apple_backlight_init(struct hid_device *hdev)
 
 	asc->backlight = devm_kzalloc(&hdev->dev, sizeof(*asc->backlight), GFP_KERNEL);
 	if (!asc->backlight) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto cleanup_and_exit;
 	}
 
@@ -833,7 +833,7 @@ static int apple_probe(struct hid_device *hdev,
 	asc = devm_kzalloc(&hdev->dev, sizeof(*asc), GFP_KERNEL);
 	if (asc == NULL) {
 		hid_err(hdev, "can't alloc apple descriptor\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	asc->hdev = hdev;

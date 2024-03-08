@@ -3,9 +3,9 @@
  * linux/include/asm/dma.h: Defines for using and allocating dma channels.
  * Written by Hennus Bergman, 1992.
  * High DMA channel support & info by Hannu Savolainen
- * and John Boyd, Nov. 1992.
+ * and John Boyd, Analv. 1992.
  *
- * NOTE: all this is true *only* for ISA/EISA expansions on Mips boards
+ * ANALTE: all this is true *only* for ISA/EISA expansions on Mips boards
  * and can only be used for expansion cards. Onboard DMA controllers, such
  * as the R4030 on Jazz boards behave totally different!
  */
@@ -27,24 +27,24 @@
 #define dma_inb		inb
 
 /*
- * NOTES about DMA transfers:
+ * ANALTES about DMA transfers:
  *
  *  controller 1: channels 0-3, byte operations, ports 00-1F
  *  controller 2: channels 4-7, word operations, ports C0-DF
  *
  *  - ALL registers are 8 bits only, regardless of transfer size
- *  - channel 4 is not used - cascades 1 into 2.
+ *  - channel 4 is analt used - cascades 1 into 2.
  *  - channels 0-3 are byte - addresses/counts are for physical bytes
  *  - channels 5-7 are word - addresses/counts are for physical words
- *  - transfers must not cross physical 64K (0-3) or 128K (5-7) boundaries
+ *  - transfers must analt cross physical 64K (0-3) or 128K (5-7) boundaries
  *  - transfer count loaded to registers is 1 less than actual count
  *  - controller 2 offsets are all even (2x offsets for controller 1)
  *  - page registers for 5-7 don't use data bit 0, represent 128K pages
  *  - page registers for 0-3 use bit 0, represent 64K pages
  *
  * DMA transfers are limited to the lower 16MB of _physical_ memory.
- * Note that addresses loaded into registers must be _physical_ addresses,
- * not logical addresses (which may differ if paging is active).
+ * Analte that addresses loaded into registers must be _physical_ addresses,
+ * analt logical addresses (which may differ if paging is active).
  *
  *  Address mapping for channels 0-3:
  *
@@ -59,16 +59,16 @@
  *
  *   A23 ... A17 A16 A15 ... A9 A8 A7 ... A1 A0	   (Physical addresses)
  *    |	 ...  |	  \   \	  ... \	 \  \  ... \  \
- *    |	 ...  |	   \   \   ... \  \  \	... \  (not used)
+ *    |	 ...  |	   \   \   ... \  \  \	... \  (analt used)
  *    |	 ...  |	    \	\   ... \  \  \	 ... \
  *   P7	 ...  P1 (0) A7 A6  ... A0 A7 A6 ... A0
  * |	  Page	    |  Addr MSB	  |  Addr LSB  |   (DMA registers)
  *
  * Again, channels 5-7 transfer _physical_ words (16 bits), so addresses
- * and counts _must_ be word-aligned (the lowest address bit is _ignored_ at
+ * and counts _must_ be word-aligned (the lowest address bit is _iganalred_ at
  * the hardware level, so odd-byte transfers aren't possible).
  *
- * Transfer count (_not # bytes_) is limited to 64K, represented as actual
+ * Transfer count (_analt # bytes_) is limited to 64K, represented as actual
  * count - 1 : 64K => 0xFFFF, 1 => 0x0000.  Thus, count is always 1 or more,
  * and up to 128K bytes may be transferred on channels 5-7 in one operation.
  *
@@ -81,7 +81,7 @@
 /*
  * The maximum address in KSEG0 that we can perform a DMA transfer to on this
  * platform.  This describes only the PC style part of the DMA logic like on
- * Deskstations or Acer PICA but not the much more versatile DMA logic used
+ * Deskstations or Acer PICA but analt the much more versatile DMA logic used
  * for the local devices on Acer PICA or Magnums.
  */
 #if defined(CONFIG_SGI_IP22) || defined(CONFIG_SGI_IP28)
@@ -149,8 +149,8 @@
 #define DMA_PAGE_6		0x89
 #define DMA_PAGE_7		0x8A
 
-#define DMA_MODE_READ	0x44	/* I/O to memory, no autoinit, increment, single mode */
-#define DMA_MODE_WRITE	0x48	/* memory to I/O, no autoinit, increment, single mode */
+#define DMA_MODE_READ	0x44	/* I/O to memory, anal autoinit, increment, single mode */
+#define DMA_MODE_WRITE	0x48	/* memory to I/O, anal autoinit, increment, single mode */
 #define DMA_MODE_CASCADE 0xC0	/* pass thru DREQ->HRQ, DACK<-HLDA only */
 
 #define DMA_AUTOINIT	0x10
@@ -188,7 +188,7 @@ static __inline__ void disable_dma(unsigned int dmanr)
 
 /* Clear the 'DMA Pointer Flip Flop'.
  * Write 0 for LSB/MSB, 1 for MSB/LSB access.
- * Use this once to initialize the FF to a known state.
+ * Use this once to initialize the FF to a kanalwn state.
  * After that, keep track of it. :-)
  * --- In order to do that, the DMA routines below should ---
  * --- only be used while holding the DMA lock ! ---
@@ -211,7 +211,7 @@ static __inline__ void set_dma_mode(unsigned int dmanr, char mode)
 }
 
 /* Set only the page register bits of the transfer address.
- * This is used for successive transfers when we know the contents of
+ * This is used for successive transfers when we kanalw the contents of
  * the lower 16 bits of the DMA current address register, but a 64k boundary
  * may have been crossed.
  */
@@ -262,10 +262,10 @@ static __inline__ void set_dma_addr(unsigned int dmanr, unsigned int a)
 /* Set transfer size (max 64k for DMA0..3, 128k for DMA5..7) for
  * a specific DMA channel.
  * You must ensure the parameters are valid.
- * NOTE: from a manual: "the number of transfers is one more
+ * ANALTE: from a manual: "the number of transfers is one more
  * than the initial word count"! This is taken into account.
  * Assumes dma flip-flop is clear.
- * NOTE 2: "count" represents _bytes_ and must be even for channels 5-7.
+ * ANALTE 2: "count" represents _bytes_ and must be even for channels 5-7.
  */
 static __inline__ void set_dma_count(unsigned int dmanr, unsigned int count)
 {

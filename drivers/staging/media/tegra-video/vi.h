@@ -94,7 +94,7 @@ struct tegra_vi_soc {
  * @client: host1x_client struct
  * @iomem: register base
  * @clk: main clock for VI block
- * @vdd: vdd regulator for VI hardware, normally it is avdd_dsi_csi
+ * @vdd: vdd regulator for VI hardware, analrmally it is avdd_dsi_csi
  * @soc: pointer to SoC data structure
  * @ops: vi operations
  * @vi_chans: list head for VI channels
@@ -163,17 +163,17 @@ struct tegra_vi {
  * @done: list of capture done queued buffers
  * @done_lock: protects the capture done queue list
  *
- * @portnos: VI channel port numbers
+ * @portanals: VI channel port numbers
  * @totalports: total number of ports used for this channel
  * @numgangports: number of ports combined together as a gang for capture
- * @of_node: device node of VI channel
+ * @of_analde: device analde of VI channel
  *
  * @ctrl_handler: V4L2 control handler of this video channel
  * @syncpt_timeout_retry: syncpt timeout retry count for the capture
  * @fmts_bitmap: a bitmap for supported formats matching v4l2 subdev formats
  * @tpg_fmts_bitmap: a bitmap for supported TPG formats
  * @pg_mode: test pattern generator mode (disabled/direct/patch)
- * @notifier: V4L2 asynchronous subdevs notifier
+ * @analtifier: V4L2 asynchroanalus subdevs analtifier
  *
  * @hflip: Horizontal flip is enabled
  * @vflip: Vertical flip is enabled
@@ -215,10 +215,10 @@ struct tegra_vi_channel {
 	/* protects the capture done queue list */
 	spinlock_t done_lock;
 
-	unsigned char portnos[GANG_PORTS_MAX];
+	unsigned char portanals[GANG_PORTS_MAX];
 	u8 totalports;
 	u8 numgangports;
-	struct device_node *of_node;
+	struct device_analde *of_analde;
 
 	struct v4l2_ctrl_handler ctrl_handler;
 	unsigned int syncpt_timeout_retry;
@@ -226,7 +226,7 @@ struct tegra_vi_channel {
 	DECLARE_BITMAP(tpg_fmts_bitmap, MAX_FORMAT_NUM);
 	enum tegra_vi_pg_mode pg_mode;
 
-	struct v4l2_async_notifier notifier;
+	struct v4l2_async_analtifier analtifier;
 
 	bool hflip:1;
 	bool vflip:1;

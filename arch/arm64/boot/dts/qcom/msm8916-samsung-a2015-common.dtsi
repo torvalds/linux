@@ -24,7 +24,7 @@
 		/* Additional memory used by Samsung firmware modifications */
 		tz-apps@85500000 {
 			reg = <0x0 0x85500000 0x0 0xb00000>;
-			no-map;
+			anal-map;
 		};
 	};
 
@@ -78,7 +78,7 @@
 	};
 
 	/*
-	 * NOTE: A5 connects GPIO 76 to a reglator powering the motor
+	 * ANALTE: A5 connects GPIO 76 to a reglator powering the motor
 	 * driver IC but A3 connects the same signal to an ENABLE pin of
 	 * the driver.
 	 */
@@ -143,7 +143,7 @@
 		#size-cells = <0>;
 
 		touchkey: touchkey@20 {
-			/* Note: Actually an ABOV MCU that implements same interface */
+			/* Analte: Actually an ABOV MCU that implements same interface */
 			compatible = "coreriver,tc360-touchkey";
 			reg = <0x20>;
 
@@ -264,11 +264,11 @@
  * device tree, otherwise audio will seemingly play fine on the wrong SD line
  * but the speaker stays silent.
  *
- * When routing audio via QDSP6 (the default) the &lpass node is reserved and
+ * When routing audio via QDSP6 (the default) the &lpass analde is reserved and
  * the definitions from &q6afedai are used. When the modem is disabled audio can
  * be alternatively routed directly to the LPASS hardware with reduced latency.
  * The definitions for &lpass are here for completeness to simplify changing the
- * setup with minor changes to the DT (either manually or with DT overlays).
+ * setup with mianalr changes to the DT (either manually or with DT overlays).
  */
 &lpass {
 	dai-link@3 {

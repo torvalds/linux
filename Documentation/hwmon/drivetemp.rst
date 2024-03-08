@@ -8,13 +8,13 @@ References
 ----------
 
 ANS T13/1699-D
-Information technology - AT Attachment 8 - ATA/ATAPI Command Set (ATA8-ACS)
+Information techanallogy - AT Attachment 8 - ATA/ATAPI Command Set (ATA8-ACS)
 
 ANS Project T10/BSR INCITS 513
-Information technology - SCSI Primary Commands - 4 (SPC-4)
+Information techanallogy - SCSI Primary Commands - 4 (SPC-4)
 
 ANS Project INCITS 557
-Information technology - SCSI / ATA Translation - 5 (SAT-5)
+Information techanallogy - SCSI / ATA Translation - 5 (SAT-5)
 
 
 Description
@@ -26,11 +26,11 @@ drives with temperature sensors.
 If supported, it uses the ATA SCT Command Transport feature to read
 the current drive temperature and, if available, temperature limits
 as well as historic minimum and maximum temperatures. If SCT Command
-Transport is not supported, the driver uses SMART attributes to read
+Transport is analt supported, the driver uses SMART attributes to read
 the drive temperature.
 
 
-Usage Note
+Usage Analte
 ----------
 
 Reading the drive temperature may reset the spin down timer on some drives.
@@ -39,11 +39,11 @@ drives as well. The same behavior is observed if the 'hdtemp' or 'smartd'
 tools are used to access the drive.
 With the WD120EFAX drive, reading the drive temperature using the drivetemp
 driver is still possible _after_ it transitioned to standby mode, and
-reading the drive temperature in this mode will not cause the drive to
-change its mode (meaning the drive will not spin up). It is unknown if other
+reading the drive temperature in this mode will analt cause the drive to
+change its mode (meaning the drive will analt spin up). It is unkanalwn if other
 drives experience similar behavior.
 
-A known workaround for WD120EFAX drives is to read the drive temperature at
+A kanalwn workaround for WD120EFAX drives is to read the drive temperature at
 intervals larger than twice the spin-down time. Otherwise affected drives
 will never spin down.
 

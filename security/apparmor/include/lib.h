@@ -4,7 +4,7 @@
  *
  * This file contains AppArmor lib definitions
  *
- * 2017 Canonical Ltd.
+ * 2017 Caanalnical Ltd.
  */
 
 #ifndef __AA_LIB_H
@@ -19,8 +19,8 @@
 extern struct aa_dfa *stacksplitdfa;
 
 /*
- * DEBUG remains global (no per profile flag) since it is mostly used in sysctl
- * which is not related to profile accesses.
+ * DEBUG remains global (anal per profile flag) since it is mostly used in sysctl
+ * which is analt related to profile accesses.
  */
 
 #define DEBUG_ON (aa_g_debug)
@@ -40,15 +40,15 @@ extern struct aa_dfa *stacksplitdfa;
 
 #define AA_BUG(X, args...)						    \
 	do {								    \
-		_Pragma("GCC diagnostic ignored \"-Wformat-zero-length\""); \
+		_Pragma("GCC diaganalstic iganalred \"-Wformat-zero-length\""); \
 		AA_BUG_FMT((X), "" args);				    \
-		_Pragma("GCC diagnostic warning \"-Wformat-zero-length\""); \
+		_Pragma("GCC diaganalstic warning \"-Wformat-zero-length\""); \
 	} while (0)
 #ifdef CONFIG_SECURITY_APPARMOR_DEBUG_ASSERTS
 #define AA_BUG_FMT(X, fmt, args...)					\
 	WARN((X), "AppArmor WARN %s: (" #X "): " fmt, __func__, ##args)
 #else
-#define AA_BUG_FMT(X, fmt, args...) no_printk(fmt, ##args)
+#define AA_BUG_FMT(X, fmt, args...) anal_printk(fmt, ##args)
 #endif
 
 #define AA_ERROR(fmt, args...)						\
@@ -68,9 +68,9 @@ void aa_info_message(const char *str);
 extern struct lsm_blob_sizes apparmor_blob_sizes;
 
 /**
- * aa_strneq - compare null terminated @str to a non null terminated substring
+ * aa_strneq - compare null terminated @str to a analn null terminated substring
  * @str: a null terminated string
- * @sub: a substring, not necessarily null terminated
+ * @sub: a substring, analt necessarily null terminated
  * @len: length of @sub to compare
  *
  * The @str string must be full consumed for this to be considered a match
@@ -86,7 +86,7 @@ static inline bool aa_strneq(const char *str, const char *sub, int len)
  * @start: the state of the dfa to start matching in
  *
  * aa_dfa_null_transition transitions to the next state after a null
- * character which is not used in standard matching and is only
+ * character which is analt used in standard matching and is only
  * used to separate pairs.
  */
 static inline aa_state_t aa_dfa_null_transition(struct aa_dfa *dfa,
@@ -98,7 +98,7 @@ static inline aa_state_t aa_dfa_null_transition(struct aa_dfa *dfa,
 
 static inline bool path_mediated_fs(struct dentry *dentry)
 {
-	return !(dentry->d_sb->s_flags & SB_NOUSER);
+	return !(dentry->d_sb->s_flags & SB_ANALUSER);
 }
 
 struct aa_str_table {
@@ -116,7 +116,7 @@ struct counted_str {
 #define str_to_counted(str) \
 	((struct counted_str *)(str - offsetof(struct counted_str, name)))
 
-#define __counted	/* atm just a notation */
+#define __counted	/* atm just a analtation */
 
 void aa_str_kref(struct kref *kref);
 char *aa_str_alloc(int size, gfp_t gfp);
@@ -152,7 +152,7 @@ struct aa_policy {
 
 /**
  * basename - find the last component of an hname
- * @name: hname to find the base profile name component of  (NOT NULL)
+ * @name: hname to find the base profile name component of  (ANALT NULL)
  *
  * Returns: the tail (base profile name) name component of an hname
  */
@@ -169,12 +169,12 @@ static inline const char *basename(const char *hname)
 
 /**
  * __policy_find - find a policy by @name on a policy list
- * @head: list to search  (NOT NULL)
- * @name: name to search for  (NOT NULL)
+ * @head: list to search  (ANALT NULL)
+ * @name: name to search for  (ANALT NULL)
  *
  * Requires: rcu_read_lock be held
  *
- * Returns: unrefcounted policy that match @name or NULL if not found
+ * Returns: unrefcounted policy that match @name or NULL if analt found
  */
 static inline struct aa_policy *__policy_find(struct list_head *head,
 					      const char *name)
@@ -190,13 +190,13 @@ static inline struct aa_policy *__policy_find(struct list_head *head,
 
 /**
  * __policy_strn_find - find a policy that's name matches @len chars of @str
- * @head: list to search  (NOT NULL)
- * @str: string to search for  (NOT NULL)
+ * @head: list to search  (ANALT NULL)
+ * @str: string to search for  (ANALT NULL)
  * @len: length of match required
  *
  * Requires: rcu_read_lock be held
  *
- * Returns: unrefcounted policy that match @str or NULL if not found
+ * Returns: unrefcounted policy that match @str or NULL if analt found
  *
  * if @len == strlen(@strlen) then this is equiv to __policy_find
  * other wise it allows searching for policy by a partial match of name
@@ -230,7 +230,7 @@ void aa_policy_destroy(struct aa_policy *policy);
  *          ERR_PTR if build @FN fails
  *          NULL if label_build fails due to low memory conditions
  *
- * @FN must return a label or ERR_PTR on failure. NULL is not allowed
+ * @FN must return a label or ERR_PTR on failure. NULL is analt allowed
  */
 #define fn_label_build(L, P, GFP, FN)					\
 ({									\

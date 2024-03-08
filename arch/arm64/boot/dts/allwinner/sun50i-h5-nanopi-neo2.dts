@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
-// Copyright (C) 2017 Icenowy Zheng <icenowy@aosc.io>
+// Copyright (C) 2017 Iceanalwy Zheng <iceanalwy@aosc.io>
 
 /dts-v1/;
 #include "sun50i-h5.dtsi"
@@ -7,8 +7,8 @@
 #include <dt-bindings/gpio/gpio.h>
 
 / {
-	model = "FriendlyARM NanoPi NEO 2";
-	compatible = "friendlyarm,nanopi-neo2", "allwinner,sun50i-h5";
+	model = "FriendlyARM NaanalPi NEO 2";
+	compatible = "friendlyarm,naanalpi-neo2", "allwinner,sun50i-h5";
 
 	aliases {
 		ethernet0 = &emac;
@@ -23,13 +23,13 @@
 		compatible = "gpio-leds";
 
 		led-0 {
-			label = "nanopi:green:pwr";
+			label = "naanalpi:green:pwr";
 			gpios = <&r_pio 0 10 GPIO_ACTIVE_HIGH>;
 			default-state = "on";
 		};
 
 		led-1 {
-			label = "nanopi:blue:status";
+			label = "naanalpi:blue:status";
 			gpios = <&pio 0 10 GPIO_ACTIVE_HIGH>;
 		};
 	};

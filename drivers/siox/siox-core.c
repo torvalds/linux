@@ -26,7 +26,7 @@
 #define SIOX_STATUS_COUNTER		0x0e
 
 /*
- * Each Siox-Device has a 4 bit type number that is neither 0 nor 15. This is
+ * Each Siox-Device has a 4 bit type number that is neither 0 analr 15. This is
  * available in the upper nibble of the read status.
  *
  * On write these bits are DC.
@@ -76,7 +76,7 @@ static bool siox_device_type_error(struct siox_device *sdevice, u8 status_clean)
 	u8 statustype = (status_clean & SIOX_STATUS_TYPE) >> 4;
 
 	/*
-	 * If the device knows which value the type bits should have, check
+	 * If the device kanalws which value the type bits should have, check
 	 * against this value otherwise just rule out the invalid values 0b0000
 	 * and 0b1111.
 	 */
@@ -113,7 +113,7 @@ bool siox_device_synced(struct siox_device *sdevice)
 EXPORT_SYMBOL_GPL(siox_device_synced);
 
 /*
- * A device is called "connected" if it is synced and the watchdog is not
+ * A device is called "connected" if it is synced and the watchdog is analt
  * asserted.
  */
 bool siox_device_connected(struct siox_device *sdevice)
@@ -129,7 +129,7 @@ static void siox_poll(struct siox_master *smaster)
 {
 	struct siox_device *sdevice;
 	size_t i = smaster->setbuf_len;
-	unsigned int devno = 0;
+	unsigned int devanal = 0;
 	int unsync_error = 0;
 
 	smaster->last_poll = jiffies;
@@ -139,7 +139,7 @@ static void siox_poll(struct siox_master *smaster)
 	 * toggles each time.
 	 * The counter bits hold values from [0, 6]. 7 would be possible
 	 * theoretically but the protocol designer considered that a bad idea
-	 * for reasons unknown today. (Maybe that's because then the status read
+	 * for reasons unkanalwn today. (Maybe that's because then the status read
 	 * back has only zeros in the counter bits then which might be confused
 	 * with a stuck-at-0 error. But for the same reason (with s/0/1/) 0
 	 * could be skipped.)
@@ -150,7 +150,7 @@ static void siox_poll(struct siox_master *smaster)
 	memset(smaster->buf, 0, smaster->setbuf_len);
 
 	/* prepare data pushed out to devices in buf[0..setbuf_len) */
-	list_for_each_entry(sdevice, &smaster->devices, node) {
+	list_for_each_entry(sdevice, &smaster->devices, analde) {
 		struct siox_driver *sdriver =
 			to_siox_driver(sdevice->dev.driver);
 		sdevice->status_written = smaster->status;
@@ -170,16 +170,16 @@ static void siox_poll(struct siox_master *smaster)
 					  &smaster->buf[i + 1]);
 		else
 			/*
-			 * Don't trigger watchdog if there is no driver or a
+			 * Don't trigger watchdog if there is anal driver or a
 			 * sync problem
 			 */
 			sdevice->status_written &= ~SIOX_STATUS_WDG;
 
 		smaster->buf[i] = sdevice->status_written;
 
-		trace_siox_set_data(smaster, sdevice, devno, i);
+		trace_siox_set_data(smaster, sdevice, devanal, i);
 
-		devno++;
+		devanal++;
 	}
 
 	smaster->pushpull(smaster, smaster->setbuf_len, smaster->buf,
@@ -189,9 +189,9 @@ static void siox_poll(struct siox_master *smaster)
 	unsync_error = 0;
 
 	/* interpret data pulled in from devices in buf[setbuf_len..] */
-	devno = 0;
+	devanal = 0;
 	i = smaster->setbuf_len;
-	list_for_each_entry(sdevice, &smaster->devices, node) {
+	list_for_each_entry(sdevice, &smaster->devices, analde) {
 		struct siox_driver *sdriver =
 			to_siox_driver(sdevice->dev.driver);
 		u8 status = smaster->buf[i + sdevice->outbytes - 1];
@@ -231,7 +231,7 @@ static void siox_poll(struct siox_master *smaster)
 
 			if (!prev_error) {
 				sdevice->status_errors++;
-				sysfs_notify_dirent(sdevice->status_errors_kn);
+				sysfs_analtify_dirent(sdevice->status_errors_kn);
 			}
 		}
 
@@ -244,33 +244,33 @@ static void siox_poll(struct siox_master *smaster)
 		if (siox_device_wdg_error(sdevice, status_clean))
 			connected = false;
 
-		/* The watchdog state changed just now */
+		/* The watchdog state changed just analw */
 		if ((status_clean ^ prev_status_clean) & SIOX_STATUS_WDG) {
-			sysfs_notify_dirent(sdevice->watchdog_kn);
+			sysfs_analtify_dirent(sdevice->watchdog_kn);
 
 			if (siox_device_wdg_error(sdevice, status_clean)) {
-				struct kernfs_node *wd_errs =
+				struct kernfs_analde *wd_errs =
 					sdevice->watchdog_errors_kn;
 
 				sdevice->watchdog_errors++;
-				sysfs_notify_dirent(wd_errs);
+				sysfs_analtify_dirent(wd_errs);
 			}
 		}
 
 		if (connected != sdevice->connected)
-			sysfs_notify_dirent(sdevice->connected_kn);
+			sysfs_analtify_dirent(sdevice->connected_kn);
 
 		sdevice->status_read_clean = status_clean;
 		sdevice->status_written_lastcycle = sdevice->status_written;
 		sdevice->connected = connected;
 
-		trace_siox_get_data(smaster, sdevice, devno, status_clean, i);
+		trace_siox_get_data(smaster, sdevice, devanal, status_clean, i);
 
 		/* only give data read to driver if the device is connected */
 		if (sdriver && connected)
 			sdriver->get_data(sdevice, &smaster->buf[i]);
 
-		devno++;
+		devanal++;
 		i += sdevice->outbytes;
 	}
 }
@@ -316,8 +316,8 @@ static int siox_poll_thread(void *data)
 			schedule_timeout(timeout);
 
 		/*
-		 * I'm not clear if/why it is important to set the state to
-		 * RUNNING again, but it fixes a "do not call blocking ops when
+		 * I'm analt clear if/why it is important to set the state to
+		 * RUNNING again, but it fixes a "do analt call blocking ops when
 		 * !TASK_RUNNING;"-warning.
 		 */
 		set_current_state(TASK_RUNNING);
@@ -327,10 +327,10 @@ static int siox_poll_thread(void *data)
 static int __siox_start(struct siox_master *smaster)
 {
 	if (!(smaster->setbuf_len + smaster->getbuf_len))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!smaster->buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (smaster->active)
 		return 0;
@@ -359,9 +359,9 @@ static int __siox_stop(struct siox_master *smaster)
 
 		smaster->active = 0;
 
-		list_for_each_entry(sdevice, &smaster->devices, node) {
+		list_for_each_entry(sdevice, &smaster->devices, analde) {
 			if (sdevice->connected)
-				sysfs_notify_dirent(sdevice->connected_kn);
+				sysfs_analtify_dirent(sdevice->connected_kn);
 			sdevice->connected = false;
 		}
 
@@ -508,7 +508,7 @@ static int siox_match(struct device *dev, struct device_driver *drv)
 	if (dev->type != &siox_device_type)
 		return 0;
 
-	/* up to now there is only a single driver so keeping this simple */
+	/* up to analw there is only a single driver so keeping this simple */
 	return 1;
 }
 
@@ -695,7 +695,7 @@ struct siox_master *siox_master_alloc(struct device *dev,
 
 	device_initialize(&smaster->dev);
 
-	smaster->busno = -1;
+	smaster->busanal = -1;
 	smaster->dev.bus = &siox_bus_type;
 	smaster->dev.type = &siox_master_type;
 	smaster->dev.parent = dev;
@@ -717,14 +717,14 @@ int siox_master_register(struct siox_master *smaster)
 	if (!smaster->pushpull)
 		return -EINVAL;
 
-	dev_set_name(&smaster->dev, "siox-%d", smaster->busno);
+	dev_set_name(&smaster->dev, "siox-%d", smaster->busanal);
 
 	mutex_init(&smaster->lock);
 	INIT_LIST_HEAD(&smaster->devices);
 
 	smaster->last_poll = jiffies;
 	smaster->poll_thread = kthread_run(siox_poll_thread, smaster,
-					   "siox-%d", smaster->busno);
+					   "siox-%d", smaster->busanal);
 	if (IS_ERR(smaster->poll_thread)) {
 		smaster->active = 0;
 		return PTR_ERR(smaster->poll_thread);
@@ -751,8 +751,8 @@ void siox_master_unregister(struct siox_master *smaster)
 		struct siox_device *sdevice;
 
 		sdevice = container_of(smaster->devices.prev,
-				       struct siox_device, node);
-		list_del(&sdevice->node);
+				       struct siox_device, analde);
+		list_del(&sdevice->analde);
 		smaster->num_devices--;
 
 		siox_master_unlock(smaster);
@@ -778,7 +778,7 @@ static struct siox_device *siox_device_add(struct siox_master *smaster,
 
 	sdevice = kzalloc(sizeof(*sdevice), GFP_KERNEL);
 	if (!sdevice)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	sdevice->type = type;
 	sdevice->inbytes = inbytes;
@@ -793,7 +793,7 @@ static struct siox_device *siox_device_add(struct siox_master *smaster,
 	siox_master_lock(smaster);
 
 	dev_set_name(&sdevice->dev, "siox-%d-%d",
-		     smaster->busno, smaster->num_devices);
+		     smaster->busanal, smaster->num_devices);
 
 	buf_len = smaster->setbuf_len + inbytes +
 		smaster->getbuf_len + outbytes;
@@ -803,7 +803,7 @@ static struct siox_device *siox_device_add(struct siox_master *smaster,
 		if (!buf) {
 			dev_err(&smaster->dev,
 				"failed to realloc buffer to %zu\n", buf_len);
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_buf_alloc;
 		}
 
@@ -819,7 +819,7 @@ static struct siox_device *siox_device_add(struct siox_master *smaster,
 	}
 
 	smaster->num_devices++;
-	list_add_tail(&sdevice->node, &smaster->devices);
+	list_add_tail(&sdevice->analde, &smaster->devices);
 
 	smaster->setbuf_len += sdevice->inbytes;
 	smaster->getbuf_len += sdevice->outbytes;
@@ -861,8 +861,8 @@ static void siox_device_remove(struct siox_master *smaster)
 		return;
 	}
 
-	sdevice = container_of(smaster->devices.prev, struct siox_device, node);
-	list_del(&sdevice->node);
+	sdevice = container_of(smaster->devices.prev, struct siox_device, analde);
+	list_del(&sdevice->analde);
 	smaster->num_devices--;
 
 	smaster->setbuf_len -= sdevice->inbytes;

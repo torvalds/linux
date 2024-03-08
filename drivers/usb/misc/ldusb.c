@@ -2,7 +2,7 @@
 /*
  * Generic USB driver for report based interrupt in/out devices
  * like LD Didactic's USB devices. LD Didactic's USB devices are
- * HID devices which do not use HID report definitons (they use
+ * HID devices which do analt use HID report definitons (they use
  * raw interrupt in and our reports only for communication).
  *
  * This driver uses a ring buffer for time critical reading of
@@ -19,7 +19,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
@@ -68,10 +68,10 @@
 #define USB_DEVICE_ID_LD_HYBRID		0x2090	/* USB Product ID of Automotive Hybrid */
 #define USB_DEVICE_ID_LD_HEATCONTROL	0x20A0	/* USB Product ID of Heat control */
 
-#ifdef CONFIG_USB_DYNAMIC_MINORS
-#define USB_LD_MINOR_BASE	0
+#ifdef CONFIG_USB_DYNAMIC_MIANALRS
+#define USB_LD_MIANALR_BASE	0
 #else
-#define USB_LD_MINOR_BASE	176
+#define USB_LD_MIANALR_BASE	176
 #endif
 
 /* table of devices that work with this driver */
@@ -136,7 +136,7 @@ MODULE_PARM_DESC(write_buffer_size, "Write buffer size in reports");
  * to simplify the scheduling of periodic transfers.
  * This conflicts with our standard 1ms intervals for in and out URBs.
  * We use default intervals of 2ms for in and 2ms for out transfers,
- * which should be fast enough.
+ * which should be fast eanalugh.
  * Increase the interval to allow more devices that do interrupt transfers,
  * or set to 1 to use the standard interval from the endpoint descriptors.
  */
@@ -225,13 +225,13 @@ static void ld_usb_interrupt_in_callback(struct urb *urb)
 	int retval;
 
 	if (status) {
-		if (status == -ENOENT ||
+		if (status == -EANALENT ||
 		    status == -ECONNRESET ||
 		    status == -ESHUTDOWN) {
 			goto exit;
 		} else {
 			dev_dbg(&dev->intf->dev,
-				"%s: nonzero status received: %d\n", __func__,
+				"%s: analnzero status received: %d\n", __func__,
 				status);
 			spin_lock_irqsave(&dev->rbsl, flags);
 			goto resubmit; /* maybe we can recover */
@@ -282,11 +282,11 @@ static void ld_usb_interrupt_out_callback(struct urb *urb)
 	int status = urb->status;
 
 	/* sync/async unlink faults aren't errors */
-	if (status && !(status == -ENOENT ||
+	if (status && !(status == -EANALENT ||
 			status == -ECONNRESET ||
 			status == -ESHUTDOWN))
 		dev_dbg(&dev->intf->dev,
-			"%s - nonzero write interrupt status received: %d\n",
+			"%s - analnzero write interrupt status received: %d\n",
 			__func__, status);
 
 	dev->interrupt_out_busy = 0;
@@ -296,28 +296,28 @@ static void ld_usb_interrupt_out_callback(struct urb *urb)
 /*
  *	ld_usb_open
  */
-static int ld_usb_open(struct inode *inode, struct file *file)
+static int ld_usb_open(struct ianalde *ianalde, struct file *file)
 {
 	struct ld_usb *dev;
-	int subminor;
+	int submianalr;
 	int retval;
 	struct usb_interface *interface;
 
-	stream_open(inode, file);
-	subminor = iminor(inode);
+	stream_open(ianalde, file);
+	submianalr = imianalr(ianalde);
 
-	interface = usb_find_interface(&ld_usb_driver, subminor);
+	interface = usb_find_interface(&ld_usb_driver, submianalr);
 
 	if (!interface) {
-		printk(KERN_ERR "%s - error, can't find device for minor %d\n",
-		       __func__, subminor);
-		return -ENODEV;
+		printk(KERN_ERR "%s - error, can't find device for mianalr %d\n",
+		       __func__, submianalr);
+		return -EANALDEV;
 	}
 
 	dev = usb_get_intfdata(interface);
 
 	if (!dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* lock this device */
 	if (mutex_lock_interruptible(&dev->mutex))
@@ -367,7 +367,7 @@ unlock_exit:
 /*
  *	ld_usb_release
  */
-static int ld_usb_release(struct inode *inode, struct file *file)
+static int ld_usb_release(struct ianalde *ianalde, struct file *file)
 {
 	struct ld_usb *dev;
 	int retval = 0;
@@ -375,14 +375,14 @@ static int ld_usb_release(struct inode *inode, struct file *file)
 	dev = file->private_data;
 
 	if (dev == NULL) {
-		retval = -ENODEV;
+		retval = -EANALDEV;
 		goto exit;
 	}
 
 	mutex_lock(&dev->mutex);
 
 	if (dev->open_count != 1) {
-		retval = -ENODEV;
+		retval = -EANALDEV;
 		goto unlock_exit;
 	}
 	if (dev->disconnected) {
@@ -423,9 +423,9 @@ static __poll_t ld_usb_poll(struct file *file, poll_table *wait)
 	poll_wait(file, &dev->write_wait, wait);
 
 	if (dev->ring_head != dev->ring_tail)
-		mask |= EPOLLIN | EPOLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDANALRM;
 	if (!dev->interrupt_out_busy)
-		mask |= EPOLLOUT | EPOLLWRNORM;
+		mask |= EPOLLOUT | EPOLLWRANALRM;
 
 	return mask;
 }
@@ -456,8 +456,8 @@ static ssize_t ld_usb_read(struct file *file, char __user *buffer, size_t count,
 
 	/* verify that the device wasn't unplugged */
 	if (dev->disconnected) {
-		retval = -ENODEV;
-		printk(KERN_ERR "ldusb: No device or device unplugged %d\n", retval);
+		retval = -EANALDEV;
+		printk(KERN_ERR "ldusb: Anal device or device unplugged %d\n", retval);
 		goto unlock_exit;
 	}
 
@@ -466,7 +466,7 @@ static ssize_t ld_usb_read(struct file *file, char __user *buffer, size_t count,
 	while (dev->ring_head == dev->ring_tail) {
 		dev->interrupt_in_done = 0;
 		spin_unlock_irq(&dev->rbsl);
-		if (file->f_flags & O_NONBLOCK) {
+		if (file->f_flags & O_ANALNBLOCK) {
 			retval = -EAGAIN;
 			goto unlock_exit;
 		}
@@ -541,14 +541,14 @@ static ssize_t ld_usb_write(struct file *file, const char __user *buffer,
 
 	/* verify that the device wasn't unplugged */
 	if (dev->disconnected) {
-		retval = -ENODEV;
-		printk(KERN_ERR "ldusb: No device or device unplugged %d\n", retval);
+		retval = -EANALDEV;
+		printk(KERN_ERR "ldusb: Anal device or device unplugged %d\n", retval);
 		goto unlock_exit;
 	}
 
 	/* wait until previous transfer is finished */
 	if (dev->interrupt_out_busy) {
-		if (file->f_flags & O_NONBLOCK) {
+		if (file->f_flags & O_ANALNBLOCK) {
 			retval = -EAGAIN;
 			goto unlock_exit;
 		}
@@ -627,17 +627,17 @@ static const struct file_operations ld_usb_fops = {
 	.open =		ld_usb_open,
 	.release =	ld_usb_release,
 	.poll =		ld_usb_poll,
-	.llseek =	no_llseek,
+	.llseek =	anal_llseek,
 };
 
 /*
- * usb class driver info in order to get a minor number from the usb core,
+ * usb class driver info in order to get a mianalr number from the usb core,
  * and to have the device registered with the driver core
  */
 static struct usb_class_driver ld_usb_class = {
 	.name =		"ldusb%d",
 	.fops =		&ld_usb_fops,
-	.minor_base =	USB_LD_MINOR_BASE,
+	.mianalr_base =	USB_LD_MIANALR_BASE,
 };
 
 /*
@@ -652,7 +652,7 @@ static int ld_usb_probe(struct usb_interface *intf, const struct usb_device_id *
 	struct ld_usb *dev = NULL;
 	struct usb_host_interface *iface_desc;
 	char *buffer;
-	int retval = -ENOMEM;
+	int retval = -EANALMEM;
 	int res;
 
 	/* allocate memory for our device state and initialize it */
@@ -684,7 +684,7 @@ static int ld_usb_probe(struct usb_interface *intf, const struct usb_device_id *
 	res = usb_find_last_int_in_endpoint(iface_desc,
 			&dev->interrupt_in_endpoint);
 	if (res) {
-		dev_err(&intf->dev, "Interrupt in endpoint not found\n");
+		dev_err(&intf->dev, "Interrupt in endpoint analt found\n");
 		retval = res;
 		goto error;
 	}
@@ -692,7 +692,7 @@ static int ld_usb_probe(struct usb_interface *intf, const struct usb_device_id *
 	res = usb_find_last_int_out_endpoint(iface_desc,
 			&dev->interrupt_out_endpoint);
 	if (res)
-		dev_warn(&intf->dev, "Interrupt out endpoint not found (using control endpoint instead)\n");
+		dev_warn(&intf->dev, "Interrupt out endpoint analt found (using control endpoint instead)\n");
 
 	dev->interrupt_in_endpoint_size = usb_endpoint_maxp(dev->interrupt_in_endpoint);
 	dev->ring_buffer = kcalloc(ring_buffer_size,
@@ -722,20 +722,20 @@ static int ld_usb_probe(struct usb_interface *intf, const struct usb_device_id *
 		dev->interrupt_out_interval = max_t(int, min_interrupt_out_interval,
 						    dev->interrupt_out_endpoint->bInterval);
 
-	/* we can register the device now, as it is ready */
+	/* we can register the device analw, as it is ready */
 	usb_set_intfdata(intf, dev);
 
 	retval = usb_register_dev(intf, &ld_usb_class);
 	if (retval) {
 		/* something prevented us from registering this driver */
-		dev_err(&intf->dev, "Not able to get a minor for this device.\n");
+		dev_err(&intf->dev, "Analt able to get a mianalr for this device.\n");
 		usb_set_intfdata(intf, NULL);
 		goto error;
 	}
 
-	/* let the user know what node this device is now attached to */
-	dev_info(&intf->dev, "LD USB Device #%d now attached to major %d minor %d\n",
-		(intf->minor - USB_LD_MINOR_BASE), USB_MAJOR, intf->minor);
+	/* let the user kanalw what analde this device is analw attached to */
+	dev_info(&intf->dev, "LD USB Device #%d analw attached to major %d mianalr %d\n",
+		(intf->mianalr - USB_LD_MIANALR_BASE), USB_MAJOR, intf->mianalr);
 
 exit:
 	return retval;
@@ -754,14 +754,14 @@ error:
 static void ld_usb_disconnect(struct usb_interface *intf)
 {
 	struct ld_usb *dev;
-	int minor;
+	int mianalr;
 
 	dev = usb_get_intfdata(intf);
 	usb_set_intfdata(intf, NULL);
 
-	minor = intf->minor;
+	mianalr = intf->mianalr;
 
-	/* give back our minor */
+	/* give back our mianalr */
 	usb_deregister_dev(intf, &ld_usb_class);
 
 	usb_poison_urb(dev->interrupt_in_urb);
@@ -769,7 +769,7 @@ static void ld_usb_disconnect(struct usb_interface *intf)
 
 	mutex_lock(&dev->mutex);
 
-	/* if the device is not opened, then we clean up right now */
+	/* if the device is analt opened, then we clean up right analw */
 	if (!dev->open_count) {
 		mutex_unlock(&dev->mutex);
 		ld_usb_delete(dev);
@@ -781,8 +781,8 @@ static void ld_usb_disconnect(struct usb_interface *intf)
 		mutex_unlock(&dev->mutex);
 	}
 
-	dev_info(&intf->dev, "LD USB Device #%d now disconnected\n",
-		 (minor - USB_LD_MINOR_BASE));
+	dev_info(&intf->dev, "LD USB Device #%d analw disconnected\n",
+		 (mianalr - USB_LD_MIANALR_BASE));
 }
 
 /* usb specific object needed to register this driver with the usb subsystem */

@@ -48,7 +48,7 @@ static inline int nand_ecc_sw_bch_calculate(struct nand_device *nand,
 					    const unsigned char *buf,
 					    unsigned char *code)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static inline int nand_ecc_sw_bch_correct(struct nand_device *nand,
@@ -56,12 +56,12 @@ static inline int nand_ecc_sw_bch_correct(struct nand_device *nand,
 					  unsigned char *read_ecc,
 					  unsigned char *calc_ecc)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static inline int nand_ecc_sw_bch_init_ctx(struct nand_device *nand)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static inline void nand_ecc_sw_bch_cleanup_ctx(struct nand_device *nand) {}

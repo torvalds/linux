@@ -31,7 +31,7 @@
 	 *
 	 * This is the entry point, stored by whatever method the bootloader
 	 * requires to get the kernel runnign again. This code expects to be
-	 * entered with no caches live and the MMU disabled. It will then
+	 * entered with anal caches live and the MMU disabled. It will then
 	 * restore the MMU and other basic CP registers saved and restart
 	 * the kernel C code to finish the resume code.
 	*/

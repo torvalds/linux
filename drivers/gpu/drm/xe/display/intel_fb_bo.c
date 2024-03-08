@@ -33,10 +33,10 @@ int intel_fb_bo_framebuffer_init(struct intel_framebuffer *intel_fb,
 	if (ret)
 		return ret;
 
-	if (!(bo->flags & XE_BO_SCANOUT_BIT)) {
+	if (!(bo->flags & XE_BO_SCAANALUT_BIT)) {
 		/*
-		 * XE_BO_SCANOUT_BIT should ideally be set at creation, or is
-		 * automatically set when creating FB. We cannot change caching
+		 * XE_BO_SCAANALUT_BIT should ideally be set at creation, or is
+		 * automatically set when creating FB. We cananalt change caching
 		 * mode when the boect is VM_BINDed, so we can only set
 		 * coherency with display when unbound.
 		 */
@@ -44,7 +44,7 @@ int intel_fb_bo_framebuffer_init(struct intel_framebuffer *intel_fb,
 			ttm_bo_unreserve(&bo->ttm);
 			return -EINVAL;
 		}
-		bo->flags |= XE_BO_SCANOUT_BIT;
+		bo->flags |= XE_BO_SCAANALUT_BIT;
 	}
 	ttm_bo_unreserve(&bo->ttm);
 
@@ -59,7 +59,7 @@ struct xe_bo *intel_fb_bo_lookup_valid_bo(struct drm_i915_private *i915,
 	struct drm_gem_object *gem = drm_gem_object_lookup(filp, mode_cmd->handles[0]);
 
 	if (!gem)
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-EANALENT);
 
 	bo = gem_to_xe_bo(gem);
 	/* Require vram placement or dma-buf import */

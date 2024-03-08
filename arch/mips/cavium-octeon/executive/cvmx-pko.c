@@ -13,11 +13,11 @@
  * This file is distributed in the hope that it will be useful, but
  * AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
- * NONINFRINGEMENT.  See the GNU General Public License for more
+ * ANALNINFRINGEMENT.  See the GNU General Public License for more
  * details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this file; if not, write to the Free Software
+ * along with this file; if analt, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  * or visit http://www.gnu.org/licenses/.
  *
@@ -188,7 +188,7 @@ void cvmx_pko_initialize_global(void)
 
 	/*
 	 * Set the size of the PKO command buffers to an odd number of
-	 * 64bit words. This allows the normal two word send to stay
+	 * 64bit words. This allows the analrmal two word send to stay
 	 * aligned and never span a command word buffer.
 	 */
 	config.u64 = 0;
@@ -245,7 +245,7 @@ void cvmx_pko_enable(void)
 	flags.s.ena_dwb = 1;
 	flags.s.ena_pko = 1;
 	/*
-	 * always enable big endian for 3-word command. Does nothing
+	 * always enable big endian for 3-word command. Does analthing
 	 * for 2-word.
 	 */
 	flags.s.store_be = 1;
@@ -253,7 +253,7 @@ void cvmx_pko_enable(void)
 }
 
 /*
- * Disables the packet output. Does not affect any configuration.
+ * Disables the packet output. Does analt affect any configuration.
  */
 void cvmx_pko_disable(void)
 {
@@ -314,7 +314,7 @@ EXPORT_SYMBOL_GPL(cvmx_pko_shutdown);
  * @num_queues: Number of queues to associate with this port
  * @priority:	Array of priority levels for each queue. Values are
  *		     allowed to be 0-8. A value of 8 get 8 times the traffic
- *		     of a value of 1.  A value of 0 indicates that no rounds
+ *		     of a value of 1.  A value of 0 indicates that anal rounds
  *		     will be participated in. These priorities can be changed
  *		     on the fly while the pko is enabled. A priority of 9
  *		     indicates that static priority should be used.  If static
@@ -377,7 +377,7 @@ cvmx_pko_status_t cvmx_pko_config_port(uint64_t port, uint64_t base_queue,
 			/*
 			 * Check to make sure all static priority
 			 * queues are contiguous.  Also catches some
-			 * cases of static priorities not starting at
+			 * cases of static priorities analt starting at
 			 * queue 0.
 			 */
 			if (static_priority_end != -1
@@ -497,12 +497,12 @@ cvmx_pko_status_t cvmx_pko_config_port(uint64_t port, uint64_t base_queue,
 						      * 8);
 			if (cmd_res != CVMX_CMD_QUEUE_SUCCESS) {
 				switch (cmd_res) {
-				case CVMX_CMD_QUEUE_NO_MEMORY:
+				case CVMX_CMD_QUEUE_ANAL_MEMORY:
 					cvmx_dprintf("ERROR: "
 						     "cvmx_pko_config_port: "
 						     "Unable to allocate "
 						     "output buffer.\n");
-					return CVMX_PKO_NO_MEMORY;
+					return CVMX_PKO_ANAL_MEMORY;
 				case CVMX_CMD_QUEUE_ALREADY_SETUP:
 					cvmx_dprintf
 					    ("ERROR: cvmx_pko_config_port: Port already setup.\n");
@@ -579,7 +579,7 @@ int cvmx_pko_rate_limit_packets(int port, int packets_s, int burst)
 	pko_mem_port_rate0.s.pid = port;
 	pko_mem_port_rate0.s.rate_pkt =
 	    cvmx_sysinfo_get()->cpu_clock_hz / packets_s / 16;
-	/* No cost per word since we are limited by packets/sec, not bits/sec */
+	/* Anal cost per word since we are limited by packets/sec, analt bits/sec */
 	pko_mem_port_rate0.s.rate_word = 0;
 
 	pko_mem_port_rate1.u64 = 0;
@@ -614,7 +614,7 @@ int cvmx_pko_rate_limit_bits(int port, uint64_t bits_s, int burst)
 	pko_mem_port_rate0.s.pid = port;
 	/*
 	 * Each packet has a 12 bytes of interframe gap, an 8 byte
-	 * preamble, and a 4 byte CRC. These are not included in the
+	 * preamble, and a 4 byte CRC. These are analt included in the
 	 * per word count. Multiply by 8 to convert to bits and divide
 	 * by 256 for limit granularity.
 	 */

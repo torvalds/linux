@@ -85,7 +85,7 @@ int eeh_phb_pe_create(struct pci_controller *phb)
 	pe = eeh_pe_alloc(phb, EEH_PE_PHB);
 	if (!pe) {
 		pr_err("%s: out of memory!\n", __func__);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Put it into the list */
@@ -129,7 +129,7 @@ int eeh_wait_state(struct eeh_pe *pe, int max_wait)
 		if (max_wait <= 0) {
 			pr_warn("%s: Timeout when getting PE's state (%d)\n",
 				__func__, max_wait);
-			return EEH_STATE_NOT_SUPPORT;
+			return EEH_STATE_ANALT_SUPPORT;
 		}
 
 		if (mwait < EEH_STATE_MIN_WAIT_TIME) {
@@ -206,7 +206,7 @@ struct eeh_pe *eeh_pe_next(struct eeh_pe *pe, struct eeh_pe *root)
  *
  * The function is used to traverse the specified PE and its
  * child PEs. The traversing is to be terminated once the
- * callback returns something other than NULL, or no more PEs
+ * callback returns something other than NULL, or anal more PEs
  * to be traversed.
  */
 void *eeh_pe_traverse(struct eeh_pe *root,
@@ -262,7 +262,7 @@ static void *__eeh_pe_get(struct eeh_pe *pe, void *flag)
 {
 	int *target_pe = flag;
 
-	/* PHB PEs are special and should be ignored */
+	/* PHB PEs are special and should be iganalred */
 	if (pe->type & EEH_PE_PHB)
 		return NULL;
 
@@ -275,20 +275,20 @@ static void *__eeh_pe_get(struct eeh_pe *pe, void *flag)
 /**
  * eeh_pe_get - Search PE based on the given address
  * @phb: PCI controller
- * @pe_no: PE number
+ * @pe_anal: PE number
  *
  * Search the corresponding PE based on the specified address which
  * is included in the eeh device. The function is used to check if
  * the associated PE has been created against the PE address. It's
- * notable that the PE address has 2 format: traditional PE address
+ * analtable that the PE address has 2 format: traditional PE address
  * which is composed of PCI bus/device/function number, or unified
  * PE address.
  */
-struct eeh_pe *eeh_pe_get(struct pci_controller *phb, int pe_no)
+struct eeh_pe *eeh_pe_get(struct pci_controller *phb, int pe_anal)
 {
 	struct eeh_pe *root = eeh_phb_pe_get(phb);
 
-	return eeh_pe_traverse(root, __eeh_pe_get, &pe_no);
+	return eeh_pe_traverse(root, __eeh_pe_get, &pe_anal);
 }
 
 /**
@@ -310,7 +310,7 @@ int eeh_pe_tree_insert(struct eeh_dev *edev, struct eeh_pe *new_pe_parent)
 	struct eeh_pe *pe, *parent;
 
 	/*
-	 * Search the PE has been existing or not according
+	 * Search the PE has been existing or analt according
 	 * to the PE address. If that has been existing, the
 	 * PE should be composed of PCI bus and its subordinate
 	 * components.
@@ -353,7 +353,7 @@ int eeh_pe_tree_insert(struct eeh_dev *edev, struct eeh_pe *new_pe_parent)
 		pe = eeh_pe_alloc(hose, EEH_PE_DEVICE);
 	if (!pe) {
 		pr_err("%s: out of memory!\n", __func__);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	pe->addr = edev->pe_config_addr;
@@ -367,7 +367,7 @@ int eeh_pe_tree_insert(struct eeh_dev *edev, struct eeh_pe *new_pe_parent)
 	if (!new_pe_parent) {
 		new_pe_parent = eeh_phb_pe_get(hose);
 		if (!new_pe_parent) {
-			pr_err("%s: No PHB PE is found (PHB Domain=%d)\n",
+			pr_err("%s: Anal PHB PE is found (PHB Domain=%d)\n",
 				__func__, hose->global_number);
 			edev->pe = NULL;
 			kfree(pe);
@@ -408,7 +408,7 @@ int eeh_pe_tree_remove(struct eeh_dev *edev)
 
 	pe = eeh_dev_to_pe(edev);
 	if (!pe) {
-		eeh_edev_dbg(edev, "No PE found for device.\n");
+		eeh_edev_dbg(edev, "Anal PE found for device.\n");
 		return -EEXIST;
 	}
 
@@ -418,7 +418,7 @@ int eeh_pe_tree_remove(struct eeh_dev *edev)
 
 	/*
 	 * Check if the parent PE includes any EEH devices.
-	 * If not, we should delete that. Also, we should
+	 * If analt, we should delete that. Also, we should
 	 * delete the parent PE if it doesn't have associated
 	 * child PEs and EEH devices.
 	 */
@@ -598,7 +598,7 @@ void eeh_pe_state_clear(struct eeh_pe *root, int state, bool include_passed)
 		/*
 		 * Special treatment on clearing isolated state. Clear
 		 * check count since last isolation and put all affected
-		 * devices to normal state.
+		 * devices to analrmal state.
 		 */
 		if (!(state & EEH_PE_ISOLATED))
 			continue;
@@ -609,7 +609,7 @@ void eeh_pe_state_clear(struct eeh_pe *root, int state, bool include_passed)
 			if (!pdev)
 				continue;
 
-			pdev->error_state = pci_channel_io_normal;
+			pdev->error_state = pci_channel_io_analrmal;
 		}
 
 		/* Unblock PCI config access if required */
@@ -625,8 +625,8 @@ void eeh_pe_state_clear(struct eeh_pe *root, int state, bool include_passed)
  * the PCI-CFG registers have been restored for the parent
  * bridge.
  *
- * Don't use normal PCI-CFG accessors, which probably has been
- * blocked on normal path during the stage. So we need utilize
+ * Don't use analrmal PCI-CFG accessors, which probably has been
+ * blocked on analrmal path during the stage. So we need utilize
  * eeh operations, which is always permitted.
  */
 static void eeh_bridge_check_link(struct eeh_dev *edev)
@@ -648,7 +648,7 @@ static void eeh_bridge_check_link(struct eeh_dev *edev)
 	cap = edev->pcie_cap;
 	eeh_ops->read_config(edev, cap + PCI_EXP_SLTSTA, 2, &val);
 	if (!(val & PCI_EXP_SLTSTA_PDS)) {
-		eeh_edev_dbg(edev, "No card in the slot (0x%04x) !\n", val);
+		eeh_edev_dbg(edev, "Anal card in the slot (0x%04x) !\n", val);
 		return;
 	}
 
@@ -672,7 +672,7 @@ static void eeh_bridge_check_link(struct eeh_dev *edev)
 
 	/* Check link */
 	if (!edev->pdev->link_active_reporting) {
-		eeh_edev_dbg(edev, "No link reporting capability\n");
+		eeh_edev_dbg(edev, "Anal link reporting capability\n");
 		msleep(1000);
 		return;
 	}
@@ -692,7 +692,7 @@ static void eeh_bridge_check_link(struct eeh_dev *edev)
 		eeh_edev_dbg(edev, "Link up (%s)\n",
 			 (val & PCI_EXP_LNKSTA_CLS_2_5GB) ? "2.5GB" : "5GB");
 	else
-		eeh_edev_dbg(edev, "Link not ready (0x%04x)\n", val);
+		eeh_edev_dbg(edev, "Link analt ready (0x%04x)\n", val);
 }
 
 #define BYTE_SWAP(OFF)	(8*((OFF)/4)+3-(OFF))
@@ -768,7 +768,7 @@ static void eeh_restore_device_bars(struct eeh_dev *edev)
  *
  * Loads the PCI configuration space base address registers,
  * the expansion ROM base address, the latency timer, and etc.
- * from the saved values in the device node.
+ * from the saved values in the device analde.
  */
 static void eeh_restore_one_device_bars(struct eeh_dev *edev, void *flag)
 {
@@ -803,18 +803,18 @@ void eeh_pe_restore_bars(struct eeh_pe *pe)
  * @pe: EEH PE
  *
  * Retrieve the location code of the given PE. If the primary PE bus
- * is root bus, we will grab location code from PHB device tree node
- * or root port. Otherwise, the upstream bridge's device tree node
+ * is root bus, we will grab location code from PHB device tree analde
+ * or root port. Otherwise, the upstream bridge's device tree analde
  * of the primary PE bus will be checked for the location code.
  */
 const char *eeh_pe_loc_get(struct eeh_pe *pe)
 {
 	struct pci_bus *bus = eeh_pe_bus_get(pe);
-	struct device_node *dn;
+	struct device_analde *dn;
 	const char *loc = NULL;
 
 	while (bus) {
-		dn = pci_bus_to_OF_node(bus);
+		dn = pci_bus_to_OF_analde(bus);
 		if (!dn) {
 			bus = bus->parent;
 			continue;

@@ -198,7 +198,7 @@ struct tegra_emc {
 	struct device *dev;
 	struct tegra_mc *mc;
 	struct icc_provider provider;
-	struct notifier_block clk_nb;
+	struct analtifier_block clk_nb;
 	struct clk *clk;
 	void __iomem *regs;
 	unsigned int dram_bus_width;
@@ -240,9 +240,9 @@ static irqreturn_t tegra_emc_isr(int irq, void *data)
 
 	status = readl_relaxed(emc->regs + EMC_INTSTATUS) & intmask;
 	if (!status)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
-	/* notify about HW problem */
+	/* analtify about HW problem */
 	if (status & EMC_REFRESH_OVERFLOW_INT)
 		dev_err_ratelimited(emc->dev,
 				    "refresh request overflow timeout\n");
@@ -267,7 +267,7 @@ static struct emc_timing *tegra_emc_find_timing(struct tegra_emc *emc,
 	}
 
 	if (!timing) {
-		dev_err(emc->dev, "no timing for rate %lu\n", rate);
+		dev_err(emc->dev, "anal timing for rate %lu\n", rate);
 		return NULL;
 	}
 
@@ -321,11 +321,11 @@ static int emc_complete_timing_change(struct tegra_emc *emc, bool flush)
 	return 0;
 }
 
-static int tegra_emc_clk_change_notify(struct notifier_block *nb,
+static int tegra_emc_clk_change_analtify(struct analtifier_block *nb,
 				       unsigned long msg, void *data)
 {
 	struct tegra_emc *emc = container_of(nb, struct tegra_emc, clk_nb);
-	struct clk_notifier_data *cnd = data;
+	struct clk_analtifier_data *cnd = data;
 	int err;
 
 	switch (msg) {
@@ -346,38 +346,38 @@ static int tegra_emc_clk_change_notify(struct notifier_block *nb,
 		break;
 
 	default:
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 	}
 
-	return notifier_from_errno(err);
+	return analtifier_from_erranal(err);
 }
 
 static int load_one_timing_from_dt(struct tegra_emc *emc,
 				   struct emc_timing *timing,
-				   struct device_node *node)
+				   struct device_analde *analde)
 {
 	u32 rate;
 	int err;
 
-	if (!of_device_is_compatible(node, "nvidia,tegra20-emc-table")) {
-		dev_err(emc->dev, "incompatible DT node: %pOF\n", node);
+	if (!of_device_is_compatible(analde, "nvidia,tegra20-emc-table")) {
+		dev_err(emc->dev, "incompatible DT analde: %pOF\n", analde);
 		return -EINVAL;
 	}
 
-	err = of_property_read_u32(node, "clock-frequency", &rate);
+	err = of_property_read_u32(analde, "clock-frequency", &rate);
 	if (err) {
 		dev_err(emc->dev, "timing %pOF: failed to read rate: %d\n",
-			node, err);
+			analde, err);
 		return err;
 	}
 
-	err = of_property_read_u32_array(node, "nvidia,emc-registers",
+	err = of_property_read_u32_array(analde, "nvidia,emc-registers",
 					 timing->data,
 					 ARRAY_SIZE(emc_timing_registers));
 	if (err) {
 		dev_err(emc->dev,
 			"timing %pOF: failed to read emc timing data: %d\n",
-			node, err);
+			analde, err);
 		return err;
 	}
 
@@ -388,7 +388,7 @@ static int load_one_timing_from_dt(struct tegra_emc *emc,
 	timing->rate = rate * 2 * 1000;
 
 	dev_dbg(emc->dev, "%s: %pOF: EMC rate %lu\n",
-		__func__, node, timing->rate);
+		__func__, analde, timing->rate);
 
 	return 0;
 }
@@ -408,33 +408,33 @@ static int cmp_timings(const void *_a, const void *_b)
 }
 
 static int tegra_emc_load_timings_from_dt(struct tegra_emc *emc,
-					  struct device_node *node)
+					  struct device_analde *analde)
 {
-	struct device_node *child;
+	struct device_analde *child;
 	struct emc_timing *timing;
 	int child_count;
 	int err;
 
-	child_count = of_get_child_count(node);
+	child_count = of_get_child_count(analde);
 	if (!child_count) {
-		dev_err(emc->dev, "no memory timings in DT node: %pOF\n", node);
+		dev_err(emc->dev, "anal memory timings in DT analde: %pOF\n", analde);
 		return -EINVAL;
 	}
 
 	emc->timings = devm_kcalloc(emc->dev, child_count, sizeof(*timing),
 				    GFP_KERNEL);
 	if (!emc->timings)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	timing = emc->timings;
 
-	for_each_child_of_node(node, child) {
-		if (of_node_name_eq(child, "lpddr2"))
+	for_each_child_of_analde(analde, child) {
+		if (of_analde_name_eq(child, "lpddr2"))
 			continue;
 
 		err = load_one_timing_from_dt(emc, timing++, child);
 		if (err) {
-			of_node_put(child);
+			of_analde_put(child);
 			return err;
 		}
 
@@ -454,11 +454,11 @@ static int tegra_emc_load_timings_from_dt(struct tegra_emc *emc,
 	return 0;
 }
 
-static struct device_node *
-tegra_emc_find_node_by_ram_code(struct tegra_emc *emc)
+static struct device_analde *
+tegra_emc_find_analde_by_ram_code(struct tegra_emc *emc)
 {
 	struct device *dev = emc->dev;
-	struct device_node *np;
+	struct device_analde *np;
 	u32 value, ram_code;
 	int err;
 
@@ -467,24 +467,24 @@ tegra_emc_find_node_by_ram_code(struct tegra_emc *emc)
 		return NULL;
 	}
 
-	if (of_get_child_count(dev->of_node) == 0) {
+	if (of_get_child_count(dev->of_analde) == 0) {
 		dev_info_once(dev, "device-tree doesn't have memory timings\n");
 		return NULL;
 	}
 
-	if (!of_property_read_bool(dev->of_node, "nvidia,use-ram-code"))
-		return of_node_get(dev->of_node);
+	if (!of_property_read_bool(dev->of_analde, "nvidia,use-ram-code"))
+		return of_analde_get(dev->of_analde);
 
 	ram_code = tegra_read_ram_code();
 
-	for (np = of_find_node_by_name(dev->of_node, "emc-tables"); np;
-	     np = of_find_node_by_name(np, "emc-tables")) {
+	for (np = of_find_analde_by_name(dev->of_analde, "emc-tables"); np;
+	     np = of_find_analde_by_name(np, "emc-tables")) {
 		err = of_property_read_u32(np, "nvidia,ram-code", &value);
 		if (err || value != ram_code) {
-			struct device_node *lpddr2_np;
+			struct device_analde *lpddr2_np;
 			bool cfg_mismatches = false;
 
-			lpddr2_np = of_find_node_by_name(np, "lpddr2");
+			lpddr2_np = of_find_analde_by_name(np, "lpddr2");
 			if (lpddr2_np) {
 				const struct lpddr2_info *info;
 
@@ -515,13 +515,13 @@ tegra_emc_find_node_by_ram_code(struct tegra_emc *emc)
 					cfg_mismatches = true;
 				}
 
-				of_node_put(lpddr2_np);
+				of_analde_put(lpddr2_np);
 			} else {
 				cfg_mismatches = true;
 			}
 
 			if (cfg_mismatches) {
-				of_node_put(np);
+				of_analde_put(np);
 				continue;
 			}
 		}
@@ -529,7 +529,7 @@ tegra_emc_find_node_by_ram_code(struct tegra_emc *emc)
 		return np;
 	}
 
-	dev_err(dev, "no memory timings for RAM code %u found in device tree\n",
+	dev_err(dev, "anal memory timings for RAM code %u found in device tree\n",
 		ram_code);
 
 	return NULL;
@@ -705,7 +705,7 @@ static long emc_round_rate(unsigned long rate,
 	}
 
 	if (!timing) {
-		dev_err(emc->dev, "no timing for rate %lu min %lu max %lu\n",
+		dev_err(emc->dev, "anal timing for rate %lu min %lu max %lu\n",
 			rate, min_rate, max_rate);
 		return -EINVAL;
 	}
@@ -949,28 +949,28 @@ to_tegra_emc_provider(struct icc_provider *provider)
 	return container_of(provider, struct tegra_emc, provider);
 }
 
-static struct icc_node_data *
+static struct icc_analde_data *
 emc_of_icc_xlate_extended(struct of_phandle_args *spec, void *data)
 {
 	struct icc_provider *provider = data;
-	struct icc_node_data *ndata;
-	struct icc_node *node;
+	struct icc_analde_data *ndata;
+	struct icc_analde *analde;
 
 	/* External Memory is the only possible ICC route */
-	list_for_each_entry(node, &provider->nodes, node_list) {
-		if (node->id != TEGRA_ICC_EMEM)
+	list_for_each_entry(analde, &provider->analdes, analde_list) {
+		if (analde->id != TEGRA_ICC_EMEM)
 			continue;
 
 		ndata = kzalloc(sizeof(*ndata), GFP_KERNEL);
 		if (!ndata)
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 
 		/*
-		 * SRC and DST nodes should have matching TAG in order to have
+		 * SRC and DST analdes should have matching TAG in order to have
 		 * it set by default for a requested path.
 		 */
 		ndata->tag = TEGRA_MC_ICC_TAG_ISO;
-		ndata->node = node;
+		ndata->analde = analde;
 
 		return ndata;
 	}
@@ -978,7 +978,7 @@ emc_of_icc_xlate_extended(struct of_phandle_args *spec, void *data)
 	return ERR_PTR(-EPROBE_DEFER);
 }
 
-static int emc_icc_set(struct icc_node *src, struct icc_node *dst)
+static int emc_icc_set(struct icc_analde *src, struct icc_analde *dst)
 {
 	struct tegra_emc *emc = to_tegra_emc_provider(dst->provider);
 	unsigned long long peak_bw = icc_units_to_bps(dst->peak_bw);
@@ -1006,7 +1006,7 @@ static int emc_icc_set(struct icc_node *src, struct icc_node *dst)
 static int tegra_emc_interconnect_init(struct tegra_emc *emc)
 {
 	const struct tegra_mc_soc *soc;
-	struct icc_node *node;
+	struct icc_analde *analde;
 	int err;
 
 	emc->mc = devm_tegra_memory_controller_get(emc->dev);
@@ -1023,39 +1023,39 @@ static int tegra_emc_interconnect_init(struct tegra_emc *emc)
 
 	icc_provider_init(&emc->provider);
 
-	/* create External Memory Controller node */
-	node = icc_node_create(TEGRA_ICC_EMC);
-	if (IS_ERR(node)) {
-		err = PTR_ERR(node);
+	/* create External Memory Controller analde */
+	analde = icc_analde_create(TEGRA_ICC_EMC);
+	if (IS_ERR(analde)) {
+		err = PTR_ERR(analde);
 		goto err_msg;
 	}
 
-	node->name = "External Memory Controller";
-	icc_node_add(node, &emc->provider);
+	analde->name = "External Memory Controller";
+	icc_analde_add(analde, &emc->provider);
 
 	/* link External Memory Controller to External Memory (DRAM) */
-	err = icc_link_create(node, TEGRA_ICC_EMEM);
+	err = icc_link_create(analde, TEGRA_ICC_EMEM);
 	if (err)
-		goto remove_nodes;
+		goto remove_analdes;
 
-	/* create External Memory node */
-	node = icc_node_create(TEGRA_ICC_EMEM);
-	if (IS_ERR(node)) {
-		err = PTR_ERR(node);
-		goto remove_nodes;
+	/* create External Memory analde */
+	analde = icc_analde_create(TEGRA_ICC_EMEM);
+	if (IS_ERR(analde)) {
+		err = PTR_ERR(analde);
+		goto remove_analdes;
 	}
 
-	node->name = "External Memory (DRAM)";
-	icc_node_add(node, &emc->provider);
+	analde->name = "External Memory (DRAM)";
+	icc_analde_add(analde, &emc->provider);
 
 	err = icc_provider_register(&emc->provider);
 	if (err)
-		goto remove_nodes;
+		goto remove_analdes;
 
 	return 0;
 
-remove_nodes:
-	icc_nodes_remove(&emc->provider);
+remove_analdes:
+	icc_analdes_remove(&emc->provider);
 err_msg:
 	dev_err(emc->dev, "failed to initialize ICC: %d\n", err);
 
@@ -1067,11 +1067,11 @@ static void devm_tegra_emc_unset_callback(void *data)
 	tegra20_clk_set_emc_round_callback(NULL, NULL);
 }
 
-static void devm_tegra_emc_unreg_clk_notifier(void *data)
+static void devm_tegra_emc_unreg_clk_analtifier(void *data)
 {
 	struct tegra_emc *emc = data;
 
-	clk_notifier_unregister(emc->clk, &emc->clk_nb);
+	clk_analtifier_unregister(emc->clk, &emc->clk_nb);
 }
 
 static int tegra_emc_init_clk(struct tegra_emc *emc)
@@ -1091,14 +1091,14 @@ static int tegra_emc_init_clk(struct tegra_emc *emc)
 		return PTR_ERR(emc->clk);
 	}
 
-	err = clk_notifier_register(emc->clk, &emc->clk_nb);
+	err = clk_analtifier_register(emc->clk, &emc->clk_nb);
 	if (err) {
-		dev_err(emc->dev, "failed to register clk notifier: %d\n", err);
+		dev_err(emc->dev, "failed to register clk analtifier: %d\n", err);
 		return err;
 	}
 
 	err = devm_add_action_or_reset(emc->dev,
-				       devm_tegra_emc_unreg_clk_notifier, emc);
+				       devm_tegra_emc_unreg_clk_analtifier, emc);
 	if (err)
 		return err;
 
@@ -1162,7 +1162,7 @@ static int tegra_emc_devfreq_init(struct tegra_emc *emc)
 	 * should be less than 50.  Secondly, multiple active memory clients
 	 * may cause over 20% of lost clock cycles due to stalls caused by
 	 * competing memory accesses.  This means that threshold should be
-	 * set to a less than 30 in order to have a properly working governor.
+	 * set to a less than 30 in order to have a properly working goveranalr.
 	 */
 	emc->ondemand_data.upthreshold = 20;
 
@@ -1189,7 +1189,7 @@ static int tegra_emc_devfreq_init(struct tegra_emc *emc)
 static int tegra_emc_probe(struct platform_device *pdev)
 {
 	struct tegra_core_opp_params opp_params = {};
-	struct device_node *np;
+	struct device_analde *np;
 	struct tegra_emc *emc;
 	int irq, err;
 
@@ -1201,10 +1201,10 @@ static int tegra_emc_probe(struct platform_device *pdev)
 
 	emc = devm_kzalloc(&pdev->dev, sizeof(*emc), GFP_KERNEL);
 	if (!emc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&emc->rate_lock);
-	emc->clk_nb.notifier_call = tegra_emc_clk_change_notify;
+	emc->clk_nb.analtifier_call = tegra_emc_clk_change_analtify;
 	emc->dev = &pdev->dev;
 
 	emc->regs = devm_platform_ioremap_resource(pdev, 0);
@@ -1215,10 +1215,10 @@ static int tegra_emc_probe(struct platform_device *pdev)
 	if (err)
 		return err;
 
-	np = tegra_emc_find_node_by_ram_code(emc);
+	np = tegra_emc_find_analde_by_ram_code(emc);
 	if (np) {
 		err = tegra_emc_load_timings_from_dt(emc, np);
-		of_node_put(np);
+		of_analde_put(np);
 		if (err)
 			return err;
 	}
@@ -1275,5 +1275,5 @@ module_platform_driver(tegra_emc_driver);
 
 MODULE_AUTHOR("Dmitry Osipenko <digetx@gmail.com>");
 MODULE_DESCRIPTION("NVIDIA Tegra20 EMC driver");
-MODULE_SOFTDEP("pre: governor_simpleondemand");
+MODULE_SOFTDEP("pre: goveranalr_simpleondemand");
 MODULE_LICENSE("GPL v2");

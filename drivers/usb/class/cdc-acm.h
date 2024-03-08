@@ -8,13 +8,13 @@
  */
 
 /*
- * Major and minor numbers.
+ * Major and mianalr numbers.
  */
 
 #define ACM_TTY_MAJOR		166
-#define ACM_TTY_MINORS		256
+#define ACM_TTY_MIANALRS		256
 
-#define ACM_MINOR_INVALID	ACM_TTY_MINORS
+#define ACM_MIANALR_INVALID	ACM_TTY_MIANALRS
 
 /*
  * Requests.
@@ -72,7 +72,7 @@ struct acm {
 	struct acm_rb read_buffers[ACM_NR];
 	int rx_buflimit;
 	spinlock_t read_lock;
-	u8 *notification_buffer;			/* to reassemble fragmented notifications */
+	u8 *analtification_buffer;			/* to reassemble fragmented analtifications */
 	unsigned int nb_index;
 	unsigned int nb_size;
 	int transmitting;
@@ -94,7 +94,7 @@ struct acm {
 	wait_queue_head_t wioctl;			/* for ioctl */
 	unsigned int writesize;				/* max packet size for the output bulk endpoint */
 	unsigned int readsize,ctrlsize;			/* buffer sizes for freeing */
-	unsigned int minor;				/* acm minor number */
+	unsigned int mianalr;				/* acm mianalr number */
 	unsigned char clocal;				/* termios CLOCAL */
 	unsigned int ctrl_caps;				/* control capabilities from the class specific header */
 	unsigned int susp_count;			/* number of suspended interfaces */
@@ -105,10 +105,10 @@ struct acm {
 };
 
 /* constants describing various quirks and errors */
-#define NO_UNION_NORMAL			BIT(0)
+#define ANAL_UNION_ANALRMAL			BIT(0)
 #define SINGLE_RX_URB			BIT(1)
-#define NO_CAP_LINE			BIT(2)
-#define IGNORE_DEVICE			BIT(3)
+#define ANAL_CAP_LINE			BIT(2)
+#define IGANALRE_DEVICE			BIT(3)
 #define QUIRK_CONTROL_LINE_STATE	BIT(4)
 #define CLEAR_HALT_CONDITIONS		BIT(5)
 #define SEND_ZERO_PACKET		BIT(6)

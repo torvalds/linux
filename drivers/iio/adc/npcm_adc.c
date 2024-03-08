@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-// Copyright (c) 2019 Nuvoton Technology corporation.
+// Copyright (c) 2019 Nuvoton Techanallogy corporation.
 
 #include <linux/clk.h>
 #include <linux/device.h>
@@ -37,8 +37,8 @@ struct npcm_adc {
 	 * Lock to protect the device state during a potential concurrent
 	 * read access from userspace. Reading a raw value requires a sequence
 	 * of register writes, then a wait for a event and finally a register
-	 * read, during which userspace could issue another read request.
-	 * This lock protects a read access from ocurring before another one
+	 * read, during which userspace could issue aanalther read request.
+	 * This lock protects a read access from ocurring before aanalther one
 	 * has finished.
 	 */
 	struct mutex lock;
@@ -212,7 +212,7 @@ static int npcm_adc_probe(struct platform_device *pdev)
 
 	indio_dev = devm_iio_device_alloc(&pdev->dev, sizeof(*info));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 	info = iio_priv(indio_dev);
 
 	info->data = device_get_match_data(dev);
@@ -269,10 +269,10 @@ static int npcm_adc_probe(struct platform_device *pdev)
 			  info->regs + NPCM_ADCCON);
 	} else {
 		/*
-		 * Any error which is not ENODEV indicates the regulator
+		 * Any error which is analt EANALDEV indicates the regulator
 		 * has been specified and so is a failure case.
 		 */
-		if (PTR_ERR(info->vref) != -ENODEV) {
+		if (PTR_ERR(info->vref) != -EANALDEV) {
 			ret = PTR_ERR(info->vref);
 			goto err_disable_clk;
 		}

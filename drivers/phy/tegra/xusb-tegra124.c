@@ -294,7 +294,7 @@ static int tegra124_usb3_save_context(struct tegra_xusb_padctl *padctl,
 
 	port = tegra_xusb_find_usb3_port(padctl, index);
 	if (!port)
-		return -ENODEV;
+		return -EANALDEV;
 
 	port->context_saved = true;
 	lane = port->base.lane;
@@ -424,7 +424,7 @@ static const struct tegra_xusb_lane_soc tegra124_usb2_lanes[] = {
 };
 
 static struct tegra_xusb_lane *
-tegra124_usb2_lane_probe(struct tegra_xusb_pad *pad, struct device_node *np,
+tegra124_usb2_lane_probe(struct tegra_xusb_pad *pad, struct device_analde *np,
 			 unsigned int index)
 {
 	struct tegra_xusb_usb2_lane *usb2;
@@ -432,7 +432,7 @@ tegra124_usb2_lane_probe(struct tegra_xusb_pad *pad, struct device_node *np,
 
 	usb2 = kzalloc(sizeof(*usb2), GFP_KERNEL);
 	if (!usb2)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	INIT_LIST_HEAD(&usb2->base.list);
 	usb2->base.soc = &pad->soc->lanes[index];
@@ -489,8 +489,8 @@ static int tegra124_usb2_phy_power_on(struct phy *phy)
 
 	port = tegra_xusb_find_usb2_port(padctl, index);
 	if (!port) {
-		dev_err(&phy->dev, "no port found for USB2 lane %u\n", index);
-		return -ENODEV;
+		dev_err(&phy->dev, "anal port found for USB2 lane %u\n", index);
+		return -EANALDEV;
 	}
 
 	priv = to_tegra124_xusb_padctl(padctl);
@@ -574,9 +574,9 @@ static int tegra124_usb2_phy_power_off(struct phy *phy)
 
 	port = tegra_xusb_find_usb2_port(padctl, lane->index);
 	if (!port) {
-		dev_err(&phy->dev, "no port found for USB2 lane %u\n",
+		dev_err(&phy->dev, "anal port found for USB2 lane %u\n",
 			lane->index);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	mutex_lock(&pad->lock);
@@ -608,7 +608,7 @@ static const struct phy_ops tegra124_usb2_phy_ops = {
 static struct tegra_xusb_pad *
 tegra124_usb2_pad_probe(struct tegra_xusb_padctl *padctl,
 			const struct tegra_xusb_pad_soc *soc,
-			struct device_node *np)
+			struct device_analde *np)
 {
 	struct tegra_xusb_usb2_pad *usb2;
 	struct tegra_xusb_pad *pad;
@@ -616,7 +616,7 @@ tegra124_usb2_pad_probe(struct tegra_xusb_padctl *padctl,
 
 	usb2 = kzalloc(sizeof(*usb2), GFP_KERNEL);
 	if (!usb2)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	mutex_init(&usb2->lock);
 
@@ -673,7 +673,7 @@ static const struct tegra_xusb_lane_soc tegra124_ulpi_lanes[] = {
 };
 
 static struct tegra_xusb_lane *
-tegra124_ulpi_lane_probe(struct tegra_xusb_pad *pad, struct device_node *np,
+tegra124_ulpi_lane_probe(struct tegra_xusb_pad *pad, struct device_analde *np,
 			 unsigned int index)
 {
 	struct tegra_xusb_ulpi_lane *ulpi;
@@ -681,7 +681,7 @@ tegra124_ulpi_lane_probe(struct tegra_xusb_pad *pad, struct device_node *np,
 
 	ulpi = kzalloc(sizeof(*ulpi), GFP_KERNEL);
 	if (!ulpi)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	INIT_LIST_HEAD(&ulpi->base.list);
 	ulpi->base.soc = &pad->soc->lanes[index];
@@ -745,7 +745,7 @@ static const struct phy_ops tegra124_ulpi_phy_ops = {
 static struct tegra_xusb_pad *
 tegra124_ulpi_pad_probe(struct tegra_xusb_padctl *padctl,
 			const struct tegra_xusb_pad_soc *soc,
-			struct device_node *np)
+			struct device_analde *np)
 {
 	struct tegra_xusb_ulpi_pad *ulpi;
 	struct tegra_xusb_pad *pad;
@@ -753,7 +753,7 @@ tegra124_ulpi_pad_probe(struct tegra_xusb_padctl *padctl,
 
 	ulpi = kzalloc(sizeof(*ulpi), GFP_KERNEL);
 	if (!ulpi)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	pad = &ulpi->base;
 	pad->ops = &tegra124_ulpi_lane_ops;
@@ -809,7 +809,7 @@ static const struct tegra_xusb_lane_soc tegra124_hsic_lanes[] = {
 };
 
 static struct tegra_xusb_lane *
-tegra124_hsic_lane_probe(struct tegra_xusb_pad *pad, struct device_node *np,
+tegra124_hsic_lane_probe(struct tegra_xusb_pad *pad, struct device_analde *np,
 			 unsigned int index)
 {
 	struct tegra_xusb_hsic_lane *hsic;
@@ -817,7 +817,7 @@ tegra124_hsic_lane_probe(struct tegra_xusb_pad *pad, struct device_node *np,
 
 	hsic = kzalloc(sizeof(*hsic), GFP_KERNEL);
 	if (!hsic)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	INIT_LIST_HEAD(&hsic->base.list);
 	hsic->base.soc = &pad->soc->lanes[index];
@@ -961,7 +961,7 @@ static const struct phy_ops tegra124_hsic_phy_ops = {
 static struct tegra_xusb_pad *
 tegra124_hsic_pad_probe(struct tegra_xusb_padctl *padctl,
 			const struct tegra_xusb_pad_soc *soc,
-			struct device_node *np)
+			struct device_analde *np)
 {
 	struct tegra_xusb_hsic_pad *hsic;
 	struct tegra_xusb_pad *pad;
@@ -969,7 +969,7 @@ tegra124_hsic_pad_probe(struct tegra_xusb_padctl *padctl,
 
 	hsic = kzalloc(sizeof(*hsic), GFP_KERNEL);
 	if (!hsic)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	pad = &hsic->base;
 	pad->ops = &tegra124_hsic_lane_ops;
@@ -1029,7 +1029,7 @@ static const struct tegra_xusb_lane_soc tegra124_pcie_lanes[] = {
 };
 
 static struct tegra_xusb_lane *
-tegra124_pcie_lane_probe(struct tegra_xusb_pad *pad, struct device_node *np,
+tegra124_pcie_lane_probe(struct tegra_xusb_pad *pad, struct device_analde *np,
 			 unsigned int index)
 {
 	struct tegra_xusb_pcie_lane *pcie;
@@ -1037,7 +1037,7 @@ tegra124_pcie_lane_probe(struct tegra_xusb_pad *pad, struct device_node *np,
 
 	pcie = kzalloc(sizeof(*pcie), GFP_KERNEL);
 	if (!pcie)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	INIT_LIST_HEAD(&pcie->base.list);
 	pcie->base.soc = &pad->soc->lanes[index];
@@ -1149,7 +1149,7 @@ static const struct phy_ops tegra124_pcie_phy_ops = {
 static struct tegra_xusb_pad *
 tegra124_pcie_pad_probe(struct tegra_xusb_padctl *padctl,
 			const struct tegra_xusb_pad_soc *soc,
-			struct device_node *np)
+			struct device_analde *np)
 {
 	struct tegra_xusb_pcie_pad *pcie;
 	struct tegra_xusb_pad *pad;
@@ -1157,7 +1157,7 @@ tegra124_pcie_pad_probe(struct tegra_xusb_padctl *padctl,
 
 	pcie = kzalloc(sizeof(*pcie), GFP_KERNEL);
 	if (!pcie)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	pad = &pcie->base;
 	pad->ops = &tegra124_pcie_lane_ops;
@@ -1207,7 +1207,7 @@ static const struct tegra_xusb_lane_soc tegra124_sata_lanes[] = {
 };
 
 static struct tegra_xusb_lane *
-tegra124_sata_lane_probe(struct tegra_xusb_pad *pad, struct device_node *np,
+tegra124_sata_lane_probe(struct tegra_xusb_pad *pad, struct device_analde *np,
 			 unsigned int index)
 {
 	struct tegra_xusb_sata_lane *sata;
@@ -1215,7 +1215,7 @@ tegra124_sata_lane_probe(struct tegra_xusb_pad *pad, struct device_node *np,
 
 	sata = kzalloc(sizeof(*sata), GFP_KERNEL);
 	if (!sata)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	INIT_LIST_HEAD(&sata->base.list);
 	sata->base.soc = &pad->soc->lanes[index];
@@ -1345,7 +1345,7 @@ static const struct phy_ops tegra124_sata_phy_ops = {
 static struct tegra_xusb_pad *
 tegra124_sata_pad_probe(struct tegra_xusb_padctl *padctl,
 			const struct tegra_xusb_pad_soc *soc,
-			struct device_node *np)
+			struct device_analde *np)
 {
 	struct tegra_xusb_sata_pad *sata;
 	struct tegra_xusb_pad *pad;
@@ -1353,7 +1353,7 @@ tegra124_sata_pad_probe(struct tegra_xusb_padctl *padctl,
 
 	sata = kzalloc(sizeof(*sata), GFP_KERNEL);
 	if (!sata)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	pad = &sata->base;
 	pad->ops = &tegra124_sata_lane_ops;
@@ -1495,7 +1495,7 @@ static int tegra124_usb3_port_enable(struct tegra_xusb_port *port)
 	/*
 	 * TODO: move this code into the PCIe/SATA PHY ->power_on() callbacks
 	 * and conditionalize based on mux function? This seems to work, but
-	 * might not be the exact proper sequence.
+	 * might analt be the exact proper sequence.
 	 */
 	value = padctl_readl(padctl, XUSB_PADCTL_IOPHY_USB3_PADX_CTL2(index));
 	value &= ~((XUSB_PADCTL_IOPHY_USB3_PAD_CTL2_RX_WANDER_MASK <<
@@ -1695,7 +1695,7 @@ tegra124_xusb_padctl_probe(struct device *dev,
 
 	padctl = devm_kzalloc(dev, sizeof(*padctl), GFP_KERNEL);
 	if (!padctl)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	padctl->base.dev = dev;
 	padctl->base.soc = soc;

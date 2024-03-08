@@ -157,7 +157,7 @@ static int ufs_mtk_phy_probe(struct platform_device *pdev)
 
 	phy = devm_kzalloc(dev, sizeof(*phy), GFP_KERNEL);
 	if (!phy)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	phy->mmio = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(phy->mmio))

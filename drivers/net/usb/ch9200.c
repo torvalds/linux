@@ -35,7 +35,7 @@
  * 00-63 : MII
  * 64-128: MAC
  *
- * Note: all accesses must be 16-bit
+ * Analte: all accesses must be 16-bit
  */
 
 #define MAC_REG_CTRL 64
@@ -57,7 +57,7 @@
 
 /* Control register bits
  *
- * Note: bits 13 and 15 are reserved
+ * Analte: bits 13 and 15 are reserved
  */
 #define LOOPBACK		(0x01 << 14)
 #define BASE100X		(0x01 << 12)
@@ -76,7 +76,7 @@
 
 /* Status register bits
  *
- * Note: bits 7-15 are reserved
+ * Analte: bits 7-15 are reserved
  */
 #define ALIGNMENT		(0x01 << 6)
 #define FIFO_OVER_RUN		(0x01 << 5)
@@ -88,7 +88,7 @@
 
 /* FIFO depth register bits
  *
- * Note: bits 6 and 14 are reserved
+ * Analte: bits 6 and 14 are reserved
  */
 
 #define ETH_TXBD		(0x01 << 15)
@@ -116,7 +116,7 @@ static int control_read(struct usbnet *dev,
 
 	buf = kmalloc(size, GFP_KERNEL);
 	if (!buf) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_out;
 	}
 
@@ -155,7 +155,7 @@ static int control_write(struct usbnet *dev, unsigned char request,
 	if (data) {
 		buf = kmemdup(data, size, GFP_KERNEL);
 		if (!buf) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto err_out;
 		}
 	}
@@ -183,7 +183,7 @@ static int ch9200_mdio_read(struct net_device *netdev, int phy_id, int loc)
 		   __func__, phy_id, loc);
 
 	if (phy_id != 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	control_read(dev, REQUEST_READ, 0, loc * 2, buff, 0x02,
 		     CONTROL_TIMEOUT_MS);

@@ -11,7 +11,7 @@ uses 3 bits to encode read/write and 13 bits for size.
  ====== ==================================
  bits   meaning
  ====== ==================================
- 31-30	00 - no parameters: uses _IO macro
+ 31-30	00 - anal parameters: uses _IO macro
 	10 - read: _IOR
 	01 - write: _IOW
 	11 - read/write: _IOWR

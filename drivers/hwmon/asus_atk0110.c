@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2007-2009 Luca Tettamanti <kronos.it@gmail.com>
+ * Copyright (C) 2007-2009 Luca Tettamanti <kroanals.it@gmail.com>
  *
  * See COPYING in the top level directory of the kernel tree.
  */
@@ -171,7 +171,7 @@ struct atk_sensor_data {
  * Return buffer format:
  * [0-3] "value" is valid flag
  * [4-7] value
- * [8- ] unknown stuff on newer mobos
+ * [8- ] unkanalwn stuff on newer mobos
  */
 struct atk_acpi_ret_buffer {
 	u32 flags;
@@ -316,13 +316,13 @@ static union acpi_object *atk_get_pack_member(struct atk_data *data,
  *	sensor id |
  *	sensor id - used for de-muxing the request _inside_ the GITn
  * - name (str)
- * - unknown (int)
- * - unknown (int)
+ * - unkanalwn (int)
+ * - unkanalwn (int)
  * - limit1 (int)
  * - limit2 (int)
  * - enable (int)
  *
- * The old package has the same format but it's missing the two unknown fields.
+ * The old package has the same format but it's missing the two unkanalwn fields.
  */
 static int validate_hwmon_pack(struct atk_data *data, union acpi_object *obj)
 {
@@ -355,7 +355,7 @@ static int validate_hwmon_pack(struct atk_data *data, union acpi_object *obj)
 		return -EINVAL;
 	}
 
-	/* Don't check... we don't know what they're useful for anyway */
+	/* Don't check... we don't kanalw what they're useful for anyway */
 #if 0
 	tmp = &obj->package.elements[HWMON_PACK_UNK1];
 	if (tmp->type != ACPI_TYPE_INTEGER) {
@@ -410,7 +410,7 @@ static char const *atk_sensor_type(union acpi_object *flags)
 		what = "fan";
 		break;
 	default:
-		what = "unknown";
+		what = "unkanalwn";
 		break;
 	}
 
@@ -507,9 +507,9 @@ static union acpi_object *atk_ggrp(struct atk_data *data, u16 mux)
 	}
 	pack = buf.pointer;
 	if (pack->type != ACPI_TYPE_PACKAGE) {
-		/* Execution was successful, but the id was not found */
+		/* Execution was successful, but the id was analt found */
 		ACPI_FREE(pack);
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-EANALENT);
 	}
 
 	if (pack->package.count < 1) {
@@ -613,9 +613,9 @@ static int atk_read_value_new(struct atk_sensor_data *sensor, u64 *value)
 	buf = (struct atk_acpi_ret_buffer *)obj->buffer.pointer;
 	if (buf->flags == 0) {
 		/*
-		 * The reading is not valid, possible causes:
+		 * The reading is analt valid, possible causes:
 		 * - sensor failure
-		 * - enumeration was FUBAR (and we didn't notice)
+		 * - enumeration was FUBAR (and we didn't analtice)
 		 */
 		dev_warn(dev, "Read failed, sensor = %#llx\n", sensor->id);
 		err = -EIO;
@@ -662,7 +662,7 @@ static int atk_debugfs_gitm_get(void *p, u64 *val)
 	int err = 0;
 
 	if (!data->read_handle)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!data->debugfs.id)
 		return -EINVAL;
@@ -716,16 +716,16 @@ static void atk_pack_print(char *buf, size_t sz, union acpi_object *pack)
 	}
 }
 
-static int atk_debugfs_ggrp_open(struct inode *inode, struct file *file)
+static int atk_debugfs_ggrp_open(struct ianalde *ianalde, struct file *file)
 {
-	struct atk_data *data = inode->i_private;
+	struct atk_data *data = ianalde->i_private;
 	char *buf = NULL;
 	union acpi_object *ret;
 	u8 cls;
 	int i;
 
 	if (!data->enumerate_handle)
-		return -ENODEV;
+		return -EANALDEV;
 	if (!data->debugfs.id)
 		return -EINVAL;
 
@@ -748,7 +748,7 @@ static int atk_debugfs_ggrp_open(struct inode *inode, struct file *file)
 			buf = kzalloc(512, GFP_KERNEL);
 			if (!buf) {
 				ACPI_FREE(ret);
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 			atk_pack_print(buf, 512, pack);
 			break;
@@ -761,7 +761,7 @@ static int atk_debugfs_ggrp_open(struct inode *inode, struct file *file)
 
 	file->private_data = buf;
 
-	return nonseekable_open(inode, file);
+	return analnseekable_open(ianalde, file);
 }
 
 static ssize_t atk_debugfs_ggrp_read(struct file *file, char __user *buf,
@@ -773,7 +773,7 @@ static ssize_t atk_debugfs_ggrp_read(struct file *file, char __user *buf,
 	return simple_read_from_buffer(buf, count, pos, str, len);
 }
 
-static int atk_debugfs_ggrp_release(struct inode *inode, struct file *file)
+static int atk_debugfs_ggrp_release(struct ianalde *ianalde, struct file *file)
 {
 	kfree(file->private_data);
 	return 0;
@@ -783,7 +783,7 @@ static const struct file_operations atk_debugfs_ggrp_fops = {
 	.read		= atk_debugfs_ggrp_read,
 	.open		= atk_debugfs_ggrp_open,
 	.release	= atk_debugfs_ggrp_release,
-	.llseek		= no_llseek,
+	.llseek		= anal_llseek,
 };
 
 static void atk_debugfs_init(struct atk_data *data)
@@ -836,7 +836,7 @@ static int atk_add_sensor(struct atk_data *data, union acpi_object *obj)
 
 	if (obj->type != ACPI_TYPE_PACKAGE) {
 		/* wft is this? */
-		dev_warn(dev, "Unknown type for ACPI object: (%d)\n",
+		dev_warn(dev, "Unkanalwn type for ACPI object: (%d)\n",
 				obj->type);
 		return -EINVAL;
 	}
@@ -872,7 +872,7 @@ static int atk_add_sensor(struct atk_data *data, union acpi_object *obj)
 		start = 1;
 		break;
 	default:
-		dev_warn(dev, "Unknown sensor type: %#llx\n", type);
+		dev_warn(dev, "Unkanalwn sensor type: %#llx\n", type);
 		return -EINVAL;
 	}
 
@@ -888,11 +888,11 @@ static int atk_add_sensor(struct atk_data *data, union acpi_object *obj)
 
 	sensor = devm_kzalloc(dev, sizeof(*sensor), GFP_KERNEL);
 	if (!sensor)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sensor->acpi_name = devm_kstrdup(dev, name->string.pointer, GFP_KERNEL);
 	if (!sensor->acpi_name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_LIST_HEAD(&sensor->list);
 	sensor->type = type;
@@ -952,7 +952,7 @@ static int atk_enumerate_old_hwmon(struct atk_data *data)
 		dev_warn(dev, METHOD_OLD_ENUM_VLT ": ACPI exception: %s\n",
 				acpi_format_exception(status));
 
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	pack = buf.pointer;
@@ -973,7 +973,7 @@ static int atk_enumerate_old_hwmon(struct atk_data *data)
 		dev_warn(dev, METHOD_OLD_ENUM_TMP ": ACPI exception: %s\n",
 				acpi_format_exception(status));
 
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	pack = buf.pointer;
@@ -994,7 +994,7 @@ static int atk_enumerate_old_hwmon(struct atk_data *data)
 		dev_warn(dev, METHOD_OLD_ENUM_FAN ": ACPI exception: %s\n",
 				acpi_format_exception(status));
 
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	pack = buf.pointer;
@@ -1020,9 +1020,9 @@ static int atk_ec_present(struct atk_data *data)
 
 	pack = atk_ggrp(data, ATK_MUX_MGMT);
 	if (IS_ERR(pack)) {
-		if (PTR_ERR(pack) == -ENOENT) {
-			/* The MGMT class does not exists - that's ok */
-			dev_dbg(dev, "Class %#llx not found\n", ATK_MUX_MGMT);
+		if (PTR_ERR(pack) == -EANALENT) {
+			/* The MGMT class does analt exists - that's ok */
+			dev_dbg(dev, "Class %#llx analt found\n", ATK_MUX_MGMT);
 			return 0;
 		}
 		return PTR_ERR(pack);
@@ -1049,8 +1049,8 @@ static int atk_ec_present(struct atk_data *data)
 
 	ret = (ec != NULL);
 	if (!ret)
-		/* The system has no EC */
-		dev_dbg(dev, "EC not found\n");
+		/* The system has anal EC */
+		dev_dbg(dev, "EC analt found\n");
 
 	ACPI_FREE(pack);
 	return ret;
@@ -1168,7 +1168,7 @@ static int atk_init_attribute_groups(struct atk_data *data)
 
 	attrs = devm_kcalloc(dev, len, sizeof(struct attribute *), GFP_KERNEL);
 	if (!attrs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	list_for_each_entry(s, &data->sensor_list, list) {
 		attrs[i++] = &s->input_attr.attr;
@@ -1207,7 +1207,7 @@ static int atk_probe_if(struct atk_data *data)
 	if (ACPI_SUCCESS(status))
 		data->rtmp_handle = ret;
 	else
-		dev_dbg(dev, "method " METHOD_OLD_READ_TMP " not found: %s\n",
+		dev_dbg(dev, "method " METHOD_OLD_READ_TMP " analt found: %s\n",
 				acpi_format_exception(status));
 
 	/* RVLT: read voltage */
@@ -1215,7 +1215,7 @@ static int atk_probe_if(struct atk_data *data)
 	if (ACPI_SUCCESS(status))
 		data->rvlt_handle = ret;
 	else
-		dev_dbg(dev, "method " METHOD_OLD_READ_VLT " not found: %s\n",
+		dev_dbg(dev, "method " METHOD_OLD_READ_VLT " analt found: %s\n",
 				acpi_format_exception(status));
 
 	/* RFAN: read fan status */
@@ -1223,7 +1223,7 @@ static int atk_probe_if(struct atk_data *data)
 	if (ACPI_SUCCESS(status))
 		data->rfan_handle = ret;
 	else
-		dev_dbg(dev, "method " METHOD_OLD_READ_FAN " not found: %s\n",
+		dev_dbg(dev, "method " METHOD_OLD_READ_FAN " analt found: %s\n",
 				acpi_format_exception(status));
 
 	/* Enumeration */
@@ -1231,7 +1231,7 @@ static int atk_probe_if(struct atk_data *data)
 	if (ACPI_SUCCESS(status))
 		data->enumerate_handle = ret;
 	else
-		dev_dbg(dev, "method " METHOD_ENUMERATE " not found: %s\n",
+		dev_dbg(dev, "method " METHOD_ENUMERATE " analt found: %s\n",
 				acpi_format_exception(status));
 
 	/* De-multiplexer (read) */
@@ -1239,7 +1239,7 @@ static int atk_probe_if(struct atk_data *data)
 	if (ACPI_SUCCESS(status))
 		data->read_handle = ret;
 	else
-		dev_dbg(dev, "method " METHOD_READ " not found: %s\n",
+		dev_dbg(dev, "method " METHOD_READ " analt found: %s\n",
 				acpi_format_exception(status));
 
 	/* De-multiplexer (write) */
@@ -1247,14 +1247,14 @@ static int atk_probe_if(struct atk_data *data)
 	if (ACPI_SUCCESS(status))
 		data->write_handle = ret;
 	else
-		dev_dbg(dev, "method " METHOD_WRITE " not found: %s\n",
+		dev_dbg(dev, "method " METHOD_WRITE " analt found: %s\n",
 				 acpi_format_exception(status));
 
 	/*
-	 * Check for hwmon methods: first check "old" style methods; note that
+	 * Check for hwmon methods: first check "old" style methods; analte that
 	 * both may be present: in this case we stick to the old interface;
 	 * analysis of multiple DSDTs indicates that when both interfaces
-	 * are present the new one (GGRP/GITM) is not functional.
+	 * are present the new one (GGRP/GITM) is analt functional.
 	 */
 	if (new_if)
 		dev_info(dev, "Overriding interface detection\n");
@@ -1265,7 +1265,7 @@ static int atk_probe_if(struct atk_data *data)
 			data->write_handle)
 		data->old_interface = false;
 	else
-		err = -ENODEV;
+		err = -EANALDEV;
 
 	return err;
 }
@@ -1282,7 +1282,7 @@ static int atk_add(struct acpi_device *device)
 
 	data = devm_kzalloc(&device->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->acpi_dev = device;
 	data->atk_handle = device->handle;
@@ -1293,7 +1293,7 @@ static int atk_add(struct acpi_device *device)
 	ret = acpi_evaluate_object_typed(data->atk_handle, BOARD_ID, NULL,
 			&buf, ACPI_TYPE_PACKAGE);
 	if (ret != AE_OK) {
-		dev_dbg(&device->dev, "atk: method MBIF not found\n");
+		dev_dbg(&device->dev, "atk: method MBIF analt found\n");
 	} else {
 		obj = buf.pointer;
 		if (obj->package.count >= 2) {
@@ -1307,7 +1307,7 @@ static int atk_add(struct acpi_device *device)
 
 	err = atk_probe_if(data);
 	if (err) {
-		dev_err(&device->dev, "No usable hwmon interface detected\n");
+		dev_err(&device->dev, "Anal usable hwmon interface detected\n");
 		goto out;
 	}
 
@@ -1322,8 +1322,8 @@ static int atk_add(struct acpi_device *device)
 		goto out;
 	if (err == 0) {
 		dev_info(&device->dev,
-			 "No usable sensor detected, bailing out\n");
-		err = -ENODEV;
+			 "Anal usable sensor detected, bailing out\n");
+		err = -EANALDEV;
 		goto out;
 	}
 
@@ -1367,7 +1367,7 @@ static int __init atk0110_init(void)
 
 	/* Make sure it's safe to access the device through ACPI */
 	if (!acpi_resources_are_enforced()) {
-		pr_err("Resources not safely usable due to acpi_enforce_resources kernel parameter\n");
+		pr_err("Resources analt safely usable due to acpi_enforce_resources kernel parameter\n");
 		return -EBUSY;
 	}
 

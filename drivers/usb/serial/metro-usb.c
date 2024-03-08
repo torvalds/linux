@@ -11,7 +11,7 @@
 #include <linux/tty.h>
 #include <linux/module.h>
 #include <linux/usb.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/tty_driver.h>
 #include <linux/tty_flip.h>
@@ -30,7 +30,7 @@
 #define METROUSB_SET_REQUEST_TYPE	0x40
 #define METROUSB_SET_MODEM_CTRL_REQUEST	10
 #define METROUSB_SET_BREAK_REQUEST	0x40
-#define METROUSB_MCR_NONE		0x08	/* Deactivate DTR and RTS. */
+#define METROUSB_MCR_ANALNE		0x08	/* Deactivate DTR and RTS. */
 #define METROUSB_MCR_RTS		0x0a	/* Activate RTS. */
 #define METROUSB_MCR_DTR		0x09	/* Activate DTR. */
 #define WDR_TIMEOUT			5000	/* default urb timeout. */
@@ -68,7 +68,7 @@ static int metrousb_calc_num_ports(struct usb_serial *serial,
 	if (metrousb_is_unidirectional_mode(serial)) {
 		if (epds->num_interrupt_out == 0) {
 			dev_err(&serial->interface->dev, "interrupt-out endpoint missing\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 
@@ -86,7 +86,7 @@ static int metrousb_send_unidirectional_cmd(u8 cmd, struct usb_serial_port *port
 
 	buffer_cmd = kzalloc(sizeof(cmd), GFP_KERNEL);
 	if (!buffer_cmd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	*buffer_cmd = cmd;
 
@@ -120,7 +120,7 @@ static void metrousb_read_int_callback(struct urb *urb)
 		/* Success status, read from the port. */
 		break;
 	case -ECONNRESET:
-	case -ENOENT:
+	case -EANALENT:
 	case -ESHUTDOWN:
 		/* urb has been terminated. */
 		dev_dbg(&port->dev,
@@ -129,7 +129,7 @@ static void metrousb_read_int_callback(struct urb *urb)
 		return;
 	default:
 		dev_dbg(&port->dev,
-			"%s - non-zero urb received, error code=%d\n",
+			"%s - analn-zero urb received, error code=%d\n",
 			__func__, urb->status);
 		goto exit;
 	}
@@ -218,7 +218,7 @@ err_kill_urb:
 static int metrousb_set_modem_ctrl(struct usb_serial *serial, unsigned int control_state)
 {
 	int retval = 0;
-	unsigned char mcr = METROUSB_MCR_NONE;
+	unsigned char mcr = METROUSB_MCR_ANALNE;
 
 	dev_dbg(&serial->dev->dev, "%s - control state = %d\n",
 		__func__, control_state);
@@ -247,7 +247,7 @@ static int metrousb_port_probe(struct usb_serial_port *port)
 
 	metro_priv = kzalloc(sizeof(*metro_priv), GFP_KERNEL);
 	if (!metro_priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&metro_priv->lock);
 

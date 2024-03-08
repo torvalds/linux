@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * inode.c
+ * ianalde.c
  *
  * vfs' aops, fops, dops and iops
  *
@@ -27,7 +27,7 @@
 #include "extent_map.h"
 #include "file.h"
 #include "heartbeat.h"
-#include "inode.h"
+#include "ianalde.h"
 #include "journal.h"
 #include "namei.h"
 #include "suballoc.h"
@@ -42,140 +42,140 @@
 
 #include "buffer_head_io.h"
 
-struct ocfs2_find_inode_args
+struct ocfs2_find_ianalde_args
 {
-	u64		fi_blkno;
-	unsigned long	fi_ino;
+	u64		fi_blkanal;
+	unsigned long	fi_ianal;
 	unsigned int	fi_flags;
 	unsigned int	fi_sysfile_type;
 };
 
-static struct lock_class_key ocfs2_sysfile_lock_key[NUM_SYSTEM_INODES];
+static struct lock_class_key ocfs2_sysfile_lock_key[NUM_SYSTEM_IANALDES];
 
-static int ocfs2_read_locked_inode(struct inode *inode,
-				   struct ocfs2_find_inode_args *args);
-static int ocfs2_init_locked_inode(struct inode *inode, void *opaque);
-static int ocfs2_find_actor(struct inode *inode, void *opaque);
+static int ocfs2_read_locked_ianalde(struct ianalde *ianalde,
+				   struct ocfs2_find_ianalde_args *args);
+static int ocfs2_init_locked_ianalde(struct ianalde *ianalde, void *opaque);
+static int ocfs2_find_actor(struct ianalde *ianalde, void *opaque);
 static int ocfs2_truncate_for_delete(struct ocfs2_super *osb,
-				    struct inode *inode,
+				    struct ianalde *ianalde,
 				    struct buffer_head *fe_bh);
 
-static int ocfs2_filecheck_read_inode_block_full(struct inode *inode,
+static int ocfs2_filecheck_read_ianalde_block_full(struct ianalde *ianalde,
 						 struct buffer_head **bh,
 						 int flags, int type);
-static int ocfs2_filecheck_validate_inode_block(struct super_block *sb,
+static int ocfs2_filecheck_validate_ianalde_block(struct super_block *sb,
 						struct buffer_head *bh);
-static int ocfs2_filecheck_repair_inode_block(struct super_block *sb,
+static int ocfs2_filecheck_repair_ianalde_block(struct super_block *sb,
 					      struct buffer_head *bh);
 
-void ocfs2_set_inode_flags(struct inode *inode)
+void ocfs2_set_ianalde_flags(struct ianalde *ianalde)
 {
-	unsigned int flags = OCFS2_I(inode)->ip_attr;
+	unsigned int flags = OCFS2_I(ianalde)->ip_attr;
 
-	inode->i_flags &= ~(S_IMMUTABLE |
-		S_SYNC | S_APPEND | S_NOATIME | S_DIRSYNC);
+	ianalde->i_flags &= ~(S_IMMUTABLE |
+		S_SYNC | S_APPEND | S_ANALATIME | S_DIRSYNC);
 
 	if (flags & OCFS2_IMMUTABLE_FL)
-		inode->i_flags |= S_IMMUTABLE;
+		ianalde->i_flags |= S_IMMUTABLE;
 
 	if (flags & OCFS2_SYNC_FL)
-		inode->i_flags |= S_SYNC;
+		ianalde->i_flags |= S_SYNC;
 	if (flags & OCFS2_APPEND_FL)
-		inode->i_flags |= S_APPEND;
-	if (flags & OCFS2_NOATIME_FL)
-		inode->i_flags |= S_NOATIME;
+		ianalde->i_flags |= S_APPEND;
+	if (flags & OCFS2_ANALATIME_FL)
+		ianalde->i_flags |= S_ANALATIME;
 	if (flags & OCFS2_DIRSYNC_FL)
-		inode->i_flags |= S_DIRSYNC;
+		ianalde->i_flags |= S_DIRSYNC;
 }
 
-/* Propagate flags from i_flags to OCFS2_I(inode)->ip_attr */
-void ocfs2_get_inode_flags(struct ocfs2_inode_info *oi)
+/* Propagate flags from i_flags to OCFS2_I(ianalde)->ip_attr */
+void ocfs2_get_ianalde_flags(struct ocfs2_ianalde_info *oi)
 {
-	unsigned int flags = oi->vfs_inode.i_flags;
+	unsigned int flags = oi->vfs_ianalde.i_flags;
 
 	oi->ip_attr &= ~(OCFS2_SYNC_FL|OCFS2_APPEND_FL|
-			OCFS2_IMMUTABLE_FL|OCFS2_NOATIME_FL|OCFS2_DIRSYNC_FL);
+			OCFS2_IMMUTABLE_FL|OCFS2_ANALATIME_FL|OCFS2_DIRSYNC_FL);
 	if (flags & S_SYNC)
 		oi->ip_attr |= OCFS2_SYNC_FL;
 	if (flags & S_APPEND)
 		oi->ip_attr |= OCFS2_APPEND_FL;
 	if (flags & S_IMMUTABLE)
 		oi->ip_attr |= OCFS2_IMMUTABLE_FL;
-	if (flags & S_NOATIME)
-		oi->ip_attr |= OCFS2_NOATIME_FL;
+	if (flags & S_ANALATIME)
+		oi->ip_attr |= OCFS2_ANALATIME_FL;
 	if (flags & S_DIRSYNC)
 		oi->ip_attr |= OCFS2_DIRSYNC_FL;
 }
 
-struct inode *ocfs2_ilookup(struct super_block *sb, u64 blkno)
+struct ianalde *ocfs2_ilookup(struct super_block *sb, u64 blkanal)
 {
-	struct ocfs2_find_inode_args args;
+	struct ocfs2_find_ianalde_args args;
 
-	args.fi_blkno = blkno;
+	args.fi_blkanal = blkanal;
 	args.fi_flags = 0;
-	args.fi_ino = ino_from_blkno(sb, blkno);
+	args.fi_ianal = ianal_from_blkanal(sb, blkanal);
 	args.fi_sysfile_type = 0;
 
-	return ilookup5(sb, blkno, ocfs2_find_actor, &args);
+	return ilookup5(sb, blkanal, ocfs2_find_actor, &args);
 }
-struct inode *ocfs2_iget(struct ocfs2_super *osb, u64 blkno, unsigned flags,
+struct ianalde *ocfs2_iget(struct ocfs2_super *osb, u64 blkanal, unsigned flags,
 			 int sysfile_type)
 {
 	int rc = -ESTALE;
-	struct inode *inode = NULL;
+	struct ianalde *ianalde = NULL;
 	struct super_block *sb = osb->sb;
-	struct ocfs2_find_inode_args args;
+	struct ocfs2_find_ianalde_args args;
 	journal_t *journal = osb->journal->j_journal;
 
-	trace_ocfs2_iget_begin((unsigned long long)blkno, flags,
+	trace_ocfs2_iget_begin((unsigned long long)blkanal, flags,
 			       sysfile_type);
 
-	/* Ok. By now we've either got the offsets passed to us by the
+	/* Ok. By analw we've either got the offsets passed to us by the
 	 * caller, or we just pulled them off the bh. Lets do some
 	 * sanity checks to make sure they're OK. */
-	if (blkno == 0) {
-		inode = ERR_PTR(-EINVAL);
-		mlog_errno(PTR_ERR(inode));
+	if (blkanal == 0) {
+		ianalde = ERR_PTR(-EINVAL);
+		mlog_erranal(PTR_ERR(ianalde));
 		goto bail;
 	}
 
-	args.fi_blkno = blkno;
+	args.fi_blkanal = blkanal;
 	args.fi_flags = flags;
-	args.fi_ino = ino_from_blkno(sb, blkno);
+	args.fi_ianal = ianal_from_blkanal(sb, blkanal);
 	args.fi_sysfile_type = sysfile_type;
 
-	inode = iget5_locked(sb, args.fi_ino, ocfs2_find_actor,
-			     ocfs2_init_locked_inode, &args);
-	/* inode was *not* in the inode cache. 2.6.x requires
-	 * us to do our own read_inode call and unlock it
+	ianalde = iget5_locked(sb, args.fi_ianal, ocfs2_find_actor,
+			     ocfs2_init_locked_ianalde, &args);
+	/* ianalde was *analt* in the ianalde cache. 2.6.x requires
+	 * us to do our own read_ianalde call and unlock it
 	 * afterwards. */
-	if (inode == NULL) {
-		inode = ERR_PTR(-ENOMEM);
-		mlog_errno(PTR_ERR(inode));
+	if (ianalde == NULL) {
+		ianalde = ERR_PTR(-EANALMEM);
+		mlog_erranal(PTR_ERR(ianalde));
 		goto bail;
 	}
-	trace_ocfs2_iget5_locked(inode->i_state);
-	if (inode->i_state & I_NEW) {
-		rc = ocfs2_read_locked_inode(inode, &args);
-		unlock_new_inode(inode);
+	trace_ocfs2_iget5_locked(ianalde->i_state);
+	if (ianalde->i_state & I_NEW) {
+		rc = ocfs2_read_locked_ianalde(ianalde, &args);
+		unlock_new_ianalde(ianalde);
 	}
-	if (is_bad_inode(inode)) {
-		iput(inode);
-		inode = ERR_PTR(rc);
+	if (is_bad_ianalde(ianalde)) {
+		iput(ianalde);
+		ianalde = ERR_PTR(rc);
 		goto bail;
 	}
 
 	/*
 	 * Set transaction id's of transactions that have to be committed
 	 * to finish f[data]sync. We set them to currently running transaction
-	 * as we cannot be sure that the inode or some of its metadata isn't
-	 * part of the transaction - the inode could have been reclaimed and
-	 * now it is reread from disk.
+	 * as we cananalt be sure that the ianalde or some of its metadata isn't
+	 * part of the transaction - the ianalde could have been reclaimed and
+	 * analw it is reread from disk.
 	 */
 	if (journal) {
 		transaction_t *transaction;
 		tid_t tid;
-		struct ocfs2_inode_info *oi = OCFS2_I(inode);
+		struct ocfs2_ianalde_info *oi = OCFS2_I(ianalde);
 
 		read_lock(&journal->j_state_lock);
 		if (journal->j_running_transaction)
@@ -192,35 +192,35 @@ struct inode *ocfs2_iget(struct ocfs2_super *osb, u64 blkno, unsigned flags,
 	}
 
 bail:
-	if (!IS_ERR(inode)) {
-		trace_ocfs2_iget_end(inode, 
-			(unsigned long long)OCFS2_I(inode)->ip_blkno);
+	if (!IS_ERR(ianalde)) {
+		trace_ocfs2_iget_end(ianalde, 
+			(unsigned long long)OCFS2_I(ianalde)->ip_blkanal);
 	}
 
-	return inode;
+	return ianalde;
 }
 
 
 /*
- * here's how inodes get read from disk:
+ * here's how ianaldes get read from disk:
  * iget5_locked -> find_actor -> OCFS2_FIND_ACTOR
- * found? : return the in-memory inode
- * not found? : get_new_inode -> OCFS2_INIT_LOCKED_INODE
+ * found? : return the in-memory ianalde
+ * analt found? : get_new_ianalde -> OCFS2_INIT_LOCKED_IANALDE
  */
 
-static int ocfs2_find_actor(struct inode *inode, void *opaque)
+static int ocfs2_find_actor(struct ianalde *ianalde, void *opaque)
 {
-	struct ocfs2_find_inode_args *args = NULL;
-	struct ocfs2_inode_info *oi = OCFS2_I(inode);
+	struct ocfs2_find_ianalde_args *args = NULL;
+	struct ocfs2_ianalde_info *oi = OCFS2_I(ianalde);
 	int ret = 0;
 
 	args = opaque;
 
-	mlog_bug_on_msg(!inode, "No inode in find actor!\n");
+	mlog_bug_on_msg(!ianalde, "Anal ianalde in find actor!\n");
 
-	trace_ocfs2_find_actor(inode, inode->i_ino, opaque, args->fi_blkno);
+	trace_ocfs2_find_actor(ianalde, ianalde->i_ianal, opaque, args->fi_blkanal);
 
-	if (oi->ip_blkno != args->fi_blkno)
+	if (oi->ip_blkanal != args->fi_blkanal)
 		goto bail;
 
 	ret = 1;
@@ -229,42 +229,42 @@ bail:
 }
 
 /*
- * initialize the new inode, but don't do anything that would cause
+ * initialize the new ianalde, but don't do anything that would cause
  * us to sleep.
  * return 0 on success, 1 on failure
  */
-static int ocfs2_init_locked_inode(struct inode *inode, void *opaque)
+static int ocfs2_init_locked_ianalde(struct ianalde *ianalde, void *opaque)
 {
-	struct ocfs2_find_inode_args *args = opaque;
+	struct ocfs2_find_ianalde_args *args = opaque;
 	static struct lock_class_key ocfs2_quota_ip_alloc_sem_key,
 				     ocfs2_file_ip_alloc_sem_key;
 
-	inode->i_ino = args->fi_ino;
-	OCFS2_I(inode)->ip_blkno = args->fi_blkno;
+	ianalde->i_ianal = args->fi_ianal;
+	OCFS2_I(ianalde)->ip_blkanal = args->fi_blkanal;
 	if (args->fi_sysfile_type != 0)
-		lockdep_set_class(&inode->i_rwsem,
+		lockdep_set_class(&ianalde->i_rwsem,
 			&ocfs2_sysfile_lock_key[args->fi_sysfile_type]);
-	if (args->fi_sysfile_type == USER_QUOTA_SYSTEM_INODE ||
-	    args->fi_sysfile_type == GROUP_QUOTA_SYSTEM_INODE ||
-	    args->fi_sysfile_type == LOCAL_USER_QUOTA_SYSTEM_INODE ||
-	    args->fi_sysfile_type == LOCAL_GROUP_QUOTA_SYSTEM_INODE)
-		lockdep_set_class(&OCFS2_I(inode)->ip_alloc_sem,
+	if (args->fi_sysfile_type == USER_QUOTA_SYSTEM_IANALDE ||
+	    args->fi_sysfile_type == GROUP_QUOTA_SYSTEM_IANALDE ||
+	    args->fi_sysfile_type == LOCAL_USER_QUOTA_SYSTEM_IANALDE ||
+	    args->fi_sysfile_type == LOCAL_GROUP_QUOTA_SYSTEM_IANALDE)
+		lockdep_set_class(&OCFS2_I(ianalde)->ip_alloc_sem,
 				  &ocfs2_quota_ip_alloc_sem_key);
 	else
-		lockdep_set_class(&OCFS2_I(inode)->ip_alloc_sem,
+		lockdep_set_class(&OCFS2_I(ianalde)->ip_alloc_sem,
 				  &ocfs2_file_ip_alloc_sem_key);
 
 	return 0;
 }
 
-void ocfs2_populate_inode(struct inode *inode, struct ocfs2_dinode *fe,
-			  int create_ino)
+void ocfs2_populate_ianalde(struct ianalde *ianalde, struct ocfs2_dianalde *fe,
+			  int create_ianal)
 {
 	struct super_block *sb;
 	struct ocfs2_super *osb;
 	int use_plocks = 1;
 
-	sb = inode->i_sb;
+	sb = ianalde->i_sb;
 	osb = OCFS2_SB(sb);
 
 	if ((osb->s_mount_opt & OCFS2_MOUNT_LOCALFLOCKS) ||
@@ -272,156 +272,156 @@ void ocfs2_populate_inode(struct inode *inode, struct ocfs2_dinode *fe,
 		use_plocks = 0;
 
 	/*
-	 * These have all been checked by ocfs2_read_inode_block() or set
-	 * by ocfs2_mknod_locked(), so a failure is a code bug.
+	 * These have all been checked by ocfs2_read_ianalde_block() or set
+	 * by ocfs2_mkanald_locked(), so a failure is a code bug.
 	 */
-	BUG_ON(!OCFS2_IS_VALID_DINODE(fe));  /* This means that read_inode
-						cannot create a superblock
-						inode today.  change if
+	BUG_ON(!OCFS2_IS_VALID_DIANALDE(fe));  /* This means that read_ianalde
+						cananalt create a superblock
+						ianalde today.  change if
 						that is needed. */
 	BUG_ON(!(fe->i_flags & cpu_to_le32(OCFS2_VALID_FL)));
 	BUG_ON(le32_to_cpu(fe->i_fs_generation) != osb->fs_generation);
 
 
-	OCFS2_I(inode)->ip_clusters = le32_to_cpu(fe->i_clusters);
-	OCFS2_I(inode)->ip_attr = le32_to_cpu(fe->i_attr);
-	OCFS2_I(inode)->ip_dyn_features = le16_to_cpu(fe->i_dyn_features);
+	OCFS2_I(ianalde)->ip_clusters = le32_to_cpu(fe->i_clusters);
+	OCFS2_I(ianalde)->ip_attr = le32_to_cpu(fe->i_attr);
+	OCFS2_I(ianalde)->ip_dyn_features = le16_to_cpu(fe->i_dyn_features);
 
-	inode_set_iversion(inode, 1);
-	inode->i_generation = le32_to_cpu(fe->i_generation);
-	inode->i_rdev = huge_decode_dev(le64_to_cpu(fe->id1.dev1.i_rdev));
-	inode->i_mode = le16_to_cpu(fe->i_mode);
-	i_uid_write(inode, le32_to_cpu(fe->i_uid));
-	i_gid_write(inode, le32_to_cpu(fe->i_gid));
+	ianalde_set_iversion(ianalde, 1);
+	ianalde->i_generation = le32_to_cpu(fe->i_generation);
+	ianalde->i_rdev = huge_decode_dev(le64_to_cpu(fe->id1.dev1.i_rdev));
+	ianalde->i_mode = le16_to_cpu(fe->i_mode);
+	i_uid_write(ianalde, le32_to_cpu(fe->i_uid));
+	i_gid_write(ianalde, le32_to_cpu(fe->i_gid));
 
-	/* Fast symlinks will have i_size but no allocated clusters. */
-	if (S_ISLNK(inode->i_mode) && !fe->i_clusters) {
-		inode->i_blocks = 0;
-		inode->i_mapping->a_ops = &ocfs2_fast_symlink_aops;
+	/* Fast symlinks will have i_size but anal allocated clusters. */
+	if (S_ISLNK(ianalde->i_mode) && !fe->i_clusters) {
+		ianalde->i_blocks = 0;
+		ianalde->i_mapping->a_ops = &ocfs2_fast_symlink_aops;
 	} else {
-		inode->i_blocks = ocfs2_inode_sector_count(inode);
-		inode->i_mapping->a_ops = &ocfs2_aops;
+		ianalde->i_blocks = ocfs2_ianalde_sector_count(ianalde);
+		ianalde->i_mapping->a_ops = &ocfs2_aops;
 	}
-	inode_set_atime(inode, le64_to_cpu(fe->i_atime),
+	ianalde_set_atime(ianalde, le64_to_cpu(fe->i_atime),
 		        le32_to_cpu(fe->i_atime_nsec));
-	inode_set_mtime(inode, le64_to_cpu(fe->i_mtime),
+	ianalde_set_mtime(ianalde, le64_to_cpu(fe->i_mtime),
 		        le32_to_cpu(fe->i_mtime_nsec));
-	inode_set_ctime(inode, le64_to_cpu(fe->i_ctime),
+	ianalde_set_ctime(ianalde, le64_to_cpu(fe->i_ctime),
 		        le32_to_cpu(fe->i_ctime_nsec));
 
-	if (OCFS2_I(inode)->ip_blkno != le64_to_cpu(fe->i_blkno))
+	if (OCFS2_I(ianalde)->ip_blkanal != le64_to_cpu(fe->i_blkanal))
 		mlog(ML_ERROR,
-		     "ip_blkno %llu != i_blkno %llu!\n",
-		     (unsigned long long)OCFS2_I(inode)->ip_blkno,
-		     (unsigned long long)le64_to_cpu(fe->i_blkno));
+		     "ip_blkanal %llu != i_blkanal %llu!\n",
+		     (unsigned long long)OCFS2_I(ianalde)->ip_blkanal,
+		     (unsigned long long)le64_to_cpu(fe->i_blkanal));
 
-	set_nlink(inode, ocfs2_read_links_count(fe));
+	set_nlink(ianalde, ocfs2_read_links_count(fe));
 
-	trace_ocfs2_populate_inode(OCFS2_I(inode)->ip_blkno,
+	trace_ocfs2_populate_ianalde(OCFS2_I(ianalde)->ip_blkanal,
 				   le32_to_cpu(fe->i_flags));
 	if (fe->i_flags & cpu_to_le32(OCFS2_SYSTEM_FL)) {
-		OCFS2_I(inode)->ip_flags |= OCFS2_INODE_SYSTEM_FILE;
-		inode->i_flags |= S_NOQUOTA;
+		OCFS2_I(ianalde)->ip_flags |= OCFS2_IANALDE_SYSTEM_FILE;
+		ianalde->i_flags |= S_ANALQUOTA;
 	}
   
 	if (fe->i_flags & cpu_to_le32(OCFS2_LOCAL_ALLOC_FL)) {
-		OCFS2_I(inode)->ip_flags |= OCFS2_INODE_BITMAP;
+		OCFS2_I(ianalde)->ip_flags |= OCFS2_IANALDE_BITMAP;
 	} else if (fe->i_flags & cpu_to_le32(OCFS2_BITMAP_FL)) {
-		OCFS2_I(inode)->ip_flags |= OCFS2_INODE_BITMAP;
+		OCFS2_I(ianalde)->ip_flags |= OCFS2_IANALDE_BITMAP;
 	} else if (fe->i_flags & cpu_to_le32(OCFS2_QUOTA_FL)) {
-		inode->i_flags |= S_NOQUOTA;
+		ianalde->i_flags |= S_ANALQUOTA;
 	} else if (fe->i_flags & cpu_to_le32(OCFS2_SUPER_BLOCK_FL)) {
-		/* we can't actually hit this as read_inode can't
+		/* we can't actually hit this as read_ianalde can't
 		 * handle superblocks today ;-) */
 		BUG();
 	}
 
-	switch (inode->i_mode & S_IFMT) {
+	switch (ianalde->i_mode & S_IFMT) {
 	    case S_IFREG:
 		    if (use_plocks)
-			    inode->i_fop = &ocfs2_fops;
+			    ianalde->i_fop = &ocfs2_fops;
 		    else
-			    inode->i_fop = &ocfs2_fops_no_plocks;
-		    inode->i_op = &ocfs2_file_iops;
-		    i_size_write(inode, le64_to_cpu(fe->i_size));
+			    ianalde->i_fop = &ocfs2_fops_anal_plocks;
+		    ianalde->i_op = &ocfs2_file_iops;
+		    i_size_write(ianalde, le64_to_cpu(fe->i_size));
 		    break;
 	    case S_IFDIR:
-		    inode->i_op = &ocfs2_dir_iops;
+		    ianalde->i_op = &ocfs2_dir_iops;
 		    if (use_plocks)
-			    inode->i_fop = &ocfs2_dops;
+			    ianalde->i_fop = &ocfs2_dops;
 		    else
-			    inode->i_fop = &ocfs2_dops_no_plocks;
-		    i_size_write(inode, le64_to_cpu(fe->i_size));
-		    OCFS2_I(inode)->ip_dir_lock_gen = 1;
+			    ianalde->i_fop = &ocfs2_dops_anal_plocks;
+		    i_size_write(ianalde, le64_to_cpu(fe->i_size));
+		    OCFS2_I(ianalde)->ip_dir_lock_gen = 1;
 		    break;
 	    case S_IFLNK:
-		    inode->i_op = &ocfs2_symlink_inode_operations;
-		    inode_nohighmem(inode);
-		    i_size_write(inode, le64_to_cpu(fe->i_size));
+		    ianalde->i_op = &ocfs2_symlink_ianalde_operations;
+		    ianalde_analhighmem(ianalde);
+		    i_size_write(ianalde, le64_to_cpu(fe->i_size));
 		    break;
 	    default:
-		    inode->i_op = &ocfs2_special_file_iops;
-		    init_special_inode(inode, inode->i_mode,
-				       inode->i_rdev);
+		    ianalde->i_op = &ocfs2_special_file_iops;
+		    init_special_ianalde(ianalde, ianalde->i_mode,
+				       ianalde->i_rdev);
 		    break;
 	}
 
-	if (create_ino) {
-		inode->i_ino = ino_from_blkno(inode->i_sb,
-			       le64_to_cpu(fe->i_blkno));
+	if (create_ianal) {
+		ianalde->i_ianal = ianal_from_blkanal(ianalde->i_sb,
+			       le64_to_cpu(fe->i_blkanal));
 
 		/*
 		 * If we ever want to create system files from kernel,
 		 * the generation argument to
-		 * ocfs2_inode_lock_res_init() will have to change.
+		 * ocfs2_ianalde_lock_res_init() will have to change.
 		 */
 		BUG_ON(le32_to_cpu(fe->i_flags) & OCFS2_SYSTEM_FL);
 
-		ocfs2_inode_lock_res_init(&OCFS2_I(inode)->ip_inode_lockres,
-					  OCFS2_LOCK_TYPE_META, 0, inode);
+		ocfs2_ianalde_lock_res_init(&OCFS2_I(ianalde)->ip_ianalde_lockres,
+					  OCFS2_LOCK_TYPE_META, 0, ianalde);
 
-		ocfs2_inode_lock_res_init(&OCFS2_I(inode)->ip_open_lockres,
-					  OCFS2_LOCK_TYPE_OPEN, 0, inode);
+		ocfs2_ianalde_lock_res_init(&OCFS2_I(ianalde)->ip_open_lockres,
+					  OCFS2_LOCK_TYPE_OPEN, 0, ianalde);
 	}
 
-	ocfs2_inode_lock_res_init(&OCFS2_I(inode)->ip_rw_lockres,
-				  OCFS2_LOCK_TYPE_RW, inode->i_generation,
-				  inode);
+	ocfs2_ianalde_lock_res_init(&OCFS2_I(ianalde)->ip_rw_lockres,
+				  OCFS2_LOCK_TYPE_RW, ianalde->i_generation,
+				  ianalde);
 
-	ocfs2_set_inode_flags(inode);
+	ocfs2_set_ianalde_flags(ianalde);
 
-	OCFS2_I(inode)->ip_last_used_slot = 0;
-	OCFS2_I(inode)->ip_last_used_group = 0;
+	OCFS2_I(ianalde)->ip_last_used_slot = 0;
+	OCFS2_I(ianalde)->ip_last_used_group = 0;
 
-	if (S_ISDIR(inode->i_mode))
-		ocfs2_resv_set_type(&OCFS2_I(inode)->ip_la_data_resv,
+	if (S_ISDIR(ianalde->i_mode))
+		ocfs2_resv_set_type(&OCFS2_I(ianalde)->ip_la_data_resv,
 				    OCFS2_RESV_FLAG_DIR);
 }
 
-static int ocfs2_read_locked_inode(struct inode *inode,
-				   struct ocfs2_find_inode_args *args)
+static int ocfs2_read_locked_ianalde(struct ianalde *ianalde,
+				   struct ocfs2_find_ianalde_args *args)
 {
 	struct super_block *sb;
 	struct ocfs2_super *osb;
-	struct ocfs2_dinode *fe;
+	struct ocfs2_dianalde *fe;
 	struct buffer_head *bh = NULL;
 	int status, can_lock, lock_level = 0;
 	u32 generation = 0;
 
 	status = -EINVAL;
-	sb = inode->i_sb;
+	sb = ianalde->i_sb;
 	osb = OCFS2_SB(sb);
 
 	/*
-	 * To improve performance of cold-cache inode stats, we take
+	 * To improve performance of cold-cache ianalde stats, we take
 	 * the cluster lock here if possible.
 	 *
-	 * Generally, OCFS2 never trusts the contents of an inode
+	 * Generally, OCFS2 never trusts the contents of an ianalde
 	 * unless it's holding a cluster lock, so taking it here isn't
 	 * a correctness issue as much as it is a performance
 	 * improvement.
 	 *
-	 * There are three times when taking the lock is not a good idea:
+	 * There are three times when taking the lock is analt a good idea:
 	 *
 	 * 1) During startup, before we have initialized the DLM.
 	 *
@@ -430,8 +430,8 @@ static int ocfs2_read_locked_inode(struct inode *inode,
 	 *
 	 * 3) If the process doing the iget() is responsible for
 	 *    orphan dir recovery. We're holding the orphan dir lock and
-	 *    can get into a deadlock with another process on another
-	 *    node in ->delete_inode().
+	 *    can get into a deadlock with aanalther process on aanalther
+	 *    analde in ->delete_ianalde().
 	 *
 	 * #1 and #2 can be simply solved by never taking the lock
 	 * here for system files (which are the only type we read
@@ -445,8 +445,8 @@ static int ocfs2_read_locked_inode(struct inode *inode,
 		&& !(args->fi_flags & OCFS2_FI_FLAG_ORPHAN_RECOVERY)
 		&& !ocfs2_mount_local(osb);
 
-	trace_ocfs2_read_locked_inode(
-		(unsigned long long)OCFS2_I(inode)->ip_blkno, can_lock);
+	trace_ocfs2_read_locked_ianalde(
+		(unsigned long long)OCFS2_I(ianalde)->ip_blkanal, can_lock);
 
 	/*
 	 * To maintain backwards compatibility with older versions of
@@ -458,100 +458,100 @@ static int ocfs2_read_locked_inode(struct inode *inode,
 	if (args->fi_flags & OCFS2_FI_FLAG_SYSFILE)
 		generation = osb->fs_generation;
 
-	ocfs2_inode_lock_res_init(&OCFS2_I(inode)->ip_inode_lockres,
+	ocfs2_ianalde_lock_res_init(&OCFS2_I(ianalde)->ip_ianalde_lockres,
 				  OCFS2_LOCK_TYPE_META,
-				  generation, inode);
+				  generation, ianalde);
 
-	ocfs2_inode_lock_res_init(&OCFS2_I(inode)->ip_open_lockres,
+	ocfs2_ianalde_lock_res_init(&OCFS2_I(ianalde)->ip_open_lockres,
 				  OCFS2_LOCK_TYPE_OPEN,
-				  0, inode);
+				  0, ianalde);
 
 	if (can_lock) {
-		status = ocfs2_open_lock(inode);
+		status = ocfs2_open_lock(ianalde);
 		if (status) {
-			make_bad_inode(inode);
-			mlog_errno(status);
+			make_bad_ianalde(ianalde);
+			mlog_erranal(status);
 			return status;
 		}
-		status = ocfs2_inode_lock(inode, NULL, lock_level);
+		status = ocfs2_ianalde_lock(ianalde, NULL, lock_level);
 		if (status) {
-			make_bad_inode(inode);
-			mlog_errno(status);
+			make_bad_ianalde(ianalde);
+			mlog_erranal(status);
 			return status;
 		}
 	}
 
 	if (args->fi_flags & OCFS2_FI_FLAG_ORPHAN_RECOVERY) {
-		status = ocfs2_try_open_lock(inode, 0);
+		status = ocfs2_try_open_lock(ianalde, 0);
 		if (status) {
-			make_bad_inode(inode);
+			make_bad_ianalde(ianalde);
 			return status;
 		}
 	}
 
 	if (can_lock) {
 		if (args->fi_flags & OCFS2_FI_FLAG_FILECHECK_CHK)
-			status = ocfs2_filecheck_read_inode_block_full(inode,
-						&bh, OCFS2_BH_IGNORE_CACHE, 0);
+			status = ocfs2_filecheck_read_ianalde_block_full(ianalde,
+						&bh, OCFS2_BH_IGANALRE_CACHE, 0);
 		else if (args->fi_flags & OCFS2_FI_FLAG_FILECHECK_FIX)
-			status = ocfs2_filecheck_read_inode_block_full(inode,
-						&bh, OCFS2_BH_IGNORE_CACHE, 1);
+			status = ocfs2_filecheck_read_ianalde_block_full(ianalde,
+						&bh, OCFS2_BH_IGANALRE_CACHE, 1);
 		else
-			status = ocfs2_read_inode_block_full(inode,
-						&bh, OCFS2_BH_IGNORE_CACHE);
+			status = ocfs2_read_ianalde_block_full(ianalde,
+						&bh, OCFS2_BH_IGANALRE_CACHE);
 	} else {
-		status = ocfs2_read_blocks_sync(osb, args->fi_blkno, 1, &bh);
+		status = ocfs2_read_blocks_sync(osb, args->fi_blkanal, 1, &bh);
 		/*
-		 * If buffer is in jbd, then its checksum may not have been
+		 * If buffer is in jbd, then its checksum may analt have been
 		 * computed as yet.
 		 */
 		if (!status && !buffer_jbd(bh)) {
 			if (args->fi_flags & OCFS2_FI_FLAG_FILECHECK_CHK)
-				status = ocfs2_filecheck_validate_inode_block(
+				status = ocfs2_filecheck_validate_ianalde_block(
 								osb->sb, bh);
 			else if (args->fi_flags & OCFS2_FI_FLAG_FILECHECK_FIX)
-				status = ocfs2_filecheck_repair_inode_block(
+				status = ocfs2_filecheck_repair_ianalde_block(
 								osb->sb, bh);
 			else
-				status = ocfs2_validate_inode_block(
+				status = ocfs2_validate_ianalde_block(
 								osb->sb, bh);
 		}
 	}
 	if (status < 0) {
-		mlog_errno(status);
+		mlog_erranal(status);
 		goto bail;
 	}
 
 	status = -EINVAL;
-	fe = (struct ocfs2_dinode *) bh->b_data;
+	fe = (struct ocfs2_dianalde *) bh->b_data;
 
 	/*
-	 * This is a code bug. Right now the caller needs to
-	 * understand whether it is asking for a system file inode or
-	 * not so the proper lock names can be built.
+	 * This is a code bug. Right analw the caller needs to
+	 * understand whether it is asking for a system file ianalde or
+	 * analt so the proper lock names can be built.
 	 */
 	mlog_bug_on_msg(!!(fe->i_flags & cpu_to_le32(OCFS2_SYSTEM_FL)) !=
 			!!(args->fi_flags & OCFS2_FI_FLAG_SYSFILE),
-			"Inode %llu: system file state is ambiguous\n",
-			(unsigned long long)args->fi_blkno);
+			"Ianalde %llu: system file state is ambiguous\n",
+			(unsigned long long)args->fi_blkanal);
 
 	if (S_ISCHR(le16_to_cpu(fe->i_mode)) ||
 	    S_ISBLK(le16_to_cpu(fe->i_mode)))
-		inode->i_rdev = huge_decode_dev(le64_to_cpu(fe->id1.dev1.i_rdev));
+		ianalde->i_rdev = huge_decode_dev(le64_to_cpu(fe->id1.dev1.i_rdev));
 
-	ocfs2_populate_inode(inode, fe, 0);
+	ocfs2_populate_ianalde(ianalde, fe, 0);
 
-	BUG_ON(args->fi_blkno != le64_to_cpu(fe->i_blkno));
+	BUG_ON(args->fi_blkanal != le64_to_cpu(fe->i_blkanal));
 
 	if (buffer_dirty(bh) && !buffer_jbd(bh)) {
 		if (can_lock) {
-			ocfs2_inode_unlock(inode, lock_level);
+			ocfs2_ianalde_unlock(ianalde, lock_level);
 			lock_level = 1;
-			ocfs2_inode_lock(inode, NULL, lock_level);
+			ocfs2_ianalde_lock(ianalde, NULL, lock_level);
 		}
-		status = ocfs2_write_block(osb, bh, INODE_CACHE(inode));
+		status = ocfs2_write_block(osb, bh, IANALDE_CACHE(ianalde));
 		if (status < 0) {
-			mlog_errno(status);
+			mlog_erranal(status);
 			goto bail;
 		}
 	}
@@ -560,10 +560,10 @@ static int ocfs2_read_locked_inode(struct inode *inode,
 
 bail:
 	if (can_lock)
-		ocfs2_inode_unlock(inode, lock_level);
+		ocfs2_ianalde_unlock(ianalde, lock_level);
 
 	if (status < 0)
-		make_bad_inode(inode);
+		make_bad_ianalde(ianalde);
 
 	brelse(bh);
 
@@ -576,53 +576,53 @@ void ocfs2_sync_blockdev(struct super_block *sb)
 }
 
 static int ocfs2_truncate_for_delete(struct ocfs2_super *osb,
-				     struct inode *inode,
+				     struct ianalde *ianalde,
 				     struct buffer_head *fe_bh)
 {
 	int status = 0;
-	struct ocfs2_dinode *fe;
+	struct ocfs2_dianalde *fe;
 	handle_t *handle = NULL;
 
-	fe = (struct ocfs2_dinode *) fe_bh->b_data;
+	fe = (struct ocfs2_dianalde *) fe_bh->b_data;
 
 	/*
-	 * This check will also skip truncate of inodes with inline
+	 * This check will also skip truncate of ianaldes with inline
 	 * data and fast symlinks.
 	 */
 	if (fe->i_clusters) {
-		if (ocfs2_should_order_data(inode))
-			ocfs2_begin_ordered_truncate(inode, 0);
+		if (ocfs2_should_order_data(ianalde))
+			ocfs2_begin_ordered_truncate(ianalde, 0);
 
-		handle = ocfs2_start_trans(osb, OCFS2_INODE_UPDATE_CREDITS);
+		handle = ocfs2_start_trans(osb, OCFS2_IANALDE_UPDATE_CREDITS);
 		if (IS_ERR(handle)) {
 			status = PTR_ERR(handle);
 			handle = NULL;
-			mlog_errno(status);
+			mlog_erranal(status);
 			goto out;
 		}
 
-		status = ocfs2_journal_access_di(handle, INODE_CACHE(inode),
+		status = ocfs2_journal_access_di(handle, IANALDE_CACHE(ianalde),
 						 fe_bh,
 						 OCFS2_JOURNAL_ACCESS_WRITE);
 		if (status < 0) {
-			mlog_errno(status);
+			mlog_erranal(status);
 			goto out;
 		}
 
-		i_size_write(inode, 0);
+		i_size_write(ianalde, 0);
 
-		status = ocfs2_mark_inode_dirty(handle, inode, fe_bh);
+		status = ocfs2_mark_ianalde_dirty(handle, ianalde, fe_bh);
 		if (status < 0) {
-			mlog_errno(status);
+			mlog_erranal(status);
 			goto out;
 		}
 
 		ocfs2_commit_trans(osb, handle);
 		handle = NULL;
 
-		status = ocfs2_commit_truncate(osb, inode, fe_bh);
+		status = ocfs2_commit_truncate(osb, ianalde, fe_bh);
 		if (status < 0)
-			mlog_errno(status);
+			mlog_erranal(status);
 	}
 
 out:
@@ -631,58 +631,58 @@ out:
 	return status;
 }
 
-static int ocfs2_remove_inode(struct inode *inode,
+static int ocfs2_remove_ianalde(struct ianalde *ianalde,
 			      struct buffer_head *di_bh,
-			      struct inode *orphan_dir_inode,
+			      struct ianalde *orphan_dir_ianalde,
 			      struct buffer_head *orphan_dir_bh)
 {
 	int status;
-	struct inode *inode_alloc_inode = NULL;
-	struct buffer_head *inode_alloc_bh = NULL;
+	struct ianalde *ianalde_alloc_ianalde = NULL;
+	struct buffer_head *ianalde_alloc_bh = NULL;
 	handle_t *handle;
-	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
-	struct ocfs2_dinode *di = (struct ocfs2_dinode *) di_bh->b_data;
+	struct ocfs2_super *osb = OCFS2_SB(ianalde->i_sb);
+	struct ocfs2_dianalde *di = (struct ocfs2_dianalde *) di_bh->b_data;
 
-	inode_alloc_inode =
-		ocfs2_get_system_file_inode(osb, INODE_ALLOC_SYSTEM_INODE,
+	ianalde_alloc_ianalde =
+		ocfs2_get_system_file_ianalde(osb, IANALDE_ALLOC_SYSTEM_IANALDE,
 					    le16_to_cpu(di->i_suballoc_slot));
-	if (!inode_alloc_inode) {
-		status = -ENOENT;
-		mlog_errno(status);
+	if (!ianalde_alloc_ianalde) {
+		status = -EANALENT;
+		mlog_erranal(status);
 		goto bail;
 	}
 
-	inode_lock(inode_alloc_inode);
-	status = ocfs2_inode_lock(inode_alloc_inode, &inode_alloc_bh, 1);
+	ianalde_lock(ianalde_alloc_ianalde);
+	status = ocfs2_ianalde_lock(ianalde_alloc_ianalde, &ianalde_alloc_bh, 1);
 	if (status < 0) {
-		inode_unlock(inode_alloc_inode);
+		ianalde_unlock(ianalde_alloc_ianalde);
 
-		mlog_errno(status);
+		mlog_erranal(status);
 		goto bail;
 	}
 
-	handle = ocfs2_start_trans(osb, OCFS2_DELETE_INODE_CREDITS +
-				   ocfs2_quota_trans_credits(inode->i_sb));
+	handle = ocfs2_start_trans(osb, OCFS2_DELETE_IANALDE_CREDITS +
+				   ocfs2_quota_trans_credits(ianalde->i_sb));
 	if (IS_ERR(handle)) {
 		status = PTR_ERR(handle);
-		mlog_errno(status);
+		mlog_erranal(status);
 		goto bail_unlock;
 	}
 
-	if (!(OCFS2_I(inode)->ip_flags & OCFS2_INODE_SKIP_ORPHAN_DIR)) {
-		status = ocfs2_orphan_del(osb, handle, orphan_dir_inode, inode,
+	if (!(OCFS2_I(ianalde)->ip_flags & OCFS2_IANALDE_SKIP_ORPHAN_DIR)) {
+		status = ocfs2_orphan_del(osb, handle, orphan_dir_ianalde, ianalde,
 					  orphan_dir_bh, false);
 		if (status < 0) {
-			mlog_errno(status);
+			mlog_erranal(status);
 			goto bail_commit;
 		}
 	}
 
-	/* set the inodes dtime */
-	status = ocfs2_journal_access_di(handle, INODE_CACHE(inode), di_bh,
+	/* set the ianaldes dtime */
+	status = ocfs2_journal_access_di(handle, IANALDE_CACHE(ianalde), di_bh,
 					 OCFS2_JOURNAL_ACCESS_WRITE);
 	if (status < 0) {
-		mlog_errno(status);
+		mlog_erranal(status);
 		goto bail_commit;
 	}
 
@@ -690,22 +690,22 @@ static int ocfs2_remove_inode(struct inode *inode,
 	di->i_flags &= cpu_to_le32(~(OCFS2_VALID_FL | OCFS2_ORPHANED_FL));
 	ocfs2_journal_dirty(handle, di_bh);
 
-	ocfs2_remove_from_cache(INODE_CACHE(inode), di_bh);
-	dquot_free_inode(inode);
+	ocfs2_remove_from_cache(IANALDE_CACHE(ianalde), di_bh);
+	dquot_free_ianalde(ianalde);
 
-	status = ocfs2_free_dinode(handle, inode_alloc_inode,
-				   inode_alloc_bh, di);
+	status = ocfs2_free_dianalde(handle, ianalde_alloc_ianalde,
+				   ianalde_alloc_bh, di);
 	if (status < 0)
-		mlog_errno(status);
+		mlog_erranal(status);
 
 bail_commit:
 	ocfs2_commit_trans(osb, handle);
 bail_unlock:
-	ocfs2_inode_unlock(inode_alloc_inode, 1);
-	inode_unlock(inode_alloc_inode);
-	brelse(inode_alloc_bh);
+	ocfs2_ianalde_unlock(ianalde_alloc_ianalde, 1);
+	ianalde_unlock(ianalde_alloc_ianalde);
+	brelse(ianalde_alloc_bh);
 bail:
-	iput(inode_alloc_inode);
+	iput(ianalde_alloc_ianalde);
 
 	return status;
 }
@@ -714,7 +714,7 @@ bail:
  * Serialize with orphan dir recovery. If the process doing
  * recovery on this orphan dir does an iget() with the dir
  * i_rwsem held, we'll deadlock here. Instead we detect this
- * and exit early - recovery will wipe this inode for us.
+ * and exit early - recovery will wipe this ianalde for us.
  */
 static int ocfs2_check_orphan_recovery_state(struct ocfs2_super *osb,
 					     int slot)
@@ -722,7 +722,7 @@ static int ocfs2_check_orphan_recovery_state(struct ocfs2_super *osb,
 	int ret = 0;
 
 	spin_lock(&osb->osb_lock);
-	if (ocfs2_node_map_test_bit(osb, &osb->osb_recovering_orphan_dirs, slot)) {
+	if (ocfs2_analde_map_test_bit(osb, &osb->osb_recovering_orphan_dirs, slot)) {
 		ret = -EDEADLK;
 		goto out;
 	}
@@ -745,90 +745,90 @@ static void ocfs2_signal_wipe_completion(struct ocfs2_super *osb,
 	wake_up(&osb->osb_wipe_event);
 }
 
-static int ocfs2_wipe_inode(struct inode *inode,
+static int ocfs2_wipe_ianalde(struct ianalde *ianalde,
 			    struct buffer_head *di_bh)
 {
 	int status, orphaned_slot = -1;
-	struct inode *orphan_dir_inode = NULL;
+	struct ianalde *orphan_dir_ianalde = NULL;
 	struct buffer_head *orphan_dir_bh = NULL;
-	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
-	struct ocfs2_dinode *di = (struct ocfs2_dinode *) di_bh->b_data;
+	struct ocfs2_super *osb = OCFS2_SB(ianalde->i_sb);
+	struct ocfs2_dianalde *di = (struct ocfs2_dianalde *) di_bh->b_data;
 
-	if (!(OCFS2_I(inode)->ip_flags & OCFS2_INODE_SKIP_ORPHAN_DIR)) {
+	if (!(OCFS2_I(ianalde)->ip_flags & OCFS2_IANALDE_SKIP_ORPHAN_DIR)) {
 		orphaned_slot = le16_to_cpu(di->i_orphaned_slot);
 
 		status = ocfs2_check_orphan_recovery_state(osb, orphaned_slot);
 		if (status)
 			return status;
 
-		orphan_dir_inode = ocfs2_get_system_file_inode(osb,
-							       ORPHAN_DIR_SYSTEM_INODE,
+		orphan_dir_ianalde = ocfs2_get_system_file_ianalde(osb,
+							       ORPHAN_DIR_SYSTEM_IANALDE,
 							       orphaned_slot);
-		if (!orphan_dir_inode) {
-			status = -ENOENT;
-			mlog_errno(status);
+		if (!orphan_dir_ianalde) {
+			status = -EANALENT;
+			mlog_erranal(status);
 			goto bail;
 		}
 
 		/* Lock the orphan dir. The lock will be held for the entire
-		 * delete_inode operation. We do this now to avoid races with
-		 * recovery completion on other nodes. */
-		inode_lock(orphan_dir_inode);
-		status = ocfs2_inode_lock(orphan_dir_inode, &orphan_dir_bh, 1);
+		 * delete_ianalde operation. We do this analw to avoid races with
+		 * recovery completion on other analdes. */
+		ianalde_lock(orphan_dir_ianalde);
+		status = ocfs2_ianalde_lock(orphan_dir_ianalde, &orphan_dir_bh, 1);
 		if (status < 0) {
-			inode_unlock(orphan_dir_inode);
+			ianalde_unlock(orphan_dir_ianalde);
 
-			mlog_errno(status);
+			mlog_erranal(status);
 			goto bail;
 		}
 	}
 
 	/* we do this while holding the orphan dir lock because we
-	 * don't want recovery being run from another node to try an
-	 * inode delete underneath us -- this will result in two nodes
+	 * don't want recovery being run from aanalther analde to try an
+	 * ianalde delete underneath us -- this will result in two analdes
 	 * truncating the same file! */
-	status = ocfs2_truncate_for_delete(osb, inode, di_bh);
+	status = ocfs2_truncate_for_delete(osb, ianalde, di_bh);
 	if (status < 0) {
-		mlog_errno(status);
+		mlog_erranal(status);
 		goto bail_unlock_dir;
 	}
 
 	/* Remove any dir index tree */
-	if (S_ISDIR(inode->i_mode)) {
-		status = ocfs2_dx_dir_truncate(inode, di_bh);
+	if (S_ISDIR(ianalde->i_mode)) {
+		status = ocfs2_dx_dir_truncate(ianalde, di_bh);
 		if (status) {
-			mlog_errno(status);
+			mlog_erranal(status);
 			goto bail_unlock_dir;
 		}
 	}
 
-	/*Free extended attribute resources associated with this inode.*/
-	status = ocfs2_xattr_remove(inode, di_bh);
+	/*Free extended attribute resources associated with this ianalde.*/
+	status = ocfs2_xattr_remove(ianalde, di_bh);
 	if (status < 0) {
-		mlog_errno(status);
+		mlog_erranal(status);
 		goto bail_unlock_dir;
 	}
 
-	status = ocfs2_remove_refcount_tree(inode, di_bh);
+	status = ocfs2_remove_refcount_tree(ianalde, di_bh);
 	if (status < 0) {
-		mlog_errno(status);
+		mlog_erranal(status);
 		goto bail_unlock_dir;
 	}
 
-	status = ocfs2_remove_inode(inode, di_bh, orphan_dir_inode,
+	status = ocfs2_remove_ianalde(ianalde, di_bh, orphan_dir_ianalde,
 				    orphan_dir_bh);
 	if (status < 0)
-		mlog_errno(status);
+		mlog_erranal(status);
 
 bail_unlock_dir:
-	if (OCFS2_I(inode)->ip_flags & OCFS2_INODE_SKIP_ORPHAN_DIR)
+	if (OCFS2_I(ianalde)->ip_flags & OCFS2_IANALDE_SKIP_ORPHAN_DIR)
 		return status;
 
-	ocfs2_inode_unlock(orphan_dir_inode, 1);
-	inode_unlock(orphan_dir_inode);
+	ocfs2_ianalde_unlock(orphan_dir_ianalde, 1);
+	ianalde_unlock(orphan_dir_ianalde);
 	brelse(orphan_dir_bh);
 bail:
-	iput(orphan_dir_inode);
+	iput(orphan_dir_ianalde);
 	ocfs2_signal_wipe_completion(osb, orphaned_slot);
 
 	return status;
@@ -836,40 +836,40 @@ bail:
 
 /* There is a series of simple checks that should be done before a
  * trylock is even considered. Encapsulate those in this function. */
-static int ocfs2_inode_is_valid_to_delete(struct inode *inode)
+static int ocfs2_ianalde_is_valid_to_delete(struct ianalde *ianalde)
 {
 	int ret = 0;
-	struct ocfs2_inode_info *oi = OCFS2_I(inode);
-	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+	struct ocfs2_ianalde_info *oi = OCFS2_I(ianalde);
+	struct ocfs2_super *osb = OCFS2_SB(ianalde->i_sb);
 
-	trace_ocfs2_inode_is_valid_to_delete(current, osb->dc_task,
-					     (unsigned long long)oi->ip_blkno,
+	trace_ocfs2_ianalde_is_valid_to_delete(current, osb->dc_task,
+					     (unsigned long long)oi->ip_blkanal,
 					     oi->ip_flags);
 
 	/* We shouldn't be getting here for the root directory
-	 * inode.. */
-	if (inode == osb->root_inode) {
-		mlog(ML_ERROR, "Skipping delete of root inode.\n");
+	 * ianalde.. */
+	if (ianalde == osb->root_ianalde) {
+		mlog(ML_ERROR, "Skipping delete of root ianalde.\n");
 		goto bail;
 	}
 
 	/*
 	 * If we're coming from downconvert_thread we can't go into our own
-	 * voting [hello, deadlock city!] so we cannot delete the inode. But
-	 * since we dropped last inode ref when downconverting dentry lock,
-	 * we cannot have the file open and thus the node doing unlink will
-	 * take care of deleting the inode.
+	 * voting [hello, deadlock city!] so we cananalt delete the ianalde. But
+	 * since we dropped last ianalde ref when downconverting dentry lock,
+	 * we cananalt have the file open and thus the analde doing unlink will
+	 * take care of deleting the ianalde.
 	 */
 	if (current == osb->dc_task)
 		goto bail;
 
 	spin_lock(&oi->ip_lock);
 	/* OCFS2 *never* deletes system files. This should technically
-	 * never get here as system file inodes should always have a
+	 * never get here as system file ianaldes should always have a
 	 * positive link count. */
-	if (oi->ip_flags & OCFS2_INODE_SYSTEM_FILE) {
+	if (oi->ip_flags & OCFS2_IANALDE_SYSTEM_FILE) {
 		mlog(ML_ERROR, "Skipping delete of system file %llu\n",
-		     (unsigned long long)oi->ip_blkno);
+		     (unsigned long long)oi->ip_blkanal);
 		goto bail_unlock;
 	}
 
@@ -880,47 +880,47 @@ bail:
 	return ret;
 }
 
-/* Query the cluster to determine whether we should wipe an inode from
- * disk or not.
+/* Query the cluster to determine whether we should wipe an ianalde from
+ * disk or analt.
  *
- * Requires the inode to have the cluster lock. */
-static int ocfs2_query_inode_wipe(struct inode *inode,
+ * Requires the ianalde to have the cluster lock. */
+static int ocfs2_query_ianalde_wipe(struct ianalde *ianalde,
 				  struct buffer_head *di_bh,
 				  int *wipe)
 {
 	int status = 0, reason = 0;
-	struct ocfs2_inode_info *oi = OCFS2_I(inode);
-	struct ocfs2_dinode *di;
+	struct ocfs2_ianalde_info *oi = OCFS2_I(ianalde);
+	struct ocfs2_dianalde *di;
 
 	*wipe = 0;
 
-	trace_ocfs2_query_inode_wipe_begin((unsigned long long)oi->ip_blkno,
-					   inode->i_nlink);
+	trace_ocfs2_query_ianalde_wipe_begin((unsigned long long)oi->ip_blkanal,
+					   ianalde->i_nlink);
 
 	/* While we were waiting for the cluster lock in
-	 * ocfs2_delete_inode, another node might have asked to delete
-	 * the inode. Recheck our flags to catch this. */
-	if (!ocfs2_inode_is_valid_to_delete(inode)) {
+	 * ocfs2_delete_ianalde, aanalther analde might have asked to delete
+	 * the ianalde. Recheck our flags to catch this. */
+	if (!ocfs2_ianalde_is_valid_to_delete(ianalde)) {
 		reason = 1;
 		goto bail;
 	}
 
-	/* Now that we have an up to date inode, we can double check
+	/* Analw that we have an up to date ianalde, we can double check
 	 * the link count. */
-	if (inode->i_nlink)
+	if (ianalde->i_nlink)
 		goto bail;
 
-	/* Do some basic inode verification... */
-	di = (struct ocfs2_dinode *) di_bh->b_data;
+	/* Do some basic ianalde verification... */
+	di = (struct ocfs2_dianalde *) di_bh->b_data;
 	if (!(di->i_flags & cpu_to_le32(OCFS2_ORPHANED_FL)) &&
-	    !(oi->ip_flags & OCFS2_INODE_SKIP_ORPHAN_DIR)) {
+	    !(oi->ip_flags & OCFS2_IANALDE_SKIP_ORPHAN_DIR)) {
 		/*
-		 * Inodes in the orphan dir must have ORPHANED_FL.  The only
-		 * inodes that come back out of the orphan dir are reflink
+		 * Ianaldes in the orphan dir must have ORPHANED_FL.  The only
+		 * ianaldes that come back out of the orphan dir are reflink
 		 * targets. A reflink target may be moved out of the orphan
 		 * dir between the time we scan the directory and the time we
 		 * process it. This would lead to HAS_REFCOUNT_FL being set but
-		 * ORPHANED_FL not.
+		 * ORPHANED_FL analt.
 		 */
 		if (di->i_dyn_features & cpu_to_le16(OCFS2_HAS_REFCOUNT_FL)) {
 			reason = 2;
@@ -930,10 +930,10 @@ static int ocfs2_query_inode_wipe(struct inode *inode,
 		/* for lack of a better error? */
 		status = -EEXIST;
 		mlog(ML_ERROR,
-		     "Inode %llu (on-disk %llu) not orphaned! "
-		     "Disk flags  0x%x, inode flags 0x%x\n",
-		     (unsigned long long)oi->ip_blkno,
-		     (unsigned long long)le64_to_cpu(di->i_blkno),
+		     "Ianalde %llu (on-disk %llu) analt orphaned! "
+		     "Disk flags  0x%x, ianalde flags 0x%x\n",
+		     (unsigned long long)oi->ip_blkanal,
+		     (unsigned long long)le64_to_cpu(di->i_blkanal),
 		     le32_to_cpu(di->i_flags), oi->ip_flags);
 		goto bail;
 	}
@@ -941,165 +941,165 @@ static int ocfs2_query_inode_wipe(struct inode *inode,
 	/* has someone already deleted us?! baaad... */
 	if (di->i_dtime) {
 		status = -EEXIST;
-		mlog_errno(status);
+		mlog_erranal(status);
 		goto bail;
 	}
 
 	/*
-	 * This is how ocfs2 determines whether an inode is still live
-	 * within the cluster. Every node takes a shared read lock on
-	 * the inode open lock in ocfs2_read_locked_inode(). When we
-	 * get to ->delete_inode(), each node tries to convert it's
-	 * lock to an exclusive. Trylocks are serialized by the inode
-	 * meta data lock. If the upconvert succeeds, we know the inode
-	 * is no longer live and can be deleted.
+	 * This is how ocfs2 determines whether an ianalde is still live
+	 * within the cluster. Every analde takes a shared read lock on
+	 * the ianalde open lock in ocfs2_read_locked_ianalde(). When we
+	 * get to ->delete_ianalde(), each analde tries to convert it's
+	 * lock to an exclusive. Trylocks are serialized by the ianalde
+	 * meta data lock. If the upconvert succeeds, we kanalw the ianalde
+	 * is anal longer live and can be deleted.
 	 *
 	 * Though we call this with the meta data lock held, the
 	 * trylock keeps us from ABBA deadlock.
 	 */
-	status = ocfs2_try_open_lock(inode, 1);
+	status = ocfs2_try_open_lock(ianalde, 1);
 	if (status == -EAGAIN) {
 		status = 0;
 		reason = 3;
 		goto bail;
 	}
 	if (status < 0) {
-		mlog_errno(status);
+		mlog_erranal(status);
 		goto bail;
 	}
 
 	*wipe = 1;
-	trace_ocfs2_query_inode_wipe_succ(le16_to_cpu(di->i_orphaned_slot));
+	trace_ocfs2_query_ianalde_wipe_succ(le16_to_cpu(di->i_orphaned_slot));
 
 bail:
-	trace_ocfs2_query_inode_wipe_end(status, reason);
+	trace_ocfs2_query_ianalde_wipe_end(status, reason);
 	return status;
 }
 
-/* Support function for ocfs2_delete_inode. Will help us keep the
- * inode data in a consistent state for clear_inode. Always truncates
+/* Support function for ocfs2_delete_ianalde. Will help us keep the
+ * ianalde data in a consistent state for clear_ianalde. Always truncates
  * pages, optionally sync's them first. */
-static void ocfs2_cleanup_delete_inode(struct inode *inode,
+static void ocfs2_cleanup_delete_ianalde(struct ianalde *ianalde,
 				       int sync_data)
 {
-	trace_ocfs2_cleanup_delete_inode(
-		(unsigned long long)OCFS2_I(inode)->ip_blkno, sync_data);
+	trace_ocfs2_cleanup_delete_ianalde(
+		(unsigned long long)OCFS2_I(ianalde)->ip_blkanal, sync_data);
 	if (sync_data)
-		filemap_write_and_wait(inode->i_mapping);
-	truncate_inode_pages_final(&inode->i_data);
+		filemap_write_and_wait(ianalde->i_mapping);
+	truncate_ianalde_pages_final(&ianalde->i_data);
 }
 
-static void ocfs2_delete_inode(struct inode *inode)
+static void ocfs2_delete_ianalde(struct ianalde *ianalde)
 {
 	int wipe, status;
 	sigset_t oldset;
 	struct buffer_head *di_bh = NULL;
-	struct ocfs2_dinode *di = NULL;
+	struct ocfs2_dianalde *di = NULL;
 
-	trace_ocfs2_delete_inode(inode->i_ino,
-				 (unsigned long long)OCFS2_I(inode)->ip_blkno,
-				 is_bad_inode(inode));
+	trace_ocfs2_delete_ianalde(ianalde->i_ianal,
+				 (unsigned long long)OCFS2_I(ianalde)->ip_blkanal,
+				 is_bad_ianalde(ianalde));
 
-	/* When we fail in read_inode() we mark inode as bad. The second test
-	 * catches the case when inode allocation fails before allocating
-	 * a block for inode. */
-	if (is_bad_inode(inode) || !OCFS2_I(inode)->ip_blkno)
+	/* When we fail in read_ianalde() we mark ianalde as bad. The second test
+	 * catches the case when ianalde allocation fails before allocating
+	 * a block for ianalde. */
+	if (is_bad_ianalde(ianalde) || !OCFS2_I(ianalde)->ip_blkanal)
 		goto bail;
 
-	if (!ocfs2_inode_is_valid_to_delete(inode)) {
-		/* It's probably not necessary to truncate_inode_pages
+	if (!ocfs2_ianalde_is_valid_to_delete(ianalde)) {
+		/* It's probably analt necessary to truncate_ianalde_pages
 		 * here but we do it for safety anyway (it will most
-		 * likely be a no-op anyway) */
-		ocfs2_cleanup_delete_inode(inode, 0);
+		 * likely be a anal-op anyway) */
+		ocfs2_cleanup_delete_ianalde(ianalde, 0);
 		goto bail;
 	}
 
-	dquot_initialize(inode);
+	dquot_initialize(ianalde);
 
-	/* We want to block signals in delete_inode as the lock and
+	/* We want to block signals in delete_ianalde as the lock and
 	 * messaging paths may return us -ERESTARTSYS. Which would
-	 * cause us to exit early, resulting in inodes being orphaned
+	 * cause us to exit early, resulting in ianaldes being orphaned
 	 * forever. */
 	ocfs2_block_signals(&oldset);
 
 	/*
 	 * Synchronize us against ocfs2_get_dentry. We take this in
-	 * shared mode so that all nodes can still concurrently
+	 * shared mode so that all analdes can still concurrently
 	 * process deletes.
 	 */
-	status = ocfs2_nfs_sync_lock(OCFS2_SB(inode->i_sb), 0);
+	status = ocfs2_nfs_sync_lock(OCFS2_SB(ianalde->i_sb), 0);
 	if (status < 0) {
 		mlog(ML_ERROR, "getting nfs sync lock(PR) failed %d\n", status);
-		ocfs2_cleanup_delete_inode(inode, 0);
+		ocfs2_cleanup_delete_ianalde(ianalde, 0);
 		goto bail_unblock;
 	}
-	/* Lock down the inode. This gives us an up to date view of
+	/* Lock down the ianalde. This gives us an up to date view of
 	 * it's metadata (for verification), and allows us to
-	 * serialize delete_inode on multiple nodes.
+	 * serialize delete_ianalde on multiple analdes.
 	 *
 	 * Even though we might be doing a truncate, we don't take the
-	 * allocation lock here as it won't be needed - nobody will
+	 * allocation lock here as it won't be needed - analbody will
 	 * have the file open.
 	 */
-	status = ocfs2_inode_lock(inode, &di_bh, 1);
+	status = ocfs2_ianalde_lock(ianalde, &di_bh, 1);
 	if (status < 0) {
-		if (status != -ENOENT)
-			mlog_errno(status);
-		ocfs2_cleanup_delete_inode(inode, 0);
+		if (status != -EANALENT)
+			mlog_erranal(status);
+		ocfs2_cleanup_delete_ianalde(ianalde, 0);
 		goto bail_unlock_nfs_sync;
 	}
 
-	di = (struct ocfs2_dinode *)di_bh->b_data;
-	/* Skip inode deletion and wait for dio orphan entry recovered
+	di = (struct ocfs2_dianalde *)di_bh->b_data;
+	/* Skip ianalde deletion and wait for dio orphan entry recovered
 	 * first */
 	if (unlikely(di->i_flags & cpu_to_le32(OCFS2_DIO_ORPHANED_FL))) {
-		ocfs2_cleanup_delete_inode(inode, 0);
-		goto bail_unlock_inode;
+		ocfs2_cleanup_delete_ianalde(ianalde, 0);
+		goto bail_unlock_ianalde;
 	}
 
 	/* Query the cluster. This will be the final decision made
-	 * before we go ahead and wipe the inode. */
-	status = ocfs2_query_inode_wipe(inode, di_bh, &wipe);
+	 * before we go ahead and wipe the ianalde. */
+	status = ocfs2_query_ianalde_wipe(ianalde, di_bh, &wipe);
 	if (!wipe || status < 0) {
-		/* Error and remote inode busy both mean we won't be
-		 * removing the inode, so they take almost the same
+		/* Error and remote ianalde busy both mean we won't be
+		 * removing the ianalde, so they take almost the same
 		 * path. */
 		if (status < 0)
-			mlog_errno(status);
+			mlog_erranal(status);
 
 		/* Someone in the cluster has disallowed a wipe of
-		 * this inode, or it was never completely
-		 * orphaned. Write out the pages and exit now. */
-		ocfs2_cleanup_delete_inode(inode, 1);
-		goto bail_unlock_inode;
+		 * this ianalde, or it was never completely
+		 * orphaned. Write out the pages and exit analw. */
+		ocfs2_cleanup_delete_ianalde(ianalde, 1);
+		goto bail_unlock_ianalde;
 	}
 
-	ocfs2_cleanup_delete_inode(inode, 0);
+	ocfs2_cleanup_delete_ianalde(ianalde, 0);
 
-	status = ocfs2_wipe_inode(inode, di_bh);
+	status = ocfs2_wipe_ianalde(ianalde, di_bh);
 	if (status < 0) {
 		if (status != -EDEADLK)
-			mlog_errno(status);
-		goto bail_unlock_inode;
+			mlog_erranal(status);
+		goto bail_unlock_ianalde;
 	}
 
 	/*
-	 * Mark the inode as successfully deleted.
+	 * Mark the ianalde as successfully deleted.
 	 *
-	 * This is important for ocfs2_clear_inode() as it will check
+	 * This is important for ocfs2_clear_ianalde() as it will check
 	 * this flag and skip any checkpointing work
 	 *
 	 * ocfs2_stuff_meta_lvb() also uses this flag to invalidate
-	 * the LVB for other nodes.
+	 * the LVB for other analdes.
 	 */
-	OCFS2_I(inode)->ip_flags |= OCFS2_INODE_DELETED;
+	OCFS2_I(ianalde)->ip_flags |= OCFS2_IANALDE_DELETED;
 
-bail_unlock_inode:
-	ocfs2_inode_unlock(inode, 1);
+bail_unlock_ianalde:
+	ocfs2_ianalde_unlock(ianalde, 1);
 	brelse(di_bh);
 
 bail_unlock_nfs_sync:
-	ocfs2_nfs_sync_unlock(OCFS2_SB(inode->i_sb), 0);
+	ocfs2_nfs_sync_unlock(OCFS2_SB(ianalde->i_sb), 0);
 
 bail_unblock:
 	ocfs2_unblock_signals(&oldset);
@@ -1107,79 +1107,79 @@ bail:
 	return;
 }
 
-static void ocfs2_clear_inode(struct inode *inode)
+static void ocfs2_clear_ianalde(struct ianalde *ianalde)
 {
 	int status;
-	struct ocfs2_inode_info *oi = OCFS2_I(inode);
-	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+	struct ocfs2_ianalde_info *oi = OCFS2_I(ianalde);
+	struct ocfs2_super *osb = OCFS2_SB(ianalde->i_sb);
 
-	clear_inode(inode);
-	trace_ocfs2_clear_inode((unsigned long long)oi->ip_blkno,
-				inode->i_nlink);
+	clear_ianalde(ianalde);
+	trace_ocfs2_clear_ianalde((unsigned long long)oi->ip_blkanal,
+				ianalde->i_nlink);
 
 	mlog_bug_on_msg(osb == NULL,
-			"Inode=%lu\n", inode->i_ino);
+			"Ianalde=%lu\n", ianalde->i_ianal);
 
-	dquot_drop(inode);
+	dquot_drop(ianalde);
 
-	/* To preven remote deletes we hold open lock before, now it
+	/* To preven remote deletes we hold open lock before, analw it
 	 * is time to unlock PR and EX open locks. */
-	ocfs2_open_unlock(inode);
+	ocfs2_open_unlock(ianalde);
 
 	/* Do these before all the other work so that we don't bounce
 	 * the downconvert thread while waiting to destroy the locks. */
 	ocfs2_mark_lockres_freeing(osb, &oi->ip_rw_lockres);
-	ocfs2_mark_lockres_freeing(osb, &oi->ip_inode_lockres);
+	ocfs2_mark_lockres_freeing(osb, &oi->ip_ianalde_lockres);
 	ocfs2_mark_lockres_freeing(osb, &oi->ip_open_lockres);
 
 	ocfs2_resv_discard(&osb->osb_la_resmap,
 			   &oi->ip_la_data_resv);
 	ocfs2_resv_init_once(&oi->ip_la_data_resv);
 
-	/* We very well may get a clear_inode before all an inodes
+	/* We very well may get a clear_ianalde before all an ianaldes
 	 * metadata has hit disk. Of course, we can't drop any cluster
 	 * locks until the journal has finished with it. The only
-	 * exception here are successfully wiped inodes - their
-	 * metadata can now be considered to be part of the system
-	 * inodes from which it came. */
-	if (!(oi->ip_flags & OCFS2_INODE_DELETED))
-		ocfs2_checkpoint_inode(inode);
+	 * exception here are successfully wiped ianaldes - their
+	 * metadata can analw be considered to be part of the system
+	 * ianaldes from which it came. */
+	if (!(oi->ip_flags & OCFS2_IANALDE_DELETED))
+		ocfs2_checkpoint_ianalde(ianalde);
 
 	mlog_bug_on_msg(!list_empty(&oi->ip_io_markers),
-			"Clear inode of %llu, inode has io markers\n",
-			(unsigned long long)oi->ip_blkno);
+			"Clear ianalde of %llu, ianalde has io markers\n",
+			(unsigned long long)oi->ip_blkanal);
 	mlog_bug_on_msg(!list_empty(&oi->ip_unwritten_list),
-			"Clear inode of %llu, inode has unwritten extents\n",
-			(unsigned long long)oi->ip_blkno);
+			"Clear ianalde of %llu, ianalde has unwritten extents\n",
+			(unsigned long long)oi->ip_blkanal);
 
-	ocfs2_extent_map_trunc(inode, 0);
+	ocfs2_extent_map_trunc(ianalde, 0);
 
-	status = ocfs2_drop_inode_locks(inode);
+	status = ocfs2_drop_ianalde_locks(ianalde);
 	if (status < 0)
-		mlog_errno(status);
+		mlog_erranal(status);
 
 	ocfs2_lock_res_free(&oi->ip_rw_lockres);
-	ocfs2_lock_res_free(&oi->ip_inode_lockres);
+	ocfs2_lock_res_free(&oi->ip_ianalde_lockres);
 	ocfs2_lock_res_free(&oi->ip_open_lockres);
 
-	ocfs2_metadata_cache_exit(INODE_CACHE(inode));
+	ocfs2_metadata_cache_exit(IANALDE_CACHE(ianalde));
 
-	mlog_bug_on_msg(INODE_CACHE(inode)->ci_num_cached,
-			"Clear inode of %llu, inode has %u cache items\n",
-			(unsigned long long)oi->ip_blkno,
-			INODE_CACHE(inode)->ci_num_cached);
+	mlog_bug_on_msg(IANALDE_CACHE(ianalde)->ci_num_cached,
+			"Clear ianalde of %llu, ianalde has %u cache items\n",
+			(unsigned long long)oi->ip_blkanal,
+			IANALDE_CACHE(ianalde)->ci_num_cached);
 
-	mlog_bug_on_msg(!(INODE_CACHE(inode)->ci_flags & OCFS2_CACHE_FL_INLINE),
-			"Clear inode of %llu, inode has a bad flag\n",
-			(unsigned long long)oi->ip_blkno);
+	mlog_bug_on_msg(!(IANALDE_CACHE(ianalde)->ci_flags & OCFS2_CACHE_FL_INLINE),
+			"Clear ianalde of %llu, ianalde has a bad flag\n",
+			(unsigned long long)oi->ip_blkanal);
 
 	mlog_bug_on_msg(spin_is_locked(&oi->ip_lock),
-			"Clear inode of %llu, inode is locked\n",
-			(unsigned long long)oi->ip_blkno);
+			"Clear ianalde of %llu, ianalde is locked\n",
+			(unsigned long long)oi->ip_blkanal);
 
 	mlog_bug_on_msg(!mutex_trylock(&oi->ip_io_mutex),
-			"Clear inode of %llu, io_mutex is locked\n",
-			(unsigned long long)oi->ip_blkno);
+			"Clear ianalde of %llu, io_mutex is locked\n",
+			(unsigned long long)oi->ip_blkanal);
 	mutex_unlock(&oi->ip_io_mutex);
 
 	/*
@@ -1187,56 +1187,56 @@ static void ocfs2_clear_inode(struct inode *inode)
 	 * kernel 1, world 0
 	 */
 	mlog_bug_on_msg(!down_write_trylock(&oi->ip_alloc_sem),
-			"Clear inode of %llu, alloc_sem is locked\n",
-			(unsigned long long)oi->ip_blkno);
+			"Clear ianalde of %llu, alloc_sem is locked\n",
+			(unsigned long long)oi->ip_blkanal);
 	up_write(&oi->ip_alloc_sem);
 
 	mlog_bug_on_msg(oi->ip_open_count,
-			"Clear inode of %llu has open count %d\n",
-			(unsigned long long)oi->ip_blkno, oi->ip_open_count);
+			"Clear ianalde of %llu has open count %d\n",
+			(unsigned long long)oi->ip_blkanal, oi->ip_open_count);
 
 	/* Clear all other flags. */
 	oi->ip_flags = 0;
 	oi->ip_dir_start_lookup = 0;
-	oi->ip_blkno = 0ULL;
+	oi->ip_blkanal = 0ULL;
 
 	/*
-	 * ip_jinode is used to track txns against this inode. We ensure that
+	 * ip_jianalde is used to track txns against this ianalde. We ensure that
 	 * the journal is flushed before journal shutdown. Thus it is safe to
-	 * have inodes get cleaned up after journal shutdown.
+	 * have ianaldes get cleaned up after journal shutdown.
 	 */
-	jbd2_journal_release_jbd_inode(osb->journal->j_journal,
-				       &oi->ip_jinode);
+	jbd2_journal_release_jbd_ianalde(osb->journal->j_journal,
+				       &oi->ip_jianalde);
 }
 
-void ocfs2_evict_inode(struct inode *inode)
+void ocfs2_evict_ianalde(struct ianalde *ianalde)
 {
-	if (!inode->i_nlink ||
-	    (OCFS2_I(inode)->ip_flags & OCFS2_INODE_MAYBE_ORPHANED)) {
-		ocfs2_delete_inode(inode);
+	if (!ianalde->i_nlink ||
+	    (OCFS2_I(ianalde)->ip_flags & OCFS2_IANALDE_MAYBE_ORPHANED)) {
+		ocfs2_delete_ianalde(ianalde);
 	} else {
-		truncate_inode_pages_final(&inode->i_data);
+		truncate_ianalde_pages_final(&ianalde->i_data);
 	}
-	ocfs2_clear_inode(inode);
+	ocfs2_clear_ianalde(ianalde);
 }
 
-/* Called under inode_lock, with no more references on the
- * struct inode, so it's safe here to check the flags field
+/* Called under ianalde_lock, with anal more references on the
+ * struct ianalde, so it's safe here to check the flags field
  * and to manipulate i_nlink without any other locks. */
-int ocfs2_drop_inode(struct inode *inode)
+int ocfs2_drop_ianalde(struct ianalde *ianalde)
 {
-	struct ocfs2_inode_info *oi = OCFS2_I(inode);
+	struct ocfs2_ianalde_info *oi = OCFS2_I(ianalde);
 
-	trace_ocfs2_drop_inode((unsigned long long)oi->ip_blkno,
-				inode->i_nlink, oi->ip_flags);
+	trace_ocfs2_drop_ianalde((unsigned long long)oi->ip_blkanal,
+				ianalde->i_nlink, oi->ip_flags);
 
-	assert_spin_locked(&inode->i_lock);
-	inode->i_state |= I_WILL_FREE;
-	spin_unlock(&inode->i_lock);
-	write_inode_now(inode, 1);
-	spin_lock(&inode->i_lock);
-	WARN_ON(inode->i_state & I_NEW);
-	inode->i_state &= ~I_WILL_FREE;
+	assert_spin_locked(&ianalde->i_lock);
+	ianalde->i_state |= I_WILL_FREE;
+	spin_unlock(&ianalde->i_lock);
+	write_ianalde_analw(ianalde, 1);
+	spin_lock(&ianalde->i_lock);
+	WARN_ON(ianalde->i_state & I_NEW);
+	ianalde->i_state &= ~I_WILL_FREE;
 
 	return 1;
 }
@@ -1244,138 +1244,138 @@ int ocfs2_drop_inode(struct inode *inode)
 /*
  * This is called from our getattr.
  */
-int ocfs2_inode_revalidate(struct dentry *dentry)
+int ocfs2_ianalde_revalidate(struct dentry *dentry)
 {
-	struct inode *inode = d_inode(dentry);
+	struct ianalde *ianalde = d_ianalde(dentry);
 	int status = 0;
 
-	trace_ocfs2_inode_revalidate(inode,
-		inode ? (unsigned long long)OCFS2_I(inode)->ip_blkno : 0ULL,
-		inode ? (unsigned long long)OCFS2_I(inode)->ip_flags : 0);
+	trace_ocfs2_ianalde_revalidate(ianalde,
+		ianalde ? (unsigned long long)OCFS2_I(ianalde)->ip_blkanal : 0ULL,
+		ianalde ? (unsigned long long)OCFS2_I(ianalde)->ip_flags : 0);
 
-	if (!inode) {
-		status = -ENOENT;
+	if (!ianalde) {
+		status = -EANALENT;
 		goto bail;
 	}
 
-	spin_lock(&OCFS2_I(inode)->ip_lock);
-	if (OCFS2_I(inode)->ip_flags & OCFS2_INODE_DELETED) {
-		spin_unlock(&OCFS2_I(inode)->ip_lock);
-		status = -ENOENT;
+	spin_lock(&OCFS2_I(ianalde)->ip_lock);
+	if (OCFS2_I(ianalde)->ip_flags & OCFS2_IANALDE_DELETED) {
+		spin_unlock(&OCFS2_I(ianalde)->ip_lock);
+		status = -EANALENT;
 		goto bail;
 	}
-	spin_unlock(&OCFS2_I(inode)->ip_lock);
+	spin_unlock(&OCFS2_I(ianalde)->ip_lock);
 
-	/* Let ocfs2_inode_lock do the work of updating our struct
-	 * inode for us. */
-	status = ocfs2_inode_lock(inode, NULL, 0);
+	/* Let ocfs2_ianalde_lock do the work of updating our struct
+	 * ianalde for us. */
+	status = ocfs2_ianalde_lock(ianalde, NULL, 0);
 	if (status < 0) {
-		if (status != -ENOENT)
-			mlog_errno(status);
+		if (status != -EANALENT)
+			mlog_erranal(status);
 		goto bail;
 	}
-	ocfs2_inode_unlock(inode, 0);
+	ocfs2_ianalde_unlock(ianalde, 0);
 bail:
 	return status;
 }
 
 /*
- * Updates a disk inode from a
- * struct inode.
+ * Updates a disk ianalde from a
+ * struct ianalde.
  * Only takes ip_lock.
  */
-int ocfs2_mark_inode_dirty(handle_t *handle,
-			   struct inode *inode,
+int ocfs2_mark_ianalde_dirty(handle_t *handle,
+			   struct ianalde *ianalde,
 			   struct buffer_head *bh)
 {
 	int status;
-	struct ocfs2_dinode *fe = (struct ocfs2_dinode *) bh->b_data;
+	struct ocfs2_dianalde *fe = (struct ocfs2_dianalde *) bh->b_data;
 
-	trace_ocfs2_mark_inode_dirty((unsigned long long)OCFS2_I(inode)->ip_blkno);
+	trace_ocfs2_mark_ianalde_dirty((unsigned long long)OCFS2_I(ianalde)->ip_blkanal);
 
-	status = ocfs2_journal_access_di(handle, INODE_CACHE(inode), bh,
+	status = ocfs2_journal_access_di(handle, IANALDE_CACHE(ianalde), bh,
 					 OCFS2_JOURNAL_ACCESS_WRITE);
 	if (status < 0) {
-		mlog_errno(status);
+		mlog_erranal(status);
 		goto leave;
 	}
 
-	spin_lock(&OCFS2_I(inode)->ip_lock);
-	fe->i_clusters = cpu_to_le32(OCFS2_I(inode)->ip_clusters);
-	ocfs2_get_inode_flags(OCFS2_I(inode));
-	fe->i_attr = cpu_to_le32(OCFS2_I(inode)->ip_attr);
-	fe->i_dyn_features = cpu_to_le16(OCFS2_I(inode)->ip_dyn_features);
-	spin_unlock(&OCFS2_I(inode)->ip_lock);
+	spin_lock(&OCFS2_I(ianalde)->ip_lock);
+	fe->i_clusters = cpu_to_le32(OCFS2_I(ianalde)->ip_clusters);
+	ocfs2_get_ianalde_flags(OCFS2_I(ianalde));
+	fe->i_attr = cpu_to_le32(OCFS2_I(ianalde)->ip_attr);
+	fe->i_dyn_features = cpu_to_le16(OCFS2_I(ianalde)->ip_dyn_features);
+	spin_unlock(&OCFS2_I(ianalde)->ip_lock);
 
-	fe->i_size = cpu_to_le64(i_size_read(inode));
-	ocfs2_set_links_count(fe, inode->i_nlink);
-	fe->i_uid = cpu_to_le32(i_uid_read(inode));
-	fe->i_gid = cpu_to_le32(i_gid_read(inode));
-	fe->i_mode = cpu_to_le16(inode->i_mode);
-	fe->i_atime = cpu_to_le64(inode_get_atime_sec(inode));
-	fe->i_atime_nsec = cpu_to_le32(inode_get_atime_nsec(inode));
-	fe->i_ctime = cpu_to_le64(inode_get_ctime_sec(inode));
-	fe->i_ctime_nsec = cpu_to_le32(inode_get_ctime_nsec(inode));
-	fe->i_mtime = cpu_to_le64(inode_get_mtime_sec(inode));
-	fe->i_mtime_nsec = cpu_to_le32(inode_get_mtime_nsec(inode));
+	fe->i_size = cpu_to_le64(i_size_read(ianalde));
+	ocfs2_set_links_count(fe, ianalde->i_nlink);
+	fe->i_uid = cpu_to_le32(i_uid_read(ianalde));
+	fe->i_gid = cpu_to_le32(i_gid_read(ianalde));
+	fe->i_mode = cpu_to_le16(ianalde->i_mode);
+	fe->i_atime = cpu_to_le64(ianalde_get_atime_sec(ianalde));
+	fe->i_atime_nsec = cpu_to_le32(ianalde_get_atime_nsec(ianalde));
+	fe->i_ctime = cpu_to_le64(ianalde_get_ctime_sec(ianalde));
+	fe->i_ctime_nsec = cpu_to_le32(ianalde_get_ctime_nsec(ianalde));
+	fe->i_mtime = cpu_to_le64(ianalde_get_mtime_sec(ianalde));
+	fe->i_mtime_nsec = cpu_to_le32(ianalde_get_mtime_nsec(ianalde));
 
 	ocfs2_journal_dirty(handle, bh);
-	ocfs2_update_inode_fsync_trans(handle, inode, 1);
+	ocfs2_update_ianalde_fsync_trans(handle, ianalde, 1);
 leave:
 	return status;
 }
 
 /*
  *
- * Updates a struct inode from a disk inode.
- * does no i/o, only takes ip_lock.
+ * Updates a struct ianalde from a disk ianalde.
+ * does anal i/o, only takes ip_lock.
  */
-void ocfs2_refresh_inode(struct inode *inode,
-			 struct ocfs2_dinode *fe)
+void ocfs2_refresh_ianalde(struct ianalde *ianalde,
+			 struct ocfs2_dianalde *fe)
 {
-	spin_lock(&OCFS2_I(inode)->ip_lock);
+	spin_lock(&OCFS2_I(ianalde)->ip_lock);
 
-	OCFS2_I(inode)->ip_clusters = le32_to_cpu(fe->i_clusters);
-	OCFS2_I(inode)->ip_attr = le32_to_cpu(fe->i_attr);
-	OCFS2_I(inode)->ip_dyn_features = le16_to_cpu(fe->i_dyn_features);
-	ocfs2_set_inode_flags(inode);
-	i_size_write(inode, le64_to_cpu(fe->i_size));
-	set_nlink(inode, ocfs2_read_links_count(fe));
-	i_uid_write(inode, le32_to_cpu(fe->i_uid));
-	i_gid_write(inode, le32_to_cpu(fe->i_gid));
-	inode->i_mode = le16_to_cpu(fe->i_mode);
-	if (S_ISLNK(inode->i_mode) && le32_to_cpu(fe->i_clusters) == 0)
-		inode->i_blocks = 0;
+	OCFS2_I(ianalde)->ip_clusters = le32_to_cpu(fe->i_clusters);
+	OCFS2_I(ianalde)->ip_attr = le32_to_cpu(fe->i_attr);
+	OCFS2_I(ianalde)->ip_dyn_features = le16_to_cpu(fe->i_dyn_features);
+	ocfs2_set_ianalde_flags(ianalde);
+	i_size_write(ianalde, le64_to_cpu(fe->i_size));
+	set_nlink(ianalde, ocfs2_read_links_count(fe));
+	i_uid_write(ianalde, le32_to_cpu(fe->i_uid));
+	i_gid_write(ianalde, le32_to_cpu(fe->i_gid));
+	ianalde->i_mode = le16_to_cpu(fe->i_mode);
+	if (S_ISLNK(ianalde->i_mode) && le32_to_cpu(fe->i_clusters) == 0)
+		ianalde->i_blocks = 0;
 	else
-		inode->i_blocks = ocfs2_inode_sector_count(inode);
-	inode_set_atime(inode, le64_to_cpu(fe->i_atime),
+		ianalde->i_blocks = ocfs2_ianalde_sector_count(ianalde);
+	ianalde_set_atime(ianalde, le64_to_cpu(fe->i_atime),
 			le32_to_cpu(fe->i_atime_nsec));
-	inode_set_mtime(inode, le64_to_cpu(fe->i_mtime),
+	ianalde_set_mtime(ianalde, le64_to_cpu(fe->i_mtime),
 			le32_to_cpu(fe->i_mtime_nsec));
-	inode_set_ctime(inode, le64_to_cpu(fe->i_ctime),
+	ianalde_set_ctime(ianalde, le64_to_cpu(fe->i_ctime),
 			le32_to_cpu(fe->i_ctime_nsec));
 
-	spin_unlock(&OCFS2_I(inode)->ip_lock);
+	spin_unlock(&OCFS2_I(ianalde)->ip_lock);
 }
 
-int ocfs2_validate_inode_block(struct super_block *sb,
+int ocfs2_validate_ianalde_block(struct super_block *sb,
 			       struct buffer_head *bh)
 {
 	int rc;
-	struct ocfs2_dinode *di = (struct ocfs2_dinode *)bh->b_data;
+	struct ocfs2_dianalde *di = (struct ocfs2_dianalde *)bh->b_data;
 
-	trace_ocfs2_validate_inode_block((unsigned long long)bh->b_blocknr);
+	trace_ocfs2_validate_ianalde_block((unsigned long long)bh->b_blocknr);
 
 	BUG_ON(!buffer_uptodate(bh));
 
 	/*
 	 * If the ecc fails, we return the error but otherwise
-	 * leave the filesystem running.  We know any error is
+	 * leave the filesystem running.  We kanalw any error is
 	 * local to this block.
 	 */
 	rc = ocfs2_validate_meta_ecc(sb, bh->b_data, &di->i_check);
 	if (rc) {
-		mlog(ML_ERROR, "Checksum failed for dinode %llu\n",
+		mlog(ML_ERROR, "Checksum failed for dianalde %llu\n",
 		     (unsigned long long)bh->b_blocknr);
 		goto bail;
 	}
@@ -1386,23 +1386,23 @@ int ocfs2_validate_inode_block(struct super_block *sb,
 
 	rc = -EINVAL;
 
-	if (!OCFS2_IS_VALID_DINODE(di)) {
-		rc = ocfs2_error(sb, "Invalid dinode #%llu: signature = %.*s\n",
+	if (!OCFS2_IS_VALID_DIANALDE(di)) {
+		rc = ocfs2_error(sb, "Invalid dianalde #%llu: signature = %.*s\n",
 				 (unsigned long long)bh->b_blocknr, 7,
 				 di->i_signature);
 		goto bail;
 	}
 
-	if (le64_to_cpu(di->i_blkno) != bh->b_blocknr) {
-		rc = ocfs2_error(sb, "Invalid dinode #%llu: i_blkno is %llu\n",
+	if (le64_to_cpu(di->i_blkanal) != bh->b_blocknr) {
+		rc = ocfs2_error(sb, "Invalid dianalde #%llu: i_blkanal is %llu\n",
 				 (unsigned long long)bh->b_blocknr,
-				 (unsigned long long)le64_to_cpu(di->i_blkno));
+				 (unsigned long long)le64_to_cpu(di->i_blkanal));
 		goto bail;
 	}
 
 	if (!(di->i_flags & cpu_to_le32(OCFS2_VALID_FL))) {
 		rc = ocfs2_error(sb,
-				 "Invalid dinode #%llu: OCFS2_VALID_FL not set\n",
+				 "Invalid dianalde #%llu: OCFS2_VALID_FL analt set\n",
 				 (unsigned long long)bh->b_blocknr);
 		goto bail;
 	}
@@ -1410,7 +1410,7 @@ int ocfs2_validate_inode_block(struct super_block *sb,
 	if (le32_to_cpu(di->i_fs_generation) !=
 	    OCFS2_SB(sb)->fs_generation) {
 		rc = ocfs2_error(sb,
-				 "Invalid dinode #%llu: fs_generation is %u\n",
+				 "Invalid dianalde #%llu: fs_generation is %u\n",
 				 (unsigned long long)bh->b_blocknr,
 				 le32_to_cpu(di->i_fs_generation));
 		goto bail;
@@ -1422,53 +1422,53 @@ bail:
 	return rc;
 }
 
-static int ocfs2_filecheck_validate_inode_block(struct super_block *sb,
+static int ocfs2_filecheck_validate_ianalde_block(struct super_block *sb,
 						struct buffer_head *bh)
 {
 	int rc = 0;
-	struct ocfs2_dinode *di = (struct ocfs2_dinode *)bh->b_data;
+	struct ocfs2_dianalde *di = (struct ocfs2_dianalde *)bh->b_data;
 
-	trace_ocfs2_filecheck_validate_inode_block(
+	trace_ocfs2_filecheck_validate_ianalde_block(
 		(unsigned long long)bh->b_blocknr);
 
 	BUG_ON(!buffer_uptodate(bh));
 
 	/*
 	 * Call ocfs2_validate_meta_ecc() first since it has ecc repair
-	 * function, but we should not return error immediately when ecc
+	 * function, but we should analt return error immediately when ecc
 	 * validation fails, because the reason is quite likely the invalid
-	 * inode number inputed.
+	 * ianalde number inputed.
 	 */
 	rc = ocfs2_validate_meta_ecc(sb, bh->b_data, &di->i_check);
 	if (rc) {
 		mlog(ML_ERROR,
-		     "Filecheck: checksum failed for dinode %llu\n",
+		     "Filecheck: checksum failed for dianalde %llu\n",
 		     (unsigned long long)bh->b_blocknr);
 		rc = -OCFS2_FILECHECK_ERR_BLOCKECC;
 	}
 
-	if (!OCFS2_IS_VALID_DINODE(di)) {
+	if (!OCFS2_IS_VALID_DIANALDE(di)) {
 		mlog(ML_ERROR,
-		     "Filecheck: invalid dinode #%llu: signature = %.*s\n",
+		     "Filecheck: invalid dianalde #%llu: signature = %.*s\n",
 		     (unsigned long long)bh->b_blocknr, 7, di->i_signature);
-		rc = -OCFS2_FILECHECK_ERR_INVALIDINO;
+		rc = -OCFS2_FILECHECK_ERR_INVALIDIANAL;
 		goto bail;
 	} else if (rc)
 		goto bail;
 
-	if (le64_to_cpu(di->i_blkno) != bh->b_blocknr) {
+	if (le64_to_cpu(di->i_blkanal) != bh->b_blocknr) {
 		mlog(ML_ERROR,
-		     "Filecheck: invalid dinode #%llu: i_blkno is %llu\n",
+		     "Filecheck: invalid dianalde #%llu: i_blkanal is %llu\n",
 		     (unsigned long long)bh->b_blocknr,
-		     (unsigned long long)le64_to_cpu(di->i_blkno));
-		rc = -OCFS2_FILECHECK_ERR_BLOCKNO;
+		     (unsigned long long)le64_to_cpu(di->i_blkanal));
+		rc = -OCFS2_FILECHECK_ERR_BLOCKANAL;
 		goto bail;
 	}
 
 	if (!(di->i_flags & cpu_to_le32(OCFS2_VALID_FL))) {
 		mlog(ML_ERROR,
-		     "Filecheck: invalid dinode #%llu: OCFS2_VALID_FL "
-		     "not set\n",
+		     "Filecheck: invalid dianalde #%llu: OCFS2_VALID_FL "
+		     "analt set\n",
 		     (unsigned long long)bh->b_blocknr);
 		rc = -OCFS2_FILECHECK_ERR_VALIDFLAG;
 		goto bail;
@@ -1477,7 +1477,7 @@ static int ocfs2_filecheck_validate_inode_block(struct super_block *sb,
 	if (le32_to_cpu(di->i_fs_generation) !=
 	    OCFS2_SB(sb)->fs_generation) {
 		mlog(ML_ERROR,
-		     "Filecheck: invalid dinode #%llu: fs_generation is %u\n",
+		     "Filecheck: invalid dianalde #%llu: fs_generation is %u\n",
 		     (unsigned long long)bh->b_blocknr,
 		     le32_to_cpu(di->i_fs_generation));
 		rc = -OCFS2_FILECHECK_ERR_GENERATION;
@@ -1487,22 +1487,22 @@ bail:
 	return rc;
 }
 
-static int ocfs2_filecheck_repair_inode_block(struct super_block *sb,
+static int ocfs2_filecheck_repair_ianalde_block(struct super_block *sb,
 					      struct buffer_head *bh)
 {
 	int changed = 0;
-	struct ocfs2_dinode *di = (struct ocfs2_dinode *)bh->b_data;
+	struct ocfs2_dianalde *di = (struct ocfs2_dianalde *)bh->b_data;
 
-	if (!ocfs2_filecheck_validate_inode_block(sb, bh))
+	if (!ocfs2_filecheck_validate_ianalde_block(sb, bh))
 		return 0;
 
-	trace_ocfs2_filecheck_repair_inode_block(
+	trace_ocfs2_filecheck_repair_ianalde_block(
 		(unsigned long long)bh->b_blocknr);
 
 	if (ocfs2_is_hard_readonly(OCFS2_SB(sb)) ||
 	    ocfs2_is_soft_readonly(OCFS2_SB(sb))) {
 		mlog(ML_ERROR,
-		     "Filecheck: cannot repair dinode #%llu "
+		     "Filecheck: cananalt repair dianalde #%llu "
 		     "on readonly filesystem\n",
 		     (unsigned long long)bh->b_blocknr);
 		return -OCFS2_FILECHECK_ERR_READONLY;
@@ -1510,31 +1510,31 @@ static int ocfs2_filecheck_repair_inode_block(struct super_block *sb,
 
 	if (buffer_jbd(bh)) {
 		mlog(ML_ERROR,
-		     "Filecheck: cannot repair dinode #%llu, "
+		     "Filecheck: cananalt repair dianalde #%llu, "
 		     "its buffer is in jbd\n",
 		     (unsigned long long)bh->b_blocknr);
 		return -OCFS2_FILECHECK_ERR_INJBD;
 	}
 
-	if (!OCFS2_IS_VALID_DINODE(di)) {
-		/* Cannot fix invalid inode block */
-		return -OCFS2_FILECHECK_ERR_INVALIDINO;
+	if (!OCFS2_IS_VALID_DIANALDE(di)) {
+		/* Cananalt fix invalid ianalde block */
+		return -OCFS2_FILECHECK_ERR_INVALIDIANAL;
 	}
 
 	if (!(di->i_flags & cpu_to_le32(OCFS2_VALID_FL))) {
-		/* Cannot just add VALID_FL flag back as a fix,
+		/* Cananalt just add VALID_FL flag back as a fix,
 		 * need more things to check here.
 		 */
 		return -OCFS2_FILECHECK_ERR_VALIDFLAG;
 	}
 
-	if (le64_to_cpu(di->i_blkno) != bh->b_blocknr) {
-		di->i_blkno = cpu_to_le64(bh->b_blocknr);
+	if (le64_to_cpu(di->i_blkanal) != bh->b_blocknr) {
+		di->i_blkanal = cpu_to_le64(bh->b_blocknr);
 		changed = 1;
 		mlog(ML_ERROR,
-		     "Filecheck: reset dinode #%llu: i_blkno to %llu\n",
+		     "Filecheck: reset dianalde #%llu: i_blkanal to %llu\n",
 		     (unsigned long long)bh->b_blocknr,
-		     (unsigned long long)le64_to_cpu(di->i_blkno));
+		     (unsigned long long)le64_to_cpu(di->i_blkanal));
 	}
 
 	if (le32_to_cpu(di->i_fs_generation) !=
@@ -1542,7 +1542,7 @@ static int ocfs2_filecheck_repair_inode_block(struct super_block *sb,
 		di->i_fs_generation = cpu_to_le32(OCFS2_SB(sb)->fs_generation);
 		changed = 1;
 		mlog(ML_ERROR,
-		     "Filecheck: reset dinode #%llu: fs_generation to %u\n",
+		     "Filecheck: reset dianalde #%llu: fs_generation to %u\n",
 		     (unsigned long long)bh->b_blocknr,
 		     le32_to_cpu(di->i_fs_generation));
 	}
@@ -1551,7 +1551,7 @@ static int ocfs2_filecheck_repair_inode_block(struct super_block *sb,
 		ocfs2_compute_meta_ecc(sb, bh->b_data, &di->i_check);
 		mark_buffer_dirty(bh);
 		mlog(ML_ERROR,
-		     "Filecheck: reset dinode #%llu: compute meta ecc\n",
+		     "Filecheck: reset dianalde #%llu: compute meta ecc\n",
 		     (unsigned long long)bh->b_blocknr);
 	}
 
@@ -1559,23 +1559,23 @@ static int ocfs2_filecheck_repair_inode_block(struct super_block *sb,
 }
 
 static int
-ocfs2_filecheck_read_inode_block_full(struct inode *inode,
+ocfs2_filecheck_read_ianalde_block_full(struct ianalde *ianalde,
 				      struct buffer_head **bh,
 				      int flags, int type)
 {
 	int rc;
 	struct buffer_head *tmp = *bh;
 
-	if (!type) /* Check inode block */
-		rc = ocfs2_read_blocks(INODE_CACHE(inode),
-				OCFS2_I(inode)->ip_blkno,
+	if (!type) /* Check ianalde block */
+		rc = ocfs2_read_blocks(IANALDE_CACHE(ianalde),
+				OCFS2_I(ianalde)->ip_blkanal,
 				1, &tmp, flags,
-				ocfs2_filecheck_validate_inode_block);
-	else /* Repair inode block */
-		rc = ocfs2_read_blocks(INODE_CACHE(inode),
-				OCFS2_I(inode)->ip_blkno,
+				ocfs2_filecheck_validate_ianalde_block);
+	else /* Repair ianalde block */
+		rc = ocfs2_read_blocks(IANALDE_CACHE(ianalde),
+				OCFS2_I(ianalde)->ip_blkanal,
 				1, &tmp, flags,
-				ocfs2_filecheck_repair_inode_block);
+				ocfs2_filecheck_repair_ianalde_block);
 
 	/* If ocfs2_read_blocks() got us a new bh, pass it up. */
 	if (!rc && !*bh)
@@ -1584,14 +1584,14 @@ ocfs2_filecheck_read_inode_block_full(struct inode *inode,
 	return rc;
 }
 
-int ocfs2_read_inode_block_full(struct inode *inode, struct buffer_head **bh,
+int ocfs2_read_ianalde_block_full(struct ianalde *ianalde, struct buffer_head **bh,
 				int flags)
 {
 	int rc;
 	struct buffer_head *tmp = *bh;
 
-	rc = ocfs2_read_blocks(INODE_CACHE(inode), OCFS2_I(inode)->ip_blkno,
-			       1, &tmp, flags, ocfs2_validate_inode_block);
+	rc = ocfs2_read_blocks(IANALDE_CACHE(ianalde), OCFS2_I(ianalde)->ip_blkanal,
+			       1, &tmp, flags, ocfs2_validate_ianalde_block);
 
 	/* If ocfs2_read_blocks() got us a new bh, pass it up. */
 	if (!rc && !*bh)
@@ -1600,60 +1600,60 @@ int ocfs2_read_inode_block_full(struct inode *inode, struct buffer_head **bh,
 	return rc;
 }
 
-int ocfs2_read_inode_block(struct inode *inode, struct buffer_head **bh)
+int ocfs2_read_ianalde_block(struct ianalde *ianalde, struct buffer_head **bh)
 {
-	return ocfs2_read_inode_block_full(inode, bh, 0);
+	return ocfs2_read_ianalde_block_full(ianalde, bh, 0);
 }
 
 
-static u64 ocfs2_inode_cache_owner(struct ocfs2_caching_info *ci)
+static u64 ocfs2_ianalde_cache_owner(struct ocfs2_caching_info *ci)
 {
-	struct ocfs2_inode_info *oi = cache_info_to_inode(ci);
+	struct ocfs2_ianalde_info *oi = cache_info_to_ianalde(ci);
 
-	return oi->ip_blkno;
+	return oi->ip_blkanal;
 }
 
-static struct super_block *ocfs2_inode_cache_get_super(struct ocfs2_caching_info *ci)
+static struct super_block *ocfs2_ianalde_cache_get_super(struct ocfs2_caching_info *ci)
 {
-	struct ocfs2_inode_info *oi = cache_info_to_inode(ci);
+	struct ocfs2_ianalde_info *oi = cache_info_to_ianalde(ci);
 
-	return oi->vfs_inode.i_sb;
+	return oi->vfs_ianalde.i_sb;
 }
 
-static void ocfs2_inode_cache_lock(struct ocfs2_caching_info *ci)
+static void ocfs2_ianalde_cache_lock(struct ocfs2_caching_info *ci)
 {
-	struct ocfs2_inode_info *oi = cache_info_to_inode(ci);
+	struct ocfs2_ianalde_info *oi = cache_info_to_ianalde(ci);
 
 	spin_lock(&oi->ip_lock);
 }
 
-static void ocfs2_inode_cache_unlock(struct ocfs2_caching_info *ci)
+static void ocfs2_ianalde_cache_unlock(struct ocfs2_caching_info *ci)
 {
-	struct ocfs2_inode_info *oi = cache_info_to_inode(ci);
+	struct ocfs2_ianalde_info *oi = cache_info_to_ianalde(ci);
 
 	spin_unlock(&oi->ip_lock);
 }
 
-static void ocfs2_inode_cache_io_lock(struct ocfs2_caching_info *ci)
+static void ocfs2_ianalde_cache_io_lock(struct ocfs2_caching_info *ci)
 {
-	struct ocfs2_inode_info *oi = cache_info_to_inode(ci);
+	struct ocfs2_ianalde_info *oi = cache_info_to_ianalde(ci);
 
 	mutex_lock(&oi->ip_io_mutex);
 }
 
-static void ocfs2_inode_cache_io_unlock(struct ocfs2_caching_info *ci)
+static void ocfs2_ianalde_cache_io_unlock(struct ocfs2_caching_info *ci)
 {
-	struct ocfs2_inode_info *oi = cache_info_to_inode(ci);
+	struct ocfs2_ianalde_info *oi = cache_info_to_ianalde(ci);
 
 	mutex_unlock(&oi->ip_io_mutex);
 }
 
-const struct ocfs2_caching_operations ocfs2_inode_caching_ops = {
-	.co_owner		= ocfs2_inode_cache_owner,
-	.co_get_super		= ocfs2_inode_cache_get_super,
-	.co_cache_lock		= ocfs2_inode_cache_lock,
-	.co_cache_unlock	= ocfs2_inode_cache_unlock,
-	.co_io_lock		= ocfs2_inode_cache_io_lock,
-	.co_io_unlock		= ocfs2_inode_cache_io_unlock,
+const struct ocfs2_caching_operations ocfs2_ianalde_caching_ops = {
+	.co_owner		= ocfs2_ianalde_cache_owner,
+	.co_get_super		= ocfs2_ianalde_cache_get_super,
+	.co_cache_lock		= ocfs2_ianalde_cache_lock,
+	.co_cache_unlock	= ocfs2_ianalde_cache_unlock,
+	.co_io_lock		= ocfs2_ianalde_cache_io_lock,
+	.co_io_unlock		= ocfs2_ianalde_cache_io_unlock,
 };
 

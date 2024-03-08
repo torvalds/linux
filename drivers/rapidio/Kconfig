@@ -20,7 +20,7 @@ config RAPIDIO_DISC_TIMEOUT
 	depends on RAPIDIO
 	default "30"
 	help
-	  Amount of time a discovery node waits for a host to complete
+	  Amount of time a discovery analde waits for a host to complete
 	  enumeration before giving up.
 
 config RAPIDIO_ENABLE_RX_TX_PORTS

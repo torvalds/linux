@@ -15,7 +15,7 @@
 #define DM_MSG_PREFIX "dust"
 
 struct badblock {
-	struct rb_node node;
+	struct rb_analde analde;
 	sector_t bb;
 	unsigned char wr_fail_cnt;
 };
@@ -35,15 +35,15 @@ struct dust_device {
 
 static struct badblock *dust_rb_search(struct rb_root *root, sector_t blk)
 {
-	struct rb_node *node = root->rb_node;
+	struct rb_analde *analde = root->rb_analde;
 
-	while (node) {
-		struct badblock *bblk = rb_entry(node, struct badblock, node);
+	while (analde) {
+		struct badblock *bblk = rb_entry(analde, struct badblock, analde);
 
 		if (bblk->bb > blk)
-			node = node->rb_left;
+			analde = analde->rb_left;
 		else if (bblk->bb < blk)
-			node = node->rb_right;
+			analde = analde->rb_right;
 		else
 			return bblk;
 	}
@@ -54,12 +54,12 @@ static struct badblock *dust_rb_search(struct rb_root *root, sector_t blk)
 static bool dust_rb_insert(struct rb_root *root, struct badblock *new)
 {
 	struct badblock *bblk;
-	struct rb_node **link = &root->rb_node, *parent = NULL;
+	struct rb_analde **link = &root->rb_analde, *parent = NULL;
 	sector_t value = new->bb;
 
 	while (*link) {
 		parent = *link;
-		bblk = rb_entry(parent, struct badblock, node);
+		bblk = rb_entry(parent, struct badblock, analde);
 
 		if (bblk->bb > value)
 			link = &(*link)->rb_left;
@@ -69,8 +69,8 @@ static bool dust_rb_insert(struct rb_root *root, struct badblock *new)
 			return false;
 	}
 
-	rb_link_node(&new->node, parent, link);
-	rb_insert_color(&new->node, root);
+	rb_link_analde(&new->analde, parent, link);
+	rb_insert_color(&new->analde, root);
 
 	return true;
 }
@@ -85,14 +85,14 @@ static int dust_remove_block(struct dust_device *dd, unsigned long long block)
 
 	if (bblock == NULL) {
 		if (!dd->quiet_mode) {
-			DMERR("%s: block %llu not found in badblocklist",
+			DMERR("%s: block %llu analt found in badblocklist",
 			      __func__, block);
 		}
 		spin_unlock_irqrestore(&dd->dust_lock, flags);
 		return -EINVAL;
 	}
 
-	rb_erase(&bblock->node, &dd->badblocklist);
+	rb_erase(&bblock->analde, &dd->badblocklist);
 	dd->badblock_count--;
 	if (!dd->quiet_mode)
 		DMINFO("%s: badblock removed at block %llu", __func__, block);
@@ -112,7 +112,7 @@ static int dust_add_block(struct dust_device *dd, unsigned long long block,
 	if (bblock == NULL) {
 		if (!dd->quiet_mode)
 			DMERR("%s: badblock allocation failed", __func__);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	spin_lock_irqsave(&dd->dust_lock, flags);
@@ -150,7 +150,7 @@ static int dust_query_block(struct dust_device *dd, unsigned long long block, ch
 	if (bblock != NULL)
 		DMEMIT("%s: block %llu found in badblocklist", __func__, block);
 	else
-		DMEMIT("%s: block %llu not found in badblocklist", __func__, block);
+		DMEMIT("%s: block %llu analt found in badblocklist", __func__, block);
 	spin_unlock_irqrestore(&dd->dust_lock, flags);
 
 	return 1;
@@ -192,7 +192,7 @@ static int __dust_map_write(struct dust_device *dd, sector_t thisblock)
 	}
 
 	if (bblk) {
-		rb_erase(&bblk->node, &dd->badblocklist);
+		rb_erase(&bblk->analde, &dd->badblocklist);
 		dd->badblock_count--;
 		kfree(bblk);
 		if (!dd->quiet_mode) {
@@ -240,23 +240,23 @@ static int dust_map(struct dm_target *ti, struct bio *bio)
 static bool __dust_clear_badblocks(struct rb_root *tree,
 				   unsigned long long count)
 {
-	struct rb_node *node = NULL, *nnode = NULL;
+	struct rb_analde *analde = NULL, *nanalde = NULL;
 
-	nnode = rb_first(tree);
-	if (nnode == NULL) {
+	nanalde = rb_first(tree);
+	if (nanalde == NULL) {
 		BUG_ON(count != 0);
 		return false;
 	}
 
-	while (nnode) {
-		node = nnode;
-		nnode = rb_next(node);
-		rb_erase(node, tree);
+	while (nanalde) {
+		analde = nanalde;
+		nanalde = rb_next(analde);
+		rb_erase(analde, tree);
 		count--;
-		kfree(node);
+		kfree(analde);
 	}
 	BUG_ON(count != 0);
-	BUG_ON(tree->rb_node != NULL);
+	BUG_ON(tree->rb_analde != NULL);
 
 	return true;
 }
@@ -277,7 +277,7 @@ static int dust_clear_badblocks(struct dust_device *dd, char *result, unsigned i
 	spin_unlock_irqrestore(&dd->dust_lock, flags);
 
 	if (!__dust_clear_badblocks(&badblocklist, badblock_count))
-		DMEMIT("%s: no badblocks found", __func__);
+		DMEMIT("%s: anal badblocks found", __func__);
 	else
 		DMEMIT("%s: badblocks cleared", __func__);
 
@@ -289,22 +289,22 @@ static int dust_list_badblocks(struct dust_device *dd, char *result, unsigned in
 {
 	unsigned long flags;
 	struct rb_root badblocklist;
-	struct rb_node *node;
+	struct rb_analde *analde;
 	struct badblock *bblk;
 	unsigned int sz = *sz_ptr;
 	unsigned long long num = 0;
 
 	spin_lock_irqsave(&dd->dust_lock, flags);
 	badblocklist = dd->badblocklist;
-	for (node = rb_first(&badblocklist); node; node = rb_next(node)) {
-		bblk = rb_entry(node, struct badblock, node);
+	for (analde = rb_first(&badblocklist); analde; analde = rb_next(analde)) {
+		bblk = rb_entry(analde, struct badblock, analde);
 		DMEMIT("%llu\n", bblk->bb);
 		num++;
 	}
 
 	spin_unlock_irqrestore(&dd->dust_lock, flags);
 	if (!num)
-		DMEMIT("No blocks in badblocklist");
+		DMEMIT("Anal blocks in badblocklist");
 
 	return 1;
 }
@@ -362,8 +362,8 @@ static int dust_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 	dd = kzalloc(sizeof(struct dust_device), GFP_KERNEL);
 	if (dd == NULL) {
-		ti->error = "Cannot allocate context";
-		return -ENOMEM;
+		ti->error = "Cananalt allocate context";
+		return -EANALMEM;
 	}
 
 	if (dm_get_device(ti, argv[0], dm_table_get_mode(ti->table), &dd->dev)) {

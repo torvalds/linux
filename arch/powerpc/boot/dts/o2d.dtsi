@@ -79,7 +79,7 @@
 			device-width = <2>;
 			#size-cells = <1>;
 			#address-cells = <1>;
-			no-unaligned-direct-access;
+			anal-unaligned-direct-access;
 
 			/* common layout for all machines */
 			partition@0 {

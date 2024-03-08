@@ -11,7 +11,7 @@
 #include <linux/export.h>
 #include <linux/sys.h>
 #include <asm/unistd.h>
-#include <asm/errno.h>
+#include <asm/erranal.h>
 #include <asm/reg.h>
 #include <asm/page.h>
 #include <asm/cache.h>
@@ -194,7 +194,7 @@ _GLOBAL(real_readb)
 	sync
 	isync
 	blr
-_ASM_NOKPROBE_SYMBOL(real_readb)
+_ASM_ANALKPROBE_SYMBOL(real_readb)
 
 	/*
  * Do an IO access in real mode
@@ -212,7 +212,7 @@ _GLOBAL(real_writeb)
 	sync
 	isync
 	blr
-_ASM_NOKPROBE_SYMBOL(real_writeb)
+_ASM_ANALKPROBE_SYMBOL(real_writeb)
 
 #endif /* CONFIG_40x */
 
@@ -236,7 +236,7 @@ _GLOBAL(copy_page)
 	rlwinm	r5, r3, 0, L1_CACHE_BYTES - 1
 	addi	r3,r3,-4
 
-0:	twnei	r5, 0	/* WARN if r3 is not cache aligned */
+0:	twnei	r5, 0	/* WARN if r3 is analt cache aligned */
 	EMIT_WARN_ENTRY 0b,__FILE__,__LINE__, BUGFLAG_WARNING
 
 	addi	r4,r4,-4
@@ -277,7 +277,7 @@ _GLOBAL(copy_page)
 #endif
 	bdnz	1b
 	beqlr
-	crnot	4*cr0+eq,4*cr0+eq
+	cranalt	4*cr0+eq,4*cr0+eq
 	li	r0,MAX_COPY_PREFETCH
 	li	r11,4
 	b	2b

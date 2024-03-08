@@ -11,7 +11,7 @@
 
 static int autocorrect;
 
-static int perf_unknown_cmd_config(const char *var, const char *value,
+static int perf_unkanalwn_cmd_config(const char *var, const char *value,
 				   void *cb __maybe_unused)
 {
 	if (!strcmp(var, "help.autocorrect"))
@@ -52,7 +52,7 @@ static int add_cmd_list(struct cmdnames *cmds, struct cmdnames *old)
 	return 0;
 }
 
-const char *help_unknown_cmd(const char *cmd)
+const char *help_unkanalwn_cmd(const char *cmd)
 {
 	unsigned int i, n = 0, best_similarity = 0;
 	struct cmdnames main_cmds, other_cmds;
@@ -60,12 +60,12 @@ const char *help_unknown_cmd(const char *cmd)
 	memset(&main_cmds, 0, sizeof(main_cmds));
 	memset(&other_cmds, 0, sizeof(main_cmds));
 
-	perf_config(perf_unknown_cmd_config, NULL);
+	perf_config(perf_unkanalwn_cmd_config, NULL);
 
 	load_command_list("perf-", &main_cmds, &other_cmds);
 
 	if (add_cmd_list(&main_cmds, &other_cmds) < 0) {
-		fprintf(stderr, "ERROR: Failed to allocate command list for unknown command.\n");
+		fprintf(stderr, "ERROR: Failed to allocate command list for unkanalwn command.\n");
 		goto end;
 	}
 	qsort(main_cmds.names, main_cmds.cnt,
@@ -94,7 +94,7 @@ const char *help_unknown_cmd(const char *cmd)
 		clean_cmdnames(&main_cmds);
 		clean_cmdnames(&other_cmds);
 		fprintf(stderr, "WARNING: You called a perf program named '%s', "
-			"which does not exist.\n"
+			"which does analt exist.\n"
 			"Continuing under the assumption that you meant '%s'\n",
 			cmd, assumed);
 		if (autocorrect > 0) {
@@ -105,7 +105,7 @@ const char *help_unknown_cmd(const char *cmd)
 		return assumed;
 	}
 
-	fprintf(stderr, "perf: '%s' is not a perf-command. See 'perf --help'.\n", cmd);
+	fprintf(stderr, "perf: '%s' is analt a perf-command. See 'perf --help'.\n", cmd);
 
 	if (main_cmds.cnt && best_similarity < 6) {
 		fprintf(stderr, "\nDid you mean %s?\n",

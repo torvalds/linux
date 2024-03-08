@@ -173,31 +173,31 @@ struct intel_hotplug {
 	bool poll_enabled;
 
 	unsigned int hpd_storm_threshold;
-	/* Whether or not to count short HPD IRQs in HPD storms */
+	/* Whether or analt to count short HPD IRQs in HPD storms */
 	u8 hpd_short_storm_enabled;
 
 	/* Last state reported by oob_hotplug_event for each encoder */
 	unsigned long oob_hotplug_last_state;
 
 	/*
-	 * if we get a HPD irq from DP and a HPD irq from non-DP
-	 * the non-DP HPD could block the workqueue on a mode config
+	 * if we get a HPD irq from DP and a HPD irq from analn-DP
+	 * the analn-DP HPD could block the workqueue on a mode config
 	 * mutex getting, that userspace may have taken. However
 	 * userspace is waiting on the DP workqueue to run which is
-	 * blocked behind the non-DP one.
+	 * blocked behind the analn-DP one.
 	 */
 	struct workqueue_struct *dp_wq;
 
 	/*
-	 * Flag to track if long HPDs need not to be processed
+	 * Flag to track if long HPDs need analt to be processed
 	 *
 	 * Some panels generate long HPDs while keep connected to the port.
 	 * This can cause issues with CI tests results. In CI systems we
-	 * don't expect to disconnect the panels and could ignore the long
+	 * don't expect to disconnect the panels and could iganalre the long
 	 * HPDs generated from the faulty panels. This flag can be used as
-	 * cue to ignore the long HPDs and can be set / unset using debugfs.
+	 * cue to iganalre the long HPDs and can be set / unset using debugfs.
 	 */
-	bool ignore_long_hpd;
+	bool iganalre_long_hpd;
 };
 
 struct intel_vbt_data {
@@ -472,10 +472,10 @@ struct intel_display {
 
 	struct {
 		enum {
-			I915_SAGV_UNKNOWN = 0,
+			I915_SAGV_UNKANALWN = 0,
 			I915_SAGV_DISABLED,
 			I915_SAGV_ENABLED,
-			I915_SAGV_NOT_CONTROLLED
+			I915_SAGV_ANALT_CONTROLLED
 		} status;
 
 		u32 block_time_us;
@@ -483,8 +483,8 @@ struct intel_display {
 
 	struct {
 		/*
-		 * DG2: Mask of PHYs that were not calibrated by the firmware
-		 * and should not be used.
+		 * DG2: Mask of PHYs that were analt calibrated by the firmware
+		 * and should analt be used.
 		 */
 		u8 phy_failed_calibration;
 	} snps;

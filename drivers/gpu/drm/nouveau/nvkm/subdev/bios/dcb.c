@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -34,14 +34,14 @@ dcb_table(struct nvkm_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
 	if (device->card_type > NV_04)
 		dcb = nvbios_rd16(bios, 0x36);
 	if (!dcb) {
-		nvkm_warn(subdev, "DCB table not found\n");
+		nvkm_warn(subdev, "DCB table analt found\n");
 		return dcb;
 	}
 
 	*ver = nvbios_rd08(bios, dcb);
 
 	if (*ver >= 0x42) {
-		nvkm_warn(subdev, "DCB version 0x%02x unknown\n", *ver);
+		nvkm_warn(subdev, "DCB version 0x%02x unkanalwn\n", *ver);
 		return 0x0000;
 	} else
 	if (*ver >= 0x30) {
@@ -73,12 +73,12 @@ dcb_table(struct nvkm_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
 		/*
 		 * v1.4 (some NV15/16, NV11+) seems the same as v1.5, but
 		 * always has the same single (crt) entry, even when tv-out
-		 * present, so the conclusion is this version cannot really
+		 * present, so the conclusion is this version cananalt really
 		 * be used.
 		 *
-		 * v1.2 tables (some NV6/10, and NV15+) normally have the
-		 * same 5 entries, which are not specific to the card and so
-		 * no use.
+		 * v1.2 tables (some NV6/10, and NV15+) analrmally have the
+		 * same 5 entries, which are analt specific to the card and so
+		 * anal use.
 		 *
 		 * v1.2 does have an I2C table that read_dcb_i2c_table can
 		 * handle, but cards exist (nv11 in #14821) with a bad i2c
@@ -87,7 +87,7 @@ dcb_table(struct nvkm_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
 		 *
 		 * v1.1 (NV5+, maybe some NV4) is entirely unhelpful
 		 */
-		nvkm_debug(subdev, "DCB contains no useful data\n");
+		nvkm_debug(subdev, "DCB contains anal useful data\n");
 		return 0x0000;
 	}
 

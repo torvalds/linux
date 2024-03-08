@@ -10,8 +10,8 @@
 
 #define AT91_DDRSDRC_MR		0x00	/* Mode Register */
 #define		AT91_DDRSDRC_MODE	(0x7 << 0)		/* Command Mode */
-#define			AT91_DDRSDRC_MODE_NORMAL	0
-#define			AT91_DDRSDRC_MODE_NOP		1
+#define			AT91_DDRSDRC_MODE_ANALRMAL	0
+#define			AT91_DDRSDRC_MODE_ANALP		1
 #define			AT91_DDRSDRC_MODE_PRECHARGE	2
 #define			AT91_DDRSDRC_MODE_LMR		3
 #define			AT91_DDRSDRC_MODE_REFRESH	4
@@ -60,7 +60,7 @@
 
 #define AT91_DDRSDRC_T1PR	0x10	/* Timing 1 Register */
 #define		AT91_DDRSDRC_TRFC	(0x1f << 0)		/* Row Cycle Delay */
-#define		AT91_DDRSDRC_TXSNR	(0xff << 8)		/* Exit self-refresh to non-read */
+#define		AT91_DDRSDRC_TXSNR	(0xff << 8)		/* Exit self-refresh to analn-read */
 #define		AT91_DDRSDRC_TXSRD	(0xff << 16)		/* Exit self-refresh to read */
 #define		AT91_DDRSDRC_TXP	(0xf  << 24)		/* Exit power-down delay */
 

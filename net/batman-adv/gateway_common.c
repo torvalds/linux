@@ -49,22 +49,22 @@ void batadv_gw_tvlv_container_update(struct batadv_priv *bat_priv)
 /**
  * batadv_gw_tvlv_ogm_handler_v1() - process incoming gateway tvlv container
  * @bat_priv: the bat priv with all the soft interface information
- * @orig: the orig_node of the ogm
+ * @orig: the orig_analde of the ogm
  * @flags: flags indicating the tvlv state (see batadv_tvlv_handler_flags)
  * @tvlv_value: tvlv buffer containing the gateway data
  * @tvlv_value_len: tvlv buffer length
  */
 static void batadv_gw_tvlv_ogm_handler_v1(struct batadv_priv *bat_priv,
-					  struct batadv_orig_node *orig,
+					  struct batadv_orig_analde *orig,
 					  u8 flags,
 					  void *tvlv_value, u16 tvlv_value_len)
 {
 	struct batadv_tvlv_gateway_data gateway, *gateway_ptr;
 
 	/* only fetch the tvlv value if the handler wasn't called via the
-	 * CIFNOTFND flag and if there is data to fetch
+	 * CIFANALTFND flag and if there is data to fetch
 	 */
-	if (flags & BATADV_TVLV_HANDLER_OGM_CIFNOTFND ||
+	if (flags & BATADV_TVLV_HANDLER_OGM_CIFANALTFND ||
 	    tvlv_value_len < sizeof(gateway)) {
 		gateway.bandwidth_down = 0;
 		gateway.bandwidth_up = 0;
@@ -79,7 +79,7 @@ static void batadv_gw_tvlv_ogm_handler_v1(struct batadv_priv *bat_priv,
 		}
 	}
 
-	batadv_gw_node_update(bat_priv, orig, &gateway);
+	batadv_gw_analde_update(bat_priv, orig, &gateway);
 
 	/* restart gateway selection */
 	if (gateway.bandwidth_down != 0 &&
@@ -100,7 +100,7 @@ void batadv_gw_init(struct batadv_priv *bat_priv)
 
 	batadv_tvlv_handler_register(bat_priv, batadv_gw_tvlv_ogm_handler_v1,
 				     NULL, NULL, BATADV_TVLV_GW, 1,
-				     BATADV_TVLV_HANDLER_OGM_CIFNOTFND);
+				     BATADV_TVLV_HANDLER_OGM_CIFANALTFND);
 }
 
 /**

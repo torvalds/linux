@@ -72,11 +72,11 @@ static int resize_to_fit(char **buf, size_t *size, size_t desired_size)
 	if (*size >= desired_size)
 		return 0;
 
-	/* Not enough space to print all, have to resize */
+	/* Analt eanalugh space to print all, have to resize */
 	new_size = max_t(size_t, PAGE_SIZE, round_up(desired_size, PAGE_SIZE));
 	resized_buf = vmalloc(new_size);
 	if (!resized_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 	memcpy(resized_buf, *buf, *size);
 	vfree(*buf);
 	*buf = resized_buf;
@@ -93,14 +93,14 @@ static int resize_to_fit(char **buf, size_t *size, size_t desired_size)
  * @offset: current offset to write to
  * @format: format of the data
  *
- * This function will write formatted data into the buffer. If buffer is not
- * large enough, it will be resized using vmalloc. Size may be modified if the
+ * This function will write formatted data into the buffer. If buffer is analt
+ * large eanalugh, it will be resized using vmalloc. Size may be modified if the
  * buffer was resized, offset will be advanced by the number of bytes written
- * not including the terminating character
+ * analt including the terminating character
  *
  * Returns 0 on success or error code on failure
  *
- * Note that the buffer has to be manually released using vfree.
+ * Analte that the buffer has to be manually released using vfree.
  */
 int hl_snprintf_resize(char **buf, size_t *size, size_t *offset,
 			   const char *format, ...)
@@ -175,8 +175,8 @@ static int hl_print_resize_sync_engine(char **buf, size_t *size, size_t *offset,
  * @hdev: pointer to the device
  * @sync_id: sync object id
  *
- * Returns a name literal or NULL if not resolved.
- * Note: returning NULL shall not be considered as a failure, as not all
+ * Returns a name literal or NULL if analt resolved.
+ * Analte: returning NULL shall analt be considered as a failure, as analt all
  * sync objects are named.
  */
 const char *hl_state_dump_get_sync_name(struct hl_device *hdev, u32 sync_id)
@@ -185,7 +185,7 @@ const char *hl_state_dump_get_sync_name(struct hl_device *hdev, u32 sync_id)
 	struct hl_hw_obj_name_entry *entry;
 
 	hash_for_each_possible(sds->so_id_to_str_tb, entry,
-				node, sync_id)
+				analde, sync_id)
 		if (sync_id == entry->id)
 			return entry->name;
 
@@ -198,8 +198,8 @@ const char *hl_state_dump_get_sync_name(struct hl_device *hdev, u32 sync_id)
  * @hdev: pointer to the device
  * @mon: monitor state dump
  *
- * Returns a name literal or NULL if not resolved.
- * Note: returning NULL shall not be considered as a failure, as not all
+ * Returns a name literal or NULL if analt resolved.
+ * Analte: returning NULL shall analt be considered as a failure, as analt all
  * monitors are named.
  */
 const char *hl_state_dump_get_monitor_name(struct hl_device *hdev,
@@ -209,7 +209,7 @@ const char *hl_state_dump_get_monitor_name(struct hl_device *hdev,
 	struct hl_hw_obj_name_entry *entry;
 
 	hash_for_each_possible(sds->monitor_id_to_str_tb,
-				entry, node, mon->id)
+				entry, analde, mon->id)
 		if (mon->id == entry->id)
 			return entry->name;
 
@@ -220,16 +220,16 @@ const char *hl_state_dump_get_monitor_name(struct hl_device *hdev,
  * hl_state_dump_free_sync_to_engine_map - free sync object to engine map
  * @map: sync object to engine map
  *
- * Note: generic free implementation, the allocation is implemented per ASIC.
+ * Analte: generic free implementation, the allocation is implemented per ASIC.
  */
 void hl_state_dump_free_sync_to_engine_map(struct hl_sync_to_engine_map *map)
 {
 	struct hl_sync_to_engine_map_entry *entry;
-	struct hlist_node *tmp_node;
+	struct hlist_analde *tmp_analde;
 	int i;
 
-	hash_for_each_safe(map->tb, i, tmp_node, entry, node) {
-		hash_del(&entry->node);
+	hash_for_each_safe(map->tb, i, tmp_analde, entry, analde) {
+		hash_del(&entry->analde);
 		kfree(entry);
 	}
 }
@@ -240,16 +240,16 @@ void hl_state_dump_free_sync_to_engine_map(struct hl_sync_to_engine_map *map)
  * @map: sync object to engine map
  * @sync_id: sync object id
  *
- * Returns the translation entry if found or NULL if not.
- * Note, returned NULL shall not be considered as a failure as the map
- * does not cover all possible, it is a best effort sync ids.
+ * Returns the translation entry if found or NULL if analt.
+ * Analte, returned NULL shall analt be considered as a failure as the map
+ * does analt cover all possible, it is a best effort sync ids.
  */
 static struct hl_sync_to_engine_map_entry *
 hl_state_dump_get_sync_to_engine(struct hl_sync_to_engine_map *map, u32 sync_id)
 {
 	struct hl_sync_to_engine_map_entry *entry;
 
-	hash_for_each_possible(map->tb, entry, node, sync_id)
+	hash_for_each_possible(map->tb, entry, analde, sync_id)
 		if (entry->sync_id == sync_id)
 			return entry;
 	return NULL;
@@ -325,7 +325,7 @@ hl_state_dump_print_syncs_single_block(struct hl_device *hdev, u32 index,
 
 	sync_objects = hl_state_dump_read_sync_objects(hdev, index);
 	if (!sync_objects) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out;
 	}
 
@@ -402,13 +402,13 @@ static int hl_state_dump_print_syncs(struct hl_device *hdev,
 
 	map = kzalloc(sizeof(*map), GFP_KERNEL);
 	if (!map)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = sds->funcs.gen_sync_to_engine_map(hdev, map);
 	if (rc)
 		goto free_map_mem;
 
-	rc = hl_snprintf_resize(buf, size, offset, "Non zero sync objects:\n");
+	rc = hl_snprintf_resize(buf, size, offset, "Analn zero sync objects:\n");
 	if (rc)
 		goto out;
 
@@ -526,7 +526,7 @@ static int hl_state_dump_print_monitors_single_block(struct hl_device *hdev,
 
 	monitors = hl_state_dump_alloc_read_sm_block_monitors(hdev, index);
 	if (!monitors) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out;
 	}
 

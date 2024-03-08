@@ -22,15 +22,15 @@
  *	  Satyam Sharma <satyam@infradead.org>
  *	  Randy Dunlap <randy.dunlap@oracle.com>
  *
- *	Neither Alan Cox, CymruNet Ltd., Wim Van Sebroeck nor Iguana vzw.
- *	admit liability nor provide warranty for any of this software.
- *	This material is provided "AS-IS" and at no charge.
+ *	Neither Alan Cox, CymruNet Ltd., Wim Van Sebroeck analr Iguana vzw.
+ *	admit liability analr provide warranty for any of this software.
+ *	This material is provided "AS-IS" and at anal charge.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/cdev.h>		/* For character device */
-#include <linux/errno.h>	/* For the -ENODEV/... values */
+#include <linux/erranal.h>	/* For the -EANALDEV/... values */
 #include <linux/fs.h>		/* For file operations */
 #include <linux/init.h>		/* For __init/__exit/... */
 #include <linux/hrtimer.h>	/* For hrtimers */
@@ -88,7 +88,7 @@ static inline bool watchdog_need_worker(struct watchdog_device *wdd)
 	 *   requests.
 	 * - Userspace requests a longer timeout than the hardware can handle.
 	 *
-	 * Alternatively, if userspace has not opened the watchdog
+	 * Alternatively, if userspace has analt opened the watchdog
 	 * device, we take care of feeding the watchdog if it is
 	 * running.
 	 */
@@ -111,7 +111,7 @@ static ktime_t watchdog_next_keepalive(struct watchdog_device *wdd)
 	else
 		virt_timeout = wd_data->open_deadline;
 
-	hw_heartbeat_ms = min_not_zero(timeout_ms, wdd->max_hw_heartbeat_ms);
+	hw_heartbeat_ms = min_analt_zero(timeout_ms, wdd->max_hw_heartbeat_ms);
 	keepalive_interval = ms_to_ktime(hw_heartbeat_ms / 2);
 
 	/*
@@ -144,21 +144,21 @@ static inline void watchdog_update_worker(struct watchdog_device *wdd)
 static int __watchdog_ping(struct watchdog_device *wdd)
 {
 	struct watchdog_core_data *wd_data = wdd->wd_data;
-	ktime_t earliest_keepalive, now;
+	ktime_t earliest_keepalive, analw;
 	int err;
 
 	earliest_keepalive = ktime_add(wd_data->last_hw_keepalive,
 				       ms_to_ktime(wdd->min_hw_heartbeat_ms));
-	now = ktime_get();
+	analw = ktime_get();
 
-	if (ktime_after(earliest_keepalive, now)) {
+	if (ktime_after(earliest_keepalive, analw)) {
 		hrtimer_start(&wd_data->timer,
-			      ktime_sub(earliest_keepalive, now),
+			      ktime_sub(earliest_keepalive, analw),
 			      HRTIMER_MODE_REL_HARD);
 		return 0;
 	}
 
-	wd_data->last_hw_keepalive = now;
+	wd_data->last_hw_keepalive = analw;
 
 	if (wdd->ops->ping) {
 		err = wdd->ops->ping(wdd);  /* ping the watchdog */
@@ -180,7 +180,7 @@ static int __watchdog_ping(struct watchdog_device *wdd)
  * watchdog_ping - ping the watchdog
  * @wdd: The watchdog device to ping
  *
- * If the watchdog has no own ping operation then it needs to be
+ * If the watchdog has anal own ping operation then it needs to be
  * restarted via the start operation. This wrapper function does
  * exactly that.
  * We only ping when the watchdog device is running.
@@ -233,17 +233,17 @@ static enum hrtimer_restart watchdog_timer_expired(struct hrtimer *timer)
 	wd_data = container_of(timer, struct watchdog_core_data, timer);
 
 	kthread_queue_work(watchdog_kworker, &wd_data->work);
-	return HRTIMER_NORESTART;
+	return HRTIMER_ANALRESTART;
 }
 
 /*
  * watchdog_start - wrapper to start the watchdog
  * @wdd: The watchdog device to start
  *
- * Start the watchdog if it is not active and mark it active.
+ * Start the watchdog if it is analt active and mark it active.
  * The caller must hold wd_data->lock.
  *
- * Return: 0 on success or a negative errno code for failure.
+ * Return: 0 on success or a negative erranal code for failure.
  */
 static int watchdog_start(struct watchdog_device *wdd)
 {
@@ -284,10 +284,10 @@ static int watchdog_start(struct watchdog_device *wdd)
  * @wdd: The watchdog device to stop
  *
  * Stop the watchdog if it is still active and unmark it active.
- * If the 'nowayout' feature was set, the watchdog cannot be stopped.
+ * If the 'analwayout' feature was set, the watchdog cananalt be stopped.
  * The caller must hold wd_data->lock.
  *
- * Return: 0 on success or a negative errno code for failure.
+ * Return: 0 on success or a negative erranal code for failure.
  */
 static int watchdog_stop(struct watchdog_device *wdd)
 {
@@ -296,8 +296,8 @@ static int watchdog_stop(struct watchdog_device *wdd)
 	if (!watchdog_active(wdd))
 		return 0;
 
-	if (test_bit(WDOG_NO_WAY_OUT, &wdd->status)) {
-		pr_info("watchdog%d: nowayout prevents watchdog being stopped!\n",
+	if (test_bit(WDOG_ANAL_WAY_OUT, &wdd->status)) {
+		pr_info("watchdog%d: analwayout prevents watchdog being stopped!\n",
 			wdd->id);
 		return -EBUSY;
 	}
@@ -371,7 +371,7 @@ static int watchdog_set_timeout(struct watchdog_device *wdd,
 	int err = 0;
 
 	if (!(wdd->info->options & WDIOF_SETTIMEOUT))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (watchdog_timeout_invalid(wdd, timeout))
 		return -EINVAL;
@@ -404,7 +404,7 @@ static int watchdog_set_pretimeout(struct watchdog_device *wdd,
 	int err = 0;
 
 	if (!watchdog_have_pretimeout(wdd))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (watchdog_pretimeout_invalid(wdd, timeout))
 		return -EINVAL;
@@ -422,7 +422,7 @@ static int watchdog_set_pretimeout(struct watchdog_device *wdd,
  * @wdd:	The watchdog device to get the remaining time from
  * @timeleft:	The time that's left
  *
- * Get the time before a watchdog will reboot (if not pinged).
+ * Get the time before a watchdog will reboot (if analt pinged).
  * The caller must hold wd_data->lock.
  *
  * Return: 0 if successful, error otherwise.
@@ -433,7 +433,7 @@ static int watchdog_get_timeleft(struct watchdog_device *wdd,
 	*timeleft = 0;
 
 	if (!wdd->ops->get_timeleft)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	*timeleft = wdd->ops->get_timeleft(wdd);
 
@@ -441,16 +441,16 @@ static int watchdog_get_timeleft(struct watchdog_device *wdd,
 }
 
 #ifdef CONFIG_WATCHDOG_SYSFS
-static ssize_t nowayout_show(struct device *dev, struct device_attribute *attr,
+static ssize_t analwayout_show(struct device *dev, struct device_attribute *attr,
 				char *buf)
 {
 	struct watchdog_device *wdd = dev_get_drvdata(dev);
 
-	return sysfs_emit(buf, "%d\n", !!test_bit(WDOG_NO_WAY_OUT,
+	return sysfs_emit(buf, "%d\n", !!test_bit(WDOG_ANAL_WAY_OUT,
 						  &wdd->status));
 }
 
-static ssize_t nowayout_store(struct device *dev, struct device_attribute *attr,
+static ssize_t analwayout_store(struct device *dev, struct device_attribute *attr,
 				const char *buf, size_t len)
 {
 	struct watchdog_device *wdd = dev_get_drvdata(dev);
@@ -462,13 +462,13 @@ static ssize_t nowayout_store(struct device *dev, struct device_attribute *attr,
 		return ret;
 	if (value > 1)
 		return -EINVAL;
-	/* nowayout cannot be disabled once set */
-	if (test_bit(WDOG_NO_WAY_OUT, &wdd->status) && !value)
+	/* analwayout cananalt be disabled once set */
+	if (test_bit(WDOG_ANAL_WAY_OUT, &wdd->status) && !value)
 		return -EPERM;
-	watchdog_set_nowayout(wdd, value);
+	watchdog_set_analwayout(wdd, value);
 	return len;
 }
-static DEVICE_ATTR_RW(nowayout);
+static DEVICE_ATTR_RW(analwayout);
 
 static ssize_t status_show(struct device *dev, struct device_attribute *attr,
 				char *buf)
@@ -587,35 +587,35 @@ static ssize_t state_show(struct device *dev, struct device_attribute *attr,
 }
 static DEVICE_ATTR_RO(state);
 
-static ssize_t pretimeout_available_governors_show(struct device *dev,
+static ssize_t pretimeout_available_goveranalrs_show(struct device *dev,
 				   struct device_attribute *attr, char *buf)
 {
-	return watchdog_pretimeout_available_governors_get(buf);
+	return watchdog_pretimeout_available_goveranalrs_get(buf);
 }
-static DEVICE_ATTR_RO(pretimeout_available_governors);
+static DEVICE_ATTR_RO(pretimeout_available_goveranalrs);
 
-static ssize_t pretimeout_governor_show(struct device *dev,
+static ssize_t pretimeout_goveranalr_show(struct device *dev,
 					struct device_attribute *attr,
 					char *buf)
 {
 	struct watchdog_device *wdd = dev_get_drvdata(dev);
 
-	return watchdog_pretimeout_governor_get(wdd, buf);
+	return watchdog_pretimeout_goveranalr_get(wdd, buf);
 }
 
-static ssize_t pretimeout_governor_store(struct device *dev,
+static ssize_t pretimeout_goveranalr_store(struct device *dev,
 					 struct device_attribute *attr,
 					 const char *buf, size_t count)
 {
 	struct watchdog_device *wdd = dev_get_drvdata(dev);
-	int ret = watchdog_pretimeout_governor_set(wdd, buf);
+	int ret = watchdog_pretimeout_goveranalr_set(wdd, buf);
 
 	if (!ret)
 		ret = count;
 
 	return ret;
 }
-static DEVICE_ATTR_RW(pretimeout_governor);
+static DEVICE_ATTR_RW(pretimeout_goveranalr);
 
 static umode_t wdt_is_visible(struct kobject *kobj, struct attribute *attr,
 				int n)
@@ -628,8 +628,8 @@ static umode_t wdt_is_visible(struct kobject *kobj, struct attribute *attr,
 		mode = 0;
 	else if (attr == &dev_attr_pretimeout.attr && !watchdog_have_pretimeout(wdd))
 		mode = 0;
-	else if ((attr == &dev_attr_pretimeout_governor.attr ||
-		  attr == &dev_attr_pretimeout_available_governors.attr) &&
+	else if ((attr == &dev_attr_pretimeout_goveranalr.attr ||
+		  attr == &dev_attr_pretimeout_available_goveranalrs.attr) &&
 		 (!watchdog_have_pretimeout(wdd) || !IS_ENABLED(CONFIG_WATCHDOG_PRETIMEOUT_GOV)))
 		mode = 0;
 
@@ -647,9 +647,9 @@ static struct attribute *wdt_attrs[] = {
 	&dev_attr_timeleft.attr,
 	&dev_attr_bootstatus.attr,
 	&dev_attr_status.attr,
-	&dev_attr_nowayout.attr,
-	&dev_attr_pretimeout_governor.attr,
-	&dev_attr_pretimeout_available_governors.attr,
+	&dev_attr_analwayout.attr,
+	&dev_attr_pretimeout_goveranalr.attr,
+	&dev_attr_pretimeout_available_goveranalrs.attr,
 	NULL,
 };
 
@@ -676,7 +676,7 @@ static int watchdog_ioctl_op(struct watchdog_device *wdd, unsigned int cmd,
 							unsigned long arg)
 {
 	if (!wdd->ops->ioctl)
-		return -ENOIOCTLCMD;
+		return -EANALIOCTLCMD;
 
 	return wdd->ops->ioctl(wdd, cmd, arg);
 }
@@ -690,7 +690,7 @@ static int watchdog_ioctl_op(struct watchdog_device *wdd, unsigned int cmd,
  *
  * A write to a watchdog device is defined as a keepalive ping.
  * Writing the magic 'V' sequence allows the next close to turn
- * off the watchdog (if 'nowayout' is not set).
+ * off the watchdog (if 'analwayout' is analt set).
  *
  * Return: @len if successful, error otherwise.
  */
@@ -707,12 +707,12 @@ static ssize_t watchdog_write(struct file *file, const char __user *data,
 		return 0;
 
 	/*
-	 * Note: just in case someone wrote the magic character
+	 * Analte: just in case someone wrote the magic character
 	 * five months ago...
 	 */
 	clear_bit(_WDOG_ALLOW_RELEASE, &wd_data->status);
 
-	/* scan to see whether or not we got the magic character */
+	/* scan to see whether or analt we got the magic character */
 	for (i = 0; i != len; i++) {
 		if (get_user(c, data + i))
 			return -EFAULT;
@@ -722,7 +722,7 @@ static ssize_t watchdog_write(struct file *file, const char __user *data,
 
 	/* someone wrote to us, so we send the watchdog a keepalive ping */
 
-	err = -ENODEV;
+	err = -EANALDEV;
 	mutex_lock(&wd_data->lock);
 	wdd = wd_data->wdd;
 	if (wdd)
@@ -761,12 +761,12 @@ static long watchdog_ioctl(struct file *file, unsigned int cmd,
 
 	wdd = wd_data->wdd;
 	if (!wdd) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto out_ioctl;
 	}
 
 	err = watchdog_ioctl_op(wdd, cmd, arg);
-	if (err != -ENOIOCTLCMD)
+	if (err != -EANALIOCTLCMD)
 		goto out_ioctl;
 
 	switch (cmd) {
@@ -796,7 +796,7 @@ static long watchdog_ioctl(struct file *file, unsigned int cmd,
 		break;
 	case WDIOC_KEEPALIVE:
 		if (!(wdd->info->options & WDIOF_KEEPALIVEPING)) {
-			err = -EOPNOTSUPP;
+			err = -EOPANALTSUPP;
 			break;
 		}
 		err = watchdog_ping(wdd);
@@ -817,9 +817,9 @@ static long watchdog_ioctl(struct file *file, unsigned int cmd,
 			break;
 		fallthrough;
 	case WDIOC_GETTIMEOUT:
-		/* timeout == 0 means that we don't know the timeout */
+		/* timeout == 0 means that we don't kanalw the timeout */
 		if (wdd->timeout == 0) {
-			err = -EOPNOTSUPP;
+			err = -EOPANALTSUPP;
 			break;
 		}
 		err = put_user(wdd->timeout, p);
@@ -841,7 +841,7 @@ static long watchdog_ioctl(struct file *file, unsigned int cmd,
 		err = put_user(wdd->pretimeout, p);
 		break;
 	default:
-		err = -ENOTTY;
+		err = -EANALTTY;
 		break;
 	}
 
@@ -852,7 +852,7 @@ out_ioctl:
 
 /*
  * watchdog_open - open the /dev/watchdog* devices
- * @inode:	Inode of device
+ * @ianalde:	Ianalde of device
  * @file:	File handle to device
  *
  * When the /dev/watchdog* device gets opened, we start the watchdog.
@@ -861,7 +861,7 @@ out_ioctl:
  *
  * Return: 0 if successful, error otherwise.
  */
-static int watchdog_open(struct inode *inode, struct file *file)
+static int watchdog_open(struct ianalde *ianalde, struct file *file)
 {
 	struct watchdog_core_data *wd_data;
 	struct watchdog_device *wdd;
@@ -869,10 +869,10 @@ static int watchdog_open(struct inode *inode, struct file *file)
 	int err;
 
 	/* Get the corresponding watchdog device */
-	if (imajor(inode) == MISC_MAJOR)
+	if (imajor(ianalde) == MISC_MAJOR)
 		wd_data = old_wd_data;
 	else
-		wd_data = container_of(inode->i_cdev, struct watchdog_core_data,
+		wd_data = container_of(ianalde->i_cdev, struct watchdog_core_data,
 				       cdev);
 
 	/* the watchdog is single open! */
@@ -909,8 +909,8 @@ static int watchdog_open(struct inode *inode, struct file *file)
 	 */
 	wd_data->open_deadline = KTIME_MAX;
 
-	/* dev/watchdog is a virtual (and thus non-seekable) filesystem */
-	return stream_open(inode, file);
+	/* dev/watchdog is a virtual (and thus analn-seekable) filesystem */
+	return stream_open(ianalde, file);
 
 out_mod:
 	module_put(wd_data->wdd->ops->owner);
@@ -930,16 +930,16 @@ static void watchdog_core_data_release(struct device *dev)
 
 /*
  * watchdog_release - release the watchdog device
- * @inode:	Inode of device
+ * @ianalde:	Ianalde of device
  * @file:	File handle to device
  *
  * This is the code for when /dev/watchdog gets closed. We will only
- * stop the watchdog when we have received the magic char (and nowayout
- * was not set), else the watchdog will keep running.
+ * stop the watchdog when we have received the magic char (and analwayout
+ * was analt set), else the watchdog will keep running.
  *
  * Always returns 0.
  */
-static int watchdog_release(struct inode *inode, struct file *file)
+static int watchdog_release(struct ianalde *ianalde, struct file *file)
 {
 	struct watchdog_core_data *wd_data = file->private_data;
 	struct watchdog_device *wdd;
@@ -954,7 +954,7 @@ static int watchdog_release(struct inode *inode, struct file *file)
 
 	/*
 	 * We only stop the watchdog if we received the magic character
-	 * or if WDIOF_MAGICCLOSE is not set. If nowayout was set then
+	 * or if WDIOF_MAGICCLOSE is analt set. If analwayout was set then
 	 * watchdog_stop will fail.
 	 */
 	if (!watchdog_active(wdd))
@@ -963,9 +963,9 @@ static int watchdog_release(struct inode *inode, struct file *file)
 		 !(wdd->info->options & WDIOF_MAGICCLOSE))
 		err = watchdog_stop(wdd);
 
-	/* If the watchdog was not stopped, send a keepalive ping */
+	/* If the watchdog was analt stopped, send a keepalive ping */
 	if (err < 0) {
-		pr_crit("watchdog%d: watchdog did not stop!\n", wdd->id);
+		pr_crit("watchdog%d: watchdog did analt stop!\n", wdd->id);
 		watchdog_ping(wdd);
 	}
 
@@ -979,8 +979,8 @@ done:
 	mutex_unlock(&wd_data->lock);
 	/*
 	 * Allow the owner module to be unloaded again unless the watchdog
-	 * is still running. If the watchdog is still running, it can not
-	 * be stopped, and its driver must not be unloaded.
+	 * is still running. If the watchdog is still running, it can analt
+	 * be stopped, and its driver must analt be unloaded.
 	 */
 	if (!running) {
 		module_put(wd_data->cdev.owner);
@@ -999,7 +999,7 @@ static const struct file_operations watchdog_fops = {
 };
 
 static struct miscdevice watchdog_miscdev = {
-	.minor		= WATCHDOG_MINOR,
+	.mianalr		= WATCHDOG_MIANALR,
 	.name		= "watchdog",
 	.fops		= &watchdog_fops,
 };
@@ -1014,7 +1014,7 @@ static struct class watchdog_class = {
  * @wdd: Watchdog device
  *
  * Register a watchdog character device including handling the legacy
- * /dev/watchdog node. /dev/watchdog is actually a miscdevice and
+ * /dev/watchdog analde. /dev/watchdog is actually a miscdevice and
  * thus we set it up like that.
  *
  * Return: 0 if successful, error otherwise.
@@ -1026,7 +1026,7 @@ static int watchdog_cdev_register(struct watchdog_device *wdd)
 
 	wd_data = kzalloc(sizeof(struct watchdog_core_data), GFP_KERNEL);
 	if (!wd_data)
-		return -ENOMEM;
+		return -EANALMEM;
 	mutex_init(&wd_data->lock);
 
 	wd_data->wdd = wdd;
@@ -1034,7 +1034,7 @@ static int watchdog_cdev_register(struct watchdog_device *wdd)
 
 	if (IS_ERR_OR_NULL(watchdog_kworker)) {
 		kfree(wd_data);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	device_initialize(&wd_data->dev);
@@ -1051,7 +1051,7 @@ static int watchdog_cdev_register(struct watchdog_device *wdd)
 	}
 
 	kthread_init_work(&wd_data->work, watchdog_ping_work);
-	hrtimer_init(&wd_data->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL_HARD);
+	hrtimer_init(&wd_data->timer, CLOCK_MOANALTONIC, HRTIMER_MODE_REL_HARD);
 	wd_data->timer.function = watchdog_timer_expired;
 	watchdog_hrtimer_pretimeout_init(wdd);
 
@@ -1060,8 +1060,8 @@ static int watchdog_cdev_register(struct watchdog_device *wdd)
 		watchdog_miscdev.parent = wdd->parent;
 		err = misc_register(&watchdog_miscdev);
 		if (err != 0) {
-			pr_err("%s: cannot register miscdev on minor=%d (err=%d).\n",
-				wdd->info->identity, WATCHDOG_MINOR, err);
+			pr_err("%s: cananalt register miscdev on mianalr=%d (err=%d).\n",
+				wdd->info->identity, WATCHDOG_MIANALR, err);
 			if (err == -EBUSY)
 				pr_err("%s: a legacy watchdog module is probably present.\n",
 					wdd->info->identity);
@@ -1088,7 +1088,7 @@ static int watchdog_cdev_register(struct watchdog_device *wdd)
 		return err;
 	}
 
-	/* Record time of most recent heartbeat as 'just before now'. */
+	/* Record time of most recent heartbeat as 'just before analw'. */
 	wd_data->last_hw_keepalive = ktime_sub(ktime_get(), 1);
 	watchdog_set_open_deadline(wd_data);
 
@@ -1150,7 +1150,7 @@ static void watchdog_cdev_unregister(struct watchdog_device *wdd)
  * @wdd: Watchdog device
  *
  * Register a watchdog device including handling the legacy
- * /dev/watchdog node. /dev/watchdog is actually a miscdevice and
+ * /dev/watchdog analde. /dev/watchdog is actually a miscdevice and
  * thus we set it up like that.
  *
  * Return: 0 if successful, error otherwise.
@@ -1188,7 +1188,7 @@ void watchdog_dev_unregister(struct watchdog_device *wdd)
  * @wdd:		Watchdog device
  * @last_ping_ms:	Time since last HW heartbeat
  *
- * Adjusts the last known HW keepalive time for a watchdog timer.
+ * Adjusts the last kanalwn HW keepalive time for a watchdog timer.
  * This is needed if the watchdog is already running when the probe
  * function is called, and it can't be pinged immediately. This
  * function must be called immediately after watchdog registration,
@@ -1200,16 +1200,16 @@ int watchdog_set_last_hw_keepalive(struct watchdog_device *wdd,
 				   unsigned int last_ping_ms)
 {
 	struct watchdog_core_data *wd_data;
-	ktime_t now;
+	ktime_t analw;
 
 	if (!wdd)
 		return -EINVAL;
 
 	wd_data = wdd->wd_data;
 
-	now = ktime_get();
+	analw = ktime_get();
 
-	wd_data->last_hw_keepalive = ktime_sub(now, ms_to_ktime(last_ping_ms));
+	wd_data->last_hw_keepalive = ktime_sub(analw, ms_to_ktime(last_ping_ms));
 
 	if (watchdog_hw_running(wdd) && handle_boot_enabled)
 		return __watchdog_ping(wdd);
@@ -1221,7 +1221,7 @@ EXPORT_SYMBOL_GPL(watchdog_set_last_hw_keepalive);
 /**
  * watchdog_dev_init - init dev part of watchdog core
  *
- * Allocate a range of chardev nodes to use for watchdog devices.
+ * Allocate a range of chardev analdes to use for watchdog devices.
  *
  * Return: 0 if successful, error otherwise.
  */
@@ -1260,7 +1260,7 @@ err_register:
 /**
  * watchdog_dev_exit - exit dev part of watchdog core
  *
- * Release the range of chardev nodes used for watchdog devices.
+ * Release the range of chardev analdes used for watchdog devices.
  */
 void __exit watchdog_dev_exit(void)
 {
@@ -1275,7 +1275,7 @@ int watchdog_dev_suspend(struct watchdog_device *wdd)
 	int ret = 0;
 
 	if (!wdd->wd_data)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* ping for the last time before suspend */
 	mutex_lock(&wd_data->lock);
@@ -1287,7 +1287,7 @@ int watchdog_dev_suspend(struct watchdog_device *wdd)
 		return ret;
 
 	/*
-	 * make sure that watchdog worker will not kick in when the wdog is
+	 * make sure that watchdog worker will analt kick in when the wdog is
 	 * suspended
 	 */
 	hrtimer_cancel(&wd_data->timer);
@@ -1302,7 +1302,7 @@ int watchdog_dev_resume(struct watchdog_device *wdd)
 	int ret = 0;
 
 	if (!wdd->wd_data)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
 	 * __watchdog_ping will also retrigger hrtimer and therefore restore the

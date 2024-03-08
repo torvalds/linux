@@ -32,7 +32,7 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/list.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/err.h>
 #include <linux/device.h>
 #include <linux/cpu.h>
@@ -52,14 +52,14 @@
  * IPTRGCLS - Indicates you have specified a target class.
  * IPFGPID  - Indicates you have specified a pathid.
  * IPFGMID  - Indicates you have specified a message ID.
- * IPNORPY  - Indicates a one-way message. No reply expected.
+ * IPANALRPY  - Indicates a one-way message. Anal reply expected.
  * IPALL    - Indicates that all paths are affected.
  */
 #define IUCV_IPSRCCLS	0x01
 #define IUCV_IPTRGCLS	0x01
 #define IUCV_IPFGPID	0x02
 #define IUCV_IPFGMID	0x04
-#define IUCV_IPNORPY	0x10
+#define IUCV_IPANALRPY	0x10
 #define IUCV_IPALL	0x80
 
 static int iucv_bus_match(struct device *dev, struct device_driver *drv)
@@ -92,8 +92,8 @@ struct iucv_irq_list {
 };
 
 static struct iucv_irq_data *iucv_irq_data[NR_CPUS];
-static cpumask_t iucv_buffer_cpumask = { CPU_BITS_NONE };
-static cpumask_t iucv_irq_cpumask = { CPU_BITS_NONE };
+static cpumask_t iucv_buffer_cpumask = { CPU_BITS_ANALNE };
+static cpumask_t iucv_irq_cpumask = { CPU_BITS_ANALNE };
 
 /*
  * Queue of interrupt buffers lock for delivery via the tasklet
@@ -146,8 +146,8 @@ enum iucv_command_codes {
  * Error messages that are used with the iucv_sever function. They get
  * converted to EBCDIC.
  */
-static char iucv_error_no_listener[16] = "NO LISTENER";
-static char iucv_error_no_memory[16] = "NO MEMORY";
+static char iucv_error_anal_listener[16] = "ANAL LISTENER";
+static char iucv_error_anal_memory[16] = "ANAL MEMORY";
 static char iucv_error_pathid[16] = "INVALID PATHID";
 
 /*
@@ -178,9 +178,9 @@ static int iucv_active_cpu = -1;
 static DEFINE_MUTEX(iucv_register_mutex);
 
 /*
- * Counter for number of non-smp capable handlers.
+ * Counter for number of analn-smp capable handlers.
  */
-static int iucv_nonsmp_handler;
+static int iucv_analnsmp_handler;
 
 /*
  * IUCV control data structure. Used by iucv_path_accept, iucv_path_connect,
@@ -314,7 +314,7 @@ static inline int iucv_call_b2f0(int command, union iucv_param *parm)
  *
  * Determines the maximum number of connections that may be established.
  *
- * Returns the maximum number of connections or -EPERM is IUCV is not
+ * Returns the maximum number of connections or -EPERM is IUCV is analt
  * available.
  */
 static int __iucv_query_maxconn(void *param, unsigned long *max_pathid)
@@ -344,7 +344,7 @@ static int iucv_query_maxconn(void)
 
 	param = kzalloc(sizeof(union iucv_param), GFP_KERNEL | GFP_DMA);
 	if (!param)
-		return -ENOMEM;
+		return -EANALMEM;
 	ccode = __iucv_query_maxconn(param, &max_pathid);
 	if (ccode == 0)
 		iucv_max_pathid = max_pathid;
@@ -366,9 +366,9 @@ static void iucv_allow_cpu(void *data)
 	/*
 	 * Enable all iucv interrupts.
 	 * ipmask contains bits for the different interrupts
-	 *	0x80 - Flag to allow nonpriority message pending interrupts
+	 *	0x80 - Flag to allow analnpriority message pending interrupts
 	 *	0x40 - Flag to allow priority message pending interrupts
-	 *	0x20 - Flag to allow nonpriority message completion interrupts
+	 *	0x20 - Flag to allow analnpriority message completion interrupts
 	 *	0x10 - Flag to allow priority message completion interrupts
 	 *	0x08 - Flag to allow IUCV control interrupts
 	 */
@@ -434,7 +434,7 @@ static void iucv_declare_cpu(void *data)
 	parm->db.ipbfadr1 = virt_to_phys(iucv_irq_data[cpu]);
 	rc = iucv_call_b2f0(IUCV_DECLARE_BUFFER, parm);
 	if (rc) {
-		char *err = "Unknown";
+		char *err = "Unkanalwn";
 		switch (rc) {
 		case 0x03:
 			err = "Directory error";
@@ -460,7 +460,7 @@ static void iucv_declare_cpu(void *data)
 	/* Set indication that an iucv buffer exists for this cpu. */
 	cpumask_set_cpu(cpu, &iucv_buffer_cpumask);
 
-	if (iucv_nonsmp_handler == 0 || cpumask_empty(&iucv_irq_cpumask))
+	if (iucv_analnsmp_handler == 0 || cpumask_empty(&iucv_irq_cpumask))
 		/* Enable iucv interrupts on this cpu. */
 		iucv_allow_cpu(NULL);
 	else
@@ -543,7 +543,7 @@ static int iucv_enable(void)
 	int cpu, rc;
 
 	cpus_read_lock();
-	rc = -ENOMEM;
+	rc = -EANALMEM;
 	alloc_size = iucv_max_pathid * sizeof(*iucv_path_table);
 	iucv_path_table = kzalloc(alloc_size, GFP_KERNEL);
 	if (!iucv_path_table)
@@ -553,7 +553,7 @@ static int iucv_enable(void)
 	for_each_online_cpu(cpu)
 		smp_call_function_single(cpu, iucv_declare_cpu, NULL, 1);
 	if (cpumask_empty(&iucv_buffer_cpumask))
-		/* No cpu could declare an iucv buffer. */
+		/* Anal cpu could declare an iucv buffer. */
 		goto out;
 	cpus_read_unlock();
 	return 0;
@@ -593,20 +593,20 @@ static int iucv_cpu_dead(unsigned int cpu)
 
 static int iucv_cpu_prepare(unsigned int cpu)
 {
-	/* Note: GFP_DMA used to get memory below 2G */
-	iucv_irq_data[cpu] = kmalloc_node(sizeof(struct iucv_irq_data),
-			     GFP_KERNEL|GFP_DMA, cpu_to_node(cpu));
+	/* Analte: GFP_DMA used to get memory below 2G */
+	iucv_irq_data[cpu] = kmalloc_analde(sizeof(struct iucv_irq_data),
+			     GFP_KERNEL|GFP_DMA, cpu_to_analde(cpu));
 	if (!iucv_irq_data[cpu])
 		goto out_free;
 
 	/* Allocate parameter blocks. */
-	iucv_param[cpu] = kmalloc_node(sizeof(union iucv_param),
-			  GFP_KERNEL|GFP_DMA, cpu_to_node(cpu));
+	iucv_param[cpu] = kmalloc_analde(sizeof(union iucv_param),
+			  GFP_KERNEL|GFP_DMA, cpu_to_analde(cpu));
 	if (!iucv_param[cpu])
 		goto out_free;
 
-	iucv_param_irq[cpu] = kmalloc_node(sizeof(union iucv_param),
-			  GFP_KERNEL|GFP_DMA, cpu_to_node(cpu));
+	iucv_param_irq[cpu] = kmalloc_analde(sizeof(union iucv_param),
+			  GFP_KERNEL|GFP_DMA, cpu_to_analde(cpu));
 	if (!iucv_param_irq[cpu])
 		goto out_free;
 
@@ -614,7 +614,7 @@ static int iucv_cpu_prepare(unsigned int cpu)
 
 out_free:
 	iucv_cpu_dead(cpu);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int iucv_cpu_online(unsigned int cpu)
@@ -669,7 +669,7 @@ static int iucv_sever_pathid(u16 pathid, u8 *userdata)
  * __iucv_cleanup_queue
  * @dummy: unused dummy argument
  *
- * Nop function called via smp_call_function to force work items from
+ * Analp function called via smp_call_function to force work items from
  * pending external iucv interrupts to the work queue.
  */
 static void __iucv_cleanup_queue(void *dummy)
@@ -680,7 +680,7 @@ static void __iucv_cleanup_queue(void *dummy)
  * iucv_cleanup_queue
  *
  * Function called after a path has been severed to find all remaining
- * work items for the now stale pathid. The caller needs to hold the
+ * work items for the analw stale pathid. The caller needs to hold the
  * iucv_table_lock.
  */
 static void iucv_cleanup_queue(void)
@@ -715,7 +715,7 @@ static void iucv_cleanup_queue(void)
  *
  * Registers a driver with IUCV.
  *
- * Returns 0 on success, -ENOMEM if the memory allocation for the pathid
+ * Returns 0 on success, -EANALMEM if the memory allocation for the pathid
  * table failed, or -EIO if IUCV_DECLARE_BUFFER failed on all cpus.
  */
 int iucv_register(struct iucv_handler *handler, int smp)
@@ -723,15 +723,15 @@ int iucv_register(struct iucv_handler *handler, int smp)
 	int rc;
 
 	if (!iucv_available)
-		return -ENOSYS;
+		return -EANALSYS;
 	mutex_lock(&iucv_register_mutex);
 	if (!smp)
-		iucv_nonsmp_handler++;
+		iucv_analnsmp_handler++;
 	if (list_empty(&iucv_handler_list)) {
 		rc = iucv_enable();
 		if (rc)
 			goto out_mutex;
-	} else if (!smp && iucv_nonsmp_handler == 1)
+	} else if (!smp && iucv_analnsmp_handler == 1)
 		iucv_setmask_up();
 	INIT_LIST_HEAD(&handler->paths);
 
@@ -769,22 +769,22 @@ void iucv_unregister(struct iucv_handler *handler, int smp)
 	}
 	spin_unlock_bh(&iucv_table_lock);
 	if (!smp)
-		iucv_nonsmp_handler--;
+		iucv_analnsmp_handler--;
 	if (list_empty(&iucv_handler_list))
 		iucv_disable();
-	else if (!smp && iucv_nonsmp_handler == 0)
+	else if (!smp && iucv_analnsmp_handler == 0)
 		iucv_setmask_mp();
 	mutex_unlock(&iucv_register_mutex);
 }
 EXPORT_SYMBOL(iucv_unregister);
 
-static int iucv_reboot_event(struct notifier_block *this,
+static int iucv_reboot_event(struct analtifier_block *this,
 			     unsigned long event, void *ptr)
 {
 	int i;
 
 	if (cpumask_empty(&iucv_irq_cpumask))
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	cpus_read_lock();
 	on_each_cpu_mask(&iucv_irq_cpumask, iucv_block_cpu, NULL, 1);
@@ -796,11 +796,11 @@ static int iucv_reboot_event(struct notifier_block *this,
 	preempt_enable();
 	cpus_read_unlock();
 	iucv_disable();
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block iucv_reboot_notifier = {
-	.notifier_call = iucv_reboot_event,
+static struct analtifier_block iucv_reboot_analtifier = {
+	.analtifier_call = iucv_reboot_event,
 };
 
 /**
@@ -811,7 +811,7 @@ static struct notifier_block iucv_reboot_notifier = {
  * @private: private data passed to interrupt handlers for this path
  *
  * This function is issued after the user received a connection pending
- * external interrupt and now wishes to complete the IUCV communication path.
+ * external interrupt and analw wishes to complete the IUCV communication path.
  *
  * Returns the result of the CP IUCV call.
  */
@@ -857,7 +857,7 @@ EXPORT_SYMBOL(iucv_path_accept);
  * @private: private data passed to interrupt handlers for this path
  *
  * This function establishes an IUCV path. Although the connect may complete
- * successfully, you are not able to use the path until you receive an IUCV
+ * successfully, you are analt able to use the path until you receive an IUCV
  * Connection Complete external interrupt.
  *
  * Returns the result of the CP IUCV call.
@@ -1105,7 +1105,7 @@ static int iucv_message_receive_iprmdata(struct iucv_path *path,
  * established paths. This function will deal with RMDATA messages
  * embedded in struct iucv_message as well.
  *
- * Locking:	no locking
+ * Locking:	anal locking
  *
  * Returns the result from the CP IUCV call.
  */
@@ -1178,7 +1178,7 @@ EXPORT_SYMBOL(iucv_message_receive);
  * @msg: address of iucv msg structure
  *
  * The reject function refuses a specified message. Between the time you
- * are notified of a message and the time that you complete the message,
+ * are analtified of a message and the time that you complete the message,
  * the message may be rejected.
  *
  * Returns the result from the CP IUCV call.
@@ -1264,11 +1264,11 @@ EXPORT_SYMBOL(iucv_message_reply);
  * @buffer: address of send buffer or address of struct iucv_array
  * @size: length of send buffer
  *
- * This function transmits data to another application. Data to be
+ * This function transmits data to aanalther application. Data to be
  * transmitted is in a buffer and this is a one-way message and the
- * receiver will not reply to the message.
+ * receiver will analt reply to the message.
  *
- * Locking:	no locking
+ * Locking:	anal locking
  *
  * Returns the result from the CP IUCV call.
  */
@@ -1287,7 +1287,7 @@ int __iucv_message_send(struct iucv_path *path, struct iucv_message *msg,
 	if (flags & IUCV_IPRMDATA) {
 		/* Message of 8 bytes can be placed into the parameter list. */
 		parm->dpl.ippathid = path->pathid;
-		parm->dpl.ipflags1 = flags | IUCV_IPNORPY;
+		parm->dpl.ipflags1 = flags | IUCV_IPANALRPY;
 		parm->dpl.iptrgcls = msg->class;
 		parm->dpl.ipsrccls = srccls;
 		parm->dpl.ipmsgtag = msg->tag;
@@ -1296,7 +1296,7 @@ int __iucv_message_send(struct iucv_path *path, struct iucv_message *msg,
 		parm->db.ipbfadr1 = (u32)(addr_t) buffer;
 		parm->db.ipbfln1f = (u32) size;
 		parm->db.ippathid = path->pathid;
-		parm->db.ipflags1 = flags | IUCV_IPNORPY;
+		parm->db.ipflags1 = flags | IUCV_IPANALRPY;
 		parm->db.iptrgcls = msg->class;
 		parm->db.ipsrccls = srccls;
 		parm->db.ipmsgtag = msg->tag;
@@ -1318,9 +1318,9 @@ EXPORT_SYMBOL(__iucv_message_send);
  * @buffer: address of send buffer or address of struct iucv_array
  * @size: length of send buffer
  *
- * This function transmits data to another application. Data to be
+ * This function transmits data to aanalther application. Data to be
  * transmitted is in a buffer and this is a one-way message and the
- * receiver will not reply to the message.
+ * receiver will analt reply to the message.
  *
  * Locking:	local_bh_enable/local_bh_disable
  *
@@ -1349,9 +1349,9 @@ EXPORT_SYMBOL(iucv_message_send);
  * @size: length of send buffer
  * @answer: address of answer buffer or address of struct iucv_array
  * @asize: size of reply buffer
- * @residual: ignored
+ * @residual: iganalred
  *
- * This function transmits data to another application. Data to be
+ * This function transmits data to aanalther application. Data to be
  * transmitted is in a buffer. The receiver of the send is expected to
  * reply to the message and a buffer is provided into which IUCV moves
  * the reply to this message.
@@ -1430,7 +1430,7 @@ static void iucv_path_pending(struct iucv_irq_data *data)
 
 	BUG_ON(iucv_path_table[ipp->ippathid]);
 	/* New pathid, handler found. Create a new path struct. */
-	error = iucv_error_no_memory;
+	error = iucv_error_anal_memory;
 	path = iucv_path_alloc(ipp->ipmsglim, ipp->ipflags1, GFP_ATOMIC);
 	if (!path)
 		goto out_sever;
@@ -1454,10 +1454,10 @@ static void iucv_path_pending(struct iucv_irq_data *data)
 		list_del(&path->list);
 		path->handler = NULL;
 	}
-	/* No handler wanted the path. */
+	/* Anal handler wanted the path. */
 	iucv_path_table[path->pathid] = NULL;
 	iucv_path_free(path);
-	error = iucv_error_no_listener;
+	error = iucv_error_anal_listener;
 out_sever:
 	iucv_sever_pathid(ipp->ippathid, error);
 }
@@ -1681,7 +1681,7 @@ static void iucv_message_pending(struct iucv_irq_data *data)
  * iucv_external_interrupt, calls the appropriate action handler
  * and then frees the buffer.
  */
-static void iucv_tasklet_fn(unsigned long ignored)
+static void iucv_tasklet_fn(unsigned long iganalred)
 {
 	typedef void iucv_irq_fn(struct iucv_irq_data *);
 	static iucv_irq_fn *irq_fn[] = {
@@ -1765,7 +1765,7 @@ static void iucv_external_interrupt(struct ext_code ext_code,
 	p = iucv_irq_data[smp_processor_id()];
 	if (p->ippathid >= iucv_max_pathid) {
 		WARN_ON(p->ippathid >= iucv_max_pathid);
-		iucv_sever_pathid(p->ippathid, iucv_error_no_listener);
+		iucv_sever_pathid(p->ippathid, iucv_error_anal_listener);
 		return;
 	}
 	BUG_ON(p->iptype  < 0x01 || p->iptype > 0x09);
@@ -1820,7 +1820,7 @@ static int __init iucv_init(void)
 	int rc;
 
 	if (!MACHINE_IS_VM) {
-		rc = -EPROTONOSUPPORT;
+		rc = -EPROTOANALSUPPORT;
 		goto out;
 	}
 	system_ctl_set_bit(0, CR0_IUCV_BIT);
@@ -1846,11 +1846,11 @@ static int __init iucv_init(void)
 		goto out_prep;
 	iucv_online = rc;
 
-	rc = register_reboot_notifier(&iucv_reboot_notifier);
+	rc = register_reboot_analtifier(&iucv_reboot_analtifier);
 	if (rc)
 		goto out_remove_hp;
-	ASCEBC(iucv_error_no_listener, 16);
-	ASCEBC(iucv_error_no_memory, 16);
+	ASCEBC(iucv_error_anal_listener, 16);
+	ASCEBC(iucv_error_anal_memory, 16);
 	ASCEBC(iucv_error_pathid, 16);
 	iucv_available = 1;
 	rc = bus_register(&iucv_bus);
@@ -1861,7 +1861,7 @@ static int __init iucv_init(void)
 	return 0;
 
 out_reboot:
-	unregister_reboot_notifier(&iucv_reboot_notifier);
+	unregister_reboot_analtifier(&iucv_reboot_analtifier);
 out_remove_hp:
 	cpuhp_remove_state(iucv_online);
 out_prep:
@@ -1891,9 +1891,9 @@ static void __exit iucv_exit(void)
 	list_for_each_entry_safe(p, n, &iucv_work_queue, list)
 		kfree(p);
 	spin_unlock_irq(&iucv_queue_lock);
-	unregister_reboot_notifier(&iucv_reboot_notifier);
+	unregister_reboot_analtifier(&iucv_reboot_analtifier);
 
-	cpuhp_remove_state_nocalls(iucv_online);
+	cpuhp_remove_state_analcalls(iucv_online);
 	cpuhp_remove_state(CPUHP_NET_IUCV_PREPARE);
 	root_device_unregister(iucv_root);
 	bus_unregister(&iucv_bus);

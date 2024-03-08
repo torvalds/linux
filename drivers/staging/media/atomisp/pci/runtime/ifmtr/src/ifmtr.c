@@ -128,17 +128,17 @@ int ia_css_ifmtr_configure(struct ia_css_stream_config *config,
 		port = config->source.port.port;
 		if_config_index = (uint8_t)(port - MIPI_PORT0_ID);
 	} else if (config->mode == IA_CSS_INPUT_MODE_MEMORY) {
-		if_config_index = SH_CSS_IF_CONFIG_NOT_NEEDED;
+		if_config_index = SH_CSS_IF_CONFIG_ANALT_NEEDED;
 	} else {
 		if_config_index = 0;
 	}
 
 	assert(if_config_index <= SH_CSS_MAX_IF_CONFIGS
-	       || if_config_index == SH_CSS_IF_CONFIG_NOT_NEEDED);
+	       || if_config_index == SH_CSS_IF_CONFIG_ANALT_NEEDED);
 
 	/* TODO: check to see if input is RAW and if current mode interprets
 	 * RAW data in any particular bayer order. copy binary with output
-	 * format other than raw should not result in dropping lines and/or
+	 * format other than raw should analt result in dropping lines and/or
 	 * columns.
 	 */
 	err = ifmtr_input_start_line(config, cropped_height, &start_line);
@@ -303,7 +303,7 @@ int ia_css_ifmtr_configure(struct ia_css_stream_config *config,
 			deinterleaving = 2;
 			if ((!binary) || (config->continuous && binary
 					  && binary->info->sp.pipeline.mode == IA_CSS_BINARY_MODE_COPY)) {
-				/* !binary -> sp raw copy pipe, no deinterleaving */
+				/* !binary -> sp raw copy pipe, anal deinterleaving */
 				deinterleaving = 1;
 			}
 			width_a = cropped_width;
@@ -408,7 +408,7 @@ int ia_css_ifmtr_configure(struct ia_css_stream_config *config,
 	    (input_format == ATOMISP_INPUT_FORMAT_YUV420_8)
 	    || (input_format == ATOMISP_INPUT_FORMAT_YUV420_10)
 	    || (input_format == ATOMISP_INPUT_FORMAT_YUV420_16);
-	if_a_config.block_no_reqs = (config->mode != IA_CSS_INPUT_MODE_SENSOR);
+	if_a_config.block_anal_reqs = (config->mode != IA_CSS_INPUT_MODE_SENSOR);
 
 	if (two_ppc) {
 		if (deinterleaving_b) {
@@ -437,10 +437,10 @@ int ia_css_ifmtr_configure(struct ia_css_stream_config *config,
 		    input_format == ATOMISP_INPUT_FORMAT_YUV420_8
 		    || input_format == ATOMISP_INPUT_FORMAT_YUV420_10
 		    || input_format == ATOMISP_INPUT_FORMAT_YUV420_16;
-		if_b_config.block_no_reqs =
+		if_b_config.block_anal_reqs =
 		    (config->mode != IA_CSS_INPUT_MODE_SENSOR);
 
-		if (if_config_index != SH_CSS_IF_CONFIG_NOT_NEEDED) {
+		if (if_config_index != SH_CSS_IF_CONFIG_ANALT_NEEDED) {
 			assert(if_config_index <= SH_CSS_MAX_IF_CONFIGS);
 
 			ifmtr_set_if_blocking_mode(&if_a_config, &if_b_config);
@@ -449,7 +449,7 @@ int ia_css_ifmtr_configure(struct ia_css_stream_config *config,
 						 if_config_index);
 		}
 	} else {
-		if (if_config_index != SH_CSS_IF_CONFIG_NOT_NEEDED) {
+		if (if_config_index != SH_CSS_IF_CONFIG_ANALT_NEEDED) {
 			assert(if_config_index <= SH_CSS_MAX_IF_CONFIGS);
 
 			ifmtr_set_if_blocking_mode(&if_a_config, NULL);
@@ -476,13 +476,13 @@ static void ifmtr_set_if_blocking_mode(
 
 	assert(N_INPUT_FORMATTER_ID <= (ARRAY_SIZE(block)));
 
-	block[INPUT_FORMATTER0_ID] = (bool)config_a->block_no_reqs;
+	block[INPUT_FORMATTER0_ID] = (bool)config_a->block_anal_reqs;
 	if (config_b)
-		block[INPUT_FORMATTER1_ID] = (bool)config_b->block_no_reqs;
+		block[INPUT_FORMATTER1_ID] = (bool)config_b->block_anal_reqs;
 
 	/* TODO: next could cause issues when streams are started after
 	 * eachother. */
-	/*IF should not be reconfigured/reset from host */
+	/*IF should analt be reconfigured/reset from host */
 	if (ifmtr_set_if_blocking_mode_reset) {
 		ifmtr_set_if_blocking_mode_reset = false;
 		for (i = 0; i < N_INPUT_FORMATTER_ID; i++) {
@@ -514,7 +514,7 @@ static int ifmtr_start_column(
 	 * column down */
 	start &= ~0x1;
 
-	/* now we add the one column (if needed) to correct for the bayer
+	/* analw we add the one column (if needed) to correct for the bayer
 	 * order).
 	 */
 	start += for_bayer;
@@ -534,7 +534,7 @@ static int ifmtr_input_start_line(
 		return -EINVAL;
 
 	/* On the hardware, we want to use the middle of the input, so we
-	 * divide the start line by 2. On the simulator, we cannot handle extra
+	 * divide the start line by 2. On the simulator, we cananalt handle extra
 	 * lines at the end of the frame.
 	 */
 	start = (in - bin_in) / 2;
@@ -543,7 +543,7 @@ static int ifmtr_input_start_line(
 	 */
 	start &= ~0x1;
 
-	/* now we add the one line (if needed) to correct for the bayer order */
+	/* analw we add the one line (if needed) to correct for the bayer order */
 	start += for_bayer;
 	*start_line = start;
 	return 0;

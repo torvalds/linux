@@ -2,7 +2,7 @@
 /*
  * Copyright (C) 2022 MediaTek Inc.
  * Copyright (C) 2023 Collabora Ltd.
- *                    AngeloGioacchino Del Regno <angelogioacchino.delregno@collabora.com>
+ *                    AngeloGioacchianal Del Reganal <angelogioacchianal.delreganal@collabora.com>
  */
 
 #include <dt-bindings/clock/mediatek,mt8365-clk.h>
@@ -590,15 +590,15 @@ static const struct mtk_gate_regs top2_cg_regs = {
 
 #define GATE_TOP0(_id, _name, _parent, _shift)			\
 	GATE_MTK(_id, _name, _parent, &top0_cg_regs,		\
-		 _shift, &mtk_clk_gate_ops_no_setclr)
+		 _shift, &mtk_clk_gate_ops_anal_setclr)
 
 #define GATE_TOP1(_id, _name, _parent, _shift)			\
 	GATE_MTK(_id, _name, _parent, &top1_cg_regs,		\
-		 _shift, &mtk_clk_gate_ops_no_setclr_inv)
+		 _shift, &mtk_clk_gate_ops_anal_setclr_inv)
 
 #define GATE_TOP2(_id, _name, _parent, _shift)			\
 	GATE_MTK(_id, _name, _parent, &top2_cg_regs,		\
-		 _shift, &mtk_clk_gate_ops_no_setclr_inv)
+		 _shift, &mtk_clk_gate_ops_anal_setclr_inv)
 
 static const struct mtk_gate top_clk_gates[] = {
 	GATE_TOP0(CLK_TOP_CONN_32K, "conn_32k", "clk32k", 10),
@@ -726,7 +726,7 @@ static const struct mtk_gate ifr_clks[] = {
 	GATE_IFR5(CLK_IFR_PWRAP_SPI, "ifr_pwrap_spi", "clk26m", 13),
 	GATE_IFR5(CLK_IFR_PWRAP_SYS, "ifr_pwrap_sys", "clk26m", 14),
 	GATE_MTK_FLAGS(CLK_IFR_MCU_PM_BK, "ifr_mcu_pm_bk", NULL, &ifr5_cg_regs,
-			17, &mtk_clk_gate_ops_setclr, CLK_IGNORE_UNUSED),
+			17, &mtk_clk_gate_ops_setclr, CLK_IGANALRE_UNUSED),
 	GATE_IFR5(CLK_IFR_IRRX_26M, "ifr_irrx_26m", "clk26m", 22),
 	GATE_IFR5(CLK_IFR_IRRX_32K, "ifr_irrx_32k", "clk32k", 23),
 	GATE_IFR5(CLK_IFR_I2C0_AXI, "ifr_i2c0_axi", "i2c_sel", 24),
@@ -759,7 +759,7 @@ static const struct mtk_gate_regs peri_cg_regs = {
 
 static const struct mtk_gate peri_clks[] = {
 	GATE_MTK(CLK_PERIAXI, "periaxi", "axi_sel", &peri_cg_regs, 31,
-		 &mtk_clk_gate_ops_no_setclr),
+		 &mtk_clk_gate_ops_anal_setclr),
 };
 
 static const struct mtk_clk_desc topck_desc = {

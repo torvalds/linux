@@ -11,7 +11,7 @@
 #include <linux/kernel.h>
 #include <linux/tcp.h>
 #include <linux/workqueue.h>
-#include <linux/nospec.h>
+#include <linux/analspec.h>
 #include <linux/cookie.h>
 #include <linux/inet_diag.h>
 #include <linux/sock_diag.h>
@@ -32,7 +32,7 @@ u64 __sock_gen_cookie(struct sock *sk)
 
 		atomic64_cmpxchg(&sk->sk_cookie, res, new);
 
-		/* Another thread might have changed sk_cookie before us. */
+		/* Aanalther thread might have changed sk_cookie before us. */
 		res = atomic64_read(&sk->sk_cookie);
 	}
 	return res;
@@ -42,7 +42,7 @@ int sock_diag_check_cookie(struct sock *sk, const __u32 *cookie)
 {
 	u64 res;
 
-	if (cookie[0] == INET_DIAG_NOCOOKIE && cookie[1] == INET_DIAG_NOCOOKIE)
+	if (cookie[0] == INET_DIAG_ANALCOOKIE && cookie[1] == INET_DIAG_ANALCOOKIE)
 		return 0;
 
 	res = sock_gen_cookie(sk);
@@ -132,7 +132,7 @@ static void sock_diag_broadcast_destroy_work(struct work_struct *work)
 	const enum sknetlink_groups group = sock_diag_destroy_group(sk);
 	int err = -1;
 
-	WARN_ON(group == SKNLGRP_NONE);
+	WARN_ON(group == SKNLGRP_ANALNE);
 
 	skb = nlmsg_new(sock_diag_nlmsg_size(), GFP_KERNEL);
 	if (!skb)
@@ -156,7 +156,7 @@ out:
 
 void sock_diag_broadcast_destroy(struct sock *sk)
 {
-	/* Note, this function is often called from an interrupt context. */
+	/* Analte, this function is often called from an interrupt context. */
 	struct broadcast_sk *bsk =
 		kmalloc(sizeof(struct broadcast_sk), GFP_ATOMIC);
 	if (!bsk)
@@ -225,7 +225,7 @@ static int __sock_diag_cmd(struct sk_buff *skb, struct nlmsghdr *nlh)
 
 	if (req->sdiag_family >= AF_MAX)
 		return -EINVAL;
-	req->sdiag_family = array_index_nospec(req->sdiag_family, AF_MAX);
+	req->sdiag_family = array_index_analspec(req->sdiag_family, AF_MAX);
 
 	if (sock_diag_handlers[req->sdiag_family] == NULL)
 		sock_load_diag_module(req->sdiag_family, 0);
@@ -233,13 +233,13 @@ static int __sock_diag_cmd(struct sk_buff *skb, struct nlmsghdr *nlh)
 	mutex_lock(&sock_diag_table_mutex);
 	hndl = sock_diag_handlers[req->sdiag_family];
 	if (hndl == NULL)
-		err = -ENOENT;
+		err = -EANALENT;
 	else if (nlh->nlmsg_type == SOCK_DIAG_BY_FAMILY)
 		err = hndl->dump(skb, nlh);
 	else if (nlh->nlmsg_type == SOCK_DESTROY && hndl->destroy)
 		err = hndl->destroy(skb, nlh);
 	else
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 	mutex_unlock(&sock_diag_table_mutex);
 
 	return err;
@@ -260,7 +260,7 @@ static int sock_diag_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh,
 		if (inet_rcv_compat != NULL)
 			ret = inet_rcv_compat(skb, nlh);
 		else
-			ret = -EOPNOTSUPP;
+			ret = -EOPANALTSUPP;
 		mutex_unlock(&sock_diag_table_mutex);
 
 		return ret;
@@ -304,7 +304,7 @@ int sock_diag_destroy(struct sock *sk, int err)
 		return -EPERM;
 
 	if (!sk->sk_prot->diag_destroy)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return sk->sk_prot->diag_destroy(sk, err);
 }
@@ -316,11 +316,11 @@ static int __net_init diag_net_init(struct net *net)
 		.groups	= SKNLGRP_MAX,
 		.input	= sock_diag_rcv,
 		.bind	= sock_diag_bind,
-		.flags	= NL_CFG_F_NONROOT_RECV,
+		.flags	= NL_CFG_F_ANALNROOT_RECV,
 	};
 
 	net->diag_nlsk = netlink_kernel_create(net, NETLINK_SOCK_DIAG, &cfg);
-	return net->diag_nlsk == NULL ? -ENOMEM : 0;
+	return net->diag_nlsk == NULL ? -EANALMEM : 0;
 }
 
 static void __net_exit diag_net_exit(struct net *net)

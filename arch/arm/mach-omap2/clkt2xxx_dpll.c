@@ -2,12 +2,12 @@
 /*
  * OMAP2-specific DPLL control functions
  *
- * Copyright (C) 2011 Nokia Corporation
+ * Copyright (C) 2011 Analkia Corporation
  * Paul Walmsley
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/clk.h>
 #include <linux/io.h>
 
@@ -22,7 +22,7 @@
  * @clk: struct clk * of the DPLL to operate on
  *
  * Enable DPLL automatic idle control.  The DPLL will enter low-power
- * stop when its downstream clocks are gated.  No return value.
+ * stop when its downstream clocks are gated.  Anal return value.
  * REVISIT: DPLL can optionally enter low-power bypass by writing 0x1
  * instead.  Add some mechanism to optionally enter this mode.
  */
@@ -38,7 +38,7 @@ static void _allow_idle(struct clk_hw_omap *clk)
  * _deny_idle - prevent DPLL from automatically idling
  * @clk: struct clk * of the DPLL to operate on
  *
- * Disable DPLL automatic idle control.  No return value.
+ * Disable DPLL automatic idle control.  Anal return value.
  */
 static void _deny_idle(struct clk_hw_omap *clk)
 {

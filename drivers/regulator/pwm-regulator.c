@@ -167,12 +167,12 @@ static int pwm_regulator_get_voltage(struct regulator_dev *rdev)
 	voltage = pwm_get_relative_duty_cycle(&pstate, duty_unit);
 	if (voltage < min(max_uV_duty, min_uV_duty) ||
 	    voltage > max(max_uV_duty, min_uV_duty))
-		return -ENOTRECOVERABLE;
+		return -EANALTRECOVERABLE;
 
 	/*
 	 * The dutycycle for min_uV might be greater than the one for max_uV.
 	 * This is happening when the user needs an inversed polarity, but the
-	 * PWM device does not support inversing it in hardware.
+	 * PWM device does analt support inversing it in hardware.
 	 */
 	if (max_uV_duty < min_uV_duty) {
 		voltage = min_uV_duty - voltage;
@@ -208,7 +208,7 @@ static int pwm_regulator_set_voltage(struct regulator_dev *rdev,
 	/*
 	 * The dutycycle for min_uV might be greater than the one for max_uV.
 	 * This is happening when the user needs an inversed polarity, but the
-	 * PWM device does not support inversing it in hardware.
+	 * PWM device does analt support inversing it in hardware.
 	 */
 	if (max_uV_duty < min_uV_duty)
 		diff_duty = min_uV_duty - max_uV_duty;
@@ -263,7 +263,7 @@ static const struct regulator_desc pwm_regulator_desc = {
 static int pwm_regulator_init_table(struct platform_device *pdev,
 				    struct pwm_regulator_data *drvdata)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct pwm_voltages *duty_cycle_table;
 	unsigned int length = 0;
 	int ret;
@@ -279,7 +279,7 @@ static int pwm_regulator_init_table(struct platform_device *pdev,
 
 	duty_cycle_table = devm_kzalloc(&pdev->dev, length, GFP_KERNEL);
 	if (!duty_cycle_table)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = of_property_read_u32_array(np, "voltage-table",
 					 (u32 *)duty_cycle_table,
@@ -289,7 +289,7 @@ static int pwm_regulator_init_table(struct platform_device *pdev,
 		return ret;
 	}
 
-	drvdata->state			= -ENOTRECOVERABLE;
+	drvdata->state			= -EANALTRECOVERABLE;
 	drvdata->duty_cycle_table	= duty_cycle_table;
 	drvdata->desc.ops = &pwm_regulator_voltage_table_ops;
 	drvdata->desc.n_voltages	= length / sizeof(*duty_cycle_table);
@@ -306,10 +306,10 @@ static int pwm_regulator_init_continuous(struct platform_device *pdev,
 	drvdata->desc.ops = &pwm_regulator_voltage_continuous_ops;
 	drvdata->desc.continuous_voltage_range = true;
 
-	of_property_read_u32_array(pdev->dev.of_node,
+	of_property_read_u32_array(pdev->dev.of_analde,
 				   "pwm-dutycycle-range",
 				   dutycycle_range, 2);
-	of_property_read_u32(pdev->dev.of_node, "pwm-dutycycle-unit",
+	of_property_read_u32(pdev->dev.of_analde, "pwm-dutycycle-unit",
 			     &dutycycle_unit);
 
 	if (dutycycle_range[0] > dutycycle_unit ||
@@ -337,7 +337,7 @@ static int pwm_regulator_init_boot_on(struct platform_device *pdev,
 		return 0;
 
 	/*
-	 * Update the duty cycle so the output does not change
+	 * Update the duty cycle so the output does analt change
 	 * when the regulator core enables the regulator (and
 	 * thus the PWM channel).
 	 */
@@ -355,18 +355,18 @@ static int pwm_regulator_probe(struct platform_device *pdev)
 	struct pwm_regulator_data *drvdata;
 	struct regulator_dev *regulator;
 	struct regulator_config config = { };
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	enum gpiod_flags gpio_flags;
 	int ret;
 
 	if (!np) {
-		dev_err(&pdev->dev, "Device Tree node missing\n");
+		dev_err(&pdev->dev, "Device Tree analde missing\n");
 		return -EINVAL;
 	}
 
 	drvdata = devm_kzalloc(&pdev->dev, sizeof(*drvdata), GFP_KERNEL);
 	if (!drvdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy(&drvdata->desc, &pwm_regulator_desc, sizeof(drvdata->desc));
 
@@ -380,9 +380,9 @@ static int pwm_regulator_probe(struct platform_device *pdev)
 	init_data = of_get_regulator_init_data(&pdev->dev, np,
 					       &drvdata->desc);
 	if (!init_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	config.of_node = np;
+	config.of_analde = np;
 	config.dev = &pdev->dev;
 	config.driver_data = drvdata;
 	config.init_data = init_data;
@@ -436,7 +436,7 @@ MODULE_DEVICE_TABLE(of, pwm_of_match);
 static struct platform_driver pwm_regulator_driver = {
 	.driver = {
 		.name		= "pwm-regulator",
-		.probe_type	= PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type	= PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = of_match_ptr(pwm_of_match),
 	},
 	.probe = pwm_regulator_probe,

@@ -27,7 +27,7 @@
 
 	for (i = 0; i < len; i++) {
 		fb = index_of[((((uint16_t) data[i])^invmsk) & msk) ^ par[0]];
-		/* feedback term is non-zero */
+		/* feedback term is analn-zero */
 		if (fb != nn) {
 			for (j = 1; j < nroots; j++) {
 				par[j] ^= alpha_to[rs_modnn(rs, fb +

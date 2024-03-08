@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -39,7 +39,7 @@ enum { API_FRAME_SIZE_IN_DWORDS = 64 };
 
 /*
  * To avoid command in scheduler context to be overwritten whenever multiple interrupts come in,
- * this creates another queue.
+ * this creates aanalther queue.
  */
 enum { API_NUMBER_OF_COMMAND_MAX = 32 };
 
@@ -62,7 +62,7 @@ enum UMSCH_MS_LOG_OPERATION {
 	UMSCH_LOG_OPERATION_CONTEXT_STATE_CHANGE = 0,
 	UMSCH_LOG_OPERATION_QUEUE_NEW_WORK = 1,
 	UMSCH_LOG_OPERATION_QUEUE_UNWAIT_SYNC_OBJECT = 2,
-	UMSCH_LOG_OPERATION_QUEUE_NO_MORE_WORK = 3,
+	UMSCH_LOG_OPERATION_QUEUE_ANAL_MORE_WORK = 3,
 	UMSCH_LOG_OPERATION_QUEUE_WAIT_SYNC_OBJECT = 4,
 	UMSCH_LOG_OPERATION_QUEUE_INVALID = 0xF,
 };
@@ -87,7 +87,7 @@ struct UMSCH_LOG_QUEUE_UNWAIT_SYNC_OBJECT {
 	uint64_t h_sync_object;
 };
 
-struct UMSCH_LOG_QUEUE_NO_MORE_WORK {
+struct UMSCH_LOG_QUEUE_ANAL_MORE_WORK {
 	uint64_t h_queue;
 	uint64_t reserved;
 };
@@ -112,7 +112,7 @@ struct UMSCH_LOG_ENTRY_DATA {
 		struct UMSCH_LOG_CONTEXT_STATE_CHANGE context_state_change;
 		struct UMSCH_LOG_QUEUE_NEW_WORK queue_new_work;
 		struct UMSCH_LOG_QUEUE_UNWAIT_SYNC_OBJECT queue_unwait_sync_object;
-		struct UMSCH_LOG_QUEUE_NO_MORE_WORK queue_no_more_work;
+		struct UMSCH_LOG_QUEUE_ANAL_MORE_WORK queue_anal_more_work;
 		struct UMSCH_LOG_QUEUE_WAIT_SYNC_OBJECT queue_wait_sync_object;
 		uint64_t all[2];
 	};
@@ -152,7 +152,7 @@ union UMSCH_API_HEADER {
 
 enum UMSCH_AMD_PRIORITY_LEVEL {
 	AMD_PRIORITY_LEVEL_IDLE = 0,
-	AMD_PRIORITY_LEVEL_NORMAL = 1,
+	AMD_PRIORITY_LEVEL_ANALRMAL = 1,
 	AMD_PRIORITY_LEVEL_FOCUS = 2,
 	AMD_PRIORITY_LEVEL_REALTIME = 3,
 	AMD_PRIORITY_NUM_LEVELS
@@ -249,8 +249,8 @@ union UMSCHAPI__SET_SCHEDULING_CONFIG {
 	struct {
 		union UMSCH_API_HEADER header;
 		/*
-		 * Grace period when preempting another priority band for this priority band.
-		 * The value for idle priority band is ignored, as it never preempts other bands.
+		 * Grace period when preempting aanalther priority band for this priority band.
+		 * The value for idle priority band is iganalred, as it never preempts other bands.
 		 */
 		uint64_t grace_period_other_levels[AMD_PRIORITY_NUM_LEVELS];
 
@@ -261,11 +261,11 @@ union UMSCHAPI__SET_SCHEDULING_CONFIG {
 		uint64_t process_grace_period_same_level[AMD_PRIORITY_NUM_LEVELS];
 
 		/*
-		 * For normal level this field specifies the target GPU percentage in situations
+		 * For analrmal level this field specifies the target GPU percentage in situations
 		 * when it's starved by the high level. Valid values are between 0 and 50,
 		 * with the default being 10.
 		 */
-		uint32_t normal_yield_percent;
+		uint32_t analrmal_yield_percent;
 
 		struct UMSCH_API_STATUS api_status;
 	};
@@ -425,7 +425,7 @@ union UMSCHAPI__CHANGE_CONTEXT_PRIORITY_LEVEL {
 union UMSCHAPI__QUERY_UMSCH_STATUS {
 	struct {
 		union UMSCH_API_HEADER header;
-		bool umsch_mm_healthy; /* 0 - not healthy, 1 - healthy */
+		bool umsch_mm_healthy; /* 0 - analt healthy, 1 - healthy */
 		struct UMSCH_API_STATUS api_status;
 	};
 

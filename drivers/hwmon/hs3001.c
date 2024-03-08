@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * This is a non-complete driver implementation for the
- * HS3001 humidity and temperature sensor and compatibles. It does not include
+ * This is a analn-complete driver implementation for the
+ * HS3001 humidity and temperature sensor and compatibles. It does analt include
  * the configuration possibilities, where it needs to be set to 'programming mode'
  * during power-up.
  *
@@ -195,18 +195,18 @@ static int hs3001_probe(struct i2c_client *client)
 	struct device *dev = &client->dev;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->client = client;
 
 	/*
 	 * Measurement time = wake-up time + measurement time temperature
 	 * + measurement time humidity. This is currently static, because
-	 * enabling programming mode is not supported, yet.
+	 * enabling programming mode is analt supported, yet.
 	 */
 	data->wait_time = (HS3001_WAKEUP_TIME + HS3001_14BIT_RESOLUTION +
 			   HS3001_14BIT_RESOLUTION);

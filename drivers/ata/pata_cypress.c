@@ -71,7 +71,7 @@ static void cy82c693_set_piomode(struct ata_port *ap, struct ata_device *adev)
 	time_8 = clamp_val(t.act8b - 1, 0, 15) |
 		 (clamp_val(t.rec8b - 1, 0, 15) << 4);
 
-	if (adev->devno == 0) {
+	if (adev->devanal == 0) {
 		pci_read_config_dword(pdev, CY82_IDE_ADDRSETUP, &addr);
 
 		addr &= ~0x0F;	/* Mask bits */
@@ -104,7 +104,7 @@ static void cy82c693_set_piomode(struct ata_port *ap, struct ata_device *adev)
 
 static void cy82c693_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 {
-	int reg = CY82_INDEX_CHANNEL0 + ap->port_no;
+	int reg = CY82_INDEX_CHANNEL0 + ap->port_anal;
 
 	/* Be afraid, be very afraid. Magic registers  in low I/O space */
 	outb(reg, 0x22);
@@ -142,7 +142,7 @@ static int cy82c693_init_one(struct pci_dev *pdev, const struct pci_device_id *i
 	   For the moment we don't handle the secondary. FIXME */
 
 	if (PCI_FUNC(pdev->devfn) != 1)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return ata_pci_bmdma_init_one(pdev, ppi, &cy82c693_sht, NULL, 0);
 }

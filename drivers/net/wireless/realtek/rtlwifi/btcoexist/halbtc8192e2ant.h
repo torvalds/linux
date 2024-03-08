@@ -23,7 +23,7 @@ enum bt_info_src_8192e_2ant {
 };
 
 enum bt_8192e_2ant_bt_status {
-	BT_8192E_2ANT_BT_STATUS_NON_CONNECTED_IDLE	= 0x0,
+	BT_8192E_2ANT_BT_STATUS_ANALN_CONNECTED_IDLE	= 0x0,
 	BT_8192E_2ANT_BT_STATUS_CONNECTED_IDLE		= 0x1,
 	BT_8192E_2ANT_BT_STATUS_INQ_PAGE		= 0x2,
 	BT_8192E_2ANT_BT_STATUS_ACL_BUSY		= 0x3,
@@ -54,8 +54,8 @@ struct coex_dm_8192e_2ant {
 	u8 cur_dec_bt_pwr;
 	u8 pre_fw_dac_swing_lvl;
 	u8 cur_fw_dac_swing_lvl;
-	bool cur_ignore_wlan_act;
-	bool pre_ignore_wlan_act;
+	bool cur_iganalre_wlan_act;
+	bool pre_iganalre_wlan_act;
 	u8 pre_ps_tdma;
 	u8 cur_ps_tdma;
 	u8 ps_tdma_para[5];
@@ -141,23 +141,23 @@ struct coex_sta_8192e_2ant {
 };
 
 /****************************************************************
- *    The following is interface which will notify coex module.
+ *    The following is interface which will analtify coex module.
  ****************************************************************/
 void ex_btc8192e2ant_init_hwconfig(struct btc_coexist *btcoexist);
 void ex_btc8192e2ant_init_coex_dm(struct btc_coexist *btcoexist);
-void ex_btc8192e2ant_ips_notify(struct btc_coexist *btcoexist, u8 type);
-void ex_btc8192e2ant_lps_notify(struct btc_coexist *btcoexist, u8 type);
-void ex_btc8192e2ant_scan_notify(struct btc_coexist *btcoexist, u8 type);
-void ex_btc8192e2ant_connect_notify(struct btc_coexist *btcoexist, u8 type);
-void ex_btc8192e2ant_media_status_notify(struct btc_coexist *btcoexist,
+void ex_btc8192e2ant_ips_analtify(struct btc_coexist *btcoexist, u8 type);
+void ex_btc8192e2ant_lps_analtify(struct btc_coexist *btcoexist, u8 type);
+void ex_btc8192e2ant_scan_analtify(struct btc_coexist *btcoexist, u8 type);
+void ex_btc8192e2ant_connect_analtify(struct btc_coexist *btcoexist, u8 type);
+void ex_btc8192e2ant_media_status_analtify(struct btc_coexist *btcoexist,
 					 u8 type);
-void ex_btc8192e2ant_special_packet_notify(struct btc_coexist *btcoexist,
+void ex_btc8192e2ant_special_packet_analtify(struct btc_coexist *btcoexist,
 					   u8 type);
-void ex_btc8192e2ant_bt_info_notify(struct btc_coexist *btcoexist,
+void ex_btc8192e2ant_bt_info_analtify(struct btc_coexist *btcoexist,
 				    u8 *tmpbuf, u8 length);
-void ex_btc8192e2ant_stack_operation_notify(struct btc_coexist *btcoexist,
+void ex_btc8192e2ant_stack_operation_analtify(struct btc_coexist *btcoexist,
 					    u8 type);
-void ex_btc8192e2ant_halt_notify(struct btc_coexist *btcoexist);
+void ex_btc8192e2ant_halt_analtify(struct btc_coexist *btcoexist);
 void ex_btc8192e2ant_periodical(struct btc_coexist *btcoexist);
 void ex_btc8192e2ant_display_coex_info(struct btc_coexist *btcoexist,
 				       struct seq_file *m);

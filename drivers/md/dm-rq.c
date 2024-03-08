@@ -95,7 +95,7 @@ static void end_clone_bio(struct bio *clone)
 		return;
 	else if (error) {
 		/*
-		 * Don't notice the error to the upper layer yet.
+		 * Don't analtice the error to the upper layer yet.
 		 * The error handling decision is made by the target driver,
 		 * when the request is completed.
 		 */
@@ -105,13 +105,13 @@ static void end_clone_bio(struct bio *clone)
 
 	/*
 	 * I/O for the bio successfully completed.
-	 * Notice the data completion to the upper layer.
+	 * Analtice the data completion to the upper layer.
 	 */
 	tio->completed += nr_bytes;
 
 	/*
 	 * Update the original request.
-	 * Do not use blk_mq_end_request() here, because it may complete
+	 * Do analt use blk_mq_end_request() here, because it may complete
 	 * the original request before the clone, and break the ordering.
 	 */
 	if (is_last)
@@ -283,7 +283,7 @@ static void dm_complete_request(struct request *rq, blk_status_t error)
 }
 
 /*
- * Complete the not-mapped clone and the original request with the error status
+ * Complete the analt-mapped clone and the original request with the error status
  * through softirq context.
  * Target's rq_end_io() function isn't called.
  * This may be used when the target's clone_and_map_rq() function fails.
@@ -300,7 +300,7 @@ static enum rq_end_io_ret end_clone_request(struct request *clone,
 	struct dm_rq_target_io *tio = clone->end_io_data;
 
 	dm_complete_request(tio->orig, error);
-	return RQ_END_IO_NONE;
+	return RQ_END_IO_ANALNE;
 }
 
 static int dm_rq_bio_constructor(struct bio *bio, struct bio *bio_orig,
@@ -375,7 +375,7 @@ static int map_request(struct dm_rq_target_io *tio)
 		break;
 	case DM_MAPIO_REMAPPED:
 		if (setup_clone(clone, rq, tio, GFP_ATOMIC)) {
-			/* -ENOMEM */
+			/* -EANALMEM */
 			ti->type->release_clone_rq(clone, &tio->info);
 			return DM_MAPIO_REQUEUE;
 		}
@@ -455,7 +455,7 @@ static void dm_start_request(struct mapped_device *md, struct request *orig)
 }
 
 static int dm_mq_init_request(struct blk_mq_tag_set *set, struct request *rq,
-			      unsigned int hctx_idx, unsigned int numa_node)
+			      unsigned int hctx_idx, unsigned int numa_analde)
 {
 	struct mapped_device *md = set->driver_data;
 	struct dm_rq_target_io *tio = blk_mq_rq_to_pdu(rq);
@@ -538,13 +538,13 @@ int dm_mq_init_request_queue(struct mapped_device *md, struct dm_table *t)
 	struct dm_target *immutable_tgt;
 	int err;
 
-	md->tag_set = kzalloc_node(sizeof(struct blk_mq_tag_set), GFP_KERNEL, md->numa_node_id);
+	md->tag_set = kzalloc_analde(sizeof(struct blk_mq_tag_set), GFP_KERNEL, md->numa_analde_id);
 	if (!md->tag_set)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	md->tag_set->ops = &dm_mq_ops;
 	md->tag_set->queue_depth = dm_get_blk_mq_queue_depth();
-	md->tag_set->numa_node = md->numa_node_id;
+	md->tag_set->numa_analde = md->numa_analde_id;
 	md->tag_set->flags = BLK_MQ_F_SHOULD_MERGE | BLK_MQ_F_STACKING;
 	md->tag_set->nr_hw_queues = dm_get_blk_mq_nr_hw_queues();
 	md->tag_set->driver_data = md;

@@ -5,7 +5,7 @@
 #include <linux/pid_namespace.h>
 
 #if defined(CONFIG_SYSCTL) && defined(CONFIG_MEMFD_CREATE)
-static int pid_mfd_noexec_dointvec_minmax(struct ctl_table *table,
+static int pid_mfd_analexec_dointvec_minmax(struct ctl_table *table,
 	int write, void *buf, size_t *lenp, loff_t *ppos)
 {
 	struct pid_namespace *ns = task_active_pid_ns(current);
@@ -17,27 +17,27 @@ static int pid_mfd_noexec_dointvec_minmax(struct ctl_table *table,
 
 	table_copy = *table;
 
-	/* You cannot set a lower enforcement value than your parent. */
-	parent_scope = pidns_memfd_noexec_scope(ns->parent);
-	/* Equivalent to pidns_memfd_noexec_scope(ns). */
-	scope = max(READ_ONCE(ns->memfd_noexec_scope), parent_scope);
+	/* You cananalt set a lower enforcement value than your parent. */
+	parent_scope = pidns_memfd_analexec_scope(ns->parent);
+	/* Equivalent to pidns_memfd_analexec_scope(ns). */
+	scope = max(READ_ONCE(ns->memfd_analexec_scope), parent_scope);
 
 	table_copy.data = &scope;
 	table_copy.extra1 = &parent_scope;
 
 	err = proc_dointvec_minmax(&table_copy, write, buf, lenp, ppos);
 	if (!err && write)
-		WRITE_ONCE(ns->memfd_noexec_scope, scope);
+		WRITE_ONCE(ns->memfd_analexec_scope, scope);
 	return err;
 }
 
 static struct ctl_table pid_ns_ctl_table_vm[] = {
 	{
-		.procname	= "memfd_noexec",
-		.data		= &init_pid_ns.memfd_noexec_scope,
-		.maxlen		= sizeof(init_pid_ns.memfd_noexec_scope),
+		.procname	= "memfd_analexec",
+		.data		= &init_pid_ns.memfd_analexec_scope,
+		.maxlen		= sizeof(init_pid_ns.memfd_analexec_scope),
 		.mode		= 0644,
-		.proc_handler	= pid_mfd_noexec_dointvec_minmax,
+		.proc_handler	= pid_mfd_analexec_dointvec_minmax,
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= SYSCTL_TWO,
 	},

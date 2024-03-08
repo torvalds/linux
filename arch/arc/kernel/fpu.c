@@ -2,7 +2,7 @@
 /*
  * fpu.c - save/restore of Floating Point Unit Registers on task switch
  *
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syanalpsys, Inc. (www.syanalpsys.com)
  */
 
 #include <linux/sched.h>

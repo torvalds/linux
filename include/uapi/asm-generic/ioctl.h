@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPI_ASM_GENERIC_IOCTL_H
 #define _UAPI_ASM_GENERIC_IOCTL_H
 
@@ -9,7 +9,7 @@
  * is useful for catching programs compiled with old versions
  * and to avoid overwriting user space outside the user buffer area.
  * The highest 2 bits are reserved for indicating the ``access mode''.
- * NOTE: This limits the max parameter size to 16kB -1 !
+ * ANALTE: This limits the max parameter size to 16kB -1 !
  */
 
 /*
@@ -18,7 +18,7 @@
  * a type field.  De facto, however, the top 8 bits of the lower 16
  * bits are indeed used as a type field, so we might just as well make
  * this explicit here.  Please be sure to use the decoding macros
- * below from now on.
+ * below from analw on.
  */
 #define _IOC_NRBITS	8
 #define _IOC_TYPEBITS	8
@@ -50,12 +50,12 @@
  * Direction bits, which any architecture can choose to override
  * before including this file.
  *
- * NOTE: _IOC_WRITE means userland is writing and kernel is
+ * ANALTE: _IOC_WRITE means userland is writing and kernel is
  * reading. _IOC_READ means userland is reading and kernel is writing.
  */
 
-#ifndef _IOC_NONE
-# define _IOC_NONE	0U
+#ifndef _IOC_ANALNE
+# define _IOC_ANALNE	0U
 #endif
 
 #ifndef _IOC_WRITE
@@ -79,10 +79,10 @@
 /*
  * Used to create numbers.
  *
- * NOTE: _IOW means userland is writing and kernel is reading. _IOR
+ * ANALTE: _IOW means userland is writing and kernel is reading. _IOR
  * means userland is reading and kernel is writing.
  */
-#define _IO(type,nr)		_IOC(_IOC_NONE,(type),(nr),0)
+#define _IO(type,nr)		_IOC(_IOC_ANALNE,(type),(nr),0)
 #define _IOR(type,nr,size)	_IOC(_IOC_READ,(type),(nr),(_IOC_TYPECHECK(size)))
 #define _IOW(type,nr,size)	_IOC(_IOC_WRITE,(type),(nr),(_IOC_TYPECHECK(size)))
 #define _IOWR(type,nr,size)	_IOC(_IOC_READ|_IOC_WRITE,(type),(nr),(_IOC_TYPECHECK(size)))
@@ -100,7 +100,7 @@
 
 #define IOC_IN		(_IOC_WRITE << _IOC_DIRSHIFT)
 #define IOC_OUT		(_IOC_READ << _IOC_DIRSHIFT)
-#define IOC_INOUT	((_IOC_WRITE|_IOC_READ) << _IOC_DIRSHIFT)
+#define IOC_IANALUT	((_IOC_WRITE|_IOC_READ) << _IOC_DIRSHIFT)
 #define IOCSIZE_MASK	(_IOC_SIZEMASK << _IOC_SIZESHIFT)
 #define IOCSIZE_SHIFT	(_IOC_SIZESHIFT)
 

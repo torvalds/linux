@@ -232,7 +232,7 @@ static int wcnss_start(struct rproc *rproc)
 
 	mutex_lock(&wcnss->iris_lock);
 	if (!wcnss->iris) {
-		dev_err(wcnss->dev, "no iris registered\n");
+		dev_err(wcnss->dev, "anal iris registered\n");
 		ret = -EINVAL;
 		goto release_iris_lock;
 	}
@@ -241,7 +241,7 @@ static int wcnss_start(struct rproc *rproc)
 		dev_pm_genpd_set_performance_state(wcnss->pds[i], INT_MAX);
 		ret = pm_runtime_get_sync(wcnss->pds[i]);
 		if (ret < 0) {
-			pm_runtime_put_noidle(wcnss->pds[i]);
+			pm_runtime_put_analidle(wcnss->pds[i]);
 			goto disable_pds;
 		}
 	}
@@ -405,7 +405,7 @@ static int wcnss_init_pds(struct qcom_wcnss *wcnss,
 
 		wcnss->pds[i] = dev_pm_domain_attach_by_name(wcnss->dev, pd_names[i]);
 		if (IS_ERR_OR_NULL(wcnss->pds[i])) {
-			ret = PTR_ERR(wcnss->pds[i]) ? : -ENODATA;
+			ret = PTR_ERR(wcnss->pds[i]) ? : -EANALDATA;
 			for (i--; i >= 0; i--)
 				dev_pm_domain_detach(wcnss->pds[i], false);
 			return ret;
@@ -446,7 +446,7 @@ static int wcnss_init_regulators(struct qcom_wcnss *wcnss,
 			    num_vregs, sizeof(struct regulator_bulk_data),
 			    GFP_KERNEL);
 	if (!bulk)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < num_vregs; i++)
 		bulk[i].supply = info[i].name;
@@ -482,10 +482,10 @@ static int wcnss_request_irq(struct qcom_wcnss *wcnss,
 
 	ret = platform_get_irq_byname(pdev, name);
 	if (ret < 0 && optional) {
-		dev_dbg(&pdev->dev, "no %s IRQ defined, ignoring\n", name);
+		dev_dbg(&pdev->dev, "anal %s IRQ defined, iganalring\n", name);
 		return 0;
 	} else if (ret < 0) {
-		dev_err(&pdev->dev, "no %s IRQ defined\n", name);
+		dev_err(&pdev->dev, "anal %s IRQ defined\n", name);
 		return ret;
 	}
 
@@ -507,12 +507,12 @@ static int wcnss_request_irq(struct qcom_wcnss *wcnss,
 static int wcnss_alloc_memory_region(struct qcom_wcnss *wcnss)
 {
 	struct reserved_mem *rmem = NULL;
-	struct device_node *node;
+	struct device_analde *analde;
 
-	node = of_parse_phandle(wcnss->dev->of_node, "memory-region", 0);
-	if (node)
-		rmem = of_reserved_mem_lookup(node);
-	of_node_put(node);
+	analde = of_parse_phandle(wcnss->dev->of_analde, "memory-region", 0);
+	if (analde)
+		rmem = of_reserved_mem_lookup(analde);
+	of_analde_put(analde);
 
 	if (!rmem) {
 		dev_err(wcnss->dev, "unable to resolve memory-region\n");
@@ -546,11 +546,11 @@ static int wcnss_probe(struct platform_device *pdev)
 		return -EPROBE_DEFER;
 
 	if (!qcom_scm_pas_supported(WCNSS_PAS_ID)) {
-		dev_err(&pdev->dev, "PAS is not available for WCNSS\n");
+		dev_err(&pdev->dev, "PAS is analt available for WCNSS\n");
 		return -ENXIO;
 	}
 
-	ret = of_property_read_string(pdev->dev.of_node, "firmware-name",
+	ret = of_property_read_string(pdev->dev.of_analde, "firmware-name",
 				      &fw_name);
 	if (ret < 0 && ret != -EINVAL)
 		return ret;
@@ -559,9 +559,9 @@ static int wcnss_probe(struct platform_device *pdev)
 			    fw_name, sizeof(*wcnss));
 	if (!rproc) {
 		dev_err(&pdev->dev, "unable to allocate remoteproc\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
-	rproc_coredump_set_elf_info(rproc, ELFCLASS32, EM_NONE);
+	rproc_coredump_set_elf_info(rproc, ELFCLASS32, EM_ANALNE);
 
 	wcnss = rproc->priv;
 	wcnss->dev = &pdev->dev;
@@ -591,7 +591,7 @@ static int wcnss_probe(struct platform_device *pdev)
 	 * for old device trees. Don't report an error in that case.
 	 */
 	ret = wcnss_init_pds(wcnss, data->pd_names);
-	if (ret && (ret != -ENODATA || !data->num_pd_vregs))
+	if (ret && (ret != -EANALDATA || !data->num_pd_vregs))
 		goto free_rproc;
 
 	ret = wcnss_init_regulators(wcnss, data->vregs, data->num_vregs,

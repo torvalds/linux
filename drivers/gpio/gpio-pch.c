@@ -331,7 +331,7 @@ static int pch_gpio_alloc_generic_chip(struct pch_gpio *chip,
 	gc = devm_irq_alloc_generic_chip(chip->dev, "pch_gpio", 1, irq_start,
 					 chip->base, handle_simple_irq);
 	if (!gc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gc->private = chip;
 	ct = gc->chip_types;
@@ -343,7 +343,7 @@ static int pch_gpio_alloc_generic_chip(struct pch_gpio *chip,
 
 	rv = devm_irq_setup_generic_chip(chip->dev, gc, IRQ_MSK(num),
 					 IRQ_GC_INIT_MASK_CACHE,
-					 IRQ_NOREQUEST | IRQ_NOPROBE, 0);
+					 IRQ_ANALREQUEST | IRQ_ANALPROBE, 0);
 
 	return rv;
 }
@@ -358,7 +358,7 @@ static int pch_gpio_probe(struct pci_dev *pdev,
 
 	chip = devm_kzalloc(dev, sizeof(*chip), GFP_KERNEL);
 	if (chip == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip->dev = dev;
 	ret = pcim_enable_device(pdev);
@@ -381,7 +381,7 @@ static int pch_gpio_probe(struct pci_dev *pdev,
 		return dev_err_probe(dev, ret, "Failed to register GPIO\n");
 
 	irq_base = devm_irq_alloc_descs(dev, -1, 0,
-					gpio_pins[chip->ioh], NUMA_NO_NODE);
+					gpio_pins[chip->ioh], NUMA_ANAL_ANALDE);
 	if (irq_base < 0) {
 		dev_warn(dev, "PCH gpio: Failed to get IRQ base num\n");
 		chip->irq_base = -1;

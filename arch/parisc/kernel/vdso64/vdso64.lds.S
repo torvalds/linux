@@ -20,7 +20,7 @@ SECTIONS
   .gnu.version_d  : { *(.gnu.version_d) }
   .gnu.version_r  : { *(.gnu.version_r) }
 
-  .note		  : { *(.note.*) } 			:text	:note
+  .analte		  : { *(.analte.*) } 			:text	:analte
 
   . = ALIGN (16);
   .text :
@@ -80,7 +80,7 @@ SECTIONS
   .debug_typenames 0 : { *(.debug_typenames) }
   .debug_varnames 0 : { *(.debug_varnames) }
 
-  /DISCARD/ : { *(.note.GNU-stack) }
+  /DISCARD/ : { *(.analte.GNU-stack) }
   /DISCARD/ : { *(.data .data.* .gnu.linkonce.d.* .sdata*) }
   /DISCARD/ : { *(.bss .sbss .dynbss .dynsbss) }
 }
@@ -89,7 +89,7 @@ SECTIONS
 PHDRS
 {
   text PT_LOAD FILEHDR PHDRS FLAGS(5); /* PF_R|PF_X */
-  note PT_NOTE FLAGS(4); /* PF_R */
+  analte PT_ANALTE FLAGS(4); /* PF_R */
   dynamic PT_DYNAMIC FLAGS(4); /* PF_R */
   eh_frame_hdr PT_GNU_EH_FRAME;
 }

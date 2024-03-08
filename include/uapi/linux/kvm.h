@@ -1,11 +1,11 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef __LINUX_KVM_H
 #define __LINUX_KVM_H
 
 /*
  * Userspace interface for /dev/kvm - kernel based virtual machine
  *
- * Note: you must update KVM_API_VERSION if you change this interface.
+ * Analte: you must update KVM_API_VERSION if you change this interface.
  */
 
 #include <linux/const.h>
@@ -50,7 +50,7 @@ struct kvm_userspace_memory_region2 {
 /* for KVM_IRQ_LINE */
 struct kvm_irq_level {
 	/*
-	 * ACPI gsi notion of irq.
+	 * ACPI gsi analtion of irq.
 	 * For IA-64 (APIC model) IOAPIC0: irq 0-23; IOAPIC1: irq 24-47..
 	 * For X86 (standard AT mode) PIC0/1: irq 0-15. IOAPIC0: 0-23..
 	 * For ARM: See Documentation/virt/kvm/api.rst
@@ -167,10 +167,10 @@ struct kvm_xen_exit {
 	} u;
 };
 
-#define KVM_S390_GET_SKEYS_NONE   1
+#define KVM_S390_GET_SKEYS_ANALNE   1
 #define KVM_S390_SKEYS_MAX        1048576
 
-#define KVM_EXIT_UNKNOWN          0
+#define KVM_EXIT_UNKANALWN          0
 #define KVM_EXIT_EXCEPTION        1
 #define KVM_EXIT_IO               2
 #define KVM_EXIT_HYPERCALL        3
@@ -207,7 +207,7 @@ struct kvm_xen_exit {
 #define KVM_EXIT_XEN              34
 #define KVM_EXIT_RISCV_SBI        35
 #define KVM_EXIT_RISCV_CSR        36
-#define KVM_EXIT_NOTIFY           37
+#define KVM_EXIT_ANALTIFY           37
 #define KVM_EXIT_LOONGARCH_IOCSR  38
 #define KVM_EXIT_MEMORY_FAULT     39
 
@@ -247,7 +247,7 @@ struct kvm_run {
 	__u64 psw_addr; /* psw lower half */
 #endif
 	union {
-		/* KVM_EXIT_UNKNOWN */
+		/* KVM_EXIT_UNKANALWN */
 		struct {
 			__u64 hardware_exit_reason;
 		} hw;
@@ -344,7 +344,7 @@ struct kvm_run {
 		 *
 		 * "struct emulation_failure" is an overlay of "struct internal"
 		 * that is used for the KVM_INTERNAL_ERROR_EMULATION sub-type of
-		 * KVM_EXIT_INTERNAL_ERROR.  Note, unlike other internal error
+		 * KVM_EXIT_INTERNAL_ERROR.  Analte, unlike other internal error
 		 * sub-types, this struct is ABI!  It also needs to be backwards
 		 * compatible with "struct internal".  Take special care that
 		 * "ndata" is correct, that new fields are enumerated in "flags",
@@ -354,7 +354,7 @@ struct kvm_run {
 		 * Space beyond the defined fields may be used to store arbitrary
 		 * debug information relating to the emulation failure. It is
 		 * accounted for in "ndata" but the format is unspecified and is
-		 * not represented in "flags". Any such information is *not* ABI!
+		 * analt represented in "flags". Any such information is *analt* ABI!
 		 */
 		struct {
 			__u32 suberror;
@@ -433,10 +433,10 @@ struct kvm_run {
 			__u8 error; /* user -> kernel */
 			__u8 pad[7];
 #define KVM_MSR_EXIT_REASON_INVAL	(1 << 0)
-#define KVM_MSR_EXIT_REASON_UNKNOWN	(1 << 1)
+#define KVM_MSR_EXIT_REASON_UNKANALWN	(1 << 1)
 #define KVM_MSR_EXIT_REASON_FILTER	(1 << 2)
 #define KVM_MSR_EXIT_REASON_VALID_MASK	(KVM_MSR_EXIT_REASON_INVAL   |	\
-					 KVM_MSR_EXIT_REASON_UNKNOWN |	\
+					 KVM_MSR_EXIT_REASON_UNKANALWN |	\
 					 KVM_MSR_EXIT_REASON_FILTER)
 			__u32 reason; /* kernel -> user */
 			__u32 index; /* kernel -> user */
@@ -458,11 +458,11 @@ struct kvm_run {
 			unsigned long write_mask;
 			unsigned long ret_value;
 		} riscv_csr;
-		/* KVM_EXIT_NOTIFY */
+		/* KVM_EXIT_ANALTIFY */
 		struct {
-#define KVM_NOTIFY_CONTEXT_INVALID	(1 << 0)
+#define KVM_ANALTIFY_CONTEXT_INVALID	(1 << 0)
 			__u32 flags;
-		} notify;
+		} analtify;
 		/* KVM_EXIT_MEMORY_FAULT */
 		struct {
 #define KVM_MEMORY_EXIT_FLAG_PRIVATE	(1ULL << 3)
@@ -547,12 +547,12 @@ struct kvm_s390_mem_op {
 	union {
 		struct {
 			__u8 ar;	/* the access register number */
-			__u8 key;	/* access key, ignored if flag unset */
-			__u8 pad1[6];	/* ignored */
-			__u64 old_addr;	/* ignored if cmpxchg flag unset */
+			__u8 key;	/* access key, iganalred if flag unset */
+			__u8 pad1[6];	/* iganalred */
+			__u64 old_addr;	/* iganalred if cmpxchg flag unset */
 		};
 		__u32 sida_offset; /* offset into the sida */
-		__u8 reserved[32]; /* ignored */
+		__u8 reserved[32]; /* iganalred */
 	};
 };
 /* types for kvm_s390_mem_op->op */
@@ -620,7 +620,7 @@ struct kvm_vapic_addr {
 
 /* for KVM_SET_MP_STATE */
 
-/* not all states are valid on all architectures */
+/* analt all states are valid on all architectures */
 #define KVM_MP_STATE_RUNNABLE          0
 #define KVM_MP_STATE_UNINITIALIZED     1
 #define KVM_MP_STATE_INIT_RECEIVED     2
@@ -702,7 +702,7 @@ struct kvm_s390_pgm_info {
 #define KVM_S390_PGM_FLAGS_ILC_0	0x02
 #define KVM_S390_PGM_FLAGS_ILC_1	0x04
 #define KVM_S390_PGM_FLAGS_ILC_MASK	0x06
-#define KVM_S390_PGM_FLAGS_NO_REWIND	0x08
+#define KVM_S390_PGM_FLAGS_ANAL_REWIND	0x08
 	__u8 flags;
 	__u8 pad[2];
 };
@@ -770,7 +770,7 @@ enum {
 	kvm_ioeventfd_flag_nr_datamatch,
 	kvm_ioeventfd_flag_nr_pio,
 	kvm_ioeventfd_flag_nr_deassign,
-	kvm_ioeventfd_flag_nr_virtio_ccw_notify,
+	kvm_ioeventfd_flag_nr_virtio_ccw_analtify,
 	kvm_ioeventfd_flag_nr_fast_mmio,
 	kvm_ioeventfd_flag_nr_max,
 };
@@ -778,15 +778,15 @@ enum {
 #define KVM_IOEVENTFD_FLAG_DATAMATCH (1 << kvm_ioeventfd_flag_nr_datamatch)
 #define KVM_IOEVENTFD_FLAG_PIO       (1 << kvm_ioeventfd_flag_nr_pio)
 #define KVM_IOEVENTFD_FLAG_DEASSIGN  (1 << kvm_ioeventfd_flag_nr_deassign)
-#define KVM_IOEVENTFD_FLAG_VIRTIO_CCW_NOTIFY \
-	(1 << kvm_ioeventfd_flag_nr_virtio_ccw_notify)
+#define KVM_IOEVENTFD_FLAG_VIRTIO_CCW_ANALTIFY \
+	(1 << kvm_ioeventfd_flag_nr_virtio_ccw_analtify)
 
 #define KVM_IOEVENTFD_VALID_FLAG_MASK  ((1 << kvm_ioeventfd_flag_nr_max) - 1)
 
 struct kvm_ioeventfd {
 	__u64 datamatch;
 	__u64 addr;        /* legal pio/mmio address */
-	__u32 len;         /* 1, 2, 4, or 8 bytes; or 0 to ignore length */
+	__u32 len;         /* 1, 2, 4, or 8 bytes; or 0 to iganalre length */
 	__s32 fd;
 	__u32 flags;
 	__u8  pad[36];
@@ -837,7 +837,7 @@ struct kvm_ppc_one_seg_page_size {
 
 #define KVM_PPC_PAGE_SIZES_REAL		0x00000001
 #define KVM_PPC_1T_SEGMENTS		0x00000002
-#define KVM_PPC_NO_HASH			0x00000004
+#define KVM_PPC_ANAL_HASH			0x00000004
 
 struct kvm_ppc_smmu_info {
 	__u64 flags;
@@ -889,7 +889,7 @@ struct kvm_ppc_resize_hpt {
 #define KVM_S390_ENABLE_SIE       _IO(KVMIO,   0x06)
 /*
  * Check if a kvm extension is available.  Argument is extension number,
- * return is 1 (yes) or 0 (no, sorry).
+ * return is 1 (anal) or 0 (anal, sorry).
  */
 #define KVM_CHECK_EXTENSION       _IO(KVMIO,   0x03)
 /*
@@ -914,7 +914,7 @@ struct kvm_ppc_resize_hpt {
 #define KVM_CAP_NR_VCPUS 9       /* returns recommended max vcpus per vm */
 #define KVM_CAP_NR_MEMSLOTS 10   /* returns max memory slots per vm */
 #define KVM_CAP_PIT 11
-#define KVM_CAP_NOP_IO_DELAY 12
+#define KVM_CAP_ANALP_IO_DELAY 12
 #define KVM_CAP_PV_MMU 13
 #define KVM_CAP_MP_STATE 14
 #define KVM_CAP_COALESCED_MMIO 15
@@ -932,7 +932,7 @@ struct kvm_ppc_resize_hpt {
 #define KVM_CAP_IRQ_ROUTING 25
 #define KVM_CAP_IRQ_INJECT_STATUS 26
 #define KVM_CAP_ASSIGN_DEV_IRQ 29
-/* Another bug in KVM_SET_USER_MEMORY_REGION fixed: */
+/* Aanalther bug in KVM_SET_USER_MEMORY_REGION fixed: */
 #define KVM_CAP_JOIN_MEMORY_REGIONS_WORKS 30
 #ifdef __KVM_HAVE_MCE
 #define KVM_CAP_MCE 31
@@ -1016,10 +1016,10 @@ struct kvm_ppc_resize_hpt {
 #define KVM_CAP_SPAPR_MULTITCE 94
 #define KVM_CAP_EXT_EMUL_CPUID 95
 #define KVM_CAP_HYPERV_TIME 96
-#define KVM_CAP_IOAPIC_POLARITY_IGNORED 97
+#define KVM_CAP_IOAPIC_POLARITY_IGANALRED 97
 #define KVM_CAP_ENABLE_CAP_VM 98
 #define KVM_CAP_S390_IRQCHIP 99
-#define KVM_CAP_IOEVENTFD_NO_LENGTH 100
+#define KVM_CAP_IOEVENTFD_ANAL_LENGTH 100
 #define KVM_CAP_VM_ATTRIBUTES 101
 #define KVM_CAP_ARM_PSCI_0_2 102
 #define KVM_CAP_PPC_FIXUP_HCALL 103
@@ -1138,7 +1138,7 @@ struct kvm_ppc_resize_hpt {
 #define KVM_CAP_ARM_SYSTEM_SUSPEND 216
 #define KVM_CAP_S390_PROTECTED_DUMP 217
 #define KVM_CAP_X86_TRIPLE_FAULT_EVENT 218
-#define KVM_CAP_X86_NOTIFY_VMEXIT 219
+#define KVM_CAP_X86_ANALTIFY_VMEXIT 219
 #define KVM_CAP_VM_DISABLE_NX_HUGE_PAGES 220
 #define KVM_CAP_S390_ZPCI_OP 221
 #define KVM_CAP_S390_CPU_TOPOLOGY 222
@@ -1278,7 +1278,7 @@ struct kvm_irqfd {
 
 /* For KVM_CAP_ADJUST_CLOCK */
 
-/* Do not use 1, KVM_CHECK_EXTENSION returned it before we had flags.  */
+/* Do analt use 1, KVM_CHECK_EXTENSION returned it before we had flags.  */
 #define KVM_CLOCK_TSC_STABLE		2
 #define KVM_CLOCK_REALTIME		(1 << 2)
 #define KVM_CLOCK_HOST_TSC		(1 << 3)
@@ -1294,7 +1294,7 @@ struct kvm_clock_data {
 
 /* For KVM_CAP_SW_TLB */
 
-#define KVM_MMU_FSL_BOOKE_NOHV		0
+#define KVM_MMU_FSL_BOOKE_ANALHV		0
 #define KVM_MMU_FSL_BOOKE_HV		1
 
 struct kvm_config_tlb {
@@ -1377,7 +1377,7 @@ struct kvm_create_device {
 };
 
 struct kvm_device_attr {
-	__u32	flags;		/* no flags currently defined */
+	__u32	flags;		/* anal flags currently defined */
 	__u32	group;		/* device-defined */
 	__u64	attr;		/* group-defined */
 	__u64	addr;		/* userspace address of attr data */
@@ -1551,7 +1551,7 @@ struct kvm_s390_ucas_mapping {
 /* valid for virtual machine (for floating interrupt)_and_ vcpu */
 #define KVM_S390_INTERRUPT        _IOW(KVMIO,  0x94, struct kvm_s390_interrupt)
 /* store status for s390 */
-#define KVM_S390_STORE_STATUS_NOADDR    (-1ul)
+#define KVM_S390_STORE_STATUS_ANALADDR    (-1ul)
 #define KVM_S390_STORE_STATUS_PREFIXED  (-2ul)
 #define KVM_S390_STORE_STATUS	  _IOW(KVMIO,  0x95, unsigned long)
 /* initial ipl psw for s390 */
@@ -1638,7 +1638,7 @@ struct kvm_enc_region {
 #define KVM_ARM_VCPU_FINALIZE	  _IOW(KVMIO,  0xc2, int)
 
 /* Available with  KVM_CAP_S390_VCPU_RESETS */
-#define KVM_S390_NORMAL_RESET	_IO(KVMIO,   0xc3)
+#define KVM_S390_ANALRMAL_RESET	_IO(KVMIO,   0xc3)
 #define KVM_S390_CLEAR_RESET	_IO(KVMIO,   0xc4)
 
 struct kvm_s390_pv_sec_parm {
@@ -1720,7 +1720,7 @@ struct kvm_pv_cmd {
 	__u16 rc;	/* Ultravisor return code */
 	__u16 rrc;	/* Ultravisor return reason code */
 	__u64 data;	/* Data or address */
-	__u32 flags;    /* flags for future extensions. Must be 0 for now */
+	__u32 flags;    /* flags for future extensions. Must be 0 for analw */
 	__u32 reserved[3];
 };
 
@@ -1921,7 +1921,7 @@ struct kvm_sev_dbg {
 };
 
 struct kvm_sev_attestation_report {
-	__u8 mnonce[16];
+	__u8 manalnce[16];
 	__u64 uaddr;
 	__u32 len;
 };
@@ -1993,7 +1993,7 @@ struct kvm_assigned_pci_dev {
 
 struct kvm_assigned_irq {
 	__u32 assigned_dev_id;
-	__u32 host_irq; /* ignored (legacy field) */
+	__u32 host_irq; /* iganalred (legacy field) */
 	__u32 guest_irq;
 	__u32 flags;
 	union {
@@ -2067,7 +2067,7 @@ struct kvm_hyperv_eventfd {
  *  +------------------------------------------+
  *
  * The userspace program is only responsible for the 01->1X state
- * conversion after harvesting an entry.  Also, it must not skip any
+ * conversion after harvesting an entry.  Also, it must analt skip any
  * dirty bits, so that dirty bits are always harvested in sequence.
  */
 #define KVM_DIRTY_GFN_F_DIRTY           _BITUL(0)
@@ -2093,7 +2093,7 @@ struct kvm_dirty_gfn {
 
 /**
  * struct kvm_stats_header - Header of per vm/vcpu binary statistics data.
- * @flags: Some extra information for header, always 0 for now.
+ * @flags: Some extra information for header, always 0 for analw.
  * @name_size: The size in bytes of the memory which contains statistics
  *             name string including trailing '\0'. The memory is allocated
  *             at the send of statistics descriptor.
@@ -2130,7 +2130,7 @@ struct kvm_stats_header {
 
 #define KVM_STATS_UNIT_SHIFT		4
 #define KVM_STATS_UNIT_MASK		(0xF << KVM_STATS_UNIT_SHIFT)
-#define KVM_STATS_UNIT_NONE		(0x0 << KVM_STATS_UNIT_SHIFT)
+#define KVM_STATS_UNIT_ANALNE		(0x0 << KVM_STATS_UNIT_SHIFT)
 #define KVM_STATS_UNIT_BYTES		(0x1 << KVM_STATS_UNIT_SHIFT)
 #define KVM_STATS_UNIT_SECONDS		(0x2 << KVM_STATS_UNIT_SHIFT)
 #define KVM_STATS_UNIT_CYCLES		(0x3 << KVM_STATS_UNIT_SHIFT)
@@ -2145,7 +2145,7 @@ struct kvm_stats_header {
 
 /**
  * struct kvm_stats_desc - Descriptor of a KVM statistics.
- * @flags: Annotations of the stats, like type, unit, etc.
+ * @flags: Ananaltations of the stats, like type, unit, etc.
  * @exponent: Used together with @flags to determine the unit.
  * @size: The number of data items for this stats.
  *        Every data item is of type __u64.
@@ -2173,9 +2173,9 @@ struct kvm_stats_desc {
 /* Available with KVM_CAP_S390_PROTECTED_DUMP */
 #define KVM_S390_PV_CPU_COMMAND	_IOWR(KVMIO, 0xd0, struct kvm_pv_cmd)
 
-/* Available with KVM_CAP_X86_NOTIFY_VMEXIT */
-#define KVM_X86_NOTIFY_VMEXIT_ENABLED		(1ULL << 0)
-#define KVM_X86_NOTIFY_VMEXIT_USER		(1ULL << 1)
+/* Available with KVM_CAP_X86_ANALTIFY_VMEXIT */
+#define KVM_X86_ANALTIFY_VMEXIT_ENABLED		(1ULL << 0)
+#define KVM_X86_ANALTIFY_VMEXIT_USER		(1ULL << 1)
 
 /* Available with KVM_CAP_S390_ZPCI_OP */
 #define KVM_S390_ZPCI_OP         _IOW(KVMIO,  0xd1, struct kvm_s390_zpci_op)
@@ -2191,7 +2191,7 @@ struct kvm_s390_zpci_op {
 			__u64 ibv;      /* Guest addr of interrupt bit vector */
 			__u64 sb;       /* Guest addr of summary bit */
 			__u32 flags;
-			__u32 noi;      /* Number of interrupts */
+			__u32 anali;      /* Number of interrupts */
 			__u8 isc;       /* Guest interrupt subclass */
 			__u8 sbo;       /* Offset of guest summary bit vector */
 			__u16 pad;

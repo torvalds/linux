@@ -8,7 +8,7 @@
 #define _SUN6I_CSI_BRIDGE_H_
 
 #include <media/v4l2-device.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 
 #define SUN6I_CSI_BRIDGE_NAME	"sun6i-csi-bridge"
 
@@ -29,7 +29,7 @@ struct sun6i_csi_bridge_format {
 
 struct sun6i_csi_bridge_source {
 	struct v4l2_subdev		*subdev;
-	struct v4l2_fwnode_endpoint	endpoint;
+	struct v4l2_fwanalde_endpoint	endpoint;
 	bool				expected;
 };
 
@@ -40,7 +40,7 @@ struct sun6i_csi_bridge_async_subdev {
 
 struct sun6i_csi_bridge {
 	struct v4l2_subdev		subdev;
-	struct v4l2_async_notifier	notifier;
+	struct v4l2_async_analtifier	analtifier;
 	struct media_pad		pads[2];
 	struct v4l2_mbus_framefmt	mbus_format;
 	struct mutex			lock; /* Mbus format lock. */

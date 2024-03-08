@@ -7,7 +7,7 @@
  * Author(s): Philipp Rudo <prudo@linux.vnet.ibm.com>
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/kexec.h>
 #include <asm/ipl.h>
@@ -36,7 +36,7 @@ static int kexec_file_add_kernel_image(struct kimage *image,
 	ipl_report_add_component(data->report, &buf,
 				 IPL_RB_COMPONENT_FLAG_SIGNED |
 				 IPL_RB_COMPONENT_FLAG_VERIFIED,
-				 IPL_RB_CERT_UNKNOWN);
+				 IPL_RB_CERT_UNKANALWN);
 	return kexec_add_buffer(&buf);
 }
 

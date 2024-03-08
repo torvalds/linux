@@ -244,7 +244,7 @@ static int ad5446_probe(struct device *dev, const char *name,
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*st));
 	if (indio_dev == NULL) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error_disable_reg;
 	}
 	st = iio_priv(indio_dev);

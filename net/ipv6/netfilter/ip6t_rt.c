@@ -43,7 +43,7 @@ static bool rt_mt6(const struct sk_buff *skb, struct xt_action_param *par)
 
 	err = ipv6_find_hdr(skb, &ptr, NEXTHDR_ROUTING, NULL, NULL);
 	if (err < 0) {
-		if (err != -ENOENT)
+		if (err != -EANALENT)
 			par->hotdrop = true;
 		return false;
 	}
@@ -154,7 +154,7 @@ static int rt_mt6_check(const struct xt_mtchk_param *par)
 	const struct ip6t_rt *rtinfo = par->matchinfo;
 
 	if (rtinfo->invflags & ~IP6T_RT_INV_MASK) {
-		pr_debug("unknown flags %X\n", rtinfo->invflags);
+		pr_debug("unkanalwn flags %X\n", rtinfo->invflags);
 		return -EINVAL;
 	}
 	if ((rtinfo->flags & (IP6T_RT_RES | IP6T_RT_FST_MASK)) &&

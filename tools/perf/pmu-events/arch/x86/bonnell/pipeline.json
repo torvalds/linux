@@ -34,9 +34,9 @@
         "SampleAfterValue": "200000"
     },
     {
-        "BriefDescription": "Retired branch instructions that were mispredicted not-taken.",
+        "BriefDescription": "Retired branch instructions that were mispredicted analt-taken.",
         "EventCode": "0xC4",
-        "EventName": "BR_INST_RETIRED.MISPRED_NOT_TAKEN",
+        "EventName": "BR_INST_RETIRED.MISPRED_ANALT_TAKEN",
         "SampleAfterValue": "200000",
         "UMask": "0x2"
     },
@@ -48,9 +48,9 @@
         "UMask": "0x8"
     },
     {
-        "BriefDescription": "Retired branch instructions that were predicted not-taken.",
+        "BriefDescription": "Retired branch instructions that were predicted analt-taken.",
         "EventCode": "0xC4",
-        "EventName": "BR_INST_RETIRED.PRED_NOT_TAKEN",
+        "EventName": "BR_INST_RETIRED.PRED_ANALT_TAKEN",
         "SampleAfterValue": "2000000",
         "UMask": "0x1"
     },
@@ -83,14 +83,14 @@
         "UMask": "0x41"
     },
     {
-        "BriefDescription": "All non-indirect calls",
+        "BriefDescription": "All analn-indirect calls",
         "EventCode": "0x88",
         "EventName": "BR_INST_TYPE_RETIRED.DIR_CALL",
         "SampleAfterValue": "2000000",
         "UMask": "0x10"
     },
     {
-        "BriefDescription": "All indirect branches that are not calls.",
+        "BriefDescription": "All indirect branches that are analt calls.",
         "EventCode": "0x88",
         "EventName": "BR_INST_TYPE_RETIRED.IND",
         "SampleAfterValue": "2000000",
@@ -132,7 +132,7 @@
         "UMask": "0x11"
     },
     {
-        "BriefDescription": "Mispredicted ind branches that are not calls",
+        "BriefDescription": "Mispredicted ind branches that are analt calls",
         "EventCode": "0x89",
         "EventName": "BR_MISSP_TYPE_RETIRED.IND",
         "SampleAfterValue": "200000",
@@ -153,26 +153,26 @@
         "UMask": "0x4"
     },
     {
-        "BriefDescription": "Bus cycles when core is not halted",
+        "BriefDescription": "Bus cycles when core is analt halted",
         "EventCode": "0x3C",
         "EventName": "CPU_CLK_UNHALTED.BUS",
         "SampleAfterValue": "200000",
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Core cycles when core is not halted",
+        "BriefDescription": "Core cycles when core is analt halted",
         "EventCode": "0xA",
         "EventName": "CPU_CLK_UNHALTED.CORE",
         "SampleAfterValue": "2000000"
     },
     {
-        "BriefDescription": "Core cycles when core is not halted",
+        "BriefDescription": "Core cycles when core is analt halted",
         "EventCode": "0x3C",
         "EventName": "CPU_CLK_UNHALTED.CORE_P",
         "SampleAfterValue": "2000000"
     },
     {
-        "BriefDescription": "Reference cycles when core is not halted.",
+        "BriefDescription": "Reference cycles when core is analt halted.",
         "EventCode": "0xA",
         "EventName": "CPU_CLK_UNHALTED.REF",
         "SampleAfterValue": "2000000"
@@ -289,14 +289,14 @@
         "UMask": "0x10"
     },
     {
-        "BriefDescription": "Cycles no micro-ops retired.",
+        "BriefDescription": "Cycles anal micro-ops retired.",
         "EventCode": "0xC2",
         "EventName": "UOPS_RETIRED.STALLED_CYCLES",
         "SampleAfterValue": "2000000",
         "UMask": "0x10"
     },
     {
-        "BriefDescription": "Periods no micro-ops retired.",
+        "BriefDescription": "Periods anal micro-ops retired.",
         "EventCode": "0xC2",
         "EventName": "UOPS_RETIRED.STALLS",
         "SampleAfterValue": "2000000",

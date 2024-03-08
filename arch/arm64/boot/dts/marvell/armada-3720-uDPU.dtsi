@@ -75,9 +75,9 @@
 	mmc-ddr-1_8v;
 	mmc-hs400-1_8v;
 	marvell,pad-type = "fixed-1-8v";
-	non-removable;
-	no-sd;
-	no-sdio;
+	analn-removable;
+	anal-sd;
+	anal-sdio;
 };
 
 &spi0 {
@@ -86,7 +86,7 @@
 	pinctrl-0 = <&spi_quad_pins>;
 
 	flash@0 {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		reg = <0>;
 		spi-max-frequency = <54000000>;
 

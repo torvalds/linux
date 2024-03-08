@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 /*
  * INET		An implementation of the TCP/IP protocol suite for the LINUX
  *		operating system.  INET is implemented using the  BSD Socket
@@ -60,7 +60,7 @@ struct tcphdr {
 /*
  *	The union cast uses a gcc extension to avoid aliasing problems
  *  (union is compatible to any of its members)
- *  This means this part of the code is -fstrict-aliasing safe now.
+ *  This means this part of the code is -fstrict-aliasing safe analw.
  */
 union tcp_word_hdr {
 	struct tcphdr hdr;
@@ -89,7 +89,7 @@ enum {
 #define TCP_MSS_DESIRED		1220U	/* IPv6 (tunneled), EDNS0 (RFC3226) */
 
 /* TCP socket options */
-#define TCP_NODELAY		1	/* Turn off Nagle's algorithm. */
+#define TCP_ANALDELAY		1	/* Turn off Nagle's algorithm. */
 #define TCP_MAXSEG		2	/* Limit MSS */
 #define TCP_CORK		3	/* Never send partially complete segments */
 #define TCP_KEEPIDLE		4	/* Start keeplives after this period */
@@ -106,13 +106,13 @@ enum {
 #define TCP_THIN_LINEAR_TIMEOUTS 16	/* Use linear timeouts for thin streams*/
 #define TCP_THIN_DUPACK		17	/* Fast retrans. after 1 dupack */
 #define TCP_USER_TIMEOUT	18	/* How long for loss retry before timeout */
-#define TCP_REPAIR		19	/* TCP sock is under repair right now */
+#define TCP_REPAIR		19	/* TCP sock is under repair right analw */
 #define TCP_REPAIR_QUEUE	20
 #define TCP_QUEUE_SEQ		21
 #define TCP_REPAIR_OPTIONS	22
 #define TCP_FASTOPEN		23	/* Enable FastOpen on listeners */
 #define TCP_TIMESTAMP		24
-#define TCP_NOTSENT_LOWAT	25	/* limit number of unsent bytes in write queue */
+#define TCP_ANALTSENT_LOWAT	25	/* limit number of unsent bytes in write queue */
 #define TCP_CC_INFO		26	/* Get Congestion Control (optional) info */
 #define TCP_SAVE_SYN		27	/* Record SYN headers for new connections */
 #define TCP_SAVED_SYN		28	/* Get SYN headers recorded for connection */
@@ -121,9 +121,9 @@ enum {
 #define TCP_ULP			31	/* Attach a ULP to a TCP connection */
 #define TCP_MD5SIG_EXT		32	/* TCP MD5 Signature with extensions */
 #define TCP_FASTOPEN_KEY	33	/* Set the key for Fast Open (cookie) */
-#define TCP_FASTOPEN_NO_COOKIE	34	/* Enable TFO without a TFO cookie */
+#define TCP_FASTOPEN_ANAL_COOKIE	34	/* Enable TFO without a TFO cookie */
 #define TCP_ZEROCOPY_RECEIVE	35
-#define TCP_INQ			36	/* Notify bytes available to read as a cmsg on read */
+#define TCP_INQ			36	/* Analtify bytes available to read as a cmsg on read */
 
 #define TCP_CM_INQ		TCP_INQ
 
@@ -137,7 +137,7 @@ enum {
 
 #define TCP_REPAIR_ON		1
 #define TCP_REPAIR_OFF		0
-#define TCP_REPAIR_OFF_NO_WP	-1	/* Turn off without window probes */
+#define TCP_REPAIR_OFF_ANAL_WP	-1	/* Turn off without window probes */
 
 struct tcp_repair_opt {
 	__u32	opt_code;
@@ -154,7 +154,7 @@ struct tcp_repair_window {
 };
 
 enum {
-	TCP_NO_QUEUE,
+	TCP_ANAL_QUEUE,
 	TCP_RECV_QUEUE,
 	TCP_SEND_QUEUE,
 	TCP_QUEUES_NR,
@@ -163,9 +163,9 @@ enum {
 /* why fastopen failed from client perspective */
 enum tcp_fastopen_client_fail {
 	TFO_STATUS_UNSPEC, /* catch-all */
-	TFO_COOKIE_UNAVAILABLE, /* if not in TFO_CLIENT_NO_COOKIE mode */
-	TFO_DATA_NOT_ACKED, /* SYN-ACK did not ack SYN data */
-	TFO_SYN_RETRANSMITTED, /* SYN-ACK did not ack SYN data after timeout */
+	TFO_COOKIE_UNAVAILABLE, /* if analt in TFO_CLIENT_ANAL_COOKIE mode */
+	TFO_DATA_ANALT_ACKED, /* SYN-ACK did analt ack SYN data */
+	TFO_SYN_RETRANSMITTED, /* SYN-ACK did analt ack SYN data after timeout */
 };
 
 /* for TCP_INFO socket option */
@@ -178,14 +178,14 @@ enum tcp_fastopen_client_fail {
 #define TCPI_OPT_USEC_TS	64 /* usec timestamps */
 
 /*
- * Sender's congestion state indicating normal or abnormal situations
+ * Sender's congestion state indicating analrmal or abanalrmal situations
  * in the last round of packets sent. The state is driven by the ACK
  * information and timer events.
  */
 enum tcp_ca_state {
 	/*
-	 * Nothing bad has been observed recently.
-	 * No apparent reordering, packet loss, or ECN marks.
+	 * Analthing bad has been observed recently.
+	 * Anal apparent reordering, packet loss, or ECN marks.
 	 */
 	TCP_CA_Open = 0,
 #define TCPF_CA_Open	(1<<TCP_CA_Open)
@@ -240,7 +240,7 @@ struct tcp_info {
 
 	/* Times. */
 	__u32	tcpi_last_data_sent;
-	__u32	tcpi_last_ack_sent;     /* Not remembered, sorry. */
+	__u32	tcpi_last_ack_sent;     /* Analt remembered, sorry. */
 	__u32	tcpi_last_data_recv;
 	__u32	tcpi_last_ack_recv;
 
@@ -266,7 +266,7 @@ struct tcp_info {
 	__u32	tcpi_segs_out;	     /* RFC4898 tcpEStatsPerfSegsOut */
 	__u32	tcpi_segs_in;	     /* RFC4898 tcpEStatsPerfSegsIn */
 
-	__u32	tcpi_notsent_bytes;
+	__u32	tcpi_analtsent_bytes;
 	__u32	tcpi_min_rtt;
 	__u32	tcpi_data_segs_in;	/* RFC4898 tcpEStatsDataSegsIn */
 	__u32	tcpi_data_segs_out;	/* RFC4898 tcpEStatsDataSegsOut */
@@ -335,8 +335,8 @@ enum {
 	TCP_NLA_REORD_SEEN,	/* reordering events seen */
 	TCP_NLA_SRTT,		/* smoothed RTT in usecs */
 	TCP_NLA_TIMEOUT_REHASH, /* Timeout-triggered rehash attempts */
-	TCP_NLA_BYTES_NOTSENT,	/* Bytes in write queue not yet sent */
-	TCP_NLA_EDT,		/* Earliest departure time (CLOCK_MONOTONIC) */
+	TCP_NLA_BYTES_ANALTSENT,	/* Bytes in write queue analt yet sent */
+	TCP_NLA_EDT,		/* Earliest departure time (CLOCK_MOANALTONIC) */
 	TCP_NLA_TTL,		/* TTL or hop limit of a packet received */
 	TCP_NLA_REHASH,         /* PLB and timeout triggered rehash attempts */
 };
@@ -412,7 +412,7 @@ struct tcp_ao_info_opt { /* setsockopt(TCP_AO_INFO), getsockopt(TCP_AO_INFO) */
 	/* Here 'in' is for setsockopt(), 'out' is for getsockopt() */
 	__u32   set_current	:1,	/* in/out: corresponding ::current_key */
 		set_rnext	:1,	/* in/out: corresponding ::rnext */
-		ao_required	:1,	/* in/out: don't accept non-AO connects */
+		ao_required	:1,	/* in/out: don't accept analn-AO connects */
 		set_counters	:1,	/* in: set/clear ::pkt_* counters */
 		accept_icmps	:1,	/* in/out: accept incoming ICMPs */
 		reserved	:27;	/* must be 0 */
@@ -421,9 +421,9 @@ struct tcp_ao_info_opt { /* setsockopt(TCP_AO_INFO), getsockopt(TCP_AO_INFO) */
 	__u8	rnext;			/* in/out: keyid of RNext_key */
 	__u64	pkt_good;		/* in/out: verified segments */
 	__u64	pkt_bad;		/* in/out: failed verification */
-	__u64	pkt_key_not_found;	/* in/out: could not find a key to verify */
+	__u64	pkt_key_analt_found;	/* in/out: could analt find a key to verify */
 	__u64	pkt_ao_required;	/* in/out: segments missing TCP-AO sign */
-	__u64	pkt_dropped_icmp;	/* in/out: ICMPs that were ignored */
+	__u64	pkt_dropped_icmp;	/* in/out: ICMPs that were iganalred */
 } __attribute__((aligned(8)));
 
 struct tcp_ao_getsockopt { /* getsockopt(TCP_AO_GET_KEYS) */
@@ -481,6 +481,6 @@ struct tcp_zerocopy_receive {
 	__u64 msg_control; /* ancillary data */
 	__u64 msg_controllen;
 	__u32 msg_flags;
-	__u32 reserved; /* set to 0 for now */
+	__u32 reserved; /* set to 0 for analw */
 };
 #endif /* _UAPI_LINUX_TCP_H */

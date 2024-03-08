@@ -176,7 +176,7 @@ static int tcpci_start_toggling(struct tcpc_dev *tcpc,
 	unsigned int reg = TCPC_ROLE_CTRL_DRP;
 
 	if (port_type != TYPEC_PORT_DRP)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* Handle vendor drp toggling */
 	if (tcpci->data->start_drp_toggling) {
@@ -260,7 +260,7 @@ static int tcpci_set_polarity(struct tcpc_dev *tcpc,
 
 	/*
 	 * When port has drp toggling enabled, ROLE_CONTROL would only have the initial
-	 * terminations for the toggling and does not indicate the final cc
+	 * terminations for the toggling and does analt indicate the final cc
 	 * terminations when ConnectionResult is 0 i.e. drp toggling stops and
 	 * the connection is resolved. Infer port role from TCPC_CC_STATUS based on the
 	 * terminations seen. The port role is then used to set the cc terminations.
@@ -345,7 +345,7 @@ static int tcpci_set_auto_vbus_discharge_threshold(struct tcpc_dev *dev, enum ty
 
 	/*
 	 * Indicates that vbus is going to go away due PR_SWAP, hard reset etc.
-	 * Do not discharge vbus here.
+	 * Do analt discharge vbus here.
 	 */
 	if (requested_vbus_voltage_mv == 0)
 		goto write_thresh;
@@ -367,7 +367,7 @@ static int tcpci_set_auto_vbus_discharge_threshold(struct tcpc_dev *dev, enum ty
 				     VSINKPD_MIN_IR_DROP_MV - VSRC_VALID_MIN_MV) *
 				     VSINKDISCONNECT_PD_MIN_PERCENT / 100;
 	} else {
-		/* 3.5V for non-pd sink */
+		/* 3.5V for analn-pd sink */
 		threshold = AUTO_DISCHARGE_DEFAULT_THRESHOLD_MV;
 	}
 
@@ -753,10 +753,10 @@ static int tcpci_parse_config(struct tcpci *tcpci)
 {
 	tcpci->controls_vbus = true; /* XXX */
 
-	tcpci->tcpc.fwnode = device_get_named_child_node(tcpci->dev,
+	tcpci->tcpc.fwanalde = device_get_named_child_analde(tcpci->dev,
 							 "connector");
-	if (!tcpci->tcpc.fwnode) {
-		dev_err(tcpci->dev, "Can't find connector node.\n");
+	if (!tcpci->tcpc.fwanalde) {
+		dev_err(tcpci->dev, "Can't find connector analde.\n");
 		return -EINVAL;
 	}
 
@@ -770,7 +770,7 @@ struct tcpci *tcpci_register_port(struct device *dev, struct tcpci_data *data)
 
 	tcpci = devm_kzalloc(dev, sizeof(*tcpci), GFP_KERNEL);
 	if (!tcpci)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	tcpci->dev = dev;
 	tcpci->data = data;
@@ -814,7 +814,7 @@ struct tcpci *tcpci_register_port(struct device *dev, struct tcpci_data *data)
 
 	tcpci->port = tcpm_register_port(tcpci->dev, &tcpci->tcpc);
 	if (IS_ERR(tcpci->port)) {
-		fwnode_handle_put(tcpci->tcpc.fwnode);
+		fwanalde_handle_put(tcpci->tcpc.fwanalde);
 		return ERR_CAST(tcpci->port);
 	}
 
@@ -825,7 +825,7 @@ EXPORT_SYMBOL_GPL(tcpci_register_port);
 void tcpci_unregister_port(struct tcpci *tcpci)
 {
 	tcpm_unregister_port(tcpci->port);
-	fwnode_handle_put(tcpci->tcpc.fwnode);
+	fwanalde_handle_put(tcpci->tcpc.fwanalde);
 }
 EXPORT_SYMBOL_GPL(tcpci_unregister_port);
 
@@ -837,7 +837,7 @@ static int tcpci_probe(struct i2c_client *client)
 
 	chip = devm_kzalloc(&client->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip->data.regmap = devm_regmap_init_i2c(client, &tcpci_regmap_config);
 	if (IS_ERR(chip->data.regmap))

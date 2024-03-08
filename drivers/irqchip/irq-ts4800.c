@@ -68,7 +68,7 @@ static int ts4800_irqdomain_map(struct irq_domain *d, unsigned int irq,
 
 	irq_set_chip_and_handler(irq, &ts4800_chip, handle_simple_irq);
 	irq_set_chip_data(irq, data);
-	irq_set_noprobe(irq);
+	irq_set_analprobe(irq);
 
 	return 0;
 }
@@ -104,13 +104,13 @@ out:
 
 static int ts4800_ic_probe(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 	struct ts4800_irq_data *data;
 	int parent_irq;
 
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->pdev = pdev;
 	data->base = devm_platform_ioremap_resource(pdev, 0);
@@ -119,16 +119,16 @@ static int ts4800_ic_probe(struct platform_device *pdev)
 
 	writew(0xFFFF, data->base + IRQ_MASK);
 
-	parent_irq = irq_of_parse_and_map(node, 0);
+	parent_irq = irq_of_parse_and_map(analde, 0);
 	if (!parent_irq) {
 		dev_err(&pdev->dev, "failed to get parent IRQ\n");
 		return -EINVAL;
 	}
 
-	data->domain = irq_domain_add_linear(node, 8, &ts4800_ic_ops, data);
+	data->domain = irq_domain_add_linear(analde, 8, &ts4800_ic_ops, data);
 	if (!data->domain) {
-		dev_err(&pdev->dev, "cannot add IRQ domain\n");
-		return -ENOMEM;
+		dev_err(&pdev->dev, "cananalt add IRQ domain\n");
+		return -EANALMEM;
 	}
 
 	irq_set_chained_handler_and_data(parent_irq,
@@ -149,7 +149,7 @@ static int ts4800_ic_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id ts4800_ic_of_match[] = {
-	{ .compatible = "technologic,ts4800-irqc", },
+	{ .compatible = "techanallogic,ts4800-irqc", },
 	{},
 };
 MODULE_DEVICE_TABLE(of, ts4800_ic_of_match);

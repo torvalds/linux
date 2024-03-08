@@ -236,7 +236,7 @@ struct subdev_regulators {
 struct brcm_msi {
 	struct device		*dev;
 	void __iomem		*base;
-	struct device_node	*np;
+	struct device_analde	*np;
 	struct irq_domain	*msi_domain;
 	struct irq_domain	*inner_domain;
 	struct mutex		lock; /* guards the alloc/free operations */
@@ -246,7 +246,7 @@ struct brcm_msi {
 	bool			legacy;
 	/* Some chips have MSIs in bits [31..24] of a shared register. */
 	int			legacy_shift;
-	int			nr; /* No. of MSI available, depends on chip */
+	int			nr; /* Anal. of MSI available, depends on chip */
 	/* This is the base pointer for interrupt status/set/clr regs */
 	void __iomem		*intr_base;
 };
@@ -256,7 +256,7 @@ struct brcm_pcie {
 	struct device		*dev;
 	void __iomem		*base;
 	struct clk		*clk;
-	struct device_node	*np;
+	struct device_analde	*np;
 	bool			ssc;
 	int			gen;
 	u64			msi_target_addr;
@@ -281,7 +281,7 @@ static inline bool is_bmips(const struct brcm_pcie *pcie)
 
 /*
  * This is to convert the size of the inbound "BAR" region to the
- * non-linear values of PCIE_X_MISC_RC_BAR[123]_CONFIG_LO.SIZE
+ * analn-linear values of PCIE_X_MISC_RC_BAR[123]_CONFIG_LO.SIZE
  */
 static int brcm_pcie_encode_ibar_size(u64 size)
 {
@@ -560,22 +560,22 @@ static const struct irq_domain_ops msi_domain_ops = {
 
 static int brcm_allocate_domains(struct brcm_msi *msi)
 {
-	struct fwnode_handle *fwnode = of_node_to_fwnode(msi->np);
+	struct fwanalde_handle *fwanalde = of_analde_to_fwanalde(msi->np);
 	struct device *dev = msi->dev;
 
 	msi->inner_domain = irq_domain_add_linear(NULL, msi->nr, &msi_domain_ops, msi);
 	if (!msi->inner_domain) {
 		dev_err(dev, "failed to create IRQ domain\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
-	msi->msi_domain = pci_msi_create_irq_domain(fwnode,
+	msi->msi_domain = pci_msi_create_irq_domain(fwanalde,
 						    &brcm_msi_domain_info,
 						    msi->inner_domain);
 	if (!msi->msi_domain) {
 		dev_err(dev, "failed to create MSI domain\n");
 		irq_domain_remove(msi->inner_domain);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -624,15 +624,15 @@ static int brcm_pcie_enable_msi(struct brcm_pcie *pcie)
 	int irq, ret;
 	struct device *dev = pcie->dev;
 
-	irq = irq_of_parse_and_map(dev->of_node, 1);
+	irq = irq_of_parse_and_map(dev->of_analde, 1);
 	if (irq <= 0) {
-		dev_err(dev, "cannot map MSI interrupt\n");
-		return -ENODEV;
+		dev_err(dev, "cananalt map MSI interrupt\n");
+		return -EANALDEV;
 	}
 
 	msi = devm_kzalloc(dev, sizeof(struct brcm_msi), GFP_KERNEL);
 	if (!msi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&msi->lock);
 	msi->dev = dev;
@@ -644,7 +644,7 @@ static int brcm_pcie_enable_msi(struct brcm_pcie *pcie)
 
 	/*
 	 * Sanity check to make sure that the 'used' bitmap in struct brcm_msi
-	 * is large enough.
+	 * is large eanalugh.
 	 */
 	BUILD_BUG_ON(BRCM_INT_PCI_MSI_LEGACY_NR > BRCM_INT_PCI_MSI_NR);
 
@@ -800,7 +800,7 @@ static int brcm_pcie_get_rc_bar2_size_and_offset(struct brcm_pcie *pcie,
 	}
 
 	if (lowest_pcie_addr == ~(u64)0) {
-		dev_err(dev, "DT node has no dma-ranges\n");
+		dev_err(dev, "DT analde has anal dma-ranges\n");
 		return -EINVAL;
 	}
 
@@ -838,11 +838,11 @@ static int brcm_pcie_get_rc_bar2_size_and_offset(struct brcm_pcie *pcie,
 	 * be a contiguous arrangement of all of the system's memory.  In
 	 * addition, its size mut be a power of two.  To further complicate
 	 * matters, the viewport must start on a pcie-address that is aligned
-	 * on a multiple of its size.  If a portion of the viewport does not
+	 * on a multiple of its size.  If a portion of the viewport does analt
 	 * represent system memory -- e.g. 3GB of memory requires a 4GB
 	 * viewport -- we can map the outbound memory in or after 3GB and even
 	 * though the viewport will overlap the outbound memory the controller
-	 * will know to send outbound memory downstream and everything else
+	 * will kanalw to send outbound memory downstream and everything else
 	 * upstream.
 	 *
 	 * For example:
@@ -852,7 +852,7 @@ static int brcm_pcie_get_rc_bar2_size_and_offset(struct brcm_pcie *pcie,
 	 *   only address 32bits. We would also like to put the MSI under 4GB
 	 *   as well, since some devices require a 32bit MSI target address.
 	 *
-	 * - If the system memory is 4GB or larger we cannot start the inbound
+	 * - If the system memory is 4GB or larger we cananalt start the inbound
 	 *   region at location 0 (since we have to allow some space for
 	 *   outbound memory @ 3GB). So instead it will  start at the 1x
 	 *   multiple of its size
@@ -976,9 +976,9 @@ static int brcm_pcie_setup(struct brcm_pcie *pcie)
 	tmp &= ~PCIE_MISC_RC_BAR3_CONFIG_LO_SIZE_MASK;
 	writel(tmp, base + PCIE_MISC_RC_BAR3_CONFIG_LO);
 
-	/* Don't advertise L0s capability if 'aspm-no-l0s' */
+	/* Don't advertise L0s capability if 'aspm-anal-l0s' */
 	aspm_support = PCIE_LINK_STATE_L1;
-	if (!of_property_read_bool(pcie->np, "aspm-no-l0s"))
+	if (!of_property_read_bool(pcie->np, "aspm-anal-l0s"))
 		aspm_support |= PCIE_LINK_STATE_L0S;
 	tmp = readl(base + PCIE_RC_CFG_PRIV1_LINK_CAPABILITY);
 	u32p_replace_bits(&tmp, aspm_support,
@@ -1066,10 +1066,10 @@ static void brcm_config_clkreq(struct brcm_pcie *pcie)
 	clkreq_cntl = readl(pcie->base + PCIE_MISC_HARD_PCIE_HARD_DEBUG);
 	clkreq_cntl &= ~PCIE_CLKREQ_MASK;
 
-	if (strcmp(mode, "no-l1ss") == 0) {
+	if (strcmp(mode, "anal-l1ss") == 0) {
 		/*
-		 * "no-l1ss" -- Provides Clock Power Management, L0s, and
-		 * L1, but cannot provide L1 substate (L1SS) power
+		 * "anal-l1ss" -- Provides Clock Power Management, L0s, and
+		 * L1, but cananalt provide L1 substate (L1SS) power
 		 * savings. If the downstream device connected to the RC is
 		 * L1SS capable AND the OS enables L1SS, all PCIe traffic
 		 * may abruptly halt, potentially hanging the system.
@@ -1079,7 +1079,7 @@ static void brcm_config_clkreq(struct brcm_pcie *pcie)
 		 * We want to un-advertise L1 substates because if the OS
 		 * tries to configure the controller into using L1 substate
 		 * power savings it may fail or hang when the RC HW is in
-		 * "no-l1ss" mode.
+		 * "anal-l1ss" mode.
 		 */
 		tmp = readl(pcie->base + PCIE_RC_CFG_PRIV1_ROOT_CAP);
 		u32p_replace_bits(&tmp, 2, PCIE_RC_CFG_PRIV1_ROOT_CAP_L1SS_MODE_MASK);
@@ -1087,9 +1087,9 @@ static void brcm_config_clkreq(struct brcm_pcie *pcie)
 
 	} else if (strcmp(mode, "default") == 0) {
 		/*
-		 * "default" -- Provides L0s, L1, and L1SS, but not
+		 * "default" -- Provides L0s, L1, and L1SS, but analt
 		 * compliant to provide Clock Power Management;
-		 * specifically, may not be able to meet the Tclron max
+		 * specifically, may analt be able to meet the Tclron max
 		 * timing of 400ns as specified in "Dynamic Clock Control",
 		 * section 3.2.5.2.2 of the PCIe spec.  This situation is
 		 * atypical and should happen only with older devices.
@@ -1099,7 +1099,7 @@ static void brcm_config_clkreq(struct brcm_pcie *pcie)
 
 	} else {
 		/*
-		 * "safe" -- No power savings; refclk is driven by RC
+		 * "safe" -- Anal power savings; refclk is driven by RC
 		 * unconditionally.
 		 */
 		if (strcmp(mode, "safe") != 0)
@@ -1138,7 +1138,7 @@ static int brcm_pcie_start_link(struct brcm_pcie *pcie)
 
 	if (!brcm_pcie_link_up(pcie)) {
 		dev_err(dev, "link down\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	brcm_config_clkreq(pcie);
@@ -1197,19 +1197,19 @@ static int brcm_pcie_add_bus(struct pci_bus *bus)
 	if (!bus->parent || !pci_is_root_bus(bus->parent))
 		return 0;
 
-	if (dev->of_node) {
+	if (dev->of_analde) {
 		sr = alloc_subdev_regulators(dev);
 		if (!sr) {
 			dev_info(dev, "Can't allocate regulators for downstream device\n");
-			goto no_regulators;
+			goto anal_regulators;
 		}
 
 		pcie->sr = sr;
 
 		ret = regulator_bulk_get(dev, sr->num_supplies, sr->supplies);
 		if (ret) {
-			dev_info(dev, "No regulators for downstream device\n");
-			goto no_regulators;
+			dev_info(dev, "Anal regulators for downstream device\n");
+			goto anal_regulators;
 		}
 
 		ret = regulator_bulk_enable(sr->num_supplies, sr->supplies);
@@ -1220,7 +1220,7 @@ static int brcm_pcie_add_bus(struct pci_bus *bus)
 		}
 	}
 
-no_regulators:
+anal_regulators:
 	brcm_pcie_start_link(pcie);
 	return 0;
 }
@@ -1342,12 +1342,12 @@ static int pci_dev_may_wakeup(struct pci_dev *dev, void *data)
 
 	if (device_may_wakeup(&dev->dev)) {
 		*ret = true;
-		dev_info(&dev->dev, "Possible wake-up device; regulators will not be disabled\n");
+		dev_info(&dev->dev, "Possible wake-up device; regulators will analt be disabled\n");
 	}
 	return (int) *ret;
 }
 
-static int brcm_pcie_suspend_noirq(struct device *dev)
+static int brcm_pcie_suspend_analirq(struct device *dev)
 {
 	struct brcm_pcie *pcie = dev_get_drvdata(dev);
 	struct pci_host_bridge *bridge = pci_host_bridge_from_priv(pcie);
@@ -1360,18 +1360,18 @@ static int brcm_pcie_suspend_noirq(struct device *dev)
 	 * forgivable offense that will probably be erased on resume.
 	 */
 	if (brcm_phy_stop(pcie))
-		dev_err(dev, "Could not stop phy for suspend\n");
+		dev_err(dev, "Could analt stop phy for suspend\n");
 
 	ret = reset_control_rearm(pcie->rescal);
 	if (ret) {
-		dev_err(dev, "Could not rearm rescal reset\n");
+		dev_err(dev, "Could analt rearm rescal reset\n");
 		return ret;
 	}
 
 	if (pcie->sr) {
 		/*
-		 * Now turn off the regulators, but if at least one
-		 * downstream device is enabled as a wake-up source, do not
+		 * Analw turn off the regulators, but if at least one
+		 * downstream device is enabled as a wake-up source, do analt
 		 * turn off regulators.
 		 */
 		pcie->ep_wakeup_capable = false;
@@ -1381,7 +1381,7 @@ static int brcm_pcie_suspend_noirq(struct device *dev)
 			ret = regulator_bulk_disable(pcie->sr->num_supplies,
 						     pcie->sr->supplies);
 			if (ret) {
-				dev_err(dev, "Could not turn off regulators\n");
+				dev_err(dev, "Could analt turn off regulators\n");
 				reset_control_reset(pcie->rescal);
 				return ret;
 			}
@@ -1392,7 +1392,7 @@ static int brcm_pcie_suspend_noirq(struct device *dev)
 	return 0;
 }
 
-static int brcm_pcie_resume_noirq(struct device *dev)
+static int brcm_pcie_resume_analirq(struct device *dev)
 {
 	struct brcm_pcie *pcie = dev_get_drvdata(dev);
 	void __iomem *base;
@@ -1431,8 +1431,8 @@ static int brcm_pcie_resume_noirq(struct device *dev)
 		if (pcie->ep_wakeup_capable) {
 			/*
 			 * We are resuming from a suspend.  In the suspend we
-			 * did not disable the power supplies, so there is
-			 * no need to enable them (and falsely increase their
+			 * did analt disable the power supplies, so there is
+			 * anal need to enable them (and falsely increase their
 			 * usage count).
 			 */
 			pcie->ep_wakeup_capable = false;
@@ -1440,7 +1440,7 @@ static int brcm_pcie_resume_noirq(struct device *dev)
 			ret = regulator_bulk_enable(pcie->sr->num_supplies,
 						    pcie->sr->supplies);
 			if (ret) {
-				dev_err(dev, "Could not turn on regulators\n");
+				dev_err(dev, "Could analt turn on regulators\n");
 				goto err_reset;
 			}
 		}
@@ -1470,9 +1470,9 @@ static void __brcm_pcie_remove(struct brcm_pcie *pcie)
 	brcm_msi_remove(pcie);
 	brcm_pcie_turn_off(pcie);
 	if (brcm_phy_stop(pcie))
-		dev_err(pcie->dev, "Could not stop phy\n");
+		dev_err(pcie->dev, "Could analt stop phy\n");
 	if (reset_control_rearm(pcie->rescal))
-		dev_err(pcie->dev, "Could not rearm rescal reset\n");
+		dev_err(pcie->dev, "Could analt rearm rescal reset\n");
 	clk_disable_unprepare(pcie->clk);
 }
 
@@ -1576,7 +1576,7 @@ static struct pci_ops brcm7425_pcie_ops = {
 
 static int brcm_pcie_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node, *msi_np;
+	struct device_analde *np = pdev->dev.of_analde, *msi_np;
 	struct pci_host_bridge *bridge;
 	const struct pcie_cfg_data *data;
 	struct brcm_pcie *pcie;
@@ -1584,7 +1584,7 @@ static int brcm_pcie_probe(struct platform_device *pdev)
 
 	bridge = devm_pci_alloc_host_bridge(&pdev->dev, sizeof(*pcie));
 	if (!bridge)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = of_device_get_match_data(&pdev->dev);
 	if (!data) {
@@ -1615,7 +1615,7 @@ static int brcm_pcie_probe(struct platform_device *pdev)
 
 	ret = clk_prepare_enable(pcie->clk);
 	if (ret) {
-		dev_err(&pdev->dev, "could not enable clock\n");
+		dev_err(&pdev->dev, "could analt enable clock\n");
 		return ret;
 	}
 	pcie->rescal = devm_reset_control_get_optional_shared(&pdev->dev, "rescal");
@@ -1647,7 +1647,7 @@ static int brcm_pcie_probe(struct platform_device *pdev)
 	pcie->hw_rev = readl(pcie->base + PCIE_MISC_REVISION);
 	if (pcie->type == BCM4908 && pcie->hw_rev >= BRCM_PCIE_HW_REV_3_20) {
 		dev_err(pcie->dev, "hardware revision with unsupported PERST# setup\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto fail;
 	}
 
@@ -1667,7 +1667,7 @@ static int brcm_pcie_probe(struct platform_device *pdev)
 
 	ret = pci_host_probe(bridge);
 	if (!ret && !brcm_pcie_link_up(pcie))
-		ret = -ENODEV;
+		ret = -EANALDEV;
 
 	if (ret) {
 		brcm_pcie_remove(pdev);
@@ -1684,8 +1684,8 @@ fail:
 MODULE_DEVICE_TABLE(of, brcm_pcie_match);
 
 static const struct dev_pm_ops brcm_pcie_pm_ops = {
-	.suspend_noirq = brcm_pcie_suspend_noirq,
-	.resume_noirq = brcm_pcie_resume_noirq,
+	.suspend_analirq = brcm_pcie_suspend_analirq,
+	.resume_analirq = brcm_pcie_resume_analirq,
 };
 
 static struct platform_driver brcm_pcie_driver = {

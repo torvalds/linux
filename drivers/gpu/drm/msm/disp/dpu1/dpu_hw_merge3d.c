@@ -24,7 +24,7 @@ static void dpu_hw_merge_3d_setup_3d_mode(struct dpu_hw_merge_3d *merge_3d,
 
 
 	c = &merge_3d->hw;
-	if (mode_3d == BLEND_3D_NONE) {
+	if (mode_3d == BLEND_3D_ANALNE) {
 		DPU_REG_WRITE(c, MERGE_3D_MODE, 0);
 		DPU_REG_WRITE(c, MERGE_3D_MUX, 0);
 	} else {
@@ -47,7 +47,7 @@ struct dpu_hw_merge_3d *dpu_hw_merge_3d_init(struct drm_device *dev,
 
 	c = drmm_kzalloc(dev, sizeof(*c), GFP_KERNEL);
 	if (!c)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	c->hw.blk_addr = addr + cfg->base;
 	c->hw.log_mask = DPU_DBG_MASK_PINGPONG;

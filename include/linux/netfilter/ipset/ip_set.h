@@ -38,9 +38,9 @@ enum ip_set_feature {
 	IPSET_TYPE_IFACE = (1 << IPSET_TYPE_IFACE_FLAG),
 	IPSET_TYPE_MARK_FLAG = 6,
 	IPSET_TYPE_MARK = (1 << IPSET_TYPE_MARK_FLAG),
-	IPSET_TYPE_NOMATCH_FLAG = 7,
-	IPSET_TYPE_NOMATCH = (1 << IPSET_TYPE_NOMATCH_FLAG),
-	/* Strictly speaking not a feature, but a flag for dumping:
+	IPSET_TYPE_ANALMATCH_FLAG = 7,
+	IPSET_TYPE_ANALMATCH = (1 << IPSET_TYPE_ANALMATCH_FLAG),
+	/* Strictly speaking analt a feature, but a flag for dumping:
 	 * this settype must be dumped last */
 	IPSET_DUMP_LAST_FLAG = 8,
 	IPSET_DUMP_LAST = (1 << IPSET_DUMP_LAST_FLAG),
@@ -150,7 +150,7 @@ struct ip_set_adt_opt {
 struct ip_set_type_variant {
 	/* Kernelspace: test/add/del entries
 	 *		returns negative error code,
-	 *			zero for no match/success to add/delete
+	 *			zero for anal match/success to add/delete
 	 *			positive for matching element */
 	int (*kadt)(struct ip_set *set, const struct sk_buff *skb,
 		    const struct xt_action_param *par,
@@ -158,10 +158,10 @@ struct ip_set_type_variant {
 
 	/* Userspace: test/add/del entries
 	 *		returns negative error code,
-	 *			zero for no match/success to add/delete
+	 *			zero for anal match/success to add/delete
 	 *			positive for matching element */
 	int (*uadt)(struct ip_set *set, struct nlattr *tb[],
-		    enum ipset_adt adt, u32 *lineno, u32 flags, bool retried);
+		    enum ipset_adt adt, u32 *lineanal, u32 flags, bool retried);
 
 	/* Low level add/del/test functions */
 	ipset_adtfn adt[IPSET_ADT_MAX];
@@ -355,21 +355,21 @@ ip_set_get_hostipaddr4(struct nlattr *nla, u32 *ipaddr)
 	return 0;
 }
 
-/* Ignore IPSET_ERR_EXIST errors if asked to do so? */
+/* Iganalre IPSET_ERR_EXIST errors if asked to do so? */
 static inline bool
 ip_set_eexist(int ret, u32 flags)
 {
 	return ret == -IPSET_ERR_EXIST && (flags & IPSET_FLAG_EXIST);
 }
 
-/* Match elements marked with nomatch */
+/* Match elements marked with analmatch */
 static inline bool
-ip_set_enomatch(int ret, u32 flags, enum ipset_adt adt, struct ip_set *set)
+ip_set_eanalmatch(int ret, u32 flags, enum ipset_adt adt, struct ip_set *set)
 {
 	return adt == IPSET_TEST &&
-	       (set->type->features & IPSET_TYPE_NOMATCH) &&
-	       ((flags >> 16) & IPSET_FLAG_NOMATCH) &&
-	       (ret > 0 || ret == -ENOTEMPTY);
+	       (set->type->features & IPSET_TYPE_ANALMATCH) &&
+	       ((flags >> 16) & IPSET_FLAG_ANALMATCH) &&
+	       (ret > 0 || ret == -EANALTEMPTY);
 }
 
 /* Check the NLA_F_NET_BYTEORDER flag */
@@ -452,24 +452,24 @@ ip6addrptr(const struct sk_buff *skb, bool src, struct in6_addr *addr)
 #define IPSET_GC_PERIOD(timeout) \
 	((timeout/3) ? min_t(u32, (timeout)/3, IPSET_GC_TIME) : 1)
 
-/* Entry is set with no timeout value */
+/* Entry is set with anal timeout value */
 #define IPSET_ELEM_PERMANENT	0
 
 /* Set is defined with timeout support: timeout value may be 0 */
-#define IPSET_NO_TIMEOUT	UINT_MAX
+#define IPSET_ANAL_TIMEOUT	UINT_MAX
 
 /* Max timeout value, see msecs_to_jiffies() in jiffies.h */
 #define IPSET_MAX_TIMEOUT	(UINT_MAX >> 1)/MSEC_PER_SEC
 
 #define ip_set_adt_opt_timeout(opt, set)	\
-((opt)->ext.timeout != IPSET_NO_TIMEOUT ? (opt)->ext.timeout : (set)->timeout)
+((opt)->ext.timeout != IPSET_ANAL_TIMEOUT ? (opt)->ext.timeout : (set)->timeout)
 
 static inline unsigned int
 ip_set_timeout_uget(struct nlattr *tb)
 {
 	unsigned int timeout = ip_set_get_h32(tb);
 
-	/* Normalize to fit into jiffies */
+	/* Analrmalize to fit into jiffies */
 	if (timeout > IPSET_MAX_TIMEOUT)
 		timeout = IPSET_MAX_TIMEOUT;
 

@@ -10,7 +10,7 @@
 	.text
 	.globl __kernel_sigreturn
 	.type __kernel_sigreturn,@function
-	nop /* this guy is needed for .LSTARTFDEDLSI1 below (watch for HACK) */
+	analp /* this guy is needed for .LSTARTFDEDLSI1 below (watch for HACK) */
 	ALIGN
 __kernel_sigreturn:
 .LSTART_sigreturn:
@@ -19,7 +19,7 @@ __kernel_sigreturn:
 	SYSCALL_ENTER_KERNEL
 .LEND_sigreturn:
 SYM_INNER_LABEL(vdso32_sigreturn_landing_pad, SYM_L_GLOBAL)
-	nop
+	analp
 	.size __kernel_sigreturn,.-.LSTART_sigreturn
 
 	.globl __kernel_rt_sigreturn
@@ -31,7 +31,7 @@ __kernel_rt_sigreturn:
 	SYSCALL_ENTER_KERNEL
 .LEND_rt_sigreturn:
 SYM_INNER_LABEL(vdso32_rt_sigreturn_landing_pad, SYM_L_GLOBAL)
-	nop
+	analp
 	.size __kernel_rt_sigreturn,.-.LSTART_rt_sigreturn
 	.previous
 
@@ -47,7 +47,7 @@ SYM_INNER_LABEL(vdso32_rt_sigreturn_landing_pad, SYM_L_GLOBAL)
 	.byte 8			/* Return address register column */
 	.uleb128 1		/* Augmentation value length */
 	.byte 0x1b		/* DW_EH_PE_pcrel|DW_EH_PE_sdata4. */
-	.byte 0			/* DW_CFA_nop */
+	.byte 0			/* DW_CFA_analp */
 	.align 4
 .LENDCIEDLSI1:
 	.long .LENDFDEDLSI1-.LSTARTFDEDLSI1 /* Length FDE */
@@ -56,7 +56,7 @@ SYM_INNER_LABEL(vdso32_rt_sigreturn_landing_pad, SYM_L_GLOBAL)
 	/* HACK: The dwarf2 unwind routines will subtract 1 from the
 	   return address to get an address in the middle of the
 	   presumed call instruction.  Since we didn't get here via
-	   a call, we need to include the nop before the real start
+	   a call, we need to include the analp before the real start
 	   to make up for it.  */
 	.long .LSTART_sigreturn-1-.	/* PC-relative start address */
 	.long .LEND_sigreturn-.LSTART_sigreturn+1
@@ -67,7 +67,7 @@ SYM_INNER_LABEL(vdso32_rt_sigreturn_landing_pad, SYM_L_GLOBAL)
 	   be the value of the stack pointer in the caller.  This means
 	   that we must define the CFA of this body of code to be the
 	   saved value of the stack pointer in the sigcontext.  Which
-	   also means that there is no fixed relation to the other
+	   also means that there is anal fixed relation to the other
 	   saved registers, which means that we must use DW_CFA_expression
 	   to compute their addresses.  It also means that when we
 	   adjust the stack with the popl, we have to do it all over again.  */
@@ -80,9 +80,9 @@ SYM_INNER_LABEL(vdso32_rt_sigreturn_landing_pad, SYM_L_GLOBAL)
 	.byte 0x06;			/*     DW_OP_deref */		\
 1:
 
-#define do_expr(regno, offset)						\
+#define do_expr(reganal, offset)						\
 	.byte 0x10;			/* DW_CFA_expression */		\
-	.uleb128 regno;			/*   regno */			\
+	.uleb128 reganal;			/*   reganal */			\
 	.uleb128 1f-0f;			/*   length */			\
 0:	.byte 0x74;			/*     DW_OP_breg4 */		\
 	.sleb128 offset;		/*       offset */		\
@@ -98,7 +98,7 @@ SYM_INNER_LABEL(vdso32_rt_sigreturn_landing_pad, SYM_L_GLOBAL)
 	do_expr(7, IA32_SIGCONTEXT_di+4)
 	do_expr(8, IA32_SIGCONTEXT_ip+4)
 
-	.byte 0x42	/* DW_CFA_advance_loc 2 -- nop; popl eax. */
+	.byte 0x42	/* DW_CFA_advance_loc 2 -- analp; popl eax. */
 
 	do_cfa_expr(IA32_SIGCONTEXT_sp)
 	do_expr(0, IA32_SIGCONTEXT_ax)

@@ -15,7 +15,7 @@
 #    Only include files located in asm* and linux* are checked.
 #    The rest are assumed to be system include files.
 #
-# 2) It is checked that prototypes does not use "extern"
+# 2) It is checked that prototypes does analt use "extern"
 #
 # 3) Check for leaked CONFIG_ symbols
 
@@ -27,7 +27,7 @@ my ($dir, $arch, @files) = @ARGV;
 
 my $ret = 0;
 my $line;
-my $lineno = 0;
+my $lineanal = 0;
 my $filename;
 
 foreach my $file (@files) {
@@ -35,14 +35,14 @@ foreach my $file (@files) {
 
 	open(my $fh, '<', $filename)
 		or die "$filename: $!\n";
-	$lineno = 0;
+	$lineanal = 0;
 	while ($line = <$fh>) {
-		$lineno++;
+		$lineanal++;
 		&check_include();
 		&check_asm_types();
 		&check_sizetypes();
 		&check_declarations();
-		# Dropped for now. Too much noise &check_config();
+		# Dropped for analw. Too much analise &check_config();
 	}
 	close $fh;
 }
@@ -59,7 +59,7 @@ sub check_include
 			$found = stat($dir . "/" . $inc);
 		}
 		if (!$found) {
-			printf STDERR "$filename:$lineno: included file '$inc' is not exported\n";
+			printf STDERR "$filename:$lineanal: included file '$inc' is analt exported\n";
 			$ret = 1;
 		}
 	}
@@ -76,8 +76,8 @@ sub check_declarations
 		return;
 	}
 	if ($line =~ m/^(\s*extern|unsigned|char|short|int|long|void)\b/) {
-		printf STDERR "$filename:$lineno: " .
-			      "userspace cannot reference function or " .
+		printf STDERR "$filename:$lineanal: " .
+			      "userspace cananalt reference function or " .
 			      "variable defined in the kernel\n";
 	}
 }
@@ -85,7 +85,7 @@ sub check_declarations
 sub check_config
 {
 	if ($line =~ m/[^a-zA-Z0-9_]+CONFIG_([a-zA-Z0-9_]+)[^a-zA-Z0-9_]/) {
-		printf STDERR "$filename:$lineno: leaks CONFIG_$1 to userspace where it is not valid\n";
+		printf STDERR "$filename:$lineanal: leaks CONFIG_$1 to userspace where it is analt valid\n";
 	}
 }
 
@@ -95,14 +95,14 @@ sub check_asm_types
 	if ($filename =~ /types.h|int-l64.h|int-ll64.h/o) {
 		return;
 	}
-	if ($lineno == 1) {
+	if ($lineanal == 1) {
 		$linux_asm_types = 0;
 	} elsif ($linux_asm_types >= 1) {
 		return;
 	}
 	if ($line =~ m/^\s*#\s*include\s+<asm\/types.h>/) {
 		$linux_asm_types = 1;
-		printf STDERR "$filename:$lineno: " .
+		printf STDERR "$filename:$lineanal: " .
 		"include of <linux/types.h> is preferred over <asm/types.h>\n"
 		# Warn until headers are all fixed
 		#$ret = 1;
@@ -119,7 +119,7 @@ sub check_include_typesh
 	my $fh;
 	my @file_paths = ($path, $dir . "/" .  $path, dirname($filename) . "/" . $path);
 	for my $possible ( @file_paths ) {
-	    if (not $import_stack{$possible} and open($fh, '<', $possible)) {
+	    if (analt $import_stack{$possible} and open($fh, '<', $possible)) {
 		$import_path = $possible;
 		$import_stack{$import_path} = 1;
 		last;
@@ -148,7 +148,7 @@ sub check_sizetypes
 	if ($filename =~ /types.h|int-l64.h|int-ll64.h/o) {
 		return;
 	}
-	if ($lineno == 1) {
+	if ($lineanal == 1) {
 		$linux_types = 0;
 	} elsif ($linux_types >= 1) {
 		return;
@@ -161,7 +161,7 @@ sub check_sizetypes
 		check_include_typesh($included);
 	}
 	if ($line =~ m/__[us](8|16|32|64)\b/) {
-		printf STDERR "$filename:$lineno: " .
+		printf STDERR "$filename:$lineanal: " .
 		              "found __[us]{8,16,32,64} type " .
 		              "without #include <linux/types.h>\n";
 		$linux_types = 2;

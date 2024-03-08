@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #include <linux/vmalloc.h>
@@ -148,11 +148,11 @@ static ssize_t ath11k_dbg_sta_dump_tx_stats(struct file *file,
 	char *buf;
 
 	if (!arsta->tx_stats)
-		return -ENOENT;
+		return -EANALENT;
 
 	buf = kzalloc(size, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_lock(&ar->conf_mutex);
 
@@ -252,11 +252,11 @@ static ssize_t ath11k_dbg_sta_dump_rx_stats(struct file *file,
 	char *buf;
 
 	if (!rx_stats)
-		return -ENOENT;
+		return -EANALENT;
 
 	buf = kzalloc(size, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_lock(&ar->conf_mutex);
 	spin_lock_bh(&ar->ab->base_lock);
@@ -270,8 +270,8 @@ static ssize_t ath11k_dbg_sta_dump_rx_stats(struct file *file,
 			 rx_stats->udp_msdu_count);
 	len += scnprintf(buf + len, size - len, "Num of MSDUs part of AMPDU: %llu\n",
 			 rx_stats->ampdu_msdu_count);
-	len += scnprintf(buf + len, size - len, "Num of MSDUs not part of AMPDU: %llu\n",
-			 rx_stats->non_ampdu_msdu_count);
+	len += scnprintf(buf + len, size - len, "Num of MSDUs analt part of AMPDU: %llu\n",
+			 rx_stats->analn_ampdu_msdu_count);
 	len += scnprintf(buf + len, size - len, "Num of MSDUs using STBC: %llu\n",
 			 rx_stats->stbc_count);
 	len += scnprintf(buf + len, size - len, "Num of MSDUs beamformed: %llu\n",
@@ -338,9 +338,9 @@ static const struct file_operations fops_rx_stats = {
 };
 
 static int
-ath11k_dbg_sta_open_htt_peer_stats(struct inode *inode, struct file *file)
+ath11k_dbg_sta_open_htt_peer_stats(struct ianalde *ianalde, struct file *file)
 {
-	struct ieee80211_sta *sta = inode->i_private;
+	struct ieee80211_sta *sta = ianalde->i_private;
 	struct ath11k_sta *arsta = ath11k_sta_to_arsta(sta);
 	struct ath11k *ar = arsta->arvif->ar;
 	struct debug_htt_stats_req *stats_req;
@@ -354,7 +354,7 @@ ath11k_dbg_sta_open_htt_peer_stats(struct inode *inode, struct file *file)
 
 	stats_req = vzalloc(sizeof(*stats_req) + ATH11K_HTT_STATS_BUF_SIZE);
 	if (!stats_req)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_lock(&ar->conf_mutex);
 	ar->debug.htt_stats.stats_req = stats_req;
@@ -374,9 +374,9 @@ out:
 }
 
 static int
-ath11k_dbg_sta_release_htt_peer_stats(struct inode *inode, struct file *file)
+ath11k_dbg_sta_release_htt_peer_stats(struct ianalde *ianalde, struct file *file)
 {
-	struct ieee80211_sta *sta = inode->i_private;
+	struct ieee80211_sta *sta = ianalde->i_private;
 	struct ath11k_sta *arsta = ath11k_sta_to_arsta(sta);
 	struct ath11k *ar = arsta->arvif->ar;
 
@@ -497,7 +497,7 @@ static ssize_t ath11k_dbg_sta_write_delba(struct file *file,
 		return -EINVAL;
 
 	/* Valid TID values are 0 through 15 */
-	if (tid > HAL_DESC_REO_NON_QOS_TID - 1)
+	if (tid > HAL_DESC_REO_ANALN_QOS_TID - 1)
 		return -EINVAL;
 
 	mutex_lock(&ar->conf_mutex);
@@ -548,7 +548,7 @@ static ssize_t ath11k_dbg_sta_write_addba_resp(struct file *file,
 		return -EINVAL;
 
 	/* Valid TID values are 0 through 15 */
-	if (tid > HAL_DESC_REO_NON_QOS_TID - 1)
+	if (tid > HAL_DESC_REO_ANALN_QOS_TID - 1)
 		return -EINVAL;
 
 	mutex_lock(&ar->conf_mutex);
@@ -598,7 +598,7 @@ static ssize_t ath11k_dbg_sta_write_addba(struct file *file,
 		return -EINVAL;
 
 	/* Valid TID values are 0 through 15 */
-	if (tid > HAL_DESC_REO_NON_QOS_TID - 1)
+	if (tid > HAL_DESC_REO_ANALN_QOS_TID - 1)
 		return -EINVAL;
 
 	mutex_lock(&ar->conf_mutex);

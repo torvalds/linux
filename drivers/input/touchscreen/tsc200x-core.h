@@ -4,13 +4,13 @@
 
 /* control byte 1 */
 #define TSC200X_CMD			0x80
-#define TSC200X_CMD_NORMAL		0x00
+#define TSC200X_CMD_ANALRMAL		0x00
 #define TSC200X_CMD_STOP		0x01
 #define TSC200X_CMD_12BIT		0x04
 
 /* control byte 0 */
 #define TSC200X_REG_READ		0x01 /* R/W access */
-#define TSC200X_REG_PND0		0x02 /* Power Not Down Control */
+#define TSC200X_REG_PND0		0x02 /* Power Analt Down Control */
 #define TSC200X_REG_X			(0x0 << 3)
 #define TSC200X_REG_Y			(0x1 << 3)
 #define TSC200X_REG_Z1			(0x2 << 3)

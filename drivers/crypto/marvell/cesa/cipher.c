@@ -3,7 +3,7 @@
  * Cipher algorithms supported by the CESA: DES, 3DES and AES.
  *
  * Author: Boris Brezillon <boris.brezillon@free-electrons.com>
- * Author: Arnaud Ebalard <arno@natisbad.org>
+ * Author: Arnaud Ebalard <aranal@natisbad.org>
  *
  * This work is based on an initial version written by
  * Sebastian Andrzej Siewior < sebastian at breakpoint dot cc >
@@ -327,19 +327,19 @@ static int mv_cesa_skcipher_dma_req_init(struct skcipher_request *req,
 		ret = dma_map_sg(cesa_dev->dev, req->src, creq->src_nents,
 				 DMA_TO_DEVICE);
 		if (!ret)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		ret = dma_map_sg(cesa_dev->dev, req->dst, creq->dst_nents,
 				 DMA_FROM_DEVICE);
 		if (!ret) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_unmap_src;
 		}
 	} else {
 		ret = dma_map_sg(cesa_dev->dev, req->src, creq->src_nents,
 				 DMA_BIDIRECTIONAL);
 		if (!ret)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	mv_cesa_tdma_desc_iter_init(&basereq->chain);

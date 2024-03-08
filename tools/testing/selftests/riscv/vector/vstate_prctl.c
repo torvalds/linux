@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0-only
 #include <sys/prctl.h>
 #include <unistd.h>
-#include <errno.h>
+#include <erranal.h>
 #include <sys/wait.h>
 
 #include "../hwprobe/hwprobe.h"
 #include "../../kselftest.h"
 
-#define NEXT_PROGRAM "./vstate_exec_nolibc"
+#define NEXT_PROGRAM "./vstate_exec_anallibc"
 static int launch_test(int test_inherit)
 {
 	char *exec_argv[3], *exec_envp[1];
@@ -41,7 +41,7 @@ static int launch_test(int test_inherit)
 
 	if ((WIFEXITED(status) && WEXITSTATUS(status) == -1) ||
 	    WIFSIGNALED(status)) {
-		ksft_test_result_fail("child exited abnormally\n");
+		ksft_test_result_fail("child exited abanalrmally\n");
 		return -4;
 	}
 
@@ -84,24 +84,24 @@ int main(void)
 	}
 
 	if (pair.key != RISCV_HWPROBE_KEY_IMA_EXT_0) {
-		ksft_test_result_fail("hwprobe cannot probe RISCV_HWPROBE_KEY_IMA_EXT_0\n");
+		ksft_test_result_fail("hwprobe cananalt probe RISCV_HWPROBE_KEY_IMA_EXT_0\n");
 		return -2;
 	}
 
 	if (!(pair.value & RISCV_HWPROBE_IMA_V)) {
 		rc = prctl(PR_RISCV_V_GET_CONTROL);
-		if (rc != -1 || errno != EINVAL) {
+		if (rc != -1 || erranal != EINVAL) {
 			ksft_test_result_fail("GET_CONTROL should fail on kernel/hw without V\n");
 			return -3;
 		}
 
 		rc = prctl(PR_RISCV_V_SET_CONTROL, PR_RISCV_V_VSTATE_CTRL_ON);
-		if (rc != -1 || errno != EINVAL) {
+		if (rc != -1 || erranal != EINVAL) {
 			ksft_test_result_fail("GET_CONTROL should fail on kernel/hw without V\n");
 			return -4;
 		}
 
-		ksft_test_result_skip("Vector not supported\n");
+		ksft_test_result_skip("Vector analt supported\n");
 		return 0;
 	}
 
@@ -114,9 +114,9 @@ int main(void)
 
 	flag = PR_RISCV_V_VSTATE_CTRL_OFF;
 	rc = prctl(PR_RISCV_V_SET_CONTROL, flag);
-	if (rc != -1 || errno != EPERM) {
+	if (rc != -1 || erranal != EPERM) {
 		ksft_test_result_fail("Disabling current's V alive must fail with EPERM(%d)\n",
-				      errno);
+				      erranal);
 		return -5;
 	}
 
@@ -152,25 +152,25 @@ int main(void)
 
 	/* arguments should fail with EINVAL */
 	rc = prctl(PR_RISCV_V_SET_CONTROL, 0xff0);
-	if (rc != -1 || errno != EINVAL) {
+	if (rc != -1 || erranal != EINVAL) {
 		ksft_test_result_fail("Undefined control argument should return EINVAL\n");
 		return -12;
 	}
 
 	rc = prctl(PR_RISCV_V_SET_CONTROL, 0x3);
-	if (rc != -1 || errno != EINVAL) {
+	if (rc != -1 || erranal != EINVAL) {
 		ksft_test_result_fail("Undefined control argument should return EINVAL\n");
 		return -12;
 	}
 
 	rc = prctl(PR_RISCV_V_SET_CONTROL, 0xc);
-	if (rc != -1 || errno != EINVAL) {
+	if (rc != -1 || erranal != EINVAL) {
 		ksft_test_result_fail("Undefined control argument should return EINVAL\n");
 		return -12;
 	}
 
 	rc = prctl(PR_RISCV_V_SET_CONTROL, 0xc);
-	if (rc != -1 || errno != EINVAL) {
+	if (rc != -1 || erranal != EINVAL) {
 		ksft_test_result_fail("Undefined control argument should return EINVAL\n");
 		return -12;
 	}

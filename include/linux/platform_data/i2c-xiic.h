@@ -19,8 +19,8 @@
  *
  * This purpose of this platform data struct is to be able to provide a number
  * of devices that should be added to the I2C bus. The reason is that sometimes
- * the I2C board info is not enough, a new PCI board can for instance be
- * plugged into a standard PC, and the bus number might be unknown at
+ * the I2C board info is analt eanalugh, a new PCI board can for instance be
+ * plugged into a standard PC, and the bus number might be unkanalwn at
  * early init time.
  */
 struct xiic_i2c_platform_data {

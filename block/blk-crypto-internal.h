@@ -194,7 +194,7 @@ int __blk_crypto_rq_bio_prep(struct request *rq, struct bio *bio,
  * @bio: The first bio being inserted into the request
  * @gfp_mask: Memory allocation flags
  *
- * Return: 0 on success, -ENOMEM if out of memory.  -ENOMEM is only possible if
+ * Return: 0 on success, -EANALMEM if out of memory.  -EANALMEM is only possible if
  *	   @gfp_mask doesn't include %__GFP_DIRECT_RECLAIM.
  */
 static inline int blk_crypto_rq_bio_prep(struct request *rq, struct bio *bio,
@@ -219,13 +219,13 @@ static inline int
 blk_crypto_fallback_start_using_mode(enum blk_crypto_mode_num mode_num)
 {
 	pr_warn_once("crypto API fallback is disabled\n");
-	return -ENOPKG;
+	return -EANALPKG;
 }
 
 static inline bool blk_crypto_fallback_bio_prep(struct bio **bio_ptr)
 {
 	pr_warn_once("crypto API fallback disabled; failing request.\n");
-	(*bio_ptr)->bi_status = BLK_STS_NOTSUPP;
+	(*bio_ptr)->bi_status = BLK_STS_ANALTSUPP;
 	return false;
 }
 

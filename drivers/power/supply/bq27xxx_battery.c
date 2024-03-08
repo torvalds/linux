@@ -110,7 +110,7 @@ enum bq27xxx_reg_index {
 	BQ27XXX_REG_TTF,	/* Time-to-Full */
 	BQ27XXX_REG_TTES,	/* Time-to-Empty Standby */
 	BQ27XXX_REG_TTECP,	/* Time-to-Empty at Constant Power */
-	BQ27XXX_REG_NAC,	/* Nominal Available Capacity */
+	BQ27XXX_REG_NAC,	/* Analminal Available Capacity */
 	BQ27XXX_REG_RC,		/* Remaining Capacity */
 	BQ27XXX_REG_FCC,	/* Full Charge Capacity */
 	BQ27XXX_REG_CYCT,	/* Cycle Count */
@@ -542,20 +542,20 @@ static u8
 static enum power_supply_property bq27000_props[] = {
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_PRESENT,
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
-	POWER_SUPPLY_PROP_CURRENT_NOW,
+	POWER_SUPPLY_PROP_VOLTAGE_ANALW,
+	POWER_SUPPLY_PROP_CURRENT_ANALW,
 	POWER_SUPPLY_PROP_CAPACITY,
 	POWER_SUPPLY_PROP_CAPACITY_LEVEL,
 	POWER_SUPPLY_PROP_TEMP,
-	POWER_SUPPLY_PROP_TIME_TO_EMPTY_NOW,
+	POWER_SUPPLY_PROP_TIME_TO_EMPTY_ANALW,
 	POWER_SUPPLY_PROP_TIME_TO_EMPTY_AVG,
-	POWER_SUPPLY_PROP_TIME_TO_FULL_NOW,
-	POWER_SUPPLY_PROP_TECHNOLOGY,
+	POWER_SUPPLY_PROP_TIME_TO_FULL_ANALW,
+	POWER_SUPPLY_PROP_TECHANALLOGY,
 	POWER_SUPPLY_PROP_CHARGE_FULL,
-	POWER_SUPPLY_PROP_CHARGE_NOW,
+	POWER_SUPPLY_PROP_CHARGE_ANALW,
 	POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN,
 	POWER_SUPPLY_PROP_CYCLE_COUNT,
-	POWER_SUPPLY_PROP_ENERGY_NOW,
+	POWER_SUPPLY_PROP_ENERGY_ANALW,
 	POWER_SUPPLY_PROP_POWER_AVG,
 	POWER_SUPPLY_PROP_HEALTH,
 	POWER_SUPPLY_PROP_MANUFACTURER,
@@ -564,17 +564,17 @@ static enum power_supply_property bq27000_props[] = {
 static enum power_supply_property bq27010_props[] = {
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_PRESENT,
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
-	POWER_SUPPLY_PROP_CURRENT_NOW,
+	POWER_SUPPLY_PROP_VOLTAGE_ANALW,
+	POWER_SUPPLY_PROP_CURRENT_ANALW,
 	POWER_SUPPLY_PROP_CAPACITY,
 	POWER_SUPPLY_PROP_CAPACITY_LEVEL,
 	POWER_SUPPLY_PROP_TEMP,
-	POWER_SUPPLY_PROP_TIME_TO_EMPTY_NOW,
+	POWER_SUPPLY_PROP_TIME_TO_EMPTY_ANALW,
 	POWER_SUPPLY_PROP_TIME_TO_EMPTY_AVG,
-	POWER_SUPPLY_PROP_TIME_TO_FULL_NOW,
-	POWER_SUPPLY_PROP_TECHNOLOGY,
+	POWER_SUPPLY_PROP_TIME_TO_FULL_ANALW,
+	POWER_SUPPLY_PROP_TECHANALLOGY,
 	POWER_SUPPLY_PROP_CHARGE_FULL,
-	POWER_SUPPLY_PROP_CHARGE_NOW,
+	POWER_SUPPLY_PROP_CHARGE_ANALW,
 	POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN,
 	POWER_SUPPLY_PROP_CYCLE_COUNT,
 	POWER_SUPPLY_PROP_HEALTH,
@@ -588,19 +588,19 @@ static enum power_supply_property bq27010_props[] = {
 static enum power_supply_property bq27500_props[] = {
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_PRESENT,
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
-	POWER_SUPPLY_PROP_CURRENT_NOW,
+	POWER_SUPPLY_PROP_VOLTAGE_ANALW,
+	POWER_SUPPLY_PROP_CURRENT_ANALW,
 	POWER_SUPPLY_PROP_CAPACITY,
 	POWER_SUPPLY_PROP_CAPACITY_LEVEL,
 	POWER_SUPPLY_PROP_TEMP,
-	POWER_SUPPLY_PROP_TIME_TO_EMPTY_NOW,
-	POWER_SUPPLY_PROP_TIME_TO_FULL_NOW,
-	POWER_SUPPLY_PROP_TECHNOLOGY,
+	POWER_SUPPLY_PROP_TIME_TO_EMPTY_ANALW,
+	POWER_SUPPLY_PROP_TIME_TO_FULL_ANALW,
+	POWER_SUPPLY_PROP_TECHANALLOGY,
 	POWER_SUPPLY_PROP_CHARGE_FULL,
-	POWER_SUPPLY_PROP_CHARGE_NOW,
+	POWER_SUPPLY_PROP_CHARGE_ANALW,
 	POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN,
 	POWER_SUPPLY_PROP_CYCLE_COUNT,
-	POWER_SUPPLY_PROP_ENERGY_NOW,
+	POWER_SUPPLY_PROP_ENERGY_ANALW,
 	POWER_SUPPLY_PROP_POWER_AVG,
 	POWER_SUPPLY_PROP_HEALTH,
 	POWER_SUPPLY_PROP_MANUFACTURER,
@@ -611,15 +611,15 @@ static enum power_supply_property bq27500_props[] = {
 static enum power_supply_property bq27510g3_props[] = {
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_PRESENT,
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
-	POWER_SUPPLY_PROP_CURRENT_NOW,
+	POWER_SUPPLY_PROP_VOLTAGE_ANALW,
+	POWER_SUPPLY_PROP_CURRENT_ANALW,
 	POWER_SUPPLY_PROP_CAPACITY,
 	POWER_SUPPLY_PROP_CAPACITY_LEVEL,
 	POWER_SUPPLY_PROP_TEMP,
-	POWER_SUPPLY_PROP_TIME_TO_EMPTY_NOW,
-	POWER_SUPPLY_PROP_TECHNOLOGY,
+	POWER_SUPPLY_PROP_TIME_TO_EMPTY_ANALW,
+	POWER_SUPPLY_PROP_TECHANALLOGY,
 	POWER_SUPPLY_PROP_CHARGE_FULL,
-	POWER_SUPPLY_PROP_CHARGE_NOW,
+	POWER_SUPPLY_PROP_CHARGE_ANALW,
 	POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN,
 	POWER_SUPPLY_PROP_CYCLE_COUNT,
 	POWER_SUPPLY_PROP_HEALTH,
@@ -629,18 +629,18 @@ static enum power_supply_property bq27510g3_props[] = {
 static enum power_supply_property bq27520g1_props[] = {
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_PRESENT,
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
-	POWER_SUPPLY_PROP_CURRENT_NOW,
+	POWER_SUPPLY_PROP_VOLTAGE_ANALW,
+	POWER_SUPPLY_PROP_CURRENT_ANALW,
 	POWER_SUPPLY_PROP_CAPACITY,
 	POWER_SUPPLY_PROP_CAPACITY_LEVEL,
 	POWER_SUPPLY_PROP_TEMP,
-	POWER_SUPPLY_PROP_TIME_TO_EMPTY_NOW,
-	POWER_SUPPLY_PROP_TIME_TO_FULL_NOW,
-	POWER_SUPPLY_PROP_TECHNOLOGY,
+	POWER_SUPPLY_PROP_TIME_TO_EMPTY_ANALW,
+	POWER_SUPPLY_PROP_TIME_TO_FULL_ANALW,
+	POWER_SUPPLY_PROP_TECHANALLOGY,
 	POWER_SUPPLY_PROP_CHARGE_FULL,
-	POWER_SUPPLY_PROP_CHARGE_NOW,
+	POWER_SUPPLY_PROP_CHARGE_ANALW,
 	POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN,
-	POWER_SUPPLY_PROP_ENERGY_NOW,
+	POWER_SUPPLY_PROP_ENERGY_ANALW,
 	POWER_SUPPLY_PROP_POWER_AVG,
 	POWER_SUPPLY_PROP_HEALTH,
 	POWER_SUPPLY_PROP_MANUFACTURER,
@@ -651,18 +651,18 @@ static enum power_supply_property bq27520g1_props[] = {
 static enum power_supply_property bq27520g3_props[] = {
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_PRESENT,
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
-	POWER_SUPPLY_PROP_CURRENT_NOW,
+	POWER_SUPPLY_PROP_VOLTAGE_ANALW,
+	POWER_SUPPLY_PROP_CURRENT_ANALW,
 	POWER_SUPPLY_PROP_CAPACITY,
 	POWER_SUPPLY_PROP_CAPACITY_LEVEL,
 	POWER_SUPPLY_PROP_TEMP,
-	POWER_SUPPLY_PROP_TIME_TO_EMPTY_NOW,
-	POWER_SUPPLY_PROP_TECHNOLOGY,
+	POWER_SUPPLY_PROP_TIME_TO_EMPTY_ANALW,
+	POWER_SUPPLY_PROP_TECHANALLOGY,
 	POWER_SUPPLY_PROP_CHARGE_FULL,
-	POWER_SUPPLY_PROP_CHARGE_NOW,
+	POWER_SUPPLY_PROP_CHARGE_ANALW,
 	POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN,
 	POWER_SUPPLY_PROP_CYCLE_COUNT,
-	POWER_SUPPLY_PROP_ENERGY_NOW,
+	POWER_SUPPLY_PROP_ENERGY_ANALW,
 	POWER_SUPPLY_PROP_POWER_AVG,
 	POWER_SUPPLY_PROP_HEALTH,
 	POWER_SUPPLY_PROP_MANUFACTURER,
@@ -671,15 +671,15 @@ static enum power_supply_property bq27520g3_props[] = {
 static enum power_supply_property bq27520g4_props[] = {
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_PRESENT,
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
-	POWER_SUPPLY_PROP_CURRENT_NOW,
+	POWER_SUPPLY_PROP_VOLTAGE_ANALW,
+	POWER_SUPPLY_PROP_CURRENT_ANALW,
 	POWER_SUPPLY_PROP_CAPACITY,
 	POWER_SUPPLY_PROP_CAPACITY_LEVEL,
 	POWER_SUPPLY_PROP_TEMP,
-	POWER_SUPPLY_PROP_TIME_TO_EMPTY_NOW,
-	POWER_SUPPLY_PROP_TECHNOLOGY,
+	POWER_SUPPLY_PROP_TIME_TO_EMPTY_ANALW,
+	POWER_SUPPLY_PROP_TECHANALLOGY,
 	POWER_SUPPLY_PROP_CHARGE_FULL,
-	POWER_SUPPLY_PROP_CHARGE_NOW,
+	POWER_SUPPLY_PROP_CHARGE_ANALW,
 	POWER_SUPPLY_PROP_CYCLE_COUNT,
 	POWER_SUPPLY_PROP_HEALTH,
 	POWER_SUPPLY_PROP_MANUFACTURER,
@@ -688,24 +688,24 @@ static enum power_supply_property bq27520g4_props[] = {
 static enum power_supply_property bq27521_props[] = {
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_PRESENT,
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
-	POWER_SUPPLY_PROP_CURRENT_NOW,
+	POWER_SUPPLY_PROP_VOLTAGE_ANALW,
+	POWER_SUPPLY_PROP_CURRENT_ANALW,
 	POWER_SUPPLY_PROP_TEMP,
-	POWER_SUPPLY_PROP_TECHNOLOGY,
+	POWER_SUPPLY_PROP_TECHANALLOGY,
 };
 
 static enum power_supply_property bq27530_props[] = {
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_PRESENT,
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
-	POWER_SUPPLY_PROP_CURRENT_NOW,
+	POWER_SUPPLY_PROP_VOLTAGE_ANALW,
+	POWER_SUPPLY_PROP_CURRENT_ANALW,
 	POWER_SUPPLY_PROP_CAPACITY,
 	POWER_SUPPLY_PROP_CAPACITY_LEVEL,
 	POWER_SUPPLY_PROP_TEMP,
-	POWER_SUPPLY_PROP_TIME_TO_EMPTY_NOW,
-	POWER_SUPPLY_PROP_TECHNOLOGY,
+	POWER_SUPPLY_PROP_TIME_TO_EMPTY_ANALW,
+	POWER_SUPPLY_PROP_TECHANALLOGY,
 	POWER_SUPPLY_PROP_CHARGE_FULL,
-	POWER_SUPPLY_PROP_CHARGE_NOW,
+	POWER_SUPPLY_PROP_CHARGE_ANALW,
 	POWER_SUPPLY_PROP_POWER_AVG,
 	POWER_SUPPLY_PROP_HEALTH,
 	POWER_SUPPLY_PROP_CYCLE_COUNT,
@@ -716,15 +716,15 @@ static enum power_supply_property bq27530_props[] = {
 static enum power_supply_property bq27541_props[] = {
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_PRESENT,
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
-	POWER_SUPPLY_PROP_CURRENT_NOW,
+	POWER_SUPPLY_PROP_VOLTAGE_ANALW,
+	POWER_SUPPLY_PROP_CURRENT_ANALW,
 	POWER_SUPPLY_PROP_CAPACITY,
 	POWER_SUPPLY_PROP_CAPACITY_LEVEL,
 	POWER_SUPPLY_PROP_TEMP,
-	POWER_SUPPLY_PROP_TIME_TO_EMPTY_NOW,
-	POWER_SUPPLY_PROP_TECHNOLOGY,
+	POWER_SUPPLY_PROP_TIME_TO_EMPTY_ANALW,
+	POWER_SUPPLY_PROP_TECHANALLOGY,
 	POWER_SUPPLY_PROP_CHARGE_FULL,
-	POWER_SUPPLY_PROP_CHARGE_NOW,
+	POWER_SUPPLY_PROP_CHARGE_ANALW,
 	POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN,
 	POWER_SUPPLY_PROP_CYCLE_COUNT,
 	POWER_SUPPLY_PROP_POWER_AVG,
@@ -738,15 +738,15 @@ static enum power_supply_property bq27541_props[] = {
 static enum power_supply_property bq27545_props[] = {
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_PRESENT,
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
-	POWER_SUPPLY_PROP_CURRENT_NOW,
+	POWER_SUPPLY_PROP_VOLTAGE_ANALW,
+	POWER_SUPPLY_PROP_CURRENT_ANALW,
 	POWER_SUPPLY_PROP_CAPACITY,
 	POWER_SUPPLY_PROP_CAPACITY_LEVEL,
 	POWER_SUPPLY_PROP_TEMP,
-	POWER_SUPPLY_PROP_TIME_TO_EMPTY_NOW,
-	POWER_SUPPLY_PROP_TECHNOLOGY,
+	POWER_SUPPLY_PROP_TIME_TO_EMPTY_ANALW,
+	POWER_SUPPLY_PROP_TECHANALLOGY,
 	POWER_SUPPLY_PROP_CHARGE_FULL,
-	POWER_SUPPLY_PROP_CHARGE_NOW,
+	POWER_SUPPLY_PROP_CHARGE_ANALW,
 	POWER_SUPPLY_PROP_HEALTH,
 	POWER_SUPPLY_PROP_CYCLE_COUNT,
 	POWER_SUPPLY_PROP_POWER_AVG,
@@ -756,14 +756,14 @@ static enum power_supply_property bq27545_props[] = {
 static enum power_supply_property bq27421_props[] = {
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_PRESENT,
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
-	POWER_SUPPLY_PROP_CURRENT_NOW,
+	POWER_SUPPLY_PROP_VOLTAGE_ANALW,
+	POWER_SUPPLY_PROP_CURRENT_ANALW,
 	POWER_SUPPLY_PROP_CAPACITY,
 	POWER_SUPPLY_PROP_CAPACITY_LEVEL,
 	POWER_SUPPLY_PROP_TEMP,
-	POWER_SUPPLY_PROP_TECHNOLOGY,
+	POWER_SUPPLY_PROP_TECHANALLOGY,
 	POWER_SUPPLY_PROP_CHARGE_FULL,
-	POWER_SUPPLY_PROP_CHARGE_NOW,
+	POWER_SUPPLY_PROP_CHARGE_ANALW,
 	POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN,
 	POWER_SUPPLY_PROP_MANUFACTURER,
 };
@@ -776,16 +776,16 @@ static enum power_supply_property bq27421_props[] = {
 static enum power_supply_property bq27z561_props[] = {
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_PRESENT,
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
-	POWER_SUPPLY_PROP_CURRENT_NOW,
+	POWER_SUPPLY_PROP_VOLTAGE_ANALW,
+	POWER_SUPPLY_PROP_CURRENT_ANALW,
 	POWER_SUPPLY_PROP_CAPACITY,
 	POWER_SUPPLY_PROP_CAPACITY_LEVEL,
 	POWER_SUPPLY_PROP_TEMP,
-	POWER_SUPPLY_PROP_TIME_TO_EMPTY_NOW,
-	POWER_SUPPLY_PROP_TIME_TO_FULL_NOW,
-	POWER_SUPPLY_PROP_TECHNOLOGY,
+	POWER_SUPPLY_PROP_TIME_TO_EMPTY_ANALW,
+	POWER_SUPPLY_PROP_TIME_TO_FULL_ANALW,
+	POWER_SUPPLY_PROP_TECHANALLOGY,
 	POWER_SUPPLY_PROP_CHARGE_FULL,
-	POWER_SUPPLY_PROP_CHARGE_NOW,
+	POWER_SUPPLY_PROP_CHARGE_ANALW,
 	POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN,
 	POWER_SUPPLY_PROP_CYCLE_COUNT,
 	POWER_SUPPLY_PROP_POWER_AVG,
@@ -796,16 +796,16 @@ static enum power_supply_property bq27z561_props[] = {
 static enum power_supply_property bq28z610_props[] = {
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_PRESENT,
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
-	POWER_SUPPLY_PROP_CURRENT_NOW,
+	POWER_SUPPLY_PROP_VOLTAGE_ANALW,
+	POWER_SUPPLY_PROP_CURRENT_ANALW,
 	POWER_SUPPLY_PROP_CAPACITY,
 	POWER_SUPPLY_PROP_CAPACITY_LEVEL,
 	POWER_SUPPLY_PROP_TEMP,
-	POWER_SUPPLY_PROP_TIME_TO_EMPTY_NOW,
-	POWER_SUPPLY_PROP_TIME_TO_FULL_NOW,
-	POWER_SUPPLY_PROP_TECHNOLOGY,
+	POWER_SUPPLY_PROP_TIME_TO_EMPTY_ANALW,
+	POWER_SUPPLY_PROP_TIME_TO_FULL_ANALW,
+	POWER_SUPPLY_PROP_TECHANALLOGY,
 	POWER_SUPPLY_PROP_CHARGE_FULL,
-	POWER_SUPPLY_PROP_CHARGE_NOW,
+	POWER_SUPPLY_PROP_CHARGE_ANALW,
 	POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN,
 	POWER_SUPPLY_PROP_CYCLE_COUNT,
 	POWER_SUPPLY_PROP_POWER_AVG,
@@ -816,20 +816,20 @@ static enum power_supply_property bq28z610_props[] = {
 static enum power_supply_property bq34z100_props[] = {
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_PRESENT,
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
-	POWER_SUPPLY_PROP_CURRENT_NOW,
+	POWER_SUPPLY_PROP_VOLTAGE_ANALW,
+	POWER_SUPPLY_PROP_CURRENT_ANALW,
 	POWER_SUPPLY_PROP_CAPACITY,
 	POWER_SUPPLY_PROP_CAPACITY_LEVEL,
 	POWER_SUPPLY_PROP_TEMP,
-	POWER_SUPPLY_PROP_TIME_TO_EMPTY_NOW,
+	POWER_SUPPLY_PROP_TIME_TO_EMPTY_ANALW,
 	POWER_SUPPLY_PROP_TIME_TO_EMPTY_AVG,
-	POWER_SUPPLY_PROP_TIME_TO_FULL_NOW,
-	POWER_SUPPLY_PROP_TECHNOLOGY,
+	POWER_SUPPLY_PROP_TIME_TO_FULL_ANALW,
+	POWER_SUPPLY_PROP_TECHANALLOGY,
 	POWER_SUPPLY_PROP_CHARGE_FULL,
-	POWER_SUPPLY_PROP_CHARGE_NOW,
+	POWER_SUPPLY_PROP_CHARGE_ANALW,
 	POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN,
 	POWER_SUPPLY_PROP_CYCLE_COUNT,
-	POWER_SUPPLY_PROP_ENERGY_NOW,
+	POWER_SUPPLY_PROP_ENERGY_ANALW,
 	POWER_SUPPLY_PROP_POWER_AVG,
 	POWER_SUPPLY_PROP_HEALTH,
 	POWER_SUPPLY_PROP_MANUFACTURER,
@@ -838,16 +838,16 @@ static enum power_supply_property bq34z100_props[] = {
 static enum power_supply_property bq78z100_props[] = {
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_PRESENT,
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
-	POWER_SUPPLY_PROP_CURRENT_NOW,
+	POWER_SUPPLY_PROP_VOLTAGE_ANALW,
+	POWER_SUPPLY_PROP_CURRENT_ANALW,
 	POWER_SUPPLY_PROP_CAPACITY,
 	POWER_SUPPLY_PROP_CAPACITY_LEVEL,
 	POWER_SUPPLY_PROP_TEMP,
-	POWER_SUPPLY_PROP_TIME_TO_EMPTY_NOW,
-	POWER_SUPPLY_PROP_TIME_TO_FULL_NOW,
-	POWER_SUPPLY_PROP_TECHNOLOGY,
+	POWER_SUPPLY_PROP_TIME_TO_EMPTY_ANALW,
+	POWER_SUPPLY_PROP_TIME_TO_FULL_ANALW,
+	POWER_SUPPLY_PROP_TECHANALLOGY,
 	POWER_SUPPLY_PROP_CHARGE_FULL,
-	POWER_SUPPLY_PROP_CHARGE_NOW,
+	POWER_SUPPLY_PROP_CHARGE_ANALW,
 	POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN,
 	POWER_SUPPLY_PROP_CYCLE_COUNT,
 	POWER_SUPPLY_PROP_POWER_AVG,
@@ -874,7 +874,7 @@ enum bq27xxx_dm_reg_id {
 #define bq2751x_dm_regs NULL
 #define bq2752x_dm_regs NULL
 
-#if 0 /* not yet tested */
+#if 0 /* analt yet tested */
 static struct bq27xxx_dm_reg bq27500_dm_regs[] = {
 	[BQ27XXX_DM_DESIGN_CAPACITY]   = { 48, 10, 2,    0, 65535 },
 	[BQ27XXX_DM_DESIGN_ENERGY]     = { }, /* missing on chip */
@@ -900,7 +900,7 @@ static struct bq27xxx_dm_reg bq27500_dm_regs[] = {
 #define bq27546_dm_regs NULL
 #define bq27742_dm_regs NULL
 
-#if 0 /* not yet tested */
+#if 0 /* analt yet tested */
 static struct bq27xxx_dm_reg bq27545_dm_regs[] = {
 	[BQ27XXX_DM_DESIGN_CAPACITY]   = { 48, 23, 2,    0, 32767 },
 	[BQ27XXX_DM_DESIGN_ENERGY]     = { 48, 25, 2,    0, 32767 },
@@ -934,13 +934,13 @@ static struct bq27xxx_dm_reg bq27426_dm_regs[] = {
 	[BQ27XXX_DM_TERMINATE_VOLTAGE] = { 82, 10, 2, 2500,  3700 },
 };
 
-#if 0 /* not yet tested */
+#if 0 /* analt yet tested */
 #define bq27441_dm_regs bq27421_dm_regs
 #else
 #define bq27441_dm_regs NULL
 #endif
 
-#if 0 /* not yet tested */
+#if 0 /* analt yet tested */
 static struct bq27xxx_dm_reg bq27621_dm_regs[] = {
 	[BQ27XXX_DM_DESIGN_CAPACITY]   = { 82, 3, 2,    0,  8000 },
 	[BQ27XXX_DM_DESIGN_ENERGY]     = { 82, 5, 2,    0, 32767 },
@@ -1068,7 +1068,7 @@ MODULE_PARM_DESC(dt_monitored_battery_updates_nvm,
 	"Users must set this =0 when installing a different type of battery!\n"
 	"Default is =1."
 #ifndef CONFIG_BATTERY_BQ27XXX_DT_UPDATES_NVM
-	"\nSetting this affects future kernel updates, not the current configuration."
+	"\nSetting this affects future kernel updates, analt the current configuration."
 #endif
 );
 
@@ -1276,7 +1276,7 @@ static void bq27xxx_battery_update_dm_block(struct bq27xxx_device_info *di,
 	__be16 *prev = bq27xxx_dm_reg_ptr(buf, reg);
 
 	if (prev == NULL) {
-		dev_warn(di->dev, "buffer does not match %s dm spec\n", str);
+		dev_warn(di->dev, "buffer does analt match %s dm spec\n", str);
 		return;
 	}
 
@@ -1399,7 +1399,7 @@ static int bq27xxx_battery_write_dm_block(struct bq27xxx_device_info *di,
 	if (ret < 0)
 		goto out;
 
-	/* DO NOT read BQ27XXX_DM_CKSUM here to verify it! That may cause NVM
+	/* DO ANALT read BQ27XXX_DM_CKSUM here to verify it! That may cause NVM
 	 * corruption on the '425 chip (and perhaps others), which can damage
 	 * the chip.
 	 */
@@ -1465,7 +1465,7 @@ static void bq27xxx_battery_set_config(struct bq27xxx_device_info *di,
 
 	if (updated && !(di->opts & BQ27XXX_O_CFGUP)) {
 		bq27xxx_write(di, BQ27XXX_REG_CTRL, BQ27XXX_RESET, false);
-		BQ27XXX_MSLEEP(300); /* reset time is not documented */
+		BQ27XXX_MSLEEP(300); /* reset time is analt documented */
 	}
 	/* assume bq27xxx_battery_update() is called hereafter */
 }
@@ -1479,7 +1479,7 @@ static void bq27xxx_battery_settings(struct bq27xxx_device_info *di)
 		return;
 
 	if (!di->dm_regs) {
-		dev_warn(di->dev, "data memory update not supported for chip\n");
+		dev_warn(di->dev, "data memory update analt supported for chip\n");
 		return;
 	}
 
@@ -1565,7 +1565,7 @@ static int bq27xxx_battery_read_charge(struct bq27xxx_device_info *di, u8 reg)
 }
 
 /*
- * Return the battery Nominal available capacity in µAh
+ * Return the battery Analminal available capacity in µAh
  * Or < 0 if something fails.
  */
 static inline int bq27xxx_battery_read_nac(struct bq27xxx_device_info *di)
@@ -1690,7 +1690,7 @@ static int bq27xxx_battery_read_time(struct bq27xxx_device_info *di, u8 reg)
 	}
 
 	if (tval == 65535)
-		return -ENODATA;
+		return -EANALDATA;
 
 	return tval * 60;
 }
@@ -1771,7 +1771,7 @@ static bool bq27xxx_battery_is_full(struct bq27xxx_device_info *di, int flags)
 
 /*
  * Return the battery average current in µA and the status
- * Note that current can be negative signed as well
+ * Analte that current can be negative signed as well
  * Or 0 if something fails.
  */
 static int bq27xxx_battery_current_and_status(
@@ -1825,7 +1825,7 @@ static int bq27xxx_battery_current_and_status(
 				val_status->intval = POWER_SUPPLY_STATUS_FULL;
 			else
 				val_status->intval =
-					POWER_SUPPLY_STATUS_NOT_CHARGING;
+					POWER_SUPPLY_STATUS_ANALT_CHARGING;
 		}
 	}
 
@@ -1943,14 +1943,14 @@ static int bq27xxx_battery_capacity_level(struct bq27xxx_device_info *di,
 		else if (di->cache.flags & BQ27000_FLAG_EDV1)
 			level = POWER_SUPPLY_CAPACITY_LEVEL_LOW;
 		else
-			level = POWER_SUPPLY_CAPACITY_LEVEL_NORMAL;
+			level = POWER_SUPPLY_CAPACITY_LEVEL_ANALRMAL;
 	} else if (di->opts & BQ27Z561_O_BITS) {
 		if (di->cache.flags & BQ27Z561_FLAG_FC)
 			level = POWER_SUPPLY_CAPACITY_LEVEL_FULL;
 		else if (di->cache.flags & BQ27Z561_FLAG_FDC)
 			level = POWER_SUPPLY_CAPACITY_LEVEL_CRITICAL;
 		else
-			level = POWER_SUPPLY_CAPACITY_LEVEL_NORMAL;
+			level = POWER_SUPPLY_CAPACITY_LEVEL_ANALRMAL;
 	} else {
 		if (di->cache.flags & BQ27XXX_FLAG_FC)
 			level = POWER_SUPPLY_CAPACITY_LEVEL_FULL;
@@ -1959,7 +1959,7 @@ static int bq27xxx_battery_capacity_level(struct bq27xxx_device_info *di,
 		else if (di->cache.flags & BQ27XXX_FLAG_SOC1)
 			level = POWER_SUPPLY_CAPACITY_LEVEL_LOW;
 		else
-			level = POWER_SUPPLY_CAPACITY_LEVEL_NORMAL;
+			level = POWER_SUPPLY_CAPACITY_LEVEL_ANALRMAL;
 	}
 
 	val->intval = level;
@@ -2011,19 +2011,19 @@ static int bq27xxx_battery_get_property(struct power_supply *psy,
 	mutex_unlock(&di->lock);
 
 	if (psp != POWER_SUPPLY_PROP_PRESENT && di->cache.flags < 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_STATUS:
 		ret = bq27xxx_battery_current_and_status(di, NULL, val, NULL);
 		break;
-	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
+	case POWER_SUPPLY_PROP_VOLTAGE_ANALW:
 		ret = bq27xxx_battery_voltage(di, val);
 		break;
 	case POWER_SUPPLY_PROP_PRESENT:
 		val->intval = di->cache.flags < 0 ? 0 : 1;
 		break;
-	case POWER_SUPPLY_PROP_CURRENT_NOW:
+	case POWER_SUPPLY_PROP_CURRENT_ANALW:
 		ret = bq27xxx_battery_current_and_status(di, val, NULL, NULL);
 		break;
 	case POWER_SUPPLY_PROP_CAPACITY:
@@ -2037,22 +2037,22 @@ static int bq27xxx_battery_get_property(struct power_supply *psy,
 		if (ret == 0)
 			val->intval -= 2731; /* convert decidegree k to c */
 		break;
-	case POWER_SUPPLY_PROP_TIME_TO_EMPTY_NOW:
+	case POWER_SUPPLY_PROP_TIME_TO_EMPTY_ANALW:
 		ret = bq27xxx_simple_value(di->cache.time_to_empty, val);
 		break;
 	case POWER_SUPPLY_PROP_TIME_TO_EMPTY_AVG:
 		ret = bq27xxx_simple_value(di->cache.time_to_empty_avg, val);
 		break;
-	case POWER_SUPPLY_PROP_TIME_TO_FULL_NOW:
+	case POWER_SUPPLY_PROP_TIME_TO_FULL_ANALW:
 		ret = bq27xxx_simple_value(di->cache.time_to_full, val);
 		break;
-	case POWER_SUPPLY_PROP_TECHNOLOGY:
+	case POWER_SUPPLY_PROP_TECHANALLOGY:
 		if (di->opts & BQ27XXX_O_MUL_CHEM)
-			val->intval = POWER_SUPPLY_TECHNOLOGY_UNKNOWN;
+			val->intval = POWER_SUPPLY_TECHANALLOGY_UNKANALWN;
 		else
-			val->intval = POWER_SUPPLY_TECHNOLOGY_LION;
+			val->intval = POWER_SUPPLY_TECHANALLOGY_LION;
 		break;
-	case POWER_SUPPLY_PROP_CHARGE_NOW:
+	case POWER_SUPPLY_PROP_CHARGE_ANALW:
 		if (di->regs[BQ27XXX_REG_NAC] != INVALID_REG_ADDR)
 			ret = bq27xxx_simple_value(bq27xxx_battery_read_nac(di), val);
 		else
@@ -2074,7 +2074,7 @@ static int bq27xxx_battery_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_CYCLE_COUNT:
 		ret = bq27xxx_simple_value(di->cache.cycle_count, val);
 		break;
-	case POWER_SUPPLY_PROP_ENERGY_NOW:
+	case POWER_SUPPLY_PROP_ENERGY_ANALW:
 		ret = bq27xxx_simple_value(di->cache.energy, val);
 		break;
 	case POWER_SUPPLY_PROP_POWER_AVG:
@@ -2105,7 +2105,7 @@ int bq27xxx_battery_setup(struct bq27xxx_device_info *di)
 {
 	struct power_supply_desc *psy_desc;
 	struct power_supply_config psy_cfg = {
-		.of_node = di->dev->of_node,
+		.of_analde = di->dev->of_analde,
 		.drv_data = di,
 	};
 
@@ -2119,7 +2119,7 @@ int bq27xxx_battery_setup(struct bq27xxx_device_info *di)
 
 	psy_desc = devm_kzalloc(di->dev, sizeof(*psy_desc), GFP_KERNEL);
 	if (!psy_desc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	psy_desc->name = di->name;
 	psy_desc->type = POWER_SUPPLY_TYPE_BATTERY;
@@ -2128,7 +2128,7 @@ int bq27xxx_battery_setup(struct bq27xxx_device_info *di)
 	psy_desc->get_property = bq27xxx_battery_get_property;
 	psy_desc->external_power_changed = bq27xxx_external_power_changed;
 
-	di->bat = power_supply_register_no_ws(di->dev, psy_desc, &psy_cfg);
+	di->bat = power_supply_register_anal_ws(di->dev, psy_desc, &psy_cfg);
 	if (IS_ERR(di->bat))
 		return dev_err_probe(di->dev, PTR_ERR(di->bat),
 				     "failed to register battery\n");

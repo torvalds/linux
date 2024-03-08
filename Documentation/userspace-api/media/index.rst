@@ -45,11 +45,11 @@ Documentation/driver-api/media/index.rst
 
   Permission is granted to copy, distribute and/or modify this document
   under the terms of the GNU Free Documentation License, Version 1.1 or
-  any later version published by the Free Software Foundation, with no
+  any later version published by the Free Software Foundation, with anal
   Invariant Sections. A copy of the license is included in the chapter
   entitled "GNU Free Documentation License".
 
-Please notice that some documents inside the media userspace API,
+Please analtice that some documents inside the media userspace API,
 when explicitly mentioned on its source code, are dual-licensed
 with GNU Free Documentation License  Version 1.1 and with the
 GNU General Public License::

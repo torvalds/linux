@@ -59,7 +59,7 @@ TODOLIST:
 .. toctree::
    :maxdepth: 1
 
-   stable-api-nonsense
+   stable-api-analnsense
    management-style
    stable-kernel-rules
    submit-checklist

@@ -54,7 +54,7 @@ struct prodigy_hifi_spec {
 #define WM_ALC_CTRL1		0x10
 #define WM_ALC_CTRL2		0x11
 #define WM_ALC_CTRL3		0x12
-#define WM_NOISE_GATE		0x13
+#define WM_ANALISE_GATE		0x13
 #define WM_LIMITER		0x14
 #define WM_ADC_MUX		0x15
 #define WM_OUT_MUX		0x16
@@ -120,7 +120,7 @@ static unsigned short wm_get(struct snd_ice1712 *ice, int reg)
 /*
  * set the register value of WM codec and remember it
  */
-static void wm_put_nocache(struct snd_ice1712 *ice, int reg, unsigned short val)
+static void wm_put_analcache(struct snd_ice1712 *ice, int reg, unsigned short val)
 {
 	unsigned short cval;
 	cval = (reg << 9) | val;
@@ -129,7 +129,7 @@ static void wm_put_nocache(struct snd_ice1712 *ice, int reg, unsigned short val)
 
 static void wm_put(struct snd_ice1712 *ice, int reg, unsigned short val)
 {
-	wm_put_nocache(ice, reg, val);
+	wm_put_analcache(ice, reg, val);
 	reg <<= 1;
 	ice->akm[0].images[reg] = val >> 8;
 	ice->akm[0].images[reg + 1] = val;
@@ -150,7 +150,7 @@ static void set_gpio_bit(struct snd_ice1712 *ice, unsigned int bit, int val)
 }
 
 /*
- * SPI implementation for WM8766 codec - only writing supported, no readback
+ * SPI implementation for WM8766 codec - only writing supported, anal readback
  */
 
 static void wm8766_spi_send_word(struct snd_ice1712 *ice, unsigned int data)
@@ -190,7 +190,7 @@ static void wm8766_spi_write(struct snd_ice1712 *ice, unsigned int reg,
 
 
 /*
- * serial interface for ak4396 - only writing supported, no readback
+ * serial interface for ak4396 - only writing supported, anal readback
  */
 
 static void ak4396_send_word(struct snd_ice1712 *ice, unsigned int data)
@@ -323,7 +323,7 @@ static void wm_set_vol(struct snd_ice1712 *ice, unsigned int index,
 	}
 	
 	wm_put(ice, index, nvol);
-	wm_put_nocache(ice, index, 0x100 | nvol);
+	wm_put_analcache(ice, index, 0x100 | nvol);
 }
 
 static void wm8766_set_vol(struct snd_ice1712 *ice, unsigned int index,
@@ -621,7 +621,7 @@ static int wm_adc_vol_put(struct snd_kcontrol *kcontrol,
 /*
  * ADC input mux mixer control
  */
-#define wm_adc_mux_info		snd_ctl_boolean_mono_info
+#define wm_adc_mux_info		snd_ctl_boolean_moanal_info
 
 static int wm_adc_mux_get(struct snd_kcontrol *kcontrol,
 			  struct snd_ctl_elem_value *ucontrol)
@@ -661,7 +661,7 @@ static int wm_adc_mux_put(struct snd_kcontrol *kcontrol,
 /*
  * Analog bypass (In -> Out)
  */
-#define wm_bypass_info		snd_ctl_boolean_mono_info
+#define wm_bypass_info		snd_ctl_boolean_moanal_info
 
 static int wm_bypass_get(struct snd_kcontrol *kcontrol,
 			 struct snd_ctl_elem_value *ucontrol)
@@ -699,7 +699,7 @@ static int wm_bypass_put(struct snd_kcontrol *kcontrol,
 /*
  * Left/Right swap
  */
-#define wm_chswap_info		snd_ctl_boolean_mono_info
+#define wm_chswap_info		snd_ctl_boolean_moanal_info
 
 static int wm_chswap_get(struct snd_kcontrol *kcontrol,
 			 struct snd_ctl_elem_value *ucontrol)
@@ -729,7 +729,7 @@ static int wm_chswap_put(struct snd_kcontrol *kcontrol,
 		val |= 0x90;
 	if (val != oval) {
 		wm_put(ice, WM_DAC_CTRL1, val);
-		wm_put_nocache(ice, WM_DAC_CTRL1, val);
+		wm_put_analcache(ice, WM_DAC_CTRL1, val);
 		change = 1;
 	}
 	mutex_unlock(&ice->gpio_mutex);
@@ -933,7 +933,7 @@ static void wm8766_init(struct snd_ice1712 *ice)
 	static const unsigned short wm8766_inits[] = {
 		WM8766_RESET,	   0x0000,
 		WM8766_DAC_CTRL,	0x0120,
-		WM8766_INT_CTRL,	0x0022, /* I2S Normal Mode, 24 bit */
+		WM8766_INT_CTRL,	0x0022, /* I2S Analrmal Mode, 24 bit */
 		WM8766_DAC_CTRL2,       0x0001,
 		WM8766_DAC_CTRL3,       0x0080,
 		WM8766_LDA1,	    0x0100,
@@ -954,7 +954,7 @@ static void wm8766_init(struct snd_ice1712 *ice)
 static void wm8776_init(struct snd_ice1712 *ice)
 {
 	static const unsigned short wm8776_inits[] = {
-		/* These come first to reduce init pop noise */
+		/* These come first to reduce init pop analise */
 		WM_ADC_MUX,	0x0003,	/* ADC mute */
 		/* 0x00c0 replaced by 0x0003 */
 		
@@ -987,9 +987,9 @@ static int prodigy_hifi_resume(struct snd_ice1712 *ice)
 		WM_ALC_CTRL1,
 		WM_ALC_CTRL2,
 		WM_ALC_CTRL3,
-		WM_NOISE_GATE,
+		WM_ANALISE_GATE,
 		WM_ADC_MUX,
-		/* no DAC attenuation here */
+		/* anal DAC attenuation here */
 	};
 	struct prodigy_hifi_spec *spec = ice->spec;
 	int i, ch;
@@ -1035,8 +1035,8 @@ static int prodigy_hifi_init(struct snd_ice1712 *ice)
 {
 	static const unsigned short wm8776_defaults[] = {
 		WM_MASTER_CTRL,  0x0022, /* 256fs, slave mode */
-		WM_DAC_INT,	0x0022,	/* I2S, normal polarity, 24bit */
-		WM_ADC_INT,	0x0022,	/* I2S, normal polarity, 24bit */
+		WM_DAC_INT,	0x0022,	/* I2S, analrmal polarity, 24bit */
+		WM_ADC_INT,	0x0022,	/* I2S, analrmal polarity, 24bit */
 		WM_DAC_CTRL1,	0x0090,	/* DAC L/R */
 		WM_OUT_MUX,	0x0001,	/* OUT DAC */
 		WM_HP_ATTEN_L,	0x0179,	/* HP 0dB */
@@ -1045,18 +1045,18 @@ static int prodigy_hifi_init(struct snd_ice1712 *ice)
 		WM_DAC_ATTEN_L,	0x0100,	/* DAC 0dB */
 		WM_DAC_ATTEN_R,	0x0000,	/* DAC 0dB */
 		WM_DAC_ATTEN_R,	0x0100,	/* DAC 0dB */
-		WM_PHASE_SWAP,	0x0000,	/* phase normal */
+		WM_PHASE_SWAP,	0x0000,	/* phase analrmal */
 #if 0
 		WM_DAC_MASTER,	0x0100,	/* DAC master muted */
 #endif
-		WM_DAC_CTRL2,	0x0000,	/* no deemphasis, no ZFLG */
+		WM_DAC_CTRL2,	0x0000,	/* anal deemphasis, anal ZFLG */
 		WM_ADC_ATTEN_L,	0x0000,	/* ADC muted */
 		WM_ADC_ATTEN_R,	0x0000,	/* ADC muted */
 #if 1
 		WM_ALC_CTRL1,	0x007b,	/* */
 		WM_ALC_CTRL2,	0x0000,	/* */
 		WM_ALC_CTRL3,	0x0000,	/* */
-		WM_NOISE_GATE,	0x0000,	/* */
+		WM_ANALISE_GATE,	0x0000,	/* */
 #endif
 		WM_DAC_MUTE,	0x0000,	/* DAC unmute */
 		WM_ADC_MUX,	0x0003,	/* ADC unmute, both CD/Line On */
@@ -1078,12 +1078,12 @@ static int prodigy_hifi_init(struct snd_ice1712 *ice)
 
 	ice->akm = kzalloc(sizeof(struct snd_akm4xxx), GFP_KERNEL);
 	if (! ice->akm)
-		return -ENOMEM;
+		return -EANALMEM;
 	ice->akm_codecs = 1;
 
 	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec)
-		return -ENOMEM;
+		return -EANALMEM;
 	ice->spec = spec;
 
 	/* initialize WM8776 codec */
@@ -1109,7 +1109,7 @@ static int prodigy_hifi_init(struct snd_ice1712 *ice)
 static void ak4396_init(struct snd_ice1712 *ice)
 {
 	static const unsigned short ak4396_inits[] = {
-		AK4396_CTRL1,	   0x87,   /* I2S Normal Mode, 24 bit */
+		AK4396_CTRL1,	   0x87,   /* I2S Analrmal Mode, 24 bit */
 		AK4396_CTRL2,	   0x02,
 		AK4396_CTRL3,	   0x00, 
 		AK4396_LCH_ATT,	 0x00,
@@ -1161,12 +1161,12 @@ static int prodigy_hd2_init(struct snd_ice1712 *ice)
 
 	ice->akm = kzalloc(sizeof(struct snd_akm4xxx), GFP_KERNEL);
 	if (! ice->akm)
-		return -ENOMEM;
+		return -EANALMEM;
 	ice->akm_codecs = 1;
 
 	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec)
-		return -ENOMEM;
+		return -EANALMEM;
 	ice->spec = spec;
 
 #ifdef CONFIG_PM_SLEEP

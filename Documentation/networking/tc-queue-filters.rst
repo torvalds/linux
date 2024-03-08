@@ -16,7 +16,7 @@ On the transmit side:
 
 2) TC filter directs traffic to a transmit queue with the action
    skbedit queue_mapping $tx_qid. The action skbedit queue_mapping
-   for transmit queue is executed in software only and cannot be
+   for transmit queue is executed in software only and cananalt be
    offloaded.
 
 Likewise, on the receive side, the two filters for selecting set of

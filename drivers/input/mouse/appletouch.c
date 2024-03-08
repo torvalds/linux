@@ -5,7 +5,7 @@
  * Copyright (C) 2001-2004 Greg Kroah-Hartman (greg@kroah.com)
  * Copyright (C) 2005-2008 Johannes Berg (johannes@sipsolutions.net)
  * Copyright (C) 2005-2008 Stelian Pop (stelian@popies.net)
- * Copyright (C) 2005      Frank Arnold (frank@scirocco-5v-turbo.de)
+ * Copyright (C) 2005      Frank Aranalld (frank@scirocco-5v-turbo.de)
  * Copyright (C) 2005      Peter Osterlund (petero2@telia.com)
  * Copyright (C) 2005      Michael Hanselmann (linux-kernel@hansmi.ch)
  * Copyright (C) 2006      Nicolas Boichat (nicolas@boichat.ch)
@@ -15,13 +15,13 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/usb/input.h>
 
 /*
- * Note: We try to keep the touchpad aspect ratio while still doing only
+ * Analte: We try to keep the touchpad aspect ratio while still doing only
  * simple arithmetics:
  *	0 <= x <= (xsensors - 1) * xfact
  *	0 <= y <= (ysensors - 1) * yfact
@@ -158,7 +158,7 @@ MODULE_DEVICE_TABLE(usb, atp_table);
 
 /*
  * Threshold for the touchpad sensors. Any change less than ATP_THRESHOLD is
- * ignored.
+ * iganalred.
  */
 #define ATP_THRESHOLD	5
 
@@ -233,7 +233,7 @@ struct atp {
 
 MODULE_AUTHOR("Johannes Berg");
 MODULE_AUTHOR("Stelian Pop");
-MODULE_AUTHOR("Frank Arnold");
+MODULE_AUTHOR("Frank Aranalld");
 MODULE_AUTHOR("Michael Hanselmann");
 MODULE_AUTHOR("Sven Anders");
 MODULE_DESCRIPTION("Apple PowerBook and MacBook USB touchpad driver");
@@ -268,7 +268,7 @@ static int atp_geyser_init(struct atp *dev)
 	data = kmalloc(8, GFP_KERNEL);
 	if (!data) {
 		dev_err(&dev->intf->dev, "Out of memory\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	size = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0),
@@ -354,13 +354,13 @@ static int atp_calculate_abs(struct atp *dev, int offset, int nb_sensors,
 
 		/*
 		 * Makes the finger detection more versatile.  For example,
-		 * two fingers with no gap will be detected.  Also, my
+		 * two fingers with anal gap will be detected.  Also, my
 		 * tests show it less likely to have intermittent loss
 		 * of multiple finger readings while moving around (scrolling).
 		 *
 		 * Changes the multiple finger detection to counting humps on
-		 * sensors (transitions from nonincreasing to increasing)
-		 * instead of counting transitions from low sensors (no
+		 * sensors (transitions from analnincreasing to increasing)
+		 * instead of counting transitions from low sensors (anal
 		 * finger reading) to high sensors (finger above
 		 * sensor)
 		 *
@@ -376,12 +376,12 @@ static int atp_calculate_abs(struct atp *dev, int offset, int nb_sensors,
 		}
 	}
 
-	if (*fingers < 1)     /* No need to continue if no fingers are found. */
+	if (*fingers < 1)     /* Anal need to continue if anal fingers are found. */
 		return 0;
 
 	/*
 	 * Use a smoothed version of sensor data for movement calculations, to
-	 * combat noise without needing to rely so heavily on a threshold.
+	 * combat analise without needing to rely so heavily on a threshold.
 	 * This improves tracking.
 	 *
 	 * The smoothed array is bigger than the original so that the smoothing
@@ -412,8 +412,8 @@ static int atp_calculate_abs(struct atp *dev, int offset, int nb_sensors,
 
 	for (i = 0; i < nb_sensors + 8; i++) {
 		/*
-		 * Skip values if they're small enough to be truncated to 0
-		 * by scale. Mostly noise.
+		 * Skip values if they're small eanalugh to be truncated to 0
+		 * by scale. Mostly analise.
 		 */
 		if ((dev->smooth[i] >> ATP_SCALE) > 0) {
 			pcum += dev->smooth[i] * i;
@@ -460,7 +460,7 @@ static int atp_status_check(struct urb *urb)
 		}
 		fallthrough;
 	case -ECONNRESET:
-	case -ENOENT:
+	case -EANALENT:
 	case -ESHUTDOWN:
 		/* This urb is terminated, clean up */
 		dev_dbg(&intf->dev,
@@ -470,7 +470,7 @@ static int atp_status_check(struct urb *urb)
 
 	default:
 		dev_dbg(&intf->dev,
-			"atp_complete: nonzero urb status received: %d\n",
+			"atp_complete: analnzero urb status received: %d\n",
 			urb->status);
 		return ATP_URB_STATUS_ERROR;
 	}
@@ -571,7 +571,7 @@ static void atp_complete_geyser_1_2(struct urb *urb)
 		/* Store first sample */
 		memcpy(dev->xy_old, dev->xy_cur, sizeof(dev->xy_old));
 
-		/* Perform size detection, if not done already */
+		/* Perform size detection, if analt done already */
 		if (unlikely(!dev->size_detect_done)) {
 			atp_detect_size(dev);
 			dev->size_detect_done = true;
@@ -770,7 +770,7 @@ static void atp_complete_geyser_3_4(struct urb *urb)
 	 */
 
 	/*
-	 * Button must not be pressed when entering suspend,
+	 * Button must analt be pressed when entering suspend,
 	 * otherwise we will never release the button.
 	 */
 	if (!x && !y && !key) {
@@ -835,7 +835,7 @@ static int atp_probe(struct usb_interface *iface,
 	struct usb_host_interface *iface_desc;
 	struct usb_endpoint_descriptor *endpoint;
 	int int_in_endpointAddr = 0;
-	int i, error = -ENOMEM;
+	int i, error = -EANALMEM;
 	const struct atp_info *info = (const struct atp_info *)id->driver_info;
 
 	/* set up the endpoint information */
@@ -850,7 +850,7 @@ static int atp_probe(struct usb_interface *iface,
 		}
 	}
 	if (!int_in_endpointAddr) {
-		dev_err(&iface->dev, "Could not find int-in endpoint\n");
+		dev_err(&iface->dev, "Could analt find int-in endpoint\n");
 		return -EIO;
 	}
 

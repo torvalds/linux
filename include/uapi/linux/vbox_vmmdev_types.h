@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR CDDL-1.0) */
+/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-analte) OR CDDL-1.0) */
 /*
  * Virtual Device for Guest <-> VMM/Host communication, type definitions
  * which are also used for the vboxguest ioctl interface / by vboxsf
@@ -13,7 +13,7 @@
 #include <linux/types.h>
 
 /*
- * We cannot use linux' compiletime_assert here because it expects to be used
+ * We cananalt use linux' compiletime_assert here because it expects to be used
  * inside a function only. Use a typedef to a char array with a negative size.
  */
 #define VMMDEV_ASSERT_SIZE(type, size) \
@@ -33,7 +33,7 @@ enum vmmdev_request_type {
 	VMMDEVREQ_REGISTER_PATCH_MEMORY        = 22, /* since version 3.0.6 */
 	VMMDEVREQ_DEREGISTER_PATCH_MEMORY      = 23, /* since version 3.0.6 */
 	VMMDEVREQ_SET_POWER_STATUS             = 30,
-	VMMDEVREQ_ACKNOWLEDGE_EVENTS           = 41,
+	VMMDEVREQ_ACKANALWLEDGE_EVENTS           = 41,
 	VMMDEVREQ_CTL_GUEST_FILTER_MASK        = 42,
 	VMMDEVREQ_REPORT_GUEST_INFO            = 50,
 	VMMDEVREQ_REPORT_GUEST_INFO2           = 58, /* since version 3.2.0 */
@@ -55,7 +55,7 @@ enum vmmdev_request_type {
 	 * request for each display is remembered.
 	 * If event_ack is set to false, the last host request queried with
 	 * event_ack set is resent, or failing that the most recent received
-	 * from the host.  If no host request was ever received then all zeros
+	 * from the host.  If anal host request was ever received then all zeros
 	 * are returned.
 	 */
 	VMMDEVREQ_GET_DISPLAY_CHANGE_REQ2      = 54,
@@ -107,8 +107,8 @@ enum vmmdev_request_type {
 
 /* vmmdev_request_header.requestor defines */
 
-/* Requestor user not given. */
-#define VMMDEV_REQUESTOR_USR_NOT_GIVEN                      0x00000000
+/* Requestor user analt given. */
+#define VMMDEV_REQUESTOR_USR_ANALT_GIVEN                      0x00000000
 /* The kernel driver (vboxguest) is the requestor. */
 #define VMMDEV_REQUESTOR_USR_DRV                            0x00000001
 /* Some other kernel driver is the requestor. */
@@ -120,31 +120,31 @@ enum vmmdev_request_type {
 /* User classification mask. */
 #define VMMDEV_REQUESTOR_USR_MASK                           0x00000007
 
-/* Kernel mode request. Note this is 0, check for !USERMODE instead. */
+/* Kernel mode request. Analte this is 0, check for !USERMODE instead. */
 #define VMMDEV_REQUESTOR_KERNEL                             0x00000000
 /* User mode request. */
 #define VMMDEV_REQUESTOR_USERMODE                           0x00000008
 /* User or kernel mode classification mask. */
 #define VMMDEV_REQUESTOR_MODE_MASK                          0x00000008
 
-/* Don't know the physical console association of the requestor. */
-#define VMMDEV_REQUESTOR_CON_DONT_KNOW                      0x00000000
+/* Don't kanalw the physical console association of the requestor. */
+#define VMMDEV_REQUESTOR_CON_DONT_KANALW                      0x00000000
 /*
- * The request originates with a process that is NOT associated with the
+ * The request originates with a process that is ANALT associated with the
  * physical console.
  */
-#define VMMDEV_REQUESTOR_CON_NO                             0x00000010
+#define VMMDEV_REQUESTOR_CON_ANAL                             0x00000010
 /* Requestor process is associated with the physical console. */
-#define VMMDEV_REQUESTOR_CON_YES                            0x00000020
+#define VMMDEV_REQUESTOR_CON_ANAL                            0x00000020
 /* Console classification mask. */
 #define VMMDEV_REQUESTOR_CON_MASK                           0x00000030
 
 /* Requestor is member of special VirtualBox user group. */
 #define VMMDEV_REQUESTOR_GRP_VBOX                           0x00000080
 
-/* Note: trust level is for windows guests only, linux always uses not-given */
+/* Analte: trust level is for windows guests only, linux always uses analt-given */
 /* Requestor trust level: Unspecified */
-#define VMMDEV_REQUESTOR_TRUST_NOT_GIVEN                    0x00000000
+#define VMMDEV_REQUESTOR_TRUST_ANALT_GIVEN                    0x00000000
 /* Requestor trust level: Untrusted (SID S-1-16-0) */
 #define VMMDEV_REQUESTOR_TRUST_UNTRUSTED                    0x00001000
 /* Requestor trust level: Untrusted (SID S-1-16-4096) */
@@ -162,7 +162,7 @@ enum vmmdev_request_type {
 /* Requestor trust level mask */
 #define VMMDEV_REQUESTOR_TRUST_MASK                         0x00007000
 
-/* Requestor is using the less trusted user device node (/dev/vboxuser) */
+/* Requestor is using the less trusted user device analde (/dev/vboxuser) */
 #define VMMDEV_REQUESTOR_USER_DEVICE                        0x00008000
 
 /** HGCM service location types. */
@@ -269,7 +269,7 @@ VMMDEV_ASSERT_SIZE(vmmdev_hgcm_function_parameter64, 4 + 12);
 #define vmmdev_hgcm_function_parameter vmmdev_hgcm_function_parameter32
 #endif
 
-#define VMMDEV_HGCM_F_PARM_DIRECTION_NONE      0x00000000U
+#define VMMDEV_HGCM_F_PARM_DIRECTION_ANALNE      0x00000000U
 #define VMMDEV_HGCM_F_PARM_DIRECTION_TO_HOST   0x00000001U
 #define VMMDEV_HGCM_F_PARM_DIRECTION_FROM_HOST 0x00000002U
 #define VMMDEV_HGCM_F_PARM_DIRECTION_BOTH      0x00000003U

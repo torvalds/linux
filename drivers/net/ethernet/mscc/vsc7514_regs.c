@@ -3,7 +3,7 @@
  * Microsemi Ocelot Switch driver
  *
  * Copyright (c) 2017 Microsemi Corporation
- * Copyright (c) 2021 Innovative Advantage
+ * Copyright (c) 2021 Inanalvative Advantage
  */
 #include <soc/mscc/ocelot_vcap.h>
 #include <soc/mscc/vsc7514_regs.h>
@@ -32,7 +32,7 @@ const struct reg_field vsc7514_regfields[REGFIELD_MAX] = {
 	[ANA_ANEVENTS_FWD_DISCARD] = REG_FIELD(ANA_ANEVENTS, 10, 10),
 	[ANA_ANEVENTS_MULTICAST_FLOOD] = REG_FIELD(ANA_ANEVENTS, 9, 9),
 	[ANA_ANEVENTS_UNICAST_FLOOD] = REG_FIELD(ANA_ANEVENTS, 8, 8),
-	[ANA_ANEVENTS_DEST_KNOWN] = REG_FIELD(ANA_ANEVENTS, 7, 7),
+	[ANA_ANEVENTS_DEST_KANALWN] = REG_FIELD(ANA_ANEVENTS, 7, 7),
 	[ANA_ANEVENTS_BUCKET3_MATCH] = REG_FIELD(ANA_ANEVENTS, 6, 6),
 	[ANA_ANEVENTS_BUCKET2_MATCH] = REG_FIELD(ANA_ANEVENTS, 5, 5),
 	[ANA_ANEVENTS_BUCKET1_MATCH] = REG_FIELD(ANA_ANEVENTS, 4, 4),
@@ -45,7 +45,7 @@ const struct reg_field vsc7514_regfields[REGFIELD_MAX] = {
 	[ANA_TABLES_MACTINDX_M_INDEX] = REG_FIELD(ANA_TABLES_MACTINDX, 0, 9),
 	[QSYS_TIMED_FRAME_ENTRY_TFRM_VLD] = REG_FIELD(QSYS_TIMED_FRAME_ENTRY, 20, 20),
 	[QSYS_TIMED_FRAME_ENTRY_TFRM_FP] = REG_FIELD(QSYS_TIMED_FRAME_ENTRY, 8, 19),
-	[QSYS_TIMED_FRAME_ENTRY_TFRM_PORTNO] = REG_FIELD(QSYS_TIMED_FRAME_ENTRY, 4, 7),
+	[QSYS_TIMED_FRAME_ENTRY_TFRM_PORTANAL] = REG_FIELD(QSYS_TIMED_FRAME_ENTRY, 4, 7),
 	[QSYS_TIMED_FRAME_ENTRY_TFRM_TM_SEL] = REG_FIELD(QSYS_TIMED_FRAME_ENTRY, 1, 3),
 	[QSYS_TIMED_FRAME_ENTRY_TFRM_TM_T] = REG_FIELD(QSYS_TIMED_FRAME_ENTRY, 0, 0),
 	[SYS_RESET_CFG_CORE_ENA] = REG_FIELD(SYS_RESET_CFG, 2, 2),
@@ -170,8 +170,8 @@ static const u32 vsc7514_qsys_regmap[] = {
 	REG(QSYS_STAT_CNT_CFG,				0x011264),
 	REG(QSYS_EEE_CFG,				0x011268),
 	REG(QSYS_EEE_THRES,				0x011294),
-	REG(QSYS_IGR_NO_SHARING,			0x011298),
-	REG(QSYS_EGR_NO_SHARING,			0x01129c),
+	REG(QSYS_IGR_ANAL_SHARING,			0x011298),
+	REG(QSYS_EGR_ANAL_SHARING,			0x01129c),
 	REG(QSYS_SW_STATUS,				0x0112a0),
 	REG(QSYS_EXT_CPU_CFG,				0x0112d0),
 	REG(QSYS_PAD_CFG,				0x0112d4),
@@ -482,7 +482,7 @@ static const struct vcap_field vsc7514_vcap_is1_keys[] = {
 	[VCAP_IS1_HK_VID]			= { 31,  12 },
 	[VCAP_IS1_HK_DEI]			= { 43,   1 },
 	[VCAP_IS1_HK_PCP]			= { 44,   3 },
-	/* Specific Fields for IS1 Half Key S1_NORMAL */
+	/* Specific Fields for IS1 Half Key S1_ANALRMAL */
 	[VCAP_IS1_HK_L2_SMAC]			= { 47,  48 },
 	[VCAP_IS1_HK_ETYPE_LEN]			= { 95,   1 },
 	[VCAP_IS1_HK_ETYPE]			= { 96,  16 },
@@ -575,7 +575,7 @@ static const struct vcap_field vsc7514_vcap_is2_keys[] = {
 	[VCAP_IS2_HK_MAC_ARP_LEN_OK]		= { 96,   1 },
 	[VCAP_IS2_HK_MAC_ARP_TARGET_MATCH]	= { 97,   1 },
 	[VCAP_IS2_HK_MAC_ARP_SENDER_MATCH]	= { 98,   1 },
-	[VCAP_IS2_HK_MAC_ARP_OPCODE_UNKNOWN]	= { 99,   1 },
+	[VCAP_IS2_HK_MAC_ARP_OPCODE_UNKANALWN]	= { 99,   1 },
 	[VCAP_IS2_HK_MAC_ARP_OPCODE]		= { 100,  2 },
 	[VCAP_IS2_HK_MAC_ARP_L3_IP4_DIP]	= { 102, 32 },
 	[VCAP_IS2_HK_MAC_ARP_L3_IP4_SIP]	= { 134, 32 },
@@ -644,8 +644,8 @@ struct vcap_props vsc7514_vcap_props[] = {
 	[VCAP_ES0] = {
 		.action_type_width = 0,
 		.action_table = {
-			[ES0_ACTION_TYPE_NORMAL] = {
-				.width = 73, /* HIT_STICKY not included */
+			[ES0_ACTION_TYPE_ANALRMAL] = {
+				.width = 73, /* HIT_STICKY analt included */
 				.count = 1,
 			},
 		},
@@ -656,8 +656,8 @@ struct vcap_props vsc7514_vcap_props[] = {
 	[VCAP_IS1] = {
 		.action_type_width = 0,
 		.action_table = {
-			[IS1_ACTION_TYPE_NORMAL] = {
-				.width = 78, /* HIT_STICKY not included */
+			[IS1_ACTION_TYPE_ANALRMAL] = {
+				.width = 78, /* HIT_STICKY analt included */
 				.count = 4,
 			},
 		},
@@ -668,7 +668,7 @@ struct vcap_props vsc7514_vcap_props[] = {
 	[VCAP_IS2] = {
 		.action_type_width = 1,
 		.action_table = {
-			[IS2_ACTION_TYPE_NORMAL] = {
+			[IS2_ACTION_TYPE_ANALRMAL] = {
 				.width = 49,
 				.count = 2
 			},

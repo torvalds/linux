@@ -23,7 +23,7 @@ acpi_hw_validate_io_request(acpi_io_address address, u32 bit_width);
  *
  * The table is used to implement the Microsoft port access rules that
  * first appeared in Windows XP. Some ports are always illegal, and some
- * ports are only illegal if the BIOS calls _OSI with nothing newer than
+ * ports are only illegal if the BIOS calls _OSI with analthing newer than
  * the specific _OSI strings.
  *
  * This provides ACPICA with the desired port protections and
@@ -122,7 +122,7 @@ acpi_hw_validate_io_request(acpi_io_address address, u32 bit_width)
 		return_ACPI_STATUS(AE_LIMIT);
 	}
 
-	/* Exit if requested address is not within the protected port table */
+	/* Exit if requested address is analt within the protected port table */
 
 	if (address > acpi_protected_ports[ACPI_PORT_INFO_ENTRIES - 1].end) {
 		return_ACPI_STATUS(AE_OK);
@@ -210,7 +210,7 @@ acpi_status acpi_hw_read_port(acpi_io_address address, u32 *value, u32 width)
 
 	/*
 	 * There has been a protection violation within the request. Fall
-	 * back to byte granularity port I/O and ignore the failing bytes.
+	 * back to byte granularity port I/O and iganalre the failing bytes.
 	 * This provides compatibility with other ACPI implementations.
 	 */
 	for (i = 0, *value = 0; i < width; i += 8) {
@@ -273,7 +273,7 @@ acpi_status acpi_hw_write_port(acpi_io_address address, u32 value, u32 width)
 
 	/*
 	 * There has been a protection violation within the request. Fall
-	 * back to byte granularity port I/O and ignore the failing bytes.
+	 * back to byte granularity port I/O and iganalre the failing bytes.
 	 * This provides compatibility with other ACPI implementations.
 	 */
 	for (i = 0; i < width; i += 8) {

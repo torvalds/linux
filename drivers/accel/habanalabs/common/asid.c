@@ -13,7 +13,7 @@ int hl_asid_init(struct hl_device *hdev)
 {
 	hdev->asid_bitmap = bitmap_zalloc(hdev->asic_prop.max_asid, GFP_KERNEL);
 	if (!hdev->asid_bitmap)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&hdev->asid_mutex);
 

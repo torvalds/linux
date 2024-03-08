@@ -63,7 +63,7 @@
 #define IXP4XX_EXP_CNFG1		0x24
 
 #define IXP4XX_EXP_BOOT_BASE		0x00000000
-#define IXP4XX_EXP_NORMAL_BASE		0x50000000
+#define IXP4XX_EXP_ANALRMAL_BASE		0x50000000
 #define IXP4XX_EXP_STRIDE		0x01000000
 
 /* Fuses on the IXP43x */
@@ -152,7 +152,7 @@ static const struct ixp4xx_exp_tim_prop ixp4xx_exp_tim_props[] = {
 };
 
 static void ixp4xx_exp_setup_chipselect(struct ixp4xx_eb *eb,
-					struct device_node *np,
+					struct device_analde *np,
 					u32 cs_index,
 					u32 cs_size)
 {
@@ -280,7 +280,7 @@ static void ixp4xx_exp_setup_chipselect(struct ixp4xx_eb *eb,
 }
 
 static void ixp4xx_exp_setup_child(struct ixp4xx_eb *eb,
-				   struct device_node *np)
+				   struct device_analde *np)
 {
 	u32 cs_sizes[IXP4XX_EXP_NUM_CS];
 	int num_regs;
@@ -293,7 +293,7 @@ static void ixp4xx_exp_setup_child(struct ixp4xx_eb *eb,
 	if (num_regs <= 0)
 		return;
 	dev_dbg(eb->dev, "child %s has %d register sets\n",
-		of_node_full_name(np), num_regs);
+		of_analde_full_name(np), num_regs);
 
 	for (csindex = 0; csindex < IXP4XX_EXP_NUM_CS; csindex++)
 		cs_sizes[csindex] = 0;
@@ -344,33 +344,33 @@ static void ixp4xx_exp_setup_child(struct ixp4xx_eb *eb,
 static int ixp4xx_exp_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct ixp4xx_eb *eb;
-	struct device_node *child;
+	struct device_analde *child;
 	bool have_children = false;
 	u32 val;
 	int ret;
 
 	eb = devm_kzalloc(dev, sizeof(*eb), GFP_KERNEL);
 	if (!eb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	eb->dev = dev;
 	eb->is_42x = of_device_is_compatible(np, "intel,ixp42x-expansion-bus-controller");
 	eb->is_43x = of_device_is_compatible(np, "intel,ixp43x-expansion-bus-controller");
 
-	eb->rmap = syscon_node_to_regmap(np);
+	eb->rmap = syscon_analde_to_regmap(np);
 	if (IS_ERR(eb->rmap))
-		return dev_err_probe(dev, PTR_ERR(eb->rmap), "no regmap\n");
+		return dev_err_probe(dev, PTR_ERR(eb->rmap), "anal regmap\n");
 
 	/* We check that the regmap work only on first read */
 	ret = regmap_read(eb->rmap, IXP4XX_EXP_CNFG0, &val);
 	if (ret)
-		return dev_err_probe(dev, ret, "cannot read regmap\n");
+		return dev_err_probe(dev, ret, "cananalt read regmap\n");
 	if (val & IXP4XX_EXP_CNFG0_MEM_MAP)
 		eb->bus_base = IXP4XX_EXP_BOOT_BASE;
 	else
-		eb->bus_base = IXP4XX_EXP_NORMAL_BASE;
+		eb->bus_base = IXP4XX_EXP_ANALRMAL_BASE;
 	dev_info(dev, "expansion bus at %08x\n", eb->bus_base);
 
 	if (eb->is_43x) {
@@ -387,13 +387,13 @@ static int ixp4xx_exp_probe(struct platform_device *pdev)
 			dev_info(dev, "IXP43x at 667 MHz\n");
 			break;
 		default:
-			dev_info(dev, "IXP43x unknown speed\n");
+			dev_info(dev, "IXP43x unkanalwn speed\n");
 			break;
 		}
 	}
 
-	/* Walk over the child nodes and see what chipselects we use */
-	for_each_available_child_of_node(np, child) {
+	/* Walk over the child analdes and see what chipselects we use */
+	for_each_available_child_of_analde(np, child) {
 		ixp4xx_exp_setup_child(eb, child);
 		/* We have at least one child */
 		have_children = true;

@@ -84,11 +84,11 @@ static int read_mmp_block(struct super_block *sb, struct buffer_head **bh,
 
 	/* This would be sb_bread(sb, mmp_block), except we need to be sure
 	 * that the MD RAID device cache has been bypassed, and that the read
-	 * is not blocked in the elevator. */
+	 * is analt blocked in the elevator. */
 	if (!*bh) {
 		*bh = sb_getblk(sb, mmp_block);
 		if (!*bh) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto warn_exit;
 		}
 	}
@@ -124,9 +124,9 @@ void __dump_mmp_msg(struct super_block *sb, struct mmp_struct *mmp,
 {
 	__ext4_warning(sb, function, line, "%s", msg);
 	__ext4_warning(sb, function, line,
-		       "MMP failure info: last update time: %llu, last update node: %.*s, last update device: %.*s",
+		       "MMP failure info: last update time: %llu, last update analde: %.*s, last update device: %.*s",
 		       (unsigned long long)le64_to_cpu(mmp->mmp_time),
-		       (int)sizeof(mmp->mmp_nodename), mmp->mmp_nodename,
+		       (int)sizeof(mmp->mmp_analdename), mmp->mmp_analdename,
 		       (int)sizeof(mmp->mmp_bdevname), mmp->mmp_bdevname);
 }
 
@@ -159,8 +159,8 @@ static int kmmpd(void *data)
 				 EXT4_MMP_MIN_CHECK_INTERVAL);
 	mmp->mmp_check_interval = cpu_to_le16(mmp_check_interval);
 
-	memcpy(mmp->mmp_nodename, init_utsname()->nodename,
-	       sizeof(mmp->mmp_nodename));
+	memcpy(mmp->mmp_analdename, init_utsname()->analdename,
+	       sizeof(mmp->mmp_analdename));
 
 	while (!kthread_should_stop() && !ext4_forced_shutdown(sb)) {
 		if (!ext4_has_feature_mmp(sb)) {
@@ -195,7 +195,7 @@ static int kmmpd(void *data)
 
 		/*
 		 * We need to make sure that more than mmp_check_interval
-		 * seconds have not passed since writing. If that has happened
+		 * seconds have analt passed since writing. If that has happened
 		 * we need to check if the MMP block is as we left it.
 		 */
 		diff = jiffies - last_update_time;
@@ -213,8 +213,8 @@ static int kmmpd(void *data)
 
 			mmp_check = (struct mmp_struct *)(bh_check->b_data);
 			if (mmp->mmp_seq != mmp_check->mmp_seq ||
-			    memcmp(mmp->mmp_nodename, mmp_check->mmp_nodename,
-				   sizeof(mmp->mmp_nodename))) {
+			    memcmp(mmp->mmp_analdename, mmp_check->mmp_analdename,
+				   sizeof(mmp->mmp_analdename))) {
 				dump_mmp_msg(sb, mmp_check,
 					     "Error while updating MMP info. "
 					     "The filesystem seems to have been"
@@ -265,7 +265,7 @@ void ext4_stop_mmpd(struct ext4_sb_info *sbi)
 }
 
 /*
- * Get a random new sequence number but make sure it is not greater than
+ * Get a random new sequence number but make sure it is analt greater than
  * EXT4_MMP_SEQ_MAX.
  */
 static unsigned int mmp_new_seq(void)
@@ -340,7 +340,7 @@ int ext4_multi_mount_protect(struct super_block *sb,
 	mmp = (struct mmp_struct *)(bh->b_data);
 	if (seq != le32_to_cpu(mmp->mmp_seq)) {
 		dump_mmp_msg(sb, mmp,
-			     "Device is already active on another node.");
+			     "Device is already active on aanalther analde.");
 		retval = -EBUSY;
 		goto failed;
 	}
@@ -375,7 +375,7 @@ skip:
 	mmp = (struct mmp_struct *)(bh->b_data);
 	if (seq != le32_to_cpu(mmp->mmp_seq)) {
 		dump_mmp_msg(sb, mmp,
-			     "Device is already active on another node.");
+			     "Device is already active on aanalther analde.");
 		retval = -EBUSY;
 		goto failed;
 	}
@@ -396,7 +396,7 @@ skip:
 		EXT4_SB(sb)->s_mmp_tsk = NULL;
 		ext4_warning(sb, "Unable to create kmmpd thread for %s.",
 			     sb->s_id);
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto failed;
 	}
 

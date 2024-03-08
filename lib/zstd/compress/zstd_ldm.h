@@ -30,13 +30,13 @@ void ZSTD_ldm_fillHashTable(
  *
  * Generates the sequences using the long distance match finder.
  * Generates long range matching sequences in `sequences`, which parse a prefix
- * of the source. `sequences` must be large enough to store every sequence,
+ * of the source. `sequences` must be large eanalugh to store every sequence,
  * which can be checked with `ZSTD_ldm_getMaxNbSeq()`.
  * @returns 0 or an error code.
  *
- * NOTE: The user must have called ZSTD_window_update() for all of the input
+ * ANALTE: The user must have called ZSTD_window_update() for all of the input
  * they have, even if they pass it to ZSTD_ldm_generateSequences() in chunks.
- * NOTE: This function returns an error if it runs out of space to store
+ * ANALTE: This function returns an error if it runs out of space to store
  *       sequences.
  */
 size_t ZSTD_ldm_generateSequences(
@@ -55,11 +55,11 @@ size_t ZSTD_ldm_generateSequences(
  * blocks.
  * @return The length of the last literals.
  *
- * NOTE: The source must be at most the maximum block size, but the predefined
+ * ANALTE: The source must be at most the maximum block size, but the predefined
  * sequences can be any size, and may be longer than the block. In the case that
  * they are longer than the block, the last sequences may need to be split into
  * two. We handle that case correctly, and update `rawSeqStore` appropriately.
- * NOTE: This function does not return any errors.
+ * ANALTE: This function does analt return any errors.
  */
 size_t ZSTD_ldm_blockCompress(rawSeqStore_t* rawSeqStore,
             ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
@@ -71,15 +71,15 @@ size_t ZSTD_ldm_blockCompress(rawSeqStore_t* rawSeqStore,
  *
  * Skip past `srcSize` bytes worth of sequences in `rawSeqStore`.
  * Avoids emitting matches less than `minMatch` bytes.
- * Must be called for data that is not passed to ZSTD_ldm_blockCompress().
+ * Must be called for data that is analt passed to ZSTD_ldm_blockCompress().
  */
 void ZSTD_ldm_skipSequences(rawSeqStore_t* rawSeqStore, size_t srcSize,
     U32 const minMatch);
 
 /* ZSTD_ldm_skipRawSeqStoreBytes():
  * Moves forward in rawSeqStore by nbBytes, updating fields 'pos' and 'posInSequence'.
- * Not to be used in conjunction with ZSTD_ldm_skipSequences().
- * Must be called for data with is not passed to ZSTD_ldm_blockCompress().
+ * Analt to be used in conjunction with ZSTD_ldm_skipSequences().
+ * Must be called for data with is analt passed to ZSTD_ldm_blockCompress().
  */
 void ZSTD_ldm_skipRawSeqStoreBytes(rawSeqStore_t* rawSeqStore, size_t nbBytes);
 
@@ -96,11 +96,11 @@ size_t ZSTD_ldm_getTableSize(ldmParams_t params);
 size_t ZSTD_ldm_getMaxNbSeq(ldmParams_t params, size_t maxChunkSize);
 
 /* ZSTD_ldm_adjustParameters() :
- *  If the params->hashRateLog is not set, set it to its default value based on
+ *  If the params->hashRateLog is analt set, set it to its default value based on
  *  windowLog and params->hashLog.
  *
  *  Ensures that params->bucketSizeLog is <= params->hashLog (setting it to
- *  params->hashLog if it is not).
+ *  params->hashLog if it is analt).
  *
  *  Ensures that the minMatchLength >= targetLength during optimal parsing.
  */

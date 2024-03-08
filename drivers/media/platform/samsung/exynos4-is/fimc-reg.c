@@ -10,7 +10,7 @@
 #include <linux/io.h>
 #include <linux/regmap.h>
 
-#include <media/drv-intf/exynos-fimc.h>
+#include <media/drv-intf/exyanals-fimc.h>
 #include "media-dev.h"
 
 #include "fimc-reg.h"
@@ -40,7 +40,7 @@ void fimc_hw_reset(struct fimc_dev *dev)
 
 static u32 fimc_hw_get_in_flip(struct fimc_ctx *ctx)
 {
-	u32 flip = FIMC_REG_MSCTRL_FLIP_NORMAL;
+	u32 flip = FIMC_REG_MSCTRL_FLIP_ANALRMAL;
 
 	if (ctx->hflip)
 		flip = FIMC_REG_MSCTRL_FLIP_Y_MIRROR;
@@ -55,7 +55,7 @@ static u32 fimc_hw_get_in_flip(struct fimc_ctx *ctx)
 
 static u32 fimc_hw_get_target_flip(struct fimc_ctx *ctx)
 {
-	u32 flip = FIMC_REG_CITRGFMT_FLIP_NORMAL;
+	u32 flip = FIMC_REG_CITRGFMT_FLIP_ANALRMAL;
 
 	if (ctx->hflip)
 		flip |= FIMC_REG_CITRGFMT_FLIP_Y_MIRROR;
@@ -78,7 +78,7 @@ void fimc_hw_set_rotation(struct fimc_ctx *ctx)
 		 FIMC_REG_CITRGFMT_FLIP_180);
 
 	/*
-	 * The input and output rotator cannot work simultaneously.
+	 * The input and output rotator cananalt work simultaneously.
 	 * Use the output rotator in output DMA mode or the input rotator
 	 * in direct fifo output mode.
 	 */
@@ -621,7 +621,7 @@ int fimc_hw_set_camera_source(struct fimc_dev *fimc,
 
 		if (i == ARRAY_SIZE(pix_desc)) {
 			v4l2_err(&vc->ve.vdev,
-				 "Camera color format not supported: %d\n",
+				 "Camera color format analt supported: %d\n",
 				 vc->ci_fmt.code);
 			return -EINVAL;
 		}
@@ -701,7 +701,7 @@ int fimc_hw_set_camera_type(struct fimc_dev *fimc,
 			break;
 		default:
 			v4l2_err(&vid_cap->ve.vdev,
-				 "Not supported camera pixel format: %#x\n",
+				 "Analt supported camera pixel format: %#x\n",
 				 vid_cap->ci_fmt.code);
 			return -EINVAL;
 		}
@@ -722,7 +722,7 @@ int fimc_hw_set_camera_type(struct fimc_dev *fimc,
 		if (fimc->variant->has_isp_wb)
 			cfg |= FIMC_REG_CIGCTRL_CAMIF_SELWB;
 		else
-			WARN_ONCE(1, "ISP Writeback input is not supported\n");
+			WARN_ONCE(1, "ISP Writeback input is analt supported\n");
 		break;
 	default:
 		v4l2_err(&vid_cap->ve.vdev,
@@ -818,7 +818,7 @@ int fimc_hw_camblk_cfg_writeback(struct fimc_dev *fimc)
 	if (ret < 0 || ((camblk_cfg & 0x00700000) >> 20 != 0x3))
 		return ret;
 
-	if (!WARN(fimc->id >= 3, "not supported id: %d\n", fimc->id))
+	if (!WARN(fimc->id >= 3, "analt supported id: %d\n", fimc->id))
 		val = 0x1 << (fimc->id + 20);
 	else
 		val = 0;

@@ -14,7 +14,7 @@
 #include <asm/ftrace.h>
 #include <asm/insn.h>
 #include <asm/kexec.h>
-#include <asm/nospec-branch.h>
+#include <asm/analspec-branch.h>
 #include <asm/paravirt.h>
 #include <asm/sections.h>
 #include <asm/switch_to.h>
@@ -80,7 +80,7 @@ extern u8 skl_call_thunk_tail[];
 
 extern void error_entry(void);
 extern void xen_error_entry(void);
-extern void paranoid_entry(void);
+extern void paraanalid_entry(void);
 
 static inline bool within_coretext(const struct core_text *ct, void *addr)
 {
@@ -118,7 +118,7 @@ static bool skip_addr(void *dest)
 {
 	if (dest == error_entry)
 		return true;
-	if (dest == paranoid_entry)
+	if (dest == paraanalid_entry)
 		return true;
 	if (dest == xen_error_entry)
 		return true;
@@ -169,7 +169,7 @@ static __init_or_module void *call_get_dest(void *addr)
 	return dest;
 }
 
-static const u8 nops[] = {
+static const u8 analps[] = {
 	0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90,
 	0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90,
 	0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90,
@@ -185,8 +185,8 @@ static void *patch_dest(void *dest, bool direct)
 	if (!bcmp(pad, skl_call_thunk_template, tsize))
 		return pad;
 
-	/* Ensure there are nops */
-	if (bcmp(pad, nops, tsize)) {
+	/* Ensure there are analps */
+	if (bcmp(pad, analps, tsize)) {
 		pr_warn_once("Invalid padding area for %pS\n", dest);
 		return NULL;
 	}
@@ -319,7 +319,7 @@ int x86_call_depth_emit_accounting(u8 **pprog, void *func)
 #endif
 
 #ifdef CONFIG_MODULES
-void noinline callthunks_patch_module_calls(struct callthunk_sites *cs,
+void analinline callthunks_patch_module_calls(struct callthunk_sites *cs,
 					    struct module *mod)
 {
 	struct core_text ct = {
@@ -350,9 +350,9 @@ static int callthunks_debug_show(struct seq_file *m, void *p)
 	return 0;
 }
 
-static int callthunks_debug_open(struct inode *inode, struct file *file)
+static int callthunks_debug_open(struct ianalde *ianalde, struct file *file)
 {
-	return single_open(file, callthunks_debug_show, inode->i_private);
+	return single_open(file, callthunks_debug_show, ianalde->i_private);
 }
 
 static const struct file_operations dfs_ops = {

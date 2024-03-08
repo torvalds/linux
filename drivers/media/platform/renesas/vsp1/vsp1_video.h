@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /*
- * vsp1_video.h  --  R-Car VSP1 Video Node
+ * vsp1_video.h  --  R-Car VSP1 Video Analde
  *
  * Copyright (C) 2013-2015 Renesas Electronics Corporation
  *

@@ -3,8 +3,8 @@
  * Copyright 2019~2020, 2022 NXP
  */
 
-/delete-node/ &enet1_lpcg;
-/delete-node/ &fec2;
+/delete-analde/ &enet1_lpcg;
+/delete-analde/ &fec2;
 
 / {
 	conn_enet0_root_clk: clock-conn-enet0-root {

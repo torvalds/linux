@@ -158,7 +158,7 @@ enum sst_type {
 
 enum sst_flag {
 	SST_FLAG_BLOCKED = 1,
-	SST_FLAG_NONBLOCK,
+	SST_FLAG_ANALNBLOCK,
 };
 
 /*
@@ -444,7 +444,7 @@ enum sst_ssp_mode {
 };
 
 enum sst_ssp_pcm_mode {
-	SSP_PCM_MODE_NORMAL = 0,
+	SSP_PCM_MODE_ANALRMAL = 0,
 	SSP_PCM_MODE_NETWORK = 1,
 };
 
@@ -528,7 +528,7 @@ enum {
 #define SST_MODULE_GAIN 1
 #define SST_MODULE_ALGO 2
 
-#define SST_FMT_MONO 0
+#define SST_FMT_MOANAL 0
 #define SST_FMT_STEREO 3
 
 /* physical SSP numbers */
@@ -545,7 +545,7 @@ enum {
 
 struct sst_module {
 	struct snd_kcontrol *kctl;
-	struct list_head node;
+	struct list_head analde;
 };
 
 struct sst_ssp_config {
@@ -587,7 +587,7 @@ struct sst_ids {
 
 #define SST_AIF_IN(wname, wevent)							\
 {	.id = snd_soc_dapm_aif_in, .name = wname, .sname = NULL,			\
-	.reg = SND_SOC_NOPM, .shift = 0,					\
+	.reg = SND_SOC_ANALPM, .shift = 0,					\
 	.on_val = 1, .off_val = 0,							\
 	.event = wevent, .event_flags = SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD,	\
 	.priv = (void *)&(struct sst_ids) { .task_id = 0, .location_id = 0 }		\
@@ -595,7 +595,7 @@ struct sst_ids {
 
 #define SST_AIF_OUT(wname, wevent)							\
 {	.id = snd_soc_dapm_aif_out, .name = wname, .sname = NULL,			\
-	.reg = SND_SOC_NOPM, .shift = 0,						\
+	.reg = SND_SOC_ANALPM, .shift = 0,						\
 	.on_val = 1, .off_val = 0,							\
 	.event = wevent, .event_flags = SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD,	\
 	.priv = (void *)&(struct sst_ids) { .task_id = 0, .location_id = 0 }		\
@@ -603,7 +603,7 @@ struct sst_ids {
 
 #define SST_INPUT(wname, wevent)							\
 {	.id = snd_soc_dapm_input, .name = wname, .sname = NULL,				\
-	.reg = SND_SOC_NOPM, .shift = 0,						\
+	.reg = SND_SOC_ANALPM, .shift = 0,						\
 	.on_val = 1, .off_val = 0,							\
 	.event = wevent, .event_flags = SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD,	\
 	.priv = (void *)&(struct sst_ids) { .task_id = 0, .location_id = 0 }		\
@@ -611,7 +611,7 @@ struct sst_ids {
 
 #define SST_OUTPUT(wname, wevent)							\
 {	.id = snd_soc_dapm_output, .name = wname, .sname = NULL,			\
-	.reg = SND_SOC_NOPM, .shift = 0,						\
+	.reg = SND_SOC_ANALPM, .shift = 0,						\
 	.on_val = 1, .off_val = 0,							\
 	.event = wevent, .event_flags = SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD,	\
 	.priv = (void *)&(struct sst_ids) { .task_id = 0, .location_id = 0 }		\
@@ -619,7 +619,7 @@ struct sst_ids {
 
 #define SST_DAPM_OUTPUT(wname, wloc_id, wtask_id, wformat, wevent)                      \
 {	.id = snd_soc_dapm_output, .name = wname, .sname = NULL,                        \
-	.reg = SND_SOC_NOPM, .shift = 0,						\
+	.reg = SND_SOC_ANALPM, .shift = 0,						\
 	.on_val = 1, .off_val = 0,							\
 	.event = wevent, .event_flags = SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD,   \
 	.priv = (void *)&(struct sst_ids) { .location_id = wloc_id, .task_id = wtask_id,\
@@ -627,7 +627,7 @@ struct sst_ids {
 }
 
 #define SST_PATH(wname, wtask, wloc_id, wevent, wflags)					\
-{	.id = snd_soc_dapm_pga, .name = wname, .reg = SND_SOC_NOPM, .shift = 0,		\
+{	.id = snd_soc_dapm_pga, .name = wname, .reg = SND_SOC_ANALPM, .shift = 0,		\
 	.kcontrol_news = NULL, .num_kcontrols = 0,				\
 	.on_val = 1, .off_val = 0,							\
 	.event = wevent, .event_flags = wflags,						\
@@ -635,7 +635,7 @@ struct sst_ids {
 }
 
 #define SST_LINKED_PATH(wname, wtask, wloc_id, linked_wname, wevent, wflags)		\
-{	.id = snd_soc_dapm_pga, .name = wname, .reg = SND_SOC_NOPM, .shift = 0,		\
+{	.id = snd_soc_dapm_pga, .name = wname, .reg = SND_SOC_ANALPM, .shift = 0,		\
 	.kcontrol_news = NULL, .num_kcontrols = 0,				\
 	.on_val = 1, .off_val = 0,							\
 	.event = wevent, .event_flags = wflags,						\
@@ -644,7 +644,7 @@ struct sst_ids {
 }
 
 #define SST_PATH_MEDIA_LOOP(wname, wtask, wloc_id, wformat, wevent, wflags)             \
-{	.id = snd_soc_dapm_pga, .name = wname, .reg = SND_SOC_NOPM, .shift = 0,         \
+{	.id = snd_soc_dapm_pga, .name = wname, .reg = SND_SOC_ANALPM, .shift = 0,         \
 	.kcontrol_news = NULL, .num_kcontrols = 0,                         \
 	.event = wevent, .event_flags = wflags,                                         \
 	.priv = (void *)&(struct sst_ids) { .task_id = wtask, .location_id = wloc_id,	\
@@ -671,7 +671,7 @@ struct sst_ids {
 
 
 #define SST_SWM_MIXER(wname, wreg, wtask, wloc_id, wcontrols, wevent)			\
-{	.id = snd_soc_dapm_mixer, .name = wname, .reg = SND_SOC_NOPM, .shift = 0,	\
+{	.id = snd_soc_dapm_mixer, .name = wname, .reg = SND_SOC_ANALPM, .shift = 0,	\
 	.kcontrol_news = wcontrols, .num_kcontrols = ARRAY_SIZE(wcontrols),\
 	.event = wevent, .event_flags = SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD |	\
 					SND_SOC_DAPM_POST_REG,				\
@@ -843,18 +843,18 @@ struct sst_enum {
 };
 
 /* only 4 slots/channels supported atm */
-#define SST_SSP_SLOT_ENUM(s_ch_no, is_tx, xtexts) \
-	(struct sst_enum){ .reg = s_ch_no, .tx = is_tx, .max = 4+1, .texts = xtexts, }
+#define SST_SSP_SLOT_ENUM(s_ch_anal, is_tx, xtexts) \
+	(struct sst_enum){ .reg = s_ch_anal, .tx = is_tx, .max = 4+1, .texts = xtexts, }
 
 #define SST_SLOT_CTL_NAME(xpname, xmname, s_ch_name) \
 	xpname " " xmname " " s_ch_name
 
-#define SST_SSP_SLOT_CTL(xpname, xmname, s_ch_name, s_ch_no, is_tx, xtexts, xget, xput) \
+#define SST_SSP_SLOT_CTL(xpname, xmname, s_ch_name, s_ch_anal, is_tx, xtexts, xget, xput) \
 {	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
 	.name = SST_SLOT_CTL_NAME(xpname, xmname, s_ch_name), \
 	.info = sst_slot_enum_info, \
 	.get = xget, .put = xput, \
-	.private_value = (unsigned long)&SST_SSP_SLOT_ENUM(s_ch_no, is_tx, xtexts), \
+	.private_value = (unsigned long)&SST_SSP_SLOT_ENUM(s_ch_anal, is_tx, xtexts), \
 }
 
 #define SST_MUX_CTL_NAME(xpname, xinstance) \

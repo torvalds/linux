@@ -1,18 +1,18 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Samsung Exynos5433 TM2E board device tree source
+ * Samsung Exyanals5433 TM2E board device tree source
  *
  * Copyright (c) 2016 Samsung Electronics Co., Ltd.
  *
  * Device tree source file for Samsung's TM2E(TM2 EDGE) board which is based on
- * Samsung Exynos5433 SoC.
+ * Samsung Exyanals5433 SoC.
  */
 
-#include "exynos5433-tm2-common.dtsi"
+#include "exyanals5433-tm2-common.dtsi"
 
 / {
 	model = "Samsung TM2E board";
-	compatible = "samsung,tm2e", "samsung,exynos5433";
+	compatible = "samsung,tm2e", "samsung,exyanals5433";
 	chassis-type = "handset";
 };
 

@@ -4,7 +4,7 @@
 
 /*
  * 64-bit user address space can have multiple limits
- * For now supported values are:
+ * For analw supported values are:
  */
 #define TASK_SIZE_64TB  (0x0000400000000000UL)
 #define TASK_SIZE_128TB (0x0000800000000000UL)
@@ -18,7 +18,7 @@
 #define TASK_SIZE_4PB   (0x0010000000000000UL)
 
 /*
- * For now 512TB is only supported with book3s and 64K linux page size.
+ * For analw 512TB is only supported with book3s and 64K linux page size.
  */
 #ifdef CONFIG_PPC_64K_PAGES
 /*

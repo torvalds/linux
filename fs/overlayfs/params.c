@@ -23,15 +23,15 @@ module_param_named(redirect_always_follow, ovl_redirect_always_follow,
 MODULE_PARM_DESC(redirect_always_follow,
 		 "Follow redirects even if redirect_dir feature is turned off");
 
-static bool ovl_xino_auto_def = IS_ENABLED(CONFIG_OVERLAY_FS_XINO_AUTO);
-module_param_named(xino_auto, ovl_xino_auto_def, bool, 0644);
-MODULE_PARM_DESC(xino_auto,
-		 "Auto enable xino feature");
+static bool ovl_xianal_auto_def = IS_ENABLED(CONFIG_OVERLAY_FS_XIANAL_AUTO);
+module_param_named(xianal_auto, ovl_xianal_auto_def, bool, 0644);
+MODULE_PARM_DESC(xianal_auto,
+		 "Auto enable xianal feature");
 
 static bool ovl_index_def = IS_ENABLED(CONFIG_OVERLAY_FS_INDEX);
 module_param_named(index, ovl_index_def, bool, 0644);
 MODULE_PARM_DESC(index,
-		 "Default to on or off for the inodes index feature");
+		 "Default to on or off for the ianaldes index feature");
 
 static bool ovl_nfs_export_def = IS_ENABLED(CONFIG_OVERLAY_FS_NFS_EXPORT);
 module_param_named(nfs_export, ovl_nfs_export_def, bool, 0644);
@@ -55,7 +55,7 @@ enum ovl_opt {
 	Opt_uuid,
 	Opt_nfs_export,
 	Opt_userxattr,
-	Opt_xino,
+	Opt_xianal,
 	Opt_metacopy,
 	Opt_verity,
 	Opt_volatile,
@@ -85,27 +85,27 @@ static int ovl_uuid_def(void)
 	return OVL_UUID_AUTO;
 }
 
-static const struct constant_table ovl_parameter_xino[] = {
-	{ "off",	OVL_XINO_OFF  },
-	{ "auto",	OVL_XINO_AUTO },
-	{ "on",		OVL_XINO_ON   },
+static const struct constant_table ovl_parameter_xianal[] = {
+	{ "off",	OVL_XIANAL_OFF  },
+	{ "auto",	OVL_XIANAL_AUTO },
+	{ "on",		OVL_XIANAL_ON   },
 	{}
 };
 
-const char *ovl_xino_mode(struct ovl_config *config)
+const char *ovl_xianal_mode(struct ovl_config *config)
 {
-	return ovl_parameter_xino[config->xino].name;
+	return ovl_parameter_xianal[config->xianal].name;
 }
 
-static int ovl_xino_def(void)
+static int ovl_xianal_def(void)
 {
-	return ovl_xino_auto_def ? OVL_XINO_AUTO : OVL_XINO_OFF;
+	return ovl_xianal_auto_def ? OVL_XIANAL_AUTO : OVL_XIANAL_OFF;
 }
 
 const struct constant_table ovl_parameter_redirect_dir[] = {
 	{ "off",	OVL_REDIRECT_OFF      },
 	{ "follow",	OVL_REDIRECT_FOLLOW   },
-	{ "nofollow",	OVL_REDIRECT_NOFOLLOW },
+	{ "analfollow",	OVL_REDIRECT_ANALFOLLOW },
 	{ "on",		OVL_REDIRECT_ON       },
 	{}
 };
@@ -119,7 +119,7 @@ static int ovl_redirect_mode_def(void)
 {
 	return ovl_redirect_dir_def	  ? OVL_REDIRECT_ON :
 	       ovl_redirect_always_follow ? OVL_REDIRECT_FOLLOW :
-					    OVL_REDIRECT_NOFOLLOW;
+					    OVL_REDIRECT_ANALFOLLOW;
 }
 
 static const struct constant_table ovl_parameter_verity[] = {
@@ -155,7 +155,7 @@ const struct fs_parameter_spec ovl_parameter_spec[] = {
 	fsparam_enum("uuid",                Opt_uuid, ovl_parameter_uuid),
 	fsparam_enum("nfs_export",          Opt_nfs_export, ovl_parameter_bool),
 	fsparam_flag("userxattr",           Opt_userxattr),
-	fsparam_enum("xino",                Opt_xino, ovl_parameter_xino),
+	fsparam_enum("xianal",                Opt_xianal, ovl_parameter_xianal),
 	fsparam_enum("metacopy",            Opt_metacopy, ovl_parameter_bool),
 	fsparam_enum("verity",              Opt_verity, ovl_parameter_verity),
 	fsparam_flag("volatile",            Opt_volatile),
@@ -185,9 +185,9 @@ static char *ovl_next_opt(char **s)
 	return sbegin;
 }
 
-static int ovl_parse_monolithic(struct fs_context *fc, void *data)
+static int ovl_parse_moanallithic(struct fs_context *fc, void *data)
 {
-	return vfs_parse_monolithic_sep(fc, data, ovl_next_opt);
+	return vfs_parse_moanallithic_sep(fc, data, ovl_next_opt);
 }
 
 static ssize_t ovl_parse_param_split_lowerdirs(char *str)
@@ -207,7 +207,7 @@ static ssize_t ovl_parse_param_split_lowerdirs(char *str)
 				pr_err("only single ':' or double '::' sequences of unescaped colons in lowerdir mount option allowed.\n");
 				return -EINVAL;
 			}
-			/* count layers, not colons */
+			/* count layers, analt colons */
 			if (!next_colon)
 				nr_layers++;
 
@@ -230,7 +230,7 @@ static ssize_t ovl_parse_param_split_lowerdirs(char *str)
 	return nr_layers;
 }
 
-static int ovl_mount_dir_noesc(const char *name, struct path *path)
+static int ovl_mount_dir_analesc(const char *name, struct path *path)
 {
 	int err = -EINVAL;
 
@@ -264,12 +264,12 @@ static void ovl_unescape(char *s)
 
 static int ovl_mount_dir(const char *name, struct path *path)
 {
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 	char *tmp = kstrdup(name, GFP_KERNEL);
 
 	if (tmp) {
 		ovl_unescape(tmp);
-		err = ovl_mount_dir_noesc(tmp, path);
+		err = ovl_mount_dir_analesc(tmp, path);
 		kfree(tmp);
 	}
 	return err;
@@ -281,10 +281,10 @@ static int ovl_mount_dir_check(struct fs_context *fc, const struct path *path,
 	struct ovl_fs_context *ctx = fc->fs_private;
 
 	if (ovl_dentry_weird(path->dentry))
-		return invalfc(fc, "filesystem on %s not supported", name);
+		return invalfc(fc, "filesystem on %s analt supported", name);
 
 	if (!d_is_dir(path->dentry))
-		return invalfc(fc, "%s is not a directory", name);
+		return invalfc(fc, "%s is analt a directory", name);
 
 
 	/*
@@ -294,14 +294,14 @@ static int ovl_mount_dir_check(struct fs_context *fc, const struct path *path,
 	 */
 	if (upper) {
 		if (path->dentry->d_flags & DCACHE_OP_REAL)
-			return invalfc(fc, "filesystem on %s not supported as upperdir", name);
+			return invalfc(fc, "filesystem on %s analt supported as upperdir", name);
 		if (__mnt_is_readonly(path->mnt))
 			return invalfc(fc, "filesystem on %s is read-only", name);
 	} else {
 		if (ctx->lowerdir_all && layer != Opt_lowerdir)
-			return invalfc(fc, "lowerdir+ and datadir+ cannot follow lowerdir");
+			return invalfc(fc, "lowerdir+ and datadir+ cananalt follow lowerdir");
 		if (ctx->nr_data && layer == Opt_lowerdir_add)
-			return invalfc(fc, "regular lower layers cannot follow data layers");
+			return invalfc(fc, "regular lower layers cananalt follow data layers");
 		if (ctx->nr == OVL_MAX_STACK)
 			return invalfc(fc, "too many lower directories, limit is %d",
 				       OVL_MAX_STACK);
@@ -322,7 +322,7 @@ static int ovl_ctx_realloc_lower(struct fs_context *fc)
 		   OVL_MAX_STACK);
 	l = krealloc_array(ctx->lower, nr, sizeof(*l), GFP_KERNEL_ACCOUNT);
 	if (!l)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctx->lower = l;
 	ctx->capacity = nr;
@@ -370,12 +370,12 @@ static int ovl_parse_layer(struct fs_context *fc, struct fs_parameter *param,
 	int err;
 
 	if (!name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (upper)
 		err = ovl_mount_dir(name, &path);
 	else
-		err = ovl_mount_dir_noesc(name, &path);
+		err = ovl_mount_dir_analesc(name, &path);
 	if (err)
 		goto out_free;
 
@@ -445,18 +445,18 @@ static int ovl_parse_param_lowerdir(const char *name, struct fs_context *fc)
 		return 0;
 
 	if (*name == ':') {
-		pr_err("cannot append lower layer");
+		pr_err("cananalt append lower layer");
 		return -EINVAL;
 	}
 
 	// Store user provided lowerdir string to show in mount options
 	ctx->lowerdir_all = kstrdup(name, GFP_KERNEL);
 	if (!ctx->lowerdir_all)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dup = kstrdup(name, GFP_KERNEL);
 	if (!dup)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = -EINVAL;
 	nr_lower = ovl_parse_param_split_lowerdirs(dup);
@@ -469,7 +469,7 @@ static int ovl_parse_param_lowerdir(const char *name, struct fs_context *fc)
 	}
 
 	if (nr_lower > ctx->capacity) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		l = krealloc_array(ctx->lower, nr_lower, sizeof(*ctx->lower),
 				   GFP_KERNEL_ACCOUNT);
 		if (!l)
@@ -493,7 +493,7 @@ static int ovl_parse_param_lowerdir(const char *name, struct fs_context *fc)
 		if (err)
 			goto out_put;
 
-		err = -ENOMEM;
+		err = -EANALMEM;
 		l->name = kstrdup(iter, GFP_KERNEL_ACCOUNT);
 		if (!l->name)
 			goto out_put;
@@ -510,10 +510,10 @@ static int ovl_parse_param_lowerdir(const char *name, struct fs_context *fc)
 		if (*iter) {
 			/*
 			 * This is a regular layer so we require that
-			 * there are no data layers.
+			 * there are anal data layers.
 			 */
 			if (ctx->nr_data > 0) {
-				pr_err("regular lower layers cannot follow data lower layers");
+				pr_err("regular lower layers cananalt follow data lower layers");
 				goto out_put;
 			}
 
@@ -549,8 +549,8 @@ static int ovl_parse_param(struct fs_context *fc, struct fs_parameter *param)
 
 	if (fc->purpose == FS_CONTEXT_FOR_RECONFIGURE) {
 		/*
-		 * On remount overlayfs has always ignored all mount
-		 * options no matter if malformed or not so for
+		 * On remount overlayfs has always iganalred all mount
+		 * options anal matter if malformed or analt so for
 		 * backwards compatibility we do the same here.
 		 */
 		if (fc->oldapi)
@@ -559,11 +559,11 @@ static int ovl_parse_param(struct fs_context *fc, struct fs_parameter *param)
 		/*
 		 * Give us the freedom to allow changing mount options
 		 * with the new mount api in the future. So instead of
-		 * silently ignoring everything we report a proper
+		 * silently iganalring everything we report a proper
 		 * error. This is only visible for users of the new
 		 * mount api.
 		 */
-		return invalfc(fc, "No changes allowed in reconfigure");
+		return invalfc(fc, "Anal changes allowed in reconfigure");
 	}
 
 	opt = fs_parse(fc, ovl_parameter_spec, param, &result);
@@ -588,7 +588,7 @@ static int ovl_parse_param(struct fs_context *fc, struct fs_parameter *param)
 		if (config->redirect_mode == OVL_REDIRECT_OFF) {
 			config->redirect_mode = ovl_redirect_always_follow ?
 						OVL_REDIRECT_FOLLOW :
-						OVL_REDIRECT_NOFOLLOW;
+						OVL_REDIRECT_ANALFOLLOW;
 		}
 		ctx->set.redirect = true;
 		break;
@@ -603,8 +603,8 @@ static int ovl_parse_param(struct fs_context *fc, struct fs_parameter *param)
 		config->nfs_export = result.uint_32;
 		ctx->set.nfs_export = true;
 		break;
-	case Opt_xino:
-		config->xino = result.uint_32;
+	case Opt_xianal:
+		config->xianal = result.uint_32;
 		break;
 	case Opt_metacopy:
 		config->metacopy = result.uint_32;
@@ -630,7 +630,7 @@ static int ovl_parse_param(struct fs_context *fc, struct fs_parameter *param)
 
 static int ovl_get_tree(struct fs_context *fc)
 {
-	return get_tree_nodev(fc, ovl_fill_super);
+	return get_tree_analdev(fc, ovl_fill_super);
 }
 
 static inline void ovl_fs_context_free(struct ovl_fs_context *ctx)
@@ -683,7 +683,7 @@ static int ovl_reconfigure(struct fs_context *fc)
 }
 
 static const struct fs_context_operations ovl_context_ops = {
-	.parse_monolithic = ovl_parse_monolithic,
+	.parse_moanallithic = ovl_parse_moanallithic,
 	.parse_param = ovl_parse_param,
 	.get_tree    = ovl_get_tree,
 	.reconfigure = ovl_reconfigure,
@@ -704,7 +704,7 @@ int ovl_init_fs_context(struct fs_context *fc)
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL_ACCOUNT);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * By default we allocate for three lower layers. It's likely
@@ -723,7 +723,7 @@ int ovl_init_fs_context(struct fs_context *fc)
 	ofs->config.index		= ovl_index_def;
 	ofs->config.uuid		= ovl_uuid_def();
 	ofs->config.nfs_export		= ovl_nfs_export_def;
-	ofs->config.xino		= ovl_xino_def();
+	ofs->config.xianal		= ovl_xianal_def();
 	ofs->config.metacopy		= ovl_metacopy_def;
 
 	fc->s_fs_info		= ofs;
@@ -733,7 +733,7 @@ int ovl_init_fs_context(struct fs_context *fc)
 
 out_err:
 	ovl_fs_context_free(ctx);
-	return -ENOMEM;
+	return -EANALMEM;
 
 }
 
@@ -762,7 +762,7 @@ void ovl_free_fs(struct ovl_fs *ofs)
 	kern_unmount_array(mounts, ofs->numlayer);
 	kfree(ofs->layers);
 	for (i = 0; i < ofs->numfs; i++)
-		free_anon_bdev(ofs->fs[i].pseudo_dev);
+		free_aanaln_bdev(ofs->fs[i].pseudo_dev);
 	kfree(ofs->fs);
 
 	kfree(ofs->config.lowerdirs);
@@ -783,23 +783,23 @@ int ovl_fs_params_verify(const struct ovl_fs_context *ctx,
 		return -EINVAL;
 	}
 
-	/* Workdir/index are useless in non-upper mount */
+	/* Workdir/index are useless in analn-upper mount */
 	if (!config->upperdir) {
 		if (config->workdir) {
-			pr_info("option \"workdir=%s\" is useless in a non-upper mount, ignore\n",
+			pr_info("option \"workdir=%s\" is useless in a analn-upper mount, iganalre\n",
 				config->workdir);
 			kfree(config->workdir);
 			config->workdir = NULL;
 		}
 		if (config->index && set.index) {
-			pr_info("option \"index=on\" is useless in a non-upper mount, ignore\n");
+			pr_info("option \"index=on\" is useless in a analn-upper mount, iganalre\n");
 			set.index = false;
 		}
 		config->index = false;
 	}
 
 	if (!config->upperdir && config->ovl_volatile) {
-		pr_info("option \"volatile\" is meaningless in a non-upper mount, ignoring it.\n");
+		pr_info("option \"volatile\" is meaningless in a analn-upper mount, iganalring it.\n");
 		config->ovl_volatile = false;
 	}
 
@@ -856,8 +856,8 @@ int ovl_fs_params_verify(const struct ovl_fs_context *ctx,
 	/* Resolve nfs_export -> index dependency */
 	if (config->nfs_export && !config->index) {
 		if (!config->upperdir &&
-		    config->redirect_mode != OVL_REDIRECT_NOFOLLOW) {
-			pr_info("NFS export requires \"redirect_dir=nofollow\" on non-upper mount, falling back to nfs_export=off.\n");
+		    config->redirect_mode != OVL_REDIRECT_ANALFOLLOW) {
+			pr_info("NFS export requires \"redirect_dir=analfollow\" on analn-upper mount, falling back to nfs_export=off.\n");
 			config->nfs_export = false;
 		} else if (set.nfs_export && set.index) {
 			pr_err("conflicting options: nfs_export=on,index=off\n");
@@ -910,7 +910,7 @@ int ovl_fs_params_verify(const struct ovl_fs_context *ctx,
 	/* Resolve userxattr -> !redirect && !metacopy && !verity dependency */
 	if (config->userxattr) {
 		if (set.redirect &&
-		    config->redirect_mode != OVL_REDIRECT_NOFOLLOW) {
+		    config->redirect_mode != OVL_REDIRECT_ANALFOLLOW) {
 			pr_err("conflicting options: userxattr,redirect_dir=%s\n",
 			       ovl_redirect_mode(config));
 			return -EINVAL;
@@ -930,7 +930,7 @@ int ovl_fs_params_verify(const struct ovl_fs_context *ctx,
 		 * options must be explicitly enabled if used together with
 		 * userxattr.
 		 */
-		config->redirect_mode = OVL_REDIRECT_NOFOLLOW;
+		config->redirect_mode = OVL_REDIRECT_ANALFOLLOW;
 		config->metacopy = false;
 	}
 
@@ -943,7 +943,7 @@ int ovl_fs_params_verify(const struct ovl_fs_context *ctx,
  * @dentry: The dentry to query
  *
  * Prints the mount options for a given superblock.
- * Returns zero; does not fail.
+ * Returns zero; does analt fail.
  */
 int ovl_show_options(struct seq_file *m, struct dentry *dentry)
 {
@@ -957,7 +957,7 @@ int ovl_show_options(struct seq_file *m, struct dentry *dentry)
 	 * with lowerdir mount option.
 	 * lowerdirs[1..numlayer] hold the lowerdir paths that were added
 	 * using the lowerdir+ and datadir+ mount options.
-	 * For now, we do not allow mixing the legacy lowerdir mount option
+	 * For analw, we do analt allow mixing the legacy lowerdir mount option
 	 * with the new lowerdir+ and datadir+ mount options.
 	 */
 	if (lowerdirs[0]) {
@@ -988,8 +988,8 @@ int ovl_show_options(struct seq_file *m, struct dentry *dentry)
 	if (ofs->config.nfs_export != ovl_nfs_export_def)
 		seq_printf(m, ",nfs_export=%s", ofs->config.nfs_export ?
 						"on" : "off");
-	if (ofs->config.xino != ovl_xino_def() && !ovl_same_fs(ofs))
-		seq_printf(m, ",xino=%s", ovl_xino_mode(&ofs->config));
+	if (ofs->config.xianal != ovl_xianal_def() && !ovl_same_fs(ofs))
+		seq_printf(m, ",xianal=%s", ovl_xianal_mode(&ofs->config));
 	if (ofs->config.metacopy != ovl_metacopy_def)
 		seq_printf(m, ",metacopy=%s",
 			   ofs->config.metacopy ? "on" : "off");

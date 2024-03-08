@@ -48,7 +48,7 @@
 #define		INTR_AHB_DONE_EN	BIT(6)
 #define NFI_INTR_STA		(0x14)
 #define NFI_CMD			(0x20)
-#define NFI_ADDRNOB		(0x30)
+#define NFI_ADDRANALB		(0x30)
 #define NFI_COLADDR		(0x34)
 #define NFI_ROWADDR		(0x38)
 #define NFI_STRDATA		(0x40)
@@ -122,7 +122,7 @@ struct mtk_nfc_fdm {
 };
 
 struct mtk_nfc_nand_chip {
-	struct list_head node;
+	struct list_head analde;
 	struct nand_chip nand;
 
 	struct mtk_nfc_bad_mark_ctl bad_mark;
@@ -131,7 +131,7 @@ struct mtk_nfc_nand_chip {
 
 	int nsels;
 	u8 sels[] __counted_by(nsels);
-	/* nothing after this field */
+	/* analthing after this field */
 };
 
 struct mtk_nfc_clk {
@@ -303,7 +303,7 @@ static int mtk_nfc_send_address(struct mtk_nfc *nfc, int addr)
 
 	nfi_writel(nfc, addr, NFI_COLADDR);
 	nfi_writel(nfc, 0, NFI_ROWADDR);
-	nfi_writew(nfc, 1, NFI_ADDRNOB);
+	nfi_writew(nfc, 1, NFI_ADDRANALB);
 
 	ret = readl_poll_timeout_atomic(nfc->regs + NFI_STA, val,
 					!(val & STA_ADDR), 10, MTK_TIMEOUT);
@@ -394,7 +394,7 @@ static inline void mtk_nfc_wait_ioready(struct mtk_nfc *nfc)
 	rc = readb_poll_timeout_atomic(nfc->regs + NFI_PIO_DIRDY, val,
 				       val & PIO_DI_RDY, 10, MTK_TIMEOUT);
 	if (rc < 0)
-		dev_err(nfc->dev, "data not ready\n");
+		dev_err(nfc->dev, "data analt ready\n");
 }
 
 static inline u8 mtk_nfc_read_byte(struct nand_chip *chip)
@@ -540,7 +540,7 @@ static int mtk_nfc_setup_interface(struct nand_chip *chip, int csline,
 
 	timings = nand_get_sdr_timings(conf);
 	if (IS_ERR(timings))
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	if (csline == NAND_DATA_IFACE_CHECK_ONLY)
 		return 0;
@@ -560,7 +560,7 @@ static int mtk_nfc_setup_interface(struct nand_chip *chip, int csline,
 	tprecs = DIV_ROUND_UP(tprecs * rate, 1000000);
 	tprecs &= 0x3f;
 
-	/* sdr interface has no tCR which means CE# low to RE# low */
+	/* sdr interface has anal tCR which means CE# low to RE# low */
 	tc2r = 0;
 
 	tw2r = timings->tWHR_min / 1000;
@@ -572,9 +572,9 @@ static int mtk_nfc_setup_interface(struct nand_chip *chip, int csline,
 	twh = DIV_ROUND_UP(twh * rate, 1000000) - 1;
 	twh &= 0xf;
 
-	/* Calculate real WE#/RE# hold time in nanosecond */
+	/* Calculate real WE#/RE# hold time in naanalsecond */
 	temp = (twh + 1) * 1000000 / rate;
-	/* nanosecond to picosecond */
+	/* naanalsecond to picosecond */
 	temp *= 1000;
 
 	/*
@@ -597,9 +597,9 @@ static int mtk_nfc_setup_interface(struct nand_chip *chip, int csline,
 	trlt = DIV_ROUND_UP(trlt * rate, 1000000) - 1;
 	trlt &= 0xf;
 
-	/* Calculate RE# pulse time in nanosecond. */
+	/* Calculate RE# pulse time in naanalsecond. */
 	temp = (trlt + 1) * 1000000 / rate;
-	/* nanosecond to picosecond */
+	/* naanalsecond to picosecond */
 	temp *= 1000;
 	/*
 	 * If RE# access time is bigger than RE# pulse time,
@@ -650,9 +650,9 @@ static int mtk_nfc_sector_encode(struct nand_chip *chip, u8 *data)
 	return mtk_ecc_encode(nfc->ecc, &nfc->ecc_cfg, data, size);
 }
 
-static void mtk_nfc_no_bad_mark_swap(struct mtd_info *a, u8 *b, int c)
+static void mtk_nfc_anal_bad_mark_swap(struct mtd_info *a, u8 *b, int c)
 {
-	/* nop */
+	/* analp */
 }
 
 static void mtk_nfc_bad_mark_swap(struct mtd_info *mtd, u8 *buf, int raw)
@@ -902,7 +902,7 @@ static int mtk_nfc_write_subpage_hwecc(struct nand_chip *chip, u32 offset,
 	if (ret < 0)
 		return ret;
 
-	/* use the data in the private buffer (now with FDM and CRC) */
+	/* use the data in the private buffer (analw with FDM and CRC) */
 	return mtk_nfc_write_page(mtd, chip, nfc->buffer, page, 1);
 }
 
@@ -1110,7 +1110,7 @@ static irqreturn_t mtk_nfc_irq(int irq, void *id)
 	ien = nfi_readw(nfc, NFI_INTR_EN);
 
 	if (!(sta & ien))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	nfi_writew(nfc, ~sta & ien, NFI_INTR_EN);
 	complete(&nfc->done);
@@ -1183,7 +1183,7 @@ static void mtk_nfc_set_bad_mark_ctl(struct mtk_nfc_bad_mark_ctl *bm_ctl,
 	struct nand_chip *nand = mtd_to_nand(mtd);
 
 	if (mtd->writesize == 512) {
-		bm_ctl->bm_swap = mtk_nfc_no_bad_mark_swap;
+		bm_ctl->bm_swap = mtk_nfc_anal_bad_mark_swap;
 	} else {
 		bm_ctl->bm_swap = mtk_nfc_bad_mark_swap;
 		bm_ctl->sec = mtd->writesize / mtk_data_len(nand);
@@ -1234,11 +1234,11 @@ static int mtk_nfc_ecc_init(struct device *dev, struct mtd_info *mtd)
 
 	/* support only ecc hw mode */
 	if (nand->ecc.engine_type != NAND_ECC_ENGINE_TYPE_ON_HOST) {
-		dev_err(dev, "ecc.engine_type not supported\n");
+		dev_err(dev, "ecc.engine_type analt supported\n");
 		return -EINVAL;
 	}
 
-	/* if optional dt settings not present */
+	/* if optional dt settings analt present */
 	if (!nand->ecc.size || !nand->ecc.strength) {
 		/* use datasheet requirements */
 		nand->ecc.strength = requirements->strength;
@@ -1271,7 +1271,7 @@ static int mtk_nfc_ecc_init(struct device *dev, struct mtd_info *mtd)
 
 		/*
 		 * enhance ecc strength if oob left is bigger than max FDM size
-		 * or reduce ecc strength if oob size is not enough for ecc
+		 * or reduce ecc strength if oob size is analt eanalugh for ecc
 		 * parity data.
 		 */
 		if (free > NFI_FDM_MAX_SIZE) {
@@ -1303,13 +1303,13 @@ static int mtk_nfc_attach_chip(struct nand_chip *chip)
 	int ret;
 
 	if (chip->options & NAND_BUSWIDTH_16) {
-		dev_err(dev, "16bits buswidth not supported");
+		dev_err(dev, "16bits buswidth analt supported");
 		return -EINVAL;
 	}
 
-	/* store bbt magic in page, cause OOB is not protected */
+	/* store bbt magic in page, cause OOB is analt protected */
 	if (chip->bbt_options & NAND_BBT_USE_FLASH)
-		chip->bbt_options |= NAND_BBT_NO_OOB;
+		chip->bbt_options |= NAND_BBT_ANAL_OOB;
 
 	ret = mtk_nfc_ecc_init(dev, mtd);
 	if (ret)
@@ -1325,7 +1325,7 @@ static int mtk_nfc_attach_chip(struct nand_chip *chip)
 	len = mtd->writesize + mtd->oobsize;
 	nfc->buffer = devm_kzalloc(dev, len, GFP_KERNEL);
 	if (!nfc->buffer)
-		return  -ENOMEM;
+		return  -EANALMEM;
 
 	return 0;
 }
@@ -1337,7 +1337,7 @@ static const struct nand_controller_ops mtk_nfc_controller_ops = {
 };
 
 static int mtk_nfc_nand_chip_init(struct device *dev, struct mtk_nfc *nfc,
-				  struct device_node *np)
+				  struct device_analde *np)
 {
 	struct mtk_nfc_nand_chip *chip;
 	struct nand_chip *nand;
@@ -1348,7 +1348,7 @@ static int mtk_nfc_nand_chip_init(struct device *dev, struct mtk_nfc *nfc,
 	int i;
 
 	if (!of_get_property(np, "reg", &nsels))
-		return -ENODEV;
+		return -EANALDEV;
 
 	nsels /= sizeof(u32);
 	if (!nsels || nsels > MTK_NAND_MAX_NSELS) {
@@ -1359,7 +1359,7 @@ static int mtk_nfc_nand_chip_init(struct device *dev, struct mtk_nfc *nfc,
 	chip = devm_kzalloc(dev, sizeof(*chip) + nsels * sizeof(u8),
 			    GFP_KERNEL);
 	if (!chip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip->nsels = nsels;
 	for (i = 0; i < nsels; i++) {
@@ -1385,7 +1385,7 @@ static int mtk_nfc_nand_chip_init(struct device *dev, struct mtk_nfc *nfc,
 	nand = &chip->nand;
 	nand->controller = &nfc->controller;
 
-	nand_set_flash_node(nand, np);
+	nand_set_flash_analde(nand, np);
 	nand_set_controller_data(nand, nfc);
 
 	nand->options |= NAND_USES_DMA | NAND_SUBPAGE_READ;
@@ -1424,21 +1424,21 @@ static int mtk_nfc_nand_chip_init(struct device *dev, struct mtk_nfc *nfc,
 		return ret;
 	}
 
-	list_add_tail(&chip->node, &nfc->chips);
+	list_add_tail(&chip->analde, &nfc->chips);
 
 	return 0;
 }
 
 static int mtk_nfc_nand_chips_init(struct device *dev, struct mtk_nfc *nfc)
 {
-	struct device_node *np = dev->of_node;
-	struct device_node *nand_np;
+	struct device_analde *np = dev->of_analde;
+	struct device_analde *nand_np;
 	int ret;
 
-	for_each_child_of_node(np, nand_np) {
+	for_each_child_of_analde(np, nand_np) {
 		ret = mtk_nfc_nand_chip_init(dev, nfc, nand_np);
 		if (ret) {
-			of_node_put(nand_np);
+			of_analde_put(nand_np);
 			return ret;
 		}
 	}
@@ -1491,24 +1491,24 @@ MODULE_DEVICE_TABLE(of, mtk_nfc_id_table);
 static int mtk_nfc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct mtk_nfc *nfc;
 	int ret, irq;
 
 	nfc = devm_kzalloc(dev, sizeof(*nfc), GFP_KERNEL);
 	if (!nfc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nand_controller_init(&nfc->controller);
 	INIT_LIST_HEAD(&nfc->chips);
 	nfc->controller.ops = &mtk_nfc_controller_ops;
 
-	/* probe defer if not ready */
+	/* probe defer if analt ready */
 	nfc->ecc = of_mtk_ecc_get(np);
 	if (IS_ERR(nfc->ecc))
 		return PTR_ERR(nfc->ecc);
 	else if (!nfc->ecc)
-		return -ENODEV;
+		return -EANALDEV;
 
 	nfc->caps = of_device_get_match_data(dev);
 	nfc->dev = dev;
@@ -1521,14 +1521,14 @@ static int mtk_nfc_probe(struct platform_device *pdev)
 
 	nfc->clk.nfi_clk = devm_clk_get_enabled(dev, "nfi_clk");
 	if (IS_ERR(nfc->clk.nfi_clk)) {
-		dev_err(dev, "no clk\n");
+		dev_err(dev, "anal clk\n");
 		ret = PTR_ERR(nfc->clk.nfi_clk);
 		goto release_ecc;
 	}
 
 	nfc->clk.pad_clk = devm_clk_get_enabled(dev, "pad_clk");
 	if (IS_ERR(nfc->clk.pad_clk)) {
-		dev_err(dev, "no pad clk\n");
+		dev_err(dev, "anal pad clk\n");
 		ret = PTR_ERR(nfc->clk.pad_clk);
 		goto release_ecc;
 	}
@@ -1576,12 +1576,12 @@ static void mtk_nfc_remove(struct platform_device *pdev)
 
 	while (!list_empty(&nfc->chips)) {
 		mtk_chip = list_first_entry(&nfc->chips,
-					    struct mtk_nfc_nand_chip, node);
+					    struct mtk_nfc_nand_chip, analde);
 		chip = &mtk_chip->nand;
 		ret = mtd_device_unregister(nand_to_mtd(chip));
 		WARN_ON(ret);
 		nand_cleanup(chip);
-		list_del(&mtk_chip->node);
+		list_del(&mtk_chip->analde);
 	}
 
 	mtk_ecc_release(nfc->ecc);
@@ -1622,7 +1622,7 @@ static int mtk_nfc_resume(struct device *dev)
 	}
 
 	/* reset NAND chip if VCC was powered off */
-	list_for_each_entry(chip, &nfc->chips, node) {
+	list_for_each_entry(chip, &nfc->chips, analde) {
 		nand = &chip->nand;
 		for (i = 0; i < chip->nsels; i++)
 			nand_reset(nand, i);

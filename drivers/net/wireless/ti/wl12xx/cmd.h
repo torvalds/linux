@@ -3,7 +3,7 @@
  * This file is part of wl12xx
  *
  * Copyright (C) 1998-2009, 2011 Texas Instruments. All rights reserved.
- * Copyright (C) 2009 Nokia Corporation
+ * Copyright (C) 2009 Analkia Corporation
  */
 
 #ifndef __WL12XX_CMD_H__

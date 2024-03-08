@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: DTV.dmx
 
 .. _dmx_fopen:
@@ -12,7 +12,7 @@ Name
 
 Digital TV demux open()
 
-Synopsis
+Syanalpsis
 --------
 
 .. c:function:: int open(const char *deviceName, int flags)
@@ -42,8 +42,8 @@ Arguments
        - read/write access
 
     -
-       - ``O_NONBLOCK``
-       - open in non-blocking mode
+       - ``O_ANALNBLOCK``
+       - open in analn-blocking mode
          (blocking mode is the default)
 
 Description
@@ -60,10 +60,10 @@ all PES filters set in the corresponding demux device
 (``/dev/dvb/adapter?/demux?``) having the output set to ``DMX_OUT_TS_TAP``.
 A recorded Transport Stream is replayed by writing to this device.
 
-The significance of blocking or non-blocking mode is described in the
-documentation for functions where there is a difference. It does not
+The significance of blocking or analn-blocking mode is described in the
+documentation for functions where there is a difference. It does analt
 affect the semantics of the ``open()`` call itself. A device opened
-in blocking mode can later be put into non-blocking mode (and vice versa)
+in blocking mode can later be put into analn-blocking mode (and vice versa)
 using the ``F_SETFL`` command of the fcntl system call.
 
 Return Value
@@ -71,7 +71,7 @@ Return Value
 
 On success 0 is returned.
 
-On error -1 is returned, and the ``errno`` variable is set
+On error -1 is returned, and the ``erranal`` variable is set
 appropriately.
 
 .. tabularcolumns:: |p{2.5cm}|p{15.0cm}|
@@ -82,7 +82,7 @@ appropriately.
     :widths: 1 16
 
     -  -  ``EMFILE``
-       -  "Too many open files", i.e. no more filters available.
+       -  "Too many open files", i.e. anal more filters available.
 
 The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.

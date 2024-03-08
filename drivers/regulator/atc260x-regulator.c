@@ -144,11 +144,11 @@ static const struct regulator_ops atc260x_ldo_fixed_ops = {
 	.set_voltage_time_sel = atc260x_ldo_set_voltage_time_sel,
 };
 
-static const struct regulator_ops atc260x_no_ops = {
+static const struct regulator_ops atc260x_anal_ops = {
 };
 
 /*
- * Note LDO8 is not documented in datasheet (v2.4), but supported
+ * Analte LDO8 is analt documented in datasheet (v2.4), but supported
  * in the vendor's driver implementation (xapp-le-kernel).
  */
 enum atc2603c_reg_ids {
@@ -172,7 +172,7 @@ enum atc2603c_reg_ids {
 	.name = "DCDC"#num, \
 	.supply_name = "dcdc"#num, \
 	.of_match = of_match_ptr("dcdc"#num), \
-	.regulators_node = of_match_ptr("regulators"), \
+	.regulators_analde = of_match_ptr("regulators"), \
 	.id = ATC2603C_ID_DCDC##num, \
 	.ops = &atc260x_dcdc_ops, \
 	.type = REGULATOR_VOLTAGE, \
@@ -191,7 +191,7 @@ enum atc2603c_reg_ids {
 	.name = "DCDC"#num, \
 	.supply_name = "dcdc"#num, \
 	.of_match = of_match_ptr("dcdc"#num), \
-	.regulators_node = of_match_ptr("regulators"), \
+	.regulators_analde = of_match_ptr("regulators"), \
 	.id = ATC2603C_ID_DCDC##num, \
 	.ops = &atc260x_dcdc_range_ops, \
 	.type = REGULATOR_VOLTAGE, \
@@ -210,7 +210,7 @@ enum atc2603c_reg_ids {
 	.name = "DCDC"#num, \
 	.supply_name = "dcdc"#num, \
 	.of_match = of_match_ptr("dcdc"#num), \
-	.regulators_node = of_match_ptr("regulators"), \
+	.regulators_analde = of_match_ptr("regulators"), \
 	.id = ATC2603C_ID_DCDC##num, \
 	.ops = &atc260x_dcdc_fixed_ops, \
 	.type = REGULATOR_VOLTAGE, \
@@ -227,7 +227,7 @@ enum atc2603c_reg_ids {
 	.name = "LDO"#num, \
 	.supply_name = "ldo"#num, \
 	.of_match = of_match_ptr("ldo"#num), \
-	.regulators_node = of_match_ptr("regulators"), \
+	.regulators_analde = of_match_ptr("regulators"), \
 	.id = ATC2603C_ID_LDO##num, \
 	.ops = &atc260x_ldo_ops, \
 	.type = REGULATOR_VOLTAGE, \
@@ -246,7 +246,7 @@ enum atc2603c_reg_ids {
 	.name = "LDO"#num, \
 	.supply_name = "ldo"#num, \
 	.of_match = of_match_ptr("ldo"#num), \
-	.regulators_node = of_match_ptr("regulators"), \
+	.regulators_analde = of_match_ptr("regulators"), \
 	.id = ATC2603C_ID_LDO##num, \
 	.ops = &atc260x_ldo_fixed_ops, \
 	.type = REGULATOR_VOLTAGE, \
@@ -259,13 +259,13 @@ enum atc2603c_reg_ids {
 	.owner = THIS_MODULE, \
 }
 
-#define atc2603c_reg_desc_ldo_noops(num, vfixed) { \
+#define atc2603c_reg_desc_ldo_analops(num, vfixed) { \
 	.name = "LDO"#num, \
 	.supply_name = "ldo"#num, \
 	.of_match = of_match_ptr("ldo"#num), \
-	.regulators_node = of_match_ptr("regulators"), \
+	.regulators_analde = of_match_ptr("regulators"), \
 	.id = ATC2603C_ID_LDO##num, \
-	.ops = &atc260x_no_ops, \
+	.ops = &atc260x_anal_ops, \
 	.type = REGULATOR_VOLTAGE, \
 	.fixed_uV = vfixed, \
 	.n_voltages = 1, \
@@ -276,7 +276,7 @@ enum atc2603c_reg_ids {
 	.name = "SWITCHLDO"#num, \
 	.supply_name = "switchldo"#num, \
 	.of_match = of_match_ptr("switchldo"#num), \
-	.regulators_node = of_match_ptr("regulators"), \
+	.regulators_analde = of_match_ptr("regulators"), \
 	.id = ATC2603C_ID_SWITCHLDO##num, \
 	.ops = &atc260x_ldo_bypass_discharge_ops, \
 	.type = REGULATOR_VOLTAGE, \
@@ -309,7 +309,7 @@ static const struct regulator_desc atc2603c_reg[] = {
 	atc2603c_reg_desc_ldo(7, 1500000, 100000, 6, 15, 13),
 	atc2603c_reg_desc_ldo(8, 2300000, 100000, 11, 15, 12),
 	atc2603c_reg_desc_ldo_fixed(11, 2600000, 100000, 8, 15, 13),
-	atc2603c_reg_desc_ldo_noops(12, 1800000),
+	atc2603c_reg_desc_ldo_analops(12, 1800000),
 	atc2603c_reg_desc_ldo_switch(1, 3000000, 100000, 4, 4, 3),
 };
 
@@ -339,7 +339,7 @@ enum atc2609a_reg_ids {
 	.name = "DCDC"#num, \
 	.supply_name = "dcdc"#num, \
 	.of_match = of_match_ptr("dcdc"#num), \
-	.regulators_node = of_match_ptr("regulators"), \
+	.regulators_analde = of_match_ptr("regulators"), \
 	.id = ATC2609A_ID_DCDC##num, \
 	.ops = &atc260x_dcdc_ops, \
 	.type = REGULATOR_VOLTAGE, \
@@ -358,7 +358,7 @@ enum atc2609a_reg_ids {
 	.name = "DCDC"#num, \
 	.supply_name = "dcdc"#num, \
 	.of_match = of_match_ptr("dcdc"#num), \
-	.regulators_node = of_match_ptr("regulators"), \
+	.regulators_analde = of_match_ptr("regulators"), \
 	.id = ATC2609A_ID_DCDC##num, \
 	.ops = &atc260x_dcdc_range_ops, \
 	.type = REGULATOR_VOLTAGE, \
@@ -377,7 +377,7 @@ enum atc2609a_reg_ids {
 	.name = "LDO"#num, \
 	.supply_name = "ldo"#num, \
 	.of_match = of_match_ptr("ldo"#num), \
-	.regulators_node = of_match_ptr("regulators"), \
+	.regulators_analde = of_match_ptr("regulators"), \
 	.id = ATC2609A_ID_LDO##num, \
 	.ops = &atc260x_ldo_ops, \
 	.type = REGULATOR_VOLTAGE, \
@@ -396,7 +396,7 @@ enum atc2609a_reg_ids {
 	.name = "LDO"#num, \
 	.supply_name = "ldo"#num, \
 	.of_match = of_match_ptr("ldo"#num), \
-	.regulators_node = of_match_ptr("regulators"), \
+	.regulators_analde = of_match_ptr("regulators"), \
 	.id = ATC2609A_ID_LDO##num, \
 	.ops = &atc260x_ldo_bypass_ops, \
 	.type = REGULATOR_VOLTAGE, \
@@ -417,7 +417,7 @@ enum atc2609a_reg_ids {
 	.name = "LDO"#num, \
 	.supply_name = "ldo"#num, \
 	.of_match = of_match_ptr("ldo"#num), \
-	.regulators_node = of_match_ptr("regulators"), \
+	.regulators_analde = of_match_ptr("regulators"), \
 	.id = ATC2609A_ID_LDO##num, \
 	.ops = &atc260x_ldo_range_pick_ops, \
 	.type = REGULATOR_VOLTAGE, \
@@ -439,7 +439,7 @@ enum atc2609a_reg_ids {
 	.name = "LDO"#num, \
 	.supply_name = "ldo"#num, \
 	.of_match = of_match_ptr("ldo"#num), \
-	.regulators_node = of_match_ptr("regulators"), \
+	.regulators_analde = of_match_ptr("regulators"), \
 	.id = ATC2609A_ID_LDO##num, \
 	.ops = &atc260x_ldo_fixed_ops, \
 	.type = REGULATOR_VOLTAGE, \
@@ -483,7 +483,7 @@ static int atc260x_regulator_probe(struct platform_device *pdev)
 
 	atc260x_data = devm_kzalloc(&pdev->dev, sizeof(*atc260x_data), GFP_KERNEL);
 	if (!atc260x_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	atc260x_data->voltage_time_dcdc = 350;
 	atc260x_data->voltage_time_ldo = 800;
@@ -531,7 +531,7 @@ static struct platform_driver atc260x_regulator_driver = {
 	.probe = atc260x_regulator_probe,
 	.driver = {
 		.name = "atc260x-regulator",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 };
 

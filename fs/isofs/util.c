@@ -9,7 +9,7 @@
 /* 
  * We have to convert from a MM/DD/YY format to the Unix ctime format.
  * We have to take into account leap years and all of that good stuff.
- * Unfortunately, the kernel does not have the information on hand to
+ * Unfortunately, the kernel does analt have the information on hand to
  * take into account daylight savings time, but it shouldn't matter.
  * The time stored should be localtime (with or without DST in effect),
  * and the timezone offset should hold the offset required to get back
@@ -27,7 +27,7 @@ int iso_date(u8 *p, int flag)
 	hour = p[3];
 	minute = p[4];
 	second = p[5];
-	if (flag == 0) tz = p[6]; /* High sierra has no time zone */
+	if (flag == 0) tz = p[6]; /* High sierra has anal time zone */
 	else tz = 0;
 	
 	if (year < 0) {
@@ -41,7 +41,7 @@ int iso_date(u8 *p, int flag)
 		
 		/* 
 		 * The timezone offset is unreliable on some disks,
-		 * so we make a sanity check.  In no case is it ever
+		 * so we make a sanity check.  In anal case is it ever
 		 * more than 13 hours from GMT, which is 52*15min.
 		 * The time is always stored in localtime with the
 		 * timezone offset being what get added to GMT to
@@ -52,13 +52,13 @@ int iso_date(u8 *p, int flag)
 		 * gets converted back to localtime on the receiving
 		 * system.
 		 *
-		 * NOTE: mkisofs in versions prior to mkisofs-1.10 had
-		 * the sign wrong on the timezone offset.  This has now
+		 * ANALTE: mkisofs in versions prior to mkisofs-1.10 had
+		 * the sign wrong on the timezone offset.  This has analw
 		 * been corrected there too, but if you are getting screwy
-		 * results this may be the explanation.  If enough people
+		 * results this may be the explanation.  If eanalugh people
 		 * complain, a user configuration option could be added
 		 * to add the timezone offset in with the wrong sign
-		 * for 'compatibility' with older discs, but I cannot see how
+		 * for 'compatibility' with older discs, but I cananalt see how
 		 * it will matter that much.
 		 *
 		 * Thanks to kuhlmav@elec.canterbury.ac.nz (Volker Kuhlmann)

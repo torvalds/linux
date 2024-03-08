@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2022 Loongson Techanallogy Corporation Limited
  *
  * Derived from MIPS:
  * Copyright (C) 2003, 2004 Ralf Baechle
@@ -34,7 +34,7 @@
 
 /*
  * SMP assumption: Options of CPU 0 are a superset of all processors.
- * This is true for all known LoongArch systems.
+ * This is true for all kanalwn LoongArch systems.
  */
 #define cpu_has_cpucfg		cpu_opt(LOONGARCH_CPU_CPUCFG)
 #define cpu_has_lam		cpu_opt(LOONGARCH_CPU_LAM)

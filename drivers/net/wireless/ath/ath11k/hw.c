@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (c) 2018-2020 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #include <linux/types.h>
@@ -160,7 +160,7 @@ static void ath11k_init_wmi_config_ipq8074(struct ath11k_base *ab,
 		config->num_peers = TARGET_NUM_PEERS(ab, DBS_SBS);
 		config->num_tids = TARGET_NUM_TIDS(ab, DBS_SBS);
 	} else {
-		/* Control should not reach here */
+		/* Control should analt reach here */
 		config->num_peers = TARGET_NUM_PEERS(ab, SINGLE);
 		config->num_tids = TARGET_NUM_TIDS(ab, SINGLE);
 	}
@@ -296,7 +296,7 @@ static bool ath11k_hw_ipq8074_rx_desc_get_mpdu_fc_valid(struct hal_rx_desc *desc
 			   __le32_to_cpu(desc->u.ipq8074.mpdu_start.info1));
 }
 
-static u16 ath11k_hw_ipq8074_rx_desc_get_mpdu_start_seq_no(struct hal_rx_desc *desc)
+static u16 ath11k_hw_ipq8074_rx_desc_get_mpdu_start_seq_anal(struct hal_rx_desc *desc)
 {
 	return FIELD_GET(RX_MPDU_START_INFO1_MPDU_SEQ_NUM,
 			 __le32_to_cpu(desc->u.ipq8074.mpdu_start.info1));
@@ -473,7 +473,7 @@ static bool ath11k_hw_qcn9074_rx_desc_get_mpdu_fc_valid(struct hal_rx_desc *desc
 			   __le32_to_cpu(desc->u.qcn9074.mpdu_start.info11));
 }
 
-static u16 ath11k_hw_qcn9074_rx_desc_get_mpdu_start_seq_no(struct hal_rx_desc *desc)
+static u16 ath11k_hw_qcn9074_rx_desc_get_mpdu_start_seq_anal(struct hal_rx_desc *desc)
 {
 	return FIELD_GET(RX_MPDU_START_INFO11_MPDU_SEQ_NUM,
 			 __le32_to_cpu(desc->u.qcn9074.mpdu_start.info11));
@@ -644,7 +644,7 @@ static bool ath11k_hw_wcn6855_rx_desc_get_mpdu_fc_valid(struct hal_rx_desc *desc
 			   __le32_to_cpu(desc->u.wcn6855.mpdu_start.info1));
 }
 
-static u16 ath11k_hw_wcn6855_rx_desc_get_mpdu_start_seq_no(struct hal_rx_desc *desc)
+static u16 ath11k_hw_wcn6855_rx_desc_get_mpdu_start_seq_anal(struct hal_rx_desc *desc)
 {
 	return FIELD_GET(RX_MPDU_START_INFO1_MPDU_SEQ_NUM,
 			 __le32_to_cpu(desc->u.wcn6855.mpdu_start.info1));
@@ -917,7 +917,7 @@ const struct ath11k_hw_ops ipq8074_ops = {
 	.rx_desc_get_ldpc_support = ath11k_hw_ipq8074_rx_desc_get_ldpc_support,
 	.rx_desc_get_mpdu_seq_ctl_vld = ath11k_hw_ipq8074_rx_desc_get_mpdu_seq_ctl_vld,
 	.rx_desc_get_mpdu_fc_valid = ath11k_hw_ipq8074_rx_desc_get_mpdu_fc_valid,
-	.rx_desc_get_mpdu_start_seq_no = ath11k_hw_ipq8074_rx_desc_get_mpdu_start_seq_no,
+	.rx_desc_get_mpdu_start_seq_anal = ath11k_hw_ipq8074_rx_desc_get_mpdu_start_seq_anal,
 	.rx_desc_get_msdu_len = ath11k_hw_ipq8074_rx_desc_get_msdu_len,
 	.rx_desc_get_msdu_sgi = ath11k_hw_ipq8074_rx_desc_get_msdu_sgi,
 	.rx_desc_get_msdu_rate_mcs = ath11k_hw_ipq8074_rx_desc_get_msdu_rate_mcs,
@@ -957,7 +957,7 @@ const struct ath11k_hw_ops ipq6018_ops = {
 	.rx_desc_get_ldpc_support = ath11k_hw_ipq8074_rx_desc_get_ldpc_support,
 	.rx_desc_get_mpdu_seq_ctl_vld = ath11k_hw_ipq8074_rx_desc_get_mpdu_seq_ctl_vld,
 	.rx_desc_get_mpdu_fc_valid = ath11k_hw_ipq8074_rx_desc_get_mpdu_fc_valid,
-	.rx_desc_get_mpdu_start_seq_no = ath11k_hw_ipq8074_rx_desc_get_mpdu_start_seq_no,
+	.rx_desc_get_mpdu_start_seq_anal = ath11k_hw_ipq8074_rx_desc_get_mpdu_start_seq_anal,
 	.rx_desc_get_msdu_len = ath11k_hw_ipq8074_rx_desc_get_msdu_len,
 	.rx_desc_get_msdu_sgi = ath11k_hw_ipq8074_rx_desc_get_msdu_sgi,
 	.rx_desc_get_msdu_rate_mcs = ath11k_hw_ipq8074_rx_desc_get_msdu_rate_mcs,
@@ -997,7 +997,7 @@ const struct ath11k_hw_ops qca6390_ops = {
 	.rx_desc_get_ldpc_support = ath11k_hw_ipq8074_rx_desc_get_ldpc_support,
 	.rx_desc_get_mpdu_seq_ctl_vld = ath11k_hw_ipq8074_rx_desc_get_mpdu_seq_ctl_vld,
 	.rx_desc_get_mpdu_fc_valid = ath11k_hw_ipq8074_rx_desc_get_mpdu_fc_valid,
-	.rx_desc_get_mpdu_start_seq_no = ath11k_hw_ipq8074_rx_desc_get_mpdu_start_seq_no,
+	.rx_desc_get_mpdu_start_seq_anal = ath11k_hw_ipq8074_rx_desc_get_mpdu_start_seq_anal,
 	.rx_desc_get_msdu_len = ath11k_hw_ipq8074_rx_desc_get_msdu_len,
 	.rx_desc_get_msdu_sgi = ath11k_hw_ipq8074_rx_desc_get_msdu_sgi,
 	.rx_desc_get_msdu_rate_mcs = ath11k_hw_ipq8074_rx_desc_get_msdu_rate_mcs,
@@ -1037,7 +1037,7 @@ const struct ath11k_hw_ops qcn9074_ops = {
 	.rx_desc_get_ldpc_support = ath11k_hw_qcn9074_rx_desc_get_ldpc_support,
 	.rx_desc_get_mpdu_seq_ctl_vld = ath11k_hw_qcn9074_rx_desc_get_mpdu_seq_ctl_vld,
 	.rx_desc_get_mpdu_fc_valid = ath11k_hw_qcn9074_rx_desc_get_mpdu_fc_valid,
-	.rx_desc_get_mpdu_start_seq_no = ath11k_hw_qcn9074_rx_desc_get_mpdu_start_seq_no,
+	.rx_desc_get_mpdu_start_seq_anal = ath11k_hw_qcn9074_rx_desc_get_mpdu_start_seq_anal,
 	.rx_desc_get_msdu_len = ath11k_hw_qcn9074_rx_desc_get_msdu_len,
 	.rx_desc_get_msdu_sgi = ath11k_hw_qcn9074_rx_desc_get_msdu_sgi,
 	.rx_desc_get_msdu_rate_mcs = ath11k_hw_qcn9074_rx_desc_get_msdu_rate_mcs,
@@ -1077,7 +1077,7 @@ const struct ath11k_hw_ops wcn6855_ops = {
 	.rx_desc_get_ldpc_support = ath11k_hw_wcn6855_rx_desc_get_ldpc_support,
 	.rx_desc_get_mpdu_seq_ctl_vld = ath11k_hw_wcn6855_rx_desc_get_mpdu_seq_ctl_vld,
 	.rx_desc_get_mpdu_fc_valid = ath11k_hw_wcn6855_rx_desc_get_mpdu_fc_valid,
-	.rx_desc_get_mpdu_start_seq_no = ath11k_hw_wcn6855_rx_desc_get_mpdu_start_seq_no,
+	.rx_desc_get_mpdu_start_seq_anal = ath11k_hw_wcn6855_rx_desc_get_mpdu_start_seq_anal,
 	.rx_desc_get_msdu_len = ath11k_hw_wcn6855_rx_desc_get_msdu_len,
 	.rx_desc_get_msdu_sgi = ath11k_hw_wcn6855_rx_desc_get_msdu_sgi,
 	.rx_desc_get_msdu_rate_mcs = ath11k_hw_wcn6855_rx_desc_get_msdu_rate_mcs,
@@ -1117,7 +1117,7 @@ const struct ath11k_hw_ops wcn6750_ops = {
 	.rx_desc_get_ldpc_support = ath11k_hw_qcn9074_rx_desc_get_ldpc_support,
 	.rx_desc_get_mpdu_seq_ctl_vld = ath11k_hw_qcn9074_rx_desc_get_mpdu_seq_ctl_vld,
 	.rx_desc_get_mpdu_fc_valid = ath11k_hw_qcn9074_rx_desc_get_mpdu_fc_valid,
-	.rx_desc_get_mpdu_start_seq_no = ath11k_hw_qcn9074_rx_desc_get_mpdu_start_seq_no,
+	.rx_desc_get_mpdu_start_seq_anal = ath11k_hw_qcn9074_rx_desc_get_mpdu_start_seq_anal,
 	.rx_desc_get_msdu_len = ath11k_hw_qcn9074_rx_desc_get_msdu_len,
 	.rx_desc_get_msdu_sgi = ath11k_hw_qcn9074_rx_desc_get_msdu_sgi,
 	.rx_desc_get_msdu_rate_mcs = ath11k_hw_qcn9074_rx_desc_get_msdu_rate_mcs,
@@ -1158,7 +1158,7 @@ const struct ath11k_hw_ops ipq5018_ops = {
 	.rx_desc_get_ldpc_support = ath11k_hw_qcn9074_rx_desc_get_ldpc_support,
 	.rx_desc_get_mpdu_seq_ctl_vld = ath11k_hw_qcn9074_rx_desc_get_mpdu_seq_ctl_vld,
 	.rx_desc_get_mpdu_fc_valid = ath11k_hw_qcn9074_rx_desc_get_mpdu_fc_valid,
-	.rx_desc_get_mpdu_start_seq_no = ath11k_hw_qcn9074_rx_desc_get_mpdu_start_seq_no,
+	.rx_desc_get_mpdu_start_seq_anal = ath11k_hw_qcn9074_rx_desc_get_mpdu_start_seq_anal,
 	.rx_desc_get_msdu_len = ath11k_hw_qcn9074_rx_desc_get_msdu_len,
 	.rx_desc_get_msdu_sgi = ath11k_hw_qcn9074_rx_desc_get_msdu_sgi,
 	.rx_desc_get_msdu_rate_mcs = ath11k_hw_qcn9074_rx_desc_get_msdu_rate_mcs,
@@ -1348,10 +1348,10 @@ const struct ce_pipe_config ath11k_target_ce_config_wlan_ipq8074[] = {
 		.reserved = __cpu_to_le32(0),
 	},
 
-	/* CE6: Reserved for target autonomous hif_memcpy */
+	/* CE6: Reserved for target autoanalmous hif_memcpy */
 	{
 		.pipenum = __cpu_to_le32(6),
-		.pipedir = __cpu_to_le32(PIPEDIR_INOUT),
+		.pipedir = __cpu_to_le32(PIPEDIR_IANALUT),
 		.nentries = __cpu_to_le32(32),
 		.nbytes_max = __cpu_to_le32(65535),
 		.flags = __cpu_to_le32(CE_ATTR_FLAGS),
@@ -1371,7 +1371,7 @@ const struct ce_pipe_config ath11k_target_ce_config_wlan_ipq8074[] = {
 	/* CE8 target->host used only by IPA */
 	{
 		.pipenum = __cpu_to_le32(8),
-		.pipedir = __cpu_to_le32(PIPEDIR_INOUT),
+		.pipedir = __cpu_to_le32(PIPEDIR_IANALUT),
 		.nentries = __cpu_to_le32(32),
 		.nbytes_max = __cpu_to_le32(65535),
 		.flags = __cpu_to_le32(CE_ATTR_FLAGS),
@@ -1391,14 +1391,14 @@ const struct ce_pipe_config ath11k_target_ce_config_wlan_ipq8074[] = {
 	/* CE10 target->host HTT */
 	{
 		.pipenum = __cpu_to_le32(10),
-		.pipedir = __cpu_to_le32(PIPEDIR_INOUT_H2H),
+		.pipedir = __cpu_to_le32(PIPEDIR_IANALUT_H2H),
 		.nentries = __cpu_to_le32(0),
 		.nbytes_max = __cpu_to_le32(0),
 		.flags = __cpu_to_le32(CE_ATTR_FLAGS),
 		.reserved = __cpu_to_le32(0),
 	},
 
-	/* CE11 Not used */
+	/* CE11 Analt used */
 };
 
 /* Map from service/endpoint to Copy Engine.
@@ -1486,12 +1486,12 @@ const struct service_to_pipe ath11k_target_service_to_ce_map_wlan_ipq8074[] = {
 		.pipedir = __cpu_to_le32(PIPEDIR_IN),	/* in = DL = target -> host */
 		.pipenum = __cpu_to_le32(1),
 	},
-	{ /* not used */
+	{ /* analt used */
 		.service_id = __cpu_to_le32(ATH11K_HTC_SVC_ID_TEST_RAW_STREAMS),
 		.pipedir = __cpu_to_le32(PIPEDIR_OUT),	/* out = UL = host -> target */
 		.pipenum = __cpu_to_le32(0),
 	},
-	{ /* not used */
+	{ /* analt used */
 		.service_id = __cpu_to_le32(ATH11K_HTC_SVC_ID_TEST_RAW_STREAMS),
 		.pipedir = __cpu_to_le32(PIPEDIR_IN),	/* in = DL = target -> host */
 		.pipenum = __cpu_to_le32(1),
@@ -1588,12 +1588,12 @@ const struct service_to_pipe ath11k_target_service_to_ce_map_wlan_ipq6018[] = {
 		.pipedir = __cpu_to_le32(PIPEDIR_IN),	/* in = DL = target -> host */
 		.pipenum = __cpu_to_le32(1),
 	},
-	{ /* not used */
+	{ /* analt used */
 		.service_id = __cpu_to_le32(ATH11K_HTC_SVC_ID_TEST_RAW_STREAMS),
 		.pipedir = __cpu_to_le32(PIPEDIR_OUT),	/* out = UL = host -> target */
 		.pipenum = __cpu_to_le32(0),
 	},
-	{ /* not used */
+	{ /* analt used */
 		.service_id = __cpu_to_le32(ATH11K_HTC_SVC_ID_TEST_RAW_STREAMS),
 		.pipedir = __cpu_to_le32(PIPEDIR_IN),	/* in = DL = target -> host */
 		.pipenum = __cpu_to_le32(1),
@@ -1681,10 +1681,10 @@ const struct ce_pipe_config ath11k_target_ce_config_wlan_qca6390[] = {
 		.reserved = __cpu_to_le32(0),
 	},
 
-	/* CE6: Reserved for target autonomous hif_memcpy */
+	/* CE6: Reserved for target autoanalmous hif_memcpy */
 	{
 		.pipenum = __cpu_to_le32(6),
-		.pipedir = __cpu_to_le32(PIPEDIR_INOUT),
+		.pipedir = __cpu_to_le32(PIPEDIR_IANALUT),
 		.nentries = __cpu_to_le32(32),
 		.nbytes_max = __cpu_to_le32(16384),
 		.flags = __cpu_to_le32(CE_ATTR_FLAGS),
@@ -1694,7 +1694,7 @@ const struct ce_pipe_config ath11k_target_ce_config_wlan_qca6390[] = {
 	/* CE7 used only by Host */
 	{
 		.pipenum = __cpu_to_le32(7),
-		.pipedir = __cpu_to_le32(PIPEDIR_INOUT_H2H),
+		.pipedir = __cpu_to_le32(PIPEDIR_IANALUT_H2H),
 		.nentries = __cpu_to_le32(0),
 		.nbytes_max = __cpu_to_le32(0),
 		.flags = __cpu_to_le32(CE_ATTR_FLAGS | CE_ATTR_DIS_INTR),
@@ -1704,7 +1704,7 @@ const struct ce_pipe_config ath11k_target_ce_config_wlan_qca6390[] = {
 	/* CE8 target->host used only by IPA */
 	{
 		.pipenum = __cpu_to_le32(8),
-		.pipedir = __cpu_to_le32(PIPEDIR_INOUT),
+		.pipedir = __cpu_to_le32(PIPEDIR_IANALUT),
 		.nentries = __cpu_to_le32(32),
 		.nbytes_max = __cpu_to_le32(16384),
 		.flags = __cpu_to_le32(CE_ATTR_FLAGS),
@@ -1860,10 +1860,10 @@ const struct ce_pipe_config ath11k_target_ce_config_wlan_qcn9074[] = {
 		.reserved = __cpu_to_le32(0),
 	},
 
-	/* CE6: Reserved for target autonomous hif_memcpy */
+	/* CE6: Reserved for target autoanalmous hif_memcpy */
 	{
 		.pipenum = __cpu_to_le32(6),
-		.pipedir = __cpu_to_le32(PIPEDIR_INOUT),
+		.pipedir = __cpu_to_le32(PIPEDIR_IANALUT),
 		.nentries = __cpu_to_le32(32),
 		.nbytes_max = __cpu_to_le32(16384),
 		.flags = __cpu_to_le32(CE_ATTR_FLAGS),
@@ -1873,7 +1873,7 @@ const struct ce_pipe_config ath11k_target_ce_config_wlan_qcn9074[] = {
 	/* CE7 used only by Host */
 	{
 		.pipenum = __cpu_to_le32(7),
-		.pipedir = __cpu_to_le32(PIPEDIR_INOUT_H2H),
+		.pipedir = __cpu_to_le32(PIPEDIR_IANALUT_H2H),
 		.nentries = __cpu_to_le32(0),
 		.nbytes_max = __cpu_to_le32(0),
 		.flags = __cpu_to_le32(CE_ATTR_FLAGS | CE_ATTR_DIS_INTR),
@@ -1883,7 +1883,7 @@ const struct ce_pipe_config ath11k_target_ce_config_wlan_qcn9074[] = {
 	/* CE8 target->host used only by IPA */
 	{
 		.pipenum = __cpu_to_le32(8),
-		.pipedir = __cpu_to_le32(PIPEDIR_INOUT),
+		.pipedir = __cpu_to_le32(PIPEDIR_IANALUT),
 		.nentries = __cpu_to_le32(32),
 		.nbytes_max = __cpu_to_le32(16384),
 		.flags = __cpu_to_le32(CE_ATTR_FLAGS),
@@ -2132,10 +2132,10 @@ const struct ce_pipe_config ath11k_target_ce_config_wlan_ipq5018[] = {
 		.reserved = __cpu_to_le32(0),
 	},
 
-	/* CE6: Reserved for target autonomous hif_memcpy */
+	/* CE6: Reserved for target autoanalmous hif_memcpy */
 	{
 		.pipenum = __cpu_to_le32(6),
-		.pipedir = __cpu_to_le32(PIPEDIR_INOUT),
+		.pipedir = __cpu_to_le32(PIPEDIR_IANALUT),
 		.nentries = __cpu_to_le32(32),
 		.nbytes_max = __cpu_to_le32(16384),
 		.flags = __cpu_to_le32(CE_ATTR_FLAGS),
@@ -2155,7 +2155,7 @@ const struct ce_pipe_config ath11k_target_ce_config_wlan_ipq5018[] = {
 	/* CE8 target->host used only by IPA */
 	{
 		.pipenum = __cpu_to_le32(8),
-		.pipedir = __cpu_to_le32(PIPEDIR_INOUT),
+		.pipedir = __cpu_to_le32(PIPEDIR_IANALUT),
 		.nentries = __cpu_to_le32(32),
 		.nbytes_max = __cpu_to_le32(16384),
 		.flags = __cpu_to_le32(CE_ATTR_FLAGS),
@@ -2359,7 +2359,7 @@ const struct ath11k_hw_regs ipq8074_regs = {
 	/* Shadow register area */
 	.hal_shadow_base_addr = 0x0,
 
-	/* REO misc control register, not used in IPQ8074 */
+	/* REO misc control register, analt used in IPQ8074 */
 	.hal_reo1_misc_ctl = 0x0,
 };
 
@@ -2444,7 +2444,7 @@ const struct ath11k_hw_regs qca6390_regs = {
 	/* Shadow register area */
 	.hal_shadow_base_addr = 0x000008fc,
 
-	/* REO misc control register, not used in QCA6390 */
+	/* REO misc control register, analt used in QCA6390 */
 	.hal_reo1_misc_ctl = 0x0,
 };
 
@@ -2529,7 +2529,7 @@ const struct ath11k_hw_regs qcn9074_regs = {
 	/* Shadow register area */
 	.hal_shadow_base_addr = 0x0,
 
-	/* REO misc control register, not used in QCN9074 */
+	/* REO misc control register, analt used in QCN9074 */
 	.hal_reo1_misc_ctl = 0x0,
 };
 

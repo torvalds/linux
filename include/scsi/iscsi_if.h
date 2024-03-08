@@ -22,7 +22,7 @@
 #define ISCSI_ERR_BASE			1000
 
 enum iscsi_uevent_e {
-	ISCSI_UEVENT_UNKNOWN		= 0,
+	ISCSI_UEVENT_UNKANALWN		= 0,
 
 	/* down events */
 	ISCSI_UEVENT_CREATE_SESSION	= UEVENT_BASE + 1,
@@ -52,12 +52,12 @@ enum iscsi_uevent_e {
 	ISCSI_UEVENT_PING		= UEVENT_BASE + 22,
 	ISCSI_UEVENT_GET_CHAP		= UEVENT_BASE + 23,
 	ISCSI_UEVENT_DELETE_CHAP	= UEVENT_BASE + 24,
-	ISCSI_UEVENT_SET_FLASHNODE_PARAMS	= UEVENT_BASE + 25,
-	ISCSI_UEVENT_NEW_FLASHNODE	= UEVENT_BASE + 26,
-	ISCSI_UEVENT_DEL_FLASHNODE	= UEVENT_BASE + 27,
-	ISCSI_UEVENT_LOGIN_FLASHNODE	= UEVENT_BASE + 28,
-	ISCSI_UEVENT_LOGOUT_FLASHNODE	= UEVENT_BASE + 29,
-	ISCSI_UEVENT_LOGOUT_FLASHNODE_SID	= UEVENT_BASE + 30,
+	ISCSI_UEVENT_SET_FLASHANALDE_PARAMS	= UEVENT_BASE + 25,
+	ISCSI_UEVENT_NEW_FLASHANALDE	= UEVENT_BASE + 26,
+	ISCSI_UEVENT_DEL_FLASHANALDE	= UEVENT_BASE + 27,
+	ISCSI_UEVENT_LOGIN_FLASHANALDE	= UEVENT_BASE + 28,
+	ISCSI_UEVENT_LOGOUT_FLASHANALDE	= UEVENT_BASE + 29,
+	ISCSI_UEVENT_LOGOUT_FLASHANALDE_SID	= UEVENT_BASE + 30,
 	ISCSI_UEVENT_SET_CHAP		= UEVENT_BASE + 31,
 	ISCSI_UEVENT_GET_HOST_STATS	= UEVENT_BASE + 32,
 	ISCSI_UEVENT_DESTROY_SESSION_ASYNC	= UEVENT_BASE + 33,
@@ -152,11 +152,11 @@ struct iscsi_uevent {
 			uint32_t	cid;
 		} get_stats;
 		struct msg_transport_connect {
-			uint32_t	non_blocking;
+			uint32_t	analn_blocking;
 		} ep_connect;
 		struct msg_transport_connect_through_host {
-			uint32_t	host_no;
-			uint32_t	non_blocking;
+			uint32_t	host_anal;
+			uint32_t	analn_blocking;
 		} ep_connect_through_host;
 		struct msg_transport_poll {
 			uint64_t	ep_handle;
@@ -167,29 +167,29 @@ struct iscsi_uevent {
 		} ep_disconnect;
 		struct msg_tgt_dscvr {
 			enum iscsi_tgt_dscvr	type;
-			uint32_t	host_no;
+			uint32_t	host_anal;
 			/*
  			 * enable = 1 to establish a new connection
 			 * with the server. enable = 0 to disconnect
 			 * from the server. Used primarily to switch
-			 * from one iSNS server to another.
+			 * from one iSNS server to aanalther.
 			 */
 			uint32_t	enable;
 		} tgt_dscvr;
 		struct msg_set_host_param {
-			uint32_t	host_no;
+			uint32_t	host_anal;
 			uint32_t	param; /* enum iscsi_host_param */
 			uint32_t	len;
 		} set_host_param;
 		struct msg_set_path {
-			uint32_t	host_no;
+			uint32_t	host_anal;
 		} set_path;
 		struct msg_set_iface_params {
-			uint32_t	host_no;
+			uint32_t	host_anal;
 			uint32_t	count;
 		} set_iface_params;
 		struct msg_iscsi_ping {
-			uint32_t        host_no;
+			uint32_t        host_anal;
 			uint32_t        iface_num;
 			uint32_t        iface_type;
 			uint32_t        payload_size;
@@ -197,7 +197,7 @@ struct iscsi_uevent {
 						   with each ping request */
 		} iscsi_ping;
 		struct msg_get_chap {
-			uint32_t	host_no;
+			uint32_t	host_anal;
 			uint32_t	num_entries; /* number of CHAP entries
 						      * on request, number of
 						      * valid CHAP entries on
@@ -205,36 +205,36 @@ struct iscsi_uevent {
 			uint16_t	chap_tbl_idx;
 		} get_chap;
 		struct msg_delete_chap {
-		       uint32_t        host_no;
+		       uint32_t        host_anal;
 		       uint16_t        chap_tbl_idx;
 		} delete_chap;
-		struct msg_set_flashnode_param {
-			uint32_t	host_no;
-			uint32_t	flashnode_idx;
+		struct msg_set_flashanalde_param {
+			uint32_t	host_anal;
+			uint32_t	flashanalde_idx;
 			uint32_t	count;
-		} set_flashnode;
-		struct msg_new_flashnode {
-			uint32_t	host_no;
+		} set_flashanalde;
+		struct msg_new_flashanalde {
+			uint32_t	host_anal;
 			uint32_t	len;
-		} new_flashnode;
-		struct msg_del_flashnode {
-			uint32_t	host_no;
-			uint32_t	flashnode_idx;
-		} del_flashnode;
-		struct msg_login_flashnode {
-			uint32_t	host_no;
-			uint32_t	flashnode_idx;
-		} login_flashnode;
-		struct msg_logout_flashnode {
-			uint32_t	host_no;
-			uint32_t	flashnode_idx;
-		} logout_flashnode;
-		struct msg_logout_flashnode_sid {
-			uint32_t	host_no;
+		} new_flashanalde;
+		struct msg_del_flashanalde {
+			uint32_t	host_anal;
+			uint32_t	flashanalde_idx;
+		} del_flashanalde;
+		struct msg_login_flashanalde {
+			uint32_t	host_anal;
+			uint32_t	flashanalde_idx;
+		} login_flashanalde;
+		struct msg_logout_flashanalde {
+			uint32_t	host_anal;
+			uint32_t	flashanalde_idx;
+		} logout_flashanalde;
+		struct msg_logout_flashanalde_sid {
+			uint32_t	host_anal;
 			uint32_t	sid;
-		} logout_flashnode_sid;
+		} logout_flashanalde_sid;
 		struct msg_get_host_stats {
-			uint32_t host_no;
+			uint32_t host_anal;
 		} get_host_stats;
 	} u;
 	union {
@@ -242,7 +242,7 @@ struct iscsi_uevent {
 		int			retcode;
 		struct msg_create_session_ret {
 			uint32_t	sid;
-			uint32_t	host_no;
+			uint32_t	host_anal;
 		} c_session_ret;
 		struct msg_create_conn_ret {
 			uint32_t	sid;
@@ -250,7 +250,7 @@ struct iscsi_uevent {
 		} c_conn_ret;
 		struct msg_unbind_session {
 			uint32_t	sid;
-			uint32_t	host_no;
+			uint32_t	host_anal;
 		} unbind_session;
 		struct msg_recv_req {
 			uint32_t	sid;
@@ -268,34 +268,34 @@ struct iscsi_uevent {
 			uint32_t	error; /* enum iscsi_err */
 		} connerror;
 		struct msg_session_destroyed {
-			uint32_t	host_no;
+			uint32_t	host_anal;
 			uint32_t	sid;
 		} d_session;
 		struct msg_transport_connect_ret {
 			uint64_t	handle;
 		} ep_connect_ret;
 		struct msg_req_path {
-			uint32_t	host_no;
+			uint32_t	host_anal;
 		} req_path;
-		struct msg_notify_if_down {
-			uint32_t	host_no;
-		} notify_if_down;
+		struct msg_analtify_if_down {
+			uint32_t	host_anal;
+		} analtify_if_down;
 		struct msg_host_event {
-			uint32_t	host_no;
+			uint32_t	host_anal;
 			uint32_t	data_size;
 			enum iscsi_host_event_code code;
 		} host_event;
 		struct msg_ping_comp {
-			uint32_t        host_no;
+			uint32_t        host_anal;
 			uint32_t        status; /* enum
 						 * iscsi_ping_status_code */
 			uint32_t	pid;	/* unique ping id associated
 						   with each ping request */
 			uint32_t        data_size;
 		} ping_comp;
-		struct msg_new_flashnode_ret {
-			uint32_t	flashnode_idx;
-		} new_flashnode_ret;
+		struct msg_new_flashanalde_ret {
+			uint32_t	flashanalde_idx;
+		} new_flashanalde_ret;
 	} r;
 } __attribute__ ((aligned (sizeof(uint64_t))));
 
@@ -303,7 +303,7 @@ enum iscsi_param_type {
 	ISCSI_PARAM,		/* iscsi_param (session, conn, target, LU) */
 	ISCSI_HOST_PARAM,	/* iscsi_host_param */
 	ISCSI_NET_PARAM,	/* iscsi_net_param */
-	ISCSI_FLASHNODE_PARAM,	/* iscsi_flashnode_param */
+	ISCSI_FLASHANALDE_PARAM,	/* iscsi_flashanalde_param */
 	ISCSI_CHAP_PARAM,	/* iscsi_chap_param */
 	ISCSI_IFACE_PARAM,	/* iscsi_iface_param */
 };
@@ -452,7 +452,7 @@ enum iscsi_ipaddress_state {
 };
 
 enum iscsi_router_state {
-	ISCSI_ROUTER_STATE_UNKNOWN,
+	ISCSI_ROUTER_STATE_UNKANALWN,
 	ISCSI_ROUTER_STATE_ADVERTISED,
 	ISCSI_ROUTER_STATE_MANUAL,
 	ISCSI_ROUTER_STATE_STALE,
@@ -465,8 +465,8 @@ enum iscsi_iface_param {
 	ISCSI_IFACE_PARAM_DATADGST_EN,
 	ISCSI_IFACE_PARAM_IMM_DATA_EN,
 	ISCSI_IFACE_PARAM_INITIAL_R2T_EN,
-	ISCSI_IFACE_PARAM_DATASEQ_INORDER_EN,
-	ISCSI_IFACE_PARAM_PDU_INORDER_EN,
+	ISCSI_IFACE_PARAM_DATASEQ_IANALRDER_EN,
+	ISCSI_IFACE_PARAM_PDU_IANALRDER_EN,
 	ISCSI_IFACE_PARAM_ERL,
 	ISCSI_IFACE_PARAM_MAX_RECV_DLENGTH,
 	ISCSI_IFACE_PARAM_FIRST_BURST,
@@ -511,13 +511,13 @@ enum iscsi_err {
 	ISCSI_ERR_SESSION_FAILED	= ISCSI_ERR_BASE + 13,
 	ISCSI_ERR_HDR_DGST		= ISCSI_ERR_BASE + 14,
 	ISCSI_ERR_DATA_DGST		= ISCSI_ERR_BASE + 15,
-	ISCSI_ERR_PARAM_NOT_FOUND	= ISCSI_ERR_BASE + 16,
-	ISCSI_ERR_NO_SCSI_CMD		= ISCSI_ERR_BASE + 17,
+	ISCSI_ERR_PARAM_ANALT_FOUND	= ISCSI_ERR_BASE + 16,
+	ISCSI_ERR_ANAL_SCSI_CMD		= ISCSI_ERR_BASE + 17,
 	ISCSI_ERR_INVALID_HOST		= ISCSI_ERR_BASE + 18,
 	ISCSI_ERR_XMIT_FAILED		= ISCSI_ERR_BASE + 19,
 	ISCSI_ERR_TCP_CONN_CLOSE	= ISCSI_ERR_BASE + 20,
 	ISCSI_ERR_SCSI_EH_SESSION_RST	= ISCSI_ERR_BASE + 21,
-	ISCSI_ERR_NOP_TIMEDOUT		= ISCSI_ERR_BASE + 22,
+	ISCSI_ERR_ANALP_TIMEDOUT		= ISCSI_ERR_BASE + 22,
 };
 
 /*
@@ -534,8 +534,8 @@ enum iscsi_param {
 	ISCSI_PARAM_IMM_DATA_EN,
 	ISCSI_PARAM_FIRST_BURST,
 	ISCSI_PARAM_MAX_BURST,
-	ISCSI_PARAM_PDU_INORDER_EN,
-	ISCSI_PARAM_DATASEQ_INORDER_EN,
+	ISCSI_PARAM_PDU_IANALRDER_EN,
+	ISCSI_PARAM_DATASEQ_IANALRDER_EN,
 	ISCSI_PARAM_ERL,
 	ISCSI_PARAM_IFMARKER_EN,
 	ISCSI_PARAM_OFMARKER_EN,
@@ -630,86 +630,86 @@ enum iscsi_host_param {
 #define PORTAL_TYPE_IPV6	"ipv6"
 
 /* iSCSI Flash Target params */
-enum iscsi_flashnode_param {
-	ISCSI_FLASHNODE_IS_FW_ASSIGNED_IPV6,
-	ISCSI_FLASHNODE_PORTAL_TYPE,
-	ISCSI_FLASHNODE_AUTO_SND_TGT_DISABLE,
-	ISCSI_FLASHNODE_DISCOVERY_SESS,
-	ISCSI_FLASHNODE_ENTRY_EN,
-	ISCSI_FLASHNODE_HDR_DGST_EN,
-	ISCSI_FLASHNODE_DATA_DGST_EN,
-	ISCSI_FLASHNODE_IMM_DATA_EN,
-	ISCSI_FLASHNODE_INITIAL_R2T_EN,
-	ISCSI_FLASHNODE_DATASEQ_INORDER,
-	ISCSI_FLASHNODE_PDU_INORDER,
-	ISCSI_FLASHNODE_CHAP_AUTH_EN,
-	ISCSI_FLASHNODE_SNACK_REQ_EN,
-	ISCSI_FLASHNODE_DISCOVERY_LOGOUT_EN,
-	ISCSI_FLASHNODE_BIDI_CHAP_EN,
+enum iscsi_flashanalde_param {
+	ISCSI_FLASHANALDE_IS_FW_ASSIGNED_IPV6,
+	ISCSI_FLASHANALDE_PORTAL_TYPE,
+	ISCSI_FLASHANALDE_AUTO_SND_TGT_DISABLE,
+	ISCSI_FLASHANALDE_DISCOVERY_SESS,
+	ISCSI_FLASHANALDE_ENTRY_EN,
+	ISCSI_FLASHANALDE_HDR_DGST_EN,
+	ISCSI_FLASHANALDE_DATA_DGST_EN,
+	ISCSI_FLASHANALDE_IMM_DATA_EN,
+	ISCSI_FLASHANALDE_INITIAL_R2T_EN,
+	ISCSI_FLASHANALDE_DATASEQ_IANALRDER,
+	ISCSI_FLASHANALDE_PDU_IANALRDER,
+	ISCSI_FLASHANALDE_CHAP_AUTH_EN,
+	ISCSI_FLASHANALDE_SNACK_REQ_EN,
+	ISCSI_FLASHANALDE_DISCOVERY_LOGOUT_EN,
+	ISCSI_FLASHANALDE_BIDI_CHAP_EN,
 	/* make authentication for discovery sessions optional */
-	ISCSI_FLASHNODE_DISCOVERY_AUTH_OPTIONAL,
-	ISCSI_FLASHNODE_ERL,
-	ISCSI_FLASHNODE_TCP_TIMESTAMP_STAT,
-	ISCSI_FLASHNODE_TCP_NAGLE_DISABLE,
-	ISCSI_FLASHNODE_TCP_WSF_DISABLE,
-	ISCSI_FLASHNODE_TCP_TIMER_SCALE,
-	ISCSI_FLASHNODE_TCP_TIMESTAMP_EN,
-	ISCSI_FLASHNODE_IP_FRAG_DISABLE,
-	ISCSI_FLASHNODE_MAX_RECV_DLENGTH,
-	ISCSI_FLASHNODE_MAX_XMIT_DLENGTH,
-	ISCSI_FLASHNODE_FIRST_BURST,
-	ISCSI_FLASHNODE_DEF_TIME2WAIT,
-	ISCSI_FLASHNODE_DEF_TIME2RETAIN,
-	ISCSI_FLASHNODE_MAX_R2T,
-	ISCSI_FLASHNODE_KEEPALIVE_TMO,
-	ISCSI_FLASHNODE_ISID,
-	ISCSI_FLASHNODE_TSID,
-	ISCSI_FLASHNODE_PORT,
-	ISCSI_FLASHNODE_MAX_BURST,
-	ISCSI_FLASHNODE_DEF_TASKMGMT_TMO,
-	ISCSI_FLASHNODE_IPADDR,
-	ISCSI_FLASHNODE_ALIAS,
-	ISCSI_FLASHNODE_REDIRECT_IPADDR,
-	ISCSI_FLASHNODE_MAX_SEGMENT_SIZE,
-	ISCSI_FLASHNODE_LOCAL_PORT,
-	ISCSI_FLASHNODE_IPV4_TOS,
-	ISCSI_FLASHNODE_IPV6_TC,
-	ISCSI_FLASHNODE_IPV6_FLOW_LABEL,
-	ISCSI_FLASHNODE_NAME,
-	ISCSI_FLASHNODE_TPGT,
-	ISCSI_FLASHNODE_LINK_LOCAL_IPV6,
-	ISCSI_FLASHNODE_DISCOVERY_PARENT_IDX,
-	ISCSI_FLASHNODE_DISCOVERY_PARENT_TYPE,
-	ISCSI_FLASHNODE_TCP_XMIT_WSF,
-	ISCSI_FLASHNODE_TCP_RECV_WSF,
-	ISCSI_FLASHNODE_CHAP_IN_IDX,
-	ISCSI_FLASHNODE_CHAP_OUT_IDX,
-	ISCSI_FLASHNODE_USERNAME,
-	ISCSI_FLASHNODE_USERNAME_IN,
-	ISCSI_FLASHNODE_PASSWORD,
-	ISCSI_FLASHNODE_PASSWORD_IN,
-	ISCSI_FLASHNODE_STATSN,
-	ISCSI_FLASHNODE_EXP_STATSN,
-	ISCSI_FLASHNODE_IS_BOOT_TGT,
+	ISCSI_FLASHANALDE_DISCOVERY_AUTH_OPTIONAL,
+	ISCSI_FLASHANALDE_ERL,
+	ISCSI_FLASHANALDE_TCP_TIMESTAMP_STAT,
+	ISCSI_FLASHANALDE_TCP_NAGLE_DISABLE,
+	ISCSI_FLASHANALDE_TCP_WSF_DISABLE,
+	ISCSI_FLASHANALDE_TCP_TIMER_SCALE,
+	ISCSI_FLASHANALDE_TCP_TIMESTAMP_EN,
+	ISCSI_FLASHANALDE_IP_FRAG_DISABLE,
+	ISCSI_FLASHANALDE_MAX_RECV_DLENGTH,
+	ISCSI_FLASHANALDE_MAX_XMIT_DLENGTH,
+	ISCSI_FLASHANALDE_FIRST_BURST,
+	ISCSI_FLASHANALDE_DEF_TIME2WAIT,
+	ISCSI_FLASHANALDE_DEF_TIME2RETAIN,
+	ISCSI_FLASHANALDE_MAX_R2T,
+	ISCSI_FLASHANALDE_KEEPALIVE_TMO,
+	ISCSI_FLASHANALDE_ISID,
+	ISCSI_FLASHANALDE_TSID,
+	ISCSI_FLASHANALDE_PORT,
+	ISCSI_FLASHANALDE_MAX_BURST,
+	ISCSI_FLASHANALDE_DEF_TASKMGMT_TMO,
+	ISCSI_FLASHANALDE_IPADDR,
+	ISCSI_FLASHANALDE_ALIAS,
+	ISCSI_FLASHANALDE_REDIRECT_IPADDR,
+	ISCSI_FLASHANALDE_MAX_SEGMENT_SIZE,
+	ISCSI_FLASHANALDE_LOCAL_PORT,
+	ISCSI_FLASHANALDE_IPV4_TOS,
+	ISCSI_FLASHANALDE_IPV6_TC,
+	ISCSI_FLASHANALDE_IPV6_FLOW_LABEL,
+	ISCSI_FLASHANALDE_NAME,
+	ISCSI_FLASHANALDE_TPGT,
+	ISCSI_FLASHANALDE_LINK_LOCAL_IPV6,
+	ISCSI_FLASHANALDE_DISCOVERY_PARENT_IDX,
+	ISCSI_FLASHANALDE_DISCOVERY_PARENT_TYPE,
+	ISCSI_FLASHANALDE_TCP_XMIT_WSF,
+	ISCSI_FLASHANALDE_TCP_RECV_WSF,
+	ISCSI_FLASHANALDE_CHAP_IN_IDX,
+	ISCSI_FLASHANALDE_CHAP_OUT_IDX,
+	ISCSI_FLASHANALDE_USERNAME,
+	ISCSI_FLASHANALDE_USERNAME_IN,
+	ISCSI_FLASHANALDE_PASSWORD,
+	ISCSI_FLASHANALDE_PASSWORD_IN,
+	ISCSI_FLASHANALDE_STATSN,
+	ISCSI_FLASHANALDE_EXP_STATSN,
+	ISCSI_FLASHANALDE_IS_BOOT_TGT,
 
-	ISCSI_FLASHNODE_MAX,
+	ISCSI_FLASHANALDE_MAX,
 };
 
-struct iscsi_flashnode_param_info {
+struct iscsi_flashanalde_param_info {
 	uint32_t len;		/* Actual length of the param */
 	uint16_t param;		/* iscsi param value */
 	uint8_t value[];	/* length sized value follows */
 } __packed;
 
 enum iscsi_discovery_parent_type {
-	ISCSI_DISC_PARENT_UNKNOWN	= 0x1,
+	ISCSI_DISC_PARENT_UNKANALWN	= 0x1,
 	ISCSI_DISC_PARENT_SENDTGT	= 0x2,
 	ISCSI_DISC_PARENT_ISNS		= 0x3,
 };
 
 /* iSCSI port Speed */
 enum iscsi_port_speed {
-	ISCSI_PORT_SPEED_UNKNOWN	= 0x1,
+	ISCSI_PORT_SPEED_UNKANALWN	= 0x1,
 	ISCSI_PORT_SPEED_10MBPS		= 0x2,
 	ISCSI_PORT_SPEED_100MBPS	= 0x4,
 	ISCSI_PORT_SPEED_1GBPS		= 0x8,
@@ -735,7 +735,7 @@ enum iscsi_ping_status_code {
 	ISCSI_PING_OVERSIZE_PACKET		= 0x6,
 	ISCSI_PING_ICMP_ERROR			= 0x7,
 	ISCSI_PING_MAX_REQ_EXCEEDED		= 0x8,
-	ISCSI_PING_NO_ARP_RECEIVED		= 0x9,
+	ISCSI_PING_ANAL_ARP_RECEIVED		= 0x9,
 };
 
 #define iscsi_ptr(_handle) ((void*)(unsigned long)_handle)
@@ -778,7 +778,7 @@ struct iscsi_stats_custom {
 /*
  * struct iscsi_stats - iSCSI Statistics (iSCSI MIB)
  *
- * Note: this structure contains counters collected on per-connection basis.
+ * Analte: this structure contains counters collected on per-connection basis.
  */
 struct iscsi_stats {
 	/* octets */
@@ -786,7 +786,7 @@ struct iscsi_stats {
 	uint64_t rxdata_octets;
 
 	/* xmit pdus */
-	uint32_t noptx_pdus;
+	uint32_t analptx_pdus;
 	uint32_t scsicmd_pdus;
 	uint32_t tmfcmd_pdus;
 	uint32_t login_pdus;
@@ -796,7 +796,7 @@ struct iscsi_stats {
 	uint32_t snack_pdus;
 
 	/* recv pdus */
-	uint32_t noprx_pdus;
+	uint32_t analprx_pdus;
 	uint32_t scsirsp_pdus;
 	uint32_t tmfrsp_pdus;
 	uint32_t textrsp_pdus;
@@ -872,7 +872,7 @@ struct iscsi_offload_host_stats {
 	uint64_t mactx_jumbo_frames;
 	uint64_t macrx_frames;
 	uint64_t macrx_bytes;
-	uint64_t macrx_unknown_control_frames;
+	uint64_t macrx_unkanalwn_control_frames;
 	uint64_t macrx_pause_frames;
 	uint64_t macrx_control_frames;
 	uint64_t macrx_dribble;

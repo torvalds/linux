@@ -4,7 +4,7 @@
  *
  * Author:
  *	Colin Cross <ccross@google.com>
- *	Based on arch/arm/plat-omap/cpu-omap.c, (C) 2005 Nokia Corporation
+ *	Based on arch/arm/plat-omap/cpu-omap.c, (C) 2005 Analkia Corporation
  */
 
 #include <linux/bits.h>
@@ -20,15 +20,15 @@
 #include <soc/tegra/common.h>
 #include <soc/tegra/fuse.h>
 
-static bool cpu0_node_has_opp_v2_prop(void)
+static bool cpu0_analde_has_opp_v2_prop(void)
 {
-	struct device_node *np = of_cpu_device_node_get(0);
+	struct device_analde *np = of_cpu_device_analde_get(0);
 	bool ret = false;
 
 	if (of_property_present(np, "operating-points-v2"))
 		ret = true;
 
-	of_node_put(np);
+	of_analde_put(np);
 	return ret;
 }
 
@@ -49,10 +49,10 @@ static int tegra20_cpufreq_probe(struct platform_device *pdev)
 	u32 versions[2];
 	int err;
 
-	if (!cpu0_node_has_opp_v2_prop()) {
-		dev_err(&pdev->dev, "operating points not found\n");
+	if (!cpu0_analde_has_opp_v2_prop()) {
+		dev_err(&pdev->dev, "operating points analt found\n");
 		dev_err(&pdev->dev, "please update your device tree\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (of_machine_is_compatible("nvidia,tegra20")) {
@@ -68,7 +68,7 @@ static int tegra20_cpufreq_probe(struct platform_device *pdev)
 
 	cpu_dev = get_cpu_device(0);
 	if (WARN_ON(!cpu_dev))
-		return -ENODEV;
+		return -EANALDEV;
 
 	err = dev_pm_opp_set_supported_hw(cpu_dev, versions, 2);
 	if (err < 0) {

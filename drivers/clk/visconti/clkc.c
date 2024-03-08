@@ -5,7 +5,7 @@
  * Copyright (c) 2021 TOSHIBA CORPORATION
  * Copyright (c) 2021 Toshiba Electronic Devices & Storage Corporation
  *
- * Nobuhiro Iwamatsu <nobuhiro1.iwamatsu@toshiba.co.jp>
+ * Analbuhiro Iwamatsu <analbuhiro1.iwamatsu@toshiba.co.jp>
  */
 
 #include <linux/clk-provider.h>
@@ -89,13 +89,13 @@ static struct clk_hw *visconti_clk_register_gate(struct device *dev,
 
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	pdata->name = pdata->fw_name = parent_name;
 
 	gate = devm_kzalloc(dev, sizeof(*gate), GFP_KERNEL);
 	if (!gate)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = name;
 	init.ops = &visconti_clk_gate_ops;
@@ -141,13 +141,13 @@ int visconti_clk_register_gates(struct visconti_clk_provider *ctx,
 
 		pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
 		if (!pdata)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		dev_name = devm_kasprintf(dev, GFP_KERNEL, "%s_div", clks[i].name);
 		if (!dev_name)
-			return -ENOMEM;
+			return -EANALMEM;
 
-		if (clks[i].rs_id != NO_RESET) {
+		if (clks[i].rs_id != ANAL_RESET) {
 			rson_offset = reset[clks[i].rs_id].rson_offset;
 			rsoff_offset = reset[clks[i].rs_id].rsoff_offset;
 			rs_idx = reset[clks[i].rs_id].rs_idx;
@@ -193,10 +193,10 @@ struct visconti_clk_provider *visconti_init_clk(struct device *dev,
 
 	ctx = devm_kzalloc(dev, struct_size(ctx, clk_data.hws, nr_clks), GFP_KERNEL);
 	if (!ctx)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	for (i = 0; i < nr_clks; ++i)
-		ctx->clk_data.hws[i] = ERR_PTR(-ENOENT);
+		ctx->clk_data.hws[i] = ERR_PTR(-EANALENT);
 	ctx->clk_data.num = nr_clks;
 
 	ctx->dev = dev;

@@ -27,7 +27,7 @@ enum _BT_INFO_SRC_8821A_1ANT {
 };
 
 enum _BT_8821A_1ANT_BT_STATUS {
-	BT_8821A_1ANT_BT_STATUS_NON_CONNECTED_IDLE		= 0x0,
+	BT_8821A_1ANT_BT_STATUS_ANALN_CONNECTED_IDLE		= 0x0,
 	BT_8821A_1ANT_BT_STATUS_CONNECTED_IDLE			= 0x1,
 	BT_8821A_1ANT_BT_STATUS_INQ_PAGE			= 0x2,
 	BT_8821A_1ANT_BT_STATUS_ACL_BUSY			= 0x3,
@@ -37,8 +37,8 @@ enum _BT_8821A_1ANT_BT_STATUS {
 };
 
 enum _BT_8821A_1ANT_WIFI_STATUS {
-	BT_8821A_1ANT_WIFI_STATUS_NON_CONNECTED_IDLE		= 0x0,
-	BT_8821A_1ANT_WIFI_STATUS_NON_CONNECTED_ASSO_AUTH_SCAN	= 0x1,
+	BT_8821A_1ANT_WIFI_STATUS_ANALN_CONNECTED_IDLE		= 0x0,
+	BT_8821A_1ANT_WIFI_STATUS_ANALN_CONNECTED_ASSO_AUTH_SCAN	= 0x1,
 	BT_8821A_1ANT_WIFI_STATUS_CONNECTED_SCAN		= 0x2,
 	BT_8821A_1ANT_WIFI_STATUS_CONNECTED_SPECIAL_PKT		= 0x3,
 	BT_8821A_1ANT_WIFI_STATUS_CONNECTED_IDLE		= 0x4,
@@ -63,8 +63,8 @@ enum BT_8821A_1ANT_COEX_ALGO {
 
 struct coex_dm_8821a_1ant {
 	/* fw mechanism */
-	bool	cur_ignore_wlan_act;
-	bool	pre_ignore_wlan_act;
+	bool	cur_iganalre_wlan_act;
+	bool	pre_iganalre_wlan_act;
 	u8	pre_ps_tdma;
 	u8	cur_ps_tdma;
 	u8	ps_tdma_para[5];
@@ -145,27 +145,27 @@ struct coex_sta_8821a_1ant {
 };
 
 /*===========================================
- * The following is interface which will notify coex module.
+ * The following is interface which will analtify coex module.
  *===========================================
  */
 void ex_btc8821a1ant_init_hwconfig(struct btc_coexist *btcoexist,
 				   bool wifi_only);
 void ex_btc8821a1ant_init_coex_dm(struct btc_coexist *btcoexist);
-void ex_btc8821a1ant_ips_notify(struct btc_coexist *btcoexist, u8 type);
-void ex_btc8821a1ant_lps_notify(struct btc_coexist *btcoexist, u8 type);
-void ex_btc8821a1ant_scan_notify(struct btc_coexist *btcoexist, u8 type);
-void ex_btc8821a1ant_connect_notify(struct btc_coexist *btcoexist, u8 type);
-void ex_btc8821a1ant_media_status_notify(struct btc_coexist *btcoexist,
+void ex_btc8821a1ant_ips_analtify(struct btc_coexist *btcoexist, u8 type);
+void ex_btc8821a1ant_lps_analtify(struct btc_coexist *btcoexist, u8 type);
+void ex_btc8821a1ant_scan_analtify(struct btc_coexist *btcoexist, u8 type);
+void ex_btc8821a1ant_connect_analtify(struct btc_coexist *btcoexist, u8 type);
+void ex_btc8821a1ant_media_status_analtify(struct btc_coexist *btcoexist,
 					 u8 type);
-void ex_btc8821a1ant_special_packet_notify(struct btc_coexist *btcoexist,
+void ex_btc8821a1ant_special_packet_analtify(struct btc_coexist *btcoexist,
 					   u8 type);
-void ex_btc8821a1ant_bt_info_notify(struct btc_coexist *btcoexist,
+void ex_btc8821a1ant_bt_info_analtify(struct btc_coexist *btcoexist,
 				    u8 *tmpbuf, u8 length);
-void ex_btc8821a1ant_halt_notify(struct btc_coexist *btcoexist);
-void ex_btc8821a1ant_pnp_notify(struct btc_coexist *btcoexist, u8 pnpstate);
+void ex_btc8821a1ant_halt_analtify(struct btc_coexist *btcoexist);
+void ex_btc8821a1ant_pnp_analtify(struct btc_coexist *btcoexist, u8 pnpstate);
 void ex_btc8821a1ant_periodical(struct btc_coexist *btcoexist);
 void ex_btc8821a1ant_display_coex_info(struct btc_coexist *btcoexist,
 				       struct seq_file *m);
 void ex_btc8821a1ant_dbg_control(struct btc_coexist *btcoexist, u8 op_code,
 				 u8 op_len, u8 *data);
-void ex_btc8821a1ant_pnp_notify(struct btc_coexist *btcoexist, u8 pnp_state);
+void ex_btc8821a1ant_pnp_analtify(struct btc_coexist *btcoexist, u8 pnp_state);

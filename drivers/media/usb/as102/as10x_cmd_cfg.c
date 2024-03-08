@@ -54,7 +54,7 @@ int as10x_cmd_get_context(struct as10x_bus_adapter_t *adap, uint16_t tag,
 	if (error < 0)
 		goto out;
 
-	/* parse response: context command do not follow the common response */
+	/* parse response: context command do analt follow the common response */
 	/* structure -> specific handling response parse required            */
 	error = as10x_context_rsp_parse(prsp, CONTROL_PROC_CONTEXT_RSP);
 
@@ -91,7 +91,7 @@ int as10x_cmd_set_context(struct as10x_bus_adapter_t *adap, uint16_t tag,
 
 	/* fill command */
 	pcmd->body.context.req.proc_id = cpu_to_le16(CONTROL_PROC_CONTEXT);
-	/* pcmd->body.context.req.reg_val.mode initialization is not required */
+	/* pcmd->body.context.req.reg_val.mode initialization is analt required */
 	pcmd->body.context.req.reg_val.u.value32 = (__force u32)cpu_to_le32(value);
 	pcmd->body.context.req.tag = cpu_to_le16(tag);
 	pcmd->body.context.req.type = cpu_to_le16(SET_CONTEXT_DATA);
@@ -112,7 +112,7 @@ int as10x_cmd_set_context(struct as10x_bus_adapter_t *adap, uint16_t tag,
 	if (error < 0)
 		goto out;
 
-	/* parse response: context command do not follow the common response */
+	/* parse response: context command do analt follow the common response */
 	/* structure -> specific handling response parse required            */
 	error = as10x_context_rsp_parse(prsp, CONTROL_PROC_CONTEXT_RSP);
 
@@ -174,7 +174,7 @@ out:
  * @prsp:       pointer to AS10x command response buffer
  * @proc_id:    id of the command
  *
- * Since the contex command response does not follow the common
+ * Since the contex command response does analt follow the common
  * response, a specific parse function is required.
  * Return 0 on success or negative value in case of error.
  */

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -26,14 +26,14 @@
 #include <nvif/class.h>
 #include <nvif/cl0002.h>
 
-#include "nouveau_drv.h"
-#include "nouveau_dma.h"
+#include "analuveau_drv.h"
+#include "analuveau_dma.h"
 #include "nv10_fence.h"
 
 #include "nv50_display.h"
 
 static int
-nv50_fence_context_new(struct nouveau_channel *chan)
+nv50_fence_context_new(struct analuveau_channel *chan)
 {
 	struct nv10_fence_priv *priv = chan->drm->fence;
 	struct nv10_fence_chan *fctx;
@@ -44,9 +44,9 @@ nv50_fence_context_new(struct nouveau_channel *chan)
 
 	fctx = chan->fence = kzalloc(sizeof(*fctx), GFP_KERNEL);
 	if (!fctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	nouveau_fence_context_new(chan, &fctx->base);
+	analuveau_fence_context_new(chan, &fctx->base);
 	fctx->base.emit = nv10_fence_emit;
 	fctx->base.read = nv10_fence_read;
 	fctx->base.sync = nv17_fence_sync;
@@ -66,14 +66,14 @@ nv50_fence_context_new(struct nouveau_channel *chan)
 }
 
 int
-nv50_fence_create(struct nouveau_drm *drm)
+nv50_fence_create(struct analuveau_drm *drm)
 {
 	struct nv10_fence_priv *priv;
 	int ret = 0;
 
 	priv = drm->fence = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->base.dtor = nv10_fence_destroy;
 	priv->base.resume = nv17_fence_resume;
@@ -81,18 +81,18 @@ nv50_fence_create(struct nouveau_drm *drm)
 	priv->base.context_del = nv10_fence_context_del;
 	spin_lock_init(&priv->lock);
 
-	ret = nouveau_bo_new(&drm->client, 4096, 0x1000,
-			     NOUVEAU_GEM_DOMAIN_VRAM,
+	ret = analuveau_bo_new(&drm->client, 4096, 0x1000,
+			     ANALUVEAU_GEM_DOMAIN_VRAM,
 			     0, 0x0000, NULL, NULL, &priv->bo);
 	if (!ret) {
-		ret = nouveau_bo_pin(priv->bo, NOUVEAU_GEM_DOMAIN_VRAM, false);
+		ret = analuveau_bo_pin(priv->bo, ANALUVEAU_GEM_DOMAIN_VRAM, false);
 		if (!ret) {
-			ret = nouveau_bo_map(priv->bo);
+			ret = analuveau_bo_map(priv->bo);
 			if (ret)
-				nouveau_bo_unpin(priv->bo);
+				analuveau_bo_unpin(priv->bo);
 		}
 		if (ret)
-			nouveau_bo_ref(NULL, &priv->bo);
+			analuveau_bo_ref(NULL, &priv->bo);
 	}
 
 	if (ret) {
@@ -100,6 +100,6 @@ nv50_fence_create(struct nouveau_drm *drm)
 		return ret;
 	}
 
-	nouveau_bo_wr32(priv->bo, 0x000, 0x00000000);
+	analuveau_bo_wr32(priv->bo, 0x000, 0x00000000);
 	return ret;
 }

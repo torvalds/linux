@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2017-2018 Netronome Systems, Inc. */
+/* Copyright (C) 2017-2018 Netroanalme Systems, Inc. */
 
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <linux/err.h>
 #include <linux/kernel.h>
@@ -211,14 +211,14 @@ print_entry_error_msg(struct bpf_map_info *info, unsigned char *key,
 }
 
 static void
-print_entry_error(struct bpf_map_info *map_info, void *key, int lookup_errno)
+print_entry_error(struct bpf_map_info *map_info, void *key, int lookup_erranal)
 {
 	/* For prog_array maps or arrays of maps, failure to lookup the value
-	 * means there is no entry for that key. Do not print an error message
+	 * means there is anal entry for that key. Do analt print an error message
 	 * in that case.
 	 */
 	if ((map_is_map_of_maps(map_info->type) ||
-	     map_is_map_of_progs(map_info->type)) && lookup_errno == ENOENT)
+	     map_is_map_of_progs(map_info->type)) && lookup_erranal == EANALENT)
 		return;
 
 	if (json_output) {
@@ -227,20 +227,20 @@ print_entry_error(struct bpf_map_info *map_info, void *key, int lookup_errno)
 		print_hex_data_json(key, map_info->key_size);
 		jsonw_name(json_wtr, "value");
 		jsonw_start_object(json_wtr);	/* error */
-		jsonw_string_field(json_wtr, "error", strerror(lookup_errno));
+		jsonw_string_field(json_wtr, "error", strerror(lookup_erranal));
 		jsonw_end_object(json_wtr);	/* error */
 		jsonw_end_object(json_wtr);	/* entry */
 	} else {
 		const char *msg = NULL;
 
-		if (lookup_errno == ENOENT)
-			msg = "<no entry>";
-		else if (lookup_errno == ENOSPC &&
+		if (lookup_erranal == EANALENT)
+			msg = "<anal entry>";
+		else if (lookup_erranal == EANALSPC &&
 			 map_info->type == BPF_MAP_TYPE_REUSEPORT_SOCKARRAY)
-			msg = "<cannot read>";
+			msg = "<cananalt read>";
 
 		print_entry_error_msg(map_info, key,
-				      msg ? : strerror(lookup_errno));
+				      msg ? : strerror(lookup_erranal));
 	}
 }
 
@@ -344,7 +344,7 @@ static int parse_elem(char **argv, struct bpf_map_info *info,
 	if (!*argv) {
 		if (!key && !value)
 			return 0;
-		p_err("did not find %s", key ? "key" : "value");
+		p_err("did analt find %s", key ? "key" : "value");
 		return -1;
 	}
 
@@ -384,7 +384,7 @@ static int parse_elem(char **argv, struct bpf_map_info *info,
 				return -1;
 			}
 			if (!argv[0] || !argv[1]) {
-				p_err("not enough value arguments for map in map");
+				p_err("analt eanalugh value arguments for map in map");
 				return -1;
 			}
 
@@ -402,7 +402,7 @@ static int parse_elem(char **argv, struct bpf_map_info *info,
 				return -1;
 			}
 			if (!argv[0] || !argv[1]) {
-				p_err("not enough value arguments for map of progs");
+				p_err("analt eanalugh value arguments for map of progs");
 				return -1;
 			}
 			if (is_prefix(*argv, "id"))
@@ -425,7 +425,7 @@ static int parse_elem(char **argv, struct bpf_map_info *info,
 
 		return parse_elem(argv, info, key, NULL, key_size, value_size,
 				  flags, NULL);
-	} else if (is_prefix(*argv, "any") || is_prefix(*argv, "noexist") ||
+	} else if (is_prefix(*argv, "any") || is_prefix(*argv, "analexist") ||
 		   is_prefix(*argv, "exist")) {
 		if (!flags) {
 			p_err("flags specified multiple times: %s", *argv);
@@ -434,8 +434,8 @@ static int parse_elem(char **argv, struct bpf_map_info *info,
 
 		if (is_prefix(*argv, "any"))
 			*flags = BPF_ANY;
-		else if (is_prefix(*argv, "noexist"))
-			*flags = BPF_NOEXIST;
+		else if (is_prefix(*argv, "analexist"))
+			*flags = BPF_ANALEXIST;
 		else if (is_prefix(*argv, "exist"))
 			*flags = BPF_EXIST;
 
@@ -477,7 +477,7 @@ static int show_map_close_json(int fd, struct bpf_map_info *info)
 
 	show_map_header_json(info, json_wtr);
 
-	print_dev_json(info->ifindex, info->netns_dev, info->netns_ino);
+	print_dev_json(info->ifindex, info->netns_dev, info->netns_ianal);
 
 	jsonw_uint_field(json_wtr, "bytes_key", info->key_size);
 	jsonw_uint_field(json_wtr, "bytes_value", info->value_size);
@@ -554,7 +554,7 @@ static void show_map_header_plain(struct bpf_map_info *info)
 		printf("name %s  ", info->name);
 
 	printf("flags 0x%x", info->map_flags);
-	print_dev_plain(info->ifindex, info->netns_dev, info->netns_ino);
+	print_dev_plain(info->ifindex, info->netns_dev, info->netns_ianal);
 	printf("\n");
 }
 
@@ -592,7 +592,7 @@ static int show_map_close_plain(int fd, struct bpf_map_info *info)
 		}
 		if (owner_jited)
 			printf("owner%s jited",
-			       atoi(owner_jited) ? "" : " not");
+			       atoi(owner_jited) ? "" : " analt");
 
 		free(owner_prog_type);
 		free(owner_jited);
@@ -649,7 +649,7 @@ static int do_show_subset(int argc, char **argv)
 		err = bpf_map_get_info_by_fd(fds[i], &info, &len);
 		if (err) {
 			p_err("can't get map info: %s",
-			      strerror(errno));
+			      strerror(erranal));
 			for (; i < nb_fds; i++)
 				close(fds[i]);
 			break;
@@ -700,25 +700,25 @@ static int do_show(int argc, char **argv)
 	while (true) {
 		err = bpf_map_get_next_id(id, &id);
 		if (err) {
-			if (errno == ENOENT)
+			if (erranal == EANALENT)
 				break;
-			p_err("can't get next map: %s%s", strerror(errno),
-			      errno == EINVAL ? " -- kernel too old?" : "");
+			p_err("can't get next map: %s%s", strerror(erranal),
+			      erranal == EINVAL ? " -- kernel too old?" : "");
 			break;
 		}
 
 		fd = bpf_map_get_fd_by_id(id);
 		if (fd < 0) {
-			if (errno == ENOENT)
+			if (erranal == EANALENT)
 				continue;
 			p_err("can't get map by id (%u): %s",
-			      id, strerror(errno));
+			      id, strerror(erranal));
 			break;
 		}
 
 		err = bpf_map_get_info_by_fd(fd, &info, &len);
 		if (err) {
-			p_err("can't get map info: %s", strerror(errno));
+			p_err("can't get map info: %s", strerror(erranal));
 			close(fd);
 			break;
 		}
@@ -736,7 +736,7 @@ static int do_show(int argc, char **argv)
 	if (show_pinned)
 		delete_pinned_obj_table(map_table);
 
-	return errno == ENOENT ? 0 : -1;
+	return erranal == EANALENT ? 0 : -1;
 }
 
 static int dump_map_elem(int fd, void *key, void *value,
@@ -744,7 +744,7 @@ static int dump_map_elem(int fd, void *key, void *value,
 			 json_writer_t *btf_wtr)
 {
 	if (bpf_map_lookup_elem(fd, key, value)) {
-		print_entry_error(map_info, key, errno);
+		print_entry_error(map_info, key, erranal);
 		return -1;
 	}
 
@@ -774,7 +774,7 @@ static int maps_have_btf(int *fds, int nb_fds)
 	for (i = 0; i < nb_fds; i++) {
 		err = bpf_map_get_info_by_fd(fds[i], &info, &len);
 		if (err) {
-			p_err("can't get map info: %s", strerror(errno));
+			p_err("can't get map info: %s", strerror(erranal));
 			return -1;
 		}
 
@@ -796,14 +796,14 @@ static int get_map_kv_btf(const struct bpf_map_info *info, struct btf **btf)
 			btf_vmlinux = libbpf_find_kernel_btf();
 			if (!btf_vmlinux) {
 				p_err("failed to get kernel btf");
-				return -errno;
+				return -erranal;
 			}
 		}
 		*btf = btf_vmlinux;
 	} else if (info->btf_value_type_id) {
 		*btf = btf__load_from_kernel_by_id(info->btf_id);
 		if (!*btf) {
-			err = -errno;
+			err = -erranal;
 			p_err("failed to get btf");
 		}
 	} else {
@@ -859,13 +859,13 @@ map_dump(int fd, struct bpf_map_info *info, json_writer_t *wtr,
 		const char *map_type_str;
 
 		map_type_str = libbpf_bpf_map_type_str(info->type);
-		p_info("Warning: cannot read values from %s map with value_size != 8",
+		p_info("Warning: cananalt read values from %s map with value_size != 8",
 		       map_type_str);
 	}
 	while (true) {
 		err = bpf_map_get_next_key(fd, prev_key, key);
 		if (err) {
-			if (errno == ENOENT)
+			if (erranal == EANALENT)
 				err = 0;
 			break;
 		}
@@ -934,7 +934,7 @@ static int do_dump(int argc, char **argv)
 		jsonw_start_array(wtr);	/* root array */
 	for (i = 0; i < nb_fds; i++) {
 		if (bpf_map_get_info_by_fd(fds[i], &info, &len)) {
-			p_err("can't get map info: %s", strerror(errno));
+			p_err("can't get map info: %s", strerror(erranal));
 			break;
 		}
 		err = map_dump(fds[i], &info, wtr, nb_fds > 1);
@@ -1012,7 +1012,7 @@ static int do_update(int argc, char **argv)
 
 	err = bpf_map_update_elem(fd, key, value, flags);
 	if (err) {
-		p_err("update failed: %s", strerror(errno));
+		p_err("update failed: %s", strerror(erranal));
 		goto exit_free;
 	}
 
@@ -1090,16 +1090,16 @@ static int do_lookup(int argc, char **argv)
 
 	err = bpf_map_lookup_elem(fd, key, value);
 	if (err) {
-		if (errno == ENOENT) {
+		if (erranal == EANALENT) {
 			if (json_output) {
 				jsonw_null(json_wtr);
 			} else {
 				printf("key:\n");
 				fprint_hex(stdout, key, info.key_size, " ");
-				printf("\n\nNot found\n");
+				printf("\n\nAnalt found\n");
 			}
 		} else {
-			p_err("lookup failed: %s", strerror(errno));
+			p_err("lookup failed: %s", strerror(erranal));
 		}
 
 		goto exit_free;
@@ -1151,7 +1151,7 @@ static int do_getnext(int argc, char **argv)
 
 	err = bpf_map_get_next_key(fd, key, nextkey);
 	if (err) {
-		p_err("can't get next key: %s", strerror(errno));
+		p_err("can't get next key: %s", strerror(erranal));
 		goto exit_free;
 	}
 
@@ -1172,7 +1172,7 @@ static int do_getnext(int argc, char **argv)
 			fprint_hex(stdout, key, info.key_size, " ");
 			printf("\n");
 		} else {
-			printf("key: None\n");
+			printf("key: Analne\n");
 		}
 		printf("next key:\n");
 		fprint_hex(stdout, nextkey, info.key_size, " ");
@@ -1215,7 +1215,7 @@ static int do_delete(int argc, char **argv)
 
 	err = bpf_map_delete_elem(fd, key);
 	if (err)
-		p_err("delete failed: %s", strerror(errno));
+		p_err("delete failed: %s", strerror(erranal));
 
 exit_free:
 	free(key);
@@ -1302,7 +1302,7 @@ offload_dev:
 			attr.map_ifindex = if_nametoindex(*argv);
 			if (!attr.map_ifindex) {
 				p_err("unrecognized netdevice '%s': %s",
-				      *argv, strerror(errno));
+				      *argv, strerror(erranal));
 				goto exit;
 			}
 			NEXT_ARG();
@@ -1320,13 +1320,13 @@ offload_dev:
 				return -1;
 			attr.inner_map_fd = inner_map_fd;
 		} else {
-			p_err("unknown arg %s", *argv);
+			p_err("unkanalwn arg %s", *argv);
 			goto exit;
 		}
 	}
 
 	if (!map_name) {
-		p_err("map name not specified");
+		p_err("map name analt specified");
 		goto exit;
 	}
 
@@ -1334,7 +1334,7 @@ offload_dev:
 
 	fd = bpf_map_create(map_type, map_name, key_size, value_size, max_entries, &attr);
 	if (fd < 0) {
-		p_err("map create failed: %s", strerror(errno));
+		p_err("map create failed: %s", strerror(erranal));
 		goto exit;
 	}
 
@@ -1374,13 +1374,13 @@ static int do_pop_dequeue(int argc, char **argv)
 
 	err = bpf_map_lookup_and_delete_elem(fd, key, value);
 	if (err) {
-		if (errno == ENOENT) {
+		if (erranal == EANALENT) {
 			if (json_output)
 				jsonw_null(json_wtr);
 			else
 				printf("Error: empty map\n");
 		} else {
-			p_err("pop failed: %s", strerror(errno));
+			p_err("pop failed: %s", strerror(erranal));
 		}
 
 		goto exit_free;
@@ -1415,7 +1415,7 @@ static int do_freeze(int argc, char **argv)
 	err = bpf_map_freeze(fd);
 	close(fd);
 	if (err) {
-		p_err("failed to freeze map: %s", strerror(errno));
+		p_err("failed to freeze map: %s", strerror(erranal));
 		return err;
 	}
 
@@ -1456,16 +1456,16 @@ static int do_help(int argc, char **argv)
 		"       DATA := { [hex] BYTES }\n"
 		"       " HELP_SPEC_PROGRAM "\n"
 		"       VALUE := { DATA | MAP | PROG }\n"
-		"       UPDATE_FLAGS := { any | exist | noexist }\n"
+		"       UPDATE_FLAGS := { any | exist | analexist }\n"
 		"       TYPE := { hash | array | prog_array | perf_event_array | percpu_hash |\n"
 		"                 percpu_array | stack_trace | cgroup_array | lru_hash |\n"
 		"                 lru_percpu_hash | lpm_trie | array_of_maps | hash_of_maps |\n"
 		"                 devmap | devmap_hash | sockmap | cpumap | xskmap | sockhash |\n"
 		"                 cgroup_storage | reuseport_sockarray | percpu_cgroup_storage |\n"
-		"                 queue | stack | sk_storage | struct_ops | ringbuf | inode_storage |\n"
+		"                 queue | stack | sk_storage | struct_ops | ringbuf | ianalde_storage |\n"
 		"                 task_storage | bloom_filter | user_ringbuf | cgrp_storage }\n"
 		"       " HELP_SPEC_OPTIONS " |\n"
-		"                    {-f|--bpffs} | {-n|--nomount} }\n"
+		"                    {-f|--bpffs} | {-n|--analmount} }\n"
 		"",
 		bin_name, argv[-2]);
 

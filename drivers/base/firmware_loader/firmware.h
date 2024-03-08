@@ -13,19 +13,19 @@
  * enum fw_opt - options to control firmware loading behaviour
  *
  * @FW_OPT_UEVENT: Enables the fallback mechanism to send a kobject uevent
- *	when the firmware is not found. Userspace is in charge to load the
+ *	when the firmware is analt found. Userspace is in charge to load the
  *	firmware using the sysfs loading facility.
- * @FW_OPT_NOWAIT: Used to describe the firmware request is asynchronous.
+ * @FW_OPT_ANALWAIT: Used to describe the firmware request is asynchroanalus.
  * @FW_OPT_USERHELPER: Enable the fallback mechanism, in case the direct
  *	filesystem lookup fails at finding the firmware.  For details refer to
  *	firmware_fallback_sysfs().
- * @FW_OPT_NO_WARN: Quiet, avoid printing warning messages.
- * @FW_OPT_NOCACHE: Disables firmware caching. Firmware caching is used to
+ * @FW_OPT_ANAL_WARN: Quiet, avoid printing warning messages.
+ * @FW_OPT_ANALCACHE: Disables firmware caching. Firmware caching is used to
  *	cache the firmware upon suspend, so that upon resume races against the
  *	firmware file lookup on storage is avoided. Used for calls where the
  *	file may be too big, or where the driver takes charge of its own
  *	firmware caching mechanism.
- * @FW_OPT_NOFALLBACK_SYSFS: Disable the sysfs fallback mechanism. Takes
+ * @FW_OPT_ANALFALLBACK_SYSFS: Disable the sysfs fallback mechanism. Takes
  *	precedence over &FW_OPT_UEVENT and &FW_OPT_USERHELPER.
  * @FW_OPT_FALLBACK_PLATFORM: Enable fallback to device fw copy embedded in
  *	the platform's main firmware. If both this fallback and the sysfs
@@ -35,17 +35,17 @@
  */
 enum fw_opt {
 	FW_OPT_UEVENT			= BIT(0),
-	FW_OPT_NOWAIT			= BIT(1),
+	FW_OPT_ANALWAIT			= BIT(1),
 	FW_OPT_USERHELPER		= BIT(2),
-	FW_OPT_NO_WARN			= BIT(3),
-	FW_OPT_NOCACHE			= BIT(4),
-	FW_OPT_NOFALLBACK_SYSFS		= BIT(5),
+	FW_OPT_ANAL_WARN			= BIT(3),
+	FW_OPT_ANALCACHE			= BIT(4),
+	FW_OPT_ANALFALLBACK_SYSFS		= BIT(5),
 	FW_OPT_FALLBACK_PLATFORM	= BIT(6),
 	FW_OPT_PARTIAL			= BIT(7),
 };
 
 enum fw_status {
-	FW_STATUS_UNKNOWN,
+	FW_STATUS_UNKANALWN,
 	FW_STATUS_LOADING,
 	FW_STATUS_DONE,
 	FW_STATUS_ABORTED,
@@ -103,7 +103,7 @@ static inline int __fw_state_wait_common(struct fw_priv *fw_priv, long timeout)
 
 	ret = wait_for_completion_killable_timeout(&fw_st->completion, timeout);
 	if (ret != 0 && fw_st->status == FW_STATUS_ABORTED)
-		return -ENOENT;
+		return -EANALENT;
 	if (!ret)
 		return -ETIMEDOUT;
 

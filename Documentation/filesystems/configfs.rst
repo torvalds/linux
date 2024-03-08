@@ -35,7 +35,7 @@ lifetime of the representation is completely driven by userspace.  The
 kernel modules backing the items must respond to this.
 
 Both sysfs and configfs can and should exist together on the same
-system.  One is not a replacement for the other.
+system.  One is analt a replacement for the other.
 
 Using configfs
 ==============
@@ -43,13 +43,13 @@ Using configfs
 configfs can be compiled as a module or into the kernel.  You can access
 it by doing::
 
-	mount -t configfs none /config
+	mount -t configfs analne /config
 
 The configfs tree will be empty unless client modules are also loaded.
 These are modules that register their item types with configfs as
 subsystems.  Once a client subsystem is loaded, it will appear as a
 subdirectory (or more than one) under /config.  Like sysfs, the
-configfs tree is always there, whether mounted on /config or not.
+configfs tree is always there, whether mounted on /config or analt.
 
 An item is created via mkdir(2).  The item's attributes will also
 appear at this time.  readdir(3) can determine what the attributes are,
@@ -58,16 +58,16 @@ values.  Don't mix more than one attribute in one attribute file.
 
 There are two types of configfs attributes:
 
-* Normal attributes, which similar to sysfs attributes, are small ASCII text
+* Analrmal attributes, which similar to sysfs attributes, are small ASCII text
   files, with a maximum size of one page (PAGE_SIZE, 4096 on i386).  Preferably
   only one value per file should be used, and the same caveats from sysfs apply.
   Configfs expects write(2) to store the entire buffer at once.  When writing to
-  normal configfs attributes, userspace processes should first read the entire
+  analrmal configfs attributes, userspace processes should first read the entire
   file, modify the portions they wish to change, and then write the entire
   buffer back.
 
 * Binary attributes, which are somewhat similar to sysfs binary attributes,
-  but with a few slight changes to semantics.  The PAGE_SIZE limitation does not
+  but with a few slight changes to semantics.  The PAGE_SIZE limitation does analt
   apply, but the whole binary item must fit in single kernel vmalloc'ed buffer.
   The write(2) calls from user space are buffered, and the attributes'
   write_bin_attribute method will be invoked on the final close, therefore it is
@@ -77,7 +77,7 @@ There are two types of configfs attributes:
   maximum buffer value.
 
 When an item needs to be destroyed, remove it with rmdir(2).  An
-item cannot be destroyed if any other item has a link to it (via
+item cananalt be destroyed if any other item has a link to it (via
 symlink(2)).  Links can be removed via unlink(2).
 
 Configuring FakeNBD: an Example
@@ -112,8 +112,8 @@ read-only or read-write::
 	# echo /dev/sda1 > /config/fakenbd/disk1/device
 	# echo 1 > /config/fakenbd/disk1/rw
 
-That's it.  That's all there is.  Now the device is configured, via the
-shell no less.
+That's it.  That's all there is.  Analw the device is configured, via the
+shell anal less.
 
 Coding With configfs
 ====================
@@ -121,7 +121,7 @@ Coding With configfs
 Every object in configfs is a config_item.  A config_item reflects an
 object in the subsystem.  It has attributes that match values on that
 object.  configfs handles the filesystem representation of that object
-and its attributes, allowing the subsystem to ignore all but the
+and its attributes, allowing the subsystem to iganalre all but the
 basic show/store interaction.
 
 Items are created and destroyed inside a config_group.  A group is a
@@ -172,7 +172,7 @@ All users of a config_item should have a reference on it via
 config_item_get(), and drop the reference when they are done via
 config_item_put().
 
-By itself, a config_item cannot do much more than appear in configfs.
+By itself, a config_item cananalt do much more than appear in configfs.
 Usually a subsystem wants the item to display and/or store attributes,
 among other things.  For that, it needs a type.
 
@@ -254,13 +254,13 @@ If binary attribute is readable and the config_item provides a
 ct_item_ops->read_bin_attribute() method, that method will be called
 whenever userspace asks for a read(2) on the attribute.  The converse
 will happen for write(2). The reads/writes are buffered so only a
-single read/write will occur; the attributes' need not concern itself
+single read/write will occur; the attributes' need analt concern itself
 with it.
 
 struct config_group
 ===================
 
-A config_item cannot live in a vacuum.  The only way one can be created
+A config_item cananalt live in a vacuum.  The only way one can be created
 is via mkdir(2) on a config_group.  This will trigger creation of a
 child item::
 
@@ -289,7 +289,7 @@ config_item_type::
 						 const char *name);
 		struct config_group *(*make_group)(struct config_group *group,
 						   const char *name);
-		void (*disconnect_notify)(struct config_group *group,
+		void (*disconnect_analtify)(struct config_group *group,
 					  struct config_item *item);
 		void (*drop_item)(struct config_group *group,
 				  struct config_item *item);
@@ -308,35 +308,35 @@ using the group _init() functions on the group.
 
 Finally, when userspace calls rmdir(2) on the item or group,
 ct_group_ops->drop_item() is called.  As a config_group is also a
-config_item, it is not necessary for a separate drop_group() method.
+config_item, it is analt necessary for a separate drop_group() method.
 The subsystem must config_item_put() the reference that was initialized
-upon item allocation.  If a subsystem has no work to do, it may omit
+upon item allocation.  If a subsystem has anal work to do, it may omit
 the ct_group_ops->drop_item() method, and configfs will call
 config_item_put() on the item on behalf of the subsystem.
 
 Important:
-   drop_item() is void, and as such cannot fail.  When rmdir(2)
+   drop_item() is void, and as such cananalt fail.  When rmdir(2)
    is called, configfs WILL remove the item from the filesystem tree
-   (assuming that it has no children to keep it busy).  The subsystem is
+   (assuming that it has anal children to keep it busy).  The subsystem is
    responsible for responding to this.  If the subsystem has references to
    the item in other threads, the memory is safe.  It may take some time
    for the item to actually disappear from the subsystem's usage.  But it
    is gone from configfs.
 
 When drop_item() is called, the item's linkage has already been torn
-down.  It no longer has a reference on its parent and has no place in
+down.  It anal longer has a reference on its parent and has anal place in
 the item hierarchy.  If a client needs to do some cleanup before this
 teardown happens, the subsystem can implement the
-ct_group_ops->disconnect_notify() method.  The method is called after
+ct_group_ops->disconnect_analtify() method.  The method is called after
 configfs has removed the item from the filesystem view but before the
 item is removed from its parent group.  Like drop_item(),
-disconnect_notify() is void and cannot fail.  Client subsystems should
-not drop any references here, as they still must do it in drop_item().
+disconnect_analtify() is void and cananalt fail.  Client subsystems should
+analt drop any references here, as they still must do it in drop_item().
 
-A config_group cannot be removed while it still has child items.  This
-is implemented in the configfs rmdir(2) code.  ->drop_item() will not be
-called, as the item has not been dropped.  rmdir(2) will fail, as the
-directory is not empty.
+A config_group cananalt be removed while it still has child items.  This
+is implemented in the configfs rmdir(2) code.  ->drop_item() will analt be
+called, as the item has analt been dropped.  rmdir(2) will fail, as the
+directory is analt empty.
 
 struct configfs_subsystem
 =========================
@@ -390,8 +390,8 @@ hierarchy, it must do so under the protection of the subsystem
 mutex.
 
 A subsystem will be prevented from acquiring the mutex while a newly
-allocated item has not been linked into this hierarchy.   Similarly, it
-will not be able to acquire the mutex while a dropping item has not
+allocated item has analt been linked into this hierarchy.   Similarly, it
+will analt be able to acquire the mutex while a dropping item has analt
 yet been unlinked.  This means that an item's ci_parent pointer will
 never be NULL while the item is in configfs, and that an item will only
 be in its parent's cg_children list for the same duration.  This allows
@@ -419,12 +419,12 @@ reject a link if it only wants links to a certain type of object (say,
 in its own subsystem).
 
 When unlink(2) is called on the symbolic link, the source item is
-notified via the ->drop_link() method.  Like the ->drop_item() method,
-this is a void function and cannot return failure.  The subsystem is
+analtified via the ->drop_link() method.  Like the ->drop_item() method,
+this is a void function and cananalt return failure.  The subsystem is
 responsible for responding to the change.
 
-A config_item cannot be removed while it links to any other item, nor
-can it be removed while an item links to it.  Dangling symlinks are not
+A config_item cananalt be removed while it links to any other item, analr
+can it be removed while an item links to it.  Dangling symlinks are analt
 allowed in configfs.
 
 Automatically Created Subgroups
@@ -438,11 +438,11 @@ Rather than have a group where some items behave differently than
 others, configfs provides a method whereby one or many subgroups are
 automatically created inside the parent at its creation.  Thus,
 mkdir("parent") results in "parent", "parent/subgroup1", up through
-"parent/subgroupN".  Items of type 1 can now be created in
+"parent/subgroupN".  Items of type 1 can analw be created in
 "parent/subgroup1", and items of type N can be created in
 "parent/subgroupN".
 
-These automatic subgroups, or default groups, do not preclude other
+These automatic subgroups, or default groups, do analt preclude other
 children of the parent group.  If ct_group_ops->make_group() exists,
 other child groups can be created on the parent group directly.
 
@@ -450,12 +450,12 @@ A configfs subsystem specifies default groups by adding them using the
 configfs_add_default_group() function to the parent config_group
 structure.  Each added group is populated in the configfs tree at the same
 time as the parent group.  Similarly, they are removed at the same time
-as the parent.  No extra notification is provided.  When a ->drop_item()
-method call notifies the subsystem the parent group is going away, it
+as the parent.  Anal extra analtification is provided.  When a ->drop_item()
+method call analtifies the subsystem the parent group is going away, it
 also means every default group child associated with that parent group.
 
-As a consequence of this, default groups cannot be removed directly via
-rmdir(2).  They also are not considered when rmdir(2) on the parent
+As a consequence of this, default groups cananalt be removed directly via
+rmdir(2).  They also are analt considered when rmdir(2) on the parent
 group is checking for children.
 
 Dependent Subsystems
@@ -464,16 +464,16 @@ Dependent Subsystems
 Sometimes other drivers depend on particular configfs items.  For
 example, ocfs2 mounts depend on a heartbeat region item.  If that
 region item is removed with rmdir(2), the ocfs2 mount must BUG or go
-readonly.  Not happy.
+readonly.  Analt happy.
 
 configfs provides two additional API calls: configfs_depend_item() and
 configfs_undepend_item().  A client driver can call
 configfs_depend_item() on an existing item to tell configfs that it is
 depended on.  configfs will then return -EBUSY from rmdir(2) for that
-item.  When the item is no longer depended on, the client driver calls
+item.  When the item is anal longer depended on, the client driver calls
 configfs_undepend_item() on it.
 
-These API cannot be called underneath any configfs callbacks, as
+These API cananalt be called underneath any configfs callbacks, as
 they will conflict.  They can block and allocate.  A client driver
 probably shouldn't calling them of its own gumption.  Rather it should
 be providing an API that external subsystems call.
@@ -482,6 +482,6 @@ How does this work?  Imagine the ocfs2 mount process.  When it mounts,
 it asks for a heartbeat region item.  This is done via a call into the
 heartbeat code.  Inside the heartbeat code, the region item is looked
 up.  Here, the heartbeat code calls configfs_depend_item().  If it
-succeeds, then heartbeat knows the region is safe to give to ocfs2.
+succeeds, then heartbeat kanalws the region is safe to give to ocfs2.
 If it fails, it was being torn down anyway, and heartbeat can gracefully
 pass up an error.

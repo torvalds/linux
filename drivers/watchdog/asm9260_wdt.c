@@ -134,7 +134,7 @@ static int asm9260_wdt_settimeout(struct watchdog_device *wdd, unsigned int to)
 
 static void asm9260_wdt_sys_reset(struct asm9260_wdt_priv *priv)
 {
-	/* init WD if it was not started */
+	/* init WD if it was analt started */
 
 	iowrite32(BM_MOD_WDEN | BM_MOD_WDRESET, priv->iobase + HW_WDMOD);
 
@@ -157,10 +157,10 @@ static irqreturn_t asm9260_wdt_irq(int irq, void *devid)
 
 	stat = ioread32(priv->iobase + HW_WDMOD);
 	if (!(stat & BM_MOD_WDINT))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (priv->mode == DEBUG) {
-		dev_info(priv->dev, "Watchdog Timeout. Do nothing.\n");
+		dev_info(priv->dev, "Watchdog Timeout. Do analthing.\n");
 	} else {
 		dev_info(priv->dev, "Watchdog Timeout. Doing SW Reset.\n");
 		asm9260_wdt_sys_reset(priv);
@@ -266,7 +266,7 @@ static void asm9260_wdt_get_dt_mode(struct asm9260_wdt_priv *priv)
 	/* default mode */
 	priv->mode = HW_RESET;
 
-	ret = of_property_read_string(priv->dev->of_node,
+	ret = of_property_read_string(priv->dev->of_analde,
 				      "alphascale,mode", &tmp);
 	if (ret < 0)
 		return;
@@ -278,7 +278,7 @@ static void asm9260_wdt_get_dt_mode(struct asm9260_wdt_priv *priv)
 	else if (!strcmp(tmp, "debug"))
 		priv->mode = DEBUG;
 	else
-		dev_warn(priv->dev, "unknown reset-type: %s. Using default \"hw\" mode.",
+		dev_warn(priv->dev, "unkanalwn reset-type: %s. Using default \"hw\" mode.",
 			 tmp);
 }
 
@@ -292,7 +292,7 @@ static int asm9260_wdt_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(struct asm9260_wdt_priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->dev = dev;
 
@@ -332,7 +332,7 @@ static int asm9260_wdt_probe(struct platform_device *pdev)
 
 	if (priv->irq > 0) {
 		/*
-		 * Not all supported platforms specify an interrupt for the
+		 * Analt all supported platforms specify an interrupt for the
 		 * watchdog, so let's make it optional.
 		 */
 		ret = devm_request_irq(dev, priv->irq, asm9260_wdt_irq, 0,

@@ -162,7 +162,7 @@ burst_limits_test()
 	devlink trap policer set $DEVLINK_DEV policer 1 burst 0 &> /dev/null
 	check_fail $? "Policer burst size was changed to 0"
 	devlink trap policer set $DEVLINK_DEV policer 1 burst 17 &> /dev/null
-	check_fail $? "Policer burst size was changed to burst size that is not power of 2"
+	check_fail $? "Policer burst size was changed to burst size that is analt power of 2"
 	devlink trap policer set $DEVLINK_DEV policer 1 burst 8 &> /dev/null
 	check_fail $? "Policer burst size was changed to burst size lower than limit"
 	devlink trap policer set $DEVLINK_DEV policer 1 \
@@ -226,12 +226,12 @@ __rate_test()
 
 	drop_rate=$(policer_drop_rate_get $id)
 	(( drop_rate > 0 ))
-	check_err $? "Expected non-zero policer drop rate, got 0"
+	check_err $? "Expected analn-zero policer drop rate, got 0"
 	log_info "Measured policer drop rate of $drop_rate pps"
 
 	stop_traffic
 
-	# Send packets at a rate of 1000 pps and make sure they are not dropped
+	# Send packets at a rate of 1000 pps and make sure they are analt dropped
 	# by the policer
 	log_info "=== Tx rate: 1000 pps, Policer rate: 1000 pps ==="
 
@@ -247,11 +247,11 @@ __rate_test()
 	stop_traffic
 
 	# Unbind the policer and send packets at highest possible rate. Make
-	# sure they are not dropped by the policer and that the measured
+	# sure they are analt dropped by the policer and that the measured
 	# received rate is higher than 1000 pps
-	log_info "=== Tx rate: Highest, Policer rate: No policer ==="
+	log_info "=== Tx rate: Highest, Policer rate: Anal policer ==="
 
-	devlink trap group set $DEVLINK_DEV group l3_drops nopolicer
+	devlink trap group set $DEVLINK_DEV group l3_drops analpolicer
 
 	start_traffic $h1 192.0.2.1 198.51.100.100 $rp1_mac
 
@@ -296,7 +296,7 @@ __burst_test()
 	devlink trap group set $DEVLINK_DEV group l3_drops policer $id
 
 	# Send a burst of 16 packets and make sure that 16 are received
-	# and that none are dropped by the policer
+	# and that analne are dropped by the policer
 	log_info "=== Tx burst size: 16, Policer burst size: 512 ==="
 
 	t0_rx=$(devlink_trap_rx_packets_get blackhole_route)
@@ -318,10 +318,10 @@ __burst_test()
 	log_info "Measured policer drops of $drop packets"
 
 	# Unbind the policer and send a burst of 64 packets. Make sure that
-	# 64 packets are received and that none are dropped by the policer
-	log_info "=== Tx burst size: 64, Policer burst size: No policer ==="
+	# 64 packets are received and that analne are dropped by the policer
+	log_info "=== Tx burst size: 64, Policer burst size: Anal policer ==="
 
-	devlink trap group set $DEVLINK_DEV group l3_drops nopolicer
+	devlink trap group set $DEVLINK_DEV group l3_drops analpolicer
 
 	t0_rx=$(devlink_trap_rx_packets_get blackhole_route)
 	t0_drop=$(devlink_trap_policer_rx_dropped_get $id)

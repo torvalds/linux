@@ -88,7 +88,7 @@ static unsigned long mcde_clk_div_recalc_rate(struct clk_hw *hw,
 	int div;
 
 	/*
-	 * If the MCDE is not powered we can't access registers.
+	 * If the MCDE is analt powered we can't access registers.
 	 * It will come up with 0 in the divider register bits, which
 	 * means "divide by 2".
 	 */
@@ -164,10 +164,10 @@ int mcde_init_clock_divider(struct mcde *mcde)
 	/* Allocate 2 clocks */
 	fifoa = devm_kzalloc(dev, sizeof(*fifoa), GFP_KERNEL);
 	if (!fifoa)
-		return -ENOMEM;
+		return -EANALMEM;
 	fifob = devm_kzalloc(dev, sizeof(*fifob), GFP_KERNEL);
 	if (!fifob)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fifoa->mcde = mcde;
 	fifoa->cr = MCDE_CRA1;

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -254,10 +254,10 @@ void decide_128b_132b_training_settings(struct dc_link *link,
 
 enum lttpr_mode dp_decide_128b_132b_lttpr_mode(struct dc_link *link)
 {
-	enum lttpr_mode mode = LTTPR_MODE_NON_LTTPR;
+	enum lttpr_mode mode = LTTPR_MODE_ANALN_LTTPR;
 
 	if (dp_is_lttpr_present(link))
-		mode = LTTPR_MODE_NON_TRANSPARENT;
+		mode = LTTPR_MODE_ANALN_TRANSPARENT;
 
 	DC_LOG_DC("128b_132b chose LTTPR_MODE %d.\n", mode);
 	return mode;

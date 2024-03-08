@@ -59,7 +59,7 @@ static struct rc_map_list videomate_s350_map = {
 	.map = {
 		.scan     = videomate_s350,
 		.size     = ARRAY_SIZE(videomate_s350),
-		.rc_proto = RC_PROTO_UNKNOWN,	/* Legacy IR type */
+		.rc_proto = RC_PROTO_UNKANALWN,	/* Legacy IR type */
 		.name     = RC_MAP_VIDEOMATE_S350,
 	}
 };

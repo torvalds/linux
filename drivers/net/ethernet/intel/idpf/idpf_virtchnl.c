@@ -42,7 +42,7 @@ static void idpf_recv_event_msg(struct idpf_vport *vport,
 		break;
 	default:
 		dev_err(&vport->adapter->pdev->dev,
-			"Unknown event %d from PF\n", event);
+			"Unkanalwn event %d from PF\n", event);
 		break;
 	}
 }
@@ -64,7 +64,7 @@ static int idpf_mb_clean(struct idpf_adapter *adapter)
 
 	q_msg = kcalloc(num_q_msg, sizeof(struct idpf_ctlq_msg *), GFP_ATOMIC);
 	if (!q_msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = idpf_ctlq_clean_sq(adapter->hw.asq, &num_q_msg, q_msg);
 	if (err)
@@ -105,7 +105,7 @@ int idpf_send_mb_msg(struct idpf_adapter *adapter, u32 op,
 	struct idpf_dma_mem *dma_mem;
 	int err;
 
-	/* If we are here and a reset is detected nothing much can be
+	/* If we are here and a reset is detected analthing much can be
 	 * done. This thread should silently abort and expected to
 	 * be corrected with a new run either by user or driver
 	 * flows after reset
@@ -119,11 +119,11 @@ int idpf_send_mb_msg(struct idpf_adapter *adapter, u32 op,
 
 	ctlq_msg = kzalloc(sizeof(*ctlq_msg), GFP_ATOMIC);
 	if (!ctlq_msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dma_mem = kzalloc(sizeof(*dma_mem), GFP_ATOMIC);
 	if (!dma_mem) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto dma_mem_error;
 	}
 
@@ -136,7 +136,7 @@ int idpf_send_mb_msg(struct idpf_adapter *adapter, u32 op,
 	dma_mem->va = dma_alloc_coherent(&adapter->pdev->dev, dma_mem->size,
 					 &dma_mem->pa, GFP_ATOMIC);
 	if (!dma_mem->va) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto dma_alloc_error;
 	}
 	memcpy(dma_mem->va, msg, msg_size);
@@ -167,20 +167,20 @@ dma_mem_error:
  *
  * Return 0 on success, error value on failure. Also this function does check
  * for the opcodes which expect to receive payload and return error value if
- * it is not the case.
+ * it is analt the case.
  */
 static int idpf_find_vport(struct idpf_adapter *adapter,
 			   struct idpf_vport **vport,
 			   struct idpf_ctlq_msg *ctlq_msg)
 {
-	bool no_op = false, vid_found = false;
+	bool anal_op = false, vid_found = false;
 	int i, err = 0;
 	char *vc_msg;
 	u32 v_id;
 
 	vc_msg = kcalloc(IDPF_CTLQ_MAX_BUF_LEN, sizeof(char), GFP_KERNEL);
 	if (!vc_msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (ctlq_msg->data_len) {
 		size_t payload_size = ctlq_msg->ctx.indirect.payload->size;
@@ -253,11 +253,11 @@ static int idpf_find_vport(struct idpf_adapter *adapter,
 		v_id = le32_to_cpu(((struct virtchnl2_mac_addr_list *)vc_msg)->vport_id);
 		break;
 	default:
-		no_op = true;
+		anal_op = true;
 		break;
 	}
 
-	if (no_op)
+	if (anal_op)
 		goto free_vc_msg;
 
 	for (i = 0; i < idpf_get_max_vports(adapter); i++) {
@@ -350,7 +350,7 @@ static void idpf_recv_vchnl_op(struct idpf_adapter *adapter,
 			dev_warn(&adapter->pdev->dev, "opcode %d received without waiting thread\n",
 				 ctlq_msg->cookie.mbx.chnl_opcode);
 		} else {
-			/* Clear the errors since there is no sleeper to pass
+			/* Clear the errors since there is anal sleeper to pass
 			 * them on
 			 */
 			if (vport)
@@ -390,7 +390,7 @@ int idpf_recv_mb_msg(struct idpf_adapter *adapter, u32 op,
 		num_q_msg = 1;
 		dma_mem = NULL;
 		err = idpf_ctlq_recv(adapter->hw.arq, &num_q_msg, &ctlq_msg);
-		/* If no message then decide if we have to retry based on
+		/* If anal message then decide if we have to retry based on
 		 * opcode
 		 */
 		if (err || !num_q_msg) {
@@ -412,7 +412,7 @@ int idpf_recv_mb_msg(struct idpf_adapter *adapter, u32 op,
 
 		/* If we are here a message is received. Check if we are looking
 		 * for a specific message based on opcode. If it is different
-		 * ignore and post buffers
+		 * iganalre and post buffers
 		 */
 		if (op && ctlq_msg.cookie.mbx.chnl_opcode != op)
 			goto post_buffs;
@@ -552,11 +552,11 @@ int idpf_recv_mb_msg(struct idpf_adapter *adapter, u32 op,
 					   IDPF_VC_LOOPBACK_STATE_ERR);
 			break;
 		case VIRTCHNL2_OP_CONFIG_PROMISCUOUS_MODE:
-			/* This message can only be sent asynchronously. As
+			/* This message can only be sent asynchroanalusly. As
 			 * such we'll have lost the context in which it was
 			 * called and thus can only really report if it looks
 			 * like an error occurred. Don't bother setting ERR bit
-			 * or waking chnl_wq since no work queue will be waiting
+			 * or waking chnl_wq since anal work queue will be waiting
 			 * to read the message.
 			 */
 			if (ctlq_msg.cookie.mbx.chnl_retval) {
@@ -568,16 +568,16 @@ int idpf_recv_mb_msg(struct idpf_adapter *adapter, u32 op,
 			vport_config = adapter->vport_config[vport->idx];
 			if (test_and_clear_bit(IDPF_VPORT_ADD_MAC_REQ,
 					       vport_config->flags)) {
-				/* Message was sent asynchronously. We don't
-				 * normally print errors here, instead
+				/* Message was sent asynchroanalusly. We don't
+				 * analrmally print errors here, instead
 				 * prefer to handle errors in the function
 				 * calling wait_for_event. However, if
-				 * asynchronous, the context in which the
+				 * asynchroanalus, the context in which the
 				 * message was sent is lost. We can't really do
 				 * anything about at it this point, but we
 				 * should at a minimum indicate that it looks
 				 * like something went wrong. Also don't bother
-				 * setting ERR bit or waking vchnl_wq since no
+				 * setting ERR bit or waking vchnl_wq since anal
 				 * one will be waiting to read the async
 				 * message.
 				 */
@@ -594,7 +594,7 @@ int idpf_recv_mb_msg(struct idpf_adapter *adapter, u32 op,
 			vport_config = adapter->vport_config[vport->idx];
 			if (test_and_clear_bit(IDPF_VPORT_DEL_MAC_REQ,
 					       vport_config->flags)) {
-				/* Message was sent asynchronously like the
+				/* Message was sent asynchroanalusly like the
 				 * VIRTCHNL2_OP_ADD_MAC_ADDR
 				 */
 				if (ctlq_msg.cookie.mbx.chnl_retval)
@@ -672,11 +672,11 @@ static int __idpf_wait_for_event(struct idpf_adapter *adapter,
 	while (num_waits) {
 		int event;
 
-		/* If we are here and a reset is detected do not wait but
+		/* If we are here and a reset is detected do analt wait but
 		 * return. Reset timing is out of drivers control. So
 		 * while we are cleaning resources as part of reset if the
 		 * underlying HW mailbox is gone, wait on mailbox messages
-		 * is not meaningful
+		 * is analt meaningful
 		 */
 		if (idpf_is_reset_detected(adapter))
 			return 0;
@@ -739,7 +739,7 @@ static int idpf_wait_for_event(struct idpf_adapter *adapter,
 	/* Increasing the timeout in __IDPF_INIT_SW flow to consider large
 	 * number of VF's mailbox message responses. When a message is received
 	 * on mailbox, this thread is woken up by the idpf_recv_mb_msg before
-	 * the timeout expires. Only in the error case i.e. if no message is
+	 * the timeout expires. Only in the error case i.e. if anal message is
 	 * received on mailbox, we wait for the complete timeout which is
 	 * less likely to happen.
 	 */
@@ -789,10 +789,10 @@ static int idpf_send_ver_msg(struct idpf_adapter *adapter)
 
 	if (adapter->virt_ver_maj) {
 		vvi.major = cpu_to_le32(adapter->virt_ver_maj);
-		vvi.minor = cpu_to_le32(adapter->virt_ver_min);
+		vvi.mianalr = cpu_to_le32(adapter->virt_ver_min);
 	} else {
 		vvi.major = cpu_to_le32(IDPF_VIRTCHNL_VERSION_MAJOR);
-		vvi.minor = cpu_to_le32(IDPF_VIRTCHNL_VERSION_MINOR);
+		vvi.mianalr = cpu_to_le32(IDPF_VIRTCHNL_VERSION_MIANALR);
 	}
 
 	return idpf_send_mb_msg(adapter, VIRTCHNL2_OP_VERSION, sizeof(vvi),
@@ -809,7 +809,7 @@ static int idpf_send_ver_msg(struct idpf_adapter *adapter)
 static int idpf_recv_ver_msg(struct idpf_adapter *adapter)
 {
 	struct virtchnl2_version_info vvi;
-	u32 major, minor;
+	u32 major, mianalr;
 	int err;
 
 	err = idpf_recv_mb_msg(adapter, VIRTCHNL2_OP_VERSION, &vvi,
@@ -818,7 +818,7 @@ static int idpf_recv_ver_msg(struct idpf_adapter *adapter)
 		return err;
 
 	major = le32_to_cpu(vvi.major);
-	minor = le32_to_cpu(vvi.minor);
+	mianalr = le32_to_cpu(vvi.mianalr);
 
 	if (major > IDPF_VIRTCHNL_VERSION_MAJOR) {
 		dev_warn(&adapter->pdev->dev,
@@ -829,20 +829,20 @@ static int idpf_recv_ver_msg(struct idpf_adapter *adapter)
 	}
 
 	if (major == IDPF_VIRTCHNL_VERSION_MAJOR &&
-	    minor > IDPF_VIRTCHNL_VERSION_MINOR)
+	    mianalr > IDPF_VIRTCHNL_VERSION_MIANALR)
 		dev_warn(&adapter->pdev->dev,
-			 "Virtchnl minor version (%d) didn't match\n", minor);
+			 "Virtchnl mianalr version (%d) didn't match\n", mianalr);
 
 	/* If we have a mismatch, resend version to update receiver on what
 	 * version we will use.
 	 */
 	if (!adapter->virt_ver_maj &&
 	    major != IDPF_VIRTCHNL_VERSION_MAJOR &&
-	    minor != IDPF_VIRTCHNL_VERSION_MINOR)
+	    mianalr != IDPF_VIRTCHNL_VERSION_MIANALR)
 		err = -EAGAIN;
 
 	adapter->virt_ver_maj = major;
-	adapter->virt_ver_min = minor;
+	adapter->virt_ver_min = mianalr;
 
 	return err;
 }
@@ -1172,7 +1172,7 @@ int idpf_queue_reg_init(struct idpf_vport *vport)
 	/* We may never deal with more than 256 same type of queues */
 	reg_vals = kzalloc(sizeof(void *) * IDPF_LARGE_MAX_Q, GFP_KERNEL);
 	if (!reg_vals)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vport_config = vport->adapter->vport_config[vport_idx];
 	if (vport_config->req_qs_chunks) {
@@ -1262,7 +1262,7 @@ int idpf_send_create_vport_msg(struct idpf_adapter *adapter,
 		adapter->vport_params_reqd[idx] = kzalloc(buf_size,
 							  GFP_KERNEL);
 		if (!adapter->vport_params_reqd[idx])
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	vport_msg = adapter->vport_params_reqd[idx];
@@ -1281,7 +1281,7 @@ int idpf_send_create_vport_msg(struct idpf_adapter *adapter,
 
 	err = idpf_vport_calc_total_qs(adapter, idx, vport_msg, max_q);
 	if (err) {
-		dev_err(&adapter->pdev->dev, "Enough queues are not available");
+		dev_err(&adapter->pdev->dev, "Eanalugh queues are analt available");
 
 		return err;
 	}
@@ -1305,7 +1305,7 @@ int idpf_send_create_vport_msg(struct idpf_adapter *adapter,
 		adapter->vport_params_recvd[idx] = kzalloc(IDPF_CTLQ_MAX_BUF_LEN,
 							   GFP_KERNEL);
 		if (!adapter->vport_params_recvd[idx]) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto rel_lock;
 		}
 	}
@@ -1338,7 +1338,7 @@ int idpf_check_supported_desc_ids(struct idpf_vport *vport)
 
 	if (vport->rxq_model == VIRTCHNL2_QUEUE_MODEL_SPLIT) {
 		if (!(rx_desc_ids & VIRTCHNL2_RXDID_2_FLEX_SPLITQ_M)) {
-			dev_info(&adapter->pdev->dev, "Minimum RX descriptor support not provided, using the default\n");
+			dev_info(&adapter->pdev->dev, "Minimum RX descriptor support analt provided, using the default\n");
 			vport_msg->rx_desc_ids = cpu_to_le64(VIRTCHNL2_RXDID_2_FLEX_SPLITQ_M);
 		}
 	} else {
@@ -1350,7 +1350,7 @@ int idpf_check_supported_desc_ids(struct idpf_vport *vport)
 		return 0;
 
 	if ((tx_desc_ids & MIN_SUPPORT_TXDID) != MIN_SUPPORT_TXDID) {
-		dev_info(&adapter->pdev->dev, "Minimum TX descriptor support not provided, using the default\n");
+		dev_info(&adapter->pdev->dev, "Minimum TX descriptor support analt provided, using the default\n");
 		vport_msg->tx_desc_ids = cpu_to_le64(MIN_SUPPORT_TXDID);
 	}
 
@@ -1468,7 +1468,7 @@ static int idpf_send_config_tx_queues_msg(struct idpf_vport *vport)
 	totqs = vport->num_txq + vport->num_complq;
 	qi = kcalloc(totqs, sizeof(struct virtchnl2_txq_info), GFP_KERNEL);
 	if (!qi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Populate the queue info buffer with all queue context info */
 	for (i = 0; i < vport->num_txq_grp; i++) {
@@ -1542,7 +1542,7 @@ static int idpf_send_config_tx_queues_msg(struct idpf_vport *vport)
 	buf_sz = struct_size(ctq, qinfo, num_chunks);
 	ctq = kzalloc(buf_sz, GFP_KERNEL);
 	if (!ctq) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto error;
 	}
 
@@ -1600,7 +1600,7 @@ static int idpf_send_config_rx_queues_msg(struct idpf_vport *vport)
 	totqs = vport->num_rxq + vport->num_bufq;
 	qi = kcalloc(totqs, sizeof(struct virtchnl2_rxq_info), GFP_KERNEL);
 	if (!qi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Populate the queue info buffer with all queue context info */
 	for (i = 0; i < vport->num_rxq_grp; i++) {
@@ -1622,7 +1622,7 @@ static int idpf_send_config_rx_queues_msg(struct idpf_vport *vport)
 			qi[k].ring_len = cpu_to_le16(bufq->desc_count);
 			qi[k].dma_ring_addr = cpu_to_le64(bufq->dma);
 			qi[k].data_buffer_size = cpu_to_le32(bufq->rx_buf_size);
-			qi[k].buffer_notif_stride = bufq->rx_buf_stride;
+			qi[k].buffer_analtif_stride = bufq->rx_buf_stride;
 			qi[k].rx_buffer_low_watermark =
 				cpu_to_le16(bufq->rx_buffer_low_watermark);
 			if (idpf_is_feature_ena(vport, NETIF_F_GRO_HW))
@@ -1694,7 +1694,7 @@ common_qi_fields:
 	buf_sz = struct_size(crq, qinfo, num_chunks);
 	crq = kzalloc(buf_sz, GFP_KERNEL);
 	if (!crq) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto error;
 	}
 
@@ -1768,7 +1768,7 @@ static int idpf_send_ena_dis_queues_msg(struct idpf_vport *vport, u32 vc_op)
 	buf_sz = sizeof(struct virtchnl2_queue_chunk) * num_q;
 	qc = kzalloc(buf_sz, GFP_KERNEL);
 	if (!qc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < vport->num_txq_grp; i++) {
 		struct idpf_txq_group *tx_qgrp = &vport->txq_grps[i];
@@ -1862,7 +1862,7 @@ send_msg:
 	buf_sz = struct_size(eq, chunks.chunks, num_chunks);
 	eq = kzalloc(buf_sz, GFP_KERNEL);
 	if (!eq) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto error;
 	}
 
@@ -1929,7 +1929,7 @@ int idpf_send_map_unmap_queue_vector_msg(struct idpf_vport *vport, bool map)
 	buf_sz = sizeof(struct virtchnl2_queue_vector) * num_q;
 	vqv = kzalloc(buf_sz, GFP_KERNEL);
 	if (!vqv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < vport->num_txq_grp; i++) {
 		struct idpf_txq_group *tx_qgrp = &vport->txq_grps[i];
@@ -2004,7 +2004,7 @@ int idpf_send_map_unmap_queue_vector_msg(struct idpf_vport *vport, bool map)
 	buf_sz = struct_size(vqvm, qv_maps, num_chunks);
 	vqvm = kzalloc(buf_sz, GFP_KERNEL);
 	if (!vqvm) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto error;
 	}
 
@@ -2148,7 +2148,7 @@ int idpf_send_delete_queues_msg(struct idpf_vport *vport)
 
 	eq = kzalloc(buf_size, GFP_KERNEL);
 	if (!eq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	eq->vport_id = cpu_to_le32(vport->vport_id);
 	eq->chunks.num_chunks = cpu_to_le16(num_chunks);
@@ -2200,7 +2200,7 @@ int idpf_send_config_queues_msg(struct idpf_vport *vport)
  * @num_rx_bufq: number of receive buffer queues
  *
  * Returns 0 on success, negative on failure. vport _MUST_ be const here as
- * we should not change any fields within vport itself in this function.
+ * we should analt change any fields within vport itself in this function.
  */
 int idpf_send_add_queues_msg(const struct idpf_vport *vport, u16 num_tx_q,
 			     u16 num_complq, u16 num_rx_q, u16 num_rx_bufq)
@@ -2253,7 +2253,7 @@ int idpf_send_add_queues_msg(const struct idpf_vport *vport, u16 num_tx_q,
 			   le16_to_cpu(vc_msg->chunks.num_chunks));
 	vport_config->req_qs_chunks = kmemdup(vc_msg, size, GFP_KERNEL);
 	if (!vport_config->req_qs_chunks) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto rel_lock;
 	}
 
@@ -2304,7 +2304,7 @@ int idpf_send_alloc_vectors_msg(struct idpf_adapter *adapter, u16 num_vectors)
 	adapter->req_vec_chunks = NULL;
 	adapter->req_vec_chunks = kmemdup(adapter->vc_msg, size, GFP_KERNEL);
 	if (!adapter->req_vec_chunks) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto rel_lock;
 	}
 
@@ -2480,7 +2480,7 @@ int idpf_send_get_set_rss_lut_msg(struct idpf_vport *vport, bool get)
 	buf_size = struct_size(rl, lut, rss_data->rss_lut_size);
 	rl = kzalloc(buf_size, GFP_KERNEL);
 	if (!rl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rl->vport_id = cpu_to_le32(vport->vport_id);
 	mutex_lock(&vport->vc_buf_lock);
@@ -2522,7 +2522,7 @@ int idpf_send_get_set_rss_lut_msg(struct idpf_vport *vport, bool get)
 	rss_data->rss_lut = kzalloc(lut_buf_size, GFP_KERNEL);
 	if (!rss_data->rss_lut) {
 		rss_data->rss_lut_size = 0;
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto free_mem;
 	}
 
@@ -2554,7 +2554,7 @@ int idpf_send_get_set_rss_key_msg(struct idpf_vport *vport, bool get)
 	buf_size = struct_size(rk, key_flex, rss_data->rss_key_size);
 	rk = kzalloc(buf_size, GFP_KERNEL);
 	if (!rk)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rk->vport_id = cpu_to_le32(vport->vport_id);
 	mutex_lock(&vport->vc_buf_lock);
@@ -2581,7 +2581,7 @@ int idpf_send_get_set_rss_key_msg(struct idpf_vport *vport, bool get)
 						    GFP_KERNEL);
 			if (!rss_data->rss_key) {
 				rss_data->rss_key_size = 0;
-				err = -ENOMEM;
+				err = -EANALMEM;
 				goto error;
 			}
 		}
@@ -2674,7 +2674,7 @@ int idpf_send_get_rx_ptype_msg(struct idpf_vport *vport)
 
 	ptype_info = kzalloc(IDPF_CTLQ_MAX_BUF_LEN, GFP_KERNEL);
 	if (!ptype_info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_lock(&adapter->vc_buf_lock);
 
@@ -2739,7 +2739,7 @@ int idpf_send_get_rx_ptype_msg(struct idpf_vport *vport)
 				k = ptype->ptype_id_8;
 
 			if (ptype->proto_id_count)
-				ptype_lkup[k].known = 1;
+				ptype_lkup[k].kanalwn = 1;
 
 			for (j = 0; j < ptype->proto_id_count; j++) {
 				id = le16_to_cpu(ptype->proto_id[j]);
@@ -2847,10 +2847,10 @@ int idpf_send_get_rx_ptype_msg(struct idpf_vport *vport)
 				case VIRTCHNL2_PROTO_HDR_NSH:
 				case VIRTCHNL2_PROTO_HDR_QUIC:
 				case VIRTCHNL2_PROTO_HDR_PFCP:
-				case VIRTCHNL2_PROTO_HDR_PFCP_NODE:
+				case VIRTCHNL2_PROTO_HDR_PFCP_ANALDE:
 				case VIRTCHNL2_PROTO_HDR_PFCP_SESSION:
 				case VIRTCHNL2_PROTO_HDR_RTP:
-				case VIRTCHNL2_PROTO_HDR_NO_PROTO:
+				case VIRTCHNL2_PROTO_HDR_ANAL_PROTO:
 					break;
 				default:
 					break;
@@ -2957,7 +2957,7 @@ int idpf_init_dflt_mbx(struct idpf_adapter *adapter)
 	if (!hw->asq || !hw->arq) {
 		idpf_ctlq_deinit(hw);
 
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	adapter->state = __IDPF_STARTUP;
@@ -3009,7 +3009,7 @@ static int idpf_vport_params_buf_alloc(struct idpf_adapter *adapter)
 					     sizeof(*adapter->vport_params_reqd),
 					     GFP_KERNEL);
 	if (!adapter->vport_params_reqd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	adapter->vport_params_recvd = kcalloc(num_max_vports,
 					      sizeof(*adapter->vport_params_recvd),
@@ -3035,7 +3035,7 @@ static int idpf_vport_params_buf_alloc(struct idpf_adapter *adapter)
 err_mem:
 	idpf_vport_params_buf_rel(adapter);
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /**
@@ -3090,7 +3090,7 @@ int idpf_vc_core_init(struct idpf_adapter *adapter)
 		}
 		break;
 restart:
-		/* Give enough time before proceeding further with
+		/* Give eanalugh time before proceeding further with
 		 * state machine
 		 */
 		msleep(task_delay);
@@ -3102,14 +3102,14 @@ restart:
 	adapter->vports = kcalloc(num_max_vports, sizeof(*adapter->vports),
 				  GFP_KERNEL);
 	if (!adapter->vports)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!adapter->netdevs) {
 		adapter->netdevs = kcalloc(num_max_vports,
 					   sizeof(struct net_device *),
 					   GFP_KERNEL);
 		if (!adapter->netdevs) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto err_netdev_alloc;
 		}
 	}
@@ -3144,7 +3144,7 @@ restart:
 	queue_delayed_work(adapter->init_wq, &adapter->init_task,
 			   msecs_to_jiffies(5 * (adapter->pdev->devfn & 0x07)));
 
-	goto no_err;
+	goto anal_err;
 
 err_intr_req:
 	cancel_delayed_work_sync(&adapter->serv_task);
@@ -3153,7 +3153,7 @@ err_intr_req:
 err_netdev_alloc:
 	kfree(adapter->vports);
 	adapter->vports = NULL;
-no_err:
+anal_err:
 	return err;
 
 init_failed:
@@ -3167,7 +3167,7 @@ init_failed:
 		return -EFAULT;
 	}
 	/* If it reached here, it is possible that mailbox queue initialization
-	 * register writes might not have taken effect. Retry to initialize
+	 * register writes might analt have taken effect. Retry to initialize
 	 * the mailbox again
 	 */
 	adapter->state = __IDPF_STARTUP;
@@ -3190,7 +3190,7 @@ void idpf_vc_core_deinit(struct idpf_adapter *adapter)
 
 	idpf_deinit_task(adapter);
 	idpf_intr_rel(adapter);
-	/* Set all bits as we dont know on which vc_state the vhnl_wq is
+	/* Set all bits as we dont kanalw on which vc_state the vhnl_wq is
 	 * waiting on and wakeup the virtchnl workqueue even if it is waiting
 	 * for the response as we are going down
 	 */
@@ -3466,7 +3466,7 @@ static int __idpf_vport_queue_ids_init(struct idpf_vport *vport,
  * @vport: virtual port for which the queues ids are initialized
  *
  * Will initialize all queue ids with ids received as mailbox parameters.
- * Returns 0 on success, negative if all the queues are not initialized.
+ * Returns 0 on success, negative if all the queues are analt initialized.
  */
 int idpf_vport_queue_ids_init(struct idpf_vport *vport)
 {
@@ -3490,7 +3490,7 @@ int idpf_vport_queue_ids_init(struct idpf_vport *vport)
 
 	qids = kcalloc(IDPF_MAX_QIDS, sizeof(u32), GFP_KERNEL);
 	if (!qids)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	num_ids = idpf_vport_get_queue_ids(qids, IDPF_MAX_QIDS,
 					   VIRTCHNL2_QUEUE_TYPE_TX,
@@ -3670,7 +3670,7 @@ int idpf_add_del_mac_filters(struct idpf_vport *vport,
 	mac_addr = kcalloc(total_filters, sizeof(struct virtchnl2_mac_addr),
 			   GFP_ATOMIC);
 	if (!mac_addr) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		spin_unlock_bh(&vport_config->mac_filter_list_lock);
 		goto error;
 	}
@@ -3727,7 +3727,7 @@ int idpf_add_del_mac_filters(struct idpf_vport *vport,
 			kfree(ma_list);
 			ma_list = kzalloc(buf_size, GFP_ATOMIC);
 			if (!ma_list) {
-				err = -ENOMEM;
+				err = -EANALMEM;
 				goto list_prep_error;
 			}
 		} else {
@@ -3775,7 +3775,7 @@ error:
  * @vport_id: Vport identifier
  *
  * Request to enable promiscuous mode for the vport. Message is sent
- * asynchronously and won't wait for response.  Returns 0 on success, negative
+ * asynchroanalusly and won't wait for response.  Returns 0 on success, negative
  * on failure;
  */
 int idpf_set_promiscuous(struct idpf_adapter *adapter,

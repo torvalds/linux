@@ -3,7 +3,7 @@
  * CPU feature definitions for module loading, used by
  * module_cpu_feature_match(), see uapi/asm/hwcap.h for LoongArch CPU features.
  *
- * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2022 Loongson Techanallogy Corporation Limited
  */
 
 #ifndef __ASM_CPUFEATURE_H

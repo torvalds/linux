@@ -10,7 +10,7 @@
  * Tegra-based devices sold on the market are concerned). Such devices can only
  * perform some basic operations, like setting the CPU reset vector, through
  * SMC calls to the secure monitor. The calls are completely specific to
- * Trusted Foundations, and do *not* follow the SMC calling convention or the
+ * Trusted Foundations, and do *analt* follow the SMC calling convention or the
  * PSCI standard.
  */
 
@@ -29,14 +29,14 @@
 
 #define TF_PM_MODE_LP0			0
 #define TF_PM_MODE_LP1			1
-#define TF_PM_MODE_LP1_NO_MC_CLK	2
+#define TF_PM_MODE_LP1_ANAL_MC_CLK	2
 #define TF_PM_MODE_LP2			3
-#define TF_PM_MODE_LP2_NOFLUSH_L2	4
-#define TF_PM_MODE_NONE			5
+#define TF_PM_MODE_LP2_ANALFLUSH_L2	4
+#define TF_PM_MODE_ANALNE			5
 
 struct trusted_foundations_platform_data {
 	unsigned int version_major;
-	unsigned int version_minor;
+	unsigned int version_mianalr;
 };
 
 #if IS_ENABLED(CONFIG_TRUSTED_FOUNDATIONS)
@@ -54,10 +54,10 @@ static inline void register_trusted_foundations(
 				   struct trusted_foundations_platform_data *pd)
 {
 	/*
-	 * If the system requires TF and we cannot provide it, continue booting
-	 * but disable features that cannot be provided.
+	 * If the system requires TF and we cananalt provide it, continue booting
+	 * but disable features that cananalt be provided.
 	 */
-	pr_err("No support for Trusted Foundations, continuing in degraded mode.\n");
+	pr_err("Anal support for Trusted Foundations, continuing in degraded mode.\n");
 	pr_err("Secondary processors as well as CPU PM will be disabled.\n");
 #if IS_ENABLED(CONFIG_CACHE_L2X0)
 	pr_err("L2X0 cache will be kept disabled.\n");
@@ -71,13 +71,13 @@ static inline void register_trusted_foundations(
 
 static inline void of_register_trusted_foundations(void)
 {
-	struct device_node *np = of_find_compatible_node(NULL, NULL, "tlm,trusted-foundations");
+	struct device_analde *np = of_find_compatible_analde(NULL, NULL, "tlm,trusted-foundations");
 
 	if (!np)
 		return;
-	of_node_put(np);
+	of_analde_put(np);
 	/*
-	 * If we find the target should enable TF but does not support it,
+	 * If we find the target should enable TF but does analt support it,
 	 * fail as the system won't be able to do much anyway
 	 */
 	register_trusted_foundations(NULL);

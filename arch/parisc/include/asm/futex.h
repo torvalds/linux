@@ -5,7 +5,7 @@
 #include <linux/futex.h>
 #include <linux/uaccess.h>
 #include <asm/atomic.h>
-#include <asm/errno.h>
+#include <asm/erranal.h>
 
 /* The following has to match the LWS code in syscall.S.  We have
  * 256 four-word locks. We use bits 20-27 of the futex virtual
@@ -70,7 +70,7 @@ arch_futex_atomic_op_inuser(int op, int oparg, int *oval, u32 __user *uaddr)
 		tmp ^= oparg;
 		break;
 	default:
-		ret = -ENOSYS;
+		ret = -EANALSYS;
 		goto out_pagefault_enable;
 	}
 
@@ -99,7 +99,7 @@ futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr,
 	if (!access_ok(uaddr, sizeof(u32)))
 		return -EFAULT;
 
-	/* HPPA has no cmpxchg in hardware and therefore the
+	/* HPPA has anal cmpxchg in hardware and therefore the
 	 * best we can do here is use an array of locks. The
 	 * lock selected is based on a hash of the virtual
 	 * address of the futex. This should scale to a couple

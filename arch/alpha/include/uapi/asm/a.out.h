@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPI__ALPHA_A_OUT_H__
 #define _UAPI__ALPHA_A_OUT_H__
 
@@ -25,7 +25,7 @@ struct filehdr
 
 struct aouthdr
 {
-	__u64 info;		/* after that it looks quite normal.. */
+	__u64 info;		/* after that it looks quite analrmal.. */
 	__u64 tsize;
 	__u64 dsize;
 	__u64 bsize;
@@ -45,9 +45,9 @@ struct scnhdr
 	__u64	s_size;
 	__u64	s_scnptr;
 	__u64	s_relptr;
-	__u64	s_lnnoptr;
+	__u64	s_lnanalptr;
 	__u16	s_nreloc;
-	__u16	s_nlnno;
+	__u16	s_nlnanal;
 	__u32	s_flags;
 };
 

@@ -54,7 +54,7 @@ enum wide_opcode {
 #define VARI_DECIMATE_BUF0       0x0780
 #define SRC_OUTPUT_BUF1          0x07A0
 #define ASYNC_IP_OUTPUT_BUFFER1  0x0A00
-#define OUTPUT_SNOOP_BUFFER      0x0B00
+#define OUTPUT_SANALOP_BUFFER      0x0B00
 #define SPDIFI_IP_OUTPUT_BUFFER1 0x0E00
 #define SPDIFO_IP_OUTPUT_BUFFER1 0x1000
 #define MIX_SAMPLE_BUF1          0x1400
@@ -85,11 +85,11 @@ enum wide_opcode {
 #define ASYNCTX_SCB_ADDR         0x0E0
 #define ASYNCRX_SCB_ADDR         0x0F0
 #define SRCTASKII_SCB_ADDR       0x100
-#define OUTPUTSNOOP_SCB_ADDR     0x110
+#define OUTPUTSANALOP_SCB_ADDR     0x110
 #define PCMSERIALINII_SCB_ADDR   0x120
 #define SPIOWRITE_SCB_ADDR       0x130
 #define REAR_CODECOUT_SCB_ADDR   0x140
-#define OUTPUTSNOOPII_SCB_ADDR   0x150
+#define OUTPUTSANALOPII_SCB_ADDR   0x150
 #define PCMSERIALIN_PCM_SCB_ADDR 0x160
 #define RECORD_MIXER_SCB_ADDR    0x170
 #define REAR_MIXER_SCB_ADDR      0x180
@@ -137,9 +137,9 @@ enum wide_opcode {
 #define RSCONFIG_MODULO_4                       0x00000008L
 #define RSCONFIG_MODULO_8                       0x00000009L
 #define RSCONFIG_SAMPLE_SIZE_MASK               0x000000C0L
-#define RSCONFIG_SAMPLE_8MONO                   0x00000000L
+#define RSCONFIG_SAMPLE_8MOANAL                   0x00000000L
 #define RSCONFIG_SAMPLE_8STEREO                 0x00000040L
-#define RSCONFIG_SAMPLE_16MONO                  0x00000080L
+#define RSCONFIG_SAMPLE_16MOANAL                  0x00000080L
 #define RSCONFIG_SAMPLE_16STEREO                0x000000C0L
 #define RSCONFIG_UNDERRUN_ZERO                  0x00004000L
 #define RSCONFIG_DMA_TO_HOST                    0x00008000L

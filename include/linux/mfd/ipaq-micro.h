@@ -24,7 +24,7 @@
 #define MSG_EEPROM_READ		0x4
 #define MSG_EEPROM_WRITE	0x5
 #define MSG_THERMAL_SENSOR	0x6
-#define MSG_NOTIFY_LED		0x8
+#define MSG_ANALTIFY_LED		0x8
 #define MSG_BATTERY		0x9
 #define MSG_SPI_READ		0xb
 #define MSG_SPI_WRITE		0xc
@@ -78,7 +78,7 @@ struct ipaq_micro_rxdev {
  * @rx_len: length of received RX data
  * @rx_data: RX data to receive
  * @ack: a completion that will be completed when RX is complete
- * @node: list node if message gets queued
+ * @analde: list analde if message gets queued
  */
 struct ipaq_micro_msg {
 	u8 id;
@@ -87,23 +87,23 @@ struct ipaq_micro_msg {
 	u8 rx_len;
 	u8 rx_data[RX_BUF_SIZE];
 	struct completion ack;
-	struct list_head node;
+	struct list_head analde;
 };
 
 /**
  * struct ipaq_micro - iPAQ microcontroller state
  * @dev: corresponding platform device
  * @base: virtual memory base for underlying serial device
- * @sdlc: virtual memory base for Synchronous Data Link Controller
+ * @sdlc: virtual memory base for Synchroanalus Data Link Controller
  * @version: version string
  * @tx: TX state
  * @rx: RX state
  * @lock: lock for this state container
  * @msg: current message
  * @queue: message queue
- * @key: callback for asynchronous key events
+ * @key: callback for asynchroanalus key events
  * @key_data: data to pass along with key events
- * @ts: callback for asynchronous touchscreen events
+ * @ts: callback for asynchroanalus touchscreen events
  * @ts_data: data to pass along with key events
  */
 struct ipaq_micro {

@@ -31,7 +31,7 @@ filesystems::
 	|         |                                    +--------------+
 	+---------+
 
-Or to look at it another way, FS-Cache is a module that provides a caching
+Or to look at it aanalther way, FS-Cache is a module that provides a caching
 facility to a network filesystem such that the cache is transparent to the
 user::
 
@@ -68,19 +68,19 @@ user::
 	+---------+                                           +--------------+
 
 
-FS-Cache does not follow the idea of completely loading every netfs file
+FS-Cache does analt follow the idea of completely loading every netfs file
 opened in its entirety into a cache before permitting it to be accessed and
-then serving the pages out of that cache rather than the netfs inode because:
+then serving the pages out of that cache rather than the netfs ianalde because:
 
  (1) It must be practical to operate without a cache.
 
- (2) The size of any accessible file must not be limited to the size of the
+ (2) The size of any accessible file must analt be limited to the size of the
      cache.
 
  (3) The combined size of all opened files (this includes mapped libraries)
-     must not be limited to the size of the cache.
+     must analt be limited to the size of the cache.
 
- (4) The user should not be forced to download an entire file just to do a
+ (4) The user should analt be forced to download an entire file just to do a
      one-off access of a small portion of it (such as might be done with the
      "file" program).
 
@@ -102,21 +102,21 @@ FS-Cache provides the following facilities:
      rather to let the netfs remain oblivious.
 
    * There are three types of cookie: cache, volume and data file cookies.
-     Cache cookies represent the cache as a whole and are not normally visible
+     Cache cookies represent the cache as a whole and are analt analrmally visible
      to the netfs; the netfs gets a volume cookie to represent a collection of
      files (typically something that a netfs would get for a superblock); and
      data file cookies are used to cache data (something that would be got for
-     an inode).
+     an ianalde).
 
    * Volumes are matched using a key.  This is a printable string that is used
      to encode all the information that might be needed to distinguish one
-     superblock, say, from another.  This would be a compound of things like
+     superblock, say, from aanalther.  This would be a compound of things like
      cell name or server address, volume name or share path.  It must be a
      valid pathname.
 
    * Cookies are matched using a key.  This is a binary blob and is used to
-     represent the object within a volume (so the volume key need not form
-     part of the blob).  This might include things like an inode number and
+     represent the object within a volume (so the volume key need analt form
+     part of the blob).  This might include things like an ianalde number and
      uniquifier or a file handle.
 
    * Cookie resources are set up and pinned by marking the cookie in-use.
@@ -132,7 +132,7 @@ FS-Cache provides the following facilities:
      duration of an operation and prevent structs from being freed whilst
      we're looking at them.
 
-   * Data I/O is done by asynchronous DIO to/from a buffer described by the
+   * Data I/O is done by asynchroanalus DIO to/from a buffer described by the
      netfs using an iov_iter.
 
    * An invalidation facility is available to discard data from the cache and
@@ -179,7 +179,7 @@ This shows counts of a number of events that can happen in FS-Cache:
 +              +-------+-------------------------------------------------------+
 |              |ok=N   |Number of acq reqs succeeded                           |
 +              +-------+-------------------------------------------------------+
-|              |oom=N  |Number of acq reqs failed on ENOMEM                    |
+|              |oom=N  |Number of acq reqs failed on EANALMEM                    |
 +--------------+-------+-------------------------------------------------------+
 |LRU           |n=N    |Number of cookies currently on the LRU                 |
 +              +-------+-------------------------------------------------------+
@@ -203,9 +203,9 @@ This shows counts of a number of events that can happen in FS-Cache:
 +              +-------+-------------------------------------------------------+
 |              |rtr=N  |Number of rlq reqs with retire=true                    |
 +              +-------+-------------------------------------------------------+
-|              |drop=N |Number of cookies no longer blocking re-acquisition    |
+|              |drop=N |Number of cookies anal longer blocking re-acquisition    |
 +--------------+-------+-------------------------------------------------------+
-|NoSpace       |nwr=N  |Number of write requests refused due to lack of space  |
+|AnalSpace       |nwr=N  |Number of write requests refused due to lack of space  |
 +              +-------+-------------------------------------------------------+
 |              |ncr=N  |Number of create requests refused due to lack of space |
 +              +-------+-------------------------------------------------------+
@@ -334,7 +334,7 @@ This is a bitmask of debugging streams to enable:
 	3	8	Cookie management		Function entry trace
 	4	16					Function exit trace
 	5	32					General
-	6-8						(Not used)
+	6-8						(Analt used)
 	9	512	I/O operation management	Function entry trace
 	10	1024					Function exit trace
 	11	2048					General

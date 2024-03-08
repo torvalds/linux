@@ -8,7 +8,7 @@
  *
  * 	The metadata ematch compares two meta objects where each object
  * 	represents either a meta value stored in the kernel or a static
- * 	value provided by userspace. The objects are not provided by
+ * 	value provided by userspace. The objects are analt provided by
  * 	userspace itself but rather a definition providing the information
  * 	to build them. Every object is of a certain type which must be
  * 	equal to the object it is being compared to.
@@ -41,16 +41,16 @@
  *
  * 	This is a simplified schema, the complexity varies depending
  * 	on the meta type. Obviously, the length of the data must also
- * 	be provided for non-numeric types.
+ * 	be provided for analn-numeric types.
  *
  * 	Additionally, type dependent modifiers such as shift operators
- * 	or mask may be applied to extend the functionality. As of now,
+ * 	or mask may be applied to extend the functionality. As of analw,
  * 	the variable length type supports shifting the byte string to
  * 	the right, eating up any number of octets and thus supporting
  * 	wildcard interface name comparisons such as "ppp%" matching
  * 	ppp0..9.
  *
- * 	NOTE: Certain meta values depend on other subsystems and are
+ * 	ANALTE: Certain meta values depend on other subsystems and are
  * 	      only available if that subsystem is enabled in the kernel.
  */
 
@@ -269,12 +269,12 @@ META_COLLECTOR(int_rtiif)
  * Socket Attributes
  **************************************************************************/
 
-#define skip_nonlocal(skb) \
+#define skip_analnlocal(skb) \
 	(unlikely(skb->sk == NULL))
 
 META_COLLECTOR(int_sk_family)
 {
-	if (skip_nonlocal(skb)) {
+	if (skip_analnlocal(skb)) {
 		*err = -1;
 		return;
 	}
@@ -283,7 +283,7 @@ META_COLLECTOR(int_sk_family)
 
 META_COLLECTOR(int_sk_state)
 {
-	if (skip_nonlocal(skb)) {
+	if (skip_analnlocal(skb)) {
 		*err = -1;
 		return;
 	}
@@ -292,7 +292,7 @@ META_COLLECTOR(int_sk_state)
 
 META_COLLECTOR(int_sk_reuse)
 {
-	if (skip_nonlocal(skb)) {
+	if (skip_analnlocal(skb)) {
 		*err = -1;
 		return;
 	}
@@ -301,11 +301,11 @@ META_COLLECTOR(int_sk_reuse)
 
 META_COLLECTOR(int_sk_bound_if)
 {
-	if (skip_nonlocal(skb)) {
+	if (skip_analnlocal(skb)) {
 		*err = -1;
 		return;
 	}
-	/* No error if bound_dev_if is 0, legal userspace check */
+	/* Anal error if bound_dev_if is 0, legal userspace check */
 	dst->value = skb->sk->sk_bound_dev_if;
 }
 
@@ -313,7 +313,7 @@ META_COLLECTOR(var_sk_bound_if)
 {
 	int bound_dev_if;
 
-	if (skip_nonlocal(skb)) {
+	if (skip_analnlocal(skb)) {
 		*err = -1;
 		return;
 	}
@@ -335,7 +335,7 @@ META_COLLECTOR(var_sk_bound_if)
 
 META_COLLECTOR(int_sk_refcnt)
 {
-	if (skip_nonlocal(skb)) {
+	if (skip_analnlocal(skb)) {
 		*err = -1;
 		return;
 	}
@@ -487,7 +487,7 @@ META_COLLECTOR(int_sk_alloc)
 
 META_COLLECTOR(int_sk_hash)
 {
-	if (skip_nonlocal(skb)) {
+	if (skip_analnlocal(skb)) {
 		*err = -1;
 		return;
 	}
@@ -698,7 +698,7 @@ static int meta_var_change(struct meta_value *dst, struct nlattr *nla)
 
 	dst->val = (unsigned long)kmemdup(nla_data(nla), len, GFP_KERNEL);
 	if (dst->val == 0UL)
-		return -ENOMEM;
+		return -EANALMEM;
 	dst->len = len;
 	return 0;
 }
@@ -734,7 +734,7 @@ nla_put_failure:
 
 static int meta_int_compare(struct meta_obj *a, struct meta_obj *b)
 {
-	/* Let gcc optimize it, the unlikely is not really based on
+	/* Let gcc optimize it, the unlikely is analt really based on
 	 * some numbers but jump free code for mismatches seems
 	 * more logical. */
 	if (unlikely(a->value == b->value))
@@ -929,7 +929,7 @@ static int em_meta_change(struct net *net, void *data, int len,
 
 	meta = kzalloc(sizeof(*meta), GFP_KERNEL);
 	if (meta == NULL) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto errout;
 	}
 
@@ -938,7 +938,7 @@ static int em_meta_change(struct net *net, void *data, int len,
 
 	if (!meta_is_supported(&meta->lvalue) ||
 	    !meta_is_supported(&meta->rvalue)) {
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		goto errout;
 	}
 

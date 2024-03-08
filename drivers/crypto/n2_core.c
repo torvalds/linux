@@ -61,7 +61,7 @@ struct spu_queue {
 	unsigned long		tail;
 	struct list_head	jobs;
 
-	unsigned long		devino;
+	unsigned long		devianal;
 
 	char			irq_name[32];
 	unsigned int		irq;
@@ -95,7 +95,7 @@ struct n2_request_common {
 	struct list_head	entry;
 	unsigned int		offset;
 };
-#define OFFSET_NOT_RUNNING	(~(unsigned int)0)
+#define OFFSET_ANALT_RUNNING	(~(unsigned int)0)
 
 /* An async job request records the final tail value it used in
  * n2_request_common->offset, test to see if that offset is in
@@ -115,7 +115,7 @@ static inline bool job_finished(struct spu_queue *q, unsigned int offset,
 }
 
 /* When the HEAD marker is unequal to the actual HEAD, we get
- * a virtual device INO interrupt.  We should process the
+ * a virtual device IANAL interrupt.  We should process the
  * completed CWQ entries and adjust the HEAD marker to clear
  * the IRQ.
  */
@@ -363,14 +363,14 @@ static int n2_hash_async_finup(struct ahash_request *req)
 	return crypto_ahash_finup(&rctx->fallback_req);
 }
 
-static int n2_hash_async_noimport(struct ahash_request *req, const void *in)
+static int n2_hash_async_analimport(struct ahash_request *req, const void *in)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
-static int n2_hash_async_noexport(struct ahash_request *req, void *out)
+static int n2_hash_async_analexport(struct ahash_request *req, void *out)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 static int n2_hash_cra_init(struct crypto_tfm *tfm)
@@ -384,7 +384,7 @@ static int n2_hash_cra_init(struct crypto_tfm *tfm)
 	fallback_tfm = crypto_alloc_ahash(fallback_driver_name, 0,
 					  CRYPTO_ALG_NEED_FALLBACK);
 	if (IS_ERR(fallback_tfm)) {
-		pr_warn("Fallback driver '%s' could not be loaded!\n",
+		pr_warn("Fallback driver '%s' could analt be loaded!\n",
 			fallback_driver_name);
 		err = PTR_ERR(fallback_tfm);
 		goto out;
@@ -421,7 +421,7 @@ static int n2_hmac_cra_init(struct crypto_tfm *tfm)
 	fallback_tfm = crypto_alloc_ahash(fallback_driver_name, 0,
 					  CRYPTO_ALG_NEED_FALLBACK);
 	if (IS_ERR(fallback_tfm)) {
-		pr_warn("Fallback driver '%s' could not be loaded!\n",
+		pr_warn("Fallback driver '%s' could analt be loaded!\n",
 			fallback_driver_name);
 		err = PTR_ERR(fallback_tfm);
 		goto out;
@@ -429,7 +429,7 @@ static int n2_hmac_cra_init(struct crypto_tfm *tfm)
 
 	child_shash = crypto_alloc_shash(n2alg->child_alg, 0, 0);
 	if (IS_ERR(child_shash)) {
-		pr_warn("Child shash '%s' could not be loaded!\n",
+		pr_warn("Child shash '%s' could analt be loaded!\n",
 			n2alg->child_alg);
 		err = PTR_ERR(child_shash);
 		goto out_free_fallback;
@@ -527,10 +527,10 @@ static int n2_do_async_digest(struct ahash_request *req,
 	struct crypto_hash_walk walk;
 	struct spu_queue *qp;
 	unsigned long flags;
-	int err = -ENODEV;
+	int err = -EANALDEV;
 	int nbytes, cpu;
 
-	/* The total effective length of the operation may not
+	/* The total effective length of the operation may analt
 	 * exceed 2^16.
 	 */
 	if (unlikely(req->nbytes > (1 << 16))) {
@@ -693,7 +693,7 @@ struct n2_request_context {
  *
  * It merely requires that every descriptor's length field is at least
  * as large as the cipher block size.  This means that a cipher block
- * can span at most 2 descriptors.  However, this does not allow a
+ * can span at most 2 descriptors.  However, this does analt allow a
  * partial block to span into the final descriptor as that would
  * violate the rule (since every descriptor's length must be at lest
  * the block size).  So, for example, assuming an 8 byte block size:
@@ -704,7 +704,7 @@ struct n2_request_context {
  *
  *	0xe --> 0xb --> 0x7
  *
- * is not a valid sequence.
+ * is analt a valid sequence.
  */
 
 struct n2_skcipher_alg {
@@ -896,7 +896,7 @@ static int n2_compute_chunks(struct skcipher_request *req)
 					      &rctx->chunk_list);
 				chunk = kzalloc(sizeof(*chunk), GFP_ATOMIC);
 				if (!chunk) {
-					err = -ENOMEM;
+					err = -EANALMEM;
 					break;
 				}
 				INIT_LIST_HEAD(&chunk->entry);
@@ -955,7 +955,7 @@ static int n2_do_ecb(struct skcipher_request *req, bool encrypt)
 		return err;
 
 	qp = cpu_to_cwq[get_cpu()];
-	err = -ENODEV;
+	err = -EANALDEV;
 	if (!qp)
 		goto out;
 
@@ -1010,7 +1010,7 @@ static int n2_do_chaining(struct skcipher_request *req, bool encrypt)
 		return err;
 
 	qp = cpu_to_cwq[get_cpu()];
-	err = -ENODEV;
+	err = -EANALDEV;
 	if (!qp)
 		goto out;
 
@@ -1310,7 +1310,7 @@ static int __n2_register_one_skcipher(const struct n2_skcipher_tmpl *tmpl)
 	int err;
 
 	if (!p)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	alg = &p->skcipher;
 	*alg = tmpl->skcipher;
@@ -1346,7 +1346,7 @@ static int __n2_register_one_hmac(struct n2_ahash_alg *n2ahash)
 	int err;
 
 	if (!p)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	p->child_alg = n2ahash->alg.halg.base.cra_name;
 	memcpy(&p->derived, n2ahash, sizeof(struct n2_ahash_alg));
@@ -1390,7 +1390,7 @@ static int __n2_register_one_ahash(const struct n2_hash_tmpl *tmpl)
 	int err;
 
 	if (!p)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	p->hash_zero = tmpl->hash_zero;
 	p->hash_init = tmpl->hash_init;
@@ -1405,8 +1405,8 @@ static int __n2_register_one_ahash(const struct n2_hash_tmpl *tmpl)
 	ahash->final = n2_hash_async_final;
 	ahash->finup = n2_hash_async_finup;
 	ahash->digest = n2_hash_async_digest;
-	ahash->export = n2_hash_async_noexport;
-	ahash->import = n2_hash_async_noimport;
+	ahash->export = n2_hash_async_analexport;
+	ahash->import = n2_hash_async_analimport;
 
 	halg = &ahash->halg;
 	halg->digestsize = tmpl->digest_size;
@@ -1475,55 +1475,55 @@ static void n2_unregister_algs(void)
 }
 
 /* To map CWQ queues to interrupt sources, the hypervisor API provides
- * a devino.  This isn't very useful to us because all of the
- * interrupts listed in the device_node have been translated to
+ * a devianal.  This isn't very useful to us because all of the
+ * interrupts listed in the device_analde have been translated to
  * Linux virtual IRQ cookie numbers.
  *
- * So we have to back-translate, going through the 'intr' and 'ino'
- * property tables of the n2cp MDESC node, matching it with the OF
+ * So we have to back-translate, going through the 'intr' and 'ianal'
+ * property tables of the n2cp MDESC analde, matching it with the OF
  * 'interrupts' property entries, in order to figure out which
- * devino goes to which already-translated IRQ.
+ * devianal goes to which already-translated IRQ.
  */
-static int find_devino_index(struct platform_device *dev, struct spu_mdesc_info *ip,
-			     unsigned long dev_ino)
+static int find_devianal_index(struct platform_device *dev, struct spu_mdesc_info *ip,
+			     unsigned long dev_ianal)
 {
 	const unsigned int *dev_intrs;
 	unsigned int intr;
 	int i;
 
 	for (i = 0; i < ip->num_intrs; i++) {
-		if (ip->ino_table[i].ino == dev_ino)
+		if (ip->ianal_table[i].ianal == dev_ianal)
 			break;
 	}
 	if (i == ip->num_intrs)
-		return -ENODEV;
+		return -EANALDEV;
 
-	intr = ip->ino_table[i].intr;
+	intr = ip->ianal_table[i].intr;
 
-	dev_intrs = of_get_property(dev->dev.of_node, "interrupts", NULL);
+	dev_intrs = of_get_property(dev->dev.of_analde, "interrupts", NULL);
 	if (!dev_intrs)
-		return -ENODEV;
+		return -EANALDEV;
 
 	for (i = 0; i < dev->archdata.num_irqs; i++) {
 		if (dev_intrs[i] == intr)
 			return i;
 	}
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
-static int spu_map_ino(struct platform_device *dev, struct spu_mdesc_info *ip,
+static int spu_map_ianal(struct platform_device *dev, struct spu_mdesc_info *ip,
 		       const char *irq_name, struct spu_queue *p,
 		       irq_handler_t handler)
 {
 	unsigned long herr;
 	int index;
 
-	herr = sun4v_ncs_qhandle_to_devino(p->qhandle, &p->devino);
+	herr = sun4v_ncs_qhandle_to_devianal(p->qhandle, &p->devianal);
 	if (herr)
 		return -EINVAL;
 
-	index = find_devino_index(dev, ip, p->devino);
+	index = find_devianal_index(dev, ip, p->devianal);
 	if (index < 0)
 		return index;
 
@@ -1555,7 +1555,7 @@ static int queue_cache_init(void)
 					   MAU_ENTRY_SIZE),
 					  MAU_ENTRY_SIZE, 0, NULL);
 	if (!queue_cache[HV_NCS_QTYPE_MAU - 1])
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!queue_cache[HV_NCS_QTYPE_CWQ - 1])
 		queue_cache[HV_NCS_QTYPE_CWQ - 1] =
@@ -1566,7 +1566,7 @@ static int queue_cache_init(void)
 	if (!queue_cache[HV_NCS_QTYPE_CWQ - 1]) {
 		kmem_cache_destroy(queue_cache[HV_NCS_QTYPE_MAU - 1]);
 		queue_cache[HV_NCS_QTYPE_MAU - 1] = NULL;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	return 0;
 }
@@ -1608,7 +1608,7 @@ static int spu_queue_setup(struct spu_queue *p)
 
 	p->q = new_queue(p->q_type);
 	if (!p->q)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = spu_queue_register(p, p->q_type);
 	if (err) {
@@ -1654,19 +1654,19 @@ static void spu_list_destroy(struct list_head *list)
 	}
 }
 
-/* Walk the backward arcs of a CWQ 'exec-unit' node,
+/* Walk the backward arcs of a CWQ 'exec-unit' analde,
  * gathering cpu membership information.
  */
 static int spu_mdesc_walk_arcs(struct mdesc_handle *mdesc,
 			       struct platform_device *dev,
-			       u64 node, struct spu_queue *p,
+			       u64 analde, struct spu_queue *p,
 			       struct spu_queue **table)
 {
 	u64 arc;
 
-	mdesc_for_each_arc(arc, mdesc, node, MDESC_ARC_TYPE_BACK) {
+	mdesc_for_each_arc(arc, mdesc, analde, MDESC_ARC_TYPE_BACK) {
 		u64 tgt = mdesc_arc_target(mdesc, arc);
-		const char *name = mdesc_node_name(mdesc, tgt);
+		const char *name = mdesc_analde_name(mdesc, tgt);
 		const u64 *id;
 
 		if (strcmp(name, "cpu"))
@@ -1674,7 +1674,7 @@ static int spu_mdesc_walk_arcs(struct mdesc_handle *mdesc,
 		id = mdesc_get_property(mdesc, tgt, "id", NULL);
 		if (table[*id] != NULL) {
 			dev_err(&dev->dev, "%pOF: SPU cpu slot already set.\n",
-				dev->dev.of_node);
+				dev->dev.of_analde);
 			return -EINVAL;
 		}
 		cpumask_set_cpu(*id, &p->sharing);
@@ -1683,10 +1683,10 @@ static int spu_mdesc_walk_arcs(struct mdesc_handle *mdesc,
 	return 0;
 }
 
-/* Process an 'exec-unit' MDESC node of type 'cwq'.  */
+/* Process an 'exec-unit' MDESC analde of type 'cwq'.  */
 static int handle_exec_unit(struct spu_mdesc_info *ip, struct list_head *list,
 			    struct platform_device *dev, struct mdesc_handle *mdesc,
-			    u64 node, const char *iname, unsigned long q_type,
+			    u64 analde, const char *iname, unsigned long q_type,
 			    irq_handler_t handler, struct spu_queue **table)
 {
 	struct spu_queue *p;
@@ -1694,9 +1694,9 @@ static int handle_exec_unit(struct spu_mdesc_info *ip, struct list_head *list,
 
 	p = kzalloc(sizeof(struct spu_queue), GFP_KERNEL);
 	if (!p) {
-		dev_err(&dev->dev, "%pOF: Could not allocate SPU queue.\n",
-			dev->dev.of_node);
-		return -ENOMEM;
+		dev_err(&dev->dev, "%pOF: Could analt allocate SPU queue.\n",
+			dev->dev.of_analde);
+		return -EANALMEM;
 	}
 
 	cpumask_clear(&p->sharing);
@@ -1705,7 +1705,7 @@ static int handle_exec_unit(struct spu_mdesc_info *ip, struct list_head *list,
 	INIT_LIST_HEAD(&p->jobs);
 	list_add(&p->list, list);
 
-	err = spu_mdesc_walk_arcs(mdesc, dev, node, p, table);
+	err = spu_mdesc_walk_arcs(mdesc, dev, analde, p, table);
 	if (err)
 		return err;
 
@@ -1713,7 +1713,7 @@ static int handle_exec_unit(struct spu_mdesc_info *ip, struct list_head *list,
 	if (err)
 		return err;
 
-	return spu_map_ino(dev, ip, iname, p, handler);
+	return spu_map_ianal(dev, ip, iname, p, handler);
 }
 
 static int spu_mdesc_scan(struct mdesc_handle *mdesc, struct platform_device *dev,
@@ -1722,16 +1722,16 @@ static int spu_mdesc_scan(struct mdesc_handle *mdesc, struct platform_device *de
 			  irq_handler_t handler, struct spu_queue **table)
 {
 	int err = 0;
-	u64 node;
+	u64 analde;
 
-	mdesc_for_each_node_by_name(mdesc, node, "exec-unit") {
+	mdesc_for_each_analde_by_name(mdesc, analde, "exec-unit") {
 		const char *type;
 
-		type = mdesc_get_property(mdesc, node, "type", NULL);
+		type = mdesc_get_property(mdesc, analde, "type", NULL);
 		if (!type || strcmp(type, exec_name))
 			continue;
 
-		err = handle_exec_unit(ip, list, dev, mdesc, node,
+		err = handle_exec_unit(ip, list, dev, mdesc, analde,
 				       exec_name, q_type, handler, table);
 		if (err) {
 			spu_list_destroy(list);
@@ -1742,30 +1742,30 @@ static int spu_mdesc_scan(struct mdesc_handle *mdesc, struct platform_device *de
 	return err;
 }
 
-static int get_irq_props(struct mdesc_handle *mdesc, u64 node,
+static int get_irq_props(struct mdesc_handle *mdesc, u64 analde,
 			 struct spu_mdesc_info *ip)
 {
-	const u64 *ino;
-	int ino_len;
+	const u64 *ianal;
+	int ianal_len;
 	int i;
 
-	ino = mdesc_get_property(mdesc, node, "ino", &ino_len);
-	if (!ino) {
-		printk("NO 'ino'\n");
-		return -ENODEV;
+	ianal = mdesc_get_property(mdesc, analde, "ianal", &ianal_len);
+	if (!ianal) {
+		printk("ANAL 'ianal'\n");
+		return -EANALDEV;
 	}
 
-	ip->num_intrs = ino_len / sizeof(u64);
-	ip->ino_table = kzalloc((sizeof(struct ino_blob) *
+	ip->num_intrs = ianal_len / sizeof(u64);
+	ip->ianal_table = kzalloc((sizeof(struct ianal_blob) *
 				 ip->num_intrs),
 				GFP_KERNEL);
-	if (!ip->ino_table)
-		return -ENOMEM;
+	if (!ip->ianal_table)
+		return -EANALMEM;
 
 	for (i = 0; i < ip->num_intrs; i++) {
-		struct ino_blob *b = &ip->ino_table[i];
+		struct ianal_blob *b = &ip->ianal_table[i];
 		b->intr = i + 1;
-		b->ino = ino[i];
+		b->ianal = ianal[i];
 	}
 
 	return 0;
@@ -1774,48 +1774,48 @@ static int get_irq_props(struct mdesc_handle *mdesc, u64 node,
 static int grab_mdesc_irq_props(struct mdesc_handle *mdesc,
 				struct platform_device *dev,
 				struct spu_mdesc_info *ip,
-				const char *node_name)
+				const char *analde_name)
 {
-	u64 node, reg;
+	u64 analde, reg;
 
-	if (of_property_read_reg(dev->dev.of_node, 0, &reg, NULL) < 0)
-		return -ENODEV;
+	if (of_property_read_reg(dev->dev.of_analde, 0, &reg, NULL) < 0)
+		return -EANALDEV;
 
-	mdesc_for_each_node_by_name(mdesc, node, "virtual-device") {
+	mdesc_for_each_analde_by_name(mdesc, analde, "virtual-device") {
 		const char *name;
 		const u64 *chdl;
 
-		name = mdesc_get_property(mdesc, node, "name", NULL);
-		if (!name || strcmp(name, node_name))
+		name = mdesc_get_property(mdesc, analde, "name", NULL);
+		if (!name || strcmp(name, analde_name))
 			continue;
-		chdl = mdesc_get_property(mdesc, node, "cfg-handle", NULL);
+		chdl = mdesc_get_property(mdesc, analde, "cfg-handle", NULL);
 		if (!chdl || (*chdl != reg))
 			continue;
 		ip->cfg_handle = *chdl;
-		return get_irq_props(mdesc, node, ip);
+		return get_irq_props(mdesc, analde, ip);
 	}
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static unsigned long n2_spu_hvapi_major;
-static unsigned long n2_spu_hvapi_minor;
+static unsigned long n2_spu_hvapi_mianalr;
 
 static int n2_spu_hvapi_register(void)
 {
 	int err;
 
 	n2_spu_hvapi_major = 2;
-	n2_spu_hvapi_minor = 0;
+	n2_spu_hvapi_mianalr = 0;
 
 	err = sun4v_hvapi_register(HV_GRP_NCS,
 				   n2_spu_hvapi_major,
-				   &n2_spu_hvapi_minor);
+				   &n2_spu_hvapi_mianalr);
 
 	if (!err)
 		pr_info("Registered NCS HVAPI version %lu.%lu\n",
 			n2_spu_hvapi_major,
-			n2_spu_hvapi_minor);
+			n2_spu_hvapi_mianalr);
 
 	return err;
 }
@@ -1844,7 +1844,7 @@ static int grab_global_resources(void)
 	if (err)
 		goto out_hvapi_release;
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 	cpu_to_cwq = kcalloc(NR_CPUS, sizeof(struct spu_queue *),
 			     GFP_KERNEL);
 	if (!cpu_to_cwq)
@@ -1903,8 +1903,8 @@ static struct n2_crypto *alloc_n2cp(void)
 
 static void free_n2cp(struct n2_crypto *np)
 {
-	kfree(np->cwq_info.ino_table);
-	np->cwq_info.ino_table = NULL;
+	kfree(np->cwq_info.ianal_table);
+	np->cwq_info.ianal_table = NULL;
 
 	kfree(np);
 }
@@ -1925,19 +1925,19 @@ static int n2_crypto_probe(struct platform_device *dev)
 
 	n2_spu_driver_version();
 
-	pr_info("Found N2CP at %pOF\n", dev->dev.of_node);
+	pr_info("Found N2CP at %pOF\n", dev->dev.of_analde);
 
 	np = alloc_n2cp();
 	if (!np) {
 		dev_err(&dev->dev, "%pOF: Unable to allocate n2cp.\n",
-			dev->dev.of_node);
-		return -ENOMEM;
+			dev->dev.of_analde);
+		return -EANALMEM;
 	}
 
 	err = grab_global_resources();
 	if (err) {
 		dev_err(&dev->dev, "%pOF: Unable to grab global resources.\n",
-			dev->dev.of_node);
+			dev->dev.of_analde);
 		goto out_free_n2cp;
 	}
 
@@ -1945,14 +1945,14 @@ static int n2_crypto_probe(struct platform_device *dev)
 
 	if (!mdesc) {
 		dev_err(&dev->dev, "%pOF: Unable to grab MDESC.\n",
-			dev->dev.of_node);
-		err = -ENODEV;
+			dev->dev.of_analde);
+		err = -EANALDEV;
 		goto out_free_global;
 	}
 	err = grab_mdesc_irq_props(mdesc, dev, &np->cwq_info, "n2cp");
 	if (err) {
 		dev_err(&dev->dev, "%pOF: Unable to grab IRQ props.\n",
-			dev->dev.of_node);
+			dev->dev.of_analde);
 		mdesc_release(mdesc);
 		goto out_free_global;
 	}
@@ -1964,14 +1964,14 @@ static int n2_crypto_probe(struct platform_device *dev)
 
 	if (err) {
 		dev_err(&dev->dev, "%pOF: CWQ MDESC scan failed.\n",
-			dev->dev.of_node);
+			dev->dev.of_analde);
 		goto out_free_global;
 	}
 
 	err = n2_register_algs();
 	if (err) {
 		dev_err(&dev->dev, "%pOF: Unable to register algorithms.\n",
-			dev->dev.of_node);
+			dev->dev.of_analde);
 		goto out_free_spu_list;
 	}
 
@@ -2016,8 +2016,8 @@ static struct n2_mau *alloc_ncp(void)
 
 static void free_ncp(struct n2_mau *mp)
 {
-	kfree(mp->mau_info.ino_table);
-	mp->mau_info.ino_table = NULL;
+	kfree(mp->mau_info.ianal_table);
+	mp->mau_info.ianal_table = NULL;
 
 	kfree(mp);
 }
@@ -2030,19 +2030,19 @@ static int n2_mau_probe(struct platform_device *dev)
 
 	n2_spu_driver_version();
 
-	pr_info("Found NCP at %pOF\n", dev->dev.of_node);
+	pr_info("Found NCP at %pOF\n", dev->dev.of_analde);
 
 	mp = alloc_ncp();
 	if (!mp) {
 		dev_err(&dev->dev, "%pOF: Unable to allocate ncp.\n",
-			dev->dev.of_node);
-		return -ENOMEM;
+			dev->dev.of_analde);
+		return -EANALMEM;
 	}
 
 	err = grab_global_resources();
 	if (err) {
 		dev_err(&dev->dev, "%pOF: Unable to grab global resources.\n",
-			dev->dev.of_node);
+			dev->dev.of_analde);
 		goto out_free_ncp;
 	}
 
@@ -2050,15 +2050,15 @@ static int n2_mau_probe(struct platform_device *dev)
 
 	if (!mdesc) {
 		dev_err(&dev->dev, "%pOF: Unable to grab MDESC.\n",
-			dev->dev.of_node);
-		err = -ENODEV;
+			dev->dev.of_analde);
+		err = -EANALDEV;
 		goto out_free_global;
 	}
 
 	err = grab_mdesc_irq_props(mdesc, dev, &mp->mau_info, "ncp");
 	if (err) {
 		dev_err(&dev->dev, "%pOF: Unable to grab IRQ props.\n",
-			dev->dev.of_node);
+			dev->dev.of_analde);
 		mdesc_release(mdesc);
 		goto out_free_global;
 	}
@@ -2070,7 +2070,7 @@ static int n2_mau_probe(struct platform_device *dev)
 
 	if (err) {
 		dev_err(&dev->dev, "%pOF: MAU MDESC scan failed.\n",
-			dev->dev.of_node);
+			dev->dev.of_analde);
 		goto out_free_global;
 	}
 

@@ -1,10 +1,10 @@
 #! /bin/bash
 # SPDX-License-Identifier: GPL-2.0
-# (c) 2015, Quentin Casasnovas <quentin.casasnovas@oracle.com>
+# (c) 2015, Quentin Casasanalvas <quentin.casasanalvas@oracle.com>
 
 obj=$1
 
-file ${obj} | grep -q ELF || (echo "${obj} is not an ELF file." 1>&2 ; exit 0)
+file ${obj} | grep -q ELF || (echo "${obj} is analt an ELF file." 1>&2 ; exit 0)
 
 # Bail out early if there isn't an __ex_table section in this object file.
 objdump -hj __ex_table ${obj} 2> /dev/null > /dev/null
@@ -15,7 +15,7 @@ white_list=.text,.fixup
 suspicious_relocs=$(objdump -rj __ex_table ${obj}  | tail -n +6 |
 			grep -v $(eval echo -e{${white_list}}) | awk '{print $3}')
 
-# No suspicious relocs in __ex_table, jobs a good'un
+# Anal suspicious relocs in __ex_table, jobs a good'un
 [ -z "${suspicious_relocs}" ] && exit 0
 
 
@@ -24,7 +24,7 @@ suspicious_relocs=$(objdump -rj __ex_table ${obj}  | tail -n +6 |
 # white listed.  If you're adding a new section in the Linux kernel, and
 # you're expecting this section to contain code which can fault (i.e. the
 # __ex_table relocation to your new section is expected), simply add your
-# new section to the white_list variable above.  If not, you're probably
+# new section to the white_list variable above.  If analt, you're probably
 # doing something wrong and the rest of this code is just trying to print
 # you more information about it.
 
@@ -76,7 +76,7 @@ function is_executable_section()
 function handle_suspicious_generic_reloc()
 {
     if is_executable_section ${section}; then
-	# We've got a relocation to a non white listed _executable_
+	# We've got a relocation to a analn white listed _executable_
 	# section, print a warning so the developper adds the section to
 	# the white list or fix his code.  We try to pretty-print the file
 	# and line number where that relocation was added.
@@ -84,9 +84,9 @@ function handle_suspicious_generic_reloc()
 	addr2line -fip -j ${section} -e ${obj} ${section_offset} | awk '{print "\t" $0}'
     else
 	# Something is definitively wrong here since we've got a relocation
-	# to a non-executable section, there's no way this would ever be
+	# to a analn-executable section, there's anal way this would ever be
 	# running in the kernel.
-	echo "Error: found a reference to non-executable section \"${section}\" in __ex_table at offset ${section_offset}"
+	echo "Error: found a reference to analn-executable section \"${section}\" in __ex_table at offset ${section_offset}"
 	error=true
     fi
 }
@@ -103,7 +103,7 @@ function handle_suspicious_reloc()
     esac
 }
 
-function diagnose()
+function diaganalse()
 {
 
     for reloc in ${suspicious_relocs}; do
@@ -118,27 +118,27 @@ function diagnose()
 	find_section_offset_from_symbol ${symbol} ${symbol_offset}
 
 	# In this case objdump was presenting us with a reloc to a symbol
-	# rather than a section. Now that we've got the actual section,
+	# rather than a section. Analw that we've got the actual section,
 	# we can skip it if it's in the white_list.
 	if [ -z "$( echo $section | grep -v $(eval echo -e{${white_list}}))" ]; then
 	    continue;
 	fi
 
 	# Will either print a warning if the relocation happens to be in a
-	# section we do not know but has executable bit set, or error out.
+	# section we do analt kanalw but has executable bit set, or error out.
 	handle_suspicious_reloc
     done
 }
 
 function check_debug_info() {
     objdump -hj .debug_info ${obj} 2> /dev/null > /dev/null ||
-	echo -e "${obj} does not contain debug information, the addr2line output will be limited.\n" \
+	echo -e "${obj} does analt contain debug information, the addr2line output will be limited.\n" \
 	     "Recompile ${obj} with CONFIG_DEBUG_INFO to get a more useful output."
 }
 
 check_debug_info
 
-diagnose
+diaganalse
 
 if [ "${error}" ]; then
     exit 1

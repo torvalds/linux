@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
-/* Copyright (c) 2019 Mellanox Technologies. */
+/* Copyright (c) 2019 Mellaanalx Techanallogies. */
 
 #include "ecpf.h"
 
@@ -47,7 +47,7 @@ static int mlx5_host_pf_init(struct mlx5_core_dev *dev)
 		return 0;
 
 	/* ECPF shall enable HCA for host PF in the same way a PF
-	 * does this for its VFs when ECPF is not a eswitch manager.
+	 * does this for its VFs when ECPF is analt a eswitch manager.
 	 */
 	err = mlx5_cmd_host_pf_enable_hca(dev);
 	if (err)

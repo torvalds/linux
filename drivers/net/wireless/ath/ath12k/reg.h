@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-3-Clause-Clear */
 /*
  * Copyright (c) 2019-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #ifndef ATH12K_REG_H
@@ -27,10 +27,10 @@ enum ath12k_dfs_region {
 
 enum ath12k_reg_cc_code {
 	REG_SET_CC_STATUS_PASS = 0,
-	REG_CURRENT_ALPHA2_NOT_FOUND = 1,
-	REG_INIT_ALPHA2_NOT_FOUND = 2,
-	REG_SET_CC_CHANGE_NOT_ALLOWED = 3,
-	REG_SET_CC_STATUS_NO_MEMORY = 4,
+	REG_CURRENT_ALPHA2_ANALT_FOUND = 1,
+	REG_INIT_ALPHA2_ANALT_FOUND = 2,
+	REG_SET_CC_CHANGE_ANALT_ALLOWED = 3,
+	REG_SET_CC_STATUS_ANAL_MEMORY = 4,
 	REG_SET_CC_STATUS_FAIL = 5,
 };
 
@@ -85,8 +85,8 @@ struct ath12k_reg_info {
 
 /* Phy bitmaps */
 enum ath12k_reg_phy_bitmap {
-	ATH12K_REG_PHY_BITMAP_NO11AX	= BIT(5),
-	ATH12K_REG_PHY_BITMAP_NO11BE	= BIT(6),
+	ATH12K_REG_PHY_BITMAP_ANAL11AX	= BIT(5),
+	ATH12K_REG_PHY_BITMAP_ANAL11BE	= BIT(6),
 };
 
 void ath12k_reg_init(struct ieee80211_hw *hw);

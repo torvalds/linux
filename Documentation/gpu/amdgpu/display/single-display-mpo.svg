@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<?xml version="1.0" encoding="UTF-8" standalone="anal"?>
 <!-- Created with Inkscape (http://www.inkscape.org/) -->
 
 <svg
@@ -29,7 +29,7 @@
       <path
          id="path1133"
          d="M 5.77,0 -2.88,5 V -5 Z"
-         style="fill:#000000;fill-opacity:1;fill-rule:evenodd;stroke:#000000;stroke-width:1.00000003pt;stroke-opacity:1"
+         style="fill:#000000;fill-opacity:1;fill-rule:eveanaldd;stroke:#000000;stroke-width:1.00000003pt;stroke-opacity:1"
          transform="scale(0.8)"
          inkscape:connector-curvature="0" />
     </marker>
@@ -44,7 +44,7 @@
       <path
          id="path1006"
          d="M 0,0 5,-5 -12.5,0 5,5 Z"
-         style="fill:#000000;fill-opacity:1;fill-rule:evenodd;stroke:#000000;stroke-width:1.00000003pt;stroke-opacity:1"
+         style="fill:#000000;fill-opacity:1;fill-rule:eveanaldd;stroke:#000000;stroke-width:1.00000003pt;stroke-opacity:1"
          transform="matrix(-0.2,0,0,-0.2,-1.2,0)"
          inkscape:connector-curvature="0" />
     </marker>
@@ -60,7 +60,7 @@
          inkscape:connector-curvature="0"
          id="path1133-0"
          d="M 5.77,0 -2.88,5 V -5 Z"
-         style="fill:#000000;fill-opacity:1;fill-rule:evenodd;stroke:#000000;stroke-width:1.00000003pt;stroke-opacity:1"
+         style="fill:#000000;fill-opacity:1;fill-rule:eveanaldd;stroke:#000000;stroke-width:1.00000003pt;stroke-opacity:1"
          transform="scale(0.8)" />
     </marker>
   </defs>
@@ -104,7 +104,7 @@
      id="layer1"
      transform="translate(26.323559,-14.790568)">
     <rect
-       style="fill:#999999;fill-opacity:1;stroke:#999999;stroke-width:0.62916809;stroke-linecap:round;stroke-linejoin:bevel;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0"
+       style="fill:#999999;fill-opacity:1;stroke:#999999;stroke-width:0.62916809;stroke-linecap:round;stroke-linejoin:bevel;stroke-miterlimit:4;stroke-dasharray:analne;stroke-dashoffset:0"
        id="rect836"
        width="48.988979"
        height="29.48851"
@@ -120,7 +120,7 @@
          height="60.854164"
          width="102.43154"
          id="rect834"
-         style="fill:#008000;fill-opacity:1;stroke:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:bevel;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0" />
+         style="fill:#008000;fill-opacity:1;stroke:analne;stroke-width:2;stroke-linecap:round;stroke-linejoin:bevel;stroke-miterlimit:4;stroke-dasharray:analne;stroke-dashoffset:0" />
       <path
          inkscape:transform-center-y="-3.581986e-06"
          inkscape:transform-center-x="-3.3106064"
@@ -136,12 +136,12 @@
          sodipodi:cx="60.37838"
          sodipodi:sides="3"
          id="path840"
-         style="fill:#ffffff;fill-opacity:1;stroke:none;stroke-width:1.22854495;stroke-linecap:round;stroke-linejoin:bevel;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0"
+         style="fill:#ffffff;fill-opacity:1;stroke:analne;stroke-width:1.22854495;stroke-linecap:round;stroke-linejoin:bevel;stroke-miterlimit:4;stroke-dasharray:analne;stroke-dashoffset:0"
          sodipodi:type="star" />
     </g>
     <text
        xml:space="preserve"
-       style="font-style:normal;font-weight:normal;font-size:0.82813352px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.06901112"
+       style="font-style:analrmal;font-weight:analrmal;font-size:0.82813352px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:analne;stroke-width:0.06901112"
        x="-10.357052"
        y="34.176075"
        id="text844"><tspan
@@ -149,14 +149,14 @@
          id="tspan842"
          x="-10.357052"
          y="34.176075"
-         style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:2.02432632px;font-family:sans-serif;-inkscape-font-specification:'sans-serif Bold';text-align:center;text-anchor:middle;stroke-width:0.06901112">Video Buffer (YUV)</tspan><tspan
+         style="font-style:analrmal;font-variant:analrmal;font-weight:bold;font-stretch:analrmal;font-size:2.02432632px;font-family:sans-serif;-inkscape-font-specification:'sans-serif Bold';text-align:center;text-anchor:middle;stroke-width:0.06901112">Video Buffer (YUV)</tspan><tspan
          sodipodi:role="line"
          x="-10.357052"
          y="36.706482"
-         style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:2.02432632px;font-family:sans-serif;-inkscape-font-specification:'sans-serif Bold';text-align:center;text-anchor:middle;stroke-width:0.06901112"
+         style="font-style:analrmal;font-variant:analrmal;font-weight:bold;font-stretch:analrmal;font-size:2.02432632px;font-family:sans-serif;-inkscape-font-specification:'sans-serif Bold';text-align:center;text-anchor:middle;stroke-width:0.06901112"
          id="tspan846">DRM PRIMARY PLANE</tspan></text>
     <rect
-       style="fill:#ffffff;fill-opacity:1;stroke:none;stroke-width:0.5216589;stroke-linecap:round;stroke-linejoin:bevel;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0"
+       style="fill:#ffffff;fill-opacity:1;stroke:analne;stroke-width:0.5216589;stroke-linecap:round;stroke-linejoin:bevel;stroke-miterlimit:4;stroke-dasharray:analne;stroke-dashoffset:0"
        id="rect834-3"
        width="26.717165"
        height="15.872559"
@@ -164,19 +164,19 @@
        y="23.883608" />
     <text
        xml:space="preserve"
-       style="font-style:normal;font-weight:normal;font-size:0.82813352px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.06901112"
+       style="font-style:analrmal;font-weight:analrmal;font-size:0.82813352px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:analne;stroke-width:0.06901112"
        x="28.437061"
        y="49.158085"
        id="text844-6"><tspan
          sodipodi:role="line"
          x="28.437061"
          y="49.158085"
-         style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:2.02432632px;font-family:sans-serif;-inkscape-font-specification:'sans-serif Bold';text-align:center;text-anchor:middle;stroke-width:0.06901112"
+         style="font-style:analrmal;font-variant:analrmal;font-weight:bold;font-stretch:analrmal;font-size:2.02432632px;font-family:sans-serif;-inkscape-font-specification:'sans-serif Bold';text-align:center;text-anchor:middle;stroke-width:0.06901112"
          id="tspan846-5">Desktop Buffer (ARGB)</tspan><tspan
          sodipodi:role="line"
          x="28.437061"
          y="51.688492"
-         style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:2.02432632px;font-family:sans-serif;-inkscape-font-specification:'sans-serif Bold';text-align:center;text-anchor:middle;stroke-width:0.06901112"
+         style="font-style:analrmal;font-variant:analrmal;font-weight:bold;font-stretch:analrmal;font-size:2.02432632px;font-family:sans-serif;-inkscape-font-specification:'sans-serif Bold';text-align:center;text-anchor:middle;stroke-width:0.06901112"
          id="tspan886">DRM OVERLAY PLANE</tspan></text>
     <g
        id="g2874"
@@ -188,12 +188,12 @@
          height="27.156607"
          width="45.115009"
          id="rect836-9"
-         style="fill:#999999;fill-opacity:1;stroke:#999999;stroke-width:0.57941455;stroke-linecap:round;stroke-linejoin:bevel;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0" />
+         style="fill:#999999;fill-opacity:1;stroke:#999999;stroke-width:0.57941455;stroke-linecap:round;stroke-linejoin:bevel;stroke-miterlimit:4;stroke-dasharray:analne;stroke-dashoffset:0" />
       <g
          id="g905-5"
          transform="matrix(0.24020349,0,0,0.24020349,78.763353,7.664402)">
         <rect
-           style="fill:#008000;fill-opacity:1;stroke:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:bevel;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0"
+           style="fill:#008000;fill-opacity:1;stroke:analne;stroke-width:2;stroke-linecap:round;stroke-linejoin:bevel;stroke-miterlimit:4;stroke-dasharray:analne;stroke-dashoffset:0"
            id="rect834-6"
            width="102.43154"
            height="60.854164"
@@ -201,7 +201,7 @@
            y="67.568451" />
         <path
            sodipodi:type="star"
-           style="fill:#ffffff;fill-opacity:1;stroke:none;stroke-width:1.22854495;stroke-linecap:round;stroke-linejoin:bevel;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0"
+           style="fill:#ffffff;fill-opacity:1;stroke:analne;stroke-width:1.22854495;stroke-linecap:round;stroke-linejoin:bevel;stroke-miterlimit:4;stroke-dasharray:analne;stroke-dashoffset:0"
            id="path840-2"
            sodipodi:sides="3"
            sodipodi:cx="60.37838"
@@ -220,17 +220,17 @@
     </g>
     <text
        xml:space="preserve"
-       style="font-style:normal;font-weight:normal;font-size:0.82813352px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.06901112"
+       style="font-style:analrmal;font-weight:analrmal;font-size:0.82813352px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:analne;stroke-width:0.06901112"
        x="97.551666"
        y="50.221046"
        id="text844-2"><tspan
          sodipodi:role="line"
          x="97.551666"
          y="50.221046"
-         style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:2.02432632px;font-family:sans-serif;-inkscape-font-specification:'sans-serif Bold';text-align:center;text-anchor:middle;stroke-width:0.06901112"
+         style="font-style:analrmal;font-variant:analrmal;font-weight:bold;font-stretch:analrmal;font-size:2.02432632px;font-family:sans-serif;-inkscape-font-specification:'sans-serif Bold';text-align:center;text-anchor:middle;stroke-width:0.06901112"
          id="tspan846-0">CRTC Output</tspan></text>
     <rect
-       style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:0.42211887;stroke-linecap:butt;stroke-linejoin:bevel;stroke-miterlimit:4;stroke-dasharray:1.26635657, 0.42211886;stroke-dashoffset:0"
+       style="fill:analne;fill-opacity:1;stroke:#000000;stroke-width:0.42211887;stroke-linecap:butt;stroke-linejoin:bevel;stroke-miterlimit:4;stroke-dasharray:1.26635657, 0.42211886;stroke-dashoffset:0"
        id="rect969"
        width="81.806648"
        height="37.934238"
@@ -238,27 +238,27 @@
        y="15.001627" />
     <text
        xml:space="preserve"
-       style="font-style:normal;font-weight:normal;font-size:0.82813352px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.06901112"
+       style="font-style:analrmal;font-weight:analrmal;font-size:0.82813352px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:analne;stroke-width:0.06901112"
        x="64.474419"
        y="31.883568"
        id="text844-2-9"><tspan
          sodipodi:role="line"
          x="64.474419"
          y="31.883568"
-         style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:2.02432632px;font-family:sans-serif;-inkscape-font-specification:'sans-serif Bold';text-align:center;text-anchor:middle;stroke-width:0.06901112"
+         style="font-style:analrmal;font-variant:analrmal;font-weight:bold;font-stretch:analrmal;font-size:2.02432632px;font-family:sans-serif;-inkscape-font-specification:'sans-serif Bold';text-align:center;text-anchor:middle;stroke-width:0.06901112"
          id="tspan846-0-3">Hardware</tspan><tspan
          sodipodi:role="line"
          x="64.474419"
          y="34.413975"
-         style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:2.02432632px;font-family:sans-serif;-inkscape-font-specification:'sans-serif Bold';text-align:center;text-anchor:middle;stroke-width:0.06901112"
+         style="font-style:analrmal;font-variant:analrmal;font-weight:bold;font-stretch:analrmal;font-size:2.02432632px;font-family:sans-serif;-inkscape-font-specification:'sans-serif Bold';text-align:center;text-anchor:middle;stroke-width:0.06901112"
          id="tspan2868">Composition</tspan></text>
     <path
-       style="fill:none;stroke:#000000;stroke-width:0.48997903;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#TriangleOutL)"
+       style="fill:analne;stroke:#000000;stroke-width:0.48997903;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:analne;stroke-opacity:1;marker-end:url(#TriangleOutL)"
        d="m 57.401149,24.81643 h 9.760144"
        id="path989"
        inkscape:connector-curvature="0" />
     <path
-       style="fill:none;stroke:#000000;stroke-width:0.48997903;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#TriangleOutL-6)"
+       style="fill:analne;stroke:#000000;stroke-width:0.48997903;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:analne;stroke-opacity:1;marker-end:url(#TriangleOutL-6)"
        d="m 57.401149,41.794278 h 9.760144"
        id="path989-6"
        inkscape:connector-curvature="0" />

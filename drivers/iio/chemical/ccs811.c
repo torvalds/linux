@@ -285,7 +285,7 @@ static int ccs811_read_raw(struct iio_dev *indio_dev,
 			case IIO_MOD_VOC:
 				*val = 0;
 				*val2 = 100;
-				return IIO_VAL_INT_PLUS_NANO;
+				return IIO_VAL_INT_PLUS_NAANAL;
 			default:
 				return -EINVAL;
 			}
@@ -338,7 +338,7 @@ static irqreturn_t ccs811_trigger_handler(int irq, void *p)
 					    sizeof(data->scan.channels),
 					    (u8 *)data->scan.channels);
 	if (ret != 4) {
-		dev_err(&client->dev, "cannot read sensor data\n");
+		dev_err(&client->dev, "cananalt read sensor data\n");
 		goto err;
 	}
 
@@ -346,7 +346,7 @@ static irqreturn_t ccs811_trigger_handler(int irq, void *p)
 					   iio_get_time_ns(indio_dev));
 
 err:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -411,11 +411,11 @@ static int ccs811_probe(struct i2c_client *client)
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_WRITE_BYTE
 				     | I2C_FUNC_SMBUS_BYTE_DATA
 				     | I2C_FUNC_SMBUS_READ_I2C_BLOCK))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = iio_priv(indio_dev);
 	i2c_set_clientdata(client, indio_dev);
@@ -444,7 +444,7 @@ static int ccs811_probe(struct i2c_client *client)
 	if (ret != CCS811_HW_ID_VALUE) {
 		dev_err(&client->dev, "hardware id doesn't match CCS81x\n");
 		ccs811_set_wakeup(data, false);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ret = i2c_smbus_read_byte_data(client, CCS811_HW_VERSION);
@@ -454,9 +454,9 @@ static int ccs811_probe(struct i2c_client *client)
 	}
 
 	if ((ret & CCS811_HW_VERSION_MASK) != CCS811_HW_VERSION_VALUE) {
-		dev_err(&client->dev, "no CCS811 sensor\n");
+		dev_err(&client->dev, "anal CCS811 sensor\n");
 		ccs811_set_wakeup(data, false);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ret = ccs811_setup(client);
@@ -493,7 +493,7 @@ static int ccs811_probe(struct i2c_client *client)
 							 indio_dev->name,
 							 iio_device_id(indio_dev));
 		if (!data->drdy_trig) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_poweroff;
 		}
 

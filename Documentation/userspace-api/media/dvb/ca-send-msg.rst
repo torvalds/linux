@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: DTV.ca
 
 .. _CA_SEND_MSG:
@@ -12,7 +12,7 @@ Name
 
 CA_SEND_MSG
 
-Synopsis
+Syanalpsis
 --------
 
 .. c:macro:: CA_SEND_MSG
@@ -33,17 +33,17 @@ Description
 
 Sends a message via a CI CA module.
 
-.. note::
+.. analte::
 
-   Please notice that, on most drivers, this is done by writing
-   to the /dev/adapter?/ca? device node.
+   Please analtice that, on most drivers, this is done by writing
+   to the /dev/adapter?/ca? device analde.
 
 Return Value
 ------------
 
 On success 0 is returned.
 
-On error -1 is returned, and the ``errno`` variable is set
+On error -1 is returned, and the ``erranal`` variable is set
 appropriately.
 
 Generic error codes are described at the

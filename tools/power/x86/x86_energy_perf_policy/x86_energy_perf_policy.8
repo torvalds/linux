@@ -3,7 +3,7 @@
 .TH X86_ENERGY_PERF_POLICY 8
 .SH NAME
 x86_energy_perf_policy \- Manage Energy vs. Performance Policy via x86 Model Specific Registers
-.SH SYNOPSIS
+.SH SYANALPSIS
 .B x86_energy_perf_policy
 .RB "[ options ] [ scope ] [field \ value]"
 .br
@@ -20,17 +20,17 @@ x86_energy_perf_policy \- Manage Energy vs. Performance Policy via x86 Model Spe
 \fBx86_energy_perf_policy\fP
 displays and updates energy-performance policy settings specific to
 Intel Architecture Processors.  Settings are accessed via Model Specific Register (MSR)
-updates, no matter if the Linux cpufreq sub-system is enabled or not.
+updates, anal matter if the Linux cpufreq sub-system is enabled or analt.
 
 Policy in MSR_IA32_ENERGY_PERF_BIAS (EPB)
 may affect a wide range of hardware decisions,
 such as how aggressively the hardware enters and exits CPU idle states (C-states)
 and Processor Performance States (P-states).
-This policy hint does not replace explicit OS C-state and P-state selection.
+This policy hint does analt replace explicit OS C-state and P-state selection.
 Rather, it tells the hardware how aggressively to implement those selections.
 Further, it allows the OS to influence energy/performance trade-offs where there
-is no software interface, such as in the opportunistic "turbo-mode" P-state range.
-Note that MSR_IA32_ENERGY_PERF_BIAS is defined per CPU,
+is anal software interface, such as in the opportunistic "turbo-mode" P-state range.
+Analte that MSR_IA32_ENERGY_PERF_BIAS is defined per CPU,
 but some implementations
 share a single MSR among all CPUs in each processor package.
 On those systems, a write to EPB on one processor will
@@ -46,7 +46,7 @@ where it was moved to the
 Energy_Performance_Preference (EPP) field in
 a pair of dedicated MSRs -- MSR_IA32_HWP_REQUEST and MSR_IA32_HWP_REQUEST_PKG.
 
-EPP is the most commonly managed knob in HWP mode,
+EPP is the most commonly managed kanalb in HWP mode,
 but MSR_IA32_HWP_REQUEST also allows the user to specify
 minimum-frequency for Quality-of-Service,
 and maximum-frequency for power-capping.
@@ -58,7 +58,7 @@ A bit in per-CPU MSR_IA32_HWP_REQUEST indicates whether it is
 over-ruled-by or exempt-from MSR_IA32_HWP_REQUEST_PKG.
 
 MSR_HWP_CAPABILITIES shows the default values for the fields
-in MSR_IA32_HWP_REQUEST.  It is displayed when no values
+in MSR_IA32_HWP_REQUEST.  It is displayed when anal values
 are being written.
 
 .SS SCOPE OPTIONS
@@ -78,16 +78,16 @@ For example '--pkg 1,3' or '--pkg all'
 
 .SS VALUE OPTIONS
 .PP
-.I normal | default
-Set a policy with a normal balance between performance and energy efficiency.
-The processor will tolerate minor performance compromise
+.I analrmal | default
+Set a policy with a analrmal balance between performance and energy efficiency.
+The processor will tolerate mianalr performance compromise
 for potentially significant energy savings.
 This is a reasonable default for most desktops and servers.
-"default" is a synonym for "normal".
+"default" is a syanalnym for "analrmal".
 .PP
 .I performance
 Set a policy for maximum performance,
-accepting no performance sacrifice for the benefit of energy efficiency.
+accepting anal performance sacrifice for the benefit of energy efficiency.
 .PP
 .I balance-performance
 Set a policy with a high priority on performance,
@@ -109,7 +109,7 @@ This mapping is defined in the Linux-kernel header, msr-index.h.
 VALUE STRING      	EPB	EPP
 performance       	0	0
 balance-performance	4	128
-normal, default		6	128
+analrmal, default		6	128
 balance-power	 	8	192
 power       		15	255
 .fi
@@ -121,7 +121,7 @@ is in units of 100 MHz, Eg. 12 signifies 1200 MHz.
 .SS FIELD OPTIONS
 \fB-a, --all value-string\fP Sets all EPB and EPP and HWP limit fields to the value associated with
 the value-string.  In addition, enables turbo-mode and HWP-mode, if they were previous disabled.
-Thus "--all normal" will set a system without cpufreq into a well known configuration.
+Thus "--all analrmal" will set a system without cpufreq into a well kanalwn configuration.
 .PP
 \fB-B, --epb\fP set EPB per-core or per-package.
 See value strings in the table above.
@@ -133,21 +133,21 @@ and verbose for read-only mode.
 \fB-P, --hwp-epp\fP set HWP.EPP per-core or per-package.
 See value strings in the table above.
 .PP
-\fB-m, --hwp-min\fP request HWP to not go below the specified core/bus ratio.
+\fB-m, --hwp-min\fP request HWP to analt go below the specified core/bus ratio.
 The "default" is the value found in IA32_HWP_CAPABILITIES.min.
 .PP
-\fB-M, --hwp-max\fP request HWP not exceed a the specified core/bus ratio.
+\fB-M, --hwp-max\fP request HWP analt exceed a the specified core/bus ratio.
 The "default" is the value found in IA32_HWP_CAPABILITIES.max.
 .PP
 \fB-D, --hwp-desired\fP request HWP 'desired' frequency.
-The "normal" setting is 0, which
-corresponds to 'full autonomous' HWP control.
-Non-zero performance values request a specific performance
+The "analrmal" setting is 0, which
+corresponds to 'full autoanalmous' HWP control.
+Analn-zero performance values request a specific performance
 level on this processor, specified in multiples of 100 MHz.
 .PP
 \fB-w, --hwp-window\fP specify integer number of microsec
 in the sliding window that HWP uses to maintain average frequency.
-This parameter is meaningful only when the "desired" field above is non-zero.
+This parameter is meaningful only when the "desired" field above is analn-zero.
 Default is 0, allowing the HW to choose.
 .SH OTHER OPTIONS
 .PP
@@ -164,18 +164,18 @@ The default is exempt.
 .PP
 \fB-v, --version\fP print version and exit.
 .PP
-If no request to change policy is made,
+If anal request to change policy is made,
 the default behavior is to read
 and display the current system state,
 including the default capabilities.
 .SH WARNING
 .PP
 This utility writes directly to Model Specific Registers.
-There is no locking or coordination should this utility
+There is anal locking or coordination should this utility
 be used to modify HWP limit fields at the same time that
 intel_pstate's sysfs attributes access the same MSRs.
 .PP
-Note that --hwp-desired and --hwp-window are considered experimental.
+Analte that --hwp-desired and --hwp-window are considered experimental.
 Future versions of Linux reserve the right to access these
 fields internally -- potentially conflicting with user-space access.
 .SH EXAMPLE
@@ -194,7 +194,7 @@ cpu3: EPB 6
 cpu3: HWP_REQ: min 6 max 35 des 0 epp 128 window 0x0 (0*10^0us) use_pkg 0
 cpu3: HWP_CAP: low 1 eff 8 guar 27 high 35
 .fi
-.SH NOTES
+.SH ANALTES
 .B "x86_energy_perf_policy"
 runs only as root.
 .SH FILES

@@ -39,7 +39,7 @@ STMicroelectronics stih4xx platforms
     See ../reset/reset.txt for details.
   - reset-names: names of the resets listed in resets property in the same
     order.
-  - st,vtg: phandle(s) on vtg device (main and aux) nodes.
+  - st,vtg: phandle(s) on vtg device (main and aux) analdes.
 
 - sti-tvout: video out hardware block
   must be a child of sti-display-subsystem
@@ -112,7 +112,7 @@ sti-hqvdp:
     See ../reset/reset.txt for details.
   - reset-names: names of the resets listed in resets property in the same
     order.
-  - st,vtg: phandle on vtg main device node.
+  - st,vtg: phandle on vtg main device analde.
 
 Example:
 
@@ -122,7 +122,7 @@ Example:
 	vtg_main_slave: sti-vtg-main-slave@fe85a800 {
 		compatible	= "st,vtg";
 		reg		= <0xfe85A800 0x300>;
-		interrupts	= <GIC_SPI 175 IRQ_TYPE_NONE>;
+		interrupts	= <GIC_SPI 175 IRQ_TYPE_ANALNE>;
 	};
 
 	vtg_main: sti-vtg-main-master@fd348000 {
@@ -134,7 +134,7 @@ Example:
 	vtg_aux_slave: sti-vtg-aux-slave@fd348400 {
 		compatible	= "st,vtg";
 		reg		= <0xfe858200 0x300>;
-		interrupts	= <GIC_SPI 176 IRQ_TYPE_NONE>;
+		interrupts	= <GIC_SPI 176 IRQ_TYPE_ANALNE>;
 	};
 
 	vtg_aux: sti-vtg-aux-master@fd348400 {
@@ -200,7 +200,7 @@ Example:
 			compatible	= "st,stih416-hdmi";
 			reg		= <0xfe85c000 0x1000>, <0xfe830000 0x10000>;
 			reg-names	= "hdmi-reg", "syscfg";
-			interrupts	= <GIC_SPI 173 IRQ_TYPE_NONE>;
+			interrupts	= <GIC_SPI 173 IRQ_TYPE_ANALNE>;
 			interrupt-names	= "irq";
 			clock-names	= "pix", "tmds", "phy", "audio";
 			clocks          = <&clockgen_c_vcc CLK_S_PIX_HDMI>, <&clockgen_c_vcc CLK_S_TMDS_HDMI>, <&clockgen_c_vcc CLK_S_HDMI_REJECT_PLL>, <&clockgen_b1 CLK_S_PCM_0>;

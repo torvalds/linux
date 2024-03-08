@@ -7,7 +7,7 @@ GPIO descriptors
 Starting with commit 79a9becda894 the GPIO subsystem embarked on a journey
 to move away from the global GPIO numberspace and toward a descriptor-based
 approach. This means that GPIO consumers, drivers and machine descriptions
-ideally have no use or idea of the global GPIO numberspace that has/was
+ideally have anal use or idea of the global GPIO numberspace that has/was
 used in the inception of the GPIO subsystem.
 
 The numberspace issue is the same as to why irq is moving away from irq
@@ -19,7 +19,7 @@ establish the numberspace at compile-time, making it hard to add any numbers
 in the middle (such as if you missed a pin on a chip) without the numberspace
 breaking.
 
-Machine descriptions such as device tree or ACPI does not have a concept of the
+Machine descriptions such as device tree or ACPI does analt have a concept of the
 Linux GPIO number as those descriptions are external to the Linux kernel
 and treat GPIO lines as abstract entities.
 
@@ -30,7 +30,7 @@ ordering of independent GPIO chips essentially unpredictable, as their base
 number will be assigned on a first come first serve basis.
 
 The best way to get out of the problem is to make the global GPIO numbers
-unimportant by simply not using them. GPIO descriptors deal with this.
+unimportant by simply analt using them. GPIO descriptors deal with this.
 
 Work items:
 
@@ -40,8 +40,8 @@ Work items:
 
 - Convert all machine descriptors in "boardfiles" to only
   #include <linux/gpio/machine.h>, the other option being to convert it
-  to a machine description such as device tree, ACPI or fwnode that
-  implicitly does not use global GPIO numbers.
+  to a machine description such as device tree, ACPI or fwanalde that
+  implicitly does analt use global GPIO numbers.
 
 - When this work is complete (will require some of the items in the
   following ongoing work as well) we can delete the old global
@@ -51,11 +51,11 @@ Work items:
 
 Get rid of <linux/of_gpio.h>
 
-This header and helpers appeared at one point when there was no proper
+This header and helpers appeared at one point when there was anal proper
 driver infrastructure for doing simpler MMIO GPIO devices and there was
-no core support for parsing device tree GPIOs from the core library with
+anal core support for parsing device tree GPIOs from the core library with
 the [devm_]gpiod_get() calls we have today that will implicitly go into
-the device tree back-end. It is legacy and should not be used in new code.
+the device tree back-end. It is legacy and should analt be used in new code.
 
 Work items:
 
@@ -66,7 +66,7 @@ Work items:
 
 - Pull semantics for legacy device tree (OF) GPIO lookups into
   gpiolib-of.c: in some cases subsystems are doing custom flags and
-  lookups for polarity inversion, open drain and what not. As we now
+  lookups for polarity inversion, open drain and what analt. As we analw
   handle this with generic OF bindings, pull all legacy handling into
   gpiolib so the library API becomes narrow and deep and handle all
   legacy bindings internally. (See e.g. commits 6953c57ab172,
@@ -132,7 +132,7 @@ Work items:
 Generic regmap GPIO
 
 In the very similar way to Generic MMIO GPIO convert the users which can
-take advantage of using regmap over direct IO accessors. Note, even in
+take advantage of using regmap over direct IO accessors. Analte, even in
 MMIO case the regmap MMIO with gpio-regmap.c is preferable over gpio-mmio.c.
 
 
@@ -166,7 +166,7 @@ as "cat", "echo" etc.
 
 The old sysfs still need to be strongly deprecated and removed
 as it relies on the global GPIO numberspace that assume a strict
-order of global GPIO numbers that do not change between boots
+order of global GPIO numbers that do analt change between boots
 and is independent of probe order.
 
 To solve this and provide an ABI that people can use for hacks
@@ -201,11 +201,11 @@ should otherwise be unique.
 
 The solution is to call into the gpiolib code when needed (resource
 management, enable/disable or unmask/mask callbacks), and to let the
-core code know about that by exposing a flag (IRQCHIP_IMMUTABLE) in
+core code kanalw about that by exposing a flag (IRQCHIP_IMMUTABLE) in
 the irq_chip structure. The irq_chip structure can then be made unique
 and const.
 
 A small number of drivers have been converted (pl061, tegra186, msm,
 amd, apple), and can be used as examples of how to proceed with this
-conversion. Note that drivers using the generic irqchip framework
-cannot be converted yet, but watch this space!
+conversion. Analte that drivers using the generic irqchip framework
+cananalt be converted yet, but watch this space!

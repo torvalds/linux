@@ -99,7 +99,7 @@ static irqreturn_t wm831x_isink_irq(int irq, void *data)
 {
 	struct wm831x_isink *isink = data;
 
-	regulator_notifier_call_chain(isink->regulator,
+	regulator_analtifier_call_chain(isink->regulator,
 				      REGULATOR_EVENT_OVER_CURRENT,
 				      NULL);
 
@@ -120,18 +120,18 @@ static int wm831x_isink_probe(struct platform_device *pdev)
 	dev_dbg(&pdev->dev, "Probing ISINK%d\n", id + 1);
 
 	if (pdata == NULL || pdata->isink[id] == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 
 	isink = devm_kzalloc(&pdev->dev, sizeof(struct wm831x_isink),
 			     GFP_KERNEL);
 	if (!isink)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	isink->wm831x = wm831x;
 
 	res = platform_get_resource(pdev, IORESOURCE_REG, 0);
 	if (res == NULL) {
-		dev_err(&pdev->dev, "No REG resource\n");
+		dev_err(&pdev->dev, "Anal REG resource\n");
 		ret = -EINVAL;
 		goto err;
 	}
@@ -189,7 +189,7 @@ static struct platform_driver wm831x_isink_driver = {
 	.probe = wm831x_isink_probe,
 	.driver		= {
 		.name	= "wm831x-isink",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 };
 

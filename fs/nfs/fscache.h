@@ -18,15 +18,15 @@
 #ifdef CONFIG_NFS_FSCACHE
 
 /*
- * Definition of the auxiliary data attached to NFS inode storage objects
+ * Definition of the auxiliary data attached to NFS ianalde storage objects
  * within the cache.
  *
  * The contents of this struct are recorded in the on-disk local cache in the
- * auxiliary data attached to the data storage object backing an inode.  This
- * permits coherency to be managed when a new inode binds to an already extant
+ * auxiliary data attached to the data storage object backing an ianalde.  This
+ * permits coherency to be managed when a new ianalde binds to an already extant
  * cache object.
  */
-struct nfs_fscache_inode_auxdata {
+struct nfs_fscache_ianalde_auxdata {
 	s64	mtime_sec;
 	s64	mtime_nsec;
 	s64	ctime_sec;
@@ -69,18 +69,18 @@ static inline void nfs_netfs_put(struct nfs_netfs_io_data *netfs)
 	/*
 	 * The NFS pageio interface may read a complete page, even when netfs
 	 * only asked for a partial page.  Specifically, this may be seen when
-	 * one thread is truncating a file while another one is reading the last
+	 * one thread is truncating a file while aanalther one is reading the last
 	 * page of the file.
-	 * Correct the final length here to be no larger than the netfs subrequest
+	 * Correct the final length here to be anal larger than the netfs subrequest
 	 * length, and thus avoid netfs's "Subreq overread" warning message.
 	 */
 	final_len = min_t(s64, netfs->sreq->len, atomic64_read(&netfs->transferred));
 	netfs_subreq_terminated(netfs->sreq, netfs->error ?: final_len, false);
 	kfree(netfs);
 }
-static inline void nfs_netfs_inode_init(struct nfs_inode *nfsi)
+static inline void nfs_netfs_ianalde_init(struct nfs_ianalde *nfsi)
 {
-	netfs_inode_init(&nfsi->netfs, &nfs_netfs_ops, false);
+	netfs_ianalde_init(&nfsi->netfs, &nfs_netfs_ops, false);
 }
 extern void nfs_netfs_initiate_read(struct nfs_pgio_header *hdr);
 extern void nfs_netfs_read_completion(struct nfs_pgio_header *hdr);
@@ -92,10 +92,10 @@ extern int nfs_netfs_folio_unlock(struct folio *folio);
 extern int nfs_fscache_get_super_cookie(struct super_block *, const char *, int);
 extern void nfs_fscache_release_super_cookie(struct super_block *);
 
-extern void nfs_fscache_init_inode(struct inode *);
-extern void nfs_fscache_clear_inode(struct inode *);
-extern void nfs_fscache_open_file(struct inode *, struct file *);
-extern void nfs_fscache_release_file(struct inode *, struct file *);
+extern void nfs_fscache_init_ianalde(struct ianalde *);
+extern void nfs_fscache_clear_ianalde(struct ianalde *);
+extern void nfs_fscache_open_file(struct ianalde *, struct file *);
+extern void nfs_fscache_release_file(struct ianalde *, struct file *);
 extern int nfs_netfs_readahead(struct readahead_control *ractl);
 extern int nfs_netfs_read_folio(struct file *file, struct folio *folio);
 
@@ -106,33 +106,33 @@ static inline bool nfs_fscache_release_folio(struct folio *folio, gfp_t gfp)
 			return false;
 		folio_wait_fscache(folio);
 	}
-	fscache_note_page_release(netfs_i_cookie(netfs_inode(folio->mapping->host)));
+	fscache_analte_page_release(netfs_i_cookie(netfs_ianalde(folio->mapping->host)));
 	return true;
 }
 
-static inline void nfs_fscache_update_auxdata(struct nfs_fscache_inode_auxdata *auxdata,
-					      struct inode *inode)
+static inline void nfs_fscache_update_auxdata(struct nfs_fscache_ianalde_auxdata *auxdata,
+					      struct ianalde *ianalde)
 {
 	memset(auxdata, 0, sizeof(*auxdata));
-	auxdata->mtime_sec  = inode_get_mtime(inode).tv_sec;
-	auxdata->mtime_nsec = inode_get_mtime(inode).tv_nsec;
-	auxdata->ctime_sec  = inode_get_ctime(inode).tv_sec;
-	auxdata->ctime_nsec = inode_get_ctime(inode).tv_nsec;
+	auxdata->mtime_sec  = ianalde_get_mtime(ianalde).tv_sec;
+	auxdata->mtime_nsec = ianalde_get_mtime(ianalde).tv_nsec;
+	auxdata->ctime_sec  = ianalde_get_ctime(ianalde).tv_sec;
+	auxdata->ctime_nsec = ianalde_get_ctime(ianalde).tv_nsec;
 
-	if (NFS_SERVER(inode)->nfs_client->rpc_ops->version == 4)
-		auxdata->change_attr = inode_peek_iversion_raw(inode);
+	if (NFS_SERVER(ianalde)->nfs_client->rpc_ops->version == 4)
+		auxdata->change_attr = ianalde_peek_iversion_raw(ianalde);
 }
 
 /*
- * Invalidate the contents of fscache for this inode.  This will not sleep.
+ * Invalidate the contents of fscache for this ianalde.  This will analt sleep.
  */
-static inline void nfs_fscache_invalidate(struct inode *inode, int flags)
+static inline void nfs_fscache_invalidate(struct ianalde *ianalde, int flags)
 {
-	struct nfs_fscache_inode_auxdata auxdata;
-	struct fscache_cookie *cookie =  netfs_i_cookie(&NFS_I(inode)->netfs);
+	struct nfs_fscache_ianalde_auxdata auxdata;
+	struct fscache_cookie *cookie =  netfs_i_cookie(&NFS_I(ianalde)->netfs);
 
-	nfs_fscache_update_auxdata(&auxdata, inode);
-	fscache_invalidate(cookie, &auxdata, i_size_read(inode), flags);
+	nfs_fscache_update_auxdata(&auxdata, ianalde);
+	fscache_invalidate(cookie, &auxdata, i_size_read(ianalde), flags);
 }
 
 /*
@@ -141,8 +141,8 @@ static inline void nfs_fscache_invalidate(struct inode *inode, int flags)
 static inline const char *nfs_server_fscache_state(struct nfs_server *server)
 {
 	if (server->fscache)
-		return "yes";
-	return "no ";
+		return "anal";
+	return "anal ";
 }
 
 static inline void nfs_netfs_set_pgio_header(struct nfs_pgio_header *hdr,
@@ -160,7 +160,7 @@ static inline void nfs_netfs_reset_pageio_descriptor(struct nfs_pageio_descripto
 	desc->pg_netfs = NULL;
 }
 #else /* CONFIG_NFS_FSCACHE */
-static inline void nfs_netfs_inode_init(struct nfs_inode *nfsi) {}
+static inline void nfs_netfs_ianalde_init(struct nfs_ianalde *nfsi) {}
 static inline void nfs_netfs_initiate_read(struct nfs_pgio_header *hdr) {}
 static inline void nfs_netfs_read_completion(struct nfs_pgio_header *hdr) {}
 static inline int nfs_netfs_folio_unlock(struct folio *folio)
@@ -169,29 +169,29 @@ static inline int nfs_netfs_folio_unlock(struct folio *folio)
 }
 static inline void nfs_fscache_release_super_cookie(struct super_block *sb) {}
 
-static inline void nfs_fscache_init_inode(struct inode *inode) {}
-static inline void nfs_fscache_clear_inode(struct inode *inode) {}
-static inline void nfs_fscache_open_file(struct inode *inode,
+static inline void nfs_fscache_init_ianalde(struct ianalde *ianalde) {}
+static inline void nfs_fscache_clear_ianalde(struct ianalde *ianalde) {}
+static inline void nfs_fscache_open_file(struct ianalde *ianalde,
 					 struct file *filp) {}
-static inline void nfs_fscache_release_file(struct inode *inode, struct file *file) {}
+static inline void nfs_fscache_release_file(struct ianalde *ianalde, struct file *file) {}
 static inline int nfs_netfs_readahead(struct readahead_control *ractl)
 {
-	return -ENOBUFS;
+	return -EANALBUFS;
 }
 static inline int nfs_netfs_read_folio(struct file *file, struct folio *folio)
 {
-	return -ENOBUFS;
+	return -EANALBUFS;
 }
 
 static inline bool nfs_fscache_release_folio(struct folio *folio, gfp_t gfp)
 {
 	return true; /* may release folio */
 }
-static inline void nfs_fscache_invalidate(struct inode *inode, int flags) {}
+static inline void nfs_fscache_invalidate(struct ianalde *ianalde, int flags) {}
 
 static inline const char *nfs_server_fscache_state(struct nfs_server *server)
 {
-	return "no ";
+	return "anal ";
 }
 static inline void nfs_netfs_set_pgio_header(struct nfs_pgio_header *hdr,
 					     struct nfs_pageio_descriptor *desc) {}

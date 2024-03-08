@@ -167,7 +167,7 @@ static int r592_set_mode(struct r592_device *dev, bool parallel_mode)
 		r592_clear_reg_mask(dev, R592_IO,
 			R592_IO_SERIAL1 | R592_IO_SERIAL2);
 
-		/* Set the parallel mode now */
+		/* Set the parallel mode analw */
 		r592_write_reg(dev, R592_IO_MODE, R592_IO_MODE_PARALLEL);
 	}
 
@@ -209,13 +209,13 @@ static int r592_test_fifo_empty(struct r592_device *dev)
 	if (r592_read_reg(dev, R592_REG_MSC) & R592_REG_MSC_FIFO_EMPTY)
 		return 0;
 
-	dbg("FIFO not ready, trying to reset the device");
+	dbg("FIFO analt ready, trying to reset the device");
 	r592_host_reset(dev);
 
 	if (r592_read_reg(dev, R592_REG_MSC) & R592_REG_MSC_FIFO_EMPTY)
 		return 0;
 
-	message("FIFO still not ready, giving up");
+	message("FIFO still analt ready, giving up");
 	return -EIO;
 }
 
@@ -363,7 +363,7 @@ static void r592_flush_fifo_write(struct r592_device *dev)
 		return;
 
 	ret = kfifo_out(&dev->pio_fifo, buffer, 4);
-	/* intentionally ignore __must_check return code */
+	/* intentionally iganalre __must_check return code */
 	(void)ret;
 	r592_write_reg_raw_be(dev, R592_FIFO_PIO, *(u32 *)buffer);
 }
@@ -439,7 +439,7 @@ static int r592_transfer_fifo_pio(struct r592_device *dev)
 			r592_read_fifo_pio(dev, miter.addr, miter.length);
 
 
-	/* Write last few non aligned bytes*/
+	/* Write last few analn aligned bytes*/
 	if (is_write)
 		r592_flush_fifo_write(dev);
 
@@ -467,13 +467,13 @@ static void r592_execute_tpc(struct r592_device *dev)
 	/* Ensure that FIFO can hold the input data */
 	if (len > R592_LFIFO_SIZE) {
 		message("IO: hardware doesn't support TPCs longer that 512");
-		error = -ENOSYS;
+		error = -EANALSYS;
 		goto out;
 	}
 
 	if (!(r592_read_reg(dev, R592_REG_MSC) & R592_REG_MSC_PRSNT)) {
 		dbg("IO: refusing to send TPC because card is absent");
-		error = -ENODEV;
+		error = -EANALDEV;
 		goto out;
 	}
 
@@ -575,7 +575,7 @@ static int r592_process_thread(void *data)
 			if (error == -ENXIO || error == -EAGAIN) {
 				dbg_verbose("IO: done IO, sleeping");
 			} else {
-				dbg("IO: unknown error from "
+				dbg("IO: unkanalwn error from "
 					"memstick_next_req %d", error);
 			}
 
@@ -623,7 +623,7 @@ static void r592_detect_timer(struct timer_list *t)
 static irqreturn_t r592_irq(int irq, void *data)
 {
 	struct r592_device *dev = (struct r592_device *)data;
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 	u32 reg;
 	u16 irq_enable, irq_status;
 	unsigned long flags;
@@ -729,7 +729,7 @@ static const struct pci_device_id r592_pci_id_tbl[] = {
 /* Main entry */
 static int r592_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
-	int error = -ENOMEM;
+	int error = -EANALMEM;
 	struct memstick_host *host;
 	struct r592_device *dev;
 
@@ -759,7 +759,7 @@ static int r592_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	dev->mmio = pci_ioremap_bar(pdev, 0);
 	if (!dev->mmio) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto error4;
 	}
 

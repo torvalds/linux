@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
@@ -14,7 +14,7 @@
 
 /*
  * This file is generally used by user-level software, so you need to
- * be a little careful about namespace pollution etc.  Also, we cannot
+ * be a little careful about namespace pollution etc.  Also, we cananalt
  * assume GCC is being used.
  */
 

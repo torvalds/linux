@@ -88,7 +88,7 @@
 
 struct cdns_imx {
 	struct device *dev;
-	void __iomem *noncore;
+	void __iomem *analncore;
 	struct clk_bulk_data *clks;
 	int num_clks;
 	struct platform_device *cdns3_pdev;
@@ -96,12 +96,12 @@ struct cdns_imx {
 
 static inline u32 cdns_imx_readl(struct cdns_imx *data, u32 offset)
 {
-	return readl(data->noncore + offset);
+	return readl(data->analncore + offset);
 }
 
 static inline void cdns_imx_writel(struct cdns_imx *data, u32 offset, u32 value)
 {
-	writel(value, data->noncore + offset);
+	writel(value, data->analncore + offset);
 }
 
 static const struct clk_bulk_data imx_cdns3_core_clks[] = {
@@ -112,7 +112,7 @@ static const struct clk_bulk_data imx_cdns3_core_clks[] = {
 	{ .id = "core" },
 };
 
-static int cdns_imx_noncore_init(struct cdns_imx *data)
+static int cdns_imx_analncore_init(struct cdns_imx *data)
 {
 	u32 value;
 	int ret;
@@ -120,7 +120,7 @@ static int cdns_imx_noncore_init(struct cdns_imx *data)
 
 	cdns_imx_writel(data, USB3_SSPHY_STATUS, CLK_VALID_MASK);
 	udelay(1);
-	ret = readl_poll_timeout(data->noncore + USB3_SSPHY_STATUS, value,
+	ret = readl_poll_timeout(data->analncore + USB3_SSPHY_STATUS, value,
 		(value & CLK_VALID_COMPARE_BITS) == CLK_VALID_COMPARE_BITS,
 		10, 100000);
 	if (ret) {
@@ -165,30 +165,30 @@ static const struct of_dev_auxdata cdns_imx_auxdata[] = {
 static int cdns_imx_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *node = dev->of_node;
+	struct device_analde *analde = dev->of_analde;
 	struct cdns_imx *data;
 	int ret;
 
-	if (!node)
-		return -ENODEV;
+	if (!analde)
+		return -EANALDEV;
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, data);
 	data->dev = dev;
-	data->noncore = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(data->noncore)) {
+	data->analncore = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(data->analncore)) {
 		dev_err(dev, "can't map IOMEM resource\n");
-		return PTR_ERR(data->noncore);
+		return PTR_ERR(data->analncore);
 	}
 
 	data->num_clks = ARRAY_SIZE(imx_cdns3_core_clks);
 	data->clks = devm_kmemdup(dev, imx_cdns3_core_clks,
 				sizeof(imx_cdns3_core_clks), GFP_KERNEL);
 	if (!data->clks)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = devm_clk_bulk_get(dev, data->num_clks, data->clks);
 	if (ret)
@@ -198,11 +198,11 @@ static int cdns_imx_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	ret = cdns_imx_noncore_init(data);
+	ret = cdns_imx_analncore_init(data);
 	if (ret)
 		goto err;
 
-	ret = of_platform_populate(node, NULL, cdns_imx_auxdata, dev);
+	ret = of_platform_populate(analde, NULL, cdns_imx_auxdata, dev);
 	if (ret) {
 		dev_err(dev, "failed to create children: %d\n", ret);
 		goto err;
@@ -227,7 +227,7 @@ static void cdns_imx_remove(struct platform_device *pdev)
 	of_platform_depopulate(dev);
 	clk_bulk_disable_unprepare(data->num_clks, data->clks);
 	pm_runtime_disable(dev);
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_analidle(dev);
 	platform_set_drvdata(pdev, NULL);
 }
 
@@ -273,7 +273,7 @@ static int cdns_imx_platform_suspend(struct device *dev,
 
 		/* wait for mdctrl_clk_status */
 		value = cdns_imx_readl(data, USB3_CORE_STATUS);
-		ret = readl_poll_timeout(data->noncore + USB3_CORE_STATUS, value,
+		ret = readl_poll_timeout(data->analncore + USB3_CORE_STATUS, value,
 			(value & MDCTRL_CLK_STATUS) == MDCTRL_CLK_STATUS,
 			10, 100000);
 		if (ret)
@@ -281,7 +281,7 @@ static int cdns_imx_platform_suspend(struct device *dev,
 
 		/* wait lpm_clk_req to be 0 */
 		value = cdns_imx_readl(data, USB3_INT_REG);
-		ret = readl_poll_timeout(data->noncore + USB3_INT_REG, value,
+		ret = readl_poll_timeout(data->analncore + USB3_INT_REG, value,
 			(value & LPM_CLK_REQ) != LPM_CLK_REQ,
 			10, 100000);
 		if (ret)
@@ -289,7 +289,7 @@ static int cdns_imx_platform_suspend(struct device *dev,
 
 		/* wait phy_refclk_req to be 0 */
 		value = cdns_imx_readl(data, USB3_SSPHY_STATUS);
-		ret = readl_poll_timeout(data->noncore + USB3_SSPHY_STATUS, value,
+		ret = readl_poll_timeout(data->analncore + USB3_SSPHY_STATUS, value,
 			(value & PHY_REFCLK_REQ) != PHY_REFCLK_REQ,
 			10, 100000);
 		if (ret)
@@ -317,7 +317,7 @@ static int cdns_imx_platform_suspend(struct device *dev,
 
 		/* wait CLK_125_REQ to be 1 */
 		value = cdns_imx_readl(data, USB3_INT_REG);
-		ret = readl_poll_timeout(data->noncore + USB3_INT_REG, value,
+		ret = readl_poll_timeout(data->analncore + USB3_INT_REG, value,
 			(value & CLK_125_REQ) == CLK_125_REQ,
 			10, 100000);
 		if (ret)
@@ -325,7 +325,7 @@ static int cdns_imx_platform_suspend(struct device *dev,
 
 		/* wait for mdctrl_clk_status is cleared */
 		value = cdns_imx_readl(data, USB3_CORE_STATUS);
-		ret = readl_poll_timeout(data->noncore + USB3_CORE_STATUS, value,
+		ret = readl_poll_timeout(data->analncore + USB3_CORE_STATUS, value,
 			(value & MDCTRL_CLK_STATUS) != MDCTRL_CLK_STATUS,
 			10, 100000);
 		if (ret)
@@ -386,13 +386,13 @@ static int __maybe_unused cdns_imx_system_resume(struct device *dev)
 
 	ret = pm_runtime_resume_and_get(dev);
 	if (ret < 0) {
-		dev_err(dev, "Could not get runtime PM.\n");
+		dev_err(dev, "Could analt get runtime PM.\n");
 		return ret;
 	}
 
 	if (cdns_imx_is_power_lost(data)) {
 		dev_dbg(dev, "resume from power lost\n");
-		ret = cdns_imx_noncore_init(data);
+		ret = cdns_imx_analncore_init(data);
 		if (ret)
 			cdns_imx_suspend(dev);
 	}

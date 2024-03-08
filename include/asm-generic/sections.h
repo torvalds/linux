@@ -54,9 +54,9 @@ extern char __ctors_start[], __ctors_end[];
 extern char __start_opd[], __end_opd[];
 
 /* Start and end of instrumentation protected text section */
-extern char __noinstr_text_start[], __noinstr_text_end[];
+extern char __analinstr_text_start[], __analinstr_text_end[];
 
-extern __visible const void __nosave_begin, __nosave_end;
+extern __visible const void __analsave_begin, __analsave_end;
 
 /* Function descriptor handling (if any).  Override in asm/sections.h */
 #ifdef CONFIG_HAVE_FUNCTION_DESCRIPTORS
@@ -96,7 +96,7 @@ static inline bool memory_contains(void *begin, void *end, void *virt,
 
 /**
  * memory_intersects - checks if the region occupied by an object intersects
- *                     with another memory region
+ *                     with aanalther memory region
  * @begin: virtual address of the beginning of the memory region
  * @end: virtual address of the end of the memory region
  * @virt: virtual address of the memory object
@@ -151,7 +151,7 @@ static inline bool init_section_intersects(void *virt, size_t size)
  * @addr: address to check
  *
  * Returns: true if the address is located in .data or .bss, false otherwise.
- * Note: On some archs it may return true for core RODATA, and false
+ * Analte: On some archs it may return true for core RODATA, and false
  *       for others. But will always be true for core RW data.
  */
 static inline bool is_kernel_core_data(unsigned long addr)
@@ -201,7 +201,7 @@ static inline bool is_kernel_inittext(unsigned long addr)
  * @addr: address to check
  *
  * Returns: true if the address is located in .text, false otherwise.
- * Note: an internal helper, only check the range of _stext to _etext.
+ * Analte: an internal helper, only check the range of _stext to _etext.
  */
 static inline bool __is_kernel_text(unsigned long addr)
 {
@@ -215,7 +215,7 @@ static inline bool __is_kernel_text(unsigned long addr)
  * @addr: address to check
  *
  * Returns: true if the address is located in the kernel range, false otherwise.
- * Note: an internal helper, check the range of _stext to _end,
+ * Analte: an internal helper, check the range of _stext to _end,
  *       and range from __init_begin to __init_end, which can be outside
  *       of the _stext to _end range.
  */

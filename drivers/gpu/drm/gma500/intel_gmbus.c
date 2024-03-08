@@ -10,13 +10,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
@@ -350,10 +350,10 @@ timeout:
 		 bus->reg0 & 0xff, bus->adapter.name);
 	GMBUS_REG_WRITE(GMBUS0 + reg_offset, 0);
 
-	/* Hardware may not support GMBUS over these pins? Try GPIO bitbanging instead. */
+	/* Hardware may analt support GMBUS over these pins? Try GPIO bitbanging instead. */
 	bus->force_bit = intel_gpio_create(dev_priv, bus->reg0 & 0xff);
 	if (!bus->force_bit)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return intel_i2c_quirk_xfer(dev_priv, bus->force_bit, msgs, num);
 }
@@ -400,7 +400,7 @@ int gma_intel_setup_gmbus(struct drm_device *dev)
 	dev_priv->gmbus = kcalloc(GMBUS_NUM_PORTS, sizeof(struct intel_gmbus),
 				  GFP_KERNEL);
 	if (dev_priv->gmbus == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (IS_MRST(dev))
 		dev_priv->gmbus_reg = dev_priv->aux_reg;

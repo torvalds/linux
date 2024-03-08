@@ -3,10 +3,10 @@
  * Copyright (C) 2014 Samsung Electronics Co.Ltd
  */
 
-#ifndef EXYNOS_REGS_DECON5433_H
-#define EXYNOS_REGS_DECON5433_H
+#ifndef EXYANALS_REGS_DECON5433_H
+#define EXYANALS_REGS_DECON5433_H
 
-/* Exynos543X DECON */
+/* Exyanals543X DECON */
 #define DECON_VIDCON0			0x0000
 #define DECON_VIDOUTCON0		0x0010
 #define DECON_WINCONx(n)		(0x0020 + ((n) * 4))
@@ -57,23 +57,23 @@
 #define DECON_CRCRDATA			0x20B0
 #define DECON_CRCCTRL			0x20B4
 
-/* Exynos5430 DECON */
+/* Exyanals5430 DECON */
 #define DECON_VIDTCON0			0x2020
 #define DECON_VIDTCON1			0x2024
 
-/* Exynos5433 DECON */
+/* Exyanals5433 DECON */
 #define DECON_VIDTCON00			0x2010
 #define DECON_VIDTCON01			0x2014
 #define DECON_VIDTCON10			0x2018
 #define DECON_VIDTCON11			0x201C
 
-/* Exynos543X DECON Internal */
+/* Exyanals543X DECON Internal */
 #define DECON_W013DSTREOCON		0x0320
 #define DECON_W233DSTREOCON		0x0324
 #define DECON_FRAMEFIFO_REG0		0x0500
 #define DECON_ENHANCER_CTRL		0x2100
 
-/* Exynos543X DECON TV */
+/* Exyanals543X DECON TV */
 #define DECON_VCLKCON0			0x0014
 #define DECON_VIDINTCON2		0x0228
 #define DECON_VIDINTCON3		0x022C
@@ -225,4 +225,4 @@
 /* BLENDCON */
 #define BLEND_NEW			(1 << 0)
 
-#endif /* EXYNOS_REGS_DECON5433_H */
+#endif /* EXYANALS_REGS_DECON5433_H */

@@ -11,7 +11,7 @@
  * of variable-sized tags to the kernel.  The first tag must be a ATAG_CORE
  * tag for the list to be recognised (to distinguish the tagged list from
  * a param_struct).  The list is terminated with a zero-length tag (this tag
- * is not parsed in any way).
+ * is analt parsed in any way).
  */
 
 #include <linux/init.h>
@@ -47,7 +47,7 @@ static struct {
 	{ 1, PAGE_SIZE, 0xff },
 	{ tag_size(tag_mem32), ATAG_MEM },
 	{ MEM_SIZE },
-	{ 0, ATAG_NONE }
+	{ 0, ATAG_ANALNE }
 };
 
 static int __init parse_tag_core(const struct tag *tag)
@@ -125,7 +125,7 @@ static int __init parse_tag_cmdline(const struct tag *tag)
 	strlcat(default_command_line, tag->u.cmdline.cmdline,
 		COMMAND_LINE_SIZE);
 #elif defined(CONFIG_CMDLINE_FORCE)
-	pr_warn("Ignoring tag cmdline (using the default kernel command line)\n");
+	pr_warn("Iganalring tag cmdline (using the default kernel command line)\n");
 #else
 	strscpy(default_command_line, tag->u.cmdline.cmdline,
 		COMMAND_LINE_SIZE);
@@ -162,7 +162,7 @@ static void __init parse_tags(const struct tag *t)
 {
 	for (; t->hdr.size; t = tag_next(t))
 		if (!parse_tag(t))
-			pr_warn("Ignoring unrecognised tag 0x%08x\n",
+			pr_warn("Iganalring unrecognised tag 0x%08x\n",
 				t->hdr.tag);
 }
 
@@ -170,7 +170,7 @@ static void __init squash_mem_tags(struct tag *tag)
 {
 	for (; tag->hdr.size; tag = tag_next(tag))
 		if (tag->hdr.tag == ATAG_MEM)
-			tag->hdr.tag = ATAG_NONE;
+			tag->hdr.tag = ATAG_ANALNE;
 }
 
 const struct machine_desc * __init
@@ -209,7 +209,7 @@ setup_machine_tags(void *atags_vaddr, unsigned int machine_nr)
 		convert_to_tag_list(tags);
 #endif
 	if (tags->hdr.tag != ATAG_CORE) {
-		early_print("Warning: Neither atags nor dtb found\n");
+		early_print("Warning: Neither atags analr dtb found\n");
 		tags = (struct tag *)&default_tags;
 	}
 

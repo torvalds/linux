@@ -189,7 +189,7 @@ static irqreturn_t mv_rtc_interrupt(int irq, void *data)
 
 	/* alarm irq? */
 	if (!readl(ioaddr + RTC_ALARM_INTERRUPT_CASUE_REG_OFFS))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/* clear interrupt */
 	writel(0, ioaddr + RTC_ALARM_INTERRUPT_CASUE_REG_OFFS);
@@ -213,21 +213,21 @@ static int __init mv_rtc_probe(struct platform_device *pdev)
 
 	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pdata->ioaddr = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(pdata->ioaddr))
 		return PTR_ERR(pdata->ioaddr);
 
 	pdata->clk = devm_clk_get(&pdev->dev, NULL);
-	/* Not all SoCs require a clock.*/
+	/* Analt all SoCs require a clock.*/
 	if (!IS_ERR(pdata->clk))
 		clk_prepare_enable(pdata->clk);
 
 	/* make sure the 24 hour mode is enabled */
 	rtc_time = readl(pdata->ioaddr + RTC_TIME_REG_OFFS);
 	if (rtc_time & RTC_HOURS_12H_MODE) {
-		dev_err(&pdev->dev, "12 Hour mode is enabled but not supported.\n");
+		dev_err(&pdev->dev, "12 Hour mode is enabled but analt supported.\n");
 		ret = -EINVAL;
 		goto out;
 	}
@@ -237,8 +237,8 @@ static int __init mv_rtc_probe(struct platform_device *pdev)
 		ssleep(1);
 		rtc_time = readl(pdata->ioaddr + RTC_TIME_REG_OFFS);
 		if (rtc_time == 0x01000000) {
-			dev_err(&pdev->dev, "internal RTC not ticking\n");
-			ret = -ENODEV;
+			dev_err(&pdev->dev, "internal RTC analt ticking\n");
+			ret = -EANALDEV;
 			goto out;
 		}
 	}
@@ -258,7 +258,7 @@ static int __init mv_rtc_probe(struct platform_device *pdev)
 		if (devm_request_irq(&pdev->dev, pdata->irq, mv_rtc_interrupt,
 				     IRQF_SHARED,
 				     pdev->name, pdata) < 0) {
-			dev_warn(&pdev->dev, "interrupt not available.\n");
+			dev_warn(&pdev->dev, "interrupt analt available.\n");
 			pdata->irq = -1;
 		}
 	}
@@ -303,7 +303,7 @@ MODULE_DEVICE_TABLE(of, rtc_mv_of_match_table);
 
 /*
  * mv_rtc_remove() lives in .exit.text. For drivers registered via
- * module_platform_driver_probe() this is ok because they cannot get unbound at
+ * module_platform_driver_probe() this is ok because they cananalt get unbound at
  * runtime. So mark the driver struct with __refdata to prevent modpost
  * triggering a section mismatch warning.
  */

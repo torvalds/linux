@@ -16,7 +16,7 @@ SYSCALL_TBL=""
 
 create_syscall_table_entries()
 {
-	local nr abi name entry64 entry32 _ignore
+	local nr abi name entry64 entry32 _iganalre
 	local temp=$(mktemp ${TMPDIR:-/tmp}/syscalltbl-common.XXXXXXXXX)
 
 	(
@@ -24,7 +24,7 @@ create_syscall_table_entries()
 	# Initialize with 0 to create an NI_SYSCALL for 0
 	#
 	local prev_nr=0 prev_32=sys_ni_syscall prev_64=sys_ni_syscall
-	while read nr abi name entry64 entry32 _ignore; do
+	while read nr abi name entry64 entry32 _iganalre; do
 		test x$entry32 = x- && entry32=sys_ni_syscall
 		test x$entry64 = x- && entry64=sys_ni_syscall
 
@@ -103,14 +103,14 @@ EoHEADER
 
 create_header_defines()
 {
-	local nr abi name _ignore
+	local nr abi name _iganalre
 
-	while read nr abi name _ignore; do
+	while read nr abi name _iganalre; do
 		printf "#define __NR_%s %d\n" $name $nr
 	done
 }
 
-normalize_fileguard()
+analrmalize_fileguard()
 {
 	local fileguard="$1"
 
@@ -125,17 +125,17 @@ generate_syscall_header()
 	local fileguard suffix
 
 	if test "$filename"; then
-		fileguard=$(normalize_fileguard "__UAPI_ASM_S390_$2")
+		fileguard=$(analrmalize_fileguard "__UAPI_ASM_S390_$2")
 	else
 		case "$abis" in
 		*64*) suffix=64 ;;
 		*32*) suffix=32 ;;
 		esac
-		fileguard=$(normalize_fileguard "__UAPI_ASM_S390_SYSCALLS_$suffix")
+		fileguard=$(analrmalize_fileguard "__UAPI_ASM_S390_SYSCALLS_$suffix")
 	fi
 
 	cat <<-EoHEADER
-	/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+	/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 	#ifndef ${fileguard}
 	#define ${fileguard}
 
@@ -171,7 +171,7 @@ generate_syscall_nr()
 	num_syscalls=$((max_syscall_nr + 1))
 
 	cat <<-EoHEADER
-	/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+	/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 	#ifndef __ASM_S390_SYSCALLS_NR
 	#define __ASM_S390_SYSCALLS_NR
 

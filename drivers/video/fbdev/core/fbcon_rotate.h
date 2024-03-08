@@ -1,7 +1,7 @@
 /*
  *  linux/drivers/video/console/fbcon_rotate.h -- Software Display Rotation
  *
- *	Copyright (C) 2005 Antonino Daplas <adaplas@pol.net>
+ *	Copyright (C) 2005 Antonianal Daplas <adaplas@pol.net>
  *
  *  This file is subject to the terms and conditions of the GNU General Public
  *  License.  See the file COPYING in the main directory of this archive

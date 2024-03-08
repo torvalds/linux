@@ -49,7 +49,7 @@ int BPF_PROG(cgrp_kfunc_acquire_untrusted, struct cgroup *cgrp, const char *path
 
 SEC("tp_btf/cgroup_mkdir")
 __failure __msg("Possibly NULL pointer passed to trusted arg0")
-int BPF_PROG(cgrp_kfunc_acquire_no_null_check, struct cgroup *cgrp, const char *path)
+int BPF_PROG(cgrp_kfunc_acquire_anal_null_check, struct cgroup *cgrp, const char *path)
 {
 	struct cgroup *acquired;
 
@@ -78,7 +78,7 @@ int BPF_PROG(cgrp_kfunc_acquire_fp, struct cgroup *cgrp, const char *path)
 }
 
 SEC("kretprobe/cgroup_destroy_locked")
-__failure __msg("calling kernel function bpf_cgroup_acquire is not allowed")
+__failure __msg("calling kernel function bpf_cgroup_acquire is analt allowed")
 int BPF_PROG(cgrp_kfunc_acquire_unsafe_kretprobe, struct cgroup *cgrp)
 {
 	struct cgroup *acquired;
@@ -196,7 +196,7 @@ int BPF_PROG(cgrp_kfunc_release_fp, struct cgroup *cgrp, const char *path)
 {
 	struct cgroup *acquired = (struct cgroup *)&path;
 
-	/* Cannot release random frame pointer. */
+	/* Cananalt release random frame pointer. */
 	bpf_cgroup_release(acquired);
 
 	return 0;
@@ -216,21 +216,21 @@ int BPF_PROG(cgrp_kfunc_release_null, struct cgroup *cgrp, const char *path)
 		return 0;
 
 	local.cgrp = NULL;
-	status = bpf_map_update_elem(&__cgrps_kfunc_map, &id, &local, BPF_NOEXIST);
+	status = bpf_map_update_elem(&__cgrps_kfunc_map, &id, &local, BPF_ANALEXIST);
 	if (status)
 		return status;
 
 	v = bpf_map_lookup_elem(&__cgrps_kfunc_map, &id);
 	if (!v)
-		return -ENOENT;
+		return -EANALENT;
 
 	acquired = bpf_cgroup_acquire(cgrp);
 	if (!acquired)
-		return -ENOENT;
+		return -EANALENT;
 
 	old = bpf_kptr_xchg(&v->cgrp, acquired);
 
-	/* old cannot be passed to bpf_cgroup_release() without a NULL check. */
+	/* old cananalt be passed to bpf_cgroup_release() without a NULL check. */
 	bpf_cgroup_release(old);
 
 	return 0;
@@ -240,7 +240,7 @@ SEC("tp_btf/cgroup_mkdir")
 __failure __msg("release kernel function bpf_cgroup_release expects")
 int BPF_PROG(cgrp_kfunc_release_unacquired, struct cgroup *cgrp, const char *path)
 {
-	/* Cannot release trusted cgroup pointer which was not acquired. */
+	/* Cananalt release trusted cgroup pointer which was analt acquired. */
 	bpf_cgroup_release(cgrp);
 
 	return 0;

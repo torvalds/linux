@@ -11,13 +11,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * PRECISION INSIGHT AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
@@ -60,7 +60,7 @@
  *     - Add r200 function to init ioctl
  *     - Add 'scalar2' instruction to cmdbuf
  * 1.6 - Add static GART memory manager
- *       Add irq handler (won't be turned on unless X server knows to)
+ *       Add irq handler (won't be turned on unless X server kanalws to)
  *       Add irq ioctls and irq_active getparam.
  *       Add wait command for cmdbuf ioctl
  *       Add GART offset query for getparam
@@ -78,7 +78,7 @@
  * 1.11- Add packet R200_EMIT_RB3D_BLENDCOLOR to support GL_EXT_blend_color
  *       and GL_EXT_blend_[func|equation]_separate on r200
  * 1.12- Add R300 CP microcode support - this just loads the CP on r300
- *       (No 3D support yet - just microcode loading).
+ *       (Anal 3D support yet - just microcode loading).
  * 1.13- Add packet R200_EMIT_TCL_POINT_SPRITE_CNTL for ARB_point_parameters
  *     - Add hyperz support, add hyperz flags to clear ioctl.
  * 1.14- Add support for color tiling
@@ -111,7 +111,7 @@
  * 1.34- fix evergreen/cayman GS register
  */
 #define DRIVER_MAJOR		1
-#define DRIVER_MINOR		34
+#define DRIVER_MIANALR		34
 #define DRIVER_PATCHLEVEL	0
 
 long radeon_drm_ioctl(struct file *filp,

@@ -60,17 +60,17 @@ struct c2c_stats {
 	u32	locks;               /* count of 'lock' transactions */
 	u32	store;               /* count of all stores in trace */
 	u32	st_uncache;          /* stores to uncacheable address */
-	u32	st_noadrs;           /* cacheable store with no address */
+	u32	st_analadrs;           /* cacheable store with anal address */
 	u32	st_l1hit;            /* count of stores that hit L1D */
 	u32	st_l1miss;           /* count of stores that miss L1D */
-	u32	st_na;               /* count of stores with memory level is not available */
+	u32	st_na;               /* count of stores with memory level is analt available */
 	u32	load;                /* count of all loads in trace */
-	u32	ld_excl;             /* exclusive loads, rmt/lcl DRAM - snp none/miss */
+	u32	ld_excl;             /* exclusive loads, rmt/lcl DRAM - snp analne/miss */
 	u32	ld_shared;           /* shared loads, rmt/lcl DRAM - snp hit */
 	u32	ld_uncache;          /* loads to uncacheable address */
 	u32	ld_io;               /* loads to io address */
 	u32	ld_miss;             /* loads miss */
-	u32	ld_noadrs;           /* cacheable load with no address */
+	u32	ld_analadrs;           /* cacheable load with anal address */
 	u32	ld_fbhit;            /* count of loads hitting Fill Buffer */
 	u32	ld_l1hit;            /* count of loads that hit L1D */
 	u32	ld_l2hit;            /* count of loads that hit L2D */
@@ -86,8 +86,8 @@ struct c2c_stats {
 	u32	rmt_dram;            /* count of loads miss to remote DRAM */
 	u32	blk_data;            /* count of loads blocked by data */
 	u32	blk_addr;            /* count of loads blocked by address conflict */
-	u32	nomap;               /* count of load/stores with no phys addrs */
-	u32	noparse;             /* count of unparsable data sources */
+	u32	analmap;               /* count of load/stores with anal phys addrs */
+	u32	analparse;             /* count of unparsable data sources */
 };
 
 struct hist_entry;

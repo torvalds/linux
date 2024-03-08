@@ -8,21 +8,21 @@
  * Serge Semin <fancer.lancer@gmail.com>, <Sergey.Semin@t-platforms.ru>
  */
 /*
- *           NOTE of the IDT 89HPESx SMBus-slave interface driver
+ *           ANALTE of the IDT 89HPESx SMBus-slave interface driver
  *    This driver primarily is developed to have an access to EEPROM device of
  * IDT PCIe-switches. IDT provides a simple SMBus interface to perform IO-
  * operations from/to EEPROM, which is located at private (so called Master)
  * SMBus of switches. Using that interface this the driver creates a simple
  * binary sysfs-file in the device directory:
  * /sys/bus/i2c/devices/<bus>-<devaddr>/eeprom
- * In case if read-only flag is specified in the dts-node of device desription,
- * User-space applications won't be able to write to the EEPROM sysfs-node.
+ * In case if read-only flag is specified in the dts-analde of device desription,
+ * User-space applications won't be able to write to the EEPROM sysfs-analde.
  *    Additionally IDT 89HPESx SMBus interface has an ability to write/read
  * data of device CSRs. This driver exposes debugf-file to perform simple IO
  * operations using that ability for just basic debug purpose. Particularly
  * next file is created in the specific debugfs-directory:
  * /sys/kernel/debug/idt_csr/
- * Format of the debugfs-node is:
+ * Format of the debugfs-analde is:
  * $ cat /sys/kernel/debug/idt_csr/<bus>-<devaddr>/<devname>;
  * <CSR address>:<CSR value>
  * So reading the content of the file gives current CSR address and it value.
@@ -170,7 +170,7 @@ struct idt_csr_seq {
  * @EEPROM_OP_WRITE:	EEPROM write operation
  * @EEPROM_OP_READ:	EEPROM read operation
  * @EEPROM_USA:		Use specified address of EEPROM
- * @EEPROM_NAERR:	EEPROM device is not ready to respond
+ * @EEPROM_NAERR:	EEPROM device is analt ready to respond
  * @EEPROM_LAERR:	EEPROM arbitration loss error
  * @EEPROM_MSS:		EEPROM misplace start & stop bits error
  * @EEPROM_WR_CNT:	Bytes count to perform write operation
@@ -459,7 +459,7 @@ static int idt_smb_read_block(struct idt_89hpesx_dev *pdev,
 	/* Read block of data from the device */
 	sts = idt_smb_safe(read_block, pdev->client, ccode, seq->data);
 	if (sts != seq->bytecnt)
-		return (sts < 0 ? sts : -ENODATA);
+		return (sts < 0 ? sts : -EANALDATA);
 
 	return 0;
 }
@@ -470,7 +470,7 @@ static int idt_smb_read_block(struct idt_89hpesx_dev *pdev,
  * @pdev:	Pointer to the driver data
  * @seq:	Sequence of data to be written
  *
- * NOTE It's usual SMBus write block operation, except the actual data length is
+ * ANALTE It's usual SMBus write block operation, except the actual data length is
  * sent as first byte of data
  */
 static int idt_smb_write_i2c_block(struct idt_89hpesx_dev *pdev,
@@ -500,7 +500,7 @@ static int idt_smb_write_i2c_block(struct idt_89hpesx_dev *pdev,
  * @pdev:	Pointer to the driver data
  * @seq:	Buffer to read data to
  *
- * NOTE It's usual SMBus read block operation, except the actual data length is
+ * ANALTE It's usual SMBus read block operation, except the actual data length is
  * retrieved as first byte of data
  */
 static int idt_smb_read_i2c_block(struct idt_89hpesx_dev *pdev,
@@ -520,9 +520,9 @@ static int idt_smb_read_i2c_block(struct idt_89hpesx_dev *pdev,
 	sts = idt_smb_safe(read_i2c_block, pdev->client, ccode,
 		seq->bytecnt + 1, buf);
 	if (sts != seq->bytecnt + 1)
-		return (sts < 0 ? sts : -ENODATA);
+		return (sts < 0 ? sts : -EANALDATA);
 	if (buf[0] != seq->bytecnt)
-		return -ENODATA;
+		return -EANALDATA;
 
 	/* Copy retrieved data to the output data buffer */
 	memcpy(seq->data, &buf[1], seq->bytecnt);
@@ -712,7 +712,7 @@ static int idt_eeprom_read(struct idt_89hpesx_dev *pdev, u16 memaddr, u16 len,
 /*
  * idt_csr_write() - CSR write operation
  * @pdev:	Pointer to the driver data
- * @csraddr:	CSR address (with no two LS bits)
+ * @csraddr:	CSR address (with anal two LS bits)
  * @data:	Data to be written to CSR
  */
 static int idt_csr_write(struct idt_89hpesx_dev *pdev, u16 csraddr,
@@ -778,7 +778,7 @@ err_mutex_unlock:
 /*
  * idt_csr_read() - CSR read operation
  * @pdev:	Pointer to the driver data
- * @csraddr:	CSR address (with no two LS bits)
+ * @csraddr:	CSR address (with anal two LS bits)
  * @data:	Data to be written to CSR
  */
 static int idt_csr_read(struct idt_89hpesx_dev *pdev, u16 csraddr, u32 *data)
@@ -833,14 +833,14 @@ err_mutex_unlock:
 }
 
 /*===========================================================================
- *                          Sysfs/debugfs-nodes IO-operations
+ *                          Sysfs/debugfs-analdes IO-operations
  *===========================================================================
  */
 
 /*
- * eeprom_write() - EEPROM sysfs-node write callback
- * @filep:	Pointer to the file system node
- * @kobj:	Pointer to the kernel object related to the sysfs-node
+ * eeprom_write() - EEPROM sysfs-analde write callback
+ * @filep:	Pointer to the file system analde
+ * @kobj:	Pointer to the kernel object related to the sysfs-analde
  * @attr:	Attributes of the file
  * @buf:	Buffer to write data to
  * @off:	Offset at which data should be written to
@@ -862,9 +862,9 @@ static ssize_t eeprom_write(struct file *filp, struct kobject *kobj,
 }
 
 /*
- * eeprom_read() - EEPROM sysfs-node read callback
- * @filep:	Pointer to the file system node
- * @kobj:	Pointer to the kernel object related to the sysfs-node
+ * eeprom_read() - EEPROM sysfs-analde read callback
+ * @filep:	Pointer to the file system analde
+ * @kobj:	Pointer to the kernel object related to the sysfs-analde
  * @attr:	Attributes of the file
  * @buf:	Buffer to write data to
  * @off:	Offset at which data should be written to
@@ -886,7 +886,7 @@ static ssize_t eeprom_read(struct file *filp, struct kobject *kobj,
 }
 
 /*
- * idt_dbgfs_csr_write() - CSR debugfs-node write callback
+ * idt_dbgfs_csr_write() - CSR debugfs-analde write callback
  * @filep:	Pointer to the file system file descriptor
  * @buf:	Buffer to read data from
  * @count:	Size of the buffer
@@ -896,7 +896,7 @@ static ssize_t eeprom_read(struct file *filp, struct kobject *kobj,
  * and writing value to specified DWORD register or "0x<reg addr>" for
  * just saving register address in order to perform next read operation.
  *
- * WARNING No spaces are allowed. Incoming string must be strictly formated as:
+ * WARNING Anal spaces are allowed. Incoming string must be strictly formated as:
  * "<reg addr>:<value>". Register address must be aligned within 4 bytes
  * (one DWORD).
  */
@@ -923,14 +923,14 @@ static ssize_t idt_dbgfs_csr_write(struct file *filep, const char __user *ubuf,
 	/*
 	 * If there is colon passed then new CSR value should be parsed as
 	 * well, so allocate buffer for CSR address substring.
-	 * If no colon is found, then string must have just one number with
-	 * no new CSR value
+	 * If anal colon is found, then string must have just one number with
+	 * anal new CSR value
 	 */
 	if (colon_ch != NULL) {
 		/* Copy the register address to the substring buffer */
 		csraddr_str = kmemdup_nul(buf, colon_ch - buf, GFP_KERNEL);
 		if (csraddr_str == NULL) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto free_buf;
 		}
 		/* Register value must follow the colon */
@@ -978,7 +978,7 @@ free_buf:
 }
 
 /*
- * idt_dbgfs_csr_read() - CSR debugfs-node read callback
+ * idt_dbgfs_csr_read() - CSR debugfs-analde read callback
  * @filep:	Pointer to the file system file descriptor
  * @buf:	Buffer to write data to
  * @count:	Size of the buffer
@@ -1012,15 +1012,15 @@ static ssize_t idt_dbgfs_csr_read(struct file *filep, char __user *ubuf,
 }
 
 /*
- * eeprom_attribute - EEPROM sysfs-node attributes
+ * eeprom_attribute - EEPROM sysfs-analde attributes
  *
- * NOTE Size will be changed in compliance with OF node. EEPROM attribute will
- * be read-only as well if the corresponding flag is specified in OF node.
+ * ANALTE Size will be changed in compliance with OF analde. EEPROM attribute will
+ * be read-only as well if the corresponding flag is specified in OF analde.
  */
 static BIN_ATTR_RW(eeprom, EEPROM_DEF_SIZE);
 
 /*
- * csr_dbgfs_ops - CSR debugfs-node read/write operations
+ * csr_dbgfs_ops - CSR debugfs-analde read/write operations
  */
 static const struct file_operations csr_dbgfs_ops = {
 	.owner = THIS_MODULE,
@@ -1050,16 +1050,16 @@ static void idt_set_defval(struct idt_89hpesx_dev *pdev)
 static const struct i2c_device_id ee_ids[];
 
 /*
- * idt_ee_match_id() - check whether the node belongs to compatible EEPROMs
+ * idt_ee_match_id() - check whether the analde belongs to compatible EEPROMs
  */
-static const struct i2c_device_id *idt_ee_match_id(struct fwnode_handle *fwnode)
+static const struct i2c_device_id *idt_ee_match_id(struct fwanalde_handle *fwanalde)
 {
 	const struct i2c_device_id *id = ee_ids;
 	const char *compatible, *p;
 	char devname[I2C_NAME_SIZE];
 	int ret;
 
-	ret = fwnode_property_read_string(fwnode, "compatible", &compatible);
+	ret = fwanalde_property_read_string(fwanalde, "compatible", &compatible);
 	if (ret)
 		return NULL;
 
@@ -1081,22 +1081,22 @@ static const struct i2c_device_id *idt_ee_match_id(struct fwnode_handle *fwnode)
 static void idt_get_fw_data(struct idt_89hpesx_dev *pdev)
 {
 	struct device *dev = &pdev->client->dev;
-	struct fwnode_handle *fwnode;
+	struct fwanalde_handle *fwanalde;
 	const struct i2c_device_id *ee_id = NULL;
 	u32 eeprom_addr;
 	int ret;
 
-	device_for_each_child_node(dev, fwnode) {
-		ee_id = idt_ee_match_id(fwnode);
+	device_for_each_child_analde(dev, fwanalde) {
+		ee_id = idt_ee_match_id(fwanalde);
 		if (ee_id)
 			break;
 
-		dev_warn(dev, "Skip unsupported EEPROM device %pfw\n", fwnode);
+		dev_warn(dev, "Skip unsupported EEPROM device %pfw\n", fwanalde);
 	}
 
-	/* If there is no fwnode EEPROM device, then set zero size */
+	/* If there is anal fwanalde EEPROM device, then set zero size */
 	if (!ee_id) {
-		dev_warn(dev, "No fwnode, EEPROM access disabled");
+		dev_warn(dev, "Anal fwanalde, EEPROM access disabled");
 		idt_set_defval(pdev);
 		return;
 	}
@@ -1105,9 +1105,9 @@ static void idt_get_fw_data(struct idt_89hpesx_dev *pdev)
 	pdev->eesize = (u32)ee_id->driver_data;
 
 	/* Get custom EEPROM address from 'reg' attribute */
-	ret = fwnode_property_read_u32(fwnode, "reg", &eeprom_addr);
+	ret = fwanalde_property_read_u32(fwanalde, "reg", &eeprom_addr);
 	if (ret || (eeprom_addr == 0)) {
-		dev_warn(dev, "No EEPROM reg found, use default address 0x%x",
+		dev_warn(dev, "Anal EEPROM reg found, use default address 0x%x",
 			 EEPROM_DEF_ADDR);
 		pdev->inieecmd = 0;
 		pdev->eeaddr = EEPROM_DEF_ADDR << 1;
@@ -1117,12 +1117,12 @@ static void idt_get_fw_data(struct idt_89hpesx_dev *pdev)
 	}
 
 	/* Check EEPROM 'read-only' flag */
-	if (fwnode_property_read_bool(fwnode, "read-only"))
+	if (fwanalde_property_read_bool(fwanalde, "read-only"))
 		pdev->eero = true;
-	else /* if (!fwnode_property_read_bool(node, "read-only")) */
+	else /* if (!fwanalde_property_read_bool(analde, "read-only")) */
 		pdev->eero = false;
 
-	fwnode_handle_put(fwnode);
+	fwanalde_handle_put(fwanalde);
 	dev_info(dev, "EEPROM of %d bytes found by 0x%x",
 		pdev->eesize, pdev->eeaddr);
 }
@@ -1139,13 +1139,13 @@ static struct idt_89hpesx_dev *idt_create_pdev(struct i2c_client *client)
 	pdev = devm_kmalloc(&client->dev, sizeof(struct idt_89hpesx_dev),
 		GFP_KERNEL);
 	if (pdev == NULL)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	/* Initialize basic fields of the data */
 	pdev->client = client;
 	i2c_set_clientdata(client, pdev);
 
-	/* Read firmware nodes information */
+	/* Read firmware analdes information */
 	idt_get_fw_data(pdev);
 
 	/* Initialize basic CSR CMD field - use full DWORD-sized r/w ops */
@@ -1202,9 +1202,9 @@ static int idt_set_smbus_ops(struct idt_89hpesx_dev *pdev)
 					   I2C_FUNC_SMBUS_READ_BYTE_DATA)) {
 		pdev->smb_read = idt_smb_read_byte;
 		dev_warn(dev, "Use slow byte SMBus read op");
-	} else /* no supported smbus read operations */ {
-		dev_err(dev, "No supported SMBus read op");
-		return -EPFNOSUPPORT;
+	} else /* anal supported smbus read operations */ {
+		dev_err(dev, "Anal supported SMBus read op");
+		return -EPFANALSUPPORT;
 	}
 
 	/* Check i2c adapter write functionality */
@@ -1226,9 +1226,9 @@ static int idt_set_smbus_ops(struct idt_89hpesx_dev *pdev)
 					   I2C_FUNC_SMBUS_WRITE_BYTE_DATA)) {
 		pdev->smb_write = idt_smb_write_byte;
 		dev_warn(dev, "Use slow byte SMBus write op");
-	} else /* no supported smbus write operations */ {
-		dev_err(dev, "No supported SMBus write op");
-		return -EPFNOSUPPORT;
+	} else /* anal supported smbus write operations */ {
+		dev_err(dev, "Anal supported SMBus write op");
+		return -EPFANALSUPPORT;
 	}
 
 	/* Initialize IDT SMBus slave interface mutex */
@@ -1258,7 +1258,7 @@ static int idt_check_dev(struct idt_89hpesx_dev *pdev)
 	/* Check whether it's IDT device */
 	if ((viddid & IDT_VID_MASK) != PCI_VENDOR_ID_IDT) {
 		dev_err(dev, "Got unsupported VID/DID: 0x%08x", viddid);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	dev_info(dev, "Found IDT 89HPES device VID:0x%04x, DID:0x%04x",
@@ -1290,7 +1290,7 @@ static int idt_create_sysfs_files(struct idt_89hpesx_dev *pdev)
 	pdev->ee_file = devm_kmemdup(dev, &bin_attr_eeprom,
 				     sizeof(*pdev->ee_file), GFP_KERNEL);
 	if (!pdev->ee_file)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* In case of read-only EEPROM get rid of write ability */
 	if (pdev->eero) {
@@ -1301,7 +1301,7 @@ static int idt_create_sysfs_files(struct idt_89hpesx_dev *pdev)
 	pdev->ee_file->size = pdev->eesize;
 	ret = sysfs_create_bin_file(&dev->kobj, pdev->ee_file);
 	if (ret != 0) {
-		dev_err(dev, "Failed to create EEPROM sysfs-node");
+		dev_err(dev, "Failed to create EEPROM sysfs-analde");
 		return ret;
 	}
 
@@ -1349,7 +1349,7 @@ static void idt_create_dbgfs_files(struct idt_89hpesx_dev *pdev)
  */
 static void idt_remove_dbgfs_files(struct idt_89hpesx_dev *pdev)
 {
-	/* Remove CSR directory and it sysfs-node */
+	/* Remove CSR directory and it sysfs-analde */
 	debugfs_remove_recursive(pdev->csr_dir);
 }
 
@@ -1457,10 +1457,10 @@ static const struct i2c_device_id idt_ids[] = {
 	{ "89hpes64h16g2", 0 },
 	{ "89hpes64h16ag2", 0 },
 
-	/* { "89hpes3t3", 0 }, // No SMBus-slave iface */
+	/* { "89hpes3t3", 0 }, // Anal SMBus-slave iface */
 	{ "89hpes12t3g2", 0 },
 	{ "89hpes24t3g2", 0 },
-	/* { "89hpes4t4", 0 }, // No SMBus-slave iface */
+	/* { "89hpes4t4", 0 }, // Anal SMBus-slave iface */
 	{ "89hpes16t4", 0 },
 	{ "89hpes4t4g2", 0 },
 	{ "89hpes10t4g2", 0 },

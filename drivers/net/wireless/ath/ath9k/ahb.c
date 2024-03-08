@@ -5,11 +5,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -82,20 +82,20 @@ static int ath_ahb_probe(struct platform_device *pdev)
 	char hw_name[64];
 
 	if (!dev_get_platdata(&pdev->dev)) {
-		dev_err(&pdev->dev, "no platform data specified\n");
+		dev_err(&pdev->dev, "anal platform data specified\n");
 		return -EINVAL;
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (res == NULL) {
-		dev_err(&pdev->dev, "no memory resource found\n");
+		dev_err(&pdev->dev, "anal memory resource found\n");
 		return -ENXIO;
 	}
 
 	mem = devm_ioremap(&pdev->dev, res->start, resource_size(res));
 	if (mem == NULL) {
 		dev_err(&pdev->dev, "ioremap failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	irq = platform_get_irq(pdev, 0);
@@ -105,8 +105,8 @@ static int ath_ahb_probe(struct platform_device *pdev)
 	ath9k_fill_chanctx_ops();
 	hw = ieee80211_alloc_hw(sizeof(struct ath_softc), &ath9k_ops);
 	if (hw == NULL) {
-		dev_err(&pdev->dev, "no memory for ieee80211_hw\n");
-		return -ENOMEM;
+		dev_err(&pdev->dev, "anal memory for ieee80211_hw\n");
+		return -EANALMEM;
 	}
 
 	SET_IEEE80211_DEV(hw, &pdev->dev);

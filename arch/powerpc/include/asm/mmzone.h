@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Written by Kanoj Sarcar (kanoj@sgi.com) Aug 99
+ * Written by Kaanalj Sarcar (kaanalj@sgi.com) Aug 99
  *
  * PowerPC64 port:
  * Copyright (C) 2002 Anton Blanchard, IBM Corp.
@@ -12,26 +12,26 @@
 #include <linux/cpumask.h>
 
 /*
- * generic non-linear memory support:
+ * generic analn-linear memory support:
  *
- * 1) we will not split memory into more chunks than will fit into the
+ * 1) we will analt split memory into more chunks than will fit into the
  *    flags field of the struct page
  */
 
 #ifdef CONFIG_NUMA
 
-extern struct pglist_data *node_data[];
+extern struct pglist_data *analde_data[];
 /*
- * Return a pointer to the node data for node n.
+ * Return a pointer to the analde data for analde n.
  */
-#define NODE_DATA(nid)		(node_data[nid])
+#define ANALDE_DATA(nid)		(analde_data[nid])
 
 /*
  * Following are specific to this numa platform.
  */
 
 extern int numa_cpu_lookup_table[];
-extern cpumask_var_t node_to_cpumask_map[];
+extern cpumask_var_t analde_to_cpumask_map[];
 #ifdef CONFIG_MEMORY_HOTPLUG
 extern unsigned long max_pfn;
 u64 memory_hotplug_max(void);

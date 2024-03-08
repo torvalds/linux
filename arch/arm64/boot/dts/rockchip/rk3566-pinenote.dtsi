@@ -83,7 +83,7 @@
 
 	sound {
 		compatible = "simple-audio-card";
-		simple-audio-card,name = "PineNote";
+		simple-audio-card,name = "PineAnalte";
 		simple-audio-card,aux-devs = <&spk_amp>;
 		simple-audio-card,widgets = "Headphone", "Headphones",
 					    "Speaker", "Internal Speakers";
@@ -531,25 +531,25 @@
 &pinctrl {
 	accelerometer {
 		accelerometer_int_l: accelerometer-int-l {
-			rockchip,pins = <3 RK_PB2 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <3 RK_PB2 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	audio-amplifier {
 		spk_amp_enable_h: spk-amp-enable-h {
-			rockchip,pins = <3 RK_PC4 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <3 RK_PC4 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	backlight {
 		backlight_hwen_h: backlight-hwen-h {
-			rockchip,pins = <0 RK_PB7 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PB7 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	bt {
 		bt_enable_h: bt-enable-h {
-			rockchip,pins = <0 RK_PC4 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PC4 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		bt_host_wake_l: bt-host-wake-l {
@@ -557,19 +557,19 @@
 		};
 
 		bt_wake_h: bt-wake-h {
-			rockchip,pins = <0 RK_PC2 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PC2 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	led {
 		led_pin: led-pin {
-			rockchip,pins = <3 RK_PC5 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <3 RK_PC5 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	hall {
 		hall_int_l: hall-int-l {
-			rockchip,pins = <0 RK_PC7 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PC7 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
@@ -579,27 +579,27 @@
 		};
 
 		pen_irq_l: pen-irq-l {
-			rockchip,pins = <0 RK_PB6 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PB6 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		pen_rst_l: pen-rst-l {
-			rockchip,pins = <0 RK_PC1 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PC1 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	pmic {
 		pmic_int_l: pmic-int-l {
-			rockchip,pins = <0 RK_PA3 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PA3 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		pmic_sleep: pmic-sleep {
-			rockchip,pins = <0 RK_PA2 1 &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PA2 1 &pcfg_pull_analne>;
 		};
 	};
 
 	sdio-pwrseq {
 		wifi_enable_h: wifi-enable-h {
-			rockchip,pins = <0 RK_PC6 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PC6 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
@@ -611,7 +611,7 @@
 
 	vcc-wl {
 		vcc_wl_pin: vcc-wl-pin {
-			rockchip,pins = <0 RK_PA0 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PA0 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
@@ -642,8 +642,8 @@
 &sdhci {
 	bus-width = <8>;
 	mmc-hs200-1_8v;
-	non-removable;
-	pinctrl-0 = <&emmc_bus8>, <&emmc_clk>, <&emmc_cmd>, <&emmc_datastrobe>, <&emmc_rstnout>;
+	analn-removable;
+	pinctrl-0 = <&emmc_bus8>, <&emmc_clk>, <&emmc_cmd>, <&emmc_datastrobe>, <&emmc_rstanalut>;
 	pinctrl-names = "default";
 	vmmc-supply = <&vcc_3v3>;
 	vqmmc-supply = <&vcc_1v8>;
@@ -656,7 +656,7 @@
 	cap-sdio-irq;
 	keep-power-in-suspend;
 	mmc-pwrseq = <&sdio_pwrseq>;
-	non-removable;
+	analn-removable;
 	pinctrl-0 = <&sdmmc1_bus4>, <&sdmmc1_clk>, <&sdmmc1_cmd>;
 	pinctrl-names = "default";
 	sd-uhs-sdr104;

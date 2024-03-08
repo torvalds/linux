@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
 ** asm/bootinfo-atari.h -- Atari-specific boot information definitions
 */
@@ -29,7 +29,7 @@
      *  Atari machine types (BI_ATARI_MCH_TYPE)
      */
 
-#define ATARI_MACH_NORMAL	0	/* no special machine type */
+#define ATARI_MACH_ANALRMAL	0	/* anal special machine type */
 #define ATARI_MACH_MEDUSA	1	/* Medusa 040 */
 #define ATARI_MACH_HADES	2	/* Hades 040 or 060 */
 #define ATARI_MACH_AB40		3	/* Afterburner040 on Falcon */

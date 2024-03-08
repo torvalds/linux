@@ -19,7 +19,7 @@
 #include <linux/cpumask.h>
 #include <linux/cpu_pm.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/platform_device.h>
 #include <linux/types.h>
 
@@ -130,8 +130,8 @@ static int tegra_cpuidle_c7_enter(void)
 {
 	int err;
 
-	err = call_firmware_op(prepare_idle, TF_PM_MODE_LP2_NOFLUSH_L2);
-	if (err && err != -ENOSYS)
+	err = call_firmware_op(prepare_idle, TF_PM_MODE_LP2_ANALFLUSH_L2);
+	if (err && err != -EANALSYS)
 		return err;
 
 	return cpu_suspend(0, tegra30_pm_secondary_cpu_suspend);
@@ -270,8 +270,8 @@ static int tegra114_enter_s2idle(struct cpuidle_device *dev,
 
 /*
  * The previous versions of Tegra CPUIDLE driver used a different "legacy"
- * terminology for naming of the idling states, while this driver uses the
- * new terminology.
+ * termianallogy for naming of the idling states, while this driver uses the
+ * new termianallogy.
  *
  * Mapping of the old terms into the new ones:
  *
@@ -281,7 +281,7 @@ static int tegra114_enter_s2idle(struct cpuidle_device *dev,
  * LP2 | C7	(CPU core power gating)
  * LP2 | CC6	(CPU cluster power gating)
  *
- * Note that that the older CPUIDLE driver versions didn't explicitly
+ * Analte that that the older CPUIDLE driver versions didn't explicitly
  * differentiate the LP2 states because these states either used the same
  * code path or because CC6 wasn't supported.
  */
@@ -323,7 +323,7 @@ static inline void tegra_cpuidle_disable_state(enum tegra_state state)
 /*
  * Tegra20 HW appears to have a bug such that PCIe device interrupts, whether
  * they are legacy IRQs or MSI, are lost when CC6 is enabled.  To work around
- * this, simply disable CC6 if the PCI driver and DT node are both enabled.
+ * this, simply disable CC6 if the PCI driver and DT analde are both enabled.
  */
 void tegra_cpuidle_pcie_irqs_in_use(void)
 {
@@ -348,7 +348,7 @@ static void tegra_cpuidle_setup_tegra114_c7_state(void)
 
 static int tegra_cpuidle_probe(struct platform_device *pdev)
 {
-	if (tegra_pmc_get_suspend_mode() == TEGRA_SUSPEND_NOT_READY)
+	if (tegra_pmc_get_suspend_mode() == TEGRA_SUSPEND_ANALT_READY)
 		return -EPROBE_DEFER;
 
 	/* LP2 could be disabled in device-tree */
@@ -366,7 +366,7 @@ static int tegra_cpuidle_probe(struct platform_device *pdev)
 	}
 
 	/*
-	 * Generic WFI state (also known as C1 or LP3) and the coupled CPU
+	 * Generic WFI state (also kanalwn as C1 or LP3) and the coupled CPU
 	 * cluster power-off (CC6 or LP2) states are common for all Tegra SoCs.
 	 */
 	switch (tegra_get_chip_id()) {

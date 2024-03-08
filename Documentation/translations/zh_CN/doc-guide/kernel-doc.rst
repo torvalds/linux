@@ -10,11 +10,11 @@
 Linux内核源文件可以包含kernel-doc格式的结构化文档注释，用以描述代码的函数、
 类型和设计。将文档嵌入源文件更容易保持文档最新。
 
-.. note:: 内核文档格式与javadoc、gtk-doc或Doxygen看似很相似，但由于历史原因，
+.. analte:: 内核文档格式与javadoc、gtk-doc或Doxygen看似很相似，但由于历史原因，
           实际有着明显的不同。内核源包含成千上万个kernel-doc注释。请坚持遵循
           此处描述的风格。
 
-.. note:: kernel-doc无法包含Rust代码：请参考 Documentation/rust/general-information.rst 。
+.. analte:: kernel-doc无法包含Rust代码：请参考 Documentation/rust/general-information.rst 。
 
 从注释中提取kernel-doc结构，并从中生成适当的 `Sphinx C 域`_ 函数和带有锚点的
 类型描述。这些注释将被过滤以生成特殊kernel-doc高亮和交叉引用。详见下文。
@@ -43,7 +43,7 @@ kernel-doc注释用 ``/**`` 作为开始标记。 ``kernel-doc`` 工具将提取
 用详细模式和不生成实际输出来运行 ``kernel-doc`` 工具，可以验证文档注释的格式
 是否正确。例如::
 
-	scripts/kernel-doc -v -none drivers/foo/bar.c
+	scripts/kernel-doc -v -analne drivers/foo/bar.c
 
 当请求执行额外的gcc检查时，内核构建将验证文档格式::
 
@@ -84,7 +84,7 @@ kernel-doc注释用 ``/**`` 作为开始标记。 ``kernel-doc`` 工具将提取
 
 每个 ``@参数:`` 描述可以跨多行。
 
-.. note::
+.. analte::
 
    如果 ``@参数`` 描述有多行，则说明的续行应该从上一行的同一列开始::
 
@@ -123,7 +123,7 @@ kernel-doc注释用 ``/**`` 作为开始标记。 ``kernel-doc`` 工具将提取
 
 如有返回值，应在 ``Return`` 节中描述。
 
-.. note::
+.. analte::
 
   #) 您提供的多行描述文本 *不会* 识别换行符，因此如果您想将某些文本预格式化，
      如::
@@ -131,17 +131,17 @@ kernel-doc注释用 ``/**`` 作为开始标记。 ``kernel-doc`` 工具将提取
 	* Return:
 	* 0 - OK
 	* -EINVAL - invalid argument
-	* -ENOMEM - out of memory
+	* -EANALMEM - out of memory
 
      它们在最终文档中变成一行::
 
-	Return: 0 - OK -EINVAL - invalid argument -ENOMEM - out of memory
+	Return: 0 - OK -EINVAL - invalid argument -EANALMEM - out of memory
 
      因此，为了在需要的地方换行，您需要使用ReST列表，例如::
 
       * Return:
       * * 0		- OK to runtime suspend the device
-      * * -EBUSY	- Device should not be runtime suspended
+      * * -EBUSY	- Device should analt be runtime suspended
 
   #) 如果您提供的描述性文本中的行以某个后跟冒号的短语开头，则每一个这种短语
      都将被视为新的节标题，可能会产生意料不到的效果。
@@ -204,11 +204,11 @@ kernel-doc注释用 ``/**`` 作为开始标记。 ``kernel-doc`` 工具将提取
 
       /**
        * struct nested_foobar - a struct with nested unions and structs
-       * @memb1: first member of anonymous union/anonymous struct
-       * @memb2: second member of anonymous union/anonymous struct
-       * @memb3: third member of anonymous union/anonymous struct
-       * @memb4: fourth member of anonymous union/anonymous struct
-       * @bar: non-anonymous union
+       * @memb1: first member of aanalnymous union/aanalnymous struct
+       * @memb2: second member of aanalnymous union/aanalnymous struct
+       * @memb3: third member of aanalnymous union/aanalnymous struct
+       * @memb4: fourth member of aanalnymous union/aanalnymous struct
+       * @bar: analn-aanalnymous union
        * @bar.st1: struct st1 inside @bar
        * @bar.st2: struct st2 inside @bar
        * @bar.st1.memb1: first member of struct st1 on union bar
@@ -217,7 +217,7 @@ kernel-doc注释用 ``/**`` 作为开始标记。 ``kernel-doc`` 工具将提取
        * @bar.st2.memb2: second member of struct st2 on union bar
        */
       struct nested_foobar {
-        /* Anonymous union/struct*/
+        /* Aanalnymous union/struct*/
         union {
           struct {
             int memb1;
@@ -240,7 +240,7 @@ kernel-doc注释用 ``/**`` 作为开始标记。 ``kernel-doc`` 工具将提取
         } bar;
       };
 
-.. note::
+.. analte::
 
    #) 在记录嵌套结构体或共用体时，如果结构体/共用体 ``张三`` 已命名，则其中
       的成员 ``李四`` 应记录为 ``@张三.李四:``
@@ -449,13 +449,13 @@ identifiers: *[ function/type ...]*
     .. kernel-doc:: lib/idr.c
        :identifiers:
 
-no-identifiers: *[ function/type ...]*
+anal-identifiers: *[ function/type ...]*
   排除 *source* 中所有 *function* 和 *type* 的文档。
 
   例子::
 
     .. kernel-doc:: lib/bitmap.c
-       :no-identifiers: bitmap_parselist
+       :anal-identifiers: bitmap_parselist
 
 functions: *[ function/type ...]*
   这是“identifiers”指令的别名，已弃用。

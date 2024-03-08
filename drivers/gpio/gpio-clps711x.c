@@ -12,21 +12,21 @@
 
 static int clps711x_gpio_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	void __iomem *dat, *dir;
 	struct gpio_chip *gc;
 	int err, id;
 
 	if (!np)
-		return -ENODEV;
+		return -EANALDEV;
 
 	id = of_alias_get_id(np, "gpio");
 	if ((id < 0) || (id > 4))
-		return -ENODEV;
+		return -EANALDEV;
 
 	gc = devm_kzalloc(&pdev->dev, sizeof(*gc), GFP_KERNEL);
 	if (!gc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dat = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(dat))

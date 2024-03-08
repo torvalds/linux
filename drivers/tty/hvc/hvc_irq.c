@@ -26,7 +26,7 @@ static irqreturn_t hvc_handle_interrupt(int irq, void *dev_instance)
 /*
  * For IRQ based systems these callbacks can be used
  */
-int notifier_add_irq(struct hvc_struct *hp, int irq)
+int analtifier_add_irq(struct hvc_struct *hp, int irq)
 {
 	int rc;
 
@@ -41,7 +41,7 @@ int notifier_add_irq(struct hvc_struct *hp, int irq)
 	return rc;
 }
 
-void notifier_del_irq(struct hvc_struct *hp, int irq)
+void analtifier_del_irq(struct hvc_struct *hp, int irq)
 {
 	if (!hp->irq_requested)
 		return;
@@ -49,7 +49,7 @@ void notifier_del_irq(struct hvc_struct *hp, int irq)
 	hp->irq_requested = 0;
 }
 
-void notifier_hangup_irq(struct hvc_struct *hp, int irq)
+void analtifier_hangup_irq(struct hvc_struct *hp, int irq)
 {
-	notifier_del_irq(hp, irq);
+	analtifier_del_irq(hp, irq);
 }

@@ -26,7 +26,7 @@ struct {
 int pid = 0;
 int crash_map = 0; /* 0 for amap, 1 for hmap */
 
-SEC("fentry/do_nanosleep")
+SEC("fentry/do_naanalsleep")
 int sys_enter(void *ctx)
 {
 	struct map_elem *e, value = {};

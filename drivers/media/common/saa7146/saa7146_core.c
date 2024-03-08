@@ -2,7 +2,7 @@
 /*
     saa7146.o - driver for generic saa7146-based hardware
 
-    Copyright (C) 1998-2003 Michael Hunold <michael@mihu.de>
+    Copyright (C) 1998-2003 Michael Huanalld <michael@mihu.de>
 
 */
 
@@ -120,9 +120,9 @@ static inline int saa7146_wait_for_debi_done_busyloop(struct saa7146_dev *dev,
 	return 0;
 }
 
-int saa7146_wait_for_debi_done(struct saa7146_dev *dev, int nobusyloop)
+int saa7146_wait_for_debi_done(struct saa7146_dev *dev, int analbusyloop)
 {
-	if (nobusyloop)
+	if (analbusyloop)
 		return saa7146_wait_for_debi_done_sleep(dev, 50000, 250000);
 	else
 		return saa7146_wait_for_debi_done_busyloop(dev, 50000, 250000);
@@ -225,7 +225,7 @@ int saa7146_pgtable_alloc(struct pci_dev *pci, struct saa7146_pgtable *pt)
 
 	cpu = dma_alloc_coherent(&pci->dev, PAGE_SIZE, &dma_addr, GFP_KERNEL);
 	if (NULL == cpu) {
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	pt->size = PAGE_SIZE;
 	pt->cpu  = cpu;
@@ -246,7 +246,7 @@ int saa7146_pgtable_build_single(struct pci_dev *pci, struct saa7146_pgtable *pt
 	    WARN_ON(list->offset > PAGE_SIZE))
 		return -EIO;
 
-	/* if we have a user buffer, the first page may not be
+	/* if we have a user buffer, the first page may analt be
 	   aligned to a page boundary. */
 	pt->offset = list->offset;
 
@@ -277,8 +277,8 @@ static irqreturn_t interrupt_hw(int irq, void *dev_id)
 
 	/* is this our interrupt? */
 	if ( 0 == isr ) {
-		/* nope, some other device */
-		return IRQ_NONE;
+		/* analpe, some other device */
+		return IRQ_ANALNE;
 	}
 
 	if (dev->ext) {
@@ -314,7 +314,7 @@ static irqreturn_t interrupt_hw(int irq, void *dev_id)
 		isr &= ~(MASK_16|MASK_17);
 	}
 	if( 0 != isr ) {
-		ERR("warning: interrupt enabled, but not handled properly.(0x%08x)\n",
+		ERR("warning: interrupt enabled, but analt handled properly.(0x%08x)\n",
 		    isr);
 		ERR("disabling interrupt source(s)!\n");
 		SAA7146_IER_DISABLE(dev,isr);
@@ -331,7 +331,7 @@ static int saa7146_init_one(struct pci_dev *pci, const struct pci_device_id *ent
 	struct saa7146_pci_extension_data *pci_ext = (struct saa7146_pci_extension_data *)ent->driver_data;
 	struct saa7146_extension *ext = pci_ext->ext;
 	struct saa7146_dev *dev;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	/* clear out mem for sure */
 	dev = kzalloc(sizeof(struct saa7146_dev), GFP_KERNEL);
@@ -369,7 +369,7 @@ static int saa7146_init_one(struct pci_dev *pci, const struct pci_device_id *ent
 			   pci_resource_len(pci, 0));
 	if (!dev->mem) {
 		ERR("ioremap() failed\n");
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto err_release;
 	}
 
@@ -397,7 +397,7 @@ static int saa7146_init_one(struct pci_dev *pci, const struct pci_device_id *ent
 		goto err_unmap;
 	}
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 
 	/* get memory for various stuff */
 	dev->d_rps0.cpu_addr = dma_alloc_coherent(&pci->dev, SAA7146_RPS_MEM,
@@ -438,7 +438,7 @@ static int saa7146_init_one(struct pci_dev *pci, const struct pci_device_id *ent
 
 	/* TODO: use the status code of the callback */
 
-	err = -ENODEV;
+	err = -EANALDEV;
 
 	if (ext->probe && ext->probe(dev)) {
 		DEB_D("ext->probe() failed for %p. skipping device.\n", dev);
@@ -450,7 +450,7 @@ static int saa7146_init_one(struct pci_dev *pci, const struct pci_device_id *ent
 		goto err_free_i2c;
 	}
 	/* V4L extensions will set the pci drvdata to the v4l2_device in the
-	   attach() above. So for those cards that do not use V4L we have to
+	   attach() above. So for those cards that do analt use V4L we have to
 	   set it explicitly. */
 	pci_set_drvdata(pci, &dev->v4l2_dev);
 
@@ -561,6 +561,6 @@ EXPORT_SYMBOL_GPL(saa7146_i2c_adapter_prepare);
 
 EXPORT_SYMBOL_GPL(saa7146_debug);
 
-MODULE_AUTHOR("Michael Hunold <michael@mihu.de>");
+MODULE_AUTHOR("Michael Huanalld <michael@mihu.de>");
 MODULE_DESCRIPTION("driver for generic saa7146-based hardware");
 MODULE_LICENSE("GPL");

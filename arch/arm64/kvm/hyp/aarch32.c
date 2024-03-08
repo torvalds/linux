@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Hyp portion of the (not much of an) Emulation layer for 32bit guests.
+ * Hyp portion of the (analt much of an) Emulation layer for 32bit guests.
  *
  * Copyright (C) 2012,2013 - ARM Ltd
  * Author: Marc Zyngier <marc.zyngier@arm.com>
@@ -42,7 +42,7 @@ static const unsigned short cc_map[16] = {
 };
 
 /*
- * Check if a trapped instruction should have been executed or not.
+ * Check if a trapped instruction should have been executed or analt.
  */
 bool kvm_condition_valid32(const struct kvm_vcpu *vcpu)
 {
@@ -50,7 +50,7 @@ bool kvm_condition_valid32(const struct kvm_vcpu *vcpu)
 	u32 cpsr_cond;
 	int cond;
 
-	/* Top two bits non-zero?  Unconditional. */
+	/* Top two bits analn-zero?  Unconditional. */
 	if (kvm_vcpu_get_esr(vcpu) >> 30)
 		return true;
 
@@ -88,7 +88,7 @@ bool kvm_condition_valid32(const struct kvm_vcpu *vcpu)
  * @vcpu:	The VCPU pointer
  *
  * When exceptions occur while instructions are executed in Thumb IF-THEN
- * blocks, the ITSTATE field of the CPSR is not advanced (updated), so we have
+ * blocks, the ITSTATE field of the CPSR is analt advanced (updated), so we have
  * to do this little bit of work manually. The fields map like this:
  *
  * IT[7:0] -> CPSR[26:25],CPSR[15:10]

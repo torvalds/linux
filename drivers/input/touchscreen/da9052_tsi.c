@@ -37,7 +37,7 @@ static irqreturn_t da9052_ts_pendwn_irq(int irq, void *data)
 
 	if (!tsi->stopped) {
 		/* Mask PEN_DOWN event and unmask TSI_READY event */
-		da9052_disable_irq_nosync(tsi->da9052, DA9052_IRQ_PENDOWN);
+		da9052_disable_irq_analsync(tsi->da9052, DA9052_IRQ_PENDOWN);
 		da9052_enable_irq(tsi->da9052, DA9052_IRQ_TSIREADY);
 
 		da9052_ts_adc_toggle(tsi, true);
@@ -235,7 +235,7 @@ static int da9052_ts_probe(struct platform_device *pdev)
 	tsi = kzalloc(sizeof(struct da9052_tsi), GFP_KERNEL);
 	input_dev = input_allocate_device();
 	if (!tsi || !input_dev) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto err_free_mem;
 	}
 

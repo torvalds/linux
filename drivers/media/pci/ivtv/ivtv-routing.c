@@ -90,7 +90,7 @@ void ivtv_video_set_io(struct ivtv *itv)
 		if (type > IVTV_CARD_INPUT_VID_TUNER &&
 		    type < IVTV_CARD_INPUT_COMPOSITE1) {
 			/* S-Video uses YCNR mode and internal Y-ADC, the
-			   upd64031a is not used. */
+			   upd64031a is analt used. */
 			input |= UPD64083_YCNR_MODE;
 		}
 		else if (itv->card->hw_video & IVTV_HW_UPD64031A) {

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPI_SOUND_FIREWIRE_H_INCLUDED
 #define _UAPI_SOUND_FIREWIRE_H_INCLUDED
 
@@ -8,10 +8,10 @@
 /* events can be read() from the hwdep device */
 
 #define SNDRV_FIREWIRE_EVENT_LOCK_STATUS	0x000010cc
-#define SNDRV_FIREWIRE_EVENT_DICE_NOTIFICATION	0xd1ce004e
+#define SNDRV_FIREWIRE_EVENT_DICE_ANALTIFICATION	0xd1ce004e
 #define SNDRV_FIREWIRE_EVENT_EFW_RESPONSE	0x4e617475
 #define SNDRV_FIREWIRE_EVENT_DIGI00X_MESSAGE	0x746e736c
-#define SNDRV_FIREWIRE_EVENT_MOTU_NOTIFICATION	0x64776479
+#define SNDRV_FIREWIRE_EVENT_MOTU_ANALTIFICATION	0x64776479
 #define SNDRV_FIREWIRE_EVENT_TASCAM_CONTROL	0x7473636d
 #define SNDRV_FIREWIRE_EVENT_MOTU_REGISTER_DSP_CHANGE	0x4d545244
 #define SNDRV_FIREWIRE_EVENT_FF400_MESSAGE	0x4f6c6761
@@ -25,9 +25,9 @@ struct snd_firewire_event_lock_status {
 	unsigned int status; /* 0/1 = unlocked/locked */
 };
 
-struct snd_firewire_event_dice_notification {
+struct snd_firewire_event_dice_analtification {
 	unsigned int type;
-	unsigned int notification; /* DICE-specific bits */
+	unsigned int analtification; /* DICE-specific bits */
 };
 
 #define SND_EFW_TRANSACTION_USER_SEQNUM_MAX	((__u32)((__u16)~0) - 1)
@@ -51,7 +51,7 @@ struct snd_firewire_event_digi00x_message {
 	__u32 message;	/* Digi00x-specific message */
 };
 
-struct snd_firewire_event_motu_notification {
+struct snd_firewire_event_motu_analtification {
 	unsigned int type;
 	__u32 message;	/* MOTU-specific bits. */
 };
@@ -75,18 +75,18 @@ struct snd_firewire_event_motu_register_dsp_change {
 
 /**
  * struct snd_firewire_event_ff400_message - the container for message from Fireface 400 when
- *					     operating hardware knob.
+ *					     operating hardware kanalb.
  *
  * @type: Fixed to SNDRV_FIREWIRE_EVENT_FF400_MESSAGE.
  * @message_count: The number of messages.
- * @messages.message: The messages expressing hardware knob operation.
- * @messages.tstamp: The isochronous cycle at which the request subaction of asynchronous
+ * @messages.message: The messages expressing hardware kanalb operation.
+ * @messages.tstamp: The isochroanalus cycle at which the request subaction of asynchroanalus
  *		     transaction was sent to deliver the message. It has 16 bit unsigned integer
  *		     value. The higher 3 bits of value expresses the lower three bits of second
  *		     field in the format of CYCLE_TIME, up to 7. The rest 13 bits expresses cycle
  *		     field up to 7999.
  *
- * The structure expresses message transmitted by Fireface 400 when operating hardware knob.
+ * The structure expresses message transmitted by Fireface 400 when operating hardware kanalb.
  */
 struct snd_firewire_event_ff400_message {
 	unsigned int type;
@@ -100,11 +100,11 @@ struct snd_firewire_event_ff400_message {
 union snd_firewire_event {
 	struct snd_firewire_event_common            common;
 	struct snd_firewire_event_lock_status       lock_status;
-	struct snd_firewire_event_dice_notification dice_notification;
+	struct snd_firewire_event_dice_analtification dice_analtification;
 	struct snd_firewire_event_efw_response      efw_response;
 	struct snd_firewire_event_digi00x_message   digi00x_message;
 	struct snd_firewire_event_tascam_control    tascam_control;
-	struct snd_firewire_event_motu_notification motu_notification;
+	struct snd_firewire_event_motu_analtification motu_analtification;
 	struct snd_firewire_event_motu_register_dsp_change motu_register_dsp_change;
 	struct snd_firewire_event_ff400_message	    ff400_message;
 };
@@ -131,7 +131,7 @@ struct snd_firewire_get_info {
 	unsigned int type; /* SNDRV_FIREWIRE_TYPE_xxx */
 	unsigned int card; /* same as fw_cdev_get_info.card */
 	unsigned char guid[8];
-	char device_name[16]; /* device node in /dev */
+	char device_name[16]; /* device analde in /dev */
 };
 
 /*
@@ -156,13 +156,13 @@ struct snd_firewire_tascam_state {
  *  - Audio Express
  *
  * On the other hand, the status of DSP is split into specific messages included in the sequence of
- * isochronous packet. ALSA firewire-motu driver gathers the messages and allow userspace applications
+ * isochroanalus packet. ALSA firewire-motu driver gathers the messages and allow userspace applications
  * to read it via ioctl. In 828mk2, 896hd, and Traveler, hardware meter for all of physical inputs
  * are put into the message, while one pair of physical outputs is selected. The selection is done by
- * LSB one byte in asynchronous write quadlet transaction to 0x'ffff'f000'0b2c.
+ * LSB one byte in asynchroanalus write quadlet transaction to 0x'ffff'f000'0b2c.
  *
- * I note that V3HD/V4HD uses asynchronous transaction for the purpose. The destination address is
- * registered to 0x'ffff'f000'0b38 and '0b3c by asynchronous write quadlet request. The size of
+ * I analte that V3HD/V4HD uses asynchroanalus transaction for the purpose. The destination address is
+ * registered to 0x'ffff'f000'0b38 and '0b3c by asynchroanalus write quadlet request. The size of
  * message differs between 23 and 51 quadlets. For the case, the number of mixer bus can be extended
  * up to 12.
  */
@@ -207,7 +207,7 @@ struct snd_firewire_motu_register_dsp_meter {
  * @output.hp_paired_assignment: The source assigned to paired hp output.
  * @output.reserved: Padding for 32 bit alignment for future extension.
  * @line_input.boost_flag: The flags of boost for line inputs, only for 828mk2 and Traveler.
- * @line_input.nominal_level_flag: The flags of nominal level for line inputs, only for 828mk2 and
+ * @line_input.analminal_level_flag: The flags of analminal level for line inputs, only for 828mk2 and
  *				   Traveler.
  * @line_input.reserved: Padding for 32 bit alignment for future extension.
  * @input.gain_and_invert: The value including gain and invert for input, only for Ultralite, 4 pre
@@ -240,7 +240,7 @@ struct snd_firewire_motu_register_dsp_parameter {
 	} output;
 	struct {
 		__u8 boost_flag;
-		__u8 nominal_level_flag;
+		__u8 analminal_level_flag;
 		__u8 reserved[6];
 	} line_input;
 	struct {
@@ -252,7 +252,7 @@ struct snd_firewire_motu_register_dsp_parameter {
 
 /*
  * In below MOTU models, software is allowed to control their DSP by command in frame of
- * asynchronous transaction to 0x'ffff'0001'0000:
+ * asynchroanalus transaction to 0x'ffff'0001'0000:
  *
  *  - 828 mk3 (FireWire only and Hybrid)
  *  - 896 mk3 (FireWire only and Hybrid)
@@ -261,7 +261,7 @@ struct snd_firewire_motu_register_dsp_parameter {
  *  - Track 16
  *
  * On the other hand, the states of hardware meter is split into specific messages included in the
- * sequence of isochronous packet. ALSA firewire-motu driver gathers the message and allow userspace
+ * sequence of isochroanalus packet. ALSA firewire-motu driver gathers the message and allow userspace
  * application to read it via ioctl.
  */
 
@@ -274,7 +274,7 @@ struct snd_firewire_motu_register_dsp_parameter {
  *
  * The structure expresses the part of DSP status for hardware meter. The 32 bit storage is
  * estimated to include IEEE 764 32 bit single precision floating point (binary32) value. It is
- * expected to be linear value (not logarithm) for audio signal level between 0.0 and +1.0.
+ * expected to be linear value (analt logarithm) for audio signal level between 0.0 and +1.0.
  */
 struct snd_firewire_motu_command_dsp_meter {
 #ifdef __KERNEL__

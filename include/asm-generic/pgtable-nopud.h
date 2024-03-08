@@ -1,10 +1,10 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef _PGTABLE_NOPUD_H
-#define _PGTABLE_NOPUD_H
+#ifndef _PGTABLE_ANALPUD_H
+#define _PGTABLE_ANALPUD_H
 
 #ifndef __ASSEMBLY__
 
-#include <asm-generic/pgtable-nop4d.h>
+#include <asm-generic/pgtable-analp4d.h>
 
 #define __PAGETABLE_PUD_FOLDED 1
 
@@ -25,7 +25,7 @@ typedef struct { p4d_t p4d; } pud_t;
  * setup: the pud is never bad, and a pud always exists (as it's folded
  * into the p4d entry)
  */
-static inline int p4d_none(p4d_t p4d)		{ return 0; }
+static inline int p4d_analne(p4d_t p4d)		{ return 0; }
 static inline int p4d_bad(p4d_t p4d)		{ return 0; }
 static inline int p4d_present(p4d_t p4d)	{ return 1; }
 static inline void p4d_clear(p4d_t *p4d)	{ }
@@ -53,7 +53,7 @@ static inline pud_t *pud_offset(p4d_t *p4d, unsigned long address)
 
 /*
  * allocating and freeing a pud is trivial: the 1-entry pud is
- * inside the p4d, so has no extra memory associated with it.
+ * inside the p4d, so has anal extra memory associated with it.
  */
 #define pud_alloc_one(mm, address)		NULL
 #define pud_free(mm, x)				do { } while (0)
@@ -63,4 +63,4 @@ static inline pud_t *pud_offset(p4d_t *p4d, unsigned long address)
 #define pud_addr_end(addr, end)			(end)
 
 #endif /* __ASSEMBLY__ */
-#endif /* _PGTABLE_NOPUD_H */
+#endif /* _PGTABLE_ANALPUD_H */

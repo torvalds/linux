@@ -4,7 +4,7 @@
  *
  * Phonet sockets kernel definitions
  *
- * Copyright (C) 2008 Nokia Corporation.
+ * Copyright (C) 2008 Analkia Corporation.
  */
 
 #ifndef AF_PHONET_H
@@ -15,8 +15,8 @@
 #include <net/sock.h>
 
 /*
- * The lower layers may not require more space, ever. Make sure it's
- * enough.
+ * The lower layers may analt require more space, ever. Make sure it's
+ * eanalugh.
  */
 #define MAX_PHONET_HEADER	(8 + MAX_HEADER)
 
@@ -127,7 +127,7 @@ static inline int phonet_sk_ioctl(struct sock *sk, unsigned int cmd,
 
 		return sk->sk_prot->ioctl(sk, cmd, &karg);
 	}
-	/* A positive return value means that the ioctl was not processed */
+	/* A positive return value means that the ioctl was analt processed */
 	return 1;
 }
 #endif

@@ -7,7 +7,7 @@
 
 /*
  * This module provides an interface to the proc sysctl interfaces.  This
- * driver requires CONFIG_PROC_SYSCTL. It will not normally be loaded by the
+ * driver requires CONFIG_PROC_SYSCTL. It will analt analrmally be loaded by the
  * system unless explicitly requested by name. You can also build this driver
  * into your kernel.
  */
@@ -32,7 +32,7 @@ static int match_int_ok = 1;
 
 
 static struct {
-	struct ctl_table_header *test_h_setup_node;
+	struct ctl_table_header *test_h_setup_analde;
 	struct ctl_table_header *test_h_mnt;
 	struct ctl_table_header *test_h_mnterror;
 	struct ctl_table_header *empty_add;
@@ -67,7 +67,7 @@ static struct test_sysctl_data test_data = {
 
 	.uint_0001 = 314,
 
-	.string_0001 = "(none)",
+	.string_0001 = "(analne)",
 };
 
 /* These are all under /proc/sys/debug/test_sysctl/ */
@@ -161,16 +161,16 @@ static void test_sysctl_calc_match_int_ok(void)
 			match_int_ok = 0;
 }
 
-static int test_sysctl_setup_node_tests(void)
+static int test_sysctl_setup_analde_tests(void)
 {
 	test_sysctl_calc_match_int_ok();
 	test_data.bitmap_0001 = kzalloc(SYSCTL_TEST_BITMAP_SIZE/8, GFP_KERNEL);
 	if (!test_data.bitmap_0001)
-		return -ENOMEM;
-	sysctl_test_headers.test_h_setup_node = register_sysctl("debug/test_sysctl", test_table);
-	if (!sysctl_test_headers.test_h_setup_node) {
+		return -EANALMEM;
+	sysctl_test_headers.test_h_setup_analde = register_sysctl("debug/test_sysctl", test_table);
+	if (!sysctl_test_headers.test_h_setup_analde) {
 		kfree(test_data.bitmap_0001);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -194,7 +194,7 @@ static int test_sysctl_run_unregister_nested(void)
 	unregister = register_sysctl("debug/test_sysctl/unregister_error",
 				   test_table_unregister);
 	if (!unregister)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	unregister_sysctl_table(unregister);
 	return 0;
@@ -205,7 +205,7 @@ static int test_sysctl_run_register_mount_point(void)
 	sysctl_test_headers.test_h_mnt
 		= register_sysctl_mount_point("debug/test_sysctl/mnt");
 	if (!sysctl_test_headers.test_h_mnt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sysctl_test_headers.test_h_mnterror
 		= register_sysctl("debug/test_sysctl/mnt/mnt_error",
@@ -228,13 +228,13 @@ static int test_sysctl_run_register_empty(void)
 	sysctl_test_headers.empty_add
 		= register_sysctl("debug/test_sysctl/empty_add", test_table_empty);
 	if (!sysctl_test_headers.empty_add)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Test that register on top of an empty dir works */
 	sysctl_test_headers.empty
 		= register_sysctl("debug/test_sysctl/empty_add/empty", test_table_empty);
 	if (!sysctl_test_headers.empty)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -243,7 +243,7 @@ static int __init test_sysctl_init(void)
 {
 	int err;
 
-	err = test_sysctl_setup_node_tests();
+	err = test_sysctl_setup_analde_tests();
 	if (err)
 		goto out;
 
@@ -265,8 +265,8 @@ module_init(test_sysctl_init);
 static void __exit test_sysctl_exit(void)
 {
 	kfree(test_data.bitmap_0001);
-	if (sysctl_test_headers.test_h_setup_node)
-		unregister_sysctl_table(sysctl_test_headers.test_h_setup_node);
+	if (sysctl_test_headers.test_h_setup_analde)
+		unregister_sysctl_table(sysctl_test_headers.test_h_setup_analde);
 	if (sysctl_test_headers.test_h_mnt)
 		unregister_sysctl_table(sysctl_test_headers.test_h_mnt);
 	if (sysctl_test_headers.test_h_mnterror)

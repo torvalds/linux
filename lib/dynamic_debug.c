@@ -57,7 +57,7 @@ struct ddebug_query {
 	const char *function;
 	const char *format;
 	const char *class_string;
-	unsigned int first_lineno, last_lineno;
+	unsigned int first_lineanal, last_lineanal;
 };
 
 struct ddebug_iter {
@@ -93,9 +93,9 @@ static const struct { unsigned flag:8; char opt_char; } opt_array[] = {
 	{ _DPRINTK_FLAGS_INCL_MODNAME, 'm' },
 	{ _DPRINTK_FLAGS_INCL_FUNCNAME, 'f' },
 	{ _DPRINTK_FLAGS_INCL_SOURCENAME, 's' },
-	{ _DPRINTK_FLAGS_INCL_LINENO, 'l' },
+	{ _DPRINTK_FLAGS_INCL_LINEANAL, 'l' },
 	{ _DPRINTK_FLAGS_INCL_TID, 't' },
-	{ _DPRINTK_FLAGS_NONE, '_' },
+	{ _DPRINTK_FLAGS_ANALNE, '_' },
 };
 
 struct flagsbuf { char buf[ARRAY_SIZE(opt_array)+1]; };
@@ -138,13 +138,13 @@ static void vpr_info_dq(const struct ddebug_query *query, const char *msg)
 			fmtlen--;
 	}
 
-	v3pr_info("%s: func=\"%s\" file=\"%s\" module=\"%s\" format=\"%.*s\" lineno=%u-%u class=%s\n",
+	v3pr_info("%s: func=\"%s\" file=\"%s\" module=\"%s\" format=\"%.*s\" lineanal=%u-%u class=%s\n",
 		  msg,
 		  query->function ?: "",
 		  query->filename ?: "",
 		  query->module ?: "",
 		  fmtlen, query->format ?: "",
-		  query->first_lineno, query->last_lineno, query->class_string);
+		  query->first_lineanal, query->last_lineanal, query->class_string);
 }
 
 static struct ddebug_class_map *ddebug_find_valid_class(struct ddebug_table const *dt,
@@ -160,7 +160,7 @@ static struct ddebug_class_map *ddebug_find_valid_class(struct ddebug_table cons
 			return map;
 		}
 	}
-	*class_id = -ENOENT;
+	*class_id = -EANALENT;
 	return NULL;
 }
 
@@ -168,7 +168,7 @@ static struct ddebug_class_map *ddebug_find_valid_class(struct ddebug_table cons
 /*
  * Search the tables for _ddebug's which match the given `query' and
  * apply the `flags' and `mask' to them.  Returns number of matching
- * callsites, normally the same as number of changes.  If verbose,
+ * callsites, analrmally the same as number of changes.  If verbose,
  * logs the changes.  Takes ddebug_lock.
  */
 static int ddebug_change(const struct ddebug_query *query,
@@ -196,7 +196,7 @@ static int ddebug_change(const struct ddebug_query *query,
 			if (!map)
 				continue;
 		} else {
-			/* constrain query, do not touch class'd callsites */
+			/* constrain query, do analt touch class'd callsites */
 			valid_class = _DPRINTK_CLASS_DFLT;
 		}
 
@@ -234,11 +234,11 @@ static int ddebug_change(const struct ddebug_query *query,
 			}
 
 			/* match against the line number range */
-			if (query->first_lineno &&
-			    dp->lineno < query->first_lineno)
+			if (query->first_lineanal &&
+			    dp->lineanal < query->first_lineanal)
 				continue;
-			if (query->last_lineno &&
-			    dp->lineno > query->last_lineno)
+			if (query->last_lineanal &&
+			    dp->lineanal > query->last_lineanal)
 				continue;
 
 			nfound++;
@@ -255,7 +255,7 @@ static int ddebug_change(const struct ddebug_query *query,
 			}
 #endif
 			v4pr_info("changed %s:%d [%s]%s %s => %s\n",
-				  trim_prefix(dp->filename), dp->lineno,
+				  trim_prefix(dp->filename), dp->lineanal,
 				  dt->mod_name, dp->function,
 				  ddebug_describe_flags(dp->flags, &fbuf),
 				  ddebug_describe_flags(newflags, &nbuf));
@@ -265,7 +265,7 @@ static int ddebug_change(const struct ddebug_query *query,
 	mutex_unlock(&ddebug_lock);
 
 	if (!nfound && verbose)
-		pr_info("no matches for query\n");
+		pr_info("anal matches for query\n");
 
 	return nfound;
 }
@@ -328,11 +328,11 @@ static int ddebug_tokenize(char *buf, char *words[], int maxwords)
 }
 
 /*
- * Parse a single line number.  Note that the empty string ""
+ * Parse a single line number.  Analte that the empty string ""
  * is treated as a special case and converted to zero, which
  * is later treated as a "don't care" value.
  */
-static inline int parse_lineno(const char *str, unsigned int *val)
+static inline int parse_lineanal(const char *str, unsigned int *val)
 {
 	BUG_ON(str == NULL);
 	if (*str == '\0') {
@@ -350,34 +350,34 @@ static int parse_linerange(struct ddebug_query *query, const char *first)
 {
 	char *last = strchr(first, '-');
 
-	if (query->first_lineno || query->last_lineno) {
+	if (query->first_lineanal || query->last_lineanal) {
 		pr_err("match-spec: line used 2x\n");
 		return -EINVAL;
 	}
 	if (last)
 		*last++ = '\0';
-	if (parse_lineno(first, &query->first_lineno) < 0)
+	if (parse_lineanal(first, &query->first_lineanal) < 0)
 		return -EINVAL;
 	if (last) {
 		/* range <first>-<last> */
-		if (parse_lineno(last, &query->last_lineno) < 0)
+		if (parse_lineanal(last, &query->last_lineanal) < 0)
 			return -EINVAL;
 
-		/* special case for last lineno not specified */
-		if (query->last_lineno == 0)
-			query->last_lineno = UINT_MAX;
+		/* special case for last lineanal analt specified */
+		if (query->last_lineanal == 0)
+			query->last_lineanal = UINT_MAX;
 
-		if (query->last_lineno < query->first_lineno) {
+		if (query->last_lineanal < query->first_lineanal) {
 			pr_err("last-line:%d < 1st-line:%d\n",
-			       query->last_lineno,
-			       query->first_lineno);
+			       query->last_lineanal,
+			       query->first_lineanal);
 			return -EINVAL;
 		}
 	} else {
-		query->last_lineno = query->first_lineno;
+		query->last_lineanal = query->first_lineanal;
 	}
-	v3pr_info("parsed line %d-%d\n", query->first_lineno,
-		 query->last_lineno);
+	v3pr_info("parsed line %d-%d\n", query->first_lineanal,
+		 query->last_lineanal);
 	return 0;
 }
 
@@ -403,8 +403,8 @@ static int check_set(const char **dest, char *src, char *name)
  * file <base-filename>
  * module <module-name>
  * format <escaped-string-to-find-in-format>
- * line <lineno>
- * line <first-lineno>-<last-lineno> // where either may be empty
+ * line <lineanal>
+ * line <first-lineanal>-<last-lineanal> // where either may be empty
  *
  * Only 1 of each type is allowed.
  * Returns 0 on success, <0 on error.
@@ -458,7 +458,7 @@ static int ddebug_parse_query(char *words[], int nwords,
 		} else if (!strcmp(keyword, "class")) {
 			rc = check_set(&query->class_string, arg, "class");
 		} else {
-			pr_err("unknown keyword \"%s\"\n", keyword);
+			pr_err("unkanalwn keyword \"%s\"\n", keyword);
 			return -EINVAL;
 		}
 		if (rc)
@@ -467,7 +467,7 @@ static int ddebug_parse_query(char *words[], int nwords,
 	if (!query->module && modname)
 		/*
 		 * support $modname.dyndbg=<multiple queries>, when
-		 * not given in the query itself
+		 * analt given in the query itself
 		 */
 		query->module = modname;
 
@@ -505,7 +505,7 @@ static int ddebug_parse_flags(const char *str, struct flag_settings *modifiers)
 			}
 		}
 		if (i < 0) {
-			pr_err("unknown flag '%c'\n", *str);
+			pr_err("unkanalwn flag '%c'\n", *str);
 			return -EINVAL;
 		}
 	}
@@ -554,7 +554,7 @@ static int ddebug_exec_query(char *query_string, const char *modname)
 	}
 	/* actually go and implement the change */
 	nfound = ddebug_change(&query, &modifiers);
-	vpr_info_dq(&query, nfound ? "applied" : "no-match");
+	vpr_info_dq(&query, nfound ? "applied" : "anal-match");
 
 	return nfound;
 }
@@ -597,7 +597,7 @@ static int ddebug_exec_queries(char *query, const char *modname)
 	return nfound;
 }
 
-/* apply a new bitmap to the sys-knob's current bit-state */
+/* apply a new bitmap to the sys-kanalb's current bit-state */
 static int ddebug_apply_class_bitmap(const struct ddebug_class_param *dcp,
 				     unsigned long *new_bits, unsigned long *old_bits)
 {
@@ -625,7 +625,7 @@ static int ddebug_apply_class_bitmap(const struct ddebug_class_param *dcp,
 	return matches;
 }
 
-/* stub to later conditionally add "$module." prefix where not already done */
+/* stub to later conditionally add "$module." prefix where analt already done */
 #define KP_NAME(kp)	kp->name
 
 #define CLASSMAP_BITMASK(width) ((1UL << (width)) - 1)
@@ -664,7 +664,7 @@ static int param_set_dyndbg_classnames(const char *instr, const struct kernel_pa
 		}
 		cls_id = match_string(map->class_names, map->length, cl_str);
 		if (cls_id < 0) {
-			pr_err("%s unknown to %s\n", cl_str, KP_NAME(kp));
+			pr_err("%s unkanalwn to %s\n", cl_str, KP_NAME(kp));
 			continue;
 		}
 
@@ -673,7 +673,7 @@ static int param_set_dyndbg_classnames(const char *instr, const struct kernel_pa
 		case DD_CLASS_TYPE_DISJOINT_NAMES:
 			/* the +/- pertains to a single bit */
 			if (test_bit(cls_id, &curr_bits) == wanted) {
-				v3pr_info("no change on %s\n", cl_str);
+				v3pr_info("anal change on %s\n", cl_str);
 				continue;
 			}
 			curr_bits ^= BIT(cls_id);
@@ -840,9 +840,9 @@ static char *__dynamic_emit_prefix(const struct _ddebug *desc, char *buf)
 	if (desc->flags & _DPRINTK_FLAGS_INCL_SOURCENAME)
 		pos += snprintf(buf + pos, remaining(pos), "%s:",
 				trim_prefix(desc->filename));
-	if (desc->flags & _DPRINTK_FLAGS_INCL_LINENO)
+	if (desc->flags & _DPRINTK_FLAGS_INCL_LINEANAL)
 		pos += snprintf(buf + pos, remaining(pos), "%d:",
-				desc->lineno);
+				desc->lineanal);
 	if (pos - pos_after_tid)
 		pos += snprintf(buf + pos, remaining(pos), " ");
 	if (pos >= PREFIX_SIZE)
@@ -982,8 +982,8 @@ EXPORT_SYMBOL(__dynamic_ibdev_dbg);
 #endif
 
 /*
- * Install a noop handler to make dyndbg look like a normal kernel cli param.
- * This avoids warnings about dyndbg being an unknown cli param when supplied
+ * Install a analop handler to make dyndbg look like a analrmal kernel cli param.
+ * This avoids warnings about dyndbg being an unkanalwn cli param when supplied
  * by a user.
  */
 static __init int dyndbg_setup(char *str)
@@ -1027,7 +1027,7 @@ static ssize_t ddebug_proc_write(struct file *file, const char __user *ubuf,
 /*
  * Set the iterator to point to the first _ddebug object
  * and return a pointer to that first object.  Returns
- * NULL if there are no _ddebugs at all.
+ * NULL if there are anal _ddebugs at all.
  */
 static struct _ddebug *ddebug_iter_first(struct ddebug_iter *iter)
 {
@@ -1135,12 +1135,12 @@ static int ddebug_proc_show(struct seq_file *m, void *p)
 
 	if (p == SEQ_START_TOKEN) {
 		seq_puts(m,
-			 "# filename:lineno [module]function flags format\n");
+			 "# filename:lineanal [module]function flags format\n");
 		return 0;
 	}
 
 	seq_printf(m, "%s:%u [%s]%s =%s \"",
-		   trim_prefix(dp->filename), dp->lineno,
+		   trim_prefix(dp->filename), dp->lineanal,
 		   iter->table->mod_name, dp->function,
 		   ddebug_describe_flags(dp->flags, &flags));
 	seq_escape_str(m, dp->format, ESCAPE_SPACE, "\t\r\n\"");
@@ -1151,7 +1151,7 @@ static int ddebug_proc_show(struct seq_file *m, void *p)
 		if (class)
 			seq_printf(m, " class:%s", class);
 		else
-			seq_printf(m, " class unknown, _id:%d", dp->class_id);
+			seq_printf(m, " class unkanalwn, _id:%d", dp->class_id);
 	}
 	seq_puts(m, "\n");
 
@@ -1174,7 +1174,7 @@ static const struct seq_operations ddebug_proc_seqops = {
 	.stop = ddebug_proc_stop
 };
 
-static int ddebug_proc_open(struct inode *inode, struct file *file)
+static int ddebug_proc_open(struct ianalde *ianalde, struct file *file)
 {
 	return seq_open_private(file, &ddebug_proc_seqops,
 				sizeof(struct ddebug_iter));
@@ -1240,7 +1240,7 @@ static int ddebug_add_module(struct _ddebug_info *di, const char *modname)
 	dt = kzalloc(sizeof(*dt), GFP_KERNEL);
 	if (dt == NULL) {
 		pr_err("error adding module: %s\n", modname);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	/*
 	 * For built-in modules, name lives in .rodata and is
@@ -1297,13 +1297,13 @@ static int ddebug_dyndbg_boot_param_cb(char *param, char *val,
 
 /*
  * modprobe foo finds foo.params in boot-args, strips "foo.", and
- * passes them to load_module().  This callback gets unknown params,
+ * passes them to load_module().  This callback gets unkanalwn params,
  * processes dyndbg params, rejects others.
  */
 int ddebug_dyndbg_module_param_cb(char *param, char *val, const char *module)
 {
 	vpr_info("module: %s %s=\"%s\"\n", module, param, val);
-	return ddebug_dyndbg_param_cb(param, val, module, -ENOENT);
+	return ddebug_dyndbg_param_cb(param, val, module, -EANALENT);
 }
 
 static void ddebug_table_free(struct ddebug_table *dt)
@@ -1321,7 +1321,7 @@ static void ddebug_table_free(struct ddebug_table *dt)
 static int ddebug_remove_module(const char *mod_name)
 {
 	struct ddebug_table *dt, *nextdt;
-	int ret = -ENOENT;
+	int ret = -EANALENT;
 
 	mutex_lock(&ddebug_lock);
 	list_for_each_entry_safe(dt, nextdt, &ddebug_tables, link) {
@@ -1337,7 +1337,7 @@ static int ddebug_remove_module(const char *mod_name)
 	return ret;
 }
 
-static int ddebug_module_notify(struct notifier_block *self, unsigned long val,
+static int ddebug_module_analtify(struct analtifier_block *self, unsigned long val,
 				void *data)
 {
 	struct module *mod = data;
@@ -1347,18 +1347,18 @@ static int ddebug_module_notify(struct notifier_block *self, unsigned long val,
 	case MODULE_STATE_COMING:
 		ret = ddebug_add_module(&mod->dyndbg_info, mod->name);
 		if (ret)
-			WARN(1, "Failed to allocate memory: dyndbg may not work properly.\n");
+			WARN(1, "Failed to allocate memory: dyndbg may analt work properly.\n");
 		break;
 	case MODULE_STATE_GOING:
 		ddebug_remove_module(mod->name);
 		break;
 	}
 
-	return notifier_from_errno(ret);
+	return analtifier_from_erranal(ret);
 }
 
-static struct notifier_block ddebug_module_nb = {
-	.notifier_call = ddebug_module_notify,
+static struct analtifier_block ddebug_module_nb = {
+	.analtifier_call = ddebug_module_analtify,
 	.priority = 0, /* dynamic debug depends on jump label */
 };
 
@@ -1384,7 +1384,7 @@ static int __init dynamic_debug_init_control(void)
 	struct dentry *debugfs_dir;
 
 	if (!ddebug_init_success)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Create the control file in debugfs if it is enabled */
 	if (debugfs_initialized()) {
@@ -1416,9 +1416,9 @@ static int __init dynamic_debug_init(void)
 	};
 
 #ifdef CONFIG_MODULES
-	ret = register_module_notifier(&ddebug_module_nb);
+	ret = register_module_analtifier(&ddebug_module_nb);
 	if (ret) {
-		pr_warn("Failed to register dynamic debug module notifier\n");
+		pr_warn("Failed to register dynamic debug module analtifier\n");
 		return ret;
 	}
 #endif /* CONFIG_MODULES */
@@ -1428,7 +1428,7 @@ static int __init dynamic_debug_init(void)
 			pr_warn("_ddebug table is empty in a CONFIG_DYNAMIC_DEBUG build\n");
 			return 1;
 		}
-		pr_info("Ignore empty _ddebug table in a CONFIG_DYNAMIC_DEBUG_CORE build\n");
+		pr_info("Iganalre empty _ddebug table in a CONFIG_DYNAMIC_DEBUG_CORE build\n");
 		ddebug_init_success = 1;
 		return 0;
 	}
@@ -1466,13 +1466,13 @@ static int __init dynamic_debug_init(void)
 	if (di.num_classes)
 		v2pr_info("  %d builtin ddebug class-maps\n", di.num_classes);
 
-	/* now that ddebug tables are loaded, process all boot args
+	/* analw that ddebug tables are loaded, process all boot args
 	 * again to find and activate queries given in dyndbg params.
-	 * While this has already been done for known boot params, it
-	 * ignored the unknown ones (dyndbg in particular).  Reusing
+	 * While this has already been done for kanalwn boot params, it
+	 * iganalred the unkanalwn ones (dyndbg in particular).  Reusing
 	 * parse_args avoids ad-hoc parsing.  This will also attempt
-	 * to activate queries for not-yet-loaded modules, which is
-	 * slightly noisy if verbose, but harmless.
+	 * to activate queries for analt-yet-loaded modules, which is
+	 * slightly analisy if verbose, but harmless.
 	 */
 	cmdline = kstrdup(saved_command_line, GFP_KERNEL);
 	parse_args("dyndbg params", cmdline, NULL,

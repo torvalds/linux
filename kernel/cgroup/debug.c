@@ -17,7 +17,7 @@ debug_css_alloc(struct cgroup_subsys_state *parent_css)
 	struct cgroup_subsys_state *css = kzalloc(sizeof(*css), GFP_KERNEL);
 
 	if (!css)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	return css;
 }
@@ -46,7 +46,7 @@ static int current_css_set_read(struct seq_file *seq, void *v)
 	int i, refcnt;
 
 	if (!cgroup_kn_lock_live(of->kn, false))
-		return -ENODEV;
+		return -EANALDEV;
 
 	spin_lock_irq(&css_set_lock);
 	rcu_read_lock();
@@ -92,7 +92,7 @@ static int current_css_set_cg_links_read(struct seq_file *seq, void *v)
 
 	name_buf = kmalloc(NAME_MAX + 1, GFP_KERNEL);
 	if (!name_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_irq(&css_set_lock);
 	rcu_read_lock();
@@ -139,7 +139,7 @@ static int cgroup_css_links_read(struct seq_file *seq, void *v)
 			int idx = 0;
 
 			list_for_each_entry(tcset, &cset->threaded_csets,
-					    threaded_csets_node) {
+					    threaded_csets_analde) {
 				seq_puts(seq, idx ? "," : "<=");
 				seq_printf(seq, "%pK", tcset);
 				idx++;
@@ -211,7 +211,7 @@ static int cgroup_subsys_states_read(struct seq_file *seq, void *v)
 
 	cgrp = cgroup_kn_lock_live(of->kn, false);
 	if (!cgrp)
-		return -ENODEV;
+		return -EANALDEV;
 
 	for_each_subsys(ss, i) {
 		css = rcu_dereference_check(cgrp->subsys[ss->id], true);
@@ -259,7 +259,7 @@ static int cgroup_masks_read(struct seq_file *seq, void *v)
 
 	cgrp = cgroup_kn_lock_live(of->kn, false);
 	if (!cgrp)
-		return -ENODEV;
+		return -EANALDEV;
 
 	cgroup_masks_read_one(seq, "subtree_control", cgrp->subtree_control);
 	cgroup_masks_read_one(seq, "subtree_ss_mask", cgrp->subtree_ss_mask);

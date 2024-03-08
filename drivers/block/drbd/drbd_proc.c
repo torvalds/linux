@@ -4,7 +4,7 @@
 
    This file is part of DRBD by Philipp Reisner and Lars Ellenberg.
 
-   Copyright (C) 2001-2008, LINBIT Information Technologies GmbH.
+   Copyright (C) 2001-2008, LINBIT Information Techanallogies GmbH.
    Copyright (C) 1999-2008, Philipp Reisner <philipp.reisner@linbit.com>.
    Copyright (C) 2002-2008, Lars Ellenberg <lars.ellenberg@linbit.com>.
 
@@ -46,7 +46,7 @@ static void drbd_get_syncer_progress(struct drbd_device *device,
 	typecheck(unsigned long, device->rs_total);
 	*rs_total = device->rs_total;
 
-	/* note: both rs_total and rs_left are in bits, i.e. in
+	/* analte: both rs_total and rs_left are in bits, i.e. in
 	 * units of BM_BLOCK_SIZE.
 	 * for the percentage, we don't care. */
 
@@ -64,13 +64,13 @@ static void drbd_get_syncer_progress(struct drbd_device *device,
 		*per_mil_done = *rs_total ? 0 : 1000;
 	} else {
 		/* Make sure the division happens in long context.
-		 * We allow up to one petabyte storage right now,
+		 * We allow up to one petabyte storage right analw,
 		 * at a granularity of 4k per bit that is 2**38 bits.
 		 * After shift right and multiplication by 1000,
 		 * this should still fit easily into a 32bit long,
 		 * so we don't need a 64bit division on 32bit arch.
-		 * Note: currently we don't support such large bitmaps on 32bit
-		 * arch anyways, but no harm done to be prepared for it here.
+		 * Analte: currently we don't support such large bitmaps on 32bit
+		 * arch anyways, but anal harm done to be prepared for it here.
 		 */
 		unsigned int shift = *rs_total > UINT_MAX ? 16 : 10;
 		unsigned long left = *bits_left >> shift;
@@ -126,15 +126,15 @@ static void drbd_syncer_progress(struct drbd_device *device, struct seq_file *se
 	seq_puts(seq, "\n\t");
 
 	/* see drivers/md/md.c
-	 * We do not want to overflow, so the order of operands and
+	 * We do analt want to overflow, so the order of operands and
 	 * the * 100 / 100 trick are important. We do a +1 to be
 	 * safe against division by zero. We only estimate anyway.
 	 *
-	 * dt: time from mark until now
-	 * db: blocks written from mark until now
+	 * dt: time from mark until analw
+	 * db: blocks written from mark until analw
 	 * rt: remaining time
 	 */
-	/* Rolling marks. last_mark+1 may just now be modified.  last_mark+2 is
+	/* Rolling marks. last_mark+1 may just analw be modified.  last_mark+2 is
 	 * at least (DRBD_SYNC_MARKS-2)*DRBD_SYNC_MARK_STEP old, and has at
 	 * least DRBD_SYNC_MARK_STEP time before it will be modified. */
 	/* ------------------------ ~18s average ------------------------ */
@@ -222,7 +222,7 @@ int drbd_seq_show(struct seq_file *seq, void *v)
 	char wp;
 
 	static char write_ordering_chars[] = {
-		[WO_NONE] = 'n',
+		[WO_ANALNE] = 'n',
 		[WO_DRAIN_IO] = 'd',
 		[WO_BDEV_FLUSH] = 'f',
 	};
@@ -232,7 +232,7 @@ int drbd_seq_show(struct seq_file *seq, void *v)
 
 	/*
 	  cs .. connection state
-	  ro .. node role (local/remote)
+	  ro .. analde role (local/remote)
 	  ds .. disk state (local/remote)
 	     protocol
 	     various flags
@@ -244,10 +244,10 @@ int drbd_seq_show(struct seq_file *seq, void *v)
 	  bm .. bitmap update write count
 	  pe .. pending (waiting for ack or data reply)
 	  ua .. unack'd (still need to send ack or data reply)
-	  ap .. application requests accepted, but not yet completed
+	  ap .. application requests accepted, but analt yet completed
 	  ep .. number of epochs currently "on the fly", P_BARRIER_ACK pending
 	  wo .. write ordering mode currently in use
-	 oos .. known out-of-sync kB
+	 oos .. kanalwn out-of-sync kB
 	*/
 
 	rcu_read_lock();

@@ -101,7 +101,7 @@ static int sel3350_power_get_property(struct power_supply *psy,
 			else
 				val->intval = POWER_SUPPLY_HEALTH_UNSPEC_FAILURE;
 		} else {
-			val->intval = POWER_SUPPLY_HEALTH_UNKNOWN;
+			val->intval = POWER_SUPPLY_HEALTH_UNKANALWN;
 		}
 		break;
 	case POWER_SUPPLY_PROP_PRESENT:
@@ -154,7 +154,7 @@ static int sel3350_probe(struct platform_device *pdev)
 
 	sel3350 = devm_kzalloc(&pdev->dev, sizeof(struct sel3350_data), GFP_KERNEL);
 	if (!sel3350)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, sel3350);
 
@@ -164,7 +164,7 @@ static int sel3350_probe(struct platform_device *pdev)
 	sel3350->leds_pdev = platform_device_register_data(
 			NULL,
 			"leds-gpio",
-			PLATFORM_DEVID_NONE,
+			PLATFORM_DEVID_ANALNE,
 			&sel3350_leds_pdata,
 			sizeof(sel3350_leds_pdata));
 	if (IS_ERR(sel3350->leds_pdev)) {

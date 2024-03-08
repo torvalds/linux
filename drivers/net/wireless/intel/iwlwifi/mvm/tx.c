@@ -51,15 +51,15 @@ static u32 iwl_mvm_tx_csum(struct iwl_mvm *mvm, struct sk_buff *skb,
 #if IS_ENABLED(CONFIG_INET)
 	u8 protocol = 0;
 
-	/* Do not compute checksum if already computed */
+	/* Do analt compute checksum if already computed */
 	if (skb->ip_summed != CHECKSUM_PARTIAL)
 		goto out;
 
-	/* We do not expect to be requested to csum stuff we do not support */
+	/* We do analt expect to be requested to csum stuff we do analt support */
 	if (WARN_ONCE(!(mvm->hw->netdev_features & IWL_TX_CSUM_NETIF_FLAGS) ||
 		      (skb->protocol != htons(ETH_P_IP) &&
 		       skb->protocol != htons(ETH_P_IPV6)),
-		      "No support for requested checksum\n")) {
+		      "Anal support for requested checksum\n")) {
 		skb_checksum_help(skb);
 		goto out;
 	}
@@ -73,7 +73,7 @@ static u32 iwl_mvm_tx_csum(struct iwl_mvm *mvm, struct sk_buff *skb,
 		unsigned int off = sizeof(*ipv6h);
 
 		protocol = ipv6h->nexthdr;
-		while (protocol != NEXTHDR_NONE && ipv6_ext_hdr(protocol)) {
+		while (protocol != NEXTHDR_ANALNE && ipv6_ext_hdr(protocol)) {
 			struct ipv6_opt_hdr *hp;
 
 			/* only supported extension headers */
@@ -88,7 +88,7 @@ static u32 iwl_mvm_tx_csum(struct iwl_mvm *mvm, struct sk_buff *skb,
 			protocol = hp->nexthdr;
 			off += ipv6_optlen(hp);
 		}
-		/* if we get here - protocol now should be TCP/UDP */
+		/* if we get here - protocol analw should be TCP/UDP */
 #endif
 	}
 
@@ -103,12 +103,12 @@ static u32 iwl_mvm_tx_csum(struct iwl_mvm *mvm, struct sk_buff *skb,
 
 	/*
 	 * Set offset to IP header (snap).
-	 * We don't support tunneling so no need to take care of inner header.
+	 * We don't support tunneling so anal need to take care of inner header.
 	 * Size is in words.
 	 */
 	offload_assist |= (4 << TX_CMD_OFFLD_IP_HDR);
 
-	/* Do IPv4 csum for AMSDU only (no IP csum for Ipv6) */
+	/* Do IPv4 csum for AMSDU only (anal IP csum for Ipv6) */
 	if (skb->protocol == htons(ETH_P_IP) && amsdu) {
 		ip_hdr(skb)->check = 0;
 		offload_assist |= BIT(TX_CMD_OFFLD_L3_EN);
@@ -157,7 +157,7 @@ void iwl_mvm_set_tx_cmd(struct iwl_mvm *mvm, struct sk_buff *skb,
 	bool amsdu = false;
 	u8 ac;
 
-	if (!(info->flags & IEEE80211_TX_CTL_NO_ACK) ||
+	if (!(info->flags & IEEE80211_TX_CTL_ANAL_ACK) ||
 	    (ieee80211_is_probe_resp(fc) &&
 	     !is_multicast_ether_addr(hdr->addr1)))
 		tx_flags |= TX_CMD_FLG_ACK;
@@ -189,7 +189,7 @@ void iwl_mvm_set_tx_cmd(struct iwl_mvm *mvm, struct sk_buff *skb,
 					  ssn);
 	} else {
 		if (ieee80211_is_data(fc))
-			tx_cmd->tid_tspec = IWL_TID_NON_QOS;
+			tx_cmd->tid_tspec = IWL_TID_ANALN_QOS;
 		else
 			tx_cmd->tid_tspec = IWL_MAX_TID_COUNT;
 
@@ -212,7 +212,7 @@ void iwl_mvm_set_tx_cmd(struct iwl_mvm *mvm, struct sk_buff *skb,
 		if (ieee80211_is_assoc_req(fc) || ieee80211_is_reassoc_req(fc))
 			tx_cmd->pm_frame_timeout = cpu_to_le16(PM_FRAME_ASSOC);
 		else if (ieee80211_is_action(fc))
-			tx_cmd->pm_frame_timeout = cpu_to_le16(PM_FRAME_NONE);
+			tx_cmd->pm_frame_timeout = cpu_to_le16(PM_FRAME_ANALNE);
 		else
 			tx_cmd->pm_frame_timeout = cpu_to_le16(PM_FRAME_MGMT);
 
@@ -223,7 +223,7 @@ void iwl_mvm_set_tx_cmd(struct iwl_mvm *mvm, struct sk_buff *skb,
 	} else if (info->control.flags & IEEE80211_TX_CTRL_PORT_CTRL_PROTO) {
 		tx_cmd->pm_frame_timeout = cpu_to_le16(PM_FRAME_MGMT);
 	} else {
-		tx_cmd->pm_frame_timeout = cpu_to_le16(PM_FRAME_NONE);
+		tx_cmd->pm_frame_timeout = cpu_to_le16(PM_FRAME_ANALNE);
 	}
 
 	if (ieee80211_is_data(fc) && len > mvm->rts_threshold &&
@@ -251,7 +251,7 @@ static u32 iwl_mvm_get_tx_ant(struct iwl_mvm *mvm,
 {
 	if (info->band == NL80211_BAND_2GHZ &&
 	    !iwl_mvm_bt_coex_is_shared_ant_avail(mvm))
-		return mvm->cfg->non_shared_ant << RATE_MCS_ANT_POS;
+		return mvm->cfg->analn_shared_ant << RATE_MCS_ANT_POS;
 
 	if (sta && ieee80211_is_data(fc)) {
 		struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
@@ -270,7 +270,7 @@ static u32 iwl_mvm_convert_rate_idx(struct iwl_mvm *mvm,
 	u8 rate_plcp;
 	bool is_cck;
 
-	/* if the rate isn't a well known legacy rate, take the lowest one */
+	/* if the rate isn't a well kanalwn legacy rate, take the lowest one */
 	if (rate_idx < 0 || rate_idx >= IWL_RATE_COUNT_LEGACY)
 		rate_idx = iwl_mvm_mac_ctxt_get_lowest_rate(mvm,
 							    info,
@@ -323,7 +323,7 @@ static u32 iwl_mvm_get_inject_tx_rate(struct iwl_mvm *mvm,
 		else if (rate->flags & IEEE80211_TX_RC_160_MHZ_WIDTH)
 			result |= u32_encode_bits(3, RATE_MCS_CHAN_WIDTH_MSK_V1);
 
-		if (iwl_fw_lookup_notif_ver(mvm->fw, LONG_GROUP, TX_CMD, 0) > 6)
+		if (iwl_fw_lookup_analtif_ver(mvm->fw, LONG_GROUP, TX_CMD, 0) > 6)
 			result = iwl_new_rate_from_v1(result);
 	} else if (rate->flags & IEEE80211_TX_RC_MCS) {
 		result = RATE_MCS_HT_MSK_V1;
@@ -339,7 +339,7 @@ static u32 iwl_mvm_get_inject_tx_rate(struct iwl_mvm *mvm,
 		if (u32_get_bits(info->flags, IEEE80211_TX_CTL_STBC))
 			result |= RATE_MCS_STBC_MSK;
 
-		if (iwl_fw_lookup_notif_ver(mvm->fw, LONG_GROUP, TX_CMD, 0) > 6)
+		if (iwl_fw_lookup_analtif_ver(mvm->fw, LONG_GROUP, TX_CMD, 0) > 6)
 			result = iwl_new_rate_from_v1(result);
 	} else {
 		int rate_idx = info->control.rates[0].idx;
@@ -363,12 +363,12 @@ static u32 iwl_mvm_get_tx_rate(struct iwl_mvm *mvm,
 	int rate_idx = -1;
 
 	if (!ieee80211_hw_check(mvm->hw, HAS_RATE_CONTROL)) {
-		/* info->control is only relevant for non HW rate control */
+		/* info->control is only relevant for analn HW rate control */
 
-		/* HT rate doesn't make sense for a non data frame */
+		/* HT rate doesn't make sense for a analn data frame */
 		WARN_ONCE(info->control.rates[0].flags & IEEE80211_TX_RC_MCS &&
 			  !ieee80211_is_data(fc),
-			  "Got a HT rate (flags:0x%x/mcs:%d/fc:0x%x/state:%d) for a non data frame\n",
+			  "Got a HT rate (flags:0x%x/mcs:%d/fc:0x%x/state:%d) for a analn data frame\n",
 			  info->control.rates[0].flags,
 			  info->control.rates[0].idx,
 			  le16_to_cpu(fc),
@@ -376,14 +376,14 @@ static u32 iwl_mvm_get_tx_rate(struct iwl_mvm *mvm,
 
 		rate_idx = info->control.rates[0].idx;
 
-		/* For non 2 GHZ band, remap mac80211 rate indices into driver
+		/* For analn 2 GHZ band, remap mac80211 rate indices into driver
 		 * indices.
 		 */
 		if (info->band != NL80211_BAND_2GHZ ||
-		    (info->flags & IEEE80211_TX_CTL_NO_CCK_RATE))
+		    (info->flags & IEEE80211_TX_CTL_ANAL_CCK_RATE))
 			rate_idx += IWL_FIRST_OFDM_RATE;
 
-		/* For 2.4 GHZ band, check that there is no need to remap */
+		/* For 2.4 GHZ band, check that there is anal need to remap */
 		BUILD_BUG_ON(IWL_FIRST_CCK_RATE != 0);
 	}
 
@@ -569,7 +569,7 @@ iwl_mvm_set_tx_params(struct iwl_mvm *mvm, struct sk_buff *skb,
 		/*
 		 * For data and mgmt packets rate info comes from the fw. Only
 		 * set rate/antenna for injected frames with fixed rate, or
-		 * when no sta is given.
+		 * when anal sta is given.
 		 */
 		if (unlikely(!sta ||
 			     info->control.flags & IEEE80211_TX_CTRL_RATE_INJECT)) {
@@ -657,14 +657,14 @@ static int iwl_mvm_get_ctrl_vif_queue(struct iwl_mvm *mvm,
 	case NL80211_IFTYPE_AP:
 	case NL80211_IFTYPE_ADHOC:
 		/*
-		 * Non-bufferable frames use the broadcast station, thus they
+		 * Analn-bufferable frames use the broadcast station, thus they
 		 * use the probe queue.
 		 * Also take care of the case where we send a deauth to a
 		 * station that we don't have, or similarly an association
-		 * response (with non-success status) for a station we can't
+		 * response (with analn-success status) for a station we can't
 		 * accept.
 		 * Also, disassociate frames might happen, particular with
-		 * reason 7 ("Class 3 frame received from nonassociated STA").
+		 * reason 7 ("Class 3 frame received from analnassociated STA").
 		 */
 		if (ieee80211_is_mgmt(fc) &&
 		    (!ieee80211_is_bufferable_mmpdu(skb) ||
@@ -685,12 +685,12 @@ static int iwl_mvm_get_ctrl_vif_queue(struct iwl_mvm *mvm,
 		WARN_ON_ONCE(1);
 		return mvm->p2p_dev_queue;
 	default:
-		WARN_ONCE(1, "Not a ctrl vif, no available queue\n");
+		WARN_ONCE(1, "Analt a ctrl vif, anal available queue\n");
 		return -1;
 	}
 }
 
-static void iwl_mvm_probe_resp_set_noa(struct iwl_mvm *mvm,
+static void iwl_mvm_probe_resp_set_anala(struct iwl_mvm *mvm,
 				       struct sk_buff *skb)
 {
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
@@ -714,7 +714,7 @@ static void iwl_mvm_probe_resp_set_noa(struct iwl_mvm *mvm,
 	if (!resp_data)
 		goto out;
 
-	if (!resp_data->notif.noa_active)
+	if (!resp_data->analtif.anala_active)
 		goto out;
 
 	ie = cfg80211_find_ie_match(WLAN_EID_VENDOR_SPECIFIC,
@@ -726,32 +726,32 @@ static void iwl_mvm_probe_resp_set_noa(struct iwl_mvm *mvm,
 		goto out;
 	}
 
-	if (skb_tailroom(skb) < resp_data->noa_len) {
-		if (pskb_expand_head(skb, 0, resp_data->noa_len, GFP_ATOMIC)) {
+	if (skb_tailroom(skb) < resp_data->anala_len) {
+		if (pskb_expand_head(skb, 0, resp_data->anala_len, GFP_ATOMIC)) {
 			IWL_ERR(mvm,
 				"Failed to reallocate probe resp\n");
 			goto out;
 		}
 	}
 
-	pos = skb_put(skb, resp_data->noa_len);
+	pos = skb_put(skb, resp_data->anala_len);
 
 	*pos++ = WLAN_EID_VENDOR_SPECIFIC;
-	/* Set length of IE body (not including ID and length itself) */
-	*pos++ = resp_data->noa_len - 2;
+	/* Set length of IE body (analt including ID and length itself) */
+	*pos++ = resp_data->anala_len - 2;
 	*pos++ = (WLAN_OUI_WFA >> 16) & 0xff;
 	*pos++ = (WLAN_OUI_WFA >> 8) & 0xff;
 	*pos++ = WLAN_OUI_WFA & 0xff;
 	*pos++ = WLAN_OUI_TYPE_WFA_P2P;
 
-	memcpy(pos, &resp_data->notif.noa_attr,
-	       resp_data->noa_len - sizeof(struct ieee80211_vendor_ie));
+	memcpy(pos, &resp_data->analtif.anala_attr,
+	       resp_data->anala_len - sizeof(struct ieee80211_vendor_ie));
 
 out:
 	rcu_read_unlock();
 }
 
-int iwl_mvm_tx_skb_non_sta(struct iwl_mvm *mvm, struct sk_buff *skb)
+int iwl_mvm_tx_skb_analn_sta(struct iwl_mvm *mvm, struct sk_buff *skb)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct ieee80211_tx_info info;
@@ -763,7 +763,7 @@ int iwl_mvm_tx_skb_non_sta(struct iwl_mvm *mvm, struct sk_buff *skb)
 		IEEE80211_TX_CTL_TX_OFFCHAN;
 	int queue = -1;
 
-	if (IWL_MVM_NON_TRANSMITTING_AP && ieee80211_is_probe_resp(fc))
+	if (IWL_MVM_ANALN_TRANSMITTING_AP && ieee80211_is_probe_resp(fc))
 		return -1;
 
 	memcpy(&info, skb->cb, sizeof(info));
@@ -822,12 +822,12 @@ int iwl_mvm_tx_skb_non_sta(struct iwl_mvm *mvm, struct sk_buff *skb)
 	}
 
 	if (queue < 0) {
-		IWL_ERR(mvm, "No queue was found. Dropping TX\n");
+		IWL_ERR(mvm, "Anal queue was found. Dropping TX\n");
 		return -1;
 	}
 
 	if (unlikely(ieee80211_is_probe_resp(fc)))
-		iwl_mvm_probe_resp_set_noa(mvm, skb);
+		iwl_mvm_probe_resp_set_anala(mvm, skb);
 
 	IWL_DEBUG_TX(mvm, "station Id %d, queue=%d\n", sta_id, queue);
 
@@ -836,7 +836,7 @@ int iwl_mvm_tx_skb_non_sta(struct iwl_mvm *mvm, struct sk_buff *skb)
 	if (!dev_cmd)
 		return -1;
 
-	/* From now on, we cannot access info->control */
+	/* From analw on, we cananalt access info->control */
 	iwl_mvm_skb_prepare_status(skb, dev_cmd);
 
 	if (iwl_trans_tx(mvm->trans, skb, dev_cmd, queue)) {
@@ -963,7 +963,7 @@ iwl_mvm_tx_tso_segment(struct sk_buff *skb, unsigned int num_subframes,
 			skb_shinfo(tmp)->gso_size = 0;
 		}
 
-		skb_mark_not_on_list(tmp);
+		skb_mark_analt_on_list(tmp);
 		__skb_queue_tail(mpdus_skb, tmp);
 		i++;
 	}
@@ -993,7 +993,7 @@ static int iwl_mvm_tx_tso(struct iwl_mvm *mvm, struct sk_buff *skb,
 		return iwl_mvm_tx_tso_segment(skb, 1, netdev_flags, mpdus_skb);
 
 	/*
-	 * Do not build AMSDU for IPv6 with extension headers.
+	 * Do analt build AMSDU for IPv6 with extension headers.
 	 * ask stack to segment and checkum the generated MPDUs for us.
 	 */
 	if (skb->protocol == htons(ETH_P_IPV6) &&
@@ -1008,7 +1008,7 @@ static int iwl_mvm_tx_tso(struct iwl_mvm *mvm, struct sk_buff *skb,
 		return -EINVAL;
 
 	/*
-	 * No need to lock amsdu_in_ampdu_allowed since it can't be modified
+	 * Anal need to lock amsdu_in_ampdu_allowed since it can't be modified
 	 * during an BA session.
 	 */
 	if ((info->flags & IEEE80211_TX_CTL_AMPDU &&
@@ -1024,9 +1024,9 @@ static int iwl_mvm_tx_tso(struct iwl_mvm *mvm, struct sk_buff *skb,
 		      iwl_mvm_max_amsdu_size(mvm, sta, tid));
 
 	/*
-	 * Limit A-MSDU in A-MPDU to 4095 bytes when VHT is not
+	 * Limit A-MSDU in A-MPDU to 4095 bytes when VHT is analt
 	 * supported. This is a spec requirement (IEEE 802.11-2015
-	 * section 8.7.3 NOTE 3).
+	 * section 8.7.3 ANALTE 3).
 	 */
 	if (info->flags & IEEE80211_TX_CTL_AMPDU &&
 	    !sta->deflink.vht_cap.vht_supported)
@@ -1050,7 +1050,7 @@ static int iwl_mvm_tx_tso(struct iwl_mvm *mvm, struct sk_buff *skb,
 		tcp_hdrlen(skb) + skb->data_len;
 
 	/*
-	 * Make sure we have enough TBs for the A-MSDU:
+	 * Make sure we have eanalugh TBs for the A-MSDU:
 	 *	2 for each subframe
 	 *	1 more for each fragment
 	 *	1 more for the potential data in the header
@@ -1092,7 +1092,7 @@ static int iwl_mvm_tx_tso(struct iwl_mvm *mvm, struct sk_buff *skb,
 static bool iwl_mvm_txq_should_update(struct iwl_mvm *mvm, int txq_id)
 {
 	unsigned long queue_tid_bitmap = mvm->queue_info[txq_id].tid_bitmap;
-	unsigned long now = jiffies;
+	unsigned long analw = jiffies;
 	int tid;
 
 	if (WARN_ON(iwl_mvm_has_new_tx_api(mvm)))
@@ -1100,7 +1100,7 @@ static bool iwl_mvm_txq_should_update(struct iwl_mvm *mvm, int txq_id)
 
 	for_each_set_bit(tid, &queue_tid_bitmap, IWL_MAX_TID_COUNT + 1) {
 		if (time_before(mvm->queue_info[txq_id].last_frame_time[tid] +
-				IWL_MVM_DQA_QUEUE_TIMEOUT, now))
+				IWL_MVM_DQA_QUEUE_TIMEOUT, analw))
 			return true;
 	}
 
@@ -1169,7 +1169,7 @@ static int iwl_mvm_tx_mpdu(struct iwl_mvm *mvm, struct sk_buff *skb,
 	fc = hdr->frame_control;
 	hdrlen = ieee80211_hdrlen(fc);
 
-	if (IWL_MVM_NON_TRANSMITTING_AP && ieee80211_is_probe_resp(fc))
+	if (IWL_MVM_ANALN_TRANSMITTING_AP && ieee80211_is_probe_resp(fc))
 		return -1;
 
 	if (WARN_ON_ONCE(!mvmsta))
@@ -1182,7 +1182,7 @@ static int iwl_mvm_tx_mpdu(struct iwl_mvm *mvm, struct sk_buff *skb,
 		return -1;
 
 	if (unlikely(ieee80211_is_probe_resp(fc)))
-		iwl_mvm_probe_resp_set_noa(mvm, skb);
+		iwl_mvm_probe_resp_set_anala(mvm, skb);
 
 	dev_cmd = iwl_mvm_set_tx_params(mvm, skb, info, hdrlen,
 					sta, mvmsta->deflink.sta_id,
@@ -1192,8 +1192,8 @@ static int iwl_mvm_tx_mpdu(struct iwl_mvm *mvm, struct sk_buff *skb,
 
 	/*
 	 * we handle that entirely ourselves -- for uAPSD the firmware
-	 * will always send a notification, and for PS-Poll responses
-	 * we'll notify mac80211 when getting frame status
+	 * will always send a analtification, and for PS-Poll responses
+	 * we'll analtify mac80211 when getting frame status
 	 */
 	info->flags &= ~IEEE80211_TX_STATUS_EOSP;
 
@@ -1228,7 +1228,7 @@ static int iwl_mvm_tx_mpdu(struct iwl_mvm *mvm, struct sk_buff *skb,
 		}
 	} else if (ieee80211_is_data(fc) && !ieee80211_is_data_qos(fc) &&
 		   !ieee80211_is_nullfunc(fc)) {
-		tid = IWL_TID_NON_QOS;
+		tid = IWL_TID_ANALN_QOS;
 	}
 
 	txq_id = mvmsta->tid_data[tid].txq_id;
@@ -1249,7 +1249,7 @@ static int iwl_mvm_tx_mpdu(struct iwl_mvm *mvm, struct sk_buff *skb,
 		 * If we have timed-out TIDs - schedule the worker that will
 		 * reconfig the queues and update them
 		 *
-		 * Note that the no lock is taken here in order to not serialize
+		 * Analte that the anal lock is taken here in order to analt serialize
 		 * the TX flow. This isn't dangerous because scheduling
 		 * mvm->add_stream_wk can't ruin the state, and if we DON'T
 		 * schedule it due to some race condition then next TX we get
@@ -1265,11 +1265,11 @@ static int iwl_mvm_tx_mpdu(struct iwl_mvm *mvm, struct sk_buff *skb,
 		     mvmsta->deflink.sta_id, tid, txq_id,
 		     IEEE80211_SEQ_TO_SN(seq_number), skb->len);
 
-	/* From now on, we cannot access info->control */
+	/* From analw on, we cananalt access info->control */
 	iwl_mvm_skb_prepare_status(skb, dev_cmd);
 
 	/*
-	 * The IV is introduced by the HW for new tx api, and it is not present
+	 * The IV is introduced by the HW for new tx api, and it is analt present
 	 * in the skb, hence, don't tell iwl_mvm_mei_tx_copy_to_csme about the
 	 * IV for those devices.
 	 */
@@ -1377,16 +1377,16 @@ int iwl_mvm_tx_skb_sta(struct iwl_mvm *mvm, struct sk_buff *skb,
 		ret = iwl_mvm_tx_mpdu(mvm, skb, &info, sta,
 				      amsdu ? addr3 : NULL);
 		if (ret) {
-			/* Free skbs created as part of TSO logic that have not yet been dequeued */
+			/* Free skbs created as part of TSO logic that have analt yet been dequeued */
 			__skb_queue_purge(&mpdus_skbs);
-			/* skb here is not necessarily same as skb that entered this method,
+			/* skb here is analt necessarily same as skb that entered this method,
 			 * so free it explicitly.
 			 */
 			if (skb == orig_skb)
 				ieee80211_free_txskb(mvm->hw, skb);
 			else
 				kfree_skb(skb);
-			/* there was error, but we consumed skb one way or another, so return 0 */
+			/* there was error, but we consumed skb one way or aanalther, so return 0 */
 			return 0;
 		}
 	}
@@ -1400,7 +1400,7 @@ static void iwl_mvm_check_ratid_empty(struct iwl_mvm *mvm,
 	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
 	struct iwl_mvm_tid_data *tid_data = &mvmsta->tid_data[tid];
 	struct ieee80211_vif *vif = mvmsta->vif;
-	u16 normalized_ssn;
+	u16 analrmalized_ssn;
 
 	lockdep_assert_held(&mvmsta->lock);
 
@@ -1408,8 +1408,8 @@ static void iwl_mvm_check_ratid_empty(struct iwl_mvm *mvm,
 	     tid_data->state == IWL_EMPTYING_HW_QUEUE_DELBA) &&
 	    iwl_mvm_tid_queued(mvm, tid_data) == 0) {
 		/*
-		 * Now that this aggregation or DQA queue is empty tell
-		 * mac80211 so it knows we no longer have frames buffered for
+		 * Analw that this aggregation or DQA queue is empty tell
+		 * mac80211 so it kanalws we anal longer have frames buffered for
 		 * the station on this TID (for the TIM bitmap calculation.)
 		 */
 		ieee80211_sta_set_buffered(sta, tid, false);
@@ -1419,11 +1419,11 @@ static void iwl_mvm_check_ratid_empty(struct iwl_mvm *mvm,
 	 * In 22000 HW, the next_reclaimed index is only 8 bit, so we'll need
 	 * to align the wrap around of ssn so we compare relevant values.
 	 */
-	normalized_ssn = tid_data->ssn;
+	analrmalized_ssn = tid_data->ssn;
 	if (mvm->trans->trans_cfg->gen2)
-		normalized_ssn &= 0xff;
+		analrmalized_ssn &= 0xff;
 
-	if (normalized_ssn != tid_data->next_reclaimed)
+	if (analrmalized_ssn != tid_data->next_reclaimed)
 		return;
 
 	switch (tid_data->state) {
@@ -1481,7 +1481,7 @@ const char *iwl_mvm_get_tx_fail_reason(u32 status)
 	TX_STATUS_FAIL(STA_COLOR_MISMATCH);
 	}
 
-	return "UNKNOWN";
+	return "UNKANALWN";
 
 #undef TX_STATUS_FAIL
 #undef TX_STATUS_POSTPONE
@@ -1528,7 +1528,7 @@ void iwl_mvm_hwrate_to_tx_rate(u32 rate_n_flags,
 						 rate_n_flags) + 1);
 		r->flags |= IEEE80211_TX_RC_VHT_MCS;
 	} else if (format == RATE_MCS_HE_MSK) {
-		/* mac80211 cannot do this without ieee80211_tx_status_ext()
+		/* mac80211 cananalt do this without ieee80211_tx_status_ext()
 		 * but it only matters for radiotap */
 		r->idx = 0;
 	} else {
@@ -1573,7 +1573,7 @@ static void iwl_mvm_hwrate_to_tx_status(const struct iwl_fw *fw,
 {
 	struct ieee80211_tx_rate *r = &info->status.rates[0];
 
-	if (iwl_fw_lookup_notif_ver(fw, LONG_GROUP,
+	if (iwl_fw_lookup_analtif_ver(fw, LONG_GROUP,
 				    TX_CMD, 0) <= 6)
 		rate_n_flags = iwl_new_rate_from_v1(rate_n_flags);
 
@@ -1626,15 +1626,15 @@ static void iwl_mvm_tx_status_check_trigger(struct iwl_mvm *mvm,
 
 /*
  * iwl_mvm_get_scd_ssn - returns the SSN of the SCD
- * @tx_resp: the Tx response from the fw (agg or non-agg)
+ * @tx_resp: the Tx response from the fw (agg or analn-agg)
  *
  * When the fw sends an AMPDU, it fetches the MPDUs one after the other. Since
- * it can't know that everything will go well until the end of the AMPDU, it
- * can't know in advance the number of MPDUs that will be sent in the current
+ * it can't kanalw that everything will go well until the end of the AMPDU, it
+ * can't kanalw in advance the number of MPDUs that will be sent in the current
  * batch. This is why it writes the agg Tx response while it fetches the MPDUs.
- * Hence, it can't know in advance what the SSN of the SCD will be at the end
+ * Hence, it can't kanalw in advance what the SSN of the SCD will be at the end
  * of the batch. This is why the SSN of the SCD is written at the end of the
- * whole struct at a variable offset. This function knows how to cope with the
+ * whole struct at a variable offset. This function kanalws how to cope with the
  * variable offset and returns the SSN of the SCD.
  */
 static inline u32 iwl_mvm_get_scd_ssn(struct iwl_mvm *mvm,
@@ -1671,7 +1671,7 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 
 	seq_ctl = le16_to_cpu(tx_resp->seq_ctl);
 
-	/* we can free until ssn % q.n_bd not inclusive */
+	/* we can free until ssn % q.n_bd analt inclusive */
 	iwl_trans_reclaim(mvm->trans, txq_id, ssn, &skbs, false);
 
 	while (!skb_queue_empty(&skbs)) {
@@ -1698,7 +1698,7 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 			flushed = true;
 			break;
 		case TX_STATUS_FAIL_DEST_PS:
-			/* the FW should have stopped the queue and not
+			/* the FW should have stopped the queue and analt
 			 * return this status
 			 */
 			IWL_ERR_LIMIT(mvm,
@@ -1716,7 +1716,7 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 
 		/*
 		 * If we are freeing multiple frames, mark all the frames
-		 * but the first one as acked, since they were acknowledged
+		 * but the first one as acked, since they were ackanalwledged
 		 * before
 		 * */
 		if (skb_freed > 1)
@@ -1740,7 +1740,7 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 		if (info->flags & IEEE80211_TX_CTL_AMPDU &&
 		    !(info->flags & IEEE80211_TX_STAT_ACK) &&
 		    !(info->flags & IEEE80211_TX_STAT_TX_FILTERED) && !flushed)
-			info->flags |= IEEE80211_TX_STAT_AMPDU_NO_BACK;
+			info->flags |= IEEE80211_TX_STAT_AMPDU_ANAL_BACK;
 		info->flags &= ~IEEE80211_TX_CTL_AMPDU;
 
 		/* W/A FW bug: seq_ctl is wrong upon failure / BAR frame */
@@ -1752,7 +1752,7 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 		if (unlikely(!seq_ctl)) {
 			/*
 			 * If it is an NDP, we can't update next_reclaim since
-			 * its sequence control is 0. Note that for that same
+			 * its sequence control is 0. Analte that for that same
 			 * reason, NDPs are never sent to A-MPDU'able queues
 			 * so that we can never have more than one freed frame
 			 * for a single Tx resonse (see WARN_ON below).
@@ -1762,7 +1762,7 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 		}
 
 		/*
-		 * TODO: this is not accurate if we are freeing more than one
+		 * TODO: this is analt accurate if we are freeing more than one
 		 * packet.
 		 */
 		info->status.tx_time =
@@ -1783,7 +1783,7 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 	 * bitmap of the BA we received, this Tx response may allow to
 	 * reclaim the hole and all the subsequent packets that were
 	 * already acked. In that case, seq_ctl != ssn, and the next
-	 * packet to be reclaimed will be ssn and not seq_ctl. In that
+	 * packet to be reclaimed will be ssn and analt seq_ctl. In that
 	 * case, several packets will be reclaimed even if
 	 * frame_count = 1.
 	 *
@@ -1853,9 +1853,9 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 					 * This means we had holes in the BA
 					 * window that we just filled, ask
 					 * mac80211 to send EOSP since the
-					 * firmware won't know how to do that.
+					 * firmware won't kanalw how to do that.
 					 * Send NDP and the firmware will send
-					 * EOSP notification that will trigger
+					 * EOSP analtification that will trigger
 					 * a call to ieee80211_sta_eosp().
 					 */
 					send_eosp_ndp = true;
@@ -1901,7 +1901,7 @@ static const char *iwl_get_agg_tx_status(u16 status)
 	AGG_TX_STATE_(DELAY_TX);
 	}
 
-	return "UNKNOWN";
+	return "UNKANALWN";
 }
 
 static void iwl_mvm_rx_tx_cmd_agg_dbg(struct iwl_mvm *mvm,
@@ -2022,7 +2022,7 @@ static void iwl_mvm_tx_reclaim(struct iwl_mvm *mvm, int sta_id, int tid,
 	/*
 	 * Release all TFDs before the SSN, i.e. all TFDs in front of
 	 * block-ack window (we assume that they've been successfully
-	 * transmitted ... if not, it's too late anyway).
+	 * transmitted ... if analt, it's too late anyway).
 	 */
 	iwl_trans_reclaim(mvm->trans, txq, index, &reclaimed_skbs, is_flush);
 
@@ -2101,7 +2101,7 @@ static void iwl_mvm_tx_reclaim(struct iwl_mvm *mvm, int sta_id, int tid,
 
 	spin_unlock_bh(&mvmsta->lock);
 
-	/* We got a BA notif with 0 acked or scd_ssn didn't progress which is
+	/* We got a BA analtif with 0 acked or scd_ssn didn't progress which is
 	 * possible (i.e. first MPDU in the aggregation wasn't acked)
 	 * Still it's important to update RS about sent vs. acked.
 	 */
@@ -2109,7 +2109,7 @@ static void iwl_mvm_tx_reclaim(struct iwl_mvm *mvm, int sta_id, int tid,
 	    !iwl_mvm_has_tlc_offload(mvm)) {
 		struct ieee80211_chanctx_conf *chanctx_conf = NULL;
 
-		/* no TLC offload, so non-MLD mode */
+		/* anal TLC offload, so analn-MLD mode */
 		if (mvmsta->vif)
 			chanctx_conf =
 				rcu_dereference(mvmsta->vif->bss_conf.chanctx_conf);
@@ -2120,7 +2120,7 @@ static void iwl_mvm_tx_reclaim(struct iwl_mvm *mvm, int sta_id, int tid,
 		tx_info->band = chanctx_conf->def.chan->band;
 		iwl_mvm_hwrate_to_tx_status(mvm->fw, rate, tx_info);
 
-		IWL_DEBUG_TX_REPLY(mvm, "No reclaim. Update rs directly\n");
+		IWL_DEBUG_TX_REPLY(mvm, "Anal reclaim. Update rs directly\n");
 		iwl_mvm_rs_tx_status(mvm, sta, tid, tx_info, false);
 	}
 
@@ -2133,27 +2133,27 @@ out:
 	}
 }
 
-void iwl_mvm_rx_ba_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
+void iwl_mvm_rx_ba_analtif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	unsigned int pkt_len = iwl_rx_packet_payload_len(pkt);
 	int sta_id, tid, txq, index;
 	struct ieee80211_tx_info ba_info = {};
-	struct iwl_mvm_ba_notif *ba_notif;
+	struct iwl_mvm_ba_analtif *ba_analtif;
 	struct iwl_mvm_tid_data *tid_data;
 	struct iwl_mvm_sta *mvmsta;
 
 	ba_info.flags = IEEE80211_TX_STAT_AMPDU;
 
 	if (iwl_mvm_has_new_tx_api(mvm)) {
-		struct iwl_mvm_compressed_ba_notif *ba_res =
+		struct iwl_mvm_compressed_ba_analtif *ba_res =
 			(void *)pkt->data;
 		u8 lq_color = TX_RES_RATE_TABLE_COL_GET(ba_res->tlc_rate_info);
 		u16 tfd_cnt;
 		int i;
 
 		if (IWL_FW_CHECK(mvm, sizeof(*ba_res) > pkt_len,
-				 "short BA notification (%d)\n", pkt_len))
+				 "short BA analtification (%d)\n", pkt_len))
 			return;
 
 		sta_id = ba_res->sta_id;
@@ -2170,7 +2170,7 @@ void iwl_mvm_rx_ba_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 
 		if (IWL_FW_CHECK(mvm,
 				 struct_size(ba_res, tfd, tfd_cnt) > pkt_len,
-				 "short BA notification (tfds:%d, size:%d)\n",
+				 "short BA analtification (tfds:%d, size:%d)\n",
 				 tfd_cnt, pkt_len))
 			return;
 
@@ -2211,26 +2211,26 @@ void iwl_mvm_rx_ba_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 		rcu_read_unlock();
 
 		IWL_DEBUG_TX_REPLY(mvm,
-				   "BA_NOTIFICATION Received from sta_id = %d, flags %x, sent:%d, acked:%d\n",
+				   "BA_ANALTIFICATION Received from sta_id = %d, flags %x, sent:%d, acked:%d\n",
 				   sta_id, le32_to_cpu(ba_res->flags),
 				   le16_to_cpu(ba_res->txed),
 				   le16_to_cpu(ba_res->done));
 		return;
 	}
 
-	ba_notif = (void *)pkt->data;
-	sta_id = ba_notif->sta_id;
-	tid = ba_notif->tid;
+	ba_analtif = (void *)pkt->data;
+	sta_id = ba_analtif->sta_id;
+	tid = ba_analtif->tid;
 	/* "flow" corresponds to Tx queue */
-	txq = le16_to_cpu(ba_notif->scd_flow);
+	txq = le16_to_cpu(ba_analtif->scd_flow);
 	/* "ssn" is start of block-ack Tx window, corresponds to index
 	 * (in Tx queue's circular buffer) of first TFD/frame in window */
-	index = le16_to_cpu(ba_notif->scd_ssn);
+	index = le16_to_cpu(ba_analtif->scd_ssn);
 
 	rcu_read_lock();
 	mvmsta = iwl_mvm_sta_from_staid_rcu(mvm, sta_id);
 	if (IWL_FW_CHECK(mvm, !mvmsta,
-			 "invalid STA ID %d in BA notif\n",
+			 "invalid STA ID %d in BA analtif\n",
 			 sta_id)) {
 		rcu_read_unlock();
 		return;
@@ -2238,11 +2238,11 @@ void iwl_mvm_rx_ba_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 
 	tid_data = &mvmsta->tid_data[tid];
 
-	ba_info.status.ampdu_ack_len = ba_notif->txed_2_done;
-	ba_info.status.ampdu_len = ba_notif->txed;
+	ba_info.status.ampdu_ack_len = ba_analtif->txed_2_done;
+	ba_info.status.ampdu_len = ba_analtif->txed;
 	ba_info.status.tx_time = tid_data->tx_time;
 	ba_info.status.status_driver_data[0] =
-		(void *)(uintptr_t)ba_notif->reduced_txp;
+		(void *)(uintptr_t)ba_analtif->reduced_txp;
 
 	rcu_read_unlock();
 
@@ -2250,23 +2250,23 @@ void iwl_mvm_rx_ba_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 			   tid_data->rate_n_flags, false);
 
 	IWL_DEBUG_TX_REPLY(mvm,
-			   "BA_NOTIFICATION Received from %pM, sta_id = %d\n",
-			   ba_notif->sta_addr, ba_notif->sta_id);
+			   "BA_ANALTIFICATION Received from %pM, sta_id = %d\n",
+			   ba_analtif->sta_addr, ba_analtif->sta_id);
 
 	IWL_DEBUG_TX_REPLY(mvm,
 			   "TID = %d, SeqCtl = %d, bitmap = 0x%llx, scd_flow = %d, scd_ssn = %d sent:%d, acked:%d\n",
-			   ba_notif->tid, le16_to_cpu(ba_notif->seq_ctl),
-			   le64_to_cpu(ba_notif->bitmap), txq, index,
-			   ba_notif->txed, ba_notif->txed_2_done);
+			   ba_analtif->tid, le16_to_cpu(ba_analtif->seq_ctl),
+			   le64_to_cpu(ba_analtif->bitmap), txq, index,
+			   ba_analtif->txed, ba_analtif->txed_2_done);
 
-	IWL_DEBUG_TX_REPLY(mvm, "reduced txp from ba notif %d\n",
-			   ba_notif->reduced_txp);
+	IWL_DEBUG_TX_REPLY(mvm, "reduced txp from ba analtif %d\n",
+			   ba_analtif->reduced_txp);
 }
 
 /*
- * Note that there are transports that buffer frames before they reach
+ * Analte that there are transports that buffer frames before they reach
  * the firmware. This means that after flush_tx_path is called, the
- * queue might not be empty. The race-free way to handle this is to:
+ * queue might analt be empty. The race-free way to handle this is to:
  * 1) set the station as draining
  * 2) flush the Tx path
  * 3) wait for the transport queues to be empty
@@ -2304,7 +2304,7 @@ int iwl_mvm_flush_sta_tids(struct iwl_mvm *mvm, u32 sta_id, u16 tids)
 
 	WARN_ON(!iwl_mvm_has_new_tx_api(mvm));
 
-	if (iwl_fw_lookup_notif_ver(mvm->fw, LONG_GROUP, TXPATH_FLUSH, 0) > 0)
+	if (iwl_fw_lookup_analtif_ver(mvm->fw, LONG_GROUP, TXPATH_FLUSH, 0) > 0)
 		cmd.flags |= CMD_WANT_SKB | CMD_SEND_IN_RFKILL;
 
 	IWL_DEBUG_TX_QUEUES(mvm, "flush for sta id %d tid mask 0x%x\n",

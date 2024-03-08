@@ -22,7 +22,7 @@
 #define _drv_crit_			3
 #define _drv_err_			4
 #define	_drv_warning_			5
-#define _drv_notice_			6
+#define _drv_analtice_			6
 #define _drv_info_			7
 #define _drv_dump_			8
 #define	_drv_debug_			9

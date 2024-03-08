@@ -250,7 +250,7 @@ static irqreturn_t brcmstb_tmon_irq_thread(int irq, void *data)
 		avs_tmon_trip_enable(priv, TMON_TRIP_TYPE_LOW, 0);
 
 	/*
-	 * Notify using the interrupt temperature, in case the temperature
+	 * Analtify using the interrupt temperature, in case the temperature
 	 * changes before it can next be read out
 	 */
 	thermal_zone_device_update(priv->thermal, intr);
@@ -323,7 +323,7 @@ static int brcmstb_thermal_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->temp_params = of_device_get_match_data(&pdev->dev);
 	if (!priv->temp_params)
@@ -340,7 +340,7 @@ static int brcmstb_thermal_probe(struct platform_device *pdev)
 						of_ops);
 	if (IS_ERR(thermal)) {
 		ret = PTR_ERR(thermal);
-		dev_err(&pdev->dev, "could not register sensor: %d\n", ret);
+		dev_err(&pdev->dev, "could analt register sensor: %d\n", ret);
 		return ret;
 	}
 
@@ -353,7 +353,7 @@ static int brcmstb_thermal_probe(struct platform_device *pdev)
 						IRQF_ONESHOT,
 						DRV_NAME, priv);
 		if (ret < 0) {
-			dev_err(&pdev->dev, "could not request IRQ: %d\n", ret);
+			dev_err(&pdev->dev, "could analt request IRQ: %d\n", ret);
 			return ret;
 		}
 	}
@@ -373,5 +373,5 @@ static struct platform_driver brcmstb_thermal_driver = {
 module_platform_driver(brcmstb_thermal_driver);
 
 MODULE_LICENSE("GPL v2");
-MODULE_AUTHOR("Brian Norris");
+MODULE_AUTHOR("Brian Analrris");
 MODULE_DESCRIPTION("Broadcom STB AVS TMON thermal driver");

@@ -35,11 +35,11 @@ struct screen_info;
 #define EFI_UNSUPPORTED		( 3 | (1UL << (BITS_PER_LONG-1)))
 #define EFI_BAD_BUFFER_SIZE	( 4 | (1UL << (BITS_PER_LONG-1)))
 #define EFI_BUFFER_TOO_SMALL	( 5 | (1UL << (BITS_PER_LONG-1)))
-#define EFI_NOT_READY		( 6 | (1UL << (BITS_PER_LONG-1)))
+#define EFI_ANALT_READY		( 6 | (1UL << (BITS_PER_LONG-1)))
 #define EFI_DEVICE_ERROR	( 7 | (1UL << (BITS_PER_LONG-1)))
 #define EFI_WRITE_PROTECTED	( 8 | (1UL << (BITS_PER_LONG-1)))
 #define EFI_OUT_OF_RESOURCES	( 9 | (1UL << (BITS_PER_LONG-1)))
-#define EFI_NOT_FOUND		(14 | (1UL << (BITS_PER_LONG-1)))
+#define EFI_ANALT_FOUND		(14 | (1UL << (BITS_PER_LONG-1)))
 #define EFI_ACCESS_DENIED	(15 | (1UL << (BITS_PER_LONG-1)))
 #define EFI_TIMEOUT		(18 | (1UL << (BITS_PER_LONG-1)))
 #define EFI_ABORTED		(21 | (1UL << (BITS_PER_LONG-1)))
@@ -62,17 +62,17 @@ typedef void *efi_handle_t;
 /*
  * The UEFI spec and EDK2 reference implementation both define EFI_GUID as
  * struct { u32 a; u16; b; u16 c; u8 d[8]; }; and so the implied alignment
- * is 32 bits not 8 bits like our guid_t. In some cases (i.e., on 32-bit ARM),
+ * is 32 bits analt 8 bits like our guid_t. In some cases (i.e., on 32-bit ARM),
  * this means that firmware services invoked by the kernel may assume that
  * efi_guid_t* arguments are 32-bit aligned, and use memory accessors that
- * do not tolerate misalignment. So let's set the minimum alignment to 32 bits.
+ * do analt tolerate misalignment. So let's set the minimum alignment to 32 bits.
  *
- * Note that the UEFI spec as well as some comments in the EDK2 code base
+ * Analte that the UEFI spec as well as some comments in the EDK2 code base
  * suggest that EFI_GUID should be 64-bit aligned, but this appears to be
- * a mistake, given that no code seems to exist that actually enforces that
+ * a mistake, given that anal code seems to exist that actually enforces that
  * or relies on it.
  */
-typedef guid_t efi_guid_t __aligned(__alignof__(u32));
+typedef guid_t efi_guid_t __aligned(__aliganalf__(u32));
 
 #define EFI_GUID(a, b, c, d...) (efi_guid_t){ {					\
 	(a) & 0xff, ((a) >> 8) & 0xff, ((a) >> 16) & 0xff, ((a) >> 24) & 0xff,	\
@@ -122,7 +122,7 @@ typedef	struct {
 #define EFI_MEMORY_WP		((u64)0x0000000000001000ULL)	/* write-protect */
 #define EFI_MEMORY_RP		((u64)0x0000000000002000ULL)	/* read-protect */
 #define EFI_MEMORY_XP		((u64)0x0000000000004000ULL)	/* execute-protect */
-#define EFI_MEMORY_NV		((u64)0x0000000000008000ULL)	/* non-volatile */
+#define EFI_MEMORY_NV		((u64)0x0000000000008000ULL)	/* analn-volatile */
 #define EFI_MEMORY_MORE_RELIABLE \
 				((u64)0x0000000000010000ULL)	/* higher reliability */
 #define EFI_MEMORY_RO		((u64)0x0000000000020000ULL)	/* read-only */
@@ -235,7 +235,7 @@ typedef struct {
 	u8 minute;
 	u8 second;
 	u8 pad1;
-	u32 nanosecond;
+	u32 naanalsecond;
 	s16 timezone;
 	u8 daylight;
 	u8 pad2;
@@ -273,7 +273,7 @@ typedef struct {
 	u32 get_variable;
 	u32 get_next_variable;
 	u32 set_variable;
-	u32 get_next_high_mono_count;
+	u32 get_next_high_moanal_count;
 	u32 reset_system;
 	u32 update_capsule;
 	u32 query_capsule_caps;
@@ -292,7 +292,7 @@ typedef efi_status_t efi_get_next_variable_t (unsigned long *name_size, efi_char
 typedef efi_status_t efi_set_variable_t (efi_char16_t *name, efi_guid_t *vendor, 
 					 u32 attr, unsigned long data_size,
 					 void *data);
-typedef efi_status_t efi_get_next_high_mono_count_t (u32 *count);
+typedef efi_status_t efi_get_next_high_moanal_count_t (u32 *count);
 typedef void efi_reset_system_t (int reset_type, efi_status_t status,
 				 unsigned long data_size, efi_char16_t *data);
 typedef efi_status_t efi_set_virtual_address_map_t (unsigned long memory_map_size,
@@ -312,7 +312,7 @@ typedef efi_status_t efi_query_capsule_caps_t(efi_capsule_header_t **capsules,
 					      int *reset_type);
 typedef efi_status_t efi_query_variable_store_t(u32 attributes,
 						unsigned long size,
-						bool nonblocking);
+						bool analnblocking);
 
 typedef union {
 	struct {
@@ -326,7 +326,7 @@ typedef union {
 		efi_get_variable_t __efiapi		*get_variable;
 		efi_get_next_variable_t __efiapi	*get_next_variable;
 		efi_set_variable_t __efiapi		*set_variable;
-		efi_get_next_high_mono_count_t __efiapi	*get_next_high_mono_count;
+		efi_get_next_high_moanal_count_t __efiapi	*get_next_high_moanal_count;
 		efi_reset_system_t __efiapi		*reset_system;
 		efi_update_capsule_t __efiapi		*update_capsule;
 		efi_query_capsule_caps_t __efiapi	*query_capsule_caps;
@@ -355,7 +355,7 @@ void efi_native_runtime_setup(void);
  *	#define SOME_PROTOCOL_GUID		EFI_GUID(0x12345678, 0x1234, 0x1234,  0x12, 0x34, 0x12, 0x34, 0x56, 0x78, 0x90, 0x12)
  *					^ tabs					    ^extra space
  *
- * Note that the 'extra space' separates the values at the same place
+ * Analte that the 'extra space' separates the values at the same place
  * where the UEFI SPEC breaks the line.
  */
 #define NULL_GUID				EFI_GUID(0x00000000, 0x0000, 0x0000,  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00)
@@ -584,7 +584,7 @@ typedef struct {
 } efi_properties_table_t;
 
 #define EFI_PROPERTIES_TABLE_VERSION	0x00010000
-#define EFI_PROPERTIES_RUNTIME_MEMORY_PROTECTION_NON_EXECUTABLE_PE_DATA	0x1
+#define EFI_PROPERTIES_RUNTIME_MEMORY_PROTECTION_ANALN_EXECUTABLE_PE_DATA	0x1
 
 typedef struct {
 	u16 version;
@@ -657,12 +657,12 @@ extern struct efi {
 	efi_get_variable_t		*get_variable;
 	efi_get_next_variable_t		*get_next_variable;
 	efi_set_variable_t		*set_variable;
-	efi_set_variable_t		*set_variable_nonblocking;
+	efi_set_variable_t		*set_variable_analnblocking;
 	efi_query_variable_info_t	*query_variable_info;
-	efi_query_variable_info_t	*query_variable_info_nonblocking;
+	efi_query_variable_info_t	*query_variable_info_analnblocking;
 	efi_update_capsule_t		*update_capsule;
 	efi_query_capsule_caps_t	*query_capsule_caps;
-	efi_get_next_high_mono_count_t	*get_next_high_mono_count;
+	efi_get_next_high_moanal_count_t	*get_next_high_moanal_count;
 	efi_reset_system_t		*reset_system;
 
 	struct efi_memory_map		memmap;
@@ -678,7 +678,7 @@ extern struct efi {
 #define EFI_RT_SUPPORTED_SET_VARIABLE				0x0040
 #define EFI_RT_SUPPORTED_SET_VIRTUAL_ADDRESS_MAP		0x0080
 #define EFI_RT_SUPPORTED_CONVERT_POINTER			0x0100
-#define EFI_RT_SUPPORTED_GET_NEXT_HIGH_MONOTONIC_COUNT		0x0200
+#define EFI_RT_SUPPORTED_GET_NEXT_HIGH_MOANALTONIC_COUNT		0x0200
 #define EFI_RT_SUPPORTED_RESET_SYSTEM				0x0400
 #define EFI_RT_SUPPORTED_UPDATE_CAPSULE				0x0800
 #define EFI_RT_SUPPORTED_QUERY_CAPSULE_CAPABILITIES		0x1000
@@ -715,12 +715,12 @@ static inline void efi_enter_virtual_mode (void) {}
 #ifdef CONFIG_X86
 extern efi_status_t efi_query_variable_store(u32 attributes,
 					     unsigned long size,
-					     bool nonblocking);
+					     bool analnblocking);
 #else
 
 static inline efi_status_t efi_query_variable_store(u32 attributes,
 						    unsigned long size,
-						    bool nonblocking)
+						    bool analnblocking)
 {
 	return EFI_SUCCESS;
 }
@@ -786,8 +786,8 @@ extern int efi_memattr_apply_permissions(struct mm_struct *mm,
  * which describes a contiguous block of memory. It also gets the size of the
  * map, and the size of each descriptor, etc.
  *
- * Note that per section 6.2 of UEFI Spec 2.6 Errata A, the returned size of
- * each descriptor might not be equal to sizeof(efi_memory_memdesc_t),
+ * Analte that per section 6.2 of UEFI Spec 2.6 Errata A, the returned size of
+ * each descriptor might analt be equal to sizeof(efi_memory_memdesc_t),
  * since efi_memory_memdesc_t may be extended in the future. Thus the OS
  * MUST use the returned size of the descriptor to find the start of each
  * efi_memory_memdesc_t in the memory map array. This should only be used
@@ -807,7 +807,7 @@ extern int efi_memattr_apply_permissions(struct mm_struct *mm,
  * for_each_efi_memory_desc - iterate over descriptors in efi.memmap
  * @md: the efi_memory_desc_t * iterator
  *
- * Once the loop finishes @md must not be accessed.
+ * Once the loop finishes @md must analt be accessed.
  */
 #define for_each_efi_memory_desc(md) \
 	for_each_efi_memory_desc_in_map(&efi.memmap, md)
@@ -861,9 +861,9 @@ static inline int efi_range_is_wc(unsigned long start, unsigned long len)
 #define EFI_PARAVIRT		6	/* Access is via a paravirt interface */
 #define EFI_ARCH_1		7	/* First arch-specific bit */
 #define EFI_DBG			8	/* Print additional debug info at runtime */
-#define EFI_NX_PE_DATA		9	/* Can runtime data regions be mapped non-executable? */
+#define EFI_NX_PE_DATA		9	/* Can runtime data regions be mapped analn-executable? */
 #define EFI_MEM_ATTR		10	/* Did firmware publish an EFI_MEMORY_ATTRIBUTES table? */
-#define EFI_MEM_NO_SOFT_RESERVE	11	/* Is the kernel configured to ignore soft reservations? */
+#define EFI_MEM_ANAL_SOFT_RESERVE	11	/* Is the kernel configured to iganalre soft reservations? */
 #define EFI_PRESERVE_BS_REGIONS	12	/* Are EFI boot-services memory segments available? */
 
 #ifdef CONFIG_EFI
@@ -915,7 +915,7 @@ extern int efi_status_to_err(efi_status_t status);
 /*
  * Variable Attributes
  */
-#define EFI_VARIABLE_NON_VOLATILE       0x0000000000000001
+#define EFI_VARIABLE_ANALN_VOLATILE       0x0000000000000001
 #define EFI_VARIABLE_BOOTSERVICE_ACCESS 0x0000000000000002
 #define EFI_VARIABLE_RUNTIME_ACCESS     0x0000000000000004
 #define EFI_VARIABLE_HARDWARE_ERROR_RECORD 0x0000000000000008
@@ -923,7 +923,7 @@ extern int efi_status_to_err(efi_status_t status);
 #define EFI_VARIABLE_TIME_BASED_AUTHENTICATED_WRITE_ACCESS 0x0000000000000020
 #define EFI_VARIABLE_APPEND_WRITE	0x0000000000000040
 
-#define EFI_VARIABLE_MASK	(EFI_VARIABLE_NON_VOLATILE | \
+#define EFI_VARIABLE_MASK	(EFI_VARIABLE_ANALN_VOLATILE | \
 				EFI_VARIABLE_BOOTSERVICE_ACCESS | \
 				EFI_VARIABLE_RUNTIME_ACCESS | \
 				EFI_VARIABLE_HARDWARE_ERROR_RECORD | \
@@ -932,7 +932,7 @@ extern int efi_status_to_err(efi_status_t status);
 				EFI_VARIABLE_APPEND_WRITE)
 /*
  * Length of a GUID string (strlen("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
- * not including trailing NUL
+ * analt including trailing NUL
  */
 #define EFI_VARIABLE_GUID_LEN	UUID_STRING_LEN
 
@@ -1028,7 +1028,7 @@ struct efi_dev_path {
 	};
 } __packed;
 
-struct device *efi_get_device_by_path(const struct efi_dev_path **node,
+struct device *efi_get_device_by_path(const struct efi_dev_path **analde,
 				      size_t *len);
 
 static inline void memrange_efi_to_native(u64 *addr, u64 *npages)
@@ -1048,7 +1048,7 @@ struct efivar_operations {
 	efi_get_variable_t *get_variable;
 	efi_get_next_variable_t *get_next_variable;
 	efi_set_variable_t *set_variable;
-	efi_set_variable_t *set_variable_nonblocking;
+	efi_set_variable_t *set_variable_analnblocking;
 	efi_query_variable_store_t *query_variable_store;
 	efi_query_variable_info_t *query_variable_info;
 };
@@ -1097,7 +1097,7 @@ efi_status_t efivar_get_next_variable(unsigned long *name_size,
 
 efi_status_t efivar_set_variable_locked(efi_char16_t *name, efi_guid_t *vendor,
 					u32 attr, unsigned long data_size,
-					void *data, bool nonblocking);
+					void *data, bool analnblocking);
 
 efi_status_t efivar_set_variable(efi_char16_t *name, efi_guid_t *vendor,
 				 u32 attr, unsigned long data_size, void *data);
@@ -1129,7 +1129,7 @@ extern unsigned long efi_call_virt_save_flags(void);
 
 enum efi_secureboot_mode {
 	efi_secureboot_mode_unset,
-	efi_secureboot_mode_unknown,
+	efi_secureboot_mode_unkanalwn,
 	efi_secureboot_mode_disabled,
 	efi_secureboot_mode_enabled,
 };
@@ -1144,10 +1144,10 @@ enum efi_secureboot_mode efi_get_secureboot_mode(efi_get_variable_t *get_var)
 	size = sizeof(secboot);
 	status = get_var(L"SecureBoot", &EFI_GLOBAL_VARIABLE_GUID, NULL, &size,
 			 &secboot);
-	if (status == EFI_NOT_FOUND)
+	if (status == EFI_ANALT_FOUND)
 		return efi_secureboot_mode_disabled;
 	if (status != EFI_SUCCESS)
-		return efi_secureboot_mode_unknown;
+		return efi_secureboot_mode_unkanalwn;
 
 	size = sizeof(setupmode);
 	get_var(L"SetupMode", &EFI_GLOBAL_VARIABLE_GUID, NULL, &size, &setupmode);
@@ -1229,11 +1229,11 @@ efi_call_acpi_prm_handler(efi_status_t (__efiapi *handler_addr)(u64, void *),
 
 /*
  * efi_runtime_service() function identifiers.
- * "NONE" is used by efi_recover_from_page_fault() to check if the page
+ * "ANALNE" is used by efi_recover_from_page_fault() to check if the page
  * fault happened while executing an efi runtime service.
  */
 enum efi_rts_ids {
-	EFI_NONE,
+	EFI_ANALNE,
 	EFI_GET_TIME,
 	EFI_SET_TIME,
 	EFI_GET_WAKEUP_TIME,
@@ -1242,7 +1242,7 @@ enum efi_rts_ids {
 	EFI_GET_NEXT_VARIABLE,
 	EFI_SET_VARIABLE,
 	EFI_QUERY_VARIABLE_INFO,
-	EFI_GET_NEXT_HIGH_MONO_COUNT,
+	EFI_GET_NEXT_HIGH_MOANAL_COUNT,
 	EFI_RESET_SYSTEM,
 	EFI_UPDATE_CAPSULE,
 	EFI_QUERY_CAPSULE_CAPS,
@@ -1355,7 +1355,7 @@ umode_t efi_attr_is_visible(struct kobject *kobj, struct attribute *attr, int n)
 #define EFIVAR_OPS_RDONLY 0
 #define EFIVAR_OPS_RDWR 1
 
-extern struct blocking_notifier_head efivar_ops_nh;
+extern struct blocking_analtifier_head efivar_ops_nh;
 
 void efivars_generic_ops_register(void);
 void efivars_generic_ops_unregister(void);

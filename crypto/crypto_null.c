@@ -2,7 +2,7 @@
 /*
  * Cryptographic API.
  *
- * Null algorithms, aka Much Ado About Nothing.
+ * Null algorithms, aka Much Ado About Analthing.
  *
  * These are needed for IPsec, and may be useful in general for
  * testing & debugging.

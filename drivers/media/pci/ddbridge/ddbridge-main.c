@@ -103,7 +103,7 @@ static void ddb_irq_msi(struct ddb *dev, int nr)
 			dev_info(dev->dev, "using %d MSI interrupt(s)\n",
 				 dev->msi);
 		} else {
-			dev_info(dev->dev, "MSI not available.\n");
+			dev_info(dev->dev, "MSI analt available.\n");
 		}
 	}
 }
@@ -167,17 +167,17 @@ static int ddb_probe(struct pci_dev *pdev,
 	int stat = 0;
 
 	if (pci_enable_device(pdev) < 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	pci_set_master(pdev);
 
 	if (dma_set_mask(&pdev->dev, DMA_BIT_MASK(64)))
 		if (dma_set_mask(&pdev->dev, DMA_BIT_MASK(32)))
-			return -ENODEV;
+			return -EANALDEV;
 
 	dev = vzalloc(sizeof(*dev));
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&dev->mutex);
 	dev->has_dma = 1;
@@ -202,13 +202,13 @@ static int ddb_probe(struct pci_dev *pdev,
 			    pci_resource_len(dev->pdev, 0));
 
 	if (!dev->regs) {
-		dev_err(&pdev->dev, "not enough memory for register map\n");
-		stat = -ENOMEM;
+		dev_err(&pdev->dev, "analt eanalugh memory for register map\n");
+		stat = -EANALMEM;
 		goto fail;
 	}
 	if (ddbreadl(dev, 0) == 0xffffffff) {
-		dev_err(&pdev->dev, "cannot read registers\n");
-		stat = -ENODEV;
+		dev_err(&pdev->dev, "cananalt read registers\n");
+		stat = -EANALDEV;
 		goto fail;
 	}
 

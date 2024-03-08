@@ -38,7 +38,7 @@ extern int hypfs_vm_init(void);
 extern void hypfs_vm_exit(void);
 extern int hypfs_vm_create_files(struct dentry *root);
 
-/* VM diagnose 0c */
+/* VM diaganalse 0c */
 int hypfs_diag0c_init(void);
 void hypfs_diag0c_exit(void);
 

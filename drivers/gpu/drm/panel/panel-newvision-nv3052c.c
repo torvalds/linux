@@ -46,7 +46,7 @@ struct nv3052c {
 static const struct nv3052c_reg ltk035c5444t_panel_regs[] = {
 	// EXTC Command set enable, select page 1
 	{ 0xff, 0x30 }, { 0xff, 0x52 }, { 0xff, 0x01 },
-	// Mostly unknown registers
+	// Mostly unkanalwn registers
 	{ 0xe3, 0x00 },
 	{ 0x40, 0x00 },
 	{ 0x03, 0x40 },
@@ -215,7 +215,7 @@ static const struct nv3052c_reg ltk035c5444t_panel_regs[] = {
 	{ 0xa0, 0x01 }, // PANELU2D33
 	// EXTC Command set enable, select page 2
 	{ 0xff, 0x30 }, { 0xff, 0x52 }, { 0xff, 0x02 },
-	// Unknown registers
+	// Unkanalwn registers
 	{ 0x01, 0x01 },
 	{ 0x02, 0xda },
 	{ 0x03, 0xba },
@@ -241,7 +241,7 @@ static const struct nv3052c_reg ltk035c5444t_panel_regs[] = {
 static const struct nv3052c_reg fs035vg158_panel_regs[] = {
 	// EXTC Command set enable, select page 1
 	{ 0xff, 0x30 }, { 0xff, 0x52 }, { 0xff, 0x01 },
-	// Mostly unknown registers
+	// Mostly unkanalwn registers
 	{ 0xe3, 0x00 },
 	{ 0x40, 0x00 },
 	{ 0x03, 0x40 },
@@ -284,7 +284,7 @@ static const struct nv3052c_reg fs035vg158_panel_regs[] = {
 	{ 0xb1, 0x26 },
 	{ 0xb2, 0x28 },
 	{ 0xb3, 0x28 },
-	{ 0xb4, 0x03 }, // Unknown, different to ltk035c5444
+	{ 0xb4, 0x03 }, // Unkanalwn, different to ltk035c5444
 	{ 0xb5, 0x08 },
 	{ 0xb6, 0x26 },
 	{ 0xb7, 0x08 },
@@ -410,7 +410,7 @@ static const struct nv3052c_reg fs035vg158_panel_regs[] = {
 	{ 0xa0, 0x01 }, // PANELU2D33
 	// EXTC Command set enable, select page 2
 	{ 0xff, 0x30 }, { 0xff, 0x52 }, { 0xff, 0x02 },
-	// Unknown registers
+	// Unkanalwn registers
 	{ 0x01, 0x01 },
 	{ 0x02, 0xda },
 	{ 0x03, 0xba },
@@ -545,7 +545,7 @@ static int nv3052c_get_modes(struct drm_panel *panel,
 		mode = drm_mode_duplicate(connector->dev,
 					  &panel_info->display_modes[i]);
 		if (!mode)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		drm_mode_set_name(mode);
 
@@ -583,7 +583,7 @@ static int nv3052c_probe(struct spi_device *spi)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->dev = dev;
 

@@ -63,8 +63,8 @@ int main(void)
 	do_it(X86_EFLAGS_NT | X86_EFLAGS_AC);
 
 	/*
-	 * Now try it again with TF set -- TF forces returns via IRET in all
-	 * cases except non-ptregs-using 64-bit full fast path syscalls.
+	 * Analw try it again with TF set -- TF forces returns via IRET in all
+	 * cases except analn-ptregs-using 64-bit full fast path syscalls.
 	 */
 
 	sethandler(SIGTRAP, sigtrap, 0);
@@ -82,7 +82,7 @@ int main(void)
 	do_it(X86_EFLAGS_NT | X86_EFLAGS_AC | X86_EFLAGS_TF);
 
 	/*
-	 * Now try DF.  This is evil and it's plausible that we will crash
+	 * Analw try DF.  This is evil and it's plausible that we will crash
 	 * glibc, but glibc would have to do something rather surprising
 	 * for this to happen.
 	 */

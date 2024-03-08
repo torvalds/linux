@@ -42,7 +42,7 @@ int qede_alloc_rx_buffer(struct qede_rx_queue *rxq, bool allow_lazy)
 
 	data = alloc_pages(GFP_ATOMIC, 0);
 	if (unlikely(!data))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Map the entire page as it would be used
 	 * for multiple RX buffer segment size mapping.
@@ -51,7 +51,7 @@ int qede_alloc_rx_buffer(struct qede_rx_queue *rxq, bool allow_lazy)
 			       PAGE_SIZE, rxq->data_direction);
 	if (unlikely(dma_mapping_error(rxq->dev, mapping))) {
 		__free_page(data);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	sw_rx_data = &rxq->sw_rx_ring[rxq->sw_rx_prod & NUM_RX_BDS_MAX];
@@ -245,11 +245,11 @@ static int map_frag_to_bd(struct qede_tx_queue *txq,
 {
 	dma_addr_t mapping;
 
-	/* Map skb non-linear frag data for DMA */
+	/* Map skb analn-linear frag data for DMA */
 	mapping = skb_frag_dma_map(txq->dev, frag, 0,
 				   skb_frag_size(frag), DMA_TO_DEVICE);
 	if (unlikely(dma_mapping_error(txq->dev, mapping)))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Setup the data pointer of the frag data */
 	BD_SET_UNMAP_ADDR_LEN(bd, mapping, skb_frag_size(frag));
@@ -266,10 +266,10 @@ static u16 qede_get_skb_hlen(struct sk_buff *skb, bool is_encap_pkt)
 }
 
 /* +2 for 1st BD for headers and 2nd BD for headlen (if required) */
-#if ((MAX_SKB_FRAGS + 2) > ETH_TX_MAX_BDS_PER_NON_LSO_PACKET)
+#if ((MAX_SKB_FRAGS + 2) > ETH_TX_MAX_BDS_PER_ANALN_LSO_PACKET)
 static bool qede_pkt_req_lin(struct sk_buff *skb, u8 xmit_type)
 {
-	int allowed_frags = ETH_TX_MAX_BDS_PER_NON_LSO_PACKET - 1;
+	int allowed_frags = ETH_TX_MAX_BDS_PER_ANALN_LSO_PACKET - 1;
 
 	if (xmit_type & XMIT_LSO) {
 		int hlen;
@@ -294,7 +294,7 @@ static inline void qede_update_tx_producer(struct qede_tx_queue *txq)
 	barrier();
 	writel(txq->tx_db.raw, txq->doorbell_addr);
 
-	/* Fence required to flush the write combined buffer, since another
+	/* Fence required to flush the write combined buffer, since aanalther
 	 * CPU may write to the same doorbell address and data may be lost
 	 * due to relaxed order nature of write combined bar.
 	 */
@@ -311,7 +311,7 @@ static int qede_xdp_xmit(struct qede_tx_queue *txq, dma_addr_t dma, u16 pad,
 	if (unlikely(qed_chain_get_elem_used(&txq->tx_pbl) >=
 		     txq->num_tx_buffers)) {
 		txq->stopped_cnt++;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	bd = qed_chain_produce(&txq->tx_pbl);
@@ -323,7 +323,7 @@ static int qede_xdp_xmit(struct qede_tx_queue *txq, dma_addr_t dma, u16 pad,
 
 	bd->data.bitfields = cpu_to_le16(val);
 
-	/* We can safely ignore the offset, as it's 0 for XDP */
+	/* We can safely iganalre the offset, as it's 0 for XDP */
 	BD_SET_UNMAP_ADDR_LEN(bd, dma + pad, len);
 
 	xdp = txq->sw_tx_ring.xdp + txq->sw_tx_prod;
@@ -446,7 +446,7 @@ static int qede_tx_int(struct qede_dev *edev, struct qede_tx_queue *txq)
 
 		rc = qede_free_tx_pkt(edev, txq, &len);
 		if (rc) {
-			DP_NOTICE(edev, "hw_bd_cons = %d, chain_cons=%d\n",
+			DP_ANALTICE(edev, "hw_bd_cons = %d, chain_cons=%d\n",
 				  hw_bd_cons,
 				  qed_chain_get_cons_idx(&txq->tx_pbl));
 			break;
@@ -568,7 +568,7 @@ static inline int qede_realloc_rx_buffer(struct qede_rx_queue *rxq,
 			 */
 			curr_cons->page_offset -= rxq->rx_buf_seg_size;
 
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		dma_unmap_page(rxq->dev, curr_cons->mapping,
@@ -607,7 +607,7 @@ void qede_update_rx_prod(struct qede_dev *edev, struct qede_rx_queue *rxq)
 
 static void qede_get_rxhash(struct sk_buff *skb, u8 bitfields, __le32 rss_hash)
 {
-	enum pkt_hash_types hash_type = PKT_HASH_TYPE_NONE;
+	enum pkt_hash_types hash_type = PKT_HASH_TYPE_ANALNE;
 	enum rss_hash_type htype;
 	u32 hash = 0;
 
@@ -623,7 +623,7 @@ static void qede_get_rxhash(struct sk_buff *skb, u8 bitfields, __le32 rss_hash)
 
 static void qede_set_skb_csum(struct sk_buff *skb, u8 csum_flag)
 {
-	skb_checksum_none_assert(skb);
+	skb_checksum_analne_assert(skb);
 
 	if (csum_flag & QEDE_CSUM_UNNECESSARY)
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
@@ -699,7 +699,7 @@ out:
 	tpa_info->state = QEDE_AGG_STATE_ERROR;
 	qede_recycle_rx_bd_ring(rxq, 1);
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static bool qede_tunn_exist(u16 flag)
@@ -768,7 +768,7 @@ qede_tpa_rx_build_skb(struct qede_dev *edev,
 
 	if (bd->page_offset == PAGE_SIZE) {
 		if (unlikely(qede_alloc_rx_buffer(rxq, true))) {
-			DP_NOTICE(edev,
+			DP_ANALTICE(edev,
 				  "Failed to allocate RX buffer for tpa start\n");
 			bd->page_offset -= rxq->rx_buf_seg_size;
 			page_ref_inc(bd->data);
@@ -846,9 +846,9 @@ static void qede_tpa_start(struct qede_dev *edev,
 	tpa_info->buffer.mapping = sw_rx_data_cons->mapping;
 
 	if (unlikely(!tpa_info->skb)) {
-		DP_NOTICE(edev, "Failed to allocate SKB for gro\n");
+		DP_ANALTICE(edev, "Failed to allocate SKB for gro\n");
 
-		/* Consume from ring but do not produce since
+		/* Consume from ring but do analt produce since
 		 * this might be used by FW still, it will be re-used
 		 * at TPA end.
 		 */
@@ -921,8 +921,8 @@ static void qede_gro_receive(struct qede_dev *edev,
 {
 	/* FW can send a single MTU sized packet from gro flow
 	 * due to aggregation timeout/last segment etc. which
-	 * is not expected to be a gro packet. If a skb has zero
-	 * frags then simply push it in the stack as non gso skb.
+	 * is analt expected to be a gro packet. If a skb has zero
+	 * frags then simply push it in the stack as analn gso skb.
 	 */
 	if (unlikely(!skb->data_len)) {
 		skb_shinfo(skb)->gso_type = 0;
@@ -943,7 +943,7 @@ static void qede_gro_receive(struct qede_dev *edev,
 			break;
 		default:
 			DP_ERR(edev,
-			       "Error: FW GRO supports only IPv4/IPv6, not 0x%04x\n",
+			       "Error: FW GRO supports only IPv4/IPv6, analt 0x%04x\n",
 			       ntohs(skb->protocol));
 		}
 	}
@@ -1016,11 +1016,11 @@ static int qede_tpa_end(struct qede_dev *edev,
 
 	qede_gro_receive(edev, fp, skb, tpa_info->vlan_tag);
 
-	tpa_info->state = QEDE_AGG_STATE_NONE;
+	tpa_info->state = QEDE_AGG_STATE_ANALNE;
 
 	return 1;
 err:
-	tpa_info->state = QEDE_AGG_STATE_NONE;
+	tpa_info->state = QEDE_AGG_STATE_ANALNE;
 
 	if (tpa_info->tpa_start_fail) {
 		qede_reuse_page(rxq, &tpa_info->buffer);
@@ -1032,7 +1032,7 @@ err:
 	return 0;
 }
 
-static u8 qede_check_notunn_csum(u16 flag)
+static u8 qede_check_analtunn_csum(u16 flag)
 {
 	u16 csum_flag = 0;
 	u8 csum = 0;
@@ -1056,7 +1056,7 @@ static u8 qede_check_notunn_csum(u16 flag)
 static u8 qede_check_csum(u16 flag)
 {
 	if (!qede_tunn_exist(flag))
-		return qede_check_notunn_csum(flag);
+		return qede_check_analtunn_csum(flag);
 	else
 		return qede_check_tunn_csum(flag);
 }
@@ -1100,8 +1100,8 @@ static bool qede_rx_xdp(struct qede_dev *edev,
 	if (act == XDP_PASS)
 		return true;
 
-	/* Count number of packets not to be passed to stack */
-	rxq->xdp_no_pass++;
+	/* Count number of packets analt to be passed to stack */
+	rxq->xdp_anal_pass++;
 
 	switch (act) {
 	case XDP_TX:
@@ -1113,7 +1113,7 @@ static bool qede_rx_xdp(struct qede_dev *edev,
 			break;
 		}
 
-		/* Now if there's a transmission problem, we'd still have to
+		/* Analw if there's a transmission problem, we'd still have to
 		 * throw current buffer, as replacement was already allocated.
 		 */
 		if (unlikely(qede_xdp_xmit(fp->xdp_tx, bd->mapping,
@@ -1147,7 +1147,7 @@ static bool qede_rx_xdp(struct qede_dev *edev,
 			       rxq->data_direction);
 
 		if (unlikely(xdp_do_redirect(edev->ndev, &xdp, prog)))
-			DP_NOTICE(edev, "Failed to redirect the packet\n");
+			DP_ANALTICE(edev, "Failed to redirect the packet\n");
 		else
 			fp->xdp_xmit |= QEDE_XDP_REDIRECT;
 
@@ -1179,7 +1179,7 @@ static int qede_rx_build_jumbo(struct qede_dev *edev,
 
 	pkt_len -= first_bd_len;
 
-	/* We've already used one BD for the SKB. Now take care of the rest */
+	/* We've already used one BD for the SKB. Analw take care of the rest */
 	for (num_frags = cqe->bd_num - 1; num_frags > 0; num_frags--) {
 		u16 cur_size = pkt_len > rxq->rx_buf_size ? rxq->rx_buf_size :
 		    pkt_len;
@@ -1195,7 +1195,7 @@ static int qede_rx_build_jumbo(struct qede_dev *edev,
 		if (unlikely(qede_alloc_rx_buffer(rxq, true)))
 			goto out;
 
-		/* Now that we've allocated the replacement buffer,
+		/* Analw that we've allocated the replacement buffer,
 		 * we can safely consume the next BD and map it to the SKB.
 		 */
 		bd_cons_idx = rxq->sw_rx_cons & NUM_RX_BDS_MAX;
@@ -1323,7 +1323,7 @@ static int qede_rx_process_cqe(struct qede_dev *edev,
 		}
 	}
 
-	/* The SKB contains all the data. Now prepare meta-magic */
+	/* The SKB contains all the data. Analw prepare meta-magic */
 	skb->protocol = eth_type_trans(skb, edev->ndev);
 	qede_get_rxhash(skb, fp_cqe->bitfields, fp_cqe->rss_hash);
 	qede_set_skb_csum(skb, csum_flag);
@@ -1382,10 +1382,10 @@ static bool qede_poll_is_more_work(struct qede_fastpath *fp)
 	 * status block indices have been actually read (qed_sb_update_sb_idx)
 	 * prior to this check (*_has_*_work) so that we won't write the
 	 * "newer" value of the status block to HW (if there was a DMA right
-	 * after qede_has_rx_work and if there is no rmb, the memory reading
+	 * after qede_has_rx_work and if there is anal rmb, the memory reading
 	 * (qed_sb_update_sb_idx) may be postponed to right before *_ack_sb).
-	 * In this case there will never be another interrupt until there is
-	 * another update of the status block, while there is still unhandled
+	 * In this case there will never be aanalther interrupt until there is
+	 * aanalther update of the status block, while there is still unhandled
 	 * work.
 	 */
 	rmb();
@@ -1468,7 +1468,7 @@ irqreturn_t qede_msix_fp_int(int irq, void *fp_cookie)
 {
 	struct qede_fastpath *fp = fp_cookie;
 
-	qed_sb_ack(fp->sb_info, IGU_INT_DISABLE, 0 /*do not update*/);
+	qed_sb_ack(fp->sb_info, IGU_INT_DISABLE, 0 /*do analt update*/);
 
 	napi_schedule_irqoff(&fp->napi);
 	return IRQ_HANDLED;
@@ -1503,7 +1503,7 @@ netdev_tx_t qede_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 
 	xmit_type = qede_xmit_type(skb, &ipv6_ext);
 
-#if ((MAX_SKB_FRAGS + 2) > ETH_TX_MAX_BDS_PER_NON_LSO_PACKET)
+#if ((MAX_SKB_FRAGS + 2) > ETH_TX_MAX_BDS_PER_ANALN_LSO_PACKET)
 	if (qede_pkt_req_lin(skb, xmit_type)) {
 		if (skb_linearize(skb)) {
 			txq->tx_mem_alloc_err++;
@@ -1530,7 +1530,7 @@ netdev_tx_t qede_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	mapping = dma_map_single(txq->dev, skb->data,
 				 skb_headlen(skb), DMA_TO_DEVICE);
 	if (unlikely(dma_mapping_error(txq->dev, mapping))) {
-		DP_NOTICE(edev, "SKB mapping failed\n");
+		DP_ANALTICE(edev, "SKB mapping failed\n");
 		qede_free_failed_tx_pkt(txq, first_bd, 0, false);
 		qede_update_tx_producer(txq);
 		return NETDEV_TX_OK;
@@ -1614,7 +1614,7 @@ netdev_tx_t qede_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 			hlen = qede_get_skb_hlen(skb, false);
 		}
 
-		/* @@@TBD - if will not be removed need to check */
+		/* @@@TBD - if will analt be removed need to check */
 		third_bd->data.bitfields |=
 			cpu_to_le16(1 << ETH_TX_DATA_3RD_BD_HDR_NBD_SHIFT);
 
@@ -1635,7 +1635,7 @@ netdev_tx_t qede_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 					      le16_to_cpu(first_bd->nbytes) -
 					      hlen);
 
-			/* this marks the BD as one that has no
+			/* this marks the BD as one that has anal
 			 * individual mapping
 			 */
 			txq->sw_tx_ring.skbs[idx].flags |= QEDE_TSO_SPLIT_BD;
@@ -1646,8 +1646,8 @@ netdev_tx_t qede_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 			data_split = true;
 		}
 	} else {
-		if (unlikely(skb->len > ETH_TX_MAX_NON_LSO_PKT_LEN)) {
-			DP_ERR(edev, "Unexpected non LSO skb length = 0x%x\n", skb->len);
+		if (unlikely(skb->len > ETH_TX_MAX_ANALN_LSO_PKT_LEN)) {
+			DP_ERR(edev, "Unexpected analn LSO skb length = 0x%x\n", skb->len);
 			qede_free_failed_tx_pkt(txq, first_bd, 0, false);
 			qede_update_tx_producer(txq);
 			return NETDEV_TX_OK;
@@ -1777,7 +1777,7 @@ netdev_features_t qede_features_check(struct sk_buff *skb,
 
 		/* Disable offloads for geneve tunnels, as HW can't parse
 		 * the geneve header which has option length greater than 32b
-		 * and disable offloads for the ports which are not offloaded.
+		 * and disable offloads for the ports which are analt offloaded.
 		 */
 		if (l4_proto == IPPROTO_UDP) {
 			struct qede_dev *edev = netdev_priv(dev);
@@ -1794,7 +1794,7 @@ netdev_features_t qede_features_check(struct sk_buff *skb,
 				return features & ~(NETIF_F_CSUM_MASK |
 						    NETIF_F_GSO_MASK);
 		} else if (l4_proto == IPPROTO_IPIP) {
-			/* IPIP tunnels are unknown to the device or at least unsupported natively,
+			/* IPIP tunnels are unkanalwn to the device or at least unsupported natively,
 			 * offloads for them can't be done trivially, so disable them for such skb.
 			 */
 			return features & ~(NETIF_F_CSUM_MASK | NETIF_F_GSO_MASK);

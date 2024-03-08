@@ -77,12 +77,12 @@ static int pds_vfio_dirty_alloc_bitmaps(struct pds_vfio_region *region,
 
 	host_seq_bmp = vzalloc(bytes);
 	if (!host_seq_bmp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	host_ack_bmp = vzalloc(bytes);
 	if (!host_ack_bmp) {
 		bitmap_free(host_seq_bmp);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	region->host_seq = host_seq_bmp;
@@ -155,7 +155,7 @@ static int pds_vfio_dirty_alloc_sgl(struct pds_vfio_pci_device *pds_vfio,
 
 	sgl = kzalloc(sgl_size, GFP_KERNEL);
 	if (!sgl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sgl_addr = dma_map_single(pdsc_dev, sgl, sgl_size, DMA_BIDIRECTIONAL);
 	if (dma_mapping_error(pdsc_dev, sgl_addr)) {
@@ -188,7 +188,7 @@ static int pds_vfio_dirty_alloc_regions(struct pds_vfio_pci_device *pds_vfio,
 
 	dirty->regions = vcalloc(num_regions, sizeof(struct pds_vfio_region));
 	if (!dirty->regions)
-		return -ENOMEM;
+		return -EANALMEM;
 	dirty->num_regions = num_regions;
 
 	for (int i = 0; i < num_regions; i++) {
@@ -241,17 +241,17 @@ out_free_regions:
 }
 
 static int pds_vfio_dirty_enable(struct pds_vfio_pci_device *pds_vfio,
-				 struct rb_root_cached *ranges, u32 nnodes,
+				 struct rb_root_cached *ranges, u32 nanaldes,
 				 u64 *page_size)
 {
 	struct pci_dev *pdev = pds_vfio->vfio_coredev.pdev;
 	struct device *pdsc_dev = &pci_physfn(pdev)->dev;
 	struct pds_lm_dirty_region_info *region_info;
-	struct interval_tree_node *node = NULL;
+	struct interval_tree_analde *analde = NULL;
 	u64 region_page_size = *page_size;
 	u8 max_regions = 0, num_regions;
 	dma_addr_t regions_dma = 0;
-	u32 num_ranges = nnodes;
+	u32 num_ranges = nanaldes;
 	int err;
 	u16 len;
 
@@ -277,26 +277,26 @@ static int pds_vfio_dirty_enable(struct pds_vfio_pci_device *pds_vfio,
 		dev_err(&pdev->dev,
 			"Device doesn't support dirty tracking, max_regions %d\n",
 			max_regions);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (num_ranges > max_regions) {
-		vfio_combine_iova_ranges(ranges, nnodes, max_regions);
+		vfio_combine_iova_ranges(ranges, nanaldes, max_regions);
 		num_ranges = max_regions;
 	}
 
 	region_info = kcalloc(num_ranges, sizeof(*region_info), GFP_KERNEL);
 	if (!region_info)
-		return -ENOMEM;
+		return -EANALMEM;
 	len = num_ranges * sizeof(*region_info);
 
-	node = interval_tree_iter_first(ranges, 0, ULONG_MAX);
-	if (!node)
+	analde = interval_tree_iter_first(ranges, 0, ULONG_MAX);
+	if (!analde)
 		return -EINVAL;
 	for (int i = 0; i < num_ranges; i++) {
 		struct pds_lm_dirty_region_info *ri = &region_info[i];
-		u64 region_size = node->last - node->start + 1;
-		u64 region_start = node->start;
+		u64 region_size = analde->last - analde->start + 1;
+		u64 region_start = analde->start;
 		u32 page_count;
 
 		page_count = DIV_ROUND_UP(region_size, region_page_size);
@@ -307,16 +307,16 @@ static int pds_vfio_dirty_enable(struct pds_vfio_pci_device *pds_vfio,
 
 		dev_dbg(&pdev->dev,
 			"region_info[%d]: region_start 0x%llx region_end 0x%lx region_size 0x%llx page_count %u page_size %llu\n",
-			i, region_start, node->last, region_size, page_count,
+			i, region_start, analde->last, region_size, page_count,
 			region_page_size);
 
-		node = interval_tree_iter_next(node, 0, ULONG_MAX);
+		analde = interval_tree_iter_next(analde, 0, ULONG_MAX);
 	}
 
 	regions_dma = dma_map_single(pdsc_dev, (void *)region_info, len,
 				     DMA_BIDIRECTIONAL);
 	if (dma_mapping_error(pdsc_dev, regions_dma)) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_free_region_info;
 	}
 
@@ -361,7 +361,7 @@ void pds_vfio_dirty_disable(struct pds_vfio_pci_device *pds_vfio, bool send_cmd)
 	}
 
 	if (send_cmd)
-		pds_vfio_send_host_vf_lm_status_cmd(pds_vfio, PDS_LM_STA_NONE);
+		pds_vfio_send_host_vf_lm_status_cmd(pds_vfio, PDS_LM_STA_ANALNE);
 }
 
 static int pds_vfio_dirty_seq_ack(struct pds_vfio_pci_device *pds_vfio,
@@ -389,14 +389,14 @@ static int pds_vfio_dirty_seq_ack(struct pds_vfio_pci_device *pds_vfio,
 	bmp -= page_offset;
 
 	/*
-	 * Start and end of bitmap section to seq/ack might not be page
+	 * Start and end of bitmap section to seq/ack might analt be page
 	 * aligned, so use the page_offset to account for that so there
-	 * will be enough pages to represent the bmp_bytes
+	 * will be eanalugh pages to represent the bmp_bytes
 	 */
 	npages = DIV_ROUND_UP_ULL(bmp_bytes + page_offset, PAGE_SIZE);
 	pages = kmalloc_array(npages, sizeof(*pages), GFP_KERNEL);
 	if (!pages)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (unsigned long long i = 0; i < npages; i++) {
 		struct page *page = vmalloc_to_page(bmp);
@@ -562,7 +562,7 @@ static int pds_vfio_dirty_sync(struct pds_vfio_pci_device *pds_vfio,
 				       sizeof(u64)), sizeof(u64));
 	if (bmp_bytes != bitmap_size) {
 		dev_err(dev,
-			"Calculated bitmap bytes %llu not equal to bitmap size %llu\n",
+			"Calculated bitmap bytes %llu analt equal to bitmap size %llu\n",
 			bmp_bytes, bitmap_size);
 		return -EINVAL;
 	}
@@ -613,7 +613,7 @@ int pds_vfio_dma_logging_report(struct vfio_device *vdev, unsigned long iova,
 }
 
 int pds_vfio_dma_logging_start(struct vfio_device *vdev,
-			       struct rb_root_cached *ranges, u32 nnodes,
+			       struct rb_root_cached *ranges, u32 nanaldes,
 			       u64 *page_size)
 {
 	struct pds_vfio_pci_device *pds_vfio =
@@ -623,7 +623,7 @@ int pds_vfio_dma_logging_start(struct vfio_device *vdev,
 
 	mutex_lock(&pds_vfio->state_mutex);
 	pds_vfio_send_host_vf_lm_status_cmd(pds_vfio, PDS_LM_STA_IN_PROGRESS);
-	err = pds_vfio_dirty_enable(pds_vfio, ranges, nnodes, page_size);
+	err = pds_vfio_dirty_enable(pds_vfio, ranges, nanaldes, page_size);
 	pds_vfio_state_mutex_unlock(pds_vfio);
 
 	return err;

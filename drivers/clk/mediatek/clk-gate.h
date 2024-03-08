@@ -13,12 +13,12 @@ struct clk;
 struct clk_hw_onecell_data;
 struct clk_ops;
 struct device;
-struct device_node;
+struct device_analde;
 
 extern const struct clk_ops mtk_clk_gate_ops_setclr;
 extern const struct clk_ops mtk_clk_gate_ops_setclr_inv;
-extern const struct clk_ops mtk_clk_gate_ops_no_setclr;
-extern const struct clk_ops mtk_clk_gate_ops_no_setclr_inv;
+extern const struct clk_ops mtk_clk_gate_ops_anal_setclr;
+extern const struct clk_ops mtk_clk_gate_ops_anal_setclr_inv;
 
 struct mtk_gate_regs {
 	u32 sta_ofs;
@@ -50,7 +50,7 @@ struct mtk_gate {
 #define GATE_MTK(_id, _name, _parent, _regs, _shift, _ops)		\
 	GATE_MTK_FLAGS(_id, _name, _parent, _regs, _shift, _ops, 0)
 
-int mtk_clk_register_gates(struct device *dev, struct device_node *node,
+int mtk_clk_register_gates(struct device *dev, struct device_analde *analde,
 			   const struct mtk_gate *clks, int num,
 			   struct clk_hw_onecell_data *clk_data);
 

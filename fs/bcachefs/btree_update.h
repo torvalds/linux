@@ -8,27 +8,27 @@
 struct bch_fs;
 struct btree;
 
-void bch2_btree_node_prep_for_write(struct btree_trans *,
+void bch2_btree_analde_prep_for_write(struct btree_trans *,
 				    struct btree_path *, struct btree *);
 bool bch2_btree_bset_insert_key(struct btree_trans *, struct btree_path *,
-				struct btree *, struct btree_node_iter *,
+				struct btree *, struct btree_analde_iter *,
 				struct bkey_i *);
 
-int bch2_btree_node_flush0(struct journal *, struct journal_entry_pin *, u64);
-int bch2_btree_node_flush1(struct journal *, struct journal_entry_pin *, u64);
+int bch2_btree_analde_flush0(struct journal *, struct journal_entry_pin *, u64);
+int bch2_btree_analde_flush1(struct journal *, struct journal_entry_pin *, u64);
 void bch2_btree_add_journal_pin(struct bch_fs *, struct btree *, u64);
 
 void bch2_btree_insert_key_leaf(struct btree_trans *, struct btree_path *,
 				struct bkey_i *, u64);
 
 #define BCH_TRANS_COMMIT_FLAGS()							\
-	x(no_enospc,	"don't check for enospc")					\
-	x(no_check_rw,	"don't attempt to take a ref on c->writes")			\
+	x(anal_eanalspc,	"don't check for eanalspc")					\
+	x(anal_check_rw,	"don't attempt to take a ref on c->writes")			\
 	x(lazy_rw,	"go read-write if we haven't yet - only for use in recovery")	\
-	x(no_journal_res, "don't take a journal reservation, instead "			\
+	x(anal_journal_res, "don't take a journal reservation, instead "			\
 			"pin journal entry referred to by trans->journal_res.seq")	\
 	x(journal_reclaim, "operation required for journal reclaim; may return error"	\
-			"instead of deadlocking if BCH_WATERMARK_reclaim not specified")\
+			"instead of deadlocking if BCH_WATERMARK_reclaim analt specified")\
 
 enum __bch_trans_commit_flags {
 	/* First bits for bch_watermark: */
@@ -49,7 +49,7 @@ int bch2_btree_delete_extent_at(struct btree_trans *, struct btree_iter *,
 int bch2_btree_delete_at(struct btree_trans *, struct btree_iter *, unsigned);
 int bch2_btree_delete(struct btree_trans *, enum btree_id, struct bpos, unsigned);
 
-int bch2_btree_insert_nonextent(struct btree_trans *, enum btree_id,
+int bch2_btree_insert_analnextent(struct btree_trans *, enum btree_id,
 				struct bkey_i *, enum btree_update_flags);
 
 int bch2_btree_insert_trans(struct btree_trans *, enum btree_id, struct bkey_i *,
@@ -76,9 +76,9 @@ int __bch2_insert_snapshot_whiteouts(struct btree_trans *, enum btree_id,
 /*
  * For use when splitting extents in existing snapshots:
  *
- * If @old_pos is an interior snapshot node, iterate over descendent snapshot
- * nodes: for every descendent snapshot in whiche @old_pos is overwritten and
- * not visible, emit a whiteout at @new_pos.
+ * If @old_pos is an interior snapshot analde, iterate over descendent snapshot
+ * analdes: for every descendent snapshot in whiche @old_pos is overwritten and
+ * analt visible, emit a whiteout at @new_pos.
  */
 static inline int bch2_insert_snapshot_whiteouts(struct btree_trans *trans,
 						 enum btree_id btree,
@@ -127,7 +127,7 @@ static inline int __must_check bch2_trans_update_buffered(struct btree_trans *tr
 					    enum btree_id btree,
 					    struct bkey_i *k)
 {
-	if (unlikely(trans->journal_replay_not_finished))
+	if (unlikely(trans->journal_replay_analt_finished))
 		return bch2_btree_insert_clone_trans(trans, btree, k);
 
 	struct jset_entry *e = bch2_trans_jset_entry_alloc(trans, jset_u64s(k->k.u64s));
@@ -154,7 +154,7 @@ __printf(2, 3) int bch2_journal_log_msg(struct bch_fs *, const char *, ...);
  *
  * Return values:
  * -EROFS: filesystem read only
- * -EIO: journal or btree node IO error
+ * -EIO: journal or btree analde IO error
  */
 static inline int bch2_trans_commit(struct btree_trans *trans,
 				    struct disk_reservation *disk_res,
@@ -210,16 +210,16 @@ static inline void bch2_trans_reset_updates(struct btree_trans *trans)
 	}
 }
 
-static inline struct bkey_i *__bch2_bkey_make_mut_noupdate(struct btree_trans *trans, struct bkey_s_c k,
+static inline struct bkey_i *__bch2_bkey_make_mut_analupdate(struct btree_trans *trans, struct bkey_s_c k,
 						  unsigned type, unsigned min_bytes)
 {
 	unsigned bytes = max_t(unsigned, min_bytes, bkey_bytes(k.k));
 	struct bkey_i *mut;
 
 	if (type && k.k->type != type)
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-EANALENT);
 
-	mut = bch2_trans_kmalloc_nomemzero(trans, bytes);
+	mut = bch2_trans_kmalloc_analmemzero(trans, bytes);
 	if (!IS_ERR(mut)) {
 		bkey_reassemble(mut, k);
 
@@ -232,20 +232,20 @@ static inline struct bkey_i *__bch2_bkey_make_mut_noupdate(struct btree_trans *t
 	return mut;
 }
 
-static inline struct bkey_i *bch2_bkey_make_mut_noupdate(struct btree_trans *trans, struct bkey_s_c k)
+static inline struct bkey_i *bch2_bkey_make_mut_analupdate(struct btree_trans *trans, struct bkey_s_c k)
 {
-	return __bch2_bkey_make_mut_noupdate(trans, k, 0, 0);
+	return __bch2_bkey_make_mut_analupdate(trans, k, 0, 0);
 }
 
-#define bch2_bkey_make_mut_noupdate_typed(_trans, _k, _type)		\
-	bkey_i_to_##_type(__bch2_bkey_make_mut_noupdate(_trans, _k,	\
+#define bch2_bkey_make_mut_analupdate_typed(_trans, _k, _type)		\
+	bkey_i_to_##_type(__bch2_bkey_make_mut_analupdate(_trans, _k,	\
 				KEY_TYPE_##_type, sizeof(struct bkey_i_##_type)))
 
 static inline struct bkey_i *__bch2_bkey_make_mut(struct btree_trans *trans, struct btree_iter *iter,
 					struct bkey_s_c *k, unsigned flags,
 					unsigned type, unsigned min_bytes)
 {
-	struct bkey_i *mut = __bch2_bkey_make_mut_noupdate(trans, *k, type, min_bytes);
+	struct bkey_i *mut = __bch2_bkey_make_mut_analupdate(trans, *k, type, min_bytes);
 	int ret;
 
 	if (IS_ERR(mut))
@@ -269,7 +269,7 @@ static inline struct bkey_i *bch2_bkey_make_mut(struct btree_trans *trans, struc
 	bkey_i_to_##_type(__bch2_bkey_make_mut(_trans, _iter, _k, _flags,\
 				KEY_TYPE_##_type, sizeof(struct bkey_i_##_type)))
 
-static inline struct bkey_i *__bch2_bkey_get_mut_noupdate(struct btree_trans *trans,
+static inline struct bkey_i *__bch2_bkey_get_mut_analupdate(struct btree_trans *trans,
 					 struct btree_iter *iter,
 					 unsigned btree_id, struct bpos pos,
 					 unsigned flags, unsigned type, unsigned min_bytes)
@@ -278,18 +278,18 @@ static inline struct bkey_i *__bch2_bkey_get_mut_noupdate(struct btree_trans *tr
 				btree_id, pos, flags|BTREE_ITER_INTENT, type);
 	struct bkey_i *ret = IS_ERR(k.k)
 		? ERR_CAST(k.k)
-		: __bch2_bkey_make_mut_noupdate(trans, k, 0, min_bytes);
+		: __bch2_bkey_make_mut_analupdate(trans, k, 0, min_bytes);
 	if (IS_ERR(ret))
 		bch2_trans_iter_exit(trans, iter);
 	return ret;
 }
 
-static inline struct bkey_i *bch2_bkey_get_mut_noupdate(struct btree_trans *trans,
+static inline struct bkey_i *bch2_bkey_get_mut_analupdate(struct btree_trans *trans,
 					       struct btree_iter *iter,
 					       unsigned btree_id, struct bpos pos,
 					       unsigned flags)
 {
-	return __bch2_bkey_get_mut_noupdate(trans, iter, btree_id, pos, flags, 0, 0);
+	return __bch2_bkey_get_mut_analupdate(trans, iter, btree_id, pos, flags, 0, 0);
 }
 
 static inline struct bkey_i *__bch2_bkey_get_mut(struct btree_trans *trans,
@@ -297,7 +297,7 @@ static inline struct bkey_i *__bch2_bkey_get_mut(struct btree_trans *trans,
 					 unsigned btree_id, struct bpos pos,
 					 unsigned flags, unsigned type, unsigned min_bytes)
 {
-	struct bkey_i *mut = __bch2_bkey_get_mut_noupdate(trans, iter,
+	struct bkey_i *mut = __bch2_bkey_get_mut_analupdate(trans, iter,
 				btree_id, pos, flags|BTREE_ITER_INTENT, type, min_bytes);
 	int ret;
 

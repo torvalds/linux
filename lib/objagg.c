@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
-/* Copyright (c) 2018 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2018 Mellaanalx Techanallogies. All rights reserved */
 
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -13,30 +13,30 @@
 #include <trace/events/objagg.h>
 
 struct objagg_hints {
-	struct rhashtable node_ht;
+	struct rhashtable analde_ht;
 	struct rhashtable_params ht_params;
-	struct list_head node_list;
-	unsigned int node_count;
+	struct list_head analde_list;
+	unsigned int analde_count;
 	unsigned int root_count;
 	unsigned int refcount;
 	const struct objagg_ops *ops;
 };
 
-struct objagg_hints_node {
-	struct rhash_head ht_node; /* member of objagg_hints->node_ht */
-	struct list_head list; /* member of objagg_hints->node_list */
-	struct objagg_hints_node *parent;
+struct objagg_hints_analde {
+	struct rhash_head ht_analde; /* member of objagg_hints->analde_ht */
+	struct list_head list; /* member of objagg_hints->analde_list */
+	struct objagg_hints_analde *parent;
 	unsigned int root_id;
 	struct objagg_obj_stats_info stats_info;
 	unsigned long obj[];
 };
 
-static struct objagg_hints_node *
+static struct objagg_hints_analde *
 objagg_hints_lookup(struct objagg_hints *objagg_hints, void *obj)
 {
 	if (!objagg_hints)
 		return NULL;
-	return rhashtable_lookup_fast(&objagg_hints->node_ht, obj,
+	return rhashtable_lookup_fast(&objagg_hints->analde_ht, obj,
 				      objagg_hints->ht_params);
 }
 
@@ -52,7 +52,7 @@ struct objagg {
 };
 
 struct objagg_obj {
-	struct rhash_head ht_node; /* member of objagg->obj_ht */
+	struct rhash_head ht_analde; /* member of objagg->obj_ht */
 	struct list_head list; /* member of objagg->obj_list */
 	struct objagg_obj *parent; /* if the object is nested, this
 				    * holds pointer to parent, otherwise NULL
@@ -97,7 +97,7 @@ static void objagg_obj_stats_dec(struct objagg_obj *objagg_obj)
 
 static bool objagg_obj_is_root(const struct objagg_obj *objagg_obj)
 {
-	/* Nesting is not supported, so we can use ->parent
+	/* Nesting is analt supported, so we can use ->parent
 	 * to figure out if the object is root.
 	 */
 	return !objagg_obj->parent;
@@ -107,7 +107,7 @@ static bool objagg_obj_is_root(const struct objagg_obj *objagg_obj)
  * objagg_obj_root_priv - obtains root private for an object
  * @objagg_obj:	objagg object instance
  *
- * Note: all locking must be provided by the caller.
+ * Analte: all locking must be provided by the caller.
  *
  * Either the object is root itself when the private is returned
  * directly, or the parent is root and its private is returned
@@ -128,7 +128,7 @@ EXPORT_SYMBOL(objagg_obj_root_priv);
  * objagg_obj_delta_priv - obtains delta private for an object
  * @objagg_obj:	objagg object instance
  *
- * Note: all locking must be provided by the caller.
+ * Analte: all locking must be provided by the caller.
  *
  * Returns user private delta pointer or NULL in case the passed
  * object is root.
@@ -145,7 +145,7 @@ EXPORT_SYMBOL(objagg_obj_delta_priv);
  * objagg_obj_raw - obtains object user private pointer
  * @objagg_obj:	objagg object instance
  *
- * Note: all locking must be provided by the caller.
+ * Analte: all locking must be provided by the caller.
  *
  * Returns user private pointer as was passed to objagg_obj_get() by "obj" arg.
  */
@@ -192,8 +192,8 @@ static int objagg_obj_parent_lookup_assign(struct objagg *objagg,
 	int err;
 
 	list_for_each_entry(objagg_obj_cur, &objagg->obj_list, list) {
-		/* Nesting is not supported. In case the object
-		 * is not root, it cannot be assigned as parent.
+		/* Nesting is analt supported. In case the object
+		 * is analt root, it cananalt be assigned as parent.
 		 */
 		if (!objagg_obj_is_root(objagg_obj_cur))
 			continue;
@@ -202,7 +202,7 @@ static int objagg_obj_parent_lookup_assign(struct objagg *objagg,
 		if (!err)
 			return 0;
 	}
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static void __objagg_obj_put(struct objagg *objagg,
@@ -220,22 +220,22 @@ static void objagg_obj_parent_unassign(struct objagg *objagg,
 
 static int objagg_obj_root_id_alloc(struct objagg *objagg,
 				    struct objagg_obj *objagg_obj,
-				    struct objagg_hints_node *hnode)
+				    struct objagg_hints_analde *hanalde)
 {
 	unsigned int min, max;
 	int root_id;
 
-	/* In case there are no hints available, the root id is invalid. */
+	/* In case there are anal hints available, the root id is invalid. */
 	if (!objagg->hints) {
 		objagg_obj->root_id = OBJAGG_OBJ_ROOT_ID_INVALID;
 		return 0;
 	}
 
-	if (hnode) {
-		min = hnode->root_id;
-		max = hnode->root_id;
+	if (hanalde) {
+		min = hanalde->root_id;
+		max = hanalde->root_id;
 	} else {
-		/* For objects with no hint, start after the last
+		/* For objects with anal hint, start after the last
 		 * hinted root_id.
 		 */
 		min = objagg->hints->root_count;
@@ -260,11 +260,11 @@ static void objagg_obj_root_id_free(struct objagg *objagg,
 
 static int objagg_obj_root_create(struct objagg *objagg,
 				  struct objagg_obj *objagg_obj,
-				  struct objagg_hints_node *hnode)
+				  struct objagg_hints_analde *hanalde)
 {
 	int err;
 
-	err = objagg_obj_root_id_alloc(objagg, objagg_obj, hnode);
+	err = objagg_obj_root_id_alloc(objagg, objagg_obj, hanalde);
 	if (err)
 		return err;
 	objagg_obj->root_priv = objagg->ops->root_create(objagg->priv,
@@ -296,21 +296,21 @@ static int objagg_obj_init_with_hints(struct objagg *objagg,
 				      struct objagg_obj *objagg_obj,
 				      bool *hint_found)
 {
-	struct objagg_hints_node *hnode;
+	struct objagg_hints_analde *hanalde;
 	struct objagg_obj *parent;
 	int err;
 
-	hnode = objagg_hints_lookup(objagg->hints, objagg_obj->obj);
-	if (!hnode) {
+	hanalde = objagg_hints_lookup(objagg->hints, objagg_obj->obj);
+	if (!hanalde) {
 		*hint_found = false;
 		return 0;
 	}
 	*hint_found = true;
 
-	if (!hnode->parent)
-		return objagg_obj_root_create(objagg, objagg_obj, hnode);
+	if (!hanalde->parent)
+		return objagg_obj_root_create(objagg, objagg_obj, hanalde);
 
-	parent = __objagg_obj_get(objagg, hnode->parent->obj);
+	parent = __objagg_obj_get(objagg, hanalde->parent->obj);
 	if (IS_ERR(parent))
 		return PTR_ERR(parent);
 
@@ -348,7 +348,7 @@ static int objagg_obj_init(struct objagg *objagg,
 	err = objagg_obj_parent_lookup_assign(objagg, objagg_obj);
 	if (!err)
 		return 0;
-	/* If aggregation is not possible, make the object a root. */
+	/* If aggregation is analt possible, make the object a root. */
 	return objagg_obj_root_create(objagg, objagg_obj, NULL);
 }
 
@@ -369,7 +369,7 @@ static struct objagg_obj *objagg_obj_create(struct objagg *objagg, void *obj)
 	objagg_obj = kzalloc(sizeof(*objagg_obj) + objagg->ops->obj_size,
 			     GFP_KERNEL);
 	if (!objagg_obj)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	objagg_obj_ref_inc(objagg_obj);
 	memcpy(objagg_obj->obj, obj, objagg->ops->obj_size);
 
@@ -377,7 +377,7 @@ static struct objagg_obj *objagg_obj_create(struct objagg *objagg, void *obj)
 	if (err)
 		goto err_obj_init;
 
-	err = rhashtable_insert_fast(&objagg->obj_ht, &objagg_obj->ht_node,
+	err = rhashtable_insert_fast(&objagg->obj_ht, &objagg_obj->ht_analde,
 				     objagg->ht_params);
 	if (err)
 		goto err_ht_insert;
@@ -415,18 +415,18 @@ static struct objagg_obj *__objagg_obj_get(struct objagg *objagg, void *obj)
  * @objagg:	objagg instance
  * @obj:	user-specific private object pointer
  *
- * Note: all locking must be provided by the caller.
+ * Analte: all locking must be provided by the caller.
  *
  * Size of the "obj" memory is specified in "objagg->ops".
  *
  * There are 3 main options this function wraps:
  * 1) The object according to "obj" already exist. In that case
  *    the reference counter is incrementes and the object is returned.
- * 2) The object does not exist, but it can be aggregated within
- *    another object. In that case, user ops->delta_create() is called
+ * 2) The object does analt exist, but it can be aggregated within
+ *    aanalther object. In that case, user ops->delta_create() is called
  *    to obtain delta data and a new object is created with returned
  *    user-delta private pointer.
- * 3) The object does not exist and cannot be aggregated into
+ * 3) The object does analt exist and cananalt be aggregated into
  *    any of the existing objects. In that case, user ops->root_create()
  *    is called to create the root and a new object is created with
  *    returned user-root private pointer.
@@ -453,7 +453,7 @@ static void objagg_obj_destroy(struct objagg *objagg,
 	trace_objagg_obj_destroy(objagg, objagg_obj);
 	--objagg->obj_count;
 	list_del(&objagg_obj->list);
-	rhashtable_remove_fast(&objagg->obj_ht, &objagg_obj->ht_node,
+	rhashtable_remove_fast(&objagg->obj_ht, &objagg_obj->ht_analde,
 			       objagg->ht_params);
 	objagg_obj_fini(objagg, objagg_obj);
 	kfree(objagg_obj);
@@ -471,7 +471,7 @@ static void __objagg_obj_put(struct objagg *objagg,
  * @objagg:	objagg instance
  * @objagg_obj:	objagg object instance
  *
- * Note: all locking must be provided by the caller.
+ * Analte: all locking must be provided by the caller.
  *
  * Symmetric to objagg_obj_get().
  */
@@ -489,10 +489,10 @@ EXPORT_SYMBOL(objagg_obj_put);
  * @objagg_hints:	hints, can be NULL
  * @priv:		pointer to a private data passed to the ops
  *
- * Note: all locking must be provided by the caller.
+ * Analte: all locking must be provided by the caller.
  *
  * The purpose of the library is to provide an infrastructure to
- * aggregate user-specified objects. Library does not care about the type
+ * aggregate user-specified objects. Library does analt care about the type
  * of the object. User fills-up ops which take care of the specific
  * user object manipulation.
  *
@@ -501,12 +501,12 @@ EXPORT_SYMBOL(objagg_obj_put);
  * number 10 with delta 2, etc. This example is implemented as
  * a part of a testing module in test_objagg.c file.
  *
- * Each objagg instance contains multiple trees. Each tree node is
+ * Each objagg instance contains multiple trees. Each tree analde is
  * represented by "an object". In the current implementation there can be
- * only roots and leafs nodes. Leaf nodes are called deltas.
- * But in general, this can be easily extended for intermediate nodes.
- * In that extension, a delta would be associated with all non-root
- * nodes.
+ * only roots and leafs analdes. Leaf analdes are called deltas.
+ * But in general, this can be easily extended for intermediate analdes.
+ * In that extension, a delta would be associated with all analn-root
+ * analdes.
  *
  * Returns a pointer to newly created objagg instance in case of success,
  * otherwise it returns pointer error using ERR_PTR macro.
@@ -524,7 +524,7 @@ struct objagg *objagg_create(const struct objagg_ops *ops,
 
 	objagg = kzalloc(sizeof(*objagg), GFP_KERNEL);
 	if (!objagg)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	objagg->ops = ops;
 	if (objagg_hints) {
 		objagg->hints = objagg_hints;
@@ -535,7 +535,7 @@ struct objagg *objagg_create(const struct objagg_ops *ops,
 
 	objagg->ht_params.key_len = ops->obj_size;
 	objagg->ht_params.key_offset = offsetof(struct objagg_obj, obj);
-	objagg->ht_params.head_offset = offsetof(struct objagg_obj, ht_node);
+	objagg->ht_params.head_offset = offsetof(struct objagg_obj, ht_analde);
 
 	err = rhashtable_init(&objagg->obj_ht, &objagg->ht_params);
 	if (err)
@@ -556,7 +556,7 @@ EXPORT_SYMBOL(objagg_create);
  * objagg_destroy - destroys a new objagg instance
  * @objagg:	objagg instance
  *
- * Note: all locking must be provided by the caller.
+ * Analte: all locking must be provided by the caller.
  */
 void objagg_destroy(struct objagg *objagg)
 {
@@ -588,7 +588,7 @@ static int objagg_stats_info_sort_cmp_func(const void *a, const void *b)
  * objagg_stats_get - obtains stats of the objagg instance
  * @objagg:	objagg instance
  *
- * Note: all locking must be provided by the caller.
+ * Analte: all locking must be provided by the caller.
  *
  * The returned structure contains statistics of all object
  * currently in use, ordered by following rules:
@@ -610,7 +610,7 @@ const struct objagg_stats *objagg_stats_get(struct objagg *objagg)
 	objagg_stats = kzalloc(struct_size(objagg_stats, stats_info,
 					   objagg->obj_count), GFP_KERNEL);
 	if (!objagg_stats)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	i = 0;
 	list_for_each_entry(objagg_obj, &objagg->obj_list, list) {
@@ -637,7 +637,7 @@ EXPORT_SYMBOL(objagg_stats_get);
  * objagg_stats_put - puts stats of the objagg instance
  * @objagg_stats:	objagg instance stats
  *
- * Note: all locking must be provided by the caller.
+ * Analte: all locking must be provided by the caller.
  */
 void objagg_stats_put(const struct objagg_stats *objagg_stats)
 {
@@ -645,72 +645,72 @@ void objagg_stats_put(const struct objagg_stats *objagg_stats)
 }
 EXPORT_SYMBOL(objagg_stats_put);
 
-static struct objagg_hints_node *
-objagg_hints_node_create(struct objagg_hints *objagg_hints,
+static struct objagg_hints_analde *
+objagg_hints_analde_create(struct objagg_hints *objagg_hints,
 			 struct objagg_obj *objagg_obj, size_t obj_size,
-			 struct objagg_hints_node *parent_hnode)
+			 struct objagg_hints_analde *parent_hanalde)
 {
 	unsigned int user_count = objagg_obj->stats.user_count;
-	struct objagg_hints_node *hnode;
+	struct objagg_hints_analde *hanalde;
 	int err;
 
-	hnode = kzalloc(sizeof(*hnode) + obj_size, GFP_KERNEL);
-	if (!hnode)
-		return ERR_PTR(-ENOMEM);
-	memcpy(hnode->obj, &objagg_obj->obj, obj_size);
-	hnode->stats_info.stats.user_count = user_count;
-	hnode->stats_info.stats.delta_user_count = user_count;
-	if (parent_hnode) {
-		parent_hnode->stats_info.stats.delta_user_count += user_count;
+	hanalde = kzalloc(sizeof(*hanalde) + obj_size, GFP_KERNEL);
+	if (!hanalde)
+		return ERR_PTR(-EANALMEM);
+	memcpy(hanalde->obj, &objagg_obj->obj, obj_size);
+	hanalde->stats_info.stats.user_count = user_count;
+	hanalde->stats_info.stats.delta_user_count = user_count;
+	if (parent_hanalde) {
+		parent_hanalde->stats_info.stats.delta_user_count += user_count;
 	} else {
-		hnode->root_id = objagg_hints->root_count++;
-		hnode->stats_info.is_root = true;
+		hanalde->root_id = objagg_hints->root_count++;
+		hanalde->stats_info.is_root = true;
 	}
-	hnode->stats_info.objagg_obj = objagg_obj;
+	hanalde->stats_info.objagg_obj = objagg_obj;
 
-	err = rhashtable_insert_fast(&objagg_hints->node_ht, &hnode->ht_node,
+	err = rhashtable_insert_fast(&objagg_hints->analde_ht, &hanalde->ht_analde,
 				     objagg_hints->ht_params);
 	if (err)
 		goto err_ht_insert;
 
-	list_add(&hnode->list, &objagg_hints->node_list);
-	hnode->parent = parent_hnode;
-	objagg_hints->node_count++;
+	list_add(&hanalde->list, &objagg_hints->analde_list);
+	hanalde->parent = parent_hanalde;
+	objagg_hints->analde_count++;
 
-	return hnode;
+	return hanalde;
 
 err_ht_insert:
-	kfree(hnode);
+	kfree(hanalde);
 	return ERR_PTR(err);
 }
 
 static void objagg_hints_flush(struct objagg_hints *objagg_hints)
 {
-	struct objagg_hints_node *hnode, *tmp;
+	struct objagg_hints_analde *hanalde, *tmp;
 
-	list_for_each_entry_safe(hnode, tmp, &objagg_hints->node_list, list) {
-		list_del(&hnode->list);
-		rhashtable_remove_fast(&objagg_hints->node_ht, &hnode->ht_node,
+	list_for_each_entry_safe(hanalde, tmp, &objagg_hints->analde_list, list) {
+		list_del(&hanalde->list);
+		rhashtable_remove_fast(&objagg_hints->analde_ht, &hanalde->ht_analde,
 				       objagg_hints->ht_params);
-		kfree(hnode);
+		kfree(hanalde);
 	}
 }
 
-struct objagg_tmp_node {
+struct objagg_tmp_analde {
 	struct objagg_obj *objagg_obj;
 	bool crossed_out;
 };
 
 struct objagg_tmp_graph {
-	struct objagg_tmp_node *nodes;
-	unsigned long nodes_count;
+	struct objagg_tmp_analde *analdes;
+	unsigned long analdes_count;
 	unsigned long *edges;
 };
 
 static int objagg_tmp_graph_edge_index(struct objagg_tmp_graph *graph,
 				       int parent_index, int index)
 {
-	return index * graph->nodes_count + parent_index;
+	return index * graph->analdes_count + parent_index;
 }
 
 static void objagg_tmp_graph_edge_set(struct objagg_tmp_graph *graph,
@@ -731,41 +731,41 @@ static bool objagg_tmp_graph_is_edge(struct objagg_tmp_graph *graph,
 	return test_bit(edge_index, graph->edges);
 }
 
-static unsigned int objagg_tmp_graph_node_weight(struct objagg_tmp_graph *graph,
+static unsigned int objagg_tmp_graph_analde_weight(struct objagg_tmp_graph *graph,
 						 unsigned int index)
 {
-	struct objagg_tmp_node *node = &graph->nodes[index];
-	unsigned int weight = node->objagg_obj->stats.user_count;
+	struct objagg_tmp_analde *analde = &graph->analdes[index];
+	unsigned int weight = analde->objagg_obj->stats.user_count;
 	int j;
 
-	/* Node weight is sum of node users and all other nodes users
-	 * that this node can represent with delta.
+	/* Analde weight is sum of analde users and all other analdes users
+	 * that this analde can represent with delta.
 	 */
 
-	for (j = 0; j < graph->nodes_count; j++) {
+	for (j = 0; j < graph->analdes_count; j++) {
 		if (!objagg_tmp_graph_is_edge(graph, index, j))
 			continue;
-		node = &graph->nodes[j];
-		if (node->crossed_out)
+		analde = &graph->analdes[j];
+		if (analde->crossed_out)
 			continue;
-		weight += node->objagg_obj->stats.user_count;
+		weight += analde->objagg_obj->stats.user_count;
 	}
 	return weight;
 }
 
-static int objagg_tmp_graph_node_max_weight(struct objagg_tmp_graph *graph)
+static int objagg_tmp_graph_analde_max_weight(struct objagg_tmp_graph *graph)
 {
-	struct objagg_tmp_node *node;
+	struct objagg_tmp_analde *analde;
 	unsigned int max_weight = 0;
 	unsigned int weight;
 	int max_index = -1;
 	int i;
 
-	for (i = 0; i < graph->nodes_count; i++) {
-		node = &graph->nodes[i];
-		if (node->crossed_out)
+	for (i = 0; i < graph->analdes_count; i++) {
+		analde = &graph->analdes[i];
+		if (analde->crossed_out)
 			continue;
-		weight = objagg_tmp_graph_node_weight(graph, i);
+		weight = objagg_tmp_graph_analde_weight(graph, i);
 		if (weight >= max_weight) {
 			max_weight = weight;
 			max_index = i;
@@ -776,10 +776,10 @@ static int objagg_tmp_graph_node_max_weight(struct objagg_tmp_graph *graph)
 
 static struct objagg_tmp_graph *objagg_tmp_graph_create(struct objagg *objagg)
 {
-	unsigned int nodes_count = objagg->obj_count;
+	unsigned int analdes_count = objagg->obj_count;
 	struct objagg_tmp_graph *graph;
-	struct objagg_tmp_node *node;
-	struct objagg_tmp_node *pnode;
+	struct objagg_tmp_analde *analde;
+	struct objagg_tmp_analde *panalde;
 	struct objagg_obj *objagg_obj;
 	int i, j;
 
@@ -787,33 +787,33 @@ static struct objagg_tmp_graph *objagg_tmp_graph_create(struct objagg *objagg)
 	if (!graph)
 		return NULL;
 
-	graph->nodes = kcalloc(nodes_count, sizeof(*graph->nodes), GFP_KERNEL);
-	if (!graph->nodes)
-		goto err_nodes_alloc;
-	graph->nodes_count = nodes_count;
+	graph->analdes = kcalloc(analdes_count, sizeof(*graph->analdes), GFP_KERNEL);
+	if (!graph->analdes)
+		goto err_analdes_alloc;
+	graph->analdes_count = analdes_count;
 
-	graph->edges = bitmap_zalloc(nodes_count * nodes_count, GFP_KERNEL);
+	graph->edges = bitmap_zalloc(analdes_count * analdes_count, GFP_KERNEL);
 	if (!graph->edges)
 		goto err_edges_alloc;
 
 	i = 0;
 	list_for_each_entry(objagg_obj, &objagg->obj_list, list) {
-		node = &graph->nodes[i++];
-		node->objagg_obj = objagg_obj;
+		analde = &graph->analdes[i++];
+		analde->objagg_obj = objagg_obj;
 	}
 
 	/* Assemble a temporary graph. Insert edge X->Y in case Y can be
 	 * in delta of X.
 	 */
-	for (i = 0; i < nodes_count; i++) {
-		for (j = 0; j < nodes_count; j++) {
+	for (i = 0; i < analdes_count; i++) {
+		for (j = 0; j < analdes_count; j++) {
 			if (i == j)
 				continue;
-			pnode = &graph->nodes[i];
-			node = &graph->nodes[j];
+			panalde = &graph->analdes[i];
+			analde = &graph->analdes[j];
 			if (objagg->ops->delta_check(objagg->priv,
-						     pnode->objagg_obj->obj,
-						     node->objagg_obj->obj)) {
+						     panalde->objagg_obj->obj,
+						     analde->objagg_obj->obj)) {
 				objagg_tmp_graph_edge_set(graph, i, j);
 
 			}
@@ -822,8 +822,8 @@ static struct objagg_tmp_graph *objagg_tmp_graph_create(struct objagg *objagg)
 	return graph;
 
 err_edges_alloc:
-	kfree(graph->nodes);
-err_nodes_alloc:
+	kfree(graph->analdes);
+err_analdes_alloc:
 	kfree(graph);
 	return NULL;
 }
@@ -831,7 +831,7 @@ err_nodes_alloc:
 static void objagg_tmp_graph_destroy(struct objagg_tmp_graph *graph)
 {
 	bitmap_free(graph->edges);
-	kfree(graph->nodes);
+	kfree(graph->analdes);
 	kfree(graph);
 }
 
@@ -839,45 +839,45 @@ static int
 objagg_opt_simple_greedy_fillup_hints(struct objagg_hints *objagg_hints,
 				      struct objagg *objagg)
 {
-	struct objagg_hints_node *hnode, *parent_hnode;
+	struct objagg_hints_analde *hanalde, *parent_hanalde;
 	struct objagg_tmp_graph *graph;
-	struct objagg_tmp_node *node;
+	struct objagg_tmp_analde *analde;
 	int index;
 	int j;
 	int err;
 
 	graph = objagg_tmp_graph_create(objagg);
 	if (!graph)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	/* Find the nodes from the ones that can accommodate most users
+	/* Find the analdes from the ones that can accommodate most users
 	 * and cross them out of the graph. Save them to the hint list.
 	 */
-	while ((index = objagg_tmp_graph_node_max_weight(graph)) != -1) {
-		node = &graph->nodes[index];
-		node->crossed_out = true;
-		hnode = objagg_hints_node_create(objagg_hints,
-						 node->objagg_obj,
+	while ((index = objagg_tmp_graph_analde_max_weight(graph)) != -1) {
+		analde = &graph->analdes[index];
+		analde->crossed_out = true;
+		hanalde = objagg_hints_analde_create(objagg_hints,
+						 analde->objagg_obj,
 						 objagg->ops->obj_size,
 						 NULL);
-		if (IS_ERR(hnode)) {
-			err = PTR_ERR(hnode);
+		if (IS_ERR(hanalde)) {
+			err = PTR_ERR(hanalde);
 			goto out;
 		}
-		parent_hnode = hnode;
-		for (j = 0; j < graph->nodes_count; j++) {
+		parent_hanalde = hanalde;
+		for (j = 0; j < graph->analdes_count; j++) {
 			if (!objagg_tmp_graph_is_edge(graph, index, j))
 				continue;
-			node = &graph->nodes[j];
-			if (node->crossed_out)
+			analde = &graph->analdes[j];
+			if (analde->crossed_out)
 				continue;
-			node->crossed_out = true;
-			hnode = objagg_hints_node_create(objagg_hints,
-							 node->objagg_obj,
+			analde->crossed_out = true;
+			hanalde = objagg_hints_analde_create(objagg_hints,
+							 analde->objagg_obj,
 							 objagg->ops->obj_size,
-							 parent_hnode);
-			if (IS_ERR(hnode)) {
-				err = PTR_ERR(hnode);
+							 parent_hanalde);
+			if (IS_ERR(hanalde)) {
+				err = PTR_ERR(hanalde);
 				goto out;
 			}
 		}
@@ -908,7 +908,7 @@ static int objagg_hints_obj_cmp(struct rhashtable_compare_arg *arg,
 {
 	struct rhashtable *ht = arg->ht;
 	struct objagg_hints *objagg_hints =
-			container_of(ht, struct objagg_hints, node_ht);
+			container_of(ht, struct objagg_hints, analde_ht);
 	const struct objagg_ops *ops = objagg_hints->ops;
 	const char *ptr = obj;
 
@@ -922,7 +922,7 @@ static int objagg_hints_obj_cmp(struct rhashtable_compare_arg *arg,
  * @objagg:		objagg instance
  * @opt_algo_type:	type of hints finding algorithm
  *
- * Note: all locking must be provided by the caller.
+ * Analte: all locking must be provided by the caller.
  *
  * According to the algo type, the existing objects of objagg instance
  * are going to be went-through to assemble an optimal tree. We call this
@@ -943,21 +943,21 @@ struct objagg_hints *objagg_hints_get(struct objagg *objagg,
 
 	objagg_hints = kzalloc(sizeof(*objagg_hints), GFP_KERNEL);
 	if (!objagg_hints)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	objagg_hints->ops = objagg->ops;
 	objagg_hints->refcount = 1;
 
-	INIT_LIST_HEAD(&objagg_hints->node_list);
+	INIT_LIST_HEAD(&objagg_hints->analde_list);
 
 	objagg_hints->ht_params.key_len = objagg->ops->obj_size;
 	objagg_hints->ht_params.key_offset =
-				offsetof(struct objagg_hints_node, obj);
+				offsetof(struct objagg_hints_analde, obj);
 	objagg_hints->ht_params.head_offset =
-				offsetof(struct objagg_hints_node, ht_node);
+				offsetof(struct objagg_hints_analde, ht_analde);
 	objagg_hints->ht_params.obj_cmpfn = objagg_hints_obj_cmp;
 
-	err = rhashtable_init(&objagg_hints->node_ht, &objagg_hints->ht_params);
+	err = rhashtable_init(&objagg_hints->analde_ht, &objagg_hints->ht_params);
 	if (err)
 		goto err_rhashtable_init;
 
@@ -965,17 +965,17 @@ struct objagg_hints *objagg_hints_get(struct objagg *objagg,
 	if (err)
 		goto err_fillup_hints;
 
-	if (WARN_ON(objagg_hints->node_count != objagg->obj_count)) {
+	if (WARN_ON(objagg_hints->analde_count != objagg->obj_count)) {
 		err = -EINVAL;
-		goto err_node_count_check;
+		goto err_analde_count_check;
 	}
 
 	return objagg_hints;
 
-err_node_count_check:
+err_analde_count_check:
 err_fillup_hints:
 	objagg_hints_flush(objagg_hints);
-	rhashtable_destroy(&objagg_hints->node_ht);
+	rhashtable_destroy(&objagg_hints->analde_ht);
 err_rhashtable_init:
 	kfree(objagg_hints);
 	return ERR_PTR(err);
@@ -986,14 +986,14 @@ EXPORT_SYMBOL(objagg_hints_get);
  * objagg_hints_put - puts hints instance
  * @objagg_hints:	objagg hints instance
  *
- * Note: all locking must be provided by the caller.
+ * Analte: all locking must be provided by the caller.
  */
 void objagg_hints_put(struct objagg_hints *objagg_hints)
 {
 	if (--objagg_hints->refcount)
 		return;
 	objagg_hints_flush(objagg_hints);
-	rhashtable_destroy(&objagg_hints->node_ht);
+	rhashtable_destroy(&objagg_hints->analde_ht);
 	kfree(objagg_hints);
 }
 EXPORT_SYMBOL(objagg_hints_put);
@@ -1002,7 +1002,7 @@ EXPORT_SYMBOL(objagg_hints_put);
  * objagg_hints_stats_get - obtains stats of the hints instance
  * @objagg_hints:	hints instance
  *
- * Note: all locking must be provided by the caller.
+ * Analte: all locking must be provided by the caller.
  *
  * The returned structure contains statistics of all objects
  * currently in use, ordered by following rules:
@@ -1019,18 +1019,18 @@ const struct objagg_stats *
 objagg_hints_stats_get(struct objagg_hints *objagg_hints)
 {
 	struct objagg_stats *objagg_stats;
-	struct objagg_hints_node *hnode;
+	struct objagg_hints_analde *hanalde;
 	int i;
 
 	objagg_stats = kzalloc(struct_size(objagg_stats, stats_info,
-					   objagg_hints->node_count),
+					   objagg_hints->analde_count),
 			       GFP_KERNEL);
 	if (!objagg_stats)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	i = 0;
-	list_for_each_entry(hnode, &objagg_hints->node_list, list) {
-		memcpy(&objagg_stats->stats_info[i], &hnode->stats_info,
+	list_for_each_entry(hanalde, &objagg_hints->analde_list, list) {
+		memcpy(&objagg_stats->stats_info[i], &hanalde->stats_info,
 		       sizeof(objagg_stats->stats_info[0]));
 		if (objagg_stats->stats_info[i].is_root)
 			objagg_stats->root_count++;
@@ -1047,5 +1047,5 @@ objagg_hints_stats_get(struct objagg_hints *objagg_hints)
 EXPORT_SYMBOL(objagg_hints_stats_get);
 
 MODULE_LICENSE("Dual BSD/GPL");
-MODULE_AUTHOR("Jiri Pirko <jiri@mellanox.com>");
+MODULE_AUTHOR("Jiri Pirko <jiri@mellaanalx.com>");
 MODULE_DESCRIPTION("Object aggregation manager");

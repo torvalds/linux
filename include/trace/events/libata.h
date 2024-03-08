@@ -20,7 +20,7 @@
 		 ata_opcode_name(ATA_CMD_EDD),			\
 		 ata_opcode_name(ATA_CMD_DOWNLOAD_MICRO),	\
 		 ata_opcode_name(ATA_CMD_DOWNLOAD_MICRO_DMA),	\
-		 ata_opcode_name(ATA_CMD_NOP),			\
+		 ata_opcode_name(ATA_CMD_ANALP),			\
 		 ata_opcode_name(ATA_CMD_FLUSH),		\
 		 ata_opcode_name(ATA_CMD_FLUSH_EXT),		\
 		 ata_opcode_name(ATA_CMD_ID_ATA),		\
@@ -40,7 +40,7 @@
 		 ata_opcode_name(ATA_CMD_WRITE_QUEUED_FUA_EXT), \
 		 ata_opcode_name(ATA_CMD_FPDMA_READ),		\
 		 ata_opcode_name(ATA_CMD_FPDMA_WRITE),		\
-		 ata_opcode_name(ATA_CMD_NCQ_NON_DATA),		\
+		 ata_opcode_name(ATA_CMD_NCQ_ANALN_DATA),		\
 		 ata_opcode_name(ATA_CMD_FPDMA_SEND),		\
 		 ata_opcode_name(ATA_CMD_FPDMA_RECV),		\
 		 ata_opcode_name(ATA_CMD_PIO_READ),		\
@@ -58,7 +58,7 @@
 		 ata_opcode_name(ATA_CMD_VERIFY),		\
 		 ata_opcode_name(ATA_CMD_VERIFY_EXT),		\
 		 ata_opcode_name(ATA_CMD_WRITE_UNCORR_EXT),	\
-		 ata_opcode_name(ATA_CMD_STANDBYNOW1),		\
+		 ata_opcode_name(ATA_CMD_STANDBYANALW1),		\
 		 ata_opcode_name(ATA_CMD_IDLEIMMEDIATE),	\
 		 ata_opcode_name(ATA_CMD_SLEEP),		\
 		 ata_opcode_name(ATA_CMD_INIT_DEV_PARAMS),	\
@@ -70,7 +70,7 @@
 		 ata_opcode_name(ATA_CMD_WRITE_LOG_EXT),	\
 		 ata_opcode_name(ATA_CMD_READ_LOG_DMA_EXT),	\
 		 ata_opcode_name(ATA_CMD_WRITE_LOG_DMA_EXT),	\
-		 ata_opcode_name(ATA_CMD_TRUSTED_NONDATA),	\
+		 ata_opcode_name(ATA_CMD_TRUSTED_ANALNDATA),	\
 		 ata_opcode_name(ATA_CMD_TRUSTED_RCV),		\
 		 ata_opcode_name(ATA_CMD_TRUSTED_RCV_DMA),	\
 		 ata_opcode_name(ATA_CMD_TRUSTED_SND),		\
@@ -122,20 +122,20 @@
 #define ata_protocol_name(proto)	{ proto, #proto }
 #define show_protocol_name(val)				\
 	__print_symbolic(val,				\
-		ata_protocol_name(ATA_PROT_UNKNOWN),	\
-		ata_protocol_name(ATA_PROT_NODATA),	\
+		ata_protocol_name(ATA_PROT_UNKANALWN),	\
+		ata_protocol_name(ATA_PROT_ANALDATA),	\
 		ata_protocol_name(ATA_PROT_PIO),	\
 		ata_protocol_name(ATA_PROT_DMA),	\
 		ata_protocol_name(ATA_PROT_NCQ),	\
-		ata_protocol_name(ATA_PROT_NCQ_NODATA),	\
-		ata_protocol_name(ATAPI_PROT_NODATA),	\
+		ata_protocol_name(ATA_PROT_NCQ_ANALDATA),	\
+		ata_protocol_name(ATAPI_PROT_ANALDATA),	\
 		ata_protocol_name(ATAPI_PROT_PIO),	\
 		ata_protocol_name(ATAPI_PROT_DMA))
 
 #define ata_class_name(class)	{ class, #class }
 #define show_class_name(val)				\
 	__print_symbolic(val,				\
-		ata_class_name(ATA_DEV_UNKNOWN),	\
+		ata_class_name(ATA_DEV_UNKANALWN),	\
 		ata_class_name(ATA_DEV_ATA),		\
 		ata_class_name(ATA_DEV_ATA_UNSUP),	\
 		ata_class_name(ATA_DEV_ATAPI),		\
@@ -146,7 +146,7 @@
 		ata_class_name(ATA_DEV_SEMB_UNSUP),	\
 		ata_class_name(ATA_DEV_ZAC),		\
 		ata_class_name(ATA_DEV_ZAC_UNSUP),	\
-		ata_class_name(ATA_DEV_NONE))
+		ata_class_name(ATA_DEV_ANALNE))
 
 #define ata_sff_hsm_state_name(state)	{ state, #state }
 #define show_sff_hsm_state_name(val)				\
@@ -208,7 +208,7 @@ DECLARE_EVENT_CLASS(ata_qc_issue_template,
 
 	TP_fast_assign(
 		__entry->ata_port	= qc->ap->print_id;
-		__entry->ata_dev	= qc->dev->link->pmp + qc->dev->devno;
+		__entry->ata_dev	= qc->dev->link->pmp + qc->dev->devanal;
 		__entry->tag		= qc->tag;
 		__entry->proto		= qc->tf.protocol;
 		__entry->cmd		= qc->tf.command;
@@ -274,7 +274,7 @@ DECLARE_EVENT_CLASS(ata_qc_complete_template,
 
 	TP_fast_assign(
 		__entry->ata_port	= qc->ap->print_id;
-		__entry->ata_dev	= qc->dev->link->pmp + qc->dev->devno;
+		__entry->ata_dev	= qc->dev->link->pmp + qc->dev->devanal;
 		__entry->tag		= qc->tag;
 		__entry->status		= qc->result_tf.command;
 		__entry->dev		= qc->result_tf.device;
@@ -452,7 +452,7 @@ TRACE_EVENT(ata_eh_link_autopsy,
 
 	TP_fast_assign(
 		__entry->ata_port	= dev->link->ap->print_id;
-		__entry->ata_dev	= dev->link->pmp + dev->devno;
+		__entry->ata_dev	= dev->link->pmp + dev->devanal;
 		__entry->eh_action	= eh_action;
 		__entry->eh_err_mask	= eh_err_mask;
 	),
@@ -479,7 +479,7 @@ TRACE_EVENT(ata_eh_link_autopsy_qc,
 
 	TP_fast_assign(
 		__entry->ata_port	= qc->ap->print_id;
-		__entry->ata_dev	= qc->dev->link->pmp + qc->dev->devno;
+		__entry->ata_dev	= qc->dev->link->pmp + qc->dev->devanal;
 		__entry->tag		= qc->tag;
 		__entry->qc_flags	= qc->flags;
 		__entry->eh_err_mask	= qc->err_mask;
@@ -493,9 +493,9 @@ TRACE_EVENT(ata_eh_link_autopsy_qc,
 
 DECLARE_EVENT_CLASS(ata_eh_action_template,
 
-	TP_PROTO(struct ata_link *link, unsigned int devno, unsigned int eh_action),
+	TP_PROTO(struct ata_link *link, unsigned int devanal, unsigned int eh_action),
 
-	TP_ARGS(link, devno, eh_action),
+	TP_ARGS(link, devanal, eh_action),
 
 	TP_STRUCT__entry(
 		__field( unsigned int,	ata_port )
@@ -505,7 +505,7 @@ DECLARE_EVENT_CLASS(ata_eh_action_template,
 
 	TP_fast_assign(
 		__entry->ata_port	= link->ap->print_id;
-		__entry->ata_dev	= link->pmp + devno;
+		__entry->ata_dev	= link->pmp + devanal;
 		__entry->eh_action	= eh_action;
 	),
 
@@ -515,12 +515,12 @@ DECLARE_EVENT_CLASS(ata_eh_action_template,
 );
 
 DEFINE_EVENT(ata_eh_action_template, ata_eh_about_to_do,
-	     TP_PROTO(struct ata_link *link, unsigned int devno, unsigned int eh_action),
-	     TP_ARGS(link, devno, eh_action));
+	     TP_PROTO(struct ata_link *link, unsigned int devanal, unsigned int eh_action),
+	     TP_ARGS(link, devanal, eh_action));
 
 DEFINE_EVENT(ata_eh_action_template, ata_eh_done,
-	     TP_PROTO(struct ata_link *link, unsigned int devno, unsigned int eh_action),
-	     TP_ARGS(link, devno, eh_action));
+	     TP_PROTO(struct ata_link *link, unsigned int devanal, unsigned int eh_action),
+	     TP_ARGS(link, devanal, eh_action));
 
 DECLARE_EVENT_CLASS(ata_link_reset_begin_template,
 
@@ -649,7 +649,7 @@ DECLARE_EVENT_CLASS(ata_sff_hsm_template,
 
 	TP_fast_assign(
 		__entry->ata_port	= qc->ap->print_id;
-		__entry->ata_dev	= qc->dev->link->pmp + qc->dev->devno;
+		__entry->ata_dev	= qc->dev->link->pmp + qc->dev->devanal;
 		__entry->tag		= qc->tag;
 		__entry->qc_flags	= qc->flags;
 		__entry->protocol	= qc->tf.protocol;
@@ -694,7 +694,7 @@ DECLARE_EVENT_CLASS(ata_transfer_data_template,
 
 	TP_fast_assign(
 		__entry->ata_port	= qc->ap->print_id;
-		__entry->ata_dev	= qc->dev->link->pmp + qc->dev->devno;
+		__entry->ata_dev	= qc->dev->link->pmp + qc->dev->devanal;
 		__entry->tag		= qc->tag;
 		__entry->flags		= qc->tf.flags;
 		__entry->offset		= offset;

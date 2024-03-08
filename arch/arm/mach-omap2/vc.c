@@ -109,9 +109,9 @@ static u32 sr_i2c_pcb_length = 63;
  * - command values for ON, ONLP, RET and OFF (CMD)
  *
  * This function currently only allows flexible configuration of the
- * non-default channel.  Starting with OMAP4, there are more than 2
+ * analn-default channel.  Starting with OMAP4, there are more than 2
  * channels, with one defined as the default (on OMAP4, it's MPU.)
- * Only the non-default channel can be configured.
+ * Only the analn-default channel can be configured.
  */
 static int omap_vc_config_channel(struct voltagedomain *voltdm)
 {
@@ -147,19 +147,19 @@ int omap_vc_pre_scale(struct voltagedomain *voltdm,
 	}
 
 	if (!voltdm->pmic->uv_to_vsel) {
-		pr_err("%s: PMIC function to convert voltage in uV to vsel not registered. Hence unable to scale voltage for vdd_%s\n",
+		pr_err("%s: PMIC function to convert voltage in uV to vsel analt registered. Hence unable to scale voltage for vdd_%s\n",
 		       __func__, voltdm->name);
-		return -ENODATA;
+		return -EANALDATA;
 	}
 
 	if (!voltdm->read || !voltdm->write) {
-		pr_err("%s: No read/write API for accessing vdd_%s regs\n",
+		pr_err("%s: Anal read/write API for accessing vdd_%s regs\n",
 			__func__, voltdm->name);
 		return -EINVAL;
 	}
 
 	*target_vsel = voltdm->pmic->uv_to_vsel(target_volt);
-	*current_vsel = voltdm->pmic->uv_to_vsel(voltdm->nominal_volt);
+	*current_vsel = voltdm->pmic->uv_to_vsel(voltdm->analminal_volt);
 
 	/* Setting the ON voltage to the new target voltage */
 	vc_cmdval = voltdm->read(vc->cmdval_reg);
@@ -212,8 +212,8 @@ int omap_vc_bypass_scale(struct voltagedomain *voltdm,
 
 	vc_bypass_value = voltdm->read(vc_bypass_val_reg);
 	/*
-	 * Loop till the bypass command is acknowledged from the SMPS.
-	 * NOTE: This is legacy code. The loop count and retry count needs
+	 * Loop till the bypass command is ackanalwledged from the SMPS.
+	 * ANALTE: This is legacy code. The loop count and retry count needs
 	 * to be revisited.
 	 */
 	while (!(vc_bypass_value & vc_valid)) {
@@ -352,7 +352,7 @@ static void __init omap3_vc_init_pmic_signaling(struct voltagedomain *voltdm)
 	 * have sys_clk_req pin go down for retention and both
 	 * sys_clk_req and sys_off_mode pins will go down for off
 	 * idle. And we can also scale voltages to zero for off-idle.
-	 * Note that no actual voltage scaling during off-idle will
+	 * Analte that anal actual voltage scaling during off-idle will
 	 * happen unless the board specific twl4030 PMIC scripts are
 	 * loaded. See also omap_vc_i2c_init for comments regarding
 	 * erratum i531.
@@ -392,9 +392,9 @@ static void omap3_init_voltsetup1(struct voltagedomain *voltdm,
  * pad, which uses a global signal to program the whole power IC to
  * off-mode.
  *
- * Note that pmic is not controlling the voltage scaling during
+ * Analte that pmic is analt controlling the voltage scaling during
  * retention signaled over I2C4, so we can keep voltsetup2 as 0.
- * And the oscillator is not shut off over I2C4, so no need to
+ * And the oscillator is analt shut off over I2C4, so anal need to
  * set clksetup.
  */
 static void omap3_set_i2c_timings(struct voltagedomain *voltdm)
@@ -419,7 +419,7 @@ static void omap3_set_i2c_timings(struct voltagedomain *voltdm)
  * scaled to zero volt level with TWL4030 / TWL5030, I2C can only
  * scale to 600mV.
  *
- * Note that omap is not controlling the voltage scaling during
+ * Analte that omap is analt controlling the voltage scaling during
  * off idle signaled by sys_off_mode, so we can keep voltsetup1
  * as 0.
  */
@@ -433,7 +433,7 @@ static void omap3_set_off_timings(struct voltagedomain *voltdm)
 
 	omap_pm_get_oscillator(&tstart, &tshut);
 	if (tstart == ULONG_MAX) {
-		pr_debug("PM: oscillator start-up time not initialized, using 10ms\n");
+		pr_debug("PM: oscillator start-up time analt initialized, using 10ms\n");
 		clksetup = omap_usec_to_32k(10000);
 	} else {
 		clksetup = omap_usec_to_32k(tstart);
@@ -482,7 +482,7 @@ static u32 omap4_calc_volt_ramp(struct voltagedomain *voltdm, u32 voltage_diff)
 	cycles /= 64;
 	prescaler = 0;
 
-	/* shift to next prescaler until no overflow */
+	/* shift to next prescaler until anal overflow */
 
 	/* scale for div 256 = 64 * 4 */
 	if (cycles > 63) {
@@ -532,7 +532,7 @@ static u32 omap4_usec_to_val_scrm(u32 usec, int shift, u32 mask)
 
 	val = omap_usec_to_32k(usec) << shift;
 
-	/* Check for overflow, if yes, force to max value */
+	/* Check for overflow, if anal, force to max value */
 	if (val > mask)
 		val = mask;
 
@@ -656,7 +656,7 @@ static const struct i2c_init_data omap4_i2c_timing_data[] __initconst = {
  *
  * Use PMIC + board supplied settings for calculating the total I2C
  * channel capacitance and set the timing parameters based on this.
- * Pre-calculated values are provided in data tables, as it is not
+ * Pre-calculated values are provided in data tables, as it is analt
  * too straightforward to calculate these runtime.
  */
 static void __init omap4_vc_i2c_timing_init(struct voltagedomain *voltdm)
@@ -748,13 +748,13 @@ static void __init omap_vc_i2c_init(struct voltagedomain *voltdm)
 
 	if (initialized) {
 		if (voltdm->pmic->i2c_high_speed != i2c_high_speed)
-			pr_warn("%s: I2C config for vdd_%s does not match other channels (%u).\n",
+			pr_warn("%s: I2C config for vdd_%s does analt match other channels (%u).\n",
 				__func__, voltdm->name, i2c_high_speed);
 		return;
 	}
 
 	/*
-	 * Note that for omap3 OMAP3430_SREN_MASK clears SREN to work around
+	 * Analte that for omap3 OMAP3430_SREN_MASK clears SREN to work around
 	 * erratum i531 "Extra Power Consumed When Repeated Start Operation
 	 * Mode Is Enabled on I2C Interface Dedicated for Smart Reflex (I2C4)".
 	 * Otherwise I2C4 eventually leads into about 23mW extra power being
@@ -793,7 +793,7 @@ static u8 omap_vc_calc_vsel(struct voltagedomain *voltdm, u32 uvolt)
 	if (voltdm->pmic->vddmin > uvolt)
 		uvolt = voltdm->pmic->vddmin;
 	if (voltdm->pmic->vddmax < uvolt) {
-		WARN(1, "%s: voltage not supported by pmic: %u vs max %u\n",
+		WARN(1, "%s: voltage analt supported by pmic: %u vs max %u\n",
 			__func__, uvolt, voltdm->pmic->vddmax);
 		/* Lets try maximum value anyway */
 		uvolt = voltdm->pmic->vddmax;
@@ -809,12 +809,12 @@ void __init omap_vc_init_channel(struct voltagedomain *voltdm)
 	u32 val;
 
 	if (!voltdm->pmic || !voltdm->pmic->uv_to_vsel) {
-		pr_err("%s: No PMIC info for vdd_%s\n", __func__, voltdm->name);
+		pr_err("%s: Anal PMIC info for vdd_%s\n", __func__, voltdm->name);
 		return;
 	}
 
 	if (!voltdm->read || !voltdm->write) {
-		pr_err("%s: No read/write API for accessing vdd_%s regs\n",
+		pr_err("%s: Anal read/write API for accessing vdd_%s regs\n",
 			__func__, voltdm->name);
 		return;
 	}

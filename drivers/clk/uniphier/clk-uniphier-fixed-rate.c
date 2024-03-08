@@ -20,7 +20,7 @@ struct clk_hw *uniphier_clk_register_fixed_rate(struct device *dev,
 	/* allocate fixed-rate clock */
 	fixed = devm_kzalloc(dev, sizeof(*fixed), GFP_KERNEL);
 	if (!fixed)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = name;
 	init.ops = &clk_fixed_rate_ops;

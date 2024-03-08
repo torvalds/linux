@@ -13,12 +13,12 @@ maintainers:
 
 description:
   These are generic properties that can apply to any MDIO bus. Any
-  MDIO bus must have a list of child nodes, one per device on the
+  MDIO bus must have a list of child analdes, one per device on the
   bus. These should follow the generic ethernet-phy.yaml document, or
   a device specific binding document.
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^mdio(@.*)?"
 
   "#address-cells":
@@ -72,7 +72,7 @@ patternProperties:
       broken-turn-around:
         $ref: /schemas/types.yaml#/definitions/flag
         description:
-          If set, indicates the MDIO device does not correctly release
+          If set, indicates the MDIO device does analt correctly release
           the turn around line low at end of the control phase of the
           MDIO transaction.
 

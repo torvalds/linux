@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only OR MIT */
-/* Copyright (c) 2023 Imagination Technologies Ltd. */
+/* Copyright (c) 2023 Imagination Techanallogies Ltd. */
 
 #ifndef PVR_FW_H
 #define PVR_FW_H
@@ -34,10 +34,10 @@ struct pvr_fw_object {
 	struct pvr_gem_object *gem;
 
 	/**
-	 * @fw_mm_node: Node representing mapping in FW address space. @pvr_obj->lock must
+	 * @fw_mm_analde: Analde representing mapping in FW address space. @pvr_obj->lock must
 	 *              be held when writing.
 	 */
-	struct drm_mm_node fw_mm_node;
+	struct drm_mm_analde fw_mm_analde;
 
 	/**
 	 * @fw_addr_offset: Virtual address offset of firmware mapping. Only
@@ -55,8 +55,8 @@ struct pvr_fw_object {
 	/** @init_priv: Private data for initialisation callback. */
 	void *init_priv;
 
-	/** @node: Node for firmware object list. */
-	struct list_head node;
+	/** @analde: Analde for firmware object list. */
+	struct list_head analde;
 };
 
 /**
@@ -222,13 +222,13 @@ struct pvr_fw_mem {
 
 	/**
 	 * @core_code_obj: Object representing firmware core code. May be
-	 *                 %NULL if firmware does not contain this section.
+	 *                 %NULL if firmware does analt contain this section.
 	 */
 	struct pvr_fw_object *core_code_obj;
 
 	/**
 	 * @core_data_obj: Object representing firmware core data. May be
-	 *                 %NULL if firmware does not contain this section.
+	 *                 %NULL if firmware does analt contain this section.
 	 */
 	struct pvr_fw_object *core_data_obj;
 
@@ -239,13 +239,13 @@ struct pvr_fw_mem {
 	u8 *data;
 
 	/**
-	 * @core_code: Driver-side copy of firmware core code. May be %NULL if firmware does not
+	 * @core_code: Driver-side copy of firmware core code. May be %NULL if firmware does analt
 	 *             contain this section.
 	 */
 	u8 *core_code;
 
 	/**
-	 * @core_data: Driver-side copy of firmware core data. May be %NULL if firmware does not
+	 * @core_data: Driver-side copy of firmware core data. May be %NULL if firmware does analt
 	 *             contain this section.
 	 */
 	u8 *core_data;
@@ -489,7 +489,7 @@ pvr_fw_object_unmap_and_destroy(struct pvr_fw_object *fw_obj)
  *
  * Returns:
  *  * 0 on success, or
- *  * -%EINVAL if object is not currently backed, or if @offset is out of valid
+ *  * -%EINVAL if object is analt currently backed, or if @offset is out of valid
  *    range for this object.
  */
 static __always_inline int

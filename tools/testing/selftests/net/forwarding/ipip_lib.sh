@@ -6,8 +6,8 @@
 #
 # Flat Model:
 # Overlay and underlay share the same VRF.
-# SW1 uses default VRF so tunnel has no bound dev.
-# SW2 uses non-default VRF tunnel has a bound dev.
+# SW1 uses default VRF so tunnel has anal bound dev.
+# SW2 uses analn-default VRF tunnel has a bound dev.
 # +-------------------------+
 # | H1                      |
 # |               $h1 +     |
@@ -338,7 +338,7 @@ test_mtu_change()
 	RET=0
 
 	ping_do $h1 192.0.2.18 "-s 1800	-w 3"
-	check_fail $? "ping $encap should not pass with size 1800"
+	check_fail $? "ping $encap should analt pass with size 1800"
 
 	RET=0
 

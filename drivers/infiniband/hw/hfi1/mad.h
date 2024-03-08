@@ -14,7 +14,7 @@
 /*
  * OPA Traps
  */
-#define OPA_TRAP_GID_NOW_IN_SERVICE             cpu_to_be16(64)
+#define OPA_TRAP_GID_ANALW_IN_SERVICE             cpu_to_be16(64)
 #define OPA_TRAP_GID_OUT_OF_SERVICE             cpu_to_be16(65)
 #define OPA_TRAP_ADD_MULTICAST_GROUP            cpu_to_be16(66)
 #define OPA_TRAL_DEL_MULTICAST_GROUP            cpu_to_be16(67)
@@ -33,16 +33,16 @@
 #define OPA_SMA_TRAP_DATA_LINK_WIDTH            cpu_to_be16(2048)
 
 /*
- * Generic trap/notice other local changes flags (trap 144).
+ * Generic trap/analtice other local changes flags (trap 144).
  */
-#define	OPA_NOTICE_TRAP_LWDE_CHG        0x08 /* Link Width Downgrade Enable
+#define	OPA_ANALTICE_TRAP_LWDE_CHG        0x08 /* Link Width Downgrade Enable
 					      * changed
 					      */
-#define OPA_NOTICE_TRAP_LSE_CHG         0x04 /* Link Speed Enable changed */
-#define OPA_NOTICE_TRAP_LWE_CHG         0x02 /* Link Width Enable changed */
-#define OPA_NOTICE_TRAP_NODE_DESC_CHG   0x01
+#define OPA_ANALTICE_TRAP_LSE_CHG         0x04 /* Link Speed Enable changed */
+#define OPA_ANALTICE_TRAP_LWE_CHG         0x02 /* Link Width Enable changed */
+#define OPA_ANALTICE_TRAP_ANALDE_DESC_CHG   0x01
 
-struct opa_mad_notice_attr {
+struct opa_mad_analtice_attr {
 	u8 generic_type;
 	u8 prod_type_msb;
 	__be16 prod_type_lsb;
@@ -197,7 +197,7 @@ struct ib_pma_portcounters_cong {
 
 /*
  * There should be an equivalent IB #define for the following, but
- * I cannot find it.
+ * I cananalt find it.
  */
 #define OPA_CC_LOG_TYPE_HFI	2
 

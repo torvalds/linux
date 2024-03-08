@@ -230,13 +230,13 @@ static int arizona_micsupp_of_get_pdata(struct arizona_micsupp_pdata *pdata,
 					const struct regulator_desc *desc)
 {
 	struct arizona_micsupp *micsupp = config->driver_data;
-	struct device_node *np;
+	struct device_analde *np;
 	struct regulator_init_data *init_data;
 
-	np = of_get_child_by_name(config->dev->of_node, "micvdd");
+	np = of_get_child_by_name(config->dev->of_analde, "micvdd");
 
 	if (np) {
-		config->of_node = np;
+		config->of_analde = np;
 
 		init_data = of_get_regulator_init_data(config->dev, np, desc);
 
@@ -290,7 +290,7 @@ static int arizona_micsupp_common_init(struct platform_device *pdev,
 						     desc,
 						     &config);
 
-	of_node_put(config.of_node);
+	of_analde_put(config.of_analde);
 
 	if (IS_ERR(micsupp->regulator)) {
 		ret = PTR_ERR(micsupp->regulator);
@@ -312,7 +312,7 @@ static int arizona_micsupp_probe(struct platform_device *pdev)
 
 	micsupp = devm_kzalloc(&pdev->dev, sizeof(*micsupp), GFP_KERNEL);
 	if (!micsupp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	micsupp->regmap = arizona->regmap;
 	micsupp->dapm = &arizona->dapm;
@@ -348,7 +348,7 @@ static int madera_micsupp_probe(struct platform_device *pdev)
 
 	micsupp = devm_kzalloc(&pdev->dev, sizeof(*micsupp), GFP_KERNEL);
 	if (!micsupp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	micsupp->regmap = madera->regmap;
 	micsupp->dapm = &madera->dapm;
@@ -365,7 +365,7 @@ static struct platform_driver arizona_micsupp_driver = {
 	.probe = arizona_micsupp_probe,
 	.driver		= {
 		.name	= "arizona-micsupp",
-		.probe_type = PROBE_FORCE_SYNCHRONOUS,
+		.probe_type = PROBE_FORCE_SYNCHROANALUS,
 	},
 };
 
@@ -373,7 +373,7 @@ static struct platform_driver madera_micsupp_driver = {
 	.probe = madera_micsupp_probe,
 	.driver		= {
 		.name	= "madera-micsupp",
-		.probe_type = PROBE_FORCE_SYNCHRONOUS,
+		.probe_type = PROBE_FORCE_SYNCHROANALUS,
 	},
 };
 

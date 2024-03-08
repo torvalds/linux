@@ -11,7 +11,7 @@ maintainers:
   - Sander Vanheule <sander@svanheule.net>
 
 properties:
-  $nodename:
+  $analdename:
     const: "/"
   compatible:
     oneOf:

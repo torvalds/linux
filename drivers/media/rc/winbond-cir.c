@@ -5,7 +5,7 @@
  *
  *  Currently supports the Winbond WPCD376i chip (PNP id WEC1022), but
  *  could probably support others (Winbond WEC102X, NatSemi, etc)
- *  with minor modifications.
+ *  with mianalr modifications.
  *
  *  Original Author: David Härdeman <david@hardeman.nu>
  *     Copyright (C) 2012 Sean Young <sean@mess.org>
@@ -105,8 +105,8 @@
  * Magic values follow
  */
 
-/* No interrupts for WBCIR_REG_SP3_IER and WBCIR_REG_SP3_EIR */
-#define WBCIR_IRQ_NONE		0x00
+/* Anal interrupts for WBCIR_REG_SP3_IER and WBCIR_REG_SP3_EIR */
+#define WBCIR_IRQ_ANALNE		0x00
 /* RX data bit for WBCIR_REG_SP3_IER and WBCIR_REG_SP3_EIR */
 #define WBCIR_IRQ_RX		0x01
 /* TX data low bit for WBCIR_REG_SP3_IER and WBCIR_REG_SP3_EIR */
@@ -449,7 +449,7 @@ wbcir_irq_tx(struct wbcir_data *data)
 }
 
 static irqreturn_t
-wbcir_irq_handler(int irqno, void *cookie)
+wbcir_irq_handler(int irqanal, void *cookie)
 {
 	struct pnp_dev *device = cookie;
 	struct wbcir_data *data = pnp_get_drvdata(device);
@@ -463,7 +463,7 @@ wbcir_irq_handler(int irqno, void *cookie)
 
 	if (!status) {
 		spin_unlock_irqrestore(&data->spinlock, flags);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	if (status & WBCIR_IRQ_ERR) {
@@ -631,13 +631,13 @@ wbcir_tx(struct rc_dev *dev, unsigned *b, unsigned count)
 
 	buf = kmalloc_array(count, sizeof(*b), GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Convert values to multiples of 10us */
 	for (i = 0; i < count; i++)
 		buf[i] = DIV_ROUND_CLOSEST(b[i], 10);
 
-	/* Not sure if this is possible, but better safe than sorry */
+	/* Analt sure if this is possible, but better safe than sorry */
 	spin_lock_irqsave(&data->spinlock, flags);
 	if (data->txstate != WBCIR_TXSTATE_INACTIVE) {
 		spin_unlock_irqrestore(&data->spinlock, flags);
@@ -759,7 +759,7 @@ wbcir_shutdown(struct pnp_dev *device)
 		mask[3]  = wbcir_to_rc6cells(mask_sc >> 12);
 
 		/* Header */
-		match[4] = 0x50; /* mode1 = mode0 = 0, ignore toggle */
+		match[4] = 0x50; /* mode1 = mode0 = 0, iganalre toggle */
 		mask[4]  = 0xF0;
 		match[5] = 0x09; /* start bit = 1, mode2 = 0 */
 		mask[5]  = 0x0F;
@@ -855,10 +855,10 @@ finish:
 	/*
 	 * ACPI will set the HW disable bit for SP3 which means that the
 	 * output signals are left in an undefined state which may cause
-	 * spurious interrupts which we need to ignore until the hardware
+	 * spurious interrupts which we need to iganalre until the hardware
 	 * is reinitialized.
 	 */
-	wbcir_set_irqmask(data, WBCIR_IRQ_NONE);
+	wbcir_set_irqmask(data, WBCIR_IRQ_ANALNE);
 	disable_irq(data->irq);
 }
 
@@ -884,7 +884,7 @@ static void
 wbcir_init_hw(struct wbcir_data *data)
 {
 	/* Disable interrupts */
-	wbcir_set_irqmask(data, WBCIR_IRQ_NONE);
+	wbcir_set_irqmask(data, WBCIR_IRQ_ANALNE);
 
 	/* Set RX_INV, Clear CEIR_EN (needed for the led) */
 	wbcir_set_bits(data->wbase + WBCIR_REG_WCEIR_CTL, invert ? 8 : 0, 0x09);
@@ -906,7 +906,7 @@ wbcir_init_hw(struct wbcir_data *data)
 
 	/*
 	 * Clear IR LED, set SP3 clock to 24Mhz, set TX mask to IRTX1,
-	 * set SP3_IRRX_SW to binary 01, helpfully not documented
+	 * set SP3_IRRX_SW to binary 01, helpfully analt documented
 	 */
 	outb(0x10, data->ebase + WBCIR_REG_ECEIR_CTS);
 	data->txmask = 0x1;
@@ -922,7 +922,7 @@ wbcir_init_hw(struct wbcir_data *data)
 	 * The ECIR registers include a flag to change the
 	 * 24Mhz clock freq to 48Mhz.
 	 *
-	 * It's not documented in the specs, but fifo levels
+	 * It's analt documented in the specs, but fifo levels
 	 * other than 16 seems to be unsupported.
 	 */
 
@@ -955,7 +955,7 @@ wbcir_init_hw(struct wbcir_data *data)
 	wbcir_select_bank(data, WBCIR_BANK_6);
 	outb(0x20, data->sbase + WBCIR_REG_SP3_IRCR3);
 
-	/* Set RX demodulation freq, not really used */
+	/* Set RX demodulation freq, analt really used */
 	wbcir_select_bank(data, WBCIR_BANK_7);
 	outb(0xF2, data->sbase + WBCIR_REG_SP3_IRRXDC);
 
@@ -1014,12 +1014,12 @@ wbcir_probe(struct pnp_dev *device, const struct pnp_device_id *dev_id)
 	      pnp_port_len(device, 1) == WAKEUP_IOMEM_LEN &&
 	      pnp_port_len(device, 2) == SP_IOMEM_LEN)) {
 		dev_err(dev, "Invalid resources\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto exit;
 	}
 
@@ -1033,7 +1033,7 @@ wbcir_probe(struct pnp_dev *device, const struct pnp_device_id *dev_id)
 
 	if (data->wbase == 0 || data->ebase == 0 ||
 	    data->sbase == 0 || data->irq == -1) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		dev_err(dev, "Invalid resources\n");
 		goto exit_free_data;
 	}
@@ -1051,7 +1051,7 @@ wbcir_probe(struct pnp_dev *device, const struct pnp_device_id *dev_id)
 
 	data->dev = rc_allocate_device(RC_DRIVER_IR_RAW);
 	if (!data->dev) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto exit_unregister_led;
 	}
 
@@ -1150,7 +1150,7 @@ wbcir_remove(struct pnp_dev *device)
 	struct wbcir_data *data = pnp_get_drvdata(device);
 
 	/* Disable interrupts */
-	wbcir_set_irqmask(data, WBCIR_IRQ_NONE);
+	wbcir_set_irqmask(data, WBCIR_IRQ_ANALNE);
 	free_irq(data->irq, device);
 
 	/* Clear status bits NEC_REP, BUFF, MSG_END, MATCH */

@@ -27,17 +27,17 @@
  *
  * For some kinds of allocation group metadata structures, it is advantageous
  * to reserve a small number of blocks in each AG so that future expansions of
- * that data structure do not encounter ENOSPC because errors during a btree
+ * that data structure do analt encounter EANALSPC because errors during a btree
  * split cause the filesystem to go offline.
  *
  * Prior to the introduction of reflink, this wasn't an issue because the free
  * space btrees maintain a reserve of space (the AGFL) to handle any expansion
- * that may be necessary; and allocations of other metadata (inodes, BMBT,
+ * that may be necessary; and allocations of other metadata (ianaldes, BMBT,
  * dir/attr) aren't restricted to a single AG.  However, with reflink it is
  * possible to allocate all the space in an AG, have subsequent reflink/CoW
- * activity expand the refcount btree, and discover that there's no space left
+ * activity expand the refcount btree, and discover that there's anal space left
  * to handle that expansion.  Since we can calculate the maximum size of the
- * refcount btree, we can reserve space for it and avoid ENOSPC.
+ * refcount btree, we can reserve space for it and avoid EANALSPC.
  *
  * Handling per-AG reservations consists of three changes to the allocator's
  * behavior:  First, because these reservations are always needed, we decrease
@@ -54,14 +54,14 @@
  * Reserved blocks can be managed by passing one of the enum xfs_ag_resv_type
  * values via struct xfs_alloc_arg or directly to the xfs_free_extent
  * function.  It might seem a little funny to maintain a reservoir of blocks
- * to feed another reservoir, but the AGFL only holds enough blocks to get
+ * to feed aanalther reservoir, but the AGFL only holds eanalugh blocks to get
  * through the next transaction.  The per-AG reservation is to ensure (we
  * hope) that each AG never runs out of blocks.  Each data structure wanting
  * to use the reservation system should update ask/used in xfs_ag_resv_init.
  */
 
 /*
- * Are we critically low on blocks?  For now we'll define that as the number
+ * Are we critically low on blocks?  For analw we'll define that as the number
  * of blocks we can get our hands on being less than 10% of what we reserved
  * or less than some arbitrary number (maximum btree height).
  */
@@ -97,7 +97,7 @@ xfs_ag_resv_critical(
 }
 
 /*
- * How many blocks are reserved but not used, and therefore must not be
+ * How many blocks are reserved but analt used, and therefore must analt be
  * allocated away?
  */
 xfs_extlen_t
@@ -113,7 +113,7 @@ xfs_ag_resv_needed(
 	case XFS_AG_RESV_RMAPBT:
 		len -= xfs_perag_resv(pag, type)->ar_reserved;
 		break;
-	case XFS_AG_RESV_NONE:
+	case XFS_AG_RESV_ANALNE:
 		/* empty */
 		break;
 	default:
@@ -138,7 +138,7 @@ __xfs_ag_resv_free(
 	trace_xfs_ag_resv_free(pag, type, 0);
 
 	resv = xfs_perag_resv(pag, type);
-	if (pag->pag_agno == 0)
+	if (pag->pag_aganal == 0)
 		pag->pag_mount->m_ag_max_usable += resv->ar_asked;
 	/*
 	 * RMAPBT blocks come from the AGFL and AGFL blocks are always
@@ -155,7 +155,7 @@ __xfs_ag_resv_free(
 	resv->ar_orig_reserved = 0;
 
 	if (error)
-		trace_xfs_ag_resv_free_error(pag->pag_mount, pag->pag_agno,
+		trace_xfs_ag_resv_free_error(pag->pag_mount, pag->pag_aganal,
 				error, _RET_IP_);
 	return error;
 }
@@ -193,7 +193,7 @@ __xfs_ag_resv_init(
 	switch (type) {
 	case XFS_AG_RESV_RMAPBT:
 		/*
-		 * Space taken by the rmapbt is not subtracted from fdblocks
+		 * Space taken by the rmapbt is analt subtracted from fdblocks
 		 * because the rmapbt lives in the free space.  Here we must
 		 * subtract the entire reservation from fdblocks so that we
 		 * always have blocks available for rmapbt expansion.
@@ -204,7 +204,7 @@ __xfs_ag_resv_init(
 		/*
 		 * Space taken by all other metadata btrees are accounted
 		 * on-disk as used space.  We therefore only hide the space
-		 * that is reserved but not used by the trees.
+		 * that is reserved but analt used by the trees.
 		 */
 		hidden_space = ask - used;
 		break;
@@ -214,15 +214,15 @@ __xfs_ag_resv_init(
 	}
 
 	if (XFS_TEST_ERROR(false, mp, XFS_ERRTAG_AG_RESV_FAIL))
-		error = -ENOSPC;
+		error = -EANALSPC;
 	else
 		error = xfs_mod_fdblocks(mp, -(int64_t)hidden_space, true);
 	if (error) {
-		trace_xfs_ag_resv_init_error(pag->pag_mount, pag->pag_agno,
+		trace_xfs_ag_resv_init_error(pag->pag_mount, pag->pag_aganal,
 				error, _RET_IP_);
 		xfs_warn(mp,
 "Per-AG reservation for AG %u failed.  Filesystem may run out of space.",
-				pag->pag_agno);
+				pag->pag_aganal);
 		return error;
 	}
 
@@ -232,7 +232,7 @@ __xfs_ag_resv_init(
 	 * counter, we only make the adjustment for AG 0.  This assumes that
 	 * there aren't any AGs hungrier for per-AG reservation than AG 0.
 	 */
-	if (pag->pag_agno == 0)
+	if (pag->pag_aganal == 0)
 		mp->m_ag_max_usable -= ask;
 
 	resv = xfs_perag_resv(pag, type);
@@ -264,7 +264,7 @@ xfs_ag_resv_init(
 		if (error)
 			goto out;
 
-		error = xfs_finobt_calc_reserves(pag, tp, &ask, &used);
+		error = xfs_fianalbt_calc_reserves(pag, tp, &ask, &used);
 		if (error)
 			goto out;
 
@@ -273,14 +273,14 @@ xfs_ag_resv_init(
 		if (error) {
 			/*
 			 * Because we didn't have per-AG reservations when the
-			 * finobt feature was added we might not be able to
+			 * fianalbt feature was added we might analt be able to
 			 * reserve all needed blocks.  Warn and fall back to the
 			 * old and potentially buggy code in that case, but
 			 * ensure we do have the reservation for the refcountbt.
 			 */
 			ask = used = 0;
 
-			mp->m_finobt_nores = true;
+			mp->m_fianalbt_analres = true;
 
 			error = xfs_refcountbt_calc_reserves(mp, tp, pag, &ask,
 					&used);
@@ -327,8 +327,8 @@ out:
 			return error2;
 
 		/*
-		 * If there isn't enough space in the AG to satisfy the
-		 * reservation, let the caller know that there wasn't enough
+		 * If there isn't eanalugh space in the AG to satisfy the
+		 * reservation, let the caller kanalw that there wasn't eanalugh
 		 * space.  Callers are responsible for deciding what to do
 		 * next, since (in theory) we can stumble along with
 		 * insufficient reservation if data blocks are being freed to
@@ -338,7 +338,7 @@ out:
 		    xfs_perag_resv(pag, XFS_AG_RESV_METADATA)->ar_reserved +
 		    xfs_perag_resv(pag, XFS_AG_RESV_RMAPBT)->ar_reserved >
 		    pag->pagf_freeblks + pag->pagf_flcount)
-			error = -ENOSPC;
+			error = -EANALSPC;
 	}
 
 	return error;
@@ -367,7 +367,7 @@ xfs_ag_resv_alloc_extent(
 	default:
 		ASSERT(0);
 		fallthrough;
-	case XFS_AG_RESV_NONE:
+	case XFS_AG_RESV_ANALNE:
 		field = args->wasdel ? XFS_TRANS_SB_RES_FDBLOCKS :
 				       XFS_TRANS_SB_FDBLOCKS;
 		xfs_trans_mod_sb(args->tp, field, -(int64_t)args->len);
@@ -380,7 +380,7 @@ xfs_ag_resv_alloc_extent(
 		return;
 	/* Allocations of reserved blocks only need on-disk sb updates... */
 	xfs_trans_mod_sb(args->tp, XFS_TRANS_SB_RES_FDBLOCKS, -(int64_t)len);
-	/* ...but non-reserved blocks need in-core and on-disk updates. */
+	/* ...but analn-reserved blocks need in-core and on-disk updates. */
 	if (args->len > len)
 		xfs_trans_mod_sb(args->tp, XFS_TRANS_SB_FDBLOCKS,
 				-((int64_t)args->len - len));
@@ -409,10 +409,10 @@ xfs_ag_resv_free_extent(
 	default:
 		ASSERT(0);
 		fallthrough;
-	case XFS_AG_RESV_NONE:
+	case XFS_AG_RESV_ANALNE:
 		xfs_trans_mod_sb(tp, XFS_TRANS_SB_FDBLOCKS, (int64_t)len);
 		fallthrough;
-	case XFS_AG_RESV_IGNORE:
+	case XFS_AG_RESV_IGANALRE:
 		return;
 	}
 

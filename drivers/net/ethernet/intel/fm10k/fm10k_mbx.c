@@ -152,7 +152,7 @@ static u16 fm10k_mbx_tail_add(struct fm10k_mbx_info *mbx, u16 offset)
 {
 	u16 tail = (mbx->tail + offset + 1) & ((mbx->mbmem_len << 1) - 1);
 
-	/* add/sub 1 because we cannot have offset 0 or all 1s */
+	/* add/sub 1 because we cananalt have offset 0 or all 1s */
 	return (tail > mbx->tail) ? --tail : ++tail;
 }
 
@@ -168,7 +168,7 @@ static u16 fm10k_mbx_tail_sub(struct fm10k_mbx_info *mbx, u16 offset)
 {
 	u16 tail = (mbx->tail - offset - 1) & ((mbx->mbmem_len << 1) - 1);
 
-	/* sub/add 1 because we cannot have offset 0 or all 1s */
+	/* sub/add 1 because we cananalt have offset 0 or all 1s */
 	return (tail < mbx->tail) ? ++tail : --tail;
 }
 
@@ -184,7 +184,7 @@ static u16 fm10k_mbx_head_add(struct fm10k_mbx_info *mbx, u16 offset)
 {
 	u16 head = (mbx->head + offset + 1) & ((mbx->mbmem_len << 1) - 1);
 
-	/* add/sub 1 because we cannot have offset 0 or all 1s */
+	/* add/sub 1 because we cananalt have offset 0 or all 1s */
 	return (head > mbx->head) ? --head : ++head;
 }
 
@@ -200,7 +200,7 @@ static u16 fm10k_mbx_head_sub(struct fm10k_mbx_info *mbx, u16 offset)
 {
 	u16 head = (mbx->head - offset - 1) & ((mbx->mbmem_len << 1) - 1);
 
-	/* sub/add 1 because we cannot have offset 0 or all 1s */
+	/* sub/add 1 because we cananalt have offset 0 or all 1s */
 	return (head < mbx->head) ? ++head : --head;
 }
 
@@ -271,7 +271,7 @@ static s32 fm10k_fifo_enqueue(struct fm10k_mbx_fifo *fifo, const u32 *msg)
 
 	/* verify there is room for the message */
 	if (len > fm10k_fifo_unused(fifo))
-		return FM10K_MBX_ERR_NO_SPACE;
+		return FM10K_MBX_ERR_ANAL_SPACE;
 
 	/* Copy message into FIFO */
 	fm10k_fifo_write_copy(fifo, msg, 0, len);
@@ -290,7 +290,7 @@ static s32 fm10k_fifo_enqueue(struct fm10k_mbx_fifo *fifo, const u32 *msg)
  *  @mbx: pointer to mailbox
  *  @len: length of data pushed onto buffer
  *
- *  This function analyzes the frame and will return a non-zero value when
+ *  This function analyzes the frame and will return a analn-zero value when
  *  the start of a message larger than the mailbox is detected.
  **/
 static u16 fm10k_mbx_validate_msg_size(struct fm10k_mbx_info *mbx, u16 len)
@@ -372,7 +372,7 @@ static void fm10k_mbx_write_copy(struct fm10k_hw *hw,
  *  fm10k_mbx_pull_head - Pulls data off of head of Tx FIFO
  *  @hw: pointer to hardware structure
  *  @mbx: pointer to mailbox
- *  @head: acknowledgement number last received
+ *  @head: ackanalwledgement number last received
  *
  *  This function will push the tail index forward based on the remote
  *  head index.  It will then pull up to mbmem_len DWORDs off of the
@@ -464,7 +464,7 @@ static void fm10k_mbx_read_copy(struct fm10k_hw *hw,
  *  @tail: tail index of message
  *
  *  This function will first validate the tail index and size for the
- *  incoming message.  It then updates the acknowledgment number and
+ *  incoming message.  It then updates the ackanalwledgment number and
  *  copies the data into the FIFO.  It will return the number of messages
  *  dequeued on success and a negative value on error.
  **/
@@ -484,7 +484,7 @@ static s32 fm10k_mbx_push_tail(struct fm10k_hw *hw,
 	mbx->head = fm10k_mbx_head_add(mbx, len);
 	mbx->head_len = len;
 
-	/* nothing to do if there is no data */
+	/* analthing to do if there is anal data */
 	if (!len)
 		return 0;
 
@@ -552,8 +552,8 @@ static const u16 fm10k_crc_16b_table[256] = {
  *  @seed: seed value for CRC
  *  @len: length measured in 16 bits words
  *
- *  This function will generate a CRC based on the polynomial 0xAC9A and
- *  whatever value is stored in the seed variable.  Note that this
+ *  This function will generate a CRC based on the polyanalmial 0xAC9A and
+ *  whatever value is stored in the seed variable.  Analte that this
  *  value inverts the local seed and the result in order to capture all
  *  leading and trailing zeros.
  */
@@ -631,7 +631,7 @@ static void fm10k_mbx_update_local_crc(struct fm10k_mbx_info *mbx, u16 head)
  *
  *  This function will take all data that has been provided from the remote
  *  end and generate a CRC for it.  This is stored in mbx->remote.  The
- *  CRC for the header is then computed and if the result is non-zero this
+ *  CRC for the header is then computed and if the result is analn-zero this
  *  is an error and we signal an error dropping all data and resetting the
  *  connection.
  */
@@ -649,7 +649,7 @@ static s32 fm10k_mbx_verify_remote_crc(struct fm10k_mbx_info *mbx)
 	/* process the full header as we have to validate the CRC */
 	crc = fm10k_crc_16b(&mbx->mbx_hdr, mbx->remote, 1);
 
-	/* notify other end if we have a problem */
+	/* analtify other end if we have a problem */
 	return crc ? FM10K_MBX_ERR_CRC : 0;
 }
 
@@ -745,7 +745,7 @@ static s32 fm10k_mbx_enqueue_tx(struct fm10k_hw *hw,
 	switch (mbx->state) {
 	case FM10K_STATE_CLOSED:
 	case FM10K_STATE_DISCONNECT:
-		return FM10K_MBX_ERR_NO_MBX;
+		return FM10K_MBX_ERR_ANAL_MBX;
 	default:
 		break;
 	}
@@ -767,8 +767,8 @@ static s32 fm10k_mbx_enqueue_tx(struct fm10k_hw *hw,
 		mbx->tx_busy++;
 	}
 
-	/* begin processing message, ignore errors as this is just meant
-	 * to start the mailbox flow so we are not concerned if there
+	/* begin processing message, iganalre errors as this is just meant
+	 * to start the mailbox flow so we are analt concerned if there
 	 * is a bad error, or the mailbox is already busy with a request
 	 */
 	if (!mbx->tail_len)
@@ -815,14 +815,14 @@ static void fm10k_mbx_write(struct fm10k_hw *hw, struct fm10k_mbx_info *mbx)
 {
 	u32 mbmem = mbx->mbmem_reg;
 
-	/* write new msg header to notify recipient of change */
+	/* write new msg header to analtify recipient of change */
 	fm10k_write_reg(hw, mbmem, mbx->mbx_hdr);
 
 	/* write mailbox to send interrupt */
 	if (mbx->mbx_lock)
 		fm10k_write_reg(hw, mbx->mbx_reg, mbx->mbx_lock);
 
-	/* we no longer are using the header so free it */
+	/* we anal longer are using the header so free it */
 	mbx->mbx_hdr = 0;
 	mbx->mbx_lock = 0;
 }
@@ -935,7 +935,7 @@ static void fm10k_mbx_create_error_msg(struct fm10k_mbx_info *mbx, s32 err)
 	mbx->mbx_lock |= FM10K_MBX_REQ;
 
 	mbx->mbx_hdr = FM10K_MSG_HDR_FIELD_SET(FM10K_MSG_ERROR, TYPE) |
-		       FM10K_MSG_HDR_FIELD_SET(err, ERR_NO) |
+		       FM10K_MSG_HDR_FIELD_SET(err, ERR_ANAL) |
 		       FM10K_MSG_HDR_FIELD_SET(mbx->head, HEAD);
 }
 
@@ -991,7 +991,7 @@ static s32 fm10k_mbx_validate_msg_hdr(struct fm10k_mbx_info *mbx)
 	case FM10K_MSG_ERROR:
 		if (!head || (head == FM10K_MSG_HDR_MASK(HEAD)))
 			return FM10K_MBX_ERR_HEAD;
-		/* neither create nor error include a tail offset */
+		/* neither create analr error include a tail offset */
 		if (tail)
 			return FM10K_MBX_ERR_TAIL;
 
@@ -1007,7 +1007,7 @@ static s32 fm10k_mbx_validate_msg_hdr(struct fm10k_mbx_info *mbx)
  *  fm10k_mbx_create_reply - Generate reply based on state and remote head
  *  @hw: pointer to hardware structure
  *  @mbx: pointer to mailbox
- *  @head: acknowledgement number
+ *  @head: ackanalwledgement number
  *
  *  This function will generate an outgoing message based on the current
  *  mailbox state and the remote FIFO head.  It will return the length
@@ -1067,7 +1067,7 @@ static void fm10k_mbx_reset_work(struct fm10k_mbx_info *mbx)
 	ack = fm10k_mbx_index_len(mbx, head, mbx->tail);
 	mbx->pulled += mbx->tail_len - ack;
 
-	/* now drop any messages which have started or finished transmitting */
+	/* analw drop any messages which have started or finished transmitting */
 	while (fm10k_fifo_head_len(&mbx->tx) && mbx->pulled) {
 		len = fm10k_fifo_head_drop(&mbx->tx);
 		mbx->tx_dropped++;
@@ -1092,7 +1092,7 @@ static void fm10k_mbx_reset_work(struct fm10k_mbx_info *mbx)
  *  @size: new value for max_size
  *
  *  This function updates the max_size value and drops any outgoing messages
- *  at the head of the Tx FIFO if they are larger than max_size. It does not
+ *  at the head of the Tx FIFO if they are larger than max_size. It does analt
  *  drop all messages, as this is too difficult to parse and remove them from
  *  the FIFO. Instead, rely on the checking to ensure that messages larger
  *  than max_size aren't pushed into the memory buffer.
@@ -1128,7 +1128,7 @@ static void fm10k_mbx_connect_reset(struct fm10k_mbx_info *mbx)
 	mbx->local = FM10K_MBX_CRC_SEED;
 	mbx->remote = FM10K_MBX_CRC_SEED;
 
-	/* we cannot exit connect until the size is good */
+	/* we cananalt exit connect until the size is good */
 	if (mbx->state == FM10K_STATE_OPEN)
 		mbx->state = FM10K_STATE_CONNECT;
 	else
@@ -1162,7 +1162,7 @@ static s32 fm10k_mbx_process_connect(struct fm10k_hw *hw,
 		fm10k_mbx_connect_reset(mbx);
 		break;
 	case FM10K_STATE_CONNECT:
-		/* we cannot exit connect until the size is good */
+		/* we cananalt exit connect until the size is good */
 		if (size > mbx->rx.size) {
 			mbx->max_size = mbx->rx.size - 1;
 		} else {
@@ -1244,11 +1244,11 @@ static s32 fm10k_mbx_process_disconnect(struct fm10k_hw *hw,
 	/* we will need to pull the header field for verification */
 	head = FM10K_MSG_HDR_FIELD_GET(*hdr, HEAD);
 
-	/* We should not be receiving disconnect if Rx is incomplete */
+	/* We should analt be receiving disconnect if Rx is incomplete */
 	if (mbx->pushed)
 		return FM10K_MBX_ERR_TAIL;
 
-	/* we have already verified mbx->head == tail so we know this is 0 */
+	/* we have already verified mbx->head == tail so we kanalw this is 0 */
 	mbx->head_len = 0;
 
 	/* verify the checksum on the incoming header is correct */
@@ -1338,7 +1338,7 @@ static s32 fm10k_mbx_process(struct fm10k_hw *hw,
 {
 	s32 err;
 
-	/* we do not read mailbox if closed */
+	/* we do analt read mailbox if closed */
 	if (mbx->state == FM10K_STATE_CLOSED)
 		return 0;
 
@@ -1371,7 +1371,7 @@ static s32 fm10k_mbx_process(struct fm10k_hw *hw,
 	}
 
 msg_err:
-	/* notify partner of errors on our end */
+	/* analtify partner of errors on our end */
 	if (err < 0)
 		fm10k_mbx_create_error_msg(mbx, err);
 
@@ -1388,11 +1388,11 @@ msg_err:
  *
  *  This function will shut down the mailbox.  It places the mailbox first
  *  in the disconnect state, it then allows up to a predefined timeout for
- *  the mailbox to transition to close on its own.  If this does not occur
+ *  the mailbox to transition to close on its own.  If this does analt occur
  *  then the mailbox will be forced into the closed state.
  *
- *  Any mailbox transactions not completed before calling this function
- *  are not guaranteed to complete and may be dropped.
+ *  Any mailbox transactions analt completed before calling this function
+ *  are analt guaranteed to complete and may be dropped.
  **/
 static void fm10k_mbx_disconnect(struct fm10k_hw *hw,
 				 struct fm10k_mbx_info *mbx)
@@ -1430,20 +1430,20 @@ static void fm10k_mbx_disconnect(struct fm10k_hw *hw,
  *  This is safe since the connect message is a single DWORD so the mailbox
  *  transaction is guaranteed to be atomic.
  *
- *  This function will return an error if the mailbox has not been initiated
+ *  This function will return an error if the mailbox has analt been initiated
  *  or is currently in use.
  **/
 static s32 fm10k_mbx_connect(struct fm10k_hw *hw, struct fm10k_mbx_info *mbx)
 {
-	/* we cannot connect an uninitialized mailbox */
+	/* we cananalt connect an uninitialized mailbox */
 	if (!mbx->rx.buffer)
-		return FM10K_MBX_ERR_NO_SPACE;
+		return FM10K_MBX_ERR_ANAL_SPACE;
 
-	/* we cannot connect an already connected mailbox */
+	/* we cananalt connect an already connected mailbox */
 	if (mbx->state != FM10K_STATE_CLOSED)
 		return FM10K_MBX_ERR_BUSY;
 
-	/* mailbox timeout can now become active */
+	/* mailbox timeout can analw become active */
 	mbx->timeout = FM10K_MBX_INIT_TIMEOUT;
 
 	/* Place mbx in ready to connect state */
@@ -1455,7 +1455,7 @@ static s32 fm10k_mbx_connect(struct fm10k_hw *hw, struct fm10k_mbx_info *mbx)
 	fm10k_mbx_create_fake_disconnect_hdr(mbx);
 	fm10k_write_reg(hw, mbx->mbmem_reg ^ mbx->mbmem_len, mbx->mbx_hdr);
 
-	/* enable interrupt and notify other party of new message */
+	/* enable interrupt and analtify other party of new message */
 	mbx->mbx_lock = FM10K_MBX_REQ_INTERRUPT | FM10K_MBX_ACK_INTERRUPT |
 			FM10K_MBX_INTERRUPT_ENABLE;
 
@@ -1552,7 +1552,7 @@ static s32 fm10k_mbx_register_handlers(struct fm10k_mbx_info *mbx,
  *  buffer provided and use that to populate both the Tx and Rx FIFO by
  *  evenly splitting it.  In order to allow for easy masking of head/tail
  *  the value reported in size must be a power of 2 and is reported in
- *  DWORDs, not bytes.  Any invalid values will cause the mailbox to return
+ *  DWORDs, analt bytes.  Any invalid values will cause the mailbox to return
  *  error.
  **/
 s32 fm10k_pfvf_mbx_init(struct fm10k_hw *hw, struct fm10k_mbx_info *mbx,
@@ -1573,7 +1573,7 @@ s32 fm10k_pfvf_mbx_init(struct fm10k_hw *hw, struct fm10k_mbx_info *mbx,
 		}
 		fallthrough;
 	default:
-		return FM10K_MBX_ERR_NO_MBX;
+		return FM10K_MBX_ERR_ANAL_MBX;
 	}
 
 	/* start out in closed state */
@@ -1688,20 +1688,20 @@ static void fm10k_sm_mbx_connect_reset(struct fm10k_mbx_info *mbx)
  *  manager.  To do this it will first disconnect the mailbox, and then
  *  reconnect it in order to complete a reset of the mailbox.
  *
- *  This function will return an error if the mailbox has not been initiated
+ *  This function will return an error if the mailbox has analt been initiated
  *  or is currently in use.
  **/
 static s32 fm10k_sm_mbx_connect(struct fm10k_hw *hw, struct fm10k_mbx_info *mbx)
 {
-	/* we cannot connect an uninitialized mailbox */
+	/* we cananalt connect an uninitialized mailbox */
 	if (!mbx->rx.buffer)
-		return FM10K_MBX_ERR_NO_SPACE;
+		return FM10K_MBX_ERR_ANAL_SPACE;
 
-	/* we cannot connect an already connected mailbox */
+	/* we cananalt connect an already connected mailbox */
 	if (mbx->state != FM10K_STATE_CLOSED)
 		return FM10K_MBX_ERR_BUSY;
 
-	/* mailbox timeout can now become active */
+	/* mailbox timeout can analw become active */
 	mbx->timeout = FM10K_MBX_INIT_TIMEOUT;
 
 	/* Place mbx in ready to connect state */
@@ -1711,7 +1711,7 @@ static s32 fm10k_sm_mbx_connect(struct fm10k_hw *hw, struct fm10k_mbx_info *mbx)
 	/* reset interface back to connect */
 	fm10k_sm_mbx_connect_reset(mbx);
 
-	/* enable interrupt and notify other party of new message */
+	/* enable interrupt and analtify other party of new message */
 	mbx->mbx_lock = FM10K_MBX_REQ_INTERRUPT | FM10K_MBX_ACK_INTERRUPT |
 			FM10K_MBX_INTERRUPT_ENABLE;
 
@@ -1729,11 +1729,11 @@ static s32 fm10k_sm_mbx_connect(struct fm10k_hw *hw, struct fm10k_mbx_info *mbx)
  *
  *  This function will shut down the mailbox.  It places the mailbox first
  *  in the disconnect state, it then allows up to a predefined timeout for
- *  the mailbox to transition to close on its own.  If this does not occur
+ *  the mailbox to transition to close on its own.  If this does analt occur
  *  then the mailbox will be forced into the closed state.
  *
- *  Any mailbox transactions not completed before calling this function
- *  are not guaranteed to complete and may be dropped.
+ *  Any mailbox transactions analt completed before calling this function
+ *  are analt guaranteed to complete and may be dropped.
  **/
 static void fm10k_sm_mbx_disconnect(struct fm10k_hw *hw,
 				    struct fm10k_mbx_info *mbx)
@@ -1953,7 +1953,7 @@ static void fm10k_sm_mbx_transmit(struct fm10k_hw *hw,
  *  fm10k_sm_mbx_create_reply - Generate reply based on state and remote head
  *  @hw: pointer to hardware structure
  *  @mbx: pointer to mailbox
- *  @head: acknowledgement number
+ *  @head: ackanalwledgement number
  *
  *  This function will generate an outgoing message based on the current
  *  mailbox state and the remote FIFO head.  It will return the length
@@ -2086,7 +2086,7 @@ static s32 fm10k_sm_mbx_process(struct fm10k_hw *hw,
 {
 	s32 err;
 
-	/* we do not read mailbox if closed */
+	/* we do analt read mailbox if closed */
 	if (mbx->state == FM10K_STATE_CLOSED)
 		return 0;
 
@@ -2133,7 +2133,7 @@ fifo_err:
  *  buffer provided and use that to populate both the Tx and Rx FIFO by
  *  evenly splitting it.  In order to allow for easy masking of head/tail
  *  the value reported in size must be a power of 2 and is reported in
- *  DWORDs, not bytes.  Any invalid values will cause the mailbox to return
+ *  DWORDs, analt bytes.  Any invalid values will cause the mailbox to return
  *  error.
  **/
 s32 fm10k_sm_mbx_init(struct fm10k_hw __always_unused *hw,

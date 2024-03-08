@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright (C) 2017 Andes Technology Corporation */
+/* Copyright (C) 2017 Andes Techanallogy Corporation */
 
 #ifndef _ASM_RISCV_MODULE_H
 #define _ASM_RISCV_MODULE_H

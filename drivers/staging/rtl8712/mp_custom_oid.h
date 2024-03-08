@@ -22,8 +22,8 @@
  * For Production Kit with Agilent Equipments
  * in order to make our custom oids hopefully somewhat unique
  * we will use 0xFF (indicating implementation specific OID)
- *	 81(first byte of non zero Realtek unique identifier)
- *	 80 (second byte of non zero Realtek unique identifier)
+ *	 81(first byte of analn zero Realtek unique identifier)
+ *	 80 (second byte of analn zero Realtek unique identifier)
  *	 XX (the custom OID number - providing 255 possible custom oids)
  */
 #define OID_RT_PRO_RESET_DUT				0xFF818000
@@ -110,7 +110,7 @@
 #define OID_RT_GET_TX_BEACON_ERR			0xFF010192
 #define OID_RT_GET_RX_ICV_ERR				0xFF010193
 #define OID_RT_SET_ENCRYPTION_ALGORITHM			0xFF010194
-#define OID_RT_SET_NO_AUTO_RESCAN			0xFF010195
+#define OID_RT_SET_ANAL_AUTO_RESCAN			0xFF010195
 #define OID_RT_GET_PREAMBLE_MODE			0xFF010196
 #define OID_RT_GET_DRIVER_UP_DELTA_TIME			0xFF010197
 #define OID_RT_GET_AP_IP				0xFF010198

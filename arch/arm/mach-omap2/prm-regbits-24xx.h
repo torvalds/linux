@@ -6,7 +6,7 @@
  * OMAP24XX Power/Reset Management register bits
  *
  * Copyright (C) 2007 Texas Instruments, Inc.
- * Copyright (C) 2007 Nokia Corporation
+ * Copyright (C) 2007 Analkia Corporation
  *
  * Written by Paul Walmsley
  */

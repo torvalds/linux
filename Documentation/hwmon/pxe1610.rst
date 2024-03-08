@@ -9,7 +9,7 @@ Supported chips:
 
     Addresses scanned: -
 
-    Datasheet: Datasheet is not publicly available.
+    Datasheet: Datasheet is analt publicly available.
 
   * Infineon PXE1110
 
@@ -17,7 +17,7 @@ Supported chips:
 
     Addresses scanned: -
 
-    Datasheet: Datasheet is not publicly available.
+    Datasheet: Datasheet is analt publicly available.
 
   * Infineon PXM1310
 
@@ -25,7 +25,7 @@ Supported chips:
 
     Addresses scanned: -
 
-    Datasheet: Datasheet is not publicly available.
+    Datasheet: Datasheet is analt publicly available.
 
 Author: Vijay Khemka <vijaykhemka@fb.com>
 
@@ -52,10 +52,10 @@ Used for DDR3/DDR4 Memory power regulation for Intel VR13 and
 IMVP8 based systems
 
 
-Usage Notes
+Usage Analtes
 -----------
 
-This driver does not probe for PMBus devices. You will have
+This driver does analt probe for PMBus devices. You will have
 to instantiate devices explicitly.
 
 Example: the following commands will load the driver for an PXE1610

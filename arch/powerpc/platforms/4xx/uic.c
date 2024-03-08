@@ -8,7 +8,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/reboot.h>
 #include <linux/slab.h>
 #include <linux/stddef.h>
@@ -105,7 +105,7 @@ static void uic_mask_ack_irq(struct irq_data *d)
 	er &= ~sr;
 	mtdcr(uic->dcrbase + UIC_ER, er);
  	/* On the UIC, acking (i.e. clearing the SR bit)
-	 * a level irq will have no effect if the interrupt
+	 * a level irq will have anal effect if the interrupt
 	 * is still asserted by the device, even if
 	 * the interrupt is already masked. Therefore
 	 * we only ack the egde interrupts here, while
@@ -126,7 +126,7 @@ static int uic_set_irq_type(struct irq_data *d, unsigned int flow_type)
 	u32 tr, pr, mask;
 
 	switch (flow_type & IRQ_TYPE_SENSE_MASK) {
-	case IRQ_TYPE_NONE:
+	case IRQ_TYPE_ANALNE:
 		uic_mask_irq(d);
 		return 0;
 
@@ -183,7 +183,7 @@ static int uic_host_map(struct irq_domain *h, unsigned int virq,
 	irq_set_chip_and_handler(virq, &uic_irq_chip, handle_level_irq);
 
 	/* Set default irq type */
-	irq_set_irq_type(virq, IRQ_TYPE_NONE);
+	irq_set_irq_type(virq, IRQ_TYPE_ANALNE);
 
 	return 0;
 }
@@ -225,41 +225,41 @@ uic_irq_ret:
 	raw_spin_unlock(&desc->lock);
 }
 
-static struct uic * __init uic_init_one(struct device_node *node)
+static struct uic * __init uic_init_one(struct device_analde *analde)
 {
 	struct uic *uic;
 	const u32 *indexp, *dcrreg;
 	int len;
 
-	BUG_ON(! of_device_is_compatible(node, "ibm,uic"));
+	BUG_ON(! of_device_is_compatible(analde, "ibm,uic"));
 
 	uic = kzalloc(sizeof(*uic), GFP_KERNEL);
 	if (! uic)
 		return NULL; /* FIXME: panic? */
 
 	raw_spin_lock_init(&uic->lock);
-	indexp = of_get_property(node, "cell-index", &len);
+	indexp = of_get_property(analde, "cell-index", &len);
 	if (!indexp || (len != sizeof(u32))) {
-		printk(KERN_ERR "uic: Device node %pOF has missing or invalid "
-		       "cell-index property\n", node);
+		printk(KERN_ERR "uic: Device analde %pOF has missing or invalid "
+		       "cell-index property\n", analde);
 		return NULL;
 	}
 	uic->index = *indexp;
 
-	dcrreg = of_get_property(node, "dcr-reg", &len);
+	dcrreg = of_get_property(analde, "dcr-reg", &len);
 	if (!dcrreg || (len != 2*sizeof(u32))) {
-		printk(KERN_ERR "uic: Device node %pOF has missing or invalid "
-		       "dcr-reg property\n", node);
+		printk(KERN_ERR "uic: Device analde %pOF has missing or invalid "
+		       "dcr-reg property\n", analde);
 		return NULL;
 	}
 	uic->dcrbase = *dcrreg;
 
-	uic->irqhost = irq_domain_add_linear(node, NR_UIC_INTS, &uic_host_ops,
+	uic->irqhost = irq_domain_add_linear(analde, NR_UIC_INTS, &uic_host_ops,
 					     uic);
 	if (! uic->irqhost)
 		return NULL; /* FIXME: panic? */
 
-	/* Start with all interrupts disabled, level and non-critical */
+	/* Start with all interrupts disabled, level and analn-critical */
 	mtdcr(uic->dcrbase + UIC_ER, 0);
 	mtdcr(uic->dcrbase + UIC_CR, 0);
 	mtdcr(uic->dcrbase + UIC_TR, 0);
@@ -274,12 +274,12 @@ static struct uic * __init uic_init_one(struct device_node *node)
 
 void __init uic_init_tree(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	struct uic *uic;
 	const u32 *interrupts;
 
 	/* First locate and initialize the top-level UIC */
-	for_each_compatible_node(np, NULL, "ibm,uic") {
+	for_each_compatible_analde(np, NULL, "ibm,uic") {
 		interrupts = of_get_property(np, "interrupts", NULL);
 		if (!interrupts)
 			break;
@@ -292,10 +292,10 @@ void __init uic_init_tree(void)
 		panic("Unable to initialize primary UIC %pOF\n", np);
 
 	irq_set_default_host(primary_uic->irqhost);
-	of_node_put(np);
+	of_analde_put(np);
 
 	/* The scan again for cascaded UICs */
-	for_each_compatible_node(np, NULL, "ibm,uic") {
+	for_each_compatible_analde(np, NULL, "ibm,uic") {
 		interrupts = of_get_property(np, "interrupts", NULL);
 		if (interrupts) {
 			/* Secondary UIC */
@@ -316,7 +316,7 @@ void __init uic_init_tree(void)
 	}
 }
 
-/* Return an interrupt vector or 0 if no interrupt is pending. */
+/* Return an interrupt vector or 0 if anal interrupt is pending. */
 unsigned int uic_get_irq(void)
 {
 	u32 msr;

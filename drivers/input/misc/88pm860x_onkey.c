@@ -14,7 +14,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if analt, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
@@ -70,7 +70,7 @@ static int pm860x_onkey_probe(struct platform_device *pdev)
 	info = devm_kzalloc(&pdev->dev, sizeof(struct pm860x_onkey_info),
 			    GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 	info->chip = chip;
 	info->i2c = (chip->id == CHIP_PM8607) ? chip->client : chip->companion;
 	info->dev = &pdev->dev;
@@ -79,7 +79,7 @@ static int pm860x_onkey_probe(struct platform_device *pdev)
 	info->idev = devm_input_allocate_device(&pdev->dev);
 	if (!info->idev) {
 		dev_err(chip->dev, "Failed to allocate input dev\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	info->idev->name = "88pm860x_on";

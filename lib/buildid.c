@@ -9,19 +9,19 @@
 #define BUILD_ID 3
 
 /*
- * Parse build id from the note segment. This logic can be shared between
+ * Parse build id from the analte segment. This logic can be shared between
  * 32-bit and 64-bit system, because Elf32_Nhdr and Elf64_Nhdr are
  * identical.
  */
 static int parse_build_id_buf(unsigned char *build_id,
 			      __u32 *size,
-			      const void *note_start,
-			      Elf32_Word note_size)
+			      const void *analte_start,
+			      Elf32_Word analte_size)
 {
-	Elf32_Word note_offs = 0, new_offs;
+	Elf32_Word analte_offs = 0, new_offs;
 
-	while (note_offs + sizeof(Elf32_Nhdr) < note_size) {
-		Elf32_Nhdr *nhdr = (Elf32_Nhdr *)(note_start + note_offs);
+	while (analte_offs + sizeof(Elf32_Nhdr) < analte_size) {
+		Elf32_Nhdr *nhdr = (Elf32_Nhdr *)(analte_start + analte_offs);
 
 		if (nhdr->n_type == BUILD_ID &&
 		    nhdr->n_namesz == sizeof("GNU") &&
@@ -29,7 +29,7 @@ static int parse_build_id_buf(unsigned char *build_id,
 		    nhdr->n_descsz > 0 &&
 		    nhdr->n_descsz <= BUILD_ID_SIZE_MAX) {
 			memcpy(build_id,
-			       note_start + note_offs +
+			       analte_start + analte_offs +
 			       ALIGN(sizeof("GNU"), 4) + sizeof(Elf32_Nhdr),
 			       nhdr->n_descsz);
 			memset(build_id + nhdr->n_descsz, 0,
@@ -38,11 +38,11 @@ static int parse_build_id_buf(unsigned char *build_id,
 				*size = nhdr->n_descsz;
 			return 0;
 		}
-		new_offs = note_offs + sizeof(Elf32_Nhdr) +
+		new_offs = analte_offs + sizeof(Elf32_Nhdr) +
 			ALIGN(nhdr->n_namesz, 4) + ALIGN(nhdr->n_descsz, 4);
-		if (new_offs <= note_offs)  /* overflow */
+		if (new_offs <= analte_offs)  /* overflow */
 			break;
-		note_offs = new_offs;
+		analte_offs = new_offs;
 	}
 
 	return -EINVAL;
@@ -51,18 +51,18 @@ static int parse_build_id_buf(unsigned char *build_id,
 static inline int parse_build_id(const void *page_addr,
 				 unsigned char *build_id,
 				 __u32 *size,
-				 const void *note_start,
-				 Elf32_Word note_size)
+				 const void *analte_start,
+				 Elf32_Word analte_size)
 {
 	/* check for overflow */
-	if (note_start < page_addr || note_start + note_size < note_start)
+	if (analte_start < page_addr || analte_start + analte_size < analte_start)
 		return -EINVAL;
 
-	/* only supports note that fits in the first page */
-	if (note_start + note_size > page_addr + PAGE_SIZE)
+	/* only supports analte that fits in the first page */
+	if (analte_start + analte_size > page_addr + PAGE_SIZE)
 		return -EINVAL;
 
-	return parse_build_id_buf(build_id, size, note_start, note_size);
+	return parse_build_id_buf(build_id, size, analte_start, analte_size);
 }
 
 /* Parse build ID from 32-bit ELF */
@@ -81,7 +81,7 @@ static int get_build_id_32(const void *page_addr, unsigned char *build_id,
 	phdr = (Elf32_Phdr *)(page_addr + sizeof(Elf32_Ehdr));
 
 	for (i = 0; i < ehdr->e_phnum; ++i) {
-		if (phdr[i].p_type == PT_NOTE &&
+		if (phdr[i].p_type == PT_ANALTE &&
 		    !parse_build_id(page_addr, build_id, size,
 				    page_addr + phdr[i].p_offset,
 				    phdr[i].p_filesz))
@@ -106,7 +106,7 @@ static int get_build_id_64(const void *page_addr, unsigned char *build_id,
 	phdr = (Elf64_Phdr *)(page_addr + sizeof(Elf64_Ehdr));
 
 	for (i = 0; i < ehdr->e_phnum; ++i) {
-		if (phdr[i].p_type == PT_NOTE &&
+		if (phdr[i].p_type == PT_ANALTE &&
 		    !parse_build_id(page_addr, build_id, size,
 				    page_addr + phdr[i].p_offset,
 				    phdr[i].p_filesz))
@@ -137,7 +137,7 @@ int build_id_parse(struct vm_area_struct *vma, unsigned char *build_id,
 
 	page = find_get_page(vma->vm_file->f_mapping, 0);
 	if (!page)
-		return -EFAULT;	/* page not mapped */
+		return -EFAULT;	/* page analt mapped */
 
 	ret = -EINVAL;
 	page_addr = kmap_atomic(page);
@@ -163,7 +163,7 @@ out:
 
 /**
  * build_id_parse_buf - Get build ID from a buffer
- * @buf:      ELF note section(s) to parse
+ * @buf:      ELF analte section(s) to parse
  * @buf_size: Size of @buf in bytes
  * @build_id: Build ID parsed from @buf, at least BUILD_ID_SIZE_MAX long
  *
@@ -182,10 +182,10 @@ unsigned char vmlinux_build_id[BUILD_ID_SIZE_MAX] __ro_after_init;
  */
 void __init init_vmlinux_build_id(void)
 {
-	extern const void __start_notes __weak;
-	extern const void __stop_notes __weak;
-	unsigned int size = &__stop_notes - &__start_notes;
+	extern const void __start_analtes __weak;
+	extern const void __stop_analtes __weak;
+	unsigned int size = &__stop_analtes - &__start_analtes;
 
-	build_id_parse_buf(&__start_notes, vmlinux_build_id, size);
+	build_id_parse_buf(&__start_analtes, vmlinux_build_id, size);
 }
 #endif

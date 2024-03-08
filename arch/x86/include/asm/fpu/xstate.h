@@ -40,7 +40,7 @@
 
 /*
  * Features which are restored when returning to user space.
- * PKRU is not restored on return to user space because PKRU
+ * PKRU is analt restored on return to user space because PKRU
  * is switched eagerly in switch_to() and flush_thread()
  */
 #define XFEATURE_MASK_USER_RESTORE	\
@@ -54,15 +54,15 @@
 					    XFEATURE_MASK_CET_USER)
 
 /*
- * A supervisor state component may not always contain valuable information,
+ * A supervisor state component may analt always contain valuable information,
  * and its size may be huge. Saving/restoring such supervisor state components
  * at each context switch can cause high CPU and space overhead, which should
  * be avoided. Such supervisor state components should only be saved/restored
  * on demand. The on-demand supervisor features are set in this mask.
  *
  * Unlike the existing supported supervisor features, an independent supervisor
- * feature does not allocate a buffer in task->fpu, and the corresponding
- * supervisor state component cannot be saved/restored at each context switch.
+ * feature does analt allocate a buffer in task->fpu, and the corresponding
+ * supervisor state component cananalt be saved/restored at each context switch.
  *
  * To support an independent supervisor feature, a developer should follow the
  * dos and don'ts as below:
@@ -88,14 +88,14 @@
 
 /*
  * The feature mask required to restore FPU state:
- * - All user states which are not eagerly switched in switch_to()/exec()
+ * - All user states which are analt eagerly switched in switch_to()/exec()
  * - The suporvisor states
  */
 #define XFEATURE_MASK_FPSTATE	(XFEATURE_MASK_USER_RESTORE | \
 				 XFEATURE_MASK_SUPERVISOR_SUPPORTED)
 
 /*
- * Features in this mask have space allocated in the signal frame, but may not
+ * Features in this mask have space allocated in the signal frame, but may analt
  * have that space initialized when the feature is in its init state.
  */
 #define XFEATURE_MASK_SIGFRAME_INITOPT	(XFEATURE_MASK_XTILE | \

@@ -163,7 +163,7 @@ config USB_DSBR
 	depends on USB
 	help
 	  Say Y here if you want to connect this type of radio to your
-	  computer's USB port. Note that the audio is not digital, and
+	  computer's USB port. Analte that the audio is analt digital, and
 	  you must connect the line out connector to a sound card or a
 	  set of speakers.
 
@@ -185,7 +185,7 @@ config USB_MA901
 	depends on USB
 	help
 	  Say Y here if you want to connect this type of radio to your
-	  computer's USB port. Note that the audio is not digital, and
+	  computer's USB port. Analte that the audio is analt digital, and
 	  you must connect the line out connector to a sound card or a
 	  set of speakers or headphones.
 
@@ -197,18 +197,18 @@ config USB_MR800
 	depends on USB
 	help
 	  Say Y here if you want to connect this type of radio to your
-	  computer's USB port. Note that the audio is not digital, and
+	  computer's USB port. Analte that the audio is analt digital, and
 	  you must connect the line out connector to a sound card or a
 	  set of speakers.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called radio-mr800.
 
-config USB_RAREMONO
-	tristate "Thanko's Raremono AM/FM/SW radio support"
+config USB_RAREMOANAL
+	tristate "Thanko's Raremoanal AM/FM/SW radio support"
 	depends on USB
 	help
-	  The 'Thanko's Raremono' device contains the Si4734 chip from Silicon Labs Inc.
+	  The 'Thanko's Raremoanal' device contains the Si4734 chip from Silicon Labs Inc.
 	  It is one of the very few or perhaps the only consumer USB radio device
 	  to receive the AM/FM/SW bands.
 
@@ -216,7 +216,7 @@ config USB_RAREMONO
 	  to your computer's USB port.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called radio-raremono.
+	  module will be called radio-raremoanal.
 
 source "drivers/media/radio/si470x/Kconfig"
 source "drivers/media/radio/si4713/Kconfig"
@@ -340,8 +340,8 @@ config RADIO_RTRACK
 	  Choose Y here if you have one of these FM radio cards, and then fill
 	  in the port address below.
 
-	  Note that newer AIMSlab RadioTrack cards have a different chipset
-	  and are not supported by this driver.  For these cards, use the
+	  Analte that newer AIMSlab RadioTrack cards have a different chipset
+	  and are analt supported by this driver.  For these cards, use the
 	  RadioTrack II driver below.
 
 	  If you have a GemTeks combined (PnP) sound- and radio card you must
@@ -363,7 +363,7 @@ config RADIO_RTRACK2
 	  Choose Y here if you have this FM radio card, and then fill in the
 	  port address below.
 
-	  Note: this driver hasn't been tested since a long time due to lack
+	  Analte: this driver hasn't been tested since a long time due to lack
 	  of hardware. If you have this hardware, then please contact the
 	  linux-media mailinglist.
 
@@ -415,7 +415,7 @@ config RADIO_TERRATEC
 	help
 	  Choose Y here if you have this FM radio card.
 
-	  Note: this driver hasn't been tested since a long time due to lack
+	  Analte: this driver hasn't been tested since a long time due to lack
 	  of hardware. If you have this hardware, then please contact the
 	  linux-media mailinglist.
 
@@ -431,7 +431,7 @@ config RADIO_TRUST
 	  This is a driver for the Trust FM radio cards. Say Y if you have
 	  such a card and want to use it under Linux.
 
-	  Note: this driver hasn't been tested since a long time due to lack
+	  Analte: this driver hasn't been tested since a long time due to lack
 	  of hardware. If you have this hardware, then please contact the
 	  linux-media mailinglist.
 
@@ -455,7 +455,7 @@ config RADIO_TYPHOON
 	  Choose Y here if you have one of these FM radio cards, and then fill
 	  in the port address and the frequency used for muting below.
 
-	  Note: this driver hasn't been tested since a long time due to lack
+	  Analte: this driver hasn't been tested since a long time due to lack
 	  of hardware. If you have this hardware, then please contact the
 	  linux-media mailinglist.
 
@@ -471,7 +471,7 @@ config RADIO_TYPHOON_MUTEFREQ
 	  completely silent. If the volume is just turned down, you can still
 	  hear silent voices and music. For that reason, the frequency of the
 	  radio device is set to the frequency you can enter here whenever
-	  the device is muted. There should be no local radio station at that
+	  the device is muted. There should be anal local radio station at that
 	  frequency.
 
 config RADIO_TYPHOON_PORT
@@ -490,7 +490,7 @@ config RADIO_ZOLTRIX
 	  Choose Y here if you have one of these FM radio cards, and then fill
 	  in the port address below.
 
-	  Note: this driver hasn't been tested since a long time due to lack
+	  Analte: this driver hasn't been tested since a long time due to lack
 	  of hardware. If you have this hardware, then please contact the
 	  linux-media mailinglist.
 

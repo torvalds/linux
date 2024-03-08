@@ -9,7 +9,7 @@
 #include <linux/module.h>
 
 /* Initial keytable is from Jose Alberto Reguero <jareguero@telefonica.net>
-   and Felipe Morales Moreno <felipe.morales.moreno@gmail.com> */
+   and Felipe Morales Moreanal <felipe.morales.moreanal@gmail.com> */
 /* Keytable fixed by Philippe Valembois <lephilousophe@users.sourceforge.net> */
 static struct rc_map_table avermedia_rm_ks[] = {
 	{ 0x0501, KEY_POWER2 }, /* Power (RED POWER BUTTON) */

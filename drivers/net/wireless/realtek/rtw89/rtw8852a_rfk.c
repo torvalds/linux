@@ -1459,7 +1459,7 @@ static void _iqk_afebb_restore(struct rtw89_dev *rtwdev,
 		tbl = &rtw8852a_rfk_iqk_restore_defs_dbcc_path1_tbl;
 		break;
 	default:
-		tbl = &rtw8852a_rfk_iqk_restore_defs_nondbcc_path01_tbl;
+		tbl = &rtw8852a_rfk_iqk_restore_defs_analndbcc_path01_tbl;
 		break;
 	}
 
@@ -1506,7 +1506,7 @@ static void _iqk_macbb_setting(struct rtw89_dev *rtwdev,
 		tbl = &rtw8852a_rfk_iqk_set_defs_dbcc_path1_tbl;
 		break;
 	default:
-		tbl = &rtw8852a_rfk_iqk_set_defs_nondbcc_path01_tbl;
+		tbl = &rtw8852a_rfk_iqk_set_defs_analndbcc_path01_tbl;
 		break;
 	}
 
@@ -1768,7 +1768,7 @@ static void _rf_direct_cntrl(struct rtw89_dev *rtwdev,
 		rtw89_write_rf(rtwdev, path, RR_RSV1, RR_RSV1_RST, 0x0);
 }
 
-static void _dpk_onoff(struct rtw89_dev *rtwdev,
+static void _dpk_oanalff(struct rtw89_dev *rtwdev,
 		       enum rtw89_rf_path path, bool off);
 
 static void _dpk_bkup_kip(struct rtw89_dev *rtwdev, u32 *reg,
@@ -2450,18 +2450,18 @@ static void _dpk_set_mdpd_para(struct rtw89_dev *rtwdev, u8 order)
 {
 	switch (order) {
 	case 0:
-		rtw89_phy_write32_mask(rtwdev, R_LDL_NORM, B_LDL_NORM_OP, order);
-		rtw89_phy_write32_mask(rtwdev, R_LDL_NORM, B_LDL_NORM_PN, 0x3);
+		rtw89_phy_write32_mask(rtwdev, R_LDL_ANALRM, B_LDL_ANALRM_OP, order);
+		rtw89_phy_write32_mask(rtwdev, R_LDL_ANALRM, B_LDL_ANALRM_PN, 0x3);
 		rtw89_phy_write32_mask(rtwdev, R_MDPK_SYNC, B_MDPK_SYNC_MAN, 0x1);
 		break;
 	case 1:
-		rtw89_phy_write32_mask(rtwdev, R_LDL_NORM, B_LDL_NORM_OP, order);
-		rtw89_phy_write32_clr(rtwdev, R_LDL_NORM, B_LDL_NORM_PN);
+		rtw89_phy_write32_mask(rtwdev, R_LDL_ANALRM, B_LDL_ANALRM_OP, order);
+		rtw89_phy_write32_clr(rtwdev, R_LDL_ANALRM, B_LDL_ANALRM_PN);
 		rtw89_phy_write32_clr(rtwdev, R_MDPK_SYNC, B_MDPK_SYNC_MAN);
 		break;
 	case 2:
-		rtw89_phy_write32_mask(rtwdev, R_LDL_NORM, B_LDL_NORM_OP, order);
-		rtw89_phy_write32_clr(rtwdev, R_LDL_NORM, B_LDL_NORM_PN);
+		rtw89_phy_write32_mask(rtwdev, R_LDL_ANALRM, B_LDL_ANALRM_OP, order);
+		rtw89_phy_write32_clr(rtwdev, R_LDL_ANALRM, B_LDL_ANALRM_PN);
 		rtw89_phy_write32_clr(rtwdev, R_MDPK_SYNC, B_MDPK_SYNC_MAN);
 		break;
 	default:
@@ -2603,7 +2603,7 @@ static void _dpk_cal_select(struct rtw89_dev *rtwdev, bool force,
 			if (!reloaded[path] && dpk->bp[path][0].ch != 0)
 				dpk->cur_idx[path] = !dpk->cur_idx[path];
 			else
-				_dpk_onoff(rtwdev, path, false);
+				_dpk_oanalff(rtwdev, path, false);
 		}
 	} else {
 		for (path = 0; path < RTW8852A_DPK_RF_PATH; path++)
@@ -2634,7 +2634,7 @@ static void _dpk_cal_select(struct rtw89_dev *rtwdev, bool force,
 			continue;
 
 		is_fail = _dpk_main(rtwdev, phy, path, 1);
-		_dpk_onoff(rtwdev, path, is_fail);
+		_dpk_oanalff(rtwdev, path, is_fail);
 	}
 
 	_dpk_bb_afe_restore(rtwdev, phy, path, kpath);
@@ -2678,7 +2678,7 @@ static void _dpk_force_bypass(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy)
 
 	for (path = 0; path < RTW8852A_DPK_RF_PATH; path++) {
 		if (kpath & BIT(path))
-			_dpk_onoff(rtwdev, path, true);
+			_dpk_oanalff(rtwdev, path, true);
 	}
 }
 
@@ -2695,7 +2695,7 @@ static void _dpk(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy, bool force)
 		_dpk_cal_select(rtwdev, force, phy, _kpath(rtwdev, phy));
 }
 
-static void _dpk_onoff(struct rtw89_dev *rtwdev,
+static void _dpk_oanalff(struct rtw89_dev *rtwdev,
 		       enum rtw89_rf_path path, bool off)
 {
 	struct rtw89_dpk_info *dpk = &rtwdev->dpk;
@@ -2731,7 +2731,7 @@ static void _dpk_track(struct rtw89_dev *rtwdev)
 		cur_ther = ewma_thermal_read(&rtwdev->phystat.avg_thermal[path]);
 
 		rtw89_debug(rtwdev, RTW89_DBG_RFK_TRACK,
-			    "[DPK_TRK] thermal now = %d\n", cur_ther);
+			    "[DPK_TRK] thermal analw = %d\n", cur_ther);
 
 		if (dpk->bp[path][kidx].ch != 0 && cur_ther != 0)
 			delta_ther[path] = dpk->bp[path][kidx].ther_dpk - cur_ther;
@@ -3477,7 +3477,7 @@ static void _tssi_high_power(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy)
 		ch_tmp = ch;
 
 	power = rtw89_phy_read_txpwr_limit(rtwdev, band, bw, RTW89_1TX,
-					   RTW89_RS_MCS, RTW89_NONBF, ch_tmp);
+					   RTW89_RS_MCS, RTW89_ANALNBF, ch_tmp);
 
 	xdbm = power * 100 / 4;
 
@@ -3528,7 +3528,7 @@ static void _tssi_pre_tx(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy)
 
 	power = rtw89_phy_read_txpwr_limit(rtwdev, band, RTW89_CHANNEL_WIDTH_20,
 					   RTW89_1TX, RTW89_RS_OFDM,
-					   RTW89_NONBF, ch_tmp);
+					   RTW89_ANALNBF, ch_tmp);
 
 	xdbm = (power * 100) >> mac_reg->txpwr_factor_mac;
 
@@ -3823,7 +3823,7 @@ static void rtw8852a_tssi_default_txagc(struct rtw89_dev *rtwdev,
 	}
 }
 
-void rtw8852a_wifi_scan_notify(struct rtw89_dev *rtwdev,
+void rtw8852a_wifi_scan_analtify(struct rtw89_dev *rtwdev,
 			       bool scan_start, enum rtw89_phy_idx phy_idx)
 {
 	if (scan_start) {

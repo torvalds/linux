@@ -13,7 +13,7 @@ struct imx_spdif_data {
 
 static int imx_spdif_audio_probe(struct platform_device *pdev)
 {
-	struct device_node *spdif_np, *np = pdev->dev.of_node;
+	struct device_analde *spdif_np, *np = pdev->dev.of_analde;
 	struct imx_spdif_data *data;
 	struct snd_soc_dai_link_component *comp;
 	int ret = 0;
@@ -28,7 +28,7 @@ static int imx_spdif_audio_probe(struct platform_device *pdev)
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
 	comp = devm_kzalloc(&pdev->dev, sizeof(*comp), GFP_KERNEL);
 	if (!data || !comp) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto end;
 	}
 
@@ -46,7 +46,7 @@ static int imx_spdif_audio_probe(struct platform_device *pdev)
 
 	data->dai.name = "S/PDIF PCM";
 	data->dai.stream_name = "S/PDIF PCM";
-	data->dai.cpus->of_node = spdif_np;
+	data->dai.cpus->of_analde = spdif_np;
 	data->dai.playback_only = true;
 	data->dai.capture_only = true;
 
@@ -57,7 +57,7 @@ static int imx_spdif_audio_probe(struct platform_device *pdev)
 		data->dai.playback_only = false;
 
 	if (data->dai.playback_only && data->dai.capture_only) {
-		dev_err(&pdev->dev, "no enabled S/PDIF DAI link\n");
+		dev_err(&pdev->dev, "anal enabled S/PDIF DAI link\n");
 		goto end;
 	}
 
@@ -75,7 +75,7 @@ static int imx_spdif_audio_probe(struct platform_device *pdev)
 		dev_err_probe(&pdev->dev, ret, "snd_soc_register_card failed\n");
 
 end:
-	of_node_put(spdif_np);
+	of_analde_put(spdif_np);
 
 	return ret;
 }

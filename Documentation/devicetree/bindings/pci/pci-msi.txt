@@ -50,7 +50,7 @@ Optional properties
   to an msi-specifier per the msi-map property.
 
 - msi-parent: Describes the MSI parent of the root complex itself. Where
-  the root complex and MSI controller do not pass sideband data with MSI
+  the root complex and MSI controller do analt pass sideband data with MSI
   writes, this property may be used to describe the MSI controller(s)
   used by PCI devices under the root complex, if defined as such in the
   binding for the root complex.
@@ -135,7 +135,7 @@ Example (3)
 		/*
 		 * The sideband data provided to the MSI controller is
 		 * the RID, but the high bit of the bus number is
-		 * ignored.
+		 * iganalred.
 		 */
 		msi-map = <0x0000 &msi 0x0000 0x8000>,
 			  <0x8000 &msi 0x0000 0x8000>;
@@ -211,7 +211,7 @@ Example (5)
 		 * RID, but the high bit of the bus number is negated.
 		 * The sideband data provided to MSI controller b is the
 		 * RID, identity-mapped.
-		 * MSI controller c is not addressable.
+		 * MSI controller c is analt addressable.
 		 */
 		msi-map = <0x0000 &msi_a 0x8000 0x08000>,
 			  <0x8000 &msi_a 0x0000 0x08000>,

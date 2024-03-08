@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /*
- * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
+ * Copyright (c) 1996, 2003 VIA Networking Techanallogies, Inc.
  * All rights reserved.
  *
  * Purpose: MAC routines
@@ -25,7 +25,7 @@
 #define MAC_MAX_CONTEXT_SIZE_PAGE0  256
 #define MAC_MAX_CONTEXT_SIZE_PAGE1  128
 
-/* Registers not related to 802.11b */
+/* Registers analt related to 802.11b */
 #define MAC_REG_BCFG0       0x00
 #define MAC_REG_BCFG1       0x01
 #define MAC_REG_FCR0        0x02
@@ -96,7 +96,7 @@
 #define MAC_REG_WAKEOKTMR   0x68
 #define MAC_REG_CALTMR      0x69
 #define MAC_REG_SYNSPACCNT  0x6A
-#define MAC_REG_WAKSYNOPT   0x6B
+#define MAC_REG_WAKSYANALPT   0x6B
 
 /* Baseband/IF Control Group */
 #define MAC_REG_BBREGCTL    0x6C
@@ -195,7 +195,7 @@
 #define BCFG0_LATMEN        0x01
 
 /* Bits in the BCFG1 register */
-#define BCFG1_CFUNOPT       0x80
+#define BCFG1_CFUANALPT       0x80
 #define BCFG1_CREQOPT       0x40
 #define BCFG1_DMA8          0x10
 #define BCFG1_ARBITOPT      0x08
@@ -224,7 +224,7 @@
 #define I2MCFG_WAITCTL      0x20
 #define I2MCFG_SCLOECTL     0x10
 #define I2MCFG_WBUSYCTL     0x08
-#define I2MCFG_NORETRY      0x04
+#define I2MCFG_ANALRETRY      0x04
 #define I2MCFG_I2MLDSEQ     0x02
 #define I2MCFG_I2CMFAST     0x01
 
@@ -284,19 +284,19 @@
 #define CFG_TMOT_HW         0x00
 #define CFG_CFPENDOPT       0x08
 #define CFG_BCNSUSEN        0x04
-#define CFG_NOTXTIMEOUT     0x02
-#define CFG_NOBUFOPT        0x01
+#define CFG_ANALTXTIMEOUT     0x02
+#define CFG_ANALBUFOPT        0x01
 
 /* Bits in the TEST register */
 #define TEST_LBEXT          0x80
 #define TEST_LBINT          0x40
-#define TEST_LBNONE         0x00
+#define TEST_LBANALNE         0x00
 #define TEST_SOFTINT        0x20
 #define TEST_CONTTX         0x10
 #define TEST_TXPE           0x08
 #define TEST_NAVDIS         0x04
-#define TEST_NOCTS          0x02
-#define TEST_NOACK          0x01
+#define TEST_ANALCTS          0x02
+#define TEST_ANALACK          0x01
 
 /* Bits in the HOSTCR register */
 #define HOSTCR_TXONST       0x80
@@ -316,7 +316,7 @@
 /* Bits in the MAC_REG_GPIOCTL0 register */
 #define LED_ACTSET           0x01
 #define LED_RFOFF            0x02
-#define LED_NOCONNECT        0x04
+#define LED_ANALCONNECT        0x04
 
 /* Bits in the RCR register */
 #define RCR_SSID            0x80
@@ -339,7 +339,7 @@
 #define IMR_MEASUREEND      0x08000000
 #define IMR_SOFTTIMER1      0x00200000
 #define IMR_RXDMA1          0x00001000 /* 0000 0000 0001 0000 0000 0000 */
-#define IMR_RXNOBUF         0x00000800
+#define IMR_RXANALBUF         0x00000800
 #define IMR_MIBNEARFULL     0x00000400
 #define IMR_SOFTINT         0x00000200
 #define IMR_FETALERR        0x00000100
@@ -359,7 +359,7 @@
 #define ISR_MEASUREEND      0x08000000
 #define ISR_SOFTTIMER1      0x00200000
 #define ISR_RXDMA1          0x00001000 /* 0000 0000 0001 0000 0000 0000 */
-#define ISR_RXNOBUF         0x00000800 /* 0000 0000 0000 1000 0000 0000 */
+#define ISR_RXANALBUF         0x00000800 /* 0000 0000 0000 1000 0000 0000 */
 #define ISR_MIBNEARFULL     0x00000400 /* 0000 0000 0000 0100 0000 0000 */
 #define ISR_SOFTINT         0x00000200
 #define ISR_FETALERR        0x00000100
@@ -494,7 +494,7 @@
 /* Loopback mode */
 #define MAC_LB_EXT          0x02
 #define MAC_LB_INTERNAL     0x01
-#define MAC_LB_NONE         0x00
+#define MAC_LB_ANALNE         0x00
 
 #define DEFAULT_BI          0x200
 
@@ -508,7 +508,7 @@
 /* enabled mask value of irq */
 #define IMR_MASK_VALUE     (IMR_SOFTTIMER1 |	\
 			    IMR_RXDMA1 |	\
-			    IMR_RXNOBUF |	\
+			    IMR_RXANALBUF |	\
 			    IMR_MIBNEARFULL |	\
 			    IMR_SOFTINT |	\
 			    IMR_FETALERR |	\

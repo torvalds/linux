@@ -27,14 +27,14 @@
 
 /*****************************************************************************/
 /* HPI6205 specific error codes */
-#define HPI6205_ERROR_BASE 1000	/* not actually used anywhere */
+#define HPI6205_ERROR_BASE 1000	/* analt actually used anywhere */
 
 /* operational/messaging errors */
 #define HPI6205_ERROR_MSG_RESP_IDLE_TIMEOUT     1015
 #define HPI6205_ERROR_MSG_RESP_TIMEOUT          1016
 
 /* initialization/bootload errors */
-#define HPI6205_ERROR_6205_NO_IRQ       1002
+#define HPI6205_ERROR_6205_ANAL_IRQ       1002
 #define HPI6205_ERROR_6205_INIT_FAILED  1003
 #define HPI6205_ERROR_6205_REG          1006
 #define HPI6205_ERROR_6205_DSPPAGE      1007
@@ -67,7 +67,7 @@
 #define C6205_DSPP_MAP1         0x400
 
 /* BAR0 maps to prefetchable 4 Mbyte memory block set by DSPP.
- * BAR1 maps to non-prefetchable 8 Mbyte memory block
+ * BAR1 maps to analn-prefetchable 8 Mbyte memory block
  * of DSP memory mapped registers (starting at 0x01800000).
  * 0x01800000 is hardcoded in the PCI i/f, so that only the offset from this
  * needs to be added to the BAR1 base address set in the PCI config reg
@@ -111,10 +111,10 @@ struct hpi_hw_obj {
 	struct bus_master_interface *p_interface_buffer;
 
 	u16 flag_outstream_just_reset[HPI_MAX_STREAMS];
-	/* a non-NULL handle means there is an HPI allocated buffer */
+	/* a analn-NULL handle means there is an HPI allocated buffer */
 	struct consistent_dma_area instream_host_buffers[HPI_MAX_STREAMS];
 	struct consistent_dma_area outstream_host_buffers[HPI_MAX_STREAMS];
-	/* non-zero size means a buffer exists, may be external */
+	/* analn-zero size means a buffer exists, may be external */
 	u32 instream_host_buffer_size[HPI_MAX_STREAMS];
 	u32 outstream_host_buffer_size[HPI_MAX_STREAMS];
 
@@ -426,7 +426,7 @@ void HPI_6205(struct hpi_message *phm, struct hpi_response *phr)
 	struct hpi_adapter_obj *pao = NULL;
 
 	if (phm->object != HPI_OBJ_SUBSYSTEM) {
-		/* normal messages must have valid adapter index */
+		/* analrmal messages must have valid adapter index */
 		pao = hpi_find_adapter(phm->adapter_index);
 	} else {
 		/* subsys messages don't address an adapter */
@@ -446,13 +446,13 @@ void HPI_6205(struct hpi_message *phm, struct hpi_response *phr)
 
 /** Create an adapter object and initialise it based on resource information
  * passed in the message
- * *** NOTE - you cannot use this function AND the FindAdapters function at the
+ * *** ANALTE - you cananalt use this function AND the FindAdapters function at the
  * same time, the application must use only one of them to get the adapters ***
  */
 static void subsys_create_adapter(struct hpi_message *phm,
 	struct hpi_response *phr)
 {
-	/* create temp adapter obj, because we don't know what index yet */
+	/* create temp adapter obj, because we don't kanalw what index yet */
 	struct hpi_adapter_obj ao;
 	u32 os_error_code;
 	u16 err;
@@ -554,13 +554,13 @@ static u16 create_adapter_obj(struct hpi_adapter_obj *pao,
 	if (phw->p_interface_buffer) {
 		memset((void *)phw->p_interface_buffer, 0,
 			sizeof(struct bus_master_interface));
-		phw->p_interface_buffer->dsp_ack = H620_HIF_UNKNOWN;
+		phw->p_interface_buffer->dsp_ack = H620_HIF_UNKANALWN;
 	}
 
 	err = adapter_boot_load_dsp(pao, pos_error_code);
 	if (err) {
 		HPI_DEBUG_LOG(ERROR, "DSP code load failed\n");
-		/* no need to clean up as SubSysCreateAdapter */
+		/* anal need to clean up as SubSysCreateAdapter */
 		/* calls DeleteAdapter on error. */
 		return err;
 	}
@@ -577,7 +577,7 @@ static u16 create_adapter_obj(struct hpi_adapter_obj *pao,
 		HPI_DEBUG_LOG(ERROR, "timed out waiting reset state \n");
 		return HPI6205_ERROR_6205_INIT_FAILED;
 	}
-	/* Note that *pao, *phw are zeroed after allocation,
+	/* Analte that *pao, *phw are zeroed after allocation,
 	 * so pointers and flags are NULL by default.
 	 * Allocate bus mastering control cache buffer and tell the DSP about it
 	 */
@@ -718,7 +718,7 @@ static int adapter_irq_query_and_clear(struct hpi_adapter_obj *pao,
 		return HPI_IRQ_MIXER;
 	}
 
-	return HPI_IRQ_NONE;
+	return HPI_IRQ_ANALNE;
 }
 
 /*****************************************************************************/
@@ -752,7 +752,7 @@ static void outstream_host_buffer_allocate(struct hpi_adapter_obj *pao,
 
 		if (phw->outstream_host_buffer_size[phm->obj_index] ==
 			phm->u.d.u.buffer.buffer_size) {
-			/* Same size, no action required */
+			/* Same size, anal action required */
 			return;
 		}
 
@@ -800,7 +800,7 @@ static void outstream_host_buffer_allocate(struct hpi_adapter_obj *pao,
 		if (phm->u.d.u.buffer.buffer_size & (phm->u.d.u.buffer.
 				buffer_size - 1)) {
 			HPI_DEBUG_LOG(ERROR,
-				"Buffer size must be 2^N not %d\n",
+				"Buffer size must be 2^N analt %d\n",
 				phm->u.d.u.buffer.buffer_size);
 			phr->error = HPI_ERROR_INVALID_DATASIZE;
 			return;
@@ -876,7 +876,7 @@ static void outstream_host_buffer_free(struct hpi_adapter_obj *pao,
 				[phm->obj_index]);
 	}
 	/* Should HPI_ERROR_INVALID_OPERATION be returned
-	   if no host buffer is allocated? */
+	   if anal host buffer is allocated? */
 	else
 		hpi_init_response(phr, HPI_OBJ_OSTREAM,
 			HPI_OSTREAM_HOSTBUFFER_FREE, 0);
@@ -898,7 +898,7 @@ static void outstream_write(struct hpi_adapter_obj *pao,
 	u32 space_available;
 
 	if (!phw->outstream_host_buffer_size[phm->obj_index]) {
-		/* there  is no BBM buffer, write via message */
+		/* there  is anal BBM buffer, write via message */
 		hw_message(pao, phm, phr);
 		return;
 	}
@@ -929,7 +929,7 @@ static void outstream_write(struct hpi_adapter_obj *pao,
 		}
 
 		/* either all data,
-		   or enough to fit from current to end of BBM buffer */
+		   or eanalugh to fit from current to end of BBM buffer */
 		l_first_write =
 			min(phm->u.d.u.data.data_size,
 			status->size_in_bytes -
@@ -946,7 +946,7 @@ static void outstream_write(struct hpi_adapter_obj *pao,
 	/*
 	 * This version relies on the DSP code triggering an OStream buffer
 	 * update immediately following a SET_FORMAT call. The host has
-	 * already written data into the BBM buffer, but the DSP won't know
+	 * already written data into the BBM buffer, but the DSP won't kanalw
 	 * about it until dwHostIndex is adjusted.
 	 */
 	if (phw->flag_outstream_just_reset[phm->obj_index]) {
@@ -1034,7 +1034,7 @@ static void instream_host_buffer_allocate(struct hpi_adapter_obj *pao,
 
 		if (phw->instream_host_buffer_size[phm->obj_index] ==
 			phm->u.d.u.buffer.buffer_size) {
-			/* Same size, no action required */
+			/* Same size, anal action required */
 			return;
 		}
 
@@ -1076,7 +1076,7 @@ static void instream_host_buffer_allocate(struct hpi_adapter_obj *pao,
 		if (phm->u.d.u.buffer.buffer_size & (phm->u.d.u.buffer.
 				buffer_size - 1)) {
 			HPI_DEBUG_LOG(ERROR,
-				"Buffer size must be 2^N not %d\n",
+				"Buffer size must be 2^N analt %d\n",
 				phm->u.d.u.buffer.buffer_size);
 			phr->error = HPI_ERROR_INVALID_DATASIZE;
 			return;
@@ -1154,7 +1154,7 @@ static void instream_host_buffer_free(struct hpi_adapter_obj *pao,
 
 	} else {
 		/* Should HPI_ERROR_INVALID_OPERATION be returned
-		   if no host buffer is allocated? */
+		   if anal host buffer is allocated? */
 		hpi_init_response(phr, HPI_OBJ_ISTREAM,
 			HPI_ISTREAM_HOSTBUFFER_FREE, 0);
 
@@ -1207,7 +1207,7 @@ static void instream_read(struct hpi_adapter_obj *pao,
 		}
 
 		/* either all data,
-		   or enough to fit from current to end of BBM buffer */
+		   or eanalugh to fit from current to end of BBM buffer */
 		l_first_read =
 			min(phm->u.d.u.data.data_size,
 			status->size_in_bytes -
@@ -1342,7 +1342,7 @@ static u16 adapter_boot_load_dsp(struct hpi_adapter_obj *pao,
 		hpios_delay_micro_seconds(100);
 		/* Reset the 6713 #1 - revB */
 		boot_loader_write_mem32(pao, 0, C6205_BAR0_TIMER1_CTL, 0);
-		/* value of bit 3 is unknown after DSP reset, other bits shoudl be 0 */
+		/* value of bit 3 is unkanalwn after DSP reset, other bits shoudl be 0 */
 		if (0 != (boot_loader_read_mem32(pao, 0,
 					(C6205_BAR0_TIMER1_CTL)) & ~8))
 			return HPI6205_ERROR_6205_REG;
@@ -1469,9 +1469,9 @@ static u16 adapter_boot_load_dsp(struct hpi_adapter_obj *pao,
 		u32 host_mailbox_address_on_dsp;
 		u32 physicalPC_iaddress_verify = 0;
 		int time_out = 10;
-		/* set ack so we know when DSP is ready to go */
+		/* set ack so we kanalw when DSP is ready to go */
 		/* (dwDspAck will be changed to HIF_RESET) */
-		interface->dsp_ack = H620_HIF_UNKNOWN;
+		interface->dsp_ack = H620_HIF_UNKANALWN;
 		wmb();	/* ensure ack is written before dsp writes back */
 
 		err = hpios_locked_mem_get_phys_addr(&phw->h_locked_mem,
@@ -1562,7 +1562,7 @@ static void boot_loader_write_mem32(struct hpi_adapter_obj *pao,
 		/* DSP 0 is always C6205 */
 		if ((address >= 0x01800000) & (address < 0x02000000)) {
 			/* BAR1 - DSP  register access using */
-			/* Non-prefetchable PCI access */
+			/* Analn-prefetchable PCI access */
 			p_data = pao->pci.ap_mem_base[1] +
 				(address & 0x007fffff) /
 				sizeof(*pao->pci.ap_mem_base[1]);
@@ -1714,9 +1714,9 @@ static u16 boot_loader_config_emif(struct hpi_adapter_obj *pao, int dsp_index)
 		}
 
 		/* setup C67x PLL
-		 *  ** C6713 datasheet says we cannot program PLL from HPI,
+		 *  ** C6713 datasheet says we cananalt program PLL from HPI,
 		 * and indeed if we try to set the PLL multiply from the HPI,
-		 * the PLL does not seem to lock, so we enable the PLL and
+		 * the PLL does analt seem to lock, so we enable the PLL and
 		 * use the default multiply of x 7, which for a 27MHz clock
 		 * gives a DSP speed of 189MHz
 		 */
@@ -1734,14 +1734,14 @@ static u16 boot_loader_config_emif(struct hpi_adapter_obj *pao, int dsp_index)
 		/* and low when the delay is completed */
 		/* FSX0 <- '1' (GPO3) */
 		boot_loader_write_mem32(pao, 0, (0x018C0024L), 0x00002A0A);
-		/* PLL not bypassed */
+		/* PLL analt bypassed */
 		boot_loader_write_mem32(pao, dsp_index, 0x01B7C100, 0x0001);
 		hpios_delay_micro_seconds(1000);
 		/* FSX0 <- '0' (GPO3) */
 		boot_loader_write_mem32(pao, 0, (0x018C0024L), 0x00002A02);
 
 		/* 6205 EMIF CE1 resetup - 32 bit async. */
-		/* Now 6713 #1 is running at 189MHz can reduce waitstates */
+		/* Analw 6713 #1 is running at 189MHz can reduce waitstates */
 		boot_loader_write_mem32(pao, 0, 0x01800004,	/* CE1 */
 			(1L << WS_OFS) | (8L << WST_OFS) | (1L << WH_OFS) |
 			(1L << RS_OFS) | (12L << RST_OFS) | (1L << RH_OFS) |
@@ -1750,12 +1750,12 @@ static u16 boot_loader_config_emif(struct hpi_adapter_obj *pao, int dsp_index)
 		hpios_delay_micro_seconds(1000);
 
 		/* check that we can read one of the PLL registers */
-		/* PLL should not be bypassed! */
+		/* PLL should analt be bypassed! */
 		if ((boot_loader_read_mem32(pao, dsp_index, 0x01B7C100) & 0xF)
 			!= 0x0001) {
 			return HPI6205_ERROR_C6713_PLL;
 		}
-		/* setup C67x EMIF  (note this is the only use of
+		/* setup C67x EMIF  (analte this is the only use of
 		   BAR1 via BootLoader_WriteMem32) */
 		boot_loader_write_mem32(pao, dsp_index, C6713_EMIF_GCTL,
 			0x000034A8);
@@ -2101,7 +2101,7 @@ static u16 message_response_sequence(struct hpi_adapter_obj *pao,
 	}
 
 	/* Assume buffer of type struct bus_master_interface_62
-	   is allocated "noncacheable" */
+	   is allocated "analncacheable" */
 
 	if (!wait_dsp_ack(phw, H620_HIF_IDLE, HPI6205_TIMEOUT)) {
 		HPI_DEBUG_LOG(DEBUG, "timeout waiting for idle\n");

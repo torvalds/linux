@@ -8,7 +8,7 @@
  * Rutgers, The State University of New Jersey
  *
  * Clean swab support by Fare <fare@tunes.org>
- * just hope no one is using NNUUXXI on __?64 structure elements
+ * just hope anal one is using NNUUXXI on __?64 structure elements
  * 64-bit clean thanks to Maciej W. Rozycki <macro@ds2.pg.gda.pl>
  *
  * 4.4BSD (FreeBSD) support added on February 1st 1998 by
@@ -58,21 +58,21 @@ typedef __u16 __bitwise __fs16;
 /*
  * Each disk drive contains some number of filesystems.
  * A filesystem consists of a number of cylinder groups.
- * Each cylinder group has inodes and data.
+ * Each cylinder group has ianaldes and data.
  *
  * A filesystem is described by its super-block, which in turn
  * describes the cylinder groups.  The super-block is critical
  * data and is replicated in each cylinder group to protect against
  * catastrophic loss.  This is done at `newfs' time and the critical
- * super-block data does not change, so the copies need not be
+ * super-block data does analt change, so the copies need analt be
  * referenced further unless disaster strikes.
  *
  * For filesystem fs, the offsets of the various blocks of interest
  * are given in the super block as:
- *      [fs->fs_sblkno]         Super-block
- *      [fs->fs_cblkno]         Cylinder group block
- *      [fs->fs_iblkno]         Inode blocks
- *      [fs->fs_dblkno]         Data blocks
+ *      [fs->fs_sblkanal]         Super-block
+ *      [fs->fs_cblkanal]         Cylinder group block
+ *      [fs->fs_iblkanal]         Ianalde blocks
+ *      [fs->fs_dblkanal]         Data blocks
  * The beginning of cylinder group cg in fs, is given by
  * the ``cgbase(fs, cg)'' macro.
  *
@@ -84,7 +84,7 @@ typedef __u16 __bitwise __fs16;
  * room for the disk label and a bigger bootstrap, and for really piggy
  * systems we check at 256K from the front if the first three fail. In
  * all cases the size of the superblock will be SBLOCKSIZE. All values are
- * given in byte-offset form, so they do not imply a sector size. The
+ * given in byte-offset form, so they do analt imply a sector size. The
  * SBLOCKSEARCH specifies the order in which the locations should be searched.
  */
 #define SBLOCK_FLOPPY        0
@@ -136,8 +136,8 @@ typedef __u16 __bitwise __fs16;
 #define UFS_DIND_FRAGMENT (UFS_DIND_BLOCK << uspi->s_fpbshift)
 #define UFS_TIND_FRAGMENT (UFS_TIND_BLOCK << uspi->s_fpbshift)
 
-#define UFS_ROOTINO 2
-#define UFS_FIRST_INO (UFS_ROOTINO + 1)
+#define UFS_ROOTIANAL 2
+#define UFS_FIRST_IANAL (UFS_ROOTIANAL + 1)
 
 #define UFS_USEEFT  ((__u16)65535)
 
@@ -169,7 +169,7 @@ typedef __u16 __bitwise __fs16;
 #define UFS_ST_OLD		0x00000000
 #define UFS_ST_44BSD		0x00000100
 #define UFS_ST_SUN		0x00000200 /* Solaris */
-#define UFS_ST_SUNOS		0x00000300
+#define UFS_ST_SUANALS		0x00000300
 #define UFS_ST_SUNx86		0x00000400 /* Solaris x86 */
 /*cylinder group encoding */
 #define UFS_CG_MASK		0x00003000	/* mask for the following */
@@ -182,20 +182,20 @@ typedef __u16 __bitwise __fs16;
 #define UFS_TYPE_UFS2		0x00010000
 
 
-/* fs_inodefmt options */
-#define UFS_42INODEFMT	-1
-#define UFS_44INODEFMT	2
+/* fs_ianaldefmt options */
+#define UFS_42IANALDEFMT	-1
+#define UFS_44IANALDEFMT	2
 
 /*
  * MINFREE gives the minimum acceptable percentage of file system
  * blocks which may be free. If the freelist drops below this level
  * only the superuser may continue to allocate blocks. This may
- * be set to 0 if no reserve of free blocks is deemed necessary,
+ * be set to 0 if anal reserve of free blocks is deemed necessary,
  * however throughput drops by fifty percent if the file system
  * is run at between 95% and 100% full; thus the minimum default
  * value of fs_minfree is 5%. However, to get good clustering
  * performance, 10% is a better choice. hence we use 10% as our
- * default value. With 10% free space, fragmentation is not a
+ * default value. With 10% free space, fragmentation is analt a
  * problem, so we choose to optimize for time.
  */
 #define UFS_MINFREE         5
@@ -215,35 +215,35 @@ typedef __u16 __bitwise __fs16;
 #define	ufs_cgbase(c)	(uspi->s_fpg * (c))
 #define ufs_cgstart(c)	((uspi)->fs_magic == UFS2_MAGIC ?  ufs_cgbase(c) : \
 	(ufs_cgbase(c)  + uspi->s_cgoffset * ((c) & ~uspi->s_cgmask)))
-#define	ufs_cgsblock(c)	(ufs_cgstart(c) + uspi->s_sblkno)	/* super blk */
-#define	ufs_cgcmin(c)	(ufs_cgstart(c) + uspi->s_cblkno)	/* cg block */
-#define	ufs_cgimin(c)	(ufs_cgstart(c) + uspi->s_iblkno)	/* inode blk */
-#define	ufs_cgdmin(c)	(ufs_cgstart(c) + uspi->s_dblkno)	/* 1st data */
+#define	ufs_cgsblock(c)	(ufs_cgstart(c) + uspi->s_sblkanal)	/* super blk */
+#define	ufs_cgcmin(c)	(ufs_cgstart(c) + uspi->s_cblkanal)	/* cg block */
+#define	ufs_cgimin(c)	(ufs_cgstart(c) + uspi->s_iblkanal)	/* ianalde blk */
+#define	ufs_cgdmin(c)	(ufs_cgstart(c) + uspi->s_dblkanal)	/* 1st data */
 
 /*
- * Macros for handling inode numbers:
- *     inode number to file system block offset.
- *     inode number to cylinder group number.
- *     inode number to file system block address.
+ * Macros for handling ianalde numbers:
+ *     ianalde number to file system block offset.
+ *     ianalde number to cylinder group number.
+ *     ianalde number to file system block address.
  */
-#define	ufs_inotocg(x)		((x) / uspi->s_ipg)
-#define	ufs_inotocgoff(x)	((x) % uspi->s_ipg)
-#define	ufs_inotofsba(x)	(((u64)ufs_cgimin(ufs_inotocg(x))) + ufs_inotocgoff(x) / uspi->s_inopf)
-#define	ufs_inotofsbo(x)	((x) % uspi->s_inopf)
+#define	ufs_ianaltocg(x)		((x) / uspi->s_ipg)
+#define	ufs_ianaltocgoff(x)	((x) % uspi->s_ipg)
+#define	ufs_ianaltofsba(x)	(((u64)ufs_cgimin(ufs_ianaltocg(x))) + ufs_ianaltocgoff(x) / uspi->s_ianalpf)
+#define	ufs_ianaltofsbo(x)	((x) % uspi->s_ianalpf)
 
 /*
  * Compute the cylinder and rotational position of a cyl block addr.
  */
-#define ufs_cbtocylno(bno) \
-	((bno) * uspi->s_nspf / uspi->s_spc)
-#define ufs_cbtorpos(bno)				      \
+#define ufs_cbtocylanal(banal) \
+	((banal) * uspi->s_nspf / uspi->s_spc)
+#define ufs_cbtorpos(banal)				      \
 	((UFS_SB(sb)->s_flags & UFS_CG_SUN) ?		      \
-	 (((((bno) * uspi->s_nspf % uspi->s_spc) %	      \
+	 (((((banal) * uspi->s_nspf % uspi->s_spc) %	      \
 	    uspi->s_nsect) *				      \
 	   uspi->s_nrpos) / uspi->s_nsect)		      \
 	 :						      \
-	((((bno) * uspi->s_nspf % uspi->s_spc / uspi->s_nsect \
-	* uspi->s_trackskew + (bno) * uspi->s_nspf % uspi->s_spc \
+	((((banal) * uspi->s_nspf % uspi->s_spc / uspi->s_nsect \
+	* uspi->s_trackskew + (banal) * uspi->s_nspf % uspi->s_spc \
 	% uspi->s_nsect * uspi->s_interleave) % uspi->s_nsect \
 	  * uspi->s_nrpos) / uspi->s_npsect))
 
@@ -255,7 +255,7 @@ typedef __u16 __bitwise __fs16;
 #define ufs_blkoff(loc)		((loc) & uspi->s_qbmask)
 #define ufs_fragoff(loc)	((loc) & uspi->s_qfmask)
 #define ufs_lblktosize(blk)	((blk) << uspi->s_bshift)
-#define ufs_lblkno(loc)		((loc) >> uspi->s_bshift)
+#define ufs_lblkanal(loc)		((loc) >> uspi->s_bshift)
 #define ufs_numfrags(loc)	((loc) >> uspi->s_fshift)
 #define ufs_blkroundup(size)	(((size) + uspi->s_qbmask) & uspi->s_bmask)
 #define ufs_fragroundup(size)	(((size) + uspi->s_qfmask) & uspi->s_fmask)
@@ -271,9 +271,9 @@ typedef __u16 __bitwise __fs16;
 #define UFS_MAXCSBUFS 31
 #define UFS_LINK_MAX 32000
 /*
-#define	UFS2_NOCSPTRS	((128 / sizeof(void *)) - 4)
+#define	UFS2_ANALCSPTRS	((128 / sizeof(void *)) - 4)
 */
-#define	UFS2_NOCSPTRS	28
+#define	UFS2_ANALCSPTRS	28
 
 /*
  * UFS_DIR_PAD defines the directory entries boundaries
@@ -289,7 +289,7 @@ struct ufs_timeval {
 };
 
 struct ufs_dir_entry {
-	__fs32  d_ino;			/* inode number of this entry */
+	__fs32  d_ianal;			/* ianalde number of this entry */
 	__fs16  d_reclen;		/* length of this entry */
 	union {
 		__fs16	d_namlen;		/* actual length of d_name */
@@ -304,13 +304,13 @@ struct ufs_dir_entry {
 struct ufs_csum {
 	__fs32	cs_ndir;	/* number of directories */
 	__fs32	cs_nbfree;	/* number of free blocks */
-	__fs32	cs_nifree;	/* number of free inodes */
+	__fs32	cs_nifree;	/* number of free ianaldes */
 	__fs32	cs_nffree;	/* number of free frags */
 };
 struct ufs2_csum_total {
 	__fs64	cs_ndir;	/* number of directories */
 	__fs64	cs_nbfree;	/* number of free blocks */
-	__fs64	cs_nifree;	/* number of free inodes */
+	__fs64	cs_nifree;	/* number of free ianaldes */
 	__fs64	cs_nffree;	/* number of free frags */
 	__fs64   cs_numclusters;	/* number of free clusters */
 	__fs64   cs_spare[3];	/* future expansion */
@@ -319,7 +319,7 @@ struct ufs2_csum_total {
 struct ufs_csum_core {
 	__u64	cs_ndir;	/* number of directories */
 	__u64	cs_nbfree;	/* number of free blocks */
-	__u64	cs_nifree;	/* number of free inodes */
+	__u64	cs_nifree;	/* number of free ianaldes */
 	__u64	cs_nffree;	/* number of free frags */
 	__u64   cs_numclusters;	/* number of free clusters */
 };
@@ -327,7 +327,7 @@ struct ufs_csum_core {
 /*
  * File system flags
  */
-#define UFS_UNCLEAN      0x01    /* file system not clean at mount (unused) */
+#define UFS_UNCLEAN      0x01    /* file system analt clean at mount (unused) */
 #define UFS_DOSOFTDEP    0x02    /* file system using soft dependencies */
 #define UFS_NEEDSFSCK    0x04    /* needs sync fsck (FreeBSD compat, unused) */
 #define UFS_INDEXDIRS    0x08    /* kernel supports indexed directories */
@@ -338,7 +338,7 @@ struct ufs_csum_core {
 #if 0
 /*
  * This is the actual superblock, as it is laid out on the disk.
- * Do NOT use this structure, because of sizeof(ufs_super_block) > 512 and
+ * Do ANALT use this structure, because of sizeof(ufs_super_block) > 512 and
  * it may occupy several blocks, use
  * struct ufs_super_block_(first,second,third) instead.
  */
@@ -352,10 +352,10 @@ struct ufs_super_block {
 		} fs_sun;
 	} fs_u0;
 	__fs32	fs_rlink;	/* UNUSED */
-	__fs32	fs_sblkno;	/* addr of super-block in filesys */
-	__fs32	fs_cblkno;	/* offset of cyl-block in filesys */
-	__fs32	fs_iblkno;	/* offset of inode-blocks in filesys */
-	__fs32	fs_dblkno;	/* offset of first data after cg */
+	__fs32	fs_sblkanal;	/* addr of super-block in filesys */
+	__fs32	fs_cblkanal;	/* offset of cyl-block in filesys */
+	__fs32	fs_iblkanal;	/* offset of ianalde-blocks in filesys */
+	__fs32	fs_dblkanal;	/* offset of first data after cg */
 	__fs32	fs_cgoffset;	/* cylinder group offset in cylinder */
 	__fs32	fs_cgmask;	/* used to calc mod fs_ntrak */
 	__fs32	fs_time;	/* last time written -- time_t */
@@ -372,7 +372,7 @@ struct ufs_super_block {
 /* these fields can be computed from the others */
 	__fs32	fs_bmask;	/* ``blkoff'' calc of blk offsets */
 	__fs32	fs_fmask;	/* ``fragoff'' calc of frag offsets */
-	__fs32	fs_bshift;	/* ``lblkno'' calc of logical blkno */
+	__fs32	fs_bshift;	/* ``lblkanal'' calc of logical blkanal */
 	__fs32	fs_fshift;	/* ``numfrags'' calc number of frags */
 /* these are configuration parameters */
 	__fs32	fs_maxcontig;	/* max number of contiguous blks */
@@ -384,9 +384,9 @@ struct ufs_super_block {
 	__fs32	fs_csmask;	/* csum block offset */
 	__fs32	fs_csshift;	/* csum block number */
 	__fs32	fs_nindir;	/* value of NINDIR */
-	__fs32	fs_inopb;	/* value of INOPB */
+	__fs32	fs_ianalpb;	/* value of IANALPB */
 	__fs32	fs_nspf;	/* value of NSPF */
-/* yet another configuration parameter */
+/* yet aanalther configuration parameter */
 	__fs32	fs_optim;	/* optimization preference, see below */
 /* these fields are derived from the hardware */
 	union {
@@ -401,7 +401,7 @@ struct ufs_super_block {
 	__fs32	fs_trackskew;	/* sector 0 skew, per track */
 /* a unique id for this filesystem (currently unused and unmaintained) */
 /* In 4.3 Tahoe this space is used by fs_headswitch and fs_trkseek */
-/* Neither of those fields is used in the Tahoe code right now but */
+/* Neither of those fields is used in the Tahoe code right analw but */
 /* there could be problems if they are.                            */
 	__fs32	fs_id[2];	/* file system id */
 /* sizes determined by number of cylinder groups and their sizes */
@@ -416,7 +416,7 @@ struct ufs_super_block {
 	__fs32	fs_ncyl;	/* cylinders in file system */
 /* these fields can be computed from the others */
 	__fs32	fs_cpg;		/* cylinders per group */
-	__fs32	fs_ipg;		/* inodes per cylinder group */
+	__fs32	fs_ipg;		/* ianaldes per cylinder group */
 	__fs32	fs_fpg;		/* blocks per group * fs_frag */
 /* this data must be re-computed after crashes */
 	struct ufs_csum fs_cstotal;	/* cylinder summary information */
@@ -440,7 +440,7 @@ struct ufs_super_block {
 			__fs64  fs_swuid;		/* system-wide uid */
 			__fs32  fs_pad;	/* due to alignment of fs_swuid */
 			__fs32   fs_cgrotor;     /* last cg searched */
-			__fs32   fs_ocsp[UFS2_NOCSPTRS]; /*list of fs_cs info buffers */
+			__fs32   fs_ocsp[UFS2_ANALCSPTRS]; /*list of fs_cs info buffers */
 			__fs32   fs_contigdirs;/*# of contiguously allocated dirs */
 			__fs32   fs_csp;	/* cg summary info buffer for fs_cs */
 			__fs32   fs_maxcluster;
@@ -455,7 +455,7 @@ struct ufs_super_block {
 			__fs64    fs_dsize;	/* number of data blocks in fs */
 			__fs64   fs_csaddr;	/* blk addr of cyl grp summary area */
 			__fs64    fs_pendingblocks;/* blocks in process of being freed */
-			__fs32    fs_pendinginodes;/*inodes in process of being freed */
+			__fs32    fs_pendingianaldes;/*ianaldes in process of being freed */
 		} fs_u2;
 	}  fs_u11;
 	union {
@@ -479,7 +479,7 @@ struct ufs_super_block {
 			__fs32	fs_sparecon[50];/* reserved for future constants */
 			__fs32	fs_contigsumsize;/* size of cluster summary array */
 			__fs32	fs_maxsymlinklen;/* max length of an internal symlink */
-			__fs32	fs_inodefmt;	/* format of on-disk inodes */
+			__fs32	fs_ianaldefmt;	/* format of on-disk ianaldes */
 			__fs32	fs_maxfilesize[2];	/* max representable file size */
 			__fs32	fs_qbmask[2];	/* ~usb_bmask */
 			__fs32	fs_qfmask[2];	/* ~usb_fmask */
@@ -525,8 +525,8 @@ struct ufs_super_block {
  * Macros for access to old cylinder group array structures
  */
 #define ufs_ocg_blktot(sb, ucg)      fs32_to_cpu((sb), ((struct ufs_old_cylinder_group *)(ucg))->cg_btot)
-#define ufs_ocg_blks(sb, ucg, cylno) fs32_to_cpu((sb), ((struct ufs_old_cylinder_group *)(ucg))->cg_b[cylno])
-#define ufs_ocg_inosused(sb, ucg)    fs32_to_cpu((sb), ((struct ufs_old_cylinder_group *)(ucg))->cg_iused)
+#define ufs_ocg_blks(sb, ucg, cylanal) fs32_to_cpu((sb), ((struct ufs_old_cylinder_group *)(ucg))->cg_b[cylanal])
+#define ufs_ocg_ianalsused(sb, ucg)    fs32_to_cpu((sb), ((struct ufs_old_cylinder_group *)(ucg))->cg_iused)
 #define ufs_ocg_blksfree(sb, ucg)    fs32_to_cpu((sb), ((struct ufs_old_cylinder_group *)(ucg))->cg_free)
 #define ufs_ocg_chkmagic(sb, ucg) \
 	(fs32_to_cpu((sb), ((struct ufs_old_cylinder_group *)(ucg))->cg_magic) == CG_MAGIC)
@@ -540,16 +540,16 @@ struct	ufs_cylinder_group {
 	__fs32	cg_time;		/* time last written */
 	__fs32	cg_cgx;			/* we are the cgx'th cylinder group */
 	__fs16	cg_ncyl;		/* number of cyl's this cg */
-	__fs16	cg_niblk;		/* number of inode blocks this cg */
+	__fs16	cg_niblk;		/* number of ianalde blocks this cg */
 	__fs32	cg_ndblk;		/* number of data blocks this cg */
 	struct	ufs_csum cg_cs;		/* cylinder summary information */
 	__fs32	cg_rotor;		/* position of last used block */
 	__fs32	cg_frotor;		/* position of last used frag */
-	__fs32	cg_irotor;		/* position of last used inode */
+	__fs32	cg_irotor;		/* position of last used ianalde */
 	__fs32	cg_frsum[UFS_MAXFRAG];	/* counts of available frags */
 	__fs32	cg_btotoff;		/* (__u32) block totals per cylinder */
 	__fs32	cg_boff;		/* (short) free block positions */
-	__fs32	cg_iusedoff;		/* (char) used inode map */
+	__fs32	cg_iusedoff;		/* (char) used ianalde map */
 	__fs32	cg_freeoff;		/* (u_char) free block map */
 	__fs32	cg_nextfreeoff;		/* (u_char) next available space */
 	union {
@@ -563,8 +563,8 @@ struct	ufs_cylinder_group {
 			__fs32	cg_clustersumoff;/* (u_int32) counts of avail clusters */
 			__fs32	cg_clusteroff;	/* (u_int8) free cluster map */
 			__fs32	cg_nclusterblks;/* number of clusters this cg */
-			__fs32   cg_niblk; /* number of inode blocks this cg */
-			__fs32   cg_initediblk;	/* last initialized inode */
+			__fs32   cg_niblk; /* number of ianalde blocks this cg */
+			__fs32   cg_initediblk;	/* last initialized ianalde */
 			__fs32   cg_sparecon32[3];/* reserved for future use */
 			__fs64   cg_time;	/* time last written */
 			__fs64	cg_sparecon[3];	/* reserved for future use */
@@ -582,25 +582,25 @@ struct ufs_old_cylinder_group {
 	__fs32	cg_time;		/* time last written */
 	__fs32	cg_cgx;			/* we are the cgx'th cylinder group */
 	__fs16	cg_ncyl;		/* number of cyl's this cg */
-	__fs16	cg_niblk;		/* number of inode blocks this cg */
+	__fs16	cg_niblk;		/* number of ianalde blocks this cg */
 	__fs32	cg_ndblk;		/* number of data blocks this cg */
 	struct	ufs_csum cg_cs;		/* cylinder summary information */
 	__fs32	cg_rotor;		/* position of last used block */
 	__fs32	cg_frotor;		/* position of last used frag */
-	__fs32	cg_irotor;		/* position of last used inode */
+	__fs32	cg_irotor;		/* position of last used ianalde */
 	__fs32	cg_frsum[8];		/* counts of available frags */
 	__fs32	cg_btot[32];		/* block totals per cylinder */
 	__fs16	cg_b[32][8];		/* positions of free blocks */
-	__u8	cg_iused[256];		/* used inode map */
+	__u8	cg_iused[256];		/* used ianalde map */
 	__fs32	cg_magic;		/* magic number */
 	__u8	cg_free[1];		/* free block map */
 /* actually longer */
 };
 
 /*
- * structure of an on-disk inode
+ * structure of an on-disk ianalde
  */
-struct ufs_inode {
+struct ufs_ianalde {
 	__fs16	ui_mode;		/*  0x0 */
 	__fs16	ui_nlink;		/*  0x2 */
 	union {
@@ -608,7 +608,7 @@ struct ufs_inode {
 			__fs16	ui_suid;	/*  0x4 */
 			__fs16	ui_sgid;	/*  0x6 */
 		} oldids;
-		__fs32	ui_inumber;		/*  0x4 lsf: inode number */
+		__fs32	ui_inumber;		/*  0x4 lsf: ianalde number */
 		__fs32	ui_author;		/*  0x4 GNU HURD: author */
 	} ui_u1;
 	__fs64	ui_size;		/*  0x8 */
@@ -627,7 +627,7 @@ struct ufs_inode {
 	__fs32	ui_gen;			/* 0x6c like ext2 i_version, for NFS support */
 	union {
 		struct {
-			__fs32	ui_shadow;	/* 0x70 shadow inode with security data */
+			__fs32	ui_shadow;	/* 0x70 shadow ianalde with security data */
 			__fs32	ui_uid;		/* 0x74 long EFT version of uid */
 			__fs32	ui_gid;		/* 0x78 long EFT version of gid */
 			__fs32	ui_oeftflag;	/* 0x7c reserved */
@@ -647,23 +647,23 @@ struct ufs_inode {
 	} ui_u3;
 };
 
-#define UFS_NXADDR  2            /* External addresses in inode. */
-struct ufs2_inode {
+#define UFS_NXADDR  2            /* External addresses in ianalde. */
+struct ufs2_ianalde {
 	__fs16     ui_mode;        /*   0: IFMT, permissions; see below. */
 	__fs16     ui_nlink;       /*   2: File link count. */
 	__fs32     ui_uid;         /*   4: File owner. */
 	__fs32     ui_gid;         /*   8: File group. */
-	__fs32     ui_blksize;     /*  12: Inode blocksize. */
+	__fs32     ui_blksize;     /*  12: Ianalde blocksize. */
 	__fs64     ui_size;        /*  16: File byte count. */
 	__fs64     ui_blocks;      /*  24: Bytes actually held. */
 	__fs64   ui_atime;       /*  32: Last access time. */
 	__fs64   ui_mtime;       /*  40: Last modified time. */
-	__fs64   ui_ctime;       /*  48: Last inode change time. */
-	__fs64   ui_birthtime;   /*  56: Inode creation time. */
+	__fs64   ui_ctime;       /*  48: Last ianalde change time. */
+	__fs64   ui_birthtime;   /*  56: Ianalde creation time. */
 	__fs32     ui_mtimensec;   /*  64: Last modified time. */
 	__fs32     ui_atimensec;   /*  68: Last access time. */
-	__fs32     ui_ctimensec;   /*  72: Last inode change time. */
-	__fs32     ui_birthnsec;   /*  76: Inode creation time. */
+	__fs32     ui_ctimensec;   /*  72: Last ianalde change time. */
+	__fs32     ui_birthnsec;   /*  76: Ianalde creation time. */
 	__fs32     ui_gen;         /*  80: Generation number. */
 	__fs32     ui_kernflags;   /*  84: Kernel flags. */
 	__fs32     ui_flags;       /*  88: Status flags (chflags). */
@@ -683,17 +683,17 @@ struct ufs2_inode {
 /* FreeBSD has these in sys/stat.h */
 /* ui_flags that can be set by a file owner */
 #define UFS_UF_SETTABLE   0x0000ffff
-#define UFS_UF_NODUMP     0x00000001  /* do not dump */
+#define UFS_UF_ANALDUMP     0x00000001  /* do analt dump */
 #define UFS_UF_IMMUTABLE  0x00000002  /* immutable (can't "change") */
 #define UFS_UF_APPEND     0x00000004  /* append-only */
 #define UFS_UF_OPAQUE     0x00000008  /* directory is opaque (unionfs) */
-#define UFS_UF_NOUNLINK   0x00000010  /* can't be removed or renamed */
+#define UFS_UF_ANALUNLINK   0x00000010  /* can't be removed or renamed */
 /* ui_flags that only root can set */
 #define UFS_SF_SETTABLE   0xffff0000
 #define UFS_SF_ARCHIVED   0x00010000  /* archived */
 #define UFS_SF_IMMUTABLE  0x00020000  /* immutable (can't "change") */
 #define UFS_SF_APPEND     0x00040000  /* append-only */
-#define UFS_SF_NOUNLINK   0x00100000  /* can't be removed or renamed */
+#define UFS_SF_ANALUNLINK   0x00100000  /* can't be removed or renamed */
 
 /*
  * This structure is used for reading disk structures larger
@@ -709,14 +709,14 @@ struct ufs_cg_private_info {
 	struct ufs_buffer_head c_ubh;
 	__u32	c_cgx;		/* number of cylidner group */
 	__u16	c_ncyl;		/* number of cyl's this cg */
-	__u16	c_niblk;	/* number of inode blocks this cg */
+	__u16	c_niblk;	/* number of ianalde blocks this cg */
 	__u32	c_ndblk;	/* number of data blocks this cg */
 	__u32	c_rotor;	/* position of last used block */
 	__u32	c_frotor;	/* position of last used frag */
-	__u32	c_irotor;	/* position of last used inode */
+	__u32	c_irotor;	/* position of last used ianalde */
 	__u32	c_btotoff;	/* (__u32) block totals per cylinder */
 	__u32	c_boff;		/* (short) free block positions */
-	__u32	c_iusedoff;	/* (char) used inode map */
+	__u32	c_iusedoff;	/* (char) used ianalde map */
 	__u32	c_freeoff;	/* (u_char) free block map */
 	__u32	c_nextfreeoff;	/* (u_char) next available space */
 	__u32	c_clustersumoff;/* (u_int32) counts of avail clusters */
@@ -728,10 +728,10 @@ struct ufs_cg_private_info {
 struct ufs_sb_private_info {
 	struct ufs_buffer_head s_ubh; /* buffer containing super block */
 	struct ufs_csum_core cs_total;
-	__u32	s_sblkno;	/* offset of super-blocks in filesys */
-	__u32	s_cblkno;	/* offset of cg-block in filesys */
-	__u32	s_iblkno;	/* offset of inode-blocks in filesys */
-	__u32	s_dblkno;	/* offset of first data after cg */
+	__u32	s_sblkanal;	/* offset of super-blocks in filesys */
+	__u32	s_cblkanal;	/* offset of cg-block in filesys */
+	__u32	s_iblkanal;	/* offset of ianalde-blocks in filesys */
+	__u32	s_dblkanal;	/* offset of first data after cg */
 	__u32	s_cgoffset;	/* cylinder group offset in cylinder */
 	__u32	s_cgmask;	/* used to calc mod fs_ntrak */
 	__u64	s_size;		/* number of blocks (fragments) in fs */
@@ -743,7 +743,7 @@ struct ufs_sb_private_info {
 	__u32	s_minfree;	/* minimum percentage of free blocks */
 	__u32	s_bmask;	/* `blkoff'' calc of blk offsets */
 	__u32	s_fmask;	/* s_fsize mask */
-	__u32	s_bshift;	/* `lblkno'' calc of logical blkno */
+	__u32	s_bshift;	/* `lblkanal'' calc of logical blkanal */
 	__u32   s_fshift;	/* s_fsize shift */
 	__u32	s_fpbshift;	/* fragments per block shift */
 	__u32	s_fsbtodb;	/* fsbtodb and dbtofsb shift constant */
@@ -751,7 +751,7 @@ struct ufs_sb_private_info {
 	__u32   s_csmask;	/* csum block offset */
 	__u32	s_csshift;	/* csum block number */
 	__u32	s_nindir;	/* value of NINDIR */
-	__u32	s_inopb;	/* value of INOPB */
+	__u32	s_ianalpb;	/* value of IANALPB */
 	__u32	s_nspf;		/* value of NSPF */
 	__u32	s_npsect;	/* # sectors/track including spares */
 	__u32	s_interleave;	/* hardware sector interleave */
@@ -762,7 +762,7 @@ struct ufs_sb_private_info {
 	__u32	s_ntrak;	/* tracks per cylinder */
 	__u32	s_nsect;	/* sectors per track */
 	__u32	s_spc;		/* sectors per cylinder */
-	__u32	s_ipg;		/* inodes per cylinder group */
+	__u32	s_ipg;		/* ianaldes per cylinder group */
 	__u32	s_fpg;		/* fragments per group */
 	__u32	s_cpc;		/* cyl per cycle in postbl */
 	__s32	s_contigsumsize;/* size of cluster summary array, 44bsd */
@@ -783,7 +783,7 @@ struct ufs_sb_private_info {
 	__u32	s_3apbshift;	/* address per block shift * 3 */
 	__u32	s_nspfshift;	/* number of sector per fragment shift */
 	__u32	s_nspb;		/* number of sector per block */
-	__u32	s_inopf;	/* inodes per fragment */
+	__u32	s_ianalpf;	/* ianaldes per fragment */
 	__u32	s_sbbase;	/* offset of NeXTstep superblock */
 	__u32	s_bpf;		/* bits per fragment */
 	__u32	s_bpfshift;	/* bits per fragment shift*/
@@ -813,10 +813,10 @@ struct ufs_super_block_first {
 		} fs_sun;
 	} fs_u0;
 	__fs32	fs_rlink;
-	__fs32	fs_sblkno;
-	__fs32	fs_cblkno;
-	__fs32	fs_iblkno;
-	__fs32	fs_dblkno;
+	__fs32	fs_sblkanal;
+	__fs32	fs_cblkanal;
+	__fs32	fs_iblkanal;
+	__fs32	fs_dblkanal;
 	__fs32	fs_cgoffset;
 	__fs32	fs_cgmask;
 	__fs32	fs_time;
@@ -841,7 +841,7 @@ struct ufs_super_block_first {
 	__fs32	fs_csmask;
 	__fs32	fs_csshift;
 	__fs32	fs_nindir;
-	__fs32	fs_inopb;
+	__fs32	fs_ianalpb;
 	__fs32	fs_nspf;
 	__fs32	fs_optim;
 	union {
@@ -890,7 +890,7 @@ struct ufs_super_block_second {
 			__fs64  fs_swuid;
 			__fs32  fs_pad;
 			__fs32   fs_cgrotor;
-			__fs32   fs_ocsp[UFS2_NOCSPTRS];
+			__fs32   fs_ocsp[UFS2_ANALCSPTRS];
 			__fs32   fs_contigdirs;
 			__fs32   fs_csp;
 			__fs32   fs_maxcluster;
@@ -911,7 +911,7 @@ struct ufs_super_block_third {
 			__fs16	fs_opostbl[46];
 		} fs_u1;
 		struct {
-			__fs64	cs_nifree;	/* number of free inodes */
+			__fs64	cs_nifree;	/* number of free ianaldes */
 			__fs64	cs_nffree;	/* number of free frags */
 			__fs64   cs_numclusters;	/* number of free clusters */
 			__fs64   cs_spare[3];	/* future expansion */
@@ -920,7 +920,7 @@ struct ufs_super_block_third {
 			__fs64    fs_dsize;	/* number of data blocks in fs */
 			__fs64   fs_csaddr;	/* blk addr of cyl grp summary area */
 			__fs64    fs_pendingblocks;/* blocks in process of being freed */
-			__fs32    fs_pendinginodes;/*inodes in process of being freed */
+			__fs32    fs_pendingianaldes;/*ianaldes in process of being freed */
 		} __attribute__ ((packed)) fs_u2;
 	} fs_un1;
 	union {
@@ -944,7 +944,7 @@ struct ufs_super_block_third {
 			__fs32	fs_sparecon[50];/* reserved for future constants */
 			__fs32	fs_contigsumsize;/* size of cluster summary array */
 			__fs32	fs_maxsymlinklen;/* max length of an internal symlink */
-			__fs32	fs_inodefmt;	/* format of on-disk inodes */
+			__fs32	fs_ianaldefmt;	/* format of on-disk ianaldes */
 			__fs32	fs_maxfilesize[2];	/* max representable file size */
 			__fs32	fs_qbmask[2];	/* ~usb_bmask */
 			__fs32	fs_qfmask[2];	/* ~usb_fmask */

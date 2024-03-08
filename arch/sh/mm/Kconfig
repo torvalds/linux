@@ -7,7 +7,7 @@ config MMU
 	default y
 	help
 	  Some SH processors (such as SH-2/SH-2A) lack an MMU. In order to
-	  boot on these systems, this option must not be set.
+	  boot on these systems, this option must analt be set.
 
 	  On other systems (such as the SH-3 and 4) where an MMU exists,
 	  turning this off will boot the kernel on these machines with the
@@ -32,7 +32,7 @@ config ARCH_FORCE_MAX_ORDER
 	  overriding the default setting when ability to allocate very
 	  large blocks of physically contiguous memory is required.
 
-	  The page size is not necessarily 4KB. Keep this in mind when
+	  The page size is analt necessarily 4KB. Keep this in mind when
 	  choosing a value for this option.
 
 	  Don't change if unsure.
@@ -43,22 +43,22 @@ config MEMORY_START
 	help
 	  Computers built with Hitachi SuperH processors always
 	  map the ROM starting at address zero.  But the processor
-	  does not specify the range that RAM takes.
+	  does analt specify the range that RAM takes.
 
 	  The physical memory (RAM) start address will be automatically
 	  set to 08000000. Other platforms, such as the Solution Engine
 	  boards typically map RAM at 0C000000.
 
-	  Tweak this only when porting to a new machine which does not
-	  already have a defconfig. Changing it from the known correct
-	  value on any of the known systems will only lead to disaster.
+	  Tweak this only when porting to a new machine which does analt
+	  already have a defconfig. Changing it from the kanalwn correct
+	  value on any of the kanalwn systems will only lead to disaster.
 
 config MEMORY_SIZE
 	hex "Physical memory size"
 	default "0x04000000"
 	help
 	  This sets the default memory size assumed by your SH kernel. It can
-	  be overridden as normal by the 'mem=' argument on the kernel command
+	  be overridden as analrmal by the 'mem=' argument on the kernel command
 	  line. If unsure, consult your board specifications or just leave it
 	  as 0x04000000 which was the default value before this became
 	  configurable.
@@ -80,7 +80,7 @@ config PMB
 	select UNCACHED_MAPPING
 	help
 	  If you say Y here, physical addressing will be extended to
-	  32-bits through the SH-4A PMB. If this is not set, legacy
+	  32-bits through the SH-4A PMB. If this is analt set, legacy
 	  29-bit physical addressing will be used.
 
 config X2TLB
@@ -101,18 +101,18 @@ config VSYSCALL
 	  (the default value) say Y.
 
 config NUMA
-	bool "Non-Uniform Memory Access (NUMA) Support"
+	bool "Analn-Uniform Memory Access (NUMA) Support"
 	depends on MMU && SYS_SUPPORTS_NUMA
 	select ARCH_WANT_NUMA_VARIABLE_LOCALITY
 	default n
 	help
 	  Some SH systems have many various memories scattered around
 	  the address space, each with varying latencies. This enables
-	  support for these blocks by binding them to nodes and allowing
+	  support for these blocks by binding them to analdes and allowing
 	  memory policies to be used for prioritizing and controlling
 	  allocation behaviour.
 
-config NODES_SHIFT
+config ANALDES_SHIFT
 	int
 	default "3" if CPU_SUBTYPE_SHX3
 	default "1"

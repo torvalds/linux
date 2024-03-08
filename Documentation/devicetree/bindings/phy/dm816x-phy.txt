@@ -7,9 +7,9 @@ Required properties:
 - reg-names : name for the phy registers
 - clocks : phandle to the clock
 - clock-names : name of the clock
-- syscon: phandle for the syscon node to access misc registers
+- syscon: phandle for the syscon analde to access misc registers
 - #phy-cells : from the generic PHY bindings, must be 1
-- syscon: phandle for the syscon node to access misc registers
+- syscon: phandle for the syscon analde to access misc registers
 
 Example:
 

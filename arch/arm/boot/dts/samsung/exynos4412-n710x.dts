@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0
 /dts-v1/;
-#include "exynos4412-midas.dtsi"
+#include "exyanals4412-midas.dtsi"
 
 / {
-	compatible = "samsung,n710x", "samsung,midas", "samsung,exynos4412", "samsung,exynos4";
-	model = "Samsung Galaxy Note 2 (GT-N7100, GT-N7105) based on Exynos4412";
+	compatible = "samsung,n710x", "samsung,midas", "samsung,exyanals4412", "samsung,exyanals4";
+	model = "Samsung Galaxy Analte 2 (GT-N7100, GT-N7105) based on Exyanals4412";
 	chassis-type = "handset";
 
 	memory@40000000 {

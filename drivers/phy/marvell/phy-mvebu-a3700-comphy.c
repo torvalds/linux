@@ -114,7 +114,7 @@
 
 #define COMPHY_SFT_RESET		0x52
 #define SFT_RST				BIT(9)
-#define SFT_RST_NO_REG			BIT(10)
+#define SFT_RST_ANAL_REG			BIT(10)
 
 #define COMPHY_MISC_CTRL1		0x73
 #define SEL_BITS_PCIE_FORCE		BIT(15)
@@ -172,9 +172,9 @@
 #define CFG_PM_RXDLOZ_WAIT_12_UNIT	FIELD_PREP(CFG_PM_RXDLOZ_WAIT_MASK, 0xC)
 
 /*
- * This register is not from PHY lane register space. It only exists in the
+ * This register is analt from PHY lane register space. It only exists in the
  * indirect register space, before the actual PHY lane 2 registers. So the
- * offset is absolute, not relative to COMPHY_LANE2_REGS_BASE.
+ * offset is absolute, analt relative to COMPHY_LANE2_REGS_BASE.
  * It is used only for SATA PHY initialization.
  */
 #define COMPHY_RESERVED_REG		0x0E
@@ -539,7 +539,7 @@ mvebu_a3700_comphy_sata_power_on(struct mvebu_a3700_comphy_lane *lane)
 	if (ret)
 		return ret;
 
-	/* Clear phy isolation mode to make it work in normal mode */
+	/* Clear phy isolation mode to make it work in analrmal mode */
 	comphy_lane_reg_set(lane, COMPHY_ISOLATION_CTRL,
 			    0x0, PHY_ISOLATE_MODE);
 
@@ -566,7 +566,7 @@ mvebu_a3700_comphy_sata_power_on(struct mvebu_a3700_comphy_lane *lane)
 	mask = REF_FREF_SEL_MASK | COMPHY_MODE_MASK;
 	comphy_lane_reg_set(lane, COMPHY_POWER_PLL_CTRL, data, mask);
 
-	/* 3. Use maximum PLL rate (no power save) */
+	/* 3. Use maximum PLL rate (anal power save) */
 	comphy_lane_reg_set(lane, COMPHY_KVCO_CAL_CTRL,
 			    USE_MAX_PLL_RATE_BIT, USE_MAX_PLL_RATE_BIT);
 
@@ -576,7 +576,7 @@ mvebu_a3700_comphy_sata_power_on(struct mvebu_a3700_comphy_lane *lane)
 
 	/* 5. Set vendor-specific configuration (It is done in sata driver) */
 	/* XXX: in U-Boot below sequence was executed in this place, in Linux
-	 * not.  Now it is done only in U-Boot before this comphy
+	 * analt.  Analw it is done only in U-Boot before this comphy
 	 * initialization - tests shows that it works ok, but in case of any
 	 * future problem it is left for reference.
 	 *   reg_set(MVEBU_REGS_BASE + 0xe00a0, 0, 0xffffffff);
@@ -666,7 +666,7 @@ mvebu_a3700_comphy_ethernet_power_on(struct mvebu_a3700_comphy_lane *lane)
 		speed_sel = SERDES_SPEED_3_125_G;
 		break;
 	default:
-		/* Other rates are not supported */
+		/* Other rates are analt supported */
 		dev_err(lane->dev,
 			"unsupported phy speed %d on comphy lane%d\n",
 			lane->submode, lane->id);
@@ -711,7 +711,7 @@ mvebu_a3700_comphy_ethernet_power_on(struct mvebu_a3700_comphy_lane *lane)
 	 * 10. Program COMPHY register PHY_GEN_MAX[1:0]
 	 * This step is mentioned in the flow received from verification team.
 	 * However the PHY_GEN_MAX value is only meaningful for other interfaces
-	 * (not SERDES). For instance, it selects SATA speed 1.5/3/6 Gbps or
+	 * (analt SERDES). For instance, it selects SATA speed 1.5/3/6 Gbps or
 	 * PCIe speed 2.5/5 Gbps
 	 */
 
@@ -760,8 +760,8 @@ mvebu_a3700_comphy_ethernet_power_on(struct mvebu_a3700_comphy_lane *lane)
 	/*
 	 * 15. Set PHY input ports PIN_PU_PLL, PIN_PU_TX and PIN_PU_RX to 1 to
 	 * start PHY power up sequence. All the PHY register programming should
-	 * be done before PIN_PU_PLL=1. There should be no register programming
-	 * for normal PHY operation from this point.
+	 * be done before PIN_PU_PLL=1. There should be anal register programming
+	 * for analrmal PHY operation from this point.
 	 */
 	data = PIN_PU_PLL_BIT | PIN_PU_RX_BIT | PIN_PU_TX_BIT;
 	mask = data;
@@ -1103,7 +1103,7 @@ mvebu_a3700_comphy_pcie_power_off(struct mvebu_a3700_comphy_lane *lane)
 static void mvebu_a3700_comphy_usb3_power_off(struct mvebu_a3700_comphy_lane *lane)
 {
 	/*
-	 * The USB3 MAC sets the USB3 PHY to low state, so we do not
+	 * The USB3 MAC sets the USB3 PHY to low state, so we do analt
 	 * need to power off USB3 PHY again.
 	 */
 }
@@ -1141,7 +1141,7 @@ static int mvebu_a3700_comphy_set_mode(struct phy *phy, enum phy_mode mode,
 		return -EINVAL;
 	}
 
-	/* Mode cannot be changed while the PHY is powered on */
+	/* Mode cananalt be changed while the PHY is powered on */
 	if (phy->power_count &&
 	    (lane->mode != mode || lane->submode != submode))
 		return -EBUSY;
@@ -1178,7 +1178,7 @@ static int mvebu_a3700_comphy_power_on(struct phy *phy)
 		return mvebu_a3700_comphy_pcie_power_on(lane);
 	default:
 		dev_err(lane->dev, "unsupported PHY mode (%d)\n", lane->mode);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -1241,14 +1241,14 @@ static int mvebu_a3700_comphy_probe(struct platform_device *pdev)
 {
 	struct mvebu_a3700_comphy_priv *priv;
 	struct phy_provider *provider;
-	struct device_node *child;
+	struct device_analde *child;
 	struct resource *res;
 	struct clk *clk;
 	int ret;
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&priv->lock);
 
@@ -1276,8 +1276,8 @@ static int mvebu_a3700_comphy_probe(struct platform_device *pdev)
 		return PTR_ERR(priv->lane2_phy_indirect);
 
 	/*
-	 * Driver needs to know if reference xtal clock is 40MHz or 25MHz.
-	 * Old DT bindings do not have xtal clk present. So do not fail here
+	 * Driver needs to kanalw if reference xtal clock is 40MHz or 25MHz.
+	 * Old DT bindings do analt have xtal clk present. So do analt fail here
 	 * and expects that default 25MHz reference clock is used.
 	 */
 	clk = clk_get(&pdev->dev, "xtal");
@@ -1301,7 +1301,7 @@ static int mvebu_a3700_comphy_probe(struct platform_device *pdev)
 
 	dev_set_drvdata(&pdev->dev, priv);
 
-	for_each_available_child_of_node(pdev->dev.of_node, child) {
+	for_each_available_child_of_analde(pdev->dev.of_analde, child) {
 		struct mvebu_a3700_comphy_lane *lane;
 		struct phy *phy;
 		int ret;
@@ -1321,14 +1321,14 @@ static int mvebu_a3700_comphy_probe(struct platform_device *pdev)
 
 		lane = devm_kzalloc(&pdev->dev, sizeof(*lane), GFP_KERNEL);
 		if (!lane) {
-			of_node_put(child);
-			return -ENOMEM;
+			of_analde_put(child);
+			return -EANALMEM;
 		}
 
 		phy = devm_phy_create(&pdev->dev, child,
 				      &mvebu_a3700_comphy_ops);
 		if (IS_ERR(phy)) {
-			of_node_put(child);
+			of_analde_put(child);
 			return PTR_ERR(phy);
 		}
 

@@ -112,15 +112,15 @@ struct qsee_req_uefi_set_variable {
  * @length:      The length of this response, i.e. the size of this struct in
  *               bytes.
  * @status:      Status of this command.
- * @_unknown1:   Unknown response field.
- * @_unknown2:   Unknown response field.
+ * @_unkanalwn1:   Unkanalwn response field.
+ * @_unkanalwn2:   Unkanalwn response field.
  */
 struct qsee_rsp_uefi_set_variable {
 	u32 command_id;
 	u32 length;
 	u32 status;
-	u32 _unknown1;
-	u32 _unknown2;
+	u32 _unkanalwn1;
+	u32 _unkanalwn2;
 } __packed;
 
 /**
@@ -217,7 +217,7 @@ struct qsee_rsp_uefi_query_variable_info {
  * Helper macro to ensure proper alignment of types (fields and arrays) when
  * stored in some (contiguous) buffer.
  *
- * Note: The driver from which this one has been reverse-engineered expects an
+ * Analte: The driver from which this one has been reverse-engineered expects an
  * alignment of 8 bytes (64 bits) for GUIDs. Our definition of efi_guid_t,
  * however, has an alignment of 4 byte (32 bits). So far, this seems to work
  * fine here. See also the comment on the typedef of efi_guid_t.
@@ -242,7 +242,7 @@ struct qsee_rsp_uefi_query_variable_info {
 	});
 
 #define __array_offs(type, count, offset)					\
-	__field_impl(sizeof(type) * (count), __alignof__(type), offset)
+	__field_impl(sizeof(type) * (count), __aliganalf__(type), offset)
 
 #define __array(type, count)		__array_offs(type, count, NULL)
 #define __field_offs(type, offset)	__array_offs(type, 1, offset)
@@ -374,21 +374,21 @@ static efi_status_t qsee_uefi_get_variable(struct qcuefi_client *qcuefi, const e
 	}
 
 	/*
-	 * Note: We need to set attributes and data size even if the buffer is
+	 * Analte: We need to set attributes and data size even if the buffer is
 	 * too small and we won't copy any data. This is described in spec, so
 	 * that callers can either allocate a buffer properly (with two calls
 	 * to this function) or just read back attributes withouth having to
 	 * deal with that.
 	 *
 	 * Specifically:
-	 * - If we have a buffer size of zero and no buffer, just return the
+	 * - If we have a buffer size of zero and anal buffer, just return the
 	 *   attributes, required size, and indicate success.
-	 * - If the buffer size is nonzero but too small, indicate that as an
+	 * - If the buffer size is analnzero but too small, indicate that as an
 	 *   error.
 	 * - Otherwise, we are good to copy the data.
 	 *
-	 * Note that we have already ensured above that the buffer pointer is
-	 * non-NULL if its size is nonzero.
+	 * Analte that we have already ensured above that the buffer pointer is
+	 * analn-NULL if its size is analnzero.
 	 */
 	*data_size = rsp_data->data_size;
 	if (attributes)
@@ -436,7 +436,7 @@ static efi_status_t qsee_uefi_set_variable(struct qcuefi_client *qcuefi, const e
 		return EFI_INVALID_PARAMETER;
 
 	/*
-	 * Make sure we have some data if data_size is nonzero. Note that using
+	 * Make sure we have some data if data_size is analnzero. Analte that using
 	 * a size of zero is a valid use-case described in spec and deletes the
 	 * variable.
 	 */
@@ -757,7 +757,7 @@ static efi_status_t qcuefi_get_variable(efi_char16_t *name, efi_guid_t *vendor, 
 
 	qcuefi = qcuefi_acquire();
 	if (!qcuefi)
-		return EFI_NOT_READY;
+		return EFI_ANALT_READY;
 
 	status = qsee_uefi_get_variable(qcuefi, name, vendor, attr, data_size, data);
 
@@ -773,7 +773,7 @@ static efi_status_t qcuefi_set_variable(efi_char16_t *name, efi_guid_t *vendor,
 
 	qcuefi = qcuefi_acquire();
 	if (!qcuefi)
-		return EFI_NOT_READY;
+		return EFI_ANALT_READY;
 
 	status = qsee_uefi_set_variable(qcuefi, name, vendor, attr, data_size, data);
 
@@ -789,7 +789,7 @@ static efi_status_t qcuefi_get_next_variable(unsigned long *name_size, efi_char1
 
 	qcuefi = qcuefi_acquire();
 	if (!qcuefi)
-		return EFI_NOT_READY;
+		return EFI_ANALT_READY;
 
 	status = qsee_uefi_get_next_variable(qcuefi, name_size, name, vendor);
 
@@ -805,7 +805,7 @@ static efi_status_t qcuefi_query_variable_info(u32 attr, u64 *storage_space, u64
 
 	qcuefi = qcuefi_acquire();
 	if (!qcuefi)
-		return EFI_NOT_READY;
+		return EFI_ANALT_READY;
 
 	status = qsee_uefi_query_variable_info(qcuefi, attr, storage_space, remaining_space,
 					       max_variable_size);
@@ -831,7 +831,7 @@ static int qcom_uefisecapp_probe(struct auxiliary_device *aux_dev,
 
 	qcuefi = devm_kzalloc(&aux_dev->dev, sizeof(*qcuefi), GFP_KERNEL);
 	if (!qcuefi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	qcuefi->client = container_of(aux_dev, struct qseecom_client, aux_dev);
 
@@ -867,7 +867,7 @@ static struct auxiliary_driver qcom_uefisecapp_driver = {
 	.id_table = qcom_uefisecapp_id_table,
 	.driver = {
 		.name = "qcom_qseecom_uefisecapp",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 };
 module_auxiliary_driver(qcom_uefisecapp_driver);

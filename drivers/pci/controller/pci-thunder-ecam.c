@@ -42,7 +42,7 @@ static int handle_ea_bar(u32 e0, int bar, struct pci_bus *bus,
 	if (where_a == 0x4) {
 		addr = bus->ops->map_bus(bus, devfn, bar); /* BAR 0 */
 		if (!addr)
-			return PCIBIOS_DEVICE_NOT_FOUND;
+			return PCIBIOS_DEVICE_ANALT_FOUND;
 
 		v = readl(addr);
 		v &= ~0xf;
@@ -56,7 +56,7 @@ static int handle_ea_bar(u32 e0, int bar, struct pci_bus *bus,
 
 		addr = bus->ops->map_bus(bus, devfn, bar); /* BAR 0 */
 		if (!addr)
-			return PCIBIOS_DEVICE_NOT_FOUND;
+			return PCIBIOS_DEVICE_ANALT_FOUND;
 
 		barl_orig = readl(addr + 0);
 		writel(0xffffffff, addr + 0);
@@ -71,13 +71,13 @@ static int handle_ea_bar(u32 e0, int bar, struct pci_bus *bus,
 	if (where_a == 0xc) {
 		addr = bus->ops->map_bus(bus, devfn, bar + 4); /* BAR 1 */
 		if (!addr)
-			return PCIBIOS_DEVICE_NOT_FOUND;
+			return PCIBIOS_DEVICE_ANALT_FOUND;
 
 		v = readl(addr); /* EA entry-3. Base-H */
 		set_val(v, where, size, val);
 		return PCIBIOS_SUCCESSFUL;
 	}
-	return PCIBIOS_DEVICE_NOT_FOUND;
+	return PCIBIOS_DEVICE_ANALT_FOUND;
 }
 
 static int thunder_ecam_p2_config_read(struct pci_bus *bus, unsigned int devfn,
@@ -86,7 +86,7 @@ static int thunder_ecam_p2_config_read(struct pci_bus *bus, unsigned int devfn,
 	struct pci_config_window *cfg = bus->sysdata;
 	int where_a = where & ~3;
 	void __iomem *addr;
-	u32 node_bits;
+	u32 analde_bits;
 	u32 v;
 
 	/* EA Base[63:32] may be missing some bits ... */
@@ -102,7 +102,7 @@ static int thunder_ecam_p2_config_read(struct pci_bus *bus, unsigned int devfn,
 
 	addr = bus->ops->map_bus(bus, devfn, where_a);
 	if (!addr)
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 
 	v = readl(addr);
 
@@ -111,9 +111,9 @@ static int thunder_ecam_p2_config_read(struct pci_bus *bus, unsigned int devfn,
 	 * the config space access window.  Since we are working with
 	 * the high-order 32 bits, shift everything down by 32 bits.
 	 */
-	node_bits = upper_32_bits(cfg->res.start) & (1 << 12);
+	analde_bits = upper_32_bits(cfg->res.start) & (1 << 12);
 
-	v |= node_bits;
+	v |= analde_bits;
 	set_val(v, where, size, val);
 
 	return PCIBIOS_SUCCESSFUL;
@@ -131,25 +131,25 @@ static int thunder_ecam_config_read(struct pci_bus *bus, unsigned int devfn,
 
 	addr = bus->ops->map_bus(bus, devfn, 0xc);
 	if (!addr)
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 
 	v = readl(addr);
 
-	/* Check for non type-00 header */
+	/* Check for analn type-00 header */
 	cfg_type = (v >> 16) & 0x7f;
 
 	addr = bus->ops->map_bus(bus, devfn, 8);
 	if (!addr)
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 
 	class_rev = readl(addr);
 	if (class_rev == 0xffffffff)
-		goto no_emulation;
+		goto anal_emulation;
 
 	if ((class_rev & 0xff) >= 8) {
 		/* Pass-2 handling */
 		if (cfg_type)
-			goto no_emulation;
+			goto anal_emulation;
 		return thunder_ecam_p2_config_read(bus, devfn, where,
 						   size, val);
 	}
@@ -168,17 +168,17 @@ static int thunder_ecam_config_read(struct pci_bus *bus, unsigned int devfn,
 
 	addr = bus->ops->map_bus(bus, devfn, 0);
 	if (!addr)
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 
 	vendor_device = readl(addr);
 	if (vendor_device == 0xffffffff)
-		goto no_emulation;
+		goto anal_emulation;
 
 	pr_debug("%04x:%04x - Fix pass#: %08x, where: %03x, devfn: %03x\n",
 		 vendor_device & 0xffff, vendor_device >> 16, class_rev,
 		 (unsigned int)where, devfn);
 
-	/* Check for non type-00 header */
+	/* Check for analn type-00 header */
 	if (cfg_type == 0) {
 		bool has_msix;
 		bool is_nic = (vendor_device == 0xa01e177d);
@@ -186,7 +186,7 @@ static int thunder_ecam_config_read(struct pci_bus *bus, unsigned int devfn,
 
 		addr = bus->ops->map_bus(bus, devfn, 0x70);
 		if (!addr)
-			return PCIBIOS_DEVICE_NOT_FOUND;
+			return PCIBIOS_DEVICE_ANALT_FOUND;
 
 		/* E_CAP */
 		v = readl(addr);
@@ -200,7 +200,7 @@ static int thunder_ecam_config_read(struct pci_bus *bus, unsigned int devfn,
 		if (where_a == 0xb0) {
 			addr = bus->ops->map_bus(bus, devfn, where_a);
 			if (!addr)
-				return PCIBIOS_DEVICE_NOT_FOUND;
+				return PCIBIOS_DEVICE_ANALT_FOUND;
 
 			v = readl(addr);
 			if (v & 0xff00)
@@ -256,7 +256,7 @@ static int thunder_ecam_config_read(struct pci_bus *bus, unsigned int devfn,
 		if (where_a == 0x70) {
 			addr = bus->ops->map_bus(bus, devfn, where_a);
 			if (!addr)
-				return PCIBIOS_DEVICE_NOT_FOUND;
+				return PCIBIOS_DEVICE_ANALT_FOUND;
 
 			v = readl(addr);
 			if (v & 0xff00)
@@ -269,7 +269,7 @@ static int thunder_ecam_config_read(struct pci_bus *bus, unsigned int devfn,
 			if (is_nic_bridge)
 				v = 0x10014; /* EA last in chain, 1 entry */
 			else
-				v = 0x00014; /* EA last in chain, no entries */
+				v = 0x00014; /* EA last in chain, anal entries */
 			set_val(v, where, size, val);
 			return PCIBIOS_SUCCESSFUL;
 		}
@@ -286,7 +286,7 @@ static int thunder_ecam_config_read(struct pci_bus *bus, unsigned int devfn,
 			return PCIBIOS_SUCCESSFUL;
 		}
 		if (where_a == 0xc4 && is_nic_bridge) {
-			/* Enabled, not-Write, SP=ff, PP=05, BEI=6, ES=4 */
+			/* Enabled, analt-Write, SP=ff, PP=05, BEI=6, ES=4 */
 			v = 0x80ff0564;
 			set_val(v, where, size, val);
 			return PCIBIOS_SUCCESSFUL;
@@ -312,7 +312,7 @@ static int thunder_ecam_config_read(struct pci_bus *bus, unsigned int devfn,
 			return PCIBIOS_SUCCESSFUL;
 		}
 	}
-no_emulation:
+anal_emulation:
 	return pci_generic_config_read(bus, devfn, where, size, val);
 }
 
@@ -320,7 +320,7 @@ static int thunder_ecam_config_write(struct pci_bus *bus, unsigned int devfn,
 				     int where, int size, u32 val)
 {
 	/*
-	 * All BARs have fixed addresses; ignore BAR writes so they
+	 * All BARs have fixed addresses; iganalre BAR writes so they
 	 * don't get corrupted.
 	 */
 	if ((where >= 0x10 && where < 0x2c) ||

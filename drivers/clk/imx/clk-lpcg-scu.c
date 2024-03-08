@@ -95,7 +95,7 @@ struct clk_hw *__imx_clk_lpcg_scu(struct device *dev, const char *name,
 
 	clk = kzalloc(sizeof(*clk), GFP_KERNEL);
 	if (!clk)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	clk->reg = reg;
 	clk->bit_idx = bit_idx;
@@ -158,6 +158,6 @@ static int __maybe_unused imx_clk_lpcg_scu_resume(struct device *dev)
 }
 
 const struct dev_pm_ops imx_clk_lpcg_scu_pm_ops = {
-	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(imx_clk_lpcg_scu_suspend,
+	SET_ANALIRQ_SYSTEM_SLEEP_PM_OPS(imx_clk_lpcg_scu_suspend,
 				      imx_clk_lpcg_scu_resume)
 };

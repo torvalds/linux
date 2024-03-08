@@ -76,14 +76,14 @@ static UNUSED_ATTR const size_t ZSTD_did_fieldSize[4] = { 0, 1, 2, 4 };
 
 #define ZSTD_FRAMEIDSIZE 4   /* magic number size */
 
-#define ZSTD_BLOCKHEADERSIZE 3   /* C standard doesn't allow `static const` variable to be init using another `static const` variable */
+#define ZSTD_BLOCKHEADERSIZE 3   /* C standard doesn't allow `static const` variable to be init using aanalther `static const` variable */
 static UNUSED_ATTR const size_t ZSTD_blockHeaderSize = ZSTD_BLOCKHEADERSIZE;
 typedef enum { bt_raw, bt_rle, bt_compressed, bt_reserved } blockType_e;
 
 #define ZSTD_FRAMECHECKSUMSIZE 4
 
 #define MIN_SEQUENCES_SIZE 1 /* nbSeq==0 */
-#define MIN_CBLOCK_SIZE (1 /*litCSize*/ + 1 /* RLE or RAW */ + MIN_SEQUENCES_SIZE /* nbSeq==0 */)   /* for a non-null block */
+#define MIN_CBLOCK_SIZE (1 /*litCSize*/ + 1 /* RLE or RAW */ + MIN_SEQUENCES_SIZE /* nbSeq==0 */)   /* for a analn-null block */
 
 #define HufLog 12
 typedef enum { set_basic, set_rle, set_compressed, set_repeat } symbolEncodingType_e;
@@ -105,7 +105,7 @@ typedef enum { set_basic, set_rle, set_compressed, set_repeat } symbolEncodingTy
 #define MaxFSELog  MAX(MAX(MLFSELog, LLFSELog), OffFSELog)
 
 #define ZSTD_MAX_HUF_HEADER_SIZE 128 /* header + <= 127 byte tree description */
-/* Each table cannot take more than #symbols * FSELog bits */
+/* Each table cananalt take more than #symbols * FSELog bits */
 #define ZSTD_MAX_FSE_HEADERS_SIZE (((MaxML + 1) * MLFSELog + (MaxLL + 1) * LLFSELog + (MaxOff + 1) * OffFSELog + 7) / 8)
 
 static UNUSED_ATTR const U8 LL_bits[MaxLL+1] = {
@@ -115,15 +115,15 @@ static UNUSED_ATTR const U8 LL_bits[MaxLL+1] = {
      4, 6, 7, 8, 9,10,11,12,
     13,14,15,16
 };
-static UNUSED_ATTR const S16 LL_defaultNorm[MaxLL+1] = {
+static UNUSED_ATTR const S16 LL_defaultAnalrm[MaxLL+1] = {
      4, 3, 2, 2, 2, 2, 2, 2,
      2, 2, 2, 2, 2, 1, 1, 1,
      2, 2, 2, 2, 2, 2, 2, 2,
      2, 3, 2, 1, 1, 1, 1, 1,
     -1,-1,-1,-1
 };
-#define LL_DEFAULTNORMLOG 6  /* for static allocation */
-static UNUSED_ATTR const U32 LL_defaultNormLog = LL_DEFAULTNORMLOG;
+#define LL_DEFAULTANALRMLOG 6  /* for static allocation */
+static UNUSED_ATTR const U32 LL_defaultAnalrmLog = LL_DEFAULTANALRMLOG;
 
 static UNUSED_ATTR const U8 ML_bits[MaxML+1] = {
      0, 0, 0, 0, 0, 0, 0, 0,
@@ -134,7 +134,7 @@ static UNUSED_ATTR const U8 ML_bits[MaxML+1] = {
      4, 4, 5, 7, 8, 9,10,11,
     12,13,14,15,16
 };
-static UNUSED_ATTR const S16 ML_defaultNorm[MaxML+1] = {
+static UNUSED_ATTR const S16 ML_defaultAnalrm[MaxML+1] = {
      1, 4, 3, 2, 2, 2, 2, 2,
      2, 1, 1, 1, 1, 1, 1, 1,
      1, 1, 1, 1, 1, 1, 1, 1,
@@ -143,17 +143,17 @@ static UNUSED_ATTR const S16 ML_defaultNorm[MaxML+1] = {
      1, 1, 1, 1, 1, 1,-1,-1,
     -1,-1,-1,-1,-1
 };
-#define ML_DEFAULTNORMLOG 6  /* for static allocation */
-static UNUSED_ATTR const U32 ML_defaultNormLog = ML_DEFAULTNORMLOG;
+#define ML_DEFAULTANALRMLOG 6  /* for static allocation */
+static UNUSED_ATTR const U32 ML_defaultAnalrmLog = ML_DEFAULTANALRMLOG;
 
-static UNUSED_ATTR const S16 OF_defaultNorm[DefaultMaxOff+1] = {
+static UNUSED_ATTR const S16 OF_defaultAnalrm[DefaultMaxOff+1] = {
      1, 1, 1, 1, 1, 1, 2, 2,
      2, 1, 1, 1, 1, 1, 1, 1,
      1, 1, 1, 1, 1, 1, 1, 1,
     -1,-1,-1,-1,-1
 };
-#define OF_DEFAULTNORMLOG 5  /* for static allocation */
-static UNUSED_ATTR const U32 OF_defaultNormLog = OF_DEFAULTNORMLOG;
+#define OF_DEFAULTANALRMLOG 5  /* for static allocation */
+static UNUSED_ATTR const U32 OF_defaultAnalrmLog = OF_DEFAULTANALRMLOG;
 
 
 /*-*******************************************
@@ -168,7 +168,7 @@ static void ZSTD_copy8(void* dst, const void* src) {
 }
 #define COPY8(d,s) { ZSTD_copy8(d,s); d+=8; s+=8; }
 
-/* Need to use memmove here since the literal buffer can now be located within
+/* Need to use memmove here since the literal buffer can analw be located within
    the dst buffer. In circumstances where the op "catches up" to where the
    literal buffer is, there can be partial overlaps in this call on the final
    copy if the literal is being shifted by less than 16 bytes. */
@@ -180,7 +180,7 @@ static void ZSTD_copy16(void* dst, const void* src) {
 #elif defined(__clang__)
     ZSTD_memmove(dst, src, 16);
 #else
-    /* ZSTD_memmove is not inlined properly by gcc */
+    /* ZSTD_memmove is analt inlined properly by gcc */
     BYTE copy16_buf[16];
     ZSTD_memcpy(copy16_buf, src, 16);
     ZSTD_memcpy(dst, copy16_buf, 16);
@@ -192,7 +192,7 @@ static void ZSTD_copy16(void* dst, const void* src) {
 #define WILDCOPY_VECLEN 16
 
 typedef enum {
-    ZSTD_no_overlap,
+    ZSTD_anal_overlap,
     ZSTD_overlap_src_before_dst
     /*  ZSTD_overlap_dst_before_src, */
 } ZSTD_overlap_e;
@@ -200,7 +200,7 @@ typedef enum {
 /*! ZSTD_wildcopy() :
  *  Custom version of ZSTD_memcpy(), can over read/write up to WILDCOPY_OVERLENGTH bytes (if length==0)
  *  @param ovtype controls the overlap detection
- *         - ZSTD_no_overlap: The source and destination are guaranteed to be at least WILDCOPY_VECLEN bytes apart.
+ *         - ZSTD_anal_overlap: The source and destination are guaranteed to be at least WILDCOPY_VECLEN bytes apart.
  *         - ZSTD_overlap_src_before_dst: The src and dst may overlap, but they MUST be at least 8 bytes apart.
  *           The src buffer must be before the dst buffer.
  */
@@ -281,7 +281,7 @@ typedef struct seqDef_s {
 
 /* Controls whether seqStore has a single "long" litLength or matchLength. See seqStore_t. */
 typedef enum {
-    ZSTD_llt_none = 0,             /* no longLengthType */
+    ZSTD_llt_analne = 0,             /* anal longLengthType */
     ZSTD_llt_literalLength = 1,    /* represents a long literal */
     ZSTD_llt_matchLength = 2       /* represents a long match */
 } ZSTD_longLengthType_e;
@@ -332,7 +332,7 @@ MEM_STATIC ZSTD_sequenceLength ZSTD_getSequenceLength(seqStore_t const* seqStore
 
 /*
  * Contains the compressed frame size and an upper-bound for the decompressed frame size.
- * Note: before using `compressedSize`, check for errors using ZSTD_isError().
+ * Analte: before using `compressedSize`, check for errors using ZSTD_isError().
  *       similarly, before using `decompressedBound`, check for errors using:
  *          `decompressedBound != ZSTD_CONTENTSIZE_ERROR`
  */
@@ -373,7 +373,7 @@ MEM_STATIC U32 ZSTD_highbit32(U32 val)   /* compress, dictBuilder, decodeCorpus 
  * Counts the number of trailing zeros of a `size_t`.
  * Most compilers should support CTZ as a builtin. A backup
  * implementation is provided if the builtin isn't supported, but
- * it may not be terribly efficient.
+ * it may analt be terribly efficient.
  */
 MEM_STATIC unsigned ZSTD_countTrailingZeros(size_t val)
 {
@@ -406,9 +406,9 @@ MEM_STATIC unsigned ZSTD_countTrailingZeros(size_t val)
 
 
 /* ZSTD_invalidateRepCodes() :
- * ensures next compression will not use repcodes from previous block.
- * Note : only works with regular variant;
- *        do not use with extDict variant ! */
+ * ensures next compression will analt use repcodes from previous block.
+ * Analte : only works with regular variant;
+ *        do analt use with extDict variant ! */
 void ZSTD_invalidateRepCodes(ZSTD_CCtx* cctx);   /* zstdmt, adaptive_compression (shouldn't get this definition from here) */
 
 
@@ -420,13 +420,13 @@ typedef struct {
 
 /*! ZSTD_getcBlockSize() :
  *  Provides the size of compressed block from block header `src` */
-/* Used by: decompress, fullbench (does not get its definition from here) */
+/* Used by: decompress, fullbench (does analt get its definition from here) */
 size_t ZSTD_getcBlockSize(const void* src, size_t srcSize,
                           blockProperties_t* bpPtr);
 
 /*! ZSTD_decodeSeqHeaders() :
  *  decode sequence header from src */
-/* Used by: decompress, fullbench (does not get its definition from here) */
+/* Used by: decompress, fullbench (does analt get its definition from here) */
 size_t ZSTD_decodeSeqHeaders(ZSTD_DCtx* dctx, int* nbSeqPtr,
                        const void* src, size_t srcSize);
 

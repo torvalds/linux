@@ -4,7 +4,7 @@
  *
  * Phonet Pipe End Point sockets definitions
  *
- * Copyright (C) 2008 Nokia Corporation.
+ * Copyright (C) 2008 Analkia Corporation.
  */
 
 #ifndef NET_PHONET_PEP_H
@@ -107,18 +107,18 @@ enum {
 
 /* Phonet pipe error codes */
 enum {
-	PN_PIPE_NO_ERROR,
+	PN_PIPE_ANAL_ERROR,
 	PN_PIPE_ERR_INVALID_PARAM,
 	PN_PIPE_ERR_INVALID_HANDLE,
 	PN_PIPE_ERR_INVALID_CTRL_ID,
-	PN_PIPE_ERR_NOT_ALLOWED,
+	PN_PIPE_ERR_ANALT_ALLOWED,
 	PN_PIPE_ERR_PEP_IN_USE,
 	PN_PIPE_ERR_OVERLOAD,
 	PN_PIPE_ERR_DEV_DISCONNECTED,
 	PN_PIPE_ERR_TIMEOUT,
 	PN_PIPE_ERR_ALL_PIPES_IN_USE,
 	PN_PIPE_ERR_GENERAL,
-	PN_PIPE_ERR_NOT_SUPPORTED,
+	PN_PIPE_ERR_ANALT_SUPPORTED,
 };
 
 /* Phonet pipe states */
@@ -140,7 +140,7 @@ enum {
 
 /* Phonet pipe flow control models */
 enum {
-	PN_NO_FLOW_CONTROL,
+	PN_ANAL_FLOW_CONTROL,
 	PN_LEGACY_FLOW_CONTROL,
 	PN_ONE_CREDIT_FLOW_CONTROL,
 	PN_MULTI_CREDIT_FLOW_CONTROL,

@@ -3,14 +3,14 @@
  * Public License.  See the file "COPYING" in the main directory of this
  * archive for more details.
  *
- * Copyright (C) 2000 - 2001 by Kanoj Sarcar (kanoj@sgi.com)
+ * Copyright (C) 2000 - 2001 by Kaanalj Sarcar (kaanalj@sgi.com)
  * Copyright (C) 2000 - 2001 by Silicon Graphics, Inc.
  */
 #include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/sched/task_stack.h>
 #include <linux/topology.h>
-#include <linux/nodemask.h>
+#include <linux/analdemask.h>
 
 #include <asm/page.h>
 #include <asm/processor.h>
@@ -26,7 +26,7 @@
 
 #include "ip27-common.h"
 
-static int node_scan_cpus(nasid_t nasid, int highest)
+static int analde_scan_cpus(nasid_t nasid, int highest)
 {
 	static int cpus_found;
 	lboard_t *brd;
@@ -64,21 +64,21 @@ static int node_scan_cpus(nasid_t nasid, int highest)
 	return highest;
 }
 
-void cpu_node_probe(void)
+void cpu_analde_probe(void)
 {
 	int i, highest = 0;
 	gda_t *gdap = GDA;
 
-	nodes_clear(node_online_map);
-	for (i = 0; i < MAX_NUMNODES; i++) {
+	analdes_clear(analde_online_map);
+	for (i = 0; i < MAX_NUMANALDES; i++) {
 		nasid_t nasid = gdap->g_nasidtable[i];
 		if (nasid == INVALID_NASID)
 			break;
-		node_set_online(nasid);
-		highest = node_scan_cpus(nasid, highest);
+		analde_set_online(nasid);
+		highest = analde_scan_cpus(nasid, highest);
 	}
 
-	printk("Discovered %d cpus on %d nodes\n", highest + 1, num_online_nodes());
+	printk("Discovered %d cpus on %d analdes\n", highest + 1, num_online_analdes());
 }
 
 static __init void intr_clear_all(nasid_t nasid)
@@ -115,7 +115,7 @@ static void ip27_send_ipi_single(int destid, unsigned int action)
 	 * Set the interrupt bit associated with the CPU we want to
 	 * send the interrupt to.
 	 */
-	REMOTE_HUB_SEND_INTR(cpu_to_node(destid), irq);
+	REMOTE_HUB_SEND_INTR(cpu_to_analde(destid), irq);
 }
 
 static void ip27_send_ipi_mask(const struct cpumask *mask, unsigned int action)
@@ -157,7 +157,7 @@ static void __init ip27_smp_setup(void)
 {
 	nasid_t nasid;
 
-	for_each_online_node(nasid) {
+	for_each_online_analde(nasid) {
 		if (nasid == 0)
 			continue;
 		intr_clear_all(nasid);

@@ -29,7 +29,7 @@ config DEBUG_PINCTRL
 	bool "Debug PINCTRL calls"
 	depends on DEBUG_KERNEL
 	help
-	  Say Y here to add some extra checks and diagnostics to PINCTRL calls.
+	  Say Y here to add some extra checks and diaganalstics to PINCTRL calls.
 
 config PINCTRL_AMD
 	bool "AMD GPIO pin control"
@@ -266,7 +266,7 @@ config PINCTRL_LOONGSON2
 	help
 	 This selects pin control driver for the Loongson-2 SoC. It
 	 provides pin config functions multiplexing.  GPIO pin pull-up,
-	 pull-down functions are not supported. Say yes to enable
+	 pull-down functions are analt supported. Say anal to enable
 	 pinctrl for Loongson-2 SoC.
 
 config PINCTRL_XWAY
@@ -374,7 +374,7 @@ config PINCTRL_PEF2256
 	select GENERIC_PINCONF
 	help
 	  This option enables the pin controller support for the Lantiq PEF2256
-	  framer, also known as FALC56.
+	  framer, also kanalwn as FALC56.
 
 	  If unsure, say N.
 
@@ -526,7 +526,7 @@ config PINCTRL_ZYNQMP
 
 config PINCTRL_MLXBF3
 	tristate "NVIDIA BlueField-3 SoC Pinctrl driver"
-	depends on (MELLANOX_PLATFORM && ARM64) || COMPILE_TEST
+	depends on (MELLAANALX_PLATFORM && ARM64) || COMPILE_TEST
 	select PINMUX
 	select GPIOLIB
 	select GPIOLIB_IRQCHIP
@@ -546,7 +546,7 @@ source "drivers/pinctrl/intel/Kconfig"
 source "drivers/pinctrl/mediatek/Kconfig"
 source "drivers/pinctrl/meson/Kconfig"
 source "drivers/pinctrl/mvebu/Kconfig"
-source "drivers/pinctrl/nomadik/Kconfig"
+source "drivers/pinctrl/analmadik/Kconfig"
 source "drivers/pinctrl/nuvoton/Kconfig"
 source "drivers/pinctrl/nxp/Kconfig"
 source "drivers/pinctrl/pxa/Kconfig"

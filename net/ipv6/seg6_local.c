@@ -50,14 +50,14 @@ struct seg6_action_desc {
 
 	/* The optattrs field is used for specifying all the optional
 	 * attributes supported by a specific behavior.
-	 * It means that if one of these attributes is not provided in the
-	 * netlink message during the behavior creation, no errors will be
+	 * It means that if one of these attributes is analt provided in the
+	 * netlink message during the behavior creation, anal errors will be
 	 * returned to the userspace.
 	 *
 	 * Each attribute can be only of two types (mutually exclusive):
 	 * 1) required or 2) optional.
 	 * Every user MUST obey to this rule! If you set an attribute as
-	 * required the same attribute CANNOT be set as optional and vice
+	 * required the same attribute CANANALT be set as optional and vice
 	 * versa.
 	 */
 	unsigned long optattrs;
@@ -74,28 +74,28 @@ struct bpf_lwt_prog {
 };
 
 /* default length values (expressed in bits) for both Locator-Block and
- * Locator-Node Function.
+ * Locator-Analde Function.
  *
- * Both SEG6_LOCAL_LCBLOCK_DBITS and SEG6_LOCAL_LCNODE_FN_DBITS *must* be:
+ * Both SEG6_LOCAL_LCBLOCK_DBITS and SEG6_LOCAL_LCANALDE_FN_DBITS *must* be:
  *    i) greater than 0;
  *   ii) evenly divisible by 8. In other terms, the lengths of the
- *	 Locator-Block and Locator-Node Function must be byte-aligned (we can
+ *	 Locator-Block and Locator-Analde Function must be byte-aligned (we can
  *	 relax this constraint in the future if really needed).
  *
  * Moreover, a third condition must hold:
- *  iii) SEG6_LOCAL_LCBLOCK_DBITS + SEG6_LOCAL_LCNODE_FN_DBITS <= 128.
+ *  iii) SEG6_LOCAL_LCBLOCK_DBITS + SEG6_LOCAL_LCANALDE_FN_DBITS <= 128.
  *
- * The correctness of SEG6_LOCAL_LCBLOCK_DBITS and SEG6_LOCAL_LCNODE_FN_DBITS
+ * The correctness of SEG6_LOCAL_LCBLOCK_DBITS and SEG6_LOCAL_LCANALDE_FN_DBITS
  * values are checked during the kernel compilation. If the compilation stops,
  * check the value of these parameters to see if they meet conditions (i), (ii)
  * and (iii).
  */
 #define SEG6_LOCAL_LCBLOCK_DBITS	32
-#define SEG6_LOCAL_LCNODE_FN_DBITS	16
+#define SEG6_LOCAL_LCANALDE_FN_DBITS	16
 
 /* The following next_csid_chk_{cntr,lcblock,lcblock_fn}_bits macros can be
  * used directly to check whether the lengths (in bits) of Locator-Block and
- * Locator-Node Function are valid according to (i), (ii), (iii).
+ * Locator-Analde Function are valid according to (i), (ii), (iii).
  */
 #define next_csid_chk_cntr_bits(blen, flen)		\
 	((blen) + (flen) > 128)
@@ -106,7 +106,7 @@ struct bpf_lwt_prog {
 	(!__tmp || __tmp > 120 || (__tmp & 0x07));	\
 })
 
-#define next_csid_chk_lcnode_fn_bits(flen)		\
+#define next_csid_chk_lcanalde_fn_bits(flen)		\
 	next_csid_chk_lcblock_bits(flen)
 
 /* flag indicating that flavors are set up for a given End* behavior */
@@ -129,8 +129,8 @@ struct seg6_flavors_info {
 
 	/* Locator-Block length, expressed in bits */
 	__u8 lcblock_bits;
-	/* Locator-Node Function length, expressed in bits*/
-	__u8 lcnode_func_bits;
+	/* Locator-Analde Function length, expressed in bits*/
+	__u8 lcanalde_func_bits;
 };
 
 enum seg6_end_dt_mode {
@@ -289,7 +289,7 @@ seg6_lookup_any_nexthop(struct sk_buff *skb, struct in6_addr *nhaddr,
 	fl6.flowi6_proto = hdr->nexthdr;
 
 	if (nhaddr)
-		fl6.flowi6_flags = FLOWI_FLAG_KNOWN_NH;
+		fl6.flowi6_flags = FLOWI_FLAG_KANALWN_NH;
 
 	if (!tbl_id) {
 		dst = ip6_route_input_lookup(net, skb->dev, &fl6, skb, flags);
@@ -338,15 +338,15 @@ static __u8 seg6_flv_lcblock_octects(const struct seg6_flavors_info *finfo)
 	return finfo->lcblock_bits >> 3;
 }
 
-static __u8 seg6_flv_lcnode_func_octects(const struct seg6_flavors_info *finfo)
+static __u8 seg6_flv_lcanalde_func_octects(const struct seg6_flavors_info *finfo)
 {
-	return finfo->lcnode_func_bits >> 3;
+	return finfo->lcanalde_func_bits >> 3;
 }
 
 static bool seg6_next_csid_is_arg_zero(const struct in6_addr *addr,
 				       const struct seg6_flavors_info *finfo)
 {
-	__u8 fnc_octects = seg6_flv_lcnode_func_octects(finfo);
+	__u8 fnc_octects = seg6_flv_lcanalde_func_octects(finfo);
 	__u8 blk_octects = seg6_flv_lcblock_octects(finfo);
 	__u8 arg_octects;
 	int i;
@@ -364,7 +364,7 @@ static bool seg6_next_csid_is_arg_zero(const struct in6_addr *addr,
 static void seg6_next_csid_advance_arg(struct in6_addr *addr,
 				       const struct seg6_flavors_info *finfo)
 {
-	__u8 fnc_octects = seg6_flv_lcnode_func_octects(finfo);
+	__u8 fnc_octects = seg6_flv_lcanalde_func_octects(finfo);
 	__u8 blk_octects = seg6_flv_lcblock_octects(finfo);
 
 	/* advance DA.Argument */
@@ -464,7 +464,7 @@ static bool seg6_next_csid_enabled(__u32 fops)
 /* Processing of SRv6 End, End.X, and End.T behaviors can be extended through
  * the flavors framework. These behaviors must report the subset of (flavor)
  * operations they currently implement. In this way, if a user specifies a
- * flavor combination that is not supported by a given End* behavior, the
+ * flavor combination that is analt supported by a given End* behavior, the
  * kernel refuses to instantiate the tunnel reporting the error.
  */
 static int seg6_flv_supp_ops_by_action(int action, __u32 *fops)
@@ -477,7 +477,7 @@ static int seg6_flv_supp_ops_by_action(int action, __u32 *fops)
 		*fops = SEG6_LOCAL_END_X_FLV_SUPP_OPS;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -485,12 +485,12 @@ static int seg6_flv_supp_ops_by_action(int action, __u32 *fops)
 
 /* We describe the packet state in relation to the absence/presence of the SRH
  * and the Segment Left (SL) field.
- * For our purposes, it is not necessary to record the exact value of the SL
+ * For our purposes, it is analt necessary to record the exact value of the SL
  * when the SID List consists of two or more segments.
  */
 enum seg6_local_pktinfo {
 	/* the order really matters! */
-	SEG6_LOCAL_PKTINFO_NOHDR	= 0,
+	SEG6_LOCAL_PKTINFO_ANALHDR	= 0,
 	SEG6_LOCAL_PKTINFO_SL_ZERO,
 	SEG6_LOCAL_PKTINFO_SL_ONE,
 	SEG6_LOCAL_PKTINFO_SL_MORE,
@@ -504,7 +504,7 @@ static enum seg6_local_pktinfo seg6_get_srh_pktinfo(struct ipv6_sr_hdr *srh)
 	__u8 sgl;
 
 	if (!srh)
-		return SEG6_LOCAL_PKTINFO_NOHDR;
+		return SEG6_LOCAL_PKTINFO_ANALHDR;
 
 	sgl = srh->segments_left;
 	if (sgl < 2)
@@ -581,7 +581,7 @@ enum seg6_local_flv_action {
  * flavors, the action that should be taken on a packet (e.g.
  * "standard" Endpoint processing, Penultimate Segment Pop, etc).
  *
- * By default, table entries not explicitly configured are initialized with the
+ * By default, table entries analt explicitly configured are initialized with the
  * SEG6_LOCAL_FLV_ACT_UNSPEC action, which generally has the effect of
  * discarding the processed packet.
  */
@@ -699,7 +699,7 @@ pull:
 
 		for (;;) {
 			if (unlikely(!ipv6_ext_hdr(nexthdr) ||
-				     nexthdr == NEXTHDR_NONE))
+				     nexthdr == NEXTHDR_ANALNE))
 				return false;
 
 			hp = skb_header_pointer(skb, off, sizeof(_hdr), &_hdr);
@@ -776,7 +776,7 @@ static int end_flv8986_core(struct sk_buff *skb, struct seg6_local_lwt *slwt)
 	case SEG6_LOCAL_FLV_ACT_UNSPEC:
 		fallthrough;
 	default:
-		/* by default, we drop the packet since we could not find a
+		/* by default, we drop the packet since we could analt find a
 		 * suitable action.
 		 */
 		goto drop;
@@ -860,7 +860,7 @@ static int input_action_end_dx2(struct sk_buff *skb,
 	eth = (struct ethhdr *)skb->data;
 
 	/* To determine the frame's protocol, we assume it is 802.3. This avoids
-	 * a call to eth_type_trans(), which is not really relevant for our
+	 * a call to eth_type_trans(), which is analt really relevant for our
 	 * use case.
 	 */
 	if (!eth_proto_is_802_3(eth->h_proto))
@@ -908,8 +908,8 @@ static int input_action_end_dx6_finish(struct net *net, struct sock *sk,
 
 	slwt = seg6_local_lwtunnel(orig_dst->lwtstate);
 
-	/* The inner packet is not associated to any local interface,
-	 * so we do not call netif_rx().
+	/* The inner packet is analt associated to any local interface,
+	 * so we do analt call netif_rx().
 	 *
 	 * If slwt->nh6 is set to ::, then lookup the nexthop for the
 	 * inner packet's DA. Otherwise, use the specified nexthop.
@@ -927,7 +927,7 @@ static int input_action_end_dx6(struct sk_buff *skb,
 				struct seg6_local_lwt *slwt)
 {
 	/* this function accepts IPv6 encapsulated packets, with either
-	 * an SRH with SL=0, or no SRH.
+	 * an SRH with SL=0, or anal SRH.
 	 */
 
 	if (!decap_and_validate(skb, IPPROTO_IPV6))
@@ -1017,16 +1017,16 @@ static int __seg6_end_dt_vrf_build(struct seg6_local_lwt *slwt, const void *cfg,
 
 	net = fib6_config_get_net(cfg);
 
-	/* note that vrf_table was already set by parse_nla_vrftable() */
+	/* analte that vrf_table was already set by parse_nla_vrftable() */
 	vrf_ifindex = l3mdev_ifindex_lookup_by_table_id(L3MDEV_TYPE_VRF, net,
 							info->vrf_table);
 	if (vrf_ifindex < 0) {
 		if (vrf_ifindex == -EPERM) {
 			NL_SET_ERR_MSG(extack,
 				       "Strict mode for VRF is disabled");
-		} else if (vrf_ifindex == -ENODEV) {
+		} else if (vrf_ifindex == -EANALDEV) {
 			NL_SET_ERR_MSG(extack,
-				       "Table has no associated VRF device");
+				       "Table has anal associated VRF device");
 		} else {
 			pr_debug("seg6local: SRv6 End.DT* creation error=%d\n",
 				 vrf_ifindex);
@@ -1052,11 +1052,11 @@ static int __seg6_end_dt_vrf_build(struct seg6_local_lwt *slwt, const void *cfg,
  * destination address (DA) is used for retrieving the specific instance of the
  * End.DT4/DT6 behavior that should process the packets.
  *
- * However, the inner IPv4/IPv6 packet is not really bound to any receiving
+ * However, the inner IPv4/IPv6 packet is analt really bound to any receiving
  * interface and thus the End.DT4/DT6 sets the VRF (associated with the
  * corresponding routing table) as the *receiving* interface.
  * In other words, the End.DT4/DT6 processes a packet as if it has been received
- * directly by the VRF (and not by one of its slave devices, if any).
+ * directly by the VRF (and analt by one of its slave devices, if any).
  * In this way, the VRF interface is used for routing the IPv4/IPv6 packet in
  * according to the routing table configured by the End.DT4/DT6 instance.
  *
@@ -1071,7 +1071,7 @@ static int __seg6_end_dt_vrf_build(struct seg6_local_lwt *slwt, const void *cfg,
  *  - the sk_buff* when the VRF rcv handler has processed the packet correctly;
  *  - NULL when the skb is consumed by the VRF rcv handler;
  *  - a pointer which encodes a negative error number in case of error.
- *    Note that in this case, the function takes care of freeing the skb.
+ *    Analte that in this case, the function takes care of freeing the skb.
  */
 static struct sk_buff *end_dt_vrf_rcv(struct sk_buff *skb, u16 family,
 				      struct net_device *dev)
@@ -1083,7 +1083,7 @@ static struct sk_buff *end_dt_vrf_rcv(struct sk_buff *skb, u16 family,
 	if (unlikely(!dev->l3mdev_ops->l3mdev_l3_rcv))
 		goto drop;
 
-	/* the decap packet IPv4/IPv6 does not come with any mac header info.
+	/* the decap packet IPv4/IPv6 does analt come with any mac header info.
 	 * We must unset the mac header to allow the VRF device to rebuild it,
 	 * just in case there is a sniffer attached on the device.
 	 */
@@ -1274,7 +1274,7 @@ static int input_action_end_dt6(struct sk_buff *skb,
 	if (IS_ERR(skb))
 		return PTR_ERR(skb);
 
-	/* note: this time we do not need to specify the table because the VRF
+	/* analte: this time we do analt need to specify the table because the VRF
 	 * takes care of selecting the correct table.
 	 */
 	seg6_lookup_any_nexthop(skb, NULL, 0, true);
@@ -1667,7 +1667,7 @@ static int parse_nla_srh(struct nlattr **attrs, struct seg6_local_lwt *slwt,
 
 	slwt->srh = kmemdup(srh, len, GFP_KERNEL);
 	if (!slwt->srh)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	slwt->headroom += len;
 
@@ -1737,7 +1737,7 @@ seg6_end_dt_info *seg6_possible_end_dt_info(struct seg6_local_lwt *slwt)
 #ifdef CONFIG_NET_L3_MASTER_DEV
 	return &slwt->dt_info;
 #else
-	return ERR_PTR(-EOPNOTSUPP);
+	return ERR_PTR(-EOPANALTSUPP);
 #endif
 }
 
@@ -1907,7 +1907,7 @@ static int parse_nla_bpf(struct nlattr **attrs, struct seg6_local_lwt *slwt,
 
 	slwt->bpf.name = nla_memdup(tb[SEG6_LOCAL_BPF_PROG_NAME], GFP_KERNEL);
 	if (!slwt->bpf.name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fd = nla_get_u32(tb[SEG6_LOCAL_BPF_PROG]);
 	p = bpf_prog_get_type(fd, BPF_PROG_TYPE_LWT_SEG6LOCAL);
@@ -1927,7 +1927,7 @@ static int put_nla_bpf(struct sk_buff *skb, struct seg6_local_lwt *slwt)
 	if (!slwt->bpf.prog)
 		return 0;
 
-	nest = nla_nest_start_noflag(skb, SEG6_LOCAL_BPF);
+	nest = nla_nest_start_analflag(skb, SEG6_LOCAL_BPF);
 	if (!nest)
 		return -EMSGSIZE;
 
@@ -1990,7 +1990,7 @@ static int parse_nla_counters(struct nlattr **attrs,
 	/* counters are always zero initialized */
 	pcounters = seg6_local_alloc_pcpu_counters(GFP_KERNEL);
 	if (!pcounters)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	slwt->pcpu_counters = pcounters;
 
@@ -2056,7 +2056,7 @@ static int put_nla_counters(struct sk_buff *skb, struct seg6_local_lwt *slwt)
 
 static int cmp_nla_counters(struct seg6_local_lwt *a, struct seg6_local_lwt *b)
 {
-	/* a and b are equal if both have pcpu_counters set or not */
+	/* a and b are equal if both have pcpu_counters set or analt */
 	return (!!((unsigned long)a->pcpu_counters)) ^
 		(!!((unsigned long)b->pcpu_counters));
 }
@@ -2070,30 +2070,30 @@ static const
 struct nla_policy seg6_local_flavors_policy[SEG6_LOCAL_FLV_MAX + 1] = {
 	[SEG6_LOCAL_FLV_OPERATION]	= { .type = NLA_U32 },
 	[SEG6_LOCAL_FLV_LCBLOCK_BITS]	= { .type = NLA_U8 },
-	[SEG6_LOCAL_FLV_LCNODE_FN_BITS]	= { .type = NLA_U8 },
+	[SEG6_LOCAL_FLV_LCANALDE_FN_BITS]	= { .type = NLA_U8 },
 };
 
-/* check whether the lengths of the Locator-Block and Locator-Node Function
+/* check whether the lengths of the Locator-Block and Locator-Analde Function
  * are compatible with the dimension of a C-SID container.
  */
 static int seg6_chk_next_csid_cfg(__u8 block_len, __u8 func_len)
 {
-	/* Locator-Block and Locator-Node Function cannot exceed 128 bits
+	/* Locator-Block and Locator-Analde Function cananalt exceed 128 bits
 	 * (i.e. C-SID container lenghts).
 	 */
 	if (next_csid_chk_cntr_bits(block_len, func_len))
 		return -EINVAL;
 
 	/* Locator-Block length must be greater than zero and evenly divisible
-	 * by 8. There must be room for a Locator-Node Function, at least.
+	 * by 8. There must be room for a Locator-Analde Function, at least.
 	 */
 	if (next_csid_chk_lcblock_bits(block_len))
 		return -EINVAL;
 
-	/* Locator-Node Function length must be greater than zero and evenly
+	/* Locator-Analde Function length must be greater than zero and evenly
 	 * divisible by 8. There must be room for the Locator-Block.
 	 */
-	if (next_csid_chk_lcnode_fn_bits(func_len))
+	if (next_csid_chk_lcanalde_fn_bits(func_len))
 		return -EINVAL;
 
 	return 0;
@@ -2103,25 +2103,25 @@ static int seg6_parse_nla_next_csid_cfg(struct nlattr **tb,
 					struct seg6_flavors_info *finfo,
 					struct netlink_ext_ack *extack)
 {
-	__u8 func_len = SEG6_LOCAL_LCNODE_FN_DBITS;
+	__u8 func_len = SEG6_LOCAL_LCANALDE_FN_DBITS;
 	__u8 block_len = SEG6_LOCAL_LCBLOCK_DBITS;
 	int rc;
 
 	if (tb[SEG6_LOCAL_FLV_LCBLOCK_BITS])
 		block_len = nla_get_u8(tb[SEG6_LOCAL_FLV_LCBLOCK_BITS]);
 
-	if (tb[SEG6_LOCAL_FLV_LCNODE_FN_BITS])
-		func_len = nla_get_u8(tb[SEG6_LOCAL_FLV_LCNODE_FN_BITS]);
+	if (tb[SEG6_LOCAL_FLV_LCANALDE_FN_BITS])
+		func_len = nla_get_u8(tb[SEG6_LOCAL_FLV_LCANALDE_FN_BITS]);
 
 	rc = seg6_chk_next_csid_cfg(block_len, func_len);
 	if (rc < 0) {
 		NL_SET_ERR_MSG(extack,
-			       "Invalid Locator Block/Node Function lengths");
+			       "Invalid Locator Block/Analde Function lengths");
 		return rc;
 	}
 
 	finfo->lcblock_bits = block_len;
-	finfo->lcnode_func_bits = func_len;
+	finfo->lcanalde_func_bits = func_len;
 
 	return 0;
 }
@@ -2151,13 +2151,13 @@ static int parse_nla_flavors(struct nlattr **attrs, struct seg6_local_lwt *slwt,
 	rc = seg6_flv_supp_ops_by_action(action, &supp_fops);
 	if (rc < 0 || (fops & ~supp_fops)) {
 		NL_SET_ERR_MSG(extack, "Unsupported Flavor operation(s)");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	finfo->flv_ops = fops;
 
 	if (seg6_next_csid_enabled(fops)) {
-		/* Locator-Block and Locator-Node Function lengths can be
+		/* Locator-Block and Locator-Analde Function lengths can be
 		 * provided by the user space. Otherwise, default values are
 		 * applied.
 		 */
@@ -2175,8 +2175,8 @@ static int seg6_fill_nla_next_csid_cfg(struct sk_buff *skb,
 	if (nla_put_u8(skb, SEG6_LOCAL_FLV_LCBLOCK_BITS, finfo->lcblock_bits))
 		return -EMSGSIZE;
 
-	if (nla_put_u8(skb, SEG6_LOCAL_FLV_LCNODE_FN_BITS,
-		       finfo->lcnode_func_bits))
+	if (nla_put_u8(skb, SEG6_LOCAL_FLV_LCANALDE_FN_BITS,
+		       finfo->lcanalde_func_bits))
 		return -EMSGSIZE;
 
 	return 0;
@@ -2217,7 +2217,7 @@ static int seg6_cmp_nla_next_csid_cfg(struct seg6_flavors_info *finfo_a,
 	if (finfo_a->lcblock_bits != finfo_b->lcblock_bits)
 		return 1;
 
-	if (finfo_a->lcnode_func_bits != finfo_b->lcnode_func_bits)
+	if (finfo_a->lcanalde_func_bits != finfo_b->lcanalde_func_bits)
 		return 1;
 
 	return 0;
@@ -2249,7 +2249,7 @@ static int encap_size_flavors(struct seg6_local_lwt *slwt)
 
 	if (seg6_next_csid_enabled(finfo->flv_ops))
 		nlsize += nla_total_size(1) + /* SEG6_LOCAL_FLV_LCBLOCK_BITS */
-			  nla_total_size(1); /* SEG6_LOCAL_FLV_LCNODE_FN_BITS */
+			  nla_total_size(1); /* SEG6_LOCAL_FLV_LCANALDE_FN_BITS */
 
 	return nlsize;
 }
@@ -2328,7 +2328,7 @@ static void __destroy_attrs(unsigned long parsed_attrs, int max_parsed,
 	 * We scan the 'parsed_attrs' bitmask, starting from the first attribute
 	 * up to the @max_parsed (excluded) attribute.
 	 * For each set attribute, we retrieve the corresponding destroy()
-	 * callback. If the callback is not available, then we skip to the next
+	 * callback. If the callback is analt available, then we skip to the next
 	 * attribute; otherwise, we call the destroy() callback.
 	 */
 	for (i = SEG6_LOCAL_SRH; i < max_parsed; ++i) {
@@ -2436,7 +2436,7 @@ static int parse_nla_action(struct nlattr **attrs, struct seg6_local_lwt *slwt,
 		return -EINVAL;
 
 	if (!desc->input)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	slwt->desc = desc;
 	slwt->headroom += desc->static_headroom;
@@ -2445,10 +2445,10 @@ static int parse_nla_action(struct nlattr **attrs, struct seg6_local_lwt *slwt,
 	 * disjoined, this allow us to release acquired resources by optional
 	 * attributes and by required attributes independently from each other
 	 * without any interference.
-	 * In other terms, we are sure that we do not release some the acquired
+	 * In other terms, we are sure that we do analt release some the acquired
 	 * resources twice.
 	 *
-	 * Note that if an attribute is configured both as required and as
+	 * Analte that if an attribute is configured both as required and as
 	 * optional, it means that the user has messed something up in the
 	 * seg6_action_table. Therefore, this check is required for SRv6
 	 * behaviors to work properly.
@@ -2456,7 +2456,7 @@ static int parse_nla_action(struct nlattr **attrs, struct seg6_local_lwt *slwt,
 	invalid_attrs = desc->attrs & desc->optattrs;
 	if (invalid_attrs) {
 		WARN_ONCE(1,
-			  "An attribute cannot be both required AND optional");
+			  "An attribute cananalt be both required AND optional");
 		return -EINVAL;
 	}
 
@@ -2514,7 +2514,7 @@ static int seg6_local_build_state(struct net *net, struct nlattr *nla,
 
 	newts = lwtunnel_state_alloc(sizeof(*slwt));
 	if (!newts)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	slwt = seg6_local_lwtunnel(newts);
 	slwt->action = nla_get_u32(tb[SEG6_LOCAL_ACTION]);
@@ -2686,18 +2686,18 @@ int __init seg6_local_init(void)
 	 */
 	BUILD_BUG_ON(SEG6_LOCAL_FLV_OP_MAX + 1 > BITS_PER_TYPE(__u32));
 
-	/* If the default NEXT-C-SID Locator-Block/Node Function lengths (in
+	/* If the default NEXT-C-SID Locator-Block/Analde Function lengths (in
 	 * bits) have been changed with invalid values, kernel build stops
 	 * here.
 	 */
 	BUILD_BUG_ON(next_csid_chk_cntr_bits(SEG6_LOCAL_LCBLOCK_DBITS,
-					     SEG6_LOCAL_LCNODE_FN_DBITS));
+					     SEG6_LOCAL_LCANALDE_FN_DBITS));
 	BUILD_BUG_ON(next_csid_chk_lcblock_bits(SEG6_LOCAL_LCBLOCK_DBITS));
-	BUILD_BUG_ON(next_csid_chk_lcnode_fn_bits(SEG6_LOCAL_LCNODE_FN_DBITS));
+	BUILD_BUG_ON(next_csid_chk_lcanalde_fn_bits(SEG6_LOCAL_LCANALDE_FN_DBITS));
 
 	/* To be memory efficient, we use 'u8' to represent the different
 	 * actions related to RFC8986 flavors. If the kernel build stops here,
-	 * it means that it is not possible to correctly encode these actions
+	 * it means that it is analt possible to correctly encode these actions
 	 * with the data type chosen for the action table.
 	 */
 	BUILD_BUG_ON(SEG6_LOCAL_FLV_ACT_MAX > (typeof(flv8986_act_tbl[0]))~0U);

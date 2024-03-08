@@ -203,7 +203,7 @@ static int pmic_get_reg_bit(u64 address,
 
 	i = address / 4;
 	if (i >= table_size)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (!reg || !bitmask)
 		return -EINVAL;
@@ -383,12 +383,12 @@ static int tps68470_pmic_opregion_probe(struct platform_device *pdev)
 
 	if (!handle) {
 		dev_warn(dev, "acpi handle is NULL\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	opregion = devm_kzalloc(dev, sizeof(*opregion), GFP_KERNEL);
 	if (!opregion)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&opregion->lock);
 	opregion->regmap = tps68470_regmap;
@@ -434,7 +434,7 @@ out_remove_power_handler:
 					  tps68470_pmic_pwr_handler);
 out_mutex_destroy:
 	mutex_destroy(&opregion->lock);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static struct platform_driver tps68470_pmic_opregion_driver = {

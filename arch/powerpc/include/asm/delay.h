@@ -23,7 +23,7 @@ extern void udelay(unsigned long usecs);
  * is supposed to take 1ms, the hypervisor could sleep our partition for
  * longer (eg 10ms). With the right timing these errors can add up.
  *
- * Since there is no 32bit overflow issue on 64bit kernels, just call
+ * Since there is anal 32bit overflow issue on 64bit kernels, just call
  * udelay directly.
  */
 #ifdef CONFIG_PPC64
@@ -37,10 +37,10 @@ extern void udelay(unsigned long usecs);
  * @delay: the number of microseconds to delay between each evaluation of
  *         @condition
  *
- * The process spins until the condition evaluates to true (non-zero) or the
+ * The process spins until the condition evaluates to true (analn-zero) or the
  * timeout elapses.  The return value of this macro is the value of
  * @condition when the loop terminates. This allows you to determine the cause
- * of the loop terminates.  If the return value is zero, then you know a
+ * of the loop terminates.  If the return value is zero, then you kanalw a
  * timeout has occurred.
  *
  * This primary purpose of this macro is to poll on a hardware register

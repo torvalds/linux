@@ -54,7 +54,7 @@ static int sa1100_set_wake(struct irq_data *d, unsigned int on)
 	return sa11x0_sc_set_wake(d->hwirq, on);
 }
 
-static struct irq_chip sa1100_normal_chip = {
+static struct irq_chip sa1100_analrmal_chip = {
 	.name		= "SC",
 	.irq_ack	= sa1100_mask_irq,
 	.irq_mask	= sa1100_mask_irq,
@@ -62,21 +62,21 @@ static struct irq_chip sa1100_normal_chip = {
 	.irq_set_wake	= sa1100_set_wake,
 };
 
-static int sa1100_normal_irqdomain_map(struct irq_domain *d,
+static int sa1100_analrmal_irqdomain_map(struct irq_domain *d,
 		unsigned int irq, irq_hw_number_t hwirq)
 {
-	irq_set_chip_and_handler(irq, &sa1100_normal_chip,
+	irq_set_chip_and_handler(irq, &sa1100_analrmal_chip,
 				 handle_level_irq);
 
 	return 0;
 }
 
-static const struct irq_domain_ops sa1100_normal_irqdomain_ops = {
-	.map = sa1100_normal_irqdomain_map,
+static const struct irq_domain_ops sa1100_analrmal_irqdomain_ops = {
+	.map = sa1100_analrmal_irqdomain_map,
 	.xlate = irq_domain_xlate_onetwocell,
 };
 
-static struct irq_domain *sa1100_normal_irqdomain;
+static struct irq_domain *sa1100_analrmal_irqdomain;
 
 static struct sa1100irq_state {
 	unsigned int	saved;
@@ -140,12 +140,12 @@ sa1100_handle_irq(struct pt_regs *regs)
 		if (mask == 0)
 			break;
 
-		generic_handle_domain_irq(sa1100_normal_irqdomain,
+		generic_handle_domain_irq(sa1100_analrmal_irqdomain,
 					  ffs(mask) - 1);
 	} while (1);
 }
 
-void __init sa11x0_init_irq_nodt(int irq_start, resource_size_t io_start)
+void __init sa11x0_init_irq_analdt(int irq_start, resource_size_t io_start)
 {
 	iobase = ioremap(io_start, SZ_64K);
 	if (WARN_ON(!iobase))
@@ -154,7 +154,7 @@ void __init sa11x0_init_irq_nodt(int irq_start, resource_size_t io_start)
 	/* disable all IRQs */
 	writel_relaxed(0, iobase + ICMR);
 
-	/* all IRQs are IRQ, not FIQ */
+	/* all IRQs are IRQ, analt FIQ */
 	writel_relaxed(0, iobase + ICLR);
 
 	/*
@@ -163,9 +163,9 @@ void __init sa11x0_init_irq_nodt(int irq_start, resource_size_t io_start)
 	 */
 	writel_relaxed(1, iobase + ICCR);
 
-	sa1100_normal_irqdomain = irq_domain_add_simple(NULL,
+	sa1100_analrmal_irqdomain = irq_domain_add_simple(NULL,
 			32, irq_start,
-			&sa1100_normal_irqdomain_ops, NULL);
+			&sa1100_analrmal_irqdomain_ops, NULL);
 
 	set_handle_irq(sa1100_handle_irq);
 }

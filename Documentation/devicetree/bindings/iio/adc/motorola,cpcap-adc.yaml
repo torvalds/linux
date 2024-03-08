@@ -45,7 +45,7 @@ examples:
         adc {
             compatible = "motorola,mapphone-cpcap-adc";
             interrupt-parent = <&cpcap>;
-            interrupts = <8 IRQ_TYPE_NONE>;
+            interrupts = <8 IRQ_TYPE_ANALNE>;
             interrupt-names = "adcdone";
             #io-channel-cells = <1>;
         };

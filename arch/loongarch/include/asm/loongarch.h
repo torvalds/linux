@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2022 Loongson Techanallogy Corporation Limited
  */
 #ifndef _ASM_LOONGARCH_H
 #define _ASM_LOONGARCH_H
@@ -1023,7 +1023,7 @@
 
 #define LOONGARCH_IOCSR_FEATURES	0x8
 #define  IOCSRF_TEMP			BIT_ULL(0)
-#define  IOCSRF_NODECNT			BIT_ULL(1)
+#define  IOCSRF_ANALDECNT			BIT_ULL(1)
 #define  IOCSRF_MSI			BIT_ULL(2)
 #define  IOCSRF_EXTIOI			BIT_ULL(3)
 #define  IOCSRF_CSRIPI			BIT_ULL(4)
@@ -1038,7 +1038,7 @@
 
 #define LOONGARCH_IOCSR_CPUNAME		0x20
 
-#define LOONGARCH_IOCSR_NODECNT		0x408
+#define LOONGARCH_IOCSR_ANALDECNT		0x408
 
 #define LOONGARCH_IOCSR_MISC_FUNC	0x420
 #define  IOCSR_MISC_FUNC_TIMER_RESET	BIT_ULL(21)
@@ -1086,7 +1086,7 @@
 #define  IOCSR_TIMER_MASK		0x0ffffffffffffULL
 #define  IOCSR_TIMER_INITVAL_RST        (_ULCAST_(0xffff) << 48)
 
-#define LOONGARCH_IOCSR_EXTIOI_NODEMAP_BASE	0x14a0
+#define LOONGARCH_IOCSR_EXTIOI_ANALDEMAP_BASE	0x14a0
 #define LOONGARCH_IOCSR_EXTIOI_IPMAP_BASE	0x14c0
 #define LOONGARCH_IOCSR_EXTIOI_EN_BASE		0x1600
 #define LOONGARCH_IOCSR_EXTIOI_BOUNCE_BASE	0x1680
@@ -1328,7 +1328,7 @@ __BUILD_CSR_OP(tlbidx)
 #define EXCCODE_BCE		10	/* Bounds Check Error */
 #define EXCCODE_SYS		11	/* System call */
 #define EXCCODE_BP		12	/* Breakpoint */
-#define EXCCODE_INE		13	/* Inst. Not Exist */
+#define EXCCODE_INE		13	/* Inst. Analt Exist */
 #define EXCCODE_IPE		14	/* Inst. Privileged Error */
 #define EXCCODE_FPDIS		15	/* FPU Disabled */
 #define EXCCODE_LSXDIS		16	/* LSX Disabled */

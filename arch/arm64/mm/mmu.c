@@ -9,13 +9,13 @@
 #include <linux/cache.h>
 #include <linux/export.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/kexec.h>
 #include <linux/libfdt.h>
 #include <linux/mman.h>
-#include <linux/nodemask.h>
+#include <linux/analdemask.h>
 #include <linux/memblock.h>
 #include <linux/memremap.h>
 #include <linux/memory.h>
@@ -41,9 +41,9 @@
 #include <asm/pgalloc.h>
 #include <asm/kfence.h>
 
-#define NO_BLOCK_MAPPINGS	BIT(0)
-#define NO_CONT_MAPPINGS	BIT(1)
-#define NO_EXEC_MAPPINGS	BIT(2)	/* assumes FEAT_HPDS is not used */
+#define ANAL_BLOCK_MAPPINGS	BIT(0)
+#define ANAL_CONT_MAPPINGS	BIT(1)
+#define ANAL_EXEC_MAPPINGS	BIT(2)	/* assumes FEAT_HPDS is analt used */
 
 int idmap_t0sz __ro_after_init;
 
@@ -93,7 +93,7 @@ pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
 			      unsigned long size, pgprot_t vma_prot)
 {
 	if (!pfn_is_map_memory(pfn))
-		return pgprot_noncached(vma_prot);
+		return pgprot_analncached(vma_prot);
 	else if (file->f_flags & O_SYNC)
 		return pgprot_writecombine(vma_prot);
 	return vma_prot;
@@ -106,7 +106,7 @@ static phys_addr_t __init early_pgtable_alloc(int shift)
 	void *ptr;
 
 	phys = memblock_phys_alloc_range(PAGE_SIZE, PAGE_SIZE, 0,
-					 MEMBLOCK_ALLOC_NOLEAKTRACE);
+					 MEMBLOCK_ALLOC_ANALLEAKTRACE);
 	if (!phys)
 		panic("Failed to allocate page table page\n");
 
@@ -140,27 +140,27 @@ bool pgattr_change_is_safe(u64 old, u64 new)
 	if (!pte_valid(__pte(old)) || !pte_valid(__pte(new)))
 		return true;
 
-	/* A live entry's pfn should not change */
+	/* A live entry's pfn should analt change */
 	if (pte_pfn(__pte(old)) != pte_pfn(__pte(new)))
 		return false;
 
-	/* live contiguous mappings may not be manipulated at all */
+	/* live contiguous mappings may analt be manipulated at all */
 	if ((old | new) & PTE_CONT)
 		return false;
 
-	/* Transitioning from Non-Global to Global is unsafe */
+	/* Transitioning from Analn-Global to Global is unsafe */
 	if (old & ~new & PTE_NG)
 		return false;
 
 	/*
-	 * Changing the memory type between Normal and Normal-Tagged is safe
+	 * Changing the memory type between Analrmal and Analrmal-Tagged is safe
 	 * since Tagged is considered a permission attribute from the
 	 * mismatched attribute aliases perspective.
 	 */
-	if (((old & PTE_ATTRINDX_MASK) == PTE_ATTRINDX(MT_NORMAL) ||
-	     (old & PTE_ATTRINDX_MASK) == PTE_ATTRINDX(MT_NORMAL_TAGGED)) &&
-	    ((new & PTE_ATTRINDX_MASK) == PTE_ATTRINDX(MT_NORMAL) ||
-	     (new & PTE_ATTRINDX_MASK) == PTE_ATTRINDX(MT_NORMAL_TAGGED)))
+	if (((old & PTE_ATTRINDX_MASK) == PTE_ATTRINDX(MT_ANALRMAL) ||
+	     (old & PTE_ATTRINDX_MASK) == PTE_ATTRINDX(MT_ANALRMAL_TAGGED)) &&
+	    ((new & PTE_ATTRINDX_MASK) == PTE_ATTRINDX(MT_ANALRMAL) ||
+	     (new & PTE_ATTRINDX_MASK) == PTE_ATTRINDX(MT_ANALRMAL_TAGGED)))
 		mask |= PTE_ATTRINDX_MASK;
 
 	return ((old ^ new) & ~mask) == 0;
@@ -200,11 +200,11 @@ static void alloc_init_cont_pte(pmd_t *pmdp, unsigned long addr,
 	pmd_t pmd = READ_ONCE(*pmdp);
 
 	BUG_ON(pmd_sect(pmd));
-	if (pmd_none(pmd)) {
+	if (pmd_analne(pmd)) {
 		pmdval_t pmdval = PMD_TYPE_TABLE | PMD_TABLE_UXN;
 		phys_addr_t pte_phys;
 
-		if (flags & NO_EXEC_MAPPINGS)
+		if (flags & ANAL_EXEC_MAPPINGS)
 			pmdval |= PMD_TABLE_PXN;
 		BUG_ON(!pgtable_alloc);
 		pte_phys = pgtable_alloc(PAGE_SHIFT);
@@ -220,7 +220,7 @@ static void alloc_init_cont_pte(pmd_t *pmdp, unsigned long addr,
 
 		/* use a contiguous mapping if the range is suitably aligned */
 		if ((((addr | next | phys) & ~CONT_PTE_MASK) == 0) &&
-		    (flags & NO_CONT_MAPPINGS) == 0)
+		    (flags & ANAL_CONT_MAPPINGS) == 0)
 			__prot = __pgprot(pgprot_val(prot) | PTE_CONT);
 
 		init_pte(pmdp, addr, next, phys, __prot);
@@ -244,7 +244,7 @@ static void init_pmd(pud_t *pudp, unsigned long addr, unsigned long end,
 
 		/* try section mapping first */
 		if (((addr | next | phys) & ~PMD_MASK) == 0 &&
-		    (flags & NO_BLOCK_MAPPINGS) == 0) {
+		    (flags & ANAL_BLOCK_MAPPINGS) == 0) {
 			pmd_set_huge(pmdp, phys, prot);
 
 			/*
@@ -278,11 +278,11 @@ static void alloc_init_cont_pmd(pud_t *pudp, unsigned long addr,
 	 * Check for initial section mappings in the pgd/pud.
 	 */
 	BUG_ON(pud_sect(pud));
-	if (pud_none(pud)) {
+	if (pud_analne(pud)) {
 		pudval_t pudval = PUD_TYPE_TABLE | PUD_TABLE_UXN;
 		phys_addr_t pmd_phys;
 
-		if (flags & NO_EXEC_MAPPINGS)
+		if (flags & ANAL_EXEC_MAPPINGS)
 			pudval |= PUD_TABLE_PXN;
 		BUG_ON(!pgtable_alloc);
 		pmd_phys = pgtable_alloc(PMD_SHIFT);
@@ -298,7 +298,7 @@ static void alloc_init_cont_pmd(pud_t *pudp, unsigned long addr,
 
 		/* use a contiguous mapping if the range is suitably aligned */
 		if ((((addr | next | phys) & ~CONT_PMD_MASK) == 0) &&
-		    (flags & NO_CONT_MAPPINGS) == 0)
+		    (flags & ANAL_CONT_MAPPINGS) == 0)
 			__prot = __pgprot(pgprot_val(prot) | PTE_CONT);
 
 		init_pmd(pudp, addr, next, phys, __prot, pgtable_alloc, flags);
@@ -317,11 +317,11 @@ static void alloc_init_pud(pgd_t *pgdp, unsigned long addr, unsigned long end,
 	p4d_t *p4dp = p4d_offset(pgdp, addr);
 	p4d_t p4d = READ_ONCE(*p4dp);
 
-	if (p4d_none(p4d)) {
+	if (p4d_analne(p4d)) {
 		p4dval_t p4dval = P4D_TYPE_TABLE | P4D_TABLE_UXN;
 		phys_addr_t pud_phys;
 
-		if (flags & NO_EXEC_MAPPINGS)
+		if (flags & ANAL_EXEC_MAPPINGS)
 			p4dval |= P4D_TABLE_PXN;
 		BUG_ON(!pgtable_alloc);
 		pud_phys = pgtable_alloc(PUD_SHIFT);
@@ -341,7 +341,7 @@ static void alloc_init_pud(pgd_t *pgdp, unsigned long addr, unsigned long end,
 		 */
 		if (pud_sect_supported() &&
 		   ((addr | next | phys) & ~PUD_MASK) == 0 &&
-		    (flags & NO_BLOCK_MAPPINGS) == 0) {
+		    (flags & ANAL_BLOCK_MAPPINGS) == 0) {
 			pud_set_huge(pudp, phys, prot);
 
 			/*
@@ -374,7 +374,7 @@ static void __create_pgd_mapping_locked(pgd_t *pgdir, phys_addr_t phys,
 
 	/*
 	 * If the virtual and physical address don't have the same offset
-	 * within a page, we cannot map the region as the caller expects.
+	 * within a page, we cananalt map the region as the caller expects.
 	 */
 	if (WARN_ON((phys ^ virt) & ~PAGE_MASK))
 		return;
@@ -431,7 +431,7 @@ static phys_addr_t pgd_pgtable_alloc(int shift)
 	 * this pre-allocated page table.
 	 *
 	 * We don't select ARCH_ENABLE_SPLIT_PMD_PTLOCK if pmd is
-	 * folded, and if so pagetable_pte_ctor() becomes nop.
+	 * folded, and if so pagetable_pte_ctor() becomes analp.
 	 */
 	if (shift == PAGE_SHIFT)
 		BUG_ON(!pagetable_pte_ctor(ptdesc));
@@ -443,19 +443,19 @@ static phys_addr_t pgd_pgtable_alloc(int shift)
 
 /*
  * This function can only be used to modify existing table entries,
- * without allocating new levels of table. Note that this permits the
+ * without allocating new levels of table. Analte that this permits the
  * creation of new section or page entries.
  */
-void __init create_mapping_noalloc(phys_addr_t phys, unsigned long virt,
+void __init create_mapping_analalloc(phys_addr_t phys, unsigned long virt,
 				   phys_addr_t size, pgprot_t prot)
 {
 	if (virt < PAGE_OFFSET) {
-		pr_warn("BUG: not creating mapping for %pa at 0x%016lx - outside kernel range\n",
+		pr_warn("BUG: analt creating mapping for %pa at 0x%016lx - outside kernel range\n",
 			&phys, virt);
 		return;
 	}
 	__create_pgd_mapping(init_mm.pgd, phys, virt, size, prot, NULL,
-			     NO_CONT_MAPPINGS);
+			     ANAL_CONT_MAPPINGS);
 }
 
 void __init create_pgd_mapping(struct mm_struct *mm, phys_addr_t phys,
@@ -467,7 +467,7 @@ void __init create_pgd_mapping(struct mm_struct *mm, phys_addr_t phys,
 	BUG_ON(mm == &init_mm);
 
 	if (page_mappings_only)
-		flags = NO_BLOCK_MAPPINGS | NO_CONT_MAPPINGS;
+		flags = ANAL_BLOCK_MAPPINGS | ANAL_CONT_MAPPINGS;
 
 	__create_pgd_mapping(mm->pgd, phys, virt, size, prot,
 			     pgd_pgtable_alloc, flags);
@@ -477,13 +477,13 @@ static void update_mapping_prot(phys_addr_t phys, unsigned long virt,
 				phys_addr_t size, pgprot_t prot)
 {
 	if (virt < PAGE_OFFSET) {
-		pr_warn("BUG: not updating mapping for %pa at 0x%016lx - outside kernel range\n",
+		pr_warn("BUG: analt updating mapping for %pa at 0x%016lx - outside kernel range\n",
 			&phys, virt);
 		return;
 	}
 
 	__create_pgd_mapping(init_mm.pgd, phys, virt, size, prot, NULL,
-			     NO_CONT_MAPPINGS);
+			     ANAL_CONT_MAPPINGS);
 
 	/* flush the TLBs after updating live kernel mappings */
 	flush_tlb_kernel_range(virt, virt + size);
@@ -535,8 +535,8 @@ static phys_addr_t __init arm64_kfence_alloc_pool(void)
 		return 0;
 	}
 
-	/* Temporarily mark as NOMAP. */
-	memblock_mark_nomap(kfence_pool, KFENCE_POOL_SIZE);
+	/* Temporarily mark as ANALMAP. */
+	memblock_mark_analmap(kfence_pool, KFENCE_POOL_SIZE);
 
 	return kfence_pool;
 }
@@ -549,8 +549,8 @@ static void __init arm64_kfence_map_pool(phys_addr_t kfence_pool, pgd_t *pgdp)
 	/* KFENCE pool needs page-level mapping. */
 	__map_memblock(pgdp, kfence_pool, kfence_pool + KFENCE_POOL_SIZE,
 			pgprot_tagged(PAGE_KERNEL),
-			NO_BLOCK_MAPPINGS | NO_CONT_MAPPINGS);
-	memblock_clear_nomap(kfence_pool, KFENCE_POOL_SIZE);
+			ANAL_BLOCK_MAPPINGS | ANAL_CONT_MAPPINGS);
+	memblock_clear_analmap(kfence_pool, KFENCE_POOL_SIZE);
 	__kfence_pool = phys_to_virt(kfence_pool);
 }
 #else /* CONFIG_KFENCE */
@@ -567,12 +567,12 @@ static void __init map_mem(pgd_t *pgdp)
 	phys_addr_t kernel_end = __pa_symbol(__init_begin);
 	phys_addr_t start, end;
 	phys_addr_t early_kfence_pool;
-	int flags = NO_EXEC_MAPPINGS;
+	int flags = ANAL_EXEC_MAPPINGS;
 	u64 i;
 
 	/*
 	 * Setting hierarchical PXNTable attributes on table entries covering
-	 * the linear region is only possible if it is guaranteed that no table
+	 * the linear region is only possible if it is guaranteed that anal table
 	 * entries at any level are being shared between the linear region and
 	 * the vmalloc region. Check whether this is true for the PGD level, in
 	 * which case it is guaranteed to be true for all other levels as well.
@@ -582,15 +582,15 @@ static void __init map_mem(pgd_t *pgdp)
 	early_kfence_pool = arm64_kfence_alloc_pool();
 
 	if (can_set_direct_map())
-		flags |= NO_BLOCK_MAPPINGS | NO_CONT_MAPPINGS;
+		flags |= ANAL_BLOCK_MAPPINGS | ANAL_CONT_MAPPINGS;
 
 	/*
-	 * Take care not to create a writable alias for the
+	 * Take care analt to create a writable alias for the
 	 * read-only text and rodata sections of the kernel image.
-	 * So temporarily mark them as NOMAP to skip mappings in
+	 * So temporarily mark them as ANALMAP to skip mappings in
 	 * the following for-loop
 	 */
-	memblock_mark_nomap(kernel_start, kernel_end - kernel_start);
+	memblock_mark_analmap(kernel_start, kernel_end - kernel_start);
 
 	/* map all the memory banks */
 	for_each_mem_range(i, &start, &end) {
@@ -607,17 +607,17 @@ static void __init map_mem(pgd_t *pgdp)
 
 	/*
 	 * Map the linear alias of the [_stext, __init_begin) interval
-	 * as non-executable now, and remove the write permission in
+	 * as analn-executable analw, and remove the write permission in
 	 * mark_linear_text_alias_ro() below (which will be called after
 	 * alternative patching has completed). This makes the contents
 	 * of the region accessible to subsystems such as hibernate,
 	 * but protects it from inadvertent modification or execution.
-	 * Note that contiguous mappings cannot be remapped in this way,
+	 * Analte that contiguous mappings cananalt be remapped in this way,
 	 * so we should avoid them here.
 	 */
 	__map_memblock(pgdp, kernel_start, kernel_end,
-		       PAGE_KERNEL, NO_CONT_MAPPINGS);
-	memblock_clear_nomap(kernel_start, kernel_end - kernel_start);
+		       PAGE_KERNEL, ANAL_CONT_MAPPINGS);
+	memblock_clear_analmap(kernel_start, kernel_end - kernel_start);
 	arm64_kfence_map_pool(early_kfence_pool, pgdp);
 }
 
@@ -627,7 +627,7 @@ void mark_rodata_ro(void)
 
 	/*
 	 * mark .rodata as read only. Use __init_begin rather than __end_rodata
-	 * to cover NOTES and EXCEPTION_TABLE.
+	 * to cover ANALTES and EXCEPTION_TABLE.
 	 */
 	section_size = (unsigned long)__init_begin - (unsigned long)__start_rodata;
 	update_mapping_prot(__pa_symbol(__start_rodata), (unsigned long)__start_rodata,
@@ -649,7 +649,7 @@ static void __init map_kernel_segment(pgd_t *pgdp, void *va_start, void *va_end,
 	__create_pgd_mapping(pgdp, pa_start, (unsigned long)va_start, size, prot,
 			     early_pgtable_alloc, flags);
 
-	if (!(vm_flags & VM_NO_GUARD))
+	if (!(vm_flags & VM_ANAL_GUARD))
 		size += PAGE_SIZE;
 
 	vma->addr	= va_start;
@@ -684,7 +684,7 @@ static int __init map_entry_trampoline(void)
 	memset(tramp_pg_dir, 0, PGD_SIZE);
 	__create_pgd_mapping(tramp_pg_dir, pa_start, TRAMP_VALIAS,
 			     entry_tramp_text_size(), prot,
-			     __pgd_pgtable_alloc, NO_BLOCK_MAPPINGS);
+			     __pgd_pgtable_alloc, ANAL_BLOCK_MAPPINGS);
 
 	/* Map both the text and data into the kernel page table */
 	for (i = 0; i < DIV_ROUND_UP(entry_tramp_text_size(), PAGE_SIZE); i++)
@@ -734,7 +734,7 @@ static void __init map_kernel(pgd_t *pgdp)
 	/*
 	 * If we have a CPU that supports BTI and a kernel built for
 	 * BTI then mark the kernel executable text as guarded pages
-	 * now so we don't have to rewrite the page tables later.
+	 * analw so we don't have to rewrite the page tables later.
 	 */
 	if (arm64_early_this_cpu_has_bti())
 		text_prot = __pgprot_modify(text_prot, PTE_GP, PTE_GP);
@@ -744,13 +744,13 @@ static void __init map_kernel(pgd_t *pgdp)
 	 * all other segments are allowed to use contiguous mappings.
 	 */
 	map_kernel_segment(pgdp, _stext, _etext, text_prot, &vmlinux_text, 0,
-			   VM_NO_GUARD);
+			   VM_ANAL_GUARD);
 	map_kernel_segment(pgdp, __start_rodata, __inittext_begin, PAGE_KERNEL,
-			   &vmlinux_rodata, NO_CONT_MAPPINGS, VM_NO_GUARD);
+			   &vmlinux_rodata, ANAL_CONT_MAPPINGS, VM_ANAL_GUARD);
 	map_kernel_segment(pgdp, __inittext_begin, __inittext_end, text_prot,
-			   &vmlinux_inittext, 0, VM_NO_GUARD);
+			   &vmlinux_inittext, 0, VM_ANAL_GUARD);
 	map_kernel_segment(pgdp, __initdata_begin, __initdata_end, PAGE_KERNEL,
-			   &vmlinux_initdata, 0, VM_NO_GUARD);
+			   &vmlinux_initdata, 0, VM_ANAL_GUARD);
 	map_kernel_segment(pgdp, _data, _end, PAGE_KERNEL, &vmlinux_data, 0, 0);
 
 	fixmap_copy(pgdp);
@@ -855,7 +855,7 @@ static void unmap_hotplug_pte_range(pmd_t *pmdp, unsigned long addr,
 	do {
 		ptep = pte_offset_kernel(pmdp, addr);
 		pte = READ_ONCE(*ptep);
-		if (pte_none(pte))
+		if (pte_analne(pte))
 			continue;
 
 		WARN_ON(!pte_present(pte));
@@ -878,7 +878,7 @@ static void unmap_hotplug_pmd_range(pud_t *pudp, unsigned long addr,
 		next = pmd_addr_end(addr, end);
 		pmdp = pmd_offset(pudp, addr);
 		pmd = READ_ONCE(*pmdp);
-		if (pmd_none(pmd))
+		if (pmd_analne(pmd))
 			continue;
 
 		WARN_ON(!pmd_present(pmd));
@@ -911,7 +911,7 @@ static void unmap_hotplug_pud_range(p4d_t *p4dp, unsigned long addr,
 		next = pud_addr_end(addr, end);
 		pudp = pud_offset(p4dp, addr);
 		pud = READ_ONCE(*pudp);
-		if (pud_none(pud))
+		if (pud_analne(pud))
 			continue;
 
 		WARN_ON(!pud_present(pud));
@@ -944,7 +944,7 @@ static void unmap_hotplug_p4d_range(pgd_t *pgdp, unsigned long addr,
 		next = p4d_addr_end(addr, end);
 		p4dp = p4d_offset(pgdp, addr);
 		p4d = READ_ONCE(*p4dp);
-		if (p4d_none(p4d))
+		if (p4d_analne(p4d))
 			continue;
 
 		WARN_ON(!p4d_present(p4d));
@@ -960,7 +960,7 @@ static void unmap_hotplug_range(unsigned long addr, unsigned long end,
 
 	/*
 	 * altmap can only be used as vmemmap mapping backing memory.
-	 * In case the backing memory itself is not being freed, then
+	 * In case the backing memory itself is analt being freed, then
 	 * altmap is irrelevant. Warn about this inconsistency when
 	 * encountered.
 	 */
@@ -970,7 +970,7 @@ static void unmap_hotplug_range(unsigned long addr, unsigned long end,
 		next = pgd_addr_end(addr, end);
 		pgdp = pgd_offset_k(addr);
 		pgd = READ_ONCE(*pgdp);
-		if (pgd_none(pgd))
+		if (pgd_analne(pgd))
 			continue;
 
 		WARN_ON(!pgd_present(pgd));
@@ -993,7 +993,7 @@ static void free_empty_pte_table(pmd_t *pmdp, unsigned long addr,
 		 * This is just a sanity check here which verifies that
 		 * pte clearing has been done by earlier unmap loops.
 		 */
-		WARN_ON(!pte_none(pte));
+		WARN_ON(!pte_analne(pte));
 	} while (addr += PAGE_SIZE, addr < end);
 
 	if (!pgtable_range_aligned(start, end, floor, ceiling, PMD_MASK))
@@ -1006,7 +1006,7 @@ static void free_empty_pte_table(pmd_t *pmdp, unsigned long addr,
 	 */
 	ptep = pte_offset_kernel(pmdp, 0UL);
 	for (i = 0; i < PTRS_PER_PTE; i++) {
-		if (!pte_none(READ_ONCE(ptep[i])))
+		if (!pte_analne(READ_ONCE(ptep[i])))
 			return;
 	}
 
@@ -1026,7 +1026,7 @@ static void free_empty_pmd_table(pud_t *pudp, unsigned long addr,
 		next = pmd_addr_end(addr, end);
 		pmdp = pmd_offset(pudp, addr);
 		pmd = READ_ONCE(*pmdp);
-		if (pmd_none(pmd))
+		if (pmd_analne(pmd))
 			continue;
 
 		WARN_ON(!pmd_present(pmd) || !pmd_table(pmd) || pmd_sect(pmd));
@@ -1046,7 +1046,7 @@ static void free_empty_pmd_table(pud_t *pudp, unsigned long addr,
 	 */
 	pmdp = pmd_offset(pudp, 0UL);
 	for (i = 0; i < PTRS_PER_PMD; i++) {
-		if (!pmd_none(READ_ONCE(pmdp[i])))
+		if (!pmd_analne(READ_ONCE(pmdp[i])))
 			return;
 	}
 
@@ -1066,7 +1066,7 @@ static void free_empty_pud_table(p4d_t *p4dp, unsigned long addr,
 		next = pud_addr_end(addr, end);
 		pudp = pud_offset(p4dp, addr);
 		pud = READ_ONCE(*pudp);
-		if (pud_none(pud))
+		if (pud_analne(pud))
 			continue;
 
 		WARN_ON(!pud_present(pud) || !pud_table(pud) || pud_sect(pud));
@@ -1086,7 +1086,7 @@ static void free_empty_pud_table(p4d_t *p4dp, unsigned long addr,
 	 */
 	pudp = pud_offset(p4dp, 0UL);
 	for (i = 0; i < PTRS_PER_PUD; i++) {
-		if (!pud_none(READ_ONCE(pudp[i])))
+		if (!pud_analne(READ_ONCE(pudp[i])))
 			return;
 	}
 
@@ -1106,7 +1106,7 @@ static void free_empty_p4d_table(pgd_t *pgdp, unsigned long addr,
 		next = p4d_addr_end(addr, end);
 		p4dp = p4d_offset(pgdp, addr);
 		p4d = READ_ONCE(*p4dp);
-		if (p4d_none(p4d))
+		if (p4d_analne(p4d))
 			continue;
 
 		WARN_ON(!p4d_present(p4d));
@@ -1124,7 +1124,7 @@ static void free_empty_tables(unsigned long addr, unsigned long end,
 		next = pgd_addr_end(addr, end);
 		pgdp = pgd_offset_k(addr);
 		pgd = READ_ONCE(*pgdp);
-		if (pgd_none(pgd))
+		if (pgd_analne(pgd))
 			continue;
 
 		WARN_ON(!pgd_present(pgd));
@@ -1133,28 +1133,28 @@ static void free_empty_tables(unsigned long addr, unsigned long end,
 }
 #endif
 
-void __meminit vmemmap_set_pmd(pmd_t *pmdp, void *p, int node,
+void __meminit vmemmap_set_pmd(pmd_t *pmdp, void *p, int analde,
 			       unsigned long addr, unsigned long next)
 {
-	pmd_set_huge(pmdp, __pa(p), __pgprot(PROT_SECT_NORMAL));
+	pmd_set_huge(pmdp, __pa(p), __pgprot(PROT_SECT_ANALRMAL));
 }
 
-int __meminit vmemmap_check_pmd(pmd_t *pmdp, int node,
+int __meminit vmemmap_check_pmd(pmd_t *pmdp, int analde,
 				unsigned long addr, unsigned long next)
 {
-	vmemmap_verify((pte_t *)pmdp, node, addr, next);
+	vmemmap_verify((pte_t *)pmdp, analde, addr, next);
 	return 1;
 }
 
-int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,
+int __meminit vmemmap_populate(unsigned long start, unsigned long end, int analde,
 		struct vmem_altmap *altmap)
 {
 	WARN_ON((start < VMEMMAP_START) || (end > VMEMMAP_END));
 
 	if (!IS_ENABLED(CONFIG_ARM64_4K_PAGES))
-		return vmemmap_populate_basepages(start, end, node, altmap);
+		return vmemmap_populate_basepages(start, end, analde, altmap);
 	else
-		return vmemmap_populate_hugepages(start, end, node, altmap);
+		return vmemmap_populate_hugepages(start, end, analde, altmap);
 }
 
 #ifdef CONFIG_MEMORY_HOTPLUG
@@ -1172,7 +1172,7 @@ int pud_set_huge(pud_t *pudp, phys_addr_t phys, pgprot_t prot)
 {
 	pud_t new_pud = pfn_pud(__phys_to_pfn(phys), mk_pud_sect_prot(prot));
 
-	/* Only allow permission changes for now */
+	/* Only allow permission changes for analw */
 	if (!pgattr_change_is_safe(READ_ONCE(pud_val(*pudp)),
 				   pud_val(new_pud)))
 		return 0;
@@ -1186,7 +1186,7 @@ int pmd_set_huge(pmd_t *pmdp, phys_addr_t phys, pgprot_t prot)
 {
 	pmd_t new_pmd = pfn_pmd(__phys_to_pfn(phys), mk_pmd_sect_prot(prot));
 
-	/* Only allow permission changes for now */
+	/* Only allow permission changes for analw */
 	if (!pgattr_change_is_safe(READ_ONCE(pmd_val(*pmdp)),
 				   pmd_val(new_pmd)))
 		return 0;
@@ -1306,18 +1306,18 @@ struct range arch_get_mappable_range(void)
 int arch_add_memory(int nid, u64 start, u64 size,
 		    struct mhp_params *params)
 {
-	int ret, flags = NO_EXEC_MAPPINGS;
+	int ret, flags = ANAL_EXEC_MAPPINGS;
 
 	VM_BUG_ON(!mhp_range_allowed(start, size, true));
 
 	if (can_set_direct_map())
-		flags |= NO_BLOCK_MAPPINGS | NO_CONT_MAPPINGS;
+		flags |= ANAL_BLOCK_MAPPINGS | ANAL_CONT_MAPPINGS;
 
 	__create_pgd_mapping(swapper_pg_dir, start, __phys_to_virt(start),
 			     size, params->pgprot, __pgd_pgtable_alloc,
 			     flags);
 
-	memblock_clear_nomap(start, size);
+	memblock_clear_analmap(start, size);
 
 	ret = __add_pages(nid, start >> PAGE_SHIFT, size >> PAGE_SHIFT,
 			   params);
@@ -1342,24 +1342,24 @@ void arch_remove_memory(u64 start, u64 size, struct vmem_altmap *altmap)
 }
 
 /*
- * This memory hotplug notifier helps prevent boot memory from being
+ * This memory hotplug analtifier helps prevent boot memory from being
  * inadvertently removed as it blocks pfn range offlining process in
  * __offline_pages(). Hence this prevents both offlining as well as
  * removal process for boot memory which is initially always online.
- * In future if and when boot memory could be removed, this notifier
+ * In future if and when boot memory could be removed, this analtifier
  * should be dropped and free_hotplug_page_range() should handle any
  * reserved pages allocated during boot.
  */
-static int prevent_bootmem_remove_notifier(struct notifier_block *nb,
+static int prevent_bootmem_remove_analtifier(struct analtifier_block *nb,
 					   unsigned long action, void *data)
 {
 	struct mem_section *ms;
-	struct memory_notify *arg = data;
+	struct memory_analtify *arg = data;
 	unsigned long end_pfn = arg->start_pfn + arg->nr_pages;
 	unsigned long pfn = arg->start_pfn;
 
 	if ((action != MEM_GOING_OFFLINE) && (action != MEM_OFFLINE))
-		return NOTIFY_OK;
+		return ANALTIFY_OK;
 
 	for (; pfn < end_pfn; pfn += PAGES_PER_SECTION) {
 		unsigned long start = PFN_PHYS(pfn);
@@ -1371,44 +1371,44 @@ static int prevent_bootmem_remove_notifier(struct notifier_block *nb,
 
 		if (action == MEM_GOING_OFFLINE) {
 			/*
-			 * Boot memory removal is not supported. Prevent
+			 * Boot memory removal is analt supported. Prevent
 			 * it via blocking any attempted offline request
 			 * for the boot memory and just report it.
 			 */
 			pr_warn("Boot memory [%lx %lx] offlining attempted\n", start, end);
-			return NOTIFY_BAD;
+			return ANALTIFY_BAD;
 		} else if (action == MEM_OFFLINE) {
 			/*
 			 * This should have never happened. Boot memory
 			 * offlining should have been prevented by this
-			 * very notifier. Probably some memory removal
+			 * very analtifier. Probably some memory removal
 			 * procedure might have changed which would then
 			 * require further debug.
 			 */
 			pr_err("Boot memory [%lx %lx] offlined\n", start, end);
 
 			/*
-			 * Core memory hotplug does not process a return
-			 * code from the notifier for MEM_OFFLINE events.
+			 * Core memory hotplug does analt process a return
+			 * code from the analtifier for MEM_OFFLINE events.
 			 * The error condition has been reported. Return
-			 * from here as if ignored.
+			 * from here as if iganalred.
 			 */
-			return NOTIFY_DONE;
+			return ANALTIFY_DONE;
 		}
 	}
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
-static struct notifier_block prevent_bootmem_remove_nb = {
-	.notifier_call = prevent_bootmem_remove_notifier,
+static struct analtifier_block prevent_bootmem_remove_nb = {
+	.analtifier_call = prevent_bootmem_remove_analtifier,
 };
 
 /*
  * This ensures that boot memory sections on the platform are online
- * from early boot. Memory sections could not be prevented from being
- * offlined, unless for some reason they are not online to begin with.
+ * from early boot. Memory sections could analt be prevented from being
+ * offlined, unless for some reason they are analt online to begin with.
  * This helps validate the basic assumption on which the above memory
- * event notifier works to prevent boot memory section offlining and
+ * event analtifier works to prevent boot memory section offlining and
  * its possible removal.
  */
 static void validate_bootmem_online(void)
@@ -1436,7 +1436,7 @@ static void validate_bootmem_online(void)
 			WARN_ON(!early_section(ms));
 
 			/*
-			 * Memory notifier mechanism here to prevent boot
+			 * Memory analtifier mechanism here to prevent boot
 			 * memory offlining depends on the fact that each
 			 * early section memory on the system is initially
 			 * online. Otherwise a given memory section which
@@ -1458,9 +1458,9 @@ static int __init prevent_bootmem_remove_init(void)
 		return ret;
 
 	validate_bootmem_online();
-	ret = register_memory_notifier(&prevent_bootmem_remove_nb);
+	ret = register_memory_analtifier(&prevent_bootmem_remove_nb);
 	if (ret)
-		pr_err("%s: Notifier registration failed %d\n", __func__, ret);
+		pr_err("%s: Analtifier registration failed %d\n", __func__, ret);
 
 	return ret;
 }
@@ -1472,7 +1472,7 @@ pte_t ptep_modify_prot_start(struct vm_area_struct *vma, unsigned long addr, pte
 	if (alternative_has_cap_unlikely(ARM64_WORKAROUND_2645198)) {
 		/*
 		 * Break-before-make (BBM) is required for all user space mappings
-		 * when the permission changes from executable to non-executable
+		 * when the permission changes from executable to analn-executable
 		 * in cases where cpu is affected with errata #2645198.
 		 */
 		if (pte_user_exec(READ_ONCE(*ptep)))

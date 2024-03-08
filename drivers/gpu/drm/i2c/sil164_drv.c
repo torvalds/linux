@@ -10,14 +10,14 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial
  * portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
- * IN NO EVENT SHALL THE COPYRIGHT OWNER(S) AND/OR ITS SUPPLIERS BE
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.
+ * IN ANAL EVENT SHALL THE COPYRIGHT OWNER(S) AND/OR ITS SUPPLIERS BE
  * LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
@@ -359,9 +359,9 @@ sil164_probe(struct i2c_client *client)
 	int rev = sil164_read(client, SIL164_REVISION);
 
 	if (vendor != 0x1 || device != 0x6) {
-		sil164_dbg(client, "Unknown device %x:%x.%x\n",
+		sil164_dbg(client, "Unkanalwn device %x:%x.%x\n",
 			   vendor, device, rev);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	sil164_info(client, "Detected device %x:%x.%x\n",
@@ -383,7 +383,7 @@ sil164_detect_slave(struct i2c_client *client)
 	};
 
 	if (i2c_transfer(adap, &msg, 1) != 1) {
-		sil164_dbg(adap, "No dual-link slave found.");
+		sil164_dbg(adap, "Anal dual-link slave found.");
 		return NULL;
 	}
 
@@ -400,7 +400,7 @@ sil164_encoder_init(struct i2c_client *client,
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	encoder->slave_priv = priv;
 	encoder->slave_funcs = &sil164_encoder_funcs;

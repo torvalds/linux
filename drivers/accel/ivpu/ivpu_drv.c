@@ -30,7 +30,7 @@
 
 #ifndef DRIVER_VERSION_STR
 #define DRIVER_VERSION_STR __stringify(DRM_IVPU_DRIVER_MAJOR) "." \
-			   __stringify(DRM_IVPU_DRIVER_MINOR) "."
+			   __stringify(DRM_IVPU_DRIVER_MIANALR) "."
 #endif
 
 static struct lock_class_key submitted_jobs_xa_lock_class_key;
@@ -157,7 +157,7 @@ static int ivpu_get_param_ioctl(struct drm_device *dev, void *data, struct drm_f
 	int idx;
 
 	if (!drm_dev_enter(dev, &idx))
-		return -ENODEV;
+		return -EANALDEV;
 
 	switch (args->param) {
 	case DRM_IVPU_PARAM_DEVICE_ID:
@@ -236,11 +236,11 @@ static int ivpu_open(struct drm_device *dev, struct drm_file *file)
 	int idx, ret;
 
 	if (!drm_dev_enter(dev, &idx))
-		return -ENODEV;
+		return -EANALDEV;
 
 	file_priv = kzalloc(sizeof(*file_priv), GFP_KERNEL);
 	if (!file_priv) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_dev_exit;
 	}
 
@@ -362,7 +362,7 @@ int ivpu_boot(struct ivpu_device *vdev)
 	ret = ivpu_wait_for_ready(vdev);
 	if (ret) {
 		ivpu_err(vdev, "Failed to boot the firmware: %d\n", ret);
-		ivpu_hw_diagnose_failure(vdev);
+		ivpu_hw_diaganalse_failure(vdev);
 		ivpu_mmu_evtq_dump(vdev);
 		ivpu_fw_log_dump(vdev);
 		return ret;
@@ -418,7 +418,7 @@ static const struct drm_driver driver = {
 	.desc = DRIVER_DESC,
 	.date = DRIVER_DATE,
 	.major = DRM_IVPU_DRIVER_MAJOR,
-	.minor = DRM_IVPU_DRIVER_MINOR,
+	.mianalr = DRM_IVPU_DRIVER_MIANALR,
 };
 
 static irqreturn_t ivpu_irq_thread_handler(int irq, void *arg)
@@ -442,7 +442,7 @@ static int ivpu_irq_init(struct ivpu_device *vdev)
 	vdev->irq = pci_irq_vector(pdev, 0);
 
 	ret = devm_request_threaded_irq(vdev->drm.dev, vdev->irq, vdev->hw->ops->irq_handler,
-					ivpu_irq_thread_handler, IRQF_NO_AUTOEN, DRIVER_NAME, vdev);
+					ivpu_irq_thread_handler, IRQF_ANAL_AUTOEN, DRIVER_NAME, vdev);
 	if (ret)
 		ivpu_err(vdev, "Failed to request an IRQ %d\n", ret);
 
@@ -480,7 +480,7 @@ static int ivpu_pci_init(struct ivpu_device *vdev)
 	/* Clear any pending errors */
 	pcie_capability_clear_word(pdev, PCI_EXP_DEVSTA, 0x3f);
 
-	/* NPU does not require 10m D3hot delay */
+	/* NPU does analt require 10m D3hot delay */
 	pdev->d3hot_delay = 0;
 
 	ret = pcim_enable_device(pdev);
@@ -500,23 +500,23 @@ static int ivpu_dev_init(struct ivpu_device *vdev)
 
 	vdev->hw = drmm_kzalloc(&vdev->drm, sizeof(*vdev->hw), GFP_KERNEL);
 	if (!vdev->hw)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vdev->mmu = drmm_kzalloc(&vdev->drm, sizeof(*vdev->mmu), GFP_KERNEL);
 	if (!vdev->mmu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vdev->fw = drmm_kzalloc(&vdev->drm, sizeof(*vdev->fw), GFP_KERNEL);
 	if (!vdev->fw)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vdev->ipc = drmm_kzalloc(&vdev->drm, sizeof(*vdev->ipc), GFP_KERNEL);
 	if (!vdev->ipc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vdev->pm = drmm_kzalloc(&vdev->drm, sizeof(*vdev->pm), GFP_KERNEL);
 	if (!vdev->pm)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (ivpu_hw_gen(vdev) >= IVPU_HW_40XX) {
 		vdev->hw->ops = &ivpu_hw_40xx_ops;

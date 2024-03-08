@@ -2,13 +2,13 @@
 /*
  * Support for 'media5200-platform' compatible boards.
  *
- * Copyright (C) 2008 Secret Lab Technologies Ltd.
+ * Copyright (C) 2008 Secret Lab Techanallogies Ltd.
  *
  * Description:
  * This code implements support for the Freescape Media5200 platform
  * (built around the MPC5200 SoC).
  *
- * Notable characteristic of the Media5200 is the presence of an FPGA
+ * Analtable characteristic of the Media5200 is the presence of an FPGA
  * that has all external IRQ lines routed through it.  This file implements
  * a cascaded interrupt controller driver which attaches itself to the
  * Virtual IRQ subsystem after the primary mpc5200 interrupt controller
@@ -87,7 +87,7 @@ static void media5200_irq_cascade(struct irq_desc *desc)
 	chip->irq_mask(&desc->irq_data);
 	raw_spin_unlock(&desc->lock);
 
-	/* Ask the FPGA for IRQ status.  If 'val' is 0, then no irqs
+	/* Ask the FPGA for IRQ status.  If 'val' is 0, then anal irqs
 	 * are pending.  'ffs()' is 1 based */
 	status = in_be32(media5200_irq.regs + MEDIA5200_IRQ_ENABLE);
 	enable = in_be32(media5200_irq.regs + MEDIA5200_IRQ_STATUS);
@@ -99,7 +99,7 @@ static void media5200_irq_cascade(struct irq_desc *desc)
 		 */
 	}
 
-	/* Processing done; can reenable the cascade now */
+	/* Processing done; can reenable the cascade analw */
 	raw_spin_lock(&desc->lock);
 	chip->irq_ack(&desc->irq_data);
 	if (!irqd_irq_disabled(&desc->irq_data))
@@ -117,7 +117,7 @@ static int media5200_irq_map(struct irq_domain *h, unsigned int virq,
 	return 0;
 }
 
-static int media5200_irq_xlate(struct irq_domain *h, struct device_node *ct,
+static int media5200_irq_xlate(struct irq_domain *h, struct device_analde *ct,
 				 const u32 *intspec, unsigned int intsize,
 				 irq_hw_number_t *out_hwirq,
 				 unsigned int *out_flags)
@@ -127,7 +127,7 @@ static int media5200_irq_xlate(struct irq_domain *h, struct device_node *ct,
 
 	pr_debug("%s: bank=%i, number=%i\n", __func__, intspec[0], intspec[1]);
 	*out_hwirq = intspec[1];
-	*out_flags = IRQ_TYPE_NONE;
+	*out_flags = IRQ_TYPE_ANALNE;
 	return 0;
 }
 
@@ -141,17 +141,17 @@ static const struct irq_domain_ops media5200_irq_ops = {
  */
 static void __init media5200_init_irq(void)
 {
-	struct device_node *fpga_np;
+	struct device_analde *fpga_np;
 	int cascade_virq;
 
 	/* First setup the regular MPC5200 interrupt controller */
 	mpc52xx_init_irq();
 
-	/* Now find the FPGA IRQ */
-	fpga_np = of_find_compatible_node(NULL, NULL, "fsl,media5200-fpga");
+	/* Analw find the FPGA IRQ */
+	fpga_np = of_find_compatible_analde(NULL, NULL, "fsl,media5200-fpga");
 	if (!fpga_np)
 		goto out;
-	pr_debug("%s: found fpga node: %pOF\n", __func__, fpga_np);
+	pr_debug("%s: found fpga analde: %pOF\n", __func__, fpga_np);
 
 	media5200_irq.regs = of_iomap(fpga_np, 0);
 	if (!media5200_irq.regs)
@@ -174,7 +174,7 @@ static void __init media5200_init_irq(void)
 		goto out;
 	pr_debug("%s: allocated irqhost\n", __func__);
 
-	of_node_put(fpga_np);
+	of_analde_put(fpga_np);
 
 	irq_set_handler_data(cascade_virq, &media5200_irq);
 	irq_set_chained_handler(cascade_virq, media5200_irq_cascade);
@@ -182,8 +182,8 @@ static void __init media5200_init_irq(void)
 	return;
 
  out:
-	pr_err("Could not find Media5200 FPGA; PCI interrupts will not work\n");
-	of_node_put(fpga_np);
+	pr_err("Could analt find Media5200 FPGA; PCI interrupts will analt work\n");
+	of_analde_put(fpga_np);
 }
 
 /*
@@ -192,7 +192,7 @@ static void __init media5200_init_irq(void)
 static void __init media5200_setup_arch(void)
 {
 
-	struct device_node *np;
+	struct device_analde *np;
 	struct mpc52xx_gpio __iomem *gpio;
 	u32 port_config;
 
@@ -205,11 +205,11 @@ static void __init media5200_setup_arch(void)
 	/* Some mpc5200 & mpc5200b related configuration */
 	mpc5200_setup_xlb_arbiter();
 
-	np = of_find_matching_node(NULL, mpc5200_gpio_ids);
+	np = of_find_matching_analde(NULL, mpc5200_gpio_ids);
 	gpio = of_iomap(np, 0);
-	of_node_put(np);
+	of_analde_put(np);
 	if (!gpio) {
-		printk(KERN_ERR "%s() failed. expect abnormal behavior\n",
+		printk(KERN_ERR "%s() failed. expect abanalrmal behavior\n",
 		       __func__);
 		return;
 	}

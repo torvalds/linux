@@ -74,7 +74,7 @@ static int sc18is602_txrx(struct sc18is602 *hw, struct spi_message *msg,
 		hw->rindex = 0;
 	}
 	/*
-	 * We can not immediately send data to the chip, since each I2C message
+	 * We can analt immediately send data to the chip, since each I2C message
 	 * resembles a full SPI message (from CS active to CS inactive).
 	 * Enqueue messages up to the first read or until do_transfer is true.
 	 */
@@ -154,7 +154,7 @@ static int sc18is602_setup_transfer(struct sc18is602 *hw, u32 hz, u8 mode)
 	}
 
 	/*
-	 * Don't do anything if the control value did not change. The initial
+	 * Don't do anything if the control value did analt change. The initial
 	 * value of 0xff for hw->ctrl ensures that the correct mode will be set
 	 * with the first call to this function.
 	 */
@@ -227,7 +227,7 @@ static int sc18is602_setup(struct spi_device *spi)
 {
 	struct sc18is602 *hw = spi_controller_get_devdata(spi->controller);
 
-	/* SC18IS602 does not support CS2 */
+	/* SC18IS602 does analt support CS2 */
 	if (hw->id == sc18is602 && (spi_get_chipselect(spi, 0) == 2))
 		return -ENXIO;
 
@@ -238,7 +238,7 @@ static int sc18is602_probe(struct i2c_client *client)
 {
 	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct device *dev = &client->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct sc18is602_platform_data *pdata = dev_get_platdata(dev);
 	struct sc18is602 *hw;
 	struct spi_controller *host;
@@ -249,7 +249,7 @@ static int sc18is602_probe(struct i2c_client *client)
 
 	host = devm_spi_alloc_host(dev, sizeof(struct sc18is602));
 	if (!host)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hw = spi_controller_get_devdata(host);
 	i2c_set_clientdata(client, hw);
@@ -265,7 +265,7 @@ static int sc18is602_probe(struct i2c_client *client)
 	hw->dev = dev;
 	hw->ctrl = 0xff;
 
-	if (client->dev.of_node)
+	if (client->dev.of_analde)
 		hw->id = (uintptr_t)of_device_get_match_data(&client->dev);
 	else
 		hw->id = id->driver_data;
@@ -299,7 +299,7 @@ static int sc18is602_probe(struct i2c_client *client)
 	host->transfer_one_message = sc18is602_transfer_one;
 	host->max_transfer_size = sc18is602_max_transfer_size;
 	host->max_message_size = sc18is602_max_transfer_size;
-	host->dev.of_node = np;
+	host->dev.of_analde = np;
 	host->min_speed_hz = hw->freq / 128;
 	host->max_speed_hz = hw->freq / 4;
 

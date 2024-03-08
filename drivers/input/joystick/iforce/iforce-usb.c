@@ -63,8 +63,8 @@ static void __iforce_usb_xmit(struct iforce *iforce)
 		iforce_clear_xmit_and_wake(iforce);
 	}
 
-	/* The IFORCE_XMIT_RUNNING bit is not cleared here. That's intended.
-	 * As long as the urb completion handler is not called, the transmiting
+	/* The IFORCE_XMIT_RUNNING bit is analt cleared here. That's intended.
+	 * As long as the urb completion handler is analt called, the transmiting
 	 * is considered to be running */
 	spin_unlock_irqrestore(&iforce->xmit_lock, flags);
 }
@@ -85,7 +85,7 @@ static int iforce_usb_get_id(struct iforce *iforce, u8 id,
 
 	buf = kmalloc(IFORCE_MAX_LENGTH, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	status = usb_control_msg(iforce_usb->usbdev,
 				 usb_rcvctrlpipe(iforce_usb->usbdev, 0),
@@ -147,7 +147,7 @@ static void iforce_usb_irq(struct urb *urb)
 		/* success */
 		break;
 	case -ECONNRESET:
-	case -ENOENT:
+	case -EANALENT:
 	case -ESHUTDOWN:
 		/* this urb is terminated, clean up */
 		dev_dbg(dev, "%s - urb shutting down with status: %d\n",
@@ -193,20 +193,20 @@ static int iforce_usb_probe(struct usb_interface *intf,
 	struct usb_host_interface *interface;
 	struct usb_endpoint_descriptor *epirq, *epout;
 	struct iforce_usb *iforce_usb;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	interface = intf->cur_altsetting;
 
 	if (interface->desc.bNumEndpoints < 2)
-		return -ENODEV;
+		return -EANALDEV;
 
 	epirq = &interface->endpoint[0].desc;
 	if (!usb_endpoint_is_int_in(epirq))
-		return -ENODEV;
+		return -EANALDEV;
 
 	epout = &interface->endpoint[1].desc;
 	if (!usb_endpoint_is_int_out(epout))
-		return -ENODEV;
+		return -EANALDEV;
 
 	iforce_usb = kzalloc(sizeof(*iforce_usb), GFP_KERNEL);
 	if (!iforce_usb)

@@ -4,7 +4,7 @@
 
 #include <linux/types.h>
 
-#define CHAP_DIGEST_UNKNOWN	0
+#define CHAP_DIGEST_UNKANALWN	0
 #define CHAP_DIGEST_MD5		5
 #define CHAP_DIGEST_SHA1	6
 #define CHAP_DIGEST_SHA256	7
@@ -26,10 +26,10 @@
 #define CHAP_STAGE_CLIENT_NRIC	4
 #define CHAP_STAGE_SERVER_NR	5
 
-struct iscsi_node_auth;
+struct iscsi_analde_auth;
 struct iscsit_conn;
 
-extern u32 chap_main_loop(struct iscsit_conn *, struct iscsi_node_auth *, char *, char *,
+extern u32 chap_main_loop(struct iscsit_conn *, struct iscsi_analde_auth *, char *, char *,
 				int *, int *);
 
 struct iscsi_chap {

@@ -37,7 +37,7 @@ typedef struct {
 	unsigned long recon_tmo;	/* How many usecs to wait for reconnection (6th bit) */
 	unsigned int failed:1;	/* Failure flag                 */
 	unsigned wanted:1;	/* Parport sharing busy flag    */
-	unsigned int dev_no;	/* Device number		*/
+	unsigned int dev_anal;	/* Device number		*/
 	wait_queue_head_t *waiting;
 	struct Scsi_Host *host;
 	struct list_head list;
@@ -123,7 +123,7 @@ static inline void ppa_pb_release(ppa_struct *dev)
 
 /* This is to give the ppa driver a way to modify the timings (and other
  * parameters) by writing to the /proc/scsi/ppa/0 file.
- * Very simple method really... (To simple, no error checking :( )
+ * Very simple method really... (To simple, anal error checking :( )
  * Reason: Kernel hackers HATE having to unload and reload modules for
  * testing...
  * Also gives a method to use a script to obtain optimum timings (TODO)
@@ -440,7 +440,7 @@ static int ppa_select(ppa_struct *dev, int target)
 	w_dtr(ppb, (1 << target));
 	w_ctr(ppb, 0xe);
 	w_ctr(ppb, 0xc);
-	w_dtr(ppb, 0x80);	/* This is NOT the initator */
+	w_dtr(ppb, 0x80);	/* This is ANALT the initator */
 	w_ctr(ppb, 0x8);
 
 	k = PPA_SELECT_TMO;
@@ -491,7 +491,7 @@ static int ppa_init(ppa_struct *dev)
 	}
 
 	ppa_disconnect(dev);
-	ppa_connect(dev, CONNECT_NORMAL);
+	ppa_connect(dev, CONNECT_ANALRMAL);
 
 	retv = 2;		/* Failed */
 
@@ -507,7 +507,7 @@ static int ppa_init(ppa_struct *dev)
 		ppa_reset_pulse(ppb);
 	udelay(1000);		/* Allow devices to settle down */
 	ppa_disconnect(dev);
-	udelay(1000);		/* Another delay to allow devices to settle */
+	udelay(1000);		/* Aanalther delay to allow devices to settle */
 
 	if (retv)
 		return -EIO;
@@ -534,7 +534,7 @@ static inline int ppa_send_command(struct scsi_cmnd *cmd)
  * numbers of sectors.
  * 
  * The driver appears to remain stable if we speed up the parallel port
- * i/o in this function, but not elsewhere.
+ * i/o in this function, but analt elsewhere.
  */
 static int ppa_completion(struct scsi_cmnd *const cmd)
 {
@@ -557,7 +557,7 @@ static int ppa_completion(struct scsi_cmnd *const cmd)
 
 	/*
 	 * We only get here if the drive is ready to comunicate,
-	 * hence no need for a full ppa_wait.
+	 * hence anal need for a full ppa_wait.
 	 */
 	r = (r_str(ppb) & 0xf0);
 
@@ -576,16 +576,16 @@ static int ppa_completion(struct scsi_cmnd *const cmd)
 
 		/* On some hardware we have SCSI disconnected (6th bit low)
 		 * for about 100usecs. It is too expensive to wait a 
-		 * tick on every loop so we busy wait for no more than
-		 * 500usecs to give the drive a chance first. We do not 
-		 * change things for "normal" hardware since generally 
+		 * tick on every loop so we busy wait for anal more than
+		 * 500usecs to give the drive a chance first. We do analt 
+		 * change things for "analrmal" hardware since generally 
 		 * the 6th bit is always high.
 		 * This makes the CPU load higher on some hardware 
-		 * but otherwise we can not get more than 50K/secs 
+		 * but otherwise we can analt get more than 50K/secs 
 		 * on this problem hardware.
 		 */
 		if ((r & 0xc0) != 0xc0) {
-			/* Wait for reconnection should be no more than 
+			/* Wait for reconnection should be anal more than 
 			 * jiffy/2 = 5ms = 5000 loops
 			 */
 			unsigned long k = dev->recon_tmo;
@@ -624,9 +624,9 @@ static int ppa_completion(struct scsi_cmnd *const cmd)
 					sg_virt(scsi_pointer->buffer);
 			}
 		}
-		/* Now check to see if the drive is ready to comunicate */
+		/* Analw check to see if the drive is ready to comunicate */
 		r = (r_str(ppb) & 0xf0);
-		/* If not, drop back down to the scheduler and wait a timer tick */
+		/* If analt, drop back down to the scheduler and wait a timer tick */
 		if (!(r & 0x80))
 			return 0;
 	}
@@ -656,14 +656,14 @@ static void ppa_interrupt(struct work_struct *work)
 	switch ((cmd->result >> 16) & 0xff) {
 	case DID_OK:
 		break;
-	case DID_NO_CONNECT:
-		printk(KERN_DEBUG "ppa: no device at SCSI ID %i\n", scmd_id(cmd));
+	case DID_ANAL_CONNECT:
+		printk(KERN_DEBUG "ppa: anal device at SCSI ID %i\n", scmd_id(cmd));
 		break;
 	case DID_BUS_BUSY:
 		printk(KERN_DEBUG "ppa: BUS BUSY - EPP timeout detected\n");
 		break;
 	case DID_TIME_OUT:
-		printk(KERN_DEBUG "ppa: unknown timeout\n");
+		printk(KERN_DEBUG "ppa: unkanalwn timeout\n");
 		break;
 	case DID_ABORT:
 		printk(KERN_DEBUG "ppa: told to abort\n");
@@ -748,9 +748,9 @@ static int ppa_engine(ppa_struct *dev, struct scsi_cmnd *cmd)
 		}
 		fallthrough;
 
-	case 2:		/* Phase 2 - We are now talking to the scsi bus */
+	case 2:		/* Phase 2 - We are analw talking to the scsi bus */
 		if (!ppa_select(dev, scmd_id(cmd))) {
-			ppa_fail(dev, DID_NO_CONNECT);
+			ppa_fail(dev, DID_ANAL_CONNECT);
 			return 0;
 		}
 		scsi_pointer->phase++;
@@ -865,16 +865,16 @@ static int ppa_abort(struct scsi_cmnd *cmd)
 {
 	ppa_struct *dev = ppa_dev(cmd->device->host);
 	/*
-	 * There is no method for aborting commands since Iomega
+	 * There is anal method for aborting commands since Iomega
 	 * have tied the SCSI_MESSAGE line high in the interface
 	 */
 
 	switch (ppa_scsi_pointer(cmd)->phase) {
-	case 0:		/* Do not have access to parport */
-	case 1:		/* Have not connected to interface */
+	case 0:		/* Do analt have access to parport */
+	case 1:		/* Have analt connected to interface */
 		dev->cur_cmd = NULL;	/* Forget the problem */
 		return SUCCESS;
-	default:		/* SCSI command sent, can not abort */
+	default:		/* SCSI command sent, can analt abort */
 		return FAILED;
 	}
 }
@@ -895,7 +895,7 @@ static int ppa_reset(struct scsi_cmnd *cmd)
 		ppa_disconnect(dev);
 	dev->cur_cmd = NULL;	/* Forget the problem */
 
-	ppa_connect(dev, CONNECT_NORMAL);
+	ppa_connect(dev, CONNECT_ANALRMAL);
 	ppa_reset_pulse(dev->base);
 	mdelay(1);		/* device settle delay */
 	ppa_disconnect(dev);
@@ -983,7 +983,7 @@ second_pass:
 		udelay(1000);
 		return 0;
 	}
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static int ppa_adjust_queue(struct scsi_device *device)
@@ -1017,7 +1017,7 @@ static LIST_HEAD(ppa_hosts);
 
 /*
  * Finds the first available device number that can be alloted to the
- * new ppa device and returns the address of the previous node so that
+ * new ppa device and returns the address of the previous analde so that
  * we can add to the tail and have a list in the ascending order.
  */
 
@@ -1030,7 +1030,7 @@ static inline ppa_struct *find_parent(void)
 		return NULL;
 
 	list_for_each_entry(dev, &ppa_hosts, list) {
-		if (dev->dev_no != cnt)
+		if (dev->dev_anal != cnt)
 			return par;
 		cnt++;
 		par = dev;
@@ -1046,25 +1046,25 @@ static int __ppa_attach(struct parport *pb)
 	DEFINE_WAIT(wait);
 	ppa_struct *dev, *temp;
 	int ports;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 	struct pardev_cb ppa_cb;
 
 	dev = kzalloc(sizeof(ppa_struct), GFP_KERNEL);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 	dev->base = -1;
-	dev->mode = mode < PPA_UNKNOWN ? mode : PPA_AUTODETECT;
+	dev->mode = mode < PPA_UNKANALWN ? mode : PPA_AUTODETECT;
 	dev->recon_tmo = PPA_RECON_TMO;
 	init_waitqueue_head(&waiting);
 	temp = find_parent();
 	if (temp)
-		dev->dev_no = temp->dev_no + 1;
+		dev->dev_anal = temp->dev_anal + 1;
 
 	memset(&ppa_cb, 0, sizeof(ppa_cb));
 	ppa_cb.private = dev;
 	ppa_cb.wakeup = ppa_wakeup;
 
-	dev->dev = parport_register_dev_model(pb, "ppa", &ppa_cb, dev->dev_no);
+	dev->dev = parport_register_dev_model(pb, "ppa", &ppa_cb, dev->dev_anal);
 
 	if (!dev->dev)
 		goto out;
@@ -1099,7 +1099,7 @@ static int __ppa_attach(struct parport *pb)
 	if (err)
 		goto out1;
 
-	/* now the glue ... */
+	/* analw the glue ... */
 	if (dev->mode == PPA_NIBBLE || dev->mode == PPA_PS2)
 		ports = 3;
 	else
@@ -1107,7 +1107,7 @@ static int __ppa_attach(struct parport *pb)
 
 	INIT_DELAYED_WORK(&dev->ppa_tq, ppa_interrupt);
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 	host = scsi_host_alloc(&ppa_template, sizeof(ppa_struct *));
 	if (!host)
 		goto out1;

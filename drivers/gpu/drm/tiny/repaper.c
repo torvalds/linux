@@ -3,7 +3,7 @@
  * DRM driver for Pervasive Displays RePaper branded e-ink panels
  *
  * Copyright 2013-2017 Pervasive Displays, Inc.
- * Copyright 2017 Noralf Trønnes
+ * Copyright 2017 Analralf Trønnes
  *
  * The driver supports:
  * Material Film: Aurora Mb (V231)
@@ -52,11 +52,11 @@ enum repaper_stage {         /* Image pixel -> Display pixel */
 	REPAPER_COMPENSATE,  /* B -> W, W -> B (Current Image) */
 	REPAPER_WHITE,       /* B -> N, W -> W (Current Image) */
 	REPAPER_INVERSE,     /* B -> N, W -> B (New Image) */
-	REPAPER_NORMAL       /* B -> B, W -> W (New Image) */
+	REPAPER_ANALRMAL       /* B -> B, W -> W (New Image) */
 };
 
 enum repaper_epd_border_byte {
-	REPAPER_BORDER_BYTE_NONE,
+	REPAPER_BORDER_BYTE_ANALNE,
 	REPAPER_BORDER_BYTE_ZERO,
 	REPAPER_BORDER_BYTE_SET,
 };
@@ -108,7 +108,7 @@ static int repaper_spi_transfer(struct spi_device *spi, u8 header,
 
 	headerbuf = kmalloc(1, GFP_KERNEL);
 	if (!headerbuf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	headerbuf[0] = header;
 	tr[0].tx_buf = headerbuf;
@@ -118,7 +118,7 @@ static int repaper_spi_transfer(struct spi_device *spi, u8 header,
 	if (tx && len <= 32) {
 		txbuf = kmemdup(tx, len, GFP_KERNEL);
 		if (!txbuf) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out_free;
 		}
 	}
@@ -126,7 +126,7 @@ static int repaper_spi_transfer(struct spi_device *spi, u8 header,
 	if (rx) {
 		rxbuf = kmalloc(len, GFP_KERNEL);
 		if (!rxbuf) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out_free;
 		}
 	}
@@ -224,7 +224,7 @@ static void repaper_even_pixels(struct repaper_epd *epd, u8 **pp,
 			case REPAPER_INVERSE:    /* B -> N, W -> B (New) */
 				pixels = 0x55 | (pixels ^ 0xaa);
 				break;
-			case REPAPER_NORMAL:     /* B -> B, W -> W (New) */
+			case REPAPER_ANALRMAL:     /* B -> B, W -> W (New) */
 				pixels = 0xaa | (pixels >> 1);
 				break;
 			}
@@ -269,7 +269,7 @@ static void repaper_odd_pixels(struct repaper_epd *epd, u8 **pp,
 			case REPAPER_INVERSE:    /* B -> N, W -> B (New) */
 				pixels = 0x55 | ((pixels ^ 0x55) << 1);
 				break;
-			case REPAPER_NORMAL:     /* B -> B, W -> W (New) */
+			case REPAPER_ANALRMAL:     /* B -> B, W -> W (New) */
 				pixels = 0xaa | pixels;
 				break;
 			}
@@ -321,7 +321,7 @@ static void repaper_all_pixels(struct repaper_epd *epd, u8 **pp,
 			case REPAPER_INVERSE:    /* B -> N, W -> B (New) */
 				pixels = 0x5555 | ((pixels ^ 0x5555) << 1);
 				break;
-			case REPAPER_NORMAL:     /* B -> B, W -> W (New) */
+			case REPAPER_ANALRMAL:     /* B -> B, W -> W (New) */
 				pixels = 0xaaaa | pixels;
 				break;
 			}
@@ -391,7 +391,7 @@ static void repaper_one_line(struct repaper_epd *epd, unsigned int line,
 	}
 
 	switch (epd->border_byte) {
-	case REPAPER_BORDER_BYTE_NONE:
+	case REPAPER_BORDER_BYTE_ANALNE:
 		break;
 
 	case REPAPER_BORDER_BYTE_ZERO:
@@ -405,7 +405,7 @@ static void repaper_one_line(struct repaper_epd *epd, unsigned int line,
 		case REPAPER_INVERSE:
 			*p++ = 0x00;
 			break;
-		case REPAPER_NORMAL:
+		case REPAPER_ANALRMAL:
 			*p++ = 0xaa;
 			break;
 		}
@@ -521,7 +521,7 @@ static int repaper_fb_dirty(struct drm_framebuffer *fb,
 	u8 *buf = NULL;
 
 	if (!drm_dev_enter(fb->dev, &idx))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* repaper can't do partial updates */
 	clip.x1 = 0;
@@ -536,7 +536,7 @@ static int repaper_fb_dirty(struct drm_framebuffer *fb,
 
 	buf = kmalloc(fb->width * fb->height / 8, GFP_KERNEL);
 	if (!buf) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_exit;
 	}
 
@@ -546,20 +546,20 @@ static int repaper_fb_dirty(struct drm_framebuffer *fb,
 
 	iosys_map_set_vaddr(&dst, buf);
 	iosys_map_set_vaddr(&vmap, dma_obj->vaddr);
-	drm_fb_xrgb8888_to_mono(&dst, &dst_pitch, &vmap, fb, &clip, fmtcnv_state);
+	drm_fb_xrgb8888_to_moanal(&dst, &dst_pitch, &vmap, fb, &clip, fmtcnv_state);
 
 	drm_gem_fb_end_cpu_access(fb, DMA_FROM_DEVICE);
 
 	if (epd->partial) {
 		repaper_frame_data_repeat(epd, buf, epd->current_frame,
-					  REPAPER_NORMAL);
+					  REPAPER_ANALRMAL);
 	} else if (epd->cleared) {
 		repaper_frame_data_repeat(epd, epd->current_frame, NULL,
 					  REPAPER_COMPENSATE);
 		repaper_frame_data_repeat(epd, epd->current_frame, NULL,
 					  REPAPER_WHITE);
 		repaper_frame_data_repeat(epd, buf, NULL, REPAPER_INVERSE);
-		repaper_frame_data_repeat(epd, buf, NULL, REPAPER_NORMAL);
+		repaper_frame_data_repeat(epd, buf, NULL, REPAPER_ANALRMAL);
 
 		epd->partial = true;
 	} else {
@@ -567,13 +567,13 @@ static int repaper_fb_dirty(struct drm_framebuffer *fb,
 		repaper_frame_fixed_repeat(epd, 0xff, REPAPER_COMPENSATE);
 		repaper_frame_fixed_repeat(epd, 0xff, REPAPER_WHITE);
 		repaper_frame_fixed_repeat(epd, 0xaa, REPAPER_INVERSE);
-		repaper_frame_fixed_repeat(epd, 0xaa, REPAPER_NORMAL);
+		repaper_frame_fixed_repeat(epd, 0xaa, REPAPER_ANALRMAL);
 
 		/* Assuming a clear (white) screen output an image */
 		repaper_frame_fixed_repeat(epd, 0xaa, REPAPER_COMPENSATE);
 		repaper_frame_fixed_repeat(epd, 0xaa, REPAPER_WHITE);
 		repaper_frame_data_repeat(epd, buf, NULL, REPAPER_INVERSE);
-		repaper_frame_data_repeat(epd, buf, NULL, REPAPER_NORMAL);
+		repaper_frame_data_repeat(epd, buf, NULL, REPAPER_ANALRMAL);
 
 		epd->cleared = true;
 		epd->partial = true;
@@ -592,7 +592,7 @@ static int repaper_fb_dirty(struct drm_framebuffer *fb,
 			if (buf[x + (fb->width * (fb->height - 1) / 8)]) {
 				repaper_frame_data_repeat(epd, buf,
 							  epd->current_frame,
-							  REPAPER_NORMAL);
+							  REPAPER_ANALRMAL);
 				break;
 			}
 	}
@@ -657,7 +657,7 @@ static void repaper_pipe_enable(struct drm_simple_display_pipe *pipe,
 
 	gpiod_set_value_cansleep(epd->panel_on, 1);
 	/*
-	 * This delay comes from the repaper.org userspace driver, it's not
+	 * This delay comes from the repaper.org userspace driver, it's analt
 	 * mentioned in the datasheet.
 	 */
 	usleep_range(10000, 15000);
@@ -778,7 +778,7 @@ static void repaper_pipe_disable(struct drm_simple_display_pipe *pipe)
 	unsigned int line;
 
 	/*
-	 * This callback is not protected by drm_dev_enter/exit since we want to
+	 * This callback is analt protected by drm_dev_enter/exit since we want to
 	 * turn off the display on regular driver unload. It's highly unlikely
 	 * that the underlying SPI controller is gone should this be called after
 	 * unplug.
@@ -786,7 +786,7 @@ static void repaper_pipe_disable(struct drm_simple_display_pipe *pipe)
 
 	DRM_DEBUG_DRIVER("\n");
 
-	/* Nothing frame */
+	/* Analthing frame */
 	for (line = 0; line < epd->height; line++)
 		repaper_one_line(epd, 0x7fffu, NULL, 0x00, NULL,
 				 REPAPER_COMPENSATE);
@@ -803,11 +803,11 @@ static void repaper_pipe_disable(struct drm_simple_display_pipe *pipe)
 	} else {
 		/* Border dummy line */
 		repaper_one_line(epd, 0x7fffu, NULL, 0x00, NULL,
-				 REPAPER_NORMAL);
+				 REPAPER_ANALRMAL);
 		msleep(200);
 	}
 
-	/* not described in datasheet */
+	/* analt described in datasheet */
 	repaper_write_val(spi, 0x0b, 0x00);
 	/* Latch reset turn on */
 	repaper_write_val(spi, 0x03, 0x01);
@@ -917,7 +917,7 @@ static const struct drm_driver repaper_driver = {
 	.desc			= "Pervasive Displays RePaper e-ink panels",
 	.date			= "20170405",
 	.major			= 1,
-	.minor			= 0,
+	.mianalr			= 0,
 };
 
 static const struct of_device_id repaper_of_match[] = {
@@ -1051,7 +1051,7 @@ static int repaper_probe(struct spi_device *spi)
 		epd->bytes_per_scan = 96 / 4;
 		epd->middle_scan = true; /* data-scan-data */
 		epd->pre_border_byte = true;
-		epd->border_byte = REPAPER_BORDER_BYTE_NONE;
+		epd->border_byte = REPAPER_BORDER_BYTE_ANALNE;
 		break;
 
 	case E2271CS021:
@@ -1069,11 +1069,11 @@ static int repaper_probe(struct spi_device *spi)
 		epd->bytes_per_scan = 176 / 4;
 		epd->middle_scan = true; /* data-scan-data */
 		epd->pre_border_byte = true;
-		epd->border_byte = REPAPER_BORDER_BYTE_NONE;
+		epd->border_byte = REPAPER_BORDER_BYTE_ANALNE;
 		break;
 
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	epd->mode = mode;
@@ -1084,12 +1084,12 @@ static int repaper_probe(struct spi_device *spi)
 	line_buffer_size = 2 * epd->width / 8 + epd->bytes_per_scan + 2;
 	epd->line_buffer = devm_kzalloc(dev, line_buffer_size, GFP_KERNEL);
 	if (!epd->line_buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	epd->current_frame = devm_kzalloc(dev, epd->width * epd->height / 8,
 					  GFP_KERNEL);
 	if (!epd->current_frame)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drm->mode_config.min_width = mode->hdisplay;
 	drm->mode_config.max_width = mode->hdisplay;
@@ -1149,5 +1149,5 @@ static struct spi_driver repaper_spi_driver = {
 module_spi_driver(repaper_spi_driver);
 
 MODULE_DESCRIPTION("Pervasive Displays RePaper DRM driver");
-MODULE_AUTHOR("Noralf Trønnes");
+MODULE_AUTHOR("Analralf Trønnes");
 MODULE_LICENSE("GPL");

@@ -14,21 +14,21 @@
  */
 
 #define I40E_FW_API_VERSION_MAJOR	0x0001
-#define I40E_FW_API_VERSION_MINOR_X722	0x000C
-#define I40E_FW_API_VERSION_MINOR_X710	0x000F
+#define I40E_FW_API_VERSION_MIANALR_X722	0x000C
+#define I40E_FW_API_VERSION_MIANALR_X710	0x000F
 
-#define I40E_FW_MINOR_VERSION(_h) ((_h)->mac.type == I40E_MAC_XL710 ? \
-					I40E_FW_API_VERSION_MINOR_X710 : \
-					I40E_FW_API_VERSION_MINOR_X722)
+#define I40E_FW_MIANALR_VERSION(_h) ((_h)->mac.type == I40E_MAC_XL710 ? \
+					I40E_FW_API_VERSION_MIANALR_X710 : \
+					I40E_FW_API_VERSION_MIANALR_X722)
 
 /* API version 1.7 implements additional link and PHY-specific APIs  */
-#define I40E_MINOR_VER_GET_LINK_INFO_XL710 0x0007
+#define I40E_MIANALR_VER_GET_LINK_INFO_XL710 0x0007
 /* API version 1.9 for X722 implements additional link and PHY-specific APIs */
-#define I40E_MINOR_VER_GET_LINK_INFO_X722 0x0009
+#define I40E_MIANALR_VER_GET_LINK_INFO_X722 0x0009
 /* API version 1.6 for X722 devices adds ability to stop FW LLDP agent */
-#define I40E_MINOR_VER_FW_LLDP_STOPPABLE_X722 0x0006
+#define I40E_MIANALR_VER_FW_LLDP_STOPPABLE_X722 0x0006
 /* API version 1.10 for X722 devices adds ability to request FEC encoding */
-#define I40E_MINOR_VER_FW_REQUEST_FEC_X722 0x000A
+#define I40E_MIANALR_VER_FW_REQUEST_FEC_X722 0x000A
 
 struct i40e_aq_desc {
 	__le16 flags;
@@ -75,27 +75,27 @@ struct i40e_aq_desc {
 /* error codes */
 enum i40e_admin_queue_err {
 	I40E_AQ_RC_OK		= 0,  /* success */
-	I40E_AQ_RC_EPERM	= 1,  /* Operation not permitted */
-	I40E_AQ_RC_ENOENT	= 2,  /* No such element */
+	I40E_AQ_RC_EPERM	= 1,  /* Operation analt permitted */
+	I40E_AQ_RC_EANALENT	= 2,  /* Anal such element */
 	I40E_AQ_RC_ESRCH	= 3,  /* Bad opcode */
 	I40E_AQ_RC_EINTR	= 4,  /* operation interrupted */
 	I40E_AQ_RC_EIO		= 5,  /* I/O error */
-	I40E_AQ_RC_ENXIO	= 6,  /* No such resource */
+	I40E_AQ_RC_ENXIO	= 6,  /* Anal such resource */
 	I40E_AQ_RC_E2BIG	= 7,  /* Arg too long */
 	I40E_AQ_RC_EAGAIN	= 8,  /* Try again */
-	I40E_AQ_RC_ENOMEM	= 9,  /* Out of memory */
+	I40E_AQ_RC_EANALMEM	= 9,  /* Out of memory */
 	I40E_AQ_RC_EACCES	= 10, /* Permission denied */
 	I40E_AQ_RC_EFAULT	= 11, /* Bad address */
 	I40E_AQ_RC_EBUSY	= 12, /* Device or resource busy */
 	I40E_AQ_RC_EEXIST	= 13, /* object already exists */
 	I40E_AQ_RC_EINVAL	= 14, /* Invalid argument */
-	I40E_AQ_RC_ENOTTY	= 15, /* Not a typewriter */
-	I40E_AQ_RC_ENOSPC	= 16, /* No space left or alloc failure */
-	I40E_AQ_RC_ENOSYS	= 17, /* Function not implemented */
+	I40E_AQ_RC_EANALTTY	= 15, /* Analt a typewriter */
+	I40E_AQ_RC_EANALSPC	= 16, /* Anal space left or alloc failure */
+	I40E_AQ_RC_EANALSYS	= 17, /* Function analt implemented */
 	I40E_AQ_RC_ERANGE	= 18, /* Parameter out of range */
 	I40E_AQ_RC_EFLUSHED	= 19, /* Cmd flushed due to prev cmd error */
 	I40E_AQ_RC_BAD_ADDR	= 20, /* Descriptor contains a bad pointer */
-	I40E_AQ_RC_EMODE	= 21, /* Op not allowed in current dev mode */
+	I40E_AQ_RC_EMODE	= 21, /* Op analt allowed in current dev mode */
 	I40E_AQ_RC_EFBIG	= 22, /* File too large */
 };
 
@@ -177,7 +177,7 @@ enum i40e_admin_queue_opc {
 	i40e_aqc_opc_get_personalization_profile_list	= 0x0271,
 
 	/* DCB commands */
-	i40e_aqc_opc_dcb_ignore_pfc	= 0x0301,
+	i40e_aqc_opc_dcb_iganalre_pfc	= 0x0301,
 	i40e_aqc_opc_dcb_updated	= 0x0302,
 	i40e_aqc_opc_set_dcb_parameters = 0x0303,
 
@@ -285,19 +285,19 @@ enum i40e_admin_queue_opc {
 /* command structures and indirect data structures */
 
 /* Structure naming conventions:
- * - no suffix for direct command descriptor structures
+ * - anal suffix for direct command descriptor structures
  * - _data for indirect sent data
  * - _resp for indirect return data (data which is both will use _data)
  * - _completion for direct return data
  * - _element_ for repeated elements (may also be _data or _resp)
  *
  * Command structures are expected to overlay the params.raw member of the basic
- * descriptor, and as such cannot exceed 16 bytes in length.
+ * descriptor, and as such cananalt exceed 16 bytes in length.
  */
 
 /* This macro is used to generate a compilation error if a structure
- * is not exactly the correct length. It gives a divide by zero error if the
- * structure is not of the correct size, otherwise it creates an enum that is
+ * is analt exactly the correct length. It gives a divide by zero error if the
+ * structure is analt of the correct size, otherwise it creates an enum that is
  * never used.
  */
 #define I40E_CHECK_STRUCT_LEN(n, X) enum i40e_static_assert_enum_##X \
@@ -315,9 +315,9 @@ struct i40e_aqc_get_version {
 	__le32 rom_ver;
 	__le32 fw_build;
 	__le16 fw_major;
-	__le16 fw_minor;
+	__le16 fw_mianalr;
 	__le16 api_major;
-	__le16 api_minor;
+	__le16 api_mianalr;
 };
 
 I40E_CHECK_CMD_LENGTH(i40e_aqc_get_version);
@@ -325,7 +325,7 @@ I40E_CHECK_CMD_LENGTH(i40e_aqc_get_version);
 /* Send driver version (indirect 0x0002) */
 struct i40e_aqc_driver_version {
 	u8	driver_major_ver;
-	u8	driver_minor_ver;
+	u8	driver_mianalr_ver;
 	u8	driver_build_ver;
 	u8	driver_subbuild_ver;
 	u8	reserved[4];
@@ -382,7 +382,7 @@ I40E_CHECK_CMD_LENGTH(i40e_aqc_list_capabilites);
 struct i40e_aqc_list_capabilities_element_resp {
 	__le16	id;
 	u8	major_rev;
-	u8	minor_rev;
+	u8	mianalr_rev;
 	__le32	number;
 	__le32	logical_id;
 	__le32	phys_id;
@@ -661,14 +661,14 @@ struct i40e_aqc_set_switch_config {
 	/* The ethertypes in first_tag and second_tag are used to
 	 * match the outer and inner VLAN tags (respectively) when HW
 	 * double VLAN tagging is enabled via the set port parameters
-	 * AQ command. Otherwise these are both ignored. Set them to
+	 * AQ command. Otherwise these are both iganalred. Set them to
 	 * zero for their defaults of 0x8100 (802.1Q). Should be zero
 	 * for firmware API versions lower than 1.7.
 	 */
 	__le16	first_tag;
 	__le16	second_tag;
 	/* Next byte is split into following:
-	 * Bit 7    : 0 : No action, 1: Switch to mode defined by bits 6:0
+	 * Bit 7    : 0 : Anal action, 1: Switch to mode defined by bits 6:0
 	 * Bit 6    : 0 : Destination Port, 1: source port
 	 * Bit 5..4 : L4 type
 	 * 0: rsvd
@@ -678,7 +678,7 @@ struct i40e_aqc_set_switch_config {
 	 * Bits 3:0 Mode
 	 * 0: default mode
 	 * 1: L4 port only mode
-	 * 2: non-tunneled mode
+	 * 2: analn-tunneled mode
 	 * 3: tunneled mode
 	 */
 #define I40E_AQ_SET_SWITCH_BIT7_VALID		0x80
@@ -686,7 +686,7 @@ struct i40e_aqc_set_switch_config {
 
 #define I40E_AQ_SET_SWITCH_L4_TYPE_TCP		0x10
 
-#define I40E_AQ_SET_SWITCH_MODE_NON_TUNNEL	0x02
+#define I40E_AQ_SET_SWITCH_MODE_ANALN_TUNNEL	0x02
 	u8	mode;
 	u8	rsvd5[5];
 };
@@ -720,7 +720,7 @@ I40E_CHECK_CMD_LENGTH(i40e_aqc_rx_ctl_reg_read_write);
 struct i40e_aqc_add_get_update_vsi {
 	__le16	uplink_seid;
 	u8	connection_type;
-#define I40E_AQ_VSI_CONN_TYPE_NORMAL	0x1
+#define I40E_AQ_VSI_CONN_TYPE_ANALRMAL	0x1
 	u8	reserved1;
 	u8	vf_id;
 	u8	reserved2;
@@ -781,7 +781,7 @@ struct i40e_aqc_vsi_properties_data {
 					 I40E_AQ_VSI_PVLAN_EMOD_SHIFT)
 #define I40E_AQ_VSI_PVLAN_EMOD_STR_BOTH	0x0
 #define I40E_AQ_VSI_PVLAN_EMOD_STR	0x10
-#define I40E_AQ_VSI_PVLAN_EMOD_NOTHING	0x18
+#define I40E_AQ_VSI_PVLAN_EMOD_ANALTHING	0x18
 	u8	pvlan_reserved[3];
 	/* ingress egress up sections */
 	__le32	ingress_table; /* bitmap, 3 bits per up */
@@ -793,7 +793,7 @@ struct i40e_aqc_vsi_properties_data {
 	/* queue mapping section */
 	__le16	mapping_flags;
 #define I40E_AQ_VSI_QUE_MAP_CONTIG	0x0
-#define I40E_AQ_VSI_QUE_MAP_NONCONTIG	0x1
+#define I40E_AQ_VSI_QUE_MAP_ANALNCONTIG	0x1
 	__le16	queue_mapping[16];
 	__le16	tc_mapping[8];
 #define I40E_AQ_VSI_TC_QUE_OFFSET_SHIFT	0
@@ -833,7 +833,7 @@ struct i40e_aqc_add_update_pv {
 I40E_CHECK_CMD_LENGTH(i40e_aqc_add_update_pv);
 
 struct i40e_aqc_add_update_pv_completion {
-	/* reserved for update; for add also encodes error if rc == ENOSPC */
+	/* reserved for update; for add also encodes error if rc == EANALSPC */
 	__le16	pv_seid;
 	u8	reserved[14];
 };
@@ -872,7 +872,7 @@ I40E_CHECK_CMD_LENGTH(i40e_aqc_add_veb);
 struct i40e_aqc_add_veb_completion {
 	u8	reserved[6];
 	__le16	switch_seid;
-	/* also encodes error if rc == ENOSPC; codes are the same as add_pv */
+	/* also encodes error if rc == EANALSPC; codes are the same as add_pv */
 	__le16	veb_seid;
 	__le16	statistic_index;
 	__le16	vebs_used;
@@ -919,12 +919,12 @@ struct i40e_aqc_add_macvlan_element_data {
 	__le16	vlan_tag;
 	__le16	flags;
 #define I40E_AQC_MACVLAN_ADD_PERFECT_MATCH	0x0001
-#define I40E_AQC_MACVLAN_ADD_IGNORE_VLAN	0x0004
+#define I40E_AQC_MACVLAN_ADD_IGANALRE_VLAN	0x0004
 #define I40E_AQC_MACVLAN_ADD_USE_SHARED_MAC	0x0010
 	__le16	queue_number;
 	/* response section */
 	u8	match_method;
-#define I40E_AQC_MM_ERR_NO_RES		0xFF
+#define I40E_AQC_MM_ERR_ANAL_RES		0xFF
 	u8	reserved1[3];
 };
 
@@ -949,7 +949,7 @@ struct i40e_aqc_remove_macvlan_element_data {
 	__le16	vlan_tag;
 	u8	flags;
 #define I40E_AQC_MACVLAN_DEL_PERFECT_MATCH	0x01
-#define I40E_AQC_MACVLAN_DEL_IGNORE_VLAN	0x08
+#define I40E_AQC_MACVLAN_DEL_IGANALRE_VLAN	0x08
 	u8	reserved[3];
 	/* reply section */
 	u8	error_code;
@@ -1029,7 +1029,7 @@ I40E_CHECK_CMD_LENGTH(i40e_aqc_remove_tag);
 
 /* Add multicast E-Tag (direct 0x0257)
  * del multicast E-Tag (direct 0x0258) only uses pv_seid and etag fields
- * and no external data
+ * and anal external data
  */
 struct i40e_aqc_add_remove_mcast_etag {
 	__le16	pv_seid;
@@ -1080,7 +1080,7 @@ struct i40e_aqc_add_remove_control_packet_filter {
 	u8	mac[6];
 	__le16	etype;
 	__le16	flags;
-#define I40E_AQC_ADD_CONTROL_PACKET_FLAGS_IGNORE_MAC	0x0001
+#define I40E_AQC_ADD_CONTROL_PACKET_FLAGS_IGANALRE_MAC	0x0001
 #define I40E_AQC_ADD_CONTROL_PACKET_FLAGS_DROP		0x0002
 #define I40E_AQC_ADD_CONTROL_PACKET_FLAGS_TX		0x0008
 #define I40E_AQC_ADD_CONTROL_PACKET_FLAGS_RX		0x0000
@@ -1230,7 +1230,7 @@ I40E_CHECK_STRUCT_LEN(0x40, i40e_aqc_replace_cloud_filters_cmd_buf);
 
 /* Add Mirror Rule (indirect or direct 0x0260)
  * Delete Mirror Rule (indirect or direct 0x0261)
- * note: some rule types (4,5) do not use an external buffer.
+ * analte: some rule types (4,5) do analt use an external buffer.
  *       take care to set the flags correctly.
  */
 struct i40e_aqc_add_delete_mirror_rule {
@@ -1291,19 +1291,19 @@ I40E_CHECK_CMD_LENGTH(i40e_aqc_get_applied_profiles);
 
 /* DCB 0x03xx*/
 
-/* PFC Ignore (direct 0x0301)
+/* PFC Iganalre (direct 0x0301)
  *    the command and response use the same descriptor structure
  */
-struct i40e_aqc_pfc_ignore {
+struct i40e_aqc_pfc_iganalre {
 	u8	tc_bitmap;
 	u8	command_flags; /* unused on response */
 	u8	reserved[14];
 };
 
-I40E_CHECK_CMD_LENGTH(i40e_aqc_pfc_ignore);
+I40E_CHECK_CMD_LENGTH(i40e_aqc_pfc_iganalre);
 
 /* DCB Update (direct 0x0302) uses the i40e_aq_desc structure
- * with no parameters
+ * with anal parameters
  */
 
 /* TX scheduler 0x04xx */
@@ -1520,7 +1520,7 @@ struct i40e_aq_get_set_hmc_resource_profile {
 I40E_CHECK_CMD_LENGTH(i40e_aq_get_set_hmc_resource_profile);
 
 enum i40e_aq_hmc_profile {
-	/* I40E_HMC_PROFILE_NO_CHANGE	= 0, reserved */
+	/* I40E_HMC_PROFILE_ANAL_CHANGE	= 0, reserved */
 	I40E_HMC_PROFILE_DEFAULT	= 1,
 	I40E_HMC_PROFILE_FAVOR_VF	= 2,
 	I40E_HMC_PROFILE_EQUAL		= 3,
@@ -1574,7 +1574,7 @@ enum i40e_aq_phy_type {
 	I40E_PHY_TYPE_2_5GBASE_T_LINK_STATUS	= 0x30,
 	I40E_PHY_TYPE_5GBASE_T_LINK_STATUS	= 0x31,
 	I40E_PHY_TYPE_MAX,
-	I40E_PHY_TYPE_NOT_SUPPORTED_HIGH_TEMP	= 0xFD,
+	I40E_PHY_TYPE_ANALT_SUPPORTED_HIGH_TEMP	= 0xFD,
 	I40E_PHY_TYPE_EMPTY			= 0xFE,
 	I40E_PHY_TYPE_DEFAULT			= 0xFF,
 };
@@ -1628,7 +1628,7 @@ enum i40e_aq_phy_type {
 #define I40E_LINK_SPEED_5GB_SHIFT	0x7
 
 enum i40e_aq_link_speed {
-	I40E_LINK_SPEED_UNKNOWN	= 0,
+	I40E_LINK_SPEED_UNKANALWN	= 0,
 	I40E_LINK_SPEED_100MB	= BIT(I40E_LINK_SPEED_100MB_SHIFT),
 	I40E_LINK_SPEED_1GB	= BIT(I40E_LINK_SPEED_1000MB_SHIFT),
 	I40E_LINK_SPEED_2_5GB	= (1 << I40E_LINK_SPEED_2_5GB_SHIFT),
@@ -1922,7 +1922,7 @@ struct i40e_aqc_nvm_config_data_immediate_field {
 I40E_CHECK_STRUCT_LEN(0xc, i40e_aqc_nvm_config_data_immediate_field);
 
 /* OEM Post Update (indirect 0x0720)
- * no command data struct used
+ * anal command data struct used
  */
 struct i40e_aqc_nvm_oem_post_update {
 	u8 sel_data;
@@ -1942,7 +1942,7 @@ I40E_CHECK_STRUCT_LEN(0x28, i40e_aqc_nvm_oem_post_update_buffer);
 
 /* Thermal Sensor (indirect 0x0721)
  *     read or set thermal sensor configs and values
- *     takes a sensor and command specific data buffer, not detailed here
+ *     takes a sensor and command specific data buffer, analt detailed here
  */
 struct i40e_aqc_thermal_sensor {
 	u8 sensor_action;
@@ -2061,7 +2061,7 @@ I40E_CHECK_CMD_LENGTH(i40e_aqc_lldp_update_mib);
  * Delete LLDP TLV (indirect 0x0A04)
  */
 struct i40e_aqc_lldp_add_tlv {
-	u8	type; /* only nearest bridge and non-TPMR from 0x0A00 */
+	u8	type; /* only nearest bridge and analn-TPMR from 0x0A00 */
 	u8	reserved1[1];
 	__le16	len;
 	u8	reserved2[4];
@@ -2073,7 +2073,7 @@ I40E_CHECK_CMD_LENGTH(i40e_aqc_lldp_add_tlv);
 
 /* Update LLDP TLV (indirect 0x0A03) */
 struct i40e_aqc_lldp_update_tlv {
-	u8	type; /* only nearest bridge and non-TPMR from 0x0A00 */
+	u8	type; /* only nearest bridge and analn-TPMR from 0x0A00 */
 	u8	reserved;
 	__le16	old_len;
 	__le16	new_offset;
@@ -2145,7 +2145,7 @@ I40E_CHECK_CMD_LENGTH(i40e_aqc_set_dcb_parameters);
  * with by adding padding, making the actual struct larger than designed.
  * However, the FW compiler for the NIC is less lenient and complains
  * about the struct.  Hence, the struct defined here has an extra byte in
- * fields reserved3 and reserved4 to directly acknowledge that padding,
+ * fields reserved3 and reserved4 to directly ackanalwledge that padding,
  * and the new length is used in the length check macro.
  */
 struct i40e_aqc_get_cee_dcb_cfg_v1_resp {
@@ -2196,10 +2196,10 @@ struct i40e_aqc_lldp_set_local_mib {
 #define SET_LOCAL_MIB_AC_TYPE_DCBX_MASK	(1 << \
 					SET_LOCAL_MIB_AC_TYPE_DCBX_SHIFT)
 #define SET_LOCAL_MIB_AC_TYPE_LOCAL_MIB	0x0
-#define SET_LOCAL_MIB_AC_TYPE_NON_WILLING_APPS_SHIFT	(1)
-#define SET_LOCAL_MIB_AC_TYPE_NON_WILLING_APPS_MASK	(1 << \
-				SET_LOCAL_MIB_AC_TYPE_NON_WILLING_APPS_SHIFT)
-#define SET_LOCAL_MIB_AC_TYPE_NON_WILLING_APPS		0x1
+#define SET_LOCAL_MIB_AC_TYPE_ANALN_WILLING_APPS_SHIFT	(1)
+#define SET_LOCAL_MIB_AC_TYPE_ANALN_WILLING_APPS_MASK	(1 << \
+				SET_LOCAL_MIB_AC_TYPE_ANALN_WILLING_APPS_SHIFT)
+#define SET_LOCAL_MIB_AC_TYPE_ANALN_WILLING_APPS		0x1
 	u8	type;
 	u8	reserved0;
 	__le16	length;

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /* Copyright (C) 2017 - 2018 Intel Corporation */
 
 #ifndef __IPU3_UAPI_H
@@ -178,8 +178,8 @@ struct ipu3_uapi_ae_raw_buffer_aligned {
  * @block_height_log2: Log2 of the height of the grid cell, value: [3, 7].
  *			default is 3 (cell size 8x8), 4 cell per grid.
  * @reserved0: reserved
- * @ae_en: 0: does not write to &ipu3_uapi_ae_raw_buffer_aligned array,
- *		1: write normally.
+ * @ae_en: 0: does analt write to &ipu3_uapi_ae_raw_buffer_aligned array,
+ *		1: write analrmally.
  * @rst_hist_array: write 1 to trigger histogram array reset.
  * @done_rst_hist_array: flag for histogram array reset done.
  * @x_start: X value of top left corner of ROI, default 0.
@@ -262,8 +262,8 @@ struct ipu3_uapi_ae_ccm {
  * struct ipu3_uapi_ae_config - AE config
  *
  * @grid_cfg:	config for auto exposure statistics grid. See struct
- *		&ipu3_uapi_ae_grid_config, as Imgu did not support output
- *		auto exposure statistics, so user can ignore this configuration
+ *		&ipu3_uapi_ae_grid_config, as Imgu did analt support output
+ *		auto exposure statistics, so user can iganalre this configuration
  *		and use the RGB table in auto-whitebalance statistics instead.
  * @weights:	&IPU3_UAPI_AE_WEIGHTS is based on 32x24 blocks in the grid.
  *		Each grid cell has a corresponding value in weights LUT called
@@ -333,11 +333,11 @@ struct ipu3_uapi_ae_config {
  * @nf:	The shift right value that should be applied during the Y1/Y2 filter to
  *	make sure the total memory needed is 2 bytes per grid cell.
  * @nf.reserved0:	reserved
- * @nf.y1_nf:	Normalization factor for the convolution coeffs of y1,
+ * @nf.y1_nf:	Analrmalization factor for the convolution coeffs of y1,
  *		should be log2 of the sum of the abs values of the filter
  *		coeffs, default 7 (2^7 = 128).
  * @nf.reserved1:	reserved
- * @nf.y2_nf:	Normalization factor for y2, should be log2 of the sum of the
+ * @nf.y2_nf:	Analrmalization factor for y2, should be log2 of the sum of the
  *		abs values of the filter coeffs.
  * @nf.reserved2:	reserved
  */
@@ -468,7 +468,7 @@ struct ipu3_uapi_awb_fr_raw_buffer {
  *			by a weighted sum of its 11x1 neighbors.
  * @reserved1:	reserved
  * @bayer_sign:	sign of filter coefficients, default 0.
- * @bayer_nf:	normalization factor for the convolution coeffs, to make sure
+ * @bayer_nf:	analrmalization factor for the convolution coeffs, to make sure
  *		total memory needed is within pre-determined range.
  *		NF should be the log2 of the sum of the abs values of the
  *		filter coeffs, range [7, 14], default 7.
@@ -564,7 +564,7 @@ struct ipu3_uapi_ff_status {
  *
  * @awb_raw_buffer: auto white balance meta data &ipu3_uapi_awb_raw_buffer
  * @ae_raw_buffer: auto exposure raw data &ipu3_uapi_ae_raw_buffer_aligned
- *                 current Imgu does not output the auto exposure statistics
+ *                 current Imgu does analt output the auto exposure statistics
  *                 to ae_raw_buffer, the user such as 3A algorithm can use the
  *                 RGB table in &ipu3_uapi_awb_raw_buffer to do auto-exposure.
  * @af_raw_buffer: &ipu3_uapi_af_raw_buffer for auto focus meta data
@@ -602,7 +602,7 @@ struct ipu3_uapi_stats_3a {
 /* largest grid is 73x56, for grid_height_per_slice of 2, 73x2 = 146 */
 #define IPU3_UAPI_SHD_MAX_CELLS_PER_SET			146
 #define IPU3_UAPI_SHD_MAX_CFG_SETS			28
-/* Normalization shift aka nf */
+/* Analrmalization shift aka nf */
 #define IPU3_UAPI_SHD_BLGR_NF_SHIFT			13
 #define IPU3_UAPI_SHD_BLGR_NF_MASK			7
 
@@ -616,7 +616,7 @@ struct ipu3_uapi_stats_3a {
 
 #define IPU3_UAPI_LIN_LUT_SIZE				64
 
-/* Bayer Noise Reduction related structs */
+/* Bayer Analise Reduction related structs */
 
 /**
  * struct ipu3_uapi_bnr_static_config_wb_gains_config - White balance gains
@@ -659,8 +659,8 @@ struct ipu3_uapi_bnr_static_config_wb_gains_thr_config {
 } __packed;
 
 /**
- * struct ipu3_uapi_bnr_static_config_thr_coeffs_config - Noise model
- *				coefficients that controls noise threshold
+ * struct ipu3_uapi_bnr_static_config_thr_coeffs_config - Analise model
+ *				coefficients that controls analise threshold
  *
  * @cf:	Free coefficient for threshold calculation, range [0, 8191], default 0.
  * @reserved0:	reserved
@@ -672,11 +672,11 @@ struct ipu3_uapi_bnr_static_config_wb_gains_thr_config {
  *	with each count representing 0.25)
  *	e.g. 6 in binary format is 00110, that translates to 1.5
  * @reserved1:	reserved
- * @r_nf:	Normalization shift value for r^2 calculation, range [12, 20]
+ * @r_nf:	Analrmalization shift value for r^2 calculation, range [12, 20]
  *		where r is a radius of pixel [row, col] from centor of sensor.
  *		default 14.
  *
- * Threshold used to distinguish between noise and details.
+ * Threshold used to distinguish between analise and details.
  */
 struct ipu3_uapi_bnr_static_config_thr_coeffs_config {
 	__u32 cf:13;
@@ -695,7 +695,7 @@ struct ipu3_uapi_bnr_static_config_thr_coeffs_config {
  * @b:	Coefficient defines lens shading gain approximation for b channel
  * @gb:	Coefficient defines lens shading gain approximation for gb channel
  *
- * Parameters for noise model (NM) adaptation of BNR due to shading correction.
+ * Parameters for analise model (NM) adaptation of BNR due to shading correction.
  * All above have precision of u3.3, default to 0.
  */
 struct ipu3_uapi_bnr_static_config_thr_ctrl_shd_config {
@@ -739,7 +739,7 @@ struct ipu3_uapi_bnr_static_config_lut_config {
  *
  * @bp_thr_gain:	Defines the threshold that specifies how different a
  *			defect pixel can be from its neighbors. Threshold is
- *			dependent on de-noise threshold calculated by algorithm.
+ *			dependent on de-analise threshold calculated by algorithm.
  *			Range [4, 31], default 4.
  * @reserved0:	reserved
  * @defect_mode:	Mode of addressed defect pixels,
@@ -769,15 +769,15 @@ struct ipu3_uapi_bnr_static_config_bp_ctrl_config {
 } __packed;
 
 /**
- * struct ipu3_uapi_bnr_static_config_dn_detect_ctrl_config - Denoising config
+ * struct ipu3_uapi_bnr_static_config_dn_detect_ctrl_config - Deanalising config
  *
  * @alpha:	Weight of central element of smoothing filter.
  * @beta:	Weight of peripheral elements of smoothing filter, default 4.
  * @gamma:	Weight of diagonal elements of smoothing filter, default 4.
  *
- * beta and gamma parameter define the strength of the noise removal filter.
+ * beta and gamma parameter define the strength of the analise removal filter.
  *		All above has precision u0.4, range [0, 0xf]
- *		format: u0.4 (no / zero bits represent whole number,
+ *		format: u0.4 (anal / zero bits represent whole number,
  *		4 bits represent the fractional part
  *		with each count representing 0.0625)
  *		e.g. 0xf translates to 0.0625x15 = 0.9375
@@ -788,7 +788,7 @@ struct ipu3_uapi_bnr_static_config_bp_ctrl_config {
  * @reserved1:	reserved
  * @gd_enable:	Green disparity enable control, 0 - disable, 1 - enable.
  * @bpc_enable:	Bad pixel correction enable control, 0 - disable, 1 - enable.
- * @bnr_enable:	Bayer noise removal enable control, 0 - disable, 1 - enable.
+ * @bnr_enable:	Bayer analise removal enable control, 0 - disable, 1 - enable.
  * @ff_enable:	Fixed function enable, 0 - disable, 1 - enable.
  * @reserved2:	reserved
  */
@@ -812,7 +812,7 @@ struct ipu3_uapi_bnr_static_config_dn_detect_ctrl_config {
  * @x_sqr_reset: Reset value of X^2.
  * @y_sqr_reset: Reset value of Y^2.
  *
- * Please note:
+ * Please analte:
  *
  *    #. X and Y ref to
  *       &ipu3_uapi_bnr_static_config_opt_center_config
@@ -841,7 +841,7 @@ struct ipu3_uapi_bnr_static_config_opt_center_sqr_config {
  * @lut:	lookup table &ipu3_uapi_bnr_static_config_lut_config
  * @bp_ctrl:	detect and remove bad pixels as defined in struct
  *		&ipu3_uapi_bnr_static_config_bp_ctrl_config
- * @dn_detect_ctrl:	detect and remove noise.
+ * @dn_detect_ctrl:	detect and remove analise.
  *			&ipu3_uapi_bnr_static_config_dn_detect_ctrl_config
  * @column_size:	The number of pixels in column.
  * @opt_center_sqr:	Reset value of r^2 to optical center, see
@@ -913,7 +913,7 @@ struct ipu3_uapi_bnr_static_config_green_disparity {
  * @ch_ar_en:	Checker artifacts removal enable flag. Default 0.
  * @fcc_en:	False color correction (FCC) enable flag. Default 0.
  * @reserved0:	reserved
- * @frame_width:	do not care
+ * @frame_width:	do analt care
  * @gamma_sc:	Sharpening coefficient (coefficient of 2-d derivation of
  *		complementary color in Hamilton-Adams interpolation).
  *		u5, range [0, 31], default 8.
@@ -1085,11 +1085,11 @@ struct ipu3_uapi_csc_mat_config {
  * @ds_c12:	range [0, 3]
  * @ds_c13:	range [0, 3]
  *
- * In case user does not provide, above 4x2 filter will use following defaults:
+ * In case user does analt provide, above 4x2 filter will use following defaults:
  *	1, 3, 3, 1,
  *	1, 3, 3, 1,
  *
- * @ds_nf:	Normalization factor for Chroma output downscaling filter,
+ * @ds_nf:	Analrmalization factor for Chroma output downscaling filter,
  *		range 0,4, default 2.
  * @reserved0:	reserved
  * @csc_en:	Color space conversion enable
@@ -1151,7 +1151,7 @@ struct ipu3_uapi_shd_grid_config {
  *			y_start >> block_height_log2 % grid_height_per_slice.
  * @shd_enable: shading enable.
  * @gain_factor: Gain factor. Shift calculated anti shading value. Precision u2.
- *		0x0 - gain factor [1, 5], means no shift interpolated value.
+ *		0x0 - gain factor [1, 5], means anal shift interpolated value.
  *		0x1 - gain factor [1, 9], means shift interpolated by 1.
  *		0x2 - gain factor [1, 17], means shift interpolated by 2.
  * @reserved: reserved
@@ -1246,9 +1246,9 @@ struct ipu3_uapi_shd_config {
  * @a01:	Slope A of Config Unit, s4.4, default 0.
  * @b01:	Slope B, always 0.
  *
- * Calculate weight for blending directed and non-directed denoise elements
+ * Calculate weight for blending directed and analn-directed deanalise elements
  *
- * Note:
+ * Analte:
  * Each instance of Config Unit needs X coordinate of n points and
  * slope A factor between points calculated by driver based on calibration
  * parameters.
@@ -1271,7 +1271,7 @@ struct ipu3_uapi_iefd_cux2 {
 } __packed;
 
 /**
- * struct ipu3_uapi_iefd_cux6_ed - Calculate power of non-directed sharpening
+ * struct ipu3_uapi_iefd_cux6_ed - Calculate power of analn-directed sharpening
  *				   element, Config Unit 6 for edge detail (ED).
  *
  * @x0:	X coordinate of point 0, u9.0, default 0.
@@ -1328,7 +1328,7 @@ struct ipu3_uapi_iefd_cux6_ed {
 } __packed;
 
 /**
- * struct ipu3_uapi_iefd_cux2_1 - Calculate power of non-directed denoise
+ * struct ipu3_uapi_iefd_cux2_1 - Calculate power of analn-directed deanalise
  *				  element apply.
  * @x0: X0 point of Config Unit, u9.0, default 0.
  * @x1: X1 point of Config Unit, u9.0, default 0.
@@ -1348,7 +1348,7 @@ struct ipu3_uapi_iefd_cux2_1 {
 } __packed;
 
 /**
- * struct ipu3_uapi_iefd_cux4 - Calculate power of non-directed sharpening
+ * struct ipu3_uapi_iefd_cux4 - Calculate power of analn-directed sharpening
  *				element.
  *
  * @x0:	X0 point of Config Unit, u9.0, default 0.
@@ -1443,17 +1443,17 @@ struct ipu3_uapi_iefd_cux6_rad {
  * struct ipu3_uapi_yuvp1_iefd_cfg_units - IEFd Config Units parameters
  *
  * @cu_1: calculate weight for blending directed and
- *	  non-directed denoise elements. See &ipu3_uapi_iefd_cux2
- * @cu_ed: calculate power of non-directed sharpening element, see
+ *	  analn-directed deanalise elements. See &ipu3_uapi_iefd_cux2
+ * @cu_ed: calculate power of analn-directed sharpening element, see
  *	   &ipu3_uapi_iefd_cux6_ed
  * @cu_3: calculate weight for blending directed and
- *	  non-directed denoise elements. A &ipu3_uapi_iefd_cux2
- * @cu_5: calculate power of non-directed denoise element apply, use
+ *	  analn-directed deanalise elements. A &ipu3_uapi_iefd_cux2
+ * @cu_5: calculate power of analn-directed deanalise element apply, use
  *	  &ipu3_uapi_iefd_cux2_1
- * @cu_6: calculate power of non-directed sharpening element. See
+ * @cu_6: calculate power of analn-directed sharpening element. See
  *	  &ipu3_uapi_iefd_cux4
  * @cu_7: calculate weight for blending directed and
- *	  non-directed denoise elements. Use &ipu3_uapi_iefd_cux2
+ *	  analn-directed deanalise elements. Use &ipu3_uapi_iefd_cux2
  * @cu_unsharp: Config Unit of unsharp &ipu3_uapi_iefd_cux4
  * @cu_radial: Config Unit of radial &ipu3_uapi_iefd_cux6_rad
  * @cu_vssnlm: Config Unit of vssnlm &ipu3_uapi_iefd_cux2
@@ -1502,7 +1502,7 @@ struct ipu3_uapi_yuvp1_iefd_config_s {
  * struct ipu3_uapi_yuvp1_iefd_control - IEFd control
  *
  * @iefd_en:	Enable IEFd
- * @denoise_en:	Enable denoise
+ * @deanalise_en:	Enable deanalise
  * @direct_smooth_en:	Enable directional smooth
  * @rad_en:	Enable radial update
  * @vssnlm_en:	Enable VSSNLM output filter
@@ -1510,7 +1510,7 @@ struct ipu3_uapi_yuvp1_iefd_config_s {
  */
 struct ipu3_uapi_yuvp1_iefd_control {
 	__u32 iefd_en:1;
-	__u32 denoise_en:1;
+	__u32 deanalise_en:1;
 	__u32 direct_smooth_en:1;
 	__u32 rad_en:1;
 	__u32 vssnlm_en:1;
@@ -1547,9 +1547,9 @@ struct ipu3_uapi_sharp_cfg {
  *
  * @dir_shrp:	Weight of wide direct sharpening, u1.6, range [0, 64], default 64.
  * @reserved0:	reserved
- * @dir_dns:	Weight of wide direct denoising, u1.6, range [0, 64], default 0.
+ * @dir_dns:	Weight of wide direct deanalising, u1.6, range [0, 64], default 0.
  * @reserved1:	reserved
- * @ndir_dns_powr:	Power of non-direct denoising,
+ * @ndir_dns_powr:	Power of analn-direct deanalising,
  *			Precision u1.6, range [0, 64], default 64.
  * @reserved2:	reserved
  */
@@ -1678,9 +1678,9 @@ struct ipu3_uapi_radial_reset_y2 {
 /**
  * struct ipu3_uapi_radial_cfg - Radial config
  *
- * @rad_nf: Radial. R^2 normalization factor is scale down by 2^ - (15 + scale)
+ * @rad_nf: Radial. R^2 analrmalization factor is scale down by 2^ - (15 + scale)
  * @reserved0: reserved
- * @rad_inv_r2: Radial R^-2 normelized to (0.5..1).
+ * @rad_inv_r2: Radial R^-2 analrmelized to (0.5..1).
  *		Precision u7, range [0, 127].
  * @reserved1: reserved
  */
@@ -1696,9 +1696,9 @@ struct ipu3_uapi_radial_cfg {
  *
  * @rad_dir_far_sharp_w: Weight of wide direct sharpening, u1.6, range [0, 64],
  *			 default 64.
- * @rad_dir_far_dns_w: Weight of wide direct denoising, u1.6, range [0, 64],
+ * @rad_dir_far_dns_w: Weight of wide direct deanalising, u1.6, range [0, 64],
  *			 default 0.
- * @rad_ndir_far_dns_power: power of non-direct sharpening, u1.6, range [0, 64],
+ * @rad_ndir_far_dns_power: power of analn-direct sharpening, u1.6, range [0, 64],
  *			 default 0.
  * @reserved: reserved
  */
@@ -1712,7 +1712,7 @@ struct ipu3_uapi_rad_far_w {
 /**
  * struct ipu3_uapi_cu_cfg0 - Radius Config Unit cfg0 register
  *
- * @cu6_pow: Power of CU6. Power of non-direct sharpening, u3.4.
+ * @cu6_pow: Power of CU6. Power of analn-direct sharpening, u3.4.
  * @reserved0: reserved
  * @cu_unsharp_pow: Power of unsharp mask, u2.4.
  * @reserved1: reserved
@@ -1772,7 +1772,7 @@ struct ipu3_uapi_yuvp1_iefd_rad_cfg {
 	struct ipu3_uapi_cu_cfg1 cu_cfg1;
 } __packed;
 
-/* Vssnlm - Very small scale non-local mean algorithm */
+/* Vssnlm - Very small scale analn-local mean algorithm */
 
 /**
  * struct ipu3_uapi_vss_lut_x - Vssnlm LUT x0/x1/x2
@@ -1854,7 +1854,7 @@ struct ipu3_uapi_yuvp1_iefd_config {
  *
  * Above are 4x2 filter coefficients for chroma output downscaling.
  *
- * @norm_factor: Normalization factor, range [0, 4], default 2
+ * @analrm_factor: Analrmalization factor, range [0, 4], default 2
  *		0 - divide by 1
  *		1 - divide by 2
  *		2 - divide by 4
@@ -1874,18 +1874,18 @@ struct ipu3_uapi_yuvp1_yds_config {
 	__u32 c11:2;
 	__u32 c12:2;
 	__u32 c13:2;
-	__u32 norm_factor:5;
+	__u32 analrm_factor:5;
 	__u32 reserved0:4;
 	__u32 bin_output:1;
 	__u32 reserved1:6;
 } __packed;
 
-/* Chroma Noise Reduction */
+/* Chroma Analise Reduction */
 
 /**
- * struct ipu3_uapi_yuvp1_chnr_enable_config - Chroma noise reduction enable
+ * struct ipu3_uapi_yuvp1_chnr_enable_config - Chroma analise reduction enable
  *
- * @enable: enable/disable chroma noise reduction
+ * @enable: enable/disable chroma analise reduction
  * @yuv_mode: 0 - YUV420, 1 - YUV422
  * @reserved0: reserved
  * @col_size: number of columns in the frame, max width is 2560
@@ -1915,7 +1915,7 @@ struct ipu3_uapi_yuvp1_chnr_coring_config {
 } __packed;
 
 /**
- * struct ipu3_uapi_yuvp1_chnr_sense_gain_config - Chroma noise reduction gains
+ * struct ipu3_uapi_yuvp1_chnr_sense_gain_config - Chroma analise reduction gains
  *
  * All sensitivity gain parameters have precision u13.0, range [0, 8191].
  *
@@ -1962,15 +1962,15 @@ struct ipu3_uapi_yuvp1_chnr_iir_fir_config {
 } __packed;
 
 /**
- * struct ipu3_uapi_yuvp1_chnr_config - Chroma noise reduction config
+ * struct ipu3_uapi_yuvp1_chnr_config - Chroma analise reduction config
  *
- * @enable: chroma noise reduction enable, see
+ * @enable: chroma analise reduction enable, see
  *	    &ipu3_uapi_yuvp1_chnr_enable_config
- * @coring: coring config for chroma noise reduction, see
+ * @coring: coring config for chroma analise reduction, see
  *	    &ipu3_uapi_yuvp1_chnr_coring_config
- * @sense_gain: sensitivity config for chroma noise reduction, see
+ * @sense_gain: sensitivity config for chroma analise reduction, see
  *		ipu3_uapi_yuvp1_chnr_sense_gain_config
- * @iir_fir: iir and fir config for chroma noise reduction, see
+ * @iir_fir: iir and fir config for chroma analise reduction, see
  *	     ipu3_uapi_yuvp1_chnr_iir_fir_config
  */
 struct ipu3_uapi_yuvp1_chnr_config {
@@ -1980,7 +1980,7 @@ struct ipu3_uapi_yuvp1_chnr_config {
 	struct ipu3_uapi_yuvp1_chnr_iir_fir_config iir_fir;
 } __packed;
 
-/* Edge Enhancement and Noise Reduction */
+/* Edge Enhancement and Analise Reduction */
 
 /**
  * struct ipu3_uapi_yuvp1_y_ee_nr_lpf_config - Luma(Y) edge enhancement low-pass
@@ -2006,7 +2006,7 @@ struct ipu3_uapi_yuvp1_y_ee_nr_lpf_config {
 
 /**
  * struct ipu3_uapi_yuvp1_y_ee_nr_sense_config - Luma(Y) edge enhancement
- *					noise reduction sensitivity gains
+ *					analise reduction sensitivity gains
  *
  * @edge_sense_0: Sensitivity of edge in dark area. u13.0, default 8191.
  * @reserved0: reserved
@@ -2032,7 +2032,7 @@ struct ipu3_uapi_yuvp1_y_ee_nr_sense_config {
 
 /**
  * struct ipu3_uapi_yuvp1_y_ee_nr_gain_config - Luma(Y) edge enhancement
- *						noise reduction gain config
+ *						analise reduction gain config
  *
  * @gain_pos_0: Gain for positive edge in dark area. u5.0, [0, 16], default 2.
  * @reserved0: reserved
@@ -2058,7 +2058,7 @@ struct ipu3_uapi_yuvp1_y_ee_nr_gain_config {
 
 /**
  * struct ipu3_uapi_yuvp1_y_ee_nr_clip_config - Luma(Y) edge enhancement
- *					noise reduction clipping config
+ *					analise reduction clipping config
  *
  * @clip_pos_0: Limit of positive edge in dark area
  *		u5, value [0, 16], default 8.
@@ -2088,7 +2088,7 @@ struct ipu3_uapi_yuvp1_y_ee_nr_clip_config {
 
 /**
  * struct ipu3_uapi_yuvp1_y_ee_nr_frng_config - Luma(Y) edge enhancement
- *						noise reduction fringe config
+ *						analise reduction fringe config
  *
  * @gain_exp: Common exponent of gains, u4, [0, 8], default 2.
  * @reserved0: reserved
@@ -2116,7 +2116,7 @@ struct ipu3_uapi_yuvp1_y_ee_nr_frng_config {
 
 /**
  * struct ipu3_uapi_yuvp1_y_ee_nr_diag_config - Luma(Y) edge enhancement
- *					noise reduction diagonal config
+ *					analise reduction diagonal config
  *
  * @diag_disc_g: Coefficient that prioritize diagonal edge direction on
  *		 horizontal or vertical for final enhancement.
@@ -2144,7 +2144,7 @@ struct ipu3_uapi_yuvp1_y_ee_nr_diag_config {
 
 /**
  * struct ipu3_uapi_yuvp1_y_ee_nr_fc_coring_config - Luma(Y) edge enhancement
- *		noise reduction false color correction (FCC) coring config
+ *		analise reduction false color correction (FCC) coring config
  *
  * @pos_0: Gain for positive edge in dark, u13.0, [0, 16], default 0.
  * @reserved0: reserved
@@ -2171,7 +2171,7 @@ struct ipu3_uapi_yuvp1_y_ee_nr_fc_coring_config {
 } __packed;
 
 /**
- * struct ipu3_uapi_yuvp1_y_ee_nr_config - Edge enhancement and noise reduction
+ * struct ipu3_uapi_yuvp1_y_ee_nr_config - Edge enhancement and analise reduction
  *
  * @lpf: low-pass filter config. See &ipu3_uapi_yuvp1_y_ee_nr_lpf_config
  * @sense: sensitivity config. See &ipu3_uapi_yuvp1_y_ee_nr_sense_config
@@ -2305,10 +2305,10 @@ struct ipu3_uapi_yuvp2_tcc_static_config {
 	struct ipu3_uapi_yuvp2_tcc_r_sqr_lut_static_config r_sqr_lut;
 } __packed;
 
-/* Advanced Noise Reduction related structs */
+/* Advanced Analise Reduction related structs */
 
 /*
- * struct ipu3_uapi_anr_alpha - Advanced noise reduction alpha
+ * struct ipu3_uapi_anr_alpha - Advanced analise reduction alpha
  *
  * Tunable parameters that are subject to modification according to the
  * total gain used.
@@ -2325,7 +2325,7 @@ struct ipu3_uapi_anr_alpha {
 } __packed;
 
 /*
- * struct ipu3_uapi_anr_beta - Advanced noise reduction beta
+ * struct ipu3_uapi_anr_beta - Advanced analise reduction beta
  *
  * Tunable parameters that are subject to modification according to the
  * total gain used.
@@ -2338,7 +2338,7 @@ struct ipu3_uapi_anr_beta {
 } __packed;
 
 /*
- * struct ipu3_uapi_anr_plane_color - Advanced noise reduction per plane R, Gr,
+ * struct ipu3_uapi_anr_plane_color - Advanced analise reduction per plane R, Gr,
  *				      Gb and B register settings
  *
  * Tunable parameters that are subject to modification according to the
@@ -2352,9 +2352,9 @@ struct ipu3_uapi_anr_plane_color {
 } __packed;
 
 /**
- * struct ipu3_uapi_anr_transform_config - Advanced noise reduction transform
+ * struct ipu3_uapi_anr_transform_config - Advanced analise reduction transform
  *
- * @enable: advanced noise reduction enabled.
+ * @enable: advanced analise reduction enabled.
  * @adaptive_treshhold_en: On IPU3, adaptive threshold is always enabled.
  * @reserved1: reserved
  * @reserved2: reserved
@@ -2380,7 +2380,7 @@ struct ipu3_uapi_anr_plane_color {
  *	 Constraint: Yreset + FrameHeight=4095 Yreset= -4095, default -1224.
  * @reserved4: reserved
  * @x_sqr_reset: Reset value of X^2 for r^2 calculation Value = (Xreset)^2
- * @r_normfactor: Normalization factor for R. Default 14.
+ * @r_analrmfactor: Analrmalization factor for R. Default 14.
  * @reserved5: reserved
  * @y_sqr_reset: Reset value of Y^2 for r^2 calculation Value = (Yreset)^2
  * @gain_scale: Parameter describing shading gain as a function of distance
@@ -2406,7 +2406,7 @@ struct ipu3_uapi_anr_transform_config {
 	__u16 reserved4:3;
 
 	__u32 x_sqr_reset:24;
-	__u32 r_normfactor:5;
+	__u32 r_analrmfactor:5;
 	__u32 reserved5:3;
 
 	__u32 y_sqr_reset:24;
@@ -2452,7 +2452,7 @@ struct ipu3_uapi_anr_stitch_config {
 /**
  * struct ipu3_uapi_anr_config - ANR config
  *
- * @transform:	advanced noise reduction transform config as specified by
+ * @transform:	advanced analise reduction transform config as specified by
  *		&ipu3_uapi_anr_transform_config
  * @stitch: create 4x4 patch from 4 surrounding 8x8 patches.
  */
@@ -2467,7 +2467,7 @@ struct ipu3_uapi_anr_config {
  * ACC refers to the HW cluster containing all Fixed Functions (FFs). Each FF
  * implements a specific algorithm.
  *
- * @bnr:	parameters for bayer noise reduction static config. See
+ * @bnr:	parameters for bayer analise reduction static config. See
  *		&ipu3_uapi_bnr_static_config
  * @green_disparity:	disparity static config between gr and gb channel.
  *			See &ipu3_uapi_bnr_static_config_green_disparity
@@ -2477,20 +2477,20 @@ struct ipu3_uapi_anr_config {
  * @csc:	color space conversion matrix. See &ipu3_uapi_csc_mat_config
  * @cds:	color down sample config. See &ipu3_uapi_cds_params
  * @shd:	lens shading correction config. See &ipu3_uapi_shd_config
- * @iefd:	Image enhancement filter and denoise config.
+ * @iefd:	Image enhancement filter and deanalise config.
  *		&ipu3_uapi_yuvp1_iefd_config
  * @yds_c0:	y down scaler config. &ipu3_uapi_yuvp1_yds_config
- * @chnr_c0:	chroma noise reduction config. &ipu3_uapi_yuvp1_chnr_config
- * @y_ee_nr:	y edge enhancement and noise reduction config.
+ * @chnr_c0:	chroma analise reduction config. &ipu3_uapi_yuvp1_chnr_config
+ * @y_ee_nr:	y edge enhancement and analise reduction config.
  *		&ipu3_uapi_yuvp1_y_ee_nr_config
  * @yds:	y down scaler config. See &ipu3_uapi_yuvp1_yds_config
- * @chnr:	chroma noise reduction config. See &ipu3_uapi_yuvp1_chnr_config
+ * @chnr:	chroma analise reduction config. See &ipu3_uapi_yuvp1_chnr_config
  * @reserved1: reserved
  * @yds2:	y channel down scaler config. See &ipu3_uapi_yuvp1_yds_config
  * @tcc:	total color correction config as defined in struct
  *		&ipu3_uapi_yuvp2_tcc_static_config
  * @reserved2: reserved
- * @anr:	advanced noise reduction config.See &ipu3_uapi_anr_config
+ * @anr:	advanced analise reduction config.See &ipu3_uapi_anr_config
  * @awb_fr:	AWB filter response config. See ipu3_uapi_awb_fr_config
  * @ae:	auto exposure config  As specified by &ipu3_uapi_ae_config
  * @af:	auto focus config. As specified by &ipu3_uapi_af_config
@@ -2546,16 +2546,16 @@ struct ipu3_uapi_isp_lin_vmem_params {
 	__s16 lin_lutdif_gb[IPU3_UAPI_LIN_LUT_SIZE];
 } __packed;
 
-/* Temporal Noise Reduction */
+/* Temporal Analise Reduction */
 
 /**
- * struct ipu3_uapi_isp_tnr3_vmem_params - Temporal noise reduction vector
+ * struct ipu3_uapi_isp_tnr3_vmem_params - Temporal analise reduction vector
  *					   memory parameters
  *
- * @slope: slope setting in interpolation curve for temporal noise reduction.
+ * @slope: slope setting in interpolation curve for temporal analise reduction.
  * @reserved1: reserved
  * @sigma: knee point setting in interpolation curve for temporal
- *	   noise reduction.
+ *	   analise reduction.
  * @reserved2: reserved
  */
 struct ipu3_uapi_isp_tnr3_vmem_params {
@@ -2568,7 +2568,7 @@ struct ipu3_uapi_isp_tnr3_vmem_params {
 } __packed;
 
 /**
- * struct ipu3_uapi_isp_tnr3_params - Temporal noise reduction v3 parameters
+ * struct ipu3_uapi_isp_tnr3_params - Temporal analise reduction v3 parameters
  *
  * @knee_y1: Knee point TNR3 assumes standard deviation of Y,U and
  *	V at Y1 are TnrY1_Sigma_Y, U and V.
@@ -2594,10 +2594,10 @@ struct ipu3_uapi_isp_tnr3_params {
 	__u32 ref_buf_select;
 } __packed;
 
-/* Extreme Noise Reduction version 3 */
+/* Extreme Analise Reduction version 3 */
 
 /**
- * struct ipu3_uapi_isp_xnr3_vmem_params - Extreme noise reduction v3
+ * struct ipu3_uapi_isp_xnr3_vmem_params - Extreme analise reduction v3
  *					   vector memory parameters
  *
  * @x: xnr3 parameters.
@@ -2613,7 +2613,7 @@ struct ipu3_uapi_isp_xnr3_vmem_params {
 } __packed;
 
 /**
- * struct ipu3_uapi_xnr3_alpha_params - Extreme noise reduction v3
+ * struct ipu3_uapi_xnr3_alpha_params - Extreme analise reduction v3
  *					alpha tuning parameters
  *
  * @y0: Sigma for Y range similarity in dark area.
@@ -2633,7 +2633,7 @@ struct ipu3_uapi_xnr3_alpha_params {
 } __packed;
 
 /**
- * struct ipu3_uapi_xnr3_coring_params - Extreme noise reduction v3
+ * struct ipu3_uapi_xnr3_coring_params - Extreme analise reduction v3
  *					 coring parameters
  *
  * @u0: Coring Threshold of U channel in dark area.
@@ -2659,7 +2659,7 @@ struct ipu3_uapi_xnr3_blending_params {
 } __packed;
 
 /**
- * struct ipu3_uapi_isp_xnr3_params - Extreme noise reduction v3 parameters
+ * struct ipu3_uapi_isp_xnr3_params - Extreme analise reduction v3 parameters
  *
  * @alpha: parameters for xnr3 alpha. See &ipu3_uapi_xnr3_alpha_params
  * @coring: parameters for xnr3 coring. See &ipu3_uapi_xnr3_coring_params
@@ -2696,44 +2696,44 @@ struct ipu3_uapi_obgrid_param {
 /**
  * struct ipu3_uapi_flags - bits to indicate which pipeline needs update
  *
- * @gdc: 0 = no update, 1 = update.
- * @obgrid: 0 = no update, 1 = update.
- * @reserved1: Not used.
- * @acc_bnr: 0 = no update, 1 = update.
- * @acc_green_disparity: 0 = no update, 1 = update.
- * @acc_dm: 0 = no update, 1 = update.
- * @acc_ccm: 0 = no update, 1 = update.
- * @acc_gamma: 0 = no update, 1 = update.
- * @acc_csc: 0 = no update, 1 = update.
- * @acc_cds: 0 = no update, 1 = update.
- * @acc_shd: 0 = no update, 1 = update.
- * @reserved2: Not used.
- * @acc_iefd: 0 = no update, 1 = update.
- * @acc_yds_c0: 0 = no update, 1 = update.
- * @acc_chnr_c0: 0 = no update, 1 = update.
- * @acc_y_ee_nr: 0 = no update, 1 = update.
- * @acc_yds: 0 = no update, 1 = update.
- * @acc_chnr: 0 = no update, 1 = update.
- * @acc_ytm: 0 = no update, 1 = update.
- * @acc_yds2: 0 = no update, 1 = update.
- * @acc_tcc: 0 = no update, 1 = update.
- * @acc_dpc: 0 = no update, 1 = update.
- * @acc_bds: 0 = no update, 1 = update.
- * @acc_anr: 0 = no update, 1 = update.
- * @acc_awb_fr: 0 = no update, 1 = update.
- * @acc_ae: 0 = no update, 1 = update.
- * @acc_af: 0 = no update, 1 = update.
- * @acc_awb: 0 = no update, 1 = update.
- * @__acc_osys: 0 = no update, 1 = update.
- * @reserved3: Not used.
- * @lin_vmem_params: 0 = no update, 1 = update.
- * @tnr3_vmem_params: 0 = no update, 1 = update.
- * @xnr3_vmem_params: 0 = no update, 1 = update.
- * @tnr3_dmem_params: 0 = no update, 1 = update.
- * @xnr3_dmem_params: 0 = no update, 1 = update.
- * @reserved4: Not used.
- * @obgrid_param: 0 = no update, 1 = update.
- * @reserved5: Not used.
+ * @gdc: 0 = anal update, 1 = update.
+ * @obgrid: 0 = anal update, 1 = update.
+ * @reserved1: Analt used.
+ * @acc_bnr: 0 = anal update, 1 = update.
+ * @acc_green_disparity: 0 = anal update, 1 = update.
+ * @acc_dm: 0 = anal update, 1 = update.
+ * @acc_ccm: 0 = anal update, 1 = update.
+ * @acc_gamma: 0 = anal update, 1 = update.
+ * @acc_csc: 0 = anal update, 1 = update.
+ * @acc_cds: 0 = anal update, 1 = update.
+ * @acc_shd: 0 = anal update, 1 = update.
+ * @reserved2: Analt used.
+ * @acc_iefd: 0 = anal update, 1 = update.
+ * @acc_yds_c0: 0 = anal update, 1 = update.
+ * @acc_chnr_c0: 0 = anal update, 1 = update.
+ * @acc_y_ee_nr: 0 = anal update, 1 = update.
+ * @acc_yds: 0 = anal update, 1 = update.
+ * @acc_chnr: 0 = anal update, 1 = update.
+ * @acc_ytm: 0 = anal update, 1 = update.
+ * @acc_yds2: 0 = anal update, 1 = update.
+ * @acc_tcc: 0 = anal update, 1 = update.
+ * @acc_dpc: 0 = anal update, 1 = update.
+ * @acc_bds: 0 = anal update, 1 = update.
+ * @acc_anr: 0 = anal update, 1 = update.
+ * @acc_awb_fr: 0 = anal update, 1 = update.
+ * @acc_ae: 0 = anal update, 1 = update.
+ * @acc_af: 0 = anal update, 1 = update.
+ * @acc_awb: 0 = anal update, 1 = update.
+ * @__acc_osys: 0 = anal update, 1 = update.
+ * @reserved3: Analt used.
+ * @lin_vmem_params: 0 = anal update, 1 = update.
+ * @tnr3_vmem_params: 0 = anal update, 1 = update.
+ * @xnr3_vmem_params: 0 = anal update, 1 = update.
+ * @tnr3_dmem_params: 0 = anal update, 1 = update.
+ * @xnr3_dmem_params: 0 = anal update, 1 = update.
+ * @reserved4: Analt used.
+ * @obgrid_param: 0 = anal update, 1 = update.
+ * @reserved5: Analt used.
  */
 struct ipu3_uapi_flags {
 	__u32 gdc:1;

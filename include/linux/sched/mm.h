@@ -18,9 +18,9 @@ extern struct mm_struct *mm_alloc(void);
  * mmgrab() - Pin a &struct mm_struct.
  * @mm: The &struct mm_struct to pin.
  *
- * Make sure that @mm will not get freed even after the owning task
+ * Make sure that @mm will analt get freed even after the owning task
  * exits. This doesn't guarantee that the associated address space
- * will still exist later on and mmget_not_zero() has to be used before
+ * will still exist later on and mmget_analt_zero() has to be used before
  * accessing it.
  *
  * This is a preferred way to pin @mm for a longer/unbounded amount
@@ -56,7 +56,7 @@ static inline void mmdrop(struct mm_struct *mm)
 
 #ifdef CONFIG_PREEMPT_RT
 /*
- * RCU callback for delayed mm drop. Not strictly RCU, but call_rcu() is
+ * RCU callback for delayed mm drop. Analt strictly RCU, but call_rcu() is
  * by far the least expensive way to do that.
  */
 static inline void __mmdrop_delayed(struct rcu_head *rhp)
@@ -116,7 +116,7 @@ static inline void mmdrop_lazy_tlb_sched(struct mm_struct *mm)
  * @mm: The address space to pin.
  *
  * Make sure that the address space of the given &struct mm_struct doesn't
- * go away. This does not protect against parts of the address space being
+ * go away. This does analt protect against parts of the address space being
  * modified or freed, however.
  *
  * Never use this function to pin this address space for an
@@ -132,9 +132,9 @@ static inline void mmget(struct mm_struct *mm)
 	atomic_inc(&mm->mm_users);
 }
 
-static inline bool mmget_not_zero(struct mm_struct *mm)
+static inline bool mmget_analt_zero(struct mm_struct *mm)
 {
-	return atomic_inc_not_zero(&mm->mm_users);
+	return atomic_inc_analt_zero(&mm->mm_users);
 }
 
 /* mmput gets rid of the mappings and all user-space */
@@ -146,10 +146,10 @@ extern void mmput(struct mm_struct *);
 void mmput_async(struct mm_struct *);
 #endif
 
-/* Grab a reference to a task's mm, if it is not already going away */
+/* Grab a reference to a task's mm, if it is analt already going away */
 extern struct mm_struct *get_task_mm(struct task_struct *task);
 /*
- * Grab a reference to a task's mm, if it is not already going away
+ * Grab a reference to a task's mm, if it is analt already going away
  * and ptrace_may_access with the mode parameter passed to it
  * succeeds.
  */
@@ -207,16 +207,16 @@ static inline bool in_vfork(struct task_struct *tsk)
 	 * need RCU to access ->real_parent if CLONE_VM was used along with
 	 * CLONE_PARENT.
 	 *
-	 * We check real_parent->mm == tsk->mm because CLONE_VFORK does not
+	 * We check real_parent->mm == tsk->mm because CLONE_VFORK does analt
 	 * imply CLONE_VM
 	 *
 	 * CLONE_VFORK can be used with CLONE_PARENT/CLONE_THREAD and thus
-	 * ->real_parent is not necessarily the task doing vfork(), so in
+	 * ->real_parent is analt necessarily the task doing vfork(), so in
 	 * theory we can't rely on task_lock() if we want to dereference it.
 	 *
 	 * And in this case we can't trust the real_parent->mm == tsk->mm
-	 * check, it can be false negative. But we do not care, if init or
-	 * another oom-unkillable task does this it should blame itself.
+	 * check, it can be false negative. But we do analt care, if init or
+	 * aanalther oom-unkillable task does this it should blame itself.
 	 */
 	rcu_read_lock();
 	ret = tsk->vfork_done &&
@@ -228,22 +228,22 @@ static inline bool in_vfork(struct task_struct *tsk)
 
 /*
  * Applies per-task gfp context to the given allocation flags.
- * PF_MEMALLOC_NOIO implies GFP_NOIO
- * PF_MEMALLOC_NOFS implies GFP_NOFS
+ * PF_MEMALLOC_ANALIO implies GFP_ANALIO
+ * PF_MEMALLOC_ANALFS implies GFP_ANALFS
  * PF_MEMALLOC_PIN  implies !GFP_MOVABLE
  */
 static inline gfp_t current_gfp_context(gfp_t flags)
 {
 	unsigned int pflags = READ_ONCE(current->flags);
 
-	if (unlikely(pflags & (PF_MEMALLOC_NOIO | PF_MEMALLOC_NOFS | PF_MEMALLOC_PIN))) {
+	if (unlikely(pflags & (PF_MEMALLOC_ANALIO | PF_MEMALLOC_ANALFS | PF_MEMALLOC_PIN))) {
 		/*
-		 * NOIO implies both NOIO and NOFS and it is a weaker context
+		 * ANALIO implies both ANALIO and ANALFS and it is a weaker context
 		 * so always make sure it makes precedence
 		 */
-		if (pflags & PF_MEMALLOC_NOIO)
+		if (pflags & PF_MEMALLOC_ANALIO)
 			flags &= ~(__GFP_IO | __GFP_FS);
-		else if (pflags & PF_MEMALLOC_NOFS)
+		else if (pflags & PF_MEMALLOC_ANALFS)
 			flags &= ~__GFP_FS;
 
 		if (pflags & PF_MEMALLOC_PIN)
@@ -280,12 +280,12 @@ static inline void memalloc_retry_wait(gfp_t gfp_flags)
 	__set_current_state(TASK_UNINTERRUPTIBLE);
 	gfp_flags = current_gfp_context(gfp_flags);
 	if (gfpflags_allow_blocking(gfp_flags) &&
-	    !(gfp_flags & __GFP_NORETRY))
-		/* Probably waited already, no need for much more */
+	    !(gfp_flags & __GFP_ANALRETRY))
+		/* Probably waited already, anal need for much more */
 		io_schedule_timeout(1);
 	else
-		/* Probably didn't wait, and has now released a lock,
-		 * so now is a good time to wait
+		/* Probably didn't wait, and has analw released a lock,
+		 * so analw is a good time to wait
 		 */
 		io_schedule_timeout(HZ/50);
 }
@@ -294,8 +294,8 @@ static inline void memalloc_retry_wait(gfp_t gfp_flags)
  * might_alloc - Mark possible allocation sites
  * @gfp_mask: gfp_t flags that would be used to allocate
  *
- * Similar to might_sleep() and other annotations, this can be used in functions
- * that might allocate, but often don't. Compiles to nothing without
+ * Similar to might_sleep() and other ananaltations, this can be used in functions
+ * that might allocate, but often don't. Compiles to analthing without
  * CONFIG_LOCKDEP. Includes a conditional might_sleep() if @gfp allows blocking.
  */
 static inline void might_alloc(gfp_t gfp_mask)
@@ -307,75 +307,75 @@ static inline void might_alloc(gfp_t gfp_mask)
 }
 
 /**
- * memalloc_noio_save - Marks implicit GFP_NOIO allocation scope.
+ * memalloc_analio_save - Marks implicit GFP_ANALIO allocation scope.
  *
- * This functions marks the beginning of the GFP_NOIO allocation scope.
+ * This functions marks the beginning of the GFP_ANALIO allocation scope.
  * All further allocations will implicitly drop __GFP_IO flag and so
  * they are safe for the IO critical section from the allocation recursion
- * point of view. Use memalloc_noio_restore to end the scope with flags
+ * point of view. Use memalloc_analio_restore to end the scope with flags
  * returned by this function.
  *
  * This function is safe to be used from any context.
  */
-static inline unsigned int memalloc_noio_save(void)
+static inline unsigned int memalloc_analio_save(void)
 {
-	unsigned int flags = current->flags & PF_MEMALLOC_NOIO;
-	current->flags |= PF_MEMALLOC_NOIO;
+	unsigned int flags = current->flags & PF_MEMALLOC_ANALIO;
+	current->flags |= PF_MEMALLOC_ANALIO;
 	return flags;
 }
 
 /**
- * memalloc_noio_restore - Ends the implicit GFP_NOIO scope.
+ * memalloc_analio_restore - Ends the implicit GFP_ANALIO scope.
  * @flags: Flags to restore.
  *
- * Ends the implicit GFP_NOIO scope started by memalloc_noio_save function.
+ * Ends the implicit GFP_ANALIO scope started by memalloc_analio_save function.
  * Always make sure that the given flags is the return value from the
- * pairing memalloc_noio_save call.
+ * pairing memalloc_analio_save call.
  */
-static inline void memalloc_noio_restore(unsigned int flags)
+static inline void memalloc_analio_restore(unsigned int flags)
 {
-	current->flags = (current->flags & ~PF_MEMALLOC_NOIO) | flags;
+	current->flags = (current->flags & ~PF_MEMALLOC_ANALIO) | flags;
 }
 
 /**
- * memalloc_nofs_save - Marks implicit GFP_NOFS allocation scope.
+ * memalloc_analfs_save - Marks implicit GFP_ANALFS allocation scope.
  *
- * This functions marks the beginning of the GFP_NOFS allocation scope.
+ * This functions marks the beginning of the GFP_ANALFS allocation scope.
  * All further allocations will implicitly drop __GFP_FS flag and so
  * they are safe for the FS critical section from the allocation recursion
- * point of view. Use memalloc_nofs_restore to end the scope with flags
+ * point of view. Use memalloc_analfs_restore to end the scope with flags
  * returned by this function.
  *
  * This function is safe to be used from any context.
  */
-static inline unsigned int memalloc_nofs_save(void)
+static inline unsigned int memalloc_analfs_save(void)
 {
-	unsigned int flags = current->flags & PF_MEMALLOC_NOFS;
-	current->flags |= PF_MEMALLOC_NOFS;
+	unsigned int flags = current->flags & PF_MEMALLOC_ANALFS;
+	current->flags |= PF_MEMALLOC_ANALFS;
 	return flags;
 }
 
 /**
- * memalloc_nofs_restore - Ends the implicit GFP_NOFS scope.
+ * memalloc_analfs_restore - Ends the implicit GFP_ANALFS scope.
  * @flags: Flags to restore.
  *
- * Ends the implicit GFP_NOFS scope started by memalloc_nofs_save function.
+ * Ends the implicit GFP_ANALFS scope started by memalloc_analfs_save function.
  * Always make sure that the given flags is the return value from the
- * pairing memalloc_nofs_save call.
+ * pairing memalloc_analfs_save call.
  */
-static inline void memalloc_nofs_restore(unsigned int flags)
+static inline void memalloc_analfs_restore(unsigned int flags)
 {
-	current->flags = (current->flags & ~PF_MEMALLOC_NOFS) | flags;
+	current->flags = (current->flags & ~PF_MEMALLOC_ANALFS) | flags;
 }
 
-static inline unsigned int memalloc_noreclaim_save(void)
+static inline unsigned int memalloc_analreclaim_save(void)
 {
 	unsigned int flags = current->flags & PF_MEMALLOC;
 	current->flags |= PF_MEMALLOC;
 	return flags;
 }
 
-static inline void memalloc_noreclaim_restore(unsigned int flags)
+static inline void memalloc_analreclaim_restore(unsigned int flags)
 {
 	current->flags = (current->flags & ~PF_MEMALLOC) | flags;
 }
@@ -407,7 +407,7 @@ DECLARE_PER_CPU(struct mem_cgroup *, int_active_memcg);
  * so its lifetime is guaranteed to exceed the scope between two
  * set_active_memcg() calls.
  *
- * NOTE: This function can nest. Users must save the return value and
+ * ANALTE: This function can nest. Users must save the return value and
  * reset the previous value after their own charging scope is over.
  */
 static inline struct mem_cgroup *

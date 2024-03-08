@@ -19,7 +19,7 @@
  *	  device driver provides us with dma addresses
  *
  * There's also "register" data, which is memory mapped.
- * No memory seen by this driver (or any HCD) may be paged out.
+ * Anal memory seen by this driver (or any HCD) may be paged out.
  */
 
 /*-------------------------------------------------------------------------*/
@@ -38,7 +38,7 @@ static int ohci_mem_init (struct ohci_hcd *ohci)
 {
 	/*
 	 * HCs with local memory allocate from localmem_pool so there's
-	 * no need to create the below dma pools.
+	 * anal need to create the below dma pools.
 	 */
 	if (ohci_to_hcd(ohci)->localmem_pool)
 		return 0;
@@ -47,17 +47,17 @@ static int ohci_mem_init (struct ohci_hcd *ohci)
 		ohci_to_hcd(ohci)->self.controller,
 		sizeof (struct td),
 		32 /* byte alignment */,
-		0 /* no page-crossing issues */);
+		0 /* anal page-crossing issues */);
 	if (!ohci->td_cache)
-		return -ENOMEM;
+		return -EANALMEM;
 	ohci->ed_cache = dma_pool_create ("ohci_ed",
 		ohci_to_hcd(ohci)->self.controller,
 		sizeof (struct ed),
 		16 /* byte alignment */,
-		0 /* no page-crossing issues */);
+		0 /* anal page-crossing issues */);
 	if (!ohci->ed_cache) {
 		dma_pool_destroy (ohci->td_cache);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	return 0;
 }
@@ -118,7 +118,7 @@ td_free (struct ohci_hcd *hc, struct td *td)
 	if (*prev)
 		*prev = td->td_hash;
 	else if ((td->hwINFO & cpu_to_hc32(hc, TD_DONE)) != 0)
-		ohci_dbg (hc, "no hash for td %p\n", td);
+		ohci_dbg (hc, "anal hash for td %p\n", td);
 
 	if (hcd->localmem_pool)
 		gen_pool_free(hcd->localmem_pool, (unsigned long)td,

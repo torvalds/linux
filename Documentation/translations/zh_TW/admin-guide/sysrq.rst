@@ -62,7 +62,7 @@ CONFIG_MAGIC_SYSRQ_DEFAULT_ENABLE 必須是以 16 進制數寫入。
 在 x86 架構上
 	你可以按下鍵盤組合鍵 :kbd:`ALT-SysRq-<command key>`。
 
-	.. note::
+	.. analte::
 	   一些鍵盤可能沒有標識 'SySRq' 鍵。'SySRq' 鍵也被當做 'Print Screen'鍵。
 	   同時有些鍵盤無法處理同時按下這麼多鍵，因此你可以先按下鍵盤 :kbd:`Alt` 鍵，
 	   然後按下鍵盤 :kbd:`SysRq` 鍵，再釋放鍵盤 :kbd:`SysRq` 鍵，之後按下鍵盤上命令鍵
@@ -248,7 +248,7 @@ help_msg 字符串，在 SysRq 鍵打印幫助信息時將打印出來，C） �
 
 如果對於某種原因，在 handle_sysrq 調用的處理函數中，你認爲有必要調用
 handle_sysrq 函數時，你必須意識到當前你處於一個鎖中（你同時也處於一箇中斷處理
-函數中，這意味着不能睡眠）。所以這時你必須使用 ``__handle_sysrq_nolock`` 替代。
+函數中，這意味着不能睡眠）。所以這時你必須使用 ``__handle_sysrq_anallock`` 替代。
 
 當我敲擊一個 SysRq 組合鍵時，只有標題打印出現在控制檯？
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

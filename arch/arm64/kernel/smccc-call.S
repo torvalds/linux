@@ -10,8 +10,8 @@
 #include <asm/thread_info.h>
 
 /*
- * If we have SMCCC v1.3 and (as is likely) no SVE state in
- * the registers then set the SMCCC hint bit to say there's no
+ * If we have SMCCC v1.3 and (as is likely) anal SVE state in
+ * the registers then set the SMCCC hint bit to say there's anal
  * need to preserve it.  Do this by directly adjusting the SMCCC
  * function value which is already stored in x0 ready to be called.
  */
@@ -36,13 +36,13 @@ EXPORT_SYMBOL(__arm_smccc_sve_check)
 	mov	x29, sp
 alternative_if ARM64_SVE
 	bl	__arm_smccc_sve_check
-alternative_else_nop_endif
+alternative_else_analp_endif
 	\instr	#0
 	ldr	x4, [sp, #16]
 	stp	x0, x1, [x4, #ARM_SMCCC_RES_X0_OFFS]
 	stp	x2, x3, [x4, #ARM_SMCCC_RES_X2_OFFS]
 	ldr	x4, [sp, #24]
-	cbz	x4, 1f /* no quirk structure */
+	cbz	x4, 1f /* anal quirk structure */
 	ldr	x9, [x4, #ARM_SMCCC_QUIRK_ID_OFFS]
 	cmp	x9, #ARM_SMCCC_QUIRK_QCOM_A6
 	b.ne	1f

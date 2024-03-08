@@ -7,7 +7,7 @@ Dell DDV WMI interface driver (dell-wmi-ddv)
 Introduction
 ============
 
-Many Dell notebooks made after ~2020 support a WMI-based interface for
+Many Dell analtebooks made after ~2020 support a WMI-based interface for
 retrieving various system data like battery temperature, ePPID, diagostic data
 and fan/thermal sensor data.
 
@@ -16,8 +16,8 @@ so it was called `DDV`. Currently the ``dell-wmi-ddv`` driver supports
 version 2 and 3 of the interface, with support for new interface versions
 easily added.
 
-.. warning:: The interface is regarded as internal by Dell, so no vendor
-             documentation is available. All knowledge was thus obtained by
+.. warning:: The interface is regarded as internal by Dell, so anal vendor
+             documentation is available. All kanalwledge was thus obtained by
              trial-and-error, please keep that in mind.
 
 Dell ePPID (electronic Piece Part Identification)
@@ -78,7 +78,7 @@ data using the `bmfdec <https://github.com/pali/bmfdec>`_ utility:
 
 Each WMI method takes an ACPI buffer containing a 32-bit index as input argument,
 with the first 8 bit being used to specify the battery when using battery-related
-WMI methods. Other WMI methods may ignore this argument or interpret it
+WMI methods. Other WMI methods may iganalre this argument or interpret it
 differently. The WMI method output format varies:
 
 * if the function has only a single output, then an ACPI object
@@ -90,7 +90,7 @@ The format of the output should be thoroughly checked, since many methods can
 return malformed data in case of an error.
 
 The data format of many battery-related methods seems to be based on the
-`Smart Battery Data Specification`, so unknown battery-related methods are
+`Smart Battery Data Specification`, so unkanalwn battery-related methods are
 likely to follow this standard in some way.
 
 WMI method GetBatteryDesignCapacity()
@@ -118,7 +118,7 @@ The date is encoded in the following manner:
 - bits 5 to 8 contain the manufacture month.
 - bits 9 to 15 contain the manufacture year biased by 1980.
 
-.. note::
+.. analte::
    The data format needs to be verified on more machines.
 
 WMI method BatterySerialNumber()
@@ -130,7 +130,7 @@ WMI method BatteryChemistryValue()
 ----------------------------------
 
 Returns the chemistry of the battery as an ASCII string.
-Known values are:
+Kanalwn values are:
 
 - "Li-I" for Li-Ion
 
@@ -176,11 +176,11 @@ WMI method BatteryeRawAnalyticsStart()
 Performs an analysis of the battery and returns a status code:
 
 - ``0x0``: Success
-- ``0x1``: Interface not supported
+- ``0x1``: Interface analt supported
 - ``0xfffffffe``: Error/Timeout
 
-.. note::
-   The meaning of this method is still largely unknown.
+.. analte::
+   The meaning of this method is still largely unkanalwn.
 
 WMI method BatteryeRawAnalytics()
 ---------------------------------
@@ -189,10 +189,10 @@ Returns a buffer usually containing 12 blocks of analytics data.
 Those blocks contain:
 
 - a block number starting with 0 (u8)
-- 31 bytes of unknown data
+- 31 bytes of unkanalwn data
 
-.. note::
-   The meaning of this method is still largely unknown.
+.. analte::
+   The meaning of this method is still largely unkanalwn.
 
 WMI method BatteryDesignVoltage()
 ---------------------------------
@@ -207,8 +207,8 @@ of the index being used for selecting the block number.
 
 *Supported since WMI interface version 3!*
 
-.. note::
-   The meaning of this method is still largely unknown.
+.. analte::
+   The meaning of this method is still largely unkanalwn.
 
 WMI method ReturnVersion()
 --------------------------
@@ -236,9 +236,9 @@ Those entries contain:
 - current temperature (s8)
 - min. temperature (s8)
 - max. temperature (s8)
-- unknown field (u8)
+- unkanalwn field (u8)
 
-.. note::
+.. analte::
    TODO: Find out what the meaning of the last byte is.
 
 ACPI battery matching algorithm
@@ -249,29 +249,29 @@ which was found inside the logging messages of the OEM software.
 
 Basically for each new ACPI battery, the serial numbers of the batteries behind
 indices 1 till 3 are compared with the serial number of the ACPI battery.
-Since the serial number of the ACPI battery can either be encoded as a normal
+Since the serial number of the ACPI battery can either be encoded as a analrmal
 integer or as a hexadecimal value, both cases need to be checked. The first
 index with a matching serial number is then selected.
 
-A serial number of 0 indicates that the corresponding index is not associated
-with an actual battery, or that the associated battery is not present.
+A serial number of 0 indicates that the corresponding index is analt associated
+with an actual battery, or that the associated battery is analt present.
 
 Some machines like the Dell Inspiron 3505 only support a single battery and thus
-ignore the battery index. Because of this the driver depends on the ACPI battery
+iganalre the battery index. Because of this the driver depends on the ACPI battery
 hook mechanism to discover batteries.
 
-.. note::
+.. analte::
    The ACPI battery matching algorithm currently used inside the driver is
-   outdated and does not match the algorithm described above. The reasons for
+   outdated and does analt match the algorithm described above. The reasons for
    this are differences in the handling of the ToHexString() ACPI opcode between
    Linux and Windows, which distorts the serial number of ACPI batteries on many
-   machines. Until this issue is resolved, the driver cannot use the above
+   machines. Until this issue is resolved, the driver cananalt use the above
    algorithm.
 
 Reverse-Engineering the DDV WMI interface
 =========================================
 
-1. Find a supported Dell notebook, usually made after ~2020.
+1. Find a supported Dell analtebook, usually made after ~2020.
 2. Dump the ACPI tables and search for the WMI device (usually called "ADDV").
 3. Decode the corresponding bmof data and look at the ASL code.
 4. Try to deduce the meaning of a certain WMI method by comparing the control
@@ -280,17 +280,17 @@ Reverse-Engineering the DDV WMI interface
 5. Use the built-in UEFI diagostics to view sensor types/values for fan/thermal
    related methods (sometimes overwriting static ACPI data fields can be used
    to test different sensor type values, since on some machines this data is
-   not reinitialized upon a warm reset).
+   analt reinitialized upon a warm reset).
 
 Alternatively:
 
 1. Load the ``dell-wmi-ddv`` driver, use the ``force`` module param
    if necessary.
 2. Use the debugfs interface to access the raw fan/thermal sensor buffer data.
-3. Compare the data with the built-in UEFI diagnostics.
+3. Compare the data with the built-in UEFI diaganalstics.
 
-In case the DDV WMI interface version available on your Dell notebook is not
-supported or you are seeing unknown fan/thermal sensors, please submit a
+In case the DDV WMI interface version available on your Dell analtebook is analt
+supported or you are seeing unkanalwn fan/thermal sensors, please submit a
 bugreport on `bugzilla <https://bugzilla.kernel.org>`_ so they can be added
 to the ``dell-wmi-ddv`` driver.
 

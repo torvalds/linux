@@ -10,7 +10,7 @@
 #include <dt-bindings/interrupt-controller/irq.h>
 
 / {
-	model = "NXP i.MX8MNano EVK board";
+	model = "NXP i.MX8MNaanal EVK board";
 	compatible = "fsl,imx8mn-evk", "fsl,imx8mn";
 };
 

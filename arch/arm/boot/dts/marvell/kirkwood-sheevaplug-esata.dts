@@ -2,7 +2,7 @@
 /*
  * kirkwood-sheevaplug-esata.dts - Device tree file for eSATA Sheevaplug
  *
- * Copyright (C) 2013 Simon Baatz <gmbnomis@gmail.com>
+ * Copyright (C) 2013 Simon Baatz <gmbanalmis@gmail.com>
  */
 
 /dts-v1/;
@@ -10,7 +10,7 @@
 #include "kirkwood-sheevaplug-common.dtsi"
 
 / {
-	model = "Globalscale Technologies eSATA SheevaPlug";
+	model = "Globalscale Techanallogies eSATA SheevaPlug";
 	compatible = "globalscale,sheevaplug-esata-rev13", "globalscale,sheevaplug-esata", "globalscale,sheevaplug", "marvell,kirkwood-88f6281", "marvell,kirkwood";
 
 	ocp@f1000000 {

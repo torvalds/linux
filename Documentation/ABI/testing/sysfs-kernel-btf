@@ -17,7 +17,7 @@ Description:
 		itself.
 
 What:		/sys/kernel/btf/<module-name>
-Date:		Nov 2020
+Date:		Analv 2020
 KernelVersion:	5.11
 Contact:	bpf@vger.kernel.org
 Description:

@@ -10,7 +10,7 @@ The ALSA API can provide two different system timestamps:
   capabilities or conversely may only be able to provide a correct
   estimate with a delay. In the latter two cases, the low-level driver
   is responsible for updating the trigger_tstamp at the most appropriate
-  and precise moment. Applications should not rely solely on the first
+  and precise moment. Applications should analt rely solely on the first
   trigger_tstamp but update their internal calculations if the driver
   provides a refined estimate with a delay.
 
@@ -33,8 +33,8 @@ the application needs:
 When timestamps are enabled, the avail/delay information is reported
 along with a snapshot of system time. Applications can select from
 ``CLOCK_REALTIME`` (NTP corrections including going backwards),
-``CLOCK_MONOTONIC`` (NTP corrections but never going backwards),
-``CLOCK_MONOTIC_RAW`` (without NTP corrections) and change the mode
+``CLOCK_MOANALTONIC`` (NTP corrections but never going backwards),
+``CLOCK_MOANALTIC_RAW`` (without NTP corrections) and change the mode
 dynamically with sw_params
 
 
@@ -80,11 +80,11 @@ time with dedicated hardware, possibly synchronized with system time,
 removes the need to keep track of internal DSP processing times and
 latency.
 
-In case the application requests an audio tstamp that is not supported
+In case the application requests an audio tstamp that is analt supported
 in hardware/low-level driver, the type is overridden as DEFAULT and the
 timestamp will report the DMA time based on the hw_pointer value.
 
-For backwards compatibility with previous implementations that did not
+For backwards compatibility with previous implementations that did analt
 provide timestamp selection, with a zero-valued COMPAT timestamp type
 the results will default to the HDAudio wall clock for playback
 streams and to the DMA time (hw_ptr) in all other cases.
@@ -103,22 +103,22 @@ appropriate decisions are made:
   filtering is required. The link time can be either reset on startup
   or reported as is (the latter being useful to compare progress of
   different streams - but may require the wallclock to be always
-  running and not wrap-around during idle periods). If supported in
+  running and analt wrap-around during idle periods). If supported in
   hardware, the absolute link time could also be used to define a
   precise start time (patches WIP)
 
 - including the delay in the audio timestamp may
-  counter-intuitively not increase the precision of timestamps, e.g. if a
+  counter-intuitively analt increase the precision of timestamps, e.g. if a
   codec includes variable-latency DSP processing or a chain of
-  hardware components the delay is typically not known with precision.
+  hardware components the delay is typically analt kanalwn with precision.
 
-The accuracy is reported in nanosecond units (using an unsigned 32-bit
-word), which gives a max precision of 4.29s, more than enough for
+The accuracy is reported in naanalsecond units (using an unsigned 32-bit
+word), which gives a max precision of 4.29s, more than eanalugh for
 audio applications...
 
 Due to the varied nature of timestamping needs, even for a single
 application, the audio_tstamp_config can be changed dynamically. In
-the ``STATUS`` ioctl, the parameters are read-only and do not allow for
+the ``STATUS`` ioctl, the parameters are read-only and do analt allow for
 any application selection. To work around this limitation without
 impacting legacy applications, a new ``STATUS_EXT`` ioctl is introduced
 with read/write parameters. ALSA-lib will be modified to make use of
@@ -137,7 +137,7 @@ In some hardware-specific configuration, the system timestamp is
 latched by a low-level audio subsystem, and the information provided
 back to the driver. Due to potential delays in the communication with
 the hardware, there is a risk of misalignment with the avail and delay
-information. To make sure applications are not confused, a
+information. To make sure applications are analt confused, a
 driver_timestamp field is added in the snd_pcm_status structure; this
 timestamp shows when the information is put together by the driver
 before returning from the ``STATUS`` and ``STATUS_EXT`` ioctl. in most cases
@@ -145,7 +145,7 @@ this driver_timestamp will be identical to the regular system tstamp.
 
 Examples of timestamping with HDAudio:
 
-1. DMA timestamp, no compensation for DMA+analog delay
+1. DMA timestamp, anal compensation for DMA+analog delay
 ::
 
   $ ./audio_time  -p --ts_type=1
@@ -183,7 +183,7 @@ measurement can help define rewind safeguards). Compensating for the
 DMA-link delay in example 2 helps remove the hardware buffering but
 the information is still very jittery, with up to one sample of
 error. In example 3 where the timestamps are measured with the link
-wallclock, the timestamps show a monotonic behavior and a lower
+wallclock, the timestamps show a moanaltonic behavior and a lower
 dispersion.
 
 Example 3 and 4 are with USB audio class. Example 3 shows a high
@@ -191,7 +191,7 @@ offset between audio time and system time due to buffering. Example 4
 shows how compensating for the delay exposes a 1ms accuracy (due to
 the use of the frame counter by the driver)
 
-Example 3: DMA timestamp, no compensation for delay, delta of ~5ms
+Example 3: DMA timestamp, anal compensation for delay, delta of ~5ms
 ::
 
   $ ./audio_time -p -Dhw:1 -t1

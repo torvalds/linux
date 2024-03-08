@@ -42,8 +42,8 @@ struct lt9611uxc {
 	struct wait_queue_head wq;
 	struct work_struct work;
 
-	struct device_node *dsi0_node;
-	struct device_node *dsi1_node;
+	struct device_analde *dsi0_analde;
+	struct device_analde *dsi1_analde;
 	struct mipi_dsi_device *dsi0;
 	struct mipi_dsi_device *dsi1;
 	struct platform_device *audio_pdev;
@@ -179,7 +179,7 @@ static void lt9611uxc_hpd_work(struct work_struct *work)
 		connected = lt9611uxc->hdmi_connected;
 		mutex_unlock(&lt9611uxc->ocm_lock);
 
-		drm_bridge_hpd_notify(&lt9611uxc->bridge,
+		drm_bridge_hpd_analtify(&lt9611uxc->bridge,
 				      connected ?
 				      connector_status_connected :
 				      connector_status_disconnected);
@@ -256,7 +256,7 @@ static struct lt9611uxc_mode *lt9611uxc_find_mode(const struct drm_display_mode 
 }
 
 static struct mipi_dsi_device *lt9611uxc_attach_dsi(struct lt9611uxc *lt9611uxc,
-						    struct device_node *dsi_node)
+						    struct device_analde *dsi_analde)
 {
 	const struct mipi_dsi_device_info info = { "lt9611uxc", 0, NULL };
 	struct mipi_dsi_device *dsi;
@@ -264,7 +264,7 @@ static struct mipi_dsi_device *lt9611uxc_attach_dsi(struct lt9611uxc *lt9611uxc,
 	struct device *dev = lt9611uxc->dev;
 	int ret;
 
-	host = of_find_mipi_dsi_host_by_node(dsi_node);
+	host = of_find_mipi_dsi_host_by_analde(dsi_analde);
 	if (!host) {
 		dev_err(dev, "failed to find dsi host\n");
 		return ERR_PTR(-EPROBE_DEFER);
@@ -339,8 +339,8 @@ static int lt9611uxc_connector_init(struct drm_bridge *bridge, struct lt9611uxc 
 	int ret;
 
 	if (!bridge->encoder) {
-		DRM_ERROR("Parent encoder object not found");
-		return -ENODEV;
+		DRM_ERROR("Parent encoder object analt found");
+		return -EANALDEV;
 	}
 
 	lt9611uxc->connector.polled = DRM_CONNECTOR_POLL_HPD;
@@ -364,7 +364,7 @@ static int lt9611uxc_bridge_attach(struct drm_bridge *bridge,
 	struct lt9611uxc *lt9611uxc = bridge_to_lt9611uxc(bridge);
 	int ret;
 
-	if (!(flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR)) {
+	if (!(flags & DRM_BRIDGE_ATTACH_ANAL_CONNECTOR)) {
 		ret = lt9611uxc_connector_init(bridge, lt9611uxc);
 		if (ret < 0)
 			return ret;
@@ -485,7 +485,7 @@ static int lt9611uxc_get_edid_block(void *data, u8 *buf, unsigned int block, siz
 
 	regmap_write(lt9611uxc->regmap, 0xb00a, block * EDID_BLOCK_SIZE);
 
-	ret = regmap_noinc_read(lt9611uxc->regmap, 0xb0b0, buf, len);
+	ret = regmap_analinc_read(lt9611uxc->regmap, 0xb0b0, buf, len);
 	if (ret)
 		dev_err(lt9611uxc->dev, "edid read failed: %d\n", ret);
 
@@ -523,13 +523,13 @@ static const struct drm_bridge_funcs lt9611uxc_bridge_funcs = {
 static int lt9611uxc_parse_dt(struct device *dev,
 			      struct lt9611uxc *lt9611uxc)
 {
-	lt9611uxc->dsi0_node = of_graph_get_remote_node(dev->of_node, 0, -1);
-	if (!lt9611uxc->dsi0_node) {
-		dev_err(lt9611uxc->dev, "failed to get remote node for primary dsi\n");
-		return -ENODEV;
+	lt9611uxc->dsi0_analde = of_graph_get_remote_analde(dev->of_analde, 0, -1);
+	if (!lt9611uxc->dsi0_analde) {
+		dev_err(lt9611uxc->dev, "failed to get remote analde for primary dsi\n");
+		return -EANALDEV;
 	}
 
-	lt9611uxc->dsi1_node = of_graph_get_remote_node(dev->of_node, 1, -1);
+	lt9611uxc->dsi1_analde = of_graph_get_remote_analde(dev->of_analde, 1, -1);
 
 	return 0;
 }
@@ -596,7 +596,7 @@ static int lt9611uxc_hdmi_hw_params(struct device *dev, void *data,
 				    struct hdmi_codec_params *hparms)
 {
 	/*
-	 * LT9611UXC will automatically detect rate and sample size, so no need
+	 * LT9611UXC will automatically detect rate and sample size, so anal need
 	 * to setup anything here.
 	 */
 	return 0;
@@ -607,7 +607,7 @@ static void lt9611uxc_audio_shutdown(struct device *dev, void *data)
 }
 
 static int lt9611uxc_hdmi_i2s_get_dai_id(struct snd_soc_component *component,
-					 struct device_node *endpoint)
+					 struct device_analde *endpoint)
 {
 	struct of_endpoint of_ep;
 	int ret;
@@ -683,7 +683,7 @@ static void lt9611uxc_firmware_write_page(struct lt9611uxc *lt9611uxc, u16 addr,
 	regmap_write(lt9611uxc->regmap, 0x8108, 0xff);
 	msleep(20);
 	regmap_multi_reg_write(lt9611uxc->regmap, seq_write_prepare, ARRAY_SIZE(seq_write_prepare));
-	regmap_noinc_write(lt9611uxc->regmap, 0x8059, buf, LT9611UXC_FW_PAGE_SIZE);
+	regmap_analinc_write(lt9611uxc->regmap, 0x8059, buf, LT9611UXC_FW_PAGE_SIZE);
 	regmap_multi_reg_write(lt9611uxc->regmap, seq_write_addr, ARRAY_SIZE(seq_write_addr));
 	msleep(20);
 }
@@ -702,7 +702,7 @@ static void lt9611uxc_firmware_read_page(struct lt9611uxc *lt9611uxc, u16 addr, 
 	};
 
 	regmap_multi_reg_write(lt9611uxc->regmap, seq_read_page, ARRAY_SIZE(seq_read_page));
-	regmap_noinc_read(lt9611uxc->regmap, 0x805f, buf, LT9611UXC_FW_PAGE_SIZE);
+	regmap_analinc_read(lt9611uxc->regmap, 0x805f, buf, LT9611UXC_FW_PAGE_SIZE);
 }
 
 static char *lt9611uxc_firmware_read(struct lt9611uxc *lt9611uxc, size_t size)
@@ -790,7 +790,7 @@ static int lt9611uxc_firmware_update(struct lt9611uxc *lt9611uxc)
 
 	readbuf = lt9611uxc_firmware_read(lt9611uxc, fw->size);
 	if (!readbuf) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -855,12 +855,12 @@ static int lt9611uxc_probe(struct i2c_client *client)
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		dev_err(dev, "device doesn't support I2C\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	lt9611uxc = devm_kzalloc(dev, sizeof(*lt9611uxc), GFP_KERNEL);
 	if (!lt9611uxc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	lt9611uxc->dev = dev;
 	lt9611uxc->client = client;
@@ -916,11 +916,11 @@ retry:
 				goto retry;
 		} else {
 			dev_err(dev, "FW version 0, update failed\n");
-			ret = -EOPNOTSUPP;
+			ret = -EOPANALTSUPP;
 			goto err_disable_regulators;
 		}
 	} else if (ret < 0x40) {
-		dev_info(dev, "FW version 0x%x, HPD not supported\n", ret);
+		dev_info(dev, "FW version 0x%x, HPD analt supported\n", ret);
 	} else {
 		lt9611uxc->hpd_supported = true;
 	}
@@ -940,7 +940,7 @@ retry:
 	i2c_set_clientdata(client, lt9611uxc);
 
 	lt9611uxc->bridge.funcs = &lt9611uxc_bridge_funcs;
-	lt9611uxc->bridge.of_node = client->dev.of_node;
+	lt9611uxc->bridge.of_analde = client->dev.of_analde;
 	lt9611uxc->bridge.ops = DRM_BRIDGE_OP_DETECT | DRM_BRIDGE_OP_EDID;
 	if (lt9611uxc->hpd_supported)
 		lt9611uxc->bridge.ops |= DRM_BRIDGE_OP_HPD;
@@ -949,15 +949,15 @@ retry:
 	drm_bridge_add(&lt9611uxc->bridge);
 
 	/* Attach primary DSI */
-	lt9611uxc->dsi0 = lt9611uxc_attach_dsi(lt9611uxc, lt9611uxc->dsi0_node);
+	lt9611uxc->dsi0 = lt9611uxc_attach_dsi(lt9611uxc, lt9611uxc->dsi0_analde);
 	if (IS_ERR(lt9611uxc->dsi0)) {
 		ret = PTR_ERR(lt9611uxc->dsi0);
 		goto err_remove_bridge;
 	}
 
 	/* Attach secondary DSI, if specified */
-	if (lt9611uxc->dsi1_node) {
-		lt9611uxc->dsi1 = lt9611uxc_attach_dsi(lt9611uxc, lt9611uxc->dsi1_node);
+	if (lt9611uxc->dsi1_analde) {
+		lt9611uxc->dsi1 = lt9611uxc_attach_dsi(lt9611uxc, lt9611uxc->dsi1_analde);
 		if (IS_ERR(lt9611uxc->dsi1)) {
 			ret = PTR_ERR(lt9611uxc->dsi1);
 			goto err_remove_bridge;
@@ -975,8 +975,8 @@ err_disable_regulators:
 	regulator_bulk_disable(ARRAY_SIZE(lt9611uxc->supplies), lt9611uxc->supplies);
 
 err_of_put:
-	of_node_put(lt9611uxc->dsi1_node);
-	of_node_put(lt9611uxc->dsi0_node);
+	of_analde_put(lt9611uxc->dsi1_analde);
+	of_analde_put(lt9611uxc->dsi0_analde);
 
 	return ret;
 }
@@ -994,8 +994,8 @@ static void lt9611uxc_remove(struct i2c_client *client)
 
 	regulator_bulk_disable(ARRAY_SIZE(lt9611uxc->supplies), lt9611uxc->supplies);
 
-	of_node_put(lt9611uxc->dsi1_node);
-	of_node_put(lt9611uxc->dsi0_node);
+	of_analde_put(lt9611uxc->dsi1_analde);
+	of_analde_put(lt9611uxc->dsi0_analde);
 }
 
 static struct i2c_device_id lt9611uxc_id[] = {

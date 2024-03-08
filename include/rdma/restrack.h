@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
 /*
- * Copyright (c) 2017-2018 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2017-2018 Mellaanalx Techanallogies. All rights reserved.
  */
 
 #ifndef _RDMA_RESTRACK_H_
@@ -73,13 +73,13 @@ struct rdma_restrack_entry {
 	 */
 	bool			valid;
 	/**
-	 * @no_track: don't add this entry to restrack DB
+	 * @anal_track: don't add this entry to restrack DB
 	 *
 	 * This field is used to mark an entry that doesn't need to be added to
 	 * internal restrack DB and presented later to the users at the nldev
 	 * query stage.
 	 */
-	u8			no_track : 1;
+	u8			anal_track : 1;
 	/*
 	 * @kref: Protect destroy of the resource
 	 */
@@ -159,18 +159,18 @@ struct rdma_restrack_entry *rdma_restrack_get_byid(struct ib_device *dev,
 						   u32 id);
 
 /**
- * rdma_restrack_no_track() - don't add resource to the DB
+ * rdma_restrack_anal_track() - don't add resource to the DB
  * @res: resource entry
  *
  * Every user of this API should be cross examined.
  * Probably you don't need to use this function.
  */
-static inline void rdma_restrack_no_track(struct rdma_restrack_entry *res)
+static inline void rdma_restrack_anal_track(struct rdma_restrack_entry *res)
 {
-	res->no_track = true;
+	res->anal_track = true;
 }
 static inline bool rdma_restrack_is_tracked(struct rdma_restrack_entry *res)
 {
-	return !res->no_track;
+	return !res->anal_track;
 }
 #endif /* _RDMA_RESTRACK_H_ */

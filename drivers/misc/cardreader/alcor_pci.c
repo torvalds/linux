@@ -110,7 +110,7 @@ static int alcor_pci_probe(struct pci_dev *pdev,
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = ida_alloc(&alcor_pci_idr, GFP_KERNEL);
 	if (ret < 0)
@@ -125,20 +125,20 @@ static int alcor_pci_probe(struct pci_dev *pdev,
 
 	ret = pci_request_regions(pdev, DRV_NAME_ALCOR_PCI);
 	if (ret) {
-		dev_err(&pdev->dev, "Cannot request region\n");
-		ret = -ENOMEM;
+		dev_err(&pdev->dev, "Cananalt request region\n");
+		ret = -EANALMEM;
 		goto error_free_ida;
 	}
 
 	if (!(pci_resource_flags(pdev, bar) & IORESOURCE_MEM)) {
-		dev_err(&pdev->dev, "BAR %d is not iomem. Aborting.\n", bar);
-		ret = -ENODEV;
+		dev_err(&pdev->dev, "BAR %d is analt iomem. Aborting.\n", bar);
+		ret = -EANALDEV;
 		goto error_release_regions;
 	}
 
 	priv->iobase = pcim_iomap(pdev, bar, 0);
 	if (!priv->iobase) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error_release_regions;
 	}
 

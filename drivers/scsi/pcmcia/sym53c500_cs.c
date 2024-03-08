@@ -5,7 +5,7 @@
 *  A rewrite of the pcmcia-cs add-on driver for newer (circa 1997)
 *  New Media Bus Toaster PCMCIA SCSI cards using the Symbios Logic
 *  53c500 controller: intended for use with 2.6 and later kernels.
-*  The pcmcia-cs add-on version of this driver is not supported
+*  The pcmcia-cs add-on version of this driver is analt supported
 *  beyond 2.4.  It consisted of three files with history/copyright
 *  information as follows:
 *
@@ -13,13 +13,13 @@
 *	Bob Tracy (rct@frus.com)
 *	Original by Tom Corner (tcorner@via.at).
 *	Adapted from NCR53c406a.h which is Copyrighted (C) 1994
-*	Normunds Saumanis (normunds@rx.tech.swh.lv)
+*	Analrmunds Saumanis (analrmunds@rx.tech.swh.lv)
 *
 *  SYM53C500.c
 *	Bob Tracy (rct@frus.com)
 *	Original driver by Tom Corner (tcorner@via.at) was adapted
 *	from NCR53c406a.c which is Copyrighted (C) 1994, 1995, 1996 
-*	Normunds Saumanis (normunds@fi.ibm.com)
+*	Analrmunds Saumanis (analrmunds@fi.ibm.com)
 *
 *  sym53c500.c
 *	Bob Tracy (rct@frus.com)
@@ -33,7 +33,7 @@
 
 /*
 *  Set this to 0 if you encounter kernel lockups while transferring 
-*  data in PIO mode.  Note this can be changed via "sysfs".
+*  data in PIO mode.  Analte this can be changed via "sysfs".
 */
 #define USE_FAST_PIO 1
 
@@ -41,7 +41,7 @@
 
 #include <linux/module.h>
 #include <linux/moduleparam.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
@@ -69,7 +69,7 @@
 
 /* ================================================================== */
 
-#define SYNC_MODE 0 		/* Synchronous transfer mode */
+#define SYNC_MODE 0 		/* Synchroanalus transfer mode */
 
 /* Default configuration */
 #define C1_IMG   0x07		/* ID=7 */
@@ -91,9 +91,9 @@
 #define INT_REG		0x05		/* interrupt status register */
 #define SRTIMOUT	0x05		/* select/reselect timeout reg */
 #define SEQ_REG		0x06		/* sequence step register */
-#define SYNCPRD		0x06		/* synchronous transfer period */
+#define SYNCPRD		0x06		/* synchroanalus transfer period */
 #define FIFO_FLAGS	0x07		/* indicates # of bytes in fifo */
-#define SYNCOFF		0x07		/* synchronous offset register */
+#define SYNCOFF		0x07		/* synchroanalus offset register */
 #define CONFIG1		0x08		/* configuration register */
 #define CLKCONV		0x09		/* clock conversion register */
 /* #define TESTREG	0x0A */		/* test mode register */
@@ -145,12 +145,12 @@
 /* Chip commands */
 #define DMA_OP               0x80
 
-#define SCSI_NOP             0x00
+#define SCSI_ANALP             0x00
 #define FLUSH_FIFO           0x01
 #define CHIP_RESET           0x02
 #define SCSI_RESET           0x03
 #define RESELECT             0x40
-#define SELECT_NO_ATN        0x41
+#define SELECT_ANAL_ATN        0x41
 #define SELECT_ATN           0x42
 #define SELECT_ATN_STOP      0x43
 #define ENABLE_SEL           0x44
@@ -224,8 +224,8 @@ chip_init(int io_port)
 
 	outb(0x05, io_port + CLKCONV);	/* clock conversion factor */
 	outb(0x9C, io_port + SRTIMOUT);	/* Selection timeout */
-	outb(0x05, io_port + SYNCPRD);	/* Synchronous transfer period */
-	outb(SYNC_MODE, io_port + SYNCOFF);	/* synchronous mode */  
+	outb(0x05, io_port + SYNCPRD);	/* Synchroanalus transfer period */
+	outb(SYNC_MODE, io_port + SYNCOFF);	/* synchroanalus mode */  
 }
 
 static void
@@ -233,7 +233,7 @@ SYM53C500_int_host_reset(int io_port)
 {
 	outb(C4_IMG, io_port + CONFIG4);	/* REG0(io_port); */
 	outb(CHIP_RESET, io_port + CMD_REG);
-	outb(SCSI_NOP, io_port + CMD_REG);	/* required after reset */
+	outb(SCSI_ANALP, io_port + CMD_REG);	/* required after reset */
 	outb(SCSI_RESET, io_port + CMD_REG);
 	chip_init(io_port);
 }
@@ -405,7 +405,7 @@ SYM53C500_intr(int irq, void *dev_id)
 	if (int_reg & 0x20) {		/* Disconnect */
 		DEB(printk("SYM53C500: disconnect intr received\n"));
 		if (scp->phase != message_in) {	/* Unexpected disconnect */
-			curSC->result = DID_NO_CONNECT << 16;
+			curSC->result = DID_ANAL_CONNECT << 16;
 		} else {	/* Command complete, return status and message */
 			curSC->result = (scp->status & 0xff) |
 				((scp->message & 0xff) << 8) | (DID_OK << 16);
@@ -454,7 +454,7 @@ SYM53C500_intr(int irq, void *dev_id)
 
 	case 0x02:		/* COMMAND */
 		scp->phase = command_ph;
-		printk("SYM53C500: Warning: Unknown interrupt occurred in command phase!\n");
+		printk("SYM53C500: Warning: Unkanalwn interrupt occurred in command phase!\n");
 		break;
 
 	case 0x03:		/* STATUS */
@@ -575,7 +575,7 @@ static int SYM53C500_queue_lck(struct scsi_cmnd *SCpnt)
 	for (i = 0; i < SCpnt->cmd_len; i++) {
 		outb(SCpnt->cmnd[i], port_base + SCSI_FIFO);
 	}
-	outb(SELECT_NO_ATN, port_base + CMD_REG);
+	outb(SELECT_ANAL_ATN, port_base + CMD_REG);
 
 	return 0;
 }
@@ -690,7 +690,7 @@ static int SYM53C500_config_check(struct pcmcia_device *p_dev, void *priv_data)
 	p_dev->resource[0]->flags |= IO_DATA_PATH_WIDTH_AUTO;
 
 	if (p_dev->resource[0]->start == 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return pcmcia_request_io(p_dev);
 }
@@ -721,7 +721,7 @@ SYM53C500_config(struct pcmcia_device *link)
 		goto failed;
 
 	/*
-	*  That's the trouble with copying liberally from another driver.
+	*  That's the trouble with copying liberally from aanalther driver.
 	*  Some things probably aren't relevant, and I suspect this entire
 	*  section dealing with manufacturer IDs can be scrapped.	--rct
 	*/
@@ -736,7 +736,7 @@ SYM53C500_config(struct pcmcia_device *link)
 
 	/*
 	*  irq_level == 0 implies tpnt->can_queue == 0, which
-	*  is not supported in 2.6.  Thus, only irq_level > 0
+	*  is analt supported in 2.6.  Thus, only irq_level > 0
 	*  will be allowed.
 	*
 	*  Possible port_base values are as follows:
@@ -767,7 +767,7 @@ SYM53C500_config(struct pcmcia_device *link)
 		}
 		DEB(printk("SYM53C500: allocated IRQ %d\n", irq_level));
 	} else if (irq_level == 0) {
-		DEB(printk("SYM53C500: No interrupts detected\n"));
+		DEB(printk("SYM53C500: Anal interrupts detected\n"));
 		goto err_free_scsi;
 	} else {
 		DEB(printk("SYM53C500: Shouldn't get here!\n"));
@@ -781,7 +781,7 @@ SYM53C500_config(struct pcmcia_device *link)
 	host->dma_channel = -1;
 
 	/*
-	*  Note fast_pio is set to USE_FAST_PIO by
+	*  Analte fast_pio is set to USE_FAST_PIO by
 	*  default, but can be changed via "sysfs".
 	*/
 	data->fast_pio = USE_FAST_PIO;
@@ -801,12 +801,12 @@ err_free_scsi:
 	scsi_host_put(host);
 err_release:
 	release_region(port_base, 0x10);
-	printk(KERN_INFO "sym53c500_cs: no SCSI devices found\n");
-	return -ENODEV;
+	printk(KERN_INFO "sym53c500_cs: anal SCSI devices found\n");
+	return -EANALDEV;
 
 failed:
 	SYM53C500_release(link);
-	return -ENODEV;
+	return -EANALDEV;
 } /* SYM53C500_config */
 
 static int sym53c500_resume(struct pcmcia_device *link)
@@ -851,7 +851,7 @@ SYM53C500_probe(struct pcmcia_device *link)
 	/* Create new SCSI device */
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 	info->p_dev = link;
 	link->priv = info;
 	link->config_flags |= CONF_ENABLE_IRQ | CONF_AUTO_SET_IO;

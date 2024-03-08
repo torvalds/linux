@@ -123,7 +123,7 @@ static int snd_opl4_detect(struct snd_opl4 *opl4)
 		opl4->hardware = OPL3_HW_OPL4_ML;
 		break;
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	snd_opl4_write(opl4, OPL4_REG_MIX_CONTROL_FM, 0x00);
@@ -132,7 +132,7 @@ static int snd_opl4_detect(struct snd_opl4 *opl4)
 	id2 = snd_opl4_read(opl4, OPL4_REG_MIX_CONTROL_PCM);
 	snd_printdd("OPL4 id1=%02x id2=%02x\n", id1, id2);
        	if (id1 != 0x00 || id2 != 0xff)
-		return -ENODEV;
+		return -EANALDEV;
 
 	snd_opl4_write(opl4, OPL4_REG_MIX_CONTROL_FM, 0x3f);
 	snd_opl4_write(opl4, OPL4_REG_MIX_CONTROL_PCM, 0x3f);
@@ -195,7 +195,7 @@ int snd_opl4_create(struct snd_card *card,
 
 	opl4 = kzalloc(sizeof(*opl4), GFP_KERNEL);
 	if (!opl4)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	opl4->res_fm_port = request_region(fm_port, 8, "OPL4 FM");
 	opl4->res_pcm_port = request_region(pcm_port, 8, "OPL4 PCM/MIX");
@@ -214,7 +214,7 @@ int snd_opl4_create(struct snd_card *card,
 	err = snd_opl4_detect(opl4);
 	if (err < 0) {
 		snd_opl4_free(opl4);
-		snd_printd("OPL4 chip not detected at %#lx/%#lx\n", fm_port, pcm_port);
+		snd_printd("OPL4 chip analt detected at %#lx/%#lx\n", fm_port, pcm_port);
 		return err;
 	}
 

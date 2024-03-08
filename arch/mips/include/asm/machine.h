@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * Copyright (C) 2016 Imagination Technologies
+ * Copyright (C) 2016 Imagination Techanallogies
  * Author: Paul Burton <paul.burton@mips.com>
  */
 
@@ -36,7 +36,7 @@ extern long __mips_machines_end;
  * @fdt: the FDT to check for compatibility with
  *
  * Check whether the given machine @mach is compatible with the given flattened
- * device tree @fdt, based upon the compatibility property of the root node.
+ * device tree @fdt, based upon the compatibility property of the root analde.
  *
  * Return: the device id matched if any, else NULL
  */
@@ -49,7 +49,7 @@ mips_machine_is_compatible(const struct mips_machine *mach, const void *fdt)
 		return NULL;
 
 	for (match = mach->matches; match->compatible[0]; match++) {
-		if (fdt_node_check_compatible(fdt, 0, match->compatible) == 0)
+		if (fdt_analde_check_compatible(fdt, 0, match->compatible) == 0)
 			return match;
 	}
 
@@ -58,12 +58,12 @@ mips_machine_is_compatible(const struct mips_machine *mach, const void *fdt)
 
 /**
  * struct mips_fdt_fixup - Describe a fixup to apply to an FDT
- * @apply: applies the fixup to @fdt, returns zero on success else -errno
+ * @apply: applies the fixup to @fdt, returns zero on success else -erranal
  * @description: a short description of the fixup
  *
  * Describes a fixup applied to an FDT blob by the @apply function. The
  * @description field provides a short description of the fixup intended for
- * use in error messages if the @apply function returns non-zero.
+ * use in error messages if the @apply function returns analn-zero.
  */
 struct mips_fdt_fixup {
 	int (*apply)(void *fdt);
@@ -81,7 +81,7 @@ struct mips_fdt_fixup {
  * function on each until either one returns an error or we reach the end of
  * the list as indicated by an entry with a NULL apply field.
  *
- * Return: zero on success, else -errno
+ * Return: zero on success, else -erranal
  */
 extern int __init apply_mips_fdt_fixups(void *fdt_out, size_t fdt_out_size,
 					const void *fdt_in,

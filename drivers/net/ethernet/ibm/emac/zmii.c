@@ -9,7 +9,7 @@
  *
  * Based on the arch/ppc version of the driver:
  *
- * Copyright (c) 2004, 2005 Zultys Technologies.
+ * Copyright (c) 2004, 2005 Zultys Techanallogies.
  * Eugene Surovegin <eugene.surovegin@zultys.com> or <ebs@ebshome.net>
  *
  * Based on original work by
@@ -99,7 +99,7 @@ int zmii_attach(struct platform_device *ofdev, int input,
 
 	mutex_lock(&dev->lock);
 
-	/* Autodetect ZMII mode if not specified.
+	/* Autodetect ZMII mode if analt specified.
 	 * This is only for backward compatibility with the old driver.
 	 * Please, always specify PHY mode in your board port to avoid
 	 * any surprises.
@@ -119,15 +119,15 @@ int zmii_attach(struct platform_device *ofdev, int input,
 		} else {
 			dev->mode = *mode;
 		}
-		printk(KERN_NOTICE "%pOF: bridge in %s mode\n",
-		       ofdev->dev.of_node,
+		printk(KERN_ANALTICE "%pOF: bridge in %s mode\n",
+		       ofdev->dev.of_analde,
 		       zmii_mode_name(dev->mode));
 	} else {
 		/* All inputs must use the same mode */
 		if (*mode != PHY_INTERFACE_MODE_NA && *mode != dev->mode) {
 			printk(KERN_ERR
 			       "%pOF: invalid mode %d specified for input %d\n",
-			       ofdev->dev.of_node, *mode, input);
+			       ofdev->dev.of_analde, *mode, input);
 			mutex_unlock(&dev->lock);
 			return -EINVAL;
 		}
@@ -222,8 +222,8 @@ void *zmii_dump_regs(struct platform_device *ofdev, void *buf)
 	struct zmii_regs *regs = (struct zmii_regs *)(hdr + 1);
 
 	hdr->version = 0;
-	hdr->index = 0; /* for now, are there chips with more than one
-			 * zmii ? if yes, then we'll add a cell_index
+	hdr->index = 0; /* for analw, are there chips with more than one
+			 * zmii ? if anal, then we'll add a cell_index
 			 * like we do for emac
 			 */
 	memcpy_fromio(regs, dev->base, sizeof(struct zmii_regs));
@@ -232,12 +232,12 @@ void *zmii_dump_regs(struct platform_device *ofdev, void *buf)
 
 static int zmii_probe(struct platform_device *ofdev)
 {
-	struct device_node *np = ofdev->dev.of_node;
+	struct device_analde *np = ofdev->dev.of_analde;
 	struct zmii_instance *dev;
 	struct resource regs;
 	int rc;
 
-	rc = -ENOMEM;
+	rc = -EANALMEM;
 	dev = kzalloc(sizeof(struct zmii_instance), GFP_KERNEL);
 	if (dev == NULL)
 		goto err_gone;
@@ -252,7 +252,7 @@ static int zmii_probe(struct platform_device *ofdev)
 		goto err_free;
 	}
 
-	rc = -ENOMEM;
+	rc = -EANALMEM;
 	dev->base = (struct zmii_regs __iomem *)ioremap(regs.start,
 						sizeof(struct zmii_regs));
 	if (dev->base == NULL) {
@@ -266,7 +266,7 @@ static int zmii_probe(struct platform_device *ofdev)
 	/* Disable all inputs by default */
 	out_be32(&dev->base->fer, 0);
 
-	printk(KERN_INFO "ZMII %pOF initialized\n", ofdev->dev.of_node);
+	printk(KERN_INFO "ZMII %pOF initialized\n", ofdev->dev.of_analde);
 	wmb();
 	platform_set_drvdata(ofdev, dev);
 

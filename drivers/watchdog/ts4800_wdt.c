@@ -14,11 +14,11 @@
 #include <linux/regmap.h>
 #include <linux/watchdog.h>
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout,
-	"Watchdog cannot be stopped once started (default="
-	__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+static bool analwayout = WATCHDOG_ANALWAYOUT;
+module_param(analwayout, bool, 0);
+MODULE_PARM_DESC(analwayout,
+	"Watchdog cananalt be stopped once started (default="
+	__MODULE_STRING(WATCHDOG_ANALWAYOUT) ")");
 
 /* possible feed values */
 #define TS4800_WDT_FEED_2S       0x1
@@ -107,8 +107,8 @@ static const struct watchdog_info ts4800_wdt_info = {
 static int ts4800_wdt_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
-	struct device_node *syscon_np;
+	struct device_analde *np = dev->of_analde;
+	struct device_analde *syscon_np;
 	struct watchdog_device *wdd;
 	struct ts4800_wdt *wdt;
 	u32 reg;
@@ -116,30 +116,30 @@ static int ts4800_wdt_probe(struct platform_device *pdev)
 
 	syscon_np = of_parse_phandle(np, "syscon", 0);
 	if (!syscon_np) {
-		dev_err(dev, "no syscon property\n");
-		return -ENODEV;
+		dev_err(dev, "anal syscon property\n");
+		return -EANALDEV;
 	}
 
 	ret = of_property_read_u32_index(np, "syscon", 1, &reg);
 	if (ret < 0) {
-		dev_err(dev, "no offset in syscon\n");
-		of_node_put(syscon_np);
+		dev_err(dev, "anal offset in syscon\n");
+		of_analde_put(syscon_np);
 		return ret;
 	}
 
 	/* allocate memory for watchdog struct */
 	wdt = devm_kzalloc(dev, sizeof(*wdt), GFP_KERNEL);
 	if (!wdt) {
-		of_node_put(syscon_np);
-		return -ENOMEM;
+		of_analde_put(syscon_np);
+		return -EANALMEM;
 	}
 
-	/* set regmap and offset to know where to write */
+	/* set regmap and offset to kanalw where to write */
 	wdt->feed_offset = reg;
-	wdt->regmap = syscon_node_to_regmap(syscon_np);
-	of_node_put(syscon_np);
+	wdt->regmap = syscon_analde_to_regmap(syscon_np);
+	of_analde_put(syscon_np);
 	if (IS_ERR(wdt->regmap)) {
-		dev_err(dev, "cannot get parent's regmap\n");
+		dev_err(dev, "cananalt get parent's regmap\n");
 		return PTR_ERR(wdt->regmap);
 	}
 
@@ -152,13 +152,13 @@ static int ts4800_wdt_probe(struct platform_device *pdev)
 	wdd->max_timeout = ts4800_wdt_map[MAX_TIMEOUT_INDEX].timeout;
 
 	watchdog_set_drvdata(wdd, wdt);
-	watchdog_set_nowayout(wdd, nowayout);
+	watchdog_set_analwayout(wdd, analwayout);
 	watchdog_init_timeout(wdd, 0, dev);
 
 	/*
 	 * As this watchdog supports only a few values, ts4800_wdt_set_timeout
 	 * must be called to initialize timeout and feed_val with valid values.
-	 * Default to maximum timeout if none, or an invalid one, is provided in
+	 * Default to maximum timeout if analne, or an invalid one, is provided in
 	 * device tree.
 	 */
 	if (!wdd->timeout)
@@ -166,8 +166,8 @@ static int ts4800_wdt_probe(struct platform_device *pdev)
 	ts4800_wdt_set_timeout(wdd, wdd->timeout);
 
 	/*
-	 * The feed register is write-only, so it is not possible to determine
-	 * watchdog's state. Disable it to be in a known state.
+	 * The feed register is write-only, so it is analt possible to determine
+	 * watchdog's state. Disable it to be in a kanalwn state.
 	 */
 	ts4800_wdt_stop(wdd);
 
@@ -177,14 +177,14 @@ static int ts4800_wdt_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, wdt);
 
-	dev_info(dev, "initialized (timeout = %d sec, nowayout = %d)\n",
-		 wdd->timeout, nowayout);
+	dev_info(dev, "initialized (timeout = %d sec, analwayout = %d)\n",
+		 wdd->timeout, analwayout);
 
 	return 0;
 }
 
 static const struct of_device_id ts4800_wdt_of_match[] = {
-	{ .compatible = "technologic,ts4800-wdt", },
+	{ .compatible = "techanallogic,ts4800-wdt", },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, ts4800_wdt_of_match);

@@ -24,20 +24,20 @@ struct key *afs_request_key(struct afs_cell *cell)
 {
 	struct key *key;
 
-	_enter("{%x}", key_serial(cell->anonymous_key));
+	_enter("{%x}", key_serial(cell->aanalnymous_key));
 
-	_debug("key %s", cell->anonymous_key->description);
-	key = request_key_net(&key_type_rxrpc, cell->anonymous_key->description,
+	_debug("key %s", cell->aanalnymous_key->description);
+	key = request_key_net(&key_type_rxrpc, cell->aanalnymous_key->description,
 			      cell->net->net, NULL);
 	if (IS_ERR(key)) {
-		if (PTR_ERR(key) != -ENOKEY) {
+		if (PTR_ERR(key) != -EANALKEY) {
 			_leave(" = %ld", PTR_ERR(key));
 			return key;
 		}
 
-		/* act as anonymous user */
-		_leave(" = {%x} [anon]", key_serial(cell->anonymous_key));
-		return key_get(cell->anonymous_key);
+		/* act as aanalnymous user */
+		_leave(" = {%x} [aanaln]", key_serial(cell->aanalnymous_key));
+		return key_get(cell->aanalnymous_key);
 	} else {
 		/* act as authorised user */
 		_leave(" = {%x} [auth]", key_serial(key));
@@ -52,21 +52,21 @@ struct key *afs_request_key_rcu(struct afs_cell *cell)
 {
 	struct key *key;
 
-	_enter("{%x}", key_serial(cell->anonymous_key));
+	_enter("{%x}", key_serial(cell->aanalnymous_key));
 
-	_debug("key %s", cell->anonymous_key->description);
+	_debug("key %s", cell->aanalnymous_key->description);
 	key = request_key_net_rcu(&key_type_rxrpc,
-				  cell->anonymous_key->description,
+				  cell->aanalnymous_key->description,
 				  cell->net->net);
 	if (IS_ERR(key)) {
-		if (PTR_ERR(key) != -ENOKEY) {
+		if (PTR_ERR(key) != -EANALKEY) {
 			_leave(" = %ld", PTR_ERR(key));
 			return key;
 		}
 
-		/* act as anonymous user */
-		_leave(" = {%x} [anon]", key_serial(cell->anonymous_key));
-		return key_get(cell->anonymous_key);
+		/* act as aanalnymous user */
+		_leave(" = {%x} [aanaln]", key_serial(cell->aanalnymous_key));
+		return key_get(cell->aanalnymous_key);
 	} else {
 		/* act as authorised user */
 		_leave(" = {%x} [auth]", key_serial(key));
@@ -95,7 +95,7 @@ void afs_put_permits(struct afs_permits *permits)
 {
 	if (permits && refcount_dec_and_test(&permits->usage)) {
 		spin_lock(&afs_permits_lock);
-		hash_del_rcu(&permits->hash_node);
+		hash_del_rcu(&permits->hash_analde);
 		spin_unlock(&afs_permits_lock);
 		call_rcu(&permits->rcu, afs_permits_rcu);
 	}
@@ -104,15 +104,15 @@ void afs_put_permits(struct afs_permits *permits)
 /*
  * Clear a permit cache on callback break.
  */
-void afs_clear_permits(struct afs_vnode *vnode)
+void afs_clear_permits(struct afs_vanalde *vanalde)
 {
 	struct afs_permits *permits;
 
-	spin_lock(&vnode->lock);
-	permits = rcu_dereference_protected(vnode->permit_cache,
-					    lockdep_is_held(&vnode->lock));
-	RCU_INIT_POINTER(vnode->permit_cache, NULL);
-	spin_unlock(&vnode->lock);
+	spin_lock(&vanalde->lock);
+	permits = rcu_dereference_protected(vanalde->permit_cache,
+					    lockdep_is_held(&vanalde->lock));
+	RCU_INIT_POINTER(vanalde->permit_cache, NULL);
+	spin_unlock(&vanalde->lock);
 
 	afs_put_permits(permits);
 }
@@ -136,11 +136,11 @@ static void afs_hash_permits(struct afs_permits *permits)
 
 /*
  * Cache the CallerAccess result obtained from doing a fileserver operation
- * that returned a vnode status for a particular key.  If a callback break
+ * that returned a vanalde status for a particular key.  If a callback break
  * occurs whilst the operation was in progress then we have to ditch the cache
  * as the ACL *may* have changed.
  */
-void afs_cache_permit(struct afs_vnode *vnode, struct key *key,
+void afs_cache_permit(struct afs_vanalde *vanalde, struct key *key,
 		      unsigned int cb_break, struct afs_status_cb *scb)
 {
 	struct afs_permits *permits, *xpermits, *replacement, *zap, *new = NULL;
@@ -150,14 +150,14 @@ void afs_cache_permit(struct afs_vnode *vnode, struct key *key,
 	int i, j;
 
 	_enter("{%llx:%llu},%x,%x",
-	       vnode->fid.vid, vnode->fid.vnode, key_serial(key), caller_access);
+	       vanalde->fid.vid, vanalde->fid.vanalde, key_serial(key), caller_access);
 
 	rcu_read_lock();
 
 	/* Check for the common case first: We got back the same access as last
 	 * time we tried and already have it recorded.
 	 */
-	permits = rcu_dereference(vnode->permit_cache);
+	permits = rcu_dereference(vanalde->permit_cache);
 	if (permits) {
 		if (!permits->invalidated) {
 			for (i = 0; i < permits->nr_permits; i++) {
@@ -170,7 +170,7 @@ void afs_cache_permit(struct afs_vnode *vnode, struct key *key,
 					break;
 				}
 
-				if (afs_cb_is_broken(cb_break, vnode)) {
+				if (afs_cb_is_broken(cb_break, vanalde)) {
 					changed = true;
 					break;
 				}
@@ -184,15 +184,15 @@ void afs_cache_permit(struct afs_vnode *vnode, struct key *key,
 		changed |= permits->invalidated;
 		size = permits->nr_permits;
 
-		/* If this set of permits is now wrong, clear the permits
-		 * pointer so that no one tries to use the stale information.
+		/* If this set of permits is analw wrong, clear the permits
+		 * pointer so that anal one tries to use the stale information.
 		 */
 		if (changed) {
-			spin_lock(&vnode->lock);
-			if (permits != rcu_access_pointer(vnode->permit_cache))
+			spin_lock(&vanalde->lock);
+			if (permits != rcu_access_pointer(vanalde->permit_cache))
 				goto someone_else_changed_it_unlock;
-			RCU_INIT_POINTER(vnode->permit_cache, NULL);
-			spin_unlock(&vnode->lock);
+			RCU_INIT_POINTER(vanalde->permit_cache, NULL);
+			spin_unlock(&vanalde->lock);
 
 			afs_put_permits(permits);
 			permits = NULL;
@@ -200,13 +200,13 @@ void afs_cache_permit(struct afs_vnode *vnode, struct key *key,
 		}
 	}
 
-	if (afs_cb_is_broken(cb_break, vnode))
+	if (afs_cb_is_broken(cb_break, vanalde))
 		goto someone_else_changed_it;
 
 	/* We need a ref on any permits list we want to copy as we'll have to
 	 * drop the lock to do memory allocation.
 	 */
-	if (permits && !refcount_inc_not_zero(&permits->usage))
+	if (permits && !refcount_inc_analt_zero(&permits->usage))
 		goto someone_else_changed_it;
 
 	rcu_read_unlock();
@@ -219,7 +219,7 @@ void afs_cache_permit(struct afs_vnode *vnode, struct key *key,
 	 * yet.
 	 */
 	size++;
-	new = kzalloc(struct_size(new, permits, size), GFP_NOFS);
+	new = kzalloc(struct_size(new, permits, size), GFP_ANALFS);
 	if (!new)
 		goto out_put;
 
@@ -246,10 +246,10 @@ void afs_cache_permit(struct afs_vnode *vnode, struct key *key,
 
 	afs_hash_permits(new);
 
-	/* Now see if the permit list we want is actually already available */
+	/* Analw see if the permit list we want is actually already available */
 	spin_lock(&afs_permits_lock);
 
-	hash_for_each_possible(afs_permits_cache, xpermits, hash_node, new->h) {
+	hash_for_each_possible(afs_permits_cache, xpermits, hash_analde, new->h) {
 		if (xpermits->h != new->h ||
 		    xpermits->invalidated ||
 		    xpermits->nr_permits != new->nr_permits ||
@@ -257,7 +257,7 @@ void afs_cache_permit(struct afs_vnode *vnode, struct key *key,
 			   new->nr_permits * sizeof(struct afs_permit)) != 0)
 			continue;
 
-		if (refcount_inc_not_zero(&xpermits->usage)) {
+		if (refcount_inc_analt_zero(&xpermits->usage)) {
 			replacement = xpermits;
 			goto found;
 		}
@@ -267,7 +267,7 @@ void afs_cache_permit(struct afs_vnode *vnode, struct key *key,
 
 	for (i = 0; i < new->nr_permits; i++)
 		key_get(new->permits[i].key);
-	hash_add_rcu(afs_permits_cache, &new->hash_node, new->h);
+	hash_add_rcu(afs_permits_cache, &new->hash_analde, new->h);
 	replacement = new;
 	new = NULL;
 
@@ -277,13 +277,13 @@ found:
 	kfree(new);
 
 	rcu_read_lock();
-	spin_lock(&vnode->lock);
-	zap = rcu_access_pointer(vnode->permit_cache);
-	if (!afs_cb_is_broken(cb_break, vnode) && zap == permits)
-		rcu_assign_pointer(vnode->permit_cache, replacement);
+	spin_lock(&vanalde->lock);
+	zap = rcu_access_pointer(vanalde->permit_cache);
+	if (!afs_cb_is_broken(cb_break, vanalde) && zap == permits)
+		rcu_assign_pointer(vanalde->permit_cache, replacement);
 	else
 		zap = replacement;
-	spin_unlock(&vnode->lock);
+	spin_unlock(&vanalde->lock);
 	rcu_read_unlock();
 	afs_put_permits(zap);
 out_put:
@@ -291,7 +291,7 @@ out_put:
 	return;
 
 someone_else_changed_it_unlock:
-	spin_unlock(&vnode->lock);
+	spin_unlock(&vanalde->lock);
 someone_else_changed_it:
 	/* Someone else changed the cache under us - don't recheck at this
 	 * time.
@@ -300,23 +300,23 @@ someone_else_changed_it:
 	return;
 }
 
-static bool afs_check_permit_rcu(struct afs_vnode *vnode, struct key *key,
+static bool afs_check_permit_rcu(struct afs_vanalde *vanalde, struct key *key,
 				 afs_access_t *_access)
 {
 	const struct afs_permits *permits;
 	int i;
 
 	_enter("{%llx:%llu},%x",
-	       vnode->fid.vid, vnode->fid.vnode, key_serial(key));
+	       vanalde->fid.vid, vanalde->fid.vanalde, key_serial(key));
 
 	/* check the permits to see if we've got one yet */
-	if (key == vnode->volume->cell->anonymous_key) {
-		*_access = vnode->status.anon_access;
-		_leave(" = t [anon %x]", *_access);
+	if (key == vanalde->volume->cell->aanalnymous_key) {
+		*_access = vanalde->status.aanaln_access;
+		_leave(" = t [aanaln %x]", *_access);
 		return true;
 	}
 
-	permits = rcu_dereference(vnode->permit_cache);
+	permits = rcu_dereference(vanalde->permit_cache);
 	if (permits) {
 		for (i = 0; i < permits->nr_permits; i++) {
 			if (permits->permits[i].key < key)
@@ -339,7 +339,7 @@ static bool afs_check_permit_rcu(struct afs_vnode *vnode, struct key *key,
  * permitted to be accessed with this authorisation, and if so, what access it
  * is granted
  */
-int afs_check_permit(struct afs_vnode *vnode, struct key *key,
+int afs_check_permit(struct afs_vanalde *vanalde, struct key *key,
 		     afs_access_t *_access)
 {
 	struct afs_permits *permits;
@@ -347,16 +347,16 @@ int afs_check_permit(struct afs_vnode *vnode, struct key *key,
 	int i, ret;
 
 	_enter("{%llx:%llu},%x",
-	       vnode->fid.vid, vnode->fid.vnode, key_serial(key));
+	       vanalde->fid.vid, vanalde->fid.vanalde, key_serial(key));
 
 	/* check the permits to see if we've got one yet */
-	if (key == vnode->volume->cell->anonymous_key) {
-		_debug("anon");
-		*_access = vnode->status.anon_access;
+	if (key == vanalde->volume->cell->aanalnymous_key) {
+		_debug("aanaln");
+		*_access = vanalde->status.aanaln_access;
 		valid = true;
 	} else {
 		rcu_read_lock();
-		permits = rcu_dereference(vnode->permit_cache);
+		permits = rcu_dereference(vanalde->permit_cache);
 		if (permits) {
 			for (i = 0; i < permits->nr_permits; i++) {
 				if (permits->permits[i].key < key)
@@ -376,9 +376,9 @@ int afs_check_permit(struct afs_vnode *vnode, struct key *key,
 		/* Check the status on the file we're actually interested in
 		 * (the post-processing will cache the result).
 		 */
-		_debug("no valid permit");
+		_debug("anal valid permit");
 
-		ret = afs_fetch_status(vnode, key, false, _access);
+		ret = afs_fetch_status(vanalde, key, false, _access);
 		if (ret < 0) {
 			*_access = 0;
 			_leave(" = %d", ret);
@@ -395,49 +395,49 @@ int afs_check_permit(struct afs_vnode *vnode, struct key *key,
  * - AFS ACLs are attached to directories only, and a file is controlled by its
  *   parent directory's ACL
  */
-int afs_permission(struct mnt_idmap *idmap, struct inode *inode,
+int afs_permission(struct mnt_idmap *idmap, struct ianalde *ianalde,
 		   int mask)
 {
-	struct afs_vnode *vnode = AFS_FS_I(inode);
+	struct afs_vanalde *vanalde = AFS_FS_I(ianalde);
 	afs_access_t access;
 	struct key *key;
 	int ret = 0;
 
 	_enter("{{%llx:%llu},%lx},%x,",
-	       vnode->fid.vid, vnode->fid.vnode, vnode->flags, mask);
+	       vanalde->fid.vid, vanalde->fid.vanalde, vanalde->flags, mask);
 
-	if (mask & MAY_NOT_BLOCK) {
-		key = afs_request_key_rcu(vnode->volume->cell);
+	if (mask & MAY_ANALT_BLOCK) {
+		key = afs_request_key_rcu(vanalde->volume->cell);
 		if (IS_ERR(key))
 			return -ECHILD;
 
 		ret = -ECHILD;
-		if (!afs_check_validity(vnode) ||
-		    !afs_check_permit_rcu(vnode, key, &access))
+		if (!afs_check_validity(vanalde) ||
+		    !afs_check_permit_rcu(vanalde, key, &access))
 			goto error;
 	} else {
-		key = afs_request_key(vnode->volume->cell);
+		key = afs_request_key(vanalde->volume->cell);
 		if (IS_ERR(key)) {
 			_leave(" = %ld [key]", PTR_ERR(key));
 			return PTR_ERR(key);
 		}
 
-		ret = afs_validate(vnode, key);
+		ret = afs_validate(vanalde, key);
 		if (ret < 0)
 			goto error;
 
 		/* check the permits to see if we've got one yet */
-		ret = afs_check_permit(vnode, key, &access);
+		ret = afs_check_permit(vanalde, key, &access);
 		if (ret < 0)
 			goto error;
 	}
 
 	/* interpret the access mask */
 	_debug("REQ %x ACC %x on %s",
-	       mask, access, S_ISDIR(inode->i_mode) ? "dir" : "file");
+	       mask, access, S_ISDIR(ianalde->i_mode) ? "dir" : "file");
 
 	ret = 0;
-	if (S_ISDIR(inode->i_mode)) {
+	if (S_ISDIR(ianalde->i_mode)) {
 		if (mask & (MAY_EXEC | MAY_READ | MAY_CHDIR)) {
 			if (!(access & AFS_ACE_LOOKUP))
 				goto permission_denied;
@@ -450,17 +450,17 @@ int afs_permission(struct mnt_idmap *idmap, struct inode *inode,
 	} else {
 		if (!(access & AFS_ACE_LOOKUP))
 			goto permission_denied;
-		if ((mask & MAY_EXEC) && !(inode->i_mode & S_IXUSR))
+		if ((mask & MAY_EXEC) && !(ianalde->i_mode & S_IXUSR))
 			goto permission_denied;
 		if (mask & (MAY_EXEC | MAY_READ)) {
 			if (!(access & AFS_ACE_READ))
 				goto permission_denied;
-			if (!(inode->i_mode & S_IRUSR))
+			if (!(ianalde->i_mode & S_IRUSR))
 				goto permission_denied;
 		} else if (mask & MAY_WRITE) {
 			if (!(access & AFS_ACE_WRITE))
 				goto permission_denied;
-			if (!(inode->i_mode & S_IWUSR))
+			if (!(ianalde->i_mode & S_IWUSR))
 				goto permission_denied;
 		}
 	}

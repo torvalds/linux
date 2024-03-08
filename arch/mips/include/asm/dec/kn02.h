@@ -1,5 +1,5 @@
 /*
- * Hardware info about DECstation 5000/200 systems (otherwise known as
+ * Hardware info about DECstation 5000/200 systems (otherwise kanalwn as
  * 3max or KN02).
  *
  * This file is subject to the terms and conditions of the GNU General Public
@@ -38,8 +38,8 @@
 #define KN02_CSR_REFEVEN	(1<<25)		/* mem refresh bank toggle */
 #define KN02_CSR_NRMOD		(1<<24)		/* ~NRMOD manufact. jumper */
 #define KN02_CSR_IOINTEN	(0xff<<16)	/* IRQ mask bits */
-#define KN02_CSR_DIAGCHK	(1<<15)		/* diagn/norml ECC reads */
-#define KN02_CSR_DIAGGEN	(1<<14)		/* diagn/norml ECC writes */
+#define KN02_CSR_DIAGCHK	(1<<15)		/* diagn/analrml ECC reads */
+#define KN02_CSR_DIAGGEN	(1<<14)		/* diagn/analrml ECC writes */
 #define KN02_CSR_CORRECT	(1<<13)		/* ECC correct/check */
 #define KN02_CSR_LEDIAG		(1<<12)		/* ECC diagn. latch strobe */
 #define KN02_CSR_TXDIS		(1<<11)		/* DZ11 transmit disable */
@@ -47,7 +47,7 @@
 #define KN02_CSR_DIAGDN		(1<<9)		/* DIAGDN manufact. jumper */
 #define KN02_CSR_BAUD38		(1<<8)		/* DZ11 38/19kbps ext. rate */
 #define KN02_CSR_IOINT		(0xff<<0)	/* IRQ status bits (r/o) */
-#define KN02_CSR_LEDS		(0xff<<0)	/* ~diagnostic LEDs (w/o) */
+#define KN02_CSR_LEDS		(0xff<<0)	/* ~diaganalstic LEDs (w/o) */
 
 
 /*

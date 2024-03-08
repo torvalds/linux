@@ -26,7 +26,7 @@
  * @serial: pointer back to the struct usb_serial owner of this port.
  * @port: pointer to the corresponding tty_port for this port.
  * @lock: spinlock to grab when updating portions of this structure.
- * @minor: the minor number of the port
+ * @mianalr: the mianalr number of the port
  * @port_number: the struct usb_serial port number of this port (starts at 0)
  * @interrupt_in_buffer: pointer to the interrupt in buffer for this port.
  * @interrupt_in_urb: pointer to the interrupt in struct urb for this port.
@@ -67,7 +67,7 @@ struct usb_serial_port {
 	struct usb_serial	*serial;
 	struct tty_port		port;
 	spinlock_t		lock;
-	u32			minor;
+	u32			mianalr;
 	u8			port_number;
 
 	unsigned char		*interrupt_in_buffer;
@@ -135,7 +135,7 @@ static inline void usb_set_serial_port_data(struct usb_serial_port *port,
  * @port: array of struct usb_serial_port structures for the different ports.
  * @private: place to put any driver specific information that is needed.  The
  *	usb-serial driver is required to manage this data, the usb-serial core
- *	will not touch this.  Use usb_get_serial_data() and
+ *	will analt touch this.  Use usb_get_serial_data() and
  *	usb_set_serial_data() to access this.
  */
 struct usb_serial {
@@ -146,7 +146,7 @@ struct usb_serial {
 	unsigned int			suspend_count;
 	unsigned char			disconnected:1;
 	unsigned char			attached:1;
-	unsigned char			minors_reserved:1;
+	unsigned char			mianalrs_reserved:1;
 	unsigned char			num_ports;
 	unsigned char			num_port_pointers;
 	unsigned char			num_interrupt_in;
@@ -222,7 +222,7 @@ struct usb_serial_endpoints {
  * This structure is defines a USB Serial driver.  It provides all of
  * the information that the USB serial core code needs.  If the function
  * pointers are defined, then the USB serial core code will call them when
- * the corresponding tty port functions are called.  If they are not
+ * the corresponding tty port functions are called.  If they are analt
  * called, the generic serial function will be used instead.
  *
  * The driver.owner field should be set to the module owner of this driver.
@@ -290,7 +290,7 @@ struct usb_serial_driver {
 	int  (*tiocmiwait)(struct tty_struct *tty, unsigned long arg);
 	int  (*get_icount)(struct tty_struct *tty,
 			struct serial_icounter_struct *icount);
-	/* Called by the tty layer for port level work. There may or may not
+	/* Called by the tty layer for port level work. There may or may analt
 	   be an attached tty at this point */
 	void (*dtr_rts)(struct usb_serial_port *port, int on);
 	int  (*carrier_raised)(struct usb_serial_port *port);
@@ -321,17 +321,17 @@ int usb_serial_resume(struct usb_interface *intf);
 
 /* USB Serial console functions */
 #ifdef CONFIG_USB_SERIAL_CONSOLE
-void usb_serial_console_init(int minor);
+void usb_serial_console_init(int mianalr);
 void usb_serial_console_exit(void);
 void usb_serial_console_disconnect(struct usb_serial *serial);
 #else
-static inline void usb_serial_console_init(int minor) { }
+static inline void usb_serial_console_init(int mianalr) { }
 static inline void usb_serial_console_exit(void) { }
 static inline void usb_serial_console_disconnect(struct usb_serial *serial) {}
 #endif
 
 /* Functions needed by other parts of the usbserial core */
-struct usb_serial_port *usb_serial_port_get_by_minor(unsigned int minor);
+struct usb_serial_port *usb_serial_port_get_by_mianalr(unsigned int mianalr);
 void usb_serial_put(struct usb_serial *serial);
 
 int usb_serial_claim_interface(struct usb_serial *serial, struct usb_interface *intf);
@@ -409,7 +409,7 @@ do {									\
  * @__serial_drivers: list of usb_serial drivers to register
  * @__ids: all device ids that @__serial_drivers bind to
  *
- * Helper macro for USB serial drivers which do not do anything special
+ * Helper macro for USB serial drivers which do analt do anything special
  * in module init/exit. This eliminates a lot of boilerplate. Each
  * module may only use this macro once, and calling it replaces
  * module_init() and module_exit()

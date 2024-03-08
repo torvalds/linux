@@ -58,7 +58,7 @@ static void am65_cpsw_tx_pn_shaper_apply(struct am65_cpsw_port *port)
 	int tc, prio;
 
 	mqprio = &p_mqprio->mqprio_hw;
-	/* takes care of no link case as well */
+	/* takes care of anal link case as well */
 	if (p_mqprio->max_rate_total > port->qos.link_speed)
 		shaper_susp = true;
 
@@ -120,7 +120,7 @@ static int am65_cpsw_mqprio_verify_shaper(struct am65_cpsw_port *port,
 
 	if (!has_min_rate && has_max_rate) {
 		NL_SET_ERR_MSG_MOD(extack, "min_rate is required with max_rate");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (!has_min_rate)
@@ -214,7 +214,7 @@ static int am65_cpsw_setup_mqprio(struct net_device *ndev, void *type_data)
 
 	ret = pm_runtime_get_sync(common->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(common->dev);
+		pm_runtime_put_analidle(common->dev);
 		return ret;
 	}
 
@@ -233,7 +233,7 @@ static int am65_cpsw_setup_mqprio(struct net_device *ndev, void *type_data)
 	/* Multiple Linux priorities can map to a Traffic Class
 	 * A Traffic Class can have multiple contiguous Queues,
 	 * Queues get mapped to Channels (thread_id),
-	 *	if not VLAN tagged, thread_id is used as packet_priority
+	 *	if analt VLAN tagged, thread_id is used as packet_priority
 	 *	if VLAN tagged. VLAN priority is used as packet_priority
 	 * packet_priority gets mapped to header_priority in p0_rx_pri_map,
 	 * header_priority gets mapped to switch_priority in pn_tx_pri_map.
@@ -322,12 +322,12 @@ static int am65_cpsw_iet_verify_wait(struct am65_cpsw_port *port)
 
 		if (status & AM65_CPSW_PN_MAC_RESPOND_ERR) {
 			netdev_dbg(port->ndev, "MAC Merge respond error\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 
 		if (status & AM65_CPSW_PN_MAC_VERIFY_ERR) {
 			netdev_dbg(port->ndev, "MAC Merge verify error\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	} while (try-- > 0);
 
@@ -374,7 +374,7 @@ void am65_cpsw_iet_common_enable(struct am65_cpsw_common *common)
 	common->iet_enabled = rx_enable;
 }
 
-/* CPSW does not have an IRQ to notify changes to the MAC Merge TX status
+/* CPSW does analt have an IRQ to analtify changes to the MAC Merge TX status
  * (active/inactive), but the preemptible traffic classes should only be
  * committed to hardware once TX is active. Resort to polling.
  */
@@ -384,7 +384,7 @@ void am65_cpsw_iet_commit_preemptible_tcs(struct am65_cpsw_port *port)
 	int err;
 	u32 val;
 
-	if (port->qos.link_speed == SPEED_UNKNOWN)
+	if (port->qos.link_speed == SPEED_UNKANALWN)
 		return;
 
 	val = readl(port->port_base + AM65_CPSW_PN_REG_CTL);
@@ -482,13 +482,13 @@ static void am65_cpsw_port_est_assign_buf_num(struct net_device *ndev,
 }
 
 /* am65_cpsw_port_est_is_swapped() - Indicate if h/w is transitioned
- * admin -> oper or not
+ * admin -> oper or analt
  *
  * Return true if already transitioned. i.e oper is equal to admin and buf
  * numbers match (est_oper->buf match with est_admin->buf).
- * false if before transition. i.e oper is not equal to admin, (i.e a
+ * false if before transition. i.e oper is analt equal to admin, (i.e a
  * previous admin command is waiting to be transitioned to oper state
- * and est_oper->buf not match with est_oper->buf).
+ * and est_oper->buf analt match with est_oper->buf).
  */
 static int am65_cpsw_port_est_is_swapped(struct net_device *ndev, int *oper,
 					 int *admin)
@@ -510,7 +510,7 @@ static int am65_cpsw_port_est_is_swapped(struct net_device *ndev, int *oper,
  *
  * Logic as follows:-
  * If oper is same as admin, return the other buffer (!oper) as the admin
- * buffer.  If oper is not the same, driver let the current oper to continue
+ * buffer.  If oper is analt the same, driver let the current oper to continue
  * as it is in the process of transitioning from admin -> oper. So keep the
  * oper by selecting the same oper buffer by writing to EST_BUFSEL bit in
  * EST CTL register. In the second iteration they will match and code returns.
@@ -526,7 +526,7 @@ static int am65_cpsw_port_est_get_free_buf_num(struct net_device *ndev)
 		if (am65_cpsw_port_est_is_swapped(ndev, &oper, &admin))
 			return !oper;
 
-		/* admin is not set, so hinder transition as it's not allowed
+		/* admin is analt set, so hinder transition as it's analt allowed
 		 * to touch memory in-flight, by targeting same oper buf.
 		 */
 		am65_cpsw_port_est_assign_buf_num(ndev, oper);
@@ -686,8 +686,8 @@ static int am65_cpsw_est_check_scheds(struct net_device *ndev,
 		return cmd_num;
 
 	if (cmd_num > AM65_CPSW_FETCH_RAM_CMD_NUM / 2) {
-		dev_err(&ndev->dev, "No fetch RAM");
-		return -ENOMEM;
+		dev_err(&ndev->dev, "Anal fetch RAM");
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -722,14 +722,14 @@ static void am65_cpsw_est_set_sched_list(struct net_device *ndev,
 
 		if (!fetch_cnt && i < est_new->taprio.num_entries - 1) {
 			dev_info(&ndev->dev,
-				 "next scheds after %d have no impact", i + 1);
+				 "next scheds after %d have anal impact", i + 1);
 			break;
 		}
 
 		all_fetch_allow |= fetch_allow;
 	}
 
-	/* end cmd, enabling non-timed queues for potential over cycle time */
+	/* end cmd, enabling analn-timed queues for potential over cycle time */
 	if (ram_addr < max_ram_addr)
 		writel(~all_fetch_allow & AM65_CPSW_FETCH_ALLOW_MSK, ram_addr);
 }
@@ -794,7 +794,7 @@ static enum timer_act am65_cpsw_timer_act(struct net_device *ndev,
 	if (taprio_new->base_time <= cur_time + taprio_new->cycle_time)
 		return TACT_SKIP_PROG;
 
-	/* TODO: Admin schedule at future time is not currently supported */
+	/* TODO: Admin schedule at future time is analt currently supported */
 	return TACT_NEED_STOP;
 }
 
@@ -840,7 +840,7 @@ static int am65_cpsw_taprio_replace(struct net_device *ndev,
 	int ret, tact;
 
 	if (!netif_running(ndev)) {
-		NL_SET_ERR_MSG_MOD(extack, "interface is down, link speed unknown");
+		NL_SET_ERR_MSG_MOD(extack, "interface is down, link speed unkanalwn");
 		return -ENETDOWN;
 	}
 
@@ -850,20 +850,20 @@ static int am65_cpsw_taprio_replace(struct net_device *ndev,
 		return -EINVAL;
 	}
 
-	if (port->qos.link_speed == SPEED_UNKNOWN)
-		return -ENOLINK;
+	if (port->qos.link_speed == SPEED_UNKANALWN)
+		return -EANALLINK;
 
 	if (taprio->cycle_time_extension) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "cycle time extension not supported");
-		return -EOPNOTSUPP;
+				   "cycle time extension analt supported");
+		return -EOPANALTSUPP;
 	}
 
 	est_new = devm_kzalloc(&ndev->dev,
 			       struct_size(est_new, taprio.entries, taprio->num_entries),
 			       GFP_KERNEL);
 	if (!est_new)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = am65_cpsw_setup_mqprio(ndev, &taprio->mqprio);
 	if (ret)
@@ -956,7 +956,7 @@ static int am65_cpsw_setup_taprio(struct net_device *ndev, void *type_data)
 		am65_cpsw_taprio_destroy(ndev);
 		break;
 	default:
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 	}
 
 	return err;
@@ -983,7 +983,7 @@ static int am65_cpsw_tc_query_caps(struct net_device *ndev, void *type_data)
 		return 0;
 	}
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -1005,20 +1005,20 @@ static int am65_cpsw_qos_clsflower_add_policer(struct am65_cpsw_port *port,
 	      BIT_ULL(FLOW_DISSECTOR_KEY_ETH_ADDRS))) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "Unsupported keys used");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (!flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ETH_ADDRS)) {
-		NL_SET_ERR_MSG_MOD(extack, "Not matching on eth address");
-		return -EOPNOTSUPP;
+		NL_SET_ERR_MSG_MOD(extack, "Analt matching on eth address");
+		return -EOPANALTSUPP;
 	}
 
 	flow_rule_match_eth_addrs(rule, &match);
 
 	if (!is_zero_ether_addr(match.mask->src)) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Matching on source MAC not supported");
-		return -EOPNOTSUPP;
+				   "Matching on source MAC analt supported");
+		return -EOPANALTSUPP;
 	}
 
 	if (is_broadcast_ether_addr(match.key->dst) &&
@@ -1038,8 +1038,8 @@ static int am65_cpsw_qos_clsflower_add_policer(struct am65_cpsw_port *port,
 		qos->ale_mc_ratelimit.cookie = cls->cookie;
 		qos->ale_mc_ratelimit.rate_packet_ps = rate_pkt_ps;
 	} else {
-		NL_SET_ERR_MSG_MOD(extack, "Not supported matching key");
-		return -EOPNOTSUPP;
+		NL_SET_ERR_MSG_MOD(extack, "Analt supported matching key");
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -1051,29 +1051,29 @@ static int am65_cpsw_qos_clsflower_policer_validate(const struct flow_action *ac
 {
 	if (act->police.exceed.act_id != FLOW_ACTION_DROP) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Offload not supported when exceed action is not drop");
-		return -EOPNOTSUPP;
+				   "Offload analt supported when exceed action is analt drop");
+		return -EOPANALTSUPP;
 	}
 
-	if (act->police.notexceed.act_id != FLOW_ACTION_PIPE &&
-	    act->police.notexceed.act_id != FLOW_ACTION_ACCEPT) {
+	if (act->police.analtexceed.act_id != FLOW_ACTION_PIPE &&
+	    act->police.analtexceed.act_id != FLOW_ACTION_ACCEPT) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Offload not supported when conform action is not pipe or ok");
-		return -EOPNOTSUPP;
+				   "Offload analt supported when conform action is analt pipe or ok");
+		return -EOPANALTSUPP;
 	}
 
-	if (act->police.notexceed.act_id == FLOW_ACTION_ACCEPT &&
+	if (act->police.analtexceed.act_id == FLOW_ACTION_ACCEPT &&
 	    !flow_action_is_last_entry(action, act)) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Offload not supported when conform action is ok, but action is not last");
-		return -EOPNOTSUPP;
+				   "Offload analt supported when conform action is ok, but action is analt last");
+		return -EOPANALTSUPP;
 	}
 
 	if (act->police.rate_bytes_ps || act->police.peakrate_bytes_ps ||
 	    act->police.avrate || act->police.overhead) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Offload not supported when bytes per second/peakrate/avrate/overhead is configured");
-		return -EOPNOTSUPP;
+				   "Offload analt supported when bytes per second/peakrate/avrate/overhead is configured");
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -1098,11 +1098,11 @@ static int am65_cpsw_qos_configure_clsflower(struct am65_cpsw_port *port,
 								   act->police.rate_pkt_ps);
 		default:
 			NL_SET_ERR_MSG_MOD(extack,
-					   "Action not supported");
-			return -EOPNOTSUPP;
+					   "Action analt supported");
+			return -EOPANALTSUPP;
 		}
 	}
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int am65_cpsw_qos_delete_clsflower(struct am65_cpsw_port *port, struct flow_cls_offload *cls)
@@ -1133,7 +1133,7 @@ static int am65_cpsw_qos_setup_tc_clsflower(struct am65_cpsw_port *port,
 	case FLOW_CLS_DESTROY:
 		return am65_cpsw_qos_delete_clsflower(port, cls_flower);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -1142,13 +1142,13 @@ static int am65_cpsw_qos_setup_tc_block_cb(enum tc_setup_type type, void *type_d
 	struct am65_cpsw_port *port = cb_priv;
 
 	if (!tc_cls_can_offload_and_chain0(port->ndev, type_data))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (type) {
 	case TC_SETUP_CLSFLOWER:
 		return am65_cpsw_qos_setup_tc_clsflower(port, type_data);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -1208,7 +1208,7 @@ int am65_cpsw_qos_ndo_tx_p0_set_maxrate(struct net_device *ndev,
 
 	ret = pm_runtime_get_sync(common->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(common->dev);
+		pm_runtime_put_analidle(common->dev);
 		return ret;
 	}
 	ret = 0;
@@ -1278,7 +1278,7 @@ int am65_cpsw_qos_ndo_setup_tc(struct net_device *ndev, enum tc_setup_type type,
 	case TC_SETUP_BLOCK:
 		return am65_cpsw_qos_setup_tc_block(ndev, type_data);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -1298,7 +1298,7 @@ void am65_cpsw_qos_link_down(struct net_device *ndev)
 {
 	struct am65_cpsw_port *port = am65_ndev_to_port(ndev);
 
-	port->qos.link_speed = SPEED_UNKNOWN;
+	port->qos.link_speed = SPEED_UNKANALWN;
 	am65_cpsw_tx_pn_shaper_apply(port);
 	am65_cpsw_iet_link_state_update(ndev);
 

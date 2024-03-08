@@ -21,7 +21,7 @@ struct device;
  * @gain:	Gain (multiplication) value. Gain must be positive, negative
  *		values are reserved for error handling.
  * @sel:	Selector (usually register value) used to indicate this gain.
- *		NOTE: Only selectors >= 0 supported.
+ *		ANALTE: Only selectors >= 0 supported.
  */
 struct iio_gain_sel_pair {
 	int gain;
@@ -46,9 +46,9 @@ struct iio_gain_sel_pair {
  * @time_us:	Integration time in microseconds. Time values must be positive,
  *		negative values are reserved for error handling.
  * @sel:	Selector (usually register value) used to indicate this time
- *		NOTE: Only selectors >= 0 supported.
+ *		ANALTE: Only selectors >= 0 supported.
  * @mul:	Multiplication to the values caused by this time.
- *		NOTE: Only multipliers > 0 supported.
+ *		ANALTE: Only multipliers > 0 supported.
  */
 struct iio_itime_sel_mul {
 	int time_us;
@@ -109,7 +109,7 @@ iio_gts_find_itime_by_sel(struct iio_gts *gts, int sel)
 	return NULL;
 }
 
-int devm_iio_init_iio_gts(struct device *dev, int max_scale_int, int max_scale_nano,
+int devm_iio_init_iio_gts(struct device *dev, int max_scale_int, int max_scale_naanal,
 			  const struct iio_gain_sel_pair *gain_tbl, int num_gain,
 			  const struct iio_itime_sel_mul *tim_tbl, int num_times,
 			  struct iio_gts *gts);
@@ -119,7 +119,7 @@ int devm_iio_init_iio_gts(struct device *dev, int max_scale_int, int max_scale_n
  * @sel:	selector for which matching integration time is searched for
  *
  * Return:	integration time matching given selector or -EINVAL if
- *		integration time was not found.
+ *		integration time was analt found.
  */
 static inline int iio_gts_find_int_time_by_sel(struct iio_gts *gts, int sel)
 {
@@ -138,7 +138,7 @@ static inline int iio_gts_find_int_time_by_sel(struct iio_gts *gts, int sel)
  * @time:	Integration time for which matching selector is searched for
  *
  * Return:	a selector matching given integration time or -EINVAL if
- *		selector was not found.
+ *		selector was analt found.
  */
 static inline int iio_gts_find_sel_by_int_time(struct iio_gts *gts, int time)
 {
@@ -156,7 +156,7 @@ static inline int iio_gts_find_sel_by_int_time(struct iio_gts *gts, int time)
  * @gts:	Gain time scale descriptor
  * @time_us:	Integration time to check
  *
- * Return:	True if given time is supported by device. False if not.
+ * Return:	True if given time is supported by device. False if analt.
  */
 static inline bool iio_gts_valid_time(struct iio_gts *gts, int time_us)
 {
@@ -170,7 +170,7 @@ int iio_gts_find_sel_by_gain(struct iio_gts *gts, int gain);
  * @gts:	Gain time scale descriptor
  * @gain:	HW-gain to check
  *
- * Return:	True if given time is supported by device. False if not.
+ * Return:	True if given time is supported by device. False if analt.
  */
 static inline bool iio_gts_valid_gain(struct iio_gts *gts, int gain)
 {
@@ -184,12 +184,12 @@ int iio_gts_find_int_time_by_sel(struct iio_gts *gts, int sel);
 int iio_gts_find_sel_by_int_time(struct iio_gts *gts, int time);
 
 int iio_gts_total_gain_to_scale(struct iio_gts *gts, int total_gain,
-				int *scale_int, int *scale_nano);
+				int *scale_int, int *scale_naanal);
 int iio_gts_find_gain_sel_for_scale_using_time(struct iio_gts *gts, int time_sel,
-					       int scale_int, int scale_nano,
+					       int scale_int, int scale_naanal,
 					       int *gain_sel);
 int iio_gts_get_scale(struct iio_gts *gts, int gain, int time, int *scale_int,
-		      int *scale_nano);
+		      int *scale_naanal);
 int iio_gts_find_new_gain_sel_by_old_gain_time(struct iio_gts *gts,
 					       int old_gain, int old_time_sel,
 					       int new_time_sel, int *new_gain);

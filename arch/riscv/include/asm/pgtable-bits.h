@@ -22,10 +22,10 @@
 #define _PAGE_TABLE     _PAGE_PRESENT
 
 /*
- * _PAGE_PROT_NONE is set on not-present pages (and ignored by the hardware) to
+ * _PAGE_PROT_ANALNE is set on analt-present pages (and iganalred by the hardware) to
  * distinguish them from swapped out pages
  */
-#define _PAGE_PROT_NONE _PAGE_GLOBAL
+#define _PAGE_PROT_ANALNE _PAGE_GLOBAL
 
 /* Used for swap PTEs only. */
 #define _PAGE_SWP_EXCLUSIVE _PAGE_ACCESSED

@@ -72,7 +72,7 @@ struct tape_3590_sense {
 	unsigned int begin_part:1;
 	unsigned int wr_mode:1;
 	unsigned int wr_prot:1;
-	unsigned int not_cap:1;
+	unsigned int analt_cap:1;
 
 	unsigned int bra:2;
 	unsigned int lc:3;

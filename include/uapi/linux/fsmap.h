@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * FS_IOC_GETFSMAP ioctl infrastructure.
  *
@@ -24,27 +24,27 @@
  *	length of the fmh_recs array, and fmh_entries will be set to the
  *	number of entries filled out during each call.  If fmh_count is
  *	zero, the number of reverse mappings will be returned in
- *	fmh_entries, though no mappings will be returned.  fmh_reserved
+ *	fmh_entries, though anal mappings will be returned.  fmh_reserved
  *	must be set to zero.
  *
  *	The two elements in the fmh_keys array are used to constrain the
  *	output.  The first element in the array should represent the
  *	lowest disk mapping ("low key") that the user wants to learn
  *	about.  If this value is all zeroes, the filesystem will return
- *	the first entry it knows about.  For a subsequent call, the
+ *	the first entry it kanalws about.  For a subsequent call, the
  *	contents of fsmap_head.fmh_recs[fsmap_head.fmh_count - 1] should be
  *	copied into fmh_keys[0] to have the kernel start where it left off.
  *
  *	The second element in the fmh_keys array should represent the
  *	highest disk mapping ("high key") that the user wants to learn
- *	about.  If this value is all ones, the filesystem will not stop
+ *	about.  If this value is all ones, the filesystem will analt stop
  *	until it runs out of mapping to return or runs out of space in
  *	fmh_recs.
  *
  *	fmr_device can be either a 32-bit cookie representing a device, or
  *	a 32-bit dev_t if the FMH_OF_DEV_T flag is set.  fmr_physical,
  *	fmr_offset, and fmr_length are expressed in units of bytes.
- *	fmr_owner is either an inode number, or a special value if
+ *	fmr_owner is either an ianalde number, or a special value if
  *	FMR_OF_SPECIAL_OWNER is set in fmr_flags.
  */
 struct fsmap {
@@ -85,17 +85,17 @@ fsmap_advance(
 }
 
 /*	fmh_iflags values - set by FS_IOC_GETFSMAP caller in the header. */
-/* no flags defined yet */
+/* anal flags defined yet */
 #define FMH_IF_VALID		0
 
 /*	fmh_oflags values - returned in the header segment only. */
 #define FMH_OF_DEV_T		0x1	/* fmr_device values will be dev_t */
 
-/*	fmr_flags values - returned for each non-header segment */
+/*	fmr_flags values - returned for each analn-header segment */
 #define FMR_OF_PREALLOC		0x1	/* segment = unwritten pre-allocation */
 #define FMR_OF_ATTR_FORK	0x2	/* segment = attribute fork */
 #define FMR_OF_EXTENT_MAP	0x4	/* segment = extent map */
-#define FMR_OF_SHARED		0x8	/* segment = shared with another file */
+#define FMR_OF_SHARED		0x8	/* segment = shared with aanalther file */
 #define FMR_OF_SPECIAL_OWNER	0x10	/* owner is a special value */
 #define FMR_OF_LAST		0x20	/* segment is the last in the dataset */
 
@@ -105,7 +105,7 @@ fsmap_advance(
 #define FMR_OWNER_TYPE(owner)	((__u32)((__u64)owner >> 32))
 #define FMR_OWNER_CODE(owner)	((__u32)(((__u64)owner & 0xFFFFFFFFULL)))
 #define FMR_OWN_FREE		FMR_OWNER(0, 1) /* free space */
-#define FMR_OWN_UNKNOWN		FMR_OWNER(0, 2) /* unknown owner */
+#define FMR_OWN_UNKANALWN		FMR_OWNER(0, 2) /* unkanalwn owner */
 #define FMR_OWN_METADATA	FMR_OWNER(0, 3) /* metadata */
 
 #define FS_IOC_GETFSMAP		_IOWR('X', 59, struct fsmap_head)

@@ -23,7 +23,7 @@ patternProperties:
     additionalProperties: false
     description: |
       Some packages have multiple PHYs. Secondary PHY should be defines as
-      subnode of the first (parent) PHY.
+      subanalde of the first (parent) PHY.
 
     properties:
       reg:
@@ -44,7 +44,7 @@ patternProperties:
           as input or output according to the actual circuit connection.
           If present, indicates that the REF_CLK will be configured as
           interface reference clock input when RMII mode enabled.
-          If not present, the REF_CLK will be configured as interface
+          If analt present, the REF_CLK will be configured as interface
           reference clock output when RMII mode enabled.
           Only supported on TJA1100 and TJA1101.
 

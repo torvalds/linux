@@ -21,7 +21,7 @@ The TC654 uses the 2-wire interface compatible with the SMBUS 2.0
 specification. The TC654 has two (2) inputs for measuring fan RPM and
 one (1) PWM output which can be used for fan control.
 
-Configuration Notes
+Configuration Analtes
 -------------------
 Ordinarily the pwm1_mode ABI is used for controlling the pwm output
 mode.  However, for this chip the output is always pwm, and the

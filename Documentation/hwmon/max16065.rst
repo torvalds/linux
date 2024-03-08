@@ -74,15 +74,15 @@ configurable as either low or high secondary limit. MAX16065, MAX16066,
 MAX16070, and MAX16071 also support supply current monitoring.
 
 
-Usage Notes
+Usage Analtes
 -----------
 
-This driver does not probe for devices, since there is no register which
+This driver does analt probe for devices, since there is anal register which
 can be safely used to identify the chip. You will have to instantiate
 the devices explicitly. Please see Documentation/i2c/instantiating-devices.rst for
 details.
 
-WARNING: Do not access chip registers using the i2cdump command, and do not use
+WARNING: Do analt access chip registers using the i2cdump command, and do analt use
 any of the i2ctools commands on a command register (0xa5 to 0xac). The chips
 supported by this driver interpret any access to a command register (including
 read commands) as request to execute the command in question. This may result in
@@ -109,7 +109,7 @@ in[0-11]_max		High warning limit.
 			only.
 
 			Either low or high warning limits are supported
-			(depending on chip configuration), but not both.
+			(depending on chip configuration), but analt both.
 
 in[0-11]_lcrit		Low critical limit.
 

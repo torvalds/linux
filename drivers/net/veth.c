@@ -4,7 +4,7 @@
  *
  *  Copyright (C) 2007 OpenVZ http://openvz.org, SWsoft Inc
  *
- * Author: Pavel Emelianov <xemul@openvz.org>
+ * Author: Pavel Emeliaanalv <xemul@openvz.org>
  * Ethtool interface from: Eric W. Biederman <ebiederm@xmission.com>
  *
  */
@@ -63,7 +63,7 @@ struct veth_rq {
 	struct bpf_prog __rcu	*xdp_prog;
 	struct xdp_mem_info	xdp_mem;
 	struct veth_rq_stats	stats;
-	bool			rx_notify_masked;
+	bool			rx_analtify_masked;
 	struct ptr_ring		xdp_ring;
 	struct xdp_rxq_info	xdp_rxq;
 	struct page_pool	*page_pool;
@@ -172,7 +172,7 @@ static int veth_get_sset_count(struct net_device *dev, int sset)
 		       VETH_TQ_STATS_LEN * dev->real_num_tx_queues +
 		       page_pool_ethtool_stats_get_count();
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -294,11 +294,11 @@ static void veth_ptr_free(void *ptr)
 
 static void __veth_xdp_flush(struct veth_rq *rq)
 {
-	/* Write ptr_ring before reading rx_notify_masked */
+	/* Write ptr_ring before reading rx_analtify_masked */
 	smp_mb();
-	if (!READ_ONCE(rq->rx_notify_masked) &&
+	if (!READ_ONCE(rq->rx_analtify_masked) &&
 	    napi_schedule_prep(&rq->xdp_napi)) {
-		WRITE_ONCE(rq->rx_notify_masked, true);
+		WRITE_ONCE(rq->rx_analtify_masked, true);
 		__napi_schedule(&rq->xdp_napi);
 	}
 }
@@ -739,7 +739,7 @@ static int veth_convert_skb_to_xdp_buff(struct veth_rq *rq,
 		 * the ebpf program can modify it. We segment the original skb
 		 * into order-0 pages without linearize it.
 		 *
-		 * Make sure we have enough space for linear and paged area
+		 * Make sure we have eanalugh space for linear and paged area
 		 */
 		max_head_size = SKB_WITH_OVERHEAD(PAGE_SIZE -
 						  VETH_XDP_HEADROOM);
@@ -812,7 +812,7 @@ static int veth_convert_skb_to_xdp_buff(struct veth_rq *rq,
 	xdp_prepare_buff(xdp, skb->head, skb_headroom(skb),
 			 skb_headlen(skb), true);
 
-	if (skb_is_nonlinear(skb)) {
+	if (skb_is_analnlinear(skb)) {
 		skb_shinfo(skb)->xdp_frags_size = skb->data_len;
 		xdp_buff_set_frags_flag(xdp);
 	} else {
@@ -825,7 +825,7 @@ drop:
 	consume_skb(skb);
 	*pskb = NULL;
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static struct sk_buff *veth_xdp_rcv_skb(struct veth_rq *rq,
@@ -1007,18 +1007,18 @@ static int veth_poll(struct napi_struct *napi, int budget)
 
 	bq.count = 0;
 
-	xdp_set_return_frame_no_direct();
+	xdp_set_return_frame_anal_direct();
 	done = veth_xdp_rcv(rq, budget, &bq, &stats);
 
 	if (stats.xdp_redirect > 0)
 		xdp_do_flush();
 
 	if (done < budget && napi_complete_done(napi, done)) {
-		/* Write rx_notify_masked before reading ptr_ring */
-		smp_store_mb(rq->rx_notify_masked, false);
+		/* Write rx_analtify_masked before reading ptr_ring */
+		smp_store_mb(rq->rx_analtify_masked, false);
 		if (unlikely(!__ptr_ring_empty(&rq->xdp_ring))) {
 			if (napi_schedule_prep(&rq->xdp_napi)) {
-				WRITE_ONCE(rq->rx_notify_masked, true);
+				WRITE_ONCE(rq->rx_analtify_masked, true);
 				__napi_schedule(&rq->xdp_napi);
 			}
 		}
@@ -1026,7 +1026,7 @@ static int veth_poll(struct napi_struct *napi, int budget)
 
 	if (stats.xdp_tx > 0)
 		veth_xdp_flush(rq, &bq);
-	xdp_clear_return_frame_no_direct();
+	xdp_clear_return_frame_anal_direct();
 
 	return done;
 }
@@ -1036,7 +1036,7 @@ static int veth_create_page_pool(struct veth_rq *rq)
 	struct page_pool_params pp_params = {
 		.order = 0,
 		.pool_size = VETH_RING_SIZE,
-		.nid = NUMA_NO_NODE,
+		.nid = NUMA_ANAL_ANALDE,
 		.dev = &rq->dev->dev,
 	};
 
@@ -1114,7 +1114,7 @@ static void veth_napi_del_range(struct net_device *dev, int start, int end)
 	for (i = start; i < end; i++) {
 		struct veth_rq *rq = &priv->rq[i];
 
-		rq->rx_notify_masked = false;
+		rq->rx_analtify_masked = false;
 		ptr_ring_cleanup(&rq->xdp_ring, veth_ptr_free);
 	}
 
@@ -1285,7 +1285,7 @@ static int veth_enable_range_safe(struct net_device *dev, int start, int end)
 		return 0;
 
 	if (priv->_xdp_prog) {
-		/* these channels are freshly initialized, napi is not on there even
+		/* these channels are freshly initialized, napi is analt on there even
 		 * when GRO is requeste
 		 */
 		err = veth_enable_xdp_range(dev, start, end, false);
@@ -1383,7 +1383,7 @@ static int veth_set_channels(struct net_device *dev,
 
 out:
 	if (netif_running(dev)) {
-		/* note that we need to swap the arguments WRT the enable part
+		/* analte that we need to swap the arguments WRT the enable part
 		 * to identify the range we have to disable
 		 */
 		veth_disable_range_safe(dev, new_rx_count, old_rx_count);
@@ -1412,7 +1412,7 @@ static int veth_open(struct net_device *dev)
 	int err;
 
 	if (!peer)
-		return -ENOTCONN;
+		return -EANALTCONN;
 
 	if (priv->_xdp_prog) {
 		err = veth_enable_xdp(dev);
@@ -1464,7 +1464,7 @@ static int veth_alloc_queues(struct net_device *dev)
 	priv->rq = kvcalloc(dev->num_rx_queues, sizeof(*priv->rq),
 			    GFP_KERNEL_ACCOUNT | __GFP_RETRY_MAYFAIL);
 	if (!priv->rq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < dev->num_rx_queues; i++) {
 		priv->rq[i].dev = dev;
@@ -1495,9 +1495,9 @@ static void veth_dev_free(struct net_device *dev)
 static void veth_poll_controller(struct net_device *dev)
 {
 	/* veth only receives frames when its peer sends one
-	 * Since it has nothing to do with disabling irqs, we are guaranteed
+	 * Since it has analthing to do with disabling irqs, we are guaranteed
 	 * never to have pending data when we poll for it so
-	 * there is nothing to do here.
+	 * there is analthing to do here.
 	 *
 	 * We need this though so netpoll recognizes us as an interface that
 	 * supports polling, which enables bridge devices in virt setups to
@@ -1604,8 +1604,8 @@ static int veth_xdp_set(struct net_device *dev, struct bpf_prog *prog,
 
 	if (prog) {
 		if (!peer) {
-			NL_SET_ERR_MSG_MOD(extack, "Cannot set XDP when peer is detached");
-			err = -ENOTCONN;
+			NL_SET_ERR_MSG_MOD(extack, "Cananalt set XDP when peer is detached");
+			err = -EANALTCONN;
 			goto err;
 		}
 
@@ -1624,8 +1624,8 @@ static int veth_xdp_set(struct net_device *dev, struct bpf_prog *prog,
 		}
 
 		if (dev->real_num_rx_queues < peer->real_num_tx_queues) {
-			NL_SET_ERR_MSG_MOD(extack, "XDP expects number of rx queues not less than peer tx queues");
-			err = -ENOSPC;
+			NL_SET_ERR_MSG_MOD(extack, "XDP expects number of rx queues analt less than peer tx queues");
+			err = -EANALSPC;
 			goto err;
 		}
 
@@ -1639,7 +1639,7 @@ static int veth_xdp_set(struct net_device *dev, struct bpf_prog *prog,
 
 		if (!old_prog) {
 			if (!veth_gro_requested(dev)) {
-				/* user-space did not require GRO, but adding
+				/* user-space did analt require GRO, but adding
 				 * XDP is supposed to get GRO working
 				 */
 				dev->features |= NETIF_F_GRO;
@@ -1661,8 +1661,8 @@ static int veth_xdp_set(struct net_device *dev, struct bpf_prog *prog,
 			if (dev->flags & IFF_UP)
 				veth_disable_xdp(dev);
 
-			/* if user-space did not require GRO, since adding XDP
-			 * enabled it, clear it now
+			/* if user-space did analt require GRO, since adding XDP
+			 * enabled it, clear it analw
 			 */
 			if (!veth_gro_requested(dev)) {
 				dev->features &= ~NETIF_F_GRO;
@@ -1702,7 +1702,7 @@ static int veth_xdp_rx_timestamp(const struct xdp_md *ctx, u64 *timestamp)
 	struct veth_xdp_buff *_ctx = (void *)ctx;
 
 	if (!_ctx->skb)
-		return -ENODATA;
+		return -EANALDATA;
 
 	*timestamp = skb_hwtstamps(_ctx->skb)->hwtstamp;
 	return 0;
@@ -1715,10 +1715,10 @@ static int veth_xdp_rx_hash(const struct xdp_md *ctx, u32 *hash,
 	struct sk_buff *skb = _ctx->skb;
 
 	if (!skb)
-		return -ENODATA;
+		return -EANALDATA;
 
 	*hash = skb_get_hash(skb);
-	*rss_type = skb->l4_hash ? XDP_RSS_TYPE_L4_ANY : XDP_RSS_TYPE_NONE;
+	*rss_type = skb->l4_hash ? XDP_RSS_TYPE_L4_ANY : XDP_RSS_TYPE_ANALNE;
 
 	return 0;
 }
@@ -1731,7 +1731,7 @@ static int veth_xdp_rx_vlan_tag(const struct xdp_md *ctx, __be16 *vlan_proto,
 	int err;
 
 	if (!skb)
-		return -ENODATA;
+		return -EANALDATA;
 
 	err = __vlan_hwaccel_get_tag(skb, vlan_tci);
 	if (err)
@@ -1780,7 +1780,7 @@ static void veth_setup(struct net_device *dev)
 
 	dev->priv_flags &= ~IFF_TX_SKB_SHARING;
 	dev->priv_flags |= IFF_LIVE_ADDR_CHANGE;
-	dev->priv_flags |= IFF_NO_QUEUE;
+	dev->priv_flags |= IFF_ANAL_QUEUE;
 	dev->priv_flags |= IFF_PHONY_HEADROOM;
 
 	dev->netdev_ops = &veth_netdev_ops;
@@ -1815,7 +1815,7 @@ static int veth_validate(struct nlattr *tb[], struct nlattr *data[],
 		if (nla_len(tb[IFLA_ADDRESS]) != ETH_ALEN)
 			return -EINVAL;
 		if (!is_valid_ether_addr(nla_data(tb[IFLA_ADDRESS])))
-			return -EADDRNOTAVAIL;
+			return -EADDRANALTAVAIL;
 	}
 	if (tb[IFLA_MTU]) {
 		if (!is_valid_veth_mtu(nla_get_u32(tb[IFLA_MTU])))
@@ -1931,7 +1931,7 @@ static int veth_newlink(struct net *src_net, struct net_device *dev,
 	/*
 	 * register dev last
 	 *
-	 * note, that since we've registered new device the dev's name
+	 * analte, that since we've registered new device the dev's name
 	 * should be re-allocated
 	 */
 
@@ -1975,7 +1975,7 @@ static int veth_newlink(struct net *src_net, struct net_device *dev,
 err_queues:
 	unregister_netdevice(dev);
 err_register_dev:
-	/* nothing to do */
+	/* analthing to do */
 err_configure_peer:
 	unregister_netdevice(peer);
 	return err;
@@ -1993,9 +1993,9 @@ static void veth_dellink(struct net_device *dev, struct list_head *head)
 	priv = netdev_priv(dev);
 	peer = rtnl_dereference(priv->peer);
 
-	/* Note : dellink() is called from default_device_exit_batch(),
+	/* Analte : dellink() is called from default_device_exit_batch(),
 	 * before a rcu_synchronize() point. The devices are guaranteed
-	 * not being freed before one RCU grace period.
+	 * analt being freed before one RCU grace period.
 	 */
 	RCU_INIT_POINTER(priv->peer, NULL);
 	unregister_netdevice_queue(dev, head);

@@ -32,7 +32,7 @@ static void bridge_platform_create(nasid_t nasid, int widget, int masterwid)
 	struct resource w1_res;
 	unsigned long offset;
 
-	offset = NODE_OFFSET(nasid);
+	offset = ANALDE_OFFSET(nasid);
 
 	wd = kzalloc(sizeof(*wd), GFP_KERNEL);
 	if (!wd) {
@@ -81,7 +81,7 @@ static void bridge_platform_create(nasid_t nasid, int widget, int masterwid)
 	}
 
 
-	bd->bridge_addr = RAW_NODE_SWIN_BASE(nasid, widget);
+	bd->bridge_addr = RAW_ANALDE_SWIN_BASE(nasid, widget);
 	bd->intr_addr	= BIT_ULL(47) + 0x01800000 + PI_INT_PEND_MOD;
 	bd->nasid	= nasid;
 	bd->masterwid	= masterwid;
@@ -131,7 +131,7 @@ static int probe_one_port(nasid_t nasid, int widget, int masterwid)
 	xwidget_part_num_t	partnum;
 
 	widget_id = *(volatile widgetreg_t *)
-		(RAW_NODE_SWIN_BASE(nasid, widget) + WIDGET_ID);
+		(RAW_ANALDE_SWIN_BASE(nasid, widget) + WIDGET_ID);
 	partnum = XWIDGET_PART_NUM(widget_id);
 
 	switch (partnum) {
@@ -140,7 +140,7 @@ static int probe_one_port(nasid_t nasid, int widget, int masterwid)
 		bridge_platform_create(nasid, widget, masterwid);
 		break;
 	default:
-		pr_info("xtalk:n%d/%d unknown widget (0x%x)\n",
+		pr_info("xtalk:n%d/%d unkanalwn widget (0x%x)\n",
 			nasid, widget, partnum);
 		break;
 	}
@@ -160,11 +160,11 @@ static int xbow_probe(nasid_t nasid)
 	 */
 	brd = find_lboard((lboard_t *)KL_CONFIG_INFO(nasid), KLTYPE_MIDPLANE8);
 	if (!brd)
-		return -ENODEV;
+		return -EANALDEV;
 
 	xbow_p = (klxbow_t *)find_component(brd, NULL, KLSTRUCT_XBOW);
 	if (!xbow_p)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
 	 * Okay, here's a xbow. Let's arbitrate and find
@@ -199,7 +199,7 @@ static int xbow_probe(nasid_t nasid)
 	return 0;
 }
 
-static void xtalk_probe_node(nasid_t nasid)
+static void xtalk_probe_analde(nasid_t nasid)
 {
 	volatile u64		hubreg;
 	xwidget_part_num_t	partnum;
@@ -212,7 +212,7 @@ static void xtalk_probe_node(nasid_t nasid)
 		return;
 
 	widget_id = *(volatile widgetreg_t *)
-		       (RAW_NODE_SWIN_BASE(nasid, 0x0) + WIDGET_ID);
+		       (RAW_ANALDE_SWIN_BASE(nasid, 0x0) + WIDGET_ID);
 	partnum = XWIDGET_PART_NUM(widget_id);
 
 	switch (partnum) {
@@ -225,7 +225,7 @@ static void xtalk_probe_node(nasid_t nasid)
 		xbow_probe(nasid);
 		break;
 	default:
-		pr_info("xtalk:n%d/0 unknown widget (0x%x)\n", nasid, partnum);
+		pr_info("xtalk:n%d/0 unkanalwn widget (0x%x)\n", nasid, partnum);
 		break;
 	}
 }
@@ -234,8 +234,8 @@ static int __init xtalk_init(void)
 {
 	nasid_t nasid;
 
-	for_each_online_node(nasid)
-		xtalk_probe_node(nasid);
+	for_each_online_analde(nasid)
+		xtalk_probe_analde(nasid);
 
 	return 0;
 }

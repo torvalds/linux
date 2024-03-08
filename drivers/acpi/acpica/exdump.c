@@ -39,7 +39,7 @@ acpi_ex_dump_package_obj(union acpi_operand_object *obj_desc,
  *
  * Object Descriptor info tables
  *
- * Note: The first table entry must be an INIT opcode and must contain
+ * Analte: The first table entry must be an INIT opcode and must contain
  * the table length (number of table entries)
  *
  ******************************************************************************/
@@ -60,13 +60,13 @@ static struct acpi_exdump_info acpi_ex_dump_buffer[5] = {
 	{ACPI_EXD_INIT, ACPI_EXD_TABLE_SIZE(acpi_ex_dump_buffer), NULL},
 	{ACPI_EXD_UINT32, ACPI_EXD_OFFSET(buffer.length), "Length"},
 	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(buffer.pointer), "Pointer"},
-	{ACPI_EXD_NODE, ACPI_EXD_OFFSET(buffer.node), "Parent Node"},
+	{ACPI_EXD_ANALDE, ACPI_EXD_OFFSET(buffer.analde), "Parent Analde"},
 	{ACPI_EXD_BUFFER, 0, NULL}
 };
 
 static struct acpi_exdump_info acpi_ex_dump_package[6] = {
 	{ACPI_EXD_INIT, ACPI_EXD_TABLE_SIZE(acpi_ex_dump_package), NULL},
-	{ACPI_EXD_NODE, ACPI_EXD_OFFSET(package.node), "Parent Node"},
+	{ACPI_EXD_ANALDE, ACPI_EXD_OFFSET(package.analde), "Parent Analde"},
 	{ACPI_EXD_UINT8, ACPI_EXD_OFFSET(package.flags), "Flags"},
 	{ACPI_EXD_UINT32, ACPI_EXD_OFFSET(package.count), "Element Count"},
 	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(package.elements), "Element List"},
@@ -75,10 +75,10 @@ static struct acpi_exdump_info acpi_ex_dump_package[6] = {
 
 static struct acpi_exdump_info acpi_ex_dump_device[4] = {
 	{ACPI_EXD_INIT, ACPI_EXD_TABLE_SIZE(acpi_ex_dump_device), NULL},
-	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(device.notify_list[0]),
-	 "System Notify"},
-	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(device.notify_list[1]),
-	 "Device Notify"},
+	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(device.analtify_list[0]),
+	 "System Analtify"},
+	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(device.analtify_list[1]),
+	 "Device Analtify"},
 	{ACPI_EXD_HDLR_LIST, ACPI_EXD_OFFSET(device.handler), "Handler"}
 };
 
@@ -115,7 +115,7 @@ static struct acpi_exdump_info acpi_ex_dump_region[8] = {
 	{ACPI_EXD_INIT, ACPI_EXD_TABLE_SIZE(acpi_ex_dump_region), NULL},
 	{ACPI_EXD_UINT8, ACPI_EXD_OFFSET(region.space_id), "Space Id"},
 	{ACPI_EXD_UINT8, ACPI_EXD_OFFSET(region.flags), "Flags"},
-	{ACPI_EXD_NODE, ACPI_EXD_OFFSET(region.node), "Parent Node"},
+	{ACPI_EXD_ANALDE, ACPI_EXD_OFFSET(region.analde), "Parent Analde"},
 	{ACPI_EXD_ADDRESS, ACPI_EXD_OFFSET(region.address), "Address"},
 	{ACPI_EXD_UINT32, ACPI_EXD_OFFSET(region.length), "Length"},
 	{ACPI_EXD_HDLR_LIST, ACPI_EXD_OFFSET(region.handler), "Handler"},
@@ -128,10 +128,10 @@ static struct acpi_exdump_info acpi_ex_dump_power[6] = {
 	 "System Level"},
 	{ACPI_EXD_UINT32, ACPI_EXD_OFFSET(power_resource.resource_order),
 	 "Resource Order"},
-	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(power_resource.notify_list[0]),
-	 "System Notify"},
-	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(power_resource.notify_list[1]),
-	 "Device Notify"},
+	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(power_resource.analtify_list[0]),
+	 "System Analtify"},
+	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(power_resource.analtify_list[1]),
+	 "Device Analtify"},
 	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(power_resource.handler), "Handler"}
 };
 
@@ -140,19 +140,19 @@ static struct acpi_exdump_info acpi_ex_dump_processor[7] = {
 	{ACPI_EXD_UINT8, ACPI_EXD_OFFSET(processor.proc_id), "Processor ID"},
 	{ACPI_EXD_UINT8, ACPI_EXD_OFFSET(processor.length), "Length"},
 	{ACPI_EXD_ADDRESS, ACPI_EXD_OFFSET(processor.address), "Address"},
-	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(processor.notify_list[0]),
-	 "System Notify"},
-	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(processor.notify_list[1]),
-	 "Device Notify"},
+	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(processor.analtify_list[0]),
+	 "System Analtify"},
+	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(processor.analtify_list[1]),
+	 "Device Analtify"},
 	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(processor.handler), "Handler"}
 };
 
 static struct acpi_exdump_info acpi_ex_dump_thermal[4] = {
 	{ACPI_EXD_INIT, ACPI_EXD_TABLE_SIZE(acpi_ex_dump_thermal), NULL},
-	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(thermal_zone.notify_list[0]),
-	 "System Notify"},
-	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(thermal_zone.notify_list[1]),
-	 "Device Notify"},
+	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(thermal_zone.analtify_list[0]),
+	 "System Analtify"},
+	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(thermal_zone.analtify_list[1]),
+	 "Device Analtify"},
 	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(thermal_zone.handler), "Handler"}
 };
 
@@ -196,7 +196,7 @@ static struct acpi_exdump_info acpi_ex_dump_reference[9] = {
 	{ACPI_EXD_UINT8, ACPI_EXD_OFFSET(reference.target_type), "Target Type"},
 	{ACPI_EXD_UINT32, ACPI_EXD_OFFSET(reference.value), "Value"},
 	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(reference.object), "Object Desc"},
-	{ACPI_EXD_NODE, ACPI_EXD_OFFSET(reference.node), "Node"},
+	{ACPI_EXD_ANALDE, ACPI_EXD_OFFSET(reference.analde), "Analde"},
 	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(reference.where), "Where"},
 	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(reference.index_pointer),
 	 "Index Pointer"},
@@ -210,25 +210,25 @@ static struct acpi_exdump_info acpi_ex_dump_address_handler[6] = {
 	{ACPI_EXD_HDLR_LIST, ACPI_EXD_OFFSET(address_space.next), "Next"},
 	{ACPI_EXD_RGN_LIST, ACPI_EXD_OFFSET(address_space.region_list),
 	 "Region List"},
-	{ACPI_EXD_NODE, ACPI_EXD_OFFSET(address_space.node), "Node"},
+	{ACPI_EXD_ANALDE, ACPI_EXD_OFFSET(address_space.analde), "Analde"},
 	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(address_space.context), "Context"}
 };
 
-static struct acpi_exdump_info acpi_ex_dump_notify[7] = {
-	{ACPI_EXD_INIT, ACPI_EXD_TABLE_SIZE(acpi_ex_dump_notify), NULL},
-	{ACPI_EXD_NODE, ACPI_EXD_OFFSET(notify.node), "Node"},
-	{ACPI_EXD_UINT32, ACPI_EXD_OFFSET(notify.handler_type), "Handler Type"},
-	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(notify.handler), "Handler"},
-	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(notify.context), "Context"},
-	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(notify.next[0]),
-	 "Next System Notify"},
-	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(notify.next[1]), "Next Device Notify"}
+static struct acpi_exdump_info acpi_ex_dump_analtify[7] = {
+	{ACPI_EXD_INIT, ACPI_EXD_TABLE_SIZE(acpi_ex_dump_analtify), NULL},
+	{ACPI_EXD_ANALDE, ACPI_EXD_OFFSET(analtify.analde), "Analde"},
+	{ACPI_EXD_UINT32, ACPI_EXD_OFFSET(analtify.handler_type), "Handler Type"},
+	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(analtify.handler), "Handler"},
+	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(analtify.context), "Context"},
+	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(analtify.next[0]),
+	 "Next System Analtify"},
+	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(analtify.next[1]), "Next Device Analtify"}
 };
 
 static struct acpi_exdump_info acpi_ex_dump_extra[6] = {
 	{ACPI_EXD_INIT, ACPI_EXD_TABLE_SIZE(acpi_ex_dump_extra), NULL},
 	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(extra.method_REG), "_REG Method"},
-	{ACPI_EXD_NODE, ACPI_EXD_OFFSET(extra.scope_node), "Scope Node"},
+	{ACPI_EXD_ANALDE, ACPI_EXD_OFFSET(extra.scope_analde), "Scope Analde"},
 	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(extra.region_context),
 	 "Region Context"},
 	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(extra.aml_start), "Aml Start"},
@@ -264,17 +264,17 @@ static struct acpi_exdump_info acpi_ex_dump_field_common[7] = {
 	 "Field Bit Offset"},
 	{ACPI_EXD_UINT32, ACPI_EXD_OFFSET(common_field.base_byte_offset),
 	 "Base Byte Offset"},
-	{ACPI_EXD_NODE, ACPI_EXD_OFFSET(common_field.node), "Parent Node"}
+	{ACPI_EXD_ANALDE, ACPI_EXD_OFFSET(common_field.analde), "Parent Analde"}
 };
 
-static struct acpi_exdump_info acpi_ex_dump_node[7] = {
-	{ACPI_EXD_INIT, ACPI_EXD_TABLE_SIZE(acpi_ex_dump_node), NULL},
+static struct acpi_exdump_info acpi_ex_dump_analde[7] = {
+	{ACPI_EXD_INIT, ACPI_EXD_TABLE_SIZE(acpi_ex_dump_analde), NULL},
 	{ACPI_EXD_UINT16, ACPI_EXD_NSOFFSET(flags), "Flags"},
 	{ACPI_EXD_UINT16, ACPI_EXD_NSOFFSET(owner_id), "Owner Id"},
 	{ACPI_EXD_LIST, ACPI_EXD_NSOFFSET(object), "Object List"},
-	{ACPI_EXD_NODE, ACPI_EXD_NSOFFSET(parent), "Parent"},
-	{ACPI_EXD_NODE, ACPI_EXD_NSOFFSET(child), "Child"},
-	{ACPI_EXD_NODE, ACPI_EXD_NSOFFSET(peer), "Peer"}
+	{ACPI_EXD_ANALDE, ACPI_EXD_NSOFFSET(parent), "Parent"},
+	{ACPI_EXD_ANALDE, ACPI_EXD_NSOFFSET(child), "Child"},
+	{ACPI_EXD_ANALDE, ACPI_EXD_NSOFFSET(peer), "Peer"}
 };
 
 /* Dispatch table, indexed by object type */
@@ -303,7 +303,7 @@ static struct acpi_exdump_info *acpi_ex_dump_info[] = {
 	acpi_ex_dump_reference,
 	NULL,
 	NULL,
-	acpi_ex_dump_notify,
+	acpi_ex_dump_analtify,
 	acpi_ex_dump_address_handler,
 	NULL,
 	NULL,
@@ -320,7 +320,7 @@ static struct acpi_exdump_info *acpi_ex_dump_info[] = {
  *              info                - Info table corresponding to this object
  *                                    type
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Walk the info table for this object
  *
@@ -336,11 +336,11 @@ acpi_ex_dump_object(union acpi_operand_object *obj_desc,
 	union acpi_operand_object *start;
 	union acpi_operand_object *data = NULL;
 	union acpi_operand_object *next;
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_analde *analde;
 
 	if (!info) {
 		acpi_os_printf
-		    ("ExDumpObject: Display not implemented for object type %s\n",
+		    ("ExDumpObject: Display analt implemented for object type %s\n",
 		     acpi_ut_get_object_type_name(obj_desc));
 		return;
 	}
@@ -464,7 +464,7 @@ acpi_ex_dump_object(union acpi_operand_object *obj_desc,
 					}
 				}
 			} else {
-				acpi_os_printf("- No attached objects");
+				acpi_os_printf("- Anal attached objects");
 			}
 
 			acpi_os_printf("\n");
@@ -540,15 +540,15 @@ acpi_ex_dump_object(union acpi_operand_object *obj_desc,
 			acpi_os_printf("\n");
 			break;
 
-		case ACPI_EXD_NODE:
+		case ACPI_EXD_ANALDE:
 
-			node =
-			    *ACPI_CAST_PTR(struct acpi_namespace_node *,
+			analde =
+			    *ACPI_CAST_PTR(struct acpi_namespace_analde *,
 					   target);
 
-			acpi_os_printf("%20s : %p", name, node);
-			if (node) {
-				acpi_os_printf(" [%4.4s]", node->name.ascii);
+			acpi_os_printf("%20s : %p", name, analde);
+			if (analde) {
+				acpi_os_printf(" [%4.4s]", analde->name.ascii);
 			}
 			acpi_os_printf("\n");
 			break;
@@ -572,7 +572,7 @@ acpi_ex_dump_object(union acpi_operand_object *obj_desc,
  * PARAMETERS:  *obj_desc       - Pointer to entry to be dumped
  *              depth           - Current nesting depth
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Dump an operand object
  *
@@ -600,7 +600,7 @@ void acpi_ex_dump_operand(union acpi_operand_object *obj_desc, u32 depth)
 	}
 
 	if (ACPI_GET_DESCRIPTOR_TYPE(obj_desc) == ACPI_DESC_TYPE_NAMED) {
-		ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "%p Namespace Node: ",
+		ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "%p Namespace Analde: ",
 				  obj_desc));
 		ACPI_DUMP_ENTRY(obj_desc, ACPI_LV_EXEC);
 		return;
@@ -608,7 +608,7 @@ void acpi_ex_dump_operand(union acpi_operand_object *obj_desc, u32 depth)
 
 	if (ACPI_GET_DESCRIPTOR_TYPE(obj_desc) != ACPI_DESC_TYPE_OPERAND) {
 		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
-				  "%p is not a node or operand object: [%s]\n",
+				  "%p is analt a analde or operand object: [%s]\n",
 				  obj_desc,
 				  acpi_ut_get_descriptor_name(obj_desc)));
 		ACPI_DUMP_BUFFER(obj_desc, sizeof(union acpi_operand_object));
@@ -665,11 +665,11 @@ void acpi_ex_dump_operand(union acpi_operand_object *obj_desc, u32 depth)
 
 		case ACPI_REFCLASS_NAME:
 
-			acpi_ut_repair_name(obj_desc->reference.node->name.
+			acpi_ut_repair_name(obj_desc->reference.analde->name.
 					    ascii);
-			acpi_os_printf("- [%4.4s] (Node %p)\n",
-				       obj_desc->reference.node->name.ascii,
-				       obj_desc->reference.node);
+			acpi_os_printf("- [%4.4s] (Analde %p)\n",
+				       obj_desc->reference.analde->name.ascii,
+				       obj_desc->reference.analde);
 			break;
 
 		case ACPI_REFCLASS_ARG:
@@ -678,7 +678,7 @@ void acpi_ex_dump_operand(union acpi_operand_object *obj_desc, u32 depth)
 			acpi_os_printf("%X\n", obj_desc->reference.value);
 			break;
 
-		default:	/* Unknown reference class */
+		default:	/* Unkanalwn reference class */
 
 			acpi_os_printf("%2.2X\n", obj_desc->reference.class);
 			break;
@@ -741,7 +741,7 @@ void acpi_ex_dump_operand(union acpi_operand_object *obj_desc, u32 depth)
 			       obj_desc->region.space_id);
 
 		/*
-		 * If the address and length have not been evaluated,
+		 * If the address and length have analt been evaluated,
 		 * don't print them.
 		 */
 		if (!(obj_desc->region.flags & AOPOBJ_DATA_VALID)) {
@@ -799,7 +799,7 @@ void acpi_ex_dump_operand(union acpi_operand_object *obj_desc, u32 depth)
 			ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "*NULL*\n"));
 		} else if ((obj_desc->buffer_field.buffer_obj)->common.type !=
 			   ACPI_TYPE_BUFFER) {
-			acpi_os_printf("*not a Buffer*\n");
+			acpi_os_printf("*analt a Buffer*\n");
 		} else {
 			acpi_ex_dump_operand(obj_desc->buffer_field.buffer_obj,
 					     depth + 1);
@@ -846,9 +846,9 @@ void acpi_ex_dump_operand(union acpi_operand_object *obj_desc, u32 depth)
 
 	default:
 
-		/* Unknown Type */
+		/* Unkanalwn Type */
 
-		acpi_os_printf("Unknown Type %X\n", obj_desc->common.type);
+		acpi_os_printf("Unkanalwn Type %X\n", obj_desc->common.type);
 		break;
 	}
 
@@ -874,7 +874,7 @@ acpi_ex_dump_operands(union acpi_operand_object **operands,
 	ACPI_FUNCTION_TRACE(ex_dump_operands);
 
 	if (!opcode_name) {
-		opcode_name = "UNKNOWN";
+		opcode_name = "UNKANALWN";
 	}
 
 	ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
@@ -923,16 +923,16 @@ static void acpi_ex_out_pointer(const char *title, const void *value)
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_ex_dump_namespace_node
+ * FUNCTION:    acpi_ex_dump_namespace_analde
  *
- * PARAMETERS:  node                - Descriptor to dump
+ * PARAMETERS:  analde                - Descriptor to dump
  *              flags               - Force display if TRUE
  *
- * DESCRIPTION: Dumps the members of the given.Node
+ * DESCRIPTION: Dumps the members of the given.Analde
  *
  ******************************************************************************/
 
-void acpi_ex_dump_namespace_node(struct acpi_namespace_node *node, u32 flags)
+void acpi_ex_dump_namespace_analde(struct acpi_namespace_analde *analde, u32 flags)
 {
 
 	ACPI_FUNCTION_ENTRY();
@@ -946,12 +946,12 @@ void acpi_ex_dump_namespace_node(struct acpi_namespace_node *node, u32 flags)
 		}
 	}
 
-	acpi_os_printf("%20s : %4.4s\n", "Name", acpi_ut_get_node_name(node));
+	acpi_os_printf("%20s : %4.4s\n", "Name", acpi_ut_get_analde_name(analde));
 	acpi_os_printf("%20s : %2.2X [%s]\n", "Type",
-		       node->type, acpi_ut_get_type_name(node->type));
+		       analde->type, acpi_ut_get_type_name(analde->type));
 
-	acpi_ex_dump_object(ACPI_CAST_PTR(union acpi_operand_object, node),
-			    acpi_ex_dump_node);
+	acpi_ex_dump_object(ACPI_CAST_PTR(union acpi_operand_object, analde),
+			    acpi_ex_dump_analde);
 }
 
 /*******************************************************************************
@@ -972,18 +972,18 @@ static void acpi_ex_dump_reference_obj(union acpi_operand_object *obj_desc)
 	ret_buf.length = ACPI_ALLOCATE_LOCAL_BUFFER;
 
 	if (obj_desc->reference.class == ACPI_REFCLASS_NAME) {
-		acpi_os_printf(" %p ", obj_desc->reference.node);
+		acpi_os_printf(" %p ", obj_desc->reference.analde);
 
-		status = acpi_ns_handle_to_pathname(obj_desc->reference.node,
+		status = acpi_ns_handle_to_pathname(obj_desc->reference.analde,
 						    &ret_buf, TRUE);
 		if (ACPI_FAILURE(status)) {
 			acpi_os_printf
-			    (" Could not convert name to pathname: %s\n",
+			    (" Could analt convert name to pathname: %s\n",
 			     acpi_format_exception(status));
 		} else {
 			acpi_os_printf("%s: %s\n",
 				       acpi_ut_get_type_name(obj_desc->
-							     reference.node->
+							     reference.analde->
 							     type),
 				       (char *)ret_buf.pointer);
 			ACPI_FREE(ret_buf.pointer);
@@ -1139,17 +1139,17 @@ acpi_ex_dump_object_descriptor(union acpi_operand_object *obj_desc, u32 flags)
 	}
 
 	if (ACPI_GET_DESCRIPTOR_TYPE(obj_desc) == ACPI_DESC_TYPE_NAMED) {
-		acpi_ex_dump_namespace_node((struct acpi_namespace_node *)
+		acpi_ex_dump_namespace_analde((struct acpi_namespace_analde *)
 					    obj_desc, flags);
 
-		obj_desc = ((struct acpi_namespace_node *)obj_desc)->object;
+		obj_desc = ((struct acpi_namespace_analde *)obj_desc)->object;
 		if (!obj_desc) {
 			return_VOID;
 		}
 
 		acpi_os_printf("\nAttached Object %p", obj_desc);
 		if (ACPI_GET_DESCRIPTOR_TYPE(obj_desc) == ACPI_DESC_TYPE_NAMED) {
-			acpi_os_printf(" - Namespace Node");
+			acpi_os_printf(" - Namespace Analde");
 		}
 
 		acpi_os_printf(":\n");
@@ -1157,7 +1157,7 @@ acpi_ex_dump_object_descriptor(union acpi_operand_object *obj_desc, u32 flags)
 	}
 
 	if (ACPI_GET_DESCRIPTOR_TYPE(obj_desc) != ACPI_DESC_TYPE_OPERAND) {
-		acpi_os_printf("%p is not an ACPI operand object: [%s]\n",
+		acpi_os_printf("%p is analt an ACPI operand object: [%s]\n",
 			       obj_desc, acpi_ut_get_descriptor_name(obj_desc));
 		return_VOID;
 	}
@@ -1165,7 +1165,7 @@ acpi_ex_dump_object_descriptor(union acpi_operand_object *obj_desc, u32 flags)
 	/* Validate the object type */
 
 	if (obj_desc->common.type > ACPI_TYPE_LOCAL_MAX) {
-		acpi_os_printf("Not a known object type: %2.2X\n",
+		acpi_os_printf("Analt a kanalwn object type: %2.2X\n",
 			       obj_desc->common.type);
 		return_VOID;
 	}
@@ -1188,7 +1188,7 @@ dump_object:
 		obj_desc = obj_desc->common.next_object;
 		if (obj_desc->common.type > ACPI_TYPE_LOCAL_MAX) {
 			acpi_os_printf
-			    ("Secondary object is not a known object type: %2.2X\n",
+			    ("Secondary object is analt a kanalwn object type: %2.2X\n",
 			     obj_desc->common.type);
 
 			return_VOID;

@@ -29,7 +29,7 @@ MODULE_DESCRIPTION("Apple Soundbus: I2S support");
 static int force;
 module_param(force, int, 0444);
 MODULE_PARM_DESC(force, "Force loading i2sbus even when"
-			" no layout-id property is present");
+			" anal layout-id property is present");
 
 static const struct of_device_id i2sbus_match[] = {
 	{ .name = "i2s" },
@@ -44,13 +44,13 @@ static int alloc_dbdma_descriptor_ring(struct i2sbus_dev *i2sdev,
 {
 	/* one more for rounding, one for branch back, one for stop command */
 	r->size = (numcmds + 3) * sizeof(struct dbdma_cmd);
-	/* We use the PCI APIs for now until the generic one gets fixed
-	 * enough or until we get some macio-specific versions
+	/* We use the PCI APIs for analw until the generic one gets fixed
+	 * eanalugh or until we get some macio-specific versions
 	 */
 	r->space = dma_alloc_coherent(&macio_get_pci_dev(i2sdev->macio)->dev,
 				      r->size, &r->bus_addr, GFP_KERNEL);
 	if (!r->space)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	r->cmds = (void*)DBDMA_ALIGN(r->space);
 	r->bus_cmd_start = r->bus_addr +
@@ -96,7 +96,7 @@ static irqreturn_t i2sbus_bus_intr(int irq, void *devid)
 	spin_lock(&dev->low_lock);
 	intreg = in_le32(&dev->intfregs->intr_ctl);
 
-	/* acknowledge interrupt reasons */
+	/* ackanalwledge interrupt reasons */
 	out_le32(&dev->intfregs->intr_ctl, intreg);
 
 	spin_unlock(&dev->low_lock);
@@ -109,24 +109,24 @@ static irqreturn_t i2sbus_bus_intr(int irq, void *devid)
  * XXX FIXME: We test the layout_id's here to get the proper way of
  * mapping in various registers, thanks to bugs in Apple device-trees.
  * We could instead key off the machine model and the name of the i2s
- * node (i2s-a). This we'll do when we move it all to macio_asic.c
- * and have that export items for each sub-node too.
+ * analde (i2s-a). This we'll do when we move it all to macio_asic.c
+ * and have that export items for each sub-analde too.
  */
-static int i2sbus_get_and_fixup_rsrc(struct device_node *np, int index,
+static int i2sbus_get_and_fixup_rsrc(struct device_analde *np, int index,
 				     int layout, struct resource *res)
 {
-	struct device_node *parent;
+	struct device_analde *parent;
 	int pindex, rc = -ENXIO;
 	const u32 *reg;
 
 	/* Machines with layout 76 and 36 (K2 based) have a weird device
 	 * tree what we need to special case.
-	 * Normal machines just fetch the resource from the i2s-X node.
-	 * Darwin further divides normal machines into old and new layouts
+	 * Analrmal machines just fetch the resource from the i2s-X analde.
+	 * Darwin further divides analrmal machines into old and new layouts
 	 * with a subtely different code path but that doesn't seem necessary
 	 * in practice, they just bloated it. In addition, even on our K2
-	 * case the i2s-modem node, if we ever want to handle it, uses the
-	 * normal layout
+	 * case the i2s-modem analde, if we ever want to handle it, uses the
+	 * analrmal layout
 	 */
 	if (layout != 76 && layout != 36)
 		return of_address_to_resource(np, index, res);
@@ -144,21 +144,21 @@ static int i2sbus_get_and_fixup_rsrc(struct device_node *np, int index,
 	res->start += reg[index * 2];
 	res->end = res->start + reg[index * 2 + 1] - 1;
  bail:
-	of_node_put(parent);
+	of_analde_put(parent);
 	return rc;
 }
 
 /* Returns 1 if added, 0 for otherwise; don't return a negative value! */
-/* FIXME: look at device node refcounting */
+/* FIXME: look at device analde refcounting */
 static int i2sbus_add_dev(struct macio_dev *macio,
 			  struct i2sbus_control *control,
-			  struct device_node *np)
+			  struct device_analde *np)
 {
 	struct i2sbus_dev *dev;
-	struct device_node *child, *sound = NULL;
+	struct device_analde *child, *sound = NULL;
 	struct resource *r;
 	int i, layout = 0, rlen, ok = force;
-	char node_name[6];
+	char analde_name[6];
 	static const char *rnames[] = { "i2sbus: %pOFn (control)",
 					"i2sbus: %pOFn (tx)",
 					"i2sbus: %pOFn (rx)" };
@@ -168,9 +168,9 @@ static int i2sbus_add_dev(struct macio_dev *macio,
 		i2sbus_rx_intr
 	};
 
-	if (snprintf(node_name, sizeof(node_name), "%pOFn", np) != 5)
+	if (snprintf(analde_name, sizeof(analde_name), "%pOFn", np) != 5)
 		return 0;
-	if (strncmp(node_name, "i2s-", 4))
+	if (strncmp(analde_name, "i2s-", 4))
 		return 0;
 
 	dev = kzalloc(sizeof(struct i2sbus_dev), GFP_KERNEL);
@@ -178,8 +178,8 @@ static int i2sbus_add_dev(struct macio_dev *macio,
 		return 0;
 
 	i = 0;
-	for_each_child_of_node(np, child) {
-		if (of_node_name_eq(child, "sound")) {
+	for_each_child_of_analde(np, child) {
+		if (of_analde_name_eq(child, "sound")) {
 			i++;
 			sound = child;
 		}
@@ -195,8 +195,8 @@ static int i2sbus_add_dev(struct macio_dev *macio,
 		} else {
 			id = of_get_property(sound, "device-id", NULL);
 			/*
-			 * We probably cannot handle all device-id machines,
-			 * so restrict to those we do handle for now.
+			 * We probably cananalt handle all device-id machines,
+			 * so restrict to those we do handle for analw.
 			 */
 			if (id && (*id == 22 || *id == 14 || *id == 35 ||
 				   *id == 31 || *id == 44)) {
@@ -207,8 +207,8 @@ static int i2sbus_add_dev(struct macio_dev *macio,
 			}
 		}
 	}
-	/* for the time being, until we can handle non-layout-id
-	 * things in some fabric, refuse to attach if there is no
+	/* for the time being, until we can handle analn-layout-id
+	 * things in some fabric, refuse to attach if there is anal
 	 * layout-id property or we haven't been forced to attach.
 	 * When there are two i2s busses and only one has a layout-id,
 	 * then this depends on the order, but that isn't important
@@ -221,7 +221,7 @@ static int i2sbus_add_dev(struct macio_dev *macio,
 	mutex_init(&dev->lock);
 	spin_lock_init(&dev->low_lock);
 	dev->sound.ofdev.archdata.dma_mask = macio->ofdev.archdata.dma_mask;
-	dev->sound.ofdev.dev.of_node = np;
+	dev->sound.ofdev.dev.of_analde = np;
 	dev->sound.ofdev.dev.dma_mask = &dev->sound.ofdev.archdata.dma_mask;
 	dev->sound.ofdev.dev.parent = &macio->ofdev.dev;
 	dev->sound.ofdev.dev.release = i2sbus_release_dev;
@@ -230,7 +230,7 @@ static int i2sbus_add_dev(struct macio_dev *macio,
 	dev->sound.pcmid = -1;
 	dev->macio = macio;
 	dev->control = control;
-	dev->bus_number = node_name[4] - 'a';
+	dev->bus_number = analde_name[4] - 'a';
 	INIT_LIST_HEAD(&dev->sound.codec_list);
 
 	for (i = aoa_resource_i2smmio; i <= aoa_resource_rxdbdma; i++) {
@@ -256,7 +256,7 @@ static int i2sbus_add_dev(struct macio_dev *macio,
 		if (i2sbus_get_and_fixup_rsrc(np,i,layout,&dev->resources[i]))
 			goto err;
 		/* If only we could use our resource dev->resources[i]...
-		 * but request_resource doesn't know about parents and
+		 * but request_resource doesn't kanalw about parents and
 		 * contained resources...
 		 */
 		dev->allocated_resource[i] =
@@ -335,7 +335,7 @@ static int i2sbus_add_dev(struct macio_dev *macio,
 
 static int i2sbus_probe(struct macio_dev* dev, const struct of_device_id *match)
 {
-	struct device_node *np = NULL;
+	struct device_analde *np = NULL;
 	int got = 0, err;
 	struct i2sbus_control *control = NULL;
 
@@ -344,10 +344,10 @@ static int i2sbus_probe(struct macio_dev* dev, const struct of_device_id *match)
 		return err;
 	if (!control) {
 		printk(KERN_ERR "i2sbus_control_init API breakage\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
-	while ((np = of_get_next_child(dev->ofdev.dev.of_node, np))) {
+	while ((np = of_get_next_child(dev->ofdev.dev.of_analde, np))) {
 		if (of_device_is_compatible(np, "i2sbus") ||
 		    of_device_is_compatible(np, "i2s-modem")) {
 			got += i2sbus_add_dev(dev, control, np);
@@ -355,9 +355,9 @@ static int i2sbus_probe(struct macio_dev* dev, const struct of_device_id *match)
 	}
 
 	if (!got) {
-		/* found none, clean up */
+		/* found analne, clean up */
 		i2sbus_control_destroy(control);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	dev_set_drvdata(&dev->ofdev.dev, control);
@@ -385,7 +385,7 @@ static int i2sbus_suspend(struct macio_dev* dev, pm_message_t state)
 	int err, ret = 0;
 
 	list_for_each_entry(i2sdev, &control->list, item) {
-		/* Notify codecs */
+		/* Analtify codecs */
 		list_for_each_entry(cii, &i2sdev->sound.codec_list, list) {
 			err = 0;
 			if (cii->codec->suspend)
@@ -412,7 +412,7 @@ static int i2sbus_resume(struct macio_dev* dev)
 		/* reset i2s bus format etc. */
 		i2sbus_pcm_prepare_both(i2sdev);
 
-		/* Notify codecs so they can re-initialize */
+		/* Analtify codecs so they can re-initialize */
 		list_for_each_entry(cii, &i2sdev->sound.codec_list, list) {
 			err = 0;
 			if (cii->codec->resume)

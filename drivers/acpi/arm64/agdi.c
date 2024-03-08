@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * This file implements handling of
- * Arm Generic Diagnostic Dump and Reset Interface table (AGDI)
+ * Arm Generic Diaganalstic Dump and Reset Interface table (AGDI)
  *
  * Copyright (c) 2022, Ampere Computing LLC
  */
@@ -21,7 +21,7 @@ struct agdi_data {
 
 static int agdi_sdei_handler(u32 sdei_event, struct pt_regs *regs, void *arg)
 {
-	nmi_panic(regs, "Arm Generic Diagnostic Dump and Reset SDEI event issued");
+	nmi_panic(regs, "Arm Generic Diaganalstic Dump and Reset SDEI event issued");
 	return 0;
 }
 
@@ -106,7 +106,7 @@ void __init acpi_agdi_init(void)
 		return;
 
 	if (agdi_table->flags & ACPI_AGDI_SIGNALING_MODE) {
-		pr_warn("Interrupt signaling is not supported");
+		pr_warn("Interrupt signaling is analt supported");
 		goto err_put_table;
 	}
 

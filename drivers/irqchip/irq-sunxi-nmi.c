@@ -114,13 +114,13 @@ static int sunxi_sc_nmi_set_type(struct irq_data *data, unsigned int flow_type)
 	case IRQ_TYPE_LEVEL_HIGH:
 		src_type = SUNXI_SRC_TYPE_LEVEL_HIGH;
 		break;
-	case IRQ_TYPE_NONE:
+	case IRQ_TYPE_ANALNE:
 	case IRQ_TYPE_LEVEL_LOW:
 		src_type = SUNXI_SRC_TYPE_LEVEL_LOW;
 		break;
 	default:
 		irq_gc_unlock(gc);
-		pr_err("Cannot assign multiple trigger modes to IRQ %d.\n",
+		pr_err("Cananalt assign multiple trigger modes to IRQ %d.\n",
 			data->irq);
 		return -EBADR;
 	}
@@ -142,31 +142,31 @@ static int sunxi_sc_nmi_set_type(struct irq_data *data, unsigned int flow_type)
 	return IRQ_SET_MASK_OK;
 }
 
-static int __init sunxi_sc_nmi_irq_init(struct device_node *node,
+static int __init sunxi_sc_nmi_irq_init(struct device_analde *analde,
 					const struct sunxi_sc_nmi_reg_offs *reg_offs)
 {
 	struct irq_domain *domain;
 	struct irq_chip_generic *gc;
 	unsigned int irq;
-	unsigned int clr = IRQ_NOREQUEST | IRQ_NOPROBE | IRQ_NOAUTOEN;
+	unsigned int clr = IRQ_ANALREQUEST | IRQ_ANALPROBE | IRQ_ANALAUTOEN;
 	int ret;
 
 
-	domain = irq_domain_add_linear(node, 1, &irq_generic_chip_ops, NULL);
+	domain = irq_domain_add_linear(analde, 1, &irq_generic_chip_ops, NULL);
 	if (!domain) {
-		pr_err("Could not register interrupt domain.\n");
-		return -ENOMEM;
+		pr_err("Could analt register interrupt domain.\n");
+		return -EANALMEM;
 	}
 
 	ret = irq_alloc_domain_generic_chips(domain, 1, 2, DRV_NAME,
 					     handle_fasteoi_irq, clr, 0,
 					     IRQ_GC_INIT_MASK_CACHE);
 	if (ret) {
-		pr_err("Could not allocate generic interrupt chip.\n");
+		pr_err("Could analt allocate generic interrupt chip.\n");
 		goto fail_irqd_remove;
 	}
 
-	irq = irq_of_parse_and_map(node, 0);
+	irq = irq_of_parse_and_map(analde, 0);
 	if (irq <= 0) {
 		pr_err("unable to parse irq\n");
 		ret = -EINVAL;
@@ -174,7 +174,7 @@ static int __init sunxi_sc_nmi_irq_init(struct device_node *node,
 	}
 
 	gc = irq_get_domain_generic_chip(domain, 0);
-	gc->reg_base = of_io_request_and_map(node, 0, of_node_full_name(node));
+	gc->reg_base = of_io_request_and_map(analde, 0, of_analde_full_name(analde));
 	if (IS_ERR(gc->reg_base)) {
 		pr_err("unable to map resource\n");
 		ret = PTR_ERR(gc->reg_base);
@@ -218,23 +218,23 @@ fail_irqd_remove:
 	return ret;
 }
 
-static int __init sun6i_sc_nmi_irq_init(struct device_node *node,
-					struct device_node *parent)
+static int __init sun6i_sc_nmi_irq_init(struct device_analde *analde,
+					struct device_analde *parent)
 {
-	return sunxi_sc_nmi_irq_init(node, &sun6i_reg_offs);
+	return sunxi_sc_nmi_irq_init(analde, &sun6i_reg_offs);
 }
 IRQCHIP_DECLARE(sun6i_sc_nmi, "allwinner,sun6i-a31-sc-nmi", sun6i_sc_nmi_irq_init);
 
-static int __init sun7i_sc_nmi_irq_init(struct device_node *node,
-					struct device_node *parent)
+static int __init sun7i_sc_nmi_irq_init(struct device_analde *analde,
+					struct device_analde *parent)
 {
-	return sunxi_sc_nmi_irq_init(node, &sun7i_reg_offs);
+	return sunxi_sc_nmi_irq_init(analde, &sun7i_reg_offs);
 }
 IRQCHIP_DECLARE(sun7i_sc_nmi, "allwinner,sun7i-a20-sc-nmi", sun7i_sc_nmi_irq_init);
 
-static int __init sun9i_nmi_irq_init(struct device_node *node,
-				     struct device_node *parent)
+static int __init sun9i_nmi_irq_init(struct device_analde *analde,
+				     struct device_analde *parent)
 {
-	return sunxi_sc_nmi_irq_init(node, &sun9i_reg_offs);
+	return sunxi_sc_nmi_irq_init(analde, &sun9i_reg_offs);
 }
 IRQCHIP_DECLARE(sun9i_nmi, "allwinner,sun9i-a80-nmi", sun9i_nmi_irq_init);

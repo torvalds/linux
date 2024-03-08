@@ -164,7 +164,7 @@ static void mt7921_mac_sta_poll(struct mt792x_dev *dev)
 static int
 mt7921_mac_fill_rx(struct mt792x_dev *dev, struct sk_buff *skb)
 {
-	u32 csum_mask = MT_RXD0_NORMAL_IP_SUM | MT_RXD0_NORMAL_UDP_TCP_SUM;
+	u32 csum_mask = MT_RXD0_ANALRMAL_IP_SUM | MT_RXD0_ANALRMAL_UDP_TCP_SUM;
 	struct mt76_rx_status *status = (struct mt76_rx_status *)skb->cb;
 	bool hdr_trans, unicast, insert_ccmp_hdr = false;
 	u8 chfreq, qos_ctl = 0, remove_pad, amsdu_info;
@@ -187,26 +187,26 @@ mt7921_mac_fill_rx(struct mt792x_dev *dev, struct sk_buff *skb)
 
 	memset(status, 0, sizeof(*status));
 
-	if (rxd1 & MT_RXD1_NORMAL_BAND_IDX)
+	if (rxd1 & MT_RXD1_ANALRMAL_BAND_IDX)
 		return -EINVAL;
 
 	if (!test_bit(MT76_STATE_RUNNING, &mphy->state))
 		return -EINVAL;
 
-	if (rxd2 & MT_RXD2_NORMAL_AMSDU_ERR)
+	if (rxd2 & MT_RXD2_ANALRMAL_AMSDU_ERR)
 		return -EINVAL;
 
-	hdr_trans = rxd2 & MT_RXD2_NORMAL_HDR_TRANS;
-	if (hdr_trans && (rxd1 & MT_RXD1_NORMAL_CM))
+	hdr_trans = rxd2 & MT_RXD2_ANALRMAL_HDR_TRANS;
+	if (hdr_trans && (rxd1 & MT_RXD1_ANALRMAL_CM))
 		return -EINVAL;
 
 	/* ICV error or CCMP/BIP/WPI MIC error */
-	if (rxd1 & MT_RXD1_NORMAL_ICV_ERR)
+	if (rxd1 & MT_RXD1_ANALRMAL_ICV_ERR)
 		status->flag |= RX_FLAG_ONLY_MONITOR;
 
-	chfreq = FIELD_GET(MT_RXD3_NORMAL_CH_FREQ, rxd3);
-	unicast = FIELD_GET(MT_RXD3_NORMAL_ADDR_TYPE, rxd3) == MT_RXD3_NORMAL_U2M;
-	idx = FIELD_GET(MT_RXD1_NORMAL_WLAN_IDX, rxd1);
+	chfreq = FIELD_GET(MT_RXD3_ANALRMAL_CH_FREQ, rxd3);
+	unicast = FIELD_GET(MT_RXD3_ANALRMAL_ADDR_TYPE, rxd3) == MT_RXD3_ANALRMAL_U2M;
+	idx = FIELD_GET(MT_RXD1_ANALRMAL_WLAN_IDX, rxd1);
 	status->wcid = mt792x_rx_get_wcid(dev, idx, unicast);
 
 	if (status->wcid) {
@@ -239,26 +239,26 @@ mt7921_mac_fill_rx(struct mt792x_dev *dev, struct sk_buff *skb)
 	    !(csum_status & (BIT(0) | BIT(2) | BIT(3))))
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 
-	if (rxd1 & MT_RXD1_NORMAL_FCS_ERR)
+	if (rxd1 & MT_RXD1_ANALRMAL_FCS_ERR)
 		status->flag |= RX_FLAG_FAILED_FCS_CRC;
 
-	if (rxd1 & MT_RXD1_NORMAL_TKIP_MIC_ERR)
+	if (rxd1 & MT_RXD1_ANALRMAL_TKIP_MIC_ERR)
 		status->flag |= RX_FLAG_MMIC_ERROR;
 
-	if (FIELD_GET(MT_RXD1_NORMAL_SEC_MODE, rxd1) != 0 &&
-	    !(rxd1 & (MT_RXD1_NORMAL_CLM | MT_RXD1_NORMAL_CM))) {
+	if (FIELD_GET(MT_RXD1_ANALRMAL_SEC_MODE, rxd1) != 0 &&
+	    !(rxd1 & (MT_RXD1_ANALRMAL_CLM | MT_RXD1_ANALRMAL_CM))) {
 		status->flag |= RX_FLAG_DECRYPTED;
 		status->flag |= RX_FLAG_IV_STRIPPED;
 		status->flag |= RX_FLAG_MMIC_STRIPPED | RX_FLAG_MIC_STRIPPED;
 	}
 
-	remove_pad = FIELD_GET(MT_RXD2_NORMAL_HDR_OFFSET, rxd2);
+	remove_pad = FIELD_GET(MT_RXD2_ANALRMAL_HDR_OFFSET, rxd2);
 
-	if (rxd2 & MT_RXD2_NORMAL_MAX_LEN_ERROR)
+	if (rxd2 & MT_RXD2_ANALRMAL_MAX_LEN_ERROR)
 		return -EINVAL;
 
 	rxd += 6;
-	if (rxd1 & MT_RXD1_NORMAL_GROUP_4) {
+	if (rxd1 & MT_RXD1_ANALRMAL_GROUP_4) {
 		u32 v0 = le32_to_cpu(rxd[0]);
 		u32 v2 = le32_to_cpu(rxd[2]);
 
@@ -271,19 +271,19 @@ mt7921_mac_fill_rx(struct mt792x_dev *dev, struct sk_buff *skb)
 			return -EINVAL;
 	}
 
-	if (rxd1 & MT_RXD1_NORMAL_GROUP_1) {
+	if (rxd1 & MT_RXD1_ANALRMAL_GROUP_1) {
 		u8 *data = (u8 *)rxd;
 
 		if (status->flag & RX_FLAG_DECRYPTED) {
-			switch (FIELD_GET(MT_RXD1_NORMAL_SEC_MODE, rxd1)) {
+			switch (FIELD_GET(MT_RXD1_ANALRMAL_SEC_MODE, rxd1)) {
 			case MT_CIPHER_AES_CCMP:
 			case MT_CIPHER_CCMP_CCX:
 			case MT_CIPHER_CCMP_256:
 				insert_ccmp_hdr =
-					FIELD_GET(MT_RXD2_NORMAL_FRAG, rxd2);
+					FIELD_GET(MT_RXD2_ANALRMAL_FRAG, rxd2);
 				fallthrough;
 			case MT_CIPHER_TKIP:
-			case MT_CIPHER_TKIP_NO_MIC:
+			case MT_CIPHER_TKIP_ANAL_MIC:
 			case MT_CIPHER_GCMP:
 			case MT_CIPHER_GCMP_256:
 				status->iv[0] = data[5];
@@ -302,11 +302,11 @@ mt7921_mac_fill_rx(struct mt792x_dev *dev, struct sk_buff *skb)
 			return -EINVAL;
 	}
 
-	if (rxd1 & MT_RXD1_NORMAL_GROUP_2) {
+	if (rxd1 & MT_RXD1_ANALRMAL_GROUP_2) {
 		status->timestamp = le32_to_cpu(rxd[0]);
 		status->flag |= RX_FLAG_MACTIME_START;
 
-		if (!(rxd2 & MT_RXD2_NORMAL_NON_AMPDU)) {
+		if (!(rxd2 & MT_RXD2_ANALRMAL_ANALN_AMPDU)) {
 			status->flag |= RX_FLAG_AMPDU_DETAILS;
 
 			/* all subframes of an A-MPDU have the same timestamp */
@@ -325,7 +325,7 @@ mt7921_mac_fill_rx(struct mt792x_dev *dev, struct sk_buff *skb)
 	}
 
 	/* RXD Group 3 - P-RXV */
-	if (rxd1 & MT_RXD1_NORMAL_GROUP_3) {
+	if (rxd1 & MT_RXD1_ANALRMAL_GROUP_3) {
 		u32 v0, v1;
 		int ret;
 
@@ -345,7 +345,7 @@ mt7921_mac_fill_rx(struct mt792x_dev *dev, struct sk_buff *skb)
 		if (ret < 0)
 			return ret;
 
-		if (rxd1 & MT_RXD1_NORMAL_GROUP_5) {
+		if (rxd1 & MT_RXD1_ANALRMAL_GROUP_5) {
 			rxd += 6;
 			if ((u8 *)rxd - skb->data >= skb->len)
 				return -EINVAL;
@@ -377,7 +377,7 @@ mt7921_mac_fill_rx(struct mt792x_dev *dev, struct sk_buff *skb)
 		}
 	}
 
-	amsdu_info = FIELD_GET(MT_RXD4_NORMAL_PAYLOAD_FORMAT, rxd4);
+	amsdu_info = FIELD_GET(MT_RXD4_ANALRMAL_PAYLOAD_FORMAT, rxd4);
 	status->amsdu = !!amsdu_info;
 	if (status->amsdu) {
 		status->first_amsdu = amsdu_info == MT_RXD4_FIRST_AMSDU_FRAME;
@@ -412,7 +412,7 @@ mt7921_mac_fill_rx(struct mt792x_dev *dev, struct sk_buff *skb)
 		struct ieee80211_hdr *hdr;
 
 		if (insert_ccmp_hdr) {
-			u8 key_id = FIELD_GET(MT_RXD1_NORMAL_KEY_ID, rxd1);
+			u8 key_id = FIELD_GET(MT_RXD1_ANALRMAL_KEY_ID, rxd1);
 
 			mt76_insert_ccmp_hdr(skb, key_id);
 		}
@@ -436,7 +436,7 @@ mt7921_mac_fill_rx(struct mt792x_dev *dev, struct sk_buff *skb)
 		return 0;
 
 	status->aggr = unicast && !ieee80211_is_qos_nullfunc(fc);
-	status->seqno = IEEE80211_SEQ_TO_SN(seq_ctrl);
+	status->seqanal = IEEE80211_SEQ_TO_SN(seq_ctrl);
 	status->qos_ctl = qos_ctl;
 
 	return 0;
@@ -573,8 +573,8 @@ bool mt7921_rx_check(struct mt76_dev *mdev, void *data, int len)
 	type = le32_get_bits(rxd[0], MT_RXD0_PKT_TYPE);
 
 	switch (type) {
-	case PKT_TYPE_TXRX_NOTIFY:
-		/* PKT_TYPE_TXRX_NOTIFY can be received only by mmio devices */
+	case PKT_TYPE_TXRX_ANALTIFY:
+		/* PKT_TYPE_TXRX_ANALTIFY can be received only by mmio devices */
 		mt7921_mac_tx_free(dev, data, len); /* mmio */
 		return false;
 	case PKT_TYPE_TXS:
@@ -600,11 +600,11 @@ void mt7921_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
 	flag = le32_get_bits(rxd[0], MT_RXD0_PKT_FLAG);
 
 	if (type == PKT_TYPE_RX_EVENT && flag == 0x1)
-		type = PKT_TYPE_NORMAL_MCU;
+		type = PKT_TYPE_ANALRMAL_MCU;
 
 	switch (type) {
-	case PKT_TYPE_TXRX_NOTIFY:
-		/* PKT_TYPE_TXRX_NOTIFY can be received only by mmio devices */
+	case PKT_TYPE_TXRX_ANALTIFY:
+		/* PKT_TYPE_TXRX_ANALTIFY can be received only by mmio devices */
 		mt7921_mac_tx_free(dev, skb->data, skb->len);
 		napi_consume_skb(skb, 1);
 		break;
@@ -616,8 +616,8 @@ void mt7921_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
 			mt7921_mac_add_txs(dev, rxd);
 		dev_kfree_skb(skb);
 		break;
-	case PKT_TYPE_NORMAL_MCU:
-	case PKT_TYPE_NORMAL:
+	case PKT_TYPE_ANALRMAL_MCU:
+	case PKT_TYPE_ANALRMAL:
 		if (!mt7921_mac_fill_rx(dev, skb)) {
 			mt76_rx(&dev->mt76, q, skb);
 			return;
@@ -648,7 +648,7 @@ mt7921_vif_connect_iter(void *priv, u8 *mac,
 		mt76_connac_mcu_uni_add_bss(dev->phy.mt76, vif, &mvif->sta.wcid,
 					    true, NULL);
 		mt7921_mcu_sta_update(dev, NULL, vif, true,
-				      MT76_STA_INFO_STATE_NONE);
+				      MT76_STA_INFO_STATE_ANALNE);
 		mt7921_mcu_uni_add_beacon_offload(dev, hw, vif, true);
 	}
 }

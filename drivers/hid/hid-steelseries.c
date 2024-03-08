@@ -3,7 +3,7 @@
  *  HID driver for Steelseries devices
  *
  *  Copyright (c) 2013 Simon Wood
- *  Copyright (c) 2023 Bastien Nocera
+ *  Copyright (c) 2023 Bastien Analcera
  */
 
 /*
@@ -151,7 +151,7 @@ static void steelseries_srws1_set_leds(struct hid_device *hdev, __u16 leds)
 
 	hid_hw_request(hdev, report, HID_REQ_SET_REPORT);
 
-	/* Note: LED change does not show on device until the device is read/polled */
+	/* Analte: LED change does analt show on device until the device is read/polled */
 }
 
 static void steelseries_srws1_led_all_set_brightness(struct led_classdev *led_cdev,
@@ -162,7 +162,7 @@ static void steelseries_srws1_led_all_set_brightness(struct led_classdev *led_cd
 	struct steelseries_srws1_data *drv_data = hid_get_drvdata(hid);
 
 	if (!drv_data) {
-		hid_err(hid, "Device data not found.");
+		hid_err(hid, "Device data analt found.");
 		return;
 	}
 
@@ -183,7 +183,7 @@ static enum led_brightness steelseries_srws1_led_all_get_brightness(struct led_c
 	drv_data = hid_get_drvdata(hid);
 
 	if (!drv_data) {
-		hid_err(hid, "Device data not found.");
+		hid_err(hid, "Device data analt found.");
 		return LED_OFF;
 	}
 
@@ -199,7 +199,7 @@ static void steelseries_srws1_led_set_brightness(struct led_classdev *led_cdev,
 	int i, state = 0;
 
 	if (!drv_data) {
-		hid_err(hid, "Device data not found.");
+		hid_err(hid, "Device data analt found.");
 		return;
 	}
 
@@ -229,7 +229,7 @@ static enum led_brightness steelseries_srws1_led_get_brightness(struct led_class
 	drv_data = hid_get_drvdata(hid);
 
 	if (!drv_data) {
-		hid_err(hid, "Device data not found.");
+		hid_err(hid, "Device data analt found.");
 		return LED_OFF;
 	}
 
@@ -254,7 +254,7 @@ static int steelseries_srws1_probe(struct hid_device *hdev,
 
 	if (drv_data == NULL) {
 		hid_err(hdev, "can't alloc SRW-S1 memory\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	hid_set_drvdata(hdev, drv_data);
@@ -266,7 +266,7 @@ static int steelseries_srws1_probe(struct hid_device *hdev,
 	}
 
 	if (!hid_validate_values(hdev, HID_OUTPUT_REPORT, 0, 0, 16)) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_free;
 	}
 
@@ -385,14 +385,14 @@ static int steelseries_headset_arctis_1_fetch_battery(struct hid_device *hdev)
 	/* Request battery information */
 	write_buf = kmemdup(arctis_1_battery_request, sizeof(arctis_1_battery_request), GFP_KERNEL);
 	if (!write_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = hid_hw_raw_request(hdev, arctis_1_battery_request[0],
 				 write_buf, sizeof(arctis_1_battery_request),
 				 HID_OUTPUT_REPORT, HID_REQ_SET_REPORT);
 	if (ret < (int)sizeof(arctis_1_battery_request)) {
 		hid_err(hdev, "hid_hw_raw_request() failed with %d\n", ret);
-		ret = -ENODATA;
+		ret = -EANALDATA;
 	}
 	kfree(write_buf);
 	return ret;
@@ -434,7 +434,7 @@ static int steelseries_headset_battery_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_STATUS:
 		val->intval = sd->headset_connected ?
 			POWER_SUPPLY_STATUS_DISCHARGING :
-			POWER_SUPPLY_STATUS_UNKNOWN;
+			POWER_SUPPLY_STATUS_UNKANALWN;
 		break;
 	case POWER_SUPPLY_PROP_SCOPE:
 		val->intval = POWER_SUPPLY_SCOPE_DEVICE;
@@ -473,7 +473,7 @@ static enum power_supply_property steelseries_headset_battery_props[] = {
 
 static int steelseries_headset_battery_register(struct steelseries_device *sd)
 {
-	static atomic_t battery_no = ATOMIC_INIT(0);
+	static atomic_t battery_anal = ATOMIC_INIT(0);
 	struct power_supply_config battery_cfg = { .drv_data = sd, };
 	unsigned long n;
 	int ret;
@@ -483,11 +483,11 @@ static int steelseries_headset_battery_register(struct steelseries_device *sd)
 	sd->battery_desc.num_properties = ARRAY_SIZE(steelseries_headset_battery_props);
 	sd->battery_desc.get_property = steelseries_headset_battery_get_property;
 	sd->battery_desc.use_for_apm = 0;
-	n = atomic_inc_return(&battery_no) - 1;
+	n = atomic_inc_return(&battery_anal) - 1;
 	sd->battery_desc.name = devm_kasprintf(&sd->hdev->dev, GFP_KERNEL,
 						    "steelseries_headset_battery_%ld", n);
 	if (!sd->battery_desc.name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* avoid the warning of 0% battery while waiting for the first info */
 	steelseries_headset_set_wireless_status(sd->hdev, false);
@@ -517,7 +517,7 @@ static int steelseries_probe(struct hid_device *hdev, const struct hid_device_id
 
 	sd = devm_kzalloc(&hdev->dev, sizeof(*sd), GFP_KERNEL);
 	if (!sd)
-		return -ENOMEM;
+		return -EANALMEM;
 	hid_set_drvdata(hdev, sd);
 	sd->hdev = hdev;
 	sd->quirks = id->driver_data;
@@ -527,7 +527,7 @@ static int steelseries_probe(struct hid_device *hdev, const struct hid_device_id
     (IS_MODULE(CONFIG_LEDS_CLASS) && IS_MODULE(CONFIG_HID_STEELSERIES))
 		return steelseries_srws1_probe(hdev, id);
 #else
-		return -ENODEV;
+		return -EANALDEV;
 #endif
 	}
 
@@ -595,7 +595,7 @@ static int steelseries_headset_raw_event(struct hid_device *hdev,
 	bool connected = sd->headset_connected;
 	unsigned long flags;
 
-	/* Not a headset */
+	/* Analt a headset */
 	if (sd->quirks & STEELSERIES_SRWS1)
 		return 0;
 
@@ -617,8 +617,8 @@ static int steelseries_headset_raw_event(struct hid_device *hdev,
 	if (connected != sd->headset_connected) {
 		hid_dbg(sd->hdev,
 			"Connected status changed from %sconnected to %sconnected\n",
-			sd->headset_connected ? "" : "not ",
-			connected ? "" : "not ");
+			sd->headset_connected ? "" : "analt ",
+			connected ? "" : "analt ");
 		sd->headset_connected = connected;
 		steelseries_headset_set_wireless_status(hdev, connected);
 	}
@@ -663,5 +663,5 @@ static struct hid_driver steelseries_driver = {
 
 module_hid_driver(steelseries_driver);
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Bastien Nocera <hadess@hadess.net>");
+MODULE_AUTHOR("Bastien Analcera <hadess@hadess.net>");
 MODULE_AUTHOR("Simon Wood <simon@mungewell.org>");

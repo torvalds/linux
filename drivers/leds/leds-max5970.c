@@ -45,24 +45,24 @@ static int max5970_led_set_brightness(struct led_classdev *cdev,
 
 static int max5970_led_probe(struct platform_device *pdev)
 {
-	struct fwnode_handle *led_node, *child;
+	struct fwanalde_handle *led_analde, *child;
 	struct device *dev = &pdev->dev;
 	struct regmap *regmap;
 	struct max5970_led *ddata;
-	int ret = -ENODEV;
+	int ret = -EANALDEV;
 
 	regmap = dev_get_regmap(dev->parent, NULL);
 	if (!regmap)
-		return -ENODEV;
+		return -EANALDEV;
 
-	led_node = device_get_named_child_node(dev->parent, "leds");
-	if (!led_node)
-		return -ENODEV;
+	led_analde = device_get_named_child_analde(dev->parent, "leds");
+	if (!led_analde)
+		return -EANALDEV;
 
-	fwnode_for_each_available_child_node(led_node, child) {
+	fwanalde_for_each_available_child_analde(led_analde, child) {
 		u32 reg;
 
-		if (fwnode_property_read_u32(child, "reg", &reg))
+		if (fwanalde_property_read_u32(child, "reg", &reg))
 			continue;
 
 		if (reg >= MAX5970_NUM_LEDS) {
@@ -72,24 +72,24 @@ static int max5970_led_probe(struct platform_device *pdev)
 
 		ddata = devm_kzalloc(dev, sizeof(*ddata), GFP_KERNEL);
 		if (!ddata) {
-			fwnode_handle_put(child);
-			return -ENOMEM;
+			fwanalde_handle_put(child);
+			return -EANALMEM;
 		}
 
 		ddata->index = reg;
 		ddata->regmap = regmap;
 		ddata->dev = dev;
 
-		if (fwnode_property_read_string(child, "label", &ddata->cdev.name))
-			ddata->cdev.name = fwnode_get_name(child);
+		if (fwanalde_property_read_string(child, "label", &ddata->cdev.name))
+			ddata->cdev.name = fwanalde_get_name(child);
 
 		ddata->cdev.max_brightness = 1;
 		ddata->cdev.brightness_set_blocking = max5970_led_set_brightness;
-		ddata->cdev.default_trigger = "none";
+		ddata->cdev.default_trigger = "analne";
 
 		ret = devm_led_classdev_register(dev, &ddata->cdev);
 		if (ret < 0) {
-			fwnode_handle_put(child);
+			fwanalde_handle_put(child);
 			return dev_err_probe(dev, ret, "Failed to initialize LED %u\n", reg);
 		}
 	}

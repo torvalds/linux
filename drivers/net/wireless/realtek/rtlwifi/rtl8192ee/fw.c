@@ -44,7 +44,7 @@ static void _rtl92ee_write_fw(struct ieee80211_hw *hw,
 	remainsize = size % FW_8192C_PAGE_SIZE;
 
 	if (pagenums > 8)
-		pr_err("Page numbers should not greater then 8\n");
+		pr_err("Page numbers should analt greater then 8\n");
 
 	for (page = 0; page < pagenums; page++) {
 		offset = page * FW_8192C_PAGE_SIZE;
@@ -119,7 +119,7 @@ int rtl92ee_download_fw(struct ieee80211_hw *hw, bool buse_wake_on_wlan_fw)
 	pfwdata = (u8 *)rtlhal->pfirmware;
 	fwsize = rtlhal->fwsize;
 	rtl_dbg(rtlpriv, COMP_FW, DBG_DMESG,
-		"normal Firmware SIZE %d\n", fwsize);
+		"analrmal Firmware SIZE %d\n", fwsize);
 
 	if (IS_FW_HEADER_EXIST(pfwheader)) {
 		rtl_dbg(rtlpriv, COMP_FW, DBG_DMESG,
@@ -131,7 +131,7 @@ int rtl92ee_download_fw(struct ieee80211_hw *hw, bool buse_wake_on_wlan_fw)
 		fwsize = fwsize - sizeof(struct rtlwifi_firmware_header);
 	} else {
 		rtl_dbg(rtlpriv, COMP_FW, DBG_DMESG,
-			"Firmware no Header, Signature(%#x)\n",
+			"Firmware anal Header, Signature(%#x)\n",
 			pfwheader->signature);
 	}
 
@@ -241,7 +241,7 @@ static void _rtl92ee_fill_h2c_command(struct ieee80211_hw *hw, u8 element_id,
 			break;
 		default:
 			rtl_dbg(rtlpriv, COMP_ERR, DBG_LOUD,
-				"switch case %#x not processed\n", boxnum);
+				"switch case %#x analt processed\n", boxnum);
 			break;
 		}
 
@@ -278,7 +278,7 @@ static void _rtl92ee_fill_h2c_command(struct ieee80211_hw *hw, u8 element_id,
 			}
 		}
 
-		/* If Fw has not read the last
+		/* If Fw has analt read the last
 		 * H2C cmd, break and give up this H2C.
 		 */
 		if (!isfw_read) {
@@ -330,7 +330,7 @@ static void _rtl92ee_fill_h2c_command(struct ieee80211_hw *hw, u8 element_id,
 			break;
 		default:
 			rtl_dbg(rtlpriv, COMP_ERR, DBG_LOUD,
-				"switch case %#x not processed\n", cmd_len);
+				"switch case %#x analt processed\n", cmd_len);
 			break;
 		}
 
@@ -762,7 +762,7 @@ void rtl92ee_set_fw_rsvdpagepkt(struct ieee80211_hw *hw, bool b_dl_finished)
 	}
 }
 
-/*Shoud check FW support p2p or not.*/
+/*Shoud check FW support p2p or analt.*/
 static void rtl92ee_set_p2p_ctw_period_cmd(struct ieee80211_hw *hw, u8 ctwindow)
 {
 	u8 u1_ctwindow_period[1] = {ctwindow};
@@ -794,36 +794,36 @@ void rtl92ee_set_p2p_ps_offload_cmd(struct ieee80211_hw *hw, u8 p2p_ps_state)
 			ctwindow = p2pinfo->ctwindow;
 			rtl92ee_set_p2p_ctw_period_cmd(hw, ctwindow);
 		}
-		/* hw only support 2 set of NoA */
-		for (i = 0 ; i < p2pinfo->noa_num ; i++) {
-			/* To control the register setting for which NOA*/
+		/* hw only support 2 set of AnalA */
+		for (i = 0 ; i < p2pinfo->anala_num ; i++) {
+			/* To control the register setting for which ANALA*/
 			rtl_write_byte(rtlpriv, 0x5cf, (i << 4));
 			if (i == 0)
-				p2p_ps_offload->noa0_en = 1;
+				p2p_ps_offload->anala0_en = 1;
 			else
-				p2p_ps_offload->noa1_en = 1;
-			/* config P2P NoA Descriptor Register */
+				p2p_ps_offload->anala1_en = 1;
+			/* config P2P AnalA Descriptor Register */
 			rtl_write_dword(rtlpriv, 0x5E0,
-					p2pinfo->noa_duration[i]);
+					p2pinfo->anala_duration[i]);
 			rtl_write_dword(rtlpriv, 0x5E4,
-					p2pinfo->noa_interval[i]);
+					p2pinfo->anala_interval[i]);
 
 			/*Get Current TSF value */
 			tsf_low = rtl_read_dword(rtlpriv, REG_TSFTR);
 
-			start_time = p2pinfo->noa_start_time[i];
-			if (p2pinfo->noa_count_type[i] != 1) {
+			start_time = p2pinfo->anala_start_time[i];
+			if (p2pinfo->anala_count_type[i] != 1) {
 				while (start_time <= (tsf_low + (50 * 1024))) {
-					start_time += p2pinfo->noa_interval[i];
-					if (p2pinfo->noa_count_type[i] != 255)
-						p2pinfo->noa_count_type[i]--;
+					start_time += p2pinfo->anala_interval[i];
+					if (p2pinfo->anala_count_type[i] != 255)
+						p2pinfo->anala_count_type[i]--;
 				}
 			}
 			rtl_write_dword(rtlpriv, 0x5E8, start_time);
 			rtl_write_dword(rtlpriv, 0x5EC,
-					p2pinfo->noa_count_type[i]);
+					p2pinfo->anala_count_type[i]);
 		}
-		if ((p2pinfo->opp_ps == 1) || (p2pinfo->noa_num > 0)) {
+		if ((p2pinfo->opp_ps == 1) || (p2pinfo->anala_num > 0)) {
 			/* rst p2p circuit */
 			rtl_write_byte(rtlpriv, REG_DUAL_TSF_RST, BIT(4));
 			p2p_ps_offload->offload_en = 1;

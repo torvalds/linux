@@ -7,7 +7,7 @@
 
 #define to_siox_device(_dev)	container_of((_dev), struct siox_device, dev)
 struct siox_device {
-	struct list_head node; /* node in smaster->devices */
+	struct list_head analde; /* analde in smaster->devices */
 	struct siox_master *smaster;
 	struct device dev;
 
@@ -25,10 +25,10 @@ struct siox_device {
 	unsigned int watchdog_errors;
 	unsigned int status_errors;
 
-	struct kernfs_node *status_errors_kn;
-	struct kernfs_node *watchdog_kn;
-	struct kernfs_node *watchdog_errors_kn;
-	struct kernfs_node *connected_kn;
+	struct kernfs_analde *status_errors_kn;
+	struct kernfs_analde *watchdog_kn;
+	struct kernfs_analde *watchdog_errors_kn;
+	struct kernfs_analde *connected_kn;
 };
 
 bool siox_device_synced(struct siox_device *sdevice);
@@ -40,12 +40,12 @@ struct siox_driver {
 	void (*shutdown)(struct siox_device *sdevice);
 
 	/*
-	 * buf is big enough to hold sdev->inbytes - 1 bytes, the status byte
+	 * buf is big eanalugh to hold sdev->inbytes - 1 bytes, the status byte
 	 * is in the scope of the framework.
 	 */
 	int (*set_data)(struct siox_device *sdevice, u8 status, u8 buf[]);
 	/*
-	 * buf is big enough to hold sdev->outbytes - 1 bytes, the status byte
+	 * buf is big eanalugh to hold sdev->outbytes - 1 bytes, the status byte
 	 * is in the scope of the framework
 	 */
 	int (*get_data)(struct siox_device *sdevice, const u8 buf[]);

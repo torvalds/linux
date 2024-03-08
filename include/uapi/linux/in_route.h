@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _LINUX_IN_ROUTE_H
 #define _LINUX_IN_ROUTE_H
 
@@ -8,9 +8,9 @@
 #define RTCF_ONLINK	RTNH_F_ONLINK
 
 /* Obsolete flag. About to be deleted */
-#define RTCF_NOPMTUDISC RTM_F_NOPMTUDISC
+#define RTCF_ANALPMTUDISC RTM_F_ANALPMTUDISC
 
-#define RTCF_NOTIFY	0x00010000
+#define RTCF_ANALTIFY	0x00010000
 #define RTCF_DIRECTDST	0x00020000 /* unused */
 #define RTCF_REDIRECTED	0x00040000
 #define RTCF_TPROXY	0x00080000 /* unused */

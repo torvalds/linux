@@ -53,17 +53,17 @@ static int armada_38x_i2s_init_quirk(struct platform_device *pdev,
 				     struct kirkwood_dma_data *priv,
 				     struct snd_soc_dai_driver *dai_drv)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	u32 reg_val;
 	int i;
 
 	priv->pll_config = devm_platform_ioremap_resource_byname(pdev, "pll_regs");
 	if (IS_ERR(priv->pll_config))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->soc_control = devm_platform_ioremap_resource_byname(pdev, "soc_ctrl");
 	if (IS_ERR(priv->soc_control))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Select one of exceptive modes: I2S or S/PDIF */
 	reg_val = readl(priv->soc_control);
@@ -91,7 +91,7 @@ static inline void armada_38x_set_pll(void __iomem *base, unsigned long rate)
 	u16 freq_offset = 0x22b0;
 	u8 audio_postdiv, fb_clk_div = 0x1d;
 
-	/* Set frequency offset value to not valid and enable PLL reset */
+	/* Set frequency offset value to analt valid and enable PLL reset */
 	reg_val = readl(base + A38X_PLL_CONF_REG1);
 	reg_val &= ~A38X_PLL_FREQ_OFFSET_VALID;
 	reg_val &= ~A38X_PLL_SW_RESET;
@@ -316,11 +316,11 @@ static int kirkwood_i2s_hw_params(struct snd_pcm_substream *substream,
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		if (params_channels(params) == 1)
-			ctl_play |= KIRKWOOD_PLAYCTL_MONO_BOTH;
+			ctl_play |= KIRKWOOD_PLAYCTL_MOANAL_BOTH;
 		else
-			ctl_play |= KIRKWOOD_PLAYCTL_MONO_OFF;
+			ctl_play |= KIRKWOOD_PLAYCTL_MOANAL_OFF;
 
-		priv->ctl_play &= ~(KIRKWOOD_PLAYCTL_MONO_MASK |
+		priv->ctl_play &= ~(KIRKWOOD_PLAYCTL_MOANAL_MASK |
 				    KIRKWOOD_PLAYCTL_ENABLE_MASK |
 				    KIRKWOOD_PLAYCTL_SIZE_MASK);
 		priv->ctl_play |= ctl_play;
@@ -368,7 +368,7 @@ static int kirkwood_i2s_play_trigger(struct snd_pcm_substream *substream,
 		} while (timeout--);
 
 		if ((ctl | value) & KIRKWOOD_PLAYCTL_PLAY_BUSY)
-			dev_notice(dai->dev, "timed out waiting for busy to deassert: %08x\n",
+			dev_analtice(dai->dev, "timed out waiting for busy to deassert: %08x\n",
 				   ctl);
 	}
 
@@ -385,7 +385,7 @@ static int kirkwood_i2s_play_trigger(struct snd_pcm_substream *substream,
 		writel(value, priv->io + KIRKWOOD_PLAYCTL);
 
 		/* enable interrupts */
-		if (!runtime->no_period_wakeup) {
+		if (!runtime->anal_period_wakeup) {
 			value = readl(priv->io + KIRKWOOD_INT_MASK);
 			value |= KIRKWOOD_INT_CAUSE_PLAY_BYTES;
 			writel(value, priv->io + KIRKWOOD_INT_MASK);
@@ -642,12 +642,12 @@ static int kirkwood_i2s_dev_probe(struct platform_device *pdev)
 	struct kirkwood_asoc_platform_data *data = pdev->dev.platform_data;
 	struct snd_soc_dai_driver *soc_dai = kirkwood_i2s_dai;
 	struct kirkwood_dma_data *priv;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	int err;
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(&pdev->dev, priv);
 
@@ -675,13 +675,13 @@ static int kirkwood_i2s_dev_probe(struct platform_device *pdev)
 	} else if (data) {
 		priv->burst = data->burst;
 	} else {
-		dev_err(&pdev->dev, "no DT nor platform data ?!\n");
+		dev_err(&pdev->dev, "anal DT analr platform data ?!\n");
 		return -EINVAL;
 	}
 
 	priv->clk = devm_clk_get(&pdev->dev, np ? "internal" : NULL);
 	if (IS_ERR(priv->clk)) {
-		dev_err(&pdev->dev, "no clock\n");
+		dev_err(&pdev->dev, "anal clock\n");
 		return PTR_ERR(priv->clk);
 	}
 

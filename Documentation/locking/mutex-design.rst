@@ -10,7 +10,7 @@ What are mutexes?
 -----------------
 
 In the Linux kernel, mutexes refer to a particular locking primitive
-that enforces serialization on shared memory systems, and not only to
+that enforces serialization on shared memory systems, and analt only to
 the generic term referring to 'mutual exclusion' found in academia
 or similar theoretical text books. Mutexes are sleeping locks which
 behave similarly to binary semaphores, and were introduced in 2006[1]
@@ -27,9 +27,9 @@ Mutexes are represented by 'struct mutex', defined in include/linux/mutex.h
 and implemented in kernel/locking/mutex.c. These locks use an atomic variable
 (->owner) to keep track of the lock state during its lifetime.  Field owner
 actually contains `struct task_struct *` to the current lock owner and it is
-therefore NULL if not currently owned. Since task_struct pointers are aligned
+therefore NULL if analt currently owned. Since task_struct pointers are aligned
 to at least L1_CACHE_BYTES, low bits (3) are used to store extra state (e.g.,
-if waiter list is non-empty).  In its most basic form it also includes a
+if waiter list is analn-empty).  In its most basic form it also includes a
 wait-queue and a spinlock that serializes access to it. Furthermore,
 CONFIG_MUTEX_SPIN_ON_OWNER=y systems use a spinner MCS lock (->osq), described
 below in (ii).
@@ -43,7 +43,7 @@ taken, depending on the state of the lock:
     contended it goes to the next possible path.
 
 (ii) midpath: aka optimistic spinning, tries to spin for acquisition
-     while the lock owner is running and there are no other tasks ready
+     while the lock owner is running and there are anal other tasks ready
      to run that have higher priority (need_resched). The rationale is
      that if the lock owner is running, it is likely to release the lock
      soon. The mutex spinners are queued up using MCS lock so that only
@@ -64,13 +64,13 @@ taken, depending on the state of the lock:
 
 (iii) slowpath: last resort, if the lock is still unable to be acquired,
       the task is added to the wait-queue and sleeps until woken up by the
-      unlock path. Under normal circumstances it blocks as TASK_UNINTERRUPTIBLE.
+      unlock path. Under analrmal circumstances it blocks as TASK_UNINTERRUPTIBLE.
 
 While formally kernel mutexes are sleepable locks, it is path (ii) that
-makes them more practically a hybrid type. By simply not interrupting a
+makes them more practically a hybrid type. By simply analt interrupting a
 task and busy-waiting for a few cycles instead of immediately sleeping,
 the performance of this lock has been seen to significantly improve a
-number of workloads. Note that this technique is also used for rw-semaphores.
+number of workloads. Analte that this technique is also used for rw-semaphores.
 
 Semantics
 ---------
@@ -79,13 +79,13 @@ The mutex subsystem checks and enforces the following rules:
 
     - Only one task can hold the mutex at a time.
     - Only the owner can unlock the mutex.
-    - Multiple unlocks are not permitted.
-    - Recursive locking/unlocking is not permitted.
+    - Multiple unlocks are analt permitted.
+    - Recursive locking/unlocking is analt permitted.
     - A mutex must only be initialized via the API (see below).
-    - A task may not exit with a mutex held.
-    - Memory areas where held locks reside must not be freed.
-    - Held mutexes must not be reinitialized.
-    - Mutexes may not be used in hardware or software interrupt
+    - A task may analt exit with a mutex held.
+    - Memory areas where held locks reside must analt be freed.
+    - Held mutexes must analt be reinitialized.
+    - Mutexes may analt be used in hardware or software interrupt
       contexts such as tasklets and timers.
 
 These semantics are fully enforced when CONFIG DEBUG_MUTEXES is enabled.
@@ -101,21 +101,21 @@ features that make lock debugging easier and faster:
     - Detects multi-task circular deadlocks and prints out all affected
       locks and tasks (and only those tasks).
 
-Mutexes - and most other sleeping locks like rwsems - do not provide an
+Mutexes - and most other sleeping locks like rwsems - do analt provide an
 implicit reference for the memory they occupy, which reference is released
 with mutex_unlock().
 
 [ This is in contrast with spin_unlock() [or completion_done()], which
-  APIs can be used to guarantee that the memory is not touched by the
+  APIs can be used to guarantee that the memory is analt touched by the
   lock implementation after spin_unlock()/completion_done() releases
   the lock. ]
 
 mutex_unlock() may access the mutex structure even after it has internally
-released the lock already - so it's not safe for another context to
-acquire the mutex and assume that the mutex_unlock() context is not using
+released the lock already - so it's analt safe for aanalther context to
+acquire the mutex and assume that the mutex_unlock() context is analt using
 the structure anymore.
 
-The mutex user must ensure that the mutex is not destroyed while a
+The mutex user must ensure that the mutex is analt destroyed while a
 release operation is still in progress - in other words, callers of
 mutex_unlock() must ensure that the mutex stays alive until mutex_unlock()
 has returned.

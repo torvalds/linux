@@ -59,7 +59,7 @@ static void __test_function(volatile long *ptr)
 }
 #endif
 
-static noinline int test_function(void)
+static analinline int test_function(void)
 {
 	__test_function(&the_var);
 	the_var++;
@@ -91,7 +91,7 @@ static void sig_handler(int signum __maybe_unused,
 		 * time, consider this the recursive issue.
 		 *
 		 * We can get out of here by disable events,
-		 * so no new SIGIO is delivered.
+		 * so anal new SIGIO is delivered.
 		 */
 		ioctl(fd1, PERF_EVENT_IOC_DISABLE, 0);
 		ioctl(fd2, PERF_EVENT_IOC_DISABLE, 0);
@@ -128,7 +128,7 @@ static int __event(bool is_x, void *addr, int sig)
 		return TEST_FAIL;
 	}
 
-	fcntl(fd, F_SETFL, O_RDWR|O_NONBLOCK|O_ASYNC);
+	fcntl(fd, F_SETFL, O_RDWR|O_ANALNBLOCK|O_ASYNC);
 	fcntl(fd, F_SETSIG, sig);
 	fcntl(fd, F_SETOWN, getpid());
 
@@ -167,7 +167,7 @@ static int test__bp_signal(struct test_suite *test __maybe_unused, int subtest _
 	long long count1, count2, count3;
 
 	if (!BP_SIGNAL_IS_SUPPORTED) {
-		pr_debug("Test not supported on this architecture");
+		pr_debug("Test analt supported on this architecture");
 		return TEST_SKIP;
 	}
 
@@ -192,7 +192,7 @@ static int test__bp_signal(struct test_suite *test __maybe_unused, int subtest _
 	 *
 	 * fd1 - breakpoint event on __test_function with SIGIO
 	 *       signal configured. We should get signal
-	 *       notification each time the breakpoint is hit
+	 *       analtification each time the breakpoint is hit
 	 *
 	 * fd2 - breakpoint event on sig_handler with SIGUSR1
 	 *       configured. We should get SIGUSR1 each time when

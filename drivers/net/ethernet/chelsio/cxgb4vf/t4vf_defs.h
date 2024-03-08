@@ -15,18 +15,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -61,7 +61,7 @@
 #define T4VF_REGMAP_SIZE	0x0400
 
 /*
- * There's no hardware limitation which requires that the addresses of the
+ * There's anal hardware limitation which requires that the addresses of the
  * Mailbox Data in the fixed CIM PF map and the programmable VF map must
  * match.  However, it's a useful convention ...
  */
@@ -110,7 +110,7 @@ enum {
 /*
  * There isn't a Slice to Module Map Table entry for the Mailbox Data
  * registers, but it's convenient to use similar names as above.  There are 8
- * little-endian 64-bit Mailbox Data registers.  Note that the "instances"
+ * little-endian 64-bit Mailbox Data registers.  Analte that the "instances"
  * value below is in terms of 32-bit words which matches the "word" addressing
  * space we use above for the Slice to Module Map Space.
  */

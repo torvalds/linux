@@ -74,7 +74,7 @@ static int max98357a_sdmode_event(struct snd_soc_dapm_widget *w,
 
 static const struct snd_soc_dapm_widget max98357a_dapm_widgets[] = {
 	SND_SOC_DAPM_OUTPUT("Speaker"),
-	SND_SOC_DAPM_OUT_DRV_E("SD_MODE", SND_SOC_NOPM, 0, 0, NULL, 0,
+	SND_SOC_DAPM_OUT_DRV_E("SD_MODE", SND_SOC_ANALPM, 0, 0, NULL, 0,
 			max98357a_sdmode_event,
 			SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
 };
@@ -127,7 +127,7 @@ static int max98357a_platform_probe(struct platform_device *pdev)
 
 	max98357a = devm_kzalloc(&pdev->dev, sizeof(*max98357a), GFP_KERNEL);
 	if (!max98357a)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	max98357a->sdmode = devm_gpiod_get_optional(&pdev->dev,
 				"sdmode", GPIOD_OUT_LOW);
@@ -139,8 +139,8 @@ static int max98357a_platform_probe(struct platform_device *pdev)
 	if (ret) {
 		max98357a->sdmode_delay = 0;
 		dev_dbg(&pdev->dev,
-			"no optional property 'sdmode-delay' found, "
-			"default: no delay\n");
+			"anal optional property 'sdmode-delay' found, "
+			"default: anal delay\n");
 	}
 
 	dev_set_drvdata(&pdev->dev, max98357a);

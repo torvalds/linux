@@ -36,7 +36,7 @@
 #define OWL_UART_CTL_DWLS_8BITS		(0x3 << 0)
 #define OWL_UART_CTL_STPS_2BITS		BIT(2)
 #define OWL_UART_CTL_PRS_MASK		GENMASK(6, 4)
-#define OWL_UART_CTL_PRS_NONE		(0x0 << 4)
+#define OWL_UART_CTL_PRS_ANALNE		(0x0 << 4)
 #define OWL_UART_CTL_PRS_ODD		(0x4 << 4)
 #define OWL_UART_CTL_PRS_MARK		(0x5 << 4)
 #define OWL_UART_CTL_PRS_EVEN		(0x6 << 4)
@@ -198,13 +198,13 @@ static void owl_uart_receive_chars(struct uart_port *port)
 
 	stat = owl_uart_read(port, OWL_UART_STAT);
 	while (!(stat & OWL_UART_STAT_RFEM)) {
-		char flag = TTY_NORMAL;
+		char flag = TTY_ANALRMAL;
 
 		if (stat & OWL_UART_STAT_RXER)
 			port->icount.overrun++;
 
 		if (stat & OWL_UART_STAT_RXST) {
-			/* We are not able to distinguish the error type. */
+			/* We are analt able to distinguish the error type. */
 			port->icount.brk++;
 			port->icount.frame++;
 
@@ -217,7 +217,7 @@ static void owl_uart_receive_chars(struct uart_port *port)
 		val = owl_uart_read(port, OWL_UART_RXDAT);
 		val &= 0xff;
 
-		if ((stat & port->ignore_status_mask) == 0)
+		if ((stat & port->iganalre_status_mask) == 0)
 			tty_insert_flip_char(&port->state->port, val, flag);
 
 		stat = owl_uart_read(port, OWL_UART_STAT);
@@ -349,7 +349,7 @@ static void owl_uart_set_termios(struct uart_port *port,
 		else
 			ctl |= OWL_UART_CTL_PRS_EVEN;
 	} else
-		ctl |= OWL_UART_CTL_PRS_NONE;
+		ctl |= OWL_UART_CTL_PRS_ANALNE;
 
 	if (termios->c_cflag & CRTSCTS)
 		ctl |= OWL_UART_CTL_AFE;
@@ -444,7 +444,7 @@ static void owl_uart_config_port(struct uart_port *port, int flags)
 static int owl_uart_poll_get_char(struct uart_port *port)
 {
 	if (owl_uart_read(port, OWL_UART_STAT) & OWL_UART_STAT_RFEM)
-		return NO_POLL_CHAR;
+		return ANAL_POLL_CHAR;
 
 	return owl_uart_read(port, OWL_UART_RXDAT);
 }
@@ -571,7 +571,7 @@ static int owl_uart_console_setup(struct console *co, char *options)
 
 	owl_port = owl_uart_ports[co->index];
 	if (!owl_port || !owl_port->port.membase)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (options)
 		uart_parse_options(options, &baud, &parity, &bits, &flow);
@@ -610,7 +610,7 @@ static int __init
 owl_uart_early_console_setup(struct earlycon_device *device, const char *opt)
 {
 	if (!device->port.membase)
-		return -ENODEV;
+		return -EANALDEV;
 
 	device->con->write = owl_uart_early_console_write;
 
@@ -655,9 +655,9 @@ static int owl_uart_probe(struct platform_device *pdev)
 	struct owl_uart_port *owl_port;
 	int ret, irq;
 
-	if (pdev->dev.of_node) {
-		pdev->id = of_alias_get_id(pdev->dev.of_node, "serial");
-		match = of_match_node(owl_uart_dt_matches, pdev->dev.of_node);
+	if (pdev->dev.of_analde) {
+		pdev->id = of_alias_get_id(pdev->dev.of_analde, "serial");
+		match = of_match_analde(owl_uart_dt_matches, pdev->dev.of_analde);
 		if (match)
 			info = match->data;
 	}
@@ -669,8 +669,8 @@ static int owl_uart_probe(struct platform_device *pdev)
 
 	res_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res_mem) {
-		dev_err(&pdev->dev, "could not get mem\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "could analt get mem\n");
+		return -EANALDEV;
 	}
 
 	irq = platform_get_irq(pdev, 0);
@@ -684,17 +684,17 @@ static int owl_uart_probe(struct platform_device *pdev)
 
 	owl_port = devm_kzalloc(&pdev->dev, sizeof(*owl_port), GFP_KERNEL);
 	if (!owl_port)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	owl_port->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(owl_port->clk)) {
-		dev_err(&pdev->dev, "could not get clk\n");
+		dev_err(&pdev->dev, "could analt get clk\n");
 		return PTR_ERR(owl_port->clk);
 	}
 
 	ret = clk_prepare_enable(owl_port->clk);
 	if (ret) {
-		dev_err(&pdev->dev, "could not enable clk\n");
+		dev_err(&pdev->dev, "could analt enable clk\n");
 		return ret;
 	}
 

@@ -125,10 +125,10 @@ struct lp855x_rom_data {
 
 /**
  * struct lp855x_platform_data
- * @name : Backlight driver name. If it is not defined, default name is set.
+ * @name : Backlight driver name. If it is analt defined, default name is set.
  * @device_control : value of DEVICE CONTROL register
  * @initial_brightness : initial value of backlight brightness
- * @period_ns : platform specific pwm period value. unit is nano.
+ * @period_ns : platform specific pwm period value. unit is naanal.
 		Only valid when mode is PWM_BASED.
  * @size_program : total size of lp855x_rom_data
  * @rom_data : list of new eeprom/eprom registers

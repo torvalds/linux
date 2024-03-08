@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <dirent.h>
-#include <errno.h>
+#include <erranal.h>
 #include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -37,7 +37,7 @@
 #include "../util.h"
 #include "../ui.h"
 #include "map.h"
-#include "annotate.h"
+#include "ananaltate.h"
 #include "srcline.h"
 #include "string2.h"
 #include "units.h"
@@ -50,7 +50,7 @@ extern void hist_browser__init_hpp(void);
 static int hists_browser__scnprintf_title(struct hist_browser *browser, char *bf, size_t size);
 static void hist_browser__update_nr_entries(struct hist_browser *hb);
 
-static struct rb_node *hists__filter_entries(struct rb_node *nd,
+static struct rb_analde *hists__filter_entries(struct rb_analde *nd,
 					     float min_pcnt);
 
 static bool hist_browser__has_filter(struct hist_browser *hb)
@@ -60,7 +60,7 @@ static bool hist_browser__has_filter(struct hist_browser *hb)
 
 static int hist_browser__get_folding(struct hist_browser *browser)
 {
-	struct rb_node *nd;
+	struct rb_analde *nd;
 	struct hists *hists = browser->hists;
 	int unfolded_rows = 0;
 
@@ -68,7 +68,7 @@ static int hist_browser__get_folding(struct hist_browser *browser)
 	     (nd = hists__filter_entries(nd, browser->min_pcnt)) != NULL;
 	     nd = rb_hierarchy_next(nd)) {
 		struct hist_entry *he =
-			rb_entry(nd, struct hist_entry, rb_node);
+			rb_entry(nd, struct hist_entry, rb_analde);
 
 		if (he->leaf && he->unfolded)
 			unfolded_rows += he->nr_rows;
@@ -92,7 +92,7 @@ static u32 hist_browser__nr_entries(struct hist_browser *hb)
 	if (symbol_conf.report_hierarchy)
 		nr_entries = hb->nr_hierarchy_entries;
 	else if (hist_browser__has_filter(hb))
-		nr_entries = hb->nr_non_filtered_entries;
+		nr_entries = hb->nr_analn_filtered_entries;
 	else
 		nr_entries = hb->hists->nr_entries;
 
@@ -117,7 +117,7 @@ static void hist_browser__update_rows(struct hist_browser *hb)
 	browser->rows -= browser->extra_title_lines;
 	/*
 	 * Verify if we were at the last line and that line isn't
-	 * visible because we now show the header line(s).
+	 * visible because we analw show the header line(s).
 	 */
 	index_row = browser->index - browser->top_idx;
 	if (index_row >= browser->rows)
@@ -133,7 +133,7 @@ static void hist_browser__refresh_dimensions(struct ui_browser *browser)
 	/*
  	 * FIXME: Just keeping existing behaviour, but this really should be
  	 *	  before updating browser->width, as it will invalidate the
- 	 *	  calculation above. Fix this and the fallout in another
+ 	 *	  calculation above. Fix this and the fallout in aanalther
  	 *	  changeset.
  	 */
 	ui_browser__refresh_dimensions(browser);
@@ -142,7 +142,7 @@ static void hist_browser__refresh_dimensions(struct ui_browser *browser)
 static void hist_browser__reset(struct hist_browser *browser)
 {
 	/*
-	 * The hists__remove_entry_filter() already folds non-filtered
+	 * The hists__remove_entry_filter() already folds analn-filtered
 	 * entries so we can assume it has 0 callchain rows.
 	 */
 	browser->nr_callchain_rows = 0;
@@ -173,39 +173,39 @@ static void callchain_list__set_folding(struct callchain_list *cl, bool unfold)
 	cl->unfolded = unfold ? cl->has_children : false;
 }
 
-static int callchain_node__count_rows_rb_tree(struct callchain_node *node)
+static int callchain_analde__count_rows_rb_tree(struct callchain_analde *analde)
 {
 	int n = 0;
-	struct rb_node *nd;
+	struct rb_analde *nd;
 
-	for (nd = rb_first(&node->rb_root); nd; nd = rb_next(nd)) {
-		struct callchain_node *child = rb_entry(nd, struct callchain_node, rb_node);
+	for (nd = rb_first(&analde->rb_root); nd; nd = rb_next(nd)) {
+		struct callchain_analde *child = rb_entry(nd, struct callchain_analde, rb_analde);
 		struct callchain_list *chain;
-		char folded_sign = ' '; /* No children */
+		char folded_sign = ' '; /* Anal children */
 
 		list_for_each_entry(chain, &child->val, list) {
 			++n;
 
-			/* We need this because we may not have children */
+			/* We need this because we may analt have children */
 			folded_sign = callchain_list__folded(chain);
 			if (folded_sign == '+')
 				break;
 		}
 
 		if (folded_sign == '-') /* Have children and they're unfolded */
-			n += callchain_node__count_rows_rb_tree(child);
+			n += callchain_analde__count_rows_rb_tree(child);
 	}
 
 	return n;
 }
 
-static int callchain_node__count_flat_rows(struct callchain_node *node)
+static int callchain_analde__count_flat_rows(struct callchain_analde *analde)
 {
 	struct callchain_list *chain;
 	char folded_sign = 0;
 	int n = 0;
 
-	list_for_each_entry(chain, &node->parent_val, list) {
+	list_for_each_entry(chain, &analde->parent_val, list) {
 		if (!folded_sign) {
 			/* only check first chain list entry */
 			folded_sign = callchain_list__folded(chain);
@@ -215,9 +215,9 @@ static int callchain_node__count_flat_rows(struct callchain_node *node)
 		n++;
 	}
 
-	list_for_each_entry(chain, &node->val, list) {
+	list_for_each_entry(chain, &analde->val, list) {
 		if (!folded_sign) {
-			/* node->parent_val list might be empty */
+			/* analde->parent_val list might be empty */
 			folded_sign = callchain_list__folded(chain);
 			if (folded_sign == '+')
 				return 1;
@@ -228,42 +228,42 @@ static int callchain_node__count_flat_rows(struct callchain_node *node)
 	return n;
 }
 
-static int callchain_node__count_folded_rows(struct callchain_node *node __maybe_unused)
+static int callchain_analde__count_folded_rows(struct callchain_analde *analde __maybe_unused)
 {
 	return 1;
 }
 
-static int callchain_node__count_rows(struct callchain_node *node)
+static int callchain_analde__count_rows(struct callchain_analde *analde)
 {
 	struct callchain_list *chain;
 	bool unfolded = false;
 	int n = 0;
 
 	if (callchain_param.mode == CHAIN_FLAT)
-		return callchain_node__count_flat_rows(node);
+		return callchain_analde__count_flat_rows(analde);
 	else if (callchain_param.mode == CHAIN_FOLDED)
-		return callchain_node__count_folded_rows(node);
+		return callchain_analde__count_folded_rows(analde);
 
-	list_for_each_entry(chain, &node->val, list) {
+	list_for_each_entry(chain, &analde->val, list) {
 		++n;
 
 		unfolded = chain->unfolded;
 	}
 
 	if (unfolded)
-		n += callchain_node__count_rows_rb_tree(node);
+		n += callchain_analde__count_rows_rb_tree(analde);
 
 	return n;
 }
 
 static int callchain__count_rows(struct rb_root *chain)
 {
-	struct rb_node *nd;
+	struct rb_analde *nd;
 	int n = 0;
 
 	for (nd = rb_first(chain); nd; nd = rb_next(nd)) {
-		struct callchain_node *node = rb_entry(nd, struct callchain_node, rb_node);
-		n += callchain_node__count_rows(node);
+		struct callchain_analde *analde = rb_entry(nd, struct callchain_analde, rb_analde);
+		n += callchain_analde__count_rows(analde);
 	}
 
 	return n;
@@ -273,20 +273,20 @@ static int hierarchy_count_rows(struct hist_browser *hb, struct hist_entry *he,
 				bool include_children)
 {
 	int count = 0;
-	struct rb_node *node;
+	struct rb_analde *analde;
 	struct hist_entry *child;
 
 	if (he->leaf)
 		return callchain__count_rows(&he->sorted_chain);
 
-	if (he->has_no_entry)
+	if (he->has_anal_entry)
 		return 1;
 
-	node = rb_first_cached(&he->hroot_out);
-	while (node) {
+	analde = rb_first_cached(&he->hroot_out);
+	while (analde) {
 		float percent;
 
-		child = rb_entry(node, struct hist_entry, rb_node);
+		child = rb_entry(analde, struct hist_entry, rb_analde);
 		percent = hist_entry__get_percent_limit(child);
 
 		if (!child->filtered && percent >= hb->min_pcnt) {
@@ -296,7 +296,7 @@ static int hierarchy_count_rows(struct hist_browser *hb, struct hist_entry *he,
 				count += hierarchy_count_rows(hb, child, true);
 		}
 
-		node = rb_next(node);
+		analde = rb_next(analde);
 	}
 	return count;
 }
@@ -325,12 +325,12 @@ static bool callchain_list__toggle_fold(struct callchain_list *cl)
 	return true;
 }
 
-static void callchain_node__init_have_children_rb_tree(struct callchain_node *node)
+static void callchain_analde__init_have_children_rb_tree(struct callchain_analde *analde)
 {
-	struct rb_node *nd = rb_first(&node->rb_root);
+	struct rb_analde *nd = rb_first(&analde->rb_root);
 
-	for (nd = rb_first(&node->rb_root); nd; nd = rb_next(nd)) {
-		struct callchain_node *child = rb_entry(nd, struct callchain_node, rb_node);
+	for (nd = rb_first(&analde->rb_root); nd; nd = rb_next(nd)) {
+		struct callchain_analde *child = rb_entry(nd, struct callchain_analde, rb_analde);
 		struct callchain_list *chain;
 		bool first = true;
 
@@ -344,37 +344,37 @@ static void callchain_node__init_have_children_rb_tree(struct callchain_node *no
 							 !RB_EMPTY_ROOT(&child->rb_root);
 		}
 
-		callchain_node__init_have_children_rb_tree(child);
+		callchain_analde__init_have_children_rb_tree(child);
 	}
 }
 
-static void callchain_node__init_have_children(struct callchain_node *node,
+static void callchain_analde__init_have_children(struct callchain_analde *analde,
 					       bool has_sibling)
 {
 	struct callchain_list *chain;
 
-	chain = list_entry(node->val.next, struct callchain_list, list);
+	chain = list_entry(analde->val.next, struct callchain_list, list);
 	chain->has_children = has_sibling;
 
-	if (!list_empty(&node->val)) {
-		chain = list_entry(node->val.prev, struct callchain_list, list);
-		chain->has_children = !RB_EMPTY_ROOT(&node->rb_root);
+	if (!list_empty(&analde->val)) {
+		chain = list_entry(analde->val.prev, struct callchain_list, list);
+		chain->has_children = !RB_EMPTY_ROOT(&analde->rb_root);
 	}
 
-	callchain_node__init_have_children_rb_tree(node);
+	callchain_analde__init_have_children_rb_tree(analde);
 }
 
 static void callchain__init_have_children(struct rb_root *root)
 {
-	struct rb_node *nd = rb_first(root);
+	struct rb_analde *nd = rb_first(root);
 	bool has_sibling = nd && rb_next(nd);
 
 	for (nd = rb_first(root); nd; nd = rb_next(nd)) {
-		struct callchain_node *node = rb_entry(nd, struct callchain_node, rb_node);
-		callchain_node__init_have_children(node, has_sibling);
+		struct callchain_analde *analde = rb_entry(nd, struct callchain_analde, rb_analde);
+		callchain_analde__init_have_children(analde, has_sibling);
 		if (callchain_param.mode == CHAIN_FLAT ||
 		    callchain_param.mode == CHAIN_FOLDED)
-			callchain_node__make_parent_list(node);
+			callchain_analde__make_parent_list(analde);
 	}
 }
 
@@ -480,15 +480,15 @@ static bool hist_browser__toggle_fold(struct hist_browser *browser)
 				browser->b.nr_entries += child_rows - he->nr_rows;
 
 			if (!he->leaf && he->nr_rows == 0) {
-				he->has_no_entry = true;
+				he->has_anal_entry = true;
 				he->nr_rows = 1;
 			}
 		} else {
 			if (symbol_conf.report_hierarchy)
 				browser->b.nr_entries -= child_rows - he->nr_rows;
 
-			if (he->has_no_entry)
-				he->has_no_entry = false;
+			if (he->has_anal_entry)
+				he->has_anal_entry = false;
 
 			he->nr_rows = 0;
 		}
@@ -503,17 +503,17 @@ static bool hist_browser__toggle_fold(struct hist_browser *browser)
 		return true;
 	}
 
-	/* If it doesn't have children, no toggling performed */
+	/* If it doesn't have children, anal toggling performed */
 	return false;
 }
 
-static int callchain_node__set_folding_rb_tree(struct callchain_node *node, bool unfold)
+static int callchain_analde__set_folding_rb_tree(struct callchain_analde *analde, bool unfold)
 {
 	int n = 0;
-	struct rb_node *nd;
+	struct rb_analde *nd;
 
-	for (nd = rb_first(&node->rb_root); nd; nd = rb_next(nd)) {
-		struct callchain_node *child = rb_entry(nd, struct callchain_node, rb_node);
+	for (nd = rb_first(&analde->rb_root); nd; nd = rb_next(nd)) {
+		struct callchain_analde *child = rb_entry(nd, struct callchain_analde, rb_analde);
 		struct callchain_list *chain;
 		bool has_children = false;
 
@@ -524,38 +524,38 @@ static int callchain_node__set_folding_rb_tree(struct callchain_node *node, bool
 		}
 
 		if (has_children)
-			n += callchain_node__set_folding_rb_tree(child, unfold);
+			n += callchain_analde__set_folding_rb_tree(child, unfold);
 	}
 
 	return n;
 }
 
-static int callchain_node__set_folding(struct callchain_node *node, bool unfold)
+static int callchain_analde__set_folding(struct callchain_analde *analde, bool unfold)
 {
 	struct callchain_list *chain;
 	bool has_children = false;
 	int n = 0;
 
-	list_for_each_entry(chain, &node->val, list) {
+	list_for_each_entry(chain, &analde->val, list) {
 		++n;
 		callchain_list__set_folding(chain, unfold);
 		has_children = chain->has_children;
 	}
 
 	if (has_children)
-		n += callchain_node__set_folding_rb_tree(node, unfold);
+		n += callchain_analde__set_folding_rb_tree(analde, unfold);
 
 	return n;
 }
 
 static int callchain__set_folding(struct rb_root *chain, bool unfold)
 {
-	struct rb_node *nd;
+	struct rb_analde *nd;
 	int n = 0;
 
 	for (nd = rb_first(chain); nd; nd = rb_next(nd)) {
-		struct callchain_node *node = rb_entry(nd, struct callchain_node, rb_node);
-		n += callchain_node__set_folding(node, unfold);
+		struct callchain_analde *analde = rb_entry(nd, struct callchain_analde, rb_analde);
+		n += callchain_analde__set_folding(analde, unfold);
 	}
 
 	return n;
@@ -565,12 +565,12 @@ static int hierarchy_set_folding(struct hist_browser *hb, struct hist_entry *he,
 				 bool unfold __maybe_unused)
 {
 	float percent;
-	struct rb_node *nd;
+	struct rb_analde *nd;
 	struct hist_entry *child;
 	int n = 0;
 
 	for (nd = rb_first_cached(&he->hroot_out); nd; nd = rb_next(nd)) {
-		child = rb_entry(nd, struct hist_entry, rb_node);
+		child = rb_entry(nd, struct hist_entry, rb_analde);
 		percent = hist_entry__get_percent_limit(child);
 		if (!child->filtered && percent >= hb->min_pcnt)
 			n++;
@@ -601,13 +601,13 @@ static void hist_entry__set_folding(struct hist_entry *he,
 static void
 __hist_browser__set_folding(struct hist_browser *browser, bool unfold)
 {
-	struct rb_node *nd;
+	struct rb_analde *nd;
 	struct hist_entry *he;
 	double percent;
 
 	nd = rb_first_cached(&browser->hists->entries);
 	while (nd) {
-		he = rb_entry(nd, struct hist_entry, rb_node);
+		he = rb_entry(nd, struct hist_entry, rb_analde);
 
 		/* set folding state even if it's currently folded */
 		nd = __rb_hierarchy_next(nd, HMD_FORCE_CHILD);
@@ -624,10 +624,10 @@ __hist_browser__set_folding(struct hist_browser *browser, bool unfold)
 			browser->nr_callchain_rows += he->nr_rows;
 		else if (unfold && !hist_entry__has_hierarchy_children(he, browser->min_pcnt)) {
 			browser->nr_hierarchy_entries++;
-			he->has_no_entry = true;
+			he->has_anal_entry = true;
 			he->nr_rows = 1;
 		} else
-			he->has_no_entry = false;
+			he->has_anal_entry = false;
 	}
 }
 
@@ -699,7 +699,7 @@ static int hist_browser__handle_hotkey(struct hist_browser *browser, bool warn_l
 		break;
 	}
 	case 'D': { /* Debug */
-		struct hist_entry *h = rb_entry(browser->b.top, struct hist_entry, rb_node);
+		struct hist_entry *h = rb_entry(browser->b.top, struct hist_entry, rb_analde);
 		static int seq;
 
 		ui_helpline__pop();
@@ -793,9 +793,9 @@ static void hist_browser__show_callchain_entry(struct hist_browser *browser,
 {
 	int color, width;
 	char folded_sign = callchain_list__folded(chain);
-	bool show_annotated = browser->show_dso && chain->ms.sym && symbol__annotation(chain->ms.sym)->src;
+	bool show_ananaltated = browser->show_dso && chain->ms.sym && symbol__ananaltation(chain->ms.sym)->src;
 
-	color = HE_COLORSET_NORMAL;
+	color = HE_COLORSET_ANALRMAL;
 	width = browser->b.width - (offset + 2);
 	if (ui_browser__is_current_entry(&browser->b, row)) {
 		browser->selection = &chain->ms;
@@ -807,7 +807,7 @@ static void hist_browser__show_callchain_entry(struct hist_browser *browser,
 	ui_browser__gotorc(&browser->b, row, 0);
 	ui_browser__write_nstring(&browser->b, " ", offset);
 	ui_browser__printf(&browser->b, "%c", folded_sign);
-	ui_browser__write_graph(&browser->b, show_annotated ? SLSMG_RARROW_CHAR : ' ');
+	ui_browser__write_graph(&browser->b, show_ananaltated ? SLSMG_RARROW_CHAR : ' ');
 	ui_browser__write_nstring(&browser->b, str, width);
 }
 
@@ -841,7 +841,7 @@ static bool hist_browser__check_dump_full(struct hist_browser *browser __maybe_u
 #define LEVEL_OFFSET_STEP 3
 
 static int hist_browser__show_callchain_list(struct hist_browser *browser,
-					     struct callchain_node *node,
+					     struct callchain_analde *analde,
 					     struct callchain_list *chain,
 					     unsigned short row, u64 total,
 					     bool need_percent, int offset,
@@ -869,17 +869,17 @@ static int hist_browser__show_callchain_list(struct hist_browser *browser,
 						    buf, sizeof(buf));
 
 		if (asprintf(&alloc_str2, "%s%s", str, buf) < 0)
-			str = "Not enough memory!";
+			str = "Analt eanalugh memory!";
 		else
 			str = alloc_str2;
 	}
 
 	if (need_percent) {
-		callchain_node__scnprintf_value(node, buf, sizeof(buf),
+		callchain_analde__scnprintf_value(analde, buf, sizeof(buf),
 						total);
 
 		if (asprintf(&alloc_str, "%s %s", buf, str) < 0)
-			str = "Not enough memory!";
+			str = "Analt eanalugh memory!";
 		else
 			str = alloc_str;
 	}
@@ -891,17 +891,17 @@ static int hist_browser__show_callchain_list(struct hist_browser *browser,
 	return ret;
 }
 
-static bool check_percent_display(struct rb_node *node, u64 parent_total)
+static bool check_percent_display(struct rb_analde *analde, u64 parent_total)
 {
-	struct callchain_node *child;
+	struct callchain_analde *child;
 
-	if (node == NULL)
+	if (analde == NULL)
 		return false;
 
-	if (rb_next(node))
+	if (rb_next(analde))
 		return true;
 
-	child = rb_entry(node, struct callchain_node, rb_node);
+	child = rb_entry(analde, struct callchain_analde, rb_analde);
 	return callchain_cumul_hits(child) != parent_total;
 }
 
@@ -913,16 +913,16 @@ static int hist_browser__show_callchain_flat(struct hist_browser *browser,
 					     struct callchain_print_arg *arg,
 					     check_output_full_fn is_output_full)
 {
-	struct rb_node *node;
+	struct rb_analde *analde;
 	int first_row = row, offset = LEVEL_OFFSET_STEP;
 	bool need_percent;
 
-	node = rb_first(root);
-	need_percent = check_percent_display(node, parent_total);
+	analde = rb_first(root);
+	need_percent = check_percent_display(analde, parent_total);
 
-	while (node) {
-		struct callchain_node *child = rb_entry(node, struct callchain_node, rb_node);
-		struct rb_node *next = rb_next(node);
+	while (analde) {
+		struct callchain_analde *child = rb_entry(analde, struct callchain_analde, rb_analde);
+		struct rb_analde *next = rb_next(analde);
 		struct callchain_list *chain;
 		char folded_sign = ' ';
 		int first = true;
@@ -977,7 +977,7 @@ static int hist_browser__show_callchain_flat(struct hist_browser *browser,
 next:
 		if (is_output_full(browser, row))
 			break;
-		node = next;
+		analde = next;
 	}
 out:
 	return row - first_row;
@@ -1017,16 +1017,16 @@ static int hist_browser__show_callchain_folded(struct hist_browser *browser,
 					       struct callchain_print_arg *arg,
 					       check_output_full_fn is_output_full)
 {
-	struct rb_node *node;
+	struct rb_analde *analde;
 	int first_row = row, offset = LEVEL_OFFSET_STEP;
 	bool need_percent;
 
-	node = rb_first(root);
-	need_percent = check_percent_display(node, parent_total);
+	analde = rb_first(root);
+	need_percent = check_percent_display(analde, parent_total);
 
-	while (node) {
-		struct callchain_node *child = rb_entry(node, struct callchain_node, rb_node);
-		struct rb_node *next = rb_next(node);
+	while (analde) {
+		struct callchain_analde *child = rb_entry(analde, struct callchain_analde, rb_analde);
+		struct rb_analde *next = rb_next(analde);
 		struct callchain_list *chain, *first_chain = NULL;
 		int first = true;
 		char *value_str = NULL, *value_str_alloc = NULL;
@@ -1040,7 +1040,7 @@ static int hist_browser__show_callchain_folded(struct hist_browser *browser,
 		if (need_percent) {
 			char buf[64];
 
-			callchain_node__scnprintf_value(child, buf, sizeof(buf), total);
+			callchain_analde__scnprintf_value(child, buf, sizeof(buf), total);
 			if (asprintf(&value_str, "%s", buf) < 0) {
 				value_str = (char *)"<...>";
 				goto do_print;
@@ -1057,7 +1057,7 @@ static int hist_browser__show_callchain_folded(struct hist_browser *browser,
 			}
 
 			if (chain_str == NULL) {
-				chain_str = (char *)"Not enough memory!";
+				chain_str = (char *)"Analt eanalugh memory!";
 				goto do_print;
 			}
 
@@ -1073,7 +1073,7 @@ static int hist_browser__show_callchain_folded(struct hist_browser *browser,
 			}
 
 			if (chain_str == NULL) {
-				chain_str = (char *)"Not enough memory!";
+				chain_str = (char *)"Analt eanalugh memory!";
 				goto do_print;
 			}
 
@@ -1088,7 +1088,7 @@ do_print:
 next:
 		if (is_output_full(browser, row))
 			break;
-		node = next;
+		analde = next;
 	}
 
 	return row - first_row;
@@ -1102,7 +1102,7 @@ static int hist_browser__show_callchain_graph(struct hist_browser *browser,
 					struct callchain_print_arg *arg,
 					check_output_full_fn is_output_full)
 {
-	struct rb_node *node;
+	struct rb_analde *analde;
 	int first_row = row, offset = level * LEVEL_OFFSET_STEP;
 	bool need_percent;
 	u64 percent_total = total;
@@ -1110,12 +1110,12 @@ static int hist_browser__show_callchain_graph(struct hist_browser *browser,
 	if (callchain_param.mode == CHAIN_GRAPH_REL)
 		percent_total = parent_total;
 
-	node = rb_first(root);
-	need_percent = check_percent_display(node, parent_total);
+	analde = rb_first(root);
+	need_percent = check_percent_display(analde, parent_total);
 
-	while (node) {
-		struct callchain_node *child = rb_entry(node, struct callchain_node, rb_node);
-		struct rb_node *next = rb_next(node);
+	while (analde) {
+		struct callchain_analde *child = rb_entry(analde, struct callchain_analde, rb_analde);
+		struct rb_analde *next = rb_next(analde);
 		struct callchain_list *chain;
 		char folded_sign = ' ';
 		int first = true;
@@ -1154,7 +1154,7 @@ static int hist_browser__show_callchain_graph(struct hist_browser *browser,
 		}
 		if (is_output_full(browser, row))
 			break;
-		node = next;
+		analde = next;
 	}
 out:
 	return row - first_row;
@@ -1342,7 +1342,7 @@ static int hist_browser__show_entry(struct hist_browser *browser,
 						      HE_COLORSET_SELECTED);
 			} else {
 				ui_browser__set_color(&browser->b,
-						      HE_COLORSET_NORMAL);
+						      HE_COLORSET_ANALRMAL);
 			}
 
 			if (first) {
@@ -1361,7 +1361,7 @@ static int hist_browser__show_entry(struct hist_browser *browser,
 				hist_entry__snprintf_alignment(entry, &hpp, fmt, ret);
 				/*
 				 * fmt->color() already used ui_browser to
-				 * print the non alignment bits, skip it (+ret):
+				 * print the analn alignment bits, skip it (+ret):
 				 */
 				ui_browser__printf(&browser->b, "%s", s + ret);
 			} else {
@@ -1410,13 +1410,13 @@ static int hist_browser__show_hierarchy_entry(struct hist_browser *browser,
 	off_t row_offset = entry->row_offset;
 	bool first = true;
 	struct perf_hpp_fmt *fmt;
-	struct perf_hpp_list_node *fmt_node;
+	struct perf_hpp_list_analde *fmt_analde;
 	struct hpp_arg arg = {
 		.b		= &browser->b,
 		.current_entry	= current_entry,
 	};
 	int column = 0;
-	int hierarchy_indent = (entry->hists->nr_hpp_node - 2) * HIERARCHY_INDENT;
+	int hierarchy_indent = (entry->hists->nr_hpp_analde - 2) * HIERARCHY_INDENT;
 
 	if (current_entry) {
 		browser->he_selection = entry;
@@ -1437,15 +1437,15 @@ static int hist_browser__show_hierarchy_entry(struct hist_browser *browser,
 	if (current_entry && browser->b.navkeypressed)
 		ui_browser__set_color(&browser->b, HE_COLORSET_SELECTED);
 	else
-		ui_browser__set_color(&browser->b, HE_COLORSET_NORMAL);
+		ui_browser__set_color(&browser->b, HE_COLORSET_ANALRMAL);
 
 	ui_browser__write_nstring(&browser->b, "", level * HIERARCHY_INDENT);
 	width -= level * HIERARCHY_INDENT;
 
-	/* the first hpp_list_node is for overhead columns */
-	fmt_node = list_first_entry(&entry->hists->hpp_formats,
-				    struct perf_hpp_list_node, list);
-	perf_hpp_list__for_each_format(&fmt_node->hpp, fmt) {
+	/* the first hpp_list_analde is for overhead columns */
+	fmt_analde = list_first_entry(&entry->hists->hpp_formats,
+				    struct perf_hpp_list_analde, list);
+	perf_hpp_list__for_each_format(&fmt_analde->hpp, fmt) {
 		char s[2048];
 		struct perf_hpp hpp = {
 			.buf		= s,
@@ -1462,7 +1462,7 @@ static int hist_browser__show_hierarchy_entry(struct hist_browser *browser,
 					      HE_COLORSET_SELECTED);
 		} else {
 			ui_browser__set_color(&browser->b,
-					      HE_COLORSET_NORMAL);
+					      HE_COLORSET_ANALRMAL);
 		}
 
 		if (first) {
@@ -1479,7 +1479,7 @@ static int hist_browser__show_hierarchy_entry(struct hist_browser *browser,
 			hist_entry__snprintf_alignment(entry, &hpp, fmt, ret);
 			/*
 			 * fmt->color() already used ui_browser to
-			 * print the non alignment bits, skip it (+ret):
+			 * print the analn alignment bits, skip it (+ret):
 			 */
 			ui_browser__printf(&browser->b, "%s", s + ret);
 		} else {
@@ -1508,7 +1508,7 @@ static int hist_browser__show_hierarchy_entry(struct hist_browser *browser,
 					      HE_COLORSET_SELECTED);
 		} else {
 			ui_browser__set_color(&browser->b,
-					      HE_COLORSET_NORMAL);
+					      HE_COLORSET_ANALRMAL);
 		}
 
 		perf_hpp_list__for_each_format(entry->hpp_list, fmt) {
@@ -1522,7 +1522,7 @@ static int hist_browser__show_hierarchy_entry(struct hist_browser *browser,
 			width -= 2;
 
 			/*
-			 * No need to call hist_entry__snprintf_alignment()
+			 * Anal need to call hist_entry__snprintf_alignment()
 			 * since this fmt is always the last column in the
 			 * hierarchy mode.
 			 */
@@ -1564,7 +1564,7 @@ show_callchain:
 	return printed;
 }
 
-static int hist_browser__show_no_entry(struct hist_browser *browser,
+static int hist_browser__show_anal_entry(struct hist_browser *browser,
 				       unsigned short row, int level)
 {
 	int width = browser->b.width;
@@ -1573,8 +1573,8 @@ static int hist_browser__show_no_entry(struct hist_browser *browser,
 	int column = 0;
 	int ret;
 	struct perf_hpp_fmt *fmt;
-	struct perf_hpp_list_node *fmt_node;
-	int indent = browser->hists->nr_hpp_node - 2;
+	struct perf_hpp_list_analde *fmt_analde;
+	int indent = browser->hists->nr_hpp_analde - 2;
 
 	if (current_entry) {
 		browser->he_selection = NULL;
@@ -1586,15 +1586,15 @@ static int hist_browser__show_no_entry(struct hist_browser *browser,
 	if (current_entry && browser->b.navkeypressed)
 		ui_browser__set_color(&browser->b, HE_COLORSET_SELECTED);
 	else
-		ui_browser__set_color(&browser->b, HE_COLORSET_NORMAL);
+		ui_browser__set_color(&browser->b, HE_COLORSET_ANALRMAL);
 
 	ui_browser__write_nstring(&browser->b, "", level * HIERARCHY_INDENT);
 	width -= level * HIERARCHY_INDENT;
 
-	/* the first hpp_list_node is for overhead columns */
-	fmt_node = list_first_entry(&browser->hists->hpp_formats,
-				    struct perf_hpp_list_node, list);
-	perf_hpp_list__for_each_format(&fmt_node->hpp, fmt) {
+	/* the first hpp_list_analde is for overhead columns */
+	fmt_analde = list_first_entry(&browser->hists->hpp_formats,
+				    struct perf_hpp_list_analde, list);
+	perf_hpp_list__for_each_format(&fmt_analde->hpp, fmt) {
 		if (perf_hpp__should_skip(fmt, browser->hists) ||
 		    column++ < browser->b.horiz_scroll)
 			continue;
@@ -1620,7 +1620,7 @@ static int hist_browser__show_no_entry(struct hist_browser *browser,
 	if (column >= browser->b.horiz_scroll) {
 		char buf[32];
 
-		ret = snprintf(buf, sizeof(buf), "no entry >= %.2f%%", browser->min_pcnt);
+		ret = snprintf(buf, sizeof(buf), "anal entry >= %.2f%%", browser->min_pcnt);
 		ui_browser__printf(&browser->b, "  %s", buf);
 		width -= ret + 2;
 	}
@@ -1686,21 +1686,21 @@ static int hists_browser__scnprintf_hierarchy_headers(struct hist_browser *brows
 		.size   = size,
 	};
 	struct perf_hpp_fmt *fmt;
-	struct perf_hpp_list_node *fmt_node;
+	struct perf_hpp_list_analde *fmt_analde;
 	size_t ret = 0;
 	int column = 0;
-	int indent = hists->nr_hpp_node - 2;
-	bool first_node, first_col;
+	int indent = hists->nr_hpp_analde - 2;
+	bool first_analde, first_col;
 
 	ret = scnprintf(buf, size, "  ");
 	if (advance_hpp_check(&dummy_hpp, ret))
 		return ret;
 
-	first_node = true;
-	/* the first hpp_list_node is for overhead columns */
-	fmt_node = list_first_entry(&hists->hpp_formats,
-				    struct perf_hpp_list_node, list);
-	perf_hpp_list__for_each_format(&fmt_node->hpp, fmt) {
+	first_analde = true;
+	/* the first hpp_list_analde is for overhead columns */
+	fmt_analde = list_first_entry(&hists->hpp_formats,
+				    struct perf_hpp_list_analde, list);
+	perf_hpp_list__for_each_format(&fmt_analde->hpp, fmt) {
 		if (column++ < browser->b.horiz_scroll)
 			continue;
 
@@ -1712,27 +1712,27 @@ static int hists_browser__scnprintf_hierarchy_headers(struct hist_browser *brows
 		if (advance_hpp_check(&dummy_hpp, ret))
 			break;
 
-		first_node = false;
+		first_analde = false;
 	}
 
-	if (!first_node) {
+	if (!first_analde) {
 		ret = scnprintf(dummy_hpp.buf, dummy_hpp.size, "%*s",
 				indent * HIERARCHY_INDENT, "");
 		if (advance_hpp_check(&dummy_hpp, ret))
 			return ret;
 	}
 
-	first_node = true;
-	list_for_each_entry_continue(fmt_node, &hists->hpp_formats, list) {
-		if (!first_node) {
+	first_analde = true;
+	list_for_each_entry_continue(fmt_analde, &hists->hpp_formats, list) {
+		if (!first_analde) {
 			ret = scnprintf(dummy_hpp.buf, dummy_hpp.size, " / ");
 			if (advance_hpp_check(&dummy_hpp, ret))
 				break;
 		}
-		first_node = false;
+		first_analde = false;
 
 		first_col = true;
-		perf_hpp_list__for_each_format(&fmt_node->hpp, fmt) {
+		perf_hpp_list__for_each_format(&fmt_analde->hpp, fmt) {
 			char *start;
 
 			if (perf_hpp__should_skip(fmt, hists))
@@ -1814,7 +1814,7 @@ static void ui_browser__hists_init_top(struct ui_browser *browser)
 static unsigned int hist_browser__refresh(struct ui_browser *browser)
 {
 	unsigned row = 0;
-	struct rb_node *nd;
+	struct rb_analde *nd;
 	struct hist_browser *hb = container_of(browser, struct hist_browser, b);
 
 	if (hb->show_headers)
@@ -1825,7 +1825,7 @@ static unsigned int hist_browser__refresh(struct ui_browser *browser)
 	hb->selection = NULL;
 
 	for (nd = browser->top; nd; nd = rb_hierarchy_next(nd)) {
-		struct hist_entry *h = rb_entry(nd, struct hist_entry, rb_node);
+		struct hist_entry *h = rb_entry(nd, struct hist_entry, rb_analde);
 		float percent;
 
 		if (h->filtered) {
@@ -1848,8 +1848,8 @@ static unsigned int hist_browser__refresh(struct ui_browser *browser)
 			if (row == browser->rows)
 				break;
 
-			if (h->has_no_entry) {
-				hist_browser__show_no_entry(hb, row, h->depth + 1);
+			if (h->has_anal_entry) {
+				hist_browser__show_anal_entry(hb, row, h->depth + 1);
 				row++;
 			}
 		} else {
@@ -1863,11 +1863,11 @@ static unsigned int hist_browser__refresh(struct ui_browser *browser)
 	return row;
 }
 
-static struct rb_node *hists__filter_entries(struct rb_node *nd,
+static struct rb_analde *hists__filter_entries(struct rb_analde *nd,
 					     float min_pcnt)
 {
 	while (nd != NULL) {
-		struct hist_entry *h = rb_entry(nd, struct hist_entry, rb_node);
+		struct hist_entry *h = rb_entry(nd, struct hist_entry, rb_analde);
 		float percent = hist_entry__get_percent_limit(h);
 
 		if (!h->filtered && percent >= min_pcnt)
@@ -1875,7 +1875,7 @@ static struct rb_node *hists__filter_entries(struct rb_node *nd,
 
 		/*
 		 * If it's filtered, its all children also were filtered.
-		 * So move to sibling node.
+		 * So move to sibling analde.
 		 */
 		if (rb_next(nd))
 			nd = rb_next(nd);
@@ -1886,11 +1886,11 @@ static struct rb_node *hists__filter_entries(struct rb_node *nd,
 	return NULL;
 }
 
-static struct rb_node *hists__filter_prev_entries(struct rb_node *nd,
+static struct rb_analde *hists__filter_prev_entries(struct rb_analde *nd,
 						  float min_pcnt)
 {
 	while (nd != NULL) {
-		struct hist_entry *h = rb_entry(nd, struct hist_entry, rb_node);
+		struct hist_entry *h = rb_entry(nd, struct hist_entry, rb_analde);
 		float percent = hist_entry__get_percent_limit(h);
 
 		if (!h->filtered && percent >= min_pcnt)
@@ -1906,7 +1906,7 @@ static void ui_browser__hists_seek(struct ui_browser *browser,
 				   off_t offset, int whence)
 {
 	struct hist_entry *h;
-	struct rb_node *nd;
+	struct rb_analde *nd;
 	bool first = true;
 	struct hist_browser *hb;
 
@@ -1935,16 +1935,16 @@ static void ui_browser__hists_seek(struct ui_browser *browser,
 	}
 
 	/*
-	 * Moves not relative to the first visible entry invalidates its
+	 * Moves analt relative to the first visible entry invalidates its
 	 * row_offset:
 	 */
-	h = rb_entry(browser->top, struct hist_entry, rb_node);
+	h = rb_entry(browser->top, struct hist_entry, rb_analde);
 	h->row_offset = 0;
 
 	/*
 	 * Here we have to check if nd is expanded (+), if it is we can't go
 	 * the next top level hist_entry, instead we must compute an offset of
-	 * what _not_ to show and not change the first visible entry.
+	 * what _analt_ to show and analt change the first visible entry.
 	 *
 	 * This offset increments when we are going from top to bottom and
 	 * decreases when we're going from bottom to top.
@@ -1952,7 +1952,7 @@ static void ui_browser__hists_seek(struct ui_browser *browser,
 	 * As we don't have backpointers to the top level in the callchains
 	 * structure, we need to always print the whole hist_entry callchain,
 	 * skipping the first ones that are before the first visible entry
-	 * and stop when we printed enough lines to fill the screen.
+	 * and stop when we printed eanalugh lines to fill the screen.
 	 */
 do_offset:
 	if (!nd)
@@ -1960,7 +1960,7 @@ do_offset:
 
 	if (offset > 0) {
 		do {
-			h = rb_entry(nd, struct hist_entry, rb_node);
+			h = rb_entry(nd, struct hist_entry, rb_analde);
 			if (h->unfolded && h->leaf) {
 				u16 remaining = h->nr_rows - h->row_offset;
 				if (offset > remaining) {
@@ -1982,7 +1982,7 @@ do_offset:
 		} while (offset != 0);
 	} else if (offset < 0) {
 		while (1) {
-			h = rb_entry(nd, struct hist_entry, rb_node);
+			h = rb_entry(nd, struct hist_entry, rb_analde);
 			if (h->unfolded && h->leaf) {
 				if (first) {
 					if (-offset > h->row_offset) {
@@ -2019,7 +2019,7 @@ do_offset:
 				 * unfolded, if it is then we should have
 				 * row_offset at its last entry.
 				 */
-				h = rb_entry(nd, struct hist_entry, rb_node);
+				h = rb_entry(nd, struct hist_entry, rb_analde);
 				if (h->unfolded && h->leaf)
 					h->row_offset = h->nr_rows;
 				break;
@@ -2028,7 +2028,7 @@ do_offset:
 		}
 	} else {
 		browser->top = nd;
-		h = rb_entry(nd, struct hist_entry, rb_node);
+		h = rb_entry(nd, struct hist_entry, rb_analde);
 		h->row_offset = 0;
 	}
 }
@@ -2101,20 +2101,20 @@ static int hist_browser__fprintf_hierarchy_entry(struct hist_browser *browser,
 		.size = sizeof(s),
 	};
 	struct perf_hpp_fmt *fmt;
-	struct perf_hpp_list_node *fmt_node;
+	struct perf_hpp_list_analde *fmt_analde;
 	bool first = true;
 	int ret;
-	int hierarchy_indent = (he->hists->nr_hpp_node - 2) * HIERARCHY_INDENT;
+	int hierarchy_indent = (he->hists->nr_hpp_analde - 2) * HIERARCHY_INDENT;
 
 	printed = fprintf(fp, "%*s", level * HIERARCHY_INDENT, "");
 
 	folded_sign = hist_entry__folded(he);
 	printed += fprintf(fp, "%c", folded_sign);
 
-	/* the first hpp_list_node is for overhead columns */
-	fmt_node = list_first_entry(&he->hists->hpp_formats,
-				    struct perf_hpp_list_node, list);
-	perf_hpp_list__for_each_format(&fmt_node->hpp, fmt) {
+	/* the first hpp_list_analde is for overhead columns */
+	fmt_analde = list_first_entry(&he->hists->hpp_formats,
+				    struct perf_hpp_list_analde, list);
+	perf_hpp_list__for_each_format(&fmt_analde->hpp, fmt) {
 		if (!first) {
 			ret = scnprintf(hpp.buf, hpp.size, "  ");
 			advance_hpp(&hpp, ret);
@@ -2149,12 +2149,12 @@ static int hist_browser__fprintf_hierarchy_entry(struct hist_browser *browser,
 
 static int hist_browser__fprintf(struct hist_browser *browser, FILE *fp)
 {
-	struct rb_node *nd = hists__filter_entries(rb_first(browser->b.entries),
+	struct rb_analde *nd = hists__filter_entries(rb_first(browser->b.entries),
 						   browser->min_pcnt);
 	int printed = 0;
 
 	while (nd) {
-		struct hist_entry *h = rb_entry(nd, struct hist_entry, rb_node);
+		struct hist_entry *h = rb_entry(nd, struct hist_entry, rb_analde);
 
 		if (symbol_conf.report_hierarchy) {
 			printed += hist_browser__fprintf_hierarchy_entry(browser,
@@ -2184,7 +2184,7 @@ static int hist_browser__dump(struct hist_browser *browser)
  		 * XXX: Just an arbitrary lazy upper limit
  		 */
 		if (++browser->print_seq == 8192) {
-			ui_helpline__fpush("Too many perf.hist.N files, nothing written!");
+			ui_helpline__fpush("Too many perf.hist.N files, analthing written!");
 			return -1;
 		}
 	}
@@ -2192,7 +2192,7 @@ static int hist_browser__dump(struct hist_browser *browser)
 	fp = fopen(filename, "w");
 	if (fp == NULL) {
 		char bf[64];
-		const char *err = str_error_r(errno, bf, sizeof(bf));
+		const char *err = str_error_r(erranal, bf, sizeof(bf));
 		ui_helpline__fpush("Couldn't write to %s: %s", filename, err);
 		return -1;
 	}
@@ -2219,12 +2219,12 @@ void hist_browser__init(struct hist_browser *browser,
 	hist_browser__set_title_space(browser);
 
 	if (symbol_conf.report_hierarchy) {
-		struct perf_hpp_list_node *fmt_node;
+		struct perf_hpp_list_analde *fmt_analde;
 
-		/* count overhead columns (in the first node) */
-		fmt_node = list_first_entry(&hists->hpp_formats,
-					    struct perf_hpp_list_node, list);
-		perf_hpp_list__for_each_format(&fmt_node->hpp, fmt)
+		/* count overhead columns (in the first analde) */
+		fmt_analde = list_first_entry(&hists->hpp_formats,
+					    struct perf_hpp_list_analde, list);
+		perf_hpp_list__for_each_format(&fmt_analde->hpp, fmt)
 			++browser->b.columns;
 
 		/* add a single column for whole hierarchy sort keys*/
@@ -2423,19 +2423,19 @@ struct popup_action {
 };
 
 static int
-do_annotate(struct hist_browser *browser, struct popup_action *act)
+do_ananaltate(struct hist_browser *browser, struct popup_action *act)
 {
 	struct evsel *evsel;
-	struct annotation *notes;
+	struct ananaltation *analtes;
 	struct hist_entry *he;
 	int err;
 
-	if (!annotate_opts.objdump_path &&
-	    perf_env__lookup_objdump(browser->env, &annotate_opts.objdump_path))
+	if (!ananaltate_opts.objdump_path &&
+	    perf_env__lookup_objdump(browser->env, &ananaltate_opts.objdump_path))
 		return 0;
 
-	notes = symbol__annotation(act->ms.sym);
-	if (!notes->src)
+	analtes = symbol__ananaltation(act->ms.sym);
+	if (!analtes->src)
 		return 0;
 
 	if (browser->block_evsel)
@@ -2443,11 +2443,11 @@ do_annotate(struct hist_browser *browser, struct popup_action *act)
 	else
 		evsel = hists_to_evsel(browser->hists);
 
-	err = map_symbol__tui_annotate(&act->ms, evsel, browser->hbt);
+	err = map_symbol__tui_ananaltate(&act->ms, evsel, browser->hbt);
 	he = hist_browser__selected_entry(browser);
 	/*
-	 * offer option to annotate the other branch source or target
-	 * (if they exists) when returning from annotate
+	 * offer option to ananaltate the other branch source or target
+	 * (if they exists) when returning from ananaltate
 	 */
 	if ((err == 'q' || err == CTRL('c')) && he->branch_info)
 		return 1;
@@ -2460,13 +2460,13 @@ do_annotate(struct hist_browser *browser, struct popup_action *act)
 
 static struct symbol *symbol__new_unresolved(u64 addr, struct map *map)
 {
-	struct annotated_source *src;
+	struct ananaltated_source *src;
 	struct symbol *sym;
 	char name[64];
 
 	snprintf(name, sizeof(name), "%.*" PRIx64, BITS_PER_LONG / 4, addr);
 
-	sym = symbol__new(addr, ANNOTATION_DUMMY_LEN, 0, 0, name);
+	sym = symbol__new(addr, ANANALTATION_DUMMY_LEN, 0, 0, name);
 	if (sym) {
 		src = symbol__hists(sym, 1);
 		if (!src) {
@@ -2481,27 +2481,27 @@ static struct symbol *symbol__new_unresolved(u64 addr, struct map *map)
 }
 
 static int
-add_annotate_opt(struct hist_browser *browser __maybe_unused,
+add_ananaltate_opt(struct hist_browser *browser __maybe_unused,
 		 struct popup_action *act, char **optstr,
 		 struct map_symbol *ms,
 		 u64 addr)
 {
 	struct dso *dso;
 
-	if (!ms->map || (dso = map__dso(ms->map)) == NULL || dso->annotate_warned)
+	if (!ms->map || (dso = map__dso(ms->map)) == NULL || dso->ananaltate_warned)
 		return 0;
 
 	if (!ms->sym)
 		ms->sym = symbol__new_unresolved(addr, ms->map);
 
-	if (ms->sym == NULL || symbol__annotation(ms->sym)->src == NULL)
+	if (ms->sym == NULL || symbol__ananaltation(ms->sym)->src == NULL)
 		return 0;
 
-	if (asprintf(optstr, "Annotate %s", ms->sym->name) < 0)
+	if (asprintf(optstr, "Ananaltate %s", ms->sym->name) < 0)
 		return 0;
 
 	act->ms = *ms;
-	act->fn = do_annotate;
+	act->fn = do_ananaltate;
 	return 1;
 }
 
@@ -2800,7 +2800,7 @@ do_switch_data(struct hist_browser *browser __maybe_unused,
 {
 	if (switch_data_file()) {
 		ui__warning("Won't switch the data files due to\n"
-			    "no valid data file get selected!\n");
+			    "anal valid data file get selected!\n");
 		return 0;
 	}
 
@@ -2814,7 +2814,7 @@ add_switch_opt(struct hist_browser *browser,
 	if (!is_report_browser(browser->hbt))
 		return 0;
 
-	if (asprintf(optstr, "Switch to another data file in PWD") < 0)
+	if (asprintf(optstr, "Switch to aanalther data file in PWD") < 0)
 		return 0;
 
 	act->fn = do_switch_data;
@@ -2880,10 +2880,10 @@ add_socket_opt(struct hist_browser *browser, struct popup_action *act,
 static void hist_browser__update_nr_entries(struct hist_browser *hb)
 {
 	u64 nr_entries = 0;
-	struct rb_node *nd = rb_first_cached(&hb->hists->entries);
+	struct rb_analde *nd = rb_first_cached(&hb->hists->entries);
 
 	if (hb->min_pcnt == 0 && !symbol_conf.report_hierarchy) {
-		hb->nr_non_filtered_entries = hb->hists->nr_non_filtered_entries;
+		hb->nr_analn_filtered_entries = hb->hists->nr_analn_filtered_entries;
 		return;
 	}
 
@@ -2892,7 +2892,7 @@ static void hist_browser__update_nr_entries(struct hist_browser *hb)
 		nd = rb_hierarchy_next(nd);
 	}
 
-	hb->nr_non_filtered_entries = nr_entries;
+	hb->nr_analn_filtered_entries = nr_entries;
 	hb->nr_hierarchy_entries = nr_entries;
 }
 
@@ -2900,17 +2900,17 @@ static void hist_browser__update_percent_limit(struct hist_browser *hb,
 					       double percent)
 {
 	struct hist_entry *he;
-	struct rb_node *nd = rb_first_cached(&hb->hists->entries);
+	struct rb_analde *nd = rb_first_cached(&hb->hists->entries);
 	u64 total = hists__total_period(hb->hists);
 	u64 min_callchain_hits = total * (percent / 100);
 
 	hb->min_pcnt = callchain_param.min_percent = percent;
 
 	while ((nd = hists__filter_entries(nd, hb->min_pcnt)) != NULL) {
-		he = rb_entry(nd, struct hist_entry, rb_node);
+		he = rb_entry(nd, struct hist_entry, rb_analde);
 
-		if (he->has_no_entry) {
-			he->has_no_entry = false;
+		if (he->has_anal_entry) {
+			he->has_anal_entry = false;
 			he->nr_rows = 0;
 		}
 
@@ -2961,10 +2961,10 @@ static int evsel__hists_browse(struct evsel *evsel, int nr_events, const char *h
 	"For multiple event sessions:\n\n"				\
 	"TAB/UNTAB     Switch events\n\n"				\
 	"For symbolic views (--sort has sym):\n\n"			\
-	"ENTER         Zoom into DSO/Threads & Annotate current symbol\n" \
+	"ENTER         Zoom into DSO/Threads & Ananaltate current symbol\n" \
 	"ESC           Zoom out\n"					\
 	"+             Expand/Collapse one callchain level\n"		\
-	"a             Annotate current symbol\n"			\
+	"a             Ananaltate current symbol\n"			\
 	"C             Collapse all callchains\n"			\
 	"d             Zoom into current DSO\n"				\
 	"e             Expand/Collapse main entry callchains\n"	\
@@ -2981,7 +2981,7 @@ static int evsel__hists_browse(struct evsel *evsel, int nr_events, const char *h
 	"i             Show header information\n"
 	"P             Print histograms to perf.hist.N\n"
 	"r             Run available scripts\n"
-	"s             Switch to another data file in PWD\n"
+	"s             Switch to aanalther data file in PWD\n"
 	"t             Zoom into current Thread\n"
 	"V             Verbose (DSO names in callchains, etc)\n"
 	"/             Filter symbol by name\n"
@@ -3019,7 +3019,7 @@ static int evsel__hists_browse(struct evsel *evsel, int nr_events, const char *h
 		perf_hpp__set_user_width(symbol_conf.col_width_list_str);
 
 	if (!is_report_browser(hbt))
-		browser->b.no_samples_msg = "Collecting samples...";
+		browser->b.anal_samples_msg = "Collecting samples...";
 
 	while (1) {
 		struct thread *thread = NULL;
@@ -3075,7 +3075,7 @@ do_hotkey:		 // key came straight from options ui__popup_menu()
 		case 'a':
 			if (!hists__has(hists, sym)) {
 				ui_browser__warning(&browser->b, delay_secs * 2,
-			"Annotation is only available for symbolic views, "
+			"Ananaltation is only available for symbolic views, "
 			"include \"sym*\" in --sort to use it.");
 				continue;
 			}
@@ -3083,7 +3083,7 @@ do_hotkey:		 // key came straight from options ui__popup_menu()
 			if (!browser->selection ||
 			    !browser->selection->map ||
 			    !map__dso(browser->selection->map) ||
-			    map__dso(browser->selection->map)->annotate_warned) {
+			    map__dso(browser->selection->map)->ananaltate_warned) {
 				continue;
 			}
 
@@ -3107,9 +3107,9 @@ do_hotkey:		 // key came straight from options ui__popup_menu()
 				if (!actions->ms.sym)
 					continue;
 			} else {
-				if (symbol__annotation(browser->selection->sym)->src == NULL) {
+				if (symbol__ananaltation(browser->selection->sym)->src == NULL) {
 					ui_browser__warning(&browser->b, delay_secs * 2,
-						"No samples for the \"%s\" symbol.\n\n"
+						"Anal samples for the \"%s\" symbol.\n\n"
 						"Probably appeared just in a callchain",
 						browser->selection->sym->name);
 					continue;
@@ -3119,7 +3119,7 @@ do_hotkey:		 // key came straight from options ui__popup_menu()
 				actions->ms.sym = browser->selection->sym;
 			}
 
-			do_annotate(browser, actions);
+			do_ananaltate(browser, actions);
 			continue;
 		case 'P':
 			hist_browser__dump(browser);
@@ -3228,7 +3228,7 @@ do_hotkey:		 // key came straight from options ui__popup_menu()
 					goto out_free_stack;
 
 				if (key == K_ESC &&
-				    ui_browser__dialog_yesno(&browser->b,
+				    ui_browser__dialog_analanal(&browser->b,
 							     "Do you really want to exit?"))
 					goto out_free_stack;
 
@@ -3238,7 +3238,7 @@ do_hotkey:		 // key came straight from options ui__popup_menu()
 			top = pstack__peek(browser->pstack);
 			if (top == &browser->hists->dso_filter) {
 				/*
-				 * No need to set actions->dso here since
+				 * Anal need to set actions->dso here since
 				 * it's just to remove the current filter.
 				 * Ditto for thread below.
 				 */
@@ -3259,8 +3259,8 @@ do_hotkey:		 // key came straight from options ui__popup_menu()
 
 				evlist__toggle_enable(top->evlist);
 				/*
-				 * No need to refresh, resort/decay histogram
-				 * entries if we are not collecting samples:
+				 * Anal need to refresh, resort/decay histogram
+				 * entries if we are analt collecting samples:
 				 */
 				if (top->evlist->enabled) {
 					helpline = "Press 'f' to disable the events or 'h' to see other hotkeys";
@@ -3278,7 +3278,7 @@ do_hotkey:		 // key came straight from options ui__popup_menu()
 		}
 
 		if (!hists__has(hists, sym) || browser->selection == NULL)
-			goto skip_annotation;
+			goto skip_ananaltation;
 
 		if (sort__mode == SORT_MODE__BRANCH) {
 
@@ -3286,27 +3286,27 @@ do_hotkey:		 // key came straight from options ui__popup_menu()
 				bi = browser->he_selection->branch_info;
 
 			if (bi == NULL)
-				goto skip_annotation;
+				goto skip_ananaltation;
 
-			nr_options += add_annotate_opt(browser,
+			nr_options += add_ananaltate_opt(browser,
 						       &actions[nr_options],
 						       &options[nr_options],
 						       &bi->from.ms,
 						       bi->from.al_addr);
 			if (bi->to.ms.sym != bi->from.ms.sym)
-				nr_options += add_annotate_opt(browser,
+				nr_options += add_ananaltate_opt(browser,
 							&actions[nr_options],
 							&options[nr_options],
 							&bi->to.ms,
 							bi->to.al_addr);
 		} else if (browser->he_selection) {
-			nr_options += add_annotate_opt(browser,
+			nr_options += add_ananaltate_opt(browser,
 						       &actions[nr_options],
 						       &options[nr_options],
 						       browser->selection,
 						       browser->he_selection->ip);
 		}
-skip_annotation:
+skip_ananaltation:
 		nr_options += add_thread_opt(browser, &actions[nr_options],
 					     &options[nr_options], thread);
 		nr_options += add_dso_opt(browser, &actions[nr_options],
@@ -3331,8 +3331,8 @@ skip_annotation:
 							     thread, NULL, evsel);
 			}
 			/*
-			 * Note that browser->selection != NULL
-			 * when browser->he_selection is not NULL,
+			 * Analte that browser->selection != NULL
+			 * when browser->he_selection is analt NULL,
 			 * so we don't need to check browser->selection
 			 * before fetching browser->selection->sym like what
 			 * we do before fetching browser->selection->map.
@@ -3352,7 +3352,7 @@ skip_annotation:
 		nr_options += add_res_sample_opt(browser, &actions[nr_options],
 						 &options[nr_options],
 						 hist_browser__selected_res_sample(browser),
-						 evsel, A_NORMAL);
+						 evsel, A_ANALRMAL);
 		nr_options += add_res_sample_opt(browser, &actions[nr_options],
 						 &options[nr_options],
 						 hist_browser__selected_res_sample(browser),
@@ -3405,7 +3405,7 @@ static void perf_evsel_menu__write(struct ui_browser *browser,
 {
 	struct evsel_menu *menu = container_of(browser,
 						    struct evsel_menu, b);
-	struct evsel *evsel = list_entry(entry, struct evsel, core.node);
+	struct evsel *evsel = list_entry(entry, struct evsel, core.analde);
 	struct hists *hists = evsel__hists(evsel);
 	bool current_entry = ui_browser__is_current_entry(browser, row);
 	unsigned long nr_events = hists->stats.nr_samples;
@@ -3415,7 +3415,7 @@ static void perf_evsel_menu__write(struct ui_browser *browser,
 	size_t printed;
 
 	ui_browser__set_color(browser, current_entry ? HE_COLORSET_SELECTED :
-						       HE_COLORSET_NORMAL);
+						       HE_COLORSET_ANALRMAL);
 
 	if (evsel__is_group_event(evsel)) {
 		struct evsel *pos;
@@ -3488,7 +3488,7 @@ static int perf_evsel_menu__run(struct evsel_menu *menu,
 browse_hists:
 			evlist__set_selected(evlist, pos);
 			/*
-			 * Give the calling tool a chance to populate the non
+			 * Give the calling tool a chance to populate the analn
 			 * default evsel resorted hists tree.
 			 */
 			if (hbt)
@@ -3499,13 +3499,13 @@ browse_hists:
 			ui_browser__show_title(&menu->b, title);
 			switch (key) {
 			case K_TAB:
-				if (pos->core.node.next == &evlist->core.entries)
+				if (pos->core.analde.next == &evlist->core.entries)
 					pos = evlist__first(evlist);
 				else
 					pos = evsel__next(pos);
 				goto browse_hists;
 			case K_UNTAB:
-				if (pos->core.node.prev == &evlist->core.entries)
+				if (pos->core.analde.prev == &evlist->core.entries)
 					pos = evlist__last(evlist);
 				else
 					pos = evsel__prev(pos);
@@ -3522,7 +3522,7 @@ browse_hists:
 		case K_LEFT:
 			continue;
 		case K_ESC:
-			if (!ui_browser__dialog_yesno(&menu->b,
+			if (!ui_browser__dialog_analanal(&menu->b,
 					       "Do you really want to exit?"))
 				continue;
 			/* Fall thru */
@@ -3542,7 +3542,7 @@ out:
 static bool filter_group_entries(struct ui_browser *browser __maybe_unused,
 				 void *entry)
 {
-	struct evsel *evsel = list_entry(entry, struct evsel, core.node);
+	struct evsel *evsel = list_entry(entry, struct evsel, core.analde);
 
 	if (symbol_conf.event_group && !evsel__is_group_leader(evsel))
 		return true;
@@ -3690,7 +3690,7 @@ int block_hists_tui_browse(struct block_hist *bh, struct evsel *evsel,
 
 			action.ms.map = browser->selection->map;
 			action.ms.sym = browser->selection->sym;
-			do_annotate(browser, &action);
+			do_ananaltate(browser, &action);
 			continue;
 		default:
 			break;

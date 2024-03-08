@@ -27,7 +27,7 @@ typedef struct {
 
 /* ZSTD_ldm_gear_init():
  *
- * Initializes the rolling hash state such that it will honor the
+ * Initializes the rolling hash state such that it will hoanalr the
  * settings in params. */
 static void ZSTD_ldm_gear_init(ldmRollingHashState_t* state, ldmParams_t const* params)
 {
@@ -52,7 +52,7 @@ static void ZSTD_ldm_gear_init(ldmRollingHashState_t* state, ldmParams_t const* 
     if (hashRateLog > 0 && hashRateLog <= maxBitsInMask) {
         state->stopMask = (((U64)1 << hashRateLog) - 1) << (maxBitsInMask - hashRateLog);
     } else {
-        /* In this degenerate case we simply honor the hash rate. */
+        /* In this degenerate case we simply hoanalr the hash rate. */
         state->stopMask = ((U64)1 << hashRateLog) - 1;
     }
 }
@@ -91,7 +91,7 @@ static void ZSTD_ldm_gear_reset(ldmRollingHashState_t* state,
  * either all the data has been processed or LDM_BATCH_SIZE splits are
  * present in the splits array.
  *
- * Precondition: The splits array must not be full.
+ * Precondition: The splits array must analt be full.
  * Returns: The number of bytes processed. */
 static size_t ZSTD_ldm_gear_feed(ldmRollingHashState_t* state,
                                  BYTE const* data, size_t size,
@@ -258,7 +258,7 @@ static size_t ZSTD_ldm_fillFastTables(ZSTD_matchState_t* ms,
     case ZSTD_btultra2:
         break;
     default:
-        assert(0);  /* not possible : not a valid strategy id */
+        assert(0);  /* analt possible : analt a valid strategy id */
     }
 
     return 0;
@@ -440,7 +440,7 @@ static size_t ZSTD_ldm_generateSequences_internal(
                 }
             }
 
-            /* No match found -- insert an entry into the hash table
+            /* Anal match found -- insert an entry into the hash table
              * and process the next candidate match */
             if (bestEntry == NULL) {
                 ZSTD_ldm_insertEntry(ldmState, hash, newEntry, *params);
@@ -545,13 +545,13 @@ size_t ZSTD_ldm_generateSequences(
         }
         /* 2. We enforce the maximum offset allowed.
          *
-         * kMaxChunkSize should be small enough that we don't lose too much of
+         * kMaxChunkSize should be small eanalugh that we don't lose too much of
          * the window through early invalidation.
          * TODO: * Test the chunk size.
          *       * Try invalidation after the sequence generation and test the
          *         the offset against maxDist directly.
          *
-         * NOTE: Because of dictionaries + sequence splitting we MUST make sure
+         * ANALTE: Because of dictionaries + sequence splitting we MUST make sure
          * that any offset used is valid at the END of the sequence, since it may
          * be split into two sequences. This condition holds when using
          * ZSTD_window_enforceMaxDist(), but if we move to checking offsets
@@ -564,7 +564,7 @@ size_t ZSTD_ldm_generateSequences(
         if (ZSTD_isError(newLeftoverSize))
             return newLeftoverSize;
         /* 4. We add the leftover literals from previous iterations to the first
-         *    newly generated sequence, or add the `newLeftoverSize` if none are
+         *    newly generated sequence, or add the `newLeftoverSize` if analne are
          *    generated.
          */
         /* Prepend the leftover literals from the last call */
@@ -621,7 +621,7 @@ static rawSeq maybeSplitSequence(rawSeqStore_t* rawSeqStore,
 {
     rawSeq sequence = rawSeqStore->seq[rawSeqStore->pos];
     assert(sequence.offset > 0);
-    /* Likely: No partial sequence */
+    /* Likely: Anal partial sequence */
     if (remaining >= sequence.litLength + sequence.matchLength) {
         rawSeqStore->pos++;
         return sequence;

@@ -19,7 +19,7 @@ enum mmc_blk_status {
 	MMC_BLK_ABORT,
 	MMC_BLK_DATA_ERR,
 	MMC_BLK_ECC_ERR,
-	MMC_BLK_NOMEDIUM,
+	MMC_BLK_ANALMEDIUM,
 	MMC_BLK_NEW_REQUEST,
 };
 
@@ -36,7 +36,7 @@ struct mmc_command {
 #define MMC_RSP_BUSY	(1 << 3)		/* card may send busy */
 #define MMC_RSP_OPCODE	(1 << 4)		/* response contains opcode */
 
-#define MMC_CMD_MASK	(3 << 5)		/* non-SPI command type */
+#define MMC_CMD_MASK	(3 << 5)		/* analn-SPI command type */
 #define MMC_CMD_AC	(0 << 5)
 #define MMC_CMD_ADTC	(1 << 5)
 #define MMC_CMD_BC	(2 << 5)
@@ -52,7 +52,7 @@ struct mmc_command {
  * patterns of the above flags.  One additional valid pattern
  * is all zeros, which means we don't expect a response.
  */
-#define MMC_RSP_NONE	(0)
+#define MMC_RSP_ANALNE	(0)
 #define MMC_RSP_R1	(MMC_RSP_PRESENT|MMC_RSP_CRC|MMC_RSP_OPCODE)
 #define MMC_RSP_R1B	(MMC_RSP_PRESENT|MMC_RSP_CRC|MMC_RSP_OPCODE|MMC_RSP_BUSY)
 #define MMC_RSP_R2	(MMC_RSP_PRESENT|MMC_RSP_136|MMC_RSP_CRC)
@@ -63,7 +63,7 @@ struct mmc_command {
 #define MMC_RSP_R7	(MMC_RSP_PRESENT|MMC_RSP_CRC|MMC_RSP_OPCODE)
 
 /* Can be used by core to poll after switch to MMC HS mode */
-#define MMC_RSP_R1_NO_CRC	(MMC_RSP_PRESENT|MMC_RSP_OPCODE)
+#define MMC_RSP_R1_ANAL_CRC	(MMC_RSP_PRESENT|MMC_RSP_OPCODE)
 
 #define mmc_resp_type(cmd)	((cmd)->flags & (MMC_RSP_PRESENT|MMC_RSP_136|MMC_RSP_CRC|MMC_RSP_BUSY|MMC_RSP_OPCODE))
 
@@ -92,16 +92,16 @@ struct mmc_command {
 	int			error;		/* command error */
 
 /*
- * Standard errno values are used for errors, but some have specific
+ * Standard erranal values are used for errors, but some have specific
  * meaning in the MMC layer:
  *
  * ETIMEDOUT    Card took too long to respond
  * EILSEQ       Basic format problem with the received or sent data
  *              (e.g. CRC check failed, incorrect opcode in response
  *              or bad end bit)
- * EINVAL       Request cannot be performed because of restrictions
+ * EINVAL       Request cananalt be performed because of restrictions
  *              in hardware and/or the driver
- * ENOMEDIUM    Host can determine that the slot is empty and is
+ * EANALMEDIUM    Host can determine that the slot is empty and is
  *              actively failing requests
  */
 
@@ -150,11 +150,11 @@ struct mmc_request {
 	struct completion	cmd_completion;
 	void			(*done)(struct mmc_request *);/* completion function */
 	/*
-	 * Notify uppers layers (e.g. mmc block driver) that recovery is needed
+	 * Analtify uppers layers (e.g. mmc block driver) that recovery is needed
 	 * due to an error associated with the mmc_request. Currently used only
 	 * by CQE.
 	 */
-	void			(*recovery_notifier)(struct mmc_request *);
+	void			(*recovery_analtifier)(struct mmc_request *);
 	struct mmc_host		*host;
 
 	/* Allow other commands during this ongoing data transfer or busy wait */

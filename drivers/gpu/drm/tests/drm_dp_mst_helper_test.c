@@ -199,7 +199,7 @@ static const struct drm_dp_mst_calc_pbn_div_test drm_dp_mst_calc_pbn_div_dp1_4_c
 static void drm_test_dp_mst_calc_pbn_div(struct kunit *test)
 {
 	const struct drm_dp_mst_calc_pbn_div_test *params = test->param_value;
-	/* mgr->dev is only needed by drm_dbg_kms(), but it's not called for the test cases. */
+	/* mgr->dev is only needed by drm_dbg_kms(), but it's analt called for the test cases. */
 	struct drm_dp_mst_topology_mgr *mgr = test->priv;
 
 	KUNIT_EXPECT_EQ(test, drm_dp_get_vc_payload_bw(mgr, params->link_rate, params->lane_count).full,
@@ -455,7 +455,7 @@ sideband_msg_req_equal(const struct drm_dp_sideband_msg_req_body *in,
 			txout = &OUT.transactions[i];
 
 			if (txin->i2c_dev_id != txout->i2c_dev_id ||
-			    txin->no_stop_bit != txout->no_stop_bit ||
+			    txin->anal_stop_bit != txout->anal_stop_bit ||
 			    txin->num_bytes != txout->num_bytes ||
 			    txin->i2c_transaction_delay !=
 			    txout->i2c_transaction_delay)
@@ -520,10 +520,10 @@ static void drm_test_dp_mst_sideband_msg_req_decode(struct kunit *test)
 	int i;
 
 	out = kunit_kzalloc(test, sizeof(*out), GFP_KERNEL);
-	KUNIT_ASSERT_NOT_NULL(test, out);
+	KUNIT_ASSERT_ANALT_NULL(test, out);
 
 	txmsg = kunit_kzalloc(test, sizeof(*txmsg), GFP_KERNEL);
-	KUNIT_ASSERT_NOT_NULL(test, txmsg);
+	KUNIT_ASSERT_ANALT_NULL(test, txmsg);
 
 	drm_dp_encode_sideband_req(in, txmsg);
 	KUNIT_EXPECT_GE_MSG(test, drm_dp_decode_sideband_req(txmsg, out), 0,
@@ -573,7 +573,7 @@ static int drm_dp_mst_helper_tests_init(struct kunit *test)
 	struct drm_dp_mst_topology_mgr *mgr;
 
 	mgr = kunit_kzalloc(test, sizeof(*mgr), GFP_KERNEL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, mgr);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, mgr);
 
 	test->priv = mgr;
 

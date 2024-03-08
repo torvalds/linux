@@ -49,7 +49,7 @@
 	};
 
 	usbphy2: usbphy {
-		compatible = "usb-nop-xceiv";
+		compatible = "usb-analp-xceiv";
 		vcc-supply = <&reg_5v0>;
 		clocks = <&clks IMX27_CLK_DUMMY>;
 		clock-names = "main_clk";
@@ -307,7 +307,7 @@
 		interrupts = <19 IRQ_TYPE_EDGE_FALLING>;
 		nxp,external-clock-frequency = <16000000>;
 		nxp,tx-output-config = <0x16>;
-		nxp,no-comparator-bypass;
+		nxp,anal-comparator-bypass;
 		fsl,weim-cs-timing = <0x0000dcf6 0x444a0301 0x44443302>;
 	};
 };

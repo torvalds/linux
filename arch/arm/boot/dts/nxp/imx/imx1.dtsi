@@ -13,7 +13,7 @@
 	#size-cells = <1>;
 	/*
 	 * The decompressor and also some bootloaders rely on a
-	 * pre-existing /chosen node to be available to insert the
+	 * pre-existing /chosen analde to be available to insert the
 	 * command line and merge other ATAGS info.
 	 */
 	chosen {};

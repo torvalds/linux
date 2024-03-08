@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Pegasus Mobile Notetaker Pen input tablet driver
+ * Pegasus Mobile Analtetaker Pen input tablet driver
  *
  * Copyright (c) 2016 Martin Kepplinger <martink@posteo.de>
  */
@@ -27,7 +27,7 @@
  * 5	Y high
  *
  * X X	battery state:
- *	no state reported	0x00
+ *	anal state reported	0x00
  *	battery low		0x01
  *	battery good		0x02
  *
@@ -49,14 +49,14 @@
 #define USB_REQ_SET_REPORT		0x09
 
 #define USB_VENDOR_ID_PEGASUSTECH	0x0e20
-#define USB_DEVICE_ID_PEGASUS_NOTETAKER_EN100	0x0101
+#define USB_DEVICE_ID_PEGASUS_ANALTETAKER_EN100	0x0101
 
 /* device specific defines */
-#define NOTETAKER_REPORT_ID		0x02
-#define NOTETAKER_SET_CMD		0x80
-#define NOTETAKER_SET_MODE		0xb5
+#define ANALTETAKER_REPORT_ID		0x02
+#define ANALTETAKER_SET_CMD		0x80
+#define ANALTETAKER_SET_MODE		0xb5
 
-#define NOTETAKER_LED_MOUSE		0x02
+#define ANALTETAKER_LED_MOUSE		0x02
 #define PEN_MODE_XY			0x01
 
 #define SPECIAL_COMMAND			0x80
@@ -64,7 +64,7 @@
 #define COMMAND_VERSION			0xa9
 
 /* in xy data packet */
-#define BATTERY_NO_REPORT		0x40
+#define BATTERY_ANAL_REPORT		0x40
 #define BATTERY_LOW			0x41
 #define BATTERY_GOOD			0x42
 #define PEN_BUTTON_PRESSED		BIT(1)
@@ -97,9 +97,9 @@ static int pegasus_control_msg(struct pegasus *pegasus, u8 *data, int len)
 
 	cmd_buf = kmalloc(sizeof_buf, GFP_KERNEL);
 	if (!cmd_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	cmd_buf[0] = NOTETAKER_REPORT_ID;
+	cmd_buf[0] = ANALTETAKER_REPORT_ID;
 	cmd_buf[1] = len;
 	memcpy(cmd_buf + 2, data, len);
 
@@ -124,7 +124,7 @@ static int pegasus_control_msg(struct pegasus *pegasus, u8 *data, int len)
 
 static int pegasus_set_mode(struct pegasus *pegasus, u8 mode, u8 led)
 {
-	u8 cmd[] = { NOTETAKER_SET_CMD, NOTETAKER_SET_MODE, led, mode };
+	u8 cmd[] = { ANALTETAKER_SET_CMD, ANALTETAKER_SET_MODE, led, mode };
 
 	return pegasus_control_msg(pegasus, cmd, sizeof(cmd));
 }
@@ -148,7 +148,7 @@ static void pegasus_parse_packet(struct pegasus *pegasus)
 		dev_warn_once(&dev->dev, "Pen battery low\n");
 		fallthrough;
 
-	case BATTERY_NO_REPORT:
+	case BATTERY_ANAL_REPORT:
 	case BATTERY_GOOD:
 		x = le16_to_cpup((__le16 *)&data[2]);
 		y = le16_to_cpup((__le16 *)&data[4]);
@@ -168,7 +168,7 @@ static void pegasus_parse_packet(struct pegasus *pegasus)
 
 	default:
 		dev_warn_once(&pegasus->usbdev->dev,
-			      "unknown answer from device\n");
+			      "unkanalwn answer from device\n");
 	}
 }
 
@@ -185,14 +185,14 @@ static void pegasus_irq(struct urb *urb)
 		break;
 
 	case -ECONNRESET:
-	case -ENOENT:
+	case -EANALENT:
 	case -ESHUTDOWN:
 		dev_err(&dev->dev, "%s - urb shutting down with status: %d",
 			__func__, urb->status);
 		return;
 
 	default:
-		dev_err(&dev->dev, "%s - nonzero urb status received: %d",
+		dev_err(&dev->dev, "%s - analnzero urb status received: %d",
 			__func__, urb->status);
 		break;
 	}
@@ -208,7 +208,7 @@ static void pegasus_init(struct work_struct *work)
 	struct pegasus *pegasus = container_of(work, struct pegasus, init);
 	int error;
 
-	error = pegasus_set_mode(pegasus, PEN_MODE_XY, NOTETAKER_LED_MOUSE);
+	error = pegasus_set_mode(pegasus, PEN_MODE_XY, ANALTETAKER_LED_MOUSE);
 	if (error)
 		dev_err(&pegasus->usbdev->dev, "pegasus_set_mode error: %d\n",
 			error);
@@ -230,7 +230,7 @@ static int pegasus_open(struct input_dev *dev)
 		goto err_autopm_put;
 	}
 
-	error = pegasus_set_mode(pegasus, PEN_MODE_XY, NOTETAKER_LED_MOUSE);
+	error = pegasus_set_mode(pegasus, PEN_MODE_XY, ANALTETAKER_LED_MOUSE);
 	if (error)
 		goto err_kill_urb;
 
@@ -272,7 +272,7 @@ static int pegasus_probe(struct usb_interface *intf,
 
 	/* We control interface 0 */
 	if (intf->cur_altsetting->desc.bInterfaceNumber >= 1)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Sanity check that the device has an endpoint */
 	if (intf->cur_altsetting->desc.bNumEndpoints < 1) {
@@ -285,7 +285,7 @@ static int pegasus_probe(struct usb_interface *intf,
 	pegasus = kzalloc(sizeof(*pegasus), GFP_KERNEL);
 	input_dev = input_allocate_device();
 	if (!pegasus || !input_dev) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto err_free_mem;
 	}
 
@@ -307,13 +307,13 @@ static int pegasus_probe(struct usb_interface *intf,
 	pegasus->data = usb_alloc_coherent(dev, pegasus->data_len, GFP_KERNEL,
 					   &pegasus->data_dma);
 	if (!pegasus->data) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto err_free_mem;
 	}
 
 	pegasus->irq = usb_alloc_urb(0, GFP_KERNEL);
 	if (!pegasus->irq) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto err_free_dma;
 	}
 
@@ -322,7 +322,7 @@ static int pegasus_probe(struct usb_interface *intf,
 			 pegasus_irq, pegasus, endpoint->bInterval);
 
 	pegasus->irq->transfer_dma = pegasus->data_dma;
-	pegasus->irq->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
+	pegasus->irq->transfer_flags |= URB_ANAL_TRANSFER_DMA_MAP;
 
 	if (dev->manufacturer)
 		strscpy(pegasus->name, dev->manufacturer,
@@ -425,7 +425,7 @@ static int pegasus_resume(struct usb_interface *intf)
 	int retval = 0;
 
 	mutex_lock(&pegasus->pm_mutex);
-	if (pegasus->is_open && usb_submit_urb(pegasus->irq, GFP_NOIO) < 0)
+	if (pegasus->is_open && usb_submit_urb(pegasus->irq, GFP_ANALIO) < 0)
 		retval = -EIO;
 	mutex_unlock(&pegasus->pm_mutex);
 
@@ -440,8 +440,8 @@ static int pegasus_reset_resume(struct usb_interface *intf)
 	mutex_lock(&pegasus->pm_mutex);
 	if (pegasus->is_open) {
 		retval = pegasus_set_mode(pegasus, PEN_MODE_XY,
-					  NOTETAKER_LED_MOUSE);
-		if (!retval && usb_submit_urb(pegasus->irq, GFP_NOIO) < 0)
+					  ANALTETAKER_LED_MOUSE);
+		if (!retval && usb_submit_urb(pegasus->irq, GFP_ANALIO) < 0)
 			retval = -EIO;
 	}
 	mutex_unlock(&pegasus->pm_mutex);
@@ -451,13 +451,13 @@ static int pegasus_reset_resume(struct usb_interface *intf)
 
 static const struct usb_device_id pegasus_ids[] = {
 	{ USB_DEVICE(USB_VENDOR_ID_PEGASUSTECH,
-		     USB_DEVICE_ID_PEGASUS_NOTETAKER_EN100) },
+		     USB_DEVICE_ID_PEGASUS_ANALTETAKER_EN100) },
 	{ }
 };
 MODULE_DEVICE_TABLE(usb, pegasus_ids);
 
 static struct usb_driver pegasus_driver = {
-	.name		= "pegasus_notetaker",
+	.name		= "pegasus_analtetaker",
 	.probe		= pegasus_probe,
 	.disconnect	= pegasus_disconnect,
 	.suspend	= pegasus_suspend,
@@ -470,5 +470,5 @@ static struct usb_driver pegasus_driver = {
 module_usb_driver(pegasus_driver);
 
 MODULE_AUTHOR("Martin Kepplinger <martink@posteo.de>");
-MODULE_DESCRIPTION("Pegasus Mobile Notetaker Pen tablet driver");
+MODULE_DESCRIPTION("Pegasus Mobile Analtetaker Pen tablet driver");
 MODULE_LICENSE("GPL");

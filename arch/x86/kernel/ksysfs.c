@@ -80,7 +80,7 @@ static int get_setup_data_paddr(int nr, u64 *paddr)
 		}
 		data = memremap(pa_data, sizeof(*data), MEMREMAP_WB);
 		if (!data)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		pa_data = data->next;
 		memunmap(data);
@@ -100,7 +100,7 @@ static int __init get_setup_data_size(int nr, size_t *size)
 	while (pa_data) {
 		data = memremap(pa_data, sizeof(*data), MEMREMAP_WB);
 		if (!data)
-			return -ENOMEM;
+			return -EANALMEM;
 		pa_next = data->next;
 
 		if (nr == i) {
@@ -109,7 +109,7 @@ static int __init get_setup_data_size(int nr, size_t *size)
 				memunmap(data);
 				data = memremap(pa_data, len, MEMREMAP_WB);
 				if (!data)
-					return -ENOMEM;
+					return -EANALMEM;
 
 				indirect = (struct setup_indirect *)data->data;
 
@@ -150,14 +150,14 @@ static ssize_t type_show(struct kobject *kobj,
 		return ret;
 	data = memremap(paddr, sizeof(*data), MEMREMAP_WB);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (data->type == SETUP_INDIRECT) {
 		len = sizeof(*data) + data->len;
 		memunmap(data);
 		data = memremap(paddr, len, MEMREMAP_WB);
 		if (!data)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		indirect = (struct setup_indirect *)data->data;
 
@@ -191,14 +191,14 @@ static ssize_t setup_data_data_read(struct file *fp,
 		return ret;
 	data = memremap(paddr, sizeof(*data), MEMREMAP_WB);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (data->type == SETUP_INDIRECT) {
 		len = sizeof(*data) + data->len;
 		memunmap(data);
 		data = memremap(paddr, len, MEMREMAP_WB);
 		if (!data)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		indirect = (struct setup_indirect *)data->data;
 
@@ -208,7 +208,7 @@ static ssize_t setup_data_data_read(struct file *fp,
 		} else {
 			/*
 			 * Even though this is technically undefined, return
-			 * the data as though it is a normal setup_data struct.
+			 * the data as though it is a analrmal setup_data struct.
 			 * This will at least allow it to be inspected.
 			 */
 			paddr += sizeof(*data);
@@ -233,7 +233,7 @@ static ssize_t setup_data_data_read(struct file *fp,
 	ret = count;
 	p = memremap(paddr, len, MEMREMAP_WB);
 	if (!p) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 	memcpy(buf, p + off, count);
@@ -268,18 +268,18 @@ static const struct attribute_group setup_data_attr_group = {
 	.bin_attrs = setup_data_data_attrs,
 };
 
-static int __init create_setup_data_node(struct kobject *parent,
+static int __init create_setup_data_analde(struct kobject *parent,
 					 struct kobject **kobjp, int nr)
 {
 	int ret = 0;
 	size_t size;
 	struct kobject *kobj;
-	char name[16]; /* should be enough for setup_data nodes numbers */
+	char name[16]; /* should be eanalugh for setup_data analdes numbers */
 	snprintf(name, 16, "%d", nr);
 
 	kobj = kobject_create_and_add(name, parent);
 	if (!kobj)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = get_setup_data_size(nr, &size);
 	if (ret)
@@ -297,7 +297,7 @@ out_kobj:
 	return ret;
 }
 
-static void __init cleanup_setup_data_node(struct kobject *kobj)
+static void __init cleanup_setup_data_analde(struct kobject *kobj)
 {
 	sysfs_remove_group(kobj, &setup_data_attr_group);
 	kobject_put(kobj);
@@ -313,7 +313,7 @@ static int __init get_setup_data_total_num(u64 pa_data, int *nr)
 		*nr += 1;
 		data = memremap(pa_data, sizeof(*data), MEMREMAP_WB);
 		if (!data) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out;
 		}
 		pa_data = data->next;
@@ -324,7 +324,7 @@ out:
 	return ret;
 }
 
-static int __init create_setup_data_nodes(struct kobject *parent)
+static int __init create_setup_data_analdes(struct kobject *parent)
 {
 	struct kobject *setup_data_kobj, **kobjp;
 	u64 pa_data;
@@ -336,7 +336,7 @@ static int __init create_setup_data_nodes(struct kobject *parent)
 
 	setup_data_kobj = kobject_create_and_add("setup_data", parent);
 	if (!setup_data_kobj) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -346,22 +346,22 @@ static int __init create_setup_data_nodes(struct kobject *parent)
 
 	kobjp = kmalloc_array(nr, sizeof(*kobjp), GFP_KERNEL);
 	if (!kobjp) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_setup_data_kobj;
 	}
 
 	for (i = 0; i < nr; i++) {
-		ret = create_setup_data_node(setup_data_kobj, kobjp + i, i);
+		ret = create_setup_data_analde(setup_data_kobj, kobjp + i, i);
 		if (ret)
-			goto out_clean_nodes;
+			goto out_clean_analdes;
 	}
 
 	kfree(kobjp);
 	return 0;
 
-out_clean_nodes:
+out_clean_analdes:
 	for (j = i - 1; j >= 0; j--)
-		cleanup_setup_data_node(*(kobjp + j));
+		cleanup_setup_data_analde(*(kobjp + j));
 	kfree(kobjp);
 out_setup_data_kobj:
 	kobject_put(setup_data_kobj);
@@ -377,7 +377,7 @@ static int __init boot_params_ksysfs_init(void)
 	boot_params_kobj = kobject_create_and_add("boot_params",
 						  kernel_kobj);
 	if (!boot_params_kobj) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -385,7 +385,7 @@ static int __init boot_params_ksysfs_init(void)
 	if (ret)
 		goto out_boot_params_kobj;
 
-	ret = create_setup_data_nodes(boot_params_kobj);
+	ret = create_setup_data_analdes(boot_params_kobj);
 	if (ret)
 		goto out_create_group;
 

@@ -14,7 +14,7 @@ menuconfig KGDB
 	depends on DEBUG_KERNEL
 	help
 	  If you say Y here, it will be possible to remotely debug the
-	  kernel using gdb.  It is recommended but not required, that
+	  kernel using gdb.  It is recommended but analt required, that
 	  you also turn on the kernel config option
 	  CONFIG_FRAME_POINTER to aid in producing more reliable stack
 	  backtraces in the external debugger.  Documentation of
@@ -24,7 +24,7 @@ menuconfig KGDB
 
 if KGDB
 
-config KGDB_HONOUR_BLOCKLIST
+config KGDB_HOANALUR_BLOCKLIST
 	bool "KGDB: use kprobe blocklist to prohibit unsafe breakpoints"
 	depends on HAVE_KPROBES
 	depends on MODULES
@@ -80,13 +80,13 @@ config KGDB_TESTS_BOOT_STRING
 	  default of V1F100.
 
 config KGDB_LOW_LEVEL_TRAP
-       bool "KGDB: Allow debugging with traps in notifiers"
+       bool "KGDB: Allow debugging with traps in analtifiers"
        depends on X86 || MIPS
        default n
        help
 	 This will add an extra call back to kgdb for the breakpoint
 	 exception handler which will allow kgdb to step through a
-	 notify handler.
+	 analtify handler.
 
 config KGDB_KDB
 	bool "KGDB_KDB: include kdb frontend for kgdb"
@@ -133,16 +133,16 @@ config KDB_CONTINUE_CATASTROPHIC
 	help
 	  This integer controls the behaviour of kdb when the kernel gets a
 	  catastrophic error, i.e. for a panic or oops.
-	  When KDB is active and a catastrophic error occurs, nothing extra
+	  When KDB is active and a catastrophic error occurs, analthing extra
 	  will happen until you type 'go'.
 	  CONFIG_KDB_CONTINUE_CATASTROPHIC == 0 (default). The first time
 	  you type 'go', you will be warned by kdb. The secend time you type
-	  'go', KDB tries to continue. No guarantees that the
+	  'go', KDB tries to continue. Anal guarantees that the
 	  kernel is still usable in this situation.
 	  CONFIG_KDB_CONTINUE_CATASTROPHIC == 1. KDB tries to continue.
-	  No guarantees that the kernel is still usable in this situation.
+	  Anal guarantees that the kernel is still usable in this situation.
 	  CONFIG_KDB_CONTINUE_CATASTROPHIC == 2. KDB forces a reboot.
-	  If you are not sure, say 0.
+	  If you are analt sure, say 0.
 
 config ARCH_HAS_EARLY_DEBUG
 	bool
@@ -154,12 +154,12 @@ config ARCH_HAS_EARLY_DEBUG
 	  won't actually be processed until dbg_late_init() just after the
 	  call to kgdb_arch_late() is made.
 
-	  NOTE: Even if this isn't selected by an architecture we will
+	  ANALTE: Even if this isn't selected by an architecture we will
 	  still try to register kgdb to handle breakpoints and crashes
 	  when early_param's are parsed, we just won't act on the
 	  "kgdbwait" parameter until dbg_late_init().  If you get a
 	  crash and try to drop into kgdb somewhere between these two
-	  places you might or might not end up being able to use kgdb
+	  places you might or might analt end up being able to use kgdb
 	  depending on exactly how far along the architecture has initted.
 
 endif # KGDB

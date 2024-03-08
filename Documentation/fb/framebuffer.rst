@@ -11,10 +11,10 @@ Last revised: May 10, 2001
 The frame buffer device provides an abstraction for the graphics hardware. It
 represents the frame buffer of some video hardware and allows application
 software to access the graphics hardware through a well-defined interface, so
-the software doesn't need to know anything about the low-level (hardware
+the software doesn't need to kanalw anything about the low-level (hardware
 register) stuff.
 
-The device is accessed through special device nodes, usually located in the
+The device is accessed through special device analdes, usually located in the
 /dev directory, i.e. /dev/fb*.
 
 
@@ -22,11 +22,11 @@ The device is accessed through special device nodes, usually located in the
 --------------------------
 
 From the user's point of view, the frame buffer device looks just like any
-other device in /dev. It's a character device using major 29; the minor
+other device in /dev. It's a character device using major 29; the mianalr
 specifies the frame buffer number.
 
-By convention, the following device nodes are used (numbers indicate the device
-minor numbers)::
+By convention, the following device analdes are used (numbers indicate the device
+mianalr numbers)::
 
       0 = /dev/fb0	First frame buffer
       1 = /dev/fb1	Second frame buffer
@@ -41,7 +41,7 @@ links::
 
 and so on...
 
-The frame buffer devices are also `normal` memory devices, this means, you can
+The frame buffer devices are also `analrmal` memory devices, this means, you can
 read and write their contents. You can, for example, make a screen snapshot by::
 
   cp /dev/fb0 myfile
@@ -68,10 +68,10 @@ After this the X server will use the second frame buffer.
 2. Programmer's View of /dev/fb*
 --------------------------------
 
-As you already know, a frame buffer device is a memory device like /dev/mem and
+As you already kanalw, a frame buffer device is a memory device like /dev/mem and
 it has the same features. You can read it, write it, seek to some location in
 it and mmap() it (the main usage). The difference is just that the memory that
-appears in the special file is not the whole memory, but the frame buffer of
+appears in the special file is analt the whole memory, but the frame buffer of
 some video hardware.
 
 /dev/fb* also allows several ioctls on it, by which lots of information about
@@ -97,7 +97,7 @@ which data structures they work. Here's just a brief overview:
 
 All this hardware abstraction makes the implementation of application programs
 easier and more portable. E.g. the X server works completely on /dev/fb* and
-thus doesn't need to know, for example, how the color registers of the concrete
+thus doesn't need to kanalw, for example, how the color registers of the concrete
 hardware are organized. XF68_FBDev is a general X server for bitmapped,
 unaccelerated video hardware. The only thing that has to be built into
 application programs is the screen organization (bitplanes or chunky pixels
@@ -125,7 +125,7 @@ easily add your own modes and refer to them with a simple identifier.
 4. The X Server
 ---------------
 
-The X server (XF68_FBDev) is the most notable application program for the frame
+The X server (XF68_FBDev) is the most analtable application program for the frame
 buffer device. Starting with XFree86 release 3.2, the X server is part of
 XFree86 and has 2 modes:
 
@@ -145,10 +145,10 @@ XFree86 and has 2 modes:
     file. This allows for on-the-fly resolution switching while retaining the
     same virtual desktop size. The frame buffer device that's used is still
     /dev/fb0current (or $FRAMEBUFFER), but the available resolutions are
-    defined by /etc/XF86Config now. The disadvantage is that you have to
+    defined by /etc/XF86Config analw. The disadvantage is that you have to
     specify the timings in a different format (but `fbset -x` may help).
 
-To tune a video mode, you can use fbset or xvidtune. Note that xvidtune doesn't
+To tune a video mode, you can use fbset or xvidtune. Analte that xvidtune doesn't
 work 100% with XF68_FBDev: the reported clock values are always incorrect.
 
 
@@ -156,7 +156,7 @@ work 100% with XF68_FBDev: the reported clock values are always incorrect.
 ---------------------
 
 A monitor draws an image on the screen by using an electron beam (3 electron
-beams for color models, 1 electron beam for monochrome monitors). The front of
+beams for color models, 1 electron beam for moanalchrome monitors). The front of
 the screen is covered by a pattern of colored phosphors (pixels). If a phosphor
 is hit by an electron, it emits a photon and thus becomes visible.
 
@@ -201,9 +201,9 @@ The vertical scanrate is about 59 Hz::
 This means the screen data is refreshed about 59 times per second. To have a
 stable picture without visible flicker, VESA recommends a vertical scanrate of
 at least 72 Hz. But the perceived flicker is very human dependent: some people
-can use 50 Hz without any trouble, while I'll notice if it's less than 80 Hz.
+can use 50 Hz without any trouble, while I'll analtice if it's less than 80 Hz.
 
-Since the monitor doesn't know when a new scanline starts, the graphics board
+Since the monitor doesn't kanalw when a new scanline starts, the graphics board
 will supply a synchronization pulse (horizontal sync or hsync) for each
 scanline.  Similarly it supplies a synchronization pulse (vertical sync or
 vsync) for each new frame. The position of the image on the screen is

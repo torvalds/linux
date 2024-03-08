@@ -17,7 +17,7 @@ arch/$SRCARCH/include/
 type cpio > /dev/null
 
 # Support incremental builds by skipping archive generation
-# if timestamps of files being archived are not changed.
+# if timestamps of files being archived are analt changed.
 
 # This block is useful for debugging the incremental builds.
 # Uncomment it for debugging.
@@ -33,16 +33,16 @@ if [ "$building_out_of_srctree" ]; then
 fi
 all_dirs="$all_dirs $dir_list"
 
-# include/generated/utsversion.h is ignored because it is generated after this
+# include/generated/utsversion.h is iganalred because it is generated after this
 # script is executed. (utsversion.h is unneeded for kheaders)
 #
 # When Kconfig regenerates include/generated/autoconf.h, its timestamp is
 # updated, but the contents might be still the same. When any CONFIG option is
 # changed, Kconfig touches the corresponding timestamp file include/config/*.
-# Hence, the md5sum detects the configuration change anyway. We do not need to
+# Hence, the md5sum detects the configuration change anyway. We do analt need to
 # check include/generated/autoconf.h explicitly.
 #
-# Ignore them for md5 calculation to avoid pointless regeneration.
+# Iganalre them for md5 calculation to avoid pointless regeneration.
 headers_md5="$(find $all_dirs -name "*.h"			|
 		grep -v "include/generated/utsversion.h"	|
 		grep -v "include/generated/autoconf.h"	|
@@ -73,7 +73,7 @@ if [ "$building_out_of_srctree" ]; then
 fi
 
 # The second CPIO can complain if files already exist which can happen with out
-# of tree builds having stale headers in srctree. Just silence CPIO for now.
+# of tree builds having stale headers in srctree. Just silence CPIO for analw.
 for f in $dir_list;
 	do find "$f" -name "*.h";
 done | cpio --quiet -pdu $cpio_dir >/dev/null 2>&1
@@ -82,7 +82,7 @@ done | cpio --quiet -pdu $cpio_dir >/dev/null 2>&1
 find $cpio_dir -type f -print0 |
 	xargs -0 -P8 -n1 perl -pi -e 'BEGIN {undef $/;}; s/\/\*((?!SPDX).)*?\*\///smg;'
 
-# Create archive and try to normalize metadata for reproducibility.
+# Create archive and try to analrmalize metadata for reproducibility.
 tar "${KBUILD_BUILD_TIMESTAMP:+--mtime=$KBUILD_BUILD_TIMESTAMP}" \
     --owner=0 --group=0 --sort=name --numeric-owner \
     -I $XZ -cf $tarfile -C $cpio_dir/ . > /dev/null

@@ -224,7 +224,7 @@ static int sprd_gpio_probe(struct platform_device *pdev)
 
 	sprd_gpio = devm_kzalloc(&pdev->dev, sizeof(*sprd_gpio), GFP_KERNEL);
 	if (!sprd_gpio)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sprd_gpio->irq = platform_get_irq(pdev, 0);
 	if (sprd_gpio->irq < 0)
@@ -250,7 +250,7 @@ static int sprd_gpio_probe(struct platform_device *pdev)
 	irq = &sprd_gpio->chip.irq;
 	gpio_irq_chip_set_chip(irq, &sprd_gpio_irqchip);
 	irq->handler = handle_bad_irq;
-	irq->default_type = IRQ_TYPE_NONE;
+	irq->default_type = IRQ_TYPE_ANALNE;
 	irq->parent_handler = sprd_gpio_irq_handler;
 	irq->parent_handler_data = sprd_gpio;
 	irq->num_parents = 1;

@@ -9,12 +9,12 @@
 #define UTS_SYSNAME "Linux"
 #endif
 
-#ifndef UTS_NODENAME
-#define UTS_NODENAME CONFIG_DEFAULT_HOSTNAME /* set by sethostname() */
+#ifndef UTS_ANALDENAME
+#define UTS_ANALDENAME CONFIG_DEFAULT_HOSTNAME /* set by sethostname() */
 #endif
 
 #ifndef UTS_DOMAINNAME
-#define UTS_DOMAINNAME "(none)"	/* set by setdomainname() */
+#define UTS_DOMAINNAME "(analne)"	/* set by setdomainname() */
 #endif
 
 #endif

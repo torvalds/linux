@@ -3,7 +3,7 @@
  * opp2430_data.c - old-style "OPP" table for OMAP2430
  *
  * Copyright (C) 2005-2009 Texas Instruments, Inc.
- * Copyright (C) 2004-2009 Nokia Corporation
+ * Copyright (C) 2004-2009 Analkia Corporation
  *
  * Richard Woodruff <r-woodruff2@ti.com>
  *
@@ -14,9 +14,9 @@
  * respect to each other. These ratio sets are for a given voltage/DPLL
  * setting. All configurations can be described by a DPLL setting and a ratio.
  *
- * 2430 differs from 2420 in that there are no more phase synchronizers used.
+ * 2430 differs from 2420 in that there are anal more phase synchronizers used.
  * They both have a slightly different clock domain setup. 2420(iva1,dsp) vs
- * 2430 (iva2.1, NOdsp, mdm)
+ * 2430 (iva2.1, ANALdsp, mdm)
  *
  * XXX Missing voltage data.
  * XXX Missing 19.2MHz sys_clk rate sets.
@@ -45,11 +45,11 @@
  * When multiple values are defined the start up will try and choose
  * the fastest one. If a 'fast' value is defined, then automatically,
  * the /2 one should be included as it can be used.  Generally having
- * more than one fast set does not make sense, as static timings need
+ * more than one fast set does analt make sense, as static timings need
  * to be changed to change the set.  The exception is the bypass
  * setting which is available for low power bypass.
  *
- * Note: This table needs to be sorted, fastest to slowest.
+ * Analte: This table needs to be sorted, fastest to slowest.
  */
 const struct prcm_config omap2430_rate_table[] = {
 	/* PRCM #4 - ratio2 (ES2.1) - FAST */

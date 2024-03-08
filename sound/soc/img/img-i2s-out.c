@@ -2,7 +2,7 @@
 /*
  * IMG I2S output controller driver
  *
- * Copyright (C) 2015 Imagination Technologies Ltd.
+ * Copyright (C) 2015 Imagination Techanallogies Ltd.
  *
  * Author: Damien Horsley <Damien.Horsley@imgtec.com>
  */
@@ -250,7 +250,7 @@ static int img_i2s_out_hw_params(struct snd_pcm_substream *substream,
 		clk_set_rate(i2s->clk_ref, pre_div_a);
 
 	/*
-	 * Another driver (eg alsa machine driver) may have rejected the above
+	 * Aanalther driver (eg alsa machine driver) may have rejected the above
 	 * change. Get the current rate and set the register bit according to
 	 * the new minimum diff
 	 */
@@ -434,7 +434,7 @@ static int img_i2s_out_probe(struct platform_device *pdev)
 
 	i2s = devm_kzalloc(&pdev->dev, sizeof(*i2s), GFP_KERNEL);
 	if (!i2s)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, i2s);
 
@@ -446,9 +446,9 @@ static int img_i2s_out_probe(struct platform_device *pdev)
 
 	i2s->base = base;
 
-	if (of_property_read_u32(pdev->dev.of_node, "img,i2s-channels",
+	if (of_property_read_u32(pdev->dev.of_analde, "img,i2s-channels",
 			&i2s->max_i2s_chan)) {
-		dev_err(&pdev->dev, "No img,i2s-channels property\n");
+		dev_err(&pdev->dev, "Anal img,i2s-channels property\n");
 		return -EINVAL;
 	}
 
@@ -459,7 +459,7 @@ static int img_i2s_out_probe(struct platform_device *pdev)
 	i2s->rst = devm_reset_control_get_exclusive(&pdev->dev, "rst");
 	if (IS_ERR(i2s->rst))
 		return dev_err_probe(&pdev->dev, PTR_ERR(i2s->rst),
-				     "No top level reset found\n");
+				     "Anal top level reset found\n");
 
 	i2s->clk_sys = devm_clk_get(&pdev->dev, "sys");
 	if (IS_ERR(i2s->clk_sys))
@@ -474,7 +474,7 @@ static int img_i2s_out_probe(struct platform_device *pdev)
 	i2s->suspend_ch_ctl = devm_kcalloc(dev,
 		i2s->max_i2s_chan, sizeof(*i2s->suspend_ch_ctl), GFP_KERNEL);
 	if (!i2s->suspend_ch_ctl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pm_runtime_enable(&pdev->dev);
 	if (!pm_runtime_enabled(&pdev->dev)) {

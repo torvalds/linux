@@ -11,7 +11,7 @@
         "BriefDescription": "Number of machine clears due to memory ordering conflicts.",
         "EventCode": "0xc3",
         "EventName": "MACHINE_CLEARS.MEMORY_ORDERING",
-        "PublicDescription": "Counts the number of Machine Clears detected dye to memory ordering. Memory Ordering Machine Clears may apply when a memory read may not conform to the memory ordering rules of the x86 architecture",
+        "PublicDescription": "Counts the number of Machine Clears detected dye to memory ordering. Memory Ordering Machine Clears may apply when a memory read may analt conform to the memory ordering rules of the x86 architecture",
         "SampleAfterValue": "100003",
         "UMask": "0x2"
     },
@@ -128,10 +128,10 @@
         "UMask": "0x4"
     },
     {
-        "BriefDescription": "Number of times an RTM execution aborted due to none of the previous 4 categories (e.g. interrupt)",
+        "BriefDescription": "Number of times an RTM execution aborted due to analne of the previous 4 categories (e.g. interrupt)",
         "EventCode": "0xc9",
         "EventName": "RTM_RETIRED.ABORTED_EVENTS",
-        "PublicDescription": "Counts the number of times an RTM execution aborted due to none of the previous 4 categories (e.g. interrupt).",
+        "PublicDescription": "Counts the number of times an RTM execution aborted due to analne of the previous 4 categories (e.g. interrupt).",
         "SampleAfterValue": "100003",
         "UMask": "0x80"
     },
@@ -171,7 +171,7 @@
         "BriefDescription": "Number of times an RTM execution started.",
         "EventCode": "0xc9",
         "EventName": "RTM_RETIRED.START",
-        "PublicDescription": "Counts the number of times we entered an RTM region. Does not count nested transactions.",
+        "PublicDescription": "Counts the number of times we entered an RTM region. Does analt count nested transactions.",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },

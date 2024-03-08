@@ -62,14 +62,14 @@ static int bfs_move_blocks(struct super_block *sb, unsigned long start,
 	return 0;
 }
 
-static int bfs_get_block(struct inode *inode, sector_t block,
+static int bfs_get_block(struct ianalde *ianalde, sector_t block,
 			struct buffer_head *bh_result, int create)
 {
 	unsigned long phys;
 	int err;
-	struct super_block *sb = inode->i_sb;
+	struct super_block *sb = ianalde->i_sb;
 	struct bfs_sb_info *info = BFS_SB(sb);
-	struct bfs_inode_info *bi = BFS_I(inode);
+	struct bfs_ianalde_info *bi = BFS_I(ianalde);
 
 	phys = bi->i_sblock + block;
 	if (!create) {
@@ -82,7 +82,7 @@ static int bfs_get_block(struct inode *inode, sector_t block,
 	}
 
 	/*
-	 * If the file is not empty and the requested block is within the
+	 * If the file is analt empty and the requested block is within the
 	 * range of blocks allocated for this file, we can grant it.
 	 */
 	if (bi->i_sblock && (phys <= bi->i_eblock)) {
@@ -92,9 +92,9 @@ static int bfs_get_block(struct inode *inode, sector_t block,
 		return 0;
 	}
 
-	/* The file will be extended, so let's see if there is enough space. */
+	/* The file will be extended, so let's see if there is eanalugh space. */
 	if (phys >= info->si_blocks)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	/* The rest has to be protected against itself. */
 	mutex_lock(&info->bfs_lock);
@@ -110,7 +110,7 @@ static int bfs_get_block(struct inode *inode, sector_t block,
 		map_bh(bh_result, sb, phys);
 		info->si_freeb -= phys - bi->i_eblock;
 		info->si_lf_eblk = bi->i_eblock = phys;
-		mark_inode_dirty(inode);
+		mark_ianalde_dirty(ianalde);
 		err = 0;
 		goto out;
 	}
@@ -118,16 +118,16 @@ static int bfs_get_block(struct inode *inode, sector_t block,
 	/* Ok, we have to move this entire file to the next free block. */
 	phys = info->si_lf_eblk + 1;
 	if (phys + block >= info->si_blocks) {
-		err = -ENOSPC;
+		err = -EANALSPC;
 		goto out;
 	}
 
 	if (bi->i_sblock) {
-		err = bfs_move_blocks(inode->i_sb, bi->i_sblock, 
+		err = bfs_move_blocks(ianalde->i_sb, bi->i_sblock, 
 						bi->i_eblock, phys);
 		if (err) {
-			dprintf("failed to move ino=%08lx -> fs corruption\n",
-								inode->i_ino);
+			dprintf("failed to move ianal=%08lx -> fs corruption\n",
+								ianalde->i_ianal);
 			goto out;
 		}
 	} else
@@ -140,11 +140,11 @@ static int bfs_get_block(struct inode *inode, sector_t block,
 	info->si_lf_eblk = bi->i_eblock = phys;
 
 	/*
-	 * This assumes nothing can write the inode back while we are here
-	 * and thus update inode->i_blocks! (XXX)
+	 * This assumes analthing can write the ianalde back while we are here
+	 * and thus update ianalde->i_blocks! (XXX)
 	 */
-	info->si_freeb -= bi->i_eblock - bi->i_sblock + 1 - inode->i_blocks;
-	mark_inode_dirty(inode);
+	info->si_freeb -= bi->i_eblock - bi->i_sblock + 1 - ianalde->i_blocks;
+	mark_ianalde_dirty(ianalde);
 	map_bh(bh_result, sb, phys);
 out:
 	mutex_unlock(&info->bfs_lock);
@@ -164,10 +164,10 @@ static int bfs_read_folio(struct file *file, struct folio *folio)
 
 static void bfs_write_failed(struct address_space *mapping, loff_t to)
 {
-	struct inode *inode = mapping->host;
+	struct ianalde *ianalde = mapping->host;
 
-	if (to > inode->i_size)
-		truncate_pagecache(inode, inode->i_size);
+	if (to > ianalde->i_size)
+		truncate_pagecache(ianalde, ianalde->i_size);
 }
 
 static int bfs_write_begin(struct file *file, struct address_space *mapping,
@@ -199,4 +199,4 @@ const struct address_space_operations bfs_aops = {
 	.bmap		= bfs_bmap,
 };
 
-const struct inode_operations bfs_file_inops;
+const struct ianalde_operations bfs_file_ianalps;

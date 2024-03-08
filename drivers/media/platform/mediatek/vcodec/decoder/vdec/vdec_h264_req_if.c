@@ -28,7 +28,7 @@ struct mtk_h264_dec_slice_param {
  * struct vdec_h264_dec_info - decode information
  * @dpb_sz		: decoding picture buffer size
  * @resolution_changed  : resoltion change happen
- * @realloc_mv_buf	: flag to notify driver to re-allocate mv buffer
+ * @realloc_mv_buf	: flag to analtify driver to re-allocate mv buffer
  * @cap_num_planes	: number planes of capture buffer
  * @bs_dma		: Input bit-stream buffer dma address
  * @y_fb_dma		: Y frame buffer dma address
@@ -275,7 +275,7 @@ static int vdec_h264_slice_init(struct mtk_vcodec_dec_ctx *ctx)
 
 	inst = kzalloc(sizeof(*inst), GFP_KERNEL);
 	if (!inst)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	inst->ctx = ctx;
 

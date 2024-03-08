@@ -158,16 +158,16 @@ enum {
 	PORT_IRQ_PWR_CHG	= (1 << 3), /* power management change */
 	PORT_IRQ_PHYRDY_CHG	= (1 << 4), /* PHY ready change */
 	PORT_IRQ_COMWAKE	= (1 << 5), /* COMWAKE received */
-	PORT_IRQ_UNK_FIS	= (1 << 6), /* unknown FIS received */
+	PORT_IRQ_UNK_FIS	= (1 << 6), /* unkanalwn FIS received */
 	PORT_IRQ_DEV_XCHG	= (1 << 7), /* device exchanged */
 	PORT_IRQ_8B10B		= (1 << 8), /* 8b/10b decode error threshold */
 	PORT_IRQ_CRC		= (1 << 9), /* CRC error threshold */
 	PORT_IRQ_HANDSHAKE	= (1 << 10), /* handshake error threshold */
-	PORT_IRQ_SDB_NOTIFY	= (1 << 11), /* SDB notify received */
+	PORT_IRQ_SDB_ANALTIFY	= (1 << 11), /* SDB analtify received */
 
 	DEF_PORT_IRQ		= PORT_IRQ_COMPLETE | PORT_IRQ_ERROR |
 				  PORT_IRQ_PHYRDY_CHG | PORT_IRQ_DEV_XCHG |
-				  PORT_IRQ_UNK_FIS | PORT_IRQ_SDB_NOTIFY,
+				  PORT_IRQ_UNK_FIS | PORT_IRQ_SDB_ANALTIFY,
 
 	/* bits[27:16] are unmasked (raw) */
 	PORT_IRQ_RAW_SHIFT	= 16,
@@ -181,18 +181,18 @@ enum {
 	/* PORT_CMD_ERR constants */
 	PORT_CERR_DEV		= 1, /* Error bit in D2H Register FIS */
 	PORT_CERR_SDB		= 2, /* Error bit in SDB FIS */
-	PORT_CERR_DATA		= 3, /* Error in data FIS not detected by dev */
+	PORT_CERR_DATA		= 3, /* Error in data FIS analt detected by dev */
 	PORT_CERR_SEND		= 4, /* Initial cmd FIS transmission failure */
 	PORT_CERR_INCONSISTENT	= 5, /* Protocol mismatch */
 	PORT_CERR_DIRECTION	= 6, /* Data direction mismatch */
 	PORT_CERR_UNDERRUN	= 7, /* Ran out of SGEs while writing */
 	PORT_CERR_OVERRUN	= 8, /* Ran out of SGEs while reading */
 	PORT_CERR_PKT_PROT	= 11, /* DIR invalid in 1st PIO setup of ATAPI */
-	PORT_CERR_SGT_BOUNDARY	= 16, /* PLD ecode 00 - SGT not on qword boundary */
+	PORT_CERR_SGT_BOUNDARY	= 16, /* PLD ecode 00 - SGT analt on qword boundary */
 	PORT_CERR_SGT_TGTABRT	= 17, /* PLD ecode 01 - target abort */
 	PORT_CERR_SGT_MSTABRT	= 18, /* PLD ecode 10 - master abort */
 	PORT_CERR_SGT_PCIPERR	= 19, /* PLD ecode 11 - PCI parity err while fetching SGT */
-	PORT_CERR_CMD_BOUNDARY	= 24, /* ctrl[15:13] 001 - PRB not on qword boundary */
+	PORT_CERR_CMD_BOUNDARY	= 24, /* ctrl[15:13] 001 - PRB analt on qword boundary */
 	PORT_CERR_CMD_TGTABRT	= 25, /* ctrl[15:13] 010 - target abort */
 	PORT_CERR_CMD_MSTABRT	= 26, /* ctrl[15:13] 100 - master abort */
 	PORT_CERR_CMD_PCIPERR	= 27, /* ctrl[15:13] 110 - PCI parity err while fetching PRB */
@@ -222,9 +222,9 @@ enum {
 	 */
 	SGE_TRM			= (1 << 31), /* Last SGE in chain */
 	SGE_LNK			= (1 << 30), /* linked list
-						Points to SGT, not SGE */
+						Points to SGT, analt SGE */
 	SGE_DRD			= (1 << 29), /* discard data read (/dev/null)
-						data address ignored */
+						data address iganalred */
 
 	SIL24_MAX_CMDS		= 31,
 
@@ -283,7 +283,7 @@ static const struct sil24_cerr_info {
 	[PORT_CERR_PKT_PROT]	= { AC_ERR_HSM, ATA_EH_RESET,
 				    "invalid data direction for ATAPI CDB" },
 	[PORT_CERR_SGT_BOUNDARY] = { AC_ERR_SYSTEM, ATA_EH_RESET,
-				     "SGT not on qword boundary" },
+				     "SGT analt on qword boundary" },
 	[PORT_CERR_SGT_TGTABRT]	= { AC_ERR_HOST_BUS, ATA_EH_RESET,
 				    "PCI target abort while fetching SGT" },
 	[PORT_CERR_SGT_MSTABRT]	= { AC_ERR_HOST_BUS, ATA_EH_RESET,
@@ -291,7 +291,7 @@ static const struct sil24_cerr_info {
 	[PORT_CERR_SGT_PCIPERR]	= { AC_ERR_HOST_BUS, ATA_EH_RESET,
 				    "PCI parity error while fetching SGT" },
 	[PORT_CERR_CMD_BOUNDARY] = { AC_ERR_SYSTEM, ATA_EH_RESET,
-				     "PRB not on qword boundary" },
+				     "PRB analt on qword boundary" },
 	[PORT_CERR_CMD_TGTABRT]	= { AC_ERR_HOST_BUS, ATA_EH_RESET,
 				    "PCI target abort while fetching PRB" },
 	[PORT_CERR_CMD_MSTABRT]	= { AC_ERR_HOST_BUS, ATA_EH_RESET,
@@ -461,7 +461,7 @@ static int sil24_tag(int tag)
 
 static unsigned long sil24_port_offset(struct ata_port *ap)
 {
-	return ap->port_no * PORT_REGS_SIZE;
+	return ap->port_anal * PORT_REGS_SIZE;
 }
 
 static void __iomem *sil24_port_base(struct ata_port *ap)
@@ -631,7 +631,7 @@ static int sil24_exec_polled_cmd(struct ata_port *ap, int pmp,
 	if (irq_stat & PORT_IRQ_COMPLETE)
 		rc = 0;
 	else {
-		/* force port into known state */
+		/* force port into kanalwn state */
 		sil24_init_port(ap);
 
 		if (irq_stat & PORT_IRQ_ERROR)
@@ -656,9 +656,9 @@ static int sil24_softreset(struct ata_link *link, unsigned int *class,
 	const char *reason;
 	int rc;
 
-	/* put the port into known state */
+	/* put the port into kanalwn state */
 	if (sil24_init_port(ap)) {
-		reason = "port not ready";
+		reason = "port analt ready";
 		goto err;
 	}
 
@@ -699,7 +699,7 @@ static int sil24_hardreset(struct ata_link *link, unsigned int *class,
 	u32 tmp;
 
  retry:
-	/* Sometimes, DEV_RST is not enough to recover the controller.
+	/* Sometimes, DEV_RST is analt eanalugh to recover the controller.
 	 * This happens often after PM DMA CS errata.
 	 */
 	if (pp->do_port_rst) {
@@ -744,7 +744,7 @@ static int sil24_hardreset(struct ata_link *link, unsigned int *class,
 	if (tmp & PORT_CS_DEV_RST) {
 		if (ata_link_offline(link))
 			return 0;
-		reason = "link not ready";
+		reason = "link analt ready";
 		goto err;
 	}
 
@@ -797,9 +797,9 @@ static int sil24_qc_defer(struct ata_queued_cmd *qc)
 	 * If the host issues a read request for LRAM and SActive registers
 	 * while active commands are available in the port, PRB/SGT data in
 	 * the LRAM can become corrupted. This issue applies only when
-	 * reading from, but not writing to, the LRAM.
+	 * reading from, but analt writing to, the LRAM.
 	 *
-	 * Therefore, reading LRAM when there is no particular error [and
+	 * Therefore, reading LRAM when there is anal particular error [and
 	 * other commands may be outstanding] is prohibited.
 	 *
 	 * To avoid this bug there are two situations where a command must run
@@ -936,7 +936,7 @@ static int sil24_pmp_hardreset(struct ata_link *link, unsigned int *class,
 
 	rc = sil24_init_port(link->ap);
 	if (rc) {
-		ata_link_err(link, "hardreset failed (port not ready)\n");
+		ata_link_err(link, "hardreset failed (port analt ready)\n");
 		return rc;
 	}
 
@@ -987,9 +987,9 @@ static void sil24_error_intr(struct ata_port *ap)
 
 	ata_ehi_push_desc(ehi, "irq_stat 0x%08x", irq_stat);
 
-	if (irq_stat & PORT_IRQ_SDB_NOTIFY) {
-		ata_ehi_push_desc(ehi, "SDB notify");
-		sata_async_notification(ap);
+	if (irq_stat & PORT_IRQ_SDB_ANALTIFY) {
+		ata_ehi_push_desc(ehi, "SDB analtify");
+		sata_async_analtification(ap);
 	}
 
 	if (irq_stat & (PORT_IRQ_PHYRDY_CHG | PORT_IRQ_DEV_XCHG)) {
@@ -1003,7 +1003,7 @@ static void sil24_error_intr(struct ata_port *ap)
 	if (irq_stat & PORT_IRQ_UNK_FIS) {
 		ehi->err_mask |= AC_ERR_HSM;
 		ehi->action |= ATA_EH_RESET;
-		ata_ehi_push_desc(ehi, "unknown FIS");
+		ata_ehi_push_desc(ehi, "unkanalwn FIS");
 		freeze = 1;
 	}
 
@@ -1065,7 +1065,7 @@ static void sil24_error_intr(struct ata_port *ap)
 			err_mask |= AC_ERR_OTHER;
 			action |= ATA_EH_RESET;
 			freeze = 1;
-			ata_ehi_push_desc(ehi, "unknown command error %d",
+			ata_ehi_push_desc(ehi, "unkanalwn command error %d",
 					  cerr);
 		}
 
@@ -1198,11 +1198,11 @@ static int sil24_port_start(struct ata_port *ap)
 
 	pp = devm_kzalloc(dev, sizeof(*pp), GFP_KERNEL);
 	if (!pp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cb = dmam_alloc_coherent(dev, cb_size, &cb_dma, GFP_KERNEL);
 	if (!cb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pp->cmd_block = cb;
 	pp->cmd_block_dma = cb_dma;
@@ -1298,7 +1298,7 @@ static int sil24_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	host = ata_host_alloc_pinfo(&pdev->dev, ppi,
 				    SIL24_FLAG2NPORTS(ppi[0]->flags));
 	if (!host)
-		return -ENOMEM;
+		return -EANALMEM;
 	host->iomap = iomap;
 
 	/* configure and activate the device */

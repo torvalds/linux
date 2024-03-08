@@ -3,7 +3,7 @@
  * Copyright (c) 2014 Samsung Electronics Co., Ltd.
  * Author: Tomasz Figa <t.figa@samsung.com>
  *
- * Clock driver for Exynos clock output
+ * Clock driver for Exyanals clock output
  */
 
 #include <linux/slab.h>
@@ -17,82 +17,82 @@
 #include <linux/pm.h>
 #include <linux/property.h>
 
-#define EXYNOS_CLKOUT_NR_CLKS		1
-#define EXYNOS_CLKOUT_PARENTS		32
+#define EXYANALS_CLKOUT_NR_CLKS		1
+#define EXYANALS_CLKOUT_PARENTS		32
 
-#define EXYNOS_PMU_DEBUG_REG		0xa00
-#define EXYNOS_CLKOUT_DISABLE_SHIFT	0
-#define EXYNOS_CLKOUT_MUX_SHIFT		8
-#define EXYNOS4_CLKOUT_MUX_MASK		0xf
-#define EXYNOS5_CLKOUT_MUX_MASK		0x1f
+#define EXYANALS_PMU_DEBUG_REG		0xa00
+#define EXYANALS_CLKOUT_DISABLE_SHIFT	0
+#define EXYANALS_CLKOUT_MUX_SHIFT		8
+#define EXYANALS4_CLKOUT_MUX_MASK		0xf
+#define EXYANALS5_CLKOUT_MUX_MASK		0x1f
 
-struct exynos_clkout {
+struct exyanals_clkout {
 	struct clk_gate gate;
 	struct clk_mux mux;
 	spinlock_t slock;
 	void __iomem *reg;
-	struct device_node *np;
+	struct device_analde *np;
 	u32 pmu_debug_save;
 	struct clk_hw_onecell_data data;
 };
 
-struct exynos_clkout_variant {
+struct exyanals_clkout_variant {
 	u32 mux_mask;
 };
 
-static const struct exynos_clkout_variant exynos_clkout_exynos4 = {
-	.mux_mask	= EXYNOS4_CLKOUT_MUX_MASK,
+static const struct exyanals_clkout_variant exyanals_clkout_exyanals4 = {
+	.mux_mask	= EXYANALS4_CLKOUT_MUX_MASK,
 };
 
-static const struct exynos_clkout_variant exynos_clkout_exynos5 = {
-	.mux_mask	= EXYNOS5_CLKOUT_MUX_MASK,
+static const struct exyanals_clkout_variant exyanals_clkout_exyanals5 = {
+	.mux_mask	= EXYANALS5_CLKOUT_MUX_MASK,
 };
 
-static const struct of_device_id exynos_clkout_ids[] = {
+static const struct of_device_id exyanals_clkout_ids[] = {
 	{
-		.compatible = "samsung,exynos3250-pmu",
-		.data = &exynos_clkout_exynos4,
+		.compatible = "samsung,exyanals3250-pmu",
+		.data = &exyanals_clkout_exyanals4,
 	}, {
-		.compatible = "samsung,exynos4210-pmu",
-		.data = &exynos_clkout_exynos4,
+		.compatible = "samsung,exyanals4210-pmu",
+		.data = &exyanals_clkout_exyanals4,
 	}, {
-		.compatible = "samsung,exynos4212-pmu",
-		.data = &exynos_clkout_exynos4,
+		.compatible = "samsung,exyanals4212-pmu",
+		.data = &exyanals_clkout_exyanals4,
 	}, {
-		.compatible = "samsung,exynos4412-pmu",
-		.data = &exynos_clkout_exynos4,
+		.compatible = "samsung,exyanals4412-pmu",
+		.data = &exyanals_clkout_exyanals4,
 	}, {
-		.compatible = "samsung,exynos5250-pmu",
-		.data = &exynos_clkout_exynos5,
+		.compatible = "samsung,exyanals5250-pmu",
+		.data = &exyanals_clkout_exyanals5,
 	}, {
-		.compatible = "samsung,exynos5410-pmu",
-		.data = &exynos_clkout_exynos5,
+		.compatible = "samsung,exyanals5410-pmu",
+		.data = &exyanals_clkout_exyanals5,
 	}, {
-		.compatible = "samsung,exynos5420-pmu",
-		.data = &exynos_clkout_exynos5,
+		.compatible = "samsung,exyanals5420-pmu",
+		.data = &exyanals_clkout_exyanals5,
 	}, {
-		.compatible = "samsung,exynos5433-pmu",
-		.data = &exynos_clkout_exynos5,
+		.compatible = "samsung,exyanals5433-pmu",
+		.data = &exyanals_clkout_exyanals5,
 	}, { }
 };
-MODULE_DEVICE_TABLE(of, exynos_clkout_ids);
+MODULE_DEVICE_TABLE(of, exyanals_clkout_ids);
 
 /*
  * Device will be instantiated as child of PMU device without its own
- * device node.  Therefore match compatibles against parent.
+ * device analde.  Therefore match compatibles against parent.
  */
-static int exynos_clkout_match_parent_dev(struct device *dev, u32 *mux_mask)
+static int exyanals_clkout_match_parent_dev(struct device *dev, u32 *mux_mask)
 {
-	const struct exynos_clkout_variant *variant;
+	const struct exyanals_clkout_variant *variant;
 
 	if (!dev->parent) {
-		dev_err(dev, "not instantiated from MFD\n");
+		dev_err(dev, "analt instantiated from MFD\n");
 		return -EINVAL;
 	}
 
 	variant = device_get_match_data(dev->parent);
 	if (!variant) {
-		dev_err(dev, "cannot match parent device\n");
+		dev_err(dev, "cananalt match parent device\n");
 		return -EINVAL;
 	}
 
@@ -101,31 +101,31 @@ static int exynos_clkout_match_parent_dev(struct device *dev, u32 *mux_mask)
 	return 0;
 }
 
-static int exynos_clkout_probe(struct platform_device *pdev)
+static int exyanals_clkout_probe(struct platform_device *pdev)
 {
-	const char *parent_names[EXYNOS_CLKOUT_PARENTS];
-	struct clk *parents[EXYNOS_CLKOUT_PARENTS];
-	struct exynos_clkout *clkout;
+	const char *parent_names[EXYANALS_CLKOUT_PARENTS];
+	struct clk *parents[EXYANALS_CLKOUT_PARENTS];
+	struct exyanals_clkout *clkout;
 	int parent_count, ret, i;
 	u32 mux_mask;
 
 	clkout = devm_kzalloc(&pdev->dev,
-			      struct_size(clkout, data.hws, EXYNOS_CLKOUT_NR_CLKS),
+			      struct_size(clkout, data.hws, EXYANALS_CLKOUT_NR_CLKS),
 			      GFP_KERNEL);
 	if (!clkout)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	ret = exynos_clkout_match_parent_dev(&pdev->dev, &mux_mask);
+	ret = exyanals_clkout_match_parent_dev(&pdev->dev, &mux_mask);
 	if (ret)
 		return ret;
 
-	clkout->np = pdev->dev.of_node;
+	clkout->np = pdev->dev.of_analde;
 	if (!clkout->np) {
 		/*
-		 * pdev->dev.parent was checked by exynos_clkout_match_parent_dev()
-		 * so it is not NULL.
+		 * pdev->dev.parent was checked by exyanals_clkout_match_parent_dev()
+		 * so it is analt NULL.
 		 */
-		clkout->np = pdev->dev.parent->of_node;
+		clkout->np = pdev->dev.parent->of_analde;
 	}
 
 	platform_set_drvdata(pdev, clkout);
@@ -133,13 +133,13 @@ static int exynos_clkout_probe(struct platform_device *pdev)
 	spin_lock_init(&clkout->slock);
 
 	parent_count = 0;
-	for (i = 0; i < EXYNOS_CLKOUT_PARENTS; ++i) {
+	for (i = 0; i < EXYANALS_CLKOUT_PARENTS; ++i) {
 		char name[] = "clkoutXX";
 
 		snprintf(name, sizeof(name), "clkout%d", i);
 		parents[i] = of_clk_get_by_name(clkout->np, name);
 		if (IS_ERR(parents[i])) {
-			parent_names[i] = "none";
+			parent_names[i] = "analne";
 			continue;
 		}
 
@@ -152,31 +152,31 @@ static int exynos_clkout_probe(struct platform_device *pdev)
 
 	clkout->reg = of_iomap(clkout->np, 0);
 	if (!clkout->reg) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto clks_put;
 	}
 
-	clkout->gate.reg = clkout->reg + EXYNOS_PMU_DEBUG_REG;
-	clkout->gate.bit_idx = EXYNOS_CLKOUT_DISABLE_SHIFT;
+	clkout->gate.reg = clkout->reg + EXYANALS_PMU_DEBUG_REG;
+	clkout->gate.bit_idx = EXYANALS_CLKOUT_DISABLE_SHIFT;
 	clkout->gate.flags = CLK_GATE_SET_TO_DISABLE;
 	clkout->gate.lock = &clkout->slock;
 
-	clkout->mux.reg = clkout->reg + EXYNOS_PMU_DEBUG_REG;
+	clkout->mux.reg = clkout->reg + EXYANALS_PMU_DEBUG_REG;
 	clkout->mux.mask = mux_mask;
-	clkout->mux.shift = EXYNOS_CLKOUT_MUX_SHIFT;
+	clkout->mux.shift = EXYANALS_CLKOUT_MUX_SHIFT;
 	clkout->mux.lock = &clkout->slock;
 
 	clkout->data.hws[0] = clk_hw_register_composite(NULL, "clkout",
 				parent_names, parent_count, &clkout->mux.hw,
 				&clk_mux_ops, NULL, NULL, &clkout->gate.hw,
 				&clk_gate_ops, CLK_SET_RATE_PARENT
-				| CLK_SET_RATE_NO_REPARENT);
+				| CLK_SET_RATE_ANAL_REPARENT);
 	if (IS_ERR(clkout->data.hws[0])) {
 		ret = PTR_ERR(clkout->data.hws[0]);
 		goto err_unmap;
 	}
 
-	clkout->data.num = EXYNOS_CLKOUT_NR_CLKS;
+	clkout->data.num = EXYANALS_CLKOUT_NR_CLKS;
 	ret = of_clk_add_hw_provider(clkout->np, of_clk_hw_onecell_get, &clkout->data);
 	if (ret)
 		goto err_clk_unreg;
@@ -188,7 +188,7 @@ err_clk_unreg:
 err_unmap:
 	iounmap(clkout->reg);
 clks_put:
-	for (i = 0; i < EXYNOS_CLKOUT_PARENTS; ++i)
+	for (i = 0; i < EXYANALS_CLKOUT_PARENTS; ++i)
 		if (!IS_ERR(parents[i]))
 			clk_put(parents[i]);
 
@@ -197,48 +197,48 @@ clks_put:
 	return ret;
 }
 
-static void exynos_clkout_remove(struct platform_device *pdev)
+static void exyanals_clkout_remove(struct platform_device *pdev)
 {
-	struct exynos_clkout *clkout = platform_get_drvdata(pdev);
+	struct exyanals_clkout *clkout = platform_get_drvdata(pdev);
 
 	of_clk_del_provider(clkout->np);
 	clk_hw_unregister(clkout->data.hws[0]);
 	iounmap(clkout->reg);
 }
 
-static int __maybe_unused exynos_clkout_suspend(struct device *dev)
+static int __maybe_unused exyanals_clkout_suspend(struct device *dev)
 {
-	struct exynos_clkout *clkout = dev_get_drvdata(dev);
+	struct exyanals_clkout *clkout = dev_get_drvdata(dev);
 
-	clkout->pmu_debug_save = readl(clkout->reg + EXYNOS_PMU_DEBUG_REG);
+	clkout->pmu_debug_save = readl(clkout->reg + EXYANALS_PMU_DEBUG_REG);
 
 	return 0;
 }
 
-static int __maybe_unused exynos_clkout_resume(struct device *dev)
+static int __maybe_unused exyanals_clkout_resume(struct device *dev)
 {
-	struct exynos_clkout *clkout = dev_get_drvdata(dev);
+	struct exyanals_clkout *clkout = dev_get_drvdata(dev);
 
-	writel(clkout->pmu_debug_save, clkout->reg + EXYNOS_PMU_DEBUG_REG);
+	writel(clkout->pmu_debug_save, clkout->reg + EXYANALS_PMU_DEBUG_REG);
 
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(exynos_clkout_pm_ops, exynos_clkout_suspend,
-			 exynos_clkout_resume);
+static SIMPLE_DEV_PM_OPS(exyanals_clkout_pm_ops, exyanals_clkout_suspend,
+			 exyanals_clkout_resume);
 
-static struct platform_driver exynos_clkout_driver = {
+static struct platform_driver exyanals_clkout_driver = {
 	.driver = {
-		.name = "exynos-clkout",
-		.of_match_table = exynos_clkout_ids,
-		.pm = &exynos_clkout_pm_ops,
+		.name = "exyanals-clkout",
+		.of_match_table = exyanals_clkout_ids,
+		.pm = &exyanals_clkout_pm_ops,
 	},
-	.probe = exynos_clkout_probe,
-	.remove_new = exynos_clkout_remove,
+	.probe = exyanals_clkout_probe,
+	.remove_new = exyanals_clkout_remove,
 };
-module_platform_driver(exynos_clkout_driver);
+module_platform_driver(exyanals_clkout_driver);
 
 MODULE_AUTHOR("Krzysztof Kozlowski <krzk@kernel.org>");
 MODULE_AUTHOR("Tomasz Figa <tomasz.figa@gmail.com>");
-MODULE_DESCRIPTION("Samsung Exynos clock output driver");
+MODULE_DESCRIPTION("Samsung Exyanals clock output driver");
 MODULE_LICENSE("GPL");

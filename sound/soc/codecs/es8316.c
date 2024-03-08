@@ -81,11 +81,11 @@ static const char * const ng_type_txt[] =
 static const struct soc_enum ng_type =
 	SOC_ENUM_SINGLE(ES8316_ADC_ALC_NG, 6, 2, ng_type_txt);
 
-static const char * const adcpol_txt[] = { "Normal", "Invert" };
+static const char * const adcpol_txt[] = { "Analrmal", "Invert" };
 static const struct soc_enum adcpol =
 	SOC_ENUM_SINGLE(ES8316_ADC_MUTE, 1, 2, adcpol_txt);
 static const char *const dacpol_txt[] =
-	{ "Normal", "R Invert", "L Invert", "L + R Invert" };
+	{ "Analrmal", "R Invert", "L Invert", "L + R Invert" };
 static const struct soc_enum dacpol =
 	SOC_ENUM_SINGLE(ES8316_DAC_SET1, 0, 4, dacpol_txt);
 
@@ -100,10 +100,10 @@ static const struct snd_kcontrol_new es8316_snd_controls[] = {
 			 ES8316_DAC_VOLR, 0, 0xc0, 1, dac_vol_tlv),
 	SOC_SINGLE("DAC Soft Ramp Switch", ES8316_DAC_SET1, 4, 1, 1),
 	SOC_SINGLE("DAC Soft Ramp Rate", ES8316_DAC_SET1, 2, 4, 0),
-	SOC_SINGLE("DAC Notch Filter Switch", ES8316_DAC_SET2, 6, 1, 0),
+	SOC_SINGLE("DAC Analtch Filter Switch", ES8316_DAC_SET2, 6, 1, 0),
 	SOC_SINGLE("DAC Double Fs Switch", ES8316_DAC_SET2, 7, 1, 0),
 	SOC_SINGLE("DAC Stereo Enhancement", ES8316_DAC_SET3, 0, 7, 0),
-	SOC_SINGLE("DAC Mono Mix Switch", ES8316_DAC_SET3, 3, 1, 0),
+	SOC_SINGLE("DAC Moanal Mix Switch", ES8316_DAC_SET3, 3, 1, 0),
 
 	SOC_ENUM("Capture Polarity", adcpol),
 	SOC_SINGLE("Mic Boost Switch", ES8316_ADC_D2SEPGA, 0, 1, 0),
@@ -124,11 +124,11 @@ static const struct snd_kcontrol_new es8316_snd_controls[] = {
 	SOC_SINGLE("ALC Capture Hold Time", ES8316_ADC_ALC3, 0, 10, 0),
 	SOC_SINGLE("ALC Capture Decay Time", ES8316_ADC_ALC4, 4, 10, 0),
 	SOC_SINGLE("ALC Capture Attack Time", ES8316_ADC_ALC4, 0, 10, 0),
-	SOC_SINGLE("ALC Capture Noise Gate Switch", ES8316_ADC_ALC_NG,
+	SOC_SINGLE("ALC Capture Analise Gate Switch", ES8316_ADC_ALC_NG,
 		   5, 1, 0),
-	SOC_SINGLE("ALC Capture Noise Gate Threshold", ES8316_ADC_ALC_NG,
+	SOC_SINGLE("ALC Capture Analise Gate Threshold", ES8316_ADC_ALC_NG,
 		   0, 31, 0),
-	SOC_ENUM("ALC Capture Noise Gate Type", ng_type),
+	SOC_ENUM("ALC Capture Analise Gate Type", ng_type),
 };
 
 /* Analog Input Mux */
@@ -215,7 +215,7 @@ static const struct snd_soc_dapm_widget es8316_dapm_widgets[] = {
 	SND_SOC_DAPM_INPUT("MIC2"),
 
 	/* Input Mux */
-	SND_SOC_DAPM_MUX("Differential Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("Differential Mux", SND_SOC_ANALPM, 0, 0,
 			 &es8316_analog_in_mux_controls),
 
 	SND_SOC_DAPM_SUPPLY("ADC Vref", ES8316_SYS_PDN, 1, 1, NULL, 0),
@@ -223,17 +223,17 @@ static const struct snd_soc_dapm_widget es8316_dapm_widgets[] = {
 	SND_SOC_DAPM_SUPPLY("ADC Clock", ES8316_CLKMGR_CLKSW, 3, 0, NULL, 0),
 	SND_SOC_DAPM_PGA("Line input PGA", ES8316_ADC_PDN_LINSEL,
 			 7, 1, NULL, 0),
-	SND_SOC_DAPM_ADC("Mono ADC", NULL, ES8316_ADC_PDN_LINSEL, 6, 1),
-	SND_SOC_DAPM_MUX("Digital Mic Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_ADC("Moanal ADC", NULL, ES8316_ADC_PDN_LINSEL, 6, 1),
+	SND_SOC_DAPM_MUX("Digital Mic Mux", SND_SOC_ANALPM, 0, 0,
 			 &es8316_dmic_src_controls),
 
 	/* Digital Interface */
 	SND_SOC_DAPM_AIF_OUT("I2S OUT", "I2S1 Capture",  1,
 			     ES8316_SERDATA_ADC, 6, 1),
 	SND_SOC_DAPM_AIF_IN("I2S IN", "I2S1 Playback", 0,
-			    SND_SOC_NOPM, 0, 0),
+			    SND_SOC_ANALPM, 0, 0),
 
-	SND_SOC_DAPM_MUX("DAC Source Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("DAC Source Mux", SND_SOC_ANALPM, 0, 0,
 			 &es8316_dacsrc_mux_controls),
 
 	SND_SOC_DAPM_SUPPLY("DAC Vref", ES8316_SYS_PDN, 0, 1, NULL, 0),
@@ -242,9 +242,9 @@ static const struct snd_soc_dapm_widget es8316_dapm_widgets[] = {
 	SND_SOC_DAPM_DAC("Left DAC", NULL, ES8316_DAC_PDN, 4, 1),
 
 	/* Headphone Output Side */
-	SND_SOC_DAPM_MUX("Left Headphone Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("Left Headphone Mux", SND_SOC_ANALPM, 0, 0,
 			 &es8316_left_hpmux_controls),
-	SND_SOC_DAPM_MUX("Right Headphone Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("Right Headphone Mux", SND_SOC_ANALPM, 0, 0,
 			 &es8316_right_hpmux_controls),
 	SND_SOC_DAPM_MIXER("Left Headphone Mixer", ES8316_HPMIX_PDN,
 			   5, 1, &es8316_out_left_mix[0],
@@ -297,17 +297,17 @@ static const struct snd_soc_dapm_route es8316_dapm_routes[] = {
 	{"Differential Mux", "lin2-rin2", "MIC2"},
 	{"Line input PGA", NULL, "Differential Mux"},
 
-	{"Mono ADC", NULL, "ADC Clock"},
-	{"Mono ADC", NULL, "ADC Vref"},
-	{"Mono ADC", NULL, "ADC bias"},
-	{"Mono ADC", NULL, "Line input PGA"},
+	{"Moanal ADC", NULL, "ADC Clock"},
+	{"Moanal ADC", NULL, "ADC Vref"},
+	{"Moanal ADC", NULL, "ADC bias"},
+	{"Moanal ADC", NULL, "Line input PGA"},
 
-	/* It's not clear why, but to avoid recording only silence,
+	/* It's analt clear why, but to avoid recording only silence,
 	 * the DAC clock must be running for the ADC to work.
 	 */
-	{"Mono ADC", NULL, "DAC Clock"},
+	{"Moanal ADC", NULL, "DAC Clock"},
 
-	{"Digital Mic Mux", "dmic disable", "Mono ADC"},
+	{"Digital Mic Mux", "dmic disable", "Moanal ADC"},
 
 	{"I2S OUT", NULL, "Digital Mic Mux"},
 
@@ -556,7 +556,7 @@ static const struct snd_soc_dai_ops es8316_ops = {
 	.set_fmt = es8316_set_dai_fmt,
 	.set_sysclk = es8316_set_dai_sysclk,
 	.mute_stream = es8316_mute,
-	.no_capture_mute = 1,
+	.anal_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver es8316_dai = {
@@ -624,10 +624,10 @@ static irqreturn_t es8316_irq(int irq, void *data)
 		goto out;
 
 	if (es8316->jd_inverted)
-		flags ^= ES8316_GPIO_FLAG_HP_NOT_INSERTED;
+		flags ^= ES8316_GPIO_FLAG_HP_ANALT_INSERTED;
 
 	dev_dbg(comp->dev, "gpio flags %#04x\n", flags);
-	if (flags & ES8316_GPIO_FLAG_HP_NOT_INSERTED) {
+	if (flags & ES8316_GPIO_FLAG_HP_ANALT_INSERTED) {
 		/* Jack removed, or spurious IRQ? */
 		if (es8316->jack->status & SND_JACK_MICROPHONE)
 			es8316_disable_micbias_for_mic_gnd_short_detect(comp);
@@ -642,12 +642,12 @@ static irqreturn_t es8316_irq(int irq, void *data)
 		es8316_enable_micbias_for_mic_gnd_short_detect(comp);
 		regmap_read(es8316->regmap, ES8316_GPIO_FLAG, &flags);
 		if (es8316->jd_inverted)
-			flags ^= ES8316_GPIO_FLAG_HP_NOT_INSERTED;
+			flags ^= ES8316_GPIO_FLAG_HP_ANALT_INSERTED;
 		dev_dbg(comp->dev, "gpio flags %#04x\n", flags);
-		if (flags & ES8316_GPIO_FLAG_HP_NOT_INSERTED) {
+		if (flags & ES8316_GPIO_FLAG_HP_ANALT_INSERTED) {
 			/* Jack unplugged underneath us */
 			es8316_disable_micbias_for_mic_gnd_short_detect(comp);
-		} else if (flags & ES8316_GPIO_FLAG_GM_NOT_SHORTED) {
+		} else if (flags & ES8316_GPIO_FLAG_GM_ANALT_SHORTED) {
 			/* Open, headset */
 			snd_soc_jack_report(es8316->jack,
 					    SND_JACK_HEADSET,
@@ -658,12 +658,12 @@ static irqreturn_t es8316_irq(int irq, void *data)
 			snd_soc_jack_report(es8316->jack,
 					    SND_JACK_HEADPHONE,
 					    SND_JACK_HEADSET);
-			/* No longer need mic-gnd-short detection */
+			/* Anal longer need mic-gnd-short detection */
 			es8316_disable_micbias_for_mic_gnd_short_detect(comp);
 		}
 	} else if (es8316->jack->status & SND_JACK_MICROPHONE) {
 		/* Interrupt while jack inserted, report button state */
-		if (flags & ES8316_GPIO_FLAG_GM_NOT_SHORTED) {
+		if (flags & ES8316_GPIO_FLAG_GM_ANALT_SHORTED) {
 			/* Open, button release */
 			snd_soc_jack_report(es8316->jack, 0, SND_JACK_BTN_0);
 		} else {
@@ -685,7 +685,7 @@ static void es8316_enable_jack_detect(struct snd_soc_component *component,
 	struct es8316_priv *es8316 = snd_soc_component_get_drvdata(component);
 
 	/*
-	 * Init es8316->jd_inverted here and not in the probe, as we cannot
+	 * Init es8316->jd_inverted here and analt in the probe, as we cananalt
 	 * guarantee that the bytchr-es8316 driver, which might set this
 	 * property, will probe before us.
 	 */
@@ -860,7 +860,7 @@ static int es8316_i2c_probe(struct i2c_client *i2c_client)
 	es8316 = devm_kzalloc(&i2c_client->dev, sizeof(struct es8316_priv),
 			      GFP_KERNEL);
 	if (es8316 == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(i2c_client, es8316);
 
@@ -873,7 +873,7 @@ static int es8316_i2c_probe(struct i2c_client *i2c_client)
 
 	if (es8316->irq > 0) {
 		ret = devm_request_threaded_irq(dev, es8316->irq, NULL, es8316_irq,
-						IRQF_TRIGGER_HIGH | IRQF_ONESHOT | IRQF_NO_AUTOEN,
+						IRQF_TRIGGER_HIGH | IRQF_ONESHOT | IRQF_ANAL_AUTOEN,
 						"es8316", es8316);
 		if (ret) {
 			dev_warn(dev, "Failed to get IRQ %d: %d\n", es8316->irq, ret);

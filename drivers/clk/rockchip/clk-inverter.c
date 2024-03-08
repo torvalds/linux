@@ -81,7 +81,7 @@ struct clk *rockchip_clk_register_inverter(const char *name,
 
 	inv_clock = kmalloc(sizeof(*inv_clock), GFP_KERNEL);
 	if (!inv_clock)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = name;
 	init.num_parents = num_parents;

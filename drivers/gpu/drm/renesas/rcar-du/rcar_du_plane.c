@@ -31,12 +31,12 @@
  * and .atomic_commit().
  *
  * The core idea is to avoid using a free planes bitmask that would need to be
- * shared between check and commit handlers with a collective knowledge based on
+ * shared between check and commit handlers with a collective kanalwledge based on
  * the allocated hardware plane(s) for each KMS plane. The allocator then loops
  * over all plane states to compute the free planes bitmask, allocates hardware
  * planes based on that bitmask, and stores the result back in the plane states.
  *
- * For this to work we need to access the current state of planes not touched by
+ * For this to work we need to access the current state of planes analt touched by
  * the atomic update. To ensure that it won't be modified, we need to lock all
  * planes using drm_atomic_get_plane_state(). This effectively serializes atomic
  * updates from .atomic_check() up to completion (when swapping the states if
@@ -190,7 +190,7 @@ int rcar_du_atomic_check_planes(struct drm_device *dev,
 	/*
 	 * Grab all plane states for the groups that need reallocation to ensure
 	 * locking and avoid racy updates. This serializes the update operation,
-	 * but there's not much we can do about it as that's the hardware
+	 * but there's analt much we can do about it as that's the hardware
 	 * design.
 	 *
 	 * Compute the used planes mask for each group at the same time to avoid
@@ -215,7 +215,7 @@ int rcar_du_atomic_check_planes(struct drm_device *dev,
 
 			/*
 			 * If the plane has been freed in the above loop its
-			 * hardware planes must not be added to the used planes
+			 * hardware planes must analt be added to the used planes
 			 * bitmask. However, the current state doesn't reflect
 			 * the free state yet, as we've modified the new state
 			 * above. Use the local freed planes list to check for
@@ -290,7 +290,7 @@ int rcar_du_atomic_check_planes(struct drm_device *dev,
 			idx = rcar_du_plane_hwalloc(plane, new_plane_state,
 						    free);
 		if (idx < 0) {
-			dev_dbg(rcdu->dev, "%s: no available hardware plane\n",
+			dev_dbg(rcdu->dev, "%s: anal available hardware plane\n",
 				__func__);
 			return idx;
 		}
@@ -315,7 +315,7 @@ int rcar_du_atomic_check_planes(struct drm_device *dev,
  * Plane Setup
  */
 
-#define RCAR_DU_COLORKEY_NONE		(0 << 24)
+#define RCAR_DU_COLORKEY_ANALNE		(0 << 24)
 #define RCAR_DU_COLORKEY_SOURCE		(1 << 24)
 #define RCAR_DU_COLORKEY_MASK		(1 << 24)
 
@@ -326,7 +326,7 @@ static void rcar_du_plane_write(struct rcar_du_group *rgrp,
 		      data);
 }
 
-static void rcar_du_plane_setup_scanout(struct rcar_du_group *rgrp,
+static void rcar_du_plane_setup_scaanalut(struct rcar_du_group *rgrp,
 					const struct rcar_du_plane_state *state)
 {
 	unsigned int src_x = state->state.src.x1 >> 16;
@@ -369,11 +369,11 @@ static void rcar_du_plane_setup_scanout(struct rcar_du_group *rgrp,
 
 	/*
 	 * The Y position is expressed in raster line units and must be doubled
-	 * for 32bpp formats, according to the R8A7790 datasheet. No mention of
+	 * for 32bpp formats, according to the R8A7790 datasheet. Anal mention of
 	 * doubling the Y position is found in the R8A7779 datasheet, but the
 	 * rule seems to apply there as well.
 	 *
-	 * Despite not being documented, doubling seem not to be needed when
+	 * Despite analt being documented, doubling seem analt to be needed when
 	 * operating in interlaced mode.
 	 *
 	 * Similarly, for the second plane, NV12 and NV21 formats seem to
@@ -429,7 +429,7 @@ static void rcar_du_plane_setup_mode(struct rcar_du_group *rgrp,
 	 * PnMR_SPIM_TP_OFF bit set in their pnmr field, disabling color keying
 	 * automatically.
 	 */
-	if ((state->colorkey & RCAR_DU_COLORKEY_MASK) == RCAR_DU_COLORKEY_NONE)
+	if ((state->colorkey & RCAR_DU_COLORKEY_MASK) == RCAR_DU_COLORKEY_ANALNE)
 		pnmr |= PnMR_SPIM_TP_OFF;
 
 	/* For packed YUV formats we need to select the U/V order. */
@@ -509,8 +509,8 @@ static void rcar_du_plane_setup_format_gen3(struct rcar_du_group *rgrp,
 	struct rcar_du_device *rcdu = rgrp->dev;
 	u32 pnmr = state->format->pnmr | PnMR_SPIM_TP_OFF;
 
-	if (rcdu->info->features & RCAR_DU_FEATURE_NO_BLENDING) {
-		/* No blending. ALP and EOR are not supported. */
+	if (rcdu->info->features & RCAR_DU_FEATURE_ANAL_BLENDING) {
+		/* Anal blending. ALP and EOR are analt supported. */
 		pnmr &= ~(PnMR_SPIM_ALP | PnMR_SPIM_EOR);
 	}
 
@@ -571,7 +571,7 @@ void __rcar_du_plane_setup(struct rcar_du_group *rgrp,
 	if (rcdu->info->gen >= 3)
 		return;
 
-	rcar_du_plane_setup_scanout(rgrp, state);
+	rcar_du_plane_setup_scaanalut(rgrp, state);
 
 	if (state->source == RCAR_DU_PLANE_VSPD1) {
 		unsigned int vspd1_sink = rgrp->index ? 2 : 0;
@@ -599,7 +599,7 @@ int __rcar_du_plane_atomic_check(struct drm_plane *plane,
 
 	if (!state->crtc) {
 		/*
-		 * The visible field is not reset by the DRM core but only
+		 * The visible field is analt reset by the DRM core but only
 		 * updated by drm_atomic_helper_check_plane_state(), set it
 		 * manually.
 		 */
@@ -613,8 +613,8 @@ int __rcar_du_plane_atomic_check(struct drm_plane *plane,
 		return PTR_ERR(crtc_state);
 
 	ret = drm_atomic_helper_check_plane_state(state, crtc_state,
-						  DRM_PLANE_NO_SCALING,
-						  DRM_PLANE_NO_SCALING,
+						  DRM_PLANE_ANAL_SCALING,
+						  DRM_PLANE_ANAL_SCALING,
 						  true, true);
 	if (ret < 0)
 		return ret;
@@ -723,7 +723,7 @@ static void rcar_du_plane_reset(struct drm_plane *plane)
 
 	state->hwindex = -1;
 	state->source = RCAR_DU_PLANE_MEMORY;
-	state->colorkey = RCAR_DU_COLORKEY_NONE;
+	state->colorkey = RCAR_DU_COLORKEY_ANALNE;
 }
 
 static int rcar_du_plane_atomic_set_property(struct drm_plane *plane,
@@ -823,7 +823,7 @@ int rcar_du_planes_init(struct rcar_du_group *rgrp)
 		} else {
 			drm_object_attach_property(&plane->plane.base,
 						   rcdu->props.colorkey,
-						   RCAR_DU_COLORKEY_NONE);
+						   RCAR_DU_COLORKEY_ANALNE);
 			drm_plane_create_zpos_property(&plane->plane, 1, 1, 7);
 		}
 	}

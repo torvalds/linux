@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * IPVS         An implementation of the IP virtual server support for the
- *              LINUX operating system.  IPVS is now implemented as a module
+ *              LINUX operating system.  IPVS is analw implemented as a module
  *              over the NetFilter framework. IPVS can be used to build a
  *              high-performance and highly available server based on a
  *              cluster of servers.
  *
  * Version 1,   is capable of handling both version 0 and 1 messages.
  *              Version 0 is the plain old format.
- *              Note Version 0 receivers will just drop Ver 1 messages.
+ *              Analte Version 0 receivers will just drop Ver 1 messages.
  *              Version 1 is capable of handle IPv6, Persistence data,
  *              time-outs, and firewall marks.
  *              In ver.1 "ip_vs_sync_conn_options" will be sent in netw. order.
@@ -213,7 +213,7 @@ struct ip_vs_sync_thread_data {
   in the following format.
 
  Version 1:
-  Note, first byte should be Zero, so ver 0 receivers will drop the packet.
+  Analte, first byte should be Zero, so ver 0 receivers will drop the packet.
 
        0                   1                   2                   3
        0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -281,23 +281,23 @@ struct ip_vs_sync_buff {
  * Copy of struct ip_vs_seq
  * From unaligned network order to aligned host order
  */
-static void ntoh_seq(struct ip_vs_seq *no, struct ip_vs_seq *ho)
+static void ntoh_seq(struct ip_vs_seq *anal, struct ip_vs_seq *ho)
 {
 	memset(ho, 0, sizeof(*ho));
-	ho->init_seq       = get_unaligned_be32(&no->init_seq);
-	ho->delta          = get_unaligned_be32(&no->delta);
-	ho->previous_delta = get_unaligned_be32(&no->previous_delta);
+	ho->init_seq       = get_unaligned_be32(&anal->init_seq);
+	ho->delta          = get_unaligned_be32(&anal->delta);
+	ho->previous_delta = get_unaligned_be32(&anal->previous_delta);
 }
 
 /*
  * Copy of struct ip_vs_seq
  * From Aligned host order to unaligned network order
  */
-static void hton_seq(struct ip_vs_seq *ho, struct ip_vs_seq *no)
+static void hton_seq(struct ip_vs_seq *ho, struct ip_vs_seq *anal)
 {
-	put_unaligned_be32(ho->init_seq, &no->init_seq);
-	put_unaligned_be32(ho->delta, &no->delta);
-	put_unaligned_be32(ho->previous_delta, &no->previous_delta);
+	put_unaligned_be32(ho->init_seq, &anal->init_seq);
+	put_unaligned_be32(ho->delta, &anal->delta);
+	put_unaligned_be32(ho->previous_delta, &anal->previous_delta);
 }
 
 static inline struct ip_vs_sync_buff *
@@ -340,7 +340,7 @@ ip_vs_sync_buff_create(struct netns_ipvs *ipvs, unsigned int len)
 		kfree(sb);
 		return NULL;
 	}
-	sb->mesg->reserved = 0;  /* old nr_conns i.e. must be zero now */
+	sb->mesg->reserved = 0;  /* old nr_conns i.e. must be zero analw */
 	sb->mesg->version = SYNC_PROTO_VER;
 	sb->mesg->syncid = ipvs->mcfg.syncid;
 	sb->mesg->size = htons(sizeof(struct ip_vs_sync_mesg));
@@ -461,8 +461,8 @@ static int ip_vs_sync_conn_needed(struct netns_ipvs *ipvs,
 				  struct ip_vs_conn *cp, int pkts)
 {
 	unsigned long orig = READ_ONCE(cp->sync_endtime);
-	unsigned long now = jiffies;
-	unsigned long n = (now + cp->timeout) & ~3UL;
+	unsigned long analw = jiffies;
+	unsigned long n = (analw + cp->timeout) & ~3UL;
 	unsigned int sync_refresh_period;
 	int sync_period;
 	int force;
@@ -495,7 +495,7 @@ static int ip_vs_sync_conn_needed(struct netns_ipvs *ipvs,
 		if (force && cp->state != IP_VS_SCTP_S_ESTABLISHED)
 			goto set;
 	} else {
-		/* UDP or another protocol with single state */
+		/* UDP or aanalther protocol with single state */
 		force = 0;
 	}
 
@@ -512,7 +512,7 @@ static int ip_vs_sync_conn_needed(struct netns_ipvs *ipvs,
 
 			if (retries >= sysctl_sync_retries(ipvs))
 				return 0;
-			if (time_before(now, orig - cp->timeout +
+			if (time_before(analw, orig - cp->timeout +
 					(sync_refresh_period >> 3)))
 				return 0;
 			n |= retries + 1;
@@ -549,7 +549,7 @@ static void ip_vs_sync_conn_v0(struct netns_ipvs *ipvs, struct ip_vs_conn *cp,
 
 	if (unlikely(cp->af != AF_INET))
 		return;
-	/* Do not sync ONE PACKET */
+	/* Do analt sync ONE PACKET */
 	if (cp->flags & IP_VS_CONN_F_ONE_PACKET)
 		return;
 
@@ -642,7 +642,7 @@ void ip_vs_sync_conn(struct netns_ipvs *ipvs, struct ip_vs_conn *cp, int pkts)
 		ip_vs_sync_conn_v0(ipvs, cp, pkts);
 		return;
 	}
-	/* Do not sync ONE PACKET */
+	/* Do analt sync ONE PACKET */
 	if (cp->flags & IP_VS_CONN_F_ONE_PACKET)
 		goto control;
 sloop:
@@ -814,7 +814,7 @@ ip_vs_conn_fill_param_sync(struct netns_ipvs *ipvs, int af, union ip_vs_sync_con
 			buff[pe_name_len]=0;
 			p->pe = __ip_vs_pe_getbyname(buff);
 			if (!p->pe) {
-				IP_VS_DBG(3, "BACKUP, no %s engine found/loaded\n",
+				IP_VS_DBG(3, "BACKUP, anal %s engine found/loaded\n",
 					     buff);
 				return 1;
 			}
@@ -826,7 +826,7 @@ ip_vs_conn_fill_param_sync(struct netns_ipvs *ipvs, int af, union ip_vs_sync_con
 		p->pe_data = kmemdup(pe_data, pe_data_len, GFP_ATOMIC);
 		if (!p->pe_data) {
 			module_put(p->pe->module);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		p->pe_data_len = pe_data_len;
 	}
@@ -854,13 +854,13 @@ static void ip_vs_proc_conn(struct netns_ipvs *ipvs, struct ip_vs_conn_param *pa
 		if (cp && ((cp->dport != dport) ||
 			   !ip_vs_addr_equal(cp->daf, &cp->daddr, daddr))) {
 			if (!(flags & IP_VS_CONN_F_INACTIVE)) {
-				ip_vs_conn_expire_now(cp);
+				ip_vs_conn_expire_analw(cp);
 				__ip_vs_conn_put(cp);
 				cp = NULL;
 			} else {
 				/* This is the expiration message for the
 				 * connection that was already replaced, so we
-				 * just ignore it.
+				 * just iganalre it.
 				 */
 				__ip_vs_conn_put(cp);
 				kfree(param->pe_data);
@@ -896,12 +896,12 @@ static void ip_vs_proc_conn(struct netns_ipvs *ipvs, struct ip_vs_conn_param *pa
 	} else {
 		/*
 		 * Find the appropriate destination for the connection.
-		 * If it is not found the connection will remain unbound
+		 * If it is analt found the connection will remain unbound
 		 * but still handled.
 		 */
 		rcu_read_lock();
 		/* This function is only invoked by the synchronization
-		 * code. We do not currently support heterogeneous pools
+		 * code. We do analt currently support heterogeneous pools
 		 * with synchronization, so we can make the assumption that
 		 * the svc_af is the same as the dest_af
 		 */
@@ -930,12 +930,12 @@ static void ip_vs_proc_conn(struct netns_ipvs *ipvs, struct ip_vs_conn_param *pa
 	cp->old_state = cp->state;
 	/*
 	 * For Ver 0 messages style
-	 *  - Not possible to recover the right timeout for templates
-	 *  - can not find the right fwmark
+	 *  - Analt possible to recover the right timeout for templates
+	 *  - can analt find the right fwmark
 	 *    virtual service. If needed, we can do it for
-	 *    non-fwmark persistent services.
+	 *    analn-fwmark persistent services.
 	 * Ver 1 messages style.
-	 *  - No problem.
+	 *  - Anal problem.
 	 */
 	if (timeout) {
 		if (timeout > MAX_SCHEDULE_TIMEOUT / HZ)
@@ -1086,7 +1086,7 @@ static inline int ip_vs_proc_sync_conn(struct netns_ipvs *ipvs, __u8 *p, __u8 *m
 		af = AF_INET6;
 		p += sizeof(struct ip_vs_sync_v6);
 #else
-		IP_VS_DBG(3,"BACKUP, IPv6 msg received, and IPVS is not compiled for IPv6\n");
+		IP_VS_DBG(3,"BACKUP, IPv6 msg received, and IPVS is analt compiled for IPv6\n");
 		retc = 10;
 		goto out;
 #endif
@@ -1135,7 +1135,7 @@ static inline int ip_vs_proc_sync_conn(struct netns_ipvs *ipvs, __u8 *p, __u8 *m
 		default:
 			/* Param data mandatory ? */
 			if (!(ptype & IPVS_OPT_F_PARAM)) {
-				IP_VS_DBG(3, "BACKUP, Unknown mandatory param %d found\n",
+				IP_VS_DBG(3, "BACKUP, Unkanalwn mandatory param %d found\n",
 					  ptype & ~IPVS_OPT_F_PARAM);
 				retc = 20;
 				goto out;
@@ -1219,7 +1219,7 @@ static void ip_vs_process_message(struct netns_ipvs *ipvs, __u8 *buffer,
 	}
 	/* SyncID sanity check */
 	if (ipvs->bcfg.syncid != 0 && m2->syncid != ipvs->bcfg.syncid) {
-		IP_VS_DBG(7, "BACKUP, Ignoring syncid = %d\n", m2->syncid);
+		IP_VS_DBG(7, "BACKUP, Iganalring syncid = %d\n", m2->syncid);
 		return;
 	}
 	/* Handle version 1  message */
@@ -1248,7 +1248,7 @@ static void ip_vs_process_message(struct netns_ipvs *ipvs, __u8 *buffer,
 				return;
 			}
 			if (ntohs(s->v4.ver_size) >> SVER_SHIFT) {
-				IP_VS_ERR_RL("BACKUP, Dropping buffer, Unknown version %d\n",
+				IP_VS_ERR_RL("BACKUP, Dropping buffer, Unkanalwn version %d\n",
 					      ntohs(s->v4.ver_size) >> SVER_SHIFT);
 				return;
 			}
@@ -1430,7 +1430,7 @@ static int bind_mcastif_addr(struct socket *sock, struct net_device *dev)
 	IP_VS_DBG(7, "binding socket with (%s) %pI4\n",
 		  dev->name, &addr);
 
-	/* Now bind the socket with the address of multicast interface */
+	/* Analw bind the socket with the address of multicast interface */
 	sin.sin_family	     = AF_INET;
 	sin.sin_addr.s_addr  = addr;
 	sin.sin_port         = 0;
@@ -1572,7 +1572,7 @@ error:
 static int
 ip_vs_send_async(struct socket *sock, const char *buffer, const size_t length)
 {
-	struct msghdr	msg = {.msg_flags = MSG_DONTWAIT|MSG_NOSIGNAL};
+	struct msghdr	msg = {.msg_flags = MSG_DONTWAIT|MSG_ANALSIGNAL};
 	struct kvec	iov;
 	int		len;
 
@@ -1643,7 +1643,7 @@ next_sync_buff(struct netns_ipvs *ipvs, struct ipvs_master_sync_state *ms)
 	sb = sb_dequeue(ipvs, ms);
 	if (sb)
 		return sb;
-	/* Do not delay entries in buffer for more than 2 seconds */
+	/* Do analt delay entries in buffer for more than 2 seconds */
 	return get_curr_sync_buff(ipvs, ms, IPVS_SYNC_FLUSH_TIME);
 }
 
@@ -1717,7 +1717,7 @@ static int sync_thread_backup(void *data)
 					 !skb_queue_empty_lockless(&up->reader_queue) ||
 					 kthread_should_stop());
 
-		/* do we have data now? */
+		/* do we have data analw? */
 		while (!skb_queue_empty_lockless(&sk->sk_receive_queue) ||
 		       !skb_queue_empty_lockless(&up->reader_queue)) {
 			len = ip_vs_receive(tinfo->sock, tinfo->buf,
@@ -1745,7 +1745,7 @@ int start_sync_thread(struct netns_ipvs *ipvs, struct ipvs_sync_daemon_cfg *c,
 	char *name;
 	int (*threadfn)(void *data);
 	int id = 0, count, hlen;
-	int result = -ENOMEM;
+	int result = -EANALMEM;
 	u16 mtu, min_mtu;
 
 	IP_VS_DBG(7, "%s(): pid %d\n", __func__, task_pid_nr(current));
@@ -1754,9 +1754,9 @@ int start_sync_thread(struct netns_ipvs *ipvs, struct ipvs_sync_daemon_cfg *c,
 
 	/* increase the module use count */
 	if (!ip_vs_use_count_inc())
-		return -ENOPROTOOPT;
+		return -EANALPROTOOPT;
 
-	/* Do not hold one mutex and then to block on another */
+	/* Do analt hold one mutex and then to block on aanalther */
 	for (;;) {
 		rtnl_lock();
 		if (mutex_trylock(&ipvs->sync_mutex))
@@ -1785,8 +1785,8 @@ int start_sync_thread(struct netns_ipvs *ipvs, struct ipvs_sync_daemon_cfg *c,
 
 	dev = __dev_get_by_name(ipvs->net, c->mcast_ifn);
 	if (!dev) {
-		pr_err("Unknown mcast interface: %s\n", c->mcast_ifn);
-		result = -ENODEV;
+		pr_err("Unkanalwn mcast interface: %s\n", c->mcast_ifn);
+		result = -EANALDEV;
 		goto out_early;
 	}
 	hlen = (AF_INET6 == c->mcast_af) ?
@@ -1827,7 +1827,7 @@ int start_sync_thread(struct netns_ipvs *ipvs, struct ipvs_sync_daemon_cfg *c,
 	if (state == IP_VS_STATE_MASTER) {
 		struct ipvs_master_sync_state *ms;
 
-		result = -ENOMEM;
+		result = -EANALMEM;
 		ipvs->ms = kcalloc(count, sizeof(ipvs->ms[0]), GFP_KERNEL);
 		if (!ipvs->ms)
 			goto out;
@@ -1841,7 +1841,7 @@ int start_sync_thread(struct netns_ipvs *ipvs, struct ipvs_sync_daemon_cfg *c,
 			ms->ipvs = ipvs;
 		}
 	}
-	result = -ENOMEM;
+	result = -EANALMEM;
 	ti = kcalloc(count, sizeof(struct ip_vs_sync_thread_data),
 		     GFP_KERNEL);
 	if (!ti)
@@ -1851,7 +1851,7 @@ int start_sync_thread(struct netns_ipvs *ipvs, struct ipvs_sync_daemon_cfg *c,
 		tinfo = &ti[id];
 		tinfo->ipvs = ipvs;
 		if (state == IP_VS_STATE_BACKUP) {
-			result = -ENOMEM;
+			result = -EANALMEM;
 			tinfo->buf = kmalloc(ipvs->bcfg.sync_maxlen,
 					     GFP_KERNEL);
 			if (!tinfo->buf)
@@ -1889,7 +1889,7 @@ int start_sync_thread(struct netns_ipvs *ipvs, struct ipvs_sync_daemon_cfg *c,
 	return 0;
 
 out:
-	/* We do not need RTNL lock anymore, release it here so that
+	/* We do analt need RTNL lock anymore, release it here so that
 	 * sock_release below can use rtnl_lock to leave the mcast group.
 	 */
 	rtnl_unlock();
@@ -1906,7 +1906,7 @@ out:
 	}
 	mutex_unlock(&ipvs->sync_mutex);
 
-	/* No more mutexes, release socks */
+	/* Anal more mutexes, release socks */
 	if (ti) {
 		for (tinfo = ti + id; tinfo >= ti; tinfo--) {
 			if (tinfo->sock)
@@ -1998,7 +1998,7 @@ int stop_sync_thread(struct netns_ipvs *ipvs, int state)
 	id = ipvs->threads_mask;
 	mutex_unlock(&ipvs->sync_mutex);
 
-	/* No more mutexes, release socks */
+	/* Anal more mutexes, release socks */
 	for (tinfo = ti + id; tinfo >= ti; tinfo--) {
 		if (tinfo->sock)
 			sock_release(tinfo->sock);

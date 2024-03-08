@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * $Id: kernelcapi.h,v 1.8.6.2 2001/02/07 11:31:31 kai Exp $
  * 
@@ -38,8 +38,8 @@ typedef struct kcapi_carddef {
  * flag & 1 => show trace
  */
 #define KCAPI_TRACE_OFF			0
-#define KCAPI_TRACE_SHORT_NO_DATA	1
-#define KCAPI_TRACE_FULL_NO_DATA	2
+#define KCAPI_TRACE_SHORT_ANAL_DATA	1
+#define KCAPI_TRACE_FULL_ANAL_DATA	2
 #define KCAPI_TRACE_SHORT		3
 #define KCAPI_TRACE_FULL		4
 

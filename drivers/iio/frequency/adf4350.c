@@ -50,8 +50,8 @@ struct adf4350_state {
 	/*
 	 * Lock to protect the state of the device from potential concurrent
 	 * writes. The device is configured via a sequence of SPI writes,
-	 * and this lock is meant to prevent the start of another sequence
-	 * before another one has finished.
+	 * and this lock is meant to prevent the start of aanalther sequence
+	 * before aanalther one has finished.
 	 */
 	struct mutex			lock;
 	/*
@@ -160,7 +160,7 @@ static int adf4350_set_freq(struct adf4350_state *st, unsigned long long freq)
 
 	/*
 	 * Allow a predefined reference division factor
-	 * if not set, compute our own
+	 * if analt set, compute our own
 	 */
 	if (pdata->ref_div_factor)
 		r_cnt = pdata->ref_div_factor - 1;
@@ -219,7 +219,7 @@ static int adf4350_set_freq(struct adf4350_state *st, unsigned long long freq)
 		(pdata->r2_user_settings & (ADF4350_REG2_PD_POLARITY_POS |
 		ADF4350_REG2_LDP_6ns | ADF4350_REG2_LDF_INT_N |
 		ADF4350_REG2_CHARGE_PUMP_CURR_uA(5000) |
-		ADF4350_REG2_MUXOUT(0x7) | ADF4350_REG2_NOISE_MODE(0x3)));
+		ADF4350_REG2_MUXOUT(0x7) | ADF4350_REG2_ANALISE_MODE(0x3)));
 
 	st->regs[ADF4350_REG3] = pdata->r3_user_settings &
 				 (ADF4350_REG3_12BIT_CLKDIV(0xFFF) |
@@ -390,7 +390,7 @@ static struct adf4350_platform_data *adf4350_parse_dt(struct device *dev)
 	if (!pdata)
 		return NULL;
 
-	snprintf(pdata->name, sizeof(pdata->name), "%pfw", dev_fwnode(dev));
+	snprintf(pdata->name, sizeof(pdata->name), "%pfw", dev_fwanalde(dev));
 
 	tmp = 10000;
 	device_property_read_u32(dev, "adi,channel-spacing", &tmp);
@@ -425,7 +425,7 @@ static struct adf4350_platform_data *adf4350_parse_dt(struct device *dev)
 	pdata->r2_user_settings |= ADF4350_REG2_MUXOUT(tmp);
 
 	if (device_property_read_bool(dev, "adi,low-spur-mode-enable"))
-		pdata->r2_user_settings |= ADF4350_REG2_NOISE_MODE(0x3);
+		pdata->r2_user_settings |= ADF4350_REG2_ANALISE_MODE(0x3);
 
 	/* r3_user_settings */
 
@@ -485,7 +485,7 @@ static int adf4350_probe(struct spi_device *spi)
 	struct clk *clk = NULL;
 	int ret;
 
-	if (dev_fwnode(&spi->dev)) {
+	if (dev_fwanalde(&spi->dev)) {
 		pdata = adf4350_parse_dt(&spi->dev);
 		if (pdata == NULL)
 			return -EINVAL;
@@ -494,7 +494,7 @@ static int adf4350_probe(struct spi_device *spi)
 	}
 
 	if (!pdata) {
-		dev_warn(&spi->dev, "no platform data? using default\n");
+		dev_warn(&spi->dev, "anal platform data? using default\n");
 		pdata = &default_pdata;
 	}
 
@@ -506,7 +506,7 @@ static int adf4350_probe(struct spi_device *spi)
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (indio_dev == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	st = iio_priv(indio_dev);
 

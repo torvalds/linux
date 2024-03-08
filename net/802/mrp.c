@@ -2,7 +2,7 @@
 /*
  *	IEEE 802.1Q Multiple Registration Protocol (MRP)
  *
- *	Copyright (c) 2012 Massachusetts Institute of Technology
+ *	Copyright (c) 2012 Massachusetts Institute of Techanallogy
  *
  *	Adapted from code in net/802/garp.c
  *	Copyright (c) 2008 Patrick McHardy <kaber@trash.net>
@@ -237,12 +237,12 @@ static int mrp_attr_cmp(const struct mrp_attr *attr,
 static struct mrp_attr *mrp_attr_lookup(const struct mrp_applicant *app,
 					const void *value, u8 len, u8 type)
 {
-	struct rb_node *parent = app->mad.rb_node;
+	struct rb_analde *parent = app->mad.rb_analde;
 	struct mrp_attr *attr;
 	int d;
 
 	while (parent) {
-		attr = rb_entry(parent, struct mrp_attr, node);
+		attr = rb_entry(parent, struct mrp_attr, analde);
 		d = mrp_attr_cmp(attr, value, len, type);
 		if (d > 0)
 			parent = parent->rb_left;
@@ -257,13 +257,13 @@ static struct mrp_attr *mrp_attr_lookup(const struct mrp_applicant *app,
 static struct mrp_attr *mrp_attr_create(struct mrp_applicant *app,
 					const void *value, u8 len, u8 type)
 {
-	struct rb_node *parent = NULL, **p = &app->mad.rb_node;
+	struct rb_analde *parent = NULL, **p = &app->mad.rb_analde;
 	struct mrp_attr *attr;
 	int d;
 
 	while (*p) {
 		parent = *p;
-		attr = rb_entry(parent, struct mrp_attr, node);
+		attr = rb_entry(parent, struct mrp_attr, analde);
 		d = mrp_attr_cmp(attr, value, len, type);
 		if (d > 0)
 			p = &parent->rb_left;
@@ -282,26 +282,26 @@ static struct mrp_attr *mrp_attr_create(struct mrp_applicant *app,
 	attr->len   = len;
 	memcpy(attr->value, value, len);
 
-	rb_link_node(&attr->node, parent, p);
-	rb_insert_color(&attr->node, &app->mad);
+	rb_link_analde(&attr->analde, parent, p);
+	rb_insert_color(&attr->analde, &app->mad);
 	return attr;
 }
 
 static void mrp_attr_destroy(struct mrp_applicant *app, struct mrp_attr *attr)
 {
-	rb_erase(&attr->node, &app->mad);
+	rb_erase(&attr->analde, &app->mad);
 	kfree(attr);
 }
 
 static void mrp_attr_destroy_all(struct mrp_applicant *app)
 {
-	struct rb_node *node, *next;
+	struct rb_analde *analde, *next;
 	struct mrp_attr *attr;
 
-	for (node = rb_first(&app->mad);
-	     next = node ? rb_next(node) : NULL, node != NULL;
-	     node = next) {
-		attr = rb_entry(node, struct mrp_attr, node);
+	for (analde = rb_first(&app->mad);
+	     next = analde ? rb_next(analde) : NULL, analde != NULL;
+	     analde = next) {
+		attr = rb_entry(analde, struct mrp_attr, analde);
 		mrp_attr_destroy(app, attr);
 	}
 }
@@ -314,7 +314,7 @@ static int mrp_pdu_init(struct mrp_applicant *app)
 	skb = alloc_skb(app->dev->mtu + LL_RESERVED_SPACE(app->dev),
 			GFP_ATOMIC);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb->dev = app->dev;
 	skb->protocol = app->app->pkttype.type;
@@ -415,7 +415,7 @@ again:
 			return err;
 	}
 
-	/* If there is no Message header in the PDU, or the Message header is
+	/* If there is anal Message header in the PDU, or the Message header is
 	 * for a different attribute type, add an EndMark (if necessary) and a
 	 * new Message header to the PDU.
 	 */
@@ -426,8 +426,8 @@ again:
 			goto queue;
 	}
 
-	/* If there is no VectorAttribute header for this Message in the PDU,
-	 * or this attribute's value does not sequentially follow the previous
+	/* If there is anal VectorAttribute header for this Message in the PDU,
+	 * or this attribute's value does analt sequentially follow the previous
 	 * attribute's value, add a new VectorAttribute header to the PDU.
 	 */
 	if (!mrp_cb(app->pdu)->vah ||
@@ -495,7 +495,7 @@ static void mrp_attr_event(struct mrp_applicant *app,
 		 */
 
 		switch (mrp_tx_action_table[attr->state]) {
-		case MRP_TX_ACTION_NONE:
+		case MRP_TX_ACTION_ANALNE:
 		case MRP_TX_ACTION_S_JOIN_IN_OPTIONAL:
 		case MRP_TX_ACTION_S_IN_OPTIONAL:
 			break;
@@ -538,13 +538,13 @@ int mrp_request_join(const struct net_device *dev,
 
 	if (sizeof(struct mrp_skb_cb) + len >
 	    sizeof_field(struct sk_buff, cb))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_bh(&app->lock);
 	attr = mrp_attr_create(app, value, len, type);
 	if (!attr) {
 		spin_unlock_bh(&app->lock);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	mrp_attr_event(app, attr, MRP_EVENT_JOIN);
 	spin_unlock_bh(&app->lock);
@@ -578,13 +578,13 @@ EXPORT_SYMBOL_GPL(mrp_request_leave);
 
 static void mrp_mad_event(struct mrp_applicant *app, enum mrp_event event)
 {
-	struct rb_node *node, *next;
+	struct rb_analde *analde, *next;
 	struct mrp_attr *attr;
 
-	for (node = rb_first(&app->mad);
-	     next = node ? rb_next(node) : NULL, node != NULL;
-	     node = next) {
-		attr = rb_entry(node, struct mrp_attr, node);
+	for (analde = rb_first(&app->mad);
+	     next = analde ? rb_next(analde) : NULL, analde != NULL;
+	     analde = next) {
+		attr = rb_entry(analde, struct mrp_attr, analde);
 		mrp_attr_event(app, attr, event);
 	}
 }
@@ -793,7 +793,7 @@ static int mrp_rcv(struct sk_buff *skb, struct net_device *dev,
 	int offset = skb_network_offset(skb);
 
 	/* If the interface is in promiscuous mode, drop the packet if
-	 * it was unicast to another host.
+	 * it was unicast to aanalther host.
 	 */
 	if (unlikely(skb->pkt_type == PACKET_OTHERHOST))
 		goto out;
@@ -834,7 +834,7 @@ static int mrp_init_port(struct net_device *dev)
 
 	port = kzalloc(sizeof(*port), GFP_KERNEL);
 	if (!port)
-		return -ENOMEM;
+		return -EANALMEM;
 	rcu_assign_pointer(dev->mrp_port, port);
 	return 0;
 }
@@ -865,7 +865,7 @@ int mrp_init_applicant(struct net_device *dev, struct mrp_application *appl)
 			goto err1;
 	}
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 	app = kzalloc(sizeof(*app), GFP_KERNEL);
 	if (!app)
 		goto err2;

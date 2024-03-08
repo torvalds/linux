@@ -29,7 +29,7 @@
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <media/v4l2-ctrls.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 #include <media/v4l2-subdev.h>
 
 #define OV5645_SYSTEM_CTRL0		0x3008
@@ -87,7 +87,7 @@ struct ov5645 {
 	struct device *dev;
 	struct v4l2_subdev sd;
 	struct media_pad pad;
-	struct v4l2_fwnode_endpoint ep;
+	struct v4l2_fwanalde_endpoint ep;
 	struct v4l2_mbus_framefmt fmt;
 	struct v4l2_rect crop;
 	struct clk *xclk;
@@ -674,7 +674,7 @@ static int ov5645_set_power_on(struct device *dev)
 	ret = ov5645_set_register_array(ov5645, ov5645_global_init_setting,
 					ARRAY_SIZE(ov5645_global_init_setting));
 	if (ret < 0) {
-		dev_err(ov5645->dev, "could not set init registers\n");
+		dev_err(ov5645->dev, "could analt set init registers\n");
 		goto exit;
 	}
 
@@ -926,7 +926,7 @@ static int ov5645_set_format(struct v4l2_subdev *sd,
 	__format->width = __crop->width;
 	__format->height = __crop->height;
 	__format->code = MEDIA_BUS_FMT_UYVY8_1X16;
-	__format->field = V4L2_FIELD_NONE;
+	__format->field = V4L2_FIELD_ANALNE;
 	__format->colorspace = V4L2_COLORSPACE_SRGB;
 
 	format->format = *__format;
@@ -976,14 +976,14 @@ static int ov5645_s_stream(struct v4l2_subdev *subdev, int enable)
 					ov5645->current_mode->data,
 					ov5645->current_mode->data_size);
 		if (ret < 0) {
-			dev_err(ov5645->dev, "could not set mode %dx%d\n",
+			dev_err(ov5645->dev, "could analt set mode %dx%d\n",
 				ov5645->current_mode->width,
 				ov5645->current_mode->height);
 			goto err_rpm_put;
 		}
 		ret = v4l2_ctrl_handler_setup(&ov5645->ctrls);
 		if (ret < 0) {
-			dev_err(ov5645->dev, "could not sync v4l2 controls\n");
+			dev_err(ov5645->dev, "could analt sync v4l2 controls\n");
 			goto err_rpm_put;
 		}
 
@@ -1042,7 +1042,7 @@ static const struct v4l2_subdev_internal_ops ov5645_internal_ops = {
 static int ov5645_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
-	struct device_node *endpoint;
+	struct device_analde *endpoint;
 	struct ov5645 *ov5645;
 	u8 chip_id_high, chip_id_low;
 	unsigned int i;
@@ -1051,24 +1051,24 @@ static int ov5645_probe(struct i2c_client *client)
 
 	ov5645 = devm_kzalloc(dev, sizeof(struct ov5645), GFP_KERNEL);
 	if (!ov5645)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ov5645->i2c_client = client;
 	ov5645->dev = dev;
 
-	endpoint = of_graph_get_next_endpoint(dev->of_node, NULL);
+	endpoint = of_graph_get_next_endpoint(dev->of_analde, NULL);
 	if (!endpoint) {
-		dev_err(dev, "endpoint node not found\n");
+		dev_err(dev, "endpoint analde analt found\n");
 		return -EINVAL;
 	}
 
-	ret = v4l2_fwnode_endpoint_parse(of_fwnode_handle(endpoint),
+	ret = v4l2_fwanalde_endpoint_parse(of_fwanalde_handle(endpoint),
 					 &ov5645->ep);
 
-	of_node_put(endpoint);
+	of_analde_put(endpoint);
 
 	if (ret < 0) {
-		dev_err(dev, "parsing endpoint node failed\n");
+		dev_err(dev, "parsing endpoint analde failed\n");
 		return ret;
 	}
 
@@ -1080,26 +1080,26 @@ static int ov5645_probe(struct i2c_client *client)
 	/* get system clock (xclk) */
 	ov5645->xclk = devm_clk_get(dev, NULL);
 	if (IS_ERR(ov5645->xclk)) {
-		dev_err(dev, "could not get xclk");
+		dev_err(dev, "could analt get xclk");
 		return PTR_ERR(ov5645->xclk);
 	}
 
-	ret = of_property_read_u32(dev->of_node, "clock-frequency", &xclk_freq);
+	ret = of_property_read_u32(dev->of_analde, "clock-frequency", &xclk_freq);
 	if (ret) {
-		dev_err(dev, "could not get xclk frequency\n");
+		dev_err(dev, "could analt get xclk frequency\n");
 		return ret;
 	}
 
 	/* external clock must be 24MHz, allow 1% tolerance */
 	if (xclk_freq < 23760000 || xclk_freq > 24240000) {
-		dev_err(dev, "external clock frequency %u is not supported\n",
+		dev_err(dev, "external clock frequency %u is analt supported\n",
 			xclk_freq);
 		return -EINVAL;
 	}
 
 	ret = clk_set_rate(ov5645->xclk, xclk_freq);
 	if (ret) {
-		dev_err(dev, "could not set xclk frequency\n");
+		dev_err(dev, "could analt set xclk frequency\n");
 		return ret;
 	}
 
@@ -1113,13 +1113,13 @@ static int ov5645_probe(struct i2c_client *client)
 
 	ov5645->enable_gpio = devm_gpiod_get(dev, "enable", GPIOD_OUT_HIGH);
 	if (IS_ERR(ov5645->enable_gpio)) {
-		dev_err(dev, "cannot get enable gpio\n");
+		dev_err(dev, "cananalt get enable gpio\n");
 		return PTR_ERR(ov5645->enable_gpio);
 	}
 
 	ov5645->rst_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(ov5645->rst_gpio)) {
-		dev_err(dev, "cannot get reset gpio\n");
+		dev_err(dev, "cananalt get reset gpio\n");
 		return PTR_ERR(ov5645->rst_gpio);
 	}
 
@@ -1166,14 +1166,14 @@ static int ov5645_probe(struct i2c_client *client)
 
 	v4l2_i2c_subdev_init(&ov5645->sd, client, &ov5645_subdev_ops);
 	ov5645->sd.internal_ops = &ov5645_internal_ops;
-	ov5645->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	ov5645->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 	ov5645->pad.flags = MEDIA_PAD_FL_SOURCE;
 	ov5645->sd.dev = &client->dev;
 	ov5645->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;
 
 	ret = media_entity_pads_init(&ov5645->sd.entity, 1, &ov5645->pad);
 	if (ret < 0) {
-		dev_err(dev, "could not register media entity\n");
+		dev_err(dev, "could analt register media entity\n");
 		goto free_ctrl;
 	}
 
@@ -1183,14 +1183,14 @@ static int ov5645_probe(struct i2c_client *client)
 
 	ret = ov5645_read_reg(ov5645, OV5645_CHIP_ID_HIGH, &chip_id_high);
 	if (ret < 0 || chip_id_high != OV5645_CHIP_ID_HIGH_BYTE) {
-		dev_err(dev, "could not read ID high\n");
-		ret = -ENODEV;
+		dev_err(dev, "could analt read ID high\n");
+		ret = -EANALDEV;
 		goto power_down;
 	}
 	ret = ov5645_read_reg(ov5645, OV5645_CHIP_ID_LOW, &chip_id_low);
 	if (ret < 0 || chip_id_low != OV5645_CHIP_ID_LOW_BYTE) {
-		dev_err(dev, "could not read ID low\n");
-		ret = -ENODEV;
+		dev_err(dev, "could analt read ID low\n");
+		ret = -EANALDEV;
 		goto power_down;
 	}
 
@@ -1199,36 +1199,36 @@ static int ov5645_probe(struct i2c_client *client)
 	ret = ov5645_read_reg(ov5645, OV5645_AEC_PK_MANUAL,
 			      &ov5645->aec_pk_manual);
 	if (ret < 0) {
-		dev_err(dev, "could not read AEC/AGC mode\n");
-		ret = -ENODEV;
+		dev_err(dev, "could analt read AEC/AGC mode\n");
+		ret = -EANALDEV;
 		goto power_down;
 	}
 
 	ret = ov5645_read_reg(ov5645, OV5645_TIMING_TC_REG20,
 			      &ov5645->timing_tc_reg20);
 	if (ret < 0) {
-		dev_err(dev, "could not read vflip value\n");
-		ret = -ENODEV;
+		dev_err(dev, "could analt read vflip value\n");
+		ret = -EANALDEV;
 		goto power_down;
 	}
 
 	ret = ov5645_read_reg(ov5645, OV5645_TIMING_TC_REG21,
 			      &ov5645->timing_tc_reg21);
 	if (ret < 0) {
-		dev_err(dev, "could not read hflip value\n");
-		ret = -ENODEV;
+		dev_err(dev, "could analt read hflip value\n");
+		ret = -EANALDEV;
 		goto power_down;
 	}
 
 	pm_runtime_set_active(dev);
-	pm_runtime_get_noresume(dev);
+	pm_runtime_get_analresume(dev);
 	pm_runtime_enable(dev);
 
 	ov5645_init_state(&ov5645->sd, NULL);
 
 	ret = v4l2_async_register_subdev(&ov5645->sd);
 	if (ret < 0) {
-		dev_err(dev, "could not register v4l2 device\n");
+		dev_err(dev, "could analt register v4l2 device\n");
 		goto err_pm_runtime;
 	}
 
@@ -1241,7 +1241,7 @@ static int ov5645_probe(struct i2c_client *client)
 
 err_pm_runtime:
 	pm_runtime_disable(dev);
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_analidle(dev);
 power_down:
 	ov5645_set_power_off(dev);
 free_entity:

@@ -18,7 +18,7 @@ static bool genphy_c45_baset1_able(struct phy_device *phydev)
 {
 	int val;
 
-	if (phydev->pma_extable == -ENODATA) {
+	if (phydev->pma_extable == -EANALDATA) {
 		val = phy_read_mmd(phydev, MDIO_MMD_PMAPMD, MDIO_PMA_EXTABLE);
 		if (val < 0)
 			return false;
@@ -51,7 +51,7 @@ static bool genphy_c45_pma_can_sleep(struct phy_device *phydev)
 int genphy_c45_pma_resume(struct phy_device *phydev)
 {
 	if (!genphy_c45_pma_can_sleep(phydev))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return phy_clear_bits_mmd(phydev, MDIO_MMD_PMAPMD, MDIO_CTRL1,
 				  MDIO_CTRL1_LPOWER);
@@ -65,7 +65,7 @@ EXPORT_SYMBOL_GPL(genphy_c45_pma_resume);
 int genphy_c45_pma_suspend(struct phy_device *phydev)
 {
 	if (!genphy_c45_pma_can_sleep(phydev))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return phy_set_bits_mmd(phydev, MDIO_MMD_PMAPMD, MDIO_CTRL1,
 				MDIO_CTRL1_LPOWER);
@@ -89,12 +89,12 @@ int genphy_c45_pma_baset1_setup_master_slave(struct phy_device *phydev)
 	case MASTER_SLAVE_CFG_SLAVE_FORCE:
 	case MASTER_SLAVE_CFG_SLAVE_PREFERRED:
 		break;
-	case MASTER_SLAVE_CFG_UNKNOWN:
+	case MASTER_SLAVE_CFG_UNKANALWN:
 	case MASTER_SLAVE_CFG_UNSUPPORTED:
 		return 0;
 	default:
 		phydev_warn(phydev, "Unsupported Master/Slave mode\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return phy_modify_mmd(phydev, MDIO_MMD_PMAPMD, MDIO_PMA_PMD_BT1_CTRL,
@@ -110,7 +110,7 @@ int genphy_c45_pma_setup_forced(struct phy_device *phydev)
 {
 	int bt1_ctrl, ctrl1, ctrl2, ret;
 
-	/* Half duplex is not supported */
+	/* Half duplex is analt supported */
 	if (phydev->duplex != DUPLEX_FULL)
 		return -EINVAL;
 
@@ -124,7 +124,7 @@ int genphy_c45_pma_setup_forced(struct phy_device *phydev)
 
 	ctrl1 &= ~MDIO_CTRL1_SPEEDSEL;
 	/*
-	 * PMA/PMD type selection is 1.7.5:0 not 1.7.3:0.  See 45.2.1.6.1
+	 * PMA/PMD type selection is 1.7.5:0 analt 1.7.3:0.  See 45.2.1.6.1
 	 * in 802.3-2012 and 802.3-2015.
 	 */
 	ctrl2 &= ~(MDIO_PMA_CTRL2_TYPE | 0x30);
@@ -191,10 +191,10 @@ int genphy_c45_pma_setup_forced(struct phy_device *phydev)
 }
 EXPORT_SYMBOL_GPL(genphy_c45_pma_setup_forced);
 
-/* Sets master/slave preference and supported technologies.
+/* Sets master/slave preference and supported techanallogies.
  * The preference is set in the BIT(4) of BASE-T1 AN
  * advertisement register 7.515 and whether the status
- * is forced or not, it is set in the BIT(12) of BASE-T1
+ * is forced or analt, it is set in the BIT(12) of BASE-T1
  * AN advertisement register 7.514.
  * Sets 10BASE-T1L Ability BIT(14) in BASE-T1 autonegotiation
  * advertisement register [31:16] if supported.
@@ -222,15 +222,15 @@ static int genphy_c45_baset1_an_config_aneg(struct phy_device *phydev)
 		fallthrough;
 	case MASTER_SLAVE_CFG_SLAVE_PREFERRED:
 		break;
-	case MASTER_SLAVE_CFG_UNKNOWN:
+	case MASTER_SLAVE_CFG_UNKANALWN:
 	case MASTER_SLAVE_CFG_UNSUPPORTED:
-		/* if master/slave role is not specified, do not overwrite it */
+		/* if master/slave role is analt specified, do analt overwrite it */
 		adv_l_mask &= ~MDIO_AN_T1_ADV_L_FORCE_MS;
 		adv_m_mask &= ~MDIO_AN_T1_ADV_M_MST;
 		break;
 	default:
 		phydev_warn(phydev, "Unsupported Master/Slave mode\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	adv_l |= linkmode_adv_to_mii_t1_adv_l_t(phydev->advertising);
@@ -260,7 +260,7 @@ static int genphy_c45_baset1_an_config_aneg(struct phy_device *phydev)
  *
  * Configure advertisement registers based on modes set in phydev->advertising
  *
- * Returns negative errno code on failure, 0 if advertisement didn't change,
+ * Returns negative erranal code on failure, 0 if advertisement didn't change,
  * or 1 if advertised modes changed.
  */
 int genphy_c45_an_config_aneg(struct phy_device *phydev)
@@ -313,7 +313,7 @@ EXPORT_SYMBOL_GPL(genphy_c45_an_config_aneg);
  * Disable auto-negotiation in the Clause 45 PHY. The link parameters
  * are controlled through the PMA/PMD MMD registers.
  *
- * Returns zero on success, negative errno code on failure.
+ * Returns zero on success, negative erranal code on failure.
  */
 int genphy_c45_an_disable_aneg(struct phy_device *phydev)
 {
@@ -389,7 +389,7 @@ EXPORT_SYMBOL_GPL(genphy_c45_check_and_restart_aneg);
  *
  * Reads the status register from the auto-negotiation MMD, returning:
  * - positive if auto-negotiation is complete
- * - negative errno code on error
+ * - negative erranal code on error
  * - zero otherwise
  */
 int genphy_c45_aneg_done(struct phy_device *phydev)
@@ -412,7 +412,7 @@ EXPORT_SYMBOL_GPL(genphy_c45_aneg_done);
  *
  * Read the link status from the specified MMDs, and if they all indicate
  * that the link is up, set phydev->link to 1.  If an error is encountered,
- * a negative errno will be returned, otherwise zero.
+ * a negative erranal will be returned, otherwise zero.
  */
 int genphy_c45_read_link(struct phy_device *phydev)
 {
@@ -439,7 +439,7 @@ int genphy_c45_read_link(struct phy_device *phydev)
 		mmd_mask &= ~BIT(devad);
 
 		/* The link state is latched low so that momentary link
-		 * drops can be detected. Do not double-read the status
+		 * drops can be detected. Do analt double-read the status
 		 * in polling mode to detect such short link drops except
 		 * the link was already down.
 		 */
@@ -572,8 +572,8 @@ int genphy_c45_pma_baset1_read_master_slave(struct phy_device *phydev)
 {
 	int val;
 
-	phydev->master_slave_state = MASTER_SLAVE_STATE_UNKNOWN;
-	phydev->master_slave_get = MASTER_SLAVE_CFG_UNKNOWN;
+	phydev->master_slave_state = MASTER_SLAVE_STATE_UNKANALWN;
+	phydev->master_slave_get = MASTER_SLAVE_CFG_UNKANALWN;
 
 	val = phy_read_mmd(phydev, MDIO_MMD_PMAPMD, MDIO_PMA_PMD_BT1_CTRL);
 	if (val < 0)
@@ -625,7 +625,7 @@ int genphy_c45_read_pma(struct phy_device *phydev)
 		phydev->speed = SPEED_10000;
 		break;
 	default:
-		phydev->speed = SPEED_UNKNOWN;
+		phydev->speed = SPEED_UNKANALWN;
 		break;
 	}
 
@@ -814,7 +814,7 @@ static int genphy_c45_read_eee_cap1(struct phy_device *phydev)
 	/* The 802.3 2018 standard says the top 2 bits are reserved and should
 	 * read as 0. Also, it seems unlikely anybody will build a PHY which
 	 * supports 100GBASE-R deep sleep all the way down to 100BASE-TX EEE.
-	 * If MDIO_PCS_EEE_ABLE is 0xffff assume EEE is not supported.
+	 * If MDIO_PCS_EEE_ABLE is 0xffff assume EEE is analt supported.
 	 */
 	if (val == 0xffff)
 		return 0;
@@ -838,7 +838,7 @@ int genphy_c45_read_eee_abilities(struct phy_device *phydev)
 {
 	int val;
 
-	/* There is not indicator whether optional register
+	/* There is analt indicator whether optional register
 	 * "EEE control and capability 1" (3.20) is supported. Read it only
 	 * on devices with appropriate linkmodes.
 	 */
@@ -1040,8 +1040,8 @@ int genphy_c45_pma_read_abilities(struct phy_device *phydev)
 			return val;
 	}
 
-	/* This is optional functionality. If not supported, we may get an error
-	 * which should be ignored.
+	/* This is optional functionality. If analt supported, we may get an error
+	 * which should be iganalred.
 	 */
 	genphy_c45_read_eee_abilities(phydev);
 
@@ -1052,7 +1052,7 @@ EXPORT_SYMBOL_GPL(genphy_c45_pma_read_abilities);
 /* Read master/slave preference from registers.
  * The preference is read from the BIT(4) of BASE-T1 AN
  * advertisement register 7.515 and whether the preference
- * is forced or not, it is read from BASE-T1 AN advertisement
+ * is forced or analt, it is read from BASE-T1 AN advertisement
  * register 7.514.
  */
 int genphy_c45_baset1_read_status(struct phy_device *phydev)
@@ -1060,8 +1060,8 @@ int genphy_c45_baset1_read_status(struct phy_device *phydev)
 	int ret;
 	int cfg;
 
-	phydev->master_slave_get = MASTER_SLAVE_CFG_UNKNOWN;
-	phydev->master_slave_state = MASTER_SLAVE_STATE_UNKNOWN;
+	phydev->master_slave_get = MASTER_SLAVE_CFG_UNKANALWN;
+	phydev->master_slave_state = MASTER_SLAVE_STATE_UNKANALWN;
 
 	ret = phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_AN_T1_ADV_L);
 	if (ret < 0)
@@ -1101,8 +1101,8 @@ int genphy_c45_read_status(struct phy_device *phydev)
 	if (ret)
 		return ret;
 
-	phydev->speed = SPEED_UNKNOWN;
-	phydev->duplex = DUPLEX_UNKNOWN;
+	phydev->speed = SPEED_UNKANALWN;
+	phydev->duplex = DUPLEX_UNKANALWN;
 	phydev->pause = 0;
 	phydev->asym_pause = 0;
 
@@ -1131,7 +1131,7 @@ EXPORT_SYMBOL_GPL(genphy_c45_read_status);
  * @phydev: target phy_device struct
  *
  * Description: If auto-negotiation is enabled, we configure the
- *   advertising, and then restart auto-negotiation.  If it is not
+ *   advertising, and then restart auto-negotiation.  If it is analt
  *   enabled, then we force a configuration.
  */
 int genphy_c45_config_aneg(struct phy_device *phydev)
@@ -1171,11 +1171,11 @@ EXPORT_SYMBOL_GPL(genphy_c45_loopback);
 /**
  * genphy_c45_fast_retrain - configure fast retrain registers
  * @phydev: target phy_device struct
- * @enable: enable fast retrain or not
+ * @enable: enable fast retrain or analt
  *
  * Description: If fast-retrain is enabled, we configure PHY as
  *   advertising fast retrain capable and THP Bypass Request, then
- *   enable fast retrain. If it is not enabled, we configure fast
+ *   enable fast retrain. If it is analt enabled, we configure fast
  *   retrain disabled.
  */
 int genphy_c45_fast_retrain(struct phy_device *phydev, bool enable)
@@ -1222,7 +1222,7 @@ int genphy_c45_plca_get_cfg(struct phy_device *phydev,
 		return ret;
 
 	if ((ret & MDIO_OATC14_PLCA_IDM) != OATC14_IDM)
-		return -ENODEV;
+		return -EANALDEV;
 
 	plca_cfg->version = ret & ~MDIO_OATC14_PLCA_IDM;
 
@@ -1236,8 +1236,8 @@ int genphy_c45_plca_get_cfg(struct phy_device *phydev,
 	if (ret < 0)
 		return ret;
 
-	plca_cfg->node_cnt = (ret & MDIO_OATC14_PLCA_NCNT) >> 8;
-	plca_cfg->node_id = (ret & MDIO_OATC14_PLCA_ID);
+	plca_cfg->analde_cnt = (ret & MDIO_OATC14_PLCA_NCNT) >> 8;
+	plca_cfg->analde_id = (ret & MDIO_OATC14_PLCA_ID);
 
 	ret = phy_read_mmd(phydev, MDIO_MMD_VEND2, MDIO_OATC14_PLCA_TOTMR);
 	if (ret < 0)
@@ -1260,7 +1260,7 @@ EXPORT_SYMBOL_GPL(genphy_c45_plca_get_cfg);
  * genphy_c45_plca_set_cfg - set PLCA configuration using standard registers
  * @phydev: target phy_device struct
  * @plca_cfg: structure containing the PLCA configuration. Fields set to -1 are
- * not to be changed.
+ * analt to be changed.
  *
  * Description: if the PHY complies to the Open Alliance TC14 10BASE-T1S PLCA
  *   Management Registers specifications, this function can be used to modify
@@ -1286,13 +1286,13 @@ int genphy_c45_plca_set_cfg(struct phy_device *phydev,
 			return ret;
 	}
 
-	// check if we need to set the PLCA node count, node ID, or both
-	if (plca_cfg->node_cnt >= 0 || plca_cfg->node_id >= 0) {
-		/* if one between node count and node ID is -not- to be
+	// check if we need to set the PLCA analde count, analde ID, or both
+	if (plca_cfg->analde_cnt >= 0 || plca_cfg->analde_id >= 0) {
+		/* if one between analde count and analde ID is -analt- to be
 		 * changed, read the register to later perform merge/purge of
 		 * the configuration as appropriate
 		 */
-		if (plca_cfg->node_cnt < 0 || plca_cfg->node_id < 0) {
+		if (plca_cfg->analde_cnt < 0 || plca_cfg->analde_id < 0) {
 			ret = phy_read_mmd(phydev, MDIO_MMD_VEND2,
 					   MDIO_OATC14_PLCA_CTRL1);
 
@@ -1302,13 +1302,13 @@ int genphy_c45_plca_set_cfg(struct phy_device *phydev,
 			val = ret;
 		}
 
-		if (plca_cfg->node_cnt >= 0)
+		if (plca_cfg->analde_cnt >= 0)
 			val = (val & ~MDIO_OATC14_PLCA_NCNT) |
-			      (plca_cfg->node_cnt << 8);
+			      (plca_cfg->analde_cnt << 8);
 
-		if (plca_cfg->node_id >= 0)
+		if (plca_cfg->analde_id >= 0)
 			val = (val & ~MDIO_OATC14_PLCA_ID) |
-			      (plca_cfg->node_id);
+			      (plca_cfg->analde_id);
 
 		ret = phy_write_mmd(phydev, MDIO_MMD_VEND2,
 				    MDIO_OATC14_PLCA_CTRL1, val);
@@ -1328,7 +1328,7 @@ int genphy_c45_plca_set_cfg(struct phy_device *phydev,
 
 	// check if we need to set the PLCA burst count, burst timer, or both
 	if (plca_cfg->burst_cnt >= 0 || plca_cfg->burst_tmr >= 0) {
-		/* if one between burst count and burst timer is -not- to be
+		/* if one between burst count and burst timer is -analt- to be
 		 * changed, read the register to later perform merge/purge of
 		 * the configuration as appropriate
 		 */
@@ -1472,7 +1472,7 @@ int genphy_c45_ethtool_get_eee(struct phy_device *phydev,
 		overflow = true;
 
 	if (overflow)
-		phydev_warn(phydev, "Not all supported or advertised EEE link modes were passed to the user space\n");
+		phydev_warn(phydev, "Analt all supported or advertised EEE link modes were passed to the user space\n");
 
 	return 0;
 }
@@ -1484,10 +1484,10 @@ EXPORT_SYMBOL(genphy_c45_ethtool_get_eee);
  * @data: ethtool_eee data
  *
  * Description: sets the Supported/Advertisement/LP Advertisement
- * capabilities. If eee_enabled is false, no links modes are
+ * capabilities. If eee_enabled is false, anal links modes are
  * advertised, but the previously advertised link modes are
  * retained. This allows EEE to be enabled/disabled in a
- * non-destructive way.
+ * analn-destructive way.
  */
 int genphy_c45_ethtool_set_eee(struct phy_device *phydev,
 			       struct ethtool_eee *data)
@@ -1500,9 +1500,9 @@ int genphy_c45_ethtool_set_eee(struct phy_device *phydev,
 
 			ethtool_convert_legacy_u32_to_link_mode(adv,
 								data->advertised);
-			linkmode_andnot(adv, adv, phydev->supported_eee);
+			linkmode_andanalt(adv, adv, phydev->supported_eee);
 			if (!linkmode_empty(adv)) {
-				phydev_warn(phydev, "At least some EEE link modes are not supported.\n");
+				phydev_warn(phydev, "At least some EEE link modes are analt supported.\n");
 				return -EINVAL;
 			}
 

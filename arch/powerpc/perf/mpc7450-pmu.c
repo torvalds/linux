@@ -141,7 +141,7 @@ static u32 pmcbits[N_COUNTER][2] = {
 };
 
 static u32 classbits[N_CLASSES - 1][2] = {
-	{ 0x00000000, 0x00000000 },	/* class 0: no constraint */
+	{ 0x00000000, 0x00000000 },	/* class 0: anal constraint */
 	{ 0x00800000, 0x00100000 },	/* class 1: G4 */
 	{ 0x00040000, 0x00010000 },	/* class 2: G3 */
 	{ 0x00004000, 0x00001000 },	/* class 3: G2 */
@@ -185,7 +185,7 @@ static int mpc7450_get_constraint(u64 event, unsigned long *maskp,
 
 static const unsigned int event_alternatives[][MAX_ALT] = {
 	{ 0x217, 0x317 },		/* PM_L1_DCACHE_MISS */
-	{ 0x418, 0x50f, 0x60f },	/* PM_SNOOP_RETRY */
+	{ 0x418, 0x50f, 0x60f },	/* PM_SANALOP_RETRY */
 	{ 0x502, 0x602 },		/* PM_L2_HIT */
 	{ 0x503, 0x603 },		/* PM_L3_HIT */
 	{ 0x504, 0x604 },		/* PM_L2_ICACHE_MISS */
@@ -337,7 +337,7 @@ static int mpc7450_compute_mmcr(u64 event[], int n_ev, unsigned int hwc[],
 
 /*
  * Disable counting by a PMC.
- * Note that the pmc argument is 0-based here, not 1-based.
+ * Analte that the pmc argument is 0-based here, analt 1-based.
  */
 static void mpc7450_disable_pmc(unsigned int pmc, struct mmcr_regs *mmcr)
 {
@@ -359,7 +359,7 @@ static int mpc7450_generic_events[] = {
 
 /*
  * Table of generalized cache-related events.
- * 0 means not supported, -1 means nonsensical, other values
+ * 0 means analt supported, -1 means analnsensical, other values
  * are event codes.
  */
 static u64 mpc7450_cache_events[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
@@ -393,7 +393,7 @@ static u64 mpc7450_cache_events[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
 		[C(OP_WRITE)] = {	-1,		-1	},
 		[C(OP_PREFETCH)] = {	-1,		-1	},
 	},
-	[C(NODE)] = {		/* 	RESULT_ACCESS	RESULT_MISS */
+	[C(ANALDE)] = {		/* 	RESULT_ACCESS	RESULT_MISS */
 		[C(OP_READ)] = {	-1,		-1	},
 		[C(OP_WRITE)] = {	-1,		-1	},
 		[C(OP_PREFETCH)] = {	-1,		-1	},
@@ -420,7 +420,7 @@ static int __init init_mpc7450_pmu(void)
 	if (!pvr_version_is(PVR_VER_7450) && !pvr_version_is(PVR_VER_7455) &&
 	    !pvr_version_is(PVR_VER_7447) && !pvr_version_is(PVR_VER_7447A) &&
 	    !pvr_version_is(PVR_VER_7448))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return register_power_pmu(&mpc7450_pmu);
 }

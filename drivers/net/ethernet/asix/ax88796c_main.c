@@ -30,8 +30,8 @@ static int msg_enable = NETIF_MSG_PROBE |
 			NETIF_MSG_RX_ERR |
 			NETIF_MSG_TX_ERR;
 
-static const char *no_regs_list = "80018001,e1918001,8001a001,fc0d0000";
-unsigned long ax88796c_no_regs_mask[AX88796C_REGDUMP_LEN / (sizeof(unsigned long) * 8)];
+static const char *anal_regs_list = "80018001,e1918001,8001a001,fc0d0000";
+unsigned long ax88796c_anal_regs_mask[AX88796C_REGDUMP_LEN / (sizeof(unsigned long) * 8)];
 
 module_param(msg_enable, int, 0444);
 MODULE_PARM_DESC(msg_enable, "Message mask (see linux/netdevice.h for bitmap)");
@@ -179,7 +179,7 @@ static void ax88796c_load_mac_addr(struct net_device *ndev)
 		return;
 	}
 
-	/* Use random address if none found */
+	/* Use random address if analne found */
 	if (netif_msg_probe(ax_local))
 		dev_info(&ax_local->spi->dev, "Use random MAC address\n");
 	eth_hw_addr_random(ndev);
@@ -191,7 +191,7 @@ static void ax88796c_proc_tx_hdr(struct tx_pkt_info *info, u8 ip_summed)
 
 	/* Prepare SOP header */
 	info->sop.flags_len = info->pkt_len |
-		((ip_summed == CHECKSUM_NONE) ||
+		((ip_summed == CHECKSUM_ANALNE) ||
 		 (ip_summed == CHECKSUM_UNNECESSARY) ? TX_HDR_SOP_DICF : 0);
 
 	info->sop.seq_lenbar = ((info->seq_num << 11) & TX_HDR_SOP_SEQNUM)
@@ -234,7 +234,7 @@ ax88796c_check_free_pages(struct ax88796c_device *ax_local, u8 need_pages)
 		AX_WRITE(&ax_local->ax_spi, tmp | TFBFCR_TX_PAGE_SET |
 				TFBFCR_SET_FREE_PAGE(need_pages),
 				P0_TFBFCR);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -530,7 +530,7 @@ static int ax88796c_receive(struct net_device *ndev)
 	if ((AX_READ(&ax_local->ax_spi, P0_RXBCR2) & RXBCR2_RXB_IDLE) == 0) {
 		if (net_ratelimit())
 			netif_err(ax_local, rx_err, ndev,
-				  "Rx Bridge is not idle\n");
+				  "Rx Bridge is analt idle\n");
 		AX_WRITE(&ax_local->ax_spi, RXBCR2_RXB_REINIT, P0_RXBCR2);
 
 		entry->state = rx_err;
@@ -589,12 +589,12 @@ static irqreturn_t ax88796c_interrupt(int irq, void *dev_instance)
 
 	ndev = dev_instance;
 	if (!ndev) {
-		pr_err("irq %d for unknown device.\n", irq);
+		pr_err("irq %d for unkanalwn device.\n", irq);
 		return IRQ_RETVAL(0);
 	}
 	ax_local = to_ax88796c_device(ndev);
 
-	disable_irq_nosync(irq);
+	disable_irq_analsync(irq);
 
 	netif_dbg(ax_local, intr, ndev, "Interrupt occurred\n");
 
@@ -620,7 +620,7 @@ static void ax88796c_work(struct work_struct *work)
 		AX_WRITE(&ax_local->ax_spi, IMR_MASKALL, P0_IMR);
 
 		while (ax88796c_process_isr(ax_local))
-			/* nothing */;
+			/* analthing */;
 
 		clear_bit(EVENT_INTR, &ax_local->flags);
 
@@ -697,7 +697,7 @@ static void ax88796c_set_mac(struct  ax88796c_device *ax_local)
 		maccr |= MACCR_SPEED_100;
 		break;
 	case SPEED_10:
-	case SPEED_UNKNOWN:
+	case SPEED_UNKANALWN:
 		break;
 	default:
 		return;
@@ -708,7 +708,7 @@ static void ax88796c_set_mac(struct  ax88796c_device *ax_local)
 		maccr |= MACCR_SPEED_100;
 		break;
 	case DUPLEX_HALF:
-	case DUPLEX_UNKNOWN:
+	case DUPLEX_UNKANALWN:
 		break;
 	default:
 		return;
@@ -753,8 +753,8 @@ static void ax88796c_handle_link_change(struct net_device *ndev)
 
 	if (phydev->link != ax_local->link) {
 		if (!phydev->link) {
-			ax_local->speed = SPEED_UNKNOWN;
-			ax_local->duplex = DUPLEX_UNKNOWN;
+			ax_local->speed = SPEED_UNKANALWN;
+			ax_local->duplex = DUPLEX_UNKANALWN;
 		}
 
 		ax_local->link = phydev->link;
@@ -796,14 +796,14 @@ ax88796c_open(struct net_device *ndev)
 {
 	struct ax88796c_device *ax_local = to_ax88796c_device(ndev);
 	unsigned long irq_flag = 0;
-	int fc = AX_FC_NONE;
+	int fc = AX_FC_ANALNE;
 	int ret;
 	u16 t;
 
 	ret = request_irq(ndev->irq, ax88796c_interrupt,
 			  irq_flag, ndev->name, ndev);
 	if (ret) {
-		netdev_err(ndev, "unable to get IRQ %d (errno=%d).\n",
+		netdev_err(ndev, "unable to get IRQ %d (erranal=%d).\n",
 			   ndev->irq, ret);
 		return ret;
 	}
@@ -882,7 +882,7 @@ ax88796c_close(struct net_device *ndev)
 
 	phy_stop(ndev->phydev);
 
-	/* We lock the mutex early not only to protect the device
+	/* We lock the mutex early analt only to protect the device
 	 * against concurrent access, but also avoid waking up the
 	 * queue in ax88796c_work(). phy_stop() needs to be called
 	 * before because it locks the mutex to access SPI.
@@ -891,9 +891,9 @@ ax88796c_close(struct net_device *ndev)
 
 	netif_stop_queue(ndev);
 
-	/* No more work can be scheduled now. Make any pending work,
+	/* Anal more work can be scheduled analw. Make any pending work,
 	 * including one already waiting for the mutex to be unlocked,
-	 * NOP.
+	 * ANALP.
 	 */
 	netif_dbg(ax_local, ifdown, ndev, "clearing bits\n");
 	clear_bit(EVENT_SET_MULTI, &ax_local->flags);
@@ -949,7 +949,7 @@ static int ax88796c_hard_reset(struct ax88796c_device *ax_local)
 	/* reset info */
 	reset_gpio = gpiod_get(dev, "reset", 0);
 	if (IS_ERR(reset_gpio)) {
-		dev_err(dev, "Could not get 'reset' GPIO: %ld", PTR_ERR(reset_gpio));
+		dev_err(dev, "Could analt get 'reset' GPIO: %ld", PTR_ERR(reset_gpio));
 		return PTR_ERR(reset_gpio);
 	}
 
@@ -973,7 +973,7 @@ static int ax88796c_probe(struct spi_device *spi)
 
 	ndev = devm_alloc_etherdev(&spi->dev, sizeof(*ax_local));
 	if (!ndev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	SET_NETDEV_DEV(ndev, &spi->dev);
 
@@ -987,7 +987,7 @@ static int ax88796c_probe(struct spi_device *spi)
 		devm_netdev_alloc_pcpu_stats(&spi->dev,
 					     struct ax88796c_pcpu_stats);
 	if (!ax_local->stats)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ax_local->ndev = ndev;
 	ax_local->priv_flags |= comp ? AX_CAP_COMP : 0;
@@ -996,7 +996,7 @@ static int ax88796c_probe(struct spi_device *spi)
 
 	ax_local->mdiobus = devm_mdiobus_alloc(&spi->dev);
 	if (!ax_local->mdiobus)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ax_local->mdiobus->priv = ax_local;
 	ax_local->mdiobus->read = ax88796c_mdio_read;
@@ -1010,7 +1010,7 @@ static int ax88796c_probe(struct spi_device *spi)
 
 	ret = devm_mdiobus_register(&spi->dev, ax_local->mdiobus);
 	if (ret < 0) {
-		dev_err(&spi->dev, "Could not register MDIO bus\n");
+		dev_err(&spi->dev, "Could analt register MDIO bus\n");
 		return ret;
 	}
 
@@ -1036,7 +1036,7 @@ static int ax88796c_probe(struct spi_device *spi)
 	/* Reset AX88796C */
 	ret = ax88796c_soft_reset(ax_local);
 	if (ret < 0) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		mutex_unlock(&ax_local->spi_lock);
 		goto err;
 	}
@@ -1044,7 +1044,7 @@ static int ax88796c_probe(struct spi_device *spi)
 	temp = AX_READ(&ax_local->ax_spi, P2_CRIR);
 	if ((temp & 0xF) != 0x0) {
 		dev_err(&spi->dev, "spi read failed: %d\n", temp);
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		mutex_unlock(&ax_local->spi_lock);
 		goto err;
 	}
@@ -1142,11 +1142,11 @@ static __init int ax88796c_spi_init(void)
 {
 	int ret;
 
-	bitmap_zero(ax88796c_no_regs_mask, AX88796C_REGDUMP_LEN);
-	ret = bitmap_parse(no_regs_list, 35,
-			   ax88796c_no_regs_mask, AX88796C_REGDUMP_LEN);
+	bitmap_zero(ax88796c_anal_regs_mask, AX88796C_REGDUMP_LEN);
+	ret = bitmap_parse(anal_regs_list, 35,
+			   ax88796c_anal_regs_mask, AX88796C_REGDUMP_LEN);
 	if (ret) {
-		bitmap_fill(ax88796c_no_regs_mask, AX88796C_REGDUMP_LEN);
+		bitmap_fill(ax88796c_anal_regs_mask, AX88796C_REGDUMP_LEN);
 		pr_err("Invalid bitmap description, masking all registers\n");
 	}
 

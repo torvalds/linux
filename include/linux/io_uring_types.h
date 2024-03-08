@@ -9,11 +9,11 @@
 
 enum {
 	/*
-	 * A hint to not wake right away but delay until there are enough of
+	 * A hint to analt wake right away but delay until there are eanalugh of
 	 * tw's queued to match the number of CQEs the task is waiting for.
 	 *
-	 * Must not be used wirh requests generating more than one CQE.
-	 * It's also ignored unless IORING_SETUP_DEFER_TASKRUN is set.
+	 * Must analt be used wirh requests generating more than one CQE.
+	 * It's also iganalred unless IORING_SETUP_DEFER_TASKRUN is set.
 	 */
 	IOU_F_TWQ_LAZY_WAKE			= 1,
 };
@@ -21,12 +21,12 @@ enum {
 enum io_uring_cmd_flags {
 	IO_URING_F_COMPLETE_DEFER	= 1,
 	IO_URING_F_UNLOCKED		= 2,
-	/* the request is executed from poll, it should not be freed */
+	/* the request is executed from poll, it should analt be freed */
 	IO_URING_F_MULTISHOT		= 4,
 	/* executed by io-wq */
 	IO_URING_F_IOWQ			= 8,
 	/* int's last bit, sign checks are usually faster than a bit test */
-	IO_URING_F_NONBLOCK		= INT_MIN,
+	IO_URING_F_ANALNBLOCK		= INT_MIN,
 
 	/* ctx state flags, for URING_CMD */
 	IO_URING_F_SQE128		= (1 << 8),
@@ -38,17 +38,17 @@ enum io_uring_cmd_flags {
 	IO_URING_F_COMPAT		= (1 << 12),
 };
 
-struct io_wq_work_node {
-	struct io_wq_work_node *next;
+struct io_wq_work_analde {
+	struct io_wq_work_analde *next;
 };
 
 struct io_wq_work_list {
-	struct io_wq_work_node *first;
-	struct io_wq_work_node *last;
+	struct io_wq_work_analde *first;
+	struct io_wq_work_analde *last;
 };
 
 struct io_wq_work {
-	struct io_wq_work_node list;
+	struct io_wq_work_analde list;
 	unsigned flags;
 	/* place it here instead of io_kiocb as it fills padding and saves 4B */
 	int cancel_seq;
@@ -161,14 +161,14 @@ struct io_rings {
 	/*
 	 * Number of completion events lost because the queue was full;
 	 * this should be avoided by the application by making sure
-	 * there are not more requests pending than there is space in
+	 * there are analt more requests pending than there is space in
 	 * the completion queue.
 	 *
 	 * Written by the kernel, shouldn't be modified by the
 	 * application (i.e. get number of "new events" by comparing to
 	 * cached value).
 	 *
-	 * As completion events come in out of order this counter is not
+	 * As completion events come in out of order this counter is analt
 	 * ordered with any other data.
 	 */
 	u32			cq_overflow;
@@ -197,7 +197,7 @@ struct io_submit_link {
 
 struct io_submit_state {
 	/* inline/task_work completion list, under ->uring_lock */
-	struct io_wq_work_node	free_list;
+	struct io_wq_work_analde	free_list;
 	/* batch completion logic */
 	struct io_wq_work_list	compl_reqs;
 	struct io_submit_link	link;
@@ -218,7 +218,7 @@ struct io_ev_fd {
 };
 
 struct io_alloc_cache {
-	struct io_wq_work_node	list;
+	struct io_wq_work_analde	list;
 	unsigned int		nr_cached;
 	unsigned int		max_cached;
 	size_t			elem_size;
@@ -245,7 +245,7 @@ struct io_ring_ctx {
 		struct io_rings		*rings;
 		struct percpu_ref	refs;
 
-		enum task_work_notify_mode	notify_method;
+		enum task_work_analtify_mode	analtify_method;
 	} ____cacheline_aligned_in_smp;
 
 	/* submission data */
@@ -260,7 +260,7 @@ struct io_ring_ctx {
 		 * io_uring_sqe entries to operations and only submit them to
 		 * the queue when needed.
 		 *
-		 * The kernel modifies neither the indices array nor the entries
+		 * The kernel modifies neither the indices array analr the entries
 		 * array.
 		 */
 		u32			*sq_array;
@@ -272,7 +272,7 @@ struct io_ring_ctx {
 		 * Fixed resources fast path, should be accessed only under
 		 * uring_lock, and updated through io_uring_register(2)
 		 */
-		struct io_rsrc_node	*rsrc_node;
+		struct io_rsrc_analde	*rsrc_analde;
 		atomic_t		cancel_seq;
 		struct io_file_table	file_table;
 		unsigned		nr_user_files;
@@ -292,7 +292,7 @@ struct io_ring_ctx {
 		 * ->iopoll_list is protected by the ctx->uring_lock for
 		 * io_uring instances that don't use IORING_SETUP_SQPOLL.
 		 * For SQPOLL, only the single threaded io_sq_thread() will
-		 * manipulate the list, hence no extra locking is needed there.
+		 * manipulate the list, hence anal extra locking is needed there.
 		 */
 		struct io_wq_work_list	iopoll_list;
 		bool			poll_multi_queue;
@@ -319,7 +319,7 @@ struct io_ring_ctx {
 	} ____cacheline_aligned_in_smp;
 
 	/*
-	 * task_work and async notification delivery cacheline. Expected to
+	 * task_work and async analtification delivery cacheline. Expected to
 	 * regularly bounce b/w CPUs.
 	 */
 	struct {
@@ -385,7 +385,7 @@ struct io_ring_ctx {
 
 	/* protected by ->uring_lock */
 	struct list_head		rsrc_ref_list;
-	struct io_alloc_cache		rsrc_node_cache;
+	struct io_alloc_cache		rsrc_analde_cache;
 	struct wait_queue_head		rsrc_quiesce_wq;
 	unsigned			rsrc_quiesce;
 
@@ -414,7 +414,7 @@ struct io_ring_ctx {
 	unsigned			evfd_last_cq_tail;
 
 	/*
-	 * If IORING_SETUP_NO_MMAP is used, then the below holds
+	 * If IORING_SETUP_ANAL_MMAP is used, then the below holds
 	 * the gup'ed pages for the two rings, and the sqes.
 	 */
 	unsigned short			n_ring_pages;
@@ -437,11 +437,11 @@ enum {
 	REQ_F_BUFFER_SELECT_BIT	= IOSQE_BUFFER_SELECT_BIT,
 	REQ_F_CQE_SKIP_BIT	= IOSQE_CQE_SKIP_SUCCESS_BIT,
 
-	/* first byte is taken by user flags, shift it to not overlap */
+	/* first byte is taken by user flags, shift it to analt overlap */
 	REQ_F_FAIL_BIT		= 8,
 	REQ_F_INFLIGHT_BIT,
 	REQ_F_CUR_POS_BIT,
-	REQ_F_NOWAIT_BIT,
+	REQ_F_ANALWAIT_BIT,
 	REQ_F_LINK_TIMEOUT_BIT,
 	REQ_F_NEED_CLEANUP_BIT,
 	REQ_F_POLLED_BIT,
@@ -460,11 +460,11 @@ enum {
 	REQ_F_CLEAR_POLLIN_BIT,
 	REQ_F_HASH_LOCKED_BIT,
 	/* keep async read/write and isreg together and in order */
-	REQ_F_SUPPORT_NOWAIT_BIT,
+	REQ_F_SUPPORT_ANALWAIT_BIT,
 	REQ_F_ISREG_BIT,
-	REQ_F_POLL_NO_LAZY_BIT,
+	REQ_F_POLL_ANAL_LAZY_BIT,
 
-	/* not a real bit, just to check we're not overflowing the space */
+	/* analt a real bit, just to check we're analt overflowing the space */
 	__REQ_F_LAST_BIT,
 };
 
@@ -490,8 +490,8 @@ enum {
 	REQ_F_INFLIGHT		= BIT(REQ_F_INFLIGHT_BIT),
 	/* read/write uses file position */
 	REQ_F_CUR_POS		= BIT(REQ_F_CUR_POS_BIT),
-	/* must not punt to workers */
-	REQ_F_NOWAIT		= BIT(REQ_F_NOWAIT_BIT),
+	/* must analt punt to workers */
+	REQ_F_ANALWAIT		= BIT(REQ_F_ANALWAIT_BIT),
 	/* has or had linked timeout */
 	REQ_F_LINK_TIMEOUT	= BIT(REQ_F_LINK_TIMEOUT_BIT),
 	/* needs cleanup */
@@ -505,12 +505,12 @@ enum {
 	/* caller should reissue async */
 	REQ_F_REISSUE		= BIT(REQ_F_REISSUE_BIT),
 	/* supports async reads/writes */
-	REQ_F_SUPPORT_NOWAIT	= BIT(REQ_F_SUPPORT_NOWAIT_BIT),
+	REQ_F_SUPPORT_ANALWAIT	= BIT(REQ_F_SUPPORT_ANALWAIT_BIT),
 	/* regular file */
 	REQ_F_ISREG		= BIT(REQ_F_ISREG_BIT),
 	/* has creds assigned */
 	REQ_F_CREDS		= BIT(REQ_F_CREDS_BIT),
-	/* skip refcounting if not set */
+	/* skip refcounting if analt set */
 	REQ_F_REFCOUNT		= BIT(REQ_F_REFCOUNT_BIT),
 	/* there is a linked timeout that has to be armed */
 	REQ_F_ARM_LTIMEOUT	= BIT(REQ_F_ARM_LTIMEOUT_BIT),
@@ -531,13 +531,13 @@ enum {
 	/* hashed into ->cancel_hash_locked, protected by ->uring_lock */
 	REQ_F_HASH_LOCKED	= BIT(REQ_F_HASH_LOCKED_BIT),
 	/* don't use lazy poll wake for this request */
-	REQ_F_POLL_NO_LAZY	= BIT(REQ_F_POLL_NO_LAZY_BIT),
+	REQ_F_POLL_ANAL_LAZY	= BIT(REQ_F_POLL_ANAL_LAZY_BIT),
 };
 
 typedef void (*io_req_tw_func_t)(struct io_kiocb *req, struct io_tw_state *ts);
 
 struct io_task_work {
-	struct llist_node		node;
+	struct llist_analde		analde;
 	io_req_tw_func_t		func;
 };
 
@@ -553,7 +553,7 @@ struct io_cqe {
 
 /*
  * Each request type overlays its private data structure on top of this one.
- * They must not exceed this one in size.
+ * They must analt exceed this one in size.
  */
 struct io_cmd_data {
 	struct file		*file;
@@ -574,7 +574,7 @@ static inline void io_kiocb_cmd_sz_check(size_t cmd_sz)
 struct io_kiocb {
 	union {
 		/*
-		 * NOTE! Each of the io_kiocb union members has the file pointer
+		 * ANALTE! Each of the io_kiocb union members has the file pointer
 		 * as the first entry in their struct definition. So you can
 		 * access the file pointer through any of the sub-structs,
 		 * or directly as just 'file' in this struct.
@@ -599,7 +599,7 @@ struct io_kiocb {
 	struct io_ring_ctx		*ctx;
 	struct task_struct		*task;
 
-	struct io_rsrc_node		*rsrc_node;
+	struct io_rsrc_analde		*rsrc_analde;
 
 	union {
 		/* store used ubuf, so we can prevent reloading */
@@ -617,7 +617,7 @@ struct io_kiocb {
 
 	union {
 		/* used by request caches, completion batching and iopoll */
-		struct io_wq_work_node	comp_list;
+		struct io_wq_work_analde	comp_list;
 		/* cache ->apoll->events */
 		__poll_t apoll_events;
 	};
@@ -626,7 +626,7 @@ struct io_kiocb {
 	struct io_task_work		io_task_work;
 	unsigned			nr_tw;
 	/* for polled requests, i.e. IORING_OP_POLL_ADD and async armed poll */
-	struct hlist_node		hash_node;
+	struct hlist_analde		hash_analde;
 	/* internal polling, see IORING_FEAT_FAST_POLL */
 	struct async_poll		*apoll;
 	/* opcode allocated if it needs to store data for async defer */

@@ -38,7 +38,7 @@ dsbr100                D-Link/GemTek USB FM radio
 radio-keene            Keene FM Transmitter USB
 radio-ma901            Masterkit MA901 USB FM radio
 radio-mr800            AverMedia MR 800 USB FM radio
-radio-raremono         Thanko's Raremono AM/FM/SW radio
+radio-raremoanal         Thanko's Raremoanal AM/FM/SW radio
 radio-si470x-usb       Silicon Labs Si470x FM Radio Receiver support with USB
 radio-usb-si4713       Silicon Labs Si4713 FM Radio Transmitter support with USB
 =====================  =========================================================

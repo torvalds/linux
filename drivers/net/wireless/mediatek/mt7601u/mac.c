@@ -96,7 +96,7 @@ mt76_mac_fill_tx_status(struct mt7601u_dev *dev, struct ieee80211_tx_info *info,
 			       IEEE80211_TX_STAT_AMPDU;
 
 	if (!st->ack_req)
-		info->flags |= IEEE80211_TX_CTL_NO_ACK;
+		info->flags |= IEEE80211_TX_CTL_ANAL_ACK;
 	else if (st->success)
 		info->flags |= IEEE80211_TX_STAT_ACK;
 }
@@ -191,7 +191,7 @@ void mt76_send_tx_status(struct mt7601u_dev *dev, struct mt76_tx_status *stat)
 	mt76_mac_fill_tx_status(dev, &info, stat);
 
 	spin_lock_bh(&dev->mac_lock);
-	ieee80211_tx_status_noskb(dev->hw, sta, &info);
+	ieee80211_tx_status_analskb(dev->hw, sta, &info);
 	spin_unlock_bh(&dev->mac_lock);
 
 	rcu_read_unlock();
@@ -201,7 +201,7 @@ void mt7601u_mac_set_protection(struct mt7601u_dev *dev, bool legacy_prot,
 				int ht_mode)
 {
 	int mode = ht_mode & IEEE80211_HT_OP_MODE_PROTECTION;
-	bool non_gf = !!(ht_mode & IEEE80211_HT_OP_MODE_NON_GF_STA_PRSNT);
+	bool analn_gf = !!(ht_mode & IEEE80211_HT_OP_MODE_ANALN_GF_STA_PRSNT);
 	u32 prot[6];
 	bool ht_rts[4] = {};
 	int i;
@@ -229,10 +229,10 @@ void mt7601u_mac_set_protection(struct mt7601u_dev *dev, bool legacy_prot,
 	}
 
 	switch (mode) {
-	case IEEE80211_HT_OP_MODE_PROTECTION_NONE:
+	case IEEE80211_HT_OP_MODE_PROTECTION_ANALNE:
 		break;
 
-	case IEEE80211_HT_OP_MODE_PROTECTION_NONMEMBER:
+	case IEEE80211_HT_OP_MODE_PROTECTION_ANALNMEMBER:
 		ht_rts[0] = ht_rts[1] = ht_rts[2] = ht_rts[3] = true;
 		break;
 
@@ -240,12 +240,12 @@ void mt7601u_mac_set_protection(struct mt7601u_dev *dev, bool legacy_prot,
 		ht_rts[1] = ht_rts[3] = true;
 		break;
 
-	case IEEE80211_HT_OP_MODE_PROTECTION_NONHT_MIXED:
+	case IEEE80211_HT_OP_MODE_PROTECTION_ANALNHT_MIXED:
 		ht_rts[0] = ht_rts[1] = ht_rts[2] = ht_rts[3] = true;
 		break;
 	}
 
-	if (non_gf)
+	if (analn_gf)
 		ht_rts[2] = ht_rts[3] = true;
 
 	for (i = 0; i < 4; i++)
@@ -317,7 +317,7 @@ void mt7601u_mac_work(struct work_struct *work)
 	u32 sum, n;
 	int i, j, k;
 
-	/* Note: using MCU_RANDOM_READ is actually slower then reading all the
+	/* Analte: using MCU_RANDOM_READ is actually slower then reading all the
 	 *	 registers by hand.  MCU takes ca. 20ms to complete read of 24
 	 *	 registers while reading them one by one will takes roughly
 	 *	 24*200us =~ 5ms.
@@ -478,7 +478,7 @@ u32 mt76_mac_process_rx(struct mt7601u_dev *dev, struct sk_buff *skb,
 		status->flag |= RX_FLAG_IV_STRIPPED;
 	}
 	/* let mac80211 take care of PN validation since apparently
-	 * the hardware does not support it
+	 * the hardware does analt support it
 	 */
 	if (rxwi->rxinfo & cpu_to_le32(MT_RXINFO_PN_LEN))
 		status->flag &= ~RX_FLAG_IV_STRIPPED;
@@ -506,10 +506,10 @@ mt76_mac_get_key_info(struct ieee80211_key_conf *key, u8 *key_data)
 {
 	memset(key_data, 0, 32);
 	if (!key)
-		return MT_CIPHER_NONE;
+		return MT_CIPHER_ANALNE;
 
 	if (key->keylen > 32)
-		return MT_CIPHER_NONE;
+		return MT_CIPHER_ANALNE;
 
 	memcpy(key_data, key->key, key->keylen);
 
@@ -523,7 +523,7 @@ mt76_mac_get_key_info(struct ieee80211_key_conf *key, u8 *key_data)
 	case WLAN_CIPHER_SUITE_CCMP:
 		return MT_CIPHER_AES_CCMP;
 	default:
-		return MT_CIPHER_NONE;
+		return MT_CIPHER_ANALNE;
 	}
 }
 
@@ -536,7 +536,7 @@ int mt76_mac_wcid_set_key(struct mt7601u_dev *dev, u8 idx,
 	u32 val;
 
 	cipher = mt76_mac_get_key_info(key, key_data);
-	if (cipher == MT_CIPHER_NONE && key)
+	if (cipher == MT_CIPHER_ANALNE && key)
 		return -EINVAL;
 
 	trace_set_key(dev, idx);
@@ -547,7 +547,7 @@ int mt76_mac_wcid_set_key(struct mt7601u_dev *dev, u8 idx,
 	if (key) {
 		iv_data[3] = key->keyidx << 6;
 		if (cipher >= MT_CIPHER_TKIP) {
-			/* Note: start with 1 to comply with spec,
+			/* Analte: start with 1 to comply with spec,
 			 *	 (see comment on common/cmm_wpa.c:4291).
 			 */
 			iv_data[0] |= 1;
@@ -576,7 +576,7 @@ int mt76_mac_shared_key_setup(struct mt7601u_dev *dev, u8 vif_idx, u8 key_idx,
 	u32 val;
 
 	cipher = mt76_mac_get_key_info(key, key_data);
-	if (cipher == MT_CIPHER_NONE && key)
+	if (cipher == MT_CIPHER_ANALNE && key)
 		return -EINVAL;
 
 	trace_set_shared_key(dev, vif_idx, key_idx);

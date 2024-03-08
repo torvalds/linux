@@ -3,9 +3,9 @@
 #define __ASM_ARM_CACHETYPE_H
 
 #define CACHEID_VIVT			(1 << 0)
-#define CACHEID_VIPT_NONALIASING	(1 << 1)
+#define CACHEID_VIPT_ANALNALIASING	(1 << 1)
 #define CACHEID_VIPT_ALIASING		(1 << 2)
-#define CACHEID_VIPT			(CACHEID_VIPT_ALIASING|CACHEID_VIPT_NONALIASING)
+#define CACHEID_VIPT			(CACHEID_VIPT_ALIASING|CACHEID_VIPT_ANALNALIASING)
 #define CACHEID_ASID_TAGGED		(1 << 3)
 #define CACHEID_VIPT_I_ALIASING		(1 << 4)
 #define CACHEID_PIPT			(1 << 5)
@@ -14,7 +14,7 @@ extern unsigned int cacheid;
 
 #define cache_is_vivt()			cacheid_is(CACHEID_VIVT)
 #define cache_is_vipt()			cacheid_is(CACHEID_VIPT)
-#define cache_is_vipt_nonaliasing()	cacheid_is(CACHEID_VIPT_NONALIASING)
+#define cache_is_vipt_analnaliasing()	cacheid_is(CACHEID_VIPT_ANALNALIASING)
 #define cache_is_vipt_aliasing()	cacheid_is(CACHEID_VIPT_ALIASING)
 #define icache_is_vivt_asid_tagged()	cacheid_is(CACHEID_ASID_TAGGED)
 #define icache_is_vipt_aliasing()	cacheid_is(CACHEID_VIPT_I_ALIASING)
@@ -27,7 +27,7 @@ extern unsigned int cacheid;
  * - v7+ VIPT never aliases on D-side
  */
 #if __LINUX_ARM_ARCH__ >= 7
-#define __CACHEID_ARCH_MIN	(CACHEID_VIPT_NONALIASING |\
+#define __CACHEID_ARCH_MIN	(CACHEID_VIPT_ANALNALIASING |\
 				 CACHEID_ASID_TAGGED |\
 				 CACHEID_VIPT_I_ALIASING |\
 				 CACHEID_PIPT)

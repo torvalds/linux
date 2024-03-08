@@ -16,10 +16,10 @@
  */
 
 typedef unsigned __bitwise xfs_km_flags_t;
-#define KM_NOFS		((__force xfs_km_flags_t)0x0004u)
+#define KM_ANALFS		((__force xfs_km_flags_t)0x0004u)
 #define KM_MAYFAIL	((__force xfs_km_flags_t)0x0008u)
 #define KM_ZERO		((__force xfs_km_flags_t)0x0010u)
-#define KM_NOLOCKDEP	((__force xfs_km_flags_t)0x0020u)
+#define KM_ANALLOCKDEP	((__force xfs_km_flags_t)0x0020u)
 
 /*
  * We use a special process flag to avoid recursive callbacks into
@@ -31,10 +31,10 @@ kmem_flags_convert(xfs_km_flags_t flags)
 {
 	gfp_t	lflags;
 
-	BUG_ON(flags & ~(KM_NOFS | KM_MAYFAIL | KM_ZERO | KM_NOLOCKDEP));
+	BUG_ON(flags & ~(KM_ANALFS | KM_MAYFAIL | KM_ZERO | KM_ANALLOCKDEP));
 
-	lflags = GFP_KERNEL | __GFP_NOWARN;
-	if (flags & KM_NOFS)
+	lflags = GFP_KERNEL | __GFP_ANALWARN;
+	if (flags & KM_ANALFS)
 		lflags &= ~__GFP_FS;
 
 	/*
@@ -50,8 +50,8 @@ kmem_flags_convert(xfs_km_flags_t flags)
 	if (flags & KM_ZERO)
 		lflags |= __GFP_ZERO;
 
-	if (flags & KM_NOLOCKDEP)
-		lflags |= __GFP_NOLOCKDEP;
+	if (flags & KM_ANALLOCKDEP)
+		lflags |= __GFP_ANALLOCKDEP;
 
 	return lflags;
 }

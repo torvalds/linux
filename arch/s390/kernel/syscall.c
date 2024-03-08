@@ -8,11 +8,11 @@
  *  Derived from "arch/i386/kernel/sys_i386.c"
  *
  *  This file contains various random system calls that
- *  have a non-standard calling sequence on the Linux/s390
+ *  have a analn-standard calling sequence on the Linux/s390
  *  platform.
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
 #include <linux/fs.h>
@@ -105,7 +105,7 @@ SYSCALL_DEFINE1(s390_personality, unsigned int, personality)
 
 SYSCALL_DEFINE0(ni_syscall)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 static void do_syscall(struct pt_regs *regs)
@@ -137,7 +137,7 @@ static void do_syscall(struct pt_regs *regs)
 
 	if (unlikely(test_and_clear_pt_regs_flag(regs, PIF_SYSCALL_RET_SET)))
 		goto out;
-	regs->gprs[2] = -ENOSYS;
+	regs->gprs[2] = -EANALSYS;
 	if (likely(nr >= NR_syscalls))
 		goto out;
 	do {
@@ -147,7 +147,7 @@ out:
 	syscall_exit_to_user_mode_work(regs);
 }
 
-void noinstr __do_syscall(struct pt_regs *regs, int per_trap)
+void analinstr __do_syscall(struct pt_regs *regs, int per_trap)
 {
 	add_random_kstack_offset();
 	enter_from_user_mode(regs);

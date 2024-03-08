@@ -32,7 +32,7 @@ enum {
 };
 
 enum wl18xx_radar_types {
-	RADAR_TYPE_NONE,
+	RADAR_TYPE_ANALNE,
 	RADAR_TYPE_REGULAR,
 	RADAR_TYPE_CHIRP
 };

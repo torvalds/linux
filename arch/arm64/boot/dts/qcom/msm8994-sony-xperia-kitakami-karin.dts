@@ -41,6 +41,6 @@
 	regulator-max-microvolt = <1037500>;
 };
 
-/delete-node/ &pm8994_l32;
+/delete-analde/ &pm8994_l32;
 /* Z4 tablets use a different touchscreen. */
-/delete-node/ &touchscreen;
+/delete-analde/ &touchscreen;

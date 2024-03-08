@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/pinctrl/qcom,msm8226-pinctrl.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Qualcomm Technologies, Inc. MSM8226 TLMM block
+title: Qualcomm Techanallogies, Inc. MSM8226 TLMM block
 
 maintainers:
   - Bjorn Andersson <bjorn.andersson@linaro.org>
@@ -39,8 +39,8 @@ $defs:
   qcom-msm8226-tlmm-state:
     type: object
     description:
-      Pinctrl node's client devices use subnodes for desired pin configuration.
-      Client device subnodes use below standard properties.
+      Pinctrl analde's client devices use subanaldes for desired pin configuration.
+      Client device subanaldes use below standard properties.
     $ref: qcom,tlmm-common.yaml#/$defs/qcom-tlmm-state
     unevaluatedProperties: false
 
@@ -48,7 +48,7 @@ $defs:
       pins:
         description:
           List of gpio pins affected by the properties specified in this
-          subnode.
+          subanalde.
         items:
           oneOf:
             - pattern: "^gpio([0-9]|[1-9][0-9]|10[0-9]|11[0-6])$"

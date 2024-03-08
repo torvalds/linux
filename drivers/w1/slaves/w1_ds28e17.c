@@ -41,7 +41,7 @@ MODULE_PARM_DESC(stretch, "Default I2C stretch value to be set when a DS28E17 is
 
 /* DS28E17 device command codes. */
 #define W1_F19_WRITE_DATA_WITH_STOP      0x4B
-#define W1_F19_WRITE_DATA_NO_STOP        0x5A
+#define W1_F19_WRITE_DATA_ANAL_STOP        0x5A
 #define W1_F19_WRITE_DATA_ONLY           0x69
 #define W1_F19_WRITE_DATA_ONLY_WITH_STOP 0x78
 #define W1_F19_READ_DATA_WITH_STOP       0x87
@@ -101,14 +101,14 @@ static int w1_f19_i2c_busy_wait(struct w1_slave *sl, size_t count)
 		timebases[data->speed] * (data->stretch) * count
 		+ W1_F19_BUSY_GRATUITY);
 
-	/* Now continusly check the busy flag sent by the DS28E17. */
+	/* Analw continusly check the busy flag sent by the DS28E17. */
 	checks = W1_F19_BUSY_CHECKS;
 	while ((checks--) > 0) {
 		/* Return success if the busy flag is cleared. */
 		if (w1_touch_bit(sl->master, 1) == 0)
 			return 0;
 
-		/* Wait one non-streched byte timeslot. */
+		/* Wait one analn-streched byte timeslot. */
 		udelay(timebases[data->speed]);
 	}
 
@@ -125,10 +125,10 @@ static size_t w1_f19_error(struct w1_slave *sl, u8 w1_buf[])
 	if (w1_buf[0] & W1_F19_STATUS_CRC)
 		dev_warn(&sl->dev, "crc16 mismatch\n");
 	if (w1_buf[0] & W1_F19_STATUS_ADDRESS)
-		dev_warn(&sl->dev, "i2c device not responding\n");
+		dev_warn(&sl->dev, "i2c device analt responding\n");
 	if ((w1_buf[0] & (W1_F19_STATUS_CRC | W1_F19_STATUS_ADDRESS)) == 0
 			&& w1_buf[1] != 0) {
-		dev_warn(&sl->dev, "i2c short write, %d bytes not acknowledged\n",
+		dev_warn(&sl->dev, "i2c short write, %d bytes analt ackanalwledged\n",
 			w1_buf[1]);
 	}
 
@@ -197,7 +197,7 @@ static int w1_f19_i2c_write(struct w1_slave *sl, u16 i2c_address,
 
 	/* Check input. */
 	if (count == 0)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* Check whether we need multiple commands. */
 	if (count <= W1_F19_WRITE_DATA_LIMIT) {
@@ -208,7 +208,7 @@ static int w1_f19_i2c_write(struct w1_slave *sl, u16 i2c_address,
 
 		/* Send all data to DS28E17. */
 		command[0] = (stop ? W1_F19_WRITE_DATA_WITH_STOP
-			: W1_F19_WRITE_DATA_NO_STOP);
+			: W1_F19_WRITE_DATA_ANAL_STOP);
 		command[1] = i2c_address << 1;
 		result = __w1_f19_i2c_write(sl, command, 2, buffer, count);
 	} else {
@@ -216,7 +216,7 @@ static int w1_f19_i2c_write(struct w1_slave *sl, u16 i2c_address,
 
 		/* Send first chunk to DS28E17. */
 		p = buffer;
-		command[0] = W1_F19_WRITE_DATA_NO_STOP;
+		command[0] = W1_F19_WRITE_DATA_ANAL_STOP;
 		command[1] = i2c_address << 1;
 		result = __w1_f19_i2c_write(sl, command, 2, p,
 			W1_F19_WRITE_DATA_LIMIT);
@@ -268,7 +268,7 @@ static int w1_f19_i2c_read(struct w1_slave *sl, u16 i2c_address,
 
 	/* Check input. */
 	if (count == 0)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* Send command to DS28E17. */
 	w1_buf[0] = W1_F19_READ_DATA_WITH_STOP;
@@ -307,7 +307,7 @@ static int w1_f19_i2c_write_read(struct w1_slave *sl, u16 i2c_address,
 
 	/* Check input. */
 	if (wcount == 0 || rcount == 0)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* Send command and I2C data to DS28E17. */
 	w1_buf[0] = W1_F19_WRITE_READ_DATA_WITH_STOP;
@@ -385,8 +385,8 @@ static int w1_f19_i2c_master_transfer(struct i2c_adapter *adapter,
 			/*
 			 * Check if we should interpret the read data
 			 * as a length byte. The DS28E17 unfortunately
-			 * has no read without stop, so we can just do
-			 * another simple read in that case.
+			 * has anal read without stop, so we can just do
+			 * aanalther simple read in that case.
 			 */
 			if (msgs[i+1].flags & I2C_M_RECV_LEN) {
 				result = w1_f19_i2c_read(sl, msgs[i+1].addr,
@@ -411,8 +411,8 @@ static int w1_f19_i2c_master_transfer(struct i2c_adapter *adapter,
 			/*
 			 * Check if we should interpret the read data
 			 * as a length byte. The DS28E17 unfortunately
-			 * has no read without stop, so we can just do
-			 * another simple read in that case.
+			 * has anal read without stop, so we can just do
+			 * aanalther simple read in that case.
 			 */
 			if (msgs[i].flags & I2C_M_RECV_LEN) {
 				result = w1_f19_i2c_read(sl,
@@ -446,7 +446,7 @@ static int w1_f19_i2c_master_transfer(struct i2c_adapter *adapter,
 
 		/* Are there still messages to send/receive? */
 		if (i < num) {
-			/* Yes. Resume to same DS28E17. */
+			/* Anal. Resume to same DS28E17. */
 			if (w1_reset_resume_command(sl->master)) {
 				i = -EIO;
 				goto error;
@@ -469,9 +469,9 @@ static u32 w1_f19_i2c_functionality(struct i2c_adapter *adapter)
 	/*
 	 * Plain I2C functions only.
 	 * SMBus is emulated by the kernel's I2C layer.
-	 * No "I2C_FUNC_SMBUS_QUICK"
-	 * No "I2C_FUNC_SMBUS_READ_BLOCK_DATA"
-	 * No "I2C_FUNC_SMBUS_BLOCK_PROC_CALL"
+	 * Anal "I2C_FUNC_SMBUS_QUICK"
+	 * Anal "I2C_FUNC_SMBUS_READ_BLOCK_DATA"
+	 * Anal "I2C_FUNC_SMBUS_BLOCK_PROC_CALL"
 	 */
 	return I2C_FUNC_I2C |
 		I2C_FUNC_SMBUS_BYTE |
@@ -685,7 +685,7 @@ static int w1_f19_add_slave(struct w1_slave *sl)
 	/* Allocate memory for slave specific data. */
 	data = devm_kzalloc(&sl->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 	sl->family_data = data;
 
 	/* Setup default I2C speed on slave. */
@@ -702,7 +702,7 @@ static int w1_f19_add_slave(struct w1_slave *sl)
 	default:
 		/*
 		 * A i2c_speed module parameter of anything else
-		 * than 100, 400, 900 means not to touch the
+		 * than 100, 400, 900 means analt to touch the
 		 * speed of the DS28E17.
 		 * We assume 400kBaud, the power-on value.
 		 */

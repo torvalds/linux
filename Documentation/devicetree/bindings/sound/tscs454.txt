@@ -10,7 +10,7 @@ Required Properties:
 
 	- clocks:	phandle of the clock that provides the codec sysclk
 
-	Note: If clock is not provided then bit clock is assumed
+	Analte: If clock is analt provided then bit clock is assumed
 
 Example:
 

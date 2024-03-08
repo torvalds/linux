@@ -2,8 +2,8 @@
 /* SF16-FMR2 and SF16-FMD2 radio driver for Linux
  * Copyright (c) 2011 Ondrej Zary
  *
- * Original driver was (c) 2000-2002 Ziglio Frediano, freddy77@angelfire.com
- * but almost nothing remained here after conversion to generic TEA575x
+ * Original driver was (c) 2000-2002 Ziglio Frediaanal, freddy77@angelfire.com
+ * but almost analthing remained here after conversion to generic TEA575x
  * implementation
  */
 
@@ -105,7 +105,7 @@ static const struct snd_tea575x_ops fmr2_tea_ops = {
 #define TC9154A_ATT_MIN_4DB	(1 << 9)
 #define TC9154A_ATT_MIN_6DB	(1 << 10)
 #define TC9154A_ATT_MIN_8DB	(1 << 11)
-/* bit 12 is ignored */
+/* bit 12 is iganalred */
 #define TC9154A_CHANNEL_LEFT	(1 << 13)
 #define TC9154A_CHANNEL_RIGHT	(1 << 14)
 /* bits 15, 16, 17 must be 0 */
@@ -226,7 +226,7 @@ static int fmr2_probe(struct fmr2 *fmr2, struct device *pdev, int io)
 	dev_set_drvdata(pdev, fmr2);
 	err = v4l2_device_register(pdev, &fmr2->v4l2_dev);
 	if (err < 0) {
-		v4l2_err(&fmr2->v4l2_dev, "Could not register v4l2_device\n");
+		v4l2_err(&fmr2->v4l2_dev, "Could analt register v4l2_device\n");
 		release_region(fmr2->io, 2);
 		return err;
 	}
@@ -242,7 +242,7 @@ static int fmr2_probe(struct fmr2 *fmr2, struct device *pdev, int io)
 	if (snd_tea575x_init(&fmr2->tea, THIS_MODULE)) {
 		printk(KERN_ERR "radio-sf16fmr2: Unable to detect TEA575x tuner\n");
 		release_region(fmr2->io, 2);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	printk(KERN_INFO "radio-sf16fmr2: %s radio card at 0x%x.\n",
@@ -271,7 +271,7 @@ static int fmr2_pnp_probe(struct pnp_dev *pdev, const struct pnp_device_id *id)
 	int ret;
 	struct fmr2 *fmr2 = kzalloc(sizeof(*fmr2), GFP_KERNEL);
 	if (!fmr2)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fmr2->is_fmd2 = true;
 	ret = fmr2_probe(fmr2, &pdev->dev, pnp_port_start(pdev, 0));

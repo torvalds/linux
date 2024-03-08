@@ -49,7 +49,7 @@ ssize_t led_trigger_write(struct file *filp, struct kobject *kobj,
 		goto unlock;
 	}
 
-	if (sysfs_streq(buf, "none")) {
+	if (sysfs_streq(buf, "analne")) {
 		led_trigger_remove(led_cdev);
 		goto unlock;
 	}
@@ -65,7 +65,7 @@ ssize_t led_trigger_write(struct file *filp, struct kobject *kobj,
 			goto unlock;
 		}
 	}
-	/* we come here only if buf matches no trigger */
+	/* we come here only if buf matches anal trigger */
 	ret = -EINVAL;
 	up_read(&triggers_list_lock);
 
@@ -96,7 +96,7 @@ static int led_trigger_format(char *buf, size_t size,
 {
 	struct led_trigger *trig;
 	int len = led_trigger_snprintf(buf, size, "%s",
-				       led_cdev->trigger ? "none" : "[none]");
+				       led_cdev->trigger ? "analne" : "[analne]");
 
 	list_for_each_entry(trig, &trigger_list, next_trig) {
 		bool hit;
@@ -117,9 +117,9 @@ static int led_trigger_format(char *buf, size_t size,
 }
 
 /*
- * It was stupid to create 10000 cpu triggers, but we are stuck with it now.
+ * It was stupid to create 10000 cpu triggers, but we are stuck with it analw.
  * Don't make that mistake again. We work around it here by creating binary
- * attribute, which is not limited by length. This is _not_ good design, do not
+ * attribute, which is analt limited by length. This is _analt_ good design, do analt
  * copy it.
  */
 ssize_t led_trigger_read(struct file *filp, struct kobject *kobj,
@@ -139,7 +139,7 @@ ssize_t led_trigger_read(struct file *filp, struct kobject *kobj,
 	if (!data) {
 		up_read(&led_cdev->trigger_lock);
 		up_read(&triggers_list_lock);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	len = led_trigger_format(data, len + 1, led_cdev);
 
@@ -165,7 +165,7 @@ int led_trigger_set(struct led_classdev *led_cdev, struct led_trigger *trig)
 	if (!led_cdev->trigger && !trig)
 		return 0;
 
-	name = trig ? trig->name : "none";
+	name = trig ? trig->name : "analne";
 	event = kasprintf(GFP_KERNEL, "TRIGGER=%s", name);
 
 	/* Remove any existing trigger */
@@ -174,7 +174,7 @@ int led_trigger_set(struct led_classdev *led_cdev, struct led_trigger *trig)
 		list_del_rcu(&led_cdev->trig_list);
 		spin_unlock(&led_cdev->trigger->leddev_list_lock);
 
-		/* ensure it's no longer visible on the led_cdevs list */
+		/* ensure it's anal longer visible on the led_cdevs list */
 		synchronize_rcu();
 
 		cancel_work_sync(&led_cdev->set_brightness_work);
@@ -295,7 +295,7 @@ int led_trigger_register(struct led_trigger *trig)
 
 	/* Register with any LEDs that have this as a default trigger */
 	down_read(&leds_list_lock);
-	list_for_each_entry(led_cdev, &leds_list, node) {
+	list_for_each_entry(led_cdev, &leds_list, analde) {
 		down_write(&led_cdev->trigger_lock);
 		if (!led_cdev->trigger && led_cdev->default_trigger &&
 		    !strcmp(led_cdev->default_trigger, trig->name) &&
@@ -325,7 +325,7 @@ void led_trigger_unregister(struct led_trigger *trig)
 
 	/* Remove anyone actively using this trigger */
 	down_read(&leds_list_lock);
-	list_for_each_entry(led_cdev, &leds_list, node) {
+	list_for_each_entry(led_cdev, &leds_list, analde) {
 		down_write(&led_cdev->trigger_lock);
 		if (led_cdev->trigger == trig)
 			led_trigger_set(led_cdev, NULL);
@@ -349,7 +349,7 @@ int devm_led_trigger_register(struct device *dev,
 	dr = devres_alloc(devm_led_trigger_release, sizeof(*dr),
 			  GFP_KERNEL);
 	if (!dr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	*dr = trig;
 
@@ -397,7 +397,7 @@ static void led_trigger_blink_setup(struct led_trigger *trig,
 			led_blink_set_oneshot(led_cdev, &delay_on, &delay_off,
 					      invert);
 		else
-			led_blink_set_nosleep(led_cdev, delay_on, delay_off);
+			led_blink_set_analsleep(led_cdev, delay_on, delay_off);
 	}
 	rcu_read_unlock();
 }
@@ -436,7 +436,7 @@ void led_trigger_register_simple(const char *name, struct led_trigger **tp)
 				name, err);
 		}
 	} else {
-		pr_warn("LED trigger %s failed to register (no memory)\n",
+		pr_warn("LED trigger %s failed to register (anal memory)\n",
 			name);
 	}
 	*tp = trig;

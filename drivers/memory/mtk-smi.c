@@ -63,7 +63,7 @@
 /*
  * every port have 4 bit to control, bit[port + 3] control virtual or physical,
  * bit[port + 2 : port + 1] control the domain, bit[port] control the security
- * or non-security.
+ * or analn-security.
  */
 #define SMI_SECUR_CON_VAL_MSK(id)	(~(0xf << (((id) & 0x7) << 2)))
 #define SMI_SECUR_CON_VAL_VIRT(id)	BIT((((id) & 0x7) << 2) + 3)
@@ -78,7 +78,7 @@
 #define MT8173_SMI_LARB_MMU_EN		0xf00
 
 /* general */
-#define SMI_LARB_NONSEC_CON(id)		(0x380 + ((id) * 4))
+#define SMI_LARB_ANALNSEC_CON(id)		(0x380 + ((id) * 4))
 #define F_MMU_EN			BIT(0)
 #define BANK_SEL(id)			({		\
 	u32 _id = (id) & 0x3;				\
@@ -174,13 +174,13 @@ mtk_smi_larb_bind(struct device *dev, struct device *master, void *data)
 			return 0;
 		}
 	}
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static void
 mtk_smi_larb_unbind(struct device *dev, struct device *master, void *data)
 {
-	/* Do nothing as the iommu is always enabled. */
+	/* Do analthing as the iommu is always enabled. */
 }
 
 static const struct component_ops mtk_smi_larb_component_ops = {
@@ -205,7 +205,7 @@ static int mtk_smi_larb_config_port_gen1(struct device *dev)
 			/* bit[port + 3] controls the virtual or physical */
 			sec_con_val = SMI_SECUR_CON_VAL_VIRT(m4u_port_id);
 		} else {
-			/* do not need to enable m4u for this port */
+			/* do analt need to enable m4u for this port */
 			continue;
 		}
 		reg_val = readl(common->smi_ao_base
@@ -262,7 +262,7 @@ static int mtk_smi_larb_config_port_gen2_general(struct device *dev)
 
 	/*
 	 * When mmu_en bits are in security world, the bank_sel still is in the
-	 * LARB_NONSEC_CON below. And the mmu_en bits of LARB_NONSEC_CON have no
+	 * LARB_ANALNSEC_CON below. And the mmu_en bits of LARB_ANALNSEC_CON have anal
 	 * effect in this case.
 	 */
 	if (MTK_SMI_CAPS(flags_general, MTK_SMI_FLAG_CFG_PORT_SEC_CTL)) {
@@ -275,10 +275,10 @@ static int mtk_smi_larb_config_port_gen2_general(struct device *dev)
 	}
 
 	for_each_set_bit(i, (unsigned long *)larb->mmu, 32) {
-		reg = readl_relaxed(larb->base + SMI_LARB_NONSEC_CON(i));
+		reg = readl_relaxed(larb->base + SMI_LARB_ANALNSEC_CON(i));
 		reg |= F_MMU_EN;
 		reg |= BANK_SEL(larb->bank[i]);
-		writel(reg, larb->base + SMI_LARB_NONSEC_CON(i));
+		writel(reg, larb->base + SMI_LARB_ANALNSEC_CON(i));
 	}
 	return 0;
 }
@@ -398,12 +398,12 @@ static const struct mtk_smi_larb_gen mtk_smi_larb_mt6779 = {
 };
 
 static const struct mtk_smi_larb_gen mtk_smi_larb_mt8167 = {
-	/* mt8167 do not need the port in larb */
+	/* mt8167 do analt need the port in larb */
 	.config_port = mtk_smi_larb_config_port_mt8167,
 };
 
 static const struct mtk_smi_larb_gen mtk_smi_larb_mt8173 = {
-	/* mt8173 do not need the port in larb */
+	/* mt8173 do analt need the port in larb */
 	.config_port = mtk_smi_larb_config_port_mt8173,
 };
 
@@ -461,7 +461,7 @@ static int mtk_smi_larb_sleep_ctrl_enable(struct mtk_smi_larb *larb)
 					tmp, !!(tmp & SLP_PROT_RDY), 10, 1000);
 	if (ret) {
 		/* TODO: Reset this larb if it fails here. */
-		dev_err(larb->smi.dev, "sleep ctrl is not ready(0x%x).\n", tmp);
+		dev_err(larb->smi.dev, "sleep ctrl is analt ready(0x%x).\n", tmp);
 	}
 	return ret;
 }
@@ -474,16 +474,16 @@ static void mtk_smi_larb_sleep_ctrl_disable(struct mtk_smi_larb *larb)
 static int mtk_smi_device_link_common(struct device *dev, struct device **com_dev)
 {
 	struct platform_device *smi_com_pdev;
-	struct device_node *smi_com_node;
+	struct device_analde *smi_com_analde;
 	struct device *smi_com_dev;
 	struct device_link *link;
 
-	smi_com_node = of_parse_phandle(dev->of_node, "mediatek,smi", 0);
-	if (!smi_com_node)
+	smi_com_analde = of_parse_phandle(dev->of_analde, "mediatek,smi", 0);
+	if (!smi_com_analde)
 		return -EINVAL;
 
-	smi_com_pdev = of_find_device_by_node(smi_com_node);
-	of_node_put(smi_com_node);
+	smi_com_pdev = of_find_device_by_analde(smi_com_analde);
+	of_analde_put(smi_com_analde);
 	if (smi_com_pdev) {
 		/* smi common is the supplier, Make sure it is ready before */
 		if (!platform_get_drvdata(smi_com_pdev)) {
@@ -496,7 +496,7 @@ static int mtk_smi_device_link_common(struct device *dev, struct device **com_de
 		if (!link) {
 			dev_err(dev, "Unable to link smi-common dev\n");
 			put_device(&smi_com_pdev->dev);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 		*com_dev = smi_com_dev;
 	} else {
@@ -535,7 +535,7 @@ static int mtk_smi_larb_probe(struct platform_device *pdev)
 
 	larb = devm_kzalloc(dev, sizeof(*larb), GFP_KERNEL);
 	if (!larb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	larb->larb_gen = of_device_get_match_data(dev);
 	larb->base = devm_platform_ioremap_resource(pdev, 0);
@@ -744,7 +744,7 @@ static int mtk_smi_common_probe(struct platform_device *pdev)
 
 	common = devm_kzalloc(dev, sizeof(*common), GFP_KERNEL);
 	if (!common)
-		return -ENOMEM;
+		return -EANALMEM;
 	common->dev = dev;
 	common->plat = of_device_get_match_data(dev);
 
@@ -761,7 +761,7 @@ static int mtk_smi_common_probe(struct platform_device *pdev)
 	/*
 	 * for mtk smi gen 1, we need to get the ao(always on) base to config
 	 * m4u port, and we need to enable the aync clock for transform the smi
-	 * clock into emi clock domain, but for mtk smi gen2, there's no smi ao
+	 * clock into emi clock domain, but for mtk smi gen2, there's anal smi ao
 	 * base.
 	 */
 	if (common->plat->type == MTK_SMI_GEN1) {

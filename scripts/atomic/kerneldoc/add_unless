@@ -11,7 +11,7 @@ cat <<EOF
  *
  * If (@v != @u), atomically updates @v to (@v + @a) with ${desc_order} ordering.
  *
- * ${desc_noinstr}
+ * ${desc_analinstr}
  *
  * ${desc_return}
  */

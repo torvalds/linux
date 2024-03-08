@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
 /* Copyright (c) 2019-2021, The Linux Foundation. All rights reserved. */
-/* Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved. */
+/* Copyright (c) 2021-2023 Qualcomm Inanalvation Center, Inc. All rights reserved. */
 
 #include <linux/bitfield.h>
 #include <linux/bits.h>
@@ -73,15 +73,15 @@ struct dbc_req {
 	__u8	seq_id;
 	/*
 	 * Special encoded variable
-	 * 7	0 - Do not force to generate MSI after DMA is completed
+	 * 7	0 - Do analt force to generate MSI after DMA is completed
 	 *	1 - Force to generate MSI after DMA is completed
 	 * 6:5	Reserved
 	 * 4	1 - Generate completion element in the response queue
-	 *	0 - No Completion Code
+	 *	0 - Anal Completion Code
 	 * 3	0 - DMA request is a Link list transfer
 	 *	1 - DMA request is a Bulk transfer
 	 * 2	Reserved
-	 * 1:0	00 - No DMA transfer involved
+	 * 1:0	00 - Anal DMA transfer involved
 	 *	01 - DMA transfer is part of inbound transfer
 	 *	10 - DMA transfer has outbound transfer
 	 *	11 - NA
@@ -100,7 +100,7 @@ struct dbc_req {
 	/*
 	 * Special encoded variable
 	 * 7	1 - Doorbell(db) write
-	 *	0 - No doorbell write
+	 *	0 - Anal doorbell write
 	 * 6:2	Reserved
 	 * 1:0	00 - 32 bit access, db address must be aligned to 32bit-boundary
 	 *	01 - 16 bit access, db address must be aligned to 16bit-boundary
@@ -206,7 +206,7 @@ static int clone_range_of_sgt_for_slice(struct qaic_device *qdev, struct sg_tabl
 
 	sgt = kzalloc(sizeof(*sgt), GFP_KERNEL);
 	if (!sgt) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -214,7 +214,7 @@ static int clone_range_of_sgt_for_slice(struct qaic_device *qdev, struct sg_tabl
 	if (ret)
 		goto free_sgt;
 
-	/* copy relevant sg node and fix page and length */
+	/* copy relevant sg analde and fix page and length */
 	sgn = sgf;
 	for_each_sgtable_sg(sgt, sg, j) {
 		memcpy(sg, sgn, sizeof(*sg));
@@ -256,7 +256,7 @@ static int encode_reqs(struct qaic_device *qdev, struct bo_slice *slice,
 	__u8 db_len;
 	int i;
 
-	if (!slice->no_xfer)
+	if (!slice->anal_xfer)
 		cmd |= (slice->dir == DMA_TO_DEVICE ? INBOUND_XFER : OUTBOUND_XFER);
 
 	if (req->db_len && !IS_ALIGNED(req->db_addr, req->db_len / 8))
@@ -280,7 +280,7 @@ static int encode_reqs(struct qaic_device *qdev, struct bo_slice *slice,
 		db_len = BIT(7) | 2;
 		break;
 	case 0:
-		db_len = 0; /* doorbell is not active for this command */
+		db_len = 0; /* doorbell is analt active for this command */
 		break;
 	default:
 		return -EINVAL; /* should never hit this */
@@ -306,7 +306,7 @@ static int encode_reqs(struct qaic_device *qdev, struct bo_slice *slice,
 		 * sg_dma_len(sg) returns size of a DMA segment, maximum DMA
 		 * segment size is set to UINT_MAX by qaic and hence return
 		 * values of sg_dma_len(sg) can never exceed u32 range. So,
-		 * by down sizing we are not corrupting the value.
+		 * by down sizing we are analt corrupting the value.
 		 */
 		slice->reqs[i].len = cpu_to_le32((u32)sg_dma_len(sg));
 		switch (presync_sem) {
@@ -350,7 +350,7 @@ static int encode_reqs(struct qaic_device *qdev, struct bo_slice *slice,
 	/*
 	 * Add a fence if we have more than one request going to the hardware
 	 * representing the entirety of the user request, and the user request
-	 * has no presync condition.
+	 * has anal presync condition.
 	 * Fences are expensive, so we try to avoid them. We rely on the
 	 * hardware behavior to avoid needing one when there is a presync
 	 * condition. When a presync exists, all requests for that same
@@ -392,17 +392,17 @@ static int qaic_map_one_slice(struct qaic_device *qdev, struct qaic_bo *bo,
 
 	slice = kmalloc(sizeof(*slice), GFP_KERNEL);
 	if (!slice) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_sgt;
 	}
 
 	slice->reqs = kcalloc(sgt->nents, sizeof(*slice->reqs), GFP_KERNEL);
 	if (!slice->reqs) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_slice;
 	}
 
-	slice->no_xfer = !slice_ent->size;
+	slice->anal_xfer = !slice_ent->size;
 	slice->sgt = sgt;
 	slice->nents = sgt->nents;
 	slice->dir = bo->dir;
@@ -462,7 +462,7 @@ static int create_sgt(struct qaic_device *qdev, struct sg_table **sgt_out, u64 s
 
 	pages = kvmalloc_array(nr_pages, sizeof(*pages) + sizeof(*pages_order), GFP_KERNEL);
 	if (!pages) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 	pages_order = (void *)pages + sizeof(*pages) * nr_pages;
@@ -477,13 +477,13 @@ static int create_sgt(struct qaic_device *qdev, struct sg_table **sgt_out, u64 s
 		order = min(get_order(nr_pages * PAGE_SIZE), max_order);
 		while (1) {
 			pages[i] = alloc_pages(GFP_KERNEL | GFP_HIGHUSER |
-					       __GFP_NOWARN | __GFP_ZERO |
-					       (order ? __GFP_NORETRY : __GFP_RETRY_MAYFAIL),
+					       __GFP_ANALWARN | __GFP_ZERO |
+					       (order ? __GFP_ANALRETRY : __GFP_RETRY_MAYFAIL),
 					       order);
 			if (pages[i])
 				break;
 			if (!order--) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto free_partial_alloc;
 			}
 		}
@@ -500,12 +500,12 @@ static int create_sgt(struct qaic_device *qdev, struct sg_table **sgt_out, u64 s
 
 	sgt = kmalloc(sizeof(*sgt), GFP_KERNEL);
 	if (!sgt) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_partial_alloc;
 	}
 
 	if (sg_alloc_table(sgt, i, GFP_KERNEL)) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_sgt;
 	}
 
@@ -656,7 +656,7 @@ static struct qaic_bo *qaic_alloc_init_bo(void)
 
 	bo = kzalloc(sizeof(*bo), GFP_KERNEL);
 	if (!bo)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	qaic_init_bo(bo, false);
 
@@ -684,14 +684,14 @@ int qaic_create_bo_ioctl(struct drm_device *dev, void *data, struct drm_file *fi
 	usr = file_priv->driver_priv;
 	usr_rcu_id = srcu_read_lock(&usr->qddev_lock);
 	if (!usr->qddev) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto unlock_usr_srcu;
 	}
 
 	qdev = usr->qddev->qdev;
 	qdev_rcu_id = srcu_read_lock(&qdev->dev_lock);
 	if (qdev->dev_state != QAIC_ONLINE) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto unlock_dev_srcu;
 	}
 
@@ -743,26 +743,26 @@ int qaic_mmap_bo_ioctl(struct drm_device *dev, void *data, struct drm_file *file
 	usr = file_priv->driver_priv;
 	usr_rcu_id = srcu_read_lock(&usr->qddev_lock);
 	if (!usr->qddev) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto unlock_usr_srcu;
 	}
 
 	qdev = usr->qddev->qdev;
 	qdev_rcu_id = srcu_read_lock(&qdev->dev_lock);
 	if (qdev->dev_state != QAIC_ONLINE) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto unlock_dev_srcu;
 	}
 
 	obj = drm_gem_object_lookup(file_priv, args->handle);
 	if (!obj) {
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto unlock_dev_srcu;
 	}
 
 	ret = drm_gem_create_mmap_offset(obj);
 	if (ret == 0)
-		args->offset = drm_vma_node_offset_addr(&obj->vma_node);
+		args->offset = drm_vma_analde_offset_addr(&obj->vma_analde);
 
 	drm_gem_object_put(obj);
 
@@ -802,8 +802,8 @@ struct drm_gem_object *qaic_gem_prime_import(struct drm_device *dev, struct dma_
 
 	drm_gem_private_object_init(dev, obj, attach->dmabuf->size);
 	/*
-	 * skipping dma_buf_map_attachment() as we do not know the direction
-	 * just yet. Once the direction is known in the subsequent IOCTL to
+	 * skipping dma_buf_map_attachment() as we do analt kanalw the direction
+	 * just yet. Once the direction is kanalwn in the subsequent IOCTL to
 	 * attach slicing, we can do it then.
 	 */
 
@@ -923,7 +923,7 @@ static int qaic_attach_slicing_bo(struct qaic_device *qdev, struct qaic_bo *bo,
 
 	if (bo->total_slice_nents > bo->dbc->nelem) {
 		qaic_free_slices_bo(bo);
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 
 	return 0;
@@ -962,14 +962,14 @@ int qaic_attach_slice_bo_ioctl(struct drm_device *dev, void *data, struct drm_fi
 	usr = file_priv->driver_priv;
 	usr_rcu_id = srcu_read_lock(&usr->qddev_lock);
 	if (!usr->qddev) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto unlock_usr_srcu;
 	}
 
 	qdev = usr->qddev->qdev;
 	qdev_rcu_id = srcu_read_lock(&qdev->dev_lock);
 	if (qdev->dev_state != QAIC_ONLINE) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto unlock_dev_srcu;
 	}
 
@@ -998,7 +998,7 @@ int qaic_attach_slice_bo_ioctl(struct drm_device *dev, void *data, struct drm_fi
 
 	obj = drm_gem_object_lookup(file_priv, args->hdr.handle);
 	if (!obj) {
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto free_slice_ent;
 	}
 
@@ -1149,7 +1149,7 @@ static inline int copy_partial_exec_reqs(struct qaic_device *qdev, struct bo_sli
 	/*
 	 * last_bytes holds size of a DMA segment, maximum DMA segment size is
 	 * set to UINT_MAX by qaic and hence last_bytes can never exceed u32
-	 * range. So, by down sizing we are not corrupting the value.
+	 * range. So, by down sizing we are analt corrupting the value.
 	 */
 	last_req->len = cpu_to_le32((u32)last_bytes);
 	last_req->src_addr = reqs[first_n].src_addr;
@@ -1185,7 +1185,7 @@ static int send_bo_list_to_device(struct qaic_device *qdev, struct drm_file *fil
 		obj = drm_gem_object_lookup(file_priv,
 					    is_partial ? pexec[i].handle : exec[i].handle);
 		if (!obj) {
-			ret = -ENOENT;
+			ret = -EANALENT;
 			goto failed_to_send_bo;
 		}
 
@@ -1220,7 +1220,7 @@ static int send_bo_list_to_device(struct qaic_device *qdev, struct drm_file *fil
 				slice->reqs[j].req_id = cpu_to_le16(bo->req_id);
 
 			if (is_partial && (!pexec[i].resize || pexec[i].resize <= slice->offset))
-				/* Configure the slice for no DMA transfer */
+				/* Configure the slice for anal DMA transfer */
 				ret = copy_partial_exec_reqs(qdev, slice, 0, dbc, head, tail);
 			else if (is_partial && pexec[i].resize < slice->offset + slice->size)
 				/* Configure the slice to be partially DMA transferred */
@@ -1276,7 +1276,7 @@ static void update_profiling_data(struct drm_file *file_priv,
 		 * Since we already committed the BO to hardware, the only way
 		 * this should fail is a pending signal. We can't cancel the
 		 * submit to hardware, so we have to just skip the profiling
-		 * data. In case the signal is not fatal to the process, we
+		 * data. In case the signal is analt fatal to the process, we
 		 * return success so that the user doesn't try to resubmit.
 		 */
 		obj = drm_gem_object_lookup(file_priv,
@@ -1323,7 +1323,7 @@ static int __qaic_execute_bo_ioctl(struct drm_device *dev, void *data, struct dr
 
 	exec = kcalloc(args->hdr.count, size, GFP_KERNEL);
 	if (!exec)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (copy_from_user(exec, user_data, n)) {
 		ret = -EFAULT;
@@ -1333,14 +1333,14 @@ static int __qaic_execute_bo_ioctl(struct drm_device *dev, void *data, struct dr
 	usr = file_priv->driver_priv;
 	usr_rcu_id = srcu_read_lock(&usr->qddev_lock);
 	if (!usr->qddev) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto unlock_usr_srcu;
 	}
 
 	qdev = usr->qddev->qdev;
 	qdev_rcu_id = srcu_read_lock(&qdev->dev_lock);
 	if (qdev->dev_state != QAIC_ONLINE) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto unlock_dev_srcu;
 	}
 
@@ -1362,7 +1362,7 @@ static int __qaic_execute_bo_ioctl(struct drm_device *dev, void *data, struct dr
 
 	if (head == U32_MAX || tail == U32_MAX) {
 		/* PCI link error */
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto release_ch_rcu;
 	}
 
@@ -1412,7 +1412,7 @@ int qaic_partial_execute_bo_ioctl(struct drm_device *dev, void *data, struct drm
  * requests which the device has processed. The hardware already has a built
  * in irq mitigation. When the device puts an entry into the queue, it will
  * only trigger an interrupt if the queue was empty. Therefore, when adding
- * the Nth event to a non-empty queue, the hardware doesn't trigger an
+ * the Nth event to a analn-empty queue, the hardware doesn't trigger an
  * interrupt. This means the host doesn't get additional interrupts signaling
  * the same thing - the queue has something to process.
  * This behavior can be overridden in the DMA request.
@@ -1422,9 +1422,9 @@ int qaic_partial_execute_bo_ioctl(struct drm_device *dev, void *data, struct drm
  * This behavior is what NAPI attempts to accomplish, although we can't use
  * NAPI as we don't have a netdev. We use threaded irqs instead.
  *
- * However, there is a situation where the host drains the queue fast enough
- * that every event causes an interrupt. Typically this is not a problem as
- * the rate of events would be low. However, that is not the case with
+ * However, there is a situation where the host drains the queue fast eanalugh
+ * that every event causes an interrupt. Typically this is analt a problem as
+ * the rate of events would be low. However, that is analt the case with
  * lprnet for example. On an Intel Xeon D-2191 where we run 8 instances of
  * lprnet, the host receives roughly 80k interrupts per second from the device
  * (per /proc/interrupts). While NAPI documentation indicates the host should
@@ -1449,9 +1449,9 @@ irqreturn_t dbc_irq_handler(int irq, void *data)
 	if (datapath_polling) {
 		srcu_read_unlock(&dbc->ch_lock, rcu_id);
 		/*
-		 * Normally datapath_polling will not have irqs enabled, but
+		 * Analrmally datapath_polling will analt have irqs enabled, but
 		 * when running with only one MSI the interrupt is shared with
-		 * MHI so it cannot be disabled. Return ASAP instead.
+		 * MHI so it cananalt be disabled. Return ASAP instead.
 		 */
 		return IRQ_HANDLED;
 	}
@@ -1464,22 +1464,22 @@ irqreturn_t dbc_irq_handler(int irq, void *data)
 	head = readl(dbc->dbc_base + RSPHP_OFF);
 	if (head == U32_MAX) { /* PCI link error */
 		srcu_read_unlock(&dbc->ch_lock, rcu_id);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	tail = readl(dbc->dbc_base + RSPTP_OFF);
 	if (tail == U32_MAX) { /* PCI link error */
 		srcu_read_unlock(&dbc->ch_lock, rcu_id);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	if (head == tail) { /* queue empty */
 		srcu_read_unlock(&dbc->ch_lock, rcu_id);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	if (!dbc->qdev->single_msi)
-		disable_irq_nosync(irq);
+		disable_irq_analsync(irq);
 	srcu_read_unlock(&dbc->ch_lock, rcu_id);
 	return IRQ_WAKE_THREAD;
 }
@@ -1565,7 +1565,7 @@ read_fifo:
 
 	/*
 	 * if this channel isn't assigned or gets unassigned during processing
-	 * we have nothing further to do
+	 * we have analthing further to do
 	 */
 	if (!dbc->usr)
 		goto error_out;
@@ -1580,7 +1580,7 @@ read_fifo:
 			usleep_range(100, 200);
 			goto read_fifo; /* check for a new event */
 		}
-		goto normal_out;
+		goto analrmal_out;
 	}
 
 	delay_count = NUM_DELAYS;
@@ -1598,7 +1598,7 @@ read_fifo:
 		 * A BO can receive multiple interrupts, since a BO can be
 		 * divided into multiple slices and a buffer receives as many
 		 * interrupts as slices. So until it receives interrupts for
-		 * all the slices we cannot mark that buffer complete.
+		 * all the slices we cananalt mark that buffer complete.
 		 */
 		list_for_each_entry_safe(bo, i, &dbc->xfer_list, xfer_list) {
 			if (bo->req_id == req_id)
@@ -1627,7 +1627,7 @@ read_fifo:
 	}
 
 	/*
-	 * Update the head pointer of response queue and let the device know
+	 * Update the head pointer of response queue and let the device kanalw
 	 * that we have consumed elements from the queue.
 	 */
 	writel(head, dbc->dbc_base + RSPHP_OFF);
@@ -1635,7 +1635,7 @@ read_fifo:
 	/* elements might have been put in the queue while we were processing */
 	goto read_fifo;
 
-normal_out:
+analrmal_out:
 	if (!qdev->single_msi && likely(!datapath_polling))
 		enable_irq(irq);
 	else if (unlikely(datapath_polling))
@@ -1644,7 +1644,7 @@ normal_out:
 	tail = readl(dbc->dbc_base + RSPTP_OFF);
 	if (tail != U32_MAX && head != tail) {
 		if (!qdev->single_msi && likely(!datapath_polling))
-			disable_irq_nosync(irq);
+			disable_irq_analsync(irq);
 		goto read_fifo;
 	}
 	srcu_read_unlock(&dbc->ch_lock, rcu_id);
@@ -1679,14 +1679,14 @@ int qaic_wait_bo_ioctl(struct drm_device *dev, void *data, struct drm_file *file
 	usr = file_priv->driver_priv;
 	usr_rcu_id = srcu_read_lock(&usr->qddev_lock);
 	if (!usr->qddev) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto unlock_usr_srcu;
 	}
 
 	qdev = usr->qddev->qdev;
 	qdev_rcu_id = srcu_read_lock(&qdev->dev_lock);
 	if (qdev->dev_state != QAIC_ONLINE) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto unlock_dev_srcu;
 	}
 
@@ -1705,7 +1705,7 @@ int qaic_wait_bo_ioctl(struct drm_device *dev, void *data, struct drm_file *file
 
 	obj = drm_gem_object_lookup(file_priv, args->handle);
 	if (!obj) {
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto unlock_ch_srcu;
 	}
 
@@ -1748,14 +1748,14 @@ int qaic_perf_stats_bo_ioctl(struct drm_device *dev, void *data, struct drm_file
 	usr = file_priv->driver_priv;
 	usr_rcu_id = srcu_read_lock(&usr->qddev_lock);
 	if (!usr->qddev) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto unlock_usr_srcu;
 	}
 
 	qdev = usr->qddev->qdev;
 	qdev_rcu_id = srcu_read_lock(&qdev->dev_lock);
 	if (qdev->dev_state != QAIC_ONLINE) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto unlock_dev_srcu;
 	}
 
@@ -1779,7 +1779,7 @@ int qaic_perf_stats_bo_ioctl(struct drm_device *dev, void *data, struct drm_file
 	for (i = 0; i < args->hdr.count; i++) {
 		obj = drm_gem_object_lookup(file_priv, ent[i].handle);
 		if (!obj) {
-			ret = -ENOENT;
+			ret = -EANALENT;
 			goto free_ent;
 		}
 		bo = to_qaic_bo(obj);
@@ -1839,20 +1839,20 @@ int qaic_detach_slice_bo_ioctl(struct drm_device *dev, void *data, struct drm_fi
 	usr = file_priv->driver_priv;
 	usr_rcu_id = srcu_read_lock(&usr->qddev_lock);
 	if (!usr->qddev) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto unlock_usr_srcu;
 	}
 
 	qdev = usr->qddev->qdev;
 	qdev_rcu_id = srcu_read_lock(&qdev->dev_lock);
 	if (qdev->dev_state != QAIC_ONLINE) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto unlock_dev_srcu;
 	}
 
 	obj = drm_gem_object_lookup(file_priv, args->handle);
 	if (!obj) {
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto unlock_dev_srcu;
 	}
 

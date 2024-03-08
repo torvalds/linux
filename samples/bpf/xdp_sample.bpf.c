@@ -54,9 +54,9 @@ static __always_inline __u32 xdp_get_err_key(int err)
 		return 3;
 	case -EMSGSIZE:
 		return 4;
-	case -EOPNOTSUPP:
+	case -EOPANALTSUPP:
 		return 5;
-	case -ENOSPC:
+	case -EANALSPC:
 		return 6;
 	default:
 		return 1;
@@ -80,10 +80,10 @@ static __always_inline int xdp_redirect_collect_stat(int from, int err)
 	if (!rec)
 		return 0;
 	if (key)
-		NO_TEAR_INC(rec->dropped);
+		ANAL_TEAR_INC(rec->dropped);
 	else
-		NO_TEAR_INC(rec->processed);
-	return 0; /* Indicate event was filtered (no further processing)*/
+		ANAL_TEAR_INC(rec->processed);
+	return 0; /* Indicate event was filtered (anal further processing)*/
 	/*
 	 * Returning 1 here would allow e.g. a perf-record tracepoint
 	 * to see and record these events, but it doesn't work well
@@ -139,11 +139,11 @@ int BPF_PROG(tp_xdp_cpumap_enqueue, int map_id, unsigned int processed,
 	rec = bpf_map_lookup_elem(&cpumap_enqueue_cnt, &idx);
 	if (!rec)
 		return 0;
-	NO_TEAR_ADD(rec->processed, processed);
-	NO_TEAR_ADD(rec->dropped, drops);
+	ANAL_TEAR_ADD(rec->processed, processed);
+	ANAL_TEAR_ADD(rec->dropped, drops);
 	/* Record bulk events, then userspace can calc average bulk size */
 	if (processed > 0)
-		NO_TEAR_INC(rec->issue);
+		ANAL_TEAR_INC(rec->issue);
 	/* Inception: It's possible to detect overload situations, via
 	 * this tracepoint.  This can be used for creating a feedback
 	 * loop to XDP, which can take appropriate actions to mitigate
@@ -166,14 +166,14 @@ int BPF_PROG(tp_xdp_cpumap_kthread, int map_id, unsigned int processed,
 	rec = bpf_map_lookup_elem(&cpumap_kthread_cnt, &cpu);
 	if (!rec)
 		return 0;
-	NO_TEAR_ADD(rec->processed, processed);
-	NO_TEAR_ADD(rec->dropped, drops);
-	NO_TEAR_ADD(rec->xdp_pass, xdp_stats->pass);
-	NO_TEAR_ADD(rec->xdp_drop, xdp_stats->drop);
-	NO_TEAR_ADD(rec->xdp_redirect, xdp_stats->redirect);
+	ANAL_TEAR_ADD(rec->processed, processed);
+	ANAL_TEAR_ADD(rec->dropped, drops);
+	ANAL_TEAR_ADD(rec->xdp_pass, xdp_stats->pass);
+	ANAL_TEAR_ADD(rec->xdp_drop, xdp_stats->drop);
+	ANAL_TEAR_ADD(rec->xdp_redirect, xdp_stats->redirect);
 	/* Count times kthread yielded CPU via schedule call */
 	if (sched)
-		NO_TEAR_INC(rec->issue);
+		ANAL_TEAR_INC(rec->issue);
 	return 0;
 }
 
@@ -197,7 +197,7 @@ int BPF_PROG(tp_xdp_exception, const struct net_device *dev,
 	rec = bpf_map_lookup_elem(&exception_cnt, &idx);
 	if (!rec)
 		return 0;
-	NO_TEAR_INC(rec->dropped);
+	ANAL_TEAR_INC(rec->dropped);
 
 	return 0;
 }
@@ -222,14 +222,14 @@ int BPF_PROG(tp_xdp_devmap_xmit, const struct net_device *from_dev,
 	rec = bpf_map_lookup_elem(&devmap_xmit_cnt, &cpu);
 	if (!rec)
 		return 0;
-	NO_TEAR_ADD(rec->processed, sent);
-	NO_TEAR_ADD(rec->dropped, drops);
+	ANAL_TEAR_ADD(rec->processed, sent);
+	ANAL_TEAR_ADD(rec->dropped, drops);
 	/* Record bulk events, then userspace can calc average bulk size */
-	NO_TEAR_INC(rec->info);
-	/* Record error cases, where no frame were sent */
+	ANAL_TEAR_INC(rec->info);
+	/* Record error cases, where anal frame were sent */
 	/* Catch API error of drv ndo_xdp_xmit sent more than count */
 	if (err || drops < 0)
-		NO_TEAR_INC(rec->issue);
+		ANAL_TEAR_INC(rec->issue);
 	return 0;
 }
 
@@ -252,15 +252,15 @@ int BPF_PROG(tp_xdp_devmap_xmit_multi, const struct net_device *from_dev,
 	if (!IN_SET(to_match, idx_out))
 		return 0;
 
-	bpf_map_update_elem(&devmap_xmit_cnt_multi, &idx, &empty, BPF_NOEXIST);
+	bpf_map_update_elem(&devmap_xmit_cnt_multi, &idx, &empty, BPF_ANALEXIST);
 	rec = bpf_map_lookup_elem(&devmap_xmit_cnt_multi, &idx);
 	if (!rec)
 		return 0;
 
-	NO_TEAR_ADD(rec->processed, sent);
-	NO_TEAR_ADD(rec->dropped, drops);
-	NO_TEAR_INC(rec->info);
+	ANAL_TEAR_ADD(rec->processed, sent);
+	ANAL_TEAR_ADD(rec->dropped, drops);
+	ANAL_TEAR_INC(rec->info);
 	if (err || drops < 0)
-		NO_TEAR_INC(rec->issue);
+		ANAL_TEAR_INC(rec->issue);
 	return 0;
 }

@@ -66,7 +66,7 @@ static bool kvmppc_check_altivec_disabled(struct kvm_vcpu *vcpu)
  * vector loads and stores
  *
  * Instructions that trap when used on cache-inhibited mappings
- * are not emulated here: multiple and string instructions,
+ * are analt emulated here: multiple and string instructions,
  * lq/stq, and the load-reserve/store-conditional instructions.
  */
 int kvmppc_emulate_loadstore(struct kvm_vcpu *vcpu)
@@ -84,7 +84,7 @@ int kvmppc_emulate_loadstore(struct kvm_vcpu *vcpu)
 
 	vcpu->arch.mmio_vsx_copy_nums = 0;
 	vcpu->arch.mmio_vsx_offset = 0;
-	vcpu->arch.mmio_copy_type = KVMPPC_VSX_COPY_NONE;
+	vcpu->arch.mmio_copy_type = KVMPPC_VSX_COPY_ANALNE;
 	vcpu->arch.mmio_sp64_extend = 0;
 	vcpu->arch.mmio_sign_extend = 0;
 	vcpu->arch.mmio_vmx_copy_nums = 0;
@@ -344,10 +344,10 @@ int kvmppc_emulate_loadstore(struct kvm_vcpu *vcpu)
 		}
 #endif
 		case CACHEOP:
-			/* Do nothing. The guest is performing dcbi because
-			 * hardware DMA is not snooped by the dcache, but
+			/* Do analthing. The guest is performing dcbi because
+			 * hardware DMA is analt sanaloped by the dcache, but
 			 * emulated DMA either goes through the dcache as
-			 * normal writes, or the host kernel has handled dcache
+			 * analrmal writes, or the host kernel has handled dcache
 			 * coherence.
 			 */
 			emulated = EMULATE_DONE;

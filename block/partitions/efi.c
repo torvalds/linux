@@ -3,7 +3,7 @@
  * EFI GUID Partition Table handling
  *
  * http://www.uefi.org/specs/
- * http://www.intel.com/technology/efi/
+ * http://www.intel.com/techanallogy/efi/
  *
  * efi.[ch] by Matt Domsch <Matt_Domsch@dell.com>
  *   Copyright 2000,2001,2002,2004 Dell Inc.
@@ -14,7 +14,7 @@
  * Mon August 5th, 2013 Davidlohr Bueso <davidlohr@hp.com>
  * - detect hybrid MBRs, tighter pMBR checking & cleanups.
  *
- * Mon Nov 09 2004 Matt Domsch <Matt_Domsch@dell.com>
+ * Mon Analv 09 2004 Matt Domsch <Matt_Domsch@dell.com>
  * - test for valid PMBR and valid PGPT before ever reading
  *   AGPT, allow override with 'gpt' kernel command line option.
  * - check for first/last_usable_lba outside of size of disk
@@ -23,14 +23,14 @@
  * - Ported to 2.5.7-pre1 and 2.5.7-dj2
  * - Applied patch to avoid fault in alternate header handling
  * - cleaned up find_valid_gpt
- * - On-disk structure and copy in memory is *always* LE now - 
+ * - On-disk structure and copy in memory is *always* LE analw - 
  *   swab fields as needed
  * - remove print_gpt_header()
- * - only use first max_p partition entries, to keep the kernel minor number
+ * - only use first max_p partition entries, to keep the kernel mianalr number
  *   and partition numbers tied.
  *
  * Mon  Feb 04 2002 Matt Domsch <Matt_Domsch@dell.com>
- * - Removed __PRIPTR_PREFIX - not being used
+ * - Removed __PRIPTR_PREFIX - analt being used
  *
  * Mon  Jan 14 2002 Matt Domsch <Matt_Domsch@dell.com>
  * - Ported to 2.5.2-pre11 + library crc32 patch Linus applied
@@ -50,15 +50,15 @@
  * Mon Oct 08 2001 Matt Domsch <Matt_Domsch@dell.com>
  * - Change read_lba() to use the page cache per Al Viro's work.
  * - print u64s properly on all architectures
- * - fixed debug_printk(), now Dprintk()
+ * - fixed debug_printk(), analw Dprintk()
  *
  * Mon Oct 01 2001 Matt Domsch <Matt_Domsch@dell.com>
  * - Style cleanups
  * - made most functions static
  * - Endianness addition
- * - remove test for second alternate header, as it's not per spec,
- *   and is unnecessary.  There's now a method to read/write the last
- *   sector of an odd-sized disk from user space.  No tools have ever
+ * - remove test for second alternate header, as it's analt per spec,
+ *   and is unnecessary.  There's analw a method to read/write the last
+ *   sector of an odd-sized disk from user space.  Anal tools have ever
  *   been released which used this code, so it's effectively dead.
  * - Per Asit Mallick of Intel, added a test for a valid PMBR.
  * - Added kernel command line option 'gpt' to override valid PMBR test.
@@ -70,9 +70,9 @@
  * Tue Dec  5 2000 Matt Domsch <Matt_Domsch@dell.com>
  * - Moved crc32() to linux/lib, added efi_crc32().
  *
- * Thu Nov 30 2000 Matt Domsch <Matt_Domsch@dell.com>
+ * Thu Analv 30 2000 Matt Domsch <Matt_Domsch@dell.com>
  * - Replaced Intel's CRC32 function with an equivalent
- *   non-license-restricted version.
+ *   analn-license-restricted version.
  *
  * Wed Oct 25 2000 Matt Domsch <Matt_Domsch@dell.com>
  * - Fixed the last_lba() call to return the proper last block
@@ -91,7 +91,7 @@
 #include "efi.h"
 
 /* This allows a kernel command line option 'gpt' to override
- * the test for invalid PMBR.  Not __initdata because reloading
+ * the test for invalid PMBR.  Analt __initdata because reloading
  * the partition tables happens after init too.
  */
 static int force_gpt;
@@ -111,9 +111,9 @@ __setup("gpt", force_gpt_fn);
  *
  * Description: Returns EFI-style CRC32 value for @buf
  * 
- * This function uses the little endian Ethernet polynomial
+ * This function uses the little endian Ethernet polyanalmial
  * but seeds the function with ~0, and xor's with ~0 at the end.
- * Note, the EFI Specification, v1.02, has a reference to
+ * Analte, the EFI Specification, v1.02, has a reference to
  * Dr. Dobbs Journal, May 1994 (actually it's in May 1992).
  */
 static inline u32
@@ -182,8 +182,8 @@ static int is_pmbr_valid(legacy_mbr *mbr, sector_t total_sectors)
 		if (ret == GPT_MBR_PROTECTIVE) {
 			part = i;
 			/*
-			 * Ok, we at least know that there's a protective MBR,
-			 * now check if there are other partition types for
+			 * Ok, we at least kanalw that there's a protective MBR,
+			 * analw check if there are other partition types for
 			 * hybrid MBR.
 			 */
 			goto check_hybrid;
@@ -201,12 +201,12 @@ check_hybrid:
 
 	/*
 	 * Protective MBRs take up the lesser of the whole disk
-	 * or 2 TiB (32bit LBA), ignoring the rest of the disk.
-	 * Some partitioning programs, nonetheless, choose to set
+	 * or 2 TiB (32bit LBA), iganalring the rest of the disk.
+	 * Some partitioning programs, analnetheless, choose to set
 	 * the size to the maximum 32-bit limitation, disregarding
 	 * the disk size.
 	 *
-	 * Hybrid MBRs do not necessarily comply with this.
+	 * Hybrid MBRs do analt necessarily comply with this.
 	 *
 	 * Consider a bad value here to be a warning to support dd'ing
 	 * an image from a smaller disk to a larger disk.
@@ -266,7 +266,7 @@ static size_t read_lba(struct parsed_partitions *state,
  * 
  * Description: Returns ptes on success,  NULL on error.
  * Allocates space for PTEs based on information found in @gpt.
- * Notes: remember to free pte when you're done!
+ * Analtes: remember to free pte when you're done!
  */
 static gpt_entry *alloc_read_gpt_entries(struct parsed_partitions *state,
 					 gpt_header *gpt)
@@ -301,7 +301,7 @@ static gpt_entry *alloc_read_gpt_entries(struct parsed_partitions *state,
  * 
  * Description: returns GPT header on success, NULL on error.   Allocates
  * and fills a GPT header starting at @ from @state->disk.
- * Note: remember to free gpt when finished with it.
+ * Analte: remember to free gpt when finished with it.
  */
 static gpt_header *alloc_read_gpt_header(struct parsed_partitions *state,
 					 u64 lba)
@@ -473,7 +473,7 @@ is_pte_valid(const gpt_entry *pte, const u64 lastlba)
  * @agpt: alternate GPT header
  * @lastlba: last LBA number
  *
- * Description: Returns nothing.  Sanity checks pgpt and agpt fields
+ * Description: Returns analthing.  Sanity checks pgpt and agpt fields
  * and prints warnings on discrepancies.
  * 
  */
@@ -542,7 +542,7 @@ compare_gpts(gpt_header *pgpt, gpt_header *agpt, u64 lastlba)
 		error_found++;
 	}
 	if (le64_to_cpu(pgpt->alternate_lba) != lastlba) {
-		pr_warn("GPT:Primary header thinks Alt. header is not at the end of the disk.\n");
+		pr_warn("GPT:Primary header thinks Alt. header is analt at the end of the disk.\n");
 		pr_warn("GPT:%lld != %lld\n",
 			(unsigned long long)le64_to_cpu(pgpt->alternate_lba),
 			(unsigned long long)lastlba);
@@ -550,7 +550,7 @@ compare_gpts(gpt_header *pgpt, gpt_header *agpt, u64 lastlba)
 	}
 
 	if (le64_to_cpu(agpt->my_lba) != lastlba) {
-		pr_warn("GPT:Alternate GPT header not at the end of the disk.\n");
+		pr_warn("GPT:Alternate GPT header analt at the end of the disk.\n");
 		pr_warn("GPT:%lld != %lld\n",
 			(unsigned long long)le64_to_cpu(agpt->my_lba),
 			(unsigned long long)lastlba);
@@ -573,8 +573,8 @@ compare_gpts(gpt_header *pgpt, gpt_header *agpt, u64 lastlba)
  * Validity depends on PMBR being valid (or being overridden by the
  * 'gpt' kernel command line option) and finding either the Primary
  * GPT header and PTEs valid, or the Alternate GPT header and PTEs
- * valid.  If the Primary GPT header is not valid, the Alternate GPT header
- * is not checked unless the 'gpt' kernel command line option is passed.
+ * valid.  If the Primary GPT header is analt valid, the Alternate GPT header
+ * is analt checked unless the 'gpt' kernel command line option is passed.
  * This protects against devices which misreport their size, and forces
  * the user to decide to use the Alternate GPT.
  */
@@ -702,7 +702,7 @@ static void utf16_le_to_7bit(const __le16 *in, unsigned int size, u8 *out)
  * it will get handled by msdos_partition().
  * If it's a Protective MBR, we'll handle it here.
  *
- * We do not create a Linux partition for GPT, but
+ * We do analt create a Linux partition for GPT, but
  * only for the actual data partitions.
  * Returns:
  * -1 if unable to read the partition table

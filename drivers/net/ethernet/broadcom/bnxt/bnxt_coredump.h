@@ -50,7 +50,7 @@ struct bnxt_coredump_record {
 	char commandline[256];
 	__le32 total_segments;
 	__le32 os_ver_major;
-	__le32 os_ver_minor;
+	__le32 os_ver_mianalr;
 	__le32 rsvd2;
 	char os_name[32];
 	__le16 end_year;

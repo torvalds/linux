@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -58,7 +58,7 @@ typedef struct binary_header
 	/* psp structure should go at the top of this structure */
 	uint32_t binary_signature; /* 0x7, 0x14, 0x21, 0x28 */
 	uint16_t version_major;
-	uint16_t version_minor;
+	uint16_t version_mianalr;
 	uint16_t binary_checksum;  /* Byte sum of the binary after this field */
 	uint16_t binary_size;      /* Binary Size*/
 	table_info table_list[TOTAL_TABLES];
@@ -95,7 +95,7 @@ typedef struct ip
 	uint8_t number_instance;  /* instance of the IP */
 	uint8_t num_base_address; /* Number of Base Addresses */
 	uint8_t major;            /* HCID Major */
-	uint8_t minor;            /* HCID Minor */
+	uint8_t mianalr;            /* HCID Mianalr */
 	uint8_t revision;         /* HCID Revision */
 #if defined(__BIG_ENDIAN)
 	uint8_t reserved : 4;     /* Placeholder field */
@@ -113,7 +113,7 @@ typedef struct ip_v3
 	uint8_t instance_number;                /* Instance number for the IP */
 	uint8_t num_base_address;               /* Number of base addresses*/
 	uint8_t major;                          /* Hardware ID.major version */
-	uint8_t minor;                          /* Hardware ID.minor version */
+	uint8_t mianalr;                          /* Hardware ID.mianalr version */
 	uint8_t revision;                       /* Hardware ID.revision version */
 #if defined(__BIG_ENDIAN)
 	uint8_t variant : 4;                    /* HW variant */
@@ -130,7 +130,7 @@ typedef struct ip_v4 {
 	uint8_t instance_number;                /* Instance number for the IP */
 	uint8_t num_base_address;               /* Number of base addresses*/
 	uint8_t major;                          /* Hardware ID.major version */
-	uint8_t minor;                          /* Hardware ID.minor version */
+	uint8_t mianalr;                          /* Hardware ID.mianalr version */
 	uint8_t revision;                       /* Hardware ID.revision version */
 #if defined(LITTLEENDIAN_CPU)
 	uint8_t sub_revision : 4;               /* HCID Sub-Revision */
@@ -169,7 +169,7 @@ typedef struct ip_structure
 struct gpu_info_header {
 	uint32_t table_id;      /* table ID */
 	uint16_t version_major; /* table version */
-	uint16_t version_minor; /* table version */
+	uint16_t version_mianalr; /* table version */
 	uint32_t size;          /* size of the entire header+data in bytes */
 };
 
@@ -329,7 +329,7 @@ typedef struct harvest_table {
 struct mall_info_header {
 	uint32_t table_id; /* table ID */
 	uint16_t version_major; /* table version */
-	uint16_t version_minor; /* table version */
+	uint16_t version_mianalr; /* table version */
 	uint32_t size_bytes; /* size of the entire header+data in bytes */
 };
 
@@ -353,7 +353,7 @@ struct mall_info_v2_0 {
 struct vcn_info_header {
     uint32_t table_id; /* table ID */
     uint16_t version_major; /* table version */
-    uint16_t version_minor; /* table version */
+    uint16_t version_mianalr; /* table version */
     uint32_t size_bytes; /* size of the entire header+data in bytes */
 };
 

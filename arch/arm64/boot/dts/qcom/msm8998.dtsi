@@ -33,28 +33,28 @@
 
 		hyp_mem: memory@85800000 {
 			reg = <0x0 0x85800000 0x0 0x600000>;
-			no-map;
+			anal-map;
 		};
 
 		xbl_mem: memory@85e00000 {
 			reg = <0x0 0x85e00000 0x0 0x100000>;
-			no-map;
+			anal-map;
 		};
 
 		smem_mem: smem-mem@86000000 {
 			reg = <0x0 0x86000000 0x0 0x200000>;
-			no-map;
+			anal-map;
 		};
 
 		tz_mem: memory@86200000 {
 			reg = <0x0 0x86200000 0x0 0x2d00000>;
-			no-map;
+			anal-map;
 		};
 
 		rmtfs_mem: memory@88f00000 {
 			compatible = "qcom,rmtfs-mem";
 			reg = <0x0 0x88f00000 0x0 0x200000>;
-			no-map;
+			anal-map;
 
 			qcom,client-id = <1>;
 			qcom,vmid = <QCOM_SCM_VMID_MSS_MSA>;
@@ -62,58 +62,58 @@
 
 		spss_mem: memory@8ab00000 {
 			reg = <0x0 0x8ab00000 0x0 0x700000>;
-			no-map;
+			anal-map;
 		};
 
 		adsp_mem: memory@8b200000 {
 			reg = <0x0 0x8b200000 0x0 0x1a00000>;
-			no-map;
+			anal-map;
 		};
 
 		mpss_mem: memory@8cc00000 {
 			reg = <0x0 0x8cc00000 0x0 0x7000000>;
-			no-map;
+			anal-map;
 		};
 
 		venus_mem: memory@93c00000 {
 			reg = <0x0 0x93c00000 0x0 0x500000>;
-			no-map;
+			anal-map;
 		};
 
 		mba_mem: memory@94100000 {
 			reg = <0x0 0x94100000 0x0 0x200000>;
-			no-map;
+			anal-map;
 		};
 
 		slpi_mem: memory@94300000 {
 			reg = <0x0 0x94300000 0x0 0xf00000>;
-			no-map;
+			anal-map;
 		};
 
 		ipa_fw_mem: memory@95200000 {
 			reg = <0x0 0x95200000 0x0 0x10000>;
-			no-map;
+			anal-map;
 		};
 
 		ipa_gsi_mem: memory@95210000 {
 			reg = <0x0 0x95210000 0x0 0x5000>;
-			no-map;
+			anal-map;
 		};
 
 		gpu_mem: memory@95600000 {
 			reg = <0x0 0x95600000 0x0 0x100000>;
-			no-map;
+			anal-map;
 		};
 
 		wlan_msa_mem: memory@95700000 {
 			reg = <0x0 0x95700000 0x0 0x100000>;
-			no-map;
+			anal-map;
 		};
 
 		mdata_mem: mpss-metadata {
 			alloc-ranges = <0x0 0xa0000000 0x0 0x20000000>;
 			size = <0x0 0x4000>;
-			no-map;
+			anal-map;
 		};
 	};
 
@@ -332,7 +332,7 @@
 
 		opp-312500000 {
 			opp-hz = /bits/ 64 <312500000>;
-			required-opps = <&rpmpd_opp_nom>;
+			required-opps = <&rpmpd_opp_analm>;
 		};
 	};
 
@@ -394,12 +394,12 @@
 							opp-level = <RPM_SMD_LEVEL_SVS_PLUS>;
 						};
 
-						rpmpd_opp_nom: opp7 {
-							opp-level = <RPM_SMD_LEVEL_NOM>;
+						rpmpd_opp_analm: opp7 {
+							opp-level = <RPM_SMD_LEVEL_ANALM>;
 						};
 
-						rpmpd_opp_nom_plus: opp8 {
-							opp-level = <RPM_SMD_LEVEL_NOM_PLUS>;
+						rpmpd_opp_analm_plus: opp8 {
+							opp-level = <RPM_SMD_LEVEL_ANALM_PLUS>;
 						};
 
 						rpmpd_opp_turbo: opp9 {
@@ -852,12 +852,12 @@
 			 * to reboot.
 			 * In light of that, we are conservative here and we list all such clocks
 			 * as protected. The board dts (or a user-supplied dts) can override the
-			 * list of protected clocks if it differs from the norm, and it is in fact
+			 * list of protected clocks if it differs from the analrm, and it is in fact
 			 * desired for the HLOS to manage these clocks
 			 */
-			protected-clocks = <AGGRE2_SNOC_NORTH_AXI>,
+			protected-clocks = <AGGRE2_SANALC_ANALRTH_AXI>,
 					   <SSC_XO>,
-					   <SSC_CNOC_AHBS_CLK>;
+					   <SSC_CANALC_AHBS_CLK>;
 		};
 
 		rpm_msg_ram: sram@778000 {
@@ -899,7 +899,7 @@
 			#thermal-sensor-cells = <1>;
 		};
 
-		anoc1_smmu: iommu@1680000 {
+		aanalc1_smmu: iommu@1680000 {
 			compatible = "qcom,msm8998-smmu-v2", "qcom,smmu-v2";
 			reg = <0x01680000 0x10000>;
 			#iommu-cells = <1>;
@@ -914,7 +914,7 @@
 				<GIC_SPI 369 IRQ_TYPE_EDGE_RISING>;
 		};
 
-		anoc2_smmu: iommu@16c0000 {
+		aanalc2_smmu: iommu@16c0000 {
 			compatible = "qcom,msm8998-smmu-v2", "qcom,smmu-v2";
 			reg = <0x016c0000 0x40000>;
 			#iommu-cells = <1>;
@@ -970,7 +970,7 @@
 			clock-names = "pipe", "aux", "cfg", "bus_master", "bus_slave";
 
 			power-domains = <&gcc PCIE_0_GDSC>;
-			iommu-map = <0x100 &anoc1_smmu 0x1480 1>;
+			iommu-map = <0x100 &aanalc1_smmu 0x1480 1>;
 			perst-gpios = <&tlmm 35 GPIO_ACTIVE_LOW>;
 		};
 
@@ -1441,12 +1441,12 @@
 				 <&gcc GCC_BIMC_MSS_Q6_AXI_CLK>,
 				 <&gcc GCC_BOOT_ROM_AHB_CLK>,
 				 <&gcc GCC_MSS_GPLL0_DIV_CLK_SRC>,
-				 <&gcc GCC_MSS_SNOC_AXI_CLK>,
-				 <&gcc GCC_MSS_MNOC_BIMC_AXI_CLK>,
+				 <&gcc GCC_MSS_SANALC_AXI_CLK>,
+				 <&gcc GCC_MSS_MANALC_BIMC_AXI_CLK>,
 				 <&rpmcc RPM_SMD_QDSS_CLK>,
 				 <&rpmcc RPM_SMD_XO_CLK_SRC>;
 			clock-names = "iface", "bus", "mem", "gpll0_mss",
-				      "snoc_axi", "mnoc_axi", "qdss", "xo";
+				      "sanalc_axi", "manalc_axi", "qdss", "xo";
 
 			qcom,smem-states = <&modem_smp2p_out 0>;
 			qcom,smem-state-names = "stop";
@@ -1482,8 +1482,8 @@
 			};
 		};
 
-		adreno_gpu: gpu@5000000 {
-			compatible = "qcom,adreno-540.1", "qcom,adreno";
+		adreanal_gpu: gpu@5000000 {
+			compatible = "qcom,adreanal-540.1", "qcom,adreanal";
 			reg = <0x05000000 0x40000>;
 			reg-names = "kgsl_3d0_reg_memory";
 
@@ -1501,7 +1501,7 @@
 				"core";
 
 			interrupts = <GIC_SPI 300 IRQ_TYPE_LEVEL_HIGH>;
-			iommus = <&adreno_smmu 0>;
+			iommus = <&adreanal_smmu 0>;
 			operating-points-v2 = <&gpu_opp_table>;
 			power-domains = <&rpmpd MSM8998_VDDMX>;
 			status = "disabled";
@@ -1516,13 +1516,13 @@
 
 				opp-670000048 {
 					opp-hz = /bits/ 64 <670000048>;
-					opp-level = <RPM_SMD_LEVEL_NOM_PLUS>;
+					opp-level = <RPM_SMD_LEVEL_ANALM_PLUS>;
 					opp-supported-hw = <0xff>;
 				};
 
 				opp-596000097 {
 					opp-hz = /bits/ 64 <596000097>;
-					opp-level = <RPM_SMD_LEVEL_NOM>;
+					opp-level = <RPM_SMD_LEVEL_ANALM>;
 					opp-supported-hw = <0xff>;
 				};
 
@@ -1552,7 +1552,7 @@
 			};
 		};
 
-		adreno_smmu: iommu@5040000 {
+		adreanal_smmu: iommu@5040000 {
 			compatible = "qcom,msm8998-smmu-v2", "qcom,smmu-v2";
 			reg = <0x05040000 0x10000>;
 			clocks = <&gcc GCC_GPU_CFG_AHB_CLK>,
@@ -1568,11 +1568,11 @@
 				<GIC_SPI 331 IRQ_TYPE_LEVEL_HIGH>;
 			/*
 			 * GPU-GX GDSC's parent is GPU-CX. We need to bring up the
-			 * GPU-CX for SMMU but we need both of them up for Adreno.
+			 * GPU-CX for SMMU but we need both of them up for Adreanal.
 			 * Contemporarily, we also need to manage the VDDMX rpmpd
-			 * domain in the Adreno driver.
+			 * domain in the Adreanal driver.
 			 * Enable GPU CX/GX GDSCs here so that we can manage the
-			 * SoC VDDMX RPM Power Domain in the Adreno driver.
+			 * SoC VDDMX RPM Power Domain in the Adreanal driver.
 			 */
 			power-domains = <&gpucc GPU_GX_GDSC>;
 			status = "disabled";
@@ -2117,12 +2117,12 @@
 			#size-cells = <1>;
 			ranges;
 
-			clocks = <&gcc GCC_CFG_NOC_USB3_AXI_CLK>,
+			clocks = <&gcc GCC_CFG_ANALC_USB3_AXI_CLK>,
 				 <&gcc GCC_USB30_MASTER_CLK>,
 				 <&gcc GCC_AGGRE1_USB3_AXI_CLK>,
 				 <&gcc GCC_USB30_SLEEP_CLK>,
 				 <&gcc GCC_USB30_MOCK_UTMI_CLK>;
-			clock-names = "cfg_noc",
+			clock-names = "cfg_analc",
 				      "core",
 				      "iface",
 				      "sleep",
@@ -2785,12 +2785,12 @@
 
 				clocks = <&mmcc MDSS_AHB_CLK>,
 					 <&mmcc MDSS_AXI_CLK>,
-					 <&mmcc MNOC_AHB_CLK>,
+					 <&mmcc MANALC_AHB_CLK>,
 					 <&mmcc MDSS_MDP_CLK>,
 					 <&mmcc MDSS_VSYNC_CLK>;
 				clock-names = "iface",
 					      "bus",
-					      "mnoc",
+					      "manalc",
 					      "core",
 					      "vsync";
 
@@ -2815,7 +2815,7 @@
 
 					opp-330000000 {
 						opp-hz = /bits/ 64 <330000000>;
-						required-opps = <&rpmpd_opp_nom>;
+						required-opps = <&rpmpd_opp_analm>;
 					};
 
 					opp-412500000 {
@@ -3005,7 +3005,7 @@
 			reg = <0x0cd00000 0x40000>;
 			#iommu-cells = <1>;
 
-			clocks = <&mmcc MNOC_AHB_CLK>,
+			clocks = <&mmcc MANALC_AHB_CLK>,
 				 <&mmcc BIMC_SMMU_AHB_CLK>,
 				 <&mmcc BIMC_SMMU_AXI_CLK>;
 			clock-names = "iface-mm",
@@ -3172,9 +3172,9 @@
 				<GIC_SPI 423 IRQ_TYPE_LEVEL_HIGH>,
 				<GIC_SPI 424 IRQ_TYPE_LEVEL_HIGH>,
 				<GIC_SPI 425 IRQ_TYPE_LEVEL_HIGH>;
-			iommus = <&anoc2_smmu 0x1900>,
-				 <&anoc2_smmu 0x1901>;
-			qcom,snoc-host-cap-8bit-quirk;
+			iommus = <&aanalc2_smmu 0x1900>,
+				 <&aanalc2_smmu 0x1901>;
+			qcom,sanalc-host-cap-8bit-quirk;
 		};
 	};
 };

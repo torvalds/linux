@@ -6,9 +6,9 @@ Description:
 		on_altvoltage0_mode attribute:
 
 		- auto -> Adjust bandpass filter to track changes in input clock rate.
-		- manual -> disable/unregister the clock rate notifier / input clock tracking.
+		- manual -> disable/unregister the clock rate analtifier / input clock tracking.
 		- bypass -> bypass low pass filter, high pass filter and disable/unregister
-								the clock rate notifier
+								the clock rate analtifier
 
 What:		/sys/bus/iio/devices/iio:deviceX/filter_mode
 KernelVersion:

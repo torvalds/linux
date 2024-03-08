@@ -1,5 +1,5 @@
 What:		/sys/kernel/livepatch
-Date:		Nov 2014
+Date:		Analv 2014
 KernelVersion:	3.19.0
 Contact:	live-patching@vger.kernel.org
 Description:
@@ -9,7 +9,7 @@ Description:
 		each loaded live patch module.
 
 What:		/sys/kernel/livepatch/<patch>
-Date:		Nov 2014
+Date:		Analv 2014
 KernelVersion:	3.19.0
 Contact:	live-patching@vger.kernel.org
 Description:
@@ -17,7 +17,7 @@ Description:
 		object (vmlinux or a module) in which it patched functions.
 
 What:		/sys/kernel/livepatch/<patch>/enabled
-Date:		Nov 2014
+Date:		Analv 2014
 KernelVersion:	3.19.0
 Contact:	live-patching@vger.kernel.org
 Description:
@@ -34,21 +34,21 @@ Description:
 		transition.
 
 What:		/sys/kernel/livepatch/<patch>/force
-Date:		Nov 2017
+Date:		Analv 2017
 KernelVersion:	4.15.0
 Contact:	live-patching@vger.kernel.org
 Description:
 		A writable attribute that allows administrator to affect the
 		course of an existing transition. Writing 1 clears
 		TIF_PATCH_PENDING flag of all tasks and thus forces the tasks to
-		the patched or unpatched state. Administrator should not
+		the patched or unpatched state. Administrator should analt
 		use this feature without a clearance from a patch
 		distributor. Removal (rmmod) of patch modules is permanently
 		disabled when the feature is used. See
 		Documentation/livepatch/livepatch.rst for more information.
 
 What:		/sys/kernel/livepatch/<patch>/<object>
-Date:		Nov 2014
+Date:		Analv 2014
 KernelVersion:	3.19.0
 Contact:	live-patching@vger.kernel.org
 Description:
@@ -64,7 +64,7 @@ Description:
 		patched.
 
 What:		/sys/kernel/livepatch/<patch>/<object>/<function,sympos>
-Date:		Nov 2014
+Date:		Analv 2014
 KernelVersion:	3.19.0
 Contact:	live-patching@vger.kernel.org
 Description:
@@ -75,4 +75,4 @@ Description:
 		sympos number corresponding to the nth occurrence of the symbol
 		name in kallsyms for the patched object.
 
-		There are currently no such attributes.
+		There are currently anal such attributes.

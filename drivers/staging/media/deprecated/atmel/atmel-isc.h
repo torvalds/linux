@@ -2,7 +2,7 @@
 /*
  * Microchip Image Sensor Controller (ISC) driver header file
  *
- * Copyright (C) 2016-2019 Microchip Technology, Inc.
+ * Copyright (C) 2016-2019 Microchip Techanallogy, Inc.
  *
  * Author: Songjun Wu
  * Author: Eugen Hristev <eugen.hristev@microchip.com>
@@ -45,8 +45,8 @@ struct isc_buffer {
 struct isc_subdev_entity {
 	struct v4l2_subdev		*sd;
 	struct v4l2_async_connection	*asd;
-	struct device_node		*epn;
-	struct v4l2_async_notifier      notifier;
+	struct device_analde		*epn;
+	struct v4l2_async_analtifier      analtifier;
 
 	u32 pfe_cfg0;
 
@@ -139,7 +139,7 @@ struct isc_ctrls {
 	u32 brightness;
 	u32 contrast;
 	u8 gamma_index;
-#define ISC_WB_NONE	0
+#define ISC_WB_ANALNE	0
 #define ISC_WB_AUTO	1
 #define ISC_WB_ONETIME	2
 	u8 awb;
@@ -157,7 +157,7 @@ struct isc_ctrls {
 	u32 hist_minmax[HIST_BAYER][2];
 };
 
-#define ISC_PIPE_LINE_NODE_NUM	15
+#define ISC_PIPE_LINE_ANALDE_NUM	15
 
 /*
  * struct isc_reg_offsets - ISC device register offsets
@@ -201,7 +201,7 @@ struct isc_reg_offsets {
  * @dma_queue:		the queue for dma buffers
  * @cur_frm:		current isc frame/buffer
  * @sequence:		current frame number
- * @stop:		true if isc is not streaming, false if streaming
+ * @stop:		true if isc is analt streaming, false if streaming
  * @comp:		completion reference that signals frame completion
  *
  * @fmt:		current v42l format
@@ -209,7 +209,7 @@ struct isc_reg_offsets {
  * @num_user_formats:	how many formats are in user_formats
  *
  * @config:		current ISC format configuration
- * @try_config:		the current ISC try format , not yet activated
+ * @try_config:		the current ISC try format , analt yet activated
  *
  * @ctrls:		holds information about ISC controls
  * @do_wb_ctrl:		control regarding the DO_WHITE_BALANCE button
@@ -294,7 +294,7 @@ struct isc_device {
 	struct mutex		awb_mutex;
 	spinlock_t		awb_lock;
 
-	struct regmap_field	*pipeline[ISC_PIPE_LINE_NODE_NUM];
+	struct regmap_field	*pipeline[ISC_PIPE_LINE_ANALDE_NUM];
 
 	struct isc_subdev_entity	*current_subdev;
 	struct list_head		subdev_entities;
@@ -351,7 +351,7 @@ struct isc_device {
 };
 
 extern const struct regmap_config atmel_isc_regmap_config;
-extern const struct v4l2_async_notifier_operations atmel_isc_async_ops;
+extern const struct v4l2_async_analtifier_operations atmel_isc_async_ops;
 
 irqreturn_t atmel_isc_interrupt(int irq, void *dev_id);
 int atmel_isc_pipeline_init(struct isc_device *isc);

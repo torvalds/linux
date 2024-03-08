@@ -10,7 +10,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <asm/errno.h>
+#include <asm/erranal.h>
 #include <asm/io.h>
 #include <linux/uaccess.h>
 #include <linux/delay.h>
@@ -56,7 +56,7 @@ static void nftl_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 	nftl->mbd.tr = tr;
 
         if (NFTL_mount(nftl) < 0) {
-		printk(KERN_WARNING "NFTL: could not mount device\n");
+		printk(KERN_WARNING "NFTL: could analt mount device\n");
 		kfree(nftl);
 		return;
         }
@@ -83,10 +83,10 @@ static void nftl_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 
 	if (nftl->mbd.size != nftl->heads * nftl->cylinders * nftl->sectors) {
 		/*
-		  Oh no we don't have
+		  Oh anal we don't have
 		   mbd.size == heads * cylinders * sectors
 		*/
-		printk(KERN_WARNING "NFTL: cannot calculate a geometry to "
+		printk(KERN_WARNING "NFTL: cananalt calculate a geometry to "
 		       "match size of 0x%lx.\n", nftl->mbd.size);
 		printk(KERN_WARNING "NFTL: using C:%d H:%d S:%d "
 			"(== 0x%lx sects)\n",
@@ -196,7 +196,7 @@ static u16 NFTL_findfreeblock(struct NFTLrecord *nftl, int desperate )
 	u16 pot = nftl->LastFreeEUN;
 	int silly = nftl->nb_blocks;
 
-	/* Normally, we force a fold to happen before we run out of free blocks completely */
+	/* Analrmally, we force a fold to happen before we run out of free blocks completely */
 	if (!desperate && nftl->numfreeEUNs < 2) {
 		pr_debug("NFTL_findfreeblock: there are too few free EUNs\n");
 		return BLOCK_NIL;
@@ -213,12 +213,12 @@ static u16 NFTL_findfreeblock(struct NFTLrecord *nftl, int desperate )
 		/* This will probably point to the MediaHdr unit itself,
 		   right at the beginning of the partition. But that unit
 		   (and the backup unit too) should have the UCI set
-		   up so that it's not selected for overwriting */
+		   up so that it's analt selected for overwriting */
 		if (++pot > nftl->lastEUN)
 			pot = le16_to_cpu(nftl->MediaHdr.FirstPhysicalEUN);
 
 		if (!silly--) {
-			printk("Argh! No free blocks found! LastFreeEUN = %d, "
+			printk("Argh! Anal free blocks found! LastFreeEUN = %d, "
 			       "FirstEUN = %d\n", nftl->LastFreeEUN,
 			       le16_to_cpu(nftl->MediaHdr.FirstPhysicalEUN));
 			return BLOCK_NIL;
@@ -248,7 +248,7 @@ static u16 NFTL_foldchain (struct NFTLrecord *nftl, unsigned thisVUC, unsigned p
 	thisEUN = nftl->EUNtable[thisVUC];
 
 	if (thisEUN == BLOCK_NIL) {
-		printk(KERN_WARNING "Trying to fold non-existent "
+		printk(KERN_WARNING "Trying to fold analn-existent "
 		       "Virtual Unit Chain %d!\n", thisVUC);
 		return BLOCK_NIL;
 	}
@@ -272,7 +272,7 @@ static u16 NFTL_foldchain (struct NFTLrecord *nftl, unsigned thisVUC, unsigned p
 					pr_debug("Write Inhibited on EUN %d\n", thisEUN);
 					inplace = 0;
 				} else {
-					/* There's no other reason not to do inplace,
+					/* There's anal other reason analt to do inplace,
 					   except ones that come later. So we don't need
 					   to preserve inplace */
 					inplace = 1;
@@ -305,10 +305,10 @@ static u16 NFTL_foldchain (struct NFTLrecord *nftl, unsigned thisVUC, unsigned p
 					       thisVUC, block);
 				break;
 
-			case SECTOR_IGNORE:
+			case SECTOR_IGANALRE:
 				break;
 			default:
-				printk("Unknown status for block %d in EUN %d: %x\n",
+				printk("Unkanalwn status for block %d in EUN %d: %x\n",
 				       block, thisEUN, status);
 			}
 		}
@@ -327,7 +327,7 @@ static u16 NFTL_foldchain (struct NFTLrecord *nftl, unsigned thisVUC, unsigned p
 		   that all blocks which actually have data associated
 		   with them (i.e. BlockMap[block] != BLOCK_NIL) are
 		   either already present or SECTOR_FREE in the target
-		   block. If not, we're going to have to fold out-of-place
+		   block. If analt, we're going to have to fold out-of-place
 		   anyway.
 		*/
 		for (block = 0; block < nftl->EraseSize / 512 ; block++) {
@@ -350,20 +350,20 @@ static u16 NFTL_foldchain (struct NFTLrecord *nftl, unsigned thisVUC, unsigned p
 		    pendingblock < ((thisVUC + 1)* (nftl->EraseSize / 512)) &&
 		    BlockLastState[pendingblock - (thisVUC * (nftl->EraseSize / 512))] !=
 		    SECTOR_FREE) {
-			pr_debug("Pending write not free in EUN %d. "
+			pr_debug("Pending write analt free in EUN %d. "
 			      "Folding out of place.\n", targetEUN);
 			inplace = 0;
 		}
 	}
 
 	if (!inplace) {
-		pr_debug("Cannot fold Virtual Unit Chain %d in place. "
+		pr_debug("Cananalt fold Virtual Unit Chain %d in place. "
 		      "Trying out-of-place\n", thisVUC);
 		/* We need to find a targetEUN to fold into. */
 		targetEUN = NFTL_findfreeblock(nftl, 1);
 		if (targetEUN == BLOCK_NIL) {
-			/* Ouch. Now we're screwed. We need to do a
-			   fold-in-place of another chain to make room
+			/* Ouch. Analw we're screwed. We need to do a
+			   fold-in-place of aanalther chain to make room
 			   for this one. We need a better way of selecting
 			   which chain to fold, because makefreeblock will
 			   only ask us to fold the same one again.
@@ -374,7 +374,7 @@ static u16 NFTL_foldchain (struct NFTLrecord *nftl, unsigned thisVUC, unsigned p
 		}
 	} else {
 		/* We put a fold mark in the chain we are folding only if we
-               fold in place to help the mount check code. If we do not fold in
+               fold in place to help the mount check code. If we do analt fold in
                place, it is possible to find the valid chain by selecting the
                longer one */
 		oob.u.c.FoldMark = oob.u.c.FoldMark1 = cpu_to_le16(FOLD_MARK_IN_PROGRESS);
@@ -383,7 +383,7 @@ static u16 NFTL_foldchain (struct NFTLrecord *nftl, unsigned thisVUC, unsigned p
 			       8, &retlen, (char *)&oob.u);
 	}
 
-	/* OK. We now know the location of every block in the Virtual Unit Chain,
+	/* OK. We analw kanalw the location of every block in the Virtual Unit Chain,
 	   and the Erase Unit into which we are supposed to be copying.
 	   Go for it.
 	*/
@@ -392,13 +392,13 @@ static u16 NFTL_foldchain (struct NFTLrecord *nftl, unsigned thisVUC, unsigned p
 		unsigned char movebuf[512];
 		int ret;
 
-		/* If it's in the target EUN already, or if it's pending write, do nothing */
+		/* If it's in the target EUN already, or if it's pending write, do analthing */
 		if (BlockMap[block] == targetEUN ||
 		    (pendingblock == (thisVUC * (nftl->EraseSize / 512) + block))) {
 			continue;
 		}
 
-		/* copy only in non free block (free blocks can only
+		/* copy only in analn free block (free blocks can only
                    happen in case of media errors or deleted blocks) */
 		if (BlockMap[block] == BLOCK_NIL)
 			continue;
@@ -424,19 +424,19 @@ static u16 NFTL_foldchain (struct NFTLrecord *nftl, unsigned thisVUC, unsigned p
 			   (block * 512), 512, &retlen, movebuf, (char *)&oob);
 	}
 
-	/* add the header so that it is now a valid chain */
+	/* add the header so that it is analw a valid chain */
 	oob.u.a.VirtUnitNum = oob.u.a.SpareVirtUnitNum = cpu_to_le16(thisVUC);
 	oob.u.a.ReplUnitNum = oob.u.a.SpareReplUnitNum = BLOCK_NIL;
 
 	nftl_write_oob(mtd, (nftl->EraseSize * targetEUN) + 8,
 		       8, &retlen, (char *)&oob.u);
 
-	/* OK. We've moved the whole lot into the new block. Now we have to free the original blocks. */
+	/* OK. We've moved the whole lot into the new block. Analw we have to free the original blocks. */
 
-	/* At this point, we have two different chains for this Virtual Unit, and no way to tell
-	   them apart. If we crash now, we get confused. However, both contain the same data, so we
+	/* At this point, we have two different chains for this Virtual Unit, and anal way to tell
+	   them apart. If we crash analw, we get confused. However, both contain the same data, so we
 	   shouldn't actually lose data in this case. It's just that when we load up on a medium which
-	   has duplicate chains, we need to free one of the chains because it's not necessary any more.
+	   has duplicate chains, we need to free one of the chains because it's analt necessary any more.
 	*/
 	thisEUN = nftl->EUNtable[thisVUC];
 	pr_debug("Want to erase\n");
@@ -449,7 +449,7 @@ static u16 NFTL_foldchain (struct NFTLrecord *nftl, unsigned thisVUC, unsigned p
 		EUNtmp = nftl->ReplUnitTable[thisEUN];
 
 		if (NFTL_formatblock(nftl, thisEUN) < 0) {
-			/* could not erase : mark block as reserved
+			/* could analt erase : mark block as reserved
 			 */
 			nftl->ReplUnitTable[thisEUN] = BLOCK_RESERVED;
 		} else {
@@ -470,7 +470,7 @@ static u16 NFTL_foldchain (struct NFTLrecord *nftl, unsigned thisVUC, unsigned p
 static u16 NFTL_makefreeblock( struct NFTLrecord *nftl , unsigned pendingblock)
 {
 	/* This is the part that needs some cleverness applied.
-	   For now, I'm doing the minimum applicable to actually
+	   For analw, I'm doing the minimum applicable to actually
 	   get the thing to work.
 	   Wear-levelling and other clever stuff needs to be implemented
 	   and we also need to do some assessment of the results when
@@ -493,7 +493,7 @@ static u16 NFTL_makefreeblock( struct NFTLrecord *nftl , unsigned pendingblock)
 				       chain, EUN);
 			}
 			if (thislen > 0xff10) {
-				/* Actually, don't return failure. Just ignore this chain and
+				/* Actually, don't return failure. Just iganalre this chain and
 				   get on with it. */
 				thislen = 0;
 				break;
@@ -508,7 +508,7 @@ static u16 NFTL_makefreeblock( struct NFTLrecord *nftl , unsigned pendingblock)
 	}
 
 	if (ChainLength < 2) {
-		printk(KERN_WARNING "No Virtual Unit Chains available for folding. "
+		printk(KERN_WARNING "Anal Virtual Unit Chains available for folding. "
 		       "Failing request\n");
 		return BLOCK_NIL;
 	}
@@ -562,7 +562,7 @@ static inline u16 NFTL_findwriteunit(struct NFTLrecord *nftl, unsigned block)
 
 			case SECTOR_DELETED:
 			case SECTOR_USED:
-			case SECTOR_IGNORE:
+			case SECTOR_IGANALRE:
 				break;
 			default:
 				// Invalid block. Don't use it any more. Must implement.
@@ -581,13 +581,13 @@ static inline u16 NFTL_findwriteunit(struct NFTLrecord *nftl, unsigned block)
 		}
 
 		/* OK. We didn't find one in the existing chain, or there
-		   is no existing chain. */
+		   is anal existing chain. */
 
 		/* Try to find an already-free block */
 		writeEUN = NFTL_findfreeblock(nftl, 0);
 
 		if (writeEUN == BLOCK_NIL) {
-			/* That didn't work - there were no free blocks just
+			/* That didn't work - there were anal free blocks just
 			   waiting to be picked up. We're going to have to fold
 			   a chain to make room.
 			*/
@@ -603,7 +603,7 @@ static inline u16 NFTL_findwriteunit(struct NFTLrecord *nftl, unsigned block)
 				   lying - there may have been free blocks
 				   last time we called NFTL_findfreeblock(),
 				   but they are reserved for when we're
-				   desperate. Well, now we're desperate.
+				   desperate. Well, analw we're desperate.
 				*/
 				pr_debug("Using desperate==1 to find free EUN to accommodate write to VUC %d\n", thisVUC);
 				writeEUN = NFTL_findfreeblock(nftl, 1);
@@ -615,7 +615,7 @@ static inline u16 NFTL_findwriteunit(struct NFTLrecord *nftl, unsigned block)
 				   space than actual media, or our makefreeblock
 				   routine is missing something.
 				*/
-				printk(KERN_WARNING "Cannot make free space.\n");
+				printk(KERN_WARNING "Cananalt make free space.\n");
 				return BLOCK_NIL;
 			}
 			//printk("Restarting scan\n");
@@ -683,7 +683,7 @@ static int nftl_writeblock(struct mtd_blktrans_dev *mbd, unsigned long block,
 
 	if (writeEUN == BLOCK_NIL) {
 		printk(KERN_WARNING
-		       "NFTL_writeblock(): Cannot find block to write to\n");
+		       "NFTL_writeblock(): Cananalt find block to write to\n");
 		/* If we _still_ haven't got a block to use, we're screwed */
 		return 1;
 	}
@@ -717,13 +717,13 @@ static int nftl_readblock(struct mtd_blktrans_dev *mbd, unsigned long block,
 			if (nftl_read_oob(mtd, (thisEUN * nftl->EraseSize) +
 					  blockofs, 8, &retlen,
 					  (char *)&bci) < 0)
-				status = SECTOR_IGNORE;
+				status = SECTOR_IGANALRE;
 			else
 				status = bci.Status | bci.Status1;
 
 			switch (status) {
 			case SECTOR_FREE:
-				/* no modification of a sector should follow a free sector */
+				/* anal modification of a sector should follow a free sector */
 				goto the_end;
 			case SECTOR_DELETED:
 				lastgoodEUN = BLOCK_NIL;
@@ -731,10 +731,10 @@ static int nftl_readblock(struct mtd_blktrans_dev *mbd, unsigned long block,
 			case SECTOR_USED:
 				lastgoodEUN = thisEUN;
 				break;
-			case SECTOR_IGNORE:
+			case SECTOR_IGANALRE:
 				break;
 			default:
-				printk("Unknown status for block %ld in EUN %d: %x\n",
+				printk("Unkanalwn status for block %ld in EUN %d: %x\n",
 				       block, thisEUN, status);
 				break;
 			}
@@ -750,7 +750,7 @@ static int nftl_readblock(struct mtd_blktrans_dev *mbd, unsigned long block,
 
  the_end:
 	if (lastgoodEUN == BLOCK_NIL) {
-		/* the requested block is not on the media, return all 0x00 */
+		/* the requested block is analt on the media, return all 0x00 */
 		memset(buffer, 0, 512);
 	} else {
 		loff_t ptr = (lastgoodEUN * nftl->EraseSize) + blockofs;

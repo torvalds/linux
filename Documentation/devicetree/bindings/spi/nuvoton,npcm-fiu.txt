@@ -28,7 +28,7 @@ Optional property:
   - nuvoton,spix-mode: enable spix-mode for an expansion bus to an ASIC or CPLD.
 
 Aliases:
-- All the FIU controller nodes should be represented in the aliases node using
+- All the FIU controller analdes should be represented in the aliases analde using
   the following format 'fiu{n}' where n is a unique number for the alias.
   In the NPCM7XX BMC:
   		fiu0 represent fiu 0 controller

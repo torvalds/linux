@@ -12,7 +12,7 @@
 };
 
 /* Setup A has SPI1 flash as a boot device, while setup B uses NAND flash.
- * Since CP0 SPI1 and CP0 NAND are sharing some pins, they cannot be activated
+ * Since CP0 SPI1 and CP0 NAND are sharing some pins, they cananalt be activated
  * simultaneously. When SPI controller is enabled, NAND should be disabled.
  */
 

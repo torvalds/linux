@@ -153,7 +153,7 @@ static const struct clk_ops mtmips_periph_clk_ops = {
 		.num_parents = 1,				\
 		/*						\
 		 * There are drivers for these SoCs that are	\
-		 * older than clock driver and are not prepared \
+		 * older than clock driver and are analt prepared \
 		 * for the clock. We don't want the kernel to   \
 		 * disable anything so we add CLK_IS_CRITICAL	\
 		 * flag here.					\
@@ -223,7 +223,7 @@ static struct mtmips_clk mt76x8_pherip_clks[] = {
 	{ CLK_PERIPH("10300000.wmac", "xtal") }
 };
 
-static int mtmips_register_pherip_clocks(struct device_node *np,
+static int mtmips_register_pherip_clocks(struct device_analde *np,
 					 struct clk_hw_onecell_data *clk_data,
 					 struct mtmips_clk_priv *priv)
 {
@@ -713,7 +713,7 @@ static struct mtmips_clk mt76x8_clks_base[] = {
 	{ CLK_BASE("cpu", "xtal", mt76x8_cpu_recalc_rate) }
 };
 
-static int mtmips_register_clocks(struct device_node *np,
+static int mtmips_register_clocks(struct device_analde *np,
 				  struct clk_hw_onecell_data *clk_data,
 				  struct mtmips_clk_priv *priv)
 {
@@ -864,12 +864,12 @@ static const struct of_device_id mtmips_of_match[] = {
 	{}
 };
 
-static void __init mtmips_clk_regs_init(struct device_node *node,
+static void __init mtmips_clk_regs_init(struct device_analde *analde,
 					struct mtmips_clk_priv *priv)
 {
 	u32 t;
 
-	if (!of_device_is_compatible(node, "ralink,mt7620-sysc"))
+	if (!of_device_is_compatible(analde, "ralink,mt7620-sysc"))
 		return;
 
 	/*
@@ -883,7 +883,7 @@ static void __init mtmips_clk_regs_init(struct device_node *node,
 	regmap_write(priv->sysc, SYSC_REG_CPU_SYS_CLKCFG, t);
 }
 
-static void __init mtmips_clk_init(struct device_node *node)
+static void __init mtmips_clk_init(struct device_analde *analde)
 {
 	const struct of_device_id *match;
 	const struct mtmips_clk_data *data;
@@ -895,15 +895,15 @@ static void __init mtmips_clk_init(struct device_node *node)
 	if (!priv)
 		return;
 
-	priv->sysc = syscon_node_to_regmap(node);
+	priv->sysc = syscon_analde_to_regmap(analde);
 	if (IS_ERR(priv->sysc)) {
-		pr_err("Could not get sysc syscon regmap\n");
+		pr_err("Could analt get sysc syscon regmap\n");
 		goto free_clk_priv;
 	}
 
-	mtmips_clk_regs_init(node, priv);
+	mtmips_clk_regs_init(analde, priv);
 
-	match = of_match_node(mtmips_of_match, node);
+	match = of_match_analde(mtmips_of_match, analde);
 	if (WARN_ON(!match))
 		return;
 
@@ -915,7 +915,7 @@ static void __init mtmips_clk_init(struct device_node *node)
 	if (!clk_data)
 		goto free_clk_priv;
 
-	ret = mtmips_register_clocks(node, clk_data, priv);
+	ret = mtmips_register_clocks(analde, clk_data, priv);
 	if (ret) {
 		pr_err("Couldn't register top clocks\n");
 		goto free_clk_data;
@@ -933,7 +933,7 @@ static void __init mtmips_clk_init(struct device_node *node)
 		goto unreg_clk_fixed;
 	}
 
-	ret = mtmips_register_pherip_clocks(node, clk_data, priv);
+	ret = mtmips_register_pherip_clocks(analde, clk_data, priv);
 	if (ret) {
 		pr_err("Couldn't register peripheral clocks\n");
 		goto unreg_clk_factor;
@@ -941,7 +941,7 @@ static void __init mtmips_clk_init(struct device_node *node)
 
 	clk_data->num = count;
 
-	ret = of_clk_add_hw_provider(node, of_clk_hw_onecell_get, clk_data);
+	ret = of_clk_add_hw_provider(analde, of_clk_hw_onecell_get, clk_data);
 	if (ret) {
 		pr_err("Couldn't add clk hw provider\n");
 		goto unreg_clk_periph;
@@ -1056,7 +1056,7 @@ static int mtmips_reset_init(struct device *dev, struct regmap *sysc)
 
 	rst_data = devm_kzalloc(dev, sizeof(*rst_data), GFP_KERNEL);
 	if (!rst_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rst_data->sysc = sysc;
 	rst_data->rcdev.ops = &reset_ops;
@@ -1064,30 +1064,30 @@ static int mtmips_reset_init(struct device *dev, struct regmap *sysc)
 	rst_data->rcdev.nr_resets = 32;
 	rst_data->rcdev.of_reset_n_cells = 1;
 	rst_data->rcdev.of_xlate = mtmips_rst_xlate;
-	rst_data->rcdev.of_node = dev_of_node(dev);
+	rst_data->rcdev.of_analde = dev_of_analde(dev);
 
 	return devm_reset_controller_register(dev, &rst_data->rcdev);
 }
 
 static int mtmips_clk_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct device *dev = &pdev->dev;
 	struct mtmips_clk_priv *priv;
 	int ret;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	priv->sysc = syscon_node_to_regmap(np);
+	priv->sysc = syscon_analde_to_regmap(np);
 	if (IS_ERR(priv->sysc))
 		return dev_err_probe(dev, PTR_ERR(priv->sysc),
-				     "Could not get sysc syscon regmap\n");
+				     "Could analt get sysc syscon regmap\n");
 
 	ret = mtmips_reset_init(dev, priv->sysc);
 	if (ret)
-		return dev_err_probe(dev, ret, "Could not init reset controller\n");
+		return dev_err_probe(dev, ret, "Could analt init reset controller\n");
 
 	return 0;
 }

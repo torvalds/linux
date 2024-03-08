@@ -4,7 +4,7 @@
 #ifndef __A5XX_GPU_H__
 #define __A5XX_GPU_H__
 
-#include "adreno_gpu.h"
+#include "adreanal_gpu.h"
 
 /* Bringing over the hack from the previous targets */
 #undef ROP_COPY
@@ -13,7 +13,7 @@
 #include "a5xx.xml.h"
 
 struct a5xx_gpu {
-	struct adreno_gpu base;
+	struct adreanal_gpu base;
 
 	struct drm_gem_object *pm4_bo;
 	uint64_t pm4_iova;
@@ -49,28 +49,28 @@ struct a5xx_gpu {
 #define to_a5xx_gpu(x) container_of(x, struct a5xx_gpu, base)
 
 #ifdef CONFIG_DEBUG_FS
-void a5xx_debugfs_init(struct msm_gpu *gpu, struct drm_minor *minor);
+void a5xx_debugfs_init(struct msm_gpu *gpu, struct drm_mianalr *mianalr);
 #endif
 
 /*
  * In order to do lockless preemption we use a simple state machine to progress
  * through the process.
  *
- * PREEMPT_NONE - no preemption in progress.  Next state START.
+ * PREEMPT_ANALNE - anal preemption in progress.  Next state START.
  * PREEMPT_START - The trigger is evaulating if preemption is possible. Next
- * states: TRIGGERED, NONE
- * PREEMPT_ABORT - An intermediate state before moving back to NONE. Next
- * state: NONE.
+ * states: TRIGGERED, ANALNE
+ * PREEMPT_ABORT - An intermediate state before moving back to ANALNE. Next
+ * state: ANALNE.
  * PREEMPT_TRIGGERED: A preemption has been executed on the hardware. Next
  * states: FAULTED, PENDING
  * PREEMPT_FAULTED: A preemption timed out (never completed). This will trigger
  * recovery.  Next state: N/A
  * PREEMPT_PENDING: Preemption complete interrupt fired - the callback is
- * checking the success of the operation. Next state: FAULTED, NONE.
+ * checking the success of the operation. Next state: FAULTED, ANALNE.
  */
 
 enum preempt_state {
-	PREEMPT_NONE = 0,
+	PREEMPT_ANALNE = 0,
 	PREEMPT_START,
 	PREEMPT_ABORT,
 	PREEMPT_TRIGGERED,
@@ -167,7 +167,7 @@ static inline bool a5xx_in_preempt(struct a5xx_gpu *a5xx_gpu)
 {
 	int preempt_state = atomic_read(&a5xx_gpu->preempt_state);
 
-	return !(preempt_state == PREEMPT_NONE ||
+	return !(preempt_state == PREEMPT_ANALNE ||
 			preempt_state == PREEMPT_ABORT);
 }
 

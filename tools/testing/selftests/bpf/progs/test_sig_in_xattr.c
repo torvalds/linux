@@ -2,7 +2,7 @@
 /* Copyright (c) 2023 Meta Platforms, Inc. and affiliates. */
 
 #include "vmlinux.h"
-#include <errno.h>
+#include <erranal.h>
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
 #include "bpf_kfuncs.h"
@@ -17,8 +17,8 @@ char _license[] SEC("license") = "GPL";
 
 /* By default, "fsverity sign" signs a file with fsverity_formatted_digest
  * of the file. fsverity_formatted_digest on the kernel side is only used
- * with CONFIG_FS_VERITY_BUILTIN_SIGNATURES. However, BPF LSM doesn't not
- * require CONFIG_FS_VERITY_BUILTIN_SIGNATURES, so vmlinux.h may not have
+ * with CONFIG_FS_VERITY_BUILTIN_SIGNATURES. However, BPF LSM doesn't analt
+ * require CONFIG_FS_VERITY_BUILTIN_SIGNATURES, so vmlinux.h may analt have
  * fsverity_formatted_digest. In this test, we intentionally avoid using
  * fsverity_formatted_digest.
  *
@@ -27,7 +27,7 @@ char _license[] SEC("license") = "GPL";
  * plus SHA256_DIGEST_SIZE. The magic part of it is filled by user space,
  * and the rest of it is filled by bpf_get_fsverity_digest.
  *
- * Note that, generating signatures based on fsverity_formatted_digest is
+ * Analte that, generating signatures based on fsverity_formatted_digest is
  * the design choice of this selftest (and "fsverity sign"). With BPF
  * LSM, we have the flexibility to generate signature based on other data
  * sets, for example, fsverity_digest or only the digest[] part of it.
@@ -57,7 +57,7 @@ int BPF_PROG(test_file_open, struct file *f)
 	bpf_dynptr_from_mem(digest + MAGIC_SIZE, sizeof(digest) - MAGIC_SIZE, 0, &digest_ptr);
 
 	ret = bpf_get_fsverity_digest(f, &digest_ptr);
-	/* No verity, allow access */
+	/* Anal verity, allow access */
 	if (ret < 0)
 		return 0;
 
@@ -67,13 +67,13 @@ int BPF_PROG(test_file_open, struct file *f)
 	/* Read signature from xattr */
 	bpf_dynptr_from_mem(sig, sizeof(sig), 0, &sig_ptr);
 	ret = bpf_get_file_xattr(f, "user.sig", &sig_ptr);
-	/* No signature, reject access */
+	/* Anal signature, reject access */
 	if (ret < 0)
 		return -EPERM;
 
 	trusted_keyring = bpf_lookup_user_key(user_keyring_serial, 0);
 	if (!trusted_keyring)
-		return -ENOENT;
+		return -EANALENT;
 
 	/* Verify signature */
 	ret = bpf_verify_pkcs7_signature(&digest_ptr, &sig_ptr, trusted_keyring);

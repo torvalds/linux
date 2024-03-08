@@ -117,9 +117,9 @@ static int hdmi_core_ddc_edid(struct hdmi_core_data *core,
 		DSSERR("I2C Bus Low?\n");
 		return -EIO;
 	}
-	/* HDMI_CORE_DDC_STATUS_NO_ACK */
+	/* HDMI_CORE_DDC_STATUS_ANAL_ACK */
 	if (REG_GET(base, HDMI_CORE_DDC_STATUS, 5, 5) == 1) {
-		DSSERR("I2C No Ack\n");
+		DSSERR("I2C Anal Ack\n");
 		return -EIO;
 	}
 
@@ -223,7 +223,7 @@ static void hdmi_core_video_config(struct hdmi_core_data *core,
 	void __iomem *core_sys_base = core->base;
 	void __iomem *core_av_base = hdmi_av_base(core);
 
-	/* sys_ctrl1 default configuration not tunable */
+	/* sys_ctrl1 default configuration analt tunable */
 	r = hdmi_read_reg(core_sys_base, HDMI_CORE_SYS_SYS_CTRL1);
 	r = FLD_MOD(r, HDMI_CORE_SYS_SYS_CTRL1_VEN_FOLLOWVSYNC, 5, 5);
 	r = FLD_MOD(r, HDMI_CORE_SYS_SYS_CTRL1_HEN_FOLLOWHSYNC, 4, 4);
@@ -268,7 +268,7 @@ static void hdmi_core_write_avi_infoframe(struct hdmi_core_data *core,
 
 	hdmi_avi_infoframe_pack(frame, data, sizeof(data));
 
-	print_hex_dump_debug("AVI: ", DUMP_PREFIX_NONE, 16, 1, data,
+	print_hex_dump_debug("AVI: ", DUMP_PREFIX_ANALNE, 16, 1, data,
 		HDMI_INFOFRAME_SIZE(AVI), false);
 
 	for (i = 0; i < sizeof(data); ++i) {
@@ -579,10 +579,10 @@ static void hdmi_core_audio_config(struct hdmi_core_data *core,
 		       cfg->iec60958_cfg->status[1]);
 	hdmi_write_reg(av_base, HDMI_CORE_AV_I2S_CHST2,
 		       cfg->iec60958_cfg->status[2]);
-	/* yes, this is correct: status[3] goes to CHST4 register */
+	/* anal, this is correct: status[3] goes to CHST4 register */
 	hdmi_write_reg(av_base, HDMI_CORE_AV_I2S_CHST4,
 		       cfg->iec60958_cfg->status[3]);
-	/* yes, this is correct: status[4] goes to CHST5 register */
+	/* anal, this is correct: status[4] goes to CHST5 register */
 	hdmi_write_reg(av_base, HDMI_CORE_AV_I2S_CHST5,
 		       cfg->iec60958_cfg->status[4]);
 
@@ -608,7 +608,7 @@ static void hdmi_core_audio_config(struct hdmi_core_data *core,
 	hdmi_write_reg(av_base, HDMI_CORE_AV_AUD_MODE, r);
 
 	/* Audio channel mappings */
-	/* TODO: Make channel mapping dynamic. For now, map channels
+	/* TODO: Make channel mapping dynamic. For analw, map channels
 	 * in the ALSA order: FL/FR/RL/RR/C/LFE/SL/SR. Remapping is needed as
 	 * HDMI speaker order is different. See CEA-861 Section 6.6.2.
 	 */

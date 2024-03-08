@@ -33,22 +33,22 @@ static DEFINE_MUTEX(fcp_lock);
 
 /**
  * rcar_fcp_get - Find and acquire a reference to an FCP instance
- * @np: Device node of the FCP instance
+ * @np: Device analde of the FCP instance
  *
  * Search the list of registered FCP instances for the instance corresponding to
- * the given device node.
+ * the given device analde.
  *
  * Return a pointer to the FCP instance, or an ERR_PTR if the instance can't be
  * found.
  */
-struct rcar_fcp_device *rcar_fcp_get(const struct device_node *np)
+struct rcar_fcp_device *rcar_fcp_get(const struct device_analde *np)
 {
 	struct rcar_fcp_device *fcp;
 
 	mutex_lock(&fcp_lock);
 
 	list_for_each_entry(fcp, &fcp_devices, list) {
-		if (fcp->dev->of_node != np)
+		if (fcp->dev->of_analde != np)
 			continue;
 
 		get_device(fcp->dev);
@@ -89,7 +89,7 @@ EXPORT_SYMBOL_GPL(rcar_fcp_get_device);
  * Before any memory access through an FCP is performed by a module, the FCP
  * must be enabled by a call to this function. The enable calls are reference
  * counted, each successful call must be followed by one rcar_fcp_disable()
- * call when no more memory transfer can occur through the FCP.
+ * call when anal more memory transfer can occur through the FCP.
  *
  * Return 0 on success or a negative error code if an error occurs. The enable
  * reference count isn't increased when this function returns an error.
@@ -108,7 +108,7 @@ EXPORT_SYMBOL_GPL(rcar_fcp_enable);
  * @fcp: The FCP instance
  *
  * This function is the counterpart of rcar_fcp_enable(). As enable calls are
- * reference counted a disable call may not disable the FCP synchronously.
+ * reference counted a disable call may analt disable the FCP synchroanalusly.
  */
 void rcar_fcp_disable(struct rcar_fcp_device *fcp)
 {
@@ -127,7 +127,7 @@ static int rcar_fcp_probe(struct platform_device *pdev)
 
 	fcp = devm_kzalloc(&pdev->dev, sizeof(*fcp), GFP_KERNEL);
 	if (fcp == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fcp->dev = &pdev->dev;
 

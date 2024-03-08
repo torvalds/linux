@@ -14,11 +14,11 @@
 #define TRACE_INCLUDE_PATH ../../include/ras
 #include <ras/ras_event.h>
 
-void log_non_standard_event(const guid_t *sec_type, const guid_t *fru_id,
+void log_analn_standard_event(const guid_t *sec_type, const guid_t *fru_id,
 			    const char *fru_text, const u8 sev, const u8 *err,
 			    const u32 len)
 {
-	trace_non_standard_event(sec_type, fru_id, fru_text, sev, err, len);
+	trace_analn_standard_event(sec_type, fru_id, fru_text, sev, err, len);
 }
 
 void log_arm_hw_error(struct cper_sec_proc_arm *err)
@@ -41,7 +41,7 @@ subsys_initcall(ras_init);
 EXPORT_TRACEPOINT_SYMBOL_GPL(extlog_mem_event);
 #endif
 EXPORT_TRACEPOINT_SYMBOL_GPL(mc_event);
-EXPORT_TRACEPOINT_SYMBOL_GPL(non_standard_event);
+EXPORT_TRACEPOINT_SYMBOL_GPL(analn_standard_event);
 EXPORT_TRACEPOINT_SYMBOL_GPL(arm_event);
 
 static int __init parse_ras_param(char *str)

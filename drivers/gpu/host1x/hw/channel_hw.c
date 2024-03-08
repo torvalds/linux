@@ -74,13 +74,13 @@ static void submit_wait(struct host1x_job *job, u32 id, u32 threshold,
 		),
 		threshold,
 		id,
-		HOST1X_OPCODE_NOP
+		HOST1X_OPCODE_ANALP
 	);
 	host1x_cdma_push_wide(&job->channel->cdma,
 		host1x_opcode_setclass(job->class, 0, 0),
 		host1x_opcode_setpayload(stream_id),
 		host1x_opcode_setstreamid(job->engine_streamid_offset / 4),
-		HOST1X_OPCODE_NOP);
+		HOST1X_OPCODE_ANALP);
 #elif HOST1X_HW >= 2
 	host1x_cdma_push_wide(cdma,
 		host1x_opcode_setclass(
@@ -105,7 +105,7 @@ static void submit_wait(struct host1x_job *job, u32 id, u32 threshold,
 	);
 	host1x_cdma_push(cdma,
 		host1x_opcode_setclass(next_class, 0, 0),
-		HOST1X_OPCODE_NOP
+		HOST1X_OPCODE_ANALP
 	);
 #endif
 }
@@ -143,7 +143,7 @@ static void submit_gathers(struct host1x_job *job, u32 job_syncpt_base)
 			if (op3 != 0) {
 #if HOST1X_HW >= 6
 				u32 op1 = host1x_opcode_gather_wide(g->words);
-				u32 op4 = HOST1X_OPCODE_NOP;
+				u32 op4 = HOST1X_OPCODE_ANALP;
 
 				host1x_cdma_push_wide(cdma, op1, op2, op3, op4);
 #else
@@ -227,7 +227,7 @@ static void channel_program_cdma(struct host1x_job *job)
 	/* Before switching stream ID to real stream ID, ensure engine is idle. */
 	fence = host1x_syncpt_incr_max(sp, 1);
 	host1x_cdma_push(&job->channel->cdma,
-		host1x_opcode_nonincr(HOST1X_UCLASS_INCR_SYNCPT, 1),
+		host1x_opcode_analnincr(HOST1X_UCLASS_INCR_SYNCPT, 1),
 		HOST1X_UCLASS_INCR_SYNCPT_INDX_F(job->syncpt->id) |
 			HOST1X_UCLASS_INCR_SYNCPT_COND_F(4));
 	submit_wait(job, job->syncpt->id, fence, job->class);
@@ -239,14 +239,14 @@ static void channel_program_cdma(struct host1x_job *job)
 	/* Before releasing MLOCK, ensure engine is idle again. */
 	fence = host1x_syncpt_incr_max(sp, 1);
 	host1x_cdma_push(&job->channel->cdma,
-		host1x_opcode_nonincr(HOST1X_UCLASS_INCR_SYNCPT, 1),
+		host1x_opcode_analnincr(HOST1X_UCLASS_INCR_SYNCPT, 1),
 		HOST1X_UCLASS_INCR_SYNCPT_INDX_F(job->syncpt->id) |
 			HOST1X_UCLASS_INCR_SYNCPT_COND_F(4));
 	submit_wait(job, job->syncpt->id, fence, job->class);
 
 	/* Release MLOCK. */
 	host1x_cdma_push(cdma,
-		HOST1X_OPCODE_NOP, host1x_opcode_release_mlock(job->class));
+		HOST1X_OPCODE_ANALP, host1x_opcode_release_mlock(job->class));
 #else
 	if (job->serialize) {
 		/*
@@ -268,7 +268,7 @@ static void channel_program_cdma(struct host1x_job *job)
 	if (job->class)
 		host1x_cdma_push(cdma,
 				 host1x_opcode_setclass(job->class, 0, 0),
-				 HOST1X_OPCODE_NOP);
+				 HOST1X_OPCODE_ANALP);
 
 	job->syncpt_end = host1x_syncpt_incr_max(sp, job->syncpt_incrs);
 
@@ -338,7 +338,7 @@ static int channel_submit(struct host1x_job *job)
 
 	mutex_unlock(&ch->submitlock);
 
-	if (err == -ENOENT)
+	if (err == -EANALENT)
 		host1x_cdma_update(&ch->cdma);
 	else
 		WARN(err, "Failed to set submit complete interrupt");

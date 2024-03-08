@@ -12,7 +12,7 @@
 #include <linux/mm.h>
 #include <linux/vmalloc.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include "reiserfs.h"
 #include <linux/buffer_head.h>
 
@@ -55,13 +55,13 @@ int reiserfs_resize(struct super_block *s, unsigned long block_count_new)
 
 	/*
 	 * old disk layout detection; those partitions can be mounted, but
-	 * cannot be resized
+	 * cananalt be resized
 	 */
 	if (SB_BUFFER_WITH_SB(s)->b_blocknr * SB_BUFFER_WITH_SB(s)->b_size
 	    != REISERFS_DISK_OFFSET_IN_BYTES) {
 		printk
 		    ("reiserfs_resize: unable to resize a reiserfs without distributed bitmap (fs version < 3.5.12)\n");
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	/* count used bits in last bitmap block */
@@ -86,11 +86,11 @@ int reiserfs_resize(struct super_block *s, unsigned long block_count_new)
 		if (reiserfs_allocate_list_bitmaps(s, jbitmap, bmap_nr_new) < 0) {
 			printk
 			    ("reiserfs_resize: unable to allocate memory for journal bitmaps\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		/*
-		 * the new journal bitmaps are zero filled, now we copy i
-		 * the bitmap node pointers from the old journal bitmap
+		 * the new journal bitmaps are zero filled, analw we copy i
+		 * the bitmap analde pointers from the old journal bitmap
 		 * structs, and then transfer the new data structures
 		 * into the journal struct.
 		 *
@@ -99,9 +99,9 @@ int reiserfs_resize(struct super_block *s, unsigned long block_count_new)
 		 */
 		copy_size = min(bmap_nr_new, bmap_nr);
 		copy_size =
-		    copy_size * sizeof(struct reiserfs_list_bitmap_node *);
+		    copy_size * sizeof(struct reiserfs_list_bitmap_analde *);
 		for (i = 0; i < JOURNAL_NUM_BITMAPS; i++) {
-			struct reiserfs_bitmap_node **node_tmp;
+			struct reiserfs_bitmap_analde **analde_tmp;
 			jb = SB_JOURNAL(s)->j_list_bitmap + i;
 			memcpy(jbitmap[i].bitmaps, jb->bitmaps, copy_size);
 
@@ -110,9 +110,9 @@ int reiserfs_resize(struct super_block *s, unsigned long block_count_new)
 			 * pointer into the journal struct before freeing the
 			 * old one
 			 */
-			node_tmp = jb->bitmaps;
+			analde_tmp = jb->bitmaps;
 			jb->bitmaps = jbitmap[i].bitmaps;
-			vfree(node_tmp);
+			vfree(analde_tmp);
 		}
 
 		/*
@@ -128,7 +128,7 @@ int reiserfs_resize(struct super_block *s, unsigned long block_count_new)
 			 * memory isn't leaked, so I guess it's ok
 			 */
 			printk("reiserfs_resize: unable to allocate memory.\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		for (i = 0; i < bmap_nr; i++)
 			bitmap[i] = old_bitmap[i];
@@ -171,8 +171,8 @@ int reiserfs_resize(struct super_block *s, unsigned long block_count_new)
 	}
 
 	/*
-	 * begin transaction, if there was an error, it's fine. Yes, we have
-	 * incorrect bitmaps now, but none of it is ever going to touch the
+	 * begin transaction, if there was an error, it's fine. Anal, we have
+	 * incorrect bitmaps analw, but analne of it is ever going to touch the
 	 * disk anyway.
 	 */
 	err = journal_begin(&th, s, 10);
@@ -197,7 +197,7 @@ int reiserfs_resize(struct super_block *s, unsigned long block_count_new)
 	journal_mark_dirty(&th, bh);
 	brelse(bh);
 
-	/* Correct new last bitmap block - It may not be full */
+	/* Correct new last bitmap block - It may analt be full */
 	info = SB_AP_BITMAP(s) + bmap_nr_new - 1;
 	bh = reiserfs_read_bitmap_block(s, bmap_nr_new - 1);
 	if (!bh) {

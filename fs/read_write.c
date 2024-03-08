@@ -11,7 +11,7 @@
 #include <linux/fcntl.h>
 #include <linux/file.h>
 #include <linux/uio.h>
-#include <linux/fsnotify.h>
+#include <linux/fsanaltify.h>
 #include <linux/security.h>
 #include <linux/export.h>
 #include <linux/syscalls.h>
@@ -47,7 +47,7 @@ static inline bool unsigned_offsets(struct file *file)
  *
  * This is a low-level filesystem helper for updating the file offset to
  * the value specified by @offset if the given offset is valid and it is
- * not equal to the current file offset.
+ * analt equal to the current file offset.
  *
  * Return the specified offset on success and -EINVAL on invalid offset.
  */
@@ -79,7 +79,7 @@ EXPORT_SYMBOL(vfs_setpos);
  *
  * Synchronization:
  * SEEK_SET and SEEK_END are unsynchronized (but atomic on 64bit platforms)
- * SEEK_CUR is synchronized against other SEEK_CURs, but not read/writes.
+ * SEEK_CUR is synchronized against other SEEK_CURs, but analt read/writes.
  * read/writes behave like SEEK_SET against seeks.
  */
 loff_t
@@ -101,7 +101,7 @@ generic_file_llseek_size(struct file *file, loff_t offset, int whence,
 			return file->f_pos;
 		/*
 		 * f_lock protects against read/modify/write race with other
-		 * SEEK_CURs. Note that parallel writes and reads behave
+		 * SEEK_CURs. Analte that parallel writes and reads behave
 		 * like SEEK_SET.
 		 */
 		spin_lock(&file->f_lock);
@@ -137,17 +137,17 @@ EXPORT_SYMBOL(generic_file_llseek_size);
  * @offset:	file offset to seek to
  * @whence:	type of seek
  *
- * This is a generic implemenation of ->llseek useable for all normal local
+ * This is a generic implemenation of ->llseek useable for all analrmal local
  * filesystems.  It just updates the file offset to the value specified by
  * @offset and @whence.
  */
 loff_t generic_file_llseek(struct file *file, loff_t offset, int whence)
 {
-	struct inode *inode = file->f_mapping->host;
+	struct ianalde *ianalde = file->f_mapping->host;
 
 	return generic_file_llseek_size(file, offset, whence,
-					inode->i_sb->s_maxbytes,
-					i_size_read(inode));
+					ianalde->i_sb->s_maxbytes,
+					i_size_read(ianalde));
 }
 EXPORT_SYMBOL(generic_file_llseek);
 
@@ -172,13 +172,13 @@ loff_t fixed_size_llseek(struct file *file, loff_t offset, int whence, loff_t si
 EXPORT_SYMBOL(fixed_size_llseek);
 
 /**
- * no_seek_end_llseek - llseek implementation for fixed-sized devices
+ * anal_seek_end_llseek - llseek implementation for fixed-sized devices
  * @file:	file structure to seek on
  * @offset:	file offset to seek to
  * @whence:	type of seek
  *
  */
-loff_t no_seek_end_llseek(struct file *file, loff_t offset, int whence)
+loff_t anal_seek_end_llseek(struct file *file, loff_t offset, int whence)
 {
 	switch (whence) {
 	case SEEK_SET: case SEEK_CUR:
@@ -188,17 +188,17 @@ loff_t no_seek_end_llseek(struct file *file, loff_t offset, int whence)
 		return -EINVAL;
 	}
 }
-EXPORT_SYMBOL(no_seek_end_llseek);
+EXPORT_SYMBOL(anal_seek_end_llseek);
 
 /**
- * no_seek_end_llseek_size - llseek implementation for fixed-sized devices
+ * anal_seek_end_llseek_size - llseek implementation for fixed-sized devices
  * @file:	file structure to seek on
  * @offset:	file offset to seek to
  * @whence:	type of seek
  * @size:	maximal offset allowed
  *
  */
-loff_t no_seek_end_llseek_size(struct file *file, loff_t offset, int whence, loff_t size)
+loff_t anal_seek_end_llseek_size(struct file *file, loff_t offset, int whence, loff_t size)
 {
 	switch (whence) {
 	case SEEK_SET: case SEEK_CUR:
@@ -208,34 +208,34 @@ loff_t no_seek_end_llseek_size(struct file *file, loff_t offset, int whence, lof
 		return -EINVAL;
 	}
 }
-EXPORT_SYMBOL(no_seek_end_llseek_size);
+EXPORT_SYMBOL(anal_seek_end_llseek_size);
 
 /**
- * noop_llseek - No Operation Performed llseek implementation
+ * analop_llseek - Anal Operation Performed llseek implementation
  * @file:	file structure to seek on
  * @offset:	file offset to seek to
  * @whence:	type of seek
  *
  * This is an implementation of ->llseek useable for the rare special case when
- * userspace expects the seek to succeed but the (device) file is actually not
- * able to perform the seek. In this case you use noop_llseek() instead of
+ * userspace expects the seek to succeed but the (device) file is actually analt
+ * able to perform the seek. In this case you use analop_llseek() instead of
  * falling back to the default implementation of ->llseek.
  */
-loff_t noop_llseek(struct file *file, loff_t offset, int whence)
+loff_t analop_llseek(struct file *file, loff_t offset, int whence)
 {
 	return file->f_pos;
 }
-EXPORT_SYMBOL(noop_llseek);
+EXPORT_SYMBOL(analop_llseek);
 
 loff_t default_llseek(struct file *file, loff_t offset, int whence)
 {
-	struct inode *inode = file_inode(file);
+	struct ianalde *ianalde = file_ianalde(file);
 	loff_t retval;
 
-	inode_lock(inode);
+	ianalde_lock(ianalde);
 	switch (whence) {
 		case SEEK_END:
-			offset += i_size_read(inode);
+			offset += i_size_read(ianalde);
 			break;
 		case SEEK_CUR:
 			if (offset == 0) {
@@ -250,7 +250,7 @@ loff_t default_llseek(struct file *file, loff_t offset, int whence)
 			 * long as offset isn't at the end of the file then the
 			 * offset is data.
 			 */
-			if (offset >= inode->i_size) {
+			if (offset >= ianalde->i_size) {
 				retval = -ENXIO;
 				goto out;
 			}
@@ -261,11 +261,11 @@ loff_t default_llseek(struct file *file, loff_t offset, int whence)
 			 * as long as offset isn't i_size or larger, return
 			 * i_size.
 			 */
-			if (offset >= inode->i_size) {
+			if (offset >= ianalde->i_size) {
 				retval = -ENXIO;
 				goto out;
 			}
-			offset = inode->i_size;
+			offset = ianalde->i_size;
 			break;
 	}
 	retval = -EINVAL;
@@ -277,7 +277,7 @@ loff_t default_llseek(struct file *file, loff_t offset, int whence)
 		retval = offset;
 	}
 out:
-	inode_unlock(inode);
+	ianalde_unlock(ianalde);
 	return retval;
 }
 EXPORT_SYMBOL(default_llseek);
@@ -378,7 +378,7 @@ int rw_verify_area(int read_write, struct file *file, const loff_t *ppos, size_t
 	if (ret)
 		return ret;
 
-	return fsnotify_file_area_perm(file, mask, ppos, count);
+	return fsanaltify_file_area_perm(file, mask, ppos, count);
 }
 EXPORT_SYMBOL(rw_verify_area);
 
@@ -402,7 +402,7 @@ static ssize_t new_sync_read(struct file *filp, char __user *buf, size_t len, lo
 static int warn_unsupported(struct file *file, const char *op)
 {
 	pr_warn_ratelimited(
-		"kernel %s not supported for file %pD4 (pid: %d comm: %.20s)\n",
+		"kernel %s analt supported for file %pD4 (pid: %d comm: %.20s)\n",
 		op, file, current->pid, current->comm);
 	return -EINVAL;
 }
@@ -435,7 +435,7 @@ ssize_t __kernel_read(struct file *file, void *buf, size_t count, loff_t *pos)
 	if (ret > 0) {
 		if (pos)
 			*pos = kiocb.ki_pos;
-		fsnotify_access(file);
+		fsanaltify_access(file);
 		add_rchar(current, ret);
 	}
 	inc_syscr(current);
@@ -477,7 +477,7 @@ ssize_t vfs_read(struct file *file, char __user *buf, size_t count, loff_t *pos)
 	else
 		ret = -EINVAL;
 	if (ret > 0) {
-		fsnotify_access(file);
+		fsanaltify_access(file);
 		add_rchar(current, ret);
 	}
 	inc_syscr(current);
@@ -524,7 +524,7 @@ ssize_t __kernel_write_iter(struct file *file, struct iov_iter *from, loff_t *po
 	if (ret > 0) {
 		if (pos)
 			*pos = kiocb.ki_pos;
-		fsnotify_modify(file);
+		fsanaltify_modify(file);
 		add_wchar(current, ret);
 	}
 	inc_syscw(current);
@@ -591,7 +591,7 @@ ssize_t vfs_write(struct file *file, const char __user *buf, size_t count, loff_
 	else
 		ret = -EINVAL;
 	if (ret > 0) {
-		fsnotify_modify(file);
+		fsanaltify_modify(file);
 		add_wchar(current, ret);
 	}
 	inc_syscw(current);
@@ -752,7 +752,7 @@ static ssize_t do_loop_readv_writev(struct file *filp, struct iov_iter *iter,
 	ssize_t ret = 0;
 
 	if (flags & ~RWF_HIPRI)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	while (iov_iter_count(iter)) {
 		ssize_t nr;
@@ -802,7 +802,7 @@ ssize_t vfs_iocb_iter_read(struct file *file, struct kiocb *iocb,
 	ret = call_read_iter(file, iocb, iter);
 out:
 	if (ret >= 0)
-		fsnotify_access(file);
+		fsanaltify_access(file);
 	return ret;
 }
 EXPORT_SYMBOL(vfs_iocb_iter_read);
@@ -830,7 +830,7 @@ ssize_t vfs_iter_read(struct file *file, struct iov_iter *iter, loff_t *ppos,
 	ret = do_iter_readv_writev(file, iter, ppos, READ, flags);
 out:
 	if (ret >= 0)
-		fsnotify_access(file);
+		fsanaltify_access(file);
 	return ret;
 }
 EXPORT_SYMBOL(vfs_iter_read);
@@ -864,7 +864,7 @@ ssize_t vfs_iocb_iter_write(struct file *file, struct kiocb *iocb,
 	if (ret != -EIOCBQUEUED)
 		kiocb_end_write(iocb);
 	if (ret > 0)
-		fsnotify_modify(file);
+		fsanaltify_modify(file);
 
 	return ret;
 }
@@ -894,7 +894,7 @@ ssize_t vfs_iter_write(struct file *file, struct iov_iter *iter, loff_t *ppos,
 	file_start_write(file);
 	ret = do_iter_readv_writev(file, iter, ppos, WRITE, flags);
 	if (ret > 0)
-		fsnotify_modify(file);
+		fsanaltify_modify(file);
 	file_end_write(file);
 
 	return ret;
@@ -934,7 +934,7 @@ static ssize_t vfs_readv(struct file *file, const struct iovec __user *vec,
 		ret = do_loop_readv_writev(file, &iter, pos, READ, flags);
 out:
 	if (ret >= 0)
-		fsnotify_access(file);
+		fsanaltify_access(file);
 	kfree(iov);
 	return ret;
 }
@@ -972,7 +972,7 @@ static ssize_t vfs_writev(struct file *file, const struct iovec __user *vec,
 	else
 		ret = do_loop_readv_writev(file, &iter, pos, WRITE, flags);
 	if (ret > 0)
-		fsnotify_modify(file);
+		fsanaltify_modify(file);
 	file_end_write(file);
 out:
 	kfree(iov);
@@ -1132,7 +1132,7 @@ SYSCALL_DEFINE6(pwritev2, unsigned long, fd, const struct iovec __user *, vec,
 }
 
 /*
- * Various compat syscalls.  Note that they all pretend to take a native
+ * Various compat syscalls.  Analte that they all pretend to take a native
  * iovec - import_iovec will properly treat those as compat_iovecs based on
  * in_compat_syscall().
  */
@@ -1223,8 +1223,8 @@ static ssize_t do_sendfile(int out_fd, int in_fd, loff_t *ppos,
 			   size_t count, loff_t max)
 {
 	struct fd in, out;
-	struct inode *in_inode, *out_inode;
-	struct pipe_inode_info *opipe;
+	struct ianalde *in_ianalde, *out_ianalde;
+	struct pipe_ianalde_info *opipe;
 	loff_t pos;
 	loff_t out_pos;
 	ssize_t retval;
@@ -1262,12 +1262,12 @@ static ssize_t do_sendfile(int out_fd, int in_fd, loff_t *ppos,
 		goto fput_in;
 	if (!(out.file->f_mode & FMODE_WRITE))
 		goto fput_out;
-	in_inode = file_inode(in.file);
-	out_inode = file_inode(out.file);
+	in_ianalde = file_ianalde(in.file);
+	out_ianalde = file_ianalde(out.file);
 	out_pos = out.file->f_pos;
 
 	if (!max)
-		max = min(in_inode->i_sb->s_maxbytes, out_inode->i_sb->s_maxbytes);
+		max = min(in_ianalde->i_sb->s_maxbytes, out_ianalde->i_sb->s_maxbytes);
 
 	if (unlikely(pos + count > max)) {
 		retval = -EOVERFLOW;
@@ -1279,13 +1279,13 @@ static ssize_t do_sendfile(int out_fd, int in_fd, loff_t *ppos,
 	fl = 0;
 #if 0
 	/*
-	 * We need to debate whether we can enable this or not. The
+	 * We need to debate whether we can enable this or analt. The
 	 * man page documents EAGAIN return for the output at least,
 	 * and the application is arguably buggy if it doesn't expect
-	 * EAGAIN on a non-blocking file descriptor.
+	 * EAGAIN on a analn-blocking file descriptor.
 	 */
-	if (in.file->f_flags & O_NONBLOCK)
-		fl = SPLICE_F_NONBLOCK;
+	if (in.file->f_flags & O_ANALNBLOCK)
+		fl = SPLICE_F_ANALNBLOCK;
 #endif
 	opipe = get_pipe_info(out.file, true);
 	if (!opipe) {
@@ -1295,8 +1295,8 @@ static ssize_t do_sendfile(int out_fd, int in_fd, loff_t *ppos,
 		retval = do_splice_direct(in.file, &pos, out.file, &out_pos,
 					  count, fl);
 	} else {
-		if (out.file->f_flags & O_NONBLOCK)
-			fl |= SPLICE_F_NONBLOCK;
+		if (out.file->f_flags & O_ANALNBLOCK)
+			fl |= SPLICE_F_ANALNBLOCK;
 
 		retval = splice_file_to_pipe(in.file, opipe, &pos, count, fl);
 	}
@@ -1304,8 +1304,8 @@ static ssize_t do_sendfile(int out_fd, int in_fd, loff_t *ppos,
 	if (retval > 0) {
 		add_rchar(current, retval);
 		add_wchar(current, retval);
-		fsnotify_access(in.file);
-		fsnotify_modify(out.file);
+		fsanaltify_access(in.file);
+		fsanaltify_modify(out.file);
 		out.file->f_pos = out_pos;
 		if (ppos)
 			*ppos = pos;
@@ -1336,7 +1336,7 @@ SYSCALL_DEFINE4(sendfile, int, out_fd, int, in_fd, off_t __user *, offset, size_
 		if (unlikely(get_user(off, offset)))
 			return -EFAULT;
 		pos = off;
-		ret = do_sendfile(out_fd, in_fd, &pos, count, MAX_NON_LFS);
+		ret = do_sendfile(out_fd, in_fd, &pos, count, MAX_ANALN_LFS);
 		if (unlikely(put_user(pos, offset)))
 			return -EFAULT;
 		return ret;
@@ -1374,7 +1374,7 @@ COMPAT_SYSCALL_DEFINE4(sendfile, int, out_fd, int, in_fd,
 		if (unlikely(get_user(off, offset)))
 			return -EFAULT;
 		pos = off;
-		ret = do_sendfile(out_fd, in_fd, &pos, count, MAX_NON_LFS);
+		ret = do_sendfile(out_fd, in_fd, &pos, count, MAX_ANALN_LFS);
 		if (unlikely(put_user(pos, offset)))
 			return -EFAULT;
 		return ret;
@@ -1413,8 +1413,8 @@ static int generic_copy_file_checks(struct file *file_in, loff_t pos_in,
 				    struct file *file_out, loff_t pos_out,
 				    size_t *req_count, unsigned int flags)
 {
-	struct inode *inode_in = file_inode(file_in);
-	struct inode *inode_out = file_inode(file_out);
+	struct ianalde *ianalde_in = file_ianalde(file_in);
+	struct ianalde *ianalde_out = file_ianalde(file_out);
 	uint64_t count = *req_count;
 	loff_t size_in;
 	int ret;
@@ -1439,15 +1439,15 @@ static int generic_copy_file_checks(struct file *file_in, loff_t pos_in,
 		if (file_in->f_op->copy_file_range !=
 		    file_out->f_op->copy_file_range)
 			return -EXDEV;
-	} else if (file_inode(file_in)->i_sb != file_inode(file_out)->i_sb) {
+	} else if (file_ianalde(file_in)->i_sb != file_ianalde(file_out)->i_sb) {
 		return -EXDEV;
 	}
 
-	/* Don't touch certain kinds of inodes */
-	if (IS_IMMUTABLE(inode_out))
+	/* Don't touch certain kinds of ianaldes */
+	if (IS_IMMUTABLE(ianalde_out))
 		return -EPERM;
 
-	if (IS_SWAPFILE(inode_in) || IS_SWAPFILE(inode_out))
+	if (IS_SWAPFILE(ianalde_in) || IS_SWAPFILE(ianalde_out))
 		return -ETXTBSY;
 
 	/* Ensure offsets don't wrap. */
@@ -1455,7 +1455,7 @@ static int generic_copy_file_checks(struct file *file_in, loff_t pos_in,
 		return -EOVERFLOW;
 
 	/* Shorten the copy to EOF */
-	size_in = i_size_read(inode_in);
+	size_in = i_size_read(ianalde_in);
 	if (pos_in >= size_in)
 		count = 0;
 	else
@@ -1466,7 +1466,7 @@ static int generic_copy_file_checks(struct file *file_in, loff_t pos_in,
 		return ret;
 
 	/* Don't allow overlapped copying within the same file. */
-	if (inode_in == inode_out &&
+	if (ianalde_in == ianalde_out &&
 	    pos_out + count > pos_in &&
 	    pos_out < pos_in + count)
 		return -EINVAL;
@@ -1486,7 +1486,7 @@ ssize_t vfs_copy_file_range(struct file *file_in, loff_t pos_in,
 {
 	ssize_t ret;
 	bool splice = flags & COPY_FILE_SPLICE;
-	bool samesb = file_inode(file_in)->i_sb == file_inode(file_out)->i_sb;
+	bool samesb = file_ianalde(file_in)->i_sb == file_ianalde(file_out)->i_sb;
 
 	if (flags & ~COPY_FILE_SPLICE)
 		return -EINVAL;
@@ -1537,20 +1537,20 @@ ssize_t vfs_copy_file_range(struct file *file_in, loff_t pos_in,
 		goto done;
 
 	/*
-	 * We can get here for same sb copy of filesystems that do not implement
-	 * ->copy_file_range() in case filesystem does not support clone or in
+	 * We can get here for same sb copy of filesystems that do analt implement
+	 * ->copy_file_range() in case filesystem does analt support clone or in
 	 * case filesystem supports clone but rejected the clone request (e.g.
-	 * because it was not block aligned).
+	 * because it was analt block aligned).
 	 *
 	 * In both cases, fall back to kernel copy so we are able to maintain a
 	 * consistent story about which filesystems support copy_file_range()
-	 * and which filesystems do not, that will allow userspace tools to
+	 * and which filesystems do analt, that will allow userspace tools to
 	 * make consistent desicions w.r.t using copy_file_range().
 	 *
 	 * We also get here if caller (e.g. nfsd) requested COPY_FILE_SPLICE
 	 * for server-side-copy between any two sb.
 	 *
-	 * In any case, we call do_splice_direct() and not splice_file_range(),
+	 * In any case, we call do_splice_direct() and analt splice_file_range(),
 	 * without file_start_write() held, to avoid possible deadlocks related
 	 * to splicing from input file, while file_start_write() is held on
 	 * the output file on a different sb.
@@ -1559,9 +1559,9 @@ ssize_t vfs_copy_file_range(struct file *file_in, loff_t pos_in,
 			       min_t(size_t, len, MAX_RW_COUNT), 0);
 done:
 	if (ret > 0) {
-		fsnotify_access(file_in);
+		fsanaltify_access(file_in);
 		add_rchar(current, ret);
-		fsnotify_modify(file_out);
+		fsanaltify_modify(file_out);
 		add_wchar(current, ret);
 	}
 
@@ -1645,8 +1645,8 @@ out2:
  */
 int generic_write_check_limits(struct file *file, loff_t pos, loff_t *count)
 {
-	struct inode *inode = file->f_mapping->host;
-	loff_t max_size = inode->i_sb->s_maxbytes;
+	struct ianalde *ianalde = file->f_mapping->host;
+	loff_t max_size = ianalde->i_sb->s_maxbytes;
 	loff_t limit = rlimit(RLIMIT_FSIZE);
 
 	if (limit != RLIM_INFINITY) {
@@ -1658,7 +1658,7 @@ int generic_write_check_limits(struct file *file, loff_t pos, loff_t *count)
 	}
 
 	if (!(file->f_flags & O_LARGEFILE))
-		max_size = MAX_NON_LFS;
+		max_size = MAX_ANALN_LFS;
 
 	if (unlikely(pos >= max_size))
 		return -EFBIG;
@@ -1672,18 +1672,18 @@ int generic_write_check_limits(struct file *file, loff_t pos, loff_t *count)
 int generic_write_checks_count(struct kiocb *iocb, loff_t *count)
 {
 	struct file *file = iocb->ki_filp;
-	struct inode *inode = file->f_mapping->host;
+	struct ianalde *ianalde = file->f_mapping->host;
 
-	if (IS_SWAPFILE(inode))
+	if (IS_SWAPFILE(ianalde))
 		return -ETXTBSY;
 
 	if (!*count)
 		return 0;
 
 	if (iocb->ki_flags & IOCB_APPEND)
-		iocb->ki_pos = i_size_read(inode);
+		iocb->ki_pos = i_size_read(ianalde);
 
-	if ((iocb->ki_flags & IOCB_NOWAIT) &&
+	if ((iocb->ki_flags & IOCB_ANALWAIT) &&
 	    !((iocb->ki_flags & IOCB_DIRECT) ||
 	      (file->f_mode & FMODE_BUF_WASYNC)))
 		return -EINVAL;
@@ -1719,13 +1719,13 @@ EXPORT_SYMBOL(generic_write_checks);
  */
 int generic_file_rw_checks(struct file *file_in, struct file *file_out)
 {
-	struct inode *inode_in = file_inode(file_in);
-	struct inode *inode_out = file_inode(file_out);
+	struct ianalde *ianalde_in = file_ianalde(file_in);
+	struct ianalde *ianalde_out = file_ianalde(file_out);
 
 	/* Don't copy dirs, pipes, sockets... */
-	if (S_ISDIR(inode_in->i_mode) || S_ISDIR(inode_out->i_mode))
+	if (S_ISDIR(ianalde_in->i_mode) || S_ISDIR(ianalde_out->i_mode))
 		return -EISDIR;
-	if (!S_ISREG(inode_in->i_mode) || !S_ISREG(inode_out->i_mode))
+	if (!S_ISREG(ianalde_in->i_mode) || !S_ISREG(ianalde_out->i_mode))
 		return -EINVAL;
 
 	if (!(file_in->f_mode & FMODE_READ) ||

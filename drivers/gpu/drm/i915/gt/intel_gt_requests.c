@@ -22,7 +22,7 @@ static bool retire_requests(struct intel_timeline *tl)
 		if (!i915_request_retire(rq))
 			return false;
 
-	/* And check nothing new was submitted */
+	/* And check analthing new was submitted */
 	return !i915_active_fence_isset(&tl->last_request);
 }
 
@@ -68,7 +68,7 @@ static void engine_retire(struct work_struct *work)
 
 		/*
 		 * Our goal here is to retire _idle_ timelines as soon as
-		 * possible (as they are idle, we do not expect userspace
+		 * possible (as they are idle, we do analt expect userspace
 		 * to be cleaning up anytime soon).
 		 *
 		 * If the timeline is currently locked, either it is being
@@ -93,8 +93,8 @@ static bool add_retire(struct intel_engine_cs *engine,
 
 	/*
 	 * We open-code a llist here to include the additional tag [BIT(0)]
-	 * so that we know when the timeline is already on a
-	 * retirement queue: either this engine or another.
+	 * so that we kanalw when the timeline is already on a
+	 * retirement queue: either this engine or aanalther.
 	 */
 
 	if (cmpxchg(&tl->retire, NULL, STUB)) /* already queued */
@@ -116,7 +116,7 @@ void intel_engine_add_retire(struct intel_engine_cs *engine,
 	GEM_BUG_ON(intel_engine_is_virtual(engine));
 
 	if (add_retire(engine, tl))
-		queue_work(engine->i915->unordered_wq, &engine->retire_work);
+		queue_work(engine->i915->uanalrdered_wq, &engine->retire_work);
 }
 
 void intel_engine_init_retire(struct intel_engine_cs *engine)
@@ -207,7 +207,7 @@ static void retire_work_handler(struct work_struct *work)
 	struct intel_gt *gt =
 		container_of(work, typeof(*gt), requests.retire_work.work);
 
-	queue_delayed_work(gt->i915->unordered_wq, &gt->requests.retire_work,
+	queue_delayed_work(gt->i915->uanalrdered_wq, &gt->requests.retire_work,
 			   round_jiffies_up_relative(HZ));
 	intel_gt_retire_requests(gt);
 }
@@ -224,7 +224,7 @@ void intel_gt_park_requests(struct intel_gt *gt)
 
 void intel_gt_unpark_requests(struct intel_gt *gt)
 {
-	queue_delayed_work(gt->i915->unordered_wq, &gt->requests.retire_work,
+	queue_delayed_work(gt->i915->uanalrdered_wq, &gt->requests.retire_work,
 			   round_jiffies_up_relative(HZ));
 }
 
@@ -241,7 +241,7 @@ void intel_gt_watchdog_work(struct work_struct *work)
 	struct intel_gt *gt =
 		container_of(work, typeof(*gt), watchdog.work);
 	struct i915_request *rq, *rn;
-	struct llist_node *first;
+	struct llist_analde *first;
 
 	first = llist_del_all(&gt->watchdog.list);
 	if (!first)
@@ -251,10 +251,10 @@ void intel_gt_watchdog_work(struct work_struct *work)
 		if (!i915_request_completed(rq)) {
 			struct dma_fence *f = &rq->fence;
 
-			pr_notice("Fence expiration time out i915-%s:%s:%llx!\n",
+			pr_analtice("Fence expiration time out i915-%s:%s:%llx!\n",
 				  f->ops->get_driver_name(f),
 				  f->ops->get_timeline_name(f),
-				  f->seqno);
+				  f->seqanal);
 			i915_request_cancel(rq, -EINTR);
 		}
 		i915_request_put(rq);

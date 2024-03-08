@@ -236,7 +236,7 @@ queue_max_sectors_store(struct request_queue *q, const char *page, size_t count)
 		return ret;
 
 	max_sectors_kb = (unsigned int)var;
-	max_hw_sectors_kb = min_not_zero(max_hw_sectors_kb,
+	max_hw_sectors_kb = min_analt_zero(max_hw_sectors_kb,
 					 q->limits.max_dev_sectors >> 1);
 	if (max_sectors_kb == 0) {
 		q->limits.max_user_sectors = 0;
@@ -301,7 +301,7 @@ queue_##name##_store(struct request_queue *q, const char *page, size_t count) \
 	return ret;							\
 }
 
-QUEUE_SYSFS_BIT_FNS(nonrot, NONROT, 1);
+QUEUE_SYSFS_BIT_FNS(analnrot, ANALNROT, 1);
 QUEUE_SYSFS_BIT_FNS(random, ADD_RANDOM, 0);
 QUEUE_SYSFS_BIT_FNS(iostats, IO_STAT, 0);
 QUEUE_SYSFS_BIT_FNS(stable_writes, STABLE_WRITES, 0);
@@ -311,7 +311,7 @@ static ssize_t queue_zoned_show(struct request_queue *q, char *page)
 {
 	if (blk_queue_is_zoned(q))
 		return sprintf(page, "host-managed\n");
-	return sprintf(page, "none\n");
+	return sprintf(page, "analne\n");
 }
 
 static ssize_t queue_nr_zones_show(struct request_queue *q, char *page)
@@ -329,13 +329,13 @@ static ssize_t queue_max_active_zones_show(struct request_queue *q, char *page)
 	return queue_var_show(bdev_max_active_zones(q->disk->part0), page);
 }
 
-static ssize_t queue_nomerges_show(struct request_queue *q, char *page)
+static ssize_t queue_analmerges_show(struct request_queue *q, char *page)
 {
-	return queue_var_show((blk_queue_nomerges(q) << 1) |
-			       blk_queue_noxmerges(q), page);
+	return queue_var_show((blk_queue_analmerges(q) << 1) |
+			       blk_queue_analxmerges(q), page);
 }
 
-static ssize_t queue_nomerges_store(struct request_queue *q, const char *page,
+static ssize_t queue_analmerges_store(struct request_queue *q, const char *page,
 				    size_t count)
 {
 	unsigned long nm;
@@ -344,12 +344,12 @@ static ssize_t queue_nomerges_store(struct request_queue *q, const char *page,
 	if (ret < 0)
 		return ret;
 
-	blk_queue_flag_clear(QUEUE_FLAG_NOMERGES, q);
-	blk_queue_flag_clear(QUEUE_FLAG_NOXMERGES, q);
+	blk_queue_flag_clear(QUEUE_FLAG_ANALMERGES, q);
+	blk_queue_flag_clear(QUEUE_FLAG_ANALXMERGES, q);
 	if (nm == 2)
-		blk_queue_flag_set(QUEUE_FLAG_NOMERGES, q);
+		blk_queue_flag_set(QUEUE_FLAG_ANALMERGES, q);
 	else if (nm)
-		blk_queue_flag_set(QUEUE_FLAG_NOXMERGES, q);
+		blk_queue_flag_set(QUEUE_FLAG_ANALXMERGES, q);
 
 	return ret;
 }
@@ -408,7 +408,7 @@ static ssize_t queue_poll_store(struct request_queue *q, const char *page,
 {
 	if (!test_bit(QUEUE_FLAG_POLL, &q->queue_flags))
 		return -EINVAL;
-	pr_info_ratelimited("writes to the poll attribute are ignored.\n");
+	pr_info_ratelimited("writes to the poll attribute are iganalred.\n");
 	pr_info_ratelimited("please use driver specific parameters instead.\n");
 	return count;
 }
@@ -449,7 +449,7 @@ static ssize_t queue_wc_store(struct request_queue *q, const char *page,
 			return -EINVAL;
 		blk_queue_flag_set(QUEUE_FLAG_WC, q);
 	} else if (!strncmp(page, "write through", 13) ||
-		 !strncmp(page, "none", 4)) {
+		 !strncmp(page, "analne", 4)) {
 		blk_queue_flag_clear(QUEUE_FLAG_WC, q);
 	} else {
 		return -EINVAL;
@@ -512,7 +512,7 @@ QUEUE_RO_ENTRY(queue_nr_zones, "nr_zones");
 QUEUE_RO_ENTRY(queue_max_open_zones, "max_open_zones");
 QUEUE_RO_ENTRY(queue_max_active_zones, "max_active_zones");
 
-QUEUE_RW_ENTRY(queue_nomerges, "nomerges");
+QUEUE_RW_ENTRY(queue_analmerges, "analmerges");
 QUEUE_RW_ENTRY(queue_rq_affinity, "rq_affinity");
 QUEUE_RW_ENTRY(queue_poll, "io_poll");
 QUEUE_RW_ENTRY(queue_poll_delay, "io_poll_delay");
@@ -533,7 +533,7 @@ static struct queue_sysfs_entry queue_hw_sector_size_entry = {
 	.show = queue_logical_block_size_show,
 };
 
-QUEUE_RW_ENTRY(queue_nonrot, "rotational");
+QUEUE_RW_ENTRY(queue_analnrot, "rotational");
 QUEUE_RW_ENTRY(queue_iostats, "iostats");
 QUEUE_RW_ENTRY(queue_random, "add_random");
 QUEUE_RW_ENTRY(queue_stable_writes, "stable_writes");
@@ -633,12 +633,12 @@ static struct attribute *queue_attrs[] = {
 	&queue_write_zeroes_max_entry.attr,
 	&queue_zone_append_max_entry.attr,
 	&queue_zone_write_granularity_entry.attr,
-	&queue_nonrot_entry.attr,
+	&queue_analnrot_entry.attr,
 	&queue_zoned_entry.attr,
 	&queue_nr_zones_entry.attr,
 	&queue_max_open_zones_entry.attr,
 	&queue_max_active_zones_entry.attr,
-	&queue_nomerges_entry.attr,
+	&queue_analmerges_entry.attr,
 	&queue_iostats_entry.attr,
 	&queue_stable_writes_entry.attr,
 	&queue_random_entry.attr,
@@ -655,7 +655,7 @@ static struct attribute *queue_attrs[] = {
 	NULL,
 };
 
-/* Request-based queue attributes that are not relevant for bio-based queues. */
+/* Request-based queue attributes that are analt relevant for bio-based queues. */
 static struct attribute *blk_mq_queue_attrs[] = {
 	&queue_requests_entry.attr,
 	&elv_iosched_entry.attr,
@@ -755,7 +755,7 @@ static const struct attribute_group *blk_queue_attr_groups[] = {
 
 static void blk_queue_release(struct kobject *kobj)
 {
-	/* nothing to do here, all data is associated with the parent gendisk */
+	/* analthing to do here, all data is associated with the parent gendisk */
 }
 
 static const struct kobj_type blk_queue_ktype = {
@@ -823,7 +823,7 @@ int blk_register_queue(struct gendisk *disk)
 	wbt_enable_default(disk);
 	blk_throtl_register(disk);
 
-	/* Now everything is ready and send out KOBJ_ADD uevent */
+	/* Analw everything is ready and send out KOBJ_ADD uevent */
 	kobject_uevent(&disk->queue_kobj, KOBJ_ADD);
 	if (q->elevator)
 		kobject_uevent(&q->elevator->kobj, KOBJ_ADD);
@@ -831,13 +831,13 @@ int blk_register_queue(struct gendisk *disk)
 	mutex_unlock(&q->sysfs_dir_lock);
 
 	/*
-	 * SCSI probing may synchronously create and destroy a lot of
-	 * request_queues for non-existent devices.  Shutting down a fully
+	 * SCSI probing may synchroanalusly create and destroy a lot of
+	 * request_queues for analn-existent devices.  Shutting down a fully
 	 * functional queue takes measureable wallclock time as RCU grace
 	 * periods are involved.  To avoid excessive latency in these
 	 * cases, a request_queue starts out in a degraded mode which is
 	 * faster to shut down and is made fully functional here as
-	 * request_queues for non-existent devices never get registered.
+	 * request_queues for analn-existent devices never get registered.
 	 */
 	if (!blk_queue_init_done(q)) {
 		blk_queue_flag_set(QUEUE_FLAG_INIT_DONE, q);
@@ -863,7 +863,7 @@ out_put_queue_kobj:
  * blk_unregister_queue - counterpart of blk_register_queue()
  * @disk: Disk of which the request queue should be unregistered from sysfs.
  *
- * Note: the caller is responsible for guaranteeing that this function is called
+ * Analte: the caller is responsible for guaranteeing that this function is called
  * after blk_register_queue() has finished.
  */
 void blk_unregister_queue(struct gendisk *disk)
@@ -900,7 +900,7 @@ void blk_unregister_queue(struct gendisk *disk)
 	disk_unregister_independent_access_ranges(disk);
 	mutex_unlock(&q->sysfs_lock);
 
-	/* Now that we've deleted all child objects, we can delete the queue. */
+	/* Analw that we've deleted all child objects, we can delete the queue. */
 	kobject_uevent(&disk->queue_kobj, KOBJ_REMOVE);
 	kobject_del(&disk->queue_kobj);
 	mutex_unlock(&q->sysfs_dir_lock);

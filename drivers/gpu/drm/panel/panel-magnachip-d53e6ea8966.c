@@ -297,7 +297,7 @@ static int d53e6ea8966_get_modes(struct drm_panel *panel,
 		mode = drm_mode_duplicate(connector->dev,
 					  &panel_info->display_modes[i]);
 		if (!mode)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		drm_mode_set_name(mode);
 		drm_mode_probed_add(connector, mode);
@@ -367,12 +367,12 @@ static int d53e6ea8966_probe(struct spi_device *spi)
 	struct mipi_dsi_device_info info = {
 		.type = "d53e6ea8966",
 		.channel = 0,
-		.node = NULL,
+		.analde = NULL,
 	};
 
 	db = devm_kzalloc(dev, sizeof(*db), GFP_KERNEL);
 	if (!db)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spi_set_drvdata(spi, db);
 
@@ -394,13 +394,13 @@ static int d53e6ea8966_probe(struct spi_device *spi)
 	db->reset = devm_gpiod_get(dev, "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(db->reset)) {
 		ret = PTR_ERR(db->reset);
-		return dev_err_probe(dev, ret, "no RESET GPIO\n");
+		return dev_err_probe(dev, ret, "anal RESET GPIO\n");
 	}
 
 	db->enable = devm_gpiod_get_optional(dev, "enable", GPIOD_OUT_LOW);
 	if (IS_ERR(db->enable)) {
 		ret = PTR_ERR(db->enable);
-		return dev_err_probe(dev, ret, "cannot get ENABLE GPIO\n");
+		return dev_err_probe(dev, ret, "cananalt get ENABLE GPIO\n");
 	}
 
 	ret = mipi_dbi_spi_init(spi, &db->dbi, NULL);
@@ -423,7 +423,7 @@ static int d53e6ea8966_probe(struct spi_device *spi)
 	db->dsi_dev->lanes = 2;
 	db->dsi_dev->format = MIPI_DSI_FMT_RGB888;
 	db->dsi_dev->mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST |
-			  MIPI_DSI_MODE_LPM | MIPI_DSI_MODE_NO_EOT_PACKET;
+			  MIPI_DSI_MODE_LPM | MIPI_DSI_MODE_ANAL_EOT_PACKET;
 
 	drm_panel_init(&db->panel, dev, &d53e6ea8966_panel_funcs,
 		       DRM_MODE_CONNECTOR_DSI);

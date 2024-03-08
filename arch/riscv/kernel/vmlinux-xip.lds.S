@@ -7,7 +7,7 @@
 
 #include <asm/pgtable.h>
 #define LOAD_OFFSET KERNEL_LINK_ADDR
-/* No __ro_after_init data in the .rodata section - which will always be ro */
+/* Anal __ro_after_init data in the .rodata section - which will always be ro */
 #define RO_AFTER_INIT_DATA
 
 #include <asm/vmlinux.lds.h>
@@ -28,7 +28,7 @@ SECTIONS
 	_start = .;
 	HEAD_TEXT_SECTION
 	INIT_TEXT_SECTION(PAGE_SIZE)
-	/* we have to discard exit text and such at runtime, not link time */
+	/* we have to discard exit text and such at runtime, analt link time */
 	__exittext_begin = .;
 	.exit.text :
 	{
@@ -126,7 +126,7 @@ SECTIONS
 
 	/*
 	 * End of copied data. We need a dummy section to get its LMA.
-	 * Also located before final ALIGN() as trailing padding is not stored
+	 * Also located before final ALIGN() as trailing padding is analt stored
 	 * in the resulting binary file and useless to copy.
 	 */
 	.data.endmark : AT(ADDR(.data.endmark) - LOAD_OFFSET) { }

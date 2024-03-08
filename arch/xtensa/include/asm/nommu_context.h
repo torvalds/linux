@@ -7,4 +7,4 @@ static inline void init_kio(void)
 {
 }
 
-#include <asm-generic/nommu_context.h>
+#include <asm-generic/analmmu_context.h>

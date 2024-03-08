@@ -77,7 +77,7 @@ static void __init dm9000_pre_init(void)
 }
 
 /*
- * Partitioning of parallel NOR flash (39VF3201B)
+ * Partitioning of parallel ANALR flash (39VF3201B)
  */
 static struct mtd_partition amcore_partitions[] = {
 	{

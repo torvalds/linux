@@ -7,9 +7,9 @@
  *	(C) 2002 Tora T. Engstad
  *	All Rights Reserved
  *
- *      The author(s) of this software shall not be held liable for damages
+ *      The author(s) of this software shall analt be held liable for damages
  *      of any nature resulting due to the use of this software. This
- *      software is provided AS-IS with no warranties.
+ *      software is provided AS-IS with anal warranties.
  *
  *	Date		Errata			Description
  *	20020525	N44, O17	12.5% or 25% DC causes lockup
@@ -33,7 +33,7 @@
 #include "speedstep-lib.h"
 
 /*
- * Duty Cycle (3bits), note DC_DISABLE is not specified in
+ * Duty Cycle (3bits), analte DC_DISABLE is analt specified in
  * intel docs i just use it to mean disable
  */
 enum {
@@ -139,7 +139,7 @@ static unsigned int cpufreq_p4_get_frequency(struct cpuinfo_x86 *c)
 		return 0;
 
 	/* on P-4s, the TSC runs with constant frequency independent whether
-	 * throttling is active or not. */
+	 * throttling is active or analt. */
 	p4clockmod_driver.flags |= CPUFREQ_CONST_LOOPS;
 
 	if (speedstep_detect_processor() == SPEEDSTEP_CPU_P4M) {
@@ -195,7 +195,7 @@ static int cpufreq_p4_cpu_init(struct cpufreq_policy *policy)
 	/* cpuinfo and default policy values */
 
 	/* the transition latency is set to be 1 higher than the maximum
-	 * transition latency of the ondemand governor */
+	 * transition latency of the ondemand goveranalr */
 	policy->cpuinfo.transition_latency = 10000001;
 	policy->freq_table = &p4clockmod_table[0];
 
@@ -236,7 +236,7 @@ static const struct x86_cpu_id cpufreq_p4_id[] = {
 };
 
 /*
- * Intentionally no MODULE_DEVICE_TABLE here: this driver should not
+ * Intentionally anal MODULE_DEVICE_TABLE here: this driver should analt
  * be auto loaded.  Please don't add one.
  */
 
@@ -245,11 +245,11 @@ static int __init cpufreq_p4_init(void)
 	int ret;
 
 	/*
-	 * THERM_CONTROL is architectural for IA32 now, so
+	 * THERM_CONTROL is architectural for IA32 analw, so
 	 * we can rely on the capability checks
 	 */
 	if (!x86_match_cpu(cpufreq_p4_id) || !boot_cpu_has(X86_FEATURE_ACPI))
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = cpufreq_register_driver(&p4clockmod_driver);
 	if (!ret)

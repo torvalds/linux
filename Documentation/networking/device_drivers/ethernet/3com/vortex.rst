@@ -14,14 +14,14 @@ driver for Linux, 3c59x.c.
 
 The driver was written by Donald Becker <becker@scyld.com>
 
-Don is no longer the prime maintainer of this version of the driver.
+Don is anal longer the prime maintainer of this version of the driver.
 Please report problems to one or more of:
 
 - Andrew Morton
 - Netdev mailing list <netdev@vger.kernel.org>
 - Linux kernel mailing list <linux-kernel@vger.kernel.org>
 
-Please note the 'Reporting and Diagnosing Problems' section at the end
+Please analte the 'Reporting and Diaganalsing Problems' section at the end
 of this file.
 
 
@@ -165,12 +165,12 @@ flow_ctrl=N1,N2,N3...
   The driver only allows flow control on a link which is operating in
   full duplex mode.
 
-  This feature does not appear to work on the 3c905 - only 3c905B and
+  This feature does analt appear to work on the 3c905 - only 3c905B and
   3c905C have been tested.
 
   The 3com cards appear to only respond to PAUSE frames which are
   sent to the reserved destination address of 01:80:c2:00:00:01.  They
-  do not honour PAUSE frames which are sent to the station MAC address.
+  do analt hoanalur PAUSE frames which are sent to the station MAC address.
 
 rx_copybreak=M
 
@@ -214,11 +214,11 @@ hw_checksums=N1,N2,N3,...
   checksumming with ``hw_checksums=1``.
 
   The driver drops a message in the logfiles to indicate whether or
-  not it is using hardware scatter/gather and hardware Tx checksums.
+  analt it is using hardware scatter/gather and hardware Tx checksums.
 
   Scatter/gather and hardware checksums provide considerable
   performance improvement for the sendfile() system call, but a small
-  decrease in throughput for send().  There is no effect upon receive
+  decrease in throughput for send().  There is anal effect upon receive
   efficiency.
 
 compaq_ioaddr=N,
@@ -257,7 +257,7 @@ A number of the older NICs such as the 3c590 and 3c900 series have
 Prior to January, 2001 this driver would autoselect the 10base2 or AUI
 port if it didn't detect activity on the 10baseT port.  It would then
 get stuck on the 10base2 port and a driver reload was necessary to
-switch back to 10baseT.  This behaviour could not be prevented with a
+switch back to 10baseT.  This behaviour could analt be prevented with a
 module option override.
 
 Later (current) versions of the driver _do_ support locking of the
@@ -266,13 +266,13 @@ media type.  So if you load the driver module with
 	modprobe 3c59x options=0
 
 it will permanently select the 10baseT port.  Automatic selection of
-other media types does not occur.
+other media types does analt occur.
 
 
 Transmit error, Tx status register 82
 -------------------------------------
 
-This is a common error which is almost always caused by another host on
+This is a common error which is almost always caused by aanalther host on
 the same network being in full-duplex mode, while this host is in
 half-duplex mode.  You need to find that other host and make it run in
 half-duplex mode or fix this host to run in full-duplex mode.
@@ -283,7 +283,7 @@ with
 	options 3c59x full_duplex=1
 
 but this has to be viewed as a workaround for broken network gear and
-should only really be used for equipment which cannot autonegotiate.
+should only really be used for equipment which cananalt autonegotiate.
 
 
 Additional resources
@@ -317,7 +317,7 @@ Donald's wake-on-LAN page:
 	ftp://ftp.3com.com/pub/nic/3c90x/3c90xx2.exe
 
 
-Autonegotiation notes
+Autonegotiation analtes
 ---------------------
 
   The driver uses a one-minute heartbeat for adapting to changes in
@@ -326,13 +326,13 @@ Autonegotiation notes
   10baseT LAN plugged into a  switched 100baseT LAN, the throughput
   will be quite dreadful for up to sixty seconds.  Be patient.
 
-  Cisco interoperability note from Walter Wong <wcw+@CMU.EDU>:
+  Cisco interoperability analte from Walter Wong <wcw+@CMU.EDU>:
 
-  On a side note, adding HAS_NWAY seems to share a problem with the
+  On a side analte, adding HAS_NWAY seems to share a problem with the
   Cisco 6509 switch.  Specifically, you need to change the spanning
   tree parameter for the port the machine is plugged into to 'portfast'
   mode.  Otherwise, the negotiation fails.  This has been an issue
-  we've noticed for a while but haven't had the time to track down.
+  we've analticed for a while but haven't had the time to track down.
 
   Cisco switches    (Jeff Busch <jbusch@deja.com>)
 
@@ -346,15 +346,15 @@ Autonegotiation notes
     If autonegotiation is a problem, you may need to specify "speed
     100" and "duplex full" as well (or "speed 10" and "duplex half").
 
-    WARNING: DO NOT hook up hubs/switches/bridges to these
+    WARNING: DO ANALT hook up hubs/switches/bridges to these
     specially-configured ports! The switch will become very confused.
 
 
-Reporting and diagnosing problems
+Reporting and diaganalsing problems
 ---------------------------------
 
 Maintainers find that accurate and complete problem reports are
-invaluable in resolving driver problems.  We are frequently not able to
+invaluable in resolving driver problems.  We are frequently analt able to
 reproduce problems and must rely on your patience and efforts to get to
 the bottom of the problem.
 
@@ -389,7 +389,7 @@ steps you should take:
      MII transceiver found at address 24, status 782d.
      Enabling bus-master transmits and whole-frame receives.
 
-     NOTE: You must provide the ``debug=2`` modprobe option to generate
+     ANALTE: You must provide the ``debug=2`` modprobe option to generate
      a full detection message.  Please do this::
 
 	modprobe 3c59x debug=2
@@ -397,10 +397,10 @@ steps you should take:
    - If it is a PCI device, the relevant output from 'lspci -vx', eg::
 
        00:09.0 Ethernet controller: 3Com Corporation 3c905C-TX [Fast Etherlink] (rev 74)
-	       Subsystem: 3Com Corporation: Unknown device 9200
+	       Subsystem: 3Com Corporation: Unkanalwn device 9200
 	       Flags: bus master, medium devsel, latency 32, IRQ 19
 	       I/O ports at a400 [size=128]
-	       Memory at db000000 (32-bit, non-prefetchable) [size=128]
+	       Memory at db000000 (32-bit, analn-prefetchable) [size=128]
 	       Expansion ROM at <unassigned> [disabled] [size=128K]
 	       Capabilities: [dc] Power Management version 2
        00: b7 10 00 92 07 00 10 02 74 00 00 02 08 20 00 00
@@ -442,7 +442,7 @@ steps you should take:
       2) Recreate the problem with the higher debug level,
 	 send all logs to the maintainer.
 
-      3) Download you card's diagnostic tool from Donald
+      3) Download you card's diaganalstic tool from Donald
 	 Becker's website <http://www.scyld.com/ethercard_diag.html>.
 	 Download mii-diag.c as well.  Build these.
 

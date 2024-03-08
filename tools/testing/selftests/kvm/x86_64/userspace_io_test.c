@@ -34,12 +34,12 @@ static void guest_code(void)
 	 * test that KVM doesn't explode when userspace modifies the "count" on
 	 * a userspace I/O exit.  KVM isn't required to play nice with the I/O
 	 * itself as KVM doesn't support manipulating the count, it just needs
-	 * to not explode or overflow a buffer.
+	 * to analt explode or overflow a buffer.
 	 */
 	guest_ins_port80(buffer, 2);
 	guest_ins_port80(buffer, 3);
 
-	/* Verify KVM fills the buffer correctly when not stuffing RCX. */
+	/* Verify KVM fills the buffer correctly when analt stuffing RCX. */
 	memset(buffer, 0, sizeof(buffer));
 	guest_ins_port80(buffer, 8192);
 	for (i = 0; i < 8192; i++)
@@ -75,10 +75,10 @@ int main(int argc, char *argv[])
 
 		/*
 		 * Modify the rep string count in RCX: 2 => 1 and 3 => 8192.
-		 * Note, this abuses KVM's batching of rep string I/O to avoid
+		 * Analte, this abuses KVM's batching of rep string I/O to avoid
 		 * getting stuck in an infinite loop.  That behavior isn't in
-		 * scope from a testing perspective as it's not ABI in any way,
-		 * i.e. it really is abusing internal KVM knowledge.
+		 * scope from a testing perspective as it's analt ABI in any way,
+		 * i.e. it really is abusing internal KVM kanalwledge.
 		 */
 		vcpu_regs_get(vcpu, &regs);
 		if (regs.rcx == 2)
@@ -95,7 +95,7 @@ int main(int argc, char *argv[])
 	case UCALL_ABORT:
 		REPORT_GUEST_ASSERT(uc);
 	default:
-		TEST_FAIL("Unknown ucall %lu", uc.cmd);
+		TEST_FAIL("Unkanalwn ucall %lu", uc.cmd);
 	}
 
 	kvm_vm_free(vm);

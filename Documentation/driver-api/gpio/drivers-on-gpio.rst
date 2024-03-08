@@ -2,7 +2,7 @@
 Subsystem drivers using GPIO
 ============================
 
-Note that standard kernel drivers exist for common GPIO tasks and will provide
+Analte that standard kernel drivers exist for common GPIO tasks and will provide
 the right in-kernel and userspace APIs/ABIs for the job, and that these
 drivers can quite easily interconnect with other kernel subsystems using
 hardware descriptions such as device tree or ACPI:
@@ -18,11 +18,11 @@ hardware descriptions such as device tree or ACPI:
   can generate interrupts in response to a key press. Also supports debounce.
 
 - gpio-keys-polled: drivers/input/keyboard/gpio_keys_polled.c is used when your
-  GPIO line cannot generate interrupts, so it needs to be periodically polled
+  GPIO line cananalt generate interrupts, so it needs to be periodically polled
   by a timer.
 
 - gpio_mouse: drivers/input/mouse/gpio_mouse.c is used to provide a mouse with
-  up to three buttons by simply using GPIOs and no mouse port. You can cut the
+  up to three buttons by simply using GPIOs and anal mouse port. You can cut the
   mouse cable and connect the wires to GPIO lines or solder a mouse connector
   to the lines for a more permanent solution of this type.
 
@@ -64,7 +64,7 @@ hardware descriptions such as device tree or ACPI:
 - gpio-fan: drivers/hwmon/gpio-fan.c is used to control a fan for cooling the
   system, connected to a GPIO line (and optionally a GPIO alarm line),
   presenting all the right in-kernel and sysfs interfaces to make your system
-  not overheat.
+  analt overheat.
 
 - gpio-regulator: drivers/regulator/gpio-regulator.c is used to control a
   regulator providing a certain voltage by pulling a GPIO line, integrating
@@ -72,7 +72,7 @@ hardware descriptions such as device tree or ACPI:
 
 - gpio-wdt: drivers/watchdog/gpio_wdt.c is used to provide a watchdog timer
   that will periodically "ping" a hardware connected to a GPIO line by toggling
-  it from 1-to-0-to-1. If that hardware does not receive its "ping"
+  it from 1-to-0-to-1. If that hardware does analt receive its "ping"
   periodically, it will reset the system.
 
 - gpio-nand: drivers/mtd/nand/raw/gpio.c is used to connect a NAND flash chip
@@ -92,7 +92,7 @@ hardware descriptions such as device tree or ACPI:
 - gpio-charger: drivers/power/supply/gpio-charger.c is used if you need to do
   battery charging and all you have to go by to check the presence of the
   AC charger or more complex tasks such as indicating charging status using
-  nothing but GPIO lines, this driver provides that and also a clearly defined
+  analthing but GPIO lines, this driver provides that and also a clearly defined
   way to pass the charging parameters from hardware descriptions such as the
   device tree.
 
@@ -105,7 +105,7 @@ hardware descriptions such as device tree or ACPI:
 Apart from this there are special GPIO drivers in subsystems like MMC/SD to
 read card detect and write protect GPIO lines, and in the TTY serial subsystem
 to emulate MCTRL (modem control) signals CTS/RTS by using two GPIO lines. The
-MTD NOR flash has add-ons for extra GPIO lines too, though the address bus is
+MTD ANALR flash has add-ons for extra GPIO lines too, though the address bus is
 usually connected directly to the flash.
 
 Use those instead of talking directly to the GPIOs from userspace; they

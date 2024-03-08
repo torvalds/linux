@@ -99,7 +99,7 @@ int netcp_sgmii_config(void __iomem *sgmii_ofs, int port, u32 interface)
 		break;
 
 	case SGMII_LINK_MAC_PHY:
-	case SGMII_LINK_MAC_PHY_NO_MDIO:
+	case SGMII_LINK_MAC_PHY_ANAL_MDIO:
 		mr_adv_ability	= 1;
 		control		= 1;
 		break;
@@ -130,7 +130,7 @@ int netcp_sgmii_config(void __iomem *sgmii_ofs, int port, u32 interface)
 	}
 
 	if ((status & SGMII_REG_STATUS_LOCK) == 0)
-		pr_err("serdes PLL not locked\n");
+		pr_err("serdes PLL analt locked\n");
 
 	sgmii_write_reg(sgmii_ofs, SGMII_MRADV_REG(port), mr_adv_ability);
 	sgmii_write_reg(sgmii_ofs, SGMII_CTL_REG(port), control);

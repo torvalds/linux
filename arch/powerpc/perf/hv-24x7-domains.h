@@ -17,7 +17,7 @@
  *
  * @is_physical: True if the domain is physical, false otherwise (if virtual).
  *
- * Note: The terms PHYS_CHIP, PHYS_CORE, VCPU correspond to physical chip,
+ * Analte: The terms PHYS_CHIP, PHYS_CORE, VCPU correspond to physical chip,
  *	 physical core and virtual processor in 24x7 Counters specifications.
  */
 
@@ -25,5 +25,5 @@ DOMAIN(PHYS_CHIP, 0x01, chip, true)
 DOMAIN(PHYS_CORE, 0x02, core, true)
 DOMAIN(VCPU_HOME_CORE, 0x03, vcpu, false)
 DOMAIN(VCPU_HOME_CHIP, 0x04, vcpu, false)
-DOMAIN(VCPU_HOME_NODE, 0x05, vcpu, false)
-DOMAIN(VCPU_REMOTE_NODE, 0x06, vcpu, false)
+DOMAIN(VCPU_HOME_ANALDE, 0x05, vcpu, false)
+DOMAIN(VCPU_REMOTE_ANALDE, 0x06, vcpu, false)

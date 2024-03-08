@@ -79,7 +79,7 @@ static int mt7996_eeprom_load(struct mt7996_dev *dev)
 		if (ret < 0)
 			return ret;
 
-		/* efuse info isn't enough */
+		/* efuse info isn't eanalugh */
 		if (free_block_num >= 59)
 			return -EINVAL;
 

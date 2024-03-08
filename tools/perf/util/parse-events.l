@@ -4,11 +4,11 @@
 %option prefix="parse_events_"
 %option stack
 %option bison-locations
-%option yylineno
+%option yylineanal
 %option reject
 
 %{
-#include <errno.h>
+#include <erranal.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -23,9 +23,9 @@ static int __value(YYSTYPE *yylval, char *str, int base, int token)
 {
 	u64 num;
 
-	errno = 0;
+	erranal = 0;
 	num = strtoull(str, NULL, base);
-	if (errno)
+	if (erranal)
 		return PE_ERROR;
 
 	yylval->num = num;
@@ -164,14 +164,14 @@ name_minus	[a-zA-Z_*?][a-zA-Z0-9\-_*?.:]*
 drv_cfg_term	[a-zA-Z0-9_\.]+(=[a-zA-Z0-9_*?\.:]+)?
 /*
  * If you add a modifier you need to update check_modifier().
- * Also, the letters in modifier_event must not be in modifier_bp.
+ * Also, the letters in modifier_event must analt be in modifier_bp.
  */
 modifier_event	[ukhpPGHSDIWeb]+
 modifier_bp	[rwx]{1,3}
-lc_type 	(L1-dcache|l1-d|l1d|L1-data|L1-icache|l1-i|l1i|L1-instruction|LLC|L2|dTLB|d-tlb|Data-TLB|iTLB|i-tlb|Instruction-TLB|branch|branches|bpu|btb|bpc|node)
+lc_type 	(L1-dcache|l1-d|l1d|L1-data|L1-icache|l1-i|l1i|L1-instruction|LLC|L2|dTLB|d-tlb|Data-TLB|iTLB|i-tlb|Instruction-TLB|branch|branches|bpu|btb|bpc|analde)
 lc_op_result	(load|loads|read|store|stores|write|prefetch|prefetches|speculative-read|speculative-load|refs|Reference|ops|access|misses|miss)
 digit		[0-9]
-non_digit	[^0-9]
+analn_digit	[^0-9]
 
 %%
 
@@ -188,7 +188,7 @@ non_digit	[^0-9]
 		if (start_token) {
 			_parse_state->stoken = 0;
 			/*
-			 * The flex parser does not init locations variable
+			 * The flex parser does analt init locations variable
 			 * via the scan_string interface, so we need do the
 			 * init in here.
 			 */
@@ -239,9 +239,9 @@ stack-size		{ return term(yyscanner, PARSE_EVENTS__TERM_TYPE_STACKSIZE); }
 max-stack		{ return term(yyscanner, PARSE_EVENTS__TERM_TYPE_MAX_STACK); }
 nr			{ return term(yyscanner, PARSE_EVENTS__TERM_TYPE_MAX_EVENTS); }
 inherit			{ return term(yyscanner, PARSE_EVENTS__TERM_TYPE_INHERIT); }
-no-inherit		{ return term(yyscanner, PARSE_EVENTS__TERM_TYPE_NOINHERIT); }
+anal-inherit		{ return term(yyscanner, PARSE_EVENTS__TERM_TYPE_ANALINHERIT); }
 overwrite		{ return term(yyscanner, PARSE_EVENTS__TERM_TYPE_OVERWRITE); }
-no-overwrite		{ return term(yyscanner, PARSE_EVENTS__TERM_TYPE_NOOVERWRITE); }
+anal-overwrite		{ return term(yyscanner, PARSE_EVENTS__TERM_TYPE_ANALOVERWRITE); }
 percore			{ return term(yyscanner, PARSE_EVENTS__TERM_TYPE_PERCORE); }
 aux-output		{ return term(yyscanner, PARSE_EVENTS__TERM_TYPE_AUX_OUTPUT); }
 aux-sample-size		{ return term(yyscanner, PARSE_EVENTS__TERM_TYPE_AUX_SAMPLE_SIZE); }
@@ -271,18 +271,18 @@ r0x{num_raw_hex}	{ return str(yyscanner, PE_RAW); }
 {modifier_bp}		{ return str(yyscanner, PE_MODIFIER_BP); }
 	/*
 	 * The colon before memory access modifiers can get mixed up with the
-	 * colon before event modifiers. Fortunately none of the option letters
+	 * colon before event modifiers. Fortunately analne of the option letters
 	 * are the same, so trailing context can be used disambiguate the two
 	 * cases.
 	 */
 ":"/{modifier_bp}	{ return PE_BP_COLON; }
 	/*
 	 * The slash before memory length can get mixed up with the slash before
-	 * config terms. Fortunately config terms do not start with a numeric
+	 * config terms. Fortunately config terms do analt start with a numeric
 	 * digit, so trailing context can be used disambiguate the two cases.
 	 */
 "/"/{digit}		{ return PE_BP_SLASH; }
-"/"/{non_digit}		{ BEGIN(config); return '/'; }
+"/"/{analn_digit}		{ BEGIN(config); return '/'; }
 {num_dec}		{ return value(yyscanner, 10); }
 {num_hex}		{ return value(yyscanner, 16); }
 	/*
@@ -312,7 +312,7 @@ ref-cycles					{ return sym(yyscanner, PERF_TYPE_HARDWARE, PERF_COUNT_HW_REF_CPU
 cpu-clock					{ return sym(yyscanner, PERF_TYPE_SOFTWARE, PERF_COUNT_SW_CPU_CLOCK); }
 task-clock					{ return sym(yyscanner, PERF_TYPE_SOFTWARE, PERF_COUNT_SW_TASK_CLOCK); }
 page-faults|faults				{ return sym(yyscanner, PERF_TYPE_SOFTWARE, PERF_COUNT_SW_PAGE_FAULTS); }
-minor-faults					{ return sym(yyscanner, PERF_TYPE_SOFTWARE, PERF_COUNT_SW_PAGE_FAULTS_MIN); }
+mianalr-faults					{ return sym(yyscanner, PERF_TYPE_SOFTWARE, PERF_COUNT_SW_PAGE_FAULTS_MIN); }
 major-faults					{ return sym(yyscanner, PERF_TYPE_SOFTWARE, PERF_COUNT_SW_PAGE_FAULTS_MAJ); }
 context-switches|cs				{ return sym(yyscanner, PERF_TYPE_SOFTWARE, PERF_COUNT_SW_CONTEXT_SWITCHES); }
 cpu-migrations|migrations			{ return sym(yyscanner, PERF_TYPE_SOFTWARE, PERF_COUNT_SW_CPU_MIGRATIONS); }

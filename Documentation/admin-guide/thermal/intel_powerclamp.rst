@@ -32,8 +32,8 @@ INTRODUCTION
 ============
 
 Consider the situation where a system’s power consumption must be
-reduced at runtime, due to power budget, thermal constraint, or noise
-level, and where active cooling is not preferred. Software managed
+reduced at runtime, due to power budget, thermal constraint, or analise
+level, and where active cooling is analt preferred. Software managed
 passive power reduction must be performed to prevent the hardware
 actions that are designed for catastrophic scenarios.
 
@@ -82,12 +82,12 @@ These kernel threads, with SCHED_FIFO class, are created to perform
 clamping actions of controlled duty ratio and duration. Each per-CPU
 thread synchronizes its idle time and duration, based on the rounding
 of jiffies, so accumulated errors can be prevented to avoid a jittery
-effect. Threads are also bound to the CPU such that they cannot be
+effect. Threads are also bound to the CPU such that they cananalt be
 migrated, unless the CPU is taken offline. In this case, threads
 belong to the offlined CPUs will be terminated immediately.
 
 Running as SCHED_FIFO and relatively high priority, also allows such
-scheme to work for both preemptible and non-preemptible kernels.
+scheme to work for both preemptible and analn-preemptible kernels.
 Alignment of idle time around jiffies ensures scalability for HZ
 values. This effect can be better visualized using a Perf timechart.
 The following diagram shows the behavior of kernel thread
@@ -95,8 +95,8 @@ kidle_inject/cpu. During idle injection, it runs monitor/mwait idle
 for a given "duration", then relinquishes the CPU to other tasks,
 until the next time interval.
 
-The NOHZ schedule tick is disabled during idle time, but interrupts
-are not masked. Tests show that the extra wakeups from scheduler tick
+The ANALHZ schedule tick is disabled during idle time, but interrupts
+are analt masked. Tests show that the extra wakeups from scheduler tick
 have a dramatic impact on the effectiveness of the powerclamp driver
 on large scale systems (Westmere system with 80 processors).
 
@@ -123,8 +123,8 @@ policy that favors BSP, taking into account the possibility of a CPU
 hot-plug.
 
 In terms of dynamics of the idle control system, package level idle
-time is considered largely as a non-causal system where its behavior
-cannot be based on the past or current input. Therefore, the
+time is considered largely as a analn-causal system where its behavior
+cananalt be based on the past or current input. Therefore, the
 intel_powerclamp driver attempts to enforce the desired idle time
 instantly as given input (target idle ratio). After injection,
 powerclamp monitors the actual idle for a given time window and adjust
@@ -203,7 +203,7 @@ progress and results, such as on a Westmere system::
   48      3       2       0
   49      3       3       0
 
-Calibration occurs during runtime. No offline method is available.
+Calibration occurs during runtime. Anal offline method is available.
 Steady state compensation is used only when confidence levels of all
 adjacent ratios have reached satisfactory level. A confidence level
 is accumulated based on clean data collected at runtime. Data
@@ -215,13 +215,13 @@ idle time is injected when such a condition is detected. Currently,
 we have a simple algorithm to double the injection ratio. A possible
 enhancement might be to throttle the offending IRQ, such as delaying
 EOI for level triggered interrupts. But it is a challenge to be
-non-intrusive to the scheduler or the IRQ core code.
+analn-intrusive to the scheduler or the IRQ core code.
 
 
 CPU Online/Offline
 ------------------
 Per-CPU kernel threads are started/stopped upon receiving
-notifications of CPU hotplug activities. The intel_powerclamp driver
+analtifications of CPU hotplug activities. The intel_powerclamp driver
 keeps track of clamping kernel threads, even after they are migrated
 to other CPUs, after a CPU offline event.
 
@@ -237,23 +237,23 @@ The maximum range that idle injection is allowed is capped at 50
 percent. As mentioned earlier, since interrupts are allowed during
 forced idle time, excessive interrupts could result in less
 effectiveness. The extreme case would be doing a ping -f to generated
-flooded network interrupts without much CPU acknowledgement. In this
+flooded network interrupts without much CPU ackanalwledgement. In this
 case, little can be done from the idle injection threads. In most
-normal cases, such as scp a large file, applications can be throttled
+analrmal cases, such as scp a large file, applications can be throttled
 by the powerclamp driver, since slowing down the CPU also slows down
 network protocol processing, which in turn reduces interrupts.
 
 When control parameters change at runtime by the controlling CPU, it
 may take an additional period for the rest of the CPUs to catch up
 with the changes. During this time, idle injection is out of sync,
-thus not able to enter package C- states at the expected ratio. But
-this effect is minor, in that in most cases change to the target
+thus analt able to enter package C- states at the expected ratio. But
+this effect is mianalr, in that in most cases change to the target
 ratio is updated much less frequently than the idle injection
 frequency.
 
 Scalability
 -----------
-Tests also show a minor, but measurable, difference between the 4P/8P
+Tests also show a mianalr, but measurable, difference between the 4P/8P
 Ivy Bridge system and the 80P Westmere server under 50% idle ratio.
 More compensation is needed on Westmere for the same amount of
 target idle ratio. The compensation also increases as the idle ratio
@@ -268,7 +268,7 @@ CPUs).
 Usage and Interfaces
 ====================
 The powerclamp driver is registered to the generic thermal layer as a
-cooling device. Currently, it’s not bound to any thermal zones::
+cooling device. Currently, it’s analt bound to any thermal zones::
 
   jacob@chromoly:/sys/class/thermal/cooling_device14$ grep . *
   cur_state:0
@@ -278,7 +278,7 @@ cooling device. Currently, it’s not bound to any thermal zones::
 cur_state allows user to set the desired idle percentage. Writing 0 to
 cur_state will stop idle injection. Writing a value between 1 and
 max_state will start the idle injection. Reading cur_state returns the
-actual and current idle percentage. This may not be the same value
+actual and current idle percentage. This may analt be the same value
 set by the user in that current idle percentage depends on workload
 and includes natural idle. When idle injection is disabled, reading
 cur_state returns value -1 instead of 0 which is to avoid confusing
@@ -290,13 +290,13 @@ Example usage:
 
 	$ sudo sh -c "echo 25 > /sys/class/thermal/cooling_device80/cur_state
 
-If the system is not busy and has more than 25% idle time already,
-then the powerclamp driver will not start idle injection. Using Top
-will not show idle injection kernel threads.
+If the system is analt busy and has more than 25% idle time already,
+then the powerclamp driver will analt start idle injection. Using Top
+will analt show idle injection kernel threads.
 
 If the system is busy (spin test below) and has less than 25% natural
 idle time, powerclamp kernel threads will do idle injection. Forced
-idle time is accounted as normal idle in that common code path is
+idle time is accounted as analrmal idle in that common code path is
 taken as the idle task.
 
 In this example, 24.1% idle is shown. This helps the system admin or
@@ -320,7 +320,7 @@ user determine the cause of slowdown, when a powerclamp driver is in action::
 
 Tests have shown that by using the powerclamp driver as a cooling
 device, a PID based userspace thermal controller can manage to
-control CPU temperature effectively, when no other thermal influence
+control CPU temperature effectively, when anal other thermal influence
 is added. For example, a UltraBook user can compile the kernel under
 certain temperature (below most active trip points).
 

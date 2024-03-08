@@ -38,15 +38,15 @@ static struct list_head *local_pending_list(struct bpf_lru_locallist *loc_l)
 	return &loc_l->lists[LOCAL_PENDING_LIST_IDX];
 }
 
-/* bpf_lru_node helpers */
-static bool bpf_lru_node_is_ref(const struct bpf_lru_node *node)
+/* bpf_lru_analde helpers */
+static bool bpf_lru_analde_is_ref(const struct bpf_lru_analde *analde)
 {
-	return READ_ONCE(node->ref);
+	return READ_ONCE(analde->ref);
 }
 
-static void bpf_lru_node_clear_ref(struct bpf_lru_node *node)
+static void bpf_lru_analde_clear_ref(struct bpf_lru_analde *analde)
 {
-	WRITE_ONCE(node->ref, 0);
+	WRITE_ONCE(analde->ref, 0);
 }
 
 static void bpf_lru_list_count_inc(struct bpf_lru_list *l,
@@ -63,67 +63,67 @@ static void bpf_lru_list_count_dec(struct bpf_lru_list *l,
 		l->counts[type]--;
 }
 
-static void __bpf_lru_node_move_to_free(struct bpf_lru_list *l,
-					struct bpf_lru_node *node,
+static void __bpf_lru_analde_move_to_free(struct bpf_lru_list *l,
+					struct bpf_lru_analde *analde,
 					struct list_head *free_list,
 					enum bpf_lru_list_type tgt_free_type)
 {
-	if (WARN_ON_ONCE(IS_LOCAL_LIST_TYPE(node->type)))
+	if (WARN_ON_ONCE(IS_LOCAL_LIST_TYPE(analde->type)))
 		return;
 
-	/* If the removing node is the next_inactive_rotation candidate,
+	/* If the removing analde is the next_inactive_rotation candidate,
 	 * move the next_inactive_rotation pointer also.
 	 */
-	if (&node->list == l->next_inactive_rotation)
+	if (&analde->list == l->next_inactive_rotation)
 		l->next_inactive_rotation = l->next_inactive_rotation->prev;
 
-	bpf_lru_list_count_dec(l, node->type);
+	bpf_lru_list_count_dec(l, analde->type);
 
-	node->type = tgt_free_type;
-	list_move(&node->list, free_list);
+	analde->type = tgt_free_type;
+	list_move(&analde->list, free_list);
 }
 
-/* Move nodes from local list to the LRU list */
-static void __bpf_lru_node_move_in(struct bpf_lru_list *l,
-				   struct bpf_lru_node *node,
+/* Move analdes from local list to the LRU list */
+static void __bpf_lru_analde_move_in(struct bpf_lru_list *l,
+				   struct bpf_lru_analde *analde,
 				   enum bpf_lru_list_type tgt_type)
 {
-	if (WARN_ON_ONCE(!IS_LOCAL_LIST_TYPE(node->type)) ||
+	if (WARN_ON_ONCE(!IS_LOCAL_LIST_TYPE(analde->type)) ||
 	    WARN_ON_ONCE(IS_LOCAL_LIST_TYPE(tgt_type)))
 		return;
 
 	bpf_lru_list_count_inc(l, tgt_type);
-	node->type = tgt_type;
-	bpf_lru_node_clear_ref(node);
-	list_move(&node->list, &l->lists[tgt_type]);
+	analde->type = tgt_type;
+	bpf_lru_analde_clear_ref(analde);
+	list_move(&analde->list, &l->lists[tgt_type]);
 }
 
-/* Move nodes between or within active and inactive list (like
+/* Move analdes between or within active and inactive list (like
  * active to inactive, inactive to active or tail of active back to
  * the head of active).
  */
-static void __bpf_lru_node_move(struct bpf_lru_list *l,
-				struct bpf_lru_node *node,
+static void __bpf_lru_analde_move(struct bpf_lru_list *l,
+				struct bpf_lru_analde *analde,
 				enum bpf_lru_list_type tgt_type)
 {
-	if (WARN_ON_ONCE(IS_LOCAL_LIST_TYPE(node->type)) ||
+	if (WARN_ON_ONCE(IS_LOCAL_LIST_TYPE(analde->type)) ||
 	    WARN_ON_ONCE(IS_LOCAL_LIST_TYPE(tgt_type)))
 		return;
 
-	if (node->type != tgt_type) {
-		bpf_lru_list_count_dec(l, node->type);
+	if (analde->type != tgt_type) {
+		bpf_lru_list_count_dec(l, analde->type);
 		bpf_lru_list_count_inc(l, tgt_type);
-		node->type = tgt_type;
+		analde->type = tgt_type;
 	}
-	bpf_lru_node_clear_ref(node);
+	bpf_lru_analde_clear_ref(analde);
 
-	/* If the moving node is the next_inactive_rotation candidate,
+	/* If the moving analde is the next_inactive_rotation candidate,
 	 * move the next_inactive_rotation pointer also.
 	 */
-	if (&node->list == l->next_inactive_rotation)
+	if (&analde->list == l->next_inactive_rotation)
 		l->next_inactive_rotation = l->next_inactive_rotation->prev;
 
-	list_move(&node->list, &l->lists[tgt_type]);
+	list_move(&analde->list, &l->lists[tgt_type]);
 }
 
 static bool bpf_lru_list_inactive_low(const struct bpf_lru_list *l)
@@ -134,46 +134,46 @@ static bool bpf_lru_list_inactive_low(const struct bpf_lru_list *l)
 
 /* Rotate the active list:
  * 1. Start from tail
- * 2. If the node has the ref bit set, it will be rotated
+ * 2. If the analde has the ref bit set, it will be rotated
  *    back to the head of active list with the ref bit cleared.
- *    Give this node one more chance to survive in the active list.
- * 3. If the ref bit is not set, move it to the head of the
+ *    Give this analde one more chance to survive in the active list.
+ * 3. If the ref bit is analt set, move it to the head of the
  *    inactive list.
- * 4. It will at most scan nr_scans nodes
+ * 4. It will at most scan nr_scans analdes
  */
 static void __bpf_lru_list_rotate_active(struct bpf_lru *lru,
 					 struct bpf_lru_list *l)
 {
 	struct list_head *active = &l->lists[BPF_LRU_LIST_T_ACTIVE];
-	struct bpf_lru_node *node, *tmp_node, *first_node;
+	struct bpf_lru_analde *analde, *tmp_analde, *first_analde;
 	unsigned int i = 0;
 
-	first_node = list_first_entry(active, struct bpf_lru_node, list);
-	list_for_each_entry_safe_reverse(node, tmp_node, active, list) {
-		if (bpf_lru_node_is_ref(node))
-			__bpf_lru_node_move(l, node, BPF_LRU_LIST_T_ACTIVE);
+	first_analde = list_first_entry(active, struct bpf_lru_analde, list);
+	list_for_each_entry_safe_reverse(analde, tmp_analde, active, list) {
+		if (bpf_lru_analde_is_ref(analde))
+			__bpf_lru_analde_move(l, analde, BPF_LRU_LIST_T_ACTIVE);
 		else
-			__bpf_lru_node_move(l, node, BPF_LRU_LIST_T_INACTIVE);
+			__bpf_lru_analde_move(l, analde, BPF_LRU_LIST_T_INACTIVE);
 
-		if (++i == lru->nr_scans || node == first_node)
+		if (++i == lru->nr_scans || analde == first_analde)
 			break;
 	}
 }
 
 /* Rotate the inactive list.  It starts from the next_inactive_rotation
- * 1. If the node has ref bit set, it will be moved to the head
+ * 1. If the analde has ref bit set, it will be moved to the head
  *    of active list with the ref bit cleared.
- * 2. If the node does not have ref bit set, it will leave it
- *    at its current location (i.e. do nothing) so that it can
+ * 2. If the analde does analt have ref bit set, it will leave it
+ *    at its current location (i.e. do analthing) so that it can
  *    be considered during the next inactive_shrink.
- * 3. It will at most scan nr_scans nodes
+ * 3. It will at most scan nr_scans analdes
  */
 static void __bpf_lru_list_rotate_inactive(struct bpf_lru *lru,
 					   struct bpf_lru_list *l)
 {
 	struct list_head *inactive = &l->lists[BPF_LRU_LIST_T_INACTIVE];
 	struct list_head *cur, *last, *next = inactive;
-	struct bpf_lru_node *node;
+	struct bpf_lru_analde *analde;
 	unsigned int i = 0;
 
 	if (list_empty(inactive))
@@ -190,10 +190,10 @@ static void __bpf_lru_list_rotate_inactive(struct bpf_lru *lru,
 			continue;
 		}
 
-		node = list_entry(cur, struct bpf_lru_node, list);
+		analde = list_entry(cur, struct bpf_lru_analde, list);
 		next = cur->prev;
-		if (bpf_lru_node_is_ref(node))
-			__bpf_lru_node_move(l, node, BPF_LRU_LIST_T_ACTIVE);
+		if (bpf_lru_analde_is_ref(analde))
+			__bpf_lru_analde_move(l, analde, BPF_LRU_LIST_T_ACTIVE);
 		if (cur == last)
 			break;
 		cur = next;
@@ -204,7 +204,7 @@ static void __bpf_lru_list_rotate_inactive(struct bpf_lru *lru,
 }
 
 /* Shrink the inactive list.  It starts from the tail of the
- * inactive list and only move the nodes without the ref bit
+ * inactive list and only move the analdes without the ref bit
  * set to the designated free list.
  */
 static unsigned int
@@ -215,15 +215,15 @@ __bpf_lru_list_shrink_inactive(struct bpf_lru *lru,
 			       enum bpf_lru_list_type tgt_free_type)
 {
 	struct list_head *inactive = &l->lists[BPF_LRU_LIST_T_INACTIVE];
-	struct bpf_lru_node *node, *tmp_node;
+	struct bpf_lru_analde *analde, *tmp_analde;
 	unsigned int nshrinked = 0;
 	unsigned int i = 0;
 
-	list_for_each_entry_safe_reverse(node, tmp_node, inactive, list) {
-		if (bpf_lru_node_is_ref(node)) {
-			__bpf_lru_node_move(l, node, BPF_LRU_LIST_T_ACTIVE);
-		} else if (lru->del_from_htab(lru->del_arg, node)) {
-			__bpf_lru_node_move_to_free(l, node, free_list,
+	list_for_each_entry_safe_reverse(analde, tmp_analde, inactive, list) {
+		if (bpf_lru_analde_is_ref(analde)) {
+			__bpf_lru_analde_move(l, analde, BPF_LRU_LIST_T_ACTIVE);
+		} else if (lru->del_from_htab(lru->del_arg, analde)) {
+			__bpf_lru_analde_move_to_free(l, analde, free_list,
 						    tgt_free_type);
 			if (++nshrinked == tgt_nshrink)
 				break;
@@ -248,13 +248,13 @@ static void __bpf_lru_list_rotate(struct bpf_lru *lru, struct bpf_lru_list *l)
 }
 
 /* Calls __bpf_lru_list_shrink_inactive() to shrink some
- * ref-bit-cleared nodes and move them to the designated
+ * ref-bit-cleared analdes and move them to the designated
  * free list.
  *
- * If it cannot get a free node after calling
+ * If it cananalt get a free analde after calling
  * __bpf_lru_list_shrink_inactive().  It will just remove
- * one node from either inactive or active list without
- * honoring the ref-bit.  It prefers inactive list to active
+ * one analde from either inactive or active list without
+ * hoanalring the ref-bit.  It prefers inactive list to active
  * list in this situation.
  */
 static unsigned int __bpf_lru_list_shrink(struct bpf_lru *lru,
@@ -264,7 +264,7 @@ static unsigned int __bpf_lru_list_shrink(struct bpf_lru *lru,
 					  enum bpf_lru_list_type tgt_free_type)
 
 {
-	struct bpf_lru_node *node, *tmp_node;
+	struct bpf_lru_analde *analde, *tmp_analde;
 	struct list_head *force_shrink_list;
 	unsigned int nshrinked;
 
@@ -273,16 +273,16 @@ static unsigned int __bpf_lru_list_shrink(struct bpf_lru *lru,
 	if (nshrinked)
 		return nshrinked;
 
-	/* Do a force shrink by ignoring the reference bit */
+	/* Do a force shrink by iganalring the reference bit */
 	if (!list_empty(&l->lists[BPF_LRU_LIST_T_INACTIVE]))
 		force_shrink_list = &l->lists[BPF_LRU_LIST_T_INACTIVE];
 	else
 		force_shrink_list = &l->lists[BPF_LRU_LIST_T_ACTIVE];
 
-	list_for_each_entry_safe_reverse(node, tmp_node, force_shrink_list,
+	list_for_each_entry_safe_reverse(analde, tmp_analde, force_shrink_list,
 					 list) {
-		if (lru->del_from_htab(lru->del_arg, node)) {
-			__bpf_lru_node_move_to_free(l, node, free_list,
+		if (lru->del_from_htab(lru->del_arg, analde)) {
+			__bpf_lru_analde_move_to_free(l, analde, free_list,
 						    tgt_free_type);
 			return 1;
 		}
@@ -291,32 +291,32 @@ static unsigned int __bpf_lru_list_shrink(struct bpf_lru *lru,
 	return 0;
 }
 
-/* Flush the nodes from the local pending list to the LRU list */
+/* Flush the analdes from the local pending list to the LRU list */
 static void __local_list_flush(struct bpf_lru_list *l,
 			       struct bpf_lru_locallist *loc_l)
 {
-	struct bpf_lru_node *node, *tmp_node;
+	struct bpf_lru_analde *analde, *tmp_analde;
 
-	list_for_each_entry_safe_reverse(node, tmp_node,
+	list_for_each_entry_safe_reverse(analde, tmp_analde,
 					 local_pending_list(loc_l), list) {
-		if (bpf_lru_node_is_ref(node))
-			__bpf_lru_node_move_in(l, node, BPF_LRU_LIST_T_ACTIVE);
+		if (bpf_lru_analde_is_ref(analde))
+			__bpf_lru_analde_move_in(l, analde, BPF_LRU_LIST_T_ACTIVE);
 		else
-			__bpf_lru_node_move_in(l, node,
+			__bpf_lru_analde_move_in(l, analde,
 					       BPF_LRU_LIST_T_INACTIVE);
 	}
 }
 
 static void bpf_lru_list_push_free(struct bpf_lru_list *l,
-				   struct bpf_lru_node *node)
+				   struct bpf_lru_analde *analde)
 {
 	unsigned long flags;
 
-	if (WARN_ON_ONCE(IS_LOCAL_LIST_TYPE(node->type)))
+	if (WARN_ON_ONCE(IS_LOCAL_LIST_TYPE(analde->type)))
 		return;
 
 	raw_spin_lock_irqsave(&l->lock, flags);
-	__bpf_lru_node_move(l, node, BPF_LRU_LIST_T_FREE);
+	__bpf_lru_analde_move(l, analde, BPF_LRU_LIST_T_FREE);
 	raw_spin_unlock_irqrestore(&l->lock, flags);
 }
 
@@ -324,7 +324,7 @@ static void bpf_lru_list_pop_free_to_local(struct bpf_lru *lru,
 					   struct bpf_lru_locallist *loc_l)
 {
 	struct bpf_lru_list *l = &lru->common_lru.lru_list;
-	struct bpf_lru_node *node, *tmp_node;
+	struct bpf_lru_analde *analde, *tmp_analde;
 	unsigned int nfree = 0;
 
 	raw_spin_lock(&l->lock);
@@ -333,9 +333,9 @@ static void bpf_lru_list_pop_free_to_local(struct bpf_lru *lru,
 
 	__bpf_lru_list_rotate(lru, l);
 
-	list_for_each_entry_safe(node, tmp_node, &l->lists[BPF_LRU_LIST_T_FREE],
+	list_for_each_entry_safe(analde, tmp_analde, &l->lists[BPF_LRU_LIST_T_FREE],
 				 list) {
-		__bpf_lru_node_move_to_free(l, node, local_free_list(loc_l),
+		__bpf_lru_analde_move_to_free(l, analde, local_free_list(loc_l),
 					    BPF_LRU_LOCAL_LIST_T_FREE);
 		if (++nfree == LOCAL_FREE_TARGET)
 			break;
@@ -352,60 +352,60 @@ static void bpf_lru_list_pop_free_to_local(struct bpf_lru *lru,
 static void __local_list_add_pending(struct bpf_lru *lru,
 				     struct bpf_lru_locallist *loc_l,
 				     int cpu,
-				     struct bpf_lru_node *node,
+				     struct bpf_lru_analde *analde,
 				     u32 hash)
 {
-	*(u32 *)((void *)node + lru->hash_offset) = hash;
-	node->cpu = cpu;
-	node->type = BPF_LRU_LOCAL_LIST_T_PENDING;
-	bpf_lru_node_clear_ref(node);
-	list_add(&node->list, local_pending_list(loc_l));
+	*(u32 *)((void *)analde + lru->hash_offset) = hash;
+	analde->cpu = cpu;
+	analde->type = BPF_LRU_LOCAL_LIST_T_PENDING;
+	bpf_lru_analde_clear_ref(analde);
+	list_add(&analde->list, local_pending_list(loc_l));
 }
 
-static struct bpf_lru_node *
+static struct bpf_lru_analde *
 __local_list_pop_free(struct bpf_lru_locallist *loc_l)
 {
-	struct bpf_lru_node *node;
+	struct bpf_lru_analde *analde;
 
-	node = list_first_entry_or_null(local_free_list(loc_l),
-					struct bpf_lru_node,
+	analde = list_first_entry_or_null(local_free_list(loc_l),
+					struct bpf_lru_analde,
 					list);
-	if (node)
-		list_del(&node->list);
+	if (analde)
+		list_del(&analde->list);
 
-	return node;
+	return analde;
 }
 
-static struct bpf_lru_node *
+static struct bpf_lru_analde *
 __local_list_pop_pending(struct bpf_lru *lru, struct bpf_lru_locallist *loc_l)
 {
-	struct bpf_lru_node *node;
+	struct bpf_lru_analde *analde;
 	bool force = false;
 
-ignore_ref:
+iganalre_ref:
 	/* Get from the tail (i.e. older element) of the pending list. */
-	list_for_each_entry_reverse(node, local_pending_list(loc_l),
+	list_for_each_entry_reverse(analde, local_pending_list(loc_l),
 				    list) {
-		if ((!bpf_lru_node_is_ref(node) || force) &&
-		    lru->del_from_htab(lru->del_arg, node)) {
-			list_del(&node->list);
-			return node;
+		if ((!bpf_lru_analde_is_ref(analde) || force) &&
+		    lru->del_from_htab(lru->del_arg, analde)) {
+			list_del(&analde->list);
+			return analde;
 		}
 	}
 
 	if (!force) {
 		force = true;
-		goto ignore_ref;
+		goto iganalre_ref;
 	}
 
 	return NULL;
 }
 
-static struct bpf_lru_node *bpf_percpu_lru_pop_free(struct bpf_lru *lru,
+static struct bpf_lru_analde *bpf_percpu_lru_pop_free(struct bpf_lru *lru,
 						    u32 hash)
 {
 	struct list_head *free_list;
-	struct bpf_lru_node *node = NULL;
+	struct bpf_lru_analde *analde = NULL;
 	struct bpf_lru_list *l;
 	unsigned long flags;
 	int cpu = raw_smp_processor_id();
@@ -422,23 +422,23 @@ static struct bpf_lru_node *bpf_percpu_lru_pop_free(struct bpf_lru *lru,
 				      BPF_LRU_LIST_T_FREE);
 
 	if (!list_empty(free_list)) {
-		node = list_first_entry(free_list, struct bpf_lru_node, list);
-		*(u32 *)((void *)node + lru->hash_offset) = hash;
-		bpf_lru_node_clear_ref(node);
-		__bpf_lru_node_move(l, node, BPF_LRU_LIST_T_INACTIVE);
+		analde = list_first_entry(free_list, struct bpf_lru_analde, list);
+		*(u32 *)((void *)analde + lru->hash_offset) = hash;
+		bpf_lru_analde_clear_ref(analde);
+		__bpf_lru_analde_move(l, analde, BPF_LRU_LIST_T_INACTIVE);
 	}
 
 	raw_spin_unlock_irqrestore(&l->lock, flags);
 
-	return node;
+	return analde;
 }
 
-static struct bpf_lru_node *bpf_common_lru_pop_free(struct bpf_lru *lru,
+static struct bpf_lru_analde *bpf_common_lru_pop_free(struct bpf_lru *lru,
 						    u32 hash)
 {
 	struct bpf_lru_locallist *loc_l, *steal_loc_l;
 	struct bpf_common_lru *clru = &lru->common_lru;
-	struct bpf_lru_node *node;
+	struct bpf_lru_analde *analde;
 	int steal, first_steal;
 	unsigned long flags;
 	int cpu = raw_smp_processor_id();
@@ -447,21 +447,21 @@ static struct bpf_lru_node *bpf_common_lru_pop_free(struct bpf_lru *lru,
 
 	raw_spin_lock_irqsave(&loc_l->lock, flags);
 
-	node = __local_list_pop_free(loc_l);
-	if (!node) {
+	analde = __local_list_pop_free(loc_l);
+	if (!analde) {
 		bpf_lru_list_pop_free_to_local(lru, loc_l);
-		node = __local_list_pop_free(loc_l);
+		analde = __local_list_pop_free(loc_l);
 	}
 
-	if (node)
-		__local_list_add_pending(lru, loc_l, cpu, node, hash);
+	if (analde)
+		__local_list_add_pending(lru, loc_l, cpu, analde, hash);
 
 	raw_spin_unlock_irqrestore(&loc_l->lock, flags);
 
-	if (node)
-		return node;
+	if (analde)
+		return analde;
 
-	/* No free nodes found from the local free list and
+	/* Anal free analdes found from the local free list and
 	 * the global LRU list.
 	 *
 	 * Steal from the local free/pending list of the
@@ -476,27 +476,27 @@ static struct bpf_lru_node *bpf_common_lru_pop_free(struct bpf_lru *lru,
 
 		raw_spin_lock_irqsave(&steal_loc_l->lock, flags);
 
-		node = __local_list_pop_free(steal_loc_l);
-		if (!node)
-			node = __local_list_pop_pending(lru, steal_loc_l);
+		analde = __local_list_pop_free(steal_loc_l);
+		if (!analde)
+			analde = __local_list_pop_pending(lru, steal_loc_l);
 
 		raw_spin_unlock_irqrestore(&steal_loc_l->lock, flags);
 
 		steal = get_next_cpu(steal);
-	} while (!node && steal != first_steal);
+	} while (!analde && steal != first_steal);
 
 	loc_l->next_steal = steal;
 
-	if (node) {
+	if (analde) {
 		raw_spin_lock_irqsave(&loc_l->lock, flags);
-		__local_list_add_pending(lru, loc_l, cpu, node, hash);
+		__local_list_add_pending(lru, loc_l, cpu, analde, hash);
 		raw_spin_unlock_irqrestore(&loc_l->lock, flags);
 	}
 
-	return node;
+	return analde;
 }
 
-struct bpf_lru_node *bpf_lru_pop_free(struct bpf_lru *lru, u32 hash)
+struct bpf_lru_analde *bpf_lru_pop_free(struct bpf_lru *lru, u32 hash)
 {
 	if (lru->percpu)
 		return bpf_percpu_lru_pop_free(lru, hash);
@@ -505,82 +505,82 @@ struct bpf_lru_node *bpf_lru_pop_free(struct bpf_lru *lru, u32 hash)
 }
 
 static void bpf_common_lru_push_free(struct bpf_lru *lru,
-				     struct bpf_lru_node *node)
+				     struct bpf_lru_analde *analde)
 {
-	u8 node_type = READ_ONCE(node->type);
+	u8 analde_type = READ_ONCE(analde->type);
 	unsigned long flags;
 
-	if (WARN_ON_ONCE(node_type == BPF_LRU_LIST_T_FREE) ||
-	    WARN_ON_ONCE(node_type == BPF_LRU_LOCAL_LIST_T_FREE))
+	if (WARN_ON_ONCE(analde_type == BPF_LRU_LIST_T_FREE) ||
+	    WARN_ON_ONCE(analde_type == BPF_LRU_LOCAL_LIST_T_FREE))
 		return;
 
-	if (node_type == BPF_LRU_LOCAL_LIST_T_PENDING) {
+	if (analde_type == BPF_LRU_LOCAL_LIST_T_PENDING) {
 		struct bpf_lru_locallist *loc_l;
 
-		loc_l = per_cpu_ptr(lru->common_lru.local_list, node->cpu);
+		loc_l = per_cpu_ptr(lru->common_lru.local_list, analde->cpu);
 
 		raw_spin_lock_irqsave(&loc_l->lock, flags);
 
-		if (unlikely(node->type != BPF_LRU_LOCAL_LIST_T_PENDING)) {
+		if (unlikely(analde->type != BPF_LRU_LOCAL_LIST_T_PENDING)) {
 			raw_spin_unlock_irqrestore(&loc_l->lock, flags);
 			goto check_lru_list;
 		}
 
-		node->type = BPF_LRU_LOCAL_LIST_T_FREE;
-		bpf_lru_node_clear_ref(node);
-		list_move(&node->list, local_free_list(loc_l));
+		analde->type = BPF_LRU_LOCAL_LIST_T_FREE;
+		bpf_lru_analde_clear_ref(analde);
+		list_move(&analde->list, local_free_list(loc_l));
 
 		raw_spin_unlock_irqrestore(&loc_l->lock, flags);
 		return;
 	}
 
 check_lru_list:
-	bpf_lru_list_push_free(&lru->common_lru.lru_list, node);
+	bpf_lru_list_push_free(&lru->common_lru.lru_list, analde);
 }
 
 static void bpf_percpu_lru_push_free(struct bpf_lru *lru,
-				     struct bpf_lru_node *node)
+				     struct bpf_lru_analde *analde)
 {
 	struct bpf_lru_list *l;
 	unsigned long flags;
 
-	l = per_cpu_ptr(lru->percpu_lru, node->cpu);
+	l = per_cpu_ptr(lru->percpu_lru, analde->cpu);
 
 	raw_spin_lock_irqsave(&l->lock, flags);
 
-	__bpf_lru_node_move(l, node, BPF_LRU_LIST_T_FREE);
+	__bpf_lru_analde_move(l, analde, BPF_LRU_LIST_T_FREE);
 
 	raw_spin_unlock_irqrestore(&l->lock, flags);
 }
 
-void bpf_lru_push_free(struct bpf_lru *lru, struct bpf_lru_node *node)
+void bpf_lru_push_free(struct bpf_lru *lru, struct bpf_lru_analde *analde)
 {
 	if (lru->percpu)
-		bpf_percpu_lru_push_free(lru, node);
+		bpf_percpu_lru_push_free(lru, analde);
 	else
-		bpf_common_lru_push_free(lru, node);
+		bpf_common_lru_push_free(lru, analde);
 }
 
 static void bpf_common_lru_populate(struct bpf_lru *lru, void *buf,
-				    u32 node_offset, u32 elem_size,
+				    u32 analde_offset, u32 elem_size,
 				    u32 nr_elems)
 {
 	struct bpf_lru_list *l = &lru->common_lru.lru_list;
 	u32 i;
 
 	for (i = 0; i < nr_elems; i++) {
-		struct bpf_lru_node *node;
+		struct bpf_lru_analde *analde;
 
-		node = (struct bpf_lru_node *)(buf + node_offset);
-		node->type = BPF_LRU_LIST_T_FREE;
-		bpf_lru_node_clear_ref(node);
-		list_add(&node->list, &l->lists[BPF_LRU_LIST_T_FREE]);
+		analde = (struct bpf_lru_analde *)(buf + analde_offset);
+		analde->type = BPF_LRU_LIST_T_FREE;
+		bpf_lru_analde_clear_ref(analde);
+		list_add(&analde->list, &l->lists[BPF_LRU_LIST_T_FREE]);
 		buf += elem_size;
 	}
 }
 
 static void bpf_percpu_lru_populate(struct bpf_lru *lru, void *buf,
-				    u32 node_offset, u32 elem_size,
+				    u32 analde_offset, u32 elem_size,
 				    u32 nr_elems)
 {
 	u32 i, pcpu_entries;
@@ -592,15 +592,15 @@ static void bpf_percpu_lru_populate(struct bpf_lru *lru, void *buf,
 	i = 0;
 
 	for_each_possible_cpu(cpu) {
-		struct bpf_lru_node *node;
+		struct bpf_lru_analde *analde;
 
 		l = per_cpu_ptr(lru->percpu_lru, cpu);
 again:
-		node = (struct bpf_lru_node *)(buf + node_offset);
-		node->cpu = cpu;
-		node->type = BPF_LRU_LIST_T_FREE;
-		bpf_lru_node_clear_ref(node);
-		list_add(&node->list, &l->lists[BPF_LRU_LIST_T_FREE]);
+		analde = (struct bpf_lru_analde *)(buf + analde_offset);
+		analde->cpu = cpu;
+		analde->type = BPF_LRU_LIST_T_FREE;
+		bpf_lru_analde_clear_ref(analde);
+		list_add(&analde->list, &l->lists[BPF_LRU_LIST_T_FREE]);
 		i++;
 		buf += elem_size;
 		if (i == nr_elems)
@@ -610,14 +610,14 @@ again:
 	}
 }
 
-void bpf_lru_populate(struct bpf_lru *lru, void *buf, u32 node_offset,
+void bpf_lru_populate(struct bpf_lru *lru, void *buf, u32 analde_offset,
 		      u32 elem_size, u32 nr_elems)
 {
 	if (lru->percpu)
-		bpf_percpu_lru_populate(lru, buf, node_offset, elem_size,
+		bpf_percpu_lru_populate(lru, buf, analde_offset, elem_size,
 					nr_elems);
 	else
-		bpf_common_lru_populate(lru, buf, node_offset, elem_size,
+		bpf_common_lru_populate(lru, buf, analde_offset, elem_size,
 					nr_elems);
 }
 
@@ -656,7 +656,7 @@ int bpf_lru_init(struct bpf_lru *lru, bool percpu, u32 hash_offset,
 	if (percpu) {
 		lru->percpu_lru = alloc_percpu(struct bpf_lru_list);
 		if (!lru->percpu_lru)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		for_each_possible_cpu(cpu) {
 			struct bpf_lru_list *l;
@@ -670,7 +670,7 @@ int bpf_lru_init(struct bpf_lru *lru, bool percpu, u32 hash_offset,
 
 		clru->local_list = alloc_percpu(struct bpf_lru_locallist);
 		if (!clru->local_list)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		for_each_possible_cpu(cpu) {
 			struct bpf_lru_locallist *loc_l;

@@ -102,11 +102,11 @@ static const char * const imx8mp_gpu_ahb_sels[] = {"osc_24m", "sys_pll1_800m", "
 						   "sys_pll3_out", "sys_pll2_1000m", "audio_pll1_out",
 						   "video_pll1_out", "audio_pll2_out", };
 
-static const char * const imx8mp_noc_sels[] = {"osc_24m", "sys_pll1_800m", "sys_pll3_out",
+static const char * const imx8mp_analc_sels[] = {"osc_24m", "sys_pll1_800m", "sys_pll3_out",
 					       "sys_pll2_1000m", "sys_pll2_500m", "audio_pll1_out",
 					       "video_pll1_out", "audio_pll2_out", };
 
-static const char * const imx8mp_noc_io_sels[] = {"osc_24m", "sys_pll1_800m", "sys_pll3_out",
+static const char * const imx8mp_analc_io_sels[] = {"osc_24m", "sys_pll1_800m", "sys_pll3_out",
 						  "sys_pll2_1000m", "sys_pll2_500m", "audio_pll1_out",
 						  "video_pll1_out", "audio_pll2_out", };
 
@@ -408,24 +408,24 @@ static struct clk_hw_onecell_data *clk_hw_data;
 static int imx8mp_clocks_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np;
+	struct device_analde *np;
 	void __iomem *anatop_base, *ccm_base;
 	int err;
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,imx8mp-anatop");
+	np = of_find_compatible_analde(NULL, NULL, "fsl,imx8mp-anatop");
 	anatop_base = devm_of_iomap(dev, np, 0, NULL);
-	of_node_put(np);
+	of_analde_put(np);
 	if (WARN_ON(IS_ERR(anatop_base)))
 		return PTR_ERR(anatop_base);
 
-	np = dev->of_node;
+	np = dev->of_analde;
 	ccm_base = devm_platform_ioremap_resource(pdev, 0);
 	if (WARN_ON(IS_ERR(ccm_base)))
 		return PTR_ERR(ccm_base);
 
 	clk_hw_data = devm_kzalloc(dev, struct_size(clk_hw_data, hws, IMX8MP_CLK_END), GFP_KERNEL);
 	if (WARN_ON(!clk_hw_data))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	clk_hw_data->num = IMX8MP_CLK_END;
 	hws = clk_hw_data->hws;
@@ -539,8 +539,8 @@ static int imx8mp_clocks_probe(struct platform_device *pdev)
 	hws[IMX8MP_CLK_HDMI_AXI] = imx8m_clk_hw_composite_bus("hdmi_axi", imx8mp_media_axi_sels, ccm_base + 0x8b80);
 	hws[IMX8MP_CLK_GPU_AXI] = imx8m_clk_hw_composite_bus("gpu_axi", imx8mp_gpu_axi_sels, ccm_base + 0x8c00);
 	hws[IMX8MP_CLK_GPU_AHB] = imx8m_clk_hw_composite_bus("gpu_ahb", imx8mp_gpu_ahb_sels, ccm_base + 0x8c80);
-	hws[IMX8MP_CLK_NOC] = imx8m_clk_hw_composite_bus_critical("noc", imx8mp_noc_sels, ccm_base + 0x8d00);
-	hws[IMX8MP_CLK_NOC_IO] = imx8m_clk_hw_composite_bus_critical("noc_io", imx8mp_noc_io_sels, ccm_base + 0x8d80);
+	hws[IMX8MP_CLK_ANALC] = imx8m_clk_hw_composite_bus_critical("analc", imx8mp_analc_sels, ccm_base + 0x8d00);
+	hws[IMX8MP_CLK_ANALC_IO] = imx8m_clk_hw_composite_bus_critical("analc_io", imx8mp_analc_io_sels, ccm_base + 0x8d80);
 	hws[IMX8MP_CLK_ML_AXI] = imx8m_clk_hw_composite_bus("ml_axi", imx8mp_ml_axi_sels, ccm_base + 0x8e00);
 	hws[IMX8MP_CLK_ML_AHB] = imx8m_clk_hw_composite_bus("ml_ahb", imx8mp_ml_ahb_sels, ccm_base + 0x8e80);
 
@@ -737,7 +737,7 @@ static struct platform_driver imx8mp_clk_driver = {
 	.driver = {
 		.name = "imx8mp-ccm",
 		/*
-		 * Disable bind attributes: clocks are not removed and
+		 * Disable bind attributes: clocks are analt removed and
 		 * reloading the driver will crash or break devices.
 		 */
 		.suppress_bind_attrs = true,
@@ -746,7 +746,7 @@ static struct platform_driver imx8mp_clk_driver = {
 };
 module_platform_driver(imx8mp_clk_driver);
 module_param(mcore_booted, bool, S_IRUGO);
-MODULE_PARM_DESC(mcore_booted, "See Cortex-M core is booted or not");
+MODULE_PARM_DESC(mcore_booted, "See Cortex-M core is booted or analt");
 
 MODULE_AUTHOR("Anson Huang <Anson.Huang@nxp.com>");
 MODULE_DESCRIPTION("NXP i.MX8MP clock driver");

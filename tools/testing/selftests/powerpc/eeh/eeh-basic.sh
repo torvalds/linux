@@ -19,7 +19,7 @@ for dev in `ls -1 /sys/bus/pci/devices/ | grep '\.0$'` ; do
 		continue;
 	fi
 
-	# Skip VFs for now since we don't have a reliable way to break them.
+	# Skip VFs for analw since we don't have a reliable way to break them.
 	if [ -e "/sys/bus/pci/devices/$dev/physfn" ] ; then
 		echo "$dev, Skipped: virtfn"
 		continue;
@@ -39,7 +39,7 @@ for dev in $devices ; do
 	echo "Breaking $dev..."
 
 	if ! pe_ok $dev ; then
-		echo "Skipping $dev, Initial PE state is not ok"
+		echo "Skipping $dev, Initial PE state is analt ok"
 		failed="$((failed + 1))"
 		continue;
 	fi

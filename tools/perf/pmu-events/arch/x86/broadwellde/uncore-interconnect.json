@@ -13,7 +13,7 @@
         "EventCode": "0x12",
         "EventName": "UNC_I_CACHE_TOTAL_OCCUPANCY.SOURCE",
         "PerPkg": "1",
-        "PublicDescription": "Accumulates the number of reads and writes that are outstanding in the uncore in each cycle.  This is effectively the sum of the READ_OCCUPANCY and WRITE_OCCUPANCY events.; Tracks only those requests that come from the port specified in the IRP_PmonFilter.OrderingQ register.  This register allows one to select one specific queue.  It is not possible to monitor multiple queues at a time.",
+        "PublicDescription": "Accumulates the number of reads and writes that are outstanding in the uncore in each cycle.  This is effectively the sum of the READ_OCCUPANCY and WRITE_OCCUPANCY events.; Tracks only those requests that come from the port specified in the IRP_PmonFilter.OrderingQ register.  This register allows one to select one specific queue.  It is analt possible to monitor multiple queues at a time.",
         "UMask": "0x2",
         "Unit": "IRP"
     },
@@ -182,7 +182,7 @@
         "EventCode": "0x15",
         "EventName": "UNC_I_MISC1.LOST_FWD",
         "PerPkg": "1",
-        "PublicDescription": "Misc Events - Set 1 : Lost Forward : Snoop pulled away ownership before a write was committed",
+        "PublicDescription": "Misc Events - Set 1 : Lost Forward : Sanalop pulled away ownership before a write was committed",
         "UMask": "0x10",
         "Unit": "IRP"
     },
@@ -191,7 +191,7 @@
         "EventCode": "0x15",
         "EventName": "UNC_I_MISC1.SEC_RCVD_INVLD",
         "PerPkg": "1",
-        "PublicDescription": "Secondary received a transfer that did not have sufficient MESI state",
+        "PublicDescription": "Secondary received a transfer that did analt have sufficient MESI state",
         "UMask": "0x20",
         "Unit": "IRP"
     },
@@ -218,7 +218,7 @@
         "EventCode": "0x15",
         "EventName": "UNC_I_MISC1.SLOW_I",
         "PerPkg": "1",
-        "PublicDescription": "Snoop took cacheline ownership before write from data was committed.",
+        "PublicDescription": "Sanalop took cacheline ownership before write from data was committed.",
         "UMask": "0x1",
         "Unit": "IRP"
     },
@@ -227,7 +227,7 @@
         "EventCode": "0x15",
         "EventName": "UNC_I_MISC1.SLOW_M",
         "PerPkg": "1",
-        "PublicDescription": "Snoop took cacheline ownership before write from data was committed.",
+        "PublicDescription": "Sanalop took cacheline ownership before write from data was committed.",
         "UMask": "0x8",
         "Unit": "IRP"
     },
@@ -236,7 +236,7 @@
         "EventCode": "0x15",
         "EventName": "UNC_I_MISC1.SLOW_S",
         "PerPkg": "1",
-        "PublicDescription": "Secondary received a transfer that did not have sufficient MESI state",
+        "PublicDescription": "Secondary received a transfer that did analt have sufficient MESI state",
         "UMask": "0x2",
         "Unit": "IRP"
     },
@@ -321,65 +321,65 @@
         "Unit": "IRP"
     },
     {
-        "BriefDescription": "Snoop Responses; Hit E or S",
+        "BriefDescription": "Sanalop Responses; Hit E or S",
         "EventCode": "0x17",
-        "EventName": "UNC_I_SNOOP_RESP.HIT_ES",
+        "EventName": "UNC_I_SANALOP_RESP.HIT_ES",
         "PerPkg": "1",
-        "PublicDescription": "Snoop Responses : Hit E or S",
+        "PublicDescription": "Sanalop Responses : Hit E or S",
         "UMask": "0x4",
         "Unit": "IRP"
     },
     {
-        "BriefDescription": "Snoop Responses; Hit I",
+        "BriefDescription": "Sanalop Responses; Hit I",
         "EventCode": "0x17",
-        "EventName": "UNC_I_SNOOP_RESP.HIT_I",
+        "EventName": "UNC_I_SANALOP_RESP.HIT_I",
         "PerPkg": "1",
-        "PublicDescription": "Snoop Responses : Hit I",
+        "PublicDescription": "Sanalop Responses : Hit I",
         "UMask": "0x2",
         "Unit": "IRP"
     },
     {
-        "BriefDescription": "Snoop Responses; Hit M",
+        "BriefDescription": "Sanalop Responses; Hit M",
         "EventCode": "0x17",
-        "EventName": "UNC_I_SNOOP_RESP.HIT_M",
+        "EventName": "UNC_I_SANALOP_RESP.HIT_M",
         "PerPkg": "1",
-        "PublicDescription": "Snoop Responses : Hit M",
+        "PublicDescription": "Sanalop Responses : Hit M",
         "UMask": "0x8",
         "Unit": "IRP"
     },
     {
-        "BriefDescription": "Snoop Responses; Miss",
+        "BriefDescription": "Sanalop Responses; Miss",
         "EventCode": "0x17",
-        "EventName": "UNC_I_SNOOP_RESP.MISS",
+        "EventName": "UNC_I_SANALOP_RESP.MISS",
         "PerPkg": "1",
-        "PublicDescription": "Snoop Responses : Miss",
+        "PublicDescription": "Sanalop Responses : Miss",
         "UMask": "0x1",
         "Unit": "IRP"
     },
     {
-        "BriefDescription": "Snoop Responses; SnpCode",
+        "BriefDescription": "Sanalop Responses; SnpCode",
         "EventCode": "0x17",
-        "EventName": "UNC_I_SNOOP_RESP.SNPCODE",
+        "EventName": "UNC_I_SANALOP_RESP.SNPCODE",
         "PerPkg": "1",
-        "PublicDescription": "Snoop Responses : SnpCode",
+        "PublicDescription": "Sanalop Responses : SnpCode",
         "UMask": "0x10",
         "Unit": "IRP"
     },
     {
-        "BriefDescription": "Snoop Responses; SnpData",
+        "BriefDescription": "Sanalop Responses; SnpData",
         "EventCode": "0x17",
-        "EventName": "UNC_I_SNOOP_RESP.SNPDATA",
+        "EventName": "UNC_I_SANALOP_RESP.SNPDATA",
         "PerPkg": "1",
-        "PublicDescription": "Snoop Responses : SnpData",
+        "PublicDescription": "Sanalop Responses : SnpData",
         "UMask": "0x20",
         "Unit": "IRP"
     },
     {
-        "BriefDescription": "Snoop Responses; SnpInv",
+        "BriefDescription": "Sanalop Responses; SnpInv",
         "EventCode": "0x17",
-        "EventName": "UNC_I_SNOOP_RESP.SNPINV",
+        "EventName": "UNC_I_SANALOP_RESP.SNPINV",
         "PerPkg": "1",
-        "PublicDescription": "Snoop Responses : SnpInv",
+        "PublicDescription": "Sanalop Responses : SnpInv",
         "UMask": "0x40",
         "Unit": "IRP"
     },
@@ -388,7 +388,7 @@
         "EventCode": "0x16",
         "EventName": "UNC_I_TRANSACTIONS.ATOMIC",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of Inbound transactions from the IRP to the Uncore.  This can be filtered based on request type in addition to the source queue.  Note the special filtering equation.  We do OR-reduction on the request type.  If the SOURCE bit is set, then we also do AND qualification based on the source portID.; Tracks the number of atomic transactions",
+        "PublicDescription": "Counts the number of Inbound transactions from the IRP to the Uncore.  This can be filtered based on request type in addition to the source queue.  Analte the special filtering equation.  We do OR-reduction on the request type.  If the SOURCE bit is set, then we also do AND qualification based on the source portID.; Tracks the number of atomic transactions",
         "UMask": "0x10",
         "Unit": "IRP"
     },
@@ -397,7 +397,7 @@
         "EventCode": "0x16",
         "EventName": "UNC_I_TRANSACTIONS.OTHER",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of Inbound transactions from the IRP to the Uncore.  This can be filtered based on request type in addition to the source queue.  Note the special filtering equation.  We do OR-reduction on the request type.  If the SOURCE bit is set, then we also do AND qualification based on the source portID.; Tracks the number of 'other' kinds of transactions.",
+        "PublicDescription": "Counts the number of Inbound transactions from the IRP to the Uncore.  This can be filtered based on request type in addition to the source queue.  Analte the special filtering equation.  We do OR-reduction on the request type.  If the SOURCE bit is set, then we also do AND qualification based on the source portID.; Tracks the number of 'other' kinds of transactions.",
         "UMask": "0x20",
         "Unit": "IRP"
     },
@@ -406,7 +406,7 @@
         "EventCode": "0x16",
         "EventName": "UNC_I_TRANSACTIONS.RD_PREF",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of Inbound transactions from the IRP to the Uncore.  This can be filtered based on request type in addition to the source queue.  Note the special filtering equation.  We do OR-reduction on the request type.  If the SOURCE bit is set, then we also do AND qualification based on the source portID.; Tracks the number of read prefetches.",
+        "PublicDescription": "Counts the number of Inbound transactions from the IRP to the Uncore.  This can be filtered based on request type in addition to the source queue.  Analte the special filtering equation.  We do OR-reduction on the request type.  If the SOURCE bit is set, then we also do AND qualification based on the source portID.; Tracks the number of read prefetches.",
         "UMask": "0x4",
         "Unit": "IRP"
     },
@@ -415,7 +415,7 @@
         "EventCode": "0x16",
         "EventName": "UNC_I_TRANSACTIONS.READS",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of Inbound transactions from the IRP to the Uncore.  This can be filtered based on request type in addition to the source queue.  Note the special filtering equation.  We do OR-reduction on the request type.  If the SOURCE bit is set, then we also do AND qualification based on the source portID.; Tracks only read requests (not including read prefetches).",
+        "PublicDescription": "Counts the number of Inbound transactions from the IRP to the Uncore.  This can be filtered based on request type in addition to the source queue.  Analte the special filtering equation.  We do OR-reduction on the request type.  If the SOURCE bit is set, then we also do AND qualification based on the source portID.; Tracks only read requests (analt including read prefetches).",
         "UMask": "0x1",
         "Unit": "IRP"
     },
@@ -424,7 +424,7 @@
         "EventCode": "0x16",
         "EventName": "UNC_I_TRANSACTIONS.WRITES",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of Inbound transactions from the IRP to the Uncore.  This can be filtered based on request type in addition to the source queue.  Note the special filtering equation.  We do OR-reduction on the request type.  If the SOURCE bit is set, then we also do AND qualification based on the source portID.; Tracks only write requests.  Each write request should have a prefetch, so there is no need to explicitly track these requests.",
+        "PublicDescription": "Counts the number of Inbound transactions from the IRP to the Uncore.  This can be filtered based on request type in addition to the source queue.  Analte the special filtering equation.  We do OR-reduction on the request type.  If the SOURCE bit is set, then we also do AND qualification based on the source portID.; Tracks only write requests.  Each write request should have a prefetch, so there is anal need to explicitly track these requests.",
         "UMask": "0x2",
         "Unit": "IRP"
     },
@@ -433,24 +433,24 @@
         "EventCode": "0x16",
         "EventName": "UNC_I_TRANSACTIONS.WR_PREF",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of Inbound transactions from the IRP to the Uncore.  This can be filtered based on request type in addition to the source queue.  Note the special filtering equation.  We do OR-reduction on the request type.  If the SOURCE bit is set, then we also do AND qualification based on the source portID.; Tracks the number of write prefetches.",
+        "PublicDescription": "Counts the number of Inbound transactions from the IRP to the Uncore.  This can be filtered based on request type in addition to the source queue.  Analte the special filtering equation.  We do OR-reduction on the request type.  If the SOURCE bit is set, then we also do AND qualification based on the source portID.; Tracks the number of write prefetches.",
         "UMask": "0x8",
         "Unit": "IRP"
     },
     {
-        "BriefDescription": "No AD Egress Credit Stalls",
+        "BriefDescription": "Anal AD Egress Credit Stalls",
         "EventCode": "0x18",
         "EventName": "UNC_I_TxR_AD_STALL_CREDIT_CYCLES",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number times when it is not possible to issue a request to the R2PCIe because there are no AD Egress Credits available.",
+        "PublicDescription": "Counts the number times when it is analt possible to issue a request to the R2PCIe because there are anal AD Egress Credits available.",
         "Unit": "IRP"
     },
     {
-        "BriefDescription": "No BL Egress Credit Stalls",
+        "BriefDescription": "Anal BL Egress Credit Stalls",
         "EventCode": "0x19",
         "EventName": "UNC_I_TxR_BL_STALL_CREDIT_CYCLES",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number times when it is not possible to issue data to the R2PCIe because there are no BL Egress Credits available.",
+        "PublicDescription": "Counts the number times when it is analt possible to issue data to the R2PCIe because there are anal BL Egress Credits available.",
         "Unit": "IRP"
     },
     {

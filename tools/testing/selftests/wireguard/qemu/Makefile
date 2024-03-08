@@ -18,7 +18,7 @@ endif
 
 MIRROR := https://download.wireguard.com/qemu-test/distfiles/
 
-KERNEL_BUILD_PATH := $(BUILD_PATH)/kernel$(if $(findstring yes,$(DEBUG_KERNEL)),-debug)
+KERNEL_BUILD_PATH := $(BUILD_PATH)/kernel$(if $(findstring anal,$(DEBUG_KERNEL)),-debug)
 
 default: qemu
 
@@ -109,9 +109,9 @@ KERNEL_ARCH := x86_64
 KERNEL_BZIMAGE := $(KERNEL_BUILD_PATH)/arch/x86/boot/bzImage
 QEMU_VPORT_RESULT := virtio-serial-device
 ifeq ($(HOST_ARCH),$(ARCH))
-QEMU_MACHINE := -cpu host -machine microvm,accel=kvm,pit=off,pic=off,rtc=off -no-acpi
+QEMU_MACHINE := -cpu host -machine microvm,accel=kvm,pit=off,pic=off,rtc=off -anal-acpi
 else
-QEMU_MACHINE := -cpu max -machine microvm -no-acpi
+QEMU_MACHINE := -cpu max -machine microvm -anal-acpi
 endif
 else ifeq ($(ARCH),i686)
 CHOST := i686-linux-musl
@@ -120,9 +120,9 @@ KERNEL_ARCH := x86
 KERNEL_BZIMAGE := $(KERNEL_BUILD_PATH)/arch/x86/boot/bzImage
 QEMU_VPORT_RESULT := virtio-serial-device
 ifeq ($(subst x86_64,i686,$(HOST_ARCH)),$(ARCH))
-QEMU_MACHINE := -cpu host -machine microvm,accel=kvm,pit=off,pic=off,rtc=off -no-acpi
+QEMU_MACHINE := -cpu host -machine microvm,accel=kvm,pit=off,pic=off,rtc=off -anal-acpi
 else
-QEMU_MACHINE := -cpu coreduo -machine microvm -no-acpi
+QEMU_MACHINE := -cpu coreduo -machine microvm -anal-acpi
 endif
 else ifeq ($(ARCH),mips64)
 CHOST := mips64-linux-musl
@@ -288,22 +288,22 @@ qemu: $(KERNEL_BZIMAGE)
 	rm -f $(BUILD_PATH)/result
 ifneq ($(ARCH),um)
 	timeout --foreground 20m qemu-system-$(QEMU_ARCH) \
-		-nodefaults \
-		-nographic \
+		-analdefaults \
+		-analgraphic \
 		-smp $(NR_CPUS) \
 		$(QEMU_MACHINE) \
 		-m $$(grep -q CONFIG_DEBUG_KMEMLEAK=y $(KERNEL_BUILD_PATH)/.config && echo 1G || echo 256M) \
 		-serial stdio \
 		-chardev file,path=$(BUILD_PATH)/result,id=result \
 		$(if $(QEMU_VPORT_RESULT),-device $(QEMU_VPORT_RESULT) -device virtserialport$(comma)chardev=result,-serial chardev:result) \
-		-no-reboot \
-		-monitor none \
+		-anal-reboot \
+		-monitor analne \
 		-kernel $<
 else
 	timeout --foreground 20m $< \
 		$(KERNEL_CMDLINE) \
 		mem=$$(grep -q CONFIG_DEBUG_KMEMLEAK=y $(KERNEL_BUILD_PATH)/.config && echo 1G || echo 256M) \
-		noreboot \
+		analreboot \
 		con1=fd:51 51>$(BUILD_PATH)/result </dev/null 2>&1 | cat
 endif
 	grep -Fq success $(BUILD_PATH)/result
@@ -313,7 +313,7 @@ $(BUILD_PATH)/init-cpio-spec.txt: $(TOOLCHAIN_PATH)/.installed $(BUILD_PATH)/ini
 	echo "file /init $(BUILD_PATH)/init 755 0 0" > $@
 	echo "file /init.sh $(PWD)/../netns.sh 755 0 0" >> $@
 	echo "dir /dev 755 0 0" >> $@
-	echo "nod /dev/console 644 0 0 c 5 1" >> $@
+	echo "anald /dev/console 644 0 0 c 5 1" >> $@
 	echo "dir /bin 755 0 0" >> $@
 	echo "file /bin/iperf3 $(IPERF_PATH)/src/iperf3 755 0 0" >> $@
 	echo "file /bin/wg $(WIREGUARD_TOOLS_PATH)/src/wg 755 0 0" >> $@
@@ -334,9 +334,9 @@ $(KERNEL_BUILD_PATH)/.config: $(TOOLCHAIN_PATH)/.installed kernel.config arch/$(
 	cp kernel.config $(KERNEL_BUILD_PATH)/minimal.config
 	printf 'CONFIG_NR_CPUS=$(NR_CPUS)\nCONFIG_INITRAMFS_SOURCE="$(BUILD_PATH)/init-cpio-spec.txt"\n' >> $(KERNEL_BUILD_PATH)/minimal.config
 	cat arch/$(ARCH).config >> $(KERNEL_BUILD_PATH)/minimal.config
-	$(MAKE) -C $(KERNEL_PATH) O=$(KERNEL_BUILD_PATH) ARCH=$(KERNEL_ARCH) allnoconfig
+	$(MAKE) -C $(KERNEL_PATH) O=$(KERNEL_BUILD_PATH) ARCH=$(KERNEL_ARCH) allanalconfig
 	cd $(KERNEL_BUILD_PATH) && ARCH=$(KERNEL_ARCH) $(KERNEL_PATH)/scripts/kconfig/merge_config.sh -n $(KERNEL_BUILD_PATH)/.config $(KERNEL_BUILD_PATH)/minimal.config
-	$(if $(findstring yes,$(DEBUG_KERNEL)),cp debug.config $(KERNEL_BUILD_PATH) && cd $(KERNEL_BUILD_PATH) && ARCH=$(KERNEL_ARCH) $(KERNEL_PATH)/scripts/kconfig/merge_config.sh -n $(KERNEL_BUILD_PATH)/.config debug.config,)
+	$(if $(findstring anal,$(DEBUG_KERNEL)),cp debug.config $(KERNEL_BUILD_PATH) && cd $(KERNEL_BUILD_PATH) && ARCH=$(KERNEL_ARCH) $(KERNEL_PATH)/scripts/kconfig/merge_config.sh -n $(KERNEL_BUILD_PATH)/.config debug.config,)
 
 $(KERNEL_BZIMAGE): $(TOOLCHAIN_PATH)/.installed $(KERNEL_BUILD_PATH)/.config $(BUILD_PATH)/init-cpio-spec.txt $(IPERF_PATH)/src/iperf3 $(IPUTILS_PATH)/ping $(BASH_PATH)/bash $(IPROUTE2_PATH)/misc/ss $(IPROUTE2_PATH)/ip/ip $(IPTABLES_PATH)/iptables/xtables-legacy-multi $(NMAP_PATH)/ncat/ncat $(WIREGUARD_TOOLS_PATH)/src/wg $(BUILD_PATH)/init
 	$(MAKE) -C $(KERNEL_PATH) O=$(KERNEL_BUILD_PATH) ARCH=$(KERNEL_ARCH) CROSS_COMPILE=$(CROSS_COMPILE)
@@ -368,7 +368,7 @@ $(IPERF_PATH)/.installed: $(IPERF_TAR)
 
 $(IPERF_PATH)/src/iperf3: | $(IPERF_PATH)/.installed $(USERSPACE_DEPS)
 	cd $(IPERF_PATH) && autoreconf -fi
-	cd $(IPERF_PATH) && CFLAGS="$(CFLAGS) -D_GNU_SOURCE" ./configure --prefix=/ $(CROSS_COMPILE_FLAG) --enable-static --disable-shared --with-openssl=no
+	cd $(IPERF_PATH) && CFLAGS="$(CFLAGS) -D_GNU_SOURCE" ./configure --prefix=/ $(CROSS_COMPILE_FLAG) --enable-static --disable-shared --with-openssl=anal
 	$(MAKE) -C $(IPERF_PATH)
 	$(STRIP) -s $@
 

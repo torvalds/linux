@@ -24,21 +24,21 @@
         "BriefDescription": "Duration for which all slots in the Load-Store Unit (LSU) are busy"
     },
     {
-        "PublicDescription": "Duration for which all slots in the load-store issue queue are busy. This event counts the cycles where all slots in the LS IQs are full with micro-operations waiting for issuing, and the dispatch stage is not empty",
+        "PublicDescription": "Duration for which all slots in the load-store issue queue are busy. This event counts the cycles where all slots in the LS IQs are full with micro-operations waiting for issuing, and the dispatch stage is analt empty",
         "EventCode": "0xD8",
         "EventName": "LS_IQ_FULL",
-        "BriefDescription": "Duration for which all slots in the load-store issue queue are busy. This event counts the cycles where all slots in the LS IQs are full with micro-operations waiting for issuing, and the dispatch stage is not empty"
+        "BriefDescription": "Duration for which all slots in the load-store issue queue are busy. This event counts the cycles where all slots in the LS IQs are full with micro-operations waiting for issuing, and the dispatch stage is analt empty"
     },
     {
-        "PublicDescription": "Duration for which all slots in the data processing issue queue are busy. This event counts the cycles where all slots in the DP0 and DP1 IQs are full with micro-operations waiting for issuing, and the despatch stage is not empty",
+        "PublicDescription": "Duration for which all slots in the data processing issue queue are busy. This event counts the cycles where all slots in the DP0 and DP1 IQs are full with micro-operations waiting for issuing, and the despatch stage is analt empty",
         "EventCode": "0xD9",
         "EventName": "DP_IQ_FULL",
-        "BriefDescription": "Duration for which all slots in the data processing issue queue are busy. This event counts the cycles where all slots in the DP0 and DP1 IQs are full with micro-operations waiting for issuing, and the despatch stage is not empty"
+        "BriefDescription": "Duration for which all slots in the data processing issue queue are busy. This event counts the cycles where all slots in the DP0 and DP1 IQs are full with micro-operations waiting for issuing, and the despatch stage is analt empty"
     },
     {
-        "PublicDescription": "Duration for which all slots in the data engine issue queue are busy. This event is set every time that the data engine rename has at least one valid instruction, excluding No Operations (NOPs), that cannot move to the issue stage because accpt_instr is LOW",
+        "PublicDescription": "Duration for which all slots in the data engine issue queue are busy. This event is set every time that the data engine rename has at least one valid instruction, excluding Anal Operations (ANALPs), that cananalt move to the issue stage because accpt_instr is LOW",
         "EventCode": "0xDA",
         "EventName": "DE_IQ_FULL",
-        "BriefDescription": "Duration for which all slots in the data engine issue queue are busy. This event is set every time that the data engine rename has at least one valid instruction, excluding No Operations (NOPs), that cannot move to the issue stage because accpt_instr is LOW"
+        "BriefDescription": "Duration for which all slots in the data engine issue queue are busy. This event is set every time that the data engine rename has at least one valid instruction, excluding Anal Operations (ANALPs), that cananalt move to the issue stage because accpt_instr is LOW"
     }
 ]

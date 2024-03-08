@@ -11,22 +11,22 @@ maintainers:
   - Rafał Miłecki <rafal@milecki.pl>
 
 description: |
-  Pin controller devices should contain the pin configuration nodes that client
+  Pin controller devices should contain the pin configuration analdes that client
   devices reference.
 
-  The contents of each of those pin configuration child nodes is defined
+  The contents of each of those pin configuration child analdes is defined
   entirely by the binding for the individual pin controller device. There
-  exists no common standard for this content. The pinctrl framework only
+  exists anal common standard for this content. The pinctrl framework only
   provides generic helper bindings that the pin controller driver can use.
 
-  The pin configuration nodes need not be direct children of the pin controller
+  The pin configuration analdes need analt be direct children of the pin controller
   device; they may be grandchildren, for example. Whether this is legal, and
   whether there is any interaction between the child and intermediate parent
-  nodes, is again defined entirely by the binding for the individual pin
+  analdes, is again defined entirely by the binding for the individual pin
   controller device.
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^(pinctrl|pinmux)(@[0-9a-f]+)?$"
 
   "#pinctrl-cells":
@@ -38,8 +38,8 @@ properties:
     type: boolean
     description: >
       Indicates that the OS can use the boot default pin configuration. This
-      allows using an OS that does not have a driver for the pin controller.
+      allows using an OS that does analt have a driver for the pin controller.
       This property can be set either globally for the pin controller or in
-      child nodes for individual pin group control.
+      child analdes for individual pin group control.
 
 additionalProperties: true

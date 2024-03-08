@@ -197,25 +197,25 @@ static void rpi_exp_gpio_set(struct gpio_chip *gc, unsigned int off, int val)
 static int rpi_exp_gpio_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
-	struct device_node *fw_node;
+	struct device_analde *np = dev->of_analde;
+	struct device_analde *fw_analde;
 	struct rpi_firmware *fw;
 	struct rpi_exp_gpio *rpi_gpio;
 
-	fw_node = of_get_parent(np);
-	if (!fw_node) {
-		dev_err(dev, "Missing firmware node\n");
-		return -ENOENT;
+	fw_analde = of_get_parent(np);
+	if (!fw_analde) {
+		dev_err(dev, "Missing firmware analde\n");
+		return -EANALENT;
 	}
 
-	fw = devm_rpi_firmware_get(&pdev->dev, fw_node);
-	of_node_put(fw_node);
+	fw = devm_rpi_firmware_get(&pdev->dev, fw_analde);
+	of_analde_put(fw_analde);
 	if (!fw)
 		return -EPROBE_DEFER;
 
 	rpi_gpio = devm_kzalloc(dev, sizeof(*rpi_gpio), GFP_KERNEL);
 	if (!rpi_gpio)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rpi_gpio->fw = fw;
 	rpi_gpio->gc.parent = dev;

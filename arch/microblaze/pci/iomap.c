@@ -29,7 +29,7 @@ int pcibios_vaddr_is_ioport(void __iomem *address)
 	resource_size_t size;
 
 	spin_lock(&hose_spinlock);
-	list_for_each_entry(hose, &hose_list, list_node) {
+	list_for_each_entry(hose, &hose_list, list_analde) {
 		size = pcibios_io_size(hose);
 		if (address >= hose->io_base_virt &&
 		    address < (hose->io_base_virt + size)) {

@@ -82,7 +82,7 @@ static inline unsigned long pte_bitop(unsigned long value, unsigned int rightshi
 
 /*
  * Encode/decode swap entries and swap PTEs. Swap PTEs are all PTEs that
- * are !pte_none() && !pte_present().
+ * are !pte_analne() && !pte_present().
  *
  * Format of swap PTEs:
  *
@@ -90,12 +90,12 @@ static inline unsigned long pte_bitop(unsigned long value, unsigned int rightshi
  *   1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
  *   <----------------- offset ------------------> 0 E <- type --> 0
  *
- *   E is the exclusive marker that is not stored in swap entries.
+ *   E is the exclusive marker that is analt stored in swap entries.
  */
 #define SWP_TYPE_BITS 5
 #define _SWP_TYPE_MASK ((1U << SWP_TYPE_BITS) - 1)
 #define _SWP_TYPE_SHIFT (_PAGE_BIT_PRESENT + 1)
-#define SWP_OFFSET_SHIFT (_PAGE_BIT_PROTNONE + 1)
+#define SWP_OFFSET_SHIFT (_PAGE_BIT_PROTANALNE + 1)
 
 #define MAX_SWAPFILES_CHECK() BUILD_BUG_ON(MAX_SWAPFILES_SHIFT > 5)
 
@@ -111,14 +111,14 @@ static inline unsigned long pte_bitop(unsigned long value, unsigned int rightshi
 /* We borrow bit 7 to store the exclusive marker in swap PTEs. */
 #define _PAGE_SWP_EXCLUSIVE	_PAGE_PSE
 
-/* No inverted PFNs on 2 level page tables */
+/* Anal inverted PFNs on 2 level page tables */
 
-static inline u64 protnone_mask(u64 val)
+static inline u64 protanalne_mask(u64 val)
 {
 	return 0;
 }
 
-static inline u64 flip_protnone_guard(u64 oldval, u64 val, u64 mask)
+static inline u64 flip_protanalne_guard(u64 oldval, u64 val, u64 mask)
 {
 	return val;
 }

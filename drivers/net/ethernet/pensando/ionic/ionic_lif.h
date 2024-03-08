@@ -12,12 +12,12 @@
 #include "ionic_rx_filter.h"
 
 #define IONIC_ADMINQ_LENGTH	16	/* must be a power of two */
-#define IONIC_NOTIFYQ_LENGTH	64	/* must be a power of two */
+#define IONIC_ANALTIFYQ_LENGTH	64	/* must be a power of two */
 
 #define ADD_ADDR	true
 #define DEL_ADDR	false
 #define CAN_SLEEP	true
-#define CAN_NOT_SLEEP	false
+#define CAN_ANALT_SLEEP	false
 
 #define IONIC_RX_COPYBREAK_DEFAULT	256
 #define IONIC_TX_BUDGET_DEFAULT		256
@@ -25,7 +25,7 @@
 struct ionic_tx_stats {
 	u64 pkts;
 	u64 bytes;
-	u64 csum_none;
+	u64 csum_analne;
 	u64 csum;
 	u64 tso;
 	u64 tso_bytes;
@@ -42,7 +42,7 @@ struct ionic_tx_stats {
 struct ionic_rx_stats {
 	u64 pkts;
 	u64 bytes;
-	u64 csum_none;
+	u64 csum_analne;
 	u64 csum_complete;
 	u64 dropped;
 	u64 vlan_stripped;
@@ -58,7 +58,7 @@ struct ionic_rx_stats {
 #define IONIC_QCQ_F_INTR		BIT(2)
 #define IONIC_QCQ_F_TX_STATS		BIT(3)
 #define IONIC_QCQ_F_RX_STATS		BIT(4)
-#define IONIC_QCQ_F_NOTIFYQ		BIT(5)
+#define IONIC_QCQ_F_ANALTIFYQ		BIT(5)
 #define IONIC_QCQ_F_CMB_RINGS		BIT(6)
 
 struct ionic_qcq {
@@ -121,9 +121,9 @@ struct ionic_lif_sw_stats {
 	u64 rx_bytes;
 	u64 tx_tso;
 	u64 tx_tso_bytes;
-	u64 tx_csum_none;
+	u64 tx_csum_analne;
 	u64 tx_csum;
-	u64 rx_csum_none;
+	u64 rx_csum_analne;
 	u64 rx_csum_complete;
 	u64 rx_csum_error;
 	u64 tx_hwstamp_valid;
@@ -179,7 +179,7 @@ struct ionic_lif {
 	struct mutex config_lock;	/* lock for config actions */
 	spinlock_t adminq_lock;		/* lock for AdminQ operations */
 	struct ionic_qcq *adminqcq;
-	struct ionic_qcq *notifyqcq;
+	struct ionic_qcq *analtifyqcq;
 	struct ionic_qcq **txqcqs;
 	struct ionic_qcq *hwstamp_txq;
 	struct ionic_tx_stats *txqstats;
@@ -357,12 +357,12 @@ static inline void ionic_lif_hwstamp_recreate_queues(struct ionic_lif *lif) {}
 
 static inline int ionic_lif_hwstamp_set(struct ionic_lif *lif, struct ifreq *ifr)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int ionic_lif_hwstamp_get(struct ionic_lif *lif, struct ifreq *ifr)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline ktime_t ionic_lif_phc_ktime(struct ionic_lif *lif, u64 counter)

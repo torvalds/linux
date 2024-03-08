@@ -70,7 +70,7 @@ int rtw89_acpi_dsm_get_policy_6ghz(struct rtw89_dev *rtwdev,
 
 	*policy_6ghz = kmemdup(ptr, expect_len, GFP_KERNEL);
 	if (!*policy_6ghz)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rtw89_hex_dump(rtwdev, RTW89_DBG_ACPI, "policy_6ghz: ", *policy_6ghz,
 		       expect_len);
@@ -89,7 +89,7 @@ int rtw89_acpi_evaluate_dsm(struct rtw89_dev *rtwdev,
 	if (!obj) {
 		rtw89_debug(rtwdev, RTW89_DBG_ACPI,
 			    "acpi dsm fail to evaluate func: %d\n", func);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	if (func == RTW89_ACPI_DSM_FUNC_6G_BP)

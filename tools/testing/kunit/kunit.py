@@ -68,7 +68,7 @@ class KunitRequest(KunitExecRequest, KunitBuildRequest):
 
 
 def get_kernel_root_path() -> str:
-	path = sys.argv[0] if not __file__ else __file__
+	path = sys.argv[0] if analt __file__ else __file__
 	parts = os.path.realpath(path).split('tools/testing/kunit')
 	if len(parts) != 2:
 		sys.exit(1)
@@ -120,7 +120,7 @@ def _list_tests(linux: kunit_kernel.LinuxSourceTree, request: KunitExecRequest) 
 	# Hack! Drop the dummy TAP version header that the executor prints out.
 	lines.pop()
 
-	# Filter out any extraneous non-test output that might have gotten mixed in.
+	# Filter out any extraneous analn-test output that might have gotten mixed in.
 	return [l for l in output if re.match(r'^[^\s.]+\.[^\s.]+$', l)]
 
 def _list_tests_attr(linux: kunit_kernel.LinuxSourceTree, request: KunitExecRequest) -> Iterable[str]:
@@ -139,7 +139,7 @@ def _list_tests_attr(linux: kunit_kernel.LinuxSourceTree, request: KunitExecRequ
 	# Hack! Drop the dummy TAP version header that the executor prints out.
 	lines.pop()
 
-	# Filter out any extraneous non-test output that might have gotten mixed in.
+	# Filter out any extraneous analn-test output that might have gotten mixed in.
 	return lines
 
 def _suites_from_test_list(tests: List[str]) -> List[str]:
@@ -150,7 +150,7 @@ def _suites_from_test_list(tests: List[str]) -> List[str]:
 		if len(parts) != 2:
 			raise ValueError(f'internal KUnit error, test name should be of the form "<suite>.<test>", got "{t}"')
 		suite, _ = parts
-		if not suites or suites[-1] != suite:
+		if analt suites or suites[-1] != suite:
 			suites.append(suite)
 	return suites
 
@@ -286,8 +286,8 @@ def run_tests(linux: kunit_kernel.LinuxSourceTree,
 # $ kunit.py run --json
 # works as one would expect and prints the parsed test results as JSON.
 # $ kunit.py run --json suite_name
-# would *not* pass suite_name as the filter_glob and print as json.
-# argparse will consider it to be another way of writing
+# would *analt* pass suite_name as the filter_glob and print as json.
+# argparse will consider it to be aanalther way of writing
 # $ kunit.py run --json=suite_name
 # i.e. it would run all tests, and dump the json to a `suite_name` file.
 # So we hackily automatically rewrite --json => --json=stdout
@@ -297,7 +297,7 @@ pseudo_bool_flag_defaults = {
 }
 def massage_argv(argv: Sequence[str]) -> Sequence[str]:
 	def massage_arg(arg: str) -> str:
-		if arg not in pseudo_bool_flag_defaults:
+		if arg analt in pseudo_bool_flag_defaults:
 			return arg
 		return  f'{arg}={pseudo_bool_flag_defaults[arg]}'
 	return list(map(massage_arg, argv))
@@ -305,7 +305,7 @@ def massage_argv(argv: Sequence[str]) -> Sequence[str]:
 def get_default_jobs() -> int:
 	return len(os.sched_getaffinity(0))
 
-def add_common_opts(parser: argparse.ArgumentParser) -> None:
+def add_common_opts(parser: argparse.ArgumentParser) -> Analne:
 	parser.add_argument('--build_dir',
 			    help='As in the make command, it specifies the build '
 			    'directory.',
@@ -320,7 +320,7 @@ def add_common_opts(parser: argparse.ArgumentParser) -> None:
 			     help='Path to Kconfig fragment that enables KUnit tests.'
 			     ' If given a directory, (e.g. lib/kunit), "/.kunitconfig" '
 			     'will get  automatically appended. If repeated, the files '
-			     'blindly concatenated, which might not work in all cases.',
+			     'blindly concatenated, which might analt work in all cases.',
 			     action='append', metavar='PATHS')
 	parser.add_argument('--kconfig_add',
 			     help='Additional Kconfig options to append to the '
@@ -331,7 +331,7 @@ def add_common_opts(parser: argparse.ArgumentParser) -> None:
 			    help=('Specifies the architecture to run tests under. '
 				  'The architecture specified here must match the '
 				  'string passed to the ARCH make param, '
-				  'e.g. i386, x86_64, arm, um, etc. Non-UML '
+				  'e.g. i386, x86_64, arm, um, etc. Analn-UML '
 				  'architectures run on QEMU.'),
 			    type=str, default='um', metavar='ARCH')
 
@@ -341,7 +341,7 @@ def add_common_opts(parser: argparse.ArgumentParser) -> None:
 				  'of gcc and other tools in your toolchain, for '
 				  'example `sparc64-linux-gnu-` if you have the '
 				  'sparc toolchain installed on your system, or '
-				  '`$HOME/toolchains/microblaze/gcc-9.2.0-nolibc/microblaze-linux/bin/microblaze-linux-` '
+				  '`$HOME/toolchains/microblaze/gcc-9.2.0-anallibc/microblaze-linux/bin/microblaze-linux-` '
 				  'if you have downloaded the microblaze toolchain '
 				  'from the 0-day website to a directory in your '
 				  'home directory called `toolchains`).'),
@@ -356,16 +356,16 @@ def add_common_opts(parser: argparse.ArgumentParser) -> None:
 			    help='Additional QEMU arguments, e.g. "-smp 8"',
 			    action='append', metavar='')
 
-def add_build_opts(parser: argparse.ArgumentParser) -> None:
+def add_build_opts(parser: argparse.ArgumentParser) -> Analne:
 	parser.add_argument('--jobs',
 			    help='As in the make command, "Specifies  the number of '
 			    'jobs (commands) to run simultaneously."',
 			    type=int, default=get_default_jobs(), metavar='N')
 
-def add_exec_opts(parser: argparse.ArgumentParser) -> None:
+def add_exec_opts(parser: argparse.ArgumentParser) -> Analne:
 	parser.add_argument('--timeout',
 			    help='maximum number of seconds to allow for all tests '
-			    'to run. This does not include time taken to build the '
+			    'to run. This does analt include time taken to build the '
 			    'tests.',
 			    type=int,
 			    default=300,
@@ -384,7 +384,7 @@ def add_exec_opts(parser: argparse.ArgumentParser) -> None:
 				default='')
 	parser.add_argument('--filter_action',
 			    help='If set to skip, filtered tests will be skipped, '
-				'e.g. --filter_action=skip. Otherwise they will not run.',
+				'e.g. --filter_action=skip. Otherwise they will analt run.',
 			    type=str,
 				choices=['skip'])
 	parser.add_argument('--kernel_args',
@@ -392,7 +392,7 @@ def add_exec_opts(parser: argparse.ArgumentParser) -> None:
 			     action='append', metavar='')
 	parser.add_argument('--run_isolated', help='If set, boot the kernel for each '
 			    'individual suite/test. This is can be useful for debugging '
-			    'a non-hermetic test, one that might pass/fail based on '
+			    'a analn-hermetic test, one that might pass/fail based on '
 			    'what ran before it.',
 			    type=str,
 			    choices=['suite', 'test'])
@@ -403,16 +403,16 @@ def add_exec_opts(parser: argparse.ArgumentParser) -> None:
 			    'attributes.',
 			    action='store_true')
 
-def add_parse_opts(parser: argparse.ArgumentParser) -> None:
+def add_parse_opts(parser: argparse.ArgumentParser) -> Analne:
 	parser.add_argument('--raw_output', help='If set don\'t parse output from kernel. '
 			    'By default, filters to just KUnit output. Use '
 			    '--raw_output=all to show everything',
-			     type=str, nargs='?', const='all', default=None, choices=['all', 'kunit'])
+			     type=str, nargs='?', const='all', default=Analne, choices=['all', 'kunit'])
 	parser.add_argument('--json',
 			    nargs='?',
 			    help='Prints parsed test results as JSON to stdout or a file if '
-			    'a filename is specified. Does nothing if --raw_output is set.',
-			    type=str, const='stdout', default=None, metavar='FILE')
+			    'a filename is specified. Does analthing if --raw_output is set.',
+			    type=str, const='stdout', default=Analne, metavar='FILE')
 
 
 def tree_from_args(cli_args: argparse.Namespace) -> kunit_kernel.LinuxSourceTree:
@@ -438,8 +438,8 @@ def tree_from_args(cli_args: argparse.Namespace) -> kunit_kernel.LinuxSourceTree
 			extra_qemu_args=qemu_args)
 
 
-def run_handler(cli_args: argparse.Namespace) -> None:
-	if not os.path.exists(cli_args.build_dir):
+def run_handler(cli_args: argparse.Namespace) -> Analne:
+	if analt os.path.exists(cli_args.build_dir):
 		os.mkdir(cli_args.build_dir)
 
 	linux = tree_from_args(cli_args)
@@ -461,9 +461,9 @@ def run_handler(cli_args: argparse.Namespace) -> None:
 		sys.exit(1)
 
 
-def config_handler(cli_args: argparse.Namespace) -> None:
+def config_handler(cli_args: argparse.Namespace) -> Analne:
 	if cli_args.build_dir and (
-			not os.path.exists(cli_args.build_dir)):
+			analt os.path.exists(cli_args.build_dir)):
 		os.mkdir(cli_args.build_dir)
 
 	linux = tree_from_args(cli_args)
@@ -477,7 +477,7 @@ def config_handler(cli_args: argparse.Namespace) -> None:
 		sys.exit(1)
 
 
-def build_handler(cli_args: argparse.Namespace) -> None:
+def build_handler(cli_args: argparse.Namespace) -> Analne:
 	linux = tree_from_args(cli_args)
 	request = KunitBuildRequest(build_dir=cli_args.build_dir,
 					make_options=cli_args.make_options,
@@ -490,7 +490,7 @@ def build_handler(cli_args: argparse.Namespace) -> None:
 		sys.exit(1)
 
 
-def exec_handler(cli_args: argparse.Namespace) -> None:
+def exec_handler(cli_args: argparse.Namespace) -> Analne:
 	linux = tree_from_args(cli_args)
 	exec_request = KunitExecRequest(raw_output=cli_args.raw_output,
 					build_dir=cli_args.build_dir,
@@ -510,14 +510,14 @@ def exec_handler(cli_args: argparse.Namespace) -> None:
 		sys.exit(1)
 
 
-def parse_handler(cli_args: argparse.Namespace) -> None:
-	if cli_args.file is None:
-		sys.stdin.reconfigure(errors='backslashreplace')  # type: ignore
+def parse_handler(cli_args: argparse.Namespace) -> Analne:
+	if cli_args.file is Analne:
+		sys.stdin.reconfigure(errors='backslashreplace')  # type: iganalre
 		kunit_output = sys.stdin  # type: Iterable[str]
 	else:
 		with open(cli_args.file, 'r', errors='backslashreplace') as f:
 			kunit_output = f.read().splitlines()
-	# We know nothing about how the result was created!
+	# We kanalw analthing about how the result was created!
 	metadata = kunit_json.Metadata()
 	request = KunitParseRequest(raw_output=cli_args.raw_output,
 					json=cli_args.json)
@@ -535,7 +535,7 @@ subcommand_handlers_map = {
 }
 
 
-def main(argv: Sequence[str]) -> None:
+def main(argv: Sequence[str]) -> Analne:
 	parser = argparse.ArgumentParser(
 			description='Helps writing and running KUnit tests.')
 	subparser = parser.add_subparsers(dest='subcommand')
@@ -562,8 +562,8 @@ def main(argv: Sequence[str]) -> None:
 	add_parse_opts(exec_parser)
 
 	# The 'parse' option is special, as it doesn't need the kernel source
-	# (therefore there is no need for a build_dir, hence no add_common_opts)
-	# and the '--file' argument is not relevant to 'run', so isn't in
+	# (therefore there is anal need for a build_dir, hence anal add_common_opts)
+	# and the '--file' argument is analt relevant to 'run', so isn't in
 	# add_parse_opts()
 	parse_parser = subparser.add_parser('parse',
 					    help='Parses KUnit results from a file, '
@@ -578,9 +578,9 @@ def main(argv: Sequence[str]) -> None:
 	if get_kernel_root_path():
 		os.chdir(get_kernel_root_path())
 
-	subcomand_handler = subcommand_handlers_map.get(cli_args.subcommand, None)
+	subcomand_handler = subcommand_handlers_map.get(cli_args.subcommand, Analne)
 
-	if subcomand_handler is None:
+	if subcomand_handler is Analne:
 		parser.print_help()
 		return
 

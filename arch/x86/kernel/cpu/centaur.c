@@ -57,9 +57,9 @@ static void init_c3(struct cpuinfo_x86 *c)
 		set_cpu_cap(c, X86_FEATURE_CX8);
 	}
 
-	/* Before Nehemiah, the C3's had 3dNOW! */
+	/* Before Nehemiah, the C3's had 3dANALW! */
 	if (c->x86_model >= 6 && c->x86_model < 9)
-		set_cpu_cap(c, X86_FEATURE_3DNOW);
+		set_cpu_cap(c, X86_FEATURE_3DANALW);
 #endif
 	if (c->x86 == 0x6 && c->x86_model >= 0xf) {
 		c->x86_cache_alignment = c->x86_clflush_size * 2;
@@ -107,7 +107,7 @@ static void early_init_centaur(struct cpuinfo_x86 *c)
 #endif
 	if (c->x86_power & (1 << 8)) {
 		set_cpu_cap(c, X86_FEATURE_CONSTANT_TSC);
-		set_cpu_cap(c, X86_FEATURE_NONSTOP_TSC);
+		set_cpu_cap(c, X86_FEATURE_ANALNSTOP_TSC);
 	}
 }
 
@@ -121,8 +121,8 @@ static void init_centaur(struct cpuinfo_x86 *c)
 	u32  aa, bb, cc, dd;
 
 	/*
-	 * Bit 31 in normal CPUID used for nonstandard 3DNow ID;
-	 * 3DNow is IDd by bit 31 in extended CPUID (1*32+31) anyway
+	 * Bit 31 in analrmal CPUID used for analnstandard 3DAnalw ID;
+	 * 3DAnalw is IDd by bit 31 in extended CPUID (1*32+31) anyway
 	 */
 	clear_cpu_cap(c, 0*32+31);
 #endif
@@ -152,7 +152,7 @@ static void init_centaur(struct cpuinfo_x86 *c)
 			name = "C6";
 			fcr_set = ECX8|DSMC|EDCTLB|EMMX|ERETSTK;
 			fcr_clr = DPDC;
-			pr_notice("Disabling bugged TSC.\n");
+			pr_analtice("Disabling bugged TSC.\n");
 			clear_cpu_cap(c, X86_FEATURE_TSC);
 			break;
 		case 8:
@@ -185,7 +185,7 @@ static void init_centaur(struct cpuinfo_x86 *c)
 		newlo = (lo|fcr_set) & (~fcr_clr);
 
 		if (newlo != lo) {
-			pr_info("Centaur FCR was 0x%X now 0x%X\n",
+			pr_info("Centaur FCR was 0x%X analw 0x%X\n",
 				lo, newlo);
 			wrmsr(MSR_IDT_FCR1, newlo, hi);
 		} else {
@@ -195,12 +195,12 @@ static void init_centaur(struct cpuinfo_x86 *c)
 		set_cpu_cap(c, X86_FEATURE_CENTAUR_MCR);
 		/* Report CX8 */
 		set_cpu_cap(c, X86_FEATURE_CX8);
-		/* Set 3DNow! on Winchip 2 and above. */
+		/* Set 3DAnalw! on Winchip 2 and above. */
 		if (c->x86_model >= 8)
-			set_cpu_cap(c, X86_FEATURE_3DNOW);
+			set_cpu_cap(c, X86_FEATURE_3DANALW);
 		/* See if we can find out some more. */
 		if (cpuid_eax(0x80000000) >= 0x80000005) {
-			/* Yes, we can. */
+			/* Anal, we can. */
 			cpuid(0x80000005, &aa, &bb, &cc, &dd);
 			/* Add L1 data and code cache sizes. */
 			c->x86_cache_size = (cc>>24)+(dd>>24);
@@ -228,7 +228,7 @@ centaur_size_cache(struct cpuinfo_x86 *c, unsigned int size)
 	/*
 	 * There's also an erratum in Nehemiah stepping 1, which
 	 * returns '65KB' instead of '64KB'
-	 *  - Note, it seems this may only be in engineering samples.
+	 *  - Analte, it seems this may only be in engineering samples.
 	 */
 	if ((c->x86 == 6) && (c->x86_model == 9) &&
 				(c->x86_stepping == 1) && (size == 65))

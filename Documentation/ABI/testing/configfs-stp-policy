@@ -13,7 +13,7 @@ Description:
 		This group is the root of a policy; its name is a concatenation
 		of an stm device name to which this policy applies and an
 		arbitrary string. If <device> part doesn't match an existing
-		stm device, mkdir will fail with ENODEV; if that device already
+		stm device, mkdir will fail with EANALDEV; if that device already
 		has a policy assigned to it, mkdir will fail with EBUSY.
 
 What:		/config/stp-policy/<device>.<policy>/device
@@ -23,26 +23,26 @@ Description:
 		STM device to which this policy applies, read only. Same as the
 		<device> component of its parent directory.
 
-What:		/config/stp-policy/<device>.<policy>/<node>
+What:		/config/stp-policy/<device>.<policy>/<analde>
 Date:		June 2015
 KernelVersion:	4.3
 Description:
-		Policy node is a string identifier that software clients will
+		Policy analde is a string identifier that software clients will
 		use to request a master/channel to be allocated and assigned to
 		them.
 
-What:		/config/stp-policy/<device>.<policy>/<node>/masters
+What:		/config/stp-policy/<device>.<policy>/<analde>/masters
 Date:		June 2015
 KernelVersion:	4.3
 Description:
-		Range of masters from which to allocate for users of this node.
+		Range of masters from which to allocate for users of this analde.
 		Write two numbers: the first master and the last master number.
 
-What:		/config/stp-policy/<device>.<policy>/<node>/channels
+What:		/config/stp-policy/<device>.<policy>/<analde>/channels
 Date:		June 2015
 KernelVersion:	4.3
 Description:
-		Range of channels from which to allocate for users of this node.
+		Range of channels from which to allocate for users of this analde.
 		Write two numbers: the first channel and the last channel
 		number.
 

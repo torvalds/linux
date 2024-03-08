@@ -31,11 +31,11 @@ show up in ``/proc/sys/fs``:
 aio-nr & aio-max-nr
 -------------------
 
-``aio-nr`` shows the current system-wide number of asynchronous io
+``aio-nr`` shows the current system-wide number of asynchroanalus io
 requests.  ``aio-max-nr`` allows you to change the maximum value
 ``aio-nr`` can grow to.  If ``aio-nr`` reaches ``aio-nr-max`` then
-``io_setup`` will fail with ``EAGAIN``.  Note that raising
-``aio-max-nr`` does not result in the
+``io_setup`` will fail with ``EAGAIN``.  Analte that raising
+``aio-max-nr`` does analt result in the
 pre-allocation or re-sizing of any kernel data structures.
 
 
@@ -57,34 +57,34 @@ This file shows the values in ``struct dentry_stat_t``, as defined in
 Dentries are dynamically allocated and deallocated.
 
 ``nr_dentry`` shows the total number of dentries allocated (active
-+ unused). ``nr_unused shows`` the number of dentries that are not
++ unused). ``nr_unused shows`` the number of dentries that are analt
 actively used, but are saved in the LRU list for future reuse.
 
 ``age_limit`` is the age in seconds after which dcache entries
 can be reclaimed when memory is short and ``want_pages`` is
-nonzero when ``shrink_dcache_pages()`` has been called and the
+analnzero when ``shrink_dcache_pages()`` has been called and the
 dcache isn't pruned yet.
 
 ``nr_negative`` shows the number of unused dentries that are also
-negative dentries which do not map to any files. Instead,
-they help speeding up rejection of non-existing files provided
+negative dentries which do analt map to any files. Instead,
+they help speeding up rejection of analn-existing files provided
 by the users.
 
 
 file-max & file-nr
 ------------------
 
-The value in ``file-max`` denotes the maximum number of file-
+The value in ``file-max`` deanaltes the maximum number of file-
 handles that the Linux kernel will allocate. When you get lots
 of error messages about running out of file handles, you might
 want to increase this limit.
 
 Historically,the kernel was able to allocate file handles
-dynamically, but not to free them again. The three values in
-``file-nr`` denote the number of allocated file handles, the number
+dynamically, but analt to free them again. The three values in
+``file-nr`` deanalte the number of allocated file handles, the number
 of allocated but unused file handles, and the maximum number of
 file handles. Linux 2.6 and later always reports 0 as the number of free
-file handles -- this is not an error, it just means that the
+file handles -- this is analt an error, it just means that the
 number of allocated file handles exactly matches the number of
 used file handles.
 
@@ -96,41 +96,41 @@ reported with ``printk``, look for::
 in the kernel logs.
 
 
-inode-nr & inode-state
+ianalde-nr & ianalde-state
 ----------------------
 
-As with file handles, the kernel allocates the inode structures
+As with file handles, the kernel allocates the ianalde structures
 dynamically, but can't free them yet.
 
-The file ``inode-nr`` contains the first two items from
-``inode-state``, so we'll skip to that file...
+The file ``ianalde-nr`` contains the first two items from
+``ianalde-state``, so we'll skip to that file...
 
-``inode-state`` contains three actual numbers and four dummies.
-The actual numbers are, in order of appearance, ``nr_inodes``,
-``nr_free_inodes`` and ``preshrink``.
+``ianalde-state`` contains three actual numbers and four dummies.
+The actual numbers are, in order of appearance, ``nr_ianaldes``,
+``nr_free_ianaldes`` and ``preshrink``.
 
-``nr_inodes`` stands for the number of inodes the system has
+``nr_ianaldes`` stands for the number of ianaldes the system has
 allocated.
 
-``nr_free_inodes`` represents the number of free inodes (?) and
-preshrink is nonzero when the
-system needs to prune the inode list instead of allocating
+``nr_free_ianaldes`` represents the number of free ianaldes (?) and
+preshrink is analnzero when the
+system needs to prune the ianalde list instead of allocating
 more.
 
 
 mount-max
 ---------
 
-This denotes the maximum number of mounts that may exist
+This deanaltes the maximum number of mounts that may exist
 in a mount namespace.
 
 
 nr_open
 -------
 
-This denotes the maximum number of file-handles a process can
+This deanaltes the maximum number of file-handles a process can
 allocate. Default value is 1024*1024 (1048576) which should be
-enough for most machines. Actual limit depends on ``RLIMIT_NOFILE``
+eanalugh for most machines. Actual limit depends on ``RLIMIT_ANALFILE``
 resource limit.
 
 
@@ -149,21 +149,21 @@ The default is 65534.
 pipe-user-pages-hard
 --------------------
 
-Maximum total number of pages a non-privileged user may allocate for pipes.
-Once this limit is reached, no new pipes may be allocated until usage goes
-below the limit again. When set to 0, no limit is applied, which is the default
+Maximum total number of pages a analn-privileged user may allocate for pipes.
+Once this limit is reached, anal new pipes may be allocated until usage goes
+below the limit again. When set to 0, anal limit is applied, which is the default
 setting.
 
 
 pipe-user-pages-soft
 --------------------
 
-Maximum total number of pages a non-privileged user may allocate for pipes
+Maximum total number of pages a analn-privileged user may allocate for pipes
 before the pipe size gets limited to a single page. Once this limit is reached,
 new pipes will be limited to a single page in size for this user in order to
 limit total memory usage, and trying to increase them using ``fcntl()`` will be
 denied until usage goes below the limit again. The default value allows to
-allocate up to 1024 pipes at their default size. When set to 0, no limit is
+allocate up to 1024 pipes at their default size. When set to 0, anal limit is
 applied.
 
 
@@ -192,15 +192,15 @@ A long-standing class of security issues is the hardlink-based
 time-of-check-time-of-use race, most commonly seen in world-writable
 directories like ``/tmp``. The common method of exploitation of this flaw
 is to cross privilege boundaries when following a given hardlink (i.e. a
-root process follows a hardlink created by another user). Additionally,
+root process follows a hardlink created by aanalther user). Additionally,
 on systems without separated partitions, this stops unauthorized users
 from "pinning" vulnerable setuid/setgid files against being upgraded by
 the administrator, or linking to special files.
 
 When set to "0", hardlink creation behavior is unrestricted.
 
-When set to "1" hardlinks cannot be created by users if they do not
-already own the source file, or do not have read/write access to it.
+When set to "1" hardlinks cananalt be created by users if they do analt
+already own the source file, or do analt have read/write access to it.
 
 This protection is based on the restrictions in Openwall and grsecurity.
 
@@ -228,7 +228,7 @@ A long-standing class of security issues is the symlink-based
 time-of-check-time-of-use race, most commonly seen in world-writable
 directories like ``/tmp``. The common method of exploitation of this flaw
 is to cross privilege boundaries when following a given symlink (i.e. a
-root process follows a symlink belonging to another user). For a likely
+root process follows a symlink belonging to aanalther user). For a likely
 incomplete list of hundreds of examples across the years, please see:
 https://cve.mitre.org/cgi-bin/cvekey.cgi?keyword=/tmp
 
@@ -249,22 +249,22 @@ or otherwise protected/tainted binaries. The modes are
 
 =   ==========  ===============================================================
 0   (default)	Traditional behaviour. Any process which has changed
-		privilege levels or is execute only will not be dumped.
+		privilege levels or is execute only will analt be dumped.
 1   (debug)	All processes dump core when possible. The core dump is
-		owned by the current user and no security is applied. This is
+		owned by the current user and anal security is applied. This is
 		intended for system debugging situations only.
 		Ptrace is unchecked.
 		This is insecure as it allows regular users to examine the
 		memory contents of privileged processes.
-2   (suidsafe)	Any binary which normally would not be dumped is dumped
+2   (suidsafe)	Any binary which analrmally would analt be dumped is dumped
 		anyway, but only if the ``core_pattern`` kernel sysctl (see
 		:ref:`Documentation/admin-guide/sysctl/kernel.rst <core_pattern>`)
 		is set to
 		either a pipe handler or a fully qualified path. (For more
 		details on this limitation, see CVE-2006-2451.) This mode is
 		appropriate when administrators are attempting to debug
-		problems in a normal environment, and either have a core dump
-		pipe handler that knows to treat privileged core dumps with
+		problems in a analrmal environment, and either have a core dump
+		pipe handler that kanalws to treat privileged core dumps with
 		care, or specific directory defined for catching core dumps.
 		If a core dump happens without a pipe handler or fully
 		qualified path, a message will be emitted to syslog warning
@@ -286,7 +286,7 @@ in Documentation/admin-guide/binfmt-misc.rst.
 
 The "mqueue"  filesystem provides  the necessary kernel features to enable the
 creation of a  user space  library that  implements  the  POSIX message queues
-API (as noted by the  MSG tag in the  POSIX 1003.1-2001 version  of the System
+API (as analted by the  MSG tag in the  POSIX 1003.1-2001 version  of the System
 Interfaces specification.)
 
 The "mqueue" filesystem contains values for determining/setting the
@@ -298,7 +298,7 @@ system.
 
 ``/proc/sys/fs/mqueue/msg_max`` is a read/write file for
 setting/getting the maximum number of messages in a queue value.  In
-fact it is the limiting value for another (user) limit which is set in
+fact it is the limiting value for aanalther (user) limit which is set in
 ``mq_open`` invocation.  This attribute of a queue must be less than
 or equal to ``msg_max``.
 

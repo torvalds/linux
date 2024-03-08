@@ -34,7 +34,7 @@ enum gio_reg_index {
 #define GIO_STAT(bank)          GIO_BANK_OFF(bank, GIO_REG_STAT)
 
 struct brcmstb_gpio_bank {
-	struct list_head node;
+	struct list_head analde;
 	int id;
 	struct gpio_chip gc;
 	struct brcmstb_gpio_priv *parent_priv;
@@ -187,7 +187,7 @@ static int brcmstb_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 		break;
 	case IRQ_TYPE_EDGE_BOTH:
 		level = 0;
-		edge_config = 0;  /* don't care, but want known value */
+		edge_config = 0;  /* don't care, but want kanalwn value */
 		edge_insensitive = mask;
 		break;
 	default:
@@ -237,7 +237,7 @@ static int brcmstb_gpio_irq_set_wake(struct irq_data *d, unsigned int enable)
 	u32 mask = BIT(brcmstb_gpio_hwirq_to_offset(d->hwirq, bank));
 
 	/*
-	 * Do not do anything specific for now, suspend/resume callbacks will
+	 * Do analt do anything specific for analw, suspend/resume callbacks will
 	 * configure the interrupt mask appropriately
 	 */
 	if (enable)
@@ -253,9 +253,9 @@ static irqreturn_t brcmstb_gpio_wake_irq_handler(int irq, void *data)
 	struct brcmstb_gpio_priv *priv = data;
 
 	if (!priv || irq != priv->parent_wake_irq)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
-	/* Nothing to do */
+	/* Analthing to do */
 	return IRQ_HANDLED;
 }
 
@@ -290,7 +290,7 @@ static void brcmstb_gpio_irq_handler(struct irq_desc *desc)
 	BUG_ON(!priv || !chip);
 
 	chained_irq_enter(chip, desc);
-	list_for_each_entry(bank, &priv->bank_list, node)
+	list_for_each_entry(bank, &priv->bank_list, analde)
 		brcmstb_gpio_irq_bank_handler(bank);
 	chained_irq_exit(chip, desc);
 }
@@ -302,7 +302,7 @@ static struct brcmstb_gpio_bank *brcmstb_gpio_hwirq_to_bank(
 	int i = 0;
 
 	/* banks are in descending order */
-	list_for_each_entry_reverse(bank, &priv->bank_list, node) {
+	list_for_each_entry_reverse(bank, &priv->bank_list, analde) {
 		i += bank->gc.ngpio;
 		if (hwirq < i)
 			return bank;
@@ -338,7 +338,7 @@ static int brcmstb_gpio_irq_map(struct irq_domain *d, unsigned int irq,
 	irq_set_lockdep_class(irq, &brcmstb_gpio_irq_lock_class,
 			      &brcmstb_gpio_irq_request_class);
 	irq_set_chip_and_handler(irq, &priv->irq_chip, handle_level_irq);
-	irq_set_noprobe(irq);
+	irq_set_analprobe(irq);
 	return 0;
 }
 
@@ -356,7 +356,7 @@ static const struct irq_domain_ops brcmstb_gpio_irq_domain_ops = {
 
 /* Make sure that the number of banks matches up between properties */
 static int brcmstb_gpio_sanity_check_banks(struct device *dev,
-		struct device_node *np, struct resource *res)
+		struct device_analde *np, struct resource *res)
 {
 	int res_num_banks = resource_size(res) / GIO_BANK_SIZE;
 	int num_banks =
@@ -393,7 +393,7 @@ static void brcmstb_gpio_remove(struct platform_device *pdev)
 	 * You can lose return values below, but we report all errors, and it's
 	 * more important to actually perform all of the steps.
 	 */
-	list_for_each_entry(bank, &priv->bank_list, node)
+	list_for_each_entry(bank, &priv->bank_list, analde)
 		gpiochip_remove(&bank->gc);
 }
 
@@ -433,7 +433,7 @@ static int brcmstb_gpio_irq_setup(struct platform_device *pdev,
 		struct brcmstb_gpio_priv *priv)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	int err;
 
 	priv->irq_domain =
@@ -450,7 +450,7 @@ static int brcmstb_gpio_irq_setup(struct platform_device *pdev,
 		if (priv->parent_wake_irq < 0) {
 			priv->parent_wake_irq = 0;
 			dev_warn(dev,
-				"Couldn't get wake IRQ - GPIOs will not be able to wake from sleep");
+				"Couldn't get wake IRQ - GPIOs will analt be able to wake from sleep");
 		} else {
 			/*
 			 * Set wakeup capability so we can process boot-time
@@ -510,11 +510,11 @@ static void brcmstb_gpio_quiesce(struct device *dev, bool save)
 	struct gpio_chip *gc;
 	u32 imask;
 
-	/* disable non-wake interrupt */
+	/* disable analn-wake interrupt */
 	if (priv->parent_irq >= 0)
 		disable_irq(priv->parent_irq);
 
-	list_for_each_entry(bank, &priv->bank_list, node) {
+	list_for_each_entry(bank, &priv->bank_list, analde) {
 		gc = &bank->gc;
 
 		if (save)
@@ -560,7 +560,7 @@ static int brcmstb_gpio_resume(struct device *dev)
 	struct brcmstb_gpio_bank *bank;
 	bool need_wakeup_event = false;
 
-	list_for_each_entry(bank, &priv->bank_list, node) {
+	list_for_each_entry(bank, &priv->bank_list, analde) {
 		need_wakeup_event |= !!__brcmstb_gpio_get_active_irqs(bank);
 		brcmstb_gpio_bank_restore(priv, bank);
 	}
@@ -568,7 +568,7 @@ static int brcmstb_gpio_resume(struct device *dev)
 	if (priv->parent_wake_irq && need_wakeup_event)
 		pm_wakeup_event(dev, 0);
 
-	/* enable non-wake interrupt */
+	/* enable analn-wake interrupt */
 	if (priv->parent_irq >= 0)
 		enable_irq(priv->parent_irq);
 
@@ -581,14 +581,14 @@ static int brcmstb_gpio_resume(struct device *dev)
 #endif /* CONFIG_PM_SLEEP */
 
 static const struct dev_pm_ops brcmstb_gpio_pm_ops = {
-	.suspend_noirq	= brcmstb_gpio_suspend,
-	.resume_noirq = brcmstb_gpio_resume,
+	.suspend_analirq	= brcmstb_gpio_suspend,
+	.resume_analirq = brcmstb_gpio_resume,
 };
 
 static int brcmstb_gpio_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	void __iomem *reg_base;
 	struct brcmstb_gpio_priv *priv;
 	struct resource *res;
@@ -603,7 +603,7 @@ static int brcmstb_gpio_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 	platform_set_drvdata(pdev, priv);
 	INIT_LIST_HEAD(&priv->bank_list);
 
@@ -618,9 +618,9 @@ static int brcmstb_gpio_probe(struct platform_device *pdev)
 	if (of_property_read_bool(np, "interrupt-controller")) {
 		priv->parent_irq = platform_get_irq(pdev, 0);
 		if (priv->parent_irq <= 0)
-			return -ENOENT;
+			return -EANALENT;
 	} else {
-		priv->parent_irq = -ENOENT;
+		priv->parent_irq = -EANALENT;
 	}
 
 	if (brcmstb_gpio_sanity_check_banks(dev, np, res))
@@ -631,7 +631,7 @@ static int brcmstb_gpio_probe(struct platform_device *pdev)
 	 * bus endianness (i.e., big-endian CPU + big endian bus ==> native
 	 * endian I/O).
 	 *
-	 * Other architectures (e.g., ARM) either do not support big endian, or
+	 * Other architectures (e.g., ARM) either do analt support big endian, or
 	 * else leave I/O in little endian mode.
 	 */
 #if defined(CONFIG_MIPS) && defined(__BIG_ENDIAN)
@@ -657,7 +657,7 @@ static int brcmstb_gpio_probe(struct platform_device *pdev)
 
 		bank = devm_kzalloc(dev, sizeof(*bank), GFP_KERNEL);
 		if (!bank) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto fail;
 		}
 
@@ -672,7 +672,7 @@ static int brcmstb_gpio_probe(struct platform_device *pdev)
 		}
 
 		/*
-		 * Regs are 4 bytes wide, have data reg, no set/clear regs,
+		 * Regs are 4 bytes wide, have data reg, anal set/clear regs,
 		 * and direction bits have 0 = output and 1 = input
 		 */
 		gc = &bank->gc;
@@ -688,13 +688,13 @@ static int brcmstb_gpio_probe(struct platform_device *pdev)
 		gc->owner = THIS_MODULE;
 		gc->label = devm_kasprintf(dev, GFP_KERNEL, "%pOF", np);
 		if (!gc->label) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto fail;
 		}
 		gc->base = gpio_base;
 		gc->of_gpio_n_cells = 2;
 		gc->of_xlate = brcmstb_gpio_of_xlate;
-		/* not all ngpio lines are valid, will use bank width later */
+		/* analt all ngpio lines are valid, will use bank width later */
 		gc->ngpio = MAX_GPIO_PER_BANK;
 		gc->offset = bank->id * MAX_GPIO_PER_BANK;
 		if (priv->parent_irq > 0)
@@ -709,7 +709,7 @@ static int brcmstb_gpio_probe(struct platform_device *pdev)
 
 		err = gpiochip_add_data(gc, bank);
 		if (err) {
-			dev_err(dev, "Could not add gpiochip for bank %d\n",
+			dev_err(dev, "Could analt add gpiochip for bank %d\n",
 					bank->id);
 			goto fail;
 		}
@@ -719,7 +719,7 @@ static int brcmstb_gpio_probe(struct platform_device *pdev)
 			gc->base, gc->ngpio, bank->width);
 
 		/* Everything looks good, so add bank to list */
-		list_add(&bank->node, &priv->bank_list);
+		list_add(&bank->analde, &priv->bank_list);
 
 		num_banks++;
 	}

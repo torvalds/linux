@@ -82,11 +82,11 @@ ssize_t v9fs_xattr_get(struct dentry *dentry, const char *name,
 /*
  * v9fs_xattr_set()
  *
- * Create, replace or remove an extended attribute for this inode. Buffer
- * is NULL to remove an existing extended attribute, and non-NULL to
+ * Create, replace or remove an extended attribute for this ianalde. Buffer
+ * is NULL to remove an existing extended attribute, and analn-NULL to
  * either replace an existing extended attribute, or create a new extended
  * attribute. The flags XATTR_REPLACE and XATTR_CREATE
- * specify that an extended attribute must exist and must not exist
+ * specify that an extended attribute must exist and must analt exist
  * previous to the call, respectively.
  *
  * Returns 0, or a negative error number on failure.
@@ -144,7 +144,7 @@ ssize_t v9fs_listxattr(struct dentry *dentry, char *buffer, size_t buffer_size)
 }
 
 static int v9fs_xattr_handler_get(const struct xattr_handler *handler,
-				  struct dentry *dentry, struct inode *inode,
+				  struct dentry *dentry, struct ianalde *ianalde,
 				  const char *name, void *buffer, size_t size)
 {
 	const char *full_name = xattr_full_name(handler, name);
@@ -154,7 +154,7 @@ static int v9fs_xattr_handler_get(const struct xattr_handler *handler,
 
 static int v9fs_xattr_handler_set(const struct xattr_handler *handler,
 				  struct mnt_idmap *idmap,
-				  struct dentry *dentry, struct inode *inode,
+				  struct dentry *dentry, struct ianalde *ianalde,
 				  const char *name, const void *value,
 				  size_t size, int flags)
 {

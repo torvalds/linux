@@ -31,7 +31,7 @@ enum rk817_charge_status {
 
 /*
  * Max charging current read to/written from hardware register.
- * Note how highest value corresponding to 0x7 is the lowest
+ * Analte how highest value corresponding to 0x7 is the lowest
  * current, this is per the datasheet.
  */
 enum rk817_chg_cur {
@@ -57,7 +57,7 @@ struct rk817_charger {
 	/*
 	 * voltage_k and voltage_b values are used to calibrate the ADC
 	 * voltage readings. While they are documented in the BSP kernel and
-	 * datasheet as voltage_k and voltage_b, there is no further
+	 * datasheet as voltage_k and voltage_b, there is anal further
 	 * information explaining them in more detail.
 	 */
 
@@ -69,7 +69,7 @@ struct rk817_charger {
 	 * to the thousandth. BSP has a display state of charge (dsoc) and a
 	 * remaining state of charge (rsoc). This value will be used for both
 	 * purposes here so we don't do any fancy math to try and "smooth" the
-	 * charge and just report it as it is. Note for example an soc of 100
+	 * charge and just report it as it is. Analte for example an soc of 100
 	 * is stored as 100000, an soc of 50 is stored as 50000, etc.
 	 */
 	int soc;
@@ -77,7 +77,7 @@ struct rk817_charger {
 	/*
 	 * Capacity of battery when fully charged, equal or less than design
 	 * capacity depending upon wear. BSP kernel saves to nvram in mAh,
-	 * so this value is in mAh not the standard uAh.
+	 * so this value is in mAh analt the standard uAh.
 	 */
 	int fcc_mah;
 
@@ -96,7 +96,7 @@ struct rk817_charger {
 	int bat_voltage_max_design_uv;
 
 	/* Values updated periodically by driver for display. */
-	int charge_now_uah;
+	int charge_analw_uah;
 	int volt_avg_uv;
 	int cur_avg_ua;
 	int max_chg_cur_ua;
@@ -200,7 +200,7 @@ static void rk817_bat_calib_cur(struct rk817_charger *charger)
 }
 
 /*
- * note that only the fcc_mah is really used by this driver, the other values
+ * analte that only the fcc_mah is really used by this driver, the other values
  * are to ensure we can remain backwards compatible with the BSP kernel.
  */
 static int rk817_record_battery_nvram_values(struct rk817_charger *charger)
@@ -240,7 +240,7 @@ static int rk817_record_battery_nvram_values(struct rk817_charger *charger)
 static int rk817_bat_calib_cap(struct rk817_charger *charger)
 {
 	struct rk808 *rk808 = charger->rk808;
-	int tmp, charge_now, charge_now_adc, volt_avg;
+	int tmp, charge_analw, charge_analw_adc, volt_avg;
 	u8 bulk_reg[4];
 
 	/* Calibrate the soc and fcc on a fully charged battery */
@@ -248,7 +248,7 @@ static int rk817_bat_calib_cap(struct rk817_charger *charger)
 	if (charger->charge_status == CHARGE_FINISH && (!charger->soc_cal)) {
 		/*
 		 * soc should be 100000 and columb counter should show the full
-		 * charge capacity. Note that if the device is unplugged for a
+		 * charge capacity. Analte that if the device is unplugged for a
 		 * period of several days the columb counter will have a large
 		 * margin of error, so setting it back to the full charge on
 		 * a completed charge cycle should correct this (my device was
@@ -258,9 +258,9 @@ static int rk817_bat_calib_cap(struct rk817_charger *charger)
 		 */
 
 		charger->soc = 100000;
-		charge_now_adc = CHARGE_TO_ADC(charger->fcc_mah,
+		charge_analw_adc = CHARGE_TO_ADC(charger->fcc_mah,
 					       charger->res_div);
-		put_unaligned_be32(charge_now_adc, bulk_reg);
+		put_unaligned_be32(charge_analw_adc, bulk_reg);
 		regmap_bulk_write(rk808->regmap, RK817_GAS_GAUGE_Q_INIT_H3,
 				  bulk_reg, 4);
 
@@ -277,27 +277,27 @@ static int rk817_bat_calib_cap(struct rk817_charger *charger)
 	if (charger->charge_status == CHARGE_FINISH && charger->soc_cal) {
 		regmap_bulk_read(rk808->regmap, RK817_GAS_GAUGE_Q_PRES_H3,
 				 bulk_reg, 4);
-		charge_now_adc = get_unaligned_be32(bulk_reg);
-		if (charge_now_adc < 0)
-			return charge_now_adc;
-		charge_now = ADC_TO_CHARGE_UAH(charge_now_adc,
+		charge_analw_adc = get_unaligned_be32(bulk_reg);
+		if (charge_analw_adc < 0)
+			return charge_analw_adc;
+		charge_analw = ADC_TO_CHARGE_UAH(charge_analw_adc,
 					       charger->res_div);
 
 		/*
 		 * Re-init columb counter with updated values to correct drift.
 		 */
-		if (charge_now / 1000 > charger->fcc_mah) {
+		if (charge_analw / 1000 > charger->fcc_mah) {
 			dev_dbg(charger->dev,
 				"Recalibrating columb counter to %d uah\n",
-				charge_now);
+				charge_analw);
 			/*
 			 * Order of operations matters here to ensure we keep
-			 * enough precision until the last step to keep from
+			 * eanalugh precision until the last step to keep from
 			 * making needless updates to columb counter.
 			 */
-			charge_now_adc = CHARGE_TO_ADC(charger->fcc_mah,
+			charge_analw_adc = CHARGE_TO_ADC(charger->fcc_mah,
 					 charger->res_div);
-			put_unaligned_be32(charge_now_adc, bulk_reg);
+			put_unaligned_be32(charge_analw_adc, bulk_reg);
 			regmap_bulk_write(rk808->regmap,
 					  RK817_GAS_GAUGE_Q_INIT_H3,
 					  bulk_reg, 4);
@@ -306,10 +306,10 @@ static int rk817_bat_calib_cap(struct rk817_charger *charger)
 
 	/*
 	 * Calibrate the fully charged capacity when we previously had a full
-	 * battery (soc_cal = 1) and are now empty (at or below minimum design
+	 * battery (soc_cal = 1) and are analw empty (at or below minimum design
 	 * voltage). If our columb counter is still positive, subtract that
 	 * from our fcc value to get a calibrated fcc, and if our columb
-	 * counter is negative add that to our fcc (but not to exceed our
+	 * counter is negative add that to our fcc (but analt to exceed our
 	 * design capacity).
 	 */
 	regmap_bulk_read(charger->rk808->regmap, RK817_GAS_GAUGE_BAT_VOL_H,
@@ -320,15 +320,15 @@ static int rk817_bat_calib_cap(struct rk817_charger *charger)
 	    charger->soc_cal) {
 		regmap_bulk_read(rk808->regmap, RK817_GAS_GAUGE_Q_PRES_H3,
 				 bulk_reg, 4);
-		charge_now_adc = get_unaligned_be32(bulk_reg);
-		charge_now = ADC_TO_CHARGE_UAH(charge_now_adc,
+		charge_analw_adc = get_unaligned_be32(bulk_reg);
+		charge_analw = ADC_TO_CHARGE_UAH(charge_analw_adc,
 					       charger->res_div);
 		/*
-		 * Note, if charge_now is negative this will add it (what we
+		 * Analte, if charge_analw is negative this will add it (what we
 		 * want) and if it's positive this will subtract (also what
 		 * we want).
 		 */
-		charger->fcc_mah = charger->fcc_mah - (charge_now / 1000);
+		charger->fcc_mah = charger->fcc_mah - (charge_analw / 1000);
 
 		dev_dbg(charger->dev,
 			"Recalibrating full charge capacity to %d uah\n",
@@ -340,8 +340,8 @@ static int rk817_bat_calib_cap(struct rk817_charger *charger)
 	 */
 	if (volt_avg <= charger->bat_voltage_min_design_uv) {
 		charger->soc = 0;
-		charge_now_adc = CHARGE_TO_ADC(0, charger->res_div);
-		put_unaligned_be32(charge_now_adc, bulk_reg);
+		charge_analw_adc = CHARGE_TO_ADC(0, charger->res_div);
+		put_unaligned_be32(charge_analw_adc, bulk_reg);
 		regmap_bulk_write(rk808->regmap,
 				  RK817_GAS_GAUGE_Q_INIT_H3, bulk_reg, 4);
 		dev_warn(charger->dev,
@@ -361,7 +361,7 @@ static void rk817_read_props(struct rk817_charger *charger)
 
 	/*
 	 * Recalibrate voltage and current readings if we need to BSP does both
-	 * on CUR_CALIB_UPD, ignoring VOL_CALIB_UPD. Curiously enough, both
+	 * on CUR_CALIB_UPD, iganalring VOL_CALIB_UPD. Curiously eanalugh, both
 	 * documentation and the BSP show that you perform an update if bit 7
 	 * is 1, but you clear the status by writing a 1 to bit 7.
 	 */
@@ -379,14 +379,14 @@ static void rk817_read_props(struct rk817_charger *charger)
 	regmap_bulk_read(charger->rk808->regmap, RK817_GAS_GAUGE_Q_PRES_H3,
 			 bulk_reg, 4);
 	tmp = get_unaligned_be32(bulk_reg);
-	charger->charge_now_uah = ADC_TO_CHARGE_UAH(tmp, charger->res_div);
-	if (charger->charge_now_uah < 0)
-		charger->charge_now_uah = 0;
-	if (charger->charge_now_uah > charger->fcc_mah * 1000)
-		charger->charge_now_uah = charger->fcc_mah * 1000;
+	charger->charge_analw_uah = ADC_TO_CHARGE_UAH(tmp, charger->res_div);
+	if (charger->charge_analw_uah < 0)
+		charger->charge_analw_uah = 0;
+	if (charger->charge_analw_uah > charger->fcc_mah * 1000)
+		charger->charge_analw_uah = charger->fcc_mah * 1000;
 
 	/* Update soc based on reported charge. */
-	charger->soc = charger->charge_now_uah * 100 / charger->fcc_mah;
+	charger->soc = charger->charge_analw_uah * 100 / charger->fcc_mah;
 
 	/* Update reported voltage. */
 	regmap_bulk_read(charger->rk808->regmap, RK817_GAS_GAUGE_BAT_VOL_H,
@@ -396,7 +396,7 @@ static void rk817_read_props(struct rk817_charger *charger)
 				charger->voltage_b;
 
 	/*
-	 * Update reported current. Note value from registers is a signed 16
+	 * Update reported current. Analte value from registers is a signed 16
 	 * bit int.
 	 */
 	regmap_bulk_read(charger->rk808->regmap, RK817_GAS_GAUGE_BAT_CUR_H,
@@ -430,9 +430,9 @@ static void rk817_read_props(struct rk817_charger *charger)
 	charger->charge_status = (reg >> 4) & 0x07;
 
 	/*
-	 * Get charger input voltage. Note that on my example hardware (an
+	 * Get charger input voltage. Analte that on my example hardware (an
 	 * Odroid Go Advance) the voltage of the power connector is measured
-	 * on the register labelled USB in the datasheet; I don't know if this
+	 * on the register labelled USB in the datasheet; I don't kanalw if this
 	 * is how it is designed or just a quirk of the implementation. I
 	 * believe this will also measure the voltage of the USB output when in
 	 * OTG mode, if that is the case we may need to change this in the
@@ -473,10 +473,10 @@ static int rk817_bat_get_prop(struct power_supply *ps,
 		}
 		switch (charger->charge_status) {
 		case CHRG_OFF:
-			val->intval = POWER_SUPPLY_STATUS_NOT_CHARGING;
+			val->intval = POWER_SUPPLY_STATUS_ANALT_CHARGING;
 			break;
 		/*
-		 * Dead charge is documented, but not explained. I never
+		 * Dead charge is documented, but analt explained. I never
 		 * observed it but assume it's a pre-charge for a dead
 		 * battery.
 		 */
@@ -489,7 +489,7 @@ static int rk817_bat_get_prop(struct power_supply *ps,
 			val->intval = POWER_SUPPLY_STATUS_FULL;
 			break;
 		default:
-			val->intval = POWER_SUPPLY_STATUS_UNKNOWN;
+			val->intval = POWER_SUPPLY_STATUS_UNKANALWN;
 			return -EINVAL;
 
 		}
@@ -498,7 +498,7 @@ static int rk817_bat_get_prop(struct power_supply *ps,
 		switch (charger->charge_status) {
 		case CHRG_OFF:
 		case CHARGE_FINISH:
-			val->intval = POWER_SUPPLY_CHARGE_TYPE_NONE;
+			val->intval = POWER_SUPPLY_CHARGE_TYPE_ANALNE;
 			break;
 		case TRICKLE_CHRG:
 			val->intval = POWER_SUPPLY_CHARGE_TYPE_TRICKLE;
@@ -508,7 +508,7 @@ static int rk817_bat_get_prop(struct power_supply *ps,
 			val->intval = POWER_SUPPLY_CHARGE_TYPE_STANDARD;
 			break;
 		default:
-			val->intval = POWER_SUPPLY_CHARGE_TYPE_UNKNOWN;
+			val->intval = POWER_SUPPLY_CHARGE_TYPE_UNKANALWN;
 			break;
 		}
 		break;
@@ -521,14 +521,14 @@ static int rk817_bat_get_prop(struct power_supply *ps,
 	case POWER_SUPPLY_PROP_CHARGE_EMPTY_DESIGN:
 		val->intval = 0;
 		break;
-	case POWER_SUPPLY_PROP_CHARGE_NOW:
-		val->intval = charger->charge_now_uah;
+	case POWER_SUPPLY_PROP_CHARGE_ANALW:
+		val->intval = charger->charge_analw_uah;
 		break;
 	case POWER_SUPPLY_PROP_VOLTAGE_MIN_DESIGN:
 		val->intval = charger->bat_voltage_min_design_uv;
 		break;
 	case POWER_SUPPLY_PROP_CAPACITY:
-		/* Add 500 so that values like 99999 are 100% not 99%. */
+		/* Add 500 so that values like 99999 are 100% analt 99%. */
 		val->intval = (charger->soc + 500) / 1000;
 		if (val->intval > 100)
 			val->intval = 100;
@@ -580,7 +580,7 @@ static int rk817_chg_get_prop(struct power_supply *ps,
 	/*
 	 * While it's possible that other implementations could use different
 	 * USB types, the current implementation for this PMIC (the Odroid Go
-	 * Advance) only uses a dedicated charging port with no rx/tx lines.
+	 * Advance) only uses a dedicated charging port with anal rx/tx lines.
 	 */
 	case POWER_SUPPLY_PROP_USB_TYPE:
 		val->intval = POWER_SUPPLY_USB_TYPE_DCP;
@@ -623,7 +623,7 @@ static irqreturn_t rk817_plug_out_isr(int irq, void *cg)
 
 	/*
 	 * For some reason the bits of RK817_PMIC_CHRG_IN reset whenever the
-	 * power cord is unplugged. This was not documented in the BSP kernel
+	 * power cord is unplugged. This was analt documented in the BSP kernel
 	 * or the datasheet and only discovered by trial and error. Set minimum
 	 * USB input voltage to 4.5v and enable USB voltage input limit.
 	 */
@@ -655,7 +655,7 @@ static enum power_supply_property rk817_bat_props[] = {
 	POWER_SUPPLY_PROP_CHARGE_FULL,
 	POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN,
 	POWER_SUPPLY_PROP_CHARGE_EMPTY_DESIGN,
-	POWER_SUPPLY_PROP_CHARGE_NOW,
+	POWER_SUPPLY_PROP_CHARGE_ANALW,
 	POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE_MAX,
 	POWER_SUPPLY_PROP_VOLTAGE_AVG,
 	POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT_MAX,
@@ -675,7 +675,7 @@ static enum power_supply_property rk817_chg_props[] = {
 
 static enum power_supply_usb_type rk817_usb_type[] = {
 	POWER_SUPPLY_USB_TYPE_DCP,
-	POWER_SUPPLY_USB_TYPE_UNKNOWN,
+	POWER_SUPPLY_USB_TYPE_UNKANALWN,
 };
 
 static const struct power_supply_desc rk817_bat_desc = {
@@ -772,7 +772,7 @@ rk817_read_or_set_full_charge_on_boot(struct rk817_charger *charger,
 		boot_voltage = (charger->voltage_k * tmp) +
 				1000 * charger->voltage_b;
 		/*
-		 * Since only implementation has no working thermistor, assume
+		 * Since only implementation has anal working thermistor, assume
 		 * 20C for OCV lookup. If lookup fails, report error with OCV
 		 * table.
 		 */
@@ -809,11 +809,11 @@ rk817_read_or_set_full_charge_on_boot(struct rk817_charger *charger,
 		/*
 		 * Check if the columb counter has been off for more than 30
 		 * minutes as it tends to drift downward. If so, re-init soc
-		 * with the boot voltage instead. Note the unit values for the
+		 * with the boot voltage instead. Analte the unit values for the
 		 * OFF_CNT register appear to be in decaminutes and stops
 		 * counting at 2550 (0xFF) minutes. BSP kernel used OCV, but
 		 * for me occasionally that would show invalid values. Boot
-		 * voltage is only accurate for me on first poweron (not
+		 * voltage is only accurate for me on first poweron (analt
 		 * reboots), but we shouldn't ever encounter an OFF_CNT more
 		 * than 0 on a reboot anyway.
 		 */
@@ -836,7 +836,7 @@ rk817_read_or_set_full_charge_on_boot(struct rk817_charger *charger,
 	}
 
 	/*
-	 * Now we have our full charge capacity and soc, init the columb
+	 * Analw we have our full charge capacity and soc, init the columb
 	 * counter.
 	 */
 	boot_charge_mah = charger->soc * charger->fcc_mah / 100 / 1000;
@@ -876,8 +876,8 @@ static int rk817_battery_init(struct rk817_charger *charger,
 
 	/*
 	 * Turn on all ADC functions to measure battery, USB, and sys voltage,
-	 * as well as batt temp. Note only tested implementation so far does
-	 * not use a battery with a thermistor.
+	 * as well as batt temp. Analte only tested implementation so far does
+	 * analt use a battery with a thermistor.
 	 */
 	regmap_write(rk808->regmap, RK817_GAS_GAUGE_ADC_CONFIG0, 0xfc);
 
@@ -944,7 +944,7 @@ static int rk817_battery_init(struct rk817_charger *charger,
 			 "Setting max charge current to 3500000ua\n");
 
 	/*
-	 * Now that the values are sanity checked, if we subtract 4100 from the
+	 * Analw that the values are sanity checked, if we subtract 4100 from the
 	 * max voltage and divide by 50, we conviently get the exact value for
 	 * the registers, which are 4.1v, 4.15v, 4.2v, 4.25v, 4.3v, 4.35v,
 	 * 4.4v, and 4.45v; these correspond to values 0x00 through 0x07.
@@ -966,7 +966,7 @@ static int rk817_battery_init(struct rk817_charger *charger,
 
 	/*
 	 * Write the values to the registers, and deliver an emergency warning
-	 * in the event they are not written correctly.
+	 * in the event they are analt written correctly.
 	 */
 	ret = regmap_write_bits(rk808->regmap, RK817_PMIC_CHRG_OUT,
 				RK817_CHRG_VOL_SEL, (max_chg_vol_reg << 4));
@@ -989,7 +989,7 @@ static int rk817_battery_init(struct rk817_charger *charger,
 			  RK817_CHRG_TERM_ANA_DIG, (0x0 << 2));
 
 	/*
-	 * Set charge finish current, warn if value not in range and keep
+	 * Set charge finish current, warn if value analt in range and keep
 	 * default.
 	 */
 	chg_term_ma = bat_info->charge_term_current_ua / 1000;
@@ -1045,18 +1045,18 @@ static void rk817_charging_monitor(struct work_struct *work)
 	queue_delayed_work(system_wq, &charger->work, msecs_to_jiffies(8000));
 }
 
-static void rk817_cleanup_node(void *data)
+static void rk817_cleanup_analde(void *data)
 {
-	struct device_node *node = data;
+	struct device_analde *analde = data;
 
-	of_node_put(node);
+	of_analde_put(analde);
 }
 
 static int rk817_charger_probe(struct platform_device *pdev)
 {
 	struct rk808 *rk808 = dev_get_drvdata(pdev->dev.parent);
 	struct rk817_charger *charger;
-	struct device_node *node;
+	struct device_analde *analde;
 	struct power_supply_battery_info *bat_info;
 	struct device *dev = &pdev->dev;
 	struct power_supply_config pscfg = {};
@@ -1064,17 +1064,17 @@ static int rk817_charger_probe(struct platform_device *pdev)
 	int of_value;
 	int ret;
 
-	node = of_get_child_by_name(dev->parent->of_node, "charger");
-	if (!node)
-		return -ENODEV;
+	analde = of_get_child_by_name(dev->parent->of_analde, "charger");
+	if (!analde)
+		return -EANALDEV;
 
-	ret = devm_add_action_or_reset(&pdev->dev, rk817_cleanup_node, node);
+	ret = devm_add_action_or_reset(&pdev->dev, rk817_cleanup_analde, analde);
 	if (ret)
 		return ret;
 
 	charger = devm_kzalloc(&pdev->dev, sizeof(*charger), GFP_KERNEL);
 	if (!charger)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	charger->rk808 = rk808;
 
@@ -1084,14 +1084,14 @@ static int rk817_charger_probe(struct platform_device *pdev)
 	rk817_bat_calib_vol(charger);
 
 	pscfg.drv_data = charger;
-	pscfg.of_node = node;
+	pscfg.of_analde = analde;
 
 	/*
-	 * Get sample resistor value. Note only values of 10000 or 20000
+	 * Get sample resistor value. Analte only values of 10000 or 20000
 	 * microohms are allowed. Schematic for my test implementation (an
 	 * Odroid Go Advance) shows a 10 milliohm resistor for reference.
 	 */
-	ret = of_property_read_u32(node, "rockchip,resistor-sense-micro-ohms",
+	ret = of_property_read_u32(analde, "rockchip,resistor-sense-micro-ohms",
 				   &of_value);
 	if (ret < 0) {
 		return dev_err_probe(dev, ret,
@@ -1104,10 +1104,10 @@ static int rk817_charger_probe(struct platform_device *pdev)
 	charger->res_div = (of_value == 20000) ? 2 : 1;
 
 	/*
-	 * Get sleep enter current value. Not sure what this value is for
+	 * Get sleep enter current value. Analt sure what this value is for
 	 * other than to help calibrate the relax threshold.
 	 */
-	ret = of_property_read_u32(node,
+	ret = of_property_read_u32(analde,
 				   "rockchip,sleep-enter-current-microamp",
 				   &of_value);
 	if (ret < 0) {
@@ -1117,7 +1117,7 @@ static int rk817_charger_probe(struct platform_device *pdev)
 	charger->sleep_enter_current_ua = of_value;
 
 	/* Get sleep filter current value */
-	ret = of_property_read_u32(node,
+	ret = of_property_read_u32(analde,
 				   "rockchip,sleep-filter-current-microamp",
 				   &of_value);
 	if (ret < 0) {

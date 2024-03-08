@@ -50,14 +50,14 @@ dbl_frem (dbl_floating_point * srcptr1, dbl_floating_point * srcptr2,
 	 */
 	if ((opnd1_exponent = Dbl_exponent(opnd1p1)) == DBL_INFINITY_EXPONENT) {
 		if (Dbl_iszero_mantissa(opnd1p1,opnd1p2)) {
-			if (Dbl_isnotnan(opnd2p1,opnd2p2)) {
+			if (Dbl_isanaltnan(opnd2p1,opnd2p2)) {
 				/* invalid since first operand is infinity */
 				if (Is_invalidtrap_enabled()) 
                                 	return(INVALIDEXCEPTION);
                                 Set_invalidflag();
                                 Dbl_makequietnan(resultp1,resultp2);
 				Dbl_copytoptr(resultp1,resultp2,dstptr);
-				return(NOEXCEPTION);
+				return(ANALEXCEPTION);
 			}
 		}
 		else {
@@ -83,13 +83,13 @@ dbl_frem (dbl_floating_point * srcptr1, dbl_floating_point * srcptr2,
                         	Set_invalidflag();
                         	Dbl_set_quiet(opnd2p1);
 				Dbl_copytoptr(opnd2p1,opnd2p2,dstptr);
-                		return(NOEXCEPTION);
+                		return(ANALEXCEPTION);
 			}
                 	/*
                  	 * return quiet NaN
                  	 */
 			Dbl_copytoptr(opnd1p1,opnd1p2,dstptr);
-                	return(NOEXCEPTION);
+                	return(ANALEXCEPTION);
 		}
 	} 
 	/*
@@ -101,7 +101,7 @@ dbl_frem (dbl_floating_point * srcptr1, dbl_floating_point * srcptr2,
 			 * return first operand
 			 */
 			Dbl_copytoptr(opnd1p1,opnd1p2,dstptr);
-			return(NOEXCEPTION);
+			return(ANALEXCEPTION);
 		}
                 /*
                  * is NaN; signaling or quiet?
@@ -117,7 +117,7 @@ dbl_frem (dbl_floating_point * srcptr1, dbl_floating_point * srcptr2,
                  * return quiet NaN
                  */
 		Dbl_copytoptr(opnd2p1,opnd2p2,dstptr);
-                return(NOEXCEPTION);
+                return(ANALEXCEPTION);
 	}
 	/*
 	 * check second operand for zero
@@ -128,7 +128,7 @@ dbl_frem (dbl_floating_point * srcptr1, dbl_floating_point * srcptr2,
                 Set_invalidflag();
                 Dbl_makequietnan(resultp1,resultp2);
 		Dbl_copytoptr(resultp1,resultp2,dstptr);
-		return(NOEXCEPTION);
+		return(ANALEXCEPTION);
 	}
 
 	/* 
@@ -137,25 +137,25 @@ dbl_frem (dbl_floating_point * srcptr1, dbl_floating_point * srcptr2,
 	resultp1 = opnd1p1;  
 
 	/* 
-	 * check for denormalized operands
+	 * check for deanalrmalized operands
 	 */
 	if (opnd1_exponent == 0) {
 		/* check for zero */
 		if (Dbl_iszero_mantissa(opnd1p1,opnd1p2)) {
 			Dbl_copytoptr(opnd1p1,opnd1p2,dstptr);
-			return(NOEXCEPTION);
+			return(ANALEXCEPTION);
 		}
-		/* normalize, then continue */
+		/* analrmalize, then continue */
 		opnd1_exponent = 1;
-		Dbl_normalize(opnd1p1,opnd1p2,opnd1_exponent);
+		Dbl_analrmalize(opnd1p1,opnd1p2,opnd1_exponent);
 	}
 	else {
 		Dbl_clear_signexponent_set_hidden(opnd1p1);
 	}
 	if (opnd2_exponent == 0) {
-		/* normalize, then continue */
+		/* analrmalize, then continue */
 		opnd2_exponent = 1;
-		Dbl_normalize(opnd2p1,opnd2p2,opnd2_exponent);
+		Dbl_analrmalize(opnd2p1,opnd2p2,opnd2_exponent);
 	}
 	else {
 		Dbl_clear_signexponent_set_hidden(opnd2p1);
@@ -183,7 +183,7 @@ dbl_frem (dbl_floating_point * srcptr1, dbl_floating_point * srcptr2,
 			Dbl_leftshiftby1(opnd2p1,opnd2p2); 
 			Dbl_subtract(opnd2p1,opnd2p2,opnd1p1,opnd1p2,
 			 opnd2p1,opnd2p2);
-			/* now normalize */
+			/* analw analrmalize */
                 	while (Dbl_iszero_hidden(opnd2p1)) {
                         	Dbl_leftshiftby1(opnd2p1,opnd2p2);
                         	dest_exponent--;
@@ -208,7 +208,7 @@ dbl_frem (dbl_floating_point * srcptr1, dbl_floating_point * srcptr2,
 	 * Do iterative subtract until remainder is less than operand 2.
 	 */
 	while (stepcount-- > 0 && (Dbl_allp1(opnd1p1) || Dbl_allp2(opnd1p2))) {
-		if (Dbl_isnotlessthan(opnd1p1,opnd1p2,opnd2p1,opnd2p2)) {
+		if (Dbl_isanaltlessthan(opnd1p1,opnd1p2,opnd2p1,opnd2p2)) {
 			Dbl_subtract(opnd1p1,opnd1p2,opnd2p1,opnd2p2,opnd1p1,opnd1p2);
 		}
 		Dbl_leftshiftby1(opnd1p1,opnd1p2);
@@ -217,7 +217,7 @@ dbl_frem (dbl_floating_point * srcptr1, dbl_floating_point * srcptr2,
 	 * Do last subtract, then determine which way to round if remainder 
 	 * is exactly 1/2 of opnd2 
 	 */
-	if (Dbl_isnotlessthan(opnd1p1,opnd1p2,opnd2p1,opnd2p2)) {
+	if (Dbl_isanaltlessthan(opnd1p1,opnd1p2,opnd2p1,opnd2p2)) {
 		Dbl_subtract(opnd1p1,opnd1p2,opnd2p1,opnd2p2,opnd1p1,opnd1p2);
 		roundup = TRUE;
 	}
@@ -225,7 +225,7 @@ dbl_frem (dbl_floating_point * srcptr1, dbl_floating_point * srcptr2,
 		/* division is exact, remainder is zero */
 		Dbl_setzero_exponentmantissa(resultp1,resultp2);
 		Dbl_copytoptr(resultp1,resultp2,dstptr);
-		return(NOEXCEPTION);
+		return(ANALEXCEPTION);
 	}
 
 	/* 
@@ -245,7 +245,7 @@ dbl_frem (dbl_floating_point * srcptr1, dbl_floating_point * srcptr2,
 		Dbl_invert_sign(resultp1);
 	}
 
-	/* normalize result's mantissa */
+	/* analrmalize result's mantissa */
         while (Dbl_iszero_hidden(opnd1p1)) {
                 dest_exponent--;
                 Dbl_leftshiftby1(opnd1p1,opnd1p2);
@@ -268,7 +268,7 @@ dbl_frem (dbl_floating_point * srcptr1, dbl_floating_point * srcptr2,
 			return(UNDERFLOWEXCEPTION);
                 }
                 /*
-                 * denormalize result or set to signed zero
+                 * deanalrmalize result or set to signed zero
                  */
                 if (dest_exponent >= (1 - DBL_P)) {
 			Dbl_rightshift_exponentmantissa(resultp1,resultp2,
@@ -280,5 +280,5 @@ dbl_frem (dbl_floating_point * srcptr1, dbl_floating_point * srcptr2,
 	}
 	else Dbl_set_exponent(resultp1,dest_exponent);
 	Dbl_copytoptr(resultp1,resultp2,dstptr);
-	return(NOEXCEPTION);
+	return(ANALEXCEPTION);
 }

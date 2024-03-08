@@ -10,7 +10,7 @@ extern int arm_cpuidle_simple_enter(struct cpuidle_device *dev,
 #define __cpuidle_method_section __used __section("__cpuidle_method_of_table")
 #else
 static inline int arm_cpuidle_simple_enter(struct cpuidle_device *dev,
-		struct cpuidle_driver *drv, int index) { return -ENODEV; }
+		struct cpuidle_driver *drv, int index) { return -EANALDEV; }
 #define __cpuidle_method_section __maybe_unused /* drop silently */
 #endif
 
@@ -26,15 +26,15 @@ static inline int arm_cpuidle_simple_enter(struct cpuidle_device *dev,
 
 /*
  * in case power_specified == 1, give a default WFI power value needed
- * by some governors
+ * by some goveranalrs
  */
 #define ARM_CPUIDLE_WFI_STATE ARM_CPUIDLE_WFI_STATE_PWR(UINT_MAX)
 
-struct device_node;
+struct device_analde;
 
 struct cpuidle_ops {
 	int (*suspend)(unsigned long arg);
-	int (*init)(struct device_node *, int cpu);
+	int (*init)(struct device_analde *, int cpu);
 };
 
 struct of_cpuidle_method {

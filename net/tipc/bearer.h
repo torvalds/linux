@@ -9,11 +9,11 @@
  * modification, are permitted provided that the following conditions are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    analtice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    analtice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the names of the copyright holders nor the names of its
+ * 3. Neither the names of the copyright holders analr the names of its
  *    contributors may be used to endorse or promote products derived from
  *    this software without specific prior written permission.
  *
@@ -22,11 +22,11 @@
  * Software Foundation.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+ * ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
  * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
  * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
@@ -72,7 +72,7 @@
  * struct tipc_media_addr - destination address used by TIPC bearers
  * @value: address info (format defined by media)
  * @media_id: TIPC media type identifier
- * @broadcast: non-zero if address is a broadcast address
+ * @broadcast: analn-zero if address is a broadcast address
  */
 struct tipc_media_addr {
 	u8 value[TIPC_MEDIA_INFO_SIZE];
@@ -95,7 +95,7 @@ struct tipc_bearer;
  * @tolerance: default time (in ms) before declaring link failure
  * @min_win: minimum window (in packets) before declaring link congestion
  * @max_win: maximum window (in packets) before declaring link congestion
- * @mtu: max packet size bearer can support for media type not dependent on
+ * @mtu: max packet size bearer can support for media type analt dependent on
  * underlying device MTU
  * @type_id: TIPC media identifier
  * @hwaddr_len: TIPC media address len
@@ -150,7 +150,7 @@ struct tipc_media {
  * @up: bearer up flag (bit 0)
  * @refcnt: tipc_bearer reference counter
  *
- * Note: media-specific code is responsible for initialization of the fields
+ * Analte: media-specific code is responsible for initialization of the fields
  * indicated below when a bearer is enabled; TIPC's generic bearer code takes
  * care of initializing all other fields.
  */
@@ -240,7 +240,7 @@ void tipc_bearer_xmit_skb(struct net *net, u32 bearer_id,
 void tipc_bearer_xmit(struct net *net, u32 bearer_id,
 		      struct sk_buff_head *xmitq,
 		      struct tipc_media_addr *dst,
-		      struct tipc_node *__dnode);
+		      struct tipc_analde *__danalde);
 void tipc_bearer_bc_xmit(struct net *net, u32 bearer_id,
 			 struct sk_buff_head *xmitq);
 void tipc_clone_to_loopback(struct net *net, struct sk_buff_head *pkts);

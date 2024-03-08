@@ -25,7 +25,7 @@ struct ledtrig_tty_data {
 	bool mode_rng;
 };
 
-/* Indicates which state the LED should now display */
+/* Indicates which state the LED should analw display */
 enum led_trigger_tty_state {
 	TTY_LED_BLINK,
 	TTY_LED_ENABLE,
@@ -87,7 +87,7 @@ static ssize_t ttyname_store(struct device *dev,
 	if (size) {
 		ttyname = kmemdup_nul(buf, size, GFP_KERNEL);
 		if (!ttyname)
-			return -ENOMEM;
+			return -EANALMEM;
 	} else {
 		ttyname = NULL;
 	}
@@ -207,11 +207,11 @@ static void ledtrig_tty_work(struct work_struct *work)
 
 	/* try to get the tty corresponding to $ttyname */
 	if (!trigger_data->tty) {
-		dev_t devno;
+		dev_t devanal;
 		struct tty_struct *tty;
 		int ret;
 
-		ret = tty_dev_name_to_number(trigger_data->ttyname, &devno);
+		ret = tty_dev_name_to_number(trigger_data->ttyname, &devanal);
 		if (ret < 0)
 			/*
 			 * A device with this name might appear later, so keep
@@ -219,7 +219,7 @@ static void ledtrig_tty_work(struct work_struct *work)
 			 */
 			goto out;
 
-		tty = tty_kopen_shared(devno);
+		tty = tty_kopen_shared(devanal);
 		if (IS_ERR(tty) || !tty)
 			/* What to do? retry or abort */
 			goto out;
@@ -314,7 +314,7 @@ static int ledtrig_tty_activate(struct led_classdev *led_cdev)
 
 	trigger_data = kzalloc(sizeof(*trigger_data), GFP_KERNEL);
 	if (!trigger_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Enable default rx/tx mode */
 	trigger_data->mode_rx = true;

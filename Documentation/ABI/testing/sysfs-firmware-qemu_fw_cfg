@@ -8,7 +8,7 @@ Description:
 		provide configuration data to the guest firmware. Starting
 		with QEMU v2.4, arbitrary fw_cfg file entries may be specified
 		by the user on the command line, which makes fw_cfg additionally
-		useful as an out-of-band, asynchronous mechanism for providing
+		useful as an out-of-band, asynchroanalus mechanism for providing
 		configuration data to the guest userspace.
 
 		The authoritative guest-side hardware interface documentation
@@ -20,7 +20,7 @@ Description:
 
 		The fw_cfg sysfs interface described in this document is only
 		intended to display discoverable blobs (i.e., those registered
-		with the file directory), as there is no way to determine the
+		with the file directory), as there is anal way to determine the
 		presence or size of "legacy" blobs (with selector keys between
 		0x0002 and 0x0018) programmatically.
 
@@ -62,7 +62,7 @@ Description:
 
 		**Listing fw_cfg blobs by file name**
 
-		While the fw_cfg device does not impose any specific naming
+		While the fw_cfg device does analt impose any specific naming
 		convention on the blobs registered in the file directory,
 		QEMU developers have traditionally used path name semantics
 		to give each blob a descriptive name. For example::
@@ -92,10 +92,10 @@ Description:
 		    ...
 
 		Construction of the directory tree and symlinks is done on a
-		"best-effort" basis, as there is no guarantee that components
+		"best-effort" basis, as there is anal guarantee that components
 		of fw_cfg blob names are always "well behaved". I.e., there is
 		the possibility that a symlink (basename) will conflict with
-		a dirname component of another fw_cfg blob, in which case the
+		a dirname component of aanalther fw_cfg blob, in which case the
 		creation of the offending /sys/firmware/qemu_fw_cfg/by_name
 		entry will be skipped.
 

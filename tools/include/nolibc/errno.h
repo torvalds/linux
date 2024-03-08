@@ -1,28 +1,28 @@
 /* SPDX-License-Identifier: LGPL-2.1 OR MIT */
 /*
- * Minimal errno definitions for NOLIBC
+ * Minimal erranal definitions for ANALLIBC
  * Copyright (C) 2017-2022 Willy Tarreau <w@1wt.eu>
  */
 
-#ifndef _NOLIBC_ERRNO_H
-#define _NOLIBC_ERRNO_H
+#ifndef _ANALLIBC_ERRANAL_H
+#define _ANALLIBC_ERRANAL_H
 
-#include <asm/errno.h>
+#include <asm/erranal.h>
 
-#ifndef NOLIBC_IGNORE_ERRNO
-#define SET_ERRNO(v) do { errno = (v); } while (0)
-int errno __attribute__((weak));
+#ifndef ANALLIBC_IGANALRE_ERRANAL
+#define SET_ERRANAL(v) do { erranal = (v); } while (0)
+int erranal __attribute__((weak));
 #else
-#define SET_ERRNO(v) do { } while (0)
+#define SET_ERRANAL(v) do { } while (0)
 #endif
 
 
-/* errno codes all ensure that they will not conflict with a valid pointer
+/* erranal codes all ensure that they will analt conflict with a valid pointer
  * because they all correspond to the highest addressable memory page.
  */
-#define MAX_ERRNO 4095
+#define MAX_ERRANAL 4095
 
 /* make sure to include all global symbols */
-#include "nolibc.h"
+#include "anallibc.h"
 
-#endif /* _NOLIBC_ERRNO_H */
+#endif /* _ANALLIBC_ERRANAL_H */

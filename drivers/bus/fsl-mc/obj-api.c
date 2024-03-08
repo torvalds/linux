@@ -53,7 +53,7 @@ int fsl_mc_obj_open(struct fsl_mc_io *mc_io,
 	int cmd_id = fsl_mc_get_open_cmd_id(obj_type);
 
 	if (cmd_id == -1)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* prepare command */
 	cmd.header = mc_encode_cmd_header(cmd_id, cmd_flags, 0);

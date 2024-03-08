@@ -2,12 +2,12 @@
 /*
  * TUSB6010 USB 2.0 OTG Dual Role controller
  *
- * Copyright (C) 2006 Nokia Corporation
+ * Copyright (C) 2006 Analkia Corporation
  * Tony Lindgren <tony@atomide.com>
  *
- * Notes:
+ * Analtes:
  * - Driver assumes that interface to external host (main CPU) is
- *   configured for NOR FLASH interface instead of VLYNQ serial
+ *   configured for ANALR FLASH interface instead of VLYNQ serial
  *   interface.
  */
 
@@ -15,7 +15,7 @@
 #include <linux/delay.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/err.h>
 #include <linux/prefetch.h>
 #include <linux/usb.h>
@@ -40,10 +40,10 @@ struct tusb6010_glue {
 static void tusb_musb_set_vbus(struct musb *musb, int is_on);
 
 #define TUSB_REV_MAJOR(reg_val)		((reg_val >> 4) & 0xf)
-#define TUSB_REV_MINOR(reg_val)		(reg_val & 0xf)
+#define TUSB_REV_MIANALR(reg_val)		(reg_val & 0xf)
 
 /*
- * Checks the revision. We need to use the DMA register as 3.0 does not
+ * Checks the revision. We need to use the DMA register as 3.0 does analt
  * have correct versions for TUSB_PRCM_REV or TUSB_INT_CTRL_REV.
  */
 static u8 tusb_get_revision(struct musb *musb)
@@ -73,20 +73,20 @@ static void tusb_print_revision(struct musb *musb)
 	pr_info("tusb: %s%i.%i %s%i.%i %s%i.%i %s%i.%i %s%i %s%i.%i\n",
 		"prcm",
 		TUSB_REV_MAJOR(musb_readl(tbase, TUSB_PRCM_REV)),
-		TUSB_REV_MINOR(musb_readl(tbase, TUSB_PRCM_REV)),
+		TUSB_REV_MIANALR(musb_readl(tbase, TUSB_PRCM_REV)),
 		"int",
 		TUSB_REV_MAJOR(musb_readl(tbase, TUSB_INT_CTRL_REV)),
-		TUSB_REV_MINOR(musb_readl(tbase, TUSB_INT_CTRL_REV)),
+		TUSB_REV_MIANALR(musb_readl(tbase, TUSB_INT_CTRL_REV)),
 		"gpio",
 		TUSB_REV_MAJOR(musb_readl(tbase, TUSB_GPIO_REV)),
-		TUSB_REV_MINOR(musb_readl(tbase, TUSB_GPIO_REV)),
+		TUSB_REV_MIANALR(musb_readl(tbase, TUSB_GPIO_REV)),
 		"dma",
 		TUSB_REV_MAJOR(musb_readl(tbase, TUSB_DMA_CTRL_REV)),
-		TUSB_REV_MINOR(musb_readl(tbase, TUSB_DMA_CTRL_REV)),
+		TUSB_REV_MIANALR(musb_readl(tbase, TUSB_DMA_CTRL_REV)),
 		"dieid",
 		TUSB_DIDR1_HI_CHIP_REV(musb_readl(tbase, TUSB_DIDR1_HI)),
 		"rev",
-		TUSB_REV_MAJOR(rev), TUSB_REV_MINOR(rev));
+		TUSB_REV_MAJOR(rev), TUSB_REV_MIANALR(rev));
 }
 
 #define WBUS_QUIRK_MASK	(TUSB_PHY_OTG_CTRL_TESTM2 | TUSB_PHY_OTG_CTRL_TESTM1 \
@@ -255,7 +255,7 @@ static void tusb_write_fifo(struct musb_hw_ep *hw_ep, u16 len, const u8 *buf)
 				u32 val;
 				int i;
 
-				/* Cannot use writesw, fifo is 32-bit */
+				/* Cananalt use writesw, fifo is 32-bit */
 				for (i = 0; i < (len >> 2); i++) {
 					val = (u32)(*(u16 *)buf);
 					buf += 2;
@@ -302,7 +302,7 @@ static void tusb_read_fifo(struct musb_hw_ep *hw_ep, u16 len, u8 *buf)
 				u32 val;
 				int i;
 
-				/* Cannot use readsw, fifo is 32-bit */
+				/* Cananalt use readsw, fifo is 32-bit */
 				for (i = 0; i < (len >> 2); i++) {
 					val = musb_readl(fifo, 0);
 					*(u16 *)buf = (u16)(val & 0xffff);
@@ -340,7 +340,7 @@ static int tusb_draw_power(struct usb_phy *x, unsigned mA)
 	 * certain idle sleep states while the USB link is active.
 	 *
 	 * REVISIT we could use VBUS to supply only _one_ of { 1.5V, 3.3V }.
-	 * The actual current usage would be very board-specific.  For now,
+	 * The actual current usage would be very board-specific.  For analw,
 	 * it's simpler to just use an aggregate (also board-specific).
 	 */
 	if (x->otg->default_a || mA < (musb->min_power << 1))
@@ -374,7 +374,7 @@ static void tusb_set_clock_source(struct musb *musb, unsigned mode)
 
 	/* 0 = refclk (clkin, XI)
 	 * 1 = PHY 60 MHz (internal PLL)
-	 * 2 = not supported
+	 * 2 = analt supported
 	 * 3 = what?
 	 */
 	if (mode > 0)
@@ -386,9 +386,9 @@ static void tusb_set_clock_source(struct musb *musb, unsigned mode)
 }
 
 /*
- * Idle TUSB6010 until next wake-up event; NOR access always wakes.
+ * Idle TUSB6010 until next wake-up event; ANALR access always wakes.
  * Other code ensures that we idle unless we're connected _and_ the
- * USB link is not suspended ... and tells us the relevant wakeup
+ * USB link is analt suspended ... and tells us the relevant wakeup
  * events.  SW_EN for voltage is handled separately.
  */
 static void tusb_allow_idle(struct musb *musb, u32 wakeup_enables)
@@ -402,7 +402,7 @@ static void tusb_allow_idle(struct musb *musb, u32 wakeup_enables)
 
 	tusb_set_clock_source(musb, 0);
 
-	wakeup_enables |= TUSB_PRCM_WNORCS;
+	wakeup_enables |= TUSB_PRCM_WANALRCS;
 	musb_writel(tbase, TUSB_PRCM_WAKEUP_MASK, ~wakeup_enables);
 
 	/* REVISIT writeup of WID implies that if WID set and ID is grounded,
@@ -439,7 +439,7 @@ static int tusb_musb_vbus_status(struct musb *musb)
 
 	/* Temporarily enable VBUS detection if it was disabled for
 	 * suspend mode. Unless it's enabled otg_stat and devctl will
-	 * not show correct VBUS state.
+	 * analt show correct VBUS state.
 	 */
 	if (!(prcm_mngmt & TUSB_PRCM_MNGMT_OTG_VBUS_DET_EN)) {
 		u32 tmp = prcm_mngmt;
@@ -467,7 +467,7 @@ static void musb_do_idle(struct timer_list *t)
 		if ((musb->a_wait_bcon != 0)
 			&& (musb->idle_timeout == 0
 				|| time_after(jiffies, musb->idle_timeout))) {
-			dev_dbg(musb->controller, "Nothing connected %s, turning off VBUS\n",
+			dev_dbg(musb->controller, "Analthing connected %s, turning off VBUS\n",
 					usb_otg_state_string(musb->xceiv->otg->state));
 		}
 		fallthrough;
@@ -505,7 +505,7 @@ done:
  * connect, resume, or disconnect.
  *
  * Needs to be called as the last function everywhere where there is
- * register access to TUSB6010 because of NOR flash wake-up.
+ * register access to TUSB6010 because of ANALR flash wake-up.
  * Caller should own controller spinlock.
  *
  * Delay because peripheral enables D+ pullup 3msec after SE0, and
@@ -520,7 +520,7 @@ static void tusb_musb_try_idle(struct musb *musb, unsigned long timeout)
 	if (timeout == 0)
 		timeout = default_timeout;
 
-	/* Never idle if active, or when VBUS timeout is not set as host */
+	/* Never idle if active, or when VBUS timeout is analt set as host */
 	if (musb->is_active || ((musb->a_wait_bcon == 0)
 			&& (musb->xceiv->otg->state == OTG_STATE_A_WAIT_BCON))) {
 		dev_dbg(musb->controller, "%s active, deleting timer\n",
@@ -534,7 +534,7 @@ static void tusb_musb_try_idle(struct musb *musb, unsigned long timeout)
 		if (!timer_pending(&musb->dev_timer))
 			last_timer = timeout;
 		else {
-			dev_dbg(musb->controller, "Longer idle timer already pending, ignoring\n");
+			dev_dbg(musb->controller, "Longer idle timer already pending, iganalring\n");
 			return;
 		}
 	}
@@ -562,7 +562,7 @@ static void tusb_musb_set_vbus(struct musb *musb, int is_on)
 
 	/* HDRC controls CPEN, but beware current surges during device
 	 * connect.  They can trigger transient overcurrent conditions
-	 * that must be ignored.
+	 * that must be iganalred.
 	 */
 
 	prcm = musb_readl(tbase, TUSB_PRCM_MNGMT);
@@ -627,8 +627,8 @@ static void tusb_musb_set_vbus(struct musb *musb, int is_on)
  * Sets the mode to OTG, peripheral or host by changing the ID detection.
  * Caller must take care of locking.
  *
- * Note that if a mini-A cable is plugged in the ID line will stay down as
- * the weak ID pull-up is not able to pull the ID up.
+ * Analte that if a mini-A cable is plugged in the ID line will stay down as
+ * the weak ID pull-up is analt able to pull the ID up.
  */
 static int tusb_musb_set_mode(struct musb *musb, u8 musb_mode)
 {
@@ -673,7 +673,7 @@ static int tusb_musb_set_mode(struct musb *musb, u8 musb_mode)
 	otg_stat = musb_readl(tbase, TUSB_DEV_OTG_STAT);
 	if ((musb_mode == MUSB_PERIPHERAL) &&
 		!(otg_stat & TUSB_DEV_OTG_STAT_ID_STATUS))
-			INFO("Cannot be peripheral with mini-A cable "
+			INFO("Cananalt be peripheral with mini-A cable "
 			"otg_stat: %08x\n", otg_stat);
 
 	return 0;
@@ -703,7 +703,7 @@ tusb_otg_ints(struct musb *musb, u32 int_src, void __iomem *tbase)
 	/* VBUS state change */
 	if (int_src & TUSB_INT_SRC_VBUS_SENSE_CHNG) {
 
-		/* B-dev state machine:  no vbus ~= disconnect */
+		/* B-dev state machine:  anal vbus ~= disconnect */
 		if (!otg->default_a) {
 			/* ? musb_root_disconnect(musb); */
 			musb->port1_status &=
@@ -715,7 +715,7 @@ tusb_otg_ints(struct musb *musb, u32 int_src, void __iomem *tbase)
 				);
 
 			if (otg_stat & TUSB_DEV_OTG_STAT_SESS_END) {
-				dev_dbg(musb->controller, "Forcing disconnect (no interrupt)\n");
+				dev_dbg(musb->controller, "Forcing disconnect (anal interrupt)\n");
 				if (musb->xceiv->otg->state != OTG_STATE_B_IDLE) {
 					/* INTR_DISCONNECT can hide... */
 					musb->xceiv->otg->state = OTG_STATE_B_IDLE;
@@ -751,7 +751,7 @@ tusb_otg_ints(struct musb *musb, u32 int_src, void __iomem *tbase)
 
 				break;
 			case OTG_STATE_A_WAIT_VRISE:
-				/* ignore; A-session-valid < VBUS_VALID/2,
+				/* iganalre; A-session-valid < VBUS_VALID/2,
 				 * we monitor this with the timer
 				 */
 				break;
@@ -783,7 +783,7 @@ tusb_otg_ints(struct musb *musb, u32 int_src, void __iomem *tbase)
 
 		switch (musb->xceiv->otg->state) {
 		case OTG_STATE_A_WAIT_VRISE:
-			/* VBUS has probably been valid for a while now,
+			/* VBUS has probably been valid for a while analw,
 			 * but may well have bounced out of range a bit
 			 */
 			devctl = musb_readb(musb->mregs, MUSB_DEVCTL);
@@ -839,7 +839,7 @@ static irqreturn_t tusb_musb_interrupt(int irq, void *__hci)
 
 	musb->int_usb = (u8) int_src;
 
-	/* Acknowledge wake-up source interrupts */
+	/* Ackanalwledge wake-up source interrupts */
 	if (int_src & TUSB_INT_SRC_DEV_WAKEUP) {
 		u32	reg;
 		u32	i;
@@ -856,7 +856,7 @@ static irqreturn_t tusb_musb_interrupt(int irq, void *__hci)
 			reg = musb_readl(tbase, TUSB_SCRATCH_PAD);
 			if (reg == i)
 				break;
-			dev_dbg(musb->controller, "TUSB NOR not ready\n");
+			dev_dbg(musb->controller, "TUSB ANALR analt ready\n");
 		}
 
 		/* work around issue 13 (2nd half) */
@@ -864,7 +864,7 @@ static irqreturn_t tusb_musb_interrupt(int irq, void *__hci)
 
 		reg = musb_readl(tbase, TUSB_PRCM_WAKEUP_SOURCE);
 		musb_writel(tbase, TUSB_PRCM_WAKEUP_CLEAR, reg);
-		if (reg & ~TUSB_PRCM_WNORCS) {
+		if (reg & ~TUSB_PRCM_WANALRCS) {
 			musb->is_active = 1;
 			schedule_delayed_work(&musb->irq_work, 0);
 		}
@@ -877,7 +877,7 @@ static irqreturn_t tusb_musb_interrupt(int irq, void *__hci)
 	if (int_src & TUSB_INT_SRC_USB_IP_CONN)
 		del_timer(&musb->dev_timer);
 
-	/* OTG state change reports (annoyingly) not issued by Mentor core */
+	/* OTG state change reports (ananalyingly) analt issued by Mentor core */
 	if (int_src & (TUSB_INT_SRC_VBUS_SENSE_CHNG
 				| TUSB_INT_SRC_OTG_TIMEOUT
 				| TUSB_INT_SRC_ID_STATUS_CHNG))
@@ -909,7 +909,7 @@ static irqreturn_t tusb_musb_interrupt(int irq, void *__hci)
 	if (int_src & (TUSB_INT_SRC_USB_IP_TX | TUSB_INT_SRC_USB_IP_RX | 0xff))
 		musb_interrupt(musb);
 
-	/* Acknowledge TUSB interrupts. Clear only non-reserved bits */
+	/* Ackanalwledge TUSB interrupts. Clear only analn-reserved bits */
 	musb_writel(tbase, TUSB_INT_SRC_CLEAR,
 		int_src & ~TUSB_INT_MASK_RESERVED_BITS);
 
@@ -946,7 +946,7 @@ static void tusb_musb_enable(struct musb *musb)
 	musb_writel(tbase, TUSB_DMA_INT_CLEAR, 0x7fffffff);
 	musb_writel(tbase, TUSB_GPIO_INT_CLEAR, 0x1ff);
 
-	/* Acknowledge pending interrupt(s) */
+	/* Ackanalwledge pending interrupt(s) */
 	musb_writel(tbase, TUSB_INT_SRC_CLEAR, ~TUSB_INT_MASK_RESERVED_BITS);
 
 	/* Only 0 clock cycles for minimum interrupt de-assertion time and
@@ -963,7 +963,7 @@ static void tusb_musb_enable(struct musb *musb)
 				TUSB_INT_SRC_ID_STATUS_CHNG);
 
 	if (is_dma_capable() && dma_off)
-		printk(KERN_WARNING "%s %s: dma not reactivated\n",
+		printk(KERN_WARNING "%s %s: dma analt reactivated\n",
 				__FILE__, __func__);
 	else
 		dma_off = 1;
@@ -995,7 +995,7 @@ static void tusb_musb_disable(struct musb *musb)
 
 /*
  * Sets up TUSB6010 CPU interface specific signals and registers
- * Note: Settings optimized for OMAP24xx
+ * Analte: Settings optimized for OMAP24xx
  */
 static void tusb_setup_cpu_interface(struct musb *musb)
 {
@@ -1007,7 +1007,7 @@ static void tusb_setup_cpu_interface(struct musb *musb)
 	 */
 	musb_writel(tbase, TUSB_PULLUP_1_CTRL, 0x0000003F);
 
-	/* Disable all pullups on NOR IF, DMAREQ0 and DMAREQ1 */
+	/* Disable all pullups on ANALR IF, DMAREQ0 and DMAREQ1 */
 	musb_writel(tbase, TUSB_PULLUP_2_CTRL, 0x01FFFFFF);
 
 	/* Turn GPIO[5:0] to DMAREQ[5:0] signals */
@@ -1020,7 +1020,7 @@ static void tusb_setup_cpu_interface(struct musb *musb)
 		TUSB_DMA_REQ_CONF_DMA_REQ_EN(0x3f) |
 		TUSB_DMA_REQ_CONF_DMA_REQ_ASSER(2));
 
-	/* Set 0 wait count for synchronous burst access */
+	/* Set 0 wait count for synchroanalus burst access */
 	musb_writel(tbase, TUSB_WAIT_COUNT, 1);
 }
 
@@ -1063,8 +1063,8 @@ static int tusb_musb_start(struct musb *musb)
 		goto err;
 	}
 
-	/* The uint bit for "USB non-PDR interrupt enable" has to be 1 when
-	 * NOR FLASH interface is used */
+	/* The uint bit for "USB analn-PDR interrupt enable" has to be 1 when
+	 * ANALR FLASH interface is used */
 	musb_writel(tbase, TUSB_VLYNQ_CTRL, 8);
 
 	/* Select PHY free running 60MHz as a system clock */
@@ -1100,7 +1100,7 @@ err:
 	gpiod_set_value(glue->enable, 0);
 	msleep(10);
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static int tusb_musb_init(struct musb *musb)
@@ -1119,8 +1119,8 @@ static int tusb_musb_init(struct musb *musb)
 	/* dma address for async dma */
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!mem) {
-		pr_debug("no async dma resource?\n");
-		ret = -ENODEV;
+		pr_debug("anal async dma resource?\n");
+		ret = -EANALDEV;
 		goto done;
 	}
 	musb->async = mem->start;
@@ -1128,8 +1128,8 @@ static int tusb_musb_init(struct musb *musb)
 	/* dma address for sync dma */
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	if (!mem) {
-		pr_debug("no sync dma resource?\n");
-		ret = -ENODEV;
+		pr_debug("anal sync dma resource?\n");
+		ret = -EANALDEV;
 		goto done;
 	}
 	musb->sync = mem->start;
@@ -1137,7 +1137,7 @@ static int tusb_musb_init(struct musb *musb)
 	sync = ioremap(mem->start, resource_size(mem));
 	if (!sync) {
 		pr_debug("ioremap for sync failed\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto done;
 	}
 	musb->sync_va = sync;
@@ -1149,7 +1149,7 @@ static int tusb_musb_init(struct musb *musb)
 
 	ret = tusb_musb_start(musb);
 	if (ret) {
-		printk(KERN_ERR "Could not start tusb6010 (%d)\n",
+		printk(KERN_ERR "Could analt start tusb6010 (%d)\n",
 				ret);
 		goto done;
 	}
@@ -1188,7 +1188,7 @@ static int tusb_musb_exit(struct musb *musb)
 
 static const struct musb_platform_ops tusb_ops = {
 	.quirks		= MUSB_DMA_TUSB_OMAP | MUSB_IN_TUSB |
-			  MUSB_G_NO_SKB_RESERVE,
+			  MUSB_G_ANAL_SKB_RESERVE,
 	.init		= tusb_musb_init,
 	.exit		= tusb_musb_exit,
 
@@ -1230,18 +1230,18 @@ static int tusb_probe(struct platform_device *pdev)
 
 	glue = devm_kzalloc(&pdev->dev, sizeof(*glue), GFP_KERNEL);
 	if (!glue)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	glue->dev			= &pdev->dev;
 
 	glue->enable = devm_gpiod_get(glue->dev, "enable", GPIOD_OUT_LOW);
 	if (IS_ERR(glue->enable))
 		return dev_err_probe(glue->dev, PTR_ERR(glue->enable),
-				     "could not obtain power on/off GPIO\n");
+				     "could analt obtain power on/off GPIO\n");
 	glue->intpin = devm_gpiod_get(glue->dev, "int", GPIOD_IN);
 	if (IS_ERR(glue->intpin))
 		return dev_err_probe(glue->dev, PTR_ERR(glue->intpin),
-				     "could not obtain INT GPIO\n");
+				     "could analt obtain INT GPIO\n");
 
 	pdata->platform_ops		= &tusb_ops;
 

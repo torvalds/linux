@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
- * Copyright (c) 2023, Danila Tikhonov <danila@jiaxyga.com>
+ * Copyright (c) 2023, Danila Tikhoanalv <danila@jiaxyga.com>
  * Copyright (c) 2023, David Wronek <davidwronek@gmail.com>
  */
 
@@ -965,14 +965,14 @@ static struct clk_rcg2 gcc_vsensor_clk_src = {
 	},
 };
 
-static struct clk_branch gcc_aggre_noc_pcie_tbu_clk = {
+static struct clk_branch gcc_aggre_analc_pcie_tbu_clk = {
 	.halt_reg = 0x2800c,
 	.halt_check = BRANCH_HALT,
 	.clkr = {
 		.enable_reg = 0x2800c,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
-			.name = "gcc_aggre_noc_pcie_tbu_clk",
+			.name = "gcc_aggre_analc_pcie_tbu_clk",
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -1136,14 +1136,14 @@ static struct clk_branch gcc_ce1_clk = {
 	},
 };
 
-static struct clk_branch gcc_cfg_noc_usb3_prim_axi_clk = {
+static struct clk_branch gcc_cfg_analc_usb3_prim_axi_clk = {
 	.halt_reg = 0x502c,
 	.halt_check = BRANCH_HALT,
 	.clkr = {
 		.enable_reg = 0x502c,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
-			.name = "gcc_cfg_noc_usb3_prim_axi_clk",
+			.name = "gcc_cfg_analc_usb3_prim_axi_clk",
 			.parent_hws = (const struct clk_hw*[]){
 				&gcc_usb30_prim_master_clk_src.clkr.hw,
 			},
@@ -1349,27 +1349,27 @@ static struct clk_branch gcc_gpu_gpll0_div_clk_src = {
 	},
 };
 
-static struct clk_branch gcc_gpu_memnoc_gfx_clk = {
+static struct clk_branch gcc_gpu_memanalc_gfx_clk = {
 	.halt_reg = 0x7100c,
 	.halt_check = BRANCH_VOTED,
 	.clkr = {
 		.enable_reg = 0x7100c,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
-			.name = "gcc_gpu_memnoc_gfx_clk",
+			.name = "gcc_gpu_memanalc_gfx_clk",
 			.ops = &clk_branch2_ops,
 		},
 	},
 };
 
-static struct clk_branch gcc_gpu_snoc_dvm_gfx_clk = {
+static struct clk_branch gcc_gpu_sanalc_dvm_gfx_clk = {
 	.halt_reg = 0x71018,
 	.halt_check = BRANCH_HALT,
 	.clkr = {
 		.enable_reg = 0x71018,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
-			.name = "gcc_gpu_snoc_dvm_gfx_clk",
+			.name = "gcc_gpu_sanalc_dvm_gfx_clk",
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -2159,14 +2159,14 @@ static struct clk_branch gcc_sdcc4_apps_clk = {
 	},
 };
 
-static struct clk_branch gcc_sys_noc_cpuss_ahb_clk = {
+static struct clk_branch gcc_sys_analc_cpuss_ahb_clk = {
 	.halt_reg = 0x4144,
 	.halt_check = BRANCH_HALT_VOTED,
 	.clkr = {
 		.enable_reg = 0x52004,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
-			.name = "gcc_sys_noc_cpuss_ahb_clk",
+			.name = "gcc_sys_analc_cpuss_ahb_clk",
 			.parent_hws = (const struct clk_hw*[]){
 				&gcc_cpuss_ahb_clk_src.clkr.hw,
 			},
@@ -2685,64 +2685,64 @@ static struct gdsc usb30_prim_gdsc = {
 	.pwrsts = PWRSTS_OFF_ON,
 };
 
-static struct gdsc hlos1_vote_aggre_noc_mmu_audio_tbu_gdsc = {
+static struct gdsc hlos1_vote_aggre_analc_mmu_audio_tbu_gdsc = {
 	.gdscr = 0x7d030,
 	.pd = {
-		.name = "hlos1_vote_aggre_noc_mmu_audio_tbu_gdsc",
+		.name = "hlos1_vote_aggre_analc_mmu_audio_tbu_gdsc",
 	},
 	.pwrsts = PWRSTS_OFF_ON,
 	.flags = VOTABLE,
 };
 
-static struct gdsc hlos1_vote_aggre_noc_mmu_pcie_tbu_gdsc = {
+static struct gdsc hlos1_vote_aggre_analc_mmu_pcie_tbu_gdsc = {
 	.gdscr = 0x7d03c,
 	.pd = {
-		.name = "hlos1_vote_aggre_noc_mmu_pcie_tbu_gdsc",
+		.name = "hlos1_vote_aggre_analc_mmu_pcie_tbu_gdsc",
 	},
 	.pwrsts = PWRSTS_OFF_ON,
 	.flags = VOTABLE,
 };
 
-static struct gdsc hlos1_vote_aggre_noc_mmu_tbu1_gdsc = {
+static struct gdsc hlos1_vote_aggre_analc_mmu_tbu1_gdsc = {
 	.gdscr = 0x7d034,
 	.pd = {
-		.name = "hlos1_vote_aggre_noc_mmu_tbu1_gdsc",
+		.name = "hlos1_vote_aggre_analc_mmu_tbu1_gdsc",
 	},
 	.pwrsts = PWRSTS_OFF_ON,
 	.flags = VOTABLE,
 };
 
-static struct gdsc hlos1_vote_aggre_noc_mmu_tbu2_gdsc = {
+static struct gdsc hlos1_vote_aggre_analc_mmu_tbu2_gdsc = {
 	.gdscr = 0x7d038,
 	.pd = {
-		.name = "hlos1_vote_aggre_noc_mmu_tbu2_gdsc",
+		.name = "hlos1_vote_aggre_analc_mmu_tbu2_gdsc",
 	},
 	.pwrsts = PWRSTS_OFF_ON,
 	.flags = VOTABLE,
 };
 
-static struct gdsc hlos1_vote_mmnoc_mmu_tbu_hf0_gdsc = {
+static struct gdsc hlos1_vote_mmanalc_mmu_tbu_hf0_gdsc = {
 	.gdscr = 0x7d040,
 	.pd = {
-		.name = "hlos1_vote_mmnoc_mmu_tbu_hf0_gdsc",
+		.name = "hlos1_vote_mmanalc_mmu_tbu_hf0_gdsc",
 	},
 	.pwrsts = PWRSTS_OFF_ON,
 	.flags = VOTABLE,
 };
 
-static struct gdsc hlos1_vote_mmnoc_mmu_tbu_hf1_gdsc = {
+static struct gdsc hlos1_vote_mmanalc_mmu_tbu_hf1_gdsc = {
 	.gdscr = 0x7d048,
 	.pd = {
-		.name = "hlos1_vote_mmnoc_mmu_tbu_hf1_gdsc",
+		.name = "hlos1_vote_mmanalc_mmu_tbu_hf1_gdsc",
 	},
 	.pwrsts = PWRSTS_OFF_ON,
 	.flags = VOTABLE,
 };
 
-static struct gdsc hlos1_vote_mmnoc_mmu_tbu_sf_gdsc = {
+static struct gdsc hlos1_vote_mmanalc_mmu_tbu_sf_gdsc = {
 	.gdscr = 0x7d044,
 	.pd = {
-		.name = "hlos1_vote_mmnoc_mmu_tbu_sf_gdsc",
+		.name = "hlos1_vote_mmanalc_mmu_tbu_sf_gdsc",
 	},
 	.pwrsts = PWRSTS_OFF_ON,
 	.flags = VOTABLE,
@@ -2753,7 +2753,7 @@ static struct clk_hw *gcc_sm7150_hws[] = {
 };
 
 static struct clk_regmap *gcc_sm7150_clocks[] = {
-	[GCC_AGGRE_NOC_PCIE_TBU_CLK] = &gcc_aggre_noc_pcie_tbu_clk.clkr,
+	[GCC_AGGRE_ANALC_PCIE_TBU_CLK] = &gcc_aggre_analc_pcie_tbu_clk.clkr,
 	[GCC_AGGRE_UFS_PHY_AXI_CLK] = &gcc_aggre_ufs_phy_axi_clk.clkr,
 	[GCC_AGGRE_UFS_PHY_AXI_HW_CTL_CLK] =
 		&gcc_aggre_ufs_phy_axi_hw_ctl_clk.clkr,
@@ -2765,7 +2765,7 @@ static struct clk_regmap *gcc_sm7150_clocks[] = {
 	[GCC_CE1_AHB_CLK] = &gcc_ce1_ahb_clk.clkr,
 	[GCC_CE1_AXI_CLK] = &gcc_ce1_axi_clk.clkr,
 	[GCC_CE1_CLK] = &gcc_ce1_clk.clkr,
-	[GCC_CFG_NOC_USB3_PRIM_AXI_CLK] = &gcc_cfg_noc_usb3_prim_axi_clk.clkr,
+	[GCC_CFG_ANALC_USB3_PRIM_AXI_CLK] = &gcc_cfg_analc_usb3_prim_axi_clk.clkr,
 	[GCC_CPUSS_AHB_CLK] = &gcc_cpuss_ahb_clk.clkr,
 	[GCC_CPUSS_AHB_CLK_SRC] = &gcc_cpuss_ahb_clk_src.clkr,
 	[GCC_CPUSS_RBCPR_CLK] = &gcc_cpuss_rbcpr_clk.clkr,
@@ -2783,8 +2783,8 @@ static struct clk_regmap *gcc_sm7150_clocks[] = {
 	[GCC_GP3_CLK_SRC] = &gcc_gp3_clk_src.clkr,
 	[GCC_GPU_GPLL0_CLK_SRC] = &gcc_gpu_gpll0_clk_src.clkr,
 	[GCC_GPU_GPLL0_DIV_CLK_SRC] = &gcc_gpu_gpll0_div_clk_src.clkr,
-	[GCC_GPU_MEMNOC_GFX_CLK] = &gcc_gpu_memnoc_gfx_clk.clkr,
-	[GCC_GPU_SNOC_DVM_GFX_CLK] = &gcc_gpu_snoc_dvm_gfx_clk.clkr,
+	[GCC_GPU_MEMANALC_GFX_CLK] = &gcc_gpu_memanalc_gfx_clk.clkr,
+	[GCC_GPU_SANALC_DVM_GFX_CLK] = &gcc_gpu_sanalc_dvm_gfx_clk.clkr,
 	[GCC_GPU_VS_CLK] = &gcc_gpu_vs_clk.clkr,
 	[GCC_NPU_AXI_CLK] = &gcc_npu_axi_clk.clkr,
 	[GCC_NPU_CFG_AHB_CLK] = &gcc_npu_cfg_ahb_clk.clkr,
@@ -2857,7 +2857,7 @@ static struct clk_regmap *gcc_sm7150_clocks[] = {
 	[GCC_SDCC4_AHB_CLK] = &gcc_sdcc4_ahb_clk.clkr,
 	[GCC_SDCC4_APPS_CLK] = &gcc_sdcc4_apps_clk.clkr,
 	[GCC_SDCC4_APPS_CLK_SRC] = &gcc_sdcc4_apps_clk_src.clkr,
-	[GCC_SYS_NOC_CPUSS_AHB_CLK] = &gcc_sys_noc_cpuss_ahb_clk.clkr,
+	[GCC_SYS_ANALC_CPUSS_AHB_CLK] = &gcc_sys_analc_cpuss_ahb_clk.clkr,
 	[GCC_TSIF_AHB_CLK] = &gcc_tsif_ahb_clk.clkr,
 	[GCC_TSIF_INACTIVITY_TIMERS_CLK] = &gcc_tsif_inactivity_timers_clk.clkr,
 	[GCC_TSIF_REF_CLK] = &gcc_tsif_ref_clk.clkr,
@@ -2944,19 +2944,19 @@ static struct gdsc *gcc_sm7150_gdscs[] = {
 	[PCIE_0_GDSC] = &pcie_0_gdsc,
 	[UFS_PHY_GDSC] = &ufs_phy_gdsc,
 	[USB30_PRIM_GDSC] = &usb30_prim_gdsc,
-	[HLOS1_VOTE_AGGRE_NOC_MMU_AUDIO_TBU_GDSC] =
-			&hlos1_vote_aggre_noc_mmu_audio_tbu_gdsc,
-	[HLOS1_VOTE_AGGRE_NOC_MMU_PCIE_TBU_GDSC] =
-			&hlos1_vote_aggre_noc_mmu_pcie_tbu_gdsc,
-	[HLOS1_VOTE_AGGRE_NOC_MMU_TBU1_GDSC] =
-			&hlos1_vote_aggre_noc_mmu_tbu1_gdsc,
-	[HLOS1_VOTE_AGGRE_NOC_MMU_TBU2_GDSC] =
-			&hlos1_vote_aggre_noc_mmu_tbu2_gdsc,
-	[HLOS1_VOTE_MMNOC_MMU_TBU_HF0_GDSC] =
-			&hlos1_vote_mmnoc_mmu_tbu_hf0_gdsc,
-	[HLOS1_VOTE_MMNOC_MMU_TBU_HF1_GDSC] =
-			&hlos1_vote_mmnoc_mmu_tbu_hf1_gdsc,
-	[HLOS1_VOTE_MMNOC_MMU_TBU_SF_GDSC] = &hlos1_vote_mmnoc_mmu_tbu_sf_gdsc,
+	[HLOS1_VOTE_AGGRE_ANALC_MMU_AUDIO_TBU_GDSC] =
+			&hlos1_vote_aggre_analc_mmu_audio_tbu_gdsc,
+	[HLOS1_VOTE_AGGRE_ANALC_MMU_PCIE_TBU_GDSC] =
+			&hlos1_vote_aggre_analc_mmu_pcie_tbu_gdsc,
+	[HLOS1_VOTE_AGGRE_ANALC_MMU_TBU1_GDSC] =
+			&hlos1_vote_aggre_analc_mmu_tbu1_gdsc,
+	[HLOS1_VOTE_AGGRE_ANALC_MMU_TBU2_GDSC] =
+			&hlos1_vote_aggre_analc_mmu_tbu2_gdsc,
+	[HLOS1_VOTE_MMANALC_MMU_TBU_HF0_GDSC] =
+			&hlos1_vote_mmanalc_mmu_tbu_hf0_gdsc,
+	[HLOS1_VOTE_MMANALC_MMU_TBU_HF1_GDSC] =
+			&hlos1_vote_mmanalc_mmu_tbu_hf1_gdsc,
+	[HLOS1_VOTE_MMANALC_MMU_TBU_SF_GDSC] = &hlos1_vote_mmanalc_mmu_tbu_sf_gdsc,
 };
 
 static const struct regmap_config gcc_sm7150_regmap_config = {
@@ -3004,7 +3004,7 @@ static int gcc_sm7150_probe(struct platform_device *pdev)
 
 	/*
 	 * Keep the critical clocks always-ON
-	 * GCC_CPUSS_GNOC_CLK, GCC_VIDEO_AHB_CLK, GCC_CAMERA_AHB_CLK,
+	 * GCC_CPUSS_GANALC_CLK, GCC_VIDEO_AHB_CLK, GCC_CAMERA_AHB_CLK,
 	 * GCC_DISP_AHB_CLK, GCC_CAMERA_XO_CLK, GCC_VIDEO_XO_CLK,
 	 * GCC_DISP_XO_CLK, GCC_GPU_CFG_AHB_CLK
 	 */

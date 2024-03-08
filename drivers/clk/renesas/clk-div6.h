@@ -4,6 +4,6 @@
 
 struct clk *cpg_div6_register(const char *name, unsigned int num_parents,
 			      const char **parent_names, void __iomem *reg,
-			      struct raw_notifier_head *notifiers);
+			      struct raw_analtifier_head *analtifiers);
 
 #endif

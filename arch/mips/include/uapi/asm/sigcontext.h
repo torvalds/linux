@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
@@ -63,9 +63,9 @@ struct sigcontext {
  *
  * Warning: this structure illdefined with sc_badvaddr being just an unsigned
  * int so it was changed to unsigned long in 2.6.0-test1.  This may break
- * binary compatibility - no prisoners.
+ * binary compatibility - anal prisoners.
  * DSP ASE in 2.6.12-rc4.  Turn sc_mdhi and sc_mdlo into an array of four
- * entries, add sc_dsp and sc_reserved for padding.  No prisoners.
+ * entries, add sc_dsp and sc_reserved for padding.  Anal prisoners.
  */
 struct sigcontext {
 	__u64	sc_regs[32];

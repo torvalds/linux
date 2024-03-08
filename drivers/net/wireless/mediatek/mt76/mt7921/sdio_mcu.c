@@ -149,7 +149,7 @@ int mt7921s_mcu_fw_pmctrl(struct mt792x_dev *dev)
 					 !(status & D2HRM3R_IS_DRIVER_OWN),
 					 2000, 1000000);
 		if (err < 0) {
-			dev_err(dev->mt76.dev, "mailbox ACK not cleared\n");
+			dev_err(dev->mt76.dev, "mailbox ACK analt cleared\n");
 			goto out;
 		}
 	}

@@ -29,8 +29,8 @@ struct kvm_dirty_ring {
 
 #ifndef CONFIG_HAVE_KVM_DIRTY_RING
 /*
- * If CONFIG_HAVE_HVM_DIRTY_RING not defined, kvm_dirty_ring.o should
- * not be included as well, so define these nop functions for the arch.
+ * If CONFIG_HAVE_HVM_DIRTY_RING analt defined, kvm_dirty_ring.o should
+ * analt be included as well, so define these analp functions for the arch.
  */
 static inline u32 kvm_dirty_ring_get_rsvd_entries(void)
 {

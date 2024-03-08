@@ -24,7 +24,7 @@ struct xe_sched_job {
 	struct kref refcount;
 	/**
 	 * @fence: dma fence to indicate completion. 1 way relationship - job
-	 * can safely reference fence, fence cannot safely reference job.
+	 * can safely reference fence, fence cananalt safely reference job.
 	 */
 #define JOB_FLAG_SUBMIT		DMA_FENCE_FLAG_USER_BITS
 	struct dma_fence *fence;

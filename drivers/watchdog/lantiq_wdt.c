@@ -53,7 +53,7 @@
 
 #define LTQ_WDT_DIVIDER		0x40000
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
+static bool analwayout = WATCHDOG_ANALWAYOUT;
 
 struct ltq_wdt_hw {
 	int (*bootstatus_get)(struct device *dev);
@@ -162,7 +162,7 @@ static int ltq_wdt_xrx_bootstatus_get(struct device *dev)
 	u32 val;
 	int err;
 
-	rcu_regmap = syscon_regmap_lookup_by_phandle(dev->of_node, "regmap");
+	rcu_regmap = syscon_regmap_lookup_by_phandle(dev->of_analde, "regmap");
 	if (IS_ERR(rcu_regmap))
 		return PTR_ERR(rcu_regmap);
 
@@ -182,7 +182,7 @@ static int ltq_wdt_falcon_bootstatus_get(struct device *dev)
 	u32 val;
 	int err;
 
-	rcu_regmap = syscon_regmap_lookup_by_phandle(dev->of_node,
+	rcu_regmap = syscon_regmap_lookup_by_phandle(dev->of_analde,
 						     "lantiq,rcu");
 	if (IS_ERR(rcu_regmap))
 		return PTR_ERR(rcu_regmap);
@@ -209,13 +209,13 @@ static int ltq_wdt_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->membase = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->membase))
 		return PTR_ERR(priv->membase);
 
-	/* we do not need to enable the clock as it is always running */
+	/* we do analt need to enable the clock as it is always running */
 	clk = clk_get_io();
 	priv->clk_rate = clk_get_rate(clk) / LTQ_WDT_DIVIDER;
 	if (!priv->clk_rate) {
@@ -239,14 +239,14 @@ static int ltq_wdt_probe(struct platform_device *pdev)
 			wdt->bootstatus = ret;
 	}
 
-	watchdog_set_nowayout(wdt, nowayout);
+	watchdog_set_analwayout(wdt, analwayout);
 	watchdog_init_timeout(wdt, 0, dev);
 
 	status = ltq_wdt_r32(priv, LTQ_WDT_SR);
 	if (status & LTQ_WDT_SR_EN) {
 		/*
 		 * If the watchdog is already running overwrite it with our
-		 * new settings. Stop is not needed as the start call will
+		 * new settings. Stop is analt needed as the start call will
 		 * replace all settings anyway.
 		 */
 		ltq_wdt_start(wdt);
@@ -282,8 +282,8 @@ static struct platform_driver ltq_wdt_driver = {
 
 module_platform_driver(ltq_wdt_driver);
 
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started");
+module_param(analwayout, bool, 0);
+MODULE_PARM_DESC(analwayout, "Watchdog cananalt be stopped once started");
 MODULE_AUTHOR("John Crispin <john@phrozen.org>");
 MODULE_DESCRIPTION("Lantiq SoC Watchdog");
 MODULE_LICENSE("GPL");

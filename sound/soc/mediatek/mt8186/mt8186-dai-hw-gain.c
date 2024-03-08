@@ -70,16 +70,16 @@ static int mtk_hw_gain_event(struct snd_soc_dapm_widget *w,
 
 static const struct snd_soc_dapm_widget mtk_dai_hw_gain_widgets[] = {
 	/* inter-connections */
-	SND_SOC_DAPM_MIXER("HW_GAIN1_IN_CH1", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("HW_GAIN1_IN_CH1", SND_SOC_ANALPM, 0, 0,
 			   mtk_hw_gain1_in_ch1_mix,
 			   ARRAY_SIZE(mtk_hw_gain1_in_ch1_mix)),
-	SND_SOC_DAPM_MIXER("HW_GAIN1_IN_CH2", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("HW_GAIN1_IN_CH2", SND_SOC_ANALPM, 0, 0,
 			   mtk_hw_gain1_in_ch2_mix,
 			   ARRAY_SIZE(mtk_hw_gain1_in_ch2_mix)),
-	SND_SOC_DAPM_MIXER("HW_GAIN2_IN_CH1", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("HW_GAIN2_IN_CH1", SND_SOC_ANALPM, 0, 0,
 			   mtk_hw_gain2_in_ch1_mix,
 			   ARRAY_SIZE(mtk_hw_gain2_in_ch1_mix)),
-	SND_SOC_DAPM_MIXER("HW_GAIN2_IN_CH2", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("HW_GAIN2_IN_CH2", SND_SOC_ANALPM, 0, 0,
 			   mtk_hw_gain2_in_ch2_mix,
 			   ARRAY_SIZE(mtk_hw_gain2_in_ch2_mix)),
 
@@ -219,7 +219,7 @@ int mt8186_dai_hw_gain_register(struct mtk_base_afe *afe)
 
 	dai = devm_kzalloc(afe->dev, sizeof(*dai), GFP_KERNEL);
 	if (!dai)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	list_add(&dai->list, &afe->sub_dais);
 

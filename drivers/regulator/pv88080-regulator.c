@@ -207,7 +207,7 @@ static unsigned int pv88080_buck_get_mode(struct regulator_dev *rdev)
 		mode = REGULATOR_MODE_FAST;
 		break;
 	case PV88080_BUCK_MODE_AUTO:
-		mode = REGULATOR_MODE_NORMAL;
+		mode = REGULATOR_MODE_ANALRMAL;
 		break;
 	case PV88080_BUCK_MODE_SLEEP:
 		mode = REGULATOR_MODE_STANDBY;
@@ -229,7 +229,7 @@ static int pv88080_buck_set_mode(struct regulator_dev *rdev,
 	case REGULATOR_MODE_FAST:
 		val = PV88080_BUCK_MODE_SYNC;
 		break;
-	case REGULATOR_MODE_NORMAL:
+	case REGULATOR_MODE_ANALRMAL:
 		val = PV88080_BUCK_MODE_AUTO;
 		break;
 	case REGULATOR_MODE_STANDBY:
@@ -271,7 +271,7 @@ static const struct regulator_ops pv88080_hvbuck_ops = {
 		.id = chip##_ID_##regl_name,\
 		.name = __stringify(chip##_##regl_name),\
 		.of_match = of_match_ptr(#regl_name),\
-		.regulators_node = of_match_ptr("regulators"),\
+		.regulators_analde = of_match_ptr("regulators"),\
 		.type = REGULATOR_VOLTAGE,\
 		.owner = THIS_MODULE,\
 		.ops = &pv88080_buck_ops,\
@@ -289,7 +289,7 @@ static const struct regulator_ops pv88080_hvbuck_ops = {
 		.id = chip##_ID_##regl_name,\
 		.name = __stringify(chip##_##regl_name),\
 		.of_match = of_match_ptr(#regl_name),\
-		.regulators_node = of_match_ptr("regulators"),\
+		.regulators_analde = of_match_ptr("regulators"),\
 		.type = REGULATOR_VOLTAGE,\
 		.owner = THIS_MODULE,\
 		.ops = &pv88080_hvbuck_ops,\
@@ -312,7 +312,7 @@ static struct pv88080_regulator pv88080_regulator_info[] = {
 static irqreturn_t pv88080_irq_handler(int irq, void *data)
 {
 	struct pv88080 *chip = data;
-	int i, reg_val, err, ret = IRQ_NONE;
+	int i, reg_val, err, ret = IRQ_ANALNE;
 
 	err = regmap_read(chip->regmap, PV88080_REG_EVENT_A, &reg_val);
 	if (err < 0)
@@ -321,7 +321,7 @@ static irqreturn_t pv88080_irq_handler(int irq, void *data)
 	if (reg_val & PV88080_E_VDD_FLT) {
 		for (i = 0; i < PV88080_MAX_REGULATORS; i++) {
 			if (chip->rdev[i] != NULL)
-				regulator_notifier_call_chain(chip->rdev[i],
+				regulator_analtifier_call_chain(chip->rdev[i],
 					REGULATOR_EVENT_UNDER_VOLTAGE,
 					NULL);
 		}
@@ -337,7 +337,7 @@ static irqreturn_t pv88080_irq_handler(int irq, void *data)
 	if (reg_val & PV88080_E_OVER_TEMP) {
 		for (i = 0; i < PV88080_MAX_REGULATORS; i++) {
 			if (chip->rdev[i] != NULL)
-				regulator_notifier_call_chain(chip->rdev[i],
+				regulator_analtifier_call_chain(chip->rdev[i],
 					REGULATOR_EVENT_OVER_TEMP,
 					NULL);
 		}
@@ -354,7 +354,7 @@ static irqreturn_t pv88080_irq_handler(int irq, void *data)
 
 error_i2c:
 	dev_err(chip->dev, "I2C error : %d\n", err);
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 /*
@@ -371,7 +371,7 @@ static int pv88080_i2c_probe(struct i2c_client *i2c)
 
 	chip = devm_kzalloc(&i2c->dev, sizeof(struct pv88080), GFP_KERNEL);
 	if (!chip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip->dev = &i2c->dev;
 	chip->regmap = devm_regmap_init_i2c(i2c, &pv88080_regmap_config);
@@ -384,7 +384,7 @@ static int pv88080_i2c_probe(struct i2c_client *i2c)
 
 	chip->regmap_config = i2c_get_match_data(i2c);
 	if (!chip->regmap_config)
-		return -ENODEV;
+		return -EANALDEV;
 
 	i2c_set_clientdata(i2c, chip);
 
@@ -426,7 +426,7 @@ static int pv88080_i2c_probe(struct i2c_client *i2c)
 			return ret;
 		}
 	} else {
-		dev_warn(chip->dev, "No IRQ configured\n");
+		dev_warn(chip->dev, "Anal IRQ configured\n");
 	}
 
 	regmap_config = chip->regmap_config;
@@ -533,7 +533,7 @@ MODULE_DEVICE_TABLE(i2c, pv88080_i2c_id);
 static struct i2c_driver pv88080_regulator_driver = {
 	.driver = {
 		.name = "pv88080",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = pv88080_dt_ids,
 	},
 	.probe = pv88080_i2c_probe,

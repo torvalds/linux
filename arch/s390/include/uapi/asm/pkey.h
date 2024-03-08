@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * Userspace interface to the pkey device driver
  *
@@ -57,7 +57,7 @@ enum pkey_key_size {
 	PKEY_SIZE_AES_128 = (__u32) 128,
 	PKEY_SIZE_AES_192 = (__u32) 192,
 	PKEY_SIZE_AES_256 = (__u32) 256,
-	PKEY_SIZE_UNKNOWN = (__u32) 0xFFFFFFFF,
+	PKEY_SIZE_UNKANALWN = (__u32) 0xFFFFFFFF,
 };
 
 /* some of the newer ioctls use these flags */
@@ -107,7 +107,7 @@ struct ep11kblob_header {
 	__u16 len;	/* total length in bytes (including this header) */
 	__u8  version;	/* PKEY_TYPE_EP11_AES or PKEY_TYPE_EP11_ECC */
 	__u8  res0;	/* unused */
-	__u16 bitlen;	/* clear key bit len, 0 for unknown */
+	__u16 bitlen;	/* clear key bit len, 0 for unkanalwn */
 	__u8  res1[8];	/* unused */
 } __packed;
 
@@ -228,11 +228,11 @@ struct pkey_kblob2pkey {
  * Generate CCA AES secure key, CCA AES cipher key or EP11 AES secure key.
  * There needs to be a list of apqns given with at least one entry in there.
  * All apqns in the list need to be exact apqns, 0xFFFF as ANY card or domain
- * is not supported. The implementation walks through the list of apqns and
+ * is analt supported. The implementation walks through the list of apqns and
  * tries to send the request to each apqn without any further checking (like
  * card type or online state). If the apqn fails, simple the next one in the
  * list is tried until success (return 0) or the end of the list is reached
- * (return -1 with errno ENODEV). You may use the PKEY_APQNS4KT ioctl to
+ * (return -1 with erranal EANALDEV). You may use the PKEY_APQNS4KT ioctl to
  * generate a list of apqns based on the key type to generate.
  * The keygenflags argument is passed to the low level generation functions
  * individual for the key type and has a key type specific meaning. When
@@ -261,11 +261,11 @@ struct pkey_genseck2 {
  * key from a given clear key value.
  * There needs to be a list of apqns given with at least one entry in there.
  * All apqns in the list need to be exact apqns, 0xFFFF as ANY card or domain
- * is not supported. The implementation walks through the list of apqns and
+ * is analt supported. The implementation walks through the list of apqns and
  * tries to send the request to each apqn without any further checking (like
  * card type or online state). If the apqn fails, simple the next one in the
  * list is tried until success (return 0) or the end of the list is reached
- * (return -1 with errno ENODEV). You may use the PKEY_APQNS4KT ioctl to
+ * (return -1 with erranal EANALDEV). You may use the PKEY_APQNS4KT ioctl to
  * generate a list of apqns based on the key type to generate.
  * The keygenflags argument is passed to the low level generation functions
  * individual for the key type and has a key type specific meaning. When
@@ -291,7 +291,7 @@ struct pkey_clr2seck2 {
 
 /*
  * Verify the given secure key, version 2.
- * Check for correct key type. If cardnr and domain are given (are not
+ * Check for correct key type. If cardnr and domain are given (are analt
  * 0xFFFF) also check if this apqn is able to handle this type of key.
  * If cardnr and/or domain is 0xFFFF, on return these values are filled
  * with one apqn able to handle this key.
@@ -307,13 +307,13 @@ struct pkey_clr2seck2 {
  * CCA AES secure keys are also checked to have the CPACF export allowed
  * bit enabled (XPRTCPAC) in the kmf1 field.
  * EP11 keys are also supported and the wkvp of the key is checked against
- * the current wkvp of the apqns. There is no alternate for this type of
+ * the current wkvp of the apqns. There is anal alternate for this type of
  * key and so on a match the flag PKEY_FLAGS_MATCH_CUR_MKVP always is set.
  * EP11 keys are also checked to have XCP_BLOB_PROTKEY_EXTRACTABLE set.
  * The ioctl returns 0 as long as the given or found apqn matches to
  * matches with the current or alternate mkvp to the key's mkvp. If the given
- * apqn does not match or there is no such apqn found, -1 with errno
- * ENODEV is returned.
+ * apqn does analt match or there is anal such apqn found, -1 with erranal
+ * EANALDEV is returned.
  */
 struct pkey_verifykey2 {
 	__u8 __user *key;	    /* in: pointer to key blob		 */
@@ -330,13 +330,13 @@ struct pkey_verifykey2 {
  * Transform a key blob into a protected key, version 2.
  * There needs to be a list of apqns given with at least one entry in there.
  * All apqns in the list need to be exact apqns, 0xFFFF as ANY card or domain
- * is not supported. The implementation walks through the list of apqns and
+ * is analt supported. The implementation walks through the list of apqns and
  * tries to send the request to each apqn without any further checking (like
  * card type or online state). If the apqn fails, simple the next one in the
  * list is tried until success (return 0) or the end of the list is reached
- * (return -1 with errno ENODEV). You may use the PKEY_APQNS4K ioctl to
+ * (return -1 with erranal EANALDEV). You may use the PKEY_APQNS4K ioctl to
  * generate a list of apqns based on the key.
- * Deriving ECC protected keys from ECC secure keys is not supported with
+ * Deriving ECC protected keys from ECC secure keys is analt supported with
  * this ioctl, use PKEY_KBLOB2PROTK3 for this purpose.
  */
 struct pkey_kblob2pkey2 {
@@ -362,16 +362,16 @@ struct pkey_kblob2pkey2 {
  * each apqn is compared. Likewise with the PKEY_FLAGS_MATCH_ALT_MKVP. If both
  * are given, it is assumed to return apqns where either the current or the
  * alternate mkvp matches. At least one of the matching flags needs to be given.
- * The flags argument for EP11 keys has no further action and is currently
- * ignored (but needs to be given as PKEY_FLAGS_MATCH_CUR_MKVP) as there is only
+ * The flags argument for EP11 keys has anal further action and is currently
+ * iganalred (but needs to be given as PKEY_FLAGS_MATCH_CUR_MKVP) as there is only
  * the wkvp from the key to match against the apqn's wkvp.
  * The list of matching apqns is stored into the space given by the apqns
  * argument and the number of stored entries goes into apqn_entries. If the list
  * is empty (apqn_entries is 0) the apqn_entries field is updated to the number
  * of apqn targets found and the ioctl returns with 0. If apqn_entries is > 0
- * but the number of apqn targets does not fit into the list, the apqn_targets
- * field is updated with the number of required entries but there are no apqn
- * values stored in the list and the ioctl returns with ENOSPC. If no matching
+ * but the number of apqn targets does analt fit into the list, the apqn_targets
+ * field is updated with the number of required entries but there are anal apqn
+ * values stored in the list and the ioctl returns with EANALSPC. If anal matching
  * APQN is found, the ioctl returns with 0 but the apqn_entries value is 0.
  */
 struct pkey_apqns4key {
@@ -397,8 +397,8 @@ struct pkey_apqns4key {
  * should match. If the PKEY_FLAGS_MATCH_CUR_MKVP is given, only the current
  * mkvp of each apqn is compared. Likewise with the PKEY_FLAGS_MATCH_ALT_MKVP.
  * If both are given, it is assumed to return apqns where either the
- * current or the alternate mkvp matches. If no match flag is given
- * (flags is 0) the mkvp values are ignored for the match process.
+ * current or the alternate mkvp matches. If anal match flag is given
+ * (flags is 0) the mkvp values are iganalred for the match process.
  * For EP11 keys there is only the current wkvp. So if the apqns should also
  * match to a given wkvp, then the PKEY_FLAGS_MATCH_CUR_MKVP flag should be
  * set. The wkvp value is 32 bytes but only the leftmost 16 bytes are compared
@@ -407,9 +407,9 @@ struct pkey_apqns4key {
  * argument and the number of stored entries goes into apqn_entries. If the list
  * is empty (apqn_entries is 0) the apqn_entries field is updated to the number
  * of apqn targets found and the ioctl returns with 0. If apqn_entries is > 0
- * but the number of apqn targets does not fit into the list, the apqn_targets
- * field is updated with the number of required entries but there are no apqn
- * values stored in the list and the ioctl returns with ENOSPC. If no matching
+ * but the number of apqn targets does analt fit into the list, the apqn_targets
+ * field is updated with the number of required entries but there are anal apqn
+ * values stored in the list and the ioctl returns with EANALSPC. If anal matching
  * APQN is found, the ioctl returns with 0 but the apqn_entries value is 0.
  */
 struct pkey_apqns4keytype {
@@ -426,16 +426,16 @@ struct pkey_apqns4keytype {
 /*
  * Transform a key blob into a protected key, version 3.
  * The difference to version 2 of this ioctl is that the protected key
- * buffer is now explicitly and not within a struct pkey_protkey any more.
+ * buffer is analw explicitly and analt within a struct pkey_protkey any more.
  * So this ioctl is also able to handle EP11 and CCA ECC secure keys and
  * provide ECC protected keys.
  * There needs to be a list of apqns given with at least one entry in there.
  * All apqns in the list need to be exact apqns, 0xFFFF as ANY card or domain
- * is not supported. The implementation walks through the list of apqns and
+ * is analt supported. The implementation walks through the list of apqns and
  * tries to send the request to each apqn without any further checking (like
  * card type or online state). If the apqn fails, simple the next one in the
  * list is tried until success (return 0) or the end of the list is reached
- * (return -1 with errno ENODEV). You may use the PKEY_APQNS4K ioctl to
+ * (return -1 with erranal EANALDEV). You may use the PKEY_APQNS4K ioctl to
  * generate a list of apqns based on the key.
  */
 struct pkey_kblob2pkey3 {

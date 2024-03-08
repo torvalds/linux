@@ -29,7 +29,7 @@
 #include <linux/serial.h>
 #include <uapi/linux/serial_reg.h>
 #include <linux/eventfd.h>
-#include <linux/anon_inodes.h>
+#include <linux/aanaln_ianaldes.h>
 
 /*
  * #defines
@@ -128,11 +128,11 @@ struct serial_port {
 
 struct mtty_data {
 	u64 magic;
-#define MTTY_MAGIC 0x7e9d09898c3e2c4e /* Nothing clever, just random */
+#define MTTY_MAGIC 0x7e9d09898c3e2c4e /* Analthing clever, just random */
 	u32 major_ver;
 #define MTTY_MAJOR_VER 1
-	u32 minor_ver;
-#define MTTY_MINOR_VER 0
+	u32 mianalr_ver;
+#define MTTY_MIANALR_VER 0
 	u32 nr_ports;
 	u32 flags;
 	struct serial_port ports[2];
@@ -223,7 +223,7 @@ static bool is_msi(struct mdev_state *mdev_state)
 	return mdev_state->irq_index == VFIO_PCI_MSI_IRQ_INDEX;
 }
 
-static bool is_noirq(struct mdev_state *mdev_state)
+static bool is_analirq(struct mdev_state *mdev_state)
 {
 	return !is_intx(mdev_state) && !is_msi(mdev_state);
 }
@@ -315,7 +315,7 @@ static void handle_pci_cfg_write(struct mdev_state *mdev_state, u16 offset,
 	switch (offset) {
 	case 0x04: /* device control */
 	case 0x06: /* device status */
-		/* do nothing */
+		/* do analthing */
 		break;
 	case 0x3c:  /* interrupt line */
 		mdev_state->vconfig[0x3c] = buf[0];
@@ -355,7 +355,7 @@ static void handle_pci_cfg_write(struct mdev_state *mdev_state, u16 offset,
 		STORE_LE32(&mdev_state->vconfig[offset], 0);
 		break;
 	default:
-		pr_info("PCI config write @0x%x of %d bytes not handled\n",
+		pr_info("PCI config write @0x%x of %d bytes analt handled\n",
 			offset, count);
 		break;
 	}
@@ -517,7 +517,7 @@ static void handle_bar_write(unsigned int index, struct mdev_state *mdev_state,
 
 	case UART_LSR:
 	case UART_MSR:
-		/* do nothing */
+		/* do analthing */
 		break;
 
 	case UART_SCR:
@@ -604,9 +604,9 @@ static void handle_bar_read(unsigned int index, struct mdev_state *mdev_state,
 				 (UART_MCR_RTS | UART_MCR_DTR)))
 			*buf |= UART_IIR_MSI;
 
-		/* bit0: 0=> interrupt pending, 1=> no interrupt is pending */
+		/* bit0: 0=> interrupt pending, 1=> anal interrupt is pending */
 		if (*buf == 0)
-			*buf = UART_IIR_NO_INT;
+			*buf = UART_IIR_ANAL_INT;
 
 		/* set bit 6 & 7 to be 16550 compatible */
 		*buf |= 0xC0;
@@ -694,7 +694,7 @@ static void mdev_read_base(struct mdev_state *mdev_state)
 		case PCI_BASE_ADDRESS_MEM_TYPE_1M:
 			/* 1M mem BAR treated as 32-bit BAR */
 		default:
-			/* mem unknown type treated as 32-bit BAR */
+			/* mem unkanalwn type treated as 32-bit BAR */
 			start_hi = 0;
 			break;
 		}
@@ -819,7 +819,7 @@ again:
 	mutex_unlock(&mdev_state->reset_mutex);
 }
 
-static int mtty_release_migf(struct inode *inode, struct file *filp)
+static int mtty_release_migf(struct ianalde *ianalde, struct file *filp)
 {
 	struct mtty_migration_file *migf = filp->private_data;
 
@@ -841,7 +841,7 @@ static long mtty_precopy_ioctl(struct file *filp, unsigned int cmd,
 	int ret;
 
 	if (cmd != VFIO_MIG_GET_PRECOPY_INFO)
-		return -ENOTTY;
+		return -EANALTTY;
 
 	minsz = offsetofend(struct vfio_precopy_info, dirty_bytes);
 
@@ -861,7 +861,7 @@ static long mtty_precopy_ioctl(struct file *filp, unsigned int cmd,
 
 	if (migf->disabled) {
 		mutex_unlock(&migf->lock);
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto unlock;
 	}
 
@@ -897,7 +897,7 @@ static ssize_t mtty_save_read(struct file *filp, char __user *buf,
 	dev_dbg(migf->mdev_state->vdev.dev, "%s ask %zu\n", __func__, len);
 
 	if (migf->disabled) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out_unlock;
 	}
 
@@ -927,7 +927,7 @@ static const struct file_operations mtty_save_fops = {
 	.unlocked_ioctl = mtty_precopy_ioctl,
 	.compat_ioctl = compat_ptr_ioctl,
 	.release = mtty_release_migf,
-	.llseek = no_llseek,
+	.llseek = anal_llseek,
 };
 
 static void mtty_save_state(struct mdev_state *mdev_state)
@@ -984,9 +984,9 @@ mtty_save_device_data(struct mdev_state *mdev_state,
 
 	migf = kzalloc(sizeof(*migf), GFP_KERNEL_ACCOUNT);
 	if (!migf)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
-	migf->filp = anon_inode_getfile("mtty_mig", &mtty_save_fops,
+	migf->filp = aanaln_ianalde_getfile("mtty_mig", &mtty_save_fops,
 					migf, O_RDONLY);
 	if (IS_ERR(migf->filp)) {
 		int rc = PTR_ERR(migf->filp);
@@ -995,13 +995,13 @@ mtty_save_device_data(struct mdev_state *mdev_state,
 		return ERR_PTR(rc);
 	}
 
-	stream_open(migf->filp->f_inode, migf->filp);
+	stream_open(migf->filp->f_ianalde, migf->filp);
 	mutex_init(&migf->lock);
 	migf->mdev_state = mdev_state;
 
 	migf->data.magic = MTTY_MAGIC;
 	migf->data.major_ver = MTTY_MAJOR_VER;
-	migf->data.minor_ver = MTTY_MINOR_VER;
+	migf->data.mianalr_ver = MTTY_MIANALR_VER;
 	migf->data.nr_ports = mdev_state->nr_ports;
 
 	migf->filled_size = offsetof(struct mtty_data, ports);
@@ -1036,12 +1036,12 @@ static ssize_t mtty_resume_write(struct file *filp, const char __user *buf,
 		return -EINVAL;
 
 	if (requested_length > mtty_data_size(mdev_state))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_lock(&migf->lock);
 
 	if (migf->disabled) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out_unlock;
 	}
 
@@ -1060,7 +1060,7 @@ static ssize_t mtty_resume_write(struct file *filp, const char __user *buf,
 	    migf->filled_size + len >= offsetof(struct mtty_data, ports)) {
 		if (migf->data.magic != MTTY_MAGIC || migf->data.flags ||
 		    migf->data.major_ver != MTTY_MAJOR_VER ||
-		    migf->data.minor_ver != MTTY_MINOR_VER ||
+		    migf->data.mianalr_ver != MTTY_MIANALR_VER ||
 		    migf->data.nr_ports != mdev_state->nr_ports) {
 			dev_dbg(migf->mdev_state->vdev.dev,
 				"%s failed validation\n", __func__);
@@ -1082,7 +1082,7 @@ static const struct file_operations mtty_resume_fops = {
 	.owner = THIS_MODULE,
 	.write = mtty_resume_write,
 	.release = mtty_release_migf,
-	.llseek = no_llseek,
+	.llseek = anal_llseek,
 };
 
 static struct mtty_migration_file *
@@ -1093,9 +1093,9 @@ mtty_resume_device_data(struct mdev_state *mdev_state)
 
 	migf = kzalloc(sizeof(*migf), GFP_KERNEL_ACCOUNT);
 	if (!migf)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
-	migf->filp = anon_inode_getfile("mtty_mig", &mtty_resume_fops,
+	migf->filp = aanaln_ianalde_getfile("mtty_mig", &mtty_resume_fops,
 					migf, O_WRONLY);
 	if (IS_ERR(migf->filp)) {
 		ret = PTR_ERR(migf->filp);
@@ -1103,7 +1103,7 @@ mtty_resume_device_data(struct mdev_state *mdev_state)
 		return ERR_PTR(ret);
 	}
 
-	stream_open(migf->filp->f_inode, migf->filp);
+	stream_open(migf->filp->f_ianalde, migf->filp);
 	mutex_init(&migf->lock);
 	migf->mdev_state = mdev_state;
 
@@ -1120,8 +1120,8 @@ static struct file *mtty_step_state(struct mdev_state *mdev_state,
 	dev_dbg(mdev_state->vdev.dev, "%s: %d -> %d\n", __func__, cur, new);
 
 	/*
-	 * The following state transitions are no-op considering
-	 * mtty does not do DMA nor require any explicit start/stop.
+	 * The following state transitions are anal-op considering
+	 * mtty does analt do DMA analr require any explicit start/stop.
 	 *
 	 *         RUNNING -> RUNNING_P2P
 	 *         RUNNING_P2P -> RUNNING
@@ -1218,7 +1218,7 @@ static struct file *mtty_step_state(struct mdev_state *mdev_state,
 		return migf->filp;
 	}
 
-	/* vfio_mig_get_next_state() does not use arcs other than the above */
+	/* vfio_mig_get_next_state() does analt use arcs other than the above */
 	WARN_ON(true);
 	return ERR_PTR(-EINVAL);
 }
@@ -1288,7 +1288,7 @@ static const struct vfio_migration_ops mtty_migration_ops = {
 
 static int mtty_log_start(struct vfio_device *vdev,
 			  struct rb_root_cached *ranges,
-			  u32 nnodes, u64 *page_size)
+			  u32 nanaldes, u64 *page_size)
 {
 	return 0;
 }
@@ -1323,7 +1323,7 @@ static int mtty_init_dev(struct vfio_device *vdev)
 
 	do {
 		if (avail_ports < type->nr_ports)
-			return -ENOSPC;
+			return -EANALSPC;
 	} while (!atomic_try_cmpxchg(&mdev_avail_ports,
 				     &avail_ports,
 				     avail_ports - type->nr_ports));
@@ -1336,7 +1336,7 @@ static int mtty_init_dev(struct vfio_device *vdev)
 
 	mdev_state->vconfig = kzalloc(MTTY_CONFIG_SPACE_SIZE, GFP_KERNEL);
 	if (!mdev_state->vconfig) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_nr_ports;
 	}
 
@@ -1571,7 +1571,7 @@ static int mtty_set_irqs(struct mdev_state *mdev_state, uint32_t flags,
 				break;
 			}
 
-			if (flags & VFIO_IRQ_SET_DATA_NONE) {
+			if (flags & VFIO_IRQ_SET_DATA_ANALNE) {
 				mdev_state->intx_mask = true;
 			} else if (flags & VFIO_IRQ_SET_DATA_BOOL) {
 				uint8_t mask = *(uint8_t *)data;
@@ -1579,7 +1579,7 @@ static int mtty_set_irqs(struct mdev_state *mdev_state, uint32_t flags,
 				if (mask)
 					mdev_state->intx_mask = true;
 			} else if (flags &  VFIO_IRQ_SET_DATA_EVENTFD) {
-				ret = -ENOTTY; /* No support for mask fd */
+				ret = -EANALTTY; /* Anal support for mask fd */
 			}
 			break;
 		case VFIO_IRQ_SET_ACTION_UNMASK:
@@ -1588,7 +1588,7 @@ static int mtty_set_irqs(struct mdev_state *mdev_state, uint32_t flags,
 				break;
 			}
 
-			if (flags & VFIO_IRQ_SET_DATA_NONE) {
+			if (flags & VFIO_IRQ_SET_DATA_ANALNE) {
 				mdev_state->intx_mask = false;
 			} else if (flags & VFIO_IRQ_SET_DATA_BOOL) {
 				uint8_t mask = *(uint8_t *)data;
@@ -1596,17 +1596,17 @@ static int mtty_set_irqs(struct mdev_state *mdev_state, uint32_t flags,
 				if (mask)
 					mdev_state->intx_mask = false;
 			} else if (flags &  VFIO_IRQ_SET_DATA_EVENTFD) {
-				ret = -ENOTTY; /* No support for unmask fd */
+				ret = -EANALTTY; /* Anal support for unmask fd */
 			}
 			break;
 		case VFIO_IRQ_SET_ACTION_TRIGGER:
 			if (is_intx(mdev_state) && !count &&
-			    (flags & VFIO_IRQ_SET_DATA_NONE)) {
+			    (flags & VFIO_IRQ_SET_DATA_ANALNE)) {
 				mtty_disable_intx(mdev_state);
 				break;
 			}
 
-			if (!(is_intx(mdev_state) || is_noirq(mdev_state)) ||
+			if (!(is_intx(mdev_state) || is_analirq(mdev_state)) ||
 			    start != 0 || count != 1) {
 				ret = -EINVAL;
 				break;
@@ -1636,7 +1636,7 @@ static int mtty_set_irqs(struct mdev_state *mdev_state, uint32_t flags,
 				break;
 			}
 
-			if (flags & VFIO_IRQ_SET_DATA_NONE) {
+			if (flags & VFIO_IRQ_SET_DATA_ANALNE) {
 				mtty_trigger_interrupt(mdev_state);
 			} else if (flags & VFIO_IRQ_SET_DATA_BOOL) {
 				uint8_t trigger = *(uint8_t *)data;
@@ -1651,16 +1651,16 @@ static int mtty_set_irqs(struct mdev_state *mdev_state, uint32_t flags,
 		switch (flags & VFIO_IRQ_SET_ACTION_TYPE_MASK) {
 		case VFIO_IRQ_SET_ACTION_MASK:
 		case VFIO_IRQ_SET_ACTION_UNMASK:
-			ret = -ENOTTY;
+			ret = -EANALTTY;
 			break;
 		case VFIO_IRQ_SET_ACTION_TRIGGER:
 			if (is_msi(mdev_state) && !count &&
-			    (flags & VFIO_IRQ_SET_DATA_NONE)) {
+			    (flags & VFIO_IRQ_SET_DATA_ANALNE)) {
 				mtty_disable_msi(mdev_state);
 				break;
 			}
 
-			if (!(is_msi(mdev_state) || is_noirq(mdev_state)) ||
+			if (!(is_msi(mdev_state) || is_analirq(mdev_state)) ||
 			    start != 0 || count != 1) {
 				ret = -EINVAL;
 				break;
@@ -1690,7 +1690,7 @@ static int mtty_set_irqs(struct mdev_state *mdev_state, uint32_t flags,
 				break;
 			}
 
-			if (flags & VFIO_IRQ_SET_DATA_NONE) {
+			if (flags & VFIO_IRQ_SET_DATA_ANALNE) {
 				mtty_trigger_interrupt(mdev_state);
 			} else if (flags & VFIO_IRQ_SET_DATA_BOOL) {
 				uint8_t trigger = *(uint8_t *)data;
@@ -1703,15 +1703,15 @@ static int mtty_set_irqs(struct mdev_state *mdev_state, uint32_t flags,
 		break;
 	case VFIO_PCI_MSIX_IRQ_INDEX:
 		dev_dbg(mdev_state->vdev.dev, "%s: MSIX_IRQ\n", __func__);
-		ret = -ENOTTY;
+		ret = -EANALTTY;
 		break;
 	case VFIO_PCI_ERR_IRQ_INDEX:
 		dev_dbg(mdev_state->vdev.dev, "%s: ERR_IRQ\n", __func__);
-		ret = -ENOTTY;
+		ret = -EANALTTY;
 		break;
 	case VFIO_PCI_REQ_IRQ_INDEX:
 		dev_dbg(mdev_state->vdev.dev, "%s: REQ_IRQ\n", __func__);
-		ret = -ENOTTY;
+		ret = -EANALTTY;
 		break;
 	}
 
@@ -1773,7 +1773,7 @@ static int mtty_get_irq_info(struct vfio_irq_info *irq_info)
 		irq_info->flags |= VFIO_IRQ_INFO_MASKABLE |
 				   VFIO_IRQ_INFO_AUTOMASKED;
 	else
-		irq_info->flags |= VFIO_IRQ_INFO_NORESIZE;
+		irq_info->flags |= VFIO_IRQ_INFO_ANALRESIZE;
 
 	return 0;
 }
@@ -1900,7 +1900,7 @@ static long mtty_ioctl(struct vfio_device *vdev, unsigned int cmd,
 	case VFIO_DEVICE_RESET:
 		return mtty_reset(mdev_state);
 	}
-	return -ENOTTY;
+	return -EANALTTY;
 }
 
 static ssize_t
@@ -1986,7 +1986,7 @@ static int __init mtty_dev_init(void)
 
 	idr_init(&mtty_dev.vd_idr);
 
-	ret = alloc_chrdev_region(&mtty_dev.vd_devt, 0, MINORMASK + 1,
+	ret = alloc_chrdev_region(&mtty_dev.vd_devt, 0, MIANALRMASK + 1,
 				  MTTY_NAME);
 
 	if (ret < 0) {
@@ -1995,7 +1995,7 @@ static int __init mtty_dev_init(void)
 	}
 
 	cdev_init(&mtty_dev.vd_cdev, &vd_fops);
-	cdev_add(&mtty_dev.vd_cdev, mtty_dev.vd_devt, MINORMASK + 1);
+	cdev_add(&mtty_dev.vd_cdev, mtty_dev.vd_devt, MIANALRMASK + 1);
 
 	pr_info("major_number:%d\n", MAJOR(mtty_dev.vd_devt));
 
@@ -2035,7 +2035,7 @@ err_driver:
 	mdev_unregister_driver(&mtty_driver);
 err_cdev:
 	cdev_del(&mtty_dev.vd_cdev);
-	unregister_chrdev_region(mtty_dev.vd_devt, MINORMASK + 1);
+	unregister_chrdev_region(mtty_dev.vd_devt, MIANALRMASK + 1);
 	return ret;
 }
 
@@ -2048,7 +2048,7 @@ static void __exit mtty_dev_exit(void)
 	idr_destroy(&mtty_dev.vd_idr);
 	mdev_unregister_driver(&mtty_driver);
 	cdev_del(&mtty_dev.vd_cdev);
-	unregister_chrdev_region(mtty_dev.vd_devt, MINORMASK + 1);
+	unregister_chrdev_region(mtty_dev.vd_devt, MIANALRMASK + 1);
 	class_destroy(mtty_dev.vd_class);
 	mtty_dev.vd_class = NULL;
 	pr_info("mtty_dev: Unloaded!\n");

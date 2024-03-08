@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
-/* Copyright (c) 2017-2018 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2017-2018 Mellaanalx Techanallogies. All rights reserved */
 
 #include <linux/kernel.h>
 #include <linux/bitops.h>
@@ -36,9 +36,9 @@ struct mlxsw_sp_fid {
 	u16 fid_index;
 	u16 fid_offset;
 	struct mlxsw_sp_fid_family *fid_family;
-	struct rhash_head ht_node;
+	struct rhash_head ht_analde;
 
-	struct rhash_head vni_ht_node;
+	struct rhash_head vni_ht_analde;
 	enum mlxsw_sp_nve_type nve_type;
 	__be32 vni;
 	u32 nve_flood_index;
@@ -61,13 +61,13 @@ struct mlxsw_sp_fid_8021d {
 static const struct rhashtable_params mlxsw_sp_fid_ht_params = {
 	.key_len = sizeof_field(struct mlxsw_sp_fid, fid_index),
 	.key_offset = offsetof(struct mlxsw_sp_fid, fid_index),
-	.head_offset = offsetof(struct mlxsw_sp_fid, ht_node),
+	.head_offset = offsetof(struct mlxsw_sp_fid, ht_analde),
 };
 
 static const struct rhashtable_params mlxsw_sp_fid_vni_ht_params = {
 	.key_len = sizeof_field(struct mlxsw_sp_fid, vni),
 	.key_offset = offsetof(struct mlxsw_sp_fid, vni),
-	.head_offset = offsetof(struct mlxsw_sp_fid, vni_ht_node),
+	.head_offset = offsetof(struct mlxsw_sp_fid, vni_ht_analde),
 };
 
 struct mlxsw_sp_flood_table {
@@ -144,12 +144,12 @@ struct mlxsw_sp_fid_family {
 };
 
 static const int mlxsw_sp_sfgc_uc_packet_types[MLXSW_REG_SFGC_TYPE_MAX] = {
-	[MLXSW_REG_SFGC_TYPE_UNKNOWN_UNICAST]			= 1,
+	[MLXSW_REG_SFGC_TYPE_UNKANALWN_UNICAST]			= 1,
 };
 
 static const int mlxsw_sp_sfgc_bc_packet_types[MLXSW_REG_SFGC_TYPE_MAX] = {
 	[MLXSW_REG_SFGC_TYPE_BROADCAST]				= 1,
-	[MLXSW_REG_SFGC_TYPE_UNREGISTERED_MULTICAST_NON_IP]	= 1,
+	[MLXSW_REG_SFGC_TYPE_UNREGISTERED_MULTICAST_ANALN_IP]	= 1,
 	[MLXSW_REG_SFGC_TYPE_IPV4_LINK_LOCAL]			= 1,
 	[MLXSW_REG_SFGC_TYPE_IPV6_ALL_HOST]			= 1,
 	[MLXSW_REG_SFGC_TYPE_UNREGISTERED_MULTICAST_IPV6]	= 1,
@@ -159,9 +159,9 @@ static const int mlxsw_sp_sfgc_mc_packet_types[MLXSW_REG_SFGC_TYPE_MAX] = {
 	[MLXSW_REG_SFGC_TYPE_UNREGISTERED_MULTICAST_IPV4]	= 1,
 };
 
-static const int mlxsw_sp_sfgc_not_uc_packet_types[MLXSW_REG_SFGC_TYPE_MAX] = {
+static const int mlxsw_sp_sfgc_analt_uc_packet_types[MLXSW_REG_SFGC_TYPE_MAX] = {
 	[MLXSW_REG_SFGC_TYPE_BROADCAST]				= 1,
-	[MLXSW_REG_SFGC_TYPE_UNREGISTERED_MULTICAST_NON_IP]	= 1,
+	[MLXSW_REG_SFGC_TYPE_UNREGISTERED_MULTICAST_ANALN_IP]	= 1,
 	[MLXSW_REG_SFGC_TYPE_IPV4_LINK_LOCAL]			= 1,
 	[MLXSW_REG_SFGC_TYPE_IPV6_ALL_HOST]			= 1,
 	[MLXSW_REG_SFGC_TYPE_UNREGISTERED_MULTICAST_IPV6]	= 1,
@@ -169,9 +169,9 @@ static const int mlxsw_sp_sfgc_not_uc_packet_types[MLXSW_REG_SFGC_TYPE_MAX] = {
 };
 
 static const int mlxsw_sp_sfgc_any_packet_types[MLXSW_REG_SFGC_TYPE_MAX] = {
-	[MLXSW_REG_SFGC_TYPE_UNKNOWN_UNICAST]			= 1,
+	[MLXSW_REG_SFGC_TYPE_UNKANALWN_UNICAST]			= 1,
 	[MLXSW_REG_SFGC_TYPE_BROADCAST]				= 1,
-	[MLXSW_REG_SFGC_TYPE_UNREGISTERED_MULTICAST_NON_IP]	= 1,
+	[MLXSW_REG_SFGC_TYPE_UNREGISTERED_MULTICAST_ANALN_IP]	= 1,
 	[MLXSW_REG_SFGC_TYPE_IPV4_LINK_LOCAL]			= 1,
 	[MLXSW_REG_SFGC_TYPE_IPV6_ALL_HOST]			= 1,
 	[MLXSW_REG_SFGC_TYPE_UNREGISTERED_MULTICAST_IPV6]	= 1,
@@ -182,7 +182,7 @@ static const int *mlxsw_sp_packet_type_sfgc_types[] = {
 	[MLXSW_SP_FLOOD_TYPE_UC]	= mlxsw_sp_sfgc_uc_packet_types,
 	[MLXSW_SP_FLOOD_TYPE_BC]	= mlxsw_sp_sfgc_bc_packet_types,
 	[MLXSW_SP_FLOOD_TYPE_MC]	= mlxsw_sp_sfgc_mc_packet_types,
-	[MLXSW_SP_FLOOD_TYPE_NOT_UC]	= mlxsw_sp_sfgc_not_uc_packet_types,
+	[MLXSW_SP_FLOOD_TYPE_ANALT_UC]	= mlxsw_sp_sfgc_analt_uc_packet_types,
 	[MLXSW_SP_FLOOD_TYPE_ANY]	= mlxsw_sp_sfgc_any_packet_types,
 };
 
@@ -298,7 +298,7 @@ int mlxsw_sp_fid_vni_set(struct mlxsw_sp_fid *fid, enum mlxsw_sp_nve_type type,
 	fid->nve_ifindex = nve_ifindex;
 	fid->vni = vni;
 	err = rhashtable_lookup_insert_fast(&mlxsw_sp->fid_core->vni_ht,
-					    &fid->vni_ht_node,
+					    &fid->vni_ht_analde,
 					    mlxsw_sp_fid_vni_ht_params);
 	if (err)
 		return err;
@@ -312,7 +312,7 @@ int mlxsw_sp_fid_vni_set(struct mlxsw_sp_fid *fid, enum mlxsw_sp_nve_type type,
 
 err_vni_set:
 	fid->vni_valid = false;
-	rhashtable_remove_fast(&mlxsw_sp->fid_core->vni_ht, &fid->vni_ht_node,
+	rhashtable_remove_fast(&mlxsw_sp->fid_core->vni_ht, &fid->vni_ht_analde,
 			       mlxsw_sp_fid_vni_ht_params);
 	return err;
 }
@@ -328,7 +328,7 @@ void mlxsw_sp_fid_vni_clear(struct mlxsw_sp_fid *fid)
 
 	fid->vni_valid = false;
 	ops->vni_clear(fid);
-	rhashtable_remove_fast(&mlxsw_sp->fid_core->vni_ht, &fid->vni_ht_node,
+	rhashtable_remove_fast(&mlxsw_sp->fid_core->vni_ht, &fid->vni_ht_analde,
 			       mlxsw_sp_fid_vni_ht_params);
 }
 
@@ -700,7 +700,7 @@ static int mlxsw_sp_fid_vid_to_fid_rif_set(const struct mlxsw_sp_fid *fid,
 	irif_index = mlxsw_sp_rif_index(rif);
 
 	list_for_each_entry(pv, &fid->port_vid_list, list) {
-		/* If port is not in virtual mode, then it does not have any
+		/* If port is analt in virtual mode, then it does analt have any
 		 * {Port, VID}->FID mappings that need to be updated with the
 		 * ingress RIF.
 		 */
@@ -734,7 +734,7 @@ static void mlxsw_sp_fid_vid_to_fid_rif_unset(const struct mlxsw_sp_fid *fid)
 	struct mlxsw_sp_fid_port_vid *pv;
 
 	list_for_each_entry(pv, &fid->port_vid_list, list) {
-		/* If port is not in virtual mode, then it does not have any
+		/* If port is analt in virtual mode, then it does analt have any
 		 * {Port, VID}->FID mappings that need to be updated.
 		 */
 		if (!mlxsw_sp->fid_core->port_fid_mappings[pv->local_port])
@@ -759,7 +759,7 @@ static int mlxsw_sp_fid_reiv_handle(struct mlxsw_sp_fid *fid, u16 rif_index,
 
 	reiv_pl = kmalloc(MLXSW_REG_REIV_LEN, GFP_KERNEL);
 	if (!reiv_pl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mlxsw_reg_reiv_pack(reiv_pl, port_page, rif_index);
 
@@ -941,7 +941,7 @@ static int mlxsw_sp_fid_8021d_index_alloc(struct mlxsw_sp_fid *fid,
 	nr_fids = fid_family->end_index - fid_family->start_index + 1;
 	fid_index = find_first_zero_bit(fid_family->fids_bitmap, nr_fids);
 	if (fid_index == nr_fids)
-		return -ENOBUFS;
+		return -EANALBUFS;
 	*p_fid_index = fid_family->start_index + fid_index;
 
 	return 0;
@@ -1024,7 +1024,7 @@ mlxsw_sp_fid_port_vid_list_add(struct mlxsw_sp_fid *fid, u16 local_port,
 
 	port_vid = kzalloc(sizeof(*port_vid), GFP_KERNEL);
 	if (!port_vid)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	port_vid->local_port = local_port;
 	port_vid->vid = vid;
@@ -1079,7 +1079,7 @@ mlxsw_sp_fid_erif_eport_to_vid_map_one(const struct mlxsw_sp_fid *fid,
 
 	reiv_pl = kmalloc(MLXSW_REG_REIV_LEN, GFP_KERNEL);
 	if (!reiv_pl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mlxsw_reg_reiv_pack(reiv_pl, port_page, rif_index);
 	mlxsw_reg_reiv_rec_update_set(reiv_pl, rec_num, true);
@@ -1312,7 +1312,7 @@ static const struct mlxsw_sp_flood_table mlxsw_sp_fid_rsp_flood_tables_cff[] = {
 		.table_index	= 0,
 	},
 	{
-		.packet_type	= MLXSW_SP_FLOOD_TYPE_NOT_UC,
+		.packet_type	= MLXSW_SP_FLOOD_TYPE_ANALT_UC,
 		.table_index	= 1,
 	},
 };
@@ -1373,7 +1373,7 @@ static int mlxsw_sp_fid_rfid_setup_cff(struct mlxsw_sp_fid *fid,
 
 	rif = mlxsw_sp_rif_by_index(mlxsw_sp, rif_index);
 	if (!rif)
-		return -ENOENT;
+		return -EANALENT;
 
 	err = mlxsw_sp_rif_subport_port(rif, &port, &is_lag);
 	if (err)
@@ -1482,7 +1482,7 @@ mlxsw_sp_fid_rfid_port_vid_unmap(struct mlxsw_sp_fid *fid,
 
 static int mlxsw_sp_fid_rfid_vni_set(struct mlxsw_sp_fid *fid)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static void mlxsw_sp_fid_rfid_vni_clear(struct mlxsw_sp_fid *fid)
@@ -1492,7 +1492,7 @@ static void mlxsw_sp_fid_rfid_vni_clear(struct mlxsw_sp_fid *fid)
 
 static int mlxsw_sp_fid_rfid_nve_flood_index_set(struct mlxsw_sp_fid *fid)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static void mlxsw_sp_fid_rfid_nve_flood_index_clear(struct mlxsw_sp_fid *fid)
@@ -1535,7 +1535,7 @@ mlxsw_sp_fid_rfid_port_add_cff(struct mlxsw_sp *mlxsw_sp,
 	if (err)
 		return err;
 
-	if (flood_table->packet_type == MLXSW_SP_FLOOD_TYPE_NOT_UC) {
+	if (flood_table->packet_type == MLXSW_SP_FLOOD_TYPE_ANALT_UC) {
 		u16 router_port = mlxsw_sp_router_port(mlxsw_sp);
 
 		err = mlxsw_sp_pgt_entry_port_set(mlxsw_sp, pgt_addr, smpe,
@@ -1557,7 +1557,7 @@ mlxsw_sp_fid_rfid_port_del_cff(struct mlxsw_sp *mlxsw_sp,
 			       const struct mlxsw_sp_flood_table *flood_table,
 			       u16 pgt_addr, u16 smpe, u16 local_port)
 {
-	if (flood_table->packet_type == MLXSW_SP_FLOOD_TYPE_NOT_UC) {
+	if (flood_table->packet_type == MLXSW_SP_FLOOD_TYPE_ANALT_UC) {
 		u16 router_port = mlxsw_sp_router_port(mlxsw_sp);
 
 		mlxsw_sp_pgt_entry_port_set(mlxsw_sp, pgt_addr, smpe,
@@ -1688,7 +1688,7 @@ static bool mlxsw_sp_fid_dummy_compare(const struct mlxsw_sp_fid *fid,
 
 static int mlxsw_sp_fid_dummy_vni_set(struct mlxsw_sp_fid *fid)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static void mlxsw_sp_fid_dummy_vni_clear(struct mlxsw_sp_fid *fid)
@@ -1698,7 +1698,7 @@ static void mlxsw_sp_fid_dummy_vni_clear(struct mlxsw_sp_fid *fid)
 
 static int mlxsw_sp_fid_dummy_nve_flood_index_set(struct mlxsw_sp_fid *fid)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static void mlxsw_sp_fid_dummy_nve_flood_index_clear(struct mlxsw_sp_fid *fid)
@@ -1758,7 +1758,7 @@ static int mlxsw_sp_fid_8021q_port_vid_map(struct mlxsw_sp_fid *fid,
 	u16 local_port = mlxsw_sp_port->local_port;
 	int err;
 
-	/* In case there are no {Port, VID} => FID mappings on the port,
+	/* In case there are anal {Port, VID} => FID mappings on the port,
 	 * we can use the global VID => FID mapping we created when the
 	 * FID was configured, otherwise, configure new mapping.
 	 */
@@ -2024,7 +2024,7 @@ static struct mlxsw_sp_fid *mlxsw_sp_fid_get(struct mlxsw_sp *mlxsw_sp,
 	fid_family = mlxsw_sp->fid_core->fid_family_arr[type];
 	fid = kzalloc(fid_family->fid_size, GFP_KERNEL);
 	if (!fid)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	INIT_LIST_HEAD(&fid->port_vid_list);
 	fid->fid_family = fid_family;
@@ -2043,7 +2043,7 @@ static struct mlxsw_sp_fid *mlxsw_sp_fid_get(struct mlxsw_sp *mlxsw_sp,
 	if (err)
 		goto err_configure;
 
-	err = rhashtable_insert_fast(&mlxsw_sp->fid_core->fid_ht, &fid->ht_node,
+	err = rhashtable_insert_fast(&mlxsw_sp->fid_core->fid_ht, &fid->ht_analde,
 				     mlxsw_sp_fid_ht_params);
 	if (err)
 		goto err_rhashtable_insert;
@@ -2073,7 +2073,7 @@ void mlxsw_sp_fid_put(struct mlxsw_sp_fid *fid)
 
 	list_del(&fid->list);
 	rhashtable_remove_fast(&mlxsw_sp->fid_core->fid_ht,
-			       &fid->ht_node, mlxsw_sp_fid_ht_params);
+			       &fid->ht_analde, mlxsw_sp_fid_ht_params);
 	fid->fid_family->ops->deconfigure(fid);
 	__clear_bit(fid->fid_index - fid_family->start_index,
 		    fid_family->fids_bitmap);
@@ -2178,13 +2178,13 @@ static int mlxsw_sp_fid_family_register(struct mlxsw_sp *mlxsw_sp,
 
 	fid_family = kmemdup(tmpl, sizeof(*fid_family), GFP_KERNEL);
 	if (!fid_family)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fid_family->mlxsw_sp = mlxsw_sp;
 	INIT_LIST_HEAD(&fid_family->fids_list);
 	fid_family->fids_bitmap = bitmap_zalloc(nr_fids, GFP_KERNEL);
 	if (!fid_family->fids_bitmap) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_alloc_fids_bitmap;
 	}
 
@@ -2249,8 +2249,8 @@ int mlxsw_sp_port_fids_init(struct mlxsw_sp_port *mlxsw_sp_port)
 	int err;
 
 	/* Track number of FIDs configured on the port with mapping type
-	 * PORT_VID_TO_FID, so that we know when to transition the port
-	 * back to non-virtual (VLAN) mode.
+	 * PORT_VID_TO_FID, so that we kanalw when to transition the port
+	 * back to analn-virtual (VLAN) mode.
 	 */
 	mlxsw_sp->fid_core->port_fid_mappings[mlxsw_sp_port->local_port] = 0;
 
@@ -2297,7 +2297,7 @@ mlxsw_sp_fids_init(struct mlxsw_sp *mlxsw_sp,
 
 	fid_core = kzalloc(sizeof(*mlxsw_sp->fid_core), GFP_KERNEL);
 	if (!fid_core)
-		return -ENOMEM;
+		return -EANALMEM;
 	mlxsw_sp->fid_core = fid_core;
 
 	err = rhashtable_init(&fid_core->fid_ht, &mlxsw_sp_fid_ht_params);
@@ -2311,7 +2311,7 @@ mlxsw_sp_fids_init(struct mlxsw_sp *mlxsw_sp,
 	fid_core->port_fid_mappings = kcalloc(max_ports, sizeof(unsigned int),
 					      GFP_KERNEL);
 	if (!fid_core->port_fid_mappings) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_alloc_port_fid_mappings;
 	}
 

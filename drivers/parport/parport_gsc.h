@@ -58,7 +58,7 @@ struct parport_gsc_private {
 	/* Number of bytes per portword. */
 	int pword;
 
-	/* Not used yet. */
+	/* Analt used yet. */
 	int readIntrThreshold;
 	int writeIntrThreshold;
 

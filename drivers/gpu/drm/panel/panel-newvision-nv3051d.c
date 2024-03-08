@@ -49,7 +49,7 @@ static int panel_nv3051d_init_sequence(struct panel_nv3051d *ctx)
 	struct mipi_dsi_device *dsi = to_mipi_dsi_device(ctx->dev);
 
 	/*
-	 * Init sequence was supplied by device vendor with no
+	 * Init sequence was supplied by device vendor with anal
 	 * documentation.
 	 */
 
@@ -329,7 +329,7 @@ static int panel_nv3051d_get_modes(struct drm_panel *panel,
 		mode = drm_mode_duplicate(connector->dev,
 					  &panel_info->display_modes[i]);
 		if (!mode)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		drm_mode_set_name(mode);
 
@@ -362,7 +362,7 @@ static int panel_nv3051d_probe(struct mipi_dsi_device *dsi)
 
 	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctx->dev = dev;
 
@@ -372,7 +372,7 @@ static int panel_nv3051d_probe(struct mipi_dsi_device *dsi)
 
 	ctx->reset_gpio = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(ctx->reset_gpio)) {
-		dev_err(dev, "cannot get reset gpio\n");
+		dev_err(dev, "cananalt get reset gpio\n");
 		return PTR_ERR(ctx->reset_gpio);
 	}
 
@@ -498,8 +498,8 @@ static const struct nv3051d_panel_info nv3051d_rg351v_info = {
 	.height_mm = 57,
 	.bus_flags = DRM_BUS_FLAG_DE_LOW | DRM_BUS_FLAG_PIXDATA_DRIVE_NEGEDGE,
 	.mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST |
-		      MIPI_DSI_MODE_LPM | MIPI_DSI_MODE_NO_EOT_PACKET |
-		      MIPI_DSI_CLOCK_NON_CONTINUOUS,
+		      MIPI_DSI_MODE_LPM | MIPI_DSI_MODE_ANAL_EOT_PACKET |
+		      MIPI_DSI_CLOCK_ANALN_CONTINUOUS,
 };
 
 static const struct nv3051d_panel_info nv3051d_rg353p_info = {
@@ -509,7 +509,7 @@ static const struct nv3051d_panel_info nv3051d_rg353p_info = {
 	.height_mm = 57,
 	.bus_flags = DRM_BUS_FLAG_DE_LOW | DRM_BUS_FLAG_PIXDATA_DRIVE_NEGEDGE,
 	.mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST |
-		      MIPI_DSI_MODE_LPM | MIPI_DSI_MODE_NO_EOT_PACKET,
+		      MIPI_DSI_MODE_LPM | MIPI_DSI_MODE_ANAL_EOT_PACKET,
 };
 
 static const struct nv3051d_panel_info nv3051d_rk2023_info = {
@@ -519,7 +519,7 @@ static const struct nv3051d_panel_info nv3051d_rk2023_info = {
 	.height_mm = 57,
 	.bus_flags = DRM_BUS_FLAG_DE_LOW | DRM_BUS_FLAG_PIXDATA_DRIVE_NEGEDGE,
 	.mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST |
-		      MIPI_DSI_MODE_LPM | MIPI_DSI_MODE_NO_EOT_PACKET,
+		      MIPI_DSI_MODE_LPM | MIPI_DSI_MODE_ANAL_EOT_PACKET,
 };
 
 static const struct of_device_id newvision_nv3051d_of_match[] = {

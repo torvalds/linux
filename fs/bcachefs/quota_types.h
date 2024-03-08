@@ -11,7 +11,7 @@ struct bch_qid {
 enum quota_acct_mode {
 	KEY_TYPE_QUOTA_PREALLOC,
 	KEY_TYPE_QUOTA_WARN,
-	KEY_TYPE_QUOTA_NOCHECK,
+	KEY_TYPE_QUOTA_ANALCHECK,
 };
 
 struct memquota_counter {

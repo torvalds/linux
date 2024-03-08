@@ -8,7 +8,7 @@
 #ifndef __NAL_HEVC_H__
 #define __NAL_HEVC_H__
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/v4l2-controls.h>
@@ -21,7 +21,7 @@ struct nal_hevc_profile_tier_level {
 	unsigned int general_profile_compatibility_flag[32];
 	unsigned int general_progressive_source_flag;
 	unsigned int general_interlaced_source_flag;
-	unsigned int general_non_packed_constraint_flag;
+	unsigned int general_analn_packed_constraint_flag;
 	unsigned int general_frame_only_constraint_flag;
 	union {
 		struct {
@@ -30,7 +30,7 @@ struct nal_hevc_profile_tier_level {
 			unsigned int general_max_8bit_constraint_flag;
 			unsigned int general_max_422chroma_constraint_flag;
 			unsigned int general_max_420chroma_constraint_flag;
-			unsigned int general_max_monochrome_constraint_flag;
+			unsigned int general_max_moanalchrome_constraint_flag;
 			unsigned int general_intra_constraint_flag;
 			unsigned int general_one_picture_only_constraint_flag;
 			unsigned int general_lower_bit_rate_constraint_flag;
@@ -187,8 +187,8 @@ struct nal_hevc_vui_parameters {
 		unsigned int motion_vectors_over_pic_boundaries_flag;
 		unsigned int restricted_ref_pic_lists_flag;
 		unsigned int min_spatial_segmentation_idc;
-		unsigned int max_bytes_per_pic_denom;
-		unsigned int max_bits_per_min_cu_denom;
+		unsigned int max_bytes_per_pic_deanalm;
+		unsigned int max_bits_per_min_cu_deanalm;
 		unsigned int log2_max_mv_length_horizontal;
 		unsigned int log2_max_mv_length_vertical;
 	};
@@ -467,7 +467,7 @@ static inline int nal_hevc_transfer_characteristics(enum v4l2_colorspace colorsp
 		return 16;
 	case V4L2_XFER_FUNC_SRGB:
 	case V4L2_XFER_FUNC_OPRGB:
-	case V4L2_XFER_FUNC_NONE:
+	case V4L2_XFER_FUNC_ANALNE:
 	case V4L2_XFER_FUNC_DCI_P3:
 	case V4L2_XFER_FUNC_SMPTE240M:
 	default:

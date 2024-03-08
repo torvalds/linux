@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -74,7 +74,7 @@ nvkm_dmaobj_ctor(const struct nvkm_dmaobj_func *func, struct nvkm_dma *dma,
 	struct nvkm_object *parent = oclass->parent;
 	void *data = *pdata;
 	u32 size = *psize;
-	int ret = -ENOSYS;
+	int ret = -EANALSYS;
 
 	nvkm_object_ctor(&nvkm_dmaobj_func, oclass, &dmaobj->object);
 	dmaobj->func = func;
@@ -111,7 +111,7 @@ nvkm_dmaobj_ctor(const struct nvkm_dmaobj_func *func, struct nvkm_dma *dma,
 		break;
 	case NV_DMA_V0_TARGET_PCI_US:
 	case NV_DMA_V0_TARGET_AGP:
-		dmaobj->target = NV_MEM_TARGET_PCI_NOSNOOP;
+		dmaobj->target = NV_MEM_TARGET_PCI_ANALSANALOP;
 		break;
 	default:
 		return -EINVAL;

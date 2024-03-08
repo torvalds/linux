@@ -133,7 +133,7 @@ int err_modify_sk_or_null_pointer(struct __sk_buff *skb)
 }
 
 SEC("?tc")
-int err_no_release(struct __sk_buff *skb)
+int err_anal_release(struct __sk_buff *skb)
 {
 	struct bpf_sock_tuple tuple = {};
 
@@ -164,15 +164,15 @@ int err_release_unchecked(struct __sk_buff *skb)
 	return 0;
 }
 
-void lookup_no_release(struct __sk_buff *skb)
+void lookup_anal_release(struct __sk_buff *skb)
 {
 	struct bpf_sock_tuple tuple = {};
 	bpf_sk_lookup_tcp(skb, &tuple, sizeof(tuple), BPF_F_CURRENT_NETNS, 0);
 }
 
 SEC("?tc")
-int err_no_release_subcall(struct __sk_buff *skb)
+int err_anal_release_subcall(struct __sk_buff *skb)
 {
-	lookup_no_release(skb);
+	lookup_anal_release(skb);
 	return 0;
 }

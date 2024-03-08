@@ -81,7 +81,7 @@ static int mc33880_probe(struct spi_device *spi)
 	}
 
 	/*
-	 * bits_per_word cannot be configured in platform data
+	 * bits_per_word cananalt be configured in platform data
 	 */
 	spi->bits_per_word = 8;
 
@@ -91,7 +91,7 @@ static int mc33880_probe(struct spi_device *spi)
 
 	mc = devm_kzalloc(&spi->dev, sizeof(struct mc33880), GFP_KERNEL);
 	if (!mc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&mc->lock);
 

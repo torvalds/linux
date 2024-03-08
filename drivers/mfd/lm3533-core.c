@@ -479,7 +479,7 @@ static int lm3533_device_init(struct lm3533 *lm3533)
 	dev_dbg(lm3533->dev, "%s\n", __func__);
 
 	if (!pdata) {
-		dev_err(lm3533->dev, "no platform data\n");
+		dev_err(lm3533->dev, "anal platform data\n");
 		return -EINVAL;
 	}
 
@@ -590,7 +590,7 @@ static int lm3533_i2c_probe(struct i2c_client *i2c)
 
 	lm3533 = devm_kzalloc(&i2c->dev, sizeof(*lm3533), GFP_KERNEL);
 	if (!lm3533)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(i2c, lm3533);
 

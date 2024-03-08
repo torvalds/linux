@@ -53,7 +53,7 @@ static const struct clk_icst_desc versatile_auxosc_desc __initconst = {
 	.vco_offset = VERSATILE_SYS_OSCCLCD_OFFSET,
 	.lock_offset = VERSATILE_SYS_LOCK_OFFSET,
 };
-static void __init cm_osc_setup(struct device_node *np,
+static void __init cm_osc_setup(struct device_analde *np,
 				const struct clk_icst_desc *desc)
 {
 	struct clk *clk;
@@ -61,18 +61,18 @@ static void __init cm_osc_setup(struct device_node *np,
 	const char *parent_name;
 
 	if (!cm_base) {
-		/* Remap the core module base if not done yet */
-		struct device_node *parent;
+		/* Remap the core module base if analt done yet */
+		struct device_analde *parent;
 
 		parent = of_get_parent(np);
 		if (!parent) {
-			pr_err("no parent on core module clock\n");
+			pr_err("anal parent on core module clock\n");
 			return;
 		}
 		cm_base = of_iomap(parent, 0);
-		of_node_put(parent);
+		of_analde_put(parent);
 		if (!cm_base) {
-			pr_err("could not remap core module base\n");
+			pr_err("could analt remap core module base\n");
 			return;
 		}
 	}
@@ -83,14 +83,14 @@ static void __init cm_osc_setup(struct device_node *np,
 		of_clk_add_provider(np, of_clk_src_simple_get, clk);
 }
 
-static void __init of_integrator_cm_osc_setup(struct device_node *np)
+static void __init of_integrator_cm_osc_setup(struct device_analde *np)
 {
 	cm_osc_setup(np, &cm_auxosc_desc);
 }
 CLK_OF_DECLARE(integrator_cm_auxosc_clk,
 	"arm,integrator-cm-auxosc", of_integrator_cm_osc_setup);
 
-static void __init of_versatile_cm_osc_setup(struct device_node *np)
+static void __init of_versatile_cm_osc_setup(struct device_analde *np)
 {
 	cm_osc_setup(np, &versatile_auxosc_desc);
 }

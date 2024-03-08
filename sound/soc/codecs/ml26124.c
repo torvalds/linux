@@ -21,8 +21,8 @@
 
 #define DVOL_CTL_DVMUTE_ON		BIT(4)	/* Digital volume MUTE On */
 #define DVOL_CTL_DVMUTE_OFF		0	/* Digital volume MUTE Off */
-#define ML26124_SAI_NO_DELAY	BIT(1)
-#define ML26124_SAI_FRAME_SYNC	(BIT(5) | BIT(0)) /* For mono (Telecodec) */
+#define ML26124_SAI_ANAL_DELAY	BIT(1)
+#define ML26124_SAI_FRAME_SYNC	(BIT(5) | BIT(0)) /* For moanal (Telecodec) */
 #define ML26134_CACHESIZE 212
 #define ML26124_VMID	BIT(1)
 #define ML26124_RATES (SNDRV_PCM_RATE_16000 | SNDRV_PCM_RATE_32000 |\
@@ -96,7 +96,7 @@ static const struct snd_kcontrol_new ml26124_snd_controls[] = {
 	SOC_SINGLE_TLV("Playback Boost Volume", ML26124_PLYBAK_BOST_VOL, 0,
 			0x3f, 0, boost_vol),
 	SOC_SINGLE("DC High Pass Filter Switch", ML26124_FILTER_EN, 0, 1, 0),
-	SOC_SINGLE("Noise High Pass Filter Switch", ML26124_FILTER_EN, 1, 1, 0),
+	SOC_SINGLE("Analise High Pass Filter Switch", ML26124_FILTER_EN, 1, 1, 0),
 	SOC_SINGLE("ZC Switch", ML26124_PW_ZCCMP_PW_MNG, 1,
 		    1, 0),
 	SOC_SINGLE("EQ Band0 Switch", ML26124_FILTER_EN, 2, 1, 0),
@@ -137,15 +137,15 @@ static const struct snd_soc_dapm_widget ml26124_dapm_widgets[] = {
 	SND_SOC_DAPM_SUPPLY("PLLEN", ML26124_CLK_EN, 1, 0, NULL, 0),
 	SND_SOC_DAPM_SUPPLY("PLLOE", ML26124_CLK_EN, 2, 0, NULL, 0),
 	SND_SOC_DAPM_SUPPLY("MICBIAS", ML26124_PW_REF_PW_MNG, 2, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("Output Mixer", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("Output Mixer", SND_SOC_ANALPM, 0, 0,
 			   &ml26124_output_mixer_controls[0],
 			   ARRAY_SIZE(ml26124_output_mixer_controls)),
 	SND_SOC_DAPM_DAC("DAC", "Playback", ML26124_PW_DAC_PW_MNG, 1, 0),
 	SND_SOC_DAPM_ADC("ADC", "Capture", ML26124_PW_IN_PW_MNG, 1, 0),
 	SND_SOC_DAPM_PGA("PGA", ML26124_PW_IN_PW_MNG, 3, 0, NULL, 0),
-	SND_SOC_DAPM_MUX("Input Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("Input Mux", SND_SOC_ANALPM, 0, 0,
 			  &ml26124_input_mux_controls),
-	SND_SOC_DAPM_SWITCH("Line Out Enable", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SWITCH("Line Out Enable", SND_SOC_ANALPM, 0, 0,
 			     &ml26124_line_control),
 	SND_SOC_DAPM_INPUT("MDIN"),
 	SND_SOC_DAPM_INPUT("MIN"),
@@ -272,7 +272,7 @@ static const struct reg_default ml26124_reg[] = {
 	{0xb6, 0x00},	/* ALC Hold Time */
 	{0xb8, 0x0b},	/* ALC Target Level */
 	{0xba, 0x70},	/* ALC Max/Min Gain */
-	{0xbc, 0x00},	/* Noise Gate Threshold */
+	{0xbc, 0x00},	/* Analise Gate Threshold */
 	{0xbe, 0x00},	/* ALC ZeroCross TimeOut */
 
 	/* Playback Limiter Control Register */
@@ -494,7 +494,7 @@ static const struct snd_soc_dai_ops ml26124_dai_ops = {
 	.mute_stream	= ml26124_mute,
 	.set_fmt	= ml26124_set_dai_fmt,
 	.set_sysclk	= ml26124_set_dai_sysclk,
-	.no_capture_mute = 1,
+	.anal_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver ml26124_dai = {
@@ -556,7 +556,7 @@ static int ml26124_i2c_probe(struct i2c_client *i2c)
 
 	priv = devm_kzalloc(&i2c->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(i2c, priv);
 

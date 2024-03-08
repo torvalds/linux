@@ -3,14 +3,14 @@
 Contributors
 ============
 
-.. note::
+.. analte::
 
    This documentation is outdated. There are several other DVB contributors
    that aren't listed below.
 
 Thanks go to the following people for patches and contributions:
 
-- Michael Hunold <m.hunold@gmx.de>
+- Michael Huanalld <m.huanalld@gmx.de>
 
   - for the initial saa7146 driver and its recent overhaul
 
@@ -27,11 +27,11 @@ Thanks go to the following people for patches and contributions:
 
   - for his contributions to the dvb-net driver
 
-- Diego Picciani <d.picciani@novacomp.it>
+- Diego Picciani <d.picciani@analvacomp.it>
 
   - for CyberLogin for Linux which allows logging onto EON
     (in case you are wondering where CyberLogin is, EON changed its login
-    procedure and CyberLogin is no longer used.)
+    procedure and CyberLogin is anal longer used.)
 
 - Martin Schaller <martin@smurf.franken.de>
 
@@ -50,7 +50,7 @@ Thanks go to the following people for patches and contributions:
   - for his LIRC infrared handler
 
 - Andreas Oberritter <obi@linuxtv.org>,
-  Dennis Noermann <dennis.noermann@noernet.de>,
+  Dennis Analermann <dennis.analermann@analernet.de>,
   Felix Domke <tmbinc@elitedvb.net>,
   Florian Schirmer <jolt@tuxbox.org>,
   Ronny Strutz <3des@elitedvb.de>,
@@ -86,18 +86,18 @@ Thanks go to the following people for patches and contributions:
 - Hans-Frieder Vogt <hfvogt@arcor.de>
 
   - for his work on calculating and checking the crc's for the
-    TechnoTrend/Hauppauge DEC driver firmware
+    TechanalTrend/Hauppauge DEC driver firmware
 
 - Michael Dreher <michael@5dot1.de> and
   Andreas 'randy' Weinberger
 
   - for the support of the Fujitsu-Siemens Activy budget DVB-S
 
-- Kenneth Aafløy <ke-aa@frisurf.no>
+- Kenneth Aafløy <ke-aa@frisurf.anal>
 
   - for adding support for Typhoon DVB-S budget card
 
-- Ernst Peinlich <e.peinlich@inode.at>
+- Ernst Peinlich <e.peinlich@ianalde.at>
 
   - for tuning/DiSEqC support for the DEC 3000-s
 
@@ -127,5 +127,5 @@ Thanks go to the following people for patches and contributions:
     for merging the nxt2002 and nxt2004 modules into a
     single nxt200x frontend driver.
 
-(If you think you should be in this list, but you are not, drop a
+(If you think you should be in this list, but you are analt, drop a
 line to the DVB mailing list)

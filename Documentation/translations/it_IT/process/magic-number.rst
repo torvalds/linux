@@ -11,7 +11,7 @@ I numeri magici di Linux
 Questo documento è un registro dei numeri magici in uso.  Quando
 aggiungete un numero magico ad una struttura, dovreste aggiungerlo anche
 a questo documento; la cosa migliore è che tutti i numeri magici usati
-dalle varie strutture siano unici.
+dalle varie strutture siaanal unici.
 
 È **davvero** un'ottima idea proteggere le strutture dati del kernel con
 dei numeri magici.  Questo vi permette in fase d'esecuzione di (a) verificare
@@ -33,7 +33,7 @@ Per favore, seguite questa direttiva quando aggiungerete migliorie al kernel!
 Mi ha risparmiato un numero illimitato di ore di debug, specialmente nei casi
 più ostici dove si è andati oltre la dimensione di un vettore e la struttura
 dati che lo seguiva in memoria è stata sovrascritta.  Seguendo questa
-direttiva, questi casi vengono identificati velocemente e in sicurezza.
+direttiva, questi casi vengoanal identificati velocemente e in sicurezza.
 
 Registro dei cambiamenti::
 
@@ -49,10 +49,10 @@ Registro dei cambiamenti::
   Ora dovrebbe essere aggiornata a Linux 2.1.112. Dato che
   siamo in un momento di congelamento delle funzionalità
   (*feature freeze*) è improbabile che qualcosa cambi prima
-  della versione 2.2.x.  Le righe sono ordinate secondo il
+  della versione 2.2.x.  Le righe soanal ordinate secondo il
   campo numero.
 
-					Krzysztof G. Baranowski
+					Krzysztof G. Baraanalwski
 					<mailto: kgb@knm.org.pl>
 					29 Jul 1998
 
@@ -62,7 +62,7 @@ Registro dei cambiamenti::
 
 					Petr Baudis
 					<pasky@ucw.cz>
-					03 Nov 2002
+					03 Analv 2002
 
   Aggiornamento della tabella magica a Linux 2.5.74.
 
@@ -72,7 +72,7 @@ Registro dei cambiamenti::
 
 
 ===================== ================ ======================== ==========================================
-Nome magico           Numero           Struttura                File
+Analme magico           Numero           Struttura                File
 ===================== ================ ======================== ==========================================
 PG_MAGIC              'P'              pg_{read,write}_hdr      ``include/linux/pg.h``
 APM_BIOS_MAGIC        0x4101           apm_user                 ``arch/x86/kernel/apm_32.c``

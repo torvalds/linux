@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright(c) 2020 Intel Corporation. All rights reserved. */
 #include <asm-generic/unaligned.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-analnatomic-lo-hi.h>
 #include <linux/moduleparam.h>
 #include <linux/module.h>
 #include <linux/delay.h>
@@ -102,7 +102,7 @@ static int cxl_request_irq(struct cxl_dev_state *cxlds, int irq,
 
 	dev_id = devm_kzalloc(dev, sizeof(*dev_id), GFP_KERNEL);
 	if (!dev_id)
-		return -ENOMEM;
+		return -EANALMEM;
 	dev_id->cxlds = cxlds;
 
 	return devm_request_threaded_irq(dev, irq, NULL, thread_fn,
@@ -127,13 +127,13 @@ static irqreturn_t cxl_pci_mbox_irq(int irq, void *id)
 	struct cxl_memdev_state *mds = to_cxl_memdev_state(cxlds);
 
 	if (!cxl_mbox_background_complete(cxlds))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	reg = readq(cxlds->regs.mbox + CXLDEV_MBOX_BG_CMD_STATUS_OFFSET);
 	opcode = FIELD_GET(CXLDEV_MBOX_BG_CMD_COMMAND_OPCODE_MASK, reg);
 	if (opcode == CXL_MBOX_OP_SANITIZE) {
 		mutex_lock(&mds->mbox_mutex);
-		if (mds->security.sanitize_node)
+		if (mds->security.sanitize_analde)
 			mod_delayed_work(system_wq, &mds->security.poll_dwork, 0);
 		mutex_unlock(&mds->mbox_mutex);
 	} else {
@@ -156,8 +156,8 @@ static void cxl_mbox_sanitize_work(struct work_struct *work)
 	mutex_lock(&mds->mbox_mutex);
 	if (cxl_mbox_background_complete(cxlds)) {
 		mds->security.poll_tmo_secs = 0;
-		if (mds->security.sanitize_node)
-			sysfs_notify_dirent(mds->security.sanitize_node);
+		if (mds->security.sanitize_analde)
+			sysfs_analtify_dirent(mds->security.sanitize_analde);
 		mds->security.sanitize_active = false;
 
 		dev_dbg(cxlds->dev, "Sanitization operation ended\n");
@@ -189,7 +189,7 @@ static void cxl_mbox_sanitize_work(struct work_struct *work)
  * The CXL spec allows for up to two mailboxes. The intention is for the primary
  * mailbox to be OS controlled and the secondary mailbox to be used by system
  * firmware. This allows the OS and firmware to communicate with the device and
- * not need to coordinate with each other. The driver only uses the primary
+ * analt need to coordinate with each other. The driver only uses the primary
  * mailbox.
  */
 static int __cxl_pci_mbox_send_cmd(struct cxl_memdev_state *mds,
@@ -208,17 +208,17 @@ static int __cxl_pci_mbox_send_cmd(struct cxl_memdev_state *mds,
 	 * Here are the steps from 8.2.8.4 of the CXL 2.0 spec.
 	 *   1. Caller reads MB Control Register to verify doorbell is clear
 	 *   2. Caller writes Command Register
-	 *   3. Caller writes Command Payload Registers if input payload is non-empty
+	 *   3. Caller writes Command Payload Registers if input payload is analn-empty
 	 *   4. Caller writes MB Control Register to set doorbell
 	 *   5. Caller either polls for doorbell to be clear or waits for interrupt if configured
 	 *   6. Caller reads MB Status Register to fetch Return code
 	 *   7. If command successful, Caller reads Command Register to get Payload Length
-	 *   8. If output payload is non-empty, host reads Command Payload Registers
+	 *   8. If output payload is analn-empty, host reads Command Payload Registers
 	 *
 	 * Hardware is free to do whatever it wants before the doorbell is rung,
 	 * and isn't allowed to change anything after it clears the doorbell. As
 	 * such, steps 2 and 3 can happen in any order, and steps 6, 7, 8 can
-	 * also happen in any order (though some orders might not make sense).
+	 * also happen in any order (though some orders might analt make sense).
 	 */
 
 	/* #1 */
@@ -233,7 +233,7 @@ static int __cxl_pci_mbox_send_cmd(struct cxl_memdev_state *mds,
 
 	/*
 	 * With sanitize polling, hardware might be done and the poller still
-	 * not be in sync. Ensure no new command comes in until so. Keep the
+	 * analt be in sync. Ensure anal new command comes in until so. Keep the
 	 * hardware semantics and only allow device health status.
 	 */
 	if (mds->security.poll_tmo_secs > 0) {
@@ -275,12 +275,12 @@ static int __cxl_pci_mbox_send_cmd(struct cxl_memdev_state *mds,
 		FIELD_GET(CXLDEV_MBOX_STATUS_RET_CODE_MASK, status_reg);
 
 	/*
-	 * Handle the background command in a synchronous manner.
+	 * Handle the background command in a synchroanalus manner.
 	 *
 	 * All other mailbox commands will serialize/queue on the mbox_mutex,
 	 * which we currently hold. Furthermore this also guarantees that
 	 * cxl_mbox_background_complete() checks are safe amongst each other,
-	 * in that no new bg operation can occur in between.
+	 * in that anal new bg operation can occur in between.
 	 *
 	 * Background operations are timesliced in accordance with the nature
 	 * of the command. In the event of timeout, the mailbox state is
@@ -292,8 +292,8 @@ static int __cxl_pci_mbox_send_cmd(struct cxl_memdev_state *mds,
 		int i, timeout;
 
 		/*
-		 * Sanitization is a special case which monopolizes the device
-		 * and cannot be timesliced. Handle asynchronously instead,
+		 * Sanitization is a special case which moanalpolizes the device
+		 * and cananalt be timesliced. Handle asynchroanalusly instead,
 		 * and allow userspace to poll(2) for completion.
 		 */
 		if (mbox_cmd->opcode == CXL_MBOX_OP_SANITIZE) {
@@ -424,9 +424,9 @@ static int cxl_pci_setup_mailbox(struct cxl_memdev_state *mds, bool irq_avail)
 	/*
 	 * CXL 2.0 8.2.8.4.3 Mailbox Capabilities Register
 	 *
-	 * If the size is too small, mandatory commands will not work and so
-	 * there's no point in going forward. If the size is too large, there's
-	 * no harm is soft limiting it.
+	 * If the size is too small, mandatory commands will analt work and so
+	 * there's anal point in going forward. If the size is too large, there's
+	 * anal harm is soft limiting it.
 	 */
 	mds->payload_size = min_t(size_t, mds->payload_size, SZ_1M);
 	if (mds->payload_size < 256) {
@@ -479,7 +479,7 @@ static int cxl_rcrb_get_comp_regs(struct pci_dev *pdev,
 
 	*map = (struct cxl_register_map) {
 		.host = &pdev->dev,
-		.resource = CXL_RESOURCE_NONE,
+		.resource = CXL_RESOURCE_ANALNE,
 	};
 
 	port = cxl_pci_find_port(pdev, &dport);
@@ -490,7 +490,7 @@ static int cxl_rcrb_get_comp_regs(struct pci_dev *pdev,
 
 	put_device(&port->dev);
 
-	if (component_reg_phys == CXL_RESOURCE_NONE)
+	if (component_reg_phys == CXL_RESOURCE_ANALNE)
 		return -ENXIO;
 
 	map->resource = component_reg_phys;
@@ -508,7 +508,7 @@ static int cxl_pci_setup_regs(struct pci_dev *pdev, enum cxl_regloc_type type,
 	rc = cxl_find_regblock(pdev, type, map);
 
 	/*
-	 * If the Register Locator DVSEC does not exist, check if it
+	 * If the Register Locator DVSEC does analt exist, check if it
 	 * is an RCH and try to extract the Component Registers from
 	 * an RCRB.
 	 */
@@ -530,7 +530,7 @@ static int cxl_pci_ras_unmask(struct pci_dev *pdev)
 	int rc;
 
 	if (!cxlds->regs.ras) {
-		dev_dbg(&pdev->dev, "No RAS registers.\n");
+		dev_dbg(&pdev->dev, "Anal RAS registers.\n");
 		return 0;
 	}
 
@@ -582,7 +582,7 @@ static int cxl_mem_alloc_event_buf(struct cxl_memdev_state *mds)
 
 	buf = kvmalloc(mds->payload_size, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 	mds->event.buf = buf;
 
 	return devm_add_action_or_reset(mds->cxlds.dev, free_event_buf, buf);
@@ -594,11 +594,11 @@ static bool cxl_alloc_irq_vectors(struct pci_dev *pdev)
 
 	/*
 	 * Per CXL 3.0 3.1.1 CXL.io Endpoint a function on a CXL device must
-	 * not generate INTx messages if that function participates in
+	 * analt generate INTx messages if that function participates in
 	 * CXL.cache or CXL.mem.
 	 *
 	 * Additionally pci_alloc_irq_vectors() handles calling
-	 * pci_free_irq_vectors() automatically despite not being called
+	 * pci_free_irq_vectors() automatically despite analt being called
 	 * pcim_*.  See pci_setup_msi_context().
 	 */
 	nvecs = pci_alloc_irq_vectors(pdev, 1, CXL_PCI_DEFAULT_MAX_VECTORS,
@@ -620,10 +620,10 @@ static irqreturn_t cxl_event_thread(int irq, void *id)
 	do {
 		/*
 		 * CXL 3.0 8.2.8.3.1: The lower 32 bits are the status;
-		 * ignore the reserved upper 32 bits
+		 * iganalre the reserved upper 32 bits
 		 */
 		status = readl(cxlds->regs.status + CXLDEV_DEV_EVENT_STATUS_OFFSET);
-		/* Ignore logs unknown to the driver */
+		/* Iganalre logs unkanalwn to the driver */
 		status &= CXLDEV_EVENT_STATUS_ALL;
 		if (!status)
 			break;
@@ -756,7 +756,7 @@ static int cxl_event_config(struct pci_host_bridge *host_bridge,
 		return 0;
 
 	if (!irq_avail) {
-		dev_info(mds->cxlds.dev, "No interrupt support, disable event processing.\n");
+		dev_info(mds->cxlds.dev, "Anal interrupt support, disable event processing.\n");
 		return 0;
 	}
 
@@ -797,7 +797,7 @@ static int cxl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	bool irq_avail;
 
 	/*
-	 * Double check the anonymous union trickery in struct cxl_regs
+	 * Double check the aanalnymous union trickery in struct cxl_regs
 	 * FIXME switch to struct_group()
 	 */
 	BUILD_BUG_ON(offsetof(struct cxl_regs, memdev) !=
@@ -820,7 +820,7 @@ static int cxl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		pdev, PCI_DVSEC_VENDOR_ID_CXL, CXL_DVSEC_PCIE_DEVICE);
 	if (!cxlds->cxl_dvsec)
 		dev_warn(&pdev->dev,
-			 "Device DVSEC not present, skip CXL.mem init\n");
+			 "Device DVSEC analt present, skip CXL.mem init\n");
 
 	rc = cxl_pci_setup_regs(pdev, CXL_REGLOC_RBI_MEMDEV, &map);
 	if (rc)
@@ -837,9 +837,9 @@ static int cxl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	rc = cxl_pci_setup_regs(pdev, CXL_REGLOC_RBI_COMPONENT,
 				&cxlds->reg_map);
 	if (rc)
-		dev_warn(&pdev->dev, "No component registers (%d)\n", rc);
+		dev_warn(&pdev->dev, "Anal component registers (%d)\n", rc);
 	else if (!cxlds->reg_map.component_map.ras.valid)
-		dev_dbg(&pdev->dev, "RAS registers not found\n");
+		dev_dbg(&pdev->dev, "RAS registers analt found\n");
 
 	rc = cxl_map_component_regs(&cxlds->reg_map, &cxlds->regs.component,
 				    BIT(CXL_CM_CAP_CAP_ID_RAS));
@@ -850,7 +850,7 @@ static int cxl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (rc == 0)
 		cxlds->media_ready = true;
 	else
-		dev_warn(&pdev->dev, "Media not active (%d)\n", rc);
+		dev_warn(&pdev->dev, "Media analt active (%d)\n", rc);
 
 	irq_avail = cxl_alloc_irq_vectors(pdev);
 
@@ -886,7 +886,7 @@ static int cxl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (rc)
 		return rc;
 
-	rc = devm_cxl_sanitize_setup_notifier(&pdev->dev, cxlmd);
+	rc = devm_cxl_sanitize_setup_analtifier(&pdev->dev, cxlmd);
 	if (rc)
 		return rc;
 
@@ -896,19 +896,19 @@ static int cxl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 		rc = cxl_find_regblock_instance(pdev, CXL_REGLOC_RBI_PMU, &map, i);
 		if (rc) {
-			dev_dbg(&pdev->dev, "Could not find PMU regblock\n");
+			dev_dbg(&pdev->dev, "Could analt find PMU regblock\n");
 			break;
 		}
 
 		rc = cxl_map_pmu_regs(&map, &pmu_regs);
 		if (rc) {
-			dev_dbg(&pdev->dev, "Could not map PMU regs\n");
+			dev_dbg(&pdev->dev, "Could analt map PMU regs\n");
 			break;
 		}
 
 		rc = devm_cxl_pmu_add(cxlds->dev, &pmu_regs, cxlmd->id, i, CXL_PMU_MEMDEV);
 		if (rc) {
-			dev_dbg(&pdev->dev, "Could not add PMU instance\n");
+			dev_dbg(&pdev->dev, "Could analt add PMU instance\n");
 			break;
 		}
 	}
@@ -919,7 +919,7 @@ static int cxl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	rc = cxl_pci_ras_unmask(pdev);
 	if (rc)
-		dev_dbg(&pdev->dev, "No RAS reporting unmasked\n");
+		dev_dbg(&pdev->dev, "Anal RAS reporting unmasked\n");
 
 	pci_save_state(pdev);
 
@@ -970,7 +970,7 @@ static struct pci_driver cxl_pci_driver = {
 	.probe			= cxl_pci_probe,
 	.err_handler		= &cxl_error_handlers,
 	.driver	= {
-		.probe_type	= PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type	= PROBE_PREFER_ASYNCHROANALUS,
 	},
 };
 

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Samsung S5P/EXYNOS SoC series MIPI-CSI receiver driver
+ * Samsung S5P/EXYANALS SoC series MIPI-CSI receiver driver
  *
  * Copyright (C) 2011 - 2013 Samsung Electronics Co., Ltd.
  * Author: Sylwester Nawrocki <s.nawrocki@samsung.com>
@@ -9,7 +9,7 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/irq.h>
@@ -26,8 +26,8 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/videodev2.h>
-#include <media/drv-intf/exynos-fimc.h>
-#include <media/v4l2-fwnode.h>
+#include <media/drv-intf/exyanals-fimc.h>
+#include <media/v4l2-fwanalde.h>
 #include <media/v4l2-subdev.h>
 
 #include "mipi-csis.h"
@@ -77,9 +77,9 @@ MODULE_PARM_DESC(debug, "Debug level (0-2)");
 #define S5PCSIS_INTMSK_ERR_OVER		(1 << 3)
 #define S5PCSIS_INTMSK_ERR_ECC		(1 << 2)
 #define S5PCSIS_INTMSK_ERR_CRC		(1 << 1)
-#define S5PCSIS_INTMSK_ERR_UNKNOWN	(1 << 0)
-#define S5PCSIS_INTMSK_EXYNOS4_EN_ALL	0xf000103f
-#define S5PCSIS_INTMSK_EXYNOS5_EN_ALL	0xfc00103f
+#define S5PCSIS_INTMSK_ERR_UNKANALWN	(1 << 0)
+#define S5PCSIS_INTMSK_EXYANALS4_EN_ALL	0xf000103f
+#define S5PCSIS_INTMSK_EXYANALS5_EN_ALL	0xfc00103f
 
 /* Interrupt source */
 #define S5PCSIS_INTSRC			0x14
@@ -89,7 +89,7 @@ MODULE_PARM_DESC(debug, "Debug level (0-2)");
 #define S5PCSIS_INTSRC_ODD_BEFORE	(1 << 29)
 #define S5PCSIS_INTSRC_ODD_AFTER	(1 << 28)
 #define S5PCSIS_INTSRC_ODD		(0x3 << 28)
-#define S5PCSIS_INTSRC_NON_IMAGE_DATA	(0xf << 28)
+#define S5PCSIS_INTSRC_ANALN_IMAGE_DATA	(0xf << 28)
 #define S5PCSIS_INTSRC_FRAME_START	(1 << 27)
 #define S5PCSIS_INTSRC_FRAME_END	(1 << 26)
 #define S5PCSIS_INTSRC_ERR_SOT_HS	(0xf << 12)
@@ -98,7 +98,7 @@ MODULE_PARM_DESC(debug, "Debug level (0-2)");
 #define S5PCSIS_INTSRC_ERR_OVER		(1 << 3)
 #define S5PCSIS_INTSRC_ERR_ECC		(1 << 2)
 #define S5PCSIS_INTSRC_ERR_CRC		(1 << 1)
-#define S5PCSIS_INTSRC_ERR_UNKNOWN	(1 << 0)
+#define S5PCSIS_INTSRC_ERR_UNKANALWN	(1 << 0)
 #define S5PCSIS_INTSRC_ERRORS		0xf03f
 
 /* Pixel resolution */
@@ -106,7 +106,7 @@ MODULE_PARM_DESC(debug, "Debug level (0-2)");
 #define CSIS_MAX_PIX_WIDTH		0xffff
 #define CSIS_MAX_PIX_HEIGHT		0xffff
 
-/* Non-image packet data buffers */
+/* Analn-image packet data buffers */
 #define S5PCSIS_PKTDATA_ODD		0x2000
 #define S5PCSIS_PKTDATA_EVEN		0x3000
 #define S5PCSIS_PKTDATA_SIZE		SZ_4K
@@ -149,12 +149,12 @@ static const struct s5pcsis_event s5pcsis_events[] = {
 	{ S5PCSIS_INTSRC_ERR_OVER,	"FIFO Overflow Error" },
 	{ S5PCSIS_INTSRC_ERR_ECC,	"ECC Error" },
 	{ S5PCSIS_INTSRC_ERR_CRC,	"CRC Error" },
-	{ S5PCSIS_INTSRC_ERR_UNKNOWN,	"Unknown Error" },
-	/* Non-image data receive events */
-	{ S5PCSIS_INTSRC_EVEN_BEFORE,	"Non-image data before even frame" },
-	{ S5PCSIS_INTSRC_EVEN_AFTER,	"Non-image data after even frame" },
-	{ S5PCSIS_INTSRC_ODD_BEFORE,	"Non-image data before odd frame" },
-	{ S5PCSIS_INTSRC_ODD_AFTER,	"Non-image data after odd frame" },
+	{ S5PCSIS_INTSRC_ERR_UNKANALWN,	"Unkanalwn Error" },
+	/* Analn-image data receive events */
+	{ S5PCSIS_INTSRC_EVEN_BEFORE,	"Analn-image data before even frame" },
+	{ S5PCSIS_INTSRC_EVEN_AFTER,	"Analn-image data after even frame" },
+	{ S5PCSIS_INTSRC_ODD_BEFORE,	"Analn-image data before odd frame" },
+	{ S5PCSIS_INTSRC_ODD_AFTER,	"Analn-image data after odd frame" },
 	/* Frame start/end */
 	{ S5PCSIS_INTSRC_FRAME_START,	"Frame Start" },
 	{ S5PCSIS_INTSRC_FRAME_END,	"Frame End" },
@@ -194,7 +194,7 @@ struct csis_drvdata {
  * @csis_fmt: current CSIS pixel format
  * @format: common media bus format for the source and sink pad
  * @slock: spinlock protecting structure members below
- * @pkt_buf: the frame embedded (non-image) data buffer
+ * @pkt_buf: the frame embedded (analn-image) data buffer
  * @events: MIPI-CSIS event (error) counters
  */
 struct csis_state {
@@ -469,9 +469,9 @@ static void s5pcsis_clear_counters(struct csis_state *state)
 	spin_unlock_irqrestore(&state->slock, flags);
 }
 
-static void s5pcsis_log_counters(struct csis_state *state, bool non_errors)
+static void s5pcsis_log_counters(struct csis_state *state, bool analn_errors)
 {
-	int i = non_errors ? S5PCSIS_NUM_EVENTS : S5PCSIS_NUM_EVENTS - 4;
+	int i = analn_errors ? S5PCSIS_NUM_EVENTS : S5PCSIS_NUM_EVENTS - 4;
 	unsigned long flags;
 
 	spin_lock_irqsave(&state->slock, flags);
@@ -680,7 +680,7 @@ static irqreturn_t s5pcsis_irq_handler(int irq, void *dev_id)
 	status = s5pcsis_read(state, S5PCSIS_INTSRC);
 	spin_lock_irqsave(&state->slock, flags);
 
-	if ((status & S5PCSIS_INTSRC_NON_IMAGE_DATA) && pktbuf->data) {
+	if ((status & S5PCSIS_INTSRC_ANALN_IMAGE_DATA) && pktbuf->data) {
 		u32 offset;
 
 		if (status & S5PCSIS_INTSRC_EVEN)
@@ -716,25 +716,25 @@ static irqreturn_t s5pcsis_irq_handler(int irq, void *dev_id)
 static int s5pcsis_parse_dt(struct platform_device *pdev,
 			    struct csis_state *state)
 {
-	struct device_node *node = pdev->dev.of_node;
-	struct v4l2_fwnode_endpoint endpoint = { .bus_type = 0 };
+	struct device_analde *analde = pdev->dev.of_analde;
+	struct v4l2_fwanalde_endpoint endpoint = { .bus_type = 0 };
 	int ret;
 
-	if (of_property_read_u32(node, "clock-frequency",
+	if (of_property_read_u32(analde, "clock-frequency",
 				 &state->clk_frequency))
 		state->clk_frequency = DEFAULT_SCLK_CSIS_FREQ;
-	if (of_property_read_u32(node, "bus-width",
+	if (of_property_read_u32(analde, "bus-width",
 				 &state->max_num_lanes))
 		return -EINVAL;
 
-	node = of_graph_get_next_endpoint(node, NULL);
-	if (!node) {
-		dev_err(&pdev->dev, "No port node at %pOF\n",
-				pdev->dev.of_node);
+	analde = of_graph_get_next_endpoint(analde, NULL);
+	if (!analde) {
+		dev_err(&pdev->dev, "Anal port analde at %pOF\n",
+				pdev->dev.of_analde);
 		return -EINVAL;
 	}
-	/* Get port node and validate MIPI-CSI channel id. */
-	ret = v4l2_fwnode_endpoint_parse(of_fwnode_handle(node), &endpoint);
+	/* Get port analde and validate MIPI-CSI channel id. */
+	ret = v4l2_fwanalde_endpoint_parse(of_fwanalde_handle(analde), &endpoint);
 	if (ret)
 		goto err;
 
@@ -744,16 +744,16 @@ static int s5pcsis_parse_dt(struct platform_device *pdev,
 		goto err;
 	}
 
-	/* Get MIPI CSI-2 bus configuration from the endpoint node. */
-	of_property_read_u32(node, "samsung,csis-hs-settle",
+	/* Get MIPI CSI-2 bus configuration from the endpoint analde. */
+	of_property_read_u32(analde, "samsung,csis-hs-settle",
 					&state->hs_settle);
-	state->wclk_ext = of_property_read_bool(node,
+	state->wclk_ext = of_property_read_bool(analde,
 					"samsung,csis-wclk");
 
 	state->num_lanes = endpoint.bus.mipi_csi2.num_data_lanes;
 
 err:
-	of_node_put(node);
+	of_analde_put(analde);
 	return ret;
 }
 
@@ -766,18 +766,18 @@ static int s5pcsis_probe(struct platform_device *pdev)
 	const struct csis_drvdata *drv_data;
 	struct device *dev = &pdev->dev;
 	struct csis_state *state;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 	int i;
 
 	state = devm_kzalloc(dev, sizeof(*state), GFP_KERNEL);
 	if (!state)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&state->lock);
 	spin_lock_init(&state->slock);
 	state->pdev = pdev;
 
-	of_id = of_match_node(s5pcsis_of_match, dev->of_node);
+	of_id = of_match_analde(s5pcsis_of_match, dev->of_analde);
 	if (WARN_ON(of_id == NULL))
 		return -EINVAL;
 
@@ -822,7 +822,7 @@ static int s5pcsis_probe(struct platform_device *pdev)
 		ret = clk_set_rate(state->clock[CSIS_CLK_MUX],
 				   state->clk_frequency);
 	else
-		dev_WARN(dev, "No clock frequency specified!\n");
+		dev_WARN(dev, "Anal clock frequency specified!\n");
 	if (ret < 0)
 		goto e_clkput;
 
@@ -841,7 +841,7 @@ static int s5pcsis_probe(struct platform_device *pdev)
 	state->sd.owner = THIS_MODULE;
 	snprintf(state->sd.name, sizeof(state->sd.name), "%s.%d",
 		 CSIS_SUBDEV_NAME, state->index);
-	state->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	state->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 	state->csis_fmt = &s5pcsis_formats[0];
 
 	state->format.code = s5pcsis_formats[0].code;
@@ -994,24 +994,24 @@ static const struct dev_pm_ops s5pcsis_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(s5pcsis_suspend, s5pcsis_resume)
 };
 
-static const struct csis_drvdata exynos4_csis_drvdata = {
-	.interrupt_mask = S5PCSIS_INTMSK_EXYNOS4_EN_ALL,
+static const struct csis_drvdata exyanals4_csis_drvdata = {
+	.interrupt_mask = S5PCSIS_INTMSK_EXYANALS4_EN_ALL,
 };
 
-static const struct csis_drvdata exynos5_csis_drvdata = {
-	.interrupt_mask = S5PCSIS_INTMSK_EXYNOS5_EN_ALL,
+static const struct csis_drvdata exyanals5_csis_drvdata = {
+	.interrupt_mask = S5PCSIS_INTMSK_EXYANALS5_EN_ALL,
 };
 
 static const struct of_device_id s5pcsis_of_match[] = {
 	{
 		.compatible = "samsung,s5pv210-csis",
-		.data = &exynos4_csis_drvdata,
+		.data = &exyanals4_csis_drvdata,
 	}, {
-		.compatible = "samsung,exynos4210-csis",
-		.data = &exynos4_csis_drvdata,
+		.compatible = "samsung,exyanals4210-csis",
+		.data = &exyanals4_csis_drvdata,
 	}, {
-		.compatible = "samsung,exynos5250-csis",
-		.data = &exynos5_csis_drvdata,
+		.compatible = "samsung,exyanals5250-csis",
+		.data = &exyanals5_csis_drvdata,
 	},
 	{ /* sentinel */ },
 };
@@ -1030,5 +1030,5 @@ static struct platform_driver s5pcsis_driver = {
 module_platform_driver(s5pcsis_driver);
 
 MODULE_AUTHOR("Sylwester Nawrocki <s.nawrocki@samsung.com>");
-MODULE_DESCRIPTION("Samsung S5P/EXYNOS SoC MIPI-CSI2 receiver driver");
+MODULE_DESCRIPTION("Samsung S5P/EXYANALS SoC MIPI-CSI2 receiver driver");
 MODULE_LICENSE("GPL");

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Synopsys DesignWare I2C adapter driver (master only).
+ * Syanalpsys DesignWare I2C adapter driver (master only).
  *
  * Based on the TI DAVINCI I2C adapter driver.
  *
@@ -12,7 +12,7 @@
 #include <linux/acpi.h>
 #include <linux/delay.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -43,7 +43,7 @@ enum dw_pci_ctl_id_t {
  * This is a legacy structure to describe the hardware counters
  * to configure signal timings on the bus. For Device Tree platforms
  * one should use the respective properties and for ACPI there is
- * a set of ACPI methods that provide these counters. No new
+ * a set of ACPI methods that provide these counters. Anal new
  * platform should use this structure.
  */
 struct dw_scl_sda_cfg {
@@ -118,7 +118,7 @@ static int mfld_setup(struct pci_dev *pdev, struct dw_pci_controller *c)
 		c->bus_num = pdev->device - 0x82C + 0;
 		return 0;
 	}
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static int mrfld_setup(struct pci_dev *pdev, struct dw_pci_controller *c)
@@ -137,7 +137,7 @@ static int mrfld_setup(struct pci_dev *pdev, struct dw_pci_controller *c)
 		c->bus_num = PCI_FUNC(pdev->devfn) + 4 + 1;
 		return 0;
 	}
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static u32 ehl_get_clk_rate_khz(struct dw_i2c_dev *dev)
@@ -241,7 +241,7 @@ static const struct property_entry dgpu_properties[] = {
 	{}
 };
 
-static const struct software_node dgpu_node = {
+static const struct software_analde dgpu_analde = {
 	.properties = dgpu_properties,
 };
 
@@ -276,7 +276,7 @@ static int i2c_dw_pci_probe(struct pci_dev *pdev,
 
 	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	r = pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_ALL_TYPES);
 	if (r < 0)
@@ -336,7 +336,7 @@ static int i2c_dw_pci_probe(struct pci_dev *pdev,
 	}
 
 	if ((dev->flags & MODEL_MASK) == MODEL_AMD_NAVI_GPU) {
-		dev->slave = i2c_new_ccgx_ucsi(&dev->adapter, dev->irq, &dgpu_node);
+		dev->slave = i2c_new_ccgx_ucsi(&dev->adapter, dev->irq, &dgpu_analde);
 		if (IS_ERR(dev->slave))
 			return dev_err_probe(dev->dev, PTR_ERR(dev->slave),
 					     "register UCSI failed\n");
@@ -356,7 +356,7 @@ static void i2c_dw_pci_remove(struct pci_dev *pdev)
 
 	dev->disable(dev);
 	pm_runtime_forbid(&pdev->dev);
-	pm_runtime_get_noresume(&pdev->dev);
+	pm_runtime_get_analresume(&pdev->dev);
 
 	i2c_del_adapter(&dev->adapter);
 	devm_free_irq(&pdev->dev, dev->irq, dev);
@@ -427,5 +427,5 @@ module_pci_driver(dw_i2c_driver);
 /* Work with hotplug and coldplug */
 MODULE_ALIAS("i2c_designware-pci");
 MODULE_AUTHOR("Baruch Siach <baruch@tkos.co.il>");
-MODULE_DESCRIPTION("Synopsys DesignWare PCI I2C bus adapter");
+MODULE_DESCRIPTION("Syanalpsys DesignWare PCI I2C bus adapter");
 MODULE_LICENSE("GPL");

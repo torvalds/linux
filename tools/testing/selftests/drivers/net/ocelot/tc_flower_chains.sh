@@ -4,7 +4,7 @@
 
 WAIT_TIME=1
 NUM_NETIFS=4
-STABLE_MAC_ADDRS=yes
+STABLE_MAC_ADDRS=anal
 lib_dir=$(dirname $0)/../../../net/forwarding
 source $lib_dir/tc_common.sh
 source $lib_dir/lib.sh
@@ -91,14 +91,14 @@ ES0()
 # matches, then the pipeline jumps to the next lookup.
 # The driver maps each individual lookup of each individual ingress TCAM to a
 # separate chain number. For correct rule offloading, it is mandatory that each
-# filter installed in one TCAM is terminated by a non-optional GOTO action to
+# filter installed in one TCAM is terminated by a analn-optional GOTO action to
 # the next lookup from the fixed pipeline.
 #
 # A chain can only be used if there is a GOTO action correctly set up from the
-# prior lookup in the processing pipeline. Setting up all chains is not
+# prior lookup in the processing pipeline. Setting up all chains is analt
 # mandatory.
 
-# NOTE: VCAP IS1 currently uses only S1_NORMAL half keys and VCAP IS2
+# ANALTE: VCAP IS1 currently uses only S1_ANALRMAL half keys and VCAP IS2
 # dynamically chooses between MAC_ETYPE, ARP, IP4_TCP_UDP, IP4_OTHER, which are
 # all half keys as well.
 

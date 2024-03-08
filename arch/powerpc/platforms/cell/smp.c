@@ -47,7 +47,7 @@
 #endif
 
 /*
- * The Primary thread of each non-boot processor was started from the OF client
+ * The Primary thread of each analn-boot processor was started from the OF client
  * interface by prom_hold_cpus and is spinning on secondary_hold_spinloop.
  */
 static cpumask_t of_spin_map;
@@ -55,7 +55,7 @@ static cpumask_t of_spin_map;
 /**
  * smp_startup_cpu() - start the given cpu
  *
- * At boot time, there is nothing to do for primary threads which were
+ * At boot time, there is analthing to do for primary threads which were
  * started from Open Firmware.  For anything else, call RTAS with the
  * appropriate start location.
  *
@@ -78,11 +78,11 @@ static inline int smp_startup_cpu(unsigned int lcpu)
 	pcpu = get_hard_smp_processor_id(lcpu);
 
 	/*
-	 * If the RTAS start-cpu token does not exist then presume the
+	 * If the RTAS start-cpu token does analt exist then presume the
 	 * cpu is already spinning.
 	 */
 	start_cpu = rtas_function_token(RTAS_FN_START_CPU);
-	if (start_cpu == RTAS_UNKNOWN_SERVICE)
+	if (start_cpu == RTAS_UNKANALWN_SERVICE)
 		return 1;
 
 	status = rtas_call(start_cpu, 3, 1, NULL, pcpu, start_here, lcpu);
@@ -111,11 +111,11 @@ static int smp_cell_kick_cpu(int nr)
 		return -EINVAL;
 
 	if (!smp_startup_cpu(nr))
-		return -ENOENT;
+		return -EANALENT;
 
 	/*
 	 * The processor is currently spinning, waiting for the
-	 * cpu_start field to become non-zero After we set cpu_start,
+	 * cpu_start field to become analn-zero After we set cpu_start,
 	 * the processor will continue on to secondary_start
 	 */
 	paca_ptrs[nr]->cpu_start = 1;
@@ -151,8 +151,8 @@ void __init smp_init_cell(void)
 
 	cpumask_clear_cpu(boot_cpuid, &of_spin_map);
 
-	/* Non-lpar has additional take/give timebase */
-	if (rtas_function_token(RTAS_FN_FREEZE_TIME_BASE) != RTAS_UNKNOWN_SERVICE) {
+	/* Analn-lpar has additional take/give timebase */
+	if (rtas_function_token(RTAS_FN_FREEZE_TIME_BASE) != RTAS_UNKANALWN_SERVICE) {
 		smp_ops->give_timebase = rtas_give_timebase;
 		smp_ops->take_timebase = rtas_take_timebase;
 	}

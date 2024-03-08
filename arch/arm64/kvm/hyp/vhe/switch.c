@@ -46,7 +46,7 @@ static void __activate_traps(struct kvm_vcpu *vcpu)
 
 		/*
 		 * We're entrering the guest. Reload the correct
-		 * values from memory now that TGE is clear.
+		 * values from memory analw that TGE is clear.
 		 */
 		if (map.direct_ptimer == vcpu_ptimer(vcpu))
 			val = __vcpu_sys_reg(vcpu, CNTP_CVAL_EL0);
@@ -87,7 +87,7 @@ static void __activate_traps(struct kvm_vcpu *vcpu)
 
 	write_sysreg(__this_cpu_read(kvm_hyp_vector), vbar_el1);
 }
-NOKPROBE_SYMBOL(__activate_traps);
+ANALKPROBE_SYMBOL(__activate_traps);
 
 static void __deactivate_traps(struct kvm_vcpu *vcpu)
 {
@@ -105,7 +105,7 @@ static void __deactivate_traps(struct kvm_vcpu *vcpu)
 
 		/*
 		 * We're exiting the guest. Save the latest CVAL value
-		 * to memory and apply the offset now that TGE is set.
+		 * to memory and apply the offset analw that TGE is set.
 		 */
 		val = read_sysreg_el0(SYS_CNTP_CVAL);
 		if (map.direct_ptimer == vcpu_ptimer(vcpu))
@@ -126,7 +126,7 @@ static void __deactivate_traps(struct kvm_vcpu *vcpu)
 	 * above before we can switch to the EL2/EL0 translation regime used by
 	 * the host.
 	 */
-	asm(ALTERNATIVE("nop", "isb", ARM64_WORKAROUND_SPECULATIVE_AT));
+	asm(ALTERNATIVE("analp", "isb", ARM64_WORKAROUND_SPECULATIVE_AT));
 
 	kvm_reset_cptr_el2(vcpu);
 
@@ -134,7 +134,7 @@ static void __deactivate_traps(struct kvm_vcpu *vcpu)
 		host_vectors = __this_cpu_read(this_cpu_vector);
 	write_sysreg(host_vectors, vbar_el1);
 }
-NOKPROBE_SYMBOL(__deactivate_traps);
+ANALKPROBE_SYMBOL(__deactivate_traps);
 
 /*
  * Disable IRQs in __vcpu_{load,put}_{activate,deactivate}_traps() to
@@ -228,7 +228,7 @@ static int __kvm_vcpu_run_vhe(struct kvm_vcpu *vcpu)
 	sysreg_save_host_state_vhe(host_ctxt);
 
 	/*
-	 * Note that ARM erratum 1165522 requires us to configure both stage 1
+	 * Analte that ARM erratum 1165522 requires us to configure both stage 1
 	 * and stage 2 translation for the guest context before we clear
 	 * HCR_EL2.TGE. The stage 1 and stage 2 guest context has already been
 	 * loaded on the CPU in kvm_vcpu_load_vhe().
@@ -265,7 +265,7 @@ static int __kvm_vcpu_run_vhe(struct kvm_vcpu *vcpu)
 
 	return exit_code;
 }
-NOKPROBE_SYMBOL(__kvm_vcpu_run_vhe);
+ANALKPROBE_SYMBOL(__kvm_vcpu_run_vhe);
 
 int __kvm_vcpu_run(struct kvm_vcpu *vcpu)
 {
@@ -275,7 +275,7 @@ int __kvm_vcpu_run(struct kvm_vcpu *vcpu)
 
 	/*
 	 * Having IRQs masked via PMR when entering the guest means the GIC
-	 * will not signal the CPU of interrupts of lower priority, and the
+	 * will analt signal the CPU of interrupts of lower priority, and the
 	 * only way to get out will be via guest exceptions.
 	 * Naturally, we want to avoid this.
 	 *
@@ -290,7 +290,7 @@ int __kvm_vcpu_run(struct kvm_vcpu *vcpu)
 	 * local_daif_restore() takes care to properly restore PSTATE.DAIF
 	 * and the GIC PMR if the host is using IRQ priorities.
 	 */
-	local_daif_restore(DAIF_PROCCTX_NOIRQ);
+	local_daif_restore(DAIF_PROCCTX_ANALIRQ);
 
 	/*
 	 * When we exit from the guest we change a number of CPU configuration
@@ -317,9 +317,9 @@ static void __hyp_call_panic(u64 spsr, u64 elr, u64 par)
 	      read_sysreg_el2(SYS_ESR), read_sysreg_el2(SYS_FAR),
 	      read_sysreg(hpfar_el2), par, vcpu);
 }
-NOKPROBE_SYMBOL(__hyp_call_panic);
+ANALKPROBE_SYMBOL(__hyp_call_panic);
 
-void __noreturn hyp_panic(void)
+void __analreturn hyp_panic(void)
 {
 	u64 spsr = read_sysreg_el2(SYS_SPSR);
 	u64 elr = read_sysreg_el2(SYS_ELR);

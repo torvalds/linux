@@ -43,16 +43,16 @@ static const struct regmap_range idio_16_precious_ranges[] = {
 	regmap_reg_range(0x2, 0x2),
 };
 static const struct regmap_access_table idio_16_wr_table = {
-	.yes_ranges = idio_16_wr_ranges,
-	.n_yes_ranges = ARRAY_SIZE(idio_16_wr_ranges),
+	.anal_ranges = idio_16_wr_ranges,
+	.n_anal_ranges = ARRAY_SIZE(idio_16_wr_ranges),
 };
 static const struct regmap_access_table idio_16_rd_table = {
-	.yes_ranges = idio_16_rd_ranges,
-	.n_yes_ranges = ARRAY_SIZE(idio_16_rd_ranges),
+	.anal_ranges = idio_16_rd_ranges,
+	.n_anal_ranges = ARRAY_SIZE(idio_16_rd_ranges),
 };
 static const struct regmap_access_table idio_16_precious_table = {
-	.yes_ranges = idio_16_precious_ranges,
-	.n_yes_ranges = ARRAY_SIZE(idio_16_precious_ranges),
+	.anal_ranges = idio_16_precious_ranges,
+	.n_anal_ranges = ARRAY_SIZE(idio_16_precious_ranges),
 };
 static const struct regmap_config idio_16_regmap_config = {
 	.reg_bits = 8,
@@ -98,7 +98,7 @@ static int idio_16_probe(struct device *dev, unsigned int id)
 
 	regs = devm_ioport_map(dev, base[id], IDIO_16_EXTENT);
 	if (!regs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	map = devm_regmap_init_mmio(dev, regs, &idio_16_regmap_config);
 	if (IS_ERR(map))
@@ -109,7 +109,7 @@ static int idio_16_probe(struct device *dev, unsigned int id)
 	config.regmap_irqs = idio_16_regmap_irqs;
 	config.num_regmap_irqs = ARRAY_SIZE(idio_16_regmap_irqs);
 	config.irq = irq[id];
-	config.no_status = true;
+	config.anal_status = true;
 
 	return devm_idio_16_regmap_register(dev, &config);
 }

@@ -5,7 +5,7 @@
 	This software may be used and distributed according to the terms of
 	the GNU General Public License (GPL), incorporated herein by reference.
 	Drivers based on or derived from this code fall under the GPL and must
-	retain the authorship, copyright and license notice.  This file is not
+	retain the authorship, copyright and license analtice.  This file is analt
 	a complete program and may only be used when the entire operating
 	system is licensed under the GPL.
 
@@ -145,7 +145,7 @@ struct typhoon_interface {
  * addrHi:	hi bytes of DMA address for this part of the packet
  * processFlags: must be zero
  *
- * TYPHOON_DESC_VALID is not mentioned in their docs, but their Linux
+ * TYPHOON_DESC_VALID is analt mentioned in their docs, but their Linux
  * driver uses it.
  */
 struct tx_desc {
@@ -174,7 +174,7 @@ struct tx_desc {
 		u64 tx_addr;	/* opaque for hardware, for TX_DESC */
 	};
 	__le32 processFlags;
-#define TYPHOON_TX_PF_NO_CRC		cpu_to_le32(0x00000001)
+#define TYPHOON_TX_PF_ANAL_CRC		cpu_to_le32(0x00000001)
 #define TYPHOON_TX_PF_IP_CHKSUM		cpu_to_le32(0x00000002)
 #define TYPHOON_TX_PF_TCP_CHKSUM	cpu_to_le32(0x00000004)
 #define TYPHOON_TX_PF_TCP_SEGMENT	cpu_to_le32(0x00000008)
@@ -237,7 +237,7 @@ struct ipsec_desc {
  * addr:          low 32 bytes of the virtual addr passed in for this buffer
  * addrHi:        high 32 bytes of the virtual addr passed in for this buffer
  * rxStatus:      Error if set in flags, otherwise result of offload processing
- * filterResults: results of filtering on packet, not used
+ * filterResults: results of filtering on packet, analt used
  * ipsecResults:  Results of IPSEC processing
  * vlanTag:       the 801.2q TCI from the packet
  */
@@ -257,7 +257,7 @@ struct rx_desc {
 #define TYPHOON_RX_ERR_ALIGN		cpu_to_le32(0x00000006)
 #define TYPHOON_RX_ERR_DRIBBLE		cpu_to_le32(0x00000007)
 #define TYPHOON_RX_PROTO_MASK		cpu_to_le32(0x00000003)
-#define TYPHOON_RX_PROTO_UNKNOWN	cpu_to_le32(0x00000000)
+#define TYPHOON_RX_PROTO_UNKANALWN	cpu_to_le32(0x00000000)
 #define TYPHOON_RX_PROTO_IP		cpu_to_le32(0x00000001)
 #define TYPHOON_RX_PROTO_IPX		cpu_to_le32(0x00000002)
 #define TYPHOON_RX_VLAN			cpu_to_le32(0x00000004)
@@ -281,7 +281,7 @@ struct rx_desc {
 #define TYPHOON_RX_OUTER_ESP_FAIL	cpu_to_le16(0x0020)
 #define TYPHOON_RX_INNER_AH_FAIL	cpu_to_le16(0x0040)
 #define TYPHOON_RX_INNER_ESP_FAIL	cpu_to_le16(0x0080)
-#define TYPHOON_RX_UNKNOWN_SA		cpu_to_le16(0x0100)
+#define TYPHOON_RX_UNKANALWN_SA		cpu_to_le16(0x0100)
 #define TYPHOON_RX_ESP_FORMAT_ERR	cpu_to_le16(0x0200)
 	__be32 vlanTag;
 } __packed;
@@ -309,7 +309,7 @@ struct rx_free {
  * numDesc: number of descriptors following in this command/response,
  *				ie, zero for a one descriptor command
  * cmd:     the command
- * seqNo:   sequence number (unused)
+ * seqAnal:   sequence number (unused)
  * parm1:   use varies by command
  * parm2:   use varies by command
  * parm3:   use varies by command
@@ -343,7 +343,7 @@ struct cmd_desc {
 #define TYPHOON_CMD_READ_IPSEC_INFO	cpu_to_le16(0x005e)
 #define TYPHOON_CMD_GET_IPSEC_ENABLE	cpu_to_le16(0x0067)
 #define TYPHOON_CMD_GET_CMD_LVL		cpu_to_le16(0x0069)
-	u16 seqNo;
+	u16 seqAnal;
 	__le16 parm1;
 	__le32 parm2;
 	__le32 parm3;
@@ -355,27 +355,27 @@ struct resp_desc {
 	u8  flags;
 	u8  numDesc;
 	__le16 cmd;
-	__le16 seqNo;
+	__le16 seqAnal;
 	__le16 parm1;
 	__le32 parm2;
 	__le32 parm3;
 } __packed;
 
-#define INIT_COMMAND_NO_RESPONSE(x, command)				\
+#define INIT_COMMAND_ANAL_RESPONSE(x, command)				\
 	do { struct cmd_desc *_ptr = (x);				\
 		memset(_ptr, 0, sizeof(struct cmd_desc));		\
 		_ptr->flags = TYPHOON_CMD_DESC | TYPHOON_DESC_VALID;	\
 		_ptr->cmd = command;					\
 	} while (0)
 
-/* We set seqNo to 1 if we're expecting a response from this command */
+/* We set seqAnal to 1 if we're expecting a response from this command */
 #define INIT_COMMAND_WITH_RESPONSE(x, command)				\
 	do { struct cmd_desc *_ptr = (x);				\
 		memset(_ptr, 0, sizeof(struct cmd_desc));		\
 		_ptr->flags = TYPHOON_CMD_RESPOND | TYPHOON_CMD_DESC;	\
 		_ptr->flags |= TYPHOON_DESC_VALID; 			\
 		_ptr->cmd = command;					\
-		_ptr->seqNo = 1;					\
+		_ptr->seqAnal = 1;					\
 	} while (0)
 
 /* TYPHOON_CMD_SET_RX_FILTER filter bits (cmd.parm1)
@@ -392,7 +392,7 @@ struct stats_resp {
 	u8  flags;
 	u8  numDesc;
 	__le16 cmd;
-	__le16 seqNo;
+	__le16 seqAnal;
 	__le16 unused;
 	__le32 txPackets;
 	__le64 txBytes;
@@ -443,7 +443,7 @@ struct stats_resp {
 #define TYPHOON_MEDIA_STAT_COLLISION_DETECT	cpu_to_le16(0x0010)
 #define TYPHOON_MEDIA_STAT_CARRIER_SENSE	cpu_to_le16(0x0020)
 #define TYPHOON_MEDIA_STAT_POLARITY_REV		cpu_to_le16(0x0400)
-#define TYPHOON_MEDIA_STAT_NO_LINK		cpu_to_le16(0x0800)
+#define TYPHOON_MEDIA_STAT_ANAL_LINK		cpu_to_le16(0x0800)
 
 /* TYPHOON_CMD_SET_MULTICAST_HASH enable values (cmd.parm1)
  */
@@ -457,7 +457,7 @@ struct sa_descriptor {
 	u8  flags;
 	u8  numDesc;
 	u16 cmd;
-	u16 seqNo;
+	u16 seqAnal;
 	u16 mode;
 #define TYPHOON_SA_MODE_NULL		cpu_to_le16(0x0000)
 #define TYPHOON_SA_MODE_AH		cpu_to_le16(0x0001)
@@ -574,7 +574,7 @@ struct typhoon_section_header {
 /* 3XP Reset values (TYPHOON_REG_SOFT_RESET)
  */
 #define TYPHOON_RESET_ALL	0x7f
-#define TYPHOON_RESET_NONE	0x00
+#define TYPHOON_RESET_ANALNE	0x00
 
 /* 3XP irq bits (TYPHOON_REG_INTR{STATUS,ENABLE,MASK})
  *
@@ -602,7 +602,7 @@ struct typhoon_section_header {
 
 #define TYPHOON_INTR_ENABLE_ALL		0xffffffef
 #define TYPHOON_INTR_ALL		0xffffffff
-#define TYPHOON_INTR_NONE		0x00000000
+#define TYPHOON_INTR_ANALNE		0x00000000
 
 /* The commands for the 3XP chip (TYPHOON_REG_COMMAND)
  */

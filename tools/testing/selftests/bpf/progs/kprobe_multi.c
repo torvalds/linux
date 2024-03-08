@@ -74,7 +74,7 @@ static void kprobe_multi_check(void *ctx, bool is_return)
 }
 
 /*
- * No tests in here, just to trigger 'bpf_fentry_test*'
+ * Anal tests in here, just to trigger 'bpf_fentry_test*'
  * through tracing test_run
  */
 SEC("fentry/bpf_modify_return_test")

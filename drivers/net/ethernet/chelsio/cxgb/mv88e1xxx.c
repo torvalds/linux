@@ -37,7 +37,7 @@ static void mdio_clear_bit(struct cphy *cphy, int reg, u32 bitval)
 /*
  * NAME:   phy_reset
  *
- * DESC:   Reset the given PHY's port. NOTE: This is not a global
+ * DESC:   Reset the given PHY's port. ANALTE: This is analt a global
  *         chip reset.
  *
  * PARAMS: cphy     - Pointer to PHY instance data.

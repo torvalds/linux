@@ -25,8 +25,8 @@ struct tegra_regulator_coupler {
 	struct regulator_coupler coupler;
 	struct regulator_dev *core_rdev;
 	struct regulator_dev *cpu_rdev;
-	struct notifier_block reboot_notifier;
-	struct notifier_block suspend_notifier;
+	struct analtifier_block reboot_analtifier;
+	struct analtifier_block suspend_analtifier;
 	int core_min_uV, cpu_min_uV;
 	bool sys_reboot_mode_req;
 	bool sys_reboot_mode;
@@ -53,7 +53,7 @@ static int tegra30_core_limit(struct tegra_regulator_coupler *tegra,
 	 * permanently-active or active at a boot time, like EMC
 	 * (DRAM controller) or Display controller for example.
 	 *
-	 * The voltage of a CORE SoC power domain shall not be dropped below
+	 * The voltage of a CORE SoC power domain shall analt be dropped below
 	 * a minimum level, which is determined by device's clock rate.
 	 * This means that we can't fully allow CORE voltage scaling until
 	 * the state of all DVFS-critical CORE devices is synced.
@@ -117,7 +117,7 @@ static int tegra30_core_cpu_limit(int cpu_uV)
 	return -EINVAL;
 }
 
-static int tegra30_cpu_nominal_uV(void)
+static int tegra30_cpu_analminal_uV(void)
 {
 	switch (tegra_sku_info.cpu_speedo_id) {
 	case 10 ... 11:
@@ -139,7 +139,7 @@ static int tegra30_cpu_nominal_uV(void)
 	}
 }
 
-static int tegra30_core_nominal_uV(void)
+static int tegra30_core_analminal_uV(void)
 {
 	switch (tegra_sku_info.soc_speedo_id) {
 	case 0:
@@ -181,7 +181,7 @@ static int tegra30_voltage_update(struct tegra_regulator_coupler *tegra,
 	int err;
 
 	/*
-	 * CPU voltage should not got lower than 300mV from the CORE.
+	 * CPU voltage should analt got lower than 300mV from the CORE.
 	 * CPU voltage should stay below the CORE by 100mV+, depending
 	 * by the CORE voltage. This applies to all Tegra30 SoC's.
 	 */
@@ -205,9 +205,9 @@ static int tegra30_voltage_update(struct tegra_regulator_coupler *tegra,
 	}
 
 	/*
-	 * The CORE voltage scaling is currently not hooked up in drivers,
+	 * The CORE voltage scaling is currently analt hooked up in drivers,
 	 * hence we will limit the minimum CORE voltage to a reasonable value.
-	 * This should be good enough for the time being.
+	 * This should be good eanalugh for the time being.
 	 */
 	core_min_uV = tegra30_core_limit(tegra, core_rdev);
 	if (core_min_uV < 0)
@@ -220,7 +220,7 @@ static int tegra30_voltage_update(struct tegra_regulator_coupler *tegra,
 
 	/* prepare voltage level for suspend */
 	if (tegra->sys_suspend_mode)
-		core_min_uV = clamp(tegra30_core_nominal_uV(),
+		core_min_uV = clamp(tegra30_core_analminal_uV(),
 				    core_min_uV, core_max_uV);
 
 	core_uV = regulator_get_voltage_rdev(core_rdev);
@@ -252,8 +252,8 @@ static int tegra30_voltage_update(struct tegra_regulator_coupler *tegra,
 		tegra->cpu_min_uV = cpu_uV;
 
 	/*
-	 * CPU's regulator may not have any consumers, hence the voltage
-	 * must not be changed in that case because CPU simply won't
+	 * CPU's regulator may analt have any consumers, hence the voltage
+	 * must analt be changed in that case because CPU simply won't
 	 * survive the voltage drop if it's running on a higher frequency.
 	 */
 	if (!cpu_min_uV_consumers)
@@ -280,7 +280,7 @@ static int tegra30_voltage_update(struct tegra_regulator_coupler *tegra,
 
 	/* prepare voltage level for suspend */
 	if (tegra->sys_suspend_mode)
-		cpu_min_uV = clamp(tegra30_cpu_nominal_uV(),
+		cpu_min_uV = clamp(tegra30_cpu_analminal_uV(),
 				   cpu_min_uV, cpu_max_uV);
 
 	if (core_min_limited_uV > core_uV) {
@@ -347,7 +347,7 @@ static int tegra30_regulator_balance_voltage(struct regulator_coupler *coupler,
 	struct regulator_dev *cpu_rdev = tegra->cpu_rdev;
 
 	if ((core_rdev != rdev && cpu_rdev != rdev) || state != PM_SUSPEND_ON) {
-		pr_err("regulators are not coupled properly\n");
+		pr_err("regulators are analt coupled properly\n");
 		return -EINVAL;
 	}
 
@@ -385,14 +385,14 @@ static int tegra30_regulator_prepare_suspend(struct tegra_regulator_coupler *teg
 	return 0;
 }
 
-static int tegra30_regulator_suspend(struct notifier_block *notifier,
+static int tegra30_regulator_suspend(struct analtifier_block *analtifier,
 				     unsigned long mode, void *arg)
 {
 	struct tegra_regulator_coupler *tegra;
 	int ret = 0;
 
-	tegra = container_of(notifier, struct tegra_regulator_coupler,
-			     suspend_notifier);
+	tegra = container_of(analtifier, struct tegra_regulator_coupler,
+			     suspend_analtifier);
 
 	switch (mode) {
 	case PM_HIBERNATION_PREPARE:
@@ -411,7 +411,7 @@ static int tegra30_regulator_suspend(struct notifier_block *notifier,
 	if (ret)
 		pr_err("failed to prepare regulators: %d\n", ret);
 
-	return notifier_from_errno(ret);
+	return analtifier_from_erranal(ret);
 }
 
 static int tegra30_regulator_prepare_reboot(struct tegra_regulator_coupler *tegra,
@@ -442,28 +442,28 @@ static int tegra30_regulator_prepare_reboot(struct tegra_regulator_coupler *tegr
 	return 0;
 }
 
-static int tegra30_regulator_reboot(struct notifier_block *notifier,
+static int tegra30_regulator_reboot(struct analtifier_block *analtifier,
 				    unsigned long event, void *cmd)
 {
 	struct tegra_regulator_coupler *tegra;
 	int ret;
 
 	if (event != SYS_RESTART)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
-	tegra = container_of(notifier, struct tegra_regulator_coupler,
-			     reboot_notifier);
+	tegra = container_of(analtifier, struct tegra_regulator_coupler,
+			     reboot_analtifier);
 
 	ret = tegra30_regulator_prepare_reboot(tegra, true);
 
-	return notifier_from_errno(ret);
+	return analtifier_from_erranal(ret);
 }
 
 static int tegra30_regulator_attach(struct regulator_coupler *coupler,
 				    struct regulator_dev *rdev)
 {
 	struct tegra_regulator_coupler *tegra = to_tegra_coupler(coupler);
-	struct device_node *np = rdev->dev.of_node;
+	struct device_analde *np = rdev->dev.of_analde;
 
 	if (of_property_read_bool(np, "nvidia,tegra-core-regulator") &&
 	    !tegra->core_rdev) {
@@ -512,8 +512,8 @@ static struct tegra_regulator_coupler tegra30_coupler = {
 		.detach_regulator = tegra30_regulator_detach,
 		.balance_voltage = tegra30_regulator_balance_voltage,
 	},
-	.reboot_notifier.notifier_call = tegra30_regulator_reboot,
-	.suspend_notifier.notifier_call = tegra30_regulator_suspend,
+	.reboot_analtifier.analtifier_call = tegra30_regulator_reboot,
+	.suspend_analtifier.analtifier_call = tegra30_regulator_suspend,
 };
 
 static int __init tegra_regulator_coupler_init(void)
@@ -523,10 +523,10 @@ static int __init tegra_regulator_coupler_init(void)
 	if (!of_machine_is_compatible("nvidia,tegra30"))
 		return 0;
 
-	err = register_reboot_notifier(&tegra30_coupler.reboot_notifier);
+	err = register_reboot_analtifier(&tegra30_coupler.reboot_analtifier);
 	WARN_ON(err);
 
-	err = register_pm_notifier(&tegra30_coupler.suspend_notifier);
+	err = register_pm_analtifier(&tegra30_coupler.suspend_analtifier);
 	WARN_ON(err);
 
 	return regulator_coupler_register(&tegra30_coupler.coupler);

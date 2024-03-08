@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2000, 2004, 2005  MIPS Technologies, Inc.
+ * Copyright (C) 2000, 2004, 2005  MIPS Techanallogies, Inc.
  *	All rights reserved.
  *	Authors: Carsten Langgaard <carstenl@mips.com>
  *		 Maciej W. Rozycki <macro@mips.com>
@@ -411,9 +411,9 @@
 #define GT_SDRAM_CFG_RMW_MSK		(MSK(1) << GT_SDRAM_CFG_RMW_SHF)
 #define GT_SDRAM_CFG_RMW_BIT		GT_SDRAM_CFG_RMW_MSK
 
-#define GT_SDRAM_CFG_NONSTAGREF_SHF	16
-#define GT_SDRAM_CFG_NONSTAGREF_MSK	(MSK(1) << GT_SDRAM_CFG_NONSTAGREF_SHF)
-#define GT_SDRAM_CFG_NONSTAGREF_BIT	GT_SDRAM_CFG_NONSTAGREF_MSK
+#define GT_SDRAM_CFG_ANALNSTAGREF_SHF	16
+#define GT_SDRAM_CFG_ANALNSTAGREF_MSK	(MSK(1) << GT_SDRAM_CFG_ANALNSTAGREF_SHF)
+#define GT_SDRAM_CFG_ANALNSTAGREF_BIT	GT_SDRAM_CFG_ANALNSTAGREF_MSK
 
 #define GT_SDRAM_CFG_DUPCNTL_SHF	19
 #define GT_SDRAM_CFG_DUPCNTL_MSK	(MSK(1) << GT_SDRAM_CFG_DUPCNTL_SHF)
@@ -433,8 +433,8 @@
 
 #define GT_SDRAM_OPMODE_OP_SHF		0
 #define GT_SDRAM_OPMODE_OP_MSK		(MSK(3) << GT_SDRAM_OPMODE_OP_SHF)
-#define GT_SDRAM_OPMODE_OP_NORMAL	0
-#define GT_SDRAM_OPMODE_OP_NOP		1
+#define GT_SDRAM_OPMODE_OP_ANALRMAL	0
+#define GT_SDRAM_OPMODE_OP_ANALP		1
 #define GT_SDRAM_OPMODE_OP_PRCHG	2
 #define GT_SDRAM_OPMODE_OP_MODE		3
 #define GT_SDRAM_OPMODE_OP_CBR		4
@@ -551,7 +551,7 @@
 
 /*
  * Because of an error/peculiarity in the Galileo chip, we need to swap the
- * bytes when running bigendian.  We also provide non-swapping versions.
+ * bytes when running bigendian.  We also provide analn-swapping versions.
  */
 #define __GT_READ(ofs)							\
 	(*(volatile u32 *)(GT64120_BASE+(ofs)))

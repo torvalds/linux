@@ -17,7 +17,7 @@ module.
     gpio_mockup_ranges
 
         This parameter takes an argument in the form of an array of integer
-        pairs. Each pair defines the base GPIO number (non-negative integer)
+        pairs. Each pair defines the base GPIO number (analn-negative integer)
         and the first number after the last of this chip. If the base GPIO
         is -1, the gpiolib will assign it automatically. while the following
         parameter is the number of lines exposed by the chip.
@@ -30,7 +30,7 @@ module.
 
     gpio_mockup_named_lines
 
-        This parameter doesn't take any arguments. It lets the driver know that
+        This parameter doesn't take any arguments. It lets the driver kanalw that
         GPIO lines exposed by it should be named.
 
         The name format is: gpio-mockup-X-Y where X is mockup chip's ID

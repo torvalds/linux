@@ -1,11 +1,11 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef __LINUX_FIB_RULES_H
 #define __LINUX_FIB_RULES_H
 
 #include <linux/types.h>
 #include <linux/rtnetlink.h>
 
-/* rule is permanent, and cannot be deleted */
+/* rule is permanent, and cananalt be deleted */
 #define FIB_RULE_PERMANENT	0x00000001
 #define FIB_RULE_INVERT		0x00000002
 #define FIB_RULE_UNRESOLVED	0x00000004
@@ -75,11 +75,11 @@ enum {
 enum {
 	FR_ACT_UNSPEC,
 	FR_ACT_TO_TBL,		/* Pass to fixed table */
-	FR_ACT_GOTO,		/* Jump to another rule */
-	FR_ACT_NOP,		/* No operation */
+	FR_ACT_GOTO,		/* Jump to aanalther rule */
+	FR_ACT_ANALP,		/* Anal operation */
 	FR_ACT_RES3,
 	FR_ACT_RES4,
-	FR_ACT_BLACKHOLE,	/* Drop without notification */
+	FR_ACT_BLACKHOLE,	/* Drop without analtification */
 	FR_ACT_UNREACHABLE,	/* Drop with ENETUNREACH */
 	FR_ACT_PROHIBIT,	/* Drop with EACCES */
 	__FR_ACT_MAX,

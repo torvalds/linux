@@ -19,7 +19,7 @@
 #include <linux/spinlock.h>
 #include <linux/kthread.h>
 #include <linux/interrupt.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/ioport.h>
 #include <linux/ip.h>
 #include <linux/in.h>
@@ -58,7 +58,7 @@ static const u32 default_msg
 
 static int debug = -1;		/* defaults above */
 module_param(debug, int, 0);
-MODULE_PARM_DESC(debug, "Debug level (0=none,...,16=all)");
+MODULE_PARM_DESC(debug, "Debug level (0=analne,...,16=all)");
 
 static int msi;
 module_param(msi, int, 0);
@@ -74,10 +74,10 @@ static const struct pci_device_id ql3xxx_pci_tbl[] = {
 MODULE_DEVICE_TABLE(pci, ql3xxx_pci_tbl);
 
 /*
- *  These are the known PHY's which are used
+ *  These are the kanalwn PHY's which are used
  */
 enum PHY_DEVICE_TYPE {
-   PHY_TYPE_UNKNOWN   = 0,
+   PHY_TYPE_UNKANALWN   = 0,
    PHY_VITESSE_VSC8211,
    PHY_AGERE_ET1011C,
    MAX_PHY_DEV_TYPES
@@ -91,7 +91,7 @@ struct PHY_DEVICE_INFO {
 };
 
 static const struct PHY_DEVICE_INFO PHY_DEVICES[] = {
-	{PHY_TYPE_UNKNOWN,    0x000000, 0x0, "PHY_TYPE_UNKNOWN"},
+	{PHY_TYPE_UNKANALWN,    0x000000, 0x0, "PHY_TYPE_UNKANALWN"},
 	{PHY_VITESSE_VSC8211, 0x0003f1, 0xb, "PHY_VITESSE_VSC8211"},
 	{PHY_AGERE_ET1011C,   0x00a0bc, 0x1, "PHY_AGERE_ET1011C"},
 };
@@ -360,8 +360,8 @@ static struct ql_rcv_buf_cb *ql_get_from_lrg_buf_free_list(struct ql3_adapter
 	return lrg_buf_cb;
 }
 
-static u32 addrBits = EEPROM_NO_ADDR_BITS;
-static u32 dataBits = EEPROM_NO_DATA_BITS;
+static u32 addrBits = EEPROM_ANAL_ADDR_BITS;
+static u32 dataBits = EEPROM_ANAL_DATA_BITS;
 
 static void fm93c56a_deselect(struct ql3_adapter *qdev);
 static void eeprom_readword(struct ql3_adapter *qdev, u32 eepromAddr,
@@ -842,7 +842,7 @@ static void phyAgereSpecificInit(struct ql3_adapter *qdev, u32 miiAddr)
 	netdev_info(qdev->ndev, "enabling Agere specific PHY\n");
 	/* power down device bit 11 = 1 */
 	ql_mii_write_reg_ex(qdev, 0x00, 0x1940, miiAddr);
-	/* enable diagnostic mode bit 2 = 1 */
+	/* enable diaganalstic mode bit 2 = 1 */
 	ql_mii_write_reg_ex(qdev, 0x12, 0x840e, miiAddr);
 	/* 1000MB amplitude adjust (see Agere errata) */
 	ql_mii_write_reg_ex(qdev, 0x10, 0x8805, miiAddr);
@@ -862,7 +862,7 @@ static void phyAgereSpecificInit(struct ql3_adapter *qdev, u32 miiAddr)
 	ql_mii_write_reg_ex(qdev, 0x11,
 			    0x0020 | (PHYAddr[qdev->mac_index] >> 8), miiAddr);
 	/*
-	 * Disable diagnostic mode bit 2 = 0
+	 * Disable diaganalstic mode bit 2 = 0
 	 * Power up device bit 11 = 0
 	 * Link up (on) and activity (blink)
 	 */
@@ -874,7 +874,7 @@ static void phyAgereSpecificInit(struct ql3_adapter *qdev, u32 miiAddr)
 static enum PHY_DEVICE_TYPE getPhyType(struct ql3_adapter *qdev,
 				       u16 phyIdReg0, u16 phyIdReg1)
 {
-	enum PHY_DEVICE_TYPE result = PHY_TYPE_UNKNOWN;
+	enum PHY_DEVICE_TYPE result = PHY_TYPE_UNKANALWN;
 	u32   oui;
 	u16   model;
 	int i;
@@ -976,13 +976,13 @@ static int PHY_Setup(struct ql3_adapter *qdev)
 	/*  Determine the PHY we are using by reading the ID's */
 	err = ql_mii_read_reg(qdev, PHY_ID_0_REG, &reg1);
 	if (err != 0) {
-		netdev_err(qdev->ndev, "Could not read from reg PHY_ID_0_REG\n");
+		netdev_err(qdev->ndev, "Could analt read from reg PHY_ID_0_REG\n");
 		return err;
 	}
 
 	err = ql_mii_read_reg(qdev, PHY_ID_1_REG, &reg2);
 	if (err != 0) {
-		netdev_err(qdev->ndev, "Could not read from reg PHY_ID_1_REG\n");
+		netdev_err(qdev->ndev, "Could analt read from reg PHY_ID_1_REG\n");
 		return err;
 	}
 
@@ -999,13 +999,13 @@ static int PHY_Setup(struct ql3_adapter *qdev)
 		err = ql_mii_read_reg_ex(qdev, PHY_ID_0_REG, &reg1, miiAddr);
 		if (err != 0) {
 			netdev_err(qdev->ndev,
-				   "Could not read from reg PHY_ID_0_REG after Agere detected\n");
+				   "Could analt read from reg PHY_ID_0_REG after Agere detected\n");
 			return err;
 		}
 
 		err = ql_mii_read_reg_ex(qdev, PHY_ID_1_REG, &reg2, miiAddr);
 		if (err != 0) {
-			netdev_err(qdev->ndev, "Could not read from reg PHY_ID_1_REG after Agere detected\n");
+			netdev_err(qdev->ndev, "Could analt read from reg PHY_ID_1_REG after Agere detected\n");
 			return err;
 		}
 
@@ -1020,8 +1020,8 @@ static int PHY_Setup(struct ql3_adapter *qdev)
 	if ((qdev->phyType == PHY_AGERE_ET1011C) && agereAddrChangeNeeded) {
 		/* need this here so address gets changed */
 		phyAgereSpecificInit(qdev, miiAddr);
-	} else if (qdev->phyType == PHY_TYPE_UNKNOWN) {
-		netdev_err(qdev->ndev, "PHY is unknown\n");
+	} else if (qdev->phyType == PHY_TYPE_UNKANALWN) {
+		netdev_err(qdev->ndev, "PHY is unkanalwn\n");
 		return -EIO;
 	}
 
@@ -1312,7 +1312,7 @@ static int ql_this_adapter_controls_port(struct ql3_adapter *qdev)
 	temp = ql_read_page0_reg(qdev, &port_regs->portStatus);
 	if (temp & bitToCheck) {
 		netif_printk(qdev, link, KERN_DEBUG, qdev->ndev,
-			     "not link master\n");
+			     "analt link master\n");
 		return 0;
 	}
 
@@ -1439,7 +1439,7 @@ static int ql_port_start(struct ql3_adapter *qdev)
 	if (ql_sem_spinlock(qdev, QL_PHY_GIO_SEM_MASK,
 		(QL_RESOURCE_BITS_BASE_CODE | (qdev->mac_index) *
 			 2) << 7)) {
-		netdev_err(qdev->ndev, "Could not get hw lock for GIO\n");
+		netdev_err(qdev->ndev, "Could analt get hw lock for GIO\n");
 		return -1;
 	}
 
@@ -1929,10 +1929,10 @@ static void ql_process_mac_tx_intr(struct ql3_adapter *qdev,
 	/*  Check the transmit response flags for any errors */
 	if (mac_rsp->flags & OB_MAC_IOCB_RSP_S) {
 		netdev_err(qdev->ndev,
-			   "Frame too short to be legal, frame not sent\n");
+			   "Frame too short to be legal, frame analt sent\n");
 
 		qdev->ndev->stats.tx_errors++;
-		goto frame_not_sent;
+		goto frame_analt_sent;
 	}
 
 	if (tx_cb->seg_count == 0) {
@@ -1958,7 +1958,7 @@ static void ql_process_mac_tx_intr(struct ql3_adapter *qdev,
 	qdev->ndev->stats.tx_packets++;
 	qdev->ndev->stats.tx_bytes += tx_cb->skb->len;
 
-frame_not_sent:
+frame_analt_sent:
 	dev_kfree_skb_irq(tx_cb->skb);
 	tx_cb->skb = NULL;
 
@@ -2023,7 +2023,7 @@ static void ql_process_mac_rx_intr(struct ql3_adapter *qdev,
 			 dma_unmap_addr(lrg_buf_cb2, mapaddr),
 			 dma_unmap_len(lrg_buf_cb2, maplen), DMA_FROM_DEVICE);
 	prefetch(skb->data);
-	skb_checksum_none_assert(skb);
+	skb_checksum_analne_assert(skb);
 	skb->protocol = eth_type_trans(skb, qdev->ndev);
 
 	napi_gro_receive(&qdev->napi, skb);
@@ -2069,7 +2069,7 @@ static void ql_process_macip_rx_intr(struct ql3_adapter *qdev,
 			 dma_unmap_len(lrg_buf_cb2, maplen), DMA_FROM_DEVICE);
 	prefetch(skb2->data);
 
-	skb_checksum_none_assert(skb2);
+	skb_checksum_analne_assert(skb2);
 	if (qdev->device_id == QL3022_DEVICE_ID) {
 		/*
 		 * Copy the ethhdr from first buffer to second. This
@@ -2147,7 +2147,7 @@ static int ql_tx_rx_clean(struct ql3_adapter *qdev, int budget)
 		default: {
 			u32 *tmp = (u32 *)net_rsp;
 			netdev_err(ndev,
-				   "Hit default case, not handled!\n"
+				   "Hit default case, analt handled!\n"
 				   "	dropping the packet, opcode = %x\n"
 				   "0x%08lx 0x%08lx 0x%08lx 0x%08lx\n",
 				   net_rsp->opcode,
@@ -2235,7 +2235,7 @@ static irqreturn_t ql3xxx_isr(int irq, void *dev_id)
 			 */
 			set_bit(QL_RESET_PER_SCSI, &qdev->flags) ;
 			netdev_err(ndev,
-				   "Another function issued a reset to the chip. ISR value = %x\n",
+				   "Aanalther function issued a reset to the chip. ISR value = %x\n",
 				   value);
 		}
 		queue_delayed_work(qdev->workqueue, &qdev->reset_work, 0);
@@ -2245,7 +2245,7 @@ static irqreturn_t ql3xxx_isr(int irq, void *dev_id)
 		if (likely(napi_schedule_prep(&qdev->napi)))
 			__napi_schedule(&qdev->napi);
 	} else
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	return IRQ_RETVAL(handled);
 }
@@ -2255,7 +2255,7 @@ static irqreturn_t ql3xxx_isr(int irq, void *dev_id)
  * This is necessary because outbound address lists (OAL) will be used when
  * more than two frags are given.  Each address list has 5 addr/len pairs.
  * The 5th pair in each OAL is used to  point to the next OAL if more frags
- * are coming.  That is why the frags:segment count ratio is not linear.
+ * are coming.  That is why the frags:segment count ratio is analt linear.
  */
 static int ql_get_seg_count(struct ql3_adapter *qdev, unsigned short frags)
 {
@@ -2399,9 +2399,9 @@ static int ql_send_map(struct ql3_adapter *qdev,
 	return NETDEV_TX_OK;
 
 map_error:
-	/* A PCI mapping failed and now we will need to back out
+	/* A PCI mapping failed and analw we will need to back out
 	 * We need to traverse through the oal's and associated pages which
-	 * have been mapped and now we must unmap them to clean up properly
+	 * have been mapped and analw we must unmap them to clean up properly
 	 */
 
 	seg = 1;
@@ -2488,7 +2488,7 @@ static netdev_tx_t ql3xxx_send(struct sk_buff *skb,
 		ql_hw_csum_setup(skb, mac_iocb_ptr);
 
 	if (ql_send_map(qdev, mac_iocb_ptr, tx_cb, skb) != NETDEV_TX_OK) {
-		netdev_err(ndev, "%s: Could not map the segments!\n", __func__);
+		netdev_err(ndev, "%s: Could analt map the segments!\n", __func__);
 		return NETDEV_TX_BUSY;
 	}
 
@@ -2528,7 +2528,7 @@ static int ql_alloc_net_req_rsp_queues(struct ql3_adapter *qdev)
 	if ((qdev->req_q_virt_addr == NULL) ||
 	    LS_64BITS(qdev->req_q_phy_addr) & (qdev->req_q_size - 1)) {
 		netdev_err(qdev->ndev, "reqQ failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	qdev->rsp_q_virt_addr =
@@ -2540,7 +2540,7 @@ static int ql_alloc_net_req_rsp_queues(struct ql3_adapter *qdev)
 		netdev_err(qdev->ndev, "rspQ allocation failed\n");
 		dma_free_coherent(&qdev->pdev->dev, (size_t)qdev->req_q_size,
 				  qdev->req_q_virt_addr, qdev->req_q_phy_addr);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	set_bit(QL_ALLOC_REQ_RSP_Q_DONE, &qdev->flags);
@@ -2582,7 +2582,7 @@ static int ql_alloc_buffer_queues(struct ql3_adapter *qdev)
 				      sizeof(struct ql_rcv_buf_cb),
 				      GFP_KERNEL);
 	if (qdev->lrg_buf == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	qdev->lrg_buf_q_alloc_virt_addr =
 		dma_alloc_coherent(&qdev->pdev->dev,
@@ -2592,7 +2592,7 @@ static int ql_alloc_buffer_queues(struct ql3_adapter *qdev)
 	if (qdev->lrg_buf_q_alloc_virt_addr == NULL) {
 		netdev_err(qdev->ndev, "lBufQ failed\n");
 		kfree(qdev->lrg_buf);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	qdev->lrg_buf_q_virt_addr = qdev->lrg_buf_q_alloc_virt_addr;
 	qdev->lrg_buf_q_phy_addr = qdev->lrg_buf_q_alloc_phy_addr;
@@ -2617,7 +2617,7 @@ static int ql_alloc_buffer_queues(struct ql3_adapter *qdev)
 				  qdev->lrg_buf_q_alloc_virt_addr,
 				  qdev->lrg_buf_q_alloc_phy_addr);
 		kfree(qdev->lrg_buf);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	qdev->small_buf_q_virt_addr = qdev->small_buf_q_alloc_virt_addr;
@@ -2665,7 +2665,7 @@ static int ql_alloc_small_buffers(struct ql3_adapter *qdev)
 
 	if (qdev->small_buf_virt_addr == NULL) {
 		netdev_err(qdev->ndev, "Failed to get small buffer memory\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	qdev->small_buf_phy_addr_low = LS_64BITS(qdev->small_buf_phy_addr);
@@ -2759,7 +2759,7 @@ static int ql_alloc_large_buffers(struct ql3_adapter *qdev)
 				   "large buff alloc failed for %d bytes at index %d\n",
 				   qdev->lrg_buffer_len * 2, i);
 			ql_free_large_buffers(qdev);
-			return -ENOMEM;
+			return -EANALMEM;
 		} else {
 			lrg_buf_cb->index = i;
 			/*
@@ -2778,7 +2778,7 @@ static int ql_alloc_large_buffers(struct ql3_adapter *qdev)
 					   err);
 				dev_kfree_skb_irq(skb);
 				ql_free_large_buffers(qdev);
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 
 			lrg_buf_cb->skb = skb;
@@ -2823,16 +2823,16 @@ static int ql_create_send_free_list(struct ql3_adapter *qdev)
 		req_q_curr++;
 		tx_cb->oal = kmalloc(512, GFP_KERNEL);
 		if (tx_cb->oal == NULL)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 	return 0;
 }
 
 static int ql_alloc_mem_resources(struct ql3_adapter *qdev)
 {
-	if (qdev->ndev->mtu == NORMAL_MTU_SIZE) {
+	if (qdev->ndev->mtu == ANALRMAL_MTU_SIZE) {
 		qdev->num_lbufq_entries = NUM_LBUFQ_ENTRIES;
-		qdev->lrg_buffer_len = NORMAL_MTU_SIZE;
+		qdev->lrg_buffer_len = ANALRMAL_MTU_SIZE;
 	} else if (qdev->ndev->mtu == JUMBO_MTU_SIZE) {
 		/*
 		 * Bigger buffers, so less of them.
@@ -2841,8 +2841,8 @@ static int ql_alloc_mem_resources(struct ql3_adapter *qdev)
 		qdev->lrg_buffer_len = JUMBO_MTU_SIZE;
 	} else {
 		netdev_err(qdev->ndev, "Invalid mtu size: %d.  Only %d and %d are accepted.\n",
-			   qdev->ndev->mtu, NORMAL_MTU_SIZE, JUMBO_MTU_SIZE);
-		return -ENOMEM;
+			   qdev->ndev->mtu, ANALRMAL_MTU_SIZE, JUMBO_MTU_SIZE);
+		return -EANALMEM;
 	}
 	qdev->num_large_buffers =
 		qdev->num_lbufq_entries * QL_ADDR_ELE_PER_BUFQ_ENTRY;
@@ -2874,7 +2874,7 @@ static int ql_alloc_mem_resources(struct ql3_adapter *qdev)
 			qdev->req_consumer_index_phy_addr_low + 8;
 	} else {
 		netdev_err(qdev->ndev, "shadowReg Alloc failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	if (ql_alloc_net_req_rsp_queues(qdev) != 0) {
@@ -2916,7 +2916,7 @@ err_req_rsp:
 			  qdev->shadow_reg_virt_addr,
 			  qdev->shadow_reg_phy_addr);
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void ql_free_mem_resources(struct ql3_adapter *qdev)
@@ -3122,7 +3122,7 @@ static int ql_adapter_initialize(struct ql3_adapter *qdev)
 	value = ql_read_page0_reg(qdev, &port_regs->portStatus);
 	if ((value & PORT_STATUS_IC) == 0) {
 
-		/* Chip has not been configured yet, so let it rip. */
+		/* Chip has analt been configured yet, so let it rip. */
 		if (ql_init_misc_registers(qdev)) {
 			status = -1;
 			goto out;
@@ -3439,7 +3439,7 @@ static int ql_adapter_down(struct ql3_adapter *qdev, int do_reset)
 				   "Releasing driver lock via chip reset\n");
 		} else {
 			netdev_err(ndev,
-				   "Could not acquire driver lock to do reset!\n");
+				   "Could analt acquire driver lock to do reset!\n");
 			retval = -1;
 		}
 		spin_unlock_irqrestore(&qdev->hw_lock, hw_flags);
@@ -3457,7 +3457,7 @@ static int ql_adapter_up(struct ql3_adapter *qdev)
 
 	if (ql_alloc_mem_resources(qdev)) {
 		netdev_err(ndev, "Unable to  allocate buffers\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	if (qdev->msi) {
@@ -3484,8 +3484,8 @@ static int ql_adapter_up(struct ql3_adapter *qdev)
 	spin_lock_irqsave(&qdev->hw_lock, hw_flags);
 
 	if (!ql_wait_for_drvr_lock(qdev)) {
-		netdev_err(ndev, "Could not acquire driver lock\n");
-		err = -ENODEV;
+		netdev_err(ndev, "Could analt acquire driver lock\n");
+		err = -EANALDEV;
 		goto err_lock;
 	}
 
@@ -3566,7 +3566,7 @@ static int ql3xxx_set_mac_address(struct net_device *ndev, void *p)
 		return -EBUSY;
 
 	if (!is_valid_ether_addr(addr->sa_data))
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 
 	eth_hw_addr_set(ndev, addr->sa_data);
 
@@ -3687,7 +3687,7 @@ static void ql_reset_work(struct work_struct *work)
 
 			/*
 			 * Set the reset flags and clear the board again.
-			 * Nothing else to do...
+			 * Analthing else to do...
 			 */
 			netdev_err(ndev,
 				   "Timed out waiting for reset to complete\n");
@@ -3701,7 +3701,7 @@ static void ql_reset_work(struct work_struct *work)
 		clear_bit(QL_RESET_ACTIVE, &qdev->flags);
 		clear_bit(QL_RESET_PER_SCSI, &qdev->flags);
 		clear_bit(QL_RESET_START, &qdev->flags);
-		ql_cycle_adapter(qdev, QL_NO_RESET);
+		ql_cycle_adapter(qdev, QL_ANAL_RESET);
 	}
 }
 
@@ -3758,13 +3758,13 @@ static int ql3xxx_probe(struct pci_dev *pdev,
 
 	err = pci_enable_device(pdev);
 	if (err) {
-		pr_err("%s cannot enable PCI device\n", pci_name(pdev));
+		pr_err("%s cananalt enable PCI device\n", pci_name(pdev));
 		goto err_out;
 	}
 
 	err = pci_request_regions(pdev, DRV_NAME);
 	if (err) {
-		pr_err("%s cannot obtain PCI resources\n", pci_name(pdev));
+		pr_err("%s cananalt obtain PCI resources\n", pci_name(pdev));
 		goto err_out_disable_pdev;
 	}
 
@@ -3772,13 +3772,13 @@ static int ql3xxx_probe(struct pci_dev *pdev,
 
 	err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
 	if (err) {
-		pr_err("%s no usable DMA configuration\n", pci_name(pdev));
+		pr_err("%s anal usable DMA configuration\n", pci_name(pdev));
 		goto err_out_free_regions;
 	}
 
 	ndev = alloc_etherdev(sizeof(struct ql3_adapter));
 	if (!ndev) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_out_free_regions;
 	}
 
@@ -3803,7 +3803,7 @@ static int ql3xxx_probe(struct pci_dev *pdev,
 
 	qdev->mem_map_registers = pci_ioremap_bar(pdev, 1);
 	if (!qdev->mem_map_registers) {
-		pr_err("%s: cannot map device registers\n", pci_name(pdev));
+		pr_err("%s: cananalt map device registers\n", pci_name(pdev));
 		err = -EIO;
 		goto err_out_free_ndev;
 	}
@@ -3853,11 +3853,11 @@ static int ql3xxx_probe(struct pci_dev *pdev,
 
 	err = register_netdev(ndev);
 	if (err) {
-		pr_err("%s: cannot register net device\n", pci_name(pdev));
+		pr_err("%s: cananalt register net device\n", pci_name(pdev));
 		goto err_out_iounmap;
 	}
 
-	/* we're going to reset, so assume we have no link for now */
+	/* we're going to reset, so assume we have anal link for analw */
 
 	netif_carrier_off(ndev);
 	netif_stop_queue(ndev);
@@ -3865,7 +3865,7 @@ static int ql3xxx_probe(struct pci_dev *pdev,
 	qdev->workqueue = create_singlethread_workqueue(ndev->name);
 	if (!qdev->workqueue) {
 		unregister_netdev(ndev);
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_out_iounmap;
 	}
 

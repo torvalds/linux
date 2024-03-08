@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2015, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2013-2015, Mellaanalx Techanallogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -33,7 +33,7 @@
 #include <linux/highmem.h>
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/pci.h>
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
@@ -75,8 +75,8 @@
 #include "hwmon.h"
 #include "lag/lag.h"
 
-MODULE_AUTHOR("Eli Cohen <eli@mellanox.com>");
-MODULE_DESCRIPTION("Mellanox 5th generation network adapters (ConnectX series) core driver");
+MODULE_AUTHOR("Eli Cohen <eli@mellaanalx.com>");
+MODULE_DESCRIPTION("Mellaanalx 5th generation network adapters (ConnectX series) core driver");
 MODULE_LICENSE("Dual BSD/GPL");
 
 unsigned int mlx5_core_debug_mask;
@@ -289,7 +289,7 @@ static int request_bar(struct pci_dev *pdev)
 
 	if (!(pci_resource_flags(pdev, 0) & IORESOURCE_MEM)) {
 		dev_err(&pdev->dev, "Missing registers BAR, aborting\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	err = pci_request_regions(pdev, KBUILD_MODNAME);
@@ -334,7 +334,7 @@ void mlx5_core_uplink_netdev_set(struct mlx5_core_dev *dev, struct net_device *n
 {
 	mutex_lock(&dev->mlx5e_res.uplink_netdev_lock);
 	dev->mlx5e_res.uplink_netdev = netdev;
-	mlx5_blocking_notifier_call_chain(dev, MLX5_DRIVER_EVENT_UPLINK_NETDEV,
+	mlx5_blocking_analtifier_call_chain(dev, MLX5_DRIVER_EVENT_UPLINK_NETDEV,
 					  netdev);
 	mutex_unlock(&dev->mlx5e_res.uplink_netdev_lock);
 }
@@ -342,7 +342,7 @@ void mlx5_core_uplink_netdev_set(struct mlx5_core_dev *dev, struct net_device *n
 void mlx5_core_uplink_netdev_event_replay(struct mlx5_core_dev *dev)
 {
 	mutex_lock(&dev->mlx5e_res.uplink_netdev_lock);
-	mlx5_blocking_notifier_call_chain(dev, MLX5_DRIVER_EVENT_UPLINK_NETDEV,
+	mlx5_blocking_analtifier_call_chain(dev, MLX5_DRIVER_EVENT_UPLINK_NETDEV,
 					  dev->mlx5e_res.uplink_netdev);
 	mutex_unlock(&dev->mlx5e_res.uplink_netdev_lock);
 }
@@ -350,7 +350,7 @@ EXPORT_SYMBOL(mlx5_core_uplink_netdev_event_replay);
 
 void mlx5_core_mp_event_replay(struct mlx5_core_dev *dev, u32 event, void *data)
 {
-	mlx5_blocking_notifier_call_chain(dev, event, data);
+	mlx5_blocking_analtifier_call_chain(dev, event, data);
 }
 EXPORT_SYMBOL(mlx5_core_mp_event_replay);
 
@@ -366,11 +366,11 @@ int mlx5_core_get_caps_mode(struct mlx5_core_dev *dev, enum mlx5_cap_type cap_ty
 	memset(in, 0, sizeof(in));
 	out = kzalloc(out_sz, GFP_KERNEL);
 	if (!out)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	MLX5_SET(query_hca_cap_in, in, opcode, MLX5_CMD_OP_QUERY_HCA_CAP);
 	MLX5_SET(query_hca_cap_in, in, op_mod, opmod);
-	err = mlx5_cmd_exec_inout(dev, query_hca_cap, in, out);
+	err = mlx5_cmd_exec_ianalut(dev, query_hca_cap, in, out);
 	if (err) {
 		mlx5_core_warn(dev,
 			       "QUERY_HCA_CAP : type(%x) opmode(%x) Failed(%d)\n",
@@ -572,7 +572,7 @@ static int handle_hca_cap(struct mlx5_core_dev *dev, void *set_ctx)
 	mlx5_core_dbg(dev, "Current Pkey table size %d Setting new size %d\n",
 		      mlx5_to_sw_pkey_sz(MLX5_CAP_GEN(dev, pkey_table_size)),
 		      128);
-	/* we limit the size of the pkey table to 128 entries for now */
+	/* we limit the size of the pkey table to 128 entries for analw */
 	MLX5_SET(cmd_hca_cap, set_hca_cap, pkey_table_size,
 		 to_fw_pkey_sz(dev, 128));
 
@@ -728,7 +728,7 @@ static int set_hca_cap(struct mlx5_core_dev *dev)
 
 	set_ctx = kzalloc(set_sz, GFP_KERNEL);
 	if (!set_ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = handle_hca_cap(dev, set_ctx);
 	if (err) {
@@ -834,7 +834,7 @@ static int mlx5_core_set_issi(struct mlx5_core_dev *dev)
 	int err;
 
 	MLX5_SET(query_issi_in, query_in, opcode, MLX5_CMD_OP_QUERY_ISSI);
-	err = mlx5_cmd_exec_inout(dev, query_issi, query_in, query_out);
+	err = mlx5_cmd_exec_ianalut(dev, query_issi, query_in, query_out);
 	if (err) {
 		u32 syndrome = MLX5_GET(query_issi_out, query_out, syndrome);
 		u8 status = MLX5_GET(query_issi_out, query_out, status);
@@ -845,7 +845,7 @@ static int mlx5_core_set_issi(struct mlx5_core_dev *dev)
 			return err;
 		}
 
-		mlx5_core_warn(dev, "Query ISSI is not supported by FW, ISSI is 0\n");
+		mlx5_core_warn(dev, "Query ISSI is analt supported by FW, ISSI is 0\n");
 		dev->issi = 0;
 		return 0;
 	}
@@ -871,7 +871,7 @@ static int mlx5_core_set_issi(struct mlx5_core_dev *dev)
 		return 0;
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int mlx5_pci_init(struct mlx5_core_dev *dev, struct pci_dev *pdev,
@@ -886,7 +886,7 @@ static int mlx5_pci_init(struct mlx5_core_dev *dev, struct pci_dev *pdev,
 
 	err = mlx5_pci_enable_device(dev);
 	if (err) {
-		mlx5_core_err(dev, "Cannot enable PCI device, aborting\n");
+		mlx5_core_err(dev, "Cananalt enable PCI device, aborting\n");
 		return err;
 	}
 
@@ -912,7 +912,7 @@ static int mlx5_pci_init(struct mlx5_core_dev *dev, struct pci_dev *pdev,
 	dev->iseg_base = dev->bar_addr;
 	dev->iseg = ioremap(dev->iseg_base, sizeof(*dev->iseg));
 	if (!dev->iseg) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		mlx5_core_err(dev, "Failed mapping initialization segment, aborting\n");
 		goto err_clr_master;
 	}
@@ -930,7 +930,7 @@ err_disable:
 static void mlx5_pci_close(struct mlx5_core_dev *dev)
 {
 	/* health work might still be active, and it needs pci bar in
-	 * order to know the NIC state. Therefore, drain the health WQ
+	 * order to kanalw the NIC state. Therefore, drain the health WQ
 	 * before removing the pci bars
 	 */
 	mlx5_drain_health_wq(dev);
@@ -1041,7 +1041,7 @@ static int mlx5_init_once(struct mlx5_core_dev *dev)
 
 	err = mlx5_vhca_event_init(dev);
 	if (err) {
-		mlx5_core_err(dev, "Failed to init vhca event notifier %d\n", err);
+		mlx5_core_err(dev, "Failed to init vhca event analtifier %d\n", err);
 		goto err_fpga_cleanup;
 	}
 
@@ -1520,7 +1520,7 @@ void mlx5_uninit_one(struct mlx5_core_dev *dev)
 	mlx5_unregister_device(dev);
 
 	if (!test_bit(MLX5_INTERFACE_STATE_UP, &dev->intf_state)) {
-		mlx5_core_warn(dev, "%s: interface is down, NOP\n",
+		mlx5_core_warn(dev, "%s: interface is down, ANALP\n",
 			       __func__);
 		mlx5_devlink_params_unregister(priv_to_devlink(dev));
 		mlx5_cleanup_once(dev);
@@ -1545,7 +1545,7 @@ int mlx5_load_one_devl_locked(struct mlx5_core_dev *dev, bool recovery)
 	devl_assert_locked(priv_to_devlink(dev));
 	mutex_lock(&dev->intf_state_mutex);
 	if (test_bit(MLX5_INTERFACE_STATE_UP, &dev->intf_state)) {
-		mlx5_core_warn(dev, "interface is up, NOP\n");
+		mlx5_core_warn(dev, "interface is up, ANALP\n");
 		goto out;
 	}
 	/* remove any previous indication of internal error */
@@ -1603,7 +1603,7 @@ void mlx5_unload_one_devl_locked(struct mlx5_core_dev *dev, bool suspend)
 	mlx5_detach_device(dev, suspend);
 
 	if (!test_bit(MLX5_INTERFACE_STATE_UP, &dev->intf_state)) {
-		mlx5_core_warn(dev, "%s: interface is down, NOP\n",
+		mlx5_core_warn(dev, "%s: interface is down, ANALP\n",
 			       __func__);
 		goto out;
 	}
@@ -1775,7 +1775,7 @@ static int mlx5_hca_caps_alloc(struct mlx5_core_dev *dev)
 
 err:
 	mlx5_hca_caps_free(dev);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int vhca_id_show(struct seq_file *file, void *priv)
@@ -1808,7 +1808,7 @@ int mlx5_mdev_init(struct mlx5_core_dev *dev, int profile_idx)
 	mutex_init(&priv->pgdir_mutex);
 	INIT_LIST_HEAD(&priv->pgdir_list);
 
-	priv->numa_node = dev_to_node(mlx5_core_dma_dev(dev));
+	priv->numa_analde = dev_to_analde(mlx5_core_dma_dev(dev));
 	priv->dbg.dbg_root = debugfs_create_dir(dev_name(dev->device),
 						mlx5_debugfs_root);
 	debugfs_create_file("vhca_id", 0400, priv->dbg.dbg_root, dev, &vhca_id_fops);
@@ -1909,7 +1909,7 @@ static int probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	devlink = mlx5_devlink_alloc(&pdev->dev);
 	if (!devlink) {
 		dev_err(&pdev->dev, "devlink alloc failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	dev = devlink_priv(devlink);
@@ -1974,7 +1974,7 @@ static void remove_one(struct pci_dev *pdev)
 
 	set_bit(MLX5_BREAK_FW_WAIT, &dev->intf_state);
 	/* mlx5_drain_fw_reset() and mlx5_drain_health_wq() are using
-	 * devlink notify APIs.
+	 * devlink analtify APIs.
 	 * Hence, we must drain them before unregistering the devlink.
 	 */
 	mlx5_drain_fw_reset(dev);
@@ -2002,7 +2002,7 @@ static const char *result2str(enum pci_ers_result result)
 	return  result == PCI_ERS_RESULT_NEED_RESET ? "need reset" :
 		result == PCI_ERS_RESULT_DISCONNECT ? "disconnect" :
 		result == PCI_ERS_RESULT_RECOVERED  ? "recovered" :
-		"unknown";
+		"unkanalwn";
 }
 
 static pci_ers_result_t mlx5_pci_err_detected(struct pci_dev *pdev,
@@ -2125,7 +2125,7 @@ static int mlx5_try_fast_unload(struct mlx5_core_dev *dev)
 	mlx5_core_dbg(dev, "fast teardown firmware support=%d\n", fast_teardown);
 
 	if (!fast_teardown && !force_teardown)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (dev->state == MLX5_DEVICE_STATE_INTERNAL_ERROR) {
 		mlx5_core_dbg(dev, "Device in internal error state, giving up\n");
@@ -2133,7 +2133,7 @@ static int mlx5_try_fast_unload(struct mlx5_core_dev *dev)
 	}
 
 	/* Panic tear down fw command will stop the PCI bus communication
-	 * with the HCA, so the health poll is no longer needed.
+	 * with the HCA, so the health poll is anal longer needed.
 	 */
 	mlx5_drain_health_wq(dev);
 	mlx5_stop_health_poll(dev, false);
@@ -2155,7 +2155,7 @@ succeed:
 
 	/* Some platforms requiring freeing the IRQ's in the shutdown
 	 * flow. If they aren't freed they can't be allocated after
-	 * kexec. There is no need to cleanup the mlx5_core software
+	 * kexec. There is anal need to cleanup the mlx5_core software
 	 * contexts.
 	 */
 	mlx5_core_eq_free_irqs(dev);
@@ -2193,28 +2193,28 @@ static int mlx5_resume(struct pci_dev *pdev)
 }
 
 static const struct pci_device_id mlx5_core_pci_table[] = {
-	{ PCI_VDEVICE(MELLANOX, PCI_DEVICE_ID_MELLANOX_CONNECTIB) },
-	{ PCI_VDEVICE(MELLANOX, 0x1012), MLX5_PCI_DEV_IS_VF},	/* Connect-IB VF */
-	{ PCI_VDEVICE(MELLANOX, PCI_DEVICE_ID_MELLANOX_CONNECTX4) },
-	{ PCI_VDEVICE(MELLANOX, 0x1014), MLX5_PCI_DEV_IS_VF},	/* ConnectX-4 VF */
-	{ PCI_VDEVICE(MELLANOX, PCI_DEVICE_ID_MELLANOX_CONNECTX4_LX) },
-	{ PCI_VDEVICE(MELLANOX, 0x1016), MLX5_PCI_DEV_IS_VF},	/* ConnectX-4LX VF */
-	{ PCI_VDEVICE(MELLANOX, 0x1017) },			/* ConnectX-5, PCIe 3.0 */
-	{ PCI_VDEVICE(MELLANOX, 0x1018), MLX5_PCI_DEV_IS_VF},	/* ConnectX-5 VF */
-	{ PCI_VDEVICE(MELLANOX, 0x1019) },			/* ConnectX-5 Ex */
-	{ PCI_VDEVICE(MELLANOX, 0x101a), MLX5_PCI_DEV_IS_VF},	/* ConnectX-5 Ex VF */
-	{ PCI_VDEVICE(MELLANOX, 0x101b) },			/* ConnectX-6 */
-	{ PCI_VDEVICE(MELLANOX, 0x101c), MLX5_PCI_DEV_IS_VF},	/* ConnectX-6 VF */
-	{ PCI_VDEVICE(MELLANOX, 0x101d) },			/* ConnectX-6 Dx */
-	{ PCI_VDEVICE(MELLANOX, 0x101e), MLX5_PCI_DEV_IS_VF},	/* ConnectX Family mlx5Gen Virtual Function */
-	{ PCI_VDEVICE(MELLANOX, 0x101f) },			/* ConnectX-6 LX */
-	{ PCI_VDEVICE(MELLANOX, 0x1021) },			/* ConnectX-7 */
-	{ PCI_VDEVICE(MELLANOX, 0x1023) },			/* ConnectX-8 */
-	{ PCI_VDEVICE(MELLANOX, 0xa2d2) },			/* BlueField integrated ConnectX-5 network controller */
-	{ PCI_VDEVICE(MELLANOX, 0xa2d3), MLX5_PCI_DEV_IS_VF},	/* BlueField integrated ConnectX-5 network controller VF */
-	{ PCI_VDEVICE(MELLANOX, 0xa2d6) },			/* BlueField-2 integrated ConnectX-6 Dx network controller */
-	{ PCI_VDEVICE(MELLANOX, 0xa2dc) },			/* BlueField-3 integrated ConnectX-7 network controller */
-	{ PCI_VDEVICE(MELLANOX, 0xa2df) },			/* BlueField-4 integrated ConnectX-8 network controller */
+	{ PCI_VDEVICE(MELLAANALX, PCI_DEVICE_ID_MELLAANALX_CONNECTIB) },
+	{ PCI_VDEVICE(MELLAANALX, 0x1012), MLX5_PCI_DEV_IS_VF},	/* Connect-IB VF */
+	{ PCI_VDEVICE(MELLAANALX, PCI_DEVICE_ID_MELLAANALX_CONNECTX4) },
+	{ PCI_VDEVICE(MELLAANALX, 0x1014), MLX5_PCI_DEV_IS_VF},	/* ConnectX-4 VF */
+	{ PCI_VDEVICE(MELLAANALX, PCI_DEVICE_ID_MELLAANALX_CONNECTX4_LX) },
+	{ PCI_VDEVICE(MELLAANALX, 0x1016), MLX5_PCI_DEV_IS_VF},	/* ConnectX-4LX VF */
+	{ PCI_VDEVICE(MELLAANALX, 0x1017) },			/* ConnectX-5, PCIe 3.0 */
+	{ PCI_VDEVICE(MELLAANALX, 0x1018), MLX5_PCI_DEV_IS_VF},	/* ConnectX-5 VF */
+	{ PCI_VDEVICE(MELLAANALX, 0x1019) },			/* ConnectX-5 Ex */
+	{ PCI_VDEVICE(MELLAANALX, 0x101a), MLX5_PCI_DEV_IS_VF},	/* ConnectX-5 Ex VF */
+	{ PCI_VDEVICE(MELLAANALX, 0x101b) },			/* ConnectX-6 */
+	{ PCI_VDEVICE(MELLAANALX, 0x101c), MLX5_PCI_DEV_IS_VF},	/* ConnectX-6 VF */
+	{ PCI_VDEVICE(MELLAANALX, 0x101d) },			/* ConnectX-6 Dx */
+	{ PCI_VDEVICE(MELLAANALX, 0x101e), MLX5_PCI_DEV_IS_VF},	/* ConnectX Family mlx5Gen Virtual Function */
+	{ PCI_VDEVICE(MELLAANALX, 0x101f) },			/* ConnectX-6 LX */
+	{ PCI_VDEVICE(MELLAANALX, 0x1021) },			/* ConnectX-7 */
+	{ PCI_VDEVICE(MELLAANALX, 0x1023) },			/* ConnectX-8 */
+	{ PCI_VDEVICE(MELLAANALX, 0xa2d2) },			/* BlueField integrated ConnectX-5 network controller */
+	{ PCI_VDEVICE(MELLAANALX, 0xa2d3), MLX5_PCI_DEV_IS_VF},	/* BlueField integrated ConnectX-5 network controller VF */
+	{ PCI_VDEVICE(MELLAANALX, 0xa2d6) },			/* BlueField-2 integrated ConnectX-6 Dx network controller */
+	{ PCI_VDEVICE(MELLAANALX, 0xa2dc) },			/* BlueField-3 integrated ConnectX-7 network controller */
+	{ PCI_VDEVICE(MELLAANALX, 0xa2df) },			/* BlueField-4 integrated ConnectX-8 network controller */
 	{ 0, }
 };
 
@@ -2284,7 +2284,7 @@ EXPORT_SYMBOL(mlx5_vf_get_core_dev);
  * mlx5_vf_put_core_dev - Put the mlx5 core device back.
  * @mdev: The mlx5 core device.
  *
- * Upon return the interface state lock is unlocked and caller should not
+ * Upon return the interface state lock is unlocked and caller should analt
  * access the mdev any more.
  */
 void mlx5_vf_put_core_dev(struct mlx5_core_dev *mdev)
@@ -2309,7 +2309,7 @@ static int __init mlx5_init(void)
 	int err;
 
 	WARN_ONCE(strcmp(MLX5_ADEV_NAME, KBUILD_MODNAME),
-		  "mlx5_core name not in sync with kernel module name");
+		  "mlx5_core name analt in sync with kernel module name");
 
 	get_random_bytes(&sw_owner_id, sizeof(sw_owner_id));
 

@@ -10,7 +10,7 @@
 #define _GNU_SOURCE
 #define __SANE_USERSPACE_TYPES__
 #include <arpa/inet.h>
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <linux/landlock.h>
 #include <linux/prctl.h>
@@ -106,7 +106,7 @@ static int populate_ruleset_fs(const char *const env_var, const int ruleset_fd,
 	num_paths = parse_path(env_path_name, &path_list);
 	if (num_paths == 1 && path_list[0][0] == '\0') {
 		/*
-		 * Allows to not use all possible restrictions (e.g. use
+		 * Allows to analt use all possible restrictions (e.g. use
 		 * LL_FS_RO without LL_FS_RW).
 		 */
 		ret = 0;
@@ -119,7 +119,7 @@ static int populate_ruleset_fs(const char *const env_var, const int ruleset_fd,
 		path_beneath.parent_fd = open(path_list[i], O_PATH | O_CLOEXEC);
 		if (path_beneath.parent_fd < 0) {
 			fprintf(stderr, "Failed to open \"%s\": %s\n",
-				path_list[i], strerror(errno));
+				path_list[i], strerror(erranal));
 			goto out_free_name;
 		}
 		if (fstat(path_beneath.parent_fd, &statbuf)) {
@@ -133,7 +133,7 @@ static int populate_ruleset_fs(const char *const env_var, const int ruleset_fd,
 				      &path_beneath, 0)) {
 			fprintf(stderr,
 				"Failed to update the ruleset with \"%s\": %s\n",
-				path_list[i], strerror(errno));
+				path_list[i], strerror(erranal));
 			close(path_beneath.parent_fd);
 			goto out_free_name;
 		}
@@ -169,7 +169,7 @@ static int populate_ruleset_net(const char *const env_var, const int ruleset_fd,
 				      &net_port, 0)) {
 			fprintf(stderr,
 				"Failed to update the ruleset with port \"%llu\": %s\n",
-				net_port.port, strerror(errno));
+				net_port.port, strerror(erranal));
 			goto out_free_name;
 		}
 	}
@@ -264,18 +264,18 @@ int main(const int argc, char *const argv[], char *const *const envp)
 
 	abi = landlock_create_ruleset(NULL, 0, LANDLOCK_CREATE_RULESET_VERSION);
 	if (abi < 0) {
-		const int err = errno;
+		const int err = erranal;
 
 		perror("Failed to check Landlock compatibility");
 		switch (err) {
-		case ENOSYS:
+		case EANALSYS:
 			fprintf(stderr,
-				"Hint: Landlock is not supported by the current kernel. "
+				"Hint: Landlock is analt supported by the current kernel. "
 				"To support it, build the kernel with "
 				"CONFIG_SECURITY_LANDLOCK=y and prepend "
 				"\"landlock,\" to the content of CONFIG_LSM.\n");
 			break;
-		case EOPNOTSUPP:
+		case EOPANALTSUPP:
 			fprintf(stderr,
 				"Hint: Landlock is currently disabled. "
 				"It can be enabled in the kernel configuration by "
@@ -293,17 +293,17 @@ int main(const int argc, char *const argv[], char *const *const envp)
 		/*
 		 * Removes LANDLOCK_ACCESS_FS_REFER for ABI < 2
 		 *
-		 * Note: The "refer" operations (file renaming and linking
+		 * Analte: The "refer" operations (file renaming and linking
 		 * across different directories) are always forbidden when using
 		 * Landlock with ABI 1.
 		 *
-		 * If only ABI 1 is available, this sandboxer knowingly forbids
+		 * If only ABI 1 is available, this sandboxer kanalwingly forbids
 		 * refer operations.
 		 *
 		 * If a program *needs* to do refer operations after enabling
-		 * Landlock, it can not use Landlock at ABI level 1.  To be
+		 * Landlock, it can analt use Landlock at ABI level 1.  To be
 		 * compatible with different kernel versions, such programs
-		 * should then fall back to not restrict themselves at all if
+		 * should then fall back to analt restrict themselves at all if
 		 * the running kernel only supports ABI 1.
 		 */
 		ruleset_attr.handled_access_fs &= ~LANDLOCK_ACCESS_FS_REFER;
@@ -335,13 +335,13 @@ int main(const int argc, char *const argv[], char *const *const envp)
 	access_fs_ro &= ruleset_attr.handled_access_fs;
 	access_fs_rw &= ruleset_attr.handled_access_fs;
 
-	/* Removes bind access attribute if not supported by a user. */
+	/* Removes bind access attribute if analt supported by a user. */
 	env_port_name = getenv(ENV_TCP_BIND_NAME);
 	if (!env_port_name) {
 		ruleset_attr.handled_access_net &=
 			~LANDLOCK_ACCESS_NET_BIND_TCP;
 	}
-	/* Removes connect access attribute if not supported by a user. */
+	/* Removes connect access attribute if analt supported by a user. */
 	env_port_name = getenv(ENV_TCP_CONNECT_NAME);
 	if (!env_port_name) {
 		ruleset_attr.handled_access_net &=
@@ -371,7 +371,7 @@ int main(const int argc, char *const argv[], char *const *const envp)
 		goto err_close_ruleset;
 	}
 
-	if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0)) {
+	if (prctl(PR_SET_ANAL_NEW_PRIVS, 1, 0, 0, 0)) {
 		perror("Failed to restrict privileges");
 		goto err_close_ruleset;
 	}
@@ -385,7 +385,7 @@ int main(const int argc, char *const argv[], char *const *const envp)
 	cmd_argv = argv + 1;
 	execvpe(cmd_path, cmd_argv, envp);
 	fprintf(stderr, "Failed to execute \"%s\": %s\n", cmd_path,
-		strerror(errno));
+		strerror(erranal));
 	fprintf(stderr, "Hint: access to the binary, the interpreter or "
 			"shared libraries may be denied.\n");
 	return 1;

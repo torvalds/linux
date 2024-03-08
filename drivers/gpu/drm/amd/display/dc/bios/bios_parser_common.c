@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -49,7 +49,7 @@ static enum object_type object_type_from_bios_object_id(uint32_t bios_object_id)
 		object_type = OBJECT_TYPE_GENERIC;
 		break;
 	default:
-		object_type = OBJECT_TYPE_UNKNOWN;
+		object_type = OBJECT_TYPE_UNKANALWN;
 		break;
 	}
 
@@ -85,7 +85,7 @@ static enum object_enum_id enum_id_from_bios_object_id(uint32_t bios_object_id)
 		id = ENUM_ID_7;
 		break;
 	default:
-		id = ENUM_ID_UNKNOWN;
+		id = ENUM_ID_UNKANALWN;
 		break;
 	}
 
@@ -161,7 +161,7 @@ static enum encoder_id encoder_id_from_bios_object_id(uint32_t bios_object_id)
 		id = ENCODER_ID_INTERNAL_UNIPHY3;
 		break;
 	default:
-		id = ENCODER_ID_UNKNOWN;
+		id = ENCODER_ID_UNKANALWN;
 		ASSERT(0);
 		break;
 	}
@@ -217,7 +217,7 @@ static enum connector_id connector_id_from_bios_object_id(
 		id = CONNECTOR_ID_USBC;
 		break;
 	default:
-		id = CONNECTOR_ID_UNKNOWN;
+		id = CONNECTOR_ID_UNKANALWN;
 		break;
 	}
 
@@ -241,7 +241,7 @@ static enum generic_id generic_id_from_bios_object_id(uint32_t bios_object_id)
 		id = GENERIC_ID_STEREO;
 		break;
 	default:
-		id = GENERIC_ID_UNKNOWN;
+		id = GENERIC_ID_UNKANALWN;
 		break;
 	}
 
@@ -274,12 +274,12 @@ struct graphics_object_id object_id_from_bios_object_id(uint32_t bios_object_id)
 
 	type = object_type_from_bios_object_id(bios_object_id);
 
-	if (OBJECT_TYPE_UNKNOWN == type)
+	if (OBJECT_TYPE_UNKANALWN == type)
 		return go_id;
 
 	enum_id = enum_id_from_bios_object_id(bios_object_id);
 
-	if (ENUM_ID_UNKNOWN == enum_id)
+	if (ENUM_ID_UNKANALWN == enum_id)
 		return go_id;
 
 	go_id = dal_graphics_object_id_init(

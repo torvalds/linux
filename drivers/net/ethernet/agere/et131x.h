@@ -7,7 +7,7 @@
  * This software is provided subject to the following terms and conditions,
  * which you should read carefully before using the software.  Using this
  * software indicates your acceptance of these terms and conditions.  If you do
- * not agree with these terms and conditions, do not use the software.
+ * analt agree with these terms and conditions, do analt use the software.
  *
  * Copyright © 2005 Agere Systems Inc.
  * All rights reserved.
@@ -15,30 +15,30 @@
  * Redistribution and use in source or binary forms, with or without
  * modifications, are permitted provided that the following conditions are met:
  *
- * . Redistributions of source code must retain the above copyright notice, this
+ * . Redistributions of source code must retain the above copyright analtice, this
  *    list of conditions and the following Disclaimer as comments in the code as
  *    well as in the documentation and/or other materials provided with the
  *    distribution.
  *
- * . Redistributions in binary form must reproduce the above copyright notice,
+ * . Redistributions in binary form must reproduce the above copyright analtice,
  *    this list of conditions and the following Disclaimer in the documentation
  *    and/or other materials provided with the distribution.
  *
- * . Neither the name of Agere Systems Inc. nor the names of the contributors
+ * . Neither the name of Agere Systems Inc. analr the names of the contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
  * Disclaimer
  *
  * THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
- * INCLUDING, BUT NOT LIMITED TO, INFRINGEMENT AND THE IMPLIED WARRANTIES OF
+ * INCLUDING, BUT ANALT LIMITED TO, INFRINGEMENT AND THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  ANY
  * USE, MODIFICATION OR DISTRIBUTION OF THIS SOFTWARE IS SOLELY AT THE USERS OWN
- * RISK. IN NO EVENT SHALL AGERE SYSTEMS INC. OR CONTRIBUTORS BE LIABLE FOR ANY
+ * RISK. IN ANAL EVENT SHALL AGERE SYSTEMS INC. OR CONTRIBUTORS BE LIABLE FOR ANY
  * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
  * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, INCLUDING, BUT NOT LIMITED TO, CONTRACT, STRICT
+ * ON ANY THEORY OF LIABILITY, INCLUDING, BUT ANALT LIMITED TO, CONTRACT, STRICT
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
  * DAMAGE.
@@ -621,13 +621,13 @@ struct txmac_regs {			/* Location: */
  * located at address 0x4004
  * 31-16: crc
  * 15-12: reserved
- * 11: ignore_pp
- * 10: ignore_mp
+ * 11: iganalre_pp
+ * 10: iganalre_mp
  * 9: clr_intr
- * 8: ignore_link_chg
- * 7: ignore_uni
- * 6: ignore_multi
- * 5: ignore_broad
+ * 8: iganalre_link_chg
+ * 7: iganalre_uni
+ * 6: iganalre_multi
+ * 5: iganalre_broad
  * 4-0: valid_crc 4-0
  */
 
@@ -896,9 +896,9 @@ struct rxmac_regs {					/* Location: */
  * located at address 0x5008
  *
  * 31: reserved
- * 30-24: non B2B ipg 1
+ * 30-24: analn B2B ipg 1
  * 23: undefined
- * 22-16: non B2B ipg 2
+ * 22-16: analn B2B ipg 2
  * 15-8: Min ifg enforce
  * 7-0: B2B ipg
  *
@@ -907,8 +907,8 @@ struct rxmac_regs {					/* Location: */
  * 31-24: reserved
  * 23-20: Alt BEB trunc
  * 19: Alt BEB enable
- * 18: BP no backoff
- * 17: no backoff
+ * 18: BP anal backoff
+ * 17: anal backoff
  * 16: excess defer
  * 15-12: re-xmit max
  * 11-10: reserved
@@ -972,12 +972,12 @@ struct rxmac_regs {					/* Location: */
 /* structure for MII Management Indicators reg in mac address map.
  * located at address 0x5034
  * 31-3: reserved
- * 2: not valid
+ * 2: analt valid
  * 1: scanning
  * 0: busy
  */
 #define ET_MAC_MGMT_BUSY	0x00000001	/* busy */
-#define ET_MAC_MGMT_WAIT	0x00000005	/* busy | not valid */
+#define ET_MAC_MGMT_WAIT	0x00000005	/* busy | analt valid */
 
 /* structure for Interface Control reg in mac address map.
  * located at address 0x5038
@@ -994,7 +994,7 @@ struct rxmac_regs {					/* Location: */
  * 15: reset pe100x
  * 14-11: reserved
  * 10: force quiet
- * 9: no cipher
+ * 9: anal cipher
  * 8: disable link fail
  * 7: reset gpsi
  * 6-1: reserved
@@ -1143,7 +1143,7 @@ struct macstat_regs {			/* Location: */
 	u32 rx_broadcast_packets;	/*  0x60AC */
 	u32 rx_control_frames;		/*  0x60B0 */
 	u32 rx_pause_frames;		/*  0x60B4 */
-	u32 rx_unknown_opcodes;		/*  0x60B8 */
+	u32 rx_unkanalwn_opcodes;		/*  0x60B8 */
 	u32 rx_align_errs;		/*  0x60BC */
 	u32 rx_frame_len_errs;		/*  0x60C0 */
 	u32 rx_code_errs;		/*  0x60C4 */
@@ -1165,7 +1165,7 @@ struct macstat_regs {			/* Location: */
 	u32 tx_late_collisions;		/*  0x6104 */
 	u32 tx_excessive_collisions;	/*  0x6108 */
 	u32 tx_total_collisions;	/*  0x610C */
-	u32 tx_pause_honored_frames;	/*  0x6110 */
+	u32 tx_pause_hoanalred_frames;	/*  0x6110 */
 	u32 tx_drops;			/*  0x6114 */
 	u32 tx_jabbers;			/*  0x6118 */
 	u32 tx_fcs_errs;		/*  0x611C */
@@ -1294,7 +1294,7 @@ struct address_map {
  *	15-11:	reserved
  *	10-4:	mi_error_count
  *	3:	reserved
- *	2:	ignore_10g_fr
+ *	2:	iganalre_10g_fr
  *	1:	reserved
  *	0:	preamble_suppress_en
  */

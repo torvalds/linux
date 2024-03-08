@@ -1,5 +1,5 @@
 %option prefix="perf_bpf_filter_"
-%option noyywrap
+%option analyywrap
 
 %{
 #include <stdio.h>
@@ -33,9 +33,9 @@ static int value(int base)
 {
 	long num;
 
-	errno = 0;
+	erranal = 0;
 	num = strtoul(perf_bpf_filter_text, NULL, base);
-	if (errno)
+	if (erranal)
 		return BFT_ERROR;
 
 	perf_bpf_filter_lval.num = num;
@@ -89,7 +89,7 @@ data_pgsz	{ return sample(PERF_SAMPLE_DATA_PAGE_SIZE); }
 mem_op		{ return sample_part(PERF_SAMPLE_DATA_SRC, 1); }
 mem_lvlnum	{ return sample_part(PERF_SAMPLE_DATA_SRC, 2); }
 mem_lvl		{ return sample_part(PERF_SAMPLE_DATA_SRC, 2); } /* alias for mem_lvlnum */
-mem_snoop	{ return sample_part(PERF_SAMPLE_DATA_SRC, 3); } /* include snoopx */
+mem_sanalop	{ return sample_part(PERF_SAMPLE_DATA_SRC, 3); } /* include sanalopx */
 mem_remote	{ return sample_part(PERF_SAMPLE_DATA_SRC, 4); }
 mem_lock	{ return sample_part(PERF_SAMPLE_DATA_SRC, 5); }
 mem_dtlb	{ return sample_part(PERF_SAMPLE_DATA_SRC, 6); }
@@ -121,12 +121,12 @@ lfb		{ return constant(PERF_MEM_LVLNUM_LFB); }
 ram		{ return constant(PERF_MEM_LVLNUM_RAM); }
 pmem		{ return constant(PERF_MEM_LVLNUM_PMEM); }
 
-none		{ return constant(PERF_MEM_SNOOP_NONE); }
-hit		{ return constant(PERF_MEM_SNOOP_HIT); }
-miss		{ return constant(PERF_MEM_SNOOP_MISS); }
-hitm		{ return constant(PERF_MEM_SNOOP_HITM); }
-fwd		{ return constant(PERF_MEM_SNOOPX_FWD); }
-peer		{ return constant(PERF_MEM_SNOOPX_PEER); }
+analne		{ return constant(PERF_MEM_SANALOP_ANALNE); }
+hit		{ return constant(PERF_MEM_SANALOP_HIT); }
+miss		{ return constant(PERF_MEM_SANALOP_MISS); }
+hitm		{ return constant(PERF_MEM_SANALOP_HITM); }
+fwd		{ return constant(PERF_MEM_SANALOPX_FWD); }
+peer		{ return constant(PERF_MEM_SANALOPX_PEER); }
 
 remote		{ return constant(PERF_MEM_REMOTE_REMOTE); }
 

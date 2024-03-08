@@ -12,7 +12,7 @@
 #include "xfs_log_format.h"
 #include "xfs_trans.h"
 #include "xfs_rtbitmap.h"
-#include "xfs_inode.h"
+#include "xfs_ianalde.h"
 #include "xfs_bmap.h"
 #include "xfs_bit.h"
 #include "xfs_sb.h"
@@ -32,7 +32,7 @@ xchk_setup_rtbitmap(
 
 	rtb = kzalloc(sizeof(struct xchk_rtbitmap), XCHK_GFP_FLAGS);
 	if (!rtb)
-		return -ENOMEM;
+		return -EANALMEM;
 	sc->buf = rtb;
 
 	if (xchk_could_repair(sc)) {
@@ -45,18 +45,18 @@ xchk_setup_rtbitmap(
 	if (error)
 		return error;
 
-	error = xchk_install_live_inode(sc, sc->mp->m_rbmip);
+	error = xchk_install_live_ianalde(sc, sc->mp->m_rbmip);
 	if (error)
 		return error;
 
-	error = xchk_ino_dqattach(sc);
+	error = xchk_ianal_dqattach(sc);
 	if (error)
 		return error;
 
 	xchk_ilock(sc, XFS_ILOCK_EXCL | XFS_ILOCK_RTBITMAP);
 
 	/*
-	 * Now that we've locked the rtbitmap, we can't race with growfsrt
+	 * Analw that we've locked the rtbitmap, we can't race with growfsrt
 	 * trying to expand the bitmap or change the size of the rt volume.
 	 * Hence it is safe to compute and check the geometry values.
 	 */
@@ -98,12 +98,12 @@ xchk_rtbitmap_check_extents(
 	struct xfs_bmbt_irec	map;
 	struct xfs_iext_cursor	icur;
 	struct xfs_mount	*mp = sc->mp;
-	struct xfs_inode	*ip = sc->ip;
+	struct xfs_ianalde	*ip = sc->ip;
 	xfs_fileoff_t		off = 0;
 	xfs_fileoff_t		endoff;
 	int			error = 0;
 
-	/* Mappings may not cross or lie beyond EOF. */
+	/* Mappings may analt cross or lie beyond EOF. */
 	endoff = XFS_B_TO_FSB(mp, ip->i_disk_size);
 	if (xfs_iext_lookup_extent(ip, &ip->i_df, endoff, &icur, &map)) {
 		xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, endoff);
@@ -145,47 +145,47 @@ xchk_rtbitmap(
 
 	/* Is sb_rextents correct? */
 	if (mp->m_sb.sb_rextents != rtb->rextents) {
-		xchk_ino_set_corrupt(sc, mp->m_rbmip->i_ino);
+		xchk_ianal_set_corrupt(sc, mp->m_rbmip->i_ianal);
 		return 0;
 	}
 
 	/* Is sb_rextslog correct? */
 	if (mp->m_sb.sb_rextslog != rtb->rextslog) {
-		xchk_ino_set_corrupt(sc, mp->m_rbmip->i_ino);
+		xchk_ianal_set_corrupt(sc, mp->m_rbmip->i_ianal);
 		return 0;
 	}
 
 	/*
-	 * Is sb_rbmblocks large enough to handle the current rt volume?  In no
+	 * Is sb_rbmblocks large eanalugh to handle the current rt volume?  In anal
 	 * case can we exceed 4bn bitmap blocks since the super field is a u32.
 	 */
 	if (rtb->rbmblocks > U32_MAX) {
-		xchk_ino_set_corrupt(sc, mp->m_rbmip->i_ino);
+		xchk_ianal_set_corrupt(sc, mp->m_rbmip->i_ianal);
 		return 0;
 	}
 	if (mp->m_sb.sb_rbmblocks != rtb->rbmblocks) {
-		xchk_ino_set_corrupt(sc, mp->m_rbmip->i_ino);
+		xchk_ianal_set_corrupt(sc, mp->m_rbmip->i_ianal);
 		return 0;
 	}
 
 	/* The bitmap file length must be aligned to an fsblock. */
 	if (mp->m_rbmip->i_disk_size & mp->m_blockmask) {
-		xchk_ino_set_corrupt(sc, mp->m_rbmip->i_ino);
+		xchk_ianal_set_corrupt(sc, mp->m_rbmip->i_ianal);
 		return 0;
 	}
 
 	/*
-	 * Is the bitmap file itself large enough to handle the rt volume?
+	 * Is the bitmap file itself large eanalugh to handle the rt volume?
 	 * growfsrt expands the bitmap file before updating sb_rextents, so the
 	 * file can be larger than sb_rbmblocks.
 	 */
 	if (mp->m_rbmip->i_disk_size < XFS_FSB_TO_B(mp, rtb->rbmblocks)) {
-		xchk_ino_set_corrupt(sc, mp->m_rbmip->i_ino);
+		xchk_ianal_set_corrupt(sc, mp->m_rbmip->i_ianal);
 		return 0;
 	}
 
 	/* Invoke the fork scrubber. */
-	error = xchk_metadata_inode_forks(sc);
+	error = xchk_metadata_ianalde_forks(sc);
 	if (error || (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT))
 		return error;
 
@@ -200,11 +200,11 @@ xchk_rtbitmap(
 	return 0;
 }
 
-/* xref check that the extent is not free in the rtbitmap */
+/* xref check that the extent is analt free in the rtbitmap */
 void
 xchk_xref_is_used_rt_space(
 	struct xfs_scrub	*sc,
-	xfs_rtblock_t		rtbno,
+	xfs_rtblock_t		rtbanal,
 	xfs_extlen_t		len)
 {
 	xfs_rtxnum_t		startext;
@@ -215,15 +215,15 @@ xchk_xref_is_used_rt_space(
 	if (xchk_skip_xref(sc->sm))
 		return;
 
-	startext = xfs_rtb_to_rtx(sc->mp, rtbno);
-	endext = xfs_rtb_to_rtx(sc->mp, rtbno + len - 1);
+	startext = xfs_rtb_to_rtx(sc->mp, rtbanal);
+	endext = xfs_rtb_to_rtx(sc->mp, rtbanal + len - 1);
 	xfs_ilock(sc->mp->m_rbmip, XFS_ILOCK_SHARED | XFS_ILOCK_RTBITMAP);
 	error = xfs_rtalloc_extent_is_free(sc->mp, sc->tp, startext,
 			endext - startext + 1, &is_free);
 	if (!xchk_should_check_xref(sc, &error, NULL))
 		goto out_unlock;
 	if (is_free)
-		xchk_ino_xref_set_corrupt(sc, sc->mp->m_rbmip->i_ino);
+		xchk_ianal_xref_set_corrupt(sc, sc->mp->m_rbmip->i_ianal);
 out_unlock:
 	xfs_iunlock(sc->mp->m_rbmip, XFS_ILOCK_SHARED | XFS_ILOCK_RTBITMAP);
 }

@@ -58,7 +58,7 @@ static int assign_afu_actag(struct ocxl_afu *afu)
 	struct pci_dev *pci_dev = to_pci_dev(fn->dev.parent);
 
 	/*
-	 * if there were not enough actags for the function, each afu
+	 * if there were analt eanalugh actags for the function, each afu
 	 * reduces its count as well
 	 */
 	actag_count = afu->config.actag_supported *
@@ -97,7 +97,7 @@ static int assign_afu_pasid(struct ocxl_afu *afu)
 
 	/*
 	 * We only support the case where the function configuration
-	 * requested enough PASIDs to cover all AFUs.
+	 * requested eanalugh PASIDs to cover all AFUs.
 	 */
 	pasid_count = 1 << afu->config.pasid_supported_log;
 	pasid_offset = ocxl_pasid_afu_alloc(fn, pasid_count);
@@ -187,7 +187,7 @@ static int map_mmio_areas(struct ocxl_afu *afu)
 		release_fn_bar(afu->fn, afu->config.pp_mmio_bar);
 		release_fn_bar(afu->fn, afu->config.global_mmio_bar);
 		dev_err(&pci_dev->dev, "Error mapping global mmio area\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/*
@@ -267,7 +267,7 @@ static int init_afu(struct pci_dev *dev, struct ocxl_fn *fn, u8 afu_idx)
 
 	afu = alloc_afu(fn);
 	if (!afu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = configure_afu(afu, afu_idx, dev);
 	if (rc) {
@@ -358,7 +358,7 @@ static int set_function_pasid(struct ocxl_fn *fn)
 	struct pci_dev *dev = to_pci_dev(fn->dev.parent);
 	int rc, desired_count, max_count;
 
-	/* A function may not require any PASID */
+	/* A function may analt require any PASID */
 	if (fn->config.max_pasid_log < 0)
 		return 0;
 
@@ -372,7 +372,7 @@ static int set_function_pasid(struct ocxl_fn *fn)
 		dev_err(&fn->dev,
 			"Function requires more PASIDs than is available (%d vs. %d)\n",
 			desired_count, max_count);
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 
 	fn->pasid_base = 0;
@@ -397,8 +397,8 @@ static int configure_function(struct ocxl_fn *fn, struct pci_dev *dev)
 	 *
 	 * Some hints for implementation:
 	 *
-	 * - there's not status bit to know when the reset is done. We
-	 *   should try reading the config space to know when it's
+	 * - there's analt status bit to kanalw when the reset is done. We
+	 *   should try reading the config space to kanalw when it's
 	 *   done.
 	 * - probably something like:
 	 *	Reset
@@ -408,7 +408,7 @@ static int configure_function(struct ocxl_fn *fn, struct pci_dev *dev)
 	 *	read before declaring it broken
 	 *
 	 * Some shared logic on the card (CFG, TLX) won't be reset, so
-	 * there's no guarantee that it will be enough.
+	 * there's anal guarantee that it will be eanalugh.
 	 */
 	rc = ocxl_config_read_function(dev, &fn->config);
 	if (rc)
@@ -453,7 +453,7 @@ static struct ocxl_fn *init_function(struct pci_dev *dev)
 
 	fn = alloc_function();
 	if (!fn)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	rc = configure_function(fn, dev);
 	if (rc) {
@@ -480,7 +480,7 @@ struct ocxl_fn *ocxl_function_open(struct pci_dev *dev)
 
 	if (!radix_enabled()) {
 		dev_err(&dev->dev, "Unsupported memory model (hash)\n");
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 	}
 
 	fn = init_function(dev);

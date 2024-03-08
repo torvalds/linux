@@ -55,7 +55,7 @@ static void del_symlink(struct kobject *from, struct kobject *to)
  * Might sleep.
  *
  * RETURNS:
- * 0 on success, -errno on failure.
+ * 0 on success, -erranal on failure.
  */
 int bd_link_disk_holder(struct block_device *bdev, struct gendisk *disk)
 {
@@ -75,7 +75,7 @@ int bd_link_disk_holder(struct block_device *bdev, struct gendisk *disk)
 	mutex_lock(&bdev->bd_disk->open_mutex);
 	if (!disk_live(bdev->bd_disk)) {
 		mutex_unlock(&bdev->bd_disk->open_mutex);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	kobject_get(bdev->bd_holder_dir);
 	mutex_unlock(&bdev->bd_disk->open_mutex);
@@ -92,7 +92,7 @@ int bd_link_disk_holder(struct block_device *bdev, struct gendisk *disk)
 
 	holder = kzalloc(sizeof(*holder), GFP_KERNEL);
 	if (!holder) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_unlock;
 	}
 

@@ -130,7 +130,7 @@
 		regulator-max-microvolt = <1800000>;
 		regulator-min-microvolt = <1800000>;
 		regulator-name = "DOVDD/DVDD_1.8V";
-		/* Note: The CSI module uses on-board 3.3V_SW supply */
+		/* Analte: The CSI module uses on-board 3.3V_SW supply */
 		vin-supply = <&reg_module_3v3>;
 	};
 
@@ -140,7 +140,7 @@
 		regulator-max-microvolt = <2800000>;
 		regulator-min-microvolt = <2800000>;
 		regulator-name = "AVDD/AFVDD_2.8V";
-		/* Note: The CSI module uses on-board 3.3V_SW supply */
+		/* Analte: The CSI module uses on-board 3.3V_SW supply */
 		vin-supply = <&reg_module_3v3>;
 	};
 
@@ -494,7 +494,7 @@
 
 	atmel_mxt_ts: touchscreen@4a {
 		compatible = "atmel,maxtouch";
-		/* These GPIOs are muxed with the iomuxc node */
+		/* These GPIOs are muxed with the iomuxc analde */
 		interrupt-parent = <&gpio6>;
 		interrupts = <10 IRQ_TYPE_EDGE_FALLING>;	/* MXM3_11 */
 		reg = <0x4a>;
@@ -662,7 +662,7 @@
 			compatible = "st,stmpe-adc";
 			#io-channel-cells = <1>;
 			/* forbid to use ADC channels 3-0 (touch) */
-			st,norequest-mask = <0x0F>;
+			st,analrequest-mask = <0x0F>;
 		};
 	};
 };
@@ -705,7 +705,7 @@
 		clocks = <&clks IMX6QDL_CLK_CKO2>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_cam_mclk>;
-		/* These GPIOs are muxed with the iomuxc node */
+		/* These GPIOs are muxed with the iomuxc analde */
 		powerdown-gpios = <&gpio2 5 GPIO_ACTIVE_HIGH>;
 		reg = <0x3c>;
 		reset-gpios = <&gpio2 4 GPIO_ACTIVE_LOW>;
@@ -840,7 +840,7 @@
 	bus-width = <8>;
 	cd-gpios = <&gpio4 20 GPIO_ACTIVE_LOW>;
 	disable-wp;
-	no-1-8-v;
+	anal-1-8-v;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc1_4bit &pinctrl_usdhc1_8bit &pinctrl_mmc_cd>;
 	vqmmc-supply = <&reg_module_3v3>;
@@ -851,7 +851,7 @@
 &usdhc2 {
 	bus-width = <4>;
 	disable-wp;
-	no-1-8-v;
+	anal-1-8-v;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc2>;
 	vqmmc-supply = <&reg_module_3v3>;
@@ -861,8 +861,8 @@
 /* eMMC */
 &usdhc3 {
 	bus-width = <8>;
-	no-1-8-v;
-	non-removable;
+	anal-1-8-v;
+	analn-removable;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc3>;
 	vqmmc-supply = <&reg_module_3v3>;

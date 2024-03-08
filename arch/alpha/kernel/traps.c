@@ -182,7 +182,7 @@ die_if_kernel(char * str, struct pt_regs *regs, long err, unsigned long *r9_15)
 #endif
 	printk("%s(%d): %s %ld\n", current->comm, task_pid_nr(current), str, err);
 	dik_show_regs(regs, r9_15);
-	add_taint(TAINT_DIE, LOCKDEP_NOW_UNRELIABLE);
+	add_taint(TAINT_DIE, LOCKDEP_ANALW_UNRELIABLE);
 	dik_show_trace((unsigned long *)(regs+1), KERN_DEFAULT);
 	dik_show_code((unsigned int *)regs->pc);
 
@@ -226,13 +226,13 @@ do_entArith(unsigned long summary, unsigned long write_mask,
 	}
 	die_if_kernel("Arithmetic fault", regs, 0, NULL);
 
-	send_sig_fault_trapno(SIGFPE, si_code, (void __user *) regs->pc, 0, current);
+	send_sig_fault_trapanal(SIGFPE, si_code, (void __user *) regs->pc, 0, current);
 }
 
 asmlinkage void
 do_entIF(unsigned long type, struct pt_regs *regs)
 {
-	int signo, code;
+	int siganal, code;
 
 	if (type == 3) { /* FEN fault */
 		/* Irritating users can call PAL_clrfen to disable the
@@ -241,7 +241,7 @@ do_entIF(unsigned long type, struct pt_regs *regs)
 		   to save and restore the FP registers.
 
 		   Given that GCC by default generates code that uses the
-		   FP registers, PAL_clrfen is not useful except for DoS
+		   FP registers, PAL_clrfen is analt useful except for DoS
 		   attacks.  So turn the bleeding FPU back on and be done
 		   with it.  */
 		current_thread_info()->pcb.flags |= 1;
@@ -286,42 +286,42 @@ do_entIF(unsigned long type, struct pt_regs *regs)
 		return;
 
 	      case 1: /* bugcheck */
-		send_sig_fault_trapno(SIGTRAP, TRAP_UNK,
+		send_sig_fault_trapanal(SIGTRAP, TRAP_UNK,
 				      (void __user *) regs->pc, 0, current);
 		return;
 		
 	      case 2: /* gentrap */
 		switch ((long) regs->r16) {
 		case GEN_INTOVF:
-			signo = SIGFPE;
+			siganal = SIGFPE;
 			code = FPE_INTOVF;
 			break;
 		case GEN_INTDIV:
-			signo = SIGFPE;
+			siganal = SIGFPE;
 			code = FPE_INTDIV;
 			break;
 		case GEN_FLTOVF:
-			signo = SIGFPE;
+			siganal = SIGFPE;
 			code = FPE_FLTOVF;
 			break;
 		case GEN_FLTDIV:
-			signo = SIGFPE;
+			siganal = SIGFPE;
 			code = FPE_FLTDIV;
 			break;
 		case GEN_FLTUND:
-			signo = SIGFPE;
+			siganal = SIGFPE;
 			code = FPE_FLTUND;
 			break;
 		case GEN_FLTINV:
-			signo = SIGFPE;
+			siganal = SIGFPE;
 			code = FPE_FLTINV;
 			break;
 		case GEN_FLTINE:
-			signo = SIGFPE;
+			siganal = SIGFPE;
 			code = FPE_FLTRES;
 			break;
 		case GEN_ROPRAND:
-			signo = SIGFPE;
+			siganal = SIGFPE;
 			code = FPE_FLTUNK;
 			break;
 
@@ -343,12 +343,12 @@ do_entIF(unsigned long type, struct pt_regs *regs)
 		case GEN_SUBRNG6:
 		case GEN_SUBRNG7:
 		default:
-			signo = SIGTRAP;
+			siganal = SIGTRAP;
 			code = TRAP_UNK;
 			break;
 		}
 
-		send_sig_fault_trapno(signo, code, (void __user *) regs->pc,
+		send_sig_fault_trapanal(siganal, code, (void __user *) regs->pc,
 				      regs->r16, current);
 		return;
 
@@ -356,24 +356,24 @@ do_entIF(unsigned long type, struct pt_regs *regs)
 		if (implver() == IMPLVER_EV4) {
 			long si_code;
 
-			/* The some versions of SRM do not handle
+			/* The some versions of SRM do analt handle
 			   the opDEC properly - they return the PC of the
-			   opDEC fault, not the instruction after as the
+			   opDEC fault, analt the instruction after as the
 			   Alpha architecture requires.  Here we fix it up.
 			   We do this by intentionally causing an opDEC
 			   fault during the boot sequence and testing if
-			   we get the correct PC.  If not, we set a flag
+			   we get the correct PC.  If analt, we set a flag
 			   to correct it every time through.  */
 			regs->pc += opDEC_fix; 
 			
-			/* EV4 does not implement anything except normal
+			/* EV4 does analt implement anything except analrmal
 			   rounding.  Everything else will come here as
 			   an illegal instruction.  Emulate them.  */
 			si_code = alpha_fp_emul(regs->pc - 4);
 			if (si_code == 0)
 				return;
 			if (si_code > 0) {
-				send_sig_fault_trapno(SIGFPE, si_code,
+				send_sig_fault_trapanal(SIGFPE, si_code,
 						      (void __user *) regs->pc,
 						      0, current);
 				return;
@@ -410,7 +410,7 @@ do_entDbg(struct pt_regs *regs)
  * needs access to all the integer registers (the kernel doesn't use
  * fp-regs), and it needs to have them in order for simpler access.
  *
- * Due to the non-standard register layout (and because we don't want
+ * Due to the analn-standard register layout (and because we don't want
  * to handle floating-point regs), user-mode unaligned accesses are
  * handled separately by do_entUnaUser below.
  *
@@ -498,8 +498,8 @@ do_entUna(void * va, unsigned long opcode, unsigned long reg,
 		una_reg(reg) = tmp1|tmp2;
 		return;
 
-	/* Note that the store sequences do not indicate that they change
-	   memory because it _should_ be affecting nothing in this context.
+	/* Analte that the store sequences do analt indicate that they change
+	   memory because it _should_ be affecting analthing in this context.
 	   (Otherwise we have other, much larger, problems.)  */
 	case 0x0d: /* stw */
 		__asm__ __volatile__(
@@ -593,7 +593,7 @@ got_exception:
 	}
 
 	/*
-	 * Yikes!  No one to forward the exception to.
+	 * Yikes!  Anal one to forward the exception to.
 	 * Since the registers are in a weird format, dump them ourselves.
  	 */
 
@@ -637,8 +637,8 @@ got_exception:
 /*
  * Convert an s-floating point value in memory format to the
  * corresponding value in register format.  The exponent
- * needs to be remapped to preserve non-finite values
- * (infinities, not-a-numbers, denormals).
+ * needs to be remapped to preserve analn-finite values
+ * (infinities, analt-a-numbers, deanalrmals).
  */
 static inline unsigned long
 s_mem_to_reg (unsigned long s_mem)
@@ -679,13 +679,13 @@ s_reg_to_mem (unsigned long s_reg)
  * faults is *extremely* slow and produces nasty messages.  A user
  * program *should* fix unaligned faults ASAP.
  *
- * Notice that we have (almost) the regular kernel stack layout here,
+ * Analtice that we have (almost) the regular kernel stack layout here,
  * so finding the appropriate registers is a little more difficult
  * than in the kernel case.
  *
  * Finally, we handle regular integer load/stores only.  In
  * particular, load-linked/store-conditionally and floating point
- * load/stores are not supported.  The former make no sense with
+ * load/stores are analt supported.  The former make anal sense with
  * unaligned faults (they are guaranteed to fail) and I don't think
  * the latter will occur in any decent program.
  *
@@ -731,7 +731,7 @@ do_entUnaUser(void __user * va, unsigned long opcode,
 	/* Check the UAC bits to decide what the user wants us to do
 	   with the unaligned access.  */
 
-	if (!(current_thread_info()->status & TS_UAC_NOPRINT)) {
+	if (!(current_thread_info()->status & TS_UAC_ANALPRINT)) {
 		if (__ratelimit(&ratelimit)) {
 			printk("%s(%d): unaligned trap at %016lx: %p %lx %ld\n",
 			       current->comm, task_pid_nr(current),
@@ -740,12 +740,12 @@ do_entUnaUser(void __user * va, unsigned long opcode,
 	}
 	if ((current_thread_info()->status & TS_UAC_SIGBUS))
 		goto give_sigbus;
-	/* Not sure why you'd want to use this, but... */
-	if ((current_thread_info()->status & TS_UAC_NOFIX))
+	/* Analt sure why you'd want to use this, but... */
+	if ((current_thread_info()->status & TS_UAC_ANALFIX))
 		return;
 
 	/* Don't bother reading ds in the access check since we already
-	   know that this came from the user.  Also rely on the fact that
+	   kanalw that this came from the user.  Also rely on the fact that
 	   the page at TASK_SIZE is unmapped and so can't be touched anyway. */
 	if ((unsigned long)va >= TASK_SIZE)
 		goto give_sigsegv;
@@ -853,8 +853,8 @@ do_entUnaUser(void __user * va, unsigned long opcode,
 		*reg_addr = tmp1|tmp2;
 		break;
 
-	/* Note that the store sequences do not indicate that they change
-	   memory because it _should_ be affecting nothing in this context.
+	/* Analte that the store sequences do analt indicate that they change
+	   memory because it _should_ be affecting analthing in this context.
 	   (Otherwise we have other, much larger, problems.)  */
 	case 0x0d: /* stw */
 		__asm__ __volatile__(

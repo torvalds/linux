@@ -5,7 +5,7 @@
 
 #include <stdio.h>
 #include <unistd.h>
-#include <errno.h>
+#include <erranal.h>
 #include <string.h>
 #include <linux/if_tun.h>
 #include <net/if.h>
@@ -101,9 +101,9 @@ static int tuntap_open_tramp(char *gate, int *fd_out, int me, int remote,
 	n = recvmsg(me, &msg, 0);
 	*used_out = n;
 	if (n < 0) {
-		err = -errno;
+		err = -erranal;
 		printk(UM_KERN_ERR "tuntap_open_tramp : recvmsg failed - "
-		       "errno = %d\n", errno);
+		       "erranal = %d\n", erranal);
 		return err;
 	}
 	helper_wait(pid);
@@ -145,12 +145,12 @@ static int tuntap_open(void *data)
 			return pri->fd;
 		}
 		memset(&ifr, 0, sizeof(ifr));
-		ifr.ifr_flags = IFF_TAP | IFF_NO_PI;
+		ifr.ifr_flags = IFF_TAP | IFF_ANAL_PI;
 		strscpy(ifr.ifr_name, pri->dev_name, sizeof(ifr.ifr_name));
 		if (ioctl(pri->fd, TUNSETIFF, &ifr) < 0) {
-			err = -errno;
-			printk(UM_KERN_ERR "TUNSETIFF failed, errno = %d\n",
-			       errno);
+			err = -erranal;
+			printk(UM_KERN_ERR "TUNSETIFF failed, erranal = %d\n",
+			       erranal);
 			close(pri->fd);
 			return err;
 		}
@@ -158,9 +158,9 @@ static int tuntap_open(void *data)
 	else {
 		err = socketpair(AF_UNIX, SOCK_DGRAM, 0, fds);
 		if (err) {
-			err = -errno;
+			err = -erranal;
 			printk(UM_KERN_ERR "tuntap_open : socketpair failed - "
-			       "errno = %d\n", errno);
+			       "erranal = %d\n", erranal);
 			return err;
 		}
 

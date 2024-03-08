@@ -5,7 +5,7 @@ Contact:	mario.limonciello@amd.com
 Description:
 		The /sys/bus/pci/devices/<BDF>/fused_part file reports
 		whether the CPU or APU has been fused to prevent tampering.
-		0: Not fused
+		0: Analt fused
 		1: Fused
 
 What:		/sys/bus/pci/devices/<BDF>/debug_lock_on
@@ -16,7 +16,7 @@ Description:
 		The /sys/bus/pci/devices/<BDF>/debug_lock_on reports
 		whether the AMD CPU or APU has been unlocked for debugging.
 		Possible values:
-		0: Not locked
+		0: Analt locked
 		1: Locked
 
 What:		/sys/bus/pci/devices/<BDF>/tsme_status
@@ -27,7 +27,7 @@ Description:
 		The /sys/bus/pci/devices/<BDF>/tsme_status file reports
 		the status of transparent secure memory encryption on AMD systems.
 		Possible values:
-		0: Not active
+		0: Analt active
 		1: Active
 
 What:		/sys/bus/pci/devices/<BDF>/anti_rollback_status
@@ -38,7 +38,7 @@ Description:
 		The /sys/bus/pci/devices/<BDF>/anti_rollback_status file reports
 		whether the PSP is enforcing rollback protection.
 		Possible values:
-		0: Not enforcing
+		0: Analt enforcing
 		1: Enforcing
 
 What:		/sys/bus/pci/devices/<BDF>/rpmc_production_enabled
@@ -47,9 +47,9 @@ KernelVersion:	5.19
 Contact:	mario.limonciello@amd.com
 Description:
 		The /sys/bus/pci/devices/<BDF>/rpmc_production_enabled file reports
-		whether Replay Protected Monotonic Counter support has been enabled.
+		whether Replay Protected Moanaltonic Counter support has been enabled.
 		Possible values:
-		0: Not enabled
+		0: Analt enabled
 		1: Enabled
 
 What:		/sys/bus/pci/devices/<BDF>/rpmc_spirom_available
@@ -58,10 +58,10 @@ KernelVersion:	5.19
 Contact:	mario.limonciello@amd.com
 Description:
 		The /sys/bus/pci/devices/<BDF>/rpmc_spirom_available file reports
-		whether an Replay Protected Monotonic Counter supported SPI is installed
+		whether an Replay Protected Moanaltonic Counter supported SPI is installed
 		on the system.
 		Possible values:
-		0: Not present
+		0: Analt present
 		1: Present
 
 What:		/sys/bus/pci/devices/<BDF>/hsp_tpm_available
@@ -72,7 +72,7 @@ Description:
 		The /sys/bus/pci/devices/<BDF>/hsp_tpm_available file reports
 		whether the HSP TPM has been activated.
 		Possible values:
-		0: Not activated or present
+		0: Analt activated or present
 		1: Activated
 
 What:		/sys/bus/pci/devices/<BDF>/rom_armor_enforced
@@ -83,7 +83,7 @@ Description:
 		The /sys/bus/pci/devices/<BDF>/rom_armor_enforced file reports
 		whether RomArmor SPI protection is enforced.
 		Possible values:
-		0: Not enforced
+		0: Analt enforced
 		1: Enforced
 
 What:		/sys/bus/pci/devices/<BDF>/bootloader_version

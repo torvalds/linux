@@ -205,12 +205,12 @@ static irqreturn_t deinterlace_irq(int irq, void *data)
 	if (!ctx) {
 		v4l2_err(&dev->v4l2_dev,
 			 "Instance released before the end of transaction\n");
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	val = deinterlace_read(dev, DEINTERLACE_INT_STATUS);
 	if (!(val & DEINTERLACE_INT_STATUS_WRITEBACK))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	deinterlace_write(dev, DEINTERLACE_INT_ENABLE, 0);
 	deinterlace_set_bits(dev, DEINTERLACE_INT_STATUS,
@@ -416,8 +416,8 @@ static int deinterlace_try_fmt_vid_cap(struct file *file, void *priv,
 	if (!deinterlace_check_format(f->fmt.pix.pixelformat))
 		f->fmt.pix.pixelformat = deinterlace_formats[0];
 
-	if (f->fmt.pix.field != V4L2_FIELD_NONE)
-		f->fmt.pix.field = V4L2_FIELD_NONE;
+	if (f->fmt.pix.field != V4L2_FIELD_ANALNE)
+		f->fmt.pix.field = V4L2_FIELD_ANALNE;
 
 	deinterlace_prepare_format(&f->fmt.pix);
 
@@ -607,27 +607,27 @@ static int deinterlace_start_streaming(struct vb2_queue *vq, unsigned int count)
 						    &ctx->flag1_buf_dma,
 						    GFP_KERNEL);
 		if (!ctx->flag1_buf) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 
-			goto err_no_mem1;
+			goto err_anal_mem1;
 		}
 
 		ctx->flag2_buf = dma_alloc_coherent(dev, FLAG_SIZE,
 						    &ctx->flag2_buf_dma,
 						    GFP_KERNEL);
 		if (!ctx->flag2_buf) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 
-			goto err_no_mem2;
+			goto err_anal_mem2;
 		}
 	}
 
 	return 0;
 
-err_no_mem2:
+err_anal_mem2:
 	dma_free_coherent(dev, FLAG_SIZE, ctx->flag1_buf,
 			  ctx->flag1_buf_dma);
-err_no_mem1:
+err_anal_mem1:
 	pm_runtime_put(dev);
 err_runtime_get:
 	deinterlace_queue_cleanup(vq, VB2_BUF_STATE_QUEUED);
@@ -714,7 +714,7 @@ static int deinterlace_open(struct file *file)
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx) {
 		mutex_unlock(&dev->dev_mutex);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* default output format */
@@ -726,7 +726,7 @@ static int deinterlace_open(struct file *file)
 
 	/* default capture format */
 	ctx->dst_fmt.pixelformat = deinterlace_formats[0];
-	ctx->dst_fmt.field = V4L2_FIELD_NONE;
+	ctx->dst_fmt.field = V4L2_FIELD_ANALNE;
 	ctx->dst_fmt.width = 640;
 	ctx->dst_fmt.height = 480;
 	deinterlace_prepare_format(&ctx->dst_fmt);
@@ -788,7 +788,7 @@ static const struct video_device deinterlace_video_device = {
 	.vfl_dir	= VFL_DIR_M2M,
 	.fops		= &deinterlace_fops,
 	.ioctl_ops	= &deinterlace_ioctl_ops,
-	.minor		= -1,
+	.mianalr		= -1,
 	.release	= video_device_release_empty,
 	.device_caps	= V4L2_CAP_VIDEO_M2M | V4L2_CAP_STREAMING,
 };
@@ -807,7 +807,7 @@ static int deinterlace_probe(struct platform_device *pdev)
 
 	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev->vfd = deinterlace_video_device;
 	dev->dev = &pdev->dev;

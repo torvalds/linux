@@ -39,7 +39,7 @@
 		clocks = <&scmi_clk 3>;
 	};
 
-	/delete-node/ scpi;
+	/delete-analde/ scpi;
 
 	firmware {
 		scmi {
@@ -198,8 +198,8 @@
 };
 
 &sram {
-	/delete-node/ scp-sram@0;
-	/delete-node/ scp-sram@200;
+	/delete-analde/ scp-sram@0;
+	/delete-analde/ scp-sram@200;
 
 	cpu_scp_lpri0: scp-sram@0 {
 		compatible = "arm,scmi-shmem";

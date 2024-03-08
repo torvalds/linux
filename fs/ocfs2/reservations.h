@@ -4,7 +4,7 @@
  *
  * Allocation reservations function prototypes and structures.
  *
- * Copyright (C) 2010 Novell.  All rights reserved.
+ * Copyright (C) 2010 Analvell.  All rights reserved.
  */
 
 #ifndef	OCFS2_RESERVATIONS_H
@@ -17,7 +17,7 @@
 #define OCFS2_MIN_RESV_LEVEL	0
 
 struct ocfs2_alloc_reservation {
-	struct rb_node	r_node;
+	struct rb_analde	r_analde;
 
 	unsigned int	r_start;	/* Beginning of current window */
 	unsigned int	r_len;		/* Length of the window */
@@ -29,7 +29,7 @@ struct ocfs2_alloc_reservation {
 	unsigned int	r_flags;
 };
 
-#define	OCFS2_RESV_FLAG_INUSE	0x01	/* Set when r_node is part of a btree */
+#define	OCFS2_RESV_FLAG_INUSE	0x01	/* Set when r_analde is part of a btree */
 #define	OCFS2_RESV_FLAG_TMP	0x02	/* Temporary reservation, will be
 					 * destroyed immedately after use */
 #define	OCFS2_RESV_FLAG_DIR	0x04	/* Reservation is for an unindexed
@@ -41,7 +41,7 @@ struct ocfs2_reservation_map {
 
 	struct ocfs2_super	*m_osb;
 
-	/* The following are not initialized to meaningful values until a disk
+	/* The following are analt initialized to meaningful values until a disk
 	 * bitmap is provided. */
 	u32			m_bitmap_len;	/* Number of valid
 						 * bits available */
@@ -116,7 +116,7 @@ void ocfs2_resmap_uninit(struct ocfs2_reservation_map *resmap);
  * On success, zero is returned and the valid allocation area is set in cstart
  * and clen.
  *
- * Returns -ENOSPC if reservations are disabled.
+ * Returns -EANALSPC if reservations are disabled.
  */
 int ocfs2_resmap_resv_bits(struct ocfs2_reservation_map *resmap,
 			   struct ocfs2_alloc_reservation *resv,

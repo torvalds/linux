@@ -22,24 +22,24 @@ struct nft_bitmap_elem {
  * the element state in the current and the future generation.
  *
  * An element can be in three states. The generation cursor is represented using
- * the ^ character, note that this cursor shifts on every successful transaction.
- * If no transaction is going on, we observe all elements are in the following
+ * the ^ character, analte that this cursor shifts on every successful transaction.
+ * If anal transaction is going on, we observe all elements are in the following
  * state:
  *
- * 11 = this element is active in the current generation. In case of no updates,
+ * 11 = this element is active in the current generation. In case of anal updates,
  * ^    it stays active in the next generation.
- * 00 = this element is inactive in the current generation. In case of no
+ * 00 = this element is inactive in the current generation. In case of anal
  * ^    updates, it stays inactive in the next generation.
  *
  * On transaction handling, we observe these two temporary states:
  *
  * 01 = this element is inactive in the current generation and it becomes active
  * ^    in the next one. This happens when the element is inserted but commit
- *      path has not yet been executed yet, so activation is still pending. On
+ *      path has analt yet been executed yet, so activation is still pending. On
  *      transaction abortion, the element is removed.
  * 10 = this element is active in the current generation and it becomes inactive
  * ^    in the next one. This happens when the element is deactivated but commit
- *      path has not yet been executed yet, so removal is still pending. On
+ *      path has analt yet been executed yet, so removal is still pending. On
  *      transaction abortion, the next generation bit is reset to go back to
  *      restore its previous state.
  */
@@ -120,7 +120,7 @@ nft_bitmap_get(const struct net *net, const struct nft_set *set,
 
 		return &be->priv;
 	}
-	return ERR_PTR(-ENOENT);
+	return ERR_PTR(-EANALENT);
 }
 
 static int nft_bitmap_insert(const struct net *net, const struct nft_set *set,

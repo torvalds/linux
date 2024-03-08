@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * PEF2256 also known as FALC56 driver
+ * PEF2256 also kanalwn as FALC56 driver
  *
  * Copyright 2023 CS GROUP France
  *
@@ -15,7 +15,7 @@
 #include <linux/io.h>
 #include <linux/mfd/core.h>
 #include <linux/module.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
@@ -81,7 +81,7 @@ static void pef2256_clrsetbits8(struct pef2256 *pef2256, int offset, u8 clr, u8 
 
 enum pef2256_version pef2256_get_version(struct pef2256 *pef2256)
 {
-	enum pef2256_version version = PEF2256_VERSION_UNKNOWN;
+	enum pef2256_version version = PEF2256_VERSION_UNKANALWN;
 	u8 vstr, wid;
 
 	vstr = pef2256_read8(pef2256, PEF2256_VSTR);
@@ -107,8 +107,8 @@ enum pef2256_version pef2256_get_version(struct pef2256 *pef2256)
 		break;
 	}
 
-	if (version == PEF2256_VERSION_UNKNOWN)
-		dev_err(pef2256->dev, "Unknown version (0x%02x, 0x%02x)\n", vstr, wid);
+	if (version == PEF2256_VERSION_UNKANALWN)
+		dev_err(pef2256->dev, "Unkanalwn version (0x%02x, 0x%02x)\n", vstr, wid);
 
 	return version;
 }
@@ -247,7 +247,7 @@ static int pef2256_setup_e1_line(struct pef2256 *pef2256)
 				    PEF2256_2X_LIM1_RIL_210);
 
 	/* transmit pulse mask, default value from datasheet
-	 * transmit line in normal operation
+	 * transmit line in analrmal operation
 	 */
 	if (pef2256->version == PEF2256_VERSION_1_2)
 		pef2256_write8(pef2256, PEF2256_XPM0, 0x7B);
@@ -256,10 +256,10 @@ static int pef2256_setup_e1_line(struct pef2256 *pef2256)
 	pef2256_write8(pef2256, PEF2256_XPM1, 0x03);
 	pef2256_write8(pef2256, PEF2256_XPM2, 0x00);
 
-	/* HDB3 coding, no alarm simulation */
+	/* HDB3 coding, anal alarm simulation */
 	pef2256_write8(pef2256, PEF2256_FMR0, PEF2256_FMR0_XC_HDB3 | PEF2256_FMR0_RC_HDB3);
 
-	/* E1, frame format, 2 Mbit/s system data rate, no AIS
+	/* E1, frame format, 2 Mbit/s system data rate, anal AIS
 	 * transmission to remote end or system interface, payload loop
 	 * off, transmit remote alarm on
 	 */
@@ -426,7 +426,7 @@ static void pef2256_setup_e1_signaling(struct pef2256 *pef2256)
 	pef2256_setbits8(pef2256, PEF2256_XSW, PEF2256_XSW_XSIS);
 	pef2256_setbits8(pef2256, PEF2256_XSP, PEF2256_XSP_XSIF);
 
-	/* no transparent mode active */
+	/* anal transparent mode active */
 	pef2256_write8(pef2256, PEF2256_TSWM, 0x00);
 }
 
@@ -438,7 +438,7 @@ static void pef2256_setup_e1_errors(struct pef2256 *pef2256)
 	/* error counter mode COFA */
 	pef2256_setbits8(pef2256, PEF2256_GCR, PEF2256_GCR_ECMC);
 
-	/* errors in service words have no influence */
+	/* errors in service words have anal influence */
 	pef2256_setbits8(pef2256, PEF2256_RC0, PEF2256_RC0_SWD);
 
 	/* 4 consecutive incorrect FAS causes loss of sync */
@@ -493,7 +493,7 @@ static int pef2256_setup_e1(struct pef2256 *pef2256)
 
 static void pef2256_isr_default_handler(struct pef2256 *pef2256, u8 nbr, u8 isr)
 {
-	dev_warn_ratelimited(pef2256->dev, "ISR%u: 0x%02x not handled\n", nbr, isr);
+	dev_warn_ratelimited(pef2256->dev, "ISR%u: 0x%02x analt handled\n", nbr, isr);
 }
 
 static bool pef2256_is_carrier_on(struct pef2256 *pef2256)
@@ -511,7 +511,7 @@ static void pef2256_isr2_handler(struct pef2256 *pef2256, u8 nbr, u8 isr)
 	if (isr & (PEF2256_INT2_LOS | PEF2256_INT2_AIS)) {
 		carrier = pef2256_is_carrier_on(pef2256);
 		if (atomic_xchg(&pef2256->carrier, carrier) != carrier)
-			framer_notify_status_change(pef2256->framer);
+			framer_analtify_status_change(pef2256->framer);
 	}
 }
 
@@ -567,7 +567,7 @@ static int pef2256_check_rates(struct pef2256 *pef2256, unsigned long sysclk_rat
 	return -EINVAL;
 }
 
-static int pef2556_of_parse(struct pef2256 *pef2256, struct device_node *np)
+static int pef2556_of_parse(struct pef2256 *pef2256, struct device_analde *np)
 {
 	int ret;
 
@@ -614,12 +614,12 @@ static int pef2256_add_audio_devices(struct pef2256 *pef2256)
 {
 	const char *compatible = "lantiq,pef2256-codec";
 	struct mfd_cell *audio_devs;
-	struct device_node *np;
+	struct device_analde *np;
 	unsigned int count = 0;
 	unsigned int i;
 	int ret;
 
-	for_each_available_child_of_node(pef2256->dev->of_node, np) {
+	for_each_available_child_of_analde(pef2256->dev->of_analde, np) {
 		if (of_device_is_compatible(np, compatible))
 			count++;
 	}
@@ -629,7 +629,7 @@ static int pef2256_add_audio_devices(struct pef2256 *pef2256)
 
 	audio_devs = kcalloc(count, sizeof(*audio_devs), GFP_KERNEL);
 	if (!audio_devs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < count; i++) {
 		audio_devs[i].name = "framer-codec";
@@ -656,7 +656,7 @@ static int pef2256_framer_set_config(struct framer *framer, const struct framer_
 
 	if (config->iface != FRAMER_IFACE_E1) {
 		dev_err(pef2256->dev, "Only E1 line is currently supported\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	switch (config->clock_type) {
@@ -693,7 +693,7 @@ static const struct framer_ops pef2256_framer_ops = {
 
 static int pef2256_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	unsigned long sclkr_rate, sclkx_rate;
 	struct framer_provider *framer_provider;
 	struct pef2256 *pef2256;
@@ -704,7 +704,7 @@ static int pef2256_probe(struct platform_device *pdev)
 
 	pef2256 = devm_kzalloc(&pdev->dev, sizeof(*pef2256), GFP_KERNEL);
 	if (!pef2256)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pef2256->dev = &pdev->dev;
 	atomic_set(&pef2256->carrier, 0);
@@ -772,7 +772,7 @@ static int pef2256_probe(struct platform_device *pdev)
 		version_txt = "2.2";
 		break;
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	dev_info(pef2256->dev, "Version %s detected\n", version_txt);
 

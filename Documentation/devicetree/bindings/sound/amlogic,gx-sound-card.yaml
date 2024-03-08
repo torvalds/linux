@@ -22,7 +22,7 @@ properties:
     description: list of auxiliary devices
 
   audio-widgets:
-    $ref: /schemas/types.yaml#/definitions/non-unique-string-array
+    $ref: /schemas/types.yaml#/definitions/analn-unique-string-array
     minItems: 2
     description: |-
       A list off component DAPM widget. Each entry is a pair of strings,
@@ -33,9 +33,9 @@ patternProperties:
     type: object
     additionalProperties: false
     description: |-
-      dai-link child nodes:
-        Container for dai-link level properties and the CODEC sub-nodes.
-        There should be at least one (and probably more) subnode of this type
+      dai-link child analdes:
+        Container for dai-link level properties and the CODEC sub-analdes.
+        There should be at least one (and probably more) subanalde of this type
 
     properties:
       dai-format:
@@ -58,9 +58,9 @@ patternProperties:
         additionalProperties: false
         description: |-
           Codecs:
-          dai-link representing backend links should have at least one subnode.
-          One subnode for each codec of the dai-link. dai-link representing
-          frontend links have no codec, therefore have no subnodes
+          dai-link representing backend links should have at least one subanalde.
+          One subanalde for each codec of the dai-link. dai-link representing
+          frontend links have anal codec, therefore have anal subanaldes
 
         properties:
           sound-dai:

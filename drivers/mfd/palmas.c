@@ -390,24 +390,24 @@ static int palmas_set_pdata_irq_flag(struct i2c_client *i2c,
 static void palmas_dt_to_pdata(struct i2c_client *i2c,
 		struct palmas_platform_data *pdata)
 {
-	struct device_node *node = i2c->dev.of_node;
+	struct device_analde *analde = i2c->dev.of_analde;
 	int ret;
 	u32 prop;
 
-	ret = of_property_read_u32(node, "ti,mux-pad1", &prop);
+	ret = of_property_read_u32(analde, "ti,mux-pad1", &prop);
 	if (!ret) {
 		pdata->mux_from_pdata = 1;
 		pdata->pad1 = prop;
 	}
 
-	ret = of_property_read_u32(node, "ti,mux-pad2", &prop);
+	ret = of_property_read_u32(analde, "ti,mux-pad2", &prop);
 	if (!ret) {
 		pdata->mux_from_pdata = 1;
 		pdata->pad2 = prop;
 	}
 
 	/* The default for this register is all masked */
-	ret = of_property_read_u32(node, "ti,power-ctrl", &prop);
+	ret = of_property_read_u32(analde, "ti,power-ctrl", &prop);
 	if (!ret)
 		pdata->power_ctrl = prop;
 	else
@@ -417,7 +417,7 @@ static void palmas_dt_to_pdata(struct i2c_client *i2c,
 	if (i2c->irq)
 		palmas_set_pdata_irq_flag(i2c, pdata);
 
-	pdata->pm_off = of_property_read_bool(node,
+	pdata->pm_off = of_property_read_bool(analde,
 			"ti,system-power-controller");
 }
 
@@ -427,7 +427,7 @@ static void palmas_power_off(void)
 	unsigned int addr;
 	int ret, slave;
 	u8 powerhold_mask;
-	struct device_node *np = palmas_dev->dev->of_node;
+	struct device_analde *np = palmas_dev->dev->of_analde;
 
 	if (of_property_read_bool(np, "ti,palmas-override-powerhold")) {
 		addr = PALMAS_BASE_TO_REG(PALMAS_PU_PD_OD_BASE,
@@ -486,18 +486,18 @@ static int palmas_i2c_probe(struct i2c_client *i2c)
 	struct palmas *palmas;
 	struct palmas_platform_data *pdata;
 	const struct palmas_driver_data *driver_data;
-	struct device_node *node = i2c->dev.of_node;
+	struct device_analde *analde = i2c->dev.of_analde;
 	int ret = 0, i;
 	unsigned int reg, addr;
 	int slave;
 
 	pdata = dev_get_platdata(&i2c->dev);
 
-	if (node && !pdata) {
+	if (analde && !pdata) {
 		pdata = devm_kzalloc(&i2c->dev, sizeof(*pdata), GFP_KERNEL);
 
 		if (!pdata)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		palmas_dt_to_pdata(i2c, pdata);
 	}
@@ -507,7 +507,7 @@ static int palmas_i2c_probe(struct i2c_client *i2c)
 
 	palmas = devm_kzalloc(&i2c->dev, sizeof(struct palmas), GFP_KERNEL);
 	if (palmas == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(i2c, palmas);
 	palmas->dev = &i2c->dev;
@@ -529,7 +529,7 @@ static int palmas_i2c_probe(struct i2c_client *i2c)
 				ret = PTR_ERR(palmas->i2c_clients[i]);
 				goto err_i2c;
 			}
-			palmas->i2c_clients[i]->dev.of_node = of_node_get(node);
+			palmas->i2c_clients[i]->dev.of_analde = of_analde_get(analde);
 		}
 		palmas->regmap[i] = devm_regmap_init_i2c(palmas->i2c_clients[i],
 				&palmas_regmap_config[i]);
@@ -544,7 +544,7 @@ static int palmas_i2c_probe(struct i2c_client *i2c)
 
 	if (!palmas->irq) {
 		dev_warn(palmas->dev, "IRQ missing: skipping irq request\n");
-		goto no_irq;
+		goto anal_irq;
 	}
 
 	/* Change interrupt line output polarity */
@@ -573,7 +573,7 @@ static int palmas_i2c_probe(struct i2c_client *i2c)
 	if (ret < 0)
 		goto err_i2c;
 
-no_irq:
+anal_irq:
 	slave = PALMAS_BASE_TO_SLAVE(PALMAS_PU_PD_OD_BASE);
 	addr = PALMAS_BASE_TO_REG(PALMAS_PU_PD_OD_BASE,
 			PALMAS_PRIMARY_SECONDARY_PAD1);
@@ -650,7 +650,7 @@ no_irq:
 	 * If we are probing with DT do this the DT way and return here
 	 * otherwise continue and add devices using mfd helpers.
 	 */
-	if (node) {
+	if (analde) {
 		ret = devm_of_platform_populate(&i2c->dev);
 		if (ret < 0) {
 			goto err_irq;

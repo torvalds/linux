@@ -3,7 +3,7 @@
  * StarFive JH7110 System Clock Driver
  *
  * Copyright (C) 2022 Emil Renner Berthing <kernel@esmil.dk>
- * Copyright (C) 2022 StarFive Technology Co., Ltd.
+ * Copyright (C) 2022 StarFive Techanallogy Co., Ltd.
  */
 
 #include <linux/auxiliary_bus.h>
@@ -50,7 +50,7 @@ static const struct jh71x0_clk_data jh7110_sysclk_data[] __initconst = {
 	JH71X0__MUX(JH7110_SYSCLK_BUS_ROOT, "bus_root", 0, 2,
 		    JH7110_SYSCLK_OSC,
 		    JH7110_SYSCLK_PLL2_OUT),
-	JH71X0__DIV(JH7110_SYSCLK_NOCSTG_BUS, "nocstg_bus", 3, JH7110_SYSCLK_BUS_ROOT),
+	JH71X0__DIV(JH7110_SYSCLK_ANALCSTG_BUS, "analcstg_bus", 3, JH7110_SYSCLK_BUS_ROOT),
 	JH71X0__DIV(JH7110_SYSCLK_AXI_CFG0, "axi_cfg0", 3, JH7110_SYSCLK_BUS_ROOT),
 	JH71X0__DIV(JH7110_SYSCLK_STG_AXIAHB, "stg_axiahb", 2, JH7110_SYSCLK_AXI_CFG0),
 	JH71X0_GATE(JH7110_SYSCLK_AHB0, "ahb0", CLK_IS_CRITICAL, JH7110_SYSCLK_STG_AXIAHB),
@@ -87,10 +87,10 @@ static const struct jh71x0_clk_data jh7110_sysclk_data[] __initconst = {
 	JH71X0_GATE(JH7110_SYSCLK_TRACE3, "trace3", 0, JH7110_SYSCLK_CPU_CORE),
 	JH71X0_GATE(JH7110_SYSCLK_TRACE4, "trace4", 0, JH7110_SYSCLK_CPU_CORE),
 	JH71X0_GATE(JH7110_SYSCLK_TRACE_COM, "trace_com", 0, JH7110_SYSCLK_CPU_BUS),
-	/* noc */
-	JH71X0_GATE(JH7110_SYSCLK_NOC_BUS_CPU_AXI, "noc_bus_cpu_axi", CLK_IS_CRITICAL,
+	/* analc */
+	JH71X0_GATE(JH7110_SYSCLK_ANALC_BUS_CPU_AXI, "analc_bus_cpu_axi", CLK_IS_CRITICAL,
 		    JH7110_SYSCLK_CPU_BUS),
-	JH71X0_GATE(JH7110_SYSCLK_NOC_BUS_AXICFG0_AXI, "noc_bus_axicfg0_axi", CLK_IS_CRITICAL,
+	JH71X0_GATE(JH7110_SYSCLK_ANALC_BUS_AXICFG0_AXI, "analc_bus_axicfg0_axi", CLK_IS_CRITICAL,
 		    JH7110_SYSCLK_AXI_CFG0),
 	/* ddr */
 	JH71X0__DIV(JH7110_SYSCLK_OSC_DIV2, "osc_div2", 2, JH7110_SYSCLK_OSC),
@@ -108,11 +108,11 @@ static const struct jh71x0_clk_data jh7110_sysclk_data[] __initconst = {
 	JH71X0_GATE(JH7110_SYSCLK_GPU_SYS_CLK, "gpu_sys_clk", 0, JH7110_SYSCLK_ISP_AXI),
 	JH71X0_GATE(JH7110_SYSCLK_GPU_APB, "gpu_apb", 0, JH7110_SYSCLK_APB_BUS),
 	JH71X0_GDIV(JH7110_SYSCLK_GPU_RTC_TOGGLE, "gpu_rtc_toggle", 0, 12, JH7110_SYSCLK_OSC),
-	JH71X0_GATE(JH7110_SYSCLK_NOC_BUS_GPU_AXI, "noc_bus_gpu_axi", 0, JH7110_SYSCLK_GPU_CORE),
+	JH71X0_GATE(JH7110_SYSCLK_ANALC_BUS_GPU_AXI, "analc_bus_gpu_axi", 0, JH7110_SYSCLK_GPU_CORE),
 	/* isp */
 	JH71X0_GATE(JH7110_SYSCLK_ISP_TOP_CORE, "isp_top_core", 0, JH7110_SYSCLK_ISP_2X),
 	JH71X0_GATE(JH7110_SYSCLK_ISP_TOP_AXI, "isp_top_axi", 0, JH7110_SYSCLK_ISP_AXI),
-	JH71X0_GATE(JH7110_SYSCLK_NOC_BUS_ISP_AXI, "noc_bus_isp_axi", CLK_IS_CRITICAL,
+	JH71X0_GATE(JH7110_SYSCLK_ANALC_BUS_ISP_AXI, "analc_bus_isp_axi", CLK_IS_CRITICAL,
 		    JH7110_SYSCLK_ISP_AXI),
 	/* hifi4 */
 	JH71X0__DIV(JH7110_SYSCLK_HIFI4_CORE, "hifi4_core", 15, JH7110_SYSCLK_BUS_ROOT),
@@ -125,7 +125,7 @@ static const struct jh71x0_clk_data jh7110_sysclk_data[] __initconst = {
 	/* vout */
 	JH71X0_GATE(JH7110_SYSCLK_VOUT_SRC, "vout_src", 0, JH7110_SYSCLK_PLL2_OUT),
 	JH71X0__DIV(JH7110_SYSCLK_VOUT_AXI, "vout_axi", 7, JH7110_SYSCLK_PLL2_OUT),
-	JH71X0_GATE(JH7110_SYSCLK_NOC_BUS_DISP_AXI, "noc_bus_disp_axi", 0, JH7110_SYSCLK_VOUT_AXI),
+	JH71X0_GATE(JH7110_SYSCLK_ANALC_BUS_DISP_AXI, "analc_bus_disp_axi", 0, JH7110_SYSCLK_VOUT_AXI),
 	JH71X0_GATE(JH7110_SYSCLK_VOUT_TOP_AHB, "vout_top_ahb", 0, JH7110_SYSCLK_AHB1),
 	JH71X0_GATE(JH7110_SYSCLK_VOUT_TOP_AXI, "vout_top_axi", 0, JH7110_SYSCLK_VOUT_AXI),
 	JH71X0_GATE(JH7110_SYSCLK_VOUT_TOP_HDMITX0_MCLK, "vout_top_hdmitx0_mclk", 0,
@@ -145,14 +145,14 @@ static const struct jh71x0_clk_data jh7110_sysclk_data[] __initconst = {
 	JH71X0_GATE(JH7110_SYSCLK_WAVE511_APB, "wave511_apb", 0, JH7110_SYSCLK_APB_BUS),
 	JH71X0_GATE(JH7110_SYSCLK_VDEC_JPG, "vdec_jpg", 0, JH7110_SYSCLK_JPEGC_AXI),
 	JH71X0_GATE(JH7110_SYSCLK_VDEC_MAIN, "vdec_main", 0, JH7110_SYSCLK_VDEC_AXI),
-	JH71X0_GATE(JH7110_SYSCLK_NOC_BUS_VDEC_AXI, "noc_bus_vdec_axi", 0, JH7110_SYSCLK_VDEC_AXI),
+	JH71X0_GATE(JH7110_SYSCLK_ANALC_BUS_VDEC_AXI, "analc_bus_vdec_axi", 0, JH7110_SYSCLK_VDEC_AXI),
 	/* venc */
 	JH71X0__DIV(JH7110_SYSCLK_VENC_AXI, "venc_axi", 15, JH7110_SYSCLK_PLL2_OUT),
 	JH71X0_GATE(JH7110_SYSCLK_WAVE420L_AXI, "wave420l_axi", 0, JH7110_SYSCLK_VENC_AXI),
 	JH71X0_GDIV(JH7110_SYSCLK_WAVE420L_BPU, "wave420l_bpu", 0, 15, JH7110_SYSCLK_PLL2_OUT),
 	JH71X0_GDIV(JH7110_SYSCLK_WAVE420L_VCE, "wave420l_vce", 0, 15, JH7110_SYSCLK_PLL2_OUT),
 	JH71X0_GATE(JH7110_SYSCLK_WAVE420L_APB, "wave420l_apb", 0, JH7110_SYSCLK_APB_BUS),
-	JH71X0_GATE(JH7110_SYSCLK_NOC_BUS_VENC_AXI, "noc_bus_venc_axi", 0, JH7110_SYSCLK_VENC_AXI),
+	JH71X0_GATE(JH7110_SYSCLK_ANALC_BUS_VENC_AXI, "analc_bus_venc_axi", 0, JH7110_SYSCLK_VENC_AXI),
 	/* axi_cfg0 */
 	JH71X0_GATE(JH7110_SYSCLK_AXI_CFG0_MAIN_DIV, "axi_cfg0_main_div", CLK_IS_CRITICAL,
 		    JH7110_SYSCLK_AHB1),
@@ -176,8 +176,8 @@ static const struct jh71x0_clk_data jh7110_sysclk_data[] __initconst = {
 	JH71X0_GDIV(JH7110_SYSCLK_SDIO1_SDCARD, "sdio1_sdcard", 0, 15, JH7110_SYSCLK_AXI_CFG0),
 	/* stg */
 	JH71X0__DIV(JH7110_SYSCLK_USB_125M, "usb_125m", 15, JH7110_SYSCLK_PLL0_OUT),
-	JH71X0_GATE(JH7110_SYSCLK_NOC_BUS_STG_AXI, "noc_bus_stg_axi", CLK_IS_CRITICAL,
-		    JH7110_SYSCLK_NOCSTG_BUS),
+	JH71X0_GATE(JH7110_SYSCLK_ANALC_BUS_STG_AXI, "analc_bus_stg_axi", CLK_IS_CRITICAL,
+		    JH7110_SYSCLK_ANALCSTG_BUS),
 	/* gmac1 */
 	JH71X0_GATE(JH7110_SYSCLK_GMAC1_AHB, "gmac1_ahb", 0, JH7110_SYSCLK_AHB0),
 	JH71X0_GATE(JH7110_SYSCLK_GMAC1_AXI, "gmac1_axi", 0, JH7110_SYSCLK_STG_AXIAHB),
@@ -191,7 +191,7 @@ static const struct jh71x0_clk_data jh7110_sysclk_data[] __initconst = {
 		    JH7110_SYSCLK_GMAC1_RMII_RTX),
 	JH71X0__INV(JH7110_SYSCLK_GMAC1_RX_INV, "gmac1_rx_inv", JH7110_SYSCLK_GMAC1_RX),
 	JH71X0_GMUX(JH7110_SYSCLK_GMAC1_TX, "gmac1_tx",
-		    CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT, 2,
+		    CLK_SET_RATE_PARENT | CLK_SET_RATE_ANAL_REPARENT, 2,
 		    JH7110_SYSCLK_GMAC1_GTXCLK,
 		    JH7110_SYSCLK_GMAC1_RMII_RTX),
 	JH71X0__INV(JH7110_SYSCLK_GMAC1_TX_INV, "gmac1_tx_inv", JH7110_SYSCLK_GMAC1_TX),
@@ -360,7 +360,7 @@ int jh7110_reset_controller_register(struct jh71x0_clk_priv *priv,
 
 	rdev = kzalloc(sizeof(*rdev), GFP_KERNEL);
 	if (!rdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rdev->base = priv->base;
 
@@ -396,7 +396,7 @@ static int __init jh7110_syscrg_probe(struct platform_device *pdev)
 			    struct_size(priv, reg, JH7110_SYSCLK_END),
 			    GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&priv->rmw_lock);
 	priv->dev = &pdev->dev;
@@ -404,7 +404,7 @@ static int __init jh7110_syscrg_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->base))
 		return PTR_ERR(priv->base);
 
-	/* Use fixed factor clocks if can not get the PLL clocks from DTS */
+	/* Use fixed factor clocks if can analt get the PLL clocks from DTS */
 	pllclk = clk_get(priv->dev, "pll0_out");
 	if (IS_ERR(pllclk)) {
 		/* 24MHz -> 1000.0MHz */

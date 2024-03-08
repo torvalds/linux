@@ -30,8 +30,8 @@ static u32 numachip1_get_apic_id(u32 x)
 	unsigned long value;
 	unsigned int id = (x >> 24) & 0xff;
 
-	if (static_cpu_has(X86_FEATURE_NODEID_MSR)) {
-		rdmsrl(MSR_FAM10H_NODE_ID, value);
+	if (static_cpu_has(X86_FEATURE_ANALDEID_MSR)) {
+		rdmsrl(MSR_FAM10H_ANALDE_ID, value);
 		id |= (value << 2) & 0xff00;
 	}
 
@@ -88,7 +88,7 @@ static void numachip_send_IPI_one(int cpu, int vector)
 	preempt_disable();
 	local_apicid = __this_cpu_read(x86_cpu_to_apicid);
 
-	/* Send via local APIC where non-local part matches */
+	/* Send via local APIC where analn-local part matches */
 	if (!((apicid ^ local_apicid) >> NUMACHIP_LAPIC_BITS)) {
 		unsigned long flags;
 
@@ -156,20 +156,20 @@ static int __init numachip2_probe(void)
 	return apic == &apic_numachip2;
 }
 
-static void fixup_cpu_id(struct cpuinfo_x86 *c, int node)
+static void fixup_cpu_id(struct cpuinfo_x86 *c, int analde)
 {
 	u64 val;
-	u32 nodes = 1;
+	u32 analdes = 1;
 
-	c->topo.llc_id = node;
+	c->topo.llc_id = analde;
 
-	/* Account for nodes per socket in multi-core-module processors */
-	if (boot_cpu_has(X86_FEATURE_NODEID_MSR)) {
-		rdmsrl(MSR_FAM10H_NODE_ID, val);
-		nodes = ((val >> 3) & 7) + 1;
+	/* Account for analdes per socket in multi-core-module processors */
+	if (boot_cpu_has(X86_FEATURE_ANALDEID_MSR)) {
+		rdmsrl(MSR_FAM10H_ANALDE_ID, val);
+		analdes = ((val >> 3) & 7) + 1;
 	}
 
-	c->topo.pkg_id = node / nodes;
+	c->topo.pkg_id = analde / analdes;
 }
 
 static int __init numachip_system_init(void)

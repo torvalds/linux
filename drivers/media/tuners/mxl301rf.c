@@ -6,9 +6,9 @@
  */
 
 /*
- * NOTICE:
+ * ANALTICE:
  * This driver is incomplete and lacks init/config of the chips,
- * as the necessary info is not disclosed.
+ * as the necessary info is analt disclosed.
  * Other features like get_if_frequency() are missing as well.
  * It assumes that users of this driver (such as a PCI bridge of
  * DTV receiver cards) properly init and configure the chip
@@ -76,7 +76,7 @@ static int mxl301rf_get_rf_strength(struct dvb_frontend *fe, u16 *out)
 
 	rssi = &fe->dtv_property_cache.strength;
 	rssi->len = 1;
-	rssi->stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	rssi->stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	*out = 0;
 
 	state = fe->tuner_priv;
@@ -245,7 +245,7 @@ static int mxl301rf_sleep(struct dvb_frontend *fe)
 }
 
 
-/* init sequence is not public.
+/* init sequence is analt public.
  * the parent must have init'ed the device.
  * just wake up here.
  */
@@ -291,7 +291,7 @@ static int mxl301rf_probe(struct i2c_client *client)
 
 	state = kzalloc(sizeof(*state), GFP_KERNEL);
 	if (!state)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	state->i2c = client;
 	cfg = client->dev.platform_data;

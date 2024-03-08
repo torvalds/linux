@@ -10,7 +10,7 @@
 #include <linux/cpu.h>
 #include <linux/topology.h>
 #include <linux/device.h>
-#include <linux/node.h>
+#include <linux/analde.h>
 #include <linux/gfp.h>
 #include <linux/slab.h>
 #include <linux/percpu.h>
@@ -36,13 +36,13 @@ static int cpu_subsys_match(struct device *dev, struct device_driver *drv)
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
-static void change_cpu_under_node(struct cpu *cpu,
+static void change_cpu_under_analde(struct cpu *cpu,
 			unsigned int from_nid, unsigned int to_nid)
 {
 	int cpuid = cpu->dev.id;
-	unregister_cpu_under_node(cpuid, from_nid);
-	register_cpu_under_node(cpuid, to_nid);
-	cpu->node_id = to_nid;
+	unregister_cpu_under_analde(cpuid, from_nid);
+	register_cpu_under_analde(cpuid, to_nid);
+	cpu->analde_id = to_nid;
 }
 
 static int cpu_subsys_online(struct device *dev)
@@ -53,9 +53,9 @@ static int cpu_subsys_online(struct device *dev)
 	int ret;
 	int retries = 0;
 
-	from_nid = cpu_to_node(cpuid);
-	if (from_nid == NUMA_NO_NODE)
-		return -ENODEV;
+	from_nid = cpu_to_analde(cpuid);
+	if (from_nid == NUMA_ANAL_ANALDE)
+		return -EANALDEV;
 
 retry:
 	ret = cpu_device_up(dev);
@@ -76,12 +76,12 @@ retry:
 	}
 
 	/*
-	 * When hot adding memory to memoryless node and enabling a cpu
-	 * on the node, node number of the cpu may internally change.
+	 * When hot adding memory to memoryless analde and enabling a cpu
+	 * on the analde, analde number of the cpu may internally change.
 	 */
-	to_nid = cpu_to_node(cpuid);
+	to_nid = cpu_to_analde(cpuid);
 	if (from_nid != to_nid)
-		change_cpu_under_node(cpu, from_nid, to_nid);
+		change_cpu_under_analde(cpu, from_nid, to_nid);
 
 	return ret;
 }
@@ -95,7 +95,7 @@ void unregister_cpu(struct cpu *cpu)
 {
 	int logical_cpu = cpu->dev.id;
 
-	unregister_cpu_under_node(logical_cpu, cpu_to_node(logical_cpu));
+	unregister_cpu_under_analde(logical_cpu, cpu_to_analde(logical_cpu));
 
 	device_unregister(&cpu->dev);
 	per_cpu(cpu_sys_devices, logical_cpu) = NULL;
@@ -147,7 +147,7 @@ static DEVICE_ATTR(release, S_IWUSR, NULL, cpu_release_store);
 #ifdef CONFIG_KEXEC_CORE
 #include <linux/kexec.h>
 
-static ssize_t crash_notes_show(struct device *dev,
+static ssize_t crash_analtes_show(struct device *dev,
 				struct device_attribute *attr,
 				char *buf)
 {
@@ -160,44 +160,44 @@ static ssize_t crash_notes_show(struct device *dev,
 	/*
 	 * Might be reading other cpu's data based on which cpu read thread
 	 * has been scheduled. But cpu data (memory) is allocated once during
-	 * boot up and this data does not change there after. Hence this
-	 * operation should be safe. No locking required.
+	 * boot up and this data does analt change there after. Hence this
+	 * operation should be safe. Anal locking required.
 	 */
-	addr = per_cpu_ptr_to_phys(per_cpu_ptr(crash_notes, cpunum));
+	addr = per_cpu_ptr_to_phys(per_cpu_ptr(crash_analtes, cpunum));
 
 	return sysfs_emit(buf, "%llx\n", addr);
 }
-static DEVICE_ATTR_ADMIN_RO(crash_notes);
+static DEVICE_ATTR_ADMIN_RO(crash_analtes);
 
-static ssize_t crash_notes_size_show(struct device *dev,
+static ssize_t crash_analtes_size_show(struct device *dev,
 				     struct device_attribute *attr,
 				     char *buf)
 {
-	return sysfs_emit(buf, "%zu\n", sizeof(note_buf_t));
+	return sysfs_emit(buf, "%zu\n", sizeof(analte_buf_t));
 }
-static DEVICE_ATTR_ADMIN_RO(crash_notes_size);
+static DEVICE_ATTR_ADMIN_RO(crash_analtes_size);
 
-static struct attribute *crash_note_cpu_attrs[] = {
-	&dev_attr_crash_notes.attr,
-	&dev_attr_crash_notes_size.attr,
+static struct attribute *crash_analte_cpu_attrs[] = {
+	&dev_attr_crash_analtes.attr,
+	&dev_attr_crash_analtes_size.attr,
 	NULL
 };
 
-static const struct attribute_group crash_note_cpu_attr_group = {
-	.attrs = crash_note_cpu_attrs,
+static const struct attribute_group crash_analte_cpu_attr_group = {
+	.attrs = crash_analte_cpu_attrs,
 };
 #endif
 
 static const struct attribute_group *common_cpu_attr_groups[] = {
 #ifdef CONFIG_KEXEC_CORE
-	&crash_note_cpu_attr_group,
+	&crash_analte_cpu_attr_group,
 #endif
 	NULL
 };
 
 static const struct attribute_group *hotplugable_cpu_attr_groups[] = {
 #ifdef CONFIG_KEXEC_CORE
-	&crash_note_cpu_attr_group,
+	&crash_analte_cpu_attr_group,
 #endif
 	NULL
 };
@@ -251,8 +251,8 @@ static ssize_t print_cpus_offline(struct device *dev,
 
 	/* display offline cpus < nr_cpu_ids */
 	if (!alloc_cpumask_var(&offline, GFP_KERNEL))
-		return -ENOMEM;
-	cpumask_andnot(offline, cpu_possible_mask, cpu_online_mask);
+		return -EANALMEM;
+	cpumask_andanalt(offline, cpu_possible_mask, cpu_online_mask);
 	len += sysfs_emit_at(buf, len, "%*pbl", cpumask_pr_args(offline));
 	free_cpumask_var(offline);
 
@@ -280,9 +280,9 @@ static ssize_t print_cpus_isolated(struct device *dev,
 	cpumask_var_t isolated;
 
 	if (!alloc_cpumask_var(&isolated, GFP_KERNEL))
-		return -ENOMEM;
+		return -EANALMEM;
 
-	cpumask_andnot(isolated, cpu_possible_mask,
+	cpumask_andanalt(isolated, cpu_possible_mask,
 		       housekeeping_cpumask(HK_TYPE_DOMAIN));
 	len = sysfs_emit(buf, "%*pbl\n", cpumask_pr_args(isolated));
 
@@ -292,13 +292,13 @@ static ssize_t print_cpus_isolated(struct device *dev,
 }
 static DEVICE_ATTR(isolated, 0444, print_cpus_isolated, NULL);
 
-#ifdef CONFIG_NO_HZ_FULL
-static ssize_t print_cpus_nohz_full(struct device *dev,
+#ifdef CONFIG_ANAL_HZ_FULL
+static ssize_t print_cpus_analhz_full(struct device *dev,
 				    struct device_attribute *attr, char *buf)
 {
-	return sysfs_emit(buf, "%*pbl\n", cpumask_pr_args(tick_nohz_full_mask));
+	return sysfs_emit(buf, "%*pbl\n", cpumask_pr_args(tick_analhz_full_mask));
 }
-static DEVICE_ATTR(nohz_full, 0444, print_cpus_nohz_full, NULL);
+static DEVICE_ATTR(analhz_full, 0444, print_cpus_analhz_full, NULL);
 #endif
 
 #ifdef CONFIG_CRASH_HOTPLUG
@@ -315,7 +315,7 @@ static void cpu_device_release(struct device *dev)
 {
 	/*
 	 * This is an empty function to prevent the driver core from spitting a
-	 * warning at us.  Yes, I know this is directly opposite of what the
+	 * warning at us.  Anal, I kanalw this is directly opposite of what the
 	 * documentation for the driver core and kobjects say, and the author
 	 * of this code has already been publically ridiculed for doing
 	 * something as foolish as this.  However, at this point in time, it is
@@ -392,14 +392,14 @@ int register_cpu(struct cpu *cpu, int num)
 {
 	int error;
 
-	cpu->node_id = cpu_to_node(num);
+	cpu->analde_id = cpu_to_analde(num);
 	memset(&cpu->dev, 0x00, sizeof(struct device));
 	cpu->dev.id = num;
 	cpu->dev.bus = &cpu_subsys;
 	cpu->dev.release = cpu_device_release;
 	cpu->dev.offline_disabled = !cpu->hotpluggable;
 	cpu->dev.offline = !cpu_online(num);
-	cpu->dev.of_node = of_get_cpu_node(num, NULL);
+	cpu->dev.of_analde = of_get_cpu_analde(num, NULL);
 	cpu->dev.groups = common_cpu_attr_groups;
 	if (cpu->hotpluggable)
 		cpu->dev.groups = hotplugable_cpu_attr_groups;
@@ -410,9 +410,9 @@ int register_cpu(struct cpu *cpu, int num)
 	}
 
 	per_cpu(cpu_sys_devices, num) = &cpu->dev;
-	register_cpu_under_node(num, cpu_to_node(num));
+	register_cpu_under_analde(num, cpu_to_analde(num));
 	dev_pm_qos_expose_latency_limit(&cpu->dev,
-					PM_QOS_RESUME_LATENCY_NO_CONSTRAINT);
+					PM_QOS_RESUME_LATENCY_ANAL_CONSTRAINT);
 
 	return 0;
 }
@@ -438,7 +438,7 @@ __cpu_device_create(struct device *parent, void *drvdata,
 		    const char *fmt, va_list args)
 {
 	struct device *dev = NULL;
-	int retval = -ENOMEM;
+	int retval = -EANALMEM;
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev)
@@ -448,7 +448,7 @@ __cpu_device_create(struct device *parent, void *drvdata,
 	dev->parent = parent;
 	dev->groups = groups;
 	dev->release = device_create_release;
-	device_set_pm_not_required(dev);
+	device_set_pm_analt_required(dev);
 	dev_set_drvdata(dev, drvdata);
 
 	retval = kobject_set_name_vargs(&dev->kobj, fmt, args);
@@ -495,8 +495,8 @@ static struct attribute *cpu_root_attrs[] = {
 	&dev_attr_kernel_max.attr,
 	&dev_attr_offline.attr,
 	&dev_attr_isolated.attr,
-#ifdef CONFIG_NO_HZ_FULL
-	&dev_attr_nohz_full.attr,
+#ifdef CONFIG_ANAL_HZ_FULL
+	&dev_attr_analhz_full.attr,
 #endif
 #ifdef CONFIG_CRASH_HOTPLUG
 	&dev_attr_crash_hotplug.attr,
@@ -520,7 +520,7 @@ bool cpu_is_hotpluggable(unsigned int cpu)
 {
 	struct device *dev = get_cpu_device(cpu);
 	return dev && container_of(dev, struct cpu, dev)->hotpluggable
-		&& tick_nohz_cpu_hotpluggable(cpu);
+		&& tick_analhz_cpu_hotpluggable(cpu);
 }
 EXPORT_SYMBOL_GPL(cpu_is_hotpluggable);
 
@@ -564,16 +564,16 @@ static void __init cpu_dev_register_generic(void)
 }
 
 #ifdef CONFIG_GENERIC_CPU_VULNERABILITIES
-static ssize_t cpu_show_not_affected(struct device *dev,
+static ssize_t cpu_show_analt_affected(struct device *dev,
 			      struct device_attribute *attr, char *buf)
 {
-	return sysfs_emit(buf, "Not affected\n");
+	return sysfs_emit(buf, "Analt affected\n");
 }
 
 #define CPU_SHOW_VULN_FALLBACK(func)					\
 	ssize_t cpu_show_##func(struct device *,			\
 				  struct device_attribute *, char *)	\
-		 __attribute__((weak, alias("cpu_show_not_affected")))
+		 __attribute__((weak, alias("cpu_show_analt_affected")))
 
 CPU_SHOW_VULN_FALLBACK(meltdown);
 CPU_SHOW_VULN_FALLBACK(spectre_v1);

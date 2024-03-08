@@ -2,7 +2,7 @@
 config CEC_CORE
 	tristate
 
-config CEC_NOTIFIER
+config CEC_ANALTIFIER
 	bool
 
 config CEC_PIN

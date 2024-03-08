@@ -15,7 +15,7 @@
  * ------------
  *
  * In Field Scan (IFS) is a hardware feature to run circuit level tests on
- * a CPU core to detect problems that are not caught by parity or ECC checks.
+ * a CPU core to detect problems that are analt caught by parity or ECC checks.
  * Future CPUs will support more than one type of test which will show up
  * with a new platform-device instance-id.
  *
@@ -25,7 +25,7 @@
  *
  * Intel provides a firmware file containing the scan tests via
  * github [#f1]_.  Similar to microcode there is a separate file for each
- * family-model-stepping. IFS Images are not applicable for some test types.
+ * family-model-stepping. IFS Images are analt applicable for some test types.
  * Wherever applicable the sysfs directory would provide a "current_batch" file
  * (see below) for loading the image.
  *
@@ -52,7 +52,7 @@
  *
  *   # echo 2 > /sys/devices/virtual/misc/intel_ifs_<n>/current_batch
  *
- * The above file can also be read to know the currently loaded image.
+ * The above file can also be read to kanalw the currently loaded image.
  *
  * Running tests
  * -------------
@@ -65,9 +65,9 @@
  * 2) Execution was interrupted.
  * 3) A test detected a problem.
  *
- * Note that ALL THREADS ON THE CORE ARE EFFECTIVELY OFFLINE FOR THE
+ * Analte that ALL THREADS ON THE CORE ARE EFFECTIVELY OFFLINE FOR THE
  * DURATION OF THE TEST. This can be up to 200 milliseconds. If the system
- * is running latency sensitive applications that cannot tolerate an
+ * is running latency sensitive applications that cananalt tolerate an
  * interruption of this magnitude, the system administrator must arrange
  * to migrate those applications to other cores before running a core test.
  * It may also be necessary to redirect interrupts to other CPUs.
@@ -123,7 +123,7 @@
  * uses the subrange feature to restart an interrupted test.
  *
  * 2) Hardware allows for some number of cores to be tested in parallel.
- * The driver does not make use of this, it only tests one core at a time.
+ * The driver does analt make use of this, it only tests one core at a time.
  *
  * .. [#f1] https://github.com/intel/TBD
  */
@@ -141,7 +141,7 @@
 #define MSR_ARRAY_STATUS			0x000002d7
 #define MSR_SAF_CTRL				0x000004f0
 
-#define SCAN_NOT_TESTED				0
+#define SCAN_ANALT_TESTED				0
 #define SCAN_TEST_PASS				1
 #define SCAN_TEST_FAIL				2
 
@@ -256,7 +256,7 @@ union ifs_array {
 /*
  * Driver populated error-codes
  * 0xFD: Test timed out before completing all the chunks.
- * 0xFE: not all scan chunks were executed. Maximum forward progress retries exceeded.
+ * 0xFE: analt all scan chunks were executed. Maximum forward progress retries exceeded.
  */
 #define IFS_SW_TIMEOUT				0xFD
 #define IFS_SW_PARTIAL_COMPLETION		0xFE
@@ -270,7 +270,7 @@ struct ifs_test_caps {
  * struct ifs_data - attributes related to intel IFS driver
  * @loaded_version: stores the currently loaded ifs image version.
  * @loaded: If a valid test binary has been loaded into the memory
- * @loading_error: Error occurred on another CPU while loading image
+ * @loading_error: Error occurred on aanalther CPU while loading image
  * @valid_chunks: number of chunks which could be validated.
  * @status: it holds simple status pass/fail/untested
  * @scan_details: opaque scan status code from h/w

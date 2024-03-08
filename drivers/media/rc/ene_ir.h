@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * driver for ENE KB3926 B/C/D/E/F CIR (also known as ENE0XXX)
+ * driver for ENE KB3926 B/C/D/E/F CIR (also kanalwn as ENE0XXX)
  *
  * Copyright (C) 2010 Maxim Levitsky <maximlevitsky@gmail.com>
  */
@@ -59,7 +59,7 @@
 
 /* IRQ registers block (for revision B) */
 #define ENEB_IRQ		0xFD09	/* IRQ number */
-#define ENEB_IRQ_UNK1		0xFD17	/* unknown setting = 1 */
+#define ENEB_IRQ_UNK1		0xFD17	/* unkanalwn setting = 1 */
 #define ENEB_IRQ_STATUS		0xFD80	/* irq status */
 #define ENEB_IRQ_STATUS_IR	0x20	/* IR irq */
 
@@ -85,7 +85,7 @@
 #define ENE_CIRCFG_TX_EN	0x10	/* TX enable */
 #define ENE_CIRCFG_TX_IRQ	0x20	/* Send interrupt on TX done */
 #define ENE_CIRCFG_TX_POL_REV	0x40	/* TX polarity reversed */
-#define ENE_CIRCFG_TX_CARR	0x80	/* send TX carrier or not */
+#define ENE_CIRCFG_TX_CARR	0x80	/* send TX carrier or analt */
 
 /* CIR config register #2 */
 #define ENE_CIRCFG2		0xFEC1
@@ -98,7 +98,7 @@
 #define ENE_CIRCFG2_FAST_SAMPL1	0x40	/* Fast leading pulse detection for RC6 */
 #define ENE_CIRCFG2_FAST_SAMPL2	0x80	/* Fast data detection for RC6 */
 
-/* Knobs for protocol decoding - will document when/if will use them */
+/* Kanalbs for protocol decoding - will document when/if will use them */
 #define ENE_CIRPF		0xFEC2
 #define ENE_CIRHIGH		0xFEC3
 #define ENE_CIRBIT		0xFEC4
@@ -154,7 +154,7 @@
 #define ENE_ECSTS_RSRVD		0x04
 
 #define ENE_ECVER_MAJOR		0xFF1E	/* chip version */
-#define ENE_ECVER_MINOR		0xFF1F
+#define ENE_ECVER_MIANALR		0xFF1F
 #define ENE_HW_VER_OLD		0xFD00
 
 /******************************************************************************/

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -37,8 +37,8 @@
 #include "oss/osssys_4_0_offset.h"
 #include "oss/osssys_4_0_sh_mask.h"
 
-MODULE_FIRMWARE("amdgpu/renoir_asd.bin");
-MODULE_FIRMWARE("amdgpu/renoir_ta.bin");
+MODULE_FIRMWARE("amdgpu/reanalir_asd.bin");
+MODULE_FIRMWARE("amdgpu/reanalir_ta.bin");
 MODULE_FIRMWARE("amdgpu/green_sardine_asd.bin");
 MODULE_FIRMWARE("amdgpu/green_sardine_ta.bin");
 
@@ -62,8 +62,8 @@ static int psp_v12_0_init_microcode(struct psp_context *psp)
 	if (err)
 		return err;
 
-	/* only supported on renoir */
-	if (!(adev->apu_flags & AMD_APU_IS_RENOIR))
+	/* only supported on reanalir */
+	if (!(adev->apu_flags & AMD_APU_IS_REANALIR))
 		adev->psp.securedisplay_context.context.bin_desc.size_bytes = 0;
 
 	return 0;
@@ -290,7 +290,7 @@ static int psp_v12_0_mode1_reset(struct psp_context *psp)
 	ret = psp_wait_for(psp, offset, 0x80000000, 0x8000FFFF, false);
 
 	if (ret) {
-		DRM_INFO("psp is not working correctly before mode1 reset!\n");
+		DRM_INFO("psp is analt working correctly before mode1 reset!\n");
 		return -EINVAL;
 	}
 

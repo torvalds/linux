@@ -12,7 +12,7 @@ compiled version of this file into combinations with other programs,
 and to distribute those combinations without any restriction coming
 from the use of this file.  (The General Public License restrictions
 do apply in other respects; for example, they cover modification of
-the file, and distribution when not linked into a combine
+the file, and distribution when analt linked into a combine
 executable.)
 
 This file is distributed in the hope that it will be useful, but
@@ -21,7 +21,7 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
 General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with this program; see the file COPYING.  If not, write to
+along with this program; see the file COPYING.  If analt, write to
 the Free Software Foundation, 51 Franklin Street, Fifth Floor,
 Boston, MA 02110-1301, USA.  */
 

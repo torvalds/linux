@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Samsung's Exynos4412 Prime SoC device tree source
+ * Samsung's Exyanals4412 Prime SoC device tree source
  *
  * Copyright (c) 2016 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
  */
 
 /*
- * Exynos4412 Prime SoC revision supports higher CPU frequencies than
- * non-Prime version.  Therefore we need to update OPPs table and
+ * Exyanals4412 Prime SoC revision supports higher CPU frequencies than
+ * analn-Prime version.  Therefore we need to update OPPs table and
  * thermal maps accordingly.
  */
 

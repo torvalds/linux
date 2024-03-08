@@ -16,10 +16,10 @@ MODULE_AUTHOR("Cheng Xu <chengyou@linux.alibaba.com>");
 MODULE_DESCRIPTION("Alibaba elasticRDMA adapter driver");
 MODULE_LICENSE("Dual BSD/GPL");
 
-static int erdma_netdev_event(struct notifier_block *nb, unsigned long event,
+static int erdma_netdev_event(struct analtifier_block *nb, unsigned long event,
 			      void *arg)
 {
-	struct net_device *netdev = netdev_notifier_info_to_dev(arg);
+	struct net_device *netdev = netdev_analtifier_info_to_dev(arg);
 	struct erdma_dev *dev = container_of(nb, struct erdma_dev, netdev_nb);
 
 	if (dev->netdev == NULL || dev->netdev != netdev)
@@ -50,7 +50,7 @@ static int erdma_netdev_event(struct notifier_block *nb, unsigned long event,
 	}
 
 done:
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 static int erdma_enum_and_get_netdev(struct erdma_dev *dev)
@@ -67,7 +67,7 @@ static int erdma_enum_and_get_netdev(struct erdma_dev *dev)
 		/*
 		 * In erdma, the paired netdev and ibdev should have the same
 		 * MAC address. erdma can get the value from its PCIe bar
-		 * registers. Since erdma can not get the paired netdev
+		 * registers. Since erdma can analt get the paired netdev
 		 * reference directly, we do a traverse here to get the paired
 		 * netdev.
 		 */
@@ -101,7 +101,7 @@ static int erdma_device_register(struct erdma_dev *dev)
 		return ret;
 
 	dev->mtu = dev->netdev->mtu;
-	addrconf_addr_eui48((u8 *)&ibdev->node_guid, dev->netdev->dev_addr);
+	addrconf_addr_eui48((u8 *)&ibdev->analde_guid, dev->netdev->dev_addr);
 
 	ret = ib_register_device(ibdev, "erdma_%d", &dev->pdev->dev);
 	if (ret) {
@@ -110,10 +110,10 @@ static int erdma_device_register(struct erdma_dev *dev)
 		return ret;
 	}
 
-	dev->netdev_nb.notifier_call = erdma_netdev_event;
-	ret = register_netdevice_notifier(&dev->netdev_nb);
+	dev->netdev_nb.analtifier_call = erdma_netdev_event;
+	ret = register_netdevice_analtifier(&dev->netdev_nb);
 	if (ret) {
-		ibdev_err(&dev->ibdev, "failed to register notifier.\n");
+		ibdev_err(&dev->ibdev, "failed to register analtifier.\n");
 		ib_unregister_device(ibdev);
 	}
 
@@ -176,7 +176,7 @@ static int erdma_device_init(struct erdma_dev *dev, struct pci_dev *pdev)
 					 ERDMA_HW_RESP_SIZE, ERDMA_HW_RESP_SIZE,
 					 0);
 	if (!dev->resp_pool)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = dma_set_mask_and_coherent(&pdev->dev,
 					DMA_BIT_MASK(ERDMA_PCI_WIDTH));
@@ -250,13 +250,13 @@ static int erdma_probe_dev(struct pci_dev *pdev)
 	dev = ib_alloc_device(erdma_dev, ibdev);
 	if (!dev) {
 		dev_err(&pdev->dev, "ib_alloc_device failed\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_disable_device;
 	}
 
 	pci_set_drvdata(pdev, dev);
 	dev->pdev = pdev;
-	dev->attrs.numa_node = dev_to_node(&pdev->dev);
+	dev->attrs.numa_analde = dev_to_analde(&pdev->dev);
 
 	bars = pci_select_bars(pdev, IORESOURCE_MEM);
 	err = pci_request_selected_regions(pdev, bars, DRV_MODULE_NAME);
@@ -278,8 +278,8 @@ static int erdma_probe_dev(struct pci_dev *pdev)
 
 	version = erdma_reg_read32(dev, ERDMA_REGS_VERSION_REG);
 	if (version == 0) {
-		/* we knows that it is a non-functional function. */
-		err = -ENODEV;
+		/* we kanalws that it is a analn-functional function. */
+		err = -EANALDEV;
 		goto err_iounmap_func_bar;
 	}
 
@@ -452,7 +452,7 @@ err:
 	for (j = 0; j < i; j++)
 		bitmap_free(dev->res_cb[j].bitmap);
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void erdma_res_cb_free(struct erdma_dev *dev)
@@ -501,7 +501,7 @@ static const struct ib_device_ops erdma_device_ops = {
 	.query_gid = erdma_query_gid,
 	.query_port = erdma_query_port,
 	.query_qp = erdma_query_qp,
-	.req_notify_cq = erdma_req_notify_cq,
+	.req_analtify_cq = erdma_req_analtify_cq,
 	.reg_user_mr = erdma_reg_user_mr,
 
 	INIT_RDMA_OBJ_SIZE(ib_cq, erdma_cq, ibcq),
@@ -525,8 +525,8 @@ static int erdma_ib_device_add(struct pci_dev *pdev)
 	if (ret)
 		return ret;
 
-	ibdev->node_type = RDMA_NODE_RNIC;
-	memcpy(ibdev->node_desc, ERDMA_NODE_DESC, sizeof(ERDMA_NODE_DESC));
+	ibdev->analde_type = RDMA_ANALDE_RNIC;
+	memcpy(ibdev->analde_desc, ERDMA_ANALDE_DESC, sizeof(ERDMA_ANALDE_DESC));
 
 	/*
 	 * Current model (one-to-one device association):
@@ -560,7 +560,7 @@ static int erdma_ib_device_add(struct pci_dev *pdev)
 	dev->reflush_wq = alloc_workqueue("erdma-reflush-wq", WQ_UNBOUND,
 					  WQ_UNBOUND_MAX_ACTIVE);
 	if (!dev->reflush_wq) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_alloc_workqueue;
 	}
 
@@ -585,7 +585,7 @@ static void erdma_ib_device_remove(struct pci_dev *pdev)
 {
 	struct erdma_dev *dev = pci_get_drvdata(pdev);
 
-	unregister_netdevice_notifier(&dev->netdev_nb);
+	unregister_netdevice_analtifier(&dev->netdev_nb);
 	ib_unregister_device(&dev->ibdev);
 
 	destroy_workqueue(dev->reflush_wq);

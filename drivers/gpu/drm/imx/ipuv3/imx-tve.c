@@ -157,7 +157,7 @@ static void tve_disable(struct imx_tve *tve)
 
 static int tve_setup_tvout(struct imx_tve *tve)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static int tve_setup_vga(struct imx_tve *tve)
@@ -234,7 +234,7 @@ imx_tve_connector_mode_valid(struct drm_connector *connector,
 	if (rate == mode->clock)
 		return MODE_OK;
 
-	dev_warn(tve->dev, "ignoring mode %dx%d\n",
+	dev_warn(tve->dev, "iganalring mode %dx%d\n",
 		 mode->hdisplay, mode->vdisplay);
 
 	return MODE_BAD;
@@ -463,7 +463,7 @@ static const char * const imx_tve_modes[] = {
 	[TVE_MODE_VGA] = "vga",
 };
 
-static int of_get_tve_mode(struct device_node *np)
+static int of_get_tve_mode(struct device_analde *np)
 {
 	const char *bm;
 	int ret, i;
@@ -501,7 +501,7 @@ static int imx_tve_bind(struct device *dev, struct device *master, void *data)
 	encoder = &tvee->encoder;
 	connector = &tvee->connector;
 
-	ret = imx_drm_encoder_parse_of(drm, encoder, tve->dev->of_node);
+	ret = imx_drm_encoder_parse_of(drm, encoder, tve->dev->of_analde);
 	if (ret)
 		return ret;
 
@@ -524,8 +524,8 @@ static const struct component_ops imx_tve_ops = {
 static int imx_tve_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
-	struct device_node *ddc_node;
+	struct device_analde *np = dev->of_analde;
+	struct device_analde *ddc_analde;
 	struct imx_tve *tve;
 	void __iomem *base;
 	unsigned int val;
@@ -534,14 +534,14 @@ static int imx_tve_probe(struct platform_device *pdev)
 
 	tve = devm_kzalloc(dev, sizeof(*tve), GFP_KERNEL);
 	if (!tve)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tve->dev = dev;
 
-	ddc_node = of_parse_phandle(np, "ddc-i2c-bus", 0);
-	if (ddc_node) {
-		tve->ddc = of_find_i2c_adapter_by_node(ddc_node);
-		of_node_put(ddc_node);
+	ddc_analde = of_parse_phandle(np, "ddc-i2c-bus", 0);
+	if (ddc_analde) {
+		tve->ddc = of_find_i2c_adapter_by_analde(ddc_analde);
+		of_analde_put(ddc_analde);
 	}
 
 	tve->mode = of_get_tve_mode(np);
@@ -596,7 +596,7 @@ static int imx_tve_probe(struct platform_device *pdev)
 	tve->dac_reg = devm_regulator_get(dev, "dac");
 	if (!IS_ERR(tve->dac_reg)) {
 		if (regulator_get_voltage(tve->dac_reg) != IMX_TVE_DAC_VOLTAGE)
-			dev_warn(dev, "dac voltage is not %d uV\n", IMX_TVE_DAC_VOLTAGE);
+			dev_warn(dev, "dac voltage is analt %d uV\n", IMX_TVE_DAC_VOLTAGE);
 		ret = regulator_enable(tve->dac_reg);
 		if (ret)
 			return ret;
@@ -631,8 +631,8 @@ static int imx_tve_probe(struct platform_device *pdev)
 		return ret;
 	}
 	if (val != 0x00100000) {
-		dev_err(dev, "configuration register default value indicates this is not a TVEv2\n");
-		return -ENODEV;
+		dev_err(dev, "configuration register default value indicates this is analt a TVEv2\n");
+		return -EANALDEV;
 	}
 
 	/* disable cable detection for VGA mode */

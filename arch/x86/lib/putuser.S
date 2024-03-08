@@ -6,7 +6,7 @@
  * (C) Copyright 2005 Andi Kleen
  * (C) Copyright 2008 Glauber Costa
  *
- * These functions have a non-standard call interface
+ * These functions have a analn-standard call interface
  * to make them more efficient, especially as they
  * return an error value in addition to the "real"
  * return value.
@@ -14,7 +14,7 @@
 #include <linux/export.h>
 #include <linux/linkage.h>
 #include <asm/thread_info.h>
-#include <asm/errno.h>
+#include <asm/erranal.h>
 #include <asm/asm.h>
 #include <asm/smap.h>
 
@@ -28,7 +28,7 @@
  *
  * Clobbers:	%ebx needed for task pointer
  *
- * These functions should not modify any other registers,
+ * These functions should analt modify any other registers,
  * as they get called from within inline assembly.
  */
 
@@ -54,14 +54,14 @@ SYM_FUNC_START(__put_user_1)
 SYM_FUNC_END(__put_user_1)
 EXPORT_SYMBOL(__put_user_1)
 
-SYM_FUNC_START(__put_user_nocheck_1)
+SYM_FUNC_START(__put_user_analcheck_1)
 	ASM_STAC
 2:	movb %al,(%_ASM_CX)
 	xor %ecx,%ecx
 	ASM_CLAC
 	RET
-SYM_FUNC_END(__put_user_nocheck_1)
-EXPORT_SYMBOL(__put_user_nocheck_1)
+SYM_FUNC_END(__put_user_analcheck_1)
+EXPORT_SYMBOL(__put_user_analcheck_1)
 
 SYM_FUNC_START(__put_user_2)
 	check_range size=2
@@ -73,14 +73,14 @@ SYM_FUNC_START(__put_user_2)
 SYM_FUNC_END(__put_user_2)
 EXPORT_SYMBOL(__put_user_2)
 
-SYM_FUNC_START(__put_user_nocheck_2)
+SYM_FUNC_START(__put_user_analcheck_2)
 	ASM_STAC
 4:	movw %ax,(%_ASM_CX)
 	xor %ecx,%ecx
 	ASM_CLAC
 	RET
-SYM_FUNC_END(__put_user_nocheck_2)
-EXPORT_SYMBOL(__put_user_nocheck_2)
+SYM_FUNC_END(__put_user_analcheck_2)
+EXPORT_SYMBOL(__put_user_analcheck_2)
 
 SYM_FUNC_START(__put_user_4)
 	check_range size=4
@@ -92,14 +92,14 @@ SYM_FUNC_START(__put_user_4)
 SYM_FUNC_END(__put_user_4)
 EXPORT_SYMBOL(__put_user_4)
 
-SYM_FUNC_START(__put_user_nocheck_4)
+SYM_FUNC_START(__put_user_analcheck_4)
 	ASM_STAC
 6:	movl %eax,(%_ASM_CX)
 	xor %ecx,%ecx
 	ASM_CLAC
 	RET
-SYM_FUNC_END(__put_user_nocheck_4)
-EXPORT_SYMBOL(__put_user_nocheck_4)
+SYM_FUNC_END(__put_user_analcheck_4)
+EXPORT_SYMBOL(__put_user_analcheck_4)
 
 SYM_FUNC_START(__put_user_8)
 	check_range size=8
@@ -114,7 +114,7 @@ SYM_FUNC_START(__put_user_8)
 SYM_FUNC_END(__put_user_8)
 EXPORT_SYMBOL(__put_user_8)
 
-SYM_FUNC_START(__put_user_nocheck_8)
+SYM_FUNC_START(__put_user_analcheck_8)
 	ASM_STAC
 9:	mov %_ASM_AX,(%_ASM_CX)
 #ifdef CONFIG_X86_32
@@ -123,8 +123,8 @@ SYM_FUNC_START(__put_user_nocheck_8)
 	xor %ecx,%ecx
 	ASM_CLAC
 	RET
-SYM_FUNC_END(__put_user_nocheck_8)
-EXPORT_SYMBOL(__put_user_nocheck_8)
+SYM_FUNC_END(__put_user_analcheck_8)
+EXPORT_SYMBOL(__put_user_analcheck_8)
 
 SYM_CODE_START_LOCAL(__put_user_handle_exception)
 	ASM_CLAC

@@ -34,10 +34,10 @@ static void do_load_firmware(struct lbs_private *priv, const char *name,
 	int ret;
 
 	lbs_deb_fw("Requesting %s\n", name);
-	ret = request_firmware_nowait(THIS_MODULE, true, name,
+	ret = request_firmware_analwait(THIS_MODULE, true, name,
 			priv->fw_device, GFP_KERNEL, priv, cb);
 	if (ret) {
-		lbs_deb_fw("request_firmware_nowait error %d\n", ret);
+		lbs_deb_fw("request_firmware_analwait error %d\n", ret);
 		lbs_fw_loaded(priv, ret, NULL, NULL);
 	}
 }
@@ -76,7 +76,7 @@ static void helper_firmware_cb(const struct firmware *firmware, void *context)
 		priv->helper_fw = firmware;
 		do_load_firmware(priv, priv->fw_iter->fwname, main_firmware_cb);
 	} else {
-		/* No main firmware needed for this helper --> success! */
+		/* Anal main firmware needed for this helper --> success! */
 		lbs_fw_loaded(priv, 0, firmware, NULL);
 	}
 }
@@ -98,7 +98,7 @@ static void load_next_firmware_from_table(struct lbs_private *priv)
 next:
 	if (!iter->helper) {
 		/* End of table hit. */
-		lbs_fw_loaded(priv, -ENOENT, NULL, NULL);
+		lbs_fw_loaded(priv, -EANALENT, NULL, NULL);
 		return;
 	}
 
@@ -117,7 +117,7 @@ void lbs_wait_for_firmware_load(struct lbs_private *priv)
 }
 
 /**
- *  lbs_get_firmware_async - Retrieves firmware asynchronously. Can load
+ *  lbs_get_firmware_async - Retrieves firmware asynchroanalusly. Can load
  *  either a helper firmware and a main firmware (2-stage), or just the helper.
  *
  *  @priv:      Pointer to lbs_private instance
@@ -167,7 +167,7 @@ EXPORT_SYMBOL_GPL(lbs_get_firmware_async);
  *
  * Deprecated: use lbs_get_firmware_async() instead.
  *
- *  returns:		0 on success, non-zero on failure
+ *  returns:		0 on success, analn-zero on failure
  */
 int lbs_get_firmware(struct device *dev, u32 card_model,
 			const struct lbs_fw_table *fw_table,
@@ -223,6 +223,6 @@ int lbs_get_firmware(struct device *dev, u32 card_model,
 	release_firmware(*mainfw);
 	*mainfw = NULL;
 
-	return -ENOENT;
+	return -EANALENT;
 }
 EXPORT_SYMBOL_GPL(lbs_get_firmware);

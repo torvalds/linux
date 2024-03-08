@@ -25,7 +25,7 @@
 #define BCM2835_I2C_DEL		0x18
 /*
  * 16-bit field for the number of SCL cycles to wait after rising SCL
- * before deciding the slave is not responding. 0 disables the
+ * before deciding the slave is analt responding. 0 disables the
  * timeout detection.
  */
 #define BCM2835_I2C_CLKT	0x1c
@@ -94,7 +94,7 @@ static int clk_bcm2835_i2c_calc_divider(unsigned long rate,
 
 	/*
 	 * Per the datasheet, the register is always interpreted as an even
-	 * number, by rounding down. In other words, the LSB is ignored. So,
+	 * number, by rounding down. In other words, the LSB is iganalred. So,
 	 * if the LSB is set, increment the divider to avoid any issue.
 	 */
 	if (divider & 1)
@@ -120,7 +120,7 @@ static int clk_bcm2835_i2c_set_rate(struct clk_hw *hw, unsigned long rate,
 
 	/*
 	 * Number of core clocks to wait after falling edge before
-	 * outputting the next data bit.  Note that both FEDL and REDL
+	 * outputting the next data bit.  Analte that both FEDL and REDL
 	 * can't be greater than CDIV/2.
 	 */
 	fedl = max(divider / 16, 1u);
@@ -181,7 +181,7 @@ static struct clk *bcm2835_i2c_register_div(struct device *dev,
 
 	priv = devm_kzalloc(dev, sizeof(struct clk_bcm2835_i2c), GFP_KERNEL);
 	if (priv == NULL)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	priv->hw.init = &init;
 	priv->i2c_dev = i2c_dev;
@@ -229,8 +229,8 @@ static void bcm2835_drain_rxfifo(struct bcm2835_i2c_dev *i2c_dev)
  * A comment in https://github.com/raspberrypi/linux/issues/254 shows how the
  * firmware actually does it using polling and says that it's a workaround for
  * a problem in the state machine.
- * It turns out that it is possible to use the TXW interrupt to know when the
- * transfer is active, provided the FIFO has not been prefilled.
+ * It turns out that it is possible to use the TXW interrupt to kanalw when the
+ * transfer is active, provided the FIFO has analt been prefilled.
  */
 
 static void bcm2835_i2c_start_transfer(struct bcm2835_i2c_dev *i2c_dev)
@@ -269,9 +269,9 @@ static void bcm2835_i2c_finish_transfer(struct bcm2835_i2c_dev *i2c_dev)
 }
 
 /*
- * Note about I2C_C_CLEAR on error:
+ * Analte about I2C_C_CLEAR on error:
  * The I2C_C_CLEAR on errors will take some time to resolve -- if you were in
- * non-idle state and I2C_C_READ, it sets an abort_rx flag and runs through
+ * analn-idle state and I2C_C_READ, it sets an abort_rx flag and runs through
  * the state machine to send a NACK and a STOP. Since we're setting CLEAR
  * without I2CEN, that NACK will be hanging around queued up for next time
  * we start the engine.
@@ -331,7 +331,7 @@ static irqreturn_t bcm2835_i2c_isr(int this_irq, void *data)
 		return IRQ_HANDLED;
 	}
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 
 complete:
 	bcm2835_i2c_writel(i2c_dev, BCM2835_I2C_C, BCM2835_I2C_C_CLEAR);
@@ -353,7 +353,7 @@ static int bcm2835_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[],
 		if (msgs[i].flags & I2C_M_RD) {
 			dev_warn_once(i2c_dev->dev,
 				      "only one read message supported, has to be last\n");
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 
 	i2c_dev->curr_msg = msgs;
@@ -397,11 +397,11 @@ static const struct i2c_algorithm bcm2835_i2c_algo = {
 
 /*
  * The BCM2835 was reported to have problems with clock stretching:
- * https://www.advamation.com/knowhow/raspberrypi/rpi-i2c-bug.html
+ * https://www.advamation.com/kanalwhow/raspberrypi/rpi-i2c-bug.html
  * https://www.raspberrypi.org/forums/viewtopic.php?p=146272
  */
 static const struct i2c_adapter_quirks bcm2835_i2c_quirks = {
-	.flags = I2C_AQ_NO_CLK_STRETCH,
+	.flags = I2C_AQ_ANAL_CLK_STRETCH,
 };
 
 static int bcm2835_i2c_probe(struct platform_device *pdev)
@@ -414,7 +414,7 @@ static int bcm2835_i2c_probe(struct platform_device *pdev)
 
 	i2c_dev = devm_kzalloc(&pdev->dev, sizeof(*i2c_dev), GFP_KERNEL);
 	if (!i2c_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 	platform_set_drvdata(pdev, i2c_dev);
 	i2c_dev->dev = &pdev->dev;
 	init_completion(&i2c_dev->completion);
@@ -426,26 +426,26 @@ static int bcm2835_i2c_probe(struct platform_device *pdev)
 	mclk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(mclk))
 		return dev_err_probe(&pdev->dev, PTR_ERR(mclk),
-				     "Could not get clock\n");
+				     "Could analt get clock\n");
 
 	i2c_dev->bus_clk = bcm2835_i2c_register_div(&pdev->dev, mclk, i2c_dev);
 
 	if (IS_ERR(i2c_dev->bus_clk))
 		return dev_err_probe(&pdev->dev, PTR_ERR(i2c_dev->bus_clk),
-				     "Could not register clock\n");
+				     "Could analt register clock\n");
 
-	ret = of_property_read_u32(pdev->dev.of_node, "clock-frequency",
+	ret = of_property_read_u32(pdev->dev.of_analde, "clock-frequency",
 				   &bus_clk_rate);
 	if (ret < 0) {
 		dev_warn(&pdev->dev,
-			 "Could not read clock-frequency property\n");
+			 "Could analt read clock-frequency property\n");
 		bus_clk_rate = I2C_MAX_STANDARD_MODE_FREQ;
 	}
 
 	ret = clk_set_rate_exclusive(i2c_dev->bus_clk, bus_clk_rate);
 	if (ret < 0)
 		return dev_err_probe(&pdev->dev, ret,
-				     "Could not set clock frequency\n");
+				     "Could analt set clock frequency\n");
 
 	ret = clk_prepare_enable(i2c_dev->bus_clk);
 	if (ret) {
@@ -462,7 +462,7 @@ static int bcm2835_i2c_probe(struct platform_device *pdev)
 	ret = request_irq(i2c_dev->irq, bcm2835_i2c_isr, IRQF_SHARED,
 			  dev_name(&pdev->dev), i2c_dev);
 	if (ret) {
-		dev_err(&pdev->dev, "Could not request IRQ\n");
+		dev_err(&pdev->dev, "Could analt request IRQ\n");
 		goto err_disable_unprepare_clk;
 	}
 
@@ -471,10 +471,10 @@ static int bcm2835_i2c_probe(struct platform_device *pdev)
 	adap->owner = THIS_MODULE;
 	adap->class = I2C_CLASS_DEPRECATED;
 	snprintf(adap->name, sizeof(adap->name), "bcm2835 (%s)",
-		 of_node_full_name(pdev->dev.of_node));
+		 of_analde_full_name(pdev->dev.of_analde));
 	adap->algo = &bcm2835_i2c_algo;
 	adap->dev.parent = &pdev->dev;
-	adap->dev.of_node = pdev->dev.of_node;
+	adap->dev.of_analde = pdev->dev.of_analde;
 	adap->quirks = of_device_get_match_data(&pdev->dev);
 
 	/*

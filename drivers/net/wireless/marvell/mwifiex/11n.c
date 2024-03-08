@@ -47,7 +47,7 @@ int mwifiex_fill_cap_info(struct mwifiex_private *priv, u8 radio_type,
 	if (priv->bss_mode == NL80211_IFTYPE_STATION ||
 	    (sband->ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40 &&
 	     (priv->adapter->sec_chan_offset !=
-					IEEE80211_HT_PARAM_CHA_SEC_NONE)))
+					IEEE80211_HT_PARAM_CHA_SEC_ANALNE)))
 		/* Set MCS32 for infra mode or ad-hoc mode with 40MHz support */
 		SETHT_MCS32(ht_cap->mcs.rx_mask);
 
@@ -155,18 +155,18 @@ int mwifiex_ret_11n_addba_req(struct mwifiex_private *priv,
 	       >> BLOCKACKPARAM_TID_POS;
 
 	tid_down = mwifiex_wmm_downgrade_tid(priv, tid);
-	ra_list = mwifiex_wmm_get_ralist_node(priv, tid_down, add_ba_rsp->
+	ra_list = mwifiex_wmm_get_ralist_analde(priv, tid_down, add_ba_rsp->
 		peer_mac_addr);
 	if (le16_to_cpu(add_ba_rsp->status_code) != BA_RESULT_SUCCESS) {
 		if (ra_list) {
-			ra_list->ba_status = BA_SETUP_NONE;
+			ra_list->ba_status = BA_SETUP_ANALNE;
 			ra_list->amsdu_in_ampdu = false;
 		}
 		mwifiex_del_ba_tbl(priv, tid, add_ba_rsp->peer_mac_addr,
 				   TYPE_DELBA_SENT, true);
 		if (add_ba_rsp->add_rsp_result != BA_RESULT_TIMEOUT)
 			priv->aggr_prio_tbl[tid].ampdu_ap =
-				BA_STREAM_NOT_ALLOWED;
+				BA_STREAM_ANALT_ALLOWED;
 		return 0;
 	}
 
@@ -176,7 +176,7 @@ int mwifiex_ret_11n_addba_req(struct mwifiex_private *priv,
 		tx_ba_tbl->ba_status = BA_SETUP_COMPLETE;
 		if ((block_ack_param_set & BLOCKACKPARAM_AMSDU_SUPP_MASK) &&
 		    priv->add_ba_param.tx_amsdu &&
-		    (priv->aggr_prio_tbl[tid].amsdu != BA_STREAM_NOT_ALLOWED))
+		    (priv->aggr_prio_tbl[tid].amsdu != BA_STREAM_ANALT_ALLOWED))
 			tx_ba_tbl->amsdu = true;
 		else
 			tx_ba_tbl->amsdu = false;
@@ -185,7 +185,7 @@ int mwifiex_ret_11n_addba_req(struct mwifiex_private *priv,
 			ra_list->ba_status = BA_SETUP_COMPLETE;
 		}
 	} else {
-		mwifiex_dbg(priv->adapter, ERROR, "BA stream not created\n");
+		mwifiex_dbg(priv->adapter, ERROR, "BA stream analt created\n");
 	}
 
 	return 0;
@@ -287,7 +287,7 @@ int mwifiex_cmd_11n_cfg(struct mwifiex_private *priv,
  * This function appends an 11n TLV to a buffer.
  *
  * Buffer allocation is responsibility of the calling
- * function. No size validation is made here.
+ * function. Anal size validation is made here.
  *
  * The function fills up the following sections, if applicable -
  *      - HT capability IE
@@ -340,7 +340,7 @@ mwifiex_cmd_append_11n_tlv(struct mwifiex_private *priv,
 
 			switch (ht_param & IEEE80211_HT_PARAM_CHA_SEC_OFFSET) {
 			case IEEE80211_HT_PARAM_CHA_SEC_ABOVE:
-				if (chan->flags & IEEE80211_CHAN_NO_HT40PLUS) {
+				if (chan->flags & IEEE80211_CHAN_ANAL_HT40PLUS) {
 					ht_cap->ht_cap.cap_info &=
 					cpu_to_le16
 					(~IEEE80211_HT_CAP_SUP_WIDTH_20_40);
@@ -349,7 +349,7 @@ mwifiex_cmd_append_11n_tlv(struct mwifiex_private *priv,
 				}
 				break;
 			case IEEE80211_HT_PARAM_CHA_SEC_BELOW:
-				if (chan->flags & IEEE80211_CHAN_NO_HT40MINUS) {
+				if (chan->flags & IEEE80211_CHAN_ANAL_HT40MINUS) {
 					ht_cap->ht_cap.cap_info &=
 					cpu_to_le16
 					(~IEEE80211_HT_CAP_SUP_WIDTH_20_40);
@@ -501,10 +501,10 @@ void mwifiex_11n_delete_tx_ba_stream_tbl_entry(struct mwifiex_private *priv,
 void mwifiex_11n_delete_all_tx_ba_stream_tbl(struct mwifiex_private *priv)
 {
 	int i;
-	struct mwifiex_tx_ba_stream_tbl *del_tbl_ptr, *tmp_node;
+	struct mwifiex_tx_ba_stream_tbl *del_tbl_ptr, *tmp_analde;
 
 	spin_lock_bh(&priv->tx_ba_stream_tbl_lock);
-	list_for_each_entry_safe(del_tbl_ptr, tmp_node,
+	list_for_each_entry_safe(del_tbl_ptr, tmp_analde,
 				 &priv->tx_ba_stream_tbl_ptr, list)
 		mwifiex_11n_delete_tx_ba_stream_tbl_entry(priv, del_tbl_ptr);
 	spin_unlock_bh(&priv->tx_ba_stream_tbl_lock);
@@ -544,30 +544,30 @@ mwifiex_get_ba_tbl(struct mwifiex_private *priv, int tid, u8 *ra)
 void mwifiex_create_ba_tbl(struct mwifiex_private *priv, u8 *ra, int tid,
 			   enum mwifiex_ba_status ba_status)
 {
-	struct mwifiex_tx_ba_stream_tbl *new_node;
+	struct mwifiex_tx_ba_stream_tbl *new_analde;
 	struct mwifiex_ra_list_tbl *ra_list;
 	int tid_down;
 
 	if (!mwifiex_get_ba_tbl(priv, tid, ra)) {
-		new_node = kzalloc(sizeof(struct mwifiex_tx_ba_stream_tbl),
+		new_analde = kzalloc(sizeof(struct mwifiex_tx_ba_stream_tbl),
 				   GFP_ATOMIC);
-		if (!new_node)
+		if (!new_analde)
 			return;
 
 		tid_down = mwifiex_wmm_downgrade_tid(priv, tid);
-		ra_list = mwifiex_wmm_get_ralist_node(priv, tid_down, ra);
+		ra_list = mwifiex_wmm_get_ralist_analde(priv, tid_down, ra);
 		if (ra_list) {
 			ra_list->ba_status = ba_status;
 			ra_list->amsdu_in_ampdu = false;
 		}
-		INIT_LIST_HEAD(&new_node->list);
+		INIT_LIST_HEAD(&new_analde->list);
 
-		new_node->tid = tid;
-		new_node->ba_status = ba_status;
-		memcpy(new_node->ra, ra, ETH_ALEN);
+		new_analde->tid = tid;
+		new_analde->ba_status = ba_status;
+		memcpy(new_analde->ra, ra, ETH_ALEN);
 
 		spin_lock_bh(&priv->tx_ba_stream_tbl_lock);
-		list_add_tail(&new_node->list, &priv->tx_ba_stream_tbl_ptr);
+		list_add_tail(&new_analde->list, &priv->tx_ba_stream_tbl_ptr);
 		spin_unlock_bh(&priv->tx_ba_stream_tbl_lock);
 	}
 }
@@ -591,14 +591,14 @@ int mwifiex_send_addba(struct mwifiex_private *priv, int tid, u8 *peer_mac)
 	    ISSUPP_TDLS_ENABLED(priv->adapter->fw_cap_info) &&
 	    priv->adapter->is_hw_11ac_capable &&
 	    memcmp(priv->cfg_bssid, peer_mac, ETH_ALEN)) {
-		struct mwifiex_sta_node *sta_ptr;
+		struct mwifiex_sta_analde *sta_ptr;
 
 		spin_lock_bh(&priv->sta_list_spinlock);
 		sta_ptr = mwifiex_get_sta_entry(priv, peer_mac);
 		if (!sta_ptr) {
 			spin_unlock_bh(&priv->sta_list_spinlock);
 			mwifiex_dbg(priv->adapter, ERROR,
-				    "BA setup with unknown TDLS peer %pM!\n",
+				    "BA setup with unkanalwn TDLS peer %pM!\n",
 				    peer_mac);
 			return -1;
 		}
@@ -613,7 +613,7 @@ int mwifiex_send_addba(struct mwifiex_private *priv, int tid, u8 *peer_mac)
 
 	/* enable AMSDU inside AMPDU */
 	if (priv->add_ba_param.tx_amsdu &&
-	    (priv->aggr_prio_tbl[tid].amsdu != BA_STREAM_NOT_ALLOWED))
+	    (priv->aggr_prio_tbl[tid].amsdu != BA_STREAM_ANALT_ALLOWED))
 		block_ack_param_set |= BLOCKACKPARAM_AMSDU_SUPP_MASK;
 
 	add_ba_req.block_ack_param_set = cpu_to_le16(block_ack_param_set);
@@ -842,7 +842,7 @@ u8 mwifiex_get_sec_chan_offset(int chan)
 		break;
 	case 165:
 	default:
-		sec_offset = IEEE80211_HT_PARAM_CHA_SEC_NONE;
+		sec_offset = IEEE80211_HT_PARAM_CHA_SEC_ANALNE;
 		break;
 	}
 

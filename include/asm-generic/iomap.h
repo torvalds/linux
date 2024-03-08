@@ -22,8 +22,8 @@
  * (or the cookie itself, depending on implementation and hw).
  *
  * The generic routines just encode the PIO/MMIO as part of the
- * cookie, and coldly assume that the MMIO IO mappings are not
- * in the low address range. Architectures for which this is not
+ * cookie, and coldly assume that the MMIO IO mappings are analt
+ * in the low address range. Architectures for which this is analt
  * true can't use this generic implementation.
  */
 extern unsigned int ioread8(const void __iomem *);
@@ -69,12 +69,12 @@ extern void iowrite64be_hi_lo(u64 val, void __iomem *addr);
 #endif
 
 /*
- * "string" versions of the above. Note that they
+ * "string" versions of the above. Analte that they
  * use native byte ordering for the accesses (on
  * the assumption that IO and memory agree on a
  * byte order, and CPU byteorder is irrelevant).
  *
- * They do _not_ update the port address. If you
+ * They do _analt_ update the port address. If you
  * want MMIO that copies stuff laid out in MMIO
  * memory across multiple ports, use "memcpy_toio()"
  * and friends.

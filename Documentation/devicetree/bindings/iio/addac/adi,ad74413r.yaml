@@ -16,7 +16,7 @@ description: |
   temperature detector, and thermocouple measurements integrated
   into a single chip solution with an SPI interface.
   The devices feature a 16-bit ADC and four configurable 13-bit DACs to provide
-  four configurable input/output channels and a suite of diagnostic functions.
+  four configurable input/output channels and a suite of diaganalstic functions.
   The AD74413R differentiates itself from the AD74412R by being HART-compatible.
     https://www.analog.com/en/products/ad74412r.html
     https://www.analog.com/en/products/ad74413r.html
@@ -78,7 +78,7 @@ patternProperties:
         $ref: /schemas/types.yaml#/definitions/uint32
         description: |
           Channel function.
-          HART functions are not supported on AD74412R.
+          HART functions are analt supported on AD74412R.
           0 - CH_FUNC_HIGH_IMPEDANCE
           1 - CH_FUNC_VOLTAGE_OUTPUT
           2 - CH_FUNC_CURRENT_OUTPUT
@@ -97,8 +97,8 @@ patternProperties:
       adi,gpo-comparator:
         type: boolean
         description: |
-          Whether to configure GPO as a comparator or not.
-          When not configured as a comparator, the GPO will be treated as an
+          Whether to configure GPO as a comparator or analt.
+          When analt configured as a comparator, the GPO will be treated as an
           output-only GPIO.
 
       drive-strength-microamp:

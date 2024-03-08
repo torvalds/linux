@@ -36,12 +36,12 @@
 #define  FDI_LINK_TRAIN_PATTERN_1       (0 << 28)
 #define  FDI_LINK_TRAIN_PATTERN_2       (1 << 28)
 #define  FDI_LINK_TRAIN_PATTERN_IDLE    (2 << 28)
-#define  FDI_LINK_TRAIN_NONE            (3 << 28)
+#define  FDI_LINK_TRAIN_ANALNE            (3 << 28)
 #define  FDI_LINK_TRAIN_VOLTAGE_0_4V    (0 << 25)
 #define  FDI_LINK_TRAIN_VOLTAGE_0_6V    (1 << 25)
 #define  FDI_LINK_TRAIN_VOLTAGE_0_8V    (2 << 25)
 #define  FDI_LINK_TRAIN_VOLTAGE_1_2V    (3 << 25)
-#define  FDI_LINK_TRAIN_PRE_EMPHASIS_NONE (0 << 22)
+#define  FDI_LINK_TRAIN_PRE_EMPHASIS_ANALNE (0 << 22)
 #define  FDI_LINK_TRAIN_PRE_EMPHASIS_1_5X (1 << 22)
 #define  FDI_LINK_TRAIN_PRE_EMPHASIS_2X   (2 << 22)
 #define  FDI_LINK_TRAIN_PRE_EMPHASIS_3X   (3 << 22)
@@ -69,7 +69,7 @@
 #define  FDI_LINK_TRAIN_PATTERN_1_IVB       (0 << 8)
 #define  FDI_LINK_TRAIN_PATTERN_2_IVB       (1 << 8)
 #define  FDI_LINK_TRAIN_PATTERN_IDLE_IVB    (2 << 8)
-#define  FDI_LINK_TRAIN_NONE_IVB            (3 << 8)
+#define  FDI_LINK_TRAIN_ANALNE_IVB            (3 << 8)
 
 /* both Tx and Rx */
 #define  FDI_COMPOSITE_SYNC		(1 << 11)
@@ -104,7 +104,7 @@
 #define  FDI_LINK_TRAIN_PATTERN_1_CPT		(0 << 8)
 #define  FDI_LINK_TRAIN_PATTERN_2_CPT		(1 << 8)
 #define  FDI_LINK_TRAIN_PATTERN_IDLE_CPT	(2 << 8)
-#define  FDI_LINK_TRAIN_NORMAL_CPT		(3 << 8)
+#define  FDI_LINK_TRAIN_ANALRMAL_CPT		(3 << 8)
 #define  FDI_LINK_TRAIN_PATTERN_MASK_CPT	(3 << 8)
 
 #define _FDI_RXA_MISC			0xf0010

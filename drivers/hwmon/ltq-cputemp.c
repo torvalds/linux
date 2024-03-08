@@ -45,7 +45,7 @@ static int ltq_read(struct device *dev, enum hwmon_sensor_types type,
 		value = value * 100;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	*temp = value;
@@ -91,7 +91,7 @@ static int ltq_cputemp_probe(struct platform_device *pdev)
 
 	/* available on vr9 v1.2 SoCs only */
 	if (ltq_soc_type() != SOC_TYPE_VR9_2)
-		return -ENODEV;
+		return -EANALDEV;
 
 	err = devm_add_action(&pdev->dev, ltq_cputemp_disable, NULL);
 	if (err)

@@ -41,7 +41,7 @@
 		 * u-boot is broken
 		 */
 		clock-frequency = <6000000>;
-		arm,cpu-registers-not-fw-configured;
+		arm,cpu-registers-analt-fw-configured;
 	};
 
 	pmu: pmu {
@@ -142,7 +142,7 @@
 				interrupt-controller;
 				interrupt-parent = <&gic>;
 				mstar,irqs-map-range = <32 95>;
-				mstar,intc-no-eoi;
+				mstar,intc-anal-eoi;
 			};
 
 			l3bridge: l3bridge@204400 {

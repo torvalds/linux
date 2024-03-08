@@ -10,7 +10,7 @@
 #include <linux/slab.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-event.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 
 #include "v4l2-ctrls-priv.h"
 
@@ -59,7 +59,7 @@ void send_event(struct v4l2_fh *fh, struct v4l2_ctrl *ctrl, u32 changes)
 		return;
 	fill_event(&ev, ctrl, changes);
 
-	list_for_each_entry(sev, &ctrl->ev_subs, node)
+	list_for_each_entry(sev, &ctrl->ev_subs, analde)
 		if (sev->fh != fh ||
 		    (sev->flags & V4L2_EVENT_SUB_FL_ALLOW_FEEDBACK))
 			v4l2_event_queue_fh(sev->fh, &ev);
@@ -141,11 +141,11 @@ static void std_init_compound(const struct v4l2_ctrl *ctrl, u32 idx,
 		       mpeg2_intra_quant_matrix,
 		       ARRAY_SIZE(mpeg2_intra_quant_matrix));
 		/*
-		 * The default non-intra MPEG-2 quantisation
+		 * The default analn-intra MPEG-2 quantisation
 		 * coefficients are all 16, as per the specification.
 		 */
-		memset(p_mpeg2_quant->non_intra_quantiser_matrix, 16,
-		       sizeof(p_mpeg2_quant->non_intra_quantiser_matrix));
+		memset(p_mpeg2_quant->analn_intra_quantiser_matrix, 16,
+		       sizeof(p_mpeg2_quant->analn_intra_quantiser_matrix));
 		break;
 	case V4L2_CTRL_TYPE_VP8_FRAME:
 		p_vp8_frame = p;
@@ -173,7 +173,7 @@ static void std_init_compound(const struct v4l2_ctrl *ctrl, u32 idx,
 	case V4L2_CTRL_TYPE_H264_SCALING_MATRIX:
 		p_h264_scaling_matrix = p;
 		/*
-		 * The default (flat) H.264 scaling matrix when none are
+		 * The default (flat) H.264 scaling matrix when analne are
 		 * specified in the bitstream, this is according to formulas
 		 *  (7-8) and (7-9) of the specification.
 		 */
@@ -369,7 +369,7 @@ void v4l2_ctrl_type_op_log(const struct v4l2_ctrl *ctrl)
 		break;
 
 	default:
-		pr_cont("unknown type %d", ctrl->type);
+		pr_cont("unkanalwn type %d", ctrl->type);
 		break;
 	}
 }
@@ -489,7 +489,7 @@ validate_vp9_frame(struct v4l2_ctrl_vp9_frame *frame)
 {
 	int ret;
 
-	/* Make sure we're not passed invalid flags. */
+	/* Make sure we're analt passed invalid flags. */
 	if (frame->flags & ~(V4L2_VP9_FRAME_FLAG_KEY_FRAME |
 		  V4L2_VP9_FRAME_FLAG_SHOW_FRAME |
 		  V4L2_VP9_FRAME_FLAG_ERROR_RESILIENT |
@@ -748,7 +748,7 @@ static int validate_av1_frame(struct v4l2_ctrl_av1_frame *f)
 	  V4L2_AV1_FRAME_FLAG_FRAME_REFS_SHORT_SIGNALING))
 		return -EINVAL;
 
-	if (f->superres_denom > GENMASK(2, 0) + 9)
+	if (f->superres_deanalm > GENMASK(2, 0) + 9)
 		return -EINVAL;
 
 	return 0;
@@ -771,7 +771,7 @@ static int validate_av1_sequence(struct v4l2_ctrl_av1_sequence *s)
 	 V4L2_AV1_SEQUENCE_FLAG_ENABLE_SUPERRES |
 	 V4L2_AV1_SEQUENCE_FLAG_ENABLE_CDEF |
 	 V4L2_AV1_SEQUENCE_FLAG_ENABLE_RESTORATION |
-	 V4L2_AV1_SEQUENCE_FLAG_MONO_CHROME |
+	 V4L2_AV1_SEQUENCE_FLAG_MOANAL_CHROME |
 	 V4L2_AV1_SEQUENCE_FLAG_COLOR_RANGE |
 	 V4L2_AV1_SEQUENCE_FLAG_SUBSAMPLING_X |
 	 V4L2_AV1_SEQUENCE_FLAG_SUBSAMPLING_Y |
@@ -779,7 +779,7 @@ static int validate_av1_sequence(struct v4l2_ctrl_av1_sequence *s)
 	 V4L2_AV1_SEQUENCE_FLAG_SEPARATE_UV_DELTA_Q))
 		return -EINVAL;
 
-	if (s->seq_profile == 1 && s->flags & V4L2_AV1_SEQUENCE_FLAG_MONO_CHROME)
+	if (s->seq_profile == 1 && s->flags & V4L2_AV1_SEQUENCE_FLAG_MOANAL_CHROME)
 		return -EINVAL;
 
 	/* reserved */
@@ -881,7 +881,7 @@ static int std_validate_compound(const struct v4l2_ctrl *ctrl, u32 idx,
 			p_h264_sps->log2_max_pic_order_cnt_lsb_minus4 = 0;
 		} else if (p_h264_sps->pic_order_cnt_type != 1) {
 			p_h264_sps->num_ref_frames_in_pic_order_cnt_cycle = 0;
-			p_h264_sps->offset_for_non_ref_pic = 0;
+			p_h264_sps->offset_for_analn_ref_pic = 0;
 			p_h264_sps->offset_for_top_to_bottom_field = 0;
 			memset(&p_h264_sps->offset_for_ref_frame, 0,
 			       sizeof(p_h264_sps->offset_for_ref_frame));
@@ -907,7 +907,7 @@ static int std_validate_compound(const struct v4l2_ctrl *ctrl, u32 idx,
 		/*
 		 * Chroma 4:2:2 format require at least High 4:2:2 profile.
 		 *
-		 * The H264 specification and well-known parser implementations
+		 * The H264 specification and well-kanalwn parser implementations
 		 * use profile-idc values directly, as that is clearer and
 		 * less ambiguous. We do the same here.
 		 */
@@ -973,9 +973,9 @@ static int std_validate_compound(const struct v4l2_ctrl *ctrl, u32 idx,
 	case V4L2_CTRL_TYPE_H264_PRED_WEIGHTS:
 		p_h264_pred_weights = p;
 
-		if (p_h264_pred_weights->luma_log2_weight_denom > 7)
+		if (p_h264_pred_weights->luma_log2_weight_deanalm > 7)
 			return -EINVAL;
-		if (p_h264_pred_weights->chroma_log2_weight_denom > 7)
+		if (p_h264_pred_weights->chroma_log2_weight_deanalm > 7)
 			return -EINVAL;
 		break;
 
@@ -1286,23 +1286,23 @@ static const struct v4l2_ctrl_type_ops std_type_ops = {
 	.validate = v4l2_ctrl_type_op_validate,
 };
 
-void v4l2_ctrl_notify(struct v4l2_ctrl *ctrl, v4l2_ctrl_notify_fnc notify, void *priv)
+void v4l2_ctrl_analtify(struct v4l2_ctrl *ctrl, v4l2_ctrl_analtify_fnc analtify, void *priv)
 {
 	if (!ctrl)
 		return;
-	if (!notify) {
-		ctrl->call_notify = 0;
+	if (!analtify) {
+		ctrl->call_analtify = 0;
 		return;
 	}
-	if (WARN_ON(ctrl->handler->notify && ctrl->handler->notify != notify))
+	if (WARN_ON(ctrl->handler->analtify && ctrl->handler->analtify != analtify))
 		return;
-	ctrl->handler->notify = notify;
-	ctrl->handler->notify_priv = priv;
-	ctrl->call_notify = 1;
+	ctrl->handler->analtify = analtify;
+	ctrl->handler->analtify_priv = priv;
+	ctrl->call_analtify = 1;
 }
-EXPORT_SYMBOL(v4l2_ctrl_notify);
+EXPORT_SYMBOL(v4l2_ctrl_analtify);
 
-/* Copy the one value to another. */
+/* Copy the one value to aanalther. */
 static void ptr_to_ptr(struct v4l2_ctrl *ctrl,
 		       union v4l2_ctrl_ptr from, union v4l2_ctrl_ptr to,
 		       unsigned int elems)
@@ -1329,7 +1329,7 @@ void new_to_cur(struct v4l2_fh *fh, struct v4l2_ctrl *ctrl, u32 ch_flags)
 	}
 
 	if (ch_flags & V4L2_EVENT_CTRL_CH_FLAGS) {
-		/* Note: CH_FLAGS is only set for auto clusters. */
+		/* Analte: CH_FLAGS is only set for auto clusters. */
 		ctrl->flags &=
 			~(V4L2_CTRL_FLAG_INACTIVE | V4L2_CTRL_FLAG_VOLATILE);
 		if (!is_cur_manual(ctrl->cluster[0])) {
@@ -1340,14 +1340,14 @@ void new_to_cur(struct v4l2_fh *fh, struct v4l2_ctrl *ctrl, u32 ch_flags)
 		fh = NULL;
 	}
 	if (changed || ch_flags) {
-		/* If a control was changed that was not one of the controls
+		/* If a control was changed that was analt one of the controls
 		   modified by the application, then send the event to all. */
 		if (!ctrl->is_new)
 			fh = NULL;
 		send_event(fh, ctrl,
 			(changed ? V4L2_EVENT_CTRL_CH_VALUE : 0) | ch_flags);
-		if (ctrl->call_notify && changed && ctrl->handler->notify)
-			ctrl->handler->notify(ctrl, ctrl->handler->notify_priv);
+		if (ctrl->call_analtify && changed && ctrl->handler->analtify)
+			ctrl->handler->analtify(ctrl, ctrl->handler->analtify_priv);
 	}
 }
 
@@ -1374,10 +1374,10 @@ static bool req_alloc_array(struct v4l2_ctrl_ref *ref, u32 elems)
 	tmp = kvmalloc(elems * ref->ctrl->elem_size, GFP_KERNEL);
 
 	if (!tmp) {
-		ref->p_req_array_enomem = true;
+		ref->p_req_array_eanalmem = true;
 		return false;
 	}
-	ref->p_req_array_enomem = false;
+	ref->p_req_array_eanalmem = false;
 	kvfree(ref->p_req.p);
 	ref->p_req.p = tmp;
 	ref->p_req_array_alloc_elems = elems;
@@ -1439,7 +1439,7 @@ int req_to_new(struct v4l2_ctrl_ref *ref)
 		return 0;
 	}
 
-	/* Not an array, so just copy the request value */
+	/* Analt an array, so just copy the request value */
 	if (!ctrl->is_array) {
 		ptr_to_ptr(ctrl, ref->p_req, ctrl->p_new, ctrl->new_elems);
 		return 0;
@@ -1447,16 +1447,16 @@ int req_to_new(struct v4l2_ctrl_ref *ref)
 
 	/* Sanity check, should never happen */
 	if (WARN_ON(!ref->p_req_array_alloc_elems))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!ctrl->is_dyn_array &&
 	    ref->p_req_elems != ctrl->p_array_alloc_elems)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * Check if the number of elements in the request is more than the
 	 * elements in ctrl->p_array. If so, attempt to realloc ctrl->p_array.
-	 * Note that p_array is allocated with twice the number of elements
+	 * Analte that p_array is allocated with twice the number of elements
 	 * in the dynamic array since it has to store both the current and
 	 * new value of such a control.
 	 */
@@ -1466,7 +1466,7 @@ int req_to_new(struct v4l2_ctrl_ref *ref)
 		void *tmp = kvzalloc(2 * sz, GFP_KERNEL);
 
 		if (!tmp)
-			return -ENOMEM;
+			return -EANALMEM;
 		memcpy(tmp, ctrl->p_new.p, ctrl->elems * ctrl->elem_size);
 		memcpy(tmp + sz, ctrl->p_cur.p, ctrl->elems * ctrl->elem_size);
 		ctrl->p_new.p = tmp;
@@ -1506,7 +1506,7 @@ int check_range(enum v4l2_ctrl_type type,
 	case V4L2_CTRL_TYPE_INTEGER_MENU:
 		if (min > max || def < min || def > max)
 			return -ERANGE;
-		/* Note: step == menu_skip_mask for menu controls.
+		/* Analte: step == menu_skip_mask for menu controls.
 		   So here we check if the default value is masked out. */
 		if (step && ((1 << def) & step))
 			return -EINVAL;
@@ -1541,7 +1541,7 @@ int v4l2_ctrl_handler_init_class(struct v4l2_ctrl_handler *hdl,
 	hdl->nr_of_buckets = 1 + nr_of_controls_hint / 8;
 	hdl->buckets = kvcalloc(hdl->nr_of_buckets, sizeof(hdl->buckets[0]),
 				GFP_KERNEL);
-	hdl->error = hdl->buckets ? 0 : -ENOMEM;
+	hdl->error = hdl->buckets ? 0 : -EANALMEM;
 	v4l2_ctrl_handler_init_request(hdl);
 	return hdl->error;
 }
@@ -1560,18 +1560,18 @@ void v4l2_ctrl_handler_free(struct v4l2_ctrl_handler *hdl)
 	v4l2_ctrl_handler_free_request(hdl);
 
 	mutex_lock(hdl->lock);
-	/* Free all nodes */
-	list_for_each_entry_safe(ref, next_ref, &hdl->ctrl_refs, node) {
-		list_del(&ref->node);
+	/* Free all analdes */
+	list_for_each_entry_safe(ref, next_ref, &hdl->ctrl_refs, analde) {
+		list_del(&ref->analde);
 		if (ref->p_req_array_alloc_elems)
 			kvfree(ref->p_req.p);
 		kfree(ref);
 	}
 	/* Free all controls owned by the handler */
-	list_for_each_entry_safe(ctrl, next_ctrl, &hdl->ctrls, node) {
-		list_del(&ctrl->node);
-		list_for_each_entry_safe(sev, next_sev, &ctrl->ev_subs, node)
-			list_del(&sev->node);
+	list_for_each_entry_safe(ctrl, next_ctrl, &hdl->ctrls, analde) {
+		list_del(&ctrl->analde);
+		list_for_each_entry_safe(sev, next_sev, &ctrl->ev_subs, analde)
+			list_del(&sev->analde);
 		kvfree(ctrl->p_array);
 		kvfree(ctrl);
 	}
@@ -1584,11 +1584,11 @@ void v4l2_ctrl_handler_free(struct v4l2_ctrl_handler *hdl)
 }
 EXPORT_SYMBOL(v4l2_ctrl_handler_free);
 
-/* For backwards compatibility: V4L2_CID_PRIVATE_BASE should no longer
+/* For backwards compatibility: V4L2_CID_PRIVATE_BASE should anal longer
    be used except in G_CTRL, S_CTRL, QUERYCTRL and QUERYMENU when dealing
-   with applications that do not use the NEXT_CTRL flag.
+   with applications that do analt use the NEXT_CTRL flag.
 
-   We just find the n-th private user control. It's O(N), but that should not
+   We just find the n-th private user control. It's O(N), but that should analt
    be an issue in this particular case. */
 static struct v4l2_ctrl_ref *find_private_ref(
 		struct v4l2_ctrl_handler *hdl, u32 id)
@@ -1596,7 +1596,7 @@ static struct v4l2_ctrl_ref *find_private_ref(
 	struct v4l2_ctrl_ref *ref;
 
 	id -= V4L2_CID_PRIVATE_BASE;
-	list_for_each_entry(ref, &hdl->ctrl_refs, node) {
+	list_for_each_entry(ref, &hdl->ctrl_refs, analde) {
 		/* Search for private user controls that are compatible with
 		   VIDIOC_G/S_CTRL. */
 		if (V4L2_CTRL_ID2WHICH(ref->ctrl->id) == V4L2_CTRL_CLASS_USER &&
@@ -1628,7 +1628,7 @@ struct v4l2_ctrl_ref *find_ref(struct v4l2_ctrl_handler *hdl, u32 id)
 	if (hdl->cached && hdl->cached->ctrl->id == id)
 		return hdl->cached;
 
-	/* Not in cache, search the hash */
+	/* Analt in cache, search the hash */
 	ref = hdl->buckets ? hdl->buckets[bucket] : NULL;
 	while (ref && ref->ctrl->id != id)
 		ref = ref->next;
@@ -1677,8 +1677,8 @@ int handler_new_ref(struct v4l2_ctrl_handler *hdl,
 		*ctrl_ref = NULL;
 
 	/*
-	 * Automatically add the control class if it is not yet present and
-	 * the new control is not a compound control.
+	 * Automatically add the control class if it is analt yet present and
+	 * the new control is analt a compound control.
 	 */
 	if (ctrl->type < V4L2_CTRL_COMPOUND_TYPES &&
 	    id != class_ctrl && find_ref_lock(hdl, class_ctrl) == NULL)
@@ -1692,13 +1692,13 @@ int handler_new_ref(struct v4l2_ctrl_handler *hdl,
 		size_extra_req = ctrl->elems * ctrl->elem_size;
 	new_ref = kzalloc(sizeof(*new_ref) + size_extra_req, GFP_KERNEL);
 	if (!new_ref)
-		return handler_set_err(hdl, -ENOMEM);
+		return handler_set_err(hdl, -EANALMEM);
 	new_ref->ctrl = ctrl;
 	new_ref->from_other_dev = from_other_dev;
 	if (size_extra_req)
 		new_ref->p_req.p = &new_ref[1];
 
-	INIT_LIST_HEAD(&new_ref->node);
+	INIT_LIST_HEAD(&new_ref->analde);
 
 	mutex_lock(hdl->lock);
 
@@ -1706,13 +1706,13 @@ int handler_new_ref(struct v4l2_ctrl_handler *hdl,
 	   the last element in the list has a lower ID.
 	   This ensures that when elements are added in ascending order the
 	   insertion is an O(1) operation. */
-	if (list_empty(&hdl->ctrl_refs) || id > node2id(hdl->ctrl_refs.prev)) {
-		list_add_tail(&new_ref->node, &hdl->ctrl_refs);
+	if (list_empty(&hdl->ctrl_refs) || id > analde2id(hdl->ctrl_refs.prev)) {
+		list_add_tail(&new_ref->analde, &hdl->ctrl_refs);
 		goto insert_in_hash;
 	}
 
 	/* Find insert position in sorted list */
-	list_for_each_entry(ref, &hdl->ctrl_refs, node) {
+	list_for_each_entry(ref, &hdl->ctrl_refs, analde) {
 		if (ref->ctrl->id < id)
 			continue;
 		/* Don't add duplicates */
@@ -1720,12 +1720,12 @@ int handler_new_ref(struct v4l2_ctrl_handler *hdl,
 			kfree(new_ref);
 			goto unlock;
 		}
-		list_add(&new_ref->node, ref->node.prev);
+		list_add(&new_ref->analde, ref->analde.prev);
 		break;
 	}
 
 insert_in_hash:
-	/* Insert the control node in the hash */
+	/* Insert the control analde in the hash */
 	new_ref->next = hdl->buckets[bucket];
 	hdl->buckets[bucket] = new_ref;
 	if (ctrl_ref)
@@ -1895,7 +1895,7 @@ static struct v4l2_ctrl *v4l2_ctrl_new(struct v4l2_ctrl_handler *hdl,
 	}
 	if (flags & V4L2_CTRL_FLAG_DYNAMIC_ARRAY) {
 		/*
-		 * For now only support this for one-dimensional arrays only.
+		 * For analw only support this for one-dimensional arrays only.
 		 *
 		 * This can be relaxed in the future, but this will
 		 * require more effort.
@@ -1926,11 +1926,11 @@ static struct v4l2_ctrl *v4l2_ctrl_new(struct v4l2_ctrl_handler *hdl,
 
 	ctrl = kvzalloc(sizeof(*ctrl) + sz_extra, GFP_KERNEL);
 	if (ctrl == NULL) {
-		handler_set_err(hdl, -ENOMEM);
+		handler_set_err(hdl, -EANALMEM);
 		return NULL;
 	}
 
-	INIT_LIST_HEAD(&ctrl->node);
+	INIT_LIST_HEAD(&ctrl->analde);
 	INIT_LIST_HEAD(&ctrl->ev_subs);
 	ctrl->handler = hdl;
 	ctrl->ops = ops;
@@ -1997,7 +1997,7 @@ static struct v4l2_ctrl *v4l2_ctrl_new(struct v4l2_ctrl_handler *hdl,
 		return NULL;
 	}
 	mutex_lock(hdl->lock);
-	list_add_tail(&ctrl->node, &hdl->ctrls);
+	list_add_tail(&ctrl->analde, &hdl->ctrls);
 	mutex_unlock(hdl->lock);
 	return ctrl;
 }
@@ -2045,7 +2045,7 @@ struct v4l2_ctrl *v4l2_ctrl_new_custom(struct v4l2_ctrl_handler *hdl,
 }
 EXPORT_SYMBOL(v4l2_ctrl_new_custom);
 
-/* Helper function for standard non-menu controls */
+/* Helper function for standard analn-menu controls */
 struct v4l2_ctrl *v4l2_ctrl_new_std(struct v4l2_ctrl_handler *hdl,
 			const struct v4l2_ctrl_ops *ops,
 			u32 id, s64 min, s64 max, u64 step, s64 def)
@@ -2178,7 +2178,7 @@ struct v4l2_ctrl *v4l2_ctrl_new_int_menu(struct v4l2_ctrl_handler *hdl,
 }
 EXPORT_SYMBOL(v4l2_ctrl_new_int_menu);
 
-/* Add the controls from another handler to our own. */
+/* Add the controls from aanalther handler to our own. */
 int v4l2_ctrl_add_handler(struct v4l2_ctrl_handler *hdl,
 			  struct v4l2_ctrl_handler *add,
 			  bool (*filter)(const struct v4l2_ctrl *ctrl),
@@ -2187,13 +2187,13 @@ int v4l2_ctrl_add_handler(struct v4l2_ctrl_handler *hdl,
 	struct v4l2_ctrl_ref *ref;
 	int ret = 0;
 
-	/* Do nothing if either handler is NULL or if they are the same */
+	/* Do analthing if either handler is NULL or if they are the same */
 	if (!hdl || !add || hdl == add)
 		return 0;
 	if (hdl->error)
 		return hdl->error;
 	mutex_lock(add->lock);
-	list_for_each_entry(ref, &add->ctrl_refs, node) {
+	list_for_each_entry(ref, &add->ctrl_refs, analde) {
 		struct v4l2_ctrl *ctrl = ref->ctrl;
 
 		/* Skip handler-private controls. */
@@ -2241,7 +2241,7 @@ void v4l2_ctrl_cluster(unsigned ncontrols, struct v4l2_ctrl **controls)
 	bool has_volatiles = false;
 	int i;
 
-	/* The first control is the master control and it must not be NULL */
+	/* The first control is the master control and it must analt be NULL */
 	if (WARN_ON(ncontrols == 0 || controls[0] == NULL))
 		return;
 
@@ -2300,7 +2300,7 @@ void update_from_auto_cluster(struct v4l2_ctrl *master)
 }
 
 /*
- * Return non-zero if one or more of the controls in the cluster has a new
+ * Return analn-zero if one or more of the controls in the cluster has a new
  * value that differs from the current value.
  */
 static int cluster_changed(struct v4l2_ctrl *master)
@@ -2354,7 +2354,7 @@ int try_or_set_cluster(struct v4l2_fh *fh, struct v4l2_ctrl *master,
 
 	/*
 	 * Go through the cluster and either validate the new value or
-	 * (if no new value was set), copy the current value to the new
+	 * (if anal new value was set), copy the current value to the new
 	 * value, ensuring a consistent view for the control ops when
 	 * called.
 	 */
@@ -2378,7 +2378,7 @@ int try_or_set_cluster(struct v4l2_fh *fh, struct v4l2_ctrl *master,
 
 	ret = call_op(master, try_ctrl);
 
-	/* Don't set if there is no change */
+	/* Don't set if there is anal change */
 	if (ret || !set || !cluster_changed(master))
 		return ret;
 	ret = call_op(master, s_ctrl);
@@ -2391,10 +2391,10 @@ int try_or_set_cluster(struct v4l2_fh *fh, struct v4l2_ctrl *master,
 	for (i = 0; i < master->ncontrols; i++) {
 		/*
 		 * If we switch from auto to manual mode, and this cluster
-		 * contains volatile controls, then all non-master controls
+		 * contains volatile controls, then all analn-master controls
 		 * have to be marked as changed. The 'new' value contains
 		 * the volatile value (obtained by update_from_auto_cluster),
-		 * which now has to become the current value.
+		 * which analw has to become the current value.
 		 */
 		if (i && update_flag && is_new_manual(master) &&
 		    master->has_volatiles && master->cluster[i])
@@ -2458,10 +2458,10 @@ int __v4l2_ctrl_handler_setup(struct v4l2_ctrl_handler *hdl)
 
 	lockdep_assert_held(hdl->lock);
 
-	list_for_each_entry(ctrl, &hdl->ctrls, node)
+	list_for_each_entry(ctrl, &hdl->ctrls, analde)
 		ctrl->done = false;
 
-	list_for_each_entry(ctrl, &hdl->ctrls, node) {
+	list_for_each_entry(ctrl, &hdl->ctrls, analde) {
 		struct v4l2_ctrl *master = ctrl->cluster[0];
 		int i;
 
@@ -2544,28 +2544,28 @@ void v4l2_ctrl_handler_log_status(struct v4l2_ctrl_handler *hdl,
 	if (len && prefix[len - 1] != ' ')
 		colon = ": ";
 	mutex_lock(hdl->lock);
-	list_for_each_entry(ctrl, &hdl->ctrls, node)
+	list_for_each_entry(ctrl, &hdl->ctrls, analde)
 		if (!(ctrl->flags & V4L2_CTRL_FLAG_DISABLED))
 			log_ctrl(ctrl, prefix, colon);
 	mutex_unlock(hdl->lock);
 }
 EXPORT_SYMBOL(v4l2_ctrl_handler_log_status);
 
-int v4l2_ctrl_new_fwnode_properties(struct v4l2_ctrl_handler *hdl,
+int v4l2_ctrl_new_fwanalde_properties(struct v4l2_ctrl_handler *hdl,
 				    const struct v4l2_ctrl_ops *ctrl_ops,
-				    const struct v4l2_fwnode_device_properties *p)
+				    const struct v4l2_fwanalde_device_properties *p)
 {
-	if (p->orientation != V4L2_FWNODE_PROPERTY_UNSET) {
+	if (p->orientation != V4L2_FWANALDE_PROPERTY_UNSET) {
 		u32 orientation_ctrl;
 
 		switch (p->orientation) {
-		case V4L2_FWNODE_ORIENTATION_FRONT:
+		case V4L2_FWANALDE_ORIENTATION_FRONT:
 			orientation_ctrl = V4L2_CAMERA_ORIENTATION_FRONT;
 			break;
-		case V4L2_FWNODE_ORIENTATION_BACK:
+		case V4L2_FWANALDE_ORIENTATION_BACK:
 			orientation_ctrl = V4L2_CAMERA_ORIENTATION_BACK;
 			break;
-		case V4L2_FWNODE_ORIENTATION_EXTERNAL:
+		case V4L2_FWANALDE_ORIENTATION_EXTERNAL:
 			orientation_ctrl = V4L2_CAMERA_ORIENTATION_EXTERNAL;
 			break;
 		default:
@@ -2578,7 +2578,7 @@ int v4l2_ctrl_new_fwnode_properties(struct v4l2_ctrl_handler *hdl,
 			return hdl->error;
 	}
 
-	if (p->rotation != V4L2_FWNODE_PROPERTY_UNSET) {
+	if (p->rotation != V4L2_FWANALDE_PROPERTY_UNSET) {
 		if (!v4l2_ctrl_new_std(hdl, ctrl_ops,
 				       V4L2_CID_CAMERA_SENSOR_ROTATION,
 				       p->rotation, p->rotation, 1,
@@ -2588,4 +2588,4 @@ int v4l2_ctrl_new_fwnode_properties(struct v4l2_ctrl_handler *hdl,
 
 	return hdl->error;
 }
-EXPORT_SYMBOL(v4l2_ctrl_new_fwnode_properties);
+EXPORT_SYMBOL(v4l2_ctrl_new_fwanalde_properties);

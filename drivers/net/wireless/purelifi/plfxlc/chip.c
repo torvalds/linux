@@ -4,7 +4,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 
 #include "chip.h"
 #include "mac.h"

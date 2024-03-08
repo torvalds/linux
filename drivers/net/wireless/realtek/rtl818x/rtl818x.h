@@ -135,7 +135,7 @@ struct rtl818x_csr {
 	__le32	TX_CONF; /* 0x40 */
 #define RTL818X_TX_CONF_LOOPBACK_MAC	(1 << 17)
 #define RTL818X_TX_CONF_LOOPBACK_CONT	(3 << 17)
-#define RTL818X_TX_CONF_NO_ICV		(1 << 19)
+#define RTL818X_TX_CONF_ANAL_ICV		(1 << 19)
 #define RTL818X_TX_CONF_DISCW		(1 << 20)
 #define RTL818X_TX_CONF_SAT_HWPLCP	(1 << 24)
 #define RTL818X_TX_CONF_R8180_ABCD	(2 << 25)
@@ -173,7 +173,7 @@ struct rtl818x_csr {
 #define RTL818X_EEPROM_CMD_WRITE	(1 << 1)
 #define RTL818X_EEPROM_CMD_CK		(1 << 2)
 #define RTL818X_EEPROM_CMD_CS		(1 << 3)
-#define RTL818X_EEPROM_CMD_NORMAL	(0 << 6)
+#define RTL818X_EEPROM_CMD_ANALRMAL	(0 << 6)
 #define RTL818X_EEPROM_CMD_LOAD		(1 << 6)
 #define RTL818X_EEPROM_CMD_PROGRAM	(2 << 6)
 #define RTL818X_EEPROM_CMD_CONFIG	(3 << 6)
@@ -183,7 +183,7 @@ struct rtl818x_csr {
 #define RTL818X_CONFIG2_ANTENNA_DIV	(1 << 6)
 	__le32	ANAPARAM;
 	u8	MSR;
-#define RTL818X_MSR_NO_LINK		(0 << 2)
+#define RTL818X_MSR_ANAL_LINK		(0 << 2)
 #define RTL818X_MSR_ADHOC		(1 << 2)
 #define RTL818X_MSR_INFRA		(2 << 2)
 #define RTL818X_MSR_MASTER		(3 << 2)
@@ -326,7 +326,7 @@ struct rtl818x_csr {
 
 } __packed;
 
-/* These are addresses with NON-standard usage.
+/* These are addresses with ANALN-standard usage.
  * They have offsets very far from this struct.
  * I don't like to introduce a ton of "reserved"..
  * They are for RTL8187SE
@@ -357,7 +357,7 @@ struct rtl818x_rf_ops {
 /**
  * enum rtl818x_tx_desc_flags - Tx/Rx flags are common between RTL818X chips
  *
- * @RTL818X_TX_DESC_FLAG_NO_ENC: Disable hardware based encryption.
+ * @RTL818X_TX_DESC_FLAG_ANAL_ENC: Disable hardware based encryption.
  * @RTL818X_TX_DESC_FLAG_TX_OK: TX frame was ACKed.
  * @RTL818X_TX_DESC_FLAG_SPLCP: Use short preamble.
  * @RTL818X_TX_DESC_FLAG_MOREFRAG: More fragments follow.
@@ -367,7 +367,7 @@ struct rtl818x_rf_ops {
  * @RTL818X_TX_DESC_FLAG_FS: First segment of the frame.
  */
 enum rtl818x_tx_desc_flags {
-	RTL818X_TX_DESC_FLAG_NO_ENC	= (1 << 15),
+	RTL818X_TX_DESC_FLAG_ANAL_ENC	= (1 << 15),
 	RTL818X_TX_DESC_FLAG_TX_OK	= (1 << 15),
 	RTL818X_TX_DESC_FLAG_SPLCP	= (1 << 16),
 	RTL818X_TX_DESC_FLAG_RX_UNDER	= (1 << 16),

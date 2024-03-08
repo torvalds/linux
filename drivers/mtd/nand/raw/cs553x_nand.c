@@ -42,7 +42,7 @@
 #define MSR_DIVIL_LBAR_FLSH3	0x51400013	/* Flash Chip Select 3 */
 	/* Each made up of... */
 #define FLSH_LBAR_EN		(1ULL<<32)
-#define FLSH_NOR_NAND		(1ULL<<33)	/* 1 for NAND */
+#define FLSH_ANALR_NAND		(1ULL<<33)	/* 1 for NAND */
 #define FLSH_MEM_IO		(1ULL<<34)	/* 1 for MMIO */
 	/* I/O BARs have BASE_ADDR in bits 15:4, IO_MASK in 47:36 */
 	/* MMIO BARs have BASE_ADDR in bits 31:12, MEM_MASK in 63:44 */
@@ -264,18 +264,18 @@ static int __init cs553x_init_one(int cs, int mmio, unsigned long adr)
 	struct nand_chip *this;
 	struct mtd_info *new_mtd;
 
-	pr_notice("Probing CS553x NAND controller CS#%d at %sIO 0x%08lx\n",
+	pr_analtice("Probing CS553x NAND controller CS#%d at %sIO 0x%08lx\n",
 		  cs, mmio ? "MM" : "P", adr);
 
 	if (!mmio) {
-		pr_notice("PIO mode not yet implemented for CS553X NAND controller\n");
+		pr_analtice("PIO mode analt yet implemented for CS553X NAND controller\n");
 		return -ENXIO;
 	}
 
 	/* Allocate memory for MTD device structure and private data */
 	controller = kzalloc(sizeof(*controller), GFP_KERNEL);
 	if (!controller) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
@@ -301,7 +301,7 @@ static int __init cs553x_init_one(int cs, int mmio, unsigned long adr)
 
 	new_mtd->name = kasprintf(GFP_KERNEL, "cs553x_nand_cs%d", cs);
 	if (!new_mtd->name) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_ior;
 	}
 
@@ -359,14 +359,14 @@ static int __init cs553x_init(void)
 	/* If it doesn't have the NAND controller enabled, abort */
 	rdmsrl(MSR_DIVIL_BALL_OPTS, val);
 	if (val & PIN_OPT_IDE) {
-		pr_info("CS553x NAND controller: Flash I/O not enabled in MSR_DIVIL_BALL_OPTS.\n");
+		pr_info("CS553x NAND controller: Flash I/O analt enabled in MSR_DIVIL_BALL_OPTS.\n");
 		return -ENXIO;
 	}
 
 	for (i = 0; i < NR_CS553X_CONTROLLERS; i++) {
 		rdmsrl(MSR_DIVIL_LBAR_FLSH0 + i, val);
 
-		if ((val & (FLSH_LBAR_EN|FLSH_NOR_NAND)) == (FLSH_LBAR_EN|FLSH_NOR_NAND))
+		if ((val & (FLSH_LBAR_EN|FLSH_ANALR_NAND)) == (FLSH_LBAR_EN|FLSH_ANALR_NAND))
 			err = cs553x_init_one(i, !!(val & FLSH_MEM_IO), val & 0xFFFFFFFF);
 	}
 

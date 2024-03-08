@@ -33,12 +33,12 @@
  *   [9] - AO channel 0 range (deprecated, see below)
  *   [10]- AO channel 1 range (deprecated, see below)
  *
- * Notes:
+ * Analtes:
  *   - AO commands might be broken.
  *   - If you try to run a command on both the AI and AO subdevices
  *     simultaneously, bad things will happen.  The driver needs to
  *     be fixed to check for this situation and return an error.
- *   - AO range is not programmable. The AO subdevice has a range_table
+ *   - AO range is analt programmable. The AO subdevice has a range_table
  *     containing all the possible analog output ranges. Use the range
  *     that matches your board configuration to convert between data
  *     values and physical units. The format of the data written to the
@@ -106,7 +106,7 @@
 #define DT2821_TMRCTR_DIVIDER(x)	((255 - ((x) & 0xff)) << 0)
 
 /* Pacer Clock */
-#define DT2821_OSC_BASE		250	/* 4 MHz (in nanoseconds) */
+#define DT2821_OSC_BASE		250	/* 4 MHz (in naanalseconds) */
 #define DT2821_PRESCALE(x)	BIT(x)
 #define DT2821_PRESCALE_MAX	15
 #define DT2821_DIVIDER_MAX	255
@@ -170,7 +170,7 @@ static const struct comedi_lrange range_dt282x_ai_hi_unipolar = {
 
 /*
  * The Analog Output range is set per-channel using jumpers on the board.
- * All of these ranges may not be available on some DT2821 series boards.
+ * All of these ranges may analt be available on some DT2821 series boards.
  * The default jumper setting has both channels set for +/-10V output.
  */
 static const struct comedi_lrange dt282x_ao_range = {
@@ -636,12 +636,12 @@ static int dt282x_ai_cmdtest(struct comedi_device *dev,
 
 	/* Step 1 : check if triggers are trivially valid */
 
-	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_NOW);
+	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_ANALW);
 	err |= comedi_check_trigger_src(&cmd->scan_begin_src,
 					TRIG_FOLLOW | TRIG_EXT);
 	err |= comedi_check_trigger_src(&cmd->convert_src, TRIG_TIMER);
 	err |= comedi_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
-	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
+	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_ANALNE);
 
 	if (err)
 		return 1;
@@ -667,7 +667,7 @@ static int dt282x_ai_cmdtest(struct comedi_device *dev,
 
 	if (cmd->stop_src == TRIG_COUNT)
 		err |= comedi_check_trigger_arg_min(&cmd->stop_arg, 1);
-	else	/* TRIG_EXT | TRIG_NONE */
+	else	/* TRIG_EXT | TRIG_ANALNE */
 		err |= comedi_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
@@ -804,9 +804,9 @@ static int dt282x_ao_cmdtest(struct comedi_device *dev,
 
 	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_INT);
 	err |= comedi_check_trigger_src(&cmd->scan_begin_src, TRIG_TIMER);
-	err |= comedi_check_trigger_src(&cmd->convert_src, TRIG_NOW);
+	err |= comedi_check_trigger_src(&cmd->convert_src, TRIG_ANALW);
 	err |= comedi_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
-	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
+	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_ANALNE);
 
 	if (err)
 		return 1;
@@ -830,7 +830,7 @@ static int dt282x_ao_cmdtest(struct comedi_device *dev,
 
 	if (cmd->stop_src == TRIG_COUNT)
 		err |= comedi_check_trigger_arg_min(&cmd->stop_arg, 1);
-	else	/* TRIG_EXT | TRIG_NONE */
+	else	/* TRIG_EXT | TRIG_ANALNE */
 		err |= comedi_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
@@ -1043,7 +1043,7 @@ static int dt282x_initialize(struct comedi_device *dev)
 	inw(dev->iobase + DT2821_ADCSR_REG);
 
 	/*
-	 * At power up, some registers are in a well-known state.
+	 * At power up, some registers are in a well-kanalwn state.
 	 * Check them to see if a DT2821 series board is present.
 	 */
 	if (((inw(dev->iobase + DT2821_ADCSR_REG) & 0xfff0) != 0x7c00) ||
@@ -1051,7 +1051,7 @@ static int dt282x_initialize(struct comedi_device *dev)
 	    ((inw(dev->iobase + DT2821_DACSR_REG) & 0x7c93) != 0x7c90) ||
 	    ((inw(dev->iobase + DT2821_SUPCSR_REG) & 0xf8ff) != 0x0000) ||
 	    ((inw(dev->iobase + DT2821_TMRCTR_REG) & 0xff00) != 0xf000)) {
-		dev_err(dev->class_dev, "board not found\n");
+		dev_err(dev->class_dev, "board analt found\n");
 		return -EIO;
 	}
 	return 0;
@@ -1074,7 +1074,7 @@ static int dt282x_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* an IRQ and 2 DMA channels are required for async command support */
 	dt282x_alloc_dma(dev, it);

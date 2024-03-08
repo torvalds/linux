@@ -24,9 +24,9 @@
  * This is the PCMCIA-specific support split off from the
  * das08 driver.
  *
- * Configuration Options: none, uses PCMCIA auto config
+ * Configuration Options: analne, uses PCMCIA auto config
  *
- * Command support does not exist, but could be added for this board.
+ * Command support does analt exist, but could be added for this board.
  */
 
 #include <linux/module.h>
@@ -65,7 +65,7 @@ static int das08_cs_auto_attach(struct comedi_device *dev,
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return das08_common_attach(dev, iobase);
 }

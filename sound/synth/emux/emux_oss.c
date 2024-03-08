@@ -87,7 +87,7 @@ snd_emux_detach_seq_oss(struct snd_emux *emu)
 
 
 /* use port number as a unique soundfont client number */
-#define SF_CLIENT_NO(p)	((p) + 0x1000)
+#define SF_CLIENT_ANAL(p)	((p) + 0x1000)
 
 /*
  * open port for OSS sequencer
@@ -117,7 +117,7 @@ snd_emux_open_seq_oss(struct snd_seq_oss_arg *arg, void *closure)
 	if (p == NULL) {
 		snd_printk(KERN_ERR "can't create port\n");
 		snd_emux_dec_count(emu);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* fill the argument data */
@@ -175,7 +175,7 @@ snd_emux_close_seq_oss(struct snd_seq_oss_arg *arg)
 		return -ENXIO;
 
 	snd_emux_sounds_off_all(p);
-	snd_soundfont_close_check(emu->sflist, SF_CLIENT_NO(p->chset.port));
+	snd_soundfont_close_check(emu->sflist, SF_CLIENT_ANAL(p->chset.port));
 	snd_seq_event_port_detach(p->chset.client, p->chset.port);
 	snd_emux_dec_count(emu);
 
@@ -206,7 +206,7 @@ snd_emux_load_patch_seq_oss(struct snd_seq_oss_arg *arg, int format,
 
 	if (format == GUS_PATCH)
 		rc = snd_soundfont_load_guspatch(emu->sflist, buf, count,
-						 SF_CLIENT_NO(p->chset.port));
+						 SF_CLIENT_ANAL(p->chset.port));
 	else if (format == SNDRV_OSS_SOUNDFONT_PATCH) {
 		struct soundfont_patch_info patch;
 		if (count < (int)sizeof(patch))
@@ -215,7 +215,7 @@ snd_emux_load_patch_seq_oss(struct snd_seq_oss_arg *arg, int format,
 			return -EFAULT;
 		if (patch.type >= SNDRV_SFNT_LOAD_INFO &&
 		    patch.type <= SNDRV_SFNT_PROBE_DATA)
-			rc = snd_soundfont_load(emu->sflist, buf, count, SF_CLIENT_NO(p->chset.port));
+			rc = snd_soundfont_load(emu->sflist, buf, count, SF_CLIENT_ANAL(p->chset.port));
 		else {
 			if (emu->ops.load_fx)
 				rc = emu->ops.load_fx(emu, patch.type, patch.optarg, buf, count);
@@ -358,9 +358,9 @@ emuspec_control(struct snd_emux *emu, struct snd_emux_port *port, int cmd,
 		break;
 
 	case _EMUX_OSS_RELEASE_ALL:
-		fake_event(emu, port, voice, MIDI_CTL_ALL_NOTES_OFF, 0, atomic, hop);
+		fake_event(emu, port, voice, MIDI_CTL_ALL_ANALTES_OFF, 0, atomic, hop);
 		break;
-	case _EMUX_OSS_NOTEOFF_ALL:
+	case _EMUX_OSS_ANALTEOFF_ALL:
 		fake_event(emu, port, voice, MIDI_CTL_ALL_SOUNDS_OFF, 0, atomic, hop);
 		break;
 
@@ -446,7 +446,7 @@ gusspec_control(struct snd_emux *emu, struct snd_emux_port *port, int cmd,
 
 	case _GUS_VOICEVOL:
 	case _GUS_VOICEVOL2:
-		/* not supported yet */
+		/* analt supported yet */
 		return;
 
 	case _GUS_RAMPRANGE:
@@ -454,7 +454,7 @@ gusspec_control(struct snd_emux *emu, struct snd_emux_port *port, int cmd,
 	case _GUS_RAMPMODE:
 	case _GUS_RAMPON:
 	case _GUS_RAMPOFF:
-		/* volume ramping not supported */
+		/* volume ramping analt supported */
 		return;
 
 	case _GUS_VOLUME_SCALE:

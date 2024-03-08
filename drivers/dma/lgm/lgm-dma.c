@@ -107,9 +107,9 @@
  * If header mode is set in DMA descriptor,
  *   If bit 30 is disabled, HDR_LEN must be configured according to channel
  *     requirement.
- *   If bit 30 is enabled(checksum with heade mode), HDR_LEN has no need to
+ *   If bit 30 is enabled(checksum with heade mode), HDR_LEN has anal need to
  *     be configured. It will enable check sum for switch
- * If header mode is not set in DMA descriptor,
+ * If header mode is analt set in DMA descriptor,
  *   This register setting doesn't matter
  */
 #define DMA_C_HDRM_HDR_SUM		BIT(30)
@@ -197,7 +197,7 @@ struct ldma_chan {
 	char			name[8]; /* Channel name */
 	int			nr; /* Channel id in hardware */
 	u32			flags; /* central way or channel based way */
-	enum ldma_chan_on_off	onoff;
+	enum ldma_chan_on_off	oanalff;
 	dma_addr_t		desc_phys;
 	void			*desc_base; /* Virtual address */
 	u32			desc_cnt; /* Number of descriptors */
@@ -549,14 +549,14 @@ static void ldma_chan_irq_init(struct ldma_chan *c)
 {
 	struct ldma_dev *d = to_ldma_dev(c->vchan.chan.device);
 	unsigned long flags;
-	u32 enofs, crofs;
+	u32 eanalfs, crofs;
 	u32 cn_bit;
 
 	if (c->nr < MAX_LOWER_CHANS) {
-		enofs = DMA_IRNEN;
+		eanalfs = DMA_IRNEN;
 		crofs = DMA_IRNCR;
 	} else {
-		enofs = DMA_IRNEN1;
+		eanalfs = DMA_IRNEN1;
 		crofs = DMA_IRNCR1;
 	}
 
@@ -568,7 +568,7 @@ static void ldma_chan_irq_init(struct ldma_chan *c)
 	writel(0, d->base + DMA_CIE);
 	writel(DMA_CI_ALL, d->base + DMA_CIS);
 
-	ldma_update_bits(d, cn_bit, 0, enofs);
+	ldma_update_bits(d, cn_bit, 0, eanalfs);
 	writel(cn_bit, d->base + crofs);
 	spin_unlock_irqrestore(&d->dev_lock, flags);
 }
@@ -596,7 +596,7 @@ static int ldma_chan_on(struct ldma_chan *c)
 	struct ldma_dev *d = to_ldma_dev(c->vchan.chan.device);
 	unsigned long flags;
 
-	/* If descriptors not configured, not allow to turn on channel */
+	/* If descriptors analt configured, analt allow to turn on channel */
 	if (WARN_ON(!c->desc_init))
 		return -EINVAL;
 
@@ -605,7 +605,7 @@ static int ldma_chan_on(struct ldma_chan *c)
 	ldma_update_bits(d, DMA_CCTRL_ON, DMA_CCTRL_ON, DMA_CCTRL);
 	spin_unlock_irqrestore(&d->dev_lock, flags);
 
-	c->onoff = DMA_CH_ON;
+	c->oanalff = DMA_CH_ON;
 
 	return 0;
 }
@@ -627,7 +627,7 @@ static int ldma_chan_off(struct ldma_chan *c)
 	if (ret)
 		return ret;
 
-	c->onoff = DMA_CH_OFF;
+	c->oanalff = DMA_CH_OFF;
 
 	return 0;
 }
@@ -681,7 +681,7 @@ ldma_chan_desc_cfg(struct dma_chan *chan, dma_addr_t desc_base, int desc_num)
 	c->desc_cnt = desc_num;
 	c->desc_phys = desc_base;
 
-	ds = kzalloc(sizeof(*ds), GFP_NOWAIT);
+	ds = kzalloc(sizeof(*ds), GFP_ANALWAIT);
 	if (!ds)
 		return NULL;
 
@@ -864,7 +864,7 @@ static int ldma_chan_cfg(struct ldma_chan *c)
 	u32 reg;
 
 	reg = c->pden ? DMA_CCTRL_PDEN : 0;
-	reg |= c->onoff ? DMA_CCTRL_ON : 0;
+	reg |= c->oanalff ? DMA_CCTRL_ON : 0;
 	reg |= c->rst ? DMA_CCTRL_RST : 0;
 
 	ldma_chan_cctrl_cfg(c, reg);
@@ -916,20 +916,20 @@ static void ldma_dev_init(struct ldma_dev *d)
 
 static int ldma_parse_dt(struct ldma_dev *d)
 {
-	struct fwnode_handle *fwnode = dev_fwnode(d->dev);
+	struct fwanalde_handle *fwanalde = dev_fwanalde(d->dev);
 	struct ldma_port *p;
 	int i;
 
-	if (fwnode_property_read_bool(fwnode, "intel,dma-byte-en"))
+	if (fwanalde_property_read_bool(fwanalde, "intel,dma-byte-en"))
 		d->flags |= DMA_EN_BYTE_EN;
 
-	if (fwnode_property_read_bool(fwnode, "intel,dma-dburst-wr"))
+	if (fwanalde_property_read_bool(fwanalde, "intel,dma-dburst-wr"))
 		d->flags |= DMA_DBURST_WR;
 
-	if (fwnode_property_read_bool(fwnode, "intel,dma-drb"))
+	if (fwanalde_property_read_bool(fwanalde, "intel,dma-drb"))
 		d->flags |= DMA_DFT_DRB;
 
-	if (fwnode_property_read_u32(fwnode, "intel,dma-poll-cnt",
+	if (fwanalde_property_read_u32(fwanalde, "intel,dma-poll-cnt",
 				     &d->pollcnt))
 		d->pollcnt = DMA_DFT_POLL_CNT;
 
@@ -982,7 +982,7 @@ dma_alloc_desc_resource(int num, struct ldma_chan *c)
 		return NULL;
 	}
 
-	ds = kzalloc(sizeof(*ds), GFP_NOWAIT);
+	ds = kzalloc(sizeof(*ds), GFP_ANALWAIT);
 	if (!ds)
 		return NULL;
 
@@ -1029,7 +1029,7 @@ static void ldma_issue_pending(struct dma_chan *chan)
 				spin_unlock_irqrestore(&c->vchan.lock, flags);
 				return;
 			}
-			list_del(&vdesc->node);
+			list_del(&vdesc->analde);
 			c->ds = to_lgm_dma_desc(vdesc);
 			ldma_chan_desc_hw_cfg(c, c->ds->desc_phys, c->ds->desc_cnt);
 			ldma_chan_irq_en(c);
@@ -1124,7 +1124,7 @@ static irqreturn_t dma_interrupt(int irq, void *dev_id)
 	irncr = readl(d->base + DMA_IRNCR);
 	if (!irncr) {
 		dev_err(d->dev, "dummy interrupt\n");
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	for_each_set_bit(cid, &irncr, d->chan_nrs) {
@@ -1283,11 +1283,11 @@ static int ldma_alloc_chan_resources(struct dma_chan *chan)
 
 	desc_sz = c->desc_num * sizeof(struct dw2_desc);
 	c->desc_pool = dma_pool_create(c->name, dev, desc_sz,
-				       __alignof__(struct dw2_desc), 0);
+				       __aliganalf__(struct dw2_desc), 0);
 
 	if (!c->desc_pool) {
 		dev_err(dev, "unable to allocate descriptor pool\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return c->desc_num;
@@ -1325,10 +1325,10 @@ static void dma_work(struct work_struct *work)
 	dma_cookie_complete(tx);
 	dmaengine_desc_callback_invoke(&cb, NULL);
 
-	list_for_each_entry_safe(vd, _vd, &head, node) {
+	list_for_each_entry_safe(vd, _vd, &head, analde) {
 		dmaengine_desc_get_callback(tx, &cb);
 		dma_cookie_complete(tx);
-		list_del(&vd->node);
+		list_del(&vd->analde);
 		dmaengine_desc_callback_invoke(&cb, NULL);
 
 		vchan_vdesc_fini(vd);
@@ -1426,7 +1426,7 @@ static void ldma_dma_init_v3X(int i, struct ldma_dev *d)
 	c->desc_endian_en = false;
 	c->desc_rx_np = false;
 	c->flags |= DEVICE_ALLOC_DESC;
-	c->onoff = DMA_CH_OFF;
+	c->oanalff = DMA_CH_OFF;
 	c->rst = DMA_CHAN_RST;
 	c->abc_en = true;
 	c->hdrm_csum = false;
@@ -1458,7 +1458,7 @@ static int ldma_init_v22(struct ldma_dev *d, struct platform_device *pdev)
 	d->wq = alloc_ordered_workqueue("dma_wq", WQ_MEM_RECLAIM |
 			WQ_HIGHPRI);
 	if (!d->wq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -1574,15 +1574,15 @@ static int intel_ldma_probe(struct platform_device *pdev)
 
 	d = devm_kzalloc(dev, sizeof(*d), GFP_KERNEL);
 	if (!d)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Link controller to platform device */
 	d->dev = &pdev->dev;
 
 	d->inst = device_get_match_data(dev);
 	if (!d->inst) {
-		dev_err(dev, "No device match found\n");
-		return -ENODEV;
+		dev_err(dev, "Anal device match found\n");
+		return -EANALDEV;
 	}
 
 	d->base = devm_platform_ioremap_resource(pdev, 0);
@@ -1623,7 +1623,7 @@ static int intel_ldma_probe(struct platform_device *pdev)
 
 	ret = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(bitn));
 	if (ret) {
-		dev_err(dev, "No usable DMA configuration\n");
+		dev_err(dev, "Anal usable DMA configuration\n");
 		return ret;
 	}
 
@@ -1648,12 +1648,12 @@ static int intel_ldma_probe(struct platform_device *pdev)
 	/* Port Initializations */
 	d->ports = devm_kcalloc(dev, d->port_nrs, sizeof(*p), GFP_KERNEL);
 	if (!d->ports)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Channels Initializations */
 	d->chans = devm_kcalloc(d->dev, d->chan_nrs, sizeof(*c), GFP_KERNEL);
 	if (!d->chans)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < d->port_nrs; i++) {
 		p = &d->ports[i];
@@ -1705,7 +1705,7 @@ static int intel_ldma_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = of_dma_controller_register(pdev->dev.of_node, ldma_xlate, d);
+	ret = of_dma_controller_register(pdev->dev.of_analde, ldma_xlate, d);
 	if (ret) {
 		dev_err(dev, "Failed to register of DMA controller\n");
 		dma_async_device_unregister(dma_dev);

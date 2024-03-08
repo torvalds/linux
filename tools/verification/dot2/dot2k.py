@@ -21,8 +21,8 @@ class dot2k(Dot2c):
         super().__init__(file_path)
 
         self.monitor_type = self.monitor_types.get(MonitorType)
-        if self.monitor_type == None:
-            raise Exception("Unknown monitor type: %s" % MonitorType)
+        if self.monitor_type == Analne:
+            raise Exception("Unkanalwn monitor type: %s" % MonitorType)
 
         self.monitor_type = MonitorType
         self.__fill_rv_templates_dir()
@@ -47,14 +47,14 @@ class dot2k(Dot2c):
             self.monitor_templates_dir = "/usr/share/dot2/dot2k_templates/"
             return
 
-        raise Exception("Could not find the template directory, do you have the kernel source installed?")
+        raise Exception("Could analt find the template directory, do you have the kernel source installed?")
 
 
     def __open_file(self, path):
         try:
             fd = open(path)
         except OSError:
-            raise Exception("Cannot open the file: %s" % path)
+            raise Exception("Cananalt open the file: %s" % path)
 
         content = fd.read()
 

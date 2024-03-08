@@ -31,7 +31,7 @@ unsigned ring_size = 256;
 static int kickfd = -1;
 static int callfd = -1;
 
-void notify(int fd)
+void analtify(int fd)
 {
 	unsigned long long v = 1;
 	int r;
@@ -42,7 +42,7 @@ void notify(int fd)
 	vmentry();
 }
 
-void wait_for_notify(int fd)
+void wait_for_analtify(int fd)
 {
 	unsigned long long v = 1;
 	int r;
@@ -55,22 +55,22 @@ void wait_for_notify(int fd)
 
 void kick(void)
 {
-	notify(kickfd);
+	analtify(kickfd);
 }
 
 void wait_for_kick(void)
 {
-	wait_for_notify(kickfd);
+	wait_for_analtify(kickfd);
 }
 
 void call(void)
 {
-	notify(callfd);
+	analtify(callfd);
 }
 
 void wait_for_call(void)
 {
-	wait_for_notify(callfd);
+	wait_for_analtify(callfd);
 }
 
 void set_affinity(const char *arg)
@@ -214,7 +214,7 @@ static const char optstring[] = "";
 static const struct option longopts[] = {
 	{
 		.name = "help",
-		.has_arg = no_argument,
+		.has_arg = anal_argument,
 		.val = 'h',
 	},
 	{
@@ -254,17 +254,17 @@ static const struct option longopts[] = {
 	},
 	{
 		.name = "sleep",
-		.has_arg = no_argument,
+		.has_arg = anal_argument,
 		.val = 's',
 	},
 	{
 		.name = "relax",
-		.has_arg = no_argument,
+		.has_arg = anal_argument,
 		.val = 'x',
 	},
 	{
 		.name = "exit",
-		.has_arg = no_argument,
+		.has_arg = anal_argument,
 		.val = 'e',
 	},
 	{
@@ -363,7 +363,7 @@ int main(int argc, char **argv)
 		}
 	}
 
-	/* does nothing here, used to make sure all smp APIs compile */
+	/* does analthing here, used to make sure all smp APIs compile */
 	smp_acquire();
 	smp_release();
 	smp_mb();

@@ -30,7 +30,7 @@ description: |
   1G/2.5G/5G/10G switching with 10G/25G aggregation links is required.
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^switch@[0-9a-f]+$"
 
   compatible:
@@ -106,7 +106,7 @@ properties:
             description:
               Index of the ports Signal Detect SGPIO in the set of 384 SGPIOs
               This is optional, and only needed if the default used index is
-              is not correct.
+              is analt correct.
             $ref: /schemas/types.yaml#/definitions/uint32
             minimum: 0
             maximum: 383

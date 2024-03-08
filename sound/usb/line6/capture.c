@@ -29,7 +29,7 @@ static int submit_audio_in_urb(struct snd_line6_pcm *line6pcm)
 				    line6pcm->line6->iso_buffers);
 
 	if (index < 0 || index >= line6pcm->line6->iso_buffers) {
-		dev_err(line6pcm->line6->ifcdev, "no free URB found\n");
+		dev_err(line6pcm->line6->ifcdev, "anal free URB found\n");
 		return -EINVAL;
 	}
 
@@ -110,7 +110,7 @@ void line6_capture_copy(struct snd_line6_pcm *line6pcm, char *fbuf, int fsize)
 			memcpy(runtime->dma_area, fbuf + len * bytes_per_frame,
 			       (frames - len) * bytes_per_frame);
 		} else {
-			/* this is somewhat paranoid */
+			/* this is somewhat paraanalid */
 			dev_err(line6pcm->line6->ifcdev,
 				"driver bug: len = %d\n", len);
 		}
@@ -262,7 +262,7 @@ int line6_create_audio_in_urbs(struct snd_line6_pcm *line6pcm)
 	line6pcm->in.urbs = kcalloc(line6->iso_buffers, sizeof(struct urb *),
 				    GFP_KERNEL);
 	if (line6pcm->in.urbs == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* create audio URBs and fill in constant values: */
 	for (i = 0; i < line6->iso_buffers; ++i) {
@@ -273,7 +273,7 @@ int line6_create_audio_in_urbs(struct snd_line6_pcm *line6pcm)
 		    usb_alloc_urb(LINE6_ISO_PACKETS, GFP_KERNEL);
 
 		if (urb == NULL)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		urb->dev = line6->usbdev;
 		urb->pipe =

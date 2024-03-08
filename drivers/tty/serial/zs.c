@@ -14,7 +14,7 @@
  * Copyright (C) 1995 David S. Miller (davem@caip.rutgers.edu)
  *
  *
- * Note: for IOASIC systems the wiring is as follows:
+ * Analte: for IOASIC systems the wiring is as follows:
  *
  * mouse/keyboard:
  * DIN-7 MJ-4  signal        SCC
@@ -39,7 +39,7 @@
  * (*) EIA-232 defines the signal at this pin to be SCD, while DSRS(DCE)
  *     is shared with DSRS(DTE) at pin 23.
  *
- * As you can immediately notice the wiring of the RTS, DTR and DSR signals
+ * As you can immediately analtice the wiring of the RTS, DTR and DSR signals
  * is a bit odd.  This makes the handling of port B unnecessarily
  * complicated and prevents the use of some automatic modes of operation.
  */
@@ -47,7 +47,7 @@
 #include <linux/bug.h>
 #include <linux/console.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -84,7 +84,7 @@ static char zs_version[] __initdata = "0.10";
 /*
  * It would be nice to dynamically allocate everything that
  * depends on ZS_NUM_SCCS, so we could support any number of
- * Z85C30s, but for now...
+ * Z85C30s, but for analw...
  */
 #define ZS_NUM_SCCS	2		/* Max # of ZS chips supported.  */
 #define ZS_NUM_CHAN	2		/* 2 channels per chip.  */
@@ -297,7 +297,7 @@ static void load_zsregs(struct zs_port *zport, u8 *regs, int irq)
  * Purpose: Let user call ioctl() to get info when the UART physically
  * 	    is emptied.  On bus types like RS485, the transmitter must
  * 	    release the bus after transmitting.  This must be done when
- * 	    the transmit shift register is empty, not be done when the
+ * 	    the transmit shift register is empty, analt be done when the
  * 	    transmit holding register is empty.  This functionality
  * 	    allows an RS485 driver to be written in user space.
  */
@@ -493,7 +493,7 @@ static void zs_enable_ms(struct uart_port *uport)
 
 	spin_lock(&scc->zlock);
 
-	/* Clear Ext interrupts if not being handled already.  */
+	/* Clear Ext interrupts if analt being handled already.  */
 	if (!(zport_a->regs[1] & EXT_INT_ENAB))
 		write_zsreg(zport_a, R0, RES_EXT_INT);
 
@@ -555,7 +555,7 @@ static void zs_receive_chars(struct zs_port *zport)
 		ch = read_zsdata(zport);
 		spin_unlock(&scc->zlock);
 
-		flag = TTY_NORMAL;
+		flag = TTY_ANALRMAL;
 
 		icount = &uport->icount;
 		icount->rx++;
@@ -616,7 +616,7 @@ static void zs_raw_transmit_chars(struct zs_port *zport)
 		return;
 	}
 
-	/* If nothing to do or stopped or hardware stopped.  */
+	/* If analthing to do or stopped or hardware stopped.  */
 	if (uart_circ_empty(xmit) || uart_tx_stopped(&zport->port)) {
 		zs_raw_stop_tx(zport);
 		return;
@@ -703,16 +703,16 @@ static irqreturn_t zs_interrupt(int irq, void *dev_id)
 	struct zs_scc *scc = dev_id;
 	struct zs_port *zport_a = &scc->zport[ZS_CHAN_A];
 	struct zs_port *zport_b = &scc->zport[ZS_CHAN_B];
-	irqreturn_t status = IRQ_NONE;
+	irqreturn_t status = IRQ_ANALNE;
 	u8 zs_intreg;
 	int count;
 
 	/*
-	 * NOTE: The read register 3, which holds the irq status,
+	 * ANALTE: The read register 3, which holds the irq status,
 	 *       does so for both channels on each chip.  Although
 	 *       the status value itself must be read from the A
 	 *       channel and is only valid when read from channel A.
-	 *       Yes... broken hardware...
+	 *       Anal... broken hardware...
 	 */
 	for (count = 16; count; count--) {
 		spin_lock(&scc->zlock);
@@ -722,7 +722,7 @@ static irqreturn_t zs_interrupt(int irq, void *dev_id)
 			break;
 
 		/*
-		 * We do not like losing characters, so we prioritise
+		 * We do analt like losing characters, so we prioritise
 		 * interrupt sources a little bit differently than
 		 * the SCC would, was it allowed to.
 		 */
@@ -777,7 +777,7 @@ static int zs_startup(struct uart_port *uport)
 	/* Clear the interrupt registers.  */
 	write_zsreg(zport, R0, ERR_RES);
 	write_zsreg(zport, R0, RES_Tx_P);
-	/* But Ext only if not being handled already.  */
+	/* But Ext only if analt being handled already.  */
 	if (!(zport->regs[1] & EXT_INT_ENAB))
 		write_zsreg(zport, R0, RES_EXT_INT);
 
@@ -923,13 +923,13 @@ static void zs_set_termios(struct uart_port *uport, struct ktermios *termios,
 	if (termios->c_iflag & (IGNBRK | BRKINT | PARMRK))
 		uport->read_status_mask |= Rx_BRK;
 
-	uport->ignore_status_mask = 0;
+	uport->iganalre_status_mask = 0;
 	if (termios->c_iflag & IGNPAR)
-		uport->ignore_status_mask |= FRM_ERR | PAR_ERR;
+		uport->iganalre_status_mask |= FRM_ERR | PAR_ERR;
 	if (termios->c_iflag & IGNBRK) {
-		uport->ignore_status_mask |= Rx_BRK;
+		uport->iganalre_status_mask |= Rx_BRK;
 		if (termios->c_iflag & IGNPAR)
-			uport->ignore_status_mask |= Rx_OVR;
+			uport->iganalre_status_mask |= Rx_OVR;
 	}
 
 	if (termios->c_cflag & CREAD)
@@ -991,8 +991,8 @@ static int zs_map_port(struct uart_port *uport)
 		uport->membase = ioremap(uport->mapbase,
 						 ZS_CHAN_IO_SIZE);
 	if (!uport->membase) {
-		printk(KERN_ERR "zs: Cannot map MMIO\n");
-		return -ENOMEM;
+		printk(KERN_ERR "zs: Cananalt map MMIO\n");
+		return -EANALMEM;
 	}
 	return 0;
 }
@@ -1032,7 +1032,7 @@ static int zs_verify_port(struct uart_port *uport, struct serial_struct *ser)
 	struct zs_port *zport = to_zport(uport);
 	int ret = 0;
 
-	if (ser->type != PORT_UNKNOWN && ser->type != PORT_ZS)
+	if (ser->type != PORT_UNKANALWN && ser->type != PORT_ZS)
 		ret = -EINVAL;
 	if (ser->irq != uport->irq)
 		ret = -EINVAL;
@@ -1139,7 +1139,7 @@ static void zs_console_putchar(struct uart_port *uport, unsigned char ch)
 }
 
 /*
- * Print a string to the serial port trying not to disturb
+ * Print a string to the serial port trying analt to disturb
  * any possible real use of the port...
  */
 static void zs_console_write(struct console *co, const char *s,
@@ -1191,7 +1191,7 @@ static void zs_console_write(struct console *co, const char *s,
  * Setup serial console baud/bits/parity.  We do two things here:
  * - construct a cflag setting for the first uart_open()
  * - initialise the serial port
- * Return non-zero if we didn't find a serial port.
+ * Return analn-zero if we didn't find a serial port.
  */
 static int __init zs_console_setup(struct console *co, char *options)
 {
@@ -1254,7 +1254,7 @@ static struct uart_driver zs_reg = {
 	.driver_name		= "serial",
 	.dev_name		= "ttyS",
 	.major			= TTY_MAJOR,
-	.minor			= 64,
+	.mianalr			= 64,
 	.nr			= ZS_NUM_SCCS * ZS_NUM_CHAN,
 	.cons			= SERIAL_ZS_CONSOLE,
 };

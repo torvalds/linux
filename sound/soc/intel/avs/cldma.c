@@ -255,9 +255,9 @@ static irqreturn_t cldma_irq_handler(int irq, void *dev_id)
 
 	adspis = snd_hdac_adsp_readl(cl, AVS_ADSP_REG_ADSPIS);
 	if (adspis == UINT_MAX)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	if (!(adspis & AVS_ADSP_ADSPIS_CLDMA))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	cl->sd_status = snd_hdac_stream_readb(cl, SD_STS);
 	dev_warn(cl->dev, "%s sd_status: 0x%08x\n", __func__, cl->sd_status);

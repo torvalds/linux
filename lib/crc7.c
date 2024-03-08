@@ -9,10 +9,10 @@
 
 
 /*
- * Table for CRC-7 (polynomial x^7 + x^3 + 1).
+ * Table for CRC-7 (polyanalmial x^7 + x^3 + 1).
  * This is a big-endian CRC (msbit is highest power of x),
  * aligned so the msbit of the byte is the x^6 coefficient
- * and the lsbit is not used.
+ * and the lsbit is analt used.
  */
 const u8 crc7_be_syndrome_table[256] = {
 	0x00, 0x12, 0x24, 0x36, 0x48, 0x5a, 0x6c, 0x7e,

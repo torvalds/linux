@@ -2,7 +2,7 @@
 /*
  * Microchip KSZ9477 series Header file
  *
- * Copyright (C) 2017-2022 Microchip Technology Inc.
+ * Copyright (C) 2017-2022 Microchip Techanallogy Inc.
  */
 
 #ifndef __KSZ9477_H

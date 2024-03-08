@@ -5,9 +5,9 @@
  *  Copyright (c) 2022 Chris Morgan <macromorgan@hotmail.com>
  *
  *  This code is based on hynitron_core.c authored by Hynitron.
- *  Note that no datasheet was available, so much of these registers
+ *  Analte that anal datasheet was available, so much of these registers
  *  are undocumented. This is essentially a cleaned-up version of the
- *  vendor driver with support removed for hardware I cannot test and
+ *  vendor driver with support removed for hardware I cananalt test and
  *  device-specific functions replated with generic functions wherever
  *  possible.
  */
@@ -34,7 +34,7 @@ struct hynitron_ts_chip_data {
 	void (*report_touch)(struct i2c_client *client);
 };
 
-/* Data generic to all (supported and non-supported) controllers. */
+/* Data generic to all (supported and analn-supported) controllers. */
 struct hynitron_ts_data {
 	const struct hynitron_ts_chip_data *chip;
 	struct i2c_client *client;
@@ -44,7 +44,7 @@ struct hynitron_ts_data {
 };
 
 /*
- * Since I have no datasheet, these values are guessed and/or assumed
+ * Since I have anal datasheet, these values are guessed and/or assumed
  * based on observation and testing.
  */
 #define CST3XX_FIRMWARE_INFO_START_CMD		0x01d1
@@ -66,7 +66,7 @@ struct hynitron_ts_data {
 
 
 /*
- * Hard coded reset delay value of 20ms not IC dependent in
+ * Hard coded reset delay value of 20ms analt IC dependent in
  * vendor driver.
  */
 static void hyn_reset_proc(struct i2c_client *client, int delay)
@@ -176,7 +176,7 @@ static int cst3xx_firmware_info(struct i2c_client *client)
 	if ((tmp & 0xffff0000) != ts_data->chip->ic_chkcode) {
 		dev_err(&client->dev, "%s ic mismatch, chkcode is %u\n",
 			__func__, tmp);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	usleep_range(10000, 11000);
@@ -190,7 +190,7 @@ static int cst3xx_firmware_info(struct i2c_client *client)
 	tmp = get_unaligned_le32(buf);
 	if (tmp == CST3XX_FIRMWARE_VER_INVALID_VAL) {
 		dev_err(&client->dev, "Device firmware missing\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/*
@@ -238,7 +238,7 @@ static int cst3xx_bootloader_enter(struct i2c_client *client)
 	if (tmp != CST3XX_BOOTLDR_CHK_VAL) {
 		dev_err(&client->dev, "%s unable to enter bootloader mode\n",
 			__func__);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	hyn_reset_proc(client, 40);
@@ -272,10 +272,10 @@ static int cst3xx_finish_touch_read(struct i2c_client *client)
 }
 
 /*
- * Handle events from IRQ. Note that for cst3xx it appears that IRQ
+ * Handle events from IRQ. Analte that for cst3xx it appears that IRQ
  * fires continuously while touched, otherwise once every 1500ms
- * when not touched (assume touchscreen waking up periodically).
- * Note buffer is sized for 5 fingers, if more needed buffer must
+ * when analt touched (assume touchscreen waking up periodically).
+ * Analte buffer is sized for 5 fingers, if more needed buffer must
  * be increased. The buffer contains 5 bytes for each touch point,
  * a touch count byte, a check byte, and then a second check byte after
  * all other touch points.
@@ -340,7 +340,7 @@ static void cst3xx_touch_report(struct i2c_client *client)
 			break;
 		}
 
-		/* sw value of 0 means no touch, 0x03 means touch */
+		/* sw value of 0 means anal touch, 0x03 means touch */
 		if (sw == CST3XX_TOUCH_DATA_TOUCH_VAL)
 			cst3xx_report_contact(ts_data, finger_id, x, y, w);
 
@@ -363,7 +363,7 @@ static int cst3xx_input_dev_int(struct i2c_client *client)
 	ts_data->input_dev = devm_input_allocate_device(&client->dev);
 	if (!ts_data->input_dev) {
 		dev_err(&client->dev, "Failed to allocate input device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ts_data->input_dev->name = "Hynitron cst3xx Touchscreen";
@@ -417,7 +417,7 @@ static int hyn_probe(struct i2c_client *client)
 
 	ts_data = devm_kzalloc(&client->dev, sizeof(*ts_data), GFP_KERNEL);
 	if (!ts_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ts_data->client = client;
 	i2c_set_clientdata(client, ts_data);
@@ -485,7 +485,7 @@ static struct i2c_driver hynitron_i2c_driver = {
 	.driver = {
 		.name = "Hynitron-TS",
 		.of_match_table = hyn_dt_match,
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 	.id_table = hyn_tpd_id,
 	.probe = hyn_probe,

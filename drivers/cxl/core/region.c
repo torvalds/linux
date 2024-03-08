@@ -276,7 +276,7 @@ static ssize_t commit_store(struct device *dev, struct device_attribute *attr,
 	if (!commit && p->state < CXL_CONFIG_COMMIT)
 		goto out;
 
-	/* Not ready to commit? */
+	/* Analt ready to commit? */
 	if (commit && p->state < CXL_CONFIG_ACTIVE) {
 		rc = -ENXIO;
 		goto out;
@@ -529,7 +529,7 @@ static int alloc_hpa(struct cxl_region *cxlr, resource_size_t size)
 
 	lockdep_assert_held_write(&cxl_region_rwsem);
 
-	/* Nothing to do... */
+	/* Analthing to do... */
 	if (p->res && resource_size(p->res) == size)
 		return 0;
 
@@ -572,7 +572,7 @@ static void cxl_region_iomem_release(struct cxl_region *cxlr)
 		lockdep_assert_held_write(&cxl_region_rwsem);
 	if (p->res) {
 		/*
-		 * Autodiscovered regions may not have been able to insert their
+		 * Autodiscovered regions may analt have been able to insert their
 		 * resource.
 		 */
 		if (p->res->parent)
@@ -751,7 +751,7 @@ cxl_region_find_decoder(struct cxl_port *port,
 	/*
 	 * This decoder is pinned registered as long as the endpoint decoder is
 	 * registered, and endpoint decoder unregistration holds the
-	 * cxl_region_rwsem over unregister events, so no need to hold on to
+	 * cxl_region_rwsem over unregister events, so anal need to hold on to
 	 * this extra reference.
 	 */
 	put_device(dev);
@@ -811,7 +811,7 @@ alloc_region_ref(struct cxl_port *port, struct cxl_region *cxlr,
 
 	cxl_rr = kzalloc(sizeof(*cxl_rr), GFP_KERNEL);
 	if (!cxl_rr)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	cxl_rr->port = port;
 	cxl_rr->region = cxlr;
 	cxl_rr->nr_targets = 1;
@@ -888,7 +888,7 @@ static int cxl_rr_alloc_decoder(struct cxl_port *port, struct cxl_region *cxlr,
 
 	cxld = cxl_region_find_decoder(port, cxled, cxlr);
 	if (!cxld) {
-		dev_dbg(&cxlr->dev, "%s: no decoder available\n",
+		dev_dbg(&cxlr->dev, "%s: anal decoder available\n",
 			dev_name(&port->dev));
 		return -EBUSY;
 	}
@@ -929,9 +929,9 @@ static int cxl_rr_alloc_decoder(struct cxl_port *port, struct cxl_region *cxlr,
  *
  * The steps are:
  *
- * - validate that there are no other regions with a higher HPA already
+ * - validate that there are anal other regions with a higher HPA already
  *   associated with @port
- * - establish a region reference if one is not already present
+ * - establish a region reference if one is analt already present
  *
  *   - additionally allocate a decoder instance that will host @cxlr on
  *     @port
@@ -1014,7 +1014,7 @@ static int cxl_port_attach_region(struct cxl_port *port,
 		dev_name(&cxled->cxld.dev), pos,
 		ep ? ep->next ? dev_name(ep->next->uport_dev) :
 				      dev_name(&cxlmd->dev) :
-			   "none",
+			   "analne",
 		cxl_rr->nr_eps, cxl_rr->nr_targets);
 
 	return 0;
@@ -1040,7 +1040,7 @@ static void cxl_port_detach_region(struct cxl_port *port,
 		return;
 
 	/*
-	 * Endpoint ports do not carry cxl_ep references, and they
+	 * Endpoint ports do analt carry cxl_ep references, and they
 	 * never target more than one endpoint by definition
 	 */
 	if (cxl_rr->decoder == &cxled->cxld)
@@ -1086,7 +1086,7 @@ static int check_last_peer(struct cxl_endpoint_decoder *cxled,
 	 * mapped by this dport.
 	 */
 	if (pos < distance) {
-		dev_dbg(&cxlr->dev, "%s:%s: cannot host %s:%s at %d\n",
+		dev_dbg(&cxlr->dev, "%s:%s: cananalt host %s:%s at %d\n",
 			dev_name(port->uport_dev), dev_name(&port->dev),
 			dev_name(&cxlmd->dev), dev_name(&cxled->cxld.dev), pos);
 		return -ENXIO;
@@ -1139,7 +1139,7 @@ static int cxl_port_setup_targets(struct cxl_port *port,
 		int i, distance;
 
 		/*
-		 * Passthrough decoders impose no distance requirements between
+		 * Passthrough decoders impose anal distance requirements between
 		 * peers
 		 */
 		if (cxl_rr->nr_targets == 1)
@@ -1162,7 +1162,7 @@ static int cxl_port_setup_targets(struct cxl_port *port,
 		 * Root decoder IG is always set to value in CFMWS which
 		 * may be different than this region's IG.  We can use the
 		 * region's IG here since interleave_granularity_store()
-		 * does not allow interleaved host-bridges with
+		 * does analt allow interleaved host-bridges with
 		 * root IG != region IG.
 		 */
 		parent_ig = p->interleave_granularity;
@@ -1303,7 +1303,7 @@ static void cxl_port_reset_targets(struct cxl_port *port,
 	struct cxl_decoder *cxld;
 
 	/*
-	 * After the last endpoint has been detached the entire cxl_rr may now
+	 * After the last endpoint has been detached the entire cxl_rr may analw
 	 * be gone.
 	 */
 	if (!cxl_rr)
@@ -1495,19 +1495,19 @@ static int cxl_region_attach_auto(struct cxl_region *cxlr,
 	}
 
 	if (pos >= 0) {
-		dev_dbg(&cxlr->dev, "%s: expected auto position, not %d\n",
+		dev_dbg(&cxlr->dev, "%s: expected auto position, analt %d\n",
 			dev_name(&cxled->cxld.dev), pos);
 		return -EINVAL;
 	}
 
 	if (p->nr_targets >= p->interleave_ways) {
-		dev_err(&cxlr->dev, "%s: no more target slots available\n",
+		dev_err(&cxlr->dev, "%s: anal more target slots available\n",
 			dev_name(&cxled->cxld.dev));
 		return -ENXIO;
 	}
 
 	/*
-	 * Temporarily record the endpoint decoder into the target array. Yes,
+	 * Temporarily record the endpoint decoder into the target array. Anal,
 	 * this means that userspace can view devices in the wrong position
 	 * before the region activates, and must be careful to understand when
 	 * it might be racing region autodiscovery.
@@ -1634,7 +1634,7 @@ static int cxl_calc_interleave_pos(struct cxl_endpoint_decoder *cxled)
 	 *       pos = 1 * 2 + 0          pos = 1 * 2 + 1
 	 *       pos: 2                   pos = 3
 	 *
-	 * Note that while this example is simple, the method applies to more
+	 * Analte that while this example is simple, the method applies to more
 	 * complex topologies, including those with switches.
 	 */
 
@@ -1701,10 +1701,10 @@ static int cxl_region_attach(struct cxl_region *cxlr,
 
 	if (cxled->mode == CXL_DECODER_DEAD) {
 		dev_dbg(&cxlr->dev, "%s dead\n", dev_name(&cxled->cxld.dev));
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
-	/* all full of members, or interleave config not established? */
+	/* all full of members, or interleave config analt established? */
 	if (p->state > CXL_CONFIG_INTERLEAVE_ACTIVE) {
 		dev_dbg(&cxlr->dev, "region already active\n");
 		return -EBUSY;
@@ -1896,7 +1896,7 @@ static int cxl_region_detach(struct cxl_endpoint_decoder *cxled)
 		.end = -1,
 	};
 
-	/* notify the region driver that one of its targets has departed */
+	/* analtify the region driver that one of its targets has departed */
 	up_write(&cxl_region_rwsem);
 	device_release_driver(&cxlr->dev);
 	down_write(&cxl_region_rwsem);
@@ -1972,7 +1972,7 @@ static size_t store_targetN(struct cxl_region *cxlr, const char *buf, int pos,
 
 		dev = bus_find_device_by_name(&cxl_bus_type, NULL, buf);
 		if (!dev)
-			return -ENODEV;
+			return -EANALDEV;
 
 		if (!is_endpoint_decoder(dev)) {
 			rc = -EINVAL;
@@ -2108,7 +2108,7 @@ EXPORT_SYMBOL_NS_GPL(is_cxl_region, CXL);
 static struct cxl_region *to_cxl_region(struct device *dev)
 {
 	if (dev_WARN_ONCE(dev, dev->type != &cxl_region_type,
-			  "not a cxl_region device\n"))
+			  "analt a cxl_region device\n"))
 		return NULL;
 
 	return container_of(dev, struct cxl_region, dev);
@@ -2123,8 +2123,8 @@ static void unregister_region(void *_cxlr)
 	device_del(&cxlr->dev);
 
 	/*
-	 * Now that region sysfs is shutdown, the parameter block is now
-	 * read-only, so no need to hold the region rwsem to access the
+	 * Analw that region sysfs is shutdown, the parameter block is analw
+	 * read-only, so anal need to hold the region rwsem to access the
 	 * region parameters.
 	 */
 	for (i = 0; i < p->interleave_ways; i++)
@@ -2144,7 +2144,7 @@ static struct cxl_region *cxl_region_alloc(struct cxl_root_decoder *cxlrd, int i
 	cxlr = kzalloc(sizeof(*cxlr), GFP_KERNEL);
 	if (!cxlr) {
 		memregion_free(id);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	dev = &cxlr->dev;
@@ -2156,7 +2156,7 @@ static struct cxl_region *cxl_region_alloc(struct cxl_root_decoder *cxlrd, int i
 	 * region id allocations
 	 */
 	get_device(dev->parent);
-	device_set_pm_not_required(dev);
+	device_set_pm_analt_required(dev);
 	dev->bus = &cxl_bus_type;
 	dev->type = &cxl_region_type;
 	cxlr->id = id;
@@ -2326,7 +2326,7 @@ cxl_find_region_by_name(struct cxl_root_decoder *cxlrd, const char *name)
 
 	region_dev = device_find_child_by_name(&cxld->dev, name);
 	if (!region_dev)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	return to_cxl_region(region_dev);
 }
@@ -2384,7 +2384,7 @@ EXPORT_SYMBOL_NS_GPL(is_cxl_pmem_region, CXL);
 struct cxl_pmem_region *to_cxl_pmem_region(struct device *dev)
 {
 	if (dev_WARN_ONCE(dev, !is_cxl_pmem_region(dev),
-			  "not a cxl_pmem_region device\n"))
+			  "analt a cxl_pmem_region device\n"))
 		return NULL;
 	return container_of(dev, struct cxl_pmem_region, dev);
 }
@@ -2407,7 +2407,7 @@ static int cxl_get_poison_unmapped(struct cxl_memdev *cxlmd,
 	 * Collect poison for the remaining unmapped resources
 	 * after poison is collected by committed endpoints.
 	 *
-	 * Knowing that PMEM must always follow RAM, get poison
+	 * Kanalwing that PMEM must always follow RAM, get poison
 	 * for unmapped resources based on the last decoder's mode:
 	 *	ram: scan remains of ram range, then any pmem range
 	 *	pmem: scan remains of pmem range
@@ -2454,7 +2454,7 @@ static int poison_by_decoder(struct device *dev, void *arg)
 
 	/*
 	 * Regions are only created with single mode decoders: pmem or ram.
-	 * Linux does not support mixed mode decoders. This means that
+	 * Linux does analt support mixed mode decoders. This means that
 	 * reading poison per endpoint decoder adheres to the requirement
 	 * that poison reads of pmem and ram must be separated.
 	 * CXL 3.0 Spec 8.2.9.8.4.1
@@ -2529,7 +2529,7 @@ static struct cxl_pmem_region *cxl_pmem_region_alloc(struct cxl_region *cxlr)
 	cxlr_pmem = kzalloc(struct_size(cxlr_pmem, mapping, p->nr_targets),
 			    GFP_KERNEL);
 	if (!cxlr_pmem) {
-		cxlr_pmem = ERR_PTR(-ENOMEM);
+		cxlr_pmem = ERR_PTR(-EANALMEM);
 		goto out;
 	}
 
@@ -2550,7 +2550,7 @@ static struct cxl_pmem_region *cxl_pmem_region_alloc(struct cxl_region *cxlr)
 		if (i == 0) {
 			cxl_nvb = cxl_find_nvdimm_bridge(cxlmd);
 			if (!cxl_nvb) {
-				cxlr_pmem = ERR_PTR(-ENODEV);
+				cxlr_pmem = ERR_PTR(-EANALDEV);
 				goto out;
 			}
 			cxlr->cxl_nvb = cxl_nvb;
@@ -2567,7 +2567,7 @@ static struct cxl_pmem_region *cxl_pmem_region_alloc(struct cxl_region *cxlr)
 	cxlr->cxlr_pmem = cxlr_pmem;
 	device_initialize(dev);
 	lockdep_set_class(&dev->mutex, &cxl_pmem_region_key);
-	device_set_pm_not_required(dev);
+	device_set_pm_analt_required(dev);
 	dev->parent = &cxlr->dev;
 	dev->bus = &cxl_bus_type;
 	dev->type = &cxl_pmem_region_type;
@@ -2603,7 +2603,7 @@ static bool is_cxl_dax_region(struct device *dev)
 struct cxl_dax_region *to_cxl_dax_region(struct device *dev)
 {
 	if (dev_WARN_ONCE(dev, !is_cxl_dax_region(dev),
-			  "not a cxl_dax_region device\n"))
+			  "analt a cxl_dax_region device\n"))
 		return NULL;
 	return container_of(dev, struct cxl_dax_region, dev);
 }
@@ -2625,7 +2625,7 @@ static struct cxl_dax_region *cxl_dax_region_alloc(struct cxl_region *cxlr)
 
 	cxlr_dax = kzalloc(sizeof(*cxlr_dax), GFP_KERNEL);
 	if (!cxlr_dax) {
-		cxlr_dax = ERR_PTR(-ENOMEM);
+		cxlr_dax = ERR_PTR(-EANALMEM);
 		goto out;
 	}
 
@@ -2636,7 +2636,7 @@ static struct cxl_dax_region *cxl_dax_region_alloc(struct cxl_region *cxlr)
 	cxlr_dax->cxlr = cxlr;
 	device_initialize(dev);
 	lockdep_set_class(&dev->mutex, &cxl_dax_region_key);
-	device_set_pm_not_required(dev);
+	device_set_pm_analt_required(dev);
 	dev->parent = &cxlr->dev;
 	dev->bus = &cxl_bus_type;
 	dev->type = &cxl_dax_region_type;
@@ -2840,7 +2840,7 @@ static struct cxl_region *construct_region(struct cxl_root_decoder *cxlrd,
 
 	res = kmalloc(sizeof(*res), GFP_KERNEL);
 	if (!res) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err;
 	}
 
@@ -2849,11 +2849,11 @@ static struct cxl_region *construct_region(struct cxl_root_decoder *cxlrd,
 	rc = insert_resource(cxlrd->res, res);
 	if (rc) {
 		/*
-		 * Platform-firmware may not have split resources like "System
+		 * Platform-firmware may analt have split resources like "System
 		 * RAM" on CXL window boundaries see cxl_region_iomem_release()
 		 */
 		dev_warn(cxlmd->dev.parent,
-			 "%s:%s: %s %s cannot insert resource\n",
+			 "%s:%s: %s %s cananalt insert resource\n",
 			 dev_name(&cxlmd->dev), dev_name(&cxled->cxld.dev),
 			 __func__, dev_name(&cxlr->dev));
 	}
@@ -2900,7 +2900,7 @@ int cxl_add_to_region(struct cxl_port *root, struct cxl_endpoint_decoder *cxled)
 				      match_root_decoder_by_range);
 	if (!cxlrd_dev) {
 		dev_err(cxlmd->dev.parent,
-			"%s:%s no CXL window for range %#llx:%#llx\n",
+			"%s:%s anal CXL window for range %#llx:%#llx\n",
 			dev_name(&cxlmd->dev), dev_name(&cxld->dev),
 			cxld->hpa_range.start, cxld->hpa_range.end);
 		return -ENXIO;
@@ -3000,10 +3000,10 @@ out:
 		return devm_cxl_add_pmem_region(cxlr);
 	case CXL_DECODER_RAM:
 		/*
-		 * The region can not be manged by CXL if any portion of
+		 * The region can analt be manged by CXL if any portion of
 		 * it is already online as 'System RAM'
 		 */
-		if (walk_iomem_res_desc(IORES_DESC_NONE,
+		if (walk_iomem_res_desc(IORES_DESC_ANALNE,
 					IORESOURCE_SYSTEM_RAM | IORESOURCE_BUSY,
 					p->res->start, p->res->end, cxlr,
 					is_system_ram) > 0)

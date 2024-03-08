@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-3-Clause-Clear */
 /*
  * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #ifndef ATH11K_CE_H
@@ -12,7 +12,7 @@
 /* Byte swap data words */
 #define CE_ATTR_BYTE_SWAP_DATA 2
 
-/* no interrupt on copy completion */
+/* anal interrupt on copy completion */
 #define CE_ATTR_DIS_INTR		8
 
 /* Host software's Copy Engine configuration. */
@@ -39,11 +39,11 @@ void ath11k_ce_byte_swap(void *mem, u32 len);
  * Target since things that are "PIPEDIR_OUT" are coming IN to the Target
  * over the interconnect.
  */
-#define PIPEDIR_NONE		0
+#define PIPEDIR_ANALNE		0
 #define PIPEDIR_IN		1 /* Target-->Host, WiFi Rx direction */
 #define PIPEDIR_OUT		2 /* Host->Target, WiFi Tx direction */
-#define PIPEDIR_INOUT		3 /* bidirectional */
-#define PIPEDIR_INOUT_H2H	4 /* bidirectional, host to host */
+#define PIPEDIR_IANALUT		3 /* bidirectional */
+#define PIPEDIR_IANALUT_H2H	4 /* bidirectional, host to host */
 
 /* CE address/mask */
 #define CE_HOST_IE_ADDRESS	0x00A1803C
@@ -79,7 +79,7 @@ struct service_to_pipe {
  * Configuration information for a Copy Engine pipe.
  * Passed from Host to Target through QMI message during startup (one per CE).
  *
- * NOTE: Structure is shared between Host software and Target firmware!
+ * ANALTE: Structure is shared between Host software and Target firmware!
  */
 struct ce_pipe_config {
 	__le32 pipenum;

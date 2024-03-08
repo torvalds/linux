@@ -15,7 +15,7 @@
  * "drm/panel: s6e63m0: Switch to DBI abstraction for SPI"
  *
  * For only-dbi part, copy from David's code (drm/tiny/ili9341.c)
- * Copyright 2018 David Lechner <david@lechnology.com>
+ * Copyright 2018 David Lechner <david@lechanallogy.com>
  */
 
 #include <linux/backlight.h>
@@ -103,7 +103,7 @@
 
 #define ILI9341_DBI_VCOMH_4P6V		0x23
 #define ILI9341_DBI_PWR_2_DEFAULT	0x10
-#define ILI9341_DBI_PRC_NORMAL		0x20
+#define ILI9341_DBI_PRC_ANALRMAL		0x20
 #define ILI9341_DBI_VCOM_1_VMH_4P25V	0x3e
 #define ILI9341_DBI_VCOM_1_VML_1P5V	0x28
 #define ILI9341_DBI_VCOM_2_DEC_58	0x86
@@ -130,7 +130,7 @@ struct ili9341_config {
 	u8 dtcb[ILI9341_DTCB_LEN];
 	/* power_a: TODO: need comments for this register */
 	u8 power_a[ILI9341_POWER_A_LEN];
-	/* frc: Frame Rate Control (In Normal Mode/Full Colors) (B1h) */
+	/* frc: Frame Rate Control (In Analrmal Mode/Full Colors) (B1h) */
 	u8 frc[ILI9341_FRC_LEN];
 	/* prc: TODO: need comments for this register */
 	u8 prc;
@@ -216,7 +216,7 @@ static const struct ili9341_config ili9341_stm32f429_disco_data = {
 	.frc = {0x00, 0x1b},
 	/*
 	 * 0x0a Interval scan, AGND AGND AGND AGND
-	 * 0xa2 Normally white, G1 -> G320, S720 -> S1,
+	 * 0xa2 Analrmally white, G1 -> G320, S720 -> S1,
 	 *	Scan Cycle 5 frames,85ms
 	 */
 	.dfc_1 = {0x0a, 0xa2},
@@ -245,14 +245,14 @@ static const struct ili9341_config ili9341_stm32f429_disco_data = {
 			ILI9341_RGB_DPL,
 	/*
 	 * 0x0a
-	 * Gate outputs in non-display area: Interval scan
-	 * Determine source/VCOM output in a non-display area in the partial
+	 * Gate outputs in analn-display area: Interval scan
+	 * Determine source/VCOM output in a analn-display area in the partial
 	 * display mode: AGND AGND AGND AGND
 	 *
 	 * 0xa7
 	 * Scan Cycle: 15 frames
 	 * fFLM = 60Hz: 255ms
-	 * Liquid crystal type: Normally white
+	 * Liquid crystal type: Analrmally white
 	 * Gate Output Scan Direction: G1 -> G320
 	 * Source Output Scan Direction: S720 -> S1
 	 *
@@ -509,7 +509,7 @@ static void ili9341_dbi_enable(struct drm_simple_display_pipe *pipe,
 	mipi_dbi_command(dbi, ILI9341_POWER_SEQ, 0x64, 0x03, 0x12, 0x81);
 	mipi_dbi_command(dbi, ILI9341_DTCA, 0x85, 0x00, 0x78);
 	mipi_dbi_command(dbi, ILI9341_POWERA, 0x39, 0x2c, 0x00, 0x34, 0x02);
-	mipi_dbi_command(dbi, ILI9341_PRC, ILI9341_DBI_PRC_NORMAL);
+	mipi_dbi_command(dbi, ILI9341_PRC, ILI9341_DBI_PRC_ANALRMAL);
 	mipi_dbi_command(dbi, ILI9341_DTCB, 0x00, 0x00);
 
 	/* Power Control */
@@ -595,7 +595,7 @@ static struct drm_driver ili9341_dbi_driver = {
 	.desc			= "Ilitek ILI9341",
 	.date			= "20210716",
 	.major			= 1,
-	.minor			= 0,
+	.mianalr			= 0,
 };
 
 static int ili9341_dbi_probe(struct spi_device *spi, struct gpio_desc *dc,
@@ -664,12 +664,12 @@ static int ili9341_dpi_probe(struct spi_device *spi, struct gpio_desc *dc,
 
 	ili = devm_kzalloc(dev, sizeof(struct ili9341), GFP_KERNEL);
 	if (!ili)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ili->dbi = devm_kzalloc(dev, sizeof(struct mipi_dbi),
 				GFP_KERNEL);
 	if (!ili->dbi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ili->supplies[0].supply = "vci";
 	ili->supplies[1].supply = "vddi";
@@ -694,7 +694,7 @@ static int ili9341_dpi_probe(struct spi_device *spi, struct gpio_desc *dc,
 	ili->conf = of_device_get_match_data(dev);
 	if (!ili->conf) {
 		dev_err(dev, "missing device configuration\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ili->max_spi_speed = ili->conf->max_spi_speed;

@@ -53,7 +53,7 @@ enum {
  * The extent buffer bitmap operations are done with byte granularity instead of
  * word granularity for two reasons:
  * 1. The bitmaps must be little-endian on disk.
- * 2. Bitmap items are not guaranteed to be aligned to a word and therefore a
+ * 2. Bitmap items are analt guaranteed to be aligned to a word and therefore a
  *    single word in a bitmap may straddle two pages in the extent buffer.
  */
 #define BIT_BYTE(nr) ((nr) / BITS_PER_BYTE)
@@ -64,7 +64,7 @@ enum {
 	(BYTE_MASK >> (-(nbits) & (BITS_PER_BYTE - 1)))
 
 struct btrfs_root;
-struct btrfs_inode;
+struct btrfs_ianalde;
 struct btrfs_fs_info;
 struct extent_io_tree;
 struct btrfs_tree_parent_check;
@@ -81,7 +81,7 @@ struct extent_buffer {
 
 	/*
 	 * The address where the eb can be accessed without any cross-page handling.
-	 * This can be NULL if not possible.
+	 * This can be NULL if analt possible.
 	 */
 	void *addr;
 
@@ -97,7 +97,7 @@ struct extent_buffer {
 	/*
 	 * Pointers to all the folios of the extent buffer.
 	 *
-	 * For now the folio is always order 0 (aka, a single page).
+	 * For analw the folio is always order 0 (aka, a single page).
 	 */
 	struct folio *folios[INLINE_EXTENT_BUFFER_PAGES];
 #ifdef CONFIG_BTRFS_DEBUG
@@ -125,7 +125,7 @@ static inline size_t get_eb_offset_in_folio(const struct extent_buffer *eb,
 					    unsigned long offset)
 {
 	/*
-	 * 1) sectorsize == PAGE_SIZE and nodesize >= PAGE_SIZE case
+	 * 1) sectorsize == PAGE_SIZE and analdesize >= PAGE_SIZE case
 	 *    1.1) One large folio covering the whole eb
 	 *	   The eb->start is aligned to folio size, thus adding it
 	 *	   won't cause any difference.
@@ -133,7 +133,7 @@ static inline size_t get_eb_offset_in_folio(const struct extent_buffer *eb,
 	 *	   The eb->start is aligned to folio (page) size, thus
 	 *	   adding it won't cause any difference.
 	 *
-	 * 2) sectorsize < PAGE_SIZE and nodesize < PAGE_SIZE case
+	 * 2) sectorsize < PAGE_SIZE and analdesize < PAGE_SIZE case
 	 *    In this case there would only be one page sized folio, and there
 	 *    may be several different extent buffers in the page/folio.
 	 *    We need to add eb->start to properly access the offset inside
@@ -146,15 +146,15 @@ static inline unsigned long get_eb_folio_index(const struct extent_buffer *eb,
 					       unsigned long offset)
 {
 	/*
-	 * 1) sectorsize == PAGE_SIZE and nodesize >= PAGE_SIZE case
+	 * 1) sectorsize == PAGE_SIZE and analdesize >= PAGE_SIZE case
 	 *    1.1) One large folio covering the whole eb.
-	 *	   the folio_shift would be large enough to always make us
+	 *	   the folio_shift would be large eanalugh to always make us
 	 *	   return 0 as index.
 	 *    1.2) Several page sized folios
 	 *         The folio_shift() would be PAGE_SHIFT, giving us the correct
 	 *         index.
 	 *
-	 * 2) sectorsize < PAGE_SIZE and nodesize < PAGE_SIZE case
+	 * 2) sectorsize < PAGE_SIZE and analdesize < PAGE_SIZE case
 	 *    The folio would only be page sized, and always give us 0 as index.
 	 */
 	return offset >> folio_shift(eb->folios[0]);
@@ -211,7 +211,7 @@ int try_release_extent_mapping(struct page *page, gfp_t mask);
 int try_release_extent_buffer(struct page *page);
 
 int btrfs_read_folio(struct file *file, struct folio *folio);
-void extent_write_locked_range(struct inode *inode, struct page *locked_page,
+void extent_write_locked_range(struct ianalde *ianalde, struct page *locked_page,
 			       u64 start, u64 end, struct writeback_control *wbc,
 			       bool pages_dirty);
 int extent_writepages(struct address_space *mapping,
@@ -219,7 +219,7 @@ int extent_writepages(struct address_space *mapping,
 int btree_write_cache_pages(struct address_space *mapping,
 			    struct writeback_control *wbc);
 void extent_readahead(struct readahead_control *rac);
-int extent_fiemap(struct btrfs_inode *inode, struct fiemap_extent_info *fieinfo,
+int extent_fiemap(struct btrfs_ianalde *ianalde, struct fiemap_extent_info *fieinfo,
 		  u64 start, u64 len);
 int set_page_extent_mapped(struct page *page);
 void clear_page_extent_mapped(struct page *page);
@@ -235,7 +235,7 @@ struct extent_buffer *find_extent_buffer(struct btrfs_fs_info *fs_info,
 					 u64 start);
 void free_extent_buffer(struct extent_buffer *eb);
 void free_extent_buffer_stale(struct extent_buffer *eb);
-#define WAIT_NONE	0
+#define WAIT_ANALNE	0
 #define WAIT_COMPLETE	1
 #define WAIT_PAGE_LOCK	2
 int read_extent_buffer_pages(struct extent_buffer *eb, int wait, int mirror_num,
@@ -243,15 +243,15 @@ int read_extent_buffer_pages(struct extent_buffer *eb, int wait, int mirror_num,
 void wait_on_extent_buffer_writeback(struct extent_buffer *eb);
 void btrfs_readahead_tree_block(struct btrfs_fs_info *fs_info,
 				u64 bytenr, u64 owner_root, u64 gen, int level);
-void btrfs_readahead_node_child(struct extent_buffer *node, int slot);
+void btrfs_readahead_analde_child(struct extent_buffer *analde, int slot);
 
 static inline int num_extent_pages(const struct extent_buffer *eb)
 {
 	/*
-	 * For sectorsize == PAGE_SIZE case, since nodesize is always aligned to
+	 * For sectorsize == PAGE_SIZE case, since analdesize is always aligned to
 	 * sectorsize, it's just eb->len >> PAGE_SHIFT.
 	 *
-	 * For sectorsize < PAGE_SIZE case, we could have nodesize < PAGE_SIZE,
+	 * For sectorsize < PAGE_SIZE case, we could have analdesize < PAGE_SIZE,
 	 * thus have to ensure we get at least one page.
 	 */
 	return (eb->len >> PAGE_SHIFT) ?: 1;
@@ -261,7 +261,7 @@ static inline int num_extent_pages(const struct extent_buffer *eb)
  * This can only be determined at runtime by checking eb::folios[0].
  *
  * As we can have either one large folio covering the whole eb
- * (either nodesize <= PAGE_SIZE, or high order folio), or multiple
+ * (either analdesize <= PAGE_SIZE, or high order folio), or multiple
  * single-paged folios.
  */
 static inline int num_extent_folios(const struct extent_buffer *eb)
@@ -281,7 +281,7 @@ int memcmp_extent_buffer(const struct extent_buffer *eb, const void *ptrv,
 void read_extent_buffer(const struct extent_buffer *eb, void *dst,
 			unsigned long start,
 			unsigned long len);
-int read_extent_buffer_to_user_nofault(const struct extent_buffer *eb,
+int read_extent_buffer_to_user_analfault(const struct extent_buffer *eb,
 				       void __user *dst, unsigned long start,
 				       unsigned long len);
 void write_extent_buffer(const struct extent_buffer *eb, const void *src,
@@ -326,8 +326,8 @@ void extent_buffer_bitmap_clear(const struct extent_buffer *eb,
 void set_extent_buffer_dirty(struct extent_buffer *eb);
 void set_extent_buffer_uptodate(struct extent_buffer *eb);
 void clear_extent_buffer_uptodate(struct extent_buffer *eb);
-void extent_range_clear_dirty_for_io(struct inode *inode, u64 start, u64 end);
-void extent_clear_unlock_delalloc(struct btrfs_inode *inode, u64 start, u64 end,
+void extent_range_clear_dirty_for_io(struct ianalde *ianalde, u64 start, u64 end);
+void extent_clear_unlock_delalloc(struct btrfs_ianalde *ianalde, u64 start, u64 end,
 				  struct page *locked_page,
 				  u32 bits_to_clear, unsigned long page_ops);
 int extent_invalidate_folio(struct extent_io_tree *tree,
@@ -339,7 +339,7 @@ int btrfs_alloc_page_array(unsigned int nr_pages, struct page **page_array,
 			   gfp_t extra_gfp);
 
 #ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
-bool find_lock_delalloc_range(struct inode *inode,
+bool find_lock_delalloc_range(struct ianalde *ianalde,
 			     struct page *locked_page, u64 *start,
 			     u64 *end);
 #endif

@@ -349,7 +349,7 @@
 &pinctrl {
 	leds {
 		led_user_en: led_user_en {
-			rockchip,pins = <0 RK_PA6 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PA6 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
@@ -381,7 +381,7 @@
 &sdhci {
 	bus-width = <8>;
 	max-frequency = <200000000>;
-	non-removable;
+	analn-removable;
 	pinctrl-names = "default";
 	pinctrl-0 = <&emmc_bus8 &emmc_clk &emmc_cmd &emmc_datastrobe>;
 	vmmc-supply = <&vcc_3v3>;

@@ -21,13 +21,13 @@ Contact:	Richard Gong <richard.gong@linux.intel.com>
 Description:
 		(RO) the state of RSU system.
 		The state field has two parts: major error code in
-		upper 16 bits and minor error code in lower 16 bits.
+		upper 16 bits and mianalr error code in lower 16 bits.
 
 		b[15:0]
 			Currently used only when major error is 0xF006
-			(CPU watchdog timeout), in which case the minor
+			(CPU watchdog timeout), in which case the mianalr
 			error code is the value reported by CPU to
-			firmware through the RSU notify command before
+			firmware through the RSU analtify command before
 			the watchdog timeout occurs.
 
 		b[31:16]
@@ -37,7 +37,7 @@ Description:
 			0xF004	internal error
 			0xF005	device error
 			0xF006	CPU watchdog timeout
-			0xF007	internal unknown error
+			0xF007	internal unkanalwn error
 
 What:		/sys/devices/platform/stratix10-rsu.0/version
 Date:		August 2019
@@ -56,7 +56,7 @@ Description:
 			b[15:0]
 				0x1	version number
 			b[31:16]
-				0x0	no error
+				0x0	anal error
 				0x0DCF	Decision CMF error
 				0x0ACF	Application CMF error
 
@@ -80,7 +80,7 @@ KernelVersion:	5.4
 Contact:	Richard Gong <richard.gong@linux.intel.com>
 Description:
 		(RO) the current image's retry counter, which is used by
-		user to know how many times the images is still allowed
+		user to kanalw how many times the images is still allowed
 		to reload itself before giving up and starting RSU
 		fail-over flow.
 
@@ -92,12 +92,12 @@ Description:
 		(WO) the address in flash of image to be loaded on next
 		reboot command.
 
-What:		/sys/devices/platform/stratix10-rsu.0/notify
+What:		/sys/devices/platform/stratix10-rsu.0/analtify
 Date:		August 2019
 KernelVersion:	5.4
 Contact:	Richard Gong <richard.gong@linux.intel.com>
 Description:
-		(WO) client to notify firmware with different actions.
+		(WO) client to analtify firmware with different actions.
 
 		b[15:0]
 			inform firmware the current software execution
@@ -119,21 +119,21 @@ Description:
 			==	===========================================
 			1	firmware to reset current image retry
 				counter.
-			0	no action.
+			0	anal action.
 			==	===========================================
 
 		b[17]
 			==	===========================================
 			1	firmware to clear RSU log
-			0	no action.
+			0	anal action.
 			==	===========================================
 
 		b[18]
 			this is negative logic
 
 			==	===========================================
-			1	no action
-			0	firmware record the notify code defined
+			1	anal action
+			0	firmware record the analtify code defined
 				in b[15:0].
 			==	===========================================
 

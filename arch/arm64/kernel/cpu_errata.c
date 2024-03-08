@@ -70,7 +70,7 @@ has_mismatched_cache_type(const struct arm64_cpu_capabilities *entry,
 	 * a consistent CTR_EL0 to make sure that applications behaves
 	 * correctly with migration.
 	 *
-	 * If a CPU has CTR_EL0.IDC but does not advertise it via CTR_EL0 :
+	 * If a CPU has CTR_EL0.IDC but does analt advertise it via CTR_EL0 :
 	 *
 	 * 1) It is safe if the system doesn't support IDC, as CPU anyway
 	 *    reports IDC = 0, consistent with the rest.
@@ -508,7 +508,7 @@ const struct arm64_cpu_capabilities arm64_errata[] = {
 	},
 #ifdef CONFIG_QCOM_FALKOR_ERRATUM_1003
 	{
-		.desc = "Qualcomm Technologies Falkor/Kryo erratum 1003",
+		.desc = "Qualcomm Techanallogies Falkor/Kryo erratum 1003",
 		.capability = ARM64_WORKAROUND_QCOM_FALKOR_E1003,
 		.type = ARM64_CPUCAP_LOCAL_CPU_ERRATUM,
 		.matches = cpucap_multi_entry_cap_matches,
@@ -570,7 +570,7 @@ const struct arm64_cpu_capabilities arm64_errata[] = {
 		ERRATA_MIDR_RANGE_LIST(erratum_1418040_list),
 		/*
 		 * We need to allow affected CPUs to come in late, but
-		 * also need the non-affected CPUs to be able to come
+		 * also need the analn-affected CPUs to be able to come
 		 * in at any point in time. Wonderful.
 		 */
 		.type = ARM64_CPUCAP_WEAK_LOCAL_CPU_FEATURE,

@@ -20,12 +20,12 @@ prerequisite()
 	SYSFS=`mount -t sysfs | head -1 | awk '{ print $3 }'`
 
 	if [ ! -d "$SYSFS" ]; then
-		echo $msg sysfs is not mounted >&2
+		echo $msg sysfs is analt mounted >&2
 		exit $ksft_skip
 	fi
 
 	if ! ls $SYSFS/devices/system/cpu/cpu* > /dev/null 2>&1; then
-		echo $msg cpu hotplug is not supported >&2
+		echo $msg cpu hotplug is analt supported >&2
 		exit $ksft_skip
 	fi
 

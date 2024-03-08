@@ -33,7 +33,7 @@ static void freq_qos_test_min(struct kunit *test)
 			FREQ_QOS_MIN_DEFAULT_VALUE);
 }
 
-/* Test that requests for MAX_DEFAULT_VALUE have no effect */
+/* Test that requests for MAX_DEFAULT_VALUE have anal effect */
 static void freq_qos_test_maxdef(struct kunit *test)
 {
 	struct freq_constraints	qos;
@@ -58,7 +58,7 @@ static void freq_qos_test_maxdef(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, ret, 1);
 	KUNIT_EXPECT_EQ(test, freq_qos_read_value(&qos, FREQ_QOS_MAX), 1000);
 
-	/* Add max 2000, no impact */
+	/* Add max 2000, anal impact */
 	ret = freq_qos_update_request(&req2, 2000);
 	KUNIT_EXPECT_EQ(test, ret, 0);
 	KUNIT_EXPECT_EQ(test, freq_qos_read_value(&qos, FREQ_QOS_MAX), 1000);

@@ -9,11 +9,11 @@
  * modification, are permitted provided that the following conditions are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    analtice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    analtice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the names of the copyright holders nor the names of its
+ * 3. Neither the names of the copyright holders analr the names of its
  *    contributors may be used to endorse or promote products derived from
  *    this software without specific prior written permission.
  *
@@ -22,11 +22,11 @@
  * Software Foundation.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+ * ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
  * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
  * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
@@ -68,21 +68,21 @@ enum {
  */
 enum {
 	STAT_OK,
-	STAT_NOK,
+	STAT_ANALK,
 	STAT_ASYNC,
 	STAT_ASYNC_OK,
-	STAT_ASYNC_NOK,
+	STAT_ASYNC_ANALK,
 	STAT_BADKEYS, /* tx only */
 	STAT_BADMSGS = STAT_BADKEYS, /* rx only */
-	STAT_NOKEYS,
+	STAT_ANALKEYS,
 	STAT_SWITCHES,
 
 	MAX_STATS,
 };
 
 /* TIPC crypto statistics' header */
-static const char *hstats[MAX_STATS] = {"ok", "nok", "async", "async_ok",
-					"async_nok", "badmsgs", "nokeys",
+static const char *hstats[MAX_STATS] = {"ok", "analk", "async", "async_ok",
+					"async_analk", "badmsgs", "analkeys",
 					"switches"};
 
 /* Max TFMs number per key */
@@ -144,7 +144,7 @@ struct tipc_tfm {
  * @rcu: struct rcu_head
  * @key: the aead key
  * @gen: the key's generation
- * @seqno: the key seqno (cluster scope)
+ * @seqanal: the key seqanal (cluster scope)
  * @refcnt: the key reference counter
  */
 struct tipc_aead {
@@ -161,7 +161,7 @@ struct tipc_aead {
 	struct tipc_aead_key *key;
 	u16 gen;
 
-	atomic64_t seqno ____cacheline_aligned;
+	atomic64_t seqanal ____cacheline_aligned;
 	refcount_t refcnt ____cacheline_aligned;
 
 } ____cacheline_aligned;
@@ -177,7 +177,7 @@ struct tipc_crypto_stats {
 /**
  * struct tipc_crypto - TIPC TX/RX crypto structure
  * @net: struct net
- * @node: TIPC node (RX)
+ * @analde: TIPC analde (RX)
  * @aead: array of pointers to AEAD keys for encryption/decryption
  * @peer_rx_active: replicated peer RX active key index
  * @key_gen: TX/RX key generation
@@ -193,16 +193,16 @@ struct tipc_crypto_stats {
  * @sndnxt: the per-peer sndnxt (TX)
  * @timer1: general timer 1 (jiffies)
  * @timer2: general timer 2 (jiffies)
- * @working: the crypto is working or not
+ * @working: the crypto is working or analt
  * @key_master: flag indicates if master key exists
  * @legacy_user: flag indicates if a peer joins w/o master key (for bwd comp.)
- * @nokey: no key indication
+ * @analkey: anal key indication
  * @flags: combined flags field
  * @lock: tipc_key lock
  */
 struct tipc_crypto {
 	struct net *net;
-	struct tipc_node *node;
+	struct tipc_analde *analde;
 	struct tipc_aead __rcu *aead[KEY_MAX + 1];
 	atomic_t peer_rx_active;
 	u16 key_gen;
@@ -227,7 +227,7 @@ struct tipc_crypto {
 			u8 working:1;
 			u8 key_master:1;
 			u8 legacy_user:1;
-			u8 nokey: 1;
+			u8 analkey: 1;
 		};
 		u8 flags;
 	};
@@ -266,7 +266,7 @@ static void *tipc_aead_mem_alloc(struct crypto_aead *tfm,
 static int tipc_aead_encrypt(struct tipc_aead *aead, struct sk_buff *skb,
 			     struct tipc_bearer *b,
 			     struct tipc_media_addr *dst,
-			     struct tipc_node *__dnode);
+			     struct tipc_analde *__danalde);
 static void tipc_aead_encrypt_done(void *data, int err);
 static int tipc_aead_decrypt(struct net *net, struct tipc_aead *aead,
 			     struct sk_buff *skb, struct tipc_bearer *b);
@@ -292,7 +292,7 @@ static int tipc_crypto_key_revoke(struct net *net, u8 tx_key);
 static inline void tipc_crypto_clone_msg(struct net *net, struct sk_buff *_skb,
 					 struct tipc_bearer *b,
 					 struct tipc_media_addr *dst,
-					 struct tipc_node *__dnode, u8 type);
+					 struct tipc_analde *__danalde, u8 type);
 static void tipc_crypto_rcv_complete(struct net *net, struct tipc_aead *aead,
 				     struct tipc_bearer *b,
 				     struct sk_buff **skb, int err);
@@ -301,13 +301,13 @@ static char *tipc_crypto_key_dump(struct tipc_crypto *c, char *buf);
 static char *tipc_key_change_dump(struct tipc_key old, struct tipc_key new,
 				  char *buf);
 static int tipc_crypto_key_xmit(struct net *net, struct tipc_aead_key *skey,
-				u16 gen, u8 mode, u32 dnode);
+				u16 gen, u8 mode, u32 danalde);
 static bool tipc_crypto_key_rcv(struct tipc_crypto *rx, struct tipc_msg *hdr);
 static void tipc_crypto_work_tx(struct work_struct *work);
 static void tipc_crypto_work_rx(struct work_struct *work);
 static int tipc_aead_key_generate(struct tipc_aead_key *skey);
 
-#define is_tx(crypto) (!(crypto)->node)
+#define is_tx(crypto) (!(crypto)->analde)
 #define is_rx(crypto) (!is_tx(crypto))
 
 #define key_next(cur) ((cur) % KEY_MAX + 1)
@@ -338,13 +338,13 @@ int tipc_aead_key_validate(struct tipc_aead_key *ukey, struct genl_info *info)
 	/* Check if algorithm exists */
 	if (unlikely(!crypto_has_alg(ukey->alg_name, 0, 0))) {
 		GENL_SET_ERR_MSG(info, "unable to load the algorithm (module existed?)");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Currently, we only support the "gcm(aes)" cipher algorithm */
 	if (strcmp(ukey->alg_name, "gcm(aes)")) {
-		GENL_SET_ERR_MSG(info, "not supported yet the algorithm");
-		return -ENOTSUPP;
+		GENL_SET_ERR_MSG(info, "analt supported yet the algorithm");
+		return -EANALTSUPP;
 	}
 
 	/* Check if key size is correct */
@@ -386,7 +386,7 @@ static struct tipc_aead *tipc_aead_get(struct tipc_aead __rcu *aead)
 
 	rcu_read_lock();
 	tmp = rcu_dereference(aead);
-	if (unlikely(!tmp || !refcount_inc_not_zero(&tmp->refcnt)))
+	if (unlikely(!tmp || !refcount_inc_analt_zero(&tmp->refcnt)))
 		tmp = NULL;
 	rcu_read_unlock();
 
@@ -526,7 +526,7 @@ static int tipc_aead_init(struct tipc_aead **aead, struct tipc_aead_key *ukey,
 	/* Allocate a new AEAD */
 	tmp = kzalloc(sizeof(*tmp), GFP_ATOMIC);
 	if (unlikely(!tmp))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* The key consists of two parts: [AES-KEY][SALT] */
 	keylen = ukey->keylen - TIPC_AES_GCM_SALT_SIZE;
@@ -535,7 +535,7 @@ static int tipc_aead_init(struct tipc_aead **aead, struct tipc_aead_key *ukey,
 	tmp->tfm_entry = alloc_percpu(struct tipc_tfm *);
 	if (!tmp->tfm_entry) {
 		kfree_sensitive(tmp);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Make a list of TFMs with the user key data */
@@ -549,7 +549,7 @@ static int tipc_aead_init(struct tipc_aead **aead, struct tipc_aead_key *ukey,
 		if (unlikely(!tfm_cnt &&
 			     crypto_aead_ivsize(tfm) != TIPC_AES_GCM_IV_SIZE)) {
 			crypto_free_aead(tfm);
-			err = -ENOTSUPP;
+			err = -EANALTSUPP;
 			break;
 		}
 
@@ -563,7 +563,7 @@ static int tipc_aead_init(struct tipc_aead **aead, struct tipc_aead_key *ukey,
 		tfm_entry = kmalloc(sizeof(*tfm_entry), GFP_KERNEL);
 		if (unlikely(!tfm_entry)) {
 			crypto_free_aead(tfm);
-			err = -ENOMEM;
+			err = -EANALMEM;
 			break;
 		}
 		INIT_LIST_HEAD(&tfm_entry->list);
@@ -581,7 +581,7 @@ static int tipc_aead_init(struct tipc_aead **aead, struct tipc_aead_key *ukey,
 
 	} while (++tfm_cnt < sysctl_tipc_max_tfms);
 
-	/* Not any TFM is allocated? */
+	/* Analt any TFM is allocated? */
 	if (!tfm_cnt) {
 		free_percpu(tmp->tfm_entry);
 		kfree_sensitive(tmp);
@@ -599,11 +599,11 @@ static int tipc_aead_init(struct tipc_aead **aead, struct tipc_aead_key *ukey,
 	tmp->key = kmemdup(ukey, tipc_aead_key_size(ukey), GFP_KERNEL);
 	if (!tmp->key) {
 		tipc_aead_free(&tmp->rcu);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	memcpy(&tmp->salt, ukey->key + keylen, TIPC_AES_GCM_SALT_SIZE);
 	atomic_set(&tmp->users, 0);
-	atomic64_set(&tmp->seqno, 0);
+	atomic64_set(&tmp->seqanal, 0);
 	refcount_set(&tmp->refcnt, 1);
 
 	*aead = tmp;
@@ -620,7 +620,7 @@ static int tipc_aead_init(struct tipc_aead **aead, struct tipc_aead_key *ukey,
  * A reference to the source is hold in the "cloned" pointer for the later
  * freeing purposes.
  *
- * Note: this must be done in cluster-key mode only!
+ * Analte: this must be done in cluster-key mode only!
  * Return: 0 in case of success, otherwise < 0
  */
 static int tipc_aead_clone(struct tipc_aead **dst, struct tipc_aead *src)
@@ -629,7 +629,7 @@ static int tipc_aead_clone(struct tipc_aead **dst, struct tipc_aead *src)
 	int cpu;
 
 	if (!src)
-		return -ENOKEY;
+		return -EANALKEY;
 
 	if (src->mode != CLUSTER_KEY)
 		return -EINVAL;
@@ -639,12 +639,12 @@ static int tipc_aead_clone(struct tipc_aead **dst, struct tipc_aead *src)
 
 	aead = kzalloc(sizeof(*aead), GFP_ATOMIC);
 	if (unlikely(!aead))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	aead->tfm_entry = alloc_percpu_gfp(struct tipc_tfm *, GFP_ATOMIC);
 	if (unlikely(!aead->tfm_entry)) {
 		kfree_sensitive(aead);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	for_each_possible_cpu(cpu) {
@@ -657,10 +657,10 @@ static int tipc_aead_clone(struct tipc_aead **dst, struct tipc_aead *src)
 	aead->salt = src->salt;
 	aead->authsize = src->authsize;
 	atomic_set(&aead->users, 0);
-	atomic64_set(&aead->seqno, 0);
+	atomic64_set(&aead->seqanal, 0);
 	refcount_set(&aead->refcnt, 1);
 
-	WARN_ON(!refcount_inc_not_zero(&src->refcnt));
+	WARN_ON(!refcount_inc_analt_zero(&src->refcnt));
 	aead->cloned = src;
 
 	*dst = aead;
@@ -699,7 +699,7 @@ static void *tipc_aead_mem_alloc(struct crypto_aead *tfm,
 	len += crypto_aead_alignmask(tfm) & ~(crypto_tfm_ctx_alignment() - 1);
 	len = ALIGN(len, crypto_tfm_ctx_alignment());
 	len += req_size;
-	len = ALIGN(len, __alignof__(struct scatterlist));
+	len = ALIGN(len, __aliganalf__(struct scatterlist));
 	len += nsg * sizeof(**sg);
 
 	mem = kmalloc(len, GFP_ATOMIC);
@@ -711,7 +711,7 @@ static void *tipc_aead_mem_alloc(struct crypto_aead *tfm,
 	*req = (struct aead_request *)PTR_ALIGN(*iv + iv_size,
 						crypto_tfm_ctx_alignment());
 	*sg = (struct scatterlist *)PTR_ALIGN((u8 *)*req + req_size,
-					      __alignof__(struct scatterlist));
+					      __aliganalf__(struct scatterlist));
 
 	return (void *)mem;
 }
@@ -722,7 +722,7 @@ static void *tipc_aead_mem_alloc(struct crypto_aead *tfm,
  * @skb: the input/output skb
  * @b: TIPC bearer where the message will be delivered after the encryption
  * @dst: the destination media address
- * @__dnode: TIPC dest node if "known"
+ * @__danalde: TIPC dest analde if "kanalwn"
  *
  * Return:
  * * 0                   : if the encryption has completed
@@ -732,7 +732,7 @@ static void *tipc_aead_mem_alloc(struct crypto_aead *tfm,
 static int tipc_aead_encrypt(struct tipc_aead *aead, struct sk_buff *skb,
 			     struct tipc_bearer *b,
 			     struct tipc_media_addr *dst,
-			     struct tipc_node *__dnode)
+			     struct tipc_analde *__danalde)
 {
 	struct crypto_aead *tfm = tipc_aead_tfm_next(aead);
 	struct tipc_crypto_tx_ctx *tx_ctx;
@@ -750,14 +750,14 @@ static int tipc_aead_encrypt(struct tipc_aead *aead, struct sk_buff *skb,
 	tailen = len - skb->len + aead->authsize;
 
 	/* Expand skb tail for authentication tag:
-	 * As for simplicity, we'd have made sure skb having enough tailroom
-	 * for authentication tag @skb allocation. Even when skb is nonlinear
-	 * but there is no frag_list, it should be still fine!
+	 * As for simplicity, we'd have made sure skb having eanalugh tailroom
+	 * for authentication tag @skb allocation. Even when skb is analnlinear
+	 * but there is anal frag_list, it should be still fine!
 	 * Otherwise, we must cow it to be a writable buffer with the tailroom.
 	 */
 	SKB_LINEAR_ASSERT(skb);
 	if (tailen > skb_tailroom(skb)) {
-		pr_debug("TX(): skb tailroom is not enough: %d, requires: %d\n",
+		pr_debug("TX(): skb tailroom is analt eanalugh: %d, requires: %d\n",
 			 skb_tailroom(skb), tailen);
 	}
 
@@ -772,7 +772,7 @@ static int tipc_aead_encrypt(struct tipc_aead *aead, struct sk_buff *skb,
 	/* Allocate memory for the AEAD operation */
 	ctx = tipc_aead_mem_alloc(tfm, sizeof(*tx_ctx), &iv, &req, &sg, nsg);
 	if (unlikely(!ctx))
-		return -ENOMEM;
+		return -EANALMEM;
 	TIPC_SKB_CB(skb)->crypto_ctx = ctx;
 
 	/* Map skb to the sg lists */
@@ -783,19 +783,19 @@ static int tipc_aead_encrypt(struct tipc_aead *aead, struct sk_buff *skb,
 		goto exit;
 	}
 
-	/* Prepare IV: [SALT (4 octets)][SEQNO (8 octets)]
+	/* Prepare IV: [SALT (4 octets)][SEQANAL (8 octets)]
 	 * In case we're in cluster-key mode, SALT is varied by xor-ing with
 	 * the source address (or w0 of id), otherwise with the dest address
-	 * if dest is known.
+	 * if dest is kanalwn.
 	 */
 	ehdr = (struct tipc_ehdr *)skb->data;
 	salt = aead->salt;
 	if (aead->mode == CLUSTER_KEY)
 		salt ^= __be32_to_cpu(ehdr->addr);
-	else if (__dnode)
-		salt ^= tipc_node_get_addr(__dnode);
+	else if (__danalde)
+		salt ^= tipc_analde_get_addr(__danalde);
 	memcpy(iv, &salt, 4);
-	memcpy(iv + 4, (u8 *)&ehdr->seqno, 8);
+	memcpy(iv + 4, (u8 *)&ehdr->seqanal, 8);
 
 	/* Prepare request */
 	ehsz = tipc_ehdr_size(ehdr);
@@ -813,11 +813,11 @@ static int tipc_aead_encrypt(struct tipc_aead *aead, struct sk_buff *skb,
 
 	/* Hold bearer */
 	if (unlikely(!tipc_bearer_hold(b))) {
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		goto exit;
 	}
 
-	/* Now, do encrypt */
+	/* Analw, do encrypt */
 	rc = crypto_aead_encrypt(req);
 	if (rc == -EINPROGRESS || rc == -EBUSY)
 		return rc;
@@ -852,7 +852,7 @@ static void tipc_aead_encrypt_done(void *data, int err)
 	case -EINPROGRESS:
 		return;
 	default:
-		this_cpu_inc(tx->stats->stat[STAT_ASYNC_NOK]);
+		this_cpu_inc(tx->stats->stat[STAT_ASYNC_ANALK]);
 		kfree_skb(skb);
 		break;
 	}
@@ -889,7 +889,7 @@ static int tipc_aead_decrypt(struct net *net, struct tipc_aead *aead,
 	u8 *iv;
 
 	if (unlikely(!aead))
-		return -ENOKEY;
+		return -EANALKEY;
 
 	nsg = skb_cow_data(skb, 0, &unused);
 	if (unlikely(nsg < 0)) {
@@ -901,7 +901,7 @@ static int tipc_aead_decrypt(struct net *net, struct tipc_aead *aead,
 	tfm = tipc_aead_tfm_next(aead);
 	ctx = tipc_aead_mem_alloc(tfm, sizeof(*rx_ctx), &iv, &req, &sg, nsg);
 	if (unlikely(!ctx))
-		return -ENOMEM;
+		return -EANALMEM;
 	TIPC_SKB_CB(skb)->crypto_ctx = ctx;
 
 	/* Map skb to the sg lists */
@@ -920,7 +920,7 @@ static int tipc_aead_decrypt(struct net *net, struct tipc_aead *aead,
 	else if (ehdr->destined)
 		salt ^= tipc_own_addr(net);
 	memcpy(iv, &salt, 4);
-	memcpy(iv + 4, (u8 *)&ehdr->seqno, 8);
+	memcpy(iv + 4, (u8 *)&ehdr->seqanal, 8);
 
 	/* Prepare request */
 	ehsz = tipc_ehdr_size(ehdr);
@@ -937,11 +937,11 @@ static int tipc_aead_decrypt(struct net *net, struct tipc_aead *aead,
 
 	/* Hold bearer */
 	if (unlikely(!tipc_bearer_hold(b))) {
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		goto exit;
 	}
 
-	/* Now, do decrypt */
+	/* Analw, do decrypt */
 	rc = crypto_aead_decrypt(req);
 	if (rc == -EINPROGRESS || rc == -EBUSY)
 		return rc;
@@ -970,7 +970,7 @@ static void tipc_aead_decrypt_done(void *data, int err)
 	case -EINPROGRESS:
 		return;
 	default:
-		this_cpu_inc(stats->stat[STAT_ASYNC_NOK]);
+		this_cpu_inc(stats->stat[STAT_ASYNC_ANALK]);
 		break;
 	}
 
@@ -1023,7 +1023,7 @@ bool tipc_ehdr_validate(struct sk_buff *skb)
  * @aead: TX AEAD key to be used for the message encryption
  * @tx_key: key id used for the message encryption
  * @skb: input/output message skb
- * @__rx: RX crypto handle if dest is "known"
+ * @__rx: RX crypto handle if dest is "kanalwn"
  *
  * Return: the header size if the building is successful, otherwise < 0
  */
@@ -1034,7 +1034,7 @@ static int tipc_ehdr_build(struct net *net, struct tipc_aead *aead,
 	struct tipc_msg *hdr = buf_msg(skb);
 	struct tipc_ehdr *ehdr;
 	u32 user = msg_user(hdr);
-	u64 seqno;
+	u64 seqanal;
 	int ehsz;
 
 	/* Make room for encryption header */
@@ -1042,21 +1042,21 @@ static int tipc_ehdr_build(struct net *net, struct tipc_aead *aead,
 	WARN_ON(skb_headroom(skb) < ehsz);
 	ehdr = (struct tipc_ehdr *)skb_push(skb, ehsz);
 
-	/* Obtain a seqno first:
-	 * Use the key seqno (= cluster wise) if dest is unknown or we're in
-	 * cluster key mode, otherwise it's better for a per-peer seqno!
+	/* Obtain a seqanal first:
+	 * Use the key seqanal (= cluster wise) if dest is unkanalwn or we're in
+	 * cluster key mode, otherwise it's better for a per-peer seqanal!
 	 */
 	if (!__rx || aead->mode == CLUSTER_KEY)
-		seqno = atomic64_inc_return(&aead->seqno);
+		seqanal = atomic64_inc_return(&aead->seqanal);
 	else
-		seqno = atomic64_inc_return(&__rx->sndnxt);
+		seqanal = atomic64_inc_return(&__rx->sndnxt);
 
-	/* Revoke the key if seqno is wrapped around */
-	if (unlikely(!seqno))
+	/* Revoke the key if seqanal is wrapped around */
+	if (unlikely(!seqanal))
 		return tipc_crypto_key_revoke(net, tx_key);
 
 	/* Word 1-2 */
-	ehdr->seqno = cpu_to_be64(seqno);
+	ehdr->seqanal = cpu_to_be64(seqanal);
 
 	/* Words 0, 3- */
 	ehdr->version = TIPC_EVERSION;
@@ -1065,7 +1065,7 @@ static int tipc_ehdr_build(struct net *net, struct tipc_aead *aead,
 	ehdr->tx_key = tx_key;
 	ehdr->destined = (__rx) ? 1 : 0;
 	ehdr->rx_key_active = (__rx) ? __rx->key.active : 0;
-	ehdr->rx_nokey = (__rx) ? __rx->nokey : 0;
+	ehdr->rx_analkey = (__rx) ? __rx->analkey : 0;
 	ehdr->master_key = aead->crypto->key_master;
 	ehdr->reserved_1 = 0;
 	ehdr->reserved_2 = 0;
@@ -1073,7 +1073,7 @@ static int tipc_ehdr_build(struct net *net, struct tipc_aead *aead,
 	switch (user) {
 	case LINK_CONFIG:
 		ehdr->user = LINK_CONFIG;
-		memcpy(ehdr->id, tipc_own_id(net), NODE_ID_LEN);
+		memcpy(ehdr->id, tipc_own_id(net), ANALDE_ID_LEN);
 		break;
 	default:
 		if (user == LINK_PROTOCOL && msg_type(hdr) == STATE_MSG) {
@@ -1108,7 +1108,7 @@ static inline void tipc_crypto_key_set_state(struct tipc_crypto *c,
  * tipc_crypto_key_init - Initiate a new user / AEAD key
  * @c: TIPC crypto to which new key is attached
  * @ukey: the user key
- * @mode: the key mode (CLUSTER_KEY or PER_NODE_KEY)
+ * @mode: the key mode (CLUSTER_KEY or PER_ANALDE_KEY)
  * @master_key: specify this is a cluster master key
  *
  * A new TIPC AEAD key will be allocated and initiated with the specified user
@@ -1190,7 +1190,7 @@ attach:
 		tipc_crypto_key_set_state(c, key.passive, key.active,
 					  key.pending);
 	c->working = 1;
-	c->nokey = 0;
+	c->analkey = 0;
 	c->key_master |= master_key;
 	rc = new_key;
 
@@ -1213,7 +1213,7 @@ void tipc_crypto_key_flush(struct tipc_crypto *c)
 			kfree(rx->skey);
 			rx->skey = NULL;
 			atomic_xchg(&rx->key_distr, 0);
-			tipc_node_put(rx->node);
+			tipc_analde_put(rx->analde);
 		}
 		/* RX stopping => decrease TX key users if any */
 		k = atomic_xchg(&rx->peer_rx_active, 0);
@@ -1237,11 +1237,11 @@ void tipc_crypto_key_flush(struct tipc_crypto *c)
  * @rx: RX crypto handle
  * @new_pending: new pending slot if aligned (= TX key from peer)
  *
- * Peer has used an unknown key slot, this only happens when peer has left and
+ * Peer has used an unkanalwn key slot, this only happens when peer has left and
  * rejoned, or we are newcomer.
- * That means, there must be no active key but a pending key at unaligned slot.
+ * That means, there must be anal active key but a pending key at unaligned slot.
  * If so, we try to move the pending key to the new slot.
- * Note: A potential passive key can exist, it will be shifted correspondingly!
+ * Analte: A potential passive key can exist, it will be shifted correspondingly!
  *
  * Return: "true" if key is successfully aligned, otherwise "false"
  */
@@ -1302,7 +1302,7 @@ exit:
  * @tx_key: peer TX key id
  *
  * This function looks up the existing TX keys and pick one which is suitable
- * for the message decryption, that must be a cluster key and not used before
+ * for the message decryption, that must be a cluster key and analt used before
  * on the same message (i.e. recursive).
  *
  * Return: the TX AEAD key handle in case of success, otherwise NULL
@@ -1317,7 +1317,7 @@ static struct tipc_aead *tipc_crypto_key_pick_tx(struct tipc_crypto *tx,
 	struct tipc_key key = tx->key;
 	u8 k, i = 0;
 
-	/* Initialize data if not yet */
+	/* Initialize data if analt yet */
 	if (!skb_cb->tx_clone_deferred) {
 		skb_cb->tx_clone_deferred = 1;
 		memset(&skb_cb->tx_clone_ctx, 0, sizeof(skb_cb->tx_clone_ctx));
@@ -1357,7 +1357,7 @@ static struct tipc_aead *tipc_crypto_key_pick_tx(struct tipc_crypto *tx,
 
 done:
 	if (likely(aead))
-		WARN_ON(!refcount_inc_not_zero(&aead->refcnt));
+		WARN_ON(!refcount_inc_analt_zero(&aead->refcnt));
 	spin_unlock(&tx->lock);
 
 	return aead;
@@ -1368,11 +1368,11 @@ done:
  * @rx: RX crypto handle
  * @skb: TIPCv2 message buffer (incl. the ehdr from peer)
  *
- * This function updates the peer node related data as the peer RX active key
- * has changed, so the number of TX keys' users on this node are increased and
+ * This function updates the peer analde related data as the peer RX active key
+ * has changed, so the number of TX keys' users on this analde are increased and
  * decreased correspondingly.
  *
- * It also considers if peer has no key, then we need to make own master key
+ * It also considers if peer has anal key, then we need to make own master key
  * (if any) taking over i.e. starting grace period and also trigger key
  * distributing process.
  *
@@ -1388,28 +1388,28 @@ static void tipc_crypto_key_synch(struct tipc_crypto *rx, struct sk_buff *skb)
 	unsigned long delay;
 
 	/* Update RX 'key_master' flag according to peer, also mark "legacy" if
-	 * a peer has no master key.
+	 * a peer has anal master key.
 	 */
 	rx->key_master = ehdr->master_key;
 	if (!rx->key_master)
 		tx->legacy_user = 1;
 
-	/* For later cases, apply only if message is destined to this node */
-	if (!ehdr->destined || msg_short(hdr) || msg_destnode(hdr) != self)
+	/* For later cases, apply only if message is destined to this analde */
+	if (!ehdr->destined || msg_short(hdr) || msg_destanalde(hdr) != self)
 		return;
 
-	/* Case 1: Peer has no keys, let's make master key take over */
-	if (ehdr->rx_nokey) {
+	/* Case 1: Peer has anal keys, let's make master key take over */
+	if (ehdr->rx_analkey) {
 		/* Set or extend grace period */
 		tx->timer2 = jiffies;
-		/* Schedule key distributing for the peer if not yet */
+		/* Schedule key distributing for the peer if analt yet */
 		if (tx->key.keys &&
 		    !atomic_cmpxchg(&rx->key_distr, 0, KEY_DISTR_SCHED)) {
 			get_random_bytes(&delay, 2);
 			delay %= 5;
 			delay = msecs_to_jiffies(500 * ++delay);
 			if (queue_delayed_work(tx->wq, &rx->work, delay))
-				tipc_node_get(rx->node);
+				tipc_analde_get(rx->analde);
 		}
 	} else {
 		/* Cancel a pending key distributing if any */
@@ -1455,7 +1455,7 @@ static int tipc_crypto_key_revoke(struct net *net, u8 tx_key)
 }
 
 int tipc_crypto_start(struct tipc_crypto **crypto, struct net *net,
-		      struct tipc_node *node)
+		      struct tipc_analde *analde)
 {
 	struct tipc_crypto *c;
 
@@ -1465,14 +1465,14 @@ int tipc_crypto_start(struct tipc_crypto **crypto, struct net *net,
 	/* Allocate crypto */
 	c = kzalloc(sizeof(*c), GFP_ATOMIC);
 	if (!c)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Allocate workqueue on TX */
-	if (!node) {
+	if (!analde) {
 		c->wq = alloc_ordered_workqueue("tipc_crypto", 0);
 		if (!c->wq) {
 			kfree(c);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 
@@ -1482,12 +1482,12 @@ int tipc_crypto_start(struct tipc_crypto **crypto, struct net *net,
 		if (c->wq)
 			destroy_workqueue(c->wq);
 		kfree_sensitive(c);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	c->flags = 0;
 	c->net = net;
-	c->node = node;
+	c->analde = analde;
 	get_random_bytes(&c->key_gen, 2);
 	tipc_crypto_key_set_state(c, 0, 0, 0);
 	atomic_set(&c->key_distr, 0);
@@ -1498,7 +1498,7 @@ int tipc_crypto_start(struct tipc_crypto **crypto, struct net *net,
 	c->rekeying_intv = TIPC_REKEYING_INTV_DEF;
 	spin_lock_init(&c->lock);
 	scnprintf(c->name, 48, "%s(%s)", (is_rx(c)) ? "RX" : "TX",
-		  (is_rx(c)) ? tipc_node_get_id_str(c->node) :
+		  (is_rx(c)) ? tipc_analde_get_id_str(c->analde) :
 			       tipc_own_id_string(c->net));
 
 	if (is_rx(c))
@@ -1581,7 +1581,7 @@ s1:
 	goto s5;
 
 s2:
-	/* RX pending: not working -> remove */
+	/* RX pending: analt working -> remove */
 	if (!key.pending || tipc_aead_users(rx->aead[key.pending]) > -10)
 		goto s3;
 
@@ -1591,7 +1591,7 @@ s2:
 	goto s5;
 
 s3:
-	/* RX active: timed out or no user -> pending */
+	/* RX active: timed out or anal user -> pending */
 	if (!key.active)
 		goto s4;
 	if (time_before(jiffies, rx->timer1 + TIPC_RX_ACTIVE_LIM) &&
@@ -1609,7 +1609,7 @@ s3:
 	goto s5;
 
 s4:
-	/* RX passive: outdated or not working -> free */
+	/* RX passive: outdated or analt working -> free */
 	if (!key.passive)
 		goto s5;
 	if (time_before(jiffies, rx->timer2 + TIPC_RX_PASSIVE_LIM) &&
@@ -1624,7 +1624,7 @@ s5:
 	spin_unlock(&rx->lock);
 
 	/* Relax it here, the flag will be set again if it really is, but only
-	 * when we are not in grace period for safety!
+	 * when we are analt in grace period for safety!
 	 */
 	if (time_after(jiffies, tx->timer2 + TIPC_TX_GRACE_PERIOD))
 		tx->legacy_user = 0;
@@ -1641,14 +1641,14 @@ s5:
 static inline void tipc_crypto_clone_msg(struct net *net, struct sk_buff *_skb,
 					 struct tipc_bearer *b,
 					 struct tipc_media_addr *dst,
-					 struct tipc_node *__dnode, u8 type)
+					 struct tipc_analde *__danalde, u8 type)
 {
 	struct sk_buff *skb;
 
 	skb = skb_clone(_skb, GFP_ATOMIC);
 	if (skb) {
 		TIPC_SKB_CB(skb)->xmit_type = type;
-		tipc_crypto_xmit(net, &skb, b, dst, __dnode);
+		tipc_crypto_xmit(net, &skb, b, dst, __danalde);
 		if (skb)
 			b->media->send_msg(net, skb, b, dst);
 	}
@@ -1660,7 +1660,7 @@ static inline void tipc_crypto_clone_msg(struct net *net, struct sk_buff *_skb,
  * @skb: input/output message skb pointer
  * @b: bearer used for xmit later
  * @dst: destination media address
- * @__dnode: destination node for reference if any
+ * @__danalde: destination analde for reference if any
  *
  * First, build an encryption message header on the top of the message, then
  * encrypt the original TIPC message by using the pending, master or active
@@ -1670,18 +1670,18 @@ static inline void tipc_crypto_clone_msg(struct net *net, struct sk_buff *_skb,
  * Otherwise, the skb is freed!
  *
  * Return:
- * * 0                   : the encryption has succeeded (or no encryption)
+ * * 0                   : the encryption has succeeded (or anal encryption)
  * * -EINPROGRESS/-EBUSY : the encryption is ongoing, a callback will be made
- * * -ENOKEK             : the encryption has failed due to no key
+ * * -EANALKEK             : the encryption has failed due to anal key
  * * -EKEYREVOKED        : the encryption has failed due to key revoked
- * * -ENOMEM             : the encryption has failed due to no memory
+ * * -EANALMEM             : the encryption has failed due to anal memory
  * * < 0                 : the encryption has failed due to other reasons
  */
 int tipc_crypto_xmit(struct net *net, struct sk_buff **skb,
 		     struct tipc_bearer *b, struct tipc_media_addr *dst,
-		     struct tipc_node *__dnode)
+		     struct tipc_analde *__danalde)
 {
-	struct tipc_crypto *__rx = tipc_node_crypto_rx(__dnode);
+	struct tipc_crypto *__rx = tipc_analde_crypto_rx(__danalde);
 	struct tipc_crypto *tx = tipc_net(net)->crypto_tx;
 	struct tipc_crypto_stats __percpu *stats = tx->stats;
 	struct tipc_msg *hdr = buf_msg(*skb);
@@ -1689,10 +1689,10 @@ int tipc_crypto_xmit(struct net *net, struct sk_buff **skb,
 	struct tipc_aead *aead = NULL;
 	u32 user = msg_user(hdr);
 	u32 type = msg_type(hdr);
-	int rc = -ENOKEY;
+	int rc = -EANALKEY;
 	u8 tx_key = 0;
 
-	/* No encryption? */
+	/* Anal encryption? */
 	if (!tx->working)
 		return 0;
 
@@ -1709,7 +1709,7 @@ int tipc_crypto_xmit(struct net *net, struct sk_buff **skb,
 			goto encrypt;
 		}
 		if (user == LINK_CONFIG || user == LINK_PROTOCOL)
-			tipc_crypto_clone_msg(net, *skb, b, dst, __dnode,
+			tipc_crypto_clone_msg(net, *skb, b, dst, __danalde,
 					      SKB_PROBING);
 	}
 
@@ -1734,7 +1734,7 @@ int tipc_crypto_xmit(struct net *net, struct sk_buff **skb,
 				if (likely(!tx->legacy_user))
 					goto encrypt;
 				tipc_crypto_clone_msg(net, *skb, b, dst,
-						      __dnode, SKB_GRACING);
+						      __danalde, SKB_GRACING);
 			}
 		}
 	}
@@ -1753,7 +1753,7 @@ encrypt:
 		goto exit;
 	rc = tipc_ehdr_build(net, aead, tx_key, *skb, __rx);
 	if (likely(rc > 0))
-		rc = tipc_aead_encrypt(aead, *skb, b, dst, __dnode);
+		rc = tipc_aead_encrypt(aead, *skb, b, dst, __danalde);
 
 exit:
 	switch (rc) {
@@ -1766,9 +1766,9 @@ exit:
 		*skb = NULL;
 		return rc;
 	default:
-		this_cpu_inc(stats->stat[STAT_NOK]);
-		if (rc == -ENOKEY)
-			this_cpu_inc(stats->stat[STAT_NOKEYS]);
+		this_cpu_inc(stats->stat[STAT_ANALK]);
+		if (rc == -EANALKEY)
+			this_cpu_inc(stats->stat[STAT_ANALKEYS]);
 		else if (rc == -EKEYREVOKED)
 			this_cpu_inc(stats->stat[STAT_BADKEYS]);
 		kfree_skb(*skb);
@@ -1791,15 +1791,15 @@ exit:
  * as the callback, the encryption header and auth tag will be trimed out
  * before forwarding to tipc_rcv() via the tipc_crypto_rcv_complete().
  * Otherwise, the skb will be freed!
- * Note: RX key(s) can be re-aligned, or in case of no key suitable, TX
+ * Analte: RX key(s) can be re-aligned, or in case of anal key suitable, TX
  * cluster key(s) can be taken for decryption (- recursive).
  *
  * Return:
  * * 0                   : the decryption has successfully completed
  * * -EINPROGRESS/-EBUSY : the decryption is ongoing, a callback will be made
- * * -ENOKEY             : the decryption has failed due to no key
+ * * -EANALKEY             : the decryption has failed due to anal key
  * * -EBADMSG            : the decryption has failed due to bad message
- * * -ENOMEM             : the decryption has failed due to no memory
+ * * -EANALMEM             : the decryption has failed due to anal memory
  * * < 0                 : the decryption has failed due to other reasons
  */
 int tipc_crypto_rcv(struct net *net, struct tipc_crypto *rx,
@@ -1809,7 +1809,7 @@ int tipc_crypto_rcv(struct net *net, struct tipc_crypto *rx,
 	struct tipc_crypto_stats __percpu *stats;
 	struct tipc_aead *aead = NULL;
 	struct tipc_key key;
-	int rc = -ENOKEY;
+	int rc = -EANALKEY;
 	u8 tx_key, n;
 
 	tx_key = ((struct tipc_ehdr *)(*skb)->data)->tx_key;
@@ -1826,12 +1826,12 @@ int tipc_crypto_rcv(struct net *net, struct tipc_crypto *rx,
 	    tx_key == key.passive)
 		goto decrypt;
 
-	/* Unknown key, let's try to align RX key(s) */
+	/* Unkanalwn key, let's try to align RX key(s) */
 	if (tipc_crypto_key_try_align(rx, tx_key))
 		goto decrypt;
 
 pick_tx:
-	/* No key suitable? Try to pick one from TX... */
+	/* Anal key suitable? Try to pick one from TX... */
 	aead = tipc_crypto_key_pick_tx(tx, rx, *skb, tx_key);
 	if (aead)
 		goto decrypt;
@@ -1856,24 +1856,24 @@ exit:
 		*skb = NULL;
 		return rc;
 	default:
-		this_cpu_inc(stats->stat[STAT_NOK]);
-		if (rc == -ENOKEY) {
+		this_cpu_inc(stats->stat[STAT_ANALK]);
+		if (rc == -EANALKEY) {
 			kfree_skb(*skb);
 			*skb = NULL;
 			if (rx) {
-				/* Mark rx->nokey only if we dont have a
-				 * pending received session key, nor a newer
+				/* Mark rx->analkey only if we dont have a
+				 * pending received session key, analr a newer
 				 * one i.e. in the next slot.
 				 */
 				n = key_next(tx_key);
-				rx->nokey = !(rx->skey ||
+				rx->analkey = !(rx->skey ||
 					      rcu_access_pointer(rx->aead[n]));
-				pr_debug_ratelimited("%s: nokey %d, key %d/%x\n",
-						     rx->name, rx->nokey,
+				pr_debug_ratelimited("%s: analkey %d, key %d/%x\n",
+						     rx->name, rx->analkey,
 						     tx_key, rx->key.keys);
-				tipc_node_put(rx->node);
+				tipc_analde_put(rx->analde);
 			}
-			this_cpu_inc(stats->stat[STAT_NOKEYS]);
+			this_cpu_inc(stats->stat[STAT_ANALKEYS]);
 			return rc;
 		} else if (rc == -EBADMSG) {
 			this_cpu_inc(stats->stat[STAT_BADMSGS]);
@@ -1893,13 +1893,13 @@ static void tipc_crypto_rcv_complete(struct net *net, struct tipc_aead *aead,
 	struct tipc_crypto *rx = aead->crypto;
 	struct tipc_aead *tmp = NULL;
 	struct tipc_ehdr *ehdr;
-	struct tipc_node *n;
+	struct tipc_analde *n;
 
 	/* Is this completed by TX? */
 	if (unlikely(is_tx(aead->crypto))) {
 		rx = skb_cb->tx_clone_ctx.rx;
 		pr_debug("TX->RX(%s): err %d, aead %p, skb->next %p, flags %x\n",
-			 (rx) ? tipc_node_get_id_str(rx->node) : "-", err, aead,
+			 (rx) ? tipc_analde_get_id_str(rx->analde) : "-", err, aead,
 			 (*skb)->next, skb_cb->flags);
 		pr_debug("skb_cb [recurs %d, last %p], tx->aead [%p %p %p]\n",
 			 skb_cb->tx_clone_ctx.recurs, skb_cb->tx_clone_ctx.last,
@@ -1918,19 +1918,19 @@ static void tipc_crypto_rcv_complete(struct net *net, struct tipc_aead *aead,
 		ehdr = (struct tipc_ehdr *)(*skb)->data;
 		if (!rx) {
 			WARN_ON(ehdr->user != LINK_CONFIG);
-			n = tipc_node_create(net, 0, ehdr->id, 0xffffu, 0,
+			n = tipc_analde_create(net, 0, ehdr->id, 0xffffu, 0,
 					     true);
-			rx = tipc_node_crypto_rx(n);
+			rx = tipc_analde_crypto_rx(n);
 			if (unlikely(!rx))
 				goto free_skb;
 		}
 
-		/* Ignore cloning if it was TX master key */
+		/* Iganalre cloning if it was TX master key */
 		if (ehdr->tx_key == KEY_MASTER)
 			goto rcv;
 		if (tipc_aead_clone(&tmp, aead) < 0)
 			goto rcv;
-		WARN_ON(!refcount_inc_not_zero(&tmp->refcnt));
+		WARN_ON(!refcount_inc_analt_zero(&tmp->refcnt));
 		if (tipc_crypto_key_attach(rx, tmp, ehdr->tx_key, false) < 0) {
 			tipc_aead_free(&tmp->rcu);
 			goto rcv;
@@ -1992,7 +1992,7 @@ free_skb:
 exit:
 	tipc_aead_put(aead);
 	if (rx)
-		tipc_node_put(rx->node);
+		tipc_analde_put(rx->analde);
 }
 
 static void tipc_crypto_do_cmd(struct net *net, int cmd)
@@ -2022,9 +2022,9 @@ print_stats:
 		tipc_crypto_key_dump(tx, buf));
 
 	rcu_read_lock();
-	for (p = tn->node_list.next; p != &tn->node_list; p = p->next) {
-		rx = tipc_node_crypto_rx_by_list(p);
-		pr_info("RX(%7.7s)\n%s", tipc_node_get_id_str(rx->node),
+	for (p = tn->analde_list.next; p != &tn->analde_list; p = p->next) {
+		rx = tipc_analde_crypto_rx_by_list(p);
+		pr_info("RX(%7.7s)\n%s", tipc_analde_get_id_str(rx->analde),
 			tipc_crypto_key_dump(rx, buf));
 	}
 	rcu_read_unlock();
@@ -2049,10 +2049,10 @@ print_stats:
 	}
 
 	rcu_read_lock();
-	for (p = tn->node_list.next; p != &tn->node_list; p = p->next) {
-		rx = tipc_node_crypto_rx_by_list(p);
+	for (p = tn->analde_list.next; p != &tn->analde_list; p = p->next) {
+		rx = tipc_analde_crypto_rx_by_list(p);
 		j = scnprintf(buf, 200, "RX(%7.7s) ",
-			      tipc_node_get_id_str(rx->node));
+			      tipc_analde_get_id_str(rx->analde));
 		for_each_possible_cpu(cpu) {
 			for (i = 0; i < MAX_STATS; i++) {
 				stat = per_cpu_ptr(rx->stats, cpu)->stat[i];
@@ -2161,7 +2161,7 @@ void tipc_crypto_msg_rcv(struct net *net, struct sk_buff *skb)
 		goto exit;
 
 	hdr = buf_msg(skb);
-	rx = tipc_node_crypto_rx_by_addr(net, msg_prevnode(hdr));
+	rx = tipc_analde_crypto_rx_by_addr(net, msg_prevanalde(hdr));
 	if (unlikely(!rx))
 		goto exit;
 
@@ -2174,7 +2174,7 @@ void tipc_crypto_msg_rcv(struct net *net, struct sk_buff *skb)
 		break;
 	}
 
-	tipc_node_put(rx->node);
+	tipc_analde_put(rx->analde);
 
 exit:
 	kfree_skb(skb);
@@ -2184,16 +2184,16 @@ exit:
  * tipc_crypto_key_distr - Distribute a TX key
  * @tx: the TX crypto
  * @key: the key's index
- * @dest: the destination tipc node, = NULL if distributing to all nodes
+ * @dest: the destination tipc analde, = NULL if distributing to all analdes
  *
  * Return: 0 in case of success, otherwise < 0
  */
 int tipc_crypto_key_distr(struct tipc_crypto *tx, u8 key,
-			  struct tipc_node *dest)
+			  struct tipc_analde *dest)
 {
 	struct tipc_aead *aead;
-	u32 dnode = tipc_node_get_addr(dest);
-	int rc = -ENOKEY;
+	u32 danalde = tipc_analde_get_addr(dest);
+	int rc = -EANALKEY;
 
 	if (!sysctl_tipc_key_exchange_enabled)
 		return 0;
@@ -2204,7 +2204,7 @@ int tipc_crypto_key_distr(struct tipc_crypto *tx, u8 key,
 		if (likely(aead)) {
 			rc = tipc_crypto_key_xmit(tx->net, aead->key,
 						  aead->gen, aead->mode,
-						  dnode);
+						  danalde);
 			tipc_aead_put(aead);
 		}
 		rcu_read_unlock();
@@ -2219,7 +2219,7 @@ int tipc_crypto_key_distr(struct tipc_crypto *tx, u8 key,
  * @skey: the session key to be sent
  * @gen: the key's generation
  * @mode: the key's mode
- * @dnode: the destination node address, = 0 if broadcasting to all nodes
+ * @danalde: the destination analde address, = 0 if broadcasting to all analdes
  *
  * The session key 'skey' is packed in a TIPC v2 'MSG_CRYPTO/KEY_DISTR_MSG'
  * as its data section, then xmit-ed through the uc/bc link.
@@ -2227,7 +2227,7 @@ int tipc_crypto_key_distr(struct tipc_crypto *tx, u8 key,
  * Return: 0 in case of success, otherwise < 0
  */
 static int tipc_crypto_key_xmit(struct net *net, struct tipc_aead_key *skey,
-				u16 gen, u8 mode, u32 dnode)
+				u16 gen, u8 mode, u32 danalde)
 {
 	struct sk_buff_head pkts;
 	struct tipc_msg *hdr;
@@ -2239,11 +2239,11 @@ static int tipc_crypto_key_xmit(struct net *net, struct tipc_aead_key *skey,
 	size = tipc_aead_key_size(skey);
 	skb = tipc_buf_acquire(INT_H_SIZE + size, GFP_ATOMIC);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hdr = buf_msg(skb);
 	tipc_msg_init(tipc_own_addr(net), hdr, MSG_CRYPTO, KEY_DISTR_MSG,
-		      INT_H_SIZE, dnode);
+		      INT_H_SIZE, danalde);
 	msg_set_size(hdr, INT_H_SIZE + size);
 	msg_set_key_gen(hdr, gen);
 	msg_set_key_mode(hdr, mode);
@@ -2256,8 +2256,8 @@ static int tipc_crypto_key_xmit(struct net *net, struct tipc_aead_key *skey,
 
 	__skb_queue_head_init(&pkts);
 	__skb_queue_tail(&pkts, skb);
-	if (dnode)
-		rc = tipc_node_xmit(net, &pkts, dnode, 0);
+	if (danalde)
+		rc = tipc_analde_xmit(net, &pkts, danalde, 0);
 	else
 		rc = tipc_bcast_xmit(net, &pkts, &cong_link_cnt);
 
@@ -2322,8 +2322,8 @@ static bool tipc_crypto_key_rcv(struct tipc_crypto *rx, struct tipc_msg *hdr)
 	rx->key_gen = key_gen;
 	rx->skey_mode = msg_key_mode(hdr);
 	rx->skey = skey;
-	rx->nokey = 0;
-	mb(); /* for nokey flag */
+	rx->analkey = 0;
+	mb(); /* for analkey flag */
 
 exit_unlock:
 	spin_unlock(&rx->lock);
@@ -2359,10 +2359,10 @@ static void tipc_crypto_work_rx(struct work_struct *work)
 			   KEY_DISTR_COMPL) == KEY_DISTR_SCHED) {
 		/* Always pick the newest one for distributing */
 		key = tx->key.pending ?: tx->key.active;
-		rc = tipc_crypto_key_distr(tx, key, rx->node);
+		rc = tipc_crypto_key_distr(tx, key, rx->analde);
 		if (unlikely(rc))
 			pr_warn("%s: unable to distr key[%d] to %s, err %d\n",
-				tx->name, key, tipc_node_get_id_str(rx->node),
+				tx->name, key, tipc_analde_get_id_str(rx->analde),
 				rc);
 
 		/* Sched for key_distr releasing */
@@ -2379,7 +2379,7 @@ static void tipc_crypto_work_rx(struct work_struct *work)
 				rx->name, rc);
 		switch (rc) {
 		case -EBUSY:
-		case -ENOMEM:
+		case -EANALMEM:
 			/* Resched the key attaching */
 			resched = true;
 			break;
@@ -2394,7 +2394,7 @@ static void tipc_crypto_work_rx(struct work_struct *work)
 	if (resched && queue_delayed_work(tx->wq, &rx->work, delay))
 		return;
 
-	tipc_node_put(rx->node);
+	tipc_analde_put(rx->analde);
 }
 
 /**
@@ -2407,18 +2407,18 @@ void tipc_crypto_rekeying_sched(struct tipc_crypto *tx, bool changed,
 				u32 new_intv)
 {
 	unsigned long delay;
-	bool now = false;
+	bool analw = false;
 
 	if (changed) {
-		if (new_intv == TIPC_REKEYING_NOW)
-			now = true;
+		if (new_intv == TIPC_REKEYING_ANALW)
+			analw = true;
 		else
 			tx->rekeying_intv = new_intv;
 		cancel_delayed_work_sync(&tx->work);
 	}
 
-	if (tx->rekeying_intv || now) {
-		delay = (now) ? 0 : tx->rekeying_intv * 60 * 1000;
+	if (tx->rekeying_intv || analw) {
+		delay = (analw) ? 0 : tx->rekeying_intv * 60 * 1000;
 		queue_delayed_work(tx->wq, &tx->work, msecs_to_jiffies(delay));
 	}
 }
@@ -2439,7 +2439,7 @@ static void tipc_crypto_work_tx(struct work_struct *work)
 	struct tipc_aead_key *skey = NULL;
 	struct tipc_key key = tx->key;
 	struct tipc_aead *aead;
-	int rc = -ENOMEM;
+	int rc = -EANALMEM;
 
 	if (unlikely(key.pending))
 		goto resched;
@@ -2457,10 +2457,10 @@ static void tipc_crypto_work_tx(struct work_struct *work)
 	skey = kmemdup(aead->key, tipc_aead_key_size(aead->key), GFP_ATOMIC);
 	rcu_read_unlock();
 
-	/* Now, generate new key, initiate & distribute it */
+	/* Analw, generate new key, initiate & distribute it */
 	if (likely(skey)) {
 		rc = tipc_aead_key_generate(skey) ?:
-		     tipc_crypto_key_init(tx, skey, PER_NODE_KEY, false);
+		     tipc_crypto_key_init(tx, skey, PER_ANALDE_KEY, false);
 		if (likely(rc > 0))
 			rc = tipc_crypto_key_distr(tx, rc, NULL);
 		kfree_sensitive(skey);

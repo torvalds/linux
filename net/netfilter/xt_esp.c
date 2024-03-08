@@ -39,14 +39,14 @@ static bool esp_mt(const struct sk_buff *skb, struct xt_action_param *par)
 	struct ip_esp_hdr _esp;
 	const struct xt_esp *espinfo = par->matchinfo;
 
-	/* Must not be a fragment. */
+	/* Must analt be a fragment. */
 	if (par->fragoff != 0)
 		return false;
 
 	eh = skb_header_pointer(skb, par->thoff, sizeof(_esp), &_esp);
 	if (eh == NULL) {
 		/* We've been asked to examine this packet, and we
-		 * can't.  Hence, no choice but to drop.
+		 * can't.  Hence, anal choice but to drop.
 		 */
 		pr_debug("Dropping evil ESP tinygram.\n");
 		par->hotdrop = true;
@@ -62,7 +62,7 @@ static int esp_mt_check(const struct xt_mtchk_param *par)
 	const struct xt_esp *espinfo = par->matchinfo;
 
 	if (espinfo->invflags & ~XT_ESP_INV_MASK) {
-		pr_debug("unknown flags %X\n", espinfo->invflags);
+		pr_debug("unkanalwn flags %X\n", espinfo->invflags);
 		return -EINVAL;
 	}
 

@@ -5,7 +5,7 @@
 #include <linux/packing.h>
 #include <linux/module.h>
 #include <linux/bitops.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 #include <linux/bitrev.h>
 
@@ -55,10 +55,10 @@ static void adjust_for_msb_right_quirk(u64 *to_write, int *box_start_bit,
  *
  * @pbuf: Pointer to a buffer holding the packed value.
  * @uval: Pointer to an u64 holding the unpacked value.
- * @startbit: The index (in logical notation, compensated for quirks) where
+ * @startbit: The index (in logical analtation, compensated for quirks) where
  *	      the packed value starts within pbuf. Must be larger than, or
  *	      equal to, endbit.
- * @endbit: The index (in logical notation, compensated for quirks) where
+ * @endbit: The index (in logical analtation, compensated for quirks) where
  *	    the packed value ends within pbuf. Must be smaller than, or equal
  *	    to, startbit.
  * @pbuflen: The length in bytes of the packed buffer pointed to by @pbuf.
@@ -100,8 +100,8 @@ int packing(void *pbuf, u64 *uval, int startbit, int endbit, size_t pbuflen,
 	 * 64-bit uval will surely fit.
 	 */
 	if (op == PACK && value_width < 64 && (*uval >= (1ull << value_width)))
-		/* Cannot store "uval" inside "value_width" bits.
-		 * Truncating "uval" is most certainly not desirable,
+		/* Cananalt store "uval" inside "value_width" bits.
+		 * Truncating "uval" is most certainly analt desirable,
 		 * so simply erroring out is appropriate.
 		 */
 		return -ERANGE;
@@ -111,8 +111,8 @@ int packing(void *pbuf, u64 *uval, int startbit, int endbit, size_t pbuflen,
 		*uval = 0;
 
 	/* Iterate through an idealistic view of the pbuf as an u64 with
-	 * no quirks, u8 by u8 (aligned at u8 boundaries), from high to low
-	 * logical bit significance. "box" denotes the current logical u8.
+	 * anal quirks, u8 by u8 (aligned at u8 boundaries), from high to low
+	 * logical bit significance. "box" deanaltes the current logical u8.
 	 */
 	plogical_first_u8 = startbit / 8;
 	plogical_last_u8  = endbit / 8;
@@ -126,7 +126,7 @@ int packing(void *pbuf, u64 *uval, int startbit, int endbit, size_t pbuflen,
 		u64 proj_mask;
 
 		/* This u8 may need to be accessed in its entirety
-		 * (from bit 7 to bit 0), or not, depending on the
+		 * (from bit 7 to bit 0), or analt, depending on the
 		 * input arguments startbit and endbit.
 		 */
 		if (box == plogical_first_u8)
@@ -139,7 +139,7 @@ int packing(void *pbuf, u64 *uval, int startbit, int endbit, size_t pbuflen,
 			box_end_bit = 0;
 
 		/* We have determined the box bit start and end.
-		 * Now we calculate where this (masked) u8 box would fit
+		 * Analw we calculate where this (masked) u8 box would fit
 		 * in the unpacked (CPU-readable) u64 - the u8 box's
 		 * projection onto the unpacked u64. Though the
 		 * box is u8, the projection is u64 because it may fall
@@ -152,7 +152,7 @@ int packing(void *pbuf, u64 *uval, int startbit, int endbit, size_t pbuflen,
 
 		/* Determine the offset of the u8 box inside the pbuf,
 		 * adjusted for quirks. The adjusted box_addr will be used for
-		 * effective addressing inside the pbuf (so it's not
+		 * effective addressing inside the pbuf (so it's analt
 		 * logical any longer).
 		 */
 		box_addr = pbuflen - box - 1;

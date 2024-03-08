@@ -34,13 +34,13 @@ static void efx_tc_counter_free(void *ptr, void *__unused)
 
 	WARN_ON(!list_empty(&cnt->users));
 	/* We'd like to synchronize_rcu() here, but unfortunately we aren't
-	 * removing the element from the hashtable (it's not clear that's a
+	 * removing the element from the hashtable (it's analt clear that's a
 	 * safe thing to do in an rhashtable_free_and_destroy free_fn), so
 	 * threads could still be obtaining new pointers to *cnt if they can
 	 * race against this function at all.
 	 */
 	flush_work(&cnt->work);
-	EFX_WARN_ON_PARANOID(spin_is_locked(&cnt->lock));
+	EFX_WARN_ON_PARAANALID(spin_is_locked(&cnt->lock));
 	kfree(cnt);
 }
 
@@ -70,7 +70,7 @@ fail_counter_id_ht:
 }
 
 /* Only call this in init failure teardown.
- * Normal exit should fini instead as there may be entries in the table.
+ * Analrmal exit should fini instead as there may be entries in the table.
  */
 void efx_tc_destroy_counters(struct efx_nic *efx)
 {
@@ -137,7 +137,7 @@ struct efx_tc_counter *efx_tc_flower_allocate_counter(struct efx_nic *efx,
 
 	cnt = kzalloc(sizeof(*cnt), GFP_USER);
 	if (!cnt)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	spin_lock_init(&cnt->lock);
 	INIT_WORK(&cnt->work, efx_tc_counter_work);
@@ -184,13 +184,13 @@ void efx_tc_flower_release_counter(struct efx_nic *efx,
 	WARN_ON(!list_empty(&cnt->users));
 	/* This doesn't protect counter updates coming in arbitrarily long
 	 * after we deleted the counter.  The RCU just ensures that we won't
-	 * free the counter while another thread has a pointer to it.
+	 * free the counter while aanalther thread has a pointer to it.
 	 * Ensuring we don't update the wrong counter if the ID gets re-used
 	 * is handled by the generation count.
 	 */
 	synchronize_rcu();
 	flush_work(&cnt->work);
-	EFX_WARN_ON_PARANOID(spin_is_locked(&cnt->lock));
+	EFX_WARN_ON_PARAANALID(spin_is_locked(&cnt->lock));
 	kfree(cnt);
 }
 
@@ -228,7 +228,7 @@ struct efx_tc_counter_index *efx_tc_flower_get_counter_index(
 
 	ctr = kzalloc(sizeof(*ctr), GFP_USER);
 	if (!ctr)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	ctr->cookie = cookie;
 	old = rhashtable_lookup_get_insert_fast(&efx->tc->counter_id_ht,
 						&ctr->linkage,
@@ -238,7 +238,7 @@ struct efx_tc_counter_index *efx_tc_flower_get_counter_index(
 		kfree(ctr);
 		if (IS_ERR(old)) /* oh dear, it's actually an error */
 			return ERR_CAST(old);
-		if (!refcount_inc_not_zero(&old->ref))
+		if (!refcount_inc_analt_zero(&old->ref))
 			return ERR_PTR(-EAGAIN);
 		/* existing entry found */
 		ctr = old;
@@ -269,7 +269,7 @@ struct efx_tc_counter_index *efx_tc_flower_find_counter_index(
 
 /* TC Channel.  Counter updates are delivered on this channel's RXQ. */
 
-static void efx_tc_handle_no_channel(struct efx_nic *efx)
+static void efx_tc_handle_anal_channel(struct efx_nic *efx)
 {
 	netif_warn(efx, drv, efx->net_dev,
 		   "MAE counters require MSI-X and 1 additional interrupt vector.\n");
@@ -346,11 +346,11 @@ static void efx_tc_counter_update(struct efx_nic *efx,
 		/* This counter update packet is from before the counter was
 		 * allocated; thus it must be for a previous counter with
 		 * the same ID that has since been freed, and it should be
-		 * ignored.
+		 * iganalred.
 		 */
 	} else {
 		/* Update latest seen generation count.  This ensures that
-		 * even a long-lived counter won't start getting ignored if
+		 * even a long-lived counter won't start getting iganalred if
 		 * the generation count wraps around, unless it somehow
 		 * manages to go 1<<31 generations without an update.
 		 */
@@ -444,7 +444,7 @@ static enum efx_tc_counter_type efx_tc_rx_version_2(struct efx_nic *efx,
 	default:
 		if (net_ratelimit())
 			netif_err(efx, drv, efx->net_dev,
-				  "ignored v2 MAE counter packet (bad identifier %u"
+				  "iganalred v2 MAE counter packet (bad identifier %u"
 				  "), counters may be inaccurate\n", ident);
 		return EFX_TC_COUNTER_TYPE_MAX;
 	}
@@ -493,7 +493,7 @@ static enum efx_tc_counter_type efx_tc_rx_version_2(struct efx_nic *efx,
 				netdev_warn_once(efx->net_dev,
 						 "CT counter with inconsistent state (%llu, %llu)\n",
 						 packet_count, byte_count);
-			/* Do not increment the driver's byte counter */
+			/* Do analt increment the driver's byte counter */
 			byte_count = 0;
 		}
 
@@ -503,7 +503,7 @@ static enum efx_tc_counter_type efx_tc_rx_version_2(struct efx_nic *efx,
 	return type;
 }
 
-/* We always swallow the packet, whether successful or not, since it's not
+/* We always swallow the packet, whether successful or analt, since it's analt
  * a network packet and shouldn't ever be forwarded to the stack.
  * @mark is the generation count for counter allocations.
  */
@@ -552,7 +552,7 @@ out:
 }
 
 const struct efx_channel_type efx_tc_channel_type = {
-	.handle_no_channel	= efx_tc_handle_no_channel,
+	.handle_anal_channel	= efx_tc_handle_anal_channel,
 	.pre_probe		= efx_tc_probe_channel,
 	.start			= efx_tc_start_channel,
 	.stop			= efx_tc_stop_channel,

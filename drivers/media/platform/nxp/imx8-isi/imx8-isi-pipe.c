@@ -9,7 +9,7 @@
  */
 
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/minmax.h>
@@ -358,7 +358,7 @@ static int mxc_isi_pipe_init_state(struct v4l2_subdev *sd,
 	fmt_sink->width = MXC_ISI_DEF_WIDTH;
 	fmt_sink->height = MXC_ISI_DEF_HEIGHT;
 	fmt_sink->code = MXC_ISI_DEF_MBUS_CODE_SINK;
-	fmt_sink->field = V4L2_FIELD_NONE;
+	fmt_sink->field = V4L2_FIELD_ANALNE;
 	fmt_sink->colorspace = V4L2_COLORSPACE_JPEG;
 	fmt_sink->ycbcr_enc = V4L2_MAP_YCBCR_ENC_DEFAULT(fmt_sink->colorspace);
 	fmt_sink->quantization =
@@ -470,7 +470,7 @@ static int mxc_isi_pipe_set_fmt(struct v4l2_subdev *sd,
 							  MXC_ISI_PIPE_PAD_SINK);
 
 		/*
-		 * Limit the max line length if there's no adjacent pipe to
+		 * Limit the max line length if there's anal adjacent pipe to
 		 * chain with.
 		 */
 		max_width = pipe->id == pipe->isi->pdata->num_channels - 1
@@ -553,7 +553,7 @@ static int mxc_isi_pipe_get_selection(struct v4l2_subdev *sd,
 	switch (sel->target) {
 	case V4L2_SEL_TGT_COMPOSE_BOUNDS:
 		if (sel->pad != MXC_ISI_PIPE_PAD_SINK)
-			/* No compose rectangle on source pad. */
+			/* Anal compose rectangle on source pad. */
 			return -EINVAL;
 
 		/* The sink compose is bound by the sink format. */
@@ -567,7 +567,7 @@ static int mxc_isi_pipe_get_selection(struct v4l2_subdev *sd,
 
 	case V4L2_SEL_TGT_CROP_BOUNDS:
 		if (sel->pad != MXC_ISI_PIPE_PAD_SOURCE)
-			/* No crop rectangle on sink pad. */
+			/* Anal crop rectangle on sink pad. */
 			return -EINVAL;
 
 		/* The source crop is bound by the sink compose. */
@@ -578,7 +578,7 @@ static int mxc_isi_pipe_get_selection(struct v4l2_subdev *sd,
 
 	case V4L2_SEL_TGT_CROP:
 		if (sel->pad != MXC_ISI_PIPE_PAD_SOURCE)
-			/* No crop rectangle on sink pad. */
+			/* Anal crop rectangle on sink pad. */
 			return -EINVAL;
 
 		rect = mxc_isi_pipe_get_pad_crop(pipe, state, sel->pad);
@@ -587,7 +587,7 @@ static int mxc_isi_pipe_get_selection(struct v4l2_subdev *sd,
 
 	case V4L2_SEL_TGT_COMPOSE:
 		if (sel->pad != MXC_ISI_PIPE_PAD_SINK)
-			/* No compose rectangle on source pad. */
+			/* Anal compose rectangle on source pad. */
 			return -EINVAL;
 
 		rect = mxc_isi_pipe_get_pad_compose(pipe, state, sel->pad);
@@ -771,7 +771,7 @@ int mxc_isi_pipe_init(struct mxc_isi_dev *isi, unsigned int id)
 	sd = &pipe->sd;
 	v4l2_subdev_init(sd, &mxc_isi_pipe_subdev_ops);
 	sd->internal_ops = &mxc_isi_pipe_internal_ops;
-	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 	snprintf(sd->name, sizeof(sd->name), "mxc_isi.%d", pipe->id);
 	sd->dev = isi->dev;
 

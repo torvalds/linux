@@ -286,13 +286,13 @@ static int nitrox_aead_init(struct crypto_aead *aead)
 	/* get the first device */
 	nctx->ndev = nitrox_get_first_device();
 	if (!nctx->ndev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* allocate nitrox crypto context */
 	chdr = crypto_alloc_context(nctx->ndev);
 	if (!chdr) {
 		nitrox_put_device(nctx->ndev);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	nctx->chdr = chdr;
 	nctx->u.ctx_handle = (uintptr_t)((u8 *)chdr->vaddr +

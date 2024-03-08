@@ -91,7 +91,7 @@ static int spi_slave_time_probe(struct spi_device *spi)
 
 	priv = devm_kzalloc(&spi->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->spi = spi;
 	init_completion(&priv->finished);

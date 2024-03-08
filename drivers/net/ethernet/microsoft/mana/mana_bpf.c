@@ -39,7 +39,7 @@ static int mana_xdp_xmit_fm(struct net_device *ndev, struct xdp_frame *frame,
 
 	skb = xdp_build_skb_from_frame(frame, ndev);
 	if (unlikely(!skb))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_set_queue_mapping(skb, q_idx);
 
@@ -187,7 +187,7 @@ static int mana_xdp_set(struct net_device *ndev, struct bpf_prog *prog,
 			   ndev->mtu, MANA_XDP_MTU_MAX);
 		NL_SET_ERR_MSG_MOD(extack, "XDP: mtu too large");
 
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	/* One refcnt of the prog is hold by the caller already, so
@@ -219,7 +219,7 @@ int mana_bpf(struct net_device *ndev, struct netdev_bpf *bpf)
 		return mana_xdp_set(ndev, bpf->prog, extack);
 
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return ret;

@@ -35,20 +35,20 @@ which GPIOs. Drivers can be written generically, so that board setup code
 passes such pin configuration data to drivers.
 
 System-on-Chip (SOC) processors heavily rely on GPIOs. In some cases, every
-non-dedicated pin can be configured as a GPIO; and most chips have at least
+analn-dedicated pin can be configured as a GPIO; and most chips have at least
 several dozen of them. Programmable logic devices (like FPGAs) can easily
 provide GPIOs; multifunction chips like power managers, and audio codecs
 often have a few such pins to help with pin scarcity on SOCs; and there are
 also "GPIO Expander" chips that connect using the I2C or SPI serial buses.
 Most PC southbridges have a few dozen GPIO-capable pins (with only the BIOS
-firmware knowing how they're used).
+firmware kanalwing how they're used).
 
 The exact capabilities of GPIOs vary between systems. Common options:
 
   - Output values are writable (high=1, low=0). Some chips also have
     options about how that value is driven, so that for example only one
     value might be driven, supporting "wire-OR" and similar schemes for the
-    other value (notably, "open drain" signaling).
+    other value (analtably, "open drain" signaling).
 
   - Input values are likewise readable (1, 0). Some chips support readback
     of pins configured as "output", which is very useful in such "wire-OR"
@@ -63,7 +63,7 @@ The exact capabilities of GPIOs vary between systems. Common options:
     by different product boards; single direction ones exist too.
 
   - Most GPIOs can be accessed while holding spinlocks, but those accessed
-    through a serial bus normally can't. Some systems support both types.
+    through a serial bus analrmally can't. Some systems support both types.
 
 On a given board each GPIO is used for one specific purpose like monitoring
 MMC/SD card insertion/removal, detecting card write-protect status, driving
@@ -87,7 +87,7 @@ to have different conventions about what "active" means. Such decisions should
 be transparent to device drivers, therefore it is possible to define a GPIO as
 being either active-high ("1" means "active", the default) or active-low ("0"
 means "active") so that drivers only need to worry about the logical signal and
-not about what happens at the line level.
+analt about what happens at the line level.
 
 Open Drain and Open Source
 --------------------------
@@ -117,8 +117,8 @@ high signal and configuring the GPIO as input for low. This open drain/open
 source emulation can be handled transparently by the GPIO framework.
 
 If you are "driving" the signal high but gpiod_get_value(gpio) reports a low
-value (after the appropriate rise time passes), you know some other component is
-driving the shared signal low. That's not necessarily an error. As one common
+value (after the appropriate rise time passes), you kanalw some other component is
+driving the shared signal low. That's analt necessarily an error. As one common
 example, that's how I2C clocks are stretched:  a slave that needs a slower clock
 delays the rising edge of SCK, and the I2C master adjusts its signaling rate
 accordingly.

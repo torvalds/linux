@@ -51,7 +51,7 @@ static void cdx_mcdi_timeout_cmd(struct cdx_mcdi_iface *mcdi,
 static void cdx_mcdi_cmd_work(struct work_struct *context);
 static void cdx_mcdi_mode_fail(struct cdx_mcdi *cdx, struct list_head *cleanup_list);
 static void _cdx_mcdi_display_error(struct cdx_mcdi *cdx, unsigned int cmd,
-				    size_t inlen, int raw, int arg, int err_no);
+				    size_t inlen, int raw, int arg, int err_anal);
 
 static bool cdx_cmd_cancelled(struct cdx_mcdi_cmd *cmd)
 {
@@ -106,7 +106,7 @@ static unsigned long cdx_mcdi_rpc_timeout(struct cdx_mcdi *cdx, unsigned int cmd
 int cdx_mcdi_init(struct cdx_mcdi *cdx)
 {
 	struct cdx_mcdi_iface *mcdi;
-	int rc = -ENOMEM;
+	int rc = -EANALMEM;
 
 	cdx->mcdi = kzalloc(sizeof(*cdx->mcdi), GFP_KERNEL);
 	if (!cdx->mcdi)
@@ -148,13 +148,13 @@ void cdx_mcdi_finish(struct cdx_mcdi *cdx)
 	cdx->mcdi = NULL;
 }
 
-static bool cdx_mcdi_flushed(struct cdx_mcdi_iface *mcdi, bool ignore_cleanups)
+static bool cdx_mcdi_flushed(struct cdx_mcdi_iface *mcdi, bool iganalre_cleanups)
 {
 	bool flushed;
 
 	mutex_lock(&mcdi->iface_lock);
 	flushed = list_empty(&mcdi->cmd_list) &&
-		  (ignore_cleanups || !mcdi->outstanding_cleanups);
+		  (iganalre_cleanups || !mcdi->outstanding_cleanups);
 	mutex_unlock(&mcdi->iface_lock);
 	return flushed;
 }
@@ -227,7 +227,7 @@ static void cdx_mcdi_send_request(struct cdx_mcdi *cdx,
 	size_t inlen = cmd->inlen;
 	struct cdx_dword hdr[2];
 	size_t hdr_len;
-	bool not_epoch;
+	bool analt_epoch;
 	u32 xflags;
 
 	if (!mcdi)
@@ -238,7 +238,7 @@ static void cdx_mcdi_send_request(struct cdx_mcdi *cdx,
 	mcdi->db_held_by = cmd;
 	cmd->started = jiffies;
 
-	not_epoch = !mcdi->new_epoch;
+	analt_epoch = !mcdi->new_epoch;
 	xflags = 0;
 
 	/* MCDI v2 */
@@ -250,7 +250,7 @@ static void cdx_mcdi_send_request(struct cdx_mcdi *cdx,
 			     MCDI_HEADER_DATALEN, 0,
 			     MCDI_HEADER_SEQ, cmd->seq,
 			     MCDI_HEADER_XFLAGS, xflags,
-			     MCDI_HEADER_NOT_EPOCH, not_epoch);
+			     MCDI_HEADER_ANALT_EPOCH, analt_epoch);
 	CDX_POPULATE_DWORD_3(hdr[1],
 			     MC_CMD_V2_EXTN_IN_EXTENDED_CMD, cmd->cmd,
 			     MC_CMD_V2_EXTN_IN_ACTUAL_LEN, inlen,
@@ -261,15 +261,15 @@ static void cdx_mcdi_send_request(struct cdx_mcdi *cdx,
 	hdr[0].cdx_u32 |= (__force __le32)(cdx_mcdi_payload_csum(hdr, hdr_len, inbuf, inlen) <<
 			 MCDI_HEADER_XFLAGS_LBN);
 
-	print_hex_dump_debug("MCDI REQ HEADER: ", DUMP_PREFIX_NONE, 32, 4, hdr, hdr_len, false);
-	print_hex_dump_debug("MCDI REQ PAYLOAD: ", DUMP_PREFIX_NONE, 32, 4, inbuf, inlen, false);
+	print_hex_dump_debug("MCDI REQ HEADER: ", DUMP_PREFIX_ANALNE, 32, 4, hdr, hdr_len, false);
+	print_hex_dump_debug("MCDI REQ PAYLOAD: ", DUMP_PREFIX_ANALNE, 32, 4, inbuf, inlen, false);
 
 	cdx->mcdi_ops->mcdi_request(cdx, hdr, hdr_len, inbuf, inlen);
 
 	mcdi->new_epoch = false;
 }
 
-static int cdx_mcdi_errno(struct cdx_mcdi *cdx, unsigned int mcdi_err)
+static int cdx_mcdi_erranal(struct cdx_mcdi *cdx, unsigned int mcdi_err)
 {
 	switch (mcdi_err) {
 	case 0:
@@ -277,8 +277,8 @@ static int cdx_mcdi_errno(struct cdx_mcdi *cdx, unsigned int mcdi_err)
 		return mcdi_err;
 	case MC_CMD_ERR_EPERM:
 		return -EPERM;
-	case MC_CMD_ERR_ENOENT:
-		return -ENOENT;
+	case MC_CMD_ERR_EANALENT:
+		return -EANALENT;
 	case MC_CMD_ERR_EINTR:
 		return -EINTR;
 	case MC_CMD_ERR_EAGAIN:
@@ -293,23 +293,23 @@ static int cdx_mcdi_errno(struct cdx_mcdi *cdx, unsigned int mcdi_err)
 		return -ERANGE;
 	case MC_CMD_ERR_EDEADLK:
 		return -EDEADLK;
-	case MC_CMD_ERR_ENOSYS:
-		return -EOPNOTSUPP;
+	case MC_CMD_ERR_EANALSYS:
+		return -EOPANALTSUPP;
 	case MC_CMD_ERR_ETIME:
 		return -ETIME;
 	case MC_CMD_ERR_EALREADY:
 		return -EALREADY;
-	case MC_CMD_ERR_ENOSPC:
-		return -ENOSPC;
-	case MC_CMD_ERR_ENOMEM:
-		return -ENOMEM;
-	case MC_CMD_ERR_ENOTSUP:
-		return -EOPNOTSUPP;
+	case MC_CMD_ERR_EANALSPC:
+		return -EANALSPC;
+	case MC_CMD_ERR_EANALMEM:
+		return -EANALMEM;
+	case MC_CMD_ERR_EANALTSUP:
+		return -EOPANALTSUPP;
 	case MC_CMD_ERR_ALLOC_FAIL:
-		return -ENOBUFS;
+		return -EANALBUFS;
 	case MC_CMD_ERR_MAC_EXIST:
 		return -EADDRINUSE;
-	case MC_CMD_ERR_NO_EVB_PORT:
+	case MC_CMD_ERR_ANAL_EVB_PORT:
 		return -EAGAIN;
 	default:
 		return -EPROTO;
@@ -340,7 +340,7 @@ static void cdx_mcdi_process_cleanup_list(struct cdx_mcdi *cdx,
 		bool all_done;
 
 		mutex_lock(&mcdi->iface_lock);
-		CDX_WARN_ON_PARANOID(cleanups > mcdi->outstanding_cleanups);
+		CDX_WARN_ON_PARAANALID(cleanups > mcdi->outstanding_cleanups);
 		all_done = (mcdi->outstanding_cleanups -= cleanups) == 0;
 		mutex_unlock(&mcdi->iface_lock);
 		if (all_done)
@@ -361,7 +361,7 @@ static void _cdx_mcdi_cancel_cmd(struct cdx_mcdi_iface *mcdi,
 			case MCDI_STATE_RETRY:
 				pr_debug("command %#x inlen %zu cancelled in queue\n",
 					 cmd->cmd, cmd->inlen);
-				/* if not yet running, properly cancel it */
+				/* if analt yet running, properly cancel it */
 				cmd->rc = -EPIPE;
 				cdx_mcdi_remove_cmd(mcdi, cmd, cleanup_list);
 				break;
@@ -438,12 +438,12 @@ static int cdx_mcdi_rpc_sync(struct cdx_mcdi *cdx, unsigned int cmd,
 
 	wait_data = kmalloc(sizeof(*wait_data), GFP_KERNEL);
 	if (!wait_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd_item = kmalloc(sizeof(*cmd_item), GFP_KERNEL);
 	if (!cmd_item) {
 		kfree(wait_data);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	kref_init(&wait_data->ref);
@@ -650,9 +650,9 @@ static bool cdx_mcdi_complete_cmd(struct cdx_mcdi_iface *mcdi,
 		resp_data_len = 0;
 	}
 
-	print_hex_dump_debug("MCDI RESP HEADER: ", DUMP_PREFIX_NONE, 32, 4,
+	print_hex_dump_debug("MCDI RESP HEADER: ", DUMP_PREFIX_ANALNE, 32, 4,
 			     outbuf, resp_hdr_len, false);
-	print_hex_dump_debug("MCDI RESP PAYLOAD: ", DUMP_PREFIX_NONE, 32, 4,
+	print_hex_dump_debug("MCDI RESP PAYLOAD: ", DUMP_PREFIX_ANALNE, 32, 4,
 			     outbuf + (resp_hdr_len / 4), resp_data_len, false);
 
 	if (error && resp_data_len == 0) {
@@ -674,9 +674,9 @@ static bool cdx_mcdi_complete_cmd(struct cdx_mcdi_iface *mcdi,
 
 				_cdx_mcdi_display_error(cdx, cmd->cmd,
 							cmd->inlen, rc, err_arg,
-							cdx_mcdi_errno(cdx, rc));
+							cdx_mcdi_erranal(cdx, rc));
 			}
-			rc = cdx_mcdi_errno(cdx, rc);
+			rc = cdx_mcdi_erranal(cdx, rc);
 		} else {
 			rc = 0;
 		}
@@ -735,13 +735,13 @@ static void cdx_mcdi_timeout_cmd(struct cdx_mcdi_iface *mcdi,
  * @cmd: Command type number
  * @inbuf: Command parameters
  * @inlen: Length of command parameters, in bytes. Must be a multiple
- *	of 4 and no greater than %MCDI_CTL_SDU_LEN_MAX_V1.
+ *	of 4 and anal greater than %MCDI_CTL_SDU_LEN_MAX_V1.
  * @outbuf: Response buffer. May be %NULL if @outlen is 0.
  * @outlen: Length of response buffer, in bytes. If the actual
  *	response is longer than @outlen & ~3, it will be truncated
  *	to that length.
  * @outlen_actual: Pointer through which to return the actual response
- *	length. May be %NULL if this is not needed.
+ *	length. May be %NULL if this is analt needed.
  *
  * This function may sleep and therefore must be called in process
  * context.
@@ -763,7 +763,7 @@ int cdx_mcdi_rpc(struct cdx_mcdi *cdx, unsigned int cmd,
 }
 
 /**
- * cdx_mcdi_rpc_async - Schedule an MCDI command to run asynchronously
+ * cdx_mcdi_rpc_async - Schedule an MCDI command to run asynchroanalusly
  * @cdx: NIC through which to issue the command
  * @cmd: Command type number
  * @inbuf: Command parameters
@@ -771,7 +771,7 @@ int cdx_mcdi_rpc(struct cdx_mcdi *cdx, unsigned int cmd,
  * @complete: Function to be called on completion or cancellation.
  * @cookie: Arbitrary value to be passed to @complete.
  *
- * This function does not sleep and therefore may be called in atomic
+ * This function does analt sleep and therefore may be called in atomic
  * context.  It will fail if event queues are disabled or if MCDI
  * event completions have been disabled due to an error.
  *
@@ -789,7 +789,7 @@ cdx_mcdi_rpc_async(struct cdx_mcdi *cdx, unsigned int cmd,
 		kmalloc(sizeof(struct cdx_mcdi_cmd) + inlen, GFP_ATOMIC);
 
 	if (!cmd_item)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	kref_init(&cmd_item->ref);
 	cmd_item->quiet = true;
@@ -797,7 +797,7 @@ cdx_mcdi_rpc_async(struct cdx_mcdi *cdx, unsigned int cmd,
 	cmd_item->completer = complete;
 	cmd_item->cmd = cmd;
 	cmd_item->inlen = inlen;
-	/* inbuf is probably not valid after return, so take a copy */
+	/* inbuf is probably analt valid after return, so take a copy */
 	cmd_item->inbuf = (struct cdx_dword *)(cmd_item + 1);
 	memcpy(cmd_item + 1, inbuf, inlen);
 
@@ -805,10 +805,10 @@ cdx_mcdi_rpc_async(struct cdx_mcdi *cdx, unsigned int cmd,
 }
 
 static void _cdx_mcdi_display_error(struct cdx_mcdi *cdx, unsigned int cmd,
-				    size_t inlen, int raw, int arg, int err_no)
+				    size_t inlen, int raw, int arg, int err_anal)
 {
-	pr_err("MC command 0x%x inlen %d failed err_no=%d (raw=%d) arg=%d\n",
-	       cmd, (int)inlen, err_no, raw, arg);
+	pr_err("MC command 0x%x inlen %d failed err_anal=%d (raw=%d) arg=%d\n",
+	       cmd, (int)inlen, err_anal, raw, arg);
 }
 
 /*

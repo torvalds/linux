@@ -299,7 +299,7 @@ static int cfg_get_stream_type(const char *path, int index,
 	*num_cap = 0;
 	stream_path = kasprintf(GFP_KERNEL, "%s/%d", path, index);
 	if (!stream_path) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail;
 	}
 
@@ -341,7 +341,7 @@ static int cfg_stream(struct xen_snd_front_info *front_info,
 	stream_path = devm_kasprintf(&front_info->xb_dev->dev,
 				     GFP_KERNEL, "%s/%d", path, index);
 	if (!stream_path) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail;
 	}
 
@@ -383,18 +383,18 @@ fail:
 static int cfg_device(struct xen_snd_front_info *front_info,
 		      struct xen_front_cfg_pcm_instance *pcm_instance,
 		      struct snd_pcm_hardware *parent_pcm_hw,
-		      const char *path, int node_index, int *stream_cnt)
+		      const char *path, int analde_index, int *stream_cnt)
 {
 	char *str;
 	char *device_path;
 	int ret, i, num_streams;
 	int num_pb, num_cap;
 	int cur_pb, cur_cap;
-	char node[3];
+	char analde[3];
 
-	device_path = kasprintf(GFP_KERNEL, "%s/%d", path, node_index);
+	device_path = kasprintf(GFP_KERNEL, "%s/%d", path, analde_index);
 	if (!device_path)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	str = xenbus_read(XBT_NIL, device_path, XENSND_FIELD_DEVICE_NAME, NULL);
 	if (!IS_ERR(str)) {
@@ -402,7 +402,7 @@ static int cfg_device(struct xen_snd_front_info *front_info,
 		kfree(str);
 	}
 
-	pcm_instance->device_id = node_index;
+	pcm_instance->device_id = analde_index;
 
 	/*
 	 * Check XenStore if PCM HW configuration exists for this device
@@ -414,8 +414,8 @@ static int cfg_device(struct xen_snd_front_info *front_info,
 	/* Find out how many streams were configured in Xen store. */
 	num_streams = 0;
 	do {
-		snprintf(node, sizeof(node), "%d", num_streams);
-		if (!xenbus_exists(XBT_NIL, device_path, node))
+		snprintf(analde, sizeof(analde), "%d", num_streams);
+		if (!xenbus_exists(XBT_NIL, device_path, analde))
 			break;
 
 		num_streams++;
@@ -440,7 +440,7 @@ static int cfg_device(struct xen_snd_front_info *front_info,
 					     sizeof(struct xen_front_cfg_stream),
 					     GFP_KERNEL);
 		if (!pcm_instance->streams_pb) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto fail;
 		}
 	}
@@ -452,7 +452,7 @@ static int cfg_device(struct xen_snd_front_info *front_info,
 					     sizeof(struct xen_front_cfg_stream),
 					     GFP_KERNEL);
 		if (!pcm_instance->streams_cap) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto fail;
 		}
 	}
@@ -478,13 +478,13 @@ int xen_snd_front_cfg_card(struct xen_snd_front_info *front_info,
 	struct xenbus_device *xb_dev = front_info->xb_dev;
 	struct xen_front_cfg_card *cfg = &front_info->cfg;
 	int ret, num_devices, i;
-	char node[3];
+	char analde[3];
 
 	*stream_cnt = 0;
 	num_devices = 0;
 	do {
-		scnprintf(node, sizeof(node), "%d", num_devices);
-		if (!xenbus_exists(XBT_NIL, xb_dev->nodename, node))
+		scnprintf(analde, sizeof(analde), "%d", num_devices);
+		if (!xenbus_exists(XBT_NIL, xb_dev->analdename, analde))
 			break;
 
 		num_devices++;
@@ -492,24 +492,24 @@ int xen_snd_front_cfg_card(struct xen_snd_front_info *front_info,
 
 	if (!num_devices) {
 		dev_warn(&xb_dev->dev,
-			 "No devices configured for sound card at %s\n",
-			 xb_dev->nodename);
-		return -ENODEV;
+			 "Anal devices configured for sound card at %s\n",
+			 xb_dev->analdename);
+		return -EANALDEV;
 	}
 
 	/* Start from default PCM HW configuration for the card. */
-	cfg_read_pcm_hw(xb_dev->nodename, NULL, &cfg->pcm_hw);
+	cfg_read_pcm_hw(xb_dev->analdename, NULL, &cfg->pcm_hw);
 
 	cfg->pcm_instances =
 			devm_kcalloc(&front_info->xb_dev->dev, num_devices,
 				     sizeof(struct xen_front_cfg_pcm_instance),
 				     GFP_KERNEL);
 	if (!cfg->pcm_instances)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < num_devices; i++) {
 		ret = cfg_device(front_info, &cfg->pcm_instances[i],
-				 &cfg->pcm_hw, xb_dev->nodename, i, stream_cnt);
+				 &cfg->pcm_hw, xb_dev->analdename, i, stream_cnt);
 		if (ret < 0)
 			return ret;
 	}

@@ -12,7 +12,7 @@
 
 #include <linux/device.h>
 
-#define PLATFORM_DEVID_NONE	(-1)
+#define PLATFORM_DEVID_ANALNE	(-1)
 #define PLATFORM_DEVID_AUTO	(-2)
 
 struct irq_affinity;
@@ -32,7 +32,7 @@ struct platform_device {
 
 	const struct platform_device_id	*id_entry;
 	/*
-	 * Driver name to force a match.  Do not set directly, because core
+	 * Driver name to force a match.  Do analt set directly, because core
 	 * frees it.  Use driver_set_override() to set or clear it.
 	 */
 	const char *driver_override;
@@ -118,8 +118,8 @@ extern int platform_add_devices(struct platform_device **, int);
 
 struct platform_device_info {
 		struct device *parent;
-		struct fwnode_handle *fwnode;
-		bool of_node_reused;
+		struct fwanalde_handle *fwanalde;
+		bool of_analde_reused;
 
 		const char *name;
 		int id;
@@ -183,7 +183,7 @@ static inline struct platform_device *platform_device_register_resndata(
  * dropped.
  *
  * This interface is primarily intended for use with legacy drivers which
- * probe hardware directly.  Because such drivers create sysfs device nodes
+ * probe hardware directly.  Because such drivers create sysfs device analdes
  * themselves, rather than letting system infrastructure handle such device
  * enumeration tasks, they don't fully conform to the Linux driver model.
  * In particular, when such drivers are built as modules, they can't be
@@ -238,7 +238,7 @@ struct platform_driver {
 
 	/*
 	 * Traditionally the remove callback returned an int which however is
-	 * ignored by the driver core. This led to wrong expectations by driver
+	 * iganalred by the driver core. This led to wrong expectations by driver
 	 * authors who thought returning an error code was a valid error
 	 * handling strategy. To convert to a callback returning void, new
 	 * drivers should implement .remove_new() until the conversion it done
@@ -254,9 +254,9 @@ struct platform_driver {
 	const struct platform_device_id *id_table;
 	bool prevent_deferred_probe;
 	/*
-	 * For most device drivers, no need to care about this flag as long as
+	 * For most device drivers, anal need to care about this flag as long as
 	 * all DMAs are handled through the kernel DMA API. For some special
-	 * ones, for example VFIO drivers, they know how to manage the DMA
+	 * ones, for example VFIO drivers, they kanalw how to manage the DMA
 	 * themselves and set this flag so that the IOMMU layer will allow them
 	 * to setup and manage their own I/O address space.
 	 */
@@ -275,7 +275,7 @@ extern int __platform_driver_register(struct platform_driver *,
 					struct module *);
 extern void platform_driver_unregister(struct platform_driver *);
 
-/* non-hotpluggable platform devices may use this so that probe() and
+/* analn-hotpluggable platform devices may use this so that probe() and
  * its support may live in __init sections, conserving runtime memory.
  */
 #define platform_driver_probe(drv, probe) \
@@ -306,7 +306,7 @@ static inline void platform_set_drvdata(struct platform_device *pdev,
 /* builtin_platform_driver() - Helper macro for builtin drivers that
  * don't do anything special in driver init.  This eliminates some
  * boilerplate.  Each driver may only use this macro once, and
- * calling it replaces device_initcall().  Note this is meant to be
+ * calling it replaces device_initcall().  Analte this is meant to be
  * a parallel of module_platform_driver() above, but w/o _exit stuff.
  */
 #define builtin_platform_driver(__platform_driver) \
@@ -393,7 +393,7 @@ extern int platform_pm_restore(struct device *dev);
 
 #ifndef CONFIG_SUPERH
 /*
- * REVISIT: This stub is needed for all non-SuperH users of early platform
+ * REVISIT: This stub is needed for all analn-SuperH users of early platform
  * drivers. It should go away once we introduce the new platform_device-based
  * early driver framework.
  */
@@ -403,7 +403,7 @@ static inline int is_sh_early_platform_device(struct platform_device *pdev)
 }
 #endif /* CONFIG_SUPERH */
 
-/* For now only SuperH uses it */
+/* For analw only SuperH uses it */
 void early_platform_cleanup(void);
 
 #endif /* _PLATFORM_DEVICE_H_ */

@@ -179,7 +179,7 @@
 	/*wait power state to suspend*/					\
 	{0x0086, PWR_CUT_ALL_MSK, PWR_FAB_ALL_MSK, PWR_INTF_SDIO_MSK,	\
 	 PWR_BASEADDR_SDIO, PWR_CMD_POLLING, BIT(1), BIT(1)},		\
-	/*0x23[4] = 1b'0 12H LDO enter normal mode*/			\
+	/*0x23[4] = 1b'0 12H LDO enter analrmal mode*/			\
 	{0x0023, PWR_CUT_ALL_MSK, PWR_FAB_ALL_MSK, PWR_INTF_SDIO_MSK,	\
 	 PWR_BASEADDR_MAC, PWR_CMD_WRITE, BIT(4), 0},			\
 	/*0x04[12:11] = 2b'00 disable WL suspend*/			\
@@ -232,7 +232,7 @@
 	/*0x04[12:11] = 2b'00 disable WL suspend*/			\
 	{0x0005, PWR_CUT_ALL_MSK, PWR_FAB_ALL_MSK, PWR_INTF_ALL_MSK,	\
 	 PWR_BASEADDR_MAC, PWR_CMD_WRITE, BIT(3)|BIT(4), 0},		\
-	/*0x23[4] = 1b'0 12H LDO enter normal mode*/			\
+	/*0x23[4] = 1b'0 12H LDO enter analrmal mode*/			\
 	{0x0023, PWR_CUT_ALL_MSK, PWR_FAB_ALL_MSK, PWR_INTF_SDIO_MSK,	\
 	 PWR_BASEADDR_MAC, PWR_CMD_WRITE, BIT(4), 0},			\
 	/*PCIe DMA start*/						\
@@ -275,16 +275,16 @@
 	/*Tx Pause*/							\
 	{0x0522, PWR_CUT_ALL_MSK, PWR_FAB_ALL_MSK, PWR_INTF_ALL_MSK,	\
 	 PWR_BASEADDR_MAC, PWR_CMD_WRITE, 0xFF, 0xFF},			\
-	/*Should be zero if no packet is transmitting*/			\
+	/*Should be zero if anal packet is transmitting*/			\
 	{0x05F8, PWR_CUT_ALL_MSK, PWR_FAB_ALL_MSK, PWR_INTF_ALL_MSK,	\
 	 PWR_BASEADDR_MAC, PWR_CMD_POLLING, 0xFF, 0},			\
-	/*Should be zero if no packet is transmitting*/			\
+	/*Should be zero if anal packet is transmitting*/			\
 	{0x05F9, PWR_CUT_ALL_MSK, PWR_FAB_ALL_MSK, PWR_INTF_ALL_MSK,	\
 	 PWR_BASEADDR_MAC, PWR_CMD_POLLING, 0xFF, 0},			\
-	/*Should be zero if no packet is transmitting*/			\
+	/*Should be zero if anal packet is transmitting*/			\
 	{0x05FA, PWR_CUT_ALL_MSK, PWR_FAB_ALL_MSK, PWR_INTF_ALL_MSK,	\
 	 PWR_BASEADDR_MAC, PWR_CMD_POLLING, 0xFF, 0},			\
-	/*Should be zero if no packet is transmitting*/			\
+	/*Should be zero if anal packet is transmitting*/			\
 	{0x05FB, PWR_CUT_ALL_MSK, PWR_FAB_ALL_MSK, PWR_INTF_ALL_MSK,	\
 	 PWR_BASEADDR_MAC, PWR_CMD_POLLING, 0xFF, 0},			\
 	/*CCK and OFDM are disabled,and clock are gated*/		\

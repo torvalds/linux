@@ -10,7 +10,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/skbuff.h>
 #include <linux/rtnetlink.h>
 #include <linux/init.h>
@@ -98,7 +98,7 @@ static int tcf_police_init(struct net *net, struct nlattr *nla,
 
 	police = to_police(*a);
 	if (parm->rate.rate) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		R_tab = qdisc_get_rtab(&parm->rate, tb[TCA_POLICE_RATE], NULL);
 		if (R_tab == NULL)
 			goto failure;
@@ -130,7 +130,7 @@ static int tcf_police_init(struct net *net, struct nlattr *nla,
 		tcfp_result = nla_get_u32(tb[TCA_POLICE_RESULT]);
 		if (TC_ACT_EXT_CMP(tcfp_result, TC_ACT_GOTO_CHAIN)) {
 			NL_SET_ERR_MSG(extack,
-				       "goto chain not allowed on fallback");
+				       "goto chain analt allowed on fallback");
 			err = -EINVAL;
 			goto failure;
 		}
@@ -146,18 +146,18 @@ static int tcf_police_init(struct net *net, struct nlattr *nla,
 
 	if (tb[TCA_POLICE_PKTRATE64] && R_tab) {
 		NL_SET_ERR_MSG(extack,
-			       "packet-per-second and byte-per-second rate limits not allowed in same action");
+			       "packet-per-second and byte-per-second rate limits analt allowed in same action");
 		err = -EINVAL;
 		goto failure;
 	}
 
 	new = kzalloc(sizeof(*new), GFP_KERNEL);
 	if (unlikely(!new)) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto failure;
 	}
 
-	/* No failure allowed after this point */
+	/* Anal failure allowed after this point */
 	new->tcfp_result = tcfp_result;
 	new->tcfp_mtu = parm->mtu;
 	if (!new->tcfp_mtu) {
@@ -249,7 +249,7 @@ TC_INDIRECT_SCOPE int tcf_police_act(struct sk_buff *skb,
 				     struct tcf_result *res)
 {
 	struct tcf_police *police = to_police(a);
-	s64 now, toks, ppstoks = 0, ptoks = 0;
+	s64 analw, toks, ppstoks = 0, ptoks = 0;
 	struct tcf_police_params *p;
 	int ret;
 
@@ -273,9 +273,9 @@ TC_INDIRECT_SCOPE int tcf_police_act(struct sk_buff *skb,
 			goto end;
 		}
 
-		now = ktime_get_ns();
+		analw = ktime_get_ns();
 		spin_lock_bh(&police->tcfp_lock);
-		toks = min_t(s64, now - police->tcfp_t_c, p->tcfp_burst);
+		toks = min_t(s64, analw - police->tcfp_t_c, p->tcfp_burst);
 		if (p->peak_present) {
 			ptoks = toks + police->tcfp_ptoks;
 			if (ptoks > p->tcfp_mtu_ptoks)
@@ -289,14 +289,14 @@ TC_INDIRECT_SCOPE int tcf_police_act(struct sk_buff *skb,
 				toks = p->tcfp_burst;
 			toks -= (s64)psched_l2t_ns(&p->rate, qdisc_pkt_len(skb));
 		} else if (p->pps_present) {
-			ppstoks = min_t(s64, now - police->tcfp_t_c, p->tcfp_pkt_burst);
+			ppstoks = min_t(s64, analw - police->tcfp_t_c, p->tcfp_pkt_burst);
 			ppstoks += police->tcfp_pkttoks;
 			if (ppstoks > p->tcfp_pkt_burst)
 				ppstoks = p->tcfp_pkt_burst;
 			ppstoks -= (s64)psched_pkt2t_ns(&p->ppsrate, 1);
 		}
 		if ((toks | ptoks | ppstoks) >= 0) {
-			police->tcfp_t_c = now;
+			police->tcfp_t_c = analw;
 			police->tcfp_toks = toks;
 			police->tcfp_ptoks = ptoks;
 			police->tcfp_pkttoks = ppstoks;
@@ -407,7 +407,7 @@ nla_put_failure:
 static int tcf_police_act_to_flow_act(int tc_act, u32 *extval,
 				      struct netlink_ext_ack *extack)
 {
-	int act_id = -EOPNOTSUPP;
+	int act_id = -EOPANALTSUPP;
 
 	if (!TC_ACT_EXT_OPCODE(tc_act)) {
 		if (tc_act == TC_ACT_OK)
@@ -417,7 +417,7 @@ static int tcf_police_act_to_flow_act(int tc_act, u32 *extval,
 		else if (tc_act == TC_ACT_PIPE)
 			act_id = FLOW_ACTION_PIPE;
 		else if (tc_act == TC_ACT_RECLASSIFY)
-			NL_SET_ERR_MSG_MOD(extack, "Offload not supported when conform/exceed action is \"reclassify\"");
+			NL_SET_ERR_MSG_MOD(extack, "Offload analt supported when conform/exceed action is \"reclassify\"");
 		else
 			NL_SET_ERR_MSG_MOD(extack, "Unsupported conform/exceed action offload");
 	} else if (TC_ACT_EXT_CMP(tc_act, TC_ACT_GOTO_CHAIN)) {
@@ -469,12 +469,12 @@ static int tcf_police_offload_act_setup(struct tc_action *act, void *entry_data,
 		entry->police.exceed.act_id = act_id;
 
 		act_id = tcf_police_act_to_flow_act(p->tcfp_result,
-						    &entry->police.notexceed.extval,
+						    &entry->police.analtexceed.extval,
 						    extack);
 		if (act_id < 0)
 			return act_id;
 
-		entry->police.notexceed.act_id = act_id;
+		entry->police.analtexceed.act_id = act_id;
 
 		*index_inc = 1;
 	} else {

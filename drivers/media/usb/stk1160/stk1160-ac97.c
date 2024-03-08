@@ -87,7 +87,7 @@ void stk1160_ac97_dump_regs(struct stk1160 *dev)
 	value = stk1160_read_ac97(dev, 0x10); /* Line-in volume */
 	stk1160_dbg("0x10 == 0x%04x", value);
 
-	value = stk1160_read_ac97(dev, 0x0e); /* MIC volume (mono) */
+	value = stk1160_read_ac97(dev, 0x0e); /* MIC volume (moanal) */
 	stk1160_dbg("0x0e == 0x%04x", value);
 
 	value = stk1160_read_ac97(dev, 0x16); /* Aux volume */
@@ -143,7 +143,7 @@ void stk1160_ac97_setup(struct stk1160 *dev)
 	/* Setup channels */
 	stk1160_write_ac97(dev, 0x12, 0x8808); /* CD volume */
 	stk1160_write_ac97(dev, 0x10, 0x0808); /* Line-in volume */
-	stk1160_write_ac97(dev, 0x0e, 0x0008); /* MIC volume (mono) */
+	stk1160_write_ac97(dev, 0x0e, 0x0008); /* MIC volume (moanal) */
 	stk1160_write_ac97(dev, 0x16, 0x0808); /* Aux volume */
 	stk1160_write_ac97(dev, 0x1a, 0x0404); /* Record select */
 	stk1160_write_ac97(dev, 0x02, 0x0000); /* Master volume */

@@ -55,7 +55,7 @@ static int ecdh_compute_value(struct kpp_request *req)
 	u64 *shared_secret = NULL;
 	void *buf;
 	size_t copied, nbytes, public_key_sz;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	nbytes = ctx->ndigits << ECC_DIGITS_TO_BYTES_SHIFT;
 	/* Public part is a point thus it has both coordinates */
@@ -63,7 +63,7 @@ static int ecdh_compute_value(struct kpp_request *req)
 
 	public_key = kmalloc(public_key_sz, GFP_KERNEL);
 	if (!public_key)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (req->src) {
 		shared_secret = kmalloc(nbytes, GFP_KERNEL);

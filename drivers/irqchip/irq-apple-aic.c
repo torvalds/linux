@@ -17,7 +17,7 @@
  *   - Automatic masking on event delivery (auto-ack)
  *   - Software triggering (ORed with hw line)
  * - 2 per-CPU IPIs (meant as "self" and "other", but they are
- *   interchangeable if not symmetric)
+ *   interchangeable if analt symmetric)
  * - Automatic prioritization (single event/ack register per CPU, lower IRQs =
  *   higher priority)
  * - Automatic masking on ack
@@ -27,7 +27,7 @@
  * IRQ vector. These are used for Fast IPIs, the ARMv8 timer IRQs, and
  * performance counters (TODO).
  *
- * Implementation notes:
+ * Implementation analtes:
  *
  * - This driver creates two IRQ domains, one for HW IRQs and internal FIQs,
  *   and one for IPIs.
@@ -147,7 +147,7 @@
  *
  * This is followed by a set of event registers, each 16K page aligned.
  * The first one is the AP event register we will use. Unfortunately,
- * the actual implemented die count is not specified anywhere in the
+ * the actual implemented die count is analt specified anywhere in the
  * capability registers, so we have to explicitly specify the event
  * register as a second reg entry in the device tree to remain
  * forward-compatible.
@@ -173,7 +173,7 @@
 #define IPI_RR_IMMEDIATE		0
 #define IPI_RR_RETRACT			1
 #define IPI_RR_DEFERRED			2
-#define IPI_RR_NOWAKE			3
+#define IPI_RR_ANALWAKE			3
 
 /* IPI status register */
 #define SYS_IMP_APL_IPI_SR_EL1		sys_reg(3, 5, 15, 1, 1)
@@ -229,7 +229,7 @@ enum fiq_hwirq {
 	AIC_TMR_EL02_VIRT	= AIC_TMR_GUEST_VIRT,
 	AIC_CPU_PMU_Effi	= AIC_CPU_PMU_E,
 	AIC_CPU_PMU_Perf	= AIC_CPU_PMU_P,
-	/* No need for this to be discovered from DT */
+	/* Anal need for this to be discovered from DT */
 	AIC_VGIC_MI,
 	AIC_NR_FIQ
 };
@@ -355,7 +355,7 @@ static void aic_irq_unmask(struct irq_data *d)
 static void aic_irq_eoi(struct irq_data *d)
 {
 	/*
-	 * Reading the interrupt reason automatically acknowledges and masks
+	 * Reading the interrupt reason automatically ackanalwledges and masks
 	 * the IRQ, so we just unmask it here if needed.
 	 */
 	if (!irqd_irq_masked(d))
@@ -369,7 +369,7 @@ static void __exception_irq_entry aic_handle_irq(struct pt_regs *regs)
 
 	do {
 		/*
-		 * We cannot use a relaxed read here, as reads from DMA buffers
+		 * We cananalt use a relaxed read here, as reads from DMA buffers
 		 * need to be ordered after the IRQ fires.
 		 */
 		event = readl(ic->event + ic->info.event);
@@ -381,7 +381,7 @@ static void __exception_irq_entry aic_handle_irq(struct pt_regs *regs)
 		else if (type == AIC_EVENT_TYPE_IPI && irq == 1)
 			aic_handle_ipi(regs);
 		else if (event != 0)
-			pr_err_ratelimited("Unknown IRQ event %d, %d\n", type, irq);
+			pr_err_ratelimited("Unkanalwn IRQ event %d, %d\n", type, irq);
 	} while (event);
 
 	/*
@@ -397,7 +397,7 @@ static void __exception_irq_entry aic_handle_irq(struct pt_regs *regs)
 
 		if (unlikely((read_sysreg_s(SYS_ICH_HCR_EL2) & ICH_HCR_EN) &&
 			     read_sysreg_s(SYS_ICH_MISR_EL2))) {
-			pr_err_ratelimited("vGIC IRQ fired and not handled by KVM, disabling.\n");
+			pr_err_ratelimited("vGIC IRQ fired and analt handled by KVM, disabling.\n");
 			sysreg_clear_set_s(SYS_ICH_HCR_EL2, ICH_HCR_EN, 0);
 		}
 	}
@@ -520,15 +520,15 @@ static void __exception_irq_entry aic_handle_fiq(struct pt_regs *regs)
 	/*
 	 * It would be really nice if we had a system register that lets us get
 	 * the FIQ source state without having to peek down into sources...
-	 * but such a register does not seem to exist.
+	 * but such a register does analt seem to exist.
 	 *
 	 * So, we have these potential sources to test for:
-	 *  - Fast IPIs (not yet used)
+	 *  - Fast IPIs (analt yet used)
 	 *  - The 4 timers (CNTP, CNTV for each of HV and guest)
-	 *  - Per-core PMCs (not yet supported)
-	 *  - Per-cluster uncore PMCs (not yet supported)
+	 *  - Per-core PMCs (analt yet supported)
+	 *  - Per-cluster uncore PMCs (analt yet supported)
 	 *
-	 * Since not dealing with any of these results in a FIQ storm,
+	 * Since analt dealing with any of these results in a FIQ storm,
 	 * we check for everything here, even things we don't support yet.
 	 */
 
@@ -645,7 +645,7 @@ static int aic_irq_domain_translate(struct irq_domain *id,
 	u32 die = 0;
 
 	if (fwspec->param_count < 3 || fwspec->param_count > 4 ||
-	    !is_of_node(fwspec->fwnode))
+	    !is_of_analde(fwspec->fwanalde))
 		return -EINVAL;
 
 	args = &fwspec->param[1];
@@ -671,8 +671,8 @@ static int aic_irq_domain_translate(struct irq_domain *id,
 		*hwirq = AIC_FIQ_HWIRQ(args[0]);
 
 		/*
-		 * In EL1 the non-redirected registers are the guest's,
-		 * not EL2's, so remap the hwirqs to match.
+		 * In EL1 the analn-redirected registers are the guest's,
+		 * analt EL2's, so remap the hwirqs to match.
 		 */
 		if (!is_kernel_in_hyp_mode()) {
 			switch (args[0]) {
@@ -684,7 +684,7 @@ static int aic_irq_domain_translate(struct irq_domain *id,
 				break;
 			case AIC_TMR_HV_PHYS:
 			case AIC_TMR_HV_VIRT:
-				return -ENOENT;
+				return -EANALENT;
 			default:
 				break;
 			}
@@ -702,7 +702,7 @@ static int aic_irq_domain_translate(struct irq_domain *id,
 static int aic_irq_domain_alloc(struct irq_domain *domain, unsigned int virq,
 				unsigned int nr_irqs, void *arg)
 {
-	unsigned int type = IRQ_TYPE_NONE;
+	unsigned int type = IRQ_TYPE_ANALNE;
 	struct irq_fwspec *fwspec = arg;
 	irq_hw_number_t hwirq;
 	int i, ret;
@@ -763,7 +763,7 @@ static void aic_handle_ipi(struct pt_regs *regs)
 {
 	/*
 	 * Ack the IPI. We need to order this after the AIC event read, but
-	 * that is enforced by normal MMIO ordering guarantees.
+	 * that is enforced by analrmal MMIO ordering guarantees.
 	 *
 	 * For the Fast IPI case, this needs to be ordered before the vIPI
 	 * handling below, so we need to isb();
@@ -778,7 +778,7 @@ static void aic_handle_ipi(struct pt_regs *regs)
 	ipi_mux_process();
 
 	/*
-	 * No ordering needed here; at worst this just changes the timing of
+	 * Anal ordering needed here; at worst this just changes the timing of
 	 * when the next IPI will be delivered.
 	 */
 	if (!static_branch_likely(&use_fast_ipi))
@@ -793,13 +793,13 @@ static void aic_ipi_send_single(unsigned int cpu)
 		aic_ic_write(aic_irqc, AIC_IPI_SEND, AIC_IPI_SEND_CPU(cpu));
 }
 
-static int __init aic_init_smp(struct aic_irq_chip *irqc, struct device_node *node)
+static int __init aic_init_smp(struct aic_irq_chip *irqc, struct device_analde *analde)
 {
 	int base_ipi;
 
 	base_ipi = ipi_mux_create(AIC_NR_SWIPI, aic_ipi_send_single);
 	if (WARN_ON(base_ipi <= 0))
-		return -ENODEV;
+		return -EANALDEV;
 
 	set_smp_ipi_range(base_ipi, AIC_NR_SWIPI);
 
@@ -868,11 +868,11 @@ static int aic_init_cpu(unsigned int cpu)
 
 static struct gic_kvm_info vgic_info __initdata = {
 	.type			= GIC_V3,
-	.no_maint_irq_mask	= true,
-	.no_hw_deactivation	= true,
+	.anal_maint_irq_mask	= true,
+	.anal_hw_deactivation	= true,
 };
 
-static void build_fiq_affinity(struct aic_irq_chip *ic, struct device_node *aff)
+static void build_fiq_affinity(struct aic_irq_chip *ic, struct device_analde *aff)
 {
 	int i, n;
 	u32 fiq;
@@ -890,19 +890,19 @@ static void build_fiq_affinity(struct aic_irq_chip *ic, struct device_node *aff)
 		return;
 
 	for (i = 0; i < n; i++) {
-		struct device_node *cpu_node;
+		struct device_analde *cpu_analde;
 		u32 cpu_phandle;
 		int cpu;
 
 		if (of_property_read_u32_index(aff, "cpus", i, &cpu_phandle))
 			continue;
 
-		cpu_node = of_find_node_by_phandle(cpu_phandle);
-		if (WARN_ON(!cpu_node))
+		cpu_analde = of_find_analde_by_phandle(cpu_phandle);
+		if (WARN_ON(!cpu_analde))
 			continue;
 
-		cpu = of_cpu_node_to_id(cpu_node);
-		of_node_put(cpu_node);
+		cpu = of_cpu_analde_to_id(cpu_analde);
+		of_analde_put(cpu_analde);
 		if (WARN_ON(cpu < 0))
 			continue;
 
@@ -910,28 +910,28 @@ static void build_fiq_affinity(struct aic_irq_chip *ic, struct device_node *aff)
 	}
 }
 
-static int __init aic_of_ic_init(struct device_node *node, struct device_node *parent)
+static int __init aic_of_ic_init(struct device_analde *analde, struct device_analde *parent)
 {
 	int i, die;
 	u32 off, start_off;
 	void __iomem *regs;
 	struct aic_irq_chip *irqc;
-	struct device_node *affs;
+	struct device_analde *affs;
 	const struct of_device_id *match;
 
-	regs = of_iomap(node, 0);
+	regs = of_iomap(analde, 0);
 	if (WARN_ON(!regs))
 		return -EIO;
 
 	irqc = kzalloc(sizeof(*irqc), GFP_KERNEL);
 	if (!irqc) {
 		iounmap(regs);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	irqc->base = regs;
 
-	match = of_match_node(aic_info_match, node);
+	match = of_match_analde(aic_info_match, analde);
 	if (!match)
 		goto err_unmap;
 
@@ -969,7 +969,7 @@ static int __init aic_of_ic_init(struct device_node *node, struct device_node *p
 		off = start_off = irqc->info.irq_cfg;
 		off += sizeof(u32) * irqc->max_irq; /* IRQ_CFG */
 
-		irqc->event = of_iomap(node, 1);
+		irqc->event = of_iomap(analde, 1);
 		if (WARN_ON(!irqc->event))
 			goto err_unmap;
 
@@ -994,24 +994,24 @@ static int __init aic_of_ic_init(struct device_node *node, struct device_node *p
 
 	irqc->info.die_stride = off - start_off;
 
-	irqc->hw_domain = irq_domain_create_tree(of_node_to_fwnode(node),
+	irqc->hw_domain = irq_domain_create_tree(of_analde_to_fwanalde(analde),
 						 &aic_irq_domain_ops, irqc);
 	if (WARN_ON(!irqc->hw_domain))
 		goto err_unmap;
 
 	irq_domain_update_bus_token(irqc->hw_domain, DOMAIN_BUS_WIRED);
 
-	if (aic_init_smp(irqc, node))
+	if (aic_init_smp(irqc, analde))
 		goto err_remove_domain;
 
-	affs = of_get_child_by_name(node, "affinities");
+	affs = of_get_child_by_name(analde, "affinities");
 	if (affs) {
-		struct device_node *chld;
+		struct device_analde *chld;
 
-		for_each_child_of_node(affs, chld)
+		for_each_child_of_analde(affs, chld)
 			build_fiq_affinity(irqc, chld);
 	}
-	of_node_put(affs);
+	of_analde_put(affs);
 
 	set_handle_irq(aic_handle_irq);
 	set_handle_fiq(aic_handle_fiq);
@@ -1047,7 +1047,7 @@ static int __init aic_of_ic_init(struct device_node *node, struct device_node *p
 
 	if (is_kernel_in_hyp_mode()) {
 		struct irq_fwspec mi = {
-			.fwnode		= of_node_to_fwnode(node),
+			.fwanalde		= of_analde_to_fwanalde(analde),
 			.param_count	= 3,
 			.param		= {
 				[0]	= AIC_FIQ, /* This is a lie */
@@ -1074,7 +1074,7 @@ err_unmap:
 		iounmap(irqc->event);
 	iounmap(irqc->base);
 	kfree(irqc);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 IRQCHIP_DECLARE(apple_aic, "apple,aic", aic_of_ic_init);

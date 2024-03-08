@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -165,8 +165,8 @@ struct pp_atomctrl_kong_system_info {
 	uint16_t			us_max_nb_voltage;            /* high NB voltage, calculated using current VDDNB (D24F2xDC) and VDDNB offset fuse; */
 	uint16_t			us_min_nb_voltage;            /* low NB voltage, calculated using current VDDNB (D24F2xDC) and VDDNB offset fuse; */
 	uint16_t			us_bootup_nb_voltage;         /* boot up NB voltage */
-	uint8_t			uc_htc_tmp_lmt;               /* bit [22:16] of D24F3x64 Hardware Thermal Control (HTC) Register, may not be needed, TBD */
-	uint8_t			uc_tj_offset;                /* bit [28:22] of D24F3xE4 Thermtrip Status Register,may not be needed, TBD */
+	uint8_t			uc_htc_tmp_lmt;               /* bit [22:16] of D24F3x64 Hardware Thermal Control (HTC) Register, may analt be needed, TBD */
+	uint8_t			uc_tj_offset;                /* bit [28:22] of D24F3xE4 Thermtrip Status Register,may analt be needed, TBD */
 	/* 0: default 1: uvd 2: fs-3d */
 	uint32_t          ul_csr_m3_srb_cntl[NUMBER_OF_M3ARB_PARAM_SETS][NUMBER_OF_M3ARB_PARAMS];/* arrays with values for CSR M3 arbiter for default */
 };

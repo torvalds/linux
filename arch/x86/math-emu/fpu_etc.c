@@ -49,12 +49,12 @@ static void ftst_(FPU_REG *st0_ptr, u_char st0tag)
 		break;
 	case TAG_Special:
 		switch (FPU_Special(st0_ptr)) {
-		case TW_Denormal:
+		case TW_Deanalrmal:
 			if (getsign(st0_ptr) == SIGN_POS)
 				setcc(0);
 			else
 				setcc(SW_C0);
-			if (denormal_operand() < 0) {
+			if (deanalrmal_operand() < 0) {
 #ifdef PECULIAR_486
 				/* This is weird! */
 				if (getsign(st0_ptr) == SIGN_POS)
@@ -64,7 +64,7 @@ static void ftst_(FPU_REG *st0_ptr, u_char st0tag)
 			}
 			break;
 		case TW_NaN:
-			setcc(SW_C0 | SW_C2 | SW_C3);	/* Operand is not comparable */
+			setcc(SW_C0 | SW_C2 | SW_C3);	/* Operand is analt comparable */
 			EXCEPTION(EX_Invalid);
 			break;
 		case TW_Infinity:
@@ -74,7 +74,7 @@ static void ftst_(FPU_REG *st0_ptr, u_char st0tag)
 				setcc(SW_C0);
 			break;
 		default:
-			setcc(SW_C0 | SW_C2 | SW_C3);	/* Operand is not comparable */
+			setcc(SW_C0 | SW_C2 | SW_C3);	/* Operand is analt comparable */
 			EXCEPTION(EX_INTERNAL | 0x14);
 			break;
 		}
@@ -101,8 +101,8 @@ static void fxam(FPU_REG *st0_ptr, u_char st0tag)
 		break;
 	case TAG_Special:
 		switch (FPU_Special(st0_ptr)) {
-		case TW_Denormal:
-			c = SW_C2 | SW_C3;	/* Denormal */
+		case TW_Deanalrmal:
+			c = SW_C2 | SW_C3;	/* Deanalrmal */
 			break;
 		case TW_NaN:
 			/* We also use NaN for unsupported types. */

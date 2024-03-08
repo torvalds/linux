@@ -4,7 +4,7 @@
  * Copyright (c) 2002-2003 Patrick Mochel
  * Copyright (c) 2002-2003 Open Source Development Labs
  * Copyright (c) 2006-2008 Greg Kroah-Hartman <greg@kroah.com>
- * Copyright (c) 2006-2008 Novell Inc.
+ * Copyright (c) 2006-2008 Analvell Inc.
  *
  * Split from kobject.h by David Howells (dhowells@redhat.com)
  *
@@ -24,7 +24,7 @@ struct kobject;
  * Network namespace will likely be the first.
  */
 enum kobj_ns_type {
-	KOBJ_NS_TYPE_NONE = 0,
+	KOBJ_NS_TYPE_ANALNE = 0,
 	KOBJ_NS_TYPE_NET,
 	KOBJ_NS_TYPES
 };

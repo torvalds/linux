@@ -28,12 +28,12 @@ struct pvr2_context {
 	struct pvr2_channel *mc_last;
 	struct pvr2_context *exist_next;
 	struct pvr2_context *exist_prev;
-	struct pvr2_context *notify_next;
-	struct pvr2_context *notify_prev;
+	struct pvr2_context *analtify_next;
+	struct pvr2_context *analtify_prev;
 	struct pvr2_hdw *hdw;
 	struct pvr2_context_stream video_stream;
 	struct mutex mutex;
-	int notify_flag;
+	int analtify_flag;
 	int initialized_flag;
 	int disconnect_flag;
 

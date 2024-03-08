@@ -122,7 +122,7 @@ enum clk_wzrd_int_clks {
  * struct clk_wzrd - Clock wizard private data structure
  *
  * @clk_data:		Clock data
- * @nb:			Notifier block
+ * @nb:			Analtifier block
  * @base:		Memory base
  * @clk_in1:		Handle to input clock 'clk_in1'
  * @axi_clk:		Handle to input clock 's_axi_aclk'
@@ -133,7 +133,7 @@ enum clk_wzrd_int_clks {
  */
 struct clk_wzrd {
 	struct clk_onecell_data clk_data;
-	struct notifier_block nb;
+	struct analtifier_block nb;
 	void __iomem *base;
 	struct clk *clk_in1;
 	struct clk *axi_clk;
@@ -427,7 +427,7 @@ static int clk_wzrd_reconfig(struct clk_wzrd_divider *divider, void __iomem *div
 				 WZRD_USEC_POLL, WZRD_TIMEOUT_POLL);
 }
 
-static int clk_wzrd_dynamic_ver_all_nolock(struct clk_hw *hw, unsigned long rate,
+static int clk_wzrd_dynamic_ver_all_anallock(struct clk_hw *hw, unsigned long rate,
 					   unsigned long parent_rate)
 {
 	u32 regh, edged, p5en, p5fedge, value2, m, regval, regval1, value;
@@ -493,7 +493,7 @@ static int clk_wzrd_dynamic_ver_all_nolock(struct clk_hw *hw, unsigned long rate
 	return clk_wzrd_reconfig(divider, div_addr);
 }
 
-static int clk_wzrd_dynamic_all_nolock(struct clk_hw *hw, unsigned long rate,
+static int clk_wzrd_dynamic_all_anallock(struct clk_hw *hw, unsigned long rate,
 				       unsigned long parent_rate)
 {
 	struct clk_wzrd_divider *divider = to_clk_wzrd_divider(hw);
@@ -538,7 +538,7 @@ static int clk_wzrd_dynamic_all(struct clk_hw *hw, unsigned long rate,
 
 	spin_lock_irqsave(divider->lock, flags);
 
-	ret = clk_wzrd_dynamic_all_nolock(hw, rate, parent_rate);
+	ret = clk_wzrd_dynamic_all_anallock(hw, rate, parent_rate);
 
 	spin_unlock_irqrestore(divider->lock, flags);
 
@@ -554,7 +554,7 @@ static int clk_wzrd_dynamic_all_ver(struct clk_hw *hw, unsigned long rate,
 
 	spin_lock_irqsave(divider->lock, flags);
 
-	ret = clk_wzrd_dynamic_ver_all_nolock(hw, rate, parent_rate);
+	ret = clk_wzrd_dynamic_ver_all_anallock(hw, rate, parent_rate);
 
 	spin_unlock_irqrestore(divider->lock, flags);
 
@@ -782,7 +782,7 @@ static struct clk *clk_wzrd_register_divf(struct device *dev,
 
 	div = devm_kzalloc(dev, sizeof(*div), GFP_KERNEL);
 	if (!div)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = name;
 
@@ -826,7 +826,7 @@ static struct clk *clk_wzrd_ver_register_divider(struct device *dev,
 
 	div = devm_kzalloc(dev, sizeof(*div), GFP_KERNEL);
 	if (!div)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = name;
 	if (clk_divider_flags & CLK_DIVIDER_READ_ONLY)
@@ -872,7 +872,7 @@ static struct clk *clk_wzrd_register_divider(struct device *dev,
 
 	div = devm_kzalloc(dev, sizeof(*div), GFP_KERNEL);
 	if (!div)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = name;
 	if (clk_divider_flags & CLK_DIVIDER_READ_ONLY)
@@ -901,32 +901,32 @@ static struct clk *clk_wzrd_register_divider(struct device *dev,
 	return hw->clk;
 }
 
-static int clk_wzrd_clk_notifier(struct notifier_block *nb, unsigned long event,
+static int clk_wzrd_clk_analtifier(struct analtifier_block *nb, unsigned long event,
 				 void *data)
 {
 	unsigned long max;
-	struct clk_notifier_data *ndata = data;
+	struct clk_analtifier_data *ndata = data;
 	struct clk_wzrd *clk_wzrd = to_clk_wzrd(nb);
 
 	if (clk_wzrd->suspended)
-		return NOTIFY_OK;
+		return ANALTIFY_OK;
 
 	if (ndata->clk == clk_wzrd->clk_in1)
 		max = clk_wzrd_max_freq[clk_wzrd->speed_grade - 1];
 	else if (ndata->clk == clk_wzrd->axi_clk)
 		max = WZRD_ACLK_MAX_FREQ;
 	else
-		return NOTIFY_DONE;	/* should never happen */
+		return ANALTIFY_DONE;	/* should never happen */
 
 	switch (event) {
 	case PRE_RATE_CHANGE:
 		if (ndata->new_rate > max)
-			return NOTIFY_BAD;
-		return NOTIFY_OK;
+			return ANALTIFY_BAD;
+		return ANALTIFY_OK;
 	case POST_RATE_CHANGE:
 	case ABORT_RATE_CHANGE:
 	default:
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 	}
 }
 
@@ -967,7 +967,7 @@ static int clk_wzrd_probe(struct platform_device *pdev)
 {
 	const char *clkout_name, *clk_name, *clk_mul_name;
 	u32 regl, regh, edge, regld, reghd, edged, div;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	const struct versal_clk_data *data;
 	struct clk_wzrd *clk_wzrd;
 	unsigned long flags = 0;
@@ -980,7 +980,7 @@ static int clk_wzrd_probe(struct platform_device *pdev)
 
 	clk_wzrd = devm_kzalloc(&pdev->dev, sizeof(*clk_wzrd), GFP_KERNEL);
 	if (!clk_wzrd)
-		return -ENOMEM;
+		return -EANALMEM;
 	platform_set_drvdata(pdev, clk_wzrd);
 
 	clk_wzrd->base = devm_platform_ioremap_resource(pdev, 0);
@@ -999,12 +999,12 @@ static int clk_wzrd_probe(struct platform_device *pdev)
 	clk_wzrd->clk_in1 = devm_clk_get(&pdev->dev, "clk_in1");
 	if (IS_ERR(clk_wzrd->clk_in1))
 		return dev_err_probe(&pdev->dev, PTR_ERR(clk_wzrd->clk_in1),
-				     "clk_in1 not found\n");
+				     "clk_in1 analt found\n");
 
 	clk_wzrd->axi_clk = devm_clk_get(&pdev->dev, "s_axi_aclk");
 	if (IS_ERR(clk_wzrd->axi_clk))
 		return dev_err_probe(&pdev->dev, PTR_ERR(clk_wzrd->axi_clk),
-				     "s_axi_aclk not found\n");
+				     "s_axi_aclk analt found\n");
 	ret = clk_prepare_enable(clk_wzrd->axi_clk);
 	if (ret) {
 		dev_err(&pdev->dev, "enabling s_axi_aclk failed\n");
@@ -1030,7 +1030,7 @@ static int clk_wzrd_probe(struct platform_device *pdev)
 
 	clkout_name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "%s_out0", dev_name(&pdev->dev));
 	if (!clkout_name) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_disable_clk;
 	}
 
@@ -1091,7 +1091,7 @@ static int clk_wzrd_probe(struct platform_device *pdev)
 	}
 	clk_name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "%s_mul", dev_name(&pdev->dev));
 	if (!clk_name) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_disable_clk;
 	}
 	clk_wzrd->clks_internal[wzrd_clk_mul] = clk_register_fixed_factor
@@ -1106,7 +1106,7 @@ static int clk_wzrd_probe(struct platform_device *pdev)
 
 	clk_name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "%s_mul_div", dev_name(&pdev->dev));
 	if (!clk_name) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_rm_int_clk;
 	}
 
@@ -1144,7 +1144,7 @@ static int clk_wzrd_probe(struct platform_device *pdev)
 		clkout_name = devm_kasprintf(&pdev->dev, GFP_KERNEL,
 					     "%s_out%d", dev_name(&pdev->dev), i);
 		if (!clkout_name) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_rm_int_clk;
 		}
 
@@ -1195,18 +1195,18 @@ out:
 	of_clk_add_provider(np, of_clk_src_onecell_get, &clk_wzrd->clk_data);
 
 	if (clk_wzrd->speed_grade) {
-		clk_wzrd->nb.notifier_call = clk_wzrd_clk_notifier;
+		clk_wzrd->nb.analtifier_call = clk_wzrd_clk_analtifier;
 
-		ret = clk_notifier_register(clk_wzrd->clk_in1,
+		ret = clk_analtifier_register(clk_wzrd->clk_in1,
 					    &clk_wzrd->nb);
 		if (ret)
 			dev_warn(&pdev->dev,
-				 "unable to register clock notifier\n");
+				 "unable to register clock analtifier\n");
 
-		ret = clk_notifier_register(clk_wzrd->axi_clk, &clk_wzrd->nb);
+		ret = clk_analtifier_register(clk_wzrd->axi_clk, &clk_wzrd->nb);
 		if (ret)
 			dev_warn(&pdev->dev,
-				 "unable to register clock notifier\n");
+				 "unable to register clock analtifier\n");
 	}
 
 	return 0;
@@ -1226,7 +1226,7 @@ static void clk_wzrd_remove(struct platform_device *pdev)
 	int i;
 	struct clk_wzrd *clk_wzrd = platform_get_drvdata(pdev);
 
-	of_clk_del_provider(pdev->dev.of_node);
+	of_clk_del_provider(pdev->dev.of_analde);
 
 	for (i = 0; i < WZRD_NUM_OUTPUTS; i++)
 		clk_unregister(clk_wzrd->clkout[i]);
@@ -1234,8 +1234,8 @@ static void clk_wzrd_remove(struct platform_device *pdev)
 		clk_unregister(clk_wzrd->clks_internal[i]);
 
 	if (clk_wzrd->speed_grade) {
-		clk_notifier_unregister(clk_wzrd->axi_clk, &clk_wzrd->nb);
-		clk_notifier_unregister(clk_wzrd->clk_in1, &clk_wzrd->nb);
+		clk_analtifier_unregister(clk_wzrd->axi_clk, &clk_wzrd->nb);
+		clk_analtifier_unregister(clk_wzrd->clk_in1, &clk_wzrd->nb);
 	}
 
 	clk_disable_unprepare(clk_wzrd->axi_clk);

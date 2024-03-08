@@ -22,7 +22,7 @@ properties:
   ranges: true
 
   mux-controls:
-    description: MMIO mux controller node to select b/w OSPI and HBMC.
+    description: MMIO mux controller analde to select b/w OSPI and HBMC.
 
   clocks:
     maxItems: 1

@@ -11,8 +11,8 @@ Required properties:
 - clocks: should contain 3 phandles for the "ps", "send" and
 	 "send_dly" clocks
 
-Children nodes:
-- children nodes represent the available NAND chips.
+Children analdes:
+- children analdes represent the available NAND chips.
 
 See Documentation/devicetree/bindings/mtd/nand-controller.yaml
 for more details on generic bindings.

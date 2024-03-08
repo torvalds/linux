@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -57,7 +57,7 @@ enum {
 	AEL2020_GPIO_LSTAT  = AEL2020_GPIO_1, /* wired to link status LED */
 };
 
-enum { edc_none, edc_sr, edc_twinax };
+enum { edc_analne, edc_sr, edc_twinax };
 
 /* PHY module I2C device address */
 enum {
@@ -67,7 +67,7 @@ enum {
 
 /* PHY transceiver type */
 enum {
-	phy_transtype_unknown = 0,
+	phy_transtype_unkanalwn = 0,
 	phy_transtype_sfp     = 3,
 	phy_transtype_xfp     = 6,
 };
@@ -165,7 +165,7 @@ static int ael1002_reset(struct cphy *phy, int wait)
 	return 0;
 }
 
-static int ael1002_intr_noop(struct cphy *phy)
+static int ael1002_intr_analop(struct cphy *phy)
 {
 	return 0;
 }
@@ -200,10 +200,10 @@ static int get_link_status_r(struct cphy *phy, int *link_ok, int *speed,
 
 static const struct cphy_ops ael1002_ops = {
 	.reset = ael1002_reset,
-	.intr_enable = ael1002_intr_noop,
-	.intr_disable = ael1002_intr_noop,
-	.intr_clear = ael1002_intr_noop,
-	.intr_handler = ael1002_intr_noop,
+	.intr_enable = ael1002_intr_analop,
+	.intr_disable = ael1002_intr_analop,
+	.intr_clear = ael1002_intr_analop,
+	.intr_handler = ael1002_intr_analop,
 	.get_link_status = get_link_status_r,
 	.power_down = ael1002_power_down,
 	.mmds = MDIO_DEVS_PMAPMD | MDIO_DEVS_PCS | MDIO_DEVS_PHYXS,
@@ -271,7 +271,7 @@ static int ael2xxx_get_module_type(struct cphy *phy, int delay_ms)
 	if (v < 0)
 		return v;
 	if (v != 4)
-		goto unknown;
+		goto unkanalwn;
 
 	v = ael_i2c_rd(phy, MODULE_DEV_ADDR, 10);
 	if (v < 0)
@@ -283,8 +283,8 @@ static int ael2xxx_get_module_type(struct cphy *phy, int delay_ms)
 			return v;
 		return v > 10 ? phy_modtype_twinax_long : phy_modtype_twinax;
 	}
-unknown:
-	return phy_modtype_unknown;
+unkanalwn:
+	return phy_modtype_unkanalwn;
 }
 
 /*
@@ -368,7 +368,7 @@ static int ael2005_get_module_type(struct cphy *phy, int delay_ms)
 		return v;
 
 	if (stat & (1 << 8))			/* module absent */
-		return phy_modtype_none;
+		return phy_modtype_analne;
 
 	return ael2xxx_get_module_type(phy, delay_ms);
 }
@@ -422,7 +422,7 @@ static int ael2005_reset(struct cphy *phy, int wait)
 		return err;
 
 	msleep(125);
-	phy->priv = edc_none;
+	phy->priv = edc_analne;
 	err = set_phy_regs(phy, regs0);
 	if (err)
 		return err;
@@ -472,7 +472,7 @@ static int ael2005_intr_handler(struct cphy *phy)
 			return ret;
 
 		phy->modtype = ret;
-		if (ret == phy_modtype_none)
+		if (ret == phy_modtype_analne)
 			edc_needed = phy->priv;       /* on unplug retain EDC */
 		else if (ret == phy_modtype_twinax ||
 			 ret == phy_modtype_twinax_long)
@@ -612,7 +612,7 @@ static int ael2020_get_module_type(struct cphy *phy, int delay_ms)
 
 	if (stat & (0x1 << (AEL2020_GPIO_MODDET*4))) {
 		/* module absent */
-		return phy_modtype_none;
+		return phy_modtype_analne;
 	}
 
 	return ael2xxx_get_module_type(phy, delay_ms);
@@ -717,7 +717,7 @@ static const struct reg_val ael2020_reset_regs[] = {
 	{ 0, 0, 0, 0 }
 };
 /*
- * Reset the PHY and put it into a canonical operating state.
+ * Reset the PHY and put it into a caanalnical operating state.
  */
 static int ael2020_reset(struct cphy *phy, int wait)
 {
@@ -736,7 +736,7 @@ static int ael2020_reset(struct cphy *phy, int wait)
 	msleep(100);
 
 	/* basic initialization for all module types */
-	phy->priv = edc_none;
+	phy->priv = edc_analne;
 	err = set_phy_regs(phy, ael2020_reset_regs);
 	if (err)
 		return err;
@@ -778,7 +778,7 @@ static int ael2020_intr_handler(struct cphy *phy)
 			return ret;
 
 		phy->modtype = (u8)ret;
-		if (ret == phy_modtype_none)
+		if (ret == phy_modtype_analne)
 			edc_needed = phy->priv;       /* on unplug retain EDC */
 		else if (ret == phy_modtype_twinax ||
 			 ret == phy_modtype_twinax_long)
@@ -918,10 +918,10 @@ static int xaui_direct_power_down(struct cphy *phy, int enable)
 
 static const struct cphy_ops xaui_direct_ops = {
 	.reset = xaui_direct_reset,
-	.intr_enable = ael1002_intr_noop,
-	.intr_disable = ael1002_intr_noop,
-	.intr_clear = ael1002_intr_noop,
-	.intr_handler = ael1002_intr_noop,
+	.intr_enable = ael1002_intr_analop,
+	.intr_disable = ael1002_intr_analop,
+	.intr_clear = ael1002_intr_analop,
+	.intr_handler = ael1002_intr_analop,
 	.get_link_status = xaui_direct_get_link_status,
 	.power_down = xaui_direct_power_down,
 };

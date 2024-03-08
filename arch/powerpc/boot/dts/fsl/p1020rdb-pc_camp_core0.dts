@@ -7,7 +7,7 @@
  * This dts file allows core0 to have memory, l2, i2c, spi, gpio, tdm, dma, usb,
  * eth1, eth2, sdhc, crypto, global-util, message, pci0, pci1, msi.
  *
- * Please note to add "-b 0" for core0's dts compiling.
+ * Please analte to add "-b 0" for core0's dts compiling.
  *
  * Copyright 2012 Freescale Semiconductor Inc.
  */
@@ -54,7 +54,7 @@
 			42 29 30 34	/* serial1, enet0-queue-group0 */
 			17 18 24 45	/* enet0-queue-group1, crypto */
 			>;
-			pic-no-reset;
+			pic-anal-reset;
 		};
 	};
 };

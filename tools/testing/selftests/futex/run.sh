@@ -13,7 +13,7 @@
 #      Darren Hart <dvhart@linux.intel.com>
 #
 # HISTORY
-#      2009-Nov-9: Initial version by Darren Hart <dvhart@linux.intel.com>
+#      2009-Analv-9: Initial version by Darren Hart <dvhart@linux.intel.com>
 #
 ###############################################################################
 

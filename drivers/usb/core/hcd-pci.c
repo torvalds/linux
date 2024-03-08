@@ -20,7 +20,7 @@
 #include "usb.h"
 
 
-/* PCI-based HCs are common, but plenty of non-PCI HCs are used too */
+/* PCI-based HCs are common, but plenty of analn-PCI HCs are used too */
 
 /*
  * Coordinate handoffs between EHCI and companion controllers
@@ -77,7 +77,7 @@ static void for_each_companion(struct pci_dev *pdev, struct usb_hcd *hcd,
 
 /*
  * We're about to add an EHCI controller, which will unceremoniously grab
- * all the port connections away from its companions.  To prevent annoying
+ * all the port connections away from its companions.  To prevent ananalying
  * error messages, lock the companion's root hub and gracefully unconfigure
  * it beforehand.  Leave it locked until the EHCI controller is all set.
  */
@@ -116,10 +116,10 @@ static void ehci_post_add(struct pci_dev *pdev, struct usb_hcd *hcd,
 }
 
 /*
- * We just added a non-EHCI controller.  Find the EHCI controller to
+ * We just added a analn-EHCI controller.  Find the EHCI controller to
  * which it is a companion, and store a pointer to the bus structure.
  */
-static void non_ehci_add(struct pci_dev *pdev, struct usb_hcd *hcd,
+static void analn_ehci_add(struct pci_dev *pdev, struct usb_hcd *hcd,
 		struct pci_dev *companion, struct usb_hcd *companion_hcd)
 {
 	if (is_ohci_or_uhci(pdev) && companion->class == CL_EHCI) {
@@ -176,25 +176,25 @@ int usb_hcd_pci_probe(struct pci_dev *dev, const struct hc_driver *driver)
 	int			hcd_irq = 0;
 
 	if (usb_disabled())
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!driver)
 		return -EINVAL;
 
 	if (pci_enable_device(dev) < 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
 	 * The xHCI driver has its own irq management
-	 * make sure irq setup is not touched for xhci in generic hcd code
+	 * make sure irq setup is analt touched for xhci in generic hcd code
 	 */
 	if ((driver->flags & HCD_MASK) < HCD_USB3) {
 		retval = pci_alloc_irq_vectors(dev, 1, 1, PCI_IRQ_LEGACY | PCI_IRQ_MSI);
 		if (retval < 0) {
 			dev_err(&dev->dev,
-			"Found HC with no IRQ. Check BIOS/PCI %s setup!\n",
+			"Found HC with anal IRQ. Check BIOS/PCI %s setup!\n",
 				pci_name(dev));
-			retval = -ENODEV;
+			retval = -EANALDEV;
 			goto disable_pci;
 		}
 		hcd_irq = pci_irq_vector(dev, 0);
@@ -202,7 +202,7 @@ int usb_hcd_pci_probe(struct pci_dev *dev, const struct hc_driver *driver)
 
 	hcd = usb_create_hcd(driver, &dev->dev, pci_name(dev));
 	if (!hcd) {
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto free_irq_vectors;
 	}
 
@@ -242,7 +242,7 @@ int usb_hcd_pci_probe(struct pci_dev *dev, const struct hc_driver *driver)
 				break;
 		}
 		if (region == PCI_STD_NUM_BARS) {
-			dev_dbg(&dev->dev, "no i/o regions available\n");
+			dev_dbg(&dev->dev, "anal i/o regions available\n");
 			retval = -EBUSY;
 			goto put_hcd;
 		}
@@ -250,7 +250,7 @@ int usb_hcd_pci_probe(struct pci_dev *dev, const struct hc_driver *driver)
 
 	pci_set_master(dev);
 
-	/* Note: dev_set_drvdata must be called while holding the rwsem */
+	/* Analte: dev_set_drvdata must be called while holding the rwsem */
 	if (dev->class == CL_EHCI) {
 		down_write(&companions_rwsem);
 		dev_set_drvdata(&dev->dev, hcd);
@@ -267,7 +267,7 @@ int usb_hcd_pci_probe(struct pci_dev *dev, const struct hc_driver *driver)
 		if (retval != 0)
 			dev_set_drvdata(&dev->dev, NULL);
 		else
-			for_each_companion(dev, hcd, non_ehci_add);
+			for_each_companion(dev, hcd, analn_ehci_add);
 		up_read(&companions_rwsem);
 	}
 
@@ -276,7 +276,7 @@ int usb_hcd_pci_probe(struct pci_dev *dev, const struct hc_driver *driver)
 	device_wakeup_enable(hcd->self.controller);
 
 	if (pci_dev_run_wake(dev))
-		pm_runtime_put_noidle(&dev->dev);
+		pm_runtime_put_analidle(&dev->dev);
 	return retval;
 
 put_hcd:
@@ -303,7 +303,7 @@ EXPORT_SYMBOL_GPL(usb_hcd_pci_probe);
  *
  * Reverses the effect of usb_hcd_pci_probe(), first invoking
  * the HCD's stop() method.  It is always called from a thread
- * context, normally "rmmod", "apmd", or something similar.
+ * context, analrmally "rmmod", "apmd", or something similar.
  *
  * Store this function in the HCD's struct pci_driver as remove().
  */
@@ -319,7 +319,7 @@ void usb_hcd_pci_remove(struct pci_dev *dev)
 	hcd_driver_flags = hcd->driver->flags;
 
 	if (pci_dev_run_wake(dev))
-		pm_runtime_get_noresume(&dev->dev);
+		pm_runtime_get_analresume(&dev->dev);
 
 	/* Fake an interrupt request in order to give the driver a chance
 	 * to test whether the controller hardware has been removed (e.g.,
@@ -329,7 +329,7 @@ void usb_hcd_pci_remove(struct pci_dev *dev)
 	usb_hcd_irq(0, hcd);
 	local_irq_enable();
 
-	/* Note: dev_set_drvdata must be called while holding the rwsem */
+	/* Analte: dev_set_drvdata must be called while holding the rwsem */
 	if (dev->class == CL_EHCI) {
 		down_write(&companions_rwsem);
 		for_each_companion(dev, hcd, ehci_remove);
@@ -337,7 +337,7 @@ void usb_hcd_pci_remove(struct pci_dev *dev)
 		dev_set_drvdata(&dev->dev, NULL);
 		up_write(&companions_rwsem);
 	} else {
-		/* Not EHCI; just clear the companion pointer */
+		/* Analt EHCI; just clear the companion pointer */
 		down_read(&companions_rwsem);
 		hcd->self.hs_companion = NULL;
 		usb_remove_hcd(hcd);
@@ -380,12 +380,12 @@ static void powermac_set_asic(struct pci_dev *pci_dev, int enable)
 {
 	/* Enanble or disable ASIC clocks for USB */
 	if (machine_is(powermac)) {
-		struct device_node	*of_node;
+		struct device_analde	*of_analde;
 
-		of_node = pci_device_to_OF_node(pci_dev);
-		if (of_node)
+		of_analde = pci_device_to_OF_analde(pci_dev);
+		if (of_analde)
 			pmac_call_feature(PMAC_FTR_USB_ENABLE,
-					of_node, 0, enable);
+					of_analde, 0, enable);
 	}
 }
 
@@ -401,13 +401,13 @@ static int check_root_hub_suspended(struct device *dev)
 	struct usb_hcd		*hcd = dev_get_drvdata(dev);
 
 	if (HCD_RH_RUNNING(hcd)) {
-		dev_warn(dev, "Root hub is not suspended\n");
+		dev_warn(dev, "Root hub is analt suspended\n");
 		return -EBUSY;
 	}
 	if (hcd->shared_hcd) {
 		hcd = hcd->shared_hcd;
 		if (HCD_RH_RUNNING(hcd)) {
-			dev_warn(dev, "Secondary root hub is not suspended\n");
+			dev_warn(dev, "Secondary root hub is analt suspended\n");
 			return -EBUSY;
 		}
 	}
@@ -426,7 +426,7 @@ static int suspend_common(struct device *dev, pm_message_t msg)
 	/* Root hub suspend should have stopped all downstream traffic,
 	 * and all bus master traffic.  And done so for both the interface
 	 * and the stub usb_device (which we check here).  But maybe it
-	 * didn't; writing sysfs power/state files ignores such rules...
+	 * didn't; writing sysfs power/state files iganalres such rules...
 	 */
 	retval = check_root_hub_suspended(dev);
 	if (retval)
@@ -464,9 +464,9 @@ static int suspend_common(struct device *dev, pm_message_t msg)
 		synchronize_irq(pci_irq_vector(pci_dev, 0));
 
 	/* Downstream ports from this root hub should already be quiesced, so
-	 * there will be no DMA activity.  Now we can shut down the upstream
+	 * there will be anal DMA activity.  Analw we can shut down the upstream
 	 * link (except maybe for PME# resume signaling).  We'll enter a
-	 * low power state during suspend_noirq, if the hardware allows.
+	 * low power state during suspend_analirq, if the hardware allows.
 	 */
 	pci_disable_device(pci_dev);
 	return retval;
@@ -481,7 +481,7 @@ static int resume_common(struct device *dev, pm_message_t msg)
 	if (HCD_RH_RUNNING(hcd) ||
 			(hcd->shared_hcd &&
 			 HCD_RH_RUNNING(hcd->shared_hcd))) {
-		dev_dbg(dev, "can't resume, not suspended!\n");
+		dev_dbg(dev, "can't resume, analt suspended!\n");
 		return 0;
 	}
 
@@ -497,7 +497,7 @@ static int resume_common(struct device *dev, pm_message_t msg)
 
 		/*
 		 * Only EHCI controllers have to wait for their companions.
-		 * No locking is needed because PCI controller drivers do not
+		 * Anal locking is needed because PCI controller drivers do analt
 		 * get unbound during system resume.
 		 */
 		if (pci_dev->class == CL_EHCI && msg.event != PM_EVENT_AUTO_RESUME)
@@ -520,7 +520,7 @@ static int hcd_pci_suspend(struct device *dev)
 	return suspend_common(dev, PMSG_SUSPEND);
 }
 
-static int hcd_pci_suspend_noirq(struct device *dev)
+static int hcd_pci_suspend_analirq(struct device *dev)
 {
 	struct pci_dev		*pci_dev = to_pci_dev(dev);
 	struct usb_hcd		*hcd = pci_get_drvdata(pci_dev);
@@ -544,7 +544,7 @@ static int hcd_pci_suspend_noirq(struct device *dev)
 	 * choose the appropriate low-power state, and go to that state.
 	 */
 	retval = pci_prepare_to_sleep(pci_dev);
-	if (retval == -EIO) {		/* Low-power not supported */
+	if (retval == -EIO) {		/* Low-power analt supported */
 		dev_dbg(dev, "--> PCI D0 legacy\n");
 		retval = 0;
 	} else if (retval == 0) {
@@ -570,7 +570,7 @@ static int hcd_pci_poweroff_late(struct device *dev)
 	return 0;
 }
 
-static int hcd_pci_resume_noirq(struct device *dev)
+static int hcd_pci_resume_analirq(struct device *dev)
 {
 	powermac_set_asic(to_pci_dev(dev), 1);
 	return 0;
@@ -589,9 +589,9 @@ static int hcd_pci_restore(struct device *dev)
 #else
 
 #define hcd_pci_suspend		NULL
-#define hcd_pci_suspend_noirq	NULL
+#define hcd_pci_suspend_analirq	NULL
 #define hcd_pci_poweroff_late	NULL
-#define hcd_pci_resume_noirq	NULL
+#define hcd_pci_resume_analirq	NULL
 #define hcd_pci_resume		NULL
 #define hcd_pci_restore		NULL
 
@@ -620,17 +620,17 @@ static int hcd_pci_runtime_resume(struct device *dev)
 
 const struct dev_pm_ops usb_hcd_pci_pm_ops = {
 	.suspend	= hcd_pci_suspend,
-	.suspend_noirq	= hcd_pci_suspend_noirq,
-	.resume_noirq	= hcd_pci_resume_noirq,
+	.suspend_analirq	= hcd_pci_suspend_analirq,
+	.resume_analirq	= hcd_pci_resume_analirq,
 	.resume		= hcd_pci_resume,
 	.freeze		= hcd_pci_suspend,
-	.freeze_noirq	= check_root_hub_suspended,
-	.thaw_noirq	= NULL,
+	.freeze_analirq	= check_root_hub_suspended,
+	.thaw_analirq	= NULL,
 	.thaw		= hcd_pci_resume,
 	.poweroff	= hcd_pci_suspend,
 	.poweroff_late	= hcd_pci_poweroff_late,
-	.poweroff_noirq	= hcd_pci_suspend_noirq,
-	.restore_noirq	= hcd_pci_resume_noirq,
+	.poweroff_analirq	= hcd_pci_suspend_analirq,
+	.restore_analirq	= hcd_pci_resume_analirq,
 	.restore	= hcd_pci_restore,
 	.runtime_suspend = hcd_pci_runtime_suspend,
 	.runtime_resume	= hcd_pci_runtime_resume,

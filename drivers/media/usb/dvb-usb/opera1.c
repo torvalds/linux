@@ -58,7 +58,7 @@ static int opera1_xilinx_rw(struct usb_device *dev, u8 request, u16 value,
 
 	buf = kmalloc(len, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (flags == OPERA_WRITE_MSG)
 		memcpy(buf, data, len);
@@ -93,7 +93,7 @@ static int opera1_usb_i2c_msgxfer(struct dvb_usb_device *dev, u16 addr,
 	u16 value;
 
 	if (!dev) {
-		info("no usb_device");
+		info("anal usb_device");
 		return -EINVAL;
 	}
 	if (mutex_lock_interruptible(&dev->usb_mutex) < 0)
@@ -135,7 +135,7 @@ static int opera1_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 	int i = 0, tmp = 0;
 
 	if (!d)
-		return -ENODEV;
+		return -EANALDEV;
 	if (mutex_lock_interruptible(&d->i2c_mutex) < 0)
 		return -EAGAIN;
 
@@ -266,7 +266,7 @@ static int opera1_frontend_attach(struct dvb_usb_adapter *d)
 		d->fe_adap[0].fe->ops.set_voltage = opera1_set_voltage;
 		return 0;
 	}
-	info("not attached stv0299");
+	info("analt attached stv0299");
 	return -EIO;
 }
 
@@ -279,31 +279,31 @@ static int opera1_tuner_attach(struct dvb_usb_adapter *adap)
 	return 0;
 }
 
-static int opera1_power_ctrl(struct dvb_usb_device *d, int onoff)
+static int opera1_power_ctrl(struct dvb_usb_device *d, int oanalff)
 {
-	u8 val = onoff ? 0x01 : 0x00;
+	u8 val = oanalff ? 0x01 : 0x00;
 
 	if (dvb_usb_opera1_debug)
-		info("power %s", onoff ? "on" : "off");
+		info("power %s", oanalff ? "on" : "off");
 	return opera1_xilinx_rw(d->udev, 0xb7, val,
 				&val, 1, OPERA_WRITE_MSG);
 }
 
-static int opera1_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
+static int opera1_streaming_ctrl(struct dvb_usb_adapter *adap, int oanalff)
 {
 	static u8 buf_start[2] = { 0xff, 0x03 };
 	static u8 buf_stop[2] = { 0xff, 0x00 };
 	struct i2c_msg start_tuner[] = {
-		{.addr = ADDR_B1A6_STREAM_CTRL,.buf = onoff ? buf_start : buf_stop,.len = 2},
+		{.addr = ADDR_B1A6_STREAM_CTRL,.buf = oanalff ? buf_start : buf_stop,.len = 2},
 	};
 	if (dvb_usb_opera1_debug)
-		info("streaming %s", onoff ? "on" : "off");
+		info("streaming %s", oanalff ? "on" : "off");
 	i2c_transfer(&adap->dev->i2c_adap, start_tuner, 1);
 	return 0;
 }
 
 static int opera1_pid_filter(struct dvb_usb_adapter *adap, int index, u16 pid,
-			     int onoff)
+			     int oanalff)
 {
 	u8 b_pid[3];
 	struct i2c_msg msg[] = {
@@ -311,15 +311,15 @@ static int opera1_pid_filter(struct dvb_usb_adapter *adap, int index, u16 pid,
 	};
 	if (dvb_usb_opera1_debug)
 		info("pidfilter index: %d pid: %d %s", index, pid,
-			onoff ? "on" : "off");
+			oanalff ? "on" : "off");
 	b_pid[0] = (2 * index) + 4;
-	b_pid[1] = onoff ? (pid & 0xff) : (0x00);
-	b_pid[2] = onoff ? ((pid >> 8) & 0xff) : (0x00);
+	b_pid[1] = oanalff ? (pid & 0xff) : (0x00);
+	b_pid[2] = oanalff ? ((pid >> 8) & 0xff) : (0x00);
 	i2c_transfer(&adap->dev->i2c_adap, msg, 1);
 	return 0;
 }
 
-static int opera1_pid_filter_control(struct dvb_usb_adapter *adap, int onoff)
+static int opera1_pid_filter_control(struct dvb_usb_adapter *adap, int oanalff)
 {
 	int u = 0x04;
 	u8 b_pid[3];
@@ -327,7 +327,7 @@ static int opera1_pid_filter_control(struct dvb_usb_adapter *adap, int onoff)
 		{.addr = ADDR_B1A6_STREAM_CTRL,.buf = b_pid,.len = 3},
 	};
 	if (dvb_usb_opera1_debug)
-		info("%s hw-pidfilter", onoff ? "enable" : "disable");
+		info("%s hw-pidfilter", oanalff ? "enable" : "disable");
 	for (; u < 0x7e; u += 2) {
 		b_pid[0] = u;
 		b_pid[1] = 0;
@@ -420,7 +420,7 @@ static int opera1_rc_query(struct dvb_usb_device *dev, u32 * event, int *state)
 			opst->last_key_pressed = 0;
 		}
 	} else
-		*state = REMOTE_NO_KEY_PRESSED;
+		*state = REMOTE_ANAL_KEY_PRESSED;
 	return 0;
 }
 
@@ -459,7 +459,7 @@ static int opera1_xilinx_load_firmware(struct usb_device *dev,
 	info("start downloading fpga firmware %s",filename);
 
 	if ((ret = request_firmware(&fw, filename, &dev->dev)) != 0) {
-		err("did not find the firmware file '%s'. You can use <kernel_dir>/scripts/get_dvb_firmware to get the firmware",
+		err("did analt find the firmware file '%s'. You can use <kernel_dir>/scripts/get_dvb_firmware to get the firmware",
 			filename);
 		return ret;
 	} else {
@@ -491,7 +491,7 @@ static int opera1_xilinx_load_firmware(struct usb_device *dev,
 			if (ret || opera1_xilinx_rw
 					(dev, 0xa0, 0xe600, &reset, 1,
 					OPERA_WRITE_MSG) != 1) {
-				err("could not restart the USB controller CPU.");
+				err("could analt restart the USB controller CPU.");
 				ret = -EINVAL;
 			}
 		}

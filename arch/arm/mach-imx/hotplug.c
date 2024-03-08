@@ -4,7 +4,7 @@
  * Copyright 2011 Linaro Ltd.
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/jiffies.h>
 #include <asm/cacheflush.h>
 #include <asm/cp15.h>

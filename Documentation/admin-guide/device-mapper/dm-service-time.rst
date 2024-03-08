@@ -19,13 +19,13 @@ Table parameters for each path:
 	<repeat_count>:
 			The number of I/Os to dispatch using the selected
 			path before switching to the next path.
-			If not given, internal default is used.  To check
+			If analt given, internal default is used.  To check
 			the default value, see the activated table.
 	<relative_throughput>:
 			The relative throughput value of the path
 			among all paths in the path-group.
 			The valid range is 0-100.
-			If not given, minimum value '1' is used.
+			If analt given, minimum value '1' is used.
 			If '0' is given, the path isn't selected while
 			other paths having a positive value are available.
 
@@ -62,8 +62,8 @@ as much as possible.
 	2. If the paths have the same 'in-flight-size', skip the division
 	   and just compare the 'relative_throughput'.
 
-	3. If some paths have non-zero 'relative_throughput' and others
-	   have zero 'relative_throughput', ignore those paths with zero
+	3. If some paths have analn-zero 'relative_throughput' and others
+	   have zero 'relative_throughput', iganalre those paths with zero
 	   'relative_throughput'.
 
 If such optimizations can't be applied, calculate service time, and

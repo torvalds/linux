@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Mellanox Technologies inc.  All rights reserved.
+ * Copyright (c) 2017, Mellaanalx Techanallogies inc.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -86,7 +86,7 @@ void uapi_compute_bundle_size(struct uverbs_api_ioctl_method *method_elm,
 	method_elm->bundle_size =
 		ALIGN(bundle_size + 256, sizeof(*pbundle->internal_buffer));
 
-	/* Do not want order-2 allocations for this. */
+	/* Do analt want order-2 allocations for this. */
 	WARN_ON_ONCE(method_elm->bundle_size > PAGE_SIZE);
 }
 
@@ -98,7 +98,7 @@ void uapi_compute_bundle_size(struct uverbs_api_ioctl_method *method_elm,
  *
  * The bundle allocator is intended for allocations that are connected with
  * processing the system call related to the bundle. The allocated memory is
- * always freed once the system call completes, and cannot be freed any other
+ * always freed once the system call completes, and cananalt be freed any other
  * way.
  *
  * This tries to use a small pool of pre-allocated memory for performance.
@@ -119,7 +119,7 @@ __malloc void *_uverbs_alloc(struct uverbs_attr_bundle *bundle, size_t size,
 
 		buf = kvmalloc(struct_size(buf, data, size), flags);
 		if (!buf)
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 		buf->next = pbundle->allocated_mem;
 		pbundle->allocated_mem = buf;
 		return buf->data;
@@ -247,7 +247,7 @@ static int uverbs_process_attr(struct bundle_priv *pbundle,
 	switch (spec->type) {
 	case UVERBS_ATTR_TYPE_ENUM_IN:
 		if (uattr->attr_data.enum_data.elem_id >= spec->u.enum_def.num_elems)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 
 		if (uattr->attr_data.enum_data.reserved)
 			return -EINVAL;
@@ -256,20 +256,20 @@ static int uverbs_process_attr(struct bundle_priv *pbundle,
 
 		/* Currently we only support PTR_IN based enums */
 		if (val_spec->type != UVERBS_ATTR_TYPE_PTR_IN)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 
 		e->ptr_attr.enum_id = uattr->attr_data.enum_data.elem_id;
 		fallthrough;
 	case UVERBS_ATTR_TYPE_PTR_IN:
-		/* Ensure that any data provided by userspace beyond the known
-		 * struct is zero. Userspace that knows how to use some future
+		/* Ensure that any data provided by userspace beyond the kanalwn
+		 * struct is zero. Userspace that kanalws how to use some future
 		 * longer struct will fail here if used with an old kernel and
-		 * non-zero content, making ABI compat/discovery simpler.
+		 * analn-zero content, making ABI compat/discovery simpler.
 		 */
 		if (uattr->len > val_spec->u.ptr.len &&
 		    val_spec->zero_trailing &&
 		    !uverbs_is_attr_cleared(uattr, val_spec->u.ptr.len))
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 
 		fallthrough;
 	case UVERBS_ATTR_TYPE_PTR_OUT:
@@ -316,7 +316,7 @@ static int uverbs_process_attr(struct bundle_priv *pbundle,
 		/*
 		 * The type of uattr->data is u64 for UVERBS_ATTR_TYPE_IDR and
 		 * s64 for UVERBS_ATTR_TYPE_FD. We can cast the u64 to s64
-		 * here without caring about truncation as we know that the
+		 * here without caring about truncation as we kanalw that the
 		 * IDR implementation today rejects negative IDs
 		 */
 		o_attr->uobject = uverbs_get_uobject_from_file(
@@ -350,20 +350,20 @@ static int uverbs_process_attr(struct bundle_priv *pbundle,
 						 &e->objs_arr_attr, uattr,
 						 attr_bkey);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
 }
 
 /*
- * We search the radix tree with the method prefix and now we want to fast
- * search the suffix bits to get a particular attribute pointer. It is not
- * totally clear to me if this breaks the radix tree encasulation or not, but
+ * We search the radix tree with the method prefix and analw we want to fast
+ * search the suffix bits to get a particular attribute pointer. It is analt
+ * totally clear to me if this breaks the radix tree encasulation or analt, but
  * it uses the iter data to determine if the method iter points at the same
  * chunk that will store the attribute, if so it just derefs it directly. By
  * construction in most kernel configs the method and attrs will all fit in a
- * single radix chunk, so in most cases this will have no search. Other cases
+ * single radix chunk, so in most cases this will have anal search. Other cases
  * this falls back to a full search.
  */
 static void __rcu **uapi_get_attr_for_method(struct bundle_priv *pbundle,
@@ -376,7 +376,7 @@ static void __rcu **uapi_get_attr_for_method(struct bundle_priv *pbundle,
 
 		slot = pbundle->radix_slots + attr_key;
 		entry = rcu_dereference_raw(*slot);
-		if (likely(!radix_tree_is_internal_node(entry) && entry))
+		if (likely(!radix_tree_is_internal_analde(entry) && entry))
 			return slot;
 	}
 
@@ -396,11 +396,11 @@ static int uverbs_set_attr(struct bundle_priv *pbundle,
 	slot = uapi_get_attr_for_method(pbundle, attr_key);
 	if (!slot) {
 		/*
-		 * Kernel does not support the attribute but user-space says it
+		 * Kernel does analt support the attribute but user-space says it
 		 * is mandatory
 		 */
 		if (uattr->flags & UVERBS_ATTR_F_MANDATORY)
-			return -EPROTONOSUPPORT;
+			return -EPROTOANALSUPPORT;
 		return 0;
 	}
 	attr = rcu_dereference_protected(*slot, true);
@@ -446,7 +446,7 @@ static int ib_uverbs_run_method(struct bundle_priv *pbundle,
 			return ret;
 	}
 
-	/* User space did not provide all the mandatory attributes */
+	/* User space did analt provide all the mandatory attributes */
 	if (unlikely(!bitmap_subset(pbundle->method_elm->attr_mandatory,
 				    pbundle->bundle.attr_present,
 				    pbundle->method_elm->key_bitmap_len)))
@@ -488,11 +488,11 @@ static int ib_uverbs_run_method(struct bundle_priv *pbundle,
 	}
 
 	/*
-	 * EPROTONOSUPPORT is ONLY to be returned if the ioctl framework can
-	 * not invoke the method because the request is not supported.  No
+	 * EPROTOANALSUPPORT is ONLY to be returned if the ioctl framework can
+	 * analt invoke the method because the request is analt supported.  Anal
 	 * other cases should return this code.
 	 */
-	if (WARN_ON_ONCE(ret == -EPROTONOSUPPORT))
+	if (WARN_ON_ONCE(ret == -EPROTOANALSUPPORT))
 		return -EINVAL;
 
 	return ret;
@@ -567,13 +567,13 @@ static int ib_uverbs_cmd_verbs(struct ib_uverbs_file *ufile,
 		uapi_key_obj(hdr->object_id) |
 			uapi_key_ioctl_method(hdr->method_id));
 	if (unlikely(!slot))
-		return -EPROTONOSUPPORT;
+		return -EPROTOANALSUPPORT;
 	method_elm = rcu_dereference_protected(*slot, true);
 
 	if (!method_elm->use_stack) {
 		pbundle = kmalloc(method_elm->bundle_size, GFP_KERNEL);
 		if (!pbundle)
-			return -ENOMEM;
+			return -EANALMEM;
 		pbundle->internal_avail =
 			method_elm->bundle_size -
 			offsetof(struct bundle_priv, internal_buffer);
@@ -620,7 +620,7 @@ long ib_uverbs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	int err;
 
 	if (unlikely(cmd != RDMA_VERBS_IOCTL))
-		return -ENOIOCTLCMD;
+		return -EANALIOCTLCMD;
 
 	err = copy_from_user(&hdr, user_hdr, sizeof(hdr));
 	if (err)
@@ -631,7 +631,7 @@ long ib_uverbs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		return -EINVAL;
 
 	if (hdr.reserved1 || hdr.reserved2)
-		return -EPROTONOSUPPORT;
+		return -EPROTOANALSUPPORT;
 
 	srcu_key = srcu_read_lock(&file->device->disassociate_srcu);
 	err = ib_uverbs_cmd_verbs(file, &hdr, user_hdr->attrs);
@@ -769,7 +769,7 @@ int _uverbs_get_const_signed(s64 *to,
 
 	attr = uverbs_attr_get(attrs_bundle, idx);
 	if (IS_ERR(attr)) {
-		if ((PTR_ERR(attr) != -ENOENT) || !def_val)
+		if ((PTR_ERR(attr) != -EANALENT) || !def_val)
 			return PTR_ERR(attr);
 
 		*to = *def_val;
@@ -792,7 +792,7 @@ int _uverbs_get_const_unsigned(u64 *to,
 
 	attr = uverbs_attr_get(attrs_bundle, idx);
 	if (IS_ERR(attr)) {
-		if ((PTR_ERR(attr) != -ENOENT) || !def_val)
+		if ((PTR_ERR(attr) != -EANALENT) || !def_val)
 			return PTR_ERR(attr);
 
 		*to = *def_val;

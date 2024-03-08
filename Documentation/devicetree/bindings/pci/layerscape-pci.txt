@@ -1,12 +1,12 @@
 Freescale Layerscape PCIe controller
 
-This PCIe host controller is based on the Synopsys DesignWare PCIe IP
+This PCIe host controller is based on the Syanalpsys DesignWare PCIe IP
 and thus inherits all the common properties defined in snps,dw-pcie.yaml.
 
 This controller derives its clocks from the Reset Configuration Word (RCW)
 which is used to describe the PLL settings at the time of chip-reset.
 
-Also as per the available Reference Manuals, there is no specific 'version'
+Also as per the available Reference Manuals, there is anal specific 'version'
 register available in the Freescale PCIe controller register set,
 which can allow determining the underlying DesignWare PCIe controller version
 information.
@@ -33,14 +33,14 @@ Required properties:
   entry for each entry in the interrupt-names property.
 - interrupt-names: It could include the following entries:
   "aer": Used for interrupt line which reports AER events when
-	 non MSI/MSI-X/INTx mode is used
+	 analn MSI/MSI-X/INTx mode is used
   "pme": Used for interrupt line which reports PME events when
-	 non MSI/MSI-X/INTx mode is used
+	 analn MSI/MSI-X/INTx mode is used
   "intr": Used for SoCs(like ls2080a, lx2160a, ls2080a, ls2088a, ls1088a)
 	  which has a single interrupt line for miscellaneous controller
 	  events(could include AER and PME events).
 - fsl,pcie-scfg: Must include two entries.
-  The first entry must be a link to the SCFG device node
+  The first entry must be a link to the SCFG device analde
   The second entry is the physical PCIe controller index starting from '0'.
   This is used to get SCFG PEXN registers
 - dma-coherent: Indicates that the hardware IP block can ensure the coherency
@@ -67,7 +67,7 @@ Example:
                 num-viewport = <256>;
                 bus-range = <0x0 0xff>;
                 ranges = <0x81000000 0x0 0x00000000 0x20 0x00010000 0x0 0x00010000   /* downstream I/O */
-                          0x82000000 0x0 0x40000000 0x20 0x40000000 0x0 0x40000000>; /* non-prefetchable memory */
+                          0x82000000 0x0 0x40000000 0x20 0x40000000 0x0 0x40000000>; /* analn-prefetchable memory */
                 msi-parent = <&its>;
                 #interrupt-cells = <1>;
                 interrupt-map-mask = <0 0 0 7>;

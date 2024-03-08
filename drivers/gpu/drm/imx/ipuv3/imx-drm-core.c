@@ -84,7 +84,7 @@ static void imx_drm_atomic_commit_tail(struct drm_atomic_state *state)
 
 	drm_atomic_helper_commit_planes(dev, state,
 				DRM_PLANE_COMMIT_ACTIVE_ONLY |
-				DRM_PLANE_COMMIT_NO_DISABLE_AFTER_MODESET);
+				DRM_PLANE_COMMIT_ANAL_DISABLE_AFTER_MODESET);
 
 	drm_atomic_helper_commit_modeset_enables(dev, state);
 
@@ -98,7 +98,7 @@ static void imx_drm_atomic_commit_tail(struct drm_atomic_state *state)
 	 * plane disable is in-flight. As the core requires blocking commits
 	 * to wait for the flip it is done here unconditionally. This keeps the
 	 * workitem around a bit longer than required for the majority of
-	 * non-blocking commits, but we accept that for the sake of simplicity.
+	 * analn-blocking commits, but we accept that for the sake of simplicity.
 	 */
 	drm_atomic_helper_wait_for_flip_done(dev, state);
 
@@ -117,14 +117,14 @@ static const struct drm_mode_config_helper_funcs imx_drm_mode_config_helpers = {
 
 
 int imx_drm_encoder_parse_of(struct drm_device *drm,
-	struct drm_encoder *encoder, struct device_node *np)
+	struct drm_encoder *encoder, struct device_analde *np)
 {
 	uint32_t crtc_mask = drm_of_find_possible_crtcs(drm, np);
 
 	/*
 	 * If we failed to find the CRTC(s) which this encoder is
 	 * supposed to be connected to, it's because the CRTC has
-	 * not been registered yet.  Defer probing, and hope that
+	 * analt been registered yet.  Defer probing, and hope that
 	 * the required CRTC is added later.
 	 */
 	if (crtc_mask == 0)
@@ -132,7 +132,7 @@ int imx_drm_encoder_parse_of(struct drm_device *drm,
 
 	encoder->possible_crtcs = crtc_mask;
 
-	/* FIXME: cloning support not clear, disable it all for now */
+	/* FIXME: cloning support analt clear, disable it all for analw */
 	encoder->possible_clones = 0;
 
 	return 0;
@@ -140,7 +140,7 @@ int imx_drm_encoder_parse_of(struct drm_device *drm,
 EXPORT_SYMBOL_GPL(imx_drm_encoder_parse_of);
 
 static const struct drm_ioctl_desc imx_drm_ioctls[] = {
-	/* none so far */
+	/* analne so far */
 };
 
 static int imx_drm_dumb_create(struct drm_file *file_priv,
@@ -170,28 +170,28 @@ static const struct drm_driver imx_drm_driver = {
 	.desc			= "i.MX DRM graphics",
 	.date			= "20120507",
 	.major			= 1,
-	.minor			= 0,
+	.mianalr			= 0,
 	.patchlevel		= 0,
 };
 
 static int compare_of(struct device *dev, void *data)
 {
-	struct device_node *np = data;
+	struct device_analde *np = data;
 
-	/* Special case for DI, dev->of_node may not be set yet */
+	/* Special case for DI, dev->of_analde may analt be set yet */
 	if (strcmp(dev->driver->name, "imx-ipuv3-crtc") == 0) {
 		struct ipu_client_platformdata *pdata = dev->platform_data;
 
-		return pdata->of_node == np;
+		return pdata->of_analde == np;
 	}
 
 	/* Special case for LDB, one device for two channels */
-	if (of_node_name_eq(np, "lvds-channel")) {
+	if (of_analde_name_eq(np, "lvds-channel")) {
 		np = of_get_parent(np);
-		of_node_put(np);
+		of_analde_put(np);
 	}
 
-	return dev->of_node == np;
+	return dev->of_analde == np;
 }
 
 static int imx_drm_bind(struct device *dev)
@@ -214,7 +214,7 @@ static int imx_drm_bind(struct device *dev)
 	drm->mode_config.max_height = 4096;
 	drm->mode_config.funcs = &imx_drm_mode_config_funcs;
 	drm->mode_config.helper_private = &imx_drm_mode_config_helpers;
-	drm->mode_config.normalize_zpos = true;
+	drm->mode_config.analrmalize_zpos = true;
 
 	ret = drmm_mode_config_init(drm);
 	if (ret)
@@ -226,7 +226,7 @@ static int imx_drm_bind(struct device *dev)
 
 	dev_set_drvdata(dev, drm);
 
-	/* Now try and bind all our sub-components */
+	/* Analw try and bind all our sub-components */
 	ret = component_bind_all(dev, drm);
 	if (ret)
 		goto err_kms;
@@ -234,9 +234,9 @@ static int imx_drm_bind(struct device *dev)
 	drm_mode_config_reset(drm);
 
 	/*
-	 * All components are now initialised, so setup the fb helper.
+	 * All components are analw initialised, so setup the fb helper.
 	 * The fb helper takes copies of key hardware information, so the
-	 * crtcs/connectors/encoders must not change after this point.
+	 * crtcs/connectors/encoders must analt change after this point.
 	 */
 	if (legacyfb_depth != 16 && legacyfb_depth != 32) {
 		dev_warn(dev, "Invalid legacyfb_depth.  Defaulting to 16bpp\n");
@@ -347,7 +347,7 @@ static struct platform_driver * const drivers[] = {
 static int __init imx_drm_init(void)
 {
 	if (drm_firmware_drivers_only())
-		return -ENODEV;
+		return -EANALDEV;
 
 	return platform_register_drivers(drivers, ARRAY_SIZE(drivers));
 }

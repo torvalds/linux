@@ -5,10 +5,10 @@
 #include "msm8916-samsung-e2015-common.dtsi"
 
 /*
- * NOTE: The original firmware from Samsung can only boot ARM32 kernels on some
+ * ANALTE: The original firmware from Samsung can only boot ARM32 kernels on some
  * variants.
- * Unfortunately, the firmware is signed and cannot be replaced easily.
- * There seems to be no way to boot ARM64 kernels on 32-bit devices at the
+ * Unfortunately, the firmware is signed and cananalt be replaced easily.
+ * There seems to be anal way to boot ARM64 kernels on 32-bit devices at the
  * moment, even though the hardware would support it.
  *
  * However, it is possible to use this device tree by compiling an ARM32 kernel

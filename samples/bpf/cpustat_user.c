@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 #define _GNU_SOURCE
-#include <errno.h>
+#include <erranal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <signal.h>
@@ -126,7 +126,7 @@ static int cpu_stat_inject_cpu_idle_event(void)
 		if (i == rcpu)
 			continue;
 
-		/* Pointless to wake CPUs we will not run on */
+		/* Pointless to wake CPUs we will analt run on */
 		if (!CPU_ISSET(i, &original_cpumask))
 			continue;
 
@@ -142,7 +142,7 @@ static int cpu_stat_inject_cpu_idle_event(void)
 }
 
 /*
- * It's possible to have no any frequency change for long time and cannot
+ * It's possible to have anal any frequency change for long time and cananalt
  * get ftrace event 'trace_cpu_frequency' for long period, this introduces
  * big deviation for pstate statistics.
  *
@@ -156,19 +156,19 @@ static int cpu_stat_inject_cpu_frequency_event(void)
 
 	fd = open(CPUFREQ_MAX_SYSFS_PATH, O_WRONLY);
 	if (fd < 0) {
-		printf("failed to open scaling_max_freq, errno=%d\n", errno);
+		printf("failed to open scaling_max_freq, erranal=%d\n", erranal);
 		return fd;
 	}
 
 	len = write(fd, CPUFREQ_LOWEST_FREQ, strlen(CPUFREQ_LOWEST_FREQ));
 	if (len < 0) {
-		printf("failed to open scaling_max_freq, errno=%d\n", errno);
+		printf("failed to open scaling_max_freq, erranal=%d\n", erranal);
 		goto err;
 	}
 
 	len = write(fd, CPUFREQ_HIGHEST_FREQ, strlen(CPUFREQ_HIGHEST_FREQ));
 	if (len < 0) {
-		printf("failed to open scaling_max_freq, errno=%d\n", errno);
+		printf("failed to open scaling_max_freq, erranal=%d\n", erranal);
 		goto err;
 	}
 

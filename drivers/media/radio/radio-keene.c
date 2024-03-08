@@ -66,7 +66,7 @@ static inline struct keene_device *to_keene_dev(struct v4l2_device *v4l2_dev)
 	return container_of(v4l2_dev, struct keene_device, v4l2_dev);
 }
 
-/* Set frequency (if non-0), PA, mute and turn on/off the FM transmitter. */
+/* Set frequency (if analn-0), PA, mute and turn on/off the FM transmitter. */
 static int keene_cmd_main(struct keene_device *radio, unsigned freq, bool play)
 {
 	unsigned short freq_send = freq ? (freq - 76 * 16000) / 800 : 0;
@@ -107,7 +107,7 @@ static int keene_cmd_set(struct keene_device *radio)
 	radio->buffer[0] = 0x00;
 	radio->buffer[1] = 0x51;
 	radio->buffer[2] = radio->tx;
-	/* If bit 0 is set, then transmit mono, otherwise stereo.
+	/* If bit 0 is set, then transmit moanal, otherwise stereo.
 	   If bit 2 is set, then enable 75 us preemphasis, otherwise
 	   it is 50 us. */
 	radio->buffer[3] = (radio->stereo ? 0 : 1) | (radio->preemph_75_us ? 4 : 0);
@@ -182,7 +182,7 @@ static int vidioc_g_modulator(struct file *file, void *priv,
 	strscpy(v->name, "FM", sizeof(v->name));
 	v->rangelow = FREQ_MIN * FREQ_MUL;
 	v->rangehigh = FREQ_MAX * FREQ_MUL;
-	v->txsubchans = radio->stereo ? V4L2_TUNER_SUB_STEREO : V4L2_TUNER_SUB_MONO;
+	v->txsubchans = radio->stereo ? V4L2_TUNER_SUB_STEREO : V4L2_TUNER_SUB_MOANAL;
 	v->capability = V4L2_TUNER_CAP_LOW | V4L2_TUNER_CAP_STEREO;
 	return 0;
 }
@@ -301,15 +301,15 @@ static int usb_keene_probe(struct usb_interface *intf,
 
 	/*
 	 * The Keene FM transmitter USB device has the same USB ID as
-	 * the Logitech AudioHub Speaker, but it should ignore the hid.
+	 * the Logitech AudioHub Speaker, but it should iganalre the hid.
 	 * Check if the name is that of the Keene device.
-	 * If not, then someone connected the AudioHub and we shouldn't
+	 * If analt, then someone connected the AudioHub and we shouldn't
 	 * attempt to handle this driver.
 	 * For reference: the product name of the AudioHub is
 	 * "AudioHub Speaker".
 	 */
 	if (dev->product && strcmp(dev->product, "B-LINK USB Audio  "))
-		return -ENODEV;
+		return -EANALDEV;
 
 	radio = kzalloc(sizeof(struct keene_device), GFP_KERNEL);
 	if (radio)
@@ -318,7 +318,7 @@ static int usb_keene_probe(struct usb_interface *intf,
 	if (!radio || !radio->buffer) {
 		dev_err(&intf->dev, "kmalloc for keene_device failed\n");
 		kfree(radio);
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto err;
 	}
 
@@ -373,12 +373,12 @@ static int usb_keene_probe(struct usb_interface *intf,
 
 	retval = video_register_device(&radio->vdev, VFL_TYPE_RADIO, -1);
 	if (retval < 0) {
-		dev_err(&intf->dev, "could not register video device\n");
+		dev_err(&intf->dev, "could analt register video device\n");
 		goto err_vdev;
 	}
 	v4l2_ctrl_handler_setup(hdl);
 	dev_info(&intf->dev, "V4L2 device registered as %s\n",
-			video_device_node_name(&radio->vdev));
+			video_device_analde_name(&radio->vdev));
 	return 0;
 
 err_vdev:

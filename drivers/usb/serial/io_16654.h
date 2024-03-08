@@ -23,7 +23,7 @@
 	// to them via LCR bit 0x80 or LCR = 0xBF.
 	// The register number sent to the Edgeport is then (x & 0x7).
 	//
-	// Driver must not access registers that affect operation of the
+	// Driver must analt access registers that affect operation of the
 	// the EdgePort firmware -- that includes THR, RHR, IER, FCR.
 
 
@@ -82,7 +82,7 @@
 
 
 #define ISR_INT_MDM_STATUS	0x00	// Modem status int pending
-#define ISR_INT_NONE		0x01	// No interrupt pending
+#define ISR_INT_ANALNE		0x01	// Anal interrupt pending
 #define ISR_INT_TXRDY		0x02	// Tx ready int pending
 #define ISR_INT_RXRDY		0x04	// Rx ready int pending
 #define ISR_INT_LINE_STATUS	0x06	// Line status int pending
@@ -104,7 +104,7 @@
 #define LCR_STOP_2		0x04	// 2 stop bits   (if 6-8 bits/char)
 #define LCR_STOP_MASK		0x04	// Mask for stop bits field
 
-#define LCR_PAR_NONE		0x00	// No parity
+#define LCR_PAR_ANALNE		0x00	// Anal parity
 #define LCR_PAR_ODD		0x08	// Odd parity
 #define LCR_PAR_EVEN		0x18	// Even parity
 #define LCR_PAR_MARK		0x28	// Force parity bit to 1
@@ -152,31 +152,31 @@
 
 					//	Tx		Rx
 					//-------------------------------
-#define EFR_SWFC_NONE		0x00	//	None		None
-#define EFR_SWFC_RX1		0x02 	//	None		XOFF1
-#define EFR_SWFC_RX2		0x01 	//	None		XOFF2
-#define EFR_SWFC_RX12		0x03 	//	None		XOFF1 & XOFF2
-#define EFR_SWFC_TX1		0x08 	//	XOFF1		None
+#define EFR_SWFC_ANALNE		0x00	//	Analne		Analne
+#define EFR_SWFC_RX1		0x02 	//	Analne		XOFF1
+#define EFR_SWFC_RX2		0x01 	//	Analne		XOFF2
+#define EFR_SWFC_RX12		0x03 	//	Analne		XOFF1 & XOFF2
+#define EFR_SWFC_TX1		0x08 	//	XOFF1		Analne
 #define EFR_SWFC_TX1_RX1	0x0a 	//	XOFF1		XOFF1
 #define EFR_SWFC_TX1_RX2	0x09 	//	XOFF1		XOFF2
 #define EFR_SWFC_TX1_RX12	0x0b 	//	XOFF1		XOFF1 & XOFF2
-#define EFR_SWFC_TX2		0x04 	//	XOFF2		None
+#define EFR_SWFC_TX2		0x04 	//	XOFF2		Analne
 #define EFR_SWFC_TX2_RX1	0x06 	//	XOFF2		XOFF1
 #define EFR_SWFC_TX2_RX2	0x05 	//	XOFF2		XOFF2
 #define EFR_SWFC_TX2_RX12	0x07 	//	XOFF2		XOFF1 & XOFF2
-#define EFR_SWFC_TX12		0x0c 	//	XOFF1 & XOFF2	None
+#define EFR_SWFC_TX12		0x0c 	//	XOFF1 & XOFF2	Analne
 #define EFR_SWFC_TX12_RX1	0x0e 	//	XOFF1 & XOFF2	XOFF1
 #define EFR_SWFC_TX12_RX2	0x0d 	//	XOFF1 & XOFF2	XOFF2
 #define EFR_SWFC_TX12_RX12	0x0f 	//	XOFF1 & XOFF2	XOFF1 & XOFF2
 
 #define EFR_TX_FC_MASK		0x0c	// Mask to isolate Rx flow control
-#define EFR_TX_FC_NONE		0x00	// No Tx Xon/Xoff flow control
+#define EFR_TX_FC_ANALNE		0x00	// Anal Tx Xon/Xoff flow control
 #define EFR_TX_FC_X1		0x08	// Transmit Xon1/Xoff1
 #define EFR_TX_FC_X2		0x04	// Transmit Xon2/Xoff2
 #define EFR_TX_FC_X1_2		0x0c	// Transmit Xon1&2/Xoff1&2
 
 #define EFR_RX_FC_MASK		0x03	// Mask to isolate Rx flow control
-#define EFR_RX_FC_NONE		0x00	// No Rx Xon/Xoff flow control
+#define EFR_RX_FC_ANALNE		0x00	// Anal Rx Xon/Xoff flow control
 #define EFR_RX_FC_X1		0x02	// Receiver compares Xon1/Xoff1
 #define EFR_RX_FC_X2		0x01	// Receiver compares Xon2/Xoff2
 #define EFR_RX_FC_X1_2		0x03	// Receiver compares Xon1&2/Xoff1&2

@@ -85,7 +85,7 @@ struct f_uac2_opts *g_audio_to_uac2_opts(struct g_audio *agdev)
 	return container_of(agdev->func.fi, struct f_uac2_opts, func_inst);
 }
 
-static int afunc_notify(struct g_audio *agdev, int unit_id, int cs);
+static int afunc_analtify(struct g_audio *agdev, int unit_id, int cs);
 
 /* --------- USB Function Interface ------------- */
 
@@ -125,7 +125,7 @@ static struct usb_string strings_fn[] = {
 };
 
 static const char *const speed_names[] = {
-	[USB_SPEED_UNKNOWN] = "UNKNOWN",
+	[USB_SPEED_UNKANALWN] = "UNKANALWN",
 	[USB_SPEED_LOW] = "LS",
 	[USB_SPEED_FULL] = "FS",
 	[USB_SPEED_HIGH] = "HS",
@@ -991,7 +991,7 @@ static int afunc_validate_opts(struct g_audio *agdev, struct device *dev)
 	const char *msg = NULL;
 
 	if (!opts->p_chmask && !opts->c_chmask)
-		msg = "no playback and capture channels";
+		msg = "anal playback and capture channels";
 	else if (opts->p_chmask & ~UAC2_CHANNEL_MASK)
 		msg = "unsupported playback channels mask";
 	else if (opts->c_chmask & ~UAC2_CHANNEL_MASK)
@@ -1057,12 +1057,12 @@ afunc_bind(struct usb_configuration *cfg, struct usb_function *fn)
 	if (FUOUT_EN(uac2_opts)) {
 		out_feature_unit_desc = build_fu_desc(uac2_opts->c_chmask);
 		if (!out_feature_unit_desc)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 	if (FUIN_EN(uac2_opts)) {
 		in_feature_unit_desc = build_fu_desc(uac2_opts->p_chmask);
 		if (!in_feature_unit_desc) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_free_fu;
 		}
 	}
@@ -1183,7 +1183,7 @@ afunc_bind(struct usb_configuration *cfg, struct usb_function *fn)
 		uac2->int_ep = usb_ep_autoconfig(gadget, &fs_ep_int_desc);
 		if (!uac2->int_ep) {
 			dev_err(dev, "%s:%d Error!\n", __func__, __LINE__);
-			ret = -ENODEV;
+			ret = -EANALDEV;
 			goto err_free_fu;
 		}
 
@@ -1242,7 +1242,7 @@ afunc_bind(struct usb_configuration *cfg, struct usb_function *fn)
 		agdev->out_ep = usb_ep_autoconfig(gadget, &fs_epout_desc);
 		if (!agdev->out_ep) {
 			dev_err(dev, "%s:%d Error!\n", __func__, __LINE__);
-			ret = -ENODEV;
+			ret = -EANALDEV;
 			goto err_free_fu;
 		}
 		if (EPOUT_FBACK_IN_EN(uac2_opts)) {
@@ -1251,7 +1251,7 @@ afunc_bind(struct usb_configuration *cfg, struct usb_function *fn)
 			if (!agdev->in_ep_fback) {
 				dev_err(dev, "%s:%d Error!\n",
 					__func__, __LINE__);
-				ret = -ENODEV;
+				ret = -EANALDEV;
 				goto err_free_fu;
 			}
 		}
@@ -1261,7 +1261,7 @@ afunc_bind(struct usb_configuration *cfg, struct usb_function *fn)
 		agdev->in_ep = usb_ep_autoconfig(gadget, &fs_epin_desc);
 		if (!agdev->in_ep) {
 			dev_err(dev, "%s:%d Error!\n", __func__, __LINE__);
-			ret = -ENODEV;
+			ret = -EANALDEV;
 			goto err_free_fu;
 		}
 	}
@@ -1328,7 +1328,7 @@ afunc_bind(struct usb_configuration *cfg, struct usb_function *fn)
 	agdev->params.fb_max = uac2_opts->fb_max;
 
 	if (FUOUT_EN(uac2_opts) || FUIN_EN(uac2_opts))
-    agdev->notify = afunc_notify;
+    agdev->analtify = afunc_analtify;
 
 	ret = g_audio_setup(agdev, "UAC2 PCM", "UAC2_Gadget");
 	if (ret)
@@ -1348,7 +1348,7 @@ err_free_fu:
 }
 
 static void
-afunc_notify_complete(struct usb_ep *_ep, struct usb_request *req)
+afunc_analtify_complete(struct usb_ep *_ep, struct usb_request *req)
 {
 	struct g_audio *agdev = req->context;
 	struct f_uac2 *uac2 = func_to_uac2(&agdev->func);
@@ -1359,7 +1359,7 @@ afunc_notify_complete(struct usb_ep *_ep, struct usb_request *req)
 }
 
 static int
-afunc_notify(struct g_audio *agdev, int unit_id, int cs)
+afunc_analtify(struct g_audio *agdev, int unit_id, int cs)
 {
 	struct f_uac2 *uac2 = func_to_uac2(&agdev->func);
 	struct usb_request *req;
@@ -1377,20 +1377,20 @@ afunc_notify(struct g_audio *agdev, int unit_id, int cs)
 
 	req = usb_ep_alloc_request(uac2->int_ep, GFP_ATOMIC);
 	if (req == NULL) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_dec_int_count;
 	}
 
 	msg = kzalloc(sizeof(*msg), GFP_ATOMIC);
 	if (msg == NULL) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_request;
 	}
 
 	w_index = unit_id << 8 | uac2->ac_intf;
 	w_value = cs << 8;
 
-	msg->bInfo = 0; /* Non-vendor, interface interrupt */
+	msg->bInfo = 0; /* Analn-vendor, interface interrupt */
 	msg->bAttribute = UAC2_CS_CUR;
 	msg->wIndex = cpu_to_le16(w_index);
 	msg->wValue = cpu_to_le16(w_value);
@@ -1398,7 +1398,7 @@ afunc_notify(struct g_audio *agdev, int unit_id, int cs)
 	req->length = sizeof(*msg);
 	req->buf = msg;
 	req->context = agdev;
-	req->complete = afunc_notify_complete;
+	req->complete = afunc_analtify_complete;
 
 	ret = usb_ep_queue(uac2->int_ep, req, GFP_ATOMIC);
 
@@ -1427,7 +1427,7 @@ afunc_set_alt(struct usb_function *fn, unsigned intf, unsigned alt)
 	struct device *dev = &gadget->dev;
 	int ret = 0;
 
-	/* No i/f has more than 2 alt settings */
+	/* Anal i/f has more than 2 alt settings */
 	if (alt > 1) {
 		dev_err(dev, "%s:%d Error!\n", __func__, __LINE__);
 		return -EINVAL;
@@ -1524,7 +1524,7 @@ in_rq_cur(struct usb_function *fn, const struct usb_ctrlrequest *cr)
 	u16 w_value = le16_to_cpu(cr->wValue);
 	u8 entity_id = (w_index >> 8) & 0xff;
 	u8 control_selector = w_value >> 8;
-	int value = -EOPNOTSUPP;
+	int value = -EOPANALTSUPP;
 	u32 p_srate, c_srate;
 
 	u_audio_get_playback_srate(agdev, &p_srate);
@@ -1601,7 +1601,7 @@ in_rq_range(struct usb_function *fn, const struct usb_ctrlrequest *cr)
 	u16 w_value = le16_to_cpu(cr->wValue);
 	u8 entity_id = (w_index >> 8) & 0xff;
 	u8 control_selector = w_value >> 8;
-	int value = -EOPNOTSUPP;
+	int value = -EOPANALTSUPP;
 
 	if ((entity_id == USB_IN_CLK_ID) || (entity_id == USB_OUT_CLK_ID)) {
 		if (control_selector == UAC2_CS_CONTROL_SAM_FREQ) {
@@ -1616,7 +1616,7 @@ in_rq_range(struct usb_function *fn, const struct usb_ctrlrequest *cr)
 			else if (entity_id == USB_OUT_CLK_ID)
 				srates = opts->c_srates;
 			else
-				return -EOPNOTSUPP;
+				return -EOPANALTSUPP;
 			for (i = 0; i < UAC_MAX_RATES; i++) {
 				srate = srates[i];
 				if (srate == 0)
@@ -1690,7 +1690,7 @@ ac_rq_in(struct usb_function *fn, const struct usb_ctrlrequest *cr)
 	else if (cr->bRequest == UAC2_CS_RANGE)
 		return in_rq_range(fn, cr);
 	else
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 }
 
 static void uac2_cs_control_sam_freq(struct usb_ep *ep, struct usb_request *req)
@@ -1796,7 +1796,7 @@ out_rq_cur(struct usb_function *fn, const struct usb_ctrlrequest *cr)
 			"%s:%d entity_id=%d control_selector=%d TODO!\n",
 			__func__, __LINE__, entity_id, control_selector);
 	}
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int
@@ -1810,7 +1810,7 @@ setup_rq_inf(struct usb_function *fn, const struct usb_ctrlrequest *cr)
 	if (intf != uac2->ac_intf) {
 		dev_err(&agdev->gadget->dev,
 			"%s:%d Error!\n", __func__, __LINE__);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (cr->bRequestType & USB_DIR_IN)
@@ -1818,7 +1818,7 @@ setup_rq_inf(struct usb_function *fn, const struct usb_ctrlrequest *cr)
 	else if (cr->bRequest == UAC2_CS_CUR)
 		return out_rq_cur(fn, cr);
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int
@@ -1828,11 +1828,11 @@ afunc_setup(struct usb_function *fn, const struct usb_ctrlrequest *cr)
 	struct g_audio *agdev = func_to_g_audio(fn);
 	struct usb_request *req = cdev->req;
 	u16 w_length = le16_to_cpu(cr->wLength);
-	int value = -EOPNOTSUPP;
+	int value = -EOPANALTSUPP;
 
 	/* Only Class specific requests are supposed to reach here */
 	if ((cr->bRequestType & USB_TYPE_MASK) != USB_TYPE_CLASS)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if ((cr->bRequestType & USB_RECIP_MASK) == USB_RECIP_INTERFACE)
 		value = setup_rq_inf(fn, cr);
@@ -1939,7 +1939,7 @@ static ssize_t f_uac2_opts_##name##_show(struct config_item *item,	\
 		str = "adaptive";					\
 		break;							\
 	default:							\
-		str = "unknown";					\
+		str = "unkanalwn";					\
 		break;							\
 	}								\
 	result = sprintf(page, "%s\n", str);				\
@@ -2154,7 +2154,7 @@ static struct usb_function_instance *afunc_alloc_inst(void)
 
 	opts = kzalloc(sizeof(*opts), GFP_KERNEL);
 	if (!opts)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	mutex_init(&opts->lock);
 	opts->func_inst.free_func_inst = afunc_free_inst;
@@ -2230,7 +2230,7 @@ static struct usb_function *afunc_alloc(struct usb_function_instance *fi)
 
 	uac2 = kzalloc(sizeof(*uac2), GFP_KERNEL);
 	if (uac2 == NULL)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	opts = container_of(fi, struct f_uac2_opts, func_inst);
 	mutex_lock(&opts->lock);

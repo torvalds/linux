@@ -535,7 +535,7 @@ void rtl92de_tx_fill_desc(struct ieee80211_hw *hw,
 		} else {
 			set_tx_desc_offset(pdesc, USB_HWDESC_HEADER_LEN);
 		}
-		/* 5G have no CCK rate */
+		/* 5G have anal CCK rate */
 		if (rtlhal->current_bandtype == BAND_ON_5G)
 			if (ptcb_desc->hw_rate < DESC_RATE6M)
 				ptcb_desc->hw_rate = DESC_RATE6M;
@@ -559,7 +559,7 @@ void rtl92de_tx_fill_desc(struct ieee80211_hw *hw,
 					  || ptcb_desc->cts_enable) ? 1 : 0));
 		set_tx_desc_cts2self(pdesc, ((ptcb_desc->cts_enable) ? 1 : 0));
 		set_tx_desc_rts_stbc(pdesc, ((ptcb_desc->rts_stbc) ? 1 : 0));
-		/* 5G have no CCK rate */
+		/* 5G have anal CCK rate */
 		if (rtlhal->current_bandtype == BAND_ON_5G)
 			if (ptcb_desc->rts_rate < DESC_RATE6M)
 				ptcb_desc->rts_rate = DESC_RATE6M;
@@ -678,9 +678,9 @@ void rtl92de_tx_fill_cmddesc(struct ieee80211_hw *hw, u8 *pdesc8,
 	}
 	clear_pci_tx_desc_content(pdesc, TX_DESC_SIZE);
 	set_tx_desc_offset(pdesc, USB_HWDESC_HEADER_LEN);
-	/* 5G have no CCK rate
+	/* 5G have anal CCK rate
 	 * Caution: The macros below are multi-line expansions.
-	 * The braces are needed no matter what checkpatch says
+	 * The braces are needed anal matter what checkpatch says
 	 */
 	if (rtlhal->current_bandtype == BAND_ON_5G) {
 		set_tx_desc_tx_rate(pdesc, DESC_RATE6M);
@@ -728,7 +728,7 @@ void rtl92de_set_desc(struct ieee80211_hw *hw, u8 *pdesc8, bool istx,
 			set_tx_desc_next_desc_address(pdesc, *(u32 *)val);
 			break;
 		default:
-			WARN_ONCE(true, "rtl8192de: ERR txdesc :%d not processed\n",
+			WARN_ONCE(true, "rtl8192de: ERR txdesc :%d analt processed\n",
 				  desc_name);
 			break;
 		}
@@ -748,7 +748,7 @@ void rtl92de_set_desc(struct ieee80211_hw *hw, u8 *pdesc8, bool istx,
 			set_rx_desc_eor(pdesc, 1);
 			break;
 		default:
-			WARN_ONCE(true, "rtl8192de: ERR rxdesc :%d not processed\n",
+			WARN_ONCE(true, "rtl8192de: ERR rxdesc :%d analt processed\n",
 				  desc_name);
 			break;
 		}
@@ -770,7 +770,7 @@ u64 rtl92de_get_desc(struct ieee80211_hw *hw,
 			ret = get_tx_desc_tx_buffer_address(p_desc);
 			break;
 		default:
-			WARN_ONCE(true, "rtl8192de: ERR txdesc :%d not processed\n",
+			WARN_ONCE(true, "rtl8192de: ERR txdesc :%d analt processed\n",
 				  desc_name);
 			break;
 		}
@@ -786,7 +786,7 @@ u64 rtl92de_get_desc(struct ieee80211_hw *hw,
 			ret = get_rx_desc_buff_addr(p_desc);
 			break;
 		default:
-			WARN_ONCE(true, "rtl8192de: ERR rxdesc :%d not processed\n",
+			WARN_ONCE(true, "rtl8192de: ERR rxdesc :%d analt processed\n",
 				  desc_name);
 			break;
 		}
@@ -803,7 +803,7 @@ bool rtl92de_is_tx_desc_closed(struct ieee80211_hw *hw,
 	u8 own = (u8)rtl92de_get_desc(hw, entry, true, HW_DESC_OWN);
 
 	/* a beacon packet will only use the first
-	 * descriptor by defaut, and the own bit may not
+	 * descriptor by defaut, and the own bit may analt
 	 * be cleared by the hardware
 	 */
 	if (own)

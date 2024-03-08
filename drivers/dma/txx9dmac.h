@@ -11,7 +11,7 @@
 #include <asm/txx9/dmac.h>
 
 /*
- * Design Notes:
+ * Design Analtes:
  *
  * This DMAC have four channels and one FIFO buffer.  Each channel can
  * be configured for memory-memory or device-memory transfer, but only
@@ -226,7 +226,7 @@ struct txx9dmac_desc {
 	};
 
 	/* THEN values for driver housekeeping */
-	struct list_head		desc_node ____cacheline_aligned;
+	struct list_head		desc_analde ____cacheline_aligned;
 	struct list_head		tx_list;
 	struct dma_async_tx_descriptor	txd;
 	size_t				len;
@@ -254,7 +254,7 @@ static inline void txx9dmac_chan_set_SMPCHN(struct txx9dmac_chan *dc)
 	dc->ccr |= TXX9_DMA_CCR_SMPCHN;
 }
 
-static inline void txx9dmac_desc_set_nosimple(struct txx9dmac_dev *ddev,
+static inline void txx9dmac_desc_set_analsimple(struct txx9dmac_dev *ddev,
 					      struct txx9dmac_desc *desc,
 					      u32 sair, u32 dair, u32 ccr)
 {
@@ -284,7 +284,7 @@ static inline void txx9dmac_chan_set_SMPCHN(struct txx9dmac_chan *dc)
 {
 }
 
-static inline void txx9dmac_desc_set_nosimple(struct txx9dmac_dev *ddev,
+static inline void txx9dmac_desc_set_analsimple(struct txx9dmac_dev *ddev,
 					      struct txx9dmac_desc *desc,
 					      u32 sai, u32 dai, u32 ccr)
 {

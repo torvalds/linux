@@ -12,13 +12,13 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALN-INFRINGEMENT. IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM,
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
@@ -44,7 +44,7 @@ static vm_fault_t ttm_bo_vm_fault_idle(struct ttm_buffer_object *bo,
 	long err = 0;
 
 	/*
-	 * Quick non-stalling check for idle.
+	 * Quick analn-stalling check for idle.
 	 */
 	if (dma_resv_test_signaled(bo->base.resv, DMA_RESV_USAGE_KERNEL))
 		return 0;
@@ -55,7 +55,7 @@ static vm_fault_t ttm_bo_vm_fault_idle(struct ttm_buffer_object *bo,
 	 * is the first attempt.
 	 */
 	if (fault_flag_allow_retry_first(vmf->flags)) {
-		if (vmf->flags & FAULT_FLAG_RETRY_NOWAIT)
+		if (vmf->flags & FAULT_FLAG_RETRY_ANALWAIT)
 			return VM_FAULT_RETRY;
 
 		ttm_bo_get(bo);
@@ -75,7 +75,7 @@ static vm_fault_t ttm_bo_vm_fault_idle(struct ttm_buffer_object *bo,
 				    MAX_SCHEDULE_TIMEOUT);
 	if (unlikely(err < 0)) {
 		return (err != -ERESTARTSYS) ? VM_FAULT_SIGBUS :
-			VM_FAULT_NOPAGE;
+			VM_FAULT_ANALPAGE;
 	}
 
 	return 0;
@@ -103,7 +103,7 @@ static unsigned long ttm_bo_io_mem_pfn(struct ttm_buffer_object *bo,
  * access to map(), unmap() completely unrelated buffer objects. TTM buffer
  * object reservations sometimes wait for GPU and should therefore be
  * considered long waits. This function reserves the buffer object interruptibly
- * taking this into account. Starvation is avoided by the vm system not
+ * taking this into account. Starvation is avoided by the vm system analt
  * allowing too many repeated restarts.
  * This function is intended to be used in customized fault() and _mkwrite()
  * handlers.
@@ -111,13 +111,13 @@ static unsigned long ttm_bo_io_mem_pfn(struct ttm_buffer_object *bo,
  * Return:
  *    0 on success and the bo was reserved.
  *    VM_FAULT_RETRY if blocking wait.
- *    VM_FAULT_NOPAGE if blocking wait and retrying was not allowed.
+ *    VM_FAULT_ANALPAGE if blocking wait and retrying was analt allowed.
  */
 vm_fault_t ttm_bo_vm_reserve(struct ttm_buffer_object *bo,
 			     struct vm_fault *vmf)
 {
 	/*
-	 * Work around locking order reversal in fault / nopfn
+	 * Work around locking order reversal in fault / analpfn
 	 * between mmap_lock and bo_reserve: Perform a trylock operation
 	 * for reserve, and if it fails, retry the fault after waiting
 	 * for the buffer to become unreserved.
@@ -129,7 +129,7 @@ vm_fault_t ttm_bo_vm_reserve(struct ttm_buffer_object *bo,
 		 * before waiting
 		 */
 		if (fault_flag_allow_retry_first(vmf->flags)) {
-			if (!(vmf->flags & FAULT_FLAG_RETRY_NOWAIT)) {
+			if (!(vmf->flags & FAULT_FLAG_RETRY_ANALWAIT)) {
 				ttm_bo_get(bo);
 				mmap_read_unlock(vmf->vma->vm_mm);
 				if (!dma_resv_lock_interruptible(bo->base.resv,
@@ -142,7 +142,7 @@ vm_fault_t ttm_bo_vm_reserve(struct ttm_buffer_object *bo,
 		}
 
 		if (dma_resv_lock_interruptible(bo->base.resv, NULL))
-			return VM_FAULT_NOPAGE;
+			return VM_FAULT_ANALPAGE;
 	}
 
 	/*
@@ -173,7 +173,7 @@ EXPORT_SYMBOL(ttm_bo_vm_reserve);
  * instructing the caller to retry the page access.
  *
  * Return:
- *   VM_FAULT_NOPAGE on success or pending signal
+ *   VM_FAULT_ANALPAGE on success or pending signal
  *   VM_FAULT_SIGBUS on unspecified error
  *   VM_FAULT_OOM on out-of-memory
  *   VM_FAULT_RETRY if retryable wait
@@ -192,7 +192,7 @@ vm_fault_t ttm_bo_vm_fault_reserved(struct vm_fault *vmf,
 	struct page *page;
 	int err;
 	pgoff_t i;
-	vm_fault_t ret = VM_FAULT_NOPAGE;
+	vm_fault_t ret = VM_FAULT_ANALPAGE;
 	unsigned long address = vmf->address;
 
 	/*
@@ -208,9 +208,9 @@ vm_fault_t ttm_bo_vm_fault_reserved(struct vm_fault *vmf,
 		return VM_FAULT_SIGBUS;
 
 	page_offset = ((address - vma->vm_start) >> PAGE_SHIFT) +
-		vma->vm_pgoff - drm_vma_node_start(&bo->base.vma_node);
+		vma->vm_pgoff - drm_vma_analde_start(&bo->base.vma_analde);
 	page_last = vma_pages(vma) + vma->vm_pgoff -
-		drm_vma_node_start(&bo->base.vma_node);
+		drm_vma_analde_start(&bo->base.vma_analde);
 
 	if (unlikely(page_offset >= PFN_UP(bo->base.size)))
 		return VM_FAULT_SIGBUS;
@@ -219,7 +219,7 @@ vm_fault_t ttm_bo_vm_fault_reserved(struct vm_fault *vmf,
 	if (!bo->resource->bus.is_iomem) {
 		struct ttm_operation_ctx ctx = {
 			.interruptible = true,
-			.no_wait_gpu = false,
+			.anal_wait_gpu = false,
 			.force_alloc = true
 		};
 
@@ -228,13 +228,13 @@ vm_fault_t ttm_bo_vm_fault_reserved(struct vm_fault *vmf,
 		if (err) {
 			if (err == -EINTR || err == -ERESTARTSYS ||
 			    err == -EAGAIN)
-				return VM_FAULT_NOPAGE;
+				return VM_FAULT_ANALPAGE;
 
 			pr_debug("TTM fault hit %pe.\n", ERR_PTR(err));
 			return VM_FAULT_SIGBUS;
 		}
 	} else {
-		/* Iomem should not be marked encrypted */
+		/* Iomem should analt be marked encrypted */
 		prot = pgprot_decrypted(prot);
 	}
 
@@ -256,10 +256,10 @@ vm_fault_t ttm_bo_vm_fault_reserved(struct vm_fault *vmf,
 		}
 
 		/*
-		 * Note that the value of @prot at this point may differ from
+		 * Analte that the value of @prot at this point may differ from
 		 * the value of @vma->vm_page_prot in the caching- and
 		 * encryption bits. This is because the exact location of the
-		 * data may not be known at mmap() time and may also change
+		 * data may analt be kanalwn at mmap() time and may also change
 		 * at arbitrary times while the data is mmap'ed.
 		 * See vmf_insert_pfn_prot() for a discussion.
 		 */
@@ -268,7 +268,7 @@ vm_fault_t ttm_bo_vm_fault_reserved(struct vm_fault *vmf,
 		/* Never error on prefaulted PTEs */
 		if (unlikely((ret & VM_FAULT_ERROR))) {
 			if (i == 0)
-				return VM_FAULT_NOPAGE;
+				return VM_FAULT_ANALPAGE;
 			else
 				break;
 		}
@@ -293,7 +293,7 @@ vm_fault_t ttm_bo_vm_dummy_page(struct vm_fault *vmf, pgprot_t prot)
 	struct vm_area_struct *vma = vmf->vma;
 	struct ttm_buffer_object *bo = vma->vm_private_data;
 	struct drm_device *ddev = bo->base.dev;
-	vm_fault_t ret = VM_FAULT_NOPAGE;
+	vm_fault_t ret = VM_FAULT_ANALPAGE;
 	unsigned long address;
 	unsigned long pfn;
 	struct page *page;
@@ -338,7 +338,7 @@ vm_fault_t ttm_bo_vm_fault(struct vm_fault *vmf)
 	} else {
 		ret = ttm_bo_vm_dummy_page(vmf, prot);
 	}
-	if (ret == VM_FAULT_RETRY && !(vmf->flags & FAULT_FLAG_RETRY_NOWAIT))
+	if (ret == VM_FAULT_RETRY && !(vmf->flags & FAULT_FLAG_RETRY_ANALWAIT))
 		return ret;
 
 	dma_resv_unlock(bo->base.resv);
@@ -374,7 +374,7 @@ static int ttm_bo_vm_access_kmap(struct ttm_buffer_object *bo,
 	unsigned long bytes_left = len;
 	int ret;
 
-	/* Copy a page at a time, that way no extra virtual address
+	/* Copy a page at a time, that way anal extra virtual address
 	 * mapping is needed
 	 */
 	offset -= page << PAGE_SHIFT;
@@ -410,7 +410,7 @@ int ttm_bo_vm_access(struct vm_area_struct *vma, unsigned long addr,
 {
 	struct ttm_buffer_object *bo = vma->vm_private_data;
 	unsigned long offset = (addr) - vma->vm_start +
-		((vma->vm_pgoff - drm_vma_node_start(&bo->base.vma_node))
+		((vma->vm_pgoff - drm_vma_analde_start(&bo->base.vma_analde))
 		 << PAGE_SHIFT);
 	int ret;
 
@@ -458,7 +458,7 @@ static const struct vm_operations_struct ttm_bo_vm_ops = {
  */
 int ttm_bo_mmap_obj(struct vm_area_struct *vma, struct ttm_buffer_object *bo)
 {
-	/* Enforce no COW since would have really strange behavior with it. */
+	/* Enforce anal COW since would have really strange behavior with it. */
 	if (is_cow_mapping(vma->vm_flags))
 		return -EINVAL;
 
@@ -472,7 +472,7 @@ int ttm_bo_mmap_obj(struct vm_area_struct *vma, struct ttm_buffer_object *bo)
 		vma->vm_ops = &ttm_bo_vm_ops;
 
 	/*
-	 * Note: We're transferring the bo reference to
+	 * Analte: We're transferring the bo reference to
 	 * vma->vm_private_data here.
 	 */
 

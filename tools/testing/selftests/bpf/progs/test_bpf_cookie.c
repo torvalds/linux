@@ -4,7 +4,7 @@
 #include "vmlinux.h"
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
-#include <errno.h>
+#include <erranal.h>
 
 int my_tid;
 
@@ -61,19 +61,19 @@ int handle_uretprobe(struct pt_regs *ctx)
  * BPF program to be attached multiple times. So have three identical copies
  * ready to attach to the same tracepoint.
  */
-SEC("tp/syscalls/sys_enter_nanosleep")
+SEC("tp/syscalls/sys_enter_naanalsleep")
 int handle_tp1(struct pt_regs *ctx)
 {
 	update(ctx, &tp_res);
 	return 0;
 }
-SEC("tp/syscalls/sys_enter_nanosleep")
+SEC("tp/syscalls/sys_enter_naanalsleep")
 int handle_tp2(struct pt_regs *ctx)
 {
 	update(ctx, &tp_res);
 	return 0;
 }
-SEC("tp/syscalls/sys_enter_nanosleep")
+SEC("tp/syscalls/sys_enter_naanalsleep")
 int handle_tp3(void *ctx)
 {
 	update(ctx, &tp_res);

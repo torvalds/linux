@@ -42,7 +42,7 @@ int _r8712_init_sta_priv(struct	sta_priv *pstapriv)
 	pstapriv->pallocated_stainfo_buf = kmalloc(sizeof(struct sta_info) *
 						   NUM_STA + 4, GFP_ATOMIC);
 	if (!pstapriv->pallocated_stainfo_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 	pstapriv->pstainfo_buf = pstapriv->pallocated_stainfo_buf + 4 -
 		((addr_t)(pstapriv->pallocated_stainfo_buf) & 3);
 	_init_queue(&pstapriv->free_sta_queue);

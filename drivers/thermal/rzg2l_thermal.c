@@ -38,7 +38,7 @@
 /* Sensor Mode Register(TSU_SM) */
 #define TSU_SM_EN_TS		BIT(0)
 #define TSU_SM_ADC_EN_TS	BIT(1)
-#define TSU_SM_NORMAL_MODE	(TSU_SM_EN_TS | TSU_SM_ADC_EN_TS)
+#define TSU_SM_ANALRMAL_MODE	(TSU_SM_EN_TS | TSU_SM_ADC_EN_TS)
 
 /* TSU_ST bits */
 #define TSU_ST_START		BIT(0)
@@ -122,13 +122,13 @@ static int rzg2l_thermal_init(struct rzg2l_thermal_priv *priv)
 {
 	u32 reg_val;
 
-	rzg2l_thermal_write(priv, TSU_SM, TSU_SM_NORMAL_MODE);
+	rzg2l_thermal_write(priv, TSU_SM, TSU_SM_ANALRMAL_MODE);
 	rzg2l_thermal_write(priv, TSU_ST, 0);
 
 	/*
-	 * Before setting the START bit, TSU should be in normal operating
+	 * Before setting the START bit, TSU should be in analrmal operating
 	 * mode. As per the HW manual, it will take 60 µs to place the TSU
-	 * into normal operating mode.
+	 * into analrmal operating mode.
 	 */
 	usleep_range(60, 80);
 
@@ -167,7 +167,7 @@ static int rzg2l_thermal_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->base))

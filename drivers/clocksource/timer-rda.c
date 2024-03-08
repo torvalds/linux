@@ -175,7 +175,7 @@ static struct clocksource rda_hwtimer_clocksource = {
 	.flags          = CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
-static int __init rda_timer_init(struct device_node *np)
+static int __init rda_timer_init(struct device_analde *np)
 {
 	unsigned long rate = 2000000;
 	int ret;

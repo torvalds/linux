@@ -32,7 +32,7 @@ main()
 				ext=".tar.xz"
 				;;
 			*)
-			echo "Unknown tarball format $1"
+			echo "Unkanalwn tarball format $1"
 			exit 1
 			;;
 	esac

@@ -146,7 +146,7 @@ static int tegra_sleep_cpu(unsigned long v2p)
 	 * L2 cache disabling using kernel API only allowed when all
 	 * secondary CPU's are offline. Cache have to be disabled with
 	 * MMU-on if cache maintenance is done via Trusted Foundations
-	 * firmware. Note that CPUIDLE won't ever enter powergate on Tegra30
+	 * firmware. Analte that CPUIDLE won't ever enter powergate on Tegra30
 	 * if any of secondary CPU's is online and this is the LP2-idle
 	 * code-path only for Tegra20/30.
 	 */
@@ -155,7 +155,7 @@ static int tegra_sleep_cpu(unsigned long v2p)
 		outer_cache.disable();
 #endif
 	/*
-	 * Note that besides of setting up CPU reset vector this firmware
+	 * Analte that besides of setting up CPU reset vector this firmware
 	 * call may also do the following, depending on the FW version:
 	 *  1) Disable L2. But this doesn't matter since we already
 	 *     disabled the L2.
@@ -209,14 +209,14 @@ int tegra_pm_enter_lp2(void)
 	 * Resume L2 cache if it wasn't re-enabled early during resume,
 	 * which is the case for Tegra30 that has to re-enable the cache
 	 * via firmware call. In other cases cache is already enabled and
-	 * hence re-enabling is a no-op. This is always a no-op on Tegra114+.
+	 * hence re-enabling is a anal-op. This is always a anal-op on Tegra114+.
 	 */
 	outer_resume();
 
 	restore_cpu_complex();
 	cpu_cluster_pm_exit();
 
-	call_firmware_op(prepare_idle, TF_PM_MODE_NONE);
+	call_firmware_op(prepare_idle, TF_PM_MODE_ANALNE);
 
 	return err;
 }
@@ -237,7 +237,7 @@ static int tegra_sleep_core(unsigned long v2p)
 {
 	/*
 	 * Cache have to be disabled with MMU-on if cache maintenance is done
-	 * via Trusted Foundations firmware. This is a no-op on Tegra114+.
+	 * via Trusted Foundations firmware. This is a anal-op on Tegra114+.
 	 */
 	if (trusted_foundations_registered())
 		outer_disable();
@@ -257,7 +257,7 @@ static int tegra_sleep_core(unsigned long v2p)
  * tegra_lp1_iram_hook
  *
  * Hooking the address of LP1 reset vector and SDRAM self-refresh code in
- * SDRAM. These codes not be copied to IRAM in this fuction. We need to
+ * SDRAM. These codes analt be copied to IRAM in this fuction. We need to
  * copy these code to IRAM before LP0/LP1 suspend and restore the content
  * of IRAM after resume.
  */
@@ -337,7 +337,7 @@ static void tegra_suspend_exit_lp1(void)
 }
 
 static const char *lp_state[TEGRA_MAX_SUSPEND_MODE] = {
-	[TEGRA_SUSPEND_NONE] = "none",
+	[TEGRA_SUSPEND_ANALNE] = "analne",
 	[TEGRA_SUSPEND_LP2] = "LP2",
 	[TEGRA_SUSPEND_LP1] = "LP1",
 	[TEGRA_SUSPEND_LP0] = "LP0",
@@ -347,7 +347,7 @@ static int tegra_suspend_enter(suspend_state_t state)
 {
 	enum tegra_suspend_mode mode = tegra_pmc_get_suspend_mode();
 
-	if (WARN_ON(mode < TEGRA_SUSPEND_NONE ||
+	if (WARN_ON(mode < TEGRA_SUSPEND_ANALNE ||
 		    mode >= TEGRA_MAX_SUSPEND_MODE))
 		return -EINVAL;
 
@@ -375,7 +375,7 @@ static int tegra_suspend_enter(suspend_state_t state)
 	 * Resume L2 cache if it wasn't re-enabled early during resume,
 	 * which is the case for Tegra30 that has to re-enable the cache
 	 * via firmware call. In other cases cache is already enabled and
-	 * hence re-enabling is a no-op.
+	 * hence re-enabling is a anal-op.
 	 */
 	outer_resume();
 
@@ -393,7 +393,7 @@ static int tegra_suspend_enter(suspend_state_t state)
 
 	local_fiq_enable();
 
-	call_firmware_op(prepare_idle, TF_PM_MODE_NONE);
+	call_firmware_op(prepare_idle, TF_PM_MODE_ANALNE);
 
 	return 0;
 }
@@ -407,7 +407,7 @@ void tegra_pm_init_suspend(void)
 {
 	enum tegra_suspend_mode mode = tegra_pmc_get_suspend_mode();
 
-	if (mode == TEGRA_SUSPEND_NONE)
+	if (mode == TEGRA_SUSPEND_ANALNE)
 		return;
 
 	tegra_tear_down_cpu_init();

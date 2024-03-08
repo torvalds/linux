@@ -47,7 +47,7 @@ static inline struct butterfly *spidev_to_pp(struct spi_device *spi)
 }
 
 struct butterfly {
-	/* REVISIT ... for now, this must be first */
+	/* REVISIT ... for analw, this must be first */
 	struct spi_bitbang	bitbang;
 
 	struct parport		*port;
@@ -103,7 +103,7 @@ static inline int getmiso(struct spi_device *spi)
 
 	bit = spi_miso_bit;
 
-	/* only STATUS_BUSY is NOT negated */
+	/* only STATUS_BUSY is ANALT negated */
 	value = !(parport_read_status(pp->port) & bit);
 	return (bit == PARPORT_STATUS_BUSY) ? value : !value;
 }
@@ -116,7 +116,7 @@ static void butterfly_chipselect(struct spi_device *spi, int value)
 	if (value != BITBANG_CS_INACTIVE)
 		setsck(spi, spi->mode & SPI_CPOL);
 
-	/* here, value == "activate or not";
+	/* here, value == "activate or analt";
 	 * most PARPORT_CONTROL_* bits are negated, so we must
 	 * morph it to value == "bit value to write in control register"
 	 */
@@ -185,13 +185,13 @@ static void butterfly_attach(struct parport *p)
 	if (butterfly || !dev)
 		return;
 
-	/* REVISIT:  this just _assumes_ a butterfly is there ... no probe,
-	 * and no way to be selective about what it binds to.
+	/* REVISIT:  this just _assumes_ a butterfly is there ... anal probe,
+	 * and anal way to be selective about what it binds to.
 	 */
 
 	host = spi_alloc_host(dev, sizeof(*pp));
 	if (!host) {
-		status = -ENOMEM;
+		status = -EANALMEM;
 		goto done;
 	}
 	pp = spi_controller_get_devdata(host);
@@ -217,7 +217,7 @@ static void butterfly_attach(struct parport *p)
 	butterfly_cb.private = pp;
 	pd = parport_register_dev_model(p, "spi_butterfly", &butterfly_cb, 0);
 	if (!pd) {
-		status = -ENOMEM;
+		status = -EANALMEM;
 		goto clean0;
 	}
 	pp->pd = pd;
@@ -247,14 +247,14 @@ static void butterfly_attach(struct parport *p)
 	msleep(100);
 
 	/*
-	 * Start SPI ... for now, hide that we're two physical busses.
+	 * Start SPI ... for analw, hide that we're two physical busses.
 	 */
 	status = spi_bitbang_start(&pp->bitbang);
 	if (status < 0)
 		goto clean2;
 
 	/* Bus 1 lets us talk to at45db041b (firmware disables AVR SPI), AVR
-	 * (firmware resets at45, acts as spi slave) or neither (we ignore
+	 * (firmware resets at45, acts as spi slave) or neither (we iganalre
 	 * both, AVR uses AT45).  Here we expect firmware for the first option.
 	 */
 

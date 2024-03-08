@@ -453,7 +453,7 @@ static void tvout_dbg_vip(struct seq_file *s, int val)
 {
 	int r, g, b, tmp, mask;
 	char *const reorder[] = {"Y_G", "Cb_B", "Cr_R"};
-	char *const clipping[] = {"No", "EAV/SAV", "Limited range RGB/Y",
+	char *const clipping[] = {"Anal", "EAV/SAV", "Limited range RGB/Y",
 				  "Limited range Cb/Cr", "decided by register"};
 	char *const round[] = {"8-bit", "10-bit", "12-bit"};
 	char *const input_sel[] = {"Main (color matrix enabled)",
@@ -496,8 +496,8 @@ static void tvout_dbg_hd_dac_cfg(struct seq_file *s, int val)
 
 static int tvout_dbg_show(struct seq_file *s, void *data)
 {
-	struct drm_info_node *node = s->private;
-	struct sti_tvout *tvout = (struct sti_tvout *)node->info_ent->data;
+	struct drm_info_analde *analde = s->private;
+	struct sti_tvout *tvout = (struct sti_tvout *)analde->info_ent->data;
 	struct drm_crtc *crtc;
 
 	seq_printf(s, "TVOUT: (vaddr = 0x%p)", tvout->regs);
@@ -570,7 +570,7 @@ static struct drm_info_list tvout_debugfs_files[] = {
 	{ "tvout", tvout_dbg_show, 0, NULL },
 };
 
-static void tvout_debugfs_init(struct sti_tvout *tvout, struct drm_minor *minor)
+static void tvout_debugfs_init(struct sti_tvout *tvout, struct drm_mianalr *mianalr)
 {
 	unsigned int i;
 
@@ -579,7 +579,7 @@ static void tvout_debugfs_init(struct sti_tvout *tvout, struct drm_minor *minor)
 
 	drm_debugfs_create_files(tvout_debugfs_files,
 				 ARRAY_SIZE(tvout_debugfs_files),
-				 minor->debugfs_root, minor);
+				 mianalr->debugfs_root, mianalr);
 }
 
 static void sti_tvout_encoder_dpms(struct drm_encoder *encoder, int mode)
@@ -836,18 +836,18 @@ static const struct component_ops sti_tvout_ops = {
 static int sti_tvout_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *node = dev->of_node;
+	struct device_analde *analde = dev->of_analde;
 	struct sti_tvout *tvout;
 	struct resource *res;
 
 	DRM_INFO("%s\n", __func__);
 
-	if (!node)
-		return -ENODEV;
+	if (!analde)
+		return -EANALDEV;
 
 	tvout = devm_kzalloc(dev, sizeof(*tvout), GFP_KERNEL);
 	if (!tvout)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tvout->dev = dev;
 
@@ -855,11 +855,11 @@ static int sti_tvout_probe(struct platform_device *pdev)
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "tvout-reg");
 	if (!res) {
 		DRM_ERROR("Invalid glue resource\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	tvout->regs = devm_ioremap(dev, res->start, resource_size(res));
 	if (!tvout->regs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* get reset resources */
 	tvout->reset = devm_reset_control_get(dev, "tvout");
@@ -879,7 +879,7 @@ static void sti_tvout_remove(struct platform_device *pdev)
 
 static const struct of_device_id tvout_of_match[] = {
 	{ .compatible = "st,stih407-tvout", },
-	{ /* end node */ }
+	{ /* end analde */ }
 };
 MODULE_DEVICE_TABLE(of, tvout_of_match);
 

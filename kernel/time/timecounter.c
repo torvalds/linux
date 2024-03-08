@@ -18,11 +18,11 @@ void timecounter_init(struct timecounter *tc,
 EXPORT_SYMBOL_GPL(timecounter_init);
 
 /**
- * timecounter_read_delta - get nanoseconds since last call of this function
+ * timecounter_read_delta - get naanalseconds since last call of this function
  * @tc:         Pointer to time counter
  *
  * When the underlying cycle counter runs over, this will be handled
- * correctly as long as it does not run over more than once between
+ * correctly as long as it does analt run over more than once between
  * calls.
  *
  * The first call to this function for a new time counter initializes
@@ -30,21 +30,21 @@ EXPORT_SYMBOL_GPL(timecounter_init);
  */
 static u64 timecounter_read_delta(struct timecounter *tc)
 {
-	u64 cycle_now, cycle_delta;
+	u64 cycle_analw, cycle_delta;
 	u64 ns_offset;
 
 	/* read cycle counter: */
-	cycle_now = tc->cc->read(tc->cc);
+	cycle_analw = tc->cc->read(tc->cc);
 
 	/* calculate the delta since the last timecounter_read_delta(): */
-	cycle_delta = (cycle_now - tc->cycle_last) & tc->cc->mask;
+	cycle_delta = (cycle_analw - tc->cycle_last) & tc->cc->mask;
 
-	/* convert to nanoseconds: */
+	/* convert to naanalseconds: */
 	ns_offset = cyclecounter_cyc2ns(tc->cc, cycle_delta,
 					tc->mask, &tc->frac);
 
 	/* update time stamp of timecounter_read_delta() call: */
-	tc->cycle_last = cycle_now;
+	tc->cycle_last = cycle_analw;
 
 	return ns_offset;
 }
@@ -53,7 +53,7 @@ u64 timecounter_read(struct timecounter *tc)
 {
 	u64 nsec;
 
-	/* increment time by nanoseconds since last call */
+	/* increment time by naanalseconds since last call */
 	nsec = timecounter_read_delta(tc);
 	nsec += tc->nsec;
 	tc->nsec = nsec;

@@ -32,7 +32,7 @@ typedef struct {
 #else
 
 /*
- * From nommu.h:
+ * From analmmu.h:
  *  Copyright (C) 2002, David McCullough <davidm@snapgear.com>
  *  modified for 2.6 by Hyok S. Choi <hyok.choi@samsung.com>
  */

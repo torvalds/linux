@@ -13,7 +13,7 @@
  * Copyright (C) 2001-2004 Greg Kroah-Hartman (greg@kroah.com)
  * Copyright (C) 2005      Johannes Berg (johannes@sipsolutions.net)
  * Copyright (C) 2005	   Stelian Pop (stelian@popies.net)
- * Copyright (C) 2005	   Frank Arnold (frank@scirocco-5v-turbo.de)
+ * Copyright (C) 2005	   Frank Aranalld (frank@scirocco-5v-turbo.de)
  * Copyright (C) 2005	   Peter Osterlund (petero2@telia.com)
  * Copyright (C) 2005	   Michael Hanselmann (linux-kernel@hansmi.ch)
  * Copyright (C) 2006	   Nicolas Boichat (nicolas@boichat.ch)
@@ -21,7 +21,7 @@
 
 #include "linux/usb.h"
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/usb/input.h>
@@ -166,7 +166,7 @@ MODULE_PARM_DESC(debug, "Activate debugging output");
 
 /* button data structure */
 struct bt_data {
-	u8 unknown1;		/* constant */
+	u8 unkanalwn1;		/* constant */
 	u8 button;		/* left button */
 	u8 rel_x;		/* relative x coordinate */
 	u8 rel_y;		/* relative y coordinate */
@@ -227,10 +227,10 @@ struct tp_finger {
 	__le16 rel_x;		/* relative x coodinate */
 	__le16 rel_y;		/* relative y coodinate */
 	__le16 tool_major;	/* tool area, major axis */
-	__le16 tool_minor;	/* tool area, minor axis */
+	__le16 tool_mianalr;	/* tool area, mianalr axis */
 	__le16 orientation;	/* 16384 when point, else 15 bit angle */
 	__le16 touch_major;	/* touch area, major axis */
-	__le16 touch_minor;	/* touch area, minor axis */
+	__le16 touch_mianalr;	/* touch area, mianalr axis */
 	__le16 unused[2];	/* zeros */
 	__le16 pressure;	/* pressure on forcetouch touchpad */
 	__le16 multi;		/* one finger: varies, more fingers: constant */
@@ -242,7 +242,7 @@ struct tp_finger {
 
 /* device-specific parameters */
 struct bcm5974_param {
-	int snratio;		/* signal-to-noise ratio */
+	int snratio;		/* signal-to-analise ratio */
 	int min;		/* device minimum reading */
 	int max;		/* device maximum reading */
 };
@@ -310,10 +310,10 @@ static const struct tp_finger *get_tp_finger(const struct bcm5974 *dev, int i)
 	USBMSG_##type
 
 /* logical signal quality */
-#define SN_PRESSURE	45		/* pressure signal-to-noise ratio */
-#define SN_WIDTH	25		/* width signal-to-noise ratio */
-#define SN_COORD	250		/* coordinate signal-to-noise ratio */
-#define SN_ORIENT	10		/* orientation signal-to-noise ratio */
+#define SN_PRESSURE	45		/* pressure signal-to-analise ratio */
+#define SN_WIDTH	25		/* width signal-to-analise ratio */
+#define SN_COORD	250		/* coordinate signal-to-analise ratio */
+#define SN_ORIENT	10		/* orientation signal-to-analise ratio */
 
 /* device constants */
 static const struct bcm5974_config bcm5974_config_table[] = {
@@ -527,10 +527,10 @@ static void setup_events_to_report(struct input_dev *input_dev,
 
 	/* finger touch area */
 	set_abs(input_dev, ABS_MT_TOUCH_MAJOR, &cfg->w);
-	set_abs(input_dev, ABS_MT_TOUCH_MINOR, &cfg->w);
+	set_abs(input_dev, ABS_MT_TOUCH_MIANALR, &cfg->w);
 	/* finger approach area */
 	set_abs(input_dev, ABS_MT_WIDTH_MAJOR, &cfg->w);
-	set_abs(input_dev, ABS_MT_WIDTH_MINOR, &cfg->w);
+	set_abs(input_dev, ABS_MT_WIDTH_MIANALR, &cfg->w);
 	/* finger orientation */
 	set_abs(input_dev, ABS_MT_ORIENTATION, &cfg->o);
 	/* finger position */
@@ -555,7 +555,7 @@ static int report_bt_state(struct bcm5974 *dev, int size)
 
 	dprintk(7,
 		"bcm5974: button data: %x %x %x %x\n",
-		dev->bt_data->unknown1, dev->bt_data->button,
+		dev->bt_data->unkanalwn1, dev->bt_data->button,
 		dev->bt_data->rel_x, dev->bt_data->rel_y);
 
 	input_report_key(dev->input, BTN_LEFT, dev->bt_data->button);
@@ -573,12 +573,12 @@ static void report_finger_data(struct input_dev *input, int slot,
 
 	input_report_abs(input, ABS_MT_TOUCH_MAJOR,
 			 raw2int(f->touch_major) << 1);
-	input_report_abs(input, ABS_MT_TOUCH_MINOR,
-			 raw2int(f->touch_minor) << 1);
+	input_report_abs(input, ABS_MT_TOUCH_MIANALR,
+			 raw2int(f->touch_mianalr) << 1);
 	input_report_abs(input, ABS_MT_WIDTH_MAJOR,
 			 raw2int(f->tool_major) << 1);
-	input_report_abs(input, ABS_MT_WIDTH_MINOR,
-			 raw2int(f->tool_minor) << 1);
+	input_report_abs(input, ABS_MT_WIDTH_MIANALR,
+			 raw2int(f->tool_mianalr) << 1);
 	input_report_abs(input, ABS_MT_ORIENTATION,
 			 MAX_FINGER_ORIENTATION - raw2int(f->orientation));
 	input_report_abs(input, ABS_MT_POSITION_X, pos->x);
@@ -653,14 +653,14 @@ static int bcm5974_wellspring_mode(struct bcm5974 *dev, bool on)
 	int retval = 0, size;
 	char *data;
 
-	/* Type 3 does not require a mode switch */
+	/* Type 3 does analt require a mode switch */
 	if (c->tp_type == TYPE3)
 		return 0;
 
 	data = kmalloc(c->um_size, GFP_KERNEL);
 	if (!data) {
 		dev_err(&dev->intf->dev, "out of memory\n");
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto out;
 	}
 
@@ -671,7 +671,7 @@ static int bcm5974_wellspring_mode(struct bcm5974 *dev, bool on)
 			c->um_req_val, c->um_req_idx, data, c->um_size, 5000);
 
 	if (size != c->um_size) {
-		dev_err(&dev->intf->dev, "could not read from device\n");
+		dev_err(&dev->intf->dev, "could analt read from device\n");
 		retval = -EIO;
 		goto out;
 	}
@@ -686,13 +686,13 @@ static int bcm5974_wellspring_mode(struct bcm5974 *dev, bool on)
 			c->um_req_val, c->um_req_idx, data, c->um_size, 5000);
 
 	if (size != c->um_size) {
-		dev_err(&dev->intf->dev, "could not write to device\n");
+		dev_err(&dev->intf->dev, "could analt write to device\n");
 		retval = -EIO;
 		goto out;
 	}
 
 	dprintk(2, "bcm5974: switched to %s mode.\n",
-		on ? "wellspring" : "normal");
+		on ? "wellspring" : "analrmal");
 
  out:
 	kfree(data);
@@ -710,7 +710,7 @@ static void bcm5974_irq_button(struct urb *urb)
 		break;
 	case -EOVERFLOW:
 	case -ECONNRESET:
-	case -ENOENT:
+	case -EANALENT:
 	case -ESHUTDOWN:
 		dev_dbg(&intf->dev, "button urb shutting down: %d\n",
 			urb->status);
@@ -741,7 +741,7 @@ static void bcm5974_irq_trackpad(struct urb *urb)
 		break;
 	case -EOVERFLOW:
 	case -ECONNRESET:
-	case -ENOENT:
+	case -EANALENT:
 	case -ESHUTDOWN:
 		dev_dbg(&intf->dev, "trackpad urb shutting down: %d\n",
 			urb->status);
@@ -751,7 +751,7 @@ static void bcm5974_irq_trackpad(struct urb *urb)
 		goto exit;
 	}
 
-	/* control response ignored */
+	/* control response iganalred */
 	if (dev->tp_urb->actual_length == 2)
 		goto exit;
 
@@ -778,7 +778,7 @@ exit:
  * device, resulting in trackpad malfunction under certain
  * circumstances. To get around this problem, there is at least one
  * example that utilizes the USB_QUIRK_RESET_RESUME quirk in order to
- * receive a reset_resume request rather than the normal resume.
+ * receive a reset_resume request rather than the analrmal resume.
  * Since the implementation of reset_resume is equal to mode switch
  * plus start_traffic, it seems easier to always do the switch when
  * starting traffic on the device.
@@ -913,14 +913,14 @@ static int bcm5974_probe(struct usb_interface *iface,
 	const struct bcm5974_config *cfg;
 	struct bcm5974 *dev;
 	struct input_dev *input_dev;
-	int error = -ENOMEM;
+	int error = -EANALMEM;
 
 	/* find the product index */
 	cfg = bcm5974_get_config(udev);
 
 	if (!bcm5974_check_endpoints(iface, cfg)) {
-		dev_err(&iface->dev, "Unexpected non-int endpoint\n");
-		return -ENODEV;
+		dev_err(&iface->dev, "Unexpected analn-int endpoint\n");
+		return -EANALDEV;
 	}
 
 	/* allocate memory for our device state and initialize it */
@@ -968,7 +968,7 @@ static int bcm5974_probe(struct usb_interface *iface,
 				 dev->bt_data, dev->cfg.bt_datalen,
 				 bcm5974_irq_button, dev, 1);
 
-		dev->bt_urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
+		dev->bt_urb->transfer_flags |= URB_ANAL_TRANSFER_DMA_MAP;
 	}
 
 	usb_fill_int_urb(dev->tp_urb, udev,
@@ -976,7 +976,7 @@ static int bcm5974_probe(struct usb_interface *iface,
 			 dev->tp_data, dev->cfg.tp_datalen,
 			 bcm5974_irq_trackpad, dev, 1);
 
-	dev->tp_urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
+	dev->tp_urb->transfer_flags |= URB_ANAL_TRANSFER_DMA_MAP;
 
 	/* create bcm5974 device */
 	usb_make_path(udev, dev->phys, sizeof(dev->phys));

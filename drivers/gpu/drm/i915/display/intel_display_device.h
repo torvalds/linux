@@ -84,14 +84,14 @@ struct drm_printer;
  * specified range [from, until).  The lower bound is inclusive, the upper
  * bound is exclusive.  The most common use-case of this macro is for checking
  * bounds for workarounds, which usually have a stepping ("from") at which the
- * hardware issue is first present and another stepping ("until") at which a
- * hardware fix is present and the software workaround is no longer necessary.
+ * hardware issue is first present and aanalther stepping ("until") at which a
+ * hardware fix is present and the software workaround is anal longer necessary.
  * E.g.,
  *
  *    IS_DISPLAY_IP_STEP(i915, IP_VER(14, 0), STEP_A0, STEP_B2)
  *    IS_DISPLAY_IP_STEP(i915, IP_VER(14, 0), STEP_C0, STEP_FOREVER)
  *
- * "STEP_FOREVER" can be passed as "until" for workarounds that have no upper
+ * "STEP_FOREVER" can be passed as "until" for workarounds that have anal upper
  * stepping bound for the specified IP version.
  */
 #define IS_DISPLAY_IP_STEP(__i915, ipver, from, until) \

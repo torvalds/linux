@@ -15,7 +15,7 @@
 #define _LINUX_IN_H
 
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <uapi/linux/in.h>
 
 static inline int proto_ports_offset(int proto)
@@ -56,9 +56,9 @@ static inline bool ipv4_is_lbcast(__be32 addr)
 	return addr == htonl(INADDR_BROADCAST);
 }
 
-static inline bool ipv4_is_all_snoopers(__be32 addr)
+static inline bool ipv4_is_all_sanalopers(__be32 addr)
 {
-	return addr == htonl(INADDR_ALLSNOOPERS_GROUP);
+	return addr == htonl(INADDR_ALLSANALOPERS_GROUP);
 }
 
 static inline bool ipv4_is_zeronet(__be32 addr)

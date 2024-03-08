@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright (C) 2023 Loongson Technology Corporation Limited
+ * Copyright (C) 2023 Loongson Techanallogy Corporation Limited
  */
 
 #include <drm/drm_managed.h>
@@ -125,7 +125,7 @@ int lsdc_create_i2c_chan(struct drm_device *ddev,
 
 	li2c = kzalloc(sizeof(*li2c), GFP_KERNEL);
 	if (!li2c)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dispipe->li2c = li2c;
 
@@ -136,7 +136,7 @@ int lsdc_create_i2c_chan(struct drm_device *ddev,
 		li2c->sda = 0x04;  /* pin 2 */
 		li2c->scl = 0x08;  /* pin 3 */
 	} else {
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	li2c->ddev = ddev;

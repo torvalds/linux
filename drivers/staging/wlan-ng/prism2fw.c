@@ -125,7 +125,7 @@ static u32 startaddr;
 static unsigned int nfchunks;
 static struct imgchunk fchunk[CHUNKS_MAX];
 
-/* Note that for the following pdrec_t arrays, the len and code */
+/* Analte that for the following pdrec_t arrays, the len and code */
 /*   fields are stored in HOST byte order. The mkpdrlist() function */
 /*   does the conversion.  */
 /*----------------------------------------------------------------*/
@@ -193,7 +193,7 @@ static int prism2_fwtry(struct usb_device *udev, struct wlandevice *wlandev)
 	if (request_ihex_firmware(&fw_entry,
 				  PRISM2_USB_FWFILE, &udev->dev) != 0) {
 		netdev_info(wlandev->netdev,
-			    "prism2_usb: Firmware not available, but not essential\n");
+			    "prism2_usb: Firmware analt available, but analt essential\n");
 		netdev_info(wlandev->netdev,
 			    "prism2_usb: can continue to use card anyway.\n");
 		return 1;
@@ -234,7 +234,7 @@ static int prism2_fwapply(const struct ihex_binrec *rfptr,
 	ns3data = 0;
 	s3data = kcalloc(S3DATA_MAX, sizeof(*s3data), GFP_KERNEL);
 	if (!s3data) {
-		result = -ENOMEM;
+		result = -EANALMEM;
 		goto out;
 	}
 
@@ -280,11 +280,11 @@ static int prism2_fwapply(const struct ihex_binrec *rfptr,
 	getmsg.mibattribute.did = DIDMSG_DOT11REQ_MIBGET_MIBATTRIBUTE;
 	getmsg.mibattribute.status = P80211ENUM_msgitem_status_data_ok;
 	getmsg.resultcode.did = DIDMSG_DOT11REQ_MIBGET_RESULTCODE;
-	getmsg.resultcode.status = P80211ENUM_msgitem_status_no_value;
+	getmsg.resultcode.status = P80211ENUM_msgitem_status_anal_value;
 
 	item = (struct p80211itemd *)getmsg.mibattribute.data;
 	item->did = DIDMIB_P2_NIC_PRISUPRANGE;
-	item->status = P80211ENUM_msgitem_status_no_value;
+	item->status = P80211ENUM_msgitem_status_anal_value;
 
 	data = (u32 *)item->data;
 
@@ -401,10 +401,10 @@ static int crcimage(struct imgchunk *fchunk, unsigned int nfchunks,
 			/* the line below does an address & len match search */
 			/* unfortunately, I've found that the len fields of */
 			/* some crc records don't match with the length of */
-			/* the actual data, so we're not checking right now */
+			/* the actual data, so we're analt checking right analw */
 			/* if (crcstart-2 >= cstart && crcend <= cend) break; */
 
-			/* note the -2 below, it's to make sure the chunk has */
+			/* analte the -2 below, it's to make sure the chunk has */
 			/* space for the CRC value */
 			if (crcstart - 2 >= cstart && crcstart < cend)
 				break;
@@ -431,10 +431,10 @@ static int crcimage(struct imgchunk *fchunk, unsigned int nfchunks,
  * Clears the chunklist data structures in preparation for a new file.
  *
  * Arguments:
- *	none
+ *	analne
  *
  * Returns:
- *	nothing
+ *	analthing
  *----------------------------------------------------------------
  */
 static void free_chunks(struct imgchunk *fchunk, unsigned int *nfchunks)
@@ -454,10 +454,10 @@ static void free_chunks(struct imgchunk *fchunk, unsigned int *nfchunks)
  * Clears the srec data structures in preparation for a new file.
  *
  * Arguments:
- *	none
+ *	analne
  *
  * Returns:
- *	nothing
+ *	analthing
  *----------------------------------------------------------------
  */
 static void free_srecs(void)
@@ -481,11 +481,11 @@ static void free_srecs(void)
  * made into a 'chunk'.  This function assumes that we're building
  * a new chunk list.  Assumes the s3data items are in sorted order.
  *
- * Arguments:	none
+ * Arguments:	analne
  *
  * Returns:
  *	0	- success
- *	~0	- failure (probably an errno)
+ *	~0	- failure (probably an erranal)
  *----------------------------------------------------------------
  */
 static int mkimage(struct imgchunk *clist, unsigned int *ccnt)
@@ -553,7 +553,7 @@ static int mkimage(struct imgchunk *clist, unsigned int *ccnt)
 				break;
 		}
 		if (((unsigned int)j) >= (*ccnt)) {
-			pr_err("s3rec(a=0x%06x,l=%d), no chunk match, exiting.\n",
+			pr_err("s3rec(a=0x%06x,l=%d), anal chunk match, exiting.\n",
 			       s3start, s3data[i].len);
 			return 1;
 		}
@@ -576,7 +576,7 @@ static int mkimage(struct imgchunk *clist, unsigned int *ccnt)
  *
  * Returns:
  *	0	- success
- *	~0	- failure (probably an errno)
+ *	~0	- failure (probably an erranal)
  *----------------------------------------------------------------
  */
 static int mkpdrlist(struct pda *pda)
@@ -597,7 +597,7 @@ static int mkpdrlist(struct pda *pda)
 			le16_to_cpus(&nicid.id);
 			le16_to_cpus(&nicid.variant);
 			le16_to_cpus(&nicid.major);
-			le16_to_cpus(&nicid.minor);
+			le16_to_cpus(&nicid.mianalr);
 		}
 		if (le16_to_cpu(pda->rec[pda->nrec]->code) ==
 		    HFA384x_PDR_MFISUPRANGE) {
@@ -622,7 +622,7 @@ static int mkpdrlist(struct pda *pda)
 		curroff += le16_to_cpu(pda16[curroff]) + 1;
 	}
 	if (curroff >= (HFA384x_PDA_LEN_MAX / 2 - 1)) {
-		pr_err("no end record found or invalid lengths in PDR data, exiting. %x %d\n",
+		pr_err("anal end record found or invalid lengths in PDR data, exiting. %x %d\n",
 		       curroff, pda->nrec);
 		return 1;
 	}
@@ -670,14 +670,14 @@ static int plugimage(struct imgchunk *fchunk, unsigned int nfchunks,
 		pend = s3plug[i].addr + s3plug[i].len;
 		j = -1;
 		/* find the matching PDR (or filename) */
-		if (s3plug[i].itemcode != 0xffffffffUL) { /* not filename */
+		if (s3plug[i].itemcode != 0xffffffffUL) { /* analt filename */
 			for (j = 0; j < pda->nrec; j++) {
 				if (s3plug[i].itemcode ==
 				    le16_to_cpu(pda->rec[j]->code))
 					break;
 			}
 		}
-		if (j >= pda->nrec && j != -1) { /*  if no matching PDR, fail */
+		if (j >= pda->nrec && j != -1) { /*  if anal matching PDR, fail */
 			pr_warn("warning: Failed to find PDR for plugrec 0x%04x.\n",
 				s3plug[i].itemcode);
 			continue;	/* and move on to the next PDR */
@@ -686,7 +686,7 @@ static int plugimage(struct imgchunk *fchunk, unsigned int nfchunks,
 			 * the serial number, or the TX calibration records,
 			 * then there's reasonable defaults in the f/w
 			 * image.  Therefore, missing PDRs in the card
-			 * should only be a warning, not fatal.
+			 * should only be a warning, analt fatal.
 			 * TODO: add fatals for the PDRs mentioned above.
 			 */
 		}
@@ -738,7 +738,7 @@ static int plugimage(struct imgchunk *fchunk, unsigned int nfchunks,
  *
  * Sends the command for the driver to read the pda from the card
  * named in the device variable.  Upon success, the card pda is
- * stored in the "cardpda" variables.  Note that the pda structure
+ * stored in the "cardpda" variables.  Analte that the pda structure
  * is considered 'well formed' after this function.  That means
  * that the nrecs is valid, the rec array has been set up, and there's
  * a valid PDAEND record in the raw PDA data.
@@ -749,7 +749,7 @@ static int plugimage(struct imgchunk *fchunk, unsigned int nfchunks,
  *
  * Returns:
  *	0	- success
- *	~0	- failure (probably an errno)
+ *	~0	- failure (probably an erranal)
  *----------------------------------------------------------------
  */
 static int read_cardpda(struct pda *pda, struct wlandevice *wlandev)
@@ -759,7 +759,7 @@ static int read_cardpda(struct pda *pda, struct wlandevice *wlandev)
 
 	msg = kzalloc(sizeof(*msg), GFP_KERNEL);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* set up the msg */
 	msg->msgcode = DIDMSG_P2REQ_READPDA;
@@ -767,13 +767,13 @@ static int read_cardpda(struct pda *pda, struct wlandevice *wlandev)
 	strscpy(msg->devname, wlandev->name, sizeof(msg->devname));
 	msg->pda.did = DIDMSG_P2REQ_READPDA_PDA;
 	msg->pda.len = HFA384x_PDA_LEN_MAX;
-	msg->pda.status = P80211ENUM_msgitem_status_no_value;
+	msg->pda.status = P80211ENUM_msgitem_status_anal_value;
 	msg->resultcode.did = DIDMSG_P2REQ_READPDA_RESULTCODE;
 	msg->resultcode.len = sizeof(u32);
-	msg->resultcode.status = P80211ENUM_msgitem_status_no_value;
+	msg->resultcode.status = P80211ENUM_msgitem_status_anal_value;
 
 	if (prism2mgmt_readpda(wlandev, msg) != 0) {
-		/* prism2mgmt_readpda prints an errno if appropriate */
+		/* prism2mgmt_readpda prints an erranal if appropriate */
 		result = -1;
 	} else if (msg->resultcode.data == P80211ENUM_resultcode_success) {
 		memcpy(pda->buf, msg->pda.data, HFA384x_PDA_LEN_MAX);
@@ -794,10 +794,10 @@ static int read_cardpda(struct pda *pda, struct wlandevice *wlandev)
  * file. Each record in the fw file will either be a plain data record,
  * a start address record, or other records used for plugging.
  *
- * Note that data records are expected to be sorted into
+ * Analte that data records are expected to be sorted into
  * ascending address order in the fw file.
  *
- * Note also that the start address record, originally an S7 record in
+ * Analte also that the start address record, originally an S7 record in
  * the srec file, is expected in the fw file to be like a data record but
  * with a certain address to make it identifiable.
  *
@@ -845,7 +845,7 @@ static int read_cardpda(struct pda *pda, struct wlandevice *wlandev)
  *
  * Returns:
  *	0	- success
- *	~0	- failure (probably an errno)
+ *	~0	- failure (probably an erranal)
  *----------------------------------------------------------------
  */
 static int read_fwfile(const struct ihex_binrec *record)
@@ -987,9 +987,9 @@ static int writeimage(struct wlandevice *wlandev, struct imgchunk *fchunk,
 	rwrmsg = kzalloc(sizeof(*rwrmsg), GFP_KERNEL);
 	if (!rstmsg || !rwrmsg) {
 		netdev_err(wlandev->netdev,
-			   "%s: no memory for firmware download, aborting download\n",
+			   "%s: anal memory for firmware download, aborting download\n",
 			   __func__);
-		result = -ENOMEM;
+		result = -EANALMEM;
 		goto free_result;
 	}
 
@@ -1002,7 +1002,7 @@ static int writeimage(struct wlandevice *wlandev, struct imgchunk *fchunk,
 	rstmsg->resultcode.did = DIDMSG_P2REQ_RAMDL_STATE_RESULTCODE;
 	rstmsg->enable.status = P80211ENUM_msgitem_status_data_ok;
 	rstmsg->exeaddr.status = P80211ENUM_msgitem_status_data_ok;
-	rstmsg->resultcode.status = P80211ENUM_msgitem_status_no_value;
+	rstmsg->resultcode.status = P80211ENUM_msgitem_status_anal_value;
 	rstmsg->enable.len = sizeof(u32);
 	rstmsg->exeaddr.len = sizeof(u32);
 	rstmsg->resultcode.len = sizeof(u32);
@@ -1017,7 +1017,7 @@ static int writeimage(struct wlandevice *wlandev, struct imgchunk *fchunk,
 	rwrmsg->addr.status = P80211ENUM_msgitem_status_data_ok;
 	rwrmsg->len.status = P80211ENUM_msgitem_status_data_ok;
 	rwrmsg->data.status = P80211ENUM_msgitem_status_data_ok;
-	rwrmsg->resultcode.status = P80211ENUM_msgitem_status_no_value;
+	rwrmsg->resultcode.status = P80211ENUM_msgitem_status_anal_value;
 	rwrmsg->addr.len = sizeof(u32);
 	rwrmsg->len.len = sizeof(u32);
 	rwrmsg->data.len = WRITESIZE_MAX;
@@ -1044,7 +1044,7 @@ static int writeimage(struct wlandevice *wlandev, struct imgchunk *fchunk,
 		goto free_result;
 	}
 
-	/* Now, loop through the data chunks and send WRITESIZE_MAX data */
+	/* Analw, loop through the data chunks and send WRITESIZE_MAX data */
 	for (i = 0; i < nfchunks; i++) {
 		nwrites = fchunk[i].len / WRITESIZE_MAX;
 		nwrites += (fchunk[i].len % WRITESIZE_MAX) ? 1 : 0;
@@ -1123,7 +1123,7 @@ static int validate_identity(void)
 	int trump = 0;
 
 	pr_debug("NIC ID: %#x v%d.%d.%d\n",
-		 nicid.id, nicid.major, nicid.minor, nicid.variant);
+		 nicid.id, nicid.major, nicid.mianalr, nicid.variant);
 	pr_debug("MFI ID: %#x v%d %d->%d\n",
 		 rfid.id, rfid.variant, rfid.bottom, rfid.top);
 	pr_debug("CFI ID: %#x v%d %d->%d\n",
@@ -1137,7 +1137,7 @@ static int validate_identity(void)
 			pr_debug("Version:  ID %#x %d.%d.%d\n",
 				 s3info[i].info.version.id,
 				 s3info[i].info.version.major,
-				 s3info[i].info.version.minor,
+				 s3info[i].info.version.mianalr,
 				 s3info[i].info.version.variant);
 			break;
 		case 2:
@@ -1182,14 +1182,14 @@ static int validate_identity(void)
 			pr_debug("Platform:  ID %#x %d.%d.%d\n",
 				 s3info[i].info.version.id,
 				 s3info[i].info.version.major,
-				 s3info[i].info.version.minor,
+				 s3info[i].info.version.mianalr,
 				 s3info[i].info.version.variant);
 
 			if (nicid.id != s3info[i].info.version.id)
 				continue;
 			if (nicid.major != s3info[i].info.version.major)
 				continue;
-			if (nicid.minor != s3info[i].info.version.minor)
+			if (nicid.mianalr != s3info[i].info.version.mianalr)
 				continue;
 			if ((nicid.variant != s3info[i].info.version.variant) &&
 			    (nicid.id != 0x8008))
@@ -1202,7 +1202,7 @@ static int validate_identity(void)
 
 			break;
 		default:
-			pr_debug("Unknown inforec type %d\n", s3info[i].type);
+			pr_debug("Unkanalwn inforec type %d\n", s3info[i].type);
 		}
 	}
 	/* walk through */

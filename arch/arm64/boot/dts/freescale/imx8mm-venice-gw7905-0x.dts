@@ -18,7 +18,7 @@
 	};
 };
 
-/* Disable SOM interfaces not used on baseboard */
+/* Disable SOM interfaces analt used on baseboard */
 &fec1 {
 	status = "disabled";
 };

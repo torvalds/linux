@@ -647,13 +647,13 @@
 };
 
 &gpio0_target {
-	ti,no-reset-on-init;
+	ti,anal-reset-on-init;
 };
 
 &mmc2 {
 	status = "okay";
 	vmmc-supply = <&wl12xx_vmmc>;
-	non-removable;
+	analn-removable;
 	bus-width = <4>;
 	cap-power-off-card;
 	keep-power-in-suspend;

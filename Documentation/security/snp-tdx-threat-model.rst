@@ -12,36 +12,36 @@ Motivation
 Kernel developers working on confidential computing for virtualized
 environments in x86 operate under a set of assumptions regarding the Linux
 kernel threat model that differ from the traditional view. Historically,
-the Linux threat model acknowledges attackers residing in userspace, as
+the Linux threat model ackanalwledges attackers residing in userspace, as
 well as a limited set of external attackers that are able to interact with
 the kernel through various networking or limited HW-specific exposed
 interfaces (USB, thunderbolt). The goal of this document is to explain
 additional attack vectors that arise in the confidential computing space
 and discuss the proposed protection mechanisms for the Linux kernel.
 
-Overview and terminology
+Overview and termianallogy
 ========================
 
 Confidential Computing (CoCo) is a broad term covering a wide range of
-security technologies that aim to protect the confidentiality and integrity
+security techanallogies that aim to protect the confidentiality and integrity
 of data in use (vs. data at rest or data in transit). At its core, CoCo
 solutions provide a Trusted Execution Environment (TEE), where secure data
 processing can be performed and, as a result, they are typically further
 classified into different subtypes depending on the SW that is intended
-to be run in TEE. This document focuses on a subclass of CoCo technologies
+to be run in TEE. This document focuses on a subclass of CoCo techanallogies
 that are targeting virtualized environments and allow running Virtual
-Machines (VM) inside TEE. From now on in this document will be referring
+Machines (VM) inside TEE. From analw on in this document will be referring
 to this subclass of CoCo as 'Confidential Computing (CoCo) for the
 virtualized environments (VE)'.
 
 CoCo, in the virtualization context, refers to a set of HW and/or SW
-technologies that allow for stronger security guarantees for the SW running
+techanallogies that allow for stronger security guarantees for the SW running
 inside a CoCo VM. Namely, confidential computing allows its users to
 confirm the trustworthiness of all SW pieces to include in its reduced
 Trusted Computing Base (TCB) given its ability to attest the state of these
 trusted components.
 
-While the concrete implementation details differ between technologies, all
+While the concrete implementation details differ between techanallogies, all
 available mechanisms aim to provide increased confidentiality and
 integrity for the VM's guest memory and execution state (vCPU registers),
 more tightly controlled guest interrupt injection, as well as some
@@ -77,7 +77,7 @@ the rest of the components (data flow for guest, host, hardware) ::
     +--------------------+     +-----------------------+
 
 The specific details of the CoCo security manager vastly diverge between
-technologies. For example, in some cases, it will be implemented in HW
+techanallogies. For example, in some cases, it will be implemented in HW
 while in others it may be pure SW.
 
 Existing Linux kernel threat model
@@ -100,7 +100,7 @@ The overall components of the current Linux kernel threat model are::
                                     +-------------------+
 
 There is also communication between the bootloader and the kernel during
-the boot process, but this diagram does not represent it explicitly. The
+the boot process, but this diagram does analt represent it explicitly. The
 "Interfaces" box represents the various interfaces that allow
 communication between kernel and userspace. This includes system calls,
 kernel APIs, device drivers, etc.
@@ -109,13 +109,13 @@ The existing Linux kernel threat model typically assumes execution on a
 trusted HW platform with all of the firmware and bootloaders included on
 its TCB. The primary attacker resides in the userspace, and all of the data
 coming from there is generally considered untrusted, unless userspace is
-privileged enough to perform trusted actions. In addition, external
+privileged eanalugh to perform trusted actions. In addition, external
 attackers are typically considered, including those with access to enabled
 external networks (e.g. Ethernet, Wireless, Bluetooth), exposed hardware
 interfaces (e.g. USB, Thunderbolt), and the ability to modify the contents
 of disks offline.
 
-Regarding external attack vectors, it is interesting to note that in most
+Regarding external attack vectors, it is interesting to analte that in most
 cases external attackers will try to exploit vulnerabilities in userspace
 first, but that it is possible for an attacker to directly target the
 kernel; particularly if the host has physical access. Examples of direct
@@ -128,7 +128,7 @@ Confidential Computing threat model and its security objectives
 Confidential Computing adds a new type of attacker to the above list: a
 potentially misbehaving host (which can also include some part of a
 traditional VMM or all of it), which is typically placed outside of the
-CoCo VM TCB due to its large SW attack surface. It is important to note
+CoCo VM TCB due to its large SW attack surface. It is important to analte
 that this doesn’t imply that the host or VMM are intentionally
 malicious, but that there exists a security value in having a small CoCo
 VM TCB. This new type of adversary may be viewed as a more powerful type
@@ -171,7 +171,7 @@ memory and registers.
 2. Prevent privileged escalation from a host into a CoCo guest Linux kernel.
 While it is true that the host (and host-side VMM) requires some level of
 privilege to create, destroy, or pause the guest, part of the goal of
-preventing privileged escalation is to ensure that these operations do not
+preventing privileged escalation is to ensure that these operations do analt
 provide a pathway for attackers to gain access to the guest's kernel.
 
 The above security objectives result in two primary **Linux kernel CoCo
@@ -187,14 +187,14 @@ host Denial of Service (DoS) attacks against CoCo guests are beyond the
 scope of this threat model.
 
 The **Linux CoCo VM attack surface** is any interface exposed from a CoCo
-guest Linux kernel towards an untrusted host that is not covered by the
-CoCo technology SW/HW protection. This includes any possible
+guest Linux kernel towards an untrusted host that is analt covered by the
+CoCo techanallogy SW/HW protection. This includes any possible
 side-channels, as well as transient execution side channels. Examples of
-explicit (not side-channel) interfaces include accesses to port I/O, MMIO
+explicit (analt side-channel) interfaces include accesses to port I/O, MMIO
 and DMA interfaces, access to PCI configuration space, VMM-specific
 hypercalls (towards Host-side VMM), access to shared memory pages,
 interrupts allowed to be injected into the guest kernel by the host, as
-well as CoCo technology-specific hypercalls, if present. Additionally, the
+well as CoCo techanallogy-specific hypercalls, if present. Additionally, the
 host in a CoCo system typically controls the process of creating a CoCo
 guest: it has a method to load into a guest the firmware and bootloader
 images, the kernel image together with the kernel command line. All of this
@@ -202,7 +202,7 @@ data should also be considered untrusted until its integrity and
 authenticity is established via attestation.
 
 The table below shows a threat matrix for the CoCo guest Linux kernel but
-does not discuss potential mitigation strategies. The matrix refers to
+does analt discuss potential mitigation strategies. The matrix refers to
 CoCo-specific versions of the guest, host and platform.
 
 .. list-table:: CoCo Linux guest kernel threat matrix
@@ -234,7 +234,7 @@ CoCo-specific versions of the guest, host and platform.
 
    * - Malformed runtime input
      - A misbehaving host injects malformed input via any communication
-       interface used by the guest's kernel code. If the code is not
+       interface used by the guest's kernel code. If the code is analt
        prepared to handle this input correctly, this can result in a host
        --> guest kernel privilege escalation. This includes traditional
        side-channel and/or transient execution attack vectors.
@@ -243,7 +243,7 @@ CoCo-specific versions of the guest, host and platform.
      - A misbehaving host injects a specific input value via any
        communication interface used by the guest's kernel code. The
        difference with the previous attack vector (malformed runtime input)
-       is that this input is not malformed, but its value is crafted to
+       is that this input is analt malformed, but its value is crafted to
        impact the guest's kernel security. Examples of such inputs include
        providing a malicious time to the guest or the entropy to the guest
        random number generator. Additionally, the timing of such events can

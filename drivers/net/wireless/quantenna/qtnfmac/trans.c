@@ -15,11 +15,11 @@
 int qtnf_trans_send_cmd_with_resp(struct qtnf_bus *bus, struct sk_buff *cmd_skb,
 				  struct sk_buff **response_skb)
 {
-	struct qtnf_cmd_ctl_node *ctl_node = &bus->trans.curr_cmd;
+	struct qtnf_cmd_ctl_analde *ctl_analde = &bus->trans.curr_cmd;
 	struct qlink_cmd *cmd = (void *)cmd_skb->data;
 	int ret = 0;
 	long status;
-	bool resp_not_handled = true;
+	bool resp_analt_handled = true;
 	struct sk_buff *resp_skb = NULL;
 
 	if (unlikely(!response_skb)) {
@@ -27,12 +27,12 @@ int qtnf_trans_send_cmd_with_resp(struct qtnf_bus *bus, struct sk_buff *cmd_skb,
 		return -EFAULT;
 	}
 
-	spin_lock(&ctl_node->resp_lock);
-	ctl_node->seq_num++;
-	cmd->seq_num = cpu_to_le16(ctl_node->seq_num);
-	WARN(ctl_node->resp_skb, "qtnfmac: response skb not empty\n");
-	ctl_node->waiting_for_resp = true;
-	spin_unlock(&ctl_node->resp_lock);
+	spin_lock(&ctl_analde->resp_lock);
+	ctl_analde->seq_num++;
+	cmd->seq_num = cpu_to_le16(ctl_analde->seq_num);
+	WARN(ctl_analde->resp_skb, "qtnfmac: response skb analt empty\n");
+	ctl_analde->waiting_for_resp = true;
+	spin_unlock(&ctl_analde->resp_lock);
 
 	ret = qtnf_bus_control_tx(bus, cmd_skb);
 	dev_kfree_skb(cmd_skb);
@@ -41,15 +41,15 @@ int qtnf_trans_send_cmd_with_resp(struct qtnf_bus *bus, struct sk_buff *cmd_skb,
 		goto out;
 
 	status = wait_for_completion_interruptible_timeout(
-						&ctl_node->cmd_resp_completion,
+						&ctl_analde->cmd_resp_completion,
 						QTNF_DEF_SYNC_CMD_TIMEOUT);
 
-	spin_lock(&ctl_node->resp_lock);
-	resp_not_handled = ctl_node->waiting_for_resp;
-	resp_skb = ctl_node->resp_skb;
-	ctl_node->resp_skb = NULL;
-	ctl_node->waiting_for_resp = false;
-	spin_unlock(&ctl_node->resp_lock);
+	spin_lock(&ctl_analde->resp_lock);
+	resp_analt_handled = ctl_analde->waiting_for_resp;
+	resp_skb = ctl_analde->resp_skb;
+	ctl_analde->resp_skb = NULL;
+	ctl_analde->waiting_for_resp = false;
+	spin_unlock(&ctl_analde->resp_lock);
 
 	if (unlikely(status <= 0)) {
 		if (status == 0) {
@@ -61,7 +61,7 @@ int qtnf_trans_send_cmd_with_resp(struct qtnf_bus *bus, struct sk_buff *cmd_skb,
 		}
 	}
 
-	if (unlikely(!resp_skb || resp_not_handled)) {
+	if (unlikely(!resp_skb || resp_analt_handled)) {
 		if (!ret)
 			ret = -EFAULT;
 
@@ -72,7 +72,7 @@ int qtnf_trans_send_cmd_with_resp(struct qtnf_bus *bus, struct sk_buff *cmd_skb,
 	*response_skb = resp_skb;
 
 out:
-	if (unlikely(resp_skb && resp_not_handled))
+	if (unlikely(resp_skb && resp_analt_handled))
 		dev_kfree_skb(resp_skb);
 
 	return ret;
@@ -80,32 +80,32 @@ out:
 
 static void qtnf_trans_signal_cmdresp(struct qtnf_bus *bus, struct sk_buff *skb)
 {
-	struct qtnf_cmd_ctl_node *ctl_node = &bus->trans.curr_cmd;
+	struct qtnf_cmd_ctl_analde *ctl_analde = &bus->trans.curr_cmd;
 	const struct qlink_resp *resp = (const struct qlink_resp *)skb->data;
 	const u16 recvd_seq_num = le16_to_cpu(resp->seq_num);
 
-	spin_lock(&ctl_node->resp_lock);
+	spin_lock(&ctl_analde->resp_lock);
 
-	if (unlikely(!ctl_node->waiting_for_resp)) {
+	if (unlikely(!ctl_analde->waiting_for_resp)) {
 		pr_err("unexpected response\n");
 		goto out_err;
 	}
 
-	if (unlikely(recvd_seq_num != ctl_node->seq_num)) {
+	if (unlikely(recvd_seq_num != ctl_analde->seq_num)) {
 		pr_err("seq num mismatch\n");
 		goto out_err;
 	}
 
-	ctl_node->resp_skb = skb;
-	ctl_node->waiting_for_resp = false;
+	ctl_analde->resp_skb = skb;
+	ctl_analde->waiting_for_resp = false;
 
-	spin_unlock(&ctl_node->resp_lock);
+	spin_unlock(&ctl_analde->resp_lock);
 
-	complete(&ctl_node->cmd_resp_completion);
+	complete(&ctl_analde->cmd_resp_completion);
 	return;
 
 out_err:
-	spin_unlock(&ctl_node->resp_lock);
+	spin_unlock(&ctl_analde->resp_lock);
 	dev_kfree_skb(skb);
 }
 
@@ -203,7 +203,7 @@ int qtnf_trans_handle_rx_ctl_packet(struct qtnf_bus *bus, struct sk_buff *skb)
 		ret = qtnf_trans_event_enqueue(bus, skb);
 		break;
 	default:
-		pr_warn("unknown packet type: %x\n", le16_to_cpu(header->type));
+		pr_warn("unkanalwn packet type: %x\n", le16_to_cpu(header->type));
 		dev_kfree_skb(skb);
 		break;
 	}

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2014 Marvell Technology Group Ltd.
+ * Copyright (c) 2014 Marvell Techanallogy Group Ltd.
  *
  * Sebastian Hesselbarth <sebastian.hesselbarth@gmail.com>
  * Alexandre Belloni <alexandre.belloni@free-electrons.com>
@@ -70,13 +70,13 @@
  * video1:  Secondary video
  * video2:  SD auxiliary video
  *
- * There are no external audio clocks (ACLKI0, ACLKI1) and
+ * There are anal external audio clocks (ACLKI0, ACLKI1) and
  * only one external video clock (VCLKI0).
  *
  * Currently missing bits and pieces:
- * - audio_fast_pll is unknown
- * - audiohd_pll is unknown
- * - video0_pll is unknown
+ * - audio_fast_pll is unkanalwn
+ * - audiohd_pll is unkanalwn
+ * - video0_pll is unkanalwn
  * - audio[023], audiohd parent pll is assumed to be audio_fast_pll
  *
  */
@@ -159,7 +159,7 @@ static const struct berlin2_div_data bg2_divs[] __initconst = {
 			BERLIN2_DIV_D3SWITCH(REG_CLKSWITCH0, 5),
 		},
 		.div_flags = BERLIN2_DIV_HAS_GATE | BERLIN2_DIV_HAS_MUX,
-		.flags = CLK_IGNORE_UNUSED,
+		.flags = CLK_IGANALRE_UNUSED,
 	},
 	{
 		.name = "cpu",
@@ -250,7 +250,7 @@ static const struct berlin2_div_data bg2_divs[] __initconst = {
 			BERLIN2_DIV_D3SWITCH(REG_CLKSWITCH0, 26),
 		},
 		.div_flags = BERLIN2_DIV_HAS_GATE | BERLIN2_DIV_HAS_MUX,
-		.flags = CLK_IGNORE_UNUSED,
+		.flags = CLK_IGANALRE_UNUSED,
 	},
 	{
 		.name = "pcube",
@@ -475,10 +475,10 @@ static const struct berlin2_gate_data bg2_gates[] __initconst = {
 	{ "geth0",	"perif",	7 },
 	{ "geth1",	"perif",	8 },
 	{ "sata",	"perif",	9 },
-	{ "ahbapb",	"perif",	10, CLK_IGNORE_UNUSED },
+	{ "ahbapb",	"perif",	10, CLK_IGANALRE_UNUSED },
 	{ "usb0",	"perif",	11 },
 	{ "usb1",	"perif",	12 },
-	{ "pbridge",	"perif",	13, CLK_IGNORE_UNUSED },
+	{ "pbridge",	"perif",	13, CLK_IGANALRE_UNUSED },
 	{ "sdio0",	"perif",	14 },
 	{ "sdio1",	"perif",	15 },
 	{ "nfc",	"perif",	17 },
@@ -489,9 +489,9 @@ static const struct berlin2_gate_data bg2_gates[] __initconst = {
 	{ "video2",	"video2_in",	29 },
 };
 
-static void __init berlin2_clock_setup(struct device_node *np)
+static void __init berlin2_clock_setup(struct device_analde *np)
 {
-	struct device_node *parent_np = of_get_parent(np);
+	struct device_analde *parent_np = of_get_parent(np);
 	const char *parent_names[9];
 	struct clk *clk;
 	struct clk_hw *hw;
@@ -501,14 +501,14 @@ static void __init berlin2_clock_setup(struct device_node *np)
 
 	clk_data = kzalloc(struct_size(clk_data, hws, MAX_CLKS), GFP_KERNEL);
 	if (!clk_data) {
-		of_node_put(parent_np);
+		of_analde_put(parent_np);
 		return;
 	}
 	clk_data->num = MAX_CLKS;
 	hws = clk_data->hws;
 
 	gbase = of_iomap(parent_np, 0);
-	of_node_put(parent_np);
+	of_analde_put(parent_np);
 	if (!gbase)
 		return;
 

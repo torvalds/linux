@@ -47,7 +47,7 @@ void kasan_complete_mode_report_info(struct kasan_report_info *info)
 	 * The loop below tries to find stack ring entries relevant to the
 	 * buggy object. This is a best-effort process.
 	 *
-	 * First, another object with the same tag can be allocated in place of
+	 * First, aanalther object with the same tag can be allocated in place of
 	 * the buggy object. Also, since the number of entries is limited, the
 	 * entries relevant to the buggy object can be overwritten.
 	 */
@@ -101,7 +101,7 @@ void kasan_complete_mode_report_info(struct kasan_report_info *info)
 
 	write_unlock_irqrestore(&stack_ring.lock, flags);
 
-	/* Assign the common bug type if no entries were found. */
+	/* Assign the common bug type if anal entries were found. */
 	if (!info->bug_type)
 		info->bug_type = get_common_bug_type(info);
 }

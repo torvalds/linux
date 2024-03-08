@@ -69,7 +69,7 @@ struct msm_ringbuffer *msm_ringbuffer_new(struct msm_gpu *gpu, int id,
 
 	ring = kzalloc(sizeof(*ring), GFP_KERNEL);
 	if (!ring) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail;
 	}
 

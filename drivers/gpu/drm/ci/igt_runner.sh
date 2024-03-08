@@ -31,7 +31,7 @@ case "$DRIVER_NAME" in
         fi
         ;;
     amdgpu)
-        # Cannot use HWCI_KERNEL_MODULES as at that point we don't have the module in /lib
+        # Cananalt use HWCI_KERNEL_MODULES as at that point we don't have the module in /lib
         mv /install/modules/lib/modules/* /lib/modules/.
         modprobe amdgpu
         ;;
@@ -62,8 +62,8 @@ curl -L --retry 4 -f --retry-all-errors --retry-delay 60 -s ${FDO_HTTP_CACHE_URI
 
 # If the job is parallel at the gitab job level, take the corresponding fraction
 # of the caselist.
-if [ -n "$CI_NODE_INDEX" ]; then
-    sed -ni $CI_NODE_INDEX~$CI_NODE_TOTAL"p" /install/testlist.txt
+if [ -n "$CI_ANALDE_INDEX" ]; then
+    sed -ni $CI_ANALDE_INDEX~$CI_ANALDE_TOTAL"p" /install/testlist.txt
 fi
 
 # core_getversion checks if the driver is loaded and probed correctly

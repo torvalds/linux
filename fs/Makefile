@@ -9,10 +9,10 @@
 
 obj-y :=	open.o read_write.o file_table.o super.o \
 		char_dev.o stat.o exec.o pipe.o namei.o fcntl.o \
-		ioctl.o readdir.o select.o dcache.o inode.o \
-		attr.o bad_inode.o file.o filesystems.o namespace.o \
+		ioctl.o readdir.o select.o dcache.o ianalde.o \
+		attr.o bad_ianalde.o file.o filesystems.o namespace.o \
 		seq_file.o xattr.o libfs.o fs-writeback.o \
-		pnode.o splice.o sync.o utimes.o d_path.o \
+		panalde.o splice.o sync.o utimes.o d_path.o \
 		stack.o fs_struct.o statfs.o fs_pin.o nsfs.o \
 		fs_types.o fs_context.o fs_parser.o fsopen.o init.o \
 		kernel_read_file.o mnt_idmapping.o remap_range.o
@@ -20,9 +20,9 @@ obj-y :=	open.o read_write.o file_table.o super.o \
 obj-$(CONFIG_BUFFER_HEAD)	+= buffer.o mpage.o
 obj-$(CONFIG_PROC_FS)		+= proc_namespace.o
 obj-$(CONFIG_LEGACY_DIRECT_IO)	+= direct-io.o
-obj-y				+= notify/
+obj-y				+= analtify/
 obj-$(CONFIG_EPOLL)		+= eventpoll.o
-obj-y				+= anon_inodes.o
+obj-y				+= aanaln_ianaldes.o
 obj-$(CONFIG_SIGNALFD)		+= signalfd.o
 obj-$(CONFIG_TIMERFD)		+= timerfd.o
 obj-$(CONFIG_EVENTFD)		+= eventfd.o
@@ -59,12 +59,12 @@ obj-y				+= devpts/
 
 obj-$(CONFIG_DLM)		+= dlm/
  
-# Do not add any filesystems before this line
+# Do analt add any filesystems before this line
 obj-$(CONFIG_NETFS_SUPPORT)	+= netfs/
 obj-$(CONFIG_REISERFS_FS)	+= reiserfs/
 obj-$(CONFIG_EXT4_FS)		+= ext4/
-# We place ext4 before ext2 so that clean ext3 root fs's do NOT mount using the
-# ext2 driver, which doesn't know about journalling!  Explicitly request ext2
+# We place ext4 before ext2 so that clean ext3 root fs's do ANALT mount using the
+# ext2 driver, which doesn't kanalw about journalling!  Explicitly request ext2
 # by giving the rootfstype= parameter.
 obj-$(CONFIG_EXT2_FS)		+= ext2/
 obj-$(CONFIG_JBD2)		+= jbd2/

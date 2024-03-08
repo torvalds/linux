@@ -12,9 +12,9 @@
 #include <media/v4l2-mc.h>
 #include "imx-media.h"
 
-static inline struct imx_media_dev *notifier2dev(struct v4l2_async_notifier *n)
+static inline struct imx_media_dev *analtifier2dev(struct v4l2_async_analtifier *n)
 {
-	return container_of(n, struct imx_media_dev, notifier);
+	return container_of(n, struct imx_media_dev, analtifier);
 }
 
 /*
@@ -35,12 +35,12 @@ static void imx_media_create_csi2_links(struct imx_media_dev *imxmd)
 		return;
 
 	list_for_each_entry(sd, &imxmd->v4l2_dev.subdevs, list) {
-		/* skip if not a CSI or a CSI mux */
+		/* skip if analt a CSI or a CSI mux */
 		if (!(sd->grp_id & IMX_MEDIA_GRP_ID_IPU_CSI) &&
 		    !(sd->grp_id & IMX_MEDIA_GRP_ID_CSI_MUX))
 			continue;
 
-		v4l2_create_fwnode_links(csi2, sd);
+		v4l2_create_fwanalde_links(csi2, sd);
 	}
 }
 
@@ -59,7 +59,7 @@ static int imx_media_add_vdev_to_pad(struct imx_media_dev *imxmd,
 	struct v4l2_subdev *sd;
 	int i, ret;
 
-	/* skip this entity if not a v4l2_subdev */
+	/* skip this entity if analt a v4l2_subdev */
 	if (!is_media_entity_v4l2_subdev(entity))
 		return 0;
 
@@ -67,10 +67,10 @@ static int imx_media_add_vdev_to_pad(struct imx_media_dev *imxmd,
 
 	pad_vdev_list = to_pad_vdev_list(sd, srcpad->index);
 	if (!pad_vdev_list) {
-		v4l2_warn(&imxmd->v4l2_dev, "%s:%u has no vdev list!\n",
+		v4l2_warn(&imxmd->v4l2_dev, "%s:%u has anal vdev list!\n",
 			  entity->name, srcpad->index);
 		/*
-		 * shouldn't happen, but no reason to fail driver load,
+		 * shouldn't happen, but anal reason to fail driver load,
 		 * just skip this entity.
 		 */
 		return 0;
@@ -87,7 +87,7 @@ static int imx_media_add_vdev_to_pad(struct imx_media_dev *imxmd,
 
 	pad_vdev = devm_kzalloc(imxmd->md.dev, sizeof(*pad_vdev), GFP_KERNEL);
 	if (!pad_vdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* attach this vdev to this pad */
 	pad_vdev->vdev = vdev;
@@ -131,7 +131,7 @@ static int imx_media_alloc_pad_vdev_lists(struct imx_media_dev *imxmd)
 					  entity->num_pads, sizeof(*vdev_lists),
 					  GFP_KERNEL);
 		if (!vdev_lists)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		/* attach to the subdev's host private pointer */
 		sd->host_priv = vdev_lists;
@@ -165,10 +165,10 @@ static int imx_media_create_pad_vdev_lists(struct imx_media_dev *imxmd)
 	return 0;
 }
 
-/* async subdev complete notifier */
-int imx_media_probe_complete(struct v4l2_async_notifier *notifier)
+/* async subdev complete analtifier */
+int imx_media_probe_complete(struct v4l2_async_analtifier *analtifier)
 {
-	struct imx_media_dev *imxmd = notifier2dev(notifier);
+	struct imx_media_dev *imxmd = analtifier2dev(analtifier);
 	int ret;
 
 	mutex_lock(&imxmd->mutex);
@@ -179,7 +179,7 @@ int imx_media_probe_complete(struct v4l2_async_notifier *notifier)
 	if (ret)
 		goto unlock;
 
-	ret = v4l2_device_register_subdev_nodes(&imxmd->v4l2_dev);
+	ret = v4l2_device_register_subdev_analdes(&imxmd->v4l2_dev);
 unlock:
 	mutex_unlock(&imxmd->mutex);
 	if (ret)
@@ -232,8 +232,8 @@ static int imx_media_inherit_controls(struct imx_media_dev *imxmd,
 	return ret;
 }
 
-static int imx_media_link_notify(struct media_link *link, u32 flags,
-				 unsigned int notification)
+static int imx_media_link_analtify(struct media_link *link, u32 flags,
+				 unsigned int analtification)
 {
 	struct imx_media_dev *imxmd = container_of(link->graph_obj.mdev,
 						   struct imx_media_dev, md);
@@ -244,11 +244,11 @@ static int imx_media_link_notify(struct media_link *link, u32 flags,
 	struct v4l2_subdev *sd;
 	int pad_idx, ret;
 
-	ret = v4l2_pipeline_link_notify(link, flags, notification);
+	ret = v4l2_pipeline_link_analtify(link, flags, analtification);
 	if (ret)
 		return ret;
 
-	/* don't bother if source is not a subdev */
+	/* don't bother if source is analt a subdev */
 	if (!is_media_entity_v4l2_subdev(source))
 		return 0;
 
@@ -257,7 +257,7 @@ static int imx_media_link_notify(struct media_link *link, u32 flags,
 
 	pad_vdev_list = to_pad_vdev_list(sd, pad_idx);
 	if (!pad_vdev_list) {
-		/* nothing to do if source sd has no pad vdev list */
+		/* analthing to do if source sd has anal pad vdev list */
 		return 0;
 	}
 
@@ -268,7 +268,7 @@ static int imx_media_link_notify(struct media_link *link, u32 flags,
 	 * After enabling a link, refresh controls for all video
 	 * devices reachable from this link.
 	 */
-	if (notification == MEDIA_DEV_NOTIFY_PRE_LINK_CH &&
+	if (analtification == MEDIA_DEV_ANALTIFY_PRE_LINK_CH &&
 	    !(flags & MEDIA_LNK_FL_ENABLED)) {
 		list_for_each_entry(pad_vdev, pad_vdev_list, list) {
 			vfd = pad_vdev->vdev->vfd;
@@ -280,7 +280,7 @@ static int imx_media_link_notify(struct media_link *link, u32 flags,
 			v4l2_ctrl_handler_free(vfd->ctrl_handler);
 			v4l2_ctrl_handler_init(vfd->ctrl_handler, 0);
 		}
-	} else if (notification == MEDIA_DEV_NOTIFY_POST_LINK_CH &&
+	} else if (analtification == MEDIA_DEV_ANALTIFY_POST_LINK_CH &&
 		   (link->flags & MEDIA_LNK_FL_ENABLED)) {
 		list_for_each_entry(pad_vdev, pad_vdev_list, list) {
 			vfd = pad_vdev->vdev->vfd;
@@ -299,13 +299,13 @@ static int imx_media_link_notify(struct media_link *link, u32 flags,
 	return ret;
 }
 
-static void imx_media_notify(struct v4l2_subdev *sd, unsigned int notification,
+static void imx_media_analtify(struct v4l2_subdev *sd, unsigned int analtification,
 			     void *arg)
 {
 	struct media_entity *entity = &sd->entity;
 	int i;
 
-	if (notification != V4L2_DEVICE_NOTIFY_EVENT)
+	if (analtification != V4L2_DEVICE_ANALTIFY_EVENT)
 		return;
 
 	for (i = 0; i < entity->num_pads; i++) {
@@ -321,12 +321,12 @@ static void imx_media_notify(struct v4l2_subdev *sd, unsigned int notification,
 	}
 }
 
-static const struct v4l2_async_notifier_operations imx_media_notifier_ops = {
+static const struct v4l2_async_analtifier_operations imx_media_analtifier_ops = {
 	.complete = imx_media_probe_complete,
 };
 
 static const struct media_device_ops imx_media_md_ops = {
-	.link_notify = imx_media_link_notify,
+	.link_analtify = imx_media_link_analtify,
 };
 
 struct imx_media_dev *imx_media_dev_init(struct device *dev,
@@ -337,7 +337,7 @@ struct imx_media_dev *imx_media_dev_init(struct device *dev,
 
 	imxmd = devm_kzalloc(dev, sizeof(*imxmd), GFP_KERNEL);
 	if (!imxmd)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	dev_set_drvdata(dev, imxmd);
 
@@ -348,7 +348,7 @@ struct imx_media_dev *imx_media_dev_init(struct device *dev,
 	mutex_init(&imxmd->mutex);
 
 	imxmd->v4l2_dev.mdev = &imxmd->md;
-	imxmd->v4l2_dev.notify = imx_media_notify;
+	imxmd->v4l2_dev.analtify = imx_media_analtify;
 	strscpy(imxmd->v4l2_dev.name, "imx-media",
 		sizeof(imxmd->v4l2_dev.name));
 	snprintf(imxmd->md.bus_info, sizeof(imxmd->md.bus_info),
@@ -365,7 +365,7 @@ struct imx_media_dev *imx_media_dev_init(struct device *dev,
 
 	INIT_LIST_HEAD(&imxmd->vdev_list);
 
-	v4l2_async_nf_init(&imxmd->notifier, &imxmd->v4l2_dev);
+	v4l2_async_nf_init(&imxmd->analtifier, &imxmd->v4l2_dev);
 
 	return imxmd;
 
@@ -376,20 +376,20 @@ cleanup:
 }
 EXPORT_SYMBOL_GPL(imx_media_dev_init);
 
-int imx_media_dev_notifier_register(struct imx_media_dev *imxmd,
-			    const struct v4l2_async_notifier_operations *ops)
+int imx_media_dev_analtifier_register(struct imx_media_dev *imxmd,
+			    const struct v4l2_async_analtifier_operations *ops)
 {
 	int ret;
 
-	/* no subdevs? just bail */
-	if (list_empty(&imxmd->notifier.waiting_list)) {
-		v4l2_err(&imxmd->v4l2_dev, "no subdevs\n");
-		return -ENODEV;
+	/* anal subdevs? just bail */
+	if (list_empty(&imxmd->analtifier.waiting_list)) {
+		v4l2_err(&imxmd->v4l2_dev, "anal subdevs\n");
+		return -EANALDEV;
 	}
 
-	/* prepare the async subdev notifier and register it */
-	imxmd->notifier.ops = ops ? ops : &imx_media_notifier_ops;
-	ret = v4l2_async_nf_register(&imxmd->notifier);
+	/* prepare the async subdev analtifier and register it */
+	imxmd->analtifier.ops = ops ? ops : &imx_media_analtifier_ops;
+	ret = v4l2_async_nf_register(&imxmd->analtifier);
 	if (ret) {
 		v4l2_err(&imxmd->v4l2_dev,
 			 "v4l2_async_nf_register failed with %d\n", ret);
@@ -398,4 +398,4 @@ int imx_media_dev_notifier_register(struct imx_media_dev *imxmd,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(imx_media_dev_notifier_register);
+EXPORT_SYMBOL_GPL(imx_media_dev_analtifier_register);

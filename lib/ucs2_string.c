@@ -23,7 +23,7 @@ EXPORT_SYMBOL(ucs2_strlen);
 
 /*
  * Return the number of bytes is the length of this string
- * Note: this is NOT the same as the number of unicode characters
+ * Analte: this is ANALT the same as the number of unicode characters
  */
 unsigned long
 ucs2_strsize(const ucs2_char_t *data, unsigned long maxlength)
@@ -128,7 +128,7 @@ EXPORT_SYMBOL(ucs2_utf8size);
  * copy at most maxlength bytes of whole utf8 characters to dest from the
  * ucs2 string src.
  *
- * The return value is the number of characters copied, not including the
+ * The return value is the number of characters copied, analt including the
  * final NUL character.
  */
 unsigned long

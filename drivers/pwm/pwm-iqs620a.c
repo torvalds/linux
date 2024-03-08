@@ -9,7 +9,7 @@
  *   to the duty cycle or enable/disable state.
  * - Changes to the duty cycle or enable/disable state take effect immediately
  *   and may result in a glitch during the period in which the change is made.
- * - The device cannot generate a 0% duty cycle. For duty cycles below 1 / 256
+ * - The device cananalt generate a 0% duty cycle. For duty cycles below 1 / 256
  *   ms, the output is disabled and relies upon an external pull-down resistor
  *   to hold the GPIO3/LTX pin low.
  */
@@ -19,7 +19,7 @@
 #include <linux/mfd/iqs62x.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/platform_device.h>
 #include <linux/pwm.h>
 #include <linux/regmap.h>
@@ -35,7 +35,7 @@
 struct iqs620_pwm_private {
 	struct iqs62x_core *iqs62x;
 	struct pwm_chip chip;
-	struct notifier_block notifier;
+	struct analtifier_block analtifier;
 	struct mutex lock;
 	unsigned int duty_scale;
 };
@@ -67,7 +67,7 @@ static int iqs620_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	unsigned int duty_scale;
 	int ret;
 
-	if (state->polarity != PWM_POLARITY_NORMAL)
+	if (state->polarity != PWM_POLARITY_ANALRMAL)
 		return -EINVAL;
 
 	if (state->period < IQS620_PWM_PERIOD_NS)
@@ -114,9 +114,9 @@ static int iqs620_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
 	mutex_lock(&iqs620_pwm->lock);
 
 	/*
-	 * Since the device cannot generate a 0% duty cycle, requests to do so
+	 * Since the device cananalt generate a 0% duty cycle, requests to do so
 	 * cause subsequent calls to iqs620_pwm_get_state to report the output
-	 * as disabled. This is not ideal, but is the best compromise based on
+	 * as disabled. This is analt ideal, but is the best compromise based on
 	 * the capabilities of the device.
 	 */
 	state->enabled = iqs620_pwm->duty_scale > 0;
@@ -126,28 +126,28 @@ static int iqs620_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
 	mutex_unlock(&iqs620_pwm->lock);
 
 	state->period = IQS620_PWM_PERIOD_NS;
-	state->polarity = PWM_POLARITY_NORMAL;
+	state->polarity = PWM_POLARITY_ANALRMAL;
 
 	return 0;
 }
 
-static int iqs620_pwm_notifier(struct notifier_block *notifier,
+static int iqs620_pwm_analtifier(struct analtifier_block *analtifier,
 			       unsigned long event_flags, void *context)
 {
 	struct iqs620_pwm_private *iqs620_pwm;
 	int ret;
 
 	if (!(event_flags & BIT(IQS62X_EVENT_SYS_RESET)))
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
-	iqs620_pwm = container_of(notifier, struct iqs620_pwm_private,
-				  notifier);
+	iqs620_pwm = container_of(analtifier, struct iqs620_pwm_private,
+				  analtifier);
 
 	mutex_lock(&iqs620_pwm->lock);
 
 	/*
 	 * The parent MFD driver already prints an error message in the event
-	 * of a device reset, so nothing else is printed here unless there is
+	 * of a device reset, so analthing else is printed here unless there is
 	 * an additional failure.
 	 */
 	ret = iqs620_pwm_init(iqs620_pwm, iqs620_pwm->duty_scale);
@@ -157,10 +157,10 @@ static int iqs620_pwm_notifier(struct notifier_block *notifier,
 	if (ret) {
 		dev_err(iqs620_pwm->chip.dev,
 			"Failed to re-initialize device: %d\n", ret);
-		return NOTIFY_BAD;
+		return ANALTIFY_BAD;
 	}
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 static const struct pwm_ops iqs620_pwm_ops = {
@@ -168,16 +168,16 @@ static const struct pwm_ops iqs620_pwm_ops = {
 	.get_state = iqs620_pwm_get_state,
 };
 
-static void iqs620_pwm_notifier_unregister(void *context)
+static void iqs620_pwm_analtifier_unregister(void *context)
 {
 	struct iqs620_pwm_private *iqs620_pwm = context;
 	int ret;
 
-	ret = blocking_notifier_chain_unregister(&iqs620_pwm->iqs62x->nh,
-						 &iqs620_pwm->notifier);
+	ret = blocking_analtifier_chain_unregister(&iqs620_pwm->iqs62x->nh,
+						 &iqs620_pwm->analtifier);
 	if (ret)
 		dev_err(iqs620_pwm->chip.dev,
-			"Failed to unregister notifier: %d\n", ret);
+			"Failed to unregister analtifier: %d\n", ret);
 }
 
 static int iqs620_pwm_probe(struct platform_device *pdev)
@@ -189,7 +189,7 @@ static int iqs620_pwm_probe(struct platform_device *pdev)
 
 	iqs620_pwm = devm_kzalloc(&pdev->dev, sizeof(*iqs620_pwm), GFP_KERNEL);
 	if (!iqs620_pwm)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	iqs620_pwm->iqs62x = iqs62x;
 
@@ -211,16 +211,16 @@ static int iqs620_pwm_probe(struct platform_device *pdev)
 
 	mutex_init(&iqs620_pwm->lock);
 
-	iqs620_pwm->notifier.notifier_call = iqs620_pwm_notifier;
-	ret = blocking_notifier_chain_register(&iqs620_pwm->iqs62x->nh,
-					       &iqs620_pwm->notifier);
+	iqs620_pwm->analtifier.analtifier_call = iqs620_pwm_analtifier;
+	ret = blocking_analtifier_chain_register(&iqs620_pwm->iqs62x->nh,
+					       &iqs620_pwm->analtifier);
 	if (ret) {
-		dev_err(&pdev->dev, "Failed to register notifier: %d\n", ret);
+		dev_err(&pdev->dev, "Failed to register analtifier: %d\n", ret);
 		return ret;
 	}
 
 	ret = devm_add_action_or_reset(&pdev->dev,
-				       iqs620_pwm_notifier_unregister,
+				       iqs620_pwm_analtifier_unregister,
 				       iqs620_pwm);
 	if (ret)
 		return ret;

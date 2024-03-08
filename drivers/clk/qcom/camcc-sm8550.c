@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2023, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023, Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #include <linux/clk-provider.h>
@@ -926,21 +926,21 @@ static struct clk_rcg2 cam_cc_bps_clk_src = {
 	},
 };
 
-static const struct freq_tbl ftbl_cam_cc_camnoc_axi_clk_src[] = {
+static const struct freq_tbl ftbl_cam_cc_camanalc_axi_clk_src[] = {
 	F(19200000, P_BI_TCXO, 1, 0, 0),
 	F(300000000, P_CAM_CC_PLL0_OUT_EVEN, 2, 0, 0),
 	F(400000000, P_CAM_CC_PLL0_OUT_ODD, 1, 0, 0),
 	{ }
 };
 
-static struct clk_rcg2 cam_cc_camnoc_axi_clk_src = {
+static struct clk_rcg2 cam_cc_camanalc_axi_clk_src = {
 	.cmd_rcgr = 0x13de0,
 	.mnd_width = 0,
 	.hid_width = 5,
 	.parent_map = cam_cc_parent_map_0,
-	.freq_tbl = ftbl_cam_cc_camnoc_axi_clk_src,
+	.freq_tbl = ftbl_cam_cc_camanalc_axi_clk_src,
 	.clkr.hw.init = &(const struct clk_init_data) {
-		.name = "cam_cc_camnoc_axi_clk_src",
+		.name = "cam_cc_camanalc_axi_clk_src",
 		.parent_data = cam_cc_parent_data_0,
 		.num_parents = ARRAY_SIZE(cam_cc_parent_data_0),
 		.flags = CLK_SET_RATE_PARENT,
@@ -1770,16 +1770,16 @@ static struct clk_branch cam_cc_bps_fast_ahb_clk = {
 	},
 };
 
-static struct clk_branch cam_cc_camnoc_axi_clk = {
+static struct clk_branch cam_cc_camanalc_axi_clk = {
 	.halt_reg = 0x13f0c,
 	.halt_check = BRANCH_HALT,
 	.clkr = {
 		.enable_reg = 0x13f0c,
 		.enable_mask = BIT(0),
 		.hw.init = &(const struct clk_init_data) {
-			.name = "cam_cc_camnoc_axi_clk",
+			.name = "cam_cc_camanalc_axi_clk",
 			.parent_hws = (const struct clk_hw*[]) {
-				&cam_cc_camnoc_axi_clk_src.clkr.hw,
+				&cam_cc_camanalc_axi_clk_src.clkr.hw,
 			},
 			.num_parents = 1,
 			.flags = CLK_SET_RATE_PARENT,
@@ -1788,14 +1788,14 @@ static struct clk_branch cam_cc_camnoc_axi_clk = {
 	},
 };
 
-static struct clk_branch cam_cc_camnoc_dcd_xo_clk = {
+static struct clk_branch cam_cc_camanalc_dcd_xo_clk = {
 	.halt_reg = 0x13f18,
 	.halt_check = BRANCH_HALT,
 	.clkr = {
 		.enable_reg = 0x13f18,
 		.enable_mask = BIT(0),
 		.hw.init = &(const struct clk_init_data) {
-			.name = "cam_cc_camnoc_dcd_xo_clk",
+			.name = "cam_cc_camanalc_dcd_xo_clk",
 			.parent_hws = (const struct clk_hw*[]) {
 				&cam_cc_xo_clk_src.clkr.hw,
 			},
@@ -1806,14 +1806,14 @@ static struct clk_branch cam_cc_camnoc_dcd_xo_clk = {
 	},
 };
 
-static struct clk_branch cam_cc_camnoc_xo_clk = {
+static struct clk_branch cam_cc_camanalc_xo_clk = {
 	.halt_reg = 0x13f1c,
 	.halt_check = BRANCH_HALT,
 	.clkr = {
 		.enable_reg = 0x13f1c,
 		.enable_mask = BIT(0),
 		.hw.init = &(const struct clk_init_data) {
-			.name = "cam_cc_camnoc_xo_clk",
+			.name = "cam_cc_camanalc_xo_clk",
 			.parent_hws = (const struct clk_hw*[]) {
 				&cam_cc_xo_clk_src.clkr.hw,
 			},
@@ -3305,10 +3305,10 @@ static struct clk_regmap *cam_cc_sm8550_clocks[] = {
 	[CAM_CC_BPS_CLK] = &cam_cc_bps_clk.clkr,
 	[CAM_CC_BPS_CLK_SRC] = &cam_cc_bps_clk_src.clkr,
 	[CAM_CC_BPS_FAST_AHB_CLK] = &cam_cc_bps_fast_ahb_clk.clkr,
-	[CAM_CC_CAMNOC_AXI_CLK] = &cam_cc_camnoc_axi_clk.clkr,
-	[CAM_CC_CAMNOC_AXI_CLK_SRC] = &cam_cc_camnoc_axi_clk_src.clkr,
-	[CAM_CC_CAMNOC_DCD_XO_CLK] = &cam_cc_camnoc_dcd_xo_clk.clkr,
-	[CAM_CC_CAMNOC_XO_CLK] = &cam_cc_camnoc_xo_clk.clkr,
+	[CAM_CC_CAMANALC_AXI_CLK] = &cam_cc_camanalc_axi_clk.clkr,
+	[CAM_CC_CAMANALC_AXI_CLK_SRC] = &cam_cc_camanalc_axi_clk_src.clkr,
+	[CAM_CC_CAMANALC_DCD_XO_CLK] = &cam_cc_camanalc_dcd_xo_clk.clkr,
+	[CAM_CC_CAMANALC_XO_CLK] = &cam_cc_camanalc_xo_clk.clkr,
 	[CAM_CC_CCI_0_CLK] = &cam_cc_cci_0_clk.clkr,
 	[CAM_CC_CCI_0_CLK_SRC] = &cam_cc_cci_0_clk_src.clkr,
 	[CAM_CC_CCI_1_CLK] = &cam_cc_cci_1_clk.clkr,

@@ -208,8 +208,8 @@ static int as3722_check_device_id(struct as3722 *as3722)
 	}
 
 	if (val != AS3722_DEVICE_ID) {
-		dev_err(as3722->dev, "Device is not AS3722, ID is 0x%x\n", val);
-		return -ENODEV;
+		dev_err(as3722->dev, "Device is analt AS3722, ID is 0x%x\n", val);
+		return -EANALDEV;
 	}
 
 	ret = as3722_read(as3722, AS3722_ASIC_ID2_REG, &val);
@@ -258,8 +258,8 @@ static const struct regmap_range as3722_readable_ranges[] = {
 };
 
 static const struct regmap_access_table as3722_readable_table = {
-	.yes_ranges = as3722_readable_ranges,
-	.n_yes_ranges = ARRAY_SIZE(as3722_readable_ranges),
+	.anal_ranges = as3722_readable_ranges,
+	.n_anal_ranges = ARRAY_SIZE(as3722_readable_ranges),
 };
 
 static const struct regmap_range as3722_writable_ranges[] = {
@@ -281,8 +281,8 @@ static const struct regmap_range as3722_writable_ranges[] = {
 };
 
 static const struct regmap_access_table as3722_writable_table = {
-	.yes_ranges = as3722_writable_ranges,
-	.n_yes_ranges = ARRAY_SIZE(as3722_writable_ranges),
+	.anal_ranges = as3722_writable_ranges,
+	.n_anal_ranges = ARRAY_SIZE(as3722_writable_ranges),
 };
 
 static const struct regmap_range as3722_cacheable_ranges[] = {
@@ -291,8 +291,8 @@ static const struct regmap_range as3722_cacheable_ranges[] = {
 };
 
 static const struct regmap_access_table as3722_volatile_table = {
-	.no_ranges = as3722_cacheable_ranges,
-	.n_no_ranges = ARRAY_SIZE(as3722_cacheable_ranges),
+	.anal_ranges = as3722_cacheable_ranges,
+	.n_anal_ranges = ARRAY_SIZE(as3722_cacheable_ranges),
 };
 
 static const struct regmap_config as3722_regmap_config = {
@@ -308,11 +308,11 @@ static const struct regmap_config as3722_regmap_config = {
 static int as3722_i2c_of_probe(struct i2c_client *i2c,
 			struct as3722 *as3722)
 {
-	struct device_node *np = i2c->dev.of_node;
+	struct device_analde *np = i2c->dev.of_analde;
 	struct irq_data *irq_data;
 
 	if (!np) {
-		dev_err(&i2c->dev, "Device Tree not found\n");
+		dev_err(&i2c->dev, "Device Tree analt found\n");
 		return -EINVAL;
 	}
 
@@ -342,7 +342,7 @@ static int as3722_i2c_probe(struct i2c_client *i2c)
 
 	as3722 = devm_kzalloc(&i2c->dev, sizeof(struct as3722), GFP_KERNEL);
 	if (!as3722)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	as3722->dev = &i2c->dev;
 	as3722->chip_irq = i2c->irq;

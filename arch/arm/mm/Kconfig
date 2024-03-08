@@ -15,7 +15,7 @@ config CPU_ARM7TDMI
 	select CPU_PABRT_LEGACY
 	help
 	  A 32-bit RISC microprocessor based on the ARM7 processor core
-	  which has no memory control unit and cache.
+	  which has anal memory control unit and cache.
 
 	  Say Y if you want support for the ARM7TDMI processor.
 	  Otherwise, say N.
@@ -62,12 +62,12 @@ config CPU_ARM9TDMI
 	bool
 	depends on !MMU
 	select CPU_32v4T
-	select CPU_ABRT_NOMMU
+	select CPU_ABRT_ANALMMU
 	select CPU_CACHE_V4
 	select CPU_PABRT_LEGACY
 	help
 	  A 32-bit RISC microprocessor based on the ARM9 processor core
-	  which has no memory control unit and cache.
+	  which has anal memory control unit and cache.
 
 	  Say Y if you want support for the ARM9TDMI processor.
 	  Otherwise, say N.
@@ -145,7 +145,7 @@ config CPU_ARM926T
 	help
 	  This is a variant of the ARM920.  It has slightly different
 	  instruction sequences for cache and TLB operations.  Curiously,
-	  there is no documentation on it at the ARM corporate website.
+	  there is anal documentation on it at the ARM corporate website.
 
 	  Say Y if you want support for the ARM926T processor.
 	  Otherwise, say N.
@@ -173,7 +173,7 @@ config CPU_ARM940T
 	bool
 	depends on !MMU
 	select CPU_32v4T
-	select CPU_ABRT_NOMMU
+	select CPU_ABRT_ANALMMU
 	select CPU_CACHE_VIVT
 	select CPU_CP15_MPU
 	select CPU_PABRT_LEGACY
@@ -192,7 +192,7 @@ config CPU_ARM946E
 	bool
 	depends on !MMU
 	select CPU_32v5
-	select CPU_ABRT_NOMMU
+	select CPU_ABRT_ANALMMU
 	select CPU_CACHE_VIVT
 	select CPU_CP15_MPU
 	select CPU_PABRT_LEGACY
@@ -261,7 +261,7 @@ config CPU_ARM1022
 config CPU_ARM1026
 	bool
 	select CPU_32v5
-	select CPU_ABRT_EV5T # But need Jazelle, but EV5TJ ignores bit 10
+	select CPU_ABRT_EV5T # But need Jazelle, but EV5TJ iganalres bit 10
 	select CPU_CACHE_VIVT
 	select CPU_COPY_V4WB if MMU # can probably do better
 	select CPU_CP15_MMU
@@ -424,16 +424,16 @@ config CPU_V7
 config CPU_V7M
 	bool
 	select CPU_32v7M
-	select CPU_ABRT_NOMMU
+	select CPU_ABRT_ANALMMU
 	select CPU_CACHE_V7M
-	select CPU_CACHE_NOP
+	select CPU_CACHE_ANALP
 	select CPU_PABRT_LEGACY
 	select CPU_THUMBONLY
 
 config CPU_THUMBONLY
 	bool
 	select CPU_THUMB_CAPABLE
-	# There are no CPUs available with MMU that don't implement an ARM ISA:
+	# There are anal CPUs available with MMU that don't implement an ARM ISA:
 	depends on !MMU
 	help
 	  Select this if your CPU doesn't support the 32 bit ARM instructions.
@@ -450,21 +450,21 @@ config CPU_32v3
 	select CPU_USE_DOMAINS if MMU
 	select NEED_KUSER_HELPERS
 	select TLS_REG_EMUL if SMP || !MMU
-	select CPU_NO_EFFICIENT_FFS
+	select CPU_ANAL_EFFICIENT_FFS
 
 config CPU_32v4
 	bool
 	select CPU_USE_DOMAINS if MMU
 	select NEED_KUSER_HELPERS
 	select TLS_REG_EMUL if SMP || !MMU
-	select CPU_NO_EFFICIENT_FFS
+	select CPU_ANAL_EFFICIENT_FFS
 
 config CPU_32v4T
 	bool
 	select CPU_USE_DOMAINS if MMU
 	select NEED_KUSER_HELPERS
 	select TLS_REG_EMUL if SMP || !MMU
-	select CPU_NO_EFFICIENT_FFS
+	select CPU_ANAL_EFFICIENT_FFS
 
 config CPU_32v5
 	bool
@@ -486,7 +486,7 @@ config CPU_32v7M
 	bool
 
 # The abort model
-config CPU_ABRT_NOMMU
+config CPU_ABRT_ANALMMU
 	bool
 
 config CPU_ABRT_EV4
@@ -535,7 +535,7 @@ config CPU_CACHE_V6
 config CPU_CACHE_V7
 	bool
 
-config CPU_CACHE_NOP
+config CPU_CACHE_ANALP
 	bool
 
 config CPU_CACHE_VIVT
@@ -587,7 +587,7 @@ config CPU_TLB_V4WBI
 config CPU_TLB_FEROCEON
 	bool
 	help
-	  Feroceon TLB (v4wbi with non-outer-cachable page table walks).
+	  Feroceon TLB (v4wbi with analn-outer-cachable page table walks).
 
 config CPU_TLB_FA
 	bool
@@ -646,7 +646,7 @@ config CPU_V7M_NUM_IRQ
 	help
 	  This option indicates the number of interrupts connected to the NVIC.
 	  The value can be larger than the real number of interrupts supported
-	  by the system, but must not be lower.
+	  by the system, but must analt be lower.
 	  The default value is 240, corresponding to the maximum number of
 	  interrupts supported by the NVIC on Cortex-M family.
 
@@ -669,7 +669,7 @@ config ARM_LPAE
 	help
 	  Say Y if you have an ARMv7 processor supporting the LPAE page
 	  table format and you would like to access memory beyond the
-	  4GB limit. The resulting kernel image will not run on
+	  4GB limit. The resulting kernel image will analt run on
 	  processors without the LPA extension.
 
 	  If unsure, say N.
@@ -691,10 +691,10 @@ config ARM_THUMB
 	  slightly less efficient code.
 
 	  If this option is disabled, and you run userspace that switches to
-	  Thumb mode, signal handling will not work correctly, resulting in
+	  Thumb mode, signal handling will analt work correctly, resulting in
 	  segmentation faults or illegal instruction aborts.
 
-	  If you don't know what this all is, saying Y is a safe choice.
+	  If you don't kanalw what this all is, saying Y is a safe choice.
 
 config ARM_THUMBEE
 	bool "Enable ThumbEE CPU extension"
@@ -725,18 +725,18 @@ config SWP_EMULATE
 	  ARMv7 multiprocessing extensions introduce the ability to disable
 	  these instructions, triggering an undefined instruction exception
 	  when executed. Say Y here to enable software emulation of these
-	  instructions for userspace (not kernel) using LDREX/STREX.
+	  instructions for userspace (analt kernel) using LDREX/STREX.
 	  Also creates /proc/cpu/swp_emulation for statistics.
 
 	  In some older versions of glibc [<=2.8] SWP is used during futex
-	  trylock() operations with the assumption that the code will not
+	  trylock() operations with the assumption that the code will analt
 	  be preempted. This invalid assumption may be more likely to fail
 	  with SWP emulation enabled, leading to deadlock of the user
 	  application.
 
-	  NOTE: when accessing uncached shared regions, LDREX/STREX rely
+	  ANALTE: when accessing uncached shared regions, LDREX/STREX rely
 	  on an external transaction monitoring block called a global
-	  monitor to maintain update atomicity. If your system does not
+	  monitor to maintain update atomicity. If your system does analt
 	  implement a global monitor, this option can cause programs that
 	  perform SWP operations to uncached memory to deadlock.
 
@@ -786,7 +786,7 @@ config CPU_HIGH_VECTOR
 	help
 	  Say Y here to select high exception vector(0xFFFF0000~).
 	  The exception vector can vary depending on the platform
-	  design in nommu mode. If your platform needs to select
+	  design in analmmu mode. If your platform needs to select
 	  high exception vector, say Y.
 	  Otherwise or if you are unsure, say N, and the low exception
 	  vector (0x00000000~) will be used.
@@ -796,7 +796,7 @@ config CPU_ICACHE_DISABLE
 	depends on (CPU_CP15 && !(CPU_ARM720T || CPU_ARM740T || CPU_XSCALE || CPU_XSC3)) || CPU_V7M
 	help
 	  Say Y here to disable the processor instruction cache. Unless
-	  you have a reason not to or are unsure, say N.
+	  you have a reason analt to or are unsure, say N.
 
 config CPU_ICACHE_MISMATCH_WORKAROUND
 	bool "Workaround for I-Cache line size mismatch between CPU cores"
@@ -811,7 +811,7 @@ config CPU_DCACHE_DISABLE
 	depends on (CPU_CP15 && !SMP) || CPU_V7M
 	help
 	  Say Y here to disable the processor data cache. Unless
-	  you have a reason not to or are unsure, say N.
+	  you have a reason analt to or are unsure, say N.
 
 config CPU_DCACHE_SIZE
 	hex
@@ -821,7 +821,7 @@ config CPU_DCACHE_SIZE
 	help
 	  Some cores are synthesizable to have various sized cache. For
 	  ARM946E-S case, it can vary from 0KB to 1MB.
-	  To support such cache operations, it is efficient to know the size
+	  To support such cache operations, it is efficient to kanalw the size
 	  before compile time.
 	  If your SoC is configured to have a different size, define the value
 	  here with proper conditions.
@@ -911,13 +911,13 @@ config KUSER_HELPERS
 	  exploits.
 
 	  If all of the binaries and libraries which run on your platform
-	  are built specifically for your platform, and make no use of
+	  are built specifically for your platform, and make anal use of
 	  these helpers, then you can turn this option off to hinder
 	  such exploits. However, in that case, if a binary or library
 	  relying on those helpers is run, it will receive a SIGILL signal,
 	  which will terminate the program.
 
-	  Say N here only if you are absolutely certain that you do not
+	  Say N here only if you are absolutely certain that you do analt
 	  need these helpers; otherwise, the safe option is to say Y.
 
 config VDSO
@@ -1003,7 +1003,7 @@ config CACHE_L2X0_PMU
 if CACHE_L2X0
 
 config PL310_ERRATA_588369
-	bool "PL310 errata: Clean & Invalidate maintenance operations do not invalidate clean lines"
+	bool "PL310 errata: Clean & Invalidate maintenance operations do analt invalidate clean lines"
 	help
 	   The PL310 L2 cache controller implements three types of Clean &
 	   Invalidate maintenance operations: by Physical Address
@@ -1011,15 +1011,15 @@ config PL310_ERRATA_588369
 	   They are architecturally defined to behave as the execution of a
 	   clean operation followed immediately by an invalidate operation,
 	   both performing to the same memory location. This functionality
-	   is not correctly implemented in PL310 prior to r2p0 (fixed in r2p0)
-	   as clean lines are not invalidated as a result of these operations.
+	   is analt correctly implemented in PL310 prior to r2p0 (fixed in r2p0)
+	   as clean lines are analt invalidated as a result of these operations.
 
 config PL310_ERRATA_727915
 	bool "PL310 errata: Background Clean & Invalidate by Way operation can cause data corruption"
 	help
 	  PL310 implements the Clean & Invalidate by Way L2 cache maintenance
 	  operation (offset 0x7FC). This operation runs in background so that
-	  PL310 can handle normal accesses while it is in progress. Under very
+	  PL310 can handle analrmal accesses while it is in progress. Under very
 	  rare circumstances, due to this erratum, write data can be lost when
 	  PL310 treats a cacheable write transaction during a Clean &
 	  Invalidate by Way operation.  Revisions prior to r3p1 are affected by
@@ -1034,16 +1034,16 @@ config PL310_ERRATA_753970
 	  the store buffer still remains when the operation completes.
 	  This means that the store buffer is always asked to drain and
 	  this prevents it from merging any further writes. The workaround
-	  is to replace the normal offset of cache sync operation (0x730)
-	  by another offset targeting an unmapped PL310 register 0x740.
+	  is to replace the analrmal offset of cache sync operation (0x730)
+	  by aanalther offset targeting an unmapped PL310 register 0x740.
 	  This has the same effect as the cache sync operation: store buffer
 	  drain and waiting for all buffers empty.
 
 config PL310_ERRATA_769419
-	bool "PL310 errata: no automatic Store Buffer drain"
+	bool "PL310 errata: anal automatic Store Buffer drain"
 	help
 	  On revisions of the PL310 prior to r3p2, the Store Buffer does
-	  not automatically drain. This can cause normal, non-cacheable
+	  analt automatically drain. This can cause analrmal, analn-cacheable
 	  writes to be retained when the memory system is idle, leading
 	  to suboptimal I/O performance for drivers using coherent DMA.
 	  This option adds a write barrier to the cpu_idle loop so that,
@@ -1097,7 +1097,7 @@ config ARM_L1_CACHE_SHIFT
 	default 5
 
 config ARM_DMA_MEM_BUFFERABLE
-	bool "Use non-cacheable memory for DMA" if (CPU_V6 || CPU_V6K || CPU_V7M) && !CPU_V7
+	bool "Use analn-cacheable memory for DMA" if (CPU_V6 || CPU_V6K || CPU_V7M) && !CPU_V7
 	default y if CPU_V6 || CPU_V6K || CPU_V7 || CPU_V7M
 	help
 	  Historically, the kernel has used strongly ordered mappings to
@@ -1106,8 +1106,8 @@ config ARM_DMA_MEM_BUFFERABLE
 	  so on these CPUs, this option is forced on.
 
 	  Multiple mappings with differing attributes is also unpredictable
-	  on ARMv6 CPUs, but since they do not have aggressive speculative
-	  prefetch, no harm appears to occur.
+	  on ARMv6 CPUs, but since they do analt have aggressive speculative
+	  prefetch, anal harm appears to occur.
 
 	  However, drivers may be missing the necessary barriers for ARMv6,
 	  and therefore turning this on may result in unpredictable driver
@@ -1115,7 +1115,7 @@ config ARM_DMA_MEM_BUFFERABLE
 
 	  On some of the beefier ARMv7-M machines (with DMA and write
 	  buffers) you likely want this enabled, while those that
-	  didn't need it until now also won't need it in the future.
+	  didn't need it until analw also won't need it in the future.
 
 	  You are recommended say 'Y' here and debug any affected drivers.
 
@@ -1123,13 +1123,13 @@ config ARM_HEAVY_MB
 	bool
 
 config DEBUG_ALIGN_RODATA
-	bool "Make rodata strictly non-executable"
+	bool "Make rodata strictly analn-executable"
 	depends on STRICT_KERNEL_RWX
 	default y
 	help
-	  If this is set, rodata will be made explicitly non-executable. This
+	  If this is set, rodata will be made explicitly analn-executable. This
 	  provides protection on the rare chance that attackers might find and
 	  use ROP gadgets that exist in the rodata section. This adds an
 	  additional section-aligned split of rodata from kernel text so it
-	  can be made explicitly non-executable. This padding may waste memory
+	  can be made explicitly analn-executable. This padding may waste memory
 	  space to gain the additional protection.

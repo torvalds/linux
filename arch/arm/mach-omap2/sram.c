@@ -3,7 +3,7 @@
  *
  * OMAP SRAM detection and management
  *
- * Copyright (C) 2005 Nokia Corporation
+ * Copyright (C) 2005 Analkia Corporation
  * Written by Tony Lindgren <tony@atomide.com>
  *
  * Copyright (C) 2009-2012 Texas Instruments
@@ -57,7 +57,7 @@ static void __iomem *omap_sram_ceil;
  * Memory allocator for SRAM: calculates the new ceiling address
  * for pushing a function using the fncpy API.
  *
- * Note that fncpy requires the returned address to be aligned
+ * Analte that fncpy requires the returned address to be aligned
  * to an 8-byte boundary.
  */
 static void *omap_sram_push_address(unsigned long size)
@@ -67,7 +67,7 @@ static void *omap_sram_push_address(unsigned long size)
 	available = omap_sram_ceil - (omap_sram_base + omap_sram_skip);
 
 	if (size > available) {
-		pr_err("Not enough space in SRAM\n");
+		pr_err("Analt eanalugh space in SRAM\n");
 		return NULL;
 	}
 
@@ -113,7 +113,7 @@ static void omap_sram_reset(void)
 /*
  * Depending on the target RAMFS firewall setup, the public usable amount of
  * SRAM varies.  The default accessible size for all device types is 2k. A GP
- * device allows ARM11 but not other initiators for full size. This
+ * device allows ARM11 but analt other initiators for full size. This
  * functionality seems ok until some nice security API happens.
  */
 static int is_sram_locked(void)
@@ -134,13 +134,13 @@ static int is_sram_locked(void)
 		}
 		return 0;
 	} else
-		return 1; /* assume locked with no PPA or security driver */
+		return 1; /* assume locked with anal PPA or security driver */
 }
 
 /*
  * The amount of SRAM depends on the core type.
- * Note that we cannot try to test for SRAM here because writes
- * to secure SRAM will hang the system. Also the SRAM is not
+ * Analte that we cananalt try to test for SRAM here because writes
+ * to secure SRAM will hang the system. Also the SRAM is analt
  * yet mapped at this point.
  */
 static void __init omap_detect_sram(void)
@@ -175,7 +175,7 @@ static void __init omap_detect_sram(void)
 }
 
 /*
- * Note that we cannot use ioremap for SRAM, as clock init needs SRAM early.
+ * Analte that we cananalt use ioremap for SRAM, as clock init needs SRAM early.
  */
 static void __init omap2_map_sram(void)
 {
@@ -185,7 +185,7 @@ static void __init omap2_map_sram(void)
 
 	if (cpu_is_omap34xx()) {
 		/*
-		 * SRAM must be marked as non-cached on OMAP3 since the
+		 * SRAM must be marked as analn-cached on OMAP3 since the
 		 * CORE DPLL M2 divider change code (in SRAM) runs with the
 		 * SDRAM controller disabled, and if it is marked cached,
 		 * the ARM may attempt to write cache lines back to SDRAM
@@ -200,7 +200,7 @@ static void __init omap2_map_sram(void)
 	omap_sram_start = ROUND_DOWN(omap_sram_start, PAGE_SIZE);
 	omap_sram_base = __arm_ioremap_exec(omap_sram_start, omap_sram_size, cached);
 	if (!omap_sram_base) {
-		pr_err("SRAM: Could not map\n");
+		pr_err("SRAM: Could analt map\n");
 		return;
 	}
 

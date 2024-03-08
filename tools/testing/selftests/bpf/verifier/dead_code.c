@@ -111,7 +111,7 @@
 	.retval = 7,
 },
 {
-	"dead code: function in the middle and mid of another func",
+	"dead code: function in the middle and mid of aanalther func",
 	.insns = {
 	BPF_MOV64_IMM(BPF_REG_1, 7),
 	BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 1, 0, 3),

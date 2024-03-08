@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 #define _GNU_SOURCE
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <pthread.h>
 #include <sched.h>
@@ -28,11 +28,11 @@
 #define PTR_TO_INT(p) ((int)((intptr_t)(p)))
 #define INT_TO_PTR(u) ((void *)((intptr_t)(u)))
 
-#define close_prot_errno_disarm(fd) \
+#define close_prot_erranal_disarm(fd) \
 	if (fd >= 0) {              \
-		int _e_ = errno;    \
+		int _e_ = erranal;    \
 		close(fd);          \
-		errno = _e_;        \
+		erranal = _e_;        \
 		fd = -EBADF;        \
 	}
 
@@ -43,19 +43,19 @@ static void change_mountns(struct __test_metadata *_metadata)
 	ret = unshare(CLONE_NEWNS);
 	ASSERT_EQ(ret, 0) {
 		TH_LOG("%s - Failed to unshare mount namespace",
-			strerror(errno));
+			strerror(erranal));
 	}
 
 	ret = mount(NULL, "/", NULL, MS_REC | MS_PRIVATE, 0);
 	ASSERT_EQ(ret, 0) {
 		TH_LOG("%s - Failed to mount / as private",
-			strerror(errno));
+			strerror(erranal));
 	}
 }
 
 static int __do_binderfs_test(struct __test_metadata *_metadata)
 {
-	int fd, ret, saved_errno, result = 1;
+	int fd, ret, saved_erranal, result = 1;
 	size_t len;
 	ssize_t wret;
 	struct binderfs_device device = { 0 };
@@ -71,15 +71,15 @@ static int __do_binderfs_test(struct __test_metadata *_metadata)
 
 	EXPECT_NE(mkdtemp(binderfs_mntpt), NULL) {
 		TH_LOG("%s - Failed to create binderfs mountpoint",
-			strerror(errno));
+			strerror(erranal));
 		goto out;
 	}
 
 	ret = mount(NULL, binderfs_mntpt, "binder", 0, 0);
 	EXPECT_EQ(ret, 0) {
-		if (errno == ENODEV)
+		if (erranal == EANALDEV)
 			SKIP(goto out, "binderfs missing");
-		TH_LOG("%s - Failed to mount binderfs", strerror(errno));
+		TH_LOG("%s - Failed to mount binderfs", strerror(erranal));
 		goto rmdir;
 	}
 
@@ -91,22 +91,22 @@ static int __do_binderfs_test(struct __test_metadata *_metadata)
 	fd = open(device_path, O_RDONLY | O_CLOEXEC);
 	EXPECT_GE(fd, 0) {
 		TH_LOG("%s - Failed to open binder-control device",
-			strerror(errno));
+			strerror(erranal));
 		goto umount;
 	}
 
 	ret = ioctl(fd, BINDER_CTL_ADD, &device);
-	saved_errno = errno;
+	saved_erranal = erranal;
 	close(fd);
-	errno = saved_errno;
+	erranal = saved_erranal;
 	EXPECT_GE(ret, 0) {
 		TH_LOG("%s - Failed to allocate new binder device",
-			strerror(errno));
+			strerror(erranal));
 		goto umount;
 	}
 
-	TH_LOG("Allocated new binder device with major %d, minor %d, and name %s",
-		device.major, device.minor, device.name);
+	TH_LOG("Allocated new binder device with major %d, mianalr %d, and name %s",
+		device.major, device.mianalr, device.name);
 
 	/* success: binder device allocation */
 
@@ -114,17 +114,17 @@ static int __do_binderfs_test(struct __test_metadata *_metadata)
 	fd = open(device_path, O_CLOEXEC | O_RDONLY);
 	EXPECT_GE(fd, 0) {
 		TH_LOG("%s - Failed to open my-binder device",
-			strerror(errno));
+			strerror(erranal));
 		goto umount;
 	}
 
 	ret = ioctl(fd, BINDER_VERSION, &version);
-	saved_errno = errno;
+	saved_erranal = erranal;
 	close(fd);
-	errno = saved_errno;
+	erranal = saved_erranal;
 	EXPECT_GE(ret, 0) {
 		TH_LOG("%s - Failed to open perform BINDER_VERSION request",
-			strerror(errno));
+			strerror(erranal));
 		goto umount;
 	}
 
@@ -135,7 +135,7 @@ static int __do_binderfs_test(struct __test_metadata *_metadata)
 	ret = unlink(device_path);
 	EXPECT_EQ(ret, 0) {
 		TH_LOG("%s - Failed to delete binder device",
-			strerror(errno));
+			strerror(erranal));
 		goto umount;
 	}
 
@@ -147,9 +147,9 @@ static int __do_binderfs_test(struct __test_metadata *_metadata)
 		TH_LOG("Managed to delete binder-control device");
 		goto umount;
 	}
-	EXPECT_EQ(errno, EPERM) {
+	EXPECT_EQ(erranal, EPERM) {
 		TH_LOG("%s - Failed to delete binder-control device but exited with unexpected error code",
-			strerror(errno));
+			strerror(erranal));
 		goto umount;
 	}
 
@@ -161,7 +161,7 @@ static int __do_binderfs_test(struct __test_metadata *_metadata)
 		fd = open(device_path, O_CLOEXEC | O_RDONLY);
 		EXPECT_GE(fd, 0) {
 			TH_LOG("%s - Failed to open binder feature: %s",
-				strerror(errno), binder_features[i]);
+				strerror(erranal), binder_features[i]);
 			goto umount;
 		}
 		close(fd);
@@ -173,12 +173,12 @@ static int __do_binderfs_test(struct __test_metadata *_metadata)
 umount:
 	ret = umount2(binderfs_mntpt, MNT_DETACH);
 	EXPECT_EQ(ret, 0) {
-		TH_LOG("%s - Failed to unmount binderfs", strerror(errno));
+		TH_LOG("%s - Failed to unmount binderfs", strerror(erranal));
 	}
 rmdir:
 	ret = rmdir(binderfs_mntpt);
 	EXPECT_EQ(ret, 0) {
-		TH_LOG("%s - Failed to rmdir binderfs mount", strerror(errno));
+		TH_LOG("%s - Failed to rmdir binderfs mount", strerror(erranal));
 	}
 out:
 	return result;
@@ -191,7 +191,7 @@ static int wait_for_pid(pid_t pid)
 again:
 	ret = waitpid(pid, &status, 0);
 	if (ret == -1) {
-		if (errno == EINTR)
+		if (erranal == EINTR)
 			goto again;
 
 		return -1;
@@ -221,23 +221,23 @@ enum idmap_type {
 	GID_MAP,
 };
 
-static ssize_t read_nointr(int fd, void *buf, size_t count)
+static ssize_t read_analintr(int fd, void *buf, size_t count)
 {
 	ssize_t ret;
 again:
 	ret = read(fd, buf, count);
-	if (ret < 0 && errno == EINTR)
+	if (ret < 0 && erranal == EINTR)
 		goto again;
 
 	return ret;
 }
 
-static ssize_t write_nointr(int fd, const void *buf, size_t count)
+static ssize_t write_analintr(int fd, const void *buf, size_t count)
 {
 	ssize_t ret;
 again:
 	ret = write(fd, buf, count);
-	if (ret < 0 && errno == EINTR)
+	if (ret < 0 && erranal == EINTR)
 		goto again;
 
 	return ret;
@@ -254,13 +254,13 @@ static int write_id_mapping(enum idmap_type type, pid_t pid, const char *buf,
 		int setgroups_fd;
 
 		snprintf(path, sizeof(path), "/proc/%d/setgroups", pid);
-		setgroups_fd = open(path, O_WRONLY | O_CLOEXEC | O_NOFOLLOW);
-		if (setgroups_fd < 0 && errno != ENOENT)
+		setgroups_fd = open(path, O_WRONLY | O_CLOEXEC | O_ANALFOLLOW);
+		if (setgroups_fd < 0 && erranal != EANALENT)
 			return -1;
 
 		if (setgroups_fd >= 0) {
-			ret = write_nointr(setgroups_fd, "deny", sizeof("deny") - 1);
-			close_prot_errno_disarm(setgroups_fd);
+			ret = write_analintr(setgroups_fd, "deny", sizeof("deny") - 1);
+			close_prot_erranal_disarm(setgroups_fd);
 			if (ret != sizeof("deny") - 1)
 				return -1;
 		}
@@ -279,12 +279,12 @@ static int write_id_mapping(enum idmap_type type, pid_t pid, const char *buf,
 	if (ret < 0 || ret >= sizeof(path))
 		return -E2BIG;
 
-	fd = open(path, O_WRONLY | O_CLOEXEC | O_NOFOLLOW);
+	fd = open(path, O_WRONLY | O_CLOEXEC | O_ANALFOLLOW);
 	if (fd < 0)
 		return -1;
 
-	ret = write_nointr(fd, buf, buf_size);
-	close_prot_errno_disarm(fd);
+	ret = write_analintr(fd, buf, buf_size);
+	close_prot_erranal_disarm(fd);
 	if (ret != buf_size)
 		return -1;
 
@@ -296,25 +296,25 @@ static void change_userns(struct __test_metadata *_metadata, int syncfds[2])
 	int ret;
 	char buf;
 
-	close_prot_errno_disarm(syncfds[1]);
+	close_prot_erranal_disarm(syncfds[1]);
 
 	ret = unshare(CLONE_NEWUSER);
 	ASSERT_EQ(ret, 0) {
 		TH_LOG("%s - Failed to unshare user namespace",
-			strerror(errno));
+			strerror(erranal));
 	}
 
-	ret = write_nointr(syncfds[0], "1", 1);
+	ret = write_analintr(syncfds[0], "1", 1);
 	ASSERT_EQ(ret, 1) {
-		TH_LOG("write_nointr() failed");
+		TH_LOG("write_analintr() failed");
 	}
 
-	ret = read_nointr(syncfds[0], &buf, 1);
+	ret = read_analintr(syncfds[0], &buf, 1);
 	ASSERT_EQ(ret, 1) {
-		TH_LOG("read_nointr() failed");
+		TH_LOG("read_analintr() failed");
 	}
 
-	close_prot_errno_disarm(syncfds[0]);
+	close_prot_erranal_disarm(syncfds[0]);
 
 	ASSERT_EQ(setid_userns_root(), 0) {
 		TH_LOG("setid_userns_root() failed");
@@ -327,11 +327,11 @@ static void change_idmaps(struct __test_metadata *_metadata, int syncfds[2], pid
 	char buf;
 	char id_map[4096];
 
-	close_prot_errno_disarm(syncfds[0]);
+	close_prot_erranal_disarm(syncfds[0]);
 
-	ret = read_nointr(syncfds[1], &buf, 1);
+	ret = read_analintr(syncfds[1], &buf, 1);
 	ASSERT_EQ(ret, 1) {
-		TH_LOG("read_nointr() failed");
+		TH_LOG("read_analintr() failed");
 	}
 
 	snprintf(id_map, sizeof(id_map), "0 %d 1\n", getuid());
@@ -346,12 +346,12 @@ static void change_idmaps(struct __test_metadata *_metadata, int syncfds[2], pid
 		TH_LOG("write_id_mapping(GID_MAP) failed");
 	}
 
-	ret = write_nointr(syncfds[1], "1", 1);
+	ret = write_analintr(syncfds[1], "1", 1);
 	ASSERT_EQ(ret, 1) {
-		TH_LOG("write_nointr() failed");
+		TH_LOG("write_analintr() failed");
 	}
 
-	close_prot_errno_disarm(syncfds[1]);
+	close_prot_erranal_disarm(syncfds[1]);
 }
 
 struct __test_metadata *_thread_metadata;
@@ -365,7 +365,7 @@ static void *binder_version_thread(void *data)
 	ret = ioctl(fd, BINDER_VERSION, &version);
 	if (ret < 0)
 		TH_LOG("%s - Failed to open perform BINDER_VERSION request\n",
-			strerror(errno));
+			strerror(erranal));
 
 	pthread_exit(data);
 }
@@ -389,14 +389,14 @@ TEST(binderfs_stress)
 
 	ret = socketpair(PF_LOCAL, SOCK_STREAM | SOCK_CLOEXEC, 0, syncfds);
 	ASSERT_EQ(ret, 0) {
-		TH_LOG("%s - Failed to create socket pair", strerror(errno));
+		TH_LOG("%s - Failed to create socket pair", strerror(erranal));
 	}
 
 	pid = fork();
 	ASSERT_GE(pid, 0) {
-		TH_LOG("%s - Failed to fork", strerror(errno));
-		close_prot_errno_disarm(syncfds[0]);
-		close_prot_errno_disarm(syncfds[1]);
+		TH_LOG("%s - Failed to fork", strerror(erranal));
+		close_prot_erranal_disarm(syncfds[0]);
+		close_prot_erranal_disarm(syncfds[1]);
 	}
 
 	if (pid == 0) {
@@ -408,13 +408,13 @@ TEST(binderfs_stress)
 
 		ASSERT_NE(mkdtemp(binderfs_mntpt), NULL) {
 			TH_LOG("%s - Failed to create binderfs mountpoint",
-				strerror(errno));
+				strerror(erranal));
 		}
 
 		ret = mount(NULL, binderfs_mntpt, "binder", 0, 0);
 		ASSERT_EQ(ret, 0) {
 			TH_LOG("%s - Failed to mount binderfs, check if CONFIG_ANDROID_BINDERFS is enabled in the running kernel",
-				strerror(errno));
+				strerror(erranal));
 		}
 
 		for (int i = 0; i < ARRAY_SIZE(fds); i++) {
@@ -424,29 +424,29 @@ TEST(binderfs_stress)
 			fd = open(device_path, O_RDONLY | O_CLOEXEC);
 			ASSERT_GE(fd, 0) {
 				TH_LOG("%s - Failed to open binder-control device",
-					strerror(errno));
+					strerror(erranal));
 			}
 
 			memset(&device, 0, sizeof(device));
 			snprintf(device.name, sizeof(device.name), "%d", i);
 			ret = ioctl(fd, BINDER_CTL_ADD, &device);
-			close_prot_errno_disarm(fd);
+			close_prot_erranal_disarm(fd);
 			ASSERT_EQ(ret, 0) {
 				TH_LOG("%s - Failed to allocate new binder device",
-					strerror(errno));
+					strerror(erranal));
 			}
 
 			snprintf(device_path, sizeof(device_path), "%s/%d",
 				 binderfs_mntpt, i);
 			fds[i] = open(device_path, O_RDONLY | O_CLOEXEC);
 			ASSERT_GE(fds[i], 0) {
-				TH_LOG("%s - Failed to open binder device", strerror(errno));
+				TH_LOG("%s - Failed to open binder device", strerror(erranal));
 			}
 		}
 
 		ret = umount2(binderfs_mntpt, MNT_DETACH);
 		ASSERT_EQ(ret, 0) {
-			TH_LOG("%s - Failed to unmount binderfs", strerror(errno));
+			TH_LOG("%s - Failed to unmount binderfs", strerror(erranal));
 			rmdir(binderfs_mntpt);
 		}
 
@@ -461,7 +461,7 @@ TEST(binderfs_stress)
 				ret = pthread_create(&threads[i], &attr, binder_version_thread, INT_TO_PTR(fds[k]));
 				if (ret) {
 					TH_LOG("%s - Failed to create thread %d",
-						strerror(errno), i);
+						strerror(erranal), i);
 					break;
 				}
 			}
@@ -472,7 +472,7 @@ TEST(binderfs_stress)
 				ret = pthread_join(threads[j], &fdptr);
 				if (ret)
 					TH_LOG("%s - Failed to join thread %d for fd %d",
-						strerror(errno), j, PTR_TO_INT(fdptr));
+						strerror(erranal), j, PTR_TO_INT(fdptr));
 			}
 		}
 		pthread_attr_destroy(&attr);
@@ -494,10 +494,10 @@ TEST(binderfs_stress)
 TEST(binderfs_test_privileged)
 {
 	if (geteuid() != 0)
-		SKIP(return, "Tests are not run as root. Skipping privileged tests");
+		SKIP(return, "Tests are analt run as root. Skipping privileged tests");
 
 	if (__do_binderfs_test(_metadata))
-		SKIP(return, "The Android binderfs filesystem is not available");
+		SKIP(return, "The Android binderfs filesystem is analt available");
 }
 
 TEST(binderfs_test_unprivileged)
@@ -508,14 +508,14 @@ TEST(binderfs_test_unprivileged)
 
 	ret = socketpair(PF_LOCAL, SOCK_STREAM | SOCK_CLOEXEC, 0, syncfds);
 	ASSERT_EQ(ret, 0) {
-		TH_LOG("%s - Failed to create socket pair", strerror(errno));
+		TH_LOG("%s - Failed to create socket pair", strerror(erranal));
 	}
 
 	pid = fork();
 	ASSERT_GE(pid, 0) {
-		close_prot_errno_disarm(syncfds[0]);
-		close_prot_errno_disarm(syncfds[1]);
-		TH_LOG("%s - Failed to fork", strerror(errno));
+		close_prot_erranal_disarm(syncfds[0]);
+		close_prot_erranal_disarm(syncfds[1]);
+		TH_LOG("%s - Failed to fork", strerror(erranal));
 	}
 
 	if (pid == 0) {
@@ -530,7 +530,7 @@ TEST(binderfs_test_unprivileged)
 	ret = wait_for_pid(pid);
 	if (ret) {
 		if (ret == 2)
-			SKIP(return, "The Android binderfs filesystem is not available");
+			SKIP(return, "The Android binderfs filesystem is analt available");
 		ASSERT_EQ(ret, 0) {
 			TH_LOG("wait_for_pid() failed");
 		}

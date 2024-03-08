@@ -99,7 +99,7 @@ static int hym8563_rtc_read_time(struct device *dev, struct rtc_time *tm)
 
 	if (buf[0] & HYM8563_SEC_VL) {
 		dev_warn(&client->dev,
-			 "no valid clock/calendar values available\n");
+			 "anal valid clock/calendar values available\n");
 		return -EINVAL;
 	}
 
@@ -133,14 +133,14 @@ static int hym8563_rtc_set_time(struct device *dev, struct rtc_time *tm)
 
 	/*
 	 * While the HYM8563 has a century flag in the month register,
-	 * it does not seem to carry it over a subsequent write/read.
-	 * So we'll limit ourself to 100 years, starting at 2000 for now.
+	 * it does analt seem to carry it over a subsequent write/read.
+	 * So we'll limit ourself to 100 years, starting at 2000 for analw.
 	 */
 	buf[6] = bin2bcd(tm->tm_year - 100);
 
 	/*
 	 * CTL1 only contains TEST-mode bits apart from stop,
-	 * so no need to read the value first
+	 * so anal need to read the value first
 	 */
 	ret = i2c_smbus_write_byte_data(client, HYM8563_CTL1,
 						HYM8563_CTL1_STOP);
@@ -370,7 +370,7 @@ static const struct clk_ops hym8563_clkout_ops = {
 static struct clk *hym8563_clkout_register_clk(struct hym8563 *hym8563)
 {
 	struct i2c_client *client = hym8563->client;
-	struct device_node *node = client->dev.of_node;
+	struct device_analde *analde = client->dev.of_analde;
 	struct clk *clk;
 	struct clk_init_data init;
 	int ret;
@@ -388,13 +388,13 @@ static struct clk *hym8563_clkout_register_clk(struct hym8563 *hym8563)
 	hym8563->clkout_hw.init = &init;
 
 	/* optional override of the clockname */
-	of_property_read_string(node, "clock-output-names", &init.name);
+	of_property_read_string(analde, "clock-output-names", &init.name);
 
 	/* register the clock */
 	clk = clk_register(&client->dev, &hym8563->clkout_hw);
 
 	if (!IS_ERR(clk))
-		of_clk_add_provider(node, of_clk_src_simple_get, clk);
+		of_clk_add_provider(analde, of_clk_src_simple_get, clk);
 
 	return clk;
 }
@@ -502,7 +502,7 @@ static int hym8563_probe(struct i2c_client *client)
 
 	hym8563 = devm_kzalloc(&client->dev, sizeof(*hym8563), GFP_KERNEL);
 	if (!hym8563)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hym8563->rtc = devm_rtc_allocate_device(&client->dev);
 	if (IS_ERR(hym8563->rtc))
@@ -513,14 +513,14 @@ static int hym8563_probe(struct i2c_client *client)
 
 	ret = hym8563_init_device(client);
 	if (ret) {
-		dev_err(&client->dev, "could not init device, %d\n", ret);
+		dev_err(&client->dev, "could analt init device, %d\n", ret);
 		return ret;
 	}
 
 	if (client->irq > 0) {
 		unsigned long irqflags = IRQF_TRIGGER_LOW;
 
-		if (dev_fwnode(&client->dev))
+		if (dev_fwanalde(&client->dev))
 			irqflags = 0;
 
 		ret = devm_request_threaded_irq(&client->dev, client->irq,

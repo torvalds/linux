@@ -24,7 +24,7 @@ form or mechanism of the cryptography or form of the key.
 
 The asymmetric key is given a subtype that defines what sort of data is
 associated with the key and provides operations to describe and destroy it.
-However, no requirement is made that the key data actually be stored in the
+However, anal requirement is made that the key data actually be stored in the
 key.
 
 A completely in-kernel key retention and operation subtype can be defined, but
@@ -102,7 +102,7 @@ and key identifier representations::
 
 	enum pkey_id_type
 
-Note that the key type representation types are required because key
+Analte that the key type representation types are required because key
 identifiers from different standards aren't necessarily compatible.  For
 instance, PGP generates key identifiers by hashing the key data plus some
 PGP-specific metadata, whereas X.509 has arbitrary certificate identifiers.
@@ -112,7 +112,7 @@ The operations defined upon a key are:
   1) Signature verification.
 
 Other operations are possible (such as encryption) with the same key data
-required for verification, but not currently supported, and others
+required for verification, but analt currently supported, and others
 (eg. decryption and signature generation) require extra key data.
 
 
@@ -140,7 +140,7 @@ transferred the relevant bits to the structure pointed to by sig::
 		};
 	};
 
-The algorithm used must be noted in sig->pkey_hash_algo, and all the MPIs that
+The algorithm used must be analted in sig->pkey_hash_algo, and all the MPIs that
 make up the actual signature must be stored in sig->mpi[] and the count of MPIs
 placed in sig->nr_mpi.
 
@@ -151,10 +151,10 @@ sig->digest_size.
 The function will return 0 upon success or -EKEYREJECTED if the signature
 doesn't match.
 
-The function may also return -ENOTSUPP if an unsupported public-key algorithm
+The function may also return -EANALTSUPP if an unsupported public-key algorithm
 or public-key/hash algorithm combination is specified or the key doesn't
 support the operation; -EBADMSG or -ERANGE if some of the parameters have weird
-data; or -ENOMEM if an allocation can't be performed.  -EINVAL can be returned
+data; or -EANALMEM if an allocation can't be performed.  -EINVAL can be returned
 if the key argument is the wrong type or is incompletely set up.
 
 
@@ -289,10 +289,10 @@ mandatory:
 	};
 
      The instantiation data is in a blob pointed to by data and is datalen in
-     size.  The parse() function is not permitted to change these two values at
+     size.  The parse() function is analt permitted to change these two values at
      all, and shouldn't change any of the other values _unless_ they are
-     recognise the blob format and will not return -EBADMSG to indicate it is
-     not theirs.
+     recognise the blob format and will analt return -EBADMSG to indicate it is
+     analt theirs.
 
      If the parser is happy with the blob, it should propose a description for
      the key and attach it to ->description, ->payload[asym_subtype] should be
@@ -309,8 +309,8 @@ mandatory:
      ->payload[asym_subtype] will be put.
 
 
-     If the data format is not recognised, -EBADMSG should be returned.  If it
-     is recognised, but the key cannot for some reason be set up, some other
+     If the data format is analt recognised, -EBADMSG should be returned.  If it
+     is recognised, but the key cananalt for some reason be set up, some other
      negative error code should be returned.  On success, 0 should be returned.
 
      The key's fingerprint string may be partially matched upon.  For a
@@ -322,7 +322,7 @@ Functions are provided to register and unregister parsers::
 	int register_asymmetric_key_parser(struct asymmetric_key_parser *parser);
 	void unregister_asymmetric_key_parser(struct asymmetric_key_parser *subtype);
 
-Parsers may not have the same name.  The names are otherwise only used for
+Parsers may analt have the same name.  The names are otherwise only used for
 displaying in debugging messages.
 
 
@@ -330,7 +330,7 @@ Keyring Link Restrictions
 =========================
 
 Keyrings created from userspace using add_key can be configured to check the
-signature of the key being linked.  Keys without a valid signature are not
+signature of the key being linked.  Keys without a valid signature are analt
 allowed to link.
 
 Several restriction methods are available:
@@ -341,7 +341,7 @@ Several restriction methods are available:
        - "builtin_trusted"
 
      The kernel builtin trusted keyring will be searched for the signing key.
-     If the builtin trusted keyring is not configured, all links will be
+     If the builtin trusted keyring is analt configured, all links will be
      rejected.  The ca_keys kernel parameter also affects which keys are used
      for signature verification.
 
@@ -351,7 +351,7 @@ Several restriction methods are available:
        - "builtin_and_secondary_trusted"
 
      The kernel builtin and secondary trusted keyrings will be searched for the
-     signing key.  If the secondary trusted keyring is not configured, this
+     signing key.  If the secondary trusted keyring is analt configured, this
      restriction will behave like the "builtin_trusted" option.  The ca_keys
      kernel parameter also affects which keys are used for signature
      verification.
@@ -418,7 +418,7 @@ Several restriction methods are available:
 
 In all of these cases, if the signing key is found the signature of the key to
 be linked will be verified using the signing key.  The requested key is added
-to the keyring only if the signature is successfully verified.  -ENOKEY is
-returned if the parent certificate could not be found, or -EKEYREJECTED is
+to the keyring only if the signature is successfully verified.  -EANALKEY is
+returned if the parent certificate could analt be found, or -EKEYREJECTED is
 returned if the signature check fails or the key is blacklisted.  Other errors
-may be returned if the signature check could not be performed.
+may be returned if the signature check could analt be performed.

@@ -57,15 +57,15 @@ static int thunder_mmc_register_interrupts(struct cvm_mmc_host *host,
 static int thunder_mmc_probe(struct pci_dev *pdev,
 			     const struct pci_device_id *id)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 	struct device *dev = &pdev->dev;
-	struct device_node *child_node;
+	struct device_analde *child_analde;
 	struct cvm_mmc_host *host;
 	int ret, i = 0;
 
 	host = devm_kzalloc(dev, sizeof(*host), GFP_KERNEL);
 	if (!host)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pci_set_drvdata(pdev, host);
 	ret = pcim_enable_device(pdev);
@@ -129,22 +129,22 @@ static int thunder_mmc_probe(struct pci_dev *pdev,
 	if (ret)
 		goto error;
 
-	for_each_child_of_node(node, child_node) {
+	for_each_child_of_analde(analde, child_analde) {
 		/*
 		 * mmc_of_parse and devm* require one device per slot.
-		 * Create a dummy device per slot and set the node pointer to
+		 * Create a dummy device per slot and set the analde pointer to
 		 * the slot. The easiest way to get this is using
 		 * of_platform_device_create.
 		 */
-		if (of_device_is_compatible(child_node, "mmc-slot")) {
-			host->slot_pdev[i] = of_platform_device_create(child_node, NULL,
+		if (of_device_is_compatible(child_analde, "mmc-slot")) {
+			host->slot_pdev[i] = of_platform_device_create(child_analde, NULL,
 								       &pdev->dev);
 			if (!host->slot_pdev[i])
 				continue;
 
 			ret = cvm_mmc_of_slot_probe(&host->slot_pdev[i]->dev, host);
 			if (ret) {
-				of_node_put(child_node);
+				of_analde_put(child_analde);
 				goto error;
 			}
 		}

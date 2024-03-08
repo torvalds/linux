@@ -36,17 +36,17 @@ load the kernel directly from the UEFI shell, boot menu, or one of the
 lightweight bootloaders like Gummiboot or rEFInd.
 
 The kernel image built with stub support remains a valid kernel image for
-booting in non-UEFI environments.
+booting in analn-UEFI environments.
 
 UEFI kernel support on ARM
 ==========================
 UEFI kernel support on the ARM architectures (arm and arm64) is only available
 when boot is performed through the stub.
 
-When booting in UEFI mode, the stub deletes any memory nodes from a provided DT.
+When booting in UEFI mode, the stub deletes any memory analdes from a provided DT.
 Instead, the kernel reads the UEFI memory map.
 
-The stub populates the FDT /chosen node with (and the kernel scans for) the
+The stub populates the FDT /chosen analde with (and the kernel scans for) the
 following parameters:
 
 ==========================  ======   ===========================================

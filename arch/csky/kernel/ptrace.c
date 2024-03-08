@@ -3,7 +3,7 @@
 
 #include <linux/audit.h>
 #include <linux/elf.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/ptrace.h>
@@ -32,7 +32,7 @@
 #define TRACE_MODE_MASK    ~(0x3 << 14)
 
 /*
- * Make sure the single step bit is not set.
+ * Make sure the single step bit is analt set.
  */
 static void singlestep_disable(struct task_struct *tsk)
 {
@@ -166,7 +166,7 @@ static int fpr_set(struct task_struct *target,
 
 static const struct user_regset csky_regsets[] = {
 	[REGSET_GPR] = {
-		.core_note_type = NT_PRSTATUS,
+		.core_analte_type = NT_PRSTATUS,
 		.n = sizeof(struct pt_regs) / sizeof(u32),
 		.size = sizeof(u32),
 		.align = sizeof(u32),
@@ -174,7 +174,7 @@ static const struct user_regset csky_regsets[] = {
 		.set = gpr_set,
 	},
 	[REGSET_FPR] = {
-		.core_note_type = NT_PRFPREG,
+		.core_analte_type = NT_PRFPREG,
 		.n = sizeof(struct user_fp) / sizeof(u32),
 		.size = sizeof(u32),
 		.align = sizeof(u32),
@@ -270,7 +270,7 @@ int regs_query_register_offset(const char *name)
  * @addr:      address which is checked.
  *
  * regs_within_kernel_stack() checks @addr is within the kernel stack page(s).
- * If @addr is within the kernel stack, it returns true. If not, returns false.
+ * If @addr is within the kernel stack, it returns true. If analt, returns false.
  */
 static bool regs_within_kernel_stack(struct pt_regs *regs, unsigned long addr)
 {
@@ -284,7 +284,7 @@ static bool regs_within_kernel_stack(struct pt_regs *regs, unsigned long addr)
  * @n:		stack entry number.
  *
  * regs_get_kernel_stack_nth() returns @n th entry of the kernel stack which
- * is specified by @regs. If the @n th entry is NOT in the kernel stack,
+ * is specified by @regs. If the @n th entry is ANALT in the kernel stack,
  * this returns 0.
  */
 unsigned long regs_get_kernel_stack_nth(struct pt_regs *regs, unsigned int n)

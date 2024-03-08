@@ -41,8 +41,8 @@ struct gf100_grctx_func {
 	u32 alpha_nr;
 	u32 gfxp_nr;
 	/* some other context buffer */
-	void (*unknown)(struct gf100_gr_chan *, u64 addr, u32 size);
-	u32 unknown_size;
+	void (*unkanalwn)(struct gf100_gr_chan *, u64 addr, u32 size);
+	u32 unkanalwn_size;
 	/* other patch buffer stuff */
 	void (*patch_ltc)(struct gf100_gr_chan *);
 	/* floorsweeping */
@@ -161,7 +161,7 @@ void gv100_grctx_generate_attrib(struct gf100_gr_chan *);
 void gv100_grctx_generate_rop_mapping(struct gf100_gr *);
 void gv100_grctx_generate_r400088(struct gf100_gr *, bool);
 
-void tu102_grctx_generate_unknown(struct gf100_gr_chan *, u64, u32);
+void tu102_grctx_generate_unkanalwn(struct gf100_gr_chan *, u64, u32);
 
 extern const struct gf100_grctx_func ga102_grctx;
 

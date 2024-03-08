@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2016-2018 Netronome Systems, Inc. */
+/* Copyright (C) 2016-2018 Netroanalme Systems, Inc. */
 
 #include <linux/bitops.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/types.h>
@@ -128,7 +128,7 @@ static u16 nfp_swreg_to_unreg(swreg reg, bool is_dst)
 		lm_id = swreg_lm_idx(reg);
 
 		switch (swreg_lm_mode(reg)) {
-		case NN_LM_MOD_NONE:
+		case NN_LM_MOD_ANALNE:
 			if (val & ~UR_REG_LM_IDX_MAX) {
 				pr_err("LM offset too large\n");
 				return 0;
@@ -157,8 +157,8 @@ static u16 nfp_swreg_to_unreg(swreg reg, bool is_dst)
 			return 0;
 		}
 		return UR_REG_IMM_encode(val);
-	case NN_REG_NONE:
-		return is_dst ? UR_REG_NO_DST : REG_NONE;
+	case NN_REG_ANALNE:
+		return is_dst ? UR_REG_ANAL_DST : REG_ANALNE;
 	}
 
 	pr_err("unrecognized reg encoding %08x\n", reg);
@@ -182,7 +182,7 @@ int swreg_to_unrestricted(swreg dst, swreg lreg, swreg rreg,
 
 	/* Decode source operands */
 	if (swreg_type(lreg) == swreg_type(rreg) &&
-	    swreg_type(lreg) != NN_REG_NONE)
+	    swreg_type(lreg) != NN_REG_ANALNE)
 		return -EFAULT;
 
 	if (swreg_type(lreg) == NN_REG_GPR_B ||
@@ -216,7 +216,7 @@ static u16 nfp_swreg_to_rereg(swreg reg, bool is_dst, bool has_imm8, bool *i8)
 	case NN_REG_LMEM:
 		lm_id = swreg_lm_idx(reg);
 
-		if (swreg_lm_mode(reg) != NN_LM_MOD_NONE) {
+		if (swreg_lm_mode(reg) != NN_LM_MOD_ANALNE) {
 			pr_err("bad LM mode for restricted operands %d\n",
 			       swreg_lm_mode(reg));
 			return 0;
@@ -235,8 +235,8 @@ static u16 nfp_swreg_to_rereg(swreg reg, bool is_dst, bool has_imm8, bool *i8)
 		}
 		*i8 = val & 0x80;
 		return RE_REG_IMM_encode(val & 0x7f);
-	case NN_REG_NONE:
-		return is_dst ? RE_REG_NO_DST : REG_NONE;
+	case NN_REG_ANALNE:
+		return is_dst ? RE_REG_ANAL_DST : REG_ANALNE;
 	case NN_REG_NNR:
 		pr_err("NNRs used with restricted encoding\n");
 		return 0;
@@ -263,7 +263,7 @@ int swreg_to_restricted(swreg dst, swreg lreg, swreg rreg,
 
 	/* Decode source operands */
 	if (swreg_type(lreg) == swreg_type(rreg) &&
-	    swreg_type(lreg) != NN_REG_NONE)
+	    swreg_type(lreg) != NN_REG_ANALNE)
 		return -EFAULT;
 
 	if (swreg_type(lreg) == NN_REG_GPR_B ||
@@ -285,7 +285,7 @@ int swreg_to_restricted(swreg dst, swreg lreg, swreg rreg,
 #define NFP_USTORE_ECC_POLY_WORDS		7
 #define NFP_USTORE_OP_BITS			45
 
-static const u64 nfp_ustore_ecc_polynomials[NFP_USTORE_ECC_POLY_WORDS] = {
+static const u64 nfp_ustore_ecc_polyanalmials[NFP_USTORE_ECC_POLY_WORDS] = {
 	0x0ff800007fffULL,
 	0x11f801ff801fULL,
 	0x1e387e0781e1ULL,
@@ -300,7 +300,7 @@ static bool parity(u64 value)
 	return hweight64(value) & 1;
 }
 
-int nfp_ustore_check_valid_no_ecc(u64 insn)
+int nfp_ustore_check_valid_anal_ecc(u64 insn)
 {
 	if (insn & ~GENMASK_ULL(NFP_USTORE_OP_BITS, 0))
 		return -EINVAL;
@@ -314,7 +314,7 @@ u64 nfp_ustore_calc_ecc_insn(u64 insn)
 	int i;
 
 	for (i = 0; i < NFP_USTORE_ECC_POLY_WORDS; i++)
-		ecc |= parity(nfp_ustore_ecc_polynomials[i] & insn) << i;
+		ecc |= parity(nfp_ustore_ecc_polyanalmials[i] & insn) << i;
 
 	return insn | (u64)ecc << NFP_USTORE_OP_BITS;
 }

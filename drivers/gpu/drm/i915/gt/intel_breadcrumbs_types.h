@@ -18,18 +18,18 @@
 /*
  * Rather than have every client wait upon all user interrupts,
  * with the herd waking after every interrupt and each doing the
- * heavyweight seqno dance, we delegate the task (of being the
+ * heavyweight seqanal dance, we delegate the task (of being the
  * bottom-half of the user interrupt) to the first client. After
  * every interrupt, we wake up one client, who does the heavyweight
- * coherent seqno read and either goes back to sleep (if incomplete),
+ * coherent seqanal read and either goes back to sleep (if incomplete),
  * or wakes up all the completed clients in parallel, before then
  * transferring the bottom-half status to the next client in the queue.
  *
  * Compared to walking the entire list of waiters in a single dedicated
  * bottom-half, we reduce the latency of the first waiter by avoiding
- * a context switch, but incur additional coherent seqno reads when
+ * a context switch, but incur additional coherent seqanal reads when
  * following the chain of request breadcrumbs. Since it is most likely
- * that we have a single client waiting on each seqno, then reducing
+ * that we have a single client waiting on each seqanal, then reducing
  * the overhead of waking that client is much preferred.
  */
 struct intel_breadcrumbs {
@@ -46,7 +46,7 @@ struct intel_breadcrumbs {
 	unsigned int irq_enabled;
 	intel_wakeref_t irq_armed;
 
-	/* Not all breadcrumbs are attached to physical HW */
+	/* Analt all breadcrumbs are attached to physical HW */
 	intel_engine_mask_t	engine_mask;
 	struct intel_engine_cs *irq_engine;
 	bool	(*irq_enable)(struct intel_breadcrumbs *b);

@@ -62,7 +62,7 @@ static char *sch_error_string(int err_num)
 	case ESCH_FIXME:
 		return "FIXME, to be resolved";
 	default:
-		return "Unknown";
+		return "Unkanalwn";
 	}
 }
 
@@ -172,7 +172,7 @@ static struct mu3h_sch_tt *find_tt(struct usb_device *udev)
 	bool allocated_index = false;
 
 	if (!utt)
-		return NULL;	/* Not below a TT */
+		return NULL;	/* Analt below a TT */
 
 	/*
 	 * Find/create our data structure.
@@ -186,7 +186,7 @@ static struct mu3h_sch_tt *find_tt(struct usb_device *udev)
 			tt_index = kcalloc(utt->hub->maxchild,
 					sizeof(*tt_index), GFP_KERNEL);
 			if (!tt_index)
-				return ERR_PTR(-ENOMEM);
+				return ERR_PTR(-EANALMEM);
 			utt->hcpriv = tt_index;
 			allocated_index = true;
 		}
@@ -203,7 +203,7 @@ static struct mu3h_sch_tt *find_tt(struct usb_device *udev)
 				utt->hcpriv = NULL;
 				kfree(tt_index);
 			}
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 		}
 		INIT_LIST_HEAD(&tt->ep_list);
 		*ptt = tt;
@@ -212,7 +212,7 @@ static struct mu3h_sch_tt *find_tt(struct usb_device *udev)
 	return tt;
 }
 
-/* Release the TT above udev, if it's not in use */
+/* Release the TT above udev, if it's analt in use */
 static void drop_tt(struct usb_device *udev)
 {
 	struct usb_tt *utt = udev->tt;
@@ -220,7 +220,7 @@ static void drop_tt(struct usb_device *udev)
 	int i, cnt;
 
 	if (!utt || !utt->hcpriv)
-		return;		/* Not below a TT, or never allocated */
+		return;		/* Analt below a TT, or never allocated */
 
 	cnt = 0;
 	if (utt->multi) {
@@ -258,7 +258,7 @@ create_sch_ep(struct xhci_hcd_mtk *mtk, struct usb_device *udev,
 
 	bw_info = get_bw_info(mtk, udev, ep);
 	if (!bw_info)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	if (is_fs_or_ls(udev->speed))
 		len = TT_MICROFRAMES_MAX;
@@ -270,13 +270,13 @@ create_sch_ep(struct xhci_hcd_mtk *mtk, struct usb_device *udev,
 
 	sch_ep = kzalloc(struct_size(sch_ep, bw_budget_table, len), GFP_KERNEL);
 	if (!sch_ep)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	if (is_fs_or_ls(udev->speed)) {
 		tt = find_tt(udev);
 		if (IS_ERR(tt)) {
 			kfree(sch_ep);
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 		}
 	}
 
@@ -286,7 +286,7 @@ create_sch_ep(struct xhci_hcd_mtk *mtk, struct usb_device *udev,
 	sch_ep->speed = udev->speed;
 	INIT_LIST_HEAD(&sch_ep->endpoint);
 	INIT_LIST_HEAD(&sch_ep->tt_endpoint);
-	INIT_HLIST_NODE(&sch_ep->hentry);
+	INIT_HLIST_ANALDE(&sch_ep->hentry);
 
 	return sch_ep;
 }
@@ -327,7 +327,7 @@ static void setup_sch_info(struct xhci_ep_ctx *ep_ctx,
 
 		/*
 		 * usb_20 spec section5.9
-		 * a single microframe is enough for HS synchromous endpoints
+		 * a single microframe is eanalugh for HS synchromous endpoints
 		 * in a interval
 		 */
 		sch_ep->num_budget_microframes = 1;
@@ -407,7 +407,7 @@ static void setup_sch_info(struct xhci_ep_ctx *ep_ctx,
 			 * @cs_count will be updated according to cs position
 			 * (add 1 or 2 extra-cs), but assume only first
 			 * @num_budget_microframes elements will be used later,
-			 * although in fact it does not (extra-cs budget many receive
+			 * although in fact it does analt (extra-cs budget many receive
 			 * some data for IN ep);
 			 * @cs_count is 1 for INT_IN_EP (maxpkt <= 64);
 			 */
@@ -507,9 +507,9 @@ static int check_fs_budget_microframes(struct mu3h_sch_ep_info *sch_ep, int offs
 	/*
 	 * for OUT eps, will transfer exactly assigned length of data,
 	 * so can't allocate more than 188 bytes;
-	 * but it's not for IN eps, usually it can't receive full
-	 * 188 bytes in a uframe, if it not assign full 188 bytes,
-	 * can add another one;
+	 * but it's analt for IN eps, usually it can't receive full
+	 * 188 bytes in a uframe, if it analt assign full 188 bytes,
+	 * can add aanalther one;
 	 */
 	for (i = 0; i < sch_ep->num_budget_microframes; i++) {
 		k = XHCI_MTK_BW_INDEX(offset + i);
@@ -872,8 +872,8 @@ static bool need_bw_sch(struct usb_device *udev,
 		return false;
 
 	/*
-	 * for LS & FS periodic endpoints which its device is not behind
-	 * a TT are also ignored, root-hub will schedule them directly,
+	 * for LS & FS periodic endpoints which its device is analt behind
+	 * a TT are also iganalred, root-hub will schedule them directly,
 	 * but need set @bpkts field of endpoint context to 1.
 	 */
 	if (is_fs_or_ls(udev->speed) && !has_tt)
@@ -897,7 +897,7 @@ int xhci_mtk_sch_init(struct xhci_hcd_mtk *mtk)
 
 	sch_array = kcalloc(num_usb_bus, sizeof(*sch_array), GFP_KERNEL);
 	if (sch_array == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mtk->sch_array = sch_array;
 
@@ -929,7 +929,7 @@ static int add_ep_quirk(struct usb_hcd *hcd, struct usb_device *udev,
 	if (!need_bw_sch(udev, ep)) {
 		/*
 		 * set @bpkts to 1 if it is LS or FS periodic endpoint, and its
-		 * device does not connected through an external HS hub
+		 * device does analt connected through an external HS hub
 		 */
 		if (usb_endpoint_xfer_int(&ep->desc)
 			|| usb_endpoint_xfer_isoc(&ep->desc))
@@ -942,7 +942,7 @@ static int add_ep_quirk(struct usb_hcd *hcd, struct usb_device *udev,
 
 	sch_ep = create_sch_ep(mtk, udev, ep, ep_ctx);
 	if (IS_ERR_OR_NULL(sch_ep))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	setup_sch_info(ep_ctx, sch_ep);
 
@@ -958,7 +958,7 @@ static void drop_ep_quirk(struct usb_hcd *hcd, struct usb_device *udev,
 	struct xhci_hcd_mtk *mtk = hcd_to_mtk(hcd);
 	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
 	struct mu3h_sch_ep_info *sch_ep;
-	struct hlist_node *hn;
+	struct hlist_analde *hn;
 
 	if (!need_bw_sch(udev, ep))
 		return;
@@ -991,9 +991,9 @@ int xhci_mtk_check_bandwidth(struct usb_hcd *hcd, struct usb_device *udev)
 
 		ret = check_sch_bw(sch_ep);
 		if (ret) {
-			xhci_err(xhci, "Not enough bandwidth! (%s)\n",
+			xhci_err(xhci, "Analt eanalugh bandwidth! (%s)\n",
 				 sch_error_string(-ret));
-			return -ENOSPC;
+			return -EANALSPC;
 		}
 
 		ep_ctx = xhci_get_ep_ctx(xhci, virt_dev->in_ctx, ep_index);

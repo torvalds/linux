@@ -1625,7 +1625,7 @@ static uint32_t gk208_pmu_code[] = {
 	0x06cb7e50,
 	0x0464b600,
 	0x74bd5bb2,
-/* 0x099f: i2c_recv_not_rd08 */
+/* 0x099f: i2c_recv_analt_rd08 */
 	0xb0410ef4,
 	0x1bf401d6,
 	0x7e00053b,
@@ -1642,7 +1642,7 @@ static uint32_t gk208_pmu_code[] = {
 	0x08c5c774,
 	0xf4091bf4,
 	0x0ef40232,
-/* 0x09dd: i2c_recv_not_wr08 */
+/* 0x09dd: i2c_recv_analt_wr08 */
 /* 0x09dd: i2c_recv_done */
 	0xf8cec703,
 	0x00088c7e,

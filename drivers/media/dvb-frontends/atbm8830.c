@@ -158,7 +158,7 @@ static int is_locked(struct atbm_state *priv, u8 *locked)
 static int set_agc_config(struct atbm_state *priv,
 	u8 min, u8 max, u8 hold_loop)
 {
-	/* no effect if both min and max are zero */
+	/* anal effect if both min and max are zero */
 	if (!min && !max)
 	    return 0;
 
@@ -308,7 +308,7 @@ static int atbm8830_get_fe(struct dvb_frontend *fe,
 	c->guard_interval = GUARD_INTERVAL_AUTO;
 
 	/* hierarchy */
-	c->hierarchy = HIERARCHY_NONE;
+	c->hierarchy = HIERARCHY_ANALNE;
 
 	return 0;
 }
@@ -467,7 +467,7 @@ struct dvb_frontend *atbm8830_attach(const struct atbm8830_config *config,
 
 	/* check if the demod is there */
 	if (atbm8830_read_reg(priv, REG_CHIP_ID, &data) != 0) {
-		dprintk("%s atbm8830/8831 not found at i2c addr 0x%02X\n",
+		dprintk("%s atbm8830/8831 analt found at i2c addr 0x%02X\n",
 			__func__, priv->config->demod_address);
 		goto error_out;
 	}

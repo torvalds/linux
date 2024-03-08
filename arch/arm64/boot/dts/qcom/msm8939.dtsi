@@ -175,8 +175,8 @@
 	 *
 	 * The enable method used here is spin-table which presupposes use
 	 * of a 2nd stage boot shim such as lk2nd to have installed a
-	 * spin-table, the downstream non-psci/non-spin-table method that
-	 * default msm8916/msm8936/msm8939 will not be supported upstream.
+	 * spin-table, the downstream analn-psci/analn-spin-table method that
+	 * default msm8916/msm8936/msm8939 will analt be supported upstream.
 	 */
 	cpu-map {
 		/* LITTLE (efficiency) cluster */
@@ -282,7 +282,7 @@
 							opp-level = <3>;
 						};
 
-						rpmpd_opp_nom: opp4 {
+						rpmpd_opp_analm: opp4 {
 							opp-level = <4>;
 						};
 
@@ -306,13 +306,13 @@
 
 		tz-apps@86000000 {
 			reg = <0x0 0x86000000 0x0 0x300000>;
-			no-map;
+			anal-map;
 		};
 
 		smem@86300000 {
 			compatible = "qcom,smem";
 			reg = <0x0 0x86300000 0x0 0x100000>;
-			no-map;
+			anal-map;
 
 			hwlocks = <&tcsr_mutex 3>;
 			qcom,rpm-msg-ram = <&rpm_msg_ram>;
@@ -320,30 +320,30 @@
 
 		hypervisor@86400000 {
 			reg = <0x0 0x86400000 0x0 0x100000>;
-			no-map;
+			anal-map;
 		};
 
 		tz@86500000 {
 			reg = <0x0 0x86500000 0x0 0x180000>;
-			no-map;
+			anal-map;
 		};
 
 		reserved@86680000 {
 			reg = <0x0 0x86680000 0x0 0x80000>;
-			no-map;
+			anal-map;
 		};
 
 		rmtfs@86700000 {
 			compatible = "qcom,rmtfs-mem";
 			reg = <0x0 0x86700000 0x0 0xe0000>;
-			no-map;
+			anal-map;
 
 			qcom,client-id = <1>;
 		};
 
 		rfsa@867e0000 {
 			reg = <0x0 0x867e0000 0x0 0x20000>;
-			no-map;
+			anal-map;
 		};
 
 		mpss_mem: mpss@86800000 {
@@ -358,7 +358,7 @@
 			 * alloc-ranges = <0x0 0x86800000 0x0 0x8000000>;
 			 */
 			reg = <0x0 0x86800000 0x0 0>; /* size is device-specific */
-			no-map;
+			anal-map;
 			status = "disabled";
 		};
 
@@ -366,7 +366,7 @@
 			size = <0x0 0x600000>;
 			alignment = <0x0 0x100000>;
 			alloc-ranges = <0x0 0x86800000 0x0 0x8000000>;
-			no-map;
+			anal-map;
 			status = "disabled";
 		};
 
@@ -374,7 +374,7 @@
 			size = <0x0 0x500000>;
 			alignment = <0x0 0x100000>;
 			alloc-ranges = <0x0 0x86800000 0x0 0x8000000>;
-			no-map;
+			anal-map;
 			status = "disabled";
 		};
 
@@ -382,7 +382,7 @@
 			size = <0x0 0x100000>;
 			alignment = <0x0 0x100000>;
 			alloc-ranges = <0x0 0x86800000 0x0 0x8000000>;
-			no-map;
+			anal-map;
 			status = "disabled";
 		};
 	};
@@ -642,19 +642,19 @@
 			reg = <0x004ab000 0x4>;
 		};
 
-		pcnoc: interconnect@500000 {
-			compatible = "qcom,msm8939-pcnoc";
+		pcanalc: interconnect@500000 {
+			compatible = "qcom,msm8939-pcanalc";
 			reg = <0x00500000 0x11000>;
 			#interconnect-cells = <1>;
 		};
 
-		snoc: interconnect@580000 {
-			compatible = "qcom,msm8939-snoc";
+		sanalc: interconnect@580000 {
+			compatible = "qcom,msm8939-sanalc";
 			reg = <0x00580000 0x14080>;
 			#interconnect-cells = <1>;
 
-			snoc_mm: interconnect-snoc {
-				compatible = "qcom,msm8939-snoc-mm";
+			sanalc_mm: interconnect-sanalc {
+				compatible = "qcom,msm8939-sanalc-mm";
 				#interconnect-cells = <1>;
 			};
 		};
@@ -1245,8 +1245,8 @@
 
 				iommus = <&apps_iommu 4>;
 
-				interconnects = <&snoc_mm MASTER_MDP_PORT0 &bimc SLAVE_EBI_CH0>,
-						<&snoc_mm MASTER_MDP_PORT1 &bimc SLAVE_EBI_CH0>;
+				interconnects = <&sanalc_mm MASTER_MDP_PORT0 &bimc SLAVE_EBI_CH0>,
+						<&sanalc_mm MASTER_MDP_PORT1 &bimc SLAVE_EBI_CH0>;
 				interconnect-names = "mdp0-mem", "mdp1-mem";
 
 				ports {
@@ -1405,7 +1405,7 @@
 		};
 
 		gpu: gpu@1c00000 {
-			compatible = "qcom,adreno-405.0", "qcom,adreno";
+			compatible = "qcom,adreanal-405.0", "qcom,adreanal";
 			reg = <0x01c00000 0x10000>;
 			reg-names = "kgsl_3d0_reg_memory";
 			interrupts = <GIC_SPI 33 IRQ_TYPE_LEVEL_HIGH>;
@@ -1674,15 +1674,15 @@
 				 <&gcc GCC_ULTAUDIO_LPAIF_PRI_I2S_CLK>,
 				 <&gcc GCC_ULTAUDIO_LPAIF_SEC_I2S_CLK>,
 				 <&gcc GCC_ULTAUDIO_LPAIF_AUX_I2S_CLK>,
-				 <&gcc GCC_ULTAUDIO_PCNOC_MPORT_CLK>,
-				 <&gcc GCC_ULTAUDIO_PCNOC_SWAY_CLK>;
+				 <&gcc GCC_ULTAUDIO_PCANALC_MPORT_CLK>,
+				 <&gcc GCC_ULTAUDIO_PCANALC_SWAY_CLK>;
 			clock-names = "ahbix-clk",
 				      "mi2s-bit-clk0",
 				      "mi2s-bit-clk1",
 				      "mi2s-bit-clk2",
 				      "mi2s-bit-clk3",
-				      "pcnoc-mport-clk",
-				      "pcnoc-sway-clk";
+				      "pcanalc-mport-clk",
+				      "pcanalc-sway-clk";
 			#sound-dai-cells = <1>;
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -1717,7 +1717,7 @@
 			pinctrl-names = "default", "sleep";
 			mmc-ddr-1_8v;
 			bus-width = <8>;
-			non-removable;
+			analn-removable;
 			status = "disabled";
 		};
 
@@ -2184,7 +2184,7 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges;
-			/* Necessary because firmware does not configure this correctly */
+			/* Necessary because firmware does analt configure this correctly */
 			clock-frequency = <19200000>;
 
 			frame@b121000 {
@@ -2318,10 +2318,10 @@
 			cooling-maps {
 				map0 {
 					trip = <&cpu0_alert>;
-					cooling-device = <&CPU0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&CPU0 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU1 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU2 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU3 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 			};
 		};
@@ -2349,10 +2349,10 @@
 			cooling-maps {
 				map0 {
 					trip = <&cpu1_alert>;
-					cooling-device = <&CPU0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&CPU0 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU1 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU2 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU3 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 			};
 		};
@@ -2380,10 +2380,10 @@
 			cooling-maps {
 				map0 {
 					trip = <&cpu2_alert>;
-					cooling-device = <&CPU0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&CPU0 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU1 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU2 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU3 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 			};
 		};
@@ -2411,10 +2411,10 @@
 			cooling-maps {
 				map0 {
 					trip = <&cpu3_alert>;
-					cooling-device = <&CPU0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&CPU0 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU1 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU2 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU3 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 			};
 		};
@@ -2442,10 +2442,10 @@
 			cooling-maps {
 				map0 {
 					trip = <&cpu4567_alert>;
-					cooling-device = <&CPU4 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU5 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU6 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU7 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&CPU4 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU5 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU6 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU7 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 			};
 		};

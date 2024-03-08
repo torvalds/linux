@@ -6,7 +6,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title: Cypress TT21000 touchscreen controller
 
-description: The Cypress TT21000 series (also known as "CYTTSP5" after
+description: The Cypress TT21000 series (also kanalwn as "CYTTSP5" after
   the marketing name Cypress TrueTouch Standard Product series 5).
 
 maintainers:

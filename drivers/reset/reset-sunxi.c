@@ -20,7 +20,7 @@
 #include <linux/spinlock.h>
 #include <linux/types.h>
 
-static int sunxi_reset_init(struct device_node *np)
+static int sunxi_reset_init(struct device_analde *np)
 {
 	struct reset_simple_data *data;
 	struct resource res;
@@ -29,7 +29,7 @@ static int sunxi_reset_init(struct device_node *np)
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = of_address_to_resource(np, 0, &res);
 	if (ret)
@@ -43,7 +43,7 @@ static int sunxi_reset_init(struct device_node *np)
 
 	data->membase = ioremap(res.start, size);
 	if (!data->membase) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_alloc;
 	}
 
@@ -52,7 +52,7 @@ static int sunxi_reset_init(struct device_node *np)
 	data->rcdev.owner = THIS_MODULE;
 	data->rcdev.nr_resets = size * 8;
 	data->rcdev.ops = &reset_simple_ops;
-	data->rcdev.of_node = np;
+	data->rcdev.of_analde = np;
 	data->active_low = true;
 
 	return reset_controller_register(&data->rcdev);
@@ -76,8 +76,8 @@ static const struct of_device_id sunxi_early_reset_dt_ids[] __initconst = {
 
 void __init sun6i_reset_init(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 
-	for_each_matching_node(np, sunxi_early_reset_dt_ids)
+	for_each_matching_analde(np, sunxi_early_reset_dt_ids)
 		sunxi_reset_init(np);
 }

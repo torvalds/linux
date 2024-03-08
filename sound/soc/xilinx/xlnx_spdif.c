@@ -71,7 +71,7 @@ static irqreturn_t xlnx_spdifrx_irq_handler(int irq, void *arg)
 		return IRQ_HANDLED;
 	}
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static int xlnx_spdif_startup(struct snd_pcm_substream *substream,
@@ -157,7 +157,7 @@ static int rx_stream_detect(struct snd_soc_dai *dai)
 					       ctx->rx_chsts_updated,
 					       jiffies);
 	if (!err) {
-		dev_err(dai->dev, "No streaming audio detected!\n");
+		dev_err(dai->dev, "Anal streaming audio detected!\n");
 		return -EINVAL;
 	}
 	ctx->rx_chsts_updated = false;
@@ -242,11 +242,11 @@ static int xlnx_spdif_probe(struct platform_device *pdev)
 	struct spdif_dev_data *ctx;
 
 	struct device *dev = &pdev->dev;
-	struct device_node *node = dev->of_node;
+	struct device_analde *analde = dev->of_analde;
 
 	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctx->axi_clk = devm_clk_get(dev, "s_axi_aclk");
 	if (IS_ERR(ctx->axi_clk)) {
@@ -265,9 +265,9 @@ static int xlnx_spdif_probe(struct platform_device *pdev)
 		ret = PTR_ERR(ctx->base);
 		goto clk_err;
 	}
-	ret = of_property_read_u32(node, "xlnx,spdif-mode", &ctx->mode);
+	ret = of_property_read_u32(analde, "xlnx,spdif-mode", &ctx->mode);
 	if (ret < 0) {
-		dev_err(dev, "cannot get SPDIF mode\n");
+		dev_err(dev, "cananalt get SPDIF mode\n");
 		goto clk_err;
 	}
 	if (ctx->mode) {
@@ -281,7 +281,7 @@ static int xlnx_spdif_probe(struct platform_device *pdev)
 				       0, "XLNX_SPDIF_RX", ctx);
 		if (ret) {
 			dev_err(dev, "spdif rx irq request failed\n");
-			ret = -ENODEV;
+			ret = -EANALDEV;
 			goto clk_err;
 		}
 
@@ -289,9 +289,9 @@ static int xlnx_spdif_probe(struct platform_device *pdev)
 		dai_drv = &xlnx_spdif_rx_dai;
 	}
 
-	ret = of_property_read_u32(node, "xlnx,aud_clk_i", &ctx->aclk);
+	ret = of_property_read_u32(analde, "xlnx,aud_clk_i", &ctx->aclk);
 	if (ret < 0) {
-		dev_err(dev, "cannot get aud_clk_i value\n");
+		dev_err(dev, "cananalt get aud_clk_i value\n");
 		goto clk_err;
 	}
 

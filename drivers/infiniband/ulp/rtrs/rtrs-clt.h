@@ -3,8 +3,8 @@
  * RDMA Transport Layer
  *
  * Copyright (c) 2014 - 2018 ProfitBricks GmbH. All rights reserved.
- * Copyright (c) 2018 - 2019 1&1 IONOS Cloud GmbH. All rights reserved.
- * Copyright (c) 2019 - 2020 1&1 IONOS SE. All rights reserved.
+ * Copyright (c) 2018 - 2019 1&1 IOANALS Cloud GmbH. All rights reserved.
+ * Copyright (c) 2019 - 2020 1&1 IOANALS SE. All rights reserved.
  */
 
 #ifndef RTRS_CLT_H
@@ -107,13 +107,13 @@ struct rtrs_clt_io_req {
 	struct ib_sge		*sge;
 	struct rtrs_permit	*permit;
 	enum dma_data_direction dir;
-	void			(*conf)(void *priv, int errno);
+	void			(*conf)(void *priv, int erranal);
 	unsigned long		start_jiffies;
 
 	struct ib_mr		*mr;
 	struct ib_cqe		inv_cqe;
 	struct completion	inv_comp;
-	int			inv_errno;
+	int			inv_erranal;
 	bool			need_inv_comp;
 	bool			need_inv;
 	refcount_t		ref;

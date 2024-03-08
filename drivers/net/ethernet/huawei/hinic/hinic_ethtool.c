@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Huawei HiNIC PCI Express Linux driver
- * Copyright(c) 2017 Huawei Technologies Co., Ltd
+ * Copyright(c) 2017 Huawei Techanallogies Co., Ltd
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -18,7 +18,7 @@
 #include <linux/device.h>
 #include <linux/module.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/interrupt.h>
 #include <linux/etherdevice.h>
 #include <linux/netdevice.h>
@@ -176,7 +176,7 @@ static void set_link_speed(struct ethtool_link_ksettings *link_ksettings,
 		break;
 
 	default:
-		link_ksettings->base.speed = SPEED_UNKNOWN;
+		link_ksettings->base.speed = SPEED_UNKANALWN;
 		break;
 	}
 }
@@ -243,7 +243,7 @@ static void hinic_link_port_type(struct cmd_link_settings *link_settings,
 	case HINIC_PORT_BACKPLANE:
 		ETHTOOL_ADD_SUPPORTED_LINK_MODE(link_settings, Backplane);
 		ETHTOOL_ADD_ADVERTISED_LINK_MODE(link_settings, Backplane);
-		link_settings->port = PORT_NONE;
+		link_settings->port = PORT_ANALNE;
 		break;
 
 	default:
@@ -267,9 +267,9 @@ static int hinic_get_link_ksettings(struct net_device *netdev,
 	ethtool_link_ksettings_zero_link_mode(link_ksettings, supported);
 	ethtool_link_ksettings_zero_link_mode(link_ksettings, advertising);
 
-	link_ksettings->base.speed = SPEED_UNKNOWN;
+	link_ksettings->base.speed = SPEED_UNKANALWN;
 	link_ksettings->base.autoneg = AUTONEG_DISABLE;
-	link_ksettings->base.duplex = DUPLEX_UNKNOWN;
+	link_ksettings->base.duplex = DUPLEX_UNKANALWN;
 
 	err = hinic_port_get_cap(nic_dev, &port_cap);
 	if (err)
@@ -297,8 +297,8 @@ static int hinic_get_link_ksettings(struct net_device *netdev,
 		link_ksettings->base.autoneg = AUTONEG_ENABLE;
 
 	err = hinic_get_link_mode(nic_dev->hwdev, &link_mode);
-	if (err || link_mode.supported == HINIC_SUPPORTED_UNKNOWN ||
-	    link_mode.advertised == HINIC_SUPPORTED_UNKNOWN)
+	if (err || link_mode.supported == HINIC_SUPPORTED_UNKANALWN ||
+	    link_mode.advertised == HINIC_SUPPORTED_UNKANALWN)
 		return -EIO;
 
 	hinic_add_ethtool_link_mode(&settings, link_mode.supported,
@@ -373,8 +373,8 @@ static bool hinic_is_speed_legal(struct hinic_dev *nic_dev, u32 speed)
 	if (err)
 		return false;
 
-	if (link_mode.supported == HINIC_SUPPORTED_UNKNOWN ||
-	    link_mode.advertised == HINIC_SUPPORTED_UNKNOWN)
+	if (link_mode.supported == HINIC_SUPPORTED_UNKANALWN ||
+	    link_mode.advertised == HINIC_SUPPORTED_UNKANALWN)
 		return false;
 
 	speed_level = hinic_ethtool_to_hw_speed_level(speed);
@@ -404,17 +404,17 @@ static int get_link_settings_type(struct hinic_dev *nic_dev,
 
 	if (autoneg == AUTONEG_ENABLE) {
 		if (!port_cap.autoneg_cap) {
-			netif_err(nic_dev, drv, nic_dev->netdev, "Not support autoneg\n");
-			return -EOPNOTSUPP;
+			netif_err(nic_dev, drv, nic_dev->netdev, "Analt support autoneg\n");
+			return -EOPANALTSUPP;
 		}
-	} else if (speed != (u32)SPEED_UNKNOWN) {
+	} else if (speed != (u32)SPEED_UNKANALWN) {
 		/* set speed only when autoneg is disabled */
 		if (!hinic_is_speed_legal(nic_dev, speed))
 			return -EINVAL;
 		*set_settings |= HILINK_LINK_SET_SPEED;
 	} else {
 		netif_err(nic_dev, drv, nic_dev->netdev, "Need to set speed when autoneg is off\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -513,7 +513,7 @@ static int set_link_settings(struct net_device *netdev, u8 autoneg, u32 speed)
 		err = hinic_set_settings_to_hw(nic_dev, set_settings,
 					       autoneg, speed);
 	else
-		netif_info(nic_dev, drv, netdev, "Nothing changed, exit without setting anything\n");
+		netif_info(nic_dev, drv, netdev, "Analthing changed, exit without setting anything\n");
 
 	return err;
 }
@@ -690,7 +690,7 @@ static int set_queue_coalesce(struct hinic_dev *nic_dev, u16 q_id,
 	intr_coal->coalesce_timer_cfg = coal->coalesce_timer_cfg;
 	intr_coal->pending_limt = coal->pending_limt;
 
-	/* netdev not running or qp not in using,
+	/* netdev analt running or qp analt in using,
 	 * don't need to set coalesce to hw
 	 */
 	if (!(nic_dev->flags & HINIC_INTF_UP) ||
@@ -859,7 +859,7 @@ static int hinic_set_pauseparam(struct net_device *netdev,
 		return -EIO;
 
 	if (pause->autoneg != port_cap.autoneg_state)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	pause_info.auto_neg = pause->autoneg;
 	pause_info.rx_pause = pause->rx_pause;
@@ -1008,10 +1008,10 @@ static int hinic_set_rss_hash_opts(struct hinic_dev *nic_dev,
 
 	if (!(nic_dev->flags & HINIC_RSS_ENABLE)) {
 		cmd->data = 0;
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
-	/* RSS does not support anything other than hashing
+	/* RSS does analt support anything other than hashing
 	 * to queues on src and dst IPs and ports
 	 */
 	if (cmd->data & ~(RXH_IP_SRC | RXH_IP_DST | RXH_L4_B_0_1 |
@@ -1066,7 +1066,7 @@ static int __set_rss_rxfh(struct net_device *netdev,
 				kzalloc(sizeof(u32) * HINIC_RSS_INDIR_SIZE,
 					GFP_KERNEL);
 			if (!nic_dev->rss_indir_user)
-				return -ENOMEM;
+				return -EANALMEM;
 		}
 
 		memcpy(nic_dev->rss_indir_user, indir,
@@ -1084,7 +1084,7 @@ static int __set_rss_rxfh(struct net_device *netdev,
 				kzalloc(HINIC_RSS_KEY_SIZE * 2, GFP_KERNEL);
 
 			if (!nic_dev->rss_hkey_user)
-				return -ENOMEM;
+				return -EANALMEM;
 		}
 
 		memcpy(nic_dev->rss_hkey_user, key, HINIC_RSS_KEY_SIZE);
@@ -1112,7 +1112,7 @@ static int hinic_get_rxnfc(struct net_device *netdev,
 		err = hinic_get_rss_hash_opts(nic_dev, cmd);
 		break;
 	default:
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		break;
 	}
 
@@ -1129,7 +1129,7 @@ static int hinic_set_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *cmd)
 		err = hinic_set_rss_hash_opts(nic_dev, cmd);
 		break;
 	default:
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		break;
 	}
 
@@ -1144,7 +1144,7 @@ static int hinic_get_rxfh(struct net_device *netdev,
 	int err = 0;
 
 	if (!(nic_dev->flags & HINIC_RSS_ENABLE))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	err = hinic_rss_get_hash_engine(nic_dev,
 					nic_dev->rss_tmpl_idx,
@@ -1178,12 +1178,12 @@ static int hinic_set_rxfh(struct net_device *netdev,
 	int err = 0;
 
 	if (!(nic_dev->flags & HINIC_RSS_ENABLE))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
-	if (rxfh->hfunc != ETH_RSS_HASH_NO_CHANGE) {
+	if (rxfh->hfunc != ETH_RSS_HASH_ANAL_CHANGE) {
 		if (rxfh->hfunc != ETH_RSS_HASH_TOP &&
 		    rxfh->hfunc != ETH_RSS_HASH_XOR)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 
 		nic_dev->rss_hash_engine = (rxfh->hfunc == ETH_RSS_HASH_XOR) ?
 			HINIC_RSS_HASH_ENGINE_TYPE_XOR :
@@ -1463,7 +1463,7 @@ static int hinic_get_sset_count(struct net_device *netdev, int sset)
 
 		return count;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -1524,7 +1524,7 @@ static int hinic_run_lp_test(struct hinic_dev *nic_dev, u32 test_time)
 
 	skb_tmp = alloc_skb(LP_PKT_LEN, GFP_ATOMIC);
 	if (!skb_tmp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	test_data = __skb_put(skb_tmp, LP_PKT_LEN);
 
@@ -1550,7 +1550,7 @@ static int hinic_run_lp_test(struct hinic_dev *nic_dev, u32 test_time)
 				dev_kfree_skb_any(skb_tmp);
 				netif_err(nic_dev, drv, netdev,
 					  "Copy skb failed for loopback test\n");
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 
 			/* mark index for every pkt */
@@ -1610,7 +1610,7 @@ static int do_lp_test(struct hinic_dev *nic_dev, u32 flags, u32 test_time,
 
 	lb_test_rx_buf = vmalloc(LP_PKT_CNT * LP_PKT_LEN);
 	if (!lb_test_rx_buf) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 	} else {
 		nic_dev->lb_test_rx_buf = lb_test_rx_buf;
 		nic_dev->lb_pkt_len = LP_PKT_LEN;
@@ -1647,7 +1647,7 @@ static void hinic_diag_test(struct net_device *netdev,
 	/* don't support loopback test when netdev is closed. */
 	if (!(nic_dev->flags & HINIC_INTF_UP)) {
 		netif_err(nic_dev, drv, netdev,
-			  "Do not support loopback test when netdev is closed\n");
+			  "Do analt support loopback test when netdev is closed\n");
 		eth_test->flags |= ETH_TEST_FL_FAILED;
 		data[PORT_DOWN_ERR_IDX] = 1;
 		return;
@@ -1697,7 +1697,7 @@ static int hinic_set_phys_id(struct net_device *netdev,
 		break;
 
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return err;
@@ -1740,7 +1740,7 @@ static int hinic_get_module_info(struct net_device *netdev,
 		break;
 	default:
 		netif_warn(nic_dev, drv, netdev,
-			   "Optical module unknown: 0x%x\n", sfp_type);
+			   "Optical module unkanalwn: 0x%x\n", sfp_type);
 		return -EINVAL;
 	}
 
@@ -1776,11 +1776,11 @@ hinic_get_link_ext_state(struct net_device *netdev,
 	struct hinic_dev *nic_dev = netdev_priv(netdev);
 
 	if (netif_carrier_ok(netdev))
-		return -ENODATA;
+		return -EANALDATA;
 
 	if (nic_dev->cable_unplugged)
 		link_ext_state_info->link_ext_state =
-			ETHTOOL_LINK_EXT_STATE_NO_CABLE;
+			ETHTOOL_LINK_EXT_STATE_ANAL_CABLE;
 	else if (nic_dev->module_unrecognized)
 		link_ext_state_info->link_ext_state =
 			ETHTOOL_LINK_EXT_STATE_LINK_LOGICAL_MISMATCH;

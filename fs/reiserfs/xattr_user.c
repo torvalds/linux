@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include "reiserfs.h"
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/fs.h>
 #include <linux/pagemap.h>
 #include <linux/xattr.h>
@@ -9,23 +9,23 @@
 
 static int
 user_get(const struct xattr_handler *handler, struct dentry *unused,
-	 struct inode *inode, const char *name, void *buffer, size_t size)
+	 struct ianalde *ianalde, const char *name, void *buffer, size_t size)
 {
-	if (!reiserfs_xattrs_user(inode->i_sb))
-		return -EOPNOTSUPP;
-	return reiserfs_xattr_get(inode, xattr_full_name(handler, name),
+	if (!reiserfs_xattrs_user(ianalde->i_sb))
+		return -EOPANALTSUPP;
+	return reiserfs_xattr_get(ianalde, xattr_full_name(handler, name),
 				  buffer, size);
 }
 
 static int
 user_set(const struct xattr_handler *handler, struct mnt_idmap *idmap,
 	 struct dentry *unused,
-	 struct inode *inode, const char *name, const void *buffer,
+	 struct ianalde *ianalde, const char *name, const void *buffer,
 	 size_t size, int flags)
 {
-	if (!reiserfs_xattrs_user(inode->i_sb))
-		return -EOPNOTSUPP;
-	return reiserfs_xattr_set(inode,
+	if (!reiserfs_xattrs_user(ianalde->i_sb))
+		return -EOPANALTSUPP;
+	return reiserfs_xattr_set(ianalde,
 				  xattr_full_name(handler, name),
 				  buffer, size, flags);
 }

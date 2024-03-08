@@ -33,7 +33,7 @@ properties:
       Address and length of the IO space, as well as the address
       and length of the AXI DMA controller IO space, unless
       axistream-connected is specified, in which case the reg
-      attribute of the node referenced by it is used.
+      attribute of the analde referenced by it is used.
     maxItems: 2
 
   interrupts:
@@ -43,8 +43,8 @@ properties:
       - description: Rx DMA interrupt
     description:
       Ethernet core interrupt is optional. If axistream-connected property is
-      present DMA node should contains TX/RX DMA interrupts else DMA interrupt
-      resources are mentioned on ethernet node.
+      present DMA analde should contains TX/RX DMA interrupts else DMA interrupt
+      resources are mentioned on ethernet analde.
     minItems: 1
 
   phy-handle: true
@@ -64,7 +64,7 @@ properties:
 
   xlnx,phy-type:
     description:
-      Do not use, but still accepted in preference to phy-mode.
+      Do analt use, but still accepted in preference to phy-mode.
     deprecated: true
     $ref: /schemas/types.yaml#/definitions/uint32
 

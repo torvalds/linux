@@ -183,7 +183,7 @@ static inline void dump_user_code(struct pt_regs *regs)
 	char buf[32];
 
 	if (copy_from_user(buf, (void __user *)(regs->pc & -16), sizeof(buf)) == 0) {
-		print_hex_dump(KERN_INFO, " ", DUMP_PREFIX_NONE,
+		print_hex_dump(KERN_INFO, " ", DUMP_PREFIX_ANALNE,
 			       32, 1, buf, sizeof(buf), false);
 
 	}
@@ -200,12 +200,12 @@ static inline void dump_user_code(struct pt_regs *regs)
 
 void do_unhandled(struct pt_regs *regs)
 {
-	__die_if_kernel("Caught unhandled exception - should not happen",
+	__die_if_kernel("Caught unhandled exception - should analt happen",
 			regs, SIGKILL);
 
 	/* If in user mode, send SIGILL signal to current process */
 	pr_info_ratelimited("Caught unhandled exception in '%s' "
-			    "(pid = %d, pc = %#010lx) - should not happen\n"
+			    "(pid = %d, pc = %#010lx) - should analt happen\n"
 			    "\tEXCCAUSE is %ld\n",
 			    current->comm, task_pid_nr(current), regs->pc,
 			    regs->exccause);
@@ -346,8 +346,8 @@ static void do_illegal_instruction(struct pt_regs *regs)
 	 * When call0 application encounters an illegal instruction fast
 	 * exception handler will attempt to set PS.WOE and retry failing
 	 * instruction.
-	 * If we get here we know that that instruction is also illegal
-	 * with PS.WOE set, so it's not related to the windowed option
+	 * If we get here we kanalw that that instruction is also illegal
+	 * with PS.WOE set, so it's analt related to the windowed option
 	 * hence PS.WOE may be cleared.
 	 */
 	if (regs->pc == current_thread_info()->ps_woe_fix_addr)
@@ -389,7 +389,7 @@ static void do_load_store(struct pt_regs *regs)
 /*
  * Handle unaligned memory accesses from user space. Kill task.
  *
- * If CONFIG_UNALIGNED_USER is not set, we don't allow unaligned memory
+ * If CONFIG_UNALIGNED_USER is analt set, we don't allow unaligned memory
  * accesses causes from user space.
  */
 
@@ -594,7 +594,7 @@ static int show_stack_fragment_cb(struct stackframe *frame, void *data)
 			arrow = true;
 
 		__memcpy(line, sf->sp + sf->off, line_len);
-		print_hex_dump(sf->loglvl, arrow ? "> " : "  ", DUMP_PREFIX_NONE,
+		print_hex_dump(sf->loglvl, arrow ? "> " : "  ", DUMP_PREFIX_ANALNE,
 			       STACK_DUMP_LINE_SIZE, STACK_DUMP_ENTRY_SIZE,
 			       line, line_len, false);
 		sf->off += STACK_DUMP_LINE_SIZE;
@@ -626,7 +626,7 @@ void show_stack(struct task_struct *task, unsigned long *sp, const char *loglvl)
 
 DEFINE_SPINLOCK(die_lock);
 
-void __noreturn die(const char * str, struct pt_regs * regs, long err)
+void __analreturn die(const char * str, struct pt_regs * regs, long err)
 {
 	static int die_counter;
 	const char *pr = "";
@@ -642,7 +642,7 @@ void __noreturn die(const char * str, struct pt_regs * regs, long err)
 	if (!user_mode(regs))
 		show_stack(NULL, (unsigned long *)regs->areg[1], KERN_INFO);
 
-	add_taint(TAINT_DIE, LOCKDEP_NOW_UNRELIABLE);
+	add_taint(TAINT_DIE, LOCKDEP_ANALW_UNRELIABLE);
 	spin_unlock_irq(&die_lock);
 
 	if (in_interrupt())

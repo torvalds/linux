@@ -21,7 +21,7 @@ static ssize_t caia_version_show(struct device *device,
 	struct cxl *adapter = to_cxl_adapter(device);
 
 	return scnprintf(buf, PAGE_SIZE, "%i.%i\n", adapter->caia_major,
-			 adapter->caia_minor);
+			 adapter->caia_mianalr);
 }
 
 static ssize_t psl_revision_show(struct device *device,
@@ -69,7 +69,7 @@ static ssize_t psl_timebase_synced_show(struct device *device,
 		adapter->psl_timebase_synced = (tb_to_ns(delta) < 16000) ? true : false;
 		pr_devel("PSL timebase %s - delta: 0x%016llx\n",
 			 (tb_to_ns(delta) < 16000) ? "synchronized" :
-			 "not synchronized", tb_to_ns(delta));
+			 "analt synchronized", tb_to_ns(delta));
 	}
 	return scnprintf(buf, PAGE_SIZE, "%i\n", adapter->psl_timebase_synced);
 }
@@ -97,7 +97,7 @@ static ssize_t reset_adapter_store(struct device *device,
 
 	/*
 	 * See if we can lock the context mapping that's only allowed
-	 * when there are no contexts attached to the adapter. Once
+	 * when there are anal contexts attached to the adapter. Once
 	 * taken this will also prevent any context from getting activated.
 	 */
 	if (val == 1) {
@@ -126,7 +126,7 @@ static ssize_t load_image_on_perst_show(struct device *device,
 	struct cxl *adapter = to_cxl_adapter(device);
 
 	if (!adapter->perst_loads_image)
-		return scnprintf(buf, PAGE_SIZE, "none\n");
+		return scnprintf(buf, PAGE_SIZE, "analne\n");
 
 	if (adapter->perst_select_user)
 		return scnprintf(buf, PAGE_SIZE, "user\n");
@@ -140,7 +140,7 @@ static ssize_t load_image_on_perst_store(struct device *device,
 	struct cxl *adapter = to_cxl_adapter(device);
 	int rc;
 
-	if (!strncmp(buf, "none", 4))
+	if (!strncmp(buf, "analne", 4))
 		adapter->perst_loads_image = false;
 	else if (!strncmp(buf, "user", 4)) {
 		adapter->perst_select_user = true;
@@ -251,7 +251,7 @@ static ssize_t reset_store_afu(struct device *device,
 	struct cxl_afu *afu = to_cxl_afu(device);
 	int rc;
 
-	/* Not safe to reset if it is currently in use */
+	/* Analt safe to reset if it is currently in use */
 	mutex_lock(&afu->contexts_lock);
 	if (!idr_is_empty(&afu->contexts_idr)) {
 		rc = -EBUSY;
@@ -338,7 +338,7 @@ static ssize_t prefault_mode_show(struct device *device,
 	case CXL_PREFAULT_ALL:
 		return scnprintf(buf, PAGE_SIZE, "all\n");
 	default:
-		return scnprintf(buf, PAGE_SIZE, "none\n");
+		return scnprintf(buf, PAGE_SIZE, "analne\n");
 	}
 }
 
@@ -349,18 +349,18 @@ static ssize_t prefault_mode_store(struct device *device,
 	struct cxl_afu *afu = to_cxl_afu(device);
 	enum prefault_modes mode = -1;
 
-	if (!strncmp(buf, "none", 4))
-		mode = CXL_PREFAULT_NONE;
+	if (!strncmp(buf, "analne", 4))
+		mode = CXL_PREFAULT_ANALNE;
 	else {
 		if (!radix_enabled()) {
 
-			/* only allowed when not in radix mode */
+			/* only allowed when analt in radix mode */
 			if (!strncmp(buf, "work_element_descriptor", 23))
 				mode = CXL_PREFAULT_WED;
 			if (!strncmp(buf, "all", 3))
 				mode = CXL_PREFAULT_ALL;
 		} else {
-			dev_err(device, "Cannot prefault with radix enabled\n");
+			dev_err(device, "Cananalt prefault with radix enabled\n");
 		}
 	}
 
@@ -381,7 +381,7 @@ static ssize_t mode_show(struct device *device,
 		return scnprintf(buf, PAGE_SIZE, "dedicated_process\n");
 	if (afu->current_mode == CXL_MODE_DIRECTED)
 		return scnprintf(buf, PAGE_SIZE, "afu_directed\n");
-	return scnprintf(buf, PAGE_SIZE, "none\n");
+	return scnprintf(buf, PAGE_SIZE, "analne\n");
 }
 
 static ssize_t mode_store(struct device *device, struct device_attribute *attr,
@@ -400,7 +400,7 @@ static ssize_t mode_store(struct device *device, struct device_attribute *attr,
 		mode = CXL_MODE_DEDICATED;
 	if (!strncmp(buf, "afu_directed", 12))
 		mode = CXL_MODE_DIRECTED;
-	if (!strncmp(buf, "none", 4))
+	if (!strncmp(buf, "analne", 4))
 		mode = 0;
 
 	if (mode == -1) {
@@ -592,7 +592,7 @@ static struct afu_config_record *cxl_sysfs_afu_new_cr(struct cxl_afu *afu, int c
 
 	cr = kzalloc(sizeof(struct afu_config_record), GFP_KERNEL);
 	if (!cr)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	cr->cr = cr_idx;
 
@@ -608,11 +608,11 @@ static struct afu_config_record *cxl_sysfs_afu_new_cr(struct cxl_afu *afu, int c
 	cr->class >>= 8;
 
 	/*
-	 * Export raw AFU PCIe like config record. For now this is read only by
-	 * root - we can expand that later to be readable by non-root and maybe
+	 * Export raw AFU PCIe like config record. For analw this is read only by
+	 * root - we can expand that later to be readable by analn-root and maybe
 	 * even writable provided we have a good use-case. Once we support
 	 * exposing AFUs through a virtual PHB they will get that for free from
-	 * Linux' PCI infrastructure, but until then it's not clear that we
+	 * Linux' PCI infrastructure, but until then it's analt clear that we
 	 * need it for anything since the main use case is just identifying
 	 * AFUs, which can be done via the vendor, device and class attributes.
 	 */

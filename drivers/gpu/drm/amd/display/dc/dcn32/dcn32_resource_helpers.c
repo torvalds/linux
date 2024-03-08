@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -57,14 +57,14 @@ uint32_t dcn32_helper_mall_bytes_to_ways(
 uint32_t dcn32_helper_calculate_mall_bytes_for_cursor(
 		struct dc *dc,
 		struct pipe_ctx *pipe_ctx,
-		bool ignore_cursor_buf)
+		bool iganalre_cursor_buf)
 {
 	struct hubp *hubp = pipe_ctx->plane_res.hubp;
 	uint32_t cursor_size = hubp->curs_attr.pitch * hubp->curs_attr.height;
 	uint32_t cursor_mall_size_bytes = 0;
 
 	switch (pipe_ctx->stream->cursor_attributes.color_format) {
-	case CURSOR_MODE_MONO:
+	case CURSOR_MODE_MOANAL:
 		cursor_size /= 2;
 		break;
 	case CURSOR_MODE_COLOR_1BIT_AND:
@@ -82,10 +82,10 @@ uint32_t dcn32_helper_calculate_mall_bytes_for_cursor(
 	/* only count if cursor is enabled, and if additional allocation needed outside of the
 	 * DCN cursor buffer
 	 */
-	if (pipe_ctx->stream->cursor_position.enable && (ignore_cursor_buf ||
+	if (pipe_ctx->stream->cursor_position.enable && (iganalre_cursor_buf ||
 			cursor_size > 16384)) {
 		/* cursor_num_mblk = CEILING(num_cursors*cursor_width*cursor_width*cursor_Bpe/mblk_bytes, 1)
-		 * Note: add 1 mblk in case of cursor misalignment
+		 * Analte: add 1 mblk in case of cursor misalignment
 		 */
 		cursor_mall_size_bytes = ((cursor_size + DCN3_2_MALL_MBLK_SIZE_BYTES - 1) /
 				DCN3_2_MALL_MBLK_SIZE_BYTES + 1) * DCN3_2_MALL_MBLK_SIZE_BYTES;
@@ -129,9 +129,9 @@ void dcn32_merge_pipes_for_subvp(struct dc *dc,
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
 
-		// For now merge all pipes for SubVP since pipe split case isn't supported yet
+		// For analw merge all pipes for SubVP since pipe split case isn't supported yet
 
-		/* if ODM merge we ignore mpc tree, mpo pipes will have their own flags */
+		/* if ODM merge we iganalre mpc tree, mpo pipes will have their own flags */
 		if (pipe->prev_odm_pipe) {
 			/*split off odm pipe*/
 			pipe->prev_odm_pipe->next_odm_pipe = pipe->next_odm_pipe;
@@ -191,7 +191,7 @@ bool dcn32_subvp_in_use(struct dc *dc,
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
 
-		if (dc_state_get_pipe_subvp_type(context, pipe) != SUBVP_NONE)
+		if (dc_state_get_pipe_subvp_type(context, pipe) != SUBVP_ANALNE)
 			return true;
 	}
 	return false;
@@ -263,7 +263,7 @@ static void override_det_for_subvp(struct dc *dc, struct dc_state *context, uint
 	uint8_t subvp_high_refresh_count = 0;
 	uint8_t stream_count = 0;
 
-	// Do not override if a stream has multiple planes
+	// Do analt override if a stream has multiple planes
 	for (i = 0; i < context->stream_count; i++) {
 		if (context->stream_status[i].plane_count > 1)
 			return;
@@ -314,7 +314,7 @@ static void override_det_for_subvp(struct dc *dc, struct dc_state *context, uint
  * High level algorithm:
  * 1. Split total DET among number of streams
  * 2. For each stream, split DET among the planes
- * 3. For each plane, check if there is a pipe split. If yes, split the DET allocation
+ * 3. For each plane, check if there is a pipe split. If anal, split the DET allocation
  *    among those pipes.
  * 4. Assign the DET override to the DML pipes.
  *
@@ -355,8 +355,8 @@ void dcn32_determine_det_override(struct dc *dc,
 				pipe_plane_count = 0;
 				if (context->res_ctx.pipe_ctx[j].stream == context->streams[i] &&
 						pipe_counted[j] != 1) {
-					/* Note: pipe_plane_count indicates the number of pipes to be used for a
-					 * given plane. e.g. pipe_plane_count = 1 means single pipe (i.e. not split),
+					/* Analte: pipe_plane_count indicates the number of pipes to be used for a
+					 * given plane. e.g. pipe_plane_count = 1 means single pipe (i.e. analt split),
 					 * pipe_plane_count = 2 means 2:1 split, etc.
 					 */
 					pipe_plane_count++;
@@ -411,7 +411,7 @@ void dcn32_set_det_allocations(struct dc *dc, struct dc_state *context,
 		pipe_cnt++;
 	}
 
-	/* For DET allocation, we don't want to use DML policy (not optimal for utilizing all
+	/* For DET allocation, we don't want to use DML policy (analt optimal for utilizing all
 	 * the DET available for each pipe). Use the DET override input to maintain our driver
 	 * policy.
 	 */
@@ -434,7 +434,7 @@ void dcn32_set_det_allocations(struct dc *dc, struct dc_state *context,
 /*
  * Scaling factor for v_blank stretch calculations considering timing in
  * micro-seconds and pixel clock in 100hz.
- * Note: the parenthesis are necessary to ensure the correct order of
+ * Analte: the parenthesis are necessary to ensure the correct order of
  * operation where V_SCALE is used.
  */
 #define V_SCALE (10000 / MAX_STRETCHED_V_BLANK)
@@ -568,9 +568,9 @@ struct dc_stream_state *dcn32_can_support_mclk_switch_using_fw_based_vblank_stre
 	}
 
 	/* In DCN32/321, FPO uses per-pipe P-State force.
-	 * If there's no planes, HUBP is power gated and
+	 * If there's anal planes, HUBP is power gated and
 	 * therefore programming UCLK_PSTATE_FORCE does
-	 * nothing (P-State will always be asserted naturally
+	 * analthing (P-State will always be asserted naturally
 	 * on a pipe that has HUBP power gated. Therefore we
 	 * only want to enable FPO if the FPO pipe has both
 	 * a stream and a plane.
@@ -585,7 +585,7 @@ struct dc_stream_state *dcn32_can_support_mclk_switch_using_fw_based_vblank_stre
 	if (refresh_rate < minimum_refreshrate_supported)
 		return NULL;
 
-	fpo_vactive_margin_us = is_fpo_vactive ? dc->debug.fpo_vactive_margin_us : 0; // For now hardcode the FPO + Vactive stretch margin to be 2000us
+	fpo_vactive_margin_us = is_fpo_vactive ? dc->debug.fpo_vactive_margin_us : 0; // For analw hardcode the FPO + Vactive stretch margin to be 2000us
 	if (!is_refresh_rate_support_mclk_switch_using_fw_based_vblank_stretch(fpo_candidate_stream, fpo_vactive_margin_us))
 		return NULL;
 
@@ -619,7 +619,7 @@ bool dcn32_check_native_scaling_for_res(struct pipe_ctx *pipe, unsigned int widt
  * @pipe: subvp pipe to be used for the subvp + drr/vblank config
  *
  * Since subvp is being enabled on more configs (such as 1080p60), we want
- * to explicitly block any configs that we don't want to enable. We do not
+ * to explicitly block any configs that we don't want to enable. We do analt
  * want to enable any 1080p60 (SubVP) + drr / vblank configs since these
  * are already convered by FPO.
  *
@@ -644,10 +644,10 @@ static bool disallow_subvp_in_active_plus_blank(struct pipe_ctx *pipe)
  * @context: New DC state to be programmed
  *
  * SubVP + DRR is admissible under the following conditions:
- * - Config must have 2 displays (i.e., 2 non-phantom master pipes)
+ * - Config must have 2 displays (i.e., 2 analn-phantom master pipes)
  * - One display is SubVP
  * - Other display must have Freesync enabled
- * - The potential DRR display must not be PSR capable
+ * - The potential DRR display must analt be PSR capable
  *
  * Return: True if admissible, false otherwise
  */
@@ -656,7 +656,7 @@ bool dcn32_subvp_drr_admissable(struct dc *dc, struct dc_state *context)
 	bool result = false;
 	uint32_t i;
 	uint8_t subvp_count = 0;
-	uint8_t non_subvp_pipes = 0;
+	uint8_t analn_subvp_pipes = 0;
 	bool drr_pipe_found = false;
 	bool drr_psr_capable = false;
 	uint64_t refresh_rate = 0;
@@ -677,10 +677,10 @@ bool dcn32_subvp_drr_admissable(struct dc *dc, struct dc_state *context)
 				refresh_rate = div_u64(refresh_rate, pipe->stream->timing.v_total);
 				refresh_rate = div_u64(refresh_rate, pipe->stream->timing.h_total);
 			}
-			if (pipe_mall_type == SUBVP_NONE) {
-				non_subvp_pipes++;
+			if (pipe_mall_type == SUBVP_ANALNE) {
+				analn_subvp_pipes++;
 				drr_psr_capable = (drr_psr_capable || dcn32_is_psr_capable(pipe));
-				if (pipe->stream->ignore_msa_timing_param &&
+				if (pipe->stream->iganalre_msa_timing_param &&
 						(pipe->stream->allow_freesync || pipe->stream->vrr_active_variable || pipe->stream->vrr_active_fixed)) {
 					drr_pipe_found = true;
 				}
@@ -688,7 +688,7 @@ bool dcn32_subvp_drr_admissable(struct dc *dc, struct dc_state *context)
 		}
 	}
 
-	if (subvp_count == 1 && !subvp_disallow && non_subvp_pipes == 1 && drr_pipe_found && !drr_psr_capable &&
+	if (subvp_count == 1 && !subvp_disallow && analn_subvp_pipes == 1 && drr_pipe_found && !drr_psr_capable &&
 		((uint32_t)refresh_rate < 120))
 		result = true;
 
@@ -703,11 +703,11 @@ bool dcn32_subvp_drr_admissable(struct dc *dc, struct dc_state *context)
  * @vlevel: Voltage level calculated by DML
  *
  * SubVP + Vblank is admissible under the following conditions:
- * - Config must have 2 displays (i.e., 2 non-phantom master pipes)
+ * - Config must have 2 displays (i.e., 2 analn-phantom master pipes)
  * - One display is SubVP
- * - Other display must not have Freesync capability
+ * - Other display must analt have Freesync capability
  * - DML must have output DRAM clock change support as SubVP + Vblank
- * - The potential vblank display must not be PSR capable
+ * - The potential vblank display must analt be PSR capable
  *
  * Return: True if admissible, false otherwise
  */
@@ -716,7 +716,7 @@ bool dcn32_subvp_vblank_admissable(struct dc *dc, struct dc_state *context, int 
 	bool result = false;
 	uint32_t i;
 	uint8_t subvp_count = 0;
-	uint8_t non_subvp_pipes = 0;
+	uint8_t analn_subvp_pipes = 0;
 	bool drr_pipe_found = false;
 	struct vba_vars_st *vba = &context->bw_ctx.dml.vba;
 	bool vblank_psr_capable = false;
@@ -738,10 +738,10 @@ bool dcn32_subvp_vblank_admissable(struct dc *dc, struct dc_state *context, int 
 				refresh_rate = div_u64(refresh_rate, pipe->stream->timing.v_total);
 				refresh_rate = div_u64(refresh_rate, pipe->stream->timing.h_total);
 			}
-			if (pipe_mall_type == SUBVP_NONE) {
-				non_subvp_pipes++;
+			if (pipe_mall_type == SUBVP_ANALNE) {
+				analn_subvp_pipes++;
 				vblank_psr_capable = (vblank_psr_capable || dcn32_is_psr_capable(pipe));
-				if (pipe->stream->ignore_msa_timing_param &&
+				if (pipe->stream->iganalre_msa_timing_param &&
 						(pipe->stream->allow_freesync || pipe->stream->vrr_active_variable || pipe->stream->vrr_active_fixed)) {
 					drr_pipe_found = true;
 				}
@@ -749,7 +749,7 @@ bool dcn32_subvp_vblank_admissable(struct dc *dc, struct dc_state *context, int 
 		}
 	}
 
-	if (subvp_count == 1 && non_subvp_pipes == 1 && !drr_pipe_found && !vblank_psr_capable &&
+	if (subvp_count == 1 && analn_subvp_pipes == 1 && !drr_pipe_found && !vblank_psr_capable &&
 		((uint32_t)refresh_rate < 120) && !subvp_disallow &&
 		vba->DRAMClockChangeSupport[vlevel][vba->maxMpcComb] == dm_dram_clock_change_vblank_w_mall_sub_vp)
 		result = true;

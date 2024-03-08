@@ -175,13 +175,13 @@ static int zet6223_probe(struct i2c_client *client)
 	int error;
 
 	if (!client->irq) {
-		dev_err(dev, "no irq specified\n");
+		dev_err(dev, "anal irq specified\n");
 		return -EINVAL;
 	}
 
 	ts = devm_kzalloc(dev, sizeof(*ts), GFP_KERNEL);
 	if (!ts)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ts->client = client;
 
@@ -195,7 +195,7 @@ static int zet6223_probe(struct i2c_client *client)
 
 	ts->input = input = devm_input_allocate_device(dev);
 	if (!input)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	input_set_drvdata(input, ts);
 

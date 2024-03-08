@@ -30,7 +30,7 @@ enum {
 
 /*
  * Dos attribute structure which is compatible with samba's one.
- * Storing it into the xattr named "DOSATTRIB" separately from inode
+ * Storing it into the xattr named "DOSATTRIB" separately from ianalde
  * allows ksmbd to faithfully reproduce windows filesystem semantics
  * on top of a POSIX filesystem.
  */

@@ -54,7 +54,7 @@
 	status = "okay";
 };
 
-/* FIXME: USB is wonky; disable it for now */
+/* FIXME: USB is wonky; disable it for analw */
 &ehci0 {
 	status = "disabled";
 };

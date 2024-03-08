@@ -14,7 +14,7 @@
 #include <linux/export.h>
 #include <asm/asm.h>
 #include <asm/asmmacro.h>
-#include <asm/errno.h>
+#include <asm/erranal.h>
 #include <asm/fpregdef.h>
 #include <asm/mipsregs.h>
 #include <asm/asm-offsets.h>
@@ -52,7 +52,7 @@ LEAF(_restore_fp)
 	jr	ra
 	END(_restore_fp)
 
-	.set	noreorder
+	.set	analreorder
 
 /**
  * _save_fp_context() - save FP context from the FPU

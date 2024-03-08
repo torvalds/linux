@@ -4,7 +4,7 @@
  *
  * TI OMAP3 ISP - Resizer module
  *
- * Copyright (C) 2010 Nokia Corporation
+ * Copyright (C) 2010 Analkia Corporation
  * Copyright (C) 2009 Texas Instruments, Inc
  *
  * Contacts: Laurent Pinchart <laurent.pinchart@ideasonboard.com>
@@ -72,7 +72,7 @@ struct resizer_luma_yenh {
 };
 
 enum resizer_input_entity {
-	RESIZER_INPUT_NONE,
+	RESIZER_INPUT_ANALNE,
 	RESIZER_INPUT_VP,	/* input video port - prev or ccdc */
 	RESIZER_INPUT_MEMORY,
 };

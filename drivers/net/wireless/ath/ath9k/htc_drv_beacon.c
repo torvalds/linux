@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -165,7 +165,7 @@ static void ath9k_htc_send_buffered(struct ath9k_htc_priv *priv,
 
 		tx_slot = ath9k_htc_tx_get_slot(priv);
 		if (tx_slot < 0) {
-			ath_dbg(common, XMIT, "No free CAB slot\n");
+			ath_dbg(common, XMIT, "Anal free CAB slot\n");
 			dev_kfree_skb_any(skb);
 			goto next;
 		}
@@ -232,9 +232,9 @@ static void ath9k_htc_send_beacon(struct ath9k_htc_priv *priv,
 	if (info->flags & IEEE80211_TX_CTL_ASSIGN_SEQ) {
 		struct ieee80211_hdr *hdr =
 			(struct ieee80211_hdr *) beacon->data;
-		avp->seq_no += 0x10;
+		avp->seq_anal += 0x10;
 		hdr->seq_ctrl &= cpu_to_le16(IEEE80211_SCTL_FRAG);
-		hdr->seq_ctrl |= cpu_to_le16(avp->seq_no);
+		hdr->seq_ctrl |= cpu_to_le16(avp->seq_anal);
 	}
 
 	tx_ctl = HTC_SKB_CB(beacon);
@@ -249,9 +249,9 @@ static void ath9k_htc_send_beacon(struct ath9k_htc_priv *priv,
 
 	ret = htc_send(priv->htc, beacon);
 	if (ret != 0) {
-		if (ret == -ENOMEM) {
+		if (ret == -EANALMEM) {
 			ath_dbg(common, BSTUCK,
-				"Failed to send beacon, no free TX buffer\n");
+				"Failed to send beacon, anal free TX buffer\n");
 		}
 		dev_kfree_skb_any(beacon);
 	}
@@ -371,7 +371,7 @@ void ath9k_htc_set_tsfadjust(struct ath9k_htc_priv *priv,
 		return;
 
 	/*
-	 * The beacon interval cannot be different for multi-AP mode,
+	 * The beacon interval cananalt be different for multi-AP mode,
 	 * and we reach here only for VIF slots greater than zero,
 	 * so beacon_interval is guaranteed to be set in cur_conf.
 	 */
@@ -416,12 +416,12 @@ static bool ath9k_htc_check_beacon_config(struct ath9k_htc_priv *priv,
 
 	/*
 	 * If the HW is operating in AP mode, any new station interfaces that
-	 * are added cannot change the beacon parameters.
+	 * are added cananalt change the beacon parameters.
 	 */
 	if (priv->num_ap_vif &&
 	    (vif->type != NL80211_IFTYPE_AP)) {
 		ath_dbg(common, CONFIG,
-			"HW in AP mode, cannot set STA beacon parameters\n");
+			"HW in AP mode, cananalt set STA beacon parameters\n");
 		return false;
 	}
 

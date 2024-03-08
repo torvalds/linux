@@ -24,7 +24,7 @@ static unsigned qnx6_lfile_checksum(char *name, unsigned size)
 	return crc;
 }
 
-static struct page *qnx6_get_page(struct inode *dir, unsigned long n)
+static struct page *qnx6_get_page(struct ianalde *dir, unsigned long n)
 {
 	struct address_space *mapping = dir->i_mapping;
 	struct page *page = read_mapping_page(mapping, n, NULL);
@@ -33,9 +33,9 @@ static struct page *qnx6_get_page(struct inode *dir, unsigned long n)
 	return page;
 }
 
-static unsigned last_entry(struct inode *inode, unsigned long page_nr)
+static unsigned last_entry(struct ianalde *ianalde, unsigned long page_nr)
 {
-	unsigned long last_byte = inode->i_size;
+	unsigned long last_byte = ianalde->i_size;
 	last_byte -= page_nr << PAGE_SHIFT;
 	if (last_byte > PAGE_SIZE)
 		last_byte = PAGE_SIZE;
@@ -47,7 +47,7 @@ static struct qnx6_long_filename *qnx6_longname(struct super_block *sb,
 					 struct page **p)
 {
 	struct qnx6_sb_info *sbi = QNX6_SB(sb);
-	u32 s = fs32_to_cpu(sbi, de->de_long_inode); /* in block units */
+	u32 s = fs32_to_cpu(sbi, de->de_long_ianalde); /* in block units */
 	u32 n = s >> (PAGE_SHIFT - sb->s_blocksize_bits); /* in pages */
 	/* within page */
 	u32 offs = (s << sb->s_blocksize_bits) & ~PAGE_MASK;
@@ -59,13 +59,13 @@ static struct qnx6_long_filename *qnx6_longname(struct super_block *sb,
 	return (struct qnx6_long_filename *)(page_address(page) + offs);
 }
 
-static int qnx6_dir_longfilename(struct inode *inode,
+static int qnx6_dir_longfilename(struct ianalde *ianalde,
 			struct qnx6_long_dir_entry *de,
 			struct dir_context *ctx,
-			unsigned de_inode)
+			unsigned de_ianalde)
 {
 	struct qnx6_long_filename *lf;
-	struct super_block *s = inode->i_sb;
+	struct super_block *s = ianalde->i_sb;
 	struct qnx6_sb_info *sbi = QNX6_SB(s);
 	struct page *page;
 	int lf_size;
@@ -92,14 +92,14 @@ static int qnx6_dir_longfilename(struct inode *inode,
 	}
 
 	/* calc & validate longfilename checksum
-	   mmi 3g filesystem does not have that checksum */
+	   mmi 3g filesystem does analt have that checksum */
 	if (!test_opt(s, MMI_FS) && fs32_to_cpu(sbi, de->de_checksum) !=
 			qnx6_lfile_checksum(lf->lf_fname, lf_size))
 		pr_info("long filename checksum error.\n");
 
-	pr_debug("qnx6_readdir:%.*s inode:%u\n",
-		 lf_size, lf->lf_fname, de_inode);
-	if (!dir_emit(ctx, lf->lf_fname, lf_size, de_inode, DT_UNKNOWN)) {
+	pr_debug("qnx6_readdir:%.*s ianalde:%u\n",
+		 lf_size, lf->lf_fname, de_ianalde);
+	if (!dir_emit(ctx, lf->lf_fname, lf_size, de_ianalde, DT_UNKANALWN)) {
 		qnx6_put_page(page);
 		return 0;
 	}
@@ -111,22 +111,22 @@ static int qnx6_dir_longfilename(struct inode *inode,
 
 static int qnx6_readdir(struct file *file, struct dir_context *ctx)
 {
-	struct inode *inode = file_inode(file);
-	struct super_block *s = inode->i_sb;
+	struct ianalde *ianalde = file_ianalde(file);
+	struct super_block *s = ianalde->i_sb;
 	struct qnx6_sb_info *sbi = QNX6_SB(s);
 	loff_t pos = ctx->pos & ~(QNX6_DIR_ENTRY_SIZE - 1);
-	unsigned long npages = dir_pages(inode);
+	unsigned long npages = dir_pages(ianalde);
 	unsigned long n = pos >> PAGE_SHIFT;
 	unsigned start = (pos & ~PAGE_MASK) / QNX6_DIR_ENTRY_SIZE;
 	bool done = false;
 
 	ctx->pos = pos;
-	if (ctx->pos >= inode->i_size)
+	if (ctx->pos >= ianalde->i_size)
 		return 0;
 
 	for ( ; !done && n < npages; n++, start = 0) {
-		struct page *page = qnx6_get_page(inode, n);
-		int limit = last_entry(inode, n);
+		struct page *page = qnx6_get_page(ianalde, n);
+		int limit = last_entry(ianalde, n);
 		struct qnx6_dir_entry *de;
 		int i = start;
 
@@ -138,27 +138,27 @@ static int qnx6_readdir(struct file *file, struct dir_context *ctx)
 		de = ((struct qnx6_dir_entry *)page_address(page)) + start;
 		for (; i < limit; i++, de++, ctx->pos += QNX6_DIR_ENTRY_SIZE) {
 			int size = de->de_size;
-			u32 no_inode = fs32_to_cpu(sbi, de->de_inode);
+			u32 anal_ianalde = fs32_to_cpu(sbi, de->de_ianalde);
 
-			if (!no_inode || !size)
+			if (!anal_ianalde || !size)
 				continue;
 
 			if (size > QNX6_SHORT_NAME_MAX) {
 				/* long filename detected
 				   get the filename from long filename
 				   structure / block */
-				if (!qnx6_dir_longfilename(inode,
+				if (!qnx6_dir_longfilename(ianalde,
 					(struct qnx6_long_dir_entry *)de,
-					ctx, no_inode)) {
+					ctx, anal_ianalde)) {
 					done = true;
 					break;
 				}
 			} else {
-				pr_debug("%s():%.*s inode:%u\n",
+				pr_debug("%s():%.*s ianalde:%u\n",
 					 __func__, size, de->de_fname,
-					 no_inode);
+					 anal_ianalde);
 				if (!dir_emit(ctx, de->de_fname, size,
-				      no_inode, DT_UNKNOWN)) {
+				      anal_ianalde, DT_UNKANALWN)) {
 					done = true;
 					break;
 				}
@@ -173,7 +173,7 @@ static int qnx6_readdir(struct file *file, struct dir_context *ctx)
  * check if the long filename is correct.
  */
 static unsigned qnx6_long_match(int len, const char *name,
-			struct qnx6_long_dir_entry *de, struct inode *dir)
+			struct qnx6_long_dir_entry *de, struct ianalde *dir)
 {
 	struct super_block *s = dir->i_sb;
 	struct qnx6_sb_info *sbi = QNX6_SB(s);
@@ -191,7 +191,7 @@ static unsigned qnx6_long_match(int len, const char *name,
 	}
 	if (memcmp(name, lf->lf_fname, len) == 0) {
 		qnx6_put_page(page);
-		return fs32_to_cpu(sbi, de->de_inode);
+		return fs32_to_cpu(sbi, de->de_ianalde);
 	}
 	qnx6_put_page(page);
 	return 0;
@@ -205,20 +205,20 @@ static unsigned qnx6_match(struct super_block *s, int len, const char *name,
 {
 	struct qnx6_sb_info *sbi = QNX6_SB(s);
 	if (memcmp(name, de->de_fname, len) == 0)
-		return fs32_to_cpu(sbi, de->de_inode);
+		return fs32_to_cpu(sbi, de->de_ianalde);
 	return 0;
 }
 
 
-unsigned qnx6_find_entry(int len, struct inode *dir, const char *name,
+unsigned qnx6_find_entry(int len, struct ianalde *dir, const char *name,
 			 struct page **res_page)
 {
 	struct super_block *s = dir->i_sb;
-	struct qnx6_inode_info *ei = QNX6_I(dir);
+	struct qnx6_ianalde_info *ei = QNX6_I(dir);
 	struct page *page = NULL;
 	unsigned long start, n;
 	unsigned long npages = dir_pages(dir);
-	unsigned ino;
+	unsigned ianal;
 	struct qnx6_dir_entry *de;
 	struct qnx6_long_dir_entry *lde;
 
@@ -243,18 +243,18 @@ unsigned qnx6_find_entry(int len, struct inode *dir, const char *name,
 					/* short filename */
 					if (len != de->de_size)
 						continue;
-					ino = qnx6_match(s, len, name, de);
-					if (ino)
+					ianal = qnx6_match(s, len, name, de);
+					if (ianal)
 						goto found;
 				} else if (de->de_size == 0xff) {
 					/* deal with long filename */
 					lde = (struct qnx6_long_dir_entry *)de;
-					ino = qnx6_long_match(len,
+					ianal = qnx6_long_match(len,
 								name, lde, dir);
-					if (ino)
+					if (ianal)
 						goto found;
 				} else
-					pr_err("undefined filename size in inode.\n");
+					pr_err("undefined filename size in ianalde.\n");
 			}
 			qnx6_put_page(page);
 		}
@@ -267,7 +267,7 @@ unsigned qnx6_find_entry(int len, struct inode *dir, const char *name,
 found:
 	*res_page = page;
 	ei->i_dir_start_lookup = n;
-	return ino;
+	return ianal;
 }
 
 const struct file_operations qnx6_dir_operations = {
@@ -277,6 +277,6 @@ const struct file_operations qnx6_dir_operations = {
 	.fsync		= generic_file_fsync,
 };
 
-const struct inode_operations qnx6_dir_inode_operations = {
+const struct ianalde_operations qnx6_dir_ianalde_operations = {
 	.lookup		= qnx6_lookup,
 };

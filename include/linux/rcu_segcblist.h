@@ -43,19 +43,19 @@ struct rcu_cblist {
  * [*tails[RCU_NEXT_READY_TAIL], *tails[RCU_NEXT_TAIL]):
  *	Callbacks that might have arrived after the next GP started.
  *	There is some uncertainty as to when a given GP starts and
- *	ends, but a CPU knows the exact times if it is the one starting
- *	or ending the GP.  Other CPUs know that the previous GP ends
+ *	ends, but a CPU kanalws the exact times if it is the one starting
+ *	or ending the GP.  Other CPUs kanalw that the previous GP ends
  *	before the next one starts.
  *
- * Note that RCU_WAIT_TAIL cannot be empty unless RCU_NEXT_READY_TAIL is also
+ * Analte that RCU_WAIT_TAIL cananalt be empty unless RCU_NEXT_READY_TAIL is also
  * empty.
  *
  * The ->gp_seq[] array contains the grace-period number at which the
  * corresponding segment of callbacks will be ready to invoke.  A given
  * element of this array is meaningful only when the corresponding segment
- * is non-empty, and it is never valid for RCU_DONE_TAIL (whose callbacks
+ * is analn-empty, and it is never valid for RCU_DONE_TAIL (whose callbacks
  * are already ready to invoke) or for RCU_NEXT_TAIL (whose callbacks have
- * not yet been assigned a grace-period number).
+ * analt yet been assigned a grace-period number).
  */
 #define RCU_DONE_TAIL		0	/* Also RCU_WAIT head. */
 #define RCU_WAIT_TAIL		1	/* Also RCU_NEXT_READY head. */
@@ -65,14 +65,14 @@ struct rcu_cblist {
 
 
 /*
- *                     ==NOCB Offloading state machine==
+ *                     ==ANALCB Offloading state machine==
  *
  *
  *  ----------------------------------------------------------------------------
  *  |                              SEGCBLIST_RCU_CORE                          |
  *  |                                                                          |
  *  |  Callbacks processed by rcu_core() from softirqs or local                |
- *  |  rcuc kthread, without holding nocb_lock.                                |
+ *  |  rcuc kthread, without holding analcb_lock.                                |
  *  ----------------------------------------------------------------------------
  *                                         |
  *                                         v
@@ -80,8 +80,8 @@ struct rcu_cblist {
  *  |       SEGCBLIST_RCU_CORE | SEGCBLIST_LOCKING | SEGCBLIST_OFFLOADED       |
  *  |                                                                          |
  *  | Callbacks processed by rcu_core() from softirqs or local                 |
- *  | rcuc kthread, while holding nocb_lock. Waking up CB and GP kthreads,     |
- *  | allowing nocb_timer to be armed.                                         |
+ *  | rcuc kthread, while holding analcb_lock. Waking up CB and GP kthreads,     |
+ *  | allowing analcb_timer to be armed.                                         |
  *  ----------------------------------------------------------------------------
  *                                         |
  *                                         v
@@ -96,10 +96,10 @@ struct rcu_cblist {
  *  |                                     |  |                                 |
  *  |                                     |  |                                 |
  *  | CB kthread woke up and              |  | GP kthread woke up and          |
- *  | acknowledged SEGCBLIST_OFFLOADED.   |  | acknowledged SEGCBLIST_OFFLOADED|
+ *  | ackanalwledged SEGCBLIST_OFFLOADED.   |  | ackanalwledged SEGCBLIST_OFFLOADED|
  *  | Processes callbacks concurrently    |  |                                 |
  *  | with rcu_core(), holding            |  |                                 |
- *  | nocb_lock.                          |  |                                 |
+ *  | analcb_lock.                          |  |                                 |
  *  ---------------------------------------  -----------------------------------
  *                        |                                 |
  *                        -----------------------------------
@@ -111,7 +111,7 @@ struct rcu_cblist {
  *  |                           SEGCBLIST_KTHREAD_GP |                         |
  *  |                           SEGCBLIST_KTHREAD_CB                           |
  *  |                                                                          |
- *  |   Kthreads handle callbacks holding nocb_lock, local rcu_core() stops    |
+ *  |   Kthreads handle callbacks holding analcb_lock, local rcu_core() stops    |
  *  |   handling callbacks. Enable bypass queueing.                            |
  *  ----------------------------------------------------------------------------
  */
@@ -119,7 +119,7 @@ struct rcu_cblist {
 
 
 /*
- *                       ==NOCB De-Offloading state machine==
+ *                       ==ANALCB De-Offloading state machine==
  *
  *
  *  |--------------------------------------------------------------------------|
@@ -128,8 +128,8 @@ struct rcu_cblist {
  *  |                           SEGCBLIST_KTHREAD_CB |                         |
  *  |                           SEGCBLIST_KTHREAD_GP                           |
  *  |                                                                          |
- *  |   CB/GP kthreads handle callbacks holding nocb_lock, local rcu_core()    |
- *  |   ignores callbacks. Bypass enqueue is enabled.                          |
+ *  |   CB/GP kthreads handle callbacks holding analcb_lock, local rcu_core()    |
+ *  |   iganalres callbacks. Bypass enqueue is enabled.                          |
  *  ----------------------------------------------------------------------------
  *                                      |
  *                                      v
@@ -140,9 +140,9 @@ struct rcu_cblist {
  *  |                           SEGCBLIST_KTHREAD_CB |                         |
  *  |                           SEGCBLIST_KTHREAD_GP                           |
  *  |                                                                          |
- *  |   CB/GP kthreads handle callbacks holding nocb_lock, local rcu_core()    |
+ *  |   CB/GP kthreads handle callbacks holding analcb_lock, local rcu_core()    |
  *  |   handles callbacks concurrently. Bypass enqueue is enabled.             |
- *  |   Invoke RCU core so we make sure not to preempt it in the middle with   |
+ *  |   Invoke RCU core so we make sure analt to preempt it in the middle with   |
  *  |   leaving some urgent work unattended within a jiffy.                    |
  *  ----------------------------------------------------------------------------
  *                                      |
@@ -154,7 +154,7 @@ struct rcu_cblist {
  *  |                           SEGCBLIST_KTHREAD_GP                           |
  *  |                                                                          |
  *  |   CB/GP kthreads and local rcu_core() handle callbacks concurrently      |
- *  |   holding nocb_lock. Wake up CB and GP kthreads if necessary. Disable    |
+ *  |   holding analcb_lock. Wake up CB and GP kthreads if necessary. Disable    |
  *  |   bypass enqueue.                                                        |
  *  ----------------------------------------------------------------------------
  *                                      |
@@ -169,11 +169,11 @@ struct rcu_cblist {
  *  |        SEGCBLIST_KTHREAD_CB         |       SEGCBLIST_KTHREAD_GP         |
  *  |                                     |                                    |
  *  | GP kthread woke up and              |   CB kthread woke up and           |
- *  | acknowledged the fact that          |   acknowledged the fact that       |
+ *  | ackanalwledged the fact that          |   ackanalwledged the fact that       |
  *  | SEGCBLIST_OFFLOADED got cleared.    |   SEGCBLIST_OFFLOADED got cleared. |
  *  |                                     |   The CB kthread goes to sleep     |
  *  | The callbacks from the target CPU   |   until it ever gets re-offloaded. |
- *  | will be ignored from the GP kthread |                                    |
+ *  | will be iganalred from the GP kthread |                                    |
  *  | loop.                               |                                    |
  *  ----------------------------------------------------------------------------
  *                      |                                 |
@@ -184,8 +184,8 @@ struct rcu_cblist {
  *  |                SEGCBLIST_RCU_CORE | SEGCBLIST_LOCKING                    |
  *  |                                                                          |
  *  | Callbacks processed by rcu_core() from softirqs or local                 |
- *  | rcuc kthread, while holding nocb_lock. Forbid nocb_timer to be armed.    |
- *  | Flush pending nocb_timer. Flush nocb bypass callbacks.                   |
+ *  | rcuc kthread, while holding analcb_lock. Forbid analcb_timer to be armed.    |
+ *  | Flush pending analcb_timer. Flush analcb bypass callbacks.                   |
  *  ----------------------------------------------------------------------------
  *                                      |
  *                                      v
@@ -193,7 +193,7 @@ struct rcu_cblist {
  *  |                         SEGCBLIST_RCU_CORE                               |
  *  |                                                                          |
  *  |  Callbacks processed by rcu_core() from softirqs or local                |
- *  |  rcuc kthread, without holding nocb_lock.                                |
+ *  |  rcuc kthread, without holding analcb_lock.                                |
  *  ----------------------------------------------------------------------------
  */
 #define SEGCBLIST_ENABLED	BIT(0)
@@ -207,7 +207,7 @@ struct rcu_segcblist {
 	struct rcu_head *head;
 	struct rcu_head **tails[RCU_CBLIST_NSEGS];
 	unsigned long gp_seq[RCU_CBLIST_NSEGS];
-#ifdef CONFIG_RCU_NOCB_CPU
+#ifdef CONFIG_RCU_ANALCB_CPU
 	atomic_long_t len;
 #else
 	long len;

@@ -121,7 +121,7 @@ static int power8_get_alternatives(u64 event, unsigned int flags, u64 alt[])
 }
 
 GENERIC_EVENT_ATTR(cpu-cycles,			PM_CYC);
-GENERIC_EVENT_ATTR(stalled-cycles-frontend,	PM_GCT_NOSLOT_CYC);
+GENERIC_EVENT_ATTR(stalled-cycles-frontend,	PM_GCT_ANALSLOT_CYC);
 GENERIC_EVENT_ATTR(stalled-cycles-backend,	PM_CMPLU_STALL);
 GENERIC_EVENT_ATTR(instructions,		PM_INST_CMPL);
 GENERIC_EVENT_ATTR(branch-instructions,		PM_BRU_FIN);
@@ -152,7 +152,7 @@ CACHE_EVENT_ATTR(iTLB-load-misses,		PM_ITLB_MISS);
 
 static struct attribute *power8_events_attr[] = {
 	GENERIC_EVENT_PTR(PM_CYC),
-	GENERIC_EVENT_PTR(PM_GCT_NOSLOT_CYC),
+	GENERIC_EVENT_PTR(PM_GCT_ANALSLOT_CYC),
 	GENERIC_EVENT_PTR(PM_CMPLU_STALL),
 	GENERIC_EVENT_PTR(PM_INST_CMPL),
 	GENERIC_EVENT_PTR(PM_BRU_FIN),
@@ -205,7 +205,7 @@ static const struct attribute_group *power8_pmu_attr_groups[] = {
 
 static int power8_generic_events[] = {
 	[PERF_COUNT_HW_CPU_CYCLES] =			PM_CYC,
-	[PERF_COUNT_HW_STALLED_CYCLES_FRONTEND] =	PM_GCT_NOSLOT_CYC,
+	[PERF_COUNT_HW_STALLED_CYCLES_FRONTEND] =	PM_GCT_ANALSLOT_CYC,
 	[PERF_COUNT_HW_STALLED_CYCLES_BACKEND] =	PM_CMPLU_STALL,
 	[PERF_COUNT_HW_INSTRUCTIONS] =			PM_INST_CMPL,
 	[PERF_COUNT_HW_BRANCH_INSTRUCTIONS] =		PM_BRU_FIN,
@@ -222,14 +222,14 @@ static u64 power8_bhrb_filter_map(u64 branch_sample_type)
 	 * filter configuration. BHRB is always recorded along with a
 	 * regular PMU event. As the privilege state filter is handled
 	 * in the basic PMC configuration of the accompanying regular
-	 * PMU event, we ignore any separate BHRB specific request.
+	 * PMU event, we iganalre any separate BHRB specific request.
 	 */
 
-	/* No branch filter requested */
+	/* Anal branch filter requested */
 	if (branch_sample_type & PERF_SAMPLE_BRANCH_ANY)
 		return pmu_bhrb_filter;
 
-	/* Invalid branch filter options - HW does not support */
+	/* Invalid branch filter options - HW does analt support */
 	if (branch_sample_type & PERF_SAMPLE_BRANCH_ANY_RETURN)
 		return -1;
 
@@ -260,7 +260,7 @@ static void power8_config_bhrb(u64 pmu_bhrb_filter)
 
 /*
  * Table of generalized cache-related events.
- * 0 means not supported, -1 means nonsensical, other values
+ * 0 means analt supported, -1 means analnsensical, other values
  * are event codes.
  */
 static u64 power8_cache_events[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
@@ -348,7 +348,7 @@ static u64 power8_cache_events[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
 			[ C(RESULT_MISS)   ] = -1,
 		},
 	},
-	[ C(NODE) ] = {
+	[ C(ANALDE) ] = {
 		[ C(OP_READ) ] = {
 			[ C(RESULT_ACCESS) ] = -1,
 			[ C(RESULT_MISS)   ] = -1,
@@ -395,7 +395,7 @@ int __init init_power8_pmu(void)
 
 	if (PVR_VER(pvr) != PVR_POWER8E && PVR_VER(pvr) != PVR_POWER8NVL &&
 	    PVR_VER(pvr) != PVR_POWER8)
-		return -ENODEV;
+		return -EANALDEV;
 
 	rc = register_power_pmu(&power8_pmu);
 	if (rc)

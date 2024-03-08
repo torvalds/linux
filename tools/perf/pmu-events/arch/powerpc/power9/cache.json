@@ -7,7 +7,7 @@
   {
     "EventCode": "0x1E056",
     "EventName": "PM_CMPLU_STALL_FLUSH_ANY_THREAD",
-    "BriefDescription": "Cycles in which the NTC instruction is not allowed to complete because any of the 4 threads in the same core suffered a flush, which blocks completion"
+    "BriefDescription": "Cycles in which the NTC instruction is analt allowed to complete because any of the 4 threads in the same core suffered a flush, which blocks completion"
   },
   {
     "EventCode": "0x4D016",
@@ -22,7 +22,7 @@
   {
     "EventCode": "0x4D12A",
     "EventName": "PM_MRK_DATA_FROM_RL4_CYC",
-    "BriefDescription": "Duration in cycles to reload from another chip's L4 on the same Node or Group ( Remote) due to a marked load"
+    "BriefDescription": "Duration in cycles to reload from aanalther chip's L4 on the same Analde or Group ( Remote) due to a marked load"
   },
   {
     "EventCode": "0x1003C",
@@ -37,7 +37,7 @@
   {
     "EventCode": "0x14048",
     "EventName": "PM_INST_FROM_ON_CHIP_CACHE",
-    "BriefDescription": "The processor's Instruction cache was reloaded either shared or modified data from another core's L2/L3 on the same chip due to an instruction fetch (not prefetch)"
+    "BriefDescription": "The processor's Instruction cache was reloaded either shared or modified data from aanalther core's L2/L3 on the same chip due to an instruction fetch (analt prefetch)"
   },
   {
     "EventCode": "0x4D014",
@@ -47,12 +47,12 @@
   {
     "EventCode": "0x2404A",
     "EventName": "PM_INST_FROM_RL4",
-    "BriefDescription": "The processor's Instruction cache was reloaded from another chip's L4 on the same Node or Group ( Remote) due to an instruction fetch (not prefetch)"
+    "BriefDescription": "The processor's Instruction cache was reloaded from aanalther chip's L4 on the same Analde or Group ( Remote) due to an instruction fetch (analt prefetch)"
   },
   {
     "EventCode": "0x1404A",
     "EventName": "PM_INST_FROM_RL2L3_SHR",
-    "BriefDescription": "The processor's Instruction cache was reloaded with Shared (S) data from another chip's L2 or L3 on the same Node or Group (Remote), as this chip due to an instruction fetch (not prefetch)"
+    "BriefDescription": "The processor's Instruction cache was reloaded with Shared (S) data from aanalther chip's L2 or L3 on the same Analde or Group (Remote), as this chip due to an instruction fetch (analt prefetch)"
   },
   {
     "EventCode": "0x401EA",
@@ -77,7 +77,7 @@
   {
     "EventCode": "0x3F14A",
     "EventName": "PM_MRK_DPTEG_FROM_RMEM",
-    "BriefDescription": "A Page Table Entry was loaded into the TLB from another chip's memory on the same Node or Group ( Remote) due to a marked data side request. When using Radix Page Translation, this count excludes PDE reloads. Only PTE reloads are included"
+    "BriefDescription": "A Page Table Entry was loaded into the TLB from aanalther chip's memory on the same Analde or Group ( Remote) due to a marked data side request. When using Radix Page Translation, this count excludes PDE reloads. Only PTE reloads are included"
   },
   {
     "EventCode": "0x4C016",
@@ -97,7 +97,7 @@
   {
     "EventCode": "0x24046",
     "EventName": "PM_INST_FROM_RL2L3_MOD",
-    "BriefDescription": "The processor's Instruction cache was reloaded with Modified (M) data from another chip's L2 or L3 on the same Node or Group (Remote), as this chip due to an instruction fetch (not prefetch)"
+    "BriefDescription": "The processor's Instruction cache was reloaded with Modified (M) data from aanalther chip's L2 or L3 on the same Analde or Group (Remote), as this chip due to an instruction fetch (analt prefetch)"
   },
   {
     "EventCode": "0x1002A",

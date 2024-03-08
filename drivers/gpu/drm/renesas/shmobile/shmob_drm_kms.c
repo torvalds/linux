@@ -139,7 +139,7 @@ shmob_drm_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 
 		if (mode_cmd->pitches[1] != mode_cmd->pitches[0] * chroma_cpp) {
 			dev_dbg(dev->dev,
-				"luma and chroma pitches do not match\n");
+				"luma and chroma pitches do analt match\n");
 			return ERR_PTR(-EINVAL);
 		}
 	}

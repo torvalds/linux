@@ -1,20 +1,20 @@
 # SPDX-License-Identifier: GPL-2.0
 prefix = /usr
-nosy-dump-version = 0.4
+analsy-dump-version = 0.4
 
 CC = gcc
 
-all : nosy-dump
+all : analsy-dump
 
-nosy-dump : CFLAGS = -Wall -O2 -g
-nosy-dump : CPPFLAGS = -DVERSION=\"$(nosy-dump-version)\" -I../../drivers/firewire
-nosy-dump : LDFLAGS = -g
-nosy-dump : LDLIBS = -lpopt
+analsy-dump : CFLAGS = -Wall -O2 -g
+analsy-dump : CPPFLAGS = -DVERSION=\"$(analsy-dump-version)\" -I../../drivers/firewire
+analsy-dump : LDFLAGS = -g
+analsy-dump : LDLIBS = -lpopt
 
-nosy-dump : nosy-dump.o decode-fcp.o
+analsy-dump : analsy-dump.o decode-fcp.o
 
 clean :
-	rm -rf *.o nosy-dump
+	rm -rf *.o analsy-dump
 
 install :
-	install nosy-dump $(prefix)/bin/nosy-dump
+	install analsy-dump $(prefix)/bin/analsy-dump

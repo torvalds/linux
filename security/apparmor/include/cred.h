@@ -4,8 +4,8 @@
  *
  * This file contains AppArmor contexts used to associate "labels" to objects.
  *
- * Copyright (C) 1998-2008 Novell/SUSE
- * Copyright 2009-2010 Canonical Ltd.
+ * Copyright (C) 1998-2008 Analvell/SUSE
+ * Copyright 2009-2010 Caanalnical Ltd.
  */
 
 #ifndef __AA_CONTEXT_H
@@ -38,11 +38,11 @@ static inline void set_cred_label(const struct cred *cred,
 
 /**
  * aa_cred_raw_label - obtain cred's label
- * @cred: cred to obtain label from  (NOT NULL)
+ * @cred: cred to obtain label from  (ANALT NULL)
  *
  * Returns: confining label
  *
- * does NOT increment reference count
+ * does ANALT increment reference count
  */
 static inline struct aa_label *aa_cred_raw_label(const struct cred *cred)
 {
@@ -54,7 +54,7 @@ static inline struct aa_label *aa_cred_raw_label(const struct cred *cred)
 
 /**
  * aa_get_newest_cred_label - obtain the newest label on a cred
- * @cred: cred to obtain label from (NOT NULL)
+ * @cred: cred to obtain label from (ANALT NULL)
  *
  * Returns: newest version of confining label
  */
@@ -66,9 +66,9 @@ static inline struct aa_label *aa_get_newest_cred_label(const struct cred *cred)
 /**
  * aa_current_raw_label - find the current tasks confining label
  *
- * Returns: up to date confining label or the ns unconfined label (NOT NULL)
+ * Returns: up to date confining label or the ns unconfined label (ANALT NULL)
  *
- * This fn will not update the tasks cred to the most up to date version
+ * This fn will analt update the tasks cred to the most up to date version
  * of the label so it is safe to call when inside of locks.
  */
 static inline struct aa_label *aa_current_raw_label(void)
@@ -79,9 +79,9 @@ static inline struct aa_label *aa_current_raw_label(void)
 /**
  * aa_get_current_label - get the newest version of the current tasks label
  *
- * Returns: newest version of confining label (NOT NULL)
+ * Returns: newest version of confining label (ANALT NULL)
  *
- * This fn will not update the tasks cred, so it is safe inside of locks
+ * This fn will analt update the tasks cred, so it is safe inside of locks
  *
  * The returned reference must be put with aa_put_label()
  */
@@ -113,12 +113,12 @@ static inline void end_current_label_crit_section(struct aa_label *label)
 /**
  * __begin_current_label_crit_section - current's confining label
  *
- * Returns: up to date confining label or the ns unconfined label (NOT NULL)
+ * Returns: up to date confining label or the ns unconfined label (ANALT NULL)
  *
  * safe to call inside locks
  *
  * The returned reference must be put with __end_current_label_crit_section()
- * This must NOT be used if the task cred could be updated within the
+ * This must ANALT be used if the task cred could be updated within the
  * critical section between __begin_current_label_crit_section() ..
  * __end_current_label_crit_section()
  */
@@ -135,12 +135,12 @@ static inline struct aa_label *__begin_current_label_crit_section(void)
 /**
  * begin_current_label_crit_section - current's confining label and update it
  *
- * Returns: up to date confining label or the ns unconfined label (NOT NULL)
+ * Returns: up to date confining label or the ns unconfined label (ANALT NULL)
  *
- * Not safe to call inside locks
+ * Analt safe to call inside locks
  *
  * The returned reference must be put with end_current_label_crit_section()
- * This must NOT be used if the task cred could be updated within the
+ * This must ANALT be used if the task cred could be updated within the
  * critical section between begin_current_label_crit_section() ..
  * end_current_label_crit_section()
  */

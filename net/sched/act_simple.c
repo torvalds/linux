@@ -53,7 +53,7 @@ static int alloc_defdata(struct tcf_defact *d, const struct nlattr *defdata)
 {
 	d->tcfd_defdata = kzalloc(SIMP_MAX_DATA, GFP_KERNEL);
 	if (unlikely(!d->tcfd_defdata))
-		return -ENOMEM;
+		return -EANALMEM;
 	nla_strscpy(d->tcfd_defdata, defdata, SIMP_MAX_DATA);
 	return 0;
 }

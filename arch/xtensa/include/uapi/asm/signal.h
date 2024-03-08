@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * include/asm-xtensa/signal.h
  *
@@ -68,7 +68,7 @@ typedef struct {
 #define SIGSYS		31
 #define	SIGUNUSED	31
 
-/* These should not be considered constants from userland.  */
+/* These should analt be considered constants from userland.  */
 #define SIGRTMIN	32
 #define SIGRTMAX	(_NSIG-1)
 

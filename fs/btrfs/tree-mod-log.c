@@ -13,7 +13,7 @@ struct tree_mod_root {
 };
 
 struct tree_mod_elem {
-	struct rb_node node;
+	struct rb_analde analde;
 	u64 logical;
 	u64 seq;
 	enum btrfs_mod_log_op op;
@@ -51,10 +51,10 @@ static inline u64 btrfs_inc_tree_mod_seq(struct btrfs_fs_info *fs_info)
 
 /*
  * This adds a new blocker to the tree mod log's blocker list if the @elem
- * passed does not already have a sequence number set. So when a caller expects
+ * passed does analt already have a sequence number set. So when a caller expects
  * to record tree modifications, it should ensure to set elem->seq to zero
  * before calling btrfs_get_tree_mod_seq.
- * Returns a fresh, unused tree log modification sequence number, even if no new
+ * Returns a fresh, unused tree log modification sequence number, even if anal new
  * blocker was added.
  */
 u64 btrfs_get_tree_mod_seq(struct btrfs_fs_info *fs_info,
@@ -75,8 +75,8 @@ void btrfs_put_tree_mod_seq(struct btrfs_fs_info *fs_info,
 			    struct btrfs_seq_list *elem)
 {
 	struct rb_root *tm_root;
-	struct rb_node *node;
-	struct rb_node *next;
+	struct rb_analde *analde;
+	struct rb_analde *next;
 	struct tree_mod_elem *tm;
 	u64 min_seq = BTRFS_SEQ_LAST;
 	u64 seq_putting = elem->seq;
@@ -97,7 +97,7 @@ void btrfs_put_tree_mod_seq(struct btrfs_fs_info *fs_info,
 					 struct btrfs_seq_list, list);
 		if (seq_putting > first->seq) {
 			/*
-			 * Blocker with lower sequence number exists, we cannot
+			 * Blocker with lower sequence number exists, we cananalt
 			 * remove anything from the log.
 			 */
 			write_unlock(&fs_info->tree_mod_log_lock);
@@ -111,12 +111,12 @@ void btrfs_put_tree_mod_seq(struct btrfs_fs_info *fs_info,
 	 * sequence number can be removed from the tree.
 	 */
 	tm_root = &fs_info->tree_mod_log;
-	for (node = rb_first(tm_root); node; node = next) {
-		next = rb_next(node);
-		tm = rb_entry(node, struct tree_mod_elem, node);
+	for (analde = rb_first(tm_root); analde; analde = next) {
+		next = rb_next(analde);
+		tm = rb_entry(analde, struct tree_mod_elem, analde);
 		if (tm->seq >= min_seq)
 			continue;
-		rb_erase(node, tm_root);
+		rb_erase(analde, tm_root);
 		kfree(tm);
 	}
 	write_unlock(&fs_info->tree_mod_log_lock);
@@ -124,18 +124,18 @@ void btrfs_put_tree_mod_seq(struct btrfs_fs_info *fs_info,
 
 /*
  * Key order of the log:
- *       node/leaf start address -> sequence
+ *       analde/leaf start address -> sequence
  *
- * The 'start address' is the logical address of the *new* root node for root
+ * The 'start address' is the logical address of the *new* root analde for root
  * replace operations, or the logical address of the affected block for all
  * other operations.
  */
-static noinline int tree_mod_log_insert(struct btrfs_fs_info *fs_info,
+static analinline int tree_mod_log_insert(struct btrfs_fs_info *fs_info,
 					struct tree_mod_elem *tm)
 {
 	struct rb_root *tm_root;
-	struct rb_node **new;
-	struct rb_node *parent = NULL;
+	struct rb_analde **new;
+	struct rb_analde *parent = NULL;
 	struct tree_mod_elem *cur;
 
 	lockdep_assert_held_write(&fs_info->tree_mod_log_lock);
@@ -143,9 +143,9 @@ static noinline int tree_mod_log_insert(struct btrfs_fs_info *fs_info,
 	tm->seq = btrfs_inc_tree_mod_seq(fs_info);
 
 	tm_root = &fs_info->tree_mod_log;
-	new = &tm_root->rb_node;
+	new = &tm_root->rb_analde;
 	while (*new) {
-		cur = rb_entry(*new, struct tree_mod_elem, node);
+		cur = rb_entry(*new, struct tree_mod_elem, analde);
 		parent = *new;
 		if (cur->logical < tm->logical)
 			new = &((*new)->rb_left);
@@ -159,8 +159,8 @@ static noinline int tree_mod_log_insert(struct btrfs_fs_info *fs_info,
 			return -EEXIST;
 	}
 
-	rb_link_node(&tm->node, parent, new);
-	rb_insert_color(&tm->node, tm_root);
+	rb_link_analde(&tm->analde, parent, new);
+	rb_insert_color(&tm->analde, tm_root);
 	return 0;
 }
 
@@ -205,19 +205,19 @@ static struct tree_mod_elem *alloc_tree_mod_elem(struct extent_buffer *eb,
 {
 	struct tree_mod_elem *tm;
 
-	tm = kzalloc(sizeof(*tm), GFP_NOFS);
+	tm = kzalloc(sizeof(*tm), GFP_ANALFS);
 	if (!tm)
 		return NULL;
 
 	tm->logical = eb->start;
 	if (op != BTRFS_MOD_LOG_KEY_ADD) {
-		btrfs_node_key(eb, &tm->key, slot);
-		tm->blockptr = btrfs_node_blockptr(eb, slot);
+		btrfs_analde_key(eb, &tm->key, slot);
+		tm->blockptr = btrfs_analde_blockptr(eb, slot);
 	}
 	tm->op = op;
 	tm->slot = slot;
-	tm->generation = btrfs_node_ptr_generation(eb, slot);
-	RB_CLEAR_NODE(&tm->node);
+	tm->generation = btrfs_analde_ptr_generation(eb, slot);
+	RB_CLEAR_ANALDE(&tm->analde);
 
 	return tm;
 }
@@ -233,7 +233,7 @@ int btrfs_tree_mod_log_insert_key(struct extent_buffer *eb, int slot,
 
 	tm = alloc_tree_mod_elem(eb, slot, op);
 	if (!tm)
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 
 	if (tree_mod_dont_log(eb->fs_info, eb)) {
 		kfree(tm);
@@ -265,16 +265,16 @@ static struct tree_mod_elem *tree_mod_log_alloc_move(struct extent_buffer *eb,
 {
 	struct tree_mod_elem *tm;
 
-	tm = kzalloc(sizeof(*tm), GFP_NOFS);
+	tm = kzalloc(sizeof(*tm), GFP_ANALFS);
 	if (!tm)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	tm->logical = eb->start;
 	tm->slot = src_slot;
 	tm->move.dst_slot = dst_slot;
 	tm->move.nr_items = nr_items;
 	tm->op = BTRFS_MOD_LOG_MOVE_KEYS;
-	RB_CLEAR_NODE(&tm->node);
+	RB_CLEAR_ANALDE(&tm->analde);
 
 	return tm;
 }
@@ -292,9 +292,9 @@ int btrfs_tree_mod_log_insert_move(struct extent_buffer *eb,
 	if (!tree_mod_need_log(eb->fs_info, eb))
 		return 0;
 
-	tm_list = kcalloc(nr_items, sizeof(struct tree_mod_elem *), GFP_NOFS);
+	tm_list = kcalloc(nr_items, sizeof(struct tree_mod_elem *), GFP_ANALFS);
 	if (!tm_list) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto lock;
 	}
 
@@ -309,7 +309,7 @@ int btrfs_tree_mod_log_insert_move(struct extent_buffer *eb,
 		tm_list[i] = alloc_tree_mod_elem(eb, i + dst_slot,
 				BTRFS_MOD_LOG_KEY_REMOVE_WHILE_MOVING);
 		if (!tm_list[i]) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto lock;
 		}
 	}
@@ -354,8 +354,8 @@ lock:
 free_tms:
 	if (tm_list) {
 		for (i = 0; i < nr_items; i++) {
-			if (tm_list[i] && !RB_EMPTY_NODE(&tm_list[i]->node))
-				rb_erase(&tm_list[i]->node, &eb->fs_info->tree_mod_log);
+			if (tm_list[i] && !RB_EMPTY_ANALDE(&tm_list[i]->analde))
+				rb_erase(&tm_list[i]->analde, &eb->fs_info->tree_mod_log);
 			kfree(tm_list[i]);
 		}
 	}
@@ -378,7 +378,7 @@ static inline int tree_mod_log_free_eb(struct btrfs_fs_info *fs_info,
 		ret = tree_mod_log_insert(fs_info, tm_list[i]);
 		if (ret) {
 			for (j = nritems - 1; j > i; j--)
-				rb_erase(&tm_list[j]->node,
+				rb_erase(&tm_list[j]->analde,
 					 &fs_info->tree_mod_log);
 			return ret;
 		}
@@ -404,24 +404,24 @@ int btrfs_tree_mod_log_insert_root(struct extent_buffer *old_root,
 	if (log_removal && btrfs_header_level(old_root) > 0) {
 		nritems = btrfs_header_nritems(old_root);
 		tm_list = kcalloc(nritems, sizeof(struct tree_mod_elem *),
-				  GFP_NOFS);
+				  GFP_ANALFS);
 		if (!tm_list) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto lock;
 		}
 		for (i = 0; i < nritems; i++) {
 			tm_list[i] = alloc_tree_mod_elem(old_root, i,
 			    BTRFS_MOD_LOG_KEY_REMOVE_WHILE_FREEING);
 			if (!tm_list[i]) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto lock;
 			}
 		}
 	}
 
-	tm = kzalloc(sizeof(*tm), GFP_NOFS);
+	tm = kzalloc(sizeof(*tm), GFP_ANALFS);
 	if (!tm) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto lock;
 	}
 
@@ -476,33 +476,33 @@ static struct tree_mod_elem *__tree_mod_log_search(struct btrfs_fs_info *fs_info
 						   bool smallest)
 {
 	struct rb_root *tm_root;
-	struct rb_node *node;
+	struct rb_analde *analde;
 	struct tree_mod_elem *cur = NULL;
 	struct tree_mod_elem *found = NULL;
 
 	read_lock(&fs_info->tree_mod_log_lock);
 	tm_root = &fs_info->tree_mod_log;
-	node = tm_root->rb_node;
-	while (node) {
-		cur = rb_entry(node, struct tree_mod_elem, node);
+	analde = tm_root->rb_analde;
+	while (analde) {
+		cur = rb_entry(analde, struct tree_mod_elem, analde);
 		if (cur->logical < start) {
-			node = node->rb_left;
+			analde = analde->rb_left;
 		} else if (cur->logical > start) {
-			node = node->rb_right;
+			analde = analde->rb_right;
 		} else if (cur->seq < min_seq) {
-			node = node->rb_left;
+			analde = analde->rb_left;
 		} else if (!smallest) {
-			/* We want the node with the highest seq */
+			/* We want the analde with the highest seq */
 			if (found)
 				BUG_ON(found->seq > cur->seq);
 			found = cur;
-			node = node->rb_left;
+			analde = analde->rb_left;
 		} else if (cur->seq > min_seq) {
-			/* We want the node with the smallest seq */
+			/* We want the analde with the smallest seq */
 			if (found)
 				BUG_ON(found->seq < cur->seq);
 			found = cur;
-			node = node->rb_right;
+			analde = analde->rb_right;
 		} else {
 			found = cur;
 			break;
@@ -516,7 +516,7 @@ static struct tree_mod_elem *__tree_mod_log_search(struct btrfs_fs_info *fs_info
 /*
  * This returns the element from the log with the smallest time sequence
  * value that's in the log (the oldest log item). Any element with a time
- * sequence lower than min_seq will be ignored.
+ * sequence lower than min_seq will be iganalred.
  */
 static struct tree_mod_elem *tree_mod_log_search_oldest(struct btrfs_fs_info *fs_info,
 							u64 start, u64 min_seq)
@@ -527,7 +527,7 @@ static struct tree_mod_elem *tree_mod_log_search_oldest(struct btrfs_fs_info *fs
 /*
  * This returns the element from the log with the largest time sequence
  * value that's in the log (the most recent log item). Any element with
- * a time sequence lower than min_seq will be ignored.
+ * a time sequence lower than min_seq will be iganalred.
  */
 static struct tree_mod_elem *tree_mod_log_search(struct btrfs_fs_info *fs_info,
 						 u64 start, u64 min_seq)
@@ -560,9 +560,9 @@ int btrfs_tree_mod_log_eb_copy(struct extent_buffer *dst,
 		return 0;
 
 	tm_list = kcalloc(nr_items * 2, sizeof(struct tree_mod_elem *),
-			  GFP_NOFS);
+			  GFP_ANALFS);
 	if (!tm_list) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto lock;
 	}
 
@@ -592,14 +592,14 @@ int btrfs_tree_mod_log_eb_copy(struct extent_buffer *dst,
 		tm_list_rem[i] = alloc_tree_mod_elem(src, i + src_offset,
 						     BTRFS_MOD_LOG_KEY_REMOVE);
 		if (!tm_list_rem[i]) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto lock;
 		}
 
 		tm_list_add[i] = alloc_tree_mod_elem(dst, i + dst_offset,
 						     BTRFS_MOD_LOG_KEY_ADD);
 		if (!tm_list_add[i]) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto lock;
 		}
 	}
@@ -647,16 +647,16 @@ lock:
 	return 0;
 
 free_tms:
-	if (dst_move_tm && !RB_EMPTY_NODE(&dst_move_tm->node))
-		rb_erase(&dst_move_tm->node, &fs_info->tree_mod_log);
+	if (dst_move_tm && !RB_EMPTY_ANALDE(&dst_move_tm->analde))
+		rb_erase(&dst_move_tm->analde, &fs_info->tree_mod_log);
 	kfree(dst_move_tm);
-	if (src_move_tm && !RB_EMPTY_NODE(&src_move_tm->node))
-		rb_erase(&src_move_tm->node, &fs_info->tree_mod_log);
+	if (src_move_tm && !RB_EMPTY_ANALDE(&src_move_tm->analde))
+		rb_erase(&src_move_tm->analde, &fs_info->tree_mod_log);
 	kfree(src_move_tm);
 	if (tm_list) {
 		for (i = 0; i < nr_items * 2; i++) {
-			if (tm_list[i] && !RB_EMPTY_NODE(&tm_list[i]->node))
-				rb_erase(&tm_list[i]->node, &fs_info->tree_mod_log);
+			if (tm_list[i] && !RB_EMPTY_ANALDE(&tm_list[i]->analde))
+				rb_erase(&tm_list[i]->analde, &fs_info->tree_mod_log);
 			kfree(tm_list[i]);
 		}
 	}
@@ -678,9 +678,9 @@ int btrfs_tree_mod_log_free_eb(struct extent_buffer *eb)
 		return 0;
 
 	nritems = btrfs_header_nritems(eb);
-	tm_list = kcalloc(nritems, sizeof(struct tree_mod_elem *), GFP_NOFS);
+	tm_list = kcalloc(nritems, sizeof(struct tree_mod_elem *), GFP_ANALFS);
 	if (!tm_list) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto lock;
 	}
 
@@ -688,7 +688,7 @@ int btrfs_tree_mod_log_free_eb(struct extent_buffer *eb)
 		tm_list[i] = alloc_tree_mod_elem(eb, i,
 				    BTRFS_MOD_LOG_KEY_REMOVE_WHILE_FREEING);
 		if (!tm_list[i]) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto lock;
 		}
 	}
@@ -730,7 +730,7 @@ free_tms:
 
 /*
  * Returns the logical address of the oldest predecessor of the given root.
- * Entries older than time_seq are ignored.
+ * Entries older than time_seq are iganalred.
  */
 static struct tree_mod_elem *tree_mod_log_oldest_root(struct extent_buffer *eb_root,
 						      u64 time_seq)
@@ -755,7 +755,7 @@ static struct tree_mod_elem *tree_mod_log_oldest_root(struct extent_buffer *eb_r
 		if (!looped && !tm)
 			return NULL;
 		/*
-		 * If there are no tree operation for the oldest root, we simply
+		 * If there are anal tree operation for the oldest root, we simply
 		 * return it. This should only happen if that (old) root is at
 		 * level 0.
 		 */
@@ -763,8 +763,8 @@ static struct tree_mod_elem *tree_mod_log_oldest_root(struct extent_buffer *eb_r
 			break;
 
 		/*
-		 * If there's an operation that's not a root replacement, we
-		 * found the oldest version of our root. Normally, we'll find a
+		 * If there's an operation that's analt a root replacement, we
+		 * found the oldest version of our root. Analrmally, we'll find a
 		 * BTRFS_MOD_LOG_KEY_REMOVE_WHILE_FREEING operation here.
 		 */
 		if (tm->op != BTRFS_MOD_LOG_ROOT_REPLACE)
@@ -775,7 +775,7 @@ static struct tree_mod_elem *tree_mod_log_oldest_root(struct extent_buffer *eb_r
 		looped = true;
 	}
 
-	/* If there's no old root to return, return what we found instead */
+	/* If there's anal old root to return, return what we found instead */
 	if (!found)
 		found = tm;
 
@@ -794,7 +794,7 @@ static void tree_mod_log_rewind(struct btrfs_fs_info *fs_info,
 				struct tree_mod_elem *first_tm)
 {
 	u32 n;
-	struct rb_node *next;
+	struct rb_analde *next;
 	struct tree_mod_elem *tm = first_tm;
 	unsigned long o_dst;
 	unsigned long o_src;
@@ -808,7 +808,7 @@ static void tree_mod_log_rewind(struct btrfs_fs_info *fs_info,
 	 * moves and detect invalid memmoves.
 	 *
 	 * Since a rewind eb can start empty, max_slot is a signed integer with
-	 * a special meaning for -1, which is that no slot is valid to move out
+	 * a special meaning for -1, which is that anal slot is valid to move out
 	 * of. Any other negative value is invalid.
 	 */
 	int max_slot;
@@ -831,9 +831,9 @@ static void tree_mod_log_rewind(struct btrfs_fs_info *fs_info,
 			fallthrough;
 		case BTRFS_MOD_LOG_KEY_REMOVE_WHILE_MOVING:
 		case BTRFS_MOD_LOG_KEY_REMOVE:
-			btrfs_set_node_key(eb, &tm->key, tm->slot);
-			btrfs_set_node_blockptr(eb, tm->slot, tm->blockptr);
-			btrfs_set_node_ptr_generation(eb, tm->slot,
+			btrfs_set_analde_key(eb, &tm->key, tm->slot);
+			btrfs_set_analde_blockptr(eb, tm->slot, tm->blockptr);
+			btrfs_set_analde_ptr_generation(eb, tm->slot,
 						      tm->generation);
 			n++;
 			if (tm->slot > max_slot)
@@ -841,15 +841,15 @@ static void tree_mod_log_rewind(struct btrfs_fs_info *fs_info,
 			break;
 		case BTRFS_MOD_LOG_KEY_REPLACE:
 			BUG_ON(tm->slot >= n);
-			btrfs_set_node_key(eb, &tm->key, tm->slot);
-			btrfs_set_node_blockptr(eb, tm->slot, tm->blockptr);
-			btrfs_set_node_ptr_generation(eb, tm->slot,
+			btrfs_set_analde_key(eb, &tm->key, tm->slot);
+			btrfs_set_analde_blockptr(eb, tm->slot, tm->blockptr);
+			btrfs_set_analde_ptr_generation(eb, tm->slot,
 						      tm->generation);
 			break;
 		case BTRFS_MOD_LOG_KEY_ADD:
 			/*
 			 * It is possible we could have already removed keys
-			 * behind the known max slot, so this will be an
+			 * behind the kanalwn max slot, so this will be an
 			 * overestimate. In practice, the copy operation
 			 * inserts them in increasing order, and overestimating
 			 * just means we miss some warnings, so it's OK. It
@@ -865,8 +865,8 @@ static void tree_mod_log_rewind(struct btrfs_fs_info *fs_info,
 			ASSERT(tm->move.nr_items > 0);
 			move_src_end_slot = tm->move.dst_slot + tm->move.nr_items - 1;
 			move_dst_end_slot = tm->slot + tm->move.nr_items - 1;
-			o_dst = btrfs_node_key_ptr_offset(eb, tm->slot);
-			o_src = btrfs_node_key_ptr_offset(eb, tm->move.dst_slot);
+			o_dst = btrfs_analde_key_ptr_offset(eb, tm->slot);
+			o_src = btrfs_analde_key_ptr_offset(eb, tm->move.dst_slot);
 			if (WARN_ON(move_src_end_slot > max_slot ||
 				    tm->move.nr_items <= 0)) {
 				btrfs_warn(fs_info,
@@ -883,18 +883,18 @@ static void tree_mod_log_rewind(struct btrfs_fs_info *fs_info,
 			/*
 			 * This operation is special. For roots, this must be
 			 * handled explicitly before rewinding.
-			 * For non-roots, this operation may exist if the node
+			 * For analn-roots, this operation may exist if the analde
 			 * was a root: root A -> child B; then A gets empty and
 			 * B is promoted to the new root. In the mod log, we'll
 			 * have a root-replace operation for B, a tree block
-			 * that is no root. We simply ignore that operation.
+			 * that is anal root. We simply iganalre that operation.
 			 */
 			break;
 		}
-		next = rb_next(&tm->node);
+		next = rb_next(&tm->analde);
 		if (!next)
 			break;
-		tm = rb_entry(next, struct tree_mod_elem, node);
+		tm = rb_entry(next, struct tree_mod_elem, analde);
 		if (tm->logical != first_tm->logical)
 			break;
 	}
@@ -903,9 +903,9 @@ static void tree_mod_log_rewind(struct btrfs_fs_info *fs_info,
 }
 
 /*
- * Called with eb read locked. If the buffer cannot be rewound, the same buffer
+ * Called with eb read locked. If the buffer cananalt be rewound, the same buffer
  * is returned. If rewind operations happen, a fresh buffer is returned. The
- * returned buffer is always read-locked. If the returned buffer is not the
+ * returned buffer is always read-locked. If the returned buffer is analt the
  * input buffer, the lock on the input buffer is released and the input buffer
  * is freed (its refcount is decremented).
  */
@@ -957,17 +957,17 @@ struct extent_buffer *btrfs_tree_mod_log_rewind(struct btrfs_fs_info *fs_info,
 	btrfs_tree_read_lock(eb_rewin);
 	tree_mod_log_rewind(fs_info, eb_rewin, time_seq, tm);
 	WARN_ON(btrfs_header_nritems(eb_rewin) >
-		BTRFS_NODEPTRS_PER_BLOCK(fs_info));
+		BTRFS_ANALDEPTRS_PER_BLOCK(fs_info));
 
 	return eb_rewin;
 }
 
 /*
- * Rewind the state of @root's root node to the given @time_seq value.
- * If there are no changes, the current root->root_node is returned. If anything
+ * Rewind the state of @root's root analde to the given @time_seq value.
+ * If there are anal changes, the current root->root_analde is returned. If anything
  * changed in between, there's a fresh buffer allocated on which the rewind
  * operations are done. In any case, the returned buffer is read locked.
- * Returns NULL on error (with no locks held).
+ * Returns NULL on error (with anal locks held).
  */
 struct extent_buffer *btrfs_get_old_root(struct btrfs_root *root, u64 time_seq)
 {
@@ -982,7 +982,7 @@ struct extent_buffer *btrfs_get_old_root(struct btrfs_root *root, u64 time_seq)
 	u64 logical;
 	int level;
 
-	eb_root = btrfs_read_lock_root_node(root);
+	eb_root = btrfs_read_lock_root_analde(root);
 	tm = tree_mod_log_oldest_root(eb_root, time_seq);
 	if (!tm)
 		return eb_root;
@@ -1067,7 +1067,7 @@ struct extent_buffer *btrfs_get_old_root(struct btrfs_root *root, u64 time_seq)
 		tree_mod_log_rewind(fs_info, eb, time_seq, tm);
 	else
 		WARN_ON(btrfs_header_level(eb) != 0);
-	WARN_ON(btrfs_header_nritems(eb) > BTRFS_NODEPTRS_PER_BLOCK(fs_info));
+	WARN_ON(btrfs_header_nritems(eb) > BTRFS_ANALDEPTRS_PER_BLOCK(fs_info));
 
 	return eb;
 }
@@ -1076,7 +1076,7 @@ int btrfs_old_root_level(struct btrfs_root *root, u64 time_seq)
 {
 	struct tree_mod_elem *tm;
 	int level;
-	struct extent_buffer *eb_root = btrfs_root_node(root);
+	struct extent_buffer *eb_root = btrfs_root_analde(root);
 
 	tm = tree_mod_log_oldest_root(eb_root, time_seq);
 	if (tm && tm->op == BTRFS_MOD_LOG_ROOT_REPLACE)
@@ -1094,7 +1094,7 @@ int btrfs_old_root_level(struct btrfs_root *root, u64 time_seq)
  *
  * Return the sequence number of the oldest tree modification log user, which
  * corresponds to the lowest sequence number of all existing users. If there are
- * no users it returns 0.
+ * anal users it returns 0.
  */
 u64 btrfs_tree_mod_log_lowest_seq(struct btrfs_fs_info *fs_info)
 {

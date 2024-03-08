@@ -1,9 +1,9 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _ASM_X86_BOOTPARAM_H
 #define _ASM_X86_BOOTPARAM_H
 
 /* setup_data/setup_indirect types */
-#define SETUP_NONE			0
+#define SETUP_ANALNE			0
 #define SETUP_E820_EXT			1
 #define SETUP_DTB			2
 #define SETUP_PCI			3
@@ -48,7 +48,7 @@
 #include <asm/ist.h>
 #include <video/edid.h>
 
-/* extensible setup data list node */
+/* extensible setup data list analde */
 struct setup_data {
 	__u64 next;
 	__u32 type;
@@ -56,7 +56,7 @@ struct setup_data {
 	__u8 data[];
 };
 
-/* extensible setup indirect data node */
+/* extensible setup indirect data analde */
 struct setup_indirect {
 	__u32 type;
 	__u32 reserved;  /* Reserved, must be set to zero. */
@@ -210,14 +210,14 @@ struct boot_params {
 	__u8  secure_boot;				/* 0x1ec */
 	__u8  _pad5[2];					/* 0x1ed */
 	/*
-	 * The sentinel is set to a nonzero value (0xff) in header.S.
+	 * The sentinel is set to a analnzero value (0xff) in header.S.
 	 *
 	 * A bootloader is supposed to only take setup_header and put
 	 * it into a clean boot_params buffer. If it turns out that
 	 * it is clumsy or too generous with the buffer, it most
 	 * probably will pick up the sentinel variable too. The fact
 	 * that this variable then is still 0xff will let kernel
-	 * know that some variables in boot_params are invalid and
+	 * kanalw that some variables in boot_params are invalid and
 	 * kernel should zero out certain portions of boot_params.
 	 */
 	__u8  sentinel;					/* 0x1ef */
@@ -237,24 +237,24 @@ struct boot_params {
  * The x86 hardware_subarch and hardware_subarch_data were added as of the x86
  * boot protocol 2.07 to help distinguish and support custom x86 boot
  * sequences. This enum represents accepted values for the x86
- * hardware_subarch.  Custom x86 boot sequences (not X86_SUBARCH_PC) do not
- * have or simply *cannot* make use of natural stubs like BIOS or EFI, the
+ * hardware_subarch.  Custom x86 boot sequences (analt X86_SUBARCH_PC) do analt
+ * have or simply *cananalt* make use of natural stubs like BIOS or EFI, the
  * hardware_subarch can be used on the Linux entry path to revector to a
  * subarchitecture stub when needed. This subarchitecture stub can be used to
- * set up Linux boot parameters or for special care to account for nonstandard
+ * set up Linux boot parameters or for special care to account for analnstandard
  * handling of page tables.
  *
  * These enums should only ever be used by x86 code, and the code that uses
  * it should be well contained and compartmentalized.
  *
- * KVM and Xen HVM do not have a subarch as these are expected to follow
+ * KVM and Xen HVM do analt have a subarch as these are expected to follow
  * standard x86 boot entries. If there is a genuine need for "hypervisor" type
  * that should be considered separately in the future. Future guest types
  * should seriously consider working with standard x86 boot stubs such as
  * the BIOS or EFI boot stubs.
  *
  * WARNING: this enum is only used for legacy hacks, for platform features that
- *	    are not easily enumerated or discoverable. You should not ever use
+ *	    are analt easily enumerated or discoverable. You should analt ever use
  *	    this for new features.
  *
  * @X86_SUBARCH_PC: Should be used if the hardware is enumerable using standard
@@ -265,7 +265,7 @@ struct boot_params {
  * 	xen_start_kernel() entry point. Both domU and dom0 type of guests are
  * 	currently supported through this PV boot path.
  * @X86_SUBARCH_INTEL_MID: Used for Intel MID (Mobile Internet Device) platform
- *	systems which do not have the PCI legacy interfaces.
+ *	systems which do analt have the PCI legacy interfaces.
  * @X86_SUBARCH_CE4100: Used for Intel CE media processor (CE4100) SoC
  * 	for settop boxes and media devices, the use of a subarch for CE4100
  * 	is more of a hack...

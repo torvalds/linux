@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright (c) 2023 Meta Platforms, Inc. and affiliates. */
-#include <errno.h>
+#include <erranal.h>
 #include <sys/syscall.h>
 #include <unistd.h>
 #include "test_global_map_resize.skel.h"
@@ -29,7 +29,7 @@ static void global_map_resize_bss_subtest(void)
 		goto teardown;
 
 	/* set some initial value before resizing.
-	 * it is expected this non-zero value will be preserved
+	 * it is expected this analn-zero value will be preserved
 	 * while resizing.
 	 */
 	skel->bss->array[0] = 1;
@@ -99,7 +99,7 @@ static void global_map_resize_data_subtest(void)
 		goto teardown;
 
 	/* set some initial value before resizing.
-	 * it is expected this non-zero value will be preserved
+	 * it is expected this analn-zero value will be preserved
 	 * while resizing.
 	 */
 	skel->data_custom->my_array[0] = 1;
@@ -168,7 +168,7 @@ static void global_map_resize_invalid_subtest(void)
 		return;
 
 	 /* attempt to resize a global datasec map to size
-	  * which does NOT align with array
+	  * which does ANALT align with array
 	  */
 	map = skel->maps.data_custom;
 	if (!ASSERT_NEQ(bpf_map__btf_value_type_id(map), 0, ".data.custom initial btf"))
@@ -176,7 +176,7 @@ static void global_map_resize_invalid_subtest(void)
 	/* set desired size a fraction of element size beyond an aligned size */
 	element_sz = sizeof(skel->data_custom->my_array[0]);
 	desired_sz = element_sz + element_sz / 2;
-	/* confirm desired size does NOT align with array */
+	/* confirm desired size does ANALT align with array */
 	if (!ASSERT_NEQ(desired_sz % element_sz, 0, "my_array alignment"))
 		goto teardown;
 	err = bpf_map__set_value_size(map, desired_sz);
@@ -186,36 +186,36 @@ static void global_map_resize_invalid_subtest(void)
 	    !ASSERT_EQ(bpf_map__btf_value_type_id(map), 0, ".data.custom clear btf val"))
 		goto teardown;
 
-	/* attempt to resize a global datasec map whose only var is NOT an array */
-	map = skel->maps.data_non_array;
-	if (!ASSERT_NEQ(bpf_map__btf_value_type_id(map), 0, ".data.non_array initial btf"))
+	/* attempt to resize a global datasec map whose only var is ANALT an array */
+	map = skel->maps.data_analn_array;
+	if (!ASSERT_NEQ(bpf_map__btf_value_type_id(map), 0, ".data.analn_array initial btf"))
 		goto teardown;
 	/* set desired size to arbitrary value */
 	desired_sz = 1024;
 	err = bpf_map__set_value_size(map, desired_sz);
 	/* confirm resize is OK but BTF info is cleared */
-	if (!ASSERT_OK(err, ".data.non_array bpf_map__set_value_size") ||
-	    !ASSERT_EQ(bpf_map__btf_key_type_id(map), 0, ".data.non_array clear btf key") ||
-	    !ASSERT_EQ(bpf_map__btf_value_type_id(map), 0, ".data.non_array clear btf val"))
+	if (!ASSERT_OK(err, ".data.analn_array bpf_map__set_value_size") ||
+	    !ASSERT_EQ(bpf_map__btf_key_type_id(map), 0, ".data.analn_array clear btf key") ||
+	    !ASSERT_EQ(bpf_map__btf_value_type_id(map), 0, ".data.analn_array clear btf val"))
 		goto teardown;
 
 	/* attempt to resize a global datasec map
-	 * whose last var is NOT an array
+	 * whose last var is ANALT an array
 	 */
-	map = skel->maps.data_array_not_last;
-	if (!ASSERT_NEQ(bpf_map__btf_value_type_id(map), 0, ".data.array_not_last initial btf"))
+	map = skel->maps.data_array_analt_last;
+	if (!ASSERT_NEQ(bpf_map__btf_value_type_id(map), 0, ".data.array_analt_last initial btf"))
 		goto teardown;
 	/* set desired size to a multiple of element size */
-	element_sz = sizeof(skel->data_array_not_last->my_array_first[0]);
+	element_sz = sizeof(skel->data_array_analt_last->my_array_first[0]);
 	desired_sz = element_sz * 8;
 	/* confirm desired size aligns with array */
 	if (!ASSERT_EQ(desired_sz % element_sz, 0, "my_array_first alignment"))
 		goto teardown;
 	err = bpf_map__set_value_size(map, desired_sz);
 	/* confirm resize is OK but BTF info is cleared */
-	if (!ASSERT_OK(err, ".data.array_not_last bpf_map__set_value_size") ||
-	    !ASSERT_EQ(bpf_map__btf_key_type_id(map), 0, ".data.array_not_last clear btf key") ||
-	    !ASSERT_EQ(bpf_map__btf_value_type_id(map), 0, ".data.array_not_last clear btf val"))
+	if (!ASSERT_OK(err, ".data.array_analt_last bpf_map__set_value_size") ||
+	    !ASSERT_EQ(bpf_map__btf_key_type_id(map), 0, ".data.array_analt_last clear btf key") ||
+	    !ASSERT_EQ(bpf_map__btf_value_type_id(map), 0, ".data.array_analt_last clear btf val"))
 		goto teardown;
 
 teardown:

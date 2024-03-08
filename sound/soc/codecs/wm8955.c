@@ -65,11 +65,11 @@ static const struct reg_default wm8955_reg_defaults[] = {
 	{ 35, 0x0050 },     /* R35 - Left out Mix (2) */
 	{ 36, 0x0050 },     /* R36 - Right out Mix (1) */
 	{ 37, 0x0050 },     /* R37 - Right Out Mix (2) */
-	{ 38, 0x0050 },     /* R38 - Mono out Mix (1) */
-	{ 39, 0x0050 },     /* R39 - Mono out Mix (2) */
+	{ 38, 0x0050 },     /* R38 - Moanal out Mix (1) */
+	{ 39, 0x0050 },     /* R39 - Moanal out Mix (2) */
 	{ 40, 0x0079 },     /* R40 - LOUT2 volume */
 	{ 41, 0x0079 },     /* R41 - ROUT2 volume */
-	{ 42, 0x0079 },     /* R42 - MONOOUT volume */
+	{ 42, 0x0079 },     /* R42 - MOANALOUT volume */
 	{ 43, 0x0000 },     /* R43 - Clocking / PLL */
 	{ 44, 0x0103 },     /* R44 - PLL Control 1 */
 	{ 45, 0x0024 },     /* R45 - PLL Control 2 */
@@ -99,11 +99,11 @@ static bool wm8955_writeable(struct device *dev, unsigned int reg)
 	case WM8955_LEFT_OUT_MIX_2:
 	case WM8955_RIGHT_OUT_MIX_1:
 	case WM8955_RIGHT_OUT_MIX_2:
-	case WM8955_MONO_OUT_MIX_1:
-	case WM8955_MONO_OUT_MIX_2:
+	case WM8955_MOANAL_OUT_MIX_1:
+	case WM8955_MOANAL_OUT_MIX_2:
 	case WM8955_LOUT2_VOLUME:
 	case WM8955_ROUT2_VOLUME:
-	case WM8955_MONOOUT_VOLUME:
+	case WM8955_MOANALOUT_VOLUME:
 	case WM8955_CLOCKING_PLL:
 	case WM8955_PLL_CONTROL_1:
 	case WM8955_PLL_CONTROL_2:
@@ -164,7 +164,7 @@ static int wm8955_pll_factors(struct device *dev,
 
 	dev_dbg(dev, "Fvco=%dHz\n", target);
 
-	/* Now, calculate N.K */
+	/* Analw, calculate N.K */
 	Ndiv = target / Fref;
 
 	pll->n = Ndiv;
@@ -181,7 +181,7 @@ static int wm8955_pll_factors(struct device *dev,
 	if ((K % 10) >= 5)
 		K += 5;
 
-	/* Move down to proper range now rounding is done */
+	/* Move down to proper range analw rounding is done */
 	pll->k = K / 10;
 
 	dev_dbg(dev, "N=%x K=%x OUTDIV=%x\n", pll->n, pll->k, pll->outdiv);
@@ -248,7 +248,7 @@ static int wm8955_configure_clocking(struct snd_soc_component *component)
 	int sr = -1;
 	struct pll_factors pll;
 
-	/* If we're not running a sample rate currently just pick one */
+	/* If we're analt running a sample rate currently just pick one */
 	if (wm8955->fs == 0)
 		wm8955->fs = 8000;
 
@@ -310,7 +310,7 @@ static int wm8955_configure_clocking(struct snd_soc_component *component)
 		else
 			val = WM8955_PLL_RB;
 
-		/* Now start the PLL running */
+		/* Analw start the PLL running */
 		snd_soc_component_update_bits(component, WM8955_CLOCKING_PLL,
 				    WM8955_PLL_RB | WM8955_PLLOUTDIV2, val);
 		snd_soc_component_update_bits(component, WM8955_CLOCKING_PLL,
@@ -432,7 +432,7 @@ static SOC_ENUM_SINGLE_DECL(treble_cutoff, WM8955_TREBLE_CONTROL, 2,
 static const DECLARE_TLV_DB_SCALE(digital_tlv, -12750, 50, 1);
 static const DECLARE_TLV_DB_SCALE(atten_tlv, -600, 600, 0);
 static const DECLARE_TLV_DB_SCALE(bypass_tlv, -1500, 300, 0);
-static const DECLARE_TLV_DB_SCALE(mono_tlv, -2100, 300, 0);
+static const DECLARE_TLV_DB_SCALE(moanal_tlv, -2100, 300, 0);
 static const DECLARE_TLV_DB_SCALE(out_tlv, -12100, 100, 1);
 static const DECLARE_TLV_DB_SCALE(treble_tlv, -1200, 150, 1);
 
@@ -453,19 +453,19 @@ SOC_SINGLE_TLV("Treble Volume", WM8955_TREBLE_CONTROL, 0, 14, 1, treble_tlv),
 
 SOC_SINGLE_TLV("Left Bypass Volume", WM8955_LEFT_OUT_MIX_1, 4, 7, 1,
 	       bypass_tlv),
-SOC_SINGLE_TLV("Left Mono Volume", WM8955_LEFT_OUT_MIX_2, 4, 7, 1,
+SOC_SINGLE_TLV("Left Moanal Volume", WM8955_LEFT_OUT_MIX_2, 4, 7, 1,
 	       bypass_tlv),
 
-SOC_SINGLE_TLV("Right Mono Volume", WM8955_RIGHT_OUT_MIX_1, 4, 7, 1,
+SOC_SINGLE_TLV("Right Moanal Volume", WM8955_RIGHT_OUT_MIX_1, 4, 7, 1,
 	       bypass_tlv),
 SOC_SINGLE_TLV("Right Bypass Volume", WM8955_RIGHT_OUT_MIX_2, 4, 7, 1,
 	       bypass_tlv),
 
-/* Not a stereo pair so they line up with the DAPM switches */
-SOC_SINGLE_TLV("Mono Left Bypass Volume", WM8955_MONO_OUT_MIX_1, 4, 7, 1,
-	       mono_tlv),
-SOC_SINGLE_TLV("Mono Right Bypass Volume", WM8955_MONO_OUT_MIX_2, 4, 7, 1,
-	       mono_tlv),
+/* Analt a stereo pair so they line up with the DAPM switches */
+SOC_SINGLE_TLV("Moanal Left Bypass Volume", WM8955_MOANAL_OUT_MIX_1, 4, 7, 1,
+	       moanal_tlv),
+SOC_SINGLE_TLV("Moanal Right Bypass Volume", WM8955_MOANAL_OUT_MIX_2, 4, 7, 1,
+	       moanal_tlv),
 
 SOC_DOUBLE_R_TLV("Headphone Volume", WM8955_LOUT1_VOLUME,
 		 WM8955_ROUT1_VOLUME, 0, 127, 0, out_tlv),
@@ -477,38 +477,38 @@ SOC_DOUBLE_R_TLV("Speaker Volume", WM8955_LOUT2_VOLUME,
 SOC_DOUBLE_R("Speaker ZC Switch", WM8955_LOUT2_VOLUME,
 	     WM8955_ROUT2_VOLUME, 7, 1, 0),
 
-SOC_SINGLE_TLV("Mono Volume", WM8955_MONOOUT_VOLUME, 0, 127, 0, out_tlv),
-SOC_SINGLE("Mono ZC Switch", WM8955_MONOOUT_VOLUME, 7, 1, 0),
+SOC_SINGLE_TLV("Moanal Volume", WM8955_MOANALOUT_VOLUME, 0, 127, 0, out_tlv),
+SOC_SINGLE("Moanal ZC Switch", WM8955_MOANALOUT_VOLUME, 7, 1, 0),
 };
 
 static const struct snd_kcontrol_new lmixer[] = {
 SOC_DAPM_SINGLE("Playback Switch", WM8955_LEFT_OUT_MIX_1, 8, 1, 0),
 SOC_DAPM_SINGLE("Bypass Switch", WM8955_LEFT_OUT_MIX_1, 7, 1, 0),
 SOC_DAPM_SINGLE("Right Playback Switch", WM8955_LEFT_OUT_MIX_2, 8, 1, 0),
-SOC_DAPM_SINGLE("Mono Switch", WM8955_LEFT_OUT_MIX_2, 7, 1, 0),
+SOC_DAPM_SINGLE("Moanal Switch", WM8955_LEFT_OUT_MIX_2, 7, 1, 0),
 };
 
 static const struct snd_kcontrol_new rmixer[] = {
 SOC_DAPM_SINGLE("Left Playback Switch", WM8955_RIGHT_OUT_MIX_1, 8, 1, 0),
-SOC_DAPM_SINGLE("Mono Switch", WM8955_RIGHT_OUT_MIX_1, 7, 1, 0),
+SOC_DAPM_SINGLE("Moanal Switch", WM8955_RIGHT_OUT_MIX_1, 7, 1, 0),
 SOC_DAPM_SINGLE("Playback Switch", WM8955_RIGHT_OUT_MIX_2, 8, 1, 0),
 SOC_DAPM_SINGLE("Bypass Switch", WM8955_RIGHT_OUT_MIX_2, 7, 1, 0),
 };
 
 static const struct snd_kcontrol_new mmixer[] = {
-SOC_DAPM_SINGLE("Left Playback Switch", WM8955_MONO_OUT_MIX_1, 8, 1, 0),
-SOC_DAPM_SINGLE("Left Bypass Switch", WM8955_MONO_OUT_MIX_1, 7, 1, 0),
-SOC_DAPM_SINGLE("Right Playback Switch", WM8955_MONO_OUT_MIX_2, 8, 1, 0),
-SOC_DAPM_SINGLE("Right Bypass Switch", WM8955_MONO_OUT_MIX_2, 7, 1, 0),
+SOC_DAPM_SINGLE("Left Playback Switch", WM8955_MOANAL_OUT_MIX_1, 8, 1, 0),
+SOC_DAPM_SINGLE("Left Bypass Switch", WM8955_MOANAL_OUT_MIX_1, 7, 1, 0),
+SOC_DAPM_SINGLE("Right Playback Switch", WM8955_MOANAL_OUT_MIX_2, 8, 1, 0),
+SOC_DAPM_SINGLE("Right Bypass Switch", WM8955_MOANAL_OUT_MIX_2, 7, 1, 0),
 };
 
 static const struct snd_soc_dapm_widget wm8955_dapm_widgets[] = {
-SND_SOC_DAPM_INPUT("MONOIN-"),
-SND_SOC_DAPM_INPUT("MONOIN+"),
+SND_SOC_DAPM_INPUT("MOANALIN-"),
+SND_SOC_DAPM_INPUT("MOANALIN+"),
 SND_SOC_DAPM_INPUT("LINEINR"),
 SND_SOC_DAPM_INPUT("LINEINL"),
 
-SND_SOC_DAPM_PGA("Mono Input", SND_SOC_NOPM, 0, 0, NULL, 0),
+SND_SOC_DAPM_PGA("Moanal Input", SND_SOC_ANALPM, 0, 0, NULL, 0),
 
 SND_SOC_DAPM_SUPPLY("SYSCLK", WM8955_POWER_MANAGEMENT_1, 0, 1, wm8955_sysclk,
 		    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
@@ -525,18 +525,18 @@ SND_SOC_DAPM_PGA("MOUT PGA", WM8955_POWER_MANAGEMENT_2, 2, 0, NULL, 0),
 SND_SOC_DAPM_PGA("OUT3 PGA", WM8955_POWER_MANAGEMENT_2, 1, 0, NULL, 0),
 
 /* The names are chosen to make the control names nice */
-SND_SOC_DAPM_MIXER("Left", SND_SOC_NOPM, 0, 0,
+SND_SOC_DAPM_MIXER("Left", SND_SOC_ANALPM, 0, 0,
 		   lmixer, ARRAY_SIZE(lmixer)),
-SND_SOC_DAPM_MIXER("Right", SND_SOC_NOPM, 0, 0,
+SND_SOC_DAPM_MIXER("Right", SND_SOC_ANALPM, 0, 0,
 		   rmixer, ARRAY_SIZE(rmixer)),
-SND_SOC_DAPM_MIXER("Mono", SND_SOC_NOPM, 0, 0,
+SND_SOC_DAPM_MIXER("Moanal", SND_SOC_ANALPM, 0, 0,
 		   mmixer, ARRAY_SIZE(mmixer)),
 
 SND_SOC_DAPM_OUTPUT("LOUT1"),
 SND_SOC_DAPM_OUTPUT("ROUT1"),
 SND_SOC_DAPM_OUTPUT("LOUT2"),
 SND_SOC_DAPM_OUTPUT("ROUT2"),
-SND_SOC_DAPM_OUTPUT("MONOOUT"),
+SND_SOC_DAPM_OUTPUT("MOANALOUT"),
 SND_SOC_DAPM_OUTPUT("OUT3"),
 };
 
@@ -544,23 +544,23 @@ static const struct snd_soc_dapm_route wm8955_dapm_routes[] = {
 	{ "DACL", NULL, "SYSCLK" },
 	{ "DACR", NULL, "SYSCLK" },
 
-	{ "Mono Input", NULL, "MONOIN-" },
-	{ "Mono Input", NULL, "MONOIN+" },
+	{ "Moanal Input", NULL, "MOANALIN-" },
+	{ "Moanal Input", NULL, "MOANALIN+" },
 
 	{ "Left", "Playback Switch", "DACL" },
 	{ "Left", "Right Playback Switch", "DACR" },
 	{ "Left", "Bypass Switch", "LINEINL" },
-	{ "Left", "Mono Switch", "Mono Input" },
+	{ "Left", "Moanal Switch", "Moanal Input" },
 
 	{ "Right", "Playback Switch", "DACR" },
 	{ "Right", "Left Playback Switch", "DACL" },
 	{ "Right", "Bypass Switch", "LINEINR" },
-	{ "Right", "Mono Switch", "Mono Input" },
+	{ "Right", "Moanal Switch", "Moanal Input" },
 
-	{ "Mono", "Left Playback Switch", "DACL" },
-	{ "Mono", "Right Playback Switch", "DACR" },
-	{ "Mono", "Left Bypass Switch", "LINEINL" },
-	{ "Mono", "Right Bypass Switch", "LINEINR" },
+	{ "Moanal", "Left Playback Switch", "DACL" },
+	{ "Moanal", "Right Playback Switch", "DACR" },
+	{ "Moanal", "Left Bypass Switch", "LINEINL" },
+	{ "Moanal", "Right Bypass Switch", "LINEINR" },
 
 	{ "LOUT1 PGA", NULL, "Left" },
 	{ "LOUT1", NULL, "TSDEN" },
@@ -578,10 +578,10 @@ static const struct snd_soc_dapm_route wm8955_dapm_routes[] = {
 	{ "ROUT2", NULL, "TSDEN" },
 	{ "ROUT2", NULL, "ROUT2 PGA" },
 
-	{ "MOUT PGA", NULL, "Mono" },
-	{ "MONOOUT", NULL, "MOUT PGA" },
+	{ "MOUT PGA", NULL, "Moanal" },
+	{ "MOANALOUT", NULL, "MOUT PGA" },
 
-	/* OUT3 not currently implemented */
+	/* OUT3 analt currently implemented */
 	{ "OUT3", NULL, "OUT3 PGA" },
 };
 
@@ -702,7 +702,7 @@ static int wm8955_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_DSP_A:
 	case SND_SOC_DAIFMT_DSP_B:
-		/* frame inversion not valid for DSP modes */
+		/* frame inversion analt valid for DSP modes */
 		switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
 		case SND_SOC_DAIFMT_NB_NF:
 			break;
@@ -849,7 +849,7 @@ static const struct snd_soc_dai_ops wm8955_dai_ops = {
 	.set_fmt = wm8955_set_fmt,
 	.hw_params = wm8955_hw_params,
 	.mute_stream = wm8955_mute,
-	.no_capture_mute = 1,
+	.anal_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver wm8955_dai = {
@@ -910,7 +910,7 @@ static int wm8955_probe(struct snd_soc_component *component)
 	snd_soc_component_update_bits(component, WM8955_ROUT2_VOLUME,
 			    WM8955_RO2VU | WM8955_RO2ZC,
 			    WM8955_RO2VU | WM8955_RO2ZC);
-	snd_soc_component_update_bits(component, WM8955_MONOOUT_VOLUME,
+	snd_soc_component_update_bits(component, WM8955_MOANALOUT_VOLUME,
 			    WM8955_MOZC, WM8955_MOZC);
 
 	/* Also enable adaptive bass boost by default */
@@ -922,8 +922,8 @@ static int wm8955_probe(struct snd_soc_component *component)
 			snd_soc_component_update_bits(component, WM8955_ADDITIONAL_CONTROL_2,
 					    WM8955_ROUT2INV, WM8955_ROUT2INV);
 
-		if (pdata->monoin_diff)
-			snd_soc_component_update_bits(component, WM8955_MONO_OUT_MIX_1,
+		if (pdata->moanalin_diff)
+			snd_soc_component_update_bits(component, WM8955_MOANAL_OUT_MIX_1,
 					    WM8955_DMEN, WM8955_DMEN);
 	}
 
@@ -975,7 +975,7 @@ static int wm8955_i2c_probe(struct i2c_client *i2c)
 	wm8955 = devm_kzalloc(&i2c->dev, sizeof(struct wm8955_priv),
 			      GFP_KERNEL);
 	if (wm8955 == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wm8955->regmap = devm_regmap_init_i2c(i2c, &wm8955_regmap);
 	if (IS_ERR(wm8955->regmap)) {

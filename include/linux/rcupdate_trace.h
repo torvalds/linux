@@ -61,7 +61,7 @@ static inline void rcu_read_lock_trace(void)
  * rcu_read_unlock_trace - mark end of RCU-trace read-side critical section
  *
  * Pairs with a preceding call to rcu_read_lock_trace(), and nesting is
- * allowed.  Invoking a rcu_read_unlock_trace() when there is no matching
+ * allowed.  Invoking a rcu_read_unlock_trace() when there is anal matching
  * rcu_read_lock_trace() is verboten, and will result in lockdep complaints.
  *
  * For more details, please see the documentation for rcu_read_unlock().

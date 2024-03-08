@@ -155,7 +155,7 @@ static int nct6775_asuswmi_evaluate_method(u32 method_id, u8 bank, u8 reg, u8 va
 
 	return 0;
 #else
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 #endif
 }
 
@@ -512,7 +512,7 @@ nct6775_check_fan_inputs(struct nct6775_data *data, struct nct6775_sio_data *sio
 		if (board_name && board_vendor &&
 		    !strcmp(board_vendor, "ASRock")) {
 			/*
-			 * Auxiliary fan monitoring is not enabled on ASRock
+			 * Auxiliary fan monitoring is analt enabled on ASRock
 			 * Z77 Pro4-M if booted in UEFI Ultra-FastBoot mode.
 			 * Observed with BIOS version 2.00.
 			 */
@@ -763,7 +763,7 @@ clear_caseopen(struct device *dev, struct device_attribute *attr,
 
 	/*
 	 * Use CR registers to clear caseopen status.
-	 * The CR registers are the same for all chips, and not all chips
+	 * The CR registers are the same for all chips, and analt all chips
 	 * support clearing the caseopen status through "regular" registers.
 	 */
 	ret = sio_data->sio_enter(sio_data);
@@ -821,7 +821,7 @@ static umode_t nct6775_other_is_visible(struct kobject *kobj,
 
 /*
  * nct6775_other_is_visible uses the index into the following array
- * to determine if attributes should be created or not.
+ * to determine if attributes should be created or analt.
  * Any change in order or content must be matched.
  */
 static struct attribute *nct6775_attributes_other[] = {
@@ -953,7 +953,7 @@ static int nct6775_platform_probe(struct platform_device *pdev)
 
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->kind = sio_data->kind;
 	data->sioreg = sio_data->sioreg;
@@ -1044,10 +1044,10 @@ static int __init nct6775_find(int sioaddr, struct nct6775_sio_data *sio_data)
 		if (val != 0xffff)
 			pr_debug("unsupported chip ID: 0x%04x\n", val);
 		sio_data->sio_exit(sio_data);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
-	/* We have a known chip, find the HWM I/O address */
+	/* We have a kanalwn chip, find the HWM I/O address */
 	sio_data->sio_select(sio_data, NCT6775_LD_HWM);
 	val = (sio_data->sio_inb(sio_data, SIO_REG_ADDR) << 8)
 	    | sio_data->sio_inb(sio_data, SIO_REG_ADDR + 1);
@@ -1055,7 +1055,7 @@ static int __init nct6775_find(int sioaddr, struct nct6775_sio_data *sio_data)
 	if (addr == 0) {
 		pr_err("Refusing to enable a Super-I/O device with a base I/O port 0\n");
 		sio_data->sio_exit(sio_data);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Activate logical device if needed */
@@ -1557,7 +1557,7 @@ static int __init sensors_nct6775_platform_init(void)
 
 		pdev[i] = platform_device_alloc(DRVNAME, address);
 		if (!pdev[i]) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto exit_device_unregister;
 		}
 
@@ -1591,7 +1591,7 @@ static int __init sensors_nct6775_platform_init(void)
 			goto exit_device_put;
 	}
 	if (!found) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto exit_unregister;
 	}
 

@@ -13,7 +13,7 @@
 extern atomic_t irq_err_count;
 
 /*
- * interrupt-retrigger: NOP for now. This may not be appropriate for all
+ * interrupt-retrigger: ANALP for analw. This may analt be appropriate for all
  * machines, we'll see ...
  */
 

@@ -20,7 +20,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/pci.h>
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
@@ -190,7 +190,7 @@
  * @resp_bd_dma:        login request BD table dma address
  *
  * following structure defines buffer info for generic pdus such as iSCSI Login,
- *	Logout and NOP
+ *	Logout and ANALP
  */
 struct generic_pdu_resc {
 	char *req_buf;
@@ -273,8 +273,8 @@ struct bnx2i_cmd {
  * @iscsi_conn_cid:        iscsi conn id
  * @fw_cid:                firmware iscsi context id
  * @ep:                    endpoint structure pointer
- * @gen_pdu:               login/nopout/logout pdu resources
- * @violation_notified:    bit mask used to track iscsi error/warning messages
+ * @gen_pdu:               login/analpout/logout pdu resources
+ * @violation_analtified:    bit mask used to track iscsi error/warning messages
  *                         already printed out
  * @work_cnt:              keeps track of the number of outstanding work
  *
@@ -299,7 +299,7 @@ struct bnx2i_conn {
 	 * Buffer for login negotiation process
 	 */
 	struct generic_pdu_resc gen_pdu;
-	u64 violation_notified;
+	u64 violation_analtified;
 
 	atomic_t work_cnt;
 };
@@ -378,11 +378,11 @@ struct bnx2i_stats_info {
  * @pci_sdid:              PCI subsystem device ID
  * @pci_svid:              PCI subsystem vendor ID
  * @pci_func:              PCI function number in system pci tree
- * @pci_devno:             PCI device number in system pci tree
+ * @pci_devanal:             PCI device number in system pci tree
  * @num_wqe_sent:          statistic counter, total wqe's sent
  * @num_cqe_rcvd:          statistic counter, total cqe's received
  * @num_intr_claimed:      statistic counter, total interrupts claimed
- * @link_changed_count:    statistic counter, num of link change notifications
+ * @link_changed_count:    statistic counter, num of link change analtifications
  *                         received
  * @ipaddr_changed_count:  statistic counter, num times IP address changed while
  *                         at least one connection is offloaded
@@ -465,7 +465,7 @@ struct bnx2i_hba {
 	u16 pci_sdid;
 	u16 pci_svid;
 	u16 pci_func;
-	u16 pci_devno;
+	u16 pci_devanal;
 
 	/*
 	 * Following are a bunch of statistics useful during development
@@ -538,7 +538,7 @@ struct bnx2i_5771x_cq_db {
 	struct bnx2x_iscsi_cq_pend_cmpl qp_pend_cmpl[BNX2X_MAX_CQS];
 	/* CQ pending completion ITT array */
 	u16 itt[BNX2X_MAX_CQS];
-	/* Cstorm CQ sequence to notify array, updated by driver */;
+	/* Cstorm CQ sequence to analtify array, updated by driver */;
 	u16 sqn[BNX2X_MAX_CQS];
 	u32 reserved[4] /* 16 byte allignment */;
 };
@@ -555,7 +555,7 @@ struct bnx2i_5771x_dbell_hdr {
 	/* 1 for rx doorbell, 0 for tx doorbell */
 #define B577XX_DOORBELL_HDR_RX				(0x1<<0)
 #define B577XX_DOORBELL_HDR_RX_SHIFT			0
-	/* 0 for normal doorbell, 1 for advertise wnd doorbell */
+	/* 0 for analrmal doorbell, 1 for advertise wnd doorbell */
 #define B577XX_DOORBELL_HDR_DB_TYPE			(0x1<<1)
 #define B577XX_DOORBELL_HDR_DB_TYPE_SHIFT		1
 	/* rdma tx only: DPM transaction size specifier (64/128/256/512B) */
@@ -620,8 +620,8 @@ struct bnx2i_5771x_dbell {
  * @rq_pgtbl_size:      RQ page table size
  *
  * queue pair (QP) is a per connection shared data structure which is used
- *	to send work requests (SQ), receive completion notifications (CQ)
- *	and receive asynchoronous / scsi sense info (RQ). 'qp_info' structure
+ *	to send work requests (SQ), receive completion analtifications (CQ)
+ *	and receive asynchoroanalus / scsi sense info (RQ). 'qp_info' structure
  *	below holds queue memory, consumer/producer indexes and page table
  *	information
  */
@@ -841,7 +841,7 @@ extern int bnx2i_send_iscsi_text(struct bnx2i_conn *conn,
 				 struct iscsi_task *mtask);
 extern int bnx2i_send_iscsi_scsicmd(struct bnx2i_conn *conn,
 				    struct bnx2i_cmd *cmnd);
-extern int bnx2i_send_iscsi_nopout(struct bnx2i_conn *conn,
+extern int bnx2i_send_iscsi_analpout(struct bnx2i_conn *conn,
 				   struct iscsi_task *mtask,
 				   char *datap, int data_len, int unsol);
 extern int bnx2i_send_iscsi_logout(struct bnx2i_conn *conn,

@@ -21,7 +21,7 @@ Required properties:
   <1>	: Attila PHY
   <2>	: Intelli PHY
 
-- device-handle	: phandle to a "lpddr2" node representing the memory part
+- device-handle	: phandle to a "lpddr2" analde representing the memory part
 
 - ti,hwmods	: For TI hwmods processing and omap device creation
   the value shall be "emif<n>" where <n> is the number of the EMIF
@@ -29,7 +29,7 @@ Required properties:
 - interrupts	: interrupt used by the controller
 
 Required only for "ti,emif-am3352" and "ti,emif-am4372":
-- sram			: Phandles for generic sram driver nodes,
+- sram			: Phandles for generic sram driver analdes,
   first should be type 'protect-exec' for the driver to use to copy
   and run PM functions, second should be regular pool to be used for
   data region for code. See Documentation/devicetree/bindings/sram/sram.yaml
@@ -39,7 +39,7 @@ Optional properties:
 - cs1-used		: Have this property if CS1 of this EMIF
   instance has a memory part attached to it. If there is a memory
   part attached to CS1, it should be the same type as the one on CS0,
-  so there is no need to give the details of this memory part.
+  so there is anal need to give the details of this memory part.
 
 - cal-resistor-per-cs	: Have this property if the board has one
   calibration resistor per chip-select.

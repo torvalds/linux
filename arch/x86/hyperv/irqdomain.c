@@ -52,7 +52,7 @@ static int hv_map_interrupt(union hv_device_id device_id, bool level,
 
 	/*
 	 * var-sized hypercall, var-size starts after vp_mask (thus
-	 * vp_set.format does not count, but vp_set.valid_bank_mask
+	 * vp_set.format does analt count, but vp_set.valid_bank_mask
 	 * does).
 	 */
 	var_size = nr_bank + 1;
@@ -127,7 +127,7 @@ static union hv_device_id hv_build_pci_dev_id(struct pci_dev *dev)
 	dev_id.pci.bdf.bus = PCI_BUS_NUM(data.rid);
 	dev_id.pci.bdf.device = PCI_SLOT(data.rid);
 	dev_id.pci.bdf.function = PCI_FUNC(data.rid);
-	dev_id.pci.source_shadow = HV_SOURCE_SHADOW_NONE;
+	dev_id.pci.source_shadow = HV_SOURCE_SHADOW_ANALNE;
 
 	if (data.bridge) {
 		int pos;
@@ -153,7 +153,7 @@ static union hv_device_id hv_build_pci_dev_id(struct pci_dev *dev)
 					PCI_X_BRIDGE_SSTATUS, &status);
 
 			if (status & PCI_X_SSTATUS_FREQ) {
-				/* Non-zero, PCI-X mode */
+				/* Analn-zero, PCI-X mode */
 				u8 sec_bus, sub_bus;
 
 				dev_id.pci.source_shadow = HV_SOURCE_SHADOW_BRIDGE_BUS_RANGE;
@@ -260,7 +260,7 @@ static void hv_teardown_msi_irq(struct pci_dev *dev, struct irq_data *irqd)
 	u64 status;
 
 	if (!irqd->chip_data) {
-		pr_debug("%s: no chip data\n!", __func__);
+		pr_debug("%s: anal chip data\n!", __func__);
 		return;
 	}
 
@@ -324,13 +324,13 @@ static struct msi_domain_info hv_pci_msi_domain_info = {
 struct irq_domain * __init hv_create_pci_msi_domain(void)
 {
 	struct irq_domain *d = NULL;
-	struct fwnode_handle *fn;
+	struct fwanalde_handle *fn;
 
-	fn = irq_domain_alloc_named_fwnode("HV-PCI-MSI");
+	fn = irq_domain_alloc_named_fwanalde("HV-PCI-MSI");
 	if (fn)
 		d = pci_msi_create_irq_domain(fn, &hv_pci_msi_domain_info, x86_vector_domain);
 
-	/* No point in going further if we can't get an irq domain */
+	/* Anal point in going further if we can't get an irq domain */
 	BUG_ON(!d);
 
 	return d;

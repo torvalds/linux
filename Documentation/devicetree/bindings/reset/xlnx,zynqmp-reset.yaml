@@ -18,9 +18,9 @@ description: |
   for the system (as a whole) and for the functional units.
 
   Please also refer to reset.txt in this directory for common reset
-  controller binding usage. Device nodes that need access to reset
+  controller binding usage. Device analdes that need access to reset
   lines should specify them as a reset phandle in their corresponding
-  node as specified in reset.txt.
+  analde as specified in reset.txt.
 
   For list of all valid reset indices for Zynq UltraScale+ MPSoC
   <dt-bindings/reset/xlnx-zynqmp-resets.h>

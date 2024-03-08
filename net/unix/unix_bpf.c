@@ -144,7 +144,7 @@ static void unix_stream_bpf_check_needs_rebuild(struct proto *ops)
 int unix_dgram_bpf_update_proto(struct sock *sk, struct sk_psock *psock, bool restore)
 {
 	if (sk->sk_type != SOCK_DGRAM)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (restore) {
 		sk->sk_write_space = psock->saved_write_space;
@@ -161,7 +161,7 @@ int unix_stream_bpf_update_proto(struct sock *sk, struct sk_psock *psock, bool r
 {
 	struct sock *sk_pair;
 
-	/* Restore does not decrement the sk_pair reference yet because we must
+	/* Restore does analt decrement the sk_pair reference yet because we must
 	 * keep the a reference to the socket until after an RCU grace period
 	 * and any pending sends have completed.
 	 */

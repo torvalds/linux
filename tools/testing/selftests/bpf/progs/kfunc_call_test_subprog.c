@@ -6,7 +6,7 @@ extern const int bpf_prog_active __ksym;
 int active_res = -1;
 int sk_state_res = -1;
 
-int __noinline f1(struct __sk_buff *skb)
+int __analinline f1(struct __sk_buff *skb)
 {
 	struct bpf_sock *sk = skb->sk;
 	int *active;

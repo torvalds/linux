@@ -31,9 +31,9 @@ extern char _text, _end;
 extern char _bss, _ebss;
 extern char _startcode_end;
 extern void startup_continue(void *entry, unsigned long cmdline,
-	unsigned long rd_start, unsigned long rd_end) __noreturn;
+	unsigned long rd_start, unsigned long rd_end) __analreturn;
 
-void error(char *m) __noreturn;
+void error(char *m) __analreturn;
 
 static unsigned long free_mem_ptr;
 static unsigned long free_mem_end_ptr;
@@ -143,7 +143,7 @@ static int putchar(int c)
 	return c;
 }
 
-void __noreturn error(char *x)
+void __analreturn error(char *x)
 {
 	if (x) puts(x);
 	puts("\n -- System halted\n");
@@ -247,7 +247,7 @@ static void parse_elf(void *output)
 	   ehdr.e_ident[EI_MAG1] != ELFMAG1 ||
 	   ehdr.e_ident[EI_MAG2] != ELFMAG2 ||
 	   ehdr.e_ident[EI_MAG3] != ELFMAG3) {
-		error("Kernel is not a valid ELF file");
+		error("Kernel is analt a valid ELF file");
 		return;
 	}
 
@@ -293,7 +293,7 @@ asmlinkage unsigned long __visible decompress_kernel(unsigned int started_wide,
 
 	set_firmware_width_unlocked();
 
-	putchar('D');	/* if you get this D and no more, string storage */
+	putchar('D');	/* if you get this D and anal more, string storage */
 			/* in $GLOBAL$ is wrong or %dp is wrong */
 	puts("ecompressing Linux... ");
 

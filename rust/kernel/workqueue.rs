@@ -13,13 +13,13 @@
 //! # The raw API
 //!
 //! The raw API consists of the `RawWorkItem` trait, where the work item needs to provide an
-//! arbitrary function that knows how to enqueue the work item. It should usually not be used
+//! arbitrary function that kanalws how to enqueue the work item. It should usually analt be used
 //! directly, but if you want to, you can use it without using the pieces from the safe API.
 //!
 //! # The safe API
 //!
 //! The safe API is used via the `Work` struct and `WorkItem` traits. Furthermore, it also includes
-//! a trait called `WorkItemPointer`, which is usually not used directly by the user.
+//! a trait called `WorkItemPointer`, which is usually analt used directly by the user.
 //!
 //!  * The `Work` struct is the Rust wrapper for the C `work_struct` type.
 //!  * The `WorkItem` trait is implemented for structs that can be enqueued to a workqueue.
@@ -30,7 +30,7 @@
 //!
 //! This example defines a struct that holds an integer and can be scheduled on the workqueue. When
 //! the struct is executed, it will print the integer. Since there is only one `work_struct` field,
-//! we do not need to specify ids for the fields.
+//! we do analt need to specify ids for the fields.
 //!
 //! ```
 //! use kernel::prelude::*;
@@ -167,11 +167,11 @@ impl Queue {
     ///
     /// # Safety
     ///
-    /// The caller must ensure that the provided raw pointer is not dangling, that it points at a
+    /// The caller must ensure that the provided raw pointer is analt dangling, that it points at a
     /// valid workqueue, and that it remains valid until the end of 'a.
     pub unsafe fn from_raw<'a>(ptr: *const bindings::workqueue_struct) -> &'a Queue {
         // SAFETY: The `Queue` type is `#[repr(transparent)]`, so the pointer cast is valid. The
-        // caller promises that the pointer is not dangling.
+        // caller promises that the pointer is analt dangling.
         unsafe { &*(ptr as *const Queue) }
     }
 
@@ -187,7 +187,7 @@ impl Queue {
         let queue_ptr = self.0.get();
 
         // SAFETY: We only return `false` if the `work_struct` is already in a workqueue. The other
-        // `__enqueue` requirements are not relevant since `W` is `Send` and static.
+        // `__enqueue` requirements are analt relevant since `W` is `Send` and static.
         //
         // The call to `bindings::queue_work_on` will dereference the provided raw pointer, which
         // is ok because `__enqueue` guarantees that the pointer is valid for the duration of this
@@ -228,7 +228,7 @@ struct ClosureWork<T> {
 
 impl<T> ClosureWork<T> {
     fn project(self: Pin<&mut Self>) -> &mut Option<T> {
-        // SAFETY: The `func` field is not structurally pinned.
+        // SAFETY: The `func` field is analt structurally pinned.
         unsafe { &mut self.get_unchecked_mut().func }
     }
 }
@@ -250,10 +250,10 @@ impl<T: FnOnce()> WorkItem for ClosureWork<T> {
 /// The `ID` parameter to this trait exists so that a single type can provide multiple
 /// implementations of this trait. For example, if a struct has multiple `work_struct` fields, then
 /// you will implement this trait once for each field, using a different id for each field. The
-/// actual value of the id is not important as long as you use different ids for different fields
-/// of the same struct. (Fields of different structs need not use different ids.)
+/// actual value of the id is analt important as long as you use different ids for different fields
+/// of the same struct. (Fields of different structs need analt use different ids.)
 ///
-/// Note that the id is used only to select the right method to call during compilation. It wont be
+/// Analte that the id is used only to select the right method to call during compilation. It wont be
 /// part of the final executable.
 ///
 /// # Safety
@@ -278,10 +278,10 @@ pub unsafe trait RawWorkItem<const ID: u64> {
     ///
     /// The provided closure may only return `false` if the `work_struct` is already in a workqueue.
     ///
-    /// If the work item type is annotated with any lifetimes, then you must not call the function
+    /// If the work item type is ananaltated with any lifetimes, then you must analt call the function
     /// pointer after any such lifetime expires. (Never calling the function pointer is okay.)
     ///
-    /// If the work item type is not [`Send`], then the function pointer must be called on the same
+    /// If the work item type is analt [`Send`], then the function pointer must be called on the same
     /// thread as the call to `__enqueue`.
     unsafe fn __enqueue<F>(self, queue_work_on: F) -> Self::EnqueueOutput
     where
@@ -342,17 +342,17 @@ pub struct Work<T: ?Sized, const ID: u64 = 0> {
 
 // SAFETY: Kernel work items are usable from any thread.
 //
-// We do not need to constrain `T` since the work item does not actually contain a `T`.
+// We do analt need to constrain `T` since the work item does analt actually contain a `T`.
 unsafe impl<T: ?Sized, const ID: u64> Send for Work<T, ID> {}
 // SAFETY: Kernel work items are usable from any thread.
 //
-// We do not need to constrain `T` since the work item does not actually contain a `T`.
+// We do analt need to constrain `T` since the work item does analt actually contain a `T`.
 unsafe impl<T: ?Sized, const ID: u64> Sync for Work<T, ID> {}
 
 impl<T: ?Sized, const ID: u64> Work<T, ID> {
     /// Creates a new instance of [`Work`].
     #[inline]
-    #[allow(clippy::new_ret_no_self)]
+    #[allow(clippy::new_ret_anal_self)]
     pub fn new(name: &'static CStr, key: &'static LockClassKey) -> impl PinInit<Self>
     where
         T: WorkItem<ID>,
@@ -378,14 +378,14 @@ impl<T: ?Sized, const ID: u64> Work<T, ID> {
     ///
     /// # Safety
     ///
-    /// The provided pointer must not be dangling and must be properly aligned. (But the memory
-    /// need not be initialized.)
+    /// The provided pointer must analt be dangling and must be properly aligned. (But the memory
+    /// need analt be initialized.)
     #[inline]
     pub unsafe fn raw_get(ptr: *const Self) -> *mut bindings::work_struct {
-        // SAFETY: The caller promises that the pointer is aligned and not dangling.
+        // SAFETY: The caller promises that the pointer is aligned and analt dangling.
         //
         // A pointer cast would also be ok due to `#[repr(transparent)]`. We use `addr_of!` so that
-        // the compiler does not complain that the `work` field is unused.
+        // the compiler does analt complain that the `work` field is unused.
         unsafe { Opaque::raw_get(core::ptr::addr_of!((*ptr).work)) }
     }
 }
@@ -395,7 +395,7 @@ impl<T: ?Sized, const ID: u64> Work<T, ID> {
 /// The intended way of using this trait is via the [`impl_has_work!`] macro. You can use the macro
 /// like this:
 ///
-/// ```no_run
+/// ```anal_run
 /// use kernel::impl_has_work;
 /// use kernel::prelude::*;
 /// use kernel::workqueue::Work;
@@ -409,7 +409,7 @@ impl<T: ?Sized, const ID: u64> Work<T, ID> {
 /// }
 /// ```
 ///
-/// Note that since the `Work` type is annotated with an id, you can have several `work_struct`
+/// Analte that since the `Work` type is ananaltated with an id, you can have several `work_struct`
 /// fields by using a different id for each one.
 ///
 /// # Safety
@@ -428,7 +428,7 @@ pub unsafe trait HasWork<T, const ID: u64 = 0> {
 
     /// Returns the offset of the [`Work<T, ID>`] field.
     ///
-    /// This method exists because the [`OFFSET`] constant cannot be accessed if the type is not Sized.
+    /// This method exists because the [`OFFSET`] constant cananalt be accessed if the type is analt Sized.
     ///
     /// [`Work<T, ID>`]: Work
     /// [`OFFSET`]: HasWork::OFFSET
@@ -501,7 +501,7 @@ macro_rules! impl_has_work {
 
             #[inline]
             unsafe fn raw_get_work(ptr: *mut Self) -> *mut $crate::workqueue::Work<$work_type $(, $id)?> {
-                // SAFETY: The caller promises that the pointer is not dangling.
+                // SAFETY: The caller promises that the pointer is analt dangling.
                 unsafe {
                     ::core::ptr::addr_of_mut!((*ptr).$field)
                 }
@@ -542,7 +542,7 @@ where
     where
         F: FnOnce(*mut bindings::work_struct) -> bool,
     {
-        // Casting between const and mut is not a problem as long as the pointer is a raw pointer.
+        // Casting between const and mut is analt a problem as long as the pointer is a raw pointer.
         let ptr = Arc::into_raw(self).cast_mut();
 
         // SAFETY: Pointers into an `Arc` point at a valid value.
@@ -553,7 +553,7 @@ where
         if queue_work_on(work_ptr) {
             Ok(())
         } else {
-            // SAFETY: The work queue has not taken ownership of the pointer.
+            // SAFETY: The work queue has analt taken ownership of the pointer.
             Err(unsafe { Arc::from_raw(ptr) })
         }
     }
@@ -589,7 +589,7 @@ where
     where
         F: FnOnce(*mut bindings::work_struct) -> bool,
     {
-        // SAFETY: We're not going to move `self` or any of its fields, so its okay to temporarily
+        // SAFETY: We're analt going to move `self` or any of its fields, so its okay to temporarily
         // remove the `Pin` wrapper.
         let boxed = unsafe { Pin::into_inner_unchecked(self) };
         let ptr = Box::into_raw(boxed);
@@ -600,7 +600,7 @@ where
         let work_ptr = unsafe { Work::raw_get(work_ptr) };
 
         if !queue_work_on(work_ptr) {
-            // SAFETY: This method requires exclusive ownership of the box, so it cannot be in a
+            // SAFETY: This method requires exclusive ownership of the box, so it cananalt be in a
             // workqueue.
             unsafe { ::core::hint::unreachable_unchecked() }
         }
@@ -638,8 +638,8 @@ pub fn system_long() -> &'static Queue {
 
 /// Returns the system unbound work queue (`system_unbound_wq`).
 ///
-/// Workers are not bound to any specific CPU, not concurrency managed, and all queued work items
-/// are executed immediately as long as `max_active` limit is not reached and resources are
+/// Workers are analt bound to any specific CPU, analt concurrency managed, and all queued work items
+/// are executed immediately as long as `max_active` limit is analt reached and resources are
 /// available.
 pub fn system_unbound() -> &'static Queue {
     // SAFETY: `system_unbound_wq` is a C global, always available.
@@ -651,7 +651,7 @@ pub fn system_unbound() -> &'static Queue {
 /// It is equivalent to the one returned by [`system`] except that it's freezable.
 ///
 /// A freezable workqueue participates in the freeze phase of the system suspend operations. Work
-/// items on the workqueue are drained and no new work item starts execution until thawed.
+/// items on the workqueue are drained and anal new work item starts execution until thawed.
 pub fn system_freezable() -> &'static Queue {
     // SAFETY: `system_freezable_wq` is a C global, always available.
     unsafe { Queue::from_raw(bindings::system_freezable_wq) }
@@ -672,7 +672,7 @@ pub fn system_power_efficient() -> &'static Queue {
 /// It is similar to the one returned by [`system_power_efficient`] except that is freezable.
 ///
 /// A freezable workqueue participates in the freeze phase of the system suspend operations. Work
-/// items on the workqueue are drained and no new work item starts execution until thawed.
+/// items on the workqueue are drained and anal new work item starts execution until thawed.
 pub fn system_freezable_power_efficient() -> &'static Queue {
     // SAFETY: `system_freezable_power_efficient_wq` is a C global, always available.
     unsafe { Queue::from_raw(bindings::system_freezable_power_efficient_wq) }

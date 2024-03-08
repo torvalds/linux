@@ -4,62 +4,62 @@
  *	      http://www.samsung.com/
  * Copyright (c) 2020 Krzysztof Kozlowski <krzk@kernel.org>
  *
- * Exynos - CHIP ID support
+ * Exyanals - CHIP ID support
  * Author: Pankaj Dubey <pankaj.dubey@samsung.com>
  * Author: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
  * Author: Krzysztof Kozlowski <krzk@kernel.org>
  *
- * Samsung Exynos SoC Adaptive Supply Voltage and Chip ID support
+ * Samsung Exyanals SoC Adaptive Supply Voltage and Chip ID support
  */
 
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
-#include <linux/soc/samsung/exynos-chipid.h>
+#include <linux/soc/samsung/exyanals-chipid.h>
 #include <linux/sys_soc.h>
 
-#include "exynos-asv.h"
+#include "exyanals-asv.h"
 
-struct exynos_chipid_variant {
+struct exyanals_chipid_variant {
 	unsigned int rev_reg;		/* revision register offset */
 	unsigned int main_rev_shift;	/* main revision offset in rev_reg */
 	unsigned int sub_rev_shift;	/* sub revision offset in rev_reg */
 };
 
-struct exynos_chipid_info {
+struct exyanals_chipid_info {
 	u32 product_id;
 	u32 revision;
 };
 
-static const struct exynos_soc_id {
+static const struct exyanals_soc_id {
 	const char *name;
 	unsigned int id;
 } soc_ids[] = {
 	/* List ordered by SoC name */
-	/* Compatible with: samsung,exynos4210-chipid */
-	{ "EXYNOS3250", 0xE3472000 },
-	{ "EXYNOS4210", 0x43200000 },	/* EVT0 revision */
-	{ "EXYNOS4210", 0x43210000 },
-	{ "EXYNOS4212", 0x43220000 },
-	{ "EXYNOS4412", 0xE4412000 },
-	{ "EXYNOS5250", 0x43520000 },
-	{ "EXYNOS5260", 0xE5260000 },
-	{ "EXYNOS5410", 0xE5410000 },
-	{ "EXYNOS5420", 0xE5420000 },
-	{ "EXYNOS5433", 0xE5433000 },
-	{ "EXYNOS5440", 0xE5440000 },
-	{ "EXYNOS5800", 0xE5422000 },
-	{ "EXYNOS7420", 0xE7420000 },
-	/* Compatible with: samsung,exynos850-chipid */
-	{ "EXYNOS7885", 0xE7885000 },
-	{ "EXYNOS850", 0xE3830000 },
-	{ "EXYNOSAUTOV9", 0xAAA80000 },
-	{ "EXYNOSAUTOV920", 0x0A920000 },
+	/* Compatible with: samsung,exyanals4210-chipid */
+	{ "EXYANALS3250", 0xE3472000 },
+	{ "EXYANALS4210", 0x43200000 },	/* EVT0 revision */
+	{ "EXYANALS4210", 0x43210000 },
+	{ "EXYANALS4212", 0x43220000 },
+	{ "EXYANALS4412", 0xE4412000 },
+	{ "EXYANALS5250", 0x43520000 },
+	{ "EXYANALS5260", 0xE5260000 },
+	{ "EXYANALS5410", 0xE5410000 },
+	{ "EXYANALS5420", 0xE5420000 },
+	{ "EXYANALS5433", 0xE5433000 },
+	{ "EXYANALS5440", 0xE5440000 },
+	{ "EXYANALS5800", 0xE5422000 },
+	{ "EXYANALS7420", 0xE7420000 },
+	/* Compatible with: samsung,exyanals850-chipid */
+	{ "EXYANALS7885", 0xE7885000 },
+	{ "EXYANALS850", 0xE3830000 },
+	{ "EXYANALSAUTOV9", 0xAAA80000 },
+	{ "EXYANALSAUTOV920", 0x0A920000 },
 };
 
 static const char *product_id_to_soc_id(unsigned int product_id)
@@ -72,37 +72,37 @@ static const char *product_id_to_soc_id(unsigned int product_id)
 	return NULL;
 }
 
-static int exynos_chipid_get_chipid_info(struct regmap *regmap,
-		const struct exynos_chipid_variant *data,
-		struct exynos_chipid_info *soc_info)
+static int exyanals_chipid_get_chipid_info(struct regmap *regmap,
+		const struct exyanals_chipid_variant *data,
+		struct exyanals_chipid_info *soc_info)
 {
 	int ret;
 	unsigned int val, main_rev, sub_rev;
 
-	ret = regmap_read(regmap, EXYNOS_CHIPID_REG_PRO_ID, &val);
+	ret = regmap_read(regmap, EXYANALS_CHIPID_REG_PRO_ID, &val);
 	if (ret < 0)
 		return ret;
-	soc_info->product_id = val & EXYNOS_MASK;
+	soc_info->product_id = val & EXYANALS_MASK;
 
-	if (data->rev_reg != EXYNOS_CHIPID_REG_PRO_ID) {
+	if (data->rev_reg != EXYANALS_CHIPID_REG_PRO_ID) {
 		ret = regmap_read(regmap, data->rev_reg, &val);
 		if (ret < 0)
 			return ret;
 	}
-	main_rev = (val >> data->main_rev_shift) & EXYNOS_REV_PART_MASK;
-	sub_rev = (val >> data->sub_rev_shift) & EXYNOS_REV_PART_MASK;
-	soc_info->revision = (main_rev << EXYNOS_REV_PART_SHIFT) | sub_rev;
+	main_rev = (val >> data->main_rev_shift) & EXYANALS_REV_PART_MASK;
+	sub_rev = (val >> data->sub_rev_shift) & EXYANALS_REV_PART_MASK;
+	soc_info->revision = (main_rev << EXYANALS_REV_PART_SHIFT) | sub_rev;
 
 	return 0;
 }
 
-static int exynos_chipid_probe(struct platform_device *pdev)
+static int exyanals_chipid_probe(struct platform_device *pdev)
 {
-	const struct exynos_chipid_variant *drv_data;
-	struct exynos_chipid_info soc_info;
+	const struct exyanals_chipid_variant *drv_data;
+	struct exyanals_chipid_info soc_info;
 	struct soc_device_attribute *soc_dev_attr;
 	struct soc_device *soc_dev;
-	struct device_node *root;
+	struct device_analde *root;
 	struct regmap *regmap;
 	int ret;
 
@@ -110,45 +110,45 @@ static int exynos_chipid_probe(struct platform_device *pdev)
 	if (!drv_data)
 		return -EINVAL;
 
-	regmap = device_node_to_regmap(pdev->dev.of_node);
+	regmap = device_analde_to_regmap(pdev->dev.of_analde);
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 
-	ret = exynos_chipid_get_chipid_info(regmap, drv_data, &soc_info);
+	ret = exyanals_chipid_get_chipid_info(regmap, drv_data, &soc_info);
 	if (ret < 0)
 		return ret;
 
 	soc_dev_attr = devm_kzalloc(&pdev->dev, sizeof(*soc_dev_attr),
 				    GFP_KERNEL);
 	if (!soc_dev_attr)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	soc_dev_attr->family = "Samsung Exynos";
+	soc_dev_attr->family = "Samsung Exyanals";
 
-	root = of_find_node_by_path("/");
+	root = of_find_analde_by_path("/");
 	of_property_read_string(root, "model", &soc_dev_attr->machine);
-	of_node_put(root);
+	of_analde_put(root);
 
 	soc_dev_attr->revision = devm_kasprintf(&pdev->dev, GFP_KERNEL,
 						"%x", soc_info.revision);
 	soc_dev_attr->soc_id = product_id_to_soc_id(soc_info.product_id);
 	if (!soc_dev_attr->soc_id) {
-		pr_err("Unknown SoC\n");
-		return -ENODEV;
+		pr_err("Unkanalwn SoC\n");
+		return -EANALDEV;
 	}
 
-	/* please note that the actual registration will be deferred */
+	/* please analte that the actual registration will be deferred */
 	soc_dev = soc_device_register(soc_dev_attr);
 	if (IS_ERR(soc_dev))
 		return PTR_ERR(soc_dev);
 
-	ret = exynos_asv_init(&pdev->dev, regmap);
+	ret = exyanals_asv_init(&pdev->dev, regmap);
 	if (ret)
 		goto err;
 
 	platform_set_drvdata(pdev, soc_dev);
 
-	dev_info(&pdev->dev, "Exynos: CPU[%s] PRO_ID[0x%x] REV[0x%x] Detected\n",
+	dev_info(&pdev->dev, "Exyanals: CPU[%s] PRO_ID[0x%x] REV[0x%x] Detected\n",
 		 soc_dev_attr->soc_id, soc_info.product_id, soc_info.revision);
 
 	return 0;
@@ -159,48 +159,48 @@ err:
 	return ret;
 }
 
-static void exynos_chipid_remove(struct platform_device *pdev)
+static void exyanals_chipid_remove(struct platform_device *pdev)
 {
 	struct soc_device *soc_dev = platform_get_drvdata(pdev);
 
 	soc_device_unregister(soc_dev);
 }
 
-static const struct exynos_chipid_variant exynos4210_chipid_drv_data = {
+static const struct exyanals_chipid_variant exyanals4210_chipid_drv_data = {
 	.rev_reg	= 0x0,
 	.main_rev_shift	= 4,
 	.sub_rev_shift	= 0,
 };
 
-static const struct exynos_chipid_variant exynos850_chipid_drv_data = {
+static const struct exyanals_chipid_variant exyanals850_chipid_drv_data = {
 	.rev_reg	= 0x10,
 	.main_rev_shift	= 20,
 	.sub_rev_shift	= 16,
 };
 
-static const struct of_device_id exynos_chipid_of_device_ids[] = {
+static const struct of_device_id exyanals_chipid_of_device_ids[] = {
 	{
-		.compatible	= "samsung,exynos4210-chipid",
-		.data		= &exynos4210_chipid_drv_data,
+		.compatible	= "samsung,exyanals4210-chipid",
+		.data		= &exyanals4210_chipid_drv_data,
 	}, {
-		.compatible	= "samsung,exynos850-chipid",
-		.data		= &exynos850_chipid_drv_data,
+		.compatible	= "samsung,exyanals850-chipid",
+		.data		= &exyanals850_chipid_drv_data,
 	},
 	{ }
 };
-MODULE_DEVICE_TABLE(of, exynos_chipid_of_device_ids);
+MODULE_DEVICE_TABLE(of, exyanals_chipid_of_device_ids);
 
-static struct platform_driver exynos_chipid_driver = {
+static struct platform_driver exyanals_chipid_driver = {
 	.driver = {
-		.name = "exynos-chipid",
-		.of_match_table = exynos_chipid_of_device_ids,
+		.name = "exyanals-chipid",
+		.of_match_table = exyanals_chipid_of_device_ids,
 	},
-	.probe	= exynos_chipid_probe,
-	.remove_new = exynos_chipid_remove,
+	.probe	= exyanals_chipid_probe,
+	.remove_new = exyanals_chipid_remove,
 };
-module_platform_driver(exynos_chipid_driver);
+module_platform_driver(exyanals_chipid_driver);
 
-MODULE_DESCRIPTION("Samsung Exynos ChipID controller and ASV driver");
+MODULE_DESCRIPTION("Samsung Exyanals ChipID controller and ASV driver");
 MODULE_AUTHOR("Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>");
 MODULE_AUTHOR("Krzysztof Kozlowski <krzk@kernel.org>");
 MODULE_AUTHOR("Pankaj Dubey <pankaj.dubey@samsung.com>");

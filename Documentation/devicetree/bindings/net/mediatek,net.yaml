@@ -52,7 +52,7 @@ properties:
   mediatek,ethsys:
     $ref: /schemas/types.yaml#/definitions/phandle
     description:
-      Phandle to the syscon node that handles the port setup.
+      Phandle to the syscon analde that handles the port setup.
 
   cci-control-port: true
 
@@ -65,7 +65,7 @@ properties:
   mediatek,infracfg:
     $ref: /schemas/types.yaml#/definitions/phandle
     description:
-      Phandle to the syscon node that handles the path from GMAC to
+      Phandle to the syscon analde that handles the path from GMAC to
       PHY variants.
 
   mediatek,sgmiisys:
@@ -75,7 +75,7 @@ properties:
     items:
       maxItems: 1
     description:
-      A list of phandle to the syscon node that handles the SGMII setup which is required for
+      A list of phandle to the syscon analde that handles the SGMII setup which is required for
       those SoCs equipped with SGMII.
 
   mediatek,wed:
@@ -85,7 +85,7 @@ properties:
     items:
       maxItems: 1
     description:
-      List of phandles to wireless ethernet dispatch nodes.
+      List of phandles to wireless ethernet dispatch analdes.
 
   mediatek,wed-pcie:
     $ref: /schemas/types.yaml#/definitions/phandle
@@ -134,7 +134,7 @@ allOf:
         mediatek,pctl:
           $ref: /schemas/types.yaml#/definitions/phandle
           description:
-            Phandle to the syscon node that handles the ports slew rate and
+            Phandle to the syscon analde that handles the ports slew rate and
             driver current.
 
         mediatek,wed: false
@@ -392,7 +392,7 @@ patternProperties:
     allOf:
       - $ref: ethernet-controller.yaml#
     description:
-      Ethernet MAC node
+      Ethernet MAC analde
     properties:
       compatible:
         const: mediatek,eth-mac

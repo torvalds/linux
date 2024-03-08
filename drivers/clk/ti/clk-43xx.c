@@ -31,7 +31,7 @@ static const struct omap_clkctrl_bit_data am4_counter_32k_bit_data[] __initconst
 };
 
 static const struct omap_clkctrl_reg_data am4_l4_wkup_aon_clkctrl_regs[] __initconst = {
-	{ AM4_L4_WKUP_AON_WKUP_M3_CLKCTRL, NULL, CLKF_SW_SUP | CLKF_NO_IDLEST, "sys_clkin_ck" },
+	{ AM4_L4_WKUP_AON_WKUP_M3_CLKCTRL, NULL, CLKF_SW_SUP | CLKF_ANAL_IDLEST, "sys_clkin_ck" },
 	{ AM4_L4_WKUP_AON_COUNTER_32K_CLKCTRL, am4_counter_32k_bit_data, CLKF_SW_SUP, "l4-wkup-aon-clkctrl:0008:8" },
 	{ 0 },
 };
@@ -65,7 +65,7 @@ static const struct omap_clkctrl_reg_data am4_mpu_clkctrl_regs[] __initconst = {
 };
 
 static const struct omap_clkctrl_reg_data am4_gfx_l3_clkctrl_regs[] __initconst = {
-	{ AM4_GFX_L3_GFX_CLKCTRL, NULL, CLKF_SW_SUP | CLKF_NO_IDLEST, "gfx_fck_div_ck" },
+	{ AM4_GFX_L3_GFX_CLKCTRL, NULL, CLKF_SW_SUP | CLKF_ANAL_IDLEST, "gfx_fck_div_ck" },
 	{ 0 },
 };
 
@@ -119,7 +119,7 @@ static const struct omap_clkctrl_reg_data am4_l3s_clkctrl_regs[] __initconst = {
 };
 
 static const struct omap_clkctrl_reg_data am4_pruss_ocp_clkctrl_regs[] __initconst = {
-	{ AM4_PRUSS_OCP_PRUSS_CLKCTRL, NULL, CLKF_SW_SUP | CLKF_NO_IDLEST, "pruss_ocp_gclk" },
+	{ AM4_PRUSS_OCP_PRUSS_CLKCTRL, NULL, CLKF_SW_SUP | CLKF_ANAL_IDLEST, "pruss_ocp_gclk" },
 	{ 0 },
 };
 
@@ -262,7 +262,7 @@ static struct ti_dt_clk am43xx_clks[] = {
 	DT_CLK(NULL, "synctimer_32kclk", "l4-wkup-aon-clkctrl:0008:8"),
 	DT_CLK(NULL, "usb_otg_ss0_refclk960m", "l3s-clkctrl:01f8:8"),
 	DT_CLK(NULL, "usb_otg_ss1_refclk960m", "l3s-clkctrl:0200:8"),
-	{ .node_name = NULL },
+	{ .analde_name = NULL },
 };
 
 static const char *enable_init_clks[] = {
@@ -287,7 +287,7 @@ int __init am43xx_dt_clk_init(void)
 	 * cpsw_cpts_rft_clk  has got the choice of 3 clocksources
 	 * dpll_core_m4_ck, dpll_core_m5_ck and dpll_disp_m2_ck.
 	 * By default dpll_core_m4_ck is selected, witn this as clock
-	 * source the CPTS doesnot work properly. It gives clockcheck errors
+	 * source the CPTS doesanalt work properly. It gives clockcheck errors
 	 * while running PTP.
 	 * clockcheck: clock jumped backward or running slower than expected!
 	 * By selecting dpll_core_m5_ck as the clocksource fixes this issue.

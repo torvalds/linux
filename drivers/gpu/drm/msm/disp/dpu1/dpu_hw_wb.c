@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
  /*
-  * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved
+  * Copyright (c) 2022 Qualcomm Inanalvation Center, Inc. All rights reserved
   */
 
 #include <drm/drm_managed.h>
@@ -225,7 +225,7 @@ struct dpu_hw_wb *dpu_hw_wb_init(struct drm_device *dev,
 
 	c = drmm_kzalloc(dev, sizeof(*c), GFP_KERNEL);
 	if (!c)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	c->hw.blk_addr = addr + cfg->base;
 	c->hw.log_mask = DPU_DBG_MASK_WB;

@@ -21,7 +21,7 @@
 /*
  * WebUSB Platform Capability data
  *
- * A device announces support for the
+ * A device ananalunces support for the
  * WebUSB command set by including the following Platform Descriptor Data in its
  * Binary Object Store associated with the WebUSB_UUID above.
  * See: https://wicg.github.io/webusb/#webusb-platform-capability-descriptor
@@ -31,7 +31,7 @@ struct usb_webusb_cap_data {
 #define WEBUSB_VERSION_1_00	cpu_to_le16(0x0100) /* currently only version 1.00 is defined */
 	u8  bVendorCode;
 	u8  iLandingPage;
-#define WEBUSB_LANDING_PAGE_NOT_PRESENT	0
+#define WEBUSB_LANDING_PAGE_ANALT_PRESENT	0
 #define WEBUSB_LANDING_PAGE_PRESENT	1 /* we chose the fixed index 1 for the URL descriptor */
 } __packed;
 
@@ -63,7 +63,7 @@ struct webusb_url_descriptor {
 	u8  bScheme;
 #define WEBUSB_URL_SCHEME_HTTP			0
 #define WEBUSB_URL_SCHEME_HTTPS			1
-#define WEBUSB_URL_SCHEME_NONE			255
+#define WEBUSB_URL_SCHEME_ANALNE			255
 	u8  URL[U8_MAX - WEBUSB_URL_DESCRIPTOR_HEADER_LENGTH];
 } __packed;
 

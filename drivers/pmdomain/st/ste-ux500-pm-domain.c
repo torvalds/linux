@@ -58,16 +58,16 @@ static const struct of_device_id ux500_pm_domain_matches[] = {
 
 static int ux500_pm_domains_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct genpd_onecell_data *genpd_data;
 	int i;
 
 	if (!np)
-		return -ENODEV;
+		return -EANALDEV;
 
 	genpd_data = kzalloc(sizeof(*genpd_data), GFP_KERNEL);
 	if (!genpd_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	genpd_data->domains = ux500_pm_domains;
 	genpd_data->num_domains = ARRAY_SIZE(ux500_pm_domains);

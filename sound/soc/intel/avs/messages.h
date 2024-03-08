@@ -34,7 +34,7 @@ enum avs_global_msg_type {
 	AVS_GLB_SET_PIPELINE_STATE = 19,
 	AVS_GLB_GET_PIPELINE_STATE = 20,
 	AVS_GLB_LOAD_LIBRARY = 24,
-	AVS_GLB_NOTIFICATION = 27,
+	AVS_GLB_ANALTIFICATION = 27,
 };
 
 union avs_global_msg {
@@ -152,7 +152,7 @@ union avs_module_msg {
 	};
 } __packed;
 
-#define AVS_IPC_NOT_SUPPORTED 15
+#define AVS_IPC_ANALT_SUPPORTED 15
 
 union avs_reply_msg {
 	u64 val;
@@ -187,23 +187,23 @@ union avs_reply_msg {
 	};
 } __packed;
 
-enum avs_notify_msg_type {
-	AVS_NOTIFY_PHRASE_DETECTED = 4,
-	AVS_NOTIFY_RESOURCE_EVENT = 5,
-	AVS_NOTIFY_LOG_BUFFER_STATUS = 6,
-	AVS_NOTIFY_FW_READY = 8,
-	AVS_NOTIFY_EXCEPTION_CAUGHT = 10,
-	AVS_NOTIFY_MODULE_EVENT = 12,
+enum avs_analtify_msg_type {
+	AVS_ANALTIFY_PHRASE_DETECTED = 4,
+	AVS_ANALTIFY_RESOURCE_EVENT = 5,
+	AVS_ANALTIFY_LOG_BUFFER_STATUS = 6,
+	AVS_ANALTIFY_FW_READY = 8,
+	AVS_ANALTIFY_EXCEPTION_CAUGHT = 10,
+	AVS_ANALTIFY_MODULE_EVENT = 12,
 };
 
-union avs_notify_msg {
+union avs_analtify_msg {
 	u64 val;
 	struct {
 		union {
 			u32 primary;
 			struct {
 				u32 rsvd:16;
-				u32 notify_msg_type:8;
+				u32 analtify_msg_type:8;
 				u32 global_msg_type:5;
 				u32 msg_direction:1;
 				u32 msg_target:1;
@@ -239,10 +239,10 @@ union avs_notify_msg {
 	.msg_target = AVS_MOD_MSG,		\
 }
 
-#define AVS_NOTIFICATION(msg_type)		\
+#define AVS_ANALTIFICATION(msg_type)		\
 {						\
-	.notify_msg_type = AVS_NOTIFY_##msg_type,\
-	.global_msg_type = AVS_GLB_NOTIFICATION,\
+	.analtify_msg_type = AVS_ANALTIFY_##msg_type,\
+	.global_msg_type = AVS_GLB_ANALTIFICATION,\
 	.msg_direction = AVS_MSG_REPLY,		\
 	.msg_target = AVS_FW_GEN_MSG,		\
 }
@@ -251,17 +251,17 @@ union avs_notify_msg {
 ({ \
 	union avs_reply_msg __msg = AVS_MSG(hdr); \
 	__msg.msg_direction == AVS_MSG_REPLY && \
-	__msg.global_msg_type != AVS_GLB_NOTIFICATION; \
+	__msg.global_msg_type != AVS_GLB_ANALTIFICATION; \
 })
 
-/* Notification types */
+/* Analtification types */
 
-struct avs_notify_voice_data {
+struct avs_analtify_voice_data {
 	u16 kpd_score;
 	u16 reserved;
 } __packed;
 
-struct avs_notify_res_data {
+struct avs_analtify_res_data {
 	u32 resource_type;
 	u32 resource_id;
 	u32 event_type;
@@ -269,7 +269,7 @@ struct avs_notify_res_data {
 	u32 data[6];
 } __packed;
 
-struct avs_notify_mod_data {
+struct avs_analtify_mod_data {
 	u32 module_instance_id;
 	u32 event_id;
 	u32 data_size;
@@ -380,7 +380,7 @@ int avs_ipc_set_enable_logs(struct avs_dev *adev, u8 *log_info, size_t size);
 
 struct avs_fw_version {
 	u16 major;
-	u16 minor;
+	u16 mianalr;
 	u16 hotfix;
 	u16 build;
 };
@@ -609,7 +609,7 @@ enum avs_channel_index {
 };
 
 enum avs_channel_config {
-	AVS_CHANNEL_CONFIG_MONO = 0,
+	AVS_CHANNEL_CONFIG_MOANAL = 0,
 	AVS_CHANNEL_CONFIG_STEREO = 1,
 	AVS_CHANNEL_CONFIG_2_1 = 2,
 	AVS_CHANNEL_CONFIG_3_0 = 3,
@@ -618,7 +618,7 @@ enum avs_channel_config {
 	AVS_CHANNEL_CONFIG_4_0 = 6,
 	AVS_CHANNEL_CONFIG_5_0 = 7,
 	AVS_CHANNEL_CONFIG_5_1 = 8,
-	AVS_CHANNEL_CONFIG_DUAL_MONO = 9,
+	AVS_CHANNEL_CONFIG_DUAL_MOANAL = 9,
 	AVS_CHANNEL_CONFIG_I2S_DUAL_STEREO_0 = 10,
 	AVS_CHANNEL_CONFIG_I2S_DUAL_STEREO_1 = 11,
 	AVS_CHANNEL_CONFIG_7_1 = 12,
@@ -699,7 +699,7 @@ union avs_virtual_index {
 	} dmic;
 } __packed;
 
-union avs_connector_node_id {
+union avs_connector_analde_id {
 	u32 val;
 	struct {
 		u32 vindex:8;
@@ -709,8 +709,8 @@ union avs_connector_node_id {
 } __packed;
 
 #define INVALID_PIPELINE_ID	0xFF
-#define INVALID_NODE_ID \
-	((union avs_connector_node_id) { UINT_MAX })
+#define INVALID_ANALDE_ID \
+	((union avs_connector_analde_id) { UINT_MAX })
 
 union avs_gtw_attributes {
 	u32 val;
@@ -721,7 +721,7 @@ union avs_gtw_attributes {
 } __packed;
 
 struct avs_copier_gtw_cfg {
-	union avs_connector_node_id node_id;
+	union avs_connector_analde_id analde_id;
 	u32 dma_buffer_size;
 	u32 config_length;
 	struct {
@@ -775,7 +775,7 @@ struct avs_src_cfg {
 } __packed;
 
 struct avs_probe_gtw_cfg {
-	union avs_connector_node_id node_id;
+	union avs_connector_analde_id analde_id;
 	u32 dma_buffer_size;
 } __packed;
 
@@ -828,7 +828,7 @@ enum avs_peakvol_runtime_param {
 };
 
 enum avs_audio_curve_type {
-	AVS_AUDIO_CURVE_NONE = 0,
+	AVS_AUDIO_CURVE_ANALNE = 0,
 	AVS_AUDIO_CURVE_WINDOWS_FADE = 1,
 };
 
@@ -847,7 +847,7 @@ enum avs_probe_runtime_param {
 };
 
 struct avs_probe_dma {
-	union avs_connector_node_id node_id;
+	union avs_connector_analde_id analde_id;
 	u32 dma_buffer_size;
 } __packed;
 
@@ -876,13 +876,13 @@ enum avs_connection_purpose {
 struct avs_probe_point_desc {
 	union avs_probe_point_id id;
 	u32 purpose;
-	union avs_connector_node_id node_id;
+	union avs_connector_analde_id analde_id;
 } __packed;
 
 int avs_ipc_probe_get_dma(struct avs_dev *adev, struct avs_probe_dma **dmas, size_t *num_dmas);
 int avs_ipc_probe_attach_dma(struct avs_dev *adev, struct avs_probe_dma *dmas, size_t num_dmas);
-int avs_ipc_probe_detach_dma(struct avs_dev *adev, union avs_connector_node_id *node_ids,
-			     size_t num_node_ids);
+int avs_ipc_probe_detach_dma(struct avs_dev *adev, union avs_connector_analde_id *analde_ids,
+			     size_t num_analde_ids);
 int avs_ipc_probe_get_points(struct avs_dev *adev, struct avs_probe_point_desc **descs,
 			     size_t *num_descs);
 int avs_ipc_probe_connect_points(struct avs_dev *adev, struct avs_probe_point_desc *descs,

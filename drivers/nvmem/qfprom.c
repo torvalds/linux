@@ -33,8 +33,8 @@
 #define QFPROM_VERSION_OFFSET		0x0
 #define QFPROM_MAJOR_VERSION_SHIFT	28
 #define QFPROM_MAJOR_VERSION_MASK	GENMASK(31, QFPROM_MAJOR_VERSION_SHIFT)
-#define QFPROM_MINOR_VERSION_SHIFT	16
-#define QFPROM_MINOR_VERSION_MASK	GENMASK(27, QFPROM_MINOR_VERSION_SHIFT)
+#define QFPROM_MIANALR_VERSION_SHIFT	16
+#define QFPROM_MIANALR_VERSION_MASK	GENMASK(27, QFPROM_MIANALR_VERSION_SHIFT)
 
 static bool read_raw_data;
 module_param(read_raw_data, bool, 0644);
@@ -134,7 +134,7 @@ static const struct qfprom_soc_compatible_data sc7280_qfprom = {
  * and voltage settings.
  *
  * Prints messages if there are errors but doesn't return an error code
- * since there's not much we can do upon failure.
+ * since there's analt much we can do upon failure.
  */
 static void qfprom_disable_fuse_blowing(const struct qfprom_priv *priv,
 					const struct qfprom_touched_values *old)
@@ -149,22 +149,22 @@ static void qfprom_disable_fuse_blowing(const struct qfprom_priv *priv,
 
 	/*
 	 * This may be a shared rail and may be able to run at a lower rate
-	 * when we're not blowing fuses.  At the moment, the regulator framework
+	 * when we're analt blowing fuses.  At the moment, the regulator framework
 	 * applies voltage constraints even on disabled rails, so remove our
 	 * constraints and allow the rail to be adjusted by other users.
 	 */
 	ret = regulator_set_voltage(priv->vcc, 0, INT_MAX);
 	if (ret)
-		dev_warn(priv->dev, "Failed to set 0 voltage (ignoring)\n");
+		dev_warn(priv->dev, "Failed to set 0 voltage (iganalring)\n");
 
 	ret = regulator_disable(priv->vcc);
 	if (ret)
-		dev_warn(priv->dev, "Failed to disable regulator (ignoring)\n");
+		dev_warn(priv->dev, "Failed to disable regulator (iganalring)\n");
 
 	ret = clk_set_rate(priv->secclk, old->clk_rate);
 	if (ret)
 		dev_warn(priv->dev,
-			 "Failed to set clock rate for disable (ignoring)\n");
+			 "Failed to set clock rate for disable (iganalring)\n");
 
 	clk_disable_unprepare(priv->secclk);
 }
@@ -275,7 +275,7 @@ static int qfprom_reg_write(void *context, unsigned int reg, void *_val,
 	 */
 	if (bytes % 4) {
 		dev_err(priv->dev,
-			"%zu is not an integral number of words\n", bytes);
+			"%zu is analt an integral number of words\n", bytes);
 		return -EINVAL;
 	}
 	if (reg % 4) {
@@ -307,7 +307,7 @@ static int qfprom_reg_write(void *context, unsigned int reg, void *_val,
 		blow_status, blow_status == QFPROM_BLOW_STATUS_READY,
 		QFPROM_FUSE_BLOW_POLL_US, QFPROM_FUSE_BLOW_TIMEOUT_US);
 
-	/* Give an error, but not much we can do in this case */
+	/* Give an error, but analt much we can do in this case */
 	if (ret)
 		dev_err(priv->dev, "Timeout waiting for finish.\n");
 
@@ -372,7 +372,7 @@ static int qfprom_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* The corrected section is always provided */
 	priv->qfpcorrected = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
@@ -397,7 +397,7 @@ static int qfprom_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	if (res) {
 		u32 version;
-		int major_version, minor_version;
+		int major_version, mianalr_version;
 
 		priv->qfpraw = devm_ioremap_resource(dev, res);
 		if (IS_ERR(priv->qfpraw))
@@ -412,12 +412,12 @@ static int qfprom_probe(struct platform_device *pdev)
 		version = readl(priv->qfpsecurity + QFPROM_VERSION_OFFSET);
 		major_version = (version & QFPROM_MAJOR_VERSION_MASK) >>
 				QFPROM_MAJOR_VERSION_SHIFT;
-		minor_version = (version & QFPROM_MINOR_VERSION_MASK) >>
-				QFPROM_MINOR_VERSION_SHIFT;
+		mianalr_version = (version & QFPROM_MIANALR_VERSION_MASK) >>
+				QFPROM_MIANALR_VERSION_SHIFT;
 
-		if (major_version == 7 && minor_version == 8)
+		if (major_version == 7 && mianalr_version == 8)
 			priv->soc_data = &qfprom_7_8_data;
-		else if (major_version == 7 && minor_version == 15)
+		else if (major_version == 7 && mianalr_version == 15)
 			priv->soc_data = &qfprom_7_15_data;
 
 		priv->vcc = devm_regulator_get(&pdev->dev, "vcc");

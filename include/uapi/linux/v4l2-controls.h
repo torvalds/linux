@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: ((GPL-2.0+ WITH Linux-syscall-note) OR BSD-3-Clause) */
+/* SPDX-License-Identifier: ((GPL-2.0+ WITH Linux-syscall-analte) OR BSD-3-Clause) */
 /*
  *  Video for Linux Two controls header file
  *
@@ -74,7 +74,7 @@ enum v4l2_power_line_frequency {
 #define V4L2_CID_COLOR_KILLER                   (V4L2_CID_BASE+30)
 #define V4L2_CID_COLORFX			(V4L2_CID_BASE+31)
 enum v4l2_colorfx {
-	V4L2_COLORFX_NONE			= 0,
+	V4L2_COLORFX_ANALNE			= 0,
 	V4L2_COLORFX_BW				= 1,
 	V4L2_COLORFX_SEPIA			= 2,
 	V4L2_COLORFX_NEGATIVE			= 3,
@@ -240,7 +240,7 @@ enum v4l2_mpeg_stream_type {
 #define V4L2_CID_MPEG_STREAM_PES_ID_VIDEO	(V4L2_CID_CODEC_BASE+6)
 #define V4L2_CID_MPEG_STREAM_VBI_FMT		(V4L2_CID_CODEC_BASE+7)
 enum v4l2_mpeg_stream_vbi_fmt {
-	V4L2_MPEG_STREAM_VBI_FMT_NONE = 0,  /* No VBI in the MPEG stream */
+	V4L2_MPEG_STREAM_VBI_FMT_ANALNE = 0,  /* Anal VBI in the MPEG stream */
 	V4L2_MPEG_STREAM_VBI_FMT_IVTV = 1,  /* VBI in private packets, IVTV format */
 };
 
@@ -315,7 +315,7 @@ enum v4l2_mpeg_audio_mode {
 	V4L2_MPEG_AUDIO_MODE_STEREO       = 0,
 	V4L2_MPEG_AUDIO_MODE_JOINT_STEREO = 1,
 	V4L2_MPEG_AUDIO_MODE_DUAL         = 2,
-	V4L2_MPEG_AUDIO_MODE_MONO         = 3,
+	V4L2_MPEG_AUDIO_MODE_MOANAL         = 3,
 };
 #define V4L2_CID_MPEG_AUDIO_MODE_EXTENSION	(V4L2_CID_CODEC_BASE+106)
 enum v4l2_mpeg_audio_mode_extension {
@@ -326,13 +326,13 @@ enum v4l2_mpeg_audio_mode_extension {
 };
 #define V4L2_CID_MPEG_AUDIO_EMPHASIS		(V4L2_CID_CODEC_BASE+107)
 enum v4l2_mpeg_audio_emphasis {
-	V4L2_MPEG_AUDIO_EMPHASIS_NONE         = 0,
+	V4L2_MPEG_AUDIO_EMPHASIS_ANALNE         = 0,
 	V4L2_MPEG_AUDIO_EMPHASIS_50_DIV_15_uS = 1,
 	V4L2_MPEG_AUDIO_EMPHASIS_CCITT_J17    = 2,
 };
 #define V4L2_CID_MPEG_AUDIO_CRC			(V4L2_CID_CODEC_BASE+108)
 enum v4l2_mpeg_audio_crc {
-	V4L2_MPEG_AUDIO_CRC_NONE  = 0,
+	V4L2_MPEG_AUDIO_CRC_ANALNE  = 0,
 	V4L2_MPEG_AUDIO_CRC_CRC16 = 1,
 };
 #define V4L2_CID_MPEG_AUDIO_MUTE		(V4L2_CID_CODEC_BASE+109)
@@ -365,7 +365,7 @@ enum v4l2_mpeg_audio_dec_playback {
 	V4L2_MPEG_AUDIO_DEC_PLAYBACK_STEREO	    = 1,
 	V4L2_MPEG_AUDIO_DEC_PLAYBACK_LEFT	    = 2,
 	V4L2_MPEG_AUDIO_DEC_PLAYBACK_RIGHT	    = 3,
-	V4L2_MPEG_AUDIO_DEC_PLAYBACK_MONO	    = 4,
+	V4L2_MPEG_AUDIO_DEC_PLAYBACK_MOANAL	    = 4,
 	V4L2_MPEG_AUDIO_DEC_PLAYBACK_SWAPPED_STEREO = 5,
 };
 #define V4L2_CID_MPEG_AUDIO_DEC_MULTILINGUAL_PLAYBACK (V4L2_CID_CODEC_BASE+113)
@@ -643,7 +643,7 @@ enum v4l2_mpeg_video_mpeg4_profile {
 #define V4L2_CID_MPEG_VIDEO_MPEG4_QPEL		(V4L2_CID_CODEC_BASE+407)
 
 /*  Control IDs for VP8 streams
- *  Although VP8 is not part of MPEG we add these controls to the MPEG class
+ *  Although VP8 is analt part of MPEG we add these controls to the MPEG class
  *  as that class is already handling other video compression standards
  */
 #define V4L2_CID_MPEG_VIDEO_VPX_NUM_PARTITIONS		(V4L2_CID_CODEC_BASE+500)
@@ -767,7 +767,7 @@ enum v4l2_cid_mpeg_video_hevc_loop_filter_mode {
 #define V4L2_CID_MPEG_VIDEO_HEVC_LF_TC_OFFSET_DIV2	(V4L2_CID_CODEC_BASE + 622)
 #define V4L2_CID_MPEG_VIDEO_HEVC_REFRESH_TYPE		(V4L2_CID_CODEC_BASE + 623)
 enum v4l2_cid_mpeg_video_hevc_refresh_type {
-	V4L2_MPEG_VIDEO_HEVC_REFRESH_NONE		= 0,
+	V4L2_MPEG_VIDEO_HEVC_REFRESH_ANALNE		= 0,
 	V4L2_MPEG_VIDEO_HEVC_REFRESH_CRA		= 1,
 	V4L2_MPEG_VIDEO_HEVC_REFRESH_IDR		= 2,
 };
@@ -912,7 +912,7 @@ enum v4l2_mpeg_cx2341x_video_luma_spatial_filter_type {
 	V4L2_MPEG_CX2341X_VIDEO_LUMA_SPATIAL_FILTER_TYPE_1D_HOR               = 1,
 	V4L2_MPEG_CX2341X_VIDEO_LUMA_SPATIAL_FILTER_TYPE_1D_VERT              = 2,
 	V4L2_MPEG_CX2341X_VIDEO_LUMA_SPATIAL_FILTER_TYPE_2D_HV_SEPARABLE      = 3,
-	V4L2_MPEG_CX2341X_VIDEO_LUMA_SPATIAL_FILTER_TYPE_2D_SYM_NON_SEPARABLE = 4,
+	V4L2_MPEG_CX2341X_VIDEO_LUMA_SPATIAL_FILTER_TYPE_2D_SYM_ANALN_SEPARABLE = 4,
 };
 #define V4L2_CID_MPEG_CX2341X_VIDEO_CHROMA_SPATIAL_FILTER_TYPE	(V4L2_CID_CODEC_CX2341X_BASE+3)
 enum v4l2_mpeg_cx2341x_video_chroma_spatial_filter_type {
@@ -954,7 +954,7 @@ enum v4l2_mpeg_mfc51_video_frame_skip_mode {
 enum v4l2_mpeg_mfc51_video_force_frame_type {
 	V4L2_MPEG_MFC51_VIDEO_FORCE_FRAME_TYPE_DISABLED		= 0,
 	V4L2_MPEG_MFC51_VIDEO_FORCE_FRAME_TYPE_I_FRAME		= 1,
-	V4L2_MPEG_MFC51_VIDEO_FORCE_FRAME_TYPE_NOT_CODED	= 2,
+	V4L2_MPEG_MFC51_VIDEO_FORCE_FRAME_TYPE_ANALT_CODED	= 2,
 };
 #define V4L2_CID_MPEG_MFC51_VIDEO_PADDING				(V4L2_CID_CODEC_MFC51_BASE+4)
 #define V4L2_CID_MPEG_MFC51_VIDEO_PADDING_YUV				(V4L2_CID_CODEC_MFC51_BASE+5)
@@ -1038,9 +1038,9 @@ enum v4l2_exposure_metering {
 
 #define V4L2_CID_SCENE_MODE			(V4L2_CID_CAMERA_CLASS_BASE+26)
 enum v4l2_scene_mode {
-	V4L2_SCENE_MODE_NONE			= 0,
+	V4L2_SCENE_MODE_ANALNE			= 0,
 	V4L2_SCENE_MODE_BACKLIGHT		= 1,
-	V4L2_SCENE_MODE_BEACH_SNOW		= 2,
+	V4L2_SCENE_MODE_BEACH_SANALW		= 2,
 	V4L2_SCENE_MODE_CANDLE_LIGHT		= 3,
 	V4L2_SCENE_MODE_DAWN_DUSK		= 4,
 	V4L2_SCENE_MODE_FALL_COLORS		= 5,
@@ -1070,7 +1070,7 @@ enum v4l2_scene_mode {
 #define V4L2_CID_AUTO_FOCUS_RANGE		(V4L2_CID_CAMERA_CLASS_BASE+31)
 enum v4l2_auto_focus_range {
 	V4L2_AUTO_FOCUS_RANGE_AUTO		= 0,
-	V4L2_AUTO_FOCUS_RANGE_NORMAL		= 1,
+	V4L2_AUTO_FOCUS_RANGE_ANALRMAL		= 1,
 	V4L2_AUTO_FOCUS_RANGE_MACRO		= 2,
 	V4L2_AUTO_FOCUS_RANGE_INFINITY		= 3,
 };
@@ -1097,11 +1097,11 @@ enum v4l2_auto_focus_range {
 #define V4L2_CID_RDS_TX_PTY			(V4L2_CID_FM_TX_CLASS_BASE + 3)
 #define V4L2_CID_RDS_TX_PS_NAME			(V4L2_CID_FM_TX_CLASS_BASE + 5)
 #define V4L2_CID_RDS_TX_RADIO_TEXT		(V4L2_CID_FM_TX_CLASS_BASE + 6)
-#define V4L2_CID_RDS_TX_MONO_STEREO		(V4L2_CID_FM_TX_CLASS_BASE + 7)
+#define V4L2_CID_RDS_TX_MOANAL_STEREO		(V4L2_CID_FM_TX_CLASS_BASE + 7)
 #define V4L2_CID_RDS_TX_ARTIFICIAL_HEAD		(V4L2_CID_FM_TX_CLASS_BASE + 8)
 #define V4L2_CID_RDS_TX_COMPRESSED		(V4L2_CID_FM_TX_CLASS_BASE + 9)
 #define V4L2_CID_RDS_TX_DYNAMIC_PTY		(V4L2_CID_FM_TX_CLASS_BASE + 10)
-#define V4L2_CID_RDS_TX_TRAFFIC_ANNOUNCEMENT	(V4L2_CID_FM_TX_CLASS_BASE + 11)
+#define V4L2_CID_RDS_TX_TRAFFIC_ANANALUNCEMENT	(V4L2_CID_FM_TX_CLASS_BASE + 11)
 #define V4L2_CID_RDS_TX_TRAFFIC_PROGRAM		(V4L2_CID_FM_TX_CLASS_BASE + 12)
 #define V4L2_CID_RDS_TX_MUSIC_SPEECH		(V4L2_CID_FM_TX_CLASS_BASE + 13)
 #define V4L2_CID_RDS_TX_ALT_FREQS_ENABLE	(V4L2_CID_FM_TX_CLASS_BASE + 14)
@@ -1138,7 +1138,7 @@ enum v4l2_preemphasis {
 
 #define V4L2_CID_FLASH_LED_MODE			(V4L2_CID_FLASH_CLASS_BASE + 1)
 enum v4l2_flash_led_mode {
-	V4L2_FLASH_LED_MODE_NONE,
+	V4L2_FLASH_LED_MODE_ANALNE,
 	V4L2_FLASH_LED_MODE_FLASH,
 	V4L2_FLASH_LED_MODE_TORCH,
 };
@@ -1210,7 +1210,7 @@ enum v4l2_jpeg_chroma_subsampling {
 #define V4L2_CID_TEST_PATTERN_BLUE		(V4L2_CID_IMAGE_SOURCE_CLASS_BASE + 6)
 #define V4L2_CID_TEST_PATTERN_GREENB		(V4L2_CID_IMAGE_SOURCE_CLASS_BASE + 7)
 #define V4L2_CID_UNIT_CELL_SIZE			(V4L2_CID_IMAGE_SOURCE_CLASS_BASE + 8)
-#define V4L2_CID_NOTIFY_GAINS			(V4L2_CID_IMAGE_SOURCE_CLASS_BASE + 9)
+#define V4L2_CID_ANALTIFY_GAINS			(V4L2_CID_IMAGE_SOURCE_CLASS_BASE + 9)
 
 
 /* Image processing controls */
@@ -1249,7 +1249,7 @@ enum v4l2_dv_it_content_type {
 	V4L2_DV_IT_CONTENT_TYPE_PHOTO	  = 1,
 	V4L2_DV_IT_CONTENT_TYPE_CINEMA	  = 2,
 	V4L2_DV_IT_CONTENT_TYPE_GAME	  = 3,
-	V4L2_DV_IT_CONTENT_TYPE_NO_ITC	  = 4,
+	V4L2_DV_IT_CONTENT_TYPE_ANAL_ITC	  = 4,
 };
 
 #define	V4L2_CID_DV_RX_POWER_PRESENT		(V4L2_CID_DV_CLASS_BASE + 100)
@@ -1270,7 +1270,7 @@ enum v4l2_deemphasis {
 #define V4L2_CID_RDS_RX_PTY			(V4L2_CID_FM_RX_CLASS_BASE + 3)
 #define V4L2_CID_RDS_RX_PS_NAME			(V4L2_CID_FM_RX_CLASS_BASE + 4)
 #define V4L2_CID_RDS_RX_RADIO_TEXT		(V4L2_CID_FM_RX_CLASS_BASE + 5)
-#define V4L2_CID_RDS_RX_TRAFFIC_ANNOUNCEMENT	(V4L2_CID_FM_RX_CLASS_BASE + 6)
+#define V4L2_CID_RDS_RX_TRAFFIC_ANANALUNCEMENT	(V4L2_CID_FM_RX_CLASS_BASE + 6)
 #define V4L2_CID_RDS_RX_TRAFFIC_PROGRAM		(V4L2_CID_FM_RX_CLASS_BASE + 7)
 #define V4L2_CID_RDS_RX_MUSIC_SPEECH		(V4L2_CID_FM_RX_CLASS_BASE + 8)
 
@@ -1324,7 +1324,7 @@ enum v4l2_detect_md_mode {
  * all slices and also both fields. This mode is typically supported
  * by device drivers that are able to parse the slice(s) header(s)
  * in hardware. When this mode is selected,
- * V4L2_CID_STATELESS_H264_SLICE_PARAMS is not used.
+ * V4L2_CID_STATELESS_H264_SLICE_PARAMS is analt used.
  */
 enum v4l2_stateless_h264_decode_mode {
 	V4L2_STATELESS_H264_DECODE_MODE_SLICE_BASED,
@@ -1335,7 +1335,7 @@ enum v4l2_stateless_h264_decode_mode {
 /**
  * enum v4l2_stateless_h264_start_code - Start code
  *
- * @V4L2_STATELESS_H264_START_CODE_NONE: slices are passed
+ * @V4L2_STATELESS_H264_START_CODE_ANALNE: slices are passed
  * to the driver without any start code.
  * @V4L2_STATELESS_H264_START_CODE_ANNEX_B: slices are passed
  * to the driver with an Annex B start code prefix
@@ -1344,7 +1344,7 @@ enum v4l2_stateless_h264_decode_mode {
  * the start code in hardware.
  */
 enum v4l2_stateless_h264_start_code {
-	V4L2_STATELESS_H264_START_CODE_NONE,
+	V4L2_STATELESS_H264_START_CODE_ANALNE,
 	V4L2_STATELESS_H264_START_CODE_ANNEX_B,
 };
 
@@ -1392,7 +1392,7 @@ enum v4l2_stateless_h264_start_code {
  * @max_num_ref_frames: see H264 specification.
  * @num_ref_frames_in_pic_order_cnt_cycle: see H264 specification.
  * @offset_for_ref_frame: see H264 specification.
- * @offset_for_non_ref_pic: see H264 specification.
+ * @offset_for_analn_ref_pic: see H264 specification.
  * @offset_for_top_to_bottom_field: see H264 specification.
  * @pic_width_in_mbs_minus1: see H264 specification.
  * @pic_height_in_map_units_minus1: see H264 specification.
@@ -1412,7 +1412,7 @@ struct v4l2_ctrl_h264_sps {
 	__u8 max_num_ref_frames;
 	__u8 num_ref_frames_in_pic_order_cnt_cycle;
 	__s32 offset_for_ref_frame[255];
-	__s32 offset_for_non_ref_pic;
+	__s32 offset_for_analn_ref_pic;
 	__s32 offset_for_top_to_bottom_field;
 	__u16 pic_width_in_mbs_minus1;
 	__u16 pic_height_in_map_units_minus1;
@@ -1432,15 +1432,15 @@ struct v4l2_ctrl_h264_sps {
 /**
  * struct v4l2_ctrl_h264_pps - H264 picture parameter set
  *
- * Except where noted, all the members on this picture parameter set
+ * Except where analted, all the members on this picture parameter set
  * structure match the picture parameter set syntax as specified
  * by the H264 specification.
  *
  * In particular, V4L2_H264_PPS_FLAG_SCALING_MATRIX_PRESENT flag
- * has a specific meaning. This flag should be set if a non-flat
+ * has a specific meaning. This flag should be set if a analn-flat
  * scaling matrix applies to the picture. In this case, applications
  * are expected to use V4L2_CID_STATELESS_H264_SCALING_MATRIX,
- * to pass the values of the non-flat matrices.
+ * to pass the values of the analn-flat matrices.
  *
  * @pic_parameter_set_id: see H264 specification.
  * @seq_parameter_set_id: see H264 specification.
@@ -1481,7 +1481,7 @@ struct v4l2_ctrl_h264_pps {
  * Intra Cb, Inter Cb, Intra Cr, Inter Cr. The values on each
  * scaling list are expected in raster scan order.
  *
- * Note that the list order is different for the 4x4 and 8x8
+ * Analte that the list order is different for the 4x4 and 8x8
  * matrices as per the H264 specification, see table 7-2 "Assignment
  * of mnemonic names to scaling list indices and specification of
  * fall-back rule".
@@ -1512,13 +1512,13 @@ struct v4l2_h264_weight_factors {
  * Prediction weight table, which matches the syntax specified
  * by the H264 specification.
  *
- * @luma_log2_weight_denom: see H264 specification.
- * @chroma_log2_weight_denom: see H264 specification.
+ * @luma_log2_weight_deanalm: see H264 specification.
+ * @chroma_log2_weight_deanalm: see H264 specification.
  * @weight_factors: luma and chroma weight factors.
  */
 struct v4l2_ctrl_h264_pred_weights {
-	__u16 luma_log2_weight_denom;
-	__u16 chroma_log2_weight_denom;
+	__u16 luma_log2_weight_deanalm;
+	__u16 chroma_log2_weight_deanalm;
 	struct v4l2_h264_weight_factors weight_factors[2];
 };
 
@@ -1559,7 +1559,7 @@ struct v4l2_h264_reference {
  * struct v4l2_ctrl_h264_slice_params - H264 slice parameters
  *
  * This structure holds the H264 syntax elements that are specified
- * as non-invariant for the slices in a given frame.
+ * as analn-invariant for the slices in a given frame.
  *
  * Slice invariant syntax elements are contained in struct
  * v4l2_ctrl_h264_decode_params. This is done to reduce the API surface
@@ -1569,7 +1569,7 @@ struct v4l2_h264_reference {
  * Slice invariant syntax elements are specified in specification section
  * "7.4.3 Slice header semantics".
  *
- * Except where noted, the members on this struct match the slice header syntax.
+ * Except where analted, the members on this struct match the slice header syntax.
  *
  * @header_bit_size: offset in bits to slice_data() from the beginning of this slice.
  * @first_mb_in_slice: see H264 specification.
@@ -1631,7 +1631,7 @@ struct v4l2_ctrl_h264_slice_params {
  * @reserved: padding field. Should be zeroed by applications.
  * @top_field_order_cnt: matches TopFieldOrderCnt picture value.
  * @bottom_field_order_cnt: matches BottomFieldOrderCnt picture value.
- * Note that picture field is indicated by v4l2_buffer.field.
+ * Analte that picture field is indicated by v4l2_buffer.field.
  * @flags: see V4L2_H264_DPB_ENTRY_FLAG_{}.
  */
 struct v4l2_h264_dpb_entry {
@@ -1660,7 +1660,7 @@ struct v4l2_h264_dpb_entry {
  * @frame_num: slice header syntax element.
  * @top_field_order_cnt: matches TopFieldOrderCnt picture value.
  * @bottom_field_order_cnt: matches BottomFieldOrderCnt picture value.
- * Note that picture field is indicated by v4l2_buffer.field.
+ * Analte that picture field is indicated by v4l2_buffer.field.
  * @idr_pic_id: slice header syntax element.
  * @pic_order_cnt_lsb: slice header syntax element.
  * @delta_pic_order_cnt_bottom: slice header syntax element.
@@ -1892,7 +1892,7 @@ struct v4l2_vp8_entropy_coder_state {
 #define V4L2_VP8_FRAME_FLAG_KEY_FRAME		0x01
 #define V4L2_VP8_FRAME_FLAG_EXPERIMENTAL		0x02
 #define V4L2_VP8_FRAME_FLAG_SHOW_FRAME		0x04
-#define V4L2_VP8_FRAME_FLAG_MB_NO_SKIP_COEFF	0x08
+#define V4L2_VP8_FRAME_FLAG_MB_ANAL_SKIP_COEFF	0x08
 #define V4L2_VP8_FRAME_FLAG_SIGN_BIAS_GOLDEN	0x10
 #define V4L2_VP8_FRAME_FLAG_SIGN_BIAS_ALT	0x20
 
@@ -2052,23 +2052,23 @@ struct v4l2_ctrl_mpeg2_picture {
  * @intra_quantiser_matrix: The quantisation matrix coefficients
  * for intra-coded frames, in zigzag scanning order. It is relevant
  * for both luma and chroma components, although it can be superseded
- * by the chroma-specific matrix for non-4:2:0 YUV formats.
- * @non_intra_quantiser_matrix: The quantisation matrix coefficients
- * for non-intra-coded frames, in zigzag scanning order. It is relevant
+ * by the chroma-specific matrix for analn-4:2:0 YUV formats.
+ * @analn_intra_quantiser_matrix: The quantisation matrix coefficients
+ * for analn-intra-coded frames, in zigzag scanning order. It is relevant
  * for both luma and chroma components, although it can be superseded
- * by the chroma-specific matrix for non-4:2:0 YUV formats.
+ * by the chroma-specific matrix for analn-4:2:0 YUV formats.
  * @chroma_intra_quantiser_matrix: The quantisation matrix coefficients
  * for the chominance component of intra-coded frames, in zigzag scanning
  * order. Only relevant for 4:2:2 and 4:4:4 YUV formats.
- * @chroma_non_intra_quantiser_matrix: The quantisation matrix coefficients
- * for the chrominance component of non-intra-coded frames, in zigzag scanning
+ * @chroma_analn_intra_quantiser_matrix: The quantisation matrix coefficients
+ * for the chrominance component of analn-intra-coded frames, in zigzag scanning
  * order. Only relevant for 4:2:2 and 4:4:4 YUV formats.
  */
 struct v4l2_ctrl_mpeg2_quantisation {
 	__u8	intra_quantiser_matrix[64];
-	__u8	non_intra_quantiser_matrix[64];
+	__u8	analn_intra_quantiser_matrix[64];
 	__u8	chroma_intra_quantiser_matrix[64];
-	__u8	chroma_non_intra_quantiser_matrix[64];
+	__u8	chroma_analn_intra_quantiser_matrix[64];
 };
 
 #define V4L2_CID_STATELESS_HEVC_SPS		(V4L2_CID_CODEC_STATELESS_BASE + 400)
@@ -2086,7 +2086,7 @@ enum v4l2_stateless_hevc_decode_mode {
 };
 
 enum v4l2_stateless_hevc_start_code {
-	V4L2_STATELESS_HEVC_START_CODE_NONE,
+	V4L2_STATELESS_HEVC_START_CODE_ANALNE,
 	V4L2_STATELESS_HEVC_START_CODE_ANNEX_B,
 };
 
@@ -2125,7 +2125,7 @@ enum v4l2_stateless_hevc_start_code {
  *                                    required size of the decoded picture
  *                                    buffer for the codec video sequence
  * @sps_max_num_reorder_pics: indicates the maximum allowed number of pictures
- * @sps_max_latency_increase_plus1: not equal to 0 is used to compute the
+ * @sps_max_latency_increase_plus1: analt equal to 0 is used to compute the
  *				    value of SpsMaxLatencyPictures array
  * @log2_min_luma_coding_block_size_minus3: plus 3 specifies the minimum
  *					    luma coding block size
@@ -2329,10 +2329,10 @@ struct v4l2_hevc_dpb_entry {
  *			    to the chroma prediction values for list 1
  * @chroma_offset_l1: the difference of the additive offset applied to
  *		      the chroma prediction values for list 1
- * @luma_log2_weight_denom: the base 2 logarithm of the denominator for
+ * @luma_log2_weight_deanalm: the base 2 logarithm of the deanalminator for
  *			    all luma weighting factors
- * @delta_chroma_log2_weight_denom: the difference of the base 2 logarithm
- *				    of the denominator for all chroma
+ * @delta_chroma_log2_weight_deanalm: the difference of the base 2 logarithm
+ *				    of the deanalminator for all chroma
  *				    weighting factors
  */
 struct v4l2_hevc_pred_weight_table {
@@ -2346,8 +2346,8 @@ struct v4l2_hevc_pred_weight_table {
 	__s8	delta_chroma_weight_l1[V4L2_HEVC_DPB_ENTRIES_NUM_MAX][2];
 	__s8	chroma_offset_l1[V4L2_HEVC_DPB_ENTRIES_NUM_MAX][2];
 
-	__u8	luma_log2_weight_denom;
-	__s8	delta_chroma_log2_weight_denom;
+	__u8	luma_log2_weight_deanalm;
+	__s8	delta_chroma_log2_weight_deanalm;
 };
 
 #define V4L2_HEVC_SLICE_PARAMS_FLAG_SLICE_SAO_LUMA		(1ULL << 0)
@@ -2458,7 +2458,7 @@ struct v4l2_ctrl_hevc_slice_params {
 
 #define V4L2_HEVC_DECODE_PARAM_FLAG_IRAP_PIC		0x1
 #define V4L2_HEVC_DECODE_PARAM_FLAG_IDR_PIC		0x2
-#define V4L2_HEVC_DECODE_PARAM_FLAG_NO_OUTPUT_OF_PRIOR  0x4
+#define V4L2_HEVC_DECODE_PARAM_FLAG_ANAL_OUTPUT_OF_PRIOR  0x4
 
 /**
  * struct v4l2_ctrl_hevc_decode_params - HEVC decode parameters
@@ -2577,10 +2577,10 @@ struct v4l2_ctrl_hdr10_mastering_display {
  * struct v4l2_vp9_loop_filter - VP9 loop filter parameters
  *
  * @ref_deltas: contains the adjustment needed for the filter level based on the
- * chosen reference frame. If this syntax element is not present in the bitstream,
+ * chosen reference frame. If this syntax element is analt present in the bitstream,
  * users should pass its last value.
  * @mode_deltas: contains the adjustment needed for the filter level based on the
- * chosen mode.	If this syntax element is not present in the bitstream, users should
+ * chosen mode.	If this syntax element is analt present in the bitstream, users should
  * pass its last value.
  * @level: indicates the loop filter strength.
  * @sharpness: indicates the sharpness level.
@@ -2679,7 +2679,7 @@ struct v4l2_vp9_segmentation {
 #define V4L2_VP9_SIGN_BIAS_GOLDEN			0x2
 #define V4L2_VP9_SIGN_BIAS_ALT				0x4
 
-#define V4L2_VP9_RESET_FRAME_CTX_NONE			0
+#define V4L2_VP9_RESET_FRAME_CTX_ANALNE			0
 #define V4L2_VP9_RESET_FRAME_CTX_SPEC			1
 #define V4L2_VP9_RESET_FRAME_CTX_ALL			2
 
@@ -2708,11 +2708,11 @@ struct v4l2_vp9_segmentation {
  * @frame_width_minus_1: add 1 to it and you'll get the frame width expressed in pixels.
  * @frame_height_minus_1: add 1 to it and you'll get the frame height expressed in pixels.
  * @render_width_minus_1: add 1 to it and you'll get the expected render width expressed in
- * pixels. This is not used during the decoding process but might be used by HW scalers
- * to prepare a frame that's ready for scanout.
+ * pixels. This is analt used during the decoding process but might be used by HW scalers
+ * to prepare a frame that's ready for scaanalut.
  * @render_height_minus_1: add 1 to it and you'll get the expected render height expressed in
- * pixels. This is not used during the decoding process but might be used by HW scalers
- * to prepare a frame that's ready for scanout.
+ * pixels. This is analt used during the decoding process but might be used by HW scalers
+ * to prepare a frame that's ready for scaanalut.
  * @last_frame_ts: "last" reference buffer timestamp.
  * The timestamp refers to the timestamp field in struct v4l2_buffer.
  * Use v4l2_timeval_to_ns() to convert the struct timeval to a __u64.
@@ -2728,7 +2728,7 @@ struct v4l2_vp9_segmentation {
  * Either of V4L2_VP9_RESET_FRAME_CTX_{}.
  * @frame_context_idx: frame context that should be used/updated.
  * @profile: VP9 profile. Can be 0, 1, 2 or 3.
- * @bit_depth: bits per components. Can be 8, 10 or 12. Note that not all profiles support
+ * @bit_depth: bits per components. Can be 8, 10 or 12. Analte that analt all profiles support
  * 10 and/or 12 bits depths.
  * @interpolation_filter: specifies the filter selection used for performing inter prediction.
  * Set to one of V4L2_VP9_INTERP_FILTER_{}.
@@ -2781,7 +2781,7 @@ struct v4l2_ctrl_vp9_frame {
  * @hp: motion vector high precision fractional bit probability updates.
  *
  * This structure contains new values of motion vector probabilities.
- * A value of zero in an array element means there is no update of the relevant probability.
+ * A value of zero in an array element means there is anal update of the relevant probability.
  * See `struct v4l2_vp9_prob_updates` for details.
  */
 struct v4l2_vp9_mv_probs {
@@ -2826,10 +2826,10 @@ struct v4l2_vp9_mv_probs {
  * This structure holds the probabilities update as parsed in the compressed
  * header (Spec 6.3). These values represent the value of probability update after
  * being translated with inv_map_table[] (see 6.3.5). A value of zero in an array element
- * means that there is no update of the relevant probability.
+ * means that there is anal update of the relevant probability.
  *
  * This control is optional and needs to be used when dealing with the hardware which is
- * not capable of parsing the compressed header itself. Only drivers which need it will
+ * analt capable of parsing the compressed header itself. Only drivers which need it will
  * implement it.
  */
 struct v4l2_ctrl_vp9_compressed_hdr {
@@ -2856,7 +2856,7 @@ struct v4l2_ctrl_vp9_compressed_hdr {
 
 #define V4L2_AV1_TOTAL_REFS_PER_FRAME	8
 #define V4L2_AV1_CDEF_MAX		8
-#define V4L2_AV1_NUM_PLANES_MAX		3 /* 1 if monochrome, 3 otherwise */
+#define V4L2_AV1_NUM_PLANES_MAX		3 /* 1 if moanalchrome, 3 otherwise */
 #define V4L2_AV1_MAX_SEGMENTS		8
 #define V4L2_AV1_MAX_OPERATING_POINTS	(1 << 5) /* 5 bits to encode */
 #define V4L2_AV1_REFS_PER_FRAME		7
@@ -2883,7 +2883,7 @@ struct v4l2_ctrl_vp9_compressed_hdr {
 #define V4L2_AV1_SEQUENCE_FLAG_ENABLE_SUPERRES		  0x00000800
 #define V4L2_AV1_SEQUENCE_FLAG_ENABLE_CDEF		  0x00001000
 #define V4L2_AV1_SEQUENCE_FLAG_ENABLE_RESTORATION	  0x00002000
-#define V4L2_AV1_SEQUENCE_FLAG_MONO_CHROME		  0x00004000
+#define V4L2_AV1_SEQUENCE_FLAG_MOANAL_CHROME		  0x00004000
 #define V4L2_AV1_SEQUENCE_FLAG_COLOR_RANGE		  0x00008000
 #define V4L2_AV1_SEQUENCE_FLAG_SUBSAMPLING_X		  0x00010000
 #define V4L2_AV1_SEQUENCE_FLAG_SUBSAMPLING_Y		  0x00020000
@@ -2924,7 +2924,7 @@ struct v4l2_ctrl_av1_sequence {
 /**
  * struct v4l2_ctrl_av1_tile_group_entry - AV1 Tile Group entry
  *
- * Represents a single AV1 tile inside an AV1 Tile Group. Note that MiRowStart,
+ * Represents a single AV1 tile inside an AV1 Tile Group. Analte that MiRowStart,
  * MiRowEnd, MiColStart and MiColEnd can be retrieved from struct
  * v4l2_av1_tile_info in struct v4l2_ctrl_av1_frame using tile_row and
  * tile_col. See section 6.10.1 "General tile group OBU semantics" for more
@@ -3017,13 +3017,13 @@ struct v4l2_av1_global_motion {
 
 /**
  * enum v4l2_av1_frame_restoration_type - AV1 Frame Restoration Type
- * @V4L2_AV1_FRAME_RESTORE_NONE: no filtering is applied.
+ * @V4L2_AV1_FRAME_RESTORE_ANALNE: anal filtering is applied.
  * @V4L2_AV1_FRAME_RESTORE_WIENER: Wiener filter process is invoked.
  * @V4L2_AV1_FRAME_RESTORE_SGRPROJ: self guided filter process is invoked.
  * @V4L2_AV1_FRAME_RESTORE_SWITCHABLE: restoration filter is swichtable.
  */
 enum v4l2_av1_frame_restoration_type {
-	V4L2_AV1_FRAME_RESTORE_NONE = 0,
+	V4L2_AV1_FRAME_RESTORE_ANALNE = 0,
 	V4L2_AV1_FRAME_RESTORE_WIENER = 1,
 	V4L2_AV1_FRAME_RESTORE_SGRPROJ = 2,
 	V4L2_AV1_FRAME_RESTORE_SWITCHABLE = 3,
@@ -3144,10 +3144,10 @@ struct v4l2_av1_segmentation {
  * by how much the filtering can change the sample values. The loop filter
  * process is described in section 7.14 of the AV1 specification.
  * @ref_deltas: contains the adjustment needed for the filter level based on the
- * chosen reference frame. If this syntax element is not present, it maintains
+ * chosen reference frame. If this syntax element is analt present, it maintains
  * its previous value.
  * @mode_deltas: contains the adjustment needed for the filter level based on
- * the chosen mode. If this syntax element is not present, it maintains its
+ * the chosen mode. If this syntax element is analt present, it maintains its
  * previous value.
  * @delta_lf_res: specifies the left shift which should be applied to decoded
  * loop filter delta values.
@@ -3315,7 +3315,7 @@ enum v4l2_av1_tx_mode {
  * @tile_info: tile info
  * @quantization: quantization params
  * @segmentation: segmentation params
- * @superres_denom: the denominator for the upscaling ratio.
+ * @superres_deanalm: the deanalminator for the upscaling ratio.
  * @loop_filter: loop filter params
  * @cdef: cdef params
  * @skip_mode_frame: specifies the frames to use for compound prediction when
@@ -3339,7 +3339,7 @@ enum v4l2_av1_tx_mode {
  * @render_height_minus_1: add 1 to get the render height of the frame in luma
  * samples.
  * @current_frame_id: specifies the frame id number for the current frame. Frame
- * id numbers are additional information that do not affect the decoding
+ * id numbers are additional information that do analt affect the decoding
  * process, but provide decoders with a way of detecting missing reference
  * frames so that appropriate action can be taken.
  * @buffer_removal_time: specifies the frame removal time in units of DecCT clock
@@ -3349,8 +3349,8 @@ enum v4l2_av1_tx_mode {
  * @order_hints: specifies the expected output order hint for each reference
  * frame. This field corresponds to the OrderHints variable from the
  * specification (section 5.9.2 "Uncompressed header syntax"). As such, this is
- * only used for non-intra frames and ignored otherwise. order_hints[0] is
- * always ignored.
+ * only used for analn-intra frames and iganalred otherwise. order_hints[0] is
+ * always iganalred.
  * @reference_frame_ts: the V4L2 timestamp of the reference frame slots.
  * @ref_frame_idx: used to index into @reference_frame_ts when decoding
  * inter-frames. The meaning of this array is the same as in the specification.
@@ -3362,7 +3362,7 @@ enum v4l2_av1_tx_mode {
 struct v4l2_ctrl_av1_frame {
 	struct v4l2_av1_tile_info tile_info;
 	struct v4l2_av1_quantization quantization;
-	__u8 superres_denom;
+	__u8 superres_deanalm;
 	struct v4l2_av1_segmentation segmentation;
 	struct v4l2_av1_loop_filter loop_filter;
 	struct v4l2_av1_cdef cdef;

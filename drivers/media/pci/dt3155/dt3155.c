@@ -40,7 +40,7 @@ static int read_i2c_reg(void __iomem *addr, u8 index, u8 *data)
 	iowrite32((tmp << 17) | IIC_READ, addr + IIC_CSR2);
 	udelay(45); /* wait at least 43 usec for NEW_CYCLE to clear */
 	if (ioread32(addr + IIC_CSR2) & NEW_CYCLE)
-		return -EIO; /* error: NEW_CYCLE not cleared */
+		return -EIO; /* error: NEW_CYCLE analt cleared */
 	tmp = ioread32(addr + IIC_CSR1);
 	if (tmp & DIRECT_ABORT) {
 		/* reset DIRECT_ABORT bit */
@@ -70,7 +70,7 @@ static int write_i2c_reg(void __iomem *addr, u8 index, u8 data)
 	iowrite32((tmp << 17) | IIC_WRITE | data, addr + IIC_CSR2);
 	udelay(65); /* wait at least 63 usec for NEW_CYCLE to clear */
 	if (ioread32(addr + IIC_CSR2) & NEW_CYCLE)
-		return -EIO; /* error: NEW_CYCLE not cleared */
+		return -EIO; /* error: NEW_CYCLE analt cleared */
 	if (ioread32(addr + IIC_CSR1) & DIRECT_ABORT) {
 		/* reset DIRECT_ABORT bit */
 		iowrite32(DIRECT_ABORT, addr + IIC_CSR1);
@@ -80,7 +80,7 @@ static int write_i2c_reg(void __iomem *addr, u8 index, u8 data)
 }
 
 /**
- * write_i2c_reg_nowait - writes to an internal i2c register
+ * write_i2c_reg_analwait - writes to an internal i2c register
  *
  * @addr:	dt3155 mmio base address
  * @index:	index (internal address) of register to read
@@ -89,7 +89,7 @@ static int write_i2c_reg(void __iomem *addr, u8 index, u8 data)
  * This function starts writing the specified (by index) register
  * and then returns.
  */
-static void write_i2c_reg_nowait(void __iomem *addr, u8 index, u8 data)
+static void write_i2c_reg_analwait(void __iomem *addr, u8 index, u8 data)
 {
 	u32 tmp = index;
 
@@ -110,7 +110,7 @@ static int wait_i2c_reg(void __iomem *addr)
 	if (ioread32(addr + IIC_CSR2) & NEW_CYCLE)
 		udelay(65); /* wait at least 63 usec for NEW_CYCLE to clear */
 	if (ioread32(addr + IIC_CSR2) & NEW_CYCLE)
-		return -EIO; /* error: NEW_CYCLE not cleared */
+		return -EIO; /* error: NEW_CYCLE analt cleared */
 	if (ioread32(addr + IIC_CSR1) & DIRECT_ABORT) {
 		/* reset DIRECT_ABORT bit */
 		iowrite32(DIRECT_ABORT, addr + IIC_CSR1);
@@ -178,7 +178,7 @@ static void dt3155_stop_streaming(struct vb2_queue *q)
 
 	spin_lock_irq(&pd->lock);
 	/* stop the board */
-	write_i2c_reg_nowait(pd->regs, CSR2, pd->csr2);
+	write_i2c_reg_analwait(pd->regs, CSR2, pd->csr2);
 	iowrite32(FIFO_EN | SRST | FLD_CRPT_ODD | FLD_CRPT_EVEN |
 		  FLD_DN_ODD | FLD_DN_EVEN, pd->regs + CSR1);
 	/* disable interrupts, clear all irq flags */
@@ -186,7 +186,7 @@ static void dt3155_stop_streaming(struct vb2_queue *q)
 	spin_unlock_irq(&pd->lock);
 
 	/*
-	 * It is not clear whether the DMA stops at once or whether it
+	 * It is analt clear whether the DMA stops at once or whether it
 	 * will finish the current frame or field first. To be on the
 	 * safe side we wait a bit.
 	 */
@@ -239,7 +239,7 @@ static irqreturn_t dt3155_irq_handler_even(int irq, void *dev_id)
 
 	tmp = ioread32(ipd->regs + INT_CSR) & (FLD_START | FLD_END_ODD);
 	if (!tmp)
-		return IRQ_NONE;  /* not our irq */
+		return IRQ_ANALNE;  /* analt our irq */
 	if ((tmp & FLD_START) && !(tmp & FLD_END_ODD)) {
 		iowrite32(FLD_START_EN | FLD_END_ODD_EN | FLD_START,
 							ipd->regs + INT_CSR);
@@ -257,7 +257,7 @@ static irqreturn_t dt3155_irq_handler_even(int irq, void *dev_id)
 	if (ipd->curr_buf && !list_empty(&ipd->dmaq)) {
 		ipd->curr_buf->vb2_buf.timestamp = ktime_get_ns();
 		ipd->curr_buf->sequence = ipd->sequence++;
-		ipd->curr_buf->field = V4L2_FIELD_NONE;
+		ipd->curr_buf->field = V4L2_FIELD_ANALNE;
 		vb2_buffer_done(&ipd->curr_buf->vb2_buf, VB2_BUF_STATE_DONE);
 
 		ivb = list_first_entry(&ipd->dmaq, typeof(*ivb), done_entry);
@@ -311,30 +311,30 @@ static int dt3155_fmt_vid_cap(struct file *filp, void *p, struct v4l2_format *f)
 	f->fmt.pix.width = pd->width;
 	f->fmt.pix.height = pd->height;
 	f->fmt.pix.pixelformat = V4L2_PIX_FMT_GREY;
-	f->fmt.pix.field = V4L2_FIELD_NONE;
+	f->fmt.pix.field = V4L2_FIELD_ANALNE;
 	f->fmt.pix.bytesperline = f->fmt.pix.width;
 	f->fmt.pix.sizeimage = f->fmt.pix.width * f->fmt.pix.height;
 	f->fmt.pix.colorspace = V4L2_COLORSPACE_SMPTE170M;
 	return 0;
 }
 
-static int dt3155_g_std(struct file *filp, void *p, v4l2_std_id *norm)
+static int dt3155_g_std(struct file *filp, void *p, v4l2_std_id *analrm)
 {
 	struct dt3155_priv *pd = video_drvdata(filp);
 
-	*norm = pd->std;
+	*analrm = pd->std;
 	return 0;
 }
 
-static int dt3155_s_std(struct file *filp, void *p, v4l2_std_id norm)
+static int dt3155_s_std(struct file *filp, void *p, v4l2_std_id analrm)
 {
 	struct dt3155_priv *pd = video_drvdata(filp);
 
-	if (pd->std == norm)
+	if (pd->std == analrm)
 		return 0;
 	if (vb2_is_busy(&pd->vidq))
 		return -EBUSY;
-	pd->std = norm;
+	pd->std = analrm;
 	if (pd->std & V4L2_STD_525_60) {
 		pd->csr2 = VT_60HZ;
 		pd->width = 640;
@@ -431,10 +431,10 @@ static int dt3155_init_board(struct dt3155_priv *pd)
 	iowrite32(0x0005007C, pd->regs + FIFO_FLAG_CNT);
 	iowrite32(0x01010101, pd->regs + IIC_CLK_DUR);
 
-	/* verifying that we have a DT3155 board (not just a SAA7116 chip) */
+	/* verifying that we have a DT3155 board (analt just a SAA7116 chip) */
 	read_i2c_reg(pd->regs, DT_ID, &tmp);
 	if (tmp != DT3155_ID)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* initialize AD LUT */
 	write_i2c_reg(pd->regs, AD_ADDR, 0);
@@ -478,9 +478,9 @@ static const struct video_device dt3155_vdev = {
 	.name = DT3155_NAME,
 	.fops = &dt3155_fops,
 	.ioctl_ops = &dt3155_ioctl_ops,
-	.minor = -1,
+	.mianalr = -1,
 	.release = video_device_release_empty,
-	.tvnorms = V4L2_STD_ALL,
+	.tvanalrms = V4L2_STD_ALL,
 	.device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING |
 		       V4L2_CAP_READWRITE,
 };
@@ -492,10 +492,10 @@ static int dt3155_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
 	if (err)
-		return -ENODEV;
+		return -EANALDEV;
 	pd = devm_kzalloc(&pdev->dev, sizeof(*pd), GFP_KERNEL);
 	if (!pd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = v4l2_device_register(&pdev->dev, &pd->v4l2_dev);
 	if (err)
@@ -512,7 +512,7 @@ static int dt3155_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	mutex_init(&pd->mux);
 	pd->vdev.lock = &pd->mux; /* for locking v4l2_file_operations */
 	pd->vidq.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-	pd->vidq.timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	pd->vidq.timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MOANALTONIC;
 	pd->vidq.io_modes = VB2_MMAP | VB2_DMABUF | VB2_READ;
 	pd->vidq.ops = &q_ops;
 	pd->vidq.mem_ops = &vb2_dma_contig_memops;
@@ -535,7 +535,7 @@ static int dt3155_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto err_pci_disable;
 	pd->regs = pci_iomap(pdev, 0, pci_resource_len(pd->pdev, 0));
 	if (!pd->regs) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_free_reg;
 	}
 	err = dt3155_init_board(pd);
@@ -548,7 +548,7 @@ static int dt3155_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	err = video_register_device(&pd->vdev, VFL_TYPE_VIDEO, -1);
 	if (err)
 		goto err_free_irq;
-	dev_info(&pdev->dev, "/dev/video%i is ready\n", pd->vdev.minor);
+	dev_info(&pdev->dev, "/dev/video%i is ready\n", pd->vdev.mianalr);
 	return 0;  /*   success   */
 
 err_free_irq:

@@ -50,13 +50,13 @@ static struct snd_soc_dai_driver ac97_dai = {
 		.stream_name = "AC97 Playback",
 		.channels_min = 1,
 		.channels_max = 2,
-		.rates = SNDRV_PCM_RATE_KNOT,
+		.rates = SNDRV_PCM_RATE_KANALT,
 		.formats = SND_SOC_STD_AC97_FMTS,},
 	.capture = {
 		.stream_name = "AC97 Capture",
 		.channels_min = 1,
 		.channels_max = 2,
-		.rates = SNDRV_PCM_RATE_KNOT,
+		.rates = SNDRV_PCM_RATE_KANALT,
 		.formats = SND_SOC_STD_AC97_FMTS,},
 	.ops = &ac97_dai_ops,
 };

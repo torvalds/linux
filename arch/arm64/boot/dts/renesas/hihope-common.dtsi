@@ -26,7 +26,7 @@
 	};
 
 	chosen {
-		bootargs = "ignore_loglevel";
+		bootargs = "iganalre_loglevel";
 		stdout-path = "serial0:115200n8";
 	};
 
@@ -316,7 +316,7 @@
 
 	vmmc-supply = <&wlan_en_reg>;
 	bus-width = <4>;
-	non-removable;
+	analn-removable;
 	cap-power-off-card;
 	keep-power-in-suspend;
 
@@ -339,9 +339,9 @@
 	vqmmc-supply = <&reg_1p8v>;
 	bus-width = <8>;
 	mmc-hs200-1_8v;
-	no-sd;
-	no-sdio;
-	non-removable;
+	anal-sd;
+	anal-sdio;
+	analn-removable;
 	fixed-emmc-driver-type = <1>;
 	status = "okay";
 };

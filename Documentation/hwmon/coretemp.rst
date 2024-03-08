@@ -29,7 +29,7 @@ Description
 This driver permits reading the DTS (Digital Temperature Sensor) embedded
 inside Intel CPUs. This driver can read both the per-core and per-package
 temperature using the appropriate sensors. The per-package sensor is new;
-as of now, it is present only in the SandyBridge platform. The driver will
+as of analw, it is present only in the SandyBridge platform. The driver will
 show the temperature of all cores inside a package under a single device
 directory inside hwmon.
 
@@ -37,10 +37,10 @@ Temperature is measured in degrees Celsius and measurement resolution is
 1 degree C. Valid temperatures are from 0 to TjMax degrees C, because
 the actual value of temperature register is in fact a delta from TjMax.
 
-Temperature known as TjMax is the maximum junction temperature of processor,
+Temperature kanalwn as TjMax is the maximum junction temperature of processor,
 which depends on the CPU model. See table below. At this temperature, protection
 mechanism will perform actions to forcibly cool down the processor. Alarm
-may be raised, if the temperature grows enough (more than TjMax) to trigger
+may be raised, if the temperature grows eanalugh (more than TjMax) to trigger
 the Out-Of-Spec bit. Following table summarizes the exported sysfs files:
 
 All Sysfs entries are named with their core_id (represented here by 'X').
@@ -50,7 +50,7 @@ tempX_input	  Core temperature (in millidegrees Celsius).
 tempX_max	  All cooling devices should be turned on (on Core2).
 tempX_crit	  Maximum junction temperature (in millidegrees Celsius).
 tempX_crit_alarm  Set when Out-of-spec bit is set, never clears.
-		  Correct CPU operation is no longer guaranteed.
+		  Correct CPU operation is anal longer guaranteed.
 tempX_label	  Contains string "Core X", where X is processor
 		  number. For Package temp, this will be "Physical id Y",
 		  where Y is the package number.
@@ -61,7 +61,7 @@ On other models, it is set to an arbitrary value based on weak heuristics.
 If these heuristics don't work for you, you can pass the correct TjMax value
 as a module parameter (tjmax).
 
-Appendix A. Known TjMax lists (TBD):
+Appendix A. Kanalwn TjMax lists (TBD):
 Some information comes from ark.intel.com
 
 =============== =============================================== ================
@@ -128,8 +128,8 @@ Process		Processor					TjMax(C)
 		E665C/645C					90
 		E665CT/645CT					110
 		CE4170/4150/4110				110
-		CE4200 series					unknown
-		CE5300 series					unknown
+		CE4200 series					unkanalwn
+		CE5300 series					unkanalwn
 
 45nm		Core2 Processors
 		Solo ULV SU3500/3300				100

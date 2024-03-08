@@ -3,7 +3,7 @@
  * Copyright (C) 2015-2021 ARM Limited.
  * Original author: Dave Martin <Dave.Martin@arm.com>
  */
-#include <errno.h>
+#include <erranal.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -82,10 +82,10 @@ static void fill_buf(char *buf, size_t size)
 static int do_child(void)
 {
 	if (ptrace(PTRACE_TRACEME, -1, NULL, NULL))
-		ksft_exit_fail_msg("PTRACE_TRACEME", strerror(errno));
+		ksft_exit_fail_msg("PTRACE_TRACEME", strerror(erranal));
 
 	if (raise(SIGSTOP))
-		ksft_exit_fail_msg("raise(SIGSTOP)", strerror(errno));
+		ksft_exit_fail_msg("raise(SIGSTOP)", strerror(erranal));
 
 	return EXIT_SUCCESS;
 }
@@ -120,7 +120,7 @@ static struct user_sve_header *get_sve(pid_t pid, const struct vec_type *type,
 		if (*size < sz) {
 			p = realloc(*buf, sz);
 			if (!p) {
-				errno = ENOMEM;
+				erranal = EANALMEM;
 				goto error;
 			}
 
@@ -189,7 +189,7 @@ static void ptrace_set_get_inherit(pid_t child, const struct vec_type *type)
 	ksft_test_result(new_sve->flags & SVE_PT_VL_INHERIT,
 			 "%s SVE_PT_VL_INHERIT set\n", type->name);
 
-	/* Now clear */
+	/* Analw clear */
 	sve.flags &= ~SVE_PT_VL_INHERIT;
 	ret = set_sve(child, type, &sve);
 	if (ret != 0) {
@@ -225,12 +225,12 @@ static void ptrace_set_get_vl(pid_t child, const struct vec_type *type,
 	prctl_vl = prctl(type->prctl_set, vl);
 	if (prctl_vl == -1)
 		ksft_exit_fail_msg("prctl(PR_%s_SET_VL) failed: %s (%d)\n",
-				   type->name, strerror(errno), errno);
+				   type->name, strerror(erranal), erranal);
 
-	/* If the VL is not supported then a supported VL will be returned */
+	/* If the VL is analt supported then a supported VL will be returned */
 	*supported = (prctl_vl == vl);
 
-	/* Set the VL by doing a set with no register payload */
+	/* Set the VL by doing a set with anal register payload */
 	memset(&sve, 0, sizeof(sve));
 	sve.size = sizeof(sve);
 	sve.vl = vl;
@@ -289,7 +289,7 @@ static void ptrace_sve_fpsimd(pid_t child, const struct vec_type *type)
 	sve->size = SVE_PT_SIZE(0, SVE_PT_REGS_FPSIMD);
 	sve->vl = 16;  /* We don't care what the VL is */
 
-	/* Try to set a known FPSIMD state via PT_REGS_SVE */
+	/* Try to set a kanalwn FPSIMD state via PT_REGS_SVE */
 	fpsimd = (struct user_fpsimd_state *)((char *)sve +
 					      SVE_PT_FPSIMD_OFFSET);
 	for (i = 0; i < 32; ++i) {
@@ -308,7 +308,7 @@ static void ptrace_sve_fpsimd(pid_t child, const struct vec_type *type)
 	/* Verify via the FPSIMD regset */
 	if (get_fpsimd(child, &new_fpsimd)) {
 		ksft_test_result_fail("get_fpsimd(): %s\n",
-				      strerror(errno));
+				      strerror(erranal));
 		goto out;
 	}
 	if (memcmp(fpsimd, &new_fpsimd, sizeof(*fpsimd)) == 0)
@@ -380,7 +380,7 @@ static void ptrace_set_sve_get_sve_data(pid_t child,
 	}
 	read_sve = read_buf;
 
-	/* We might read more data if there's extensions we don't know */
+	/* We might read more data if there's extensions we don't kanalw */
 	if (read_sve->size < write_sve->size) {
 		ksft_test_result_fail("%s wrote %d bytes, only read %d\n",
 				      type->name, write_sve->size,
@@ -434,7 +434,7 @@ static void ptrace_set_sve_get_fpsimd_data(pid_t child,
 	int errors = 0;
 
 	if (__BYTE_ORDER == __BIG_ENDIAN) {
-		ksft_test_result_skip("Big endian not supported\n");
+		ksft_test_result_skip("Big endian analt supported\n");
 		return;
 	}
 
@@ -519,7 +519,7 @@ static void ptrace_set_fpsimd_get_sve_data(pid_t child,
 	int errors = 0;
 
 	if (__BYTE_ORDER == __BIG_ENDIAN) {
-		ksft_test_result_skip("Big endian not supported\n");
+		ksft_test_result_skip("Big endian analt supported\n");
 		return;
 	}
 
@@ -649,16 +649,16 @@ static int do_parent(pid_t child)
 		sig = WSTOPSIG(status);
 
 		if (ptrace(PTRACE_GETSIGINFO, pid, NULL, &si)) {
-			if (errno == ESRCH)
+			if (erranal == ESRCH)
 				goto disappeared;
 
-			if (errno == EINVAL) {
+			if (erranal == EINVAL) {
 				sig = 0; /* bust group-stop */
 				goto cont;
 			}
 
 			ksft_test_result_fail("PTRACE_GETSIGINFO: %s\n",
-					      strerror(errno));
+					      strerror(erranal));
 			goto error;
 		}
 
@@ -668,11 +668,11 @@ static int do_parent(pid_t child)
 
 	cont:
 		if (ptrace(PTRACE_CONT, pid, NULL, sig)) {
-			if (errno == ESRCH)
+			if (erranal == ESRCH)
 				goto disappeared;
 
 			ksft_test_result_fail("PTRACE_CONT: %s\n",
-					      strerror(errno));
+					      strerror(erranal));
 			goto error;
 		}
 	}
@@ -749,7 +749,7 @@ int main(void)
 	ksft_set_plan(EXPECTED_TESTS);
 
 	if (!(getauxval(AT_HWCAP) & HWCAP_SVE))
-		ksft_exit_skip("SVE not available\n");
+		ksft_exit_skip("SVE analt available\n");
 
 	child = fork();
 	if (!child)

@@ -36,12 +36,12 @@ ifneq ($(CONFIG_SND_SOC_SOF_IPC4),)
 snd-sof-probes-objs += sof-client-probes-ipc4.o
 endif
 
-snd-sof-nocodec-objs := nocodec.o
+snd-sof-analcodec-objs := analcodec.o
 
 snd-sof-utils-objs := sof-utils.o
 
 obj-$(CONFIG_SND_SOC_SOF) += snd-sof.o
-obj-$(CONFIG_SND_SOC_SOF_NOCODEC) += snd-sof-nocodec.o
+obj-$(CONFIG_SND_SOC_SOF_ANALCODEC) += snd-sof-analcodec.o
 
 obj-$(CONFIG_SND_SOC_SOF) += snd-sof-utils.o
 

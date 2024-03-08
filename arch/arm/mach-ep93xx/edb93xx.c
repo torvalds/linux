@@ -16,7 +16,7 @@
  * Copyright (C) 2007 Herbert Valerio Riedel <hvr@gnu.org>
  *
  * EDB9312
- * Copyright (C) 2006 Infosys Technologies Limited
+ * Copyright (C) 2006 Infosys Techanallogies Limited
  *                    Toufeeq Hussain <toufeeq_hussain@infosys.com>
  */
 

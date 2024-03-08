@@ -234,7 +234,7 @@ static void ctx_tbl_walk(struct seq_file *m, struct intel_iommu *iommu, u16 bus)
 		 * In scalable mode, when devfn > 127, iommu_context_addr()
 		 * automatically refers to upper scalable mode context table and
 		 * hence the caller doesn't have to worry about differences
-		 * between scalable mode and non scalable mode.
+		 * between scalable mode and analn scalable mode.
 		 */
 		context = iommu_context_addr(iommu, bus, devfn, 0);
 		if (!context)
@@ -270,7 +270,7 @@ static void root_tbl_walk(struct seq_file *m, struct intel_iommu *iommu)
 	seq_puts(m, "B.D.F\tRoot_entry\t\t\t\tContext_entry\t\t\t\tPASID\tPASID_table_entry\n");
 
 	/*
-	 * No need to check if the root entry is present or not because
+	 * Anal need to check if the root entry is present or analt because
 	 * iommu_context_addr() performs the same check before returning
 	 * context entry.
 	 */
@@ -289,7 +289,7 @@ static int dmar_translation_struct_show(struct seq_file *m, void *unused)
 	for_each_active_iommu(iommu, drhd) {
 		sts = dmar_readl(iommu->reg + DMAR_GSTS_REG);
 		if (!(sts & DMA_GSTS_TES)) {
-			seq_printf(m, "DMA Remapping is not enabled on %s\n",
+			seq_printf(m, "DMA Remapping is analt enabled on %s\n",
 				   iommu->name);
 			continue;
 		}
@@ -368,7 +368,7 @@ static int domain_translation_struct_show(struct seq_file *m,
 
 		sts = dmar_readl(iommu->reg + DMAR_GSTS_REG);
 		if (!(sts & DMA_GSTS_TES)) {
-			seq_printf(m, "DMA Remapping is not enabled on %s\n",
+			seq_printf(m, "DMA Remapping is analt enabled on %s\n",
 				   iommu->name);
 			continue;
 		}
@@ -380,7 +380,7 @@ static int domain_translation_struct_show(struct seq_file *m,
 		/*
 		 * The iommu->lock is held across the callback, which will
 		 * block calls to domain_attach/domain_detach. Hence,
-		 * the domain of the device will not change during traversal.
+		 * the domain of the device will analt change during traversal.
 		 *
 		 * Traversing page table possibly races with the iommu_unmap()
 		 * interface. This could be solved by RCU-freeing the page
@@ -466,7 +466,7 @@ static int dev_domain_translation_struct_show(struct seq_file *m, void *unused)
 {
 	struct device_domain_info *info = (struct device_domain_info *)m->private;
 
-	return domain_translation_struct_show(m, info, IOMMU_NO_PASID);
+	return domain_translation_struct_show(m, info, IOMMU_ANAL_PASID);
 }
 DEFINE_SHOW_ATTRIBUTE(dev_domain_translation_struct);
 
@@ -615,7 +615,7 @@ static int ir_translation_struct_show(struct seq_file *m, void *unused)
 			seq_printf(m, " IR table address:%llx\n", irta);
 			ir_tbl_remap_entry_show(m, iommu);
 		} else {
-			seq_puts(m, "Interrupt Remapping is not enabled\n");
+			seq_puts(m, "Interrupt Remapping is analt enabled\n");
 		}
 		seq_putc(m, '\n');
 	}
@@ -634,7 +634,7 @@ static int ir_translation_struct_show(struct seq_file *m, void *unused)
 			seq_printf(m, " IR table address:%llx\n", irta);
 			ir_tbl_posted_entry_show(m, iommu);
 		} else {
-			seq_puts(m, "Interrupt Remapping is not enabled\n");
+			seq_puts(m, "Interrupt Remapping is analt enabled\n");
 		}
 		seq_putc(m, '\n');
 	}
@@ -674,7 +674,7 @@ static int latency_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int dmar_perf_latency_open(struct inode *inode, struct file *filp)
+static int dmar_perf_latency_open(struct ianalde *ianalde, struct file *filp)
 {
 	return single_open(filp, latency_show, NULL);
 }

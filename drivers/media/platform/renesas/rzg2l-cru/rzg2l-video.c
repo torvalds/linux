@@ -91,7 +91,7 @@
 #define RZG2L_CRU_DEFAULT_FORMAT	V4L2_PIX_FMT_UYVY
 #define RZG2L_CRU_DEFAULT_WIDTH		RZG2L_CRU_MIN_INPUT_WIDTH
 #define RZG2L_CRU_DEFAULT_HEIGHT	RZG2L_CRU_MIN_INPUT_HEIGHT
-#define RZG2L_CRU_DEFAULT_FIELD		V4L2_FIELD_NONE
+#define RZG2L_CRU_DEFAULT_FIELD		V4L2_FIELD_ANALNE
 #define RZG2L_CRU_DEFAULT_COLORSPACE	V4L2_COLORSPACE_SRGB
 
 struct rzg2l_cru_buffer {
@@ -119,7 +119,7 @@ static u32 rzg2l_cru_read(struct rzg2l_cru_dev *cru, u32 offset)
 static void return_unused_buffers(struct rzg2l_cru_dev *cru,
 				  enum vb2_buffer_state state)
 {
-	struct rzg2l_cru_buffer *buf, *node;
+	struct rzg2l_cru_buffer *buf, *analde;
 	unsigned long flags;
 	unsigned int i;
 
@@ -132,7 +132,7 @@ static void return_unused_buffers(struct rzg2l_cru_dev *cru,
 		}
 	}
 
-	list_for_each_entry_safe(buf, node, &cru->buf_list, list) {
+	list_for_each_entry_safe(buf, analde, &cru->buf_list, list) {
 		vb2_buffer_done(&buf->vb.vb2_buf, state);
 		list_del(&buf->list);
 	}
@@ -145,7 +145,7 @@ static int rzg2l_cru_queue_setup(struct vb2_queue *vq, unsigned int *nbuffers,
 {
 	struct rzg2l_cru_dev *cru = vb2_get_drv_priv(vq);
 
-	/* Make sure the image size is large enough. */
+	/* Make sure the image size is large eanalugh. */
 	if (*nplanes)
 		return sizes[0] < cru->format.sizeimage ? -EINVAL : 0;
 
@@ -206,7 +206,7 @@ static int rzg2l_cru_mc_validate_format(struct rzg2l_cru_dev *cru,
 	switch (fmt.format.field) {
 	case V4L2_FIELD_TOP:
 	case V4L2_FIELD_BOTTOM:
-	case V4L2_FIELD_NONE:
+	case V4L2_FIELD_ANALNE:
 	case V4L2_FIELD_INTERLACED_TB:
 	case V4L2_FIELD_INTERLACED_BT:
 	case V4L2_FIELD_INTERLACED:
@@ -229,7 +229,7 @@ static void rzg2l_cru_set_slot_addr(struct rzg2l_cru_dev *cru,
 {
 	/*
 	 * The address needs to be 512 bytes aligned. Driver should never accept
-	 * settings that do not satisfy this in the first place...
+	 * settings that do analt satisfy this in the first place...
 	 */
 	if (WARN_ON((addr) & RZG2L_CRU_HW_BUFFER_MASK))
 		return;
@@ -240,7 +240,7 @@ static void rzg2l_cru_set_slot_addr(struct rzg2l_cru_dev *cru,
 }
 
 /*
- * Moves a buffer from the queue to the HW slot. If no buffer is
+ * Moves a buffer from the queue to the HW slot. If anal buffer is
  * available use the scratch buffer. The scratch buffer is never
  * returned to userspace, its only function is to enable the capture
  * loop to keep running.
@@ -390,7 +390,7 @@ void rzg2l_cru_stop_image_processing(struct rzg2l_cru_dev *cru)
 		usleep_range(10, 20);
 	}
 
-	/* Notify that FIFO is not empty here */
+	/* Analtify that FIFO is analt empty here */
 	if (!retries)
 		dev_err(cru->dev, "Failed to empty FIFO\n");
 
@@ -406,7 +406,7 @@ void rzg2l_cru_stop_image_processing(struct rzg2l_cru_dev *cru)
 		usleep_range(10, 20);
 	}
 
-	/* Notify that AXI bus can not stop here */
+	/* Analtify that AXI bus can analt stop here */
 	if (!retries)
 		dev_err(cru->dev, "Failed to stop AXI bus\n");
 
@@ -492,7 +492,7 @@ static int rzg2l_cru_set_stream(struct rzg2l_cru_dev *cru, int on)
 			stream_off_ret = ret;
 
 		ret = v4l2_subdev_call(sd, video, post_streamoff);
-		if (ret == -ENOIOCTLCMD)
+		if (ret == -EANALIOCTLCMD)
 			ret = 0;
 		if (ret && !stream_off_ret)
 			stream_off_ret = ret;
@@ -523,13 +523,13 @@ static int rzg2l_cru_set_stream(struct rzg2l_cru_dev *cru, int on)
 		goto err_vclk_disable;
 
 	ret = v4l2_subdev_call(sd, video, pre_streamon, 0);
-	if (ret == -ENOIOCTLCMD)
+	if (ret == -EANALIOCTLCMD)
 		ret = 0;
 	if (ret)
 		goto pipe_line_stop;
 
 	ret = v4l2_subdev_call(sd, video, s_stream, 1);
-	if (ret == -ENOIOCTLCMD)
+	if (ret == -EANALIOCTLCMD)
 		ret = 0;
 	if (ret)
 		goto err_s_stream;
@@ -577,7 +577,7 @@ static irqreturn_t rzg2l_cru_irq(int irq, void *data)
 
 	rzg2l_cru_write(cru, CRUnINTS, rzg2l_cru_read(cru, CRUnINTS));
 
-	/* Nothing to do if capture status is 'RZG2L_CRU_DMA_STOPPED' */
+	/* Analthing to do if capture status is 'RZG2L_CRU_DMA_STOPPED' */
 	if (cru->state == RZG2L_CRU_DMA_STOPPED) {
 		dev_dbg(cru->dev, "IRQ while state stopped\n");
 		goto done;
@@ -604,7 +604,7 @@ static irqreturn_t rzg2l_cru_irq(int irq, void *data)
 		slot--;
 
 	/*
-	 * To hand buffers back in a known order to userspace start
+	 * To hand buffers back in a kanalwn order to userspace start
 	 * to capture first from slot 0.
 	 */
 	if (cru->state == RZG2L_CRU_DMA_STARTING) {
@@ -673,7 +673,7 @@ static int rzg2l_cru_start_streaming_vq(struct vb2_queue *vq, unsigned int count
 	if (!cru->scratch) {
 		return_unused_buffers(cru, VB2_BUF_STATE_QUEUED);
 		dev_err(cru->dev, "Failed to allocate scratch buffer\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_image_conv_irq;
 	}
 
@@ -766,7 +766,7 @@ int rzg2l_cru_dma_register(struct rzg2l_cru_dev *cru)
 	q->buf_struct_size = sizeof(struct rzg2l_cru_buffer);
 	q->ops = &rzg2l_cru_qops;
 	q->mem_ops = &vb2_dma_contig_memops;
-	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MOANALTONIC;
 	q->min_queued_buffers = 4;
 	q->dev = cru->dev;
 
@@ -832,7 +832,7 @@ static void rzg2l_cru_format_align(struct rzg2l_cru_dev *cru,
 	switch (pix->field) {
 	case V4L2_FIELD_TOP:
 	case V4L2_FIELD_BOTTOM:
-	case V4L2_FIELD_NONE:
+	case V4L2_FIELD_ANALNE:
 	case V4L2_FIELD_INTERLACED_TB:
 	case V4L2_FIELD_INTERLACED_BT:
 	case V4L2_FIELD_INTERLACED:

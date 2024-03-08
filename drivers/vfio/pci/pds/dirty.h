@@ -35,7 +35,7 @@ int pds_vfio_dma_logging_report(struct vfio_device *vdev, unsigned long iova,
 				unsigned long length,
 				struct iova_bitmap *dirty);
 int pds_vfio_dma_logging_start(struct vfio_device *vdev,
-			       struct rb_root_cached *ranges, u32 nnodes,
+			       struct rb_root_cached *ranges, u32 nanaldes,
 			       u64 *page_size);
 int pds_vfio_dma_logging_stop(struct vfio_device *vdev);
 #endif /* _DIRTY_H_ */

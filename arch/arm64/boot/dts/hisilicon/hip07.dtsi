@@ -270,7 +270,7 @@
 			reg = <0x10000>;
 			enable-method = "psci";
 			next-level-cache = <&cluster0_l2>;
-			numa-node-id = <0>;
+			numa-analde-id = <0>;
 		};
 
 		cpu1: cpu@10001 {
@@ -279,7 +279,7 @@
 			reg = <0x10001>;
 			enable-method = "psci";
 			next-level-cache = <&cluster0_l2>;
-			numa-node-id = <0>;
+			numa-analde-id = <0>;
 		};
 
 		cpu2: cpu@10002 {
@@ -288,7 +288,7 @@
 			reg = <0x10002>;
 			enable-method = "psci";
 			next-level-cache = <&cluster0_l2>;
-			numa-node-id = <0>;
+			numa-analde-id = <0>;
 		};
 
 		cpu3: cpu@10003 {
@@ -297,7 +297,7 @@
 			reg = <0x10003>;
 			enable-method = "psci";
 			next-level-cache = <&cluster0_l2>;
-			numa-node-id = <0>;
+			numa-analde-id = <0>;
 		};
 
 		cpu4: cpu@10100 {
@@ -306,7 +306,7 @@
 			reg = <0x10100>;
 			enable-method = "psci";
 			next-level-cache = <&cluster1_l2>;
-			numa-node-id = <0>;
+			numa-analde-id = <0>;
 		};
 
 		cpu5: cpu@10101 {
@@ -315,7 +315,7 @@
 			reg = <0x10101>;
 			enable-method = "psci";
 			next-level-cache = <&cluster1_l2>;
-			numa-node-id = <0>;
+			numa-analde-id = <0>;
 		};
 
 		cpu6: cpu@10102 {
@@ -324,7 +324,7 @@
 			reg = <0x10102>;
 			enable-method = "psci";
 			next-level-cache = <&cluster1_l2>;
-			numa-node-id = <0>;
+			numa-analde-id = <0>;
 		};
 
 		cpu7: cpu@10103 {
@@ -333,7 +333,7 @@
 			reg = <0x10103>;
 			enable-method = "psci";
 			next-level-cache = <&cluster1_l2>;
-			numa-node-id = <0>;
+			numa-analde-id = <0>;
 		};
 
 		cpu8: cpu@10200 {
@@ -342,7 +342,7 @@
 			reg = <0x10200>;
 			enable-method = "psci";
 			next-level-cache = <&cluster2_l2>;
-			numa-node-id = <0>;
+			numa-analde-id = <0>;
 		};
 
 		cpu9: cpu@10201 {
@@ -351,7 +351,7 @@
 			reg = <0x10201>;
 			enable-method = "psci";
 			next-level-cache = <&cluster2_l2>;
-			numa-node-id = <0>;
+			numa-analde-id = <0>;
 		};
 
 		cpu10: cpu@10202 {
@@ -360,7 +360,7 @@
 			reg = <0x10202>;
 			enable-method = "psci";
 			next-level-cache = <&cluster2_l2>;
-			numa-node-id = <0>;
+			numa-analde-id = <0>;
 		};
 
 		cpu11: cpu@10203 {
@@ -369,7 +369,7 @@
 			reg = <0x10203>;
 			enable-method = "psci";
 			next-level-cache = <&cluster2_l2>;
-			numa-node-id = <0>;
+			numa-analde-id = <0>;
 		};
 
 		cpu12: cpu@10300 {
@@ -378,7 +378,7 @@
 			reg = <0x10300>;
 			enable-method = "psci";
 			next-level-cache = <&cluster3_l2>;
-			numa-node-id = <0>;
+			numa-analde-id = <0>;
 		};
 
 		cpu13: cpu@10301 {
@@ -387,7 +387,7 @@
 			reg = <0x10301>;
 			enable-method = "psci";
 			next-level-cache = <&cluster3_l2>;
-			numa-node-id = <0>;
+			numa-analde-id = <0>;
 		};
 
 		cpu14: cpu@10302 {
@@ -396,7 +396,7 @@
 			reg = <0x10302>;
 			enable-method = "psci";
 			next-level-cache = <&cluster3_l2>;
-			numa-node-id = <0>;
+			numa-analde-id = <0>;
 		};
 
 		cpu15: cpu@10303 {
@@ -405,7 +405,7 @@
 			reg = <0x10303>;
 			enable-method = "psci";
 			next-level-cache = <&cluster3_l2>;
-			numa-node-id = <0>;
+			numa-analde-id = <0>;
 		};
 
 		cpu16: cpu@30000 {
@@ -414,7 +414,7 @@
 			reg = <0x30000>;
 			enable-method = "psci";
 			next-level-cache = <&cluster4_l2>;
-			numa-node-id = <1>;
+			numa-analde-id = <1>;
 		};
 
 		cpu17: cpu@30001 {
@@ -423,7 +423,7 @@
 			reg = <0x30001>;
 			enable-method = "psci";
 			next-level-cache = <&cluster4_l2>;
-			numa-node-id = <1>;
+			numa-analde-id = <1>;
 		};
 
 		cpu18: cpu@30002 {
@@ -432,7 +432,7 @@
 			reg = <0x30002>;
 			enable-method = "psci";
 			next-level-cache = <&cluster4_l2>;
-			numa-node-id = <1>;
+			numa-analde-id = <1>;
 		};
 
 		cpu19: cpu@30003 {
@@ -441,7 +441,7 @@
 			reg = <0x30003>;
 			enable-method = "psci";
 			next-level-cache = <&cluster4_l2>;
-			numa-node-id = <1>;
+			numa-analde-id = <1>;
 		};
 
 		cpu20: cpu@30100 {
@@ -450,7 +450,7 @@
 			reg = <0x30100>;
 			enable-method = "psci";
 			next-level-cache = <&cluster5_l2>;
-			numa-node-id = <1>;
+			numa-analde-id = <1>;
 		};
 
 		cpu21: cpu@30101 {
@@ -459,7 +459,7 @@
 			reg = <0x30101>;
 			enable-method = "psci";
 			next-level-cache = <&cluster5_l2>;
-			numa-node-id = <1>;
+			numa-analde-id = <1>;
 		};
 
 		cpu22: cpu@30102 {
@@ -468,7 +468,7 @@
 			reg = <0x30102>;
 			enable-method = "psci";
 			next-level-cache = <&cluster5_l2>;
-			numa-node-id = <1>;
+			numa-analde-id = <1>;
 		};
 
 		cpu23: cpu@30103 {
@@ -477,7 +477,7 @@
 			reg = <0x30103>;
 			enable-method = "psci";
 			next-level-cache = <&cluster5_l2>;
-			numa-node-id = <1>;
+			numa-analde-id = <1>;
 		};
 
 		cpu24: cpu@30200 {
@@ -486,7 +486,7 @@
 			reg = <0x30200>;
 			enable-method = "psci";
 			next-level-cache = <&cluster6_l2>;
-			numa-node-id = <1>;
+			numa-analde-id = <1>;
 		};
 
 		cpu25: cpu@30201 {
@@ -495,7 +495,7 @@
 			reg = <0x30201>;
 			enable-method = "psci";
 			next-level-cache = <&cluster6_l2>;
-			numa-node-id = <1>;
+			numa-analde-id = <1>;
 		};
 
 		cpu26: cpu@30202 {
@@ -504,7 +504,7 @@
 			reg = <0x30202>;
 			enable-method = "psci";
 			next-level-cache = <&cluster6_l2>;
-			numa-node-id = <1>;
+			numa-analde-id = <1>;
 		};
 
 		cpu27: cpu@30203 {
@@ -513,7 +513,7 @@
 			reg = <0x30203>;
 			enable-method = "psci";
 			next-level-cache = <&cluster6_l2>;
-			numa-node-id = <1>;
+			numa-analde-id = <1>;
 		};
 
 		cpu28: cpu@30300 {
@@ -522,7 +522,7 @@
 			reg = <0x30300>;
 			enable-method = "psci";
 			next-level-cache = <&cluster7_l2>;
-			numa-node-id = <1>;
+			numa-analde-id = <1>;
 		};
 
 		cpu29: cpu@30301 {
@@ -531,7 +531,7 @@
 			reg = <0x30301>;
 			enable-method = "psci";
 			next-level-cache = <&cluster7_l2>;
-			numa-node-id = <1>;
+			numa-analde-id = <1>;
 		};
 
 		cpu30: cpu@30302 {
@@ -540,7 +540,7 @@
 			reg = <0x30302>;
 			enable-method = "psci";
 			next-level-cache = <&cluster7_l2>;
-			numa-node-id = <1>;
+			numa-analde-id = <1>;
 		};
 
 		cpu31: cpu@30303 {
@@ -549,7 +549,7 @@
 			reg = <0x30303>;
 			enable-method = "psci";
 			next-level-cache = <&cluster7_l2>;
-			numa-node-id = <1>;
+			numa-analde-id = <1>;
 		};
 
 		cpu32: cpu@50000 {
@@ -558,7 +558,7 @@
 			reg = <0x50000>;
 			enable-method = "psci";
 			next-level-cache = <&cluster8_l2>;
-			numa-node-id = <2>;
+			numa-analde-id = <2>;
 		};
 
 		cpu33: cpu@50001 {
@@ -567,7 +567,7 @@
 			reg = <0x50001>;
 			enable-method = "psci";
 			next-level-cache = <&cluster8_l2>;
-			numa-node-id = <2>;
+			numa-analde-id = <2>;
 		};
 
 		cpu34: cpu@50002 {
@@ -576,7 +576,7 @@
 			reg = <0x50002>;
 			enable-method = "psci";
 			next-level-cache = <&cluster8_l2>;
-			numa-node-id = <2>;
+			numa-analde-id = <2>;
 		};
 
 		cpu35: cpu@50003 {
@@ -585,7 +585,7 @@
 			reg = <0x50003>;
 			enable-method = "psci";
 			next-level-cache = <&cluster8_l2>;
-			numa-node-id = <2>;
+			numa-analde-id = <2>;
 		};
 
 		cpu36: cpu@50100 {
@@ -594,7 +594,7 @@
 			reg = <0x50100>;
 			enable-method = "psci";
 			next-level-cache = <&cluster9_l2>;
-			numa-node-id = <2>;
+			numa-analde-id = <2>;
 		};
 
 		cpu37: cpu@50101 {
@@ -603,7 +603,7 @@
 			reg = <0x50101>;
 			enable-method = "psci";
 			next-level-cache = <&cluster9_l2>;
-			numa-node-id = <2>;
+			numa-analde-id = <2>;
 		};
 
 		cpu38: cpu@50102 {
@@ -612,7 +612,7 @@
 			reg = <0x50102>;
 			enable-method = "psci";
 			next-level-cache = <&cluster9_l2>;
-			numa-node-id = <2>;
+			numa-analde-id = <2>;
 		};
 
 		cpu39: cpu@50103 {
@@ -621,7 +621,7 @@
 			reg = <0x50103>;
 			enable-method = "psci";
 			next-level-cache = <&cluster9_l2>;
-			numa-node-id = <2>;
+			numa-analde-id = <2>;
 		};
 
 		cpu40: cpu@50200 {
@@ -630,7 +630,7 @@
 			reg = <0x50200>;
 			enable-method = "psci";
 			next-level-cache = <&cluster10_l2>;
-			numa-node-id = <2>;
+			numa-analde-id = <2>;
 		};
 
 		cpu41: cpu@50201 {
@@ -639,7 +639,7 @@
 			reg = <0x50201>;
 			enable-method = "psci";
 			next-level-cache = <&cluster10_l2>;
-			numa-node-id = <2>;
+			numa-analde-id = <2>;
 		};
 
 		cpu42: cpu@50202 {
@@ -648,7 +648,7 @@
 			reg = <0x50202>;
 			enable-method = "psci";
 			next-level-cache = <&cluster10_l2>;
-			numa-node-id = <2>;
+			numa-analde-id = <2>;
 		};
 
 		cpu43: cpu@50203 {
@@ -657,7 +657,7 @@
 			reg = <0x50203>;
 			enable-method = "psci";
 			next-level-cache = <&cluster10_l2>;
-			numa-node-id = <2>;
+			numa-analde-id = <2>;
 		};
 
 		cpu44: cpu@50300 {
@@ -666,7 +666,7 @@
 			reg = <0x50300>;
 			enable-method = "psci";
 			next-level-cache = <&cluster11_l2>;
-			numa-node-id = <2>;
+			numa-analde-id = <2>;
 		};
 
 		cpu45: cpu@50301 {
@@ -675,7 +675,7 @@
 			reg = <0x50301>;
 			enable-method = "psci";
 			next-level-cache = <&cluster11_l2>;
-			numa-node-id = <2>;
+			numa-analde-id = <2>;
 		};
 
 		cpu46: cpu@50302 {
@@ -684,7 +684,7 @@
 			reg = <0x50302>;
 			enable-method = "psci";
 			next-level-cache = <&cluster11_l2>;
-			numa-node-id = <2>;
+			numa-analde-id = <2>;
 		};
 
 		cpu47: cpu@50303 {
@@ -693,7 +693,7 @@
 			reg = <0x50303>;
 			enable-method = "psci";
 			next-level-cache = <&cluster11_l2>;
-			numa-node-id = <2>;
+			numa-analde-id = <2>;
 		};
 
 		cpu48: cpu@70000 {
@@ -702,7 +702,7 @@
 			reg = <0x70000>;
 			enable-method = "psci";
 			next-level-cache = <&cluster12_l2>;
-			numa-node-id = <3>;
+			numa-analde-id = <3>;
 		};
 
 		cpu49: cpu@70001 {
@@ -711,7 +711,7 @@
 			reg = <0x70001>;
 			enable-method = "psci";
 			next-level-cache = <&cluster12_l2>;
-			numa-node-id = <3>;
+			numa-analde-id = <3>;
 		};
 
 		cpu50: cpu@70002 {
@@ -720,7 +720,7 @@
 			reg = <0x70002>;
 			enable-method = "psci";
 			next-level-cache = <&cluster12_l2>;
-			numa-node-id = <3>;
+			numa-analde-id = <3>;
 		};
 
 		cpu51: cpu@70003 {
@@ -729,7 +729,7 @@
 			reg = <0x70003>;
 			enable-method = "psci";
 			next-level-cache = <&cluster12_l2>;
-			numa-node-id = <3>;
+			numa-analde-id = <3>;
 		};
 
 		cpu52: cpu@70100 {
@@ -738,7 +738,7 @@
 			reg = <0x70100>;
 			enable-method = "psci";
 			next-level-cache = <&cluster13_l2>;
-			numa-node-id = <3>;
+			numa-analde-id = <3>;
 		};
 
 		cpu53: cpu@70101 {
@@ -747,7 +747,7 @@
 			reg = <0x70101>;
 			enable-method = "psci";
 			next-level-cache = <&cluster13_l2>;
-			numa-node-id = <3>;
+			numa-analde-id = <3>;
 		};
 
 		cpu54: cpu@70102 {
@@ -756,7 +756,7 @@
 			reg = <0x70102>;
 			enable-method = "psci";
 			next-level-cache = <&cluster13_l2>;
-			numa-node-id = <3>;
+			numa-analde-id = <3>;
 		};
 
 		cpu55: cpu@70103 {
@@ -765,7 +765,7 @@
 			reg = <0x70103>;
 			enable-method = "psci";
 			next-level-cache = <&cluster13_l2>;
-			numa-node-id = <3>;
+			numa-analde-id = <3>;
 		};
 
 		cpu56: cpu@70200 {
@@ -774,7 +774,7 @@
 			reg = <0x70200>;
 			enable-method = "psci";
 			next-level-cache = <&cluster14_l2>;
-			numa-node-id = <3>;
+			numa-analde-id = <3>;
 		};
 
 		cpu57: cpu@70201 {
@@ -783,7 +783,7 @@
 			reg = <0x70201>;
 			enable-method = "psci";
 			next-level-cache = <&cluster14_l2>;
-			numa-node-id = <3>;
+			numa-analde-id = <3>;
 		};
 
 		cpu58: cpu@70202 {
@@ -792,7 +792,7 @@
 			reg = <0x70202>;
 			enable-method = "psci";
 			next-level-cache = <&cluster14_l2>;
-			numa-node-id = <3>;
+			numa-analde-id = <3>;
 		};
 
 		cpu59: cpu@70203 {
@@ -801,7 +801,7 @@
 			reg = <0x70203>;
 			enable-method = "psci";
 			next-level-cache = <&cluster14_l2>;
-			numa-node-id = <3>;
+			numa-analde-id = <3>;
 		};
 
 		cpu60: cpu@70300 {
@@ -810,7 +810,7 @@
 			reg = <0x70300>;
 			enable-method = "psci";
 			next-level-cache = <&cluster15_l2>;
-			numa-node-id = <3>;
+			numa-analde-id = <3>;
 		};
 
 		cpu61: cpu@70301 {
@@ -819,7 +819,7 @@
 			reg = <0x70301>;
 			enable-method = "psci";
 			next-level-cache = <&cluster15_l2>;
-			numa-node-id = <3>;
+			numa-analde-id = <3>;
 		};
 
 		cpu62: cpu@70302 {
@@ -828,7 +828,7 @@
 			reg = <0x70302>;
 			enable-method = "psci";
 			next-level-cache = <&cluster15_l2>;
-			numa-node-id = <3>;
+			numa-analde-id = <3>;
 		};
 
 		cpu63: cpu@70303 {
@@ -837,7 +837,7 @@
 			reg = <0x70303>;
 			enable-method = "psci";
 			next-level-cache = <&cluster15_l2>;
-			numa-node-id = <3>;
+			numa-analde-id = <3>;
 		};
 
 		cluster0_l2: l2-cache0 {
@@ -947,10 +947,10 @@
 		#redistributor-regions = <4>;
 		redistributor-stride = <0x0 0x40000>;
 		reg = <0x0 0x4d000000 0x0 0x10000>,	/* GICD */
-		      <0x0 0x4d100000 0x0 0x400000>,	/* p0 GICR node 0 */
-		      <0x0 0x6d100000 0x0 0x400000>,	/* p0 GICR node 1 */
-		      <0x400 0x4d100000 0x0 0x400000>,	/* p1 GICR node 2 */
-		      <0x400 0x6d100000 0x0 0x400000>,	/* p1 GICR node 3 */
+		      <0x0 0x4d100000 0x0 0x400000>,	/* p0 GICR analde 0 */
+		      <0x0 0x6d100000 0x0 0x400000>,	/* p0 GICR analde 1 */
+		      <0x400 0x4d100000 0x0 0x400000>,	/* p1 GICR analde 2 */
+		      <0x400 0x6d100000 0x0 0x400000>,	/* p1 GICR analde 3 */
 		      <0x0 0xfe000000 0x0 0x10000>,	/* GICC */
 		      <0x0 0xfe010000 0x0 0x10000>,	/* GICH */
 		      <0x0 0xfe020000 0x0 0x10000>;	/* GICV */
@@ -1188,9 +1188,9 @@
 	 *  have a SMMU translation for MSI. In order to workaround this,
 	 *  ARM SMMUv3 driver requires a quirk to treat the MSI regions
 	 *  separately. Such a quirk is currently missing for DT based
-	 *  systems. Hence please make sure that the smmu pcie node on
+	 *  systems. Hence please make sure that the smmu pcie analde on
 	 *  hip07 is disabled as this will break the PCIe functionality
-	 *  when iommu-map entry is used along with the PCIe node.
+	 *  when iommu-map entry is used along with the PCIe analde.
 	 *  Refer:https://www.spinics.net/lists/arm-kernel/msg602812.html
 	 */
 	smmu0: iommu@a0040000 {
@@ -1525,7 +1525,7 @@
 			dma-coherent;
 			eth-handle = <&eth2 &eth3 0 0 &eth0 &eth1>;
 			dsaf-handle = <&dsaf0>;
-			node-guid = [00 9A CD 00 00 01 02 03];
+			analde-guid = [00 9A CD 00 00 01 02 03];
 			#address-cells = <2>;
 			#size-cells = <2>;
 			interrupt-parent = <&mbigen_dsa_roce>;

@@ -47,7 +47,7 @@ static struct xor_block_template xor_block_lasx = {
 /*
  * For grins, also test the generic routines.
  *
- * More importantly: it cannot be ruled out at this point of time, that some
+ * More importantly: it cananalt be ruled out at this point of time, that some
  * future (maybe reduced) models could run the vector algorithms slower than
  * the scalar ones, maybe for errata or micro-op reasons. It may be
  * appropriate to revisit this after one or two more uarch generations.

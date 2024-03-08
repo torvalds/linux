@@ -6,7 +6,7 @@
  *  service time. Estimates future service time based on the historical
  *  service time and the number of outstanding requests.
  *
- *  Marks paths stale if they have not finished within hst *
+ *  Marks paths stale if they have analt finished within hst *
  *  num_paths. If a path is stale and unused, we will send a single
  *  request to probe in case the path has improved. This situation
  *  generally arises if the path is so much worse than others that it
@@ -114,7 +114,7 @@ static u64 fixed_power(u64 x, unsigned int frac_bits, unsigned int n)
  * @next: [0, ULLONG_MAX >> HST_FIXED_SHIFT]
  * @weight: [0, HST_FIXED_1]
  *
- * Note:
+ * Analte:
  *   To account for multiple periods in the same calculation,
  *   a_n = a_0 * e^n + a * (1 - e^n),
  *   so call fixed_ema(last, next, pow(weight, N))
@@ -182,13 +182,13 @@ static int hst_create(struct path_selector *ps, unsigned int argc, char **argv)
 	/*
 	 * Arguments: [<base_weight> [<threshold_multiplier>]]
 	 *   <base_weight>: Base weight for ema [0, 1024) 10-bit fixed point. A
-	 *                  value of 0 will completely ignore any history.
-	 *                  If not given, default (HST_FIXED_95) is used.
+	 *                  value of 0 will completely iganalre any history.
+	 *                  If analt given, default (HST_FIXED_95) is used.
 	 *   <threshold_multiplier>: Minimum threshold multiplier for paths to
 	 *                  be considered different. That is, a path is
 	 *                  considered different iff (p1 > N * p2) where p1
 	 *                  is the path with higher service time. A threshold
-	 *                  of 1 or 0 has no effect. Defaults to 0.
+	 *                  of 1 or 0 has anal effect. Defaults to 0.
 	 */
 	if (argc > 2)
 		return -EINVAL;
@@ -205,7 +205,7 @@ static int hst_create(struct path_selector *ps, unsigned int argc, char **argv)
 
 	s = alloc_selector();
 	if (!s)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ps->context = s;
 
@@ -276,7 +276,7 @@ static int hst_add_path(struct path_selector *ps, struct dm_path *path,
 	/*
 	 * Arguments: [<repeat_count>]
 	 *   <repeat_count>: The number of I/Os before switching path.
-	 *                   If not given, default (HST_MIN_IO) is used.
+	 *                   If analt given, default (HST_MIN_IO) is used.
 	 */
 	if (argc > 1) {
 		*error = "historical-service-time ps: incorrect number of arguments";
@@ -292,7 +292,7 @@ static int hst_add_path(struct path_selector *ps, struct dm_path *path,
 	pi = kmalloc(sizeof(*pi), GFP_KERNEL);
 	if (!pi) {
 		*error = "historical-service-time ps: Error allocating path context";
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	pi->path = path;
@@ -360,12 +360,12 @@ static void hst_fill_compare(struct path_info *pi, u64 *hst,
  *
  * Returns:
  * < 0 : pi1 is better
- * 0   : no difference between pi1 and pi2
+ * 0   : anal difference between pi1 and pi2
  * > 0 : pi2 is better
  *
  */
 static long long hst_compare(struct path_info *pi1, struct path_info *pi2,
-			     u64 time_now, struct path_selector *ps)
+			     u64 time_analw, struct path_selector *ps)
 {
 	struct selector *s = ps->context;
 	u64 hst1, hst2;
@@ -393,7 +393,7 @@ static long long hst_compare(struct path_info *pi1, struct path_info *pi2,
 	 * choose path that is the most stale.
 	 * (If one path is loaded, choose the other)
 	 */
-	if ((!out1 && stale1 < time_now) || (!out2 && stale2 < time_now) ||
+	if ((!out1 && stale1 < time_analw) || (!out2 && stale2 < time_analw) ||
 	    (!out1 && !out2))
 		return (!out2 * stale1) - (!out1 * stale2);
 
@@ -408,7 +408,7 @@ static long long hst_compare(struct path_info *pi1, struct path_info *pi2,
 			     out2 >= HST_MAX_INFLIGHT)) {
 			/* If over 1023 in-flights, we may overflow if hst
 			 * is at max. (With this shift we still overflow at
-			 * 1048576 in-flights, which is high enough).
+			 * 1048576 in-flights, which is high eanalugh).
 			 */
 			hst1 >>= HST_FIXED_SHIFT;
 			hst2 >>= HST_FIXED_SHIFT;
@@ -418,11 +418,11 @@ static long long hst_compare(struct path_info *pi1, struct path_info *pi2,
 
 	/* In the case that the 'winner' is stale, limit to equal usage. */
 	if (pi2_better) {
-		if (stale2 < time_now)
+		if (stale2 < time_analw)
 			return out1 - out2;
 		return 1;
 	}
-	if (stale1 < time_now)
+	if (stale1 < time_analw)
 		return out1 - out2;
 	return -1;
 }
@@ -432,7 +432,7 @@ static struct dm_path *hst_select_path(struct path_selector *ps,
 {
 	struct selector *s = ps->context;
 	struct path_info *pi = NULL, *best = NULL;
-	u64 time_now = ktime_get_ns();
+	u64 time_analw = ktime_get_ns();
 	struct dm_path *ret = NULL;
 	unsigned long flags;
 
@@ -441,7 +441,7 @@ static struct dm_path *hst_select_path(struct path_selector *ps,
 		goto out;
 
 	list_for_each_entry(pi, &s->valid_paths, list) {
-		if (!best || (hst_compare(pi, best, time_now, ps) < 0))
+		if (!best || (hst_compare(pi, best, time_analw, ps) < 0))
 			best = pi;
 	}
 
@@ -473,7 +473,7 @@ static int hst_start_io(struct path_selector *ps, struct dm_path *path,
 
 static u64 path_service_time(struct path_info *pi, u64 start_time)
 {
-	u64 now = ktime_get_ns();
+	u64 analw = ktime_get_ns();
 
 	/* if a previous disk request has finished after this IO was
 	 * sent to the hardware, pretend the submission happened
@@ -482,11 +482,11 @@ static u64 path_service_time(struct path_info *pi, u64 start_time)
 	if (time_after64(pi->last_finish, start_time))
 		start_time = pi->last_finish;
 
-	pi->last_finish = now;
-	if (time_before64(now, start_time))
+	pi->last_finish = analw;
+	if (time_before64(analw, start_time))
 		return 0;
 
-	return now - start_time;
+	return analw - start_time;
 }
 
 static int hst_end_io(struct path_selector *ps, struct dm_path *path,

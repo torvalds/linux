@@ -256,7 +256,7 @@ static const struct snd_kcontrol_new sun50i_codec_hp_switch =
 			SUN50I_ADDA_MIX_DAC_CTRL_RHPPAMUTE, 1, 0);
 
 static const char * const sun50i_codec_lineout_src_enum_text[] = {
-	"Stereo", "Mono Differential",
+	"Stereo", "Moanal Differential",
 };
 
 static SOC_ENUM_DOUBLE_DECL(sun50i_codec_lineout_src_enum,
@@ -315,35 +315,35 @@ static const struct snd_soc_dapm_widget sun50i_a64_codec_widgets[] = {
 
 	SND_SOC_DAPM_REGULATOR_SUPPLY("cpvdd", 0, 0),
 	SND_SOC_DAPM_MUX("Left Headphone Source",
-			 SND_SOC_NOPM, 0, 0, sun50i_codec_hp_src),
+			 SND_SOC_ANALPM, 0, 0, sun50i_codec_hp_src),
 	SND_SOC_DAPM_MUX("Right Headphone Source",
-			 SND_SOC_NOPM, 0, 0, sun50i_codec_hp_src),
+			 SND_SOC_ANALPM, 0, 0, sun50i_codec_hp_src),
 	SND_SOC_DAPM_SWITCH("Left Headphone Switch",
-			    SND_SOC_NOPM, 0, 0, &sun50i_codec_hp_switch),
+			    SND_SOC_ANALPM, 0, 0, &sun50i_codec_hp_switch),
 	SND_SOC_DAPM_SWITCH("Right Headphone Switch",
-			    SND_SOC_NOPM, 0, 0, &sun50i_codec_hp_switch),
+			    SND_SOC_ANALPM, 0, 0, &sun50i_codec_hp_switch),
 	SND_SOC_DAPM_OUT_DRV("Left Headphone Amp",
-			     SND_SOC_NOPM, 0, 0, NULL, 0),
+			     SND_SOC_ANALPM, 0, 0, NULL, 0),
 	SND_SOC_DAPM_OUT_DRV("Right Headphone Amp",
-			     SND_SOC_NOPM, 0, 0, NULL, 0),
+			     SND_SOC_ANALPM, 0, 0, NULL, 0),
 	SND_SOC_DAPM_SUPPLY("Headphone Amp", SUN50I_ADDA_HP_CTRL,
 			     SUN50I_ADDA_HP_CTRL_HPPA_EN, 0, NULL, 0),
 	SND_SOC_DAPM_OUTPUT("HP"),
 
 	SND_SOC_DAPM_MUX("Left Line Out Source",
-			 SND_SOC_NOPM, 0, 0, sun50i_codec_lineout_src),
+			 SND_SOC_ANALPM, 0, 0, sun50i_codec_lineout_src),
 	SND_SOC_DAPM_MUX("Right Line Out Source",
-			 SND_SOC_NOPM, 0, 0, sun50i_codec_lineout_src),
+			 SND_SOC_ANALPM, 0, 0, sun50i_codec_lineout_src),
 	SND_SOC_DAPM_SWITCH("Left Line Out Switch",
-			    SND_SOC_NOPM, 0, 0, &sun50i_codec_lineout_switch),
+			    SND_SOC_ANALPM, 0, 0, &sun50i_codec_lineout_switch),
 	SND_SOC_DAPM_SWITCH("Right Line Out Switch",
-			    SND_SOC_NOPM, 0, 0, &sun50i_codec_lineout_switch),
+			    SND_SOC_ANALPM, 0, 0, &sun50i_codec_lineout_switch),
 	SND_SOC_DAPM_OUTPUT("LINEOUT"),
 
 	SND_SOC_DAPM_MUX("Earpiece Source Playback Route",
-			 SND_SOC_NOPM, 0, 0, sun50i_codec_earpiece_src),
+			 SND_SOC_ANALPM, 0, 0, sun50i_codec_earpiece_src),
 	SOC_MIXER_NAMED_CTL_ARRAY("Earpiece Switch",
-				  SND_SOC_NOPM, 0, 0,
+				  SND_SOC_ANALPM, 0, 0,
 				  sun50i_codec_earpiece_switch),
 	SND_SOC_DAPM_OUT_DRV("Earpiece Amp", SUN50I_ADDA_EARPIECE_CTRL1,
 			     SUN50I_ADDA_EARPIECE_CTRL1_ESPPA_EN, 0, NULL, 0),
@@ -385,10 +385,10 @@ static const struct snd_soc_dapm_widget sun50i_a64_codec_widgets[] = {
 			   SUN50I_ADDA_MIX_DAC_CTRL_RMIXEN, 0,
 			   sun50i_a64_codec_mixer_controls,
 			   ARRAY_SIZE(sun50i_a64_codec_mixer_controls)),
-	SND_SOC_DAPM_MIXER("Left ADC Mixer", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("Left ADC Mixer", SND_SOC_ANALPM, 0, 0,
 			   sun50i_codec_adc_mixer_controls,
 			   ARRAY_SIZE(sun50i_codec_adc_mixer_controls)),
-	SND_SOC_DAPM_MIXER("Right ADC Mixer", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("Right ADC Mixer", SND_SOC_ANALPM, 0, 0,
 			   sun50i_codec_adc_mixer_controls,
 			   ARRAY_SIZE(sun50i_codec_adc_mixer_controls)),
 };
@@ -451,14 +451,14 @@ static const struct snd_soc_dapm_route sun50i_a64_codec_routes[] = {
 
 	/* Line-out Routes */
 	{ "Left Line Out Source", "Stereo", "Left Mixer" },
-	{ "Left Line Out Source", "Mono Differential", "Left Mixer" },
-	{ "Left Line Out Source", "Mono Differential", "Right Mixer" },
+	{ "Left Line Out Source", "Moanal Differential", "Left Mixer" },
+	{ "Left Line Out Source", "Moanal Differential", "Right Mixer" },
 	{ "Left Line Out Switch", "Line Out Playback Switch", "Left Line Out Source" },
 	{ "LINEOUT", NULL, "Left Line Out Switch" },
 
 	{ "Right Line Out Switch", "Line Out Playback Switch", "Right Mixer" },
 	{ "Right Line Out Source", "Stereo", "Right Line Out Switch" },
-	{ "Right Line Out Source", "Mono Differential", "Left Line Out Switch" },
+	{ "Right Line Out Source", "Moanal Differential", "Left Line Out Switch" },
 	{ "LINEOUT", NULL, "Right Line Out Source" },
 
 	/* Earpiece Routes */

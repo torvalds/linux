@@ -138,9 +138,9 @@ static int igc_tsn_enable_offload(struct igc_adapter *adapter)
 			 * cycles: only transmit a packet if it can be
 			 * completed during that cycle.
 			 *
-			 * If taprio_offload_enable is NOT true when
+			 * If taprio_offload_enable is ANALT true when
 			 * enabling TSN offload, the cycle should have
-			 * no external effects, but is only used internally
+			 * anal external effects, but is only used internally
 			 * to adapt the base time register after a second
 			 * has passed.
 			 *
@@ -176,11 +176,11 @@ static int igc_tsn_enable_offload(struct igc_adapter *adapter)
 			 *         ---------- *  -----------------         (E1)
 			 *          100Mbps            2.5
 			 *
-			 * Note that 'link-speed' is in Mbps.
+			 * Analte that 'link-speed' is in Mbps.
 			 *
 			 * 'BW' is the percentage bandwidth out of full
 			 * link speed which can be found with the
-			 * following equation. Note that idleSlope here
+			 * following equation. Analte that idleSlope here
 			 * is the parameter from this function
 			 * which is in kbps.
 			 *
@@ -205,7 +205,7 @@ static int igc_tsn_enable_offload(struct igc_adapter *adapter)
 			 *             -----------------                   (E4)
 			 *                  2500000
 			 *
-			 * NOTE: For i225, given the above, we can see
+			 * ANALTE: For i225, given the above, we can see
 			 *       that idleslope is represented in
 			 *       40.959433 kbps units by the value at
 			 *       the TQAVCC register (2.5Gbps / 61036),
@@ -213,7 +213,7 @@ static int igc_tsn_enable_offload(struct igc_adapter *adapter)
 			 *       idleslope increments.
 			 *
 			 * In i225 controller, the sendSlope and loCredit
-			 * parameters from CBS are not configurable
+			 * parameters from CBS are analt configurable
 			 * by software so we don't do any
 			 * 'controller configuration' in respect to
 			 * these parameters.
@@ -336,7 +336,7 @@ int igc_tsn_offload_apply(struct igc_adapter *adapter)
 	struct igc_hw *hw = &adapter->hw;
 
 	/* Per I225/6 HW Design Section 7.5.2.1, transmit mode
-	 * cannot be changed dynamically. Require reset the adapter.
+	 * cananalt be changed dynamically. Require reset the adapter.
 	 */
 	if (netif_running(adapter->netdev) &&
 	    (igc_is_device_id_i225(hw) || !adapter->qbv_count)) {

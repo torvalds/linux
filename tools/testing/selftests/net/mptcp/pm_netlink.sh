@@ -40,7 +40,7 @@ mptcp_lib_check_mptcp
 
 ip -Version > /dev/null 2>&1
 if [ $? -ne 0 ];then
-	echo "SKIP: Could not run test without ip tool"
+	echo "SKIP: Could analt run test without ip tool"
 	exit $ksft_skip
 fi
 
@@ -178,9 +178,9 @@ ip netns exec $ns1 ./pm_nl_ctl add 10.0.1.1 flags subflow
 ip netns exec $ns1 ./pm_nl_ctl set 10.0.1.1 flags backup
 check "ip netns exec $ns1 ./pm_nl_ctl dump" "id 1 flags \
 subflow,backup 10.0.1.1" "set flags (backup)"
-ip netns exec $ns1 ./pm_nl_ctl set 10.0.1.1 flags nobackup
+ip netns exec $ns1 ./pm_nl_ctl set 10.0.1.1 flags analbackup
 check "ip netns exec $ns1 ./pm_nl_ctl dump" "id 1 flags \
-subflow 10.0.1.1" "          (nobackup)"
+subflow 10.0.1.1" "          (analbackup)"
 
 # fullmesh support has been added later
 ip netns exec $ns1 ./pm_nl_ctl set id 1 flags fullmesh 2>/dev/null
@@ -188,14 +188,14 @@ if ip netns exec $ns1 ./pm_nl_ctl dump | grep -q "fullmesh" ||
    mptcp_lib_expect_all_features; then
 	check "ip netns exec $ns1 ./pm_nl_ctl dump" "id 1 flags \
 subflow,fullmesh 10.0.1.1" "          (fullmesh)"
-	ip netns exec $ns1 ./pm_nl_ctl set id 1 flags nofullmesh
+	ip netns exec $ns1 ./pm_nl_ctl set id 1 flags analfullmesh
 	check "ip netns exec $ns1 ./pm_nl_ctl dump" "id 1 flags \
-subflow 10.0.1.1" "          (nofullmesh)"
+subflow 10.0.1.1" "          (analfullmesh)"
 	ip netns exec $ns1 ./pm_nl_ctl set id 1 flags backup,fullmesh
 	check "ip netns exec $ns1 ./pm_nl_ctl dump" "id 1 flags \
 subflow,backup,fullmesh 10.0.1.1" "          (backup,fullmesh)"
 else
-	for st in fullmesh nofullmesh backup,fullmesh; do
+	for st in fullmesh analfullmesh backup,fullmesh; do
 		st="          (${st})"
 		printf "%-50s%s\n" "${st}" "[SKIP]"
 		mptcp_lib_result_skip "${st}"

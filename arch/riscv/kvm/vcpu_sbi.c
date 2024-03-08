@@ -6,7 +6,7 @@
  *     Atish Patra <atish.patra@wdc.com>
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/err.h>
 #include <linux/kvm_host.h>
 #include <asm/sbi.h>
@@ -180,7 +180,7 @@ static int riscv_vcpu_set_sbi_ext_single(struct kvm_vcpu *vcpu,
 
 	sext = riscv_vcpu_get_sbi_ext(vcpu, reg_num);
 	if (!sext || scontext->ext_status[sext->ext_idx] == KVM_RISCV_SBI_EXT_STATUS_UNAVAILABLE)
-		return -ENOENT;
+		return -EANALENT;
 
 	scontext->ext_status[sext->ext_idx] = (reg_val) ?
 			KVM_RISCV_SBI_EXT_STATUS_ENABLED :
@@ -198,7 +198,7 @@ static int riscv_vcpu_get_sbi_ext_single(struct kvm_vcpu *vcpu,
 
 	sext = riscv_vcpu_get_sbi_ext(vcpu, reg_num);
 	if (!sext || scontext->ext_status[sext->ext_idx] == KVM_RISCV_SBI_EXT_STATUS_UNAVAILABLE)
-		return -ENOENT;
+		return -EANALENT;
 
 	*reg_val = scontext->ext_status[sext->ext_idx] ==
 				KVM_RISCV_SBI_EXT_STATUS_ENABLED;
@@ -213,7 +213,7 @@ static int riscv_vcpu_set_sbi_ext_multi(struct kvm_vcpu *vcpu,
 	unsigned long i, ext_id;
 
 	if (reg_num > KVM_REG_RISCV_SBI_MULTI_REG_LAST)
-		return -ENOENT;
+		return -EANALENT;
 
 	for_each_set_bit(i, &reg_val, BITS_PER_LONG) {
 		ext_id = i + reg_num * BITS_PER_LONG;
@@ -233,7 +233,7 @@ static int riscv_vcpu_get_sbi_ext_multi(struct kvm_vcpu *vcpu,
 	unsigned long i, ext_id, ext_val;
 
 	if (reg_num > KVM_REG_RISCV_SBI_MULTI_REG_LAST)
-		return -ENOENT;
+		return -EANALENT;
 
 	for (i = 0; i < BITS_PER_LONG; i++) {
 		ext_id = i + reg_num * BITS_PER_LONG;
@@ -279,7 +279,7 @@ int kvm_riscv_vcpu_set_reg_sbi_ext(struct kvm_vcpu *vcpu,
 	case KVM_REG_RISCV_SBI_MULTI_DIS:
 		return riscv_vcpu_set_sbi_ext_multi(vcpu, reg_num, reg_val, false);
 	default:
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	return 0;
@@ -314,7 +314,7 @@ int kvm_riscv_vcpu_get_reg_sbi_ext(struct kvm_vcpu *vcpu,
 			reg_val = ~reg_val;
 		break;
 	default:
-		rc = -ENOENT;
+		rc = -EANALENT;
 	}
 	if (rc)
 		return rc;
@@ -437,7 +437,7 @@ int kvm_riscv_vcpu_sbi_ecall(struct kvm_vcpu *vcpu, struct kvm_run *run)
 		ret = sbi_ext->handler(vcpu, run, &sbi_ret);
 	} else {
 		/* Return error for unsupported SBI calls */
-		cp->a0 = SBI_ERR_NOT_SUPPORTED;
+		cp->a0 = SBI_ERR_ANALT_SUPPORTED;
 		goto ecall_done;
 	}
 
@@ -452,7 +452,7 @@ int kvm_riscv_vcpu_sbi_ecall(struct kvm_vcpu *vcpu, struct kvm_run *run)
 
 	/* Handle special error cases i.e trap, exit or userspace forward */
 	if (sbi_ret.utrap->scause) {
-		/* No need to increment sepc or exit ioctl loop */
+		/* Anal need to increment sepc or exit ioctl loop */
 		ret = 1;
 		sbi_ret.utrap->sepc = cp->sepc;
 		kvm_riscv_vcpu_trap_redirect(vcpu, sbi_ret.utrap);

@@ -123,13 +123,13 @@ static const struct reset_control_ops imx8ulp_pcc_reset_ops = {
 static int imx8ulp_pcc_reset_init(struct platform_device *pdev, void __iomem *base,
 	 const u32 *resets, unsigned int nr_resets)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct device *dev = &pdev->dev;
 	struct pcc_reset_dev *pcc_reset;
 
 	pcc_reset = devm_kzalloc(dev, sizeof(*pcc_reset), GFP_KERNEL);
 	if (!pcc_reset)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pcc_reset->base = base;
 	pcc_reset->lock = &imx_ccm_lock;
@@ -137,7 +137,7 @@ static int imx8ulp_pcc_reset_init(struct platform_device *pdev, void __iomem *ba
 	pcc_reset->rcdev.owner = THIS_MODULE;
 	pcc_reset->rcdev.nr_resets = nr_resets;
 	pcc_reset->rcdev.ops = &imx8ulp_pcc_reset_ops;
-	pcc_reset->rcdev.of_node = np;
+	pcc_reset->rcdev.of_analde = np;
 
 	return devm_reset_controller_register(dev, &pcc_reset->rcdev);
 }
@@ -152,7 +152,7 @@ static int imx8ulp_clk_cgc1_init(struct platform_device *pdev)
 	clk_data = devm_kzalloc(dev, struct_size(clk_data, hws, IMX8ULP_CLK_CGC1_END),
 			   GFP_KERNEL);
 	if (!clk_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	clk_data->num = IMX8ULP_CLK_CGC1_END;
 	clks = clk_data->hws;
@@ -236,7 +236,7 @@ static int imx8ulp_clk_cgc2_init(struct platform_device *pdev)
 	clk_data = devm_kzalloc(dev, struct_size(clk_data, hws, IMX8ULP_CLK_CGC2_END),
 			   GFP_KERNEL);
 	if (!clk_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	clk_data->num = IMX8ULP_CLK_CGC2_END;
 	clks = clk_data->hws;
@@ -255,8 +255,8 @@ static int imx8ulp_clk_cgc2_init(struct platform_device *pdev)
 	clks[IMX8ULP_CLK_HIFI_DIVCORE] = imx_clk_hw_divider("hifi_core_div", "hifi_sel", base + 0x14, 21, 6);
 	clks[IMX8ULP_CLK_HIFI_DIVPLAT] = imx_clk_hw_divider("hifi_plat_div", "hifi_core_div", base + 0x14, 14, 6);
 
-	clks[IMX8ULP_CLK_DDR_SEL] = imx_clk_hw_mux_flags("ddr_sel", base + 0x40, 28, 3, ddr_sels, ARRAY_SIZE(ddr_sels), CLK_GET_RATE_NOCACHE);
-	clks[IMX8ULP_CLK_DDR_DIV] = imx_clk_hw_divider_flags("ddr_div", "ddr_sel", base + 0x40, 21, 6, CLK_IS_CRITICAL | CLK_GET_RATE_NOCACHE);
+	clks[IMX8ULP_CLK_DDR_SEL] = imx_clk_hw_mux_flags("ddr_sel", base + 0x40, 28, 3, ddr_sels, ARRAY_SIZE(ddr_sels), CLK_GET_RATE_ANALCACHE);
+	clks[IMX8ULP_CLK_DDR_DIV] = imx_clk_hw_divider_flags("ddr_div", "ddr_sel", base + 0x40, 21, 6, CLK_IS_CRITICAL | CLK_GET_RATE_ANALCACHE);
 	clks[IMX8ULP_CLK_LPAV_AXI_SEL] = imx_clk_hw_mux2("lpav_sel", base + 0x3c, 28, 2, lpav_sels, ARRAY_SIZE(lpav_sels));
 	clks[IMX8ULP_CLK_LPAV_AXI_DIV] = imx_clk_hw_divider_flags("lpav_axi_div", "lpav_sel", base + 0x3c, 21, 6, CLK_IS_CRITICAL);
 	clks[IMX8ULP_CLK_LPAV_AHB_DIV] = imx_clk_hw_divider_flags("lpav_ahb_div", "lpav_axi_div", base + 0x3c, 14, 6, CLK_IS_CRITICAL);
@@ -319,7 +319,7 @@ static int imx8ulp_clk_pcc3_init(struct platform_device *pdev)
 	clk_data = devm_kzalloc(dev, struct_size(clk_data, hws, IMX8ULP_CLK_PCC3_END),
 			   GFP_KERNEL);
 	if (!clk_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	clk_data->num = IMX8ULP_CLK_PCC3_END;
 	clks = clk_data->hws;
@@ -402,7 +402,7 @@ static int imx8ulp_clk_pcc4_init(struct platform_device *pdev)
 	clk_data = devm_kzalloc(dev, struct_size(clk_data, hws, IMX8ULP_CLK_PCC4_END),
 			   GFP_KERNEL);
 	if (!clk_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	clk_data->num = IMX8ULP_CLK_PCC4_END;
 	clks = clk_data->hws;
@@ -419,7 +419,7 @@ static int imx8ulp_clk_pcc4_init(struct platform_device *pdev)
 	clks[IMX8ULP_CLK_LPI2C7] = imx8ulp_clk_hw_composite("lpi2c7", pcc4_periph_bus_sels, ARRAY_SIZE(pcc4_periph_bus_sels), true, true, true, base + 0x14, 1);
 	clks[IMX8ULP_CLK_LPUART6] = imx8ulp_clk_hw_composite("lpuart6", pcc4_periph_bus_sels, ARRAY_SIZE(pcc4_periph_bus_sels), true, true, true, base + 0x18, 1);
 	clks[IMX8ULP_CLK_LPUART7] = imx8ulp_clk_hw_composite("lpuart7", pcc4_periph_bus_sels, ARRAY_SIZE(pcc4_periph_bus_sels), true, true, true, base + 0x1c, 1);
-	clks[IMX8ULP_CLK_SAI4] = imx8ulp_clk_hw_composite("sai4", xbar_divbus, 1, false, false, true, base + 0x20, 1); /* sai ipg, NOT from sai sel */
+	clks[IMX8ULP_CLK_SAI4] = imx8ulp_clk_hw_composite("sai4", xbar_divbus, 1, false, false, true, base + 0x20, 1); /* sai ipg, ANALT from sai sel */
 	clks[IMX8ULP_CLK_SAI5] = imx8ulp_clk_hw_composite("sai5", xbar_divbus, 1, false, false, true, base + 0x24, 1); /* sai ipg */
 	clks[IMX8ULP_CLK_PCTLE] = imx_clk_hw_gate("pctle", "xbar_divbus", base + 0x28, 30);
 	clks[IMX8ULP_CLK_PCTLF] = imx_clk_hw_gate("pctlf", "xbar_divbus", base + 0x2c, 30);
@@ -457,7 +457,7 @@ static int imx8ulp_clk_pcc5_init(struct platform_device *pdev)
 	clk_data = devm_kzalloc(dev, struct_size(clk_data, hws, IMX8ULP_CLK_PCC5_END),
 			   GFP_KERNEL);
 	if (!clk_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	clk_data->num = IMX8ULP_CLK_PCC5_END;
 	clks = clk_data->hws;
@@ -517,7 +517,7 @@ static int imx8ulp_clk_pcc5_init(struct platform_device *pdev)
 	clks[IMX8ULP_CLK_PXP] = imx8ulp_clk_hw_composite("pxp", lpav_axi_div, 1, false, false, true, base + 0xd0, 1);
 	clks[IMX8ULP_CLK_GPU2D] = imx8ulp_clk_hw_composite("gpu2d", pcc5_periph_plat_sels, ARRAY_SIZE(pcc5_periph_plat_sels), true, true, true, base + 0xf0, 1);
 	clks[IMX8ULP_CLK_GPU3D] = imx8ulp_clk_hw_composite("gpu3d", pcc5_periph_plat_sels, ARRAY_SIZE(pcc5_periph_plat_sels), true, true, true, base + 0xf4, 1);
-	clks[IMX8ULP_CLK_DC_NANO] = imx8ulp_clk_hw_composite("dc_nano", pcc5_periph_plat_sels, ARRAY_SIZE(pcc5_periph_plat_sels), true, true, true, base + 0xf8, 1);
+	clks[IMX8ULP_CLK_DC_NAANAL] = imx8ulp_clk_hw_composite("dc_naanal", pcc5_periph_plat_sels, ARRAY_SIZE(pcc5_periph_plat_sels), true, true, true, base + 0xf8, 1);
 	clks[IMX8ULP_CLK_CSI_CLK_UI] = imx8ulp_clk_hw_composite("csi_clk_ui", pcc5_periph_plat_sels, ARRAY_SIZE(pcc5_periph_plat_sels), true, true, true, base + 0x10c, 1);
 	clks[IMX8ULP_CLK_CSI_CLK_ESC] = imx8ulp_clk_hw_composite("csi_clk_esc", pcc5_periph_plat_sels, ARRAY_SIZE(pcc5_periph_plat_sels), true, true, true, base + 0x110, 1);
 	clks[IMX8ULP_CLK_RGPIOD] = imx_clk_hw_gate("rgpiod", "lpav_axi_div", base + 0x114, 30);

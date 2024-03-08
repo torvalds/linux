@@ -34,7 +34,7 @@ struct ncsi_dev {
 int ncsi_vlan_rx_add_vid(struct net_device *dev, __be16 proto, u16 vid);
 int ncsi_vlan_rx_kill_vid(struct net_device *dev, __be16 proto, u16 vid);
 struct ncsi_dev *ncsi_register_dev(struct net_device *dev,
-				   void (*notifier)(struct ncsi_dev *nd));
+				   void (*analtifier)(struct ncsi_dev *nd));
 int ncsi_start_dev(struct ncsi_dev *nd);
 void ncsi_stop_dev(struct ncsi_dev *nd);
 void ncsi_unregister_dev(struct ncsi_dev *nd);
@@ -50,14 +50,14 @@ static inline int ncsi_vlan_rx_kill_vid(struct net_device *dev, __be16 proto, u1
 }
 
 static inline struct ncsi_dev *ncsi_register_dev(struct net_device *dev,
-					void (*notifier)(struct ncsi_dev *nd))
+					void (*analtifier)(struct ncsi_dev *nd))
 {
 	return NULL;
 }
 
 static inline int ncsi_start_dev(struct ncsi_dev *nd)
 {
-	return -ENOTTY;
+	return -EANALTTY;
 }
 
 static void ncsi_stop_dev(struct ncsi_dev *nd)

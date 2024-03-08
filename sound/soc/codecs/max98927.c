@@ -56,8 +56,8 @@ static struct reg_default max98927_reg[] = {
 	{MAX98927_R0022_PCM_CLK_SETUP,  0x22},
 	{MAX98927_R0023_PCM_SR_SETUP1,  0x00},
 	{MAX98927_R0024_PCM_SR_SETUP2,  0x00},
-	{MAX98927_R0025_PCM_TO_SPK_MONOMIX_A,  0x00},
-	{MAX98927_R0026_PCM_TO_SPK_MONOMIX_B,  0x00},
+	{MAX98927_R0025_PCM_TO_SPK_MOANALMIX_A,  0x00},
+	{MAX98927_R0026_PCM_TO_SPK_MOANALMIX_B,  0x00},
 	{MAX98927_R0027_ICC_RX_EN_A,  0x00},
 	{MAX98927_R0028_ICC_RX_EN_B,  0x00},
 	{MAX98927_R002B_ICC_TX_EN_A,  0x00},
@@ -95,35 +95,35 @@ static struct reg_default max98927_reg[] = {
 	{MAX98927_R004C_MEAS_ADC_CH0_READ,  0x00},
 	{MAX98927_R004D_MEAS_ADC_CH1_READ,  0x00},
 	{MAX98927_R004E_MEAS_ADC_CH2_READ,  0x00},
-	{MAX98927_R0051_BROWNOUT_STATUS,  0x00},
-	{MAX98927_R0052_BROWNOUT_EN,  0x00},
-	{MAX98927_R0053_BROWNOUT_INFINITE_HOLD,  0x00},
-	{MAX98927_R0054_BROWNOUT_INFINITE_HOLD_CLR,  0x00},
-	{MAX98927_R0055_BROWNOUT_LVL_HOLD,  0x00},
-	{MAX98927_R005A_BROWNOUT_LVL1_THRESH,  0x00},
-	{MAX98927_R005B_BROWNOUT_LVL2_THRESH,  0x00},
-	{MAX98927_R005C_BROWNOUT_LVL3_THRESH,  0x00},
-	{MAX98927_R005D_BROWNOUT_LVL4_THRESH,  0x00},
-	{MAX98927_R005E_BROWNOUT_THRESH_HYSTERYSIS,  0x00},
-	{MAX98927_R005F_BROWNOUT_AMP_LIMITER_ATK_REL,  0x00},
-	{MAX98927_R0060_BROWNOUT_AMP_GAIN_ATK_REL,  0x00},
-	{MAX98927_R0061_BROWNOUT_AMP1_CLIP_MODE,  0x00},
-	{MAX98927_R0072_BROWNOUT_LVL1_CUR_LIMIT,  0x00},
-	{MAX98927_R0073_BROWNOUT_LVL1_AMP1_CTRL1,  0x00},
-	{MAX98927_R0074_BROWNOUT_LVL1_AMP1_CTRL2,  0x00},
-	{MAX98927_R0075_BROWNOUT_LVL1_AMP1_CTRL3,  0x00},
-	{MAX98927_R0076_BROWNOUT_LVL2_CUR_LIMIT,  0x00},
-	{MAX98927_R0077_BROWNOUT_LVL2_AMP1_CTRL1,  0x00},
-	{MAX98927_R0078_BROWNOUT_LVL2_AMP1_CTRL2,  0x00},
-	{MAX98927_R0079_BROWNOUT_LVL2_AMP1_CTRL3,  0x00},
-	{MAX98927_R007A_BROWNOUT_LVL3_CUR_LIMIT,  0x00},
-	{MAX98927_R007B_BROWNOUT_LVL3_AMP1_CTRL1,  0x00},
-	{MAX98927_R007C_BROWNOUT_LVL3_AMP1_CTRL2,  0x00},
-	{MAX98927_R007D_BROWNOUT_LVL3_AMP1_CTRL3,  0x00},
-	{MAX98927_R007E_BROWNOUT_LVL4_CUR_LIMIT,  0x00},
-	{MAX98927_R007F_BROWNOUT_LVL4_AMP1_CTRL1,  0x00},
-	{MAX98927_R0080_BROWNOUT_LVL4_AMP1_CTRL2,  0x00},
-	{MAX98927_R0081_BROWNOUT_LVL4_AMP1_CTRL3,  0x00},
+	{MAX98927_R0051_BROWANALUT_STATUS,  0x00},
+	{MAX98927_R0052_BROWANALUT_EN,  0x00},
+	{MAX98927_R0053_BROWANALUT_INFINITE_HOLD,  0x00},
+	{MAX98927_R0054_BROWANALUT_INFINITE_HOLD_CLR,  0x00},
+	{MAX98927_R0055_BROWANALUT_LVL_HOLD,  0x00},
+	{MAX98927_R005A_BROWANALUT_LVL1_THRESH,  0x00},
+	{MAX98927_R005B_BROWANALUT_LVL2_THRESH,  0x00},
+	{MAX98927_R005C_BROWANALUT_LVL3_THRESH,  0x00},
+	{MAX98927_R005D_BROWANALUT_LVL4_THRESH,  0x00},
+	{MAX98927_R005E_BROWANALUT_THRESH_HYSTERYSIS,  0x00},
+	{MAX98927_R005F_BROWANALUT_AMP_LIMITER_ATK_REL,  0x00},
+	{MAX98927_R0060_BROWANALUT_AMP_GAIN_ATK_REL,  0x00},
+	{MAX98927_R0061_BROWANALUT_AMP1_CLIP_MODE,  0x00},
+	{MAX98927_R0072_BROWANALUT_LVL1_CUR_LIMIT,  0x00},
+	{MAX98927_R0073_BROWANALUT_LVL1_AMP1_CTRL1,  0x00},
+	{MAX98927_R0074_BROWANALUT_LVL1_AMP1_CTRL2,  0x00},
+	{MAX98927_R0075_BROWANALUT_LVL1_AMP1_CTRL3,  0x00},
+	{MAX98927_R0076_BROWANALUT_LVL2_CUR_LIMIT,  0x00},
+	{MAX98927_R0077_BROWANALUT_LVL2_AMP1_CTRL1,  0x00},
+	{MAX98927_R0078_BROWANALUT_LVL2_AMP1_CTRL2,  0x00},
+	{MAX98927_R0079_BROWANALUT_LVL2_AMP1_CTRL3,  0x00},
+	{MAX98927_R007A_BROWANALUT_LVL3_CUR_LIMIT,  0x00},
+	{MAX98927_R007B_BROWANALUT_LVL3_AMP1_CTRL1,  0x00},
+	{MAX98927_R007C_BROWANALUT_LVL3_AMP1_CTRL2,  0x00},
+	{MAX98927_R007D_BROWANALUT_LVL3_AMP1_CTRL3,  0x00},
+	{MAX98927_R007E_BROWANALUT_LVL4_CUR_LIMIT,  0x00},
+	{MAX98927_R007F_BROWANALUT_LVL4_AMP1_CTRL1,  0x00},
+	{MAX98927_R0080_BROWANALUT_LVL4_AMP1_CTRL2,  0x00},
+	{MAX98927_R0081_BROWANALUT_LVL4_AMP1_CTRL3,  0x00},
 	{MAX98927_R0082_ENV_TRACK_VOUT_HEADROOM,  0x00},
 	{MAX98927_R0083_ENV_TRACK_BOOST_VOUT_DELAY,  0x00},
 	{MAX98927_R0084_ENV_TRACK_REL_RATE,  0x00},
@@ -357,7 +357,7 @@ static int max98927_dai_hw_params(struct snd_pcm_substream *substream,
 		sampling_rate = MAX98927_PCM_SR_SET1_SR_48000;
 		break;
 	default:
-		dev_err(component->dev, "rate %d not supported\n",
+		dev_err(component->dev, "rate %d analt supported\n",
 			params_rate(params));
 		goto err;
 	}
@@ -399,7 +399,7 @@ static int max98927_dai_tdm_slot(struct snd_soc_dai *dai,
 	/* BCLK configuration */
 	bsel = max98927_get_bclk_sel(slots * slot_width);
 	if (bsel == 0) {
-		dev_err(component->dev, "BCLK %d not supported\n",
+		dev_err(component->dev, "BCLK %d analt supported\n",
 			slots * slot_width);
 		return -EINVAL;
 	}
@@ -502,8 +502,8 @@ static const char * const max98927_switch_text[] = {
 	"Left", "Right", "LeftRight"};
 
 static const struct soc_enum dai_sel_enum =
-	SOC_ENUM_SINGLE(MAX98927_R0025_PCM_TO_SPK_MONOMIX_A,
-			MAX98927_PCM_TO_SPK_MONOMIX_CFG_SHIFT, 3,
+	SOC_ENUM_SINGLE(MAX98927_R0025_PCM_TO_SPK_MOANALMIX_A,
+			MAX98927_PCM_TO_SPK_MOANALMIX_CFG_SHIFT, 3,
 			max98927_switch_text);
 
 static const struct snd_kcontrol_new max98927_dai_controls =
@@ -516,14 +516,14 @@ static const struct snd_soc_dapm_widget max98927_dapm_widgets[] = {
 	SND_SOC_DAPM_DAC_E("Amp Enable", "HiFi Playback", MAX98927_R003A_AMP_EN,
 			   0, 0, max98927_dac_event,
 			   SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
-	SND_SOC_DAPM_MUX("DAI Sel Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("DAI Sel Mux", SND_SOC_ANALPM, 0, 0,
 			 &max98927_dai_controls),
 	SND_SOC_DAPM_OUTPUT("BE_OUT"),
 	SND_SOC_DAPM_AIF_OUT("Voltage Sense", "HiFi Capture",  0,
 			     MAX98927_R003E_MEAS_EN, 0, 0),
 	SND_SOC_DAPM_AIF_OUT("Current Sense", "HiFi Capture",  0,
 			     MAX98927_R003E_MEAS_EN, 1, 0),
-	SND_SOC_DAPM_SWITCH("VI Sense", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SWITCH("VI Sense", SND_SOC_ANALPM, 0, 0,
 			    &max98927_vi_control),
 	SND_SOC_DAPM_SIGGEN("VMON"),
 	SND_SOC_DAPM_SIGGEN("IMON"),
@@ -539,11 +539,11 @@ static bool max98927_readable_register(struct device *dev, unsigned int reg)
 	case MAX98927_R002B_ICC_TX_EN_A ... MAX98927_R002C_ICC_TX_EN_B:
 	case MAX98927_R002E_ICC_HIZ_MANUAL_MODE
 		... MAX98927_R004E_MEAS_ADC_CH2_READ:
-	case MAX98927_R0051_BROWNOUT_STATUS
-		... MAX98927_R0055_BROWNOUT_LVL_HOLD:
-	case MAX98927_R005A_BROWNOUT_LVL1_THRESH
-		... MAX98927_R0061_BROWNOUT_AMP1_CLIP_MODE:
-	case MAX98927_R0072_BROWNOUT_LVL1_CUR_LIMIT
+	case MAX98927_R0051_BROWANALUT_STATUS
+		... MAX98927_R0055_BROWANALUT_LVL_HOLD:
+	case MAX98927_R005A_BROWANALUT_LVL1_THRESH
+		... MAX98927_R0061_BROWANALUT_AMP1_CLIP_MODE:
+	case MAX98927_R0072_BROWANALUT_LVL1_CUR_LIMIT
 		... MAX98927_R0087_ENV_TRACK_BOOST_VOUT_READ:
 	case MAX98927_R00FF_GLOBAL_SHDN:
 	case MAX98927_R0100_SOFT_RESET:
@@ -561,7 +561,7 @@ static bool max98927_volatile_reg(struct device *dev, unsigned int reg)
 	case MAX98927_R004C_MEAS_ADC_CH0_READ:
 	case MAX98927_R004D_MEAS_ADC_CH1_READ:
 	case MAX98927_R004E_MEAS_ADC_CH2_READ:
-	case MAX98927_R0051_BROWNOUT_STATUS:
+	case MAX98927_R0051_BROWANALUT_STATUS:
 	case MAX98927_R0087_ENV_TRACK_BOOST_VOUT_READ:
 	case MAX98927_R01FF_REV_ID:
 	case MAX98927_R0100_SOFT_RESET:
@@ -599,8 +599,8 @@ static const struct snd_kcontrol_new max98927_snd_controls[] = {
 	SOC_SINGLE_TLV("Digital Volume", MAX98927_R0036_AMP_VOL_CTRL,
 		       0, (1 << MAX98927_AMP_VOL_WIDTH) - 1, 0,
 		       max98927_digital_tlv),
-	SOC_SINGLE("Amp DSP Switch", MAX98927_R0052_BROWNOUT_EN,
-		   MAX98927_BROWNOUT_DSP_SHIFT, 1, 0),
+	SOC_SINGLE("Amp DSP Switch", MAX98927_R0052_BROWANALUT_EN,
+		   MAX98927_BROWANALUT_DSP_SHIFT, 1, 0),
 	SOC_SINGLE("Ramp Switch", MAX98927_R0037_AMP_DSP_CFG,
 		   MAX98927_AMP_DSP_CFG_RMP_SHIFT, 1, 0),
 	SOC_SINGLE("DRE Switch", MAX98927_R0039_DRE_CTRL, MAX98927_DRE_EN_SHIFT,
@@ -658,9 +658,9 @@ static int max98927_probe(struct snd_soc_component *component)
 	/* IV default slot configuration */
 	regmap_write(max98927->regmap, MAX98927_R001C_PCM_TX_HIZ_CTRL_A, 0xFF);
 	regmap_write(max98927->regmap, MAX98927_R001D_PCM_TX_HIZ_CTRL_B, 0xFF);
-	regmap_write(max98927->regmap, MAX98927_R0025_PCM_TO_SPK_MONOMIX_A,
+	regmap_write(max98927->regmap, MAX98927_R0025_PCM_TO_SPK_MOANALMIX_A,
 		     0x80);
-	regmap_write(max98927->regmap, MAX98927_R0026_PCM_TO_SPK_MONOMIX_B,
+	regmap_write(max98927->regmap, MAX98927_R0026_PCM_TO_SPK_MOANALMIX_B,
 		     0x1);
 	/* Set inital volume (+13dB) */
 	regmap_write(max98927->regmap, MAX98927_R0036_AMP_VOL_CTRL, 0x38);
@@ -676,8 +676,8 @@ static int max98927_probe(struct snd_soc_component *component)
 	regmap_write(max98927->regmap, MAX98927_R0043_MEAS_ADC_CFG, 0x04);
 	regmap_write(max98927->regmap, MAX98927_R0044_MEAS_ADC_BASE_MSB, 0x00);
 	regmap_write(max98927->regmap, MAX98927_R0045_MEAS_ADC_BASE_LSB, 0x24);
-	/* Brownout Level */
-	regmap_write(max98927->regmap, MAX98927_R007F_BROWNOUT_LVL4_AMP1_CTRL1,
+	/* Browanalut Level */
+	regmap_write(max98927->regmap, MAX98927_R007F_BROWANALUT_LVL4_AMP1_CTRL1,
 		     0x06);
 	/* Envelope Tracking configuration */
 	regmap_write(max98927->regmap, MAX98927_R0082_ENV_TRACK_VOUT_HEADROOM,
@@ -786,12 +786,12 @@ static void max98927_slot_config(struct i2c_client *i2c,
 	int value;
 	struct device *dev = &i2c->dev;
 
-	if (!device_property_read_u32(dev, "vmon-slot-no", &value))
+	if (!device_property_read_u32(dev, "vmon-slot-anal", &value))
 		max98927->v_l_slot = value & 0xF;
 	else
 		max98927->v_l_slot = 0;
 
-	if (!device_property_read_u32(dev, "imon-slot-no", &value))
+	if (!device_property_read_u32(dev, "imon-slot-anal", &value))
 		max98927->i_l_slot = value & 0xF;
 	else
 		max98927->i_l_slot = 1;
@@ -806,16 +806,16 @@ static int max98927_i2c_probe(struct i2c_client *i2c)
 
 	max98927 = devm_kzalloc(&i2c->dev, sizeof(*max98927), GFP_KERNEL);
 	if (!max98927) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		return ret;
 	}
 	i2c_set_clientdata(i2c, max98927);
 
 	/* update interleave mode info */
-	if (of_property_read_bool(i2c->dev.of_node, "maxim,interleave-mode")) {
+	if (of_property_read_bool(i2c->dev.of_analde, "maxim,interleave-mode")) {
 		max98927->interleave_mode = true;
 	} else {
-		if (!of_property_read_u32(i2c->dev.of_node, "interleave_mode",
+		if (!of_property_read_u32(i2c->dev.of_analde, "interleave_mode",
 					  &value))
 			if (value > 0)
 				max98927->interleave_mode = true;

@@ -375,7 +375,7 @@ static void hdmi_core_write_avi_infoframe(struct hdmi_core_data *core,
 
 	hdmi_avi_infoframe_pack(frame, data, sizeof(data));
 
-	print_hex_dump_debug("AVI: ", DUMP_PREFIX_NONE, 16, 1, data,
+	print_hex_dump_debug("AVI: ", DUMP_PREFIX_ANALNE, 16, 1, data,
 		HDMI_INFOFRAME_SIZE(AVI), false);
 
 	ptr = data + HDMI_INFOFRAME_HEADER_SIZE;
@@ -631,7 +631,7 @@ static void hdmi5_core_audio_config(struct hdmi_core_data *core,
 	REG_FLD_MOD(base, HDMI_CORE_AUD_N3, cfg->n >> 16, 3, 0);
 
 	/*
-	 * CTS manual mode. Automatic mode is not supported when using audio
+	 * CTS manual mode. Automatic mode is analt supported when using audio
 	 * parallel interface.
 	 */
 	REG_FLD_MOD(base, HDMI_CORE_AUD_CTS3, 1, 4, 4);
@@ -677,7 +677,7 @@ static void hdmi5_core_audio_config(struct hdmi_core_data *core,
 
 	/* Copyright */
 	val = (cfg->iec60958_cfg->status[0] &
-			IEC958_AES0_CON_NOT_COPYRIGHT) >> 2;
+			IEC958_AES0_CON_ANALT_COPYRIGHT) >> 2;
 	REG_FLD_MOD(base, HDMI_CORE_FC_AUDSCHNLS(0), val, 0, 0);
 
 	/* Category */

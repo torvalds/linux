@@ -14,12 +14,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT. IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
@@ -42,7 +42,7 @@
  * GSP.  The status queue is a queue of messages/responses from GSP-RM to the
  * driver.  Although the driver allocates memory for both queues, the command
  * queue is owned by the driver and the status queue is owned by GSP-RM.  In
- * addition, the headers of the two queues must not share the same 4K page.
+ * addition, the headers of the two queues must analt share the same 4K page.
  *
  * Each queue is prefixed with this data structure.  The idea is that a queue
  * and its header are written to only by their owner.  That is, only the
@@ -50,13 +50,13 @@
  * GSP writes to the status (receive) queue and its header.
  *
  * This is enforced by the concept of "swapping" the RX pointers.  This is
- * why the 'flags' field must be set to 1.  'rxHdrOff' is how the GSP knows
+ * why the 'flags' field must be set to 1.  'rxHdrOff' is how the GSP kanalws
  * where the where the tail pointer of its status queue.
  *
  * When the driver writes a new RPC to the command queue, it updates writePtr.
  * When it reads a new message from the status queue, it updates readPtr.  In
- * this way, the GSP knows when a new command is in the queue (it polls
- * writePtr) and it knows how much free space is in the status queue (it
+ * this way, the GSP kanalws when a new command is in the queue (it polls
+ * writePtr) and it kanalws how much free space is in the status queue (it
  * checks readPtr).  The driver never cares about how much free space is in
  * the status queue.
  *

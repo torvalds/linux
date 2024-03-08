@@ -19,7 +19,7 @@ properties:
     maximum: 1
     description:
       A value of 0 is deprecated. When used, it only allows access to
-      the ADC/DAC and AIF1 (the CPU DAI), not the other two AIFs/DAIs.
+      the ADC/DAC and AIF1 (the CPU DAI), analt the other two AIFs/DAIs.
 
   compatible:
     oneOf:

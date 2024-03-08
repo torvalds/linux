@@ -274,7 +274,7 @@ multipath_test()
 
 	ip nexthop replace id 106 group 104,1/105,1 type resilient
 
-	# With an idle timer, weight replacement should not happen, so the
+	# With an idle timer, weight replacement should analt happen, so the
 	# expected ratio should always be the initial one (1:1).
 	log_info "Running multipath tests with an idle timer of 120 seconds"
 	ip nexthop replace id 103 group 101/102 type resilient idle_timer 120
@@ -300,7 +300,7 @@ multipath_test()
 
 	ip nexthop replace id 106 group 104,1/105,1 type resilient
 
-	# With a short idle timer and enough idle time, weight replacement
+	# With a short idle timer and eanalugh idle time, weight replacement
 	# should happen.
 	log_info "Running multipath tests with an idle timer of 5 seconds"
 	ip nexthop replace id 103 group 101/102 type resilient idle_timer 5
@@ -385,7 +385,7 @@ ping_ipv6()
 
 ip nexthop ls >/dev/null 2>&1
 if [ $? -ne 0 ]; then
-	echo "Nexthop objects not supported; skipping tests"
+	echo "Nexthop objects analt supported; skipping tests"
 	exit $ksft_skip
 fi
 

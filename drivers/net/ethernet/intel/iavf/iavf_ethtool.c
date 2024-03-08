@@ -12,7 +12,7 @@
 /**
  * struct iavf_stats - definition for an ethtool statistic
  * @stat_string: statistic name to display in ethtool -S output
- * @sizeof_stat: the sizeof() the stat, must be no greater than sizeof(u64)
+ * @sizeof_stat: the sizeof() the stat, must be anal greater than sizeof(u64)
  * @stat_offset: offsetof() the stat from a base pointer
  *
  * This structure defines a statistic to be added to the ethtool stats buffer.
@@ -22,7 +22,7 @@
  * stat_offset.
  *
  * The @sizeof_stat is expected to be sizeof(u8), sizeof(u16), sizeof(u32) or
- * sizeof(u64). Other sizes are not expected and will produce a WARN_ONCE from
+ * sizeof(u64). Other sizes are analt expected and will produce a WARN_ONCE from
  * the iavf_add_ethtool_stat() helper function.
  *
  * The @stat_string is interpreted as a format string, allowing formatted
@@ -38,7 +38,7 @@ struct iavf_stats {
 };
 
 /* Helper macro to define an iavf_stat structure with proper size and type.
- * Use this when defining constant statistics arrays. Note that @_type expects
+ * Use this when defining constant statistics arrays. Analte that @_type expects
  * only a type name and is used multiple times.
  */
 #define IAVF_STAT(_type, _name, _stat) { \
@@ -167,7 +167,7 @@ iavf_add_queue_stats(u64 **data, struct iavf_ring *ring)
 	/* To avoid invalid statistics values, ensure that we keep retrying
 	 * the copy until we get a consistent value according to
 	 * u64_stats_fetch_retry. But first, make sure our ring is
-	 * non-null before attempting to access its syncp.
+	 * analn-null before attempting to access its syncp.
 	 */
 	do {
 		start = !ring ? 0 : u64_stats_fetch_begin(&ring->syncp);
@@ -227,7 +227,7 @@ static const struct iavf_stats iavf_gstrings_stats[] = {
 	VF_STAT("rx_multicast", current_stats.rx_multicast),
 	VF_STAT("rx_broadcast", current_stats.rx_broadcast),
 	VF_STAT("rx_discards", current_stats.rx_discards),
-	VF_STAT("rx_unknown_protocol", current_stats.rx_unknown_protocol),
+	VF_STAT("rx_unkanalwn_protocol", current_stats.rx_unkanalwn_protocol),
 	VF_STAT("tx_bytes", current_stats.tx_bytes),
 	VF_STAT("tx_unicast", current_stats.tx_unicast),
 	VF_STAT("tx_multicast", current_stats.tx_multicast),
@@ -240,7 +240,7 @@ static const struct iavf_stats iavf_gstrings_stats[] = {
 
 #define IAVF_QUEUE_STATS_LEN	ARRAY_SIZE(iavf_gstrings_queue_stats)
 
-/* For now we have one and only one private flag and it is only defined
+/* For analw we have one and only one private flag and it is only defined
  * when we have support for the SKIP_CPU_SYNC DMA attribute.  Instead
  * of leaving all this code sitting around empty we will strip it unless
  * our one private flag is actually available.
@@ -268,7 +268,7 @@ static const struct iavf_priv_flags iavf_gstrings_priv_flags[] = {
  * @netdev: network interface device structure
  * @cmd: ethtool command
  *
- * Reports speed/duplex settings. Because this is a VF, we don't know what
+ * Reports speed/duplex settings. Because this is a VF, we don't kanalw what
  * kind of link we really have, so we fake it.
  **/
 static int iavf_get_link_ksettings(struct net_device *netdev,
@@ -278,7 +278,7 @@ static int iavf_get_link_ksettings(struct net_device *netdev,
 
 	ethtool_link_ksettings_zero_link_mode(cmd, supported);
 	cmd->base.autoneg = AUTONEG_DISABLE;
-	cmd->base.port = PORT_NONE;
+	cmd->base.port = PORT_ANALNE;
 	cmd->base.duplex = DUPLEX_FULL;
 
 	if (ADV_LINK_SUPPORT(adapter)) {
@@ -286,7 +286,7 @@ static int iavf_get_link_ksettings(struct net_device *netdev,
 		    adapter->link_speed_mbps < U32_MAX)
 			cmd->base.speed = adapter->link_speed_mbps;
 		else
-			cmd->base.speed = SPEED_UNKNOWN;
+			cmd->base.speed = SPEED_UNKANALWN;
 
 		return 0;
 	}
@@ -332,7 +332,7 @@ static int iavf_get_link_ksettings(struct net_device *netdev,
  **/
 static int iavf_get_sset_count(struct net_device *netdev, int sset)
 {
-	/* Report the maximum number queues, even if not every queue is
+	/* Report the maximum number queues, even if analt every queue is
 	 * currently configured. Since allocation of queues is in pairs,
 	 * use netdev->real_num_tx_queues * 2. The real_num_tx_queues is set
 	 * at device creation and never changes.
@@ -500,7 +500,7 @@ static int iavf_set_priv_flags(struct net_device *netdev, u32 flags)
 
 		if (priv_flags->read_only &&
 		    ((orig_flags ^ new_flags) & ~BIT(i)))
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 	}
 
 	/* Before we finalize any flag changes, any checks which we need to
@@ -516,7 +516,7 @@ static int iavf_set_priv_flags(struct net_device *netdev, u32 flags)
 	 */
 	if (cmpxchg(&adapter->flags, orig_flags, new_flags) != orig_flags) {
 		dev_warn(&adapter->pdev->dev,
-			 "Unable to update adapter->flags as it was modified by another thread...\n");
+			 "Unable to update adapter->flags as it was modified by aanalther thread...\n");
 		return -EAGAIN;
 	}
 
@@ -559,7 +559,7 @@ static u32 iavf_get_msglevel(struct net_device *netdev)
  * @data: message level
  *
  * Set current debug message level. Higher values cause the driver to
- * be noisier.
+ * be analisier.
  **/
 static void iavf_set_msglevel(struct net_device *netdev, u32 data)
 {
@@ -596,7 +596,7 @@ static void iavf_get_drvinfo(struct net_device *netdev,
  * @extack: netlink extended ACK report struct
  *
  * Returns current ring parameters. TX and RX rings are reported separately,
- * but the number of rings is not reported.
+ * but the number of rings is analt reported.
  **/
 static void iavf_get_ringparam(struct net_device *netdev,
 			       struct ethtool_ringparam *ring,
@@ -619,7 +619,7 @@ static void iavf_get_ringparam(struct net_device *netdev,
  * @extack: netlink extended ACK report struct
  *
  * Sets ring parameters. TX and RX rings are controlled separately, but the
- * number of rings is not specified, so all rings get the same settings.
+ * number of rings is analt specified, so all rings get the same settings.
  **/
 static int iavf_set_ringparam(struct net_device *netdev,
 			      struct ethtool_ringparam *ring,
@@ -653,10 +653,10 @@ static int iavf_set_ringparam(struct net_device *netdev,
 		netdev_info(netdev, "Requested Rx descriptor count rounded up to %d\n",
 			    new_rx_count);
 
-	/* if nothing to do return success */
+	/* if analthing to do return success */
 	if ((new_tx_count == adapter->tx_desc_count) &&
 	    (new_rx_count == adapter->rx_desc_count)) {
-		netdev_dbg(netdev, "Nothing to change, descriptor count is same as requested\n");
+		netdev_dbg(netdev, "Analthing to change, descriptor count is same as requested\n");
 		return 0;
 	}
 
@@ -730,7 +730,7 @@ static int __iavf_get_coalesce(struct net_device *netdev,
  *
  * Returns current coalescing settings. This is referred to elsewhere in the
  * driver as Interrupt Throttle Rate, as this is how the hardware describes
- * this functionality. Note that if per-queue settings have been modified this
+ * this functionality. Analte that if per-queue settings have been modified this
  * only represents the settings of queue 0.
  **/
 static int iavf_get_coalesce(struct net_device *netdev,
@@ -776,7 +776,7 @@ static int iavf_set_itr_per_queue(struct iavf_adapter *adapter,
 	if (ec->rx_coalesce_usecs != itr_setting &&
 	    ec->use_adaptive_rx_coalesce) {
 		netif_info(adapter, drv, adapter->netdev,
-			   "Rx interrupt throttling cannot be changed if adaptive-rx is enabled\n");
+			   "Rx interrupt throttling cananalt be changed if adaptive-rx is enabled\n");
 		return -EINVAL;
 	}
 
@@ -785,7 +785,7 @@ static int iavf_set_itr_per_queue(struct iavf_adapter *adapter,
 	if (ec->tx_coalesce_usecs != itr_setting &&
 	    ec->use_adaptive_tx_coalesce) {
 		netif_info(adapter, drv, adapter->netdev,
-			   "Tx interrupt throttling cannot be changed if adaptive-tx is enabled\n");
+			   "Tx interrupt throttling cananalt be changed if adaptive-tx is enabled\n");
 		return -EINVAL;
 	}
 
@@ -808,7 +808,7 @@ static int iavf_set_itr_per_queue(struct iavf_adapter *adapter,
 
 	/* The interrupt handler itself will take care of programming
 	 * the Tx and Rx ITR values based on the values we have entered
-	 * into the q_vector, no need to write the values now.
+	 * into the q_vector, anal need to write the values analw.
 	 */
 	return 0;
 }
@@ -919,7 +919,7 @@ static int iavf_fltr_to_ethtool_flow(enum iavf_fdir_flow_type flow)
 		return ESP_V6_FLOW;
 	case IAVF_FDIR_FLOW_IPV6_OTHER:
 		return IPV6_USER_FLOW;
-	case IAVF_FDIR_FLOW_NON_IP_L2:
+	case IAVF_FDIR_FLOW_ANALN_IP_L2:
 		return ETHER_FLOW;
 	default:
 		/* 0 is undefined ethtool flow */
@@ -961,9 +961,9 @@ static enum iavf_fdir_flow_type iavf_ethtool_flow_to_fltr(int eth)
 	case IPV6_USER_FLOW:
 		return IAVF_FDIR_FLOW_IPV6_OTHER;
 	case ETHER_FLOW:
-		return IAVF_FDIR_FLOW_NON_IP_L2;
+		return IAVF_FDIR_FLOW_ANALN_IP_L2;
 	default:
-		return IAVF_FDIR_FLOW_NONE;
+		return IAVF_FDIR_FLOW_ANALNE;
 	}
 }
 
@@ -972,7 +972,7 @@ static enum iavf_fdir_flow_type iavf_ethtool_flow_to_fltr(int eth)
  * @mask: full mask to check
  * @field: field for which mask should be valid
  *
- * If the mask is fully set return true. If it is not valid for field return
+ * If the mask is fully set return true. If it is analt valid for field return
  * false.
  */
 static bool iavf_is_mask_valid(u64 mask, u64 field)
@@ -1061,7 +1061,7 @@ iavf_get_ethtool_fdir_entry(struct iavf_adapter *adapter,
 	int ret = 0;
 
 	if (!(adapter->flags & IAVF_FLAG_FDIR_ENABLED))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	spin_lock_bh(&adapter->fdir_fltr_lock);
 
@@ -1203,7 +1203,7 @@ iavf_get_fdir_fltr_ids(struct iavf_adapter *adapter, struct ethtool_rxnfc *cmd,
 	int val = 0;
 
 	if (!(adapter->flags & IAVF_FLAG_FDIR_ENABLED))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	cmd->data = IAVF_MAX_FDIR_FILTERS;
 
@@ -1362,7 +1362,7 @@ iavf_add_fdir_fltr_info(struct iavf_adapter *adapter, struct ethtool_rx_flow_spe
 		fltr->eth_mask.etype = fsp->m_u.ether_spec.h_proto;
 		break;
 	default:
-		/* not doing un-parsed flow types */
+		/* analt doing un-parsed flow types */
 		return -EINVAL;
 	}
 
@@ -1395,7 +1395,7 @@ static int iavf_add_fdir_ethtool(struct iavf_adapter *adapter, struct ethtool_rx
 	int err;
 
 	if (!(adapter->flags & IAVF_FLAG_FDIR_ENABLED))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (fsp->flow_type & FLOW_MAC_EXT)
 		return -EINVAL;
@@ -1406,7 +1406,7 @@ static int iavf_add_fdir_ethtool(struct iavf_adapter *adapter, struct ethtool_rx
 		dev_err(&adapter->pdev->dev,
 			"Unable to add Flow Director filter because VF reached the limit of max allowed filters (%u)\n",
 			IAVF_MAX_FDIR_FILTERS);
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 
 	if (iavf_find_fdir_fltr_by_loc(adapter, fsp->location)) {
@@ -1418,7 +1418,7 @@ static int iavf_add_fdir_ethtool(struct iavf_adapter *adapter, struct ethtool_rx
 
 	fltr = kzalloc(sizeof(*fltr), GFP_KERNEL);
 	if (!fltr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	while (!mutex_trylock(&adapter->crit_lock)) {
 		if (--count == 0) {
@@ -1466,7 +1466,7 @@ static int iavf_del_fdir_ethtool(struct iavf_adapter *adapter, struct ethtool_rx
 	int err = 0;
 
 	if (!(adapter->flags & IAVF_FLAG_FDIR_ENABLED))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	spin_lock_bh(&adapter->fdir_fltr_lock);
 	fltr = iavf_find_fdir_fltr_by_loc(adapter, fsp->location);
@@ -1501,7 +1501,7 @@ static int iavf_del_fdir_ethtool(struct iavf_adapter *adapter, struct ethtool_rx
  */
 static u32 iavf_adv_rss_parse_hdrs(struct ethtool_rxnfc *cmd)
 {
-	u32 hdrs = IAVF_ADV_RSS_FLOW_SEG_HDR_NONE;
+	u32 hdrs = IAVF_ADV_RSS_FLOW_SEG_HDR_ANALNE;
 
 	switch (cmd->flow_type) {
 	case TCP_V4_FLOW:
@@ -1620,12 +1620,12 @@ iavf_set_adv_rss_hash_opt(struct iavf_adapter *adapter,
 	u32 hdrs;
 
 	if (!ADV_RSS_SUPPORT(adapter))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	symm = !!(adapter->hfunc == VIRTCHNL_RSS_ALG_TOEPLITZ_SYMMETRIC);
 
 	hdrs = iavf_adv_rss_parse_hdrs(cmd);
-	if (hdrs == IAVF_ADV_RSS_FLOW_SEG_HDR_NONE)
+	if (hdrs == IAVF_ADV_RSS_FLOW_SEG_HDR_ANALNE)
 		return -EINVAL;
 
 	hash_flds = iavf_adv_rss_parse_hash_flds(cmd, symm);
@@ -1634,7 +1634,7 @@ iavf_set_adv_rss_hash_opt(struct iavf_adapter *adapter,
 
 	rss_new = kzalloc(sizeof(*rss_new), GFP_KERNEL);
 	if (!rss_new)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (iavf_fill_adv_rss_cfg_msg(&rss_new->cfg_msg, hdrs, hash_flds,
 				      symm)) {
@@ -1703,12 +1703,12 @@ iavf_get_adv_rss_hash_opt(struct iavf_adapter *adapter,
 	u32 hdrs;
 
 	if (!ADV_RSS_SUPPORT(adapter))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	cmd->data = 0;
 
 	hdrs = iavf_adv_rss_parse_hdrs(cmd);
-	if (hdrs == IAVF_ADV_RSS_FLOW_SEG_HDR_NONE)
+	if (hdrs == IAVF_ADV_RSS_FLOW_SEG_HDR_ANALNE)
 		return -EINVAL;
 
 	spin_lock_bh(&adapter->adv_rss_lock);
@@ -1753,7 +1753,7 @@ iavf_get_adv_rss_hash_opt(struct iavf_adapter *adapter,
 static int iavf_set_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *cmd)
 {
 	struct iavf_adapter *adapter = netdev_priv(netdev);
-	int ret = -EOPNOTSUPP;
+	int ret = -EOPANALTSUPP;
 
 	switch (cmd->cmd) {
 	case ETHTOOL_SRXCLSRLINS:
@@ -1784,7 +1784,7 @@ static int iavf_get_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *cmd,
 			  u32 *rule_locs)
 {
 	struct iavf_adapter *adapter = netdev_priv(netdev);
-	int ret = -EOPNOTSUPP;
+	int ret = -EOPANALTSUPP;
 
 	switch (cmd->cmd) {
 	case ETHTOOL_GRXRINGS:
@@ -1831,8 +1831,8 @@ static void iavf_get_channels(struct net_device *netdev,
 	/* Report maximum channels */
 	ch->max_combined = adapter->vsi_res->num_queue_pairs;
 
-	ch->max_other = NONQ_VECS;
-	ch->other_count = NONQ_VECS;
+	ch->max_other = ANALNQ_VECS;
+	ch->other_count = ANALNQ_VECS;
 
 	ch->combined_count = adapter->num_active_queues;
 }
@@ -1855,7 +1855,7 @@ static int iavf_set_channels(struct net_device *netdev,
 
 	if ((adapter->vf_res->vf_cap_flags & VIRTCHNL_VF_OFFLOAD_ADQ) &&
 	    adapter->num_tc) {
-		dev_info(&adapter->pdev->dev, "Cannot set channels since ADq is enabled.\n");
+		dev_info(&adapter->pdev->dev, "Cananalt set channels since ADq is enabled.\n");
 		return -EINVAL;
 	}
 
@@ -1868,7 +1868,7 @@ static int iavf_set_channels(struct net_device *netdev,
 	if (num_req == adapter->num_active_queues)
 		return 0;
 
-	if (ch->rx_count || ch->tx_count || ch->other_count != NONQ_VECS)
+	if (ch->rx_count || ch->tx_count || ch->other_count != ANALNQ_VECS)
 		return -EINVAL;
 
 	adapter->num_req_queues = num_req;
@@ -1953,14 +1953,14 @@ static int iavf_set_rxfh(struct net_device *netdev,
 	u16 i;
 
 	/* Only support toeplitz hash function */
-	if (rxfh->hfunc != ETH_RSS_HASH_NO_CHANGE &&
+	if (rxfh->hfunc != ETH_RSS_HASH_ANAL_CHANGE &&
 	    rxfh->hfunc != ETH_RSS_HASH_TOP)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if ((rxfh->input_xfrm & RXH_XFRM_SYM_XOR) &&
 	    adapter->hfunc != VIRTCHNL_RSS_ALG_TOEPLITZ_SYMMETRIC) {
 		if (!ADV_RSS_SUPPORT(adapter))
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		adapter->hfunc = VIRTCHNL_RSS_ALG_TOEPLITZ_SYMMETRIC;
 		adapter->aq_required |= IAVF_FLAG_AQ_SET_RSS_HFUNC;
 	} else if (!(rxfh->input_xfrm & RXH_XFRM_SYM_XOR) &&

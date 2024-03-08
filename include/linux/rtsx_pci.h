@@ -27,7 +27,7 @@
 #define   RTSX_SG_INT			0x04
 #define   RTSX_SG_END			0x02
 #define   RTSX_SG_VALID			0x01
-#define   RTSX_SG_NO_OP			0x00
+#define   RTSX_SG_ANAL_OP			0x00
 #define   RTSX_SG_TRANS_DATA		(0x02 << 4)
 #define   RTSX_SG_LINK_DESC		(0x03 << 4)
 #define RTSX_HDBCTLR			0x0C
@@ -102,15 +102,15 @@
 #define rtsx_pci_readb(pcr, reg) \
 	ioread8((pcr)->remap_addr + reg)
 
-#define STATE_TRANS_NONE		0
+#define STATE_TRANS_ANALNE		0
 #define STATE_TRANS_CMD			1
 #define STATE_TRANS_BUF			2
 #define STATE_TRANS_SG			3
 
-#define TRANS_NOT_READY			0
+#define TRANS_ANALT_READY			0
 #define TRANS_RESULT_OK			1
 #define TRANS_RESULT_FAIL		2
-#define TRANS_NO_DEVICE			3
+#define TRANS_ANAL_DEVICE			3
 
 #define RTSX_RESV_BUF_LEN		4096
 #define HOST_CMDS_BUF_LEN		1024
@@ -131,7 +131,7 @@
 #define   SAMPLE_TIME_FALLING		0x80
 #define   PUSH_TIME_DEFAULT		0x00
 #define   PUSH_TIME_ODD			0x40
-#define   NO_EXTEND_TOGGLE		0x00
+#define   ANAL_EXTEND_TOGGLE		0x00
 #define   EXTEND_TOGGLE_CHK		0x20
 #define   MS_BUS_WIDTH_1		0x00
 #define   MS_BUS_WIDTH_4		0x10
@@ -140,12 +140,12 @@
 #define   MS_512_SECTOR_MODE		0x00
 #define   MS_TOGGLE_TIMEOUT_EN		0x00
 #define   MS_TOGGLE_TIMEOUT_DISEN	0x01
-#define MS_NO_CHECK_INT			0x02
+#define MS_ANAL_CHECK_INT			0x02
 #define MS_TPC				0xFD41
 #define MS_TRANS_CFG			0xFD42
 #define   WAIT_INT			0x80
-#define   NO_WAIT_INT			0x00
-#define   NO_AUTO_READ_INT_REG		0x00
+#define   ANAL_WAIT_INT			0x00
+#define   ANAL_AUTO_READ_INT_REG		0x00
 #define   AUTO_READ_INT_REG		0x40
 #define   MS_CRC16_ERR			0x20
 #define   MS_RDY_TIMEOUT		0x10
@@ -159,9 +159,9 @@
 #define   MS_TRANSFER_ERR		0x20
 #define   MS_BS_STATE			0x10
 #define   MS_TM_READ_BYTES		0x00
-#define   MS_TM_NORMAL_READ		0x01
+#define   MS_TM_ANALRMAL_READ		0x01
 #define   MS_TM_WRITE_BYTES		0x04
-#define   MS_TM_NORMAL_WRITE		0x05
+#define   MS_TM_ANALRMAL_WRITE		0x05
 #define   MS_TM_AUTO_READ		0x08
 #define   MS_TM_AUTO_WRITE		0x0C
 #define MS_INT_REG			0xFD44
@@ -177,7 +177,7 @@
 #define   SD_BUS_WIDTH_1BIT		0x00
 #define   SD_BUS_WIDTH_4BIT		0x01
 #define   SD_BUS_WIDTH_8BIT		0x02
-#define   SD_ASYNC_FIFO_NOT_RST		0x10
+#define   SD_ASYNC_FIFO_ANALT_RST		0x10
 #define   SD_20_MODE			0x00
 #define   SD_DDR_MODE			0x04
 #define   SD_30_MODE			0x08
@@ -185,14 +185,14 @@
 #define   SD_MODE_SELECT_MASK		0x0C
 #define SD_CFG2				0xFDA1
 #define   SD_CALCULATE_CRC7		0x00
-#define   SD_NO_CALCULATE_CRC7		0x80
+#define   SD_ANAL_CALCULATE_CRC7		0x80
 #define   SD_CHECK_CRC16		0x00
-#define   SD_NO_CHECK_CRC16		0x40
-#define   SD_NO_CHECK_WAIT_CRC_TO	0x20
+#define   SD_ANAL_CHECK_CRC16		0x40
+#define   SD_ANAL_CHECK_WAIT_CRC_TO	0x20
 #define   SD_WAIT_BUSY_END		0x08
-#define   SD_NO_WAIT_BUSY_END		0x00
+#define   SD_ANAL_WAIT_BUSY_END		0x00
 #define   SD_CHECK_CRC7			0x00
-#define   SD_NO_CHECK_CRC7		0x04
+#define   SD_ANAL_CHECK_CRC7		0x04
 #define   SD_RSP_LEN_0			0x00
 #define   SD_RSP_LEN_6			0x01
 #define   SD_RSP_LEN_17			0x02
@@ -273,7 +273,7 @@
 #define   SD_TRANSFER_END		0x40
 #define   SD_STAT_IDLE			0x20
 #define   SD_TRANSFER_ERR		0x10
-#define   SD_TM_NORMAL_WRITE		0x00
+#define   SD_TM_ANALRMAL_WRITE		0x00
 #define   SD_TM_AUTO_WRITE_3		0x01
 #define   SD_TM_AUTO_WRITE_4		0x02
 #define   SD_TM_AUTO_READ_3		0x05
@@ -281,7 +281,7 @@
 #define   SD_TM_CMD_RSP			0x08
 #define   SD_TM_AUTO_WRITE_1		0x09
 #define   SD_TM_AUTO_WRITE_2		0x0A
-#define   SD_TM_NORMAL_READ		0x0C
+#define   SD_TM_ANALRMAL_READ		0x0C
 #define   SD_TM_AUTO_READ_1		0x0D
 #define   SD_TM_AUTO_READ_2		0x0E
 #define   SD_TM_AUTO_TUNING		0x0F
@@ -329,7 +329,7 @@
 #define SD_VPTX_CTL			SD_VPCLK0_CTL
 #define SD_VPRX_CTL			SD_VPCLK1_CTL
 #define   PHASE_CHANGE			0x80
-#define   PHASE_NOT_RESET		0x40
+#define   PHASE_ANALT_RESET		0x40
 #define SD_DCMPS_TX_CTL			SD_DCMPS0_CTL
 #define SD_DCMPS_RX_CTL			SD_DCMPS1_CTL
 #define   DCMPS_CHANGE			0x80
@@ -371,7 +371,7 @@
 #define CARD_SHARE_MODE			0xFD52
 #define   CARD_SHARE_MASK		0x0F
 #define   CARD_SHARE_MULTI_LUN		0x00
-#define   CARD_SHARE_NORMAL		0x00
+#define   CARD_SHARE_ANALRMAL		0x00
 #define   CARD_SHARE_48_SD		0x04
 #define   CARD_SHARE_48_MS		0x08
 #define   CARD_SHARE_BAROSSA_SD		0x01
@@ -597,7 +597,7 @@
 #define   FORCE_ASPM_VAL_MASK		0x03
 #define   FORCE_ASPM_L1_EN		0x02
 #define   FORCE_ASPM_L0_EN		0x01
-#define   FORCE_ASPM_NO_ASPM		0x00
+#define   FORCE_ASPM_ANAL_ASPM		0x00
 #define PM_CLK_FORCE_CTL		0xFE58
 #define   CLK_PM_EN			0x01
 #define FUNC_FORCE_CTL			0xFE59
@@ -822,10 +822,10 @@
 
 /* OCPSTAT */
 #define SD_OCP_DETECT			0x08
-#define SD_OC_NOW			0x04
+#define SD_OC_ANALW			0x04
 #define SD_OC_EVER			0x02
 
-#define SDVIO_OC_NOW			(1 << 6)
+#define SDVIO_OC_ANALW			(1 << 6)
 #define SDVIO_OC_EVER			(1 << 5)
 
 #define REG_OCPCTL			0xFD6A
@@ -845,7 +845,7 @@
 #define REG_DV3318_OCPSTAT		0xFD8A
 #define DV3318_OCP_GlITCH_TIME_MASK	0xF0
 #define DV3318_OCP_DETECT		0x08
-#define DV3318_OCP_NOW			0x04
+#define DV3318_OCP_ANALW			0x04
 #define DV3318_OCP_EVER			0x02
 
 #define SD_OCP_GLITCH_MASK		0x0F
@@ -891,7 +891,7 @@
 #define SD_OCP_THD_MASK			0x07
 
 #define SDVIO_OCP_GLITCH_MASK		0xF0
-#define SDVIO_OCP_GLITCH_NONE		0x00
+#define SDVIO_OCP_GLITCH_ANALNE		0x00
 #define SDVIO_OCP_GLITCH_50U		0x10
 #define SDVIO_OCP_GLITCH_100U		0x20
 #define SDVIO_OCP_GLITCH_200U		0x30
@@ -909,7 +909,7 @@
 #define SDVIO_OCP_GLITCH_10M		0xF0
 
 #define SD_OCP_GLITCH_MASK		0x0F
-#define SD_OCP_GLITCH_NONE		0x00
+#define SD_OCP_GLITCH_ANALNE		0x00
 #define SD_OCP_GLITCH_50U		0x01
 #define SD_OCP_GLITCH_100U		0x02
 #define SD_OCP_GLITCH_200U		0x03
@@ -1125,7 +1125,7 @@ enum ASPM_MODE  {ASPM_MODE_CFG, ASPM_MODE_REG};
 #define PM_L1_1_EN				BIT(2)
 #define PM_L1_2_EN				BIT(3)
 #define LTR_L1SS_PWR_GATE_EN	BIT(4)
-#define L1_SNOOZE_TEST_EN		BIT(5)
+#define L1_SANALOZE_TEST_EN		BIT(5)
 #define LTR_L1SS_PWR_GATE_CHECK_CARD_EN	BIT(6)
 
 /*
@@ -1138,9 +1138,9 @@ enum ASPM_MODE  {ASPM_MODE_CFG, ASPM_MODE_REG};
  * @ltr_active_latency: ltr mode active latency
  * @ltr_idle_latency: ltr mode idle latency
  * @ltr_l1off_latency: ltr mode l1off latency
- * @l1_snooze_delay: l1 snooze delay
+ * @l1_sanaloze_delay: l1 sanaloze delay
  * @ltr_l1off_sspwrgate: ltr l1off sspwrgate
- * @ltr_l1off_snooze_sspwrgate: ltr l1off snooze sspwrgate
+ * @ltr_l1off_sanaloze_sspwrgate: ltr l1off sanaloze sspwrgate
  * @ocp_en: enable ocp flag
  * @sd_400mA_ocp_thd: 400mA ocp thd
  * @sd_800mA_ocp_thd: 800mA ocp thd
@@ -1154,9 +1154,9 @@ struct rtsx_cr_option {
 	u32 ltr_active_latency;
 	u32 ltr_idle_latency;
 	u32 ltr_l1off_latency;
-	u32 l1_snooze_delay;
+	u32 l1_sanaloze_delay;
 	u8 ltr_l1off_sspwrgate;
-	u8 ltr_l1off_snooze_sspwrgate;
+	u8 ltr_l1off_sanaloze_sspwrgate;
 	bool ocp_en;
 	u8 sd_400mA_ocp_thd;
 	u8 sd_800mA_ocp_thd;
@@ -1226,7 +1226,7 @@ struct rtsx_pcr {
 #define EXTRA_CAPS_MMC_HSDDR		(1 << 3)
 #define EXTRA_CAPS_MMC_HS200		(1 << 4)
 #define EXTRA_CAPS_MMC_8BIT		(1 << 5)
-#define EXTRA_CAPS_NO_MMC		(1 << 7)
+#define EXTRA_CAPS_ANAL_MMC		(1 << 7)
 #define EXTRA_CAPS_SD_EXPRESS		(1 << 8)
 	u32				extra_caps;
 
@@ -1310,7 +1310,7 @@ int rtsx_pci_read_phy_register(struct rtsx_pcr *pcr, u8 addr, u16 *val);
 void rtsx_pci_stop_cmd(struct rtsx_pcr *pcr);
 void rtsx_pci_add_cmd(struct rtsx_pcr *pcr,
 		u8 cmd_type, u16 reg_addr, u8 mask, u8 data);
-void rtsx_pci_send_cmd_no_wait(struct rtsx_pcr *pcr);
+void rtsx_pci_send_cmd_anal_wait(struct rtsx_pcr *pcr);
 int rtsx_pci_send_cmd(struct rtsx_pcr *pcr, int timeout);
 int rtsx_pci_transfer_data(struct rtsx_pcr *pcr, struct scatterlist *sglist,
 		int num_sg, bool read, int timeout);

@@ -171,7 +171,7 @@ static const struct snd_soc_dapm_widget sof_widgets[] = {
 };
 
 static const struct snd_soc_dapm_route sof_map[] = {
-	/* HP jack connectors - unknown if we have jack detection */
+	/* HP jack connectors - unkanalwn if we have jack detection */
 	{ "Headphone Jack", NULL, "HPOL" },
 	{ "Headphone Jack", NULL, "HPOR" },
 
@@ -211,7 +211,7 @@ sof_card_dai_links_create(struct device *dev, struct snd_soc_card *card,
 		return ret;
 
 	if (!ctx->codec_link) {
-		dev_err(dev, "codec link not available");
+		dev_err(dev, "codec link analt available");
 		return -EINVAL;
 	}
 
@@ -222,11 +222,11 @@ sof_card_dai_links_create(struct device *dev, struct snd_soc_card *card,
 	ctx->codec_link->exit = sof_nau8825_codec_exit;
 	ctx->codec_link->ops = &sof_nau8825_ops;
 
-	if (ctx->amp_type == CODEC_NONE)
+	if (ctx->amp_type == CODEC_ANALNE)
 		return 0;
 
 	if (!ctx->amp_link) {
-		dev_err(dev, "amp link not available");
+		dev_err(dev, "amp link analt available");
 		return -EINVAL;
 	}
 
@@ -266,7 +266,7 @@ static int sof_audio_probe(struct platform_device *pdev)
 
 	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (pdev->id_entry && pdev->id_entry->driver_data)
 		sof_nau8825_quirk = (unsigned long)pdev->id_entry->driver_data;
@@ -312,11 +312,11 @@ static int sof_audio_probe(struct platform_device *pdev)
 	case CODEC_RT1015P:
 		sof_rt1015p_codec_conf(&sof_audio_card_nau8825);
 		break;
-	case CODEC_NONE:
+	case CODEC_ANALNE:
 	case CODEC_MAX98360A:
 	case CODEC_NAU8318:
 	case CODEC_RT1019P:
-		/* no codec conf required */
+		/* anal codec conf required */
 		break;
 	default:
 		dev_err(&pdev->dev, "invalid amp type %d\n", ctx->amp_type);

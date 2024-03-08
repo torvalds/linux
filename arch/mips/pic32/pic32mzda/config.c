@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Purna Chandra Mandal, purna.mandal@microchip.com
- * Copyright (C) 2015 Microchip Technology Inc.  All rights reserved.
+ * Copyright (C) 2015 Microchip Techanallogy Inc.  All rights reserved.
  */
 #include <linux/init.h>
 #include <linux/io.h>
@@ -105,7 +105,7 @@ void __init pic32_config_init(void)
 {
 	pic32_conf_base = ioremap(PIC32_BASE_CONFIG, 0x110);
 	if (!pic32_conf_base)
-		panic("pic32: config base not mapped");
+		panic("pic32: config base analt mapped");
 
 	/* Boot Status */
 	pic32_reset_status = readl(pic32_conf_base + PIC32_RCON);

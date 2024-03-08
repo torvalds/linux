@@ -2,8 +2,8 @@
 /*
  * linux/drivers/video/omap2/dss/dispc.c
  *
- * Copyright (C) 2009 Nokia Corporation
- * Author: Tomi Valkeinen <tomi.valkeinen@nokia.com>
+ * Copyright (C) 2009 Analkia Corporation
+ * Author: Tomi Valkeinen <tomi.valkeinen@analkia.com>
  *
  * Some code and ideas taken from drivers/video/omap/ driver
  * by Imre Deak.
@@ -78,15 +78,15 @@ struct dispc_features {
 	/* swap GFX & WB fifos */
 	bool gfx_fifo_workaround:1;
 
-	/* no DISPC_IRQ_FRAMEDONETV on this SoC */
-	bool no_framedone_tv:1;
+	/* anal DISPC_IRQ_FRAMEDONETV on this SoC */
+	bool anal_framedone_tv:1;
 
 	/* revert to the OMAP4 mechanism of DISPC Smart Standby operation */
 	bool mstandby_workaround:1;
 
 	bool set_max_preload:1;
 
-	/* PIXEL_INC is not added to the last pixel of a line */
+	/* PIXEL_INC is analt added to the last pixel of a line */
 	bool last_pixel_inc_missing:1;
 
 	/* POL_FREQ has ALIGN bit */
@@ -533,7 +533,7 @@ void dispc_runtime_put(void)
 	DSSDBG("dispc_runtime_put\n");
 
 	r = pm_runtime_put_sync(&dispc.pdev->dev);
-	WARN_ON(r < 0 && r != -ENOSYS);
+	WARN_ON(r < 0 && r != -EANALSYS);
 }
 EXPORT_SYMBOL(dispc_runtime_put);
 
@@ -545,7 +545,7 @@ EXPORT_SYMBOL(dispc_mgr_get_vsync_irq);
 
 u32 dispc_mgr_get_framedone_irq(enum omap_channel channel)
 {
-	if (channel == OMAP_DSS_CHANNEL_DIGIT && dispc.feat->no_framedone_tv)
+	if (channel == OMAP_DSS_CHANNEL_DIGIT && dispc.feat->anal_framedone_tv)
 		return 0;
 
 	return mgr_desc[channel].framedone_irq;
@@ -1036,7 +1036,7 @@ void dispc_enable_gamma_table(bool enable)
 	 * the gamma table.
 	 */
 	if (enable) {
-		DSSWARN("Gamma table enabling for TV not yet supported");
+		DSSWARN("Gamma table enabling for TV analt yet supported");
 		return;
 	}
 
@@ -1266,7 +1266,7 @@ void dispc_ovl_compute_fifo_thresholds(enum omap_plane plane,
 	}
 
 	/*
-	 * We use the same low threshold for both fifomerge and non-fifomerge
+	 * We use the same low threshold for both fifomerge and analn-fifomerge
 	 * cases, but for fifomerge we calculate the high threshold using the
 	 * combined fifo size
 	 */
@@ -1277,7 +1277,7 @@ void dispc_ovl_compute_fifo_thresholds(enum omap_plane plane,
 	} else if (plane == OMAP_DSS_WB) {
 		/*
 		 * Most optimal configuration for writeback is to push out data
-		 * to the interconnect the moment writeback pushes enough pixels
+		 * to the interconnect the moment writeback pushes eanalugh pixels
 		 * in the FIFO to form a burst
 		 */
 		*fifo_low = 0;
@@ -1317,7 +1317,7 @@ static void dispc_init_mflag(void)
 	 * the displays will cause underflows/synclosts when MFLAG_CTRL=2.
 	 * Changing MFLAG thresholds and PRELOAD to certain values seem to
 	 * remove the errors, but there doesn't seem to be a clear logic on
-	 * which values work and which not.
+	 * which values work and which analt.
 	 *
 	 * As a work-around, set force MFLAG to always on.
 	 */
@@ -2107,12 +2107,12 @@ static int check_horiz_timing_omap3(unsigned long pclk, unsigned long lclk,
 		bool five_taps)
 {
 	const int ds = DIV_ROUND_UP(height, out_height);
-	unsigned long nonactive;
+	unsigned long analnactive;
 	static const u8 limits[3] = { 8, 10, 20 };
 	u64 val, blank;
 	int i;
 
-	nonactive = t->x_res + t->hfp + t->hsw + t->hbp - out_width;
+	analnactive = t->x_res + t->hfp + t->hsw + t->hbp - out_width;
 
 	i = 0;
 	if (out_height < height)
@@ -2124,28 +2124,28 @@ static int check_horiz_timing_omap3(unsigned long pclk, unsigned long lclk,
 	if (blank <= limits[i])
 		return -EINVAL;
 
-	/* FIXME add checks for 3-tap filter once the limitations are known */
+	/* FIXME add checks for 3-tap filter once the limitations are kanalwn */
 	if (!five_taps)
 		return 0;
 
 	/*
 	 * Pixel data should be prepared before visible display point starts.
 	 * So, atleast DS-2 lines must have already been fetched by DISPC
-	 * during nonactive - pos_x period.
+	 * during analnactive - pos_x period.
 	 */
-	val = div_u64((u64)(nonactive - pos_x) * lclk, pclk);
-	DSSDBG("(nonactive - pos_x) * pcd = %llu max(0, DS - 2) * width = %d\n",
+	val = div_u64((u64)(analnactive - pos_x) * lclk, pclk);
+	DSSDBG("(analnactive - pos_x) * pcd = %llu max(0, DS - 2) * width = %d\n",
 		val, max(0, ds - 2) * width);
 	if (val < max(0, ds - 2) * width)
 		return -EINVAL;
 
 	/*
-	 * All lines need to be refilled during the nonactive period of which
+	 * All lines need to be refilled during the analnactive period of which
 	 * only one line can be loaded during the active period. So, atleast
-	 * DS - 1 lines should be loaded during nonactive period.
+	 * DS - 1 lines should be loaded during analnactive period.
 	 */
-	val =  div_u64((u64)nonactive * lclk, pclk);
-	DSSDBG("nonactive * pcd  = %llu, max(0, DS - 1) * width = %d\n",
+	val =  div_u64((u64)analnactive * lclk, pclk);
+	DSSDBG("analnactive * pcd  = %llu, max(0, DS - 1) * width = %d\n",
 		val, max(0, ds - 1) * width);
 	if (val < max(0, ds - 1) * width)
 		return -EINVAL;
@@ -2209,7 +2209,7 @@ static unsigned long calc_core_clk_34xx(unsigned long pclk, u16 width,
 
 	/*
 	 * FIXME how to determine the 'A' factor
-	 * for the no downscaling case ?
+	 * for the anal downscaling case ?
 	 */
 
 	if (width > 3 * out_width)
@@ -2232,9 +2232,9 @@ static unsigned long calc_core_clk_44xx(unsigned long pclk, u16 width,
 		u16 height, u16 out_width, u16 out_height, bool mem_to_mem)
 {
 	/*
-	 * If the overlay/writeback is in mem to mem mode, there are no
+	 * If the overlay/writeback is in mem to mem mode, there are anal
 	 * downscaling limitations with respect to pixel clock, return 1 as
-	 * required core clock to represent that we have sufficient enough
+	 * required core clock to represent that we have sufficient eanalugh
 	 * core clock to do maximum downscaling
 	 */
 	if (mem_to_mem)
@@ -2286,7 +2286,7 @@ static int dispc_ovl_calc_scaling_24xx(unsigned long pclk, unsigned long lclk,
 	}
 
 	if (in_width > maxsinglelinewidth) {
-		DSSERR("Cannot scale max input width exceeded");
+		DSSERR("Cananalt scale max input width exceeded");
 		return -EINVAL;
 	}
 	return 0;
@@ -2365,13 +2365,13 @@ again:
 	}
 
 	if (in_width > (maxsinglelinewidth * 2)) {
-		DSSERR("Cannot setup scaling");
+		DSSERR("Cananalt setup scaling");
 		DSSERR("width exceeds maximum width possible");
 		return -EINVAL;
 	}
 
 	if (in_width > maxsinglelinewidth && *five_taps) {
-		DSSERR("cannot setup scaling with five taps");
+		DSSERR("cananalt setup scaling with five taps");
 		return -EINVAL;
 	}
 	return 0;
@@ -2410,7 +2410,7 @@ static int dispc_ovl_calc_scaling_44xx(unsigned long pclk, unsigned long lclk,
 			in_width > maxsinglelinewidth && ++*decim_x);
 
 	if (in_width > maxsinglelinewidth) {
-		DSSERR("Cannot scale width exceeds max line width");
+		DSSERR("Cananalt scale width exceeds max line width");
 		return -EINVAL;
 	}
 
@@ -2439,7 +2439,7 @@ static int dispc_ovl_calc_scaling(unsigned long pclk, unsigned long lclk,
 		return 0;
 
 	if (!mem_to_mem && (pclk == 0 || mgr_timings->pixelclock == 0)) {
-		DSSERR("cannot calculate scaling settings: pclk is zero\n");
+		DSSERR("cananalt calculate scaling settings: pclk is zero\n");
 		return -EINVAL;
 	}
 
@@ -2581,7 +2581,7 @@ static int dispc_ovl_setup_common(enum omap_plane plane,
 	case OMAP_DSS_COLOR_UYVY:
 	case OMAP_DSS_COLOR_NV12:
 		if (in_width & 1) {
-			DSSERR("input width %d is not even for YUV format\n",
+			DSSERR("input width %d is analt even for YUV format\n",
 				in_width);
 			return -EINVAL;
 		}
@@ -2630,7 +2630,7 @@ static int dispc_ovl_setup_common(enum omap_plane plane,
 	case OMAP_DSS_COLOR_UYVY:
 	case OMAP_DSS_COLOR_NV12:
 		if (in_width & 1) {
-			DSSDBG("predecimated input width is not even for YUV format\n");
+			DSSDBG("predecimated input width is analt even for YUV format\n");
 			DSSDBG("adjusting input width %d -> %d\n",
 				in_width, in_width & ~1);
 
@@ -3025,7 +3025,7 @@ static void _dispc_mgr_set_lcd_timings(enum omap_channel channel, int hsw,
 
 {
 	u32 timing_h, timing_v, l;
-	bool onoff, rf, ipc, vs, hs, de;
+	bool oanalff, rf, ipc, vs, hs, de;
 
 	timing_h = FLD_VAL(hsw-1, dispc.feat->sw_start, 0) |
 			FLD_VAL(hfp-1, dispc.feat->fp_start, 8) |
@@ -3082,7 +3082,7 @@ static void _dispc_mgr_set_lcd_timings(enum omap_channel channel, int hsw,
 	}
 
 	/* always use the 'rf' setting */
-	onoff = true;
+	oanalff = true;
 
 	switch (sync_pclk_edge) {
 	case OMAPDSS_DRIVE_SIG_FALLING_EDGE:
@@ -3095,7 +3095,7 @@ static void _dispc_mgr_set_lcd_timings(enum omap_channel channel, int hsw,
 		BUG();
 	}
 
-	l = FLD_VAL(onoff, 17, 17) |
+	l = FLD_VAL(oanalff, 17, 17) |
 		FLD_VAL(rf, 16, 16) |
 		FLD_VAL(de, 15, 15) |
 		FLD_VAL(ipc, 14, 14) |
@@ -3118,7 +3118,7 @@ static void _dispc_mgr_set_lcd_timings(enum omap_channel channel, int hsw,
 		u32 mask, val;
 
 		mask = (1 << 0) | (1 << 3) | (1 << 6);
-		val = (rf << 0) | (ipc << 3) | (onoff << 6);
+		val = (rf << 0) | (ipc << 3) | (oanalff << 6);
 
 		mask <<= 16 + shifts[channel];
 		val <<= 16 + shifts[channel];
@@ -3708,7 +3708,7 @@ void dispc_enable_sidle(void)
 
 void dispc_disable_sidle(void)
 {
-	REG_FLD_MOD(DISPC_SYSCONFIG, 1, 4, 3);	/* SIDLEMODE: no idle */
+	REG_FLD_MOD(DISPC_SYSCONFIG, 1, 4, 3);	/* SIDLEMODE: anal idle */
 }
 
 static void _omap_dispc_initial_config(void)
@@ -3762,7 +3762,7 @@ static const struct dispc_features omap24xx_dispc_feats = {
 	.calc_scaling		=	dispc_ovl_calc_scaling_24xx,
 	.calc_core_clk		=	calc_core_clk_24xx,
 	.num_fifos		=	3,
-	.no_framedone_tv	=	true,
+	.anal_framedone_tv	=	true,
 	.set_max_preload	=	false,
 	.last_pixel_inc_missing	=	true,
 };
@@ -3783,7 +3783,7 @@ static const struct dispc_features omap34xx_rev1_0_dispc_feats = {
 	.calc_scaling		=	dispc_ovl_calc_scaling_34xx,
 	.calc_core_clk		=	calc_core_clk_34xx,
 	.num_fifos		=	3,
-	.no_framedone_tv	=	true,
+	.anal_framedone_tv	=	true,
 	.set_max_preload	=	false,
 	.last_pixel_inc_missing	=	true,
 };
@@ -3804,7 +3804,7 @@ static const struct dispc_features omap34xx_rev3_0_dispc_feats = {
 	.calc_scaling		=	dispc_ovl_calc_scaling_34xx,
 	.calc_core_clk		=	calc_core_clk_34xx,
 	.num_fifos		=	3,
-	.no_framedone_tv	=	true,
+	.anal_framedone_tv	=	true,
 	.set_max_preload	=	false,
 	.last_pixel_inc_missing	=	true,
 };
@@ -3886,7 +3886,7 @@ static const struct dispc_features *dispc_get_features(void)
 static irqreturn_t dispc_irq_handler(int irq, void *arg)
 {
 	if (!dispc.is_enabled)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	return dispc.user_handler(irq, dispc.user_data);
 }
@@ -3931,7 +3931,7 @@ static int dispc_bind(struct device *dev, struct device *master, void *data)
 	u32 rev;
 	int r = 0;
 	struct resource *dispc_mem;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 
 	dispc.pdev = pdev;
 
@@ -3939,7 +3939,7 @@ static int dispc_bind(struct device *dev, struct device *master, void *data)
 
 	dispc.feat = dispc_get_features();
 	if (!dispc.feat)
-		return -ENODEV;
+		return -EANALDEV;
 
 	dispc_mem = platform_get_resource(dispc.pdev, IORESOURCE_MEM, 0);
 	if (!dispc_mem) {
@@ -3951,13 +3951,13 @@ static int dispc_bind(struct device *dev, struct device *master, void *data)
 				  resource_size(dispc_mem));
 	if (!dispc.base) {
 		DSSERR("can't ioremap DISPC\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	dispc.irq = platform_get_irq(dispc.pdev, 0);
 	if (dispc.irq < 0) {
 		DSSERR("platform_get_irq failed\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (np && of_property_read_bool(np, "syscon-pol")) {

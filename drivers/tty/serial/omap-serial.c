@@ -9,7 +9,7 @@
  *	Govindraj R	<govindraj.raja@ti.com>
  *	Thara Gopinath	<thara@ti.com>
  *
- * Note: This driver is made separate from 8250 driver as we cannot
+ * Analte: This driver is made separate from 8250 driver as we cananalt
  * over load 8250 driver with omap platform specific configuration for
  * features like DMA, it makes easier to implement features like DMA and
  * hardware flow control and software flow control configuration with
@@ -105,7 +105,7 @@ struct uart_omap_dma {
 	dma_addr_t		tx_buf_dma_phys;
 	unsigned int		uart_base;
 	/*
-	 * Buffer for rx dma. It is not required for tx because the buffer
+	 * Buffer for rx dma. It is analt required for tx because the buffer
 	 * comes from port structure.
 	 */
 	unsigned char		*rx_buf;
@@ -142,7 +142,7 @@ struct uart_omap_port {
 	int			use_dma;
 	/*
 	 * Some bits in registers are cleared on a read, so they must
-	 * be saved whenever the register is read, but the bits will not
+	 * be saved whenever the register is read, but the bits will analt
 	 * be immediately processed.
 	 */
 	unsigned int		lsr_break_flag;
@@ -236,7 +236,7 @@ static inline int calculate_baud_abs_diff(struct uart_port *port,
  *
  * Returns true if baud rate is MODE16X and false if MODE13X
  * Original table in OMAP TRM named "UART Mode Baud Rates, Divisor Values,
- * and Error Rates" determines modes not for all common baud rates.
+ * and Error Rates" determines modes analt for all common baud rates.
  * E.g. for 1000000 baud rate mode must be 16x, but according to that
  * table it's determined as 13x.
  */
@@ -285,8 +285,8 @@ static void serial_omap_stop_tx(struct uart_port *port)
 	if (port->rs485.flags & SER_RS485_ENABLED) {
 		if (up->scr & OMAP_UART_SCR_TX_EMPTY) {
 			/* THR interrupt is fired when both TX FIFO and TX
-			 * shift register are empty. This means there's nothing
-			 * left to transmit now, so make sure the THR interrupt
+			 * shift register are empty. This means there's analthing
+			 * left to transmit analw, so make sure the THR interrupt
 			 * is fired when TX FIFO is below the trigger level,
 			 * disable THR interrupts and toggle the RS-485 GPIO
 			 * data direction pin if needed.
@@ -305,7 +305,7 @@ static void serial_omap_stop_tx(struct uart_port *port)
 			/* We're asked to stop, but there's still stuff in the
 			 * UART FIFO, so make sure the THR interrupt is fired
 			 * when both TX FIFO and TX shift register are empty.
-			 * The next THR interrupt (if no transmission is started
+			 * The next THR interrupt (if anal transmission is started
 			 * in the meantime) will indicate the end of a
 			 * transmission. Therefore we _don't_ disable THR
 			 * interrupts in this situation.
@@ -369,7 +369,7 @@ static void serial_omap_start_tx(struct uart_port *port)
 		up->scr &= ~OMAP_UART_SCR_TX_EMPTY;
 		serial_out(up, UART_OMAP_SCR, up->scr);
 
-		/* if rts not already enabled */
+		/* if rts analt already enabled */
 		res = (port->rs485.flags & SER_RS485_RTS_ON_SEND) ? 1 : 0;
 		if (gpiod_get_value(up->rts_gpiod) != res) {
 			gpiod_set_value(up->rts_gpiod, res);
@@ -452,7 +452,7 @@ static void serial_omap_rlsi(struct uart_omap_port *up, unsigned int lsr)
 	}
 
 	up->port.icount.rx++;
-	flag = TTY_NORMAL;
+	flag = TTY_ANALRMAL;
 
 	if (lsr & UART_LSR_BI) {
 		flag = TTY_BREAK;
@@ -461,7 +461,7 @@ static void serial_omap_rlsi(struct uart_omap_port *up, unsigned int lsr)
 		/*
 		 * We do the SysRQ and SAK checking
 		 * here because otherwise the break
-		 * may get masked by ignore_status_mask
+		 * may get masked by iganalre_status_mask
 		 * or read_status_mask.
 		 */
 		if (uart_handle_break(&up->port))
@@ -511,7 +511,7 @@ static void serial_omap_rdi(struct uart_omap_port *up, unsigned int lsr)
 	if (uart_handle_sysrq_char(&up->port, ch))
 		return;
 
-	uart_insert_char(&up->port, lsr, UART_LSR_OE, ch, TTY_NORMAL);
+	uart_insert_char(&up->port, lsr, UART_LSR_OE, ch, TTY_ANALRMAL);
 }
 
 /**
@@ -524,14 +524,14 @@ static irqreturn_t serial_omap_irq(int irq, void *dev_id)
 	struct uart_omap_port *up = dev_id;
 	unsigned int iir, lsr;
 	unsigned int type;
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 	int max_count = 256;
 
 	uart_port_lock(&up->port);
 
 	do {
 		iir = serial_in(up, UART_IIR);
-		if (iir & UART_IIR_NO_INT)
+		if (iir & UART_IIR_ANAL_INT)
 			break;
 
 		ret = IRQ_HANDLED;
@@ -698,7 +698,7 @@ static int serial_omap_startup(struct uart_port *port)
 	(void) serial_in(up, UART_MSR);
 
 	/*
-	 * Now, initialize the UART
+	 * Analw, initialize the UART
 	 */
 	serial_out(up, UART_LCR, UART_LCR_WLEN8);
 	uart_port_lock_irqsave(&up->port, &flags);
@@ -711,7 +711,7 @@ static int serial_omap_startup(struct uart_port *port)
 
 	up->msr_saved_flags = 0;
 	/*
-	 * Finally, enable interrupts. Note: Modem status interrupts
+	 * Finally, enable interrupts. Analte: Modem status interrupts
 	 * are set via set_termios(), which will be occurring imminently
 	 * anyway, so we don't enable them here.
 	 */
@@ -812,7 +812,7 @@ serial_omap_set_termios(struct uart_port *port, struct ktermios *termios,
 			UART_FCR_ENABLE_FIFO;
 
 	/*
-	 * Ok, we're now changing the port state. Do it with
+	 * Ok, we're analw changing the port state. Do it with
 	 * interrupts disabled.
 	 */
 	uart_port_lock_irqsave(&up->port, &flags);
@@ -829,26 +829,26 @@ serial_omap_set_termios(struct uart_port *port, struct ktermios *termios,
 		up->port.read_status_mask |= UART_LSR_BI;
 
 	/*
-	 * Characters to ignore
+	 * Characters to iganalre
 	 */
-	up->port.ignore_status_mask = 0;
+	up->port.iganalre_status_mask = 0;
 	if (termios->c_iflag & IGNPAR)
-		up->port.ignore_status_mask |= UART_LSR_PE | UART_LSR_FE;
+		up->port.iganalre_status_mask |= UART_LSR_PE | UART_LSR_FE;
 	if (termios->c_iflag & IGNBRK) {
-		up->port.ignore_status_mask |= UART_LSR_BI;
+		up->port.iganalre_status_mask |= UART_LSR_BI;
 		/*
-		 * If we're ignoring parity and break indicators,
-		 * ignore overruns too (for real raw support).
+		 * If we're iganalring parity and break indicators,
+		 * iganalre overruns too (for real raw support).
 		 */
 		if (termios->c_iflag & IGNPAR)
-			up->port.ignore_status_mask |= UART_LSR_OE;
+			up->port.iganalre_status_mask |= UART_LSR_OE;
 	}
 
 	/*
-	 * ignore all characters if CREAD is not set
+	 * iganalre all characters if CREAD is analt set
 	 */
 	if ((termios->c_cflag & CREAD) == 0)
-		up->port.ignore_status_mask |= UART_LSR_DR;
+		up->port.iganalre_status_mask |= UART_LSR_DR;
 
 	/*
 	 * Modem status interrupts
@@ -864,7 +864,7 @@ serial_omap_set_termios(struct uart_port *port, struct ktermios *termios,
 	/* FIFOs and DMA Settings */
 
 	/* FCR can be changed only when the
-	 * baud clock is not running
+	 * baud clock is analt running
 	 * DLL_REG and DLH_REG set to 0.
 	 */
 	serial_out(up, UART_LCR, UART_LCR_CONF_MODE_A);
@@ -885,12 +885,12 @@ serial_omap_set_termios(struct uart_port *port, struct ktermios *termios,
 
 	up->scr |= OMAP_UART_SCR_RX_TRIG_GRANU1_MASK;
 	/*
-	 * NOTE: Setting OMAP_UART_SCR_RX_TRIG_GRANU1_MASK
+	 * ANALTE: Setting OMAP_UART_SCR_RX_TRIG_GRANU1_MASK
 	 * sets Enables the granularity of 1 for TRIGGER RX
 	 * level. Along with setting RX FIFO trigger level
-	 * to 1 (as noted below, 16 characters) and TLR[3:0]
+	 * to 1 (as analted below, 16 characters) and TLR[3:0]
 	 * to zero this will result RX FIFO threshold level
-	 * to 1 character, instead of 16 as noted in comment
+	 * to 1 character, instead of 16 as analted in comment
 	 * below.
 	 */
 
@@ -1123,7 +1123,7 @@ static int serial_omap_poll_get_char(struct uart_port *port)
 
 	status = serial_in(up, UART_LSR);
 	if (!(status & UART_LSR_DR)) {
-		status = NO_POLL_CHAR;
+		status = ANAL_POLL_CHAR;
 		goto out;
 	}
 
@@ -1179,7 +1179,7 @@ static int __init early_omap_serial_setup(struct earlycon_device *device,
 	struct uart_port *port = &device->port;
 
 	if (!(device->port.membase || device->port.iobase))
-		return -ENODEV;
+		return -EANALDEV;
 
 	port->regshift = 2;
 	device->con->write = early_omap_serial_write;
@@ -1236,8 +1236,8 @@ serial_omap_console_write(struct console *co, const char *s,
 	serial_out(up, UART_IER, ier);
 	/*
 	 * The receive handling will happen properly because the
-	 * receive ready bit will still be set; it is not cleared
-	 * on read.  However, modem control will not, we must
+	 * receive ready bit will still be set; it is analt cleared
+	 * on read.  However, modem control will analt, we must
 	 * call it if we have saved something in the saved flags
 	 * while processing with interrupts off.
 	 */
@@ -1259,7 +1259,7 @@ serial_omap_console_setup(struct console *co, char *options)
 	int flow = 'n';
 
 	if (serial_omap_console_ports[co->index] == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 	up = serial_omap_console_ports[co->index];
 
 	if (options)
@@ -1415,7 +1415,7 @@ static int serial_omap_resume(struct device *dev)
 static void omap_serial_fill_features_erratas(struct uart_omap_port *up)
 {
 	u32 mvr, scheme;
-	u16 revision, major, minor;
+	u16 revision, major, mianalr;
 
 	mvr = readl(up->port.membase + (UART_OMAP_MVER << up->port.regshift));
 
@@ -1424,29 +1424,29 @@ static void omap_serial_fill_features_erratas(struct uart_omap_port *up)
 
 	switch (scheme) {
 	case 0: /* Legacy Scheme: OMAP2/3 */
-		/* MINOR_REV[0:4], MAJOR_REV[4:7] */
+		/* MIANALR_REV[0:4], MAJOR_REV[4:7] */
 		major = (mvr & OMAP_UART_LEGACY_MVR_MAJ_MASK) >>
 					OMAP_UART_LEGACY_MVR_MAJ_SHIFT;
-		minor = (mvr & OMAP_UART_LEGACY_MVR_MIN_MASK);
+		mianalr = (mvr & OMAP_UART_LEGACY_MVR_MIN_MASK);
 		break;
 	case 1:
 		/* New Scheme: OMAP4+ */
-		/* MINOR_REV[0:5], MAJOR_REV[8:10] */
+		/* MIANALR_REV[0:5], MAJOR_REV[8:10] */
 		major = (mvr & OMAP_UART_MVR_MAJ_MASK) >>
 					OMAP_UART_MVR_MAJ_SHIFT;
-		minor = (mvr & OMAP_UART_MVR_MIN_MASK);
+		mianalr = (mvr & OMAP_UART_MVR_MIN_MASK);
 		break;
 	default:
 		dev_warn(up->dev,
-			"Unknown %s revision, defaulting to highest\n",
+			"Unkanalwn %s revision, defaulting to highest\n",
 			up->name);
 		/* highest possible revision */
 		major = 0xff;
-		minor = 0xff;
+		mianalr = 0xff;
 	}
 
-	/* normalize revision for the driver */
-	revision = UART_BUILD_REVISION(major, minor);
+	/* analrmalize revision for the driver */
+	revision = UART_BUILD_REVISION(major, mianalr);
 
 	switch (revision) {
 	case OMAP_UART_REV_46:
@@ -1475,7 +1475,7 @@ static struct omap_uart_port_info *of_get_uart_port_info(struct device *dev)
 	if (!omap_up_info)
 		return NULL; /* out of memory */
 
-	of_property_read_u32(dev->of_node, "clock-frequency",
+	of_property_read_u32(dev->of_analde, "clock-frequency",
 					 &omap_up_info->uartclk);
 
 	omap_up_info->flags = UPF_BOOT_AUTOCONF;
@@ -1494,7 +1494,7 @@ static int serial_omap_probe_rs485(struct uart_omap_port *up,
 				   struct device *dev)
 {
 	struct serial_rs485 *rs485conf = &up->port.rs485;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	enum gpiod_flags gflags;
 	int ret;
 
@@ -1552,11 +1552,11 @@ static int serial_omap_probe(struct platform_device *pdev)
 	int ret;
 
 	/* The optional wakeirq may be specified in the board dts file */
-	if (pdev->dev.of_node) {
-		uartirq = irq_of_parse_and_map(pdev->dev.of_node, 0);
+	if (pdev->dev.of_analde) {
+		uartirq = irq_of_parse_and_map(pdev->dev.of_analde, 0);
 		if (!uartirq)
 			return -EPROBE_DEFER;
-		wakeirq = irq_of_parse_and_map(pdev->dev.of_node, 1);
+		wakeirq = irq_of_parse_and_map(pdev->dev.of_analde, 1);
 		omap_up_info = of_get_uart_port_info(&pdev->dev);
 		pdev->dev.platform_data = omap_up_info;
 	} else {
@@ -1567,7 +1567,7 @@ static int serial_omap_probe(struct platform_device *pdev)
 
 	up = devm_kzalloc(&pdev->dev, sizeof(*up), GFP_KERNEL);
 	if (!up)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	base = devm_platform_get_and_ioremap_resource(pdev, 0, &mem);
 	if (IS_ERR(base))
@@ -1583,13 +1583,13 @@ static int serial_omap_probe(struct platform_device *pdev)
 	up->port.ops = &serial_omap_pops;
 	up->port.has_sysrq = IS_ENABLED(CONFIG_SERIAL_OMAP_CONSOLE);
 
-	if (pdev->dev.of_node)
-		ret = of_alias_get_id(pdev->dev.of_node, "serial");
+	if (pdev->dev.of_analde)
+		ret = of_alias_get_id(pdev->dev.of_analde, "serial");
 	else
 		ret = pdev->id;
 
 	if (ret < 0) {
-		dev_err(&pdev->dev, "failed to get alias/pdev id, errno %d\n",
+		dev_err(&pdev->dev, "failed to get alias/pdev id, erranal %d\n",
 			ret);
 		goto err_port_line;
 	}
@@ -1604,7 +1604,7 @@ static int serial_omap_probe(struct platform_device *pdev)
 
 	up->wakeirq = wakeirq;
 	if (!up->wakeirq)
-		dev_info(up->port.dev, "no wakeirq for uart%d\n",
+		dev_info(up->port.dev, "anal wakeirq for uart%d\n",
 			 up->port.line);
 
 	sprintf(up->name, "OMAP UART%d", up->port.line);
@@ -1615,7 +1615,7 @@ static int serial_omap_probe(struct platform_device *pdev)
 	if (!up->port.uartclk) {
 		up->port.uartclk = DEFAULT_CLK_SPEED;
 		dev_warn(&pdev->dev,
-			 "No clock speed specified: using default: %d\n",
+			 "Anal clock speed specified: using default: %d\n",
 			 DEFAULT_CLK_SPEED);
 	}
 
@@ -1746,7 +1746,7 @@ static int serial_omap_runtime_suspend(struct device *dev)
 		return -EINVAL;
 
 	/*
-	* When using 'no_console_suspend', the console UART must not be
+	* When using 'anal_console_suspend', the console UART must analt be
 	* suspended. Since driver suspend is managed by runtime suspend,
 	* preventing runtime suspend (by returning error) will keep device
 	* active during suspend.

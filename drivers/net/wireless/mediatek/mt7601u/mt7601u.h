@@ -111,7 +111,7 @@ struct mt7601u_eeprom_params;
 #define MT_FREQ_OFFSET_INVALID		-128
 
 enum mt_temp_mode {
-	MT_TEMP_MODE_NORMAL,
+	MT_TEMP_MODE_ANALRMAL,
 	MT_TEMP_MODE_HIGH,
 	MT_TEMP_MODE_LOW,
 };
@@ -351,7 +351,7 @@ int mt7601u_phy_set_channel(struct mt7601u_dev *dev,
 void mt7601u_phy_recalibrate_after_assoc(struct mt7601u_dev *dev);
 int mt7601u_phy_get_rssi(struct mt7601u_dev *dev,
 			 struct mt7601u_rxwi *rxwi, u16 rate);
-void mt7601u_phy_con_cal_onoff(struct mt7601u_dev *dev,
+void mt7601u_phy_con_cal_oanalff(struct mt7601u_dev *dev,
 			       struct ieee80211_bss_conf *info);
 
 /* MAC */

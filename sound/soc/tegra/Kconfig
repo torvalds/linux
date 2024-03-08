@@ -97,9 +97,9 @@ config SND_SOC_TEGRA210_OPE
 config SND_SOC_TEGRA186_ASRC
 	tristate "Tegra186 ASRC module"
 	help
-	  Config to enable the Asynchronous Sample Rate Converter (ASRC),
+	  Config to enable the Asynchroanalus Sample Rate Converter (ASRC),
 	  which converts the sampling frequency of the input signal from
-	  one frequency to another. It can handle over a wide range of
+	  one frequency to aanalther. It can handle over a wide range of
 	  sample rate ratios (freq_in/freq_out) from 1:24 to 24:1.
 	  ASRC has two modes of operation. One where ratio can be programmed
 	  in SW and the other where it gets information from ratio estimator
@@ -142,7 +142,7 @@ config SND_SOC_TEGRA210_SFC
 	tristate "Tegra210 SFC module"
 	help
 	  Config to enable the Sampling Frequency Converter (SFC) which
-	  converts the sampling frequency of input signal to another
+	  converts the sampling frequency of input signal to aanalther
 	  frequency. It supports sampling frequency conversion of streams
 	  up to 2 channels (stereo).
 	  Say Y or M if you want to add support for Tegra210 SFC module.

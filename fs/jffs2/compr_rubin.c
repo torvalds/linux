@@ -15,7 +15,7 @@
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/jffs2.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include "compr.h"
 
 
@@ -57,7 +57,7 @@ static inline void init_pushpull(struct pushpull *pp, char *buf,
 static inline int pushbit(struct pushpull *pp, int bit, int use_reserved)
 {
 	if (pp->ofs >= pp->buflen - (use_reserved?0:pp->reserve))
-		return -ENOSPC;
+		return -EANALSPC;
 
 	if (bit)
 		pp->buf[pp->ofs >> 3] |= (1<<(7-(pp->ofs & 7)));
@@ -169,7 +169,7 @@ static void __do_decode(struct rubin_state *rs, unsigned long p,
 
 	/*
 	 * First, work out how many bits we need from the input stream.
-	 * Note that we have already done the initial check on this
+	 * Analte that we have already done the initial check on this
 	 * loop prior to calling this function.
 	 */
 	do {
@@ -185,7 +185,7 @@ static void __do_decode(struct rubin_state *rs, unsigned long p,
 	rs->bit_number += bits;
 
 	/*
-	 * Now get the bits.  We really want this to be "get n bits".
+	 * Analw get the bits.  We really want this to be "get n bits".
 	 */
 	rec_q = rs->rec_q;
 	do {

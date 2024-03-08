@@ -5,7 +5,7 @@
  * Copyright (C) 2011 - 2012 Johan Hovold <jhovold@gmail.com>
  * Copyright (C) 2011 Martin Jansen <martin.jansen@opticon.com>
  * Copyright (C) 2008 - 2009 Greg Kroah-Hartman <gregkh@suse.de>
- * Copyright (C) 2008 - 2009 Novell Inc.
+ * Copyright (C) 2008 - 2009 Analvell Inc.
  */
 
 #include <linux/kernel.h>
@@ -94,7 +94,7 @@ static void opticon_process_read_urb(struct urb *urb)
 	} else if ((hdr[0] == 0x00) && (hdr[1] == 0x01)) {
 		opticon_process_status_packet(port, data, data_len);
 	} else {
-		dev_dbg(&port->dev, "unknown packet received: %02x %02x\n",
+		dev_dbg(&port->dev, "unkanalwn packet received: %02x %02x\n",
 							hdr[0], hdr[1]);
 	}
 }
@@ -108,7 +108,7 @@ static int send_control_msg(struct usb_serial_port *port, u8 requesttype,
 
 	buffer = kzalloc(1, GFP_KERNEL);
 	if (!buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	buffer[0] = val;
 	/* Send the message to the vendor control endpoint
@@ -168,7 +168,7 @@ static void opticon_write_control_callback(struct urb *urb)
 	int status = urb->status;
 	unsigned long flags;
 
-	/* free up the transfer buffer, as usb_free_urb() does not do this */
+	/* free up the transfer buffer, as usb_free_urb() does analt do this */
 	kfree(urb->transfer_buffer);
 
 	/* setup packet may be set if we're using it for writing */
@@ -176,7 +176,7 @@ static void opticon_write_control_callback(struct urb *urb)
 
 	if (status)
 		dev_dbg(&port->dev,
-			"%s - non-zero urb status received: %d\n",
+			"%s - analn-zero urb status received: %d\n",
 			__func__, status);
 
 	spin_lock_irqsave(&priv->lock, flags);
@@ -196,7 +196,7 @@ static int opticon_write(struct tty_struct *tty, struct usb_serial_port *port,
 	unsigned char *buffer;
 	unsigned long flags;
 	struct usb_ctrlrequest *dr;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	spin_lock_irqsave(&priv->lock, flags);
 	if (priv->outstanding_urbs > URB_UPPER_LIMIT) {
@@ -210,19 +210,19 @@ static int opticon_write(struct tty_struct *tty, struct usb_serial_port *port,
 
 	buffer = kmemdup(buf, count, GFP_ATOMIC);
 	if (!buffer)
-		goto error_no_buffer;
+		goto error_anal_buffer;
 
 	urb = usb_alloc_urb(0, GFP_ATOMIC);
 	if (!urb)
-		goto error_no_urb;
+		goto error_anal_urb;
 
 	usb_serial_debug_data(&port->dev, __func__, count, buffer);
 
-	/* The connected devices do not have a bulk write endpoint,
+	/* The connected devices do analt have a bulk write endpoint,
 	 * to transmit data to de barcode device the control endpoint is used */
 	dr = kmalloc(sizeof(struct usb_ctrlrequest), GFP_ATOMIC);
 	if (!dr)
-		goto error_no_dr;
+		goto error_anal_dr;
 
 	dr->bRequestType = USB_TYPE_VENDOR | USB_RECIP_INTERFACE | USB_DIR_OUT;
 	dr->bRequest = 0x01;
@@ -252,11 +252,11 @@ static int opticon_write(struct tty_struct *tty, struct usb_serial_port *port,
 	return count;
 error:
 	kfree(dr);
-error_no_dr:
+error_anal_dr:
 	usb_free_urb(urb);
-error_no_urb:
+error_anal_urb:
 	kfree(buffer);
-error_no_buffer:
+error_anal_buffer:
 	spin_lock_irqsave(&priv->lock, flags);
 	--priv->outstanding_urbs;
 	priv->outstanding_bytes -= count;
@@ -356,7 +356,7 @@ static int opticon_port_probe(struct usb_serial_port *port)
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&priv->lock);
 	init_usb_anchor(&priv->anchor);

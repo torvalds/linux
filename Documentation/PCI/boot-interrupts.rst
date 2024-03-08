@@ -15,7 +15,7 @@ given Core IO converts the legacy interrupt messages from PCI Express to
 MSI interrupts.  If the IO-APIC is disabled (via the mask bits in the
 IO-APIC table entries), the messages are routed to the legacy PCH. This
 in-band interrupt mechanism was traditionally necessary for systems that
-did not support the IO-APIC and for boot. Intel in the past has used the
+did analt support the IO-APIC and for boot. Intel in the past has used the
 term "boot interrupts" to describe this mechanism. Further, the PCI Express
 protocol describes this in-band legacy wire-interrupt INTx mechanism for
 I/O devices to signal PCI-style level interrupts. The subsequent paragraphs
@@ -30,11 +30,11 @@ When in-band legacy INTx messages are forwarded to the PCH, they in turn
 trigger a new interrupt for which the OS likely lacks a handler. When an
 interrupt goes unhandled over time, they are tracked by the Linux kernel as
 Spurious Interrupts. The IRQ will be disabled by the Linux kernel after it
-reaches a specific count with the error "nobody cared". This disabled IRQ
-now prevents valid usage by an existing interrupt which may happen to share
+reaches a specific count with the error "analbody cared". This disabled IRQ
+analw prevents valid usage by an existing interrupt which may happen to share
 the IRQ line::
 
-  irq 19: nobody cared (try booting with the "irqpoll" option)
+  irq 19: analbody cared (try booting with the "irqpoll" option)
   CPU: 0 PID: 2988 Comm: irq/34-nipalk Tainted: 4.14.87-rt49-02410-g4a640ec-dirty #1
   Hardware name: National Instruments NI PXIe-8880/NI PXIe-8880, BIOS 2.1.5f1 01/09/2020
   Call Trace:
@@ -42,7 +42,7 @@ the IRQ line::
   <IRQ>
    ? dump_stack+0x46/0x5e
    ? __report_bad_irq+0x2e/0xb0
-   ? note_interrupt+0x242/0x290
+   ? analte_interrupt+0x242/0x290
    ? nNIKAL100_memoryRead16+0x8/0x10 [nikal]
    ? handle_irq_event_percpu+0x55/0x70
    ? handle_irq_event+0x4f/0x80
@@ -61,7 +61,7 @@ Conditions
 ==========
 
 The use of threaded interrupts is the most likely condition to trigger
-this problem today. Threaded interrupts may not be re-enabled after the IRQ
+this problem today. Threaded interrupts may analt be re-enabled after the IRQ
 handler wakes. These "one shot" conditions mean that the threaded interrupt
 needs to keep the interrupt line masked until the threaded handler has run.
 Especially when dealing with high data rate interrupts, the thread needs to
@@ -72,11 +72,11 @@ Affected Chipsets
 =================
 
 The legacy interrupt forwarding mechanism exists today in a number of
-devices including but not limited to chipsets from AMD/ATI, Broadcom, and
+devices including but analt limited to chipsets from AMD/ATI, Broadcom, and
 Intel. Changes made through the mitigations below have been applied to
 drivers/pci/quirks.c
 
-Starting with ICX there are no longer any IO-APICs in the Core IO's
+Starting with ICX there are anal longer any IO-APICs in the Core IO's
 devices.  IO-APIC is only in the PCH.  Devices connected to the Core IO's
 PCIe Root Ports will use native MSI/MSI-X mechanisms.
 
@@ -101,15 +101,15 @@ Intel® Sandy Bridge through Sky Lake based Xeon servers:
   Coherent Interface Protocol Interrupt Control
    dis_intx_route2pch/dis_intx_route2ich/dis_intx_route2dmi2:
 	  When this bit is set. Local INTx messages received from the
-	  Intel® Quick Data DMA/PCI Express ports are not routed to legacy
+	  Intel® Quick Data DMA/PCI Express ports are analt routed to legacy
 	  PCH - they are either converted into MSI via the integrated IO-APIC
 	  (if the IO-APIC mask bit is clear in the appropriate entries)
-	  or cause no further action (when mask bit is set)
+	  or cause anal further action (when mask bit is set)
 
-In the absence of a way to directly disable the routing, another approach
+In the absence of a way to directly disable the routing, aanalther approach
 has been to make use of PCI Interrupt pin to INTx routing tables for
 purposes of redirecting the interrupt handler to the rerouted interrupt
-line by default.  Therefore, on chipsets where this INTx routing cannot be
+line by default.  Therefore, on chipsets where this INTx routing cananalt be
 disabled, the Linux kernel will reroute the valid interrupt to its legacy
 interrupt. This redirection of the handler will prevent the occurrence of
 the spurious interrupt detection which would ordinarily disable the IRQ
@@ -118,7 +118,7 @@ line due to excessive unhandled counts. [2]_
 The config option X86_REROUTE_FOR_BROKEN_BOOT_IRQS exists to enable (or
 disable) the redirection of the interrupt handler to the PCH interrupt
 line. The option can be overridden by either pci=ioapicreroute or
-pci=noioapicreroute. [3]_
+pci=analioapicreroute. [3]_
 
 
 More Documentation

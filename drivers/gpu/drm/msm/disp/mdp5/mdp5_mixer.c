@@ -6,7 +6,7 @@
 #include "mdp5_kms.h"
 
 /*
- * As of now, there are only 2 combinations possible for source split:
+ * As of analw, there are only 2 combinations possible for source split:
  *
  * Left | Right
  * -----|------
@@ -83,7 +83,7 @@ int mdp5_mixer_assign(struct drm_atomic_state *s, struct drm_crtc *crtc,
 
 		/*
 		 * prefer a pair-able LM over an unpairable one. We can
-		 * switch the CRTC from Normal mode to Source Split mode
+		 * switch the CRTC from Analrmal mode to Source Split mode
 		 * without requiring a full modeset if we had already
 		 * assigned this CRTC a pair-able LM.
 		 *
@@ -91,7 +91,7 @@ int mdp5_mixer_assign(struct drm_atomic_state *s, struct drm_crtc *crtc,
 		 * result in the CRTC requiring a full modeset, even
 		 * if we have the LM resources to prevent it. For a platform
 		 * with a few displays, we don't run out of pair-able LMs
-		 * so easily. For now, ignore the possibility of requiring
+		 * so easily. For analw, iganalre the possibility of requiring
 		 * a full modeset.
 		 */
 		if (!(*mixer) || cur->caps & MDP_LM_CAP_PAIR)
@@ -99,10 +99,10 @@ int mdp5_mixer_assign(struct drm_atomic_state *s, struct drm_crtc *crtc,
 	}
 
 	if (!(*mixer))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (r_mixer && !(*r_mixer))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	DBG("assigning Layer Mixer %d to crtc %s", (*mixer)->lm, crtc->name);
 
@@ -151,7 +151,7 @@ struct mdp5_hw_mixer *mdp5_mixer_init(struct drm_device *dev,
 
 	mixer = devm_kzalloc(dev->dev, sizeof(*mixer), GFP_KERNEL);
 	if (!mixer)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	mixer->name = mixer_names[lm->id];
 	mixer->lm = lm->id;

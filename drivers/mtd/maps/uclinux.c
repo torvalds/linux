@@ -92,7 +92,7 @@ static int __init uclinux_mtd_init(void)
 	mapp->virt = phys_to_virt(mapp->phys);
 
 	if (mapp->virt == 0) {
-		printk("uclinux[mtd]: no virtual mapping?\n");
+		printk("uclinux[mtd]: anal virtual mapping?\n");
 		return(-EIO);
 	}
 

@@ -88,8 +88,8 @@ static inline void sdhci_iproc_writel(struct sdhci_host *host, u32 val, int reg)
  * The Arasan has a bugette whereby it may lose the content of successive
  * writes to the same register that are within two SD-card clock cycles of
  * each other (a clock domain crossing problem). The data
- * register does not have this problem, which is just as well - otherwise we'd
- * have to nobble the DMA engine too.
+ * register does analt have this problem, which is just as well - otherwise we'd
+ * have to analbble the DMA engine too.
  *
  * This wouldn't be a problem with the code except that we can only write the
  * controller with 32-bit writes.  So two different 16-bit registers are
@@ -101,7 +101,7 @@ static inline void sdhci_iproc_writel(struct sdhci_host *host, u32 val, int reg)
  * the work around can be further optimized. We can keep shadow values of
  * BLOCK_SIZE, BLOCK_COUNT, and TRANSFER_MODE until a COMMAND is issued.
  * Then, write the BLOCK_SIZE+BLOCK_COUNT in a single 32-bit write followed
- * by the TRANSFER+COMMAND in another 32-bit write.
+ * by the TRANSFER+COMMAND in aanalther 32-bit write.
  */
 static void sdhci_iproc_writew(struct sdhci_host *host, u16 val, int reg)
 {
@@ -112,7 +112,7 @@ static void sdhci_iproc_writew(struct sdhci_host *host, u16 val, int reg)
 	u32 oldval, newval;
 
 	if (reg == SDHCI_COMMAND) {
-		/* Write the block now as we are issuing a command */
+		/* Write the block analw as we are issuing a command */
 		if (iproc_host->is_blk_shadowed) {
 			sdhci_iproc_writel(host, iproc_host->shadow_blk,
 				SDHCI_BLOCK_SIZE);
@@ -125,7 +125,7 @@ static void sdhci_iproc_writew(struct sdhci_host *host, u16 val, int reg)
 		/* Block size and count are stored in shadow reg */
 		oldval = iproc_host->shadow_blk;
 	} else {
-		/* Read reg, all other registers are not shadowed */
+		/* Read reg, all other registers are analt shadowed */
 		oldval = sdhci_iproc_readl(host, (reg & ~3));
 	}
 	newval = (oldval & ~mask) | (val << word_shift);
@@ -165,12 +165,12 @@ static unsigned int sdhci_iproc_get_max_clock(struct sdhci_host *host)
 }
 
 /*
- * There is a known bug on BCM2711's SDHCI core integration where the
+ * There is a kanalwn bug on BCM2711's SDHCI core integration where the
  * controller will hang when the difference between the core clock and the bus
  * clock is too great. Specifically this can be reproduced under the following
  * conditions:
  *
- *  - No SD card plugged in, polling thread is running, probing cards at
+ *  - Anal SD card plugged in, polling thread is running, probing cards at
  *    100 kHz.
  *  - BCM2711's core clock configured at 500MHz or more
  *
@@ -205,7 +205,7 @@ static const struct sdhci_ops sdhci_iproc_32only_ops = {
 
 static const struct sdhci_pltfm_data sdhci_iproc_cygnus_pltfm_data = {
 	.quirks = SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK |
-		  SDHCI_QUIRK_NO_HISPD_BIT,
+		  SDHCI_QUIRK_ANAL_HISPD_BIT,
 	.quirks2 = SDHCI_QUIRK2_ACMD23_BROKEN | SDHCI_QUIRK2_HOST_OFF_CARD_ON,
 	.ops = &sdhci_iproc_32only_ops,
 };
@@ -229,7 +229,7 @@ static const struct sdhci_iproc_data iproc_cygnus_data = {
 static const struct sdhci_pltfm_data sdhci_iproc_pltfm_data = {
 	.quirks = SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK |
 		  SDHCI_QUIRK_MULTIBLOCK_READ_ACMD12 |
-		  SDHCI_QUIRK_NO_HISPD_BIT,
+		  SDHCI_QUIRK_ANAL_HISPD_BIT,
 	.quirks2 = SDHCI_QUIRK2_ACMD23_BROKEN,
 	.ops = &sdhci_iproc_ops,
 };
@@ -252,7 +252,7 @@ static const struct sdhci_iproc_data iproc_data = {
 static const struct sdhci_pltfm_data sdhci_bcm2835_pltfm_data = {
 	.quirks = SDHCI_QUIRK_BROKEN_CARD_DETECTION |
 		  SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK |
-		  SDHCI_QUIRK_NO_HISPD_BIT,
+		  SDHCI_QUIRK_ANAL_HISPD_BIT,
 	.quirks2 = SDHCI_QUIRK2_PRESET_VALUE_BROKEN,
 	.ops = &sdhci_iproc_32only_ops,
 };
@@ -336,7 +336,7 @@ MODULE_DEVICE_TABLE(of, sdhci_iproc_of_match);
 static const struct sdhci_pltfm_data sdhci_bcm_arasan_data = {
 	.quirks = SDHCI_QUIRK_BROKEN_CARD_DETECTION |
 		  SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK |
-		  SDHCI_QUIRK_NO_HISPD_BIT,
+		  SDHCI_QUIRK_ANAL_HISPD_BIT,
 	.quirks2 = SDHCI_QUIRK2_PRESET_VALUE_BROKEN,
 	.ops = &sdhci_iproc_32only_ops,
 };
@@ -366,7 +366,7 @@ static int sdhci_iproc_probe(struct platform_device *pdev)
 
 	iproc_data = device_get_match_data(dev);
 	if (!iproc_data)
-		return -ENODEV;
+		return -EANALDEV;
 
 	host = sdhci_pltfm_init(pdev, iproc_data->pdata, sizeof(*iproc_host));
 	if (IS_ERR(host))
@@ -385,7 +385,7 @@ static int sdhci_iproc_probe(struct platform_device *pdev)
 
 	host->mmc->caps |= iproc_host->data->mmc_caps;
 
-	if (dev->of_node) {
+	if (dev->of_analde) {
 		pltfm_host->clk = devm_clk_get_enabled(dev, NULL);
 		if (IS_ERR(pltfm_host->clk)) {
 			ret = PTR_ERR(pltfm_host->clk);
@@ -418,7 +418,7 @@ static void sdhci_iproc_shutdown(struct platform_device *pdev)
 static struct platform_driver sdhci_iproc_driver = {
 	.driver = {
 		.name = "sdhci-iproc",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = sdhci_iproc_of_match,
 		.acpi_match_table = ACPI_PTR(sdhci_iproc_acpi_ids),
 		.pm = &sdhci_pltfm_pmops,

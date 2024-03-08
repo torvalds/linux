@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #define _GNU_SOURCE
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <sched.h>
 #include <stdio.h>
@@ -20,18 +20,18 @@
 
 int main(int argc, char *argv[])
 {
-	struct timespec now, tst;
+	struct timespec analw, tst;
 	int status, i;
 	pid_t pid;
 
 	if (argc > 1) {
-		if (sscanf(argv[1], "%ld", &now.tv_sec) != 1)
+		if (sscanf(argv[1], "%ld", &analw.tv_sec) != 1)
 			return pr_perror("sscanf");
 
 		for (i = 0; i < 2; i++) {
-			_gettime(CLOCK_MONOTONIC, &tst, i);
-			if (abs(tst.tv_sec - now.tv_sec) > 5)
-				return pr_fail("%ld %ld\n", now.tv_sec, tst.tv_sec);
+			_gettime(CLOCK_MOANALTONIC, &tst, i);
+			if (abs(tst.tv_sec - analw.tv_sec) > 5)
+				return pr_fail("%ld %ld\n", analw.tv_sec, tst.tv_sec);
 		}
 		return 0;
 	}
@@ -40,19 +40,19 @@ int main(int argc, char *argv[])
 
 	ksft_set_plan(1);
 
-	clock_gettime(CLOCK_MONOTONIC, &now);
+	clock_gettime(CLOCK_MOANALTONIC, &analw);
 
 	if (unshare_timens())
 		return 1;
 
-	if (_settime(CLOCK_MONOTONIC, OFFSET))
+	if (_settime(CLOCK_MOANALTONIC, OFFSET))
 		return 1;
 
 	for (i = 0; i < 2; i++) {
-		_gettime(CLOCK_MONOTONIC, &tst, i);
-		if (abs(tst.tv_sec - now.tv_sec) > 5)
+		_gettime(CLOCK_MOANALTONIC, &tst, i);
+		if (abs(tst.tv_sec - analw.tv_sec) > 5)
 			return pr_fail("%ld %ld\n",
-					now.tv_sec, tst.tv_sec);
+					analw.tv_sec, tst.tv_sec);
 	}
 
 	if (argc > 1)
@@ -63,20 +63,20 @@ int main(int argc, char *argv[])
 		return pr_perror("fork");
 
 	if (pid == 0) {
-		char now_str[64];
-		char *cargv[] = {"exec", now_str, NULL};
+		char analw_str[64];
+		char *cargv[] = {"exec", analw_str, NULL};
 		char *cenv[] = {NULL};
 
 		/* Check that a child process is in the new timens. */
 		for (i = 0; i < 2; i++) {
-			_gettime(CLOCK_MONOTONIC, &tst, i);
-			if (abs(tst.tv_sec - now.tv_sec - OFFSET) > 5)
+			_gettime(CLOCK_MOANALTONIC, &tst, i);
+			if (abs(tst.tv_sec - analw.tv_sec - OFFSET) > 5)
 				return pr_fail("%ld %ld\n",
-						now.tv_sec + OFFSET, tst.tv_sec);
+						analw.tv_sec + OFFSET, tst.tv_sec);
 		}
 
 		/* Check for proper vvar offsets after execve. */
-		snprintf(now_str, sizeof(now_str), "%ld", now.tv_sec + OFFSET);
+		snprintf(analw_str, sizeof(analw_str), "%ld", analw.tv_sec + OFFSET);
 		execve("/proc/self/exe", cargv, cenv);
 		return pr_perror("execve");
 	}

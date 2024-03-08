@@ -4,7 +4,7 @@
 ///
 // Confidence: High
 // Copyright: (C) 2020 Denis Efremov ISPRAS
-// Options: --no-includes --include-headers
+// Options: --anal-includes --include-headers
 
 virtual patch
 virtual context

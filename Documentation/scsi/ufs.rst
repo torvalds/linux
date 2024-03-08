@@ -28,7 +28,7 @@ Universal Flash Storage (UFS) is a storage specification for flash devices.
 It aims to provide a universal storage interface for both
 embedded and removable flash memory-based storage in mobile
 devices such as smart phones and tablet computers. The specification
-is defined by JEDEC Solid State Technology Association. UFS is based
+is defined by JEDEC Solid State Techanallogy Association. UFS is based
 on the MIPI M-PHY physical layer standard. UFS uses MIPI M-PHY as the
 physical layer and MIPI Unipro as the link layer.
 
@@ -62,7 +62,7 @@ UFS communication architecture consists of the following layers.
 
   The Application layer is composed of the UFS command set layer (UCS),
   Task Manager and Device manager. The UFS interface is designed to be
-  protocol agnostic, however SCSI has been selected as a baseline
+  protocol aganalstic, however SCSI has been selected as a baseline
   protocol for versions 1.0 and 1.1 of the UFS protocol layer.
 
   UFS supports a subset of SCSI commands defined by SPC-4 and SBC-3.
@@ -151,7 +151,7 @@ The current UFSHCD implementation supports the following functionality:
   .eh_host_reset_handler.
 
 In this version of UFSHCD, Query requests and power management
-functionality are not implemented.
+functionality are analt implemented.
 
 4. BSG Support
 ==============
@@ -161,7 +161,7 @@ This transport driver supports exchanging UFS protocol information units
 struct ufs_bsg_request and struct ufs_bsg_reply (see ufs_bsg.h) as
 request_upiu and reply_upiu respectively.  Filling those UPIUs should
 be done in accordance with JEDEC spec UFS2.1 paragraph 10.7.
-*Caveat emptor*: The driver makes no further input validations and sends the
+*Caveat emptor*: The driver makes anal further input validations and sends the
 UPIU to the device as it is.  Open the bsg device in /dev/ufs-bsg and
 send SG_IO with the applicable sg_io_v4::
 
@@ -199,7 +199,7 @@ UFS specifications can be found at:
 5. UFS Reference Clock Frequency configuration
 ==============================================
 
-Devicetree can define a clock named "ref_clk" under the UFS controller node
+Devicetree can define a clock named "ref_clk" under the UFS controller analde
 to specify the intended reference clock frequency for the UFS storage
 parts. ACPI-based system can specify the frequency using ACPI
 Device-Specific Data property named "ref-clk-freq". In both ways the value

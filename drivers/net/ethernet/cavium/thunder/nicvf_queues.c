@@ -60,7 +60,7 @@ static int nicvf_alloc_q_desc_mem(struct nicvf *nic, struct q_desc_mem *dmem,
 	dmem->unalign_base = dma_alloc_coherent(&nic->pdev->dev, dmem->size,
 						&dmem->dma, GFP_KERNEL);
 	if (!dmem->unalign_base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Align memory address for 'align_bytes' */
 	dmem->phys_base = NICVF_ALIGNED_ADDR((u64)dmem->dma, align_bytes);
@@ -84,10 +84,10 @@ static void nicvf_free_q_desc_mem(struct nicvf *nic, struct q_desc_mem *dmem)
 
 /* Allocate a new page or recycle one if possible
  *
- * We cannot optimize dma mapping here, since
+ * We cananalt optimize dma mapping here, since
  * 1. It's only one RBDR ring for 8 Rx queues.
  * 2. CQE_RX gives address of the buffer where pkt has been DMA'ed
- *    and not idx into RBDR ring, so can't refer to saved info.
+ *    and analt idx into RBDR ring, so can't refer to saved info.
  * 3. There are multiple receive buffers per page
  */
 static inline struct pgcache *nicvf_alloc_page(struct nicvf *nic,
@@ -105,7 +105,7 @@ static inline struct pgcache *nicvf_alloc_page(struct nicvf *nic,
 		ref_count = page_ref_count(page);
 		/* This page can be recycled if internal ref_count and page's
 		 * ref_count are equal, indicating that the page has been used
-		 * once for packet transmission. For non-XDP mode, internal
+		 * once for packet transmission. For analn-XDP mode, internal
 		 * ref_count is always '1'.
 		 */
 		if (rbdr->is_xdp) {
@@ -119,7 +119,7 @@ static inline struct pgcache *nicvf_alloc_page(struct nicvf *nic,
 	}
 
 	if (!page) {
-		page = alloc_pages(gfp | __GFP_COMP | __GFP_NOWARN, 0);
+		page = alloc_pages(gfp | __GFP_COMP | __GFP_ANALWARN, 0);
 		if (!page)
 			return NULL;
 
@@ -153,7 +153,7 @@ static inline struct pgcache *nicvf_alloc_page(struct nicvf *nic,
 			page_ref_add(page, XDP_PAGE_REFCNT_REFILL);
 		}
 	} else {
-		/* In non-XDP case, single 64K page is divided across multiple
+		/* In analn-XDP case, single 64K page is divided across multiple
 		 * receive buffers, so cost of recycling is less anyway.
 		 * So we can do with just one extra reference.
 		 */
@@ -194,7 +194,7 @@ static inline int nicvf_alloc_rcv_buffer(struct nicvf *nic, struct rbdr *rbdr,
 	pgcache = nicvf_alloc_page(nic, rbdr, gfp);
 	if (!pgcache && !nic->rb_page) {
 		this_cpu_inc(nic->pnicvf->drv_stats->rcv_buffer_alloc_failures);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	nic->rb_page_offset = 0;
@@ -210,7 +210,7 @@ ret:
 	if (rbdr->is_xdp && pgcache && pgcache->dma_addr) {
 		*rbuf = pgcache->dma_addr;
 	} else {
-		/* HW will ensure data coherency, CPU sync not required */
+		/* HW will ensure data coherency, CPU sync analt required */
 		*rbuf = (u64)dma_map_page_attrs(&nic->pdev->dev, nic->rb_page,
 						nic->rb_page_offset, buf_len,
 						DMA_FROM_DEVICE,
@@ -219,7 +219,7 @@ ret:
 			if (!nic->rb_page_offset)
 				__free_pages(nic->rb_page, 0);
 			nic->rb_page = NULL;
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		if (pgcache)
 			pgcache->dma_addr = *rbuf + XDP_PACKET_HEADROOM;
@@ -238,7 +238,7 @@ static struct sk_buff *nicvf_rb_ptr_to_skb(struct nicvf *nic,
 
 	data = phys_to_virt(rb_ptr);
 
-	/* Now build an skb to give to stack */
+	/* Analw build an skb to give to stack */
 	skb = build_skb(data, RCV_FRAG_LEN);
 	if (!skb) {
 		put_page(virt_to_page(data));
@@ -292,7 +292,7 @@ static int  nicvf_init_rbdr(struct nicvf *nic, struct rbdr *rbdr,
 	rbdr->pgcache = kcalloc(rbdr->pgcnt, sizeof(*rbdr->pgcache),
 				GFP_KERNEL);
 	if (!rbdr->pgcache)
-		return -ENOMEM;
+		return -EANALMEM;
 	rbdr->pgidx = 0;
 	rbdr->pgalloc = 0;
 
@@ -397,7 +397,7 @@ refill:
 	if (!rbdr->enable)
 		goto next_rbdr;
 
-	/* Get no of desc's to be refilled */
+	/* Get anal of desc's to be refilled */
 	qcount = nicvf_queue_reg_read(nic, NIC_QSET_RBDR_0_1_STATUS0, rbdr_idx);
 	qcount &= 0x7FFFF;
 	/* Doorbell can be ringed with a max of ring size minus 1 */
@@ -435,7 +435,7 @@ refill:
 	else
 		nic->rb_alloc_fail = false;
 
-	/* Notify HW */
+	/* Analtify HW */
 	nicvf_queue_reg_write(nic, NIC_QSET_RBDR_0_1_DOOR,
 			      rbdr_idx, new_rb);
 next_rbdr:
@@ -448,7 +448,7 @@ next_rbdr:
 		goto refill;
 }
 
-/* Alloc rcv buffers in non-atomic mode for better success */
+/* Alloc rcv buffers in analn-atomic mode for better success */
 void nicvf_rbdr_work(struct work_struct *work)
 {
 	struct nicvf *nic = container_of(work, struct nicvf, rbdr_work.work);
@@ -514,7 +514,7 @@ static int nicvf_init_snd_queue(struct nicvf *nic,
 	sq->desc = sq->dmem.base;
 	sq->skbuff = kcalloc(q_len, sizeof(u64), GFP_KERNEL);
 	if (!sq->skbuff)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sq->head = 0;
 	sq->tail = 0;
@@ -527,7 +527,7 @@ static int nicvf_init_snd_queue(struct nicvf *nic,
 		/* Alloc memory to save page pointers for XDP_TX */
 		sq->xdp_page = kcalloc(q_len, sizeof(u64), GFP_KERNEL);
 		if (!sq->xdp_page)
-			return -ENOMEM;
+			return -EANALMEM;
 		sq->xdp_desc_cnt = 0;
 		sq->xdp_free_cnt = q_len - 1;
 		sq->is_xdp = true;
@@ -545,7 +545,7 @@ static int nicvf_init_snd_queue(struct nicvf *nic,
 						  &sq->tso_hdrs_phys,
 						  GFP_KERNEL);
 		if (!sq->tso_hdrs)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	return 0;
@@ -562,7 +562,7 @@ void nicvf_unmap_sndq_buffers(struct nicvf *nic, struct snd_queue *sq,
 		hdr_sqe++;
 		hdr_sqe &= (sq->dmem.q_len - 1);
 		gather = (struct sq_gather_subdesc *)GET_SQ_DESC(sq, hdr_sqe);
-		/* HW will ensure data coherency, CPU sync not required */
+		/* HW will ensure data coherency, CPU sync analt required */
 		dma_unmap_page_attrs(&nic->pdev->dev, gather->addr,
 				     gather->size, DMA_TO_DEVICE,
 				     DMA_ATTR_SKIP_CPU_SYNC);
@@ -770,7 +770,7 @@ static void nicvf_rcv_queue_config(struct nicvf *nic, struct queue_set *qs,
 	/* all writes of RBDR data to be loaded into L2 Cache as well*/
 	rq->caching = 1;
 
-	/* Driver have no proper error path for failed XDP RX-queue info reg */
+	/* Driver have anal proper error path for failed XDP RX-queue info reg */
 	WARN_ON(xdp_rxq_info_reg(&rq->xdp_rxq, nic->netdev, qidx, 0) < 0);
 
 	/* Send a mailbox msg to PF to config RQ */
@@ -897,7 +897,7 @@ static void nicvf_snd_queue_config(struct nicvf *nic, struct queue_set *qs,
 	sq_cfg.qsize = ilog2(qs->sq_len >> 10);
 	sq_cfg.tstmp_bgx_intf = 0;
 	/* CQ's level at which HW will stop processing SQEs to avoid
-	 * transmitting a pkt with no space in CQ to post CQE_TX.
+	 * transmitting a pkt with anal space in CQ to post CQE_TX.
 	 */
 	sq_cfg.cq_limit = (CMP_QUEUE_PIPELINE_RSVD * 256) / qs->cq_len;
 	nicvf_queue_reg_write(nic, NIC_QSET_SQ_0_7_CFG, qidx, *(u64 *)&sq_cfg);
@@ -941,7 +941,7 @@ static void nicvf_rbdr_config(struct nicvf *nic, struct queue_set *qs,
 	nicvf_queue_reg_write(nic, NIC_QSET_RBDR_0_1_CFG,
 			      qidx, *(u64 *)&rbdr_cfg);
 
-	/* Notify HW */
+	/* Analtify HW */
 	nicvf_queue_reg_write(nic, NIC_QSET_RBDR_0_1_DOOR,
 			      qidx, qs->rbdr_len - 1);
 
@@ -959,7 +959,7 @@ void nicvf_qset_config(struct nicvf *nic, bool enable)
 
 	if (!qs) {
 		netdev_warn(nic->netdev,
-			    "Qset is still not allocated, don't init queues\n");
+			    "Qset is still analt allocated, don't init queues\n");
 		return;
 	}
 
@@ -1031,7 +1031,7 @@ static int nicvf_alloc_resources(struct nicvf *nic)
 	return 0;
 alloc_fail:
 	nicvf_free_resources(nic);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 int nicvf_set_qset_resources(struct nicvf *nic)
@@ -1040,7 +1040,7 @@ int nicvf_set_qset_resources(struct nicvf *nic)
 
 	qs = devm_kzalloc(&nic->pdev->dev, sizeof(*qs), GFP_KERNEL);
 	if (!qs)
-		return -ENOMEM;
+		return -EANALMEM;
 	nic->qs = qs;
 
 	/* Set count of each queue */
@@ -1082,7 +1082,7 @@ int nicvf_config_data_transfer(struct nicvf *nic, bool enable)
 
 	if (enable) {
 		if (nicvf_alloc_resources(nic))
-			return -ENOMEM;
+			return -EANALMEM;
 
 		for (qidx = 0; qidx < qs->sq_cnt; qidx++)
 			nicvf_snd_queue_config(nic, qs, qidx, enable);
@@ -1131,7 +1131,7 @@ static inline int nicvf_get_sq_desc(struct snd_queue *sq, int desc_cnt)
 	return qentry;
 }
 
-/* Rollback to previous tail pointer when descriptors not used */
+/* Rollback to previous tail pointer when descriptors analt used */
 static inline void nicvf_rollback_sq_desc(struct snd_queue *sq,
 					  int qentry, int desc_cnt)
 {
@@ -1254,9 +1254,9 @@ int nicvf_xdp_sq_append_pkt(struct nicvf *nic, struct snd_queue *sq,
 	return 1;
 }
 
-/* Calculate no of SQ subdescriptors needed to transmit all
+/* Calculate anal of SQ subdescriptors needed to transmit all
  * segments of this TSO packet.
- * Taken from 'Tilera network driver' with a minor modification.
+ * Taken from 'Tilera network driver' with a mianalr modification.
  */
 static int nicvf_tso_count_subdescs(struct sk_buff *skb)
 {
@@ -1313,7 +1313,7 @@ static int nicvf_sq_subdesc_required(struct nicvf *nic, struct sk_buff *skb)
 		return subdesc_cnt;
 	}
 
-	/* Dummy descriptors to get TSO pkt completion notification */
+	/* Dummy descriptors to get TSO pkt completion analtification */
 	if (nic->t88 && nic->hw_tso && skb_shinfo(skb)->gso_size)
 		subdesc_cnt += POST_CQE_DESC_COUNT;
 
@@ -1350,9 +1350,9 @@ nicvf_sq_add_hdr_subdesc(struct nicvf *nic, struct snd_queue *sq, int qentry,
 		hdr->subdesc_cnt = subdesc_cnt - POST_CQE_DESC_COUNT;
 	} else {
 		sq->skbuff[qentry] = (u64)skb;
-		/* Enable notification via CQE after processing SQE */
+		/* Enable analtification via CQE after processing SQE */
 		hdr->post_cqe = 1;
-		/* No of subdescriptors following this */
+		/* Anal of subdescriptors following this */
 		hdr->subdesc_cnt = subdesc_cnt;
 	}
 	hdr->tot_len = len;
@@ -1384,7 +1384,7 @@ nicvf_sq_add_hdr_subdesc(struct nicvf *nic, struct snd_queue *sq, int qentry,
 		hdr->tso = 1;
 		hdr->tso_start = skb_tcp_all_headers(skb);
 		hdr->tso_max_paysize = skb_shinfo(skb)->gso_size;
-		/* For non-tunneled pkts, point this to L2 ethertype */
+		/* For analn-tunneled pkts, point this to L2 ethertype */
 		hdr->inner_l3_offset = skb_network_offset(skb) - 2;
 		this_cpu_inc(nic->pnicvf->drv_stats->tx_tso);
 	}
@@ -1395,7 +1395,7 @@ nicvf_sq_add_hdr_subdesc(struct nicvf *nic, struct snd_queue *sq, int qentry,
 		return;
 	}
 
-	/* Tx timestamping not supported along with TSO, so ignore request */
+	/* Tx timestamping analt supported along with TSO, so iganalre request */
 	if (skb_shinfo(skb)->gso_size)
 		return;
 
@@ -1432,7 +1432,7 @@ static inline void nicvf_sq_add_gather_subdesc(struct snd_queue *sq, int qentry,
 }
 
 /* Add HDR + IMMEDIATE subdescriptors right after descriptors of a TSO
- * packet so that a CQE is posted as a notifation for transmission of
+ * packet so that a CQE is posted as a analtifation for transmission of
  * TSO packet.
  */
 static inline void nicvf_sq_add_cqe_subdesc(struct snd_queue *sq, int qentry,
@@ -1446,9 +1446,9 @@ static inline void nicvf_sq_add_cqe_subdesc(struct snd_queue *sq, int qentry,
 	hdr = (struct sq_hdr_subdesc *)GET_SQ_DESC(sq, qentry);
 	memset(hdr, 0, SND_QUEUE_DESC_SIZE);
 	hdr->subdesc_type = SQ_DESC_TYPE_HEADER;
-	/* Enable notification via CQE after processing SQE */
+	/* Enable analtification via CQE after processing SQE */
 	hdr->post_cqe = 1;
-	/* There is no packet to transmit here */
+	/* There is anal packet to transmit here */
 	hdr->dont_send = 1;
 	hdr->subdesc_cnt = POST_CQE_DESC_COUNT - 1;
 	hdr->tot_len = 1;
@@ -1572,8 +1572,8 @@ int nicvf_sq_append_skb(struct nicvf *nic, struct snd_queue *sq,
 
 	/* Add SQ gather subdescs */
 	qentry = nicvf_get_nxt_sqentry(sq, qentry);
-	size = skb_is_nonlinear(skb) ? skb_headlen(skb) : skb->len;
-	/* HW will ensure data coherency, CPU sync not required */
+	size = skb_is_analnlinear(skb) ? skb_headlen(skb) : skb->len;
+	/* HW will ensure data coherency, CPU sync analt required */
 	dma_addr = dma_map_page_attrs(&nic->pdev->dev, virt_to_page(skb->data),
 				      offset_in_page(skb->data), size,
 				      DMA_TO_DEVICE, DMA_ATTR_SKIP_CPU_SYNC);
@@ -1585,7 +1585,7 @@ int nicvf_sq_append_skb(struct nicvf *nic, struct snd_queue *sq,
 	nicvf_sq_add_gather_subdesc(sq, qentry, size, dma_addr);
 
 	/* Check for scattered buffer */
-	if (!skb_is_nonlinear(skb))
+	if (!skb_is_analnlinear(skb))
 		goto doorbell;
 
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
@@ -1622,7 +1622,7 @@ doorbell:
 append_fail:
 	/* Use original PCI dev for debug log */
 	nic = nic->pnicvf;
-	netdev_dbg(nic->netdev, "Not enough SQ descriptors to xmit pkt\n");
+	netdev_dbg(nic->netdev, "Analt eanalugh SQ descriptors to xmit pkt\n");
 	return 0;
 }
 
@@ -1643,7 +1643,7 @@ static void nicvf_unmap_rcv_buffer(struct nicvf *nic, u64 dma_addr,
 
 	if (xdp) {
 		page = virt_to_page(phys_to_virt(buf_addr));
-		/* Check if it's a recycled page, if not
+		/* Check if it's a recycled page, if analt
 		 * unmap the DMA mapping.
 		 *
 		 * Recycled page holds an extra reference.
@@ -1760,7 +1760,7 @@ void nicvf_enable_intr(struct nicvf *nic, int int_type, int q_idx)
 
 	if (!mask) {
 		netdev_dbg(nic->netdev,
-			   "Failed to enable interrupt: unknown type\n");
+			   "Failed to enable interrupt: unkanalwn type\n");
 		return;
 	}
 	nicvf_reg_write(nic, NIC_VF_ENA_W1S,
@@ -1774,7 +1774,7 @@ void nicvf_disable_intr(struct nicvf *nic, int int_type, int q_idx)
 
 	if (!mask) {
 		netdev_dbg(nic->netdev,
-			   "Failed to disable interrupt: unknown type\n");
+			   "Failed to disable interrupt: unkanalwn type\n");
 		return;
 	}
 
@@ -1788,7 +1788,7 @@ void nicvf_clear_intr(struct nicvf *nic, int int_type, int q_idx)
 
 	if (!mask) {
 		netdev_dbg(nic->netdev,
-			   "Failed to clear interrupt: unknown type\n");
+			   "Failed to clear interrupt: unkanalwn type\n");
 		return;
 	}
 
@@ -1799,10 +1799,10 @@ void nicvf_clear_intr(struct nicvf *nic, int int_type, int q_idx)
 int nicvf_is_intr_enabled(struct nicvf *nic, int int_type, int q_idx)
 {
 	u64 mask = nicvf_int_type_to_mask(int_type, q_idx);
-	/* If interrupt type is unknown, we treat it disabled. */
+	/* If interrupt type is unkanalwn, we treat it disabled. */
 	if (!mask) {
 		netdev_dbg(nic->netdev,
-			   "Failed to check interrupt enable: unknown type\n");
+			   "Failed to check interrupt enable: unkanalwn type\n");
 		return 0;
 	}
 
@@ -1873,7 +1873,7 @@ int nicvf_check_cqe_rx_errs(struct nicvf *nic, struct cqe_rx_t *cqe_rx)
 	case CQ_RX_ERROP_L2_PCLP:
 		this_cpu_inc(nic->drv_stats->rx_l2_pclp);
 		break;
-	case CQ_RX_ERROP_IP_NOT:
+	case CQ_RX_ERROP_IP_ANALT:
 		this_cpu_inc(nic->drv_stats->rx_ip_ver_errs);
 		break;
 	case CQ_RX_ERROP_IP_CSUM_ERR:

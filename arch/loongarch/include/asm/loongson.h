@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Author: Huacai Chen <chenhuacai@loongson.cn>
- * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2022 Loongson Techanallogy Corporation Limited
  */
 
 #ifndef __ASM_LOONGSON_H
@@ -74,8 +74,8 @@ static inline void xconf_writeq(u64 val64, volatile void __iomem *addr)
 #define LS7A_RTC_REG_BASE		(LS7A_MISC_REG_BASE + 0x00050100)
 
 #define LS7A_DMA_CFG			(volatile void *)TO_UNCACHE(LS7A_CHIPCFG_REG_BASE + 0x041c)
-#define LS7A_DMA_NODE_SHF		8
-#define LS7A_DMA_NODE_MASK		0x1F00
+#define LS7A_DMA_ANALDE_SHF		8
+#define LS7A_DMA_ANALDE_MASK		0x1F00
 
 #define LS7A_INT_MASK_REG		(volatile void *)TO_UNCACHE(LS7A_PCH_REG_BASE + 0x020)
 #define LS7A_INT_EDGE_REG		(volatile void *)TO_UNCACHE(LS7A_PCH_REG_BASE + 0x060)

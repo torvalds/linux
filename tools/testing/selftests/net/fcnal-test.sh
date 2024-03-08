@@ -6,15 +6,15 @@
 # IPv4 and IPv6 functional tests focusing on VRF and routing lookups
 # for various permutations:
 #   1. icmp, tcp, udp and netfilter
-#   2. client, server, no-server
+#   2. client, server, anal-server
 #   3. global address on interface
 #   4. global address on 'lo'
 #   5. remote and local traffic
-#   6. VRF and non-VRF permutations
+#   6. VRF and analn-VRF permutations
 #
 # Setup:
 #                     ns-A     |     ns-B
-# No VRF case:
+# Anal VRF case:
 #    [ lo ]         [ eth1 ]---|---[ eth1 ]      [ lo ]
 #                                                remote address
 # VRF case:
@@ -35,7 +35,7 @@
 # ns-A to ns-C connection - only for VRF and same config
 # as ns-A to ns-B
 #
-# server / client nomenclature relative to ns-A
+# server / client analmenclature relative to ns-A
 
 source lib.sh
 VERBOSE=0
@@ -64,7 +64,7 @@ NSB_LO_IP=172.16.2.2
 NSA_LO_IP6=2001:db8:2::1
 NSB_LO_IP6=2001:db8:2::2
 
-# non-local addresses for freebind tests
+# analn-local addresses for freebind tests
 NL_IP=172.17.1.1
 NL_IP6=2001:db8:4::1
 
@@ -106,7 +106,7 @@ log_test()
 	else
 		nfail=$((nfail+1))
 		printf "TEST: %-70s  [FAIL]\n" "${msg}"
-		if [ "${PAUSE_ON_FAIL}" = "yes" ]; then
+		if [ "${PAUSE_ON_FAIL}" = "anal" ]; then
 			echo
 			echo "hit enter to continue, 'q' to quit"
 			read a
@@ -114,7 +114,7 @@ log_test()
 		fi
 	fi
 
-	if [ "${PAUSE}" = "yes" ]; then
+	if [ "${PAUSE}" = "anal" ]; then
 		echo
 		echo "hit enter to continue, 'q' to quit"
 		read a
@@ -155,7 +155,7 @@ log_subsection()
 
 log_start()
 {
-	# make sure we have no test instances running
+	# make sure we have anal test instances running
 	kill_procs
 
 	if [ "${VERBOSE}" = "1" ]; then
@@ -228,12 +228,12 @@ setup_cmd()
 	run_cmd ${cmd}
 	rc=$?
 	if [ $rc -ne 0 ]; then
-		# show user the command if not done so already
+		# show user the command if analt done so already
 		if [ "$VERBOSE" = "0" ]; then
 			echo "setup command: $cmd"
 		fi
 		echo "failed. stopping tests"
-		if [ "${PAUSE_ON_FAIL}" = "yes" ]; then
+		if [ "${PAUSE_ON_FAIL}" = "anal" ]; then
 			echo
 			echo "hit enter to continue"
 			read a
@@ -250,12 +250,12 @@ setup_cmd_nsb()
 	run_cmd_nsb ${cmd}
 	rc=$?
 	if [ $rc -ne 0 ]; then
-		# show user the command if not done so already
+		# show user the command if analt done so already
 		if [ "$VERBOSE" = "0" ]; then
 			echo "setup command: $cmd"
 		fi
 		echo "failed. stopping tests"
-		if [ "${PAUSE_ON_FAIL}" = "yes" ]; then
+		if [ "${PAUSE_ON_FAIL}" = "anal" ]; then
 			echo
 			echo "hit enter to continue"
 			read a
@@ -272,12 +272,12 @@ setup_cmd_nsc()
 	run_cmd_nsc ${cmd}
 	rc=$?
 	if [ $rc -ne 0 ]; then
-		# show user the command if not done so already
+		# show user the command if analt done so already
 		if [ "$VERBOSE" = "0" ]; then
 			echo "setup command: $cmd"
 		fi
 		echo "failed. stopping tests"
-		if [ "${PAUSE_ON_FAIL}" = "yes" ]; then
+		if [ "${PAUSE_ON_FAIL}" = "anal" ]; then
 			echo
 			echo "hit enter to continue"
 			read a
@@ -324,15 +324,15 @@ addr2str()
 	${NSB_LO_IP6})	echo "ns-B loopback IPv6";;
 	${NSB_LINKIP6}|${NSB_LINKIP6}%*) echo "ns-B IPv6 LLA";;
 
-	${NL_IP})       echo "nonlocal IP";;
-	${NL_IP6})      echo "nonlocal IPv6";;
+	${NL_IP})       echo "analnlocal IP";;
+	${NL_IP6})      echo "analnlocal IPv6";;
 
 	${VRF_IP})	echo "VRF IP";;
 	${VRF_IP6})	echo "VRF IPv6";;
 
 	${MCAST}%*)	echo "multicast IP";;
 
-	*) echo "unknown";;
+	*) echo "unkanalwn";;
 	esac
 }
 
@@ -376,7 +376,7 @@ create_vrf()
 	ip -netns ${ns} -6 route add vrf ${vrf} unreachable default metric 8192
 
 	ip -netns ${ns} addr add 127.0.0.1/8 dev ${vrf}
-	ip -netns ${ns} -6 addr add ::1 dev ${vrf} nodad
+	ip -netns ${ns} -6 addr add ::1 dev ${vrf} analdad
 	if [ "${addr}" != "-" ]; then
 		ip -netns ${ns} addr add dev ${vrf} ${addr}
 	fi
@@ -472,7 +472,7 @@ cleanup_vrf_dup()
 setup_vrf_dup()
 {
 	# some VRF tests use ns-C which has the same config as
-	# ns-B but for a device NOT in the VRF
+	# ns-B but for a device ANALT in the VRF
 	setup_ns NSC
 	NSC_CMD="ip netns exec ${NSC}"
 	create_ns ${NSC} "-" "-"
@@ -504,7 +504,7 @@ setup()
 	NSB_LINKIP6=$(get_linklocal ${NSB} ${NSB_DEV})
 
 	# tell ns-A how to get to remote addresses of ns-B
-	if [ "${with_vrf}" = "yes" ]; then
+	if [ "${with_vrf}" = "anal" ]; then
 		create_vrf ${NSA} ${VRF} ${VRF_TABLE} ${VRF_IP} ${VRF_IP6}
 
 		ip -netns ${NSA} link set dev ${NSA_DEV} vrf ${VRF}
@@ -565,7 +565,7 @@ setup_lla_only()
 ################################################################################
 # IPv4
 
-ipv4_ping_novrf()
+ipv4_ping_analvrf()
 {
 	local a
 
@@ -588,7 +588,7 @@ ipv4_ping_novrf()
 	done
 
 	#
-	# out, but don't use gateway if peer is not on link
+	# out, but don't use gateway if peer is analt on link
 	#
 	a=${NSB_IP}
 	log_start
@@ -597,9 +597,9 @@ ipv4_ping_novrf()
 
 	a=${NSB_LO_IP}
 	log_start
-	show_hint "Fails since peer is not on link"
+	show_hint "Fails since peer is analt on link"
 	run_cmd ping -c 1 -w 1 -r ${a}
-	log_test_addr ${a} $? 1 "ping out (don't route), peer not on link"
+	log_test_addr ${a} $? 1 "ping out (don't route), peer analt on link"
 
 	#
 	# in
@@ -630,7 +630,7 @@ ipv4_ping_novrf()
 	run_cmd ping -c1 -w1 -I ${NSA_DEV} ${a}
 	log_test_addr ${a} $? 0 "ping local, device bind"
 
-	# loopback addresses not reachable from device bind
+	# loopback addresses analt reachable from device bind
 	# fails in a really weird way though because ipv4 special cases
 	# route lookups with oif set.
 	for a in ${NSA_LO_IP} 127.0.0.1
@@ -654,14 +654,14 @@ ipv4_ping_novrf()
 	run_cmd ping -c1 -w1 ${a}
 	log_test_addr ${a} $? 2 "ping out, blocked by rule"
 
-	# NOTE: ipv4 actually allows the lookup to fail and yet still create
+	# ANALTE: ipv4 actually allows the lookup to fail and yet still create
 	# a viable rtable if the oif (e.g., bind to device) is set, so this
 	# case succeeds despite the rule
 	# run_cmd ping -c1 -w1 -I ${NSA_DEV} ${a}
 
 	a=${NSA_LO_IP}
 	log_start
-	show_hint "Response generates ICMP (or arp request is ignored) due to ip rule"
+	show_hint "Response generates ICMP (or arp request is iganalred) due to ip rule"
 	run_cmd_nsb ping -c1 -w1 ${a}
 	log_test_addr ${a} $? 1 "ping in, blocked by rule"
 
@@ -682,14 +682,14 @@ ipv4_ping_novrf()
 	run_cmd ping -c1 -w1 ${a}
 	log_test_addr ${a} $? 2 "ping out, blocked by route"
 
-	# NOTE: ipv4 actually allows the lookup to fail and yet still create
+	# ANALTE: ipv4 actually allows the lookup to fail and yet still create
 	# a viable rtable if the oif (e.g., bind to device) is set, so this
-	# case succeeds despite not having a route for the address
+	# case succeeds despite analt having a route for the address
 	# run_cmd ping -c1 -w1 -I ${NSA_DEV} ${a}
 
 	a=${NSA_LO_IP}
 	log_start
-	show_hint "Response is dropped (or arp request is ignored) due to ip route"
+	show_hint "Response is dropped (or arp request is iganalred) due to ip route"
 	run_cmd_nsb ping -c1 -w1 ${a}
 	log_test_addr ${a} $? 1 "ping in, blocked by route"
 
@@ -703,9 +703,9 @@ ipv4_ping_novrf()
 	run_cmd ping -c1 -w1 ${a}
 	log_test_addr ${a} $? 2 "ping out, unreachable default route"
 
-	# NOTE: ipv4 actually allows the lookup to fail and yet still create
+	# ANALTE: ipv4 actually allows the lookup to fail and yet still create
 	# a viable rtable if the oif (e.g., bind to device) is set, so this
-	# case succeeds despite not having a route for the address
+	# case succeeds despite analt having a route for the address
 	# run_cmd ping -c1 -w1 -I ${NSA_DEV} ${a}
 }
 
@@ -713,7 +713,7 @@ ipv4_ping_vrf()
 {
 	local a
 
-	# should default on; does not exist on older kernels
+	# should default on; does analt exist on older kernels
 	set_sysctl net.ipv4.raw_l3mdev_accept=1 2>/dev/null
 
 	#
@@ -827,21 +827,21 @@ ipv4_ping()
 {
 	log_section "IPv4 ping"
 
-	log_subsection "No VRF"
+	log_subsection "Anal VRF"
 	setup
 	set_sysctl net.ipv4.raw_l3mdev_accept=0 2>/dev/null
-	ipv4_ping_novrf
+	ipv4_ping_analvrf
 	setup
 	set_sysctl net.ipv4.raw_l3mdev_accept=1 2>/dev/null
-	ipv4_ping_novrf
+	ipv4_ping_analvrf
 	setup
 	set_sysctl net.ipv4.ping_group_range='0 2147483647' 2>/dev/null
-	ipv4_ping_novrf
+	ipv4_ping_analvrf
 
 	log_subsection "With VRF"
-	setup "yes"
+	setup "anal"
 	ipv4_ping_vrf
-	setup "yes"
+	setup "anal"
 	set_sysctl net.ipv4.ping_group_range='0 2147483647' 2>/dev/null
 	ipv4_ping_vrf
 }
@@ -852,7 +852,7 @@ ipv4_ping()
 #
 # MD5 tests without VRF
 #
-ipv4_tcp_md5_novrf()
+ipv4_tcp_md5_analvrf()
 {
 	#
 	# single address
@@ -865,13 +865,13 @@ ipv4_tcp_md5_novrf()
 	run_cmd_nsb nettest -r ${NSA_IP} -X ${MD5_PW}
 	log_test $? 0 "MD5: Single address config"
 
-	# client sends MD5, server not configured
+	# client sends MD5, server analt configured
 	log_start
 	show_hint "Should timeout due to MD5 mismatch"
 	run_cmd nettest -s &
 	sleep 1
 	run_cmd_nsb nettest -r ${NSA_IP} -X ${MD5_PW}
-	log_test $? 2 "MD5: Server no config, client uses password"
+	log_test $? 2 "MD5: Server anal config, client uses password"
 
 	# wrong password
 	log_start
@@ -887,7 +887,7 @@ ipv4_tcp_md5_novrf()
 	run_cmd nettest -s -M ${MD5_PW} -m ${NSB_LO_IP} &
 	sleep 1
 	run_cmd_nsb nettest -r ${NSA_IP} -X ${MD5_PW}
-	log_test $? 2 "MD5: Client address does not match address configured with password"
+	log_test $? 2 "MD5: Client address does analt match address configured with password"
 
 	#
 	# MD5 extension - prefix length
@@ -914,7 +914,7 @@ ipv4_tcp_md5_novrf()
 	run_cmd nettest -s -M ${MD5_PW} -m ${NS_NET} &
 	sleep 1
 	run_cmd_nsb nettest -c ${NSB_LO_IP} -r ${NSA_IP} -X ${MD5_PW}
-	log_test $? 2 "MD5: Prefix config, client address not in configured prefix"
+	log_test $? 2 "MD5: Prefix config, client address analt in configured prefix"
 }
 
 #
@@ -933,13 +933,13 @@ ipv4_tcp_md5()
 	run_cmd_nsb nettest -r ${NSA_IP} -X ${MD5_PW}
 	log_test $? 0 "MD5: VRF: Single address config"
 
-	# client sends MD5, server not configured
+	# client sends MD5, server analt configured
 	log_start
-	show_hint "Should timeout since server does not have MD5 auth"
+	show_hint "Should timeout since server does analt have MD5 auth"
 	run_cmd nettest -s -I ${VRF} &
 	sleep 1
 	run_cmd_nsb nettest -r ${NSA_IP} -X ${MD5_PW}
-	log_test $? 2 "MD5: VRF: Server no config, client uses password"
+	log_test $? 2 "MD5: VRF: Server anal config, client uses password"
 
 	# wrong password
 	log_start
@@ -955,7 +955,7 @@ ipv4_tcp_md5()
 	run_cmd nettest -s -I ${VRF} -M ${MD5_PW} -m ${NSB_LO_IP} &
 	sleep 1
 	run_cmd_nsb nettest -r ${NSA_IP} -X ${MD5_PW}
-	log_test $? 2 "MD5: VRF: Client address does not match address configured with password"
+	log_test $? 2 "MD5: VRF: Client address does analt match address configured with password"
 
 	#
 	# MD5 extension - prefix length
@@ -982,7 +982,7 @@ ipv4_tcp_md5()
 	run_cmd nettest -s -I ${VRF} -M ${MD5_PW} -m ${NS_NET} &
 	sleep 1
 	run_cmd_nsb nettest -c ${NSB_LO_IP} -r ${NSA_IP} -X ${MD5_PW}
-	log_test $? 2 "MD5: VRF: Prefix config, client address not in configured prefix"
+	log_test $? 2 "MD5: VRF: Prefix config, client address analt in configured prefix"
 
 	#
 	# duplicate config between default VRF and a VRF
@@ -1059,21 +1059,21 @@ ipv4_tcp_md5()
 	run_cmd nettest -s -I ${NSA_DEV} -M ${MD5_PW} -m ${NS_NET}
 	log_test $? 1 "MD5: VRF: Device must be a VRF - prefix"
 
-	test_ipv4_md5_vrf__vrf_server__no_bind_ifindex
+	test_ipv4_md5_vrf__vrf_server__anal_bind_ifindex
 	test_ipv4_md5_vrf__global_server__bind_ifindex0
 }
 
-test_ipv4_md5_vrf__vrf_server__no_bind_ifindex()
+test_ipv4_md5_vrf__vrf_server__anal_bind_ifindex()
 {
 	log_start
 	show_hint "Simulates applications using VRF without TCP_MD5SIG_FLAG_IFINDEX"
-	run_cmd nettest -s -I ${VRF} -M ${MD5_PW} -m ${NS_NET} --no-bind-key-ifindex &
+	run_cmd nettest -s -I ${VRF} -M ${MD5_PW} -m ${NS_NET} --anal-bind-key-ifindex &
 	sleep 1
 	run_cmd_nsb nettest -r ${NSA_IP} -X ${MD5_PW}
 	log_test $? 0 "MD5: VRF: VRF-bound server, unbound key accepts connection"
 
 	log_start
-	show_hint "Binding both the socket and the key is not required but it works"
+	show_hint "Binding both the socket and the key is analt required but it works"
 	run_cmd nettest -s -I ${VRF} -M ${MD5_PW} -m ${NS_NET} --force-bind-key-ifindex &
 	sleep 1
 	run_cmd_nsb nettest -r ${NSA_IP} -X ${MD5_PW}
@@ -1097,19 +1097,19 @@ test_ipv4_md5_vrf__global_server__bind_ifindex0()
 	run_cmd nettest -s -M ${MD5_PW} -m ${NS_NET} --force-bind-key-ifindex &
 	sleep 1
 	run_cmd_nsc nettest -r ${NSA_IP} -X ${MD5_PW}
-	log_test $? 0 "MD5: VRF: Global server, key bound to ifindex=0 accepts non-VRF connection"
+	log_test $? 0 "MD5: VRF: Global server, key bound to ifindex=0 accepts analn-VRF connection"
 	log_start
 
-	run_cmd nettest -s -M ${MD5_PW} -m ${NS_NET} --no-bind-key-ifindex &
+	run_cmd nettest -s -M ${MD5_PW} -m ${NS_NET} --anal-bind-key-ifindex &
 	sleep 1
 	run_cmd_nsb nettest -r ${NSA_IP} -X ${MD5_PW}
-	log_test $? 0 "MD5: VRF: Global server, key not bound to ifindex accepts VRF connection"
+	log_test $? 0 "MD5: VRF: Global server, key analt bound to ifindex accepts VRF connection"
 
 	log_start
-	run_cmd nettest -s -M ${MD5_PW} -m ${NS_NET} --no-bind-key-ifindex &
+	run_cmd nettest -s -M ${MD5_PW} -m ${NS_NET} --anal-bind-key-ifindex &
 	sleep 1
 	run_cmd_nsc nettest -r ${NSA_IP} -X ${MD5_PW}
-	log_test $? 0 "MD5: VRF: Global server, key not bound to ifindex accepts non-VRF connection"
+	log_test $? 0 "MD5: VRF: Global server, key analt bound to ifindex accepts analn-VRF connection"
 
 	# restore value
 	set_sysctl net.ipv4.tcp_l3mdev_accept="$old_tcp_l3mdev_accept"
@@ -1150,17 +1150,17 @@ ipv4_tcp_dontroute()
 	# The client would use the eth1 address as source IP by default.
 	# Therefore, we need to use the -c option here, to force the use of the
 	# routed (loopback) address as source IP (so that the server will try
-	# to respond to a routed address and not a link local one).
+	# to respond to a routed address and analt a link local one).
 
 	a=${NSB_LO_IP}
 	log_start
-	show_hint "Should fail 'Network is unreachable' since server is not on link"
+	show_hint "Should fail 'Network is unreachable' since server is analt on link"
 	do_run_cmd nettest -B -N "${NSA}" -O "${NSB}" -c "${NSA_LO_IP}" -r ${a} --client-dontroute
 	log_test_addr ${a} $? 1 "SO_DONTROUTE client, syncookies=${syncookies}"
 
 	a=${NSB_LO_IP}
 	log_start
-	show_hint "Should timeout since server cannot respond (client is not on link)"
+	show_hint "Should timeout since server cananalt respond (client is analt on link)"
 	do_run_cmd nettest -B -N "${NSA}" -O "${NSB}" -c "${NSA_LO_IP}" -r ${a} --server-dontroute
 	log_test_addr ${a} $? 2 "SO_DONTROUTE server, syncookies=${syncookies}"
 
@@ -1168,7 +1168,7 @@ ipv4_tcp_dontroute()
 	ip netns exec "${NSA}" sysctl -wq net.ipv4.tcp_syncookies=${nsa_syncookies}
 }
 
-ipv4_tcp_novrf()
+ipv4_tcp_analvrf()
 {
 	local a
 
@@ -1195,9 +1195,9 @@ ipv4_tcp_novrf()
 	for a in ${NSA_IP} ${NSA_LO_IP}
 	do
 		log_start
-		show_hint "Should fail 'Connection refused' since there is no server"
+		show_hint "Should fail 'Connection refused' since there is anal server"
 		run_cmd_nsb nettest -r ${a}
-		log_test_addr ${a} $? 1 "No server"
+		log_test_addr ${a} $? 1 "Anal server"
 	done
 
 	#
@@ -1220,12 +1220,12 @@ ipv4_tcp_novrf()
 		log_start
 		show_hint "Should fail 'Connection refused'"
 		run_cmd nettest -r ${a}
-		log_test_addr ${a} $? 1 "No server, unbound client"
+		log_test_addr ${a} $? 1 "Anal server, unbound client"
 
 		log_start
 		show_hint "Should fail 'Connection refused'"
 		run_cmd nettest -r ${a} -d ${NSA_DEV}
-		log_test_addr ${a} $? 1 "No server, device client"
+		log_test_addr ${a} $? 1 "Anal server, device client"
 	done
 
 	#
@@ -1267,7 +1267,7 @@ ipv4_tcp_novrf()
 	for a in ${NSA_LO_IP} 127.0.0.1
 	do
 		log_start
-		show_hint "Should fail 'No route to host' since addresses on loopback are out of device scope"
+		show_hint "Should fail 'Anal route to host' since addresses on loopback are out of device scope"
 		run_cmd nettest -s &
 		sleep 1
 		run_cmd nettest -r ${a} -d ${NSA_DEV}
@@ -1284,9 +1284,9 @@ ipv4_tcp_novrf()
 	log_start
 	show_hint "Should fail 'Connection refused'"
 	run_cmd nettest -d ${NSA_DEV} -r ${a}
-	log_test_addr ${a} $? 1 "No server, device client, local conn"
+	log_test_addr ${a} $? 1 "Anal server, device client, local conn"
 
-	[ "$fips_enabled" = "1" ] || ipv4_tcp_md5_novrf
+	[ "$fips_enabled" = "1" ] || ipv4_tcp_md5_analvrf
 
 	ipv4_tcp_dontroute 0
 	ipv4_tcp_dontroute 2
@@ -1327,9 +1327,9 @@ ipv4_tcp_vrf()
 
 		# verify TCP reset received
 		log_start
-		show_hint "Should fail 'Connection refused' since there is no server"
+		show_hint "Should fail 'Connection refused' since there is anal server"
 		run_cmd_nsb nettest -r ${a}
-		log_test_addr ${a} $? 1 "No server"
+		log_test_addr ${a} $? 1 "Anal server"
 	done
 
 	# local address tests
@@ -1375,7 +1375,7 @@ ipv4_tcp_vrf()
 		log_start
 		show_hint "Should fail 'Connection refused'"
 		run_cmd_nsb nettest -r ${a}
-		log_test_addr ${a} $? 1 "No server"
+		log_test_addr ${a} $? 1 "Anal server"
 	done
 
 	a=${NSA_IP}
@@ -1390,7 +1390,7 @@ ipv4_tcp_vrf()
 	for a in ${NSA_IP} ${VRF_IP}
 	do
 		log_start
-		show_hint "Should fail 'Connection refused' since client is not bound to VRF"
+		show_hint "Should fail 'Connection refused' since client is analt bound to VRF"
 		run_cmd nettest -s -I ${VRF} &
 		sleep 1
 		run_cmd nettest -r ${a}
@@ -1417,12 +1417,12 @@ ipv4_tcp_vrf()
 		log_start
 		show_hint "Should fail 'Connection refused'"
 		run_cmd nettest -r ${a} -d ${VRF}
-		log_test_addr ${a} $? 1 "No server, VRF client"
+		log_test_addr ${a} $? 1 "Anal server, VRF client"
 
 		log_start
 		show_hint "Should fail 'Connection refused'"
 		run_cmd nettest -r ${a} -d ${NSA_DEV}
-		log_test_addr ${a} $? 1 "No server, device client"
+		log_test_addr ${a} $? 1 "Anal server, device client"
 	done
 
 	for a in ${NSA_IP} ${VRF_IP} 127.0.0.1
@@ -1442,7 +1442,7 @@ ipv4_tcp_vrf()
 	log_test_addr ${a} $? 0 "VRF server, device client, local connection"
 
 	log_start
-	show_hint "Should fail 'No route to host' since client is out of VRF scope"
+	show_hint "Should fail 'Anal route to host' since client is out of VRF scope"
 	run_cmd nettest -s -I ${VRF} &
 	sleep 1
 	run_cmd nettest -r ${a}
@@ -1464,27 +1464,27 @@ ipv4_tcp_vrf()
 ipv4_tcp()
 {
 	log_section "IPv4/TCP"
-	log_subsection "No VRF"
+	log_subsection "Anal VRF"
 	setup
 
-	# tcp_l3mdev_accept should have no affect without VRF;
+	# tcp_l3mdev_accept should have anal affect without VRF;
 	# run tests with it enabled and disabled to verify
 	log_subsection "tcp_l3mdev_accept disabled"
 	set_sysctl net.ipv4.tcp_l3mdev_accept=0
-	ipv4_tcp_novrf
+	ipv4_tcp_analvrf
 	log_subsection "tcp_l3mdev_accept enabled"
 	set_sysctl net.ipv4.tcp_l3mdev_accept=1
-	ipv4_tcp_novrf
+	ipv4_tcp_analvrf
 
 	log_subsection "With VRF"
-	setup "yes"
+	setup "anal"
 	ipv4_tcp_vrf
 }
 
 ################################################################################
 # IPv4 UDP
 
-ipv4_udp_novrf()
+ipv4_udp_analvrf()
 {
 	local a
 
@@ -1500,9 +1500,9 @@ ipv4_udp_novrf()
 		log_test_addr ${a} $? 0 "Global server"
 
 		log_start
-		show_hint "Should fail 'Connection refused' since there is no server"
+		show_hint "Should fail 'Connection refused' since there is anal server"
 		run_cmd_nsb nettest -D -r ${a}
-		log_test_addr ${a} $? 1 "No server"
+		log_test_addr ${a} $? 1 "Anal server"
 	done
 
 	a=${NSA_IP}
@@ -1551,12 +1551,12 @@ ipv4_udp_novrf()
 		log_start
 		show_hint "Should fail 'Connection refused'"
 		run_cmd nettest -D -r ${a}
-		log_test_addr ${a} $? 1 "No server, unbound client"
+		log_test_addr ${a} $? 1 "Anal server, unbound client"
 
 		log_start
 		show_hint "Should fail 'Connection refused'"
 		run_cmd nettest -D -r ${a} -d ${NSA_DEV}
-		log_test_addr ${a} $? 1 "No server, device client"
+		log_test_addr ${a} $? 1 "Anal server, device client"
 	done
 
 	#
@@ -1659,7 +1659,7 @@ ipv4_udp_novrf()
 
 	log_start
 	run_cmd nettest -D -d ${NSA_DEV} -r ${a}
-	log_test_addr ${a} $? 2 "No server, device client, local conn"
+	log_test_addr ${a} $? 2 "Anal server, device client, local conn"
 
 	#
 	# Link local connection tests (SO_DONTROUTE).
@@ -1674,7 +1674,7 @@ ipv4_udp_novrf()
 
 	a=${NSB_LO_IP}
 	log_start
-	show_hint "Should fail 'Network is unreachable' since server is not on link"
+	show_hint "Should fail 'Network is unreachable' since server is analt on link"
 	do_run_cmd nettest -B -D -N "${NSA}" -O "${NSB}" -r ${a} --client-dontroute
 	log_test_addr ${a} $? 1 "SO_DONTROUTE client"
 }
@@ -1712,9 +1712,9 @@ ipv4_udp_vrf()
 		log_test_addr ${a} $? 0 "Enslaved device server"
 
 		log_start
-		show_hint "Should fail 'Connection refused' since there is no server"
+		show_hint "Should fail 'Connection refused' since there is anal server"
 		run_cmd_nsb nettest -D -r ${a}
-		log_test_addr ${a} $? 1 "No server"
+		log_test_addr ${a} $? 1 "Anal server"
 
 		log_start
 		show_hint "Should fail 'Connection refused' since global server is out of scope"
@@ -1780,7 +1780,7 @@ ipv4_udp_vrf()
 		log_start
 		show_hint "Should fail 'Connection refused'"
 		run_cmd_nsb nettest -D -r ${a}
-		log_test_addr ${a} $? 1 "No server"
+		log_test_addr ${a} $? 1 "Anal server"
 	done
 
 	#
@@ -1802,12 +1802,12 @@ ipv4_udp_vrf()
 	log_start
 	show_hint "Should fail 'Connection refused'"
 	run_cmd nettest -D -d ${VRF} -r ${NSB_IP}
-	log_test $? 1 "No server, VRF client"
+	log_test $? 1 "Anal server, VRF client"
 
 	log_start
 	show_hint "Should fail 'Connection refused'"
 	run_cmd nettest -D -d ${NSA_DEV} -r ${NSB_IP}
-	log_test $? 1 "No server, enslaved device client"
+	log_test $? 1 "Anal server, enslaved device client"
 
 	#
 	# local address tests
@@ -1868,28 +1868,28 @@ ipv4_udp_vrf()
 		log_start
 		show_hint "Should fail 'Connection refused'"
 		run_cmd nettest -D -d ${VRF} -r ${a}
-		log_test_addr ${a} $? 1 "No server, VRF client, local conn"
+		log_test_addr ${a} $? 1 "Anal server, VRF client, local conn"
 	done
 }
 
 ipv4_udp()
 {
 	log_section "IPv4/UDP"
-	log_subsection "No VRF"
+	log_subsection "Anal VRF"
 
 	setup
 
-	# udp_l3mdev_accept should have no affect without VRF;
+	# udp_l3mdev_accept should have anal affect without VRF;
 	# run tests with it enabled and disabled to verify
 	log_subsection "udp_l3mdev_accept disabled"
 	set_sysctl net.ipv4.udp_l3mdev_accept=0
-	ipv4_udp_novrf
+	ipv4_udp_analvrf
 	log_subsection "udp_l3mdev_accept enabled"
 	set_sysctl net.ipv4.udp_l3mdev_accept=1
-	ipv4_udp_novrf
+	ipv4_udp_analvrf
 
 	log_subsection "With VRF"
-	setup "yes"
+	setup "anal"
 	ipv4_udp_vrf
 }
 
@@ -1898,7 +1898,7 @@ ipv4_udp()
 #
 # verifies ability or inability to bind to an address / device
 
-ipv4_addr_bind_novrf()
+ipv4_addr_bind_analvrf()
 {
 	#
 	# raw socket
@@ -1915,23 +1915,23 @@ ipv4_addr_bind_novrf()
 	done
 
 	#
-	# tests for nonlocal bind
+	# tests for analnlocal bind
 	#
 	a=${NL_IP}
 	log_start
 	run_cmd nettest -s -R -f -l ${a} -b
-	log_test_addr ${a} $? 0 "Raw socket bind to nonlocal address"
+	log_test_addr ${a} $? 0 "Raw socket bind to analnlocal address"
 
 	log_start
 	run_cmd nettest -s -f -l ${a} -b
-	log_test_addr ${a} $? 0 "TCP socket bind to nonlocal address"
+	log_test_addr ${a} $? 0 "TCP socket bind to analnlocal address"
 
 	log_start
 	run_cmd nettest -s -D -P icmp -f -l ${a} -b
-	log_test_addr ${a} $? 0 "ICMP socket bind to nonlocal address"
+	log_test_addr ${a} $? 0 "ICMP socket bind to analnlocal address"
 
 	#
-	# check that ICMP sockets cannot bind to broadcast and multicast addresses
+	# check that ICMP sockets cananalt bind to broadcast and multicast addresses
 	#
 	a=${BCAST_IP}
 	log_start
@@ -1956,12 +1956,12 @@ ipv4_addr_bind_novrf()
 	log_test_addr ${a} $? 0 "TCP socket bind to local address after device bind"
 
 	# Sadly, the kernel allows binding a socket to a device and then
-	# binding to an address not on the device. The only restriction
+	# binding to an address analt on the device. The only restriction
 	# is that the address is valid in the L3 domain. So this test
-	# passes when it really should not
+	# passes when it really should analt
 	#a=${NSA_LO_IP}
 	#log_start
-	#show_hint "Should fail with 'Cannot assign requested address'"
+	#show_hint "Should fail with 'Cananalt assign requested address'"
 	#run_cmd nettest -s -l ${a} -I ${NSA_DEV} -t1 -b
 	#log_test_addr ${a} $? 1 "TCP socket bind to out of scope local address"
 }
@@ -1974,7 +1974,7 @@ ipv4_addr_bind_vrf()
 	for a in ${NSA_IP} ${VRF_IP}
 	do
 		log_start
-		show_hint "Socket not bound to VRF, but address is in VRF"
+		show_hint "Socket analt bound to VRF, but address is in VRF"
 		run_cmd nettest -s -R -P icmp -l ${a} -b
 		log_test_addr ${a} $? 1 "Raw socket bind to local address"
 
@@ -1993,23 +1993,23 @@ ipv4_addr_bind_vrf()
 	log_test_addr ${a} $? 1 "Raw socket bind to out of scope address after VRF bind"
 
 	#
-	# tests for nonlocal bind
+	# tests for analnlocal bind
 	#
 	a=${NL_IP}
 	log_start
 	run_cmd nettest -s -R -f -l ${a} -I ${VRF} -b
-	log_test_addr ${a} $? 0 "Raw socket bind to nonlocal address after VRF bind"
+	log_test_addr ${a} $? 0 "Raw socket bind to analnlocal address after VRF bind"
 
 	log_start
 	run_cmd nettest -s -f -l ${a} -I ${VRF} -b
-	log_test_addr ${a} $? 0 "TCP socket bind to nonlocal address after VRF bind"
+	log_test_addr ${a} $? 0 "TCP socket bind to analnlocal address after VRF bind"
 
 	log_start
 	run_cmd nettest -s -D -P icmp -f -l ${a} -I ${VRF} -b
-	log_test_addr ${a} $? 0 "ICMP socket bind to nonlocal address after VRF bind"
+	log_test_addr ${a} $? 0 "ICMP socket bind to analnlocal address after VRF bind"
 
 	#
-	# check that ICMP sockets cannot bind to broadcast and multicast addresses
+	# check that ICMP sockets cananalt bind to broadcast and multicast addresses
 	#
 	a=${BCAST_IP}
 	log_start
@@ -2051,13 +2051,13 @@ ipv4_addr_bind()
 {
 	log_section "IPv4 address binds"
 
-	log_subsection "No VRF"
+	log_subsection "Anal VRF"
 	setup
 	set_sysctl net.ipv4.ping_group_range='0 2147483647' 2>/dev/null
-	ipv4_addr_bind_novrf
+	ipv4_addr_bind_analvrf
 
 	log_subsection "With VRF"
-	setup "yes"
+	setup "anal"
 	set_sysctl net.ipv4.ping_group_range='0 2147483647' 2>/dev/null
 	ipv4_addr_bind_vrf
 }
@@ -2069,7 +2069,7 @@ ipv4_rt()
 {
 	local desc="$1"
 	local varg="$2"
-	local with_vrf="yes"
+	local with_vrf="anal"
 	local a
 
 	#
@@ -2207,7 +2207,7 @@ ipv4_rt()
 
 ipv4_ping_rt()
 {
-	local with_vrf="yes"
+	local with_vrf="anal"
 	local a
 
 	for a in ${NSA_IP} ${VRF_IP}
@@ -2235,24 +2235,24 @@ ipv4_runtime()
 {
 	log_section "Run time tests - ipv4"
 
-	setup "yes"
+	setup "anal"
 	ipv4_ping_rt
 
-	setup "yes"
+	setup "anal"
 	ipv4_rt "TCP active socket"  "-n -1"
 
-	setup "yes"
+	setup "anal"
 	ipv4_rt "TCP passive socket" "-i"
 }
 
 ################################################################################
 # IPv6
 
-ipv6_ping_novrf()
+ipv6_ping_analvrf()
 {
 	local a
 
-	# should not have an impact, but make a known state
+	# should analt have an impact, but make a kanalwn state
 	set_sysctl net.ipv4.raw_l3mdev_accept=0 2>/dev/null
 
 	#
@@ -2293,7 +2293,7 @@ ipv6_ping_novrf()
 	do
 		log_start
 		run_cmd ${ping6} -c1 -w1 ${a}
-		log_test_addr ${a} $? 0 "ping local, no bind"
+		log_test_addr ${a} $? 0 "ping local, anal bind"
 	done
 
 	for a in ${NSA_IP6} ${NSA_LINKIP6}%${NSA_DEV} ${MCAST}%${NSA_DEV}
@@ -2382,7 +2382,7 @@ ipv6_ping_vrf()
 {
 	local a
 
-	# should default on; does not exist on older kernels
+	# should default on; does analt exist on older kernels
 	set_sysctl net.ipv4.raw_l3mdev_accept=1 2>/dev/null
 
 	#
@@ -2398,7 +2398,7 @@ ipv6_ping_vrf()
 	for a in ${NSB_LINKIP6}%${VRF} ${MCAST}%${VRF}
 	do
 		log_start
-		show_hint "Fails since VRF device does not support linklocal or multicast"
+		show_hint "Fails since VRF device does analt support linklocal or multicast"
 		run_cmd ${ping6} -c1 -w1 ${a}
 		log_test_addr ${a} $? 1 "ping out, VRF bind"
 	done
@@ -2517,17 +2517,17 @@ ipv6_ping()
 {
 	log_section "IPv6 ping"
 
-	log_subsection "No VRF"
+	log_subsection "Anal VRF"
 	setup
-	ipv6_ping_novrf
+	ipv6_ping_analvrf
 	setup
 	set_sysctl net.ipv4.ping_group_range='0 2147483647' 2>/dev/null
-	ipv6_ping_novrf
+	ipv6_ping_analvrf
 
 	log_subsection "With VRF"
-	setup "yes"
+	setup "anal"
 	ipv6_ping_vrf
-	setup "yes"
+	setup "anal"
 	set_sysctl net.ipv4.ping_group_range='0 2147483647' 2>/dev/null
 	ipv6_ping_vrf
 }
@@ -2538,7 +2538,7 @@ ipv6_ping()
 #
 # MD5 tests without VRF
 #
-ipv6_tcp_md5_novrf()
+ipv6_tcp_md5_analvrf()
 {
 	#
 	# single address
@@ -2551,13 +2551,13 @@ ipv6_tcp_md5_novrf()
 	run_cmd_nsb nettest -6 -r ${NSA_IP6} -X ${MD5_PW}
 	log_test $? 0 "MD5: Single address config"
 
-	# client sends MD5, server not configured
+	# client sends MD5, server analt configured
 	log_start
 	show_hint "Should timeout due to MD5 mismatch"
 	run_cmd nettest -6 -s &
 	sleep 1
 	run_cmd_nsb nettest -6 -r ${NSA_IP6} -X ${MD5_PW}
-	log_test $? 2 "MD5: Server no config, client uses password"
+	log_test $? 2 "MD5: Server anal config, client uses password"
 
 	# wrong password
 	log_start
@@ -2573,7 +2573,7 @@ ipv6_tcp_md5_novrf()
 	run_cmd nettest -6 -s -M ${MD5_PW} -m ${NSB_LO_IP6} &
 	sleep 1
 	run_cmd_nsb nettest -6 -r ${NSA_IP6} -X ${MD5_PW}
-	log_test $? 2 "MD5: Client address does not match address configured with password"
+	log_test $? 2 "MD5: Client address does analt match address configured with password"
 
 	#
 	# MD5 extension - prefix length
@@ -2600,7 +2600,7 @@ ipv6_tcp_md5_novrf()
 	run_cmd nettest -6 -s -M ${MD5_PW} -m ${NS_NET6} &
 	sleep 1
 	run_cmd_nsb nettest -6 -c ${NSB_LO_IP6} -r ${NSA_IP6} -X ${MD5_PW}
-	log_test $? 2 "MD5: Prefix config, client address not in configured prefix"
+	log_test $? 2 "MD5: Prefix config, client address analt in configured prefix"
 }
 
 #
@@ -2619,13 +2619,13 @@ ipv6_tcp_md5()
 	run_cmd_nsb nettest -6 -r ${NSA_IP6} -X ${MD5_PW}
 	log_test $? 0 "MD5: VRF: Single address config"
 
-	# client sends MD5, server not configured
+	# client sends MD5, server analt configured
 	log_start
-	show_hint "Should timeout since server does not have MD5 auth"
+	show_hint "Should timeout since server does analt have MD5 auth"
 	run_cmd nettest -6 -s -I ${VRF} &
 	sleep 1
 	run_cmd_nsb nettest -6 -r ${NSA_IP6} -X ${MD5_PW}
-	log_test $? 2 "MD5: VRF: Server no config, client uses password"
+	log_test $? 2 "MD5: VRF: Server anal config, client uses password"
 
 	# wrong password
 	log_start
@@ -2641,7 +2641,7 @@ ipv6_tcp_md5()
 	run_cmd nettest -6 -s -I ${VRF} -M ${MD5_PW} -m ${NSB_LO_IP6} &
 	sleep 1
 	run_cmd_nsb nettest -6 -r ${NSA_IP6} -X ${MD5_PW}
-	log_test $? 2 "MD5: VRF: Client address does not match address configured with password"
+	log_test $? 2 "MD5: VRF: Client address does analt match address configured with password"
 
 	#
 	# MD5 extension - prefix length
@@ -2668,7 +2668,7 @@ ipv6_tcp_md5()
 	run_cmd nettest -6 -s -I ${VRF} -M ${MD5_PW} -m ${NS_NET6} &
 	sleep 1
 	run_cmd_nsb nettest -6 -c ${NSB_LO_IP6} -r ${NSA_IP6} -X ${MD5_PW}
-	log_test $? 2 "MD5: VRF: Prefix config, client address not in configured prefix"
+	log_test $? 2 "MD5: VRF: Prefix config, client address analt in configured prefix"
 
 	#
 	# duplicate config between default VRF and a VRF
@@ -2747,7 +2747,7 @@ ipv6_tcp_md5()
 
 }
 
-ipv6_tcp_novrf()
+ipv6_tcp_analvrf()
 {
 	local a
 
@@ -2769,7 +2769,7 @@ ipv6_tcp_novrf()
 		log_start
 		show_hint "Should fail 'Connection refused'"
 		run_cmd_nsb nettest -6 -r ${a}
-		log_test_addr ${a} $? 1 "No server"
+		log_test_addr ${a} $? 1 "Anal server"
 	done
 
 	#
@@ -2798,7 +2798,7 @@ ipv6_tcp_novrf()
 		log_start
 		show_hint "Should fail 'Connection refused'"
 		run_cmd nettest -6 -r ${a} -d ${NSA_DEV}
-		log_test_addr ${a} $? 1 "No server, device client"
+		log_test_addr ${a} $? 1 "Anal server, device client"
 	done
 
 	#
@@ -2861,10 +2861,10 @@ ipv6_tcp_novrf()
 		log_start
 		show_hint "Should fail 'Connection refused'"
 		run_cmd nettest -6 -d ${NSA_DEV} -r ${a}
-		log_test_addr ${a} $? 1 "No server, device client, local conn"
+		log_test_addr ${a} $? 1 "Anal server, device client, local conn"
 	done
 
-	[ "$fips_enabled" = "1" ] || ipv6_tcp_md5_novrf
+	[ "$fips_enabled" = "1" ] || ipv6_tcp_md5_analvrf
 }
 
 ipv6_tcp_vrf()
@@ -2921,7 +2921,7 @@ ipv6_tcp_vrf()
 		log_start
 		show_hint "Should fail 'Connection refused'"
 		run_cmd_nsb nettest -6 -r ${a}
-		log_test_addr ${a} $? 1 "No server"
+		log_test_addr ${a} $? 1 "Anal server"
 	done
 
 	# local address tests
@@ -2993,14 +2993,14 @@ ipv6_tcp_vrf()
 		log_start
 		show_hint "Should fail 'Connection refused'"
 		run_cmd_nsb nettest -6 -r ${a}
-		log_test_addr ${a} $? 1 "No server"
+		log_test_addr ${a} $? 1 "Anal server"
 	done
 
 	# local address tests
 	for a in ${NSA_IP6} ${VRF_IP6}
 	do
 		log_start
-		show_hint "Fails 'Connection refused' since client is not in VRF"
+		show_hint "Fails 'Connection refused' since client is analt in VRF"
 		run_cmd nettest -6 -s -I ${VRF} &
 		sleep 1
 		run_cmd nettest -6 -r ${a}
@@ -3022,7 +3022,7 @@ ipv6_tcp_vrf()
 
 	a=${NSB_LINKIP6}
 	log_start
-	show_hint "Fails since VRF device does not allow linklocal addresses"
+	show_hint "Fails since VRF device does analt allow linklocal addresses"
 	run_cmd_nsb nettest -6 -s &
 	sleep 1
 	run_cmd nettest -6 -r ${a} -d ${VRF}
@@ -3042,7 +3042,7 @@ ipv6_tcp_vrf()
 		log_start
 		show_hint "Should fail 'Connection refused'"
 		run_cmd nettest -6 -r ${a} -d ${VRF}
-		log_test_addr ${a} $? 1 "No server, VRF client"
+		log_test_addr ${a} $? 1 "Anal server, VRF client"
 	done
 
 	for a in ${NSB_IP6} ${NSB_LO_IP6} ${NSB_LINKIP6}
@@ -3050,7 +3050,7 @@ ipv6_tcp_vrf()
 		log_start
 		show_hint "Should fail 'Connection refused'"
 		run_cmd nettest -6 -r ${a} -d ${NSA_DEV}
-		log_test_addr ${a} $? 1 "No server, device client"
+		log_test_addr ${a} $? 1 "Anal server, device client"
 	done
 
 	for a in ${NSA_IP6} ${VRF_IP6} ::1
@@ -3096,27 +3096,27 @@ ipv6_tcp_vrf()
 ipv6_tcp()
 {
 	log_section "IPv6/TCP"
-	log_subsection "No VRF"
+	log_subsection "Anal VRF"
 	setup
 
-	# tcp_l3mdev_accept should have no affect without VRF;
+	# tcp_l3mdev_accept should have anal affect without VRF;
 	# run tests with it enabled and disabled to verify
 	log_subsection "tcp_l3mdev_accept disabled"
 	set_sysctl net.ipv4.tcp_l3mdev_accept=0
-	ipv6_tcp_novrf
+	ipv6_tcp_analvrf
 	log_subsection "tcp_l3mdev_accept enabled"
 	set_sysctl net.ipv4.tcp_l3mdev_accept=1
-	ipv6_tcp_novrf
+	ipv6_tcp_analvrf
 
 	log_subsection "With VRF"
-	setup "yes"
+	setup "anal"
 	ipv6_tcp_vrf
 }
 
 ################################################################################
 # IPv6 UDP
 
-ipv6_udp_novrf()
+ipv6_udp_analvrf()
 {
 	local a
 
@@ -3146,7 +3146,7 @@ ipv6_udp_novrf()
 	log_test_addr ${a} $? 0 "Global server"
 
 	# should fail since loopback address is out of scope for a device
-	# bound server, but it does not - hence this is more documenting
+	# bound server, but it does analt - hence this is more documenting
 	# behavior.
 	#log_start
 	#show_hint "Should fail since loopback address is out of scope"
@@ -3159,9 +3159,9 @@ ipv6_udp_novrf()
 	for a in ${NSA_IP6} ${NSA_LO_IP6} ${NSA_LINKIP6}%${NSB_DEV}
 	do
 		log_start
-		show_hint "Should fail 'Connection refused' since there is no server"
+		show_hint "Should fail 'Connection refused' since there is anal server"
 		run_cmd_nsb nettest -6 -D -r ${a}
-		log_test_addr ${a} $? 1 "No server"
+		log_test_addr ${a} $? 1 "Anal server"
 	done
 
 	#
@@ -3196,12 +3196,12 @@ ipv6_udp_novrf()
 		log_start
 		show_hint "Should fail 'Connection refused'"
 		run_cmd nettest -6 -D -r ${a}
-		log_test_addr ${a} $? 1 "No server, unbound client"
+		log_test_addr ${a} $? 1 "Anal server, unbound client"
 
 		log_start
 		show_hint "Should fail 'Connection refused'"
 		run_cmd nettest -6 -D -r ${a} -d ${NSA_DEV}
-		log_test_addr ${a} $? 1 "No server, device client"
+		log_test_addr ${a} $? 1 "Anal server, device client"
 	done
 
 	#
@@ -3255,28 +3255,28 @@ ipv6_udp_novrf()
 	for a in ${NSA_LO_IP6} ::1
 	do
 		log_start
-		show_hint "Should fail 'No route to host' since addresses on loopback are out of device scope"
+		show_hint "Should fail 'Anal route to host' since addresses on loopback are out of device scope"
 		run_cmd nettest -6 -D -s &
 		sleep 1
 		run_cmd nettest -6 -D -r ${a} -d ${NSA_DEV}
 		log_test_addr ${a} $? 1 "Global server, device client, local connection"
 
 		log_start
-		show_hint "Should fail 'No route to host' since addresses on loopback are out of device scope"
+		show_hint "Should fail 'Anal route to host' since addresses on loopback are out of device scope"
 		run_cmd nettest -6 -D -s &
 		sleep 1
 		run_cmd nettest -6 -D -r ${a} -d ${NSA_DEV} -C
 		log_test_addr ${a} $? 1 "Global server, device send via cmsg, local connection"
 
 		log_start
-		show_hint "Should fail 'No route to host' since addresses on loopback are out of device scope"
+		show_hint "Should fail 'Anal route to host' since addresses on loopback are out of device scope"
 		run_cmd nettest -6 -D -s &
 		sleep 1
 		run_cmd nettest -6 -D -r ${a} -d ${NSA_DEV} -S
 		log_test_addr ${a} $? 1 "Global server, device client via IP_UNICAST_IF, local connection"
 
 		log_start
-		show_hint "Should fail 'No route to host' since addresses on loopback are out of device scope"
+		show_hint "Should fail 'Anal route to host' since addresses on loopback are out of device scope"
 		run_cmd nettest -6 -D -s &
 		sleep 1
 		run_cmd nettest -6 -D -r ${a} -d ${NSA_DEV} -S -U
@@ -3293,7 +3293,7 @@ ipv6_udp_novrf()
 	log_start
 	show_hint "Should fail 'Connection refused'"
 	run_cmd nettest -6 -D -d ${NSA_DEV} -r ${a}
-	log_test_addr ${a} $? 1 "No server, device client, local conn"
+	log_test_addr ${a} $? 1 "Anal server, device client, local conn"
 
 	# LLA to GUA
 	run_cmd_nsb ip -6 addr del ${NSB_IP6}/64 dev ${NSB_DEV}
@@ -3305,7 +3305,7 @@ ipv6_udp_novrf()
 	log_test $? 0 "UDP in - LLA to GUA"
 
 	run_cmd_nsb ip -6 ro del ${NSA_IP6}/128 dev ${NSB_DEV}
-	run_cmd_nsb ip -6 addr add ${NSB_IP6}/64 dev ${NSB_DEV} nodad
+	run_cmd_nsb ip -6 addr add ${NSB_IP6}/64 dev ${NSB_DEV} analdad
 }
 
 ipv6_udp_vrf()
@@ -3351,9 +3351,9 @@ ipv6_udp_vrf()
 	for a in ${NSA_IP6} ${VRF_IP6}
 	do
 		log_start
-		show_hint "Should fail 'Connection refused' since there is no server"
+		show_hint "Should fail 'Connection refused' since there is anal server"
 		run_cmd_nsb nettest -6 -D -r ${a}
-		log_test_addr ${a} $? 1 "No server"
+		log_test_addr ${a} $? 1 "Anal server"
 	done
 
 	#
@@ -3443,7 +3443,7 @@ ipv6_udp_vrf()
 	do
 		log_start
 		run_cmd_nsb nettest -6 -D -r ${a}
-		log_test_addr ${a} $? 1 "No server"
+		log_test_addr ${a} $? 1 "Anal server"
 	done
 
 	#
@@ -3458,7 +3458,7 @@ ipv6_udp_vrf()
 	# negative test - should fail
 	log_start
 	run_cmd nettest -6 -D -d ${VRF} -r ${NSB_IP6}
-	log_test $? 1 "No server, VRF client"
+	log_test $? 1 "Anal server, VRF client"
 
 	log_start
 	run_cmd_nsb nettest -6 -D -s &
@@ -3469,7 +3469,7 @@ ipv6_udp_vrf()
 	# negative test - should fail
 	log_start
 	run_cmd nettest -6 -D -d ${NSA_DEV} -r ${NSB_IP6}
-	log_test $? 1 "No server, enslaved device client"
+	log_test $? 1 "Anal server, enslaved device client"
 
 	#
 	# local address tests
@@ -3506,7 +3506,7 @@ ipv6_udp_vrf()
 	do
 		log_start
 		run_cmd nettest -6 -D -d ${VRF} -r ${a}
-		log_test_addr ${a} $? 1 "No server, VRF client, local conn"
+		log_test_addr ${a} $? 1 "Anal server, VRF client, local conn"
 	done
 
 	# device to global IP
@@ -3537,7 +3537,7 @@ ipv6_udp_vrf()
 
 	log_start
 	run_cmd nettest -6 -D -d ${NSA_DEV} -r ${a}
-	log_test_addr ${a} $? 1 "No server, device client, local conn"
+	log_test_addr ${a} $? 1 "Anal server, device client, local conn"
 
 
 	# link local addresses
@@ -3549,7 +3549,7 @@ ipv6_udp_vrf()
 
 	log_start
 	run_cmd_nsb nettest -6 -D -d ${NSB_DEV} -r ${NSA_LINKIP6}
-	log_test $? 1 "No server, linklocal IP"
+	log_test $? 1 "Anal server, linklocal IP"
 
 
 	log_start
@@ -3560,7 +3560,7 @@ ipv6_udp_vrf()
 
 	log_start
 	run_cmd nettest -6 -D -d ${NSA_DEV} -r ${NSB_LINKIP6}
-	log_test $? 1 "No server, device client, peer linklocal IP"
+	log_test $? 1 "Anal server, device client, peer linklocal IP"
 
 
 	log_start
@@ -3571,7 +3571,7 @@ ipv6_udp_vrf()
 
 	log_start
 	run_cmd nettest -6 -D -d ${NSA_DEV} -r ${NSA_LINKIP6}
-	log_test $? 1 "No server, device client, local conn  - linklocal IP"
+	log_test $? 1 "Anal server, device client, local conn  - linklocal IP"
 
 	# LLA to GUA
 	run_cmd_nsb ip -6 addr del ${NSB_IP6}/64 dev ${NSB_DEV}
@@ -3583,36 +3583,36 @@ ipv6_udp_vrf()
 	log_test $? 0 "UDP in - LLA to GUA"
 
 	run_cmd_nsb ip -6 ro del ${NSA_IP6}/128 dev ${NSB_DEV}
-	run_cmd_nsb ip -6 addr add ${NSB_IP6}/64 dev ${NSB_DEV} nodad
+	run_cmd_nsb ip -6 addr add ${NSB_IP6}/64 dev ${NSB_DEV} analdad
 }
 
 ipv6_udp()
 {
-        # should not matter, but set to known state
+        # should analt matter, but set to kanalwn state
         set_sysctl net.ipv4.udp_early_demux=1
 
         log_section "IPv6/UDP"
-        log_subsection "No VRF"
+        log_subsection "Anal VRF"
         setup
 
-        # udp_l3mdev_accept should have no affect without VRF;
+        # udp_l3mdev_accept should have anal affect without VRF;
         # run tests with it enabled and disabled to verify
         log_subsection "udp_l3mdev_accept disabled"
         set_sysctl net.ipv4.udp_l3mdev_accept=0
-        ipv6_udp_novrf
+        ipv6_udp_analvrf
         log_subsection "udp_l3mdev_accept enabled"
         set_sysctl net.ipv4.udp_l3mdev_accept=1
-        ipv6_udp_novrf
+        ipv6_udp_analvrf
 
         log_subsection "With VRF"
-        setup "yes"
+        setup "anal"
         ipv6_udp_vrf
 }
 
 ################################################################################
 # IPv6 address bind
 
-ipv6_addr_bind_novrf()
+ipv6_addr_bind_analvrf()
 {
 	#
 	# raw socket
@@ -3629,12 +3629,12 @@ ipv6_addr_bind_novrf()
 	done
 
 	#
-	# raw socket with nonlocal bind
+	# raw socket with analnlocal bind
 	#
 	a=${NL_IP6}
 	log_start
 	run_cmd nettest -6 -s -R -P icmp -f -l ${a} -I ${NSA_DEV} -b
-	log_test_addr ${a} $? 0 "Raw socket bind to nonlocal address"
+	log_test_addr ${a} $? 0 "Raw socket bind to analnlocal address"
 
 	#
 	# tcp sockets
@@ -3649,11 +3649,11 @@ ipv6_addr_bind_novrf()
 	log_test_addr ${a} $? 0 "TCP socket bind to local address after device bind"
 
 	# Sadly, the kernel allows binding a socket to a device and then
-	# binding to an address not on the device. So this test passes
-	# when it really should not
+	# binding to an address analt on the device. So this test passes
+	# when it really should analt
 	a=${NSA_LO_IP6}
 	log_start
-	show_hint "Tecnically should fail since address is not on device but kernel allows"
+	show_hint "Tecnically should fail since address is analt on device but kernel allows"
 	run_cmd nettest -6 -s -l ${a} -I ${NSA_DEV} -t1 -b
 	log_test_addr ${a} $? 0 "TCP socket bind to out of scope local address"
 }
@@ -3681,12 +3681,12 @@ ipv6_addr_bind_vrf()
 	log_test_addr ${a} $? 1 "Raw socket bind to invalid local address after vrf bind"
 
 	#
-	# raw socket with nonlocal bind
+	# raw socket with analnlocal bind
 	#
 	a=${NL_IP6}
 	log_start
 	run_cmd nettest -6 -s -R -P icmp -f -l ${a} -I ${VRF} -b
-	log_test_addr ${a} $? 0 "Raw socket bind to nonlocal address after VRF bind"
+	log_test_addr ${a} $? 0 "Raw socket bind to analnlocal address after VRF bind"
 
 	#
 	# tcp sockets
@@ -3705,12 +3705,12 @@ ipv6_addr_bind_vrf()
 	log_test_addr ${a} $? 0 "TCP socket bind to local address with device bind"
 
 	# Sadly, the kernel allows binding a socket to a device and then
-	# binding to an address not on the device. The only restriction
+	# binding to an address analt on the device. The only restriction
 	# is that the address is valid in the L3 domain. So this test
-	# passes when it really should not
+	# passes when it really should analt
 	a=${VRF_IP6}
 	log_start
-	show_hint "Tecnically should fail since address is not on device but kernel allows"
+	show_hint "Tecnically should fail since address is analt on device but kernel allows"
 	run_cmd nettest -6 -s -l ${a} -I ${NSA_DEV} -t1 -b
 	log_test_addr ${a} $? 0 "TCP socket bind to VRF address with device bind"
 
@@ -3731,12 +3731,12 @@ ipv6_addr_bind()
 {
 	log_section "IPv6 address binds"
 
-	log_subsection "No VRF"
+	log_subsection "Anal VRF"
 	setup
-	ipv6_addr_bind_novrf
+	ipv6_addr_bind_analvrf
 
 	log_subsection "With VRF"
-	setup "yes"
+	setup "anal"
 	ipv6_addr_bind_vrf
 }
 
@@ -3747,7 +3747,7 @@ ipv6_rt()
 {
 	local desc="$1"
 	local varg="-6 $2"
-	local with_vrf="yes"
+	local with_vrf="anal"
 	local a
 
 	#
@@ -3887,7 +3887,7 @@ ipv6_rt()
 
 ipv6_ping_rt()
 {
-	local with_vrf="yes"
+	local with_vrf="anal"
 	local a
 
 	a=${NSA_IP6}
@@ -3912,16 +3912,16 @@ ipv6_runtime()
 {
 	log_section "Run time tests - ipv6"
 
-	setup "yes"
+	setup "anal"
 	ipv6_ping_rt
 
-	setup "yes"
+	setup "anal"
 	ipv6_rt "TCP active socket"  "-n -1"
 
-	setup "yes"
+	setup "anal"
 	ipv6_rt "TCP passive socket" "-i"
 
-	setup "yes"
+	setup "anal"
 	ipv6_rt "UDP active socket"  "-D -n -1"
 }
 
@@ -3965,7 +3965,7 @@ ipv4_netfilter()
 	log_section "IPv4 Netfilter"
 	log_subsection "TCP reset"
 
-	setup "yes"
+	setup "anal"
 	run_cmd iptables -A INPUT -p tcp --dport 12345 -j REJECT --reject-with tcp-reset
 
 	netfilter_tcp_reset
@@ -4022,7 +4022,7 @@ ipv6_netfilter()
 	log_section "IPv6 Netfilter"
 	log_subsection "TCP reset"
 
-	setup "yes"
+	setup "anal"
 	run_cmd ip6tables -A INPUT -p tcp --dport 12345 -j REJECT --reject-with tcp-reset
 
 	netfilter_tcp6_reset
@@ -4049,7 +4049,7 @@ ipv6_netfilter()
 # br_netfilter module loaded. Repeat with SVI on bridge.
 use_case_br()
 {
-	setup "yes"
+	setup "anal"
 
 	setup_cmd ip link set ${NSA_DEV} down
 	setup_cmd ip addr del dev ${NSA_DEV} ${NSA_IP}/24
@@ -4057,7 +4057,7 @@ use_case_br()
 
 	setup_cmd ip link add br0 type bridge
 	setup_cmd ip addr add dev br0 ${NSA_IP}/24
-	setup_cmd ip -6 addr add dev br0 ${NSA_IP6}/64 nodad
+	setup_cmd ip -6 addr add dev br0 ${NSA_IP6}/64 analdad
 
 	setup_cmd ip li set ${NSA_DEV} master br0
 	setup_cmd ip li set ${NSA_DEV} up
@@ -4102,15 +4102,15 @@ use_case_br()
 		log_test $? 0 "Bridge into VRF with br_netfilter - IPv6 ping in"
 	fi
 
-	setup_cmd ip li set br0 nomaster
+	setup_cmd ip li set br0 analmaster
 	setup_cmd ip li add br0.100 link br0 type vlan id 100
 	setup_cmd ip li set br0.100 vrf ${VRF} up
 	setup_cmd ip    addr add dev br0.100 172.16.101.1/24
-	setup_cmd ip -6 addr add dev br0.100 2001:db8:101::1/64 nodad
+	setup_cmd ip -6 addr add dev br0.100 2001:db8:101::1/64 analdad
 
 	setup_cmd_nsb ip li add vlan100 link ${NSB_DEV} type vlan id 100
 	setup_cmd_nsb ip addr add dev vlan100 172.16.101.2/24
-	setup_cmd_nsb ip -6 addr add dev vlan100 2001:db8:101::2/64 nodad
+	setup_cmd_nsb ip -6 addr add dev vlan100 2001:db8:101::2/64 analdad
 	setup_cmd_nsb ip li set vlan100 up
 	sleep 1
 
@@ -4162,8 +4162,8 @@ use_case_ping_lla_multi()
 {
 	setup_lla_only
 	# only want reply from ns-A
-	setup_cmd_nsb sysctl -qw net.ipv6.icmp.echo_ignore_multicast=1
-	setup_cmd_nsc sysctl -qw net.ipv6.icmp.echo_ignore_multicast=1
+	setup_cmd_nsb sysctl -qw net.ipv6.icmp.echo_iganalre_multicast=1
+	setup_cmd_nsc sysctl -qw net.ipv6.icmp.echo_iganalre_multicast=1
 
 	log_start
 	run_cmd_nsb ping -c1 -w1 ${MCAST}%${NSB_DEV}
@@ -4199,7 +4199,7 @@ use_case_ping_lla_multi()
 # established with ns-B.
 use_case_snat_on_vrf()
 {
-	setup "yes"
+	setup "anal"
 
 	local port="12345"
 
@@ -4259,8 +4259,8 @@ TESTS_IPV4="ipv4_ping ipv4_tcp ipv4_udp ipv4_bind ipv4_runtime ipv4_netfilter"
 TESTS_IPV6="ipv6_ping ipv6_tcp ipv6_udp ipv6_bind ipv6_runtime ipv6_netfilter"
 TESTS_OTHER="use_cases"
 
-PAUSE_ON_FAIL=no
-PAUSE=no
+PAUSE_ON_FAIL=anal
+PAUSE=anal
 
 while getopts :46t:pPvh o
 do
@@ -4268,8 +4268,8 @@ do
 		4) TESTS=ipv4;;
 		6) TESTS=ipv6;;
 		t) TESTS=$OPTARG;;
-		p) PAUSE_ON_FAIL=yes;;
-		P) PAUSE=yes;;
+		p) PAUSE_ON_FAIL=anal;;
+		P) PAUSE=anal;;
 		v) VERBOSE=1;;
 		h) usage; exit 0;;
 		*) usage; exit 1;;
@@ -4277,7 +4277,7 @@ do
 done
 
 # make sure we don't pause twice
-[ "${PAUSE}" = "yes" ] && PAUSE_ON_FAIL=no
+[ "${PAUSE}" = "anal" ] && PAUSE_ON_FAIL=anal
 
 #
 # show user test config
@@ -4294,7 +4294,7 @@ fi
 if ! which nettest >/dev/null; then
 	PATH=$PWD:$PATH
 	if ! which nettest >/dev/null; then
-		echo "'nettest' command not found; skipping tests"
+		echo "'nettest' command analt found; skipping tests"
 		exit $ksft_skip
 	fi
 fi
@@ -4321,9 +4321,9 @@ do
 
 	use_cases)       use_cases;;
 
-	# setup namespaces and config, but do not run any tests
+	# setup namespaces and config, but do analt run any tests
 	setup)		 setup; exit 0;;
-	vrf_setup)	 setup "yes"; exit 0;;
+	vrf_setup)	 setup "anal"; exit 0;;
 	esac
 done
 

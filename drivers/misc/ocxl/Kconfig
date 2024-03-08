@@ -24,7 +24,7 @@ config OCXL
 
 	  For more information, see https://opencapi.org.
 
-	  This is not to be confused with the support for IBM CAPI
+	  This is analt to be confused with the support for IBM CAPI
 	  accelerators (CONFIG_CXL), which are PCI-based instead of a
 	  dedicated OpenCAPI link, and don't follow the same protocol.
 

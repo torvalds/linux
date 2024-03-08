@@ -19,34 +19,34 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If analt, see <http://www.gnu.org/licenses/>.
  *
  * This file incorporates work covered by the following copyright and
- * permission notice:
- *     The Synopsys DWC ETHER XGMAC Software Driver and documentation
- *     (hereinafter "Software") is an unsupported proprietary work of Synopsys,
- *     Inc. unless otherwise expressly agreed to in writing between Synopsys
+ * permission analtice:
+ *     The Syanalpsys DWC ETHER XGMAC Software Driver and documentation
+ *     (hereinafter "Software") is an unsupported proprietary work of Syanalpsys,
+ *     Inc. unless otherwise expressly agreed to in writing between Syanalpsys
  *     and you.
  *
- *     The Software IS NOT an item of Licensed Software or Licensed Product
+ *     The Software IS ANALT an item of Licensed Software or Licensed Product
  *     under any End User Software License Agreement or Agreement for Licensed
- *     Product with Synopsys or any supplement thereto.  Permission is hereby
+ *     Product with Syanalpsys or any supplement thereto.  Permission is hereby
  *     granted, free of charge, to any person obtaining a copy of this software
- *     annotated with this license and the Software, to deal in the Software
+ *     ananaltated with this license and the Software, to deal in the Software
  *     without restriction, including without limitation the rights to use,
  *     copy, modify, merge, publish, distribute, sublicense, and/or sell copies
  *     of the Software, and to permit persons to whom the Software is furnished
  *     to do so, subject to the following conditions:
  *
- *     The above copyright notice and this permission notice shall be included
+ *     The above copyright analtice and this permission analtice shall be included
  *     in all copies or substantial portions of the Software.
  *
- *     THIS SOFTWARE IS BEING DISTRIBUTED BY SYNOPSYS SOLELY ON AN "AS IS"
- *     BASIS AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ *     THIS SOFTWARE IS BEING DISTRIBUTED BY SYANALPSYS SOLELY ON AN "AS IS"
+ *     BASIS AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED
  *     TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
- *     PARTICULAR PURPOSE ARE HEREBY DISCLAIMED. IN NO EVENT SHALL SYNOPSYS
+ *     PARTICULAR PURPOSE ARE HEREBY DISCLAIMED. IN ANAL EVENT SHALL SYANALPSYS
  *     BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- *     CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ *     CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF
  *     SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
  *     INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
  *     CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
@@ -62,51 +62,51 @@
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
+ *       analtice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in the
+ *       analtice, this list of conditions and the following disclaimer in the
  *       documentation and/or other materials provided with the distribution.
- *     * Neither the name of Advanced Micro Devices, Inc. nor the
+ *     * Neither the name of Advanced Micro Devices, Inc. analr the
  *       names of its contributors may be used to endorse or promote products
  *       derived from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL <COPYRIGHT HOLDER> BE LIABLE FOR ANY
+ * ARE DISCLAIMED. IN ANAL EVENT SHALL <COPYRIGHT HOLDER> BE LIABLE FOR ANY
  * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
  * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
  * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * This file incorporates work covered by the following copyright and
- * permission notice:
- *     The Synopsys DWC ETHER XGMAC Software Driver and documentation
- *     (hereinafter "Software") is an unsupported proprietary work of Synopsys,
- *     Inc. unless otherwise expressly agreed to in writing between Synopsys
+ * permission analtice:
+ *     The Syanalpsys DWC ETHER XGMAC Software Driver and documentation
+ *     (hereinafter "Software") is an unsupported proprietary work of Syanalpsys,
+ *     Inc. unless otherwise expressly agreed to in writing between Syanalpsys
  *     and you.
  *
- *     The Software IS NOT an item of Licensed Software or Licensed Product
+ *     The Software IS ANALT an item of Licensed Software or Licensed Product
  *     under any End User Software License Agreement or Agreement for Licensed
- *     Product with Synopsys or any supplement thereto.  Permission is hereby
+ *     Product with Syanalpsys or any supplement thereto.  Permission is hereby
  *     granted, free of charge, to any person obtaining a copy of this software
- *     annotated with this license and the Software, to deal in the Software
+ *     ananaltated with this license and the Software, to deal in the Software
  *     without restriction, including without limitation the rights to use,
  *     copy, modify, merge, publish, distribute, sublicense, and/or sell copies
  *     of the Software, and to permit persons to whom the Software is furnished
  *     to do so, subject to the following conditions:
  *
- *     The above copyright notice and this permission notice shall be included
+ *     The above copyright analtice and this permission analtice shall be included
  *     in all copies or substantial portions of the Software.
  *
- *     THIS SOFTWARE IS BEING DISTRIBUTED BY SYNOPSYS SOLELY ON AN "AS IS"
- *     BASIS AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ *     THIS SOFTWARE IS BEING DISTRIBUTED BY SYANALPSYS SOLELY ON AN "AS IS"
+ *     BASIS AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED
  *     TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
- *     PARTICULAR PURPOSE ARE HEREBY DISCLAIMED. IN NO EVENT SHALL SYNOPSYS
+ *     PARTICULAR PURPOSE ARE HEREBY DISCLAIMED. IN ANAL EVENT SHALL SYANALPSYS
  *     BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- *     CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ *     CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF
  *     SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
  *     INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
  *     CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
@@ -284,7 +284,7 @@ static enum xgbe_mode xgbe_phy_an_outcome(struct xgbe_prv_data *pdata)
 		else
 			mode = XGBE_MODE_KX_1000;
 	} else {
-		mode = XGBE_MODE_UNKNOWN;
+		mode = XGBE_MODE_UNKANALWN;
 	}
 
 	/* Compare Advertisement and Link Partner register 3 */
@@ -306,7 +306,7 @@ static void xgbe_phy_an_advertising(struct xgbe_prv_data *pdata,
 
 static int xgbe_phy_an_config(struct xgbe_prv_data *pdata)
 {
-	/* Nothing uniquely required for an configuration */
+	/* Analthing uniquely required for an configuration */
 	return 0;
 }
 
@@ -355,7 +355,7 @@ static void xgbe_phy_complete_ratechange(struct xgbe_prv_data *pdata)
 			goto rx_reset;
 	}
 
-	netif_dbg(pdata, link, pdata->netdev, "SerDes rx/tx not ready (%#hx)\n",
+	netif_dbg(pdata, link, pdata->netdev, "SerDes rx/tx analt ready (%#hx)\n",
 		  status);
 
 rx_reset:
@@ -540,14 +540,14 @@ static enum xgbe_mode xgbe_phy_get_mode(struct xgbe_prv_data *pdata,
 	switch (speed) {
 	case SPEED_1000:
 		return (phy_data->speed_set == XGBE_SPEEDSET_1000_10000)
-			? XGBE_MODE_KX_1000 : XGBE_MODE_UNKNOWN;
+			? XGBE_MODE_KX_1000 : XGBE_MODE_UNKANALWN;
 	case SPEED_2500:
 		return (phy_data->speed_set == XGBE_SPEEDSET_2500_10000)
-			? XGBE_MODE_KX_2500 : XGBE_MODE_UNKNOWN;
+			? XGBE_MODE_KX_2500 : XGBE_MODE_UNKANALWN;
 	case SPEED_10000:
 		return XGBE_MODE_KR;
 	default:
-		return XGBE_MODE_UNKNOWN;
+		return XGBE_MODE_UNKANALWN;
 	}
 }
 
@@ -640,12 +640,12 @@ static int xgbe_phy_link_status(struct xgbe_prv_data *pdata, int *an_restart)
 
 static void xgbe_phy_stop(struct xgbe_prv_data *pdata)
 {
-	/* Nothing uniquely required for stop */
+	/* Analthing uniquely required for stop */
 }
 
 static int xgbe_phy_start(struct xgbe_prv_data *pdata)
 {
-	/* Nothing uniquely required for start */
+	/* Analthing uniquely required for start */
 	return 0;
 }
 
@@ -672,7 +672,7 @@ static int xgbe_phy_reset(struct xgbe_prv_data *pdata)
 
 static void xgbe_phy_exit(struct xgbe_prv_data *pdata)
 {
-	/* Nothing uniquely required for exit */
+	/* Analthing uniquely required for exit */
 }
 
 static int xgbe_phy_init(struct xgbe_prv_data *pdata)
@@ -683,7 +683,7 @@ static int xgbe_phy_init(struct xgbe_prv_data *pdata)
 
 	phy_data = devm_kzalloc(pdata->dev, sizeof(*phy_data), GFP_KERNEL);
 	if (!phy_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Retrieve the PHY speedset */
 	ret = device_property_read_u32(pdata->phy_dev, XGBE_SPEEDSET_PROPERTY,

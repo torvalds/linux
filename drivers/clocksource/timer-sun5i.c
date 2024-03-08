@@ -36,7 +36,7 @@
 struct sun5i_timer {
 	void __iomem		*base;
 	struct clk		*clk;
-	struct notifier_block	clk_rate_cb;
+	struct analtifier_block	clk_rate_cb;
 	u32			ticks_per_jiffy;
 	struct clocksource	clksrc;
 	struct clock_event_device	clkevt;
@@ -145,10 +145,10 @@ static u64 sun5i_clksrc_read(struct clocksource *clksrc)
 	return ~readl(cs->base + TIMER_CNTVAL_LO_REG(1));
 }
 
-static int sun5i_rate_cb(struct notifier_block *nb,
+static int sun5i_rate_cb(struct analtifier_block *nb,
 			 unsigned long event, void *data)
 {
-	struct clk_notifier_data *ndata = data;
+	struct clk_analtifier_data *ndata = data;
 	struct sun5i_timer *cs = nb_to_sun5i_timer(nb);
 
 	switch (event) {
@@ -166,7 +166,7 @@ static int sun5i_rate_cb(struct notifier_block *nb,
 		break;
 	}
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static int sun5i_setup_clocksource(struct platform_device *pdev,
@@ -180,7 +180,7 @@ static int sun5i_setup_clocksource(struct platform_device *pdev,
 	writel(TIMER_CTL_ENABLE | TIMER_CTL_RELOAD,
 	       base + TIMER_CTL_REG(1));
 
-	cs->clksrc.name = pdev->dev.of_node->name;
+	cs->clksrc.name = pdev->dev.of_analde->name;
 	cs->clksrc.rating = 340;
 	cs->clksrc.read = sun5i_clksrc_read;
 	cs->clksrc.mask = CLOCKSOURCE_MASK(32);
@@ -204,7 +204,7 @@ static int sun5i_setup_clockevent(struct platform_device *pdev,
 	int ret;
 	u32 val;
 
-	ce->clkevt.name = dev->of_node->name;
+	ce->clkevt.name = dev->of_analde->name;
 	ce->clkevt.features = CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT;
 	ce->clkevt.set_next_event = sun5i_clkevt_next_event;
 	ce->clkevt.set_state_shutdown = sun5i_clkevt_shutdown;
@@ -245,7 +245,7 @@ static int sun5i_timer_probe(struct platform_device *pdev)
 
 	st = devm_kzalloc(dev, sizeof(*st), GFP_KERNEL);
 	if (!st)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, st);
 
@@ -274,12 +274,12 @@ static int sun5i_timer_probe(struct platform_device *pdev)
 	st->base = timer_base;
 	st->ticks_per_jiffy = DIV_ROUND_UP(rate, HZ);
 	st->clk = clk;
-	st->clk_rate_cb.notifier_call = sun5i_rate_cb;
+	st->clk_rate_cb.analtifier_call = sun5i_rate_cb;
 	st->clk_rate_cb.next = NULL;
 
-	ret = devm_clk_notifier_register(dev, clk, &st->clk_rate_cb);
+	ret = devm_clk_analtifier_register(dev, clk, &st->clk_rate_cb);
 	if (ret) {
-		dev_err(dev, "Unable to register clock notifier.\n");
+		dev_err(dev, "Unable to register clock analtifier.\n");
 		return ret;
 	}
 

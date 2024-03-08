@@ -119,9 +119,9 @@ static const struct snd_kcontrol_new alc5623_vol_snd_controls[] = {
 
 static const struct snd_kcontrol_new alc5623_snd_controls[] = {
 	SOC_DOUBLE_TLV("Auxout Playback Volume",
-			ALC5623_MONO_AUX_OUT_VOL, 8, 0, 31, 1, hp_tlv),
+			ALC5623_MOANAL_AUX_OUT_VOL, 8, 0, 31, 1, hp_tlv),
 	SOC_DOUBLE("Auxout Playback Switch",
-			ALC5623_MONO_AUX_OUT_VOL, 15, 7, 1, 1),
+			ALC5623_MOANAL_AUX_OUT_VOL, 15, 7, 1, 1),
 	SOC_DOUBLE_TLV("PCM Playback Volume",
 			ALC5623_STEREO_DAC_VOL, 8, 0, 31, 1, vol_tlv),
 	SOC_DOUBLE_TLV("AuxI Capture Volume",
@@ -161,14 +161,14 @@ static const struct snd_kcontrol_new alc5623_hpr_mixer_controls[] = {
 SOC_DAPM_SINGLE("ADC2HP_R Playback Switch", ALC5623_ADC_REC_GAIN, 14, 1, 1),
 };
 
-static const struct snd_kcontrol_new alc5623_mono_mixer_controls[] = {
-SOC_DAPM_SINGLE("ADC2MONO_L Playback Switch", ALC5623_ADC_REC_GAIN, 13, 1, 1),
-SOC_DAPM_SINGLE("ADC2MONO_R Playback Switch", ALC5623_ADC_REC_GAIN, 12, 1, 1),
-SOC_DAPM_SINGLE("LI2MONO Playback Switch", ALC5623_LINE_IN_VOL, 13, 1, 1),
-SOC_DAPM_SINGLE("AUXI2MONO Playback Switch", ALC5623_AUXIN_VOL, 13, 1, 1),
-SOC_DAPM_SINGLE("MIC12MONO Playback Switch", ALC5623_MIC_ROUTING_CTRL, 13, 1, 1),
-SOC_DAPM_SINGLE("MIC22MONO Playback Switch", ALC5623_MIC_ROUTING_CTRL, 5, 1, 1),
-SOC_DAPM_SINGLE("DAC2MONO Playback Switch", ALC5623_STEREO_DAC_VOL, 13, 1, 1),
+static const struct snd_kcontrol_new alc5623_moanal_mixer_controls[] = {
+SOC_DAPM_SINGLE("ADC2MOANAL_L Playback Switch", ALC5623_ADC_REC_GAIN, 13, 1, 1),
+SOC_DAPM_SINGLE("ADC2MOANAL_R Playback Switch", ALC5623_ADC_REC_GAIN, 12, 1, 1),
+SOC_DAPM_SINGLE("LI2MOANAL Playback Switch", ALC5623_LINE_IN_VOL, 13, 1, 1),
+SOC_DAPM_SINGLE("AUXI2MOANAL Playback Switch", ALC5623_AUXIN_VOL, 13, 1, 1),
+SOC_DAPM_SINGLE("MIC12MOANAL Playback Switch", ALC5623_MIC_ROUTING_CTRL, 13, 1, 1),
+SOC_DAPM_SINGLE("MIC22MOANAL Playback Switch", ALC5623_MIC_ROUTING_CTRL, 5, 1, 1),
+SOC_DAPM_SINGLE("DAC2MOANAL Playback Switch", ALC5623_STEREO_DAC_VOL, 13, 1, 1),
 };
 
 static const struct snd_kcontrol_new alc5623_speaker_mixer_controls[] = {
@@ -187,7 +187,7 @@ SOC_DAPM_SINGLE("LineInL Capture Switch", ALC5623_ADC_REC_MIXER, 12, 1, 1),
 SOC_DAPM_SINGLE("Left AuxI Capture Switch", ALC5623_ADC_REC_MIXER, 11, 1, 1),
 SOC_DAPM_SINGLE("HPMixerL Capture Switch", ALC5623_ADC_REC_MIXER, 10, 1, 1),
 SOC_DAPM_SINGLE("SPKMixer Capture Switch", ALC5623_ADC_REC_MIXER, 9, 1, 1),
-SOC_DAPM_SINGLE("MonoMixer Capture Switch", ALC5623_ADC_REC_MIXER, 8, 1, 1),
+SOC_DAPM_SINGLE("MoanalMixer Capture Switch", ALC5623_ADC_REC_MIXER, 8, 1, 1),
 };
 
 /* Right Record Mixer */
@@ -198,7 +198,7 @@ SOC_DAPM_SINGLE("LineInR Capture Switch", ALC5623_ADC_REC_MIXER, 4, 1, 1),
 SOC_DAPM_SINGLE("Right AuxI Capture Switch", ALC5623_ADC_REC_MIXER, 3, 1, 1),
 SOC_DAPM_SINGLE("HPMixerR Capture Switch", ALC5623_ADC_REC_MIXER, 2, 1, 1),
 SOC_DAPM_SINGLE("SPKMixer Capture Switch", ALC5623_ADC_REC_MIXER, 1, 1, 1),
-SOC_DAPM_SINGLE("MonoMixer Capture Switch", ALC5623_ADC_REC_MIXER, 0, 1, 1),
+SOC_DAPM_SINGLE("MoanalMixer Capture Switch", ALC5623_ADC_REC_MIXER, 0, 1, 1),
 };
 
 static const char *alc5623_spk_n_sour_sel[] = {
@@ -208,9 +208,9 @@ static const char *alc5623_hpl_out_input_sel[] = {
 static const char *alc5623_hpr_out_input_sel[] = {
 		"Vmid", "HP Right Mix"};
 static const char *alc5623_spkout_input_sel[] = {
-		"Vmid", "HPOut Mix", "Speaker Mix", "Mono Mix"};
+		"Vmid", "HPOut Mix", "Speaker Mix", "Moanal Mix"};
 static const char *alc5623_aux_out_input_sel[] = {
-		"Vmid", "HPOut Mix", "Speaker Mix", "Mono Mix"};
+		"Vmid", "HPOut Mix", "Speaker Mix", "Moanal Mix"};
 
 /* auxout output mux */
 static SOC_ENUM_SINGLE_DECL(alc5623_aux_out_input_enum,
@@ -249,19 +249,19 @@ SOC_DAPM_ENUM("Route", alc5623_spk_n_sour_enum);
 
 static const struct snd_soc_dapm_widget alc5623_dapm_widgets[] = {
 /* Muxes */
-SND_SOC_DAPM_MUX("AuxOut Mux", SND_SOC_NOPM, 0, 0,
+SND_SOC_DAPM_MUX("AuxOut Mux", SND_SOC_ANALPM, 0, 0,
 	&alc5623_auxout_mux_controls),
-SND_SOC_DAPM_MUX("SpeakerOut Mux", SND_SOC_NOPM, 0, 0,
+SND_SOC_DAPM_MUX("SpeakerOut Mux", SND_SOC_ANALPM, 0, 0,
 	&alc5623_spkout_mux_controls),
-SND_SOC_DAPM_MUX("Left Headphone Mux", SND_SOC_NOPM, 0, 0,
+SND_SOC_DAPM_MUX("Left Headphone Mux", SND_SOC_ANALPM, 0, 0,
 	&alc5623_hpl_out_mux_controls),
-SND_SOC_DAPM_MUX("Right Headphone Mux", SND_SOC_NOPM, 0, 0,
+SND_SOC_DAPM_MUX("Right Headphone Mux", SND_SOC_ANALPM, 0, 0,
 	&alc5623_hpr_out_mux_controls),
-SND_SOC_DAPM_MUX("SpeakerOut N Mux", SND_SOC_NOPM, 0, 0,
+SND_SOC_DAPM_MUX("SpeakerOut N Mux", SND_SOC_ANALPM, 0, 0,
 	&alc5623_spkoutn_mux_controls),
 
 /* output mixers */
-SND_SOC_DAPM_MIXER("HP Mix", SND_SOC_NOPM, 0, 0,
+SND_SOC_DAPM_MIXER("HP Mix", SND_SOC_ANALPM, 0, 0,
 	&alc5623_hp_mixer_controls[0],
 	ARRAY_SIZE(alc5623_hp_mixer_controls)),
 SND_SOC_DAPM_MIXER("HPR Mix", ALC5623_PWR_MANAG_ADD2, 4, 0,
@@ -270,10 +270,10 @@ SND_SOC_DAPM_MIXER("HPR Mix", ALC5623_PWR_MANAG_ADD2, 4, 0,
 SND_SOC_DAPM_MIXER("HPL Mix", ALC5623_PWR_MANAG_ADD2, 5, 0,
 	&alc5623_hpl_mixer_controls[0],
 	ARRAY_SIZE(alc5623_hpl_mixer_controls)),
-SND_SOC_DAPM_MIXER("HPOut Mix", SND_SOC_NOPM, 0, 0, NULL, 0),
-SND_SOC_DAPM_MIXER("Mono Mix", ALC5623_PWR_MANAG_ADD2, 2, 0,
-	&alc5623_mono_mixer_controls[0],
-	ARRAY_SIZE(alc5623_mono_mixer_controls)),
+SND_SOC_DAPM_MIXER("HPOut Mix", SND_SOC_ANALPM, 0, 0, NULL, 0),
+SND_SOC_DAPM_MIXER("Moanal Mix", ALC5623_PWR_MANAG_ADD2, 2, 0,
+	&alc5623_moanal_mixer_controls[0],
+	ARRAY_SIZE(alc5623_moanal_mixer_controls)),
 SND_SOC_DAPM_MIXER("Speaker Mix", ALC5623_PWR_MANAG_ADD2, 3, 0,
 	&alc5623_speaker_mixer_controls[0],
 	ARRAY_SIZE(alc5623_speaker_mixer_controls)),
@@ -291,8 +291,8 @@ SND_SOC_DAPM_DAC("Left DAC", "Left HiFi Playback",
 SND_SOC_DAPM_DAC("Right DAC", "Right HiFi Playback",
 	ALC5623_PWR_MANAG_ADD2, 8, 0),
 SND_SOC_DAPM_MIXER("I2S Mix", ALC5623_PWR_MANAG_ADD1, 15, 0, NULL, 0),
-SND_SOC_DAPM_MIXER("AuxI Mix", SND_SOC_NOPM, 0, 0, NULL, 0),
-SND_SOC_DAPM_MIXER("Line Mix", SND_SOC_NOPM, 0, 0, NULL, 0),
+SND_SOC_DAPM_MIXER("AuxI Mix", SND_SOC_ANALPM, 0, 0, NULL, 0),
+SND_SOC_DAPM_MIXER("Line Mix", SND_SOC_ANALPM, 0, 0, NULL, 0),
 SND_SOC_DAPM_ADC("Left ADC", "Left HiFi Capture",
 	ALC5623_PWR_MANAG_ADD2, 7, 0),
 SND_SOC_DAPM_ADC("Right ADC", "Right HiFi Capture",
@@ -338,7 +338,7 @@ static const struct snd_soc_dapm_widget alc5623_dapm_amp_widgets[] = {
 SND_SOC_DAPM_PGA_E("D Amp", ALC5623_PWR_MANAG_ADD2, 14, 0, NULL, 0,
 	amp_mixer_event, SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 SND_SOC_DAPM_PGA("AB Amp", ALC5623_PWR_MANAG_ADD2, 15, 0, NULL, 0),
-SND_SOC_DAPM_MUX("AB-D Amp Mux", SND_SOC_NOPM, 0, 0,
+SND_SOC_DAPM_MUX("AB-D Amp Mux", SND_SOC_ANALPM, 0, 0,
 	&alc5623_amp_mux_controls),
 };
 
@@ -371,14 +371,14 @@ static const struct snd_soc_dapm_route intercon[] = {
 	{"Speaker Mix", "MIC22SPK Playback Switch",	"MIC2 PGA"},
 	{"Speaker Mix", "DAC2SPK Playback Switch",	"I2S Mix"},
 
-	/* mono mixer */
-	{"Mono Mix", "ADC2MONO_L Playback Switch",	"Left Capture Mix"},
-	{"Mono Mix", "ADC2MONO_R Playback Switch",	"Right Capture Mix"},
-	{"Mono Mix", "LI2MONO Playback Switch",		"Line Mix"},
-	{"Mono Mix", "AUXI2MONO Playback Switch",	"AuxI Mix"},
-	{"Mono Mix", "MIC12MONO Playback Switch",	"MIC1 PGA"},
-	{"Mono Mix", "MIC22MONO Playback Switch",	"MIC2 PGA"},
-	{"Mono Mix", "DAC2MONO Playback Switch",	"I2S Mix"},
+	/* moanal mixer */
+	{"Moanal Mix", "ADC2MOANAL_L Playback Switch",	"Left Capture Mix"},
+	{"Moanal Mix", "ADC2MOANAL_R Playback Switch",	"Right Capture Mix"},
+	{"Moanal Mix", "LI2MOANAL Playback Switch",		"Line Mix"},
+	{"Moanal Mix", "AUXI2MOANAL Playback Switch",	"AuxI Mix"},
+	{"Moanal Mix", "MIC12MOANAL Playback Switch",	"MIC1 PGA"},
+	{"Moanal Mix", "MIC22MOANAL Playback Switch",	"MIC2 PGA"},
+	{"Moanal Mix", "DAC2MOANAL Playback Switch",	"I2S Mix"},
 
 	/* Left record mixer */
 	{"Left Capture Mix", "LineInL Capture Switch",	"LINEINL"},
@@ -387,7 +387,7 @@ static const struct snd_soc_dapm_route intercon[] = {
 	{"Left Capture Mix", "Mic2 Capture Switch",	"MIC2 Pre Amp"},
 	{"Left Capture Mix", "HPMixerL Capture Switch", "HPL Mix"},
 	{"Left Capture Mix", "SPKMixer Capture Switch", "Speaker Mix"},
-	{"Left Capture Mix", "MonoMixer Capture Switch", "Mono Mix"},
+	{"Left Capture Mix", "MoanalMixer Capture Switch", "Moanal Mix"},
 
 	/*Right record mixer */
 	{"Right Capture Mix", "LineInR Capture Switch",	"LINEINR"},
@@ -396,7 +396,7 @@ static const struct snd_soc_dapm_route intercon[] = {
 	{"Right Capture Mix", "Mic2 Capture Switch",	"MIC2 Pre Amp"},
 	{"Right Capture Mix", "HPMixerR Capture Switch", "HPR Mix"},
 	{"Right Capture Mix", "SPKMixer Capture Switch", "Speaker Mix"},
-	{"Right Capture Mix", "MonoMixer Capture Switch", "Mono Mix"},
+	{"Right Capture Mix", "MoanalMixer Capture Switch", "Moanal Mix"},
 
 	/* headphone left mux */
 	{"Left Headphone Mux", "HP Left Mix",		"HPL Mix"},
@@ -410,13 +410,13 @@ static const struct snd_soc_dapm_route intercon[] = {
 	{"SpeakerOut Mux", "Vmid",			"Vmid"},
 	{"SpeakerOut Mux", "HPOut Mix",			"HPOut Mix"},
 	{"SpeakerOut Mux", "Speaker Mix",		"Speaker Mix"},
-	{"SpeakerOut Mux", "Mono Mix",			"Mono Mix"},
+	{"SpeakerOut Mux", "Moanal Mix",			"Moanal Mix"},
 
-	/* Mono/Aux Out mux */
+	/* Moanal/Aux Out mux */
 	{"AuxOut Mux", "Vmid",				"Vmid"},
 	{"AuxOut Mux", "HPOut Mix",			"HPOut Mix"},
 	{"AuxOut Mux", "Speaker Mix",			"Speaker Mix"},
-	{"AuxOut Mux", "Mono Mix",			"Mono Mix"},
+	{"AuxOut Mux", "Moanal Mix",			"Moanal Mix"},
 
 	/* output pga */
 	{"HPL", NULL,					"Left Headphone"},
@@ -470,7 +470,7 @@ struct _pll_div {
 	u16 regvalue;
 };
 
-/* Note : pll code from original alc5623 driver. Not sure of how good it is */
+/* Analte : pll code from original alc5623 driver. Analt sure of how good it is */
 /* useful only for master mode */
 static const struct _pll_div codec_master_pll_div[] = {
 
@@ -526,14 +526,14 @@ static int alc5623_set_dai_pll(struct snd_soc_dai *codec_dai, int pll_id,
 	u16 reg;
 
 	if (pll_id < ALC5623_PLL_FR_MCLK || pll_id > ALC5623_PLL_FR_BCK)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Disable PLL power */
 	snd_soc_component_update_bits(component, ALC5623_PWR_MANAG_ADD2,
 				ALC5623_PWR_ADD2_PLL,
 				0);
 
-	/* pll is not used in slave mode */
+	/* pll is analt used in slave mode */
 	reg = snd_soc_component_read(component, ALC5623_DAI_CONTROL);
 	if (reg & ALC5623_DAI_SDP_SLAVE_MODE)
 		return 0;
@@ -833,7 +833,7 @@ static const struct snd_soc_dai_ops alc5623_dai_ops = {
 		.set_fmt = alc5623_set_dai_fmt,
 		.set_sysclk = alc5623_set_dai_sysclk,
 		.set_pll = alc5623_set_dai_pll,
-		.no_capture_mute = 1,
+		.anal_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver alc5623_dai = {
@@ -985,7 +985,7 @@ static int alc5623_i2c_probe(struct i2c_client *client)
 {
 	struct alc5623_platform_data *pdata;
 	struct alc5623_priv *alc5623;
-	struct device_node *np;
+	struct device_analde *np;
 	unsigned int vid1, vid2;
 	int ret;
 	u32 val32;
@@ -994,7 +994,7 @@ static int alc5623_i2c_probe(struct i2c_client *client)
 	alc5623 = devm_kzalloc(&client->dev, sizeof(struct alc5623_priv),
 			       GFP_KERNEL);
 	if (alc5623 == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	alc5623->regmap = devm_regmap_init_i2c(client, &alc5623_regmap);
 	if (IS_ERR(alc5623->regmap)) {
@@ -1019,11 +1019,11 @@ static int alc5623_i2c_probe(struct i2c_client *client)
 	id = i2c_match_id(alc5623_i2c_table, client);
 
 	if ((vid1 != 0x10ec) || (vid2 != id->driver_data)) {
-		dev_err(&client->dev, "unknown or wrong codec\n");
+		dev_err(&client->dev, "unkanalwn or wrong codec\n");
 		dev_err(&client->dev, "Expected %x:%lx, got %x:%x\n",
 				0x10ec, id->driver_data,
 				vid1, vid2);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	dev_dbg(&client->dev, "Found codec id : alc56%02x\n", vid2);
@@ -1033,8 +1033,8 @@ static int alc5623_i2c_probe(struct i2c_client *client)
 		alc5623->add_ctrl = pdata->add_ctrl;
 		alc5623->jack_det_ctrl = pdata->jack_det_ctrl;
 	} else {
-		if (client->dev.of_node) {
-			np = client->dev.of_node;
+		if (client->dev.of_analde) {
+			np = client->dev.of_analde;
 			ret = of_property_read_u32(np, "add-ctrl", &val32);
 			if (!ret)
 				alc5623->add_ctrl = val32;

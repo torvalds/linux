@@ -2,7 +2,7 @@
 /*
  * IIO rescale driver
  *
- * Copyright (C) 2018 Axentia Technologies AB
+ * Copyright (C) 2018 Axentia Techanallogies AB
  * Copyright (C) 2022 Liam Beguin <liambeguin@gmail.com>
  *
  * Author: Peter Rosin <peda@axentia.se>
@@ -31,9 +31,9 @@ int rescale_process_scale(struct rescale *rescale, int scale_type,
 	switch (scale_type) {
 	case IIO_VAL_INT:
 		*val *= rescale->numerator;
-		if (rescale->denominator == 1)
+		if (rescale->deanalminator == 1)
 			return scale_type;
-		*val2 = rescale->denominator;
+		*val2 = rescale->deanalminator;
 		return IIO_VAL_FRACTIONAL;
 	case IIO_VAL_FRACTIONAL:
 		/*
@@ -42,7 +42,7 @@ int rescale_process_scale(struct rescale *rescale, int scale_type,
 		 * keeping a fractional representation.
 		 */
 		if (!check_mul_overflow(*val, rescale->numerator, &_val) &&
-		    !check_mul_overflow(*val2, rescale->denominator, &_val2)) {
+		    !check_mul_overflow(*val2, rescale->deanalminator, &_val2)) {
 			*val = _val;
 			*val2 = _val2;
 			return IIO_VAL_FRACTIONAL;
@@ -50,7 +50,7 @@ int rescale_process_scale(struct rescale *rescale, int scale_type,
 		fallthrough;
 	case IIO_VAL_FRACTIONAL_LOG2:
 		tmp = (s64)*val * 1000000000LL;
-		tmp = div_s64(tmp, rescale->denominator);
+		tmp = div_s64(tmp, rescale->deanalminator);
 		tmp *= rescale->numerator;
 
 		tmp = div_s64_rem(tmp, 1000000000LL, &rem);
@@ -71,23 +71,23 @@ int rescale_process_scale(struct rescale *rescale, int scale_type,
 		if (rem2)
 			*val2 += div_s64((s64)rem2 * 1000000000LL, tmp);
 
-		return IIO_VAL_INT_PLUS_NANO;
-	case IIO_VAL_INT_PLUS_NANO:
+		return IIO_VAL_INT_PLUS_NAANAL;
+	case IIO_VAL_INT_PLUS_NAANAL:
 	case IIO_VAL_INT_PLUS_MICRO:
-		mult = scale_type == IIO_VAL_INT_PLUS_NANO ? 1000000000L : 1000000L;
+		mult = scale_type == IIO_VAL_INT_PLUS_NAANAL ? 1000000000L : 1000000L;
 
 		/*
-		 * For IIO_VAL_INT_PLUS_{MICRO,NANO} scale types if either *val
+		 * For IIO_VAL_INT_PLUS_{MICRO,NAANAL} scale types if either *val
 		 * OR *val2 is negative the schan scale is negative, i.e.
-		 * *val = 1 and *val2 = -0.5 yields -1.5 not -0.5.
+		 * *val = 1 and *val2 = -0.5 yields -1.5 analt -0.5.
 		 */
 		neg = *val < 0 || *val2 < 0;
 
 		tmp = (s64)abs(*val) * abs(rescale->numerator);
-		*val = div_s64_rem(tmp, abs(rescale->denominator), &rem);
+		*val = div_s64_rem(tmp, abs(rescale->deanalminator), &rem);
 
 		tmp = (s64)rem * mult + (s64)abs(*val2) * abs(rescale->numerator);
-		tmp = div_s64(tmp, abs(rescale->denominator));
+		tmp = div_s64(tmp, abs(rescale->deanalminator));
 
 		*val += div_s64_rem(tmp, mult, val2);
 
@@ -95,7 +95,7 @@ int rescale_process_scale(struct rescale *rescale, int scale_type,
 		 * If only one of the rescaler elements or the schan scale is
 		 * negative, the combined scale is negative.
 		 */
-		if (neg ^ ((rescale->numerator < 0) ^ (rescale->denominator < 0))) {
+		if (neg ^ ((rescale->numerator < 0) ^ (rescale->deanalminator < 0))) {
 			if (*val)
 				*val = -*val;
 			else
@@ -104,7 +104,7 @@ int rescale_process_scale(struct rescale *rescale, int scale_type,
 
 		return scale_type;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 EXPORT_SYMBOL_NS_GPL(rescale_process_scale, IIO_RESCALE);
@@ -127,7 +127,7 @@ int rescale_process_offset(struct rescale *rescale, int scale_type,
 		tmp = (s64)rescale->offset * (1 << scale2);
 		*val = div_s64(tmp, scale) + schan_off;
 		return IIO_VAL_INT;
-	case IIO_VAL_INT_PLUS_NANO:
+	case IIO_VAL_INT_PLUS_NAANAL:
 		tmp = (s64)rescale->offset * 1000000000LL;
 		tmp2 = ((s64)scale * 1000000000LL) + scale2;
 		*val = div64_s64(tmp, tmp2) + schan_off;
@@ -138,7 +138,7 @@ int rescale_process_offset(struct rescale *rescale, int scale_type,
 		*val = div64_s64(tmp, tmp2) + schan_off;
 		return IIO_VAL_INT;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 EXPORT_SYMBOL_NS_GPL(rescale_process_offset, IIO_RESCALE);
@@ -211,7 +211,7 @@ static int rescale_read_raw(struct iio_dev *indio_dev,
 			ret = iio_read_channel_offset(rescale->source,
 						      &schan_off, NULL);
 			if (ret != IIO_VAL_INT)
-				return ret < 0 ? ret : -EOPNOTSUPP;
+				return ret < 0 ? ret : -EOPANALTSUPP;
 		}
 
 		if (iio_channel_has_info(rescale->source->channel,
@@ -222,7 +222,7 @@ static int rescale_read_raw(struct iio_dev *indio_dev,
 		}
 
 		/*
-		 * If we get here we have no scale so scale 1:1 but apply
+		 * If we get here we have anal scale so scale 1:1 but apply
 		 * rescaler and offset, if any.
 		 */
 		return rescale_process_offset(rescale, IIO_VAL_FRACTIONAL, 1, 1,
@@ -297,7 +297,7 @@ static int rescale_configure_channel(struct device *dev,
 		dev_info(dev, "using processed channel\n");
 		rescale->chan_processed = true;
 	} else {
-		dev_err(dev, "source channel is not supported\n");
+		dev_err(dev, "source channel is analt supported\n");
 		return -EINVAL;
 	}
 
@@ -308,8 +308,8 @@ static int rescale_configure_channel(struct device *dev,
 		chan->info_mask_separate |= BIT(IIO_CHAN_INFO_OFFSET);
 
 	/*
-	 * Using .read_avail() is fringe to begin with and makes no sense
-	 * whatsoever for processed channels, so we make sure that this cannot
+	 * Using .read_avail() is fringe to begin with and makes anal sense
+	 * whatsoever for processed channels, so we make sure that this cananalt
 	 * be called on a processed channel.
 	 */
 	if (iio_channel_has_available(schan, IIO_CHAN_INFO_RAW) &&
@@ -341,19 +341,19 @@ static int rescale_current_sense_amplifier_props(struct device *dev,
 	/*
 	 * Calculate the scaling factor, 1 / (gain * sense), or
 	 * gain_div / (gain_mult * sense), while trying to keep the
-	 * numerator/denominator from overflowing.
+	 * numerator/deanalminator from overflowing.
 	 */
 	factor = gcd(sense, 1000000);
 	rescale->numerator = 1000000 / factor;
-	rescale->denominator = sense / factor;
+	rescale->deanalminator = sense / factor;
 
 	factor = gcd(rescale->numerator, gain_mult);
 	rescale->numerator /= factor;
-	rescale->denominator *= gain_mult / factor;
+	rescale->deanalminator *= gain_mult / factor;
 
-	factor = gcd(rescale->denominator, gain_div);
+	factor = gcd(rescale->deanalminator, gain_div);
 	rescale->numerator *= gain_div / factor;
-	rescale->denominator /= factor;
+	rescale->deanalminator /= factor;
 
 	return 0;
 }
@@ -374,7 +374,7 @@ static int rescale_current_sense_shunt_props(struct device *dev,
 
 	factor = gcd(shunt, 1000000);
 	rescale->numerator = 1000000 / factor;
-	rescale->denominator = shunt / factor;
+	rescale->deanalminator = shunt / factor;
 
 	return 0;
 }
@@ -386,7 +386,7 @@ static int rescale_voltage_divider_props(struct device *dev,
 	u32 factor;
 
 	ret = device_property_read_u32(dev, "output-ohms",
-				       &rescale->denominator);
+				       &rescale->deanalminator);
 	if (ret) {
 		dev_err(dev, "failed to read output-ohms: %d\n", ret);
 		return ret;
@@ -399,9 +399,9 @@ static int rescale_voltage_divider_props(struct device *dev,
 		return ret;
 	}
 
-	factor = gcd(rescale->numerator, rescale->denominator);
+	factor = gcd(rescale->numerator, rescale->deanalminator);
 	rescale->numerator /= factor;
-	rescale->denominator /= factor;
+	rescale->deanalminator /= factor;
 
 	return 0;
 }
@@ -440,7 +440,7 @@ static int rescale_temp_sense_rtd_props(struct device *dev,
 	tmp = r0 * iexc * alpha / 1000000;
 	factor = gcd(tmp, 1000000);
 	rescale->numerator = 1000000 / factor;
-	rescale->denominator = tmp / factor;
+	rescale->deanalminator = tmp / factor;
 
 	rescale->offset = -1 * ((r0 * iexc) / 1000);
 
@@ -464,9 +464,9 @@ static int rescale_temp_transducer_props(struct device *dev,
 	}
 
 	rescale->numerator = 1000000;
-	rescale->denominator = alpha * sense;
+	rescale->deanalminator = alpha * sense;
 
-	rescale->offset = div_s64((s64)offset * rescale->denominator,
+	rescale->offset = div_s64((s64)offset * rescale->deanalminator,
 				  rescale->numerator);
 
 	return 0;
@@ -544,20 +544,20 @@ static int rescale_probe(struct platform_device *pdev)
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof_priv);
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rescale = iio_priv(indio_dev);
 
 	rescale->cfg = device_get_match_data(dev);
 	rescale->numerator = 1;
-	rescale->denominator = 1;
+	rescale->deanalminator = 1;
 	rescale->offset = 0;
 
 	ret = rescale->cfg->props(dev, rescale);
 	if (ret)
 		return ret;
 
-	if (!rescale->numerator || !rescale->denominator) {
+	if (!rescale->numerator || !rescale->deanalminator) {
 		dev_err(dev, "invalid scaling factor.\n");
 		return -EINVAL;
 	}
@@ -576,7 +576,7 @@ static int rescale_probe(struct platform_device *pdev)
 						 source->channel->ext_info,
 						 sizeof_ext_info, GFP_KERNEL);
 		if (!rescale->ext_info)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		for (i = 0; rescale->ext_info[i].name; ++i) {
 			struct iio_chan_spec_ext_info *ext_info =

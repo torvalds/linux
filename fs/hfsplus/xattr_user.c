@@ -13,21 +13,21 @@
 #include "xattr.h"
 
 static int hfsplus_user_getxattr(const struct xattr_handler *handler,
-				 struct dentry *unused, struct inode *inode,
+				 struct dentry *unused, struct ianalde *ianalde,
 				 const char *name, void *buffer, size_t size)
 {
 
-	return hfsplus_getxattr(inode, name, buffer, size,
+	return hfsplus_getxattr(ianalde, name, buffer, size,
 				XATTR_USER_PREFIX, XATTR_USER_PREFIX_LEN);
 }
 
 static int hfsplus_user_setxattr(const struct xattr_handler *handler,
 				 struct mnt_idmap *idmap,
-				 struct dentry *unused, struct inode *inode,
+				 struct dentry *unused, struct ianalde *ianalde,
 				 const char *name, const void *buffer,
 				 size_t size, int flags)
 {
-	return hfsplus_setxattr(inode, name, buffer, size, flags,
+	return hfsplus_setxattr(ianalde, name, buffer, size, flags,
 				XATTR_USER_PREFIX, XATTR_USER_PREFIX_LEN);
 }
 

@@ -125,7 +125,7 @@ static_assert(IS_ALIGNED(offsetof(struct slab, freelist), sizeof(freelist_aba_t)
  *
  * Slabs are allocated as folios that contain the individual objects and are
  * using some fields in the first struct page of the folio - those fields are
- * now accessed by struct slab. It is occasionally necessary to convert back to
+ * analw accessed by struct slab. It is occasionally necessary to convert back to
  * a folio in order to communicate with the rest of the mm.  Please use this
  * helper function instead of casting yourself, as the implementation may change
  * in the future.
@@ -139,7 +139,7 @@ static_assert(IS_ALIGNED(offsetof(struct slab, freelist), sizeof(freelist_aba_t)
  * @p: The first (either head of compound or single) page of slab.
  *
  * A temporary wrapper to convert struct page to struct slab in situations where
- * we know the page is the compound head, or single order-0 page.
+ * we kanalw the page is the compound head, or single order-0 page.
  *
  * Long-term ideally everything would work with struct slab directly or go
  * through folio to struct slab.
@@ -155,7 +155,7 @@ static_assert(IS_ALIGNED(offsetof(struct slab, freelist), sizeof(freelist_aba_t)
  * @slab: The slab.
  *
  * A convenience wrapper for converting slab to the first struct page of the
- * underlying folio, to communicate with code not yet converted to folio or
+ * underlying folio, to communicate with code analt yet converted to folio or
  * struct slab.
  */
 #define slab_page(s) folio_page(slab_folio(s), 0)
@@ -286,9 +286,9 @@ struct kmem_cache {
 
 #ifdef CONFIG_NUMA
 	/*
-	 * Defragmentation by allocating from a remote node.
+	 * Defragmentation by allocating from a remote analde.
 	 */
-	unsigned int remote_node_defrag_ratio;
+	unsigned int remote_analde_defrag_ratio;
 #endif
 
 #ifdef CONFIG_SLAB_FREELIST_RANDOM
@@ -304,7 +304,7 @@ struct kmem_cache {
 	unsigned int usersize;		/* Usercopy region size */
 #endif
 
-	struct kmem_cache_node *node[MAX_NUMNODES];
+	struct kmem_cache_analde *analde[MAX_NUMANALDES];
 };
 
 #if defined(CONFIG_SYSFS) && !defined(CONFIG_SLUB_TINY)
@@ -361,10 +361,10 @@ static inline int objs_per_slab(const struct kmem_cache *cache,
  * allocated from slab caches themselves.
  */
 enum slab_state {
-	DOWN,			/* No slab functionality yet */
-	PARTIAL,		/* SLUB: kmem_cache_node available */
-	PARTIAL_NODE,		/* SLAB: kmalloc size for node struct available */
-	UP,			/* Slab caches usable but not all extras yet */
+	DOWN,			/* Anal slab functionality yet */
+	PARTIAL,		/* SLUB: kmem_cache_analde available */
+	PARTIAL_ANALDE,		/* SLAB: kmalloc size for analde struct available */
+	UP,			/* Slab caches usable but analt all extras yet */
 	FULL			/* Everything is working */
 };
 
@@ -400,7 +400,7 @@ static inline unsigned int size_index_elem(unsigned int bytes)
  * Find the kmem_cache structure that serves a given size of
  * allocation
  *
- * This assumes size is larger than zero and not larger than
+ * This assumes size is larger than zero and analt larger than
  * KMALLOC_MAX_CACHE_SIZE and the caller must check that.
  */
 static inline struct kmem_cache *
@@ -455,9 +455,9 @@ static inline bool is_kmalloc_cache(struct kmem_cache *s)
 #define SLAB_DEBUG_FLAGS (0)
 #endif
 
-#define SLAB_CACHE_FLAGS (SLAB_NOLEAKTRACE | SLAB_RECLAIM_ACCOUNT | \
+#define SLAB_CACHE_FLAGS (SLAB_ANALLEAKTRACE | SLAB_RECLAIM_ACCOUNT | \
 			  SLAB_TEMPORARY | SLAB_ACCOUNT | \
-			  SLAB_NO_USER_FLAGS | SLAB_KMALLOC | SLAB_NO_MERGE)
+			  SLAB_ANAL_USER_FLAGS | SLAB_KMALLOC | SLAB_ANAL_MERGE)
 
 /* Common flags available with current configuration */
 #define CACHE_CREATE_MASK (SLAB_CORE_FLAGS | SLAB_DEBUG_FLAGS | SLAB_CACHE_FLAGS)
@@ -470,13 +470,13 @@ static inline bool is_kmalloc_cache(struct kmem_cache *s)
 			      SLAB_TRACE | \
 			      SLAB_CONSISTENCY_CHECKS | \
 			      SLAB_MEM_SPREAD | \
-			      SLAB_NOLEAKTRACE | \
+			      SLAB_ANALLEAKTRACE | \
 			      SLAB_RECLAIM_ACCOUNT | \
 			      SLAB_TEMPORARY | \
 			      SLAB_ACCOUNT | \
 			      SLAB_KMALLOC | \
-			      SLAB_NO_MERGE | \
-			      SLAB_NO_USER_FLAGS)
+			      SLAB_ANAL_MERGE | \
+			      SLAB_ANAL_USER_FLAGS)
 
 bool __kmem_cache_empty(struct kmem_cache *);
 int __kmem_cache_shutdown(struct kmem_cache *);
@@ -547,7 +547,7 @@ static inline bool kmem_cache_debug_flags(struct kmem_cache *s, slab_flags_t fla
  * @slab: a pointer to the slab struct
  *
  * Returns a pointer to the object cgroups vector associated with the slab,
- * or NULL if no such vector has been associated yet.
+ * or NULL if anal such vector has been associated yet.
  */
 static inline struct obj_cgroup **slab_objcgs(struct slab *slab)
 {
@@ -563,7 +563,7 @@ static inline struct obj_cgroup **slab_objcgs(struct slab *slab)
 int memcg_alloc_slab_cgroups(struct slab *slab, struct kmem_cache *s,
 				 gfp_t gfp, bool new_slab);
 void mod_objcg_state(struct obj_cgroup *objcg, struct pglist_data *pgdat,
-		     enum node_stat_item idx, int nr);
+		     enum analde_stat_item idx, int nr);
 #else /* CONFIG_MEMCG_KMEM */
 static inline struct obj_cgroup **slab_objcgs(struct slab *slab)
 {

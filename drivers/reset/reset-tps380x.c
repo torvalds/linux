@@ -64,7 +64,7 @@ static const struct reset_control_ops reset_tps380x_ops = {
 static int tps380x_reset_of_xlate(struct reset_controller_dev *rcdev,
 				  const struct of_phandle_args *reset_spec)
 {
-	/* No special handling needed, we have only one reset line per device */
+	/* Anal special handling needed, we have only one reset line per device */
 	return 0;
 }
 
@@ -80,7 +80,7 @@ static int tps380x_reset_probe(struct platform_device *pdev)
 
 	tps380x = devm_kzalloc(dev, sizeof(*tps380x), GFP_KERNEL);
 	if (!tps380x)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tps380x->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(tps380x->reset_gpio))
@@ -92,7 +92,7 @@ static int tps380x_reset_probe(struct platform_device *pdev)
 	tps380x->rcdev.ops = &reset_tps380x_ops;
 	tps380x->rcdev.owner = THIS_MODULE;
 	tps380x->rcdev.dev = dev;
-	tps380x->rcdev.of_node = dev->of_node;
+	tps380x->rcdev.of_analde = dev->of_analde;
 	tps380x->rcdev.of_reset_n_cells = 0;
 	tps380x->rcdev.of_xlate = tps380x_reset_of_xlate;
 	tps380x->rcdev.nr_resets = 1;

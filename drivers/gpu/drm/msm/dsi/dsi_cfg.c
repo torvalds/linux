@@ -258,56 +258,56 @@ static const struct msm_dsi_host_cfg_ops msm_dsi_6g_v2_host_ops = {
 };
 
 static const struct msm_dsi_cfg_handler dsi_cfg_handlers[] = {
-	{MSM_DSI_VER_MAJOR_V2, MSM_DSI_V2_VER_MINOR_8064,
+	{MSM_DSI_VER_MAJOR_V2, MSM_DSI_V2_VER_MIANALR_8064,
 		&apq8064_dsi_cfg, &msm_dsi_v2_host_ops},
-	{MSM_DSI_VER_MAJOR_6G, MSM_DSI_6G_VER_MINOR_V1_0,
+	{MSM_DSI_VER_MAJOR_6G, MSM_DSI_6G_VER_MIANALR_V1_0,
 		&msm8974_apq8084_dsi_cfg, &msm_dsi_6g_host_ops},
-	{MSM_DSI_VER_MAJOR_6G, MSM_DSI_6G_VER_MINOR_V1_0_2,
+	{MSM_DSI_VER_MAJOR_6G, MSM_DSI_6G_VER_MIANALR_V1_0_2,
 		&msm8974_apq8084_dsi_cfg, &msm_dsi_6g_host_ops},
-	{MSM_DSI_VER_MAJOR_6G, MSM_DSI_6G_VER_MINOR_V1_1,
+	{MSM_DSI_VER_MAJOR_6G, MSM_DSI_6G_VER_MIANALR_V1_1,
 		&msm8974_apq8084_dsi_cfg, &msm_dsi_6g_host_ops},
-	{MSM_DSI_VER_MAJOR_6G, MSM_DSI_6G_VER_MINOR_V1_1_1,
+	{MSM_DSI_VER_MAJOR_6G, MSM_DSI_6G_VER_MIANALR_V1_1_1,
 		&msm8974_apq8084_dsi_cfg, &msm_dsi_6g_host_ops},
-	{MSM_DSI_VER_MAJOR_6G, MSM_DSI_6G_VER_MINOR_V1_2,
+	{MSM_DSI_VER_MAJOR_6G, MSM_DSI_6G_VER_MIANALR_V1_2,
 		&msm8974_apq8084_dsi_cfg, &msm_dsi_6g_host_ops},
-	{MSM_DSI_VER_MAJOR_6G, MSM_DSI_6G_VER_MINOR_V1_3,
+	{MSM_DSI_VER_MAJOR_6G, MSM_DSI_6G_VER_MIANALR_V1_3,
 		&msm8994_dsi_cfg, &msm_dsi_6g_host_ops},
-	{MSM_DSI_VER_MAJOR_6G, MSM_DSI_6G_VER_MINOR_V1_3_1,
+	{MSM_DSI_VER_MAJOR_6G, MSM_DSI_6G_VER_MIANALR_V1_3_1,
 		&msm8916_dsi_cfg, &msm_dsi_6g_host_ops},
-	{MSM_DSI_VER_MAJOR_6G, MSM_DSI_6G_VER_MINOR_V1_4_1,
+	{MSM_DSI_VER_MAJOR_6G, MSM_DSI_6G_VER_MIANALR_V1_4_1,
 		&msm8996_dsi_cfg, &msm_dsi_6g_host_ops},
-	{MSM_DSI_VER_MAJOR_6G, MSM_DSI_6G_VER_MINOR_V1_4_2,
+	{MSM_DSI_VER_MAJOR_6G, MSM_DSI_6G_VER_MIANALR_V1_4_2,
 		&msm8976_dsi_cfg, &msm_dsi_6g_host_ops},
-	{MSM_DSI_VER_MAJOR_6G, MSM_DSI_6G_VER_MINOR_V2_1_0,
+	{MSM_DSI_VER_MAJOR_6G, MSM_DSI_6G_VER_MIANALR_V2_1_0,
 		&sdm660_dsi_cfg, &msm_dsi_6g_v2_host_ops},
-	{MSM_DSI_VER_MAJOR_6G, MSM_DSI_6G_VER_MINOR_V2_2_0,
+	{MSM_DSI_VER_MAJOR_6G, MSM_DSI_6G_VER_MIANALR_V2_2_0,
 		&msm8998_dsi_cfg, &msm_dsi_6g_v2_host_ops},
-	{MSM_DSI_VER_MAJOR_6G, MSM_DSI_6G_VER_MINOR_V2_2_1,
+	{MSM_DSI_VER_MAJOR_6G, MSM_DSI_6G_VER_MIANALR_V2_2_1,
 		&sdm845_dsi_cfg, &msm_dsi_6g_v2_host_ops},
-	{MSM_DSI_VER_MAJOR_6G, MSM_DSI_6G_VER_MINOR_V2_3_0,
+	{MSM_DSI_VER_MAJOR_6G, MSM_DSI_6G_VER_MIANALR_V2_3_0,
 		&sdm845_dsi_cfg, &msm_dsi_6g_v2_host_ops},
-	{MSM_DSI_VER_MAJOR_6G, MSM_DSI_6G_VER_MINOR_V2_4_0,
+	{MSM_DSI_VER_MAJOR_6G, MSM_DSI_6G_VER_MIANALR_V2_4_0,
 		&sdm845_dsi_cfg, &msm_dsi_6g_v2_host_ops},
-	{MSM_DSI_VER_MAJOR_6G, MSM_DSI_6G_VER_MINOR_V2_4_1,
+	{MSM_DSI_VER_MAJOR_6G, MSM_DSI_6G_VER_MIANALR_V2_4_1,
 		&sdm845_dsi_cfg, &msm_dsi_6g_v2_host_ops},
-	{MSM_DSI_VER_MAJOR_6G, MSM_DSI_6G_VER_MINOR_V2_5_0,
+	{MSM_DSI_VER_MAJOR_6G, MSM_DSI_6G_VER_MIANALR_V2_5_0,
 		&sc7280_dsi_cfg, &msm_dsi_6g_v2_host_ops},
-	{MSM_DSI_VER_MAJOR_6G, MSM_DSI_6G_VER_MINOR_V2_6_0,
+	{MSM_DSI_VER_MAJOR_6G, MSM_DSI_6G_VER_MIANALR_V2_6_0,
 		&sdm845_dsi_cfg, &msm_dsi_6g_v2_host_ops},
-	{MSM_DSI_VER_MAJOR_6G, MSM_DSI_6G_VER_MINOR_V2_7_0,
+	{MSM_DSI_VER_MAJOR_6G, MSM_DSI_6G_VER_MIANALR_V2_7_0,
 		&sm8550_dsi_cfg, &msm_dsi_6g_v2_host_ops},
-	{MSM_DSI_VER_MAJOR_6G, MSM_DSI_6G_VER_MINOR_V2_8_0,
+	{MSM_DSI_VER_MAJOR_6G, MSM_DSI_6G_VER_MIANALR_V2_8_0,
 		&sm8650_dsi_cfg, &msm_dsi_6g_v2_host_ops},
 };
 
-const struct msm_dsi_cfg_handler *msm_dsi_cfg_get(u32 major, u32 minor)
+const struct msm_dsi_cfg_handler *msm_dsi_cfg_get(u32 major, u32 mianalr)
 {
 	const struct msm_dsi_cfg_handler *cfg_hnd = NULL;
 	int i;
 
 	for (i = ARRAY_SIZE(dsi_cfg_handlers) - 1; i >= 0; i--) {
 		if ((dsi_cfg_handlers[i].major == major) &&
-			(dsi_cfg_handlers[i].minor == minor)) {
+			(dsi_cfg_handlers[i].mianalr == mianalr)) {
 			cfg_hnd = &dsi_cfg_handlers[i];
 			break;
 		}

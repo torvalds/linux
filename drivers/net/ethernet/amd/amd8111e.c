@@ -10,7 +10,7 @@
  * Copyright 1993 United States Government as represented by the
  *	Director, National Security Agency.[ pcnet32.c ]
  * Carsten Langgaard, carstenl@mips.com [ pcnet32.c ]
- * Copyright (C) 2000 MIPS Technologies, Inc.  All rights reserved.
+ * Copyright (C) 2000 MIPS Techanallogies, Inc.  All rights reserved.
  *
 
 Module Name:
@@ -294,7 +294,7 @@ static int amd8111e_init_ring(struct net_device *dev)
 			sizeof(struct amd8111e_tx_dr) * NUM_TX_RING_DR,
 			&lp->tx_ring_dma_addr, GFP_ATOMIC);
 		if (!lp->tx_ring)
-			goto err_no_mem;
+			goto err_anal_mem;
 
 		lp->rx_ring = dma_alloc_coherent(&lp->pci_dev->dev,
 			sizeof(struct amd8111e_rx_dr) * NUM_RX_RING_DR,
@@ -352,8 +352,8 @@ err_free_tx_ring:
 			  sizeof(struct amd8111e_tx_dr) * NUM_TX_RING_DR,
 			  lp->tx_ring, lp->tx_ring_dma_addr);
 
-err_no_mem:
-	return -ENOMEM;
+err_anal_mem:
+	return -EANALMEM;
 }
 
 /* This function will set the interrupt coalescing according
@@ -428,7 +428,7 @@ static int amd8111e_restart(struct net_device *dev)
 	writel(RUN, mmio + CMD0);
 
 	if (amd8111e_init_ring(dev))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* enable the port manager and set auto negotiation always */
 	writel((u32)VAL1 | EN_PMGR, mmio + CMD3);
@@ -463,7 +463,7 @@ static int amd8111e_restart(struct net_device *dev)
 		writel((u32)VAL2|JUMBO, mmio + CMD3);
 		/* Reset REX_UFLO */
 		writel(REX_UFLO, mmio + CMD2);
-		/* Should not set REX_UFLO for jumbo frames */
+		/* Should analt set REX_UFLO for jumbo frames */
 		writel(VAL0 | APAD_XMT | REX_RTRY, mmio + CMD2);
 	} else {
 		writel(VAL0 | APAD_XMT | REX_RTRY | REX_UFLO, mmio + CMD2);
@@ -669,7 +669,7 @@ static int amd8111e_tx(struct net_device *dev)
 
 		if (netif_queue_stopped(dev) &&
 			lp->tx_complete_idx > lp->tx_idx - NUM_TX_BUFFERS + 2) {
-			/* The ring is no longer full, clear tbusy. */
+			/* The ring is anal longer full, clear tbusy. */
 			/* lp->tx_full = 0; */
 			netif_wake_queue(dev);
 		}
@@ -697,11 +697,11 @@ static int amd8111e_rx_poll(struct napi_struct *napi, int budget)
 		if (status & OWN_BIT)
 			break;
 
-		/* There is a tricky error noted by John Murphy,
+		/* There is a tricky error analted by John Murphy,
 		 * <murf@perftech.com> to Russ Nelson: Even with
 		 * full-sized * buffers it's possible for a
 		 * jabber packet to use two buffers, with only
-		 * the last correctly noting the error.
+		 * the last correctly analting the error.
 		 */
 		if (status & ERR_BIT) {
 			/* resetting flags */
@@ -733,7 +733,7 @@ static int amd8111e_rx_poll(struct napi_struct *napi, int budget)
 		new_skb = netdev_alloc_skb(dev, lp->rx_buff_len);
 		if (!new_skb) {
 			/* if allocation fail,
-			 * ignore that pkt and go to next one
+			 * iganalre that pkt and go to next one
 			 */
 			lp->rx_ring[rx_index].rx_flags &= RESET_RX_FLAGS;
 			lp->drv_rx_errors++;
@@ -778,7 +778,7 @@ err_next_pkt:
 	if (num_rx_pkt < budget && napi_complete_done(napi, num_rx_pkt)) {
 		unsigned long flags;
 
-		/* Receive descriptor is empty now */
+		/* Receive descriptor is empty analw */
 		spin_lock_irqsave(&lp->lock, flags);
 		writel(VAL0|RINTEN0, mmio + INTEN0);
 		writel(VAL2 | RDMD0, mmio + CMD0);
@@ -973,23 +973,23 @@ static int amd8111e_calc_coalesce(struct net_device *dev)
 	coal_conf->rx_prev_bytes =  coal_conf->rx_bytes;
 
 	if (rx_pkt_rate < 800) {
-		if (coal_conf->rx_coal_type != NO_COALESCE) {
+		if (coal_conf->rx_coal_type != ANAL_COALESCE) {
 
 			coal_conf->rx_timeout = 0x0;
 			coal_conf->rx_event_count = 0;
 			amd8111e_set_coalesce(dev, RX_INTR_COAL);
-			coal_conf->rx_coal_type = NO_COALESCE;
+			coal_conf->rx_coal_type = ANAL_COALESCE;
 		}
 	} else {
 
 		rx_pkt_size = rx_data_rate/rx_pkt_rate;
 		if (rx_pkt_size < 128) {
-			if (coal_conf->rx_coal_type != NO_COALESCE) {
+			if (coal_conf->rx_coal_type != ANAL_COALESCE) {
 
 				coal_conf->rx_timeout = 0;
 				coal_conf->rx_event_count = 0;
 				amd8111e_set_coalesce(dev, RX_INTR_COAL);
-				coal_conf->rx_coal_type = NO_COALESCE;
+				coal_conf->rx_coal_type = ANAL_COALESCE;
 			}
 
 		} else if ((rx_pkt_size >= 128) && (rx_pkt_size < 512)) {
@@ -1019,26 +1019,26 @@ static int amd8111e_calc_coalesce(struct net_device *dev)
 			}
 		}
 	}
-	/* NOW FOR TX INTR COALESC */
+	/* ANALW FOR TX INTR COALESC */
 	if (tx_pkt_rate < 800) {
-		if (coal_conf->tx_coal_type != NO_COALESCE) {
+		if (coal_conf->tx_coal_type != ANAL_COALESCE) {
 
 			coal_conf->tx_timeout = 0x0;
 			coal_conf->tx_event_count = 0;
 			amd8111e_set_coalesce(dev, TX_INTR_COAL);
-			coal_conf->tx_coal_type = NO_COALESCE;
+			coal_conf->tx_coal_type = ANAL_COALESCE;
 		}
 	} else {
 
 		tx_pkt_size = tx_data_rate/tx_pkt_rate;
 		if (tx_pkt_size < 128) {
 
-			if (coal_conf->tx_coal_type != NO_COALESCE) {
+			if (coal_conf->tx_coal_type != ANAL_COALESCE) {
 
 				coal_conf->tx_timeout = 0;
 				coal_conf->tx_event_count = 0;
 				amd8111e_set_coalesce(dev, TX_INTR_COAL);
-				coal_conf->tx_coal_type = NO_COALESCE;
+				coal_conf->tx_coal_type = ANAL_COALESCE;
 			}
 
 		} else if ((tx_pkt_size >= 128) && (tx_pkt_size < 512)) {
@@ -1084,7 +1084,7 @@ static irqreturn_t amd8111e_interrupt(int irq, void *dev_id)
 	unsigned int handled = 1;
 
 	if (unlikely(!dev))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	spin_lock(&lp->lock);
 
@@ -1099,7 +1099,7 @@ static irqreturn_t amd8111e_interrupt(int irq, void *dev_id)
 
 	if (!(intr0 & INTR)) {
 		handled = 0;
-		goto err_no_interrupt;
+		goto err_anal_interrupt;
 	}
 
 	/* Current driver processes 4 interrupts : RINT,TINT,LCINT,STINT */
@@ -1131,7 +1131,7 @@ static irqreturn_t amd8111e_interrupt(int irq, void *dev_id)
 	if (intr0 & STINT)
 		amd8111e_calc_coalesce(dev);
 
-err_no_interrupt:
+err_anal_interrupt:
 	writel(VAL0 | INTREN, mmio + CMD0);
 
 	spin_unlock(&lp->lock);
@@ -1207,7 +1207,7 @@ static int amd8111e_open(struct net_device *dev)
 		napi_disable(&lp->napi);
 		if (dev->irq)
 			free_irq(dev->irq, dev);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	/* Start ipg timer */
 	if (lp->options & OPTION_DYN_IPG_ENABLE) {
@@ -1488,10 +1488,10 @@ static int amd8111e_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		return err;
 
 	default:
-		/* do nothing */
+		/* do analthing */
 		break;
 	}
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 static int amd8111e_set_mac_address(struct net_device *dev, void *p)
 {
@@ -1746,19 +1746,19 @@ static int amd8111e_probe_one(struct pci_dev *pdev,
 
 	err = pci_enable_device(pdev);
 	if (err) {
-		dev_err(&pdev->dev, "Cannot enable new PCI device\n");
+		dev_err(&pdev->dev, "Cananalt enable new PCI device\n");
 		return err;
 	}
 
 	if (!(pci_resource_flags(pdev, 0) & IORESOURCE_MEM)) {
-		dev_err(&pdev->dev, "Cannot find PCI base address\n");
-		err = -ENODEV;
+		dev_err(&pdev->dev, "Cananalt find PCI base address\n");
+		err = -EANALDEV;
 		goto err_disable_pdev;
 	}
 
 	err = pci_request_regions(pdev, MODULE_NAME);
 	if (err) {
-		dev_err(&pdev->dev, "Cannot obtain PCI resources\n");
+		dev_err(&pdev->dev, "Cananalt obtain PCI resources\n");
 		goto err_disable_pdev;
 	}
 
@@ -1766,15 +1766,15 @@ static int amd8111e_probe_one(struct pci_dev *pdev,
 
 	/* Find power-management capability. */
 	if (!pdev->pm_cap) {
-		dev_err(&pdev->dev, "No Power Management capability\n");
-		err = -ENODEV;
+		dev_err(&pdev->dev, "Anal Power Management capability\n");
+		err = -EANALDEV;
 		goto err_free_reg;
 	}
 
 	/* Initialize DMA */
 	if (dma_set_mask(&pdev->dev, DMA_BIT_MASK(32)) < 0) {
-		dev_err(&pdev->dev, "DMA not supported\n");
-		err = -ENODEV;
+		dev_err(&pdev->dev, "DMA analt supported\n");
+		err = -EANALDEV;
 		goto err_free_reg;
 	}
 
@@ -1783,7 +1783,7 @@ static int amd8111e_probe_one(struct pci_dev *pdev,
 
 	dev = alloc_etherdev(sizeof(struct amd8111e_priv));
 	if (!dev) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_free_reg;
 	}
 
@@ -1802,8 +1802,8 @@ static int amd8111e_probe_one(struct pci_dev *pdev,
 
 	lp->mmio = devm_ioremap(&pdev->dev, reg_addr, reg_len);
 	if (!lp->mmio) {
-		dev_err(&pdev->dev, "Cannot map device registers\n");
-		err = -ENOMEM;
+		dev_err(&pdev->dev, "Cananalt map device registers\n");
+		err = -EANALMEM;
 		goto err_free_dev;
 	}
 
@@ -1844,7 +1844,7 @@ static int amd8111e_probe_one(struct pci_dev *pdev,
 
 	err = register_netdev(dev);
 	if (err) {
-		dev_err(&pdev->dev, "Cannot register net device\n");
+		dev_err(&pdev->dev, "Cananalt register net device\n");
 		goto err_free_dev;
 	}
 

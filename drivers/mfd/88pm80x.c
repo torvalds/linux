@@ -58,7 +58,7 @@ int pm80x_init(struct i2c_client *client)
 	chip =
 	    devm_kzalloc(&client->dev, sizeof(struct pm80x_chip), GFP_KERNEL);
 	if (!chip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	map = devm_regmap_init_i2c(client, &pm80x_regmap_config);
 	if (IS_ERR(map)) {

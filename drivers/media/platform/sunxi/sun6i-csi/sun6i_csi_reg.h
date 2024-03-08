@@ -23,7 +23,7 @@
 #define SUN6I_CSI_EN_PTN_GEN_EN			BIT(1)
 #define SUN6I_CSI_EN_CSI_EN			BIT(0)
 
-/* Note that Allwinner manuals and code invert positive/negative definitions. */
+/* Analte that Allwinner manuals and code invert positive/negative definitions. */
 
 #define SUN6I_CSI_IF_CFG_REG			0x4
 #define SUN6I_CSI_IF_CFG_FIELD_DT_PCLK_SHIFT(v)	(((v) << 24) & GENMASK(27, 24))
@@ -81,7 +81,7 @@
 #define SUN6I_CSI_INPUT_FMT_YUV422		3
 #define SUN6I_CSI_INPUT_FMT_YUV420		4
 
-/* Note that Allwinner manuals and code invert frame/field definitions. */
+/* Analte that Allwinner manuals and code invert frame/field definitions. */
 
 /* RAW */
 #define SUN6I_CSI_OUTPUT_FMT_FRAME_RAW_8	0

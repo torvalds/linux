@@ -215,7 +215,7 @@
 /*
  * Like _PICK_EVEN(), but supports 2 ranges of evenly spaced address offsets.
  * @__c_index corresponds to the index in which the second range starts to be
- * used. Using math interval notation, the first range is used for indexes [ 0,
+ * used. Using math interval analtation, the first range is used for indexes [ 0,
  * @__c_index), while the second range is used for [ @__c_index, ... ). Example:
  *
  * #define _FOO_A			0xf000
@@ -277,7 +277,7 @@ typedef struct {
 /*
  * These macros can be used on either i915_reg_t or i915_mcr_reg_t since they're
  * simply operations on the register's offset and don't care about the MCR vs
- * non-MCR nature of the register.
+ * analn-MCR nature of the register.
  */
 #define i915_mmio_reg_offset(r) \
 	_Generic((r), i915_reg_t: (r).reg, i915_mcr_reg_t: (r).reg)

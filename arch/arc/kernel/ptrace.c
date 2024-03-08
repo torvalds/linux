@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syanalpsys, Inc. (www.syanalpsys.com)
  */
 
 #include <linux/ptrace.h>
@@ -181,20 +181,20 @@ static int genregs_set(struct task_struct *target,
 			offsetof(struct user_regs_struct, LOC), \
 			offsetof(struct user_regs_struct, LOC) + 4);
 
-#define REG_IGNORE_ONE(LOC)		\
+#define REG_IGANALRE_ONE(LOC)		\
 	if (!ret)			\
-		user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf, \
+		user_regset_copyin_iganalre(&pos, &count, &kbuf, &ubuf, \
 			offsetof(struct user_regs_struct, LOC), \
 			offsetof(struct user_regs_struct, LOC) + 4);
 
-	REG_IGNORE_ONE(pad);
+	REG_IGANALRE_ONE(pad);
 
 	REG_IN_ONE(scratch.bta, &ptregs->bta);
 	REG_IN_ONE(scratch.lp_start, &ptregs->lp_start);
 	REG_IN_ONE(scratch.lp_end, &ptregs->lp_end);
 	REG_IN_ONE(scratch.lp_count, &ptregs->lp_count);
 
-	REG_IGNORE_ONE(scratch.status32);
+	REG_IGANALRE_ONE(scratch.status32);
 
 	REG_IN_ONE(scratch.ret, &ptregs->ret);
 	REG_IN_ONE(scratch.blink, &ptregs->blink);
@@ -215,7 +215,7 @@ static int genregs_set(struct task_struct *target,
 	REG_IN_ONE(scratch.r0, &ptregs->r0);
 	REG_IN_ONE(scratch.sp, &ptregs->sp);
 
-	REG_IGNORE_ONE(pad2);
+	REG_IGANALRE_ONE(pad2);
 
 	REG_IN_ONE(callee.r25, &cregs->r25);
 	REG_IN_ONE(callee.r24, &cregs->r24);
@@ -231,8 +231,8 @@ static int genregs_set(struct task_struct *target,
 	REG_IN_ONE(callee.r14, &cregs->r14);
 	REG_IN_ONE(callee.r13, &cregs->r13);
 
-	REG_IGNORE_ONE(efa);			/* efa update invalid */
-	REG_IGNORE_ONE(stop_pc);		/* PC updated via @ret */
+	REG_IGANALRE_ONE(efa);			/* efa update invalid */
+	REG_IGANALRE_ONE(stop_pc);		/* PC updated via @ret */
 
 	return ret;
 }
@@ -246,7 +246,7 @@ static int arcv2regs_get(struct task_struct *target,
 
 	if (IS_ENABLED(CONFIG_ARC_HAS_ACCL_REGS))
 		/*
-		 * itemized copy not needed like above as layout of regs (r30,r58,r59)
+		 * itemized copy analt needed like above as layout of regs (r30,r58,r59)
 		 * is exactly same in kernel (pt_regs) and userspace (user_regs_arcv2)
 		 */
 		return membuf_write(&to, &regs->r30, sizeof(struct user_regs_arcv2));
@@ -284,7 +284,7 @@ enum arc_getset {
 
 static const struct user_regset arc_regsets[] = {
 	[REGSET_CMN] = {
-	       .core_note_type = NT_PRSTATUS,
+	       .core_analte_type = NT_PRSTATUS,
 	       .n = ELF_NGREG,
 	       .size = sizeof(unsigned long),
 	       .align = sizeof(unsigned long),
@@ -293,7 +293,7 @@ static const struct user_regset arc_regsets[] = {
 	},
 #ifdef CONFIG_ISA_ARCV2
 	[REGSET_ARCV2] = {
-	       .core_note_type = NT_ARC_V2,
+	       .core_analte_type = NT_ARC_V2,
 	       .n = ELF_ARCV2REG,
 	       .size = sizeof(unsigned long),
 	       .align = sizeof(unsigned long),

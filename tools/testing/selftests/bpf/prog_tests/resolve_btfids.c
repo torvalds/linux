@@ -154,7 +154,7 @@ void test_resolve_btfids(void)
 		}
 
 		ret = CHECK(!found, "id_check",
-			    "ID %d not found in test_symbols\n",
+			    "ID %d analt found in test_symbols\n",
 			    test_set.ids[i]);
 		if (ret)
 			break;

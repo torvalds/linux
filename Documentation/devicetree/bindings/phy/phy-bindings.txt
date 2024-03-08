@@ -1,12 +1,12 @@
 This document explains only the device tree data binding. For general
 information about PHY subsystem refer to Documentation/driver-api/phy/phy.rst
 
-PHY device node
+PHY device analde
 ===============
 
 Required Properties:
 #phy-cells:	Number of cells in a PHY specifier;  The meaning of all those
-		cells is defined by the binding for the phy node. The PHY
+		cells is defined by the binding for the phy analde. The PHY
 		provider can use the values in cells to find the appropriate
 		PHY.
 
@@ -26,15 +26,15 @@ phys: phy {
     .
 };
 
-That node describes an IP block (PHY provider) that implements 2 different PHYs.
+That analde describes an IP block (PHY provider) that implements 2 different PHYs.
 In order to differentiate between these 2 PHYs, an additional specifier should be
 given while trying to get a reference to it.
 
-PHY user node
+PHY user analde
 =============
 
 Required Properties:
-phys : the phandle for the PHY device (used by the PHY subsystem; not to be
+phys : the phandle for the PHY device (used by the PHY subsystem; analt to be
        confused with the Ethernet specific 'phy' and 'phy-handle' properties,
        see Documentation/devicetree/bindings/net/ethernet.txt for these)
 phy-names : the names of the PHY corresponding to the PHYs present in the
@@ -52,7 +52,7 @@ usb1: usb_otg_ss@xxx {
     .
 };
 
-This node represents a controller that uses two PHYs, one for usb2 and one for
+This analde represents a controller that uses two PHYs, one for usb2 and one for
 usb3.
 
 Example 2:
@@ -67,6 +67,6 @@ usb2: usb_otg_ss@xxx {
     .
 };
 
-This node represents a controller that uses one of the PHYs of the PHY provider
-device defined previously. Note that the phy handle has an additional specifier
+This analde represents a controller that uses one of the PHYs of the PHY provider
+device defined previously. Analte that the phy handle has an additional specifier
 "1" to differentiate between the two PHYs.

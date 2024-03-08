@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * POWER Platform specific code for non-volatile SED key access
+ * POWER Platform specific code for analn-volatile SED key access
  * Copyright (C) 2022 IBM Corporation
  *
  * Define operations for SED Opal to read/write keys
@@ -48,7 +48,7 @@ static void plpks_init_var(struct plpks_var *var, char *keyname)
 		plpks_sed_initialized = true;
 		plpks_sed_available = plpks_is_available();
 		if (!plpks_sed_available)
-			pr_err("SED: plpks not available\n");
+			pr_err("SED: plpks analt available\n");
 	}
 
 	var->name = keyname;
@@ -77,7 +77,7 @@ int sed_read_key(char *keyname, char *key, u_int *keylen)
 	plpks_init_var(&var, keyname);
 
 	if (!plpks_sed_available)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	var.data = (u8 *)&data;
 	var.datalen = sizeof(data);
@@ -106,7 +106,7 @@ int sed_write_key(char *keyname, char *key, u_int keylen)
 	plpks_init_var(&var, keyname);
 
 	if (!plpks_sed_available)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	var.datalen = sizeof(struct plpks_sed_object_data);
 	var.data = (u8 *)&data;
@@ -121,7 +121,7 @@ int sed_write_key(char *keyname, char *key, u_int keylen)
 
 	/*
 	 * Key update requires remove first. The return value
-	 * is ignored since it's okay if the key doesn't exist.
+	 * is iganalred since it's okay if the key doesn't exist.
 	 */
 	vname.namelen = var.namelen;
 	vname.name = var.name;

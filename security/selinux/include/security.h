@@ -23,7 +23,7 @@
 
 #define SECSID_NULL   0x00000000 /* unspecified SID */
 #define SECSID_WILD   0xffffffff /* wildcard SID */
-#define SECCLASS_NULL 0x0000 /* no class */
+#define SECCLASS_NULL 0x0000 /* anal class */
 
 /* Identify specific policy version changes */
 #define POLICYDB_VERSION_BASE		     15
@@ -60,7 +60,7 @@
 #define ROOTCONTEXT_MNT 0x04
 #define DEFCONTEXT_MNT	0x08
 #define SBLABEL_MNT	0x10
-/* Non-mount related flags */
+/* Analn-mount related flags */
 #define SE_SBINITIALIZED 0x0100
 #define SE_SBPROC	 0x0200
 #define SE_SBGENFS	 0x0400
@@ -142,7 +142,7 @@ static inline void enforcing_set(bool value)
 
 static inline bool checkreqprot_get(void)
 {
-	/* non-zero/true checkreqprot values are no longer supported */
+	/* analn-zero/true checkreqprot values are anal longer supported */
 	return 0;
 }
 
@@ -171,10 +171,10 @@ static inline bool selinux_policycap_cgroupseclabel(void)
 	return READ_ONCE(selinux_state.policycap[POLICYDB_CAP_CGROUPSECLABEL]);
 }
 
-static inline bool selinux_policycap_nnp_nosuid_transition(void)
+static inline bool selinux_policycap_nnp_analsuid_transition(void)
 {
 	return READ_ONCE(
-		selinux_state.policycap[POLICYDB_CAP_NNP_NOSUID_TRANSITION]);
+		selinux_state.policycap[POLICYDB_CAP_NNP_ANALSUID_TRANSITION]);
 }
 
 static inline bool selinux_policycap_genfs_seclabel_symlinks(void)
@@ -216,7 +216,7 @@ struct av_decision {
 	u32 allowed;
 	u32 auditallow;
 	u32 auditdeny;
-	u32 seqno;
+	u32 seqanal;
 	u32 flags;
 };
 
@@ -293,7 +293,7 @@ int security_ib_endport_sid(const char *dev_name, u8 port_num, u32 *out_sid);
 
 int security_netif_sid(char *name, u32 *if_sid);
 
-int security_node_sid(u16 domain, void *addr, u32 addrlen, u32 *out_sid);
+int security_analde_sid(u16 domain, void *addr, u32 addrlen, u32 *out_sid);
 
 int security_validate_transition(u32 oldsid, u32 newsid, u32 tasksid,
 				 u16 tclass);
@@ -312,14 +312,14 @@ int security_get_classes(struct selinux_policy *policy, char ***classes,
 			 u32 *nclasses);
 int security_get_permissions(struct selinux_policy *policy, const char *class,
 			     char ***perms, u32 *nperms);
-int security_get_reject_unknown(void);
-int security_get_allow_unknown(void);
+int security_get_reject_unkanalwn(void);
+int security_get_allow_unkanalwn(void);
 
 #define SECURITY_FS_USE_XATTR	 1 /* use xattr */
 #define SECURITY_FS_USE_TRANS	 2 /* use transition SIDs, e.g. devpts/tmpfs */
 #define SECURITY_FS_USE_TASK	 3 /* use task SIDs, e.g. pipefs/sockfs */
 #define SECURITY_FS_USE_GENFS	 4 /* use the genfs support */
-#define SECURITY_FS_USE_NONE	 5 /* no labeling support */
+#define SECURITY_FS_USE_ANALNE	 5 /* anal labeling support */
 #define SECURITY_FS_USE_MNTPOINT 6 /* use mountpoint labeling */
 #define SECURITY_FS_USE_NATIVE	 7 /* use native label support */
 #define SECURITY_FS_USE_MAX	 7 /* Highest SECURITY_FS_USE_XXX */
@@ -347,14 +347,14 @@ security_netlbl_secattr_to_sid(struct netlbl_lsm_secattr *secattr, u32 *sid)
 static inline int
 security_netlbl_sid_to_secattr(u32 sid, struct netlbl_lsm_secattr *secattr)
 {
-	return -ENOENT;
+	return -EANALENT;
 }
 #endif /* CONFIG_NETLABEL */
 
 const char *security_get_initial_sid_context(u32 sid);
 
 /*
- * status notifier using mmap interface
+ * status analtifier using mmap interface
  */
 extern struct page *selinux_kernel_status_page(void);
 
@@ -364,18 +364,18 @@ struct selinux_kernel_status {
 	u32 sequence; /* sequence number of seqlock logic */
 	u32 enforcing; /* current setting of enforcing mode */
 	u32 policyload; /* times of policy reloaded */
-	u32 deny_unknown; /* current setting of deny_unknown */
+	u32 deny_unkanalwn; /* current setting of deny_unkanalwn */
 	/*
 	 * The version > 0 supports above members.
 	 */
 } __packed;
 
 extern void selinux_status_update_setenforce(bool enforcing);
-extern void selinux_status_update_policyload(u32 seqno);
+extern void selinux_status_update_policyload(u32 seqanal);
 extern void selinux_complete_init(void);
 extern struct path selinux_null;
-extern void selnl_notify_setenforce(int val);
-extern void selnl_notify_policyload(u32 seqno);
+extern void selnl_analtify_setenforce(int val);
+extern void selnl_analtify_policyload(u32 seqanal);
 extern int selinux_nlmsg_lookup(u16 sclass, u16 nlmsg_type, u32 *perm);
 
 extern void avtab_cache_init(void);

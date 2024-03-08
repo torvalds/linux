@@ -113,7 +113,7 @@ struct v4l2_format32 {
  * @memory:	buffer memory type
  * @format:	frame format, for which buffers are requested
  * @capabilities: capabilities of this buffer type.
- * @flags:	additional buffer management attributes (ignored unless the
+ * @flags:	additional buffer management attributes (iganalred unless the
  *		queue has V4L2_BUF_CAP_SUPPORTS_MMAP_CACHE_HINTS capability and
  *		configured for MMAP streaming I/O).
  * @max_num_buffers: if V4L2_BUF_CAP_SUPPORTS_MAX_NUM_BUFFERS capability flag is set
@@ -238,7 +238,7 @@ struct v4l2_standard32 {
 	__u32		     index;
 	compat_u64	     id;
 	__u8		     name[24];
-	struct v4l2_fract    frameperiod; /* Frames, not fields */
+	struct v4l2_fract    frameperiod; /* Frames, analt fields */
 	__u32		     framelines;
 	__u32		     reserved[4];
 };
@@ -246,7 +246,7 @@ struct v4l2_standard32 {
 static int get_v4l2_standard32(struct v4l2_standard *p64,
 			       struct v4l2_standard32 __user *p32)
 {
-	/* other fields are not set by the user, nor used by the driver */
+	/* other fields are analt set by the user, analr used by the driver */
 	return get_user(p64->index, &p32->index);
 }
 
@@ -277,7 +277,7 @@ struct v4l2_plane32 {
 };
 
 /*
- * This is correct for all architectures including i386, but not x32,
+ * This is correct for all architectures including i386, but analt x32,
  * which has different alignment requirements for timestamp
  */
 struct v4l2_buffer32 {
@@ -1146,9 +1146,9 @@ int v4l2_compat_put_array_args(struct file *file, void __user *user_ptr,
 		for (n = 0; n < ecs64->count; n++) {
 			unsigned int size = sizeof(*ec32);
 			/*
-			 * Do not modify the pointer when copying a pointer
+			 * Do analt modify the pointer when copying a pointer
 			 * control.  The contents of the pointer was changed,
-			 * not the pointer itself.
+			 * analt the pointer itself.
 			 * The structures are otherwise compatible.
 			 */
 			if (ctrl_is_pointer(file, ec64->id))
@@ -1181,20 +1181,20 @@ int v4l2_compat_put_array_args(struct file *file, void __user *user_ptr,
  * This function is meant to be used as .compat_ioctl fops at v4l2-dev.c
  * in order to deal with 32-bit calls on a 64-bits Kernel.
  *
- * This function calls do_video_ioctl() for non-private V4L2 ioctls.
+ * This function calls do_video_ioctl() for analn-private V4L2 ioctls.
  * If the function is a private one it calls vdev->fops->compat_ioctl32
  * instead.
  */
 long v4l2_compat_ioctl32(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct video_device *vdev = video_devdata(file);
-	long ret = -ENOIOCTLCMD;
+	long ret = -EANALIOCTLCMD;
 
 	if (!file->f_op->unlocked_ioctl)
 		return ret;
 
 	if (!video_is_registered(vdev))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (_IOC_TYPE(cmd) == 'V' && _IOC_NR(cmd) < BASE_VIDIOC_PRIVATE)
 		ret = file->f_op->unlocked_ioctl(file, cmd,
@@ -1202,8 +1202,8 @@ long v4l2_compat_ioctl32(struct file *file, unsigned int cmd, unsigned long arg)
 	else if (vdev->fops->compat_ioctl32)
 		ret = vdev->fops->compat_ioctl32(file, cmd, arg);
 
-	if (ret == -ENOIOCTLCMD)
-		pr_debug("compat_ioctl32: unknown ioctl '%c', dir=%d, #%d (0x%08x)\n",
+	if (ret == -EANALIOCTLCMD)
+		pr_debug("compat_ioctl32: unkanalwn ioctl '%c', dir=%d, #%d (0x%08x)\n",
 			 _IOC_TYPE(cmd), _IOC_DIR(cmd), _IOC_NR(cmd), cmd);
 	return ret;
 }

@@ -42,7 +42,7 @@ int intel_ring_pin(struct intel_ring *ring, struct i915_gem_ww_ctx *ww)
 	if (atomic_fetch_inc(&ring->pin_count))
 		return 0;
 
-	/* Ring wraparound at offset 0 sometimes hangs. No idea why. */
+	/* Ring wraparound at offset 0 sometimes hangs. Anal idea why. */
 	flags = PIN_OFFSET_BIAS | i915_ggtt_pin_bias(vma);
 
 	if (i915_gem_object_is_stolen(vma->obj))
@@ -125,7 +125,7 @@ static struct i915_vma *create_ring_vma(struct i915_ggtt *ggtt, int size)
 		return ERR_CAST(obj);
 
 	/*
-	 * Mark ring buffers as read-only from GPU side (so no stray overwrites)
+	 * Mark ring buffers as read-only from GPU side (so anal stray overwrites)
 	 * if supported by the platform's GGTT.
 	 */
 	if (vm->has_read_only)
@@ -154,7 +154,7 @@ intel_engine_create_ring(struct intel_engine_cs *engine, int size)
 
 	ring = kzalloc(sizeof(*ring), GFP_KERNEL);
 	if (!ring)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	kref_init(&ring->ref);
 	ring->size = size;
@@ -189,7 +189,7 @@ void intel_ring_free(struct kref *ref)
 	kfree(ring);
 }
 
-static noinline int
+static analinline int
 wait_for_space(struct intel_ring *ring,
 	       struct intel_timeline *tl,
 	       unsigned int bytes)
@@ -205,14 +205,14 @@ wait_for_space(struct intel_ring *ring,
 		if (target->ring != ring)
 			continue;
 
-		/* Would completion of this request free enough space? */
+		/* Would completion of this request free eanalugh space? */
 		if (bytes <= __intel_ring_space(target->postfix,
 						ring->emit, ring->size))
 			break;
 	}
 
 	if (GEM_WARN_ON(&target->link == &tl->requests))
-		return -ENOSPC;
+		return -EANALSPC;
 
 	timeout = i915_request_wait(target,
 				    I915_WAIT_INTERRUPTIBLE,
@@ -247,7 +247,7 @@ u32 *intel_ring_begin(struct i915_request *rq, unsigned int num_dwords)
 
 		if (bytes > remain_usable) {
 			/*
-			 * Not enough space for the basic request. So need to
+			 * Analt eanalugh space for the basic request. So need to
 			 * flush out the remainder and then wait for
 			 * base + reserved.
 			 */
@@ -269,7 +269,7 @@ u32 *intel_ring_begin(struct i915_request *rq, unsigned int num_dwords)
 
 		/*
 		 * Space is reserved in the ringbuffer for finalising the
-		 * request, as that cannot be allowed to fail. During request
+		 * request, as that cananalt be allowed to fail. During request
 		 * finalisation, reserved_space is set to 0 to stop the
 		 * overallocation and the assumption is that then we never need
 		 * to wait (which has the risk of failing with EINTR).
@@ -291,7 +291,7 @@ u32 *intel_ring_begin(struct i915_request *rq, unsigned int num_dwords)
 		GEM_BUG_ON(ring->emit + need_wrap > ring->size);
 		GEM_BUG_ON(!IS_ALIGNED(need_wrap, sizeof(u64)));
 
-		/* Fill the tail with MI_NOOP */
+		/* Fill the tail with MI_ANALOP */
 		memset64(ring->vaddr + ring->emit, 0, need_wrap / sizeof(u64));
 		ring->space -= need_wrap;
 		ring->emit = 0;
@@ -325,7 +325,7 @@ int intel_ring_cacheline_align(struct i915_request *rq)
 	if (IS_ERR(cs))
 		return PTR_ERR(cs);
 
-	memset64(cs, (u64)MI_NOOP << 32 | MI_NOOP, num_dwords / 2);
+	memset64(cs, (u64)MI_ANALOP << 32 | MI_ANALOP, num_dwords / 2);
 	intel_ring_advance(rq, cs + num_dwords);
 
 	GEM_BUG_ON(rq->ring->emit & (CACHELINE_BYTES - 1));

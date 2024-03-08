@@ -17,7 +17,7 @@ struct journal_replay {
 	unsigned		nr_ptrs;
 
 	bool			csum_good;
-	bool			ignore;
+	bool			iganalre;
 	/* must be last: */
 	struct jset		j;
 };

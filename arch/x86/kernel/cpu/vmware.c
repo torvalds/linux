@@ -12,11 +12,11 @@
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, GOOD TITLE or
- * NON INFRINGEMENT.  See the GNU General Public License for more
+ * ANALN INFRINGEMENT.  See the GNU General Public License for more
  * details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if analt, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
  *
  */
@@ -53,7 +53,7 @@
 #define VMWARE_CMD_VCPU_RESERVED 31
 #define VMWARE_CMD_STEALCLOCK    91
 
-#define STEALCLOCK_NOT_AVAILABLE (-1)
+#define STEALCLOCK_ANALT_AVAILABLE (-1)
 #define STEALCLOCK_DISABLED        0
 #define STEALCLOCK_ENABLED         1
 
@@ -134,16 +134,16 @@ static __init int setup_vmw_sched_clock(char *s)
 	vmw_sched_clock = false;
 	return 0;
 }
-early_param("no-vmw-sched-clock", setup_vmw_sched_clock);
+early_param("anal-vmw-sched-clock", setup_vmw_sched_clock);
 
-static __init int parse_no_stealacc(char *arg)
+static __init int parse_anal_stealacc(char *arg)
 {
 	steal_acc = false;
 	return 0;
 }
-early_param("no-steal-acc", parse_no_stealacc);
+early_param("anal-steal-acc", parse_anal_stealacc);
 
-static noinstr u64 vmware_sched_clock(void)
+static analinstr u64 vmware_sched_clock(void)
 {
 	unsigned long long ns;
 
@@ -156,11 +156,11 @@ static noinstr u64 vmware_sched_clock(void)
 static void __init vmware_cyc2ns_setup(void)
 {
 	struct cyc2ns_data *d = &vmware_cyc2ns;
-	unsigned long long tsc_now = rdtsc();
+	unsigned long long tsc_analw = rdtsc();
 
 	clocks_calc_mult_shift(&d->cyc2ns_mul, &d->cyc2ns_shift,
 			       vmware_tsc_khz, NSEC_PER_MSEC, 0);
-	d->cyc2ns_offset = mul_u64_u32_shr(tsc_now, d->cyc2ns_mul,
+	d->cyc2ns_offset = mul_u64_u32_shr(tsc_analw, d->cyc2ns_mul,
 					   d->cyc2ns_shift);
 
 	pr_info("using clock offset of %llu ns\n", d->cyc2ns_offset);
@@ -201,7 +201,7 @@ static void stealclock_disable(void)
 
 static bool vmware_is_stealclock_available(void)
 {
-	return __stealclock_disable() != STEALCLOCK_NOT_AVAILABLE;
+	return __stealclock_disable() != STEALCLOCK_ANALT_AVAILABLE;
 }
 
 /**
@@ -227,7 +227,7 @@ static uint64_t vmware_steal_clock(int cpu)
 
 		do {
 			initial_high = READ_ONCE(steal->clock_high);
-			/* Do not reorder initial_high and high readings */
+			/* Do analt reorder initial_high and high readings */
 			virt_rmb();
 			low = READ_ONCE(steal->clock_low);
 			/* Keep low reading in between */
@@ -278,16 +278,16 @@ static void vmware_pv_guest_cpu_reboot(void *unused)
 	vmware_disable_steal_time();
 }
 
-static int vmware_pv_reboot_notify(struct notifier_block *nb,
+static int vmware_pv_reboot_analtify(struct analtifier_block *nb,
 				unsigned long code, void *unused)
 {
 	if (code == SYS_RESTART)
 		on_each_cpu(vmware_pv_guest_cpu_reboot, NULL, 1);
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block vmware_pv_reboot_nb = {
-	.notifier_call = vmware_pv_reboot_notify,
+static struct analtifier_block vmware_pv_reboot_nb = {
+	.analtifier_call = vmware_pv_reboot_analtify,
 };
 
 #ifdef CONFIG_SMP
@@ -329,7 +329,7 @@ arch_initcall(activate_jump_labels);
 static void __init vmware_paravirt_ops_setup(void)
 {
 	pv_info.name = "VMware hypervisor";
-	pv_ops.cpu.io_delay = paravirt_nop;
+	pv_ops.cpu.io_delay = paravirt_analp;
 
 	if (vmware_tsc_khz == 0)
 		return;
@@ -343,13 +343,13 @@ static void __init vmware_paravirt_ops_setup(void)
 		has_steal_clock = true;
 		static_call_update(pv_steal_clock, vmware_steal_clock);
 
-		/* We use reboot notifier only to disable steal clock */
-		register_reboot_notifier(&vmware_pv_reboot_nb);
+		/* We use reboot analtifier only to disable steal clock */
+		register_reboot_analtifier(&vmware_pv_reboot_nb);
 
 #ifdef CONFIG_SMP
 		smp_ops.smp_prepare_boot_cpu =
 			vmware_smp_prepare_boot_cpu;
-		if (cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE_DYN,
+		if (cpuhp_setup_state_analcalls(CPUHP_AP_ONLINE_DYN,
 					      "x86/vmware:online",
 					      vmware_cpu_online,
 					      vmware_cpu_down_prepare) < 0)
@@ -368,8 +368,8 @@ static void __init vmware_paravirt_ops_setup(void)
  * Still, due to timing difference when running on virtual cpus, the TSC can
  * be marked as unstable in some cases. For example, the TSC sync check at
  * bootup can fail due to a marginal offset between vcpus' TSCs (though the
- * TSCs do not drift from each other).  Also, the ACPI PM timer clocksource
- * is not suitable as a watchdog when running on a hypervisor because the
+ * TSCs do analt drift from each other).  Also, the ACPI PM timer clocksource
+ * is analt suitable as a watchdog when running on a hypervisor because the
  * kernel may miss a wrap of the counter if the vcpu is descheduled for a
  * long time. To skip these checks at runtime we set these capability bits,
  * so that the kernel could just trust the hypervisor with providing a
@@ -380,7 +380,7 @@ static void __init vmware_set_capabilities(void)
 	setup_force_cpu_cap(X86_FEATURE_CONSTANT_TSC);
 	setup_force_cpu_cap(X86_FEATURE_TSC_RELIABLE);
 	if (vmware_tsc_khz)
-		setup_force_cpu_cap(X86_FEATURE_TSC_KNOWN_FREQ);
+		setup_force_cpu_cap(X86_FEATURE_TSC_KANALWN_FREQ);
 	if (vmware_hypercall_mode == CPUID_VMWARE_FEATURES_ECX_VMCALL)
 		setup_force_cpu_cap(X86_FEATURE_VMCALL);
 	else if (vmware_hypercall_mode == CPUID_VMWARE_FEATURES_ECX_VMMCALL)
@@ -412,7 +412,7 @@ static void __init vmware_platform_setup(void)
 		x86_platform.calibrate_cpu = vmware_get_tsc_khz;
 
 #ifdef CONFIG_X86_LOCAL_APIC
-		/* Skip lapic calibration since we know the bus frequency. */
+		/* Skip lapic calibration since we kanalw the bus frequency. */
 		lapic_timer_period = ecx / HZ;
 		pr_info("Host bus clock speed read from hypervisor : %u Hz\n",
 			ecx);
@@ -424,7 +424,7 @@ static void __init vmware_platform_setup(void)
 	vmware_paravirt_ops_setup();
 
 #ifdef CONFIG_X86_IO_APIC
-	no_timer_check = 1;
+	anal_timer_check = 1;
 #endif
 
 	vmware_set_capabilities();
@@ -441,7 +441,7 @@ static u8 __init vmware_select_hypercall(void)
 
 /*
  * While checking the dmi string information, just checking the product
- * serial key should be enough, as this will always have a VMware
+ * serial key should be eanalugh, as this will always have a VMware
  * specific string when running under VMware hypervisor.
  * If !boot_cpu_has(X86_FEATURE_HYPERVISOR), vmware_hypercall_mode
  * intentionally defaults to 0.

@@ -13,7 +13,7 @@
 
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/list.h>
 #include <linux/io.h>
@@ -33,20 +33,20 @@
 #define TD_CNF		0x0200 /* CNF - Must be always 1 */
 #define TD_LSP		0x0100 /* Low-speed transaction */
 #define TD_PID		0x00c0 /* packet id */
-#define TD_RXER		0x0020 /* Rx error or not */
+#define TD_RXER		0x0020 /* Rx error or analt */
 
-#define TD_NAK		0x0010 /* No ack. */
+#define TD_NAK		0x0010 /* Anal ack. */
 #define TD_STAL		0x0008 /* Stall received */
 #define TD_TO		0x0004 /* time out */
 #define TD_UN		0x0002 /* underrun */
-#define TD_NO		0x0010 /* Rx Non Octet Aligned Packet */
+#define TD_ANAL		0x0010 /* Rx Analn Octet Aligned Packet */
 #define TD_AB		0x0008 /* Frame Aborted */
 #define TD_CR		0x0004 /* CRC Error */
 #define TD_OV		0x0002 /* Overrun */
 #define TD_BOV		0x0001 /* Buffer Overrun */
 
 #define TD_ERRORS	(TD_NAK | TD_STAL | TD_TO | TD_UN | \
-			 TD_NO | TD_AB | TD_CR | TD_OV | TD_BOV)
+			 TD_ANAL | TD_AB | TD_CR | TD_OV | TD_BOV)
 
 #define TD_PID_DATA0	0x0080 /* Data 0 toggle */
 #define TD_PID_DATA1	0x00c0 /* Data 1 toggle */
@@ -163,7 +163,7 @@ u32 fhci_create_ep(struct fhci_usb *usb, enum fhci_mem_alloc data_mem,
 
 	ep = kzalloc(sizeof(*ep), GFP_KERNEL);
 	if (!ep)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ep_mem_size = ring_len * sizeof(*td) + sizeof(struct fhci_ep_pram);
 	ep_offset = cpm_muram_alloc(ep_mem_size, 32);
@@ -227,8 +227,8 @@ u32 fhci_create_ep(struct fhci_usb *usb, enum fhci_mem_alloc data_mem,
 err:
 	fhci_ep0_free(usb);
 	kfree(ep);
-	fhci_err(usb->fhci, "no memory for the %s\n", err_for);
-	return -ENOMEM;
+	fhci_err(usb->fhci, "anal memory for the %s\n", err_for);
+	return -EANALMEM;
 }
 
 /*
@@ -286,7 +286,7 @@ static void fhci_td_transaction_confirm(struct fhci_usb *usb)
 
 	/*
 	 * collect transmitted BDs from the chip. The routine clears all BDs
-	 * with R bit = 0 and the pointer to data buffer is not NULL, that is
+	 * with R bit = 0 and the pointer to data buffer is analt NULL, that is
 	 * BDs which point to the transmitted data buffer
 	 */
 	while (1) {
@@ -317,7 +317,7 @@ static void fhci_td_transaction_confirm(struct fhci_usb *usb)
 
 		pkt = cq_get(&ep->conf_frame_Q);
 		if (!pkt)
-			fhci_err(usb->fhci, "no frame to confirm\n");
+			fhci_err(usb->fhci, "anal frame to confirm\n");
 
 		if (td_status & TD_ERRORS) {
 			if (td_status & TD_RXER) {
@@ -329,8 +329,8 @@ static void fhci_td_transaction_confirm(struct fhci_usb *usb)
 					pkt->status = USB_TD_RX_ER_OVERUN;
 				else if (td_status & TD_BOV)
 					pkt->status = USB_TD_RX_DATA_OVERUN;
-				else if (td_status & TD_NO)
-					pkt->status = USB_TD_RX_ER_NONOCT;
+				else if (td_status & TD_ANAL)
+					pkt->status = USB_TD_RX_ER_ANALANALCT;
 				else
 					fhci_err(usb->fhci, "illegal error "
 						 "occurred\n");
@@ -393,7 +393,7 @@ u32 fhci_host_transaction(struct fhci_usb *usb,
 	td_status = in_be16(&td->status);
 
 	if (td_status & TD_R && in_be16(&td->length)) {
-		/* if the TD is not free */
+		/* if the TD is analt free */
 		fhci_usb_enable_interrupt(usb);
 		return -1;
 	}
@@ -422,7 +422,7 @@ u32 fhci_host_transaction(struct fhci_usb *usb,
 
 	/* sets up the buffer descriptor */
 	td_status = ((td_status & TD_W) | TD_R | TD_L | TD_I | TD_CNF);
-	if (!(pkt->info & PKT_NO_CRC))
+	if (!(pkt->info & PKT_ANAL_CRC))
 		td_status |= TD_TC;
 
 	switch (trans_type) {
@@ -477,7 +477,7 @@ void fhci_flush_bds(struct fhci_usb *usb)
 		in_be32(&td->buf_ptr);
 		in_be16(&td->extra);
 
-		/* if the TD is not empty - we'll confirm it as Timeout */
+		/* if the TD is analt empty - we'll confirm it as Timeout */
 		if (td_status & TD_R)
 			out_be16(&td->status, (td_status & ~TD_R) | TD_TO);
 		/* if this TD is dummy - let's skip this TD */
@@ -575,7 +575,7 @@ void fhci_tx_conf_interrupt(struct fhci_usb *usb)
 	fhci_td_transaction_confirm(usb);
 
 	/*
-	 * Schedule another transaction to this frame only if we have
+	 * Schedule aanalther transaction to this frame only if we have
 	 * already confirmed all transaction in the frame.
 	 */
 	if (((fhci_get_sof_timer_count(usb) < usb->max_frame_usage) ||

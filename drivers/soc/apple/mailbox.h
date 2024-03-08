@@ -23,7 +23,7 @@ struct apple_mbox {
 	const struct apple_mbox_hw *hw;
 	bool active;
 
-	int irq_recv_not_empty;
+	int irq_recv_analt_empty;
 	int irq_send_empty;
 
 	spinlock_t rx_lock;

@@ -17,7 +17,7 @@
   {
     "EventCode": "0x3C048",
     "EventName": "PM_DATA_FROM_DL2L3_SHR",
-    "BriefDescription": "The processor's data cache was reloaded with Shared (S) data from another chip's L2 or L3 on a different Node or Group (Distant), as this chip due to a demand load"
+    "BriefDescription": "The processor's data cache was reloaded with Shared (S) data from aanalther chip's L2 or L3 on a different Analde or Group (Distant), as this chip due to a demand load"
   },
   {
     "EventCode": "0x10008",
@@ -32,7 +32,7 @@
   {
     "EventCode": "0x4C048",
     "EventName": "PM_DATA_FROM_DL2L3_MOD",
-    "BriefDescription": "The processor's data cache was reloaded with Modified (M) data from another chip's L2 or L3 on a different Node or Group (Distant), as this chip due to a demand load"
+    "BriefDescription": "The processor's data cache was reloaded with Modified (M) data from aanalther chip's L2 or L3 on a different Analde or Group (Distant), as this chip due to a demand load"
   },
   {
     "EventCode": "0x1D15E",
@@ -57,12 +57,12 @@
   {
     "EventCode": "0x15158",
     "EventName": "PM_SYNC_MRK_L2HIT",
-    "BriefDescription": "Marked L2 Hits that can throw a synchronous interrupt"
+    "BriefDescription": "Marked L2 Hits that can throw a synchroanalus interrupt"
   },
   {
     "EventCode": "0x3404A",
     "EventName": "PM_INST_FROM_RMEM",
-    "BriefDescription": "The processor's Instruction cache was reloaded from another chip's memory on the same Node or Group ( Remote) due to an instruction fetch (not prefetch)"
+    "BriefDescription": "The processor's Instruction cache was reloaded from aanalther chip's memory on the same Analde or Group ( Remote) due to an instruction fetch (analt prefetch)"
   },
   {
     "EventCode": "0x301E2",
@@ -87,7 +87,7 @@
   {
     "EventCode": "0x1000A",
     "EventName": "PM_PMC3_REWIND",
-    "BriefDescription": "PMC3 rewind event. A rewind happens when a speculative event (such as latency or CPI stack) is selected on PMC3 and the stall reason or reload source did not match the one programmed in PMC3. When this occurs, the count in PMC3 will not change."
+    "BriefDescription": "PMC3 rewind event. A rewind happens when a speculative event (such as latency or CPI stack) is selected on PMC3 and the stall reason or reload source did analt match the one programmed in PMC3. When this occurs, the count in PMC3 will analt change."
   },
   {
     "EventCode": "0x3C058",
@@ -96,7 +96,7 @@
   },
   {
     "EventCode": "0x1C040",
-    "EventName": "PM_DATA_FROM_L2_NO_CONFLICT",
+    "EventName": "PM_DATA_FROM_L2_ANAL_CONFLICT",
     "BriefDescription": "The processor's data cache was reloaded from local core's L2 without conflict due to a demand load"
   },
   {
@@ -116,8 +116,8 @@
   },
   {
     "EventCode": "0x4D056",
-    "EventName": "PM_NON_FMA_FLOP_CMPL",
-    "BriefDescription": "Non FMA instruction completed"
+    "EventName": "PM_ANALN_FMA_FLOP_CMPL",
+    "BriefDescription": "Analn FMA instruction completed"
   },
   {
     "EventCode": "0x3E050",

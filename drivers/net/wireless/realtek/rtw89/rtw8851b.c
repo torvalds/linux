@@ -188,7 +188,7 @@ static const struct rtw89_dig_regs rtw8851b_dig_regs = {
 	.bmode_pd_reg = R_BMODE_PDTH_EN_V1,
 	.bmode_cca_rssi_limit_en = B_BMODE_PDTH_LIMIT_EN_MSK_V1,
 	.bmode_pd_lower_bound_reg = R_BMODE_PDTH_V1,
-	.bmode_rssi_nocca_low_th_mask = B_BMODE_PDTH_LOWER_BOUND_MSK_V1,
+	.bmode_rssi_analcca_low_th_mask = B_BMODE_PDTH_LOWER_BOUND_MSK_V1,
 	.p0_lna_init = {R_PATH0_LNA_INIT_V1, B_PATH0_LNA_INIT_IDX_MSK},
 	.p1_lna_init = {R_PATH1_LNA_INIT_V1, B_PATH1_LNA_INIT_IDX_MSK},
 	.p0_tia_init = {R_PATH0_TIA_INIT_V1, B_PATH0_TIA_INIT_IDX_MSK_V1},
@@ -225,7 +225,7 @@ static const struct rtw89_btc_rf_trx_para rtw89_btc_8851b_rf_ul[] = {
 	{255, 0, 0, 7}, /* 2 ->reserved for shared-antenna */
 	{255, 0, 0, 7}, /* 3- >reserved for shared-antenna */
 	{255, 0, 0, 7}, /* 4 ->reserved for shared-antenna */
-	{255, 1, 0, 7}, /* the below id is for non-shared-antenna free-run */
+	{255, 1, 0, 7}, /* the below id is for analn-shared-antenna free-run */
 	{6, 1, 0, 7},
 	{13, 1, 0, 7},
 	{13, 1, 0, 7}
@@ -237,7 +237,7 @@ static const struct rtw89_btc_rf_trx_para rtw89_btc_8851b_rf_dl[] = {
 	{255, 0, 0, 7}, /* 2 ->reserved for shared-antenna */
 	{255, 0, 0, 7}, /* 3- >reserved for shared-antenna */
 	{255, 0, 0, 7}, /* 4 ->reserved for shared-antenna */
-	{255, 1, 0, 7}, /* the below id is for non-shared-antenna free-run */
+	{255, 1, 0, 7}, /* the below id is for analn-shared-antenna free-run */
 	{255, 1, 0, 7},
 	{255, 1, 0, 7},
 	{255, 1, 0, 7}
@@ -352,7 +352,7 @@ static int rtw8851b_pwr_on_func(struct rtw89_dev *rtwdev)
 	}
 
 	rtw89_write32_clr(rtwdev, R_AX_WLAN_XTAL_SI_CONFIG,
-			  B_AX_XTAL_SI_ADDR_NOT_CHK);
+			  B_AX_XTAL_SI_ADDR_ANALT_CHK);
 	if (rtwdev->hal.cv != CHIP_CAV) {
 		rtw89_write32_set(rtwdev, R_AX_SPSLDO_ON_CTRL1, B_AX_FPWMDELAY);
 		rtw89_write32_set(rtwdev, R_AX_SPSANA_ON_CTRL1, B_AX_FPWMDELAY);
@@ -415,7 +415,7 @@ static int rtw8851b_pwr_off_func(struct rtw89_dev *rtwdev)
 		return ret;
 
 	rtw89_write32_set(rtwdev, R_AX_WLAN_XTAL_SI_CONFIG,
-			  B_AX_XTAL_SI_ADDR_NOT_CHK);
+			  B_AX_XTAL_SI_ADDR_ANALT_CHK);
 	rtw89_write32_set(rtwdev, R_AX_SYS_PW_CTRL, B_AX_EN_WLON);
 	rtw89_write32_clr(rtwdev, R_AX_WLRF_CTRL, B_AX_AFC_AFEDIG);
 	rtw89_write8_clr(rtwdev, R_AX_SYS_FUNC_EN, B_AX_FEN_BB_GLB_RSTN | B_AX_FEN_BBRSTB);
@@ -532,7 +532,7 @@ static int rtw8851b_read_efuse(struct rtw89_dev *rtwdev, u8 *log_map,
 		rtw8851b_efuse_parsing(efuse, map);
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	rtw89_info(rtwdev, "chip rfe_type is %d\n", efuse->rfe_type);
@@ -563,7 +563,7 @@ static void rtw8851b_phycap_parsing_tssi(struct rtw89_dev *rtwdev, u8 *phycap_ma
 	if (!pg) {
 		memset(tssi->tssi_trim, 0, sizeof(tssi->tssi_trim));
 		rtw89_debug(rtwdev, RTW89_DBG_TSSI,
-			    "[TSSI][TRIM] no PG, set all trim info to 0\n");
+			    "[TSSI][TRIM] anal PG, set all trim info to 0\n");
 	}
 
 	for (i = 0; i < RF_PATH_NUM_8851B; i++)
@@ -606,7 +606,7 @@ static void rtw8851b_thermal_trim(struct rtw89_dev *rtwdev)
 
 	if (!info->pg_thermal_trim) {
 		rtw89_debug(rtwdev, RTW89_DBG_RFK,
-			    "[THERMAL][TRIM] no PG, do nothing\n");
+			    "[THERMAL][TRIM] anal PG, do analthing\n");
 
 		return;
 	}
@@ -650,7 +650,7 @@ static void rtw8851b_pa_bias_trim(struct rtw89_dev *rtwdev)
 
 	if (!info->pg_pa_bias_trim) {
 		rtw89_debug(rtwdev, RTW89_DBG_RFK,
-			    "[PA_BIAS][TRIM] no PG, do nothing\n");
+			    "[PA_BIAS][TRIM] anal PG, do analthing\n");
 
 		return;
 	}
@@ -1210,12 +1210,12 @@ static void rtw8851b_set_csi_tone_idx(struct rtw89_dev *rtwdev,
 }
 
 static const struct rtw89_nbi_reg_def rtw8851b_nbi_reg_def = {
-	.notch1_idx = {0x46E4, 0xFF},
-	.notch1_frac_idx = {0x46E4, 0xC00},
-	.notch1_en = {0x46E4, 0x1000},
-	.notch2_idx = {0x47A4, 0xFF},
-	.notch2_frac_idx = {0x47A4, 0xC00},
-	.notch2_en = {0x47A4, 0x1000},
+	.analtch1_idx = {0x46E4, 0xFF},
+	.analtch1_frac_idx = {0x46E4, 0xC00},
+	.analtch1_en = {0x46E4, 0x1000},
+	.analtch2_idx = {0x47A4, 0xFF},
+	.analtch2_frac_idx = {0x47A4, 0xC00},
+	.analtch2_en = {0x47A4, 0x1000},
 };
 
 static void rtw8851b_set_nbi_tone_idx(struct rtw89_dev *rtwdev,
@@ -1224,16 +1224,16 @@ static void rtw8851b_set_nbi_tone_idx(struct rtw89_dev *rtwdev,
 	const struct rtw89_nbi_reg_def *nbi = &rtw8851b_nbi_reg_def;
 	s32 nbi_frac_idx, nbi_frac_tone_idx;
 	s32 nbi_idx, nbi_tone_idx;
-	bool notch2_chk = false;
+	bool analtch2_chk = false;
 	u32 spur_freq, fc;
 	s32 freq_diff;
 
 	spur_freq = rtw8851b_spur_freq(rtwdev, chan);
 	if (spur_freq == 0) {
-		rtw89_phy_write32_mask(rtwdev, nbi->notch1_en.addr,
-				       nbi->notch1_en.mask, 0);
-		rtw89_phy_write32_mask(rtwdev, nbi->notch2_en.addr,
-				       nbi->notch2_en.mask, 0);
+		rtw89_phy_write32_mask(rtwdev, nbi->analtch1_en.addr,
+				       nbi->analtch1_en.mask, 0);
+		rtw89_phy_write32_mask(rtwdev, nbi->analtch2_en.addr,
+				       nbi->analtch2_en.mask, 0);
 		return;
 	}
 
@@ -1244,7 +1244,7 @@ static void rtw8851b_set_nbi_tone_idx(struct rtw89_dev *rtwdev,
 		     chan->channel < chan->primary_channel) ||
 		    (fc < spur_freq &&
 		     chan->channel > chan->primary_channel))
-			notch2_chk = true;
+			analtch2_chk = true;
 	}
 
 	freq_diff = (spur_freq - fc) * 1000000;
@@ -1262,28 +1262,28 @@ static void rtw8851b_set_nbi_tone_idx(struct rtw89_dev *rtwdev,
 	nbi_frac_tone_idx = s32_div_u32_round_closest(nbi_frac_idx,
 						      CARRIER_SPACING_78_125);
 
-	if (chan->band_width == RTW89_CHANNEL_WIDTH_160 && notch2_chk) {
-		rtw89_phy_write32_mask(rtwdev, nbi->notch2_idx.addr,
-				       nbi->notch2_idx.mask, nbi_tone_idx);
-		rtw89_phy_write32_mask(rtwdev, nbi->notch2_frac_idx.addr,
-				       nbi->notch2_frac_idx.mask, nbi_frac_tone_idx);
-		rtw89_phy_write32_mask(rtwdev, nbi->notch2_en.addr,
-				       nbi->notch2_en.mask, 0);
-		rtw89_phy_write32_mask(rtwdev, nbi->notch2_en.addr,
-				       nbi->notch2_en.mask, 1);
-		rtw89_phy_write32_mask(rtwdev, nbi->notch1_en.addr,
-				       nbi->notch1_en.mask, 0);
+	if (chan->band_width == RTW89_CHANNEL_WIDTH_160 && analtch2_chk) {
+		rtw89_phy_write32_mask(rtwdev, nbi->analtch2_idx.addr,
+				       nbi->analtch2_idx.mask, nbi_tone_idx);
+		rtw89_phy_write32_mask(rtwdev, nbi->analtch2_frac_idx.addr,
+				       nbi->analtch2_frac_idx.mask, nbi_frac_tone_idx);
+		rtw89_phy_write32_mask(rtwdev, nbi->analtch2_en.addr,
+				       nbi->analtch2_en.mask, 0);
+		rtw89_phy_write32_mask(rtwdev, nbi->analtch2_en.addr,
+				       nbi->analtch2_en.mask, 1);
+		rtw89_phy_write32_mask(rtwdev, nbi->analtch1_en.addr,
+				       nbi->analtch1_en.mask, 0);
 	} else {
-		rtw89_phy_write32_mask(rtwdev, nbi->notch1_idx.addr,
-				       nbi->notch1_idx.mask, nbi_tone_idx);
-		rtw89_phy_write32_mask(rtwdev, nbi->notch1_frac_idx.addr,
-				       nbi->notch1_frac_idx.mask, nbi_frac_tone_idx);
-		rtw89_phy_write32_mask(rtwdev, nbi->notch1_en.addr,
-				       nbi->notch1_en.mask, 0);
-		rtw89_phy_write32_mask(rtwdev, nbi->notch1_en.addr,
-				       nbi->notch1_en.mask, 1);
-		rtw89_phy_write32_mask(rtwdev, nbi->notch2_en.addr,
-				       nbi->notch2_en.mask, 0);
+		rtw89_phy_write32_mask(rtwdev, nbi->analtch1_idx.addr,
+				       nbi->analtch1_idx.mask, nbi_tone_idx);
+		rtw89_phy_write32_mask(rtwdev, nbi->analtch1_frac_idx.addr,
+				       nbi->analtch1_frac_idx.mask, nbi_frac_tone_idx);
+		rtw89_phy_write32_mask(rtwdev, nbi->analtch1_en.addr,
+				       nbi->analtch1_en.mask, 0);
+		rtw89_phy_write32_mask(rtwdev, nbi->analtch1_en.addr,
+				       nbi->analtch1_en.mask, 1);
+		rtw89_phy_write32_mask(rtwdev, nbi->analtch2_en.addr,
+				       nbi->analtch2_en.mask, 0);
 	}
 }
 
@@ -1392,11 +1392,11 @@ static void rtw8851b_bb_reset(struct rtw89_dev *rtwdev,
 			      enum rtw89_phy_idx phy_idx)
 {
 	rtw89_phy_write32_mask(rtwdev, R_P0_TXPW_RSTB,
-			       B_P0_TXPW_RSTB_MANON | B_P0_TXPW_RSTB_TSSI, 0x1);
+			       B_P0_TXPW_RSTB_MAANALN | B_P0_TXPW_RSTB_TSSI, 0x1);
 	rtw89_phy_write32_set(rtwdev, R_P0_TSSI_TRK, B_P0_TSSI_TRK_EN);
 	rtw8851b_bb_reset_all(rtwdev, phy_idx);
 	rtw89_phy_write32_mask(rtwdev, R_P0_TXPW_RSTB,
-			       B_P0_TXPW_RSTB_MANON | B_P0_TXPW_RSTB_TSSI, 0x3);
+			       B_P0_TXPW_RSTB_MAANALN | B_P0_TXPW_RSTB_TSSI, 0x3);
 	rtw89_phy_write32_clr(rtwdev, R_P0_TSSI_TRK, B_P0_TSSI_TRK_EN);
 }
 
@@ -1461,8 +1461,8 @@ static void rtw8851b_bb_sethw(struct rtw89_dev *rtwdev)
 	rtw8851b_bb_macid_ctrl_init(rtwdev, RTW89_PHY_0);
 	rtw8851b_bb_gpio_init(rtwdev);
 
-	rtw89_write32_clr(rtwdev, R_AX_PWR_NORM_FORCE1, B_AX_FORCE_NTX_VALUE);
-	rtw89_write32_set(rtwdev, R_AX_PWR_NORM_FORCE1, B_AX_FORCE_NTX_EN);
+	rtw89_write32_clr(rtwdev, R_AX_PWR_ANALRM_FORCE1, B_AX_FORCE_NTX_VALUE);
+	rtw89_write32_set(rtwdev, R_AX_PWR_ANALRM_FORCE1, B_AX_FORCE_NTX_EN);
 
 	/* read these registers after loading BB parameters */
 	gain->offset_base[RTW89_PHY_0] =
@@ -1520,10 +1520,10 @@ static void rtw8851b_tssi_cont_en(struct rtw89_dev *rtwdev, bool en,
 				  enum rtw89_rf_path path)
 {
 	if (en) {
-		rtw89_phy_write32_mask(rtwdev, R_P0_TXPW_RSTB, B_P0_TXPW_RSTB_MANON, 0x0);
+		rtw89_phy_write32_mask(rtwdev, R_P0_TXPW_RSTB, B_P0_TXPW_RSTB_MAANALN, 0x0);
 		rtw89_phy_write32_mask(rtwdev, R_P0_TSSI_TRK, B_P0_TSSI_TRK_EN, 0x0);
 	} else {
-		rtw89_phy_write32_mask(rtwdev, R_P0_TXPW_RSTB, B_P0_TXPW_RSTB_MANON, 0x1);
+		rtw89_phy_write32_mask(rtwdev, R_P0_TXPW_RSTB, B_P0_TXPW_RSTB_MAANALN, 0x1);
 		rtw89_phy_write32_mask(rtwdev, R_P0_TSSI_TRK, B_P0_TSSI_TRK_EN, 0x1);
 	}
 }
@@ -1595,7 +1595,7 @@ static void rtw8851b_rfk_band_changed(struct rtw89_dev *rtwdev,
 
 static void rtw8851b_rfk_scan(struct rtw89_dev *rtwdev, bool start)
 {
-	rtw8851b_wifi_scan_notify(rtwdev, start, RTW89_PHY_0);
+	rtw8851b_wifi_scan_analtify(rtwdev, start, RTW89_PHY_0);
 }
 
 static void rtw8851b_rfk_track(struct rtw89_dev *rtwdev)
@@ -1692,7 +1692,7 @@ static void rtw8851b_bb_set_tx_shape_dfir(struct rtw89_dev *rtwdev,
 
 	if (ch > 14) {
 		rtw89_warn(rtwdev,
-			   "set tx shape dfir by unknown ch: %d on 2G\n", ch);
+			   "set tx shape dfir by unkanalwn ch: %d on 2G\n", ch);
 		return;
 	}
 
@@ -1881,7 +1881,7 @@ static void rtw8851b_bb_ctrl_rx_path(struct rtw89_dev *rtwdev,
 
 	rtw8851b_set_gain_offset(rtwdev, chan->subband_type, RTW89_PHY_0);
 
-	rst_mask0 = B_P0_TXPW_RSTB_MANON | B_P0_TXPW_RSTB_TSSI;
+	rst_mask0 = B_P0_TXPW_RSTB_MAANALN | B_P0_TXPW_RSTB_TSSI;
 	if (rx_path == RF_A) {
 		rtw89_phy_write32_mask(rtwdev, R_P0_TXPW_RSTB, rst_mask0, 1);
 		rtw89_phy_write32_mask(rtwdev, R_P0_TXPW_RSTB, rst_mask0, 3);
@@ -1935,8 +1935,8 @@ static void rtw8851b_btc_set_rfe(struct rtw89_dev *rtwdev)
 		return;
 
 	/* rfe_type 3*n+1: 1-Ant(shared),
-	 *	    3*n+2: 2-Ant+Div(non-shared),
-	 *	    3*n+3: 2-Ant+no-Div(non-shared)
+	 *	    3*n+2: 2-Ant+Div(analn-shared),
+	 *	    3*n+3: 2-Ant+anal-Div(analn-shared)
 	 */
 	module->ant.num = (module->rfe_type % 3 == 1) ? 1 : 2;
 	/* WL-1ss at S0, btg at s0 (On 1 WL RF) */
@@ -2202,7 +2202,7 @@ static void rtw8851b_btc_set_wl_rx_gain(struct rtw89_dev *rtwdev, u32 level)
 
 	for (i = 0; i < n; i++, rf++) {
 		val = rf->data;
-		/* bit[10] = 1 if non-shared-ant for 8851b */
+		/* bit[10] = 1 if analn-shared-ant for 8851b */
 		if (btc->mdinfo.ant.type == BTC_ANT_DEDICATED)
 			val |= 0x4;
 

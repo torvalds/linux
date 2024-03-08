@@ -6,7 +6,7 @@ This is a small set of sanity tests for the kernel livepatching.
 
 The test suite loads and unloads several test kernel modules to verify
 livepatch behavior.  Debug information is logged to the kernel's message
-buffer and parsed for expected messages.  (Note: the tests will compare
+buffer and parsed for expected messages.  (Analte: the tests will compare
 the message buffer for only the duration of each individual test.)
 
 

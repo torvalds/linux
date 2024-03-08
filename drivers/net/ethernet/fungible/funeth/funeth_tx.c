@@ -16,7 +16,7 @@
 #define FUN_XDP_CLEAN_BATCH 16
 
 /* DMA-map a packet and return the (length, DMA_address) pairs for its
- * segments. If a mapping error occurs -ENOMEM is returned. The packet
+ * segments. If a mapping error occurs -EANALMEM is returned. The packet
  * consists of an skb_shared_info and one additional address/length pair.
  */
 static int fun_map_pkt(struct device *dev, const struct skb_shared_info *si,
@@ -28,7 +28,7 @@ static int fun_map_pkt(struct device *dev, const struct skb_shared_info *si,
 	*len = data_len;
 	*addr = dma_map_single(dev, data, *len, DMA_TO_DEVICE);
 	if (dma_mapping_error(dev, *addr))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!si)
 		return 0;
@@ -46,7 +46,7 @@ unwind:
 		dma_unmap_page(dev, *--addr, skb_frag_size(fp), DMA_TO_DEVICE);
 
 	dma_unmap_single(dev, addr[-1], data_len, DMA_TO_DEVICE);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /* Return the address just past the end of a Tx queue's descriptor ring.
@@ -141,7 +141,7 @@ static struct sk_buff *fun_tls_tx(struct sk_buff *skb, struct funeth_txq *q,
 }
 
 /* Write as many descriptors as needed for the supplied skb starting at the
- * current producer location. The caller has made certain enough descriptors
+ * current producer location. The caller has made certain eanalugh descriptors
  * are available.
  *
  * Returns the number of descriptors written, 0 on error.
@@ -313,7 +313,7 @@ static unsigned int fun_txq_avail(const struct funeth_txq *q)
 	return q->mask - q->prod_cnt + q->cons_cnt;
 }
 
-/* Stop a queue if it can't handle another worst-case packet. */
+/* Stop a queue if it can't handle aanalther worst-case packet. */
 static void fun_tx_check_stop(struct funeth_txq *q)
 {
 	if (likely(fun_txq_avail(q) >= FUNETH_MAX_PKT_DESC))
@@ -332,7 +332,7 @@ static void fun_tx_check_stop(struct funeth_txq *q)
 		netif_tx_start_queue(q->ndq);
 }
 
-/* Return true if a queue has enough space to restart. Current condition is
+/* Return true if a queue has eanalugh space to restart. Current condition is
  * that the queue must be >= 1/4 empty.
  */
 static bool fun_txq_may_restart(struct funeth_txq *q)
@@ -416,7 +416,7 @@ static unsigned int fun_unmap_pkt(const struct funeth_txq *q, unsigned int idx)
 }
 
 /* Reclaim completed Tx descriptors and free their packets. Restart a stopped
- * queue if we freed enough descriptors.
+ * queue if we freed eanalugh descriptors.
  *
  * Return true if we exhausted the budget while there is more work to be done.
  */
@@ -627,20 +627,20 @@ static struct funeth_txq *fun_txq_create_sw(struct net_device *dev,
 {
 	struct funeth_priv *fp = netdev_priv(dev);
 	struct funeth_txq *q;
-	int numa_node;
+	int numa_analde;
 
 	if (irq)
-		numa_node = fun_irq_node(irq); /* skb Tx queue */
+		numa_analde = fun_irq_analde(irq); /* skb Tx queue */
 	else
-		numa_node = cpu_to_node(qidx); /* XDP Tx queue */
+		numa_analde = cpu_to_analde(qidx); /* XDP Tx queue */
 
-	q = kzalloc_node(sizeof(*q), GFP_KERNEL, numa_node);
+	q = kzalloc_analde(sizeof(*q), GFP_KERNEL, numa_analde);
 	if (!q)
 		goto err;
 
 	q->dma_dev = &fp->pdev->dev;
 	q->desc = fun_alloc_ring_mem(q->dma_dev, ndesc, FUNETH_SQE_SIZE,
-				     sizeof(*q->info), true, numa_node,
+				     sizeof(*q->info), true, numa_analde,
 				     &q->dma_addr, (void **)&q->info,
 				     &q->hw_wb);
 	if (!q->desc)
@@ -649,7 +649,7 @@ static struct funeth_txq *fun_txq_create_sw(struct net_device *dev,
 	q->netdev = dev;
 	q->mask = ndesc - 1;
 	q->qidx = qidx;
-	q->numa_node = numa_node;
+	q->numa_analde = numa_analde;
 	u64_stats_init(&q->syncp);
 	q->init_state = FUN_QSTATE_INIT_SW;
 	return q;
@@ -714,9 +714,9 @@ int fun_txq_create_dev(struct funeth_txq *q, struct fun_irq *irq)
 
 	q->init_state = FUN_QSTATE_INIT_FULL;
 	netif_info(fp, ifup, q->netdev,
-		   "%s queue %u, depth %u, HW qid %u, IRQ idx %u, eth id %u, node %d\n",
+		   "%s queue %u, depth %u, HW qid %u, IRQ idx %u, eth id %u, analde %d\n",
 		   irq ? "Tx" : "XDP", q->qidx, ndesc, q->hw_qid, irq_idx,
-		   q->ethid, q->numa_node);
+		   q->ethid, q->numa_analde);
 	return 0;
 
 free_devq:
@@ -766,7 +766,7 @@ int funeth_txq_create(struct net_device *dev, unsigned int qidx,
 	if (!q)
 		q = fun_txq_create_sw(dev, qidx, ndesc, irq);
 	if (!q)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (q->init_state >= state)
 		goto out;

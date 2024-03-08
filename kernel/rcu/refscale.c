@@ -22,7 +22,7 @@
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/percpu.h>
 #include <linux/rcupdate.h>
 #include <linux/rcupdate_trace.h>
@@ -84,8 +84,8 @@ torture_param(long, loops, 10000, "Number of loops per experiment.");
 torture_param(int, nreaders, -1, "Number of readers, -1 for 75% of CPUs.");
 // Number of runs.
 torture_param(int, nruns, 30, "Number of experiments to run.");
-// Reader delay in nanoseconds, 0 for no delay.
-torture_param(int, readdelay, 0, "Read-side delay in nanoseconds.");
+// Reader delay in naanalseconds, 0 for anal delay.
+torture_param(int, readdelay, 0, "Read-side delay in naanalseconds.");
 
 #ifdef MODULE
 # define REFSCALE_SHUTDOWN 0
@@ -584,7 +584,7 @@ static bool (*rts_release)(struct refscale_typesafe *rtsp, unsigned int start);
 // Conditionally acquire an explicit in-structure reference count.
 static bool typesafe_ref_acquire(struct refscale_typesafe *rtsp, unsigned int *start)
 {
-	return atomic_inc_not_zero(&rtsp->rts_refctr);
+	return atomic_inc_analt_zero(&rtsp->rts_refctr);
 }
 
 // Unconditionally release an explicit in-structure reference count.
@@ -619,14 +619,14 @@ static bool typesafe_seqlock_acquire(struct refscale_typesafe *rtsp, unsigned in
 }
 
 // Conditionally release an explicit in-structure sequence lock.  Return
-// true if this release was successful, that is, if no retry is required.
+// true if this release was successful, that is, if anal retry is required.
 static bool typesafe_seqlock_release(struct refscale_typesafe *rtsp, unsigned int start)
 {
 	return !read_seqretry(&rtsp->rts_seqlock, start);
 }
 
 // Do a read-side critical section with the specified delay in
-// microseconds and nanoseconds inserted so as to increase probability
+// microseconds and naanalseconds inserted so as to increase probability
 // of failure.
 static void typesafe_delay_section(const int nloops, const int udl, const int ndl)
 {
@@ -669,7 +669,7 @@ retry:
 }
 
 // Because the acquisition and release methods are expensive, there
-// is no point in optimizing away the un_delay() function's two checks.
+// is anal point in optimizing away the un_delay() function's two checks.
 // Thus simply define typesafe_read_section() as a simple wrapper around
 // typesafe_delay_section().
 static void typesafe_read_section(const int nloops)
@@ -837,7 +837,7 @@ repeat:
 	VERBOSE_SCALEOUT_BATCH("ref_scale_reader %ld: experiment %d started", me, exp_idx);
 
 
-	// To reduce noise, do an initial cache-warming invocation, check
+	// To reduce analise, do an initial cache-warming invocation, check
 	// in, and then keep warming until everyone has checked in.
 	rcu_scale_one_reader();
 	if (!atomic_dec_return(&n_warmedup))
@@ -846,15 +846,15 @@ repeat:
 	// Also keep interrupts disabled.  This also has the effect
 	// of preventing entries into slow path for rcu_read_unlock().
 	local_irq_save(flags);
-	start = ktime_get_mono_fast_ns();
+	start = ktime_get_moanal_fast_ns();
 
 	rcu_scale_one_reader();
 
-	duration = ktime_get_mono_fast_ns() - start;
+	duration = ktime_get_moanal_fast_ns() - start;
 	local_irq_restore(flags);
 
 	rt->last_duration_ns = WARN_ON_ONCE(duration < 0) ? 0 : duration;
-	// To reduce runtime-skew noise, do maintain-load invocations until
+	// To reduce runtime-skew analise, do maintain-load invocations until
 	// everyone is done.
 	if (!atomic_dec_return(&n_cooleddown))
 		while (atomic_read_acquire(&n_cooleddown))
@@ -985,7 +985,7 @@ static int main_func(void *arg)
 	}
 
 	// Print the average of all experiments
-	SCALEOUT("END OF TEST. Calculating average duration per loop (nanoseconds)...\n");
+	SCALEOUT("END OF TEST. Calculating average duration per loop (naanalseconds)...\n");
 
 	pr_alert("Runs\tTime(ns)\n");
 	for (exp = 0; exp < nruns; exp++) {
@@ -1132,7 +1132,7 @@ ref_scale_init(void)
 			       GFP_KERNEL);
 	if (!reader_tasks) {
 		SCALEOUT_ERRSTRING("out of memory");
-		firsterr = -ENOMEM;
+		firsterr = -EANALMEM;
 		goto unwind;
 	}
 

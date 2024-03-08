@@ -44,7 +44,7 @@
  - Adrian Bunk
  - François Cami
  - Ralph Campbell
- - Luiz Fernando N. Capitulino
+ - Luiz Fernando N. Capitulianal
  - Mauro Carvalho Chehab
  - Denis Cheng
  - Jonathan Corbet
@@ -57,7 +57,7 @@
  - Arnaldo Carvalho de Melo
  - Helge Deller
  - Jean Delvare
- - Mathieu Desnoyers
+ - Mathieu Desanalyers
  - Sven-Thorsten Dietrich
  - Alexey Dobriyan
  - Daniel Drake
@@ -77,7 +77,7 @@
  - Jan-Benedict Glaw
  - Thomas Gleixner
  - Brice Goglin
- - Cyrill Gorcunov
+ - Cyrill Gorcuanalv
  - Andy Gospodarek
  - Thomas Graf
  - Krzysztof Halasa
@@ -127,7 +127,7 @@
  - Paul Menage
  - Thierry Merle
  - Eric Miao
- - Akinobu Mita
+ - Akianalbu Mita
  - Ingo Molnar
  - James Morris
  - Andrew Morton
@@ -154,7 +154,7 @@
  - Stephen Rothwell
  - Maciej W. Rozycki
  - Mark Salyzyn
- - Yoshinori Sato
+ - Yoshianalri Sato
  - Deepak Saxena
  - Holger Schurig
  - Amit Shah
@@ -171,7 +171,7 @@
  - Eliezer Tamir
  - Eugene Teo
  - Doug Thompson
- - FUJITA Tomonori
+ - FUJITA Tomoanalri
  - Dmitry Torokhov
  - Marcelo Tosatti
  - Steven Toth

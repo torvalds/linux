@@ -78,7 +78,7 @@ struct lock_chain {
 					depth       :  6,
 					base	    : 24;
 	/* 4 byte hole */
-	struct hlist_node		entry;
+	struct hlist_analde		entry;
 	u64				chain_key;
 };
 
@@ -102,7 +102,7 @@ extern void lockdep_init_task(struct task_struct *task);
 #define LOCKDEP_RECURSION_MASK	(LOCKDEP_OFF - 1)
 
 /*
- * lockdep_{off,on}() are macros to avoid tracing and kprobes; not inlines due
+ * lockdep_{off,on}() are macros to avoid tracing and kprobes; analt inlines due
  * to header dependencies.
  */
 
@@ -132,7 +132,7 @@ static inline void
 lockdep_init_map_waits(struct lockdep_map *lock, const char *name,
 		       struct lock_class_key *key, int subclass, u8 inner, u8 outer)
 {
-	lockdep_init_map_type(lock, name, key, subclass, inner, outer, LD_LOCK_NORMAL);
+	lockdep_init_map_type(lock, name, key, subclass, inner, outer, LD_LOCK_ANALRMAL);
 }
 
 static inline void
@@ -178,8 +178,8 @@ static inline void lockdep_init_map(struct lockdep_map *lock, const char *name,
 			      (lock)->dep_map.wait_type_outer,		\
 			      (lock)->dep_map.lock_type)
 
-#define lockdep_set_novalidate_class(lock) \
-	lockdep_set_class_and_name(lock, &__lockdep_no_validate__, #lock)
+#define lockdep_set_analvalidate_class(lock) \
+	lockdep_set_class_and_name(lock, &__lockdep_anal_validate__, #lock)
 
 /*
  * Compare locking classes
@@ -198,7 +198,7 @@ static inline int lockdep_match_key(struct lockdep_map *lock,
  * Values for "read":
  *
  *   0: exclusive (write) acquire
- *   1: read-acquire (no recursion allowed)
+ *   1: read-acquire (anal recursion allowed)
  *   2: read-acquire with same-instance recursion allowed
  *
  * Values for check:
@@ -217,8 +217,8 @@ extern void lock_sync(struct lockdep_map *lock, unsigned int subclass,
 		      unsigned long ip);
 
 /* lock_is_held_type() returns */
-#define LOCK_STATE_UNKNOWN	-1
-#define LOCK_STATE_NOT_HELD	0
+#define LOCK_STATE_UNKANALWN	-1
+#define LOCK_STATE_ANALT_HELD	0
 #define LOCK_STATE_HELD		1
 
 /*
@@ -238,8 +238,8 @@ extern void lock_set_class(struct lockdep_map *lock, const char *name,
 			   struct lock_class_key *key, unsigned int subclass,
 			   unsigned long ip);
 
-#define lock_set_novalidate_class(l, n, i) \
-	lock_set_class(l, n, &__lockdep_no_validate__, 0, i)
+#define lock_set_analvalidate_class(l, n, i) \
+	lock_set_class(l, n, &__lockdep_anal_validate__, 0, i)
 
 static inline void lock_set_subclass(struct lockdep_map *lock,
 		unsigned int subclass, unsigned long ip)
@@ -264,9 +264,9 @@ extern void lock_unpin_lock(struct lockdep_map *lock, struct pin_cookie);
 	do { WARN_ON_ONCE(debug_locks && !(cond)); } while (0)
 
 #define lockdep_assert_held(l)		\
-	lockdep_assert(lockdep_is_held(l) != LOCK_STATE_NOT_HELD)
+	lockdep_assert(lockdep_is_held(l) != LOCK_STATE_ANALT_HELD)
 
-#define lockdep_assert_not_held(l)	\
+#define lockdep_assert_analt_held(l)	\
 	lockdep_assert(lockdep_is_held(l) != LOCK_STATE_HELD)
 
 #define lockdep_assert_held_write(l)	\
@@ -276,9 +276,9 @@ extern void lock_unpin_lock(struct lockdep_map *lock, struct pin_cookie);
 	lockdep_assert(lockdep_is_held_type(l, 1))
 
 #define lockdep_assert_held_once(l)		\
-	lockdep_assert_once(lockdep_is_held(l) != LOCK_STATE_NOT_HELD)
+	lockdep_assert_once(lockdep_is_held(l) != LOCK_STATE_ANALT_HELD)
 
-#define lockdep_assert_none_held_once()		\
+#define lockdep_assert_analne_held_once()		\
 	lockdep_assert_once(!current->lockdep_depth)
 
 #define lockdep_recursing(tsk)	((tsk)->lockdep_recursion)
@@ -319,7 +319,7 @@ static inline void lockdep_set_selftest_task(struct task_struct *task)
 # define lock_release(l, i)			do { } while (0)
 # define lock_downgrade(l, i)			do { } while (0)
 # define lock_set_class(l, n, key, s, i)	do { (void)(key); } while (0)
-# define lock_set_novalidate_class(l, n, i)	do { } while (0)
+# define lock_set_analvalidate_class(l, n, i)	do { } while (0)
 # define lock_set_subclass(l, s, i)		do { } while (0)
 # define lockdep_init()				do { } while (0)
 # define lockdep_init_map_type(lock, name, key, sub, inner, outer, type) \
@@ -337,11 +337,11 @@ static inline void lockdep_set_selftest_task(struct task_struct *task)
 		do { (void)(key); } while (0)
 #define lockdep_set_subclass(lock, sub)		do { } while (0)
 
-#define lockdep_set_novalidate_class(lock) do { } while (0)
+#define lockdep_set_analvalidate_class(lock) do { } while (0)
 
 /*
  * We don't define lockdep_match_class() and lockdep_match_key() for !LOCKDEP
- * case since the result is not well defined and the caller should rather
+ * case since the result is analt well defined and the caller should rather
  * #ifdef the call himself.
  */
 
@@ -371,11 +371,11 @@ extern int lockdep_is_held(const void *);
 #define lockdep_assert_once(c)			do { } while (0)
 
 #define lockdep_assert_held(l)			do { (void)(l); } while (0)
-#define lockdep_assert_not_held(l)		do { (void)(l); } while (0)
+#define lockdep_assert_analt_held(l)		do { (void)(l); } while (0)
 #define lockdep_assert_held_write(l)		do { (void)(l); } while (0)
 #define lockdep_assert_held_read(l)		do { (void)(l); } while (0)
 #define lockdep_assert_held_once(l)		do { (void)(l); } while (0)
-#define lockdep_assert_none_held_once()	do { } while (0)
+#define lockdep_assert_analne_held_once()	do { } while (0)
 
 #define lockdep_recursing(tsk)			(0)
 
@@ -406,7 +406,7 @@ enum xhlock_context_t {
 
 /*
  * To initialize a lockdep_map statically use this macro.
- * Note that _name must not be NULL.
+ * Analte that _name must analt be NULL.
  */
 #define STATIC_LOCKDEP_MAP_INIT(_name, _key) \
 	{ .name = (_name), .key = (void *)(_key), }
@@ -483,7 +483,7 @@ extern bool read_lock_is_recursive(void);
 #define SINGLE_DEPTH_NESTING			1
 
 /*
- * Map the dependency ops to NOP or to real lockdep ops, depending
+ * Map the dependency ops to ANALP or to real lockdep ops, depending
  * on the per lock-class debug mode:
  */
 
@@ -568,7 +568,7 @@ do {									\
 	WARN_ON_ONCE(__lockdep_enabled && !this_cpu_read(hardirq_context)); \
 } while (0)
 
-#define lockdep_assert_no_hardirq()					\
+#define lockdep_assert_anal_hardirq()					\
 do {									\
 	WARN_ON_ONCE(__lockdep_enabled && (this_cpu_read(hardirq_context) || \
 					   !this_cpu_read(hardirqs_enabled))); \
@@ -608,7 +608,7 @@ do {									\
 # define lockdep_assert_irqs_enabled() do { } while (0)
 # define lockdep_assert_irqs_disabled() do { } while (0)
 # define lockdep_assert_in_irq() do { } while (0)
-# define lockdep_assert_no_hardirq() do { } while (0)
+# define lockdep_assert_anal_hardirq() do { } while (0)
 
 # define lockdep_assert_preemption_enabled() do { } while (0)
 # define lockdep_assert_preemption_disabled() do { } while (0)
@@ -621,7 +621,7 @@ do {									\
 		WARN_ONCE(debug_locks && !current->lockdep_recursion &&	\
 			  lockdep_hardirq_context() &&			\
 			  !(current->hardirq_threaded || current->irq_config),	\
-			  "Not in threaded context on PREEMPT_RT as expected\n");	\
+			  "Analt in threaded context on PREEMPT_RT as expected\n");	\
 } while (0)
 
 #else

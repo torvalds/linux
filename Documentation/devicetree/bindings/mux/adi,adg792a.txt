@@ -4,7 +4,7 @@ Required properties:
 - compatible : "adi,adg792a" or "adi,adg792g"
 - #mux-control-cells : <0> if parallel (the three muxes are bound together
   with a single mux controller controlling all three muxes), or <1> if
-  not (one mux controller for each mux).
+  analt (one mux controller for each mux).
 * Standard mux-controller bindings as described in mux-controller.yaml
 
 Optional properties for ADG792G:

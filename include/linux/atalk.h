@@ -37,8 +37,8 @@ struct atalk_sock {
 	struct sock	sk;
 	__be16		dest_net;
 	__be16		src_net;
-	unsigned char	dest_node;
-	unsigned char	src_node;
+	unsigned char	dest_analde;
+	unsigned char	src_analde;
 	unsigned char	dest_port;
 	unsigned char	src_port;
 };
@@ -53,8 +53,8 @@ struct ddpehdr {
 	__be16	deh_sum;
 	__be16	deh_dnet;
 	__be16	deh_snet;
-	__u8	deh_dnode;
-	__u8	deh_snode;
+	__u8	deh_danalde;
+	__u8	deh_sanalde;
 	__u8	deh_dport;
 	__u8	deh_sport;
 	/* And netatalk apps expect to stick the type in themselves */
@@ -81,11 +81,11 @@ struct elapaarp {
 	__u8	hw_src[ETH_ALEN];
 	__u8	pa_src_zero;
 	__be16	pa_src_net;
-	__u8	pa_src_node;
+	__u8	pa_src_analde;
 	__u8	hw_dst[ETH_ALEN];
 	__u8	pa_dst_zero;
 	__be16	pa_dst_net;
-	__u8	pa_dst_node;
+	__u8	pa_dst_analde;
 } __attribute__ ((packed));
 
 static __inline__ struct elapaarp *aarp_hdr(struct sk_buff *skb)
@@ -93,7 +93,7 @@ static __inline__ struct elapaarp *aarp_hdr(struct sk_buff *skb)
 	return (struct elapaarp *)skb_transport_header(skb);
 }
 
-/* Not specified - how long till we drop a resolved entry */
+/* Analt specified - how long till we drop a resolved entry */
 #define AARP_EXPIRY_TIME	(5 * 60 * HZ)
 /* Size of hash table */
 #define AARP_HASH_SIZE		16

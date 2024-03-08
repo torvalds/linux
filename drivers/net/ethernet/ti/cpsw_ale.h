@@ -16,7 +16,7 @@ struct cpsw_ale_params {
 	unsigned long		ale_ports;
 	/* NU Switch has specific handling as number of bits in ALE entries
 	 * are different than other versions of ALE. Also there are specific
-	 * registers for unknown vlan specific fields. So use nu_switch_ale
+	 * registers for unkanalwn vlan specific fields. So use nu_switch_ale
 	 * to identify this hardware.
 	 */
 	bool			nu_switch_ale;
@@ -50,8 +50,8 @@ enum cpsw_ale_control {
 	ALE_CLEAR,
 	ALE_AGEOUT,
 	ALE_P0_UNI_FLOOD,
-	ALE_VLAN_NOLEARN,
-	ALE_NO_PORT_VLAN,
+	ALE_VLAN_ANALLEARN,
+	ALE_ANAL_PORT_VLAN,
 	ALE_OUI_DENY,
 	ALE_BYPASS,
 	ALE_RATE_LIMIT_TX,
@@ -61,12 +61,12 @@ enum cpsw_ale_control {
 	/* port controls */
 	ALE_PORT_STATE,
 	ALE_PORT_DROP_UNTAGGED,
-	ALE_PORT_DROP_UNKNOWN_VLAN,
-	ALE_PORT_NOLEARN,
-	ALE_PORT_NO_SA_UPDATE,
-	ALE_PORT_UNKNOWN_VLAN_MEMBER,
-	ALE_PORT_UNKNOWN_MCAST_FLOOD,
-	ALE_PORT_UNKNOWN_REG_MCAST_FLOOD,
+	ALE_PORT_DROP_UNKANALWN_VLAN,
+	ALE_PORT_ANALLEARN,
+	ALE_PORT_ANAL_SA_UPDATE,
+	ALE_PORT_UNKANALWN_VLAN_MEMBER,
+	ALE_PORT_UNKANALWN_MCAST_FLOOD,
+	ALE_PORT_UNKANALWN_REG_MCAST_FLOOD,
 	ALE_PORT_UNTAGGED_EGRESS,
 	ALE_PORT_MACONLY,
 	ALE_PORT_MACONLY_CAF,

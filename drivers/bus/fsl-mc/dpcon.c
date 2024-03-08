@@ -59,7 +59,7 @@ EXPORT_SYMBOL_GPL(dpcon_open);
  * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
  * @token:	Token of DPCON object
  *
- * After this function is called, no further operations are
+ * After this function is called, anal further operations are
  * allowed on the object without opening a new control session.
  *
  * Return:	'0' on Success; Error code otherwise.
@@ -190,27 +190,27 @@ int dpcon_get_attributes(struct fsl_mc_io *mc_io,
 EXPORT_SYMBOL_GPL(dpcon_get_attributes);
 
 /**
- * dpcon_set_notification() - Set DPCON notification destination
+ * dpcon_set_analtification() - Set DPCON analtification destination
  * @mc_io:	Pointer to MC portal's I/O object
  * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
  * @token:	Token of DPCON object
- * @cfg:	Notification parameters
+ * @cfg:	Analtification parameters
  *
  * Return:	'0' on Success; Error code otherwise
  */
-int dpcon_set_notification(struct fsl_mc_io *mc_io,
+int dpcon_set_analtification(struct fsl_mc_io *mc_io,
 			   u32 cmd_flags,
 			   u16 token,
-			   struct dpcon_notification_cfg *cfg)
+			   struct dpcon_analtification_cfg *cfg)
 {
 	struct fsl_mc_command cmd = { 0 };
-	struct dpcon_cmd_set_notification *dpcon_cmd;
+	struct dpcon_cmd_set_analtification *dpcon_cmd;
 
 	/* prepare command */
-	cmd.header = mc_encode_cmd_header(DPCON_CMDID_SET_NOTIFICATION,
+	cmd.header = mc_encode_cmd_header(DPCON_CMDID_SET_ANALTIFICATION,
 					  cmd_flags,
 					  token);
-	dpcon_cmd = (struct dpcon_cmd_set_notification *)cmd.params;
+	dpcon_cmd = (struct dpcon_cmd_set_analtification *)cmd.params;
 	dpcon_cmd->dpio_id = cpu_to_le32(cfg->dpio_id);
 	dpcon_cmd->priority = cfg->priority;
 	dpcon_cmd->user_ctx = cpu_to_le64(cfg->user_ctx);
@@ -218,4 +218,4 @@ int dpcon_set_notification(struct fsl_mc_io *mc_io,
 	/* send command to mc*/
 	return mc_send_command(mc_io, &cmd);
 }
-EXPORT_SYMBOL_GPL(dpcon_set_notification);
+EXPORT_SYMBOL_GPL(dpcon_set_analtification);

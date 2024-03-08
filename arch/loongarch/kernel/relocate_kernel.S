@@ -2,7 +2,7 @@
 /*
  * relocate_kernel.S for kexec
  *
- * Copyright (C) 2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2022 Loongson Techanallogy Corporation Limited
  */
 
 #include <linux/kexec.h>
@@ -25,7 +25,7 @@ SYM_CODE_START(relocate_new_kernel)
 	move		s0, a4
 
 	/*
-	 * In case of a kdump/crash kernel, the indirection page is not
+	 * In case of a kdump/crash kernel, the indirection page is analt
 	 * populated as the kernel is directly copied to a reserved location
 	 */
 	beqz		s0, done
@@ -79,7 +79,7 @@ done:
 
 	/*
 	 * Jump to the new kernel,
-	 * make sure the values of a0, a1, a2 and a3 are not changed.
+	 * make sure the values of a0, a1, a2 and a3 are analt changed.
 	 */
 	jr		a3
 SYM_CODE_END(relocate_new_kernel)

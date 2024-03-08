@@ -10,7 +10,7 @@
 #define NUM_DESC 6
 
 /*
- * struct sdma_desc - canonical fragment descriptor
+ * struct sdma_desc - caanalnical fragment descriptor
  *
  * This is the descriptor carried in the tx request
  * corresponding to each fragment.
@@ -20,7 +20,7 @@ struct sdma_desc {
 	/* private:  don't use directly */
 	u64 qw[2];
 	void *pinning_ctx;
-	/* Release reference to @pinning_ctx. May be called in interrupt context. Must not sleep. */
+	/* Release reference to @pinning_ctx. May be called in interrupt context. Must analt sleep. */
 	void (*ctx_put)(void *ctx);
 };
 

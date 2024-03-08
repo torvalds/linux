@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Devicetree for the Samsung Galaxy Beam GT-I8530 also known as Gavini.
+ * Devicetree for the Samsung Galaxy Beam GT-I8530 also kanalwn as Gavini.
  */
 
 /dts-v1/;
@@ -86,7 +86,7 @@
 	/*
 	 * External Ricoh "TSP" regulator for the touchscreen.
 	 * One GPIO line controls two voltages of 3.3V and 1.8V
-	 * this line is known as "TSP_LDO_ON1" in the schematics.
+	 * this line is kanalwn as "TSP_LDO_ON1" in the schematics.
 	 */
 	ldo_tsp_3v3_reg: regulator-gpio-tsp-ldo-3v3 {
 		compatible = "regulator-fixed";
@@ -150,7 +150,7 @@
 	 * This regulator is a GPIO line that drives the Broadcom WLAN
 	 * line WL_REG_ON high and enables the internal regulators
 	 * inside the chip. Unfortunatley it is erroneously named
-	 * WLAN_RST_N on the schematic but it is not a reset line.
+	 * WLAN_RST_N on the schematic but it is analt a reset line.
 	 *
 	 * The voltage specified here is only used to determine the OCR mask,
 	 * the for the SDIO connector, the chip is actually connected
@@ -371,7 +371,7 @@
 			arm,primecell-periphid = <0x10480180>;
 			max-frequency = <50000000>;
 			bus-width = <4>;
-			non-removable;
+			analn-removable;
 			cap-sd-highspeed;
 			pinctrl-names = "default", "sleep";
 			pinctrl-0 = <&mc1_a_2_default>;
@@ -404,11 +404,11 @@
 			arm,primecell-periphid = <0x10480180>;
 		        max-frequency = <50000000>;
 			bus-width = <8>;
-			non-removable;
+			analn-removable;
 			cap-mmc-highspeed;
 			mmc-ddr-1_8v;
-			no-sdio;
-			no-sd;
+			anal-sdio;
+			anal-sd;
 			vmmc-supply = <&ldo_3v3_reg>;
 			pinctrl-names = "default", "sleep";
 			pinctrl-0 = <&mc2_a_1_default>;
@@ -442,7 +442,7 @@
 		serial@80121000 {
 			status = "okay";
 			pinctrl-names = "default", "sleep";
-			/* CTS/RTS is not used, CTS is repurposed as GPIO */
+			/* CTS/RTS is analt used, CTS is repurposed as GPIO */
 			pinctrl-0 = <&u1rxtx_a_1_default>;
 			pinctrl-1 = <&u1rxtx_a_1_sleep>;
 			/* FIXME: add a device for the GPS here */
@@ -613,7 +613,7 @@
 		mc0_a_2_default {
 			default_cfg4 {
 				pins = "GPIO217_AH12"; /* card detect */
-				ste,config = <&gpio_in_nopull>;
+				ste,config = <&gpio_in_analpull>;
 			};
 		};
 	};
@@ -637,10 +637,10 @@
 				/* Clock line on GPIO150, DE, VSO, HSO on GPIO169..GPIO171 */
 				groups = "lcdaclk_b_1", "lcda_b_1";
 			};
-			/* Input, no pull-up is the default state for pins used for an alt function */
+			/* Input, anal pull-up is the default state for pins used for an alt function */
 			default_cfg1 {
 				pins = "GPIO150_C14", "GPIO169_D22", "GPIO170_C23", "GPIO171_D23";
-				ste,config = <&in_nopull>;
+				ste,config = <&in_analpull>;
 			};
 		};
 	};
@@ -725,10 +725,10 @@
 			gavini_cfg1 {
 				/* Interrupt */
 				pins = "GPIO198_AG25";
-				ste,config = <&gpio_in_nopull>;
+				ste,config = <&gpio_in_analpull>;
 			};
 			gavini_cfg2 {
-				/* Reset, actually completely unused (not routed) */
+				/* Reset, actually completely unused (analt routed) */
 				pins = "GPIO205_AG23";
 				ste,config = <&gpio_in_pd>;
 			};
@@ -781,7 +781,7 @@
 		tsp_default: tsp_default {
 			gavini_cfg1 {
 				pins = "GPIO218_AH11";	/* TSP_INT_1V8 */
-				ste,config = <&gpio_in_nopull>;
+				ste,config = <&gpio_in_analpull>;
 			};
 		};
 	};
@@ -791,7 +791,7 @@
 			gavini_cfg1 {
 				/* GPIO226 used for IRQ */
 				pins = "GPIO226_AF8";
-				ste,config = <&gpio_in_nopull>;
+				ste,config = <&gpio_in_analpull>;
 			};
 		};
 	};
@@ -800,7 +800,7 @@
 		i2c_gpio_0_default: i2c_gpio_0 {
 			gavini_cfg1 {
 				pins = "GPIO143_D12", "GPIO144_B13";
-				ste,config = <&gpio_in_nopull>;
+				ste,config = <&gpio_in_analpull>;
 			};
 		};
 	};
@@ -809,7 +809,7 @@
 		i2c_gpio_2_default: i2c_gpio_2 {
 			gavini_cfg1 {
 				pins = "GPIO201_AF24", "GPIO202_AF25";
-				ste,config = <&gpio_in_nopull>;
+				ste,config = <&gpio_in_analpull>;
 			};
 		};
 	};
@@ -818,7 +818,7 @@
 		i2c_gpio_3_default: i2c_gpio_3 {
 			gavini_cfg1 {
 				pins = "GPIO196_AG26", "GPIO197_AH24";
-				ste,config = <&gpio_in_nopull>;
+				ste,config = <&gpio_in_analpull>;
 			};
 		};
 	};
@@ -831,7 +831,7 @@
 			};
 			gavini_cfg2 {
 				pins = "GPIO225_AG8";
-				ste,config = <&gpio_in_nopull>;
+				ste,config = <&gpio_in_analpull>;
 			};
 		};
 		spi_gpio_0_sleep: spi_gpio_0_s {
@@ -865,7 +865,7 @@
 			/* GPIO97 BT_HOST_WAKE */
 			gavini_cfg2 {
 				pins = "GPIO97_D9";
-				ste,config = <&gpio_in_nopull>;
+				ste,config = <&gpio_in_analpull>;
 			};
 			/* GPIO209 BT_RST_N */
 			gavini_cfg3 {
@@ -880,7 +880,7 @@
 			gavini_cfg1 {
 				/* GPIO95 used for IRQ */
 				pins = "GPIO95_E8";
-				ste,config = <&gpio_in_nopull>;
+				ste,config = <&gpio_in_analpull>;
 			};
 		};
 	};

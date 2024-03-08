@@ -7,16 +7,16 @@
  *
  * Permission to use, copy, modify, distribute, and sell this software and its
  * documentation for any purpose is hereby granted without fee, provided that
- * the above copyright notice appear in all copies and that both that copyright
- * notice and this permission notice appear in supporting documentation, and
- * that the name of the copyright holders not be used in advertising or
+ * the above copyright analtice appear in all copies and that both that copyright
+ * analtice and this permission analtice appear in supporting documentation, and
+ * that the name of the copyright holders analt be used in advertising or
  * publicity pertaining to distribution of the software without specific,
- * written prior permission.  The copyright holders make no representations
+ * written prior permission.  The copyright holders make anal representations
  * about the suitability of this software for any purpose.  It is provided "as
  * is" without express or implied warranty.
  *
  * THE COPYRIGHT HOLDERS DISCLAIM ALL WARRANTIES WITH REGARD TO THIS SOFTWARE,
- * INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO
+ * INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN ANAL
  * EVENT SHALL THE COPYRIGHT HOLDERS BE LIABLE FOR ANY SPECIAL, INDIRECT OR
  * CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE,
  * DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
@@ -38,18 +38,18 @@ struct drm_fb_helper;
 #include <drm/drm_client.h>
 
 /**
- * struct drm_fb_helper_surface_size - describes fbdev size and scanout surface size
+ * struct drm_fb_helper_surface_size - describes fbdev size and scaanalut surface size
  * @fb_width: fbdev width
  * @fb_height: fbdev height
- * @surface_width: scanout buffer width
- * @surface_height: scanout buffer height
- * @surface_bpp: scanout buffer bpp
- * @surface_depth: scanout buffer depth
+ * @surface_width: scaanalut buffer width
+ * @surface_height: scaanalut buffer height
+ * @surface_bpp: scaanalut buffer bpp
+ * @surface_depth: scaanalut buffer depth
  *
- * Note that the scanout surface width/height may be larger than the fbdev
- * width/height.  In case of multiple displays, the scanout surface is sized
- * according to the largest width/height (so it is large enough for all CRTCs
- * to scanout).  But the fbdev width/height is sized to the minimum width/
+ * Analte that the scaanalut surface width/height may be larger than the fbdev
+ * width/height.  In case of multiple displays, the scaanalut surface is sized
+ * according to the largest width/height (so it is large eanalugh for all CRTCs
+ * to scaanalut).  But the fbdev width/height is sized to the minimum width/
  * height of all the displays.  This ensures that fbcon fits on the smallest
  * of the attached displays. fb_width/fb_height is used by
  * drm_fb_helper_fill_info() to fill out the &fb_info.var structure.
@@ -103,7 +103,7 @@ struct drm_fb_helper_funcs {
 
 /**
  * struct drm_fb_helper - main structure to emulate fbdev on top of KMS
- * @fb: Scanout framebuffer object
+ * @fb: Scaanalut framebuffer object
  * @dev: DRM device
  * @funcs: driver callbacks for fb helper
  * @info: emulated fbdev device info struct
@@ -167,7 +167,7 @@ struct drm_fb_helper {
 	 * @delayed_hotplug:
 	 *
 	 * A hotplug was received while fbdev wasn't in control of the DRM
-	 * device, i.e. another KMS master was active. The output configuration
+	 * device, i.e. aanalther KMS master was active. The output configuration
 	 * needs to be reprobe when fbdev is in control again.
 	 */
 	bool delayed_hotplug;
@@ -175,7 +175,7 @@ struct drm_fb_helper {
 	/**
 	 * @deferred_setup:
 	 *
-	 * If no outputs are connected (disconnected or unknown) the FB helper
+	 * If anal outputs are connected (disconnected or unkanalwn) the FB helper
 	 * code will defer setup until at least one of the outputs shows up.
 	 * This field keeps track of the status so that setup can be retried
 	 * at every hotplug event until it succeeds eventually.

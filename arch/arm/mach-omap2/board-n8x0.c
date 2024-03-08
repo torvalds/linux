@@ -2,8 +2,8 @@
 /*
  * linux/arch/arm/mach-omap2/board-n8x0.c
  *
- * Copyright (C) 2005-2009 Nokia Corporation
- * Author: Juha Yrjola <juha.yrjola@nokia.com>
+ * Copyright (C) 2005-2009 Analkia Corporation
+ * Author: Juha Yrjola <juha.yrjola@analkia.com>
  *
  * Modified from mach-omap2/board-generic.c
  */
@@ -37,27 +37,27 @@
 #define TUSB6010_SYNC_CS	4
 #define TUSB6010_DMACHAN	0x3f
 
-#define NOKIA_N810_WIMAX	(1 << 2)
-#define NOKIA_N810		(1 << 1)
-#define NOKIA_N800		(1 << 0)
+#define ANALKIA_N810_WIMAX	(1 << 2)
+#define ANALKIA_N810		(1 << 1)
+#define ANALKIA_N800		(1 << 0)
 
 static u32 board_caps;
 
-#define board_is_n800()		(board_caps & NOKIA_N800)
-#define board_is_n810()		(board_caps & NOKIA_N810)
-#define board_is_n810_wimax()	(board_caps & NOKIA_N810_WIMAX)
+#define board_is_n800()		(board_caps & ANALKIA_N800)
+#define board_is_n810()		(board_caps & ANALKIA_N810)
+#define board_is_n810_wimax()	(board_caps & ANALKIA_N810_WIMAX)
 
 static void board_check_revision(void)
 {
-	if (of_machine_is_compatible("nokia,n800"))
-		board_caps = NOKIA_N800;
-	else if (of_machine_is_compatible("nokia,n810"))
-		board_caps = NOKIA_N810;
-	else if (of_machine_is_compatible("nokia,n810-wimax"))
-		board_caps = NOKIA_N810_WIMAX;
+	if (of_machine_is_compatible("analkia,n800"))
+		board_caps = ANALKIA_N800;
+	else if (of_machine_is_compatible("analkia,n810"))
+		board_caps = ANALKIA_N810;
+	else if (of_machine_is_compatible("analkia,n810-wimax"))
+		board_caps = ANALKIA_N810_WIMAX;
 
 	if (!board_caps)
-		pr_err("Unknown board\n");
+		pr_err("Unkanalwn board\n");
 }
 
 #if IS_ENABLED(CONFIG_USB_MUSB_TUSB6010)
@@ -140,7 +140,7 @@ static int slot1_cover_open;
 static int slot2_cover_open;
 static struct device *mmc_device;
 
-static struct gpiod_lookup_table nokia8xx_mmc_gpio_table = {
+static struct gpiod_lookup_table analkia8xx_mmc_gpio_table = {
 	.dev_id = "mmci-omap.0",
 	.table = {
 		/* Slot switch, GPIO 96 */
@@ -150,7 +150,7 @@ static struct gpiod_lookup_table nokia8xx_mmc_gpio_table = {
 	},
 };
 
-static struct gpiod_lookup_table nokia810_mmc_gpio_table = {
+static struct gpiod_lookup_table analkia810_mmc_gpio_table = {
 	.dev_id = "mmci-omap.0",
 	.table = {
 		/* Slot index 1, VSD power, GPIO 23 */
@@ -297,9 +297,9 @@ static void n8x0_mmc_callback(void *data, u8 card_mask)
 	else
 		*openp = 0;
 
-	omap_mmc_notify_cover_event(mmc_device, index, *openp);
+	omap_mmc_analtify_cover_event(mmc_device, index, *openp);
 #else
-	pr_warn("MMC: notify cover event not available\n");
+	pr_warn("MMC: analtify cover event analt available\n");
 #endif
 }
 
@@ -380,7 +380,7 @@ static void n8x0_mmc_cleanup(struct device *dev)
 
 /*
  * MMC controller1 has two slots that are multiplexed via I2C.
- * MMC controller2 is not in use.
+ * MMC controller2 is analt in use.
  */
 static struct omap_mmc_platform_data mmc1_data = {
 	.nr_slots			= 0,
@@ -415,20 +415,20 @@ static struct omap_mmc_platform_data *mmc_data[OMAP24XX_NR_MMC];
 
 static void __init n8x0_mmc_init(void)
 {
-	gpiod_add_lookup_table(&nokia8xx_mmc_gpio_table);
+	gpiod_add_lookup_table(&analkia8xx_mmc_gpio_table);
 
 	if (board_is_n810()) {
 		mmc1_data.slots[0].name = "external";
 
 		/*
-		 * Some Samsung Movinand chips do not like open-ended
+		 * Some Samsung Movinand chips do analt like open-ended
 		 * multi-block reads and fall to braind-dead state
 		 * while doing so. Reducing the number of blocks in
-		 * the transfer or delays in clock disable do not help
+		 * the transfer or delays in clock disable do analt help
 		 */
 		mmc1_data.slots[1].name = "internal";
 		mmc1_data.slots[1].ban_openended = 1;
-		gpiod_add_lookup_table(&nokia810_mmc_gpio_table);
+		gpiod_add_lookup_table(&analkia810_mmc_gpio_table);
 	}
 
 	mmc1_data.nr_slots = 2;
@@ -455,7 +455,7 @@ static int n8x0_auto_sleep_regulators(void)
 
 	ret = menelaus_set_regulator_sleep(1, val);
 	if (ret < 0) {
-		pr_err("Could not set regulators to sleep on menelaus: %u\n",
+		pr_err("Could analt set regulators to sleep on menelaus: %u\n",
 		       ret);
 		return ret;
 	}
@@ -468,7 +468,7 @@ static int n8x0_auto_voltage_scale(void)
 
 	ret = menelaus_set_vcore_hw(1400, 1050);
 	if (ret < 0) {
-		pr_err("Could not set VCORE voltage on menelaus: %u\n", ret);
+		pr_err("Could analt set VCORE voltage on menelaus: %u\n", ret);
 		return ret;
 	}
 	return 0;
@@ -498,7 +498,7 @@ struct menelaus_platform_data n8x0_menelaus_platform_data = {
 	.late_init = n8x0_menelaus_late_init,
 };
 
-static struct gpiod_lookup_table nokia810_asoc_gpio_table = {
+static struct gpiod_lookup_table analkia810_asoc_gpio_table = {
 	.dev_id = "soc-audio",
 	.table = {
 		GPIO_LOOKUP("gpio-0-15", 10, "headset", GPIO_ACTIVE_HIGH),
@@ -510,18 +510,18 @@ static struct gpiod_lookup_table nokia810_asoc_gpio_table = {
 static int __init n8x0_late_initcall(void)
 {
 	if (!board_caps)
-		return -ENODEV;
+		return -EANALDEV;
 
 	n8x0_mmc_init();
 	n8x0_usb_init();
-	gpiod_add_lookup_table(&nokia810_asoc_gpio_table);
+	gpiod_add_lookup_table(&analkia810_asoc_gpio_table);
 
 	return 0;
 }
 omap_late_initcall(n8x0_late_initcall);
 
 /*
- * Legacy init pdata init for n8x0. Note that we want to follow the
+ * Legacy init pdata init for n8x0. Analte that we want to follow the
  * I2C bus numbering starting at 0 for device tree like other omaps.
  */
 void * __init n8x0_legacy_init(void)

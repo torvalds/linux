@@ -25,7 +25,7 @@ static void usb_urb_complete(struct urb *urb)
 
 	dev_dbg_ratelimited(&stream->udev->dev,
 			"%s: %s urb completed status=%d length=%d/%d pack_num=%d errors=%d\n",
-			__func__, ptype == PIPE_ISOCHRONOUS ? "isoc" : "bulk",
+			__func__, ptype == PIPE_ISOCHROANALUS ? "isoc" : "bulk",
 			urb->status, urb->actual_length,
 			urb->transfer_buffer_length,
 			urb->number_of_packets, urb->error_count);
@@ -35,7 +35,7 @@ static void usb_urb_complete(struct urb *urb)
 	case -ETIMEDOUT:    /* NAK */
 		break;
 	case -ECONNRESET:   /* kill */
-	case -ENOENT:
+	case -EANALENT:
 	case -ESHUTDOWN:
 		return;
 	default:        /* error */
@@ -47,7 +47,7 @@ static void usb_urb_complete(struct urb *urb)
 
 	b = (u8 *) urb->transfer_buffer;
 	switch (ptype) {
-	case PIPE_ISOCHRONOUS:
+	case PIPE_ISOCHROANALUS:
 		for (i = 0; i < urb->number_of_packets; i++) {
 			if (urb->iso_frame_desc[i].status != 0)
 				dev_dbg(&stream->udev->dev,
@@ -69,7 +69,7 @@ static void usb_urb_complete(struct urb *urb)
 		break;
 	default:
 		dev_err(&stream->udev->dev,
-				"%s: unknown endpoint type in completion handler\n",
+				"%s: unkanalwn endpoint type in completion handler\n",
 				KBUILD_MODNAME);
 		return;
 	}
@@ -104,7 +104,7 @@ int usb_urb_submitv2(struct usb_data_stream *stream,
 		ret = usb_submit_urb(stream->urb_list[i], GFP_ATOMIC);
 		if (ret) {
 			dev_err(&stream->udev->dev,
-					"%s: could not submit urb no. %d - get them all back\n",
+					"%s: could analt submit urb anal. %d - get them all back\n",
 					KBUILD_MODNAME, i);
 			usb_urb_killv2(stream);
 			return ret;
@@ -145,7 +145,7 @@ static int usb_urb_alloc_bulk_urbs(struct usb_data_stream *stream)
 			dev_dbg(&stream->udev->dev, "%s: failed\n", __func__);
 			for (j = 0; j < i; j++)
 				usb_free_urb(stream->urb_list[j]);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		usb_fill_bulk_urb(stream->urb_list[i],
 				stream->udev,
@@ -175,7 +175,7 @@ static int usb_urb_alloc_isoc_urbs(struct usb_data_stream *stream)
 			dev_dbg(&stream->udev->dev, "%s: failed\n", __func__);
 			for (j = 0; j < i; j++)
 				usb_free_urb(stream->urb_list[j]);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		urb = stream->urb_list[i];
@@ -234,7 +234,7 @@ static int usb_alloc_stream_buffers(struct usb_data_stream *stream, int num,
 			dev_dbg(&stream->udev->dev, "%s: alloc buf=%d failed\n",
 					__func__, stream->buf_num);
 			usb_free_stream_buffers(stream);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		dev_dbg(&stream->udev->dev, "%s: alloc buf=%d %p (dma %llu)\n",
@@ -255,7 +255,7 @@ int usb_urb_reconfig(struct usb_data_stream *stream,
 	if (!props)
 		return 0;
 
-	/* check allocated buffers are large enough for the request */
+	/* check allocated buffers are large eanalugh for the request */
 	if (props->type == USB_BULK) {
 		buf_size = stream->props.u.bulk.buffersize;
 	} else if (props->type == USB_ISOC) {
@@ -268,7 +268,7 @@ int usb_urb_reconfig(struct usb_data_stream *stream,
 
 	if (stream->buf_num < props->count || stream->buf_size < buf_size) {
 		dev_err(&stream->udev->dev,
-				"%s: cannot reconfigure as allocated buffers are too small\n",
+				"%s: cananalt reconfigure as allocated buffers are too small\n",
 				KBUILD_MODNAME);
 		return -EINVAL;
 	}
@@ -315,7 +315,7 @@ int usb_urb_initv2(struct usb_data_stream *stream,
 
 	if (!stream->complete) {
 		dev_err(&stream->udev->dev,
-				"%s: there is no data callback - this doesn't make sense\n",
+				"%s: there is anal data callback - this doesn't make sense\n",
 				KBUILD_MODNAME);
 		return -EINVAL;
 	}
@@ -338,7 +338,7 @@ int usb_urb_initv2(struct usb_data_stream *stream,
 		return usb_urb_alloc_isoc_urbs(stream);
 	default:
 		dev_err(&stream->udev->dev,
-				"%s: unknown urb-type for data transfer\n",
+				"%s: unkanalwn urb-type for data transfer\n",
 				KBUILD_MODNAME);
 		return -EINVAL;
 	}

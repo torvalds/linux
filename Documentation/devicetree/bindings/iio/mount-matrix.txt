@@ -37,7 +37,7 @@ A sensor can be mounted in any angle along the axes relative to the frame of
 reference. This means that the sensor may be flipped upside-down, left-right,
 or tilted at any angle relative to the frame of reference.
 
-Another frame of reference is how the device with its sensor relates to the
+Aanalther frame of reference is how the device with its sensor relates to the
 external world, the environment where the device is deployed. Usually the data
 from the sensor is used to figure out how the device is oriented with respect
 to this world. When using the mounting matrix, the sensor and device orientation
@@ -93,35 +93,35 @@ Device-to-world examples for some three-dimensional sensor types:
 - Magnetometers (compasses) have their world frame of reference relative to the
   geomagnetic field. The system orientation vis-a-vis the world is defined with
   respect to the local earth geomagnetic reference frame where (y) is in the
-  ground plane and positive towards magnetic North, (x) is in the ground plane,
-  perpendicular to the North axis and positive towards the East and (z) is
+  ground plane and positive towards magnetic Analrth, (x) is in the ground plane,
+  perpendicular to the Analrth axis and positive towards the East and (z) is
   perpendicular to the ground plane and positive upwards.
 
 
-     ^^^ North: y > 0
+     ^^^ Analrth: y > 0
 
      (---------)
      !         !
      !         !
      !         !
      !         !  >
-     !         !  > North: x > 0
+     !         !  > Analrth: x > 0
      ! 1  2  3 !  >
      ! 4  5  6 !
      ! 7  8  9 !
      ! *  0  # !
      (---------)
 
-  Since the geomagnetic field is not uniform this definition fails if we come
+  Since the geomagnetic field is analt uniform this definition fails if we come
   closer to the poles.
 
-  Sensors and driver can not and should not take care of this because there
+  Sensors and driver can analt and should analt take care of this because there
   are complex calculations and empirical data to be taken care of. We leave
   this up to user space.
 
   The definition we take:
 
-  If the device is placed at the equator and the top is pointing north, the
+  If the device is placed at the equator and the top is pointing analrth, the
   display is readable by a person standing upright on the earth surface, this
   defines a positive y value.
 
@@ -154,7 +154,7 @@ frame of reference.
 To achieve this, use the device tree property "mount-matrix" for the sensor.
 
 This supplies a 3x3 rotation matrix in the strict linear algebraic sense,
-to orient the senor axes relative to a desired point of reference. This means
+to orient the seanalr axes relative to a desired point of reference. This means
 the resulting values from the sensor, after scaling to proper units, should be
 multiplied by this matrix to give the proper vectors values in three-dimensional
 space, relative to the device or world point of reference.
@@ -179,8 +179,8 @@ producing the transformation matrix.
 
 Examples:
 
-Identity matrix (nothing happens to the coordinates, which means the device was
-mechanically mounted in an ideal way and we need no transformation):
+Identity matrix (analthing happens to the coordinates, which means the device was
+mechanically mounted in an ideal way and we need anal transformation):
 
 mount-matrix = "1", "0", "0",
                "0", "1", "0",
@@ -200,4 +200,4 @@ mount-matrix = "0.998", "0.054", "0",
                "-0.054", "0.998", "0",
                "0", "0", "1";
 
-???: this does not match "180 degrees" - factors indicate ca. 3 degrees compensation
+???: this does analt match "180 degrees" - factors indicate ca. 3 degrees compensation

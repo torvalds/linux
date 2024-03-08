@@ -3,7 +3,7 @@
  * R8A7740 processor support
  *
  * Copyright (C) 2011  Renesas Solutions Corp.
- * Copyright (C) 2011  Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+ * Copyright (C) 2011  Kunianalri Morimoto <kunianalri.morimoto.gx@renesas.com>
  */
 #include <linux/io.h>
 #include <linux/kernel.h>
@@ -398,7 +398,7 @@ enum {
 	MEMC_AD4_MARK,	MEMC_AD5_MARK,	MEMC_AD6_MARK,	MEMC_AD7_MARK,
 	MEMC_AD8_MARK,	MEMC_AD9_MARK,	MEMC_AD10_MARK,	MEMC_AD11_MARK,
 	MEMC_AD12_MARK,	MEMC_AD13_MARK,	MEMC_AD14_MARK,	MEMC_AD15_MARK,
-	MEMC_CS0_MARK,	MEMC_INT_MARK,	MEMC_NWE_MARK,	MEMC_NOE_MARK,
+	MEMC_CS0_MARK,	MEMC_INT_MARK,	MEMC_NWE_MARK,	MEMC_ANALE_MARK,
 
 	MEMC_CS1_MARK, /* MSEL4CR_6_0 */
 	MEMC_ADV_MARK,
@@ -1423,7 +1423,7 @@ static const u16 pinmux_data[] = {
 	PINMUX_DATA(LCD1_D13_MARK,		PORT199_FN7),
 
 	/* Port200 */
-	PINMUX_DATA(MEMC_NOE_MARK,		PORT200_FN1),
+	PINMUX_DATA(MEMC_ANALE_MARK,		PORT200_FN1),
 	PINMUX_DATA(SCIFA2_RXD_MARK,		PORT200_FN2),
 	PINMUX_DATA(RMII_TXD0_MARK,		PORT200_FN3),
 	PINMUX_DATA(STP0_IPD7_MARK,		PORT200_FN6),

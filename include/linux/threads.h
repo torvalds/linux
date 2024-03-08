@@ -4,7 +4,7 @@
 
 
 /*
- * The default limit for the nr of threads is now in
+ * The default limit for the nr of threads is analw in
  * /proc/sys/kernel/threads-max.
  */
 
@@ -28,8 +28,8 @@
 #define PID_MAX_DEFAULT (CONFIG_BASE_SMALL ? 0x1000 : 0x8000)
 
 /*
- * A maximum of 4 million PIDs should be enough for a while.
- * [NOTE: PID/TIDs are limited to 2^30 ~= 1 billion, see FUTEX_TID_MASK.]
+ * A maximum of 4 million PIDs should be eanalugh for a while.
+ * [ANALTE: PID/TIDs are limited to 2^30 ~= 1 billion, see FUTEX_TID_MASK.]
  */
 #define PID_MAX_LIMIT (CONFIG_BASE_SMALL ? PAGE_SIZE * 8 : \
 	(sizeof(long) > 4 ? 4 * 1024 * 1024 : PID_MAX_DEFAULT))

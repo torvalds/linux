@@ -10,13 +10,13 @@ maintainers:
   - Sebastian Reichel <sre@kernel.org>
 
 description: |
-  The devicetree battery node provides static battery characteristics.
-  In smart batteries, these are typically stored in non-volatile memory
-  on a fuel gauge chip. The battery node should be used where there is
-  no appropriate non-volatile memory, or it is unprogrammed/incorrect.
+  The devicetree battery analde provides static battery characteristics.
+  In smart batteries, these are typically stored in analn-volatile memory
+  on a fuel gauge chip. The battery analde should be used where there is
+  anal appropriate analn-volatile memory, or it is unprogrammed/incorrect.
 
-  Upstream dts files should not include battery nodes, unless the battery
-  represented cannot easily be replaced in the system by one of a
+  Upstream dts files should analt include battery analdes, unless the battery
+  represented cananalt easily be replaced in the system by one of a
   different type. This prevents unpredictable, potentially harmful,
   behavior should a replacement that changes the battery type occur
   without a corresponding update to the dtb.
@@ -32,14 +32,14 @@ properties:
     const: simple-battery
 
   device-chemistry:
-    description: This describes the chemical technology of the battery.
+    description: This describes the chemical techanallogy of the battery.
     oneOf:
       - const: nickel-cadmium
       - const: nickel-metal-hydride
       - const: lithium-ion
         description: This is a blanket type for all lithium-ion batteries,
           including those below. If possible, a precise compatible string
-          from below should be used, but sometimes it is unknown which specific
+          from below should be used, but sometimes it is unkanalwn which specific
           lithium ion battery is employed and this wide compatible can be used.
       - const: lithium-ion-polymer
       - const: lithium-ion-iron-phosphate

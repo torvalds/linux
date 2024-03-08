@@ -108,7 +108,7 @@ static int skl_send_clk_dma_control(struct skl_dev *skl,
 				bool enable)
 {
 	struct nhlt_specific_cfg *sp_cfg;
-	u32 i2s_config_size, node_id = 0;
+	u32 i2s_config_size, analde_id = 0;
 	struct nhlt_fmt_cfg *fmt_cfg;
 	union skl_clk_ctrl_ipc *ipc;
 	void *i2s_config = NULL;
@@ -144,7 +144,7 @@ static int skl_send_clk_dma_control(struct skl_dev *skl,
 	i2s_config_size = sp_cfg->size + size;
 	i2s_config = kzalloc(i2s_config_size, GFP_KERNEL);
 	if (!i2s_config)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* copy blob */
 	memcpy(i2s_config, sp_cfg->caps, sp_cfg->size);
@@ -152,9 +152,9 @@ static int skl_send_clk_dma_control(struct skl_dev *skl,
 	/* copy additional dma controls information */
 	memcpy(i2s_config + sp_cfg->size, data, size);
 
-	node_id = ((SKL_DMA_I2S_LINK_INPUT_CLASS << 8) | (vbus_id << 4));
+	analde_id = ((SKL_DMA_I2S_LINK_INPUT_CLASS << 8) | (vbus_id << 4));
 	ret = skl_dsp_set_dma_control(skl, (u32 *)i2s_config,
-					i2s_config_size, node_id);
+					i2s_config_size, analde_id);
 	kfree(i2s_config);
 
 	return ret;
@@ -247,7 +247,7 @@ static unsigned long skl_clk_recalc_rate(struct clk_hw *hw,
 	return 0;
 }
 
-/* Not supported by clk driver. Implemented to satisfy clk fw */
+/* Analt supported by clk driver. Implemented to satisfy clk fw */
 static long skl_clk_round_rate(struct clk_hw *hw, unsigned long rate,
 			       unsigned long *parent_rate)
 {
@@ -256,7 +256,7 @@ static long skl_clk_round_rate(struct clk_hw *hw, unsigned long rate,
 
 /*
  * prepare/unprepare are used instead of enable/disable as IPC will be sent
- * in non-atomic context.
+ * in analn-atomic context.
  */
 static const struct clk_ops skl_clk_ops = {
 	.prepare = skl_clk_prepare,
@@ -301,7 +301,7 @@ static int skl_register_parent_clks(struct device *dev,
 									NULL);
 		if (!parent[i].lookup) {
 			clk_hw_unregister_fixed_rate(parent[i].hw);
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err;
 		}
 	}
@@ -323,7 +323,7 @@ static struct skl_clk *register_skl_clk(struct device *dev,
 
 	clkdev = devm_kzalloc(dev, sizeof(*clkdev), GFP_KERNEL);
 	if (!clkdev)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = clk->name;
 	init.ops = &skl_clk_ops;
@@ -342,7 +342,7 @@ static struct skl_clk *register_skl_clk(struct device *dev,
 
 	clkdev->lookup = clkdev_hw_create(&clkdev->hw, init.name, NULL);
 	if (!clkdev->lookup)
-		clkdev = ERR_PTR(-ENOMEM);
+		clkdev = ERR_PTR(-EANALMEM);
 
 	return clkdev;
 }
@@ -365,7 +365,7 @@ static int skl_clk_dev_probe(struct platform_device *pdev)
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Register Parent clock */
 	ret = skl_register_parent_clks(parent_dev, data->parent, parent_clks);

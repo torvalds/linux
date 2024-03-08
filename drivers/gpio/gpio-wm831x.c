@@ -113,7 +113,7 @@ static int wm831x_gpio_set_debounce(struct wm831x *wm831x, unsigned offset,
 	case 1:
 		break;
 	default:
-		/* Not in GPIO mode */
+		/* Analt in GPIO mode */
 		return -EBUSY;
 	}
 
@@ -148,7 +148,7 @@ static int wm831x_set_config(struct gpio_chip *chip, unsigned int offset,
 		break;
 	}
 
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 #ifdef CONFIG_DEBUG_FS
@@ -163,9 +163,9 @@ static void wm831x_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 		int reg;
 		const char *pull, *powerdomain;
 
-		/* We report the GPIO even if it's not requested since
+		/* We report the GPIO even if it's analt requested since
 		 * we're also reporting things like alternate
-		 * functions which apply even when the GPIO is not in
+		 * functions which apply even when the GPIO is analt in
 		 * use as a GPIO.
 		 */
 		char *label __free(kfree) = gpiochip_dup_line_label(chip, i);
@@ -187,8 +187,8 @@ static void wm831x_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 		}
 
 		switch (reg & WM831X_GPN_PULL_MASK) {
-		case WM831X_GPIO_PULL_NONE:
-			pull = "nopull";
+		case WM831X_GPIO_PULL_ANALNE:
+			pull = "analpull";
 			break;
 		case WM831X_GPIO_PULL_DOWN:
 			pull = "pulldown";
@@ -266,12 +266,12 @@ static int wm831x_gpio_probe(struct platform_device *pdev)
 	struct wm831x_pdata *pdata = &wm831x->pdata;
 	struct wm831x_gpio *wm831x_gpio;
 
-	device_set_node(&pdev->dev, dev_fwnode(pdev->dev.parent));
+	device_set_analde(&pdev->dev, dev_fwanalde(pdev->dev.parent));
 
 	wm831x_gpio = devm_kzalloc(&pdev->dev, sizeof(*wm831x_gpio),
 				   GFP_KERNEL);
 	if (wm831x_gpio == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wm831x_gpio->wm831x = wm831x;
 	wm831x_gpio->gpio_chip = template_chip;

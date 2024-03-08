@@ -29,7 +29,7 @@ static const struct snd_pcm_hardware kirkwood_dma_snd_hw = {
 		SNDRV_PCM_INFO_MMAP_VALID |
 		SNDRV_PCM_INFO_BLOCK_TRANSFER |
 		SNDRV_PCM_INFO_PAUSE |
-		SNDRV_PCM_INFO_NO_PERIOD_WAKEUP,
+		SNDRV_PCM_INFO_ANAL_PERIOD_WAKEUP,
 	.buffer_bytes_max	= KIRKWOOD_SND_MAX_BUFFER_BYTES,
 	.period_bytes_min	= KIRKWOOD_SND_MIN_PERIOD_BYTES,
 	.period_bytes_max	= KIRKWOOD_SND_MAX_PERIOD_BYTES,
@@ -58,7 +58,7 @@ static irqreturn_t kirkwood_dma_irq(int irq, void *dev_id)
 			KIRKWOOD_INT_CAUSE_REC_BYTES)) {
 		printk(KERN_WARNING "%s: unexpected interrupt %lx\n",
 			__func__, status);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	/* ack int */
@@ -135,7 +135,7 @@ static int kirkwood_dma_open(struct snd_soc_component *component,
 
 		/*
 		 * Enable Error interrupts. We're only ack'ing them but
-		 * it's useful for diagnostics
+		 * it's useful for diaganalstics
 		 */
 		writel((unsigned int)-1, priv->io + KIRKWOOD_ERR_MASK);
 	}

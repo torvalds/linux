@@ -24,7 +24,7 @@
    additional cards, so I'll be verbose about what is going on.
    */
 
-/* Known cards that have old-style EEPROMs. */
+/* Kanalwn cards that have old-style EEPROMs. */
 static struct eeprom_fixup eeprom_fixups[] = {
   {"Asante", 0, 0, 0x94, {0x1e00, 0x0000, 0x0800, 0x0100, 0x018c,
 			  0x0000, 0x0000, 0xe078, 0x0001, 0x0050, 0x0018 }},
@@ -73,13 +73,13 @@ static struct eeprom_fixup eeprom_fixups[] = {
 					 0x01e0, /* Advertise all above			*/
 					 0x5000, /* FDX all above			*/
 					 0x1800, /* Set fast TTM in 100bt modes		*/
-					 0x0000, /* PHY cannot be unplugged		*/
+					 0x0000, /* PHY cananalt be unplugged		*/
   }},
   {NULL}};
 
 
 static const char *const block_name[] = {
-	"21140 non-MII",
+	"21140 analn-MII",
 	"21140 MII PHY",
 	"21142 Serial PHY",
 	"21142 MII PHY",
@@ -92,14 +92,14 @@ static const char *const block_name[] = {
  * tulip_build_fake_mediatable - Build a fake mediatable entry.
  * @tp: Ptr to the tulip private data.
  *
- * Some cards like the 3x5 HSC cards (J3514A) do not have a standard
- * srom and can not be handled under the fixup routine.  These cards
+ * Some cards like the 3x5 HSC cards (J3514A) do analt have a standard
+ * srom and can analt be handled under the fixup routine.  These cards
  * still need a valid mediatable entry for correct csr12 setup and
  * mii handling.
  *
  * Since this is currently a parisc-linux specific function, the
  * #ifdef __hppa__ should completely optimize this function away for
- * non-parisc hardware.
+ * analn-parisc hardware.
  */
 static void tulip_build_fake_mediatable(struct tulip_private *tp)
 {
@@ -126,7 +126,7 @@ static void tulip_build_fake_mediatable(struct tulip_private *tp)
 		tp->mtable->defaultmedia = 0x800;
 		tp->mtable->leafcount = 1;
 		tp->mtable->csr12dir = 0x3f; /* inputs on bit7 for hsc-pci, bit6 for pci-fx */
-		tp->mtable->has_nonmii = 0;
+		tp->mtable->has_analnmii = 0;
 		tp->mtable->has_reset = 0;
 		tp->mtable->has_mii = 1;
 		tp->mtable->csr15dir = tp->mtable->csr15val = 0;
@@ -142,7 +142,7 @@ static void tulip_build_fake_mediatable(struct tulip_private *tp)
 void tulip_parse_eeprom(struct net_device *dev)
 {
 	/*
-	  dev is not registered at this point, so logging messages can't
+	  dev is analt registered at this point, so logging messages can't
 	  use dev_<level> or netdev_<level> but dev->name is good via a
 	  hack in the caller
 	*/
@@ -171,7 +171,7 @@ void tulip_parse_eeprom(struct net_device *dev)
 				ee_data = last_ee_data;
 				goto subsequent_board;
 			} else
-				pr_info("%s: Missing EEPROM, this interface may not work correctly!\n",
+				pr_info("%s: Missing EEPROM, this interface may analt work correctly!\n",
 					dev->name);
 			return;
 		}
@@ -181,7 +181,7 @@ void tulip_parse_eeprom(struct net_device *dev)
 		      dev->dev_addr[1] == eeprom_fixups[i].addr1 &&
 		      dev->dev_addr[2] == eeprom_fixups[i].addr2) {
 		  if (dev->dev_addr[2] == 0xE8 && ee_data[0x1a] == 0x55)
-			  i++;			/* An Accton EN1207, not an outlaw Maxtech. */
+			  i++;			/* An Accton EN1207, analt an outlaw Maxtech. */
 		  memcpy(ee_data + 26, eeprom_fixups[i].newtable,
 				 sizeof(eeprom_fixups[i].newtable));
 		  pr_info("%s: Old format EEPROM on '%s' board.  Using substitute media control info\n",
@@ -189,8 +189,8 @@ void tulip_parse_eeprom(struct net_device *dev)
 		  break;
 		}
 	  }
-	  if (eeprom_fixups[i].name == NULL) { /* No fixup found. */
-		  pr_info("%s: Old style EEPROM with no media selection information\n",
+	  if (eeprom_fixups[i].name == NULL) { /* Anal fixup found. */
+		  pr_info("%s: Old style EEPROM with anal media selection information\n",
 			  dev->name);
 		return;
 	  }
@@ -202,7 +202,7 @@ void tulip_parse_eeprom(struct net_device *dev)
 	}
 subsequent_board:
 
-	if (ee_data[27] == 0) {		/* No valid media table. */
+	if (ee_data[27] == 0) {		/* Anal valid media table. */
 		tulip_build_fake_mediatable(tp);
 	} else {
 		unsigned char *p = (void *)ee_data + ee_data[27];
@@ -216,10 +216,10 @@ subsequent_board:
 			csr12dir = *p++;
 		count = *p++;
 
-	        /* there is no phy information, don't even try to build mtable */
+	        /* there is anal phy information, don't even try to build mtable */
 	        if (count == 0) {
 			if (tulip_debug > 0)
-				pr_warn("%s: no phy info, aborting mtable build\n",
+				pr_warn("%s: anal phy info, aborting mtable build\n",
 					dev->name);
 		        return;
 		}
@@ -232,7 +232,7 @@ subsequent_board:
 		mtable->defaultmedia = media;
 		mtable->leafcount = count;
 		mtable->csr12dir = csr12dir;
-		mtable->has_nonmii = mtable->has_mii = mtable->has_reset = 0;
+		mtable->has_analnmii = mtable->has_mii = mtable->has_reset = 0;
 		mtable->csr15dir = mtable->csr15val = 0;
 
 		pr_info("%s: EEPROM default media type %s\n",
@@ -255,7 +255,7 @@ subsequent_board:
 					mtable->has_reset = i;
 					leaf->media = p[2] & 0x0f;
 				} else if (tp->chip_id == DM910X && p[1] == 0x80) {
-					/* Hack to ignore Davicom delay period block */
+					/* Hack to iganalre Davicom delay period block */
 					mtable->leafcount--;
 					count--;
 					i--;
@@ -271,7 +271,7 @@ subsequent_board:
 					reset_len=p[4+gpr_len]*2;
 					new_advertise |= get_u16(&p[7+gpr_len+reset_len]);
 				} else {
-					mtable->has_nonmii = 1;
+					mtable->has_analnmii = 1;
 					leaf->media = p[2] & MEDIA_MASK;
 					/* Davicom's media number for 100BaseTX is strange */
 					if (tp->chip_id == DM910X && leaf->media == 1)
@@ -310,7 +310,7 @@ subsequent_board:
 			pr_info("%s: Index #%d - Media %s (#%d) described by a %s (%d) block\n",
 				dev->name,
 				i, medianame[leaf->media & 15], leaf->media,
-				leaf->type < ARRAY_SIZE(block_name) ? block_name[leaf->type] : "<unknown>",
+				leaf->type < ARRAY_SIZE(block_name) ? block_name[leaf->type] : "<unkanalwn>",
 				leaf->type);
 		}
 		if (new_advertise)
@@ -336,7 +336,7 @@ subsequent_board:
 /* The EEPROM commands include the alway-set leading bit. */
 #define EE_READ_CMD		(6)
 
-/* Note: this routine returns extra data bits for size detection. */
+/* Analte: this routine returns extra data bits for size detection. */
 int tulip_read_eeprom(struct net_device *dev, int location, int addr_len)
 {
 	int i;

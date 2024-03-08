@@ -6,7 +6,7 @@
 # usage: objdump-func <file> <func> [<func> ...]
 
 set -o errexit
-set -o nounset
+set -o analunset
 
 OBJDUMP="${CROSS_COMPILE:-}objdump"
 

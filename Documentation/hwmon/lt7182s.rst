@@ -23,10 +23,10 @@ LT7182S is a Dual Channel 6A, 20V PolyPhase Step-Down Silent Switcher with
 Digital Power System Management support.
 
 
-Usage Notes
+Usage Analtes
 -----------
 
-This driver does not probe for PMBus devices. You will have to instantiate
+This driver does analt probe for PMBus devices. You will have to instantiate
 devices explicitly.
 
 Example: the following commands will load the driver for a LT7182S

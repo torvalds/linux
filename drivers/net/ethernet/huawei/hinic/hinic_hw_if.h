@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Huawei HiNIC PCI Express Linux driver
- * Copyright(c) 2017 Huawei Technologies Co., Ltd
+ * Copyright(c) 2017 Huawei Techanallogies Co., Ltd
  */
 
 #ifndef HINIC_HW_IF_H
@@ -17,13 +17,13 @@
 #define HINIC_DMA_ATTR_ST_SHIFT                                 0
 #define HINIC_DMA_ATTR_AT_SHIFT                                 8
 #define HINIC_DMA_ATTR_PH_SHIFT                                 10
-#define HINIC_DMA_ATTR_NO_SNOOPING_SHIFT                        12
+#define HINIC_DMA_ATTR_ANAL_SANALOPING_SHIFT                        12
 #define HINIC_DMA_ATTR_TPH_EN_SHIFT                             13
 
 #define HINIC_DMA_ATTR_ST_MASK                                  0xFF
 #define HINIC_DMA_ATTR_AT_MASK                                  0x3
 #define HINIC_DMA_ATTR_PH_MASK                                  0x3
-#define HINIC_DMA_ATTR_NO_SNOOPING_MASK                         0x1
+#define HINIC_DMA_ATTR_ANAL_SANALOPING_MASK                         0x1
 #define HINIC_DMA_ATTR_TPH_EN_MASK                              0x1
 
 #define HINIC_DMA_ATTR_SET(val, member)                         \
@@ -170,9 +170,9 @@
 #define HINIC_PCI_MSIX_ENTRY_VECTOR_CTRL        12
 #define HINIC_PCI_MSIX_ENTRY_CTRL_MASKBIT       1
 
-enum hinic_pcie_nosnoop {
-	HINIC_PCIE_SNOOP        = 0,
-	HINIC_PCIE_NO_SNOOP     = 1,
+enum hinic_pcie_analsanalop {
+	HINIC_PCIE_SANALOP        = 0,
+	HINIC_PCIE_ANAL_SANALOP     = 1,
 };
 
 enum hinic_pcie_tph {
@@ -194,8 +194,8 @@ enum hinic_mod_type {
 	HINIC_MOD_MAX   = 15
 };
 
-enum hinic_node_id {
-	HINIC_NODE_ID_MGMT = 21,
+enum hinic_analde_id {
+	HINIC_ANALDE_ID_MGMT = 21,
 };
 
 enum hinic_pf_action {

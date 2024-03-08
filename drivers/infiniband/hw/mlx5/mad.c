@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2015, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2013-2015, Mellaanalx Techanallogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -51,8 +51,8 @@ static bool can_do_mad_ifc(struct mlx5_ib_dev *dev, u32 port_num,
 	return dev->port_caps[port_num - 1].has_smi;
 }
 
-static int mlx5_MAD_IFC(struct mlx5_ib_dev *dev, int ignore_mkey,
-			int ignore_bkey, u32 port, const struct ib_wc *in_wc,
+static int mlx5_MAD_IFC(struct mlx5_ib_dev *dev, int iganalre_mkey,
+			int iganalre_bkey, u32 port, const struct ib_wc *in_wc,
 			const struct ib_grh *in_grh, const void *in_mad,
 			void *response_mad)
 {
@@ -64,9 +64,9 @@ static int mlx5_MAD_IFC(struct mlx5_ib_dev *dev, int ignore_mkey,
 	/* Key check traps can't be generated unless we have in_wc to
 	 * tell us where to send the trap.
 	 */
-	if (ignore_mkey || !in_wc)
+	if (iganalre_mkey || !in_wc)
 		op_modifier |= 0x1;
-	if (ignore_bkey || !in_wc)
+	if (iganalre_bkey || !in_wc)
 		op_modifier |= 0x2;
 
 	return mlx5_cmd_mad_ifc(dev->mdev, in_mad, response_mad, op_modifier,
@@ -155,7 +155,7 @@ static int query_ib_ppcnt(struct mlx5_core_dev *dev, u8 port_num, void *out,
 
 	in  = kvzalloc(sz, GFP_KERNEL);
 	if (!in) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		return err;
 	}
 
@@ -289,8 +289,8 @@ int mlx5_ib_process_mad(struct ib_device *ibdev, int mad_flags, u32 port_num,
 		return IB_MAD_RESULT_SUCCESS;
 	}
 
-	err = mlx5_MAD_IFC(to_mdev(ibdev), mad_flags & IB_MAD_IGNORE_MKEY,
-			   mad_flags & IB_MAD_IGNORE_BKEY, port_num, in_wc,
+	err = mlx5_MAD_IFC(to_mdev(ibdev), mad_flags & IB_MAD_IGANALRE_MKEY,
+			   mad_flags & IB_MAD_IGANALRE_BKEY, port_num, in_wc,
 			   in_grh, in, out);
 	if (err)
 		return IB_MAD_RESULT_FAILURE;
@@ -300,7 +300,7 @@ int mlx5_ib_process_mad(struct ib_device *ibdev, int mad_flags, u32 port_num,
 		out->mad_hdr.status |= cpu_to_be16(1 << 15);
 
 	if (method == IB_MGMT_METHOD_TRAP_REPRESS)
-		/* no response for trap repress */
+		/* anal response for trap repress */
 		return IB_MAD_RESULT_SUCCESS | IB_MAD_RESULT_CONSUMED;
 
 	return IB_MAD_RESULT_SUCCESS | IB_MAD_RESULT_REPLY;
@@ -310,7 +310,7 @@ int mlx5_query_ext_port_caps(struct mlx5_ib_dev *dev, unsigned int port)
 {
 	struct ib_smp *in_mad;
 	struct ib_smp *out_mad;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 	u16 packet_error;
 
 	in_mad  = kzalloc(sizeof(*in_mad), GFP_KERNEL);
@@ -335,7 +335,7 @@ out:
 	return err;
 }
 
-static int mlx5_query_mad_ifc_smp_attr_node_info(struct ib_device *ibdev,
+static int mlx5_query_mad_ifc_smp_attr_analde_info(struct ib_device *ibdev,
 						 struct ib_smp *out_mad)
 {
 	struct ib_smp *in_mad;
@@ -343,10 +343,10 @@ static int mlx5_query_mad_ifc_smp_attr_node_info(struct ib_device *ibdev,
 
 	in_mad = kzalloc(sizeof(*in_mad), GFP_KERNEL);
 	if (!in_mad)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ib_init_query_mad(in_mad);
-	in_mad->attr_id = IB_SMP_ATTR_NODE_INFO;
+	in_mad->attr_id = IB_SMP_ATTR_ANALDE_INFO;
 
 	err = mlx5_MAD_IFC(to_mdev(ibdev), 1, 1, 1, NULL, NULL, in_mad,
 			   out_mad);
@@ -363,9 +363,9 @@ int mlx5_query_mad_ifc_system_image_guid(struct ib_device *ibdev,
 
 	out_mad = kmalloc(sizeof(*out_mad), GFP_KERNEL);
 	if (!out_mad)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	err = mlx5_query_mad_ifc_smp_attr_node_info(ibdev, out_mad);
+	err = mlx5_query_mad_ifc_smp_attr_analde_info(ibdev, out_mad);
 	if (err)
 		goto out;
 
@@ -385,9 +385,9 @@ int mlx5_query_mad_ifc_max_pkeys(struct ib_device *ibdev,
 
 	out_mad = kmalloc(sizeof(*out_mad), GFP_KERNEL);
 	if (!out_mad)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	err = mlx5_query_mad_ifc_smp_attr_node_info(ibdev, out_mad);
+	err = mlx5_query_mad_ifc_smp_attr_analde_info(ibdev, out_mad);
 	if (err)
 		goto out;
 
@@ -407,9 +407,9 @@ int mlx5_query_mad_ifc_vendor_id(struct ib_device *ibdev,
 
 	out_mad = kmalloc(sizeof(*out_mad), GFP_KERNEL);
 	if (!out_mad)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	err = mlx5_query_mad_ifc_smp_attr_node_info(ibdev, out_mad);
+	err = mlx5_query_mad_ifc_smp_attr_analde_info(ibdev, out_mad);
 	if (err)
 		goto out;
 
@@ -421,11 +421,11 @@ out:
 	return err;
 }
 
-int mlx5_query_mad_ifc_node_desc(struct mlx5_ib_dev *dev, char *node_desc)
+int mlx5_query_mad_ifc_analde_desc(struct mlx5_ib_dev *dev, char *analde_desc)
 {
 	struct ib_smp *in_mad;
 	struct ib_smp *out_mad;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	in_mad  = kzalloc(sizeof(*in_mad), GFP_KERNEL);
 	out_mad = kmalloc(sizeof(*out_mad), GFP_KERNEL);
@@ -433,24 +433,24 @@ int mlx5_query_mad_ifc_node_desc(struct mlx5_ib_dev *dev, char *node_desc)
 		goto out;
 
 	ib_init_query_mad(in_mad);
-	in_mad->attr_id = IB_SMP_ATTR_NODE_DESC;
+	in_mad->attr_id = IB_SMP_ATTR_ANALDE_DESC;
 
 	err = mlx5_MAD_IFC(dev, 1, 1, 1, NULL, NULL, in_mad, out_mad);
 	if (err)
 		goto out;
 
-	memcpy(node_desc, out_mad->data, IB_DEVICE_NODE_DESC_MAX);
+	memcpy(analde_desc, out_mad->data, IB_DEVICE_ANALDE_DESC_MAX);
 out:
 	kfree(in_mad);
 	kfree(out_mad);
 	return err;
 }
 
-int mlx5_query_mad_ifc_node_guid(struct mlx5_ib_dev *dev, __be64 *node_guid)
+int mlx5_query_mad_ifc_analde_guid(struct mlx5_ib_dev *dev, __be64 *analde_guid)
 {
 	struct ib_smp *in_mad;
 	struct ib_smp *out_mad;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	in_mad  = kzalloc(sizeof(*in_mad), GFP_KERNEL);
 	out_mad = kmalloc(sizeof(*out_mad), GFP_KERNEL);
@@ -458,13 +458,13 @@ int mlx5_query_mad_ifc_node_guid(struct mlx5_ib_dev *dev, __be64 *node_guid)
 		goto out;
 
 	ib_init_query_mad(in_mad);
-	in_mad->attr_id = IB_SMP_ATTR_NODE_INFO;
+	in_mad->attr_id = IB_SMP_ATTR_ANALDE_INFO;
 
 	err = mlx5_MAD_IFC(dev, 1, 1, 1, NULL, NULL, in_mad, out_mad);
 	if (err)
 		goto out;
 
-	memcpy(node_guid, out_mad->data + 12, 8);
+	memcpy(analde_guid, out_mad->data + 12, 8);
 out:
 	kfree(in_mad);
 	kfree(out_mad);
@@ -476,7 +476,7 @@ int mlx5_query_mad_ifc_pkey(struct ib_device *ibdev, u32 port, u16 index,
 {
 	struct ib_smp *in_mad;
 	struct ib_smp *out_mad;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	in_mad  = kzalloc(sizeof(*in_mad), GFP_KERNEL);
 	out_mad = kmalloc(sizeof(*out_mad), GFP_KERNEL);
@@ -505,7 +505,7 @@ int mlx5_query_mad_ifc_gids(struct ib_device *ibdev, u32 port, int index,
 {
 	struct ib_smp *in_mad;
 	struct ib_smp *out_mad;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	in_mad  = kzalloc(sizeof(*in_mad), GFP_KERNEL);
 	out_mad = kmalloc(sizeof(*out_mad), GFP_KERNEL);
@@ -548,7 +548,7 @@ int mlx5_query_mad_ifc_port(struct ib_device *ibdev, u32 port,
 	struct ib_smp *in_mad;
 	struct ib_smp *out_mad;
 	int ext_active_speed;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	in_mad  = kzalloc(sizeof(*in_mad), GFP_KERNEL);
 	out_mad = kmalloc(sizeof(*out_mad), GFP_KERNEL);

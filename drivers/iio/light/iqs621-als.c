@@ -12,7 +12,7 @@
 #include <linux/mfd/iqs62x.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 
@@ -37,7 +37,7 @@
 struct iqs621_als_private {
 	struct iqs62x_core *iqs62x;
 	struct iio_dev *indio_dev;
-	struct notifier_block notifier;
+	struct analtifier_block analtifier;
 	struct mutex lock;
 	bool light_en;
 	bool range_en;
@@ -90,7 +90,7 @@ static int iqs621_als_init(struct iqs621_als_private *iqs621_als)
 				  event_mask, 0);
 }
 
-static int iqs621_als_notifier(struct notifier_block *notifier,
+static int iqs621_als_analtifier(struct analtifier_block *analtifier,
 			       unsigned long event_flags, void *context)
 {
 	struct iqs62x_event_data *event_data = context;
@@ -102,8 +102,8 @@ static int iqs621_als_notifier(struct notifier_block *notifier,
 	s64 timestamp;
 	int ret;
 
-	iqs621_als = container_of(notifier, struct iqs621_als_private,
-				  notifier);
+	iqs621_als = container_of(analtifier, struct iqs621_als_private,
+				  analtifier);
 	indio_dev = iqs621_als->indio_dev;
 	timestamp = iio_get_time_ns(indio_dev);
 
@@ -114,9 +114,9 @@ static int iqs621_als_notifier(struct notifier_block *notifier,
 		if (ret) {
 			dev_err(indio_dev->dev.parent,
 				"Failed to re-initialize device: %d\n", ret);
-			ret = NOTIFY_BAD;
+			ret = ANALTIFY_BAD;
 		} else {
-			ret = NOTIFY_OK;
+			ret = ANALTIFY_OK;
 		}
 
 		goto err_mutex;
@@ -124,7 +124,7 @@ static int iqs621_als_notifier(struct notifier_block *notifier,
 
 	if (!iqs621_als->light_en && !iqs621_als->range_en &&
 	    !iqs621_als->prox_en) {
-		ret = NOTIFY_DONE;
+		ret = ANALTIFY_DONE;
 		goto err_mutex;
 	}
 
@@ -181,7 +181,7 @@ static int iqs621_als_notifier(struct notifier_block *notifier,
 
 	iqs621_als->als_flags = event_data->als_flags;
 	iqs621_als->ir_flags = event_data->ir_flags;
-	ret = NOTIFY_OK;
+	ret = ANALTIFY_OK;
 
 err_mutex:
 	mutex_unlock(&iqs621_als->lock);
@@ -189,17 +189,17 @@ err_mutex:
 	return ret;
 }
 
-static void iqs621_als_notifier_unregister(void *context)
+static void iqs621_als_analtifier_unregister(void *context)
 {
 	struct iqs621_als_private *iqs621_als = context;
 	struct iio_dev *indio_dev = iqs621_als->indio_dev;
 	int ret;
 
-	ret = blocking_notifier_chain_unregister(&iqs621_als->iqs62x->nh,
-						 &iqs621_als->notifier);
+	ret = blocking_analtifier_chain_unregister(&iqs621_als->iqs62x->nh,
+						 &iqs621_als->analtifier);
 	if (ret)
 		dev_err(indio_dev->dev.parent,
-			"Failed to unregister notifier: %d\n", ret);
+			"Failed to unregister analtifier: %d\n", ret);
 }
 
 static int iqs621_als_read_raw(struct iio_dev *indio_dev,
@@ -548,7 +548,7 @@ static int iqs621_als_probe(struct platform_device *pdev)
 
 	indio_dev = devm_iio_device_alloc(&pdev->dev, sizeof(*iqs621_als));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	iqs621_als = iio_priv(indio_dev);
 	iqs621_als->iqs62x = iqs62x;
@@ -587,16 +587,16 @@ static int iqs621_als_probe(struct platform_device *pdev)
 
 	mutex_init(&iqs621_als->lock);
 
-	iqs621_als->notifier.notifier_call = iqs621_als_notifier;
-	ret = blocking_notifier_chain_register(&iqs621_als->iqs62x->nh,
-					       &iqs621_als->notifier);
+	iqs621_als->analtifier.analtifier_call = iqs621_als_analtifier;
+	ret = blocking_analtifier_chain_register(&iqs621_als->iqs62x->nh,
+					       &iqs621_als->analtifier);
 	if (ret) {
-		dev_err(&pdev->dev, "Failed to register notifier: %d\n", ret);
+		dev_err(&pdev->dev, "Failed to register analtifier: %d\n", ret);
 		return ret;
 	}
 
 	ret = devm_add_action_or_reset(&pdev->dev,
-				       iqs621_als_notifier_unregister,
+				       iqs621_als_analtifier_unregister,
 				       iqs621_als);
 	if (ret)
 		return ret;

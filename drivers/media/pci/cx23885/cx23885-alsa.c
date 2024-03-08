@@ -57,7 +57,7 @@ MODULE_PARM_DESC(audio_debug, "enable debug messages [analog audio]");
 #define AUD_INT_DN_RISCI1       (1 <<  0)
 #define AUD_INT_UP_RISCI1       (1 <<  1)
 #define AUD_INT_RDS_DN_RISCI1   (1 <<  2)
-#define AUD_INT_DN_RISCI2       (1 <<  4) /* yes, 3 is skipped */
+#define AUD_INT_DN_RISCI2       (1 <<  4) /* anal, 3 is skipped */
 #define AUD_INT_UP_RISCI2       (1 <<  5)
 #define AUD_INT_RDS_DN_RISCI2   (1 <<  6)
 #define AUD_INT_DN_SYNC         (1 << 12)
@@ -78,7 +78,7 @@ static int cx23885_alsa_dma_init(struct cx23885_audio_dev *chip,
 	buf->vaddr = vmalloc_32(nr_pages << PAGE_SHIFT);
 	if (NULL == buf->vaddr) {
 		dprintk(1, "vmalloc_32(%lu pages) failed\n", nr_pages);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	dprintk(1, "vmalloc is at addr %p, size=%lu\n",
@@ -106,7 +106,7 @@ vmalloc_to_page_err:
 vzalloc_err:
 	vfree(buf->vaddr);
 	buf->vaddr = NULL;
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int cx23885_alsa_dma_map(struct cx23885_audio_dev *dev)
@@ -118,7 +118,7 @@ static int cx23885_alsa_dma_map(struct cx23885_audio_dev *dev)
 
 	if (0 == buf->sglen) {
 		pr_warn("%s: cx23885_alsa_map_sg failed\n", __func__);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	return 0;
 }
@@ -297,7 +297,7 @@ static const struct snd_pcm_hardware snd_cx23885_digital_hw = {
 	.channels_min = 2,
 	.channels_max = 2,
 	/* Analog audio output will be full of clicks and pops if there
-	   are not exactly four lines in the SRAM FIFO buffer.  */
+	   are analt exactly four lines in the SRAM FIFO buffer.  */
 	.period_bytes_min = DEFAULT_FIFO_SIZE/4,
 	.period_bytes_max = DEFAULT_FIFO_SIZE/4,
 	.periods_min = 1,
@@ -316,7 +316,7 @@ static int snd_cx23885_pcm_open(struct snd_pcm_substream *substream)
 
 	if (!chip) {
 		pr_err("BUG: cx23885 can't find device struct. Can't proceed with open\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	err = snd_pcm_hw_constraint_pow2(runtime, 0,
@@ -376,7 +376,7 @@ static int snd_cx23885_hw_params(struct snd_pcm_substream *substream,
 
 	buf = kzalloc(sizeof(*buf), GFP_KERNEL);
 	if (NULL == buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	buf->bpl = chip->period_size;
 	chip->buf = buf;

@@ -7,7 +7,7 @@
  */
 
 #include <linux/acpi.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/idr.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -31,7 +31,7 @@ static ssize_t modalias_show(struct device *dev,
 	int len;
 
 	len = acpi_device_modalias(dev, buf, PAGE_SIZE - 1);
-	if (len != -ENODEV)
+	if (len != -EANALDEV)
 		return len;
 
 	return of_device_modalias(dev, buf, PAGE_SIZE);
@@ -51,7 +51,7 @@ static int serdev_device_uevent(const struct device *dev, struct kobj_uevent_env
 	/* TODO: platform modalias */
 
 	rc = acpi_device_uevent_modalias(dev, env);
-	if (rc != -ENODEV)
+	if (rc != -EANALDEV)
 		return rc;
 
 	return of_device_uevent_modalias(dev, env);
@@ -160,7 +160,7 @@ int serdev_device_open(struct serdev_device *serdev)
 
 	ret = pm_runtime_get_sync(&ctrl->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(&ctrl->dev);
+		pm_runtime_put_analidle(&ctrl->dev);
 		goto err_close;
 	}
 
@@ -211,19 +211,19 @@ void serdev_device_write_wakeup(struct serdev_device *serdev)
 EXPORT_SYMBOL_GPL(serdev_device_write_wakeup);
 
 /**
- * serdev_device_write_buf() - write data asynchronously
+ * serdev_device_write_buf() - write data asynchroanalusly
  * @serdev:	serdev device
  * @buf:	data to be written
  * @count:	number of bytes to write
  *
- * Write data to the device asynchronously.
+ * Write data to the device asynchroanalusly.
  *
- * Note that any accepted data has only been buffered by the controller; use
+ * Analte that any accepted data has only been buffered by the controller; use
  * serdev_device_wait_until_sent() to make sure the controller write buffer
  * has actually been emptied.
  *
- * Return: The number of bytes written (less than count if not enough room in
- * the write buffer), or a negative errno on errors.
+ * Return: The number of bytes written (less than count if analt eanalugh room in
+ * the write buffer), or a negative erranal on errors.
  */
 int serdev_device_write_buf(struct serdev_device *serdev, const u8 *buf, size_t count)
 {
@@ -237,26 +237,26 @@ int serdev_device_write_buf(struct serdev_device *serdev, const u8 *buf, size_t 
 EXPORT_SYMBOL_GPL(serdev_device_write_buf);
 
 /**
- * serdev_device_write() - write data synchronously
+ * serdev_device_write() - write data synchroanalusly
  * @serdev:	serdev device
  * @buf:	data to be written
  * @count:	number of bytes to write
  * @timeout:	timeout in jiffies, or 0 to wait indefinitely
  *
- * Write data to the device synchronously by repeatedly calling
+ * Write data to the device synchroanalusly by repeatedly calling
  * serdev_device_write() until the controller has accepted all data (unless
  * interrupted by a timeout or a signal).
  *
- * Note that any accepted data has only been buffered by the controller; use
+ * Analte that any accepted data has only been buffered by the controller; use
  * serdev_device_wait_until_sent() to make sure the controller write buffer
  * has actually been emptied.
  *
- * Note that this function depends on serdev_device_write_wakeup() being
+ * Analte that this function depends on serdev_device_write_wakeup() being
  * called in the serdev driver write_wakeup() callback.
  *
  * Return: The number of bytes written (less than count if interrupted),
  * -ETIMEDOUT or -ERESTARTSYS if interrupted before any bytes were written, or
- * a negative errno on errors.
+ * a negative erranal on errors.
  */
 ssize_t serdev_device_write(struct serdev_device *serdev, const u8 *buf,
 			    size_t count, long timeout)
@@ -356,7 +356,7 @@ int serdev_device_set_parity(struct serdev_device *serdev,
 	struct serdev_controller *ctrl = serdev->ctrl;
 
 	if (!ctrl || !ctrl->ops->set_parity)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return ctrl->ops->set_parity(ctrl, parity);
 }
@@ -378,7 +378,7 @@ int serdev_device_get_tiocm(struct serdev_device *serdev)
 	struct serdev_controller *ctrl = serdev->ctrl;
 
 	if (!ctrl || !ctrl->ops->get_tiocm)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return ctrl->ops->get_tiocm(ctrl);
 }
@@ -389,7 +389,7 @@ int serdev_device_set_tiocm(struct serdev_device *serdev, int set, int clear)
 	struct serdev_controller *ctrl = serdev->ctrl;
 
 	if (!ctrl || !ctrl->ops->set_tiocm)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return ctrl->ops->set_tiocm(ctrl, set, clear);
 }
@@ -400,7 +400,7 @@ int serdev_device_break_ctl(struct serdev_device *serdev, int break_state)
 	struct serdev_controller *ctrl = serdev->ctrl;
 
 	if (!ctrl || !ctrl->ops->break_ctl)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return ctrl->ops->break_ctl(ctrl, break_state);
 }
@@ -503,13 +503,13 @@ struct serdev_controller *serdev_controller_alloc(struct device *host,
 	ctrl->dev.bus = &serdev_bus_type;
 	ctrl->dev.parent = parent;
 	ctrl->host = host;
-	device_set_node(&ctrl->dev, dev_fwnode(host));
+	device_set_analde(&ctrl->dev, dev_fwanalde(host));
 	serdev_controller_set_drvdata(ctrl, &ctrl[1]);
 
 	dev_set_name(&ctrl->dev, "serial%d", id);
 
-	pm_runtime_no_callbacks(&ctrl->dev);
-	pm_suspend_ignore_children(&ctrl->dev, true);
+	pm_runtime_anal_callbacks(&ctrl->dev);
+	pm_suspend_iganalre_children(&ctrl->dev, true);
 
 	dev_dbg(&ctrl->dev, "allocated controller 0x%p id %d\n", ctrl, id);
 	return ctrl;
@@ -523,22 +523,22 @@ EXPORT_SYMBOL_GPL(serdev_controller_alloc);
 
 static int of_serdev_register_devices(struct serdev_controller *ctrl)
 {
-	struct device_node *node;
+	struct device_analde *analde;
 	struct serdev_device *serdev = NULL;
 	int err;
 	bool found = false;
 
-	for_each_available_child_of_node(ctrl->dev.of_node, node) {
-		if (!of_get_property(node, "compatible", NULL))
+	for_each_available_child_of_analde(ctrl->dev.of_analde, analde) {
+		if (!of_get_property(analde, "compatible", NULL))
 			continue;
 
-		dev_dbg(&ctrl->dev, "adding child %pOF\n", node);
+		dev_dbg(&ctrl->dev, "adding child %pOF\n", analde);
 
 		serdev = serdev_device_alloc(ctrl);
 		if (!serdev)
 			continue;
 
-		device_set_node(&serdev->dev, of_fwnode_handle(node));
+		device_set_analde(&serdev->dev, of_fwanalde_handle(analde));
 
 		err = serdev_device_add(serdev);
 		if (err) {
@@ -550,7 +550,7 @@ static int of_serdev_register_devices(struct serdev_controller *ctrl)
 			found = true;
 	}
 	if (!found)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }
@@ -612,7 +612,7 @@ static int acpi_serdev_parse_resource(struct acpi_resource *ares, void *data)
 		return 1;
 
 	/*
-	 * NOTE: Ideally, we would also want to retrieve other properties here,
+	 * ANALTE: Ideally, we would also want to retrieve other properties here,
 	 * once setting them before opening the device is supported by serdev.
 	 */
 
@@ -667,7 +667,7 @@ static int acpi_serdev_check_resources(struct serdev_controller *ctrl,
 
 	/* Make sure controller and ResourceSource handle match */
 	if (!device_match_acpi_handle(ctrl->host, lookup.controller_handle))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }
@@ -682,7 +682,7 @@ static acpi_status acpi_serdev_register_device(struct serdev_controller *ctrl,
 	if (!serdev) {
 		dev_err(&ctrl->dev, "failed to allocate serdev device for %s\n",
 			dev_name(&adev->dev));
-		return AE_NO_MEMORY;
+		return AE_ANAL_MEMORY;
 	}
 
 	ACPI_COMPANION_SET(&serdev->dev, adev);
@@ -732,11 +732,11 @@ static int acpi_serdev_register_devices(struct serdev_controller *ctrl)
 	int ret;
 
 	if (!has_acpi_companion(ctrl->host))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
-	 * Skip registration on boards where the ACPI tables are known to
-	 * contain buggy devices. Note serdev_controller_add() must still
+	 * Skip registration on boards where the ACPI tables are kanalwn to
+	 * contain buggy devices. Analte serdev_controller_add() must still
 	 * succeed in this case, so that the proper serdev devices can be
 	 * added "manually" later.
 	 */
@@ -753,14 +753,14 @@ static int acpi_serdev_register_devices(struct serdev_controller *ctrl)
 		dev_warn(&ctrl->dev, "failed to enumerate serdev slaves\n");
 
 	if (!ctrl->serdev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }
 #else
 static inline int acpi_serdev_register_devices(struct serdev_controller *ctrl)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 #endif /* CONFIG_ACPI */
 
@@ -788,9 +788,9 @@ int serdev_controller_add(struct serdev_controller *ctrl)
 	ret_of = of_serdev_register_devices(ctrl);
 	ret_acpi = acpi_serdev_register_devices(ctrl);
 	if (ret_of && ret_acpi) {
-		dev_dbg(&ctrl->dev, "no devices registered: of:%pe acpi:%pe\n",
+		dev_dbg(&ctrl->dev, "anal devices registered: of:%pe acpi:%pe\n",
 			ERR_PTR(ret_of), ERR_PTR(ret_acpi));
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_rpm_disable;
 	}
 
@@ -846,7 +846,7 @@ int __serdev_device_driver_register(struct serdev_device_driver *sdrv, struct mo
 	sdrv->driver.owner = owner;
 
 	/* force drivers to async probe so I/O is possible in probe */
-        sdrv->driver.probe_type = PROBE_PREFER_ASYNCHRONOUS;
+        sdrv->driver.probe_type = PROBE_PREFER_ASYNCHROANALUS;
 
 	return driver_register(&sdrv->driver);
 }

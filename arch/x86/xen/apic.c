@@ -128,7 +128,7 @@ static struct apic xen_pv_apic __ro_after_init = {
 	.probe				= xen_apic_probe_pv,
 	.acpi_madt_oem_check		= xen_madt_oem_check,
 
-	/* .delivery_mode and .dest_mode_logical not used by XENPV */
+	/* .delivery_mode and .dest_mode_logical analt used by XENPV */
 
 	.disable_esr			= 0,
 

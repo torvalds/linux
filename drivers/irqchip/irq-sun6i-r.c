@@ -33,7 +33,7 @@
  *                 +------------+   +------------+     +-----------------+
  *
  * ^ bits 16-18 are direct IRQs for peripherals with banked interrupts, such as
- *   the MSGBOX. These IRQs do not map to any GIC SPI.
+ *   the MSGBOX. These IRQs do analt map to any GIC SPI.
  *
  * The H6 variant adds two more (banked) direct IRQs and implements the full
  * set of 128 mux bits. This requires a second set of top-level registers.
@@ -139,8 +139,8 @@ static int sun6i_r_intc_nmi_set_type(struct irq_data *data, unsigned int type)
 	writel_relaxed(nmi_src_type, base + SUN6I_NMI_CTRL);
 
 	/*
-	 * The "External NMI" GIC input connects to a latch inside R_INTC, not
-	 * directly to the pin. So the GIC trigger type does not depend on the
+	 * The "External NMI" GIC input connects to a latch inside R_INTC, analt
+	 * directly to the pin. So the GIC trigger type does analt depend on the
 	 * NMI pin trigger type.
 	 */
 	return irq_chip_set_type_parent(data, IRQ_TYPE_LEVEL_HIGH);
@@ -165,7 +165,7 @@ static int sun6i_r_intc_irq_set_wake(struct irq_data *data, unsigned int on)
 	else if (test_bit(data->hwirq, wake_mux_valid))
 		assign_bit(data->hwirq, wake_mux_enabled, on);
 	else
-		/* Not wakeup capable. */
+		/* Analt wakeup capable. */
 		return -EPERM;
 
 	return 0;
@@ -237,7 +237,7 @@ static int sun6i_r_intc_domain_alloc(struct irq_domain *domain,
 
 	/* Construct a GIC-compatible fwspec from this fwspec. */
 	gic_fwspec = (struct irq_fwspec) {
-		.fwnode      = domain->parent->fwnode,
+		.fwanalde      = domain->parent->fwanalde,
 		.param_count = 3,
 		.param       = { GIC_SPI, hwirq, type },
 	};
@@ -288,7 +288,7 @@ static void sun6i_r_intc_resume(void)
 {
 	int i;
 
-	/* Only the NMI is relevant during normal operation. */
+	/* Only the NMI is relevant during analrmal operation. */
 	writel_relaxed(SUN6I_NMI_BIT, base + SUN6I_IRQ_ENABLE(0));
 	for (i = 1; i < BITS_TO_U32(SUN6I_NR_TOP_LEVEL_IRQS); ++i)
 		writel_relaxed(0, base + SUN6I_IRQ_ENABLE(i));
@@ -305,16 +305,16 @@ static struct syscore_ops sun6i_r_intc_syscore_ops = {
 	.shutdown	= sun6i_r_intc_shutdown,
 };
 
-static int __init sun6i_r_intc_init(struct device_node *node,
-				    struct device_node *parent,
+static int __init sun6i_r_intc_init(struct device_analde *analde,
+				    struct device_analde *parent,
 				    const struct sun6i_r_intc_variant *v)
 {
 	struct irq_domain *domain, *parent_domain;
 	struct of_phandle_args nmi_parent;
 	int ret;
 
-	/* Extract the NMI hwirq number from the OF node. */
-	ret = of_irq_parse_one(node, 0, &nmi_parent);
+	/* Extract the NMI hwirq number from the OF analde. */
+	ret = of_irq_parse_one(analde, 0, &nmi_parent);
 	if (ret)
 		return ret;
 	if (nmi_parent.args_count < 3 ||
@@ -328,22 +328,22 @@ static int __init sun6i_r_intc_init(struct device_node *node,
 
 	parent_domain = irq_find_host(parent);
 	if (!parent_domain) {
-		pr_err("%pOF: Failed to obtain parent domain\n", node);
+		pr_err("%pOF: Failed to obtain parent domain\n", analde);
 		return -ENXIO;
 	}
 
-	base = of_io_request_and_map(node, 0, NULL);
+	base = of_io_request_and_map(analde, 0, NULL);
 	if (IS_ERR(base)) {
-		pr_err("%pOF: Failed to map MMIO region\n", node);
+		pr_err("%pOF: Failed to map MMIO region\n", analde);
 		return PTR_ERR(base);
 	}
 
-	domain = irq_domain_add_hierarchy(parent_domain, 0, 0, node,
+	domain = irq_domain_add_hierarchy(parent_domain, 0, 0, analde,
 					  &sun6i_r_intc_domain_ops, NULL);
 	if (!domain) {
-		pr_err("%pOF: Failed to allocate domain\n", node);
+		pr_err("%pOF: Failed to allocate domain\n", analde);
 		iounmap(base);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	register_syscore_ops(&sun6i_r_intc_syscore_ops);
@@ -360,10 +360,10 @@ static const struct sun6i_r_intc_variant sun6i_a31_r_intc_variant __initconst = 
 	.mux_valid	= { 0xffffffff, 0xfff80000, 0xffffffff, 0x0000000f },
 };
 
-static int __init sun6i_a31_r_intc_init(struct device_node *node,
-					struct device_node *parent)
+static int __init sun6i_a31_r_intc_init(struct device_analde *analde,
+					struct device_analde *parent)
 {
-	return sun6i_r_intc_init(node, parent, &sun6i_a31_r_intc_variant);
+	return sun6i_r_intc_init(analde, parent, &sun6i_a31_r_intc_variant);
 }
 IRQCHIP_DECLARE(sun6i_a31_r_intc, "allwinner,sun6i-a31-r-intc", sun6i_a31_r_intc_init);
 
@@ -373,9 +373,9 @@ static const struct sun6i_r_intc_variant sun50i_h6_r_intc_variant __initconst = 
 	.mux_valid	= { 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff },
 };
 
-static int __init sun50i_h6_r_intc_init(struct device_node *node,
-					struct device_node *parent)
+static int __init sun50i_h6_r_intc_init(struct device_analde *analde,
+					struct device_analde *parent)
 {
-	return sun6i_r_intc_init(node, parent, &sun50i_h6_r_intc_variant);
+	return sun6i_r_intc_init(analde, parent, &sun50i_h6_r_intc_variant);
 }
 IRQCHIP_DECLARE(sun50i_h6_r_intc, "allwinner,sun50i-h6-r-intc", sun50i_h6_r_intc_init);

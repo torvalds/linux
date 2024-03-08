@@ -11,7 +11,7 @@
 #define PAIRWISE_KEYIDX					0
 #define CAM_PAIRWISE_KEY_POSITION			4
 
-#define	CAM_CONFIG_NO_USEDK				0
+#define	CAM_CONFIG_ANAL_USEDK				0
 
 void rtl_cam_reset_all_entry(struct ieee80211_hw *hw);
 u8 rtl_cam_add_one_entry(struct ieee80211_hw *hw, u8 *mac_addr,

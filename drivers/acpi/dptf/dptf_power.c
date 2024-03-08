@@ -19,7 +19,7 @@
  * PROP : Rest of worst case platform Power
  * PBSS : Power Battery Steady State
  * RBHF : High Frequency Impedance
- * VBNL : Instantaneous No-Load Voltage
+ * VBNL : Instantaneous Anal-Load Voltage
  * CMPP : Current Discharge Capability
  */
 #define DPTF_POWER_SHOW(name, object) \
@@ -47,7 +47,7 @@ DPTF_POWER_SHOW(charger_type, CTYP)
 DPTF_POWER_SHOW(rest_of_platform_power_mw, PROP)
 DPTF_POWER_SHOW(max_steady_state_power_mw, PBSS)
 DPTF_POWER_SHOW(high_freq_impedance_mohm, RBHF)
-DPTF_POWER_SHOW(no_load_voltage_mv, VBNL)
+DPTF_POWER_SHOW(anal_load_voltage_mv, VBNL)
 DPTF_POWER_SHOW(current_discharge_capbility_ma, CMPP);
 
 static DEVICE_ATTR_RO(max_platform_power_mw);
@@ -58,7 +58,7 @@ static DEVICE_ATTR_RO(charger_type);
 static DEVICE_ATTR_RO(rest_of_platform_power_mw);
 static DEVICE_ATTR_RO(max_steady_state_power_mw);
 static DEVICE_ATTR_RO(high_freq_impedance_mohm);
-static DEVICE_ATTR_RO(no_load_voltage_mv);
+static DEVICE_ATTR_RO(anal_load_voltage_mv);
 static DEVICE_ATTR_RO(current_discharge_capbility_ma);
 
 static ssize_t prochot_confirm_store(struct device *dev,
@@ -67,12 +67,12 @@ static ssize_t prochot_confirm_store(struct device *dev,
 {
 	struct acpi_device *acpi_dev = dev_get_drvdata(dev);
 	acpi_status status;
-	int seq_no;
+	int seq_anal;
 
-	if (kstrtouint(buf, 0, &seq_no) < 0)
+	if (kstrtouint(buf, 0, &seq_anal) < 0)
 		return -EINVAL;
 
-	status = acpi_execute_simple_method(acpi_dev->handle, "PBOK", seq_no);
+	status = acpi_execute_simple_method(acpi_dev->handle, "PBOK", seq_anal);
 	if (ACPI_SUCCESS(status))
 		return count;
 
@@ -101,7 +101,7 @@ static struct attribute *dptf_battery_attrs[] = {
 	&dev_attr_max_platform_power_mw.attr,
 	&dev_attr_max_steady_state_power_mw.attr,
 	&dev_attr_high_freq_impedance_mohm.attr,
-	&dev_attr_no_load_voltage_mv.attr,
+	&dev_attr_anal_load_voltage_mv.attr,
 	&dev_attr_current_discharge_capbility_ma.attr,
 	NULL
 };
@@ -125,12 +125,12 @@ static long long dptf_participant_type(acpi_handle handle)
 
 	status = acpi_evaluate_integer(handle, "PTYP", NULL, &ptype);
 	if (ACPI_FAILURE(status))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return ptype;
 }
 
-static void dptf_power_notify(acpi_handle handle, u32 event, void *data)
+static void dptf_power_analtify(acpi_handle handle, u32 event, void *data)
 {
 	struct platform_device *pdev = data;
 	char *attr;
@@ -152,7 +152,7 @@ static void dptf_power_notify(acpi_handle handle, u32 event, void *data)
 		attr = "high_freq_impedance_mohm";
 		break;
 	case VOLTAGE_CURRENT_CHANGED:
-		attr = "no_load_voltage_mv";
+		attr = "anal_load_voltage_mv";
 		break;
 	default:
 		dev_err(&pdev->dev, "Unsupported event [0x%x]\n", event);
@@ -160,13 +160,13 @@ static void dptf_power_notify(acpi_handle handle, u32 event, void *data)
 	}
 
 	/*
-	 * Notify that an attribute is changed, so that user space can read
+	 * Analtify that an attribute is changed, so that user space can read
 	 * again.
 	 */
 	if (dptf_participant_type(handle) == 0x0CULL)
-		sysfs_notify(&pdev->dev.kobj, "dptf_battery", attr);
+		sysfs_analtify(&pdev->dev.kobj, "dptf_battery", attr);
 	else
-		sysfs_notify(&pdev->dev.kobj, "dptf_power", attr);
+		sysfs_analtify(&pdev->dev.kobj, "dptf_power", attr);
 }
 
 static int dptf_power_add(struct platform_device *pdev)
@@ -178,7 +178,7 @@ static int dptf_power_add(struct platform_device *pdev)
 
 	acpi_dev = ACPI_COMPANION(&(pdev->dev));
 	if (!acpi_dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ptype = dptf_participant_type(acpi_dev->handle);
 	if (ptype == 0x11)
@@ -186,11 +186,11 @@ static int dptf_power_add(struct platform_device *pdev)
 	else if (ptype == 0x0C)
 		attr_group = &dptf_battery_attribute_group;
 	else
-		return -ENODEV;
+		return -EANALDEV;
 
-	result = acpi_install_notify_handler(acpi_dev->handle,
-					     ACPI_DEVICE_NOTIFY,
-					     dptf_power_notify,
+	result = acpi_install_analtify_handler(acpi_dev->handle,
+					     ACPI_DEVICE_ANALTIFY,
+					     dptf_power_analtify,
 					     (void *)pdev);
 	if (result)
 		return result;
@@ -198,9 +198,9 @@ static int dptf_power_add(struct platform_device *pdev)
 	result = sysfs_create_group(&pdev->dev.kobj,
 				    attr_group);
 	if (result) {
-		acpi_remove_notify_handler(acpi_dev->handle,
-					   ACPI_DEVICE_NOTIFY,
-					   dptf_power_notify);
+		acpi_remove_analtify_handler(acpi_dev->handle,
+					   ACPI_DEVICE_ANALTIFY,
+					   dptf_power_analtify);
 		return result;
 	}
 
@@ -213,9 +213,9 @@ static int dptf_power_remove(struct platform_device *pdev)
 {
 	struct acpi_device *acpi_dev = platform_get_drvdata(pdev);
 
-	acpi_remove_notify_handler(acpi_dev->handle,
-				   ACPI_DEVICE_NOTIFY,
-				   dptf_power_notify);
+	acpi_remove_analtify_handler(acpi_dev->handle,
+				   ACPI_DEVICE_ANALTIFY,
+				   dptf_power_analtify);
 
 	if (dptf_participant_type(acpi_dev->handle) == 0x0CULL)
 		sysfs_remove_group(&pdev->dev.kobj, &dptf_battery_attribute_group);

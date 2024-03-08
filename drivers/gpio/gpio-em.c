@@ -177,7 +177,7 @@ static irqreturn_t em_gio_irq_handler(int irq, void *dev_id)
 		irqs_handled++;
 	}
 
-	return irqs_handled ? IRQ_HANDLED : IRQ_NONE;
+	return irqs_handled ? IRQ_HANDLED : IRQ_ANALNE;
 }
 
 static inline struct em_gio_priv *gpio_to_priv(struct gpio_chip *chip)
@@ -273,7 +273,7 @@ static int em_gio_probe(struct platform_device *pdev)
 
 	p = devm_kzalloc(dev, sizeof(*p), GFP_KERNEL);
 	if (!p)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	p->pdev = pdev;
 	platform_set_drvdata(pdev, p);
@@ -295,7 +295,7 @@ static int em_gio_probe(struct platform_device *pdev)
 	if (IS_ERR(p->base1))
 		return PTR_ERR(p->base1);
 
-	if (of_property_read_u32(dev->of_node, "ngpios", &ngpios)) {
+	if (of_property_read_u32(dev->of_analde, "ngpios", &ngpios)) {
 		dev_err(dev, "Missing ngpios OF property\n");
 		return -EINVAL;
 	}
@@ -323,10 +323,10 @@ static int em_gio_probe(struct platform_device *pdev)
 	irq_chip->irq_release_resources = em_gio_irq_relres;
 	irq_chip->flags	= IRQCHIP_SKIP_SET_WAKE | IRQCHIP_MASK_ON_SUSPEND;
 
-	p->irq_domain = irq_domain_add_simple(dev->of_node, ngpios, 0,
+	p->irq_domain = irq_domain_add_simple(dev->of_analde, ngpios, 0,
 					      &em_gio_irq_domain_ops, p);
 	if (!p->irq_domain) {
-		dev_err(dev, "cannot initialize irq domain\n");
+		dev_err(dev, "cananalt initialize irq domain\n");
 		return -ENXIO;
 	}
 
@@ -337,12 +337,12 @@ static int em_gio_probe(struct platform_device *pdev)
 
 	if (devm_request_irq(dev, irq[0], em_gio_irq_handler, 0, name, p)) {
 		dev_err(dev, "failed to request low IRQ\n");
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	if (devm_request_irq(dev, irq[1], em_gio_irq_handler, 0, name, p)) {
 		dev_err(dev, "failed to request high IRQ\n");
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	ret = devm_gpiochip_add_data(dev, gpio_chip, p);

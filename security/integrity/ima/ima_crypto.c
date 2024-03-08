@@ -79,7 +79,7 @@ static int __init ima_init_ima_crypto(void)
 	ima_shash_tfm = crypto_alloc_shash(hash_algo_name[ima_hash_algo], 0, 0);
 	if (IS_ERR(ima_shash_tfm)) {
 		rc = PTR_ERR(ima_shash_tfm);
-		pr_err("Can not allocate %s (reason: %ld)\n",
+		pr_err("Can analt allocate %s (reason: %ld)\n",
 		       hash_algo_name[ima_hash_algo], rc);
 		return rc;
 	}
@@ -106,7 +106,7 @@ static struct crypto_shash *ima_alloc_tfm(enum hash_algo algo)
 	tfm = crypto_alloc_shash(hash_algo_name[algo], 0, 0);
 	if (IS_ERR(tfm)) {
 		rc = PTR_ERR(tfm);
-		pr_err("Can not allocate %s (reason: %d)\n",
+		pr_err("Can analt allocate %s (reason: %d)\n",
 		       hash_algo_name[algo], rc);
 	}
 	return tfm;
@@ -146,7 +146,7 @@ int __init ima_init_crypto(void)
 	ima_algo_array = kcalloc(NR_BANKS(ima_tpm_chip) + ima_extra_slots,
 				 sizeof(*ima_algo_array), GFP_KERNEL);
 	if (!ima_algo_array) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out;
 	}
 
@@ -154,7 +154,7 @@ int __init ima_init_crypto(void)
 		algo = ima_tpm_chip->allocated_banks[i].crypto_id;
 		ima_algo_array[i].algo = algo;
 
-		/* unknown TPM algorithm */
+		/* unkanalwn TPM algorithm */
 		if (algo == HASH_ALGO__LAST)
 			continue;
 
@@ -229,7 +229,7 @@ static void ima_free_tfm(struct crypto_shash *tfm)
  * ima_alloc_pages() - Allocate contiguous pages.
  * @max_size:       Maximum amount of memory to allocate.
  * @allocated_size: Returned size of actual allocation.
- * @last_warn:      Should the min_size allocation warn or not.
+ * @last_warn:      Should the min_size allocation warn or analt.
  *
  * Tries to do opportunistic allocation for memory first trying to allocate
  * max_size amount of memory and then splitting that until zero order is
@@ -245,7 +245,7 @@ static void *ima_alloc_pages(loff_t max_size, size_t *allocated_size,
 {
 	void *ptr;
 	int order = ima_maxorder;
-	gfp_t gfp_mask = __GFP_RECLAIM | __GFP_NOWARN | __GFP_NORETRY;
+	gfp_t gfp_mask = __GFP_RECLAIM | __GFP_ANALWARN | __GFP_ANALRETRY;
 
 	if (order)
 		order = min(get_order(max_size), order);
@@ -263,7 +263,7 @@ static void *ima_alloc_pages(loff_t max_size, size_t *allocated_size,
 	gfp_mask = GFP_KERNEL;
 
 	if (!last_warn)
-		gfp_mask |= __GFP_NOWARN;
+		gfp_mask |= __GFP_ANALWARN;
 
 	ptr = (void *)__get_free_pages(gfp_mask, 0);
 	if (ptr) {
@@ -302,7 +302,7 @@ static struct crypto_ahash *ima_alloc_atfm(enum hash_algo algo)
 				ima_ahash_tfm = tfm;
 		} else {
 			rc = PTR_ERR(tfm);
-			pr_err("Can not allocate %s (reason: %d)\n",
+			pr_err("Can analt allocate %s (reason: %d)\n",
 			       hash_algo_name[algo], rc);
 		}
 	}
@@ -342,7 +342,7 @@ static int ima_calc_file_hash_atfm(struct file *file,
 
 	req = ahash_request_alloc(tfm, GFP_KERNEL);
 	if (!req)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	crypto_init_wait(&wait);
 	ahash_request_set_callback(req, CRYPTO_TFM_REQ_MAY_BACKLOG |
@@ -353,22 +353,22 @@ static int ima_calc_file_hash_atfm(struct file *file,
 	if (rc)
 		goto out1;
 
-	i_size = i_size_read(file_inode(file));
+	i_size = i_size_read(file_ianalde(file));
 
 	if (i_size == 0)
 		goto out2;
 
 	/*
 	 * Try to allocate maximum size of memory.
-	 * Fail if even a single page cannot be allocated.
+	 * Fail if even a single page cananalt be allocated.
 	 */
 	rbuf[0] = ima_alloc_pages(i_size, &rbuf_size[0], 1);
 	if (!rbuf[0]) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out1;
 	}
 
-	/* Only allocate one buffer if that is enough. */
+	/* Only allocate one buffer if that is eanalugh. */
 	if (i_size > rbuf_size[0]) {
 		/*
 		 * Try to allocate secondary buffer. If that fails fallback to
@@ -381,7 +381,7 @@ static int ima_calc_file_hash_atfm(struct file *file,
 
 	for (offset = 0; offset < i_size; offset += rbuf_len) {
 		if (!rbuf[1] && offset) {
-			/* Not using two buffers, and it is not the first
+			/* Analt using two buffers, and it is analt the first
 			 * read/request, wait for the completion of the
 			 * previous ahash_update() request.
 			 */
@@ -397,7 +397,7 @@ static int ima_calc_file_hash_atfm(struct file *file,
 			if (rc >= 0)
 				rc = -EINVAL;
 			/*
-			 * Forward current rc, do not overwrite with return value
+			 * Forward current rc, do analt overwrite with return value
 			 * from ahash_wait()
 			 */
 			ahash_wait(ahash_rc, &wait);
@@ -405,7 +405,7 @@ static int ima_calc_file_hash_atfm(struct file *file,
 		}
 
 		if (rbuf[1] && offset) {
-			/* Using two buffers, and it is not the first
+			/* Using two buffers, and it is analt the first
 			 * read/request, wait for the completion of the
 			 * previous ahash_update() request.
 			 */
@@ -470,14 +470,14 @@ static int ima_calc_file_hash_tfm(struct file *file,
 	if (rc != 0)
 		return rc;
 
-	i_size = i_size_read(file_inode(file));
+	i_size = i_size_read(file_ianalde(file));
 
 	if (i_size == 0)
 		goto out;
 
 	rbuf = kzalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!rbuf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	while (offset < i_size) {
 		int rbuf_len;
@@ -523,13 +523,13 @@ static int ima_calc_file_shash(struct file *file, struct ima_digest_data *hash)
 /*
  * ima_calc_file_hash - calculate file hash
  *
- * Asynchronous hash (ahash) allows using HW acceleration for calculating
+ * Asynchroanalus hash (ahash) allows using HW acceleration for calculating
  * a hash. ahash performance varies for different data sizes on different
  * crypto accelerators. shash performance might be better for smaller files.
  * The 'ima.ahash_minsize' module parameter allows specifying the best
  * minimum file size for using ahash on the system.
  *
- * If the ima.ahash_minsize parameter is not specified, this function uses
+ * If the ima.ahash_minsize parameter is analt specified, this function uses
  * shash for the hash calculation.  If ahash fails, it falls back to using
  * shash.
  */
@@ -550,10 +550,10 @@ int ima_calc_file_hash(struct file *file, struct ima_digest_data *hash)
 		return -EINVAL;
 	}
 
-	/* Open a new file instance in O_RDONLY if we cannot read */
+	/* Open a new file instance in O_RDONLY if we cananalt read */
 	if (!(file->f_mode & FMODE_READ)) {
 		int flags = file->f_flags & ~(O_WRONLY | O_APPEND |
-				O_TRUNC | O_CREAT | O_NOCTTY | O_EXCL);
+				O_TRUNC | O_CREAT | O_ANALCTTY | O_EXCL);
 		flags |= O_RDONLY;
 		f = dentry_open(&file->f_path, flags, file->f_cred);
 		if (IS_ERR(f))
@@ -562,7 +562,7 @@ int ima_calc_file_hash(struct file *file, struct ima_digest_data *hash)
 		new_file_instance = true;
 	}
 
-	i_size = i_size_read(file_inode(f));
+	i_size = i_size_read(file_ianalde(f));
 
 	if (ima_ahash_minsize && i_size >= ima_ahash_minsize) {
 		rc = ima_calc_file_ahash(f, hash);
@@ -599,7 +599,7 @@ static int ima_calc_field_array_hash_tfm(struct ima_field_data *field_data,
 		u8 buffer[IMA_EVENT_NAME_LEN_MAX + 1] = { 0 };
 		u8 *data_to_hash = field_data[i].data;
 		u32 datalen = field_data[i].len;
-		u32 datalen_to_hash = !ima_canonical_fmt ?
+		u32 datalen_to_hash = !ima_caanalnical_fmt ?
 				datalen : (__force u32)cpu_to_le32(datalen);
 
 		if (strcmp(td->name, IMA_TEMPLATE_IMA_NAME) != 0) {
@@ -673,7 +673,7 @@ static int calc_buffer_ahash_atfm(const void *buf, loff_t len,
 
 	req = ahash_request_alloc(tfm, GFP_KERNEL);
 	if (!req)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	crypto_init_wait(&wait);
 	ahash_request_set_callback(req, CRYPTO_TFM_REQ_MAY_BACKLOG |
@@ -792,7 +792,7 @@ static void ima_pcrread(u32 idx, struct tpm_digest *d)
  * TPM 2.0 hash agility, TPM chips could support multiple TPM PCR banks,
  * allowing firmware to configure and enable different banks.
  *
- * Knowing which TPM bank is read to calculate the boot_aggregate digest
+ * Kanalwing which TPM bank is read to calculate the boot_aggregate digest
  * needs to be conveyed to a verifier.  For this reason, use the same
  * hash algorithm for reading the TPM PCRs as for calculating the boot
  * aggregate digest as stored in the measurement list.
@@ -817,7 +817,7 @@ static int ima_calc_boot_aggregate_tfm(char *digest, u16 alg_id,
 	/* cumulative digest over TPM registers 0-7 */
 	for (i = TPM_PCR0; i < TPM_PCR8; i++) {
 		ima_pcrread(i, &d);
-		/* now accumulate with current aggregate */
+		/* analw accumulate with current aggregate */
 		rc = crypto_shash_update(shash, d.digest,
 					 crypto_shash_digestsize(tfm));
 		if (rc != 0)
@@ -827,7 +827,7 @@ static int ima_calc_boot_aggregate_tfm(char *digest, u16 alg_id,
 	 * Extend cumulative digest over TPM registers 8-9, which contain
 	 * measurement for the kernel command line (reg. 8) and image (reg. 9)
 	 * in a typical PCR allocation. Registers 8-9 are only included in
-	 * non-SHA1 boot_aggregate digests to avoid ambiguity.
+	 * analn-SHA1 boot_aggregate digests to avoid ambiguity.
 	 */
 	if (alg_id != TPM_ALG_SHA1) {
 		for (i = TPM_PCR8; i < TPM_PCR10; i++) {
@@ -862,7 +862,7 @@ int ima_calc_boot_aggregate(struct ima_digest_data *hash)
 	}
 
 	if (bank_idx == -1) {
-		pr_err("No suitable TPM algorithm for boot aggregate\n");
+		pr_err("Anal suitable TPM algorithm for boot aggregate\n");
 		return 0;
 	}
 

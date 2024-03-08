@@ -17,7 +17,7 @@
 
 #define MSGTYPE50_CRB3_MAX_MSG_SIZE 0x710 /* sizeof(struct type50_crb3_msg) */
 
-#define MSGTYPE_ADJUSTMENT 0x08  /* type04 extension (not needed in type50) */
+#define MSGTYPE_ADJUSTMENT 0x08  /* type04 extension (analt needed in type50) */
 
 int get_rsa_modex_fc(struct ica_rsa_modexpo *mex, int *fc);
 int get_rsa_crt_fc(struct ica_rsa_modexpo_crt *crt, int *fc);

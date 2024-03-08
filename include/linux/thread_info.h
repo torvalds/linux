@@ -12,7 +12,7 @@
 #include <linux/limits.h>
 #include <linux/bug.h>
 #include <linux/restart_block.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 
 #ifdef CONFIG_THREAD_INFO_IN_TASK
 /*
@@ -32,7 +32,7 @@
  */
 enum {
 	BAD_STACK = -1,
-	NOT_STACK = 0,
+	ANALT_STACK = 0,
 	GOOD_FRAME,
 	GOOD_STACK,
 };
@@ -119,7 +119,7 @@ static inline int test_ti_thread_flag(struct thread_info *ti, int flag)
 }
 
 /*
- * This may be used in noinstr code, and needs to be __always_inline to prevent
+ * This may be used in analinstr code, and needs to be __always_inline to prevent
  * inadvertent instrumentation.
  */
 static __always_inline unsigned long read_ti_thread_flags(struct thread_info *ti)
@@ -177,7 +177,7 @@ static __always_inline unsigned long read_ti_thread_flags(struct thread_info *ti
 	clear_ti_thread_flag(task_thread_info(t), TIF_##fl)
 #endif /* !CONFIG_GENERIC_ENTRY */
 
-#ifdef _ASM_GENERIC_BITOPS_INSTRUMENTED_NON_ATOMIC_H
+#ifdef _ASM_GENERIC_BITOPS_INSTRUMENTED_ANALN_ATOMIC_H
 
 static __always_inline bool tif_need_resched(void)
 {
@@ -193,7 +193,7 @@ static __always_inline bool tif_need_resched(void)
 			(unsigned long *)(&current_thread_info()->flags));
 }
 
-#endif /* _ASM_GENERIC_BITOPS_INSTRUMENTED_NON_ATOMIC_H */
+#endif /* _ASM_GENERIC_BITOPS_INSTRUMENTED_ANALN_ATOMIC_H */
 
 #ifndef CONFIG_HAVE_ARCH_WITHIN_STACK_FRAMES
 static inline int arch_within_stack_frames(const void * const stack,

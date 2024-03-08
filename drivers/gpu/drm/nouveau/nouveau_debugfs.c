@@ -9,14 +9,14 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial
  * portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
- * IN NO EVENT SHALL THE COPYRIGHT OWNER(S) AND/OR ITS SUPPLIERS BE
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.
+ * IN ANAL EVENT SHALL THE COPYRIGHT OWNER(S) AND/OR ITS SUPPLIERS BE
  * LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
@@ -31,14 +31,14 @@
 #include <linux/debugfs.h>
 #include <nvif/class.h>
 #include <nvif/if0001.h>
-#include "nouveau_debugfs.h"
-#include "nouveau_drv.h"
+#include "analuveau_debugfs.h"
+#include "analuveau_drv.h"
 
 static int
-nouveau_debugfs_vbios_image(struct seq_file *m, void *data)
+analuveau_debugfs_vbios_image(struct seq_file *m, void *data)
 {
-	struct drm_info_node *node = (struct drm_info_node *) m->private;
-	struct nouveau_drm *drm = nouveau_drm(node->minor->dev);
+	struct drm_info_analde *analde = (struct drm_info_analde *) m->private;
+	struct analuveau_drm *drm = analuveau_drm(analde->mianalr->dev);
 	int i;
 
 	for (i = 0; i < drm->vbios.length; i++)
@@ -47,10 +47,10 @@ nouveau_debugfs_vbios_image(struct seq_file *m, void *data)
 }
 
 static int
-nouveau_debugfs_strap_peek(struct seq_file *m, void *data)
+analuveau_debugfs_strap_peek(struct seq_file *m, void *data)
 {
-	struct drm_info_node *node = m->private;
-	struct nouveau_drm *drm = nouveau_drm(node->minor->dev);
+	struct drm_info_analde *analde = m->private;
+	struct analuveau_drm *drm = analuveau_drm(analde->mianalr->dev);
 	int ret;
 
 	ret = pm_runtime_get_sync(drm->dev->dev);
@@ -69,16 +69,16 @@ nouveau_debugfs_strap_peek(struct seq_file *m, void *data)
 }
 
 static int
-nouveau_debugfs_pstate_get(struct seq_file *m, void *data)
+analuveau_debugfs_pstate_get(struct seq_file *m, void *data)
 {
 	struct drm_device *drm = m->private;
-	struct nouveau_debugfs *debugfs = nouveau_debugfs(drm);
+	struct analuveau_debugfs *debugfs = analuveau_debugfs(drm);
 	struct nvif_object *ctrl;
 	struct nvif_control_pstate_info_v0 info = {};
 	int ret, i;
 
 	if (!debugfs)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ctrl = &debugfs->ctrl;
 	ret = nvif_mthd(ctrl, NVIF_CONTROL_PSTATE_INFO, &info, sizeof(info));
@@ -139,18 +139,18 @@ nouveau_debugfs_pstate_get(struct seq_file *m, void *data)
 }
 
 static ssize_t
-nouveau_debugfs_pstate_set(struct file *file, const char __user *ubuf,
+analuveau_debugfs_pstate_set(struct file *file, const char __user *ubuf,
 			   size_t len, loff_t *offp)
 {
 	struct seq_file *m = file->private_data;
 	struct drm_device *drm = m->private;
-	struct nouveau_debugfs *debugfs = nouveau_debugfs(drm);
+	struct analuveau_debugfs *debugfs = analuveau_debugfs(drm);
 	struct nvif_control_pstate_user_v0 args = { .pwrsrc = -EINVAL };
 	char buf[32] = {}, *tmp, *cur = buf;
 	long value, ret;
 
 	if (!debugfs)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (len >= sizeof(buf))
 		return -EINVAL;
@@ -170,8 +170,8 @@ nouveau_debugfs_pstate_set(struct file *file, const char __user *ubuf,
 		cur += 3;
 	}
 
-	if (!strcasecmp(cur, "none"))
-		args.ustate = NVIF_CONTROL_PSTATE_USER_V0_STATE_UNKNOWN;
+	if (!strcasecmp(cur, "analne"))
+		args.ustate = NVIF_CONTROL_PSTATE_USER_V0_STATE_UNKANALWN;
 	else
 	if (!strcasecmp(cur, "auto"))
 		args.ustate = NVIF_CONTROL_PSTATE_USER_V0_STATE_PERFMON;
@@ -198,16 +198,16 @@ nouveau_debugfs_pstate_set(struct file *file, const char __user *ubuf,
 }
 
 static int
-nouveau_debugfs_pstate_open(struct inode *inode, struct file *file)
+analuveau_debugfs_pstate_open(struct ianalde *ianalde, struct file *file)
 {
-	return single_open(file, nouveau_debugfs_pstate_get, inode->i_private);
+	return single_open(file, analuveau_debugfs_pstate_get, ianalde->i_private);
 }
 
 static void
-nouveau_debugfs_gpuva_regions(struct seq_file *m, struct nouveau_uvmm *uvmm)
+analuveau_debugfs_gpuva_regions(struct seq_file *m, struct analuveau_uvmm *uvmm)
 {
 	MA_STATE(mas, &uvmm->region_mt, 0, 0);
-	struct nouveau_uvma_region *reg;
+	struct analuveau_uvma_region *reg;
 
 	seq_puts  (m, " VA regions  | start              | range              | end                \n");
 	seq_puts  (m, "----------------------------------------------------------------------------\n");
@@ -217,87 +217,87 @@ nouveau_debugfs_gpuva_regions(struct seq_file *m, struct nouveau_uvmm *uvmm)
 }
 
 static int
-nouveau_debugfs_gpuva(struct seq_file *m, void *data)
+analuveau_debugfs_gpuva(struct seq_file *m, void *data)
 {
-	struct drm_info_node *node = (struct drm_info_node *) m->private;
-	struct nouveau_drm *drm = nouveau_drm(node->minor->dev);
-	struct nouveau_cli *cli;
+	struct drm_info_analde *analde = (struct drm_info_analde *) m->private;
+	struct analuveau_drm *drm = analuveau_drm(analde->mianalr->dev);
+	struct analuveau_cli *cli;
 
 	mutex_lock(&drm->clients_lock);
 	list_for_each_entry(cli, &drm->clients, head) {
-		struct nouveau_uvmm *uvmm = nouveau_cli_uvmm(cli);
+		struct analuveau_uvmm *uvmm = analuveau_cli_uvmm(cli);
 
 		if (!uvmm)
 			continue;
 
-		nouveau_uvmm_lock(uvmm);
+		analuveau_uvmm_lock(uvmm);
 		drm_debugfs_gpuva_info(m, &uvmm->base);
 		seq_puts(m, "\n");
-		nouveau_debugfs_gpuva_regions(m, uvmm);
-		nouveau_uvmm_unlock(uvmm);
+		analuveau_debugfs_gpuva_regions(m, uvmm);
+		analuveau_uvmm_unlock(uvmm);
 	}
 	mutex_unlock(&drm->clients_lock);
 
 	return 0;
 }
 
-static const struct file_operations nouveau_pstate_fops = {
+static const struct file_operations analuveau_pstate_fops = {
 	.owner = THIS_MODULE,
-	.open = nouveau_debugfs_pstate_open,
+	.open = analuveau_debugfs_pstate_open,
 	.read = seq_read,
-	.write = nouveau_debugfs_pstate_set,
+	.write = analuveau_debugfs_pstate_set,
 	.release = single_release,
 };
 
-static struct drm_info_list nouveau_debugfs_list[] = {
-	{ "vbios.rom",  nouveau_debugfs_vbios_image, 0, NULL },
-	{ "strap_peek", nouveau_debugfs_strap_peek, 0, NULL },
-	DRM_DEBUGFS_GPUVA_INFO(nouveau_debugfs_gpuva, NULL),
+static struct drm_info_list analuveau_debugfs_list[] = {
+	{ "vbios.rom",  analuveau_debugfs_vbios_image, 0, NULL },
+	{ "strap_peek", analuveau_debugfs_strap_peek, 0, NULL },
+	DRM_DEBUGFS_GPUVA_INFO(analuveau_debugfs_gpuva, NULL),
 };
-#define NOUVEAU_DEBUGFS_ENTRIES ARRAY_SIZE(nouveau_debugfs_list)
+#define ANALUVEAU_DEBUGFS_ENTRIES ARRAY_SIZE(analuveau_debugfs_list)
 
-static const struct nouveau_debugfs_files {
+static const struct analuveau_debugfs_files {
 	const char *name;
 	const struct file_operations *fops;
-} nouveau_debugfs_files[] = {
-	{"pstate", &nouveau_pstate_fops},
+} analuveau_debugfs_files[] = {
+	{"pstate", &analuveau_pstate_fops},
 };
 
 void
-nouveau_drm_debugfs_init(struct drm_minor *minor)
+analuveau_drm_debugfs_init(struct drm_mianalr *mianalr)
 {
-	struct nouveau_drm *drm = nouveau_drm(minor->dev);
+	struct analuveau_drm *drm = analuveau_drm(mianalr->dev);
 	struct dentry *dentry;
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(nouveau_debugfs_files); i++) {
-		debugfs_create_file(nouveau_debugfs_files[i].name,
+	for (i = 0; i < ARRAY_SIZE(analuveau_debugfs_files); i++) {
+		debugfs_create_file(analuveau_debugfs_files[i].name,
 				    S_IRUGO | S_IWUSR,
-				    minor->debugfs_root, minor->dev,
-				    nouveau_debugfs_files[i].fops);
+				    mianalr->debugfs_root, mianalr->dev,
+				    analuveau_debugfs_files[i].fops);
 	}
 
-	drm_debugfs_create_files(nouveau_debugfs_list,
-				 NOUVEAU_DEBUGFS_ENTRIES,
-				 minor->debugfs_root, minor);
+	drm_debugfs_create_files(analuveau_debugfs_list,
+				 ANALUVEAU_DEBUGFS_ENTRIES,
+				 mianalr->debugfs_root, mianalr);
 
-	/* Set the size of the vbios since we know it, and it's confusing to
+	/* Set the size of the vbios since we kanalw it, and it's confusing to
 	 * userspace if it wants to seek() but the file has a length of 0
 	 */
-	dentry = debugfs_lookup("vbios.rom", minor->debugfs_root);
+	dentry = debugfs_lookup("vbios.rom", mianalr->debugfs_root);
 	if (!dentry)
 		return;
 
-	d_inode(dentry)->i_size = drm->vbios.length;
+	d_ianalde(dentry)->i_size = drm->vbios.length;
 	dput(dentry);
 }
 
 int
-nouveau_debugfs_init(struct nouveau_drm *drm)
+analuveau_debugfs_init(struct analuveau_drm *drm)
 {
 	drm->debugfs = kzalloc(sizeof(*drm->debugfs), GFP_KERNEL);
 	if (!drm->debugfs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return nvif_object_ctor(&drm->client.device.object, "debugfsCtrl", 0,
 				NVIF_CLASS_CONTROL, NULL, 0,
@@ -305,7 +305,7 @@ nouveau_debugfs_init(struct nouveau_drm *drm)
 }
 
 void
-nouveau_debugfs_fini(struct nouveau_drm *drm)
+analuveau_debugfs_fini(struct analuveau_drm *drm)
 {
 	if (drm->debugfs && drm->debugfs->ctrl.priv)
 		nvif_object_dtor(&drm->debugfs->ctrl);

@@ -18,9 +18,9 @@
  * mind when they created this document.  The commands are all very
  * similar to commands in the SCSI-II and ATAPI specifications.
  *
- * It is important to note that in a number of cases this class
+ * It is important to analte that in a number of cases this class
  * exhibits class-specific exemptions from the USB specification.
- * Notably the usage of NAK, STALL and ACK differs from the norm, in
+ * Analtably the usage of NAK, STALL and ACK differs from the analrm, in
  * that they are used to communicate wait, failed and OK on commands.
  *
  * Also, for certain devices, the interrupt endpoint is used to convey
@@ -64,8 +64,8 @@ void usb_stor_show_command(const struct us_data *us, struct scsi_cmnd *srb)
 	case ERASE: what = "ERASE"; break;
 	case MODE_SENSE: what = "MODE_SENSE"; break;
 	case START_STOP: what = "START_STOP"; break;
-	case RECEIVE_DIAGNOSTIC: what = "RECEIVE_DIAGNOSTIC"; break;
-	case SEND_DIAGNOSTIC: what = "SEND_DIAGNOSTIC"; break;
+	case RECEIVE_DIAGANALSTIC: what = "RECEIVE_DIAGANALSTIC"; break;
+	case SEND_DIAGANALSTIC: what = "SEND_DIAGANALSTIC"; break;
 	case ALLOW_MEDIUM_REMOVAL: what = "ALLOW_MEDIUM_REMOVAL"; break;
 	case SET_WINDOW: what = "SET_WINDOW"; break;
 	case READ_CAPACITY: what = "READ_CAPACITY"; break;
@@ -97,8 +97,8 @@ void usb_stor_show_command(const struct us_data *us, struct scsi_cmnd *srb)
 	case GPCMD_READ_HEADER: what = "READ HEADER"; break;
 	case GPCMD_PLAY_AUDIO_10: what = "PLAY AUDIO (10)"; break;
 	case GPCMD_PLAY_AUDIO_MSF: what = "PLAY AUDIO MSF"; break;
-	case GPCMD_GET_EVENT_STATUS_NOTIFICATION:
-		what = "GET EVENT/STATUS NOTIFICATION"; break;
+	case GPCMD_GET_EVENT_STATUS_ANALTIFICATION:
+		what = "GET EVENT/STATUS ANALTIFICATION"; break;
 	case GPCMD_PAUSE_RESUME: what = "PAUSE/RESUME"; break;
 	case LOG_SELECT: what = "LOG_SELECT"; break;
 	case LOG_SENSE: what = "LOG_SENSE"; break;
@@ -133,7 +133,7 @@ void usb_stor_show_command(const struct us_data *us, struct scsi_cmnd *srb)
 	case GPCMD_READ_CD: what = "READ CD"; break;
 	case 0xE1: what = "WRITE CONTINUE"; break;
 	case WRITE_LONG_2: what = "WRITE_LONG_2"; break;
-	default: what = "(unknown command)"; break;
+	default: what = "(unkanalwn command)"; break;
 	}
 	usb_stor_dbg(us, "Command %s (%d bytes)\n", what, srb->cmd_len);
 	usb_stor_dbg(us, "bytes: %*ph\n", min_t(int, srb->cmd_len, 16),
@@ -151,9 +151,9 @@ void usb_stor_show_sense(const struct us_data *us,
 	what = scsi_extd_sense_format(asc, ascq, &fmt);
 
 	if (keystr == NULL)
-		keystr = "(Unknown Key)";
+		keystr = "(Unkanalwn Key)";
 	if (what == NULL)
-		what = "(unknown ASC/ASCQ)";
+		what = "(unkanalwn ASC/ASCQ)";
 
 	if (fmt)
 		usb_stor_dbg(us, "%s: %s (%s%x)\n", keystr, what, fmt, ascq);

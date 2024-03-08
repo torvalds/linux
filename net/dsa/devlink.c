@@ -17,7 +17,7 @@ static int dsa_devlink_info_get(struct devlink *dl,
 	if (ds->ops->devlink_info_get)
 		return ds->ops->devlink_info_get(ds, req, extack);
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int dsa_devlink_sb_pool_get(struct devlink *dl,
@@ -27,7 +27,7 @@ static int dsa_devlink_sb_pool_get(struct devlink *dl,
 	struct dsa_switch *ds = dsa_devlink_to_ds(dl);
 
 	if (!ds->ops->devlink_sb_pool_get)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return ds->ops->devlink_sb_pool_get(ds, sb_index, pool_index,
 					    pool_info);
@@ -41,7 +41,7 @@ static int dsa_devlink_sb_pool_set(struct devlink *dl, unsigned int sb_index,
 	struct dsa_switch *ds = dsa_devlink_to_ds(dl);
 
 	if (!ds->ops->devlink_sb_pool_set)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return ds->ops->devlink_sb_pool_set(ds, sb_index, pool_index, size,
 					    threshold_type, extack);
@@ -55,7 +55,7 @@ static int dsa_devlink_sb_port_pool_get(struct devlink_port *dlp,
 	int port = dsa_devlink_port_to_port(dlp);
 
 	if (!ds->ops->devlink_sb_port_pool_get)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return ds->ops->devlink_sb_port_pool_get(ds, port, sb_index,
 						 pool_index, p_threshold);
@@ -70,7 +70,7 @@ static int dsa_devlink_sb_port_pool_set(struct devlink_port *dlp,
 	int port = dsa_devlink_port_to_port(dlp);
 
 	if (!ds->ops->devlink_sb_port_pool_set)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return ds->ops->devlink_sb_port_pool_set(ds, port, sb_index,
 						 pool_index, threshold, extack);
@@ -86,7 +86,7 @@ dsa_devlink_sb_tc_pool_bind_get(struct devlink_port *dlp,
 	int port = dsa_devlink_port_to_port(dlp);
 
 	if (!ds->ops->devlink_sb_tc_pool_bind_get)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return ds->ops->devlink_sb_tc_pool_bind_get(ds, port, sb_index,
 						    tc_index, pool_type,
@@ -104,7 +104,7 @@ dsa_devlink_sb_tc_pool_bind_set(struct devlink_port *dlp,
 	int port = dsa_devlink_port_to_port(dlp);
 
 	if (!ds->ops->devlink_sb_tc_pool_bind_set)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return ds->ops->devlink_sb_tc_pool_bind_set(ds, port, sb_index,
 						    tc_index, pool_type,
@@ -118,7 +118,7 @@ static int dsa_devlink_sb_occ_snapshot(struct devlink *dl,
 	struct dsa_switch *ds = dsa_devlink_to_ds(dl);
 
 	if (!ds->ops->devlink_sb_occ_snapshot)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return ds->ops->devlink_sb_occ_snapshot(ds, sb_index);
 }
@@ -129,7 +129,7 @@ static int dsa_devlink_sb_occ_max_clear(struct devlink *dl,
 	struct dsa_switch *ds = dsa_devlink_to_ds(dl);
 
 	if (!ds->ops->devlink_sb_occ_max_clear)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return ds->ops->devlink_sb_occ_max_clear(ds, sb_index);
 }
@@ -143,7 +143,7 @@ static int dsa_devlink_sb_occ_port_pool_get(struct devlink_port *dlp,
 	int port = dsa_devlink_port_to_port(dlp);
 
 	if (!ds->ops->devlink_sb_occ_port_pool_get)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return ds->ops->devlink_sb_occ_port_pool_get(ds, port, sb_index,
 						     pool_index, p_cur, p_max);
@@ -159,7 +159,7 @@ dsa_devlink_sb_occ_tc_port_bind_get(struct devlink_port *dlp,
 	int port = dsa_devlink_port_to_port(dlp);
 
 	if (!ds->ops->devlink_sb_occ_tc_port_bind_get)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return ds->ops->devlink_sb_occ_tc_port_bind_get(ds, port,
 							sb_index, tc_index,
@@ -187,7 +187,7 @@ int dsa_devlink_param_get(struct devlink *dl, u32 id,
 	struct dsa_switch *ds = dsa_devlink_to_ds(dl);
 
 	if (!ds->ops->devlink_param_get)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return ds->ops->devlink_param_get(ds, id, ctx);
 }
@@ -199,7 +199,7 @@ int dsa_devlink_param_set(struct devlink *dl, u32 id,
 	struct dsa_switch *ds = dsa_devlink_to_ds(dl);
 
 	if (!ds->ops->devlink_param_set)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return ds->ops->devlink_param_set(ds, id, ctx);
 }
@@ -374,7 +374,7 @@ int dsa_switch_devlink_alloc(struct dsa_switch *ds)
 	 */
 	dl = devlink_alloc(&dsa_devlink_ops, sizeof(*dl_priv), ds->dev);
 	if (!dl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ds->devlink = dl;
 

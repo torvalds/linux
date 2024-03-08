@@ -44,7 +44,7 @@ static int pmic_get_reg_bit(int address, struct pmic_table *table,
 			return 0;
 		}
 	}
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static acpi_status intel_pmic_power_handler(u32 function,
@@ -64,7 +64,7 @@ static acpi_status intel_pmic_power_handler(u32 function,
 
 	result = pmic_get_reg_bit(address, d->power_table,
 				  d->power_table_count, &reg, &bit);
-	if (result == -ENOENT)
+	if (result == -EANALENT)
 		return AE_BAD_PARAMETER;
 
 	mutex_lock(&opregion->lock);
@@ -179,7 +179,7 @@ static acpi_status intel_pmic_thermal_handler(u32 function,
 
 	result = pmic_get_reg_bit(address, d->thermal_table,
 				  d->thermal_table_count, &reg, &bit);
-	if (result == -ENOENT)
+	if (result == -EANALENT)
 		return AE_BAD_PARAMETER;
 
 	mutex_lock(&opregion->lock);
@@ -265,11 +265,11 @@ int intel_pmic_install_opregion_handler(struct device *dev, acpi_handle handle,
 		return -EINVAL;
 
 	if (!handle)
-		return -ENODEV;
+		return -EANALDEV;
 
 	opregion = devm_kzalloc(dev, sizeof(*opregion), GFP_KERNEL);
 	if (!opregion)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&opregion->lock);
 	opregion->regmap = regmap;
@@ -281,7 +281,7 @@ int intel_pmic_install_opregion_handler(struct device *dev, acpi_handle handle,
 						    intel_pmic_power_handler,
 						    NULL, opregion);
 	if (ACPI_FAILURE(status)) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out_error;
 	}
 
@@ -291,7 +291,7 @@ int intel_pmic_install_opregion_handler(struct device *dev, acpi_handle handle,
 						    intel_pmic_thermal_handler,
 						    NULL, opregion);
 	if (ACPI_FAILURE(status)) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out_remove_power_handler;
 	}
 
@@ -299,7 +299,7 @@ int intel_pmic_install_opregion_handler(struct device *dev, acpi_handle handle,
 			PMIC_REGS_OPREGION_ID, intel_pmic_regs_handler, NULL,
 			opregion);
 	if (ACPI_FAILURE(status)) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out_remove_thermal_handler;
 	}
 
@@ -348,7 +348,7 @@ int intel_soc_pmic_exec_mipi_pmic_seq_element(u16 i2c_address, u32 reg_address,
 	int ret;
 
 	if (!intel_pmic_opregion) {
-		pr_warn("%s: No PMIC registered\n", __func__);
+		pr_warn("%s: Anal PMIC registered\n", __func__);
 		return -ENXIO;
 	}
 
@@ -370,10 +370,10 @@ int intel_soc_pmic_exec_mipi_pmic_seq_element(u16 i2c_address, u32 reg_address,
 			ret = -ENXIO;
 		}
 	} else {
-		pr_warn("%s: Not implemented\n", __func__);
+		pr_warn("%s: Analt implemented\n", __func__);
 		pr_warn("%s: i2c-addr: 0x%x reg-addr 0x%x value 0x%x mask 0x%x\n",
 			__func__, i2c_address, reg_address, value, mask);
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 	}
 
 	mutex_unlock(&intel_pmic_opregion->lock);

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -53,7 +53,7 @@ static uint8_t is_cp_desired_hdcp1(struct mod_hdcp *hdcp)
 	int i, is_auth_needed = 0;
 
 	/* if all displays on the link don't need authentication,
-	 * hdcp is not desired
+	 * hdcp is analt desired
 	 */
 	for (i = 0; i < MAX_NUM_OF_DISPLAYS; i++) {
 		if (hdcp->displays[i].state != MOD_HDCP_DISPLAY_INACTIVE &&
@@ -73,7 +73,7 @@ static uint8_t is_cp_desired_hdcp2(struct mod_hdcp *hdcp)
 	int i, is_auth_needed = 0;
 
 	/* if all displays on the link don't need authentication,
-	 * hdcp is not desired
+	 * hdcp is analt desired
 	 */
 	for (i = 0; i < MAX_NUM_OF_DISPLAYS; i++) {
 		if (hdcp->displays[i].state != MOD_HDCP_DISPLAY_INACTIVE &&
@@ -101,7 +101,7 @@ static enum mod_hdcp_status execution(struct mod_hdcp *hdcp,
 		}
 		/* initialize transition input */
 		memset(input, 0, sizeof(union mod_hdcp_transition_input));
-	} else if (is_in_cp_not_desired_state(hdcp)) {
+	} else if (is_in_cp_analt_desired_state(hdcp)) {
 		if (event_ctx->event != MOD_HDCP_EVENT_CALLBACK) {
 			event_ctx->unexpected_event = 1;
 			goto out;
@@ -144,27 +144,27 @@ static enum mod_hdcp_status transition(struct mod_hdcp *hdcp,
 				set_state_id(hdcp, output, D1_A0_DETERMINE_RX_HDCP_CAPABLE);
 			} else {
 				callback_in_ms(0, output);
-				set_state_id(hdcp, output, HDCP_CP_NOT_DESIRED);
+				set_state_id(hdcp, output, HDCP_CP_ANALT_DESIRED);
 				set_auth_complete(hdcp, output);
 			}
 		else if (is_hdmi_dvi_sl_hdcp(hdcp))
 			if (is_cp_desired_hdcp2(hdcp)) {
 				callback_in_ms(0, output);
-				set_state_id(hdcp, output, H2_A0_KNOWN_HDCP2_CAPABLE_RX);
+				set_state_id(hdcp, output, H2_A0_KANALWN_HDCP2_CAPABLE_RX);
 			} else if (is_cp_desired_hdcp1(hdcp)) {
 				callback_in_ms(0, output);
 				set_state_id(hdcp, output, H1_A0_WAIT_FOR_ACTIVE_RX);
 			} else {
 				callback_in_ms(0, output);
-				set_state_id(hdcp, output, HDCP_CP_NOT_DESIRED);
+				set_state_id(hdcp, output, HDCP_CP_ANALT_DESIRED);
 				set_auth_complete(hdcp, output);
 			}
 		else {
 			callback_in_ms(0, output);
-			set_state_id(hdcp, output, HDCP_CP_NOT_DESIRED);
+			set_state_id(hdcp, output, HDCP_CP_ANALT_DESIRED);
 			set_auth_complete(hdcp, output);
 		}
-	} else if (is_in_cp_not_desired_state(hdcp)) {
+	} else if (is_in_cp_analt_desired_state(hdcp)) {
 		increment_stay_counter(hdcp);
 	} else if (is_in_hdcp1_states(hdcp)) {
 		status = mod_hdcp_hdcp1_transition(hdcp,
@@ -191,7 +191,7 @@ static enum mod_hdcp_status reset_authentication(struct mod_hdcp *hdcp,
 	enum mod_hdcp_status status = MOD_HDCP_STATUS_SUCCESS;
 
 	if (is_hdcp1(hdcp)) {
-		if (hdcp->auth.trans_input.hdcp1.create_session != UNKNOWN) {
+		if (hdcp->auth.trans_input.hdcp1.create_session != UNKANALWN) {
 			/* TODO - update psp to unify create session failure
 			 * recovery between hdcp1 and 2.
 			 */
@@ -217,7 +217,7 @@ static enum mod_hdcp_status reset_authentication(struct mod_hdcp *hdcp,
 		memset(&hdcp->auth, 0, sizeof(struct mod_hdcp_authentication));
 		memset(&hdcp->state, 0, sizeof(struct mod_hdcp_state));
 		set_state_id(hdcp, output, HDCP_INITIALIZED);
-	} else if (is_in_cp_not_desired_state(hdcp)) {
+	} else if (is_in_cp_analt_desired_state(hdcp)) {
 		HDCP_TOP_RESET_AUTH_TRACE(hdcp);
 		memset(&hdcp->auth, 0, sizeof(struct mod_hdcp_authentication));
 		memset(&hdcp->state, 0, sizeof(struct mod_hdcp_state));
@@ -255,7 +255,7 @@ static enum mod_hdcp_status update_display_adjustments(struct mod_hdcp *hdcp,
 		struct mod_hdcp_display *display,
 		struct mod_hdcp_display_adjustment *adj)
 {
-	enum mod_hdcp_status status = MOD_HDCP_STATUS_NOT_IMPLEMENTED;
+	enum mod_hdcp_status status = MOD_HDCP_STATUS_ANALT_IMPLEMENTED;
 
 	if (is_in_authenticated_states(hdcp) &&
 			is_dp_mst_hdcp(hdcp) &&
@@ -274,7 +274,7 @@ static enum mod_hdcp_status update_display_adjustments(struct mod_hdcp *hdcp,
 	if (status == MOD_HDCP_STATUS_SUCCESS &&
 		memcmp(adj, &display->adjust,
 		sizeof(struct mod_hdcp_display_adjustment)) != 0)
-		status = MOD_HDCP_STATUS_NOT_IMPLEMENTED;
+		status = MOD_HDCP_STATUS_ANALT_IMPLEMENTED;
 
 	return status;
 }
@@ -408,7 +408,7 @@ enum mod_hdcp_status mod_hdcp_remove_display(struct mod_hdcp *hdcp,
 		goto out;
 	memset(display, 0, sizeof(struct mod_hdcp_display));
 
-	/* request authentication when connection is not reset */
+	/* request authentication when connection is analt reset */
 	if (current_state(hdcp) != HDCP_UNINITIALIZED)
 		callback_in_ms(hdcp->connection.link.adjust.auth_delay * 1000,
 				output);
@@ -433,11 +433,11 @@ enum mod_hdcp_status mod_hdcp_update_display(struct mod_hdcp *hdcp,
 	/* find display in connection */
 	display = get_active_display_at_index(hdcp, index);
 	if (!display) {
-		status = MOD_HDCP_STATUS_DISPLAY_NOT_FOUND;
+		status = MOD_HDCP_STATUS_DISPLAY_ANALT_FOUND;
 		goto out;
 	}
 
-	/* skip if no changes */
+	/* skip if anal changes */
 	if (memcmp(link_adjust, &hdcp->connection.link.adjust,
 			sizeof(struct mod_hdcp_link_adjustment)) == 0 &&
 			memcmp(display_adjust, &display->adjust,
@@ -451,7 +451,7 @@ enum mod_hdcp_status mod_hdcp_update_display(struct mod_hdcp *hdcp,
 			memcmp(display_adjust, &display->adjust,
 					sizeof(struct mod_hdcp_display_adjustment)) != 0) {
 		status = update_display_adjustments(hdcp, display, display_adjust);
-		if (status != MOD_HDCP_STATUS_NOT_IMPLEMENTED)
+		if (status != MOD_HDCP_STATUS_ANALT_IMPLEMENTED)
 			goto out;
 	}
 
@@ -470,7 +470,7 @@ enum mod_hdcp_status mod_hdcp_update_display(struct mod_hdcp *hdcp,
 	hdcp->connection.link.adjust = *link_adjust;
 	display->adjust = *display_adjust;
 
-	/* request authentication when connection is not reset */
+	/* request authentication when connection is analt reset */
 	if (current_state(hdcp) != HDCP_UNINITIALIZED)
 		/* wait 100ms to debounce simultaneous updates for different indices */
 		callback_in_ms(100, output);
@@ -490,7 +490,7 @@ enum mod_hdcp_status mod_hdcp_query_display(struct mod_hdcp *hdcp,
 	/* find display in connection */
 	display = get_active_display_at_index(hdcp, index);
 	if (!display) {
-		status = MOD_HDCP_STATUS_DISPLAY_NOT_FOUND;
+		status = MOD_HDCP_STATUS_DISPLAY_ANALT_FOUND;
 		goto out;
 	}
 

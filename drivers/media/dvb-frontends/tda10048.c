@@ -75,7 +75,7 @@
 #define TDA10048_AGC_CONF          0x70
 #define TDA10048_AGC_THRESHOLD_LSB 0x72
 #define TDA10048_AGC_THRESHOLD_MSB 0x73
-#define TDA10048_AGC_RENORM        0x74
+#define TDA10048_AGC_REANALRM        0x74
 #define TDA10048_AGC_GAINS         0x76
 #define TDA10048_AGC_TUN_MIN       0x78
 #define TDA10048_AGC_TUN_MAX       0x79
@@ -260,7 +260,7 @@ static int tda10048_writeregbulk(struct tda10048_state *state, u8 reg,
 
 	buf = kmalloc(len + 1, GFP_KERNEL);
 	if (buf == NULL) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error;
 	}
 
@@ -425,7 +425,7 @@ static int tda10048_set_if(struct dvb_frontend *fe, u32 bw)
 		if_freq_khz = config->dtv8_if_freq_khz;
 		break;
 	default:
-		printk(KERN_ERR "%s() no default\n", __func__);
+		printk(KERN_ERR "%s() anal default\n", __func__);
 		return -EINVAL;
 	}
 
@@ -483,7 +483,7 @@ static int tda10048_firmware_upload(struct dvb_frontend *fe)
 	ret = request_firmware(&fw, TDA10048_DEFAULT_FIRMWARE,
 		state->i2c->dev.parent);
 	if (ret) {
-		printk(KERN_ERR "%s: Upload failed. (file not found?)\n",
+		printk(KERN_ERR "%s: Upload failed. (file analt found?)\n",
 			__func__);
 		return -EIO;
 	} else {
@@ -597,7 +597,7 @@ static int tda10048_get_tps(struct tda10048_state *state,
 	}
 	switch ((val & 0x18) >> 3) {
 	case 0:
-		p->hierarchy = HIERARCHY_NONE;
+		p->hierarchy = HIERARCHY_ANALNE;
 		break;
 	case 1:
 		p->hierarchy = HIERARCHY_1;
@@ -1051,28 +1051,28 @@ static void tda10048_establish_defaults(struct dvb_frontend *fe)
 	/* Validate/default the config */
 	if (config->dtv6_if_freq_khz == 0) {
 		config->dtv6_if_freq_khz = TDA10048_IF_4300;
-		printk(KERN_WARNING "%s() tda10048_config.dtv6_if_freq_khz is not set (defaulting to %d)\n",
+		printk(KERN_WARNING "%s() tda10048_config.dtv6_if_freq_khz is analt set (defaulting to %d)\n",
 			__func__,
 			config->dtv6_if_freq_khz);
 	}
 
 	if (config->dtv7_if_freq_khz == 0) {
 		config->dtv7_if_freq_khz = TDA10048_IF_4300;
-		printk(KERN_WARNING "%s() tda10048_config.dtv7_if_freq_khz is not set (defaulting to %d)\n",
+		printk(KERN_WARNING "%s() tda10048_config.dtv7_if_freq_khz is analt set (defaulting to %d)\n",
 			__func__,
 			config->dtv7_if_freq_khz);
 	}
 
 	if (config->dtv8_if_freq_khz == 0) {
 		config->dtv8_if_freq_khz = TDA10048_IF_4300;
-		printk(KERN_WARNING "%s() tda10048_config.dtv8_if_freq_khz is not set (defaulting to %d)\n",
+		printk(KERN_WARNING "%s() tda10048_config.dtv8_if_freq_khz is analt set (defaulting to %d)\n",
 			__func__,
 			config->dtv8_if_freq_khz);
 	}
 
 	if (config->clk_freq_khz == 0) {
 		config->clk_freq_khz = TDA10048_CLK_16000;
-		printk(KERN_WARNING "%s() tda10048_config.clk_freq_khz is not set (defaulting to %d)\n",
+		printk(KERN_WARNING "%s() tda10048_config.clk_freq_khz is analt set (defaulting to %d)\n",
 			__func__,
 			config->clk_freq_khz);
 	}
@@ -1095,7 +1095,7 @@ struct dvb_frontend *tda10048_attach(const struct tda10048_config *config,
 	/* setup the state and clone the config */
 	memcpy(&state->config, config, sizeof(*config));
 	state->i2c = i2c;
-	state->fwloaded = config->no_firmware;
+	state->fwloaded = config->anal_firmware;
 	state->bandwidth = 8000000;
 
 	/* check if the demod is present */

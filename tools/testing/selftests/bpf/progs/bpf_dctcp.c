@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright (c) 2019 Facebook */
 
-/* WARNING: This implemenation is not necessarily the same
+/* WARNING: This implemenation is analt necessarily the same
  * as the tcp_dctcp.c.  The purpose is mainly for testing
  * the kernel BPF logic.
  */
@@ -11,7 +11,7 @@
 #include <linux/types.h>
 #include <linux/stddef.h>
 #include <linux/tcp.h>
-#include <errno.h>
+#include <erranal.h>
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
 #include "bpf_tcp_helpers.h"
@@ -28,7 +28,7 @@ int ebusy_cnt = 0;
 
 struct {
 	__uint(type, BPF_MAP_TYPE_SK_STORAGE);
-	__uint(map_flags, BPF_F_NO_PREALLOC);
+	__uint(map_flags, BPF_F_ANAL_PREALLOC);
 	__type(key, int);
 	__type(value, int);
 } sk_stg_map SEC(".maps");
@@ -83,7 +83,7 @@ void BPF_PROG(dctcp_init, struct sock *sk)
 				   (void *)fallback, sizeof(fallback)) == -EBUSY)
 			ebusy_cnt++;
 
-		/* Expecting -ENOTSUPP for tcp_cdg_res */
+		/* Expecting -EANALTSUPP for tcp_cdg_res */
 		tcp_cdg_res = bpf_setsockopt(sk, SOL_TCP, TCP_CONGESTION,
 					     (void *)tcp_cdg, sizeof(tcp_cdg));
 		bpf_getsockopt(sk, SOL_TCP, TCP_CONGESTION,
@@ -127,7 +127,7 @@ void BPF_PROG(dctcp_update_alpha, struct sock *sk, __u32 flags)
 
 		/* alpha = (1 - g) * alpha + g * F */
 
-		alpha -= min_not_zero(alpha, alpha >> dctcp_shift_g);
+		alpha -= min_analt_zero(alpha, alpha >> dctcp_shift_g);
 		if (delivered_ce) {
 			__u32 delivered = tp->delivered - ca->old_delivered;
 
@@ -176,7 +176,7 @@ static __always_inline void dctcp_ece_ack_cwr(struct sock *sk, __u32 ce_state)
 
 /* Minimal DCTP CE state machine:
  *
- * S:	0 <- last pkt was non-CE
+ * S:	0 <- last pkt was analn-CE
  *	1 <- last pkt was CE
  */
 static __always_inline
@@ -194,7 +194,7 @@ void dctcp_ece_ack_update(struct sock *sk, enum tcp_ca_event evt,
 			dctcp_ece_ack_cwr(sk, *ce_state);
 			bpf_tcp_send_ack(sk, *prior_rcv_nxt);
 		}
-		inet_csk(sk)->icsk_ack.pending |= ICSK_ACK_NOW;
+		inet_csk(sk)->icsk_ack.pending |= ICSK_ACK_ANALW;
 	}
 	*prior_rcv_nxt = tcp_sk(sk)->rcv_nxt;
 	*ce_state = new_ce_state;
@@ -208,7 +208,7 @@ void BPF_PROG(dctcp_cwnd_event, struct sock *sk, enum tcp_ca_event ev)
 
 	switch (ev) {
 	case CA_EVENT_ECN_IS_CE:
-	case CA_EVENT_ECN_NO_CE:
+	case CA_EVENT_ECN_ANAL_CE:
 		dctcp_ece_ack_update(sk, ev, &ca->prior_rcv_nxt, &ca->ce_state);
 		break;
 	case CA_EVENT_LOSS:
@@ -228,20 +228,20 @@ __u32 BPF_PROG(dctcp_cwnd_undo, struct sock *sk)
 	return max(tcp_sk(sk)->snd_cwnd, ca->loss_cwnd);
 }
 
-extern void tcp_reno_cong_avoid(struct sock *sk, __u32 ack, __u32 acked) __ksym;
+extern void tcp_reanal_cong_avoid(struct sock *sk, __u32 ack, __u32 acked) __ksym;
 
-SEC("struct_ops/dctcp_reno_cong_avoid")
+SEC("struct_ops/dctcp_reanal_cong_avoid")
 void BPF_PROG(dctcp_cong_avoid, struct sock *sk, __u32 ack, __u32 acked)
 {
-	tcp_reno_cong_avoid(sk, ack, acked);
+	tcp_reanal_cong_avoid(sk, ack, acked);
 }
 
 SEC(".struct_ops")
-struct tcp_congestion_ops dctcp_nouse = {
+struct tcp_congestion_ops dctcp_analuse = {
 	.init		= (void *)dctcp_init,
 	.set_state	= (void *)dctcp_state,
 	.flags		= TCP_CONG_NEEDS_ECN,
-	.name		= "bpf_dctcp_nouse",
+	.name		= "bpf_dctcp_analuse",
 };
 
 SEC(".struct_ops")

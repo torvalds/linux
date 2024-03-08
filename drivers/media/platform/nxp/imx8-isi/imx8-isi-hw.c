@@ -142,7 +142,7 @@ static void mxc_isi_channel_set_scaling(struct mxc_isi_pipe *pipe,
 	    |  CHNL_IMG_CTRL_DEC_Y(ilog2(decy));
 
 	/*
-	 * Contrary to what the documentation states, YCBCR_MODE does not
+	 * Contrary to what the documentation states, YCBCR_MODE does analt
 	 * control conversion between YCbCr and RGB, but whether the scaler
 	 * operates in YUV mode or in RGB mode. It must be set when the scaler
 	 * input is YUV.
@@ -315,7 +315,7 @@ static void mxc_isi_channel_set_control(struct mxc_isi_pipe *pipe,
 		 CHNL_CTRL_MIPI_VC_ID_MASK | CHNL_CTRL_SRC_INPUT_MASK);
 
 	/*
-	 * If no scaling or color space conversion is needed, bypass the
+	 * If anal scaling or color space conversion is needed, bypass the
 	 * channel.
 	 */
 	if (bypass)
@@ -333,7 +333,7 @@ static void mxc_isi_channel_set_control(struct mxc_isi_pipe *pipe,
 		 * The memory input is connected to the last port of the
 		 * crossbar switch, after all pixel link inputs. The SRC_INPUT
 		 * field controls the input selection and must be set
-		 * accordingly, despite being documented as ignored when using
+		 * accordingly, despite being documented as iganalred when using
 		 * the memory input in the i.MX8MP reference manual, and
 		 * reserved in the i.MX8MN reference manual.
 		 */
@@ -598,8 +598,8 @@ int mxc_isi_channel_chain(struct mxc_isi_pipe *pipe, bool bypass)
 	int ret = 0;
 
 	/*
-	 * If buffer chaining is required, make sure this channel is not the
-	 * last one, otherwise there's no 'next' channel to chain with. This
+	 * If buffer chaining is required, make sure this channel is analt the
+	 * last one, otherwise there's anal 'next' channel to chain with. This
 	 * should be prevented by checks in the set format handlers, but let's
 	 * be defensive.
 	 */

@@ -11,7 +11,7 @@
 #include <linux/init.h>
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 #include <linux/blkdev.h>
 #include <linux/hdreg.h>
@@ -30,17 +30,17 @@ enum {
 	NFHD_DEV_OFFSET = 8,
 };
 
-static inline s32 nfhd_read_write(u32 major, u32 minor, u32 rwflag, u32 recno,
+static inline s32 nfhd_read_write(u32 major, u32 mianalr, u32 rwflag, u32 recanal,
 				  u32 count, u32 buf)
 {
-	return nf_call(nfhd_id + NFHD_READ_WRITE, major, minor, rwflag, recno,
+	return nf_call(nfhd_id + NFHD_READ_WRITE, major, mianalr, rwflag, recanal,
 		       count, buf);
 }
 
-static inline s32 nfhd_get_capacity(u32 major, u32 minor, u32 *blocks,
+static inline s32 nfhd_get_capacity(u32 major, u32 mianalr, u32 *blocks,
 				    u32 *blocksize)
 {
-	return nf_call(nfhd_id + NFHD_GET_CAPACITY, major, minor,
+	return nf_call(nfhd_id + NFHD_GET_CAPACITY, major, mianalr,
 		       virt_to_phys(blocks), virt_to_phys(blocksize));
 }
 
@@ -98,7 +98,7 @@ static int __init nfhd_init_one(int id, u32 blocks, u32 bsize)
 {
 	struct nfhd_device *dev;
 	int dev_id = id - NFHD_DEV_OFFSET;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	pr_info("nfhd%u: found device with %u blocks (%u bytes)\n", dev_id,
 		blocks, bsize);
@@ -117,13 +117,13 @@ static int __init nfhd_init_one(int id, u32 blocks, u32 bsize)
 	dev->bsize = bsize;
 	dev->bshift = ffs(bsize) - 10;
 
-	dev->disk = blk_alloc_disk(NUMA_NO_NODE);
+	dev->disk = blk_alloc_disk(NUMA_ANAL_ANALDE);
 	if (!dev->disk)
 		goto free_dev;
 
 	dev->disk->major = major_num;
-	dev->disk->first_minor = dev_id * 16;
-	dev->disk->minors = 16;
+	dev->disk->first_mianalr = dev_id * 16;
+	dev->disk->mianalrs = 16;
 	dev->disk->fops = &nfhd_ops;
 	dev->disk->private_data = dev;
 	sprintf(dev->disk->disk_name, "nfhd%u", dev_id);
@@ -153,7 +153,7 @@ static int __init nfhd_init(void)
 
 	nfhd_id = nf_get_id("XHDI");
 	if (!nfhd_id)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = register_blkdev(major_num, "nfhd");
 	if (ret < 0) {

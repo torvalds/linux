@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/sound/nuvoton,nau8540.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Nuvoton Technology Corporation NAU85L40 Audio CODEC
+title: Nuvoton Techanallogy Corporation NAU85L40 Audio CODEC
 
 maintainers:
   - John Hsu <KCHSU0@nuvoton.com>

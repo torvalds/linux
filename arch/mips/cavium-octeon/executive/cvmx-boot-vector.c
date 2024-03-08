@@ -10,9 +10,9 @@
 /*
   We install this program at the bootvector:
 ------------------------------------
-	.set noreorder
-	.set nomacro
-	.set noat
+	.set analreorder
+	.set analmacro
+	.set analat
 reset_vector:
 	dmtc0	$k0, $31, 0	# Save $k0 to DESAVE
 	dmtc0	$k1, $31, 3	# Save $k1 to KScratch2
@@ -36,29 +36,29 @@ reset_vector:
 				# view of target code.
 
 	daddu	$k0, $k0, $k1
-	nop
+	analp
 
 	ld	$k0, 0($k0)	# k0 <- core specific target address
 	dmfc0	$k1, $31, 3	# Restore $k1 from KScratch2
 
 	beqz	$k0, wait_loop	# Spin in wait loop
-	nop
+	analp
 
 	jr	$k0
-	nop
+	analp
 
-	nop			# NOPs needed here to fill delay slots
-	nop			# on endian reversal of previous instructions
+	analp			# ANALPs needed here to fill delay slots
+	analp			# on endian reversal of previous instructions
 
 wait_loop:
 	wait
-	nop
+	analp
 
 	b	wait_loop
-	nop
+	analp
 
-	nop
-	nop
+	analp
+	analp
 ------------------------------------
 
 0000000000000000 <reset_vector>:
@@ -81,43 +81,43 @@ wait_loop:
   2c:	041f0000	synci	0(zero)
 
   30:	035bd02d	daddu	k0,k0,k1
-  34:	00000000	nop
+  34:	00000000	analp
 
   38:	df5a0000	ld	k0,0(k0)
   3c:	403bf803	dmfc0	k1,c0_kscratch2
 
   40:	13400005	beqz	k0,58 <wait_loop>
-  44:	00000000	nop
+  44:	00000000	analp
 
   48:	03400008	jr	k0
-  4c:	00000000	nop
+  4c:	00000000	analp
 
-  50:	00000000	nop
-  54:	00000000	nop
+  50:	00000000	analp
+  54:	00000000	analp
 
 0000000000000058 <wait_loop>:
   58:	42000020	wait
-  5c:	00000000	nop
+  5c:	00000000	analp
 
   60:	1000fffd	b	58 <wait_loop>
-  64:	00000000	nop
+  64:	00000000	analp
 
-  68:	00000000	nop
-  6c:	00000000	nop
+  68:	00000000	analp
+  6c:	00000000	analp
 
  */
 
 #include <asm/octeon/cvmx-boot-vector.h>
 
 static unsigned long long _cvmx_bootvector_data[16] = {
-	0x40baf80040bbf803ull,  /* patch low order 8-bits if no KScratch*/
+	0x40baf80040bbf803ull,  /* patch low order 8-bits if anal KScratch*/
 	0x401a6000401b7801ull,
 	0x375a0084337b03ffull,
 	0x409a6000001bd940ull,
 	0x3c1abfc0bc110000ull,
 	0xdf5a0078041f0000ull,
 	0x035bd02d00000000ull,
-	0xdf5a0000403bf803ull,  /* patch low order 8-bits if no KScratch*/
+	0xdf5a0000403bf803ull,  /* patch low order 8-bits if anal KScratch*/
 	0x1340000500000000ull,
 	0x0340000800000000ull,
 	0x0000000000000000ull,
@@ -143,7 +143,7 @@ static void cvmx_boot_vector_init(void *mem)
 		uint64_t v = _cvmx_bootvector_data[i];
 
 		if (OCTEON_IS_OCTEON1PLUS() && (i == 0 || i == 7))
-			v &= 0xffffffff00000000ull; /* KScratch not available */
+			v &= 0xffffffff00000000ull; /* KScratch analt available */
 		cvmx_write_csr(CVMX_MIO_BOOT_LOC_ADR, i * 8);
 		cvmx_write_csr(CVMX_MIO_BOOT_LOC_DAT, v);
 	}

@@ -10,12 +10,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included
+ * The above copyright analtice and this permission analtice shall be included
  * in all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
@@ -158,10 +158,10 @@
 #define mmACP_DSP0_CACHE_SIZE7                                                  0x5087
 #define mmACP_DSP0_CACHE_OFFSET8                                                0x5088
 #define mmACP_DSP0_CACHE_SIZE8                                                  0x5089
-#define mmACP_DSP0_NONCACHE_OFFSET0                                             0x508a
-#define mmACP_DSP0_NONCACHE_SIZE0                                               0x508b
-#define mmACP_DSP0_NONCACHE_OFFSET1                                             0x508c
-#define mmACP_DSP0_NONCACHE_SIZE1                                               0x508d
+#define mmACP_DSP0_ANALNCACHE_OFFSET0                                             0x508a
+#define mmACP_DSP0_ANALNCACHE_SIZE0                                               0x508b
+#define mmACP_DSP0_ANALNCACHE_OFFSET1                                             0x508c
+#define mmACP_DSP0_ANALNCACHE_SIZE1                                               0x508d
 #define mmACP_DSP0_DEBUG_PC                                                     0x508e
 #define mmACP_DSP0_NMI_SEL                                                      0x508f
 #define mmACP_DSP0_CLKRST_CNTL                                                  0x5090
@@ -190,10 +190,10 @@
 #define mmACP_DSP1_CACHE_SIZE7                                                  0x50ac
 #define mmACP_DSP1_CACHE_OFFSET8                                                0x50ad
 #define mmACP_DSP1_CACHE_SIZE8                                                  0x50ae
-#define mmACP_DSP1_NONCACHE_OFFSET0                                             0x50af
-#define mmACP_DSP1_NONCACHE_SIZE0                                               0x50b0
-#define mmACP_DSP1_NONCACHE_OFFSET1                                             0x50b1
-#define mmACP_DSP1_NONCACHE_SIZE1                                               0x50b2
+#define mmACP_DSP1_ANALNCACHE_OFFSET0                                             0x50af
+#define mmACP_DSP1_ANALNCACHE_SIZE0                                               0x50b0
+#define mmACP_DSP1_ANALNCACHE_OFFSET1                                             0x50b1
+#define mmACP_DSP1_ANALNCACHE_SIZE1                                               0x50b2
 #define mmACP_DSP1_DEBUG_PC                                                     0x50b3
 #define mmACP_DSP1_NMI_SEL                                                      0x50b4
 #define mmACP_DSP1_CLKRST_CNTL                                                  0x50b5
@@ -222,10 +222,10 @@
 #define mmACP_DSP2_CACHE_SIZE7                                                  0x50d1
 #define mmACP_DSP2_CACHE_OFFSET8                                                0x50d2
 #define mmACP_DSP2_CACHE_SIZE8                                                  0x50d3
-#define mmACP_DSP2_NONCACHE_OFFSET0                                             0x50d4
-#define mmACP_DSP2_NONCACHE_SIZE0                                               0x50d5
-#define mmACP_DSP2_NONCACHE_OFFSET1                                             0x50d6
-#define mmACP_DSP2_NONCACHE_SIZE1                                               0x50d7
+#define mmACP_DSP2_ANALNCACHE_OFFSET0                                             0x50d4
+#define mmACP_DSP2_ANALNCACHE_SIZE0                                               0x50d5
+#define mmACP_DSP2_ANALNCACHE_OFFSET1                                             0x50d6
+#define mmACP_DSP2_ANALNCACHE_SIZE1                                               0x50d7
 #define mmACP_DSP2_DEBUG_PC                                                     0x50d8
 #define mmACP_DSP2_NMI_SEL                                                      0x50d9
 #define mmACP_DSP2_CLKRST_CNTL                                                  0x50da
@@ -466,8 +466,8 @@
 #define mmACP_VOICE_WAKEUP_STATUS                                               0x51e9
 #define mmI2S_VOICE_WAKEUP_LOWER_THRESHOLD                                      0x51ea
 #define mmI2S_VOICE_WAKEUP_HIGHER_THRESHOLD                                     0x51eb
-#define mmI2S_VOICE_WAKEUP_NO_OF_SAMPLES                                        0x51ec
-#define mmI2S_VOICE_WAKEUP_NO_OF_PEAKS                                          0x51ed
+#define mmI2S_VOICE_WAKEUP_ANAL_OF_SAMPLES                                        0x51ec
+#define mmI2S_VOICE_WAKEUP_ANAL_OF_PEAKS                                          0x51ed
 #define mmI2S_VOICE_WAKEUP_DURATION_OF_N_PEAKS                                  0x51ee
 #define mmI2S_VOICE_WAKEUP_BITCLK_TOGGLE_DETECTION                              0x51ef
 #define mmI2S_VOICE_WAKEUP_DATA_PATH_SWITCH                                     0x51f0

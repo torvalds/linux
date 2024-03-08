@@ -44,7 +44,7 @@
 		/*
 		 * <&pinmux_i2s_gpio> (covers GPIO0..3) is needed here as
 		 * well for GPIO3. But this is already claimed for uart1
-		 * (see below). So we can't include it in this LED node.
+		 * (see below). So we can't include it in this LED analde.
 		 */
 
 		led-power-blue {
@@ -130,7 +130,7 @@
 	pinctrl-0 = <&pinmux_spi_spi>, <&pinmux_spi_cs1_cs>;
 
 	flash@0 {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		reg = <0>;
 		spi-max-frequency = <40000000>;
 

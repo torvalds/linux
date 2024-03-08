@@ -91,17 +91,17 @@
 #define V_CQ_RSPQ(x) ((x) << S_CQ_RSPQ)
 #define G_CQ_RSPQ(x) (((x) >> S_CQ_RSPQ) & M_CQ_RSPQ)
 
-#define S_CQ_ASYNC_NOTIF    26
-#define V_CQ_ASYNC_NOTIF(x) ((x) << S_CQ_ASYNC_NOTIF)
-#define F_CQ_ASYNC_NOTIF    V_CQ_ASYNC_NOTIF(1U)
+#define S_CQ_ASYNC_ANALTIF    26
+#define V_CQ_ASYNC_ANALTIF(x) ((x) << S_CQ_ASYNC_ANALTIF)
+#define F_CQ_ASYNC_ANALTIF    V_CQ_ASYNC_ANALTIF(1U)
 
 #define S_CQ_ARMED    27
 #define V_CQ_ARMED(x) ((x) << S_CQ_ARMED)
 #define F_CQ_ARMED    V_CQ_ARMED(1U)
 
-#define S_CQ_ASYNC_NOTIF_SOL    28
-#define V_CQ_ASYNC_NOTIF_SOL(x) ((x) << S_CQ_ASYNC_NOTIF_SOL)
-#define F_CQ_ASYNC_NOTIF_SOL    V_CQ_ASYNC_NOTIF_SOL(1U)
+#define S_CQ_ASYNC_ANALTIF_SOL    28
+#define V_CQ_ASYNC_ANALTIF_SOL(x) ((x) << S_CQ_ASYNC_ANALTIF_SOL)
+#define F_CQ_ASYNC_ANALTIF_SOL    V_CQ_ASYNC_ANALTIF_SOL(1U)
 
 #define S_CQ_GEN    29
 #define V_CQ_GEN(x) ((x) << S_CQ_GEN)
@@ -211,9 +211,9 @@
 #define V_RSPD_SOP(x) ((x) << S_RSPD_SOP)
 #define F_RSPD_SOP    V_RSPD_SOP(1U)
 
-#define S_RSPD_ASYNC_NOTIF    26
-#define V_RSPD_ASYNC_NOTIF(x) ((x) << S_RSPD_ASYNC_NOTIF)
-#define F_RSPD_ASYNC_NOTIF    V_RSPD_ASYNC_NOTIF(1U)
+#define S_RSPD_ASYNC_ANALTIF    26
+#define V_RSPD_ASYNC_ANALTIF(x) ((x) << S_RSPD_ASYNC_ANALTIF)
+#define F_RSPD_ASYNC_ANALTIF    V_RSPD_ASYNC_ANALTIF(1U)
 
 #define S_RSPD_FL0_GTS    27
 #define V_RSPD_FL0_GTS(x) ((x) << S_RSPD_FL0_GTS)

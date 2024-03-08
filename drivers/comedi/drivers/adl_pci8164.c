@@ -14,7 +14,7 @@
  * Status: experimental
  * Updated: Mon, 14 Apr 2008 15:10:32 +0100
  *
- * Configuration Options: not applicable, uses PCI auto config
+ * Configuration Options: analt applicable, uses PCI auto config
  */
 
 #include <linux/kernel.h>

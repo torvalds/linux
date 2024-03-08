@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -94,7 +94,7 @@ dml_get_var_decl(wm_usr_retraining, dml_float_t);
 dml_get_var_decl(urgent_latency, dml_float_t);
 
 dml_get_var_decl(wm_writeback_dram_clock_change, dml_float_t);
-dml_get_var_decl(stutter_efficiency_no_vblank, dml_float_t);
+dml_get_var_decl(stutter_efficiency_anal_vblank, dml_float_t);
 dml_get_var_decl(stutter_efficiency, dml_float_t);
 dml_get_var_decl(stutter_efficiency_z8, dml_float_t);
 dml_get_var_decl(stutter_num_bursts_z8, dml_float_t);
@@ -104,7 +104,7 @@ dml_get_var_decl(stutter_num_bursts_z8_bestcase, dml_float_t);
 dml_get_var_decl(stutter_period_bestcase, dml_float_t);
 dml_get_var_decl(urgent_latency, dml_float_t);
 dml_get_var_decl(urgent_extra_latency, dml_float_t);
-dml_get_var_decl(nonurgent_latency, dml_float_t);
+dml_get_var_decl(analnurgent_latency, dml_float_t);
 dml_get_var_decl(dispclk_calculated, dml_float_t);
 dml_get_var_decl(total_data_read_bw, dml_float_t);
 dml_get_var_decl(return_bw, dml_float_t);
@@ -132,10 +132,10 @@ dml_get_per_surface_var_decl(dst_y_per_row_vblank, dml_float_t);
 dml_get_per_surface_var_decl(dst_y_prefetch, dml_float_t);
 dml_get_per_surface_var_decl(dst_y_per_vm_flip, dml_float_t);
 dml_get_per_surface_var_decl(dst_y_per_row_flip, dml_float_t);
-dml_get_per_surface_var_decl(dst_y_per_pte_row_nom_l, dml_float_t);
-dml_get_per_surface_var_decl(dst_y_per_pte_row_nom_c, dml_float_t);
-dml_get_per_surface_var_decl(dst_y_per_meta_row_nom_l, dml_float_t);
-dml_get_per_surface_var_decl(dst_y_per_meta_row_nom_c, dml_float_t);
+dml_get_per_surface_var_decl(dst_y_per_pte_row_analm_l, dml_float_t);
+dml_get_per_surface_var_decl(dst_y_per_pte_row_analm_c, dml_float_t);
+dml_get_per_surface_var_decl(dst_y_per_meta_row_analm_l, dml_float_t);
+dml_get_per_surface_var_decl(dst_y_per_meta_row_analm_c, dml_float_t);
 dml_get_per_surface_var_decl(refcyc_per_vm_group_vblank_in_us, dml_float_t);
 dml_get_per_surface_var_decl(refcyc_per_vm_group_flip_in_us, dml_float_t);
 dml_get_per_surface_var_decl(refcyc_per_vm_req_vblank_in_us, dml_float_t);
@@ -152,14 +152,14 @@ dml_get_per_surface_var_decl(refcyc_per_req_delivery_pre_l_in_us, dml_float_t);
 dml_get_per_surface_var_decl(refcyc_per_req_delivery_pre_c_in_us, dml_float_t);
 dml_get_per_surface_var_decl(refcyc_per_cursor_req_delivery_in_us, dml_float_t);
 dml_get_per_surface_var_decl(refcyc_per_cursor_req_delivery_pre_in_us, dml_float_t);
-dml_get_per_surface_var_decl(refcyc_per_meta_chunk_nom_l_in_us, dml_float_t);
-dml_get_per_surface_var_decl(refcyc_per_meta_chunk_nom_c_in_us, dml_float_t);
+dml_get_per_surface_var_decl(refcyc_per_meta_chunk_analm_l_in_us, dml_float_t);
+dml_get_per_surface_var_decl(refcyc_per_meta_chunk_analm_c_in_us, dml_float_t);
 dml_get_per_surface_var_decl(refcyc_per_meta_chunk_vblank_l_in_us, dml_float_t);
 dml_get_per_surface_var_decl(refcyc_per_meta_chunk_vblank_c_in_us, dml_float_t);
 dml_get_per_surface_var_decl(refcyc_per_meta_chunk_flip_l_in_us, dml_float_t);
 dml_get_per_surface_var_decl(refcyc_per_meta_chunk_flip_c_in_us, dml_float_t);
-dml_get_per_surface_var_decl(refcyc_per_pte_group_nom_l_in_us, dml_float_t);
-dml_get_per_surface_var_decl(refcyc_per_pte_group_nom_c_in_us, dml_float_t);
+dml_get_per_surface_var_decl(refcyc_per_pte_group_analm_l_in_us, dml_float_t);
+dml_get_per_surface_var_decl(refcyc_per_pte_group_analm_c_in_us, dml_float_t);
 dml_get_per_surface_var_decl(refcyc_per_pte_group_vblank_l_in_us, dml_float_t);
 dml_get_per_surface_var_decl(refcyc_per_pte_group_vblank_c_in_us, dml_float_t);
 dml_get_per_surface_var_decl(refcyc_per_pte_group_flip_l_in_us, dml_float_t);

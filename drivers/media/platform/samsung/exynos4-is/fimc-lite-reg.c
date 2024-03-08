@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Register interface file for EXYNOS FIMC-LITE (camera interface) driver
+ * Register interface file for EXYANALS FIMC-LITE (camera interface) driver
  *
  * Copyright (C) 2012 Samsung Electronics Co., Ltd.
  * Author: Sylwester Nawrocki <s.nawrocki@samsung.com>
@@ -9,7 +9,7 @@
 #include <linux/bitops.h>
 #include <linux/delay.h>
 #include <linux/io.h>
-#include <media/drv-intf/exynos-fimc.h>
+#include <media/drv-intf/exyanals-fimc.h>
 
 #include "fimc-lite-reg.h"
 #include "fimc-lite.h"
@@ -163,7 +163,7 @@ void flite_hw_set_window_offset(struct fimc_lite *dev, struct flite_frame *f)
 	cfg = readl(dev->regs + FLITE_REG_CIWDOFST);
 	cfg &= ~FLITE_REG_CIWDOFST_OFST_MASK;
 	cfg |= (f->rect.left << 16) | f->rect.top;
-	cfg |= FLITE_REG_CIWDOFST_WINOFSEN;
+	cfg |= FLITE_REG_CIWDOFST_WIANALFSEN;
 	writel(cfg, dev->regs + FLITE_REG_CIWDOFST);
 
 	hoff2 = f->f_width - f->rect.width - f->rect.left;

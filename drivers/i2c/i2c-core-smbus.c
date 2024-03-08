@@ -77,7 +77,7 @@ static inline void i2c_smbus_add_pec(struct i2c_msg *msg)
 /* Return <0 on CRC error
    If there was a write before this read (most cases) we need to take the
    partial CRC from the write part into account.
-   Note that this function does modify the message (we need to decrease the
+   Analte that this function does modify the message (we need to decrease the
    message length to hide the CRC byte from the caller). */
 static int i2c_smbus_check_pec(u8 cpec, struct i2c_msg *msg)
 {
@@ -96,7 +96,7 @@ static int i2c_smbus_check_pec(u8 cpec, struct i2c_msg *msg)
  * i2c_smbus_read_byte - SMBus "receive byte" protocol
  * @client: Handle to slave device
  *
- * This executes the SMBus "receive byte" protocol, returning negative errno
+ * This executes the SMBus "receive byte" protocol, returning negative erranal
  * else the byte received from the device.
  */
 s32 i2c_smbus_read_byte(const struct i2c_client *client)
@@ -116,7 +116,7 @@ EXPORT_SYMBOL(i2c_smbus_read_byte);
  * @client: Handle to slave device
  * @value: Byte to be sent
  *
- * This executes the SMBus "send byte" protocol, returning negative errno
+ * This executes the SMBus "send byte" protocol, returning negative erranal
  * else zero on success.
  */
 s32 i2c_smbus_write_byte(const struct i2c_client *client, u8 value)
@@ -131,7 +131,7 @@ EXPORT_SYMBOL(i2c_smbus_write_byte);
  * @client: Handle to slave device
  * @command: Byte interpreted by slave
  *
- * This executes the SMBus "read byte" protocol, returning negative errno
+ * This executes the SMBus "read byte" protocol, returning negative erranal
  * else a data byte received from the device.
  */
 s32 i2c_smbus_read_byte_data(const struct i2c_client *client, u8 command)
@@ -152,7 +152,7 @@ EXPORT_SYMBOL(i2c_smbus_read_byte_data);
  * @command: Byte interpreted by slave
  * @value: Byte being written
  *
- * This executes the SMBus "write byte" protocol, returning negative errno
+ * This executes the SMBus "write byte" protocol, returning negative erranal
  * else zero on success.
  */
 s32 i2c_smbus_write_byte_data(const struct i2c_client *client, u8 command,
@@ -171,7 +171,7 @@ EXPORT_SYMBOL(i2c_smbus_write_byte_data);
  * @client: Handle to slave device
  * @command: Byte interpreted by slave
  *
- * This executes the SMBus "read word" protocol, returning negative errno
+ * This executes the SMBus "read word" protocol, returning negative erranal
  * else a 16-bit unsigned "word" received from the device.
  */
 s32 i2c_smbus_read_word_data(const struct i2c_client *client, u8 command)
@@ -192,7 +192,7 @@ EXPORT_SYMBOL(i2c_smbus_read_word_data);
  * @command: Byte interpreted by slave
  * @value: 16-bit "word" being written
  *
- * This executes the SMBus "write word" protocol, returning negative errno
+ * This executes the SMBus "write word" protocol, returning negative erranal
  * else zero on success.
  */
 s32 i2c_smbus_write_word_data(const struct i2c_client *client, u8 command,
@@ -210,16 +210,16 @@ EXPORT_SYMBOL(i2c_smbus_write_word_data);
  * i2c_smbus_read_block_data - SMBus "block read" protocol
  * @client: Handle to slave device
  * @command: Byte interpreted by slave
- * @values: Byte array into which data will be read; big enough to hold
+ * @values: Byte array into which data will be read; big eanalugh to hold
  *	the data returned by the slave.  SMBus allows at most 32 bytes.
  *
- * This executes the SMBus "block read" protocol, returning negative errno
+ * This executes the SMBus "block read" protocol, returning negative erranal
  * else the number of data bytes in the slave's response.
  *
- * Note that using this function requires that the client's adapter support
- * the I2C_FUNC_SMBUS_READ_BLOCK_DATA functionality.  Not all adapter drivers
+ * Analte that using this function requires that the client's adapter support
+ * the I2C_FUNC_SMBUS_READ_BLOCK_DATA functionality.  Analt all adapter drivers
  * support this; its emulation through I2C messaging relies on a specific
- * mechanism (I2C_M_RECV_LEN) which may not be implemented.
+ * mechanism (I2C_M_RECV_LEN) which may analt be implemented.
  */
 s32 i2c_smbus_read_block_data(const struct i2c_client *client, u8 command,
 			      u8 *values)
@@ -245,7 +245,7 @@ EXPORT_SYMBOL(i2c_smbus_read_block_data);
  * @length: Size of data block; SMBus allows at most 32 bytes
  * @values: Byte array which will be written.
  *
- * This executes the SMBus "block write" protocol, returning negative errno
+ * This executes the SMBus "block write" protocol, returning negative erranal
  * else zero on success.
  */
 s32 i2c_smbus_write_block_data(const struct i2c_client *client, u8 command,
@@ -317,7 +317,7 @@ static void i2c_smbus_try_get_dmabuf(struct i2c_msg *msg, u8 init_val)
 
 /*
  * Simulate a SMBus command using the I2C protocol.
- * No checking of parameters is done!
+ * Anal checking of parameters is done!
  */
 static s32 i2c_smbus_xfer_emulated(struct i2c_adapter *adapter, u16 addr,
 				   unsigned short flags,
@@ -412,7 +412,7 @@ static s32 i2c_smbus_xfer_emulated(struct i2c_adapter *adapter, u16 addr,
 		}
 		break;
 	case I2C_SMBUS_BLOCK_PROC_CALL:
-		nmsgs = 2; /* Another special case */
+		nmsgs = 2; /* Aanalther special case */
 		read_write = I2C_SMBUS_READ;
 		if (data->block[0] > I2C_SMBUS_BLOCK_MAX) {
 			dev_err(&adapter->dev,
@@ -450,7 +450,7 @@ static s32 i2c_smbus_xfer_emulated(struct i2c_adapter *adapter, u16 addr,
 		break;
 	default:
 		dev_err(&adapter->dev, "Unsupported transaction %d\n", size);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (wants_pec) {
@@ -530,7 +530,7 @@ cleanup:
  * @data: Data to be read or written
  *
  * This executes an SMBus protocol operation, and returns a negative
- * errno code else zero on success.
+ * erranal code else zero on success.
  */
 s32 i2c_smbus_xfer(struct i2c_adapter *adapter, u16 addr,
 		   unsigned short flags, char read_write,
@@ -596,7 +596,7 @@ s32 __i2c_smbus_xfer(struct i2c_adapter *adapter, u16 addr,
 				break;
 		}
 
-		if (res != -EOPNOTSUPP || !adapter->algo->master_xfer)
+		if (res != -EOPANALTSUPP || !adapter->algo->master_xfer)
 			goto trace;
 		/*
 		 * Fall back to i2c_smbus_xfer_emulated if the adapter doesn't
@@ -623,12 +623,12 @@ EXPORT_SYMBOL(__i2c_smbus_xfer);
  * @client: Handle to slave device
  * @command: Byte interpreted by slave
  * @length: Size of data block; SMBus allows at most I2C_SMBUS_BLOCK_MAX bytes
- * @values: Byte array into which data will be read; big enough to hold
+ * @values: Byte array into which data will be read; big eanalugh to hold
  *	the data returned by the slave.  SMBus allows at most
  *	I2C_SMBUS_BLOCK_MAX bytes.
  *
  * This executes the SMBus "block read" protocol if supported by the adapter.
- * If block read is not supported, it emulates it using either word or byte
+ * If block read is analt supported, it emulates it using either word or byte
  * read protocols depending on availability.
  *
  * The addresses of the I2C slave device that are accessed with this function
@@ -650,7 +650,7 @@ s32 i2c_smbus_read_i2c_block_data_or_emulated(const struct i2c_client *client,
 		return i2c_smbus_read_i2c_block_data(client, command, length, values);
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_READ_BYTE_DATA))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_READ_WORD_DATA)) {
 		while ((i + 2) <= length) {
@@ -713,7 +713,7 @@ int i2c_setup_smbus_alert(struct i2c_adapter *adapter)
 		return 0;
 
 	irq = device_property_match_string(parent, "interrupt-names", "smbus_alert");
-	if (irq == -EINVAL || irq == -ENODATA)
+	if (irq == -EINVAL || irq == -EANALDATA)
 		return 0;
 	else if (irq < 0)
 		return irq;

@@ -29,7 +29,7 @@ static void acpi_pci_reboot(struct acpi_generic_address *rr, u8 reset_value)
 static inline void acpi_pci_reboot(struct acpi_generic_address *rr,
 				   u8 reset_value)
 {
-	pr_warn_once("PCI configuration space access is not supported\n");
+	pr_warn_once("PCI configuration space access is analt supported\n");
 }
 #endif
 
@@ -49,7 +49,7 @@ void acpi_reboot(void)
 		return;
 
 	/* Is the reset register supported? The spec says we should be
-	 * checking the bit width and bit offset, but Windows ignores
+	 * checking the bit width and bit offset, but Windows iganalres
 	 * these fields */
 	if (!(acpi_gbl_FADT.flags & ACPI_FADT_RESET_REGISTER))
 		return;
@@ -71,11 +71,11 @@ void acpi_reboot(void)
 	}
 
 	/*
-	 * Some platforms do not shut down immediately after writing to the
+	 * Some platforms do analt shut down immediately after writing to the
 	 * ACPI reset register, and this results in racing with the
 	 * subsequent reboot mechanism.
 	 *
-	 * The 15ms delay has been found to be long enough for the system
+	 * The 15ms delay has been found to be long eanalugh for the system
 	 * to reboot on the affected platforms.
 	 */
 	mdelay(15);

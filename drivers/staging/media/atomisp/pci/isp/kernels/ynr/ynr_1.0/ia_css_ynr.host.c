@@ -42,7 +42,7 @@ ia_css_nr_encode(
     unsigned int size)
 {
 	(void)size;
-	/* YNR (Y Noise Reduction) */
+	/* YNR (Y Analise Reduction) */
 	to->threshold =
 	    uDIGIT_FITTING(8192U, 16, SH_CSS_BAYER_BITS);
 	to->gain_all =
@@ -117,7 +117,7 @@ ia_css_nr_dump(
 {
 	if (!ynr) return;
 	ia_css_debug_dtrace(level,
-			    "Y Noise Reduction:\n");
+			    "Y Analise Reduction:\n");
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
 			    "ynr_threshold", ynr->threshold);
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",

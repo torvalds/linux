@@ -40,7 +40,7 @@
 #define TXFLAGS (TXBF | TXBAE)
 
 #define TIMBUART_MAJOR 204
-#define TIMBUART_MINOR 192
+#define TIMBUART_MIANALR 192
 
 #endif /* _TIMBUART_H */
 

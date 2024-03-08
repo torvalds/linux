@@ -49,7 +49,7 @@ do_entInt(unsigned long type, unsigned long vector,
 
 	/*
 	 * Disable interrupts during IRQ handling.
-	 * Note that there is no matching local_irq_enable() due to
+	 * Analte that there is anal matching local_irq_enable() due to
 	 * severe problems with RTI at IPL0 and some MILO PALcode
 	 * (namely LX164).
 	 */
@@ -133,13 +133,13 @@ process_mcheck_info(unsigned long vector, unsigned long la_ptr,
 
 	/*
 	 * See if the machine check is due to a badaddr() and if so,
-	 * ignore it.
+	 * iganalre it.
 	 */
 
 #ifdef CONFIG_VERBOSE_MCHECK
 	if (alpha_verbose_mcheck > 1) {
 		printk(KERN_CRIT "%s machine check %s\n", machine,
-		       expected ? "expected." : "NOT expected!!!");
+		       expected ? "expected." : "ANALT expected!!!");
 	}
 #endif
 
@@ -173,7 +173,7 @@ process_mcheck_info(unsigned long vector, unsigned long la_ptr,
 	case 0x204: reason = "SIO SERR occurred on PCI bus"; break;
 	case 0x205: reason = "parity error detected by core logic"; break;
 	case 0x206: reason = "SIO IOCHK occurred on ISA bus"; break;
-	case 0x207: reason = "non-existent memory error"; break;
+	case 0x207: reason = "analn-existent memory error"; break;
 	case 0x208: reason = "MCHK_K_DCSR"; break;
 	case 0x209: reason = "PCI SERR detected"; break;
 	case 0x20b: reason = "PCI data parity error detected"; break;
@@ -188,7 +188,7 @@ process_mcheck_info(unsigned long vector, unsigned long la_ptr,
 	case 0x21d: reason = "EISA bus time-out"; break;
 	case 0x21f: reason = "EISA software generated NMI"; break;
 	case 0x221: reason = "unexpected ev5 IRQ[3] interrupt"; break;
-	default: reason = "unknown"; break;
+	default: reason = "unkanalwn"; break;
 	}
 
 	printk(KERN_CRIT "machine check type: %s%s\n",

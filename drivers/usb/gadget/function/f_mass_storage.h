@@ -10,10 +10,10 @@ struct fsg_module_parameters {
 	bool		ro[FSG_MAX_LUNS];
 	bool		removable[FSG_MAX_LUNS];
 	bool		cdrom[FSG_MAX_LUNS];
-	bool		nofua[FSG_MAX_LUNS];
+	bool		analfua[FSG_MAX_LUNS];
 
 	unsigned int	file_count, ro_count, removable_count, cdrom_count;
-	unsigned int	nofua_count;
+	unsigned int	analfua_count;
 	unsigned int	luns;	/* nluns */
 	bool		stall;	/* can_stall */
 };
@@ -38,8 +38,8 @@ struct fsg_module_parameters {
 				"true to simulate removable media");	\
 	_FSG_MODULE_PARAM_ARRAY(prefix, params, cdrom, bool,		\
 				"true to simulate CD-ROM instead of disk"); \
-	_FSG_MODULE_PARAM_ARRAY(prefix, params, nofua, bool,		\
-				"true to ignore SCSI WRITE(10,12) FUA bit"); \
+	_FSG_MODULE_PARAM_ARRAY(prefix, params, analfua, bool,		\
+				"true to iganalre SCSI WRITE(10,12) FUA bit"); \
 	_FSG_MODULE_PARAM(prefix, params, luns, uint,			\
 			  "number of LUNs");				\
 	_FSG_MODULE_PARAM(prefix, params, stall, bool,			\
@@ -72,7 +72,7 @@ struct fsg_opts {
 	struct usb_function_instance func_inst;
 	struct fsg_lun_opts lun0;
 	struct config_group *default_groups[2];
-	bool no_configfs; /* for legacy gadgets */
+	bool anal_configfs; /* for legacy gadgets */
 
 	/*
 	 * Read/write access to configfs attributes is handled by configfs.
@@ -89,7 +89,7 @@ struct fsg_lun_config {
 	char ro;
 	char removable;
 	char cdrom;
-	char nofua;
+	char analfua;
 	char inquiry_string[INQUIRY_STRING_LEN];
 };
 

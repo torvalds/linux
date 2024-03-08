@@ -40,7 +40,7 @@ void ibmasm_receive_message(struct service_processor *sp, void *message, int mes
 		ibmasm_receive_heartbeat(sp, message, size);
 		break;
 	default:
-		dev_err(sp->dev, "Received unknown message from service processor\n");
+		dev_err(sp->dev, "Received unkanalwn message from service processor\n");
 	}
 }
 
@@ -61,7 +61,7 @@ int ibmasm_send_driver_vpd(struct service_processor *sp)
 
 	command = ibmasm_new_command(sp, INIT_BUFFER_SIZE);
 	if (command == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	header = (struct dot_command_header *)command->buffer;
 	header->type                = sp_write;
@@ -83,10 +83,10 @@ int ibmasm_send_driver_vpd(struct service_processor *sp)
 	vpd_data[15] = 0;
 
 	ibmasm_exec_command(sp, command);
-	ibmasm_wait_for_response(command, IBMASM_CMD_TIMEOUT_NORMAL);
+	ibmasm_wait_for_response(command, IBMASM_CMD_TIMEOUT_ANALRMAL);
 
 	if (command->status != IBMASM_CMD_COMPLETE)
-		result = -ENODEV;
+		result = -EANALDEV;
 
 	command_put(command);
 
@@ -115,7 +115,7 @@ int ibmasm_send_os_state(struct service_processor *sp, int os_state)
 
 	cmd = ibmasm_new_command(sp, sizeof(struct os_state_command));
 	if (cmd == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	os_state_cmd = (struct os_state_command *)cmd->buffer;
 	os_state_cmd->header.type		= sp_write;
@@ -128,10 +128,10 @@ int ibmasm_send_os_state(struct service_processor *sp, int os_state)
 	os_state_cmd->data			= os_state;
 
 	ibmasm_exec_command(sp, cmd);
-	ibmasm_wait_for_response(cmd, IBMASM_CMD_TIMEOUT_NORMAL);
+	ibmasm_wait_for_response(cmd, IBMASM_CMD_TIMEOUT_ANALRMAL);
 
 	if (cmd->status != IBMASM_CMD_COMPLETE)
-		result = -ENODEV;
+		result = -EANALDEV;
 
 	command_put(cmd);
 	return result;

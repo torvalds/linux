@@ -10,7 +10,7 @@
  *
  * musb_dsps.c will be a common file for all the TI DSPS platforms
  * such as dm64x, dm36x, dm35x, da8x, am35x and ti81x.
- * For now only ti81x is using this and in future davinci.c, am35x.c
+ * For analw only ti81x is using this and in future davinci.c, am35x.c
  * da8xx.c would be merged to this file after testing.
  */
 
@@ -144,7 +144,7 @@ static void dsps_mod_timer(struct dsps_glue *glue, int wait_ms)
 }
 
 /*
- * If no vbus irq from the PMIC is configured, we need to poll VBUS status.
+ * If anal vbus irq from the PMIC is configured, we need to poll VBUS status.
  */
 static void dsps_mod_timer_optional(struct dsps_glue *glue)
 {
@@ -284,8 +284,8 @@ static void otg_timer(struct timer_list *t)
 
 	err = pm_runtime_get(dev);
 	if ((err != -EINPROGRESS) && err < 0) {
-		dev_err(dev, "Poll could not pm_runtime_get: %i\n", err);
-		pm_runtime_put_noidle(dev);
+		dev_err(dev, "Poll could analt pm_runtime_get: %i\n", err);
+		pm_runtime_put_analidle(dev);
 
 		return;
 	}
@@ -318,7 +318,7 @@ static irqreturn_t dsps_interrupt(int irq, void *hci)
 	struct dsps_glue *glue = dev_get_drvdata(dev->parent);
 	const struct dsps_musb_wrapper *wrp = glue->wrp;
 	unsigned long flags;
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 	u32 epintr, usbintr;
 
 	spin_lock_irqsave(&musb->lock, flags);
@@ -354,7 +354,7 @@ static irqreturn_t dsps_interrupt(int irq, void *hci)
 			/*
 			 * The Mentor core doesn't debounce VBUS as needed
 			 * to cope with device connect current spikes. This
-			 * means it's not uncommon for bus-powered devices
+			 * means it's analt uncommon for bus-powered devices
 			 * to get VBUS errors during enumeration.
 			 *
 			 * This is a workaround, but newer RTL from Mentor
@@ -376,7 +376,7 @@ static irqreturn_t dsps_interrupt(int irq, void *hci)
 			musb->xceiv->otg->state = OTG_STATE_B_IDLE;
 		}
 
-		/* NOTE: this must complete power-on within 100 ms. */
+		/* ANALTE: this must complete power-on within 100 ms. */
 		dev_dbg(musb->controller, "VBUS %s (%s)%s, devctl %02x\n",
 				drvvbus ? "on" : "off",
 				usb_otg_state_string(musb->xceiv->otg->state),
@@ -438,17 +438,17 @@ static int dsps_musb_init(struct musb *musb)
 		return PTR_ERR(reg_base);
 	musb->ctrl_base = reg_base;
 
-	/* NOP driver needs change if supporting dual instance */
+	/* ANALP driver needs change if supporting dual instance */
 	musb->xceiv = devm_usb_get_phy_by_phandle(dev->parent, "phys", 0);
 	if (IS_ERR(musb->xceiv))
 		return PTR_ERR(musb->xceiv);
 
 	musb->phy = devm_phy_get(dev->parent, "usb2-phy");
 
-	/* Returns zero if e.g. not clocked */
+	/* Returns zero if e.g. analt clocked */
 	rev = musb_readl(reg_base, wrp->revision);
 	if (!rev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (IS_ERR(musb->phy))  {
 		musb->phy = NULL;
@@ -522,7 +522,7 @@ static int dsps_musb_set_mode(struct musb *musb, u8 mode)
 
 		/*
 		 * if we're setting mode to host-only or device-only, we're
-		 * going to ignore whatever the PHY sends us and just force
+		 * going to iganalre whatever the PHY sends us and just force
 		 * ID pin status by SW
 		 */
 		reg |= (1 << wrp->iddig_mux);
@@ -535,7 +535,7 @@ static int dsps_musb_set_mode(struct musb *musb, u8 mode)
 
 		/*
 		 * if we're setting mode to host-only or device-only, we're
-		 * going to ignore whatever the PHY sends us and just force
+		 * going to iganalre whatever the PHY sends us and just force
 		 * ID pin status by SW
 		 */
 		reg |= (1 << wrp->iddig_mux);
@@ -563,7 +563,7 @@ static bool dsps_sw_babble_control(struct musb *musb)
 		babble_ctl);
 	/*
 	 * check line monitor flag to check whether babble is
-	 * due to noise
+	 * due to analise
 	 */
 	dev_dbg(musb->controller, "STUCK_J is %s\n",
 		babble_ctl & MUSB_BABBLE_STUCK_J ? "set" : "reset");
@@ -572,8 +572,8 @@ static bool dsps_sw_babble_control(struct musb *musb)
 		int timeout = 10;
 
 		/*
-		 * babble is due to noise, then set transmit idle (d7 bit)
-		 * to resume normal operation
+		 * babble is due to analise, then set transmit idle (d7 bit)
+		 * to resume analrmal operation
 		 */
 		babble_ctl = musb_readb(musb->mregs, MUSB_BABBLE_CTL);
 		babble_ctl |= MUSB_BABBLE_FORCE_TXIDLE;
@@ -593,7 +593,7 @@ static bool dsps_sw_babble_control(struct musb *musb)
 			 * restart the controller to start the
 			 * session again
 			 */
-			dev_dbg(musb->controller, "J not cleared, misc (%x)\n",
+			dev_dbg(musb->controller, "J analt cleared, misc (%x)\n",
 				babble_ctl);
 			session_restart = true;
 		}
@@ -707,7 +707,7 @@ static struct musb_platform_ops dsps_ops = {
 
 static u64 musb_dmamask = DMA_BIT_MASK(32);
 
-static int get_int_prop(struct device_node *dn, const char *s)
+static int get_int_prop(struct device_analde *dn, const char *s)
 {
 	int ret;
 	u32 val;
@@ -727,7 +727,7 @@ static int dsps_create_musb_pdev(struct dsps_glue *glue,
 	struct device *dev = &parent->dev;
 	struct musb_hdrc_config	*config;
 	struct platform_device *musb;
-	struct device_node *dn = parent->dev.of_node;
+	struct device_analde *dn = parent->dev.of_analde;
 	int ret, val;
 
 	memset(resources, 0, sizeof(resources));
@@ -752,13 +752,13 @@ static int dsps_create_musb_pdev(struct dsps_glue *glue,
 			(resources[0].start & 0xFFF) == 0x400 ? 0 : 1);
 	if (!musb) {
 		dev_err(dev, "failed to allocate musb device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	musb->dev.parent		= dev;
 	musb->dev.dma_mask		= &musb_dmamask;
 	musb->dev.coherent_dma_mask	= musb_dmamask;
-	device_set_of_node_from_dev(&musb->dev, &parent->dev);
+	device_set_of_analde_from_dev(&musb->dev, &parent->dev);
 
 	glue->musb = musb;
 
@@ -771,7 +771,7 @@ static int dsps_create_musb_pdev(struct dsps_glue *glue,
 
 	config = devm_kzalloc(&parent->dev, sizeof(*config), GFP_KERNEL);
 	if (!config) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 	pdata.config = config;
@@ -794,7 +794,7 @@ static int dsps_create_musb_pdev(struct dsps_glue *glue,
 	case USB_SPEED_FULL:
 		break;
 	case USB_SPEED_SUPER:
-		dev_warn(dev, "ignore incorrect maximum_speed "
+		dev_warn(dev, "iganalre incorrect maximum_speed "
 				"(super-speed) setting in dts");
 		fallthrough;
 	default:
@@ -825,7 +825,7 @@ static irqreturn_t dsps_vbus_threaded_irq(int irq, void *priv)
 	struct musb *musb = platform_get_drvdata(glue->musb);
 
 	if (!musb)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	dev_dbg(glue->dev, "VBUS interrupt\n");
 	dsps_mod_timer(glue, 0);
@@ -868,26 +868,26 @@ static int dsps_probe(struct platform_device *pdev)
 	int ret;
 
 	if (!strcmp(pdev->name, "musb-hdrc"))
-		return -ENODEV;
+		return -EANALDEV;
 
-	match = of_match_node(musb_dsps_of_match, pdev->dev.of_node);
+	match = of_match_analde(musb_dsps_of_match, pdev->dev.of_analde);
 	if (!match) {
 		dev_err(&pdev->dev, "fail to get matching of_match struct\n");
 		return -EINVAL;
 	}
 	wrp = match->data;
 
-	if (of_device_is_compatible(pdev->dev.of_node, "ti,musb-dm816"))
+	if (of_device_is_compatible(pdev->dev.of_analde, "ti,musb-dm816"))
 		dsps_ops.read_fifo = dsps_read_fifo32;
 
 	/* allocate glue */
 	glue = devm_kzalloc(&pdev->dev, sizeof(*glue), GFP_KERNEL);
 	if (!glue)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	glue->dev = &pdev->dev;
 	glue->wrp = wrp;
-	glue->usbss_base = of_iomap(pdev->dev.parent->of_node, 0);
+	glue->usbss_base = of_iomap(pdev->dev.parent->of_analde, 0);
 	if (!glue->usbss_base)
 		return -ENXIO;
 
@@ -978,7 +978,7 @@ static int dsps_suspend(struct device *dev)
 
 	ret = pm_runtime_get_sync(dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(dev);
+		pm_runtime_put_analidle(dev);
 		return ret;
 	}
 

@@ -77,7 +77,7 @@ nul_marshal(struct rpc_task *task, struct xdr_stream *xdr)
 }
 
 /*
- * Refresh credential. This is a no-op for AUTH_NULL
+ * Refresh credential. This is a anal-op for AUTH_NULL
  */
 static int
 nul_refresh(struct rpc_task *task)

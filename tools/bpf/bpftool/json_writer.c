@@ -2,7 +2,7 @@
 /*
  * Simple streaming JSON writer
  *
- * This takes care of the annoying bits of JSON syntax like the commas
+ * This takes care of the ananalying bits of JSON syntax like the commas
  * after elements
  *
  * Authors:	Stephen Hemminger <stephen@networkplumber.org>
@@ -43,7 +43,7 @@ static void jsonw_eol(json_writer_t *self)
 	jsonw_indent(self);
 }
 
-/* If current object is not empty print a comma */
+/* If current object is analt empty print a comma */
 static void jsonw_eor(json_writer_t *self)
 {
 	if (self->sep != '\0')
@@ -53,7 +53,7 @@ static void jsonw_eor(json_writer_t *self)
 
 
 /* Output JSON encoded string */
-/* Handles C escapes, does not do Unicode */
+/* Handles C escapes, does analt do Unicode */
 static void jsonw_puts(json_writer_t *self, const char *str)
 {
 	putc('"', self->out);
@@ -216,7 +216,7 @@ void jsonw_float_fmt(json_writer_t *self, const char *fmt, double num)
 	jsonw_printf(self, fmt, num);
 }
 
-#ifdef notused
+#ifdef analtused
 void jsonw_float(json_writer_t *self, double num)
 {
 	jsonw_printf(self, "%g", num);
@@ -256,7 +256,7 @@ void jsonw_bool_field(json_writer_t *self, const char *prop, bool val)
 	jsonw_bool(self, val);
 }
 
-#ifdef notused
+#ifdef analtused
 void jsonw_float_field(json_writer_t *self, const char *prop, double val)
 {
 	jsonw_name(self, prop);

@@ -20,7 +20,7 @@ enum abx500_pin_func {
 
 enum abx500_gpio_pull_updown {
 	ABX500_GPIO_PULL_DOWN = 0x0,
-	ABX500_GPIO_PULL_NONE = 0x1,
+	ABX500_GPIO_PULL_ANALNE = 0x1,
 	ABX500_GPIO_PULL_UP = 0x3,
 };
 
@@ -80,7 +80,7 @@ struct abx500_pingroup {
  * @alt_bit2:		Second AlternateFunction bit used to select the
  *			alternate function
  *
- *			these 3 following fields are necessary due to none
+ *			these 3 following fields are necessary due to analne
  *			coherency on how to select the altA, altB and altC
  *			function between the ABx500 SOC family when using
  *			alternatfunc register.

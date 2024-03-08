@@ -37,7 +37,7 @@ static unsigned short irqs[] = { 3, 5, 10, 11, 12, 14, 15, 0 };
  * and 1680. These are all 16-bit cards.
  * BIOS versions prior to 3.2 assigned SCSI ID 6 to SCSI adapter.
  *
- * The following BIOS signature signatures are for boards which do *NOT*
+ * The following BIOS signature signatures are for boards which do *ANALT*
  * work with this driver (these TMC-8xx and TMC-9xx boards may work with the
  * Seagate driver):
  *
@@ -49,11 +49,11 @@ static unsigned short irqs[] = { 3, 5, 10, 11, 12, 14, 15, 0 };
  * FUTURE DOMAIN CORP. (C) 1986-1990 V7.009/18/90
  * FUTURE DOMAIN CORP. (C) 1992 V8.00.004/02/92
  *
- * (The cards which do *NOT* work are all 8-bit cards -- although some of
+ * (The cards which do *ANALT* work are all 8-bit cards -- although some of
  * them have a 16-bit form-factor, the upper 8-bits are used only for IRQs
- * and are *NOT* used for data. You can tell the difference by following
+ * and are *ANALT* used for data. You can tell the difference by following
  * the tracings on the circuit board -- if only the IRQ lines are involved,
- * you have a "8-bit" card, and should *NOT* use this driver.)
+ * you have a "8-bit" card, and should *ANALT* use this driver.)
  */
 
 static struct signature {
@@ -102,7 +102,7 @@ static int fdomain_isa_match(struct device *dev, unsigned int ndev)
 					    signatures[i].signature,
 					    signatures[i].length))
 				break;
-		if (i == SIGNATURE_COUNT)	/* no signature found */
+		if (i == SIGNATURE_COUNT)	/* anal signature found */
 			goto fail_unmap;
 		sig = &signatures[i];
 		bios_base = addresses[ndev];
@@ -114,7 +114,7 @@ static int fdomain_isa_match(struct device *dev, unsigned int ndev)
 		if (base) {
 			dev_info(dev, "BIOS at 0x%lx specifies I/O base 0x%x\n",
 				 bios_base, base);
-		} else { /* no I/O base in BIOS area */
+		} else { /* anal I/O base in BIOS area */
 			dev_info(dev, "BIOS at 0x%lx\n", bios_base);
 			/* save BIOS signature for later use in port probing */
 			saved_sig = sig;
@@ -166,7 +166,7 @@ static int fdomain_isa_param_match(struct device *dev, unsigned int ndev)
 
 	sh = fdomain_create(io[ndev], irq_, scsi_id[ndev], dev);
 	if (!sh) {
-		dev_err(dev, "controller not found at base 0x%x", io[ndev]);
+		dev_err(dev, "controller analt found at base 0x%x", io[ndev]);
 		release_region(io[ndev], FDOMAIN_REGION_SIZE);
 		return 0;
 	}

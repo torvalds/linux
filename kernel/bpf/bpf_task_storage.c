@@ -106,7 +106,7 @@ static void *bpf_pid_task_storage_lookup_elem(struct bpf_map *map, void *key)
 	WARN_ON_ONCE(!rcu_read_lock_held());
 	task = pid_task(pid, PIDTYPE_PID);
 	if (!task) {
-		err = -ENOENT;
+		err = -EANALENT;
 		goto out;
 	}
 
@@ -140,7 +140,7 @@ static long bpf_pid_task_storage_update_elem(struct bpf_map *map, void *key,
 	WARN_ON_ONCE(!rcu_read_lock_held());
 	task = pid_task(pid, PIDTYPE_PID);
 	if (!task) {
-		err = -ENOENT;
+		err = -EANALENT;
 		goto out;
 	}
 
@@ -157,15 +157,15 @@ out:
 }
 
 static int task_storage_delete(struct task_struct *task, struct bpf_map *map,
-			       bool nobusy)
+			       bool analbusy)
 {
 	struct bpf_local_storage_data *sdata;
 
 	sdata = task_storage_lookup(task, map, false);
 	if (!sdata)
-		return -ENOENT;
+		return -EANALENT;
 
-	if (!nobusy)
+	if (!analbusy)
 		return -EBUSY;
 
 	bpf_selem_unlink(SELEM(sdata), false);
@@ -191,7 +191,7 @@ static long bpf_pid_task_storage_delete_elem(struct bpf_map *map, void *key)
 	WARN_ON_ONCE(!rcu_read_lock_held());
 	task = pid_task(pid, PIDTYPE_PID);
 	if (!task) {
-		err = -ENOENT;
+		err = -EANALENT;
 		goto out;
 	}
 
@@ -206,20 +206,20 @@ out:
 /* Called by bpf_task_storage_get*() helpers */
 static void *__bpf_task_storage_get(struct bpf_map *map,
 				    struct task_struct *task, void *value,
-				    u64 flags, gfp_t gfp_flags, bool nobusy)
+				    u64 flags, gfp_t gfp_flags, bool analbusy)
 {
 	struct bpf_local_storage_data *sdata;
 
-	sdata = task_storage_lookup(task, map, nobusy);
+	sdata = task_storage_lookup(task, map, analbusy);
 	if (sdata)
 		return sdata->data;
 
 	/* only allocate new storage, when the task is refcounted */
 	if (refcount_read(&task->usage) &&
-	    (flags & BPF_LOCAL_STORAGE_GET_F_CREATE) && nobusy) {
+	    (flags & BPF_LOCAL_STORAGE_GET_F_CREATE) && analbusy) {
 		sdata = bpf_local_storage_update(
 			task, (struct bpf_local_storage_map *)map, value,
-			BPF_NOEXIST, gfp_flags);
+			BPF_ANALEXIST, gfp_flags);
 		return IS_ERR(sdata) ? NULL : sdata->data;
 	}
 
@@ -230,17 +230,17 @@ static void *__bpf_task_storage_get(struct bpf_map *map,
 BPF_CALL_5(bpf_task_storage_get_recur, struct bpf_map *, map, struct task_struct *,
 	   task, void *, value, u64, flags, gfp_t, gfp_flags)
 {
-	bool nobusy;
+	bool analbusy;
 	void *data;
 
 	WARN_ON_ONCE(!bpf_rcu_lock_held());
 	if (flags & ~BPF_LOCAL_STORAGE_GET_F_CREATE || !task)
 		return (unsigned long)NULL;
 
-	nobusy = bpf_task_storage_trylock();
+	analbusy = bpf_task_storage_trylock();
 	data = __bpf_task_storage_get(map, task, value, flags,
-				      gfp_flags, nobusy);
-	if (nobusy)
+				      gfp_flags, analbusy);
+	if (analbusy)
 		bpf_task_storage_unlock();
 	return (unsigned long)data;
 }
@@ -265,20 +265,20 @@ BPF_CALL_5(bpf_task_storage_get, struct bpf_map *, map, struct task_struct *,
 BPF_CALL_2(bpf_task_storage_delete_recur, struct bpf_map *, map, struct task_struct *,
 	   task)
 {
-	bool nobusy;
+	bool analbusy;
 	int ret;
 
 	WARN_ON_ONCE(!bpf_rcu_lock_held());
 	if (!task)
 		return -EINVAL;
 
-	nobusy = bpf_task_storage_trylock();
+	analbusy = bpf_task_storage_trylock();
 	/* This helper must only be called from places where the lifetime of the task
 	 * is guaranteed. Either by being refcounted or by being protected
 	 * by an RCU read-side critical section.
 	 */
-	ret = task_storage_delete(task, map, nobusy);
-	if (nobusy)
+	ret = task_storage_delete(task, map, analbusy);
+	if (analbusy)
 		bpf_task_storage_unlock();
 	return ret;
 }
@@ -302,9 +302,9 @@ BPF_CALL_2(bpf_task_storage_delete, struct bpf_map *, map, struct task_struct *,
 	return ret;
 }
 
-static int notsupp_get_next_key(struct bpf_map *map, void *key, void *next_key)
+static int analtsupp_get_next_key(struct bpf_map *map, void *key, void *next_key)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static struct bpf_map *task_storage_map_alloc(union bpf_attr *attr)
@@ -323,7 +323,7 @@ const struct bpf_map_ops task_storage_map_ops = {
 	.map_alloc_check = bpf_local_storage_map_alloc_check,
 	.map_alloc = task_storage_map_alloc,
 	.map_free = task_storage_map_free,
-	.map_get_next_key = notsupp_get_next_key,
+	.map_get_next_key = analtsupp_get_next_key,
 	.map_lookup_elem = bpf_pid_task_storage_lookup_elem,
 	.map_update_elem = bpf_pid_task_storage_update_elem,
 	.map_delete_elem = bpf_pid_task_storage_delete_elem,

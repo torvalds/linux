@@ -10,7 +10,7 @@
 #include <asm/ftrace.h>
 
 #ifdef CONFIG_DYNAMIC_FTRACE
-static const u32 ftrace_nop = 0x01000000;
+static const u32 ftrace_analp = 0x01000000;
 
 static u32 ftrace_call_replace(unsigned long ip, unsigned long addr)
 {
@@ -53,13 +53,13 @@ static int ftrace_modify_code(unsigned long ip, u32 old, u32 new)
 	return faulted;
 }
 
-int ftrace_make_nop(struct module *mod, struct dyn_ftrace *rec, unsigned long addr)
+int ftrace_make_analp(struct module *mod, struct dyn_ftrace *rec, unsigned long addr)
 {
 	unsigned long ip = rec->ip;
 	u32 old, new;
 
 	old = ftrace_call_replace(ip, addr);
-	new = ftrace_nop;
+	new = ftrace_analp;
 	return ftrace_modify_code(ip, old, new);
 }
 
@@ -68,7 +68,7 @@ int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 	unsigned long ip = rec->ip;
 	u32 old, new;
 
-	old = ftrace_nop;
+	old = ftrace_analp;
 	new = ftrace_call_replace(ip, addr);
 	return ftrace_modify_code(ip, old, new);
 }

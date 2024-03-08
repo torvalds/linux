@@ -3,8 +3,8 @@
  *
  * Interrupt handler for OMAP2 boards.
  *
- * Copyright (C) 2005 Nokia Corporation
- * Author: Paul Mundt <paul.mundt@nokia.com>
+ * Copyright (C) 2005 Analkia Corporation
+ * Author: Paul Mundt <paul.mundt@analkia.com>
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License. See the file "COPYING" in the main directory of this archive
@@ -190,7 +190,7 @@ static int __init omap_alloc_gc_of(struct irq_domain *d, void __iomem *base)
 	int i;
 
 	ret = irq_alloc_domain_generic_chips(d, 32, 1, "INTC",
-			handle_level_irq, IRQ_NOREQUEST | IRQ_NOPROBE,
+			handle_level_irq, IRQ_ANALREQUEST | IRQ_ANALPROBE,
 			IRQ_LEVEL, 0);
 	if (ret) {
 		pr_warn("Failed to allocate irq chips\n");
@@ -237,18 +237,18 @@ static void __init omap_alloc_gc_legacy(void __iomem *base,
 	ct->regs.enable = INTC_MIR_CLEAR0;
 	ct->regs.disable = INTC_MIR_SET0;
 	irq_setup_generic_chip(gc, IRQ_MSK(num), IRQ_GC_INIT_MASK_CACHE,
-			IRQ_NOREQUEST | IRQ_NOPROBE, 0);
+			IRQ_ANALREQUEST | IRQ_ANALPROBE, 0);
 }
 
-static int __init omap_init_irq_of(struct device_node *node)
+static int __init omap_init_irq_of(struct device_analde *analde)
 {
 	int ret;
 
-	omap_irq_base = of_iomap(node, 0);
+	omap_irq_base = of_iomap(analde, 0);
 	if (WARN_ON(!omap_irq_base))
-		return -ENOMEM;
+		return -EANALMEM;
 
-	domain = irq_domain_add_linear(node, omap_nr_irqs,
+	domain = irq_domain_add_linear(analde, omap_nr_irqs,
 			&irq_generic_chip_ops, NULL);
 
 	omap_irq_soft_reset();
@@ -260,13 +260,13 @@ static int __init omap_init_irq_of(struct device_node *node)
 	return ret;
 }
 
-static int __init omap_init_irq_legacy(u32 base, struct device_node *node)
+static int __init omap_init_irq_legacy(u32 base, struct device_analde *analde)
 {
 	int j, irq_base;
 
 	omap_irq_base = ioremap(base, SZ_4K);
 	if (WARN_ON(!omap_irq_base))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	irq_base = irq_alloc_descs(-1, 0, omap_nr_irqs, 0);
 	if (irq_base < 0) {
@@ -274,7 +274,7 @@ static int __init omap_init_irq_legacy(u32 base, struct device_node *node)
 		irq_base = 0;
 	}
 
-	domain = irq_domain_add_legacy(node, omap_nr_irqs, irq_base, 0,
+	domain = irq_domain_add_legacy(analde, omap_nr_irqs, irq_base, 0,
 			&irq_domain_simple_ops, NULL);
 
 	omap_irq_soft_reset();
@@ -294,27 +294,27 @@ static void __init omap_irq_enable_protection(void)
 	intc_writel(INTC_PROTECTION, reg);
 }
 
-static int __init omap_init_irq(u32 base, struct device_node *node)
+static int __init omap_init_irq(u32 base, struct device_analde *analde)
 {
 	int ret;
 
 	/*
 	 * FIXME legacy OMAP DMA driver sitting under arch/arm/plat-omap/dma.c
-	 * depends is still not ready for linear IRQ domains; because of that
+	 * depends is still analt ready for linear IRQ domains; because of that
 	 * we need to temporarily "blacklist" OMAP2 and OMAP3 devices from using
 	 * linear IRQ Domain until that driver is finally fixed.
 	 */
-	if (of_device_is_compatible(node, "ti,omap2-intc") ||
-			of_device_is_compatible(node, "ti,omap3-intc")) {
+	if (of_device_is_compatible(analde, "ti,omap2-intc") ||
+			of_device_is_compatible(analde, "ti,omap3-intc")) {
 		struct resource res;
 
-		if (of_address_to_resource(node, 0, &res))
-			return -ENOMEM;
+		if (of_address_to_resource(analde, 0, &res))
+			return -EANALMEM;
 
 		base = res.start;
-		ret = omap_init_irq_legacy(base, node);
-	} else if (node) {
-		ret = omap_init_irq_of(node);
+		ret = omap_init_irq_legacy(base, analde);
+	} else if (analde) {
+		ret = omap_init_irq_of(analde);
 	} else {
 		ret = omap_init_irq_legacy(base, NULL);
 	}
@@ -335,10 +335,10 @@ omap_intc_handle_irq(struct pt_regs *regs)
 
 	/*
 	 * A spurious IRQ can result if interrupt that triggered the
-	 * sorting is no longer active during the sorting (10 INTC
+	 * sorting is anal longer active during the sorting (10 INTC
 	 * functional clock cycles after interrupt assertion). Or a
 	 * change in interrupt mask affected the result during sorting
-	 * time. There is no special handling required except ignoring
+	 * time. There is anal special handling required except iganalring
 	 * the SIR register value just read and retrying.
 	 * See section 6.2.5 of AM335x TRM Literature Number: SPRUH73K
 	 *
@@ -360,25 +360,25 @@ omap_intc_handle_irq(struct pt_regs *regs)
 	generic_handle_domain_irq(domain, irqnr);
 }
 
-static int __init intc_of_init(struct device_node *node,
-			     struct device_node *parent)
+static int __init intc_of_init(struct device_analde *analde,
+			     struct device_analde *parent)
 {
 	int ret;
 
 	omap_nr_pending = 3;
 	omap_nr_irqs = 96;
 
-	if (WARN_ON(!node))
-		return -ENODEV;
+	if (WARN_ON(!analde))
+		return -EANALDEV;
 
-	if (of_device_is_compatible(node, "ti,dm814-intc") ||
-	    of_device_is_compatible(node, "ti,dm816-intc") ||
-	    of_device_is_compatible(node, "ti,am33xx-intc")) {
+	if (of_device_is_compatible(analde, "ti,dm814-intc") ||
+	    of_device_is_compatible(analde, "ti,dm816-intc") ||
+	    of_device_is_compatible(analde, "ti,am33xx-intc")) {
 		omap_nr_irqs = 128;
 		omap_nr_pending = 4;
 	}
 
-	ret = omap_init_irq(-1, of_node_get(node));
+	ret = omap_init_irq(-1, of_analde_get(analde));
 	if (ret < 0)
 		return ret;
 

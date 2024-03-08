@@ -33,9 +33,9 @@
 #define SLLC_FILT_EN			BIT(1)
 #define SLLC_TRACETAG_EN		BIT(2)
 #define SLLC_SRCID_EN			BIT(4)
-#define SLLC_SRCID_NONE			0x0
+#define SLLC_SRCID_ANALNE			0x0
 #define SLLC_TGTID_EN			BIT(5)
-#define SLLC_TGTID_NONE			0x0
+#define SLLC_TGTID_ANALNE			0x0
 #define SLLC_TGTID_MIN_SHIFT		1
 #define SLLC_TGTID_MAX_SHIFT		12
 #define SLLC_SRCID_CMD_SHIFT		1
@@ -107,7 +107,7 @@ static void hisi_sllc_pmu_clear_tgtid(struct perf_event *event)
 	if (tgtid_is_valid(max, min)) {
 		u32 val;
 
-		writel(SLLC_TGTID_NONE, sllc_pmu->base + SLLC_TGTID_CTRL);
+		writel(SLLC_TGTID_ANALNE, sllc_pmu->base + SLLC_TGTID_CTRL);
 		/* Disable the tgtid */
 		val = readl(sllc_pmu->base + SLLC_PERF_CTRL);
 		val &= ~(SLLC_TGTID_EN | SLLC_FILT_EN);
@@ -141,7 +141,7 @@ static void hisi_sllc_pmu_clear_srcid(struct perf_event *event)
 	if (cmd) {
 		u32 val;
 
-		writel(SLLC_SRCID_NONE, sllc_pmu->base + SLLC_SRCID_CTRL);
+		writel(SLLC_SRCID_ANALNE, sllc_pmu->base + SLLC_SRCID_CTRL);
 		/* Disable the srcid */
 		val = readl(sllc_pmu->base + SLLC_PERF_CTRL);
 		val &= ~(SLLC_SRCID_EN | SLLC_FILT_EN);
@@ -294,13 +294,13 @@ static int hisi_sllc_pmu_init_data(struct platform_device *pdev,
 	 */
 	if (device_property_read_u32(&pdev->dev, "hisilicon,scl-id",
 				     &sllc_pmu->sccl_id)) {
-		dev_err(&pdev->dev, "Cannot read sccl-id!\n");
+		dev_err(&pdev->dev, "Cananalt read sccl-id!\n");
 		return -EINVAL;
 	}
 
 	if (device_property_read_u32(&pdev->dev, "hisilicon,idx-id",
 				     &sllc_pmu->index_id)) {
-		dev_err(&pdev->dev, "Cannot read idx-id!\n");
+		dev_err(&pdev->dev, "Cananalt read idx-id!\n");
 		return -EINVAL;
 	}
 
@@ -427,7 +427,7 @@ static int hisi_sllc_pmu_probe(struct platform_device *pdev)
 
 	sllc_pmu = devm_kzalloc(&pdev->dev, sizeof(*sllc_pmu), GFP_KERNEL);
 	if (!sllc_pmu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = hisi_sllc_pmu_dev_probe(pdev, sllc_pmu);
 	if (ret)
@@ -436,10 +436,10 @@ static int hisi_sllc_pmu_probe(struct platform_device *pdev)
 	name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "hisi_sccl%u_sllc%u",
 			      sllc_pmu->sccl_id, sllc_pmu->index_id);
 	if (!name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = cpuhp_state_add_instance(CPUHP_AP_PERF_ARM_HISI_SLLC_ONLINE,
-				       &sllc_pmu->node);
+				       &sllc_pmu->analde);
 	if (ret) {
 		dev_err(&pdev->dev, "Error %d registering hotplug\n", ret);
 		return ret;
@@ -450,8 +450,8 @@ static int hisi_sllc_pmu_probe(struct platform_device *pdev)
 	ret = perf_pmu_register(&sllc_pmu->pmu, name, -1);
 	if (ret) {
 		dev_err(sllc_pmu->dev, "PMU register failed, ret = %d\n", ret);
-		cpuhp_state_remove_instance_nocalls(CPUHP_AP_PERF_ARM_HISI_SLLC_ONLINE,
-						    &sllc_pmu->node);
+		cpuhp_state_remove_instance_analcalls(CPUHP_AP_PERF_ARM_HISI_SLLC_ONLINE,
+						    &sllc_pmu->analde);
 		return ret;
 	}
 
@@ -465,8 +465,8 @@ static int hisi_sllc_pmu_remove(struct platform_device *pdev)
 	struct hisi_pmu *sllc_pmu = platform_get_drvdata(pdev);
 
 	perf_pmu_unregister(&sllc_pmu->pmu);
-	cpuhp_state_remove_instance_nocalls(CPUHP_AP_PERF_ARM_HISI_SLLC_ONLINE,
-					    &sllc_pmu->node);
+	cpuhp_state_remove_instance_analcalls(CPUHP_AP_PERF_ARM_HISI_SLLC_ONLINE,
+					    &sllc_pmu->analde);
 	return 0;
 }
 

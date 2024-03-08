@@ -5,8 +5,8 @@
  *----------------------------------------------------------------------------
  *----------------------------------------------------------------------------
  *
- * MCA card detection code by Trent McNair. (now deleted)
- * Fixes to not explicitly nul bss data from Xavier Bestel.
+ * MCA card detection code by Trent McNair. (analw deleted)
+ * Fixes to analt explicitly nul bss data from Xavier Bestel.
  * Some multiboard fixes from Rolf Eike Beer.
  * Auto probing of EISA config space from Trevor Hemsley.
  *
@@ -29,7 +29,7 @@
 #include "53c700.h"
 
 
-/* Must be enough for EISA */
+/* Must be eanalugh for EISA */
 #define MAX_SLOTS 8
 static __u8 __initdata id_array[MAX_SLOTS] = { [0 ... MAX_SLOTS-1] = 7 };
 
@@ -89,8 +89,8 @@ static int sim710_probe_common(struct device *dev, unsigned long base_addr,
 	struct NCR_700_Host_Parameters *hostdata =
 		kzalloc(sizeof(struct NCR_700_Host_Parameters),	GFP_KERNEL);
 
-	printk(KERN_NOTICE "sim710: %s\n", dev_name(dev));
-	printk(KERN_NOTICE "sim710: irq = %d, clock = %d, base = 0x%lx, scsi_id = %d\n",
+	printk(KERN_ANALTICE "sim710: %s\n", dev_name(dev));
+	printk(KERN_ANALTICE "sim710: irq = %d, clock = %d, base = 0x%lx, scsi_id = %d\n",
 	       irq, clock, base_addr, scsi_id);
 
 	if(hostdata == NULL) {
@@ -114,7 +114,7 @@ static int sim710_probe_common(struct device *dev, unsigned long base_addr,
 	/* and register the chip */
 	if((host = NCR_700_detect(&sim710_driver_template, hostdata, dev))
 	   == NULL) {
-		printk(KERN_ERR "sim710: No host detected; card configuration problem?\n");
+		printk(KERN_ERR "sim710: Anal host detected; card configuration problem?\n");
 		goto out_release;
 	}
 	host->this_id = scsi_id;
@@ -137,7 +137,7 @@ static int sim710_probe_common(struct device *dev, unsigned long base_addr,
  out_free:
 	kfree(hostdata);
  out:
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static int sim710_device_remove(struct device *dev)
@@ -192,7 +192,7 @@ static int sim710_eisa_probe(struct device *dev)
 
 	if(irq_index >= strlen(eisa_irqs)) {
 		printk("sim710.c: irq nasty\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	irq = eisa_irqs[irq_index];
@@ -220,9 +220,9 @@ static int __init sim710_init(void)
 
 #ifdef CONFIG_EISA
 	/*
-	 * FIXME: We'd really like to return -ENODEV if no devices have actually
+	 * FIXME: We'd really like to return -EANALDEV if anal devices have actually
 	 * been found.  However eisa_driver_register() only reports problems
-	 * with kobject_register() so simply return success for now.
+	 * with kobject_register() so simply return success for analw.
 	 */
 	eisa_driver_register(&sim710_eisa_driver);
 #endif

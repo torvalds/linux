@@ -3,7 +3,7 @@
  *  sst_dsp.c - Intel SST Driver for audio engine
  *
  *  Copyright (C) 2008-14	Intel Corp
- *  Authors:	Vinod Koul <vinod.koul@intel.com>
+ *  Authors:	Vianald Koul <vianald.koul@intel.com>
  *		Harsha Priya <priya.harsha@intel.com>
  *		Dharageswari R <dharageswari.r@intel.com>
  *		KP Jeeja <jeeja.kp@intel.com>
@@ -94,7 +94,7 @@ int sst_start_mrfld(struct intel_sst_drv *sst_drv_ctx)
 	csr.full = sst_shim_read64(sst_drv_ctx->shim, SST_CSR);
 	dev_dbg(sst_drv_ctx->dev, "value:0x%llx\n", csr.full);
 
-	csr.part.xt_snoop = 1;
+	csr.part.xt_sanalop = 1;
 	csr.full &= ~(0x5);
 	sst_shim_write64(sst_drv_ctx->shim, SST_CSR, csr.full);
 
@@ -140,22 +140,22 @@ static int sst_validate_fw_image(struct intel_sst_drv *ctx, unsigned long size,
  * @src: Source addr to be filled in the list
  * @size: Size to be filled in the list
  *
- * Adds the node to the list after required fields
- * are populated in the node
+ * Adds the analde to the list after required fields
+ * are populated in the analde
  */
 static int sst_fill_memcpy_list(struct list_head *memcpy_list,
 			void *destn, const void *src, u32 size, bool is_io)
 {
-	struct sst_memcpy_list *listnode;
+	struct sst_memcpy_list *listanalde;
 
-	listnode = kzalloc(sizeof(*listnode), GFP_KERNEL);
-	if (listnode == NULL)
-		return -ENOMEM;
-	listnode->dstn = destn;
-	listnode->src = src;
-	listnode->size = size;
-	listnode->is_io = is_io;
-	list_add_tail(&listnode->memcpylist, memcpy_list);
+	listanalde = kzalloc(sizeof(*listanalde), GFP_KERNEL);
+	if (listanalde == NULL)
+		return -EANALMEM;
+	listanalde->dstn = destn;
+	listanalde->src = src;
+	listanalde->size = size;
+	listanalde->is_io = is_io;
+	list_add_tail(&listanalde->memcpylist, memcpy_list);
 
 	return 0;
 }
@@ -258,26 +258,26 @@ static int sst_parse_fw_memcpy(struct intel_sst_drv *ctx, unsigned long size,
  */
 static void sst_do_memcpy(struct list_head *memcpy_list)
 {
-	struct sst_memcpy_list *listnode;
+	struct sst_memcpy_list *listanalde;
 
-	list_for_each_entry(listnode, memcpy_list, memcpylist) {
-		if (listnode->is_io)
-			memcpy32_toio((void __iomem *)listnode->dstn,
-					listnode->src, listnode->size);
+	list_for_each_entry(listanalde, memcpy_list, memcpylist) {
+		if (listanalde->is_io)
+			memcpy32_toio((void __iomem *)listanalde->dstn,
+					listanalde->src, listanalde->size);
 		else
-			memcpy(listnode->dstn, listnode->src, listnode->size);
+			memcpy(listanalde->dstn, listanalde->src, listanalde->size);
 	}
 }
 
 void sst_memcpy_free_resources(struct intel_sst_drv *sst_drv_ctx)
 {
-	struct sst_memcpy_list *listnode, *tmplistnode;
+	struct sst_memcpy_list *listanalde, *tmplistanalde;
 
 	/* Free the list */
-	list_for_each_entry_safe(listnode, tmplistnode,
+	list_for_each_entry_safe(listanalde, tmplistanalde,
 				 &sst_drv_ctx->memcpy_list, memcpylist) {
-		list_del(&listnode->memcpylist);
-		kfree(listnode);
+		list_del(&listanalde->memcpylist);
+		kfree(listanalde);
 	}
 }
 
@@ -288,7 +288,7 @@ static int sst_cache_and_parse_fw(struct intel_sst_drv *sst,
 
 	sst->fw_in_mem = kzalloc(fw->size, GFP_KERNEL);
 	if (!sst->fw_in_mem) {
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto end_release;
 	}
 	dev_dbg(sst->dev, "copied fw to %p", sst->fw_in_mem);
@@ -400,7 +400,7 @@ int sst_load_fw(struct intel_sst_drv *sst_drv_ctx)
 		return -EAGAIN;
 
 	if (!sst_drv_ctx->fw_in_mem) {
-		dev_dbg(sst_drv_ctx->dev, "sst: FW not in memory retry to download\n");
+		dev_dbg(sst_drv_ctx->dev, "sst: FW analt in memory retry to download\n");
 		ret_val = sst_request_fw(sst_drv_ctx);
 		if (ret_val)
 			return ret_val;
@@ -408,7 +408,7 @@ int sst_load_fw(struct intel_sst_drv *sst_drv_ctx)
 
 	block = sst_create_block(sst_drv_ctx, 0, FW_DWNL_ID);
 	if (block == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Prevent C-states beyond C6 */
 	cpu_latency_qos_update_request(sst_drv_ctx->qos, 0);

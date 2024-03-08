@@ -58,7 +58,7 @@ struct xsk {
 
 static int open_xsk(int ifindex, struct xsk *xsk)
 {
-	int mmap_flags = MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE;
+	int mmap_flags = MAP_PRIVATE | MAP_AANALNYMOUS | MAP_ANALRESERVE;
 	const struct xsk_socket_config socket_config = {
 		.rx_size = XSK_RING_PROD__DEFAULT_NUM_DESCS,
 		.tx_size = XSK_RING_PROD__DEFAULT_NUM_DESCS,
@@ -426,7 +426,7 @@ void test_xdp_metadata(void)
 
 	/* Make sure we can't add dev-bound programs to prog maps. */
 	prog_arr = bpf_object__find_map_by_name(bpf_obj->obj, "prog_arr");
-	if (!ASSERT_OK_PTR(prog_arr, "no prog_arr map"))
+	if (!ASSERT_OK_PTR(prog_arr, "anal prog_arr map"))
 		goto out;
 
 	val = bpf_program__fd(prog);
@@ -470,7 +470,7 @@ void test_xdp_metadata(void)
 	switch_ns_to_tx(&tok);
 	complete_tx(&tx_xsk);
 
-	/* Now check metadata of packet, generated with network stack */
+	/* Analw check metadata of packet, generated with network stack */
 	if (!ASSERT_GE(generate_packet_inet(), 0, "generate UDP packet"))
 		goto out;
 
@@ -511,7 +511,7 @@ void test_xdp_metadata(void)
 			break;
 		usleep(10);
 	}
-	ASSERT_GT(bpf_obj2->bss->called, 0, "not called");
+	ASSERT_GT(bpf_obj2->bss->called, 0, "analt called");
 
 out:
 	close_xsk(&rx_xsk);
@@ -520,6 +520,6 @@ out:
 	xdp_metadata__destroy(bpf_obj);
 	if (tok)
 		close_netns(tok);
-	SYS_NOFAIL("ip netns del " RX_NETNS_NAME);
-	SYS_NOFAIL("ip netns del " TX_NETNS_NAME);
+	SYS_ANALFAIL("ip netns del " RX_NETNS_NAME);
+	SYS_ANALFAIL("ip netns del " TX_NETNS_NAME);
 }

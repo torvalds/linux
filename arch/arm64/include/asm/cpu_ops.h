@@ -11,7 +11,7 @@
 /**
  * struct cpu_operations - Callback operations for hotplugging CPUs.
  *
- * @name:	Name of the property as appears in a devicetree cpu node's
+ * @name:	Name of the property as appears in a devicetree cpu analde's
  *		enable-method property. On systems booting with ACPI, @name
  *		identifies the struct cpu_operations entry corresponding to
  *		the boot protocol specified in the ACPI MADT table.
@@ -28,9 +28,9 @@
  * @cpu_disable: Prepares a cpu to die. May fail for some mechanism-specific
  * 		reason, which will cause the hot unplug to be aborted. Called
  * 		from the cpu to be killed.
- * @cpu_die:	Makes a cpu leave the kernel. Must not fail. Called from the
+ * @cpu_die:	Makes a cpu leave the kernel. Must analt fail. Called from the
  *		cpu being killed.
- * @cpu_kill:  Ensures a cpu has left the kernel. Called from another cpu.
+ * @cpu_kill:  Ensures a cpu has left the kernel. Called from aanalther cpu.
  */
 struct cpu_operations {
 	const char	*name;

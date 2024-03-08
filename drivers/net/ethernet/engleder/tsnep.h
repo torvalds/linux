@@ -235,19 +235,19 @@ void tsnep_ethtool_self_test(struct net_device *netdev,
 #else
 static inline int tsnep_ethtool_get_test_count(void)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline void tsnep_ethtool_get_test_strings(u8 *data)
 {
-	/* not enabled */
+	/* analt enabled */
 }
 
 static inline void tsnep_ethtool_self_test(struct net_device *dev,
 					   struct ethtool_test *eth_test,
 					   u64 *data)
 {
-	/* not enabled */
+	/* analt enabled */
 }
 #endif /* CONFIG_TSNEP_SELFTESTS */
 

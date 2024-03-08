@@ -10,12 +10,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -55,7 +55,7 @@
 /*
  * This file contains registers and constants for the R300. They have been
  * found mostly by examining command buffers captured using glxtest, as well
- * as by extrapolating some known registers and constants from the R200.
+ * as by extrapolating some kanalwn registers and constants from the R200.
  * I am fairly certain that they are correct unless stated otherwise
  * in comments.
  */
@@ -79,7 +79,7 @@
  */
 #define R300_VAP_VF_CNTL	0x2084
 #	define	R300_VAP_VF_CNTL__PRIM_TYPE__SHIFT              0
-#	define  R300_VAP_VF_CNTL__PRIM_NONE                     (0<<0)
+#	define  R300_VAP_VF_CNTL__PRIM_ANALNE                     (0<<0)
 #	define  R300_VAP_VF_CNTL__PRIM_POINTS                   (1<<0)
 #	define  R300_VAP_VF_CNTL__PRIM_LINES                    (2<<0)
 #	define  R300_VAP_VF_CNTL__PRIM_LINE_STRIP               (3<<0)
@@ -104,7 +104,7 @@
 #	define	R300_VAP_VF_CNTL__TCL_OUTPUT_CTL_ENA__SHIFT     9
 #	define	R300_VAP_VF_CNTL__PROG_STREAM_ENA__SHIFT        10
 
-	/* index size - when not set the indices are assumed to be 16 bit */
+	/* index size - when analt set the indices are assumed to be 16 bit */
 #	define	R300_VAP_VF_CNTL__INDEX_SIZE_32bit              (1<<11)
 	/* number of vertices */
 #	define	R300_VAP_VF_CNTL__NUM_VERTICES__SHIFT           16
@@ -141,15 +141,15 @@
 #	define     R300_VTX_XY_FMT                       0x00000100
 #	define     R300_VTX_Z_FMT                        0x00000200
 #	define     R300_VTX_W0_FMT                       0x00000400
-#	define     R300_VTX_W0_NORMALIZE                 0x00000800
-#	define     R300_VTX_ST_DENORMALIZED              0x00001000
+#	define     R300_VTX_W0_ANALRMALIZE                 0x00000800
+#	define     R300_VTX_ST_DEANALRMALIZED              0x00001000
 
 /* BEGIN: Vertex data assembly - lots of uncertainties */
 
 /* gap */
 
 #define R300_VAP_CNTL_STATUS              0x2140
-#	define R300_VC_NO_SWAP                  (0 << 0)
+#	define R300_VC_ANAL_SWAP                  (0 << 0)
 #	define R300_VC_16BIT_SWAP               (1 << 0)
 #	define R300_VC_32BIT_SWAP               (2 << 0)
 #	define R300_VAP_TCL_BYPASS		(1 << 8)
@@ -160,11 +160,11 @@
  *
  * Vertex data either comes either from immediate mode registers or from
  * vertex arrays.
- * There appears to be no mixed mode (though we can force the pitch of
+ * There appears to be anal mixed mode (though we can force the pitch of
  * vertex arrays to 0, effectively reusing the same element over and over
  * again).
  *
- * Immediate mode is controlled by the INPUT_CNTL registers. I am not sure
+ * Immediate mode is controlled by the INPUT_CNTL registers. I am analt sure
  * if these registers influence vertex array processing.
  *
  * Vertex arrays are controlled via the 3D_LOAD_VBPNTR packet3.
@@ -203,16 +203,16 @@
 
 /* gap */
 
-/* Notes:
+/* Analtes:
  *  - always set up to produce at least two attributes:
- *    if vertex program uses only position, fglrx will set normal, too
+ *    if vertex program uses only position, fglrx will set analrmal, too
  *  - INPUT_CNTL_0_COLOR and INPUT_CNTL_COLOR bits are always equal.
  */
 #define R300_VAP_INPUT_CNTL_0               0x2180
 #       define R300_INPUT_CNTL_0_COLOR           0x00000001
 #define R300_VAP_INPUT_CNTL_1               0x2184
 #       define R300_INPUT_CNTL_POS               0x00000001
-#       define R300_INPUT_CNTL_NORMAL            0x00000002
+#       define R300_INPUT_CNTL_ANALRMAL            0x00000002
 #       define R300_INPUT_CNTL_COLOR             0x00000004
 #       define R300_INPUT_CNTL_TC0               0x00000400
 #       define R300_INPUT_CNTL_TC1               0x00000800
@@ -260,7 +260,7 @@
 /* BEGIN: Upload vertex program and data */
 
 /*
- * The programmable vertex shader unit has a memory bank of unknown size
+ * The programmable vertex shader unit has a memory bank of unkanalwn size
  * that can be written to in 16 byte units by writing the address into
  * UPLOAD_ADDRESS, followed by data in UPLOAD_DATA (multiples of 4 DWORDs).
  *
@@ -270,11 +270,11 @@
  *
  * Starting at address UPLOAD_PROGRAM: Vertex program instructions.
  * Native limits reported by drivers from ATI suggest size 256 (i.e. 4KB),
- * whereas the difference between known addresses suggests size 512.
+ * whereas the difference between kanalwn addresses suggests size 512.
  *
  * Starting at address UPLOAD_PARAMETERS: Vertex program parameters.
  * Native reported limits and the VPI layout suggest size 256, whereas
- * difference between known addresses suggests size 512.
+ * difference between kanalwn addresses suggests size 512.
  *
  * At address UPLOAD_POINTSIZE is a vector (0, 0, ps, 0), where ps is the
  * floating point pointsize. The exact purpose of this state is uncertain,
@@ -296,12 +296,12 @@
 
 /* gap */
 
-/* I do not know the purpose of this register. However, I do know that
- * it is set to 221C_CLEAR for clear operations and to 221C_NORMAL
- * for normal rendering.
+/* I do analt kanalw the purpose of this register. However, I do kanalw that
+ * it is set to 221C_CLEAR for clear operations and to 221C_ANALRMAL
+ * for analrmal rendering.
  */
-#define R300_VAP_UNKNOWN_221C               0x221C
-#       define R300_221C_NORMAL                  0x00000000
+#define R300_VAP_UNKANALWN_221C               0x221C
+#       define R300_221C_ANALRMAL                  0x00000000
 #       define R300_221C_CLEAR                   0x0001C000
 
 /* These seem to be per-pixel and per-vertex X and Y clipping planes. The first
@@ -325,8 +325,8 @@
  */
 #define R300_VAP_PVS_STATE_FLUSH_REG        0x2284
 
-/* Absolutely no clue what this register is about. */
-#define R300_VAP_UNKNOWN_2288               0x2288
+/* Absolutely anal clue what this register is about. */
+#define R300_VAP_UNKANALWN_2288               0x2288
 #       define R300_2288_R300                    0x00750000 /* -- nh */
 #       define R300_2288_RV350                   0x0000FFFF /* -- Vladimir */
 
@@ -336,17 +336,17 @@
  * memory bank. PROGRAM_END points to the last instruction of the active
  * program
  *
- * The meaning of the two UNKNOWN fields is obviously not known. However,
+ * The meaning of the two UNKANALWN fields is obviously analt kanalwn. However,
  * experiments so far have shown that both *must* point to an instruction
  * inside the vertex program, otherwise the GPU locks up.
  *
- * fglrx usually sets CNTL_3_UNKNOWN to the end of the program and
+ * fglrx usually sets CNTL_3_UNKANALWN to the end of the program and
  * R300_PVS_CNTL_1_POS_END_SHIFT points to instruction where last write to
  * position takes place.
  *
- * Most likely this is used to ignore rest of the program in cases
+ * Most likely this is used to iganalre rest of the program in cases
  * where group of verts arent visible. For some reason this "section"
- * is sometimes accepted other instruction that have no relationship with
+ * is sometimes accepted other instruction that have anal relationship with
  * position calculations.
  */
 #define R300_VAP_PVS_CNTL_1                 0x22D0
@@ -358,8 +358,8 @@
 #       define R300_PVS_CNTL_2_PARAM_OFFSET_SHIFT 0
 #       define R300_PVS_CNTL_2_PARAM_COUNT_SHIFT  16
 #define R300_VAP_PVS_CNTL_3	           0x22D8
-#       define R300_PVS_CNTL_3_PROGRAM_UNKNOWN_SHIFT 10
-#       define R300_PVS_CNTL_3_PROGRAM_UNKNOWN2_SHIFT 0
+#       define R300_PVS_CNTL_3_PROGRAM_UNKANALWN_SHIFT 10
+#       define R300_PVS_CNTL_3_PROGRAM_UNKANALWN2_SHIFT 0
 
 /* The entire range from 0x2300 to 0x2AC inclusive seems to be used for
  * immediate vertices
@@ -378,7 +378,7 @@
 
 /* gap */
 
-/* These are values from r300_reg/r300_reg.h - they are known to be correct
+/* These are values from r300_reg/r300_reg.h - they are kanalwn to be correct
  * and are here so we can use one register file instead of several
  * - Vladimir
  */
@@ -542,7 +542,7 @@
 #       define R300_TX_ENABLE_15                 (1 << 15)
 
 /* The pointsize is given in multiples of 6. The pointsize can be
- * enormous: Clear() renders a single point that fills the entire
+ * eanalrmous: Clear() renders a single point that fills the entire
  * framebuffer.
  */
 #define R300_RE_POINTSIZE                   0x421C
@@ -556,7 +556,7 @@
  * In default mode lines are classified as vertical lines.
  * HO: horizontal
  * VE: vertical or horizontal
- * HO & VE: no classification
+ * HO & VE: anal classification
  */
 #define R300_RE_LINE_CNT                      0x4234
 #       define R300_LINESIZE_SHIFT            0
@@ -589,7 +589,7 @@
 #define R300_RE_FOG_SCALE                     0x4294
 #define R300_RE_FOG_START                     0x4298
 
-/* Not sure why there are duplicate of factor and constant values.
+/* Analt sure why there are duplicate of factor and constant values.
  * My best guess so far is that there are separate zbiases for test and write.
  * Ordering might be wrong.
  * Some of the tests indicate that fgl has a fallback implementation of zbias
@@ -603,7 +603,7 @@
 
 /* This register needs to be set to (1<<1) for RV350 to correctly
  * perform depth test (see --vb-triangles in r300_demo)
- * Don't know about other chips. - Vladimir
+ * Don't kanalw about other chips. - Vladimir
  * This is set to 3 when GL_POLYGON_OFFSET_FILL is on.
  * My guess is that there are two bits for each zbias primitive
  * (FILL, LINE, POINT).
@@ -622,16 +622,16 @@
 
 /* BEGIN: Rasterization / Interpolators - many guesses */
 
-/* 0_UNKNOWN_18 has always been set except for clear operations.
+/* 0_UNKANALWN_18 has always been set except for clear operations.
  * TC_CNT is the number of incoming texture coordinate sets (i.e. it depends
- * on the vertex program, *not* the fragment program)
+ * on the vertex program, *analt* the fragment program)
  */
 #define R300_RS_CNTL_0                      0x4300
 #       define R300_RS_CNTL_TC_CNT_SHIFT         2
 #       define R300_RS_CNTL_TC_CNT_MASK          (7 << 2)
 	/* number of color interpolators used */
 #	define R300_RS_CNTL_CI_CNT_SHIFT         7
-#       define R300_RS_CNTL_0_UNKNOWN_18         (1 << 18)
+#       define R300_RS_CNTL_0_UNKANALWN_18         (1 << 18)
 	/* Guess: RS_CNTL_1 holds the index of the highest used RS_ROUTE_n
 	   register. */
 #define R300_RS_CNTL_1                      0x4304
@@ -640,7 +640,7 @@
 
 /* Only used for texture coordinates.
  * Use the source field to route texture coordinate input from the
- * vertex program to the desired interpolator. Note that the source
+ * vertex program to the desired interpolator. Analte that the source
  * field is relative to the outputs the vertex program *actually*
  * writes. If a vertex program only writes texcoord[1], this will
  * be source index 0.
@@ -648,16 +648,16 @@
  * the fragment program. INTERP_USED looks like a swizzling mask,
  * but I haven't seen it used that way.
  *
- * Note: The _UNKNOWN constants are always set in their respective
- * register. I don't know if this is necessary.
+ * Analte: The _UNKANALWN constants are always set in their respective
+ * register. I don't kanalw if this is necessary.
  */
 #define R300_RS_INTERP_0                    0x4310
 #define R300_RS_INTERP_1                    0x4314
-#       define R300_RS_INTERP_1_UNKNOWN          0x40
+#       define R300_RS_INTERP_1_UNKANALWN          0x40
 #define R300_RS_INTERP_2                    0x4318
-#       define R300_RS_INTERP_2_UNKNOWN          0x80
+#       define R300_RS_INTERP_2_UNKANALWN          0x80
 #define R300_RS_INTERP_3                    0x431C
-#       define R300_RS_INTERP_3_UNKNOWN          0xC0
+#       define R300_RS_INTERP_3_UNKANALWN          0xC0
 #define R300_RS_INTERP_4                    0x4320
 #define R300_RS_INTERP_5                    0x4324
 #define R300_RS_INTERP_6                    0x4328
@@ -693,10 +693,10 @@
  * the ROUTE_0_COLOR bit is set and ROUTE_0_COLOR_DEST contains the
  * color register index.
  *
- * Apperently you may set the R300_RS_ROUTE_0_COLOR bit, but not provide any
+ * Apperently you may set the R300_RS_ROUTE_0_COLOR bit, but analt provide any
  * R300_RS_ROUTE_0_COLOR_DEST value; this setup is used for clearing the state.
- * See r300_ioctl.c:r300EmitClearState. I'm not sure if this setup is strictly
- * correct or not. - Oliver.
+ * See r300_ioctl.c:r300EmitClearState. I'm analt sure if this setup is strictly
+ * correct or analt. - Oliver.
  */
 #       define R300_RS_ROUTE_0_COLOR             (1 << 14)
 #       define R300_RS_ROUTE_0_COLOR_DEST_SHIFT  17
@@ -705,7 +705,7 @@
 #		define R300_RS_ROUTE_1_COLOR1            (1 << 14)
 #		define R300_RS_ROUTE_1_COLOR1_DEST_SHIFT 17
 #		define R300_RS_ROUTE_1_COLOR1_DEST_MASK  (31 << 17)
-#		define R300_RS_ROUTE_1_UNKNOWN11         (1 << 11)
+#		define R300_RS_ROUTE_1_UNKANALWN11         (1 << 11)
 /* END: Rasterization / Interpolators - many guesses */
 
 /* Hierarchical Z Enable */
@@ -722,9 +722,9 @@
 #	define R300_SC_HYPERZ_ADJ_8       (5 << 2)
 #	define R300_SC_HYPERZ_ADJ_4       (6 << 2)
 #	define R300_SC_HYPERZ_ADJ_2       (7 << 2)
-#	define R300_SC_HYPERZ_HZ_Z0MIN_NO (0 << 5)
+#	define R300_SC_HYPERZ_HZ_Z0MIN_ANAL (0 << 5)
 #	define R300_SC_HYPERZ_HZ_Z0MIN    (1 << 5)
-#	define R300_SC_HYPERZ_HZ_Z0MAX_NO (0 << 6)
+#	define R300_SC_HYPERZ_HZ_Z0MAX_ANAL (0 << 6)
 #	define R300_SC_HYPERZ_HZ_Z0MAX    (1 << 6)
 
 #define R300_SC_EDGERULE                 0x43a8
@@ -791,7 +791,7 @@
 /* BEGIN: Texture specification */
 
 /*
- * The texture specification dwords are grouped by meaning and not by texture
+ * The texture specification dwords are grouped by meaning and analt by texture
  * unit. This means that e.g. the offset for texture image unit N is found in
  * register TX_OFFSET_0 + (4*N)
  */
@@ -817,8 +817,8 @@
 #	define R300_TX_MIN_FILTER_LINEAR_MIP_NEAREST        (6  <<  11)
 #	define R300_TX_MIN_FILTER_LINEAR_MIP_LINEAR         (10 <<  11)
 
-/* NOTE: NEAREST doesn't seem to exist.
- * Im not seting MAG_FILTER_MASK and (3 << 11) on for all
+/* ANALTE: NEAREST doesn't seem to exist.
+ * Im analt seting MAG_FILTER_MASK and (3 << 11) on for all
  * anisotropy modes because that would void selected mag filter
  */
 #	define R300_TX_MIN_FILTER_ANISO_NEAREST             (0 << 13)
@@ -837,7 +837,7 @@
 #	define R300_CHROMA_KEY_MODE_DISABLE    0
 #	define R300_CHROMA_KEY_FORCE	       1
 #	define R300_CHROMA_KEY_BLEND           2
-#	define R300_MC_ROUND_NORMAL            (0<<2)
+#	define R300_MC_ROUND_ANALRMAL            (0<<2)
 #	define R300_MC_ROUND_MPEG4             (1<<2)
 #	define R300_LOD_BIAS_MASK	    0x1fff
 #	define R300_EDGE_ANISO_EDGE_DIAG       (0<<13)
@@ -883,17 +883,17 @@
 #	define R300_TX_FORMAT_DXT1		    0xF
 #	define R300_TX_FORMAT_DXT3		    0x10
 #	define R300_TX_FORMAT_DXT5		    0x11
-#	define R300_TX_FORMAT_D3DMFT_CxV8U8	    0x12     /* no swizzle */
-#	define R300_TX_FORMAT_A8R8G8B8		    0x13     /* no swizzle */
-#	define R300_TX_FORMAT_B8G8_B8G8		    0x14     /* no swizzle */
-#	define R300_TX_FORMAT_G8R8_G8B8		    0x15     /* no swizzle */
+#	define R300_TX_FORMAT_D3DMFT_CxV8U8	    0x12     /* anal swizzle */
+#	define R300_TX_FORMAT_A8R8G8B8		    0x13     /* anal swizzle */
+#	define R300_TX_FORMAT_B8G8_B8G8		    0x14     /* anal swizzle */
+#	define R300_TX_FORMAT_G8R8_G8B8		    0x15     /* anal swizzle */
 	/* 0x16 - some 16 bit green format.. ?? */
-#	define R300_TX_FORMAT_UNK25		   (1 << 25) /* no swizzle */
+#	define R300_TX_FORMAT_UNK25		   (1 << 25) /* anal swizzle */
 #	define R300_TX_FORMAT_CUBIC_MAP		   (1 << 26)
 
 	/* gap */
 	/* Floating point formats */
-	/* Note - hardware supports both 16 and 32 bit floating point */
+	/* Analte - hardware supports both 16 and 32 bit floating point */
 #	define R300_TX_FORMAT_FL_I16		    0x18
 #	define R300_TX_FORMAT_FL_I16A16		    0x19
 #	define R300_TX_FORMAT_FL_R16G16B16A16	    0x1A
@@ -907,7 +907,7 @@
 #	define R300_TX_FORMAT_ALPHA_1CH		    0x000
 #	define R300_TX_FORMAT_ALPHA_2CH		    0x200
 #	define R300_TX_FORMAT_ALPHA_4CH		    0x600
-#	define R300_TX_FORMAT_ALPHA_NONE	    0xA00
+#	define R300_TX_FORMAT_ALPHA_ANALNE	    0xA00
 	/* Swizzling */
 	/* constants */
 #	define R300_TX_FORMAT_X		0
@@ -934,7 +934,7 @@
 		| (R300_TX_FORMAT_##FMT)				\
 		)
 	/* These can be ORed with result of R300_EASY_TX_FORMAT()
-	   We don't really know what they do. Take values from a
+	   We don't really kanalw what they do. Take values from a
            constant color ? */
 #	define R300_TX_FORMAT_CONST_X		(1<<5)
 #	define R300_TX_FORMAT_CONST_Y		(2<<5)
@@ -946,7 +946,7 @@
 #define R300_TX_PITCH_0			    0x4500 /* obvious missing in gap */
 #define R300_TX_OFFSET_0                    0x4540
 	/* BEGIN: Guess from R200 */
-#       define R300_TXO_ENDIAN_NO_SWAP           (0 << 0)
+#       define R300_TXO_ENDIAN_ANAL_SWAP           (0 << 0)
 #       define R300_TXO_ENDIAN_BYTE_SWAP         (1 << 0)
 #       define R300_TXO_ENDIAN_WORD_SWAP         (2 << 0)
 #       define R300_TXO_ENDIAN_HALFDW_SWAP       (3 << 0)
@@ -970,23 +970,23 @@
  * There are separate instruction streams for texture instructions and ALU
  * instructions.
  * In order to synchronize these streams, the program is divided into up
- * to 4 nodes. Each node begins with a number of TEX operations, followed
+ * to 4 analdes. Each analde begins with a number of TEX operations, followed
  * by a number of ALU operations.
- * The first node can have zero TEX ops, all subsequent nodes must have at
+ * The first analde can have zero TEX ops, all subsequent analdes must have at
  * least
  * one TEX ops.
- * All nodes must have at least one ALU op.
+ * All analdes must have at least one ALU op.
  *
- * The index of the last node is stored in PFS_CNTL_0: A value of 0 means
- * 1 node, a value of 3 means 4 nodes.
+ * The index of the last analde is stored in PFS_CNTL_0: A value of 0 means
+ * 1 analde, a value of 3 means 4 analdes.
  * The total amount of instructions is defined in PFS_CNTL_2. The offsets are
  * offsets into the respective instruction streams, while *_END points to the
  * last instruction relative to this offset.
  */
 #define R300_PFS_CNTL_0                     0x4600
-#       define R300_PFS_CNTL_LAST_NODES_SHIFT    0
-#       define R300_PFS_CNTL_LAST_NODES_MASK     (3 << 0)
-#       define R300_PFS_CNTL_FIRST_NODE_HAS_TEX  (1 << 3)
+#       define R300_PFS_CNTL_LAST_ANALDES_SHIFT    0
+#       define R300_PFS_CNTL_LAST_ANALDES_MASK     (3 << 0)
+#       define R300_PFS_CNTL_FIRST_ANALDE_HAS_TEX  (1 << 3)
 #define R300_PFS_CNTL_1                     0x4604
 /* There is an unshifted value here which has so far always been equal to the
  * index of the highest used temporary register.
@@ -1003,30 +1003,30 @@
 
 /* gap */
 
-/* Nodes are stored backwards. The last active node is always stored in
- * PFS_NODE_3.
- * Example: In a 2-node program, NODE_0 and NODE_1 are set to 0. The
- * first node is stored in NODE_2, the second node is stored in NODE_3.
+/* Analdes are stored backwards. The last active analde is always stored in
+ * PFS_ANALDE_3.
+ * Example: In a 2-analde program, ANALDE_0 and ANALDE_1 are set to 0. The
+ * first analde is stored in ANALDE_2, the second analde is stored in ANALDE_3.
  *
  * Offsets are relative to the master offset from PFS_CNTL_2.
  */
-#define R300_PFS_NODE_0                     0x4610
-#define R300_PFS_NODE_1                     0x4614
-#define R300_PFS_NODE_2                     0x4618
-#define R300_PFS_NODE_3                     0x461C
-#       define R300_PFS_NODE_ALU_OFFSET_SHIFT    0
-#       define R300_PFS_NODE_ALU_OFFSET_MASK     (63 << 0)
-#       define R300_PFS_NODE_ALU_END_SHIFT       6
-#       define R300_PFS_NODE_ALU_END_MASK        (63 << 6)
-#       define R300_PFS_NODE_TEX_OFFSET_SHIFT    12
-#       define R300_PFS_NODE_TEX_OFFSET_MASK     (31 << 12)
-#       define R300_PFS_NODE_TEX_END_SHIFT       17
-#       define R300_PFS_NODE_TEX_END_MASK        (31 << 17)
-#		define R300_PFS_NODE_OUTPUT_COLOR        (1 << 22)
-#		define R300_PFS_NODE_OUTPUT_DEPTH        (1 << 23)
+#define R300_PFS_ANALDE_0                     0x4610
+#define R300_PFS_ANALDE_1                     0x4614
+#define R300_PFS_ANALDE_2                     0x4618
+#define R300_PFS_ANALDE_3                     0x461C
+#       define R300_PFS_ANALDE_ALU_OFFSET_SHIFT    0
+#       define R300_PFS_ANALDE_ALU_OFFSET_MASK     (63 << 0)
+#       define R300_PFS_ANALDE_ALU_END_SHIFT       6
+#       define R300_PFS_ANALDE_ALU_END_MASK        (63 << 6)
+#       define R300_PFS_ANALDE_TEX_OFFSET_SHIFT    12
+#       define R300_PFS_ANALDE_TEX_OFFSET_MASK     (31 << 12)
+#       define R300_PFS_ANALDE_TEX_END_SHIFT       17
+#       define R300_PFS_ANALDE_TEX_END_MASK        (31 << 17)
+#		define R300_PFS_ANALDE_OUTPUT_COLOR        (1 << 22)
+#		define R300_PFS_ANALDE_OUTPUT_DEPTH        (1 << 23)
 
 /* TEX
- * As far as I can tell, texture instructions cannot write into output
+ * As far as I can tell, texture instructions cananalt write into output
  * registers directly. A subsequent ALU instruction is always necessary,
  * even if it's just MAD o0, r0, 1, 0
  */
@@ -1070,20 +1070,20 @@
  *  - RSQ: use ABS modifier for argument
  *  - Use OUTC_REPL_ALPHA to write results of an alpha-only operation
  *    (e.g. RCP) into color register
- *  - apparently, there's no quick DST operation
- *  - fglrx set FPI2_UNKNOWN_31 on a "MAD fragment.color, tmp0, tmp1, tmp2"
- *  - fglrx set FPI2_UNKNOWN_31 on a "MAX r2, r1, c0"
- *  - fglrx once set FPI0_UNKNOWN_31 on a "FRC r1, r1"
+ *  - apparently, there's anal quick DST operation
+ *  - fglrx set FPI2_UNKANALWN_31 on a "MAD fragment.color, tmp0, tmp1, tmp2"
+ *  - fglrx set FPI2_UNKANALWN_31 on a "MAX r2, r1, c0"
+ *  - fglrx once set FPI0_UNKANALWN_31 on a "FRC r1, r1"
  *
  * Operand selection
  * First stage selects three sources from the available registers and
  * constant parameters. This is defined in INSTR1 (color) and INSTR3 (alpha).
  * fglrx sorts the three source fields: Registers before constants,
- * lower indices before higher indices; I do not know whether this is
+ * lower indices before higher indices; I do analt kanalw whether this is
  * necessary.
  *
  * fglrx fills unused sources with "read constant 0"
- * According to specs, you cannot select more than two different constants.
+ * According to specs, you cananalt select more than two different constants.
  *
  * Second stage selects the operands from the sources. This is defined in
  * INSTR0 (color) and INSTR2 (alpha). You can also select the special constants
@@ -1095,7 +1095,7 @@
  * physically split into a color and an alpha section).
  * However (because of the apparent physical split), there is some interaction
  * WRT swizzling. If, for example, you want to load an R component into an
- * Alpha operand, this R component is taken from a *color* source, not from
+ * Alpha operand, this R component is taken from a *color* source, analt from
  * an alpha source. The corresponding register doesn't even have to appear in
  * the alpha sources list. (I hope this all makes sense to you)
  *
@@ -1104,10 +1104,10 @@
  * together with enable bits.
  * There are separate enable bits for writing into temporary registers
  * (DSTC_REG_* /DSTA_REG) and program output registers (DSTC_OUTPUT_*
- * /DSTA_OUTPUT). You can write to both at once, or not write at all (the
+ * /DSTA_OUTPUT). You can write to both at once, or analt write at all (the
  * same index must be used for both).
  *
- * Note: There is a special form for LRP
+ * Analte: There is a special form for LRP
  *  - Argument order is the same as in ARB_fragment_program.
  *  - Operation is MAD
  *  - ARG1 is set to ARGC_SRC1C_LRP/ARGC_SRC1A_LRP
@@ -1207,7 +1207,7 @@
 #       define R300_FPI0_OUTC_FRC                (9 << 23)
 #       define R300_FPI0_OUTC_REPL_ALPHA         (10 << 23)
 #       define R300_FPI0_OUTC_SAT                (1 << 30)
-#       define R300_FPI0_INSERT_NOP              (1 << 31)
+#       define R300_FPI0_INSERT_ANALP              (1 << 31)
 
 #define R300_PFS_INSTR2_0                   0x49C0
 #       define R300_FPI2_ARGA_SRC0C_X            0
@@ -1254,7 +1254,7 @@
 #       define R300_FPI2_OUTA_RCP                (10 << 23)
 #       define R300_FPI2_OUTA_RSQ                (11 << 23)
 #       define R300_FPI2_OUTA_SAT                (1 << 30)
-#       define R300_FPI2_UNKNOWN_31              (1 << 31)
+#       define R300_FPI2_UNKANALWN_31              (1 << 31)
 /* END: Fragment program instruction set */
 
 /* Fog state and color */
@@ -1294,30 +1294,30 @@
 #define R300_PFS_PARAM_31_Z                 0x4DF8
 #define R300_PFS_PARAM_31_W                 0x4DFC
 
-/* Notes:
- * - AFAIK fglrx always sets BLEND_UNKNOWN when blending is used in
+/* Analtes:
+ * - AFAIK fglrx always sets BLEND_UNKANALWN when blending is used in
  *   the application
- * - AFAIK fglrx always sets BLEND_NO_SEPARATE when CBLEND and ABLEND
+ * - AFAIK fglrx always sets BLEND_ANAL_SEPARATE when CBLEND and ABLEND
  *    are set to the same
  *   function (both registers are always set up completely in any case)
- * - Most blend flags are simply copied from R200 and not tested yet
+ * - Most blend flags are simply copied from R200 and analt tested yet
  */
 #define R300_RB3D_CBLEND                    0x4E04
 #define R300_RB3D_ABLEND                    0x4E08
 /* the following only appear in CBLEND */
 #       define R300_BLEND_ENABLE                     (1 << 0)
-#       define R300_BLEND_UNKNOWN                    (3 << 1)
-#       define R300_BLEND_NO_SEPARATE                (1 << 3)
+#       define R300_BLEND_UNKANALWN                    (3 << 1)
+#       define R300_BLEND_ANAL_SEPARATE                (1 << 3)
 /* the following are shared between CBLEND and ABLEND */
 #       define R300_FCN_MASK                         (3  << 12)
 #       define R300_COMB_FCN_ADD_CLAMP               (0  << 12)
-#       define R300_COMB_FCN_ADD_NOCLAMP             (1  << 12)
+#       define R300_COMB_FCN_ADD_ANALCLAMP             (1  << 12)
 #       define R300_COMB_FCN_SUB_CLAMP               (2  << 12)
-#       define R300_COMB_FCN_SUB_NOCLAMP             (3  << 12)
+#       define R300_COMB_FCN_SUB_ANALCLAMP             (3  << 12)
 #       define R300_COMB_FCN_MIN                     (4  << 12)
 #       define R300_COMB_FCN_MAX                     (5  << 12)
 #       define R300_COMB_FCN_RSUB_CLAMP              (6  << 12)
-#       define R300_COMB_FCN_RSUB_NOCLAMP            (7  << 12)
+#       define R300_COMB_FCN_RSUB_ANALCLAMP            (7  << 12)
 #       define R300_BLEND_GL_ZERO                    (32)
 #       define R300_BLEND_GL_ONE                     (33)
 #       define R300_BLEND_GL_SRC_COLOR               (34)
@@ -1362,7 +1362,7 @@
 #       define R300_COLOR_TILE_ENABLE            (1 << 16) /* GUESS */
 #       define R300_COLOR_MICROTILE_ENABLE       (1 << 17) /* GUESS */
 #       define R300_COLOR_MICROTILE_SQUARE_ENABLE (2 << 17)
-#       define R300_COLOR_ENDIAN_NO_SWAP         (0 << 18) /* GUESS */
+#       define R300_COLOR_ENDIAN_ANAL_SWAP         (0 << 18) /* GUESS */
 #       define R300_COLOR_ENDIAN_WORD_SWAP       (1 << 18) /* GUESS */
 #       define R300_COLOR_ENDIAN_DWORD_SWAP      (2 << 18) /* GUESS */
 #       define R300_COLOR_FORMAT_RGB565          (2 << 22)
@@ -1380,11 +1380,11 @@
  * Set to 0A before 3D operations, set to 02 afterwards.
  */
 /*#define R300_RB3D_DSTCACHE_CTLSTAT          0x4E4C*/
-#       define R300_RB3D_DSTCACHE_UNKNOWN_02             0x00000002
-#       define R300_RB3D_DSTCACHE_UNKNOWN_0A             0x0000000A
+#       define R300_RB3D_DSTCACHE_UNKANALWN_02             0x00000002
+#       define R300_RB3D_DSTCACHE_UNKANALWN_0A             0x0000000A
 
 /* gap */
-/* There seems to be no "write only" setting, so use Z-test = ALWAYS
+/* There seems to be anal "write only" setting, so use Z-test = ALWAYS
  * for this.
  * Bit (1<<8) is the "test" bit. so plain write is 6  - vd
  */
@@ -1403,7 +1403,7 @@
 #	define R300_ZS_EQUAL			3
 #	define R300_ZS_GEQUAL			4
 #	define R300_ZS_GREATER			5
-#	define R300_ZS_NOTEQUAL			6
+#	define R300_ZS_ANALTEQUAL			6
 #	define R300_ZS_ALWAYS			7
 #       define R300_ZS_MASK                     7
 	/* operations */
@@ -1452,9 +1452,9 @@
 /* gap */
 
 #define R300_ZB_ZCACHE_CTLSTAT            0x4f18
-#       define R300_ZB_ZCACHE_CTLSTAT_ZC_FLUSH_NO_EFFECT      (0 << 0)
+#       define R300_ZB_ZCACHE_CTLSTAT_ZC_FLUSH_ANAL_EFFECT      (0 << 0)
 #       define R300_ZB_ZCACHE_CTLSTAT_ZC_FLUSH_FLUSH_AND_FREE (1 << 0)
-#       define R300_ZB_ZCACHE_CTLSTAT_ZC_FREE_NO_EFFECT       (0 << 1)
+#       define R300_ZB_ZCACHE_CTLSTAT_ZC_FREE_ANAL_EFFECT       (0 << 1)
 #       define R300_ZB_ZCACHE_CTLSTAT_ZC_FREE_FREE            (1 << 1)
 #       define R300_ZB_ZCACHE_CTLSTAT_ZC_BUSY_IDLE            (0 << 31)
 #       define R300_ZB_ZCACHE_CTLSTAT_ZC_BUSY_BUSY            (1 << 31)
@@ -1517,7 +1517,7 @@
 #       define R300_DEPTHMICROTILE_LINEAR       (0 << 17)
 #       define R300_DEPTHMICROTILE_TILED        (1 << 17)
 #       define R300_DEPTHMICROTILE_TILED_SQUARE (2 << 17)
-#       define R300_DEPTHENDIAN_NO_SWAP         (0 << 18)
+#       define R300_DEPTHENDIAN_ANAL_SWAP         (0 << 18)
 #       define R300_DEPTHENDIAN_WORD_SWAP       (1 << 18)
 #       define R300_DEPTHENDIAN_DWORD_SWAP      (2 << 18)
 #       define R300_DEPTHENDIAN_HALF_DWORD_SWAP (3 << 18)
@@ -1584,7 +1584,7 @@
  *  DWORD 2: second argument
  *  DWORD 3: third argument
  *
- * Notes:
+ * Analtes:
  *  - ABS r, a is implemented as MAX r, a, -a
  *  - MOV is implemented as ADD to zero
  *  - XPD is implemented as MUL + MAD
@@ -1598,7 +1598,7 @@
  *  - only one attribute and one parameter can be loaded at a time; however,
  *    the same attribute/parameter can be used for more than one argument
  *  - the second software argument for POW is the third hardware argument
- *    (no idea why)
+ *    (anal idea why)
  *  - MAD with only temporaries as input seems to use VPI_OUT_SELECT_MAD_2
  *
  * There is some magic surrounding LIT:
@@ -1607,7 +1607,7 @@
  *     Second argument: xyzx
  *     Third argument: xyzw
  *   Whenever the result is used later in the fragment program, fglrx forces
- *   x and w to be 1.0 in the input selection; I don't know whether this is
+ *   x and w to be 1.0 in the input selection; I don't kanalw whether this is
  *   strictly necessary
  */
 #define R300_VPI_OUT_OP_DOT                     (1 << 0)
@@ -1656,7 +1656,7 @@
 #define R300_VPI_IN_REG_CLASS_TEMPORARY         (0 << 0)
 #define R300_VPI_IN_REG_CLASS_ATTRIBUTE         (1 << 0)
 #define R300_VPI_IN_REG_CLASS_PARAMETER         (2 << 0)
-#define R300_VPI_IN_REG_CLASS_NONE              (9 << 0)
+#define R300_VPI_IN_REG_CLASS_ANALNE              (9 << 0)
 #define R300_VPI_IN_REG_CLASS_MASK              (31 << 0)
 
 #define R300_VPI_IN_REG_INDEX_SHIFT             5
@@ -1689,7 +1689,7 @@
 /* BEGIN: Packet 3 commands */
 
 /* A primitive emission dword. */
-#define R300_PRIM_TYPE_NONE                     (0 << 0)
+#define R300_PRIM_TYPE_ANALNE                     (0 << 0)
 #define R300_PRIM_TYPE_POINT                    (1 << 0)
 #define R300_PRIM_TYPE_LINE                     (2 << 0)
 #define R300_PRIM_TYPE_LINE_STRIP               (3 << 0)
@@ -1735,7 +1735,7 @@
  * the high byte contains the stride of the array.
  * The second dword of a block contains the pointer to the first array,
  * the third dword of a block contains the pointer to the second array.
- * Note that if the total number of arrays is odd, the third dword of
+ * Analte that if the total number of arrays is odd, the third dword of
  * the last block is omitted.
  */
 #define R300_PACKET3_3D_LOAD_VBPNTR         0x00002F00

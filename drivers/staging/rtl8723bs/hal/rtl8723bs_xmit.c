@@ -9,7 +9,7 @@
 #include <rtw_debug.h>
 #include <rtl8723b_hal.h>
 
-static u8 rtw_sdio_wait_enough_TxOQT_space(struct adapter *padapter, u8 agg_num)
+static u8 rtw_sdio_wait_eanalugh_TxOQT_space(struct adapter *padapter, u8 agg_num)
 {
 	u32 n = 0;
 	struct hal_com_data *pHalData = GET_HAL_DATA(padapter);
@@ -74,10 +74,10 @@ static s32 rtl8723_dequeue_writeport(struct adapter *padapter)
 	}
 
 query_free_page:
-	/*  check if hardware tx fifo page is enough */
+	/*  check if hardware tx fifo page is eanalugh */
 	if (!rtw_hal_sdio_query_tx_freepage(pri_padapter, PageIdx, pxmitbuf->pg_num)) {
 		if (!bUpdatePageNum) {
-			/*  Total number of page is NOT available, so update current FIFO status */
+			/*  Total number of page is ANALT available, so update current FIFO status */
 			HalQueryTxBufferStatus8723BSdio(padapter);
 			bUpdatePageNum = true;
 			goto query_free_page;
@@ -94,7 +94,7 @@ query_free_page:
 	)
 		goto free_xmitbuf;
 
-	if (rtw_sdio_wait_enough_TxOQT_space(padapter, pxmitbuf->agg_num) == false)
+	if (rtw_sdio_wait_eanalugh_TxOQT_space(padapter, pxmitbuf->agg_num) == false)
 		goto free_xmitbuf;
 
 	traffic_check_for_leave_lps(padapter, true, pxmitbuf->agg_num);
@@ -164,8 +164,8 @@ s32 rtl8723bs_xmit_buf_handler(struct adapter *padapter)
  *
  * Return:
  *0	Success
- *-1	Hardware resource(TX FIFO) not ready
- *-2	Software resource(xmitbuf) not ready
+ *-1	Hardware resource(TX FIFO) analt ready
+ *-2	Software resource(xmitbuf) analt ready
  */
 static s32 xmit_xmitframes(struct adapter *padapter, struct xmit_priv *pxmitpriv)
 {
@@ -220,7 +220,7 @@ static s32 xmit_xmitframes(struct adapter *padapter, struct xmit_priv *pxmitpriv
 
 		sta_phead = get_list_head(phwxmit->sta_queue);
 		/* because stop_sta_xmit may delete sta_plist at any time */
-		/* so we should add lock here, or while loop can not exit */
+		/* so we should add lock here, or while loop can analt exit */
 		list_for_each_safe(sta_plist, tmp, sta_phead) {
 			ptxservq = list_entry(sta_plist, struct tx_servq,
 					      tx_pending);
@@ -233,7 +233,7 @@ static s32 xmit_xmitframes(struct adapter *padapter, struct xmit_priv *pxmitpriv
 				frame_plist = get_next(frame_phead);
 				pxmitframe = container_of(frame_plist, struct xmit_frame, list);
 
-				/*  check xmit_buf size enough or not */
+				/*  check xmit_buf size eanalugh or analt */
 				txlen = txdesc_size + rtw_wlan_pkt_size(pxmitframe);
 				if (!pxmitbuf ||
 					((_RND(pxmitbuf->len, 8) + txlen) > max_xmit_len) ||
@@ -251,7 +251,7 @@ static s32 xmit_xmitframes(struct adapter *padapter, struct xmit_priv *pxmitpriv
 							rtw_free_xmitframe(pxmitpriv, pframe);
 							pxmitbuf->priv_data = NULL;
 							enqueue_pending_xmitbuf(pxmitpriv, pxmitbuf);
-							/* can not yield under lock */
+							/* can analt yield under lock */
 							/* yield(); */
 						} else
 							rtw_free_xmitbuf(pxmitpriv, pxmitbuf);
@@ -261,7 +261,7 @@ static s32 xmit_xmitframes(struct adapter *padapter, struct xmit_priv *pxmitpriv
 					if (!pxmitbuf) {
 #ifdef DBG_XMIT_BUF
 						netdev_err(padapter->pnetdev,
-							   "%s: xmit_buf is not enough!\n",
+							   "%s: xmit_buf is analt eanalugh!\n",
 							   __func__);
 #endif
 						err = -2;

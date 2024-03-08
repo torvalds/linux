@@ -160,7 +160,7 @@ powertecscsi_dma_setup(struct Scsi_Host *host, struct scsi_pointer *SCp,
 	}
 
 	/*
-	 * If we're not doing DMA,
+	 * If we're analt doing DMA,
 	 *  we'll do slow PIO
 	 */
 	return fasdma_pio;
@@ -175,7 +175,7 @@ static void
 powertecscsi_dma_stop(struct Scsi_Host *host, struct scsi_pointer *SCp)
 {
 	struct powertec_info *info = (struct powertec_info *)host->hostdata;
-	if (info->info.scsi.dma != NO_DMA)
+	if (info->info.scsi.dma != ANAL_DMA)
 		disable_dma(info->info.scsi.dma);
 }
 
@@ -190,7 +190,7 @@ const char *powertecscsi_info(struct Scsi_Host *host)
 	static char string[150];
 
 	sprintf(string, "%s (%s) in slot %d v%s terminators o%s",
-		host->hostt->name, info->info.scsi.type, info->ec->slot_no,
+		host->hostt->name, info->info.scsi.type, info->ec->slot_anal,
 		VERSION, info->term_ctl ? "n" : "ff");
 
 	return string;
@@ -228,7 +228,7 @@ powertecscsi_set_proc_info(struct Scsi_Host *host, char *buffer, int length)
 }
 
 /* Prototype: int powertecscsi_proc_info(char *buffer, char **start, off_t offset,
- *					int length, int host_no, int inout)
+ *					int length, int host_anal, int ianalut)
  * Purpose  : Return information about the driver to a user process accessing
  *	      the /proc filesystem.
  * Params   : buffer  - a buffer to write information to
@@ -236,7 +236,7 @@ powertecscsi_set_proc_info(struct Scsi_Host *host, char *buffer, int length)
  *		        of the required information.
  *	      offset  - offset into information that we have read up to.
  *	      length  - length of buffer
- *	      inout   - 0 for reading, 1 for writing.
+ *	      ianalut   - 0 for reading, 1 for writing.
  * Returns  : length of data written to buffer.
  */
 static int powertecscsi_show_info(struct seq_file *m, struct Scsi_Host *host)
@@ -313,14 +313,14 @@ static int powertecscsi_probe(struct expansion_card *ec,
 
 	base = ecardm_iomap(ec, ECARD_RES_IOCFAST, 0, 0);
 	if (!base) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_region;
 	}
 
 	host = scsi_host_alloc(&powertecscsi_template,
 			       sizeof (struct powertec_info));
 	if (!host) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_region;
 	}
 
@@ -328,7 +328,7 @@ static int powertecscsi_probe(struct expansion_card *ec,
 
 	info = (struct powertec_info *)host->hostdata;
 	info->base = base;
-	powertecscsi_terminator_ctl(host, term[ec->slot_no]);
+	powertecscsi_terminator_ctl(host, term[ec->slot_anal]);
 
 	info->ec = ec;
 	info->info.scsi.io_base		= base + POWERTEC_FAS216_OFFSET;
@@ -361,16 +361,16 @@ static int powertecscsi_probe(struct expansion_card *ec,
 	ret = request_irq(ec->irq, powertecscsi_intr,
 			  0, "powertec", info);
 	if (ret) {
-		printk("scsi%d: IRQ%d not free: %d\n",
-		       host->host_no, ec->irq, ret);
+		printk("scsi%d: IRQ%d analt free: %d\n",
+		       host->host_anal, ec->irq, ret);
 		goto out_release;
 	}
 
-	if (info->info.scsi.dma != NO_DMA) {
+	if (info->info.scsi.dma != ANAL_DMA) {
 		if (request_dma(info->info.scsi.dma, "powertec")) {
-			printk("scsi%d: DMA%d not free, using PIO\n",
-			       host->host_no, info->info.scsi.dma);
-			info->info.scsi.dma = NO_DMA;
+			printk("scsi%d: DMA%d analt free, using PIO\n",
+			       host->host_anal, info->info.scsi.dma);
+			info->info.scsi.dma = ANAL_DMA;
 		} else {
 			set_dma_speed(info->info.scsi.dma, 180);
 			info->info.ifcfg.capabilities |= FASCAP_DMA;
@@ -381,7 +381,7 @@ static int powertecscsi_probe(struct expansion_card *ec,
 	if (ret == 0)
 		goto out;
 
-	if (info->info.scsi.dma != NO_DMA)
+	if (info->info.scsi.dma != ANAL_DMA)
 		free_dma(info->info.scsi.dma);
 	free_irq(ec->irq, info);
 
@@ -409,7 +409,7 @@ static void powertecscsi_remove(struct expansion_card *ec)
 
 	device_remove_file(&ec->dev, &dev_attr_bus_term);
 
-	if (info->info.scsi.dma != NO_DMA)
+	if (info->info.scsi.dma != ANAL_DMA)
 		free_dma(info->info.scsi.dma);
 	free_irq(ec->irq, info);
 

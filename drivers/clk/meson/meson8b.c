@@ -117,7 +117,7 @@ static struct clk_regmap meson8b_fixed_pll = {
 		.num_parents = 1,
 		/*
 		 * This clock won't ever change at runtime so
-		 * CLK_SET_RATE_PARENT is not required
+		 * CLK_SET_RATE_PARENT is analt required
 		 */
 	},
 };
@@ -139,7 +139,7 @@ static struct clk_fixed_factor hdmi_pll_dco_in = {
 /*
  * Taken from the vendor driver for the 2970/2975MHz (both only differ in the
  * FRAC part in HHI_VID_PLL_CNTL2) where these values are identical for Meson8,
- * Meson8b and Meson8m2. This doubles the input (or output - it's not clear
+ * Meson8b and Meson8m2. This doubles the input (or output - it's analt clear
  * which one but the result is the same) clock. The vendor driver additionally
  * has the following comment about: "optimise HPLL VCO 2.97GHz performance".
  */
@@ -682,7 +682,7 @@ static struct clk_regmap meson8b_cpu_in_sel = {
 		},
 		.num_parents = 2,
 		.flags = (CLK_SET_RATE_PARENT |
-			  CLK_SET_RATE_NO_REPARENT),
+			  CLK_SET_RATE_ANAL_REPARENT),
 	},
 };
 
@@ -757,7 +757,7 @@ static struct clk_regmap meson8b_cpu_scale_out_sel = {
 		.name = "cpu_scale_out_sel",
 		.ops = &clk_regmap_mux_ops,
 		/*
-		 * NOTE: We are skipping the parent with value 0x2 (which is
+		 * ANALTE: We are skipping the parent with value 0x2 (which is
 		 * meson8b_cpu_in_div3) because it results in a duty cycle of
 		 * 33% which makes the system unstable and can result in a
 		 * lockup of the whole system.
@@ -787,7 +787,7 @@ static struct clk_regmap meson8b_cpu_clk = {
 		},
 		.num_parents = 2,
 		.flags = (CLK_SET_RATE_PARENT |
-			  CLK_SET_RATE_NO_REPARENT |
+			  CLK_SET_RATE_ANAL_REPARENT |
 			  CLK_IS_CRITICAL),
 	},
 };
@@ -802,7 +802,7 @@ static struct clk_regmap meson8b_nand_clk_sel = {
 	.hw.init = &(struct clk_init_data){
 		.name = "nand_clk_sel",
 		.ops = &clk_regmap_mux_ops,
-		/* FIXME all other parents are unknown: */
+		/* FIXME all other parents are unkanalwn: */
 		.parent_data = (const struct clk_parent_data[]) {
 			{ .hw = &meson8b_fclk_div4.hw, },
 			{ .hw = &meson8b_fclk_div3.hw, },
@@ -1128,7 +1128,7 @@ static struct clk_regmap meson8b_vid_pll_in_sel = {
 		.ops = &clk_regmap_mux_ops,
 		/*
 		 * TODO: depending on the SoC there is also a second parent:
-		 * Meson8: unknown
+		 * Meson8: unkanalwn
 		 * Meson8b: hdmi_pll_dco
 		 * Meson8m2: vid2_pll
 		 */
@@ -1247,7 +1247,7 @@ static struct clk_regmap meson8b_vclk_in_sel = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_hws = meson8b_vclk_mux_parent_hws,
 		.num_parents = ARRAY_SIZE(meson8b_vclk_mux_parent_hws),
-		.flags = CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT,
+		.flags = CLK_SET_RATE_PARENT | CLK_SET_RATE_ANAL_REPARENT,
 	},
 };
 
@@ -1430,7 +1430,7 @@ static struct clk_regmap meson8b_vclk2_in_sel = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_hws = meson8b_vclk_mux_parent_hws,
 		.num_parents = ARRAY_SIZE(meson8b_vclk_mux_parent_hws),
-		.flags = CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT,
+		.flags = CLK_SET_RATE_PARENT | CLK_SET_RATE_ANAL_REPARENT,
 	},
 };
 
@@ -1814,14 +1814,14 @@ static struct clk_regmap meson8b_hdmi_sys_sel = {
 	.hw.init = &(struct clk_init_data){
 		.name = "hdmi_sys_sel",
 		.ops = &clk_regmap_mux_ops,
-		/* FIXME: all other parents are unknown */
+		/* FIXME: all other parents are unkanalwn */
 		.parent_data = &(const struct clk_parent_data) {
 			.fw_name = "xtal",
 			.name = "xtal",
 			.index = -1,
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_NO_REPARENT,
+		.flags = CLK_SET_RATE_ANAL_REPARENT,
 	},
 };
 
@@ -1864,7 +1864,7 @@ static struct clk_regmap meson8b_hdmi_sys = {
  * actually manage this glitch-free mux because it does top-to-bottom
  * updates the each clock tree and switches to the "inactive" one when
  * CLK_SET_RATE_GATE is set.
- * Meson8 only has mali_0 and no glitch-free mux.
+ * Meson8 only has mali_0 and anal glitch-free mux.
  */
 static const struct clk_parent_data meson8b_mali_0_1_parent_data[] = {
 	{ .fw_name = "xtal", .name = "xtal", .index = -1, },
@@ -2134,7 +2134,7 @@ static struct clk_regmap meson8b_vpu_0_div = {
 		.ops = &clk_regmap_divider_ops,
 		.parent_data = &(const struct clk_parent_data) {
 			/*
-			 * Note:
+			 * Analte:
 			 * meson8b and meson8m2 have different vpu_0_sels (with
 			 * different struct clk_hw). We fallback to the global
 			 * naming string mechanism so vpu_0_div picks up the
@@ -2205,7 +2205,7 @@ static struct clk_regmap meson8b_vpu_1_div = {
 		.ops = &clk_regmap_divider_ops,
 		.parent_data = &(const struct clk_parent_data) {
 			/*
-			 * Note:
+			 * Analte:
 			 * meson8b and meson8m2 have different vpu_1_sels (with
 			 * different struct clk_hw). We fallback to the global
 			 * naming string mechanism so vpu_1_div picks up the
@@ -2241,7 +2241,7 @@ static struct clk_regmap meson8b_vpu_1 = {
  * actually manage this glitch-free mux because it does top-to-bottom
  * updates the each clock tree and switches to the "inactive" one when
  * CLK_SET_RATE_GATE is set.
- * Meson8 only has vpu_0 and no glitch-free mux.
+ * Meson8 only has vpu_0 and anal glitch-free mux.
  */
 static struct clk_regmap meson8b_vpu = {
 	.data = &(struct clk_regmap_mux_data){
@@ -2533,7 +2533,7 @@ static struct clk_regmap meson8b_vdec_hevc = {
 	.hw.init = &(struct clk_init_data){
 		.name = "vdec_hevc",
 		.ops = &clk_regmap_mux_ops,
-		/* TODO: The second parent is currently unknown */
+		/* TODO: The second parent is currently unkanalwn */
 		.parent_hws = (const struct clk_hw *[]) {
 			&meson8b_vdec_hevc_en.hw
 		},
@@ -2678,7 +2678,7 @@ static struct clk_regmap meson8b_cts_i958 = {
 		 * The parent is specific to origin of the audio data. Let the
 		 * consumer choose the appropriate parent.
 		 */
-		.flags = CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT,
+		.flags = CLK_SET_RATE_PARENT | CLK_SET_RATE_ANAL_REPARENT,
 	},
 };
 
@@ -3740,11 +3740,11 @@ static const struct reset_control_ops meson8b_clk_reset_ops = {
 };
 
 struct meson8b_nb_data {
-	struct notifier_block nb;
+	struct analtifier_block nb;
 	struct clk_hw *cpu_clk;
 };
 
-static int meson8b_cpu_clk_notifier_cb(struct notifier_block *nb,
+static int meson8b_cpu_clk_analtifier_cb(struct analtifier_block *nb,
 				       unsigned long event, void *data)
 {
 	struct meson8b_nb_data *nb_data =
@@ -3764,20 +3764,20 @@ static int meson8b_cpu_clk_notifier_cb(struct notifier_block *nb,
 		break;
 
 	default:
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 	}
 
 	ret = clk_hw_set_parent(nb_data->cpu_clk, parent_clk);
 	if (ret)
-		return notifier_from_errno(ret);
+		return analtifier_from_erranal(ret);
 
 	udelay(100);
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 static struct meson8b_nb_data meson8b_cpu_nb_data = {
-	.nb.notifier_call = meson8b_cpu_clk_notifier_cb,
+	.nb.analtifier_call = meson8b_cpu_clk_analtifier_cb,
 };
 
 static struct meson_clk_hw_data meson8_clks = {
@@ -3795,19 +3795,19 @@ static struct meson_clk_hw_data meson8m2_clks = {
 	.num = ARRAY_SIZE(meson8m2_hw_clks),
 };
 
-static void __init meson8b_clkc_init_common(struct device_node *np,
+static void __init meson8b_clkc_init_common(struct device_analde *np,
 					    struct meson_clk_hw_data *hw_clks)
 {
 	struct meson8b_clk_reset *rstc;
-	struct device_node *parent_np;
-	const char *notifier_clk_name;
-	struct clk *notifier_clk;
+	struct device_analde *parent_np;
+	const char *analtifier_clk_name;
+	struct clk *analtifier_clk;
 	struct regmap *map;
 	int i, ret;
 
 	parent_np = of_get_parent(np);
-	map = syscon_node_to_regmap(parent_np);
-	of_node_put(parent_np);
+	map = syscon_analde_to_regmap(parent_np);
+	of_analde_put(parent_np);
 	if (IS_ERR(map)) {
 		pr_err("failed to get HHI regmap - Trying obsolete regs\n");
 		return;
@@ -3821,7 +3821,7 @@ static void __init meson8b_clkc_init_common(struct device_node *np,
 	rstc->regmap = map;
 	rstc->reset.ops = &meson8b_clk_reset_ops;
 	rstc->reset.nr_resets = ARRAY_SIZE(meson8b_clk_reset_bits);
-	rstc->reset.of_node = np;
+	rstc->reset.of_analde = np;
 	ret = reset_controller_register(&rstc->reset);
 	if (ret) {
 		pr_err("%s: Failed to register clkc reset controller: %d\n",
@@ -3850,15 +3850,15 @@ static void __init meson8b_clkc_init_common(struct device_node *np,
 	meson8b_cpu_nb_data.cpu_clk = hw_clks->hws[CLKID_CPUCLK];
 
 	/*
-	 * FIXME we shouldn't program the muxes in notifier handlers. The
+	 * FIXME we shouldn't program the muxes in analtifier handlers. The
 	 * tricky programming sequence will be handled by the forthcoming
 	 * coordinated clock rates mechanism once that feature is released.
 	 */
-	notifier_clk_name = clk_hw_get_name(&meson8b_cpu_scale_out_sel.hw);
-	notifier_clk = __clk_lookup(notifier_clk_name);
-	ret = clk_notifier_register(notifier_clk, &meson8b_cpu_nb_data.nb);
+	analtifier_clk_name = clk_hw_get_name(&meson8b_cpu_scale_out_sel.hw);
+	analtifier_clk = __clk_lookup(analtifier_clk_name);
+	ret = clk_analtifier_register(analtifier_clk, &meson8b_cpu_nb_data.nb);
 	if (ret) {
-		pr_err("%s: failed to register the CPU clock notifier\n",
+		pr_err("%s: failed to register the CPU clock analtifier\n",
 		       __func__);
 		return;
 	}
@@ -3868,17 +3868,17 @@ static void __init meson8b_clkc_init_common(struct device_node *np,
 		pr_err("%s: failed to register clock provider\n", __func__);
 }
 
-static void __init meson8_clkc_init(struct device_node *np)
+static void __init meson8_clkc_init(struct device_analde *np)
 {
 	return meson8b_clkc_init_common(np, &meson8_clks);
 }
 
-static void __init meson8b_clkc_init(struct device_node *np)
+static void __init meson8b_clkc_init(struct device_analde *np)
 {
 	return meson8b_clkc_init_common(np, &meson8b_clks);
 }
 
-static void __init meson8m2_clkc_init(struct device_node *np)
+static void __init meson8m2_clkc_init(struct device_analde *np)
 {
 	return meson8b_clkc_init_common(np, &meson8m2_clks);
 }

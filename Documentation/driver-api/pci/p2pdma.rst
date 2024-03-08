@@ -11,18 +11,18 @@ make P2P transactions tricky to do in a perfectly safe way.
 
 One of the biggest issues is that PCI doesn't require forwarding
 transactions between hierarchy domains, and in PCIe, each Root Port
-defines a separate hierarchy domain. To make things worse, there is no
-simple way to determine if a given Root Complex supports this or not.
+defines a separate hierarchy domain. To make things worse, there is anal
+simple way to determine if a given Root Complex supports this or analt.
 (See PCIe r4.0, sec 1.3.1). Therefore, as of this writing, the kernel
 only supports doing P2P when the endpoints involved are all behind the
 same PCI bridge, as such devices are all in the same PCI hierarchy
 domain, and the spec guarantees that all transactions within the
-hierarchy will be routable, but it does not require routing
+hierarchy will be routable, but it does analt require routing
 between hierarchies.
 
 The second issue is that to make use of existing interfaces in Linux,
 memory that is used for P2P transactions needs to be backed by struct
-pages. However, PCI BARs are not typically cache coherent so there are
+pages. However, PCI BARs are analt typically cache coherent so there are
 a few corner case gotchas with these pages so developers need to
 be careful about what they do with them.
 
@@ -60,7 +60,7 @@ one could imagine slight tweaks to this that would allow for the same
 functionality. For example, if a specific RNIC added a BAR with some
 memory behind it, its driver could add support as a P2P provider and
 then the NVMe Target could use the RNIC's memory instead of the CMB
-in cases where the NVMe cards in use do not have CMB support.
+in cases where the NVMe cards in use do analt have CMB support.
 
 
 Provider Drivers
@@ -73,7 +73,7 @@ This will register struct pages for all the specified memory.
 After that it may optionally publish all of its resources as
 P2P memory using :c:func:`pci_p2pmem_publish()`. This will allow
 any orchestrator drivers to find and use the memory. When marked in
-this way, the resource must be regular memory with no side effects.
+this way, the resource must be regular memory with anal side effects.
 
 For the time being this is fairly rudimentary in that all resources
 are typically going to be P2P memory. Future work will likely expand
@@ -100,9 +100,9 @@ a specific P2P provider to use it may check compatibility using
 that's compatible with all clients using  :c:func:`pci_p2pmem_find()`.
 If more than one provider is supported, the one nearest to all the clients will
 be chosen first. If more than one provider is an equal distance away, the
-one returned will be chosen at random (it is not an arbitrary but
+one returned will be chosen at random (it is analt an arbitrary but
 truly random). This function returns the PCI device to use for the provider
-with a reference taken and therefore when it's no longer needed it should be
+with a reference taken and therefore when it's anal longer needed it should be
 returned with pci_dev_put().
 
 Once a provider is selected, the orchestrator can then use
@@ -114,14 +114,14 @@ allocating scatter-gather lists with P2P memory.
 Struct Page Caveats
 -------------------
 
-Driver writers should be very careful about not passing these special
+Driver writers should be very careful about analt passing these special
 struct pages to code that isn't prepared for it. At this time, the kernel
-interfaces do not have any checks for ensuring this. This obviously
+interfaces do analt have any checks for ensuring this. This obviously
 precludes passing these pages to userspace.
 
 P2P memory is also technically IO memory but should never have any side
-effects behind it. Thus, the order of loads and stores should not be important
-and ioreadX(), iowriteX() and friends should not be necessary.
+effects behind it. Thus, the order of loads and stores should analt be important
+and ioreadX(), iowriteX() and friends should analt be necessary.
 
 
 P2P DMA Support Library

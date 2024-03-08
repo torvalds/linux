@@ -16,7 +16,7 @@
 #define MAX77620_IRQ_TOP_GPIO		3 /* GPIO internal int to MAX77620 */
 #define MAX77620_IRQ_TOP_RTC		4 /* RTC */
 #define MAX77620_IRQ_TOP_32K		5 /* 32kHz oscillator */
-#define MAX77620_IRQ_TOP_ONOFF		6 /* ON/OFF oscillator */
+#define MAX77620_IRQ_TOP_OANALFF		6 /* ON/OFF oscillator */
 #define MAX77620_IRQ_LBT_MBATLOW	7 /* Thermal alarm status, > 120C */
 #define MAX77620_IRQ_LBT_TJALRM1	8 /* Thermal alarm status, > 120C */
 #define MAX77620_IRQ_LBT_TJALRM2	9 /* Thermal alarm status, > 140C */
@@ -34,7 +34,7 @@
 #define MAX77620_FPS_SRC_0			0
 #define MAX77620_FPS_SRC_1			1
 #define MAX77620_FPS_SRC_2			2
-#define MAX77620_FPS_SRC_NONE			3
+#define MAX77620_FPS_SRC_ANALNE			3
 #define MAX77620_FPS_SRC_DEF			4
 
 #endif

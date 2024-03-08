@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -123,7 +123,7 @@ static void construct_link_service_dpms(struct link_service *link_srv)
 }
 
 /* link ddc implements generic display communication protocols such as i2c, aux
- * and scdc. It should not contain any specific applications of these
+ * and scdc. It should analt contain any specific applications of these
  * protocols such as display capability query, detection, or handshaking such as
  * link training.
  */
@@ -134,8 +134,8 @@ static void construct_link_service_ddc(struct link_service *link_srv)
 	link_srv->query_ddc_data = link_query_ddc_data;
 	link_srv->aux_transfer_raw = link_aux_transfer_raw;
 	link_srv->configure_fixed_vs_pe_retimer = link_configure_fixed_vs_pe_retimer;
-	link_srv->aux_transfer_with_retries_no_mutex =
-			link_aux_transfer_with_retries_no_mutex;
+	link_srv->aux_transfer_with_retries_anal_mutex =
+			link_aux_transfer_with_retries_anal_mutex;
 	link_srv->is_in_aux_transaction_mode = link_is_in_aux_transaction_mode;
 	link_srv->get_aux_defer_delay = link_get_aux_defer_delay;
 }
@@ -316,7 +316,7 @@ static enum transmitter translate_encoder_to_transmitter(
 		case ENUM_ID_2:
 			return TRANSMITTER_UNIPHY_B;
 		default:
-			return TRANSMITTER_UNKNOWN;
+			return TRANSMITTER_UNKANALWN;
 		}
 	break;
 	case ENCODER_ID_INTERNAL_UNIPHY1:
@@ -326,7 +326,7 @@ static enum transmitter translate_encoder_to_transmitter(
 		case ENUM_ID_2:
 			return TRANSMITTER_UNIPHY_D;
 		default:
-			return TRANSMITTER_UNKNOWN;
+			return TRANSMITTER_UNKANALWN;
 		}
 	break;
 	case ENCODER_ID_INTERNAL_UNIPHY2:
@@ -336,7 +336,7 @@ static enum transmitter translate_encoder_to_transmitter(
 		case ENUM_ID_2:
 			return TRANSMITTER_UNIPHY_F;
 		default:
-			return TRANSMITTER_UNKNOWN;
+			return TRANSMITTER_UNKANALWN;
 		}
 	break;
 	case ENCODER_ID_INTERNAL_UNIPHY3:
@@ -344,7 +344,7 @@ static enum transmitter translate_encoder_to_transmitter(
 		case ENUM_ID_1:
 			return TRANSMITTER_UNIPHY_G;
 		default:
-			return TRANSMITTER_UNKNOWN;
+			return TRANSMITTER_UNKANALWN;
 		}
 	break;
 	case ENCODER_ID_EXTERNAL_NUTMEG:
@@ -352,7 +352,7 @@ static enum transmitter translate_encoder_to_transmitter(
 		case ENUM_ID_1:
 			return TRANSMITTER_NUTMEG_CRT;
 		default:
-			return TRANSMITTER_UNKNOWN;
+			return TRANSMITTER_UNKANALWN;
 		}
 	break;
 	case ENCODER_ID_EXTERNAL_TRAVIS:
@@ -362,11 +362,11 @@ static enum transmitter translate_encoder_to_transmitter(
 		case ENUM_ID_2:
 			return TRANSMITTER_TRAVIS_LCD;
 		default:
-			return TRANSMITTER_UNKNOWN;
+			return TRANSMITTER_UNKANALWN;
 		}
 	break;
 	default:
-		return TRANSMITTER_UNKNOWN;
+		return TRANSMITTER_UNKANALWN;
 	}
 }
 
@@ -388,7 +388,7 @@ static void link_destruct(struct dc_link *link)
 	if (link->link_enc) {
 		/* Update link encoder resource tracking variables. These are used for
 		 * the dynamic assignment of link encoders to streams. Virtual links
-		 * are not assigned encoder resources on creation.
+		 * are analt assigned encoder resources on creation.
 		 */
 		if (link->link_id.id != CONNECTOR_ID_VIRTUAL) {
 			link->dc->res_pool->link_encoders[link->eng_id - ENGINE_ID_DIGA] = NULL;
@@ -409,7 +409,7 @@ static enum channel_id get_ddc_line(struct dc_link *link)
 	struct ddc *ddc;
 	enum channel_id channel;
 
-	channel = CHANNEL_ID_UNKNOWN;
+	channel = CHANNEL_ID_UNKANALWN;
 
 	ddc = get_ddc_pin(link->ddc);
 
@@ -653,7 +653,7 @@ static bool construct_phy(struct dc_link *link,
 		}
 
 		/* Look for device tag that matches connector signal,
-		 * CRT for rgb, LCD for other supported signal tyes
+		 * CRT for rgb, LCD for other supported signal tanal
 		 */
 		if (!bp_funcs->is_device_id_supported(dc_ctx->dc_bios,
 						      link->device_tag.dev_id))
@@ -713,8 +713,8 @@ static bool construct_phy(struct dc_link *link,
 	/*
 	 * TODO check if GPIO programmed correctly
 	 *
-	 * If GPIO isn't programmed correctly HPD might not rise or drain
-	 * fast enough, leading to bounces.
+	 * If GPIO isn't programmed correctly HPD might analt rise or drain
+	 * fast eanalugh, leading to bounces.
 	 */
 	program_hpd_filter(link);
 

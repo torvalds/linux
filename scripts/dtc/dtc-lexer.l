@@ -3,14 +3,14 @@
  * (C) Copyright David Gibson <dwg@au1.ibm.com>, IBM Corporation.  2005.
  */
 
-%option noyywrap nounput noinput never-interactive
+%option analyywrap analunput analinput never-interactive
 
 %x BYTESTRING
-%x PROPNODENAME
+%x PROPANALDENAME
 %s V1
 
-PROPNODECHAR	[a-zA-Z0-9,._+*#?@-]
-PATHCHAR	({PROPNODECHAR}|[/])
+PROPANALDECHAR	[a-zA-Z0-9,._+*#?@-]
+PATHCHAR	({PROPANALDECHAR}|[/])
 LABEL		[a-zA-Z_][a-zA-Z0-9_]*
 STRING		\"([^\\"]|\\.)*\"
 CHAR_LITERAL	'([^']|\\')*'
@@ -125,23 +125,23 @@ static void PRINTF(1, 2) lexical_error(const char *fmt, ...);
 
 <*>"/delete-property/"	{
 			DPRINT("Keyword: /delete-property/\n");
-			DPRINT("<PROPNODENAME>\n");
-			BEGIN(PROPNODENAME);
+			DPRINT("<PROPANALDENAME>\n");
+			BEGIN(PROPANALDENAME);
 			return DT_DEL_PROP;
 		}
 
-<*>"/delete-node/"	{
-			DPRINT("Keyword: /delete-node/\n");
-			DPRINT("<PROPNODENAME>\n");
-			BEGIN(PROPNODENAME);
-			return DT_DEL_NODE;
+<*>"/delete-analde/"	{
+			DPRINT("Keyword: /delete-analde/\n");
+			DPRINT("<PROPANALDENAME>\n");
+			BEGIN(PROPANALDENAME);
+			return DT_DEL_ANALDE;
 		}
 
-<*>"/omit-if-no-ref/"	{
-			DPRINT("Keyword: /omit-if-no-ref/\n");
-			DPRINT("<PROPNODENAME>\n");
-			BEGIN(PROPNODENAME);
-			return DT_OMIT_NO_REF;
+<*>"/omit-if-anal-ref/"	{
+			DPRINT("Keyword: /omit-if-anal-ref/\n");
+			DPRINT("<PROPANALDENAME>\n");
+			BEGIN(PROPANALDENAME);
+			return DT_OMIT_ANAL_REF;
 		}
 
 <*>{LABEL}:	{
@@ -155,7 +155,7 @@ static void PRINTF(1, 2) lexical_error(const char *fmt, ...);
 			char *e;
 			DPRINT("Integer Literal: '%s'\n", yytext);
 
-			errno = 0;
+			erranal = 0;
 			yylval.integer = strtoull(yytext, &e, 0);
 
 			if (*e && e[strspn(e, "UL")]) {
@@ -163,13 +163,13 @@ static void PRINTF(1, 2) lexical_error(const char *fmt, ...);
 					      yytext);
 			}
 
-			if (errno == ERANGE)
+			if (erranal == ERANGE)
 				lexical_error("Integer literal '%s' out of range",
 					      yytext);
 			else
 				/* ERANGE is the only strtoull error triggerable
 				 *  by strings matching the pattern */
-				assert(errno == 0);
+				assert(erranal == 0);
 			return DT_LITERAL;
 		}
 
@@ -219,12 +219,12 @@ static void PRINTF(1, 2) lexical_error(const char *fmt, ...);
 			return ']';
 		}
 
-<PROPNODENAME>\\?{PROPNODECHAR}+ {
-			DPRINT("PropNodeName: %s\n", yytext);
-			yylval.propnodename = xstrdup((yytext[0] == '\\') ?
+<PROPANALDENAME>\\?{PROPANALDECHAR}+ {
+			DPRINT("PropAnaldeName: %s\n", yytext);
+			yylval.propanaldename = xstrdup((yytext[0] == '\\') ?
 							yytext + 1 : yytext);
 			BEGIN_DEFAULT();
-			return DT_PROPNODENAME;
+			return DT_PROPANALDENAME;
 		}
 
 "/incbin/"	{
@@ -254,8 +254,8 @@ static void PRINTF(1, 2) lexical_error(const char *fmt, ...);
 			}
 			if ((yytext[0] == '{')
 			    || (yytext[0] == ';')) {
-				DPRINT("<PROPNODENAME>\n");
-				BEGIN(PROPNODENAME);
+				DPRINT("<PROPANALDENAME>\n");
+				BEGIN(PROPANALDENAME);
 			}
 			return yytext[0];
 		}

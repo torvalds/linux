@@ -9,9 +9,9 @@
 
 static const u32 reg_comp_cfg_fmask[] = {
 	[COMP_CFG_ENABLE]				= BIT(0),
-	[GSI_SNOC_BYPASS_DIS]				= BIT(1),
-	[GEN_QMB_0_SNOC_BYPASS_DIS]			= BIT(2),
-	[GEN_QMB_1_SNOC_BYPASS_DIS]			= BIT(3),
+	[GSI_SANALC_BYPASS_DIS]				= BIT(1),
+	[GEN_QMB_0_SANALC_BYPASS_DIS]			= BIT(2),
+	[GEN_QMB_1_SANALC_BYPASS_DIS]			= BIT(3),
 	[IPA_DCMP_FAST_CLK_EN]				= BIT(4),
 						/* Bits 5-31 reserved */
 };
@@ -155,7 +155,7 @@ REG_FIELDS(FLAVOR_0, flavor_0, 0x00000210);
 
 static const u32 reg_idle_indication_cfg_fmask[] = {
 	[ENTER_IDLE_DEBOUNCE_THRESH]			= GENMASK(15, 0),
-	[CONST_NON_IDLE_ENABLE]				= BIT(16),
+	[CONST_ANALN_IDLE_ENABLE]				= BIT(16),
 						/* Bits 17-31 reserved */
 };
 
@@ -323,7 +323,7 @@ static const u32 reg_endp_init_deaggr_fmask[] = {
 	[SYSPIPE_ERR_DETECTION]				= BIT(6),
 	[PACKET_OFFSET_VALID]				= BIT(7),
 	[PACKET_OFFSET_LOCATION]			= GENMASK(13, 8),
-	[IGNORE_MIN_PKT_ERR]				= BIT(14),
+	[IGANALRE_MIN_PKT_ERR]				= BIT(14),
 						/* Bit 15 reserved */
 	[MAX_PACKET_LEN]				= GENMASK(31, 16),
 };

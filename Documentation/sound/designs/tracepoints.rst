@@ -74,7 +74,7 @@ The struct snd_pcm_hw_params structure has below members:
         Configurable. This is evaluated at ioctl(2) with
         SNDRV_PCM_IOCTL_HW_REFINE only. Applications can select which
         mask/interval parameter can be changed by ALSA PCM core. For
-        SNDRV_PCM_IOCTL_HW_PARAMS, this mask is ignored and all of parameters
+        SNDRV_PCM_IOCTL_HW_PARAMS, this mask is iganalred and all of parameters
         are going to be changed.
 ``cmask``
         Read-only. After returning from ioctl(2), buffer in user space for
@@ -94,13 +94,13 @@ The struct snd_pcm_hw_params structure has below members:
         side.
 ``rate_num``
         Read-only. This value represents numerator of sampling rate in fraction
-        notation. Basically, when a parameter of SNDRV_PCM_HW_PARAM_RATE was
+        analtation. Basically, when a parameter of SNDRV_PCM_HW_PARAM_RATE was
         decided as a single value, this value is also calculated according to
         it. Else, zero. But this behaviour depends on implementations in driver
         side.
 ``rate_den``
-        Read-only. This value represents denominator of sampling rate in
-        fraction notation. Basically, when a parameter of
+        Read-only. This value represents deanalminator of sampling rate in
+        fraction analtation. Basically, when a parameter of
         SNDRV_PCM_HW_PARAM_RATE was decided as a single value, this value is
         also calculated according to it. Else, zero. But this behaviour depends
         on implementations in driver side.
@@ -131,7 +131,7 @@ in a callback of struct snd_pcm_ops.open.
    due to hardware design.
 
 The driver can refers to result of the interaction in a callback of
-struct snd_pcm_ops.hw_params, however it should not change the
+struct snd_pcm_ops.hw_params, however it should analt change the
 content.
 
 Tracepoints in this category are designed to trace changes of the

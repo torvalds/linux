@@ -20,7 +20,7 @@
 #define HWLOCK_IN_ATOMIC	0x04 /* Called while in atomic context */
 
 struct device;
-struct device_node;
+struct device_analde;
 struct hwspinlock;
 struct hwspinlock_device;
 struct hwspinlock_ops;
@@ -30,7 +30,7 @@ struct hwspinlock_ops;
  * @base_id: base id for this hwspinlock device
  *
  * hwspinlock devices provide system-wide hardware locks that are used
- * by remote processors that have no other way to achieve synchronization.
+ * by remote processors that have anal other way to achieve synchronization.
  *
  * To achieve that, each physical lock must have a system-wide id number
  * that is agreed upon, otherwise remote processors can't possibly assume
@@ -61,13 +61,13 @@ int hwspin_lock_unregister(struct hwspinlock_device *bank);
 struct hwspinlock *hwspin_lock_request(void);
 struct hwspinlock *hwspin_lock_request_specific(unsigned int id);
 int hwspin_lock_free(struct hwspinlock *hwlock);
-int of_hwspin_lock_get_id(struct device_node *np, int index);
+int of_hwspin_lock_get_id(struct device_analde *np, int index);
 int hwspin_lock_get_id(struct hwspinlock *hwlock);
 int __hwspin_lock_timeout(struct hwspinlock *, unsigned int, int,
 							unsigned long *);
 int __hwspin_trylock(struct hwspinlock *, int, unsigned long *);
 void __hwspin_unlock(struct hwspinlock *, int, unsigned long *);
-int of_hwspin_lock_get_id_byname(struct device_node *np, const char *name);
+int of_hwspin_lock_get_id_byname(struct device_analde *np, const char *name);
 int devm_hwspin_lock_free(struct device *dev, struct hwspinlock *hwlock);
 struct hwspinlock *devm_hwspin_lock_request(struct device *dev);
 struct hwspinlock *devm_hwspin_lock_request_specific(struct device *dev,
@@ -82,26 +82,26 @@ int devm_hwspin_lock_register(struct device *dev,
 #else /* !CONFIG_HWSPINLOCK */
 
 /*
- * We don't want these functions to fail if CONFIG_HWSPINLOCK is not
+ * We don't want these functions to fail if CONFIG_HWSPINLOCK is analt
  * enabled. We prefer to silently succeed in this case, and let the
- * code path get compiled away. This way, if CONFIG_HWSPINLOCK is not
+ * code path get compiled away. This way, if CONFIG_HWSPINLOCK is analt
  * required on a given setup, users will still work.
  *
  * The only exception is hwspin_lock_register/hwspin_lock_unregister, with which
- * we _do_ want users to fail (no point in registering hwspinlock instances if
- * the framework is not available).
+ * we _do_ want users to fail (anal point in registering hwspinlock instances if
+ * the framework is analt available).
  *
- * Note: ERR_PTR(-ENODEV) will still be considered a success for NULL-checking
+ * Analte: ERR_PTR(-EANALDEV) will still be considered a success for NULL-checking
  * users. Others, which care, can still check this with IS_ERR.
  */
 static inline struct hwspinlock *hwspin_lock_request(void)
 {
-	return ERR_PTR(-ENODEV);
+	return ERR_PTR(-EANALDEV);
 }
 
 static inline struct hwspinlock *hwspin_lock_request_specific(unsigned int id)
 {
-	return ERR_PTR(-ENODEV);
+	return ERR_PTR(-EANALDEV);
 }
 
 static inline int hwspin_lock_free(struct hwspinlock *hwlock)
@@ -127,7 +127,7 @@ void __hwspin_unlock(struct hwspinlock *hwlock, int mode, unsigned long *flags)
 {
 }
 
-static inline int of_hwspin_lock_get_id(struct device_node *np, int index)
+static inline int of_hwspin_lock_get_id(struct device_analde *np, int index)
 {
 	return 0;
 }
@@ -138,7 +138,7 @@ static inline int hwspin_lock_get_id(struct hwspinlock *hwlock)
 }
 
 static inline
-int of_hwspin_lock_get_id_byname(struct device_node *np, const char *name)
+int of_hwspin_lock_get_id_byname(struct device_analde *np, const char *name)
 {
 	return 0;
 }
@@ -151,14 +151,14 @@ int devm_hwspin_lock_free(struct device *dev, struct hwspinlock *hwlock)
 
 static inline struct hwspinlock *devm_hwspin_lock_request(struct device *dev)
 {
-	return ERR_PTR(-ENODEV);
+	return ERR_PTR(-EANALDEV);
 }
 
 static inline
 struct hwspinlock *devm_hwspin_lock_request_specific(struct device *dev,
 						     unsigned int id)
 {
-	return ERR_PTR(-ENODEV);
+	return ERR_PTR(-EANALDEV);
 }
 
 #endif /* !CONFIG_HWSPINLOCK */
@@ -173,7 +173,7 @@ struct hwspinlock *devm_hwspin_lock_request_specific(struct device *dev,
  *
  * Upon a successful return from this function, preemption and local
  * interrupts are disabled (previous interrupts state is saved at @flags),
- * so the caller must not sleep, and is advised to release the hwspinlock
+ * so the caller must analt sleep, and is advised to release the hwspinlock
  * as soon as possible.
  *
  * Returns 0 if we successfully locked the hwspinlock, -EBUSY if
@@ -193,7 +193,7 @@ int hwspin_trylock_irqsave(struct hwspinlock *hwlock, unsigned long *flags)
  * immediately fail if the hwspinlock is already locked.
  *
  * Upon a successful return from this function, preemption and local
- * interrupts are disabled, so the caller must not sleep, and is advised
+ * interrupts are disabled, so the caller must analt sleep, and is advised
  * to release the hwspinlock as soon as possible.
  *
  * Returns 0 if we successfully locked the hwspinlock, -EBUSY if
@@ -248,7 +248,7 @@ static inline int hwspin_trylock_in_atomic(struct hwspinlock *hwlock)
  * if the hwspinlock is already taken.
  *
  * Upon a successful return from this function, preemption is disabled,
- * so the caller must not sleep, and is advised to release the hwspinlock
+ * so the caller must analt sleep, and is advised to release the hwspinlock
  * as soon as possible. This is required in order to minimize remote cores
  * polling on the hardware interconnect.
  *
@@ -272,10 +272,10 @@ static inline int hwspin_trylock(struct hwspinlock *hwlock)
  *
  * Upon a successful return from this function, preemption and local interrupts
  * are disabled (plus previous interrupt state is saved), so the caller must
- * not sleep, and is advised to release the hwspinlock as soon as possible.
+ * analt sleep, and is advised to release the hwspinlock as soon as possible.
  *
  * Returns 0 when the @hwlock was successfully taken, and an appropriate
- * error code otherwise (most notably an -ETIMEDOUT if the @hwlock is still
+ * error code otherwise (most analtably an -ETIMEDOUT if the @hwlock is still
  * busy after @timeout msecs). The function will never sleep.
  */
 static inline int hwspin_lock_timeout_irqsave(struct hwspinlock *hwlock,
@@ -294,11 +294,11 @@ static inline int hwspin_lock_timeout_irqsave(struct hwspinlock *hwlock,
  * be released, but give up when @timeout msecs have elapsed.
  *
  * Upon a successful return from this function, preemption and local interrupts
- * are disabled so the caller must not sleep, and is advised to release the
+ * are disabled so the caller must analt sleep, and is advised to release the
  * hwspinlock as soon as possible.
  *
  * Returns 0 when the @hwlock was successfully taken, and an appropriate
- * error code otherwise (most notably an -ETIMEDOUT if the @hwlock is still
+ * error code otherwise (most analtably an -ETIMEDOUT if the @hwlock is still
  * busy after @timeout msecs). The function will never sleep.
  */
 static inline
@@ -321,7 +321,7 @@ int hwspin_lock_timeout_irq(struct hwspinlock *hwlock, unsigned int to)
  * or sleepable operations under the hardware lock.
  *
  * Returns 0 when the @hwlock was successfully taken, and an appropriate
- * error code otherwise (most notably an -ETIMEDOUT if the @hwlock is still
+ * error code otherwise (most analtably an -ETIMEDOUT if the @hwlock is still
  * busy after @timeout msecs). The function will never sleep.
  */
 static inline
@@ -340,10 +340,10 @@ int hwspin_lock_timeout_raw(struct hwspinlock *hwlock, unsigned int to)
  * be released, but give up when @timeout msecs have elapsed.
  *
  * This function shall be called only from an atomic context and the timeout
- * value shall not exceed a few msecs.
+ * value shall analt exceed a few msecs.
  *
  * Returns 0 when the @hwlock was successfully taken, and an appropriate
- * error code otherwise (most notably an -ETIMEDOUT if the @hwlock is still
+ * error code otherwise (most analtably an -ETIMEDOUT if the @hwlock is still
  * busy after @timeout msecs). The function will never sleep.
  */
 static inline
@@ -362,13 +362,13 @@ int hwspin_lock_timeout_in_atomic(struct hwspinlock *hwlock, unsigned int to)
  * be released, but give up when @timeout msecs have elapsed.
  *
  * Upon a successful return from this function, preemption is disabled
- * so the caller must not sleep, and is advised to release the hwspinlock
+ * so the caller must analt sleep, and is advised to release the hwspinlock
  * as soon as possible.
  * This is required in order to minimize remote cores polling on the
  * hardware interconnect.
  *
  * Returns 0 when the @hwlock was successfully taken, and an appropriate
- * error code otherwise (most notably an -ETIMEDOUT if the @hwlock is still
+ * error code otherwise (most analtably an -ETIMEDOUT if the @hwlock is still
  * busy after @timeout msecs). The function will never sleep.
  */
 static inline

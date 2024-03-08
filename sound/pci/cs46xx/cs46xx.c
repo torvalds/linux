@@ -5,7 +5,7 @@
  */
 
 /*
-  NOTES:
+  ANALTES:
   - sometimes the sound is metallic and sibilant, unloading and 
     reloading the module may solve this.
 */
@@ -60,10 +60,10 @@ static int snd_card_cs46xx_probe(struct pci_dev *pci,
 	int err;
 
 	if (dev >= SNDRV_CARDS)
-		return -ENODEV;
+		return -EANALDEV;
 	if (!enable[dev]) {
 		dev++;
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	err = snd_devm_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,

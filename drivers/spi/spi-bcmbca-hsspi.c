@@ -48,8 +48,8 @@
 
 #define HSSPI_PINGPONG_COMMAND_REG(x)		(0x80 + (x) * 0x40)
 #define PINGPONG_CMD_COMMAND_MASK		0xf
-#define PINGPONG_COMMAND_NOOP			0
-#define PINGPONG_COMMAND_START_NOW		1
+#define PINGPONG_COMMAND_ANALOP			0
+#define PINGPONG_COMMAND_START_ANALW		1
 #define PINGPONG_COMMAND_START_TRIGGER		2
 #define PINGPONG_COMMAND_HALT			3
 #define PINGPONG_COMMAND_FLUSH			4
@@ -173,7 +173,7 @@ static void bcmbca_hsspi_set_cs(struct bcmbca_hsspi *bs, unsigned int cs,
 {
 	u32 reg;
 
-	/* No cs orerriden needed for SS7 internal cs on pcm based voice dev */
+	/* Anal cs orerriden needed for SS7 internal cs on pcm based voice dev */
 	if (cs == 7)
 		return;
 
@@ -309,7 +309,7 @@ static int bcmbca_hsspi_do_txrx(struct spi_device *spi, struct spi_transfer *t,
 
 		reg = chip_select << PINGPONG_CMD_SS_SHIFT |
 			    chip_select << PINGPONG_CMD_PROFILE_SHIFT |
-			    PINGPONG_COMMAND_START_NOW;
+			    PINGPONG_COMMAND_START_ANALW;
 		__raw_writel(reg, bs->regs + HSSPI_PINGPONG_COMMAND_REG(0));
 
 		if (bcmbca_hsspi_wait_cmd(bs, spi_get_chipselect(spi, 0)))
@@ -419,7 +419,7 @@ static irqreturn_t bcmbca_hsspi_interrupt(int irq, void *dev_id)
 	struct bcmbca_hsspi *bs = (struct bcmbca_hsspi *)dev_id;
 
 	if (__raw_readl(bs->regs + HSSPI_INT_STATUS_MASKED_REG) == 0)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	__raw_writel(HSSPI_INT_CLEAR_ALL, bs->regs + HSSPI_INT_STATUS_REG);
 	__raw_writel(0, bs->regs + HSSPI_INT_MASK_REG);
@@ -489,7 +489,7 @@ static int bcmbca_hsspi_probe(struct platform_device *pdev)
 
 	host = spi_alloc_host(&pdev->dev, sizeof(*bs));
 	if (!host) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_disable_pll_clk;
 	}
 
@@ -507,11 +507,11 @@ static int bcmbca_hsspi_probe(struct platform_device *pdev)
 	mutex_init(&bs->msg_mutex);
 	init_completion(&bs->done);
 
-	host->dev.of_node = dev->of_node;
-	if (!dev->of_node)
+	host->dev.of_analde = dev->of_analde;
+	if (!dev->of_analde)
 		host->bus_num = HSSPI_BUS_NUM;
 
-	of_property_read_u32(dev->of_node, "num-cs", &num_cs);
+	of_property_read_u32(dev->of_analde, "num-cs", &num_cs);
 	if (num_cs > 8) {
 		dev_warn(dev, "unsupported number of cs (%i), reducing to 8\n",
 			 num_cs);

@@ -24,10 +24,10 @@
     "BriefDescription": "V3 RET Inst"
   },
   {
-	"PublicDescription": "JR(non-RET) instructions",
+	"PublicDescription": "JR(analn-RET) instructions",
     "EventCode": "0x106",
     "EventName": "jr_inst",
-    "BriefDescription": "V3 JR(non-RET) instructions"
+    "BriefDescription": "V3 JR(analn-RET) instructions"
   },
   {
 	"PublicDescription": "JAL/JRAL instructions",
@@ -36,10 +36,10 @@
     "BriefDescription": "V3 JAL/JRAL instructions"
   },
   {
-	"PublicDescription": "NOP instructions",
+	"PublicDescription": "ANALP instructions",
     "EventCode": "0x108",
-    "EventName": "nop_inst",
-    "BriefDescription": "V3 NOP instructions"
+    "EventName": "analp_inst",
+    "BriefDescription": "V3 ANALP instructions"
   },
   {
 	"PublicDescription": "SCW instructions",

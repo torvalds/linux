@@ -1,15 +1,15 @@
 [
     {
         "ArchStdEvent": "L1I_TLB_REFILL",
-        "PublicDescription": "Counts level 1 instruction TLB refills from any Instruction fetch. If there are multiple misses in the TLB that are resolved by the refill, then this event only counts once. This event will not count if the translation table walk results in a fault (such as a translation or access fault), since there is no new translation created for the TLB."
+        "PublicDescription": "Counts level 1 instruction TLB refills from any Instruction fetch. If there are multiple misses in the TLB that are resolved by the refill, then this event only counts once. This event will analt count if the translation table walk results in a fault (such as a translation or access fault), since there is anal new translation created for the TLB."
     },
     {
         "ArchStdEvent": "L1D_TLB_REFILL",
-        "PublicDescription": "Counts level 1 data TLB accesses that resulted in TLB refills. If there are multiple misses in the TLB that are resolved by the refill, then this event only counts once. This event counts for refills caused by preload instructions or hardware prefetch accesses. This event counts regardless of whether the miss hits in L2 or results in a translation table walk. This event will not count if the translation table walk results in a fault (such as a translation or access fault), since there is no new translation created for the TLB. This event will not count on an access from an AT(address translation) instruction."
+        "PublicDescription": "Counts level 1 data TLB accesses that resulted in TLB refills. If there are multiple misses in the TLB that are resolved by the refill, then this event only counts once. This event counts for refills caused by preload instructions or hardware prefetch accesses. This event counts regardless of whether the miss hits in L2 or results in a translation table walk. This event will analt count if the translation table walk results in a fault (such as a translation or access fault), since there is anal new translation created for the TLB. This event will analt count on an access from an AT(address translation) instruction."
     },
     {
         "ArchStdEvent": "L1D_TLB",
-        "PublicDescription": "Counts level 1 data TLB accesses caused by any memory load or store operation. Note that load or store instructions can be broken up into multiple memory operations. This event does not count TLB maintenance operations."
+        "PublicDescription": "Counts level 1 data TLB accesses caused by any memory load or store operation. Analte that load or store instructions can be broken up into multiple memory operations. This event does analt count TLB maintenance operations."
     },
     {
         "ArchStdEvent": "L1I_TLB",
@@ -25,27 +25,27 @@
     },
     {
         "ArchStdEvent": "DTLB_WALK",
-        "PublicDescription": "Counts data memory translation table walks caused by a miss in the L2 TLB driven by a memory access. Note that partial translations that also cause a table walk are counted. This event does not count table walks caused by TLB maintenance operations."
+        "PublicDescription": "Counts data memory translation table walks caused by a miss in the L2 TLB driven by a memory access. Analte that partial translations that also cause a table walk are counted. This event does analt count table walks caused by TLB maintenance operations."
     },
     {
         "ArchStdEvent": "ITLB_WALK",
-        "PublicDescription": "Counts instruction memory translation table walks caused by a miss in the L2 TLB driven by a memory access. Partial translations that also cause a table walk are counted. This event does not count table walks caused by TLB maintenance operations."
+        "PublicDescription": "Counts instruction memory translation table walks caused by a miss in the L2 TLB driven by a memory access. Partial translations that also cause a table walk are counted. This event does analt count table walks caused by TLB maintenance operations."
     },
     {
         "ArchStdEvent": "L1D_TLB_REFILL_RD",
-        "PublicDescription": "Counts level 1 data TLB refills caused by memory read operations. If there are multiple misses in the TLB that are resolved by the refill, then this event only counts once. This event counts for refills caused by preload instructions or hardware prefetch accesses. This event counts regardless of whether the miss hits in L2 or results in a translation table walk. This event will not count if the translation table walk results in a fault (such as a translation or access fault), since there is no new translation created for the TLB. This event will not count on an access from an Address Translation (AT) instruction."
+        "PublicDescription": "Counts level 1 data TLB refills caused by memory read operations. If there are multiple misses in the TLB that are resolved by the refill, then this event only counts once. This event counts for refills caused by preload instructions or hardware prefetch accesses. This event counts regardless of whether the miss hits in L2 or results in a translation table walk. This event will analt count if the translation table walk results in a fault (such as a translation or access fault), since there is anal new translation created for the TLB. This event will analt count on an access from an Address Translation (AT) instruction."
     },
     {
         "ArchStdEvent": "L1D_TLB_REFILL_WR",
-        "PublicDescription": "Counts level 1 data TLB refills caused by data side memory write operations. If there are multiple misses in the TLB that are resolved by the refill, then this event only counts once. This event counts for refills caused by preload instructions or hardware prefetch accesses. This event counts regardless of whether the miss hits in L2 or results in a translation table walk. This event will not count if the table walk results in a fault (such as a translation or access fault), since there is no new translation created for the TLB. This event will not count with an access from an Address Translation (AT) instruction."
+        "PublicDescription": "Counts level 1 data TLB refills caused by data side memory write operations. If there are multiple misses in the TLB that are resolved by the refill, then this event only counts once. This event counts for refills caused by preload instructions or hardware prefetch accesses. This event counts regardless of whether the miss hits in L2 or results in a translation table walk. This event will analt count if the table walk results in a fault (such as a translation or access fault), since there is anal new translation created for the TLB. This event will analt count with an access from an Address Translation (AT) instruction."
     },
     {
         "ArchStdEvent": "L1D_TLB_RD",
-        "PublicDescription": "Counts level 1 data TLB accesses caused by memory read operations. This event counts whether the access hits or misses in the TLB. This event does not count TLB maintenance operations."
+        "PublicDescription": "Counts level 1 data TLB accesses caused by memory read operations. This event counts whether the access hits or misses in the TLB. This event does analt count TLB maintenance operations."
     },
     {
         "ArchStdEvent": "L1D_TLB_WR",
-        "PublicDescription": "Counts any L1 data side TLB accesses caused by memory write operations. This event counts whether the access hits or misses in the TLB. This event does not count TLB maintenance operations."
+        "PublicDescription": "Counts any L1 data side TLB accesses caused by memory write operations. This event counts whether the access hits or misses in the TLB. This event does analt count TLB maintenance operations."
     },
     {
         "ArchStdEvent": "L2D_TLB_REFILL_RD",

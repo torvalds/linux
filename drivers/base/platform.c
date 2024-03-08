@@ -156,9 +156,9 @@ EXPORT_SYMBOL_GPL(devm_platform_ioremap_resource_byname);
  * @num: IRQ number index
  *
  * Gets an IRQ for a platform device. Device drivers should check the return
- * value for errors so as to not pass a negative integer value to the
+ * value for errors so as to analt pass a negative integer value to the
  * request_irq() APIs. This is the same as platform_get_irq(), except that it
- * does not print an error message if an IRQ can not be obtained.
+ * does analt print an error message if an IRQ can analt be obtained.
  *
  * For example::
  *
@@ -166,31 +166,31 @@ EXPORT_SYMBOL_GPL(devm_platform_ioremap_resource_byname);
  *		if (irq < 0)
  *			return irq;
  *
- * Return: non-zero IRQ number on success, negative error number on failure.
+ * Return: analn-zero IRQ number on success, negative error number on failure.
  */
 int platform_get_irq_optional(struct platform_device *dev, unsigned int num)
 {
 	int ret;
 #ifdef CONFIG_SPARC
-	/* sparc does not have irqs represented as IORESOURCE_IRQ resources */
+	/* sparc does analt have irqs represented as IORESOURCE_IRQ resources */
 	if (!dev || num >= dev->archdata.num_irqs)
-		goto out_not_found;
+		goto out_analt_found;
 	ret = dev->archdata.irqs[num];
 	goto out;
 #else
-	struct fwnode_handle *fwnode = dev_fwnode(&dev->dev);
+	struct fwanalde_handle *fwanalde = dev_fwanalde(&dev->dev);
 	struct resource *r;
 
-	if (is_of_node(fwnode)) {
-		ret = of_irq_get(to_of_node(fwnode), num);
+	if (is_of_analde(fwanalde)) {
+		ret = of_irq_get(to_of_analde(fwanalde), num);
 		if (ret > 0 || ret == -EPROBE_DEFER)
 			goto out;
 	}
 
 	r = platform_get_resource(dev, IORESOURCE_IRQ, num);
-	if (is_acpi_device_node(fwnode)) {
+	if (is_acpi_device_analde(fwanalde)) {
 		if (r && r->flags & IORESOURCE_DISABLED) {
-			ret = acpi_irq_get(ACPI_HANDLE_FWNODE(fwnode), num, r);
+			ret = acpi_irq_get(ACPI_HANDLE_FWANALDE(fwanalde), num, r);
 			if (ret)
 				goto out;
 		}
@@ -207,7 +207,7 @@ int platform_get_irq_optional(struct platform_device *dev, unsigned int num)
 
 		irqd = irq_get_irq_data(r->start);
 		if (!irqd)
-			goto out_not_found;
+			goto out_analt_found;
 		irqd_set_trigger_type(irqd, r->flags & IORESOURCE_BITS);
 	}
 
@@ -223,15 +223,15 @@ int platform_get_irq_optional(struct platform_device *dev, unsigned int num)
 	 * the device will only expose one IRQ, and this fallback
 	 * allows a common code path across either kind of resource.
 	 */
-	if (num == 0 && is_acpi_device_node(fwnode)) {
-		ret = acpi_dev_gpio_irq_get(to_acpi_device_node(fwnode), num);
+	if (num == 0 && is_acpi_device_analde(fwanalde)) {
+		ret = acpi_dev_gpio_irq_get(to_acpi_device_analde(fwanalde), num);
 		/* Our callers expect -ENXIO for missing IRQs. */
 		if (ret >= 0 || ret == -EPROBE_DEFER)
 			goto out;
 	}
 
 #endif
-out_not_found:
+out_analt_found:
 	ret = -ENXIO;
 out:
 	if (WARN(!ret, "0 is an invalid IRQ number\n"))
@@ -247,7 +247,7 @@ EXPORT_SYMBOL_GPL(platform_get_irq_optional);
  *
  * Gets an IRQ for a platform device and prints an error message if finding the
  * IRQ fails. Device drivers should check the return value for errors so as to
- * not pass a negative integer value to the request_irq() APIs.
+ * analt pass a negative integer value to the request_irq() APIs.
  *
  * For example::
  *
@@ -255,7 +255,7 @@ EXPORT_SYMBOL_GPL(platform_get_irq_optional);
  *		if (irq < 0)
  *			return irq;
  *
- * Return: non-zero IRQ number on success, negative error number on failure.
+ * Return: analn-zero IRQ number on success, negative error number on failure.
  */
 int platform_get_irq(struct platform_device *dev, unsigned int num)
 {
@@ -264,7 +264,7 @@ int platform_get_irq(struct platform_device *dev, unsigned int num)
 	ret = platform_get_irq_optional(dev, num);
 	if (ret < 0)
 		return dev_err_probe(&dev->dev, ret,
-				     "IRQ index %u not found\n", num);
+				     "IRQ index %u analt found\n", num);
 
 	return ret;
 }
@@ -313,7 +313,7 @@ static void devm_platform_get_irqs_affinity_release(struct device *dev,
 	for (i = 0; i < ptr->count; i++) {
 		irq_dispose_mapping(ptr->irq[i]);
 
-		if (is_acpi_device_node(dev_fwnode(dev)))
+		if (is_acpi_device_analde(dev_fwanalde(dev)))
 			platform_disable_acpi_irq(to_platform_device(dev), i);
 	}
 }
@@ -354,11 +354,11 @@ int devm_platform_get_irqs_affinity(struct platform_device *dev,
 		return nvec;
 
 	if (nvec < minvec)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	nvec = irq_calc_affinity_vectors(minvec, nvec, affd);
 	if (nvec < minvec)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	if (nvec > maxvec)
 		nvec = maxvec;
@@ -367,7 +367,7 @@ int devm_platform_get_irqs_affinity(struct platform_device *dev,
 	ptr = devres_alloc(devm_platform_get_irqs_affinity_release, size,
 			   GFP_KERNEL);
 	if (!ptr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ptr->count = nvec;
 
@@ -382,7 +382,7 @@ int devm_platform_get_irqs_affinity(struct platform_device *dev,
 
 	desc = irq_create_affinity_masks(nvec, affd);
 	if (!desc) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_devres;
 	}
 
@@ -442,7 +442,7 @@ static int __platform_get_irq_byname(struct platform_device *dev,
 	struct resource *r;
 	int ret;
 
-	ret = fwnode_irq_get_byname(dev_fwnode(&dev->dev), name);
+	ret = fwanalde_irq_get_byname(dev_fwanalde(&dev->dev), name);
 	if (ret > 0 || ret == -EPROBE_DEFER)
 		return ret;
 
@@ -463,7 +463,7 @@ static int __platform_get_irq_byname(struct platform_device *dev,
  *
  * Get an IRQ like platform_get_irq(), but then by name rather then by index.
  *
- * Return: non-zero IRQ number on success, negative error number on failure.
+ * Return: analn-zero IRQ number on success, negative error number on failure.
  */
 int platform_get_irq_byname(struct platform_device *dev, const char *name)
 {
@@ -471,7 +471,7 @@ int platform_get_irq_byname(struct platform_device *dev, const char *name)
 
 	ret = __platform_get_irq_byname(dev, name);
 	if (ret < 0)
-		return dev_err_probe(&dev->dev, ret, "IRQ %s not found\n",
+		return dev_err_probe(&dev->dev, ret, "IRQ %s analt found\n",
 				     name);
 	return ret;
 }
@@ -483,9 +483,9 @@ EXPORT_SYMBOL_GPL(platform_get_irq_byname);
  * @name: IRQ name
  *
  * Get an optional IRQ by name like platform_get_irq_byname(). Except that it
- * does not print an error message if an IRQ can not be obtained.
+ * does analt print an error message if an IRQ can analt be obtained.
  *
- * Return: non-zero IRQ number on success, negative error number on failure.
+ * Return: analn-zero IRQ number on success, negative error number on failure.
  */
 int platform_get_irq_byname_optional(struct platform_device *dev,
 				     const char *name)
@@ -558,7 +558,7 @@ static void platform_device_release(struct device *dev)
 	struct platform_object *pa = container_of(dev, struct platform_object,
 						  pdev.dev);
 
-	of_node_put(pa->pdev.dev.of_node);
+	of_analde_put(pa->pdev.dev.of_analde);
 	kfree(pa->pdev.dev.platform_data);
 	kfree(pa->pdev.mfd_cell);
 	kfree(pa->pdev.resource);
@@ -610,7 +610,7 @@ int platform_device_add_resources(struct platform_device *pdev,
 	if (res) {
 		r = kmemdup(res, sizeof(struct resource) * num, GFP_KERNEL);
 		if (!r)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	kfree(pdev->resource);
@@ -638,7 +638,7 @@ int platform_device_add_data(struct platform_device *pdev, const void *data,
 	if (data) {
 		d = kmemdup(data, size, GFP_KERNEL);
 		if (!d)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	kfree(pdev->dev.platform_data);
@@ -669,7 +669,7 @@ int platform_device_add(struct platform_device *pdev)
 	default:
 		dev_set_name(dev, "%s.%d", pdev->name,  pdev->id);
 		break;
-	case PLATFORM_DEVID_NONE:
+	case PLATFORM_DEVID_ANALNE:
 		dev_set_name(dev, "%s", pdev->name);
 		break;
 	case PLATFORM_DEVID_AUTO:
@@ -739,7 +739,7 @@ EXPORT_SYMBOL_GPL(platform_device_add);
  * platform_device_del - remove a platform-level device
  * @pdev: platform device we're removing
  *
- * Note that this function will also release all memory- and port-based
+ * Analte that this function will also release all memory- and port-based
  * resources owned by the device (@dev->resource).  This function must
  * _only_ be externally called in error cases.  All other usage is a bug.
  */
@@ -768,7 +768,7 @@ EXPORT_SYMBOL_GPL(platform_device_del);
  * platform_device_register - add a platform-level device
  * @pdev: platform device we're adding
  *
- * NOTE: _Never_ directly free @pdev after calling this function, even if it
+ * ANALTE: _Never_ directly free @pdev after calling this function, even if it
  * returned an error! Always use platform_device_put() to give up the
  * reference initialised in this function instead.
  */
@@ -811,12 +811,12 @@ struct platform_device *platform_device_register_full(
 
 	pdev = platform_device_alloc(pdevinfo->name, pdevinfo->id);
 	if (!pdev)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	pdev->dev.parent = pdevinfo->parent;
-	pdev->dev.fwnode = pdevinfo->fwnode;
-	pdev->dev.of_node = of_node_get(to_of_node(pdev->dev.fwnode));
-	pdev->dev.of_node_reused = pdevinfo->of_node_reused;
+	pdev->dev.fwanalde = pdevinfo->fwanalde;
+	pdev->dev.of_analde = of_analde_get(to_of_analde(pdev->dev.fwanalde));
+	pdev->dev.of_analde_reused = pdevinfo->of_analde_reused;
 
 	if (pdevinfo->dma_mask) {
 		pdev->platform_dma_mask = pdevinfo->dma_mask;
@@ -835,7 +835,7 @@ struct platform_device *platform_device_register_full(
 		goto err;
 
 	if (pdevinfo->properties) {
-		ret = device_create_managed_software_node(&pdev->dev,
+		ret = device_create_managed_software_analde(&pdev->dev,
 							  pdevinfo->properties, NULL);
 		if (ret)
 			goto err;
@@ -891,13 +891,13 @@ static int is_bound_to_driver(struct device *dev, void *driver)
 }
 
 /**
- * __platform_driver_probe - register driver for non-hotpluggable device
+ * __platform_driver_probe - register driver for analn-hotpluggable device
  * @drv: platform driver structure
  * @probe: the driver probe routine, probably from an __init section
  * @module: module which will be the owner of the driver
  *
- * Use this instead of platform_driver_register() when you know the device
- * is not hotpluggable and has already been registered, and you want to
+ * Use this instead of platform_driver_register() when you kanalw the device
+ * is analt hotpluggable and has already been registered, and you want to
  * remove its run-once probe() infrastructure from memory after the driver
  * has bound to the device.
  *
@@ -905,28 +905,28 @@ static int is_bound_to_driver(struct device *dev, void *driver)
  * into system-on-chip processors, where the controller devices have been
  * configured as part of board setup.
  *
- * Note that this is incompatible with deferred probing.
+ * Analte that this is incompatible with deferred probing.
  *
  * Returns zero if the driver registered and bound to a device, else returns
- * a negative error code and with the driver not registered.
+ * a negative error code and with the driver analt registered.
  */
 int __init_or_module __platform_driver_probe(struct platform_driver *drv,
 		int (*probe)(struct platform_device *), struct module *module)
 {
 	int retval;
 
-	if (drv->driver.probe_type == PROBE_PREFER_ASYNCHRONOUS) {
-		pr_err("%s: drivers registered with %s can not be probed asynchronously\n",
+	if (drv->driver.probe_type == PROBE_PREFER_ASYNCHROANALUS) {
+		pr_err("%s: drivers registered with %s can analt be probed asynchroanalusly\n",
 			 drv->driver.name, __func__);
 		return -EINVAL;
 	}
 
 	/*
-	 * We have to run our probes synchronously because we check if
+	 * We have to run our probes synchroanalusly because we check if
 	 * we find any devices to bind to and exit with error if there
 	 * are any.
 	 */
-	drv->driver.probe_type = PROBE_FORCE_SYNCHRONOUS;
+	drv->driver.probe_type = PROBE_FORCE_SYNCHROANALUS;
 
 	/*
 	 * Prevent driver from requesting probe deferral to avoid further
@@ -947,10 +947,10 @@ int __init_or_module __platform_driver_probe(struct platform_driver *drv,
 	drv->probe = platform_probe_fail;
 
 	/* Walk all platform devices and see if any actually bound to this driver.
-	 * If not, return an error as the device should have done so by now.
+	 * If analt, return an error as the device should have done so by analw.
 	 */
 	if (!bus_for_each_dev(&platform_bus_type, NULL, &drv->driver, is_bound_to_driver)) {
-		retval = -ENODEV;
+		retval = -EANALDEV;
 		platform_driver_unregister(drv);
 	}
 
@@ -984,7 +984,7 @@ struct platform_device * __init_or_module __platform_create_bundle(
 
 	pdev = platform_device_alloc(driver->driver.name, -1);
 	if (!pdev) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto err_out;
 	}
 
@@ -1247,23 +1247,23 @@ static ssize_t modalias_show(struct device *dev,
 	int len;
 
 	len = of_device_modalias(dev, buf, PAGE_SIZE);
-	if (len != -ENODEV)
+	if (len != -EANALDEV)
 		return len;
 
 	len = acpi_device_modalias(dev, buf, PAGE_SIZE - 1);
-	if (len != -ENODEV)
+	if (len != -EANALDEV)
 		return len;
 
 	return sysfs_emit(buf, "platform:%s\n", pdev->name);
 }
 static DEVICE_ATTR_RO(modalias);
 
-static ssize_t numa_node_show(struct device *dev,
+static ssize_t numa_analde_show(struct device *dev,
 			      struct device_attribute *attr, char *buf)
 {
-	return sysfs_emit(buf, "%d\n", dev_to_node(dev));
+	return sysfs_emit(buf, "%d\n", dev_to_analde(dev));
 }
-static DEVICE_ATTR_RO(numa_node);
+static DEVICE_ATTR_RO(numa_analde);
 
 static ssize_t driver_override_show(struct device *dev,
 				    struct device_attribute *attr, char *buf)
@@ -1295,7 +1295,7 @@ static DEVICE_ATTR_RW(driver_override);
 
 static struct attribute *platform_dev_attrs[] = {
 	&dev_attr_modalias.attr,
-	&dev_attr_numa_node.attr,
+	&dev_attr_numa_analde.attr,
 	&dev_attr_driver_override.attr,
 	NULL,
 };
@@ -1305,8 +1305,8 @@ static umode_t platform_dev_attrs_visible(struct kobject *kobj, struct attribute
 {
 	struct device *dev = container_of(kobj, typeof(*dev), kobj);
 
-	if (a == &dev_attr_numa_node.attr &&
-			dev_to_node(dev) == NUMA_NO_NODE)
+	if (a == &dev_attr_numa_analde.attr &&
+			dev_to_analde(dev) == NUMA_ANAL_ANALDE)
 		return 0;
 
 	return a->mode;
@@ -1330,7 +1330,7 @@ __ATTRIBUTE_GROUPS(platform_dev);
  * instance of the device, like '0' or '42'.  Driver IDs are simply
  * "<name>".  So, extract the <name> from the platform_device structure,
  * and compare it against the name of the driver. Return whether they match
- * or not.
+ * or analt.
  */
 static int platform_match(struct device *dev, struct device_driver *drv)
 {
@@ -1364,11 +1364,11 @@ static int platform_uevent(const struct device *dev, struct kobj_uevent_env *env
 
 	/* Some devices have extra OF data and an OF-style MODALIAS */
 	rc = of_device_uevent_modalias(dev, env);
-	if (rc != -ENODEV)
+	if (rc != -EANALDEV)
 		return rc;
 
 	rc = acpi_device_uevent_modalias(dev, env);
-	if (rc != -ENODEV)
+	if (rc != -EANALDEV)
 		return rc;
 
 	add_uevent_var(env, "MODALIAS=%s%s", PLATFORM_MODULE_PREFIX,
@@ -1383,7 +1383,7 @@ static int platform_probe(struct device *_dev)
 	int ret;
 
 	/*
-	 * A driver registered using platform_driver_probe() cannot be bound
+	 * A driver registered using platform_driver_probe() cananalt be bound
 	 * again later because the probe function usually lives in __init code
 	 * and so is gone. For these drivers .probe is set to
 	 * platform_probe_fail in __platform_driver_probe(). Don't even prepare
@@ -1392,7 +1392,7 @@ static int platform_probe(struct device *_dev)
 	if (unlikely(drv->probe == platform_probe_fail))
 		return -ENXIO;
 
-	ret = of_clk_set_defaults(_dev->of_node, false);
+	ret = of_clk_set_defaults(_dev->of_analde, false);
 	if (ret < 0)
 		return ret;
 
@@ -1408,7 +1408,7 @@ static int platform_probe(struct device *_dev)
 
 out:
 	if (drv->prevent_deferred_probe && ret == -EPROBE_DEFER) {
-		dev_warn(_dev, "probe deferral not supported\n");
+		dev_warn(_dev, "probe deferral analt supported\n");
 		ret = -ENXIO;
 	}
 
@@ -1426,7 +1426,7 @@ static void platform_remove(struct device *_dev)
 		int ret = drv->remove(dev);
 
 		if (ret)
-			dev_warn(_dev, "remove callback returned a non-zero value. This will be ignored.\n");
+			dev_warn(_dev, "remove callback returned a analn-zero value. This will be iganalred.\n");
 	}
 	dev_pm_domain_detach(_dev, true);
 }
@@ -1447,14 +1447,14 @@ static void platform_shutdown(struct device *_dev)
 static int platform_dma_configure(struct device *dev)
 {
 	struct platform_driver *drv = to_platform_driver(dev->driver);
-	struct fwnode_handle *fwnode = dev_fwnode(dev);
+	struct fwanalde_handle *fwanalde = dev_fwanalde(dev);
 	enum dev_dma_attr attr;
 	int ret = 0;
 
-	if (is_of_node(fwnode)) {
-		ret = of_dma_configure(dev, to_of_node(fwnode), true);
-	} else if (is_acpi_device_node(fwnode)) {
-		attr = acpi_get_dma_attr(to_acpi_device_node(fwnode));
+	if (is_of_analde(fwanalde)) {
+		ret = of_dma_configure(dev, to_of_analde(fwanalde), true);
+	} else if (is_acpi_device_analde(fwanalde)) {
+		attr = acpi_get_dma_attr(to_acpi_device_analde(fwanalde));
 		ret = acpi_dma_configure(dev, attr);
 	}
 	if (ret || drv->driver_managed_dma)

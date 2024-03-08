@@ -15,18 +15,18 @@
  * are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    analtice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    analtice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS''
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO,
  * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS
+ * PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE AUTHOR OR CONTRIBUTORS
  * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
  * BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
  * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
@@ -67,8 +67,8 @@ static inline void bnxt_qplib_rcfw_cmd_prep(struct cmdq_base *req,
 	req->cmd_size = cmd_size;
 }
 
-/* Shadow queue depth for non blocking command */
-#define RCFW_CMD_NON_BLOCKING_SHADOW_QD	64
+/* Shadow queue depth for analn blocking command */
+#define RCFW_CMD_ANALN_BLOCKING_SHADOW_QD	64
 #define RCFW_CMD_WAIT_TIME_MS		20000 /* 20 Seconds timeout */
 
 /* CMDQ elements */
@@ -138,7 +138,7 @@ struct bnxt_qplib_crsbe {
 };
 
 /* CREQ */
-/* Allocate 1 per QP for async error notification for now */
+/* Allocate 1 per QP for async error analtification for analw */
 #define BNXT_QPLIB_CREQE_MAX_CNT	(64 * 1024)
 #define BNXT_QPLIB_CREQE_UNITS		16	/* 16-Bytes per prod unit */
 #define CREQ_CMP_VALID(hdr, pass)			\
@@ -166,7 +166,7 @@ struct bnxt_qplib_rcfw_sbuf {
 	u32 size;
 };
 
-struct bnxt_qplib_qp_node {
+struct bnxt_qplib_qp_analde {
 	u32 qp_id;              /* QP id */
 	void *qp_handle;        /* ptr to qplib_qp */
 };
@@ -223,7 +223,7 @@ struct bnxt_qplib_rcfw {
 	struct bnxt_qplib_creq_ctx	creq;
 	struct bnxt_qplib_crsqe		*crsqe_tbl;
 	int qp_tbl_size;
-	struct bnxt_qplib_qp_node *qp_tbl;
+	struct bnxt_qplib_qp_analde *qp_tbl;
 	u64 oos_prev;
 	u32 init_oos_stats;
 	u32 cmdq_depth;

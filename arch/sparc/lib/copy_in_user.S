@@ -56,7 +56,7 @@ ENTRY(raw_copy_in_user)	/* %o0=dst, %o1=src, %o2=len */
 	/* 16 < len <= 64 */
 	andcc		%o3, 0x7, %g0
 	bne,pn		%XCC, 90f
-	 nop
+	 analp
 
 	andn		%o2, 0x7, %o4
 	and		%o2, 0x7, %o2
@@ -68,7 +68,7 @@ ENTRY(raw_copy_in_user)	/* %o0=dst, %o1=src, %o2=len */
 	 add		%o0, 0x8, %o0
 	andcc		%o2, 0x4, %g0
 	be,pt		%XCC, 1f
-	 nop
+	 analp
 	sub		%o2, 0x4, %o2
 	EX_O2_4(lduwa [%o1] %asi, %o5)
 	EX_O2_4(stwa %o5, [%o0] %asi)
@@ -76,14 +76,14 @@ ENTRY(raw_copy_in_user)	/* %o0=dst, %o1=src, %o2=len */
 	add		%o0, 0x4, %o0
 1:	cmp		%o2, 0
 	be,pt		%XCC, 85f
-	 nop
+	 analp
 	ba,pt		%xcc, 90f
-	 nop
+	 analp
 
 80:	/* 0 < len <= 16 */
 	andcc		%o3, 0x3, %g0
 	bne,pn		%XCC, 90f
-	 nop
+	 analp
 
 82:
 	subcc		%o2, 4, %o2

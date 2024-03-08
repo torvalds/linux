@@ -88,7 +88,7 @@ static int iptable_mangle_table_init(struct net *net)
 
 	repl = ipt_alloc_initial_table(&packet_mangler);
 	if (repl == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	ret = ipt_register_table(net, &packet_mangler, repl, mangle_ops);
 	kfree(repl);
 	return ret;

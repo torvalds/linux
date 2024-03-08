@@ -87,7 +87,7 @@ static void imx93_pd_remove(struct platform_device *pdev)
 {
 	struct imx93_power_domain *domain = platform_get_drvdata(pdev);
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 
 	if (!domain->init_off)
 		clk_bulk_disable_unprepare(domain->num_clks, domain->clks);
@@ -99,13 +99,13 @@ static void imx93_pd_remove(struct platform_device *pdev)
 static int imx93_pd_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct imx93_power_domain *domain;
 	int ret;
 
 	domain = devm_kzalloc(dev, sizeof(*domain), GFP_KERNEL);
 	if (!domain)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	domain->addr = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(domain->addr))

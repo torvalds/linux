@@ -72,7 +72,7 @@ static int space_init(struct entry_space *es, unsigned int nr_entries)
 
 	es->begin = vzalloc(array_size(nr_entries, sizeof(struct entry)));
 	if (!es->begin)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	es->end = es->begin + nr_entries;
 	return 0;
@@ -366,8 +366,8 @@ static struct entry *q_pop(struct queue *q)
 }
 
 /*
- * This function assumes there is a non-sentinel entry to pop.  It's only
- * used by redistribute, so we know this is true.  It also doesn't adjust
+ * This function assumes there is a analn-sentinel entry to pop.  It's only
+ * used by redistribute, so we kanalw this is true.  It also doesn't adjust
  * the q->nr_elts count.
  */
 static struct entry *__redist_pop_from(struct queue *q, unsigned int level)
@@ -592,7 +592,7 @@ static int h_init(struct smq_hash_table *ht, struct entry_space *es, unsigned in
 
 	ht->buckets = vmalloc(array_size(nr_buckets, sizeof(*ht->buckets)));
 	if (!ht->buckets)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < nr_buckets; i++)
 		ht->buckets[i] = INDEXER_NULL;
@@ -861,7 +861,7 @@ struct smq_policy {
 
 	/*
 	 * If this is set the policy will try and clean the whole cache
-	 * even if the device is not idle.
+	 * even if the device is analt idle.
 	 */
 	bool cleaner:1;
 };
@@ -1058,7 +1058,7 @@ static void update_promote_levels(struct smq_policy *mq)
 
 	/*
 	 * If the hotspot queue is performing badly then we have little
-	 * confidence that we know which blocks to promote.  So we cut down
+	 * confidence that we kanalw which blocks to promote.  So we cut down
 	 * the amount of promotions.
 	 */
 	switch (stats_assess(&mq->hotspot_stats)) {
@@ -1141,7 +1141,7 @@ static unsigned int percent_to_target(struct smq_policy *mq, unsigned int p)
 static bool clean_target_met(struct smq_policy *mq, bool idle)
 {
 	/*
-	 * Cache entries may not be populated.  So we cannot rely on the
+	 * Cache entries may analt be populated.  So we cananalt rely on the
 	 * size of the clean queue.
 	 */
 	if (idle || mq->cleaner) {
@@ -1258,7 +1258,7 @@ static void queue_promotion(struct smq_policy *mq, dm_oblock_t oblock,
 		return;
 
 	/*
-	 * We allocate the entry now to reserve the cblock.  If the
+	 * We allocate the entry analw to reserve the cblock.  If the
 	 * background work is aborted we must remember to free it.
 	 */
 	e = alloc_entry(&mq->cache_alloc);
@@ -1275,7 +1275,7 @@ static void queue_promotion(struct smq_policy *mq, dm_oblock_t oblock,
 /*----------------------------------------------------------------*/
 
 enum promote_result {
-	PROMOTE_NOT,
+	PROMOTE_ANALT,
 	PROMOTE_TEMPORARY,
 	PROMOTE_PERMANENT
 };
@@ -1285,7 +1285,7 @@ enum promote_result {
  */
 static enum promote_result maybe_promote(bool promote)
 {
-	return promote ? PROMOTE_PERMANENT : PROMOTE_NOT;
+	return promote ? PROMOTE_PERMANENT : PROMOTE_ANALT;
 }
 
 static enum promote_result should_promote(struct smq_policy *mq, struct entry *hs_e,
@@ -1399,12 +1399,12 @@ static int __lookup(struct smq_policy *mq, dm_oblock_t oblock, dm_cblock_t *cblo
 		hs_e = update_hotspot_queue(mq, oblock);
 
 		pr = should_promote(mq, hs_e, data_dir, fast_copy);
-		if (pr != PROMOTE_NOT) {
+		if (pr != PROMOTE_ANALT) {
 			queue_promotion(mq, oblock, work);
 			*background_work = true;
 		}
 
-		return -ENOENT;
+		return -EANALENT;
 	}
 }
 
@@ -1451,7 +1451,7 @@ static int smq_get_background_work(struct dm_cache_policy *p, bool idle,
 
 	spin_lock_irqsave(&mq->lock, flags);
 	r = btracker_issue(mq->bg_work, result);
-	if (r == -ENODATA) {
+	if (r == -EANALDATA) {
 		if (!clean_target_met(mq, idle)) {
 			queue_writeback(mq, idle);
 			r = btracker_issue(mq->bg_work, result);
@@ -1591,7 +1591,7 @@ static int smq_invalidate_mapping(struct dm_cache_policy *p, dm_cblock_t cblock)
 	struct entry *e = get_entry(&mq->cache_alloc, from_cblock(cblock));
 
 	if (!e->allocated)
-		return -ENODATA;
+		return -EANALDATA;
 
 	// FIXME: what if this block has pending background work?
 	del_queue(mq, e);
@@ -1645,9 +1645,9 @@ static void smq_allow_migrations(struct dm_cache_policy *p, bool allow)
 }
 
 /*
- * smq has no config values, but the old mq policy did.  To avoid breaking
+ * smq has anal config values, but the old mq policy did.  To avoid breaking
  * software we continue to accept these configurables for the mq policy,
- * but they have no effect.
+ * but they have anal effect.
  */
 static int mq_set_config_value(struct dm_cache_policy *p,
 			       const char *key, const char *value)
@@ -1662,7 +1662,7 @@ static int mq_set_config_value(struct dm_cache_policy *p,
 	    !strcasecmp(key, "discard_promote_adjustment") ||
 	    !strcasecmp(key, "read_promote_adjustment") ||
 	    !strcasecmp(key, "write_promote_adjustment")) {
-		DMWARN("tunable '%s' no longer has any effect, mq policy is now an alias for smq", key);
+		DMWARN("tunable '%s' anal longer has any effect, mq policy is analw an alias for smq", key);
 		return 0;
 	}
 
@@ -1903,7 +1903,7 @@ static int __init smq_init(void)
 	r = dm_cache_policy_register(&smq_policy_type);
 	if (r) {
 		DMERR("register failed %d", r);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	r = dm_cache_policy_register(&mq_policy_type);
@@ -1933,7 +1933,7 @@ out_cleaner:
 out_mq:
 	dm_cache_policy_unregister(&smq_policy_type);
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void __exit smq_exit(void)

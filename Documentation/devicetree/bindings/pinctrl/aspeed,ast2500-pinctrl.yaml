@@ -10,7 +10,7 @@ maintainers:
   - Andrew Jeffery <andrew@aj.id.au>
 
 description: |+
-  The pin controller node should be the child of a syscon node with the
+  The pin controller analde should be the child of a syscon analde with the
   required property:
 
   - compatible: 	Should be one of the following:
@@ -26,19 +26,19 @@ properties:
   reg:
     maxItems: 2
 
-  aspeed,external-nodes:
+  aspeed,external-analdes:
     minItems: 2
     maxItems: 2
     items:
       maxItems: 1
     $ref: /schemas/types.yaml#/definitions/phandle-array
     description: |
-      A cell of phandles to external controller nodes:
+      A cell of phandles to external controller analdes:
       0: compatible with "aspeed,ast2500-gfx", "syscon"
       1: compatible with "aspeed,ast2500-lhc", "syscon"
 
 additionalProperties:
-  $ref: pinmux-node.yaml#
+  $ref: pinmux-analde.yaml#
   additionalProperties: false
 
   properties:
@@ -55,7 +55,7 @@ additionalProperties:
               LPCPD, LPCPLUS, LPCPME, LPCRST, LPCSMI, LSIRQ, MAC1LINK, MAC2LINK,
               MDIO1, MDIO2, NCTS1, NCTS2, NCTS3, NCTS4, NDCD1, NDCD2, NDCD3, NDCD4,
               NDSR1, NDSR2, NDSR3, NDSR4, NDTR1, NDTR2, NDTR3, NDTR4, NRI1, NRI2,
-              NRI3, NRI4, NRTS1, NRTS2, NRTS3, NRTS4, OSCCLK, PEWAKE, PNOR, PWM0,
+              NRI3, NRI4, NRTS1, NRTS2, NRTS3, NRTS4, OSCCLK, PEWAKE, PANALR, PWM0,
               PWM1, PWM2, PWM3, PWM4, PWM5, PWM6, PWM7, RGMII1, RGMII2, RMII1,
               RMII2, RXD1, RXD2, RXD3, RXD4, SALT1, SALT10, SALT11, SALT12, SALT13,
               SALT14, SALT2, SALT3, SALT4, SALT5, SALT6, SALT7, SALT8, SALT9, SCL1,
@@ -71,7 +71,7 @@ allOf:
 
 required:
   - compatible
-  - aspeed,external-nodes
+  - aspeed,external-analdes
 
 examples:
   - |
@@ -88,7 +88,7 @@ examples:
 
         pinctrl: pinctrl {
             compatible = "aspeed,ast2500-pinctrl";
-            aspeed,external-nodes = <&gfx>, <&lhc>;
+            aspeed,external-analdes = <&gfx>, <&lhc>;
 
             pinctrl_i2c3_default: i2c3_default {
                 function = "I2C3";

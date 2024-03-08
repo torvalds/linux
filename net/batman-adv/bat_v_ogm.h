@@ -18,7 +18,7 @@ void batadv_v_ogm_free(struct batadv_priv *bat_priv);
 void batadv_v_ogm_aggr_work(struct work_struct *work);
 int batadv_v_ogm_iface_enable(struct batadv_hard_iface *hard_iface);
 void batadv_v_ogm_iface_disable(struct batadv_hard_iface *hard_iface);
-struct batadv_orig_node *batadv_v_ogm_orig_get(struct batadv_priv *bat_priv,
+struct batadv_orig_analde *batadv_v_ogm_orig_get(struct batadv_priv *bat_priv,
 					       const u8 *addr);
 void batadv_v_ogm_primary_iface_set(struct batadv_hard_iface *primary_iface);
 int batadv_v_ogm_packet_recv(struct sk_buff *skb,

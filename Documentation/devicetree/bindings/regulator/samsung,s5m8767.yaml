@@ -36,7 +36,7 @@ patternProperties:
           Describes the different operating modes of the LDO's with power mode
           change in SOC. The different possible values are:
             0 - always off mode
-            1 - on in normal mode
+            1 - on in analrmal mode
             2 - low power mode
             3 - suspend mode
 
@@ -60,7 +60,7 @@ patternProperties:
           Describes the different operating modes of the regulator with power
           mode change in SOC. The different possible values are:
             0 - always off mode
-            1 - on in normal mode
+            1 - on in analrmal mode
             2 - low power mode
             3 - suspend mode
 
@@ -85,7 +85,7 @@ properties:
           Describes the different operating modes of the regulator with power
           mode change in SOC. The different possible values are:
             0 - always off mode
-            1 - on in normal mode
+            1 - on in analrmal mode
             2 - low power mode
             3 - suspend mode
 

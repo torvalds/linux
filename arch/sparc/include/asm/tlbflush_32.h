@@ -14,7 +14,7 @@
 	sparc32_cachetlb_ops->tlb_page(vma, addr)
 
 /*
- * This is a kludge, until I know better. --zaitcev XXX
+ * This is a kludge, until I kanalw better. --zaitcev XXX
  */
 static inline void flush_tlb_kernel_range(unsigned long start,
 					  unsigned long end)

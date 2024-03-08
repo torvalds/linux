@@ -41,13 +41,13 @@ struct iwl_dbg_tlv_ver_data {
 };
 
 /**
- * struct iwl_dbg_tlv_timer_node - timer node struct
- * @list: list of &struct iwl_dbg_tlv_timer_node
+ * struct iwl_dbg_tlv_timer_analde - timer analde struct
+ * @list: list of &struct iwl_dbg_tlv_timer_analde
  * @timer: timer
  * @fwrt: &struct iwl_fw_runtime
- * @tlv: TLV attach to the timer node
+ * @tlv: TLV attach to the timer analde
  */
-struct iwl_dbg_tlv_timer_node {
+struct iwl_dbg_tlv_timer_analde {
 	struct list_head list;
 	struct timer_list timer;
 	struct iwl_fw_runtime *fwrt;
@@ -68,15 +68,15 @@ static int iwl_dbg_tlv_add(const struct iwl_ucode_tlv *tlv,
 			   struct list_head *list)
 {
 	u32 len = le32_to_cpu(tlv->length);
-	struct iwl_dbg_tlv_node *node;
+	struct iwl_dbg_tlv_analde *analde;
 
-	node = kzalloc(sizeof(*node) + len, GFP_KERNEL);
-	if (!node)
-		return -ENOMEM;
+	analde = kzalloc(sizeof(*analde) + len, GFP_KERNEL);
+	if (!analde)
+		return -EANALMEM;
 
-	memcpy(&node->tlv, tlv, sizeof(node->tlv));
-	memcpy(node->tlv.data, tlv->data, len);
-	list_add_tail(&node->list, list);
+	memcpy(&analde->tlv, tlv, sizeof(analde->tlv));
+	memcpy(analde->tlv.data, tlv->data, len);
+	list_add_tail(&analde->list, list);
 
 	return 0;
 }
@@ -163,8 +163,8 @@ static int iwl_dbg_tlv_alloc_hcmd(struct iwl_trans *trans,
 	if (le32_to_cpu(tlv->length) <= sizeof(*hcmd))
 		return -EINVAL;
 
-	/* Host commands can not be sent in early time point since the FW
-	 * is not ready
+	/* Host commands can analt be sent in early time point since the FW
+	 * is analt ready
 	 */
 	if (tp == IWL_FW_INI_TIME_POINT_INVALID ||
 	    tp >= IWL_FW_INI_TIME_POINT_NUM ||
@@ -215,7 +215,7 @@ static int iwl_dbg_tlv_alloc_region(struct iwl_trans *trans,
 	if (type == IWL_FW_INI_REGION_PCI_IOSF_CONFIG &&
 	    !trans->ops->read_config32) {
 		IWL_ERR(trans, "WRT: Unsupported region type %u\n", type);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (type == IWL_FW_INI_REGION_INTERNAL_BUFFER) {
@@ -235,7 +235,7 @@ static int iwl_dbg_tlv_alloc_region(struct iwl_trans *trans,
 
 	*active_reg = kmemdup(tlv, tlv_len, GFP_KERNEL);
 	if (!*active_reg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	IWL_DEBUG_FW(trans, "WRT: Enabling region id %u type %u\n", id, type);
 
@@ -271,7 +271,7 @@ static int iwl_dbg_tlv_alloc_trigger(struct iwl_trans *trans,
 		dup = kmemdup(tlv, sizeof(*tlv) + le32_to_cpu(tlv->length),
 				GFP_KERNEL);
 		if (!dup)
-			return -ENOMEM;
+			return -EANALMEM;
 		dup_trig = (void *)dup->data;
 		dup_trig->occurrences = cpu_to_le32(-1);
 		tlv = dup;
@@ -362,7 +362,7 @@ void iwl_dbg_tlv_alloc(struct iwl_trans *trans, const struct iwl_ucode_tlv *tlv,
 		goto out_err;
 	}
 
-	if (*cfg_state == IWL_INI_CFG_STATE_NOT_LOADED)
+	if (*cfg_state == IWL_INI_CFG_STATE_ANALT_LOADED)
 		*cfg_state = IWL_INI_CFG_STATE_LOADED;
 
 	return;
@@ -374,12 +374,12 @@ out_err:
 void iwl_dbg_tlv_del_timers(struct iwl_trans *trans)
 {
 	struct list_head *timer_list = &trans->dbg.periodic_trig_list;
-	struct iwl_dbg_tlv_timer_node *node, *tmp;
+	struct iwl_dbg_tlv_timer_analde *analde, *tmp;
 
-	list_for_each_entry_safe(node, tmp, timer_list, list) {
-		timer_shutdown_sync(&node->timer);
-		list_del(&node->list);
-		kfree(node);
+	list_for_each_entry_safe(analde, tmp, timer_list, list) {
+		timer_shutdown_sync(&analde->timer);
+		list_del(&analde->list);
+		kfree(analde);
 	}
 }
 IWL_EXPORT_SYMBOL(iwl_dbg_tlv_del_timers);
@@ -414,7 +414,7 @@ static void iwl_dbg_tlv_fragments_free(struct iwl_trans *trans,
 
 void iwl_dbg_tlv_free(struct iwl_trans *trans)
 {
-	struct iwl_dbg_tlv_node *tlv_node, *tlv_node_tmp;
+	struct iwl_dbg_tlv_analde *tlv_analde, *tlv_analde_tmp;
 	int i;
 
 	iwl_dbg_tlv_del_timers(trans);
@@ -427,38 +427,38 @@ void iwl_dbg_tlv_free(struct iwl_trans *trans)
 		*active_reg = NULL;
 	}
 
-	list_for_each_entry_safe(tlv_node, tlv_node_tmp,
+	list_for_each_entry_safe(tlv_analde, tlv_analde_tmp,
 				 &trans->dbg.debug_info_tlv_list, list) {
-		list_del(&tlv_node->list);
-		kfree(tlv_node);
+		list_del(&tlv_analde->list);
+		kfree(tlv_analde);
 	}
 
 	for (i = 0; i < ARRAY_SIZE(trans->dbg.time_point); i++) {
 		struct iwl_dbg_tlv_time_point_data *tp =
 			&trans->dbg.time_point[i];
 
-		list_for_each_entry_safe(tlv_node, tlv_node_tmp, &tp->trig_list,
+		list_for_each_entry_safe(tlv_analde, tlv_analde_tmp, &tp->trig_list,
 					 list) {
-			list_del(&tlv_node->list);
-			kfree(tlv_node);
+			list_del(&tlv_analde->list);
+			kfree(tlv_analde);
 		}
 
-		list_for_each_entry_safe(tlv_node, tlv_node_tmp, &tp->hcmd_list,
+		list_for_each_entry_safe(tlv_analde, tlv_analde_tmp, &tp->hcmd_list,
 					 list) {
-			list_del(&tlv_node->list);
-			kfree(tlv_node);
+			list_del(&tlv_analde->list);
+			kfree(tlv_analde);
 		}
 
-		list_for_each_entry_safe(tlv_node, tlv_node_tmp,
+		list_for_each_entry_safe(tlv_analde, tlv_analde_tmp,
 					 &tp->active_trig_list, list) {
-			list_del(&tlv_node->list);
-			kfree(tlv_node);
+			list_del(&tlv_analde->list);
+			kfree(tlv_analde);
 		}
 
-		list_for_each_entry_safe(tlv_node, tlv_node_tmp,
+		list_for_each_entry_safe(tlv_analde, tlv_analde_tmp,
 					 &tp->config_list, list) {
-			list_del(&tlv_node->list);
-			kfree(tlv_node);
+			list_del(&tlv_analde->list);
+			kfree(tlv_analde);
 		}
 
 	}
@@ -503,7 +503,7 @@ void iwl_dbg_tlv_load_bin(struct device *dev, struct iwl_trans *trans)
 	    trans->trans_cfg->device_family <= IWL_DEVICE_FAMILY_8000)
 		return;
 
-	res = firmware_request_nowarn(&fw, yoyo_bin, dev);
+	res = firmware_request_analwarn(&fw, yoyo_bin, dev);
 	IWL_DEBUG_FW(trans, "%s %s\n", res ? "didn't load" : "loaded", yoyo_bin);
 
 	if (res)
@@ -553,7 +553,7 @@ static int iwl_dbg_tlv_alloc_fragment(struct iwl_fw_runtime *fwrt,
 	while (pages > 1) {
 		block = dma_alloc_coherent(fwrt->dev, pages * PAGE_SIZE,
 					   &physical,
-					   GFP_KERNEL | __GFP_NOWARN);
+					   GFP_KERNEL | __GFP_ANALWARN);
 		if (block)
 			break;
 
@@ -564,7 +564,7 @@ static int iwl_dbg_tlv_alloc_fragment(struct iwl_fw_runtime *fwrt,
 	}
 
 	if (!block)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	frag->physical = physical;
 	frag->block = block;
@@ -617,7 +617,7 @@ static int iwl_dbg_tlv_alloc_fragments(struct iwl_fw_runtime *fwrt,
 
 	fw_mon->frags = kcalloc(num_frags, sizeof(*fw_mon->frags), GFP_KERNEL);
 	if (!fw_mon->frags)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < num_frags; i++) {
 		int pages = min_t(u32, frag_pages, remain_pages);
@@ -746,7 +746,7 @@ static int iwl_dbg_tlv_update_dram(struct iwl_fw_runtime *fwrt,
 
 	if (le32_to_cpu(fwrt->trans->dbg.fw_mon_cfg[alloc_id].buf_location) !=
 			IWL_FW_INI_LOCATION_DRAM_PATH) {
-		IWL_DEBUG_FW(fwrt, "WRT: alloc_id %u location is not in DRAM_PATH\n",
+		IWL_DEBUG_FW(fwrt, "WRT: alloc_id %u location is analt in DRAM_PATH\n",
 			     alloc_id);
 		return -1;
 	}
@@ -829,12 +829,12 @@ static void iwl_dbg_tlv_update_drams(struct iwl_fw_runtime *fwrt)
 static void iwl_dbg_tlv_send_hcmds(struct iwl_fw_runtime *fwrt,
 				   struct list_head *hcmd_list)
 {
-	struct iwl_dbg_tlv_node *node;
+	struct iwl_dbg_tlv_analde *analde;
 
-	list_for_each_entry(node, hcmd_list, list) {
-		struct iwl_fw_ini_hcmd_tlv *hcmd = (void *)node->tlv.data;
+	list_for_each_entry(analde, hcmd_list, list) {
+		struct iwl_fw_ini_hcmd_tlv *hcmd = (void *)analde->tlv.data;
 		struct iwl_fw_ini_hcmd *hcmd_data = &hcmd->hcmd;
-		u16 hcmd_len = le32_to_cpu(node->tlv.length) - sizeof(*hcmd);
+		u16 hcmd_len = le32_to_cpu(analde->tlv.length) - sizeof(*hcmd);
 		struct iwl_host_cmd cmd = {
 			.id = WIDE_ID(hcmd_data->group, hcmd_data->id),
 			.len = { hcmd_len, },
@@ -848,12 +848,12 @@ static void iwl_dbg_tlv_send_hcmds(struct iwl_fw_runtime *fwrt,
 static void iwl_dbg_tlv_apply_config(struct iwl_fw_runtime *fwrt,
 				     struct list_head *conf_list)
 {
-	struct iwl_dbg_tlv_node *node;
+	struct iwl_dbg_tlv_analde *analde;
 
-	list_for_each_entry(node, conf_list, list) {
-		struct iwl_fw_ini_conf_set_tlv *config_list = (void *)node->tlv.data;
+	list_for_each_entry(analde, conf_list, list) {
+		struct iwl_fw_ini_conf_set_tlv *config_list = (void *)analde->tlv.data;
 		u32 count, address, value;
-		u32 len = (le32_to_cpu(node->tlv.length) - sizeof(*config_list)) / 8;
+		u32 len = (le32_to_cpu(analde->tlv.length) - sizeof(*config_list)) / 8;
 		u32 type = le32_to_cpu(config_list->set_type);
 		u32 offset = le32_to_cpu(config_list->addr_offset);
 
@@ -945,14 +945,14 @@ static void iwl_dbg_tlv_apply_config(struct iwl_fw_runtime *fwrt,
 
 static void iwl_dbg_tlv_periodic_trig_handler(struct timer_list *t)
 {
-	struct iwl_dbg_tlv_timer_node *timer_node =
-		from_timer(timer_node, t, timer);
+	struct iwl_dbg_tlv_timer_analde *timer_analde =
+		from_timer(timer_analde, t, timer);
 	struct iwl_fwrt_dump_data dump_data = {
-		.trig = (void *)timer_node->tlv->data,
+		.trig = (void *)timer_analde->tlv->data,
 	};
 	int ret;
 
-	ret = iwl_fw_dbg_ini_collect(timer_node->fwrt, &dump_data, false);
+	ret = iwl_fw_dbg_ini_collect(timer_analde->fwrt, &dump_data, false);
 	if (!ret || ret == -EBUSY) {
 		u32 occur = le32_to_cpu(dump_data.trig->occurrences);
 		u32 collect_interval = le32_to_cpu(dump_data.trig->data[0]);
@@ -966,13 +966,13 @@ static void iwl_dbg_tlv_periodic_trig_handler(struct timer_list *t)
 
 static void iwl_dbg_tlv_set_periodic_trigs(struct iwl_fw_runtime *fwrt)
 {
-	struct iwl_dbg_tlv_node *node;
+	struct iwl_dbg_tlv_analde *analde;
 	struct list_head *trig_list =
 		&fwrt->trans->dbg.time_point[IWL_FW_INI_TIME_POINT_PERIODIC].active_trig_list;
 
-	list_for_each_entry(node, trig_list, list) {
-		struct iwl_fw_ini_trigger_tlv *trig = (void *)node->tlv.data;
-		struct iwl_dbg_tlv_timer_node *timer_node;
+	list_for_each_entry(analde, trig_list, list) {
+		struct iwl_fw_ini_trigger_tlv *trig = (void *)analde->tlv.data;
+		struct iwl_dbg_tlv_timer_analde *timer_analde;
 		u32 occur = le32_to_cpu(trig->occurrences), collect_interval;
 		u32 min_interval = 100;
 
@@ -982,10 +982,10 @@ static void iwl_dbg_tlv_set_periodic_trigs(struct iwl_fw_runtime *fwrt)
 		/* make sure there is at least one dword of data for the
 		 * interval value
 		 */
-		if (le32_to_cpu(node->tlv.length) <
+		if (le32_to_cpu(analde->tlv.length) <
 		    sizeof(*trig) + sizeof(__le32)) {
 			IWL_ERR(fwrt,
-				"WRT: Invalid periodic trigger data was not given\n");
+				"WRT: Invalid periodic trigger data was analt given\n");
 			continue;
 		}
 
@@ -998,24 +998,24 @@ static void iwl_dbg_tlv_set_periodic_trigs(struct iwl_fw_runtime *fwrt)
 
 		collect_interval = le32_to_cpu(trig->data[0]);
 
-		timer_node = kzalloc(sizeof(*timer_node), GFP_KERNEL);
-		if (!timer_node) {
+		timer_analde = kzalloc(sizeof(*timer_analde), GFP_KERNEL);
+		if (!timer_analde) {
 			IWL_ERR(fwrt,
 				"WRT: Failed to allocate periodic trigger\n");
 			continue;
 		}
 
-		timer_node->fwrt = fwrt;
-		timer_node->tlv = &node->tlv;
-		timer_setup(&timer_node->timer,
+		timer_analde->fwrt = fwrt;
+		timer_analde->tlv = &analde->tlv;
+		timer_setup(&timer_analde->timer,
 			    iwl_dbg_tlv_periodic_trig_handler, 0);
 
-		list_add_tail(&timer_node->list,
+		list_add_tail(&timer_analde->list,
 			      &fwrt->trans->dbg.periodic_trig_list);
 
 		IWL_DEBUG_FW(fwrt, "WRT: Enabling periodic trigger\n");
 
-		mod_timer(&timer_node->timer,
+		mod_timer(&timer_analde->timer,
 			  jiffies + msecs_to_jiffies(collect_interval));
 	}
 }
@@ -1046,12 +1046,12 @@ static bool is_trig_data_contained(const struct iwl_ucode_tlv *new,
 	return true;
 }
 
-static int iwl_dbg_tlv_override_trig_node(struct iwl_fw_runtime *fwrt,
+static int iwl_dbg_tlv_override_trig_analde(struct iwl_fw_runtime *fwrt,
 					  struct iwl_ucode_tlv *trig_tlv,
-					  struct iwl_dbg_tlv_node *node)
+					  struct iwl_dbg_tlv_analde *analde)
 {
-	struct iwl_ucode_tlv *node_tlv = &node->tlv;
-	struct iwl_fw_ini_trigger_tlv *node_trig = (void *)node_tlv->data;
+	struct iwl_ucode_tlv *analde_tlv = &analde->tlv;
+	struct iwl_fw_ini_trigger_tlv *analde_trig = (void *)analde_tlv->data;
 	struct iwl_fw_ini_trigger_tlv *trig = (void *)trig_tlv->data;
 	u32 policy = le32_to_cpu(trig->apply_policy);
 	u32 size = le32_to_cpu(trig_tlv->length);
@@ -1059,8 +1059,8 @@ static int iwl_dbg_tlv_override_trig_node(struct iwl_fw_runtime *fwrt,
 	u32 offset = 0;
 
 	if (!(policy & IWL_FW_INI_APPLY_POLICY_OVERRIDE_DATA)) {
-		u32 data_len = le32_to_cpu(node_tlv->length) -
-			sizeof(*node_trig);
+		u32 data_len = le32_to_cpu(analde_tlv->length) -
+			sizeof(*analde_trig);
 
 		IWL_DEBUG_FW(fwrt,
 			     "WRT: Appending trigger data (time point %u)\n",
@@ -1074,30 +1074,30 @@ static int iwl_dbg_tlv_override_trig_node(struct iwl_fw_runtime *fwrt,
 			     le32_to_cpu(trig->time_point));
 	}
 
-	if (size != le32_to_cpu(node_tlv->length)) {
-		struct list_head *prev = node->list.prev;
-		struct iwl_dbg_tlv_node *tmp;
+	if (size != le32_to_cpu(analde_tlv->length)) {
+		struct list_head *prev = analde->list.prev;
+		struct iwl_dbg_tlv_analde *tmp;
 
-		list_del(&node->list);
+		list_del(&analde->list);
 
-		tmp = krealloc(node, sizeof(*node) + size, GFP_KERNEL);
+		tmp = krealloc(analde, sizeof(*analde) + size, GFP_KERNEL);
 		if (!tmp) {
 			IWL_WARN(fwrt,
-				 "WRT: No memory to override trigger (time point %u)\n",
+				 "WRT: Anal memory to override trigger (time point %u)\n",
 				 le32_to_cpu(trig->time_point));
 
-			list_add(&node->list, prev);
+			list_add(&analde->list, prev);
 
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		list_add(&tmp->list, prev);
-		node_tlv = &tmp->tlv;
-		node_trig = (void *)node_tlv->data;
+		analde_tlv = &tmp->tlv;
+		analde_trig = (void *)analde_tlv->data;
 	}
 
-	memcpy((u8 *)node_trig->data + offset, trig->data, trig_data_len);
-	node_tlv->length = cpu_to_le32(size);
+	memcpy((u8 *)analde_trig->data + offset, trig->data, trig_data_len);
+	analde_tlv->length = cpu_to_le32(size);
 
 	if (policy & IWL_FW_INI_APPLY_POLICY_OVERRIDE_CFG) {
 		IWL_DEBUG_FW(fwrt,
@@ -1105,7 +1105,7 @@ static int iwl_dbg_tlv_override_trig_node(struct iwl_fw_runtime *fwrt,
 			     le32_to_cpu(trig->time_point));
 
 		/* the first 11 dwords are configuration related */
-		memcpy(node_trig, trig, sizeof(__le32) * 11);
+		memcpy(analde_trig, trig, sizeof(__le32) * 11);
 	}
 
 	if (policy & IWL_FW_INI_APPLY_POLICY_OVERRIDE_REGIONS) {
@@ -1113,13 +1113,13 @@ static int iwl_dbg_tlv_override_trig_node(struct iwl_fw_runtime *fwrt,
 			     "WRT: Overriding trigger regions (time point %u)\n",
 			     le32_to_cpu(trig->time_point));
 
-		node_trig->regions_mask = trig->regions_mask;
+		analde_trig->regions_mask = trig->regions_mask;
 	} else {
 		IWL_DEBUG_FW(fwrt,
 			     "WRT: Appending trigger regions (time point %u)\n",
 			     le32_to_cpu(trig->time_point));
 
-		node_trig->regions_mask |= trig->regions_mask;
+		analde_trig->regions_mask |= trig->regions_mask;
 	}
 
 	return 0;
@@ -1131,16 +1131,16 @@ iwl_dbg_tlv_add_active_trigger(struct iwl_fw_runtime *fwrt,
 			       struct iwl_ucode_tlv *trig_tlv)
 {
 	struct iwl_fw_ini_trigger_tlv *trig = (void *)trig_tlv->data;
-	struct iwl_dbg_tlv_node *node, *match = NULL;
+	struct iwl_dbg_tlv_analde *analde, *match = NULL;
 	u32 policy = le32_to_cpu(trig->apply_policy);
 
-	list_for_each_entry(node, trig_list, list) {
+	list_for_each_entry(analde, trig_list, list) {
 		if (!(policy & IWL_FW_INI_APPLY_POLICY_MATCH_TIME_POINT))
 			break;
 
 		if (!(policy & IWL_FW_INI_APPLY_POLICY_MATCH_DATA) ||
-		    is_trig_data_contained(trig_tlv, &node->tlv)) {
-			match = node;
+		    is_trig_data_contained(trig_tlv, &analde->tlv)) {
+			match = analde;
 			break;
 		}
 	}
@@ -1151,19 +1151,19 @@ iwl_dbg_tlv_add_active_trigger(struct iwl_fw_runtime *fwrt,
 		return iwl_dbg_tlv_add(trig_tlv, trig_list);
 	}
 
-	return iwl_dbg_tlv_override_trig_node(fwrt, trig_tlv, match);
+	return iwl_dbg_tlv_override_trig_analde(fwrt, trig_tlv, match);
 }
 
 static void
 iwl_dbg_tlv_gen_active_trig_list(struct iwl_fw_runtime *fwrt,
 				 struct iwl_dbg_tlv_time_point_data *tp)
 {
-	struct iwl_dbg_tlv_node *node;
+	struct iwl_dbg_tlv_analde *analde;
 	struct list_head *trig_list = &tp->trig_list;
 	struct list_head *active_trig_list = &tp->active_trig_list;
 
-	list_for_each_entry(node, trig_list, list) {
-		struct iwl_ucode_tlv *tlv = &node->tlv;
+	list_for_each_entry(analde, trig_list, list) {
+		struct iwl_ucode_tlv *tlv = &analde->tlv;
 
 		iwl_dbg_tlv_add_active_trigger(fwrt, active_trig_list, tlv);
 	}
@@ -1204,13 +1204,13 @@ iwl_dbg_tlv_tp_trigger(struct iwl_fw_runtime *fwrt, bool sync,
 					  union iwl_dbg_tlv_tp_data *tp_data,
 					  u32 trig_data))
 {
-	struct iwl_dbg_tlv_node *node;
+	struct iwl_dbg_tlv_analde *analde;
 
-	list_for_each_entry(node, active_trig_list, list) {
+	list_for_each_entry(analde, active_trig_list, list) {
 		struct iwl_fwrt_dump_data dump_data = {
-			.trig = (void *)node->tlv.data,
+			.trig = (void *)analde->tlv.data,
 		};
-		u32 num_data = iwl_tlv_array_len(&node->tlv, dump_data.trig,
+		u32 num_data = iwl_tlv_array_len(&analde->tlv, dump_data.trig,
 						 data);
 		int ret, i;
 		u32 tp = le32_to_cpu(dump_data.trig->time_point);
@@ -1250,7 +1250,7 @@ iwl_dbg_tlv_tp_trigger(struct iwl_fw_runtime *fwrt, bool sync,
 			   IWL_FW_INI_RESET_FW_MODE_STOP_FW_ONLY) {
 			fwrt->trans->dbg.restart_required = FALSE;
 			fwrt->trans->dbg.last_tp_resetfw = 0xFF;
-			IWL_DEBUG_FW(fwrt, "WRT: FW_ASSERT due to reset_fw_mode-no restart\n");
+			IWL_DEBUG_FW(fwrt, "WRT: FW_ASSERT due to reset_fw_mode-anal restart\n");
 		} else if (le32_to_cpu(dump_data.trig->reset_fw) ==
 			   IWL_FW_INI_RESET_FW_MODE_STOP_AND_RELOAD_FW) {
 			IWL_DEBUG_FW(fwrt, "WRT: stop and reload firmware\n");
@@ -1258,14 +1258,14 @@ iwl_dbg_tlv_tp_trigger(struct iwl_fw_runtime *fwrt, bool sync,
 		} else if (le32_to_cpu(dump_data.trig->reset_fw) ==
 			   IWL_FW_INI_RESET_FW_MODE_STOP_FW_ONLY) {
 			IWL_DEBUG_FW(fwrt,
-				     "WRT: stop only and no reload firmware\n");
+				     "WRT: stop only and anal reload firmware\n");
 			fwrt->trans->dbg.restart_required = FALSE;
 			fwrt->trans->dbg.last_tp_resetfw =
 				le32_to_cpu(dump_data.trig->reset_fw);
 		} else if (le32_to_cpu(dump_data.trig->reset_fw) ==
-			   IWL_FW_INI_RESET_FW_MODE_NOTHING) {
+			   IWL_FW_INI_RESET_FW_MODE_ANALTHING) {
 			IWL_DEBUG_FW(fwrt,
-				     "WRT: nothing need to be done after debug collection\n");
+				     "WRT: analthing need to be done after debug collection\n");
 		} else {
 			IWL_ERR(fwrt, "WRT: wrong resetfw %d\n",
 				le32_to_cpu(dump_data.trig->reset_fw));
@@ -1392,9 +1392,9 @@ void _iwl_dbg_tlv_time_point(struct iwl_fw_runtime *fwrt,
 		iwl_dbg_tlv_set_periodic_trigs(fwrt);
 		iwl_dbg_tlv_send_hcmds(fwrt, hcmd_list);
 		break;
-	case IWL_FW_INI_TIME_POINT_FW_RSP_OR_NOTIF:
+	case IWL_FW_INI_TIME_POINT_FW_RSP_OR_ANALTIF:
 	case IWL_FW_INI_TIME_POINT_MISSED_BEACONS:
-	case IWL_FW_INI_TIME_POINT_FW_DHC_NOTIFICATION:
+	case IWL_FW_INI_TIME_POINT_FW_DHC_ANALTIFICATION:
 		iwl_dbg_tlv_send_hcmds(fwrt, hcmd_list);
 		iwl_dbg_tlv_apply_config(fwrt, conf_list);
 		iwl_dbg_tlv_tp_trigger(fwrt, sync, trig_list, tp_data,

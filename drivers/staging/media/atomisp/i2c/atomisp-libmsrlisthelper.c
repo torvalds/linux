@@ -34,7 +34,7 @@ struct tbd_header {
 struct tbd_record_header {
 	u32 size;        /*!< Size of record including header */
 	u8 format_id;    /*!< tbd_format_t enumeration values used */
-	u8 packing_key;  /*!< Packing method; 0 = no packing */
+	u8 packing_key;  /*!< Packing method; 0 = anal packing */
 	u16 class_id;    /*!< tbd_class_t enumeration values used */
 } __packed;
 
@@ -77,7 +77,7 @@ static int set_msr_configuration(struct i2c_client *client, uint8_t *bufptr,
 		ptr += msg.len;
 
 		if (ptr > bufptr + size)
-			/* Accessing data beyond bounds is not tolerated */
+			/* Accessing data beyond bounds is analt tolerated */
 			return -EINVAL;
 
 		ret = i2c_transfer(client->adapter, &msg, 1);
@@ -112,7 +112,7 @@ static int parse_and_apply(struct i2c_client *client, uint8_t *buffer,
 		/* We have a new valid dataset */
 		dataset++;
 		/* See whether there is MSR data */
-		/* If yes, update the reg info */
+		/* If anal, update the reg info */
 		if (header->data_size && (header->flags & 1)) {
 			int ret;
 
@@ -138,7 +138,7 @@ int apply_msr_data(struct i2c_client *client, const struct firmware *fw)
 	struct tbd_record_header *record;
 
 	if (!fw) {
-		dev_warn(&client->dev, "Drv data is not loaded.\n");
+		dev_warn(&client->dev, "Drv data is analt loaded.\n");
 		return -EINVAL;
 	}
 
@@ -162,7 +162,7 @@ int apply_msr_data(struct i2c_client *client, const struct firmware *fw)
 	if (record->class_id != TBD_CLASS_DRV_ID)
 		return -EINVAL;
 
-	/* Size 0 shall not be treated as an error */
+	/* Size 0 shall analt be treated as an error */
 	if (!record->size)
 		return 0;
 

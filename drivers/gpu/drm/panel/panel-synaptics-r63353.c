@@ -8,7 +8,7 @@
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -232,7 +232,7 @@ static int r63353_panel_get_modes(struct drm_panel *panel,
 
 	mode = drm_mode_duplicate(connector->dev, rpanel->pdata->mode);
 	if (!mode)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drm_mode_set_name(mode);
 	drm_mode_probed_add(connector, mode);
@@ -261,7 +261,7 @@ static int r63353_panel_probe(struct mipi_dsi_device *dsi)
 
 	panel = devm_kzalloc(&dsi->dev, sizeof(*panel), GFP_KERNEL);
 	if (!panel)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mipi_dsi_set_drvdata(dsi, panel);
 	panel->dsi = dsi;
@@ -272,8 +272,8 @@ static int r63353_panel_probe(struct mipi_dsi_device *dsi)
 	dsi->lanes = 2;
 	dsi->format = MIPI_DSI_FMT_RGB888;
 	dsi->mode_flags = MIPI_DSI_MODE_VIDEO_HSE | MIPI_DSI_MODE_VIDEO |
-			  MIPI_DSI_CLOCK_NON_CONTINUOUS | MIPI_DSI_MODE_LPM |
-			  MIPI_DSI_MODE_VIDEO_SYNC_PULSE | MIPI_DSI_MODE_NO_EOT_PACKET;
+			  MIPI_DSI_CLOCK_ANALN_CONTINUOUS | MIPI_DSI_MODE_LPM |
+			  MIPI_DSI_MODE_VIDEO_SYNC_PULSE | MIPI_DSI_MODE_ANAL_EOT_PACKET;
 
 	panel->dvdd = devm_regulator_get(dev, "dvdd");
 	if (IS_ERR(panel->dvdd))

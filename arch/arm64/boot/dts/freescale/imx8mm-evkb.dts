@@ -13,7 +13,7 @@
 };
 
 &i2c1 {
-	/delete-node/ pmic@4b;
+	/delete-analde/ pmic@4b;
 
 	pmic@25 {
 		compatible = "nxp,pca9450a";

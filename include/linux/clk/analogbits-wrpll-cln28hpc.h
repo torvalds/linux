@@ -22,7 +22,7 @@
  * WRPLL_FLAGS_INT_FEEDBACK_FLAG: if set, the PLL is configured for internal
  *	feedback mode
  * WRPLL_FLAGS_EXT_FEEDBACK_FLAG: if set, the PLL is configured for external
- *	feedback mode (not yet supported by this driver)
+ *	feedback mode (analt yet supported by this driver)
  */
 #define WRPLL_FLAGS_BYPASS_SHIFT		0
 #define WRPLL_FLAGS_BYPASS_MASK		BIT(WRPLL_FLAGS_BYPASS_SHIFT)

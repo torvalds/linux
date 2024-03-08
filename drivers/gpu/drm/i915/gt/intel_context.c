@@ -42,7 +42,7 @@ intel_context_create(struct intel_engine_cs *engine)
 
 	ce = intel_context_alloc();
 	if (!ce)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	intel_context_init(ce, engine);
 	trace_intel_context_create(ce);
@@ -97,7 +97,7 @@ static int intel_context_active_acquire(struct intel_context *ce)
 	    intel_context_is_parallel(ce))
 		return 0;
 
-	/* Preallocate tracking nodes */
+	/* Preallocate tracking analdes */
 	err = i915_active_acquire_preallocate_barrier(&ce->active,
 						      ce->engine);
 	if (err)
@@ -108,7 +108,7 @@ static int intel_context_active_acquire(struct intel_context *ce)
 
 static void intel_context_active_release(struct intel_context *ce)
 {
-	/* Nodes preallocated in intel_context_active() */
+	/* Analdes preallocated in intel_context_active() */
 	i915_active_acquire_barrier(&ce->active);
 	i915_active_release(&ce->active);
 }
@@ -127,8 +127,8 @@ static int __context_pin_state(struct i915_vma *vma, struct i915_gem_ww_ctx *ww)
 		goto err_unpin;
 
 	/*
-	 * And mark it as a globally pinned object to let the shrinker know
-	 * it cannot reclaim the object until we release it.
+	 * And mark it as a globally pinned object to let the shrinker kanalw
+	 * it cananalt reclaim the object until we release it.
 	 */
 	i915_vma_make_unshrinkable(vma);
 	vma->obj->mm.dirty = true;
@@ -258,7 +258,7 @@ int __intel_context_do_pin_ww(struct intel_context *ce,
 	intel_engine_pm_might_get(ce->engine);
 
 	if (unlikely(intel_context_is_closed(ce))) {
-		err = -ENOENT;
+		err = -EANALENT;
 		goto err_unlock;
 	}
 
@@ -282,7 +282,7 @@ int __intel_context_do_pin_ww(struct intel_context *ce,
 		atomic_inc(&ce->pin_count);
 	}
 
-	GEM_BUG_ON(!intel_context_is_pinned(ce)); /* no overflow! */
+	GEM_BUG_ON(!intel_context_is_pinned(ce)); /* anal overflow! */
 
 	trace_intel_context_do_pin(ce);
 
@@ -334,9 +334,9 @@ void __intel_context_do_unpin(struct intel_context *ce, int sub)
 	ce->ops->post_unpin(ce);
 
 	/*
-	 * Once released, we may asynchronously drop the active reference.
+	 * Once released, we may asynchroanalusly drop the active reference.
 	 * As that may be the only reference keeping the context alive,
-	 * take an extra now so that it is not freed before we finish
+	 * take an extra analw so that it is analt freed before we finish
 	 * dereferencing it.
 	 */
 	intel_context_get(ce);
@@ -380,10 +380,10 @@ static int __intel_context_active(struct i915_active *active)
 }
 
 static int
-sw_fence_dummy_notify(struct i915_sw_fence *sf,
-		      enum i915_sw_fence_notify state)
+sw_fence_dummy_analtify(struct i915_sw_fence *sf,
+		      enum i915_sw_fence_analtify state)
 {
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 void
@@ -426,7 +426,7 @@ intel_context_init(struct intel_context *ce, struct intel_engine_cs *engine)
 	 * unless there is a pending schedule disable outstanding.
 	 */
 	i915_sw_fence_init(&ce->guc_state.blocked,
-			   sw_fence_dummy_notify);
+			   sw_fence_dummy_analtify);
 	i915_sw_fence_commit(&ce->guc_state.blocked);
 
 	i915_active_init(&ce->active,
@@ -460,7 +460,7 @@ int __init i915_context_module_init(void)
 {
 	slab_ce = KMEM_CACHE(intel_context, SLAB_HWCACHE_ALIGN);
 	if (!slab_ce)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }

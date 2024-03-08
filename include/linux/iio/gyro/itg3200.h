@@ -5,7 +5,7 @@
  *
  * Copyright (c) 2011 Christian Strobel <christian.strobel@iis.fraunhofer.de>
  * Copyright (c) 2011 Manuel Stahl <manuel.stahl@iis.fraunhofer.de>
- * Copyright (c) 2012 Thorsten Nowak <thorsten.nowak@iis.fraunhofer.de>
+ * Copyright (c) 2012 Thorsten Analwak <thorsten.analwak@iis.fraunhofer.de>
  */
 
 #ifndef I2C_ITG3200_H_

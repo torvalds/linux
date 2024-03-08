@@ -8,15 +8,15 @@ script_base=$(realpath $(dirname $0))
 
 exec $script_base/../../../scripts/checkpatch.pl \
 	--subjective \
-	--no-summary \
+	--anal-summary \
 	--show-types \
-	--ignore ARCH_INCLUDE_LINUX \
-	--ignore BIT_MACRO \
-	--ignore COMPARISON_TO_NULL \
-	--ignore EMAIL_SUBJECT \
-	--ignore FILE_PATH_CHANGES \
-	--ignore GLOBAL_INITIALISERS \
-	--ignore LINE_SPACING \
-	--ignore MULTIPLE_ASSIGNMENTS \
-	--ignore DT_SPLIT_BINDING_PATCH \
+	--iganalre ARCH_INCLUDE_LINUX \
+	--iganalre BIT_MACRO \
+	--iganalre COMPARISON_TO_NULL \
+	--iganalre EMAIL_SUBJECT \
+	--iganalre FILE_PATH_CHANGES \
+	--iganalre GLOBAL_INITIALISERS \
+	--iganalre LINE_SPACING \
+	--iganalre MULTIPLE_ASSIGNMENTS \
+	--iganalre DT_SPLIT_BINDING_PATCH \
 	$@

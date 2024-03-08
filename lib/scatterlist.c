@@ -40,7 +40,7 @@ EXPORT_SYMBOL(sg_next);
  * @sg:		The scatterlist
  *
  * Description:
- * Allows to know how many entries are in sg, taking into account
+ * Allows to kanalw how many entries are in sg, taking into account
  * chaining as well
  *
  **/
@@ -95,8 +95,8 @@ EXPORT_SYMBOL(sg_nents_for_len);
  *   Should only be used casually, it (currently) scans the entire list
  *   to get the last entry.
  *
- *   Note that the @sgl@ pointer passed in need not be the first one,
- *   the important bit is that @nents@ denotes the number of entries that
+ *   Analte that the @sgl@ pointer passed in need analt be the first one,
+ *   the important bit is that @nents@ deanaltes the number of entries that
  *   exist from @sgl@.
  *
  **/
@@ -118,7 +118,7 @@ EXPORT_SYMBOL(sg_last);
  * @sgl:	   The SG table
  * @nents:	   Number of entries in table
  *
- * Notes:
+ * Analtes:
  *   If this is part of a chained sg table, sg_mark_end() should be
  *   used only on the last table part.
  *
@@ -152,11 +152,11 @@ static struct scatterlist *sg_kmalloc(unsigned int nents, gfp_t gfp_mask)
 {
 	if (nents == SG_MAX_SINGLE_ALLOC) {
 		/*
-		 * Kmemleak doesn't track page allocations as they are not
+		 * Kmemleak doesn't track page allocations as they are analt
 		 * commonly used (in a raw form) for kernel data structures.
-		 * As we chain together a list of pages and then a normal
+		 * As we chain together a list of pages and then a analrmal
 		 * kmalloc (tracked by kmemleak), in order to for that last
-		 * allocation not to become decoupled (and thus a
+		 * allocation analt to become decoupled (and thus a
 		 * false-positive) we need to inform kmemleak of all the
 		 * intermediate allocations.
 		 */
@@ -182,7 +182,7 @@ static void sg_kfree(struct scatterlist *sg, unsigned int nents)
  * @table:	The sg table header to use
  * @max_ents:	The maximum number of entries per single scatterlist
  * @nents_first_chunk: Number of entries int the (preallocated) first
- * 	scatterlist chunk, 0 means no such preallocated first chunk
+ * 	scatterlist chunk, 0 means anal such preallocated first chunk
  * @free_fn:	Free function
  * @num_ents:	Number of entries in the table
  *
@@ -267,7 +267,7 @@ EXPORT_SYMBOL(sg_free_table);
  * @max_ents:	The maximum number of entries the allocator returns per call
  * @first_chunk: first SGL if preallocated (may be %NULL)
  * @nents_first_chunk: Number of entries in the (preallocated) first
- * 	scatterlist chunk, 0 means no such preallocated chunk provided by user
+ * 	scatterlist chunk, 0 means anal such preallocated chunk provided by user
  * @gfp_mask:	GFP allocation mask
  * @alloc_fn:	Allocator to use
  *
@@ -277,8 +277,8 @@ EXPORT_SYMBOL(sg_free_table);
  *   Thus if @nents is bigger than @max_ents, the scatterlists will be
  *   chained in units of @max_ents.
  *
- * Notes:
- *   If this function returns non-0 (eg failure), the caller must call
+ * Analtes:
+ *   If this function returns analn-0 (eg failure), the caller must call
  *   __sg_free_table() to cleanup any leftover allocations.
  *
  **/
@@ -296,7 +296,7 @@ int __sg_alloc_table(struct sg_table *table, unsigned int nents,
 
 	if (nents == 0)
 		return -EINVAL;
-#ifdef CONFIG_ARCH_NO_SG_CHAIN
+#ifdef CONFIG_ARCH_ANAL_SG_CHAIN
 	if (WARN_ON_ONCE(nents > max_ents))
 		return -EINVAL;
 #endif
@@ -330,7 +330,7 @@ int __sg_alloc_table(struct sg_table *table, unsigned int nents,
 			if (prv)
 				table->nents = ++table->orig_nents;
 
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		sg_init_table(sg, alloc_size);
@@ -338,7 +338,7 @@ int __sg_alloc_table(struct sg_table *table, unsigned int nents,
 
 		/*
 		 * If this is the first mapping, assign the sg table header.
-		 * If this is not the first mapping, chain previous part.
+		 * If this is analt the first mapping, chain previous part.
 		 */
 		if (prv)
 			sg_chain(prv, prv_max_ents, sg);
@@ -346,7 +346,7 @@ int __sg_alloc_table(struct sg_table *table, unsigned int nents,
 			table->sgl = sg;
 
 		/*
-		 * If no more entries after this one, mark the end
+		 * If anal more entries after this one, mark the end
 		 */
 		if (!left)
 			sg_mark_end(&sg[sg_size - 1]);
@@ -401,7 +401,7 @@ static struct scatterlist *get_next_sg(struct sg_append_table *table,
 	alloc_size = min_t(unsigned long, needed_sges, SG_MAX_SINGLE_ALLOC);
 	new_sg = sg_kmalloc(alloc_size, gfp_mask);
 	if (!new_sg)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	sg_init_table(new_sg, alloc_size);
 	if (cur) {
 		table->total_nents += alloc_size - 1;
@@ -445,8 +445,8 @@ static bool pages_are_mergeable(struct page *a, struct page *b)
  * Returns:
  *   0 on success, negative error on failure
  *
- * Notes:
- *   If this function returns non-0 (eg failure), the caller must call
+ * Analtes:
+ *   If this function returns analn-0 (eg failure), the caller must call
  *   sg_free_append_table() to cleanup any leftover allocations.
  *
  *   In the fist call, sgt_append must by initialized.
@@ -469,8 +469,8 @@ int sg_alloc_append_table_from_pages(struct sg_append_table *sgt_append,
 	if (WARN_ON(max_segment < PAGE_SIZE))
 		return -EINVAL;
 
-	if (IS_ENABLED(CONFIG_ARCH_NO_SG_CHAIN) && sgt_append->prv)
-		return -EOPNOTSUPP;
+	if (IS_ENABLED(CONFIG_ARCH_ANAL_SG_CHAIN) && sgt_append->prv)
+		return -EOPANALTSUPP;
 
 	if (sgt_append->prv) {
 		unsigned long next_pfn = (page_to_phys(sg_page(sgt_append->prv)) +
@@ -566,7 +566,7 @@ EXPORT_SYMBOL(sg_alloc_append_table_from_pages);
  *
  *  Description:
  *    Allocate and initialize an sg table from a list of pages. Contiguous
- *    ranges of the pages are squashed into a single scatterlist node up to the
+ *    ranges of the pages are squashed into a single scatterlist analde up to the
  *    maximum size specified in @max_segment. A user may provide an offset at a
  *    start and a size of valid data in a buffer specified by the page array.
  *
@@ -601,7 +601,7 @@ EXPORT_SYMBOL(sg_alloc_table_from_pages_segment);
  * sgl_alloc_order - allocate a scatterlist and its pages
  * @length: Length in bytes of the scatterlist. Must be at least one
  * @order: Second argument for alloc_pages()
- * @chainable: Whether or not to allocate an extra element in the scatterlist
+ * @chainable: Whether or analt to allocate an extra element in the scatterlist
  *	for scatterlist chaining purposes
  * @gfp: Memory allocation flags
  * @nent_p: [out] Number of entries in the scatterlist that have pages
@@ -675,7 +675,7 @@ EXPORT_SYMBOL(sgl_alloc);
  * @nents: Maximum number of elements to free
  * @order: Second argument for __free_pages()
  *
- * Notes:
+ * Analtes:
  * - If several scatterlists have been chained and each chain element is
  *   freed separately then it's essential to set nents correctly to avoid that a
  *   page would get freed twice.
@@ -1156,7 +1156,7 @@ failed:
 
 /*
  * Extract up to sg_max pages from a BVEC-type iterator and add them to the
- * scatterlist.  The pages are not pinned.
+ * scatterlist.  The pages are analt pinned.
  */
 static ssize_t extract_bvec_to_sg(struct iov_iter *iter,
 				  ssize_t maxsize,
@@ -1202,7 +1202,7 @@ static ssize_t extract_bvec_to_sg(struct iov_iter *iter,
 /*
  * Extract up to sg_max pages from a KVEC-type iterator and add them to the
  * scatterlist.  This can deal with vmalloc'd buffers as well as kmalloc'd or
- * static buffers.  The pages are not pinned.
+ * static buffers.  The pages are analt pinned.
  */
 static ssize_t extract_kvec_to_sg(struct iov_iter *iter,
 				  ssize_t maxsize,
@@ -1263,7 +1263,7 @@ static ssize_t extract_kvec_to_sg(struct iov_iter *iter,
 
 /*
  * Extract up to sg_max folios from an XARRAY-type iterator and add them to
- * the scatterlist.  The pages are not pinned.
+ * the scatterlist.  The pages are analt pinned.
  */
 static ssize_t extract_xarray_to_sg(struct iov_iter *iter,
 				    ssize_t maxsize,
@@ -1324,9 +1324,9 @@ static ssize_t extract_xarray_to_sg(struct iov_iter *iter,
  *
  * The pages referred to by UBUF- and IOVEC-type iterators are extracted and
  * pinned; BVEC-, KVEC- and XARRAY-type are extracted but aren't pinned; PIPE-
- * and DISCARD-type are not supported.
+ * and DISCARD-type are analt supported.
  *
- * No end mark is placed on the scatterlist; that's left to the caller.
+ * Anal end mark is placed on the scatterlist; that's left to the caller.
  *
  * @extraction_flags can have ITER_ALLOW_P2PDMA set to request peer-to-peer DMA
  * be allowed on the pages extracted.

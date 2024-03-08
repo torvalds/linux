@@ -15,7 +15,7 @@
 #ifdef CONFIG_INTC_BALANCING
 unsigned int irq_lookup(unsigned int irq)
 {
-	return __raw_readl(INTACK) & 1 ? irq : NO_IRQ_IGNORE;
+	return __raw_readl(INTACK) & 1 ? irq : ANAL_IRQ_IGANALRE;
 }
 
 void irq_finish(unsigned int irq)

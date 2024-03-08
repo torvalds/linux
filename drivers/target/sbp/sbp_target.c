@@ -56,14 +56,14 @@ static int read_peer_guid(u64 *guid, const struct sbp_management_request *req)
 	__be32 high, low;
 
 	ret = sbp_run_transaction(req->card, TCODE_READ_QUADLET_REQUEST,
-			req->node_addr, req->generation, req->speed,
+			req->analde_addr, req->generation, req->speed,
 			(CSR_REGISTER_BASE | CSR_CONFIG_ROM) + 3 * 4,
 			&high, sizeof(high));
 	if (ret != RCODE_COMPLETE)
 		return ret;
 
 	ret = sbp_run_transaction(req->card, TCODE_READ_QUADLET_REQUEST,
-			req->node_addr, req->generation, req->speed,
+			req->analde_addr, req->generation, req->speed,
 			(CSR_REGISTER_BASE | CSR_CONFIG_ROM) + 4 * 4,
 			&low, sizeof(low));
 	if (ret != RCODE_COMPLETE)
@@ -173,7 +173,7 @@ static u32 sbp_get_lun_from_tpg(struct sbp_tpg *tpg, u32 login_lun, int *err)
 	}
 	rcu_read_unlock();
 
-	*err = -ENODEV;
+	*err = -EANALDEV;
 	return login_lun;
 }
 
@@ -189,7 +189,7 @@ static struct sbp_session *sbp_session_create(
 
 	sess = kmalloc(sizeof(*sess), GFP_KERNEL);
 	if (!sess)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	spin_lock_init(&sess->lock);
 	INIT_LIST_HEAD(&sess->login_list);
@@ -198,7 +198,7 @@ static struct sbp_session *sbp_session_create(
 
 	sess->se_sess = target_setup_session(&tpg->se_tpg, 128,
 					     sizeof(struct sbp_target_request),
-					     TARGET_PROT_NORMAL, guid_str,
+					     TARGET_PROT_ANALRMAL, guid_str,
 					     sess, NULL);
 	if (IS_ERR(sess->se_sess)) {
 		pr_err("failed to init se_session\n");
@@ -271,12 +271,12 @@ static void sbp_management_request_login(
 	unpacked_lun = sbp_get_lun_from_tpg(tpg,
 			LOGIN_ORB_LUN(be32_to_cpu(req->orb.misc)), &ret);
 	if (ret) {
-		pr_notice("login to unknown LUN: %d\n",
+		pr_analtice("login to unkanalwn LUN: %d\n",
 			LOGIN_ORB_LUN(be32_to_cpu(req->orb.misc)));
 
 		req->status.status = cpu_to_be32(
 			STATUS_BLOCK_RESP(STATUS_RESP_REQUEST_COMPLETE) |
-			STATUS_BLOCK_SBP_STATUS(SBP_STATUS_LUN_NOTSUPP));
+			STATUS_BLOCK_SBP_STATUS(SBP_STATUS_LUN_ANALTSUPP));
 		return;
 	}
 
@@ -290,14 +290,14 @@ static void sbp_management_request_login(
 		return;
 	}
 
-	pr_notice("mgt_agent LOGIN to LUN %d from %016llx\n",
+	pr_analtice("mgt_agent LOGIN to LUN %d from %016llx\n",
 		unpacked_lun, guid);
 
 	sess = sbp_session_find_by_guid(tpg, guid);
 	if (sess) {
 		login = sbp_login_find_by_lun(sess, unpacked_lun);
 		if (login) {
-			pr_notice("initiator already logged-in\n");
+			pr_analtice("initiator already logged-in\n");
 
 			/*
 			 * SBP-2 R4 says we should return access denied, but
@@ -337,7 +337,7 @@ static void sbp_management_request_login(
 	 * reject with access_denied if any exclusive logins present
 	 */
 	if (sbp_login_count_all_by_lun(tpg, unpacked_lun, 1)) {
-		pr_warn("refusing login while another exclusive login present\n");
+		pr_warn("refusing login while aanalther exclusive login present\n");
 
 		req->status.status = cpu_to_be32(
 			STATUS_BLOCK_RESP(STATUS_RESP_REQUEST_COMPLETE) |
@@ -378,7 +378,7 @@ static void sbp_management_request_login(
 			return;
 		}
 
-		sess->node_id = req->node_addr;
+		sess->analde_id = req->analde_addr;
 		sess->card = fw_card_get(req->card);
 		sess->generation = req->generation;
 		sess->speed = req->speed;
@@ -452,7 +452,7 @@ already_logged_in:
 		&response->command_block_agent);
 
 	ret = sbp_run_transaction(sess->card, TCODE_WRITE_BLOCK_REQUEST,
-		sess->node_id, sess->generation, sess->speed,
+		sess->analde_id, sess->generation, sess->speed,
 		sbp2_pointer_to_addr(&req->orb.ptr2), response,
 		login_response_len);
 	if (ret != RCODE_COMPLETE) {
@@ -478,12 +478,12 @@ static void sbp_management_request_query_logins(
 	struct sbp_management_agent *agent, struct sbp_management_request *req,
 	int *status_data_size)
 {
-	pr_notice("QUERY LOGINS not implemented\n");
+	pr_analtice("QUERY LOGINS analt implemented\n");
 	/* FIXME: implement */
 
 	req->status.status = cpu_to_be32(
 		STATUS_BLOCK_RESP(STATUS_RESP_REQUEST_COMPLETE) |
-		STATUS_BLOCK_SBP_STATUS(SBP_STATUS_REQ_TYPE_NOTSUPP));
+		STATUS_BLOCK_SBP_STATUS(SBP_STATUS_REQ_TYPE_ANALTSUPP));
 }
 
 static void sbp_management_request_reconnect(
@@ -506,13 +506,13 @@ static void sbp_management_request_reconnect(
 		return;
 	}
 
-	pr_notice("mgt_agent RECONNECT from %016llx\n", guid);
+	pr_analtice("mgt_agent RECONNECT from %016llx\n", guid);
 
 	login = sbp_login_find_by_id(tpg,
 		RECONNECT_ORB_LOGIN_ID(be32_to_cpu(req->orb.misc)));
 
 	if (!login) {
-		pr_err("mgt_agent RECONNECT unknown login ID\n");
+		pr_err("mgt_agent RECONNECT unkanalwn login ID\n");
 
 		req->status.status = cpu_to_be32(
 			STATUS_BLOCK_RESP(STATUS_RESP_REQUEST_COMPLETE) |
@@ -533,9 +533,9 @@ static void sbp_management_request_reconnect(
 	if (login->sess->card)
 		fw_card_put(login->sess->card);
 
-	/* update the node details */
+	/* update the analde details */
 	login->sess->generation = req->generation;
-	login->sess->node_id = req->node_addr;
+	login->sess->analde_id = req->analde_addr;
 	login->sess->card = fw_card_get(req->card);
 	login->sess->speed = req->speed;
 	spin_unlock_bh(&login->sess->lock);
@@ -558,19 +558,19 @@ static void sbp_management_request_logout(
 
 	login = sbp_login_find_by_id(tpg, id);
 	if (!login) {
-		pr_warn("cannot find login: %d\n", id);
+		pr_warn("cananalt find login: %d\n", id);
 
 		req->status.status = cpu_to_be32(
 			STATUS_BLOCK_RESP(STATUS_RESP_REQUEST_COMPLETE) |
-			STATUS_BLOCK_SBP_STATUS(SBP_STATUS_LOGIN_ID_UNKNOWN));
+			STATUS_BLOCK_SBP_STATUS(SBP_STATUS_LOGIN_ID_UNKANALWN));
 		return;
 	}
 
 	pr_info("mgt_agent LOGOUT from LUN %d session %d\n",
 		login->login_lun, login->login_id);
 
-	if (req->node_addr != login->sess->node_id) {
-		pr_warn("logout from different node ID\n");
+	if (req->analde_addr != login->sess->analde_id) {
+		pr_warn("logout from different analde ID\n");
 
 		req->status.status = cpu_to_be32(
 			STATUS_BLOCK_RESP(STATUS_RESP_REQUEST_COMPLETE) |
@@ -593,7 +593,7 @@ static void session_check_for_reset(struct sbp_session *sess)
 
 	if (sess->card) {
 		spin_lock_irq(&sess->card->lock);
-		card_valid = (sess->card->local_node != NULL);
+		card_valid = (sess->card->local_analde != NULL);
 		spin_unlock_irq(&sess->card->lock);
 
 		if (!card_valid) {
@@ -603,10 +603,10 @@ static void session_check_for_reset(struct sbp_session *sess)
 	}
 
 	if (!card_valid || (sess->generation != sess->card->generation)) {
-		pr_info("Waiting for reconnect from node: %016llx\n",
+		pr_info("Waiting for reconnect from analde: %016llx\n",
 				sess->guid);
 
-		sess->node_id = -1;
+		sess->analde_id = -1;
 		sess->reconnect_expires = get_jiffies_64() +
 			((sess->reconnect_hold + 1) * HZ);
 	}
@@ -619,7 +619,7 @@ static void session_reconnect_expired(struct sbp_session *sess)
 	struct sbp_login_descriptor *login, *temp;
 	LIST_HEAD(login_list);
 
-	pr_info("Reconnect timer expired for node: %016llx\n", sess->guid);
+	pr_info("Reconnect timer expired for analde: %016llx\n", sess->guid);
 
 	spin_lock_bh(&sess->lock);
 	list_for_each_entry_safe(login, temp, &sess->login_list, link) {
@@ -649,8 +649,8 @@ static void session_maintenance_work(struct work_struct *work)
 	}
 	spin_unlock_bh(&sess->lock);
 
-	if (sess->node_id != -1) {
-		/* check for bus reset and make node_id invalid */
+	if (sess->analde_id != -1) {
+		/* check for bus reset and make analde_id invalid */
 		session_check_for_reset(sess);
 
 		schedule_delayed_work(&sess->maint_work,
@@ -683,7 +683,7 @@ static int tgt_agent_rw_agent_state(struct fw_card *card, int tcode, void *data,
 		return RCODE_COMPLETE;
 
 	case TCODE_WRITE_QUADLET_REQUEST:
-		/* ignored */
+		/* iganalred */
 		return RCODE_COMPLETE;
 
 	default:
@@ -718,7 +718,7 @@ static int tgt_agent_rw_orb_pointer(struct fw_card *card, int tcode, void *data,
 		if (agent->state != AGENT_STATE_SUSPENDED &&
 				agent->state != AGENT_STATE_RESET) {
 			spin_unlock_bh(&agent->lock);
-			pr_notice("Ignoring ORB_POINTER write while active.\n");
+			pr_analtice("Iganalring ORB_POINTER write while active.\n");
 			return RCODE_CONFLICT_ERROR;
 		}
 		agent->state = AGENT_STATE_ACTIVE;
@@ -754,7 +754,7 @@ static int tgt_agent_rw_doorbell(struct fw_card *card, int tcode, void *data,
 		spin_lock_bh(&agent->lock);
 		if (agent->state != AGENT_STATE_SUSPENDED) {
 			spin_unlock_bh(&agent->lock);
-			pr_debug("Ignoring DOORBELL while active.\n");
+			pr_debug("Iganalring DOORBELL while active.\n");
 			return RCODE_CONFLICT_ERROR;
 		}
 		agent->state = AGENT_STATE_ACTIVE;
@@ -782,7 +782,7 @@ static int tgt_agent_rw_unsolicited_status_enable(struct fw_card *card,
 	switch (tcode) {
 	case TCODE_WRITE_QUADLET_REQUEST:
 		pr_debug("tgt_agent UNSOLICITED_STATUS_ENABLE\n");
-		/* ignored as we don't send unsolicited status */
+		/* iganalred as we don't send unsolicited status */
 		return RCODE_COMPLETE;
 
 	case TCODE_READ_QUADLET_REQUEST:
@@ -800,22 +800,22 @@ static void tgt_agent_rw(struct fw_card *card, struct fw_request *request,
 {
 	struct sbp_target_agent *agent = callback_data;
 	struct sbp_session *sess = agent->login->sess;
-	int sess_gen, sess_node, rcode;
+	int sess_gen, sess_analde, rcode;
 
 	spin_lock_bh(&sess->lock);
 	sess_gen = sess->generation;
-	sess_node = sess->node_id;
+	sess_analde = sess->analde_id;
 	spin_unlock_bh(&sess->lock);
 
 	if (generation != sess_gen) {
-		pr_notice("ignoring request with wrong generation\n");
+		pr_analtice("iganalring request with wrong generation\n");
 		rcode = RCODE_TYPE_ERROR;
 		goto out;
 	}
 
-	if (source != sess_node) {
-		pr_notice("ignoring request from foreign node (%x != %x)\n",
-				source, sess_node);
+	if (source != sess_analde) {
+		pr_analtice("iganalring request from foreign analde (%x != %x)\n",
+				source, sess_analde);
 		rcode = RCODE_TYPE_ERROR;
 		goto out;
 	}
@@ -877,7 +877,7 @@ static void tgt_agent_process_work(struct work_struct *work)
 					STATUS_BLOCK_DEAD(0) |
 					STATUS_BLOCK_LEN(1) |
 					STATUS_BLOCK_SBP_STATUS(
-						SBP_STATUS_REQ_TYPE_NOTSUPP));
+						SBP_STATUS_REQ_TYPE_ANALTSUPP));
 			sbp_send_status(req);
 			return;
 		case 3: /* Dummy ORB */
@@ -916,7 +916,7 @@ static struct sbp_target_request *sbp_mgt_get_req(struct sbp_session *sess,
 
 	tag = sbitmap_queue_get(&se_sess->sess_tag_pool, &cpu);
 	if (tag < 0)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	req = &((struct sbp_target_request *)se_sess->sess_cmd_map)[tag];
 	memset(req, 0, sizeof(*req));
@@ -956,7 +956,7 @@ static void tgt_agent_fetch_work(struct work_struct *work)
 
 		/* read in the ORB */
 		ret = sbp_run_transaction(sess->card, TCODE_READ_BLOCK_REQUEST,
-				sess->node_id, sess->generation, sess->speed,
+				sess->analde_id, sess->generation, sess->speed,
 				req->orb_pointer, &req->orb, sizeof(req->orb));
 		if (ret != RCODE_COMPLETE) {
 			pr_debug("tgt_orb fetch failed: %x\n", ret);
@@ -1017,7 +1017,7 @@ static struct sbp_target_agent *sbp_target_agent_register(
 
 	agent = kmalloc(sizeof(*agent), GFP_KERNEL);
 	if (!agent)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	spin_lock_init(&agent->lock);
 
@@ -1089,16 +1089,16 @@ static int sbp_run_request_transaction(struct sbp_target_request *req,
 	struct sbp_login_descriptor *login = req->login;
 	struct sbp_session *sess = login->sess;
 	struct fw_card *card;
-	int node_id, generation, speed, ret;
+	int analde_id, generation, speed, ret;
 
 	spin_lock_bh(&sess->lock);
 	card = fw_card_get(sess->card);
-	node_id = sess->node_id;
+	analde_id = sess->analde_id;
 	generation = sess->generation;
 	speed = sess->speed;
 	spin_unlock_bh(&sess->lock);
 
-	ret = sbp_run_transaction(card, tcode, node_id, generation, speed,
+	ret = sbp_run_transaction(card, tcode, analde_id, generation, speed,
 			offset, payload, length);
 
 	fw_card_put(card);
@@ -1114,7 +1114,7 @@ static int sbp_fetch_command(struct sbp_target_request *req)
 
 	req->cmd_buf = kmalloc(cmd_len, GFP_KERNEL);
 	if (!req->cmd_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy(req->cmd_buf, req->orb.command_block,
 		min_t(int, cmd_len, sizeof(req->orb.command_block)));
@@ -1148,7 +1148,7 @@ static int sbp_fetch_page_table(struct sbp_target_request *req)
 
 	pg_tbl = kmalloc(pg_tbl_sz, GFP_KERNEL);
 	if (!pg_tbl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = sbp_run_request_transaction(req, TCODE_READ_BLOCK_REQUEST,
 			sbp2_pointer_to_addr(&req->orb.data_descriptor),
@@ -1172,7 +1172,7 @@ static void sbp_calc_data_length_direction(struct sbp_target_request *req,
 
 	if (!data_size) {
 		*data_len = 0;
-		*data_dir = DMA_NONE;
+		*data_dir = DMA_ANALNE;
 		return;
 	}
 
@@ -1239,7 +1239,7 @@ err:
 static int sbp_rw_data(struct sbp_target_request *req)
 {
 	struct sbp_session *sess = req->login->sess;
-	int tcode, sg_miter_flags, max_payload, pg_size, speed, node_id,
+	int tcode, sg_miter_flags, max_payload, pg_size, speed, analde_id,
 		generation, num_pte, length, tfr_length,
 		rcode = RCODE_COMPLETE;
 	struct sbp_page_table_entry *pte;
@@ -1260,12 +1260,12 @@ static int sbp_rw_data(struct sbp_target_request *req)
 
 	pg_size = CMDBLK_ORB_PG_SIZE(be32_to_cpu(req->orb.misc));
 	if (pg_size) {
-		pr_err("sbp_run_transaction: page size ignored\n");
+		pr_err("sbp_run_transaction: page size iganalred\n");
 	}
 
 	spin_lock_bh(&sess->lock);
 	card = fw_card_get(sess->card);
-	node_id = sess->node_id;
+	analde_id = sess->analde_id;
 	generation = sess->generation;
 	spin_unlock_bh(&sess->lock);
 
@@ -1302,7 +1302,7 @@ static int sbp_rw_data(struct sbp_target_request *req)
 
 		/* FIXME: take page_size into account */
 
-		rcode = sbp_run_transaction(card, tcode, node_id,
+		rcode = sbp_run_transaction(card, tcode, analde_id,
 				generation, speed,
 				offset, iter.addr, tfr_length);
 
@@ -1374,7 +1374,7 @@ static void sbp_sense_mangle(struct sbp_target_request *req)
 		 * TODO: SBP-3 specifies what we should do with descriptor
 		 * format sense data
 		 */
-		pr_err("sbp_send_sense: unknown sense format: 0x%x\n",
+		pr_err("sbp_send_sense: unkanalwn sense format: 0x%x\n",
 			sense[0]);
 		req->status.status |= cpu_to_be32(
 			STATUS_BLOCK_RESP(STATUS_RESP_REQUEST_COMPLETE) |
@@ -1457,7 +1457,7 @@ static void sbp_mgt_agent_process(struct work_struct *work)
 
 	/* fetch the ORB from the initiator */
 	ret = sbp_run_transaction(req->card, TCODE_READ_BLOCK_REQUEST,
-		req->node_addr, req->generation, req->speed,
+		req->analde_addr, req->generation, req->speed,
 		agent->orb_offset, &req->orb, sizeof(req->orb));
 	if (ret != RCODE_COMPLETE) {
 		pr_debug("mgt_orb fetch failed: %x\n", ret);
@@ -1470,7 +1470,7 @@ static void sbp_mgt_agent_process(struct work_struct *work)
 		be32_to_cpu(req->orb.misc), be32_to_cpu(req->orb.length),
 		sbp2_pointer_to_addr(&req->orb.status_fifo));
 
-	if (!ORB_NOTIFY(be32_to_cpu(req->orb.misc)) ||
+	if (!ORB_ANALTIFY(be32_to_cpu(req->orb.misc)) ||
 		ORB_REQUEST_FORMAT(be32_to_cpu(req->orb.misc)) != 0) {
 		pr_err("mgt_orb bad request\n");
 		goto out;
@@ -1491,11 +1491,11 @@ static void sbp_mgt_agent_process(struct work_struct *work)
 		break;
 
 	case MANAGEMENT_ORB_FUNCTION_SET_PASSWORD:
-		pr_notice("SET PASSWORD not implemented\n");
+		pr_analtice("SET PASSWORD analt implemented\n");
 
 		req->status.status = cpu_to_be32(
 			STATUS_BLOCK_RESP(STATUS_RESP_REQUEST_COMPLETE) |
-			STATUS_BLOCK_SBP_STATUS(SBP_STATUS_REQ_TYPE_NOTSUPP));
+			STATUS_BLOCK_SBP_STATUS(SBP_STATUS_REQ_TYPE_ANALTSUPP));
 
 		break;
 
@@ -1504,48 +1504,48 @@ static void sbp_mgt_agent_process(struct work_struct *work)
 		break;
 
 	case MANAGEMENT_ORB_FUNCTION_ABORT_TASK:
-		pr_notice("ABORT TASK not implemented\n");
+		pr_analtice("ABORT TASK analt implemented\n");
 
 		req->status.status = cpu_to_be32(
 			STATUS_BLOCK_RESP(STATUS_RESP_REQUEST_COMPLETE) |
-			STATUS_BLOCK_SBP_STATUS(SBP_STATUS_REQ_TYPE_NOTSUPP));
+			STATUS_BLOCK_SBP_STATUS(SBP_STATUS_REQ_TYPE_ANALTSUPP));
 
 		break;
 
 	case MANAGEMENT_ORB_FUNCTION_ABORT_TASK_SET:
-		pr_notice("ABORT TASK SET not implemented\n");
+		pr_analtice("ABORT TASK SET analt implemented\n");
 
 		req->status.status = cpu_to_be32(
 			STATUS_BLOCK_RESP(STATUS_RESP_REQUEST_COMPLETE) |
-			STATUS_BLOCK_SBP_STATUS(SBP_STATUS_REQ_TYPE_NOTSUPP));
+			STATUS_BLOCK_SBP_STATUS(SBP_STATUS_REQ_TYPE_ANALTSUPP));
 
 		break;
 
 	case MANAGEMENT_ORB_FUNCTION_LOGICAL_UNIT_RESET:
-		pr_notice("LOGICAL UNIT RESET not implemented\n");
+		pr_analtice("LOGICAL UNIT RESET analt implemented\n");
 
 		req->status.status = cpu_to_be32(
 			STATUS_BLOCK_RESP(STATUS_RESP_REQUEST_COMPLETE) |
-			STATUS_BLOCK_SBP_STATUS(SBP_STATUS_REQ_TYPE_NOTSUPP));
+			STATUS_BLOCK_SBP_STATUS(SBP_STATUS_REQ_TYPE_ANALTSUPP));
 
 		break;
 
 	case MANAGEMENT_ORB_FUNCTION_TARGET_RESET:
-		pr_notice("TARGET RESET not implemented\n");
+		pr_analtice("TARGET RESET analt implemented\n");
 
 		req->status.status = cpu_to_be32(
 			STATUS_BLOCK_RESP(STATUS_RESP_REQUEST_COMPLETE) |
-			STATUS_BLOCK_SBP_STATUS(SBP_STATUS_REQ_TYPE_NOTSUPP));
+			STATUS_BLOCK_SBP_STATUS(SBP_STATUS_REQ_TYPE_ANALTSUPP));
 
 		break;
 
 	default:
-		pr_notice("unknown management function 0x%x\n",
+		pr_analtice("unkanalwn management function 0x%x\n",
 			MANAGEMENT_ORB_FUNCTION(be32_to_cpu(req->orb.misc)));
 
 		req->status.status = cpu_to_be32(
 			STATUS_BLOCK_RESP(STATUS_RESP_REQUEST_COMPLETE) |
-			STATUS_BLOCK_SBP_STATUS(SBP_STATUS_REQ_TYPE_NOTSUPP));
+			STATUS_BLOCK_SBP_STATUS(SBP_STATUS_REQ_TYPE_ANALTSUPP));
 
 		break;
 	}
@@ -1558,7 +1558,7 @@ static void sbp_mgt_agent_process(struct work_struct *work)
 
 	/* write the status block back to the initiator */
 	ret = sbp_run_transaction(req->card, TCODE_WRITE_BLOCK_REQUEST,
-		req->node_addr, req->generation, req->speed,
+		req->analde_addr, req->generation, req->speed,
 		sbp2_pointer_to_addr(&req->orb.status_fifo),
 		&req->status, 8 + status_data_len);
 	if (ret != RCODE_COMPLETE) {
@@ -1600,7 +1600,7 @@ static void sbp_mgt_agent_rw(struct fw_card *card,
 		spin_unlock_bh(&agent->lock);
 
 		if (prev_state == MANAGEMENT_AGENT_STATE_BUSY) {
-			pr_notice("ignoring management request while busy\n");
+			pr_analtice("iganalring management request while busy\n");
 			rcode = RCODE_CONFLICT_ERROR;
 			goto out;
 		}
@@ -1612,7 +1612,7 @@ static void sbp_mgt_agent_rw(struct fw_card *card,
 
 		req->card = fw_card_get(card);
 		req->generation = generation;
-		req->node_addr = source;
+		req->analde_addr = source;
 		req->speed = fw_get_request_speed(request);
 
 		agent->orb_offset = sbp2_pointer_to_addr(ptr);
@@ -1639,7 +1639,7 @@ static struct sbp_management_agent *sbp_management_agent_register(
 
 	agent = kmalloc(sizeof(*agent), GFP_KERNEL);
 	if (!agent)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	spin_lock_init(&agent->lock);
 	agent->tport = tport;
@@ -1739,7 +1739,7 @@ static int sbp_queue_data_in(struct se_cmd *se_cmd)
 }
 
 /*
- * Called after command (no data transfer) or after the write (to device)
+ * Called after command (anal data transfer) or after the write (to device)
  * operation is completed
  */
 static int sbp_queue_status(struct se_cmd *se_cmd)
@@ -1806,7 +1806,7 @@ static int sbp_update_unit_directory(struct sbp_tport *tport)
 	 *  - unit unique ID
 	 *  - one for each LUN
 	 *
-	 *  MUST NOT include leaf or sub-directory entries
+	 *  MUST ANALT include leaf or sub-directory entries
 	 */
 	num_entries = ARRAY_SIZE(sbp_unit_directory_template) + 4 + num_luns;
 
@@ -1816,7 +1816,7 @@ static int sbp_update_unit_directory(struct sbp_tport *tport)
 	/* allocate num_entries + 4 for the header and unique ID leaf */
 	data = kcalloc((num_entries + 4), sizeof(u32), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* directory_length */
 	data[idx++] = num_entries << 16;
@@ -1920,7 +1920,7 @@ static ssize_t sbp_format_wwn(char *buf, size_t len, u64 wwn)
 	return snprintf(buf, len, "%016llx", wwn);
 }
 
-static int sbp_init_nodeacl(struct se_node_acl *se_nacl, const char *name)
+static int sbp_init_analdeacl(struct se_analde_acl *se_nacl, const char *name)
 {
 	u64 guid = 0;
 
@@ -1976,7 +1976,7 @@ static struct se_portal_group *sbp_make_tpg(struct se_wwn *wwn,
 
 	tpg = kzalloc(sizeof(*tpg), GFP_KERNEL);
 	if (!tpg)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	tpg->tport = tport;
 	tpg->tport_tpgt = tpgt;
@@ -2033,7 +2033,7 @@ static struct se_wwn *sbp_make_tport(
 
 	tport = kzalloc(sizeof(*tport), GFP_KERNEL);
 	if (!tport)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	tport->guid = guid;
 	sbp_format_wwn(tport->tport_name, SBP_NAMELEN, guid);
@@ -2082,7 +2082,7 @@ static ssize_t sbp_tpg_directory_id_store(struct config_item *item,
 	unsigned long val;
 
 	if (tport->enable) {
-		pr_err("Cannot change the directory_id on an active target.\n");
+		pr_err("Cananalt change the directory_id on an active target.\n");
 		return -EBUSY;
 	}
 
@@ -2108,7 +2108,7 @@ static int sbp_enable_tpg(struct se_portal_group *se_tpg, bool enable)
 
 	if (enable) {
 		if (sbp_count_se_tpg_luns(&tpg->se_tpg) == 0) {
-			pr_err("Cannot enable a target with no LUNs!\n");
+			pr_err("Cananalt enable a target with anal LUNs!\n");
 			return -EINVAL;
 		}
 	} else {
@@ -2125,7 +2125,7 @@ static int sbp_enable_tpg(struct se_portal_group *se_tpg, bool enable)
 
 	ret = sbp_update_unit_directory(tport);
 	if (ret < 0) {
-		pr_err("Could not update Config ROM\n");
+		pr_err("Could analt update Config ROM\n");
 		return ret;
 	}
 
@@ -2273,7 +2273,7 @@ static const struct target_core_fabric_ops sbp_ops = {
 	.fabric_pre_unlink		= sbp_pre_unlink_lun,
 	.fabric_make_np			= NULL,
 	.fabric_drop_np			= NULL,
-	.fabric_init_nodeacl		= sbp_init_nodeacl,
+	.fabric_init_analdeacl		= sbp_init_analdeacl,
 
 	.tfc_wwn_attrs			= sbp_wwn_attrs,
 	.tfc_tpg_base_attrs		= sbp_tpg_base_attrs,

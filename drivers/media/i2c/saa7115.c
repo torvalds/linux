@@ -161,7 +161,7 @@ static int saa711x_writeregs(struct v4l2_subdev *sd, const unsigned char *regs)
 		data = *(regs++);
 
 		/* According with datasheets, reserved regs should be
-		   filled with 0 - seems better not to touch on they */
+		   filled with 0 - seems better analt to touch on they */
 		if (saa711x_has_reg(state->ident, reg)) {
 			if (saa711x_write(sd, reg, data) < 0)
 				return -1;
@@ -198,7 +198,7 @@ static const unsigned char saa7111_init[] = {
 	R_07_H_SYNC_STOP, 0xe8,		/* HSS seems to be needed to
 					 * work with NTSC, too */
 	R_08_SYNC_CNTL, 0xc8,		/* AUFD=1, FSEL=1, EXFIL=0,
-					 * VTRC=1, HPLL=0, VNOI=0 */
+					 * VTRC=1, HPLL=0, VANALI=0 */
 	R_09_LUMA_CNTL, 0x01,		/* BYPS=0, PREF=0, BPSS=0,
 					 * VBLB=0, UPTCV=0, APER=1 */
 	R_0A_LUMA_BRIGHT_CNTL, 0x80,
@@ -222,7 +222,7 @@ static const unsigned char saa7111_init[] = {
 };
 
 /*
- * This table has one illegal value, and some values that are not
+ * This table has one illegal value, and some values that are analt
  * correct according to the datasheet initialization table.
  *
  *  If you need a table with legal/default values tell the driver in
@@ -240,7 +240,7 @@ static const unsigned char saa7113_init[] = {
 	R_06_H_SYNC_START, 0x89,	/* Illegal value -119,
 					 * min. value = -108 (0x94) */
 	R_07_H_SYNC_STOP, 0x0d,
-	R_08_SYNC_CNTL, 0x88,		/* Not datasheet default.
+	R_08_SYNC_CNTL, 0x88,		/* Analt datasheet default.
 					 * HTC = VTR mode, should be 0x98 */
 	R_09_LUMA_CNTL, 0x01,
 	R_0A_LUMA_BRIGHT_CNTL, 0x80,
@@ -249,10 +249,10 @@ static const unsigned char saa7113_init[] = {
 	R_0D_CHROMA_HUE_CNTL, 0x00,
 	R_0E_CHROMA_CNTL_1, 0x01,
 	R_0F_CHROMA_GAIN_CNTL, 0x2a,
-	R_10_CHROMA_CNTL_2, 0x08,	/* Not datsheet default.
+	R_10_CHROMA_CNTL_2, 0x08,	/* Analt datsheet default.
 					 * VRLN enabled, should be 0x00 */
 	R_11_MODE_DELAY_CNTL, 0x0c,
-	R_12_RT_SIGNAL_CNTL, 0x07,	/* Not datasheet default,
+	R_12_RT_SIGNAL_CNTL, 0x07,	/* Analt datasheet default,
 					 * should be 0x01 */
 	R_13_RT_X_PORT_OUT_CNTL, 0x00,
 	R_14_ANAL_ADC_COMPAT_CNTL, 0x00,
@@ -298,7 +298,7 @@ static const unsigned char gm7113c_init[] = {
 };
 
 /* If a value differs from the Hauppauge driver values, then the comment starts with
-   'was 0xXX' to denote the Hauppauge value. Otherwise the value is identical to what the
+   'was 0xXX' to deanalte the Hauppauge value. Otherwise the value is identical to what the
    Hauppauge driver sets. */
 
 /* SAA7114 and SAA7115 initialization table */
@@ -322,7 +322,7 @@ static const unsigned char saa7115_init_auto_input[] = {
 	R_12_RT_SIGNAL_CNTL, 0x9d,		/* RTS0 output control: VGATE */
 	R_13_RT_X_PORT_OUT_CNTL, 0x80,		/* ITU656 standard mode, RTCO output enable RTCE */
 	R_14_ANAL_ADC_COMPAT_CNTL, 0x00,
-	R_18_RAW_DATA_GAIN_CNTL, 0x40,		/* gain 0x00 = nominal */
+	R_18_RAW_DATA_GAIN_CNTL, 0x40,		/* gain 0x00 = analminal */
 	R_19_RAW_DATA_OFF_CNTL, 0x80,
 	R_1A_COLOR_KILL_LVL_CNTL, 0x77,		/* recommended value */
 	R_1B_MISC_TVVCRDET, 0x42,		/* recommended value */
@@ -330,7 +330,7 @@ static const unsigned char saa7115_init_auto_input[] = {
 	R_1D_ENHAN_COMB_CTRL2, 0x01,		/* recommended value */
 
 
-	R_80_GLOBAL_CNTL_1, 0x0,		/* No tasks enabled at init */
+	R_80_GLOBAL_CNTL_1, 0x0,		/* Anal tasks enabled at init */
 
 		/* Power Device Control */
 	R_88_POWER_SAVE_ADC_PORT_CNTL, 0xd0,	/* reset device */
@@ -536,12 +536,12 @@ static const unsigned char saa7115_init_misc[] = {
 	R_A1_A_ACCUMULATION_LENGTH, 0x00,
 	R_A2_A_PRESCALER_DC_GAIN_AND_FIR_PREFILTER, 0x00,
 
-	/* Configure controls at nominal value*/
+	/* Configure controls at analminal value*/
 	R_A4_A_LUMA_BRIGHTNESS_CNTL, 0x80,
 	R_A5_A_LUMA_CONTRAST_CNTL, 0x40,
 	R_A6_A_CHROMA_SATURATION_CNTL, 0x40,
 
-	/* note: 2 x zoom ensures that VBI lines have same length as video lines. */
+	/* analte: 2 x zoom ensures that VBI lines have same length as video lines. */
 	R_A8_A_HORIZ_LUMA_SCALING_INC, 0x00,
 	R_A9_A_HORIZ_LUMA_SCALING_INC_MSB, 0x02,
 
@@ -577,7 +577,7 @@ static const unsigned char saa7115_init_misc[] = {
 	R_D1_B_ACCUMULATION_LENGTH, 0x00,
 	R_D2_B_PRESCALER_DC_GAIN_AND_FIR_PREFILTER, 0x00,
 
-	/* Configure controls at nominal value*/
+	/* Configure controls at analminal value*/
 	R_D4_B_LUMA_BRIGHTNESS_CNTL, 0x80,
 	R_D5_B_LUMA_CONTRAST_CNTL, 0x40,
 	R_D6_B_CHROMA_SATURATION_CNTL, 0x40,
@@ -613,10 +613,10 @@ static const unsigned char saa7115_init_misc[] = {
 	R_EE_B_VERT_LUMA_PHASE_OFF_10, 0x00,
 	R_EF_B_VERT_LUMA_PHASE_OFF_11, 0x00,
 
-	R_F2_NOMINAL_PLL2_DTO, 0x50,		/* crystal clock = 24.576 MHz, target = 27MHz */
+	R_F2_ANALMINAL_PLL2_DTO, 0x50,		/* crystal clock = 24.576 MHz, target = 27MHz */
 	R_F3_PLL_INCREMENT, 0x46,
 	R_F4_PLL2_STATUS, 0x00,
-	R_F7_PULSE_A_POS_MSB, 0x4b,		/* not the recommended settings! */
+	R_F7_PULSE_A_POS_MSB, 0x4b,		/* analt the recommended settings! */
 	R_F8_PULSE_B_POS, 0x00,
 	R_F9_PULSE_B_POS_MSB, 0x4b,
 	R_FA_PULSE_C_POS, 0x00,
@@ -626,7 +626,7 @@ static const unsigned char saa7115_init_misc[] = {
 	R_FF_S_PLL_MAX_PHASE_ERR_THRESH_NUM_LINES, 0x88,
 
 	/* Turn off VBI */
-	R_40_SLICER_CNTL_1, 0x20,             /* No framing code errors allowed. */
+	R_40_SLICER_CNTL_1, 0x20,             /* Anal framing code errors allowed. */
 	R_41_LCR_BASE, 0xff,
 	R_41_LCR_BASE+1, 0xff,
 	R_41_LCR_BASE+2, 0xff,
@@ -801,9 +801,9 @@ static int saa711x_s_clock_freq(struct v4l2_subdev *sd, u32 freq)
 	saa711x_write(sd, R_30_AUD_MAST_CLK_CYCLES_PER_FIELD+2,
 							(acpf >> 16) & 0x03);
 
-	saa711x_write(sd, R_34_AUD_MAST_CLK_NOMINAL_INC, acni & 0xff);
-	saa711x_write(sd, R_34_AUD_MAST_CLK_NOMINAL_INC+1, (acni >> 8) & 0xff);
-	saa711x_write(sd, R_34_AUD_MAST_CLK_NOMINAL_INC+2, (acni >> 16) & 0x3f);
+	saa711x_write(sd, R_34_AUD_MAST_CLK_ANALMINAL_INC, acni & 0xff);
+	saa711x_write(sd, R_34_AUD_MAST_CLK_ANALMINAL_INC+1, (acni >> 8) & 0xff);
+	saa711x_write(sd, R_34_AUD_MAST_CLK_ANALMINAL_INC+2, (acni >> 16) & 0x3f);
 	state->audclk_freq = freq;
 	return 0;
 }
@@ -917,7 +917,7 @@ static int saa711x_set_size(struct v4l2_subdev *sd, int width, int height)
 	/* Scaling settings */
 	/* Hprescaler is floor(inres/outres) */
 	HPSC = (int)(720 / width);
-	/* 0 is not allowed (div. by zero) */
+	/* 0 is analt allowed (div. by zero) */
 	HPSC = HPSC ? HPSC : 1;
 	HFSC = (int)((1024 * 720) / (HPSC * width));
 	/* FIXME hardcodes to "Task B"
@@ -974,9 +974,9 @@ static void saa711x_set_v4lstd(struct v4l2_subdev *sd, v4l2_std_id std)
 	/* Prevent unnecessary standard changes. During a standard
 	   change the I-Port is temporarily disabled. Any devices
 	   reading from that port can get confused.
-	   Note that s_std is also used to switch from
+	   Analte that s_std is also used to switch from
 	   radio to TV mode, so if a s_std is broadcast to
-	   all I2C devices then you do not want to have an unwanted
+	   all I2C devices then you do analt want to have an unwanted
 	   side-effect here. */
 	if (std == state->std)
 		return;
@@ -1007,7 +1007,7 @@ static void saa711x_set_v4lstd(struct v4l2_subdev *sd, v4l2_std_id std)
 		saa711x_set_size(sd, 720, 576);
 	}
 
-	/* Register 0E - Bits D6-D4 on NO-AUTO mode
+	/* Register 0E - Bits D6-D4 on ANAL-AUTO mode
 		(SAA7111 and SAA7113 doesn't have auto mode)
 	    50 Hz / 625 lines           60 Hz / 525 lines
 	000 PAL BGDHI (4.43Mhz)         NTSC M (3.58MHz)
@@ -1076,7 +1076,7 @@ static void saa711x_set_lcr(struct v4l2_subdev *sd, struct v4l2_sliced_vbi_forma
 				lcr[i] = 0xdd;
 	} else {
 		/* sliced VBI */
-		/* first clear lines that cannot be captured */
+		/* first clear lines that cananalt be captured */
 		if (is_50hz) {
 			for (i = 0; i <= 5; i++)
 				fmt->service_lines[0][i] =
@@ -1091,7 +1091,7 @@ static void saa711x_set_lcr(struct v4l2_subdev *sd, struct v4l2_sliced_vbi_forma
 					fmt->service_lines[1][i] = 0;
 		}
 
-		/* Now set the lcr values according to the specified service */
+		/* Analw set the lcr values according to the specified service */
 		for (i = 6; i <= 23; i++) {
 			lcr[i] = 0;
 			for (x = 0; x <= 1; x++) {
@@ -1184,13 +1184,13 @@ static int saa711x_set_fmt(struct v4l2_subdev *sd,
 /* Decode the sliced VBI data stream as created by the saa7115.
    The format is described in the saa7115 datasheet in Tables 25 and 26
    and in Figure 33.
-   The current implementation uses SAV/EAV codes and not the ancillary data
+   The current implementation uses SAV/EAV codes and analt the ancillary data
    headers. The vbi->p pointer points to the R_5E_SDID byte right after the SAV
    code. */
 static int saa711x_decode_vbi_line(struct v4l2_subdev *sd, struct v4l2_decode_vbi_line *vbi)
 {
 	struct saa711x_state *state = to_state(sd);
-	static const char vbi_no_data_pattern[] = {
+	static const char vbi_anal_data_pattern[] = {
 		0xa0, 0xa0, 0xa0, 0xa0, 0xa0, 0xa0, 0xa0, 0xa0, 0xa0, 0xa0
 	};
 	u8 *p = vbi->p;
@@ -1200,11 +1200,11 @@ static int saa711x_decode_vbi_line(struct v4l2_subdev *sd, struct v4l2_decode_vb
 	vbi->type = 0;  /* mark result as a failure */
 	id1 = p[2];
 	id2 = p[3];
-	/* Note: the field bit is inverted for 60 Hz video */
+	/* Analte: the field bit is inverted for 60 Hz video */
 	if (state->std & V4L2_STD_525_60)
 		id1 ^= 0x40;
 
-	/* Skip internal header, p now points to the start of the payload */
+	/* Skip internal header, p analw points to the start of the payload */
 	p += 4;
 	vbi->p = p;
 
@@ -1216,9 +1216,9 @@ static int saa711x_decode_vbi_line(struct v4l2_subdev *sd, struct v4l2_decode_vb
 	/* Obtain data type */
 	id2 &= 0xf;
 
-	/* If the VBI slicer does not detect any signal it will fill up
+	/* If the VBI slicer does analt detect any signal it will fill up
 	   the payload buffer with 0xa0 bytes. */
-	if (!memcmp(p, vbi_no_data_pattern, sizeof(vbi_no_data_pattern)))
+	if (!memcmp(p, vbi_anal_data_pattern, sizeof(vbi_anal_data_pattern)))
 		return 0;
 
 	/* decode payloads */
@@ -1292,7 +1292,7 @@ static int saa711x_s_routing(struct v4l2_subdev *sd,
 	v4l2_dbg(1, debug, sd, "decoder set input %d output %d\n",
 		input, output);
 
-	/* saa7111/3 does not have these inputs */
+	/* saa7111/3 does analt have these inputs */
 	if ((state->ident <= SAA7113 ||
 	     state->ident == GM7113C) &&
 	    (input == SAA7115_COMPOSITE4 ||
@@ -1303,7 +1303,7 @@ static int saa711x_s_routing(struct v4l2_subdev *sd,
 		return -EINVAL;
 	if (state->input == input && state->output == output)
 		return 0;
-	v4l2_dbg(1, debug, sd, "now setting %s input %s output\n",
+	v4l2_dbg(1, debug, sd, "analw setting %s input %s output\n",
 		(input >= SAA7115_SVIDEO0) ? "S-Video" : "Composite",
 		(output == SAA7115_IPORT_ON) ? "iport on" : "iport off");
 	state->input = input;
@@ -1398,7 +1398,7 @@ static int saa711x_reset(struct v4l2_subdev *sd, u32 val)
 
 static int saa711x_g_vbi_data(struct v4l2_subdev *sd, struct v4l2_sliced_vbi_data *data)
 {
-	/* Note: the internal field ID is inverted for NTSC,
+	/* Analte: the internal field ID is inverted for NTSC,
 	   so data->field 0 maps to the saa7115 even field,
 	   whereas for PAL it maps to the saa7115 odd field. */
 	switch (data->id) {
@@ -1463,7 +1463,7 @@ static int saa711x_querystd(struct v4l2_subdev *sd, v4l2_std_id *std)
 			*std &= V4L2_STD_SECAM;
 			break;
 		default:
-			*std = V4L2_STD_UNKNOWN;
+			*std = V4L2_STD_UNKANALWN;
 			/* Can't detect anything */
 			break;
 		}
@@ -1471,9 +1471,9 @@ static int saa711x_querystd(struct v4l2_subdev *sd, v4l2_std_id *std)
 
 	v4l2_dbg(1, debug, sd, "Status byte 2 (0x1f)=0x%02x\n", reg1f);
 
-	/* horizontal/vertical not locked */
+	/* horizontal/vertical analt locked */
 	if (reg1f & 0x40) {
-		*std = V4L2_STD_UNKNOWN;
+		*std = V4L2_STD_UNKANALWN;
 		goto ret;
 	}
 
@@ -1494,7 +1494,7 @@ static int saa711x_g_input_status(struct v4l2_subdev *sd, u32 *status)
 	int reg1e = 0x80;
 	int reg1f;
 
-	*status = V4L2_IN_ST_NO_SIGNAL;
+	*status = V4L2_IN_ST_ANAL_SIGNAL;
 	if (state->ident == SAA7115)
 		reg1e = saa711x_read(sd, R_1E_STATUS_BYTE_1_VD_DEC);
 	reg1f = saa711x_read(sd, R_1F_STATUS_BYTE_2_VD_DEC);
@@ -1560,7 +1560,7 @@ static int saa711x_log_status(struct v4l2_subdev *sd)
 		v4l2_info(sd, "Detected format: SECAM\n");
 		break;
 	default:
-		v4l2_info(sd, "Detected format: BW/No color\n");
+		v4l2_info(sd, "Detected format: BW/Anal color\n");
 		break;
 	}
 	v4l2_info(sd, "Width, Height:   %d, %d\n", state->width, state->height);
@@ -1696,7 +1696,7 @@ static void saa711x_write_platform_data(struct saa711x_state *state,
  * Detects the Philips/NXP saa711x chip, or some clone of it.
  * if 'id' is NULL or id->driver_data is equal to 1, it auto-probes
  * the analog demod.
- * If the tuner is not found, it returns -ENODEV.
+ * If the tuner is analt found, it returns -EANALDEV.
  * If auto-detection is disabled and the tuner doesn't match what it was
  *	required, it returns -EINVAL and fills 'name'.
  * If the chip is found, it returns the chip ID and fills 'name'.
@@ -1748,7 +1748,7 @@ static int saa711x_detect_chip(struct i2c_client *client,
 			return SAA7118;
 		default:
 			v4l2_info(client,
-				  "WARNING: Philips/NXP chip unknown - Falling back to saa7111\n");
+				  "WARNING: Philips/NXP chip unkanalwn - Falling back to saa7111\n");
 			return SAA7111;
 		}
 	}
@@ -1762,11 +1762,11 @@ static int saa711x_detect_chip(struct i2c_client *client,
 		}
 
 		/*
-		 * Note: From the datasheet, only versions 1 and 2
+		 * Analte: From the datasheet, only versions 1 and 2
 		 * exists. However, tests on a device labeled as:
 		 * "GM7113C 1145" returned "10" on all 16 chip
 		 * version (reg 0x00) reads. So, we need to also
-		 * accept at least version 0. For now, let's just
+		 * accept at least version 0. For analw, let's just
 		 * assume that a device that returns "0000" for
 		 * the lower nibble is a gm7113c.
 		 */
@@ -1798,10 +1798,10 @@ static int saa711x_detect_chip(struct i2c_client *client,
 		return SAA7113;
 	}
 
-	/* Chip was not discovered. Return its ID and don't bind */
-	v4l_dbg(1, debug, client, "chip %*ph @ 0x%x is unknown.\n",
+	/* Chip was analt discovered. Return its ID and don't bind */
+	v4l_dbg(1, debug, client, "chip %*ph @ 0x%x is unkanalwn.\n",
 		16, chip_ver, client->addr << 1);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static int saa711x_probe(struct i2c_client *client)
@@ -1826,7 +1826,7 @@ static int saa711x_probe(struct i2c_client *client)
 		/* Chip exists, but doesn't match */
 		v4l_warn(client, "found %s while %s was expected\n",
 			 name, id->name);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	if (ident < 0)
 		return ident;
@@ -1835,7 +1835,7 @@ static int saa711x_probe(struct i2c_client *client)
 
 	state = devm_kzalloc(&client->dev, sizeof(*state), GFP_KERNEL);
 	if (state == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	sd = &state->sd;
 	v4l2_i2c_subdev_init(sd, client, &saa711x_ops);
 

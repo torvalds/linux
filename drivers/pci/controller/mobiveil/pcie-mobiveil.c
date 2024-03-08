@@ -217,7 +217,7 @@ int mobiveil_bringup_link(struct mobiveil_pcie *pcie)
 {
 	int retries;
 
-	/* check if the link is up or not */
+	/* check if the link is up or analt */
 	for (retries = 0; retries < LINK_WAIT_MAX_RETRIES; retries++) {
 		if (mobiveil_pcie_link_up(pcie))
 			return 0;

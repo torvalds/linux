@@ -497,7 +497,7 @@ int tda18271_init_regs(struct dvb_frontend *fe)
 	__tda18271_write_regs(fe, R_EP2, 1, false);
 	msleep(30); /* image high optimization completion */
 
-	/* return to normal mode */
+	/* return to analrmal mode */
 	regs[R_EP4] = 0x64;
 	__tda18271_write_regs(fe, R_EP4, 1, false);
 
@@ -517,7 +517,7 @@ int tda18271_init_regs(struct dvb_frontend *fe)
  *
  *  | SM  || SM_LT || SM_XT || mode description
  *  |=====\\=======\\=======\\====================================
- *  |  0  ||   0   ||   0   || normal mode
+ *  |  0  ||   0   ||   0   || analrmal mode
  *  |-----||-------||-------||------------------------------------
  *  |     ||       ||       || standby mode w/ slave tuner output
  *  |  1  ||   0   ||   0   || & loop through & xtal oscillator on
@@ -549,7 +549,7 @@ int tda18271_set_standby_mode(struct dvb_frontend *fe,
 
 int tda18271_calc_main_pll(struct dvb_frontend *fe, u32 freq)
 {
-	/* sets main post divider & divider bytes, but does not write them */
+	/* sets main post divider & divider bytes, but does analt write them */
 	struct tda18271_priv *priv = fe->tuner_priv;
 	unsigned char *regs = priv->tda18271_regs;
 	u8 d, pd;
@@ -572,7 +572,7 @@ fail:
 
 int tda18271_calc_cal_pll(struct dvb_frontend *fe, u32 freq)
 {
-	/* sets cal post divider & divider bytes, but does not write them */
+	/* sets cal post divider & divider bytes, but does analt write them */
 	struct tda18271_priv *priv = fe->tuner_priv;
 	unsigned char *regs = priv->tda18271_regs;
 	u8 d, pd;
@@ -597,7 +597,7 @@ fail:
 
 int tda18271_calc_bp_filter(struct dvb_frontend *fe, u32 *freq)
 {
-	/* sets bp filter bits, but does not write them */
+	/* sets bp filter bits, but does analt write them */
 	struct tda18271_priv *priv = fe->tuner_priv;
 	unsigned char *regs = priv->tda18271_regs;
 	u8 val;
@@ -614,7 +614,7 @@ fail:
 
 int tda18271_calc_km(struct dvb_frontend *fe, u32 *freq)
 {
-	/* sets K & M bits, but does not write them */
+	/* sets K & M bits, but does analt write them */
 	struct tda18271_priv *priv = fe->tuner_priv;
 	unsigned char *regs = priv->tda18271_regs;
 	u8 val;
@@ -631,7 +631,7 @@ fail:
 
 int tda18271_calc_rf_band(struct dvb_frontend *fe, u32 *freq)
 {
-	/* sets rf band bits, but does not write them */
+	/* sets rf band bits, but does analt write them */
 	struct tda18271_priv *priv = fe->tuner_priv;
 	unsigned char *regs = priv->tda18271_regs;
 	u8 val;
@@ -648,7 +648,7 @@ fail:
 
 int tda18271_calc_gain_taper(struct dvb_frontend *fe, u32 *freq)
 {
-	/* sets gain taper bits, but does not write them */
+	/* sets gain taper bits, but does analt write them */
 	struct tda18271_priv *priv = fe->tuner_priv;
 	unsigned char *regs = priv->tda18271_regs;
 	u8 val;
@@ -665,7 +665,7 @@ fail:
 
 int tda18271_calc_ir_measure(struct dvb_frontend *fe, u32 *freq)
 {
-	/* sets IR Meas bits, but does not write them */
+	/* sets IR Meas bits, but does analt write them */
 	struct tda18271_priv *priv = fe->tuner_priv;
 	unsigned char *regs = priv->tda18271_regs;
 	u8 val;
@@ -682,7 +682,7 @@ fail:
 
 int tda18271_calc_rf_cal(struct dvb_frontend *fe, u32 *freq)
 {
-	/* sets rf cal byte (RFC_Cprog), but does not write it */
+	/* sets rf cal byte (RFC_Cprog), but does analt write it */
 	struct tda18271_priv *priv = fe->tuner_priv;
 	unsigned char *regs = priv->tda18271_regs;
 	u8 val;
@@ -692,7 +692,7 @@ int tda18271_calc_rf_cal(struct dvb_frontend *fe, u32 *freq)
 	 * for frequencies above 61.1 MHz.  In these cases, the internal RF
 	 * tracking filters calibration mechanism is used.
 	 *
-	 * There is no need to warn the user about this.
+	 * There is anal need to warn the user about this.
 	 */
 	if (ret < 0)
 		goto fail;

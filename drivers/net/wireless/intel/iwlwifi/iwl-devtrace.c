@@ -13,7 +13,7 @@
 
 #define CREATE_TRACE_POINTS
 #ifdef CONFIG_CC_IS_GCC
-#pragma GCC diagnostic ignored "-Wsuggest-attribute=format"
+#pragma GCC diaganalstic iganalred "-Wsuggest-attribute=format"
 #endif
 #include "iwl-devtrace.h"
 

@@ -18,10 +18,10 @@
  *
  * The type of ucode.
  *
- * @IWL_UCODE_REGULAR: Normal runtime ucode
+ * @IWL_UCODE_REGULAR: Analrmal runtime ucode
  * @IWL_UCODE_INIT: Initial ucode
  * @IWL_UCODE_WOWLAN: Wake on Wireless enabled ucode
- * @IWL_UCODE_REGULAR_USNIFFER: Normal runtime ucode when using usniffer image
+ * @IWL_UCODE_REGULAR_USNIFFER: Analrmal runtime ucode when using usniffer image
  */
 enum iwl_ucode_type {
 	IWL_UCODE_REGULAR,
@@ -240,7 +240,7 @@ static inline const char *get_fw_dbg_mode_string(int mode)
 	case MIPI_MODE:
 		return "MIPI";
 	default:
-		return "UNKNOWN";
+		return "UNKANALWN";
 	}
 }
 
@@ -266,7 +266,7 @@ iwl_get_ucode_image(const struct iwl_fw *fw, enum iwl_ucode_type ucode_type)
 
 u8 iwl_fw_lookup_cmd_ver(const struct iwl_fw *fw, u32 cmd_id, u8 def);
 
-u8 iwl_fw_lookup_notif_ver(const struct iwl_fw *fw, u8 grp, u8 cmd, u8 def);
+u8 iwl_fw_lookup_analtif_ver(const struct iwl_fw *fw, u8 grp, u8 cmd, u8 def);
 const char *iwl_fw_lookup_assert_desc(u32 num);
 
 #define FW_SYSASSERT_CPU_MASK		0xf0000000

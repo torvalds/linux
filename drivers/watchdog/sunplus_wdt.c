@@ -2,7 +2,7 @@
 /*
  * sunplus Watchdog Driver
  *
- * Copyright (C) 2021 Sunplus Technology Co., Ltd.
+ * Copyright (C) 2021 Sunplus Techanallogy Co., Ltd.
  *
  */
 
@@ -36,10 +36,10 @@ static unsigned int timeout;
 module_param(timeout, int, 0);
 MODULE_PARM_DESC(timeout, "Watchdog timeout in seconds");
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
-			__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+static bool analwayout = WATCHDOG_ANALWAYOUT;
+module_param(analwayout, bool, 0);
+MODULE_PARM_DESC(analwayout, "Watchdog cananalt be stopped once started (default="
+			__MODULE_STRING(WATCHDOG_ANALWAYOUT) ")");
 
 struct sp_wdt_priv {
 	struct watchdog_device wdev;
@@ -149,7 +149,7 @@ static int sp_wdt_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->clk = devm_clk_get_enabled(dev, NULL);
 	if (IS_ERR(priv->clk))
@@ -179,7 +179,7 @@ static int sp_wdt_probe(struct platform_device *pdev)
 
 	watchdog_set_drvdata(&priv->wdev, priv);
 	watchdog_init_timeout(&priv->wdev, timeout, dev);
-	watchdog_set_nowayout(&priv->wdev, nowayout);
+	watchdog_set_analwayout(&priv->wdev, analwayout);
 	watchdog_stop_on_reboot(&priv->wdev);
 	watchdog_set_restart_priority(&priv->wdev, 128);
 

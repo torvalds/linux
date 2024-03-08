@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GPL-2.0 OR GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GPL-2.0 OR GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: MC
 
 .. _media_request_ioc_reinit:
@@ -12,7 +12,7 @@ Name
 
 MEDIA_REQUEST_IOC_REINIT - Re-initialize a request
 
-Synopsis
+Syanalpsis
 ========
 
 .. c:macro:: MEDIA_REQUEST_IOC_REINIT
@@ -37,15 +37,15 @@ This avoids having to :c:func:`close()` a completed
 request and allocate a new request. Instead the completed request can just
 be re-initialized and it is ready to be used again.
 
-A request can only be re-initialized if it either has not been queued
-yet, or if it was queued and completed. Otherwise it will set ``errno``
-to ``EBUSY``. No other error codes can be returned.
+A request can only be re-initialized if it either has analt been queued
+yet, or if it was queued and completed. Otherwise it will set ``erranal``
+to ``EBUSY``. Anal other error codes can be returned.
 
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erranal`` variable is set
 appropriately.
 
 EBUSY
-    The request is queued but not yet completed.
+    The request is queued but analt yet completed.

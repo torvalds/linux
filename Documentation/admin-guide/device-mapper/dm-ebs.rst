@@ -6,7 +6,7 @@ dm-ebs
 This target is similar to the linear target except that it emulates
 a smaller logical block size on a device with a larger logical block
 size.  Its main purpose is to provide emulation of 512 byte sectors on
-devices that do not provide this emulation (i.e. 4K native disks).
+devices that do analt provide this emulation (i.e. 4K native disks).
 
 Supported emulated logical block sizes 512, 1024, 2048 and 4096.
 
@@ -21,7 +21,7 @@ Mandatory parameters:
 
     <dev path>:
         Full pathname to the underlying block-device,
-        or a "major:minor" device-number.
+        or a "major:mianalr" device-number.
     <offset>:
         Starting sector within the device;
         has to be a multiple of <emulated sectors>.
@@ -34,7 +34,7 @@ Optional parameter:
     <underlying sectors>:
         Number of sectors defining the logical block size of <dev path>.
         2^N supported, e.g. 8 = emulate 8 sectors of 512 bytes = 4KiB.
-        If not provided, the logical block size of <dev path> will be used.
+        If analt provided, the logical block size of <dev path> will be used.
 
 
 Examples:

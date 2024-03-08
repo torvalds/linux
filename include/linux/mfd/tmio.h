@@ -57,14 +57,14 @@
 
 /*
  * Use the busy timeout feature. Probably all TMIO versions support it. Yet,
- * we don't have documentation for old variants, so we enable only known good
- * variants with this flag. Can be removed once all variants are known good.
+ * we don't have documentation for old variants, so we enable only kanalwn good
+ * variants with this flag. Can be removed once all variants are kanalwn good.
  */
 #define TMIO_MMC_USE_BUSY_TIMEOUT	BIT(5)
 
 /*
  * Some controllers have CMD12 automatically
- * issue/non-issue register
+ * issue/analn-issue register
  */
 #define TMIO_MMC_HAVE_CMD12_CTRL	BIT(7)
 

@@ -153,7 +153,7 @@ static int bcm63138_leds_blink_set(struct led_classdev *led_cdev,
 	}
 
 	if (*delay_on != *delay_off) {
-		dev_dbg(led_cdev->dev, "Blinking at unequal delays is not supported\n");
+		dev_dbg(led_cdev->dev, "Blinking at unequal delays is analt supported\n");
 		return -EINVAL;
 	}
 
@@ -194,10 +194,10 @@ static int bcm63138_leds_blink_set(struct led_classdev *led_cdev,
  */
 
 static void bcm63138_leds_create_led(struct bcm63138_leds *leds,
-				     struct device_node *np)
+				     struct device_analde *np)
 {
 	struct led_init_data init_data = {
-		.fwnode = of_fwnode_handle(np),
+		.fwanalde = of_fwanalde_handle(np),
 	};
 	struct device *dev = leds->dev;
 	struct bcm63138_led *led;
@@ -236,7 +236,7 @@ static void bcm63138_leds_create_led(struct bcm63138_leds *leds,
 	}
 
 	pinctrl = devm_pinctrl_get_select_default(led->cdev.dev);
-	if (IS_ERR(pinctrl) && PTR_ERR(pinctrl) != -ENODEV) {
+	if (IS_ERR(pinctrl) && PTR_ERR(pinctrl) != -EANALDEV) {
 		dev_warn(led->cdev.dev, "Failed to select %pOF pinctrl: %ld\n",
 			 np, PTR_ERR(pinctrl));
 	}
@@ -256,14 +256,14 @@ err_free:
 
 static int bcm63138_leds_probe(struct platform_device *pdev)
 {
-	struct device_node *np = dev_of_node(&pdev->dev);
+	struct device_analde *np = dev_of_analde(&pdev->dev);
 	struct device *dev = &pdev->dev;
 	struct bcm63138_leds *leds;
-	struct device_node *child;
+	struct device_analde *child;
 
 	leds = devm_kzalloc(dev, sizeof(*leds), GFP_KERNEL);
 	if (!leds)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	leds->dev = dev;
 
@@ -280,7 +280,7 @@ static int bcm63138_leds_probe(struct platform_device *pdev)
 	bcm63138_leds_write(leds, BCM63138_SERIAL_LED_POLARITY, 0);
 	bcm63138_leds_write(leds, BCM63138_PARALLEL_LED_POLARITY, 0);
 
-	for_each_available_child_of_node(np, child) {
+	for_each_available_child_of_analde(np, child) {
 		bcm63138_leds_create_led(leds, child);
 	}
 

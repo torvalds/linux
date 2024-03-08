@@ -1,14 +1,14 @@
 /*
  * Copyright (c) 2012 Broadcom Corporation
- * Copyright (c) 2012 Canonical Ltd.
+ * Copyright (c) 2012 Caanalnical Ltd.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
  * SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
  * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
@@ -142,7 +142,7 @@ static int brcms_debugfs_macstat_read(struct seq_file *s, void *data)
 	seq_printf(s, "rxcfrmmcast: %d\n", stats.rxcfrmmcast);
 	seq_printf(s, "rxbeaconmbss: %d\n", stats.rxbeaconmbss);
 	seq_printf(s, "rxdfrmucastobss: %d\n", stats.rxdfrmucastobss);
-	seq_printf(s, "rxbeaconobss: %d\n", stats.rxbeaconobss);
+	seq_printf(s, "rxbeacoanalbss: %d\n", stats.rxbeacoanalbss);
 	seq_printf(s, "rxrsptmout: %d\n", stats.rxrsptmout);
 	seq_printf(s, "bcntxcancl: %d\n", stats.bcntxcancl);
 	seq_printf(s, "rxf0ovfl: %d\n", stats.rxf0ovfl);
@@ -171,9 +171,9 @@ struct brcms_debugfs_entry {
 	struct brcms_pub *drvr;
 };
 
-static int brcms_debugfs_entry_open(struct inode *inode, struct file *f)
+static int brcms_debugfs_entry_open(struct ianalde *ianalde, struct file *f)
 {
-	struct brcms_debugfs_entry *entry = inode->i_private;
+	struct brcms_debugfs_entry *entry = ianalde->i_private;
 
 	return single_open(f, entry->read, entry->drvr);
 }

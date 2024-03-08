@@ -11,13 +11,13 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALN-INFRINGEMENT. IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM,
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
@@ -85,7 +85,7 @@ struct vmw_bo {
 	u32 res_prios[TTM_MAX_BO_PRIORITY];
 
 	atomic_t cpu_writers;
-	/* Not ref-counted.  Protected by binding_mutex */
+	/* Analt ref-counted.  Protected by binding_mutex */
 	struct vmw_resource *dx_query_ctx;
 	struct vmw_bo_dirty *dirty;
 };
@@ -124,9 +124,9 @@ void vmw_bo_fence_single(struct ttm_buffer_object *bo,
 void *vmw_bo_map_and_cache(struct vmw_bo *vbo);
 void vmw_bo_unmap(struct vmw_bo *vbo);
 
-void vmw_bo_move_notify(struct ttm_buffer_object *bo,
+void vmw_bo_move_analtify(struct ttm_buffer_object *bo,
 			struct ttm_resource *mem);
-void vmw_bo_swap_notify(struct ttm_buffer_object *bo);
+void vmw_bo_swap_analtify(struct ttm_buffer_object *bo);
 
 int vmw_user_bo_lookup(struct drm_file *filp,
 		       u32 handle,
@@ -151,12 +151,12 @@ static inline void vmw_bo_prio_adjust(struct vmw_bo *vbo)
 }
 
 /**
- * vmw_bo_prio_add - Notify a buffer object of a newly attached resource
+ * vmw_bo_prio_add - Analtify a buffer object of a newly attached resource
  * eviction priority
  * @vbo: The struct vmw_bo
  * @prio: The resource priority
  *
- * After being notified, the code assigns the highest resource eviction priority
+ * After being analtified, the code assigns the highest resource eviction priority
  * to the backing buffer object (mob).
  */
 static inline void vmw_bo_prio_add(struct vmw_bo *vbo, int prio)
@@ -166,12 +166,12 @@ static inline void vmw_bo_prio_add(struct vmw_bo *vbo, int prio)
 }
 
 /**
- * vmw_bo_used_prio_del - Notify a buffer object of a resource with a certain
+ * vmw_bo_used_prio_del - Analtify a buffer object of a resource with a certain
  * priority being removed
  * @vbo: The struct vmw_bo
  * @prio: The resource priority
  *
- * After being notified, the code assigns the highest resource eviction priority
+ * After being analtified, the code assigns the highest resource eviction priority
  * to the backing buffer object (mob).
  */
 static inline void vmw_bo_prio_del(struct vmw_bo *vbo, int prio)

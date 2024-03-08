@@ -8,24 +8,24 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-#include "nouveau_dmem.h"
-#include "nouveau_drv.h"
-#include "nouveau_chan.h"
-#include "nouveau_dma.h"
-#include "nouveau_mem.h"
-#include "nouveau_bo.h"
-#include "nouveau_svm.h"
+#include "analuveau_dmem.h"
+#include "analuveau_drv.h"
+#include "analuveau_chan.h"
+#include "analuveau_dma.h"
+#include "analuveau_mem.h"
+#include "analuveau_bo.h"
+#include "analuveau_svm.h"
 
 #include <nvif/class.h>
 #include <nvif/object.h>
@@ -42,75 +42,75 @@
 #include <linux/migrate.h>
 
 /*
- * FIXME: this is ugly right now we are using TTM to allocate vram and we pin
+ * FIXME: this is ugly right analw we are using TTM to allocate vram and we pin
  * it in vram while in use. We likely want to overhaul memory management for
- * nouveau to be more page like (not necessarily with system page size but a
+ * analuveau to be more page like (analt necessarily with system page size but a
  * bigger page size) at lowest level and have some shim layer on top that would
  * provide the same functionality as TTM.
  */
 #define DMEM_CHUNK_SIZE (2UL << 20)
 #define DMEM_CHUNK_NPAGES (DMEM_CHUNK_SIZE >> PAGE_SHIFT)
 
-enum nouveau_aper {
-	NOUVEAU_APER_VIRT,
-	NOUVEAU_APER_VRAM,
-	NOUVEAU_APER_HOST,
+enum analuveau_aper {
+	ANALUVEAU_APER_VIRT,
+	ANALUVEAU_APER_VRAM,
+	ANALUVEAU_APER_HOST,
 };
 
-typedef int (*nouveau_migrate_copy_t)(struct nouveau_drm *drm, u64 npages,
-				      enum nouveau_aper, u64 dst_addr,
-				      enum nouveau_aper, u64 src_addr);
-typedef int (*nouveau_clear_page_t)(struct nouveau_drm *drm, u32 length,
-				      enum nouveau_aper, u64 dst_addr);
+typedef int (*analuveau_migrate_copy_t)(struct analuveau_drm *drm, u64 npages,
+				      enum analuveau_aper, u64 dst_addr,
+				      enum analuveau_aper, u64 src_addr);
+typedef int (*analuveau_clear_page_t)(struct analuveau_drm *drm, u32 length,
+				      enum analuveau_aper, u64 dst_addr);
 
-struct nouveau_dmem_chunk {
+struct analuveau_dmem_chunk {
 	struct list_head list;
-	struct nouveau_bo *bo;
-	struct nouveau_drm *drm;
+	struct analuveau_bo *bo;
+	struct analuveau_drm *drm;
 	unsigned long callocated;
 	struct dev_pagemap pagemap;
 };
 
-struct nouveau_dmem_migrate {
-	nouveau_migrate_copy_t copy_func;
-	nouveau_clear_page_t clear_func;
-	struct nouveau_channel *chan;
+struct analuveau_dmem_migrate {
+	analuveau_migrate_copy_t copy_func;
+	analuveau_clear_page_t clear_func;
+	struct analuveau_channel *chan;
 };
 
-struct nouveau_dmem {
-	struct nouveau_drm *drm;
-	struct nouveau_dmem_migrate migrate;
+struct analuveau_dmem {
+	struct analuveau_drm *drm;
+	struct analuveau_dmem_migrate migrate;
 	struct list_head chunks;
 	struct mutex mutex;
 	struct page *free_pages;
 	spinlock_t lock;
 };
 
-static struct nouveau_dmem_chunk *nouveau_page_to_chunk(struct page *page)
+static struct analuveau_dmem_chunk *analuveau_page_to_chunk(struct page *page)
 {
-	return container_of(page->pgmap, struct nouveau_dmem_chunk, pagemap);
+	return container_of(page->pgmap, struct analuveau_dmem_chunk, pagemap);
 }
 
-static struct nouveau_drm *page_to_drm(struct page *page)
+static struct analuveau_drm *page_to_drm(struct page *page)
 {
-	struct nouveau_dmem_chunk *chunk = nouveau_page_to_chunk(page);
+	struct analuveau_dmem_chunk *chunk = analuveau_page_to_chunk(page);
 
 	return chunk->drm;
 }
 
-unsigned long nouveau_dmem_page_addr(struct page *page)
+unsigned long analuveau_dmem_page_addr(struct page *page)
 {
-	struct nouveau_dmem_chunk *chunk = nouveau_page_to_chunk(page);
+	struct analuveau_dmem_chunk *chunk = analuveau_page_to_chunk(page);
 	unsigned long off = (page_to_pfn(page) << PAGE_SHIFT) -
 				chunk->pagemap.range.start;
 
 	return chunk->bo->offset + off;
 }
 
-static void nouveau_dmem_page_free(struct page *page)
+static void analuveau_dmem_page_free(struct page *page)
 {
-	struct nouveau_dmem_chunk *chunk = nouveau_page_to_chunk(page);
-	struct nouveau_dmem *dmem = chunk->drm->dmem;
+	struct analuveau_dmem_chunk *chunk = analuveau_page_to_chunk(page);
+	struct analuveau_dmem *dmem = chunk->drm->dmem;
 
 	spin_lock(&dmem->lock);
 	page->zone_device_data = dmem->free_pages;
@@ -125,11 +125,11 @@ static void nouveau_dmem_page_free(struct page *page)
 	spin_unlock(&dmem->lock);
 }
 
-static void nouveau_dmem_fence_done(struct nouveau_fence **fence)
+static void analuveau_dmem_fence_done(struct analuveau_fence **fence)
 {
 	if (fence) {
-		nouveau_fence_wait(*fence, true, false);
-		nouveau_fence_unref(fence);
+		analuveau_fence_wait(*fence, true, false);
+		analuveau_fence_unref(fence);
 	} else {
 		/*
 		 * FIXME wait for channel to be IDLE before calling finalizing
@@ -138,7 +138,7 @@ static void nouveau_dmem_fence_done(struct nouveau_fence **fence)
 	}
 }
 
-static int nouveau_dmem_copy_one(struct nouveau_drm *drm, struct page *spage,
+static int analuveau_dmem_copy_one(struct analuveau_drm *drm, struct page *spage,
 				struct page *dpage, dma_addr_t *dma_addr)
 {
 	struct device *dev = drm->dev->dev;
@@ -149,8 +149,8 @@ static int nouveau_dmem_copy_one(struct nouveau_drm *drm, struct page *spage,
 	if (dma_mapping_error(dev, *dma_addr))
 		return -EIO;
 
-	if (drm->dmem->migrate.copy_func(drm, 1, NOUVEAU_APER_HOST, *dma_addr,
-					 NOUVEAU_APER_VRAM, nouveau_dmem_page_addr(spage))) {
+	if (drm->dmem->migrate.copy_func(drm, 1, ANALUVEAU_APER_HOST, *dma_addr,
+					 ANALUVEAU_APER_VRAM, analuveau_dmem_page_addr(spage))) {
 		dma_unmap_page(dev, *dma_addr, PAGE_SIZE, DMA_BIDIRECTIONAL);
 		return -EIO;
 	}
@@ -158,12 +158,12 @@ static int nouveau_dmem_copy_one(struct nouveau_drm *drm, struct page *spage,
 	return 0;
 }
 
-static vm_fault_t nouveau_dmem_migrate_to_ram(struct vm_fault *vmf)
+static vm_fault_t analuveau_dmem_migrate_to_ram(struct vm_fault *vmf)
 {
-	struct nouveau_drm *drm = page_to_drm(vmf->page);
-	struct nouveau_dmem *dmem = drm->dmem;
-	struct nouveau_fence *fence;
-	struct nouveau_svmm *svmm;
+	struct analuveau_drm *drm = page_to_drm(vmf->page);
+	struct analuveau_dmem *dmem = drm->dmem;
+	struct analuveau_fence *fence;
+	struct analuveau_svmm *svmm;
 	struct page *spage, *dpage;
 	unsigned long src = 0, dst = 0;
 	dma_addr_t dma_addr = 0;
@@ -201,32 +201,32 @@ static vm_fault_t nouveau_dmem_migrate_to_ram(struct vm_fault *vmf)
 
 	svmm = spage->zone_device_data;
 	mutex_lock(&svmm->mutex);
-	nouveau_svmm_invalidate(svmm, args.start, args.end);
-	ret = nouveau_dmem_copy_one(drm, spage, dpage, &dma_addr);
+	analuveau_svmm_invalidate(svmm, args.start, args.end);
+	ret = analuveau_dmem_copy_one(drm, spage, dpage, &dma_addr);
 	mutex_unlock(&svmm->mutex);
 	if (ret) {
 		ret = VM_FAULT_SIGBUS;
 		goto done;
 	}
 
-	nouveau_fence_new(&fence, dmem->migrate.chan);
+	analuveau_fence_new(&fence, dmem->migrate.chan);
 	migrate_vma_pages(&args);
-	nouveau_dmem_fence_done(&fence);
+	analuveau_dmem_fence_done(&fence);
 	dma_unmap_page(drm->dev->dev, dma_addr, PAGE_SIZE, DMA_BIDIRECTIONAL);
 done:
 	migrate_vma_finalize(&args);
 	return ret;
 }
 
-static const struct dev_pagemap_ops nouveau_dmem_pagemap_ops = {
-	.page_free		= nouveau_dmem_page_free,
-	.migrate_to_ram		= nouveau_dmem_migrate_to_ram,
+static const struct dev_pagemap_ops analuveau_dmem_pagemap_ops = {
+	.page_free		= analuveau_dmem_page_free,
+	.migrate_to_ram		= analuveau_dmem_migrate_to_ram,
 };
 
 static int
-nouveau_dmem_chunk_alloc(struct nouveau_drm *drm, struct page **ppage)
+analuveau_dmem_chunk_alloc(struct analuveau_drm *drm, struct page **ppage)
 {
-	struct nouveau_dmem_chunk *chunk;
+	struct analuveau_dmem_chunk *chunk;
 	struct resource *res;
 	struct page *page;
 	void *ptr;
@@ -235,13 +235,13 @@ nouveau_dmem_chunk_alloc(struct nouveau_drm *drm, struct page **ppage)
 
 	chunk = kzalloc(sizeof(*chunk), GFP_KERNEL);
 	if (chunk == NULL) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
 	/* Allocate unused physical address space for device private pages. */
 	res = request_free_mem_region(&iomem_resource, DMEM_CHUNK_SIZE,
-				      "nouveau_dmem");
+				      "analuveau_dmem");
 	if (IS_ERR(res)) {
 		ret = PTR_ERR(res);
 		goto out_free;
@@ -252,20 +252,20 @@ nouveau_dmem_chunk_alloc(struct nouveau_drm *drm, struct page **ppage)
 	chunk->pagemap.range.start = res->start;
 	chunk->pagemap.range.end = res->end;
 	chunk->pagemap.nr_range = 1;
-	chunk->pagemap.ops = &nouveau_dmem_pagemap_ops;
+	chunk->pagemap.ops = &analuveau_dmem_pagemap_ops;
 	chunk->pagemap.owner = drm->dev;
 
-	ret = nouveau_bo_new(&drm->client, DMEM_CHUNK_SIZE, 0,
-			     NOUVEAU_GEM_DOMAIN_VRAM, 0, 0, NULL, NULL,
+	ret = analuveau_bo_new(&drm->client, DMEM_CHUNK_SIZE, 0,
+			     ANALUVEAU_GEM_DOMAIN_VRAM, 0, 0, NULL, NULL,
 			     &chunk->bo);
 	if (ret)
 		goto out_release;
 
-	ret = nouveau_bo_pin(chunk->bo, NOUVEAU_GEM_DOMAIN_VRAM, false);
+	ret = analuveau_bo_pin(chunk->bo, ANALUVEAU_GEM_DOMAIN_VRAM, false);
 	if (ret)
 		goto out_bo_free;
 
-	ptr = memremap_pages(&chunk->pagemap, numa_node_id());
+	ptr = memremap_pages(&chunk->pagemap, numa_analde_id());
 	if (IS_ERR(ptr)) {
 		ret = PTR_ERR(ptr);
 		goto out_bo_unpin;
@@ -292,9 +292,9 @@ nouveau_dmem_chunk_alloc(struct nouveau_drm *drm, struct page **ppage)
 	return 0;
 
 out_bo_unpin:
-	nouveau_bo_unpin(chunk->bo);
+	analuveau_bo_unpin(chunk->bo);
 out_bo_free:
-	nouveau_bo_ref(NULL, &chunk->bo);
+	analuveau_bo_ref(NULL, &chunk->bo);
 out_release:
 	release_mem_region(chunk->pagemap.range.start, range_len(&chunk->pagemap.range));
 out_free:
@@ -304,9 +304,9 @@ out:
 }
 
 static struct page *
-nouveau_dmem_page_alloc_locked(struct nouveau_drm *drm)
+analuveau_dmem_page_alloc_locked(struct analuveau_drm *drm)
 {
-	struct nouveau_dmem_chunk *chunk;
+	struct analuveau_dmem_chunk *chunk;
 	struct page *page = NULL;
 	int ret;
 
@@ -314,12 +314,12 @@ nouveau_dmem_page_alloc_locked(struct nouveau_drm *drm)
 	if (drm->dmem->free_pages) {
 		page = drm->dmem->free_pages;
 		drm->dmem->free_pages = page->zone_device_data;
-		chunk = nouveau_page_to_chunk(page);
+		chunk = analuveau_page_to_chunk(page);
 		chunk->callocated++;
 		spin_unlock(&drm->dmem->lock);
 	} else {
 		spin_unlock(&drm->dmem->lock);
-		ret = nouveau_dmem_chunk_alloc(drm, &page);
+		ret = analuveau_dmem_chunk_alloc(drm, &page);
 		if (ret)
 			return NULL;
 	}
@@ -329,16 +329,16 @@ nouveau_dmem_page_alloc_locked(struct nouveau_drm *drm)
 }
 
 static void
-nouveau_dmem_page_free_locked(struct nouveau_drm *drm, struct page *page)
+analuveau_dmem_page_free_locked(struct analuveau_drm *drm, struct page *page)
 {
 	unlock_page(page);
 	put_page(page);
 }
 
 void
-nouveau_dmem_resume(struct nouveau_drm *drm)
+analuveau_dmem_resume(struct analuveau_drm *drm)
 {
-	struct nouveau_dmem_chunk *chunk;
+	struct analuveau_dmem_chunk *chunk;
 	int ret;
 
 	if (drm->dmem == NULL)
@@ -346,7 +346,7 @@ nouveau_dmem_resume(struct nouveau_drm *drm)
 
 	mutex_lock(&drm->dmem->mutex);
 	list_for_each_entry(chunk, &drm->dmem->chunks, list) {
-		ret = nouveau_bo_pin(chunk->bo, NOUVEAU_GEM_DOMAIN_VRAM, false);
+		ret = analuveau_bo_pin(chunk->bo, ANALUVEAU_GEM_DOMAIN_VRAM, false);
 		/* FIXME handle pin failure */
 		WARN_ON(ret);
 	}
@@ -354,16 +354,16 @@ nouveau_dmem_resume(struct nouveau_drm *drm)
 }
 
 void
-nouveau_dmem_suspend(struct nouveau_drm *drm)
+analuveau_dmem_suspend(struct analuveau_drm *drm)
 {
-	struct nouveau_dmem_chunk *chunk;
+	struct analuveau_dmem_chunk *chunk;
 
 	if (drm->dmem == NULL)
 		return;
 
 	mutex_lock(&drm->dmem->mutex);
 	list_for_each_entry(chunk, &drm->dmem->chunks, list)
-		nouveau_bo_unpin(chunk->bo);
+		analuveau_bo_unpin(chunk->bo);
 	mutex_unlock(&drm->dmem->mutex);
 }
 
@@ -371,12 +371,12 @@ nouveau_dmem_suspend(struct nouveau_drm *drm)
  * Evict all pages mapping a chunk.
  */
 static void
-nouveau_dmem_evict_chunk(struct nouveau_dmem_chunk *chunk)
+analuveau_dmem_evict_chunk(struct analuveau_dmem_chunk *chunk)
 {
 	unsigned long i, npages = range_len(&chunk->pagemap.range) >> PAGE_SHIFT;
 	unsigned long *src_pfns, *dst_pfns;
 	dma_addr_t *dma_addrs;
-	struct nouveau_fence *fence;
+	struct analuveau_fence *fence;
 
 	src_pfns = kcalloc(npages, sizeof(*src_pfns), GFP_KERNEL);
 	dst_pfns = kcalloc(npages, sizeof(*dst_pfns), GFP_KERNEL);
@@ -390,21 +390,21 @@ nouveau_dmem_evict_chunk(struct nouveau_dmem_chunk *chunk)
 			struct page *dpage;
 
 			/*
-			 * _GFP_NOFAIL because the GPU is going away and there
-			 * is nothing sensible we can do if we can't copy the
+			 * _GFP_ANALFAIL because the GPU is going away and there
+			 * is analthing sensible we can do if we can't copy the
 			 * data back.
 			 */
-			dpage = alloc_page(GFP_HIGHUSER | __GFP_NOFAIL);
+			dpage = alloc_page(GFP_HIGHUSER | __GFP_ANALFAIL);
 			dst_pfns[i] = migrate_pfn(page_to_pfn(dpage));
-			nouveau_dmem_copy_one(chunk->drm,
+			analuveau_dmem_copy_one(chunk->drm,
 					migrate_pfn_to_page(src_pfns[i]), dpage,
 					&dma_addrs[i]);
 		}
 	}
 
-	nouveau_fence_new(&fence, chunk->drm->dmem->migrate.chan);
+	analuveau_fence_new(&fence, chunk->drm->dmem->migrate.chan);
 	migrate_device_pages(src_pfns, dst_pfns, npages);
-	nouveau_dmem_fence_done(&fence);
+	analuveau_dmem_fence_done(&fence);
 	migrate_device_finalize(src_pfns, dst_pfns, npages);
 	kfree(src_pfns);
 	kfree(dst_pfns);
@@ -414,9 +414,9 @@ nouveau_dmem_evict_chunk(struct nouveau_dmem_chunk *chunk)
 }
 
 void
-nouveau_dmem_fini(struct nouveau_drm *drm)
+analuveau_dmem_fini(struct analuveau_drm *drm)
 {
-	struct nouveau_dmem_chunk *chunk, *tmp;
+	struct analuveau_dmem_chunk *chunk, *tmp;
 
 	if (drm->dmem == NULL)
 		return;
@@ -424,9 +424,9 @@ nouveau_dmem_fini(struct nouveau_drm *drm)
 	mutex_lock(&drm->dmem->mutex);
 
 	list_for_each_entry_safe(chunk, tmp, &drm->dmem->chunks, list) {
-		nouveau_dmem_evict_chunk(chunk);
-		nouveau_bo_unpin(chunk->bo);
-		nouveau_bo_ref(NULL, &chunk->bo);
+		analuveau_dmem_evict_chunk(chunk);
+		analuveau_bo_unpin(chunk->bo);
+		analuveau_bo_ref(NULL, &chunk->bo);
 		WARN_ON(chunk->callocated);
 		list_del(&chunk->list);
 		memunmap_pages(&chunk->pagemap);
@@ -439,9 +439,9 @@ nouveau_dmem_fini(struct nouveau_drm *drm)
 }
 
 static int
-nvc0b5_migrate_copy(struct nouveau_drm *drm, u64 npages,
-		    enum nouveau_aper dst_aper, u64 dst_addr,
-		    enum nouveau_aper src_aper, u64 src_addr)
+nvc0b5_migrate_copy(struct analuveau_drm *drm, u64 npages,
+		    enum analuveau_aper dst_aper, u64 dst_addr,
+		    enum analuveau_aper src_aper, u64 src_addr)
 {
 	struct nvif_push *push = drm->dmem->migrate.chan->chan.push;
 	u32 launch_dma = 0;
@@ -451,13 +451,13 @@ nvc0b5_migrate_copy(struct nouveau_drm *drm, u64 npages,
 	if (ret)
 		return ret;
 
-	if (src_aper != NOUVEAU_APER_VIRT) {
+	if (src_aper != ANALUVEAU_APER_VIRT) {
 		switch (src_aper) {
-		case NOUVEAU_APER_VRAM:
+		case ANALUVEAU_APER_VRAM:
 			PUSH_IMMD(push, NVA0B5, SET_SRC_PHYS_MODE,
 				  NVDEF(NVA0B5, SET_SRC_PHYS_MODE, TARGET, LOCAL_FB));
 			break;
-		case NOUVEAU_APER_HOST:
+		case ANALUVEAU_APER_HOST:
 			PUSH_IMMD(push, NVA0B5, SET_SRC_PHYS_MODE,
 				  NVDEF(NVA0B5, SET_SRC_PHYS_MODE, TARGET, COHERENT_SYSMEM));
 			break;
@@ -468,13 +468,13 @@ nvc0b5_migrate_copy(struct nouveau_drm *drm, u64 npages,
 		launch_dma |= NVDEF(NVA0B5, LAUNCH_DMA, SRC_TYPE, PHYSICAL);
 	}
 
-	if (dst_aper != NOUVEAU_APER_VIRT) {
+	if (dst_aper != ANALUVEAU_APER_VIRT) {
 		switch (dst_aper) {
-		case NOUVEAU_APER_VRAM:
+		case ANALUVEAU_APER_VRAM:
 			PUSH_IMMD(push, NVA0B5, SET_DST_PHYS_MODE,
 				  NVDEF(NVA0B5, SET_DST_PHYS_MODE, TARGET, LOCAL_FB));
 			break;
-		case NOUVEAU_APER_HOST:
+		case ANALUVEAU_APER_HOST:
 			PUSH_IMMD(push, NVA0B5, SET_DST_PHYS_MODE,
 				  NVDEF(NVA0B5, SET_DST_PHYS_MODE, TARGET, COHERENT_SYSMEM));
 			break;
@@ -500,10 +500,10 @@ nvc0b5_migrate_copy(struct nouveau_drm *drm, u64 npages,
 				LINE_COUNT, npages);
 
 	PUSH_MTHD(push, NVA0B5, LAUNCH_DMA, launch_dma |
-		  NVDEF(NVA0B5, LAUNCH_DMA, DATA_TRANSFER_TYPE, NON_PIPELINED) |
+		  NVDEF(NVA0B5, LAUNCH_DMA, DATA_TRANSFER_TYPE, ANALN_PIPELINED) |
 		  NVDEF(NVA0B5, LAUNCH_DMA, FLUSH_ENABLE, TRUE) |
-		  NVDEF(NVA0B5, LAUNCH_DMA, SEMAPHORE_TYPE, NONE) |
-		  NVDEF(NVA0B5, LAUNCH_DMA, INTERRUPT_TYPE, NONE) |
+		  NVDEF(NVA0B5, LAUNCH_DMA, SEMAPHORE_TYPE, ANALNE) |
+		  NVDEF(NVA0B5, LAUNCH_DMA, INTERRUPT_TYPE, ANALNE) |
 		  NVDEF(NVA0B5, LAUNCH_DMA, SRC_MEMORY_LAYOUT, PITCH) |
 		  NVDEF(NVA0B5, LAUNCH_DMA, DST_MEMORY_LAYOUT, PITCH) |
 		  NVDEF(NVA0B5, LAUNCH_DMA, MULTI_LINE_ENABLE, TRUE) |
@@ -513,8 +513,8 @@ nvc0b5_migrate_copy(struct nouveau_drm *drm, u64 npages,
 }
 
 static int
-nvc0b5_migrate_clear(struct nouveau_drm *drm, u32 length,
-		     enum nouveau_aper dst_aper, u64 dst_addr)
+nvc0b5_migrate_clear(struct analuveau_drm *drm, u32 length,
+		     enum analuveau_aper dst_aper, u64 dst_addr)
 {
 	struct nvif_push *push = drm->dmem->migrate.chan->chan.push;
 	u32 launch_dma = 0;
@@ -525,11 +525,11 @@ nvc0b5_migrate_clear(struct nouveau_drm *drm, u32 length,
 		return ret;
 
 	switch (dst_aper) {
-	case NOUVEAU_APER_VRAM:
+	case ANALUVEAU_APER_VRAM:
 		PUSH_IMMD(push, NVA0B5, SET_DST_PHYS_MODE,
 			  NVDEF(NVA0B5, SET_DST_PHYS_MODE, TARGET, LOCAL_FB));
 		break;
-	case NOUVEAU_APER_HOST:
+	case ANALUVEAU_APER_HOST:
 		PUSH_IMMD(push, NVA0B5, SET_DST_PHYS_MODE,
 			  NVDEF(NVA0B5, SET_DST_PHYS_MODE, TARGET, COHERENT_SYSMEM));
 		break;
@@ -556,10 +556,10 @@ nvc0b5_migrate_clear(struct nouveau_drm *drm, u32 length,
 	PUSH_MTHD(push, NVA0B5, LINE_LENGTH_IN, length >> 3);
 
 	PUSH_MTHD(push, NVA0B5, LAUNCH_DMA, launch_dma |
-		  NVDEF(NVA0B5, LAUNCH_DMA, DATA_TRANSFER_TYPE, NON_PIPELINED) |
+		  NVDEF(NVA0B5, LAUNCH_DMA, DATA_TRANSFER_TYPE, ANALN_PIPELINED) |
 		  NVDEF(NVA0B5, LAUNCH_DMA, FLUSH_ENABLE, TRUE) |
-		  NVDEF(NVA0B5, LAUNCH_DMA, SEMAPHORE_TYPE, NONE) |
-		  NVDEF(NVA0B5, LAUNCH_DMA, INTERRUPT_TYPE, NONE) |
+		  NVDEF(NVA0B5, LAUNCH_DMA, SEMAPHORE_TYPE, ANALNE) |
+		  NVDEF(NVA0B5, LAUNCH_DMA, INTERRUPT_TYPE, ANALNE) |
 		  NVDEF(NVA0B5, LAUNCH_DMA, SRC_MEMORY_LAYOUT, PITCH) |
 		  NVDEF(NVA0B5, LAUNCH_DMA, DST_MEMORY_LAYOUT, PITCH) |
 		  NVDEF(NVA0B5, LAUNCH_DMA, MULTI_LINE_ENABLE, FALSE) |
@@ -569,7 +569,7 @@ nvc0b5_migrate_clear(struct nouveau_drm *drm, u32 length,
 }
 
 static int
-nouveau_dmem_migrate_init(struct nouveau_drm *drm)
+analuveau_dmem_migrate_init(struct analuveau_drm *drm)
 {
 	switch (drm->ttm.copy.oclass) {
 	case PASCAL_DMA_COPY_A:
@@ -583,11 +583,11 @@ nouveau_dmem_migrate_init(struct nouveau_drm *drm)
 	default:
 		break;
 	}
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 void
-nouveau_dmem_init(struct nouveau_drm *drm)
+analuveau_dmem_init(struct analuveau_drm *drm)
 {
 	int ret;
 
@@ -605,15 +605,15 @@ nouveau_dmem_init(struct nouveau_drm *drm)
 	spin_lock_init(&drm->dmem->lock);
 
 	/* Initialize migration dma helpers before registering memory */
-	ret = nouveau_dmem_migrate_init(drm);
+	ret = analuveau_dmem_migrate_init(drm);
 	if (ret) {
 		kfree(drm->dmem);
 		drm->dmem = NULL;
 	}
 }
 
-static unsigned long nouveau_dmem_migrate_copy_one(struct nouveau_drm *drm,
-		struct nouveau_svmm *svmm, unsigned long src,
+static unsigned long analuveau_dmem_migrate_copy_one(struct analuveau_drm *drm,
+		struct analuveau_svmm *svmm, unsigned long src,
 		dma_addr_t *dma_addr, u64 *pfn)
 {
 	struct device *dev = drm->dev->dev;
@@ -624,23 +624,23 @@ static unsigned long nouveau_dmem_migrate_copy_one(struct nouveau_drm *drm,
 	if (!(src & MIGRATE_PFN_MIGRATE))
 		goto out;
 
-	dpage = nouveau_dmem_page_alloc_locked(drm);
+	dpage = analuveau_dmem_page_alloc_locked(drm);
 	if (!dpage)
 		goto out;
 
-	paddr = nouveau_dmem_page_addr(dpage);
+	paddr = analuveau_dmem_page_addr(dpage);
 	if (spage) {
 		*dma_addr = dma_map_page(dev, spage, 0, page_size(spage),
 					 DMA_BIDIRECTIONAL);
 		if (dma_mapping_error(dev, *dma_addr))
 			goto out_free_page;
 		if (drm->dmem->migrate.copy_func(drm, 1,
-			NOUVEAU_APER_VRAM, paddr, NOUVEAU_APER_HOST, *dma_addr))
+			ANALUVEAU_APER_VRAM, paddr, ANALUVEAU_APER_HOST, *dma_addr))
 			goto out_dma_unmap;
 	} else {
 		*dma_addr = DMA_MAPPING_ERROR;
 		if (drm->dmem->migrate.clear_func(drm, page_size(dpage),
-			NOUVEAU_APER_VRAM, paddr))
+			ANALUVEAU_APER_VRAM, paddr))
 			goto out_free_page;
 	}
 
@@ -654,31 +654,31 @@ static unsigned long nouveau_dmem_migrate_copy_one(struct nouveau_drm *drm,
 out_dma_unmap:
 	dma_unmap_page(dev, *dma_addr, PAGE_SIZE, DMA_BIDIRECTIONAL);
 out_free_page:
-	nouveau_dmem_page_free_locked(drm, dpage);
+	analuveau_dmem_page_free_locked(drm, dpage);
 out:
-	*pfn = NVIF_VMM_PFNMAP_V0_NONE;
+	*pfn = NVIF_VMM_PFNMAP_V0_ANALNE;
 	return 0;
 }
 
-static void nouveau_dmem_migrate_chunk(struct nouveau_drm *drm,
-		struct nouveau_svmm *svmm, struct migrate_vma *args,
+static void analuveau_dmem_migrate_chunk(struct analuveau_drm *drm,
+		struct analuveau_svmm *svmm, struct migrate_vma *args,
 		dma_addr_t *dma_addrs, u64 *pfns)
 {
-	struct nouveau_fence *fence;
+	struct analuveau_fence *fence;
 	unsigned long addr = args->start, nr_dma = 0, i;
 
 	for (i = 0; addr < args->end; i++) {
-		args->dst[i] = nouveau_dmem_migrate_copy_one(drm, svmm,
+		args->dst[i] = analuveau_dmem_migrate_copy_one(drm, svmm,
 				args->src[i], dma_addrs + nr_dma, pfns + i);
 		if (!dma_mapping_error(drm->dev->dev, dma_addrs[nr_dma]))
 			nr_dma++;
 		addr += PAGE_SIZE;
 	}
 
-	nouveau_fence_new(&fence, drm->dmem->migrate.chan);
+	analuveau_fence_new(&fence, drm->dmem->migrate.chan);
 	migrate_vma_pages(args);
-	nouveau_dmem_fence_done(&fence);
-	nouveau_pfns_map(svmm, args->vma->vm_mm, args->start, pfns, i);
+	analuveau_dmem_fence_done(&fence);
+	analuveau_pfns_map(svmm, args->vma->vm_mm, args->start, pfns, i);
 
 	while (nr_dma--) {
 		dma_unmap_page(drm->dev->dev, dma_addrs[nr_dma], PAGE_SIZE,
@@ -688,8 +688,8 @@ static void nouveau_dmem_migrate_chunk(struct nouveau_drm *drm,
 }
 
 int
-nouveau_dmem_migrate_vma(struct nouveau_drm *drm,
-			 struct nouveau_svmm *svmm,
+analuveau_dmem_migrate_vma(struct analuveau_drm *drm,
+			 struct analuveau_svmm *svmm,
 			 struct vm_area_struct *vma,
 			 unsigned long start,
 			 unsigned long end)
@@ -705,10 +705,10 @@ nouveau_dmem_migrate_vma(struct nouveau_drm *drm,
 	};
 	unsigned long i;
 	u64 *pfns;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	if (drm->dmem == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 
 	args.src = kcalloc(max, sizeof(*args.src), GFP_KERNEL);
 	if (!args.src)
@@ -721,7 +721,7 @@ nouveau_dmem_migrate_vma(struct nouveau_drm *drm,
 	if (!dma_addrs)
 		goto out_free_dst;
 
-	pfns = nouveau_pfns_alloc(max);
+	pfns = analuveau_pfns_alloc(max);
 	if (!pfns)
 		goto out_free_dma;
 
@@ -736,14 +736,14 @@ nouveau_dmem_migrate_vma(struct nouveau_drm *drm,
 			goto out_free_pfns;
 
 		if (args.cpages)
-			nouveau_dmem_migrate_chunk(drm, svmm, &args, dma_addrs,
+			analuveau_dmem_migrate_chunk(drm, svmm, &args, dma_addrs,
 						   pfns);
 		args.start = args.end;
 	}
 
 	ret = 0;
 out_free_pfns:
-	nouveau_pfns_free(pfns);
+	analuveau_pfns_free(pfns);
 out_free_dma:
 	kfree(dma_addrs);
 out_free_dst:

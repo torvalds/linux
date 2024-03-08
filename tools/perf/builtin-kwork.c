@@ -25,7 +25,7 @@
 #include <subcmd/parse-options.h>
 #include <traceevent/event-parse.h>
 
-#include <errno.h>
+#include <erranal.h>
 #include <inttypes.h>
 #include <signal.h>
 #include <linux/err.h>
@@ -229,7 +229,7 @@ static void setup_sorting(struct perf_kwork *kwork,
 	     tok; tok = strtok_r(NULL, ", ", &tmp)) {
 		if (sort_dimension__add(kwork, tok, &kwork->sort_list) < 0)
 			usage_with_options_msg(usage_msg, options,
-					       "Unknown --sort key: `%s'", tok);
+					       "Unkanalwn --sort key: `%s'", tok);
 	}
 
 	pr_debug("Sort order: %s\n", kwork->sort_order);
@@ -312,15 +312,15 @@ static struct kwork_work *work_search(struct rb_root_cached *root,
 {
 	int cmp;
 	struct kwork_work *work;
-	struct rb_node *node = root->rb_root.rb_node;
+	struct rb_analde *analde = root->rb_root.rb_analde;
 
-	while (node) {
-		work = container_of(node, struct kwork_work, node);
+	while (analde) {
+		work = container_of(analde, struct kwork_work, analde);
 		cmp = work_cmp(sort_list, key, work);
 		if (cmp > 0)
-			node = node->rb_left;
+			analde = analde->rb_left;
 		else if (cmp < 0)
-			node = node->rb_right;
+			analde = analde->rb_right;
 		else {
 			if (work->name == NULL)
 				work->name = key->name;
@@ -336,10 +336,10 @@ static void work_insert(struct rb_root_cached *root,
 	int cmp;
 	bool leftmost = true;
 	struct kwork_work *cur;
-	struct rb_node **new = &(root->rb_root.rb_node), *parent = NULL;
+	struct rb_analde **new = &(root->rb_root.rb_analde), *parent = NULL;
 
 	while (*new) {
-		cur = container_of(*new, struct kwork_work, node);
+		cur = container_of(*new, struct kwork_work, analde);
 		parent = *new;
 		cmp = work_cmp(sort_list, key, cur);
 
@@ -351,8 +351,8 @@ static void work_insert(struct rb_root_cached *root,
 		}
 	}
 
-	rb_link_node(&key->node, parent, new);
-	rb_insert_color_cached(&key->node, root, leftmost);
+	rb_link_analde(&key->analde, parent, new);
+	rb_insert_color_cached(&key->analde, root, leftmost);
 }
 
 static struct kwork_work *work_new(struct kwork_work *key)
@@ -546,12 +546,12 @@ static struct kwork_atom *work_pop_atom(struct perf_kwork *kwork,
 static struct kwork_work *find_work_by_id(struct rb_root_cached *root,
 					  u64 id, int cpu)
 {
-	struct rb_node *next;
+	struct rb_analde *next;
 	struct kwork_work *work;
 
 	next = rb_first_cached(root);
 	while (next) {
-		work = rb_entry(next, struct kwork_work, node);
+		work = rb_entry(next, struct kwork_work, analde);
 		if ((cpu != -1 && work->id == id && work->cpu == cpu) ||
 		    (cpu == -1 && work->id == id))
 			return work;
@@ -692,7 +692,7 @@ static void timehist_save_callchain(struct perf_kwork *kwork,
 {
 	struct symbol *sym;
 	struct thread *thread;
-	struct callchain_cursor_node *node;
+	struct callchain_cursor_analde *analde;
 	struct callchain_cursor *cursor;
 
 	if (!kwork->show_callchain || sample->callchain == NULL)
@@ -716,15 +716,15 @@ static void timehist_save_callchain(struct perf_kwork *kwork,
 	callchain_cursor_commit(cursor);
 
 	while (true) {
-		node = callchain_cursor_current(cursor);
-		if (node == NULL)
+		analde = callchain_cursor_current(cursor);
+		if (analde == NULL)
 			break;
 
-		sym = node->ms.sym;
+		sym = analde->ms.sym;
 		if (sym) {
 			if (!strcmp(sym->name, "__softirqentry_text_start") ||
 			    !strcmp(sym->name, "__do_softirq"))
-				sym->ignore = 1;
+				sym->iganalre = 1;
 		}
 
 		callchain_cursor_advance(cursor);
@@ -802,7 +802,7 @@ static void timehist_print_event(struct perf_kwork *kwork,
 		sample__fprintf_sym(sample, al, 0,
 				    EVSEL__PRINT_SYM | EVSEL__PRINT_ONELINE |
 				    EVSEL__PRINT_CALLCHAIN_ARROW |
-				    EVSEL__PRINT_SKIP_IGNORED,
+				    EVSEL__PRINT_SKIP_IGANALRED,
 				    cursor, symbol_conf.bt_stop_list,
 				    stdout);
 	}
@@ -1683,17 +1683,17 @@ static int top_print_work(struct perf_kwork *kwork __maybe_unused, struct kwork_
 static void work_sort(struct perf_kwork *kwork,
 		      struct kwork_class *class, struct rb_root_cached *root)
 {
-	struct rb_node *node;
+	struct rb_analde *analde;
 	struct kwork_work *data;
 
 	pr_debug("Sorting %s ...\n", class->name);
 	for (;;) {
-		node = rb_first_cached(root);
-		if (!node)
+		analde = rb_first_cached(root);
+		if (!analde)
 			break;
 
-		rb_erase_cached(node, root);
-		data = rb_entry(node, struct kwork_work, node);
+		rb_erase_cached(analde, root);
+		data = rb_entry(analde, struct kwork_work, analde);
 		work_insert(&kwork->sorted_work_root,
 			       data, &kwork->sort_list);
 	}
@@ -1774,9 +1774,9 @@ static int perf_kwork__check_config(struct perf_kwork *kwork,
 		}
 	}
 
-	list_for_each_entry(evsel, &session->evlist->core.entries, core.node) {
+	list_for_each_entry(evsel, &session->evlist->core.entries, core.analde) {
 		if (kwork->show_callchain && !evsel__has_callchain(evsel)) {
-			pr_debug("Samples do not have callchains\n");
+			pr_debug("Samples do analt have callchains\n");
 			kwork->show_callchain = 0;
 			symbol_conf.use_callchain = 0;
 		}
@@ -1901,7 +1901,7 @@ static int perf_kwork__report_bpf(struct perf_kwork *kwork)
 static int perf_kwork__report(struct perf_kwork *kwork)
 {
 	int ret;
-	struct rb_node *next;
+	struct rb_analde *next;
 	struct kwork_work *work;
 
 	if (kwork->use_bpf)
@@ -1919,7 +1919,7 @@ static int perf_kwork__report(struct perf_kwork *kwork)
 	ret = report_print_header(kwork);
 	next = rb_first_cached(&kwork->sorted_work_root);
 	while (next) {
-		work = rb_entry(next, struct kwork_work, node);
+		work = rb_entry(next, struct kwork_work, analde);
 		process_skipped_events(kwork, work);
 
 		if (work->nr_atoms != 0) {
@@ -1996,7 +1996,7 @@ static void top_calc_total_runtime(struct perf_kwork *kwork)
 {
 	struct kwork_class *class;
 	struct kwork_work *work;
-	struct rb_node *next;
+	struct rb_analde *next;
 	struct kwork_top_stat *stat = &kwork->top_stat;
 
 	class = get_kwork_class(kwork, KWORK_CLASS_SCHED);
@@ -2005,7 +2005,7 @@ static void top_calc_total_runtime(struct perf_kwork *kwork)
 
 	next = rb_first_cached(&class->work_root);
 	while (next) {
-		work = rb_entry(next, struct kwork_work, node);
+		work = rb_entry(next, struct kwork_work, analde);
 		BUG_ON(work->cpu >= MAX_NR_CPUS);
 		stat->cpus_runtime[work->cpu].total += work->total_runtime;
 		stat->cpus_runtime[MAX_NR_CPUS].total += work->total_runtime;
@@ -2068,7 +2068,7 @@ static void top_calc_cpu_usage(struct perf_kwork *kwork)
 {
 	struct kwork_class *class;
 	struct kwork_work *work;
-	struct rb_node *next;
+	struct rb_analde *next;
 	struct kwork_top_stat *stat = &kwork->top_stat;
 
 	class = get_kwork_class(kwork, KWORK_CLASS_SCHED);
@@ -2077,7 +2077,7 @@ static void top_calc_cpu_usage(struct perf_kwork *kwork)
 
 	next = rb_first_cached(&class->work_root);
 	while (next) {
-		work = rb_entry(next, struct kwork_work, node);
+		work = rb_entry(next, struct kwork_work, analde);
 
 		if (work->total_runtime == 0)
 			goto next;
@@ -2110,7 +2110,7 @@ static void top_merge_tasks(struct perf_kwork *kwork)
 {
 	struct kwork_work *merged_work, *data;
 	struct kwork_class *class;
-	struct rb_node *node;
+	struct rb_analde *analde;
 	int cpu;
 	struct rb_root_cached merged_root = RB_ROOT_CACHED;
 
@@ -2119,12 +2119,12 @@ static void top_merge_tasks(struct perf_kwork *kwork)
 		return;
 
 	for (;;) {
-		node = rb_first_cached(&class->work_root);
-		if (!node)
+		analde = rb_first_cached(&class->work_root);
+		if (!analde)
 			break;
 
-		rb_erase_cached(node, &class->work_root);
-		data = rb_entry(node, struct kwork_work, node);
+		rb_erase_cached(analde, &class->work_root);
+		data = rb_entry(analde, struct kwork_work, analde);
 
 		if (!profile_name_match(kwork, data))
 			continue;
@@ -2148,7 +2148,7 @@ static void top_merge_tasks(struct perf_kwork *kwork)
 static void perf_kwork__top_report(struct perf_kwork *kwork)
 {
 	struct kwork_work *work;
-	struct rb_node *next;
+	struct rb_analde *next;
 
 	printf("\n");
 
@@ -2156,7 +2156,7 @@ static void perf_kwork__top_report(struct perf_kwork *kwork)
 	top_print_header(kwork);
 	next = rb_first_cached(&kwork->sorted_work_root);
 	while (next) {
-		work = rb_entry(next, struct kwork_work, node);
+		work = rb_entry(next, struct kwork_work, analde);
 		process_skipped_events(kwork, work);
 
 		if (work->total_runtime == 0)
@@ -2243,7 +2243,7 @@ static void setup_event_list(struct perf_kwork *kwork,
 	char *tmp, *tok, *str;
 
 	/*
-	 * set default events list if not specified
+	 * set default events list if analt specified
 	 */
 	if (kwork->event_list_str == NULL)
 		kwork->event_list_str = "irq, softirq, workqueue";
@@ -2260,7 +2260,7 @@ static void setup_event_list(struct perf_kwork *kwork,
 		}
 		if (i == KWORK_CLASS_MAX) {
 			usage_with_options_msg(usage_msg, options,
-					       "Unknown --event key: `%s'", tok);
+					       "Unkanalwn --event key: `%s'", tok);
 		}
 	}
 	free(str);
@@ -2293,7 +2293,7 @@ static int perf_kwork__record(struct perf_kwork *kwork,
 
 	rec_argv = calloc(rec_argc + 1, sizeof(char *));
 	if (rec_argv == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < ARRAY_SIZE(record_args); i++)
 		rec_argv[i] = strdup(record_args[i]);
@@ -2464,7 +2464,7 @@ int cmd_kwork(int argc, const char **argv)
 
 	argc = parse_options_subcommand(argc, argv, kwork_options,
 					kwork_subcommands, kwork_usage,
-					PARSE_OPT_STOP_AT_NON_OPTION);
+					PARSE_OPT_STOP_AT_ANALN_OPTION);
 	if (!argc)
 		usage_with_options(kwork_usage, kwork_options);
 

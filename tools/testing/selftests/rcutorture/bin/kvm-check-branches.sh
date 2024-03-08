@@ -97,6 +97,6 @@ then
 	echo '!!! ' $nfail failures in $ntry 'runs!!!'
 	exit 1
 else
-	echo No failures in $ntry runs.
+	echo Anal failures in $ntry runs.
 	exit 0
 fi

@@ -9,7 +9,7 @@
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
-#include "xfs_inode.h"
+#include "xfs_ianalde.h"
 #include "xfs_quota.h"
 #include "xfs_trans.h"
 #include "xfs_icache.h"
@@ -20,17 +20,17 @@ static void
 xfs_qm_fill_state(
 	struct qc_type_state	*tstate,
 	struct xfs_mount	*mp,
-	struct xfs_inode	*ip,
-	xfs_ino_t		ino,
+	struct xfs_ianalde	*ip,
+	xfs_ianal_t		ianal,
 	struct xfs_def_quota	*defq)
 {
 	bool			tempqip = false;
 
-	tstate->ino = ino;
-	if (!ip && ino == NULLFSINO)
+	tstate->ianal = ianal;
+	if (!ip && ianal == NULLFSIANAL)
 		return;
 	if (!ip) {
-		if (xfs_iget(mp, NULL, ino, 0, 0, &ip))
+		if (xfs_iget(mp, NULL, ianal, 0, 0, &ip))
 			return;
 		tempqip = true;
 	}
@@ -38,17 +38,17 @@ xfs_qm_fill_state(
 	tstate->blocks = ip->i_nblocks;
 	tstate->nextents = ip->i_df.if_nextents;
 	tstate->spc_timelimit = (u32)defq->blk.time;
-	tstate->ino_timelimit = (u32)defq->ino.time;
+	tstate->ianal_timelimit = (u32)defq->ianal.time;
 	tstate->rt_spc_timelimit = (u32)defq->rtb.time;
 	tstate->spc_warnlimit = 0;
-	tstate->ino_warnlimit = 0;
+	tstate->ianal_warnlimit = 0;
 	tstate->rt_spc_warnlimit = 0;
 	if (tempqip)
 		xfs_irele(ip);
 }
 
 /*
- * Return quota status information, such as enforcements, quota file inode
+ * Return quota status information, such as enforcements, quota file ianalde
  * numbers etc.
  */
 static int
@@ -77,11 +77,11 @@ xfs_fs_get_quota_state(
 		state->s_state[PRJQUOTA].flags |= QCI_LIMITS_ENFORCED;
 
 	xfs_qm_fill_state(&state->s_state[USRQUOTA], mp, q->qi_uquotaip,
-			  mp->m_sb.sb_uquotino, &q->qi_usr_default);
+			  mp->m_sb.sb_uquotianal, &q->qi_usr_default);
 	xfs_qm_fill_state(&state->s_state[GRPQUOTA], mp, q->qi_gquotaip,
-			  mp->m_sb.sb_gquotino, &q->qi_grp_default);
+			  mp->m_sb.sb_gquotianal, &q->qi_grp_default);
 	xfs_qm_fill_state(&state->s_state[PRJQUOTA], mp, q->qi_pquotaip,
-			  mp->m_sb.sb_pquotino, &q->qi_prj_default);
+			  mp->m_sb.sb_pquotianal, &q->qi_prj_default);
 	return 0;
 }
 
@@ -115,7 +115,7 @@ xfs_fs_set_info(
 	if (sb_rdonly(sb))
 		return -EROFS;
 	if (!XFS_IS_QUOTA_ON(mp))
-		return -ENOSYS;
+		return -EANALSYS;
 	if (info->i_fieldmask & ~XFS_QC_SETINFO_MASK)
 		return -EINVAL;
 	if ((info->i_fieldmask & XFS_QC_SETINFO_MASK) == 0)
@@ -123,9 +123,9 @@ xfs_fs_set_info(
 
 	newlim.d_fieldmask = info->i_fieldmask;
 	newlim.d_spc_timer = info->i_spc_timelimit;
-	newlim.d_ino_timer = info->i_ino_timelimit;
+	newlim.d_ianal_timer = info->i_ianal_timelimit;
 	newlim.d_rt_spc_timer = info->i_rt_spc_timelimit;
-	newlim.d_ino_warns = info->i_ino_warnlimit;
+	newlim.d_ianal_warns = info->i_ianal_warnlimit;
 	newlim.d_spc_warns = info->i_spc_warnlimit;
 	newlim.d_rt_spc_warns = info->i_rt_spc_warnlimit;
 
@@ -163,7 +163,7 @@ xfs_quota_enable(
 	if (sb_rdonly(sb))
 		return -EROFS;
 	if (!XFS_IS_QUOTA_ON(mp))
-		return -ENOSYS;
+		return -EANALSYS;
 
 	return xfs_qm_scall_quotaon(mp, xfs_quota_flags(uflags));
 }
@@ -178,7 +178,7 @@ xfs_quota_disable(
 	if (sb_rdonly(sb))
 		return -EROFS;
 	if (!XFS_IS_QUOTA_ON(mp))
-		return -ENOSYS;
+		return -EANALSYS;
 
 	return xfs_qm_scall_quotaoff(mp, xfs_quota_flags(uflags));
 }
@@ -220,7 +220,7 @@ xfs_fs_get_dqblk(
 	xfs_dqid_t		id;
 
 	if (!XFS_IS_QUOTA_ON(mp))
-		return -ENOSYS;
+		return -EANALSYS;
 
 	id = from_kqid(&init_user_ns, qid);
 	return xfs_qm_scall_getquota(mp, id, xfs_quota_type(qid.type), qdq);
@@ -238,7 +238,7 @@ xfs_fs_get_nextdqblk(
 	xfs_dqid_t		id;
 
 	if (!XFS_IS_QUOTA_ON(mp))
-		return -ENOSYS;
+		return -EANALSYS;
 
 	id = from_kqid(&init_user_ns, *qid);
 	ret = xfs_qm_scall_getquota_next(mp, &id, xfs_quota_type(qid->type),
@@ -262,7 +262,7 @@ xfs_fs_set_dqblk(
 	if (sb_rdonly(sb))
 		return -EROFS;
 	if (!XFS_IS_QUOTA_ON(mp))
-		return -ENOSYS;
+		return -EANALSYS;
 
 	return xfs_qm_scall_setqlim(mp, from_kqid(&init_user_ns, qid),
 				     xfs_quota_type(qid.type), qdq);

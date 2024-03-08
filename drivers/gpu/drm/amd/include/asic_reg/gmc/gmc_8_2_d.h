@@ -10,12 +10,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included
+ * The above copyright analtice and this permission analtice shall be included
  * in all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
@@ -34,7 +34,7 @@
 #define mmMC_ARB_GECC2_DEBUG                                                    0x9c4
 #define mmMC_ARB_GECC2_DEBUG2                                                   0x9c5
 #define mmMC_ARB_PERF_CID                                                       0x9c6
-#define mmMC_ARB_SNOOP                                                          0x9c7
+#define mmMC_ARB_SANALOP                                                          0x9c7
 #define mmMC_ARB_GRUB                                                           0x9c8
 #define mmMC_ARB_GECC2                                                          0x9c9
 #define mmMC_ARB_GECC2_CLI                                                      0x9ca
@@ -407,7 +407,7 @@
 #define mmMC_XPB_PIPE_STS                                                       0x921
 #define mmMC_XPB_SUB_CTRL                                                       0x922
 #define mmMC_XPB_MAP_INVERT_FLUSH_NUM_LSB                                       0x923
-#define mmMC_XPB_PERF_KNOBS                                                     0x924
+#define mmMC_XPB_PERF_KANALBS                                                     0x924
 #define mmMC_XPB_STICKY                                                         0x925
 #define mmMC_XPB_STICKY_W1C                                                     0x926
 #define mmMC_XPB_MISC_CFG                                                       0x927

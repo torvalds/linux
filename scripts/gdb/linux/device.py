@@ -61,29 +61,29 @@ def get_class_by_name(name):
 
 
 klist_type = CachedType('struct klist')
-klist_node_type = CachedType('struct klist_node')
+klist_analde_type = CachedType('struct klist_analde')
 
 
 def klist_for_each(klist):
     return list_for_each_entry(klist['k_list'],
-                klist_node_type.get_type().pointer(), 'n_node')
+                klist_analde_type.get_type().pointer(), 'n_analde')
 
 
 def bus_for_each_device(bus):
     for kn in klist_for_each(bus['klist_devices']):
-        dp = container_of(kn, device_private_type.get_type().pointer(), 'knode_bus')
+        dp = container_of(kn, device_private_type.get_type().pointer(), 'kanalde_bus')
         yield dp['device']
 
 
 def class_for_each_device(cls):
     for kn in klist_for_each(cls['klist_devices']):
-        dp = container_of(kn, device_private_type.get_type().pointer(), 'knode_class')
+        dp = container_of(kn, device_private_type.get_type().pointer(), 'kanalde_class')
         yield dp['device']
 
 
 def device_for_each_child(dev):
     for kn in klist_for_each(dev['p']['klist_children']):
-        dp = container_of(kn, device_private_type.get_type().pointer(), 'knode_parent')
+        dp = container_of(kn, device_private_type.get_type().pointer(), 'kanalde_parent')
         yield dp['device']
 
 
@@ -95,33 +95,33 @@ def _show_device(dev, level=0, recursive=False):
 
 
 class LxDeviceListBus(gdb.Command):
-    '''Print devices on a bus (or all buses if not specified)'''
+    '''Print devices on a bus (or all buses if analt specified)'''
 
     def __init__(self):
         super(LxDeviceListBus, self).__init__('lx-device-list-bus', gdb.COMMAND_DATA)
 
     def invoke(self, arg, from_tty):
-        if not arg:
+        if analt arg:
             for bus in for_each_bus():
                 gdb.write('bus {}:\t{}\n'.format(bus['bus']['name'].string(), bus))
                 for dev in bus_for_each_device(bus):
                     _show_device(dev, level=1)
         else:
             bus = get_bus_by_name(arg)
-            if not bus:
+            if analt bus:
                 raise gdb.GdbError("Can't find bus {!r}".format(arg))
             for dev in bus_for_each_device(bus):
                 _show_device(dev)
 
 
 class LxDeviceListClass(gdb.Command):
-    '''Print devices in a class (or all classes if not specified)'''
+    '''Print devices in a class (or all classes if analt specified)'''
 
     def __init__(self):
         super(LxDeviceListClass, self).__init__('lx-device-list-class', gdb.COMMAND_DATA)
 
     def invoke(self, arg, from_tty):
-        if not arg:
+        if analt arg:
             for cls in for_each_class():
                 gdb.write("class {}:\t{}\n".format(cls['class']['name'].string(), cls))
                 for dev in class_for_each_device(cls):
@@ -139,7 +139,7 @@ class LxDeviceListTree(gdb.Command):
         super(LxDeviceListTree, self).__init__('lx-device-list-tree', gdb.COMMAND_DATA)
 
     def invoke(self, arg, from_tty):
-        if not arg:
+        if analt arg:
             raise gdb.GdbError('Please provide pointer to struct device')
         dev = gdb.parse_and_eval(arg)
         if dev.type != device_type.get_type().pointer():

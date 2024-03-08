@@ -70,7 +70,7 @@ static inline void *nf_ct_ext_find(const struct nf_conn *ct, u8 id)
 /* Add this type, returns pointer to data or NULL. */
 void *nf_ct_ext_add(struct nf_conn *ct, enum nf_ct_ext_id id, gfp_t gfp);
 
-/* ext genid.  if ext->id != ext_genid, extensions cannot be used
+/* ext genid.  if ext->id != ext_genid, extensions cananalt be used
  * anymore unless conntrack has CONFIRMED bit set.
  */
 extern atomic_t nf_conntrack_ext_genid;

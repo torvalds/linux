@@ -7,7 +7,7 @@
 
 include ../../scripts/Makefile.include
 
-.NOTPARALLEL:
+.ANALTPARALLEL:
 
 all: acpidbg acpidump ec pfrut
 clean: acpidbg_clean acpidump_clean ec_clean pfrut_clean

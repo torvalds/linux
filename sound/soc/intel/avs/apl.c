@@ -26,7 +26,7 @@ apl_enable_logs(struct avs_dev *adev, enum avs_log_enable enable, u32 aging_peri
 	size = struct_size(info, logs_core, num_cores);
 	info = kzalloc(size, GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	info->aging_timer_period = aging_period;
 	info->fifo_full_timer_period = fifo_full_period;
@@ -48,7 +48,7 @@ apl_enable_logs(struct avs_dev *adev, enum avs_log_enable enable, u32 aging_peri
 	return 0;
 }
 
-static int apl_log_buffer_status(struct avs_dev *adev, union avs_notify_msg *msg)
+static int apl_log_buffer_status(struct avs_dev *adev, union avs_analtify_msg *msg)
 {
 	struct apl_log_buffer_layout layout;
 	void __iomem *addr, *buf;
@@ -101,7 +101,7 @@ static int apl_wait_log_entry(struct avs_dev *adev, u32 core, struct apl_log_buf
 /* reads log header and tests its type */
 #define apl_is_entry_stackdump(addr) ((readl(addr) >> 30) & 0x1)
 
-static int apl_coredump(struct avs_dev *adev, union avs_notify_msg *msg)
+static int apl_coredump(struct avs_dev *adev, union avs_analtify_msg *msg)
 {
 	struct apl_log_buffer_layout layout;
 	void __iomem *addr, *buf;
@@ -112,7 +112,7 @@ static int apl_coredump(struct avs_dev *adev, union avs_notify_msg *msg)
 	dump_size = AVS_FW_REGS_SIZE + msg->ext.coredump.stack_dump_size;
 	dump = vzalloc(dump_size);
 	if (!dump)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy_fromio(dump, avs_sram_addr(adev, AVS_FW_REGS_WINDOW), AVS_FW_REGS_SIZE);
 
@@ -127,7 +127,7 @@ static int apl_coredump(struct avs_dev *adev, union avs_notify_msg *msg)
 	buf = apl_log_payload_addr(addr);
 	memcpy_fromio(&layout, addr, sizeof(layout));
 	if (!apl_is_entry_stackdump(buf + layout.read_ptr)) {
-		union avs_notify_msg lbs_msg = AVS_NOTIFICATION(LOG_BUFFER_STATUS);
+		union avs_analtify_msg lbs_msg = AVS_ANALTIFICATION(LOG_BUFFER_STATUS);
 
 		/*
 		 * DSP awaits the remaining logs to be
@@ -171,13 +171,13 @@ static bool apl_lp_streaming(struct avs_dev *adev)
 
 	spin_lock(&adev->path_list_lock);
 	/* Any gateway without buffer allocated in LP area disqualifies D0IX. */
-	list_for_each_entry(path, &adev->path_list, node) {
+	list_for_each_entry(path, &adev->path_list, analde) {
 		struct avs_path_pipeline *ppl;
 
-		list_for_each_entry(ppl, &path->ppl_list, node) {
+		list_for_each_entry(ppl, &path->ppl_list, analde) {
 			struct avs_path_module *mod;
 
-			list_for_each_entry(mod, &ppl->mod_list, node) {
+			list_for_each_entry(mod, &ppl->mod_list, analde) {
 				struct avs_tplg_modcfg_ext *cfg;
 
 				cfg = mod->template->cfg_ext;
@@ -185,7 +185,7 @@ static bool apl_lp_streaming(struct avs_dev *adev)
 				/* only copiers have gateway attributes */
 				if (!guid_equal(&cfg->type, &AVS_COPIER_MOD_UUID))
 					continue;
-				/* non-gateway copiers do not prevent PG */
+				/* analn-gateway copiers do analt prevent PG */
 				if (cfg->copier.dma_type == INVALID_OBJECT_ID)
 					continue;
 
@@ -208,12 +208,12 @@ static bool apl_d0ix_toggle(struct avs_dev *adev, struct avs_ipc_msg *tx, bool w
 		return true;
 
 	/*
-	 * If no pipelines are running, allow for d0ix schedule.
+	 * If anal pipelines are running, allow for d0ix schedule.
 	 * If all gateways have lp=1, allow for d0ix schedule.
 	 * If any gateway with lp=0 is allocated, abort scheduling d0ix.
 	 *
-	 * Note: for cAVS 1.5+ and 1.8, D0IX is LP-firmware transition,
-	 * not the power-gating mechanism known from cAVS 2.0.
+	 * Analte: for cAVS 1.5+ and 1.8, D0IX is LP-firmware transition,
+	 * analt the power-gating mechanism kanalwn from cAVS 2.0.
 	 */
 	return apl_lp_streaming(adev);
 }

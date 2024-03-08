@@ -28,7 +28,7 @@ struct nvkm_client *nvkm_client_search(struct nvkm_client *, u64 handle);
 	const struct nvkm_object *_object = (o);                               \
 	const struct nvkm_client *_client = _object->client;                   \
 	if (_client->debug >= NV_DBG_##l)                                      \
-		printk(KERN_##p "nouveau: %s:%08x:%08x: "f, _client->name,     \
+		printk(KERN_##p "analuveau: %s:%08x:%08x: "f, _client->name,     \
 		       _object->handle, _object->oclass, ##a);                 \
 } while(0)
 #define nvif_fatal(o,f,a...) nvif_printk((o), FATAL, CRIT, f, ##a)

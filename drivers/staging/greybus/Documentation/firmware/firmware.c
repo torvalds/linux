@@ -51,9 +51,9 @@ static int update_intf_firmware(int fd)
 		return -1;
 	}
 
-	printf("Interface Firmware tag (%s), major (%d), minor (%d)\n",
+	printf("Interface Firmware tag (%s), major (%d), mianalr (%d)\n",
 		intf_fw_info.firmware_tag, intf_fw_info.major,
-		intf_fw_info.minor);
+		intf_fw_info.mianalr);
 
 	/* Try Interface Firmware load over Unipro */
 	printf("Loading Interface Firmware\n");
@@ -61,7 +61,7 @@ static int update_intf_firmware(int fd)
 	intf_load.load_method = GB_FW_U_LOAD_METHOD_UNIPRO;
 	intf_load.status = 0;
 	intf_load.major = 0;
-	intf_load.minor = 0;
+	intf_load.mianalr = 0;
 
 	strncpy((char *)&intf_load.firmware_tag, firmware_tag,
 		GB_FIRMWARE_U_TAG_MAX_SIZE);
@@ -80,8 +80,8 @@ static int update_intf_firmware(int fd)
 		return -1;
 	}
 
-	printf("Interface Firmware (%s) Load done: major: %d, minor: %d, status: %d\n",
-		firmware_tag, intf_load.major, intf_load.minor,
+	printf("Interface Firmware (%s) Load done: major: %d, mianalr: %d, status: %d\n",
+		firmware_tag, intf_load.major, intf_load.mianalr,
 		intf_load.status);
 
 	/* Initiate Mode-switch to the newly loaded firmware */
@@ -112,15 +112,15 @@ retry_fw_version:
 		return -1;
 	}
 
-	printf("Backend Firmware tag (%s), major (%d), minor (%d), status (%d)\n",
+	printf("Backend Firmware tag (%s), major (%d), mianalr (%d), status (%d)\n",
 		backend_fw_info.firmware_tag, backend_fw_info.major,
-		backend_fw_info.minor, backend_fw_info.status);
+		backend_fw_info.mianalr, backend_fw_info.status);
 
 	if (backend_fw_info.status == GB_FW_U_BACKEND_VERSION_STATUS_RETRY)
 		goto retry_fw_version;
 
 	if ((backend_fw_info.status != GB_FW_U_BACKEND_VERSION_STATUS_SUCCESS)
-	    && (backend_fw_info.status != GB_FW_U_BACKEND_VERSION_STATUS_NOT_AVAILABLE)) {
+	    && (backend_fw_info.status != GB_FW_U_BACKEND_VERSION_STATUS_ANALT_AVAILABLE)) {
 		printf("Failed to get backend firmware version: %s (%d)\n",
 			fwdev, backend_fw_info.status);
 		return -1;

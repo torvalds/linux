@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * include/asm-xtensa/sembuf.h
  *
@@ -10,7 +10,7 @@
  *
  * Copyright (C) 2001 - 2005 Tensilica Inc.
  *
- * Note extra padding because this structure is passed back and forth
+ * Analte extra padding because this structure is passed back and forth
  * between kernel and user space.
  *
  * Pad space is left for:
@@ -37,7 +37,7 @@ struct semid64_ds {
 	unsigned long	sem_ctime_high;
 	unsigned long	sem_ctime;		/* last change time */
 #endif
-	unsigned long	sem_nsems;		/* no. of semaphores in array */
+	unsigned long	sem_nsems;		/* anal. of semaphores in array */
 	unsigned long	__unused3;
 	unsigned long	__unused4;
 };

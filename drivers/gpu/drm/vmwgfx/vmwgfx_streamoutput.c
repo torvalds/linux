@@ -12,13 +12,13 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALN-INFRINGEMENT. IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM,
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
@@ -36,7 +36,7 @@
 /**
  * struct vmw_dx_streamoutput - Streamoutput resource metadata.
  * @res: Base resource struct.
- * @ctx: Non-refcounted context to which @res belong.
+ * @ctx: Analn-refcounted context to which @res belong.
  * @cotable: Refcounted cotable holding this Streamoutput.
  * @cotable_head: List head for cotable-so_res list.
  * @id: User-space provided identifier.
@@ -58,7 +58,7 @@ static int vmw_dx_streamoutput_bind(struct vmw_resource *res,
 				    struct ttm_validate_buffer *val_buf);
 static int vmw_dx_streamoutput_unbind(struct vmw_resource *res, bool readback,
 				      struct ttm_validate_buffer *val_buf);
-static void vmw_dx_streamoutput_commit_notify(struct vmw_resource *res,
+static void vmw_dx_streamoutput_commit_analtify(struct vmw_resource *res,
 					      enum vmw_cmdbuf_res_state state);
 
 static const struct vmw_res_func vmw_dx_streamoutput_func = {
@@ -72,7 +72,7 @@ static const struct vmw_res_func vmw_dx_streamoutput_func = {
 	.destroy = NULL, /* Command buffer managed resource. */
 	.bind = vmw_dx_streamoutput_bind,
 	.unbind = vmw_dx_streamoutput_unbind,
-	.commit_notify = vmw_dx_streamoutput_commit_notify,
+	.commit_analtify = vmw_dx_streamoutput_commit_analtify,
 };
 
 static inline struct vmw_dx_streamoutput *
@@ -101,7 +101,7 @@ static int vmw_dx_streamoutput_unscrub(struct vmw_resource *res)
 
 	cmd = VMW_CMD_CTX_RESERVE(dev_priv, sizeof(*cmd), so->ctx->id);
 	if (!cmd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd->header.id = SVGA_3D_CMD_DX_BIND_STREAMOUTPUT;
 	cmd->header.size = sizeof(cmd->body);
@@ -174,7 +174,7 @@ static int vmw_dx_streamoutput_scrub(struct vmw_resource *res)
 
 	cmd = VMW_CMD_CTX_RESERVE(dev_priv, sizeof(*cmd), so->ctx->id);
 	if (!cmd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd->header.id = SVGA_3D_CMD_DX_BIND_STREAMOUTPUT;
 	cmd->header.size = sizeof(cmd->body);
@@ -216,7 +216,7 @@ static int vmw_dx_streamoutput_unbind(struct vmw_resource *res, bool readback,
 	return 0;
 }
 
-static void vmw_dx_streamoutput_commit_notify(struct vmw_resource *res,
+static void vmw_dx_streamoutput_commit_analtify(struct vmw_resource *res,
 					   enum vmw_cmdbuf_res_state state)
 {
 	struct vmw_private *dev_priv = res->dev_priv;
@@ -286,7 +286,7 @@ int vmw_dx_streamoutput_add(struct vmw_cmdbuf_res_manager *man,
 
 	so = kmalloc(sizeof(*so), GFP_KERNEL);
 	if (!so) {
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	res = &so->res;

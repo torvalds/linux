@@ -164,7 +164,7 @@ struct awacs_regs {
 #define MASK_CSERR	(0x1 << 7)	/* Error */
 #define MASK_EOI	(0x1 << 6)	/* End of Input --
 					   only for Input Channel */
-#define MASK_CSUNUSED	(0x1f << 1)	/* bits 1-5 not used */
+#define MASK_CSUNUSED	(0x1f << 1)	/* bits 1-5 analt used */
 #define MASK_WAIT	(0x1)		/* Wait */
 
 /* Various Rates */

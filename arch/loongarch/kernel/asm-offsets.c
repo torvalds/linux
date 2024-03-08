@@ -2,7 +2,7 @@
 /*
  * asm-offsets.c: Calculate pt_regs and task_struct offsets.
  *
- * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2022 Loongson Techanallogy Corporation Limited
  */
 #include <linux/types.h>
 #include <linux/sched.h>
@@ -125,7 +125,7 @@ static void __used output_thread_defines(void)
 	       thread.csr_badvaddr);
 	OFFSET(THREAD_ECODE, task_struct, \
 	       thread.error_code);
-	OFFSET(THREAD_TRAPNO, task_struct, thread.trap_nr);
+	OFFSET(THREAD_TRAPANAL, task_struct, thread.trap_nr);
 	BLANK();
 }
 

@@ -16,10 +16,10 @@ static void *get_next_valid_cqe(struct erdma_cq *cq)
 	return owner ^ !!(cq->kern_cq.ci & cq->depth) ? cqe : NULL;
 }
 
-static void notify_cq(struct erdma_cq *cq, u8 solcitied)
+static void analtify_cq(struct erdma_cq *cq, u8 solcitied)
 {
 	u64 db_data =
-		FIELD_PREP(ERDMA_CQDB_IDX_MASK, (cq->kern_cq.notify_cnt)) |
+		FIELD_PREP(ERDMA_CQDB_IDX_MASK, (cq->kern_cq.analtify_cnt)) |
 		FIELD_PREP(ERDMA_CQDB_CQN_MASK, cq->cqn) |
 		FIELD_PREP(ERDMA_CQDB_ARM_MASK, 1) |
 		FIELD_PREP(ERDMA_CQDB_SOL_MASK, solcitied) |
@@ -30,7 +30,7 @@ static void notify_cq(struct erdma_cq *cq, u8 solcitied)
 	writeq(db_data, cq->kern_cq.db);
 }
 
-int erdma_req_notify_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags flags)
+int erdma_req_analtify_cq(struct ib_cq *ibcq, enum ib_cq_analtify_flags flags)
 {
 	struct erdma_cq *cq = to_ecq(ibcq);
 	unsigned long irq_flags;
@@ -38,12 +38,12 @@ int erdma_req_notify_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags flags)
 
 	spin_lock_irqsave(&cq->kern_cq.lock, irq_flags);
 
-	notify_cq(cq, (flags & IB_CQ_SOLICITED_MASK) == IB_CQ_SOLICITED);
+	analtify_cq(cq, (flags & IB_CQ_SOLICITED_MASK) == IB_CQ_SOLICITED);
 
 	if ((flags & IB_CQ_REPORT_MISSED_EVENTS) && get_next_valid_cqe(cq))
 		ret = 1;
 
-	cq->kern_cq.notify_cnt++;
+	cq->kern_cq.analtify_cnt++;
 
 	spin_unlock_irqrestore(&cq->kern_cq.lock, irq_flags);
 
@@ -73,8 +73,8 @@ static const struct {
 	enum ib_wc_status base;
 	enum erdma_vendor_err vendor;
 } map_cqe_status[ERDMA_NUM_WC_STATUS] = {
-	{ ERDMA_WC_SUCCESS, IB_WC_SUCCESS, ERDMA_WC_VENDOR_NO_ERR },
-	{ ERDMA_WC_GENERAL_ERR, IB_WC_GENERAL_ERR, ERDMA_WC_VENDOR_NO_ERR },
+	{ ERDMA_WC_SUCCESS, IB_WC_SUCCESS, ERDMA_WC_VENDOR_ANAL_ERR },
+	{ ERDMA_WC_GENERAL_ERR, IB_WC_GENERAL_ERR, ERDMA_WC_VENDOR_ANAL_ERR },
 	{ ERDMA_WC_RECV_WQE_FORMAT_ERR, IB_WC_GENERAL_ERR,
 	  ERDMA_WC_VENDOR_INVALID_RQE },
 	{ ERDMA_WC_RECV_STAG_INVALID_ERR, IB_WC_REM_ACCESS_ERR,
@@ -101,11 +101,11 @@ static const struct {
 	  ERDMA_WC_VENDOR_SQE_INVALID_PD },
 	{ ERDMA_WC_SEND_WARRPING_ERR, IB_WC_LOC_ACCESS_ERR,
 	  ERDMA_WC_VENDOR_SQE_WARP_ERR },
-	{ ERDMA_WC_FLUSH_ERR, IB_WC_WR_FLUSH_ERR, ERDMA_WC_VENDOR_NO_ERR },
-	{ ERDMA_WC_RETRY_EXC_ERR, IB_WC_RETRY_EXC_ERR, ERDMA_WC_VENDOR_NO_ERR },
+	{ ERDMA_WC_FLUSH_ERR, IB_WC_WR_FLUSH_ERR, ERDMA_WC_VENDOR_ANAL_ERR },
+	{ ERDMA_WC_RETRY_EXC_ERR, IB_WC_RETRY_EXC_ERR, ERDMA_WC_VENDOR_ANAL_ERR },
 };
 
-#define ERDMA_POLLCQ_NO_QP 1
+#define ERDMA_POLLCQ_ANAL_QP 1
 
 static int erdma_poll_one_cqe(struct erdma_cq *cq, struct ib_wc *wc)
 {
@@ -134,7 +134,7 @@ static int erdma_poll_one_cqe(struct erdma_cq *cq, struct ib_wc *wc)
 
 	qp = find_qp_by_qpn(dev, qpn);
 	if (!qp)
-		return ERDMA_POLLCQ_NO_QP;
+		return ERDMA_POLLCQ_ANAL_QP;
 
 	kern_qp = &qp->kern_qp;
 
@@ -189,9 +189,9 @@ int erdma_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *wc)
 	for (npolled = 0; npolled < num_entries;) {
 		ret = erdma_poll_one_cqe(cq, wc + npolled);
 
-		if (ret == -EAGAIN) /* no received new CQEs. */
+		if (ret == -EAGAIN) /* anal received new CQEs. */
 			break;
-		else if (ret) /* ignore invalid CQEs. */
+		else if (ret) /* iganalre invalid CQEs. */
 			continue;
 
 		npolled++;

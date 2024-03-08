@@ -47,7 +47,7 @@ static int mt76x2u_probe(struct usb_interface *intf,
 	mdev = mt76_alloc_device(&intf->dev, sizeof(*dev), &mt76x2u_ops,
 				 &drv_ops);
 	if (!mdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev = container_of(mdev, struct mt76x02_dev, mt76);
 
@@ -64,7 +64,7 @@ static int mt76x2u_probe(struct usb_interface *intf,
 	mdev->rev = mt76_rr(dev, MT_ASIC_VERSION);
 	dev_info(mdev->dev, "ASIC revision: %08x\n", mdev->rev);
 	if (!is_mt76x2(dev)) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto err;
 	}
 

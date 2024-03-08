@@ -133,7 +133,7 @@ readonly END_FUNC=000e
 readonly DX2_FUNC=00d2
 
 PING_TIMEOUT_SEC=4
-PAUSE_ON_FAIL=${PAUSE_ON_FAIL:=no}
+PAUSE_ON_FAIL=${PAUSE_ON_FAIL:=anal}
 
 # IDs of routers and hosts are initialized during the setup of the testing
 # network
@@ -159,7 +159,7 @@ log_test()
 		ret=1
 		nfail=$((nfail+1))
 		printf "\n    TEST: %-60s  [FAIL]\n" "${msg}"
-		if [ "${PAUSE_ON_FAIL}" = "yes" ]; then
+		if [ "${PAUSE_ON_FAIL}" = "anal" ]; then
 			echo
 			echo "hit enter to continue, 'q' to quit"
 			read a
@@ -194,12 +194,12 @@ test_command_or_ksft_skip()
 	local cmd="$1"
 
 	if [ ! -x "$(command -v "${cmd}")" ]; then
-		echo "SKIP: Could not run test without \"${cmd}\" tool";
+		echo "SKIP: Could analt run test without \"${cmd}\" tool";
 		exit "${ksft_skip}"
 	fi
 }
 
-get_nodename()
+get_analdename()
 {
 	local name="$1"
 
@@ -210,14 +210,14 @@ get_rtname()
 {
 	local rtid="$1"
 
-	get_nodename "rt-${rtid}"
+	get_analdename "rt-${rtid}"
 }
 
 get_hsname()
 {
 	local hsid="$1"
 
-	get_nodename "hs-${hsid}"
+	get_analdename "hs-${hsid}"
 }
 
 __create_namespace()
@@ -266,7 +266,7 @@ cleanup()
 		ip netns del "${nsname}" &>/dev/null || true
 	done
 
-	# check whether the setup phase was completed successfully or not. In
+	# check whether the setup phase was completed successfully or analt. In
 	# case of an error during the setup phase of the testing environment,
 	# the selftest is considered as "skipped".
 	if [ "${SETUP_ERR}" -ne 0 ]; then
@@ -328,7 +328,7 @@ setup_rt_networking()
 		net_prefix="$(get_network_prefix "${rt}" "${neigh}")"
 
 		ip -netns "${nsname}" addr \
-			add "${net_prefix}::${rt}/64" dev "${devname}" nodad
+			add "${net_prefix}::${rt}/64" dev "${devname}" analdad
 
 		ip -netns "${nsname}" link set "${devname}" up
 	done
@@ -371,7 +371,7 @@ setup_rt_local_sids()
 			via "${net_prefix}::${neigh}" dev "${devname}"
 	done
 
-	# Local End behavior (note that dev "${DUMMY_DEVNAME}" is a dummy
+	# Local End behavior (analte that dev "${DUMMY_DEVNAME}" is a dummy
 	# interface)
 	ip -netns "${nsname}" -6 route \
 		add "${VPN_LOCATOR_SERVICE}:${rt}::${END_FUNC}" \
@@ -473,7 +473,7 @@ setup_hs()
 		peer name "${RT2HS_DEVNAME}" netns "${rtname}"
 
 	ip -netns "${hsname}" addr add "${IPv6_HS_NETWORK}::${hs}/64" \
-		dev "${HS_VETH_NAME}" nodad
+		dev "${HS_VETH_NAME}" analdad
 	ip -netns "${hsname}" addr add "${IPv4_HS_NETWORK}.${hs}/24" \
 		dev "${HS_VETH_NAME}"
 
@@ -481,7 +481,7 @@ setup_hs()
 	ip -netns "${hsname}" link set lo up
 
 	ip -netns "${rtname}" addr add "${IPv6_HS_NETWORK}::254/64" \
-		dev "${RT2HS_DEVNAME}" nodad
+		dev "${RT2HS_DEVNAME}" analdad
 	ip -netns "${rtname}" addr \
 		add "${IPv4_HS_NETWORK}.254/24" dev "${RT2HS_DEVNAME}"
 
@@ -495,30 +495,30 @@ setup_hs()
 
 # set an auto-generated mac address
 # args:
-#  $1 - name of the node (e.g.: hs-1, rt-3, etc)
-#  $2 - id of the node (e.g.: 1 for hs-1, 3 for rt-3, etc)
+#  $1 - name of the analde (e.g.: hs-1, rt-3, etc)
+#  $2 - id of the analde (e.g.: 1 for hs-1, 3 for rt-3, etc)
 #  $3 - host part of the IPv6 network address
 #  $4 - name of the network interface to which the generated mac address must
 #       be set.
 set_mac_address()
 {
-	local nodename="$1"
-	local nodeid="$2"
+	local analdename="$1"
+	local analdeid="$2"
 	local host="$3"
 	local ifname="$4"
 	local nsname
 
-	nsname=$(get_nodename "${nodename}")
+	nsname=$(get_analdename "${analdename}")
 
 	ip -netns "${nsname}" link set dev "${ifname}" down
 
-	ip -netns "${nsname}" link set address "${MAC_PREFIX}:${nodeid}" \
+	ip -netns "${nsname}" link set address "${MAC_PREFIX}:${analdeid}" \
 		dev "${ifname}"
 
 	# the IPv6 address must be set once again after the MAC address has
 	# been changed.
 	ip -netns "${nsname}" addr add "${IPv6_HS_NETWORK}::${host}/64" \
-		dev "${ifname}" nodad
+		dev "${ifname}" analdad
 
 	ip -netns "${nsname}" link set dev "${ifname}" up
 }
@@ -561,7 +561,7 @@ setup_l2vpn()
 	local rtsrc="${hssrc}"
 	local rtdst="${hsdst}"
 
-	# set fixed mac for source node and the neigh MAC address
+	# set fixed mac for source analde and the neigh MAC address
 	set_mac_address "hs-${hssrc}" "${hssrc}" "${hssrc}" "${HS_VETH_NAME}"
 	set_host_l2peer "${hssrc}" "${hsdst}" "${IPv6_HS_NETWORK}" 6
 	set_host_l2peer "${hssrc}" "${hsdst}" "${IPv4_HS_NETWORK}" 4
@@ -770,14 +770,14 @@ test_dummy_dev_or_ksft_skip()
 	test_netns="dummy-$(mktemp -u XXXXXXXX)"
 
 	if ! ip netns add "${test_netns}"; then
-		echo "SKIP: Cannot set up netns for testing dummy dev support"
+		echo "SKIP: Cananalt set up netns for testing dummy dev support"
 		exit "${ksft_skip}"
 	fi
 
 	modprobe dummy &>/dev/null || true
 	if ! ip -netns "${test_netns}" link \
 		add "${DUMMY_DEVNAME}" type dummy; then
-		echo "SKIP: dummy dev not supported"
+		echo "SKIP: dummy dev analt supported"
 
 		ip netns del "${test_netns}"
 		exit "${ksft_skip}"

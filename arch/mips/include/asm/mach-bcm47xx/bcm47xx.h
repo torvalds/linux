@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * Copyright (C) 2007 Aurelien Jarno <aurelien@aurel32.net>
+ * Copyright (C) 2007 Aurelien Jaranal <aurelien@aurel32.net>
  */
 
 #ifndef __ASM_BCM47XX_H

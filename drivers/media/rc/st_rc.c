@@ -42,7 +42,7 @@ struct st_rc_device {
 #define IRB_MAX_SYM_PERIOD      0x54	/* max sym value      */
 #define IRB_RX_INT_CLEAR        0x58	/* overrun status     */
 #define IRB_RX_STATUS           0x6c	/* receive status     */
-#define IRB_RX_NOISE_SUPPR      0x5c	/* noise suppression  */
+#define IRB_RX_ANALISE_SUPPR      0x5c	/* analise suppression  */
 #define IRB_RX_POLARITY_INV     0x68	/* polarity inverter  */
 
 /*
@@ -56,7 +56,7 @@ struct st_rc_device {
  /* maximum symbol period (microsecs),timeout to detect end of symbol train */
 #define MAX_SYMB_TIME		0x5000
 #define IRB_SAMPLE_FREQ		10000000
-#define	IRB_FIFO_NOT_EMPTY	0xff00
+#define	IRB_FIFO_ANALT_EMPTY	0xff00
 #define IRB_OVERFLOW		0x4
 #define IRB_TIMEOUT		0xffff
 #define IR_ST_NAME "st-rc"
@@ -101,11 +101,11 @@ static irqreturn_t st_rc_rx_interrupt(int irq, void *data)
 	if (dev->irq_wake)
 		pm_wakeup_event(dev->dev, 0);
 
-	/* FIXME: is 10ms good enough ? */
+	/* FIXME: is 10ms good eanalugh ? */
 	timeout = jiffies +  msecs_to_jiffies(10);
 	do {
 		status  = readl(dev->rx_base + IRB_RX_STATUS);
-		if (!(status & (IRB_FIFO_NOT_EMPTY | IRB_OVERFLOW)))
+		if (!(status & (IRB_FIFO_ANALT_EMPTY | IRB_OVERFLOW)))
 			break;
 
 		int_status = readl(dev->rx_base + IRB_RX_INT_STATUS);
@@ -124,7 +124,7 @@ static irqreturn_t st_rc_rx_interrupt(int irq, void *data)
 		if (symbol == IRB_TIMEOUT)
 			last_symbol = 1;
 
-		 /* Ignore any noise */
+		 /* Iganalre any analise */
 		if ((mark > 2) && (symbol > 1)) {
 			symbol -= mark;
 			if (dev->overclocking) { /* adjustments to timings */
@@ -231,18 +231,18 @@ static int st_rc_probe(struct platform_device *pdev)
 	struct rc_dev *rdev;
 	struct device *dev = &pdev->dev;
 	struct st_rc_device *rc_dev;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	const char *rx_mode;
 
 	rc_dev = devm_kzalloc(dev, sizeof(struct st_rc_device), GFP_KERNEL);
 
 	if (!rc_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rdev = rc_allocate_device(RC_DRIVER_IR_RAW);
 
 	if (!rdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (np && !of_property_read_string(np, "rx-mode", &rx_mode)) {
 
@@ -261,7 +261,7 @@ static int st_rc_probe(struct platform_device *pdev)
 
 	rc_dev->sys_clock = devm_clk_get(dev, NULL);
 	if (IS_ERR(rc_dev->sys_clock)) {
-		dev_err(dev, "System clock not found\n");
+		dev_err(dev, "System clock analt found\n");
 		ret = PTR_ERR(rc_dev->sys_clock);
 		goto err;
 	}

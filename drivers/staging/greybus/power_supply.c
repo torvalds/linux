@@ -126,8 +126,8 @@ static int get_psp_from_gb_prop(int gb_prop, enum power_supply_property *psp)
 	case GB_POWER_SUPPLY_PROP_AUTHENTIC:
 		prop = POWER_SUPPLY_PROP_AUTHENTIC;
 		break;
-	case GB_POWER_SUPPLY_PROP_TECHNOLOGY:
-		prop = POWER_SUPPLY_PROP_TECHNOLOGY;
+	case GB_POWER_SUPPLY_PROP_TECHANALLOGY:
+		prop = POWER_SUPPLY_PROP_TECHANALLOGY;
 		break;
 	case GB_POWER_SUPPLY_PROP_CYCLE_COUNT:
 		prop = POWER_SUPPLY_PROP_CYCLE_COUNT;
@@ -144,8 +144,8 @@ static int get_psp_from_gb_prop(int gb_prop, enum power_supply_property *psp)
 	case GB_POWER_SUPPLY_PROP_VOLTAGE_MIN_DESIGN:
 		prop = POWER_SUPPLY_PROP_VOLTAGE_MIN_DESIGN;
 		break;
-	case GB_POWER_SUPPLY_PROP_VOLTAGE_NOW:
-		prop = POWER_SUPPLY_PROP_VOLTAGE_NOW;
+	case GB_POWER_SUPPLY_PROP_VOLTAGE_ANALW:
+		prop = POWER_SUPPLY_PROP_VOLTAGE_ANALW;
 		break;
 	case GB_POWER_SUPPLY_PROP_VOLTAGE_AVG:
 		prop = POWER_SUPPLY_PROP_VOLTAGE_AVG;
@@ -159,8 +159,8 @@ static int get_psp_from_gb_prop(int gb_prop, enum power_supply_property *psp)
 	case GB_POWER_SUPPLY_PROP_CURRENT_MAX:
 		prop = POWER_SUPPLY_PROP_CURRENT_MAX;
 		break;
-	case GB_POWER_SUPPLY_PROP_CURRENT_NOW:
-		prop = POWER_SUPPLY_PROP_CURRENT_NOW;
+	case GB_POWER_SUPPLY_PROP_CURRENT_ANALW:
+		prop = POWER_SUPPLY_PROP_CURRENT_ANALW;
 		break;
 	case GB_POWER_SUPPLY_PROP_CURRENT_AVG:
 		prop = POWER_SUPPLY_PROP_CURRENT_AVG;
@@ -168,8 +168,8 @@ static int get_psp_from_gb_prop(int gb_prop, enum power_supply_property *psp)
 	case GB_POWER_SUPPLY_PROP_CURRENT_BOOT:
 		prop = POWER_SUPPLY_PROP_CURRENT_BOOT;
 		break;
-	case GB_POWER_SUPPLY_PROP_POWER_NOW:
-		prop = POWER_SUPPLY_PROP_POWER_NOW;
+	case GB_POWER_SUPPLY_PROP_POWER_ANALW:
+		prop = POWER_SUPPLY_PROP_POWER_ANALW;
 		break;
 	case GB_POWER_SUPPLY_PROP_POWER_AVG:
 		prop = POWER_SUPPLY_PROP_POWER_AVG;
@@ -186,8 +186,8 @@ static int get_psp_from_gb_prop(int gb_prop, enum power_supply_property *psp)
 	case GB_POWER_SUPPLY_PROP_CHARGE_EMPTY:
 		prop = POWER_SUPPLY_PROP_CHARGE_EMPTY;
 		break;
-	case GB_POWER_SUPPLY_PROP_CHARGE_NOW:
-		prop = POWER_SUPPLY_PROP_CHARGE_NOW;
+	case GB_POWER_SUPPLY_PROP_CHARGE_ANALW:
+		prop = POWER_SUPPLY_PROP_CHARGE_ANALW;
 		break;
 	case GB_POWER_SUPPLY_PROP_CHARGE_AVG:
 		prop = POWER_SUPPLY_PROP_CHARGE_AVG;
@@ -228,8 +228,8 @@ static int get_psp_from_gb_prop(int gb_prop, enum power_supply_property *psp)
 	case GB_POWER_SUPPLY_PROP_ENERGY_EMPTY:
 		prop = POWER_SUPPLY_PROP_ENERGY_EMPTY;
 		break;
-	case GB_POWER_SUPPLY_PROP_ENERGY_NOW:
-		prop = POWER_SUPPLY_PROP_ENERGY_NOW;
+	case GB_POWER_SUPPLY_PROP_ENERGY_ANALW:
+		prop = POWER_SUPPLY_PROP_ENERGY_ANALW;
 		break;
 	case GB_POWER_SUPPLY_PROP_ENERGY_AVG:
 		prop = POWER_SUPPLY_PROP_ENERGY_AVG;
@@ -270,14 +270,14 @@ static int get_psp_from_gb_prop(int gb_prop, enum power_supply_property *psp)
 	case GB_POWER_SUPPLY_PROP_TEMP_AMBIENT_ALERT_MAX:
 		prop = POWER_SUPPLY_PROP_TEMP_AMBIENT_ALERT_MAX;
 		break;
-	case GB_POWER_SUPPLY_PROP_TIME_TO_EMPTY_NOW:
-		prop = POWER_SUPPLY_PROP_TIME_TO_EMPTY_NOW;
+	case GB_POWER_SUPPLY_PROP_TIME_TO_EMPTY_ANALW:
+		prop = POWER_SUPPLY_PROP_TIME_TO_EMPTY_ANALW;
 		break;
 	case GB_POWER_SUPPLY_PROP_TIME_TO_EMPTY_AVG:
 		prop = POWER_SUPPLY_PROP_TIME_TO_EMPTY_AVG;
 		break;
-	case GB_POWER_SUPPLY_PROP_TIME_TO_FULL_NOW:
-		prop = POWER_SUPPLY_PROP_TIME_TO_FULL_NOW;
+	case GB_POWER_SUPPLY_PROP_TIME_TO_FULL_ANALW:
+		prop = POWER_SUPPLY_PROP_TIME_TO_FULL_ANALW;
 		break;
 	case GB_POWER_SUPPLY_PROP_TIME_TO_FULL_AVG:
 		prop = POWER_SUPPLY_PROP_TIME_TO_FULL_AVG;
@@ -330,7 +330,7 @@ static int is_psy_prop_writeable(struct gb_power_supply *gbpsy,
 
 	prop = get_psy_prop(gbpsy, psp);
 	if (!prop)
-		return -ENOENT;
+		return -EANALENT;
 	return prop->is_writeable ? 1 : 0;
 }
 
@@ -380,7 +380,7 @@ static void gb_power_supply_state_change(struct gb_power_supply *gbpsy,
 			ret = gb_pm_runtime_put_autosuspend(connection->bundle);
 			if (ret)
 				dev_err(&connection->bundle->dev,
-					"Fail to set wake unlock for none charging\n");
+					"Fail to set wake unlock for analne charging\n");
 			else
 				gbpsy->pm_acquired = false;
 		}
@@ -457,7 +457,7 @@ static int __gb_power_supply_set_name(char *init_name, char *name, size_t len)
 		ret = snprintf(name, len, "%s_%u", init_name, ++i);
 	}
 	if (ret >= len)
-		return -ENOMEM;
+		return -EANALMEM;
 	return i;
 }
 
@@ -488,14 +488,14 @@ static int gb_power_supply_description_get(struct gb_power_supply *gbpsy)
 
 	gbpsy->manufacturer = kstrndup(resp.manufacturer, PROP_MAX, GFP_KERNEL);
 	if (!gbpsy->manufacturer)
-		return -ENOMEM;
+		return -EANALMEM;
 	gbpsy->model_name = kstrndup(resp.model, PROP_MAX, GFP_KERNEL);
 	if (!gbpsy->model_name)
-		return -ENOMEM;
+		return -EANALMEM;
 	gbpsy->serial_number = kstrndup(resp.serial_number, PROP_MAX,
 				       GFP_KERNEL);
 	if (!gbpsy->serial_number)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gbpsy->type = le16_to_cpu(resp.type);
 	gbpsy->properties_count = resp.properties_count;
@@ -523,7 +523,7 @@ static int gb_power_supply_prop_descriptors_get(struct gb_power_supply *gbpsy)
 				 struct_size(resp, props, props_count),
 				 GFP_KERNEL);
 	if (!op)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	req = op->request->payload;
 	req->psy_id = gbpsy->id;
@@ -539,7 +539,7 @@ static int gb_power_supply_prop_descriptors_get(struct gb_power_supply *gbpsy)
 		ret = get_psp_from_gb_prop(resp->props[i].property, &psp);
 		if (ret < 0) {
 			dev_warn(&connection->bundle->dev,
-				 "greybus property %u it is not supported by this kernel, dropped\n",
+				 "greybus property %u it is analt supported by this kernel, dropped\n",
 				 resp->props[i].property);
 			gbpsy->properties_count--;
 		}
@@ -548,18 +548,18 @@ static int gb_power_supply_prop_descriptors_get(struct gb_power_supply *gbpsy)
 	gbpsy->props = kcalloc(gbpsy->properties_count, sizeof(*gbpsy->props),
 			      GFP_KERNEL);
 	if (!gbpsy->props) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_put_operation;
 	}
 
 	gbpsy->props_raw = kcalloc(gbpsy->properties_count,
 				   sizeof(*gbpsy->props_raw), GFP_KERNEL);
 	if (!gbpsy->props_raw) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_put_operation;
 	}
 
-	/* Store available properties, skip the ones we do not support */
+	/* Store available properties, skip the ones we do analt support */
 	for (i = 0; i < props_count; i++) {
 		ret = get_psp_from_gb_prop(resp->props[i].property, &psp);
 		if (ret < 0) {
@@ -574,7 +574,7 @@ static int gb_power_supply_prop_descriptors_get(struct gb_power_supply *gbpsy)
 	}
 
 	/*
-	 * now append the properties that we already got information in the
+	 * analw append the properties that we already got information in the
 	 * get_description operation. (char * ones)
 	 */
 	_gb_power_supply_append_props(gbpsy);
@@ -678,7 +678,7 @@ static int _gb_power_supply_property_get(struct gb_power_supply *gbpsy,
 
 static int is_cache_valid(struct gb_power_supply *gbpsy)
 {
-	/* check if cache is good enough or it has expired */
+	/* check if cache is good eanalugh or it has expired */
 	if (gbpsy->cache_invalid) {
 		gbpsy->cache_invalid = 0;
 		return 0;
@@ -739,7 +739,7 @@ static void gb_power_supply_work(struct work_struct *work)
 						     work.work);
 
 	/*
-	 * if the poll interval is not set, disable polling, this is helpful
+	 * if the poll interval is analt set, disable polling, this is helpful
 	 * specially at unregister time.
 	 */
 	if (!gbpsy->update_interval)
@@ -924,7 +924,7 @@ static int gb_power_supply_enable(struct gb_power_supply *gbpsy)
 	INIT_DELAYED_WORK(&gbpsy->work, gb_power_supply_work);
 	schedule_delayed_work(&gbpsy->work, 0);
 
-	/* everything went fine, mark it for release code to know */
+	/* everything went fine, mark it for release code to kanalw */
 	gbpsy->registered = true;
 
 	return 0;
@@ -947,7 +947,7 @@ static int gb_power_supplies_setup(struct gb_power_supplies *supplies)
 				     GFP_KERNEL);
 
 	if (!supplies->supply) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -1036,7 +1036,7 @@ static int gb_supplies_request_handler(struct gb_operation *op)
 
 	if (event & GB_POWER_SUPPLY_UPDATE) {
 		/*
-		 * we need to make sure we invalidate cache, if not no new
+		 * we need to make sure we invalidate cache, if analt anal new
 		 * values for the properties will be fetch and the all propose
 		 * of this event is missed
 		 */
@@ -1058,15 +1058,15 @@ static int gb_power_supply_probe(struct gb_bundle *bundle,
 	int ret;
 
 	if (bundle->num_cports != 1)
-		return -ENODEV;
+		return -EANALDEV;
 
 	cport_desc = &bundle->cport_desc[0];
 	if (cport_desc->protocol_id != GREYBUS_PROTOCOL_POWER_SUPPLY)
-		return -ENODEV;
+		return -EANALDEV;
 
 	supplies = kzalloc(sizeof(*supplies), GFP_KERNEL);
 	if (!supplies)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	connection = gb_connection_create(bundle, le16_to_cpu(cport_desc->id),
 					  gb_supplies_request_handler);
@@ -1091,7 +1091,7 @@ static int gb_power_supply_probe(struct gb_bundle *bundle,
 	if (ret < 0)
 		goto error_connection_disable;
 
-	/* We are ready to receive an incoming request now, enable RX as well */
+	/* We are ready to receive an incoming request analw, enable RX as well */
 	ret = gb_connection_enable(connection);
 	if (ret)
 		goto error_connection_disable;

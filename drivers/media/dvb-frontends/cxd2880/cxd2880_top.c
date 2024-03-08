@@ -498,7 +498,7 @@ static int cxd2880_init(struct dvb_frontend *fe)
 	priv = fe->demodulator_priv;
 
 	create_param.ts_output_if = CXD2880_TNRDMD_TSOUT_IF_SPI;
-	create_param.xtal_share_type = CXD2880_TNRDMD_XTAL_SHARE_NONE;
+	create_param.xtal_share_type = CXD2880_TNRDMD_XTAL_SHARE_ANALNE;
 	create_param.en_internal_ldo = 1;
 	create_param.xosc_cap = 18;
 	create_param.xosc_i = 8;
@@ -691,7 +691,7 @@ static int cxd2880_set_ber_per_period_t(struct dvb_frontend *fe)
 	u32 ucblock_rate = 0;
 	u32 mes_exp = 0;
 	static const int cr_table[5] = {31500, 42000, 47250, 52500, 55125};
-	static const int denominator_tbl[4] = {125664, 129472, 137088, 152320};
+	static const int deanalminator_tbl[4] = {125664, 129472, 137088, 152320};
 
 	if (!fe) {
 		pr_err("invalid arg\n");
@@ -705,24 +705,24 @@ static int cxd2880_set_ber_per_period_t(struct dvb_frontend *fe)
 					       &info);
 	if (ret) {
 		pr_err("tps monitor error ret = %d\n", ret);
-		info.hierarchy = CXD2880_DVBT_HIERARCHY_NON;
+		info.hierarchy = CXD2880_DVBT_HIERARCHY_ANALN;
 		info.constellation = CXD2880_DVBT_CONSTELLATION_QPSK;
 		info.guard = CXD2880_DVBT_GUARD_1_4;
 		info.rate_hp = CXD2880_DVBT_CODERATE_1_2;
 		info.rate_lp = CXD2880_DVBT_CODERATE_1_2;
 	}
 
-	if (info.hierarchy == CXD2880_DVBT_HIERARCHY_NON) {
+	if (info.hierarchy == CXD2880_DVBT_HIERARCHY_ANALN) {
 		pre_ber_rate = 63000000 * bw * (info.constellation * 2 + 2) /
-			       denominator_tbl[info.guard];
+			       deanalminator_tbl[info.guard];
 
 		post_ber_rate =	1000 * cr_table[info.rate_hp] * bw *
 				(info.constellation * 2 + 2) /
-				denominator_tbl[info.guard];
+				deanalminator_tbl[info.guard];
 
 		ucblock_rate = 875 * cr_table[info.rate_hp] * bw *
 			       (info.constellation * 2 + 2) /
-			       denominator_tbl[info.guard];
+			       deanalminator_tbl[info.guard];
 	} else {
 		u8 data = 0;
 		struct cxd2880_tnrdmd *tnrdmd = &priv->tnrdmd;
@@ -743,24 +743,24 @@ static int cxd2880_set_ber_per_period_t(struct dvb_frontend *fe)
 		if (data & 0x01) { /* Low priority */
 			pre_ber_rate =
 				63000000 * bw * (info.constellation * 2 + 2) /
-				denominator_tbl[info.guard];
+				deanalminator_tbl[info.guard];
 
 			post_ber_rate = 1000 * cr_table[info.rate_lp] * bw *
 					(info.constellation * 2 + 2) /
-					denominator_tbl[info.guard];
+					deanalminator_tbl[info.guard];
 
 			ucblock_rate = (1000 * 7 / 8) *	cr_table[info.rate_lp] *
 				       bw * (info.constellation * 2 + 2) /
-				       denominator_tbl[info.guard];
+				       deanalminator_tbl[info.guard];
 		} else { /* High priority */
 			pre_ber_rate =
-				63000000 * bw * 2 / denominator_tbl[info.guard];
+				63000000 * bw * 2 / deanalminator_tbl[info.guard];
 
 			post_ber_rate = 1000 * cr_table[info.rate_hp] * bw * 2 /
-					denominator_tbl[info.guard];
+					deanalminator_tbl[info.guard];
 
 			ucblock_rate = (1000 * 7 / 8) * cr_table[info.rate_hp] *
-					bw * 2 / denominator_tbl[info.guard];
+					bw * 2 / deanalminator_tbl[info.guard];
 		}
 	}
 
@@ -806,7 +806,7 @@ static int cxd2880_set_ber_per_period_t2(struct dvb_frontend *fe)
 	u32 mes_exp = 0;
 	u32 term_a = 0;
 	u32 term_b = 0;
-	u32 denominator = 0;
+	u32 deanalminator = 0;
 	static const u32 gi_tbl[7] = {32, 64, 128, 256, 8, 152, 76};
 	static const u8 n_tbl[6] = {8, 2, 4, 16, 1, 1};
 	static const u8 mode_tbl[6] = {2, 8, 4, 1, 16, 32};
@@ -855,33 +855,33 @@ static int cxd2880_set_ber_per_period_t2(struct dvb_frontend *fe)
 
 	switch (bw) {
 	case CXD2880_DTV_BW_1_7_MHZ:
-		denominator = ((term_a + term_b) * 71 + (131 / 2)) / 131;
+		deanalminator = ((term_a + term_b) * 71 + (131 / 2)) / 131;
 		break;
 	case CXD2880_DTV_BW_5_MHZ:
-		denominator = ((term_a + term_b) * 7 + 20) / 40;
+		deanalminator = ((term_a + term_b) * 7 + 20) / 40;
 		break;
 	case CXD2880_DTV_BW_6_MHZ:
-		denominator = ((term_a + term_b) * 7 + 24) / 48;
+		deanalminator = ((term_a + term_b) * 7 + 24) / 48;
 		break;
 	case CXD2880_DTV_BW_7_MHZ:
-		denominator = ((term_a + term_b) + 4) / 8;
+		deanalminator = ((term_a + term_b) + 4) / 8;
 		break;
 	case CXD2880_DTV_BW_8_MHZ:
 	default:
-		denominator = ((term_a + term_b) * 7 + 32) / 64;
+		deanalminator = ((term_a + term_b) * 7 + 32) / 64;
 		break;
 	}
 
 	if (plp.til_type && plp.til_len) {
 		pre_ber_rate =
-			(plp.num_blocks_max * 1000000 + (denominator / 2)) /
-			denominator;
+			(plp.num_blocks_max * 1000000 + (deanalminator / 2)) /
+			deanalminator;
 		pre_ber_rate = (pre_ber_rate + (plp.til_len / 2)) /
 			       plp.til_len;
 	} else {
 		pre_ber_rate =
-			(plp.num_blocks_max * 1000000 + (denominator / 2)) /
-			denominator;
+			(plp.num_blocks_max * 1000000 + (deanalminator / 2)) /
+			deanalminator;
 	}
 
 	post_ber_rate = pre_ber_rate;
@@ -925,7 +925,7 @@ static int cxd2880_set_ber_per_period_t2(struct dvb_frontend *fe)
 			(pre_ber_rate * kbch_tbl[plp.fec][plp.plp_cr] + 748) /
 			1496;
 	} else {
-		pr_info("plp mode is not Normal or HEM\n");
+		pr_info("plp mode is analt Analrmal or HEM\n");
 		goto error_ucblock_setting;
 	}
 
@@ -978,7 +978,7 @@ static int cxd2880_dvbt_tune(struct cxd2880_tnrdmd *tnr_dmd,
 	    tune_param->bandwidth != CXD2880_DTV_BW_6_MHZ &&
 	    tune_param->bandwidth != CXD2880_DTV_BW_7_MHZ &&
 	    tune_param->bandwidth != CXD2880_DTV_BW_8_MHZ) {
-		return -ENOTTY;
+		return -EANALTTY;
 	}
 
 	ret = cxd2880_tnrdmd_dvbt_tune1(tnr_dmd, tune_param);
@@ -1014,7 +1014,7 @@ static int cxd2880_dvbt2_tune(struct cxd2880_tnrdmd *tnr_dmd,
 	    tune_param->bandwidth != CXD2880_DTV_BW_6_MHZ &&
 	    tune_param->bandwidth != CXD2880_DTV_BW_7_MHZ &&
 	    tune_param->bandwidth != CXD2880_DTV_BW_8_MHZ) {
-		return -ENOTTY;
+		return -EANALTTY;
 	}
 
 	if (tune_param->profile != CXD2880_DVBT2_PROFILE_BASE &&
@@ -1046,22 +1046,22 @@ static int cxd2880_set_frontend(struct dvb_frontend *fe)
 	priv = fe->demodulator_priv;
 	c = &fe->dtv_property_cache;
 
-	c->pre_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->pre_bit_error.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	c->pre_bit_error.stat[0].uvalue = 0;
 	c->pre_bit_error.len = 1;
-	c->pre_bit_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->pre_bit_count.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	c->pre_bit_count.stat[0].uvalue = 0;
 	c->pre_bit_count.len = 1;
-	c->post_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->post_bit_error.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	c->post_bit_error.stat[0].uvalue = 0;
 	c->post_bit_error.len = 1;
-	c->post_bit_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->post_bit_count.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	c->post_bit_count.stat[0].uvalue = 0;
 	c->post_bit_count.len = 1;
-	c->block_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->block_error.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	c->block_error.stat[0].uvalue = 0;
 	c->block_error.len = 1;
-	c->block_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->block_count.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	c->block_count.stat[0].uvalue = 0;
 	c->block_count.len = 1;
 
@@ -1137,17 +1137,17 @@ static int cxd2880_get_stats(struct dvb_frontend *fe,
 
 	if (!(status & FE_HAS_LOCK) || !(status & FE_HAS_CARRIER)) {
 		c->pre_bit_error.len = 1;
-		c->pre_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		c->pre_bit_error.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 		c->pre_bit_count.len = 1;
-		c->pre_bit_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		c->pre_bit_count.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 		c->post_bit_error.len = 1;
-		c->post_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		c->post_bit_error.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 		c->post_bit_count.len = 1;
-		c->post_bit_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		c->post_bit_count.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 		c->block_error.len = 1;
-		c->block_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		c->block_error.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 		c->block_count.len = 1;
-		c->block_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		c->block_count.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 
 		return 0;
 	}
@@ -1180,9 +1180,9 @@ static int cxd2880_get_stats(struct dvb_frontend *fe,
 			c->pre_bit_count.stat[0].uvalue += pre_bit_count;
 		} else {
 			c->pre_bit_error.len = 1;
-			c->pre_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+			c->pre_bit_error.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 			c->pre_bit_count.len = 1;
-			c->pre_bit_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+			c->pre_bit_count.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 			pr_debug("pre_bit_error_t failed %d\n", ret);
 		}
 	}
@@ -1216,10 +1216,10 @@ static int cxd2880_get_stats(struct dvb_frontend *fe,
 		} else {
 			c->post_bit_error.len = 1;
 			c->post_bit_error.stat[0].scale =
-							FE_SCALE_NOT_AVAILABLE;
+							FE_SCALE_ANALT_AVAILABLE;
 			c->post_bit_count.len = 1;
 			c->post_bit_count.stat[0].scale =
-							FE_SCALE_NOT_AVAILABLE;
+							FE_SCALE_ANALT_AVAILABLE;
 			pr_debug("post_bit_err_t %d\n", ret);
 		}
 	}
@@ -1251,9 +1251,9 @@ static int cxd2880_get_stats(struct dvb_frontend *fe,
 			c->block_count.stat[0].uvalue += block_count;
 		} else {
 			c->block_error.len = 1;
-			c->block_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+			c->block_error.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 			c->block_count.len = 1;
-			c->block_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+			c->block_count.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 			pr_debug("read_block_err_t  %d\n", ret);
 		}
 	}
@@ -1264,7 +1264,7 @@ static int cxd2880_get_stats(struct dvb_frontend *fe,
 static int cxd2880_check_l1post_plp(struct dvb_frontend *fe)
 {
 	u8 valid = 0;
-	u8 plp_not_found;
+	u8 plp_analt_found;
 	int ret;
 	struct cxd2880_priv *priv = NULL;
 
@@ -1284,11 +1284,11 @@ static int cxd2880_check_l1post_plp(struct dvb_frontend *fe)
 		return -EAGAIN;
 
 	ret = cxd2880_tnrdmd_dvbt2_mon_data_plp_error(&priv->tnrdmd,
-						      &plp_not_found);
+						      &plp_analt_found);
 	if (ret)
 		return ret;
 
-	if (plp_not_found) {
+	if (plp_analt_found) {
 		priv->dvbt2_tune_param.tune_info =
 			CXD2880_TNRDMD_DVBT2_TUNE_INFO_INVALID_PLP_ID;
 	} else {
@@ -1470,8 +1470,8 @@ static int cxd2880_get_frontend_t(struct dvb_frontend *fe,
 	mutex_unlock(priv->spi_mutex);
 	if (!ret) {
 		switch (tps.hierarchy) {
-		case CXD2880_DVBT_HIERARCHY_NON:
-			c->hierarchy = HIERARCHY_NONE;
+		case CXD2880_DVBT_HIERARCHY_ANALN:
+			c->hierarchy = HIERARCHY_ANALNE;
 			break;
 		case CXD2880_DVBT_HIERARCHY_1:
 			c->hierarchy = HIERARCHY_1;
@@ -1483,7 +1483,7 @@ static int cxd2880_get_frontend_t(struct dvb_frontend *fe,
 			c->hierarchy = HIERARCHY_4;
 			break;
 		default:
-			c->hierarchy = HIERARCHY_NONE;
+			c->hierarchy = HIERARCHY_ANALNE;
 			pr_debug("TPSInfo hierarchy is invalid %d\n",
 				 tps.hierarchy);
 			break;
@@ -1506,7 +1506,7 @@ static int cxd2880_get_frontend_t(struct dvb_frontend *fe,
 			c->code_rate_HP = FEC_7_8;
 			break;
 		default:
-			c->code_rate_HP = FEC_NONE;
+			c->code_rate_HP = FEC_ANALNE;
 			pr_debug("TPSInfo rateHP is invalid %d\n",
 				 tps.rate_hp);
 			break;
@@ -1528,7 +1528,7 @@ static int cxd2880_get_frontend_t(struct dvb_frontend *fe,
 			c->code_rate_LP = FEC_7_8;
 			break;
 		default:
-			c->code_rate_LP = FEC_NONE;
+			c->code_rate_LP = FEC_ANALNE;
 			pr_debug("TPSInfo rateLP is invalid %d\n",
 				 tps.rate_lp);
 			break;
@@ -1550,9 +1550,9 @@ static int cxd2880_get_frontend_t(struct dvb_frontend *fe,
 			break;
 		}
 	} else {
-		c->hierarchy = HIERARCHY_NONE;
-		c->code_rate_HP = FEC_NONE;
-		c->code_rate_LP = FEC_NONE;
+		c->hierarchy = HIERARCHY_ANALNE;
+		c->code_rate_HP = FEC_ANALNE;
+		c->code_rate_LP = FEC_ANALNE;
 		c->modulation = QPSK;
 		pr_debug("TPS info err %d\n", ret);
 	}
@@ -1562,7 +1562,7 @@ static int cxd2880_get_frontend_t(struct dvb_frontend *fe,
 	mutex_unlock(priv->spi_mutex);
 	if (!ret) {
 		switch (sense) {
-		case CXD2880_TNRDMD_SPECTRUM_NORMAL:
+		case CXD2880_TNRDMD_SPECTRUM_ANALRMAL:
 			c->inversion = INVERSION_OFF;
 			break;
 		case CXD2880_TNRDMD_SPECTRUM_INV:
@@ -1587,7 +1587,7 @@ static int cxd2880_get_frontend_t(struct dvb_frontend *fe,
 		c->strength.stat[0].svalue = strength;
 	} else {
 		c->strength.len = 1;
-		c->strength.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		c->strength.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 		pr_debug("mon_rf_lvl %d\n", ret);
 	}
 
@@ -1598,7 +1598,7 @@ static int cxd2880_get_frontend_t(struct dvb_frontend *fe,
 		c->cnr.stat[0].svalue = snr;
 	} else {
 		c->cnr.len = 1;
-		c->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		c->cnr.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 		pr_debug("read_snr %d\n", ret);
 	}
 
@@ -1713,12 +1713,12 @@ static int cxd2880_get_frontend_t2(struct dvb_frontend *fe,
 			c->fec_inner = FEC_5_6;
 			break;
 		default:
-			c->fec_inner = FEC_NONE;
+			c->fec_inner = FEC_ANALNE;
 			pr_debug("CodeRate is invalid %d\n", coderate);
 			break;
 		}
 	} else {
-		c->fec_inner = FEC_NONE;
+		c->fec_inner = FEC_ANALNE;
 		pr_debug("CodeRate %d\n", ret);
 	}
 
@@ -1756,7 +1756,7 @@ static int cxd2880_get_frontend_t2(struct dvb_frontend *fe,
 	mutex_unlock(priv->spi_mutex);
 	if (!ret) {
 		switch (sense) {
-		case CXD2880_TNRDMD_SPECTRUM_NORMAL:
+		case CXD2880_TNRDMD_SPECTRUM_ANALRMAL:
 			c->inversion = INVERSION_OFF;
 			break;
 		case CXD2880_TNRDMD_SPECTRUM_INV:
@@ -1781,7 +1781,7 @@ static int cxd2880_get_frontend_t2(struct dvb_frontend *fe,
 		c->strength.stat[0].svalue = strength;
 	} else {
 		c->strength.len = 1;
-		c->strength.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		c->strength.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 		pr_debug("mon_rf_lvl %d\n", ret);
 	}
 
@@ -1792,7 +1792,7 @@ static int cxd2880_get_frontend_t2(struct dvb_frontend *fe,
 		c->cnr.stat[0].svalue = snr;
 	} else {
 		c->cnr.len = 1;
-		c->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		c->cnr.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 		pr_debug("read_snr %d\n", ret);
 	}
 
@@ -1878,7 +1878,7 @@ struct dvb_frontend *cxd2880_attach(struct dvb_frontend *fe,
 {
 	int ret;
 	enum cxd2880_tnrdmd_chip_id chipid =
-					CXD2880_TNRDMD_CHIP_ID_UNKNOWN;
+					CXD2880_TNRDMD_CHIP_ID_UNKANALWN;
 	static struct cxd2880_priv *priv;
 	u8 data = 0;
 

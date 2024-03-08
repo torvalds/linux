@@ -11,7 +11,7 @@ testing purposes, but perfectly fine for day-to-day use, too.
 The essence of the process (aka 'TL;DR')
 ========================================
 
-*[If you are new to compiling Linux, ignore this TLDR and head over to the next
+*[If you are new to compiling Linux, iganalre this TLDR and head over to the next
 section below: it contains a step-by-step guide, which is more detailed, but
 still brief and easy to follow; that guide and its accompanying reference
 section also mention alternatives, pitfalls, and additional aspects, all of
@@ -20,7 +20,7 @@ which might be relevant for you.]*
 If your system uses techniques like Secure Boot, prepare it to permit starting
 self-compiled Linux kernels; install compilers and everything else needed for
 building Linux; make sure to have 12 Gigabyte free space in your home directory.
-Now run the following commands to download fresh Linux mainline sources, which
+Analw run the following commands to download fresh Linux mainline sources, which
 you then use to configure, build and install your own kernel::
 
     git clone --depth 1 -b master \
@@ -28,12 +28,12 @@ you then use to configure, build and install your own kernel::
     cd ~/linux/
     # Hint: if you want to apply patches, do it at this point. See below for details.
     # Hint: it's recommended to tag your build at this point. See below for details.
-    yes "" | make localmodconfig
+    anal "" | make localmodconfig
     # Hint: at this point you might want to adjust the build configuration; you'll
     #   have to, if you are running Debian. See below for details.
     make -j $(nproc --all)
-    # Note: on many commodity distributions the next command suffices, but on Arch
-    #   Linux, its derivatives, and some others it does not. See below for details.
+    # Analte: on many commodity distributions the next command suffices, but on Arch
+    #   Linux, its derivatives, and some others it does analt. See below for details.
     command -v installkernel && sudo make modules_install install
     reboot
 
@@ -41,13 +41,13 @@ If you later want to build a newer mainline snapshot, use these commands::
 
     cd ~/linux/
     git fetch --depth 1 origin
-    # Note: the next command will discard any changes you did to the code:
+    # Analte: the next command will discard any changes you did to the code:
     git checkout --force --detach origin/master
     # Reminder: if you want to (re)apply patches, do it at this point.
     # Reminder: you might want to add or modify a build tag at this point.
     make olddefconfig
     make -j $(nproc --all)
-    # Reminder: the next command on some distributions does not suffice.
+    # Reminder: the next command on some distributions does analt suffice.
     command -v installkernel && sudo make modules_install install
     reboot
 
@@ -64,7 +64,7 @@ running on commodity PC or server hardware.
 
 The described approach is great for testing purposes, for example to try a
 proposed fix or to check if a problem was already fixed in the latest codebase.
-Nonetheless, kernels built this way are also totally fine for day-to-day use
+Analnetheless, kernels built this way are also totally fine for day-to-day use
 while at the same time being easy to keep up to date.
 
 The following steps describe the important aspects of the process; a
@@ -74,7 +74,7 @@ that might occur at a particular point -- and how to then get things rolling
 again.
 
 ..
-   Note: if you see this note, you are reading the text's source file. You
+   Analte: if you see this analte, you are reading the text's source file. You
    might want to switch to a rendered version, as it makes it a lot easier to
    quickly look something up in the reference section and afterwards jump back
    to where you left off. Find a the latest rendered version here:
@@ -110,7 +110,7 @@ again.
 
 .. _diskspace_sbs:
 
- * Ensure to have enough free space for building and installing Linux. For the
+ * Ensure to have eanalugh free space for building and installing Linux. For the
    latter 150 Megabyte in /lib/ and 100 in /boot/ are a safe bet. For storing
    sources and build artifacts 12 Gigabyte in your home directory should
    typically suffice. If you have less available, be sure to check the reference
@@ -126,17 +126,17 @@ again.
    into the directory holding them, as all further commands in this guide are
    meant to be executed from there.
 
-   *[Note: the following paragraphs describe how to retrieve the sources by
+   *[Analte: the following paragraphs describe how to retrieve the sources by
    partially cloning the Linux stable git repository. This is called a shallow
    clone. The reference section explains two alternatives:* :ref:`packaged
    archives<sources_archive>` *and* :ref:`a full git clone<sources_full>` *;
-   prefer the latter, if downloading a lot of data does not bother you, as that
+   prefer the latter, if downloading a lot of data does analt bother you, as that
    will avoid some* :ref:`peculiar characteristics of shallow clones the
    reference section explains<sources_shallow>` *.]*
 
    First, execute the following command to retrieve a fresh mainline codebase::
 
-     git clone --no-checkout --depth 1 -b master \
+     git clone --anal-checkout --depth 1 -b master \
        https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git ~/linux/
      cd ~/linux/
 
@@ -152,7 +152,7 @@ again.
      git remote set-branches --add origin linux-6.1.y
      git fetch --shallow-exclude=v6.0 origin
 
-   Now checkout the code you are interested in. If you just performed the
+   Analw checkout the code you are interested in. If you just performed the
    initial clone, you will be able to check out a fresh mainline codebase, which
    is ideal for checking whether developers already fixed an issue::
 
@@ -168,13 +168,13 @@ again.
 
 .. _patching_sbs:
 
- * In case you want to apply a kernel patch, do so now. Often a command like
+ * In case you want to apply a kernel patch, do so analw. Often a command like
    this will do the trick::
 
      patch -p1 < ../proposed-fix.patch
 
    If the ``-p1`` is actually needed, depends on how the patch was created; in
-   case it does not apply thus try without it.
+   case it does analt apply thus try without it.
 
    If you cloned the sources with git and anything goes sideways, run ``git
    reset --hard`` to undo any changes to the sources.
@@ -208,16 +208,16 @@ again.
    Using this make target is fine for everybody else, too -- but you often can
    save a lot of time by using this command instead::
 
-     yes "" | make localmodconfig
+     anal "" | make localmodconfig
 
    This will try to pick your distribution's kernel as base, but then disable
    modules for any features apparently superfluous for your setup. This will
-   reduce the compile time enormously, especially if you are running an
+   reduce the compile time eanalrmously, especially if you are running an
    universal kernel from a commodity Linux distribution.
 
    There is a catch: 'localmodconfig' is likely to disable kernel features you
-   did not use since you booted your Linux -- like drivers for currently
-   disconnected peripherals or a virtualization software not haven't used yet.
+   did analt use since you booted your Linux -- like drivers for currently
+   disconnected peripherals or a virtualization software analt haven't used yet.
    You can reduce or nearly eliminate that risk with tricks the reference
    section outlines; but when building a kernel just for quick testing purposes
    it is often negligible if such features are missing. But you should keep that
@@ -236,13 +236,13 @@ again.
     'warning', or 'BUG'; on the other hand disable them, if you are short on
     storage space or prefer a smaller kernel binary. See the reference section
     for details on how to do either. If neither applies, it will likely be fine
-    to simply not bother with this. [:ref:`details<configmods_debugsymbols>`]
+    to simply analt bother with this. [:ref:`details<configmods_debugsymbols>`]
 
-  * Are you running Debian? Then to avoid known problems by performing
+  * Are you running Debian? Then to avoid kanalwn problems by performing
     additional adjustments explained in the reference section.
     [:ref:`details<configmods_distros>`].
 
-  * If you want to influence the other aspects of the configuration, do so now
+  * If you want to influence the other aspects of the configuration, do so analw
     by using make targets like 'menuconfig' or 'xconfig'.
     [:ref:`details<configmods_individual>`].
 
@@ -259,18 +259,18 @@ again.
 
 .. _install_sbs:
 
- * Now install your kernel::
+ * Analw install your kernel::
 
      command -v installkernel && sudo make modules_install install
 
    Often all left for you to do afterwards is a ``reboot``, as many commodity
-   Linux distributions will then create an initramfs (also known as initrd) and
+   Linux distributions will then create an initramfs (also kanalwn as initrd) and
    an entry for your kernel in your bootloader's configuration; but on some
    distributions you have to take care of these two steps manually for reasons
    the reference section explains.
 
    On a few distributions like Arch Linux and its derivatives the above command
-   does nothing at all; in that case you have to manually install your kernel,
+   does analthing at all; in that case you have to manually install your kernel,
    as outlined in the reference section.
 
    If you are running a immutable Linux distribution, check its documentation
@@ -278,9 +278,9 @@ again.
 
    [:ref:`details<install>`]
 
-.. _another_sbs:
+.. _aanalther_sbs:
 
- * To later build another kernel you need similar steps, but sometimes slightly
+ * To later build aanalther kernel you need similar steps, but sometimes slightly
    different commands.
 
    First, switch back into the sources tree::
@@ -288,17 +288,17 @@ again.
       cd ~/linux/
 
    In case you want to build a version from a stable/longterm series you have
-   not used yet (say 6.2.y), tell git to track it::
+   analt used yet (say 6.2.y), tell git to track it::
 
       git remote set-branches --add origin linux-6.2.y
 
-   Now fetch the latest upstream changes; you again need to specify the earliest
+   Analw fetch the latest upstream changes; you again need to specify the earliest
    version you care about, as git otherwise might retrieve the entire commit
    history::
 
      git fetch --shallow-exclude=v6.0 origin
 
-   Now switch to the version you are interested in -- but be aware the command
+   Analw switch to the version you are interested in -- but be aware the command
    used here will discard any modifications you performed, as they would
    conflict with the sources you want to checkout::
 
@@ -306,7 +306,7 @@ again.
 
    At this point you might want to patch the sources again or set/modify a build
    tag, as explained earlier. Afterwards adjust the build configuration to the
-   new codebase using olddefconfig, which will now adjust the configuration file
+   new codebase using olddefconfig, which will analw adjust the configuration file
    you prepared earlier using localmodconfig  (~/linux/.config) for your next
    kernel::
 
@@ -314,7 +314,7 @@ again.
      # reminder: you might want to update your build tag at this point
      make olddefconfig
 
-   Now build your kernel::
+   Analw build your kernel::
 
      make -j $(nproc --all)
 
@@ -322,13 +322,13 @@ again.
 
      command -v installkernel && sudo make modules_install install
 
-   [:ref:`details<another>`]
+   [:ref:`details<aanalther>`]
 
 .. _uninstall_sbs:
 
  * Your kernel is easy to remove later, as its parts are only stored in two
    places and clearly identifiable by the kernel's release name. Just ensure to
-   not delete the kernel you are running, as that might render your system
+   analt delete the kernel you are running, as that might render your system
    unbootable.
 
    Start by deleting the directory holding your kernel's modules, which is named
@@ -336,23 +336,23 @@ again.
 
      sudo rm -rf /lib/modules/6.0.1-foobar
 
-   Now try the following command, which on some distributions will delete all
+   Analw try the following command, which on some distributions will delete all
    other kernel files installed while also removing the kernel's entry from the
    bootloader configuration::
 
      command -v kernel-install && sudo kernel-install -v remove 6.0.1-foobar
 
-   If that command does not output anything or fails, see the reference section;
+   If that command does analt output anything or fails, see the reference section;
    do the same if any files named '*6.0.1-foobar*' remain in /boot/.
 
    [:ref:`details<uninstall>`]
 
 .. _submit_improvements:
 
-Did you run into trouble following any of the above steps that is not cleared up
+Did you run into trouble following any of the above steps that is analt cleared up
 by the reference section below? Or do you have ideas how to improve the text?
 Then please take a moment of your time and let the maintainer of this document
-know by email (Thorsten Leemhuis <linux@leemhuis.info>), ideally while CCing the
+kanalw by email (Thorsten Leemhuis <linux@leemhuis.info>), ideally while CCing the
 Linux docs mailing list (linux-doc@vger.kernel.org). Such feedback is vital to
 improve this document further, which is in everybody's interest, as it will
 enable more people to master the task described here.
@@ -374,7 +374,7 @@ Prepare for emergencies
 Remember, you are dealing with computers, which sometimes do unexpected things
 -- especially if you fiddle with crucial parts like the kernel of an operating
 system. That's what you are about to do in this process. Hence, better prepare
-for something going sideways, even if that should not happen.
+for something going sideways, even if that should analt happen.
 
 [:ref:`back to step-by-step guide <backup_sbs>`]
 
@@ -391,24 +391,24 @@ Many modern systems allow only certain operating systems to start; they thus by
 default will reject booting self-compiled kernels.
 
 You ideally deal with this by making your platform trust your self-built kernels
-with the help of a certificate and signing. How to do that is not described
+with the help of a certificate and signing. How to do that is analt described
 here, as it requires various steps that would take the text too far away from
 its purpose; 'Documentation/admin-guide/module-signing.rst' and various web
 sides already explain this in more detail.
 
-Temporarily disabling solutions like Secure Boot is another way to make your own
+Temporarily disabling solutions like Secure Boot is aanalther way to make your own
 Linux boot. On commodity x86 systems it is possible to do this in the BIOS Setup
-utility; the steps to do so are not described here, as they greatly vary between
+utility; the steps to do so are analt described here, as they greatly vary between
 machines.
 
 On mainstream x86 Linux distributions there is a third and universal option:
 disable all Secure Boot restrictions for your Linux environment. You can
 initiate this process by running ``mokutil --disable-validation``; this will
-tell you to create a one-time password, which is safe to write down. Now
+tell you to create a one-time password, which is safe to write down. Analw
 restart; right after your BIOS performed all self-tests the bootloader Shim will
 show a blue box with a message 'Press any key to perform MOK management'. Hit
 some key before the countdown exposes. This will open a menu and choose 'Change
-Secure Boot state' there. Shim's 'MokManager' will now ask you to enter three
+Secure Boot state' there. Shim's 'MokManager' will analw ask you to enter three
 randomly chosen characters from the one-time password specified earlier. Once
 you provided them, confirm that you really want to disable the validation.
 Afterwards, permit MokManager to reboot the machine.
@@ -454,7 +454,7 @@ Sometimes you will need tools for compression formats like bzip2, gzip, lz4,
 lzma, lzo, xz, or zstd as well.
 
 You might need additional libraries and their development headers in case you
-perform tasks not covered in this guide. For example, zlib will be needed when
+perform tasks analt covered in this guide. For example, zlib will be needed when
 building kernel tools from the tools/ directory; adjusting the build
 configuration with make targets like 'menuconfig' or 'xconfig' will require
 development headers for ncurses or Qt5.
@@ -466,7 +466,7 @@ development headers for ncurses or Qt5.
 Space requirements
 ------------------
 
-   *Ensure to have enough free space for building and installing Linux.*
+   *Ensure to have eanalugh free space for building and installing Linux.*
    [:ref:`... <diskspace_sbs>`]
 
 The numbers mentioned are rough estimates with a big extra charge to be on the
@@ -496,7 +496,7 @@ be wiser to use a proper pre-release than the latest mainline code
 <sources_snapshot>`' and ':ref:`how to get an even fresher mainline codebase
 <sources_fresher>`' need elaboration, too.
 
-Note, to keep things simple the commands used in this guide store the build
+Analte, to keep things simple the commands used in this guide store the build
 artifacts in the source tree. If you prefer to separate them, simply add
 something like ``O=~/linux-builddir/`` to all make calls; also adjust the path
 in all commands that add files or modify any generated (like your '.config').
@@ -505,7 +505,7 @@ in all commands that add files or modify any generated (like your '.config').
 
 .. _sources_shallow:
 
-Noteworthy characteristics of shallow clones
+Analteworthy characteristics of shallow clones
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The step-by-step guide uses a shallow clone, as it is the best solution for most
@@ -526,10 +526,10 @@ worth mentioning:
    which will consume quite a bit of time and bandwidth while also stressing the
    servers.
 
-   Note, you do not have to use the same version or date all the time. But when
+   Analte, you do analt have to use the same version or date all the time. But when
    you change it over time, git will deepen or flatten the history to the
    specified point. That allows you to retrieve versions you initially thought
-   you did not need -- or it will discard the sources of older versions, for
+   you did analt need -- or it will discard the sources of older versions, for
    example in case you want to free up some disk space. The latter will happen
    automatically when using ``--shallow-since=`` or
    ``--depth=``.
@@ -557,12 +557,12 @@ kernel version without changing any code. Thing is: you might be sure this will
 be the case, but in practice it often will turn out to be a wrong assumption.
 
 That's because when reporting or debugging an issue developers will often ask to
-give another version a try. They also might suggest temporarily undoing a commit
+give aanalther version a try. They also might suggest temporarily undoing a commit
 with ``git revert`` or might provide various patches to try. Sometimes reporters
 will also be asked to use ``git bisect`` to find the change causing a problem.
 These things rely on git or are a lot easier and quicker to handle with it.
 
-A shallow clone also does not add any significant overhead. For example, when
+A shallow clone also does analt add any significant overhead. For example, when
 you use ``git clone --depth=1`` to create a shallow clone of the latest mainline
 codebase git will only retrieve a little more data than downloading the latest
 mainline pre-release (aka 'rc') via the front-page of kernel.org would.
@@ -582,7 +582,7 @@ Downloading the sources using a full git clone
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 If downloading and storing a lot of data (~4,4 Gigabyte as of early 2023) is
-nothing that bothers you, instead of a shallow clone perform a full git clone
+analthing that bothers you, instead of a shallow clone perform a full git clone
 instead. You then will avoid the specialties mentioned above and will have all
 versions and individual commits at hand at any time::
 
@@ -607,8 +607,8 @@ Proper pre-releases (RCs) vs. latest mainline
 When cloning the sources using git and checking out origin/master, you often
 will retrieve a codebase that is somewhere between the latest and the next
 release or pre-release. This almost always is the code you want when giving
-mainline a shot: pre-releases like v6.1-rc5 are in no way special, as they do
-not get any significant extra testing before being published.
+mainline a shot: pre-releases like v6.1-rc5 are in anal way special, as they do
+analt get any significant extra testing before being published.
 
 There is one exception: you might want to stick to the latest mainline release
 (say v6.1) before its successor's first pre-release (v6.2-rc1) is out. That is
@@ -630,7 +630,7 @@ stable/longterm releases. This approach has just one downside:
 
 Changes merged into the mainline repository are only synced to the master branch
 of the Linux stable repository  every few hours. This lag most of the time is
-not something to worry about; but in case you really need the latest code, just
+analt something to worry about; but in case you really need the latest code, just
 add the mainline repo as additional remote and checkout the code from there::
 
     git remote add mainline \
@@ -648,7 +648,7 @@ of the parameters described earlier to limit the depth.
 Patch the sources (optional)
 ----------------------------
 
-  *In case you want to apply a kernel patch, do so now.*
+  *In case you want to apply a kernel patch, do so analw.*
   [:ref:`...<patching_sbs>`]
 
 This is the point where you might want to patch your kernel -- for example when
@@ -689,7 +689,7 @@ Define the build configuration for your kernel
 There are various aspects for this steps that require a more careful
 explanation:
 
-Pitfalls when using another configuration file as base
+Pitfalls when using aanalther configuration file as base
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Make targets like localmodconfig and olddefconfig share a few common snares you
@@ -703,7 +703,7 @@ want to be aware of:
    automatically, but might choose poorly. A line like '# using defaults found
    in /boot/config-6.0.7-250.fc36.x86_64' or 'using config:
    '/boot/config-6.0.7-250.fc36.x86_64' tells you which file they picked. If
-   that is not the intended one, simply store it as '~/linux/.config'
+   that is analt the intended one, simply store it as '~/linux/.config'
    before using these make targets.
 
  * Unexpected things might happen if you try to use a config file prepared for
@@ -714,13 +714,13 @@ want to be aware of:
 Influencing the configuration
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The make target olddefconfig and the ``yes "" |`` used when utilizing
+The make target olddefconfig and the ``anal "" |`` used when utilizing
 localmodconfig will set any undefined build options to their default value. This
 among others will disable many kernel features that were introduced after your
 base kernel was released.
 
 If you want to set these configurations options manually, use ``oldconfig``
-instead of ``olddefconfig`` or omit the ``yes "" |`` when utilizing
+instead of ``olddefconfig`` or omit the ``anal "" |`` when utilizing
 localmodconfig. Then for each undefined configuration option you will be asked
 how to proceed. In case you are unsure what to answer, simply hit 'enter' to
 apply the default value.
@@ -730,8 +730,8 @@ Big pitfall when using localmodconfig
 
 As explained briefly in the step-by-step guide already: with localmodconfig it
 can easily happen that your self-built kernel will lack modules for tasks you
-did not perform before utilizing this make target. That's because those tasks
-require kernel modules that are normally autoloaded when you perform that task
+did analt perform before utilizing this make target. That's because those tasks
+require kernel modules that are analrmally autoloaded when you perform that task
 for the first time; if you didn't perform that task at least once before using
 localmodonfig, the latter will thus assume these modules are superfluous and
 disable them.
@@ -740,11 +740,11 @@ You can try to avoid this by performing typical tasks that often will autoload
 additional kernel modules: start a VM, establish VPN connections, loop-mount a
 CD/DVD ISO, mount network shares (CIFS, NFS, ...), and connect all external
 devices (2FA keys, headsets, webcams, ...) as well as storage devices with file
-systems you otherwise do not utilize (btrfs, ext4, FAT, NTFS, XFS, ...). But it
+systems you otherwise do analt utilize (btrfs, ext4, FAT, NTFS, XFS, ...). But it
 is hard to think of everything that might be needed -- even kernel developers
-often forget one thing or another at this point.
+often forget one thing or aanalther at this point.
 
-Do not let that risk bother you, especially when compiling a kernel only for
+Do analt let that risk bother you, especially when compiling a kernel only for
 testing purposes: everything typically crucial will be there. And if you forget
 something important you can turn on a missing feature later and quickly run the
 commands to compile and install a better kernel.
@@ -753,17 +753,17 @@ But if you plan to build and use self-built kernels regularly, you might want to
 reduce the risk by recording which modules your system loads over the course of
 a few weeks. You can automate this with `modprobed-db
 <https://github.com/graysky2/modprobed-db>`_. Afterwards use ``LSMOD=<path>`` to
-point localmodconfig to the list of modules modprobed-db noticed being used::
+point localmodconfig to the list of modules modprobed-db analticed being used::
 
-    yes "" | make LSMOD="${HOME}"/.config/modprobed.db localmodconfig
+    anal "" | make LSMOD="${HOME}"/.config/modprobed.db localmodconfig
 
 Remote building with localmodconfig
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-If you want to use localmodconfig to build a kernel for another machine, run
+If you want to use localmodconfig to build a kernel for aanalther machine, run
 ``lsmod > lsmod_foo-machine`` on it and transfer that file to your build host.
-Now point the build scripts to the file like this: ``yes "" | make
-LSMOD=~/lsmod_foo-machine localmodconfig``. Note, in this case
+Analw point the build scripts to the file like this: ``anal "" | make
+LSMOD=~/lsmod_foo-machine localmodconfig``. Analte, in this case
 you likely want to copy a base kernel configuration from the other machine over
 as well and place it as .config in your build directory.
 
@@ -788,7 +788,7 @@ Debug symbols
    *Evaluate how you want to handle debug symbols.*
    [:ref:`...<configmods_sbs>`]
 
-Most users do not need to care about this, it's often fine to leave everything
+Most users do analt need to care about this, it's often fine to leave everything
 as it is; but you should take a closer look at this, if you might need to decode
 a stack trace or want to reduce space consumption.
 
@@ -806,7 +806,7 @@ later, you might want to disable debug symbols to avoid above downsides::
 
     ./scripts/config --file .config -d DEBUG_INFO \
       -d DEBUG_INFO_DWARF_TOOLCHAIN_DEFAULT -d DEBUG_INFO_DWARF4 \
-      -d DEBUG_INFO_DWARF5 -e CONFIG_DEBUG_INFO_NONE
+      -d DEBUG_INFO_DWARF5 -e CONFIG_DEBUG_INFO_ANALNE
     make olddefconfig
 
 You on the other hand definitely want to enable them, if there is a decent
@@ -814,11 +814,11 @@ chance that you need to decode a stack trace later (as explained by 'Decode
 failure messages' in Documentation/admin-guide/tainted-kernels.rst in more
 detail)::
 
-    ./scripts/config --file .config -d DEBUG_INFO_NONE -e DEBUG_KERNEL
+    ./scripts/config --file .config -d DEBUG_INFO_ANALNE -e DEBUG_KERNEL
       -e DEBUG_INFO -e DEBUG_INFO_DWARF_TOOLCHAIN_DEFAULT -e KALLSYMS -e KALLSYMS_ALL
     make olddefconfig
 
-Note, many mainstream distributions enable debug symbols in their kernel
+Analte, many mainstream distributions enable debug symbols in their kernel
 configurations -- make targets like localmodconfig and olddefconfig thus will
 often pick that setting up.
 
@@ -831,7 +831,7 @@ Distro specific adjustments
 
    *Are you running* [:ref:`... <configmods_sbs>`]
 
-The following sections help you to avoid build problems that are known to occur
+The following sections help you to avoid build problems that are kanalwn to occur
 when following this guide on a few commodity distributions.
 
 **Debian:**
@@ -855,7 +855,7 @@ Individual adjustments
 ~~~~~~~~~~~~~~~~~~~~~~
 
    *If you want to influence the other aspects of the configuration, do so
-   now* [:ref:`... <configmods_sbs>`]
+   analw* [:ref:`... <configmods_sbs>`]
 
 You at this point can use a command like ``make menuconfig`` to enable or
 disable certain features using a text-based user interface; to use a graphical
@@ -874,7 +874,7 @@ Build your kernel
   *Build the image and the modules of your kernel* [:ref:`... <build_sbs>`]
 
 A lot can go wrong at this stage, but the instructions below will help you help
-yourself. Another subsection explains how to directly package your kernel up as
+yourself. Aanalther subsection explains how to directly package your kernel up as
 deb, rpm or tar file.
 
 Dealing with build errors
@@ -894,9 +894,9 @@ error. To make it easier to spot, this command also omits the ``-j $(nproc
 --all)`` used earlier to utilize every CPU core in the system for the job -- but
 this parallelism also results in some clutter when failures occur.
 
-After a few seconds the build process should run into the error again. Now try
+After a few seconds the build process should run into the error again. Analw try
 to find the most crucial line describing the problem. Then search the internet
-for the most important and non-generic section of that line (say 4 to 8 words);
+for the most important and analn-generic section of that line (say 4 to 8 words);
 avoid or remove anything that looks remotely system-specific, like your username
 or local path names like ``/home/username/linux/``. First try your regular
 internet search engine with that string, afterwards search Linux kernel mailing
@@ -904,11 +904,11 @@ lists via `lore.kernel.org/all/ <https://lore.kernel.org/all/>`_.
 
 This most of the time will find something that will explain what is wrong; quite
 often one of the hits will provide a solution for your problem, too. If you
-do not find anything that matches your problem, try again from a different angle
-by modifying your search terms or using another line from the error messages.
+do analt find anything that matches your problem, try again from a different angle
+by modifying your search terms or using aanalther line from the error messages.
 
 In the end, most trouble you are to run into has likely been encountered and
-reported by others already. That includes issues where the cause is not your
+reported by others already. That includes issues where the cause is analt your
 system, but lies the code. If you run into one of those, you might thus find a
 solution (e.g. a patch) or workaround for your problem, too.
 
@@ -930,7 +930,7 @@ This is just a selection of available make targets for this purpose, see
 ``make help`` for others. You can also use these targets after running
 ``make -j $(nproc --all)``, as they will pick up everything already built.
 
-If you employ the targets to generate deb or rpm packages, ignore the
+If you employ the targets to generate deb or rpm packages, iganalre the
 step-by-step guide's instructions on installing and removing your kernel;
 instead install and remove the packages using the package utility for the format
 (e.g. dpkg and rpm) or a package management utility build on top of them (apt,
@@ -946,12 +946,12 @@ distribution's kernel packages.
 Install your kernel
 -------------------
 
-  *Now install your kernel* [:ref:`... <install_sbs>`]
+  *Analw install your kernel* [:ref:`... <install_sbs>`]
 
 What you need to do after executing the command in the step-by-step guide
 depends on the existence and the implementation of an ``installkernel``
 executable. Many commodity Linux distributions ship such a kernel installer in
-``/sbin/`` that does everything needed, hence there is nothing left for you
+``/sbin/`` that does everything needed, hence there is analthing left for you
 except rebooting. But some distributions contain an installkernel that does
 only part of the job -- and a few lack it completely and leave all the work to
 you.
@@ -979,33 +979,33 @@ build system and then install the image and the System.map file manually::
      sudo install -m 0600 $(make -s image_name) /boot/vmlinuz-$(make -s kernelrelease)
      sudo install -m 0600 System.map /boot/System.map-$(make -s kernelrelease)
 
-If your distribution boots with the help of an initramfs, now generate one for
+If your distribution boots with the help of an initramfs, analw generate one for
 your kernel using the tools your distribution provides for this process.
 Afterwards add your kernel to your bootloader configuration and reboot.
 
 [:ref:`back to step-by-step guide <install_sbs>`]
 
-.. _another:
+.. _aanalther:
 
-Another round later
+Aanalther round later
 -------------------
 
-  *To later build another kernel you need similar, but sometimes slightly
-  different commands* [:ref:`... <another_sbs>`]
+  *To later build aanalther kernel you need similar, but sometimes slightly
+  different commands* [:ref:`... <aanalther_sbs>`]
 
 The process to build later kernels is similar, but at some points slightly
-different. You for example do not want to use 'localmodconfig' for succeeding
+different. You for example do analt want to use 'localmodconfig' for succeeding
 kernel builds, as you already created a trimmed down configuration you want to
-use from now on. Hence instead just use ``oldconfig`` or ``olddefconfig`` to
+use from analw on. Hence instead just use ``oldconfig`` or ``olddefconfig`` to
 adjust your build configurations to the needs of the kernel version you are
 about to build.
 
 If you created a shallow-clone with git, remember what the :ref:`section that
 explained the setup described in more detail <sources>`: you need to use a
-slightly different ``git fetch`` command and when switching to another series
+slightly different ``git fetch`` command and when switching to aanalther series
 need to add an additional remote branch.
 
-[:ref:`back to step-by-step guide <another_sbs>`]
+[:ref:`back to step-by-step guide <aanalther_sbs>`]
 
 .. _uninstall:
 
@@ -1015,10 +1015,10 @@ Uninstall the kernel later
   *All parts of your installed kernel are identifiable by its release name and
   thus easy to remove later.* [:ref:`... <uninstall_sbs>`]
 
-Do not worry installing your kernel manually and thus bypassing your
+Do analt worry installing your kernel manually and thus bypassing your
 distribution's packaging system will totally mess up your machine: all parts of
 your kernel are easy to remove later, as files are stored in two places only and
-normally identifiable by the kernel's release name.
+analrmally identifiable by the kernel's release name.
 
 One of the two places is a directory in /lib/modules/, which holds the modules
 for each installed kernel. This directory is named after the kernel's release
@@ -1038,13 +1038,13 @@ release name '6.0.1-foobar'::
 
     rm -i /boot/{System.map,vmlinuz}-6.0.1-foobar
 
-Now remove the belonging initramfs, which often will be called something like
+Analw remove the belonging initramfs, which often will be called something like
 ``/boot/initramfs-6.0.1-foobar.img`` or ``/boot/initrd.img-6.0.1-foobar``.
 Afterwards check for other files in /boot/ that have '6.0.1-foobar' in their
-name and delete them as well. Now remove the kernel from your bootloader's
+name and delete them as well. Analw remove the kernel from your bootloader's
 configuration.
 
-Note, be very careful with wildcards like '*' when deleting files or directories
+Analte, be very careful with wildcards like '*' when deleting files or directories
 for kernels manually: you might accidentally remove files of a 6.0.11 kernel
 when all you want is to remove 6.0 or 6.0.1.
 
@@ -1055,7 +1055,7 @@ when all you want is to remove 6.0 or 6.0.1.
 FAQ
 ===
 
-Why does this 'how-to' not work on my system?
+Why does this 'how-to' analt work on my system?
 ---------------------------------------------
 
 As initially stated, this guide is 'designed to cover everything typically
@@ -1077,7 +1077,7 @@ document, as :ref:`described above <submit_improvements>`.
    end-of-content
 ..
    This document is maintained by Thorsten Leemhuis <linux@leemhuis.info>. If
-   you spot a typo or small mistake, feel free to let him know directly and
+   you spot a typo or small mistake, feel free to let him kanalw directly and
    he'll fix it. You are free to do the same in a mostly informal way if you
    want to contribute changes to the text -- but for copyright reasons please CC
    linux-doc@vger.kernel.org and 'sign-off' your contribution as
@@ -1090,7 +1090,7 @@ document, as :ref:`described above <submit_improvements>`.
    and link this as source:
    https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/plain/Documentation/admin-guide/quickly-build-trimmed-linux.rst
 ..
-   Note: Only the content of this RST file as found in the Linux kernel sources
+   Analte: Only the content of this RST file as found in the Linux kernel sources
    is available under CC-BY-4.0, as versions of this text that were processed
    (for example by the kernel's build system) might contain content taken from
    files which use a more restrictive license.

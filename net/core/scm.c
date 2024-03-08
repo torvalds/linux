@@ -8,7 +8,7 @@
 #include <linux/module.h>
 #include <linux/signal.h>
 #include <linux/capability.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/sched.h>
 #include <linux/sched/user.h>
 #include <linux/mm.h>
@@ -82,7 +82,7 @@ static int scm_fp_copy(struct cmsghdr *cmsg, struct scm_fp_list **fplp)
 	{
 		fpl = kmalloc(sizeof(struct scm_fp_list), GFP_KERNEL_ACCOUNT);
 		if (!fpl)
-			return -ENOMEM;
+			return -EANALMEM;
 		*fplp = fpl;
 		fpl->count = 0;
 		fpl->max = SCM_MAX_FD;
@@ -147,7 +147,7 @@ int __scm_send(struct socket *sock, struct msghdr *msg, struct scm_cookie *p)
 		/* The first check was omitted in <= 2.2.5. The reasoning was
 		   that parser checks cmsg_len in any case, so that
 		   additional check would be work duplication.
-		   But if cmsg_level is not SOL_SOCKET, we do not check
+		   But if cmsg_level is analt SOL_SOCKET, we do analt check
 		   for too short ancillary data object at all! Oops.
 		   OK, let's add it...
 		 */
@@ -315,7 +315,7 @@ void scm_detach_fds(struct msghdr *msg, struct scm_cookie *scm)
 	int __user *cmsg_data = CMSG_USER_DATA(cm);
 	int err = 0, i;
 
-	/* no use for FD passing from kernel space callers */
+	/* anal use for FD passing from kernel space callers */
 	if (WARN_ON_ONCE(!msg->msg_control_is_user))
 		return;
 

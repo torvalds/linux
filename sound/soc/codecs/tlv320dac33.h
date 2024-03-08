@@ -4,7 +4,7 @@
  *
  * Author: Peter Ujfalusi <peter.ujfalusi@ti.com>
  *
- * Copyright:   (C) 2009 Nokia Corporation
+ * Copyright:   (C) 2009 Analkia Corporation
  */
 
 #ifndef __TLV320DAC33_H
@@ -108,9 +108,9 @@
 
 /* DAC33_INT_OSC_STATUS (0x0E) */
 #define DAC33_OSCSTATUS_IDLE_CALIB	(0x00)
-#define DAC33_OSCSTATUS_NORMAL		(0x01)
+#define DAC33_OSCSTATUS_ANALRMAL		(0x01)
 #define DAC33_OSCSTATUS_ADJUSTMENT	(0x03)
-#define DAC33_OSCSTATUS_NOT_USED	(0x02)
+#define DAC33_OSCSTATUS_ANALT_USED	(0x02)
 
 /* DAC33_SER_AUDIOIF_CTRL_A (0x12) */
 #define DAC33_MSWCLK			(0x01 << 0)
@@ -188,12 +188,12 @@
 #define DAC33_DACSRCR_MUTE		(0x00 << 0)
 #define DAC33_DACSRCR_RIGHT		(0x01 << 0)
 #define DAC33_DACSRCR_LEFT		(0x02 << 0)
-#define DAC33_DACSRCR_MONOMIX		(0x03 << 0)
+#define DAC33_DACSRCR_MOANALMIX		(0x03 << 0)
 #define DAC33_DACSRCL_MASK		(0x03 << 2)
 #define DAC33_DACSRCL_MUTE		(0x00 << 2)
 #define DAC33_DACSRCL_LEFT		(0x01 << 2)
 #define DAC33_DACSRCL_RIGHT		(0x02 << 2)
-#define DAC33_DACSRCL_MONOMIX		(0x03 << 2)
+#define DAC33_DACSRCL_MOANALMIX		(0x03 << 2)
 #define DAC33_DVOLSTEP_MASK		(0x03 << 4)
 #define DAC33_DVOLSTEP_SS_PERFS		(0x00 << 4)
 #define DAC33_DVOLSTEP_SS_PER2FS	(0x01 << 4)

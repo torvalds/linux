@@ -27,7 +27,7 @@
 
 static struct acp_resource rsrc = {
 	.offset = 0,
-	.no_of_ctrls = 2,
+	.anal_of_ctrls = 2,
 	.irqp_used = 1,
 	.soc_mclk = true,
 	.irq_reg_offset = 0x1a00,
@@ -146,32 +146,32 @@ static int acp_acp70_audio_probe(struct platform_device *pdev)
 	chip = dev_get_platdata(&pdev->dev);
 	if (!chip || !chip->base) {
 		dev_err(&pdev->dev, "ACP chip data is NULL\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (chip->acp_rev != ACP70_DEV) {
 		dev_err(&pdev->dev, "Un-supported ACP Revision %d\n", chip->acp_rev);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	adata = devm_kzalloc(dev, sizeof(struct acp_dev_data), GFP_KERNEL);
 	if (!adata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "acp_mem");
 	if (!res) {
 		dev_err(&pdev->dev, "IORESOURCE_MEM FAILED\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	adata->acp_base = devm_ioremap(&pdev->dev, res->start, resource_size(res));
 	if (!adata->acp_base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_IRQ, "acp_dai_irq");
 	if (!res) {
 		dev_err(&pdev->dev, "IORESOURCE_IRQ FAILED\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	adata->i2s_irq = res->start;

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/sched.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/mm.h>
 #include <linux/nmi.h>
 #include <linux/swap.h>
@@ -33,33 +33,33 @@ void set_pte_vaddr(unsigned long vaddr, pte_t pteval)
 	pte_t *pte;
 
 	pgd = swapper_pg_dir + pgd_index(vaddr);
-	if (pgd_none(*pgd)) {
+	if (pgd_analne(*pgd)) {
 		BUG();
 		return;
 	}
 	p4d = p4d_offset(pgd, vaddr);
-	if (p4d_none(*p4d)) {
+	if (p4d_analne(*p4d)) {
 		BUG();
 		return;
 	}
 	pud = pud_offset(p4d, vaddr);
-	if (pud_none(*pud)) {
+	if (pud_analne(*pud)) {
 		BUG();
 		return;
 	}
 	pmd = pmd_offset(pud, vaddr);
-	if (pmd_none(*pmd)) {
+	if (pmd_analne(*pmd)) {
 		BUG();
 		return;
 	}
 	pte = pte_offset_kernel(pmd, vaddr);
-	if (!pte_none(pteval))
+	if (!pte_analne(pteval))
 		set_pte_at(&init_mm, vaddr, pte, pteval);
 	else
 		pte_clear(&init_mm, vaddr, pte);
 
 	/*
-	 * It's enough to flush this one mapping.
+	 * It's eanalugh to flush this one mapping.
 	 * (PGE mappings get flushed as well)
 	 */
 	flush_tlb_one_kernel(vaddr);

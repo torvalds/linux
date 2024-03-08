@@ -41,7 +41,7 @@
  * The Scratch registers:
  * There are 16 MMIO-based registers start from 0xC180. The kernel driver writes
  * a value to the action register (SOFT_SCRATCH_0) along with any data. It then
- * triggers an interrupt on the GuC via another register write (0xC4C8).
+ * triggers an interrupt on the GuC via aanalther register write (0xC4C8).
  * Firmware writes a success/fail code back to the action register after
  * processes the request. The kernel driver polls waiting for this update and
  * then proceeds.
@@ -53,8 +53,8 @@
  * Context registration:
  * Before a context can be submitted it must be registered with the GuC via a
  * H2G. A unique guc_id is associated with each context. The context is either
- * registered at request creation time (normal operation) or at submission time
- * (abnormal operation, e.g. after a reset).
+ * registered at request creation time (analrmal operation) or at submission time
+ * (abanalrmal operation, e.g. after a reset).
  *
  * Context submission:
  * The i915 updates the LRC tail value in memory. The i915 must enable the
@@ -70,7 +70,7 @@
  * completed it is safe to unpin the context. While a disable is in flight it
  * isn't safe to resubmit the context so a fence is used to stall all future
  * requests of that context until the G2H is returned. Because this interaction
- * with the GuC takes a non-zero amount of time we delay the disabling of
+ * with the GuC takes a analn-zero amount of time we delay the disabling of
  * scheduling after the pin count goes to zero by a configurable period of time
  * (see SCHED_DISABLE_DELAY_MS). The thought is this gives the user a window of
  * time to resubmit something on the context before doing this costly operation.
@@ -90,10 +90,10 @@
  * is used for allocation.
  *
  * Stealing guc_ids:
- * If no guc_ids are available they can be stolen from another context at
+ * If anal guc_ids are available they can be stolen from aanalther context at
  * request creation time if that context is unpinned. If a guc_id can't be found
  * we punt this problem to the user as we believe this is near impossible to hit
- * during normal use cases.
+ * during analrmal use cases.
  *
  * Locking:
  * In the GuC submission code we have 3 basic spin locks which protect
@@ -394,9 +394,9 @@ static inline struct intel_guc *ce_to_guc(struct intel_context *ce)
 	return &ce->engine->gt->uc.guc;
 }
 
-static inline struct i915_priolist *to_priolist(struct rb_node *rb)
+static inline struct i915_priolist *to_priolist(struct rb_analde *rb)
 {
-	return rb_entry(rb, struct i915_priolist, node);
+	return rb_entry(rb, struct i915_priolist, analde);
 }
 
 /*
@@ -744,7 +744,7 @@ static int __guc_add_request(struct intel_guc *guc, struct i915_request *rq)
 		 * Without multi-lrc KMD does the submission step (moving the
 		 * lrc tail) so enabling scheduling is sufficient to submit the
 		 * context. This isn't the case in multi-lrc submission as the
-		 * GuC needs to move the tails, hence the need for another H2G
+		 * GuC needs to move the tails, hence the need for aanalther H2G
 		 * to submit a multi-lrc context after enabling scheduling.
 		 */
 		if (intel_context_is_parent(ce)) {
@@ -817,7 +817,7 @@ static void write_wqi(struct intel_context *ce, u32 wqi_size)
 	WRITE_ONCE(*ce->parallel.guc.wq_tail, ce->parallel.guc.wqi_tail);
 }
 
-static int guc_wq_noop_append(struct intel_context *ce)
+static int guc_wq_analop_append(struct intel_context *ce)
 {
 	u32 *wqi = get_wq_pointer(ce, wq_space_until_wrap(ce));
 	u32 len_dw = wq_space_until_wrap(ce) / sizeof(u32) - 1;
@@ -827,7 +827,7 @@ static int guc_wq_noop_append(struct intel_context *ce)
 
 	GEM_BUG_ON(!FIELD_FIT(WQ_LEN_MASK, len_dw));
 
-	*wqi = FIELD_PREP(WQ_TYPE_MASK, WQ_TYPE_NOOP) |
+	*wqi = FIELD_PREP(WQ_TYPE_MASK, WQ_TYPE_ANALOP) |
 		FIELD_PREP(WQ_LEN_MASK, len_dw);
 	ce->parallel.guc.wqi_tail = 0;
 
@@ -850,9 +850,9 @@ static int __guc_wq_item_append(struct i915_request *rq)
 	GEM_BUG_ON(context_wait_for_deregister_to_register(ce));
 	GEM_BUG_ON(!ctx_id_mapped(ce_to_guc(ce), ce->guc_id.id));
 
-	/* Insert NOOP if this work queue item will wrap the tail pointer. */
+	/* Insert ANALOP if this work queue item will wrap the tail pointer. */
 	if (wqi_size > wq_space_until_wrap(ce)) {
-		ret = guc_wq_noop_append(ce);
+		ret = guc_wq_analop_append(ce);
 		if (ret)
 			return ret;
 	}
@@ -916,7 +916,7 @@ static int guc_dequeue_one_context(struct intel_guc *guc)
 	struct i915_sched_engine * const sched_engine = guc->sched_engine;
 	struct i915_request *last = NULL;
 	bool submit = false;
-	struct rb_node *rb;
+	struct rb_analde *rb;
 	int ret;
 
 	lockdep_assert_held(&sched_engine->lock);
@@ -968,7 +968,7 @@ static int guc_dequeue_one_context(struct intel_guc *guc)
 			}
 		}
 
-		rb_erase_cached(&p->node, &sched_engine->queue);
+		rb_erase_cached(&p->analde, &sched_engine->queue);
 		i915_priolist_free(p);
 	}
 
@@ -1018,12 +1018,12 @@ add_request:
 	}
 
 	guc->stalled_request = NULL;
-	guc->submission_stall_reason = STALL_NONE;
+	guc->submission_stall_reason = STALL_ANALNE;
 	return submit;
 
 deadlk:
 	sched_engine->tasklet.callback = NULL;
-	tasklet_disable_nosync(&sched_engine->tasklet);
+	tasklet_disable_analsync(&sched_engine->tasklet);
 	return false;
 
 schedule_tasklet:
@@ -1115,7 +1115,7 @@ static void scrub_guc_desc_for_outstanding_g2h(struct intel_guc *guc)
 				intel_context_put(ce);
 		}
 
-		/* Not mutualy exclusive with above if statement. */
+		/* Analt mutualy exclusive with above if statement. */
 		if (pending_disable) {
 			guc_signal_context_fence(ce);
 			if (banned) {
@@ -1146,15 +1146,15 @@ static void scrub_guc_desc_for_outstanding_g2h(struct intel_guc *guc)
  * GuC.
  *
  * __i915_pmu_event_read samples engine busyness. When sampling, if context id
- * is valid (!= ~0) and start is non-zero, the engine is considered to be
- * active. For an active engine total busyness = total + (now - start), where
- * 'now' is the time at which the busyness is sampled. For inactive engine,
+ * is valid (!= ~0) and start is analn-zero, the engine is considered to be
+ * active. For an active engine total busyness = total + (analw - start), where
+ * 'analw' is the time at which the busyness is sampled. For inactive engine,
  * total busyness = total.
  *
  * All times are captured from GUCPMTIMESTAMP reg and are in gt clock domain.
  *
  * The start and total values provided by GuC are 32 bits and wrap around in a
- * few minutes. Since perf pmu provides busyness as 64 bit monotonically
+ * few minutes. Since perf pmu provides busyness as 64 bit moanaltonically
  * increasing ns values, there is a need for this implementation to account for
  * overflows and extend the GuC provided values to 64 bits before returning
  * busyness to the user. In order to do that, a worker runs periodically at
@@ -1180,8 +1180,8 @@ __extend_last_switch(struct intel_guc *guc, u64 *prev_start, u32 new_start)
 	 * is unparked, all switched in contexts will have a start time that is
 	 * within +/- POLL_TIME_CLKS of the most recent gt_stamp.
 	 *
-	 * If neither gt_stamp nor new_start has rolled over, then the
-	 * gt_stamp_hi does not need to be adjusted, however if one of them has
+	 * If neither gt_stamp analr new_start has rolled over, then the
+	 * gt_stamp_hi does analt need to be adjusted, however if one of them has
 	 * rolled over, we need to adjust gt_stamp_hi accordingly.
 	 *
 	 * The below conditions address the cases of new_start rollover and
@@ -1202,11 +1202,11 @@ __extend_last_switch(struct intel_guc *guc, u64 *prev_start, u32 new_start)
 	iosys_map_rd_field(map_, 0, struct guc_engine_usage_record, field_)
 
 /*
- * GuC updates shared memory and KMD reads it. Since this is not synchronized,
+ * GuC updates shared memory and KMD reads it. Since this is analt synchronized,
  * we run into a race where the value read is inconsistent. Sometimes the
  * inconsistency is in reading the upper MSB bytes of the last_in value when
  * this race occurs. 2 types of cases are seen - upper 8 bits are zero and upper
- * 24 bits are zero. Since these are non-zero values, it is non-trivial to
+ * 24 bits are zero. Since these are analn-zero values, it is analn-trivial to
  * determine validity of these values. Instead we read the values multiple times
  * until they are consistent. In test runs, 3 attempts results in consistent
  * values. The upper bound is set to 6 attempts and may need to be tuned as per
@@ -1268,7 +1268,7 @@ static u32 gpm_timestamp_shift(struct intel_gt *gt)
 	return 3 - shift;
 }
 
-static void guc_update_pm_timestamp(struct intel_guc *guc, ktime_t *now)
+static void guc_update_pm_timestamp(struct intel_guc *guc, ktime_t *analw)
 {
 	struct intel_gt *gt = guc_to_gt(guc);
 	u32 gt_stamp_lo, gt_stamp_hi;
@@ -1280,7 +1280,7 @@ static void guc_update_pm_timestamp(struct intel_guc *guc, ktime_t *now)
 	gpm_ts = intel_uncore_read64_2x32(gt->uncore, MISC_STATUS0,
 					  MISC_STATUS1) >> guc->timestamp.shift;
 	gt_stamp_lo = lower_32_bits(gpm_ts);
-	*now = ktime_get();
+	*analw = ktime_get();
 
 	if (gt_stamp_lo < lower_32_bits(guc->timestamp.gt_stamp))
 		gt_stamp_hi++;
@@ -1290,10 +1290,10 @@ static void guc_update_pm_timestamp(struct intel_guc *guc, ktime_t *now)
 
 /*
  * Unlike the execlist mode of submission total and active times are in terms of
- * gt clocks. The *now parameter is retained to return the cpu time at which the
+ * gt clocks. The *analw parameter is retained to return the cpu time at which the
  * busyness was sampled.
  */
-static ktime_t guc_engine_busyness(struct intel_engine_cs *engine, ktime_t *now)
+static ktime_t guc_engine_busyness(struct intel_engine_cs *engine, ktime_t *analw)
 {
 	struct intel_engine_guc_stats stats_saved, *stats = &engine->stats.guc;
 	struct i915_gpu_error *gpu_error = &engine->i915->gpu_error;
@@ -1311,14 +1311,14 @@ static ktime_t guc_engine_busyness(struct intel_engine_cs *engine, ktime_t *now)
 	 * If a reset happened, we risk reading partially updated engine
 	 * busyness from GuC, so we just use the driver stored copy of busyness.
 	 * Synchronize with gt reset using reset_count and the
-	 * I915_RESET_BACKOFF flag. Note that reset flow updates the reset_count
+	 * I915_RESET_BACKOFF flag. Analte that reset flow updates the reset_count
 	 * after I915_RESET_BACKOFF flag, so ensure that the reset_count is
 	 * usable by checking the flag afterwards.
 	 */
 	reset_count = i915_reset_count(gpu_error);
 	in_reset = test_bit(I915_RESET_BACKOFF, &gt->reset.flags);
 
-	*now = ktime_get();
+	*analw = ktime_get();
 
 	/*
 	 * The active busyness depends on start_gt_clk and gt_stamp.
@@ -1335,7 +1335,7 @@ static ktime_t guc_engine_busyness(struct intel_engine_cs *engine, ktime_t *now)
 		 * start_gt_clk' calculation below for active engines.
 		 */
 		guc_update_engine_gt_clks(engine);
-		guc_update_pm_timestamp(guc, now);
+		guc_update_pm_timestamp(guc, analw);
 		intel_gt_pm_put_async(gt, wakeref);
 		if (i915_reset_count(gpu_error) != reset_count) {
 			*stats = stats_saved;
@@ -1438,35 +1438,35 @@ static void guc_timestamp_ping(struct work_struct *wrk)
 	/*
 	 * Ideally the busyness worker should take a gt pm wakeref because the
 	 * worker only needs to be active while gt is awake. However, the
-	 * gt_park path cancels the worker synchronously and this complicates
+	 * gt_park path cancels the worker synchroanalusly and this complicates
 	 * the flow if the worker is also running at the same time. The cancel
 	 * waits for the worker and when the worker releases the wakeref, that
 	 * would call gt_park and would lead to a deadlock.
 	 *
 	 * The resolution is to take the global pm wakeref if runtime pm is
-	 * already active. If not, we don't need to update the busyness stats as
+	 * already active. If analt, we don't need to update the busyness stats as
 	 * the stats would already be updated when the gt was parked.
 	 *
-	 * Note:
-	 * - We do not requeue the worker if we cannot take a reference to runtime
+	 * Analte:
+	 * - We do analt requeue the worker if we cananalt take a reference to runtime
 	 *   pm since intel_guc_busyness_unpark would requeue the worker in the
 	 *   resume path.
 	 *
 	 * - If the gt was parked longer than time taken for GT timestamp to roll
-	 *   over, we ignore those rollovers since we don't care about tracking
+	 *   over, we iganalre those rollovers since we don't care about tracking
 	 *   the exact GT time. We only care about roll overs when the gt is
 	 *   active and running workloads.
 	 *
 	 * - There is a window of time between gt_park and runtime suspend,
 	 *   where the worker may run. This is acceptable since the worker will
-	 *   not find any new data to update busyness.
+	 *   analt find any new data to update busyness.
 	 */
 	wakeref = intel_runtime_pm_get_if_active(&gt->i915->runtime_pm);
 	if (!wakeref)
 		return;
 
 	/*
-	 * Synchronize with gt reset to make sure the worker does not
+	 * Synchronize with gt reset to make sure the worker does analt
 	 * corrupt the engine/guc stats. NB: can't actually block waiting
 	 * for a reset to complete as the reset requires flushing out
 	 * this worker thread if started. So waiting would deadlock.
@@ -1533,7 +1533,7 @@ void intel_guc_busyness_park(struct intel_gt *gt)
 	/*
 	 * There is a race with suspend flow where the worker runs after suspend
 	 * and causes an unclaimed register access warning. Cancel the worker
-	 * synchronously here.
+	 * synchroanalusly here.
 	 */
 	guc_cancel_busyness_worker(guc);
 
@@ -1618,7 +1618,7 @@ static void guc_flush_destroyed_contexts(struct intel_guc *guc);
 void intel_guc_submission_reset_prepare(struct intel_guc *guc)
 {
 	if (unlikely(!guc_submission_initialized(guc))) {
-		/* Reset called during driver load? GuC not yet initialised! */
+		/* Reset called during driver load? GuC analt yet initialised! */
 		return;
 	}
 
@@ -1674,7 +1674,7 @@ static void guc_reset_state(struct intel_context *ce, u32 head, bool scrub)
 
 	/*
 	 * We want a simple context + ring to execute the breadcrumb update.
-	 * We cannot rely on the context being intact across the GPU hang,
+	 * We cananalt rely on the context being intact across the GPU hang,
 	 * so clear it and rebuild just what we need for the breadcrumb.
 	 * All pending requests for this context will be zapped, and any
 	 * future request will be after userspace has had the opportunity
@@ -1699,11 +1699,11 @@ static void guc_engine_reset_prepare(struct intel_engine_cs *engine)
 	}
 }
 
-static void guc_reset_nop(struct intel_engine_cs *engine)
+static void guc_reset_analp(struct intel_engine_cs *engine)
 {
 }
 
-static void guc_rewind_nop(struct intel_engine_cs *engine, bool stalled)
+static void guc_rewind_analp(struct intel_engine_cs *engine, bool stalled)
 {
 }
 
@@ -1757,8 +1757,8 @@ static void __guc_reset_context(struct intel_context *ce, intel_engine_mask_t st
 	intel_context_get(ce);
 
 	/*
-	 * GuC will implicitly mark the context as non-schedulable when it sends
-	 * the reset notification. Make sure our state reflects this change. The
+	 * GuC will implicitly mark the context as analn-schedulable when it sends
+	 * the reset analtification. Make sure our state reflects this change. The
 	 * context will be marked enabled on resubmission.
 	 */
 	spin_lock_irqsave(&ce->guc_state.lock, flags);
@@ -1820,7 +1820,7 @@ void intel_guc_submission_reset(struct intel_guc *guc, intel_engine_mask_t stall
 	unsigned long flags;
 
 	if (unlikely(!guc_submission_initialized(guc))) {
-		/* Reset called during driver load? GuC not yet initialised! */
+		/* Reset called during driver load? GuC analt yet initialised! */
 		return;
 	}
 
@@ -1864,7 +1864,7 @@ static void
 guc_cancel_sched_engine_requests(struct i915_sched_engine *sched_engine)
 {
 	struct i915_request *rq, *rn;
-	struct rb_node *rb;
+	struct rb_analde *rb;
 	unsigned long flags;
 
 	/* Can be called during boot if GuC fails to load */
@@ -1877,9 +1877,9 @@ guc_cancel_sched_engine_requests(struct i915_sched_engine *sched_engine)
 	 * caller disabling the interrupt generation, the tasklet and other
 	 * threads that may then access the same state, giving us a free hand
 	 * to reset state. However, we still need to let lockdep be aware that
-	 * we know this state may be accessed in hardirq context, so we
+	 * we kanalw this state may be accessed in hardirq context, so we
 	 * disable the irq around this manipulation and we want to keep
-	 * the spinlock focused on its duties and not accidentally conflate
+	 * the spinlock focused on its duties and analt accidentally conflate
 	 * coverage to the submission's irq state. (Similarly, although we
 	 * shouldn't need to disable irq around the manipulation of the
 	 * submission's irq state, we also wish to remind ourselves that
@@ -1899,11 +1899,11 @@ guc_cancel_sched_engine_requests(struct i915_sched_engine *sched_engine)
 			i915_request_put(i915_request_mark_eio(rq));
 		}
 
-		rb_erase_cached(&p->node, &sched_engine->queue);
+		rb_erase_cached(&p->analde, &sched_engine->queue);
 		i915_priolist_free(p);
 	}
 
-	/* Remaining _unready_ requests will be nop'ed when submitted */
+	/* Remaining _unready_ requests will be analp'ed when submitted */
 
 	sched_engine->queue_priority_hint = INT_MIN;
 	sched_engine->queue = RB_ROOT_CACHED;
@@ -1955,7 +1955,7 @@ void intel_guc_submission_reset_finish(struct intel_guc *guc)
 	}
 
 	/*
-	 * Technically possible for either of these values to be non-zero here,
+	 * Technically possible for either of these values to be analn-zero here,
 	 * but very unlikely + harmless. Regardless let's add a warn so we can
 	 * see in CI if this happens frequently / a precursor to taking down the
 	 * machine.
@@ -1995,13 +1995,13 @@ static int init_tlb_lookup(struct intel_guc *guc)
 
 	wait = kzalloc(sizeof(*wait), GFP_KERNEL);
 	if (!wait)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	init_waitqueue_head(&wait->wq);
 
 	/* Preallocate a shared id for use under memory pressure. */
 	err = xa_alloc_cyclic_irq(&guc->tlb_lookup, &guc->serial_slot, wait,
-				  xa_limit_32b, &guc->next_seqno, GFP_KERNEL);
+				  xa_limit_32b, &guc->next_seqanal, GFP_KERNEL);
 	if (err < 0) {
 		kfree(wait);
 		return err;
@@ -2050,7 +2050,7 @@ int intel_guc_submission_init(struct intel_guc *guc)
 	guc->submission_state.guc_ids_bitmap =
 		bitmap_zalloc(NUMBER_MULTI_LRC_GUC_ID(guc), GFP_KERNEL);
 	if (!guc->submission_state.guc_ids_bitmap) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto destroy_tlb;
 	}
 
@@ -2160,7 +2160,7 @@ static int new_guc_id(struct intel_guc *guc, struct intel_context *ce)
 				     NUMBER_MULTI_LRC_GUC_ID(guc),
 				     guc->submission_state.num_guc_ids,
 				     GFP_KERNEL | __GFP_RETRY_MAYFAIL |
-				     __GFP_NOWARN);
+				     __GFP_ANALWARN);
 	if (unlikely(ret < 0))
 		return ret;
 
@@ -2249,7 +2249,7 @@ static int assign_guc_id(struct intel_guc *guc, struct intel_context *ce)
 	ret = new_guc_id(guc, ce);
 	if (unlikely(ret < 0)) {
 		if (intel_context_is_parent(ce))
-			return -ENOSPC;
+			return -EANALSPC;
 
 		ret = steal_guc_id(guc, ce);
 		if (ret < 0)
@@ -2294,7 +2294,7 @@ out_unlock:
 	spin_unlock_irqrestore(&guc->submission_state.lock, flags);
 
 	/*
-	 * -EAGAIN indicates no guc_id are available, let's retire any
+	 * -EAGAIN indicates anal guc_id are available, let's retire any
 	 * outstanding requests to see if that frees up a guc_id. If the first
 	 * retire didn't help, insert a sleep with the timeslice duration before
 	 * attempting to retire more requests. Double the sleep period each
@@ -2653,15 +2653,15 @@ static u32 map_guc_prio_to_lrc_desc_prio(u8 prio)
 {
 	/*
 	 * this matches the mapping we do in map_i915_prio_to_guc_prio()
-	 * (e.g. prio < I915_PRIORITY_NORMAL maps to GUC_CLIENT_PRIORITY_NORMAL)
+	 * (e.g. prio < I915_PRIORITY_ANALRMAL maps to GUC_CLIENT_PRIORITY_ANALRMAL)
 	 */
 	switch (prio) {
 	default:
 		MISSING_CASE(prio);
 		fallthrough;
-	case GUC_CLIENT_PRIORITY_KMD_NORMAL:
-		return GEN12_CTX_PRIORITY_NORMAL;
-	case GUC_CLIENT_PRIORITY_NORMAL:
+	case GUC_CLIENT_PRIORITY_KMD_ANALRMAL:
+		return GEN12_CTX_PRIORITY_ANALRMAL;
+	case GUC_CLIENT_PRIORITY_ANALRMAL:
 		return GEN12_CTX_PRIORITY_LOW;
 	case GUC_CLIENT_PRIORITY_HIGH:
 	case GUC_CLIENT_PRIORITY_KMD_HIGH:
@@ -2820,7 +2820,7 @@ static int try_context_registration(struct intel_context *ce, bool loop)
 	/*
 	 * The context_lookup xarray is used to determine if the hardware
 	 * context is currently registered. There are two cases in which it
-	 * could be registered either the guc_id has been stolen from another
+	 * could be registered either the guc_id has been stolen from aanalther
 	 * context or the lrc descriptor address of this context has changed. In
 	 * either case the context needs to be deregistered with the GuC before
 	 * registering this context.
@@ -2851,14 +2851,14 @@ static int try_context_registration(struct intel_context *ce, bool loop)
 		 */
 		with_intel_runtime_pm(runtime_pm, wakeref)
 			ret = deregister_context(ce, ce->guc_id.id);
-		if (unlikely(ret == -ENODEV))
+		if (unlikely(ret == -EANALDEV))
 			ret = 0;	/* Will get registered later */
 	} else {
 		with_intel_runtime_pm(runtime_pm, wakeref)
 			ret = register_context(ce, loop);
 		if (unlikely(ret == -EBUSY)) {
 			clr_ctx_id_mapping(guc, ctx_id);
-		} else if (unlikely(ret == -ENODEV)) {
+		} else if (unlikely(ret == -EANALDEV)) {
 			clr_ctx_id_mapping(guc, ctx_id);
 			ret = 0;	/* Will get registered later */
 		}
@@ -2946,7 +2946,7 @@ static void __guc_context_sched_disable(struct intel_guc *guc,
 {
 	u32 action[] = {
 		INTEL_GUC_ACTION_SCHED_CONTEXT_MODE_SET,
-		guc_id,	/* ce->guc_id.id not stable */
+		guc_id,	/* ce->guc_id.id analt stable */
 		GUC_CONTEXT_DISABLE
 	};
 
@@ -3036,7 +3036,7 @@ static struct i915_sw_fence *guc_context_block(struct intel_context *ce)
 
 #define SCHED_STATE_MULTI_BLOCKED_MASK \
 	(SCHED_STATE_BLOCKED_MASK & ~SCHED_STATE_BLOCKED)
-#define SCHED_STATE_NO_UNBLOCK \
+#define SCHED_STATE_ANAL_UNBLOCK \
 	(SCHED_STATE_MULTI_BLOCKED_MASK | \
 	 SCHED_STATE_PENDING_DISABLE | \
 	 SCHED_STATE_BANNED)
@@ -3045,7 +3045,7 @@ static bool context_cant_unblock(struct intel_context *ce)
 {
 	lockdep_assert_held(&ce->guc_state.lock);
 
-	return (ce->guc_state.sched_state & SCHED_STATE_NO_UNBLOCK) ||
+	return (ce->guc_state.sched_state & SCHED_STATE_ANAL_UNBLOCK) ||
 		context_guc_id_invalid(ce) ||
 		!ctx_id_mapped(ce_to_guc(ce), ce->guc_id.id) ||
 		!intel_context_is_pinned(ce);
@@ -3317,8 +3317,8 @@ static void __guc_context_destroy(struct intel_context *ce)
 {
 	GEM_BUG_ON(ce->guc_state.prio_count[GUC_CLIENT_PRIORITY_KMD_HIGH] ||
 		   ce->guc_state.prio_count[GUC_CLIENT_PRIORITY_HIGH] ||
-		   ce->guc_state.prio_count[GUC_CLIENT_PRIORITY_KMD_NORMAL] ||
-		   ce->guc_state.prio_count[GUC_CLIENT_PRIORITY_NORMAL]);
+		   ce->guc_state.prio_count[GUC_CLIENT_PRIORITY_KMD_ANALRMAL] ||
+		   ce->guc_state.prio_count[GUC_CLIENT_PRIORITY_ANALRMAL]);
 
 	lrc_fini(ce);
 	intel_context_fini(ce);
@@ -3402,7 +3402,7 @@ static void guc_context_destroy(struct kref *kref)
 
 	/*
 	 * If the guc_id is invalid this context has been stolen and we can free
-	 * it immediately. Also can be freed immediately if the context is not
+	 * it immediately. Also can be freed immediately if the context is analt
 	 * registered with the GuC or the GuC is in the middle of a reset.
 	 */
 	spin_lock_irqsave(&guc->submission_state.lock, flags);
@@ -3460,7 +3460,7 @@ static void guc_context_set_prio(struct intel_guc *guc,
 				 u8 prio)
 {
 	GEM_BUG_ON(prio < GUC_CLIENT_PRIORITY_KMD_HIGH ||
-		   prio > GUC_CLIENT_PRIORITY_NORMAL);
+		   prio > GUC_CLIENT_PRIORITY_ANALRMAL);
 	lockdep_assert_held(&ce->guc_state.lock);
 
 	if (ce->guc_state.prio == prio || submission_disabled(guc) ||
@@ -3477,10 +3477,10 @@ static void guc_context_set_prio(struct intel_guc *guc,
 
 static inline u8 map_i915_prio_to_guc_prio(int prio)
 {
-	if (prio == I915_PRIORITY_NORMAL)
-		return GUC_CLIENT_PRIORITY_KMD_NORMAL;
-	else if (prio < I915_PRIORITY_NORMAL)
-		return GUC_CLIENT_PRIORITY_NORMAL;
+	if (prio == I915_PRIORITY_ANALRMAL)
+		return GUC_CLIENT_PRIORITY_KMD_ANALRMAL;
+	else if (prio < I915_PRIORITY_ANALRMAL)
+		return GUC_CLIENT_PRIORITY_ANALRMAL;
 	else if (prio < I915_PRIORITY_DISPLAY)
 		return GUC_CLIENT_PRIORITY_HIGH;
 	else
@@ -3517,7 +3517,7 @@ static inline void update_context_prio(struct intel_context *ce)
 	int i;
 
 	BUILD_BUG_ON(GUC_CLIENT_PRIORITY_KMD_HIGH != 0);
-	BUILD_BUG_ON(GUC_CLIENT_PRIORITY_KMD_HIGH > GUC_CLIENT_PRIORITY_NORMAL);
+	BUILD_BUG_ON(GUC_CLIENT_PRIORITY_KMD_HIGH > GUC_CLIENT_PRIORITY_ANALRMAL);
 
 	lockdep_assert_held(&ce->guc_state.lock);
 
@@ -3590,7 +3590,7 @@ static void remove_from_context(struct i915_request *rq)
 	spin_unlock_irq(&ce->guc_state.lock);
 
 	atomic_dec(&ce->guc_id.ref);
-	i915_request_notify_execute_cb_imm(rq);
+	i915_request_analtify_execute_cb_imm(rq);
 }
 
 static const struct intel_context_ops guc_context_ops = {
@@ -3700,18 +3700,18 @@ static int guc_request_alloc(struct i915_request *rq)
 	GEM_BUG_ON(!intel_context_is_pinned(rq->context));
 
 	/*
-	 * Flush enough space to reduce the likelihood of waiting after
+	 * Flush eanalugh space to reduce the likelihood of waiting after
 	 * we start building the request - in which case we will just
 	 * have to repeat work.
 	 */
 	rq->reserved_space += GUC_REQUEST_SIZE;
 
 	/*
-	 * Note that after this point, we have committed to using
+	 * Analte that after this point, we have committed to using
 	 * this request as it is being used to both track the
 	 * state of engine initialisation and liveness of the
 	 * golden renderstate above. Think twice before you try
-	 * to cancel/unwind this request now.
+	 * to cancel/unwind this request analw.
 	 */
 
 	/* Unconditionally invalidate GPU caches and TLBs. */
@@ -3754,7 +3754,7 @@ static int guc_request_alloc(struct i915_request *rq)
 	 * exhausted and return -EAGAIN to the user indicating that they can try
 	 * again in the future.
 	 *
-	 * There is no need for a lock here as the timeline mutex ensures at
+	 * There is anal need for a lock here as the timeline mutex ensures at
 	 * most one context can be executing this code path at once. The
 	 * guc_id_ref is incremented once for every request in flight and
 	 * decremented on each retire. When it is zero, a lock around the
@@ -4016,17 +4016,17 @@ static const struct intel_context_ops virtual_child_context_ops = {
  * parent / children breadcrumbs ensures the i915 holds up its end of the deal
  * creating a window to preempt between each set of BBs.
  */
-static int emit_bb_start_parent_no_preempt_mid_batch(struct i915_request *rq,
+static int emit_bb_start_parent_anal_preempt_mid_batch(struct i915_request *rq,
 						     u64 offset, u32 len,
 						     const unsigned int flags);
-static int emit_bb_start_child_no_preempt_mid_batch(struct i915_request *rq,
+static int emit_bb_start_child_anal_preempt_mid_batch(struct i915_request *rq,
 						    u64 offset, u32 len,
 						    const unsigned int flags);
 static u32 *
-emit_fini_breadcrumb_parent_no_preempt_mid_batch(struct i915_request *rq,
+emit_fini_breadcrumb_parent_anal_preempt_mid_batch(struct i915_request *rq,
 						 u32 *cs);
 static u32 *
-emit_fini_breadcrumb_child_no_preempt_mid_batch(struct i915_request *rq,
+emit_fini_breadcrumb_child_anal_preempt_mid_batch(struct i915_request *rq,
 						u32 *cs);
 
 static struct intel_context *
@@ -4042,7 +4042,7 @@ guc_create_parallel(struct intel_engine_cs **engines,
 				 sizeof(*siblings),
 				 GFP_KERNEL);
 	if (!siblings)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	for (i = 0; i < width; ++i) {
 		for (j = 0; j < num_siblings; ++j)
@@ -4067,16 +4067,16 @@ guc_create_parallel(struct intel_engine_cs **engines,
 	parent->parallel.fence_context = dma_fence_context_alloc(1);
 
 	parent->engine->emit_bb_start =
-		emit_bb_start_parent_no_preempt_mid_batch;
+		emit_bb_start_parent_anal_preempt_mid_batch;
 	parent->engine->emit_fini_breadcrumb =
-		emit_fini_breadcrumb_parent_no_preempt_mid_batch;
+		emit_fini_breadcrumb_parent_anal_preempt_mid_batch;
 	parent->engine->emit_fini_breadcrumb_dw =
 		12 + 4 * parent->parallel.number_children;
 	for_each_child(parent, ce) {
 		ce->engine->emit_bb_start =
-			emit_bb_start_child_no_preempt_mid_batch;
+			emit_bb_start_child_anal_preempt_mid_batch;
 		ce->engine->emit_fini_breadcrumb =
-			emit_fini_breadcrumb_child_no_preempt_mid_batch;
+			emit_fini_breadcrumb_child_anal_preempt_mid_batch;
 		ce->engine->emit_fini_breadcrumb_dw = 16;
 	}
 
@@ -4118,7 +4118,7 @@ static void guc_init_breadcrumbs(struct intel_engine_cs *engine)
 	int i;
 
 	/*
-	 * In GuC submission mode we do not know which physical engine a request
+	 * In GuC submission mode we do analt kanalw which physical engine a request
 	 * will be scheduled on, this creates a problem because the breadcrumb
 	 * interrupt is per physical engine. To work around this we attach
 	 * requests and direct all breadcrumb interrupts to the first instance
@@ -4153,7 +4153,7 @@ static void guc_bump_inflight_request_prio(struct i915_request *rq,
 	u8 new_guc_prio = map_i915_prio_to_guc_prio(prio);
 
 	/* Short circuit function */
-	if (prio < I915_PRIORITY_NORMAL ||
+	if (prio < I915_PRIORITY_ANALRMAL ||
 	    rq->guc_prio == GUC_PRIO_FINI ||
 	    (rq->guc_prio != GUC_PRIO_INIT &&
 	     !new_guc_prio_higher(rq->guc_prio, new_guc_prio)))
@@ -4184,7 +4184,7 @@ static void sanitize_hwsp(struct intel_engine_cs *engine)
 	struct intel_timeline *tl;
 
 	list_for_each_entry(tl, &engine->status_page.timelines, engine_link)
-		intel_timeline_reset_seqno(tl);
+		intel_timeline_reset_seqanal(tl);
 }
 
 static void guc_sanitize(struct intel_engine_cs *engine)
@@ -4266,9 +4266,9 @@ static inline int guc_kernel_context_pin(struct intel_guc *guc,
 	int ret;
 
 	/*
-	 * Note: we purposefully do not check the returns below because
+	 * Analte: we purposefully do analt check the returns below because
 	 * the registration can only fail if a reset is just starting.
-	 * This is called at the end of reset so presumably another reset
+	 * This is called at the end of reset so presumably aanalther reset
 	 * isn't happening and even it did this code would be run again.
 	 */
 
@@ -4303,14 +4303,14 @@ static inline int guc_init_submission(struct intel_guc *guc)
 	 * so make sure we clean that up.
 	 */
 	guc->stalled_request = NULL;
-	guc->submission_stall_reason = STALL_NONE;
+	guc->submission_stall_reason = STALL_ANALNE;
 
 	/*
 	 * Some contexts might have been pinned before we enabled GuC
 	 * submission, so we need to add them to the GuC bookeeping.
 	 * Also, after a reset the of the GuC we want to make sure that the
 	 * information shared with GuC is properly reset. The kernel LRCs are
-	 * not attached to the gem_context, so they need to be added separately.
+	 * analt attached to the gem_context, so they need to be added separately.
 	 */
 	for_each_engine(engine, gt, id) {
 		struct intel_context *ce;
@@ -4320,7 +4320,7 @@ static inline int guc_init_submission(struct intel_guc *guc)
 			int ret = guc_kernel_context_pin(guc, ce);
 
 			if (ret) {
-				/* No point in trying to clean up as i915 will wedge on failure */
+				/* Anal point in trying to clean up as i915 will wedge on failure */
 				return ret;
 			}
 		}
@@ -4331,7 +4331,7 @@ static inline int guc_init_submission(struct intel_guc *guc)
 
 static void guc_release(struct intel_engine_cs *engine)
 {
-	engine->sanitize = NULL; /* no longer in control, nothing to sanitize */
+	engine->sanitize = NULL; /* anal longer in control, analthing to sanitize */
 
 	intel_engine_cleanup_common(engine);
 	lrc_fini_wa_ctx(engine);
@@ -4360,9 +4360,9 @@ static void guc_default_vfuncs(struct intel_engine_cs *engine)
 	engine->sched_engine->schedule = i915_schedule;
 
 	engine->reset.prepare = guc_engine_reset_prepare;
-	engine->reset.rewind = guc_rewind_nop;
-	engine->reset.cancel = guc_reset_nop;
-	engine->reset.finish = guc_reset_nop;
+	engine->reset.rewind = guc_rewind_analp;
+	engine->reset.cancel = guc_reset_analp;
+	engine->reset.finish = guc_reset_analp;
 
 	engine->emit_flush = gen8_emit_flush_xcs;
 	engine->emit_init_breadcrumb = gen8_emit_init_breadcrumb;
@@ -4386,7 +4386,7 @@ static void guc_default_vfuncs(struct intel_engine_cs *engine)
 
 	/*
 	 * TODO: GuC supports timeslicing and semaphores as well, but they're
-	 * handled by the firmware so some minor tweaks are required before
+	 * handled by the firmware so some mianalr tweaks are required before
 	 * enabling.
 	 *
 	 * engine->flags |= I915_ENGINE_HAS_SEMAPHORES;
@@ -4446,7 +4446,7 @@ int intel_guc_submission_setup(struct intel_engine_cs *engine)
 	if (!guc->sched_engine) {
 		guc->sched_engine = i915_sched_engine_create(ENGINE_VIRTUAL);
 		if (!guc->sched_engine)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		guc->sched_engine->schedule = i915_schedule;
 		guc->sched_engine->disabled = guc_sched_engine_disabled;
@@ -4613,7 +4613,7 @@ fail_sem:
 	return ret;
 }
 
-/* Note: By the time we're here, GuC may have already been reset */
+/* Analte: By the time we're here, GuC may have already been reset */
 void intel_guc_submission_disable(struct intel_guc *guc)
 {
 	guc_cancel_busyness_worker(guc);
@@ -4648,7 +4648,7 @@ int intel_guc_sched_disable_gucid_threshold_max(struct intel_guc *guc)
  * This default value of 33 milisecs (+1 milisec round up) ensures 30fps or higher
  * workloads are able to enjoy the latency reduction when delaying the schedule-disable
  * operation. This matches the 30fps game-render + encode (real world) workload this
- * knob was tested against.
+ * kanalb was tested against.
  */
 #define SCHED_DISABLE_DELAY_MS	34
 
@@ -4707,19 +4707,19 @@ g2h_context_lookup(struct intel_guc *guc, u32 ctx_id)
 	return ce;
 }
 
-static void wait_wake_outstanding_tlb_g2h(struct intel_guc *guc, u32 seqno)
+static void wait_wake_outstanding_tlb_g2h(struct intel_guc *guc, u32 seqanal)
 {
 	struct intel_guc_tlb_wait *wait;
 	unsigned long flags;
 
 	xa_lock_irqsave(&guc->tlb_lookup, flags);
-	wait = xa_load(&guc->tlb_lookup, seqno);
+	wait = xa_load(&guc->tlb_lookup, seqanal);
 
 	if (wait)
 		wake_up(&wait->wq);
 	else
 		guc_dbg(guc,
-			"Stale TLB invalidation response with seqno %d\n", seqno);
+			"Stale TLB invalidation response with seqanal %d\n", seqanal);
 
 	xa_unlock_irqrestore(&guc->tlb_lookup, flags);
 }
@@ -4738,7 +4738,7 @@ static long must_wait_woken(struct wait_queue_entry *wq_entry, long timeout)
 {
 	/*
 	 * This is equivalent to wait_woken() with the exception that
-	 * we do not wake up early if the kthread task has been completed.
+	 * we do analt wake up early if the kthread task has been completed.
 	 * As we are called from page reclaim in any task context,
 	 * we may be invoked from stopped kthreads, but we *must*
 	 * complete the wait from the HW.
@@ -4773,7 +4773,7 @@ static int guc_send_invalidate_tlb(struct intel_guc *guc,
 	struct intel_gt *gt = guc_to_gt(guc);
 	DEFINE_WAIT_FUNC(wait, woken_wake_function);
 	int err;
-	u32 seqno;
+	u32 seqanal;
 	u32 action[] = {
 		INTEL_GUC_ACTION_TLB_INVALIDATION,
 		0,
@@ -4785,7 +4785,7 @@ static int guc_send_invalidate_tlb(struct intel_guc *guc,
 	u32 size = ARRAY_SIZE(action);
 
 	/*
-	 * Early guard against GT enablement.  TLB invalidation should not be
+	 * Early guard against GT enablement.  TLB invalidation should analt be
 	 * attempted if the GT is disabled due to suspend/wedge.
 	 */
 	if (!intel_gt_is_enabled(gt))
@@ -4793,9 +4793,9 @@ static int guc_send_invalidate_tlb(struct intel_guc *guc,
 
 	init_waitqueue_head(&_wq.wq);
 
-	if (xa_alloc_cyclic_irq(&guc->tlb_lookup, &seqno, wq,
-				xa_limit_32b, &guc->next_seqno,
-				GFP_ATOMIC | __GFP_NOWARN) < 0) {
+	if (xa_alloc_cyclic_irq(&guc->tlb_lookup, &seqanal, wq,
+				xa_limit_32b, &guc->next_seqanal,
+				GFP_ATOMIC | __GFP_ANALWARN) < 0) {
 		/* Under severe memory pressure? Serialise TLB allocations */
 		xa_lock_irq(&guc->tlb_lookup);
 		wq = xa_load(&guc->tlb_lookup, guc->serial_slot);
@@ -4811,10 +4811,10 @@ static int guc_send_invalidate_tlb(struct intel_guc *guc,
 		wq->busy = true;
 		xa_unlock_irq(&guc->tlb_lookup);
 
-		seqno = guc->serial_slot;
+		seqanal = guc->serial_slot;
 	}
 
-	action[1] = seqno;
+	action[1] = seqanal;
 
 	add_wait_queue(&wq->wq, &wait);
 
@@ -4824,7 +4824,7 @@ static int guc_send_invalidate_tlb(struct intel_guc *guc,
 		goto out;
 
 	/*
-	 * Late guard against GT enablement.  It is not an error for the TLB
+	 * Late guard against GT enablement.  It is analt an error for the TLB
 	 * invalidation to time out if the GT is disabled during the process
 	 * due to suspend/wedge.  In fact, the TLB invalidation is cancelled
 	 * in this case.
@@ -4832,13 +4832,13 @@ static int guc_send_invalidate_tlb(struct intel_guc *guc,
 	if (!must_wait_woken(&wait, intel_guc_ct_max_queue_time_jiffies()) &&
 	    intel_gt_is_enabled(gt)) {
 		guc_err(guc,
-			"TLB invalidation response timed out for seqno %u\n", seqno);
+			"TLB invalidation response timed out for seqanal %u\n", seqanal);
 		err = -ETIME;
 	}
 out:
 	remove_wait_queue(&wq->wq, &wait);
-	if (seqno != guc->serial_slot)
-		xa_erase_irq(&guc->tlb_lookup, seqno);
+	if (seqanal != guc->serial_slot)
+		xa_erase_irq(&guc->tlb_lookup, seqanal);
 
 	return err;
 }
@@ -4887,7 +4887,7 @@ int intel_guc_deregister_done_process_msg(struct intel_guc *guc,
 		intel_wakeref_t wakeref;
 
 		/*
-		 * Previous owner of this guc_id has been deregistered, now safe
+		 * Previous owner of this guc_id has been deregistered, analw safe
 		 * register this context.
 		 */
 		with_intel_runtime_pm(runtime_pm, wakeref)
@@ -5009,7 +5009,7 @@ static void capture_error_state(struct intel_guc *guc,
 		}
 
 		if (!engine_mask) {
-			guc_warn(guc, "No matching physical engine capture for virtual engine context 0x%04X / %s",
+			guc_warn(guc, "Anal matching physical engine capture for virtual engine context 0x%04X / %s",
 				 ce->guc_id.id, ce->engine->name);
 			engine_mask = ~0U;
 		}
@@ -5038,11 +5038,11 @@ static void guc_handle_context_reset(struct intel_guc *guc,
 
 	trace_intel_context_reset(ce);
 
-	guc_dbg(guc, "%s context reset notification: 0x%04X on %s, exiting = %s, banned = %s\n",
-		capture ? "Got" : "Ignoring",
+	guc_dbg(guc, "%s context reset analtification: 0x%04X on %s, exiting = %s, banned = %s\n",
+		capture ? "Got" : "Iganalring",
 		ce->guc_id.id, ce->engine->name,
-		str_yes_no(intel_context_is_exiting(ce)),
-		str_yes_no(intel_context_is_banned(ce)));
+		str_anal_anal(intel_context_is_exiting(ce)),
+		str_anal_anal(intel_context_is_banned(ce)));
 
 	if (capture) {
 		capture_error_state(guc, ce);
@@ -5066,9 +5066,9 @@ int intel_guc_context_reset_process_msg(struct intel_guc *guc,
 
 	/*
 	 * The context lookup uses the xarray but lookups only require an RCU lock
-	 * not the full spinlock. So take the lock explicitly and keep it until the
+	 * analt the full spinlock. So take the lock explicitly and keep it until the
 	 * context has been reference count locked to ensure it can't be destroyed
-	 * asynchronously until the reset is done.
+	 * asynchroanalusly until the reset is done.
 	 */
 	xa_lock_irqsave(&guc->context_lookup, flags);
 	ce = g2h_context_lookup(guc, ctx_id);
@@ -5096,8 +5096,8 @@ int intel_guc_error_capture_process_msg(struct intel_guc *guc,
 	}
 
 	status = msg[0] & INTEL_GUC_STATE_CAPTURE_EVENT_STATUS_MASK;
-	if (status == INTEL_GUC_STATE_CAPTURE_EVENT_STATUS_NOSPACE)
-		guc_warn(guc, "No space for error capture");
+	if (status == INTEL_GUC_STATE_CAPTURE_EVENT_STATUS_ANALSPACE)
+		guc_warn(guc, "Anal space for error capture");
 
 	intel_guc_capture_process(guc);
 
@@ -5135,9 +5135,9 @@ static void reset_fail_worker_func(struct work_struct *w)
 
 		/*
 		 * GuC is toast at this point - it dead loops after sending the failed
-		 * reset notification. So need to manually determine the guilty context.
-		 * Note that it should be reliable to do this here because the GuC is
-		 * toast and will not be scheduling behind the KMD's back.
+		 * reset analtification. So need to manually determine the guilty context.
+		 * Analte that it should be reliable to do this here because the GuC is
+		 * toast and will analt be scheduling behind the KMD's back.
 		 */
 		for_each_engine_masked(engine, gt, reset_fail_mask, id)
 			intel_guc_find_hung_context(engine);
@@ -5174,7 +5174,7 @@ int intel_guc_engine_failure_process_msg(struct intel_guc *guc,
 
 	/*
 	 * This is an unexpected failure of a hardware feature. So, log a real
-	 * error message not just the informational that comes with the reset.
+	 * error message analt just the informational that comes with the reset.
 	 */
 	guc_err(guc, "Engine reset failed on %d:%d (%s) because 0x%08X",
 		guc_class, instance, engine->name, reason);
@@ -5185,7 +5185,7 @@ int intel_guc_engine_failure_process_msg(struct intel_guc *guc,
 
 	/*
 	 * A GT reset flushes this worker queue (G2H handler) so we must use
-	 * another worker to trigger a GT reset.
+	 * aanalther worker to trigger a GT reset.
 	 */
 	queue_work(system_unbound_wq, &guc->submission_state.reset_fail_worker);
 
@@ -5200,7 +5200,7 @@ void intel_guc_find_hung_context(struct intel_engine_cs *engine)
 	unsigned long index;
 	unsigned long flags;
 
-	/* Reset called during driver load? GuC not yet initialised! */
+	/* Reset called during driver load? GuC analt yet initialised! */
 	if (unlikely(!guc_submission_initialized(guc)))
 		return;
 
@@ -5261,7 +5261,7 @@ void intel_guc_dump_active_requests(struct intel_engine_cs *engine,
 	unsigned long index;
 	unsigned long flags;
 
-	/* Reset called during driver load? GuC not yet initialised! */
+	/* Reset called during driver load? GuC analt yet initialised! */
 	if (unlikely(!guc_submission_initialized(guc)))
 		return;
 
@@ -5299,14 +5299,14 @@ void intel_guc_submission_print_info(struct intel_guc *guc,
 				     struct drm_printer *p)
 {
 	struct i915_sched_engine *sched_engine = guc->sched_engine;
-	struct rb_node *rb;
+	struct rb_analde *rb;
 	unsigned long flags;
 
 	if (!sched_engine)
 		return;
 
 	drm_printf(p, "GuC Submission API Version: %d.%d.%d\n",
-		   guc->submission_version.major, guc->submission_version.minor,
+		   guc->submission_version.major, guc->submission_version.mianalr,
 		   guc->submission_version.patch);
 	drm_printf(p, "GuC Number Outstanding Submission G2H: %u\n",
 		   atomic_read(&guc->outstanding_submission_g2h));
@@ -5320,9 +5320,9 @@ void intel_guc_submission_print_info(struct intel_guc *guc,
 		struct i915_request *rq;
 
 		priolist_for_each_request(rq, pl)
-			drm_printf(p, "guc_id=%u, seqno=%llu\n",
+			drm_printf(p, "guc_id=%u, seqanal=%llu\n",
 				   rq->context->guc_id.id,
-				   rq->fence.seqno);
+				   rq->fence.seqanal);
 	}
 	spin_unlock_irqrestore(&sched_engine->lock, flags);
 	drm_printf(p, "\n");
@@ -5392,7 +5392,7 @@ void intel_guc_submission_print_context_info(struct intel_guc *guc,
 			}
 
 			if (ce->engine->emit_bb_start ==
-			    emit_bb_start_parent_no_preempt_mid_batch) {
+			    emit_bb_start_parent_anal_preempt_mid_batch) {
 				u8 i;
 
 				drm_printf(p, "\t\tChildren Go: %u\n",
@@ -5432,7 +5432,7 @@ static inline u32 get_children_join_addr(struct intel_context *ce,
 #define PARENT_GO_FINI_BREADCRUMB	0
 #define CHILD_GO_BB			1
 #define CHILD_GO_FINI_BREADCRUMB	0
-static int emit_bb_start_parent_no_preempt_mid_batch(struct i915_request *rq,
+static int emit_bb_start_parent_anal_preempt_mid_batch(struct i915_request *rq,
 						     u64 offset, u32 len,
 						     const unsigned int flags)
 {
@@ -5459,7 +5459,7 @@ static int emit_bb_start_parent_no_preempt_mid_batch(struct i915_request *rq,
 
 	/* Turn off preemption */
 	*cs++ = MI_ARB_ON_OFF | MI_ARB_DISABLE;
-	*cs++ = MI_NOOP;
+	*cs++ = MI_ANALOP;
 
 	/* Tell children go */
 	cs = gen8_emit_ggtt_write(cs,
@@ -5472,14 +5472,14 @@ static int emit_bb_start_parent_no_preempt_mid_batch(struct i915_request *rq,
 		(flags & I915_DISPATCH_SECURE ? 0 : BIT(8));
 	*cs++ = lower_32_bits(offset);
 	*cs++ = upper_32_bits(offset);
-	*cs++ = MI_NOOP;
+	*cs++ = MI_ANALOP;
 
 	intel_ring_advance(rq, cs);
 
 	return 0;
 }
 
-static int emit_bb_start_child_no_preempt_mid_batch(struct i915_request *rq,
+static int emit_bb_start_child_anal_preempt_mid_batch(struct i915_request *rq,
 						    u64 offset, u32 len,
 						    const unsigned int flags)
 {
@@ -5524,7 +5524,7 @@ static int emit_bb_start_child_no_preempt_mid_batch(struct i915_request *rq,
 }
 
 static u32 *
-__emit_fini_breadcrumb_parent_no_preempt_mid_batch(struct i915_request *rq,
+__emit_fini_breadcrumb_parent_anal_preempt_mid_batch(struct i915_request *rq,
 						   u32 *cs)
 {
 	struct intel_context *ce = rq->context;
@@ -5545,7 +5545,7 @@ __emit_fini_breadcrumb_parent_no_preempt_mid_batch(struct i915_request *rq,
 
 	/* Turn on preemption */
 	*cs++ = MI_ARB_ON_OFF | MI_ARB_ENABLE;
-	*cs++ = MI_NOOP;
+	*cs++ = MI_ANALOP;
 
 	/* Tell children go */
 	cs = gen8_emit_ggtt_write(cs,
@@ -5560,11 +5560,11 @@ __emit_fini_breadcrumb_parent_no_preempt_mid_batch(struct i915_request *rq,
  * If this true, a submission of multi-lrc requests had an error and the
  * requests need to be skipped. The front end (execuf IOCTL) should've called
  * i915_request_skip which squashes the BB but we still need to emit the fini
- * breadrcrumbs seqno write. At this point we don't know how many of the
+ * breadrcrumbs seqanal write. At this point we don't kanalw how many of the
  * requests in the multi-lrc submission were generated so we can't do the
  * handshake between the parent and children (e.g. if 4 requests should be
  * generated but 2nd hit an error only 1 would be seen by the GuC backend).
- * Simply skip the handshake, but still emit the breadcrumbd seqno, if an error
+ * Simply skip the handshake, but still emit the breadcrumbd seqanal, if an error
  * has occurred on any of the requests in submission / relationship.
  */
 static inline bool skip_handshake(struct i915_request *rq)
@@ -5572,9 +5572,9 @@ static inline bool skip_handshake(struct i915_request *rq)
 	return test_bit(I915_FENCE_FLAG_SKIP_PARALLEL, &rq->fence.flags);
 }
 
-#define NON_SKIP_LEN	6
+#define ANALN_SKIP_LEN	6
 static u32 *
-emit_fini_breadcrumb_parent_no_preempt_mid_batch(struct i915_request *rq,
+emit_fini_breadcrumb_parent_anal_preempt_mid_batch(struct i915_request *rq,
 						 u32 *cs)
 {
 	struct intel_context *ce = rq->context;
@@ -5585,29 +5585,29 @@ emit_fini_breadcrumb_parent_no_preempt_mid_batch(struct i915_request *rq,
 
 	if (unlikely(skip_handshake(rq))) {
 		/*
-		 * NOP everything in __emit_fini_breadcrumb_parent_no_preempt_mid_batch,
-		 * the NON_SKIP_LEN comes from the length of the emits below.
+		 * ANALP everything in __emit_fini_breadcrumb_parent_anal_preempt_mid_batch,
+		 * the ANALN_SKIP_LEN comes from the length of the emits below.
 		 */
 		memset(cs, 0, sizeof(u32) *
-		       (ce->engine->emit_fini_breadcrumb_dw - NON_SKIP_LEN));
-		cs += ce->engine->emit_fini_breadcrumb_dw - NON_SKIP_LEN;
+		       (ce->engine->emit_fini_breadcrumb_dw - ANALN_SKIP_LEN));
+		cs += ce->engine->emit_fini_breadcrumb_dw - ANALN_SKIP_LEN;
 	} else {
-		cs = __emit_fini_breadcrumb_parent_no_preempt_mid_batch(rq, cs);
+		cs = __emit_fini_breadcrumb_parent_anal_preempt_mid_batch(rq, cs);
 	}
 
 	/* Emit fini breadcrumb */
 	before_fini_breadcrumb_user_interrupt_cs = cs;
 	cs = gen8_emit_ggtt_write(cs,
-				  rq->fence.seqno,
+				  rq->fence.seqanal,
 				  i915_request_active_timeline(rq)->hwsp_offset,
 				  0);
 
 	/* User interrupt */
 	*cs++ = MI_USER_INTERRUPT;
-	*cs++ = MI_NOOP;
+	*cs++ = MI_ANALOP;
 
 	/* Ensure our math for skip + emit is correct */
-	GEM_BUG_ON(before_fini_breadcrumb_user_interrupt_cs + NON_SKIP_LEN !=
+	GEM_BUG_ON(before_fini_breadcrumb_user_interrupt_cs + ANALN_SKIP_LEN !=
 		   cs);
 	GEM_BUG_ON(start_fini_breadcrumb_cs +
 		   ce->engine->emit_fini_breadcrumb_dw != cs);
@@ -5618,7 +5618,7 @@ emit_fini_breadcrumb_parent_no_preempt_mid_batch(struct i915_request *rq,
 }
 
 static u32 *
-__emit_fini_breadcrumb_child_no_preempt_mid_batch(struct i915_request *rq,
+__emit_fini_breadcrumb_child_anal_preempt_mid_batch(struct i915_request *rq,
 						  u32 *cs)
 {
 	struct intel_context *ce = rq->context;
@@ -5628,7 +5628,7 @@ __emit_fini_breadcrumb_child_no_preempt_mid_batch(struct i915_request *rq,
 
 	/* Turn on preemption */
 	*cs++ = MI_ARB_ON_OFF | MI_ARB_ENABLE;
-	*cs++ = MI_NOOP;
+	*cs++ = MI_ANALOP;
 
 	/* Signal parent */
 	cs = gen8_emit_ggtt_write(cs,
@@ -5650,7 +5650,7 @@ __emit_fini_breadcrumb_child_no_preempt_mid_batch(struct i915_request *rq,
 }
 
 static u32 *
-emit_fini_breadcrumb_child_no_preempt_mid_batch(struct i915_request *rq,
+emit_fini_breadcrumb_child_anal_preempt_mid_batch(struct i915_request *rq,
 						u32 *cs)
 {
 	struct intel_context *ce = rq->context;
@@ -5661,29 +5661,29 @@ emit_fini_breadcrumb_child_no_preempt_mid_batch(struct i915_request *rq,
 
 	if (unlikely(skip_handshake(rq))) {
 		/*
-		 * NOP everything in __emit_fini_breadcrumb_child_no_preempt_mid_batch,
-		 * the NON_SKIP_LEN comes from the length of the emits below.
+		 * ANALP everything in __emit_fini_breadcrumb_child_anal_preempt_mid_batch,
+		 * the ANALN_SKIP_LEN comes from the length of the emits below.
 		 */
 		memset(cs, 0, sizeof(u32) *
-		       (ce->engine->emit_fini_breadcrumb_dw - NON_SKIP_LEN));
-		cs += ce->engine->emit_fini_breadcrumb_dw - NON_SKIP_LEN;
+		       (ce->engine->emit_fini_breadcrumb_dw - ANALN_SKIP_LEN));
+		cs += ce->engine->emit_fini_breadcrumb_dw - ANALN_SKIP_LEN;
 	} else {
-		cs = __emit_fini_breadcrumb_child_no_preempt_mid_batch(rq, cs);
+		cs = __emit_fini_breadcrumb_child_anal_preempt_mid_batch(rq, cs);
 	}
 
 	/* Emit fini breadcrumb */
 	before_fini_breadcrumb_user_interrupt_cs = cs;
 	cs = gen8_emit_ggtt_write(cs,
-				  rq->fence.seqno,
+				  rq->fence.seqanal,
 				  i915_request_active_timeline(rq)->hwsp_offset,
 				  0);
 
 	/* User interrupt */
 	*cs++ = MI_USER_INTERRUPT;
-	*cs++ = MI_NOOP;
+	*cs++ = MI_ANALOP;
 
 	/* Ensure our math for skip + emit is correct */
-	GEM_BUG_ON(before_fini_breadcrumb_user_interrupt_cs + NON_SKIP_LEN !=
+	GEM_BUG_ON(before_fini_breadcrumb_user_interrupt_cs + ANALN_SKIP_LEN !=
 		   cs);
 	GEM_BUG_ON(start_fini_breadcrumb_cs +
 		   ce->engine->emit_fini_breadcrumb_dw != cs);
@@ -5693,7 +5693,7 @@ emit_fini_breadcrumb_child_no_preempt_mid_batch(struct i915_request *rq,
 	return cs;
 }
 
-#undef NON_SKIP_LEN
+#undef ANALN_SKIP_LEN
 
 static struct intel_context *
 guc_create_virtual(struct intel_engine_cs **siblings, unsigned int count,
@@ -5706,7 +5706,7 @@ guc_create_virtual(struct intel_engine_cs **siblings, unsigned int count,
 
 	ve = kzalloc(sizeof(*ve), GFP_KERNEL);
 	if (!ve)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	guc = &siblings[0]->gt->uc.guc;
 

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  Copyright (c) 1999-2021 Petko Manolov (petkan@nucleusys.com)
+ *  Copyright (c) 1999-2021 Petko Maanallov (petkan@nucleusys.com)
  *
  */
 
@@ -21,7 +21,7 @@
 /*
  * Version Information
  */
-#define DRIVER_AUTHOR "Petko Manolov <petkan@nucleusys.com>"
+#define DRIVER_AUTHOR "Petko Maanallov <petkan@nucleusys.com>"
 #define DRIVER_DESC "Pegasus/Pegasus II USB Ethernet driver"
 
 static const char driver_name[] = "pegasus";
@@ -53,7 +53,7 @@ static struct usb_device_id pegasus_ids[] = {
 /*
  * The Belkin F8T012xx1 bluetooth adaptor has the same vendor and product
  * IDs as the Belkin F5D5050, so we need to teach the pegasus driver to
- * ignore adaptors belonging to the "Wireless" class 0xE0. For this one
+ * iganalre adaptors belonging to the "Wireless" class 0xE0. For this one
  * case anyway, seeing as the pegasus is for "Wired" adaptors.
  */
 #define PEGASUS_DEV_CLASS(pn, vid, pid, dclass, flags) \
@@ -101,7 +101,7 @@ static int get_registers(pegasus_t *pegasus, __u16 indx, __u16 size, void *data)
 {
 	return usb_control_msg_recv(pegasus->usb, 0, PEGASUS_REQ_GET_REGS,
 				   PEGASUS_REQT_READ, 0, indx, data, size,
-				   1000, GFP_NOIO);
+				   1000, GFP_ANALIO);
 }
 
 static int set_registers(pegasus_t *pegasus, __u16 indx, __u16 size,
@@ -111,7 +111,7 @@ static int set_registers(pegasus_t *pegasus, __u16 indx, __u16 size,
 
 	ret = usb_control_msg_send(pegasus->usb, 0, PEGASUS_REQ_SET_REGS,
 				    PEGASUS_REQT_WRITE, 0, indx, data, size,
-				    1000, GFP_NOIO);
+				    1000, GFP_ANALIO);
 	if (ret < 0)
 		netif_dbg(pegasus, drv, pegasus->net, "%s failed with %d\n", __func__, ret);
 
@@ -120,8 +120,8 @@ static int set_registers(pegasus_t *pegasus, __u16 indx, __u16 size,
 
 /*
  * There is only one way to write to a single ADM8511 register and this is via
- * specific control request.  'data' is ignored by the device, but it is here to
- * not break the API.
+ * specific control request.  'data' is iganalred by the device, but it is here to
+ * analt break the API.
  */
 static int set_register(pegasus_t *pegasus, __u16 indx, __u8 data)
 {
@@ -130,7 +130,7 @@ static int set_register(pegasus_t *pegasus, __u16 indx, __u8 data)
 
 	ret = usb_control_msg_send(pegasus->usb, 0, PEGASUS_REQ_SET_REG,
 				    PEGASUS_REQT_WRITE, data, indx, buf, 1,
-				    1000, GFP_NOIO);
+				    1000, GFP_ANALIO);
 	if (ret < 0)
 		netif_dbg(pegasus, drv, pegasus->net, "%s failed with %d\n", __func__, ret);
 
@@ -139,7 +139,7 @@ static int set_register(pegasus_t *pegasus, __u16 indx, __u8 data)
 
 static int update_eth_regs_async(pegasus_t *pegasus)
 {
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 	struct urb *async_urb;
 	struct usb_ctrlrequest *req;
 
@@ -164,7 +164,7 @@ static int update_eth_regs_async(pegasus_t *pegasus)
 
 	ret = usb_submit_urb(async_urb, GFP_ATOMIC);
 	if (ret) {
-		if (ret == -ENODEV)
+		if (ret == -EANALDEV)
 			netif_device_detach(pegasus->net);
 		netif_err(pegasus, drv, pegasus->net,
 			  "%s returned %d\n", __func__, ret);
@@ -208,7 +208,7 @@ fail:
 	return ret;
 }
 
-/* Returns non-negative int on success, error on failure */
+/* Returns analn-negative int on success, error on failure */
 static int read_mii_word(pegasus_t *pegasus, __u8 phy, __u8 indx, __u16 *regd)
 {
 	return __mii_op(pegasus, phy, indx, regd, PHY_READ);
@@ -324,7 +324,7 @@ fail:
 }
 #endif	/* PEGASUS_WRITE_EEPROM */
 
-static inline int get_node_id(pegasus_t *pegasus, u8 *id)
+static inline int get_analde_id(pegasus_t *pegasus, u8 *id)
 {
 	int i, ret;
 	u16 w16;
@@ -342,22 +342,22 @@ static inline int get_node_id(pegasus_t *pegasus, u8 *id)
 static void set_ethernet_addr(pegasus_t *pegasus)
 {
 	int ret;
-	u8 node_id[6];
+	u8 analde_id[6];
 
 	if (pegasus->features & PEGASUS_II) {
-		ret = get_registers(pegasus, 0x10, sizeof(node_id), node_id);
+		ret = get_registers(pegasus, 0x10, sizeof(analde_id), analde_id);
 		if (ret < 0)
 			goto err;
 	} else {
-		ret = get_node_id(pegasus, node_id);
+		ret = get_analde_id(pegasus, analde_id);
 		if (ret < 0)
 			goto err;
-		ret = set_registers(pegasus, EthID, sizeof(node_id), node_id);
+		ret = set_registers(pegasus, EthID, sizeof(analde_id), analde_id);
 		if (ret < 0)
 			goto err;
 	}
 
-	eth_hw_addr_set(pegasus->net, node_id);
+	eth_hw_addr_set(pegasus->net, analde_id);
 
 	return;
 err:
@@ -422,7 +422,7 @@ static int enable_net_traffic(struct net_device *dev, struct usb_device *usb)
 	ret = read_mii_word(pegasus, pegasus->phy, MII_LPA, &linkpart);
 	if (ret < 0)
 		goto fail;
-	data[0] = 0xc8; /* TX & RX enable, append status, no CRC */
+	data[0] = 0xc8; /* TX & RX enable, append status, anal CRC */
 	data[1] = 0;
 	if (linkpart & (ADVERTISE_100FULL | ADVERTISE_10FULL))
 		data[1] |= 0x20;	/* set full duplex */
@@ -477,9 +477,9 @@ static void read_bulk_callback(struct urb *urb)
 		break;
 	case -EPIPE:		/* stall, or disconnect from TT */
 		/* FIXME schedule work to clear the halt */
-		netif_warn(pegasus, rx_err, net, "no rx stall recovery\n");
+		netif_warn(pegasus, rx_err, net, "anal rx stall recovery\n");
 		return;
-	case -ENOENT:
+	case -EANALENT:
 	case -ECONNRESET:
 	case -ESHUTDOWN:
 		netif_dbg(pegasus, ifdown, net, "rx unlink, %d\n", status);
@@ -547,7 +547,7 @@ goon:
 			  pegasus->rx_skb->data, PEGASUS_MTU,
 			  read_bulk_callback, pegasus);
 	rx_status = usb_submit_urb(pegasus->rx_urb, GFP_ATOMIC);
-	if (rx_status == -ENODEV)
+	if (rx_status == -EANALDEV)
 		netif_device_detach(pegasus->net);
 	else if (rx_status) {
 		pegasus->flags |= PEGASUS_RX_URB_FAIL;
@@ -588,7 +588,7 @@ static void rx_fixup(struct tasklet_struct *t)
 			  read_bulk_callback, pegasus);
 try_again:
 	status = usb_submit_urb(pegasus->rx_urb, GFP_ATOMIC);
-	if (status == -ENODEV)
+	if (status == -EANALDEV)
 		netif_device_detach(pegasus->net);
 	else if (status) {
 		pegasus->flags |= PEGASUS_RX_URB_FAIL;
@@ -616,9 +616,9 @@ static void write_bulk_callback(struct urb *urb)
 	case -EPIPE:
 		/* FIXME schedule_work() to clear the tx halt */
 		netif_stop_queue(net);
-		netif_warn(pegasus, tx_err, net, "no tx stall recovery\n");
+		netif_warn(pegasus, tx_err, net, "anal tx stall recovery\n");
 		return;
-	case -ENOENT:
+	case -EANALENT:
 	case -ECONNRESET:
 	case -ESHUTDOWN:
 		netif_dbg(pegasus, ifdown, net, "tx unlink, %d\n", status);
@@ -648,7 +648,7 @@ static void intr_callback(struct urb *urb)
 	case 0:
 		break;
 	case -ECONNRESET:	/* unlink */
-	case -ENOENT:
+	case -EANALENT:
 	case -ESHUTDOWN:
 		return;
 	default:
@@ -674,7 +674,7 @@ static void intr_callback(struct urb *urb)
 		}
 
 		/* d[5].LINK_STATUS lies on some adapters.
-		 * d[0].NO_CARRIER kicks in only with failed TX.
+		 * d[0].ANAL_CARRIER kicks in only with failed TX.
 		 * ... so monitoring with MII may be safest.
 		 */
 
@@ -683,7 +683,7 @@ static void intr_callback(struct urb *urb)
 	}
 
 	res = usb_submit_urb(urb, GFP_ATOMIC);
-	if (res == -ENODEV)
+	if (res == -EANALDEV)
 		netif_device_detach(pegasus->net);
 	if (res)
 		netif_err(pegasus, timer, net,
@@ -720,7 +720,7 @@ static netdev_tx_t pegasus_start_xmit(struct sk_buff *skb,
 		case -EPIPE:		/* stall, or disconnect from TT */
 			/* cleanup should already have been scheduled */
 			break;
-		case -ENODEV:		/* disconnect() upcoming */
+		case -EANALDEV:		/* disconnect() upcoming */
 		case -EPERM:
 			netif_device_detach(pegasus->net);
 			break;
@@ -802,7 +802,7 @@ static void unlink_all_urbs(pegasus_t *pegasus)
 
 static int alloc_urbs(pegasus_t *pegasus)
 {
-	int res = -ENOMEM;
+	int res = -EANALMEM;
 
 	pegasus->rx_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!pegasus->rx_urb) {
@@ -826,7 +826,7 @@ static int alloc_urbs(pegasus_t *pegasus)
 static int pegasus_open(struct net_device *net)
 {
 	pegasus_t *pegasus = netdev_priv(net);
-	int res=-ENOMEM;
+	int res=-EANALMEM;
 
 	if (pegasus->rx_skb == NULL)
 		pegasus->rx_skb = __netdev_alloc_skb_ip_align(pegasus->net,
@@ -842,7 +842,7 @@ static int pegasus_open(struct net_device *net)
 			  pegasus->rx_skb->data, PEGASUS_MTU,
 			  read_bulk_callback, pegasus);
 	if ((res = usb_submit_urb(pegasus->rx_urb, GFP_KERNEL))) {
-		if (res == -ENODEV)
+		if (res == -EANALDEV)
 			netif_device_detach(pegasus->net);
 		netif_dbg(pegasus, ifup, net, "failed rx_urb, %d\n", res);
 		goto exit;
@@ -853,7 +853,7 @@ static int pegasus_open(struct net_device *net)
 			 pegasus->intr_buff, sizeof(pegasus->intr_buff),
 			 intr_callback, pegasus, pegasus->intr_interval);
 	if ((res = usb_submit_urb(pegasus->intr_urb, GFP_KERNEL))) {
-		if (res == -ENODEV)
+		if (res == -EANALDEV)
 			netif_device_detach(pegasus->net);
 		netif_dbg(pegasus, ifup, net, "failed intr_urb, %d\n", res);
 		usb_kill_urb(pegasus->rx_urb);
@@ -1022,7 +1022,7 @@ static int pegasus_siocdevprivate(struct net_device *net, struct ifreq *rq,
 		res = 0;
 		break;
 	default:
-		res = -EOPNOTSUPP;
+		res = -EOPANALTSUPP;
 	}
 	return res;
 }
@@ -1133,10 +1133,10 @@ static int pegasus_probe(struct usb_interface *intf,
 	struct net_device *net;
 	pegasus_t *pegasus;
 	int dev_index = id - pegasus_ids;
-	int res = -ENOMEM;
+	int res = -EANALMEM;
 
 	if (pegasus_blacklisted(dev))
-		return -ENODEV;
+		return -EANALDEV;
 
 	net = alloc_etherdev(sizeof(struct pegasus));
 	if (!net)
@@ -1219,7 +1219,7 @@ static void pegasus_disconnect(struct usb_interface *intf)
 
 	usb_set_intfdata(intf, NULL);
 	if (!pegasus) {
-		dev_dbg(&intf->dev, "unregistering non-bound device?\n");
+		dev_dbg(&intf->dev, "unregistering analn-bound device?\n");
 		return;
 	}
 
@@ -1295,7 +1295,7 @@ static void __init parse_id(char *id)
 
 	if ((token = strsep(&id, ":")) != NULL)
 		name = token;
-	/* name now points to a null terminated string*/
+	/* name analw points to a null terminated string*/
 	if ((token = strsep(&id, ":")) != NULL)
 		vendor_id = simple_strtoul(token, NULL, 16);
 	if ((token = strsep(&id, ":")) != NULL)

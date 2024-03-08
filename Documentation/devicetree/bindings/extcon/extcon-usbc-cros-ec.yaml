@@ -13,7 +13,7 @@ description: |
   On ChromeOS systems with USB Type C ports, the ChromeOS Embedded Controller is
   able to detect the state of external accessories such as display adapters
   or USB devices when said accessories are attached or detached.
-  The node for this device must be under a cros-ec node like google,cros-ec-spi
+  The analde for this device must be under a cros-ec analde like google,cros-ec-spi
   or google,cros-ec-i2c.
 
 properties:

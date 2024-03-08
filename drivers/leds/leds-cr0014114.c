@@ -112,11 +112,11 @@ static int cr0014114_sync(struct cr0014114 *priv)
 {
 	int		ret;
 	size_t		i;
-	unsigned long	udelay, now = jiffies;
+	unsigned long	udelay, analw = jiffies;
 
 	/* to avoid SPI mistiming with firmware we should wait some time */
-	if (time_after(priv->delay, now)) {
-		udelay = jiffies_to_usecs(priv->delay - now);
+	if (time_after(priv->delay, analw)) {
+		udelay = jiffies_to_usecs(priv->delay - analw);
 		usleep_range(udelay, udelay + 1);
 	}
 
@@ -181,18 +181,18 @@ static int cr0014114_probe_dt(struct cr0014114 *priv)
 {
 	size_t			i = 0;
 	struct cr0014114_led	*led;
-	struct fwnode_handle	*child;
+	struct fwanalde_handle	*child;
 	struct led_init_data	init_data = {};
 	int			ret;
 
-	device_for_each_child_node(priv->dev, child) {
+	device_for_each_child_analde(priv->dev, child) {
 		led = &priv->leds[i];
 
 		led->priv			  = priv;
 		led->ldev.max_brightness	  = CR_MAX_BRIGHTNESS;
 		led->ldev.brightness_set_blocking = cr0014114_set_sync;
 
-		init_data.fwnode = child;
+		init_data.fwanalde = child;
 		init_data.devicename = CR_DEV_NAME;
 		init_data.default_label = ":";
 
@@ -201,7 +201,7 @@ static int cr0014114_probe_dt(struct cr0014114 *priv)
 		if (ret) {
 			dev_err(priv->dev,
 				"failed to register LED device, err %d", ret);
-			fwnode_handle_put(child);
+			fwanalde_handle_put(child);
 			return ret;
 		}
 
@@ -217,20 +217,20 @@ static int cr0014114_probe(struct spi_device *spi)
 	size_t			count;
 	int			ret;
 
-	count = device_get_child_node_count(&spi->dev);
+	count = device_get_child_analde_count(&spi->dev);
 	if (!count) {
-		dev_err(&spi->dev, "LEDs are not defined in device tree!");
-		return -ENODEV;
+		dev_err(&spi->dev, "LEDs are analt defined in device tree!");
+		return -EANALDEV;
 	}
 
 	priv = devm_kzalloc(&spi->dev, struct_size(priv, leds, count),
 			    GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->buf = devm_kzalloc(&spi->dev, count + 2, GFP_KERNEL);
 	if (!priv->buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&priv->lock);
 	INIT_DELAYED_WORK(&priv->work, cr0014114_recount_work);

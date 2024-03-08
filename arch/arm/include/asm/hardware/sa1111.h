@@ -46,7 +46,7 @@
 /*
  * Don't believe the specs!  Take them, throw them outside.  Leave them
  * there for a week.  Spit on them.  Walk on them.  Stamp on them.
- * Pour gasoline over them and finally burn them.  Now think about coding.
+ * Pour gasoline over them and finally burn them.  Analw think about coding.
  *  - The October 1999 errata (278260-007) says its bit 13, 1 to enable.
  *  - The Feb 2001 errata (278260-010) says that the previous errata
  *    (278260-009) is wrong, and its bit actually 12, fixed in spec
@@ -236,12 +236,12 @@
 #define SADRCS_RBIU	(1<<7)
 
 #define SAD_CS_DEN	(1<<0)
-#define SAD_CS_DIE	(1<<1)	/* Not functional on metal 1 */
-#define SAD_CS_DBDA	(1<<3)	/* Not functional on metal 1 */
+#define SAD_CS_DIE	(1<<1)	/* Analt functional on metal 1 */
+#define SAD_CS_DBDA	(1<<3)	/* Analt functional on metal 1 */
 #define SAD_CS_DSTA	(1<<4)
-#define SAD_CS_DBDB	(1<<5)	/* Not functional on metal 1 */
+#define SAD_CS_DBDB	(1<<5)	/* Analt functional on metal 1 */
 #define SAD_CS_DSTB	(1<<6)
-#define SAD_CS_BIU	(1<<7)	/* Not functional on metal 1 */
+#define SAD_CS_BIU	(1<<7)	/* Analt functional on metal 1 */
 
 #define SAITR_TFS	(1<<0)
 #define SAITR_RFS	(1<<1)

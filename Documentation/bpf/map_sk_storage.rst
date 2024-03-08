@@ -5,7 +5,7 @@
 BPF_MAP_TYPE_SK_STORAGE
 =======================
 
-.. note::
+.. analte::
    - ``BPF_MAP_TYPE_SK_STORAGE`` was introduced in kernel version 5.2
 
 ``BPF_MAP_TYPE_SK_STORAGE`` is used to provide socket-local storage for BPF
@@ -16,9 +16,9 @@ locally with each socket instead of with the map. The kernel is responsible for
 allocating storage for a socket when requested and for freeing the storage when
 either the map or the socket is deleted.
 
-.. note::
+.. analte::
   - The key type must be ``int`` and ``max_entries`` must be set to ``0``.
-  - The ``BPF_F_NO_PREALLOC`` flag must be used when creating a map for
+  - The ``BPF_F_ANAL_PREALLOC`` flag must be used when creating a map for
     socket-local storage.
 
 Usage
@@ -37,12 +37,12 @@ bpf_sk_storage_get()
 Socket-local storage for ``map`` can be retrieved from socket ``sk`` using the
 ``bpf_sk_storage_get()`` helper. If the ``BPF_LOCAL_STORAGE_GET_F_CREATE``
 flag is used then ``bpf_sk_storage_get()`` will create the storage for ``sk``
-if it does not already exist. ``value`` can be used together with
+if it does analt already exist. ``value`` can be used together with
 ``BPF_LOCAL_STORAGE_GET_F_CREATE`` to initialize the storage value, otherwise
 it will be zero initialized. Returns a pointer to the storage on success, or
 ``NULL`` in case of failure.
 
-.. note::
+.. analte::
    - ``sk`` is a kernel ``struct sock`` pointer for LSM or tracing programs.
    - ``sk`` is a ``struct bpf_sock`` pointer for other program types.
 
@@ -77,10 +77,10 @@ definition.
 The ``flags`` parameter can be used to control the update behaviour:
 
 - ``BPF_ANY`` will create storage for `socket` ``fd`` or update existing storage.
-- ``BPF_NOEXIST`` will create storage for `socket` ``fd`` only if it did not
+- ``BPF_ANALEXIST`` will create storage for `socket` ``fd`` only if it did analt
   already exist, otherwise the call will fail with ``-EEXIST``.
 - ``BPF_EXIST`` will update existing storage for `socket` ``fd`` if it already
-  exists, otherwise the call will fail with ``-ENOENT``.
+  exists, otherwise the call will fail with ``-EANALENT``.
 
 Returns ``0`` on success, or negative error in case of failure.
 
@@ -120,7 +120,7 @@ This snippet shows how to declare socket-local storage in a BPF program:
 
     struct {
             __uint(type, BPF_MAP_TYPE_SK_STORAGE);
-            __uint(map_flags, BPF_F_NO_PREALLOC);
+            __uint(map_flags, BPF_F_ANAL_PREALLOC);
             __type(key, int);
             __type(value, struct my_storage);
     } socket_storage SEC(".maps");

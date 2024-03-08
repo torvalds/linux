@@ -16,7 +16,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/skbuff.h>
 #include <linux/rtnetlink.h>
 #include <linux/module.h>
@@ -50,7 +50,7 @@ int ife_encode_meta_u16(u16 metaval, void *skbdata, struct tcf_meta_info *mi)
 	else if (metaval)
 		edata = metaval;
 
-	if (!edata) /* will not encode */
+	if (!edata) /* will analt encode */
 		return 0;
 
 	edata = htons(edata);
@@ -94,7 +94,7 @@ int ife_encode_meta_u32(u32 metaval, void *skbdata, struct tcf_meta_info *mi)
 	else if (metaval)
 		edata = metaval;
 
-	if (!edata) /* will not encode */
+	if (!edata) /* will analt encode */
 		return 0;
 
 	edata = htonl(edata);
@@ -115,7 +115,7 @@ int ife_alloc_meta_u32(struct tcf_meta_info *mi, void *metaval, gfp_t gfp)
 {
 	mi->metaval = kmemdup(metaval, sizeof(u32), gfp);
 	if (!mi->metaval)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -125,7 +125,7 @@ int ife_alloc_meta_u16(struct tcf_meta_info *mi, void *metaval, gfp_t gfp)
 {
 	mi->metaval = kmemdup(metaval, sizeof(u16), gfp);
 	if (!mi->metaval)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -148,7 +148,7 @@ EXPORT_SYMBOL_GPL(ife_validate_meta_u32);
 
 int ife_validate_meta_u16(void *val, int len)
 {
-	/* length will not include padding */
+	/* length will analt include padding */
 	if (len == sizeof(u16))
 		return 0;
 
@@ -208,7 +208,7 @@ EXPORT_SYMBOL_GPL(unregister_ife_op);
 int unregister_ife_op(struct tcf_meta_ops *mops)
 {
 	struct tcf_meta_ops *m;
-	int err = -ENOENT;
+	int err = -EANALENT;
 
 	write_lock(&ife_mod_lock);
 	list_for_each_entry(m, &ifeoplist, list) {
@@ -255,7 +255,7 @@ static const char *ife_meta_id2name(u32 metaid)
 	case IFE_META_TCINDEX:
 		return "tcindex";
 	default:
-		return "unknown";
+		return "unkanalwn";
 	}
 }
 #endif
@@ -268,7 +268,7 @@ static int load_metaops_and_vet(u32 metaid, void *val, int len, bool rtnl_held)
 	int ret = 0;
 
 	if (!ops) {
-		ret = -ENOENT;
+		ret = -EANALENT;
 #ifdef CONFIG_MODULES
 		if (rtnl_held)
 			rtnl_unlock();
@@ -301,7 +301,7 @@ static int __add_metainfo(const struct tcf_meta_ops *ops,
 
 	mi = kzalloc(sizeof(*mi), atomic ? GFP_ATOMIC : GFP_KERNEL);
 	if (!mi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mi->metaid = metaid;
 	mi->ops = ops;
@@ -329,7 +329,7 @@ static int add_metainfo_and_get_ops(const struct tcf_meta_ops *ops,
 	int ret;
 
 	if (!try_module_get(ops->owner))
-		return -ENOENT;
+		return -EANALENT;
 	ret = __add_metainfo(ops, ife, metaid, NULL, 0, true, exists);
 	if (ret)
 		module_put(ops->owner);
@@ -343,7 +343,7 @@ static int add_metainfo(struct tcf_ife_info *ife, u32 metaid, void *metaval,
 	int ret;
 
 	if (!ops)
-		return -ENOENT;
+		return -EANALENT;
 	ret = __add_metainfo(ops, ife, metaid, metaval, len, false, exists);
 	if (ret)
 		/*put back what find_ife_oplist took */
@@ -382,7 +382,7 @@ static int dump_metalist(struct sk_buff *skb, struct tcf_ife_info *ife)
 	if (list_empty(&ife->metalist))
 		return 0;
 
-	nest = nla_nest_start_noflag(skb, TCA_IFE_METALST);
+	nest = nla_nest_start_analflag(skb, TCA_IFE_METALST);
 	if (!nest)
 		goto out_nlmsg_trim;
 
@@ -514,15 +514,15 @@ static int tcf_ife_init(struct net *net, struct nlattr *nla,
 	parm = nla_data(tb[TCA_IFE_PARMS]);
 
 	/* IFE_DECODE is 0 and indicates the opposite of IFE_ENCODE because
-	 * they cannot run as the same time. Check on all other values which
-	 * are not supported right now.
+	 * they cananalt run as the same time. Check on all other values which
+	 * are analt supported right analw.
 	 */
 	if (parm->flags & ~IFE_ENCODE)
 		return -EINVAL;
 
 	p = kzalloc(sizeof(*p), GFP_KERNEL);
 	if (!p)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (tb[TCA_IFE_METALST]) {
 		err = nla_parse_nested_deprecated(tb2, IFE_META_MAX,
@@ -532,7 +532,7 @@ static int tcf_ife_init(struct net *net, struct nlattr *nla,
 			kfree(p);
 			return err;
 		}
-		err = load_metalist(tb2, !(flags & TCA_ACT_FLAGS_NO_RTNL));
+		err = load_metalist(tb2, !(flags & TCA_ACT_FLAGS_ANAL_RTNL));
 		if (err) {
 			kfree(p);
 			return err;
@@ -601,11 +601,11 @@ static int tcf_ife_init(struct net *net, struct nlattr *nla,
 
 	if (tb[TCA_IFE_METALST]) {
 		err = populate_metalist(ife, tb2, exists,
-					!(flags & TCA_ACT_FLAGS_NO_RTNL));
+					!(flags & TCA_ACT_FLAGS_ANAL_RTNL));
 		if (err)
 			goto metadata_parse_err;
 	} else {
-		/* if no passed metadata allow list or passed allow-all
+		/* if anal passed metadata allow list or passed allow-all
 		 * then here we process by adding as many supported metadatum
 		 * as we can. You better have at least one else we are
 		 * going to bail out
@@ -678,7 +678,7 @@ static int tcf_ife_dump(struct sk_buff *skb, struct tc_action *a, int bind,
 		goto nla_put_failure;
 
 	if (dump_metalist(skb, ife)) {
-		/*ignore failure to dump metalist */
+		/*iganalre failure to dump metalist */
 		pr_info("Failed to dump metalist\n");
 	}
 
@@ -706,7 +706,7 @@ static int find_decode_metaid(struct sk_buff *skb, struct tcf_ife_info *ife,
 		}
 	}
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static int tcf_ife_decode(struct sk_buff *skb, const struct tc_action *a,
@@ -747,7 +747,7 @@ static int tcf_ife_decode(struct sk_buff *skb, const struct tc_action *a,
 			/* abuse overlimits to count when we receive metadata
 			 * but dont have an ops for it
 			 */
-			pr_info_ratelimited("Unknown metaid %d dlen %d\n",
+			pr_info_ratelimited("Unkanalwn metaid %d dlen %d\n",
 					    mtype, dlen);
 			qstats_overlimit_inc(this_cpu_ptr(ife->common.cpu_qstats));
 		}
@@ -809,9 +809,9 @@ static int tcf_ife_encode(struct sk_buff *skb, const struct tc_action *a,
 	bstats_update(this_cpu_ptr(ife->common.cpu_bstats), skb);
 	tcf_lastuse_update(&ife->tcf_tm);
 
-	if (!metalen) {		/* no metadata to send */
+	if (!metalen) {		/* anal metadata to send */
 		/* abuse overlimits to count when we allow packet
-		 * with no metadata
+		 * with anal metadata
 		 */
 		qstats_overlimit_inc(this_cpu_ptr(ife->common.cpu_qstats));
 		return action;
@@ -831,7 +831,7 @@ static int tcf_ife_encode(struct sk_buff *skb, const struct tc_action *a,
 	spin_lock(&ife->tcf_lock);
 
 	/* XXX: we dont have a clever way of telling encode to
-	 * not repeat some of the computations that are done by
+	 * analt repeat some of the computations that are done by
 	 * ops->presence_check...
 	 */
 	list_for_each_entry(e, &ife->metalist, metalist) {

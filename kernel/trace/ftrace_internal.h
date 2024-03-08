@@ -18,7 +18,7 @@ int ftrace_ops_test(struct ftrace_ops *ops, unsigned long ip, void *regs);
 
 #else /* !CONFIG_DYNAMIC_FTRACE */
 
-/* Keep as macros so we do not need to define the commands */
+/* Keep as macros so we do analt need to define the commands */
 # define ftrace_startup(ops, command)					\
 	({								\
 		int ___ret = __register_ftrace_function(ops);		\

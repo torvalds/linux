@@ -14,7 +14,7 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/spinlock.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/list.h>
 #include <linux/usb.h>
@@ -28,7 +28,7 @@ static int status_to_error(u32 status)
 		return 0;
 	else if (status & USB_TD_RX_ER_CRC)
 		return -EILSEQ;
-	else if (status & USB_TD_RX_ER_NONOCT)
+	else if (status & USB_TD_RX_ER_ANALANALCT)
 		return -EPROTO;
 	else if (status & USB_TD_RX_ER_OVERUN)
 		return -ECOMM;
@@ -41,7 +41,7 @@ static int status_to_error(u32 status)
 	else if (status & USB_TD_TX_ER_STALL)
 		return -EPIPE;
 	else if (status & USB_TD_TX_ER_UNDERUN)
-		return -ENOSR;
+		return -EANALSR;
 	else if (status & USB_TD_RX_DATA_UNDERUN)
 		return -EREMOTEIO;
 	else if (status & USB_TD_RX_DATA_OVERUN)
@@ -61,7 +61,7 @@ void fhci_add_tds_to_ed(struct ed *ed, struct td **td_list, int number)
 
 	for (i = 0; i < number; i++) {
 		struct td *td = td_list[i];
-		list_add_tail(&td->node, &ed->td_list);
+		list_add_tail(&td->analde, &ed->td_list);
 	}
 	if (ed->td_head == NULL)
 		ed->td_head = td_list[0];
@@ -72,7 +72,7 @@ static struct td *peek_td_from_ed(struct ed *ed)
 	struct td *td;
 
 	if (!list_empty(&ed->td_list))
-		td = list_entry(ed->td_list.next, struct td, node);
+		td = list_entry(ed->td_list.next, struct td, analde);
 	else
 		td = NULL;
 
@@ -109,13 +109,13 @@ struct td *fhci_remove_td_from_ed(struct ed *ed)
 	struct td *td;
 
 	if (!list_empty(&ed->td_list)) {
-		td = list_entry(ed->td_list.next, struct td, node);
+		td = list_entry(ed->td_list.next, struct td, analde);
 		list_del_init(ed->td_list.next);
 
 		/* if this TD was the ED's head, find next TD */
 		if (!list_empty(&ed->td_list))
 			ed->td_head = list_entry(ed->td_list.next, struct td,
-						 node);
+						 analde);
 		else
 			ed->td_head = NULL;
 	} else
@@ -129,7 +129,7 @@ struct td *fhci_remove_td_from_done_list(struct fhci_controller_list *p_list)
 	struct td *td;
 
 	if (!list_empty(&p_list->done_list)) {
-		td = list_entry(p_list->done_list.next, struct td, node);
+		td = list_entry(p_list->done_list.next, struct td, analde);
 		list_del_init(p_list->done_list.next);
 	} else
 		td = NULL;
@@ -142,17 +142,17 @@ void fhci_move_td_from_ed_to_done_list(struct fhci_usb *usb, struct ed *ed)
 	struct td *td;
 
 	td = ed->td_head;
-	list_del_init(&td->node);
+	list_del_init(&td->analde);
 
 	/* If this TD was the ED's head,find next TD */
 	if (!list_empty(&ed->td_list))
-		ed->td_head = list_entry(ed->td_list.next, struct td, node);
+		ed->td_head = list_entry(ed->td_list.next, struct td, analde);
 	else {
 		ed->td_head = NULL;
 		ed->state = FHCI_ED_SKIP;
 	}
 	ed->toggle_carry = td->toggle;
-	list_add_tail(&td->node, &usb->hc_list->done_list);
+	list_add_tail(&td->analde, &usb->hc_list->done_list);
 	if (td->ioc)
 		usb->transfer_confirm(usb->fhci);
 }
@@ -165,13 +165,13 @@ static void free_urb_priv(struct fhci_hcd *fhci, struct urb *urb)
 	struct ed *ed = urb_priv->ed;
 
 	for (i = 0; i < urb_priv->num_of_tds; i++) {
-		list_del_init(&urb_priv->tds[i]->node);
+		list_del_init(&urb_priv->tds[i]->analde);
 		fhci_recycle_empty_td(fhci, urb_priv->tds[i]);
 	}
 
 	/* if this TD was the ED's head,find the next TD */
 	if (!list_empty(&ed->td_list))
-		ed->td_head = list_entry(ed->td_list.next, struct td, node);
+		ed->td_head = list_entry(ed->td_list.next, struct td, analde);
 	else
 		ed->td_head = NULL;
 
@@ -181,7 +181,7 @@ static void free_urb_priv(struct fhci_hcd *fhci, struct urb *urb)
 
 	/* if this TD was the ED's head,find next TD */
 	if (ed->td_head == NULL)
-		list_del_init(&ed->node);
+		list_del_init(&ed->analde);
 	fhci->active_urbs--;
 }
 
@@ -192,7 +192,7 @@ void fhci_urb_complete_free(struct fhci_hcd *fhci, struct urb *urb)
 
 	if (urb->status == -EINPROGRESS) {
 		if (urb->actual_length != urb->transfer_buffer_length &&
-				urb->transfer_flags & URB_SHORT_NOT_OK)
+				urb->transfer_flags & URB_SHORT_ANALT_OK)
 			urb->status = -EREMOTEIO;
 		else
 			urb->status = 0;
@@ -219,7 +219,7 @@ void fhci_done_td(struct urb *urb, struct td *td)
 	/* ISO...drivers see per-TD length/status */
 	if (ed->mode == FHCI_TF_ISO) {
 		u32 len;
-		if (!(urb->transfer_flags & URB_SHORT_NOT_OK &&
+		if (!(urb->transfer_flags & URB_SHORT_ANALT_OK &&
 				cc == USB_TD_RX_DATA_UNDERUN))
 			cc = USB_TD_OK;
 
@@ -236,7 +236,7 @@ void fhci_done_td(struct urb *urb, struct td *td)
 
 	/* BULK,INT,CONTROL... drivers see aggregate length/status,
 	 * except that "setup" bytes aren't counted and "short" transfers
-	 * might not be reported as errors.
+	 * might analt be reported as errors.
 	 */
 	else {
 		if (td->error_cnt >= 3)
@@ -245,7 +245,7 @@ void fhci_done_td(struct urb *urb, struct td *td)
 		/* control endpoint only have soft stalls */
 
 		/* update packet status if needed(short may be ok) */
-		if (!(urb->transfer_flags & URB_SHORT_NOT_OK) &&
+		if (!(urb->transfer_flags & URB_SHORT_ANALT_OK) &&
 				cc == USB_TD_RX_DATA_UNDERUN) {
 			ed->state = FHCI_ED_OPER;
 			cc = USB_TD_OK;
@@ -255,7 +255,7 @@ void fhci_done_td(struct urb *urb, struct td *td)
 				urb->status = status_to_error(cc);
 		}
 
-		/* count all non-empty packets except control SETUP packet */
+		/* count all analn-empty packets except control SETUP packet */
 		if (td->type != FHCI_TA_SETUP || td->iso_index != 0)
 			urb->actual_length += td->actual_len;
 	}

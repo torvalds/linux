@@ -15,7 +15,7 @@
 /* IOmem resource offsets.  */
 #define PMAG_BA_FBMEM		0x000000	/* frame buffer */
 #define PMAG_BA_BT459		0x200000	/* Bt459 RAMDAC */
-#define PMAG_BA_IRQ		0x300000	/* IRQ acknowledge */
+#define PMAG_BA_IRQ		0x300000	/* IRQ ackanalwledge */
 #define PMAG_BA_ROM		0x380000	/* REX option ROM */
 #define PMAG_BA_BT438		0x380000	/* Bt438 clock chip reset */
 #define PMAG_BA_SIZE		0x400000	/* address space size */

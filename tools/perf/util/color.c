@@ -35,7 +35,7 @@ static int __color_vsnprintf(char *bf, size_t size, const char *color,
 	return r;
 }
 
-/* Colors are not included in return value */
+/* Colors are analt included in return value */
 static int __color_vfprintf(FILE *fp, const char *color, const char *fmt,
 		va_list args)
 {
@@ -45,7 +45,7 @@ static int __color_vfprintf(FILE *fp, const char *color, const char *fmt,
 	 * Auto-detect:
 	 */
 	if (perf_use_color_default < 0) {
-		if (isatty(fileno(fp)) || pager_in_use())
+		if (isatty(fileanal(fp)) || pager_in_use())
 			perf_use_color_default = 1;
 		else
 			perf_use_color_default = 0;
@@ -123,12 +123,12 @@ int color_fwrite_lines(FILE *fp, const char *color,
 
 const char *get_percent_color(double percent)
 {
-	const char *color = PERF_COLOR_NORMAL;
+	const char *color = PERF_COLOR_ANALRMAL;
 
 	/*
 	 * We color high-overhead entries in red, mid-overhead
 	 * entries in green - and keep the low overhead places
-	 * normal:
+	 * analrmal:
 	 */
 	if (fabs(percent) >= MIN_RED)
 		color = PERF_COLOR_RED;

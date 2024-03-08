@@ -6,7 +6,7 @@
 #ifndef _LINUX_KALLSYMS_H
 #define _LINUX_KALLSYMS_H
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/buildid.h>
 #include <linux/kernel.h>
 #include <linux/stddef.h>
@@ -28,14 +28,14 @@ static inline int is_kernel_text(unsigned long addr)
 {
 	if (__is_kernel_text(addr))
 		return 1;
-	return in_gate_area_no_mm(addr);
+	return in_gate_area_anal_mm(addr);
 }
 
 static inline int is_kernel(unsigned long addr)
 {
 	if (__is_kernel(addr))
 		return 1;
-	return in_gate_area_no_mm(addr);
+	return in_gate_area_anal_mm(addr);
 }
 
 static inline int is_ksym_addr(unsigned long addr)
@@ -75,7 +75,7 @@ int kallsyms_on_each_symbol(int (*fn)(void *, const char *, unsigned long),
 int kallsyms_on_each_match_symbol(int (*fn)(void *, unsigned long),
 				  const char *name, void *data);
 
-/* Lookup the address for a symbol. Returns 0 if not found. */
+/* Lookup the address for a symbol. Returns 0 if analt found. */
 unsigned long kallsyms_lookup_name(const char *name);
 
 extern int kallsyms_lookup_size_offset(unsigned long addr,
@@ -91,7 +91,7 @@ const char *kallsyms_lookup(unsigned long addr,
 /* Look up a kernel symbol and return it in a text buffer. */
 extern int sprint_symbol(char *buffer, unsigned long address);
 extern int sprint_symbol_build_id(char *buffer, unsigned long address);
-extern int sprint_symbol_no_offset(char *buffer, unsigned long address);
+extern int sprint_symbol_anal_offset(char *buffer, unsigned long address);
 extern int sprint_backtrace(char *buffer, unsigned long address);
 extern int sprint_backtrace_build_id(char *buffer, unsigned long address);
 
@@ -131,7 +131,7 @@ static inline int sprint_symbol_build_id(char *buffer, unsigned long address)
 	return 0;
 }
 
-static inline int sprint_symbol_no_offset(char *buffer, unsigned long addr)
+static inline int sprint_symbol_anal_offset(char *buffer, unsigned long addr)
 {
 	*buffer = '\0';
 	return 0;
@@ -157,13 +157,13 @@ static inline int lookup_symbol_name(unsigned long addr, char *symname)
 static inline int kallsyms_on_each_symbol(int (*fn)(void *, const char *, unsigned long),
 					  void *data)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int kallsyms_on_each_match_symbol(int (*fn)(void *, unsigned long),
 						const char *name, void *data)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 #endif /*CONFIG_KALLSYMS*/
 

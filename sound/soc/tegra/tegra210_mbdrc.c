@@ -980,17 +980,17 @@ int tegra210_mbdrc_regmap_init(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct tegra210_ope *ope = dev_get_drvdata(dev);
-	struct device_node *child;
+	struct device_analde *child;
 	struct resource mem;
 	void __iomem *regs;
 	int err;
 
-	child = of_get_child_by_name(dev->of_node, "dynamic-range-compressor");
+	child = of_get_child_by_name(dev->of_analde, "dynamic-range-compressor");
 	if (!child)
-		return -ENODEV;
+		return -EANALDEV;
 
 	err = of_address_to_resource(child, 0, &mem);
-	of_node_put(child);
+	of_analde_put(child);
 	if (err < 0) {
 		dev_err(dev, "fail to get MBDRC resource\n");
 		return err;

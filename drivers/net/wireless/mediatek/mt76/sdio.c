@@ -245,7 +245,7 @@ int mt76s_hw_init(struct mt76_dev *dev, struct sdio_func *func, int hw_ver)
 	ret = readx_poll_timeout(mt76s_read_pcr, dev, status,
 				 status & WHLPCR_IS_DRIVER_OWN, 2000, 1000000);
 	if (ret < 0) {
-		dev_err(dev->dev, "Cannot get ownership from device");
+		dev_err(dev->dev, "Cananalt get ownership from device");
 		goto disable_func;
 	}
 
@@ -310,7 +310,7 @@ int mt76s_alloc_rx_queue(struct mt76_dev *dev, enum mt76_rxq_id qid)
 				MT76S_NUM_RX_ENTRIES, sizeof(*q->entry),
 				GFP_KERNEL);
 	if (!q->entry)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	q->ndesc = MT76S_NUM_RX_ENTRIES;
 	q->head = q->tail = 0;
@@ -326,14 +326,14 @@ static struct mt76_queue *mt76s_alloc_tx_queue(struct mt76_dev *dev)
 
 	q = devm_kzalloc(dev->dev, sizeof(*q), GFP_KERNEL);
 	if (!q)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	spin_lock_init(&q->lock);
 	q->entry = devm_kcalloc(dev->dev,
 				MT76S_NUM_TX_ENTRIES, sizeof(*q->entry),
 				GFP_KERNEL);
 	if (!q->entry)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	q->ndesc = MT76S_NUM_TX_ENTRIES;
 
@@ -525,7 +525,7 @@ mt76s_tx_queue_skb(struct mt76_dev *dev, struct mt76_queue *q,
 	u16 idx = q->head;
 
 	if (q->queued == q->ndesc)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	skb->prev = skb->next = NULL;
 	err = dev->drv->tx_prepare_skb(dev, NULL, qid, wcid, sta, &tx_info);
@@ -548,7 +548,7 @@ static int
 mt76s_tx_queue_skb_raw(struct mt76_dev *dev, struct mt76_queue *q,
 		       struct sk_buff *skb, u32 tx_info)
 {
-	int ret = -ENOSPC, len = skb->len, pad;
+	int ret = -EANALSPC, len = skb->len, pad;
 
 	if (q->queued == q->ndesc)
 		goto error;
@@ -664,7 +664,7 @@ int mt76s_init(struct mt76_dev *dev, struct sdio_func *func,
 	dev->sdio.xmit_buf = devm_kmalloc(dev->dev, dev->sdio.xmit_buf_sz,
 					  GFP_KERNEL);
 	if (!dev->sdio.xmit_buf)
-		err = -ENOMEM;
+		err = -EANALMEM;
 
 	return err;
 }

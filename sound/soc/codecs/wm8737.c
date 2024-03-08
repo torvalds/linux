@@ -55,7 +55,7 @@ static const struct reg_default wm8737_reg_defaults[] = {
 	{  8, 0x0000 },     /* R8  - Clocking */
 	{  9, 0x000F },     /* R9  - MIC Preamp Control */
 	{ 10, 0x0003 },     /* R10 - Misc Bias Control */
-	{ 11, 0x0000 },     /* R11 - Noise Gate */
+	{ 11, 0x0000 },     /* R11 - Analise Gate */
 	{ 12, 0x007C },     /* R12 - ALC1 */
 	{ 13, 0x0000 },     /* R13 - ALC2 */
 	{ 14, 0x0032 },     /* R14 - ALC3 */
@@ -170,8 +170,8 @@ SOC_ENUM("3D Low Cut-off", low_3d),
 SOC_ENUM("3D High Cut-off", high_3d),
 SOC_SINGLE_TLV("3D ADC Volume", WM8737_3D_ENHANCE, 7, 1, 1, adc_tlv),
 
-SOC_SINGLE("Noise Gate Switch", WM8737_NOISE_GATE, 0, 1, 0),
-SOC_SINGLE_TLV("Noise Gate Threshold Volume", WM8737_NOISE_GATE, 2, 7, 0,
+SOC_SINGLE("Analise Gate Switch", WM8737_ANALISE_GATE, 0, 1, 0),
+SOC_SINGLE_TLV("Analise Gate Threshold Volume", WM8737_ANALISE_GATE, 2, 7, 0,
 	       ng_tlv),
 
 SOC_ENUM("ALC", alc_fn),
@@ -231,11 +231,11 @@ SND_SOC_DAPM_INPUT("RINPUT3"),
 SND_SOC_DAPM_INPUT("LACIN"),
 SND_SOC_DAPM_INPUT("RACIN"),
 
-SND_SOC_DAPM_MUX("LINSEL", SND_SOC_NOPM, 0, 0, &linsel_mux),
-SND_SOC_DAPM_MUX("RINSEL", SND_SOC_NOPM, 0, 0, &rinsel_mux),
+SND_SOC_DAPM_MUX("LINSEL", SND_SOC_ANALPM, 0, 0, &linsel_mux),
+SND_SOC_DAPM_MUX("RINSEL", SND_SOC_ANALPM, 0, 0, &rinsel_mux),
 
-SND_SOC_DAPM_MUX("Left Preamp Mux", SND_SOC_NOPM, 0, 0, &lbypass_mux),
-SND_SOC_DAPM_MUX("Right Preamp Mux", SND_SOC_NOPM, 0, 0, &rbypass_mux),
+SND_SOC_DAPM_MUX("Left Preamp Mux", SND_SOC_ANALPM, 0, 0, &lbypass_mux),
+SND_SOC_DAPM_MUX("Right Preamp Mux", SND_SOC_ANALPM, 0, 0, &rbypass_mux),
 
 SND_SOC_DAPM_PGA("PGAL", WM8737_POWER_MANAGEMENT, 5, 0, NULL, 0),
 SND_SOC_DAPM_PGA("PGAR", WM8737_POWER_MANAGEMENT, 4, 0, NULL, 0),
@@ -391,7 +391,7 @@ static int wm8737_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 		}
 	}
 
-	dev_err(component->dev, "MCLK rate %dHz not supported\n", freq);
+	dev_err(component->dev, "MCLK rate %dHz analt supported\n", freq);
 
 	return -EINVAL;
 }
@@ -526,7 +526,7 @@ static struct snd_soc_dai_driver wm8737_dai = {
 	.name = "wm8737",
 	.capture = {
 		.stream_name = "Capture",
-		.channels_min = 2,  /* Mono modes not yet supported */
+		.channels_min = 2,  /* Moanal modes analt yet supported */
 		.channels_max = 2,
 		.rates = WM8737_RATES,
 		.formats = WM8737_FORMATS,
@@ -613,7 +613,7 @@ static int wm8737_i2c_probe(struct i2c_client *i2c)
 	wm8737 = devm_kzalloc(&i2c->dev, sizeof(struct wm8737_priv),
 			      GFP_KERNEL);
 	if (wm8737 == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < ARRAY_SIZE(wm8737->supplies); i++)
 		wm8737->supplies[i].supply = wm8737_supply_names[i];
@@ -663,7 +663,7 @@ static int wm8737_spi_probe(struct spi_device *spi)
 	wm8737 = devm_kzalloc(&spi->dev, sizeof(struct wm8737_priv),
 			      GFP_KERNEL);
 	if (wm8737 == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < ARRAY_SIZE(wm8737->supplies); i++)
 		wm8737->supplies[i].supply = wm8737_supply_names[i];

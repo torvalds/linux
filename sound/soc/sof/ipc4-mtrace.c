@@ -99,7 +99,7 @@ struct sof_mtrace_core_data {
 	struct mutex buffer_lock; /* for log_buffer alloc/free */
 	u32 host_read_ptr;
 	u32 dsp_write_ptr;
-	/* pos update IPC arrived before the slot offset is known, queried */
+	/* pos update IPC arrived before the slot offset is kanalwn, queried */
 	bool delayed_pos_update;
 	wait_queue_head_t trace_sleep;
 };
@@ -112,9 +112,9 @@ struct sof_mtrace_priv {
 	struct sof_mtrace_core_data cores[];
 };
 
-static int sof_ipc4_mtrace_dfs_open(struct inode *inode, struct file *file)
+static int sof_ipc4_mtrace_dfs_open(struct ianalde *ianalde, struct file *file)
 {
-	struct sof_mtrace_core_data *core_data = inode->i_private;
+	struct sof_mtrace_core_data *core_data = ianalde->i_private;
 	int ret;
 
 	mutex_lock(&core_data->buffer_lock);
@@ -131,11 +131,11 @@ static int sof_ipc4_mtrace_dfs_open(struct inode *inode, struct file *file)
 	core_data->log_buffer = kmalloc(SOF_IPC4_DEBUG_SLOT_SIZE, GFP_KERNEL);
 	if (!core_data->log_buffer) {
 		debugfs_file_put(file->f_path.dentry);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
-	ret = simple_open(inode, file);
+	ret = simple_open(ianalde, file);
 	if (ret) {
 		kfree(core_data->log_buffer);
 		debugfs_file_put(file->f_path.dentry);
@@ -161,7 +161,7 @@ static bool sof_wait_mtrace_avail(struct sof_mtrace_core_data *core_data)
 	add_wait_queue(&core_data->trace_sleep, &wait);
 
 	if (!signal_pending(current)) {
-		/* set timeout to max value, no error code */
+		/* set timeout to max value, anal error code */
 		schedule_timeout(MAX_SCHEDULE_TIMEOUT);
 	}
 	remove_wait_queue(&core_data->trace_sleep, &wait);
@@ -192,7 +192,7 @@ static ssize_t sof_ipc4_mtrace_dfs_read(struct file *file, char __user *buffer,
 
 	/* get available count based on current host offset */
 	if (!sof_wait_mtrace_avail(core_data)) {
-		/* No data available */
+		/* Anal data available */
 		avail = 0;
 		if (copy_to_user(buffer, &avail, sizeof(avail)))
 			return -EFAULT;
@@ -266,7 +266,7 @@ static ssize_t sof_ipc4_mtrace_dfs_read(struct file *file, char __user *buffer,
 		core_data->host_read_ptr = read_ptr;
 
 	/*
-	 * Ask for a new buffer from user space for the next chunk, not
+	 * Ask for a new buffer from user space for the next chunk, analt
 	 * streaming due to the heading number of bytes value.
 	 */
 	*ppos += count;
@@ -274,9 +274,9 @@ static ssize_t sof_ipc4_mtrace_dfs_read(struct file *file, char __user *buffer,
 	return count;
 }
 
-static int sof_ipc4_mtrace_dfs_release(struct inode *inode, struct file *file)
+static int sof_ipc4_mtrace_dfs_release(struct ianalde *ianalde, struct file *file)
 {
-	struct sof_mtrace_core_data *core_data = inode->i_private;
+	struct sof_mtrace_core_data *core_data = ianalde->i_private;
 
 	debugfs_file_put(file->f_path.dentry);
 
@@ -312,7 +312,7 @@ static ssize_t sof_ipc4_priority_mask_dfs_read(struct file *file, char __user *t
 	 */
 	buf = kzalloc(241, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < MAX_ALLOWED_LIBRARIES; i++) {
 		offset = strlen(buf);
@@ -528,7 +528,7 @@ static void sof_mtrace_find_core_slots(struct snd_sof_dev *sdev)
 				core_data->delayed_pos_update = false;
 			}
 		} else if (type) {
-			dev_dbg(sdev->dev, "slot%d is not a log slot (%#x)\n", i, type);
+			dev_dbg(sdev->dev, "slot%d is analt a log slot (%#x)\n", i, type);
 		}
 	}
 }
@@ -553,7 +553,7 @@ static int ipc4_mtrace_init(struct snd_sof_dev *sdev)
 	priv = devm_kzalloc(sdev->dev, struct_size(priv, cores, sdev->num_cores),
 			    GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sdev->fw_trace_data = priv;
 
@@ -575,7 +575,7 @@ static int ipc4_mtrace_init(struct snd_sof_dev *sdev)
 	ret = ipc4_mtrace_enable(sdev);
 	if (ret) {
 		/*
-		 * Mark firmware tracing as not supported and return 0 to not
+		 * Mark firmware tracing as analt supported and return 0 to analt
 		 * block the whole audio stack
 		 */
 		sdev->fw_trace_is_supported = false;
@@ -643,7 +643,7 @@ int sof_ipc4_mtrace_update_pos(struct snd_sof_dev *sdev, int core)
 static void ipc4_mtrace_fw_crashed(struct snd_sof_dev *sdev)
 {
 	/*
-	 * The DSP might not be able to send SOF_IPC4_NOTIFY_LOG_BUFFER_STATUS
+	 * The DSP might analt be able to send SOF_IPC4_ANALTIFY_LOG_BUFFER_STATUS
 	 * messages anymore, so check the log buffer status on all
 	 * cores and process any pending messages.
 	 */

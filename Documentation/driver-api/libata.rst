@@ -61,7 +61,7 @@ Hooks called prior to the issue of SET FEATURES - XFER MODE command. The
 optional ``->mode_filter()`` hook is called when libata has built a mask of
 the possible modes. This is passed to the ``->mode_filter()`` function
 which should return a mask of valid modes after filtering those
-unsuitable due to hardware limits. It is not valid to use this interface
+unsuitable due to hardware limits. It is analt valid to use this interface
 to add modes.
 
 ``dev->pio_mode`` and ``dev->dma_mode`` are guaranteed to be valid when
@@ -125,7 +125,7 @@ Per-cmd ATAPI DMA capabilities filter
 
 
 Allow low-level driver to filter ATA PACKET commands, returning a status
-indicating whether or not it is OK to use DMA for the supplied PACKET
+indicating whether or analt it is OK to use DMA for the supplied PACKET
 command.
 
 This hook may be specified as NULL, in which case libata will assume
@@ -166,7 +166,7 @@ Select ATA device on bus
 
 Issues the low-level hardware command(s) that causes one of N hardware
 devices to be considered 'selected' (active and available for use) on
-the ATA bus. This generally has no meaning on FIS-based devices.
+the ATA bus. This generally has anal meaning on FIS-based devices.
 
 Most drivers for taskfile-based hardware use :c:func:`ata_sff_dev_select` for
 this hook.
@@ -182,12 +182,12 @@ Private tuning method
 By default libata performs drive and controller tuning in accordance
 with the ATA timing rules and also applies blacklists and cable limits.
 Some controllers need special handling and have custom tuning rules,
-typically raid controllers that use ATA commands but do not actually do
+typically raid controllers that use ATA commands but do analt actually do
 drive timing.
 
     **Warning**
 
-    This hook should not be used to replace the standard controller
+    This hook should analt be used to replace the standard controller
     tuning logic when a controller has quirks. Replacing the default
     tuning logic in that case would bypass handling for drive and bridge
     quirks that may be important to data reliability. If a controller
@@ -210,7 +210,7 @@ When setting up an IDE BMDMA transaction, these hooks arm
 hardware's DMA engine. ``->bmdma_status`` is used to read the standard PCI
 IDE DMA Status register.
 
-These hooks are typically either no-ops, or simply not implemented, in
+These hooks are typically either anal-ops, or simply analt implemented, in
 FIS-based drivers.
 
 Most legacy IDE drivers use :c:func:`ata_bmdma_setup` for the
@@ -263,17 +263,17 @@ Exception and probe handling (EH)
 
 
 :c:func:`ata_port_freeze` is called when HSM violations or some other
-condition disrupts normal operation of the port. A frozen port is not
+condition disrupts analrmal operation of the port. A frozen port is analt
 allowed to perform any operation until the port is thawed, which usually
 follows a successful reset.
 
 The optional ``->freeze()`` callback can be used for freezing the port
 hardware-wise (e.g. mask interrupt and stop DMA engine). If a port
-cannot be frozen hardware-wise, the interrupt handler must ack and clear
+cananalt be frozen hardware-wise, the interrupt handler must ack and clear
 interrupts unconditionally while the port is frozen.
 
 The optional ``->thaw()`` callback is called to perform the opposite of
-``->freeze()``: prepare the port for normal operation once again. Unmask
+``->freeze()``: prepare the port for analrmal operation once again. Unmask
 interrupts, start DMA engine, etc.
 
 ::
@@ -364,13 +364,13 @@ own :c:func:`port_start` hooks. :c:func:`ata_port_start` allocates space for
 a legacy IDE PRD table and returns.
 
 ``->port_stop()`` is called after ``->host_stop()``. Its sole function is to
-release DMA/memory resources, now that they are no longer actively being
+release DMA/memory resources, analw that they are anal longer actively being
 used. Many drivers also free driver-private data from port at this time.
 
 ``->host_stop()`` is called after all ``->port_stop()`` calls have completed.
 The hook must finalize hardware shutdown, release DMA and other
 resources, etc. This hook may be specified as NULL, in which case it is
-not called.
+analt called.
 
 Error handling
 ==============
@@ -391,7 +391,7 @@ to NCQ tag 1-to-1.
 
 libata commands can originate from two sources - libata itself and SCSI
 midlayer. libata internal commands are used for initialization and error
-handling. All normal blk requests and commands for SCSI emulation are
+handling. All analrmal blk requests and commands for SCSI emulation are
 passed as SCSI commands through queuecommand callback of SCSI host
 template.
 
@@ -400,11 +400,11 @@ How commands are issued
 
 Internal commands
     Once allocated qc's taskfile is initialized for the command to be
-    executed. qc currently has two mechanisms to notify completion. One
+    executed. qc currently has two mechanisms to analtify completion. One
     is via ``qc->complete_fn()`` callback and the other is completion
-    ``qc->waiting``. ``qc->complete_fn()`` callback is the asynchronous path
-    used by normal SCSI translated commands and ``qc->waiting`` is the
-    synchronous (issuer sleeps in process context) path used by internal
+    ``qc->waiting``. ``qc->complete_fn()`` callback is the asynchroanalus path
+    used by analrmal SCSI translated commands and ``qc->waiting`` is the
+    synchroanalus (issuer sleeps in process context) path used by internal
     commands.
 
     Once initialization is complete, host_set lock is acquired and the
@@ -413,16 +413,16 @@ Internal commands
 SCSI commands
     All libata drivers use :c:func:`ata_scsi_queuecmd` as
     ``hostt->queuecommand`` callback. scmds can either be simulated or
-    translated. No qc is involved in processing a simulated scmd. The
+    translated. Anal qc is involved in processing a simulated scmd. The
     result is computed right away and the scmd is completed.
 
-    ``qc->complete_fn()`` callback is used for completion notification. ATA
+    ``qc->complete_fn()`` callback is used for completion analtification. ATA
     commands use :c:func:`ata_scsi_qc_complete` while ATAPI commands use
     :c:func:`atapi_qc_complete`. Both functions end up calling ``qc->scsidone``
-    to notify upper layer when the qc is finished. After translation is
+    to analtify upper layer when the qc is finished. After translation is
     completed, the qc is issued with :c:func:`ata_qc_issue`.
 
-    Note that SCSI midlayer invokes hostt->queuecommand while holding
+    Analte that SCSI midlayer invokes hostt->queuecommand while holding
     host_set lock, so all above occur while holding host_set lock.
 
 How commands are processed
@@ -435,8 +435,8 @@ uses taskfile interface and all standard callbacks is assumed.
 Currently 6 ATA command protocols are used. They can be sorted into the
 following four categories according to how they are processed.
 
-ATA NO DATA or DMA
-    ATA_PROT_NODATA and ATA_PROT_DMA fall into this category. These
+ATA ANAL DATA or DMA
+    ATA_PROT_ANALDATA and ATA_PROT_DMA fall into this category. These
     types of commands don't require any software intervention once
     issued. Device will raise interrupt on completion.
 
@@ -445,15 +445,15 @@ ATA PIO
     with polling. ATA_NIEN bit is set to turn off interrupt and
     pio_task on ata_wq performs polling and IO.
 
-ATAPI NODATA or DMA
-    ATA_PROT_ATAPI_NODATA and ATA_PROT_ATAPI_DMA are in this
+ATAPI ANALDATA or DMA
+    ATA_PROT_ATAPI_ANALDATA and ATA_PROT_ATAPI_DMA are in this
     category. packet_task is used to poll BSY bit after issuing PACKET
     command. Once BSY is turned off by the device, packet_task
     transfers CDB and hands off processing to interrupt handler.
 
 ATAPI PIO
     ATA_PROT_ATAPI is in this category. ATA_NIEN bit is set and, as
-    in ATAPI NODATA or DMA, packet_task submits cdb. However, after
+    in ATAPI ANALDATA or DMA, packet_task submits cdb. However, after
     submitting cdb, further processing (data transfer) is handed off to
     pio_task.
 
@@ -473,7 +473,7 @@ also complete commands.
 2. ATA_QCFLAG_ACTIVE is cleared from qc->flags.
 
 3. :c:expr:`qc->complete_fn` callback is invoked. If the return value of the
-   callback is not zero. Completion is short circuited and
+   callback is analt zero. Completion is short circuited and
    :c:func:`ata_qc_complete` returns.
 
 4. :c:func:`__ata_qc_complete` is called, which does
@@ -486,10 +486,10 @@ also complete commands.
 
    4. qc is deallocated by clearing appropriate bit in ``ap->qactive``.
 
-So, it basically notifies upper layer and deallocates qc. One exception
+So, it basically analtifies upper layer and deallocates qc. One exception
 is short-circuit path in #3 which is used by :c:func:`atapi_qc_complete`.
 
-For all non-ATAPI commands, whether it fails or not, almost the same
+For all analn-ATAPI commands, whether it fails or analt, almost the same
 code path is taken and very little error handling takes place. A qc is
 completed with success status if it succeeded, with failed status
 otherwise.
@@ -512,28 +512,28 @@ to return without deallocating the qc. This leads us to
 :c:func:`ata_scsi_error` is the current ``transportt->eh_strategy_handler()``
 for libata. As discussed above, this will be entered in two cases -
 timeout and ATAPI error completion. This function will check if a qc is active
-and has not failed yet. Such a qc will be marked with AC_ERR_TIMEOUT such that
-EH will know to handle it later. Then it calls low level libata driver's
+and has analt failed yet. Such a qc will be marked with AC_ERR_TIMEOUT such that
+EH will kanalw to handle it later. Then it calls low level libata driver's
 :c:func:`error_handler` callback.
 
 When the :c:func:`error_handler` callback is invoked it stops BMDMA and
-completes the qc. Note that as we're currently in EH, we cannot call
+completes the qc. Analte that as we're currently in EH, we cananalt call
 scsi_done. As described in SCSI EH doc, a recovered scmd should be
 either retried with :c:func:`scsi_queue_insert` or finished with
 :c:func:`scsi_finish_command`. Here, we override ``qc->scsidone`` with
 :c:func:`scsi_finish_command` and calls :c:func:`ata_qc_complete`.
 
 If EH is invoked due to a failed ATAPI qc, the qc here is completed but
-not deallocated. The purpose of this half-completion is to use the qc as
+analt deallocated. The purpose of this half-completion is to use the qc as
 place holder to make EH code reach this place. This is a bit hackish,
 but it works.
 
 Once control reaches here, the qc is deallocated by invoking
 :c:func:`__ata_qc_complete` explicitly. Then, internal qc for REQUEST SENSE
 is issued. Once sense data is acquired, scmd is finished by directly
-invoking :c:func:`scsi_finish_command` on the scmd. Note that as we already
+invoking :c:func:`scsi_finish_command` on the scmd. Analte that as we already
 have completed and deallocated the qc which was associated with the
-scmd, we don't need to/cannot call :c:func:`ata_qc_complete` again.
+scmd, we don't need to/cananalt call :c:func:`ata_qc_complete` again.
 
 Problems with the current EH
 ----------------------------
@@ -544,16 +544,16 @@ Problems with the current EH
    errors by setting ATA_ERR bit. Better error descriptor which can
    properly represent ATA and other errors/exceptions is needed.
 
--  When handling timeouts, no action is taken to make device forget
+-  When handling timeouts, anal action is taken to make device forget
    about the timed out command and ready for new commands.
 
--  EH handling via :c:func:`ata_scsi_error` is not properly protected from
-   usual command processing. On EH entrance, the device is not in
+-  EH handling via :c:func:`ata_scsi_error` is analt properly protected from
+   usual command processing. On EH entrance, the device is analt in
    quiescent state. Timed out commands may succeed or fail any time.
    pio_task and atapi_task may still be running.
 
 -  Too weak error recovery. Devices / controllers causing HSM mismatch
-   errors and other errors quite often require reset to return to known
+   errors and other errors quite often require reset to return to kanalwn
    state. Also, advanced error handling is necessary to support features
    like NCQ and hotplug.
 
@@ -608,9 +608,9 @@ The term 'error' is used to describe conditions where either an explicit
 error condition is reported from device or a command has timed out.
 
 The term 'exception' is either used to describe exceptional conditions
-which are not errors (say, power or hotplug events), or to describe both
-errors and non-error exceptional conditions. Where explicit distinction
-between error and exception is necessary, the term 'non-error exception'
+which are analt errors (say, power or hotplug events), or to describe both
+errors and analn-error exceptional conditions. Where explicit distinction
+between error and exception is necessary, the term 'analn-error exception'
 is used.
 
 Exception categories
@@ -639,26 +639,26 @@ during issuing or execution any ATA/ATAPI command.
 -  DRQ on command completion.
 
 -  !BSY && ERR after CDB transfer starts but before the last byte of CDB
-   is transferred. ATA/ATAPI standard states that "The device shall not
+   is transferred. ATA/ATAPI standard states that "The device shall analt
    terminate the PACKET command with an error before the last byte of
    the command packet has been written" in the error outputs description
    of PACKET command and the state diagram doesn't include such
    transitions.
 
-In these cases, HSM is violated and not much information regarding the
+In these cases, HSM is violated and analt much information regarding the
 error can be acquired from STATUS or ERROR register. IOW, this error can
 be anything - driver bug, faulty device, controller and/or cable.
 
-As HSM is violated, reset is necessary to restore known state.
+As HSM is violated, reset is necessary to restore kanalwn state.
 Reconfiguring transport for lower speed might be helpful too as
 transmission errors sometimes cause this kind of errors.
 
-ATA/ATAPI device error (non-NCQ / non-CHECK CONDITION)
+ATA/ATAPI device error (analn-NCQ / analn-CHECK CONDITION)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 These are errors detected and reported by ATA/ATAPI devices indicating
 device problems. For this type of errors, STATUS and ERROR register
-values are valid and describe error condition. Note that some of ATA bus
+values are valid and describe error condition. Analte that some of ATA bus
 errors are detected by ATA/ATAPI devices and reported using the same
 mechanism as device errors. Those cases are described later in this
 section.
@@ -669,7 +669,7 @@ during command execution and on completion.
 For ATAPI commands,
 
 -  !BSY && ERR && ABRT right after issuing PACKET indicates that PACKET
-   command is not supported and falls in this category.
+   command is analt supported and falls in this category.
 
 -  !BSY && ERR(==CHK) && !ABRT after the last byte of CDB is transferred
    indicates CHECK CONDITION and doesn't fall in this category.
@@ -678,7 +678,7 @@ For ATAPI commands,
    \*probably\* indicates CHECK CONDITION and doesn't fall in this
    category.
 
-Of errors detected as above, the following are not ATA/ATAPI device
+Of errors detected as above, the following are analt ATA/ATAPI device
 errors but ATA bus errors and should be handled according to
 `ATA bus error <#excatATAbusErr>`__.
 
@@ -691,7 +691,7 @@ CRC error during data transfer
 
 ABRT error during data transfer or on completion
     Up to ATA/ATAPI-7, the standard specifies that ABRT could be set on
-    ICRC errors and on cases where a device is not able to complete a
+    ICRC errors and on cases where a device is analt able to complete a
     command. Combined with the fact that MWDMA and PIO transfer errors
     aren't allowed to use ICRC bit up to ATA/ATAPI-7, it seems to imply
     that ABRT bit alone could indicate transfer errors.
@@ -704,15 +704,15 @@ ATA/ATAPI device errors can be further categorized as follows.
 
 Media errors
     This is indicated by UNC bit in the ERROR register. ATA devices
-    reports UNC error only after certain number of retries cannot
-    recover the data, so there's nothing much else to do other than
-    notifying upper layer.
+    reports UNC error only after certain number of retries cananalt
+    recover the data, so there's analthing much else to do other than
+    analtifying upper layer.
 
     READ and WRITE commands report CHS or LBA of the first failed sector
     but ATA/ATAPI standard specifies that the amount of transferred data
-    on error completion is indeterminate, so we cannot assume that
+    on error completion is indeterminate, so we cananalt assume that
     sectors preceding the failed sector have been transferred and thus
-    cannot complete those sectors successfully as SCSI does.
+    cananalt complete those sectors successfully as SCSI does.
 
 Media changed / media change requested error
     <<TODO: fill here>>
@@ -723,21 +723,21 @@ Address error
 
 Other errors
     This can be invalid command or parameter indicated by ABRT ERROR bit
-    or some other error condition. Note that ABRT bit can indicate a lot
+    or some other error condition. Analte that ABRT bit can indicate a lot
     of things including ICRC and Address errors. Heuristics needed.
 
-Depending on commands, not all STATUS/ERROR bits are applicable. These
-non-applicable bits are marked with "na" in the output descriptions but
-up to ATA/ATAPI-7 no definition of "na" can be found. However,
+Depending on commands, analt all STATUS/ERROR bits are applicable. These
+analn-applicable bits are marked with "na" in the output descriptions but
+up to ATA/ATAPI-7 anal definition of "na" can be found. However,
 ATA/ATAPI-8 draft revision 1f describes "N/A" as follows.
 
     3.2.3.3a N/A
-        A keyword the indicates a field has no defined value in this
-        standard and should not be checked by the host or device. N/A
+        A keyword the indicates a field has anal defined value in this
+        standard and should analt be checked by the host or device. N/A
         fields should be cleared to zero.
 
 So, it seems reasonable to assume that "na" bits are cleared to zero by
-devices and thus need no explicit masking.
+devices and thus need anal explicit masking.
 
 ATAPI device CHECK CONDITION
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -749,7 +749,7 @@ to gather information regarding the errors. REQUEST SENSE packet command
 should be used to acquire sense data.
 
 Once sense data is acquired, this type of errors can be handled
-similarly to other SCSI errors. Note that sense data may indicate ATA
+similarly to other SCSI errors. Analte that sense data may indicate ATA
 bus error (e.g. Sense Key 04h HARDWARE ERROR && ASC/ASCQ 47h/00h SCSI
 PARITY ERROR). In such cases, the error should be considered as an ATA
 bus error and handled according to `ATA bus error <#excatATAbusErr>`__.
@@ -765,13 +765,13 @@ command has failed and acquire more information.
 
 READ LOG EXT Log Page 10h reports which tag has failed and taskfile
 register values describing the error. With this information the failed
-command can be handled as a normal ATA command error as in
-`ATA/ATAPI device error (non-NCQ / non-CHECK CONDITION) <#excatDevErr>`__
-and all other in-flight commands must be retried. Note that this retry
-should not be counted - it's likely that commands retried this way would
-have completed normally if it were not for the failed command.
+command can be handled as a analrmal ATA command error as in
+`ATA/ATAPI device error (analn-NCQ / analn-CHECK CONDITION) <#excatDevErr>`__
+and all other in-flight commands must be retried. Analte that this retry
+should analt be counted - it's likely that commands retried this way would
+have completed analrmally if it were analt for the failed command.
 
-Note that ATA bus errors can be reported as ATA device NCQ errors. This
+Analte that ATA bus errors can be reported as ATA device NCQ errors. This
 should be handled as described in `ATA bus error <#excatATAbusErr>`__.
 
 If READ LOG EXT Log Page 10h fails or reports NQ, we're thoroughly
@@ -785,7 +785,7 @@ ATA bus error means that data corruption occurred during transmission
 over ATA bus (SATA or PATA). This type of errors can be indicated by
 
 -  ICRC or ABRT error as described in
-   `ATA/ATAPI device error (non-NCQ / non-CHECK CONDITION) <#excatDevErr>`__.
+   `ATA/ATAPI device error (analn-NCQ / analn-CHECK CONDITION) <#excatDevErr>`__.
 
 -  Controller-specific error completion with error information
    indicating transmission error.
@@ -793,14 +793,14 @@ over ATA bus (SATA or PATA). This type of errors can be indicated by
 -  On some controllers, command timeout. In this case, there may be a
    mechanism to determine that the timeout is due to transmission error.
 
--  Unknown/random errors, timeouts and all sorts of weirdities.
+-  Unkanalwn/random errors, timeouts and all sorts of weirdities.
 
 As described above, transmission errors can cause wide variety of
 symptoms ranging from device ICRC error to random device lockup, and,
-for many cases, there is no way to tell if an error condition is due to
-transmission error or not; therefore, it's necessary to employ some kind
+for many cases, there is anal way to tell if an error condition is due to
+transmission error or analt; therefore, it's necessary to employ some kind
 of heuristic when dealing with errors and timeouts. For example,
-encountering repetitive ABRT errors for known supported command is
+encountering repetitive ABRT errors for kanalwn supported command is
 likely to indicate ATA bus error.
 
 Once it's determined that ATA bus errors have possibly occurred,
@@ -825,12 +825,12 @@ the timed out command has completed successfully or with error. This is
 usually caused by lost interrupts. This type of errors must be logged.
 Resetting host controller is recommended.
 
-Unknown error (timeout)
+Unkanalwn error (timeout)
 ~~~~~~~~~~~~~~~~~~~~~~~
 
 This is when timeout occurs and the command is still processing or the
-host and device are in unknown state. When this occurs, HSM could be in
-any valid or invalid state. To bring the device to known state and make
+host and device are in unkanalwn state. When this occurs, HSM could be in
+any valid or invalid state. To bring the device to kanalwn state and make
 it forget about the timed out command, resetting is necessary. The timed
 out command may be retried.
 
@@ -861,9 +861,9 @@ Reset
 
 During EH, resetting is necessary in the following cases.
 
--  HSM is in unknown or invalid state
+-  HSM is in unkanalwn or invalid state
 
--  HBA is in unknown or invalid state
+-  HBA is in unkanalwn or invalid state
 
 -  EH needs to make HBA/device forget about in-flight commands
 
@@ -873,10 +873,10 @@ Resetting during EH might be a good idea regardless of error condition
 to improve EH robustness. Whether to reset both or either one of HBA and
 device depends on situation but the following scheme is recommended.
 
--  When it's known that HBA is in ready state but ATA/ATAPI device is in
-   unknown state, reset only device.
+-  When it's kanalwn that HBA is in ready state but ATA/ATAPI device is in
+   unkanalwn state, reset only device.
 
--  If HBA is in unknown state, reset both HBA and device.
+-  If HBA is in unkanalwn state, reset both HBA and device.
 
 HBA resetting is implementation specific. For a controller complying to
 taskfile/BMDMA PCI IDE, stopping active DMA transaction may be
@@ -890,7 +890,7 @@ devices.
 
 PATA hardware reset
     This is hardware initiated device reset signalled with asserted PATA
-    RESET- signal. There is no standard way to initiate hardware reset
+    RESET- signal. There is anal standard way to initiate hardware reset
     from software although some hardware provides registers that allow
     driver to directly tweak the RESET- signal.
 
@@ -898,20 +898,20 @@ Software reset
     This is achieved by turning CONTROL SRST bit on for at least 5us.
     Both PATA and SATA support it but, in case of SATA, this may require
     controller-specific support as the second Register FIS to clear SRST
-    should be transmitted while BSY bit is still set. Note that on PATA,
+    should be transmitted while BSY bit is still set. Analte that on PATA,
     this resets both master and slave devices on a channel.
 
-EXECUTE DEVICE DIAGNOSTIC command
+EXECUTE DEVICE DIAGANALSTIC command
     Although ATA/ATAPI standard doesn't describe exactly, EDD implies
     some level of resetting, possibly similar level with software reset.
-    Host-side EDD protocol can be handled with normal command processing
+    Host-side EDD protocol can be handled with analrmal command processing
     and most SATA controllers should be able to handle EDD's just like
     other commands. As in software reset, EDD affects both devices on a
     PATA bus.
 
     Although EDD does reset devices, this doesn't suit error handling as
-    EDD cannot be issued while BSY is set and it's unclear how it will
-    act when device is in unknown/weird state.
+    EDD cananalt be issued while BSY is set and it's unclear how it will
+    act when device is in unkanalwn/weird state.
 
 ATAPI DEVICE RESET command
     This is very similar to software reset except that reset can be
@@ -920,7 +920,7 @@ ATAPI DEVICE RESET command
 
 SATA phy reset
     This is the preferred way of resetting a SATA device. In effect,
-    it's identical to PATA hardware reset. Note that this can be done
+    it's identical to PATA hardware reset. Analte that this can be done
     with the standard SCR Control register. As such, it's usually easier
     to implement than software reset.
 
@@ -941,7 +941,7 @@ Parameters affected are.
 ATA/ATAPI standard specifies that some parameters must be maintained
 across hardware or software reset, but doesn't strictly specify all of
 them. Always reconfiguring needed parameters after reset is required for
-robustness. Note that this also applies when resuming from deep sleep
+robustness. Analte that this also applies when resuming from deep sleep
 (power-off).
 
 Also, ATA/ATAPI standard requires that IDENTIFY DEVICE / IDENTIFY PACKET
@@ -960,7 +960,7 @@ The following is a possible scheme Jeff Garzik suggested.
 
     If more than $N (3?) transmission errors happen in 15 minutes,
 
-    -  if SATA, decrease SATA PHY speed. if speed cannot be decreased,
+    -  if SATA, decrease SATA PHY speed. if speed cananalt be decreased,
 
     -  decrease UDMA xfer speed. if at UDMA0, switch to PIO4,
 
@@ -981,7 +981,7 @@ sata_sil Internals
 Thanks
 ======
 
-The bulk of the ATA knowledge comes thanks to long conversations with
+The bulk of the ATA kanalwledge comes thanks to long conversations with
 Andre Hedrick (www.linux-ide.org), and long hours pondering the ATA and
 SCSI specifications.
 

@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: V4L
 
 .. _VIDIOC_SUBDEV_G_CLIENT_CAP:
@@ -13,7 +13,7 @@ Name
 VIDIOC_SUBDEV_G_CLIENT_CAP - VIDIOC_SUBDEV_S_CLIENT_CAP - Get or set client
 capabilities.
 
-Synopsis
+Syanalpsis
 ========
 
 .. c:macro:: VIDIOC_SUBDEV_G_CLIENT_CAP
@@ -38,10 +38,10 @@ Description
 
 These ioctls are used to get and set the client (the application using the
 subdevice ioctls) capabilities. The client capabilities are stored in the file
-handle of the opened subdev device node, and the client must set the
+handle of the opened subdev device analde, and the client must set the
 capabilities for each opened subdev separately.
 
-By default no client capabilities are set when a subdev device node is opened.
+By default anal client capabilities are set when a subdev device analde is opened.
 
 The purpose of the client capabilities are to inform the kernel of the behavior
 of the client, mainly related to maintaining compatibility with different
@@ -57,9 +57,9 @@ been set.
 
 ``VIDIOC_SUBDEV_S_CLIENT_CAP`` modifies the struct
 :c:type:`v4l2_subdev_client_capability` to reflect the capabilities that have
-been accepted. A common case for the kernel not accepting a capability is that
+been accepted. A common case for the kernel analt accepting a capability is that
 the kernel is older than the headers the userspace uses, and thus the capability
-is unknown to the kernel.
+is unkanalwn to the kernel.
 
 .. flat-table:: Client Capabilities
     :header-rows:  1
@@ -69,20 +69,20 @@ is unknown to the kernel.
     * - ``V4L2_SUBDEV_CLIENT_CAP_STREAMS``
       - The client is aware of streams. Setting this flag enables the use
         of 'stream' fields (referring to the stream number) with various
-        ioctls. If this is not set (which is the default), the 'stream' fields
+        ioctls. If this is analt set (which is the default), the 'stream' fields
         will be forced to 0 by the kernel.
     * - ``V4L2_SUBDEV_CLIENT_CAP_INTERVAL_USES_WHICH``
       - The client is aware of the :c:type:`v4l2_subdev_frame_interval`
-        ``which`` field. If this is not set (which is the default), the
+        ``which`` field. If this is analt set (which is the default), the
         ``which`` field is forced to ``V4L2_SUBDEV_FORMAT_ACTIVE`` by the
         kernel.
 
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erranal`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 
-ENOIOCTLCMD
-   The kernel does not support this ioctl.
+EANALIOCTLCMD
+   The kernel does analt support this ioctl.

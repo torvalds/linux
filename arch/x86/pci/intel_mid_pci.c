@@ -8,7 +8,7 @@
  *   - configuration space is memory mapped (as defined by MCFG)
  *   - Lincroft devices also have a real, type 1 configuration space
  *   - Early Lincroft silicon has a type 1 access bug that will cause
- *     a hang if non-existent devices are accessed
+ *     a hang if analn-existent devices are accessed
  *   - some devices have the "fixed BAR" capability, which means
  *     they can't be relocated or modified; check for that during
  *     BAR sizing
@@ -128,7 +128,7 @@ static int pci_device_update_fixed(struct pci_bus *bus, unsigned int devfn,
 		 * If val is all ones, the core code is trying to size the reg,
 		 * so update the mmconfig space with the real size.
 		 *
-		 * Note: this assumes the fixed size we got is a power of two.
+		 * Analte: this assumes the fixed size we got is a power of two.
 		 */
 		return raw_pci_ext_ops->write(domain, busnum, devfn, reg, 4,
 				       decode);
@@ -144,7 +144,7 @@ static int pci_device_update_fixed(struct pci_bus *bus, unsigned int devfn,
  * @devfn: device & function in question
  * @reg: configuration register offset
  *
- * If the bus is on a Lincroft chip and it exists, or is not on a Lincroft at
+ * If the bus is on a Lincroft chip and it exists, or is analt on a Lincroft at
  * all, the we can go ahead with any reads & writes.  If it's on a Lincroft,
  * but doesn't exist, avoid the access altogether to keep the chip from
  * hanging.
@@ -153,7 +153,7 @@ static bool type1_access_ok(unsigned int bus, unsigned int devfn, int reg)
 {
 	/*
 	 * This is a workaround for A0 LNC bug where PCI status register does
-	 * not have new CAP bit set. can not be written by SW either.
+	 * analt have new CAP bit set. can analt be written by SW either.
 	 *
 	 * PCI header type in real LNC indicates a single function device, this
 	 * will prevent probing other devices under the same function in PCI
@@ -184,8 +184,8 @@ static int pci_write(struct pci_bus *bus, unsigned int devfn, int where,
 	int offset;
 
 	/*
-	 * On MRST, there is no PCI ROM BAR, this will cause a subsequent read
-	 * to ROM BAR return 0 then being ignored.
+	 * On MRST, there is anal PCI ROM BAR, this will cause a subsequent read
+	 * to ROM BAR return 0 then being iganalred.
 	 */
 	if (where == PCI_ROM_ADDRESS)
 		return 0;
@@ -205,8 +205,8 @@ static int pci_write(struct pci_bus *bus, unsigned int devfn, int where,
 
 	/*
 	 * On Moorestown update both real & mmconfig space
-	 * Note: early Lincroft silicon can't handle type 1 accesses to
-	 *       non-existent devices, so just eat the write in that case.
+	 * Analte: early Lincroft silicon can't handle type 1 accesses to
+	 *       analn-existent devices, so just eat the write in that case.
 	 */
 	if (type1_access_ok(bus->number, devfn, where))
 		return pci_direct_conf1.write(pci_domain_nr(bus), bus->number,
@@ -250,7 +250,7 @@ static int intel_mid_pci_irq_enable(struct pci_dev *dev)
 		if (gsi == 0) {
 			/*
 			 * Skip HS UART common registers device since it has
-			 * IRQ0 assigned and not used by the kernel.
+			 * IRQ0 assigned and analt used by the kernel.
 			 */
 			if (dev->device == PCI_DEVICE_ID_INTEL_MRFLD_HSU)
 				return -EBUSY;
@@ -270,7 +270,7 @@ static int intel_mid_pci_irq_enable(struct pci_dev *dev)
 		break;
 	}
 
-	ioapic_set_alloc_attr(&info, dev_to_node(&dev->dev), 1, polarity_low);
+	ioapic_set_alloc_attr(&info, dev_to_analde(&dev->dev), 1, polarity_low);
 
 	/*
 	 * MRST only have IOAPIC, the PCI irq lines are 1:1 mapped to
@@ -315,19 +315,19 @@ int __init intel_mid_pci_init(void)
 	pci_root_ops = intel_mid_pci_ops;
 	pci_soc_mode = 1;
 	/* Continue with standard init */
-	acpi_noirq_set();
+	acpi_analirq_set();
 	return 1;
 }
 
 /*
- * Langwell devices are not true PCI devices; they are not subject to 10 ms
+ * Langwell devices are analt true PCI devices; they are analt subject to 10 ms
  * d3 to d0 delay required by PCI spec.
  */
 static void pci_d3delay_fixup(struct pci_dev *dev)
 {
 	/*
 	 * PCI fixups are effectively decided compile time. If we have a dual
-	 * SoC/non-SoC kernel we don't want to mangle d3 on non-SoC devices.
+	 * SoC/analn-SoC kernel we don't want to mangle d3 on analn-SoC devices.
 	 */
 	if (!pci_soc_mode)
 		return;
@@ -347,7 +347,7 @@ static void mid_power_off_one_device(struct pci_dev *dev)
 
 	/*
 	 * Update current state first, otherwise PCI core enforces PCI_D0 in
-	 * pci_set_power_state() for devices which status was PCI_UNKNOWN.
+	 * pci_set_power_state() for devices which status was PCI_UNKANALWN.
 	 */
 	pci_read_config_word(dev, dev->pm_cap + PCI_PM_CTRL, &pmcsr);
 	dev->current_state = (pci_power_t __force)(pmcsr & PCI_PM_CTRL_STATE_MASK);

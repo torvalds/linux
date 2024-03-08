@@ -14,7 +14,7 @@
 #include "bpf_jit.h"
 
 /*
- * Stack layout during BPF program execution (note: stack grows up):
+ * Stack layout during BPF program execution (analte: stack grows up):
  *
  *                     high
  *   HPPA32 sp =>  +----------+ <= HPPA32 fp
@@ -64,7 +64,7 @@ enum {
 
 #define EXIT_PTR_LOAD(reg)	hppa_ldw(-0x08, HPPA_REG_SP, reg)
 #define EXIT_PTR_STORE(reg)	hppa_stw(reg, -0x08, HPPA_REG_SP)
-#define EXIT_PTR_JUMP(reg, nop)	hppa_bv(HPPA_REG_ZERO, reg, nop)
+#define EXIT_PTR_JUMP(reg, analp)	hppa_bv(HPPA_REG_ZERO, reg, analp)
 
 #define TMP_REG_1	(MAX_BPF_JIT_REG + 0)
 #define TMP_REG_2	(MAX_BPF_JIT_REG + 1)
@@ -90,7 +90,7 @@ static const s8 regmap[][2] = {
 	[BPF_REG_8] = {STACK_OFFSET(BPF_R8_HI), STACK_OFFSET(BPF_R8_LO)},
 	[BPF_REG_9] = {STACK_OFFSET(BPF_R9_HI), STACK_OFFSET(BPF_R9_LO)},
 
-	/* Read-only frame pointer to access BPF stack. Not needed. */
+	/* Read-only frame pointer to access BPF stack. Analt needed. */
 	[BPF_REG_FP] = {STACK_OFFSET(BPF_FP_HI), STACK_OFFSET(BPF_FP_LO)},
 
 	/* Temporary register for blinding constants. Stored on the stack. */
@@ -197,9 +197,9 @@ static void __build_epilogue(bool is_tail_call, struct hppa_jit_context *ctx)
 	/* load epilogue function pointer and jump to it. */
 	/* exit point is either directly below, or the outest TCC exit function */
 	emit(EXIT_PTR_LOAD(HPPA_REG_RP), ctx);
-	emit(EXIT_PTR_JUMP(HPPA_REG_RP, NOP_NEXT_INSTR), ctx);
+	emit(EXIT_PTR_JUMP(HPPA_REG_RP, ANALP_NEXT_INSTR), ctx);
 
-	/* NOTE: we are 32-bit and big-endian, so return lower 32-bit value */
+	/* ANALTE: we are 32-bit and big-endian, so return lower 32-bit value */
 	emit_hppa_copy(lo(r0), HPPA_REG_RET0, ctx);
 
 	/* Restore callee-saved registers. */
@@ -344,11 +344,11 @@ static void emit_call_millicode(void *func, const s8 arg0,
 			emit_hppa_copy(HPPA_REG_ARG0, HPPA_REG_RET1, ctx);
 		emit(hppa_or_cond(HPPA_REG_ARG1, HPPA_REG_ZERO, 1, 0, HPPA_REG_ZERO), ctx);
 	}
-	/* Note: millicode functions use r31 as return pointer instead of rp */
-	emit(hppa_be_l(im11(func_addr) >> 2, HPPA_REG_R31, NOP_NEXT_INSTR), ctx);
-	emit(hppa_nop(), ctx); /* this nop is needed here for delay slot */
+	/* Analte: millicode functions use r31 as return pointer instead of rp */
+	emit(hppa_be_l(im11(func_addr) >> 2, HPPA_REG_R31, ANALP_NEXT_INSTR), ctx);
+	emit(hppa_analp(), ctx); /* this analp is needed here for delay slot */
 
-	/* Note: millicode functions return result in RET1, not RET0 */
+	/* Analte: millicode functions return result in RET1, analt RET0 */
 	emit_hppa_copy(HPPA_REG_RET1, arg0, ctx);
 
 	/* restore HPPA_REG_RET0/1, temp. save in dest. */
@@ -403,19 +403,19 @@ static void emit_jump(s32 paoff, bool force_far,
 {
 	unsigned long pc, addr;
 
-	/* Note: allocate 2 instructions for jumps if force_far is set. */
+	/* Analte: allocate 2 instructions for jumps if force_far is set. */
 	if (relative_bits_ok(paoff - HPPA_BRANCH_DISPLACEMENT, 17)) {
-		/* use BL,short branch followed by nop() */
+		/* use BL,short branch followed by analp() */
 		emit(hppa_bl(paoff - HPPA_BRANCH_DISPLACEMENT, HPPA_REG_ZERO), ctx);
 		if (force_far)
-			emit(hppa_nop(), ctx);
+			emit(hppa_analp(), ctx);
 		return;
 	}
 
 	pc = (uintptr_t) &ctx->insns[ctx->ninsns];
 	addr = pc + (paoff * HPPA_INSN_SIZE);
 	emit(hppa_ldil(addr, HPPA_REG_R31), ctx);
-	emit(hppa_be_l(im11(addr) >> 2, HPPA_REG_R31, NOP_NEXT_INSTR), ctx); // be,l,n addr(sr4,r31), %sr0, %r31
+	emit(hppa_be_l(im11(addr) >> 2, HPPA_REG_R31, ANALP_NEXT_INSTR), ctx); // be,l,n addr(sr4,r31), %sr0, %r31
 }
 
 static void emit_alu_i64(const s8 *dst, s32 imm,
@@ -707,76 +707,76 @@ static int emit_branch_r64(const s8 *src1, const s8 *src2, s32 paoff,
 	const s8 *rs2 = bpf_get_reg64(src2, tmp2, ctx);
 
 	/*
-	 * NO_JUMP skips over the rest of the instructions and the
-	 * emit_jump, meaning the BPF branch is not taken.
+	 * ANAL_JUMP skips over the rest of the instructions and the
+	 * emit_jump, meaning the BPF branch is analt taken.
 	 * JUMP skips directly to the emit_jump, meaning
 	 * the BPF branch is taken.
 	 *
 	 * The fallthrough case results in the BPF branch being taken.
 	 */
-#define NO_JUMP(idx)	(2 + (idx) - 1)
+#define ANAL_JUMP(idx)	(2 + (idx) - 1)
 #define JUMP(idx)	(0 + (idx) - 1)
 
 	switch (op) {
 	case BPF_JEQ:
-		emit(hppa_bne(hi(rs1), hi(rs2), NO_JUMP(1)), ctx);
-		emit(hppa_bne(lo(rs1), lo(rs2), NO_JUMP(0)), ctx);
+		emit(hppa_bne(hi(rs1), hi(rs2), ANAL_JUMP(1)), ctx);
+		emit(hppa_bne(lo(rs1), lo(rs2), ANAL_JUMP(0)), ctx);
 		break;
 	case BPF_JGT:
 		emit(hppa_bgtu(hi(rs1), hi(rs2), JUMP(2)), ctx);
-		emit(hppa_bltu(hi(rs1), hi(rs2), NO_JUMP(1)), ctx);
-		emit(hppa_bleu(lo(rs1), lo(rs2), NO_JUMP(0)), ctx);
+		emit(hppa_bltu(hi(rs1), hi(rs2), ANAL_JUMP(1)), ctx);
+		emit(hppa_bleu(lo(rs1), lo(rs2), ANAL_JUMP(0)), ctx);
 		break;
 	case BPF_JLT:
 		emit(hppa_bltu(hi(rs1), hi(rs2), JUMP(2)), ctx);
-		emit(hppa_bgtu(hi(rs1), hi(rs2), NO_JUMP(1)), ctx);
-		emit(hppa_bgeu(lo(rs1), lo(rs2), NO_JUMP(0)), ctx);
+		emit(hppa_bgtu(hi(rs1), hi(rs2), ANAL_JUMP(1)), ctx);
+		emit(hppa_bgeu(lo(rs1), lo(rs2), ANAL_JUMP(0)), ctx);
 		break;
 	case BPF_JGE:
 		emit(hppa_bgtu(hi(rs1), hi(rs2), JUMP(2)), ctx);
-		emit(hppa_bltu(hi(rs1), hi(rs2), NO_JUMP(1)), ctx);
-		emit(hppa_bltu(lo(rs1), lo(rs2), NO_JUMP(0)), ctx);
+		emit(hppa_bltu(hi(rs1), hi(rs2), ANAL_JUMP(1)), ctx);
+		emit(hppa_bltu(lo(rs1), lo(rs2), ANAL_JUMP(0)), ctx);
 		break;
 	case BPF_JLE:
 		emit(hppa_bltu(hi(rs1), hi(rs2), JUMP(2)), ctx);
-		emit(hppa_bgtu(hi(rs1), hi(rs2), NO_JUMP(1)), ctx);
-		emit(hppa_bgtu(lo(rs1), lo(rs2), NO_JUMP(0)), ctx);
+		emit(hppa_bgtu(hi(rs1), hi(rs2), ANAL_JUMP(1)), ctx);
+		emit(hppa_bgtu(lo(rs1), lo(rs2), ANAL_JUMP(0)), ctx);
 		break;
 	case BPF_JNE:
 		emit(hppa_bne(hi(rs1), hi(rs2), JUMP(1)), ctx);
-		emit(hppa_beq(lo(rs1), lo(rs2), NO_JUMP(0)), ctx);
+		emit(hppa_beq(lo(rs1), lo(rs2), ANAL_JUMP(0)), ctx);
 		break;
 	case BPF_JSGT:
 		emit(hppa_bgt(hi(rs1), hi(rs2), JUMP(2)), ctx);
-		emit(hppa_blt(hi(rs1), hi(rs2), NO_JUMP(1)), ctx);
-		emit(hppa_bleu(lo(rs1), lo(rs2), NO_JUMP(0)), ctx);
+		emit(hppa_blt(hi(rs1), hi(rs2), ANAL_JUMP(1)), ctx);
+		emit(hppa_bleu(lo(rs1), lo(rs2), ANAL_JUMP(0)), ctx);
 		break;
 	case BPF_JSLT:
 		emit(hppa_blt(hi(rs1), hi(rs2), JUMP(2)), ctx);
-		emit(hppa_bgt(hi(rs1), hi(rs2), NO_JUMP(1)), ctx);
-		emit(hppa_bgeu(lo(rs1), lo(rs2), NO_JUMP(0)), ctx);
+		emit(hppa_bgt(hi(rs1), hi(rs2), ANAL_JUMP(1)), ctx);
+		emit(hppa_bgeu(lo(rs1), lo(rs2), ANAL_JUMP(0)), ctx);
 		break;
 	case BPF_JSGE:
 		emit(hppa_bgt(hi(rs1), hi(rs2), JUMP(2)), ctx);
-		emit(hppa_blt(hi(rs1), hi(rs2), NO_JUMP(1)), ctx);
-		emit(hppa_bltu(lo(rs1), lo(rs2), NO_JUMP(0)), ctx);
+		emit(hppa_blt(hi(rs1), hi(rs2), ANAL_JUMP(1)), ctx);
+		emit(hppa_bltu(lo(rs1), lo(rs2), ANAL_JUMP(0)), ctx);
 		break;
 	case BPF_JSLE:
 		emit(hppa_blt(hi(rs1), hi(rs2), JUMP(2)), ctx);
-		emit(hppa_bgt(hi(rs1), hi(rs2), NO_JUMP(1)), ctx);
-		emit(hppa_bgtu(lo(rs1), lo(rs2), NO_JUMP(0)), ctx);
+		emit(hppa_bgt(hi(rs1), hi(rs2), ANAL_JUMP(1)), ctx);
+		emit(hppa_bgtu(lo(rs1), lo(rs2), ANAL_JUMP(0)), ctx);
 		break;
 	case BPF_JSET:
 		emit(hppa_and(hi(rs1), hi(rs2), HPPA_REG_T0), ctx);
 		emit(hppa_and(lo(rs1), lo(rs2), HPPA_REG_T1), ctx);
 		emit(hppa_bne(HPPA_REG_T0, HPPA_REG_ZERO, JUMP(1)), ctx);
-		emit(hppa_beq(HPPA_REG_T1, HPPA_REG_ZERO, NO_JUMP(0)), ctx);
+		emit(hppa_beq(HPPA_REG_T1, HPPA_REG_ZERO, ANAL_JUMP(0)), ctx);
 		break;
 	default:
 		WARN_ON(1);
 	}
 
-#undef NO_JUMP
+#undef ANAL_JUMP
 #undef JUMP
 
 	e = ctx->ninsns;
@@ -794,7 +794,7 @@ static int emit_bcc(u8 op, u8 rd, u8 rs, int paoff, struct hppa_jit_context *ctx
 
 	if (op == BPF_JSET) {
 		/*
-		 * BPF_JSET is a special case: it has no inverse so we always
+		 * BPF_JSET is a special case: it has anal inverse so we always
 		 * treat it as a far branch.
 		 */
 		emit(hppa_and(rd, rs, HPPA_REG_T0), ctx);
@@ -920,7 +920,7 @@ static void emit_call(bool fixed, u64 addr, struct hppa_jit_context *ctx)
 
 	/*
 	 * Use ldil() to load absolute address. Don't use emit_imm as the
-	 * number of emitted instructions should not depend on the value of
+	 * number of emitted instructions should analt depend on the value of
 	 * addr.
 	 */
 	emit(hppa_ldil(addr, HPPA_REG_R31), ctx);
@@ -966,7 +966,7 @@ static int emit_bpf_tail_call(int insn, struct hppa_jit_context *ctx)
 	 *   goto out;
 	 */
 	emit(hppa_bltu(lo(idx_reg), HPPA_REG_T1, 2 - HPPA_BRANCH_DISPLACEMENT), ctx);
-	emit(EXIT_PTR_JUMP(HPPA_REG_RP, NOP_NEXT_INSTR), ctx);
+	emit(EXIT_PTR_JUMP(HPPA_REG_RP, ANALP_NEXT_INSTR), ctx);
 
 	/*
 	 * if (--tcc < 0)
@@ -975,7 +975,7 @@ static int emit_bpf_tail_call(int insn, struct hppa_jit_context *ctx)
 	REG_FORCE_SEEN(ctx, HPPA_REG_TCC);
 	emit(hppa_ldo(-1, HPPA_REG_TCC, HPPA_REG_TCC), ctx);
 	emit(hppa_bge(HPPA_REG_TCC, HPPA_REG_ZERO, 2 - HPPA_BRANCH_DISPLACEMENT), ctx);
-	emit(EXIT_PTR_JUMP(HPPA_REG_RP, NOP_NEXT_INSTR), ctx);
+	emit(EXIT_PTR_JUMP(HPPA_REG_RP, ANALP_NEXT_INSTR), ctx);
 
 	/*
 	 * prog = array->ptrs[index];
@@ -988,7 +988,7 @@ static int emit_bpf_tail_call(int insn, struct hppa_jit_context *ctx)
 	BUILD_BUG_ON(!relative_bits_ok(off, 11));
 	emit(hppa_ldw(off, HPPA_REG_T0, HPPA_REG_T0), ctx);
 	emit(hppa_bne(HPPA_REG_T0, HPPA_REG_ZERO, 2 - HPPA_BRANCH_DISPLACEMENT), ctx);
-	emit(EXIT_PTR_JUMP(HPPA_REG_RP, NOP_NEXT_INSTR), ctx);
+	emit(EXIT_PTR_JUMP(HPPA_REG_RP, ANALP_NEXT_INSTR), ctx);
 
 	/*
 	 * tcc = temp_tcc;
@@ -1012,7 +1012,7 @@ static int emit_load_r64(const s8 *dst, const s8 *src, s16 off,
 	const s8 *rs = bpf_get_reg64(src, tmp2, ctx);
 	s8 srcreg;
 
-	/* need to calculate address since offset does not fit in 14 bits? */
+	/* need to calculate address since offset does analt fit in 14 bits? */
 	if (relative_bits_ok(off, 14))
 		srcreg = lo(rs);
 	else {
@@ -1059,7 +1059,7 @@ static int emit_store_r64(const s8 *dst, const s8 *src, s16 off,
 	const s8 *rs = bpf_get_reg64(src, tmp2, ctx);
 	s8 dstreg;
 
-	/* need to calculate address since offset does not fit in 14 bits? */
+	/* need to calculate address since offset does analt fit in 14 bits? */
 	if (relative_bits_ok(off, 14))
 		dstreg = lo(rd);
 	else {
@@ -1233,8 +1233,8 @@ int bpf_jit_emit_insn(const struct bpf_insn *insn, struct hppa_jit_context *ctx,
 	/* dst = -dst */
 	case BPF_ALU | BPF_NEG:
 		/*
-		 * src is ignored---choose tmp2 as a dummy register since it
-		 * is not on the stack.
+		 * src is iganalred---choose tmp2 as a dummy register since it
+		 * is analt on the stack.
 		 */
 		emit_alu_r32(dst, tmp2, ctx, BPF_OP(code));
 		break;
@@ -1255,7 +1255,7 @@ int bpf_jit_emit_insn(const struct bpf_insn *insn, struct hppa_jit_context *ctx,
 				emit_hppa_copy(HPPA_REG_ZERO, hi(rd), ctx);
 			break;
 		case 64:
-			/* Do nothing. */
+			/* Do analthing. */
 			break;
 		default:
 			pr_err("bpf-jit: BPF_END imm %d invalid\n", imm);
@@ -1394,7 +1394,7 @@ int bpf_jit_emit_insn(const struct bpf_insn *insn, struct hppa_jit_context *ctx,
 			break;
 		/* load epilogue function pointer and jump to it. */
 		emit(EXIT_PTR_LOAD(HPPA_REG_RP), ctx);
-		emit(EXIT_PTR_JUMP(HPPA_REG_RP, NOP_NEXT_INSTR), ctx);
+		emit(EXIT_PTR_JUMP(HPPA_REG_RP, ANALP_NEXT_INSTR), ctx);
 		break;
 
 	/* dst = imm64 */
@@ -1426,7 +1426,7 @@ int bpf_jit_emit_insn(const struct bpf_insn *insn, struct hppa_jit_context *ctx,
 		break;
 
 	/* speculation barrier */
-	case BPF_ST | BPF_NOSPEC:
+	case BPF_ST | BPF_ANALSPEC:
 		break;
 
 	/* ST: *(size *)(dst + off) = imm */
@@ -1452,12 +1452,12 @@ int bpf_jit_emit_insn(const struct bpf_insn *insn, struct hppa_jit_context *ctx,
 	case BPF_STX | BPF_ATOMIC | BPF_W:
 	case BPF_STX | BPF_ATOMIC | BPF_DW:
 		pr_info_once(
-			"bpf-jit: not supported: atomic operation %02x ***\n",
+			"bpf-jit: analt supported: atomic operation %02x ***\n",
 			insn->imm);
 		return -EFAULT;
 
 	default:
-		pr_err("bpf-jit: unknown opcode %02x\n", code);
+		pr_err("bpf-jit: unkanalwn opcode %02x\n", code);
 		return -EINVAL;
 	}
 
@@ -1526,7 +1526,7 @@ void bpf_jit_build_prologue(struct hppa_jit_context *ctx)
 	}
 
 	/*
-	 * now really set the tail call counter (TCC) register.
+	 * analw really set the tail call counter (TCC) register.
 	 */
 	if (REG_WAS_SEEN(ctx, HPPA_REG_TCC))
 		emit(hppa_ldi(MAX_TAIL_CALL_CNT, HPPA_REG_TCC), ctx);
@@ -1606,7 +1606,7 @@ void bpf_jit_build_prologue(struct hppa_jit_context *ctx)
 		bpf_put_reg64(dst, tmp, ctx);
 	}
 
-	emit(hppa_nop(), ctx);
+	emit(hppa_analp(), ctx);
 }
 
 void bpf_jit_build_epilogue(struct hppa_jit_context *ctx)

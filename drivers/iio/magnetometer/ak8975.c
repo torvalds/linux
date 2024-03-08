@@ -466,7 +466,7 @@ static int ak8975_who_i_am(struct i2c_client *client,
 	}
 
 	if (wia_val[0] != AK8975_DEVICE_ID)
-		return -ENODEV;
+		return -EANALDEV;
 
 	switch (type) {
 	case AK8975:
@@ -485,9 +485,9 @@ static int ak8975_who_i_am(struct i2c_client *client,
 			return 0;
 		break;
 	default:
-		dev_err(&client->dev, "Type %d unknown\n", type);
+		dev_err(&client->dev, "Type %d unkanalwn\n", type);
 	}
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 /*
@@ -577,7 +577,7 @@ static int ak8975_setup(struct i2c_client *client)
 			client, data->def->ctrl_regs[ASA_BASE],
 			3, data->asa);
 	if (ret < 0) {
-		dev_err(&client->dev, "Not able to read asa data\n");
+		dev_err(&client->dev, "Analt able to read asa data\n");
 		return ret;
 	}
 
@@ -692,7 +692,7 @@ static int ak8975_start_read_axis(struct ak8975_data *data,
 	if (ret < 0)
 		return ret;
 
-	/* This will be executed only for non-interrupt based waiting case */
+	/* This will be executed only for analn-interrupt based waiting case */
 	if (ret & data->def->ctrl_masks[ST1_DRDY]) {
 		ret = i2c_smbus_read_byte_data(client,
 					       data->def->ctrl_regs[ST2]);
@@ -859,7 +859,7 @@ static irqreturn_t ak8975_handle_trigger(int irq, void *p)
 	struct iio_dev *indio_dev = pf->indio_dev;
 
 	ak8975_fill_buffer(indio_dev);
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 	return IRQ_HANDLED;
 }
 
@@ -875,7 +875,7 @@ static int ak8975_probe(struct i2c_client *client)
 
 	/*
 	 * Grab and set up the supplied GPIO.
-	 * We may not have a GPIO based IRQ to scan, that is fine, we will
+	 * We may analt have a GPIO based IRQ to scan, that is fine, we will
 	 * poll if so.
 	 */
 	eoc_gpiod = devm_gpiod_get_optional(&client->dev, NULL, GPIOD_IN);
@@ -897,7 +897,7 @@ static int ak8975_probe(struct i2c_client *client)
 	/* Register with IIO */
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (indio_dev == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = iio_priv(indio_dev);
 	i2c_set_clientdata(client, indio_dev);
@@ -914,10 +914,10 @@ static int ak8975_probe(struct i2c_client *client)
 	/* id will be NULL when enumerated via ACPI */
 	data->def = i2c_get_match_data(client);
 	if (!data->def)
-		return -ENODEV;
+		return -EANALDEV;
 
-	/* If enumerated via firmware node, fix the ABI */
-	if (dev_fwnode(&client->dev))
+	/* If enumerated via firmware analde, fix the ABI */
+	if (dev_fwanalde(&client->dev))
 		name = dev_name(&client->dev);
 	else
 		name = id->name;
@@ -970,7 +970,7 @@ static int ak8975_probe(struct i2c_client *client)
 	}
 
 	/* Enable runtime PM */
-	pm_runtime_get_noresume(&client->dev);
+	pm_runtime_get_analresume(&client->dev);
 	pm_runtime_set_active(&client->dev);
 	pm_runtime_enable(&client->dev);
 	/*
@@ -996,7 +996,7 @@ static void ak8975_remove(struct i2c_client *client)
 	struct ak8975_data *data = iio_priv(indio_dev);
 
 	pm_runtime_get_sync(&client->dev);
-	pm_runtime_put_noidle(&client->dev);
+	pm_runtime_put_analidle(&client->dev);
 	pm_runtime_disable(&client->dev);
 	iio_device_unregister(indio_dev);
 	iio_triggered_buffer_cleanup(indio_dev);

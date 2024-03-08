@@ -99,8 +99,8 @@ static const struct sdhci_ops pic32_sdhci_ops = {
 
 static const struct sdhci_pltfm_data sdhci_pic32_pdata = {
 	.ops = &pic32_sdhci_ops,
-	.quirks = SDHCI_QUIRK_NO_HISPD_BIT,
-	.quirks2 = SDHCI_QUIRK2_NO_1_8_V,
+	.quirks = SDHCI_QUIRK_ANAL_HISPD_BIT,
+	.quirks2 = SDHCI_QUIRK2_ANAL_1_8_V,
 };
 
 static void pic32_sdhci_shared_bus(struct platform_device *pdev)
@@ -232,7 +232,7 @@ MODULE_DEVICE_TABLE(of, pic32_sdhci_id_table);
 static struct platform_driver pic32_sdhci_driver = {
 	.driver = {
 		.name	= "pic32-sdhci",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = of_match_ptr(pic32_sdhci_id_table),
 	},
 	.probe		= pic32_sdhci_probe,

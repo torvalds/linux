@@ -243,7 +243,7 @@ static int tmp51x_get_value(struct tmp51x_data *data, u8 reg, u8 pos,
 		// Programmer goofed
 		WARN_ON_ONCE(1);
 		*val = 0;
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -295,7 +295,7 @@ static int tmp51x_set_value(struct tmp51x_data *data, u8 reg, long val)
 	default:
 		// Programmer goofed
 		WARN_ON_ONCE(1);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (mask == 0)
@@ -411,7 +411,7 @@ static int tmp51x_read(struct device *dev, enum hwmon_sensor_types type,
 
 	reg = tmp51x_get_reg(type, attr, channel);
 	if (reg == 0)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (reg == TMP51X_STATUS)
 		pos = tmp51x_get_status_pos(type, attr, channel);
@@ -430,7 +430,7 @@ static int tmp51x_write(struct device *dev, enum hwmon_sensor_types type,
 
 	reg = tmp51x_get_reg(type, attr, channel);
 	if (reg == 0)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return tmp51x_set_value(dev_get_drvdata(dev), reg, val);
 }
@@ -545,7 +545,7 @@ static int tmp51x_calibrate(struct tmp51x_data *data)
 	/*
 	 * If shunt_uohms is equal to 0, the calibration should be set to 0.
 	 * The consequence will be that the current and power measurement engine
-	 * of the sensor will not work. Temperature and voltage sensing will
+	 * of the sensor will analt work. Temperature and voltage sensing will
 	 * continue to work.
 	 */
 	if (data->shunt_uohms == 0)
@@ -698,7 +698,7 @@ static int tmp51x_configure(struct device *dev, struct tmp51x_data *data)
 	data->shunt_config = TMP51X_SHUNT_CONFIG_DEFAULT;
 	data->temp_config = TMP51X_TEMP_CONFIG_DEFAULT(data->max_channels);
 
-	if (dev->of_node)
+	if (dev->of_analde)
 		return tmp51x_read_properties(dev, data);
 
 	tmp51x_use_default(data);
@@ -715,7 +715,7 @@ static int tmp51x_probe(struct i2c_client *client)
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->max_channels = (uintptr_t)i2c_get_match_data(client);
 

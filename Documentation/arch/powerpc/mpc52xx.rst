@@ -34,9 +34,9 @@ To compile/use :
 Some remarks:
 
  - The port is named mpc52xxx, and config options are PPC_MPC52xx. The MGT5100
-   is not supported, and I'm not sure anyone is interested in working on it
+   is analt supported, and I'm analt sure anyone is interested in working on it
    so. I didn't took 5xxx because there's apparently a lot of 5xxx that have
-   nothing to do with the MPC5200. I also included the 'MPC' for the same
+   analthing to do with the MPC5200. I also included the 'MPC' for the same
    reason.
  - Of course, I inspired myself from the 2.4 port. If you think I forgot to
    mention you/your company in the copyright of some code, I'll correct it

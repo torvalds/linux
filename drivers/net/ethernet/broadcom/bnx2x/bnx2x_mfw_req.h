@@ -74,13 +74,13 @@ struct eth_stats_info {
 	u8 mac_local[8];
 	u8 mac_add1[8];		/* Additional Programmed MAC Addr 1. */
 	u8 mac_add2[8];		/* Additional Programmed MAC Addr 2. */
-	u32 mtu_size;		/* MTU Size. Note   : Negotiated MTU */
+	u32 mtu_size;		/* MTU Size. Analte   : Negotiated MTU */
 	u32 feature_flags;	/* Feature_Flags. */
 #define FEATURE_ETH_CHKSUM_OFFLOAD_MASK		0x01
 #define FEATURE_ETH_LSO_MASK			0x02
 #define FEATURE_ETH_BOOTMODE_MASK		0x1C
 #define FEATURE_ETH_BOOTMODE_SHIFT		2
-#define FEATURE_ETH_BOOTMODE_NONE		(0x0 << 2)
+#define FEATURE_ETH_BOOTMODE_ANALNE		(0x0 << 2)
 #define FEATURE_ETH_BOOTMODE_PXE		(0x1 << 2)
 #define FEATURE_ETH_BOOTMODE_ISCSI		(0x2 << 2)
 #define FEATURE_ETH_BOOTMODE_FCOE		(0x3 << 2)
@@ -91,14 +91,14 @@ struct eth_stats_info {
 	u32 ipv4_ofld_cnt;
 	/* Num Offloaded Connections TCP_IPv6. */
 	u32 ipv6_ofld_cnt;
-	u32 promiscuous_mode;	/* Promiscuous Mode. non-zero true */
+	u32 promiscuous_mode;	/* Promiscuous Mode. analn-zero true */
 	u32 txq_size;		/* TX Descriptors Queue Size */
 	u32 rxq_size;		/* RX Descriptors Queue Size */
 	/* TX Descriptor Queue Avg Depth. % Avg Queue Depth since last poll */
 	u32 txq_avg_depth;
 	/* RX Descriptors Queue Avg Depth. % Avg Queue Depth since last poll */
 	u32 rxq_avg_depth;
-	/* IOV_Offload. 0=none; 1=MultiQueue, 2=VEB 3= VEPA*/
+	/* IOV_Offload. 0=analne; 1=MultiQueue, 2=VEB 3= VEPA*/
 	u32 iov_offload;
 	/* Number of NetQueue/VMQ Config'd. */
 	u32 netq_cnt;
@@ -136,7 +136,7 @@ struct iscsi_stats_info {
 	u8 mac_add1[8];		/* Additional Programmed MAC Addr 1. */
 	/* QoS Priority (per 802.1p). 0-7255 */
 	u32 qos_priority;
-	u8 initiator_name[64];	/* iSCSI Boot Initiator Node name. */
+	u8 initiator_name[64];	/* iSCSI Boot Initiator Analde name. */
 	u8 ww_port_name[64];	/* iSCSI World wide port name */
 	u8 boot_target_name[64];/* iSCSI Boot Target Name. */
 	u8 boot_target_ip[16];	/* iSCSI Boot Target IP. */

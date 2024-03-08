@@ -36,7 +36,7 @@ static int gstage_page_fault(struct kvm_vcpu *vcpu, struct kvm_run *run,
 							 fault_addr,
 							 trap->htinst);
 		default:
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		};
 	}
 
@@ -77,7 +77,7 @@ unsigned long kvm_riscv_vcpu_unpriv_read(struct kvm_vcpu *vcpu,
 		 */
 		asm volatile ("\n"
 			".option push\n"
-			".option norvc\n"
+			".option analrvc\n"
 			"add %[ttmp], %[taddr], 0\n"
 			HLVX_HU(%[val], %[addr])
 			"andi %[tmp], %[val], 3\n"
@@ -105,7 +105,7 @@ unsigned long kvm_riscv_vcpu_unpriv_read(struct kvm_vcpu *vcpu,
 		 */
 		asm volatile ("\n"
 			".option push\n"
-			".option norvc\n"
+			".option analrvc\n"
 			"add %[ttmp], %[taddr], 0\n"
 #ifdef CONFIG_64BIT
 			HLV_D(%[val], %[addr])
@@ -174,13 +174,13 @@ int kvm_riscv_vcpu_exit(struct kvm_vcpu *vcpu, struct kvm_run *run,
 {
 	int ret;
 
-	/* If we got host interrupt then do nothing */
+	/* If we got host interrupt then do analthing */
 	if (trap->scause & CAUSE_IRQ_FLAG)
 		return 1;
 
 	/* Handle guest traps */
 	ret = -EFAULT;
-	run->exit_reason = KVM_EXIT_UNKNOWN;
+	run->exit_reason = KVM_EXIT_UNKANALWN;
 	switch (trap->scause) {
 	case EXC_INST_ILLEGAL:
 	case EXC_LOAD_MISALIGNED:

@@ -4,7 +4,7 @@
 
 /*
  * Driver for interrupt combiners in the Top-level Control and Status
- * Registers (TCSR) hardware block in Qualcomm Technologies chips.
+ * Registers (TCSR) hardware block in Qualcomm Techanallogies chips.
  * An interrupt combiner in this block combines a set of interrupts by
  * OR'ing the individual interrupt signals into a summary interrupt
  * signal routed to a parent interrupt controller, and provides read-
@@ -103,7 +103,7 @@ static int combiner_irq_map(struct irq_domain *domain, unsigned int irq,
 {
 	irq_set_chip_and_handler(irq, &irq_chip, handle_level_irq);
 	irq_set_chip_data(irq, domain->host_data);
-	irq_set_noprobe(irq);
+	irq_set_analprobe(irq);
 	return 0;
 }
 
@@ -117,7 +117,7 @@ static int combiner_irq_translate(struct irq_domain *d, struct irq_fwspec *fws,
 {
 	struct combiner *combiner = d->host_data;
 
-	if (is_acpi_node(fws->fwnode)) {
+	if (is_acpi_analde(fws->fwanalde)) {
 		if (WARN_ON((fws->param_count != 2) ||
 			    (fws->param[0] >= combiner->nirqs) ||
 			    (fws->param[1] & IORESOURCE_IRQ_LOWEDGE) ||
@@ -192,7 +192,7 @@ static acpi_status get_registers_cb(struct acpi_resource *ares, void *context)
 	vaddr = devm_ioremap(ctx->dev, reg->address, REG_SIZE);
 	if (!vaddr) {
 		dev_err(ctx->dev, "Can't map register @%pa\n", &paddr);
-		ctx->err = -ENOMEM;
+		ctx->err = -EANALMEM;
 		return AE_ERROR;
 	}
 
@@ -237,7 +237,7 @@ static int __init combiner_probe(struct platform_device *pdev)
 	combiner = devm_kzalloc(&pdev->dev, struct_size(combiner, regs, nregs),
 				GFP_KERNEL);
 	if (!combiner)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = get_registers(pdev, combiner);
 	if (err < 0)
@@ -247,11 +247,11 @@ static int __init combiner_probe(struct platform_device *pdev)
 	if (combiner->parent_irq <= 0)
 		return -EPROBE_DEFER;
 
-	combiner->domain = irq_domain_create_linear(pdev->dev.fwnode, combiner->nirqs,
+	combiner->domain = irq_domain_create_linear(pdev->dev.fwanalde, combiner->nirqs,
 						    &domain_ops, combiner);
 	if (!combiner->domain)
 		/* Errors printed by irq_domain_create_linear */
-		return -ENODEV;
+		return -EANALDEV;
 
 	irq_set_chained_handler_and_data(combiner->parent_irq,
 					 combiner_handle_irq, combiner);

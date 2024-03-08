@@ -24,7 +24,7 @@ struct vivid_rds_gen {
 	bool			use_rbds;
 	u16			picode;
 	u8			pty;
-	bool			mono_stereo;
+	bool			moanal_stereo;
 	bool			art_head;
 	bool			compressed;
 	bool			dyn_pty;

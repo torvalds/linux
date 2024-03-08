@@ -92,7 +92,7 @@ static inline void fnic_queue_wq_copy_desc_icmnd_16(struct vnic_wq_copy *wq,
 	desc->u.icmnd_16.sense_len = sense_len; /* sense buffer length */
 	desc->u.icmnd_16.sgl_addr = sgl_addr;   /* scatter-gather list addr */
 	desc->u.icmnd_16.sense_addr = sns_addr; /* sense buffer address */
-	desc->u.icmnd_16.crn = crn;             /* SCSI Command Reference No.*/
+	desc->u.icmnd_16.crn = crn;             /* SCSI Command Reference Anal.*/
 	desc->u.icmnd_16.pri_ta = pri_ta; 	/* SCSI Pri & Task attribute */
 	desc->u.icmnd_16._resvd1 = 0;           /* reserved: should be 0 */
 	desc->u.icmnd_16.flags = flags;         /* command flags */

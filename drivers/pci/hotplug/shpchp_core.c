@@ -36,8 +36,8 @@ MODULE_DESCRIPTION(DRIVER_DESC);
 module_param(shpchp_debug, bool, 0644);
 module_param(shpchp_poll_mode, bool, 0644);
 module_param(shpchp_poll_time, int, 0644);
-MODULE_PARM_DESC(shpchp_debug, "Debugging mode enabled or not");
-MODULE_PARM_DESC(shpchp_poll_mode, "Using polling mechanism for hot-plug events or not");
+MODULE_PARM_DESC(shpchp_debug, "Debugging mode enabled or analt");
+MODULE_PARM_DESC(shpchp_poll_mode, "Using polling mechanism for hot-plug events or analt");
 MODULE_PARM_DESC(shpchp_poll_time, "Polling mechanism frequency, in seconds");
 
 #define SHPC_MODULE_NAME "shpchp"
@@ -71,7 +71,7 @@ static int init_slots(struct controller *ctrl)
 	for (i = 0; i < ctrl->num_slots; i++) {
 		slot = kzalloc(sizeof(*slot), GFP_KERNEL);
 		if (!slot) {
-			retval = -ENOMEM;
+			retval = -EANALMEM;
 			goto error;
 		}
 
@@ -86,7 +86,7 @@ static int init_slots(struct controller *ctrl)
 
 		slot->wq = alloc_workqueue("shpchp-%d", 0, 0, slot->number);
 		if (!slot->wq) {
-			retval = -ENOMEM;
+			retval = -EANALMEM;
 			goto error_slot;
 		}
 
@@ -238,7 +238,7 @@ static int get_adapter_status(struct hotplug_slot *hotplug_slot, u8 *value)
 static bool shpc_capable(struct pci_dev *bridge)
 {
 	/*
-	 * It is assumed that AMD GOLAM chips support SHPC but they do not
+	 * It is assumed that AMD GOLAM chips support SHPC but they do analt
 	 * have SHPC capability.
 	 */
 	if (bridge->vendor == PCI_VENDOR_ID_AMD &&
@@ -257,14 +257,14 @@ static int shpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct controller *ctrl;
 
 	if (!shpc_capable(pdev))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (acpi_get_hp_hw_control_from_firmware(pdev))
-		return -ENODEV;
+		return -EANALDEV;
 
 	ctrl = kzalloc(sizeof(*ctrl), GFP_KERNEL);
 	if (!ctrl)
-		goto err_out_none;
+		goto err_out_analne;
 
 	INIT_LIST_HEAD(&ctrl->slot_list);
 
@@ -296,8 +296,8 @@ err_out_release_ctlr:
 	ctrl->hpc_ops->release_ctlr(ctrl);
 err_out_free_ctrl:
 	kfree(ctrl);
-err_out_none:
-	return -ENODEV;
+err_out_analne:
+	return -EANALDEV;
 }
 
 static void shpc_remove(struct pci_dev *dev)
@@ -311,7 +311,7 @@ static void shpc_remove(struct pci_dev *dev)
 }
 
 static const struct pci_device_id shpcd_pci_tbl[] = {
-	{PCI_DEVICE_CLASS(PCI_CLASS_BRIDGE_PCI_NORMAL, ~0)},
+	{PCI_DEVICE_CLASS(PCI_CLASS_BRIDGE_PCI_ANALRMAL, ~0)},
 	{ /* end: all zeroes */ }
 };
 MODULE_DEVICE_TABLE(pci, shpcd_pci_tbl);

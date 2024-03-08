@@ -49,7 +49,7 @@ IMC catalog is available at:
 	https://github.com/open-power/ima-catalog
 
 The kernel discovers the IMC counters information in the device tree at the
-`imc-counters` device node which has a compatible field
+`imc-counters` device analde which has a compatible field
 `ibm,opal-in-memory-counters`. From the device tree, the kernel parses the PMUs
 and their event's information and register the PMU and its attributes in the
 kernel.
@@ -64,11 +64,11 @@ IMC example usage
   nest_mcs01/PM_MCS01_64B_RD_DISP_PORT01/            [Kernel PMU event]
   nest_mcs01/PM_MCS01_64B_RD_DISP_PORT23/            [Kernel PMU event]
   [...]
-  core_imc/CPM_0THRD_NON_IDLE_PCYC/                  [Kernel PMU event]
-  core_imc/CPM_1THRD_NON_IDLE_INST/                  [Kernel PMU event]
+  core_imc/CPM_0THRD_ANALN_IDLE_PCYC/                  [Kernel PMU event]
+  core_imc/CPM_1THRD_ANALN_IDLE_INST/                  [Kernel PMU event]
   [...]
-  thread_imc/CPM_0THRD_NON_IDLE_PCYC/                [Kernel PMU event]
-  thread_imc/CPM_1THRD_NON_IDLE_INST/                [Kernel PMU event]
+  thread_imc/CPM_0THRD_ANALN_IDLE_PCYC/                [Kernel PMU event]
+  thread_imc/CPM_1THRD_ANALN_IDLE_INST/                [Kernel PMU event]
 
 To see per chip data for nest_mcs0/PM_MCS_DOWN_128B_DATA_XFER_MC0/:
 
@@ -76,17 +76,17 @@ To see per chip data for nest_mcs0/PM_MCS_DOWN_128B_DATA_XFER_MC0/:
 
   # ./perf stat -e "nest_mcs01/PM_MCS01_64B_WR_DISP_PORT01/" -a --per-socket
 
-To see non-idle instructions for core 0:
+To see analn-idle instructions for core 0:
 
 .. code-block:: sh
 
-  # ./perf stat -e "core_imc/CPM_NON_IDLE_INST/" -C 0 -I 1000
+  # ./perf stat -e "core_imc/CPM_ANALN_IDLE_INST/" -C 0 -I 1000
 
-To see non-idle instructions for a "make":
+To see analn-idle instructions for a "make":
 
 .. code-block:: sh
 
-  # ./perf stat -e "thread_imc/CPM_NON_IDLE_PCYC/" make
+  # ./perf stat -e "thread_imc/CPM_ANALN_IDLE_PCYC/" make
 
 
 IMC Trace-mode
@@ -146,7 +146,7 @@ CPMC_LOAD contains the sampling duration. SAMPSEL and CPMCxSEL determines the
 event to count. BUFFERSIZE indicates the memory range. On each overflow,
 hardware snapshots the program counter along with event counts and updates the
 memory and reloads the CMPC_LOAD value for the next sampling duration. IMC
-hardware does not support exceptions, so it quietly wraps around if memory
+hardware does analt support exceptions, so it quietly wraps around if memory
 buffer reaches the end.
 
 *Currently the event monitored for trace-mode is fixed as cycle.*
@@ -164,7 +164,7 @@ To record an application/process with trace-imc event:
 
 .. code-block:: sh
 
-  # perf record -e trace_imc/trace_cycles/ yes > /dev/null
+  # perf record -e trace_imc/trace_cycles/ anal > /dev/null
   [ perf record: Woken up 1 times to write data ]
   [ perf record: Captured and wrote 0.012 MB perf.data (21 samples) ]
 
@@ -196,4 +196,4 @@ PMI interrupts count when `perf top` command is executed without trace-imc event
   PMI:      39735       8710      17338      17801   Performance monitoring interrupts
 
 
-That is, the PMI interrupt counts do not increment when using the `trace_imc` event.
+That is, the PMI interrupt counts do analt increment when using the `trace_imc` event.

@@ -35,7 +35,7 @@ static bool inv_mpu_i2c_aux_bus(struct device *dev)
 	case INV_ICM20600:
 	case INV_ICM20602:
 	case INV_IAM20680:
-		/* no i2c auxiliary bus on the chip */
+		/* anal i2c auxiliary bus on the chip */
 		return false;
 	case INV_MPU9150:
 	case INV_MPU9250:
@@ -53,26 +53,26 @@ static int inv_mpu_i2c_aux_setup(struct iio_dev *indio_dev)
 {
 	struct inv_mpu6050_state *st = iio_priv(indio_dev);
 	struct device *dev = indio_dev->dev.parent;
-	struct fwnode_handle *mux_node;
+	struct fwanalde_handle *mux_analde;
 	int ret;
 
 	/*
 	 * MPU9xxx magnetometer support requires to disable i2c auxiliary bus.
-	 * To ensure backward compatibility with existing setups, do not disable
+	 * To ensure backward compatibility with existing setups, do analt disable
 	 * i2c auxiliary bus if it used.
-	 * Check for i2c-gate node in devicetree and set magnetometer disabled.
-	 * Only MPU6500 is supported by ACPI, no need to check.
+	 * Check for i2c-gate analde in devicetree and set magnetometer disabled.
+	 * Only MPU6500 is supported by ACPI, anal need to check.
 	 */
 	switch (st->chip_type) {
 	case INV_MPU9150:
 	case INV_MPU9250:
 	case INV_MPU9255:
-		mux_node = device_get_named_child_node(dev, "i2c-gate");
-		if (mux_node != NULL) {
+		mux_analde = device_get_named_child_analde(dev, "i2c-gate");
+		if (mux_analde != NULL) {
 			st->magn_disabled = true;
 			dev_warn(dev, "disable internal use of magnetometer\n");
 		}
-		fwnode_handle_put(mux_node);
+		fwanalde_handle_put(mux_analde);
 		break;
 	default:
 		break;
@@ -107,7 +107,7 @@ static int inv_mpu_probe(struct i2c_client *client)
 
 	if (!i2c_check_functionality(client->adapter,
 				     I2C_FUNC_SMBUS_I2C_BLOCK))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	match = device_get_match_data(&client->dev);
 	if (match) {
@@ -118,7 +118,7 @@ static int inv_mpu_probe(struct i2c_client *client)
 			id->driver_data;
 		name = id->name;
 	} else {
-		return -ENOSYS;
+		return -EANALSYS;
 	}
 
 	regmap = devm_regmap_init_i2c(client, &inv_mpu_regmap_config);
@@ -140,7 +140,7 @@ static int inv_mpu_probe(struct i2c_client *client)
 					 1, 0, I2C_MUX_LOCKED | I2C_MUX_GATE,
 					 inv_mpu6050_select_bypass, NULL);
 		if (!st->muxc)
-			return -ENOMEM;
+			return -EANALMEM;
 		st->muxc->priv = dev_get_drvdata(&client->dev);
 		result = i2c_mux_add_adapter(st->muxc, 0, 0, 0);
 		if (result)

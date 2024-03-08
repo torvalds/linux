@@ -41,9 +41,9 @@ ssize_t lockevent_read(struct file *file, char __user *user_buf,
 	u64 sum = 0, kicks = 0;
 
 	/*
-	 * Get the counter ID stored in file->f_inode->i_private
+	 * Get the counter ID stored in file->f_ianalde->i_private
 	 */
-	id = (long)file_inode(file)->i_private;
+	id = (long)file_ianalde(file)->i_private;
 
 	if (id >= lockevent_num)
 		return -EBADF;

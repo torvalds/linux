@@ -46,8 +46,8 @@
 
 		reset-gpios = <&tlmm 69 GPIO_ACTIVE_LOW>;
 
-		vmon-slot-no = <1>;
-		imon-slot-no = <0>;
+		vmon-slot-anal = <1>;
+		imon-slot-anal = <0>;
 	};
 };
 

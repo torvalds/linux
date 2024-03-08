@@ -95,7 +95,7 @@ struct debug_view {
 extern struct debug_view debug_hex_ascii_view;
 extern struct debug_view debug_sprintf_view;
 
-/* do NOT use the _common functions */
+/* do ANALT use the _common functions */
 
 debug_entry_t *debug_event_common(debug_info_t *id, int level,
 				  const void *data, int length);
@@ -242,7 +242,7 @@ __debug_sprintf_event(debug_info_t *id, int level, char *string, ...)
  * - Address of written debug entry
  * - %NULL if error
  *
- * floats and long long datatypes cannot be used as varargs.
+ * floats and long long datatypes cananalt be used as varargs.
  */
 #define debug_sprintf_event(_id, _level, _fmt, ...)			\
 ({									\
@@ -372,7 +372,7 @@ __debug_sprintf_exception(debug_info_t *id, int level, char *string, ...)
  * - Address of written debug entry
  * - %NULL if error
  *
- * floats and long long datatypes cannot be used as varargs.
+ * floats and long long datatypes cananalt be used as varargs.
  */
 #define debug_sprintf_exception(_id, _level, _fmt, ...)			\
 ({									\
@@ -395,7 +395,7 @@ int debug_unregister_view(debug_info_t *id, struct debug_view *view);
 #ifndef MODULE
 
 /*
- * Note: Initial page and area numbers must be fixed to allow static
+ * Analte: Initial page and area numbers must be fixed to allow static
  * initialization. This enables very early tracing. Changes to these values
  * must be reflected in __DEFINE_STATIC_AREA.
  */
@@ -470,10 +470,10 @@ arch_initcall(VNAME(var, reg))
  * Define a static debug_info_t for early tracing. The associated debugfs log
  * is automatically registered with the specified debug view.
  *
- * Important: Users of this macro must not call any of the
+ * Important: Users of this macro must analt call any of the
  * debug_register/_unregister() functions for this debug_info_t!
  *
- * Note: Tracing will start with a fixed number of initial pages and areas.
+ * Analte: Tracing will start with a fixed number of initial pages and areas.
  * The debug area will be changed to use the specified numbers during
  * arch_initcall.
  */

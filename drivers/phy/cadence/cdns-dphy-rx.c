@@ -107,13 +107,13 @@ static int cdns_dphy_rx_get_band_ctrl(unsigned long hs_clk_rate)
 	rate *= 2;
 
 	if (rate < bands[0].min_rate)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	for (i = 0; i < ARRAY_SIZE(bands); i++)
 		if (rate < bands[i].max_rate)
 			return i;
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int cdns_dphy_rx_wait_for_bit(void __iomem *addr,
@@ -242,7 +242,7 @@ static int cdns_dphy_rx_probe(struct platform_device *pdev)
 
 	dphy = devm_kzalloc(dev, sizeof(*dphy), GFP_KERNEL);
 	if (!dphy)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(dev, dphy);
 	dphy->dev = dev;

@@ -37,14 +37,14 @@ static void wil_release_reorder_frame(struct net_device *ndev,
 	struct sk_buff *skb = r->reorder_buf[index];
 
 	if (!skb)
-		goto no_frame;
+		goto anal_frame;
 
 	/* release the frame from the reorder ring buffer */
 	r->stored_mpdu_num--;
 	r->reorder_buf[index] = NULL;
 	wil_netif_rx_any(skb, ndev);
 
-no_frame:
+anal_frame:
 	r->head_seq_num = seq_inc(r->head_seq_num);
 }
 
@@ -54,7 +54,7 @@ static void wil_release_reorder_frames(struct net_device *ndev,
 {
 	int index;
 
-	/* note: this function is never called with
+	/* analte: this function is never called with
 	 * hseq preceding r->head_seq_num, i.e it is always true
 	 * !seq_less(hseq, r->head_seq_num)
 	 * and thus on loop exit it should be
@@ -135,7 +135,7 @@ __acquires(&sta->tid_rx_lock) __releases(&sta->tid_rx_lock)
 	 * buffer get allocated. Catch up by pretending SSN is what we
 	 * see in the 1-st Rx packet
 	 *
-	 * Another scenario, Rx get delayed and we got packet from before
+	 * Aanalther scenario, Rx get delayed and we got packet from before
 	 * BACK. Pass it to the stack and wait.
 	 */
 	if (r->first_time) {
@@ -177,7 +177,7 @@ __acquires(&sta->tid_rx_lock) __releases(&sta->tid_rx_lock)
 		wil_release_reorder_frames(ndev, r, hseq);
 	}
 
-	/* Now the new frame is always in the range of the reordering buffer */
+	/* Analw the new frame is always in the range of the reordering buffer */
 
 	index = reorder_index(r, seq);
 
@@ -190,8 +190,8 @@ __acquires(&sta->tid_rx_lock) __releases(&sta->tid_rx_lock)
 	}
 
 	/*
-	 * If the current MPDU is in the right order and nothing else
-	 * is stored we can process it directly, no need to buffer it.
+	 * If the current MPDU is in the right order and analthing else
+	 * is stored we can process it directly, anal need to buffer it.
 	 * If it is first but there's something stored, we may be able
 	 * to release frames after this one.
 	 */
@@ -222,7 +222,7 @@ void wil_rx_bar(struct wil6210_priv *wil, struct wil6210_vif *vif,
 
 	r = sta->tid_rx[tid];
 	if (!r) {
-		wil_err(wil, "BAR for non-existing CID %d TID %d\n", cid, tid);
+		wil_err(wil, "BAR for analn-existing CID %d TID %d\n", cid, tid);
 		goto out;
 	}
 	if (seq_less(seq, r->head_seq_num)) {
@@ -270,8 +270,8 @@ void wil_tid_ampdu_rx_free(struct wil6210_priv *wil,
 	if (!r)
 		return;
 
-	/* Do not pass remaining frames to the network stack - it may be
-	 * not expecting to get any more Rx. Rx from here may lead to
+	/* Do analt pass remaining frames to the network stack - it may be
+	 * analt expecting to get any more Rx. Rx from here may lead to
 	 * kernel OOPS since some per-socket accounting info was already
 	 * released.
 	 */
@@ -331,7 +331,7 @@ __acquires(&sta->tid_rx_lock) __releases(&sta->tid_rx_lock)
 
 	sta = &wil->sta[cid];
 	if (sta->status != wil_sta_connected) {
-		wil_err(wil, "BACK: CID %d not connected\n", cid);
+		wil_err(wil, "BACK: CID %d analt connected\n", cid);
 		rc = -EINVAL;
 		goto out;
 	}
@@ -354,7 +354,7 @@ __acquires(&sta->tid_rx_lock) __releases(&sta->tid_rx_lock)
 					     WLAN_STATUS_SUCCESS, agg_amsdu,
 					     agg_wsize, agg_timeout);
 	if (rc) {
-		wil_err(wil, "do not apply ba, rc(%d)\n", rc);
+		wil_err(wil, "do analt apply ba, rc(%d)\n", rc);
 		goto out;
 	}
 

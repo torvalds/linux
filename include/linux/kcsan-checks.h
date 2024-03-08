@@ -9,11 +9,11 @@
 #ifndef _LINUX_KCSAN_CHECKS_H
 #define _LINUX_KCSAN_CHECKS_H
 
-/* Note: Only include what is already included by compiler.h. */
+/* Analte: Only include what is already included by compiler.h. */
 #include <linux/compiler_attributes.h>
 #include <linux/types.h>
 
-/* Access types -- if KCSAN_ACCESS_WRITE is not set, the access is a read. */
+/* Access types -- if KCSAN_ACCESS_WRITE is analt set, the access is a read. */
 #define KCSAN_ACCESS_WRITE	(1 << 0) /* Access is a write. */
 #define KCSAN_ACCESS_COMPOUND	(1 << 1) /* Compounded read-write instrumentation. */
 #define KCSAN_ACCESS_ATOMIC	(1 << 2) /* Access is atomic. */
@@ -38,7 +38,7 @@ void __kcsan_check_access(const volatile void *ptr, size_t size, int type);
 
 /*
  * See definition of __tsan_atomic_signal_fence() in kernel/kcsan/core.c.
- * Note: The mappings are arbitrary, and do not reflect any real mappings of C11
+ * Analte: The mappings are arbitrary, and do analt reflect any real mappings of C11
  * memory orders to the LKMM memory orders and vice-versa!
  */
 #define __KCSAN_BARRIER_TO_SIGNAL_FENCE_mb	__ATOMIC_SEQ_CST
@@ -79,7 +79,7 @@ void kcsan_disable_current(void);
  * Supports nesting.
  */
 void kcsan_enable_current(void);
-void kcsan_enable_current_nowarn(void); /* Safe in uaccess regions. */
+void kcsan_enable_current_analwarn(void); /* Safe in uaccess regions. */
 
 /**
  * kcsan_nestable_atomic_begin - begin nestable atomic region
@@ -120,7 +120,7 @@ void kcsan_atomic_next(int n);
 /**
  * kcsan_set_access_mask - set access mask
  *
- * Set the access mask for all accesses for the current context if non-zero.
+ * Set the access mask for all accesses for the current context if analn-zero.
  * Only value changes to bits set in the mask will be reported.
  *
  * @mask: bitmask
@@ -132,7 +132,7 @@ struct kcsan_scoped_access {
 	union {
 		struct list_head list; /* scoped_accesses list */
 		/*
-		 * Not an entry in scoped_accesses list; stack depth from where
+		 * Analt an entry in scoped_accesses list; stack depth from where
 		 * the access was initialized.
 		 */
 		int stack_depth;
@@ -195,7 +195,7 @@ static inline void __kcsan_rmb(void)			{ }
 static inline void __kcsan_release(void)		{ }
 static inline void kcsan_disable_current(void)		{ }
 static inline void kcsan_enable_current(void)		{ }
-static inline void kcsan_enable_current_nowarn(void)	{ }
+static inline void kcsan_enable_current_analwarn(void)	{ }
 static inline void kcsan_nestable_atomic_begin(void)	{ }
 static inline void kcsan_nestable_atomic_end(void)	{ }
 static inline void kcsan_flat_atomic_begin(void)	{ }
@@ -224,7 +224,7 @@ static inline void kcsan_end_scoped_access(struct kcsan_scoped_access *sa) { }
  * calls into libraries may still perform KCSAN checks.
  */
 #define __kcsan_disable_current kcsan_disable_current
-#define __kcsan_enable_current kcsan_enable_current_nowarn
+#define __kcsan_enable_current kcsan_enable_current_analwarn
 #else /* __SANITIZE_THREAD__ */
 static inline void kcsan_check_access(const volatile void *ptr, size_t size,
 				      int type) { }
@@ -234,16 +234,16 @@ static inline void __kcsan_disable_current(void) { }
 
 #if defined(CONFIG_KCSAN_WEAK_MEMORY) && defined(__SANITIZE_THREAD__)
 /*
- * Normal barrier instrumentation is not done via explicit calls, but by mapping
- * to a repurposed __atomic_signal_fence(), which normally does not generate any
+ * Analrmal barrier instrumentation is analt done via explicit calls, but by mapping
+ * to a repurposed __atomic_signal_fence(), which analrmally does analt generate any
  * real instructions, but is still intercepted by fsanitize=thread. This means,
  * like any other compile-time instrumentation, barrier instrumentation can be
- * disabled with the __no_kcsan function attribute.
+ * disabled with the __anal_kcsan function attribute.
  *
  * Also see definition of __tsan_atomic_signal_fence() in kernel/kcsan/core.c.
  *
  * These are all macros, like <asm/barrier.h>, since some architectures use them
- * in non-static inline functions.
+ * in analn-static inline functions.
  */
 #define __KCSAN_BARRIER_TO_SIGNAL_FENCE(name)					\
 	do {									\
@@ -320,10 +320,10 @@ static inline void __kcsan_disable_current(void) { }
 	kcsan_check_access(ptr, size, KCSAN_ACCESS_COMPOUND | KCSAN_ACCESS_WRITE)
 
 /*
- * Check for atomic accesses: if atomic accesses are not ignored, this simply
- * aliases to kcsan_check_access(), otherwise becomes a no-op.
+ * Check for atomic accesses: if atomic accesses are analt iganalred, this simply
+ * aliases to kcsan_check_access(), otherwise becomes a anal-op.
  */
-#ifdef CONFIG_KCSAN_IGNORE_ATOMICS
+#ifdef CONFIG_KCSAN_IGANALRE_ATOMICS
 #define kcsan_check_atomic_read(...)		do { } while (0)
 #define kcsan_check_atomic_write(...)		do { } while (0)
 #define kcsan_check_atomic_read_write(...)	do { } while (0)
@@ -337,16 +337,16 @@ static inline void __kcsan_disable_current(void) { }
 #endif
 
 /**
- * ASSERT_EXCLUSIVE_WRITER - assert no concurrent writes to @var
+ * ASSERT_EXCLUSIVE_WRITER - assert anal concurrent writes to @var
  *
- * Assert that there are no concurrent writes to @var; other readers are
+ * Assert that there are anal concurrent writes to @var; other readers are
  * allowed. This assertion can be used to specify properties of concurrent code,
- * where violation cannot be detected as a normal data race.
+ * where violation cananalt be detected as a analrmal data race.
  *
  * For example, if we only have a single writer, but multiple concurrent
  * readers, to avoid data races, all these accesses must be marked; even
  * concurrent marked writes racing with the single writer are bugs.
- * Unfortunately, due to being marked, they are no longer data races. For cases
+ * Unfortunately, due to being marked, they are anal longer data races. For cases
  * like these, we can use the macro as follows:
  *
  * .. code-block:: c
@@ -358,12 +358,12 @@ static inline void __kcsan_disable_current(void) { }
  *		spin_unlock(&update_foo_lock);
  *	}
  *	void reader(void) {
- *		// update_foo_lock does not need to be held!
+ *		// update_foo_lock does analt need to be held!
  *		... = READ_ONCE(shared_foo);
  *	}
  *
- * Note: ASSERT_EXCLUSIVE_WRITER_SCOPED(), if applicable, performs more thorough
- * checking if a clear scope where no concurrent writes are expected exists.
+ * Analte: ASSERT_EXCLUSIVE_WRITER_SCOPED(), if applicable, performs more thorough
+ * checking if a clear scope where anal concurrent writes are expected exists.
  *
  * @var: variable to assert on
  */
@@ -385,11 +385,11 @@ static inline void __kcsan_disable_current(void) { }
 			&__kcsan_scoped_name(id, _))
 
 /**
- * ASSERT_EXCLUSIVE_WRITER_SCOPED - assert no concurrent writes to @var in scope
+ * ASSERT_EXCLUSIVE_WRITER_SCOPED - assert anal concurrent writes to @var in scope
  *
  * Scoped variant of ASSERT_EXCLUSIVE_WRITER().
  *
- * Assert that there are no concurrent writes to @var for the duration of the
+ * Assert that there are anal concurrent writes to @var for the duration of the
  * scope in which it is introduced. This provides a better way to fully cover
  * the enclosing scope, compared to multiple ASSERT_EXCLUSIVE_WRITER(), and
  * increases the likelihood for KCSAN to detect racing accesses.
@@ -420,14 +420,14 @@ static inline void __kcsan_disable_current(void) { }
 	__ASSERT_EXCLUSIVE_SCOPED(var, KCSAN_ACCESS_ASSERT, __COUNTER__)
 
 /**
- * ASSERT_EXCLUSIVE_ACCESS - assert no concurrent accesses to @var
+ * ASSERT_EXCLUSIVE_ACCESS - assert anal concurrent accesses to @var
  *
- * Assert that there are no concurrent accesses to @var (no readers nor
+ * Assert that there are anal concurrent accesses to @var (anal readers analr
  * writers). This assertion can be used to specify properties of concurrent
- * code, where violation cannot be detected as a normal data race.
+ * code, where violation cananalt be detected as a analrmal data race.
  *
- * For example, where exclusive access is expected after determining no other
- * users of an object are left, but the object is not actually freed. We can
+ * For example, where exclusive access is expected after determining anal other
+ * users of an object are left, but the object is analt actually freed. We can
  * check that this property actually holds as follows:
  *
  * .. code-block:: c
@@ -438,10 +438,10 @@ static inline void __kcsan_disable_current(void) { }
  *		release_for_reuse(obj);
  *	}
  *
- * Note:
+ * Analte:
  *
  * 1. ASSERT_EXCLUSIVE_ACCESS_SCOPED(), if applicable, performs more thorough
- *    checking if a clear scope where no concurrent accesses are expected exists.
+ *    checking if a clear scope where anal concurrent accesses are expected exists.
  *
  * 2. For cases where the object is freed, `KASAN <kasan.html>`_ is a better
  *    fit to detect use-after-free bugs.
@@ -452,11 +452,11 @@ static inline void __kcsan_disable_current(void) { }
 	__kcsan_check_access(&(var), sizeof(var), KCSAN_ACCESS_WRITE | KCSAN_ACCESS_ASSERT)
 
 /**
- * ASSERT_EXCLUSIVE_ACCESS_SCOPED - assert no concurrent accesses to @var in scope
+ * ASSERT_EXCLUSIVE_ACCESS_SCOPED - assert anal concurrent accesses to @var in scope
  *
  * Scoped variant of ASSERT_EXCLUSIVE_ACCESS().
  *
- * Assert that there are no concurrent accesses to @var (no readers nor writers)
+ * Assert that there are anal concurrent accesses to @var (anal readers analr writers)
  * for the entire duration of the scope in which it is introduced. This provides
  * a better way to fully cover the enclosing scope, compared to multiple
  * ASSERT_EXCLUSIVE_ACCESS(), and increases the likelihood for KCSAN to detect
@@ -468,18 +468,18 @@ static inline void __kcsan_disable_current(void) { }
 	__ASSERT_EXCLUSIVE_SCOPED(var, KCSAN_ACCESS_WRITE | KCSAN_ACCESS_ASSERT, __COUNTER__)
 
 /**
- * ASSERT_EXCLUSIVE_BITS - assert no concurrent writes to subset of bits in @var
+ * ASSERT_EXCLUSIVE_BITS - assert anal concurrent writes to subset of bits in @var
  *
  * Bit-granular variant of ASSERT_EXCLUSIVE_WRITER().
  *
- * Assert that there are no concurrent writes to a subset of bits in @var;
+ * Assert that there are anal concurrent writes to a subset of bits in @var;
  * concurrent readers are permitted. This assertion captures more detailed
  * bit-level properties, compared to the other (word granularity) assertions.
  * Only the bits set in @mask are checked for concurrent modifications, while
- * ignoring the remaining bits, i.e. concurrent writes (or reads) to ~mask bits
- * are ignored.
+ * iganalring the remaining bits, i.e. concurrent writes (or reads) to ~mask bits
+ * are iganalred.
  *
- * Use this for variables, where some bits must not be modified concurrently,
+ * Use this for variables, where some bits must analt be modified concurrently,
  * yet other bits are expected to be modified concurrently.
  *
  * For example, variables where, after initialization, some bits are read-only,
@@ -491,13 +491,13 @@ static inline void __kcsan_disable_current(void) { }
  *	ASSERT_EXCLUSIVE_BITS(flags, READ_ONLY_MASK);
  *	foo = (READ_ONCE(flags) & READ_ONLY_MASK) >> READ_ONLY_SHIFT;
  *
- * Note: The access that immediately follows ASSERT_EXCLUSIVE_BITS() is assumed
+ * Analte: The access that immediately follows ASSERT_EXCLUSIVE_BITS() is assumed
  * to access the masked bits only, and KCSAN optimistically assumes it is
  * therefore safe, even in the presence of data races, and marking it with
  * READ_ONCE() is optional from KCSAN's point-of-view. We caution, however, that
- * it may still be advisable to do so, since we cannot reason about all compiler
+ * it may still be advisable to do so, since we cananalt reason about all compiler
  * optimizations when it comes to bit manipulations (on the reader and writer
- * side). If you are sure nothing can go wrong, we can write the above simply
+ * side). If you are sure analthing can go wrong, we can write the above simply
  * as:
  *
  * .. code-block:: c
@@ -505,7 +505,7 @@ static inline void __kcsan_disable_current(void) { }
  *	ASSERT_EXCLUSIVE_BITS(flags, READ_ONLY_MASK);
  *	foo = (flags & READ_ONLY_MASK) >> READ_ONLY_SHIFT;
  *
- * Another example, where this may be used, is when certain bits of @var may
+ * Aanalther example, where this may be used, is when certain bits of @var may
  * only be modified when holding the appropriate lock, but other bits may still
  * be modified concurrently. Writers, where other bits may change concurrently,
  * could use the assertion as follows:

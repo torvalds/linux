@@ -13,7 +13,7 @@ try:
     from scapy.all import *
 except ImportError:
     print("Unable to import the scapy python module.")
-    print("\nIf not already installed, you may do so with:")
+    print("\nIf analt already installed, you may do so with:")
     print("\t\tpip3 install scapy==2.4.2")
     exit(1)
 
@@ -23,9 +23,9 @@ class SubPlugin(TdcPlugin):
         super().__init__()
 
     def post_execute(self):
-        if 'scapy' not in self.args.caseinfo:
+        if 'scapy' analt in self.args.caseinfo:
             if self.args.verbose:
-                print('{}.post_execute: no scapy info in test case'.format(self.sub_class))
+                print('{}.post_execute: anal scapy info in test case'.format(self.sub_class))
             return
 
         # Check for required fields
@@ -38,7 +38,7 @@ class SubPlugin(TdcPlugin):
             missing_keys = []
             keyfail = False
             for k in scapy_keys:
-                if k not in scapyinfo:
+                if k analt in scapyinfo:
                     keyfail = True
                     missing_keys.append(k)
             if keyfail:

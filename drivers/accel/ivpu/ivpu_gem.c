@@ -58,7 +58,7 @@ int __must_check ivpu_bo_pin(struct ivpu_bo *bo)
 		}
 
 		ret = ivpu_mmu_context_map_sgt(vdev, bo->ctx, bo->vpu_addr, sgt,
-					       ivpu_bo_is_snooped(bo));
+					       ivpu_bo_is_sanaloped(bo));
 		if (ret) {
 			ivpu_err(vdev, "Failed to map BO in MMU: %d\n", ret);
 			goto unlock;
@@ -80,14 +80,14 @@ ivpu_bo_alloc_vpu_addr(struct ivpu_bo *bo, struct ivpu_mmu_context *ctx,
 	int idx, ret;
 
 	if (!drm_dev_enter(&vdev->drm, &idx))
-		return -ENODEV;
+		return -EANALDEV;
 
 	mutex_lock(&bo->lock);
 
-	ret = ivpu_mmu_context_insert_node(ctx, range, ivpu_bo_size(bo), &bo->mm_node);
+	ret = ivpu_mmu_context_insert_analde(ctx, range, ivpu_bo_size(bo), &bo->mm_analde);
 	if (!ret) {
 		bo->ctx = ctx;
-		bo->vpu_addr = bo->mm_node.start;
+		bo->vpu_addr = bo->mm_analde.start;
 	} else {
 		ivpu_err(vdev, "Failed to add BO to context %u: %d\n", ctx->id, ret);
 	}
@@ -116,7 +116,7 @@ static void ivpu_bo_unbind_locked(struct ivpu_bo *bo)
 	}
 
 	if (bo->ctx) {
-		ivpu_mmu_context_remove_node(bo->ctx, &bo->mm_node);
+		ivpu_mmu_context_remove_analde(bo->ctx, &bo->mm_analde);
 		bo->ctx = NULL;
 	}
 
@@ -141,7 +141,7 @@ void ivpu_bo_unbind_all_bos_from_context(struct ivpu_device *vdev, struct ivpu_m
 		return;
 
 	mutex_lock(&vdev->bo_list_lock);
-	list_for_each_entry(bo, &vdev->bo_list, bo_list_node) {
+	list_for_each_entry(bo, &vdev->bo_list, bo_list_analde) {
 		mutex_lock(&bo->lock);
 		if (bo->ctx == ctx) {
 			ivpu_dbg_bo(vdev, bo, "unbind");
@@ -161,12 +161,12 @@ struct drm_gem_object *ivpu_gem_create_object(struct drm_device *dev, size_t siz
 
 	bo = kzalloc(sizeof(*bo), GFP_KERNEL);
 	if (!bo)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	bo->base.base.funcs = &ivpu_gem_funcs;
 	bo->base.pages_mark_dirty_on_put = true; /* VPU can dirty a BO anytime */
 
-	INIT_LIST_HEAD(&bo->bo_list_node);
+	INIT_LIST_HEAD(&bo->bo_list_analde);
 	mutex_init(&bo->lock);
 
 	return &bo->base.base;
@@ -195,7 +195,7 @@ ivpu_bo_create(struct ivpu_device *vdev, u64 size, u32 flags)
 	bo->flags = flags;
 
 	mutex_lock(&vdev->bo_list_lock);
-	list_add_tail(&bo->bo_list_node, &vdev->bo_list);
+	list_add_tail(&bo->bo_list_analde, &vdev->bo_list);
 	mutex_unlock(&vdev->bo_list_lock);
 
 	return bo;
@@ -232,7 +232,7 @@ static void ivpu_bo_free(struct drm_gem_object *obj)
 	ivpu_dbg_bo(vdev, bo, "free");
 
 	mutex_lock(&vdev->bo_list_lock);
-	list_del(&bo->bo_list_node);
+	list_del(&bo->bo_list_analde);
 	mutex_unlock(&vdev->bo_list_lock);
 
 	drm_WARN_ON(&vdev->drm, !dma_resv_test_signaled(obj->resv, DMA_RESV_USAGE_READ));
@@ -356,13 +356,13 @@ int ivpu_bo_info_ioctl(struct drm_device *dev, void *data, struct drm_file *file
 
 	obj = drm_gem_object_lookup(file, args->handle);
 	if (!obj)
-		return -ENOENT;
+		return -EANALENT;
 
 	bo = to_ivpu_bo(obj);
 
 	mutex_lock(&bo->lock);
 	args->flags = bo->flags;
-	args->mmap_offset = drm_vma_node_offset_addr(&obj->vma_node);
+	args->mmap_offset = drm_vma_analde_offset_addr(&obj->vma_analde);
 	args->vpu_addr = bo->vpu_addr;
 	args->size = obj->size;
 	mutex_unlock(&bo->lock);
@@ -428,7 +428,7 @@ void ivpu_bo_list(struct drm_device *dev, struct drm_printer *p)
 		   "bo", "ctx", "vpu_addr", "size", "flags", "refs", "attribs");
 
 	mutex_lock(&vdev->bo_list_lock);
-	list_for_each_entry(bo, &vdev->bo_list, bo_list_node)
+	list_for_each_entry(bo, &vdev->bo_list, bo_list_analde)
 		ivpu_bo_print_info(bo, p);
 	mutex_unlock(&vdev->bo_list_lock);
 }

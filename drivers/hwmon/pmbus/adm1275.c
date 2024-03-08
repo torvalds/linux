@@ -135,16 +135,16 @@ static const struct coefficients adm1272_coefficients[] = {
 
 static const struct coefficients adm1275_coefficients[] = {
 	[0] = { 19199, 0, -2 },		/* voltage, vrange set */
-	[1] = { 6720, 0, -1 },		/* voltage, vrange not set */
+	[1] = { 6720, 0, -1 },		/* voltage, vrange analt set */
 	[2] = { 807, 20475, -1 },	/* current */
 };
 
 static const struct coefficients adm1276_coefficients[] = {
 	[0] = { 19199, 0, -2 },		/* voltage, vrange set */
-	[1] = { 6720, 0, -1 },		/* voltage, vrange not set */
+	[1] = { 6720, 0, -1 },		/* voltage, vrange analt set */
 	[2] = { 807, 20475, -1 },	/* current */
 	[3] = { 6043, 0, -2 },		/* power, vrange set */
-	[4] = { 2115, 0, -1 },		/* power, vrange not set */
+	[4] = { 2115, 0, -1 },		/* power, vrange analt set */
 };
 
 static const struct coefficients adm1278_coefficients[] = {
@@ -279,19 +279,19 @@ static int adm1275_read_word_data(struct i2c_client *client, int page,
 		break;
 	case PMBUS_VOUT_OV_WARN_LIMIT:
 		if (data->have_vout)
-			return -ENODATA;
+			return -EANALDATA;
 		ret = pmbus_read_word_data(client, 0, 0xff,
 					   ADM1075_VAUX_OV_WARN_LIMIT);
 		break;
 	case PMBUS_VOUT_UV_WARN_LIMIT:
 		if (data->have_vout)
-			return -ENODATA;
+			return -EANALDATA;
 		ret = pmbus_read_word_data(client, 0, 0xff,
 					   ADM1075_VAUX_UV_WARN_LIMIT);
 		break;
 	case PMBUS_READ_VOUT:
 		if (data->have_vout)
-			return -ENODATA;
+			return -EANALDATA;
 		ret = pmbus_read_word_data(client, 0, 0xff,
 					   ADM1075_READ_VAUX);
 		break;
@@ -359,7 +359,7 @@ static int adm1275_read_word_data(struct i2c_client *client, int page,
 		ret = BIT(ret);
 		break;
 	default:
-		ret = -ENODATA;
+		ret = -EANALDATA;
 		break;
 	}
 	return ret;
@@ -414,7 +414,7 @@ static int adm1275_write_word_data(struct i2c_client *client, int page, int reg,
 		ret = adm1275_write_samples(data, client, false, ilog2(word));
 		break;
 	default:
-		ret = -ENODATA;
+		ret = -EANALDATA;
 		break;
 	}
 	return ret;
@@ -447,7 +447,7 @@ static int adm1275_read_byte_data(struct i2c_client *client, int page, int reg)
 		break;
 	case PMBUS_STATUS_VOUT:
 		if (data->have_vout)
-			return -ENODATA;
+			return -EANALDATA;
 		ret = 0;
 		if (data->have_vaux_status) {
 			mfr_status = pmbus_read_byte_data(client, 0,
@@ -470,7 +470,7 @@ static int adm1275_read_byte_data(struct i2c_client *client, int page, int reg)
 		}
 		break;
 	default:
-		ret = -ENODATA;
+		ret = -EANALDATA;
 		break;
 	}
 	return ret;
@@ -488,7 +488,7 @@ static const struct i2c_device_id adm1275_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, adm1275_id);
 
-/* Enable VOUT & TEMP1 if not enabled (disabled by default) */
+/* Enable VOUT & TEMP1 if analt enabled (disabled by default) */
 static int adm1275_enable_vout_temp(struct adm1275_data *data,
 				    struct i2c_client *client, int config)
 {
@@ -523,7 +523,7 @@ static int adm1275_probe(struct i2c_client *client)
 	if (!i2c_check_functionality(client->adapter,
 				     I2C_FUNC_SMBUS_READ_BYTE_DATA
 				     | I2C_FUNC_SMBUS_BLOCK_DATA))
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = i2c_smbus_read_block_data(client, PMBUS_MFR_ID, block_buffer);
 	if (ret < 0) {
@@ -532,7 +532,7 @@ static int adm1275_probe(struct i2c_client *client)
 	}
 	if (ret != 3 || strncmp(block_buffer, "ADI", 3)) {
 		dev_err(&client->dev, "Unsupported Manufacturer ID\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ret = i2c_smbus_read_block_data(client, PMBUS_MFR_MODEL, block_buffer);
@@ -546,11 +546,11 @@ static int adm1275_probe(struct i2c_client *client)
 	}
 	if (!mid->name[0]) {
 		dev_err(&client->dev, "Unsupported device\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (strcmp(client->name, mid->name) != 0)
-		dev_notice(&client->dev,
+		dev_analtice(&client->dev,
 			   "Device mismatch: Configured %s, detected %s\n",
 			   client->name, mid->name);
 
@@ -570,11 +570,11 @@ static int adm1275_probe(struct i2c_client *client)
 	data = devm_kzalloc(&client->dev, sizeof(struct adm1275_data),
 			    GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	if (of_property_read_u32(client->dev.of_node,
+	if (of_property_read_u32(client->dev.of_analde,
 				 "shunt-resistor-micro-ohms", &shunt))
-		shunt = 1000; /* 1 mOhm if not set via DT */
+		shunt = 1000; /* 1 mOhm if analt set via DT */
 
 	if (shunt == 0)
 		return -EINVAL;
@@ -778,11 +778,11 @@ static int adm1275_probe(struct i2c_client *client)
 		break;
 	default:
 		dev_err(&client->dev, "Unsupported device\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (data->have_power_sampling &&
-	    of_property_read_u32(client->dev.of_node,
+	    of_property_read_u32(client->dev.of_analde,
 				 "adi,power-sample-average", &avg) == 0) {
 		if (!avg || avg > ADM1275_SAMPLES_AVG_MAX ||
 		    BIT(__fls(avg)) != avg) {
@@ -799,7 +799,7 @@ static int adm1275_probe(struct i2c_client *client)
 		}
 	}
 
-	if (of_property_read_u32(client->dev.of_node,
+	if (of_property_read_u32(client->dev.of_analde,
 				"adi,volt-curr-sample-average", &avg) == 0) {
 		if (!avg || avg > ADM1275_SAMPLES_AVG_MAX ||
 		    BIT(__fls(avg)) != avg) {

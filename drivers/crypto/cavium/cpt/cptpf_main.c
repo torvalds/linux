@@ -162,7 +162,7 @@ static int do_cpt_init(struct cpt_device *cpt, struct microcode *mcode)
 	int ret = 0;
 	struct device *dev = &cpt->pdev->dev;
 
-	/* Make device not ready */
+	/* Make device analt ready */
 	cpt->flags &= ~CPT_FLAG_DEVICE_READY;
 	/* Disable All PF interrupts */
 	cpt_disable_all_interrupts(cpt);
@@ -280,7 +280,7 @@ static int cpt_ucode_load_fw(struct cpt_device *cpt, const u8 *fw, bool is_ae)
 					 &mcode->phys_base, GFP_KERNEL);
 	if (!mcode->code) {
 		dev_err(dev, "Unable to allocate space for microcode");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fw_release;
 	}
 
@@ -440,13 +440,13 @@ static int cpt_device_init(struct cpt_device *cpt)
 	bist = (u64)cpt_check_bist_status(cpt);
 	if (bist) {
 		dev_err(dev, "RAM BIST failed with code 0x%llx", bist);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	bist = cpt_check_exe_bist_status(cpt);
 	if (bist) {
 		dev_err(dev, "Engine BIST failed with code 0x%llx", bist);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/*Get CLK frequency*/
@@ -508,8 +508,8 @@ static int cpt_sriov_init(struct cpt_device *cpt, int num_vfs)
 
 	pos = pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_SRIOV);
 	if (!pos) {
-		dev_err(&pdev->dev, "SRIOV capability is not found in PCIe config space\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "SRIOV capability is analt found in PCIe config space\n");
+		return -EANALDEV;
 	}
 
 	cpt->num_vf_en = num_vfs; /* User requested VFs */
@@ -553,7 +553,7 @@ static int cpt_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	cpt = devm_kzalloc(dev, sizeof(*cpt), GFP_KERNEL);
 	if (!cpt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pci_set_drvdata(pdev, cpt);
 	cpt->pdev = pdev;
@@ -579,8 +579,8 @@ static int cpt_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* MAP PF's configuration registers */
 	cpt->reg_base = pcim_iomap(pdev, 0, 0);
 	if (!cpt->reg_base) {
-		dev_err(dev, "Cannot map config register space, aborting\n");
-		err = -ENOMEM;
+		dev_err(dev, "Cananalt map config register space, aborting\n");
+		err = -EANALMEM;
 		goto cpt_err_release_regions;
 	}
 

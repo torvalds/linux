@@ -7,7 +7,7 @@
 
 /************************************
  ** This is an auto-generated file **
- **       DO NOT EDIT BELOW        **
+ **       DO ANALT EDIT BELOW        **
  ************************************/
 
 #ifndef ASIC_REG_NIC0_QM0_REGS_H_
@@ -37,15 +37,15 @@
 
 #define mmNIC0_QM0_GLBL_SECURE_PROPS_4                               0xCE0020
 
-#define mmNIC0_QM0_GLBL_NON_SECURE_PROPS_0                           0xCE0024
+#define mmNIC0_QM0_GLBL_ANALN_SECURE_PROPS_0                           0xCE0024
 
-#define mmNIC0_QM0_GLBL_NON_SECURE_PROPS_1                           0xCE0028
+#define mmNIC0_QM0_GLBL_ANALN_SECURE_PROPS_1                           0xCE0028
 
-#define mmNIC0_QM0_GLBL_NON_SECURE_PROPS_2                           0xCE002C
+#define mmNIC0_QM0_GLBL_ANALN_SECURE_PROPS_2                           0xCE002C
 
-#define mmNIC0_QM0_GLBL_NON_SECURE_PROPS_3                           0xCE0030
+#define mmNIC0_QM0_GLBL_ANALN_SECURE_PROPS_3                           0xCE0030
 
-#define mmNIC0_QM0_GLBL_NON_SECURE_PROPS_4                           0xCE0034
+#define mmNIC0_QM0_GLBL_ANALN_SECURE_PROPS_4                           0xCE0034
 
 #define mmNIC0_QM0_GLBL_STS0                                         0xCE0038
 
@@ -709,7 +709,7 @@
 
 #define mmNIC0_QM0_ARB_MSG_AWUSER_SEC_PROP                           0xCE0B4C
 
-#define mmNIC0_QM0_ARB_MSG_AWUSER_NON_SEC_PROP                       0xCE0B50
+#define mmNIC0_QM0_ARB_MSG_AWUSER_ANALN_SEC_PROP                       0xCE0B50
 
 #define mmNIC0_QM0_ARB_BASE_LO                                       0xCE0B54
 

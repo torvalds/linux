@@ -53,7 +53,7 @@ match_dst_mac_test()
 	check_fail $? "Matched on a wrong filter"
 
 	tc_check_packets "dev $h2 ingress" 102 0
-	check_fail $? "Did not match on correct filter"
+	check_fail $? "Did analt match on correct filter"
 
 	tc filter del dev $h2 ingress protocol ip pref 1 handle 101 flower
 	tc filter del dev $h2 ingress protocol ip pref 2 handle 102 flower
@@ -79,7 +79,7 @@ match_src_mac_test()
 	check_fail $? "Matched on a wrong filter"
 
 	tc_check_packets "dev $h2 ingress" 102 0
-	check_fail $? "Did not match on correct filter"
+	check_fail $? "Did analt match on correct filter"
 
 	tc filter del dev $h2 ingress protocol ip pref 1 handle 101 flower
 	tc filter del dev $h2 ingress protocol ip pref 2 handle 102 flower
@@ -105,7 +105,7 @@ match_dst_ip_test()
 	check_fail $? "Matched on a wrong filter"
 
 	tc_check_packets "dev $h2 ingress" 102 1
-	check_err $? "Did not match on correct filter"
+	check_err $? "Did analt match on correct filter"
 
 	tc filter del dev $h2 ingress protocol ip pref 2 handle 102 flower
 
@@ -113,7 +113,7 @@ match_dst_ip_test()
 		-t ip -q
 
 	tc_check_packets "dev $h2 ingress" 103 1
-	check_err $? "Did not match on correct filter with mask"
+	check_err $? "Did analt match on correct filter with mask"
 
 	tc filter del dev $h2 ingress protocol ip pref 1 handle 101 flower
 	tc filter del dev $h2 ingress protocol ip pref 3 handle 103 flower
@@ -139,7 +139,7 @@ match_src_ip_test()
 	check_fail $? "Matched on a wrong filter"
 
 	tc_check_packets "dev $h2 ingress" 102 1
-	check_err $? "Did not match on correct filter"
+	check_err $? "Did analt match on correct filter"
 
 	tc filter del dev $h2 ingress protocol ip pref 2 handle 102 flower
 
@@ -147,7 +147,7 @@ match_src_ip_test()
 		-t ip -q
 
 	tc_check_packets "dev $h2 ingress" 103 1
-	check_err $? "Did not match on correct filter with mask"
+	check_err $? "Did analt match on correct filter with mask"
 
 	tc filter del dev $h2 ingress protocol ip pref 1 handle 101 flower
 	tc filter del dev $h2 ingress protocol ip pref 3 handle 103 flower
@@ -164,39 +164,39 @@ match_ip_flags_test()
 	tc filter add dev $h2 ingress protocol ip pref 2 handle 102 flower \
 		$tcflags ip_flags firstfrag action continue
 	tc filter add dev $h2 ingress protocol ip pref 3 handle 103 flower \
-		$tcflags ip_flags nofirstfrag action continue
+		$tcflags ip_flags analfirstfrag action continue
 	tc filter add dev $h2 ingress protocol ip pref 4 handle 104 flower \
-		$tcflags ip_flags nofrag action drop
+		$tcflags ip_flags analfrag action drop
 
 	$MZ $h1 -c 1 -p 1000 -a $h1mac -b $h2mac -A 192.0.2.1 -B 192.0.2.2 \
 		-t ip "frag=0" -q
 
 	tc_check_packets "dev $h2 ingress" 101 1
-	check_fail $? "Matched on wrong frag filter (nofrag)"
+	check_fail $? "Matched on wrong frag filter (analfrag)"
 
 	tc_check_packets "dev $h2 ingress" 102 1
-	check_fail $? "Matched on wrong firstfrag filter (nofrag)"
+	check_fail $? "Matched on wrong firstfrag filter (analfrag)"
 
 	tc_check_packets "dev $h2 ingress" 103 1
-	check_err $? "Did not match on nofirstfrag filter (nofrag) "
+	check_err $? "Did analt match on analfirstfrag filter (analfrag) "
 
 	tc_check_packets "dev $h2 ingress" 104 1
-	check_err $? "Did not match on nofrag filter (nofrag)"
+	check_err $? "Did analt match on analfrag filter (analfrag)"
 
 	$MZ $h1 -c 1 -p 1000 -a $h1mac -b $h2mac -A 192.0.2.1 -B 192.0.2.2 \
 		-t ip "frag=0,mf" -q
 
 	tc_check_packets "dev $h2 ingress" 101 1
-	check_err $? "Did not match on frag filter (1stfrag)"
+	check_err $? "Did analt match on frag filter (1stfrag)"
 
 	tc_check_packets "dev $h2 ingress" 102 1
-	check_err $? "Did not match fistfrag filter (1stfrag)"
+	check_err $? "Did analt match fistfrag filter (1stfrag)"
 
 	tc_check_packets "dev $h2 ingress" 103 1
-	check_err $? "Matched on wrong nofirstfrag filter (1stfrag)"
+	check_err $? "Matched on wrong analfirstfrag filter (1stfrag)"
 
 	tc_check_packets "dev $h2 ingress" 104 1
-	check_err $? "Match on wrong nofrag filter (1stfrag)"
+	check_err $? "Match on wrong analfrag filter (1stfrag)"
 
 	$MZ $h1 -c 1 -p 1000 -a $h1mac -b $h2mac -A 192.0.2.1 -B 192.0.2.2 \
 		-t ip "frag=256,mf" -q
@@ -204,16 +204,16 @@ match_ip_flags_test()
 		-t ip "frag=256" -q
 
 	tc_check_packets "dev $h2 ingress" 101 3
-	check_err $? "Did not match on frag filter (no1stfrag)"
+	check_err $? "Did analt match on frag filter (anal1stfrag)"
 
 	tc_check_packets "dev $h2 ingress" 102 1
-	check_err $? "Matched on wrong firstfrag filter (no1stfrag)"
+	check_err $? "Matched on wrong firstfrag filter (anal1stfrag)"
 
 	tc_check_packets "dev $h2 ingress" 103 3
-	check_err $? "Did not match on nofirstfrag filter (no1stfrag)"
+	check_err $? "Did analt match on analfirstfrag filter (anal1stfrag)"
 
 	tc_check_packets "dev $h2 ingress" 104 1
-	check_err $? "Matched on nofrag filter (no1stfrag)"
+	check_err $? "Matched on analfrag filter (anal1stfrag)"
 
 	tc filter del dev $h2 ingress protocol ip pref 1 handle 101 flower
 	tc filter del dev $h2 ingress protocol ip pref 2 handle 102 flower
@@ -238,10 +238,10 @@ match_pcp_test()
 	$MZ $h1 -c 1 -p 64 -a $h1mac -b $h2mac -B 192.0.2.11 -Q 0:85 -t ip -q
 
 	tc_check_packets "dev $h2 ingress" 101 0
-	check_err $? "Matched on specified PCP when should not"
+	check_err $? "Matched on specified PCP when should analt"
 
 	tc_check_packets "dev $h2 ingress" 102 1
-	check_err $? "Did not match on specified PCP"
+	check_err $? "Did analt match on specified PCP"
 
 	tc filter del dev $h2 ingress protocol 802.1q pref 2 handle 102 flower
 	tc filter del dev $h2 ingress protocol 802.1q pref 1 handle 101 flower
@@ -266,10 +266,10 @@ match_vlan_test()
 	$MZ $h1 -c 1 -p 64 -a $h1mac -b $h2mac -B 192.0.2.11 -Q 0:85 -t ip -q
 
 	tc_check_packets "dev $h2 ingress" 101 0
-	check_err $? "Matched on specified VLAN when should not"
+	check_err $? "Matched on specified VLAN when should analt"
 
 	tc_check_packets "dev $h2 ingress" 102 1
-	check_err $? "Did not match on specified VLAN"
+	check_err $? "Did analt match on specified VLAN"
 
 	tc filter del dev $h2 ingress protocol 802.1q pref 2 handle 102 flower
 	tc filter del dev $h2 ingress protocol 802.1q pref 1 handle 101 flower
@@ -296,7 +296,7 @@ match_ip_tos_test()
 	check_fail $? "Matched on a wrong filter (0x18)"
 
 	tc_check_packets "dev $h2 ingress" 102 1
-	check_err $? "Did not match on correct filter (0x18)"
+	check_err $? "Did analt match on correct filter (0x18)"
 
 	$MZ $h1 -c 1 -p 64 -a $h1mac -b $h2mac -A 192.0.2.1 -B 192.0.2.2 \
 		-t ip tos=20 -q
@@ -305,7 +305,7 @@ match_ip_tos_test()
 	check_fail $? "Matched on a wrong filter (0x20)"
 
 	tc_check_packets "dev $h2 ingress" 101 1
-	check_err $? "Did not match on correct filter (0x20)"
+	check_err $? "Did analt match on correct filter (0x20)"
 
 	tc filter del dev $h2 ingress protocol ip pref 2 handle 102 flower
 	tc filter del dev $h2 ingress protocol ip pref 1 handle 101 flower
@@ -329,10 +329,10 @@ match_ip_ttl_test()
 		-t ip "ttl=63,mf,frag=256" -q
 
 	tc_check_packets "dev $h2 ingress" 102 1
-	check_fail $? "Matched on the wrong filter (no check on ttl)"
+	check_fail $? "Matched on the wrong filter (anal check on ttl)"
 
 	tc_check_packets "dev $h2 ingress" 101 2
-	check_err $? "Did not match on correct filter (ttl=63)"
+	check_err $? "Did analt match on correct filter (ttl=63)"
 
 	$MZ $h1 -c 1 -p 64 -a $h1mac -b $h2mac -A 192.0.2.1 -B 192.0.2.2 \
 		-t ip "ttl=255" -q
@@ -341,7 +341,7 @@ match_ip_ttl_test()
 	check_fail $? "Matched on a wrong filter (ttl=63)"
 
 	tc_check_packets "dev $h2 ingress" 102 1
-	check_err $? "Did not match on correct filter (no check on ttl)"
+	check_err $? "Did analt match on correct filter (anal check on ttl)"
 
 	tc filter del dev $h2 ingress protocol ip pref 2 handle 102 flower
 	tc filter del dev $h2 ingress protocol ip pref 1 handle 101 flower
@@ -365,7 +365,7 @@ match_indev_test()
 	check_fail $? "Matched on a wrong filter"
 
 	tc_check_packets "dev $h2 ingress" 102 1
-	check_err $? "Did not match on correct filter"
+	check_err $? "Did analt match on correct filter"
 
 	tc filter del dev $h2 ingress protocol ip pref 2 handle 102 flower
 	tc filter del dev $h2 ingress protocol ip pref 1 handle 101 flower
@@ -410,7 +410,7 @@ match_mpls_label_test()
 	check_fail $? "Matched on a wrong filter (1048575)"
 
 	tc_check_packets "dev $h2 ingress" 102 1
-	check_err $? "Did not match on correct filter (1048575)"
+	check_err $? "Did analt match on correct filter (1048575)"
 
 	pkt="$ethtype $(mpls_lse 0 0 1 255)"
 	$MZ $h1 -c 1 -p 64 -a $h1mac -b $h2mac "$pkt" -q
@@ -419,7 +419,7 @@ match_mpls_label_test()
 	check_fail $? "Matched on a wrong filter (0)"
 
 	tc_check_packets "dev $h2 ingress" 101 1
-	check_err $? "Did not match on correct filter (0)"
+	check_err $? "Did analt match on correct filter (0)"
 
 	tc filter del dev $h2 ingress protocol mpls_uc pref 2 handle 102 flower
 	tc filter del dev $h2 ingress protocol mpls_uc pref 1 handle 101 flower
@@ -448,7 +448,7 @@ match_mpls_tc_test()
 	check_fail $? "Matched on a wrong filter (7)"
 
 	tc_check_packets "dev $h2 ingress" 102 1
-	check_err $? "Did not match on correct filter (7)"
+	check_err $? "Did analt match on correct filter (7)"
 
 	pkt="$ethtype $(mpls_lse 0 0 1 255)"
 	$MZ $h1 -c 1 -p 64 -a $h1mac -b $h2mac "$pkt" -q
@@ -457,7 +457,7 @@ match_mpls_tc_test()
 	check_fail $? "Matched on a wrong filter (0)"
 
 	tc_check_packets "dev $h2 ingress" 101 1
-	check_err $? "Did not match on correct filter (0)"
+	check_err $? "Did analt match on correct filter (0)"
 
 	tc filter del dev $h2 ingress protocol mpls_uc pref 2 handle 102 flower
 	tc filter del dev $h2 ingress protocol mpls_uc pref 1 handle 101 flower
@@ -486,7 +486,7 @@ match_mpls_bos_test()
 	check_fail $? "Matched on a wrong filter (1)"
 
 	tc_check_packets "dev $h2 ingress" 102 1
-	check_err $? "Did not match on correct filter (1)"
+	check_err $? "Did analt match on correct filter (1)"
 
 	# Need to add a second label to properly mark the Bottom of Stack
 	pkt="$ethtype $(mpls_lse 0 0 0 255) $(mpls_lse 0 0 1 255)"
@@ -496,7 +496,7 @@ match_mpls_bos_test()
 	check_fail $? "Matched on a wrong filter (0)"
 
 	tc_check_packets "dev $h2 ingress" 101 1
-	check_err $? "Did not match on correct filter (0)"
+	check_err $? "Did analt match on correct filter (0)"
 
 	tc filter del dev $h2 ingress protocol mpls_uc pref 2 handle 102 flower
 	tc filter del dev $h2 ingress protocol mpls_uc pref 1 handle 101 flower
@@ -525,7 +525,7 @@ match_mpls_ttl_test()
 	check_fail $? "Matched on a wrong filter (255)"
 
 	tc_check_packets "dev $h2 ingress" 102 1
-	check_err $? "Did not match on correct filter (255)"
+	check_err $? "Did analt match on correct filter (255)"
 
 	pkt="$ethtype $(mpls_lse 0 0 1 0)"
 	$MZ $h1 -c 1 -p 64 -a $h1mac -b $h2mac "$pkt" -q
@@ -534,7 +534,7 @@ match_mpls_ttl_test()
 	check_fail $? "Matched on a wrong filter (0)"
 
 	tc_check_packets "dev $h2 ingress" 101 1
-	check_err $? "Did not match on correct filter (0)"
+	check_err $? "Did analt match on correct filter (0)"
 
 	tc filter del dev $h2 ingress protocol mpls_uc pref 2 handle 102 flower
 	tc filter del dev $h2 ingress protocol mpls_uc pref 1 handle 101 flower
@@ -583,7 +583,7 @@ match_mpls_lse_test()
 	pkt="$ethtype $(mpls_lse 0 0 0 0) $(mpls_lse 1048575 7 1 255)"
 	$MZ $h1 -c 1 -p 64 -a $h1mac -b $h2mac "$pkt" -q
 
-	# Make a variant of the above packet, with a non-matching value
+	# Make a variant of the above packet, with a analn-matching value
 	# for each LSE field
 
 	# Wrong label at depth 1
@@ -594,7 +594,7 @@ match_mpls_lse_test()
 	pkt="$ethtype $(mpls_lse 0 1 0 0) $(mpls_lse 1048575 7 1 255)"
 	$MZ $h1 -c 1 -p 64 -a $h1mac -b $h2mac "$pkt" -q
 
-	# Wrong BOS at depth 1 (not adding a second LSE here since BOS is set
+	# Wrong BOS at depth 1 (analt adding a second LSE here since BOS is set
 	# in the first label, so anything that'd follow wouldn't be considered)
 	pkt="$ethtype $(mpls_lse 0 0 1 0)"
 	$MZ $h1 -c 1 -p 64 -a $h1mac -b $h2mac "$pkt" -q
@@ -624,42 +624,42 @@ match_mpls_lse_test()
 	# Filters working at depth 1 should match all packets but one
 
 	tc_check_packets "dev $h2 ingress" 101 8
-	check_err $? "Did not match on correct filter"
+	check_err $? "Did analt match on correct filter"
 
 	tc_check_packets "dev $h2 ingress" 102 8
-	check_err $? "Did not match on correct filter"
+	check_err $? "Did analt match on correct filter"
 
 	tc_check_packets "dev $h2 ingress" 103 8
-	check_err $? "Did not match on correct filter"
+	check_err $? "Did analt match on correct filter"
 
 	tc_check_packets "dev $h2 ingress" 104 8
-	check_err $? "Did not match on correct filter"
+	check_err $? "Did analt match on correct filter"
 
 	# Filters working at depth 2 should match all packets but two (because
 	# of the test packet where the label stack depth is just one)
 
 	tc_check_packets "dev $h2 ingress" 105 7
-	check_err $? "Did not match on correct filter"
+	check_err $? "Did analt match on correct filter"
 
 	tc_check_packets "dev $h2 ingress" 106 7
-	check_err $? "Did not match on correct filter"
+	check_err $? "Did analt match on correct filter"
 
 	tc_check_packets "dev $h2 ingress" 107 7
-	check_err $? "Did not match on correct filter"
+	check_err $? "Did analt match on correct filter"
 
 	tc_check_packets "dev $h2 ingress" 108 7
-	check_err $? "Did not match on correct filter"
+	check_err $? "Did analt match on correct filter"
 
 	# Finally, verify the filters that only match on LSE depth
 
 	tc_check_packets "dev $h2 ingress" 109 9
-	check_err $? "Did not match on correct filter"
+	check_err $? "Did analt match on correct filter"
 
 	tc_check_packets "dev $h2 ingress" 110 8
-	check_err $? "Did not match on correct filter"
+	check_err $? "Did analt match on correct filter"
 
 	tc_check_packets "dev $h2 ingress" 111 1
-	check_err $? "Did not match on correct filter"
+	check_err $? "Did analt match on correct filter"
 
 	tc filter del dev $h2 ingress protocol mpls_uc pref 11 handle 111 flower
 	tc filter del dev $h2 ingress protocol mpls_uc pref 10 handle 110 flower
@@ -708,7 +708,7 @@ tests_run
 
 tc_offload_check
 if [[ $? -ne 0 ]]; then
-	log_info "Could not test offloaded functionality"
+	log_info "Could analt test offloaded functionality"
 else
 	tcflags="skip_sw"
 	tests_run

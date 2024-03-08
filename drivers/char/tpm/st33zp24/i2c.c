@@ -26,7 +26,7 @@ struct st33zp24_i2c_phy {
  * @param: tpm_register, the tpm tis register where the data should be written
  * @param: tpm_data, the tpm_data to write inside the tpm_register
  * @param: tpm_size, The length of the data
- * @return: Returns negative errno, or else the number of bytes written.
+ * @return: Returns negative erranal, or else the number of bytes written.
  */
 static int write8_reg(void *phy_id, u8 tpm_register, u8 *tpm_data, int tpm_size)
 {
@@ -106,14 +106,14 @@ static int st33zp24_i2c_probe(struct i2c_client *client)
 	struct st33zp24_i2c_phy *phy;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
-		dev_info(&client->dev, "client not i2c capable\n");
-		return -ENODEV;
+		dev_info(&client->dev, "client analt i2c capable\n");
+		return -EANALDEV;
 	}
 
 	phy = devm_kzalloc(&client->dev, sizeof(struct st33zp24_i2c_phy),
 			   GFP_KERNEL);
 	if (!phy)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	phy->client = client;
 

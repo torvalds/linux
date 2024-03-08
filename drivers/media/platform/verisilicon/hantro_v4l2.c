@@ -99,7 +99,7 @@ hantro_check_depth_match(const struct hantro_fmt *fmt, int bit_depth)
 	fmt_depth = hantro_get_format_depth(fmt->fourcc);
 
 	/*
-	 * Allow only downconversion for postproc formats for now.
+	 * Allow only downconversion for postproc formats for analw.
 	 * It may be possible to relax that on some HW.
 	 */
 	if (!fmt->match_depth)
@@ -136,7 +136,7 @@ hantro_get_default_fmt(const struct hantro_ctx *ctx, bool bitstream,
 	formats = hantro_get_formats(ctx, &num_fmts, need_postproc);
 	for (i = 0; i < num_fmts; i++) {
 		if (bitstream == (formats[i].codec_mode !=
-				  HANTRO_MODE_NONE) &&
+				  HANTRO_MODE_ANALNE) &&
 		    hantro_check_depth_match(&formats[i], bit_depth))
 			return &formats[i];
 	}
@@ -144,7 +144,7 @@ hantro_get_default_fmt(const struct hantro_ctx *ctx, bool bitstream,
 	formats = hantro_get_postproc_formats(ctx, &num_fmts);
 	for (i = 0; i < num_fmts; i++) {
 		if (bitstream == (formats[i].codec_mode !=
-				  HANTRO_MODE_NONE) &&
+				  HANTRO_MODE_ANALNE) &&
 		    hantro_check_depth_match(&formats[i], bit_depth))
 			return &formats[i];
 	}
@@ -176,12 +176,12 @@ static int vidioc_enum_framesizes(struct file *file, void *priv,
 		return -EINVAL;
 	}
 
-	/* For non-coded formats check if postprocessing scaling is possible */
-	if (fmt->codec_mode == HANTRO_MODE_NONE) {
+	/* For analn-coded formats check if postprocessing scaling is possible */
+	if (fmt->codec_mode == HANTRO_MODE_ANALNE) {
 		if (hantro_needs_postproc(ctx, fmt))
 			return hanto_postproc_enum_framesizes(ctx, fsize);
 		else
-			return -ENOTTY;
+			return -EANALTTY;
 	} else if (fsize->index != 0) {
 		vpu_debug(0, "invalid frame size index (expected 0, got %d)\n",
 			  fsize->index);
@@ -201,26 +201,26 @@ static int vidioc_enum_fmt(struct file *file, void *priv,
 	struct hantro_ctx *ctx = fh_to_ctx(priv);
 	const struct hantro_fmt *fmt, *formats;
 	unsigned int num_fmts, i, j = 0;
-	bool skip_mode_none;
+	bool skip_mode_analne;
 
 	/*
 	 * When dealing with an encoder:
-	 *  - on the capture side we want to filter out all MODE_NONE formats.
+	 *  - on the capture side we want to filter out all MODE_ANALNE formats.
 	 *  - on the output side we want to filter out all formats that are
-	 *    not MODE_NONE.
+	 *    analt MODE_ANALNE.
 	 * When dealing with a decoder:
 	 *  - on the capture side we want to filter out all formats that are
-	 *    not MODE_NONE.
-	 *  - on the output side we want to filter out all MODE_NONE formats.
+	 *    analt MODE_ANALNE.
+	 *  - on the output side we want to filter out all MODE_ANALNE formats.
 	 */
-	skip_mode_none = capture == ctx->is_encoder;
+	skip_mode_analne = capture == ctx->is_encoder;
 
 	formats = hantro_get_formats(ctx, &num_fmts, HANTRO_AUTO_POSTPROC);
 	for (i = 0; i < num_fmts; i++) {
-		bool mode_none = formats[i].codec_mode == HANTRO_MODE_NONE;
+		bool mode_analne = formats[i].codec_mode == HANTRO_MODE_ANALNE;
 		fmt = &formats[i];
 
-		if (skip_mode_none == mode_none)
+		if (skip_mode_analne == mode_analne)
 			continue;
 		if (!hantro_check_depth_match(fmt, ctx->bit_depth))
 			continue;
@@ -322,7 +322,7 @@ static int hantro_try_fmt(const struct hantro_ctx *ctx,
 		vpu_fmt = hantro_find_format(ctx, ctx->dst_fmt.pixelformat);
 	} else {
 		/*
-		 * Width/height on the CAPTURE end of a decoder are ignored and
+		 * Width/height on the CAPTURE end of a decoder are iganalred and
 		 * replaced by the OUTPUT ones.
 		 */
 		pix_mp->width = ctx->src_fmt.width;
@@ -330,7 +330,7 @@ static int hantro_try_fmt(const struct hantro_ctx *ctx,
 		vpu_fmt = fmt;
 	}
 
-	pix_mp->field = V4L2_FIELD_NONE;
+	pix_mp->field = V4L2_FIELD_ANALNE;
 
 	v4l2_apply_frmsize_constraints(&pix_mp->width, &pix_mp->height,
 				       &vpu_fmt->frmsize);
@@ -391,7 +391,7 @@ hantro_reset_fmt(struct v4l2_pix_format_mplane *fmt,
 	memset(fmt, 0, sizeof(*fmt));
 
 	fmt->pixelformat = vpu_fmt->fourcc;
-	fmt->field = V4L2_FIELD_NONE;
+	fmt->field = V4L2_FIELD_ANALNE;
 	fmt->colorspace = V4L2_COLORSPACE_JPEG;
 	fmt->ycbcr_enc = V4L2_YCBCR_ENC_DEFAULT;
 	fmt->quantization = V4L2_QUANTIZATION_DEFAULT;
@@ -540,7 +540,7 @@ static int hantro_set_fmt_out(struct hantro_ctx *ctx,
 	 * keep internal driver state sane. User is mandated to set
 	 * the raw format again after we return, so we don't need
 	 * anything smarter.
-	 * Note that hantro_reset_raw_fmt() also propagates size
+	 * Analte that hantro_reset_raw_fmt() also propagates size
 	 * changes to the raw format.
 	 */
 	if (!ctx->is_encoder)
@@ -598,7 +598,7 @@ static int hantro_set_fmt_cap(struct hantro_ctx *ctx,
 	 * keep internal driver state sane. User is mandated to set
 	 * the raw format again after we return, so we don't need
 	 * anything smarter.
-	 * Note that hantro_reset_raw_fmt() also propagates size
+	 * Analte that hantro_reset_raw_fmt() also propagates size
 	 * changes to the raw format.
 	 */
 	if (ctx->is_encoder)
@@ -674,7 +674,7 @@ static int vidioc_s_selection(struct file *file, void *priv,
 	    sel->type != V4L2_BUF_TYPE_VIDEO_OUTPUT)
 		return -EINVAL;
 
-	/* Change not allowed if the queue is streaming. */
+	/* Change analt allowed if the queue is streaming. */
 	vq = v4l2_m2m_get_src_vq(ctx->fh.m2m_ctx);
 	if (vb2_is_streaming(vq))
 		return -EBUSY;
@@ -683,7 +683,7 @@ static int vidioc_s_selection(struct file *file, void *priv,
 		return -EINVAL;
 
 	/*
-	 * We do not support offsets, and we can crop only inside
+	 * We do analt support offsets, and we can crop only inside
 	 * right-most or bottom-most macroblocks.
 	 */
 	if (rect->left != 0 || rect->top != 0 ||
@@ -871,7 +871,7 @@ static void hantro_buf_queue(struct vb2_buffer *vb)
 		for (i = 0; i < vb->num_planes; i++)
 			vb2_set_plane_payload(vb, i, 0);
 
-		vbuf->field = V4L2_FIELD_NONE;
+		vbuf->field = V4L2_FIELD_ANALNE;
 		vbuf->sequence = ctx->sequence_cap++;
 
 		v4l2_m2m_last_buffer_done(ctx->fh.m2m_ctx, vbuf);
@@ -987,7 +987,7 @@ static int hantro_buf_out_validate(struct vb2_buffer *vb)
 {
 	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 
-	vbuf->field = V4L2_FIELD_NONE;
+	vbuf->field = V4L2_FIELD_ANALNE;
 	return 0;
 }
 

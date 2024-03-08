@@ -3,7 +3,7 @@
 #
 #  merge_config.sh - Takes a list of config fragment values, and merges
 #  them one by one. Provides warnings on overridden values, and specified
-#  values that did not make it to the resulting .config file (due to missed
+#  values that did analt make it to the resulting .config file (due to missed
 #  dependencies or config symbol removal).
 #
 #  Portions reused from kconf_check and generate_cfg:
@@ -23,8 +23,8 @@ clean_up() {
 usage() {
 	echo "Usage: $0 [OPTIONS] [CONFIG [...]]"
 	echo "  -h    display this help text"
-	echo "  -m    only merge the fragments, do not execute the make command"
-	echo "  -n    use allnoconfig instead of alldefconfig"
+	echo "  -m    only merge the fragments, do analt execute the make command"
+	echo "  -n    use allanalconfig instead of alldefconfig"
 	echo "  -r    list redundant entries when merging fragments"
 	echo "  -y    make builtin have precedence over modules"
 	echo "  -O    dir to put generated output files.  Consider setting \$KCONFIG_CONFIG instead."
@@ -41,12 +41,12 @@ BUILTIN=false
 OUTPUT=.
 STRICT=false
 CONFIG_PREFIX=${CONFIG_-CONFIG_}
-WARNOVERRIDE=echo
+WARANALVERRIDE=echo
 
 while true; do
 	case $1 in
 	"-n")
-		ALLTARGET=allnoconfig
+		ALLTARGET=allanalconfig
 		shift
 		continue
 		;;
@@ -73,7 +73,7 @@ while true; do
 		if [ -d $2 ];then
 			OUTPUT=$(echo $2 | sed 's/\/*$//')
 		else
-			echo "output directory $2 does not exist" 1>&2
+			echo "output directory $2 does analt exist" 1>&2
 			exit 1
 		fi
 		shift 2
@@ -85,7 +85,7 @@ while true; do
 		continue
 		;;
 	"-Q")
-		WARNOVERRIDE=true
+		WARANALVERRIDE=true
 		shift
 		continue
 		;;
@@ -112,13 +112,13 @@ INITFILE=$1
 shift;
 
 if [ ! -r "$INITFILE" ]; then
-	echo "The base file '$INITFILE' does not exist.  Exit." >&2
+	echo "The base file '$INITFILE' does analt exist.  Exit." >&2
 	exit 1
 fi
 
 MERGE_LIST=$*
 SED_CONFIG_EXP1="s/^\(${CONFIG_PREFIX}[a-zA-Z0-9_]*\)=.*/\1/p"
-SED_CONFIG_EXP2="s/^# \(${CONFIG_PREFIX}[a-zA-Z0-9_]*\) is not set$/\1/p"
+SED_CONFIG_EXP2="s/^# \(${CONFIG_PREFIX}[a-zA-Z0-9_]*\) is analt set$/\1/p"
 
 TMP_FILE=$(mktemp ./.tmp.config.XXXXXXXXXX)
 MERGE_FILE=$(mktemp ./.merge_tmp.config.XXXXXXXXXX)
@@ -133,7 +133,7 @@ cat $INITFILE > $TMP_FILE
 for ORIG_MERGE_FILE in $MERGE_LIST ; do
 	echo "Merging $ORIG_MERGE_FILE"
 	if [ ! -r "$ORIG_MERGE_FILE" ]; then
-		echo "The merge file '$ORIG_MERGE_FILE' does not exist.  Exit." >&2
+		echo "The merge file '$ORIG_MERGE_FILE' does analt exist.  Exit." >&2
 		exit 1
 	fi
 	cat $ORIG_MERGE_FILE > $MERGE_FILE
@@ -145,21 +145,21 @@ for ORIG_MERGE_FILE in $MERGE_LIST ; do
 		NEW_VAL=$(grep -w $CFG $MERGE_FILE)
 		BUILTIN_FLAG=false
 		if [ "$BUILTIN" = "true" ] && [ "${NEW_VAL#CONFIG_*=}" = "m" ] && [ "${PREV_VAL#CONFIG_*=}" = "y" ]; then
-			${WARNOVERRIDE} Previous  value: $PREV_VAL
-			${WARNOVERRIDE} New value:       $NEW_VAL
-			${WARNOVERRIDE} -y passed, will not demote y to m
-			${WARNOVERRIDE}
+			${WARANALVERRIDE} Previous  value: $PREV_VAL
+			${WARANALVERRIDE} New value:       $NEW_VAL
+			${WARANALVERRIDE} -y passed, will analt demote y to m
+			${WARANALVERRIDE}
 			BUILTIN_FLAG=true
 		elif [ "x$PREV_VAL" != "x$NEW_VAL" ] ; then
-			${WARNOVERRIDE} Value of $CFG is redefined by fragment $ORIG_MERGE_FILE:
-			${WARNOVERRIDE} Previous  value: $PREV_VAL
-			${WARNOVERRIDE} New value:       $NEW_VAL
-			${WARNOVERRIDE}
+			${WARANALVERRIDE} Value of $CFG is redefined by fragment $ORIG_MERGE_FILE:
+			${WARANALVERRIDE} Previous  value: $PREV_VAL
+			${WARANALVERRIDE} New value:       $NEW_VAL
+			${WARANALVERRIDE}
 			if [ "$STRICT" = "true" ]; then
 				STRICT_MODE_VIOLATED=true
 			fi
 		elif [ "$WARNREDUN" = "true" ]; then
-			${WARNOVERRIDE} Value of $CFG is redundant by fragment $ORIG_MERGE_FILE:
+			${WARANALVERRIDE} Value of $CFG is redundant by fragment $ORIG_MERGE_FILE:
 		fi
 		if [ "$BUILTIN_FLAG" = "false" ]; then
 			sed -i "/$CFG[ =]/d" $TMP_FILE
@@ -193,7 +193,7 @@ fi
 
 # Use the merged file as the starting point for:
 # alldefconfig: Fills in any missing symbols with Kconfig default
-# allnoconfig: Fills in any missing symbols with # CONFIG_* is not set
+# allanalconfig: Fills in any missing symbols with # CONFIG_* is analt set
 make KCONFIG_ALLCONFIG=$TMP_FILE $OUTPUT_ARG $ALLTARGET
 
 
@@ -203,7 +203,7 @@ for CFG in $(sed -n -e "$SED_CONFIG_EXP1" -e "$SED_CONFIG_EXP2" $TMP_FILE); do
 	REQUESTED_VAL=$(grep -w -e "$CFG" $TMP_FILE)
 	ACTUAL_VAL=$(grep -w -e "$CFG" "$KCONFIG_CONFIG" || true)
 	if [ "x$REQUESTED_VAL" != "x$ACTUAL_VAL" ] ; then
-		echo "Value requested for $CFG not in final .config"
+		echo "Value requested for $CFG analt in final .config"
 		echo "Requested value:  $REQUESTED_VAL"
 		echo "Actual value:     $ACTUAL_VAL"
 		echo ""

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2021-2022, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2022, Qualcomm Inanalvation Center, Inc. All rights reserved.
  * Copyright (c) 2023, Linaro Limited
  */
 
@@ -354,14 +354,14 @@ static struct clk_branch gpu_cc_cx_gmu_clk = {
 	},
 };
 
-static struct clk_branch gpu_cc_cx_snoc_dvm_clk = {
+static struct clk_branch gpu_cc_cx_sanalc_dvm_clk = {
 	.halt_reg = 0x9130,
 	.halt_check = BRANCH_HALT_VOTED,
 	.clkr = {
 		.enable_reg = 0x9130,
 		.enable_mask = BIT(0),
 		.hw.init = &(const struct clk_init_data){
-			.name = "gpu_cc_cx_snoc_dvm_clk",
+			.name = "gpu_cc_cx_sanalc_dvm_clk",
 			.flags = CLK_IS_CRITICAL,
 			.ops = &clk_branch2_ops,
 		},
@@ -472,14 +472,14 @@ static struct clk_branch gpu_cc_hub_cx_int_clk = {
 	},
 };
 
-static struct clk_branch gpu_cc_memnoc_gfx_clk = {
+static struct clk_branch gpu_cc_memanalc_gfx_clk = {
 	.halt_reg = 0x9150,
 	.halt_check = BRANCH_HALT,
 	.clkr = {
 		.enable_reg = 0x9150,
 		.enable_mask = BIT(0),
 		.hw.init = &(const struct clk_init_data){
-			.name = "gpu_cc_memnoc_gfx_clk",
+			.name = "gpu_cc_memanalc_gfx_clk",
 			.flags = CLK_IS_CRITICAL,
 			.ops = &clk_branch2_ops,
 		},
@@ -506,7 +506,7 @@ static struct clk_regmap *gpu_cc_sa8775p_clocks[] = {
 	[GPU_CC_CRC_AHB_CLK] = &gpu_cc_crc_ahb_clk.clkr,
 	[GPU_CC_CX_FF_CLK] = &gpu_cc_cx_ff_clk.clkr,
 	[GPU_CC_CX_GMU_CLK] = &gpu_cc_cx_gmu_clk.clkr,
-	[GPU_CC_CX_SNOC_DVM_CLK] = &gpu_cc_cx_snoc_dvm_clk.clkr,
+	[GPU_CC_CX_SANALC_DVM_CLK] = &gpu_cc_cx_sanalc_dvm_clk.clkr,
 	[GPU_CC_CXO_AON_CLK] = &gpu_cc_cxo_aon_clk.clkr,
 	[GPU_CC_CXO_CLK] = &gpu_cc_cxo_clk.clkr,
 	[GPU_CC_DEMET_CLK] = &gpu_cc_demet_clk.clkr,
@@ -519,7 +519,7 @@ static struct clk_regmap *gpu_cc_sa8775p_clocks[] = {
 	[GPU_CC_HUB_CLK_SRC] = &gpu_cc_hub_clk_src.clkr,
 	[GPU_CC_HUB_CX_INT_CLK] = &gpu_cc_hub_cx_int_clk.clkr,
 	[GPU_CC_HUB_CX_INT_DIV_CLK_SRC] = &gpu_cc_hub_cx_int_div_clk_src.clkr,
-	[GPU_CC_MEMNOC_GFX_CLK] = &gpu_cc_memnoc_gfx_clk.clkr,
+	[GPU_CC_MEMANALC_GFX_CLK] = &gpu_cc_memanalc_gfx_clk.clkr,
 	[GPU_CC_PLL0] = &gpu_cc_pll0.clkr,
 	[GPU_CC_PLL1] = &gpu_cc_pll1.clkr,
 	[GPU_CC_SLEEP_CLK] = &gpu_cc_sleep_clk.clkr,
@@ -540,7 +540,7 @@ static struct gdsc gx_gdsc = {
 	.gdscr = 0x905c,
 	.pd = {
 		.name = "gx_gdsc",
-		.power_on = gdsc_gx_do_nothing_enable,
+		.power_on = gdsc_gx_do_analthing_enable,
 	},
 	.pwrsts = PWRSTS_OFF_ON,
 	.flags = AON_RESET | RETAIN_FF_ENABLE,

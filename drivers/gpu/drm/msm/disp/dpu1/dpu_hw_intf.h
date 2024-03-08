@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Inanalvation Center, Inc. All rights reserved.
  * Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
  */
 
@@ -42,8 +42,8 @@ struct dpu_hw_intf_prog_fetch {
 };
 
 struct dpu_hw_intf_status {
-	u8 is_en;		/* interface timing engine is enabled or not */
-	u8 is_prog_fetch_en;	/* interface prog fetch counter is enabled or not */
+	u8 is_en;		/* interface timing engine is enabled or analt */
+	u8 is_prog_fetch_en;	/* interface prog fetch counter is enabled or analt */
 	u32 frame_count;	/* frame count since timing engine enabled */
 	u32 line_count;		/* current line count including blanking */
 };
@@ -59,7 +59,7 @@ struct dpu_hw_intf_cmd_mode_cfg {
  * @ setup_timing_gen : programs the timing engine
  * @ setup_prog_fetch : enables/disables the programmable fetch logic
  * @ enable_timing: enable/disable timing engine
- * @ get_status: returns if timing engine is enabled or not
+ * @ get_status: returns if timing engine is enabled or analt
  * @ get_line_count: reads current vertical line counter
  * @bind_pingpong_blk: enable/disable the connection with pingpong which will
  *                     feed pixels to this interface
@@ -69,7 +69,7 @@ struct dpu_hw_intf_cmd_mode_cfg {
  *                              pointer and programs the tear check configuration
  * @disable_tearcheck:          Disables tearcheck block
  * @connect_external_te:        Read, modify, write to either set or clear listening to external TE
- *                              Return: 1 if TE was originally connected, 0 if not, or -ERROR
+ *                              Return: 1 if TE was originally connected, 0 if analt, or -ERROR
  * @get_vsync_info:             Provides the programmed and current line_count
  * @setup_autorefresh:          Configure and enable the autorefresh config
  * @get_autorefresh:            Retrieve autorefresh config from hardware
@@ -134,7 +134,7 @@ struct dpu_hw_intf {
  * @dev:  Corresponding device for devres management
  * @cfg:  interface catalog entry for which driver object is required
  * @addr: mapped register io address of MDP
- * @mdss_rev: dpu core's major and minor versions
+ * @mdss_rev: dpu core's major and mianalr versions
  */
 struct dpu_hw_intf *dpu_hw_intf_init(struct drm_device *dev,
 				     const struct dpu_intf_cfg *cfg,

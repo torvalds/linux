@@ -43,7 +43,7 @@ int iwl_send_calib_results(struct iwl_priv *priv)
 
 		hcmd.len[0] = res->cmd_len;
 		hcmd.data[0] = &res->cmd;
-		hcmd.dataflags[0] = IWL_HCMD_DFL_NOCOPY;
+		hcmd.dataflags[0] = IWL_HCMD_DFL_ANALCOPY;
 		ret = iwl_dvm_send_cmd(priv, &hcmd);
 		if (ret) {
 			IWL_ERR(priv, "Error %d on calib cmd %d\n",
@@ -61,11 +61,11 @@ int iwl_calib_set(struct iwl_priv *priv,
 	struct iwl_calib_result *res, *tmp;
 
 	if (check_sub_overflow(len, sizeof(*cmd), &len))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	res = kmalloc(struct_size(res, cmd.data, len), GFP_ATOMIC);
 	if (!res)
-		return -ENOMEM;
+		return -EANALMEM;
 	res->cmd = *cmd;
 	memcpy(res->cmd.data, cmd->data, len);
 	res->cmd_len = struct_size(cmd, data, len);
@@ -99,15 +99,15 @@ void iwl_calib_free_results(struct iwl_priv *priv)
  *****************************************************************************/
 
 /* "false alarms" are signals that our DSP tries to lock onto,
- *   but then determines that they are either noise, or transmissions
- *   from a distant wireless network (also "noise", really) that get
+ *   but then determines that they are either analise, or transmissions
+ *   from a distant wireless network (also "analise", really) that get
  *   "stepped on" by stronger transmissions within our own network.
  * This algorithm attempts to set a sensitivity level that is high
- *   enough to receive all of our own network traffic, but not so
- *   high that our DSP gets too busy trying to lock onto non-network
- *   activity/noise. */
+ *   eanalugh to receive all of our own network traffic, but analt so
+ *   high that our DSP gets too busy trying to lock onto analn-network
+ *   activity/analise. */
 static int iwl_sens_energy_cck(struct iwl_priv *priv,
-				   u32 norm_fa,
+				   u32 analrm_fa,
 				   u32 rx_enable_time,
 				   struct statistics_general_data *rx_info)
 {
@@ -123,13 +123,13 @@ static int iwl_sens_energy_cck(struct iwl_priv *priv,
 	/* "false_alarms" values below are cross-multiplications to assess the
 	 *   numbers of false alarms within the measured period of actual Rx
 	 *   (Rx is off when we're txing), vs the min/max expected false alarms
-	 *   (some should be expected if rx is sensitive enough) in a
+	 *   (some should be expected if rx is sensitive eanalugh) in a
 	 *   hypothetical listening period of 200 time units (TU), 204.8 msec:
 	 *
 	 * MIN_FA/fixed-time < false_alarms/actual-rx-time < MAX_FA/beacon-time
 	 *
 	 * */
-	u32 false_alarms = norm_fa * 200 * 1024;
+	u32 false_alarms = analrm_fa * 200 * 1024;
 	u32 max_false_alarms = MAX_FA_CCK * rx_enable_time;
 	u32 min_false_alarms = MIN_FA_CCK * rx_enable_time;
 	struct iwl_sensitivity_data *data = NULL;
@@ -140,7 +140,7 @@ static int iwl_sens_energy_cck(struct iwl_priv *priv,
 	data->nrg_auto_corr_silence_diff = 0;
 
 	/* Find max silence rssi among all 3 receivers.
-	 * This is background noise, which may include transmissions from other
+	 * This is background analise, which may include transmissions from other
 	 *    networks, measured during silence before our network's beacon */
 	silence_rssi_a = (u8)((rx_info->beacon_silence_rssi_a &
 			    ALL_BAND_FILTER) >> 8);
@@ -194,16 +194,16 @@ static int iwl_sens_energy_cck(struct iwl_priv *priv,
 	/* Count number of consecutive beacons with fewer-than-desired
 	 *   false alarms. */
 	if (false_alarms < min_false_alarms)
-		data->num_in_cck_no_fa++;
+		data->num_in_cck_anal_fa++;
 	else
-		data->num_in_cck_no_fa = 0;
+		data->num_in_cck_anal_fa = 0;
 	IWL_DEBUG_CALIB(priv, "consecutive bcns with few false alarms = %u\n",
-			data->num_in_cck_no_fa);
+			data->num_in_cck_anal_fa);
 
 	/* If we got too many false alarms this time, reduce sensitivity */
 	if ((false_alarms > max_false_alarms) &&
 		(data->auto_corr_cck > AUTO_CORR_MAX_TH_CCK)) {
-		IWL_DEBUG_CALIB(priv, "norm FA %u > max FA %u\n",
+		IWL_DEBUG_CALIB(priv, "analrm FA %u > max FA %u\n",
 		     false_alarms, max_false_alarms);
 		IWL_DEBUG_CALIB(priv, "... reducing sensitivity\n");
 		data->nrg_curr_state = IWL_FA_TOO_MANY;
@@ -222,26 +222,26 @@ static int iwl_sens_energy_cck(struct iwl_priv *priv,
 		data->nrg_auto_corr_silence_diff = (s32)data->nrg_silence_ref -
 						   (s32)silence_ref;
 
-		IWL_DEBUG_CALIB(priv, "norm FA %u < min FA %u, silence diff %d\n",
+		IWL_DEBUG_CALIB(priv, "analrm FA %u < min FA %u, silence diff %d\n",
 			 false_alarms, min_false_alarms,
 			 data->nrg_auto_corr_silence_diff);
 
 		/* Increase value to increase sensitivity, but only if:
-		 * 1a) previous beacon did *not* have *too many* false alarms
+		 * 1a) previous beacon did *analt* have *too many* false alarms
 		 * 1b) AND there's a significant difference in Rx levels
 		 *      from a previous beacon with too many, or healthy # FAs
 		 * OR 2) We've seen a lot of beacons (100) with too few
 		 *       false alarms */
 		if ((data->nrg_prev_state != IWL_FA_TOO_MANY) &&
 			((data->nrg_auto_corr_silence_diff > NRG_DIFF) ||
-			(data->num_in_cck_no_fa > MAX_NUMBER_CCK_NO_FA))) {
+			(data->num_in_cck_anal_fa > MAX_NUMBER_CCK_ANAL_FA))) {
 
 			IWL_DEBUG_CALIB(priv, "... increasing sensitivity\n");
 			/* Increase nrg value to increase sensitivity */
 			val = data->nrg_th_cck + NRG_STEP_CCK;
 			data->nrg_th_cck = min((u32)ranges->min_nrg_cck, val);
 		} else {
-			IWL_DEBUG_CALIB(priv, "... but not changing sensitivity\n");
+			IWL_DEBUG_CALIB(priv, "... but analt changing sensitivity\n");
 		}
 
 	/* Else we got a healthy number of false alarms, keep status quo */
@@ -264,7 +264,7 @@ static int iwl_sens_energy_cck(struct iwl_priv *priv,
 		}
 	}
 
-	/* Make sure the energy threshold does not go above the measured
+	/* Make sure the energy threshold does analt go above the measured
 	 * energy of the desired Rx signals (reduced by backoff margin),
 	 * or else we might start missing Rx frames.
 	 * Lower value is higher energy, so we use max()!
@@ -278,7 +278,7 @@ static int iwl_sens_energy_cck(struct iwl_priv *priv,
 	if (false_alarms > min_false_alarms) {
 
 		/* increase auto_corr values to decrease sensitivity
-		 * so the DSP won't be disturbed by the noise
+		 * so the DSP won't be disturbed by the analise
 		 */
 		if (data->auto_corr_cck < AUTO_CORR_MAX_TH_CCK)
 			data->auto_corr_cck = AUTO_CORR_MAX_TH_CCK + 1;
@@ -292,7 +292,7 @@ static int iwl_sens_energy_cck(struct iwl_priv *priv,
 			min((u32)ranges->auto_corr_max_cck_mrc, val);
 	} else if ((false_alarms < min_false_alarms) &&
 	   ((data->nrg_auto_corr_silence_diff > NRG_DIFF) ||
-	   (data->num_in_cck_no_fa > MAX_NUMBER_CCK_NO_FA))) {
+	   (data->num_in_cck_anal_fa > MAX_NUMBER_CCK_ANAL_FA))) {
 
 		/* Decrease auto_corr values to increase sensitivity */
 		val = data->auto_corr_cck - AUTO_CORR_STEP_CCK;
@@ -308,11 +308,11 @@ static int iwl_sens_energy_cck(struct iwl_priv *priv,
 
 
 static int iwl_sens_auto_corr_ofdm(struct iwl_priv *priv,
-				       u32 norm_fa,
+				       u32 analrm_fa,
 				       u32 rx_enable_time)
 {
 	u32 val;
-	u32 false_alarms = norm_fa * 200 * 1024;
+	u32 false_alarms = analrm_fa * 200 * 1024;
 	u32 max_false_alarms = MAX_FA_OFDM * rx_enable_time;
 	u32 min_false_alarms = MIN_FA_OFDM * rx_enable_time;
 	struct iwl_sensitivity_data *data = NULL;
@@ -323,7 +323,7 @@ static int iwl_sens_auto_corr_ofdm(struct iwl_priv *priv,
 	/* If we got too many false alarms this time, reduce sensitivity */
 	if (false_alarms > max_false_alarms) {
 
-		IWL_DEBUG_CALIB(priv, "norm FA %u > max FA %u)\n",
+		IWL_DEBUG_CALIB(priv, "analrm FA %u > max FA %u)\n",
 			     false_alarms, max_false_alarms);
 
 		val = data->auto_corr_ofdm + AUTO_CORR_STEP_OFDM;
@@ -346,7 +346,7 @@ static int iwl_sens_auto_corr_ofdm(struct iwl_priv *priv,
 	/* Else if we got fewer than desired, increase sensitivity */
 	else if (false_alarms < min_false_alarms) {
 
-		IWL_DEBUG_CALIB(priv, "norm FA %u < min FA %u\n",
+		IWL_DEBUG_CALIB(priv, "analrm FA %u < min FA %u\n",
 			     false_alarms, min_false_alarms);
 
 		val = data->auto_corr_ofdm - AUTO_CORR_STEP_OFDM;
@@ -365,7 +365,7 @@ static int iwl_sens_auto_corr_ofdm(struct iwl_priv *priv,
 		data->auto_corr_ofdm_mrc_x1 =
 			max((u32)ranges->auto_corr_min_ofdm_mrc_x1, val);
 	} else {
-		IWL_DEBUG_CALIB(priv, "min FA %u < norm FA %u < max FA %u OK\n",
+		IWL_DEBUG_CALIB(priv, "min FA %u < analrm FA %u < max FA %u OK\n",
 			 min_false_alarms, false_alarms, max_false_alarms);
 	}
 	return 0;
@@ -432,10 +432,10 @@ static int iwl_sensitivity_write(struct iwl_priv *priv)
 	/* Update uCode's "work" table, and copy it to DSP */
 	cmd.control = SENSITIVITY_CMD_CONTROL_WORK_TABLE;
 
-	/* Don't send command to uCode if nothing has changed */
+	/* Don't send command to uCode if analthing has changed */
 	if (!memcmp(&cmd.table[0], &(priv->sensitivity_tbl[0]),
 		    sizeof(u16)*HD_TABLE_SIZE)) {
-		IWL_DEBUG_CALIB(priv, "No change in SENSITIVITY_CMD\n");
+		IWL_DEBUG_CALIB(priv, "Anal change in SENSITIVITY_CMD\n");
 		return 0;
 	}
 
@@ -465,63 +465,63 @@ static int iwl_enhance_sensitivity_write(struct iwl_priv *priv)
 	iwl_prepare_legacy_sensitivity_tbl(priv, data, &cmd.enhance_table[0]);
 
 	if (priv->lib->hd_v2) {
-		cmd.enhance_table[HD_INA_NON_SQUARE_DET_OFDM_INDEX] =
-			HD_INA_NON_SQUARE_DET_OFDM_DATA_V2;
-		cmd.enhance_table[HD_INA_NON_SQUARE_DET_CCK_INDEX] =
-			HD_INA_NON_SQUARE_DET_CCK_DATA_V2;
+		cmd.enhance_table[HD_INA_ANALN_SQUARE_DET_OFDM_INDEX] =
+			HD_INA_ANALN_SQUARE_DET_OFDM_DATA_V2;
+		cmd.enhance_table[HD_INA_ANALN_SQUARE_DET_CCK_INDEX] =
+			HD_INA_ANALN_SQUARE_DET_CCK_DATA_V2;
 		cmd.enhance_table[HD_CORR_11_INSTEAD_OF_CORR_9_EN_INDEX] =
 			HD_CORR_11_INSTEAD_OF_CORR_9_EN_DATA_V2;
-		cmd.enhance_table[HD_OFDM_NON_SQUARE_DET_SLOPE_MRC_INDEX] =
-			HD_OFDM_NON_SQUARE_DET_SLOPE_MRC_DATA_V2;
-		cmd.enhance_table[HD_OFDM_NON_SQUARE_DET_INTERCEPT_MRC_INDEX] =
-			HD_OFDM_NON_SQUARE_DET_INTERCEPT_MRC_DATA_V2;
-		cmd.enhance_table[HD_OFDM_NON_SQUARE_DET_SLOPE_INDEX] =
-			HD_OFDM_NON_SQUARE_DET_SLOPE_DATA_V2;
-		cmd.enhance_table[HD_OFDM_NON_SQUARE_DET_INTERCEPT_INDEX] =
-			HD_OFDM_NON_SQUARE_DET_INTERCEPT_DATA_V2;
-		cmd.enhance_table[HD_CCK_NON_SQUARE_DET_SLOPE_MRC_INDEX] =
-			HD_CCK_NON_SQUARE_DET_SLOPE_MRC_DATA_V2;
-		cmd.enhance_table[HD_CCK_NON_SQUARE_DET_INTERCEPT_MRC_INDEX] =
-			HD_CCK_NON_SQUARE_DET_INTERCEPT_MRC_DATA_V2;
-		cmd.enhance_table[HD_CCK_NON_SQUARE_DET_SLOPE_INDEX] =
-			HD_CCK_NON_SQUARE_DET_SLOPE_DATA_V2;
-		cmd.enhance_table[HD_CCK_NON_SQUARE_DET_INTERCEPT_INDEX] =
-			HD_CCK_NON_SQUARE_DET_INTERCEPT_DATA_V2;
+		cmd.enhance_table[HD_OFDM_ANALN_SQUARE_DET_SLOPE_MRC_INDEX] =
+			HD_OFDM_ANALN_SQUARE_DET_SLOPE_MRC_DATA_V2;
+		cmd.enhance_table[HD_OFDM_ANALN_SQUARE_DET_INTERCEPT_MRC_INDEX] =
+			HD_OFDM_ANALN_SQUARE_DET_INTERCEPT_MRC_DATA_V2;
+		cmd.enhance_table[HD_OFDM_ANALN_SQUARE_DET_SLOPE_INDEX] =
+			HD_OFDM_ANALN_SQUARE_DET_SLOPE_DATA_V2;
+		cmd.enhance_table[HD_OFDM_ANALN_SQUARE_DET_INTERCEPT_INDEX] =
+			HD_OFDM_ANALN_SQUARE_DET_INTERCEPT_DATA_V2;
+		cmd.enhance_table[HD_CCK_ANALN_SQUARE_DET_SLOPE_MRC_INDEX] =
+			HD_CCK_ANALN_SQUARE_DET_SLOPE_MRC_DATA_V2;
+		cmd.enhance_table[HD_CCK_ANALN_SQUARE_DET_INTERCEPT_MRC_INDEX] =
+			HD_CCK_ANALN_SQUARE_DET_INTERCEPT_MRC_DATA_V2;
+		cmd.enhance_table[HD_CCK_ANALN_SQUARE_DET_SLOPE_INDEX] =
+			HD_CCK_ANALN_SQUARE_DET_SLOPE_DATA_V2;
+		cmd.enhance_table[HD_CCK_ANALN_SQUARE_DET_INTERCEPT_INDEX] =
+			HD_CCK_ANALN_SQUARE_DET_INTERCEPT_DATA_V2;
 	} else {
-		cmd.enhance_table[HD_INA_NON_SQUARE_DET_OFDM_INDEX] =
-			HD_INA_NON_SQUARE_DET_OFDM_DATA_V1;
-		cmd.enhance_table[HD_INA_NON_SQUARE_DET_CCK_INDEX] =
-			HD_INA_NON_SQUARE_DET_CCK_DATA_V1;
+		cmd.enhance_table[HD_INA_ANALN_SQUARE_DET_OFDM_INDEX] =
+			HD_INA_ANALN_SQUARE_DET_OFDM_DATA_V1;
+		cmd.enhance_table[HD_INA_ANALN_SQUARE_DET_CCK_INDEX] =
+			HD_INA_ANALN_SQUARE_DET_CCK_DATA_V1;
 		cmd.enhance_table[HD_CORR_11_INSTEAD_OF_CORR_9_EN_INDEX] =
 			HD_CORR_11_INSTEAD_OF_CORR_9_EN_DATA_V1;
-		cmd.enhance_table[HD_OFDM_NON_SQUARE_DET_SLOPE_MRC_INDEX] =
-			HD_OFDM_NON_SQUARE_DET_SLOPE_MRC_DATA_V1;
-		cmd.enhance_table[HD_OFDM_NON_SQUARE_DET_INTERCEPT_MRC_INDEX] =
-			HD_OFDM_NON_SQUARE_DET_INTERCEPT_MRC_DATA_V1;
-		cmd.enhance_table[HD_OFDM_NON_SQUARE_DET_SLOPE_INDEX] =
-			HD_OFDM_NON_SQUARE_DET_SLOPE_DATA_V1;
-		cmd.enhance_table[HD_OFDM_NON_SQUARE_DET_INTERCEPT_INDEX] =
-			HD_OFDM_NON_SQUARE_DET_INTERCEPT_DATA_V1;
-		cmd.enhance_table[HD_CCK_NON_SQUARE_DET_SLOPE_MRC_INDEX] =
-			HD_CCK_NON_SQUARE_DET_SLOPE_MRC_DATA_V1;
-		cmd.enhance_table[HD_CCK_NON_SQUARE_DET_INTERCEPT_MRC_INDEX] =
-			HD_CCK_NON_SQUARE_DET_INTERCEPT_MRC_DATA_V1;
-		cmd.enhance_table[HD_CCK_NON_SQUARE_DET_SLOPE_INDEX] =
-			HD_CCK_NON_SQUARE_DET_SLOPE_DATA_V1;
-		cmd.enhance_table[HD_CCK_NON_SQUARE_DET_INTERCEPT_INDEX] =
-			HD_CCK_NON_SQUARE_DET_INTERCEPT_DATA_V1;
+		cmd.enhance_table[HD_OFDM_ANALN_SQUARE_DET_SLOPE_MRC_INDEX] =
+			HD_OFDM_ANALN_SQUARE_DET_SLOPE_MRC_DATA_V1;
+		cmd.enhance_table[HD_OFDM_ANALN_SQUARE_DET_INTERCEPT_MRC_INDEX] =
+			HD_OFDM_ANALN_SQUARE_DET_INTERCEPT_MRC_DATA_V1;
+		cmd.enhance_table[HD_OFDM_ANALN_SQUARE_DET_SLOPE_INDEX] =
+			HD_OFDM_ANALN_SQUARE_DET_SLOPE_DATA_V1;
+		cmd.enhance_table[HD_OFDM_ANALN_SQUARE_DET_INTERCEPT_INDEX] =
+			HD_OFDM_ANALN_SQUARE_DET_INTERCEPT_DATA_V1;
+		cmd.enhance_table[HD_CCK_ANALN_SQUARE_DET_SLOPE_MRC_INDEX] =
+			HD_CCK_ANALN_SQUARE_DET_SLOPE_MRC_DATA_V1;
+		cmd.enhance_table[HD_CCK_ANALN_SQUARE_DET_INTERCEPT_MRC_INDEX] =
+			HD_CCK_ANALN_SQUARE_DET_INTERCEPT_MRC_DATA_V1;
+		cmd.enhance_table[HD_CCK_ANALN_SQUARE_DET_SLOPE_INDEX] =
+			HD_CCK_ANALN_SQUARE_DET_SLOPE_DATA_V1;
+		cmd.enhance_table[HD_CCK_ANALN_SQUARE_DET_INTERCEPT_INDEX] =
+			HD_CCK_ANALN_SQUARE_DET_INTERCEPT_DATA_V1;
 	}
 
 	/* Update uCode's "work" table, and copy it to DSP */
 	cmd.control = SENSITIVITY_CMD_CONTROL_WORK_TABLE;
 
-	/* Don't send command to uCode if nothing has changed */
+	/* Don't send command to uCode if analthing has changed */
 	if (!memcmp(&cmd.enhance_table[0], &(priv->sensitivity_tbl[0]),
 		    sizeof(u16)*HD_TABLE_SIZE) &&
-	    !memcmp(&cmd.enhance_table[HD_INA_NON_SQUARE_DET_OFDM_INDEX],
+	    !memcmp(&cmd.enhance_table[HD_INA_ANALN_SQUARE_DET_OFDM_INDEX],
 		    &(priv->enhance_sensitivity_tbl[0]),
 		    sizeof(u16)*ENHANCE_HD_TABLE_ENTRIES)) {
-		IWL_DEBUG_CALIB(priv, "No change in SENSITIVITY_CMD\n");
+		IWL_DEBUG_CALIB(priv, "Anal change in SENSITIVITY_CMD\n");
 		return 0;
 	}
 
@@ -529,7 +529,7 @@ static int iwl_enhance_sensitivity_write(struct iwl_priv *priv)
 	memcpy(&(priv->sensitivity_tbl[0]), &(cmd.enhance_table[0]),
 	       sizeof(u16)*HD_TABLE_SIZE);
 	memcpy(&(priv->enhance_sensitivity_tbl[0]),
-	       &(cmd.enhance_table[HD_INA_NON_SQUARE_DET_OFDM_INDEX]),
+	       &(cmd.enhance_table[HD_INA_ANALN_SQUARE_DET_OFDM_INDEX]),
 	       sizeof(u16)*ENHANCE_HD_TABLE_ENTRIES);
 
 	return iwl_dvm_send_cmd(priv, &cmd_out);
@@ -555,7 +555,7 @@ void iwl_init_sensitivity(struct iwl_priv *priv)
 
 	memset(data, 0, sizeof(struct iwl_sensitivity_data));
 
-	data->num_in_cck_no_fa = 0;
+	data->num_in_cck_anal_fa = 0;
 	data->nrg_curr_state = IWL_FA_TOO_MANY;
 	data->nrg_prev_state = IWL_FA_TOO_MANY;
 	data->nrg_silence_ref = 0;
@@ -599,10 +599,10 @@ void iwl_sensitivity_calibration(struct iwl_priv *priv)
 	u32 fa_ofdm;
 	u32 bad_plcp_cck;
 	u32 bad_plcp_ofdm;
-	u32 norm_fa_ofdm;
-	u32 norm_fa_cck;
+	u32 analrm_fa_ofdm;
+	u32 analrm_fa_cck;
 	struct iwl_sensitivity_data *data = NULL;
-	struct statistics_rx_non_phy *rx_info;
+	struct statistics_rx_analn_phy *rx_info;
 	struct statistics_rx_phy *ofdm, *cck;
 	struct statistics_general_data statis;
 
@@ -612,12 +612,12 @@ void iwl_sensitivity_calibration(struct iwl_priv *priv)
 	data = &(priv->sensitivity_data);
 
 	if (!iwl_is_any_associated(priv)) {
-		IWL_DEBUG_CALIB(priv, "<< - not associated\n");
+		IWL_DEBUG_CALIB(priv, "<< - analt associated\n");
 		return;
 	}
 
 	spin_lock_bh(&priv->statistics.lock);
-	rx_info = &priv->statistics.rx_non_phy;
+	rx_info = &priv->statistics.rx_analn_phy;
 	ofdm = &priv->statistics.rx_ofdm;
 	cck = &priv->statistics.rx_cck;
 	if (rx_info->interference_data_flag != INTERFERENCE_DATA_AVAILABLE) {
@@ -655,7 +655,7 @@ void iwl_sensitivity_calibration(struct iwl_priv *priv)
 		return;
 	}
 
-	/* These statistics increase monotonically, and do not reset
+	/* These statistics increase moanaltonically, and do analt reset
 	 *   at each beacon.  Calculate difference from last value, or just
 	 *   use the new statistics value if it has reset or wrapped around. */
 	if (data->last_bad_plcp_cnt_cck > bad_plcp_cck)
@@ -687,14 +687,14 @@ void iwl_sensitivity_calibration(struct iwl_priv *priv)
 	}
 
 	/* Total aborted signal locks */
-	norm_fa_ofdm = fa_ofdm + bad_plcp_ofdm;
-	norm_fa_cck = fa_cck + bad_plcp_cck;
+	analrm_fa_ofdm = fa_ofdm + bad_plcp_ofdm;
+	analrm_fa_cck = fa_cck + bad_plcp_cck;
 
 	IWL_DEBUG_CALIB(priv, "cck: fa %u badp %u  ofdm: fa %u badp %u\n", fa_cck,
 			bad_plcp_cck, fa_ofdm, bad_plcp_ofdm);
 
-	iwl_sens_auto_corr_ofdm(priv, norm_fa_ofdm, rx_enable_time);
-	iwl_sens_energy_cck(priv, norm_fa_cck, rx_enable_time, &statis);
+	iwl_sens_auto_corr_ofdm(priv, analrm_fa_ofdm, rx_enable_time);
+	iwl_sens_energy_cck(priv, analrm_fa_cck, rx_enable_time, &statis);
 	if (priv->fw->enhance_sensitivity_table)
 		iwl_enhance_sensitivity_write(priv);
 	else
@@ -715,7 +715,7 @@ static inline u8 find_first_chain(u8 mask)
  * disconnected.
  */
 static void iwl_find_disconn_antenna(struct iwl_priv *priv, u32* average_sig,
-				     struct iwl_chain_noise_data *data)
+				     struct iwl_chain_analise_data *data)
 {
 	u32 active_chains = 0;
 	u32 max_average_sig;
@@ -768,13 +768,13 @@ static void iwl_find_disconn_antenna(struct iwl_priv *priv, u32* average_sig,
 
 	/*
 	 * The above algorithm sometimes fails when the ucode
-	 * reports 0 for all chains. It's not clear why that
+	 * reports 0 for all chains. It's analt clear why that
 	 * happens to start with, but it is then causing trouble
 	 * because this can make us enable more chains than the
 	 * hardware really has.
 	 *
-	 * To be safe, simply mask out any chains that we know
-	 * are not on the device.
+	 * To be safe, simply mask out any chains that we kanalw
+	 * are analt on the device.
 	 */
 	active_chains &= priv->nvm_data->valid_rx_ant;
 
@@ -808,9 +808,9 @@ static void iwl_find_disconn_antenna(struct iwl_priv *priv, u32* average_sig,
 	}
 
 	if (active_chains != priv->nvm_data->valid_rx_ant &&
-	    active_chains != priv->chain_noise_data.active_chains)
+	    active_chains != priv->chain_analise_data.active_chains)
 		IWL_DEBUG_CALIB(priv,
-				"Detected that not all antennas are connected! "
+				"Detected that analt all antennas are connected! "
 				"Connected: %#x, valid: %#x.\n",
 				active_chains,
 				priv->nvm_data->valid_rx_ant);
@@ -822,12 +822,12 @@ static void iwl_find_disconn_antenna(struct iwl_priv *priv, u32* average_sig,
 }
 
 static void iwlagn_gain_computation(struct iwl_priv *priv,
-				    u32 average_noise[NUM_RX_CHAINS],
+				    u32 average_analise[NUM_RX_CHAINS],
 				    u8 default_chain)
 {
 	int i;
 	s32 delta_g;
-	struct iwl_chain_noise_data *data = &priv->chain_noise_data;
+	struct iwl_chain_analise_data *data = &priv->chain_analise_data;
 
 	/*
 	 * Find Gain Code for the chains based on "default chain"
@@ -838,20 +838,20 @@ static void iwlagn_gain_computation(struct iwl_priv *priv,
 			continue;
 		}
 
-		delta_g = (priv->lib->chain_noise_scale *
-			((s32)average_noise[default_chain] -
-			(s32)average_noise[i])) / 1500;
+		delta_g = (priv->lib->chain_analise_scale *
+			((s32)average_analise[default_chain] -
+			(s32)average_analise[i])) / 1500;
 
 		/* bound gain by 2 bits value max, 3rd bit is sign */
 		data->delta_gain_code[i] =
-			min(abs(delta_g), CHAIN_NOISE_MAX_DELTA_GAIN_CODE);
+			min(abs(delta_g), CHAIN_ANALISE_MAX_DELTA_GAIN_CODE);
 
 		if (delta_g < 0)
 			/*
 			 * set negative sign ...
-			 * note to Intel developers:  This is uCode API format,
-			 *   not the format of any internal device registers.
-			 *   Do not change this format for e.g. 6050 or similar
+			 * analte to Intel developers:  This is uCode API format,
+			 *   analt the format of any internal device registers.
+			 *   Do analt change this format for e.g. 6050 or similar
 			 *   devices.  Change format only if more resolution
 			 *   (i.e. more than 2 bits magnitude) is needed.
 			 */
@@ -862,48 +862,48 @@ static void iwlagn_gain_computation(struct iwl_priv *priv,
 			data->delta_gain_code[1], data->delta_gain_code[2]);
 
 	if (!data->radio_write) {
-		struct iwl_calib_chain_noise_gain_cmd cmd;
+		struct iwl_calib_chain_analise_gain_cmd cmd;
 
 		memset(&cmd, 0, sizeof(cmd));
 
 		iwl_set_calib_hdr(&cmd.hdr,
-			priv->phy_calib_chain_noise_gain_cmd);
+			priv->phy_calib_chain_analise_gain_cmd);
 		cmd.delta_gain_1 = data->delta_gain_code[1];
 		cmd.delta_gain_2 = data->delta_gain_code[2];
 		iwl_dvm_send_cmd_pdu(priv, REPLY_PHY_CALIBRATION_CMD,
 			CMD_ASYNC, sizeof(cmd), &cmd);
 
 		data->radio_write = 1;
-		data->state = IWL_CHAIN_NOISE_CALIBRATED;
+		data->state = IWL_CHAIN_ANALISE_CALIBRATED;
 	}
 }
 
 /*
- * Accumulate 16 beacons of signal and noise statistics for each of
+ * Accumulate 16 beacons of signal and analise statistics for each of
  *   3 receivers/antennas/rx-chains, then figure out:
  * 1)  Which antennas are connected.
  * 2)  Differential rx gain settings to balance the 3 receivers.
  */
-void iwl_chain_noise_calibration(struct iwl_priv *priv)
+void iwl_chain_analise_calibration(struct iwl_priv *priv)
 {
-	struct iwl_chain_noise_data *data = NULL;
+	struct iwl_chain_analise_data *data = NULL;
 
-	u32 chain_noise_a;
-	u32 chain_noise_b;
-	u32 chain_noise_c;
+	u32 chain_analise_a;
+	u32 chain_analise_b;
+	u32 chain_analise_c;
 	u32 chain_sig_a;
 	u32 chain_sig_b;
 	u32 chain_sig_c;
 	u32 average_sig[NUM_RX_CHAINS] = {INITIALIZATION_VALUE};
-	u32 average_noise[NUM_RX_CHAINS] = {INITIALIZATION_VALUE};
-	u32 min_average_noise = MIN_AVERAGE_NOISE_MAX_VALUE;
-	u16 min_average_noise_antenna_i = INITIALIZATION_VALUE;
+	u32 average_analise[NUM_RX_CHAINS] = {INITIALIZATION_VALUE};
+	u32 min_average_analise = MIN_AVERAGE_ANALISE_MAX_VALUE;
+	u16 min_average_analise_antenna_i = INITIALIZATION_VALUE;
 	u16 i = 0;
 	u16 rxon_chnum = INITIALIZATION_VALUE;
 	u16 stat_chnum = INITIALIZATION_VALUE;
 	u8 rxon_band24;
 	u8 stat_band24;
-	struct statistics_rx_non_phy *rx_info;
+	struct statistics_rx_analn_phy *rx_info;
 
 	/*
 	 * MULTI-FIXME:
@@ -912,24 +912,24 @@ void iwl_chain_noise_calibration(struct iwl_priv *priv)
 	 */
 	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_BSS];
 
-	if (priv->calib_disabled & IWL_CHAIN_NOISE_CALIB_DISABLED)
+	if (priv->calib_disabled & IWL_CHAIN_ANALISE_CALIB_DISABLED)
 		return;
 
-	data = &(priv->chain_noise_data);
+	data = &(priv->chain_analise_data);
 
 	/*
-	 * Accumulate just the first "chain_noise_num_beacons" after
+	 * Accumulate just the first "chain_analise_num_beacons" after
 	 * the first association, then we're done forever.
 	 */
-	if (data->state != IWL_CHAIN_NOISE_ACCUMULATE) {
-		if (data->state == IWL_CHAIN_NOISE_ALIVE)
-			IWL_DEBUG_CALIB(priv, "Wait for noise calib reset\n");
+	if (data->state != IWL_CHAIN_ANALISE_ACCUMULATE) {
+		if (data->state == IWL_CHAIN_ANALISE_ALIVE)
+			IWL_DEBUG_CALIB(priv, "Wait for analise calib reset\n");
 		return;
 	}
 
 	spin_lock_bh(&priv->statistics.lock);
 
-	rx_info = &priv->statistics.rx_non_phy;
+	rx_info = &priv->statistics.rx_analn_phy;
 
 	if (rx_info->interference_data_flag != INTERFERENCE_DATA_AVAILABLE) {
 		IWL_DEBUG_CALIB(priv, " << Interference data unavailable\n");
@@ -946,7 +946,7 @@ void iwl_chain_noise_calibration(struct iwl_priv *priv)
 	/* Make sure we accumulate data for just the associated channel
 	 *   (even if scanning). */
 	if ((rxon_chnum != stat_chnum) || (rxon_band24 != stat_band24)) {
-		IWL_DEBUG_CALIB(priv, "Stats not from chan=%d, band24=%d\n",
+		IWL_DEBUG_CALIB(priv, "Stats analt from chan=%d, band24=%d\n",
 				rxon_chnum, rxon_band24);
 		spin_unlock_bh(&priv->statistics.lock);
 		return;
@@ -954,13 +954,13 @@ void iwl_chain_noise_calibration(struct iwl_priv *priv)
 
 	/*
 	 *  Accumulate beacon statistics values across
-	 * "chain_noise_num_beacons"
+	 * "chain_analise_num_beacons"
 	 */
-	chain_noise_a = le32_to_cpu(rx_info->beacon_silence_rssi_a) &
+	chain_analise_a = le32_to_cpu(rx_info->beacon_silence_rssi_a) &
 				IN_BAND_FILTER;
-	chain_noise_b = le32_to_cpu(rx_info->beacon_silence_rssi_b) &
+	chain_analise_b = le32_to_cpu(rx_info->beacon_silence_rssi_b) &
 				IN_BAND_FILTER;
-	chain_noise_c = le32_to_cpu(rx_info->beacon_silence_rssi_c) &
+	chain_analise_c = le32_to_cpu(rx_info->beacon_silence_rssi_c) &
 				IN_BAND_FILTER;
 
 	chain_sig_a = le32_to_cpu(rx_info->beacon_rssi_a) & IN_BAND_FILTER;
@@ -971,9 +971,9 @@ void iwl_chain_noise_calibration(struct iwl_priv *priv)
 
 	data->beacon_count++;
 
-	data->chain_noise_a = (chain_noise_a + data->chain_noise_a);
-	data->chain_noise_b = (chain_noise_b + data->chain_noise_b);
-	data->chain_noise_c = (chain_noise_c + data->chain_noise_c);
+	data->chain_analise_a = (chain_analise_a + data->chain_analise_a);
+	data->chain_analise_b = (chain_analise_b + data->chain_analise_b);
+	data->chain_analise_c = (chain_analise_c + data->chain_analise_c);
 
 	data->chain_signal_a = (chain_sig_a + data->chain_signal_a);
 	data->chain_signal_b = (chain_sig_b + data->chain_signal_b);
@@ -983,12 +983,12 @@ void iwl_chain_noise_calibration(struct iwl_priv *priv)
 			rxon_chnum, rxon_band24, data->beacon_count);
 	IWL_DEBUG_CALIB(priv, "chain_sig: a %d b %d c %d\n",
 			chain_sig_a, chain_sig_b, chain_sig_c);
-	IWL_DEBUG_CALIB(priv, "chain_noise: a %d b %d c %d\n",
-			chain_noise_a, chain_noise_b, chain_noise_c);
+	IWL_DEBUG_CALIB(priv, "chain_analise: a %d b %d c %d\n",
+			chain_analise_a, chain_analise_b, chain_analise_c);
 
-	/* If this is the "chain_noise_num_beacons", determine:
+	/* If this is the "chain_analise_num_beacons", determine:
 	 * 1)  Disconnected antennas (using signal strengths)
-	 * 2)  Differential gain (using silence noise) to balance receivers */
+	 * 2)  Differential gain (using silence analise) to balance receivers */
 	if (data->beacon_count != IWL_CAL_NUM_BEACONS)
 		return;
 
@@ -1004,30 +1004,30 @@ void iwl_chain_noise_calibration(struct iwl_priv *priv)
 	} else
 		iwl_find_disconn_antenna(priv, average_sig, data);
 
-	/* Analyze noise for rx balance */
-	average_noise[0] = data->chain_noise_a / IWL_CAL_NUM_BEACONS;
-	average_noise[1] = data->chain_noise_b / IWL_CAL_NUM_BEACONS;
-	average_noise[2] = data->chain_noise_c / IWL_CAL_NUM_BEACONS;
+	/* Analyze analise for rx balance */
+	average_analise[0] = data->chain_analise_a / IWL_CAL_NUM_BEACONS;
+	average_analise[1] = data->chain_analise_b / IWL_CAL_NUM_BEACONS;
+	average_analise[2] = data->chain_analise_c / IWL_CAL_NUM_BEACONS;
 
 	for (i = 0; i < NUM_RX_CHAINS; i++) {
 		if (!(data->disconn_array[i]) &&
-		   (average_noise[i] <= min_average_noise)) {
+		   (average_analise[i] <= min_average_analise)) {
 			/* This means that chain i is active and has
-			 * lower noise values so far: */
-			min_average_noise = average_noise[i];
-			min_average_noise_antenna_i = i;
+			 * lower analise values so far: */
+			min_average_analise = average_analise[i];
+			min_average_analise_antenna_i = i;
 		}
 	}
 
-	IWL_DEBUG_CALIB(priv, "average_noise: a %d b %d c %d\n",
-			average_noise[0], average_noise[1],
-			average_noise[2]);
+	IWL_DEBUG_CALIB(priv, "average_analise: a %d b %d c %d\n",
+			average_analise[0], average_analise[1],
+			average_analise[2]);
 
-	IWL_DEBUG_CALIB(priv, "min_average_noise = %d, antenna %d\n",
-			min_average_noise, min_average_noise_antenna_i);
+	IWL_DEBUG_CALIB(priv, "min_average_analise = %d, antenna %d\n",
+			min_average_analise, min_average_analise_antenna_i);
 
 	iwlagn_gain_computation(
-		priv, average_noise,
+		priv, average_analise,
 		find_first_chain(priv->nvm_data->valid_rx_ant));
 
 	/* Some power changes may have been made during the calibration.
@@ -1035,7 +1035,7 @@ void iwl_chain_noise_calibration(struct iwl_priv *priv)
 	 */
 	iwl_update_chain_flags(priv);
 
-	data->state = IWL_CHAIN_NOISE_DONE;
+	data->state = IWL_CHAIN_ANALISE_DONE;
 	iwl_power_update_mode(priv, false);
 }
 
@@ -1044,13 +1044,13 @@ void iwl_reset_run_time_calib(struct iwl_priv *priv)
 	int i;
 	memset(&(priv->sensitivity_data), 0,
 	       sizeof(struct iwl_sensitivity_data));
-	memset(&(priv->chain_noise_data), 0,
-	       sizeof(struct iwl_chain_noise_data));
+	memset(&(priv->chain_analise_data), 0,
+	       sizeof(struct iwl_chain_analise_data));
 	for (i = 0; i < NUM_RX_CHAINS; i++)
-		priv->chain_noise_data.delta_gain_code[i] =
-				CHAIN_NOISE_DELTA_GAIN_INIT_VAL;
+		priv->chain_analise_data.delta_gain_code[i] =
+				CHAIN_ANALISE_DELTA_GAIN_INIT_VAL;
 
-	/* Ask for statistics now, the uCode will send notification
+	/* Ask for statistics analw, the uCode will send analtification
 	 * periodically after association */
 	iwl_send_statistics_request(priv, CMD_ASYNC, true);
 }

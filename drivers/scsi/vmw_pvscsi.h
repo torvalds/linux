@@ -5,16 +5,16 @@
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; version 2 of the License and no later version.
+ * Free Software Foundation; version 2 of the License and anal later version.
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, GOOD TITLE or
- * NON INFRINGEMENT.  See the GNU General Public License for more
+ * ANALN INFRINGEMENT.  See the GNU General Public License for more
  * details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if analt, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
  *
  */
@@ -36,7 +36,7 @@
  * host adapter status/error codes
  */
 enum HostBusAdapterStatus {
-	BTSTAT_SUCCESS       = 0x00,  /* CCB complete normally with no errors */
+	BTSTAT_SUCCESS       = 0x00,  /* CCB complete analrmally with anal errors */
 	BTSTAT_LINKED_COMMAND_COMPLETED           = 0x0a,
 	BTSTAT_LINKED_COMMAND_COMPLETED_WITH_FLAG = 0x0b,
 	BTSTAT_DATA_UNDERRUN = 0x0c,
@@ -55,7 +55,7 @@ enum HostBusAdapterStatus {
 	BTSTAT_BADMSG        = 0x1d,  /* unsupported message received by the
 				       * host adapter */
 	BTSTAT_HAHARDWARE    = 0x20,  /* host adapter hardware failed */
-	BTSTAT_NORESPONSE    = 0x21,  /* target did not respond to SCSI ATN,
+	BTSTAT_ANALRESPONSE    = 0x21,  /* target did analt respond to SCSI ATN,
 				       * sent a SCSI RST */
 	BTSTAT_SENTRST       = 0x22,  /* host adapter asserted a SCSI RST */
 	BTSTAT_RECVRST       = 0x23,  /* other SCSI devices asserted a SCSI
@@ -73,7 +73,7 @@ enum HostBusAdapterStatus {
  * SCSI device status values.
  */
 enum ScsiDeviceStatus {
-	SDSTAT_GOOD  = 0x00, /* No errors. */
+	SDSTAT_GOOD  = 0x00, /* Anal errors. */
 	SDSTAT_CHECK = 0x02, /* Check condition. */
 };
 
@@ -93,7 +93,7 @@ enum PVSCSIRegOffset {
 	PVSCSI_REG_OFFSET_LAST_STS_3     =  0x10c,
 	PVSCSI_REG_OFFSET_INTR_STATUS    = 0x100c,
 	PVSCSI_REG_OFFSET_INTR_MASK      = 0x2010,
-	PVSCSI_REG_OFFSET_KICK_NON_RW_IO = 0x3014,
+	PVSCSI_REG_OFFSET_KICK_ANALN_RW_IO = 0x3014,
 	PVSCSI_REG_OFFSET_DEBUG          = 0x3018,
 	PVSCSI_REG_OFFSET_KICK_RW_IO     = 0x4018,
 };
@@ -162,7 +162,7 @@ enum PVSCSIConfigPageAddressType {
 /*
  * Command descriptor for PVSCSI_CMD_ABORT_CMD --
  *
- * - currently does not support specifying the LUN.
+ * - currently does analt support specifying the LUN.
  * - _pad should be 0.
  */
 
@@ -175,7 +175,7 @@ struct PVSCSICmdDescAbortCmd {
 /*
  * Command descriptor for PVSCSI_CMD_SETUP_RINGS --
  *
- * Notes:
+ * Analtes:
  * - reqRingNumPages and cmpRingNumPages need to be power of two.
  * - reqRingNumPages and cmpRingNumPages need to be different from 0,
  * - reqRingNumPages and cmpRingNumPages need to be inferior to
@@ -194,17 +194,17 @@ struct PVSCSICmdDescSetupRings {
 /*
  * Command descriptor for PVSCSI_CMD_SETUP_MSG_RING --
  *
- * Notes:
- * - this command was not supported in the initial revision of the h/w
+ * Analtes:
+ * - this command was analt supported in the initial revision of the h/w
  *   interface. Before using it, you need to check that it is supported by
  *   writing PVSCSI_CMD_SETUP_MSG_RING to the 'command' register, then
  *   immediately after read the 'command status' register:
- *       * a value of -1 means that the cmd is NOT supported,
+ *       * a value of -1 means that the cmd is ANALT supported,
  *       * a value != -1 means that the cmd IS supported.
  *   If it's supported the 'command status' register should return:
  *      sizeof(PVSCSICmdDescSetupMsgRing) / sizeof(u32).
  * - this command should be issued _after_ the usual SETUP_RINGS so that the
- *   RingsState page is already setup. If not, the command is a nop.
+ *   RingsState page is already setup. If analt, the command is a analp.
  * - numPages needs to be a power of two,
  * - numPages needs to be different from 0,
  * - _pad should be zero.
@@ -281,7 +281,7 @@ struct PVSCSIRingsState {
  *
  * sizeof(RingReqDesc) = 128
  *
- * - context: is a unique identifier of a command. It could normally be any
+ * - context: is a unique identifier of a command. It could analrmally be any
  *   64bit value, however we currently store it in the serialNumber variable
  *   of struct SCSI_Command, so we have the following restrictions due to the
  *   way this field is handled in the vmkernel storage stack:
@@ -293,11 +293,11 @@ struct PVSCSIRingsState {
  *   * if PVSCSI_FLAG_CMD_WITH_SG_LIST is set: dataAddr is the PA of the first
  *     s/g table segment, each s/g segment is entirely contained on a single
  *     page of physical memory,
- *   * if PVSCSI_FLAG_CMD_WITH_SG_LIST is NOT set, then dataAddr is the PA of
+ *   * if PVSCSI_FLAG_CMD_WITH_SG_LIST is ANALT set, then dataAddr is the PA of
  *     the buffer used for the DMA transfer,
  * - flags:
  *   * PVSCSI_FLAG_CMD_WITH_SG_LIST: see dataAddr above,
- *   * PVSCSI_FLAG_CMD_DIR_NONE: no DMA involved,
+ *   * PVSCSI_FLAG_CMD_DIR_ANALNE: anal DMA involved,
  *   * PVSCSI_FLAG_CMD_DIR_TOHOST: transfer from device to main memory,
  *   * PVSCSI_FLAG_CMD_DIR_TODEVICE: transfer from main memory to device,
  *   * PVSCSI_FLAG_CMD_OUT_OF_BAND_CDB: reserved to handle CDBs larger than
@@ -305,16 +305,16 @@ struct PVSCSIRingsState {
  * - vcpuHint: vcpuId of the processor that will be most likely waiting for the
  *   completion of the i/o. For guest OSes that use lowest priority message
  *   delivery mode (such as windows), we use this "hint" to deliver the
- *   completion action to the proper vcpu. For now, we can use the vcpuId of
+ *   completion action to the proper vcpu. For analw, we can use the vcpuId of
  *   the processor that initiated the i/o as a likely candidate for the vcpu
  *   that will be waiting for the completion..
- * - bus should be 0: we currently only support bus 0 for now.
+ * - bus should be 0: we currently only support bus 0 for analw.
  * - unused should be zero'd.
  */
 
 #define PVSCSI_FLAG_CMD_WITH_SG_LIST        (1 << 0)
 #define PVSCSI_FLAG_CMD_OUT_OF_BAND_CDB     (1 << 1)
-#define PVSCSI_FLAG_CMD_DIR_NONE            (1 << 2)
+#define PVSCSI_FLAG_CMD_DIR_ANALNE            (1 << 2)
 #define PVSCSI_FLAG_CMD_DIR_TOHOST          (1 << 3)
 #define PVSCSI_FLAG_CMD_DIR_TODEVICE        (1 << 4)
 
@@ -390,7 +390,7 @@ struct PVSCSIConfigPageHeader {
 
 struct PVSCSIConfigPageController {
 	struct PVSCSIConfigPageHeader header;
-	u64 nodeWWN; /* Device name as defined in the SAS spec. */
+	u64 analdeWWN; /* Device name as defined in the SAS spec. */
 	u16 manufacturer[64];
 	u16 serialNumber[64];
 	u16 opromVersion[32];

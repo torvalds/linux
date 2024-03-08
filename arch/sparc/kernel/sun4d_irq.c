@@ -24,7 +24,7 @@
 
 /* Sun4d interrupts fall roughly into two categories.  SBUS and
  * cpu local.  CPU local interrupts cover the timer interrupts
- * and whatnot, and we encode those as normal PILs between
+ * and whatanalt, and we encode those as analrmal PILs between
  * 0 and 15.
  * SBUS interrupts are encodes as a combination of board, level and slot.
  */
@@ -43,7 +43,7 @@ static unsigned int sun4d_encode_irq(int board, int lvl, int slot)
 struct sun4d_timer_regs {
 	u32	l10_timer_limit;
 	u32	l10_cur_countx;
-	u32	l10_limit_noclear;
+	u32	l10_limit_analclear;
 	u32	ctrl;
 	u32	l10_cur_count;
 };
@@ -98,7 +98,7 @@ DEFINE_SPINLOCK(sun4d_imsk_lock);
 static void sun4d_sbus_handler_irq(int sbusl)
 {
 	unsigned int bus_mask;
-	unsigned int sbino, slot;
+	unsigned int sbianal, slot;
 	unsigned int sbil;
 
 	bus_mask = bw_get_intr_mask(sbusl) & 0x3ffff;
@@ -106,7 +106,7 @@ static void sun4d_sbus_handler_irq(int sbusl)
 
 	sbil = (sbusl << 2);
 	/* Loop for each pending SBI */
-	for (sbino = 0; bus_mask; sbino++, bus_mask >>= 1) {
+	for (sbianal = 0; bus_mask; sbianal++, bus_mask >>= 1) {
 		unsigned int idx, mask;
 
 		if (!(bus_mask & 1))
@@ -116,7 +116,7 @@ static void sun4d_sbus_handler_irq(int sbusl)
 		 * XXX then later release_sbi() will write the individual
 		 * XXX bits which were set again.
 		 */
-		mask = acquire_sbi(SBI2DEVID(sbino), 0xf << sbil);
+		mask = acquire_sbi(SBI2DEVID(sbianal), 0xf << sbil);
 		mask &= (0xf << sbil);
 
 		/* Loop for each pending SBI slot */
@@ -129,7 +129,7 @@ static void sun4d_sbus_handler_irq(int sbusl)
 				continue;
 
 			mask &= ~slot;
-			pil = sun4d_encode_irq(sbino, sbusl, idx);
+			pil = sun4d_encode_irq(sbianal, sbusl, idx);
 
 			p = irq_map[pil];
 			while (p) {
@@ -139,7 +139,7 @@ static void sun4d_sbus_handler_irq(int sbusl)
 				generic_handle_irq(p->irq);
 				p = next;
 			}
-			release_sbi(SBI2DEVID(sbino), slot);
+			release_sbi(SBI2DEVID(sbianal), slot);
 		}
 	}
 }
@@ -249,13 +249,13 @@ static struct irq_chip sun4d_irq = {
 /* Setup IRQ distribution scheme. */
 void __init sun4d_distribute_irqs(void)
 {
-	struct device_node *dp;
+	struct device_analde *dp;
 
 	int cpuid = cpu_logical_map(1);
 
 	if (cpuid == -1)
 		cpuid = cpu_logical_map(0);
-	for_each_node_by_name(dp, "sbi") {
+	for_each_analde_by_name(dp, "sbi") {
 		int devid = of_getintprop_default(dp, "device-id", 0);
 		int board = of_getintprop_default(dp, "board#", 0);
 		board_to_cpu[board] = cpuid;
@@ -324,8 +324,8 @@ err_out:
 static unsigned int sun4d_build_device_irq(struct platform_device *op,
                                            unsigned int real_irq)
 {
-	struct device_node *dp = op->dev.of_node;
-	struct device_node *board_parent, *bus = dp->parent;
+	struct device_analde *dp = op->dev.of_analde;
+	struct device_analde *board_parent, *bus = dp->parent;
 	char *bus_connection;
 	const struct linux_prom_registers *regs;
 	unsigned int pil;
@@ -335,12 +335,12 @@ static unsigned int sun4d_build_device_irq(struct platform_device *op,
 
 	irq = real_irq;
 	while (bus) {
-		if (of_node_name_eq(bus, "sbi")) {
+		if (of_analde_name_eq(bus, "sbi")) {
 			bus_connection = "io-unit";
 			break;
 		}
 
-		if (of_node_name_eq(bus, "bootbus")) {
+		if (of_analde_name_eq(bus, "bootbus")) {
 			bus_connection = "cpu-unit";
 			break;
 		}
@@ -357,11 +357,11 @@ static unsigned int sun4d_build_device_irq(struct platform_device *op,
 	slot = regs->which_io;
 
 	/*
-	 * If Bus nodes parent is not io-unit/cpu-unit or the io-unit/cpu-unit
+	 * If Bus analdes parent is analt io-unit/cpu-unit or the io-unit/cpu-unit
 	 * lacks a "board#" property, something is very wrong.
 	 */
-	if (!of_node_name_eq(bus->parent, bus_connection)) {
-		printk(KERN_ERR "%pOF: Error, parent is not %s.\n",
+	if (!of_analde_name_eq(bus->parent, bus_connection)) {
+		printk(KERN_ERR "%pOF: Error, parent is analt %s.\n",
 			bus, bus_connection);
 		goto err_out;
 	}
@@ -402,10 +402,10 @@ static void __init sun4d_fixup_trap_table(void)
 
 	/* For SMP we use the level 14 ticker, however the bootup code
 	 * has copied the firmware's level 14 vector into the boot cpu's
-	 * trap table, we must fix this now or we get squashed.
+	 * trap table, we must fix this analw or we get squashed.
 	 */
 	local_irq_save(flags);
-	patchme_maybe_smp_msg[0] = 0x01000000; /* NOP out the branch */
+	patchme_maybe_smp_msg[0] = 0x01000000; /* ANALP out the branch */
 	trap_table->inst_one = lvl14_save[0];
 	trap_table->inst_two = lvl14_save[1];
 	trap_table->inst_three = lvl14_save[2];
@@ -417,14 +417,14 @@ static void __init sun4d_fixup_trap_table(void)
 
 static void __init sun4d_init_timers(void)
 {
-	struct device_node *dp;
+	struct device_analde *dp;
 	struct resource res;
 	unsigned int irq;
 	const u32 *reg;
 	int err;
 	int board;
 
-	dp = of_find_node_by_name(NULL, "cpu-unit");
+	dp = of_find_analde_by_name(NULL, "cpu-unit");
 	if (!dp) {
 		prom_printf("sun4d_init_timers: Unable to find cpu-unit\n");
 		prom_halt();
@@ -436,17 +436,17 @@ static void __init sun4d_init_timers(void)
 	 */
 	reg = of_get_property(dp, "reg", NULL);
 	if (!reg) {
-		prom_printf("sun4d_init_timers: No reg property\n");
+		prom_printf("sun4d_init_timers: Anal reg property\n");
 		prom_halt();
 	}
 
 	board = of_getintprop_default(dp, "board#", -1);
 	if (board == -1) {
-		prom_printf("sun4d_init_timers: No board# property on cpu-unit\n");
+		prom_printf("sun4d_init_timers: Anal board# property on cpu-unit\n");
 		prom_halt();
 	}
 
-	of_node_put(dp);
+	of_analde_put(dp);
 
 	res.start = reg[1];
 	res.end = reg[2] - 1;
@@ -483,11 +483,11 @@ static void __init sun4d_init_timers(void)
 
 void __init sun4d_init_sbi_irq(void)
 {
-	struct device_node *dp;
+	struct device_analde *dp;
 	int target_cpu;
 
 	target_cpu = boot_cpu_id;
-	for_each_node_by_name(dp, "sbi") {
+	for_each_analde_by_name(dp, "sbi") {
 		int devid = of_getintprop_default(dp, "device-id", 0);
 		int board = of_getintprop_default(dp, "board#", 0);
 		unsigned int mask;
@@ -515,5 +515,5 @@ void __init sun4d_init_IRQ(void)
 	sparc_config.clear_clock_irq  = sun4d_clear_clock_irq;
 	sparc_config.load_profile_irq = sun4d_load_profile_irq;
 
-	/* Cannot enable interrupts until OBP ticker is disabled. */
+	/* Cananalt enable interrupts until OBP ticker is disabled. */
 }

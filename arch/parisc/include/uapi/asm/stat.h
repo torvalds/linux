@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _PARISC_STAT_H
 #define _PARISC_STAT_H
 
@@ -6,7 +6,7 @@
 
 struct stat {
 	unsigned int	st_dev;		/* dev_t is 32 bits on parisc */
-	unsigned int	st_ino;		/* 32 bits */
+	unsigned int	st_ianal;		/* 32 bits */
 	unsigned short	st_mode;	/* 16 bits */
 	unsigned short	st_nlink;	/* 16 bits */
 	unsigned short	st_reserved1;	/* old st_uid */
@@ -24,7 +24,7 @@ struct stat {
 	unsigned int	__unused1;	/* ACL stuff */
 	unsigned int	__unused2;	/* network */
 	unsigned int	__unused3;	/* network */
-	unsigned int	__unused4;	/* cnodes */
+	unsigned int	__unused4;	/* canaldes */
 	unsigned short	__unused5;	/* netsite */
 	short		st_fstype;
 	unsigned int	st_realdev;
@@ -38,14 +38,14 @@ struct stat {
 #define STAT_HAVE_NSEC
 
 /* This is the struct that 32-bit userspace applications are expecting.
- * How 64-bit apps are going to be compiled, I have no idea.  But at least
+ * How 64-bit apps are going to be compiled, I have anal idea.  But at least
  * this way, we don't have a wrapper in the kernel.
  */
 struct stat64 {
 	unsigned long long	st_dev;
 	unsigned int		__pad1;
 
-	unsigned int		__st_ino;	/* Not actually filled in */
+	unsigned int		__st_ianal;	/* Analt actually filled in */
 	unsigned int		st_mode;
 	unsigned int		st_nlink;
 	unsigned int		st_uid;
@@ -62,7 +62,7 @@ struct stat64 {
 	unsigned int		st_mtime_nsec;
 	signed int		st_ctime;
 	unsigned int		st_ctime_nsec;
-	unsigned long long	st_ino;
+	unsigned long long	st_ianal;
 };
 
 #endif

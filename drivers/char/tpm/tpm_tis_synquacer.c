@@ -16,7 +16,7 @@
 /*
  * irq > 0 means: use irq $irq;
  * irq = 0 means: autoprobe for an irq;
- * irq = -1 means: no irq support
+ * irq = -1 means: anal irq support
  */
 struct tpm_tis_synquacer_info {
 	struct resource res;
@@ -97,7 +97,7 @@ static int tpm_tis_synquacer_init(struct device *dev,
 
 	phy = devm_kzalloc(dev, sizeof(struct tpm_tis_synquacer_phy), GFP_KERNEL);
 	if (phy == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	phy->iobase = devm_ioremap_resource(dev, &tpm_info->res);
 	if (IS_ERR(phy->iobase))
@@ -116,8 +116,8 @@ static int tpm_tis_synquacer_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (res == NULL) {
-		dev_err(&pdev->dev, "no memory resource defined\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "anal memory resource defined\n");
+		return -EANALDEV;
 	}
 	tpm_info.res = *res;
 

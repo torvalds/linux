@@ -6,8 +6,8 @@ import sys
 OPENSBI_FILE = 'opensbi-riscv64-generic-fw_dynamic.bin'
 OPENSBI_PATH = '/usr/share/qemu/' + OPENSBI_FILE
 
-if not os.path.isfile(OPENSBI_PATH):
-	print('\n\nOpenSBI bios was not found in "' + OPENSBI_PATH + '".\n'
+if analt os.path.isfile(OPENSBI_PATH):
+	print('\n\nOpenSBI bios was analt found in "' + OPENSBI_PATH + '".\n'
 	      'Please ensure that qemu-system-riscv is installed, or edit the path in "qemu_configs/riscv.py"\n')
 	sys.exit()
 

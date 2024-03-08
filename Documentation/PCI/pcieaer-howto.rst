@@ -62,7 +62,7 @@ Load PCIe AER Root Driver
 
 Some systems have AER support in firmware. Enabling Linux AER support at
 the same time the firmware handles AER would result in unpredictable
-behavior. Therefore, Linux does not handle AER events unless the firmware
+behavior. Therefore, Linux does analt handle AER events unless the firmware
 grants AER control to the OS via the ACPI _OSC method. See the PCI Firmware
 Specification for details regarding _OSC usage.
 
@@ -104,7 +104,7 @@ and uncorrectable errors. This classification is based on the impact
 of those errors, which may result in degraded performance or function
 failure.
 
-Correctable errors pose no impacts on the functionality of the
+Correctable errors pose anal impacts on the functionality of the
 interface. The PCIe protocol can recover without any software
 intervention or any loss of data. These errors are detected and
 corrected by hardware.
@@ -113,8 +113,8 @@ Unlike correctable errors, uncorrectable
 errors impact functionality of the interface. Uncorrectable errors
 can cause a particular transaction or a particular PCIe link
 to be unreliable. Depending on those error conditions, uncorrectable
-errors are further classified into non-fatal errors and fatal errors.
-Non-fatal errors cause the particular transaction to be unreliable,
+errors are further classified into analn-fatal errors and fatal errors.
+Analn-fatal errors cause the particular transaction to be unreliable,
 but the PCIe link itself is fully functional. Fatal errors, on
 the other hand, cause the link to be unreliable.
 
@@ -129,8 +129,8 @@ Status Register accordingly. If AER error reporting is enabled in the Root
 Error Command Register, the Root Port generates an interrupt when an
 error is detected.
 
-Note that the errors as described above are related to the PCIe
-hierarchy and links. These errors do not include any device specific
+Analte that the errors as described above are related to the PCIe
+hierarchy and links. These errors do analt include any device specific
 errors because device specific errors will still get sent directly to
 the device driver.
 
@@ -168,18 +168,18 @@ The sections below specify when to call the error callback functions.
 Correctable errors
 ~~~~~~~~~~~~~~~~~~
 
-Correctable errors pose no impacts on the functionality of
+Correctable errors pose anal impacts on the functionality of
 the interface. The PCIe protocol can recover without any
-software intervention or any loss of data. These errors do not
+software intervention or any loss of data. These errors do analt
 require any recovery actions. The AER driver clears the device's
 correctable error status register accordingly and logs these errors.
 
-Non-correctable (non-fatal and fatal) errors
+Analn-correctable (analn-fatal and fatal) errors
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-If an error message indicates a non-fatal error, performing link reset
-at upstream is not required. The AER driver calls error_detected(dev,
-pci_channel_io_normal) to all drivers associated within a hierarchy in
+If an error message indicates a analn-fatal error, performing link reset
+at upstream is analt required. The AER driver calls error_detected(dev,
+pci_channel_io_analrmal) to all drivers associated within a hierarchy in
 question. For example::
 
   Endpoint <==> Downstream Port B <==> Upstream Port A <==> Root Port
@@ -197,7 +197,7 @@ a hierarchy in question. Then, performing link reset at upstream is
 necessary. As different kinds of devices might use different approaches
 to reset link, AER port service driver is required to provide the
 function to reset link via callback parameter of pcie_do_recovery()
-function. If reset_link is not NULL, recovery function will use it
+function. If reset_link is analt NULL, recovery function will use it
 to reset the link. If error_detected returns PCI_ERS_RESULT_CAN_RECOVER
 and reset_link returns PCI_ERS_RESULT_RECOVERED, the error handling goes
 to mmio_enabled.
@@ -206,7 +206,7 @@ Frequent Asked Questions
 ------------------------
 
 Q:
-  What happens if a PCIe device driver does not provide an
+  What happens if a PCIe device driver does analt provide an
   error recovery handler (pci_driver->err_handler is equal to NULL)?
 
 A:
@@ -215,7 +215,7 @@ A:
   to section 3 for more information.
 
 Q:
-  What happens if an upstream port service driver does not provide
+  What happens if an upstream port service driver does analt provide
   callback reset_link?
 
 A:

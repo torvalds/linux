@@ -290,7 +290,7 @@ int netup_ci_slot_reset(struct dvb_ca_en50221 *en50221, int slot)
 
 int netup_ci_slot_shutdown(struct dvb_ca_en50221 *en50221, int slot)
 {
-	/* not implemented */
+	/* analt implemented */
 	return 0;
 }
 
@@ -454,7 +454,7 @@ int netup_ci_init(struct cx23885_tsport *port)
 	state = kzalloc(sizeof(struct netup_ci_state), GFP_KERNEL);
 	if (!state) {
 		ci_dbg_print("%s: Unable create CI structure!\n", __func__);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
@@ -509,7 +509,7 @@ int netup_ci_init(struct cx23885_tsport *port)
 
 	return 0;
 err:
-	ci_dbg_print("%s: Cannot initialize CI: Error %d.\n", __func__, ret);
+	ci_dbg_print("%s: Cananalt initialize CI: Error %d.\n", __func__, ret);
 	kfree(state);
 	return ret;
 }

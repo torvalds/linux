@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause) */
-/* Do not edit directly, auto-generated from: */
+/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-analte) OR BSD-3-Clause) */
+/* Do analt edit directly, auto-generated from: */
 /*	Documentation/netlink/specs/netdev.yaml */
 /* YNL-GEN uapi header */
 
@@ -20,10 +20,10 @@
  *   in zero copy mode.
  * @NETDEV_XDP_ACT_HW_OFFLOAD: This feature informs if netdev supports XDP hw
  *   offloading.
- * @NETDEV_XDP_ACT_RX_SG: This feature informs if netdev implements non-linear
+ * @NETDEV_XDP_ACT_RX_SG: This feature informs if netdev implements analn-linear
  *   XDP buffer support in the driver napi callback.
  * @NETDEV_XDP_ACT_NDO_XMIT_SG: This feature informs if netdev implements
- *   non-linear XDP buffer support in ndo_xdp_xmit callback.
+ *   analn-linear XDP buffer support in ndo_xdp_xmit callback.
  */
 enum netdev_xdp_act {
 	NETDEV_XDP_ACT_BASIC = 1,

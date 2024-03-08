@@ -13,7 +13,7 @@
 typedef __kernel_size_t size_t;
 typedef __kernel_ssize_t ssize_t;
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/compiler.h>
 
 #include <asm/hwcap.h>
@@ -22,7 +22,7 @@ typedef __kernel_ssize_t ssize_t;
 
 long syscall(int nr, ...);
 
-void __noreturn exit(int n);
+void __analreturn exit(int n);
 ssize_t write(int fd, const void *buf, size_t size);
 
 #endif /* ! SYSTEM_H */

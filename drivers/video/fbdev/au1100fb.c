@@ -27,24 +27,24 @@
  *  option) any later version.
  *
  *  THIS  SOFTWARE  IS PROVIDED	  ``AS	IS'' AND   ANY	EXPRESS OR IMPLIED
- *  WARRANTIES,	  INCLUDING, BUT NOT  LIMITED  TO, THE IMPLIED WARRANTIES OF
+ *  WARRANTIES,	  INCLUDING, BUT ANALT  LIMITED  TO, THE IMPLIED WARRANTIES OF
  *  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN
- *  NO	EVENT  SHALL   THE AUTHOR  BE	 LIABLE FOR ANY	  DIRECT, INDIRECT,
+ *  ANAL	EVENT  SHALL   THE AUTHOR  BE	 LIABLE FOR ANY	  DIRECT, INDIRECT,
  *  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- *  NOT LIMITED	  TO, PROCUREMENT OF  SUBSTITUTE GOODS	OR SERVICES; LOSS OF
+ *  ANALT LIMITED	  TO, PROCUREMENT OF  SUBSTITUTE GOODS	OR SERVICES; LOSS OF
  *  USE, DATA,	OR PROFITS; OR	BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
  *  ANY THEORY OF LIABILITY, WHETHER IN	 CONTRACT, STRICT LIABILITY, OR TORT
  *  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  *  THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *  You should have received a copy of the  GNU General Public License along
- *  with this program; if not, write  to the Free Software Foundation, Inc.,
+ *  with this program; if analt, write  to the Free Software Foundation, Inc.,
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  */
 #include <linux/clk.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/fb.h>
@@ -67,7 +67,7 @@
 #define to_au1100fb_device(_info) \
 	  (_info ? container_of(_info, struct au1100fb_device, info) : NULL);
 
-/* Bitfields format supported by the controller. Note that the order of formats
+/* Bitfields format supported by the controller. Analte that the order of formats
  * SHOULD be the same as in the LCD_CONTROL_SBPPF field, so we can retrieve the
  * right pixel format by doing rgb_bitfields[LCD_CONTROL_SBPPF_XXX >> LCD_CONTROL_SBPPF]
  */
@@ -89,14 +89,14 @@ static struct fb_fix_screeninfo au1100fb_fix = {
 	.xpanstep 	= 1,
 	.ypanstep 	= 1,
 	.type		= FB_TYPE_PACKED_PIXELS,
-	.accel		= FB_ACCEL_NONE,
+	.accel		= FB_ACCEL_ANALNE,
 };
 
 static struct fb_var_screeninfo au1100fb_var = {
-	.activate	= FB_ACTIVATE_NOW,
+	.activate	= FB_ACTIVATE_ANALW,
 	.height		= -1,
 	.width		= -1,
-	.vmode		= FB_VMODE_NONINTERLACED,
+	.vmode		= FB_VMODE_ANALNINTERLACED,
 };
 
 /* fb_blank
@@ -111,7 +111,7 @@ static int au1100fb_fb_blank(int blank_mode, struct fb_info *fbi)
 
 	switch (blank_mode) {
 
-	case VESA_NO_BLANKING:
+	case VESA_ANAL_BLANKING:
 		/* Turn on panel */
 		fbdev->regs->lcd_control |= LCD_CONTROL_GO;
 		wmb(); /* drain writebuffer */
@@ -133,7 +133,7 @@ static int au1100fb_fb_blank(int blank_mode, struct fb_info *fbi)
 
 /*
  * Set hardware with var settings. This will enable the controller with a specific
- * mode, normally validated with the fb_check_var method
+ * mode, analrmally validated with the fb_check_var method
 	 */
 int au1100fb_setmode(struct au1100fb_device *fbdev)
 {
@@ -168,7 +168,7 @@ int au1100fb_setmode(struct au1100fb_device *fbdev)
 			info->fix.line_length = info->var.xres_virtual /
 							(8/info->var.bits_per_pixel);
 		} else {
-			/* non-palettized */
+			/* analn-palettized */
 			index = (fbdev->panel->control_base & LCD_CONTROL_SBPPF_MASK) >> LCD_CONTROL_SBPPF_BIT;
 			info->var.red = rgb_bitfields[index][0];
 			info->var.green = rgb_bitfields[index][1];
@@ -179,8 +179,8 @@ int au1100fb_setmode(struct au1100fb_device *fbdev)
 			info->fix.line_length = info->var.xres_virtual << 1; /* depth=16 */
 		}
 	} else {
-		/* mono */
-		info->fix.visual = FB_VISUAL_MONO10;
+		/* moanal */
+		info->fix.visual = FB_VISUAL_MOANAL10;
 		info->fix.line_length = info->var.xres_virtual / 8;
 	}
 
@@ -224,7 +224,7 @@ int au1100fb_setmode(struct au1100fb_device *fbdev)
 	/* Resume controller */
 	fbdev->regs->lcd_control |= LCD_CONTROL_GO;
 	mdelay(10);
-	au1100fb_fb_blank(VESA_NO_BLANKING, info);
+	au1100fb_fb_blank(VESA_ANAL_BLANKING, info);
 
 	return 0;
 }
@@ -232,7 +232,7 @@ int au1100fb_setmode(struct au1100fb_device *fbdev)
 /* fb_setcolreg
  * Set color in LCD palette.
  */
-int au1100fb_fb_setcolreg(unsigned regno, unsigned red, unsigned green, unsigned blue, unsigned transp, struct fb_info *fbi)
+int au1100fb_fb_setcolreg(unsigned reganal, unsigned red, unsigned green, unsigned blue, unsigned transp, struct fb_info *fbi)
 {
 	struct au1100fb_device *fbdev;
 	u32 *palette;
@@ -241,7 +241,7 @@ int au1100fb_fb_setcolreg(unsigned regno, unsigned red, unsigned green, unsigned
 	fbdev = to_au1100fb_device(fbi);
 	palette = fbdev->regs->lcd_palettebase;
 
-	if (regno > (AU1100_LCD_NBR_PALETTE_ENTRIES - 1))
+	if (reganal > (AU1100_LCD_NBR_PALETTE_ENTRIES - 1))
 		return -EINVAL;
 
 	if (fbi->var.grayscale) {
@@ -252,7 +252,7 @@ int au1100fb_fb_setcolreg(unsigned regno, unsigned red, unsigned green, unsigned
 
 	if (fbi->fix.visual == FB_VISUAL_TRUECOLOR) {
 		/* Place color in the pseudopalette */
-		if (regno > 16)
+		if (reganal > 16)
 			return -EINVAL;
 
 		palette = (u32*)fbi->pseudo_palette;
@@ -278,12 +278,12 @@ int au1100fb_fb_setcolreg(unsigned regno, unsigned red, unsigned green, unsigned
 			(((panel_swap_rgb(fbdev->panel) ? red : blue) >> 4) & 0x0F00);
 		value &= 0xFFF;
 	} else {
-		/* MONOCHROME MODE */
+		/* MOANALCHROME MODE */
 		value = (green >> 12) & 0x000F;
 		value &= 0xF;
 	}
 
-	palette[regno] = value;
+	palette[reganal] = value;
 
 	return 0;
 }
@@ -305,7 +305,7 @@ int au1100fb_fb_pan_display(struct fb_var_screeninfo *var, struct fb_info *fbi)
 	}
 
 	if (var->xoffset - fbi->var.xoffset) {
-		/* No support for X panning for now! */
+		/* Anal support for X panning for analw! */
 		return -EINVAL;
 	}
 
@@ -366,17 +366,17 @@ static const struct fb_ops au1100fb_ops = {
 static int au1100fb_setup(struct au1100fb_device *fbdev)
 {
 	char *this_opt, *options;
-	int num_panels = ARRAY_SIZE(known_lcd_panels);
+	int num_panels = ARRAY_SIZE(kanalwn_lcd_panels);
 
 	if (num_panels <= 0) {
-		print_err("No LCD panels supported by driver!");
-		return -ENODEV;
+		print_err("Anal LCD panels supported by driver!");
+		return -EANALDEV;
 	}
 
 	if (fb_get_options(DRIVER_NAME, &options))
-		return -ENODEV;
+		return -EANALDEV;
 	if (!options)
-		return -ENODEV;
+		return -EANALDEV;
 
 	while ((this_opt = strsep(&options, ",")) != NULL) {
 		/* Panel option */
@@ -384,16 +384,16 @@ static int au1100fb_setup(struct au1100fb_device *fbdev)
 			int i;
 			this_opt += 6;
 			for (i = 0; i < num_panels; i++) {
-				if (!strncmp(this_opt, known_lcd_panels[i].name,
+				if (!strncmp(this_opt, kanalwn_lcd_panels[i].name,
 					     strlen(this_opt))) {
-					fbdev->panel = &known_lcd_panels[i];
+					fbdev->panel = &kanalwn_lcd_panels[i];
 					fbdev->panel_idx = i;
 					break;
 				}
 			}
 			if (i >= num_panels) {
-				print_warn("Panel '%s' not supported!", this_opt);
-				return -ENODEV;
+				print_warn("Panel '%s' analt supported!", this_opt);
+				return -EANALDEV;
 			}
 		}
 		/* Unsupported option */
@@ -415,7 +415,7 @@ static int au1100fb_drv_probe(struct platform_device *dev)
 	/* Allocate new device private */
 	fbdev = devm_kzalloc(&dev->dev, sizeof(*fbdev), GFP_KERNEL);
 	if (!fbdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (au1100fb_setup(fbdev))
 		goto failed;
@@ -464,7 +464,7 @@ static int au1100fb_drv_probe(struct platform_device *dev)
 	if (!fbdev->fb_mem) {
 		print_err("fail to allocate framebuffer (size: %dK))",
 			  fbdev->fb_len / 1024);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	au1100fb_fix.smem_start = fbdev->fb_phys;
@@ -487,7 +487,7 @@ static int au1100fb_drv_probe(struct platform_device *dev)
 	fbdev->info.pseudo_palette =
 		devm_kcalloc(&dev->dev, 16, sizeof(u32), GFP_KERNEL);
 	if (!fbdev->info.pseudo_palette)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (fb_alloc_cmap(&fbdev->info.cmap, AU1100_LCD_NBR_PALETTE_ENTRIES, 0) < 0) {
 		print_err("Fail to allocate colormap (%d entries)",
@@ -502,7 +502,7 @@ static int au1100fb_drv_probe(struct platform_device *dev)
 
 	/* Register new framebuffer */
 	if (register_framebuffer(&fbdev->info) < 0) {
-		print_err("cannot register new framebuffer");
+		print_err("cananalt register new framebuffer");
 		goto failed;
 	}
 
@@ -517,7 +517,7 @@ failed:
 		fb_dealloc_cmap(&fbdev->info.cmap);
 	}
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 void au1100fb_drv_remove(struct platform_device *dev)
@@ -574,7 +574,7 @@ int au1100fb_drv_resume(struct platform_device *dev)
 	clk_enable(fbdev->lcdclk);
 
 	/* Unblank the LCD */
-	au1100fb_fb_blank(VESA_NO_BLANKING, &fbdev->info);
+	au1100fb_fb_blank(VESA_ANAL_BLANKING, &fbdev->info);
 
 	return 0;
 }

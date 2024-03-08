@@ -4,17 +4,17 @@
  */
 
 /*
- * Veritas filesystem driver - support for 'immed' inodes.
+ * Veritas filesystem driver - support for 'immed' ianaldes.
  */
 #include <linux/fs.h>
 #include <linux/pagemap.h>
 
 #include "vxfs.h"
 #include "vxfs_extern.h"
-#include "vxfs_inode.h"
+#include "vxfs_ianalde.h"
 
 /**
- * vxfs_immed_read_folio - read part of an immed inode into pagecache
+ * vxfs_immed_read_folio - read part of an immed ianalde into pagecache
  * @fp:		file context (unused)
  * @folio:	folio to fill in.
  *
@@ -30,7 +30,7 @@
  */
 static int vxfs_immed_read_folio(struct file *fp, struct folio *folio)
 {
-	struct vxfs_inode_info *vip = VXFS_INO(folio->mapping->host);
+	struct vxfs_ianalde_info *vip = VXFS_IANAL(folio->mapping->host);
 	void *src = vip->vii_immed.vi_immed + folio_pos(folio);
 	unsigned long i;
 

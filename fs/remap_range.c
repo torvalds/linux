@@ -5,7 +5,7 @@
 #include <linux/fcntl.h>
 #include <linux/file.h>
 #include <linux/uio.h>
-#include <linux/fsnotify.h>
+#include <linux/fsanaltify.h>
 #include <linux/security.h>
 #include <linux/export.h>
 #include <linux/syscalls.h>
@@ -32,12 +32,12 @@ static int generic_remap_checks(struct file *file_in, loff_t pos_in,
 				struct file *file_out, loff_t pos_out,
 				loff_t *req_count, unsigned int remap_flags)
 {
-	struct inode *inode_in = file_in->f_mapping->host;
-	struct inode *inode_out = file_out->f_mapping->host;
+	struct ianalde *ianalde_in = file_in->f_mapping->host;
+	struct ianalde *ianalde_out = file_out->f_mapping->host;
 	uint64_t count = *req_count;
 	uint64_t bcount;
 	loff_t size_in, size_out;
-	loff_t bs = inode_out->i_sb->s_blocksize;
+	loff_t bs = ianalde_out->i_sb->s_blocksize;
 	int ret;
 
 	/* The start of both ranges must be aligned to an fs block. */
@@ -48,8 +48,8 @@ static int generic_remap_checks(struct file *file_in, loff_t pos_in,
 	if (pos_in + count < pos_in || pos_out + count < pos_out)
 		return -EINVAL;
 
-	size_in = i_size_read(inode_in);
-	size_out = i_size_read(inode_out);
+	size_in = i_size_read(ianalde_in);
+	size_out = i_size_read(ianalde_out);
 
 	/* Dedupe requires both ranges to be within EOF. */
 	if ((remap_flags & REMAP_FILE_DEDUP) &&
@@ -83,7 +83,7 @@ static int generic_remap_checks(struct file *file_in, loff_t pos_in,
 	}
 
 	/* Don't allow overlapped cloning within the same file. */
-	if (inode_in == inode_out &&
+	if (ianalde_in == ianalde_out &&
 	    pos_out + bcount > pos_in &&
 	    pos_out < pos_in + bcount)
 		return -EINVAL;
@@ -116,7 +116,7 @@ static int remap_verify_area(struct file *file, loff_t pos, loff_t len,
 	if (ret)
 		return ret;
 
-	return fsnotify_file_area_perm(file, mask, &pos, len);
+	return fsanaltify_file_area_perm(file, mask, &pos, len);
 }
 
 /*
@@ -126,23 +126,23 @@ static int remap_verify_area(struct file *file, loff_t pos, loff_t len,
  *
  * For clone we only link a partial EOF block above or at the destination file's
  * EOF.  For deduplication we accept a partial EOF block only if it ends at the
- * destination file's EOF (can not link it into the middle of a file).
+ * destination file's EOF (can analt link it into the middle of a file).
  *
  * Shorten the request if possible.
  */
-static int generic_remap_check_len(struct inode *inode_in,
-				   struct inode *inode_out,
+static int generic_remap_check_len(struct ianalde *ianalde_in,
+				   struct ianalde *ianalde_out,
 				   loff_t pos_out,
 				   loff_t *len,
 				   unsigned int remap_flags)
 {
-	u64 blkmask = i_blocksize(inode_in) - 1;
+	u64 blkmask = i_blocksize(ianalde_in) - 1;
 	loff_t new_len = *len;
 
 	if ((*len & blkmask) == 0)
 		return 0;
 
-	if (pos_out + *len < i_size_read(inode_out))
+	if (pos_out + *len < i_size_read(ianalde_out))
 		new_len &= ~blkmask;
 
 	if (new_len == *len)
@@ -177,7 +177,7 @@ static void vfs_lock_two_folios(struct folio *folio1, struct folio *folio2)
 		folio_lock(folio2);
 }
 
-/* Unlock two folios, being careful not to unlock the same folio twice. */
+/* Unlock two folios, being careful analt to unlock the same folio twice. */
 static void vfs_unlock_two_folios(struct folio *folio1, struct folio *folio2)
 {
 	folio_unlock(folio1);
@@ -187,7 +187,7 @@ static void vfs_unlock_two_folios(struct folio *folio1, struct folio *folio2)
 
 /*
  * Compare extents of two files to see if they are the same.
- * Caller must have locked both inodes to prevent write races.
+ * Caller must have locked both ianaldes to prevent write races.
  */
 static int vfs_dedupe_file_range_compare(struct file *src, loff_t srcoff,
 					 struct file *dest, loff_t dstoff,
@@ -221,8 +221,8 @@ static int vfs_dedupe_file_range_compare(struct file *src, loff_t srcoff,
 		vfs_lock_two_folios(src_folio, dst_folio);
 
 		/*
-		 * Now that we've locked both folios, make sure they're still
-		 * mapped to the file data we're interested in.  If not,
+		 * Analw that we've locked both folios, make sure they're still
+		 * mapped to the file data we're interested in.  If analt,
 		 * someone is invalidating pages on us and we lose.
 		 */
 		if (!folio_test_uptodate(src_folio) || !folio_test_uptodate(dst_folio) ||
@@ -266,9 +266,9 @@ out_error:
 }
 
 /*
- * Check that the two inodes are eligible for cloning, the ranges make
+ * Check that the two ianaldes are eligible for cloning, the ranges make
  * sense, and then flush all dirty data.  Caller must ensure that the
- * inodes have been locked against any other modifications.
+ * ianaldes have been locked against any other modifications.
  *
  * If there's an error, then the usual negative error code is returned.
  * Otherwise returns 0 with *len set to the request length.
@@ -279,27 +279,27 @@ __generic_remap_file_range_prep(struct file *file_in, loff_t pos_in,
 				loff_t *len, unsigned int remap_flags,
 				const struct iomap_ops *dax_read_ops)
 {
-	struct inode *inode_in = file_inode(file_in);
-	struct inode *inode_out = file_inode(file_out);
-	bool same_inode = (inode_in == inode_out);
+	struct ianalde *ianalde_in = file_ianalde(file_in);
+	struct ianalde *ianalde_out = file_ianalde(file_out);
+	bool same_ianalde = (ianalde_in == ianalde_out);
 	int ret;
 
-	/* Don't touch certain kinds of inodes */
-	if (IS_IMMUTABLE(inode_out))
+	/* Don't touch certain kinds of ianaldes */
+	if (IS_IMMUTABLE(ianalde_out))
 		return -EPERM;
 
-	if (IS_SWAPFILE(inode_in) || IS_SWAPFILE(inode_out))
+	if (IS_SWAPFILE(ianalde_in) || IS_SWAPFILE(ianalde_out))
 		return -ETXTBSY;
 
 	/* Don't reflink dirs, pipes, sockets... */
-	if (S_ISDIR(inode_in->i_mode) || S_ISDIR(inode_out->i_mode))
+	if (S_ISDIR(ianalde_in->i_mode) || S_ISDIR(ianalde_out->i_mode))
 		return -EISDIR;
-	if (!S_ISREG(inode_in->i_mode) || !S_ISREG(inode_out->i_mode))
+	if (!S_ISREG(ianalde_in->i_mode) || !S_ISREG(ianalde_out->i_mode))
 		return -EINVAL;
 
 	/* Zero length dedupe exits immediately; reflink goes to EOF. */
 	if (*len == 0) {
-		loff_t isize = i_size_read(inode_in);
+		loff_t isize = i_size_read(ianalde_in);
 
 		if ((remap_flags & REMAP_FILE_DEDUP) || pos_in == isize)
 			return 0;
@@ -317,16 +317,16 @@ __generic_remap_file_range_prep(struct file *file_in, loff_t pos_in,
 		return ret;
 
 	/* Wait for the completion of any pending IOs on both files */
-	inode_dio_wait(inode_in);
-	if (!same_inode)
-		inode_dio_wait(inode_out);
+	ianalde_dio_wait(ianalde_in);
+	if (!same_ianalde)
+		ianalde_dio_wait(ianalde_out);
 
-	ret = filemap_write_and_wait_range(inode_in->i_mapping,
+	ret = filemap_write_and_wait_range(ianalde_in->i_mapping,
 			pos_in, pos_in + *len - 1);
 	if (ret)
 		return ret;
 
-	ret = filemap_write_and_wait_range(inode_out->i_mapping,
+	ret = filemap_write_and_wait_range(ianalde_out->i_mapping,
 			pos_out, pos_out + *len - 1);
 	if (ret)
 		return ret;
@@ -337,12 +337,12 @@ __generic_remap_file_range_prep(struct file *file_in, loff_t pos_in,
 	if (remap_flags & REMAP_FILE_DEDUP) {
 		bool		is_same = false;
 
-		if (!IS_DAX(inode_in))
+		if (!IS_DAX(ianalde_in))
 			ret = vfs_dedupe_file_range_compare(file_in, pos_in,
 					file_out, pos_out, *len, &is_same);
 		else if (dax_read_ops)
-			ret = dax_dedupe_file_range_compare(inode_in, pos_in,
-					inode_out, pos_out, *len, &is_same,
+			ret = dax_dedupe_file_range_compare(ianalde_in, pos_in,
+					ianalde_out, pos_out, *len, &is_same,
 					dax_read_ops);
 		else
 			return -EINVAL;
@@ -352,7 +352,7 @@ __generic_remap_file_range_prep(struct file *file_in, loff_t pos_in,
 			return -EBADE;
 	}
 
-	ret = generic_remap_check_len(inode_in, inode_out, pos_out, len,
+	ret = generic_remap_check_len(ianalde_in, ianalde_out, pos_out, len,
 			remap_flags);
 	if (ret || *len == 0)
 		return ret;
@@ -381,7 +381,7 @@ loff_t vfs_clone_file_range(struct file *file_in, loff_t pos_in,
 
 	WARN_ON_ONCE(remap_flags & REMAP_FILE_DEDUP);
 
-	if (file_inode(file_in)->i_sb != file_inode(file_out)->i_sb)
+	if (file_ianalde(file_in)->i_sb != file_ianalde(file_out)->i_sb)
 		return -EXDEV;
 
 	ret = generic_file_rw_checks(file_in, file_out);
@@ -389,7 +389,7 @@ loff_t vfs_clone_file_range(struct file *file_in, loff_t pos_in,
 		return ret;
 
 	if (!file_in->f_op->remap_file_range)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ret = remap_verify_area(file_in, pos_in, len, false);
 	if (ret)
@@ -406,8 +406,8 @@ loff_t vfs_clone_file_range(struct file *file_in, loff_t pos_in,
 	if (ret < 0)
 		return ret;
 
-	fsnotify_access(file_in);
-	fsnotify_modify(file_out);
+	fsanaltify_access(file_in);
+	fsanaltify_modify(file_out);
 	return ret;
 }
 EXPORT_SYMBOL(vfs_clone_file_range);
@@ -416,15 +416,15 @@ EXPORT_SYMBOL(vfs_clone_file_range);
 static bool may_dedupe_file(struct file *file)
 {
 	struct mnt_idmap *idmap = file_mnt_idmap(file);
-	struct inode *inode = file_inode(file);
+	struct ianalde *ianalde = file_ianalde(file);
 
 	if (capable(CAP_SYS_ADMIN))
 		return true;
 	if (file->f_mode & FMODE_WRITE)
 		return true;
-	if (vfsuid_eq_kuid(i_uid_into_vfsuid(idmap, inode), current_fsuid()))
+	if (vfsuid_eq_kuid(i_uid_into_vfsuid(idmap, ianalde), current_fsuid()))
 		return true;
-	if (!inode_permission(idmap, inode, MAY_WRITE))
+	if (!ianalde_permission(idmap, ianalde, MAY_WRITE))
 		return true;
 	return false;
 }
@@ -440,7 +440,7 @@ loff_t vfs_dedupe_file_range_one(struct file *src_file, loff_t src_pos,
 
 	/*
 	 * This is redundant if called from vfs_dedupe_file_range(), but other
-	 * callers need it and it's not performance sesitive...
+	 * callers need it and it's analt performance sesitive...
 	 */
 	ret = remap_verify_area(src_file, src_pos, len, false);
 	if (ret)
@@ -464,11 +464,11 @@ loff_t vfs_dedupe_file_range_one(struct file *src_file, loff_t src_pos,
 		goto out_drop_write;
 
 	ret = -EXDEV;
-	if (file_inode(src_file)->i_sb != file_inode(dst_file)->i_sb)
+	if (file_ianalde(src_file)->i_sb != file_ianalde(dst_file)->i_sb)
 		goto out_drop_write;
 
 	ret = -EISDIR;
-	if (S_ISDIR(file_inode(dst_file)->i_mode))
+	if (S_ISDIR(file_ianalde(dst_file)->i_mode))
 		goto out_drop_write;
 
 	ret = -EINVAL;
@@ -492,7 +492,7 @@ EXPORT_SYMBOL(vfs_dedupe_file_range_one);
 int vfs_dedupe_file_range(struct file *file, struct file_dedupe_range *same)
 {
 	struct file_dedupe_range_info *info;
-	struct inode *src = file_inode(file);
+	struct ianalde *src = file_ianalde(file);
 	u64 off;
 	u64 len;
 	int i;
@@ -516,7 +516,7 @@ int vfs_dedupe_file_range(struct file *file, struct file_dedupe_range *same)
 		return -EINVAL;
 
 	if (!file->f_op->remap_file_range)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ret = remap_verify_area(file, off, len, false);
 	if (ret < 0)

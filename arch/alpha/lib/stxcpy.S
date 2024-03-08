@@ -23,8 +23,8 @@
 
 #include <asm/regdef.h>
 
-	.set noat
-	.set noreorder
+	.set analat
+	.set analreorder
 
 	.text
 
@@ -47,7 +47,7 @@ stxcpy_aligned:
 	lda	t2, -1		# e1    : build a mask against false zero
 	mskqh	t2, a1, t2	# e0    :   detection in the src word
 	mskqh	t1, a1, t3	# e0    :
-	ornot	t1, t2, t2	# .. e1 :
+	oranalt	t1, t2, t2	# .. e1 :
 	mskql	t0, a1, t0	# e0    : assemble the first output word
 	cmpbge	zero, t2, t8	# .. e1 : bits set iff null found
 	or	t0, t3, t1	# e0    :
@@ -55,7 +55,7 @@ stxcpy_aligned:
 
 	/* On entry to this basic block:
 	   t0 == the first destination word for masking back in
-	   t1 == a source word not containing a null.  */
+	   t1 == a source word analt containing a null.  */
 
 $a_loop:
 	stq_u	t1, 0(a0)	# e0    :
@@ -74,7 +74,7 @@ $a_eos:
 	and	t8, t6, t12	# e1 (stall)
 
 	/* For the sake of the cache, don't read a destination word
-	   if we're not going to need it.  */
+	   if we're analt going to need it.  */
 	and	t12, 0x80, t6	# e0    :
 	bne	t6, 1f		# .. e1 (zdb)
 
@@ -82,7 +82,7 @@ $a_eos:
 	   our source and original destination words.  */
 	ldq_u	t0, 0(a0)	# e0    :
 	subq	t12, 1, t6	# .. e1 :
-	zapnot	t1, t6, t1	# e0    : clear src bytes >= null
+	zapanalt	t1, t6, t1	# e0    : clear src bytes >= null
 	or	t12, t6, t8	# .. e1 :
 	zap	t0, t8, t0	# e0    : clear dst bytes <= null
 	or	t0, t1, t1	# e1    :
@@ -101,26 +101,26 @@ __stxcpy:
 
 	/* Are source and destination co-aligned?  */
 	xor	a0, a1, t0	# e0    :
-	unop			#       :
+	uanalp			#       :
 	and	t0, 7, t0	# e0    :
 	bne	t0, $unaligned	# .. e1 :
 
 	/* We are co-aligned; take care of a partial first word.  */
 	ldq_u	t1, 0(a1)	# e0    : load first src word
-	and	a0, 7, t0	# .. e1 : take care not to load a word ...
+	and	a0, 7, t0	# .. e1 : take care analt to load a word ...
 	addq	a1, 8, a1		# e0    :
 	beq	t0, stxcpy_aligned	# .. e1 : ... if we wont need it
 	ldq_u	t0, 0(a0)	# e0    :
 	br	stxcpy_aligned	# .. e1 :
 
 
-/* The source and destination are not co-aligned.  Align the destination
-   and cope.  We have to be very careful about not reading too much and
+/* The source and destination are analt co-aligned.  Align the destination
+   and cope.  We have to be very careful about analt reading too much and
    causing a SEGV.  */
 
 	.align 3
 $u_head:
-	/* We know just enough now to be able to assemble the first
+	/* We kanalw just eanalugh analw to be able to assemble the first
 	   full source word.  We can still find a zero at the end of it
 	   that prevents us from outputting the whole thing.
 
@@ -158,7 +158,7 @@ $u_head:
 	ldq_u	t2, 8(a1)	# .. e1 : read next high-order source word
 	addq	a1, 8, a1	# e0    :
 	cmpbge	zero, t2, t8	# .. e1 :
-	nop			# e0    :
+	analp			# e0    :
 	bne	t8, $u_eos	# .. e1 :
 
 	/* Unaligned copy main loop.  In order to avoid reading too much,
@@ -172,7 +172,7 @@ $u_head:
 	   t0 == the shifted high-order bits from the previous source word
 	   t2 == the unshifted current source word
 
-	   We further know that t2 does not contain a null terminator.  */
+	   We further kanalw that t2 does analt contain a null terminator.  */
 
 	.align 3
 $u_loop:
@@ -180,7 +180,7 @@ $u_loop:
 	addq	a1, 8, a1	# .. e1 :
 	extql	t2, a1, t3	# e0    : extract low bits for next time
 	addq	a0, 8, a0	# .. e1 :
-	or	t0, t1, t1	# e0    : current dst word now complete
+	or	t0, t1, t1	# e0    : current dst word analw complete
 	ldq_u	t2, 0(a1)	# .. e1 : load high word for next time
 	stq_u	t1, -8(a0)	# e0    : save the current word
 	mov	t3, t0		# .. e1 :
@@ -222,7 +222,7 @@ $u_final:
 	ldq_u	t0, 0(a0)	# e0    :
 	subq	t12, 1, t6	# .. e1 :
 	or	t6, t12, t8	# e0    :
-	zapnot	t1, t6, t1	# .. e1 : kill source bytes >= null
+	zapanalt	t1, t6, t1	# .. e1 : kill source bytes >= null
 	zap	t0, t8, t0	# e0    : kill dest bytes <= null
 	or	t0, t1, t1	# e1    :
 
@@ -258,14 +258,14 @@ $unaligned:
 
 	lda	t2, -1		# e1    : mask out leading garbage in source
 	mskqh	t2, t5, t2	# e0    :
-	nop			# e0    :
-	ornot	t1, t2, t3	# .. e1 :
+	analp			# e0    :
+	oranalt	t1, t2, t3	# .. e1 :
 	cmpbge	zero, t3, t8	# e0    : is there a zero?
 	beq	t8, $u_head	# .. e1 (zdb)
 
 	/* At this point we've found a zero in the first partial word of
 	   the source.  We need to isolate the valid source data and mask
-	   it into the original destination data.  (Incidentally, we know
+	   it into the original destination data.  (Incidentally, we kanalw
 	   that we'll need at least one byte of that original dest word.) */
 
 	ldq_u	t0, 0(a0)	# e0    :
@@ -277,12 +277,12 @@ $unaligned:
 	or	t6, t12, t8	# e1    :
 	srl	t12, t5, t12	# e0    : adjust final null return value
 
-	zapnot	t2, t8, t2	# .. e1 : prepare source word; mirror changes
+	zapanalt	t2, t8, t2	# .. e1 : prepare source word; mirror changes
 	and	t1, t2, t1	# e1    : to source validity mask
 	extql	t2, a1, t2	# .. e0 :
 	extql	t1, a1, t1	# e0    :
 
-	andnot	t0, t2, t0	# .. e1 : zero place for source to reside
+	andanalt	t0, t2, t0	# .. e1 : zero place for source to reside
 	or	t0, t1, t1	# e1    : and put it there
 	stq_u	t1, 0(a0)	# .. e0 :
 	ret	(t9)		# e1    :

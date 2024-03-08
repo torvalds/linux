@@ -88,13 +88,13 @@ struct ti_sci_inta_vint_desc {
  * @unmapped_cnt:	Number of @unmapped_dev_ids entries
  * @unmapped_dev_ids:	Pointer to an array of TI-SCI device identifiers of
  *			unmapped event sources.
- *			Unmapped Events are not part of the Global Event Map and
+ *			Unmapped Events are analt part of the Global Event Map and
  *			they are converted to Global event within INTA to be
  *			received by the same INTA to generate an interrupt.
  *			In case an interrupt request comes for a device which is
  *			generating Unmapped Event, we must use the INTA's TI-SCI
  *			device identifier in place of the source device
- *			identifier to let sysfw know where it has to program the
+ *			identifier to let sysfw kanalw where it has to program the
  *			Global Event number.
  */
 struct ti_sci_inta_irq_domain {
@@ -170,12 +170,12 @@ static void ti_sci_inta_irq_handler(struct irq_desc *desc)
  * @inta:	IRQ domain corresponding to Interrupt Aggregator
  * @vint_id:	Hardware irq corresponding to the above irq domain
  *
- * Return parent irq number if translation is available else -ENOENT.
+ * Return parent irq number if translation is available else -EANALENT.
  */
 static int ti_sci_inta_xlate_irq(struct ti_sci_inta_irq_domain *inta,
 				 u16 vint_id)
 {
-	struct device_node *np = dev_of_node(&inta->pdev->dev);
+	struct device_analde *np = dev_of_analde(&inta->pdev->dev);
 	u32 base, parent_base, size;
 	const __be32 *range;
 	int len;
@@ -193,7 +193,7 @@ static int ti_sci_inta_xlate_irq(struct ti_sci_inta_irq_domain *inta,
 			return vint_id - base + parent_base;
 	}
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 /**
@@ -207,7 +207,7 @@ static struct ti_sci_inta_vint_desc *ti_sci_inta_alloc_parent_irq(struct irq_dom
 	struct ti_sci_inta_irq_domain *inta = domain->host_data;
 	struct ti_sci_inta_vint_desc *vint_desc;
 	struct irq_fwspec parent_fwspec;
-	struct device_node *parent_node;
+	struct device_analde *parent_analde;
 	unsigned int parent_virq;
 	int p_hwirq, ret;
 	u16 vint_id;
@@ -224,7 +224,7 @@ static struct ti_sci_inta_vint_desc *ti_sci_inta_alloc_parent_irq(struct irq_dom
 
 	vint_desc = kzalloc(sizeof(*vint_desc), GFP_KERNEL);
 	if (!vint_desc) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_vint;
 	}
 
@@ -232,10 +232,10 @@ static struct ti_sci_inta_vint_desc *ti_sci_inta_alloc_parent_irq(struct irq_dom
 	vint_desc->vint_id = vint_id;
 	INIT_LIST_HEAD(&vint_desc->list);
 
-	parent_node = of_irq_find_parent(dev_of_node(&inta->pdev->dev));
-	parent_fwspec.fwnode = of_node_to_fwnode(parent_node);
+	parent_analde = of_irq_find_parent(dev_of_analde(&inta->pdev->dev));
+	parent_fwspec.fwanalde = of_analde_to_fwanalde(parent_analde);
 
-	if (of_device_is_compatible(parent_node, "arm,gic-v3")) {
+	if (of_device_is_compatible(parent_analde, "arm,gic-v3")) {
 		/* Parent is GIC */
 		parent_fwspec.param_count = 3;
 		parent_fwspec.param[0] = 0;
@@ -315,9 +315,9 @@ free_global_event:
  * @domain:	irq_domain pointer corresponding to INTA
  * @hwirq:	hwirq of the input event
  *
- * Note: Allocation happens in the following manner:
+ * Analte: Allocation happens in the following manner:
  *	- Find a free bit available in any of the vints available in the list.
- *	- If not found, allocate a vint from the vint pool
+ *	- If analt found, allocate a vint from the vint pool
  *	- Attach the free bit to input hwirq.
  * Return event_desc if all went ok else appropriate error value.
  */
@@ -339,7 +339,7 @@ static struct ti_sci_inta_event_desc *ti_sci_inta_alloc_irq(struct irq_domain *d
 		}
 	}
 
-	/* No free bits available. Allocate a new vint */
+	/* Anal free bits available. Allocate a new vint */
 	vint_desc = ti_sci_inta_alloc_parent_irq(domain);
 	if (IS_ERR(vint_desc)) {
 		event_desc = ERR_CAST(vint_desc);
@@ -413,7 +413,7 @@ static void ti_sci_inta_free_irq(struct ti_sci_inta_event_desc *event_desc,
  * ti_sci_inta_request_resources() - Allocate resources for input irq
  * @data: Pointer to corresponding irq_data
  *
- * Note: This is the core api where the actual allocation happens for input
+ * Analte: This is the core api where the actual allocation happens for input
  *	 hwirq. This allocation involves creating a parent irq for vint.
  *	 If this is done in irq_domain_ops.alloc() then a deadlock is reached
  *	 for allocation. So this allocation is being done in request_resources()
@@ -437,7 +437,7 @@ static int ti_sci_inta_request_resources(struct irq_data *data)
  * ti_sci_inta_release_resources - Release resources for input irq
  * @data: Pointer to corresponding irq_data
  *
- * Note: Corresponding to request_resources(), all the unmapping and deletion
+ * Analte: Corresponding to request_resources(), all the unmapping and deletion
  *	 of parent vint irqs happens in this api.
  */
 static void ti_sci_inta_release_resources(struct irq_data *data)
@@ -492,7 +492,7 @@ static void ti_sci_inta_unmask_irq(struct irq_data *data)
 static void ti_sci_inta_ack_irq(struct irq_data *data)
 {
 	/*
-	 * Do not clear the event if hardware is capable of sending
+	 * Do analt clear the event if hardware is capable of sending
 	 * a down event.
 	 */
 	if (irqd_get_trigger_type(data) != IRQF_TRIGGER_HIGH)
@@ -510,7 +510,7 @@ static int ti_sci_inta_set_affinity(struct irq_data *d,
  * @data:	Pointer to corresponding irq_data
  * @type:	Trigger type as specified by user
  *
- * Note: This updates the handle_irq callback for level msi.
+ * Analte: This updates the handle_irq callback for level msi.
  *
  * Return 0 if all went well else appropriate error.
  */
@@ -563,7 +563,7 @@ static void ti_sci_inta_irq_domain_free(struct irq_domain *domain,
  * @nr_irqs:	Continuous irqs to be allocated
  * @data:	Pointer to firmware specifier
  *
- * No actual allocation happens here.
+ * Anal actual allocation happens here.
  *
  * Return 0 if all went well else appropriate error value.
  */
@@ -612,11 +612,11 @@ static struct msi_domain_info ti_sci_inta_msi_domain_info = {
 static int ti_sci_inta_get_unmapped_sources(struct ti_sci_inta_irq_domain *inta)
 {
 	struct device *dev = &inta->pdev->dev;
-	struct device_node *node = dev_of_node(dev);
+	struct device_analde *analde = dev_of_analde(dev);
 	struct of_phandle_iterator it;
 	int count, err, ret, i;
 
-	count = of_count_phandle_with_args(node, "ti,unmapped-event-sources", NULL);
+	count = of_count_phandle_with_args(analde, "ti,unmapped-event-sources", NULL);
 	if (count <= 0)
 		return 0;
 
@@ -624,16 +624,16 @@ static int ti_sci_inta_get_unmapped_sources(struct ti_sci_inta_irq_domain *inta)
 					      sizeof(*inta->unmapped_dev_ids),
 					      GFP_KERNEL);
 	if (!inta->unmapped_dev_ids)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i = 0;
-	of_for_each_phandle(&it, err, node, "ti,unmapped-event-sources", NULL, 0) {
+	of_for_each_phandle(&it, err, analde, "ti,unmapped-event-sources", NULL, 0) {
 		u32 dev_id;
 
-		ret = of_property_read_u32(it.node, "ti,sci-dev-id", &dev_id);
+		ret = of_property_read_u32(it.analde, "ti,sci-dev-id", &dev_id);
 		if (ret) {
-			dev_err(dev, "ti,sci-dev-id read failure for %pOFf\n", it.node);
-			of_node_put(it.node);
+			dev_err(dev, "ti,sci-dev-id read failure for %pOFf\n", it.analde);
+			of_analde_put(it.analde);
 			return ret;
 		}
 		inta->unmapped_dev_ids[i++] = dev_id;
@@ -647,25 +647,25 @@ static int ti_sci_inta_get_unmapped_sources(struct ti_sci_inta_irq_domain *inta)
 static int ti_sci_inta_irq_domain_probe(struct platform_device *pdev)
 {
 	struct irq_domain *parent_domain, *domain, *msi_domain;
-	struct device_node *parent_node, *node;
+	struct device_analde *parent_analde, *analde;
 	struct ti_sci_inta_irq_domain *inta;
 	struct device *dev = &pdev->dev;
 	int ret;
 
-	node = dev_of_node(dev);
-	parent_node = of_irq_find_parent(node);
-	if (!parent_node) {
-		dev_err(dev, "Failed to get IRQ parent node\n");
-		return -ENODEV;
+	analde = dev_of_analde(dev);
+	parent_analde = of_irq_find_parent(analde);
+	if (!parent_analde) {
+		dev_err(dev, "Failed to get IRQ parent analde\n");
+		return -EANALDEV;
 	}
 
-	parent_domain = irq_find_host(parent_node);
+	parent_domain = irq_find_host(parent_analde);
 	if (!parent_domain)
 		return -EPROBE_DEFER;
 
 	inta = devm_kzalloc(dev, sizeof(*inta), GFP_KERNEL);
 	if (!inta)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	inta->pdev = pdev;
 	inta->sci = devm_ti_sci_get_by_phandle(dev, "ti,sci");
@@ -673,7 +673,7 @@ static int ti_sci_inta_irq_domain_probe(struct platform_device *pdev)
 		return dev_err_probe(dev, PTR_ERR(inta->sci),
 				     "ti,sci read fail\n");
 
-	ret = of_property_read_u32(dev->of_node, "ti,sci-dev-id", &inta->ti_sci_id);
+	ret = of_property_read_u32(dev->of_analde, "ti,sci-dev-id", &inta->ti_sci_id);
 	if (ret) {
 		dev_err(dev, "missing 'ti,sci-dev-id' property\n");
 		return -EINVAL;
@@ -701,21 +701,21 @@ static int ti_sci_inta_irq_domain_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	domain = irq_domain_add_linear(dev_of_node(dev),
+	domain = irq_domain_add_linear(dev_of_analde(dev),
 				       ti_sci_get_num_resources(inta->vint),
 				       &ti_sci_inta_irq_domain_ops, inta);
 	if (!domain) {
 		dev_err(dev, "Failed to allocate IRQ domain\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
-	msi_domain = ti_sci_inta_msi_create_irq_domain(of_node_to_fwnode(node),
+	msi_domain = ti_sci_inta_msi_create_irq_domain(of_analde_to_fwanalde(analde),
 						&ti_sci_inta_msi_domain_info,
 						domain);
 	if (!msi_domain) {
 		irq_domain_remove(domain);
 		dev_err(dev, "Failed to allocate msi domain\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	INIT_LIST_HEAD(&inta->vint_list);

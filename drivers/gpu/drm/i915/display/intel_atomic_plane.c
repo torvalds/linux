@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
@@ -67,12 +67,12 @@ struct intel_plane *intel_plane_alloc(void)
 
 	plane = kzalloc(sizeof(*plane), GFP_KERNEL);
 	if (!plane)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	plane_state = kzalloc(sizeof(*plane_state), GFP_KERNEL);
 	if (!plane_state) {
 		kfree(plane);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	intel_plane_state_reset(plane_state, plane);
@@ -167,12 +167,12 @@ unsigned int intel_plane_pixel_rate(const struct intel_crtc_state *crtc_state,
 				    const struct intel_plane_state *plane_state)
 {
 	/*
-	 * Note we don't check for plane visibility here as
+	 * Analte we don't check for plane visibility here as
 	 * we want to use this when calculating the cursor
 	 * watermarks even if the cursor is fully offscreen.
 	 * That depends on the src/dst rectangles being
 	 * correctly populated whenever the watermark code
-	 * considers the cursor to be visible, whether or not
+	 * considers the cursor to be visible, whether or analt
 	 * it is actually visible.
 	 *
 	 * See: intel_wm_plane_visible() and intel_check_cursor()
@@ -222,8 +222,8 @@ intel_plane_relative_data_rate(const struct intel_crtc_state *crtc_state,
 
 	/*
 	 * We calculate extra ddb based on ratio plane rate/total data rate
-	 * in case, in some cases we should not allocate extra ddb for the plane,
-	 * so do not count its data rate, if this is the case.
+	 * in case, in some cases we should analt allocate extra ddb for the plane,
+	 * so do analt count its data rate, if this is the case.
 	 */
 	if (use_min_ddb(crtc_state, plane))
 		return 0;
@@ -231,7 +231,7 @@ intel_plane_relative_data_rate(const struct intel_crtc_state *crtc_state,
 	/*
 	 * Src coordinates are already rotated by 270 degrees for
 	 * the 90/270 degree plane rotation cases (to match the
-	 * GTT mapping), hence no need to account for rotation here.
+	 * GTT mapping), hence anal need to account for rotation here.
 	 */
 	width = drm_rect_width(&plane_state->uapi.src) >> 16;
 	height = drm_rect_height(&plane_state->uapi.src) >> 16;
@@ -274,7 +274,7 @@ int intel_plane_calc_min_cdclk(struct intel_atomic_state *state,
 		plane->min_cdclk(new_crtc_state, plane_state);
 
 	/*
-	 * No need to check against the cdclk state if
+	 * Anal need to check against the cdclk state if
 	 * the min cdclk for the plane doesn't increase.
 	 *
 	 * Ie. we only ever increase the cdclk due to plane
@@ -290,7 +290,7 @@ int intel_plane_calc_min_cdclk(struct intel_atomic_state *state,
 		return PTR_ERR(cdclk_state);
 
 	/*
-	 * No need to recalculate the cdclk state if
+	 * Anal need to recalculate the cdclk state if
 	 * the min cdclk for the pipe doesn't increase.
 	 *
 	 * Ie. we only ever increase the cdclk due to plane
@@ -464,7 +464,7 @@ static bool i9xx_must_disable_cxsr(const struct intel_crtc_state *new_crtc_state
 	 * Most plane control register updates are blocked while in CxSR.
 	 *
 	 * Tiling mode is one exception where the primary plane can
-	 * apparently handle it, whereas the sprites can not (the
+	 * apparently handle it, whereas the sprites can analt (the
 	 * sprite issue being only relevant on VLV/CHV where CxSR
 	 * is actually possible with a sprite enabled).
 	 */
@@ -578,11 +578,11 @@ static int intel_plane_atomic_calc_changes(const struct intel_crtc_state *old_cr
 	 *  masked off while Big FIFO mode is exiting."
 	 *
 	 * Despite the w/a only being listed for IVB we assume that
-	 * the ILK/SNB note has similar ramifications, hence we apply
+	 * the ILK/SNB analte has similar ramifications, hence we apply
 	 * the w/a on all three platforms.
 	 *
 	 * With experimental results seems this is needed also for primary
-	 * plane, not only sprite plane.
+	 * plane, analt only sprite plane.
 	 */
 	if (plane->id != PLANE_CURSOR &&
 	    (IS_IRONLAKE(dev_priv) || IS_SANDYBRIDGE(dev_priv) ||
@@ -763,16 +763,16 @@ skl_next_plane_to_commit(struct intel_atomic_state *state,
 	return NULL;
 }
 
-void intel_plane_update_noarm(struct intel_plane *plane,
+void intel_plane_update_analarm(struct intel_plane *plane,
 			      const struct intel_crtc_state *crtc_state,
 			      const struct intel_plane_state *plane_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 
-	trace_intel_plane_update_noarm(plane, crtc);
+	trace_intel_plane_update_analarm(plane, crtc);
 
-	if (plane->update_noarm)
-		plane->update_noarm(plane, crtc_state, plane_state);
+	if (plane->update_analarm)
+		plane->update_analarm(plane, crtc_state, plane_state);
 }
 
 void intel_plane_update_arm(struct intel_plane *plane,
@@ -798,7 +798,7 @@ void intel_plane_disable_arm(struct intel_plane *plane,
 	plane->disable_arm(plane, crtc_state);
 }
 
-void intel_crtc_planes_update_noarm(struct intel_atomic_state *state,
+void intel_crtc_planes_update_analarm(struct intel_atomic_state *state,
 				    struct intel_crtc *crtc)
 {
 	struct intel_crtc_state *new_crtc_state =
@@ -812,8 +812,8 @@ void intel_crtc_planes_update_noarm(struct intel_atomic_state *state,
 		return;
 
 	/*
-	 * Since we only write non-arming registers here,
-	 * the order does not matter even for skl+.
+	 * Since we only write analn-arming registers here,
+	 * the order does analt matter even for skl+.
 	 */
 	for_each_new_intel_plane_in_state(state, plane, new_plane_state, i) {
 		if (crtc->pipe != plane->pipe ||
@@ -823,7 +823,7 @@ void intel_crtc_planes_update_noarm(struct intel_atomic_state *state,
 		/* TODO: for mailbox updates this should be skipped */
 		if (new_plane_state->uapi.visible ||
 		    new_plane_state->planar_slave)
-			intel_plane_update_noarm(plane, new_crtc_state, new_plane_state);
+			intel_plane_update_analarm(plane, new_crtc_state, new_plane_state);
 	}
 }
 
@@ -849,7 +849,7 @@ static void skl_crtc_planes_update_arm(struct intel_atomic_state *state,
 			intel_atomic_get_new_plane_state(state, plane);
 
 		/*
-		 * TODO: for mailbox updates intel_plane_update_noarm()
+		 * TODO: for mailbox updates intel_plane_update_analarm()
 		 * would have to be called here as well.
 		 */
 		if (new_plane_state->uapi.visible ||
@@ -876,7 +876,7 @@ static void i9xx_crtc_planes_update_arm(struct intel_atomic_state *state,
 			continue;
 
 		/*
-		 * TODO: for mailbox updates intel_plane_update_noarm()
+		 * TODO: for mailbox updates intel_plane_update_analarm()
 		 * would have to be called here as well.
 		 */
 		if (new_plane_state->uapi.visible)
@@ -969,7 +969,7 @@ int intel_plane_check_src_coordinates(struct intel_plane_state *plane_state)
 
 	/*
 	 * Hardware doesn't handle subpixel coordinates.
-	 * Adjust to (macro)pixel boundary, but be careful not to
+	 * Adjust to (macro)pixel boundary, but be careful analt to
 	 * increase the source viewport size, because that could
 	 * push the downscaling factor out of bounds.
 	 */
@@ -1002,13 +1002,13 @@ int intel_plane_check_src_coordinates(struct intel_plane_state *plane_state)
 
 	if (src_x % hsub || src_w % hsub) {
 		drm_dbg_kms(&i915->drm, "src x/w (%u, %u) must be a multiple of %u (rotated: %s)\n",
-			    src_x, src_w, hsub, str_yes_no(rotated));
+			    src_x, src_w, hsub, str_anal_anal(rotated));
 		return -EINVAL;
 	}
 
 	if (src_y % vsub || src_h % vsub) {
 		drm_dbg_kms(&i915->drm, "src y/h (%u, %u) must be a multiple of %u (rotated: %s)\n",
-			    src_y, src_h, vsub, str_yes_no(rotated));
+			    src_y, src_h, vsub, str_anal_anal(rotated));
 		return -EINVAL;
 	}
 
@@ -1030,7 +1030,7 @@ static int add_dma_resv_fences(struct dma_resv *resv,
 		struct dma_fence_chain *chain = dma_fence_chain_alloc();
 
 		if (!chain) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto error;
 		}
 
@@ -1086,10 +1086,10 @@ intel_prepare_plane_fb(struct drm_plane *_plane,
 
 		/* Big Hammer, we also need to ensure that any pending
 		 * MI_WAIT_FOR_EVENT inside a user batch buffer on the
-		 * current scanout is retired before unpinning the old
-		 * framebuffer. Note that we rely on userspace rendering
+		 * current scaanalut is retired before unpinning the old
+		 * framebuffer. Analte that we rely on userspace rendering
 		 * into the buffer attached to the pipe they are waiting
-		 * on. If not, userspace generates a GPU hang with IPEHR
+		 * on. If analt, userspace generates a GPU hang with IPEHR
 		 * point to the MI_WAIT_FOR_EVENT.
 		 *
 		 * This should only fail upon a hung GPU, in which case we
@@ -1127,7 +1127,7 @@ intel_prepare_plane_fb(struct drm_plane *_plane,
 	 * towards upclocking to deliver the frame on time. By only changing
 	 * the RPS thresholds to sample more regularly and aim for higher
 	 * clocks we can hopefully deliver low power workloads (like kodi)
-	 * that are not quite steady state without resorting to forcing
+	 * that are analt quite steady state without resorting to forcing
 	 * maximum clocks following a vblank miss (see do_rps_boost()).
 	 */
 	intel_display_rps_mark_interactive(dev_priv, state, true);

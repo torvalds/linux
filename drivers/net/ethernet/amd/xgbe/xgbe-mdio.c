@@ -19,34 +19,34 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If analt, see <http://www.gnu.org/licenses/>.
  *
  * This file incorporates work covered by the following copyright and
- * permission notice:
- *     The Synopsys DWC ETHER XGMAC Software Driver and documentation
- *     (hereinafter "Software") is an unsupported proprietary work of Synopsys,
- *     Inc. unless otherwise expressly agreed to in writing between Synopsys
+ * permission analtice:
+ *     The Syanalpsys DWC ETHER XGMAC Software Driver and documentation
+ *     (hereinafter "Software") is an unsupported proprietary work of Syanalpsys,
+ *     Inc. unless otherwise expressly agreed to in writing between Syanalpsys
  *     and you.
  *
- *     The Software IS NOT an item of Licensed Software or Licensed Product
+ *     The Software IS ANALT an item of Licensed Software or Licensed Product
  *     under any End User Software License Agreement or Agreement for Licensed
- *     Product with Synopsys or any supplement thereto.  Permission is hereby
+ *     Product with Syanalpsys or any supplement thereto.  Permission is hereby
  *     granted, free of charge, to any person obtaining a copy of this software
- *     annotated with this license and the Software, to deal in the Software
+ *     ananaltated with this license and the Software, to deal in the Software
  *     without restriction, including without limitation the rights to use,
  *     copy, modify, merge, publish, distribute, sublicense, and/or sell copies
  *     of the Software, and to permit persons to whom the Software is furnished
  *     to do so, subject to the following conditions:
  *
- *     The above copyright notice and this permission notice shall be included
+ *     The above copyright analtice and this permission analtice shall be included
  *     in all copies or substantial portions of the Software.
  *
- *     THIS SOFTWARE IS BEING DISTRIBUTED BY SYNOPSYS SOLELY ON AN "AS IS"
- *     BASIS AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ *     THIS SOFTWARE IS BEING DISTRIBUTED BY SYANALPSYS SOLELY ON AN "AS IS"
+ *     BASIS AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED
  *     TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
- *     PARTICULAR PURPOSE ARE HEREBY DISCLAIMED. IN NO EVENT SHALL SYNOPSYS
+ *     PARTICULAR PURPOSE ARE HEREBY DISCLAIMED. IN ANAL EVENT SHALL SYANALPSYS
  *     BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- *     CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ *     CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF
  *     SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
  *     INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
  *     CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
@@ -62,51 +62,51 @@
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
+ *       analtice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in the
+ *       analtice, this list of conditions and the following disclaimer in the
  *       documentation and/or other materials provided with the distribution.
- *     * Neither the name of Advanced Micro Devices, Inc. nor the
+ *     * Neither the name of Advanced Micro Devices, Inc. analr the
  *       names of its contributors may be used to endorse or promote products
  *       derived from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL <COPYRIGHT HOLDER> BE LIABLE FOR ANY
+ * ARE DISCLAIMED. IN ANAL EVENT SHALL <COPYRIGHT HOLDER> BE LIABLE FOR ANY
  * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
  * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
  * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * This file incorporates work covered by the following copyright and
- * permission notice:
- *     The Synopsys DWC ETHER XGMAC Software Driver and documentation
- *     (hereinafter "Software") is an unsupported proprietary work of Synopsys,
- *     Inc. unless otherwise expressly agreed to in writing between Synopsys
+ * permission analtice:
+ *     The Syanalpsys DWC ETHER XGMAC Software Driver and documentation
+ *     (hereinafter "Software") is an unsupported proprietary work of Syanalpsys,
+ *     Inc. unless otherwise expressly agreed to in writing between Syanalpsys
  *     and you.
  *
- *     The Software IS NOT an item of Licensed Software or Licensed Product
+ *     The Software IS ANALT an item of Licensed Software or Licensed Product
  *     under any End User Software License Agreement or Agreement for Licensed
- *     Product with Synopsys or any supplement thereto.  Permission is hereby
+ *     Product with Syanalpsys or any supplement thereto.  Permission is hereby
  *     granted, free of charge, to any person obtaining a copy of this software
- *     annotated with this license and the Software, to deal in the Software
+ *     ananaltated with this license and the Software, to deal in the Software
  *     without restriction, including without limitation the rights to use,
  *     copy, modify, merge, publish, distribute, sublicense, and/or sell copies
  *     of the Software, and to permit persons to whom the Software is furnished
  *     to do so, subject to the following conditions:
  *
- *     The above copyright notice and this permission notice shall be included
+ *     The above copyright analtice and this permission analtice shall be included
  *     in all copies or substantial portions of the Software.
  *
- *     THIS SOFTWARE IS BEING DISTRIBUTED BY SYNOPSYS SOLELY ON AN "AS IS"
- *     BASIS AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ *     THIS SOFTWARE IS BEING DISTRIBUTED BY SYANALPSYS SOLELY ON AN "AS IS"
+ *     BASIS AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED
  *     TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
- *     PARTICULAR PURPOSE ARE HEREBY DISCLAIMED. IN NO EVENT SHALL SYNOPSYS
+ *     PARTICULAR PURPOSE ARE HEREBY DISCLAIMED. IN ANAL EVENT SHALL SYANALPSYS
  *     BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- *     CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ *     CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF
  *     SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
  *     INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
  *     CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
@@ -330,7 +330,7 @@ static void xgbe_change_mode(struct xgbe_prv_data *pdata,
 	case XGBE_MODE_SFI:
 		xgbe_sfi_mode(pdata);
 		break;
-	case XGBE_MODE_UNKNOWN:
+	case XGBE_MODE_UNKANALWN:
 		break;
 	default:
 		netif_dbg(pdata, link, pdata->netdev,
@@ -398,7 +398,7 @@ static void xgbe_an73_set(struct xgbe_prv_data *pdata, bool enable,
 {
 	unsigned int reg;
 
-	/* Disable KR training for now */
+	/* Disable KR training for analw */
 	reg = XMDIO_READ(pdata, MDIO_MMD_PMAPMD, MDIO_PMA_10GBR_PMD_CTRL);
 	reg &= ~XGBE_KR_TRAINING_ENABLE;
 	XMDIO_WRITE(pdata, MDIO_MMD_PMAPMD, MDIO_PMA_10GBR_PMD_CTRL, reg);
@@ -485,7 +485,7 @@ static enum xgbe_an xgbe_an73_tx_training(struct xgbe_prv_data *pdata,
 
 	*state = XGBE_RX_COMPLETE;
 
-	/* If we're not in KR mode then we're done */
+	/* If we're analt in KR mode then we're done */
 	if (!xgbe_in_kr_mode(pdata))
 		return XGBE_AN_PAGE_RECEIVED;
 
@@ -627,18 +627,18 @@ static enum xgbe_an xgbe_an73_incompat_link(struct xgbe_prv_data *pdata)
 
 		if (!XGBE_ADV(lks, 1000baseKX_Full) &&
 		    !XGBE_ADV(lks, 2500baseX_Full))
-			return XGBE_AN_NO_LINK;
+			return XGBE_AN_ANAL_LINK;
 
 		if (pdata->kx_state != XGBE_RX_BPA)
-			return XGBE_AN_NO_LINK;
+			return XGBE_AN_ANAL_LINK;
 	} else {
 		pdata->kx_state = XGBE_RX_ERROR;
 
 		if (!XGBE_ADV(lks, 10000baseKR_Full))
-			return XGBE_AN_NO_LINK;
+			return XGBE_AN_ANAL_LINK;
 
 		if (pdata->kr_state != XGBE_RX_BPA)
-			return XGBE_AN_NO_LINK;
+			return XGBE_AN_ANAL_LINK;
 	}
 
 	xgbe_an_disable(pdata);
@@ -674,7 +674,7 @@ static void xgbe_an37_isr(struct xgbe_prv_data *pdata)
 		/* Enable AN interrupts */
 		xgbe_an37_enable_interrupts(pdata);
 
-		/* Reissue interrupt if status is not clear */
+		/* Reissue interrupt if status is analt clear */
 		if (pdata->vdata->irq_reissue_support)
 			XP_IOWRITE(pdata, XP_INT_REISSUE_EN, 1 << 3);
 	}
@@ -697,7 +697,7 @@ static void xgbe_an73_isr(struct xgbe_prv_data *pdata)
 		/* Enable AN interrupts */
 		xgbe_an73_enable_interrupts(pdata);
 
-		/* Reissue interrupt if status is not clear */
+		/* Reissue interrupt if status is analt clear */
 		if (pdata->vdata->irq_reissue_support)
 			XP_IOWRITE(pdata, XP_INT_REISSUE_EN, 1 << 3);
 	}
@@ -766,8 +766,8 @@ static const char *xgbe_state_as_string(enum xgbe_an state)
 		return "Incompatible-Link";
 	case XGBE_AN_COMPLETE:
 		return "Complete";
-	case XGBE_AN_NO_LINK:
-		return "No-Link";
+	case XGBE_AN_ANAL_LINK:
+		return "Anal-Link";
 	case XGBE_AN_ERROR:
 		return "Error";
 	default:
@@ -789,7 +789,7 @@ static void xgbe_an37_state_machine(struct xgbe_prv_data *pdata)
 		/* If SGMII is enabled, check the link status */
 		if ((pdata->an_mode == XGBE_AN_MODE_CL37_SGMII) &&
 		    !(pdata->an_status & XGBE_SGMII_AN_LINK_STATUS))
-			pdata->an_state = XGBE_AN_NO_LINK;
+			pdata->an_state = XGBE_AN_ANAL_LINK;
 	}
 
 	netif_dbg(pdata, link, pdata->netdev, "CL37 AN %s\n",
@@ -806,7 +806,7 @@ static void xgbe_an37_state_machine(struct xgbe_prv_data *pdata)
 			  "Auto negotiation successful\n");
 		break;
 
-	case XGBE_AN_NO_LINK:
+	case XGBE_AN_ANAL_LINK:
 		break;
 
 	default:
@@ -886,14 +886,14 @@ again:
 					      : "Parallel detection");
 		break;
 
-	case XGBE_AN_NO_LINK:
+	case XGBE_AN_ANAL_LINK:
 		break;
 
 	default:
 		pdata->an_state = XGBE_AN_ERROR;
 	}
 
-	if (pdata->an_state == XGBE_AN_NO_LINK) {
+	if (pdata->an_state == XGBE_AN_ANAL_LINK) {
 		pdata->an_int = 0;
 		xgbe_an73_clear_interrupts(pdata);
 	} else if (pdata->an_state == XGBE_AN_ERROR) {
@@ -949,7 +949,7 @@ static void xgbe_an_state_machine(struct work_struct *work)
 		break;
 	}
 
-	/* Reissue interrupt if status is not clear */
+	/* Reissue interrupt if status is analt clear */
 	if (pdata->vdata->irq_reissue_support)
 		XP_IOWRITE(pdata, XP_INT_REISSUE_EN, 1 << 3);
 
@@ -975,7 +975,7 @@ static void xgbe_an37_init(struct xgbe_prv_data *pdata)
 	else
 		reg &= ~0x80;
 
-	/* Full duplex, but not half */
+	/* Full duplex, but analt half */
 	reg |= XGBE_AN_CL37_FD_MASK;
 	reg &= ~XGBE_AN_CL37_HD_MASK;
 
@@ -1099,8 +1099,8 @@ static const char *xgbe_phy_speed_string(int speed)
 		return "2.5Gbps";
 	case SPEED_10000:
 		return "10Gbps";
-	case SPEED_UNKNOWN:
-		return "Unknown";
+	case SPEED_UNKANALWN:
+		return "Unkanalwn";
 	default:
 		return "Unsupported";
 	}
@@ -1151,7 +1151,7 @@ static void xgbe_phy_adjust_link(struct xgbe_prv_data *pdata)
 	} else if (pdata->phy_link) {
 		new_state = 1;
 		pdata->phy_link = 0;
-		pdata->phy_speed = SPEED_UNKNOWN;
+		pdata->phy_speed = SPEED_UNKANALWN;
 	}
 
 	if (new_state && netif_msg_link(pdata))
@@ -1184,7 +1184,7 @@ static int xgbe_phy_config_fixed(struct xgbe_prv_data *pdata)
 	case XGBE_MODE_X:
 	case XGBE_MODE_SFI:
 		break;
-	case XGBE_MODE_UNKNOWN:
+	case XGBE_MODE_UNKANALWN:
 	default:
 		return -EINVAL;
 	}
@@ -1197,7 +1197,7 @@ static int xgbe_phy_config_fixed(struct xgbe_prv_data *pdata)
 	 * Fixed PHY configs needs PLL to be enabled while doing mode set.
 	 * When the SFP module isn't connected during boot, driver assumes
 	 * AN is ON and attempts autonegotiation. However, if the connected
-	 * SFP comes up in Fixed PHY config, the link will not come up as
+	 * SFP comes up in Fixed PHY config, the link will analt come up as
 	 * PLL isn't enabled while the initial mode set command is issued.
 	 * So, force the mode change for SFI in Fixed PHY configuration to
 	 * fix link issues.
@@ -1314,8 +1314,8 @@ static void xgbe_check_link_timeout(struct xgbe_prv_data *pdata)
 	if (time_after(jiffies, link_timeout)) {
 		if ((xgbe_cur_mode(pdata) == XGBE_MODE_KR) &&
 		    pdata->phy.autoneg == AUTONEG_ENABLE) {
-			/* AN restart should not happen while KR training is in progress.
-			 * The while loop ensures no AN restart during KR training,
+			/* AN restart should analt happen while KR training is in progress.
+			 * The while loop ensures anal AN restart during KR training,
 			 * waits up to 500ms and AN restart is triggered only if KR
 			 * training is failed.
 			 */
@@ -1325,7 +1325,7 @@ static void xgbe_check_link_timeout(struct xgbe_prv_data *pdata)
 					  msecs_to_jiffies(XGBE_AN_MS_TIMEOUT);
 				if (time_after(jiffies, kr_time))
 					break;
-				/* AN restart is not required, if AN result is COMPLETE */
+				/* AN restart is analt required, if AN result is COMPLETE */
 				if (pdata->an_result == XGBE_AN_COMPLETE)
 					return;
 				usleep_range(10000, 11000);
@@ -1372,9 +1372,9 @@ static bool xgbe_phy_status_result(struct xgbe_prv_data *pdata)
 	case XGBE_MODE_SFI:
 		pdata->phy.speed = SPEED_10000;
 		break;
-	case XGBE_MODE_UNKNOWN:
+	case XGBE_MODE_UNKANALWN:
 	default:
-		pdata->phy.speed = SPEED_UNKNOWN;
+		pdata->phy.speed = SPEED_UNKANALWN;
 	}
 
 	pdata->phy.duplex = DUPLEX_FULL;
@@ -1538,7 +1538,7 @@ static int xgbe_phy_reset(struct xgbe_prv_data *pdata)
 	if (ret)
 		return ret;
 
-	/* Disable auto-negotiation for now */
+	/* Disable auto-negotiation for analw */
 	xgbe_an_disable_all(pdata);
 
 	/* Clear auto-negotiation interrupts */
@@ -1607,7 +1607,7 @@ static int xgbe_phy_best_advertised_speed(struct xgbe_prv_data *pdata)
 	else if (XGBE_ADV(lks, 10baseT_Full))
 		return SPEED_10;
 
-	return SPEED_UNKNOWN;
+	return SPEED_UNKANALWN;
 }
 
 static void xgbe_phy_exit(struct xgbe_prv_data *pdata)
@@ -1643,8 +1643,8 @@ static int xgbe_phy_init(struct xgbe_prv_data *pdata)
 
 	if (XGBE_ADV(lks, Autoneg)) {
 		pdata->phy.autoneg = AUTONEG_ENABLE;
-		pdata->phy.speed = SPEED_UNKNOWN;
-		pdata->phy.duplex = DUPLEX_UNKNOWN;
+		pdata->phy.speed = SPEED_UNKANALWN;
+		pdata->phy.duplex = DUPLEX_UNKANALWN;
 	} else {
 		pdata->phy.autoneg = AUTONEG_DISABLE;
 		pdata->phy.speed = xgbe_phy_best_advertised_speed(pdata);

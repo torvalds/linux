@@ -13,7 +13,7 @@ Changed (Henner Eisen, 2000-10-29): int return value for data_indication()
 The LAPB module will be a separately compiled module for use by any parts of
 the Linux operating system that require a LAPB service. This document
 defines the interfaces to, and the services provided by this module. The
-term module in this context does not imply that the LAPB module is a
+term module in this context does analt imply that the LAPB module is a
 separately loadable module, although it may be. The term module is used in
 its more standard meaning.
 
@@ -31,7 +31,7 @@ document.
 The two LAPB specific structures are the LAPB initialisation structure and
 the LAPB parameter structure. These will be defined in a standard header
 file, <linux/lapb.h>. The header file <net/lapb.h> is internal to the LAPB
-module and is not for use.
+module and is analt for use.
 
 LAPB Initialisation Structure
 -----------------------------
@@ -51,7 +51,7 @@ of the LAPB module::
 
 Each member of this structure corresponds to a function in the device driver
 that is called when a particular event in the LAPB module occurs. These will
-be described in detail below. If a callback is not required (!!) then a NULL
+be described in detail below. If a callback is analt required (!!) then a NULL
 may be substituted.
 
 
@@ -77,7 +77,7 @@ operational parameters of the LAPB implementation for a given connection::
 T1 and T2 are protocol timing parameters and are given in units of 100ms. N2
 is the maximum number of tries on the link before it is declared a failure.
 The window size is the maximum number of outstanding data packets allowed to
-be unacknowledged by the remote end, the value of the window is between 1
+be unackanalwledged by the remote end, the value of the window is between 1
 and 7 for a standard LAPB link, and between 1 and 127 for an extended LAPB
 link.
 
@@ -98,7 +98,7 @@ consequently larger window sizes, the default is standard LAPB operation.
 MLP operation is the same as SLP operation except that the addresses used by
 LAPB are different to indicate the mode of operation, the default is Single
 Link Procedure. The difference between DCE and DTE operation is (i) the
-addresses used for commands and responses, and (ii) when the DCE is not
+addresses used for commands and responses, and (ii) when the DCE is analt
 connected, it sends DM without polls set, every T1. The upper case constant
 names will be defined in the public LAPB header file.
 
@@ -124,7 +124,7 @@ above. The return values are:
 =============		=============================
 LAPB_OK			LAPB registered successfully.
 LAPB_BADTOKEN		Token is already registered.
-LAPB_NOMEM		Out of memory
+LAPB_ANALMEM		Out of memory
 =============		=============================
 
 ::
@@ -133,12 +133,12 @@ LAPB_NOMEM		Out of memory
 
 This releases all the resources associated with a LAPB link. Any current
 LAPB link will be abandoned without further messages being passed. After
-this call, the value of token is no longer valid for any calls to the LAPB
+this call, the value of token is anal longer valid for any calls to the LAPB
 function. The valid return values are:
 
 =============		===============================
 LAPB_OK			LAPB unregistered successfully.
-LAPB_BADTOKEN		Invalid/unknown LAPB token.
+LAPB_BADTOKEN		Invalid/unkanalwn LAPB token.
 =============		===============================
 
 ::
@@ -151,7 +151,7 @@ are:
 
 =============		=============================
 LAPB_OK			LAPB getparms was successful.
-LAPB_BADTOKEN		Invalid/unknown LAPB token.
+LAPB_BADTOKEN		Invalid/unkanalwn LAPB token.
 =============		=============================
 
 ::
@@ -160,13 +160,13 @@ LAPB_BADTOKEN		Invalid/unknown LAPB token.
 
 This allows the device driver to set the values of the current LAPB
 variables, the lapb_parms_struct is described above. The values of t1timer,
-t2timer and n2count are ignored, likewise changing the mode bits when
-connected will be ignored. An error implies that none of the values have
+t2timer and n2count are iganalred, likewise changing the mode bits when
+connected will be iganalred. An error implies that analne of the values have
 been changed. The valid return values are:
 
 =============		=================================================
 LAPB_OK			LAPB getparms was successful.
-LAPB_BADTOKEN		Invalid/unknown LAPB token.
+LAPB_BADTOKEN		Invalid/unkanalwn LAPB token.
 LAPB_INVALUE		One of the values was out of its allowable range.
 =============		=================================================
 
@@ -179,7 +179,7 @@ values are:
 
 ==============		=================================
 LAPB_OK			LAPB is starting to connect.
-LAPB_BADTOKEN		Invalid/unknown LAPB token.
+LAPB_BADTOKEN		Invalid/unkanalwn LAPB token.
 LAPB_CONNECTED		LAPB module is already connected.
 ==============		=================================
 
@@ -191,8 +191,8 @@ Initiate a disconnect. The valid return values are:
 
 =================	===============================
 LAPB_OK			LAPB is starting to disconnect.
-LAPB_BADTOKEN		Invalid/unknown LAPB token.
-LAPB_NOTCONNECTED	LAPB module is not connected.
+LAPB_BADTOKEN		Invalid/unkanalwn LAPB token.
+LAPB_ANALTCONNECTED	LAPB module is analt connected.
 =================	===============================
 
 ::
@@ -200,13 +200,13 @@ LAPB_NOTCONNECTED	LAPB module is not connected.
     int lapb_data_request(void *token, struct sk_buff *skb);
 
 Queue data with the LAPB module for transmitting over the link. If the call
-is successful then the skbuff is owned by the LAPB module and may not be
+is successful then the skbuff is owned by the LAPB module and may analt be
 used by the device driver again. The valid return values are:
 
 =================	=============================
 LAPB_OK			LAPB has accepted the data.
-LAPB_BADTOKEN		Invalid/unknown LAPB token.
-LAPB_NOTCONNECTED	LAPB module is not connected.
+LAPB_BADTOKEN		Invalid/unkanalwn LAPB token.
+LAPB_ANALTCONNECTED	LAPB module is analt connected.
 =================	=============================
 
 ::
@@ -216,12 +216,12 @@ LAPB_NOTCONNECTED	LAPB module is not connected.
 Queue data with the LAPB module which has been received from the device. It
 is expected that the data passed to the LAPB module has skb->data pointing
 to the beginning of the LAPB data. If the call is successful then the skbuff
-is owned by the LAPB module and may not be used by the device driver again.
+is owned by the LAPB module and may analt be used by the device driver again.
 The valid return values are:
 
 =============		===========================
 LAPB_OK			LAPB has accepted the data.
-LAPB_BADTOKEN		Invalid/unknown LAPB token.
+LAPB_BADTOKEN		Invalid/unkanalwn LAPB token.
 =============		===========================
 
 Callbacks
@@ -257,9 +257,9 @@ what has happened. In all cases the LAPB link can be regarded as being
 terminated. The values for reason are:
 
 =================	====================================================
-LAPB_OK			The LAPB link was terminated normally.
-LAPB_NOTCONNECTED	The remote system was not connected.
-LAPB_TIMEDOUT		No response was received in N2 tries from the remote
+LAPB_OK			The LAPB link was terminated analrmally.
+LAPB_ANALTCONNECTED	The remote system was analt connected.
+LAPB_TIMEDOUT		Anal response was received in N2 tries from the remote
 			system.
 =================	====================================================
 
@@ -268,16 +268,16 @@ LAPB_TIMEDOUT		No response was received in N2 tries from the remote
     void (*disconnect_indication)(void *token, int reason);
 
 This is called by the LAPB module when the link is terminated by the remote
-system or another event has occurred to terminate the link. This may be
+system or aanalther event has occurred to terminate the link. This may be
 returned in response to a lapb_connect_request (see above) if the remote
 system refused the request. The values for reason are:
 
 =================	====================================================
-LAPB_OK			The LAPB link was terminated normally by the remote
+LAPB_OK			The LAPB link was terminated analrmally by the remote
 			system.
 LAPB_REFUSED		The remote system refused the connect request.
-LAPB_NOTCONNECTED	The remote system was not connected.
-LAPB_TIMEDOUT		No response was received in N2 tries from the remote
+LAPB_ANALTCONNECTED	The remote system was analt connected.
+LAPB_TIMEDOUT		Anal response was received in N2 tries from the remote
 			system.
 =================	====================================================
 
@@ -288,7 +288,7 @@ LAPB_TIMEDOUT		No response was received in N2 tries from the remote
 This is called by the LAPB module when data has been received from the
 remote system that should be passed onto the next layer in the protocol
 stack. The skbuff becomes the property of the device driver and the LAPB
-module will not perform any more actions on it. The skb->data pointer will
+module will analt perform any more actions on it. The skb->data pointer will
 be pointing to the first byte of data after the LAPB header.
 
 This method should return NET_RX_DROP (as defined in the header
@@ -301,5 +301,5 @@ before it could be delivered to the upper layer.
 
 This is called by the LAPB module when data is to be transmitted to the
 remote system by the device driver. The skbuff becomes the property of the
-device driver and the LAPB module will not perform any more actions on it.
+device driver and the LAPB module will analt perform any more actions on it.
 The skb->data pointer will be pointing to the first byte of the LAPB header.

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-3-Clause
 /*
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 /dts-v1/;
@@ -10,7 +10,7 @@
 #include "pm8150.dtsi"
 
 / {
-	model = "Qualcomm Technologies, Inc. QRU1000 IDP";
+	model = "Qualcomm Techanallogies, Inc. QRU1000 IDP";
 	compatible = "qcom,qru1000-idp", "qcom,qru1000";
 	chassis-type = "embedded";
 
@@ -451,12 +451,12 @@
 &reserved_memory {
 	ecc_meta_data_mem: ecc-meta-data@f0000000 {
 		reg = <0x0 0xf0000000 0x0 0x10000000>;
-		no-map;
+		anal-map;
 	};
 
 	tenx_sp_mem: tenx-sp-buffer@800000000 {
 		reg = <0x8 0x0 0x0 0x80000000>;
-		no-map;
+		anal-map;
 	};
 };
 

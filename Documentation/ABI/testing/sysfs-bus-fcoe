@@ -27,7 +27,7 @@ Date:		March 2012
 KernelVersion:	TBD
 Contact:	Robert Love <robert.w.love@intel.com>, devel@open-fcoe.org
 Description:	'FCoE Controller' instances on the fcoe bus.
-		The FCoE Controller now has a three stage creation process.
+		The FCoE Controller analw has a three stage creation process.
 		1) Write interface name to ctlr_create 2) Configure the FCoE
 		Controller (ctlr_X) 3) Enable the FCoE Controller to begin
 		discovery and login. The FCoE Controller is destroyed by
@@ -75,7 +75,7 @@ Attributes:
 			  Link Error Status Block (LESB) Fibre Channel
 			  Services error count.
 
-Notes: ctlr_X (global increment starting at 0)
+Analtes: ctlr_X (global increment starting at 0)
 
 What:		/sys/bus/fcoe/devices/fcf_X
 Date:		March 2012
@@ -102,7 +102,7 @@ Attributes:
 
 	selected:
 		     1 indicates that the switch has been selected for use;
-		     0 indicates that the switch will not be used.
+		     0 indicates that the switch will analt be used.
 
 	fc_map:
 		     The Fibre Channel MAP
@@ -118,14 +118,14 @@ Attributes:
 
 	fabric_state: The internal kernel state
 
-		      - "Unknown" - Initialization value
-		      - "Disconnected" - No link to the FCF/fabric
+		      - "Unkanalwn" - Initialization value
+		      - "Disconnected" - Anal link to the FCF/fabric
 		      - "Connected" - Host is connected to the FCF
 		      - "Deleted" - FCF is being removed from the system
 
 	dev_loss_tmo: The device loss timeout period for this FCF.
 
-Notes: A device loss infrastructure similar to the FC Transport's
+Analtes: A device loss infrastructure similar to the FC Transport's
        is present in fcoe_sysfs. It is nice to have so that a
        link flapping adapter doesn't continually advance the count
        used to identify the discovered FCF. FCFs will exist in a

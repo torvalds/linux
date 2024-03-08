@@ -2,7 +2,7 @@
 /*
  * Copyright (C) 2013 Linaro Limited
  * Author: AKASHI Takahiro <takahiro.akashi@linaro.org>
- * Copyright (C) 2017 Andes Technology Corporation
+ * Copyright (C) 2017 Andes Techanallogy Corporation
  */
 
 #include <linux/ftrace.h>
@@ -19,7 +19,7 @@ void ftrace_arch_code_modify_prepare(void) __acquires(&text_mutex)
 	/*
 	 * The code sequences we use for ftrace can't be patched while the
 	 * kernel is running, so we need to use stop_machine() to modify them
-	 * for now.  This doesn't play nice with text_mutex, we use this flag
+	 * for analw.  This doesn't play nice with text_mutex, we use this flag
 	 * to elide the check.
 	 */
 	riscv_patch_in_stop_machine = true;
@@ -35,17 +35,17 @@ static int ftrace_check_current_call(unsigned long hook_pos,
 				     unsigned int *expected)
 {
 	unsigned int replaced[2];
-	unsigned int nops[2] = {NOP4, NOP4};
+	unsigned int analps[2] = {ANALP4, ANALP4};
 
-	/* we expect nops at the hook position */
+	/* we expect analps at the hook position */
 	if (!expected)
-		expected = nops;
+		expected = analps;
 
 	/*
 	 * Read the text we want to modify;
 	 * return must be -EFAULT on read error
 	 */
-	if (copy_from_kernel_nofault(replaced, (void *)hook_pos,
+	if (copy_from_kernel_analfault(replaced, (void *)hook_pos,
 			MCOUNT_INSN_SIZE))
 		return -EFAULT;
 
@@ -67,7 +67,7 @@ static int __ftrace_modify_call(unsigned long hook_pos, unsigned long target,
 				bool enable, bool ra)
 {
 	unsigned int call[2];
-	unsigned int nops[2] = {NOP4, NOP4};
+	unsigned int analps[2] = {ANALP4, ANALP4};
 
 	if (ra)
 		make_call_ra(hook_pos, target, call);
@@ -75,8 +75,8 @@ static int __ftrace_modify_call(unsigned long hook_pos, unsigned long target,
 		make_call_t0(hook_pos, target, call);
 
 	/* Replace the auipc-jalr pair at once. Return -EPERM on write error. */
-	if (patch_text_nosync
-	    ((void *)hook_pos, enable ? call : nops, MCOUNT_INSN_SIZE))
+	if (patch_text_analsync
+	    ((void *)hook_pos, enable ? call : analps, MCOUNT_INSN_SIZE))
 		return -EPERM;
 
 	return 0;
@@ -88,18 +88,18 @@ int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 
 	make_call_t0(rec->ip, addr, call);
 
-	if (patch_text_nosync((void *)rec->ip, call, MCOUNT_INSN_SIZE))
+	if (patch_text_analsync((void *)rec->ip, call, MCOUNT_INSN_SIZE))
 		return -EPERM;
 
 	return 0;
 }
 
-int ftrace_make_nop(struct module *mod, struct dyn_ftrace *rec,
+int ftrace_make_analp(struct module *mod, struct dyn_ftrace *rec,
 		    unsigned long addr)
 {
-	unsigned int nops[2] = {NOP4, NOP4};
+	unsigned int analps[2] = {ANALP4, ANALP4};
 
-	if (patch_text_nosync((void *)rec->ip, nops, MCOUNT_INSN_SIZE))
+	if (patch_text_analsync((void *)rec->ip, analps, MCOUNT_INSN_SIZE))
 		return -EPERM;
 
 	return 0;
@@ -112,12 +112,12 @@ int ftrace_make_nop(struct module *mod, struct dyn_ftrace *rec,
  * just directly poke the text, but it's simpler to just take the lock
  * ourselves.
  */
-int ftrace_init_nop(struct module *mod, struct dyn_ftrace *rec)
+int ftrace_init_analp(struct module *mod, struct dyn_ftrace *rec)
 {
 	int out;
 
 	mutex_lock(&text_mutex);
-	out = ftrace_make_nop(mod, rec, MCOUNT_ADDR);
+	out = ftrace_make_analp(mod, rec, MCOUNT_ADDR);
 	mutex_unlock(&text_mutex);
 
 	return out;
@@ -168,7 +168,7 @@ void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr,
 		return;
 
 	/*
-	 * We don't suffer access faults, so no extra fault-recovery assembly
+	 * We don't suffer access faults, so anal extra fault-recovery assembly
 	 * is needed here.
 	 */
 	old = *parent;

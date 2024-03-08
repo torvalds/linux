@@ -24,7 +24,7 @@
          1,    0,  ECX,      4, ds_cpl, CPL Qualified Debug Store which allows for branch message storage qualified by CPL
          1,    0,  ECX,      5, vmx, Virtual Machine Extensions supported
          1,    0,  ECX,      6, smx, Safer Mode Extension supported
-         1,    0,  ECX,      7, eist, Enhanced Intel SpeedStep Technology
+         1,    0,  ECX,      7, eist, Enhanced Intel SpeedStep Techanallogy
          1,    0,  ECX,      8, tm2, Thermal Monitor 2
          1,    0,  ECX,      9, ssse3, Supplemental Streaming SIMD Extensions 3 (SSSE3)
          1,    0,  ECX,     10, l1_ctx_id, L1 data cache could be set to either adaptive mode or shared mode (check IA32_MISC_ENABLE bit 24 definition)
@@ -70,11 +70,11 @@
 #         1,    0,  EDX,     20,
          1,    0,  EDX,     21, ds, Debug Store
          1,    0,  EDX,     22, acpi, Thermal Monitor and Software Controlled Clock Facilities
-         1,    0,  EDX,     23, mmx, Intel MMX Technology
+         1,    0,  EDX,     23, mmx, Intel MMX Techanallogy
          1,    0,  EDX,     24, fxsr, XSAVE and FXRSTOR Instrs
          1,    0,  EDX,     25, sse, SSE
          1,    0,  EDX,     26, sse2, SSE2
-         1,    0,  EDX,     27, ss, Self Snoop
+         1,    0,  EDX,     27, ss, Self Sanalop
          1,    0,  EDX,     28, hit, Max APIC IDs
          1,    0,  EDX,     29, tm, Thermal Monitor
 #         1,    0,  EDX,     30,
@@ -84,7 +84,7 @@
 # cache and TLB descriptor info
 
 # Leaf 03H
-# Precessor Serial Number, introduced on Pentium III, not valid for
+# Precessor Serial Number, introduced on Pentium III, analt valid for
 # latest models
 
 # Leaf 04H
@@ -101,7 +101,7 @@
          4,    0,  EBX,  21:12, cache_partition, Physical Line partitions
          4,    0,  EBX,  31:22, cache_ways, Ways of associativity
          4,    0,  ECX,   31:0, cache_sets, Number of Sets - 1
-         4,    0,  EDX,      0, c_wbinvd, 1 means WBINVD/INVD is not ganranteed to act upon lower level caches of non-originating threads sharing this cache
+         4,    0,  EDX,      0, c_wbinvd, 1 means WBINVD/INVD is analt ganranteed to act upon lower level caches of analn-originating threads sharing this cache
          4,    0,  EDX,      1, c_incl, Whether cache is inclusive of lower cache level
          4,    0,  EDX,      2, c_comp_index, Complex Cache Indexing
 
@@ -127,11 +127,11 @@
 	 6,    0,  EAX,      1, turbo, Intel Turbo Boost
 	 6,    0,  EAX,      2, arat, Always running APIC timer
 #	 6,    0,  EAX,      3, resv, Reserved
-	 6,    0,  EAX,      4, pln, Power limit notifications supported
+	 6,    0,  EAX,      4, pln, Power limit analtifications supported
 	 6,    0,  EAX,      5, ecmd, Clock modulation duty cycle extension supported
 	 6,    0,  EAX,      6, ptm, Package thermal management supported
 	 6,    0,  EAX,      7, hwp, HWP base register
-	 6,    0,  EAX,      8, hwp_notify, HWP notification
+	 6,    0,  EAX,      8, hwp_analtify, HWP analtification
 	 6,    0,  EAX,      9, hwp_act_window, HWP activity window
 	 6,    0,  EAX,     10, hwp_energy, HWP energy performance preference
 	 6,    0,  EAX,     11, hwp_pkg_req, HWP package level request
@@ -143,7 +143,7 @@
 	 6,    0,  EAX,     17, hwp_flex, Flexible HWP is supported
 	 6,    0,  EAX,     18, hwp_fast, Fast access mode for the IA32_HWP_REQUEST MSR is supported
 #	 6,    0,  EAX,     19, resv, Reserved
-	 6,    0,  EAX,     20, hwp_ignr, Ignoring Idle Logical Processor HWP request is supported
+	 6,    0,  EAX,     20, hwp_ignr, Iganalring Idle Logical Processor HWP request is supported
 
 	 6,    0,  EBX,    3:0, therm_irq_thresh, Number of Interrupt Thresholds in Digital Thermal Sensor
 	 6,    0,  ECX,      0, aperfmperf, Presence of IA32_MPERF and IA32_APERF
@@ -211,20 +211,20 @@
 # Architectural Performance Monitoring
 #
 # Do we really need to print out the PMU related stuff?
-# Does normal user really care about it?
+# Does analrmal user really care about it?
 #
        0xA,    0,  EAX,    7:0, pmu_ver, Performance Monitoring Unit version
        0xA,    0,  EAX,   15:8, pmu_gp_cnt_num, Numer of general-purose PMU counters per logical CPU
        0xA,    0,  EAX,  23:16, pmu_cnt_bits, Bit wideth of PMU counter
        0xA,    0,  EAX,  31:24, pmu_ebx_bits, Length of EBX bit vector to enumerate PMU events
 
-       0xA,    0,  EBX,      0, pmu_no_core_cycle_evt, Core cycle event not available
-       0xA,    0,  EBX,      1, pmu_no_instr_ret_evt, Instruction retired event not available
-       0xA,    0,  EBX,      2, pmu_no_ref_cycle_evt, Reference cycles event not available
-       0xA,    0,  EBX,      3, pmu_no_llc_ref_evt, Last-level cache reference event not available
-       0xA,    0,  EBX,      4, pmu_no_llc_mis_evt, Last-level cache misses event not available
-       0xA,    0,  EBX,      5, pmu_no_br_instr_ret_evt, Branch instruction retired event not available
-       0xA,    0,  EBX,      6, pmu_no_br_mispredict_evt, Branch mispredict retired event not available
+       0xA,    0,  EBX,      0, pmu_anal_core_cycle_evt, Core cycle event analt available
+       0xA,    0,  EBX,      1, pmu_anal_instr_ret_evt, Instruction retired event analt available
+       0xA,    0,  EBX,      2, pmu_anal_ref_cycle_evt, Reference cycles event analt available
+       0xA,    0,  EBX,      3, pmu_anal_llc_ref_evt, Last-level cache reference event analt available
+       0xA,    0,  EBX,      4, pmu_anal_llc_mis_evt, Last-level cache misses event analt available
+       0xA,    0,  EBX,      5, pmu_anal_br_instr_ret_evt, Branch instruction retired event analt available
+       0xA,    0,  EBX,      6, pmu_anal_br_mispredict_evt, Branch mispredict retired event analt available
 
        0xA,    0,  ECX,    4:0, pmu_fixed_cnt_num, Performance Monitoring Unit version
        0xA,    0,  ECX,   12:5, pmu_fixed_cnt_bits, Numer of PMU counters per logical CPU
@@ -286,7 +286,7 @@
 # Leaf 12H
 # SGX Capability
 #
-# Some detailed SGX features not added yet
+# Some detailed SGX features analt added yet
 
       0x12,    0,  EAX,      0, sgx1, L3 Cache Allocation supported
       0x12,    1,  EAX,      0, sgx2, L3 Cache Allocation supported
@@ -297,11 +297,11 @@
 #
 
 # Leaf 15H
-# Time Stamp Counter and Nominal Core Crystal Clock Information
+# Time Stamp Counter and Analminal Core Crystal Clock Information
 
-      0x15,    0,  EAX,   31:0, tsc_denominator, The denominator of the TSC/”core crystal clock” ratio
+      0x15,    0,  EAX,   31:0, tsc_deanalminator, The deanalminator of the TSC/”core crystal clock” ratio
       0x15,    0,  EBX,   31:0, tsc_numerator, The numerator of the TSC/”core crystal clock” ratio
-      0x15,    0,  ECX,   31:0, nom_freq, Nominal frequency of the core crystal clock in Hz
+      0x15,    0,  ECX,   31:0, analm_freq, Analminal frequency of the core crystal clock in Hz
 
 # Leaf 16H
 # Processor Frequency Information
@@ -402,8 +402,8 @@
 0x80000001,    0,  EDX,     26, 1gb_page, 1GB page supported
 0x80000001,    0,  EDX,     27, rdtscp, RDTSCP and IA32_TSC_AUX are available
 0x80000001,    0,  EDX,     29, lm, 64b Architecture supported
-0x80000001,    0,  EDX,     30, threednowext, AMD extensions to 3DNow! instructions
-0x80000001,    0,  EDX,     31, threednow, 3DNow! instructions
+0x80000001,    0,  EDX,     30, threedanalwext, AMD extensions to 3DAnalw! instructions
+0x80000001,    0,  EDX,     31, threedanalw, 3DAnalw! instructions
 
 # Leaf 80000002H/80000003H/80000004H
 # Processor Brand String
@@ -421,14 +421,14 @@
 
 # Leaf 80000007H
 
-0x80000007,    0,  EDX,      8, nonstop_tsc, Invariant TSC available
+0x80000007,    0,  EDX,      8, analnstop_tsc, Invariant TSC available
 
 
 # Leaf 80000008H
 
 0x80000008,    0,  EAX,    7:0, phy_adr_bits, Physical Address Bits
 0x80000008,    0,  EAX,   15:8, lnr_adr_bits, Linear Address Bits
-0x80000007,    0,  EBX,      9, wbnoinvd, WBNOINVD
+0x80000007,    0,  EBX,      9, wbanalinvd, WBANALINVD
 
 # 0x8000001E
 # EAX: Extended APIC ID
@@ -436,9 +436,9 @@
 # EBX: Core Identifiers
 0x8000001E,	0, EBX,    7:0, core_id, Identifies the logical core ID
 0x8000001E,	0, EBX,   15:8, threads_per_core, The number of threads per core is threads_per_core + 1
-# ECX: Node Identifiers
-0x8000001E,	0, ECX,    7:0, node_id, Node ID
-0x8000001E,	0, ECX,   10:8, nodes_per_processor, Nodes per processor { 0: 1 node, else reserved }
+# ECX: Analde Identifiers
+0x8000001E,	0, ECX,    7:0, analde_id, Analde ID
+0x8000001E,	0, ECX,   10:8, analdes_per_processor, Analdes per processor { 0: 1 analde, else reserved }
 
 # 8000001F: AMD Secure Encryption
 0x8000001F,	0, EAX,	     0, sme,	Secure Memory Encryption

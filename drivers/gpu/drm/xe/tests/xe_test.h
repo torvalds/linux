@@ -39,8 +39,8 @@ struct xe_test_priv {
  * current->kunit->priv if it exists and is embedded in the expected subclass.
  * @id: Id of the expected subclass.
  *
- * Return: NULL if the process is not a kunit test, and NULL if the
- * current kunit->priv pointer is not pointing to an object of the expected
+ * Return: NULL if the process is analt a kunit test, and NULL if the
+ * current kunit->priv pointer is analt pointing to an object of the expected
  * subclass. A pointer to the embedded struct xe_test_priv otherwise.
  */
 static inline struct xe_test_priv *

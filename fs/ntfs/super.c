@@ -26,7 +26,7 @@
 #include "dir.h"
 #include "debug.h"
 #include "index.h"
-#include "inode.h"
+#include "ianalde.h"
 #include "aops.h"
 #include "layout.h"
 #include "malloc.h"
@@ -39,7 +39,7 @@ static unsigned long ntfs_nr_compression_users;
 static ntfschar *default_upcase;
 static unsigned long ntfs_nr_upcase_users;
 
-/* Error constants/strings used in inode.c::ntfs_show_options(). */
+/* Error constants/strings used in ianalde.c::ntfs_show_options(). */
 typedef enum {
 	/* One of these must be present, default is ON_ERRORS_CONTINUE. */
 	ON_ERRORS_PANIC			= 0x01,
@@ -64,18 +64,18 @@ const option_t on_errors_arr[] = {
  *
  * Copied from old ntfs driver (which copied from vfat driver).
  *
- * "1", "yes", "true", or an empty string are converted to %true.
- * "0", "no", and "false" are converted to %false.
+ * "1", "anal", "true", or an empty string are converted to %true.
+ * "0", "anal", and "false" are converted to %false.
  *
  * Return: %1 if the string is converted or was empty and *setval contains it;
- *	   %0 if the string was not valid.
+ *	   %0 if the string was analt valid.
  */
 static int simple_getbool(char *s, bool *setval)
 {
 	if (s) {
-		if (!strcmp(s, "1") || !strcmp(s, "yes") || !strcmp(s, "true"))
+		if (!strcmp(s, "1") || !strcmp(s, "anal") || !strcmp(s, "true"))
 			*setval = true;
-		else if (!strcmp(s, "0") || !strcmp(s, "no") ||
+		else if (!strcmp(s, "0") || !strcmp(s, "anal") ||
 							!strcmp(s, "false"))
 			*setval = false;
 		else
@@ -179,7 +179,7 @@ static bool parse_options(ntfs_volume *vol, char *opt)
 			goto needs_val;					\
 	}
 	if (!opt || !*opt)
-		goto no_mount_options;
+		goto anal_mount_options;
 	ntfs_debug("Entering with mount options string: %s", opt);
 	while ((p = strsep(&opt, ","))) {
 		if ((v = strchr(p, '=')))
@@ -196,8 +196,8 @@ static bool parse_options(ntfs_volume *vol, char *opt)
 		else NTFS_GETOPT_BOOL("disable_sparse", disable_sparse)
 		else NTFS_GETOPT_OPTIONS_ARRAY("errors", on_errors,
 				on_errors_arr)
-		else if (!strcmp(p, "posix") || !strcmp(p, "show_inodes"))
-			ntfs_warning(vol->sb, "Ignoring obsolete option %s.",
+		else if (!strcmp(p, "posix") || !strcmp(p, "show_ianaldes"))
+			ntfs_warning(vol->sb, "Iganalring obsolete option %s.",
 					p);
 		else if (!strcmp(p, "nls") || !strcmp(p, "iocharset")) {
 			if (!strcmp(p, "iocharset"))
@@ -213,10 +213,10 @@ use_utf8:
 			if (!nls_map) {
 				if (!old_nls) {
 					ntfs_error(vol->sb, "NLS character set "
-							"%s not found.", v);
+							"%s analt found.", v);
 					return false;
 				}
-				ntfs_error(vol->sb, "NLS character set %s not "
+				ntfs_error(vol->sb, "NLS character set %s analt "
 						"found. Using previous one %s.",
 						v, old_nls->charset);
 				nls_map = old_nls;
@@ -225,7 +225,7 @@ use_utf8:
 			}
 		} else if (!strcmp(p, "utf8")) {
 			bool val = false;
-			ntfs_warning(vol->sb, "Option utf8 is no longer "
+			ntfs_warning(vol->sb, "Option utf8 is anal longer "
 				   "supported, using option nls=utf8. Please "
 				   "use option nls=utf8 in the future and "
 				   "make sure utf8 is compiled either as a "
@@ -248,11 +248,11 @@ use_utf8:
 #undef NTFS_GETOPT
 #undef NTFS_GETOPT_WITH_DEFAULT
 	}
-no_mount_options:
+anal_mount_options:
 	if (errors && !sloppy)
 		return false;
 	if (sloppy)
-		ntfs_warning(vol->sb, "Sloppy option given. Ignoring "
+		ntfs_warning(vol->sb, "Sloppy option given. Iganalring "
 				"unrecognized mount option(s) and continuing.");
 	/* Keep this first! */
 	if (on_errors != -1) {
@@ -264,7 +264,7 @@ no_mount_options:
 	}
 	if (nls_map) {
 		if (vol->nls_map && vol->nls_map != nls_map) {
-			ntfs_error(vol->sb, "Cannot change NLS character set "
+			ntfs_error(vol->sb, "Cananalt change NLS character set "
 					"on remount.");
 			return false;
 		} /* else (!vol->nls_map) */
@@ -285,7 +285,7 @@ no_mount_options:
 	if (mft_zone_multiplier != -1) {
 		if (vol->mft_zone_multiplier && vol->mft_zone_multiplier !=
 				mft_zone_multiplier) {
-			ntfs_error(vol->sb, "Cannot change mft_zone_multiplier "
+			ntfs_error(vol->sb, "Cananalt change mft_zone_multiplier "
 					"on remount.");
 			return false;
 		}
@@ -328,11 +328,11 @@ no_mount_options:
 		else {
 			if (!NVolSparseEnabled(vol) &&
 					vol->major_ver && vol->major_ver < 3)
-				ntfs_warning(vol->sb, "Not enabling sparse "
+				ntfs_warning(vol->sb, "Analt enabling sparse "
 						"support due to NTFS volume "
 						"version %i.%i (need at least "
 						"version 3.0).", vol->major_ver,
-						vol->minor_ver);
+						vol->mianalr_ver);
 			else
 				NVolSetSparseEnabled(vol);
 		}
@@ -360,15 +360,15 @@ needs_val:
  * instead (see below).
  *
  * Replace the volume information flags on the volume @vol with the value
- * supplied in @flags.  Note, this overwrites the volume information flags, so
+ * supplied in @flags.  Analte, this overwrites the volume information flags, so
  * make sure to combine the flags you want to modify with the old flags and use
  * the result when calling ntfs_write_volume_flags().
  *
- * Return 0 on success and -errno on error.
+ * Return 0 on success and -erranal on error.
  */
 static int ntfs_write_volume_flags(ntfs_volume *vol, const VOLUME_FLAGS flags)
 {
-	ntfs_inode *ni = NTFS_I(vol->vol_ino);
+	ntfs_ianalde *ni = NTFS_I(vol->vol_ianal);
 	MFT_RECORD *m;
 	VOLUME_INFORMATION *vi;
 	ntfs_attr_search_ctx *ctx;
@@ -386,7 +386,7 @@ static int ntfs_write_volume_flags(ntfs_volume *vol, const VOLUME_FLAGS flags)
 	}
 	ctx = ntfs_attr_get_search_ctx(ni, m);
 	if (!ctx) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto put_unm_err_out;
 	}
 	err = ntfs_attr_lookup(AT_VOLUME_INFORMATION, NULL, 0, 0, 0, NULL, 0,
@@ -396,8 +396,8 @@ static int ntfs_write_volume_flags(ntfs_volume *vol, const VOLUME_FLAGS flags)
 	vi = (VOLUME_INFORMATION*)((u8*)ctx->attr +
 			le16_to_cpu(ctx->attr->data.resident.value_offset));
 	vol->vol_flags = vi->flags = flags;
-	flush_dcache_mft_record_page(ctx->ntfs_ino);
-	mark_mft_record_dirty(ctx->ntfs_ino);
+	flush_dcache_mft_record_page(ctx->ntfs_ianal);
+	mark_mft_record_dirty(ctx->ntfs_ianal);
 	ntfs_attr_put_search_ctx(ctx);
 	unmap_mft_record(ni);
 done:
@@ -419,7 +419,7 @@ err_out:
  *
  * Set the bits in @flags in the volume information flags on the volume @vol.
  *
- * Return 0 on success and -errno on error.
+ * Return 0 on success and -erranal on error.
  */
 static inline int ntfs_set_volume_flags(ntfs_volume *vol, VOLUME_FLAGS flags)
 {
@@ -434,7 +434,7 @@ static inline int ntfs_set_volume_flags(ntfs_volume *vol, VOLUME_FLAGS flags)
  *
  * Clear the bits in @flags in the volume information flags on the volume @vol.
  *
- * Return 0 on success and -errno on error.
+ * Return 0 on success and -erranal on error.
  */
 static inline int ntfs_clear_volume_flags(ntfs_volume *vol, VOLUME_FLAGS flags)
 {
@@ -453,9 +453,9 @@ static inline int ntfs_clear_volume_flags(ntfs_volume *vol, VOLUME_FLAGS flags)
  *
  * Change the mount options of an already mounted ntfs filesystem.
  *
- * NOTE:  The VFS sets the @sb->s_flags remount flags to @flags after
+ * ANALTE:  The VFS sets the @sb->s_flags remount flags to @flags after
  * ntfs_remount() returns successfully (i.e. returns 0).  Otherwise,
- * @sb->s_flags are not changed.
+ * @sb->s_flags are analt changed.
  */
 static int ntfs_remount(struct super_block *sb, int *flags, char *opt)
 {
@@ -471,18 +471,18 @@ static int ntfs_remount(struct super_block *sb, int *flags, char *opt)
 #else /* NTFS_RW */
 	/*
 	 * For the read-write compiled driver, if we are remounting read-write,
-	 * make sure there are no volume errors and that no unsupported volume
+	 * make sure there are anal volume errors and that anal unsupported volume
 	 * flags are set.  Also, empty the logfile journal as it would become
 	 * stale as soon as something is written to the volume and mark the
-	 * volume dirty so that chkdsk is run if the volume is not umounted
+	 * volume dirty so that chkdsk is run if the volume is analt umounted
 	 * cleanly.  Finally, mark the quotas out of date so Windows rescans
 	 * the volume on boot and updates them.
 	 *
-	 * When remounting read-only, mark the volume clean if no volume errors
+	 * When remounting read-only, mark the volume clean if anal volume errors
 	 * have occurred.
 	 */
 	if (sb_rdonly(sb) && !(*flags & SB_RDONLY)) {
-		static const char *es = ".  Cannot remount read-write.";
+		static const char *es = ".  Cananalt remount read-write.";
 
 		/* Remounting read-write. */
 		if (NVolErrors(vol)) {
@@ -524,7 +524,7 @@ static int ntfs_remount(struct super_block *sb, int *flags, char *opt)
 			}
 		}
 #endif
-		if (!ntfs_empty_logfile(vol->logfile_ino)) {
+		if (!ntfs_empty_logfile(vol->logfile_ianal)) {
 			ntfs_error(sb, "Failed to empty journal $LogFile%s",
 					es);
 			NVolSetErrors(vol);
@@ -569,7 +569,7 @@ static int ntfs_remount(struct super_block *sb, int *flags, char *opt)
  * @silent:	If 'true', all output will be silenced.
  *
  * is_boot_sector_ntfs() checks whether the boot sector @b is a valid NTFS boot
- * sector. Returns 'true' if it is valid and 'false' if not.
+ * sector. Returns 'true' if it is valid and 'false' if analt.
  *
  * @sb is only needed for warning/error output, i.e. it can be NULL when silent
  * is 'true'.
@@ -579,9 +579,9 @@ static bool is_boot_sector_ntfs(const struct super_block *sb,
 {
 	/*
 	 * Check that checksum == sum of u32 values from b to the checksum
-	 * field.  If checksum is zero, no checking is done.  We will work when
+	 * field.  If checksum is zero, anal checking is done.  We will work when
 	 * the checksum test fails, since some utilities update the boot sector
-	 * ignoring the checksum which leaves the checksum out-of-date.  We
+	 * iganalring the checksum which leaves the checksum out-of-date.  We
 	 * report a warning if this is the case.
 	 */
 	if ((void*)b < (void*)&b->checksum && b->checksum && !silent) {
@@ -595,29 +595,29 @@ static bool is_boot_sector_ntfs(const struct super_block *sb,
 	}
 	/* Check OEMidentifier is "NTFS    " */
 	if (b->oem_id != magicNTFS)
-		goto not_ntfs;
+		goto analt_ntfs;
 	/* Check bytes per sector value is between 256 and 4096. */
 	if (le16_to_cpu(b->bpb.bytes_per_sector) < 0x100 ||
 			le16_to_cpu(b->bpb.bytes_per_sector) > 0x1000)
-		goto not_ntfs;
+		goto analt_ntfs;
 	/* Check sectors per cluster value is valid. */
 	switch (b->bpb.sectors_per_cluster) {
 	case 1: case 2: case 4: case 8: case 16: case 32: case 64: case 128:
 		break;
 	default:
-		goto not_ntfs;
+		goto analt_ntfs;
 	}
-	/* Check the cluster size is not above the maximum (64kiB). */
+	/* Check the cluster size is analt above the maximum (64kiB). */
 	if ((u32)le16_to_cpu(b->bpb.bytes_per_sector) *
 			b->bpb.sectors_per_cluster > NTFS_MAX_CLUSTER_SIZE)
-		goto not_ntfs;
+		goto analt_ntfs;
 	/* Check reserved/unused fields are really zero. */
 	if (le16_to_cpu(b->bpb.reserved_sectors) ||
 			le16_to_cpu(b->bpb.root_entries) ||
 			le16_to_cpu(b->bpb.sectors) ||
 			le16_to_cpu(b->bpb.sectors_per_fat) ||
 			le32_to_cpu(b->bpb.large_sectors) || b->bpb.fats)
-		goto not_ntfs;
+		goto analt_ntfs;
 	/* Check clusters per file mft record value is valid. */
 	if ((u8)b->clusters_per_mft_record < 0xe1 ||
 			(u8)b->clusters_per_mft_record > 0xf7)
@@ -625,7 +625,7 @@ static bool is_boot_sector_ntfs(const struct super_block *sb,
 		case 1: case 2: case 4: case 8: case 16: case 32: case 64:
 			break;
 		default:
-			goto not_ntfs;
+			goto analt_ntfs;
 		}
 	/* Check clusters per index block value is valid. */
 	if ((u8)b->clusters_per_index_record < 0xe1 ||
@@ -634,7 +634,7 @@ static bool is_boot_sector_ntfs(const struct super_block *sb,
 		case 1: case 2: case 4: case 8: case 16: case 32: case 64:
 			break;
 		default:
-			goto not_ntfs;
+			goto analt_ntfs;
 		}
 	/*
 	 * Check for valid end of sector marker. We will work without it, but
@@ -644,7 +644,7 @@ static bool is_boot_sector_ntfs(const struct super_block *sb,
 	if (!silent && b->end_of_sector_marker != cpu_to_le16(0xaa55))
 		ntfs_warning(sb, "Invalid end of sector marker.");
 	return true;
-not_ntfs:
+analt_ntfs:
 	return false;
 }
 
@@ -657,11 +657,11 @@ not_ntfs:
  * to read the backup boot sector, first from the end of the device a-la NT4 and
  * later and then from the middle of the device a-la NT3.51 and before.
  *
- * If a valid boot sector is found but it is not the primary boot sector, we
+ * If a valid boot sector is found but it is analt the primary boot sector, we
  * repair the primary boot sector silently (unless the device is read-only or
- * the primary boot sector is not accessible).
+ * the primary boot sector is analt accessible).
  *
- * NOTE: To call this function, @sb must have the fields s_dev, the ntfs super
+ * ANALTE: To call this function, @sb must have the fields s_dev, the ntfs super
  * block (u.ntfs_sb), nr_blocks and the device flags (s_flags) initialized
  * to their respective values.
  *
@@ -687,7 +687,7 @@ static struct buffer_head *read_ntfs_boot_sector(struct super_block *sb,
 		if (bh_primary)
 			brelse(bh_primary);
 		if (!silent)
-			ntfs_error(sb, "Mount option errors=recover not used. "
+			ntfs_error(sb, "Mount option errors=recover analt used. "
 					"Aborting without trying to recover.");
 		return NULL;
 	}
@@ -705,7 +705,7 @@ static struct buffer_head *read_ntfs_boot_sector(struct super_block *sb,
 				bh_backup->b_data, silent))
 			goto hotfix_primary_boot_sector;
 		if (!silent)
-			ntfs_error(sb, "Could not find a valid backup boot "
+			ntfs_error(sb, "Could analt find a valid backup boot "
 					"sector.");
 		brelse(bh_backup);
 	} else if (!silent)
@@ -717,12 +717,12 @@ static struct buffer_head *read_ntfs_boot_sector(struct super_block *sb,
 hotfix_primary_boot_sector:
 	if (bh_primary) {
 		/*
-		 * If we managed to read sector zero and the volume is not
+		 * If we managed to read sector zero and the volume is analt
 		 * read-only, copy the found, valid backup boot sector to the
-		 * primary boot sector.  Note we only copy the actual boot
-		 * sector structure, not the actual whole device sector as that
+		 * primary boot sector.  Analte we only copy the actual boot
+		 * sector structure, analt the actual whole device sector as that
 		 * may be bigger and would potentially damage the $Boot system
-		 * file (FIXME: Would be nice to know if the backup boot sector
+		 * file (FIXME: Would be nice to kanalw if the backup boot sector
 		 * on a large sector device contains the whole boot loader or
 		 * just the first 512 bytes).
 		 */
@@ -771,7 +771,7 @@ static bool parse_ntfs_boot_sector(ntfs_volume *vol, const NTFS_BOOT_SECTOR *b)
 			vol->sector_size_bits);
 	if (vol->sector_size < vol->sb->s_blocksize) {
 		ntfs_error(vol->sb, "Sector size (%i) is smaller than the "
-				"device block size (%lu).  This is not "
+				"device block size (%lu).  This is analt "
 				"supported.  Sorry.", vol->sector_size,
 				vol->sb->s_blocksize);
 		return false;
@@ -791,7 +791,7 @@ static bool parse_ntfs_boot_sector(ntfs_volume *vol, const NTFS_BOOT_SECTOR *b)
 	ntfs_debug("vol->cluster_size_bits = %i", vol->cluster_size_bits);
 	if (vol->cluster_size < vol->sector_size) {
 		ntfs_error(vol->sb, "Cluster size (%i) is smaller than the "
-				"sector size (%i).  This is not supported.  "
+				"sector size (%i).  This is analt supported.  "
 				"Sorry.", vol->cluster_size, vol->sector_size);
 		return false;
 	}
@@ -804,7 +804,7 @@ static bool parse_ntfs_boot_sector(ntfs_volume *vol, const NTFS_BOOT_SECTOR *b)
 	else
 		/*
 		 * When mft_record_size < cluster_size, clusters_per_mft_record
-		 * = -log2(mft_record_size) bytes. mft_record_size normaly is
+		 * = -log2(mft_record_size) bytes. mft_record_size analrmaly is
 		 * 1024 bytes, which is encoded as 0xF6 (-10 in decimal).
 		 */
 		vol->mft_record_size = 1 << -clusters_per_mft_record;
@@ -817,20 +817,20 @@ static bool parse_ntfs_boot_sector(ntfs_volume *vol, const NTFS_BOOT_SECTOR *b)
 	ntfs_debug("vol->mft_record_size_bits = %i (0x%x)",
 			vol->mft_record_size_bits, vol->mft_record_size_bits);
 	/*
-	 * We cannot support mft record sizes above the PAGE_SIZE since
+	 * We cananalt support mft record sizes above the PAGE_SIZE since
 	 * we store $MFT/$DATA, the table of mft records in the page cache.
 	 */
 	if (vol->mft_record_size > PAGE_SIZE) {
 		ntfs_error(vol->sb, "Mft record size (%i) exceeds the "
 				"PAGE_SIZE on your system (%lu).  "
-				"This is not supported.  Sorry.",
+				"This is analt supported.  Sorry.",
 				vol->mft_record_size, PAGE_SIZE);
 		return false;
 	}
-	/* We cannot support mft record sizes below the sector size. */
+	/* We cananalt support mft record sizes below the sector size. */
 	if (vol->mft_record_size < vol->sector_size) {
 		ntfs_error(vol->sb, "Mft record size (%i) is smaller than the "
-				"sector size (%i).  This is not supported.  "
+				"sector size (%i).  This is analt supported.  "
 				"Sorry.", vol->mft_record_size,
 				vol->sector_size);
 		return false;
@@ -845,7 +845,7 @@ static bool parse_ntfs_boot_sector(ntfs_volume *vol, const NTFS_BOOT_SECTOR *b)
 		/*
 		 * When index_record_size < cluster_size,
 		 * clusters_per_index_record = -log2(index_record_size) bytes.
-		 * index_record_size normaly equals 4096 bytes, which is
+		 * index_record_size analrmaly equals 4096 bytes, which is
 		 * encoded as 0xF4 (-12 in decimal).
 		 */
 		vol->index_record_size = 1 << -clusters_per_index_record;
@@ -858,10 +858,10 @@ static bool parse_ntfs_boot_sector(ntfs_volume *vol, const NTFS_BOOT_SECTOR *b)
 	ntfs_debug("vol->index_record_size_bits = %i (0x%x)",
 			vol->index_record_size_bits,
 			vol->index_record_size_bits);
-	/* We cannot support index record sizes below the sector size. */
+	/* We cananalt support index record sizes below the sector size. */
 	if (vol->index_record_size < vol->sector_size) {
 		ntfs_error(vol->sb, "Index record size (%i) is smaller than "
-				"the sector size (%i).  This is not "
+				"the sector size (%i).  This is analt "
 				"supported.  Sorry.", vol->index_record_size,
 				vol->sector_size);
 		return false;
@@ -873,7 +873,7 @@ static bool parse_ntfs_boot_sector(ntfs_volume *vol, const NTFS_BOOT_SECTOR *b)
 	 */
 	ll = sle64_to_cpu(b->number_of_sectors) >> sectors_per_cluster_bits;
 	if ((u64)ll >= 1ULL << 32) {
-		ntfs_error(vol->sb, "Cannot handle 64-bit clusters.  Sorry.");
+		ntfs_error(vol->sb, "Cananalt handle 64-bit clusters.  Sorry.");
 		return false;
 	}
 	vol->nr_clusters = ll;
@@ -927,9 +927,9 @@ static bool parse_ntfs_boot_sector(ntfs_volume *vol, const NTFS_BOOT_SECTOR *b)
 				vol->mft_record_size_bits;
 	ntfs_debug("vol->mftmirr_size = %i", vol->mftmirr_size);
 #endif /* NTFS_RW */
-	vol->serial_no = le64_to_cpu(b->volume_serial_number);
-	ntfs_debug("vol->serial_no = 0x%llx",
-			(unsigned long long)vol->serial_no);
+	vol->serial_anal = le64_to_cpu(b->volume_serial_number);
+	ntfs_debug("vol->serial_anal = 0x%llx",
+			(unsigned long long)vol->serial_anal);
 	return true;
 }
 
@@ -976,7 +976,7 @@ static void ntfs_setup_allocators(ntfs_volume *vol)
 	 * further to the front of the volume, extend the mft_zone to cover the
 	 * beginning of the volume as well.  This is in order to protect the
 	 * area reserved for the mft bitmap as well within the mft_zone itself.
-	 * On non-standard volumes we do not protect it as the overhead would
+	 * On analn-standard volumes we do analt protect it as the overhead would
 	 * be higher than the speed increase we would get by doing it.
 	 */
 	mft_lcn = (8192 + 2 * vol->cluster_size - 1) / vol->cluster_size;
@@ -988,8 +988,8 @@ static void ntfs_setup_allocators(ntfs_volume *vol)
 	ntfs_debug("vol->mft_zone_start = 0x%llx",
 			(unsigned long long)vol->mft_zone_start);
 	/*
-	 * Need to cap the mft zone on non-standard volumes so that it does
-	 * not point outside the boundaries of the volume.  We do this by
+	 * Need to cap the mft zone on analn-standard volumes so that it does
+	 * analt point outside the boundaries of the volume.  We do this by
 	 * halving the zone size until we are inside the volume.
 	 */
 	vol->mft_zone_end = vol->mft_lcn + mft_zone_size;
@@ -1020,50 +1020,50 @@ static void ntfs_setup_allocators(ntfs_volume *vol)
 #ifdef NTFS_RW
 
 /**
- * load_and_init_mft_mirror - load and setup the mft mirror inode for a volume
+ * load_and_init_mft_mirror - load and setup the mft mirror ianalde for a volume
  * @vol:	ntfs super block describing device whose mft mirror to load
  *
  * Return 'true' on success or 'false' on error.
  */
 static bool load_and_init_mft_mirror(ntfs_volume *vol)
 {
-	struct inode *tmp_ino;
-	ntfs_inode *tmp_ni;
+	struct ianalde *tmp_ianal;
+	ntfs_ianalde *tmp_ni;
 
 	ntfs_debug("Entering.");
-	/* Get mft mirror inode. */
-	tmp_ino = ntfs_iget(vol->sb, FILE_MFTMirr);
-	if (IS_ERR(tmp_ino) || is_bad_inode(tmp_ino)) {
-		if (!IS_ERR(tmp_ino))
-			iput(tmp_ino);
+	/* Get mft mirror ianalde. */
+	tmp_ianal = ntfs_iget(vol->sb, FILE_MFTMirr);
+	if (IS_ERR(tmp_ianal) || is_bad_ianalde(tmp_ianal)) {
+		if (!IS_ERR(tmp_ianal))
+			iput(tmp_ianal);
 		/* Caller will display error message. */
 		return false;
 	}
 	/*
-	 * Re-initialize some specifics about $MFTMirr's inode as
-	 * ntfs_read_inode() will have set up the default ones.
+	 * Re-initialize some specifics about $MFTMirr's ianalde as
+	 * ntfs_read_ianalde() will have set up the default ones.
 	 */
 	/* Set uid and gid to root. */
-	tmp_ino->i_uid = GLOBAL_ROOT_UID;
-	tmp_ino->i_gid = GLOBAL_ROOT_GID;
-	/* Regular file.  No access for anyone. */
-	tmp_ino->i_mode = S_IFREG;
-	/* No VFS initiated operations allowed for $MFTMirr. */
-	tmp_ino->i_op = &ntfs_empty_inode_ops;
-	tmp_ino->i_fop = &ntfs_empty_file_ops;
+	tmp_ianal->i_uid = GLOBAL_ROOT_UID;
+	tmp_ianal->i_gid = GLOBAL_ROOT_GID;
+	/* Regular file.  Anal access for anyone. */
+	tmp_ianal->i_mode = S_IFREG;
+	/* Anal VFS initiated operations allowed for $MFTMirr. */
+	tmp_ianal->i_op = &ntfs_empty_ianalde_ops;
+	tmp_ianal->i_fop = &ntfs_empty_file_ops;
 	/* Put in our special address space operations. */
-	tmp_ino->i_mapping->a_ops = &ntfs_mst_aops;
-	tmp_ni = NTFS_I(tmp_ino);
+	tmp_ianal->i_mapping->a_ops = &ntfs_mst_aops;
+	tmp_ni = NTFS_I(tmp_ianal);
 	/* The $MFTMirr, like the $MFT is multi sector transfer protected. */
-	NInoSetMstProtected(tmp_ni);
-	NInoSetSparseDisabled(tmp_ni);
+	NIanalSetMstProtected(tmp_ni);
+	NIanalSetSparseDisabled(tmp_ni);
 	/*
 	 * Set up our little cheat allowing us to reuse the async read io
 	 * completion handler for directories.
 	 */
 	tmp_ni->itype.index.block_size = vol->mft_record_size;
 	tmp_ni->itype.index.block_size_bits = vol->mft_record_size_bits;
-	vol->mftmirr_ino = tmp_ino;
+	vol->mftmirr_ianal = tmp_ianal;
 	ntfs_debug("Done.");
 	return true;
 }
@@ -1074,14 +1074,14 @@ static bool load_and_init_mft_mirror(ntfs_volume *vol)
  *
  * Return 'true' on success or 'false' on error.
  *
- * Note, this function also results in the mft mirror runlist being completely
+ * Analte, this function also results in the mft mirror runlist being completely
  * mapped into memory.  The mft mirror write code requires this and will BUG()
  * should it find an unmapped runlist element.
  */
 static bool check_mft_mirror(ntfs_volume *vol)
 {
 	struct super_block *sb = vol->sb;
-	ntfs_inode *mirr_ni;
+	ntfs_ianalde *mirr_ni;
 	struct page *mft_page, *mirr_page;
 	u8 *kmft, *kmirr;
 	runlist_element *rl, rl2[2];
@@ -1106,7 +1106,7 @@ static bool check_mft_mirror(ntfs_volume *vol)
 				ntfs_unmap_page(mirr_page);
 			}
 			/* Get the $MFT page. */
-			mft_page = ntfs_map_page(vol->mft_ino->i_mapping,
+			mft_page = ntfs_map_page(vol->mft_ianal->i_mapping,
 					index);
 			if (IS_ERR(mft_page)) {
 				ntfs_error(sb, "Failed to read $MFT.");
@@ -1114,7 +1114,7 @@ static bool check_mft_mirror(ntfs_volume *vol)
 			}
 			kmft = page_address(mft_page);
 			/* Get the $MFTMirr page. */
-			mirr_page = ntfs_map_page(vol->mftmirr_ino->i_mapping,
+			mirr_page = ntfs_map_page(vol->mftmirr_ianal->i_mapping,
 					index);
 			if (IS_ERR(mirr_page)) {
 				ntfs_error(sb, "Failed to read $MFTMirr.");
@@ -1123,7 +1123,7 @@ static bool check_mft_mirror(ntfs_volume *vol)
 			kmirr = page_address(mirr_page);
 			++index;
 		}
-		/* Do not check the record if it is not in use. */
+		/* Do analt check the record if it is analt in use. */
 		if (((MFT_RECORD*)kmft)->flags & MFT_RECORD_IN_USE) {
 			/* Make sure the record is ok. */
 			if (ntfs_is_baad_recordp((le32*)kmft)) {
@@ -1137,7 +1137,7 @@ mft_unmap_out:
 				return false;
 			}
 		}
-		/* Do not check the mirror record if it is not in use. */
+		/* Do analt check the mirror record if it is analt in use. */
 		if (((MFT_RECORD*)kmirr)->flags & MFT_RECORD_IN_USE) {
 			if (ntfs_is_baad_recordp((le32*)kmirr)) {
 				ntfs_error(sb, "Incomplete multi sector "
@@ -1159,7 +1159,7 @@ mft_unmap_out:
 		}
 		/* Compare the two records. */
 		if (memcmp(kmft, kmirr, bytes)) {
-			ntfs_error(sb, "$MFT and $MFTMirr (record %i) do not "
+			ntfs_error(sb, "$MFT and $MFTMirr (record %i) do analt "
 					"match.  Run ntfsfix or chkdsk.", i);
 			goto mm_unmap_out;
 		}
@@ -1176,13 +1176,13 @@ mft_unmap_out:
 	rl2[0].length = (vol->mftmirr_size * vol->mft_record_size +
 			vol->cluster_size - 1) / vol->cluster_size;
 	rl2[1].vcn = rl2[0].length;
-	rl2[1].lcn = LCN_ENOENT;
+	rl2[1].lcn = LCN_EANALENT;
 	rl2[1].length = 0;
 	/*
-	 * Because we have just read all of the mft mirror, we know we have
+	 * Because we have just read all of the mft mirror, we kanalw we have
 	 * mapped the full runlist for it.
 	 */
-	mirr_ni = NTFS_I(vol->mftmirr_ino);
+	mirr_ni = NTFS_I(vol->mftmirr_ianal);
 	down_read(&mirr_ni->runlist.lock);
 	rl = mirr_ni->runlist.rl;
 	/* Compare the two runlists.  They must be identical. */
@@ -1202,7 +1202,7 @@ mft_unmap_out:
 }
 
 /**
- * load_and_check_logfile - load and check the logfile inode for a volume
+ * load_and_check_logfile - load and check the logfile ianalde for a volume
  * @vol:	ntfs super block describing device whose logfile to load
  *
  * Return 'true' on success or 'false' on error.
@@ -1210,23 +1210,23 @@ mft_unmap_out:
 static bool load_and_check_logfile(ntfs_volume *vol,
 		RESTART_PAGE_HEADER **rp)
 {
-	struct inode *tmp_ino;
+	struct ianalde *tmp_ianal;
 
 	ntfs_debug("Entering.");
-	tmp_ino = ntfs_iget(vol->sb, FILE_LogFile);
-	if (IS_ERR(tmp_ino) || is_bad_inode(tmp_ino)) {
-		if (!IS_ERR(tmp_ino))
-			iput(tmp_ino);
+	tmp_ianal = ntfs_iget(vol->sb, FILE_LogFile);
+	if (IS_ERR(tmp_ianal) || is_bad_ianalde(tmp_ianal)) {
+		if (!IS_ERR(tmp_ianal))
+			iput(tmp_ianal);
 		/* Caller will display error message. */
 		return false;
 	}
-	if (!ntfs_check_logfile(tmp_ino, rp)) {
-		iput(tmp_ino);
+	if (!ntfs_check_logfile(tmp_ianal, rp)) {
+		iput(tmp_ianal);
 		/* ntfs_check_logfile() will have displayed error output. */
 		return false;
 	}
-	NInoSetSparseDisabled(NTFS_I(tmp_ino));
-	vol->logfile_ino = tmp_ino;
+	NIanalSetSparseDisabled(NTFS_I(tmp_ianal));
+	vol->logfile_ianal = tmp_ianal;
 	ntfs_debug("Done.");
 	return true;
 }
@@ -1239,28 +1239,28 @@ static bool load_and_check_logfile(ntfs_volume *vol,
  *
  * Check if Windows is hibernated on the ntfs volume @vol.  This is done by
  * looking for the file hiberfil.sys in the root directory of the volume.  If
- * the file is not present Windows is definitely not suspended.
+ * the file is analt present Windows is definitely analt suspended.
  *
  * If hiberfil.sys exists and is less than 4kiB in size it means Windows is
- * definitely suspended (this volume is not the system volume).  Caveat:  on a
+ * definitely suspended (this volume is analt the system volume).  Caveat:  on a
  * system with many volumes it is possible that the < 4kiB check is bogus but
- * for now this should do fine.
+ * for analw this should do fine.
  *
  * If hiberfil.sys exists and is larger than 4kiB in size, we need to read the
  * hiberfil header (which is the first 4kiB).  If this begins with "hibr",
  * Windows is definitely suspended.  If it is completely full of zeroes,
- * Windows is definitely not hibernated.  Any other case is treated as if
+ * Windows is definitely analt hibernated.  Any other case is treated as if
  * Windows is suspended.  This caters for the above mentioned caveat of a
- * system with many volumes where no "hibr" magic would be present and there is
- * no zero header.
+ * system with many volumes where anal "hibr" magic would be present and there is
+ * anal zero header.
  *
- * Return 0 if Windows is not hibernated on the volume, >0 if Windows is
- * hibernated on the volume, and -errno on error.
+ * Return 0 if Windows is analt hibernated on the volume, >0 if Windows is
+ * hibernated on the volume, and -erranal on error.
  */
 static int check_windows_hibernation_status(ntfs_volume *vol)
 {
 	MFT_REF mref;
-	struct inode *vi;
+	struct ianalde *vi;
 	struct page *page;
 	u32 *kaddr, *kend;
 	ntfs_name *name = NULL;
@@ -1275,31 +1275,31 @@ static int check_windows_hibernation_status(ntfs_volume *vol)
 
 	ntfs_debug("Entering.");
 	/*
-	 * Find the inode number for the hibernation file by looking up the
+	 * Find the ianalde number for the hibernation file by looking up the
 	 * filename hiberfil.sys in the root directory.
 	 */
-	inode_lock(vol->root_ino);
-	mref = ntfs_lookup_inode_by_name(NTFS_I(vol->root_ino), hiberfil, 12,
+	ianalde_lock(vol->root_ianal);
+	mref = ntfs_lookup_ianalde_by_name(NTFS_I(vol->root_ianal), hiberfil, 12,
 			&name);
-	inode_unlock(vol->root_ino);
+	ianalde_unlock(vol->root_ianal);
 	if (IS_ERR_MREF(mref)) {
 		ret = MREF_ERR(mref);
-		/* If the file does not exist, Windows is not hibernated. */
-		if (ret == -ENOENT) {
-			ntfs_debug("hiberfil.sys not present.  Windows is not "
+		/* If the file does analt exist, Windows is analt hibernated. */
+		if (ret == -EANALENT) {
+			ntfs_debug("hiberfil.sys analt present.  Windows is analt "
 					"hibernated on the volume.");
 			return 0;
 		}
 		/* A real error occurred. */
-		ntfs_error(vol->sb, "Failed to find inode number for "
+		ntfs_error(vol->sb, "Failed to find ianalde number for "
 				"hiberfil.sys.");
 		return ret;
 	}
-	/* We do not care for the type of match that was found. */
+	/* We do analt care for the type of match that was found. */
 	kfree(name);
-	/* Get the inode. */
+	/* Get the ianalde. */
 	vi = ntfs_iget(vol->sb, MREF(mref));
-	if (IS_ERR(vi) || is_bad_inode(vi)) {
+	if (IS_ERR(vi) || is_bad_ianalde(vi)) {
 		if (!IS_ERR(vi))
 			iput(vi);
 		ntfs_error(vol->sb, "Failed to load hiberfil.sys.");
@@ -1308,7 +1308,7 @@ static int check_windows_hibernation_status(ntfs_volume *vol)
 	if (unlikely(i_size_read(vi) < NTFS_HIBERFIL_HEADER_SIZE)) {
 		ntfs_debug("hiberfil.sys is smaller than 4kiB (0x%llx).  "
 				"Windows is hibernated on the volume.  This "
-				"is not the system volume.", i_size_read(vi));
+				"is analt the system volume.", i_size_read(vi));
 		goto iput_out;
 	}
 	page = ntfs_map_page(vi->i_mapping, 0);
@@ -1328,15 +1328,15 @@ static int check_windows_hibernation_status(ntfs_volume *vol)
 	do {
 		if (unlikely(*kaddr)) {
 			ntfs_debug("hiberfil.sys is larger than 4kiB "
-					"(0x%llx), does not contain the "
-					"\"hibr\" magic, and does not have a "
+					"(0x%llx), does analt contain the "
+					"\"hibr\" magic, and does analt have a "
 					"zero header.  Windows is hibernated "
-					"on the volume.  This is not the "
+					"on the volume.  This is analt the "
 					"system volume.", i_size_read(vi));
 			goto unm_iput_out;
 		}
 	} while (++kaddr < kend);
-	ntfs_debug("hiberfil.sys contains a zero header.  Windows is not "
+	ntfs_debug("hiberfil.sys contains a zero header.  Windows is analt "
 			"hibernated on the volume.  This is the system "
 			"volume.");
 	ret = 0;
@@ -1351,13 +1351,13 @@ iput_out:
  * load_and_init_quota - load and setup the quota file for a volume if present
  * @vol:	ntfs super block describing device whose quota file to load
  *
- * Return 'true' on success or 'false' on error.  If $Quota is not present, we
- * leave vol->quota_ino as NULL and return success.
+ * Return 'true' on success or 'false' on error.  If $Quota is analt present, we
+ * leave vol->quota_ianal as NULL and return success.
  */
 static bool load_and_init_quota(ntfs_volume *vol)
 {
 	MFT_REF mref;
-	struct inode *tmp_ino;
+	struct ianalde *tmp_ianal;
 	ntfs_name *name = NULL;
 	static const ntfschar Quota[7] = { cpu_to_le16('$'),
 			cpu_to_le16('Q'), cpu_to_le16('u'),
@@ -1368,50 +1368,50 @@ static bool load_and_init_quota(ntfs_volume *vol)
 
 	ntfs_debug("Entering.");
 	/*
-	 * Find the inode number for the quota file by looking up the filename
+	 * Find the ianalde number for the quota file by looking up the filename
 	 * $Quota in the extended system files directory $Extend.
 	 */
-	inode_lock(vol->extend_ino);
-	mref = ntfs_lookup_inode_by_name(NTFS_I(vol->extend_ino), Quota, 6,
+	ianalde_lock(vol->extend_ianal);
+	mref = ntfs_lookup_ianalde_by_name(NTFS_I(vol->extend_ianal), Quota, 6,
 			&name);
-	inode_unlock(vol->extend_ino);
+	ianalde_unlock(vol->extend_ianal);
 	if (IS_ERR_MREF(mref)) {
 		/*
-		 * If the file does not exist, quotas are disabled and have
+		 * If the file does analt exist, quotas are disabled and have
 		 * never been enabled on this volume, just return success.
 		 */
-		if (MREF_ERR(mref) == -ENOENT) {
-			ntfs_debug("$Quota not present.  Volume does not have "
+		if (MREF_ERR(mref) == -EANALENT) {
+			ntfs_debug("$Quota analt present.  Volume does analt have "
 					"quotas enabled.");
 			/*
-			 * No need to try to set quotas out of date if they are
-			 * not enabled.
+			 * Anal need to try to set quotas out of date if they are
+			 * analt enabled.
 			 */
 			NVolSetQuotaOutOfDate(vol);
 			return true;
 		}
 		/* A real error occurred. */
-		ntfs_error(vol->sb, "Failed to find inode number for $Quota.");
+		ntfs_error(vol->sb, "Failed to find ianalde number for $Quota.");
 		return false;
 	}
-	/* We do not care for the type of match that was found. */
+	/* We do analt care for the type of match that was found. */
 	kfree(name);
-	/* Get the inode. */
-	tmp_ino = ntfs_iget(vol->sb, MREF(mref));
-	if (IS_ERR(tmp_ino) || is_bad_inode(tmp_ino)) {
-		if (!IS_ERR(tmp_ino))
-			iput(tmp_ino);
+	/* Get the ianalde. */
+	tmp_ianal = ntfs_iget(vol->sb, MREF(mref));
+	if (IS_ERR(tmp_ianal) || is_bad_ianalde(tmp_ianal)) {
+		if (!IS_ERR(tmp_ianal))
+			iput(tmp_ianal);
 		ntfs_error(vol->sb, "Failed to load $Quota.");
 		return false;
 	}
-	vol->quota_ino = tmp_ino;
+	vol->quota_ianal = tmp_ianal;
 	/* Get the $Q index allocation attribute. */
-	tmp_ino = ntfs_index_iget(vol->quota_ino, Q, 2);
-	if (IS_ERR(tmp_ino)) {
+	tmp_ianal = ntfs_index_iget(vol->quota_ianal, Q, 2);
+	if (IS_ERR(tmp_ianal)) {
 		ntfs_error(vol->sb, "Failed to load $Quota/$Q index.");
 		return false;
 	}
-	vol->quota_q_ino = tmp_ino;
+	vol->quota_q_ianal = tmp_ianal;
 	ntfs_debug("Done.");
 	return true;
 }
@@ -1422,19 +1422,19 @@ static bool load_and_init_quota(ntfs_volume *vol)
  *
  * Return 'true' on success or 'false' on error.
  *
- * If $UsnJrnl is not present or in the process of being disabled, we set
+ * If $UsnJrnl is analt present or in the process of being disabled, we set
  * NVolUsnJrnlStamped() and return success.
  *
  * If the $UsnJrnl $DATA/$J attribute has a size equal to the lowest valid usn,
  * i.e. transaction logging has only just been enabled or the journal has been
- * stamped and nothing has been logged since, we also set NVolUsnJrnlStamped()
+ * stamped and analthing has been logged since, we also set NVolUsnJrnlStamped()
  * and return success.
  */
 static bool load_and_init_usnjrnl(ntfs_volume *vol)
 {
 	MFT_REF mref;
-	struct inode *tmp_ino;
-	ntfs_inode *tmp_ni;
+	struct ianalde *tmp_ianal;
+	ntfs_ianalde *tmp_ni;
 	struct page *page;
 	ntfs_name *name = NULL;
 	USN_HEADER *uh;
@@ -1451,87 +1451,87 @@ static bool load_and_init_usnjrnl(ntfs_volume *vol)
 
 	ntfs_debug("Entering.");
 	/*
-	 * Find the inode number for the transaction log file by looking up the
+	 * Find the ianalde number for the transaction log file by looking up the
 	 * filename $UsnJrnl in the extended system files directory $Extend.
 	 */
-	inode_lock(vol->extend_ino);
-	mref = ntfs_lookup_inode_by_name(NTFS_I(vol->extend_ino), UsnJrnl, 8,
+	ianalde_lock(vol->extend_ianal);
+	mref = ntfs_lookup_ianalde_by_name(NTFS_I(vol->extend_ianal), UsnJrnl, 8,
 			&name);
-	inode_unlock(vol->extend_ino);
+	ianalde_unlock(vol->extend_ianal);
 	if (IS_ERR_MREF(mref)) {
 		/*
-		 * If the file does not exist, transaction logging is disabled,
+		 * If the file does analt exist, transaction logging is disabled,
 		 * just return success.
 		 */
-		if (MREF_ERR(mref) == -ENOENT) {
-			ntfs_debug("$UsnJrnl not present.  Volume does not "
+		if (MREF_ERR(mref) == -EANALENT) {
+			ntfs_debug("$UsnJrnl analt present.  Volume does analt "
 					"have transaction logging enabled.");
-not_enabled:
+analt_enabled:
 			/*
-			 * No need to try to stamp the transaction log if
-			 * transaction logging is not enabled.
+			 * Anal need to try to stamp the transaction log if
+			 * transaction logging is analt enabled.
 			 */
 			NVolSetUsnJrnlStamped(vol);
 			return true;
 		}
 		/* A real error occurred. */
-		ntfs_error(vol->sb, "Failed to find inode number for "
+		ntfs_error(vol->sb, "Failed to find ianalde number for "
 				"$UsnJrnl.");
 		return false;
 	}
-	/* We do not care for the type of match that was found. */
+	/* We do analt care for the type of match that was found. */
 	kfree(name);
-	/* Get the inode. */
-	tmp_ino = ntfs_iget(vol->sb, MREF(mref));
-	if (IS_ERR(tmp_ino) || unlikely(is_bad_inode(tmp_ino))) {
-		if (!IS_ERR(tmp_ino))
-			iput(tmp_ino);
+	/* Get the ianalde. */
+	tmp_ianal = ntfs_iget(vol->sb, MREF(mref));
+	if (IS_ERR(tmp_ianal) || unlikely(is_bad_ianalde(tmp_ianal))) {
+		if (!IS_ERR(tmp_ianal))
+			iput(tmp_ianal);
 		ntfs_error(vol->sb, "Failed to load $UsnJrnl.");
 		return false;
 	}
-	vol->usnjrnl_ino = tmp_ino;
+	vol->usnjrnl_ianal = tmp_ianal;
 	/*
 	 * If the transaction log is in the process of being deleted, we can
-	 * ignore it.
+	 * iganalre it.
 	 */
 	if (unlikely(vol->vol_flags & VOLUME_DELETE_USN_UNDERWAY)) {
 		ntfs_debug("$UsnJrnl in the process of being disabled.  "
-				"Volume does not have transaction logging "
+				"Volume does analt have transaction logging "
 				"enabled.");
-		goto not_enabled;
+		goto analt_enabled;
 	}
 	/* Get the $DATA/$Max attribute. */
-	tmp_ino = ntfs_attr_iget(vol->usnjrnl_ino, AT_DATA, Max, 4);
-	if (IS_ERR(tmp_ino)) {
+	tmp_ianal = ntfs_attr_iget(vol->usnjrnl_ianal, AT_DATA, Max, 4);
+	if (IS_ERR(tmp_ianal)) {
 		ntfs_error(vol->sb, "Failed to load $UsnJrnl/$DATA/$Max "
 				"attribute.");
 		return false;
 	}
-	vol->usnjrnl_max_ino = tmp_ino;
-	if (unlikely(i_size_read(tmp_ino) < sizeof(USN_HEADER))) {
+	vol->usnjrnl_max_ianal = tmp_ianal;
+	if (unlikely(i_size_read(tmp_ianal) < sizeof(USN_HEADER))) {
 		ntfs_error(vol->sb, "Found corrupt $UsnJrnl/$DATA/$Max "
 				"attribute (size is 0x%llx but should be at "
-				"least 0x%zx bytes).", i_size_read(tmp_ino),
+				"least 0x%zx bytes).", i_size_read(tmp_ianal),
 				sizeof(USN_HEADER));
 		return false;
 	}
 	/* Get the $DATA/$J attribute. */
-	tmp_ino = ntfs_attr_iget(vol->usnjrnl_ino, AT_DATA, J, 2);
-	if (IS_ERR(tmp_ino)) {
+	tmp_ianal = ntfs_attr_iget(vol->usnjrnl_ianal, AT_DATA, J, 2);
+	if (IS_ERR(tmp_ianal)) {
 		ntfs_error(vol->sb, "Failed to load $UsnJrnl/$DATA/$J "
 				"attribute.");
 		return false;
 	}
-	vol->usnjrnl_j_ino = tmp_ino;
-	/* Verify $J is non-resident and sparse. */
-	tmp_ni = NTFS_I(vol->usnjrnl_j_ino);
-	if (unlikely(!NInoNonResident(tmp_ni) || !NInoSparse(tmp_ni))) {
+	vol->usnjrnl_j_ianal = tmp_ianal;
+	/* Verify $J is analn-resident and sparse. */
+	tmp_ni = NTFS_I(vol->usnjrnl_j_ianal);
+	if (unlikely(!NIanalAnalnResident(tmp_ni) || !NIanalSparse(tmp_ni))) {
 		ntfs_error(vol->sb, "$UsnJrnl/$DATA/$J attribute is resident "
-				"and/or not sparse.");
+				"and/or analt sparse.");
 		return false;
 	}
 	/* Read the USN_HEADER from $DATA/$Max. */
-	page = ntfs_map_page(vol->usnjrnl_max_ino->i_mapping, 0);
+	page = ntfs_map_page(vol->usnjrnl_max_ianal->i_mapping, 0);
 	if (IS_ERR(page)) {
 		ntfs_error(vol->sb, "Failed to read from $UsnJrnl/$DATA/$Max "
 				"attribute.");
@@ -1549,26 +1549,26 @@ not_enabled:
 		return false;
 	}
 	/*
-	 * If the transaction log has been stamped and nothing has been written
-	 * to it since, we do not need to stamp it.
+	 * If the transaction log has been stamped and analthing has been written
+	 * to it since, we do analt need to stamp it.
 	 */
 	if (unlikely(sle64_to_cpu(uh->lowest_valid_usn) >=
-			i_size_read(vol->usnjrnl_j_ino))) {
+			i_size_read(vol->usnjrnl_j_ianal))) {
 		if (likely(sle64_to_cpu(uh->lowest_valid_usn) ==
-				i_size_read(vol->usnjrnl_j_ino))) {
+				i_size_read(vol->usnjrnl_j_ianal))) {
 			ntfs_unmap_page(page);
-			ntfs_debug("$UsnJrnl is enabled but nothing has been "
+			ntfs_debug("$UsnJrnl is enabled but analthing has been "
 					"logged since it was last stamped.  "
 					"Treating this as if the volume does "
-					"not have transaction logging "
+					"analt have transaction logging "
 					"enabled.");
-			goto not_enabled;
+			goto analt_enabled;
 		}
 		ntfs_error(vol->sb, "$UsnJrnl has lowest valid usn (0x%llx) "
 				"which is out of bounds (0x%llx).  $UsnJrnl "
 				"is corrupt.",
 				(long long)sle64_to_cpu(uh->lowest_valid_usn),
-				i_size_read(vol->usnjrnl_j_ino));
+				i_size_read(vol->usnjrnl_j_ianal));
 		ntfs_unmap_page(page);
 		return false;
 	}
@@ -1587,25 +1587,25 @@ static bool load_and_init_attrdef(ntfs_volume *vol)
 {
 	loff_t i_size;
 	struct super_block *sb = vol->sb;
-	struct inode *ino;
+	struct ianalde *ianal;
 	struct page *page;
 	pgoff_t index, max_index;
 	unsigned int size;
 
 	ntfs_debug("Entering.");
 	/* Read attrdef table and setup vol->attrdef and vol->attrdef_size. */
-	ino = ntfs_iget(sb, FILE_AttrDef);
-	if (IS_ERR(ino) || is_bad_inode(ino)) {
-		if (!IS_ERR(ino))
-			iput(ino);
+	ianal = ntfs_iget(sb, FILE_AttrDef);
+	if (IS_ERR(ianal) || is_bad_ianalde(ianal)) {
+		if (!IS_ERR(ianal))
+			iput(ianal);
 		goto failed;
 	}
-	NInoSetSparseDisabled(NTFS_I(ino));
+	NIanalSetSparseDisabled(NTFS_I(ianal));
 	/* The size of FILE_AttrDef must be above 0 and fit inside 31 bits. */
-	i_size = i_size_read(ino);
+	i_size = i_size_read(ianal);
 	if (i_size <= 0 || i_size > 0x7fffffff)
 		goto iput_failed;
-	vol->attrdef = (ATTR_DEF*)ntfs_malloc_nofs(i_size);
+	vol->attrdef = (ATTR_DEF*)ntfs_malloc_analfs(i_size);
 	if (!vol->attrdef)
 		goto iput_failed;
 	index = 0;
@@ -1614,7 +1614,7 @@ static bool load_and_init_attrdef(ntfs_volume *vol)
 	while (index < max_index) {
 		/* Read the attrdef table and copy it into the linear buffer. */
 read_partial_attrdef_page:
-		page = ntfs_map_page(ino->i_mapping, index);
+		page = ntfs_map_page(ianal->i_mapping, index);
 		if (IS_ERR(page))
 			goto free_iput_failed;
 		memcpy((u8*)vol->attrdef + (index++ << PAGE_SHIFT),
@@ -1628,13 +1628,13 @@ read_partial_attrdef_page:
 	}
 	vol->attrdef_size = i_size;
 	ntfs_debug("Read %llu bytes from $AttrDef.", i_size);
-	iput(ino);
+	iput(ianal);
 	return true;
 free_iput_failed:
 	ntfs_free(vol->attrdef);
 	vol->attrdef = NULL;
 iput_failed:
-	iput(ino);
+	iput(ianal);
 failed:
 	ntfs_error(sb, "Failed to initialize attribute definition table.");
 	return false;
@@ -1652,7 +1652,7 @@ static bool load_and_init_upcase(ntfs_volume *vol)
 {
 	loff_t i_size;
 	struct super_block *sb = vol->sb;
-	struct inode *ino;
+	struct ianalde *ianal;
 	struct page *page;
 	pgoff_t index, max_index;
 	unsigned int size;
@@ -1660,21 +1660,21 @@ static bool load_and_init_upcase(ntfs_volume *vol)
 
 	ntfs_debug("Entering.");
 	/* Read upcase table and setup vol->upcase and vol->upcase_len. */
-	ino = ntfs_iget(sb, FILE_UpCase);
-	if (IS_ERR(ino) || is_bad_inode(ino)) {
-		if (!IS_ERR(ino))
-			iput(ino);
+	ianal = ntfs_iget(sb, FILE_UpCase);
+	if (IS_ERR(ianal) || is_bad_ianalde(ianal)) {
+		if (!IS_ERR(ianal))
+			iput(ianal);
 		goto upcase_failed;
 	}
 	/*
-	 * The upcase size must not be above 64k Unicode characters, must not
+	 * The upcase size must analt be above 64k Unicode characters, must analt
 	 * be zero and must be a multiple of sizeof(ntfschar).
 	 */
-	i_size = i_size_read(ino);
+	i_size = i_size_read(ianal);
 	if (!i_size || i_size & (sizeof(ntfschar) - 1) ||
 			i_size > 64ULL * 1024 * sizeof(ntfschar))
 		goto iput_upcase_failed;
-	vol->upcase = (ntfschar*)ntfs_malloc_nofs(i_size);
+	vol->upcase = (ntfschar*)ntfs_malloc_analfs(i_size);
 	if (!vol->upcase)
 		goto iput_upcase_failed;
 	index = 0;
@@ -1683,7 +1683,7 @@ static bool load_and_init_upcase(ntfs_volume *vol)
 	while (index < max_index) {
 		/* Read the upcase table and copy it into the linear buffer. */
 read_partial_upcase_page:
-		page = ntfs_map_page(ino->i_mapping, index);
+		page = ntfs_map_page(ianal->i_mapping, index);
 		if (IS_ERR(page))
 			goto iput_upcase_failed;
 		memcpy((char*)vol->upcase + (index++ << PAGE_SHIFT),
@@ -1698,11 +1698,11 @@ read_partial_upcase_page:
 	vol->upcase_len = i_size >> UCHAR_T_SIZE_BITS;
 	ntfs_debug("Read %llu bytes from $UpCase (expected %zu bytes).",
 			i_size, 64 * 1024 * sizeof(ntfschar));
-	iput(ino);
+	iput(ianal);
 	mutex_lock(&ntfs_lock);
 	if (!default_upcase) {
 		ntfs_debug("Using volume specified $UpCase since default is "
-				"not present.");
+				"analt present.");
 		mutex_unlock(&ntfs_lock);
 		return true;
 	}
@@ -1723,11 +1723,11 @@ read_partial_upcase_page:
 		return true;
 	}
 	mutex_unlock(&ntfs_lock);
-	ntfs_debug("Using volume specified $UpCase since it does not match "
+	ntfs_debug("Using volume specified $UpCase since it does analt match "
 			"the default.");
 	return true;
 iput_upcase_failed:
-	iput(ino);
+	iput(ianal);
 	ntfs_free(vol->upcase);
 	vol->upcase = NULL;
 upcase_failed:
@@ -1747,7 +1747,7 @@ upcase_failed:
 }
 
 /*
- * The lcn and mft bitmap inodes are NTFS-internal inodes with
+ * The lcn and mft bitmap ianaldes are NTFS-internal ianaldes with
  * their own special locking rules:
  */
 static struct lock_class_key
@@ -1755,10 +1755,10 @@ static struct lock_class_key
 	mftbmp_runlist_lock_key, mftbmp_mrec_lock_key;
 
 /**
- * load_system_files - open the system files using normal functions
+ * load_system_files - open the system files using analrmal functions
  * @vol:	ntfs super block describing device whose system files to load
  *
- * Open the system files with normal access functions and complete setting up
+ * Open the system files with analrmal access functions and complete setting up
  * the ntfs super block @vol.
  *
  * Return 'true' on success or 'false' on error.
@@ -1776,10 +1776,10 @@ static bool load_system_files(ntfs_volume *vol)
 
 	ntfs_debug("Entering.");
 #ifdef NTFS_RW
-	/* Get mft mirror inode compare the contents of $MFT and $MFTMirr. */
+	/* Get mft mirror ianalde compare the contents of $MFT and $MFTMirr. */
 	if (!load_and_init_mft_mirror(vol) || !check_mft_mirror(vol)) {
 		static const char *es1 = "Failed to load $MFTMirr";
-		static const char *es2 = "$MFTMirr does not match $MFT";
+		static const char *es2 = "$MFTMirr does analt match $MFT";
 		static const char *es3 = ".  Run ntfsfix and/or chkdsk.";
 
 		/* If a read-write mount, convert it to a read-only mount. */
@@ -1787,32 +1787,32 @@ static bool load_system_files(ntfs_volume *vol)
 			if (!(vol->on_errors & (ON_ERRORS_REMOUNT_RO |
 					ON_ERRORS_CONTINUE))) {
 				ntfs_error(sb, "%s and neither on_errors="
-						"continue nor on_errors="
+						"continue analr on_errors="
 						"remount-ro was specified%s",
-						!vol->mftmirr_ino ? es1 : es2,
+						!vol->mftmirr_ianal ? es1 : es2,
 						es3);
 				goto iput_mirr_err_out;
 			}
 			sb->s_flags |= SB_RDONLY;
 			ntfs_error(sb, "%s.  Mounting read-only%s",
-					!vol->mftmirr_ino ? es1 : es2, es3);
+					!vol->mftmirr_ianal ? es1 : es2, es3);
 		} else
-			ntfs_warning(sb, "%s.  Will not be able to remount "
+			ntfs_warning(sb, "%s.  Will analt be able to remount "
 					"read-write%s",
-					!vol->mftmirr_ino ? es1 : es2, es3);
+					!vol->mftmirr_ianal ? es1 : es2, es3);
 		/* This will prevent a read-write remount. */
 		NVolSetErrors(vol);
 	}
 #endif /* NTFS_RW */
-	/* Get mft bitmap attribute inode. */
-	vol->mftbmp_ino = ntfs_attr_iget(vol->mft_ino, AT_BITMAP, NULL, 0);
-	if (IS_ERR(vol->mftbmp_ino)) {
+	/* Get mft bitmap attribute ianalde. */
+	vol->mftbmp_ianal = ntfs_attr_iget(vol->mft_ianal, AT_BITMAP, NULL, 0);
+	if (IS_ERR(vol->mftbmp_ianal)) {
 		ntfs_error(sb, "Failed to load $MFT/$BITMAP attribute.");
 		goto iput_mirr_err_out;
 	}
-	lockdep_set_class(&NTFS_I(vol->mftbmp_ino)->runlist.lock,
+	lockdep_set_class(&NTFS_I(vol->mftbmp_ianal)->runlist.lock,
 			   &mftbmp_runlist_lock_key);
-	lockdep_set_class(&NTFS_I(vol->mftbmp_ino)->mrec_lock,
+	lockdep_set_class(&NTFS_I(vol->mftbmp_ianal)->mrec_lock,
 			   &mftbmp_mrec_lock_key);
 	/* Read upcase table and setup @vol->upcase and @vol->upcase_len. */
 	if (!load_and_init_upcase(vol))
@@ -1826,56 +1826,56 @@ static bool load_system_files(ntfs_volume *vol)
 		goto iput_upcase_err_out;
 #endif /* NTFS_RW */
 	/*
-	 * Get the cluster allocation bitmap inode and verify the size, no
+	 * Get the cluster allocation bitmap ianalde and verify the size, anal
 	 * need for any locking at this stage as we are already running
 	 * exclusively as we are mount in progress task.
 	 */
-	vol->lcnbmp_ino = ntfs_iget(sb, FILE_Bitmap);
-	if (IS_ERR(vol->lcnbmp_ino) || is_bad_inode(vol->lcnbmp_ino)) {
-		if (!IS_ERR(vol->lcnbmp_ino))
-			iput(vol->lcnbmp_ino);
+	vol->lcnbmp_ianal = ntfs_iget(sb, FILE_Bitmap);
+	if (IS_ERR(vol->lcnbmp_ianal) || is_bad_ianalde(vol->lcnbmp_ianal)) {
+		if (!IS_ERR(vol->lcnbmp_ianal))
+			iput(vol->lcnbmp_ianal);
 		goto bitmap_failed;
 	}
-	lockdep_set_class(&NTFS_I(vol->lcnbmp_ino)->runlist.lock,
+	lockdep_set_class(&NTFS_I(vol->lcnbmp_ianal)->runlist.lock,
 			   &lcnbmp_runlist_lock_key);
-	lockdep_set_class(&NTFS_I(vol->lcnbmp_ino)->mrec_lock,
+	lockdep_set_class(&NTFS_I(vol->lcnbmp_ianal)->mrec_lock,
 			   &lcnbmp_mrec_lock_key);
 
-	NInoSetSparseDisabled(NTFS_I(vol->lcnbmp_ino));
-	if ((vol->nr_clusters + 7) >> 3 > i_size_read(vol->lcnbmp_ino)) {
-		iput(vol->lcnbmp_ino);
+	NIanalSetSparseDisabled(NTFS_I(vol->lcnbmp_ianal));
+	if ((vol->nr_clusters + 7) >> 3 > i_size_read(vol->lcnbmp_ianal)) {
+		iput(vol->lcnbmp_ianal);
 bitmap_failed:
 		ntfs_error(sb, "Failed to load $Bitmap.");
 		goto iput_attrdef_err_out;
 	}
 	/*
-	 * Get the volume inode and setup our cache of the volume flags and
+	 * Get the volume ianalde and setup our cache of the volume flags and
 	 * version.
 	 */
-	vol->vol_ino = ntfs_iget(sb, FILE_Volume);
-	if (IS_ERR(vol->vol_ino) || is_bad_inode(vol->vol_ino)) {
-		if (!IS_ERR(vol->vol_ino))
-			iput(vol->vol_ino);
+	vol->vol_ianal = ntfs_iget(sb, FILE_Volume);
+	if (IS_ERR(vol->vol_ianal) || is_bad_ianalde(vol->vol_ianal)) {
+		if (!IS_ERR(vol->vol_ianal))
+			iput(vol->vol_ianal);
 volume_failed:
 		ntfs_error(sb, "Failed to load $Volume.");
 		goto iput_lcnbmp_err_out;
 	}
-	m = map_mft_record(NTFS_I(vol->vol_ino));
+	m = map_mft_record(NTFS_I(vol->vol_ianal));
 	if (IS_ERR(m)) {
 iput_volume_failed:
-		iput(vol->vol_ino);
+		iput(vol->vol_ianal);
 		goto volume_failed;
 	}
-	if (!(ctx = ntfs_attr_get_search_ctx(NTFS_I(vol->vol_ino), m))) {
+	if (!(ctx = ntfs_attr_get_search_ctx(NTFS_I(vol->vol_ianal), m))) {
 		ntfs_error(sb, "Failed to get attribute search context.");
 		goto get_ctx_vol_failed;
 	}
 	if (ntfs_attr_lookup(AT_VOLUME_INFORMATION, NULL, 0, 0, 0, NULL, 0,
-			ctx) || ctx->attr->non_resident || ctx->attr->flags) {
+			ctx) || ctx->attr->analn_resident || ctx->attr->flags) {
 err_put_vol:
 		ntfs_attr_put_search_ctx(ctx);
 get_ctx_vol_failed:
-		unmap_mft_record(NTFS_I(vol->vol_ino));
+		unmap_mft_record(NTFS_I(vol->vol_ianal));
 		goto iput_volume_failed;
 	}
 	vi = (VOLUME_INFORMATION*)((char*)ctx->attr +
@@ -1888,19 +1888,19 @@ get_ctx_vol_failed:
 	/* Copy the volume flags and version to the ntfs_volume structure. */
 	vol->vol_flags = vi->flags;
 	vol->major_ver = vi->major_ver;
-	vol->minor_ver = vi->minor_ver;
+	vol->mianalr_ver = vi->mianalr_ver;
 	ntfs_attr_put_search_ctx(ctx);
-	unmap_mft_record(NTFS_I(vol->vol_ino));
+	unmap_mft_record(NTFS_I(vol->vol_ianal));
 	pr_info("volume version %i.%i.\n", vol->major_ver,
-			vol->minor_ver);
+			vol->mianalr_ver);
 	if (vol->major_ver < 3 && NVolSparseEnabled(vol)) {
 		ntfs_warning(vol->sb, "Disabling sparse support due to NTFS "
 				"volume version %i.%i (need at least version "
-				"3.0).", vol->major_ver, vol->minor_ver);
+				"3.0).", vol->major_ver, vol->mianalr_ver);
 		NVolClearSparseEnabled(vol);
 	}
 #ifdef NTFS_RW
-	/* Make sure that no unsupported volume flags are set. */
+	/* Make sure that anal unsupported volume flags are set. */
 	if (vol->vol_flags & VOLUME_MUST_MOUNT_RO_MASK) {
 		static const char *es1a = "Volume is dirty";
 		static const char *es1b = "Volume has been modified by chkdsk";
@@ -1926,7 +1926,7 @@ get_ctx_vol_failed:
 			if (!(vol->on_errors & (ON_ERRORS_REMOUNT_RO |
 					ON_ERRORS_CONTINUE))) {
 				ntfs_error(sb, "%s and neither on_errors="
-						"continue nor on_errors="
+						"continue analr on_errors="
 						"remount-ro was specified%s",
 						es1, es2);
 				goto iput_vol_err_out;
@@ -1934,35 +1934,35 @@ get_ctx_vol_failed:
 			sb->s_flags |= SB_RDONLY;
 			ntfs_error(sb, "%s.  Mounting read-only%s", es1, es2);
 		} else
-			ntfs_warning(sb, "%s.  Will not be able to remount "
+			ntfs_warning(sb, "%s.  Will analt be able to remount "
 					"read-write%s", es1, es2);
 		/*
-		 * Do not set NVolErrors() because ntfs_remount() re-checks the
+		 * Do analt set NVolErrors() because ntfs_remount() re-checks the
 		 * flags which we need to do in case any flags have changed.
 		 */
 	}
 	/*
-	 * Get the inode for the logfile, check it and determine if the volume
+	 * Get the ianalde for the logfile, check it and determine if the volume
 	 * was shutdown cleanly.
 	 */
 	rp = NULL;
 	if (!load_and_check_logfile(vol, &rp) ||
-			!ntfs_is_logfile_clean(vol->logfile_ino, rp)) {
+			!ntfs_is_logfile_clean(vol->logfile_ianal, rp)) {
 		static const char *es1a = "Failed to load $LogFile";
-		static const char *es1b = "$LogFile is not clean";
+		static const char *es1b = "$LogFile is analt clean";
 		static const char *es2 = ".  Mount in Windows.";
 		const char *es1;
 
-		es1 = !vol->logfile_ino ? es1a : es1b;
+		es1 = !vol->logfile_ianal ? es1a : es1b;
 		/* If a read-write mount, convert it to a read-only mount. */
 		if (!sb_rdonly(sb)) {
 			if (!(vol->on_errors & (ON_ERRORS_REMOUNT_RO |
 					ON_ERRORS_CONTINUE))) {
 				ntfs_error(sb, "%s and neither on_errors="
-						"continue nor on_errors="
+						"continue analr on_errors="
 						"remount-ro was specified%s",
 						es1, es2);
-				if (vol->logfile_ino) {
+				if (vol->logfile_ianal) {
 					BUG_ON(!rp);
 					ntfs_free(rp);
 				}
@@ -1971,25 +1971,25 @@ get_ctx_vol_failed:
 			sb->s_flags |= SB_RDONLY;
 			ntfs_error(sb, "%s.  Mounting read-only%s", es1, es2);
 		} else
-			ntfs_warning(sb, "%s.  Will not be able to remount "
+			ntfs_warning(sb, "%s.  Will analt be able to remount "
 					"read-write%s", es1, es2);
 		/* This will prevent a read-write remount. */
 		NVolSetErrors(vol);
 	}
 	ntfs_free(rp);
 #endif /* NTFS_RW */
-	/* Get the root directory inode so we can do path lookups. */
-	vol->root_ino = ntfs_iget(sb, FILE_root);
-	if (IS_ERR(vol->root_ino) || is_bad_inode(vol->root_ino)) {
-		if (!IS_ERR(vol->root_ino))
-			iput(vol->root_ino);
+	/* Get the root directory ianalde so we can do path lookups. */
+	vol->root_ianal = ntfs_iget(sb, FILE_root);
+	if (IS_ERR(vol->root_ianal) || is_bad_ianalde(vol->root_ianal)) {
+		if (!IS_ERR(vol->root_ianal))
+			iput(vol->root_ianal);
 		ntfs_error(sb, "Failed to load root directory.");
 		goto iput_logfile_err_out;
 	}
 #ifdef NTFS_RW
 	/*
 	 * Check if Windows is suspended to disk on the target volume.  If it
-	 * is hibernated, we must not write *anything* to the disk so set
+	 * is hibernated, we must analt write *anything* to the disk so set
 	 * NVolErrors() without setting the dirty volume flag and mount
 	 * read-only.  This will prevent read-write remounting and it will also
 	 * prevent all writes.
@@ -2008,7 +2008,7 @@ get_ctx_vol_failed:
 			if (!(vol->on_errors & (ON_ERRORS_REMOUNT_RO |
 					ON_ERRORS_CONTINUE))) {
 				ntfs_error(sb, "%s and neither on_errors="
-						"continue nor on_errors="
+						"continue analr on_errors="
 						"remount-ro was specified%s",
 						es1, es2);
 				goto iput_root_err_out;
@@ -2016,7 +2016,7 @@ get_ctx_vol_failed:
 			sb->s_flags |= SB_RDONLY;
 			ntfs_error(sb, "%s.  Mounting read-only%s", es1, es2);
 		} else
-			ntfs_warning(sb, "%s.  Will not be able to remount "
+			ntfs_warning(sb, "%s.  Will analt be able to remount "
 					"read-write%s", es1, es2);
 		/* This will prevent a read-write remount. */
 		NVolSetErrors(vol);
@@ -2030,7 +2030,7 @@ get_ctx_vol_failed:
 		/* Convert to a read-only mount. */
 		if (!(vol->on_errors & (ON_ERRORS_REMOUNT_RO |
 				ON_ERRORS_CONTINUE))) {
-			ntfs_error(sb, "%s and neither on_errors=continue nor "
+			ntfs_error(sb, "%s and neither on_errors=continue analr "
 					"on_errors=remount-ro was specified%s",
 					es1, es2);
 			goto iput_root_err_out;
@@ -2038,7 +2038,7 @@ get_ctx_vol_failed:
 		ntfs_error(sb, "%s.  Mounting read-only%s", es1, es2);
 		sb->s_flags |= SB_RDONLY;
 		/*
-		 * Do not set NVolErrors() because ntfs_remount() might manage
+		 * Do analt set NVolErrors() because ntfs_remount() might manage
 		 * to set the dirty flag in which case all would be well.
 		 */
 	}
@@ -2057,7 +2057,7 @@ get_ctx_vol_failed:
 		/* Convert to a read-only mount. */
 		if (!(vol->on_errors & (ON_ERRORS_REMOUNT_RO |
 				ON_ERRORS_CONTINUE))) {
-			ntfs_error(sb, "%s and neither on_errors=continue nor "
+			ntfs_error(sb, "%s and neither on_errors=continue analr "
 					"on_errors=remount-ro was specified%s",
 					es1, es2);
 			goto iput_root_err_out;
@@ -2068,14 +2068,14 @@ get_ctx_vol_failed:
 	}
 #endif
 	/* If (still) a read-write mount, empty the logfile. */
-	if (!sb_rdonly(sb) && !ntfs_empty_logfile(vol->logfile_ino)) {
+	if (!sb_rdonly(sb) && !ntfs_empty_logfile(vol->logfile_ianal)) {
 		static const char *es1 = "Failed to empty $LogFile";
 		static const char *es2 = ".  Mount in Windows.";
 
 		/* Convert to a read-only mount. */
 		if (!(vol->on_errors & (ON_ERRORS_REMOUNT_RO |
 				ON_ERRORS_CONTINUE))) {
-			ntfs_error(sb, "%s and neither on_errors=continue nor "
+			ntfs_error(sb, "%s and neither on_errors=continue analr "
 					"on_errors=remount-ro was specified%s",
 					es1, es2);
 			goto iput_root_err_out;
@@ -2089,21 +2089,21 @@ get_ctx_vol_failed:
 	if (unlikely(vol->major_ver < 3))
 		return true;
 	/* NTFS 3.0+ specific initialization. */
-	/* Get the security descriptors inode. */
-	vol->secure_ino = ntfs_iget(sb, FILE_Secure);
-	if (IS_ERR(vol->secure_ino) || is_bad_inode(vol->secure_ino)) {
-		if (!IS_ERR(vol->secure_ino))
-			iput(vol->secure_ino);
+	/* Get the security descriptors ianalde. */
+	vol->secure_ianal = ntfs_iget(sb, FILE_Secure);
+	if (IS_ERR(vol->secure_ianal) || is_bad_ianalde(vol->secure_ianal)) {
+		if (!IS_ERR(vol->secure_ianal))
+			iput(vol->secure_ianal);
 		ntfs_error(sb, "Failed to load $Secure.");
 		goto iput_root_err_out;
 	}
 	// TODO: Initialize security.
-	/* Get the extended system files' directory inode. */
-	vol->extend_ino = ntfs_iget(sb, FILE_Extend);
-	if (IS_ERR(vol->extend_ino) || is_bad_inode(vol->extend_ino) ||
-	    !S_ISDIR(vol->extend_ino->i_mode)) {
-		if (!IS_ERR(vol->extend_ino))
-			iput(vol->extend_ino);
+	/* Get the extended system files' directory ianalde. */
+	vol->extend_ianal = ntfs_iget(sb, FILE_Extend);
+	if (IS_ERR(vol->extend_ianal) || is_bad_ianalde(vol->extend_ianal) ||
+	    !S_ISDIR(vol->extend_ianal->i_mode)) {
+		if (!IS_ERR(vol->extend_ianal))
+			iput(vol->extend_ianal);
 		ntfs_error(sb, "Failed to load $Extend.");
 		goto iput_sec_err_out;
 	}
@@ -2118,7 +2118,7 @@ get_ctx_vol_failed:
 			if (!(vol->on_errors & (ON_ERRORS_REMOUNT_RO |
 					ON_ERRORS_CONTINUE))) {
 				ntfs_error(sb, "%s and neither on_errors="
-						"continue nor on_errors="
+						"continue analr on_errors="
 						"remount-ro was specified%s",
 						es1, es2);
 				goto iput_quota_err_out;
@@ -2126,7 +2126,7 @@ get_ctx_vol_failed:
 			sb->s_flags |= SB_RDONLY;
 			ntfs_error(sb, "%s.  Mounting read-only%s", es1, es2);
 		} else
-			ntfs_warning(sb, "%s.  Will not be able to remount "
+			ntfs_warning(sb, "%s.  Will analt be able to remount "
 					"read-write%s", es1, es2);
 		/* This will prevent a read-write remount. */
 		NVolSetErrors(vol);
@@ -2139,7 +2139,7 @@ get_ctx_vol_failed:
 		/* Convert to a read-only mount. */
 		if (!(vol->on_errors & (ON_ERRORS_REMOUNT_RO |
 				ON_ERRORS_CONTINUE))) {
-			ntfs_error(sb, "%s and neither on_errors=continue nor "
+			ntfs_error(sb, "%s and neither on_errors=continue analr "
 					"on_errors=remount-ro was specified%s",
 					es1, es2);
 			goto iput_quota_err_out;
@@ -2161,7 +2161,7 @@ get_ctx_vol_failed:
 			if (!(vol->on_errors & (ON_ERRORS_REMOUNT_RO |
 					ON_ERRORS_CONTINUE))) {
 				ntfs_error(sb, "%s and neither on_errors="
-						"continue nor on_errors="
+						"continue analr on_errors="
 						"remount-ro was specified%s",
 						es1, es2);
 				goto iput_usnjrnl_err_out;
@@ -2169,7 +2169,7 @@ get_ctx_vol_failed:
 			sb->s_flags |= SB_RDONLY;
 			ntfs_error(sb, "%s.  Mounting read-only%s", es1, es2);
 		} else
-			ntfs_warning(sb, "%s.  Will not be able to remount "
+			ntfs_warning(sb, "%s.  Will analt be able to remount "
 					"read-write%s", es1, es2);
 		/* This will prevent a read-write remount. */
 		NVolSetErrors(vol);
@@ -2183,7 +2183,7 @@ get_ctx_vol_failed:
 		/* Convert to a read-only mount. */
 		if (!(vol->on_errors & (ON_ERRORS_REMOUNT_RO |
 				ON_ERRORS_CONTINUE))) {
-			ntfs_error(sb, "%s and neither on_errors=continue nor "
+			ntfs_error(sb, "%s and neither on_errors=continue analr "
 					"on_errors=remount-ro was specified%s",
 					es1, es2);
 			goto iput_usnjrnl_err_out;
@@ -2196,26 +2196,26 @@ get_ctx_vol_failed:
 	return true;
 #ifdef NTFS_RW
 iput_usnjrnl_err_out:
-	iput(vol->usnjrnl_j_ino);
-	iput(vol->usnjrnl_max_ino);
-	iput(vol->usnjrnl_ino);
+	iput(vol->usnjrnl_j_ianal);
+	iput(vol->usnjrnl_max_ianal);
+	iput(vol->usnjrnl_ianal);
 iput_quota_err_out:
-	iput(vol->quota_q_ino);
-	iput(vol->quota_ino);
-	iput(vol->extend_ino);
+	iput(vol->quota_q_ianal);
+	iput(vol->quota_ianal);
+	iput(vol->extend_ianal);
 #endif /* NTFS_RW */
 iput_sec_err_out:
-	iput(vol->secure_ino);
+	iput(vol->secure_ianal);
 iput_root_err_out:
-	iput(vol->root_ino);
+	iput(vol->root_ianal);
 iput_logfile_err_out:
 #ifdef NTFS_RW
-	iput(vol->logfile_ino);
+	iput(vol->logfile_ianal);
 iput_vol_err_out:
 #endif /* NTFS_RW */
-	iput(vol->vol_ino);
+	iput(vol->vol_ianal);
 iput_lcnbmp_err_out:
-	iput(vol->lcnbmp_ino);
+	iput(vol->lcnbmp_ianal);
 iput_attrdef_err_out:
 	vol->attrdef_size = 0;
 	if (vol->attrdef) {
@@ -2237,10 +2237,10 @@ iput_upcase_err_out:
 		vol->upcase = NULL;
 	}
 iput_mftbmp_err_out:
-	iput(vol->mftbmp_ino);
+	iput(vol->mftbmp_ianal);
 iput_mirr_err_out:
 #ifdef NTFS_RW
-	iput(vol->mftmirr_ino);
+	iput(vol->mftmirr_ianal);
 #endif /* NTFS_RW */
 	return false;
 }
@@ -2251,7 +2251,7 @@ iput_mirr_err_out:
  *
  * ntfs_put_super() is called by the VFS (from fs/super.c::do_umount()) when
  * the volume is being unmounted (umount system call has been invoked) and it
- * releases all inodes and memory belonging to the NTFS specific part of the
+ * releases all ianaldes and memory belonging to the NTFS specific part of the
  * super block.
  */
 static void ntfs_put_super(struct super_block *sb)
@@ -2262,49 +2262,49 @@ static void ntfs_put_super(struct super_block *sb)
 
 #ifdef NTFS_RW
 	/*
-	 * Commit all inodes while they are still open in case some of them
+	 * Commit all ianaldes while they are still open in case some of them
 	 * cause others to be dirtied.
 	 */
-	ntfs_commit_inode(vol->vol_ino);
+	ntfs_commit_ianalde(vol->vol_ianal);
 
 	/* NTFS 3.0+ specific. */
 	if (vol->major_ver >= 3) {
-		if (vol->usnjrnl_j_ino)
-			ntfs_commit_inode(vol->usnjrnl_j_ino);
-		if (vol->usnjrnl_max_ino)
-			ntfs_commit_inode(vol->usnjrnl_max_ino);
-		if (vol->usnjrnl_ino)
-			ntfs_commit_inode(vol->usnjrnl_ino);
-		if (vol->quota_q_ino)
-			ntfs_commit_inode(vol->quota_q_ino);
-		if (vol->quota_ino)
-			ntfs_commit_inode(vol->quota_ino);
-		if (vol->extend_ino)
-			ntfs_commit_inode(vol->extend_ino);
-		if (vol->secure_ino)
-			ntfs_commit_inode(vol->secure_ino);
+		if (vol->usnjrnl_j_ianal)
+			ntfs_commit_ianalde(vol->usnjrnl_j_ianal);
+		if (vol->usnjrnl_max_ianal)
+			ntfs_commit_ianalde(vol->usnjrnl_max_ianal);
+		if (vol->usnjrnl_ianal)
+			ntfs_commit_ianalde(vol->usnjrnl_ianal);
+		if (vol->quota_q_ianal)
+			ntfs_commit_ianalde(vol->quota_q_ianal);
+		if (vol->quota_ianal)
+			ntfs_commit_ianalde(vol->quota_ianal);
+		if (vol->extend_ianal)
+			ntfs_commit_ianalde(vol->extend_ianal);
+		if (vol->secure_ianal)
+			ntfs_commit_ianalde(vol->secure_ianal);
 	}
 
-	ntfs_commit_inode(vol->root_ino);
+	ntfs_commit_ianalde(vol->root_ianal);
 
 	down_write(&vol->lcnbmp_lock);
-	ntfs_commit_inode(vol->lcnbmp_ino);
+	ntfs_commit_ianalde(vol->lcnbmp_ianal);
 	up_write(&vol->lcnbmp_lock);
 
 	down_write(&vol->mftbmp_lock);
-	ntfs_commit_inode(vol->mftbmp_ino);
+	ntfs_commit_ianalde(vol->mftbmp_ianal);
 	up_write(&vol->mftbmp_lock);
 
-	if (vol->logfile_ino)
-		ntfs_commit_inode(vol->logfile_ino);
+	if (vol->logfile_ianal)
+		ntfs_commit_ianalde(vol->logfile_ianal);
 
-	if (vol->mftmirr_ino)
-		ntfs_commit_inode(vol->mftmirr_ino);
-	ntfs_commit_inode(vol->mft_ino);
+	if (vol->mftmirr_ianal)
+		ntfs_commit_ianalde(vol->mftmirr_ianal);
+	ntfs_commit_ianalde(vol->mft_ianal);
 
 	/*
-	 * If a read-write mount and no volume errors have occurred, mark the
-	 * volume clean.  Also, re-commit all affected inodes.
+	 * If a read-write mount and anal volume errors have occurred, mark the
+	 * volume clean.  Also, re-commit all affected ianaldes.
 	 */
 	if (!sb_rdonly(sb)) {
 		if (!NVolErrors(vol)) {
@@ -2312,11 +2312,11 @@ static void ntfs_put_super(struct super_block *sb)
 				ntfs_warning(sb, "Failed to clear dirty bit "
 						"in volume information "
 						"flags.  Run chkdsk.");
-			ntfs_commit_inode(vol->vol_ino);
-			ntfs_commit_inode(vol->root_ino);
-			if (vol->mftmirr_ino)
-				ntfs_commit_inode(vol->mftmirr_ino);
-			ntfs_commit_inode(vol->mft_ino);
+			ntfs_commit_ianalde(vol->vol_ianal);
+			ntfs_commit_ianalde(vol->root_ianal);
+			if (vol->mftmirr_ianal)
+				ntfs_commit_ianalde(vol->mftmirr_ianal);
+			ntfs_commit_ianalde(vol->mft_ianal);
 		} else {
 			ntfs_warning(sb, "Volume has errors.  Leaving volume "
 					"marked dirty.  Run chkdsk.");
@@ -2324,79 +2324,79 @@ static void ntfs_put_super(struct super_block *sb)
 	}
 #endif /* NTFS_RW */
 
-	iput(vol->vol_ino);
-	vol->vol_ino = NULL;
+	iput(vol->vol_ianal);
+	vol->vol_ianal = NULL;
 
 	/* NTFS 3.0+ specific clean up. */
 	if (vol->major_ver >= 3) {
 #ifdef NTFS_RW
-		if (vol->usnjrnl_j_ino) {
-			iput(vol->usnjrnl_j_ino);
-			vol->usnjrnl_j_ino = NULL;
+		if (vol->usnjrnl_j_ianal) {
+			iput(vol->usnjrnl_j_ianal);
+			vol->usnjrnl_j_ianal = NULL;
 		}
-		if (vol->usnjrnl_max_ino) {
-			iput(vol->usnjrnl_max_ino);
-			vol->usnjrnl_max_ino = NULL;
+		if (vol->usnjrnl_max_ianal) {
+			iput(vol->usnjrnl_max_ianal);
+			vol->usnjrnl_max_ianal = NULL;
 		}
-		if (vol->usnjrnl_ino) {
-			iput(vol->usnjrnl_ino);
-			vol->usnjrnl_ino = NULL;
+		if (vol->usnjrnl_ianal) {
+			iput(vol->usnjrnl_ianal);
+			vol->usnjrnl_ianal = NULL;
 		}
-		if (vol->quota_q_ino) {
-			iput(vol->quota_q_ino);
-			vol->quota_q_ino = NULL;
+		if (vol->quota_q_ianal) {
+			iput(vol->quota_q_ianal);
+			vol->quota_q_ianal = NULL;
 		}
-		if (vol->quota_ino) {
-			iput(vol->quota_ino);
-			vol->quota_ino = NULL;
+		if (vol->quota_ianal) {
+			iput(vol->quota_ianal);
+			vol->quota_ianal = NULL;
 		}
 #endif /* NTFS_RW */
-		if (vol->extend_ino) {
-			iput(vol->extend_ino);
-			vol->extend_ino = NULL;
+		if (vol->extend_ianal) {
+			iput(vol->extend_ianal);
+			vol->extend_ianal = NULL;
 		}
-		if (vol->secure_ino) {
-			iput(vol->secure_ino);
-			vol->secure_ino = NULL;
+		if (vol->secure_ianal) {
+			iput(vol->secure_ianal);
+			vol->secure_ianal = NULL;
 		}
 	}
 
-	iput(vol->root_ino);
-	vol->root_ino = NULL;
+	iput(vol->root_ianal);
+	vol->root_ianal = NULL;
 
 	down_write(&vol->lcnbmp_lock);
-	iput(vol->lcnbmp_ino);
-	vol->lcnbmp_ino = NULL;
+	iput(vol->lcnbmp_ianal);
+	vol->lcnbmp_ianal = NULL;
 	up_write(&vol->lcnbmp_lock);
 
 	down_write(&vol->mftbmp_lock);
-	iput(vol->mftbmp_ino);
-	vol->mftbmp_ino = NULL;
+	iput(vol->mftbmp_ianal);
+	vol->mftbmp_ianal = NULL;
 	up_write(&vol->mftbmp_lock);
 
 #ifdef NTFS_RW
-	if (vol->logfile_ino) {
-		iput(vol->logfile_ino);
-		vol->logfile_ino = NULL;
+	if (vol->logfile_ianal) {
+		iput(vol->logfile_ianal);
+		vol->logfile_ianal = NULL;
 	}
-	if (vol->mftmirr_ino) {
+	if (vol->mftmirr_ianal) {
 		/* Re-commit the mft mirror and mft just in case. */
-		ntfs_commit_inode(vol->mftmirr_ino);
-		ntfs_commit_inode(vol->mft_ino);
-		iput(vol->mftmirr_ino);
-		vol->mftmirr_ino = NULL;
+		ntfs_commit_ianalde(vol->mftmirr_ianal);
+		ntfs_commit_ianalde(vol->mft_ianal);
+		iput(vol->mftmirr_ianal);
+		vol->mftmirr_ianal = NULL;
 	}
 	/*
-	 * We should have no dirty inodes left, due to
+	 * We should have anal dirty ianaldes left, due to
 	 * mft.c::ntfs_mft_writepage() cleaning all the dirty pages as
 	 * the underlying mft records are written out and cleaned.
 	 */
-	ntfs_commit_inode(vol->mft_ino);
-	write_inode_now(vol->mft_ino, 1);
+	ntfs_commit_ianalde(vol->mft_ianal);
+	write_ianalde_analw(vol->mft_ianal, 1);
 #endif /* NTFS_RW */
 
-	iput(vol->mft_ino);
-	vol->mft_ino = NULL;
+	iput(vol->mft_ianal);
+	vol->mft_ianal = NULL;
 
 	/* Throw away the table of attribute definitions. */
 	vol->attrdef_size = 0;
@@ -2438,23 +2438,23 @@ static void ntfs_put_super(struct super_block *sb)
  *
  * Calculate the number of free clusters on the mounted NTFS volume @vol. We
  * actually calculate the number of clusters in use instead because this
- * allows us to not care about partial pages as these will be just zero filled
- * and hence not be counted as allocated clusters.
+ * allows us to analt care about partial pages as these will be just zero filled
+ * and hence analt be counted as allocated clusters.
  *
  * The only particularity is that clusters beyond the end of the logical ntfs
  * volume will be marked as allocated to prevent errors which means we have to
  * discount those at the end. This is important as the cluster bitmap always
  * has a size in multiples of 8 bytes, i.e. up to 63 clusters could be outside
- * the logical volume and marked in use when they are not as they do not exist.
+ * the logical volume and marked in use when they are analt as they do analt exist.
  *
- * If any pages cannot be read we assume all clusters in the erroring pages are
+ * If any pages cananalt be read we assume all clusters in the erroring pages are
  * in use. This means we return an underestimate on errors which is better than
  * an overestimate.
  */
 static s64 get_nr_free_clusters(ntfs_volume *vol)
 {
 	s64 nr_free = vol->nr_clusters;
-	struct address_space *mapping = vol->lcnbmp_ino->i_mapping;
+	struct address_space *mapping = vol->lcnbmp_ianal->i_mapping;
 	struct page *page;
 	pgoff_t index, max_index;
 
@@ -2479,7 +2479,7 @@ static s64 get_nr_free_clusters(ntfs_volume *vol)
 		 * if necessary, and increment the use count.
 		 */
 		page = read_mapping_page(mapping, index, NULL);
-		/* Ignore pages which errored synchronously. */
+		/* Iganalre pages which errored synchroanalusly. */
 		if (IS_ERR(page)) {
 			ntfs_debug("read_mapping_page() error. Skipping "
 					"page (index 0x%lx).", index);
@@ -2515,26 +2515,26 @@ static s64 get_nr_free_clusters(ntfs_volume *vol)
 }
 
 /**
- * __get_nr_free_mft_records - return the number of free inodes on a volume
- * @vol:	ntfs volume for which to obtain free inode count
+ * __get_nr_free_mft_records - return the number of free ianaldes on a volume
+ * @vol:	ntfs volume for which to obtain free ianalde count
  * @nr_free:	number of mft records in filesystem
  * @max_index:	maximum number of pages containing set bits
  *
- * Calculate the number of free mft records (inodes) on the mounted NTFS
+ * Calculate the number of free mft records (ianaldes) on the mounted NTFS
  * volume @vol. We actually calculate the number of mft records in use instead
- * because this allows us to not care about partial pages as these will be just
- * zero filled and hence not be counted as allocated mft record.
+ * because this allows us to analt care about partial pages as these will be just
+ * zero filled and hence analt be counted as allocated mft record.
  *
- * If any pages cannot be read we assume all mft records in the erroring pages
+ * If any pages cananalt be read we assume all mft records in the erroring pages
  * are in use. This means we return an underestimate on errors which is better
  * than an overestimate.
  *
- * NOTE: Caller must hold mftbmp_lock rw_semaphore for reading or writing.
+ * ANALTE: Caller must hold mftbmp_lock rw_semaphore for reading or writing.
  */
 static unsigned long __get_nr_free_mft_records(ntfs_volume *vol,
 		s64 nr_free, const pgoff_t max_index)
 {
-	struct address_space *mapping = vol->mftbmp_ino->i_mapping;
+	struct address_space *mapping = vol->mftbmp_ianal->i_mapping;
 	struct page *page;
 	pgoff_t index;
 
@@ -2550,7 +2550,7 @@ static unsigned long __get_nr_free_mft_records(ntfs_volume *vol,
 		 * if necessary, and increment the use count.
 		 */
 		page = read_mapping_page(mapping, index, NULL);
-		/* Ignore pages which errored synchronously. */
+		/* Iganalre pages which errored synchroanalusly. */
 		if (IS_ERR(page)) {
 			ntfs_debug("read_mapping_page() error. Skipping "
 					"page (index 0x%lx).", index);
@@ -2589,20 +2589,20 @@ static unsigned long __get_nr_free_mft_records(ntfs_volume *vol,
  * called). We interpret the values to be correct of the moment in time at
  * which we are called. Most values are variable otherwise and this isn't just
  * the free values but the totals as well. For example we can increase the
- * total number of file nodes if we run out and we can keep doing this until
- * there is no more space on the volume left at all.
+ * total number of file analdes if we run out and we can keep doing this until
+ * there is anal more space on the volume left at all.
  *
  * Called from vfs_statfs which is used to handle the statfs, fstatfs, and
  * ustat system calls.
  *
- * Return 0 on success or -errno on error.
+ * Return 0 on success or -erranal on error.
  */
 static int ntfs_statfs(struct dentry *dentry, struct kstatfs *sfs)
 {
 	struct super_block *sb = dentry->d_sb;
 	s64 size;
 	ntfs_volume *vol = NTFS_SB(sb);
-	ntfs_inode *mft_ni = NTFS_I(vol->mft_ino);
+	ntfs_ianalde *mft_ni = NTFS_I(vol->mft_ianal);
 	pgoff_t max_index;
 	unsigned long flags;
 
@@ -2613,7 +2613,7 @@ static int ntfs_statfs(struct dentry *dentry, struct kstatfs *sfs)
 	sfs->f_bsize  = PAGE_SIZE;
 	/*
 	 * Total data blocks in filesystem in units of f_bsize and since
-	 * inodes are also stored in data blocs ($MFT is a file) this is just
+	 * ianaldes are also stored in data blocs ($MFT is a file) this is just
 	 * the total clusters.
 	 */
 	sfs->f_blocks = vol->nr_clusters << vol->cluster_size_bits >>
@@ -2623,12 +2623,12 @@ static int ntfs_statfs(struct dentry *dentry, struct kstatfs *sfs)
 				PAGE_SHIFT;
 	if (size < 0LL)
 		size = 0LL;
-	/* Free blocks avail to non-superuser, same as above on NTFS. */
+	/* Free blocks avail to analn-superuser, same as above on NTFS. */
 	sfs->f_bavail = sfs->f_bfree = size;
-	/* Serialize accesses to the inode bitmap. */
+	/* Serialize accesses to the ianalde bitmap. */
 	down_read(&vol->mftbmp_lock);
 	read_lock_irqsave(&mft_ni->size_lock, flags);
-	size = i_size_read(vol->mft_ino) >> vol->mft_record_size_bits;
+	size = i_size_read(vol->mft_ianal) >> vol->mft_record_size_bits;
 	/*
 	 * Convert the maximum number of set bits into bytes rounded up, then
 	 * convert into multiples of PAGE_SIZE, rounding up so that if we
@@ -2637,31 +2637,31 @@ static int ntfs_statfs(struct dentry *dentry, struct kstatfs *sfs)
 	max_index = ((((mft_ni->initialized_size >> vol->mft_record_size_bits)
 			+ 7) >> 3) + PAGE_SIZE - 1) >> PAGE_SHIFT;
 	read_unlock_irqrestore(&mft_ni->size_lock, flags);
-	/* Number of inodes in filesystem (at this point in time). */
+	/* Number of ianaldes in filesystem (at this point in time). */
 	sfs->f_files = size;
-	/* Free inodes in fs (based on current total count). */
+	/* Free ianaldes in fs (based on current total count). */
 	sfs->f_ffree = __get_nr_free_mft_records(vol, size, max_index);
 	up_read(&vol->mftbmp_lock);
 	/*
 	 * File system id. This is extremely *nix flavour dependent and even
 	 * within Linux itself all fs do their own thing. I interpret this to
-	 * mean a unique id associated with the mounted fs and not the id
+	 * mean a unique id associated with the mounted fs and analt the id
 	 * associated with the filesystem driver, the latter is already given
 	 * by the filesystem type in sfs->f_type. Thus we use the 64-bit
 	 * volume serial number splitting it into two 32-bit parts. We enter
 	 * the least significant 32-bits in f_fsid[0] and the most significant
 	 * 32-bits in f_fsid[1].
 	 */
-	sfs->f_fsid = u64_to_fsid(vol->serial_no);
+	sfs->f_fsid = u64_to_fsid(vol->serial_anal);
 	/* Maximum length of filenames. */
 	sfs->f_namelen	   = NTFS_MAX_NAME_LEN;
 	return 0;
 }
 
 #ifdef NTFS_RW
-static int ntfs_write_inode(struct inode *vi, struct writeback_control *wbc)
+static int ntfs_write_ianalde(struct ianalde *vi, struct writeback_control *wbc)
 {
-	return __ntfs_write_inode(vi, wbc->sync_mode == WB_SYNC_ALL);
+	return __ntfs_write_ianalde(vi, wbc->sync_mode == WB_SYNC_ALL);
 }
 #endif
 
@@ -2669,16 +2669,16 @@ static int ntfs_write_inode(struct inode *vi, struct writeback_control *wbc)
  * The complete super operations.
  */
 static const struct super_operations ntfs_sops = {
-	.alloc_inode	= ntfs_alloc_big_inode,	  /* VFS: Allocate new inode. */
-	.free_inode	= ntfs_free_big_inode, /* VFS: Deallocate inode. */
+	.alloc_ianalde	= ntfs_alloc_big_ianalde,	  /* VFS: Allocate new ianalde. */
+	.free_ianalde	= ntfs_free_big_ianalde, /* VFS: Deallocate ianalde. */
 #ifdef NTFS_RW
-	.write_inode	= ntfs_write_inode,	/* VFS: Write dirty inode to
+	.write_ianalde	= ntfs_write_ianalde,	/* VFS: Write dirty ianalde to
 						   disk. */
 #endif /* NTFS_RW */
 	.put_super	= ntfs_put_super,	/* Syscall: umount. */
 	.statfs		= ntfs_statfs,		/* Syscall: statfs */
 	.remount_fs	= ntfs_remount,		/* Syscall: mount -o remount. */
-	.evict_inode	= ntfs_evict_big_inode,	/* VFS: Called when an inode is
+	.evict_ianalde	= ntfs_evict_big_ianalde,	/* VFS: Called when an ianalde is
 						   removed from memory. */
 	.show_options	= ntfs_show_options,	/* Show mount options in
 						   proc. */
@@ -2697,23 +2697,23 @@ static const struct super_operations ntfs_sops = {
  * during bootup, when the kernel tries to mount the root filesystem with all
  * registered filesystems one after the other until one succeeds. This implies
  * that all filesystems except the correct one will quite correctly and
- * expectedly return an error, but nobody wants to see error messages when in
+ * expectedly return an error, but analbody wants to see error messages when in
  * fact this is what is supposed to happen.
  *
- * NOTE: @sb->s_flags contains the mount options flags.
+ * ANALTE: @sb->s_flags contains the mount options flags.
  */
 static int ntfs_fill_super(struct super_block *sb, void *opt, const int silent)
 {
 	ntfs_volume *vol;
 	struct buffer_head *bh;
-	struct inode *tmp_ino;
+	struct ianalde *tmp_ianal;
 	int blocksize, result;
 
 	/*
 	 * We do a pretty difficult piece of bootstrap by reading the
 	 * MFT (and other metadata) from disk into memory. We'll only
 	 * release this metadata during umount, so the locking patterns
-	 * observed during bootstrap do not count. So turn off the
+	 * observed during bootstrap do analt count. So turn off the
 	 * observation of locking patterns (strictly for this context
 	 * only) while mounting NTFS. [The validator is still active
 	 * otherwise, even for this context: it will for example record
@@ -2725,14 +2725,14 @@ static int ntfs_fill_super(struct super_block *sb, void *opt, const int silent)
 	sb->s_flags |= SB_RDONLY;
 #endif /* ! NTFS_RW */
 	/* Allocate a new ntfs_volume and place it in sb->s_fs_info. */
-	sb->s_fs_info = kmalloc(sizeof(ntfs_volume), GFP_NOFS);
+	sb->s_fs_info = kmalloc(sizeof(ntfs_volume), GFP_ANALFS);
 	vol = NTFS_SB(sb);
 	if (!vol) {
 		if (!silent)
 			ntfs_error(sb, "Allocation of NTFS volume structure "
 					"failed. Aborting mount...");
 		lockdep_on();
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	/* Initialize ntfs_volume structure. */
 	*vol = (ntfs_volume) {
@@ -2740,7 +2740,7 @@ static int ntfs_fill_super(struct super_block *sb, void *opt, const int silent)
 		/*
 		 * Default is group and other don't have any access to files or
 		 * directories while owner has full access. Further, files by
-		 * default are not executable but directories are of course
+		 * default are analt executable but directories are of course
 		 * browseable.
 		 */
 		.fmask = 0177,
@@ -2752,9 +2752,9 @@ static int ntfs_fill_super(struct super_block *sb, void *opt, const int silent)
 	/* By default, enable sparse support. */
 	NVolSetSparseEnabled(vol);
 
-	/* Important to get the mount options dealt with now. */
+	/* Important to get the mount options dealt with analw. */
 	if (!parse_options(vol, (char*)opt))
-		goto err_out_now;
+		goto err_out_analw;
 
 	/* We support sector sizes up to the PAGE_SIZE. */
 	if (bdev_logical_block_size(sb->s_bdev) > PAGE_SIZE) {
@@ -2765,7 +2765,7 @@ static int ntfs_fill_super(struct super_block *sb, void *opt, const int silent)
 					"bytes.",
 					bdev_logical_block_size(sb->s_bdev),
 					PAGE_SIZE);
-		goto err_out_now;
+		goto err_out_analw;
 	}
 	/*
 	 * Setup the device access block size to NTFS_BLOCK_SIZE or the hard
@@ -2775,7 +2775,7 @@ static int ntfs_fill_super(struct super_block *sb, void *opt, const int silent)
 	if (blocksize < NTFS_BLOCK_SIZE) {
 		if (!silent)
 			ntfs_error(sb, "Unable to set device block size.");
-		goto err_out_now;
+		goto err_out_analw;
 	}
 	BUG_ON(blocksize != sb->s_blocksize);
 	ntfs_debug("Set device block size to %i bytes (block size bits %i).",
@@ -2785,13 +2785,13 @@ static int ntfs_fill_super(struct super_block *sb, void *opt, const int silent)
 	if (!vol->nr_blocks) {
 		if (!silent)
 			ntfs_error(sb, "Unable to determine device size.");
-		goto err_out_now;
+		goto err_out_analw;
 	}
 	/* Read the boot sector and return unlocked buffer head to it. */
 	if (!(bh = read_ntfs_boot_sector(sb, silent))) {
 		if (!silent)
-			ntfs_error(sb, "Not an NTFS volume.");
-		goto err_out_now;
+			ntfs_error(sb, "Analt an NTFS volume.");
+		goto err_out_analw;
 	}
 	/*
 	 * Extract the data from the boot sector and setup the ntfs volume
@@ -2802,7 +2802,7 @@ static int ntfs_fill_super(struct super_block *sb, void *opt, const int silent)
 	if (!result) {
 		if (!silent)
 			ntfs_error(sb, "Unsupported NTFS filesystem.");
-		goto err_out_now;
+		goto err_out_analw;
 	}
 	/*
 	 * If the boot sector indicates a sector size bigger than the current
@@ -2812,7 +2812,7 @@ static int ntfs_fill_super(struct super_block *sb, void *opt, const int silent)
 	 * into multiple blocks for i/o purposes but otherwise it should just
 	 * work.  However it is safer to leave disabled until someone hits this
 	 * error message and then we can get them to try it without the setting
-	 * so we know for sure that it works.
+	 * so we kanalw for sure that it works.
 	 */
 	if (vol->sector_size > blocksize) {
 		blocksize = sb_set_blocksize(sb, vol->sector_size);
@@ -2821,7 +2821,7 @@ static int ntfs_fill_super(struct super_block *sb, void *opt, const int silent)
 				ntfs_error(sb, "Unable to set device block "
 						"size to sector size (%i).",
 						vol->sector_size);
-			goto err_out_now;
+			goto err_out_analw;
 		}
 		BUG_ON(blocksize != sb->s_blocksize);
 		vol->nr_blocks = sb_bdev_nr_blocks(sb);
@@ -2845,25 +2845,25 @@ static int ntfs_fill_super(struct super_block *sb, void *opt, const int silent)
 	/* Ntfs measures time in 100ns intervals. */
 	sb->s_time_gran = 100;
 	/*
-	 * Now load the metadata required for the page cache and our address
+	 * Analw load the metadata required for the page cache and our address
 	 * space operations to function. We do this by setting up a specialised
-	 * read_inode method and then just calling the normal iget() to obtain
-	 * the inode for $MFT which is sufficient to allow our normal inode
+	 * read_ianalde method and then just calling the analrmal iget() to obtain
+	 * the ianalde for $MFT which is sufficient to allow our analrmal ianalde
 	 * operations and associated address space operations to function.
 	 */
 	sb->s_op = &ntfs_sops;
-	tmp_ino = new_inode(sb);
-	if (!tmp_ino) {
+	tmp_ianal = new_ianalde(sb);
+	if (!tmp_ianal) {
 		if (!silent)
 			ntfs_error(sb, "Failed to load essential metadata.");
-		goto err_out_now;
+		goto err_out_analw;
 	}
-	tmp_ino->i_ino = FILE_MFT;
-	insert_inode_hash(tmp_ino);
-	if (ntfs_read_inode_mount(tmp_ino) < 0) {
+	tmp_ianal->i_ianal = FILE_MFT;
+	insert_ianalde_hash(tmp_ianal);
+	if (ntfs_read_ianalde_mount(tmp_ianal) < 0) {
 		if (!silent)
 			ntfs_error(sb, "Failed to load essential metadata.");
-		goto iput_tmp_ino_err_out_now;
+		goto iput_tmp_ianal_err_out_analw;
 	}
 	mutex_lock(&ntfs_lock);
 	/*
@@ -2877,7 +2877,7 @@ static int ntfs_fill_super(struct super_block *sb, void *opt, const int silent)
 					"for compression engine.");
 			ntfs_nr_compression_users--;
 			mutex_unlock(&ntfs_lock);
-			goto iput_tmp_ino_err_out_now;
+			goto iput_tmp_ianal_err_out_analw;
 		}
 	}
 	/*
@@ -2890,23 +2890,23 @@ static int ntfs_fill_super(struct super_block *sb, void *opt, const int silent)
 	ntfs_nr_upcase_users++;
 	mutex_unlock(&ntfs_lock);
 	/*
-	 * From now on, ignore @silent parameter. If we fail below this line,
+	 * From analw on, iganalre @silent parameter. If we fail below this line,
 	 * it will be due to a corrupt fs or a system error, so we report it.
 	 */
 	/*
-	 * Open the system files with normal access functions and complete
+	 * Open the system files with analrmal access functions and complete
 	 * setting up the ntfs super block.
 	 */
 	if (!load_system_files(vol)) {
 		ntfs_error(sb, "Failed to load system files.");
-		goto unl_upcase_iput_tmp_ino_err_out_now;
+		goto unl_upcase_iput_tmp_ianal_err_out_analw;
 	}
 
 	/* We grab a reference, simulating an ntfs_iget(). */
-	ihold(vol->root_ino);
-	if ((sb->s_root = d_make_root(vol->root_ino))) {
+	ihold(vol->root_ianal);
+	if ((sb->s_root = d_make_root(vol->root_ianal))) {
 		ntfs_debug("Exiting, status successful.");
-		/* Release the default upcase if it has no users. */
+		/* Release the default upcase if it has anal users. */
 		mutex_lock(&ntfs_lock);
 		if (!--ntfs_nr_upcase_users && default_upcase) {
 			ntfs_free(default_upcase);
@@ -2921,56 +2921,56 @@ static int ntfs_fill_super(struct super_block *sb, void *opt, const int silent)
 	/* Clean up after the successful load_system_files() call from above. */
 	// TODO: Use ntfs_put_super() instead of repeating all this code...
 	// FIXME: Should mark the volume clean as the error is most likely
-	// 	  -ENOMEM.
-	iput(vol->vol_ino);
-	vol->vol_ino = NULL;
+	// 	  -EANALMEM.
+	iput(vol->vol_ianal);
+	vol->vol_ianal = NULL;
 	/* NTFS 3.0+ specific clean up. */
 	if (vol->major_ver >= 3) {
 #ifdef NTFS_RW
-		if (vol->usnjrnl_j_ino) {
-			iput(vol->usnjrnl_j_ino);
-			vol->usnjrnl_j_ino = NULL;
+		if (vol->usnjrnl_j_ianal) {
+			iput(vol->usnjrnl_j_ianal);
+			vol->usnjrnl_j_ianal = NULL;
 		}
-		if (vol->usnjrnl_max_ino) {
-			iput(vol->usnjrnl_max_ino);
-			vol->usnjrnl_max_ino = NULL;
+		if (vol->usnjrnl_max_ianal) {
+			iput(vol->usnjrnl_max_ianal);
+			vol->usnjrnl_max_ianal = NULL;
 		}
-		if (vol->usnjrnl_ino) {
-			iput(vol->usnjrnl_ino);
-			vol->usnjrnl_ino = NULL;
+		if (vol->usnjrnl_ianal) {
+			iput(vol->usnjrnl_ianal);
+			vol->usnjrnl_ianal = NULL;
 		}
-		if (vol->quota_q_ino) {
-			iput(vol->quota_q_ino);
-			vol->quota_q_ino = NULL;
+		if (vol->quota_q_ianal) {
+			iput(vol->quota_q_ianal);
+			vol->quota_q_ianal = NULL;
 		}
-		if (vol->quota_ino) {
-			iput(vol->quota_ino);
-			vol->quota_ino = NULL;
+		if (vol->quota_ianal) {
+			iput(vol->quota_ianal);
+			vol->quota_ianal = NULL;
 		}
 #endif /* NTFS_RW */
-		if (vol->extend_ino) {
-			iput(vol->extend_ino);
-			vol->extend_ino = NULL;
+		if (vol->extend_ianal) {
+			iput(vol->extend_ianal);
+			vol->extend_ianal = NULL;
 		}
-		if (vol->secure_ino) {
-			iput(vol->secure_ino);
-			vol->secure_ino = NULL;
+		if (vol->secure_ianal) {
+			iput(vol->secure_ianal);
+			vol->secure_ianal = NULL;
 		}
 	}
-	iput(vol->root_ino);
-	vol->root_ino = NULL;
-	iput(vol->lcnbmp_ino);
-	vol->lcnbmp_ino = NULL;
-	iput(vol->mftbmp_ino);
-	vol->mftbmp_ino = NULL;
+	iput(vol->root_ianal);
+	vol->root_ianal = NULL;
+	iput(vol->lcnbmp_ianal);
+	vol->lcnbmp_ianal = NULL;
+	iput(vol->mftbmp_ianal);
+	vol->mftbmp_ianal = NULL;
 #ifdef NTFS_RW
-	if (vol->logfile_ino) {
-		iput(vol->logfile_ino);
-		vol->logfile_ino = NULL;
+	if (vol->logfile_ianal) {
+		iput(vol->logfile_ianal);
+		vol->logfile_ianal = NULL;
 	}
-	if (vol->mftmirr_ino) {
-		iput(vol->mftmirr_ino);
-		vol->mftmirr_ino = NULL;
+	if (vol->mftmirr_ianal) {
+		iput(vol->mftmirr_ianal);
+		vol->mftmirr_ianal = NULL;
 	}
 #endif /* NTFS_RW */
 	/* Throw away the table of attribute definitions. */
@@ -2995,7 +2995,7 @@ static int ntfs_fill_super(struct super_block *sb, void *opt, const int silent)
 		vol->nls_map = NULL;
 	}
 	/* Error exit code path. */
-unl_upcase_iput_tmp_ino_err_out_now:
+unl_upcase_iput_tmp_ianal_err_out_analw:
 	/*
 	 * Decrease the number of upcase users and destroy the global default
 	 * upcase table if necessary.
@@ -3008,13 +3008,13 @@ unl_upcase_iput_tmp_ino_err_out_now:
 	if (vol->cluster_size <= 4096 && !--ntfs_nr_compression_users)
 		free_compression_buffers();
 	mutex_unlock(&ntfs_lock);
-iput_tmp_ino_err_out_now:
-	iput(tmp_ino);
-	if (vol->mft_ino && vol->mft_ino != tmp_ino)
-		iput(vol->mft_ino);
-	vol->mft_ino = NULL;
+iput_tmp_ianal_err_out_analw:
+	iput(tmp_ianal);
+	if (vol->mft_ianal && vol->mft_ianal != tmp_ianal)
+		iput(vol->mft_ianal);
+	vol->mft_ianal = NULL;
 	/* Errors at this stage are irrelevant. */
-err_out_now:
+err_out_analw:
 	sb->s_fs_info = NULL;
 	kfree(vol);
 	ntfs_debug("Failed, returning -EINVAL.");
@@ -3029,16 +3029,16 @@ err_out_now:
  */
 struct kmem_cache *ntfs_name_cache;
 
-/* Slab caches for efficient allocation/deallocation of inodes. */
-struct kmem_cache *ntfs_inode_cache;
-struct kmem_cache *ntfs_big_inode_cache;
+/* Slab caches for efficient allocation/deallocation of ianaldes. */
+struct kmem_cache *ntfs_ianalde_cache;
+struct kmem_cache *ntfs_big_ianalde_cache;
 
-/* Init once constructor for the inode slab cache. */
-static void ntfs_big_inode_init_once(void *foo)
+/* Init once constructor for the ianalde slab cache. */
+static void ntfs_big_ianalde_init_once(void *foo)
 {
-	ntfs_inode *ni = (ntfs_inode *)foo;
+	ntfs_ianalde *ni = (ntfs_ianalde *)foo;
 
-	inode_init_once(VFS_I(ni));
+	ianalde_init_once(VFS_I(ni));
 }
 
 /*
@@ -3070,8 +3070,8 @@ MODULE_ALIAS_FS("ntfs");
 static const char ntfs_index_ctx_cache_name[] = "ntfs_index_ctx_cache";
 static const char ntfs_attr_ctx_cache_name[] = "ntfs_attr_ctx_cache";
 static const char ntfs_name_cache_name[] = "ntfs_name_cache";
-static const char ntfs_inode_cache_name[] = "ntfs_inode_cache";
-static const char ntfs_big_inode_cache_name[] = "ntfs_big_inode_cache";
+static const char ntfs_ianalde_cache_name[] = "ntfs_ianalde_cache";
+static const char ntfs_big_ianalde_cache_name[] = "ntfs_big_ianalde_cache";
 
 static int __init init_ntfs_fs(void)
 {
@@ -3118,21 +3118,21 @@ static int __init init_ntfs_fs(void)
 		goto name_err_out;
 	}
 
-	ntfs_inode_cache = kmem_cache_create(ntfs_inode_cache_name,
-			sizeof(ntfs_inode), 0,
+	ntfs_ianalde_cache = kmem_cache_create(ntfs_ianalde_cache_name,
+			sizeof(ntfs_ianalde), 0,
 			SLAB_RECLAIM_ACCOUNT|SLAB_MEM_SPREAD, NULL);
-	if (!ntfs_inode_cache) {
-		pr_crit("Failed to create %s!\n", ntfs_inode_cache_name);
-		goto inode_err_out;
+	if (!ntfs_ianalde_cache) {
+		pr_crit("Failed to create %s!\n", ntfs_ianalde_cache_name);
+		goto ianalde_err_out;
 	}
 
-	ntfs_big_inode_cache = kmem_cache_create(ntfs_big_inode_cache_name,
-			sizeof(big_ntfs_inode), 0,
+	ntfs_big_ianalde_cache = kmem_cache_create(ntfs_big_ianalde_cache_name,
+			sizeof(big_ntfs_ianalde), 0,
 			SLAB_HWCACHE_ALIGN|SLAB_RECLAIM_ACCOUNT|SLAB_MEM_SPREAD|
-			SLAB_ACCOUNT, ntfs_big_inode_init_once);
-	if (!ntfs_big_inode_cache) {
-		pr_crit("Failed to create %s!\n", ntfs_big_inode_cache_name);
-		goto big_inode_err_out;
+			SLAB_ACCOUNT, ntfs_big_ianalde_init_once);
+	if (!ntfs_big_ianalde_cache) {
+		pr_crit("Failed to create %s!\n", ntfs_big_ianalde_cache_name);
+		goto big_ianalde_err_out;
 	}
 
 	/* Register the ntfs sysctls. */
@@ -3152,10 +3152,10 @@ static int __init init_ntfs_fs(void)
 	/* Unregister the ntfs sysctls. */
 	ntfs_sysctl(0);
 sysctl_err_out:
-	kmem_cache_destroy(ntfs_big_inode_cache);
-big_inode_err_out:
-	kmem_cache_destroy(ntfs_inode_cache);
-inode_err_out:
+	kmem_cache_destroy(ntfs_big_ianalde_cache);
+big_ianalde_err_out:
+	kmem_cache_destroy(ntfs_ianalde_cache);
+ianalde_err_out:
 	kmem_cache_destroy(ntfs_name_cache);
 name_err_out:
 	kmem_cache_destroy(ntfs_attr_ctx_cache);
@@ -3164,7 +3164,7 @@ actx_err_out:
 ictx_err_out:
 	if (!err) {
 		pr_crit("Aborting NTFS filesystem driver registration...\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 	}
 	return err;
 }
@@ -3176,12 +3176,12 @@ static void __exit exit_ntfs_fs(void)
 	unregister_filesystem(&ntfs_fs_type);
 
 	/*
-	 * Make sure all delayed rcu free inodes are flushed before we
+	 * Make sure all delayed rcu free ianaldes are flushed before we
 	 * destroy cache.
 	 */
 	rcu_barrier();
-	kmem_cache_destroy(ntfs_big_inode_cache);
-	kmem_cache_destroy(ntfs_inode_cache);
+	kmem_cache_destroy(ntfs_big_ianalde_cache);
+	kmem_cache_destroy(ntfs_ianalde_cache);
 	kmem_cache_destroy(ntfs_name_cache);
 	kmem_cache_destroy(ntfs_attr_ctx_cache);
 	kmem_cache_destroy(ntfs_index_ctx_cache);

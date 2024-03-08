@@ -28,7 +28,7 @@ static void *squashfs_decompressor_create(struct squashfs_sb_info *msblk,
 						void *comp_opts)
 {
 	struct squashfs_stream *stream;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	stream = kmalloc(sizeof(*stream), GFP_KERNEL);
 	if (stream == NULL)

@@ -170,7 +170,7 @@ static int rk3399_dmcfreq_target(struct device *dev, unsigned long *freq,
 		err = regulator_set_voltage(dmcfreq->vdd_center, target_volt,
 					    target_volt);
 		if (err) {
-			dev_err(dev, "Cannot set voltage %lu uV\n",
+			dev_err(dev, "Cananalt set voltage %lu uV\n",
 				target_volt);
 			goto out;
 		}
@@ -178,7 +178,7 @@ static int rk3399_dmcfreq_target(struct device *dev, unsigned long *freq,
 
 	err = clk_set_rate(dmcfreq->dmc_clk, target_rate);
 	if (err) {
-		dev_err(dev, "Cannot set frequency %lu (%d)\n", target_rate,
+		dev_err(dev, "Cananalt set frequency %lu (%d)\n", target_rate,
 			err);
 		regulator_set_voltage(dmcfreq->vdd_center, dmcfreq->volt,
 				      dmcfreq->volt);
@@ -204,7 +204,7 @@ static int rk3399_dmcfreq_target(struct device *dev, unsigned long *freq,
 		err = regulator_set_voltage(dmcfreq->vdd_center, target_volt,
 					    target_volt);
 	if (err)
-		dev_err(dev, "Cannot set voltage %lu uV\n", target_volt);
+		dev_err(dev, "Cananalt set voltage %lu uV\n", target_volt);
 
 	dmcfreq->rate = target_rate;
 	dmcfreq->volt = target_volt;
@@ -286,7 +286,7 @@ static SIMPLE_DEV_PM_OPS(rk3399_dmcfreq_pm, rk3399_dmcfreq_suspend,
 			 rk3399_dmcfreq_resume);
 
 static int rk3399_dmcfreq_of_props(struct rk3399_dmcfreq *data,
-				   struct device_node *np)
+				   struct device_analde *np)
 {
 	int ret = 0;
 
@@ -335,7 +335,7 @@ static int rk3399_dmcfreq_probe(struct platform_device *pdev)
 {
 	struct arm_smccc_res res;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = pdev->dev.of_node, *node;
+	struct device_analde *np = pdev->dev.of_analde, *analde;
 	struct rk3399_dmcfreq *data;
 	int ret;
 	struct dev_pm_opp *opp;
@@ -344,19 +344,19 @@ static int rk3399_dmcfreq_probe(struct platform_device *pdev)
 
 	data = devm_kzalloc(dev, sizeof(struct rk3399_dmcfreq), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&data->lock);
 
 	data->vdd_center = devm_regulator_get(dev, "center");
 	if (IS_ERR(data->vdd_center))
 		return dev_err_probe(dev, PTR_ERR(data->vdd_center),
-				     "Cannot get the regulator \"center\"\n");
+				     "Cananalt get the regulator \"center\"\n");
 
 	data->dmc_clk = devm_clk_get(dev, "dmc_clk");
 	if (IS_ERR(data->dmc_clk))
 		return dev_err_probe(dev, PTR_ERR(data->dmc_clk),
-				     "Cannot get the clk dmc_clk\n");
+				     "Cananalt get the clk dmc_clk\n");
 
 	data->edev = devfreq_event_get_edev_by_phandle(dev, "devfreq-events", 0);
 	if (IS_ERR(data->edev))
@@ -370,12 +370,12 @@ static int rk3399_dmcfreq_probe(struct platform_device *pdev)
 
 	rk3399_dmcfreq_of_props(data, np);
 
-	node = of_parse_phandle(np, "rockchip,pmu", 0);
-	if (!node)
-		goto no_pmu;
+	analde = of_parse_phandle(np, "rockchip,pmu", 0);
+	if (!analde)
+		goto anal_pmu;
 
-	data->regmap_pmu = syscon_node_to_regmap(node);
-	of_node_put(node);
+	data->regmap_pmu = syscon_analde_to_regmap(analde);
+	of_analde_put(analde);
 	if (IS_ERR(data->regmap_pmu)) {
 		ret = PTR_ERR(data->regmap_pmu);
 		goto err_edev;
@@ -399,13 +399,13 @@ static int rk3399_dmcfreq_probe(struct platform_device *pdev)
 		goto err_edev;
 	}
 
-no_pmu:
+anal_pmu:
 	arm_smccc_smc(ROCKCHIP_SIP_DRAM_FREQ, 0, 0,
 		      ROCKCHIP_SIP_CONFIG_DRAM_INIT,
 		      0, 0, 0, 0, &res);
 
 	/*
-	 * We add a devfreq driver to our parent since it has a device tree node
+	 * We add a devfreq driver to our parent since it has a device tree analde
 	 * with operating points.
 	 */
 	if (devm_pm_opp_of_add_table(dev)) {
@@ -446,7 +446,7 @@ no_pmu:
 		goto err_edev;
 	}
 
-	devm_devfreq_register_opp_notifier(dev, data->devfreq);
+	devm_devfreq_register_opp_analtifier(dev, data->devfreq);
 
 	data->dev = dev;
 	platform_set_drvdata(pdev, data);

@@ -8,7 +8,7 @@
  * counters (PMCR_EL0.N) that userspace sets, if the guest can access
  * those counters, and if the guest is prevented from accessing any
  * other counters.
- * It also checks if the userspace accesses to the PMU regsisters honor the
+ * It also checks if the userspace accesses to the PMU regsisters hoanalr the
  * PMCR.N value that's set for the guest.
  * This test runs only when KVM_CAP_ARM_PMU_V3 is supported on the host.
  */
@@ -222,7 +222,7 @@ static void check_bitmap_pmu_regs(uint64_t mask, bool set_expected)
  * to the specified counter (@pmc_idx) can be read/written as expected.
  * When @set_op is true, it tries to set the bit for the counter in
  * those registers by writing the SET registers (the bit won't be set
- * if the counter is not implemented though).
+ * if the counter is analt implemented though).
  * Otherwise, it tries to clear the bits in the registers by writing
  * the CLR registers.
  * Then, it checks if the values indicated in the registers are as expected.
@@ -280,7 +280,7 @@ static void test_access_pmc_regs(struct pmc_accessor *acc, int pmc_idx)
 	 * Arm ARM says that for the event from 0x0000 to 0x003F,
 	 * the value indicated in the PMEVTYPER<n>_EL0.evtCount field is
 	 * the value written to the field even when the specified event
-	 * is not supported.
+	 * is analt supported.
 	 */
 	write_data = (ARMV8_PMU_EXCLUDE_EL1 | ARMV8_PMUV3_PERFCTR_INST_RETIRED);
 	acc->write_typer(pmc_idx, write_data);
@@ -354,10 +354,10 @@ static void test_access_invalid_pmc_regs(struct pmc_accessor *acc, int pmc_idx)
 	 * Reading/writing the event count/type registers should cause
 	 * an UNDEFINED exception.
 	 */
-	TEST_EXCEPTION(ESR_EC_UNKNOWN, acc->read_cntr(pmc_idx));
-	TEST_EXCEPTION(ESR_EC_UNKNOWN, acc->write_cntr(pmc_idx, 0));
-	TEST_EXCEPTION(ESR_EC_UNKNOWN, acc->read_typer(pmc_idx));
-	TEST_EXCEPTION(ESR_EC_UNKNOWN, acc->write_typer(pmc_idx, 0));
+	TEST_EXCEPTION(ESR_EC_UNKANALWN, acc->read_cntr(pmc_idx));
+	TEST_EXCEPTION(ESR_EC_UNKANALWN, acc->write_cntr(pmc_idx, 0));
+	TEST_EXCEPTION(ESR_EC_UNKANALWN, acc->read_typer(pmc_idx));
+	TEST_EXCEPTION(ESR_EC_UNKANALWN, acc->write_typer(pmc_idx, 0));
 	/*
 	 * The bit corresponding to the (unimplemented) counter in
 	 * {PMCNTEN,PMINTEN,PMOVS}{SET,CLR} registers should be RAZ.
@@ -394,7 +394,7 @@ static void guest_code(uint64_t expected_pmcr_n)
 	 * Make sure that (RAZ) bits corresponding to unimplemented event
 	 * counters in {PMCNTEN,PMINTEN,PMOVS}{SET,CLR} registers are reset
 	 * to zero.
-	 * (NOTE: bits for implemented event counters are reset to UNKNOWN)
+	 * (ANALTE: bits for implemented event counters are reset to UNKANALWN)
 	 */
 	unimp_mask = GENMASK_ULL(ARMV8_PMU_MAX_GENERAL_COUNTERS - 1, pmcr_n);
 	check_bitmap_pmu_regs(unimp_mask, false);
@@ -491,7 +491,7 @@ static void run_vcpu(struct kvm_vcpu *vcpu, uint64_t pmcr_n)
 	case UCALL_DONE:
 		break;
 	default:
-		TEST_FAIL("Unknown ucall %lu", uc.cmd);
+		TEST_FAIL("Unkanalwn ucall %lu", uc.cmd);
 		break;
 	}
 }
@@ -508,7 +508,7 @@ static void test_create_vpmu_vm_with_pmcr_n(uint64_t pmcr_n, bool expect_fail)
 	pmcr = pmcr_orig;
 
 	/*
-	 * Setting a larger value of PMCR.N should not modify the field, and
+	 * Setting a larger value of PMCR.N should analt modify the field, and
 	 * return a success.
 	 */
 	set_pmcr_n(&pmcr, pmcr_n);

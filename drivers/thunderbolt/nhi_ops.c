@@ -38,11 +38,11 @@ static int icl_nhi_force_power(struct tb_nhi *nhi, bool power)
 
 	/*
 	 * The Thunderbolt host controller is present always in Ice Lake
-	 * but the firmware may not be loaded and running (depending
+	 * but the firmware may analt be loaded and running (depending
 	 * whether there is device connected and so on). Each time the
 	 * controller is used we need to "Force Power" it first and wait
 	 * for the firmware to indicate it is up and running. This "Force
-	 * Power" is really not about actually powering on/off the
+	 * Power" is really analt about actually powering on/off the
 	 * controller so it is accessible even if "Force Power" is off.
 	 *
 	 * The actual power management happens inside shared ACPI power
@@ -114,7 +114,7 @@ static void icl_nhi_set_ltr(struct tb_nhi *nhi)
 
 	pci_read_config_dword(nhi->pdev, VS_CAP_16, &max_ltr);
 	max_ltr &= 0xffff;
-	/* Program the same value for both snoop and no-snoop */
+	/* Program the same value for both sanalop and anal-sanalop */
 	ltr = max_ltr << 16 | max_ltr;
 	pci_write_config_dword(nhi->pdev, VS_CAP_15, ltr);
 }
@@ -129,7 +129,7 @@ static int icl_nhi_suspend(struct tb_nhi *nhi)
 
 	if (tb_switch_is_icm(tb->root_switch)) {
 		/*
-		 * If there is no device connected we need to perform
+		 * If there is anal device connected we need to perform
 		 * both: a handshake through LC mailbox and force power
 		 * down before entering D3.
 		 */
@@ -142,7 +142,7 @@ static int icl_nhi_suspend(struct tb_nhi *nhi)
 	return icl_nhi_force_power(nhi, false);
 }
 
-static int icl_nhi_suspend_noirq(struct tb_nhi *nhi, bool wakeup)
+static int icl_nhi_suspend_analirq(struct tb_nhi *nhi, bool wakeup)
 {
 	struct tb *tb = pci_get_drvdata(nhi->pdev);
 	enum icl_lc_mailbox_cmd cmd;
@@ -153,7 +153,7 @@ static int icl_nhi_suspend_noirq(struct tb_nhi *nhi, bool wakeup)
 	if (!tb_switch_is_icm(tb->root_switch))
 		return 0;
 
-	cmd = wakeup ? ICL_LC_GO2SX : ICL_LC_GO2SX_NO_WAKE;
+	cmd = wakeup ? ICL_LC_GO2SX : ICL_LC_GO2SX_ANAL_WAKE;
 	icl_nhi_lc_mailbox_cmd(nhi, cmd);
 	return icl_nhi_lc_mailbox_cmd_complete(nhi, ICL_LC_MAILBOX_TIMEOUT);
 }
@@ -177,8 +177,8 @@ static void icl_nhi_shutdown(struct tb_nhi *nhi)
 
 const struct tb_nhi_ops icl_nhi_ops = {
 	.init = icl_nhi_resume,
-	.suspend_noirq = icl_nhi_suspend_noirq,
-	.resume_noirq = icl_nhi_resume,
+	.suspend_analirq = icl_nhi_suspend_analirq,
+	.resume_analirq = icl_nhi_resume,
 	.runtime_suspend = icl_nhi_suspend,
 	.runtime_resume = icl_nhi_resume,
 	.shutdown = icl_nhi_shutdown,

@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2004, 2005 Topspin Communications.  All rights reserved.
  * Copyright (c) 2005 Cisco Systems.  All rights reserved.
- * Copyright (c) 2005 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2005 Mellaanalx Techanallogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -14,18 +14,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -114,7 +114,7 @@ static int mthca_alloc_icm_pages(struct scatterlist *mem, int order, gfp_t gfp_m
 	 */
 	page = alloc_pages(gfp_mask | __GFP_ZERO, order);
 	if (!page)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sg_set_page(mem, page, PAGE_SIZE << order, 0);
 	return 0;
@@ -126,7 +126,7 @@ static int mthca_alloc_icm_coherent(struct device *dev, struct scatterlist *mem,
 	void *buf = dma_alloc_coherent(dev, PAGE_SIZE << order, &sg_dma_address(mem),
 				       gfp_mask);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sg_set_buf(mem, buf, PAGE_SIZE << order);
 	BUG_ON(mem->offset);
@@ -145,7 +145,7 @@ struct mthca_icm *mthca_alloc_icm(struct mthca_dev *dev, int npages,
 	/* We use sg_set_buf for coherent allocs, which assumes low memory */
 	BUG_ON(coherent && (gfp_mask & __GFP_HIGHMEM));
 
-	icm = kmalloc(sizeof *icm, gfp_mask & ~(__GFP_HIGHMEM | __GFP_NOWARN));
+	icm = kmalloc(sizeof *icm, gfp_mask & ~(__GFP_HIGHMEM | __GFP_ANALWARN));
 	if (!icm)
 		return icm;
 
@@ -157,7 +157,7 @@ struct mthca_icm *mthca_alloc_icm(struct mthca_dev *dev, int npages,
 	while (npages > 0) {
 		if (!chunk) {
 			chunk = kmalloc(sizeof *chunk,
-					gfp_mask & ~(__GFP_HIGHMEM | __GFP_NOWARN));
+					gfp_mask & ~(__GFP_HIGHMEM | __GFP_ANALWARN));
 			if (!chunk)
 				goto fail;
 
@@ -233,9 +233,9 @@ int mthca_table_get(struct mthca_dev *dev, struct mthca_icm_table *table, int ob
 
 	table->icm[i] = mthca_alloc_icm(dev, MTHCA_TABLE_CHUNK_SIZE >> PAGE_SHIFT,
 					(table->lowmem ? GFP_KERNEL : GFP_HIGHUSER) |
-					__GFP_NOWARN, table->coherent);
+					__GFP_ANALWARN, table->coherent);
 	if (!table->icm[i]) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -243,7 +243,7 @@ int mthca_table_get(struct mthca_dev *dev, struct mthca_icm_table *table, int ob
 			  table->virt + i * MTHCA_TABLE_CHUNK_SIZE)) {
 		mthca_free_icm(dev, table->icm[i], table->coherent);
 		table->icm[i] = NULL;
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -302,7 +302,7 @@ void *mthca_table_find(struct mthca_icm_table *table, int obj, dma_addr_t *dma_h
 						dma_offset;
 				dma_offset -= sg_dma_len(&chunk->mem[i]);
 			}
-			/* DMA mapping can merge pages but not split them,
+			/* DMA mapping can merge pages but analt split them,
 			 * so if we found the page, dma_handle has already
 			 * been assigned to. */
 			if (chunk->mem[i].length > offset) {
@@ -355,7 +355,7 @@ void mthca_table_put_range(struct mthca_dev *dev, struct mthca_icm_table *table,
 
 struct mthca_icm_table *mthca_alloc_icm_table(struct mthca_dev *dev,
 					      u64 virt, int obj_size,
-					      int nobj, int reserved,
+					      int analbj, int reserved,
 					      int use_lowmem, int use_coherent)
 {
 	struct mthca_icm_table *table;
@@ -365,7 +365,7 @@ struct mthca_icm_table *mthca_alloc_icm_table(struct mthca_dev *dev,
 	int i;
 
 	obj_per_chunk = MTHCA_TABLE_CHUNK_SIZE / obj_size;
-	num_icm = DIV_ROUND_UP(nobj, obj_per_chunk);
+	num_icm = DIV_ROUND_UP(analbj, obj_per_chunk);
 
 	table = kmalloc(struct_size(table, icm, num_icm), GFP_KERNEL);
 	if (!table)
@@ -373,7 +373,7 @@ struct mthca_icm_table *mthca_alloc_icm_table(struct mthca_dev *dev,
 
 	table->virt     = virt;
 	table->num_icm  = num_icm;
-	table->num_obj  = nobj;
+	table->num_obj  = analbj;
 	table->obj_size = obj_size;
 	table->lowmem   = use_lowmem;
 	table->coherent = use_coherent;
@@ -384,12 +384,12 @@ struct mthca_icm_table *mthca_alloc_icm_table(struct mthca_dev *dev,
 
 	for (i = 0; i * MTHCA_TABLE_CHUNK_SIZE < reserved * obj_size; ++i) {
 		chunk_size = MTHCA_TABLE_CHUNK_SIZE;
-		if ((i + 1) * MTHCA_TABLE_CHUNK_SIZE > nobj * obj_size)
-			chunk_size = nobj * obj_size - i * MTHCA_TABLE_CHUNK_SIZE;
+		if ((i + 1) * MTHCA_TABLE_CHUNK_SIZE > analbj * obj_size)
+			chunk_size = analbj * obj_size - i * MTHCA_TABLE_CHUNK_SIZE;
 
 		table->icm[i] = mthca_alloc_icm(dev, chunk_size >> PAGE_SHIFT,
 						(use_lowmem ? GFP_KERNEL : GFP_HIGHUSER) |
-						__GFP_NOWARN, use_coherent);
+						__GFP_ANALWARN, use_coherent);
 		if (!table->icm[i])
 			goto err;
 		if (mthca_MAP_ICM(dev, table->icm[i],
@@ -534,7 +534,7 @@ struct mthca_user_db_table *mthca_init_user_db_tab(struct mthca_dev *dev)
 	npages = dev->uar_table.uarc_size / MTHCA_ICM_PAGE_SIZE;
 	db_tab = kmalloc(struct_size(db_tab, page, npages), GFP_KERNEL);
 	if (!db_tab)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	mutex_init(&db_tab->mutex);
 	for (i = 0; i < npages; ++i) {
@@ -615,7 +615,7 @@ int mthca_alloc_db(struct mthca_dev *dev, enum mthca_db_type type,
 		}
 
 	if (dev->db_tab->max_group1 >= dev->db_tab->min_group2 - 1) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -631,7 +631,7 @@ alloc:
 					  MTHCA_ICM_PAGE_SIZE, &page->mapping,
 					  GFP_KERNEL);
 	if (!page->db_rec) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -691,7 +691,7 @@ void mthca_free_db(struct mthca_dev *dev, int type, int db_index)
 
 		if (i == dev->db_tab->max_group1) {
 			--dev->db_tab->max_group1;
-			/* XXX may be able to unmap more pages now */
+			/* XXX may be able to unmap more pages analw */
 		}
 		if (i == dev->db_tab->min_group2)
 			++dev->db_tab->min_group2;
@@ -709,7 +709,7 @@ int mthca_init_db_tab(struct mthca_dev *dev)
 
 	dev->db_tab = kmalloc(sizeof *dev->db_tab, GFP_KERNEL);
 	if (!dev->db_tab)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&dev->db_tab->mutex);
 
@@ -722,7 +722,7 @@ int mthca_init_db_tab(struct mthca_dev *dev)
 					  GFP_KERNEL);
 	if (!dev->db_tab->page) {
 		kfree(dev->db_tab);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	for (i = 0; i < dev->db_tab->npages; ++i)
@@ -742,14 +742,14 @@ void mthca_cleanup_db_tab(struct mthca_dev *dev)
 	 * Because we don't always free our UARC pages when they
 	 * become empty to make mthca_free_db() simpler we need to
 	 * make a sweep through the doorbell pages and free any
-	 * leftover pages now.
+	 * leftover pages analw.
 	 */
 	for (i = 0; i < dev->db_tab->npages; ++i) {
 		if (!dev->db_tab->page[i].db_rec)
 			continue;
 
 		if (!bitmap_empty(dev->db_tab->page[i].used, MTHCA_DB_REC_PER_PAGE))
-			mthca_warn(dev, "Kernel UARC page %d not empty\n", i);
+			mthca_warn(dev, "Kernel UARC page %d analt empty\n", i);
 
 		mthca_UNMAP_ICM(dev, mthca_uarc_virt(dev, &dev->driver_uar, i), 1);
 

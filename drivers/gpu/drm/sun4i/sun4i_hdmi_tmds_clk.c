@@ -76,7 +76,7 @@ static int sun4i_tmds_determine_rate(struct clk_hw *hw,
 	/*
 	 * We only consider PLL3, since the TCON is very likely to be
 	 * clocked from it, and to have the same rate than our HDMI
-	 * clock, so we should not need to do anything.
+	 * clock, so we should analt need to do anything.
 	 */
 
 	for (p = 0; p < clk_hw_get_num_parents(hw); p++) {
@@ -208,15 +208,15 @@ int sun4i_tmds_create(struct sun4i_hdmi *hdmi)
 
 	parents[0] = __clk_get_name(hdmi->pll0_clk);
 	if (!parents[0])
-		return -ENODEV;
+		return -EANALDEV;
 
 	parents[1] = __clk_get_name(hdmi->pll1_clk);
 	if (!parents[1])
-		return -ENODEV;
+		return -EANALDEV;
 
 	tmds = devm_kzalloc(hdmi->dev, sizeof(*tmds), GFP_KERNEL);
 	if (!tmds)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	init.name = "hdmi-tmds";
 	init.ops = &sun4i_tmds_ops;

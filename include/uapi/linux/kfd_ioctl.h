@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -42,11 +42,11 @@
  * - 1.14 - Update kfd_event_data
  */
 #define KFD_IOCTL_MAJOR_VERSION 1
-#define KFD_IOCTL_MINOR_VERSION 14
+#define KFD_IOCTL_MIANALR_VERSION 14
 
 struct kfd_ioctl_get_version_args {
 	__u32 major_version;	/* from KFD */
-	__u32 minor_version;	/* from KFD */
+	__u32 mianalr_version;	/* from KFD */
 };
 
 /* For kfd_ioctl_create_queue_args.queue_type. */
@@ -140,7 +140,7 @@ struct kfd_dbg_device_info_entry {
 
 /* For kfd_ioctl_set_memory_policy_args.default_policy and alternate_policy */
 #define KFD_IOC_CACHE_POLICY_COHERENT 0
-#define KFD_IOC_CACHE_POLICY_NONCOHERENT 1
+#define KFD_IOC_CACHE_POLICY_ANALNCOHERENT 1
 
 struct kfd_ioctl_set_memory_policy_args {
 	__u64 alternate_aperture_base;	/* to KFD */
@@ -153,10 +153,10 @@ struct kfd_ioctl_set_memory_policy_args {
 };
 
 /*
- * All counters are monotonic. They are used for profiling of compute jobs.
+ * All counters are moanaltonic. They are used for profiling of compute jobs.
  * The profiling is done by userspace.
  *
- * In case of GPU reset, the counter should not be affected.
+ * In case of GPU reset, the counter should analt be affected.
  */
 
 struct kfd_ioctl_get_clock_counters_args {
@@ -191,7 +191,7 @@ struct kfd_ioctl_get_process_apertures_args {
 			process_apertures[NUM_OF_SUPPORTED_GPUS];/* from KFD */
 
 	/* from KFD, should be in the range [1 - NUM_OF_SUPPORTED_GPUS] */
-	__u32 num_of_nodes;
+	__u32 num_of_analdes;
 	__u32 pad;
 };
 
@@ -204,7 +204,7 @@ struct kfd_ioctl_get_process_apertures_new_args {
 	 *  kfd_process_device_apertures_ptr
 	 * from KFD - Number of entries filled by KFD.
 	 */
-	__u32 num_of_nodes;
+	__u32 num_of_analdes;
 	__u32 pad;
 };
 
@@ -238,7 +238,7 @@ struct kfd_ioctl_dbg_wave_control_args {
 
 /* Matching HSA_EVENTTYPE */
 #define KFD_IOC_EVENT_SIGNAL			0
-#define KFD_IOC_EVENT_NODECHANGE		1
+#define KFD_IOC_EVENT_ANALDECHANGE		1
 #define KFD_IOC_EVENT_DEVICESTATECHANGE		2
 #define KFD_IOC_EVENT_HW_EXCEPTION		3
 #define KFD_IOC_EVENT_SYSTEM_EVENT		4
@@ -262,7 +262,7 @@ struct kfd_ioctl_dbg_wave_control_args {
 #define KFD_HW_EXCEPTION_ECC		1
 
 /* For kfd_hsa_memory_exception_data.ErrorType */
-#define KFD_MEM_ERR_NO_RAS		0
+#define KFD_MEM_ERR_ANAL_RAS		0
 #define KFD_MEM_ERR_SRAM_ECC		1
 #define KFD_MEM_ERR_POISON_CONSUMED	2
 #define KFD_MEM_ERR_GPU_HANG		3
@@ -272,7 +272,7 @@ struct kfd_ioctl_create_event_args {
 	__u32 event_trigger_data;	/* from KFD - signal events only */
 	__u32 event_type;		/* to KFD */
 	__u32 auto_reset;		/* to KFD */
-	__u32 node_id;		/* to KFD - only valid for certain
+	__u32 analde_id;		/* to KFD - only valid for certain
 							event types */
 	__u32 event_id;		/* from KFD */
 	__u32 event_slot_index;	/* from KFD */
@@ -294,9 +294,9 @@ struct kfd_ioctl_reset_event_args {
 };
 
 struct kfd_memory_exception_failure {
-	__u32 NotPresent;	/* Page not present or supervisor privilege */
+	__u32 AnaltPresent;	/* Page analt present or supervisor privilege */
 	__u32 ReadOnly;	/* Write access to a read-only page */
-	__u32 NoExecute;	/* Execute access to a page marked NX */
+	__u32 AnalExecute;	/* Execute access to a page marked NX */
 	__u32 imprecise;	/* Can't determine the	exact fault address */
 };
 
@@ -305,10 +305,10 @@ struct kfd_hsa_memory_exception_data {
 	struct kfd_memory_exception_failure failure;
 	__u64 va;
 	__u32 gpu_id;
-	__u32 ErrorType; /* 0 = no RAS error,
+	__u32 ErrorType; /* 0 = anal RAS error,
 			  * 1 = ECC_SRAM,
 			  * 2 = Link_SYNFLOOD (poison),
-			  * 3 = GPU hang (not attributable to a specific cause),
+			  * 3 = GPU hang (analt attributable to a specific cause),
 			  * other values reserved
 			  */
 };
@@ -401,7 +401,7 @@ struct kfd_ioctl_acquire_vm_args {
 #define KFD_IOC_ALLOC_MEM_FLAGS_WRITABLE	(1 << 31)
 #define KFD_IOC_ALLOC_MEM_FLAGS_EXECUTABLE	(1 << 30)
 #define KFD_IOC_ALLOC_MEM_FLAGS_PUBLIC		(1 << 29)
-#define KFD_IOC_ALLOC_MEM_FLAGS_NO_SUBSTITUTE	(1 << 28)
+#define KFD_IOC_ALLOC_MEM_FLAGS_ANAL_SUBSTITUTE	(1 << 28)
 #define KFD_IOC_ALLOC_MEM_FLAGS_AQL_QUEUE_MEM	(1 << 27)
 #define KFD_IOC_ALLOC_MEM_FLAGS_COHERENT	(1 << 26)
 #define KFD_IOC_ALLOC_MEM_FLAGS_UNCACHED	(1 << 25)
@@ -414,7 +414,7 @@ struct kfd_ioctl_acquire_vm_args {
  * @size:        size in bytes
  * @handle:      buffer handle returned to user mode, used to refer to
  *               this allocation for mapping, unmapping and freeing
- * @mmap_offset: for CPU-mapping the allocation by mmapping a render node
+ * @mmap_offset: for CPU-mapping the allocation by mmapping a render analde
  *               for userptrs this is overloaded to specify the CPU address
  * @gpu_id:      device identifier
  * @flags:       memory type and attributes. See KFD_IOC_ALLOC_MEM_FLAGS above
@@ -511,7 +511,7 @@ struct kfd_ioctl_export_dmabuf_args {
  * KFD SMI(System Management Interface) events
  */
 enum kfd_smi_event {
-	KFD_SMI_EVENT_NONE = 0, /* not used */
+	KFD_SMI_EVENT_ANALNE = 0, /* analt used */
 	KFD_SMI_EVENT_VMFAULT = 1, /* event start counting at 1 */
 	KFD_SMI_EVENT_THERMAL_THROTTLE = 2,
 	KFD_SMI_EVENT_GPU_PRE_RESET = 3,
@@ -526,7 +526,7 @@ enum kfd_smi_event {
 
 	/*
 	 * max event number, as a flag bit to get events from all processes,
-	 * this requires super user permission, otherwise will not be able to
+	 * this requires super user permission, otherwise will analt be able to
 	 * receive event from any process. Without this flag to receive events
 	 * from same process.
 	 */
@@ -550,8 +550,8 @@ enum KFD_QUEUE_EVICTION_TRIGGERS {
 };
 
 enum KFD_SVM_UNMAP_TRIGGERS {
-	KFD_SVM_UNMAP_TRIGGER_MMU_NOTIFY,
-	KFD_SVM_UNMAP_TRIGGER_MMU_NOTIFY_MIGRATE,
+	KFD_SVM_UNMAP_TRIGGER_MMU_ANALTIFY,
+	KFD_SVM_UNMAP_TRIGGER_MMU_ANALTIFY_MIGRATE,
 	KFD_SVM_UNMAP_TRIGGER_UNMAP_FROM_CPU
 };
 
@@ -560,7 +560,7 @@ enum KFD_SVM_UNMAP_TRIGGERS {
 
 struct kfd_ioctl_smi_events_args {
 	__u32 gpuid;	/* to KFD */
-	__u32 anon_fd;	/* from KFD */
+	__u32 aanaln_fd;	/* from KFD */
 };
 
 /**************************************************************************************************
@@ -577,7 +577,7 @@ struct kfd_ioctl_smi_events_args {
  * 1. RESTORE op to restore process contents
  * 2. RESUME op to start the process
  *
- * Note: Queues are forced into an evicted state after a successful PROCESS_INFO. User
+ * Analte: Queues are forced into an evicted state after a successful PROCESS_INFO. User
  * application needs to perform an UNPAUSE operation after calling PROCESS_INFO.
  */
 
@@ -604,7 +604,7 @@ enum kfd_criu_op {
  * @pid:		[in/out] PID of the process being checkpointed
  * @op			[in] Type of operation (kfd_criu_op)
  *
- * Return: 0 on success, -errno on failure
+ * Return: 0 on success, -erranal on failure
  */
 struct kfd_ioctl_criu_args {
 	__u64 devices;		/* Used during ops: CHECKPOINT, RESTORE */
@@ -695,7 +695,7 @@ enum kfd_ioctl_svm_location {
  *                                   immediate prefetch (migration).
  * @KFD_IOCTL_SVM_ATTR_ACCESS:
  * @KFD_IOCTL_SVM_ATTR_ACCESS_IN_PLACE:
- * @KFD_IOCTL_SVM_ATTR_NO_ACCESS: specify memory access for the gpuid given
+ * @KFD_IOCTL_SVM_ATTR_ANAL_ACCESS: specify memory access for the gpuid given
  *                                by the attribute value
  * @KFD_IOCTL_SVM_ATTR_SET_FLAGS: bitmask of flags to set (see
  *                                KFD_IOCTL_SVM_FLAG_...)
@@ -708,7 +708,7 @@ enum kfd_ioctl_svm_attr_type {
 	KFD_IOCTL_SVM_ATTR_PREFETCH_LOC,
 	KFD_IOCTL_SVM_ATTR_ACCESS,
 	KFD_IOCTL_SVM_ATTR_ACCESS_IN_PLACE,
-	KFD_IOCTL_SVM_ATTR_NO_ACCESS,
+	KFD_IOCTL_SVM_ATTR_ANAL_ACCESS,
 	KFD_IOCTL_SVM_ATTR_SET_FLAGS,
 	KFD_IOCTL_SVM_ATTR_CLR_FLAGS,
 	KFD_IOCTL_SVM_ATTR_GRANULARITY
@@ -736,7 +736,7 @@ struct kfd_ioctl_svm_attribute {
  *
  * A variable number of attributes can be given in @attrs.
  * @nattr specifies the number of attributes. New attributes can be
- * added in the future without breaking the ABI. If unknown attributes
+ * added in the future without breaking the ABI. If unkanalwn attributes
  * are given, the function returns -EINVAL.
  *
  * @KFD_IOCTL_SVM_OP_SET_ATTR sets attributes for a virtual address
@@ -754,7 +754,7 @@ struct kfd_ioctl_svm_attribute {
  * aggregated by bitwise AND. That means, a flag will be set in the
  * output, if that flag is set for all pages in the range. For
  * @KFD_IOCTL_SVM_ATTR_CLR_FLAGS, flags of all pages will be
- * aggregated by bitwise NOR. That means, a flag will be set in the
+ * aggregated by bitwise ANALR. That means, a flag will be set in the
  * output, if that flag is clear for all pages in the range.
  * The minimum migration granularity throughout the range will be
  * returned for @KFD_IOCTL_SVM_ATTR_GRANULARITY.
@@ -795,18 +795,18 @@ struct kfd_ioctl_svm_args {
  * functionality.
  *
  * Enabling XNACK mode requires shader programs to be compiled
- * differently. Furthermore, not all GPUs support changing the mode
- * per-process. Therefore changing the mode is only allowed while no
- * user mode queues exist in the process. This ensure that no shader
+ * differently. Furthermore, analt all GPUs support changing the mode
+ * per-process. Therefore changing the mode is only allowed while anal
+ * user mode queues exist in the process. This ensure that anal shader
  * code is running that may be compiled for the wrong mode. And GPUs
- * that cannot change to the requested mode will prevent the XNACK
+ * that cananalt change to the requested mode will prevent the XNACK
  * mode from occurring. All GPUs used by the process must be in the
  * same XNACK mode.
  *
- * GFXv8 or older GPUs do not support 48 bit virtual addresses or SVM.
- * Therefore those GPUs are not considered for the XNACK mode switch.
+ * GFXv8 or older GPUs do analt support 48 bit virtual addresses or SVM.
+ * Therefore those GPUs are analt considered for the XNACK mode switch.
  *
- * Return: 0 on success, -errno on failure
+ * Return: 0 on success, -erranal on failure
  */
 struct kfd_ioctl_set_xnack_mode_args {
 	__s32 xnack_enabled;
@@ -821,7 +821,7 @@ enum kfd_dbg_trap_override_mode {
 /* Wave launch overrides */
 enum kfd_dbg_trap_mask {
 	KFD_DBG_TRAP_MASK_FP_INVALID = 1,
-	KFD_DBG_TRAP_MASK_FP_INPUT_DENORMAL = 2,
+	KFD_DBG_TRAP_MASK_FP_INPUT_DEANALRMAL = 2,
 	KFD_DBG_TRAP_MASK_FP_DIVIDE_BY_ZERO = 4,
 	KFD_DBG_TRAP_MASK_FP_OVERFLOW = 8,
 	KFD_DBG_TRAP_MASK_FP_UNDERFLOW = 16,
@@ -835,7 +835,7 @@ enum kfd_dbg_trap_mask {
 
 /* Wave launch modes */
 enum kfd_dbg_trap_wave_launch_mode {
-	KFD_DBG_TRAP_WAVE_LAUNCH_MODE_NORMAL = 0,
+	KFD_DBG_TRAP_WAVE_LAUNCH_MODE_ANALRMAL = 0,
 	KFD_DBG_TRAP_WAVE_LAUNCH_MODE_HALT = 1,
 	KFD_DBG_TRAP_WAVE_LAUNCH_MODE_DEBUG = 3
 };
@@ -843,7 +843,7 @@ enum kfd_dbg_trap_wave_launch_mode {
 /* Address watch modes */
 enum kfd_dbg_trap_address_watch_mode {
 	KFD_DBG_TRAP_ADDRESS_WATCH_MODE_READ = 0,
-	KFD_DBG_TRAP_ADDRESS_WATCH_MODE_NONREAD = 1,
+	KFD_DBG_TRAP_ADDRESS_WATCH_MODE_ANALNREAD = 1,
 	KFD_DBG_TRAP_ADDRESS_WATCH_MODE_ATOMIC = 2,
 	KFD_DBG_TRAP_ADDRESS_WATCH_MODE_ALL = 3
 };
@@ -855,7 +855,7 @@ enum kfd_dbg_trap_flags {
 
 /* Trap exceptions */
 enum kfd_dbg_trap_exception_code {
-	EC_NONE = 0,
+	EC_ANALNE = 0,
 	/* per queue */
 	EC_QUEUE_WAVE_ABORT = 1,
 	EC_QUEUE_WAVE_TRAP = 2,
@@ -949,8 +949,8 @@ struct kfd_runtime_info {
  * @r_debug - pointer to user struct for sharing information between ROCr and the debuggger
  * @mode_mask - mask to set mode
  *	KFD_RUNTIME_ENABLE_MODE_ENABLE_MASK - enable runtime for debugging, otherwise disable
- *	KFD_RUNTIME_ENABLE_MODE_TTMP_SAVE_MASK - enable trap temporary setup (ignore on disable)
- * @capabilities_mask - mask to notify runtime on what KFD supports
+ *	KFD_RUNTIME_ENABLE_MODE_TTMP_SAVE_MASK - enable trap temporary setup (iganalre on disable)
+ * @capabilities_mask - mask to analtify runtime on what KFD supports
  *
  * Return - 0 on SUCCESS.
  *	  - EBUSY if runtime enable call already pending.
@@ -1007,20 +1007,20 @@ struct kfd_context_save_area_header {
  *
  * For specifics on usage and return values, see documentation per operation
  * below.  Otherwise, generic error returns apply:
- *	- ESRCH if the process to debug does not exist.
+ *	- ESRCH if the process to debug does analt exist.
  *
  *	- EINVAL (with KFD_IOC_DBG_TRAP_ENABLE exempt) if operation
- *		 KFD_IOC_DBG_TRAP_ENABLE has not succeeded prior.
- *		 Also returns this error if GPU hardware scheduling is not supported.
+ *		 KFD_IOC_DBG_TRAP_ENABLE has analt succeeded prior.
+ *		 Also returns this error if GPU hardware scheduling is analt supported.
  *
- *	- EPERM (with KFD_IOC_DBG_TRAP_DISABLE exempt) if target process is not
+ *	- EPERM (with KFD_IOC_DBG_TRAP_DISABLE exempt) if target process is analt
  *		 PTRACE_ATTACHED.  KFD_IOC_DBG_TRAP_DISABLE is exempt to allow
  *		 clean up of debug mode as long as process is debug enabled.
  *
  *	- EACCES if any DBG_HW_OP (debug hardware operation) is requested when
- *		 AMDKFD_IOC_RUNTIME_ENABLE has not succeeded prior.
+ *		 AMDKFD_IOC_RUNTIME_ENABLE has analt succeeded prior.
  *
- *	- ENODEV if any GPU does not support debugging on a DBG_HW_OP call.
+ *	- EANALDEV if any GPU does analt support debugging on a DBG_HW_OP call.
  *
  *	- Other errors may be returned when a DBG_HW_OP occurs while the GPU
  *	  is in a fatal state.
@@ -1035,8 +1035,8 @@ enum kfd_dbg_trap_operations {
 	KFD_IOC_DBG_TRAP_SET_WAVE_LAUNCH_MODE = 5,      /* DBG_HW_OP */
 	KFD_IOC_DBG_TRAP_SUSPEND_QUEUES = 6,		/* DBG_HW_OP */
 	KFD_IOC_DBG_TRAP_RESUME_QUEUES = 7,		/* DBG_HW_OP */
-	KFD_IOC_DBG_TRAP_SET_NODE_ADDRESS_WATCH = 8,	/* DBG_HW_OP */
-	KFD_IOC_DBG_TRAP_CLEAR_NODE_ADDRESS_WATCH = 9,	/* DBG_HW_OP */
+	KFD_IOC_DBG_TRAP_SET_ANALDE_ADDRESS_WATCH = 8,	/* DBG_HW_OP */
+	KFD_IOC_DBG_TRAP_CLEAR_ANALDE_ADDRESS_WATCH = 9,	/* DBG_HW_OP */
 	KFD_IOC_DBG_TRAP_SET_FLAGS = 10,
 	KFD_IOC_DBG_TRAP_QUERY_DEBUG_EVENT = 11,
 	KFD_IOC_DBG_TRAP_QUERY_EXCEPTION_INFO = 12,
@@ -1055,15 +1055,15 @@ enum kfd_dbg_trap_operations {
  *     @exception_mask (IN)	- exceptions to raise to the debugger
  *     @rinfo_ptr      (IN)	- pointer to runtime info buffer (see kfd_runtime_info)
  *     @rinfo_size     (IN/OUT)	- size of runtime info buffer in bytes
- *     @dbg_fd	       (IN)	- fd the KFD will nofify the debugger with of raised
+ *     @dbg_fd	       (IN)	- fd the KFD will analfify the debugger with of raised
  *				  exceptions set in exception_mask.
  *
  *     Generic errors apply (see kfd_dbg_trap_operations).
  *     Return - 0 on SUCCESS.
  *		Copies KFD saved kfd_runtime_info to @rinfo_ptr on enable.
  *		Size of kfd_runtime saved by the KFD returned to @rinfo_size.
- *            - EBADF if KFD cannot get a reference to dbg_fd.
- *            - EFAULT if KFD cannot copy runtime info to rinfo_ptr.
+ *            - EBADF if KFD cananalt get a reference to dbg_fd.
+ *            - EFAULT if KFD cananalt copy runtime info to rinfo_ptr.
  *            - EINVAL if target process is already debug enabled.
  *
  */
@@ -1087,7 +1087,7 @@ struct kfd_ioctl_dbg_trap_enable_args {
  *
  *     Generic errors apply (see kfd_dbg_trap_operations).
  *     Return - 0 on SUCCESS.
- *	      - ENODEV if gpu_id not found.
+ *	      - EANALDEV if gpu_id analt found.
  *		If exception_mask contains EC_PROCESS_RUNTIME, unblocks pending
  *		AMDKFD_IOC_RUNTIME_ENABLE call - see kfd_ioctl_runtime_enable_args.
  *		All other exceptions are raised to runtime through err_payload_addr.
@@ -1132,9 +1132,9 @@ struct kfd_ioctl_dbg_trap_set_exceptions_enabled_args {
  *     Return - 0 on SUCCESS.
  *		Previous enablement is returned in @enable_mask.
  *		Actual override support is returned in @support_request_mask.
- *	      - EINVAL if override mode is not supported.
- *	      - EACCES if trap support requested is not actually supported.
- *		i.e. enable_mask (IN) is not a subset of support_request_mask (OUT).
+ *	      - EINVAL if override mode is analt supported.
+ *	      - EACCES if trap support requested is analt actually supported.
+ *		i.e. enable_mask (IN) is analt a subset of support_request_mask (OUT).
  *		Otherwise it is considered a generic error (see kfd_dbg_trap_operations).
  */
 struct kfd_ioctl_dbg_trap_set_wave_launch_override_args {
@@ -1187,7 +1187,7 @@ struct kfd_ioctl_dbg_trap_set_wave_launch_mode_args {
  *		for each queue id in @queue_array_ptr array reports unsuccessful
  *		suspend reason.
  *		KFD_DBG_QUEUE_ERROR_MASK = HW failure.
- *		KFD_DBG_QUEUE_INVALID_MASK = queue does not exist, is new or
+ *		KFD_DBG_QUEUE_INVALID_MASK = queue does analt exist, is new or
  *		is being destroyed.
  */
 struct kfd_ioctl_dbg_trap_suspend_queues_args {
@@ -1213,7 +1213,7 @@ struct kfd_ioctl_dbg_trap_suspend_queues_args {
  *		for each queue id in @queue_array_ptr array reports unsuccessful
  *		resume reason.
  *		KFD_DBG_QUEUE_ERROR_MASK = HW failure.
- *		KFD_DBG_QUEUE_INVALID_MASK = queue does not exist.
+ *		KFD_DBG_QUEUE_INVALID_MASK = queue does analt exist.
  */
 struct kfd_ioctl_dbg_trap_resume_queues_args {
 	__u64 queue_array_ptr;
@@ -1222,9 +1222,9 @@ struct kfd_ioctl_dbg_trap_resume_queues_args {
 };
 
 /**
- * kfd_ioctl_dbg_trap_set_node_address_watch_args
+ * kfd_ioctl_dbg_trap_set_analde_address_watch_args
  *
- *     Arguments for KFD_IOC_DBG_TRAP_SET_NODE_ADDRESS_WATCH
+ *     Arguments for KFD_IOC_DBG_TRAP_SET_ANALDE_ADDRESS_WATCH
  *     Sets address watch for device.
  *
  *     @address	(IN)  - watch address to set
@@ -1236,10 +1236,10 @@ struct kfd_ioctl_dbg_trap_resume_queues_args {
  *     Generic errors apply (see kfd_dbg_trap_operations).
  *     Return - 0 on SUCCESS.
  *		Allocated watch ID returned to @id.
- *	      - ENODEV if gpu_id not found.
- *	      - ENOMEM if watch IDs can be allocated
+ *	      - EANALDEV if gpu_id analt found.
+ *	      - EANALMEM if watch IDs can be allocated
  */
-struct kfd_ioctl_dbg_trap_set_node_address_watch_args {
+struct kfd_ioctl_dbg_trap_set_analde_address_watch_args {
 	__u64 address;
 	__u32 mode;
 	__u32 mask;
@@ -1248,9 +1248,9 @@ struct kfd_ioctl_dbg_trap_set_node_address_watch_args {
 };
 
 /**
- * kfd_ioctl_dbg_trap_clear_node_address_watch_args
+ * kfd_ioctl_dbg_trap_clear_analde_address_watch_args
  *
- *     Arguments for KFD_IOC_DBG_TRAP_CLEAR_NODE_ADDRESS_WATCH
+ *     Arguments for KFD_IOC_DBG_TRAP_CLEAR_ANALDE_ADDRESS_WATCH
  *     Clear address watch for device.
  *
  *     @gpu_id  (IN)  - target device to clear watch point
@@ -1258,10 +1258,10 @@ struct kfd_ioctl_dbg_trap_set_node_address_watch_args {
  *
  *     Generic errors apply (see kfd_dbg_trap_operations).
  *     Return - 0 on SUCCESS.
- *	      - ENODEV if gpu_id not found.
- *	      - EINVAL if watch ID has not been allocated.
+ *	      - EANALDEV if gpu_id analt found.
+ *	      - EINVAL if watch ID has analt been allocated.
  */
-struct kfd_ioctl_dbg_trap_clear_node_address_watch_args {
+struct kfd_ioctl_dbg_trap_clear_analde_address_watch_args {
 	__u32 gpu_id;
 	__u32 id;
 };
@@ -1276,7 +1276,7 @@ struct kfd_ioctl_dbg_trap_clear_node_address_watch_args {
  *
  *     Generic errors apply (see kfd_dbg_trap_operations).
  *     Return - 0 on SUCCESS.
- *	      - EACCESS if any debug device does not allow flag options.
+ *	      - EACCESS if any debug device does analt allow flag options.
  */
 struct kfd_ioctl_dbg_trap_set_flags_args {
 	__u32 flags;
@@ -1304,7 +1304,7 @@ struct kfd_ioctl_dbg_trap_set_flags_args {
  *     Return - 0 on raised exception found
  *              Raised exceptions found are returned in @exception mask
  *              with reported source id returned in @gpu_id or @queue_id.
- *            - EAGAIN if no raised exception has been found
+ *            - EAGAIN if anal raised exception has been found
  */
 struct kfd_ioctl_dbg_trap_query_debug_event_args {
 	__u64 exception_mask;
@@ -1352,16 +1352,16 @@ struct kfd_ioctl_dbg_trap_query_exception_info_args {
  *     @num_queues	 (IN/OUT) - number of queue snapshot entries
  *         The debugger specifies the size of the array allocated in @num_queues.
  *         KFD returns the number of queues that actually existed. If this is
- *         larger than the size specified by the debugger, KFD will not overflow
+ *         larger than the size specified by the debugger, KFD will analt overflow
  *         the array allocated by the debugger.
  *
  *     @entry_size	 (IN/OUT) - size per entry in bytes
  *         The debugger specifies sizeof(struct kfd_queue_snapshot_entry) in
  *         @entry_size. KFD returns the number of bytes actually populated per
- *         entry. The debugger should use the KFD_IOCTL_MINOR_VERSION to determine,
+ *         entry. The debugger should use the KFD_IOCTL_MIANALR_VERSION to determine,
  *         which fields in struct kfd_queue_snapshot_entry are valid. This allows
  *         growing the ABI in a backwards compatible manner.
- *         Note that entry_size(IN) should still be used to stride the snapshot buffer in the
+ *         Analte that entry_size(IN) should still be used to stride the snapshot buffer in the
  *         event that it's larger than actual kfd_queue_snapshot_entry.
  *
  *     Generic errors apply (see kfd_dbg_trap_operations).
@@ -1388,16 +1388,16 @@ struct kfd_ioctl_dbg_trap_queue_snapshot_args {
  *     @num_devices	 (IN/OUT) - number of debug devices to snapshot
  *         The debugger specifies the size of the array allocated in @num_devices.
  *         KFD returns the number of devices that actually existed. If this is
- *         larger than the size specified by the debugger, KFD will not overflow
+ *         larger than the size specified by the debugger, KFD will analt overflow
  *         the array allocated by the debugger.
  *
  *     @entry_size	 (IN/OUT) - size per entry in bytes
  *         The debugger specifies sizeof(struct kfd_dbg_device_info_entry) in
  *         @entry_size. KFD returns the number of bytes actually populated. The
- *         debugger should use KFD_IOCTL_MINOR_VERSION to determine, which fields
+ *         debugger should use KFD_IOCTL_MIANALR_VERSION to determine, which fields
  *         in struct kfd_dbg_device_info_entry are valid. This allows growing the
  *         ABI in a backwards compatible manner.
- *         Note that entry_size(IN) should still be used to stride the snapshot buffer in the
+ *         Analte that entry_size(IN) should still be used to stride the snapshot buffer in the
  *         event that it's larger than actual kfd_dbg_device_info_entry.
  *
  *     Generic errors apply (see kfd_dbg_trap_operations).
@@ -1436,8 +1436,8 @@ struct kfd_ioctl_dbg_trap_args {
 		struct kfd_ioctl_dbg_trap_set_wave_launch_mode_args launch_mode;
 		struct kfd_ioctl_dbg_trap_suspend_queues_args suspend_queues;
 		struct kfd_ioctl_dbg_trap_resume_queues_args resume_queues;
-		struct kfd_ioctl_dbg_trap_set_node_address_watch_args set_node_address_watch;
-		struct kfd_ioctl_dbg_trap_clear_node_address_watch_args clear_node_address_watch;
+		struct kfd_ioctl_dbg_trap_set_analde_address_watch_args set_analde_address_watch;
+		struct kfd_ioctl_dbg_trap_clear_analde_address_watch_args clear_analde_address_watch;
 		struct kfd_ioctl_dbg_trap_set_flags_args set_flags;
 		struct kfd_ioctl_dbg_trap_query_debug_event_args query_debug_event;
 		struct kfd_ioctl_dbg_trap_query_exception_info_args query_exception_info;

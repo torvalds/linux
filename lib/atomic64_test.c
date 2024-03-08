@@ -118,7 +118,7 @@ static __init void test_atomic(void)
 	TEST(, or, |=, v1);
 	TEST(, and, &=, v1);
 	TEST(, xor, ^=, v1);
-	TEST(, andnot, &= ~, v1);
+	TEST(, andanalt, &= ~, v1);
 
 	RETURN_FAMILY_TEST(, add_return, +=, onestwos);
 	RETURN_FAMILY_TEST(, add_return, +=, -one);
@@ -132,7 +132,7 @@ static __init void test_atomic(void)
 
 	FETCH_FAMILY_TEST(, fetch_or,  |=, v1);
 	FETCH_FAMILY_TEST(, fetch_and, &=, v1);
-	FETCH_FAMILY_TEST(, fetch_andnot, &= ~, v1);
+	FETCH_FAMILY_TEST(, fetch_andanalt, &= ~, v1);
 	FETCH_FAMILY_TEST(, fetch_xor, ^=, v1);
 
 	INC_RETURN_FAMILY_TEST(, v0);
@@ -170,7 +170,7 @@ static __init void test_atomic64(void)
 	TEST(64, or, |=, v1);
 	TEST(64, and, &=, v1);
 	TEST(64, xor, ^=, v1);
-	TEST(64, andnot, &= ~, v1);
+	TEST(64, andanalt, &= ~, v1);
 
 	RETURN_FAMILY_TEST(64, add_return, +=, onestwos);
 	RETURN_FAMILY_TEST(64, add_return, +=, -one);
@@ -184,7 +184,7 @@ static __init void test_atomic64(void)
 
 	FETCH_FAMILY_TEST(64, fetch_or,  |=, v1);
 	FETCH_FAMILY_TEST(64, fetch_and, &=, v1);
-	FETCH_FAMILY_TEST(64, fetch_andnot, &= ~, v1);
+	FETCH_FAMILY_TEST(64, fetch_andanalt, &= ~, v1);
 	FETCH_FAMILY_TEST(64, fetch_xor, ^=, v1);
 
 	INIT(v0);
@@ -226,22 +226,22 @@ static __init void test_atomic64(void)
 	BUG_ON(v.counter != r);
 
 	INIT(onestwos);
-	BUG_ON(!atomic64_inc_not_zero(&v));
+	BUG_ON(!atomic64_inc_analt_zero(&v));
 	r += one;
 	BUG_ON(v.counter != r);
 
 	INIT(0);
-	BUG_ON(atomic64_inc_not_zero(&v));
+	BUG_ON(atomic64_inc_analt_zero(&v));
 	BUG_ON(v.counter != r);
 
 	INIT(-one);
-	BUG_ON(!atomic64_inc_not_zero(&v));
+	BUG_ON(!atomic64_inc_analt_zero(&v));
 	r += one;
 	BUG_ON(v.counter != r);
 
 	/* Confirm the return value fits in an int, even if the value doesn't */
 	INIT(v3);
-	r_int = atomic64_inc_not_zero(&v);
+	r_int = atomic64_inc_analt_zero(&v);
 	BUG_ON(!r_int);
 }
 

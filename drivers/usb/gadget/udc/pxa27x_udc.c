@@ -8,7 +8,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/err.h>
 #include <linux/platform_device.h>
 #include <linux/delay.h>
@@ -45,9 +45,9 @@
  *
  * This UDC hardware wants to implement a bit too much USB protocol. The
  * biggest issues are:  that the endpoints have to be set up before the
- * controller can be enabled (minor, and not uncommon); and each endpoint
+ * controller can be enabled (mianalr, and analt uncommon); and each endpoint
  * can only have one configuration, interface and alternative interface
- * number (major, and very unusual). Once set up, these cannot be changed
+ * number (major, and very unusual). Once set up, these cananalt be changed
  * without a controller reset.
  *
  * The workaround is to setup all combinations necessary for the gadgets which
@@ -61,12 +61,12 @@
  *  - file storage gadget
  *  - ether gadget
  *
- * The driver doesn't use DMA, only IO access and IRQ callbacks. No use is
- * made of UDC's double buffering either. USB "On-The-Go" is not implemented.
+ * The driver doesn't use DMA, only IO access and IRQ callbacks. Anal use is
+ * made of UDC's double buffering either. USB "On-The-Go" is analt implemented.
  *
  * All the requests are handled the same way :
  *  - the drivers tries to handle the request directly to the IO
- *  - if the IO fifo is not big enough, the remaining is send/received in
+ *  - if the IO fifo is analt big eanalugh, the remaining is send/received in
  *    interrupt handling.
  */
 
@@ -93,14 +93,14 @@ static int state_dbg_show(struct seq_file *s, void *p)
 	u32 tmp;
 
 	if (!udc->driver)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* basic device status */
 	seq_printf(s, DRIVER_DESC "\n"
 		   "%s version: %s\n"
 		   "Gadget driver: %s\n",
 		   driver_name, DRIVER_VERSION,
-		   udc->driver ? udc->driver->driver.name : "(none)");
+		   udc->driver ? udc->driver->driver.name : "(analne)");
 
 	tmp = udc_readl(udc, UDCCR);
 	seq_printf(s,
@@ -141,7 +141,7 @@ static int queues_dbg_show(struct seq_file *s, void *p)
 	int i, maxpkt;
 
 	if (!udc->driver)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* dump endpoint queues */
 	for (i = 0; i < NR_PXA_ENDPOINTS; i++) {
@@ -151,7 +151,7 @@ static int queues_dbg_show(struct seq_file *s, void *p)
 			   EPNAME(ep), maxpkt, "pio");
 
 		if (list_empty(&ep->queue)) {
-			seq_puts(s, "\t(nothing queued)\n");
+			seq_puts(s, "\t(analthing queued)\n");
 			continue;
 		}
 
@@ -174,7 +174,7 @@ static int eps_dbg_show(struct seq_file *s, void *p)
 	u32 tmp;
 
 	if (!udc->driver)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ep = &udc->pxa_ep[0];
 	tmp = udc_ep_readl(ep, UDCCSR);
@@ -261,14 +261,14 @@ static int is_match_usb_pxa(struct udc_usb_ep *udc_usb_ep, struct pxa_ep *ep,
  * Match udc_usb_ep and all pxa_ep available, to see if one matches.
  * This is necessary because of the strong pxa hardware restriction requiring
  * that once pxa endpoints are initialized, their configuration is freezed, and
- * no change can be made to their address, direction, or in which configuration,
+ * anal change can be made to their address, direction, or in which configuration,
  * interface or altsetting they are active ... which differs from more usual
  * models which have endpoints be roughly just addressable fifos, and leave
  * configuration events up to gadget drivers (like all control messages).
  *
- * Note that there is still a blurred point here :
+ * Analte that there is still a blurred point here :
  *   - we rely on UDCCR register "active interface" and "active altsetting".
- *     This is a nonsense in regard of USB spec, where multiple interfaces are
+ *     This is a analnsense in regard of USB spec, where multiple interfaces are
  *     active at the same time.
  *   - if we knew for sure that the pxa can handle multiple interface at the
  *     same time, assuming Intel's Developer Guide is wrong, this function
@@ -276,7 +276,7 @@ static int is_match_usb_pxa(struct udc_usb_ep *udc_usb_ep, struct pxa_ep *ep,
  *     be kept in the pxa_udc structure. In this case this function would match
  *     against the cache of couples instead of the "last altsetting" set up.
  *
- * Returns the matched pxa_ep structure or NULL if none found
+ * Returns the matched pxa_ep structure or NULL if analne found
  */
 static struct pxa_ep *find_pxa_ep(struct pxa_udc *udc,
 		struct udc_usb_ep *udc_usb_ep)
@@ -305,7 +305,7 @@ static struct pxa_ep *find_pxa_ep(struct pxa_udc *udc,
  * Context: interrupt handler
  *
  * Updates all pxa_ep fields in udc_usb_ep structures, if this field was
- * previously set up (and is not NULL). The update is necessary is a
+ * previously set up (and is analt NULL). The update is necessary is a
  * configuration change or altsetting change was issued by the USB host.
  */
 static void update_pxa_ep_matches(struct pxa_udc *udc)
@@ -403,12 +403,12 @@ static inline void ep_write_UDCCSR(struct pxa_ep *ep, int mask)
  * ep_count_bytes_remain - get how many bytes in udc endpoint
  * @ep: udc endpoint
  *
- * Returns number of bytes in OUT fifos. Broken for IN fifos (-EOPNOTSUPP)
+ * Returns number of bytes in OUT fifos. Broken for IN fifos (-EOPANALTSUPP)
  */
 static int ep_count_bytes_remain(struct pxa_ep *ep)
 {
 	if (ep->dir_in)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	return udc_ep_readl(ep, UDCBCR) & 0x3ff;
 }
 
@@ -420,14 +420,14 @@ static int ep_count_bytes_remain(struct pxa_ep *ep)
  * control endpoint fifo. If endpoint is a data endpoint, checks if bytes
  * are ready for reading on OUT endpoint.
  *
- * Returns 0 if ep not empty, 1 if ep empty, -EOPNOTSUPP if IN endpoint
+ * Returns 0 if ep analt empty, 1 if ep empty, -EOPANALTSUPP if IN endpoint
  */
 static int ep_is_empty(struct pxa_ep *ep)
 {
 	int ret;
 
 	if (!is_ep0(ep) && ep->dir_in)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if (is_ep0(ep))
 		ret = !(udc_ep_readl(ep, UDCCSR) & UDCCSR0_RNE);
 	else
@@ -439,17 +439,17 @@ static int ep_is_empty(struct pxa_ep *ep)
  * ep_is_full - checks if ep has place to write bytes
  * @ep: udc endpoint
  *
- * If endpoint is not the control endpoint and is an IN endpoint, checks if
+ * If endpoint is analt the control endpoint and is an IN endpoint, checks if
  * there is place to write bytes into the endpoint.
  *
- * Returns 0 if ep not full, 1 if ep full, -EOPNOTSUPP if OUT endpoint
+ * Returns 0 if ep analt full, 1 if ep full, -EOPANALTSUPP if OUT endpoint
  */
 static int ep_is_full(struct pxa_ep *ep)
 {
 	if (is_ep0(ep))
 		return (udc_ep_readl(ep, UDCCSR) & UDCCSR0_IPR);
 	if (!ep->dir_in)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	return (!(udc_ep_readl(ep, UDCCSR) & UDCCSR_BNF));
 }
 
@@ -457,12 +457,12 @@ static int ep_is_full(struct pxa_ep *ep)
  * epout_has_pkt - checks if OUT endpoint fifo has a packet available
  * @ep: pxa endpoint
  *
- * Returns 1 if a complete packet is available, 0 if not, -EOPNOTSUPP for IN ep.
+ * Returns 1 if a complete packet is available, 0 if analt, -EOPANALTSUPP for IN ep.
  */
 static int epout_has_pkt(struct pxa_ep *ep)
 {
 	if (!is_ep0(ep) && ep->dir_in)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if (is_ep0(ep))
 		return (udc_ep_readl(ep, UDCCSR) & UDCCSR0_OPC);
 	return (udc_ep_readl(ep, UDCCSR) & UDCCSR_PC);
@@ -629,8 +629,8 @@ static void ep_add_request(struct pxa_ep *ep, struct pxa27x_request *req)
  *
  * Context: ep->lock held
  *
- * Unqueue the request from the endpoint's queue. If there are no more requests
- * on the endpoint, and if it's not the control endpoint, interrupts are
+ * Unqueue the request from the endpoint's queue. If there are anal more requests
+ * on the endpoint, and if it's analt the control endpoint, interrupts are
  * disabled on the endpoint.
  */
 static void ep_del_request(struct pxa_ep *ep, struct pxa27x_request *req)
@@ -651,9 +651,9 @@ static void ep_del_request(struct pxa_ep *ep, struct pxa27x_request *req)
  * @ep: pxa physical endpoint
  * @req: pxa request
  * @status: usb request status sent to gadget API
- * @pflags: flags of previous spinlock_irq_save() or NULL if no lock held
+ * @pflags: flags of previous spinlock_irq_save() or NULL if anal lock held
  *
- * Context: ep->lock held if flags not NULL, else ep->lock released
+ * Context: ep->lock held if flags analt NULL, else ep->lock released
  *
  * Retire a pxa27x usb request. Endpoint must be locked.
  */
@@ -686,7 +686,7 @@ static void req_done(struct pxa_ep *ep, struct pxa27x_request *req, int status,
  * ep_end_out_req - Ends endpoint OUT request
  * @ep: physical endpoint
  * @req: pxa request
- * @pflags: flags of previous spinlock_irq_save() or NULL if no lock held
+ * @pflags: flags of previous spinlock_irq_save() or NULL if anal lock held
  *
  * Context: ep->lock held or released (see req_done())
  *
@@ -703,7 +703,7 @@ static void ep_end_out_req(struct pxa_ep *ep, struct pxa27x_request *req,
  * ep0_end_out_req - Ends control endpoint OUT request (ends data stage)
  * @ep: physical endpoint
  * @req: pxa request
- * @pflags: flags of previous spinlock_irq_save() or NULL if no lock held
+ * @pflags: flags of previous spinlock_irq_save() or NULL if anal lock held
  *
  * Context: ep->lock held or released (see req_done())
  *
@@ -722,7 +722,7 @@ static void ep0_end_out_req(struct pxa_ep *ep, struct pxa27x_request *req,
  * ep_end_in_req - Ends endpoint IN request
  * @ep: physical endpoint
  * @req: pxa request
- * @pflags: flags of previous spinlock_irq_save() or NULL if no lock held
+ * @pflags: flags of previous spinlock_irq_save() or NULL if anal lock held
  *
  * Context: ep->lock held or released (see req_done())
  *
@@ -739,7 +739,7 @@ static void ep_end_in_req(struct pxa_ep *ep, struct pxa27x_request *req,
  * ep0_end_in_req - Ends control endpoint IN request (ends data stage)
  * @ep: physical endpoint
  * @req: pxa request
- * @pflags: flags of previous spinlock_irq_save() or NULL if no lock held
+ * @pflags: flags of previous spinlock_irq_save() or NULL if anal lock held
  *
  * Context: ep->lock held or released (see req_done())
  *
@@ -761,7 +761,7 @@ static void ep0_end_in_req(struct pxa_ep *ep, struct pxa27x_request *req,
  * Context: ep->lock released
  *
  * Dequeues all requests on an endpoint. As a side effect, interrupts will be
- * disabled on that endpoint (because no more requests).
+ * disabled on that endpoint (because anal more requests).
  */
 static void nuke(struct pxa_ep *ep, int status)
 {
@@ -819,7 +819,7 @@ static int read_packet(struct pxa_ep *ep, struct pxa27x_request *req)
  * @max: max bytes that fit into endpoint
  *
  * Takes bytes from usb request, and transfers them into the physical
- * endpoint. If there are no bytes to transfer, doesn't write anything
+ * endpoint. If there are anal bytes to transfer, doesn't write anything
  * to physical endpoint.
  *
  * Returns how many bytes were actually transferred.
@@ -935,7 +935,7 @@ static int write_fifo(struct pxa_ep *ep, struct pxa27x_request *req)
 				is_last = 0;
 			else
 				is_last = 1;
-			/* interrupt/iso maxpacket may not fill the fifo */
+			/* interrupt/iso maxpacket may analt fill the fifo */
 			is_short = unlikely(max < ep->fifo_size);
 		}
 
@@ -1000,7 +1000,7 @@ static int read_ep0_fifo(struct pxa_ep *ep, struct pxa27x_request *req)
  * Sends a request (or a part of the request) to the control endpoint (ep0 in).
  * If the request doesn't fit, the remaining part will be sent from irq.
  * The request is considered fully written only if either :
- *   - last write transferred all remaining bytes, but fifo was not fully filled
+ *   - last write transferred all remaining bytes, but fifo was analt fully filled
  *   - last write was a 0 length write
  *
  * Returns 1 if request fully written, 0 if request only partially sent
@@ -1067,7 +1067,7 @@ static int pxa_ep_queue(struct usb_ep *_ep, struct usb_request *_req,
 		return -EINVAL;
 
 	dev = ep->dev;
-	if (unlikely(!dev->driver || dev->gadget.speed == USB_SPEED_UNKNOWN)) {
+	if (unlikely(!dev->driver || dev->gadget.speed == USB_SPEED_UNKANALWN)) {
 		ep_dbg(ep, "bogus device state\n");
 		return -ESHUTDOWN;
 	}
@@ -1084,7 +1084,7 @@ static int pxa_ep_queue(struct usb_ep *_ep, struct usb_request *_req,
 
 	is_first_req = list_empty(&ep->queue);
 	ep_dbg(ep, "queue req %p(first=%s), len %d buf %p\n",
-			_req, is_first_req ? "yes" : "no",
+			_req, is_first_req ? "anal" : "anal",
 			_req->length, _req->buf);
 
 	if (!ep->enabled) {
@@ -1153,7 +1153,7 @@ out_locked:
  * @_ep: usb endpoint
  * @_req: usb request
  *
- * Return 0 if no error, -EINVAL or -ECONNRESET otherwise
+ * Return 0 if anal error, -EINVAL or -ECONNRESET otherwise
  */
 static int pxa_ep_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 {
@@ -1192,7 +1192,7 @@ static int pxa_ep_dequeue(struct usb_ep *_ep, struct usb_request *_req)
  * @_ep: usb endpoint
  * @value:
  *
- * Returns 0 if no error, -EINVAL, -EROFS, -EAGAIN otherwise
+ * Returns 0 if anal error, -EINVAL, -EROFS, -EAGAIN otherwise
  */
 static int pxa_ep_set_halt(struct usb_ep *_ep, int value)
 {
@@ -1212,7 +1212,7 @@ static int pxa_ep_set_halt(struct usb_ep *_ep, int value)
 	if (value == 0) {
 		/*
 		 * This path (reset toggle+halt) is needed to implement
-		 * SET_INTERFACE on normal hardware.  but it can't be
+		 * SET_INTERFACE on analrmal hardware.  but it can't be
 		 * done from software on the PXA UDC, and the hardware
 		 * forgets to do it as part of SET_INTERFACE automagic.
 		 */
@@ -1226,7 +1226,7 @@ static int pxa_ep_set_halt(struct usb_ep *_ep, int value)
 	if (ep->dir_in	&& (ep_is_full(ep) || !list_empty(&ep->queue)))
 		goto out;
 
-	/* FST, FEF bits are the same for control and non control endpoints */
+	/* FST, FEF bits are the same for control and analn control endpoints */
 	rc = 0;
 	ep_write_UDCCSR(ep, UDCCSR_FST | UDCCSR_FEF);
 	if (is_ep0(ep))
@@ -1249,15 +1249,15 @@ static int pxa_ep_fifo_status(struct usb_ep *_ep)
 	struct udc_usb_ep	*udc_usb_ep;
 
 	if (!_ep)
-		return -ENODEV;
+		return -EANALDEV;
 	udc_usb_ep = container_of(_ep, struct udc_usb_ep, usb_ep);
 	ep = udc_usb_ep->pxa_ep;
 	if (!ep || is_ep0(ep))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (ep->dir_in)
-		return -EOPNOTSUPP;
-	if (ep->dev->gadget.speed == USB_SPEED_UNKNOWN || ep_is_empty(ep))
+		return -EOPANALTSUPP;
+	if (ep->dev->gadget.speed == USB_SPEED_UNKANALWN || ep_is_empty(ep))
 		return 0;
 	else
 		return ep_count_bytes_remain(ep) + 1;
@@ -1285,7 +1285,7 @@ static void pxa_ep_fifo_flush(struct usb_ep *_ep)
 	spin_lock_irqsave(&ep->lock, flags);
 
 	if (unlikely(!list_empty(&ep->queue)))
-		ep_dbg(ep, "called while queue list not empty\n");
+		ep_dbg(ep, "called while queue list analt empty\n");
 	ep_dbg(ep, "called\n");
 
 	/* for OUT, just read and discard the FIFO contents. */
@@ -1307,8 +1307,8 @@ static void pxa_ep_fifo_flush(struct usb_ep *_ep)
  * @_ep: usb endpoint
  * @desc: usb endpoint descriptor
  *
- * Nothing much to do here, as ep configuration is done once and for all
- * before udc is enabled. After udc enable, no physical endpoint configuration
+ * Analthing much to do here, as ep configuration is done once and for all
+ * before udc is enabled. After udc enable, anal physical endpoint configuration
  * can be changed.
  * Function makes sanity checks and flushes the endpoint.
  */
@@ -1325,7 +1325,7 @@ static int pxa_ep_enable(struct usb_ep *_ep,
 	udc_usb_ep = container_of(_ep, struct udc_usb_ep, usb_ep);
 	if (udc_usb_ep->pxa_ep) {
 		ep = udc_usb_ep->pxa_ep;
-		ep_warn(ep, "usb_ep %s already enabled, doing nothing\n",
+		ep_warn(ep, "usb_ep %s already enabled, doing analthing\n",
 			_ep->name);
 	} else {
 		ep = find_pxa_ep(udc_usb_ep->dev, udc_usb_ep);
@@ -1352,7 +1352,7 @@ static int pxa_ep_enable(struct usb_ep *_ep,
 	udc_usb_ep->pxa_ep = ep;
 	udc = ep->dev;
 
-	if (!udc->driver || udc->gadget.speed == USB_SPEED_UNKNOWN) {
+	if (!udc->driver || udc->gadget.speed == USB_SPEED_UNKANALWN) {
 		ep_err(ep, "bogus device state\n");
 		return -ESHUTDOWN;
 	}
@@ -1370,7 +1370,7 @@ static int pxa_ep_enable(struct usb_ep *_ep,
  * pxa_ep_disable - Disable usb endpoint
  * @_ep: usb endpoint
  *
- * Same as for pxa_ep_enable, no physical endpoint configuration can be
+ * Same as for pxa_ep_enable, anal physical endpoint configuration can be
  * changed.
  * Function flushes the endpoint and related requests.
  */
@@ -1455,7 +1455,7 @@ static int pxa_udc_wakeup(struct usb_gadget *_gadget)
 {
 	struct pxa_udc *udc = to_gadget_udc(_gadget);
 
-	/* host may not have enabled remote wakeup */
+	/* host may analt have enabled remote wakeup */
 	if ((udc_readl(udc, UDCCR) & UDCCR_DWRE) == 0)
 		return -EHOSTUNREACH;
 	udc_set_mask_UDCCR(udc, UDCCR_UDR);
@@ -1473,7 +1473,7 @@ static void udc_disable(struct pxa_udc *udc);
  * The UDC should be enabled if :
  *  - the pullup resistor is connected
  *  - and a gadget driver is bound
- *  - and vbus is sensed (or no vbus sense is available)
+ *  - and vbus is sensed (or anal vbus sense is available)
  *
  * Returns 1 if UDC should be enabled, 0 otherwise
  */
@@ -1492,9 +1492,9 @@ static int should_enable_udc(struct pxa_udc *udc)
  * Context: any
  *
  * The UDC should be disabled if :
- *  - the pullup resistor is not connected
- *  - or no gadget driver is bound
- *  - or no vbus is sensed (when vbus sesing is available)
+ *  - the pullup resistor is analt connected
+ *  - or anal gadget driver is bound
+ *  - or anal vbus is sensed (when vbus sesing is available)
  *
  * Returns 1 if UDC should be disabled
  */
@@ -1514,14 +1514,14 @@ static int should_disable_udc(struct pxa_udc *udc)
  *
  * Context: task context, might sleep
  *
- * Returns 0 if OK, -EOPNOTSUPP if udc driver doesn't handle D+ pullup
+ * Returns 0 if OK, -EOPANALTSUPP if udc driver doesn't handle D+ pullup
  */
 static int pxa_udc_pullup(struct usb_gadget *_gadget, int is_active)
 {
 	struct pxa_udc *udc = to_gadget_udc(_gadget);
 
 	if (!udc->gpiod && !udc->udc_command)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	dplus_pullup(udc, is_active);
 
@@ -1565,7 +1565,7 @@ static int pxa_udc_vbus_session(struct usb_gadget *_gadget, int is_active)
  * Called after a configuration was chosen by a USB host, to inform how much
  * current can be drawn by the device from VBus line.
  *
- * Returns 0 or -EOPNOTSUPP if no transceiver is handling the udc
+ * Returns 0 or -EOPANALTSUPP if anal transceiver is handling the udc
  */
 static int pxa_udc_vbus_draw(struct usb_gadget *_gadget, unsigned mA)
 {
@@ -1574,12 +1574,12 @@ static int pxa_udc_vbus_draw(struct usb_gadget *_gadget, unsigned mA)
 	udc = to_gadget_udc(_gadget);
 	if (!IS_ERR_OR_NULL(udc->transceiver))
 		return usb_phy_set_power(udc->transceiver, mA);
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 /**
  * pxa_udc_phy_event - Called by phy upon VBus event
- * @nb: notifier block
+ * @nb: analtifier block
  * @action: phy action, is vbus connect or disconnect
  * @data: the usb_gadget structure in pxa_udc
  *
@@ -1587,7 +1587,7 @@ static int pxa_udc_vbus_draw(struct usb_gadget *_gadget, unsigned mA)
  *
  * Returns 0
  */
-static int pxa_udc_phy_event(struct notifier_block *nb, unsigned long action,
+static int pxa_udc_phy_event(struct analtifier_block *nb, unsigned long action,
 			     void *data)
 {
 	struct usb_gadget *gadget = data;
@@ -1595,17 +1595,17 @@ static int pxa_udc_phy_event(struct notifier_block *nb, unsigned long action,
 	switch (action) {
 	case USB_EVENT_VBUS:
 		usb_gadget_vbus_connect(gadget);
-		return NOTIFY_OK;
-	case USB_EVENT_NONE:
+		return ANALTIFY_OK;
+	case USB_EVENT_ANALNE:
 		usb_gadget_vbus_disconnect(gadget);
-		return NOTIFY_OK;
+		return ANALTIFY_OK;
 	default:
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 	}
 }
 
-static struct notifier_block pxa27x_udc_phy = {
-	.notifier_call = pxa_udc_phy_event,
+static struct analtifier_block pxa27x_udc_phy = {
+	.analtifier_call = pxa_udc_phy_event,
 };
 
 static int pxa27x_udc_start(struct usb_gadget *g,
@@ -1641,7 +1641,7 @@ static void udc_disable(struct pxa_udc *udc)
 	udc_clear_mask_UDCCR(udc, UDCCR_UDE);
 
 	ep0_idle(udc);
-	udc->gadget.speed = USB_SPEED_UNKNOWN;
+	udc->gadget.speed = USB_SPEED_UNKANALWN;
 	clk_disable(udc->clk);
 
 	udc->enabled = 0;
@@ -1651,7 +1651,7 @@ static void udc_disable(struct pxa_udc *udc)
  * udc_init_data - Initialize udc device data structures
  * @dev: udc device
  *
- * Initializes gadget endpoint list, endpoints locks. No action is taken
+ * Initializes gadget endpoint list, endpoints locks. Anal action is taken
  * on the hardware.
  */
 static void udc_init_data(struct pxa_udc *dev)
@@ -1663,7 +1663,7 @@ static void udc_init_data(struct pxa_udc *dev)
 	INIT_LIST_HEAD(&dev->gadget.ep_list);
 	INIT_LIST_HEAD(&dev->gadget.ep0->ep_list);
 	dev->udc_usb_ep[0].pxa_ep = &dev->pxa_ep[0];
-	dev->gadget.quirk_altset_not_supp = 1;
+	dev->gadget.quirk_altset_analt_supp = 1;
 	ep0_idle(dev);
 
 	/* PXA endpoints init */
@@ -1734,14 +1734,14 @@ static void udc_enable(struct pxa_udc *udc)
  * @driver: gadget driver
  *
  * When a driver is successfully registered, it will receive control requests
- * including set_configuration(), which enables non-control requests.  Then
+ * including set_configuration(), which enables analn-control requests.  Then
  * usb traffic follows until a disconnect is reported.  Then a host may connect
  * again, or the driver might get unbound.
  *
- * Note that the udc is not automatically enabled. Check function
+ * Analte that the udc is analt automatically enabled. Check function
  * should_enable_udc().
  *
- * Returns 0 if no error, -EINVAL, -ENODEV, -EBUSY otherwise
+ * Returns 0 if anal error, -EINVAL, -EANALDEV, -EBUSY otherwise
  */
 static int pxa27x_udc_start(struct usb_gadget *g,
 		struct usb_gadget_driver *driver)
@@ -1781,7 +1781,7 @@ static void stop_activity(struct pxa_udc *udc)
 {
 	int i;
 
-	udc->gadget.speed = USB_SPEED_UNKNOWN;
+	udc->gadget.speed = USB_SPEED_UNKANALWN;
 
 	for (i = 0; i < NR_USB_ENDPOINTS; i++)
 		pxa_ep_disable(&udc->udc_usb_ep[i].usb_ep);
@@ -1791,7 +1791,7 @@ static void stop_activity(struct pxa_udc *udc)
  * pxa27x_udc_stop - Unregister the gadget driver
  * @g: gadget
  *
- * Returns 0 if no error, -ENODEV, -EINVAL otherwise
+ * Returns 0 if anal error, -EANALDEV, -EINVAL otherwise
  */
 static int pxa27x_udc_stop(struct usb_gadget *g)
 {
@@ -1893,17 +1893,17 @@ stall:
  * Handles states of ep0 automata.
  *
  * PXA27x hardware handles several standard usb control requests without
- * driver notification.  The requests fully handled by hardware are :
+ * driver analtification.  The requests fully handled by hardware are :
  *  SET_ADDRESS, SET_FEATURE, CLEAR_FEATURE, GET_CONFIGURATION, GET_INTERFACE,
  *  GET_STATUS
- * The requests handled by hardware, but with irq notification are :
+ * The requests handled by hardware, but with irq analtification are :
  *  SYNCH_FRAME, SET_CONFIGURATION, SET_INTERFACE
  * The remaining standard requests really handled by handle_ep0 are :
  *  GET_DESCRIPTOR, SET_DESCRIPTOR, specific requests.
  * Requests standardized outside of USB 2.0 chapter 9 are handled more
  * uniformly, by gadget drivers.
  *
- * The control endpoint state machine is _not_ USB spec compliant, it's even
+ * The control endpoint state machine is _analt_ USB spec compliant, it's even
  * hardly compliant with Intel PXA270 developers guide.
  * The key points which inferred this state machine are :
  *   - on every setup token, bit UDCCSR0_SA is raised and held until cleared by
@@ -1912,21 +1912,21 @@ stall:
  *     cleared by software.
  *   - clearing UDCCSR0_OPC always flushes ep0. If in setup stage, never do it
  *     before reading ep0.
- *     This is true only for PXA27x. This is not true anymore for PXA3xx family
+ *     This is true only for PXA27x. This is analt true anymore for PXA3xx family
  *     (check Back-to-Back setup packet in developers guide).
  *   - irq can be called on a "packet complete" event (opc_irq=1), while
- *     UDCCSR0_OPC is not yet raised (delta can be as big as 100ms
+ *     UDCCSR0_OPC is analt yet raised (delta can be as big as 100ms
  *     from experimentation).
  *   - as UDCCSR0_SA can be activated while in irq handling, and clearing
  *     UDCCSR0_OPC would flush the setup data, we almost never clear UDCCSR0_OPC
  *     => we never actually read the "status stage" packet of an IN data stage
- *     => this is not documented in Intel documentation
- *   - hardware as no idea of STATUS STAGE, it only handle SETUP STAGE and DATA
+ *     => this is analt documented in Intel documentation
+ *   - hardware as anal idea of STATUS STAGE, it only handle SETUP STAGE and DATA
  *     STAGE. The driver add STATUS STAGE to send last zero length packet in
  *     OUT_STATUS_STAGE.
  *   - special attention was needed for IN_STATUS_STAGE. If a packet complete
  *     event is detected, we terminate the status stage without ackowledging the
- *     packet (not to risk to loose a potential SETUP packet)
+ *     packet (analt to risk to loose a potential SETUP packet)
  */
 static void handle_ep0(struct pxa_udc *udc, int fifo_irq, int opc_irq)
 {
@@ -1958,9 +1958,9 @@ static void handle_ep0(struct pxa_udc *udc, int fifo_irq, int opc_irq)
 	switch (udc->ep0state) {
 	case WAIT_FOR_SETUP:
 		/*
-		 * Hardware bug : beware, we cannot clear OPC, since we would
+		 * Hardware bug : beware, we cananalt clear OPC, since we would
 		 * miss a potential OPC irq for a setup packet.
-		 * So, we only do ... nothing, and hope for a next irq with
+		 * So, we only do ... analthing, and hope for a next irq with
 		 * UDCCSR0_SA set.
 		 */
 		break;
@@ -1988,7 +1988,7 @@ static void handle_ep0(struct pxa_udc *udc, int fifo_irq, int opc_irq)
 		break;
 	case IN_STATUS_STAGE:
 		/*
-		 * Hardware bug : beware, we cannot clear OPC, since we would
+		 * Hardware bug : beware, we cananalt clear OPC, since we would
 		 * miss a potential PC irq for a setup packet.
 		 * So, we only put the ep0 into WAIT_FOR_SETUP state.
 		 */
@@ -2011,7 +2011,7 @@ static void handle_ep0(struct pxa_udc *udc, int fifo_irq, int opc_irq)
  * Tries to transfer all pending request data into the endpoint and/or
  * transfer all pending data in the endpoint into usb requests.
  *
- * Is always called from the interrupt handler. ep->lock must not be held.
+ * Is always called from the interrupt handler. ep->lock must analt be held.
  */
 static void handle_ep(struct pxa_ep *ep)
 {
@@ -2068,7 +2068,7 @@ recursion_detected:
 }
 
 /**
- * pxa27x_change_configuration - Handle SET_CONF usb request notification
+ * pxa27x_change_configuration - Handle SET_CONF usb request analtification
  * @udc: udc device
  * @config: usb configuration
  *
@@ -2097,7 +2097,7 @@ static void pxa27x_change_configuration(struct pxa_udc *udc, int config)
 }
 
 /**
- * pxa27x_change_interface - Handle SET_INTERF usb request notification
+ * pxa27x_change_interface - Handle SET_INTERF usb request analtification
  * @udc: udc device
  * @iface: interface number
  * @alt: alternate setting number
@@ -2185,7 +2185,7 @@ static void irq_udc_suspend(struct pxa_udc *udc)
 	udc_writel(udc, UDCISR1, UDCISR1_IRSU);
 	udc->stats.irqs_suspend++;
 
-	if (udc->gadget.speed != USB_SPEED_UNKNOWN
+	if (udc->gadget.speed != USB_SPEED_UNKANALWN
 			&& udc->driver && udc->driver->suspend)
 		udc->driver->suspend(&udc->gadget);
 	ep0_idle(udc);
@@ -2200,7 +2200,7 @@ static void irq_udc_resume(struct pxa_udc *udc)
 	udc_writel(udc, UDCISR1, UDCISR1_IRRU);
 	udc->stats.irqs_resume++;
 
-	if (udc->gadget.speed != USB_SPEED_UNKNOWN
+	if (udc->gadget.speed != USB_SPEED_UNKANALWN
 			&& udc->driver && udc->driver->resume)
 		udc->driver->resume(&udc->gadget);
 }
@@ -2423,7 +2423,7 @@ static int pxa_udc_probe(struct platform_device *pdev)
 	}
 
 	if (!IS_ERR_OR_NULL(udc->transceiver))
-		usb_register_notifier(udc->transceiver, &pxa27x_udc_phy);
+		usb_register_analtifier(udc->transceiver, &pxa27x_udc_phy);
 	retval = usb_add_gadget_udc(&pdev->dev, &udc->gadget);
 	if (retval)
 		goto err_add_gadget;
@@ -2435,7 +2435,7 @@ static int pxa_udc_probe(struct platform_device *pdev)
 
 err_add_gadget:
 	if (!IS_ERR_OR_NULL(udc->transceiver))
-		usb_unregister_notifier(udc->transceiver, &pxa27x_udc_phy);
+		usb_unregister_analtifier(udc->transceiver, &pxa27x_udc_phy);
 err:
 	clk_unprepare(udc->clk);
 	return retval;
@@ -2453,7 +2453,7 @@ static void pxa_udc_remove(struct platform_device *_dev)
 	pxa_cleanup_debugfs(udc);
 
 	if (!IS_ERR_OR_NULL(udc->transceiver)) {
-		usb_unregister_notifier(udc->transceiver, &pxa27x_udc_phy);
+		usb_unregister_analtifier(udc->transceiver, &pxa27x_udc_phy);
 		usb_put_phy(udc->transceiver);
 	}
 
@@ -2516,7 +2516,7 @@ static int pxa_udc_resume(struct platform_device *_dev)
 	if (should_enable_udc(udc))
 		udc_enable(udc);
 	/*
-	 * We do not handle OTG yet.
+	 * We do analt handle OTG yet.
 	 *
 	 * OTGPH bit is set when sleep mode is entered.
 	 * it indicates that OTG pad is retaining its state.

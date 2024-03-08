@@ -141,7 +141,7 @@ err:
  * random key, then seal and create a trusted key-type key,
  * adding it to the specified keyring.
  *
- * On success, return 0. Otherwise return errno.
+ * On success, return 0. Otherwise return erranal.
  */
 static int trusted_instantiate(struct key *key,
 			       struct key_preparsed_payload *prep)
@@ -158,13 +158,13 @@ static int trusted_instantiate(struct key *key,
 
 	orig_datablob = datablob = kmalloc(datalen + 1, GFP_KERNEL);
 	if (!datablob)
-		return -ENOMEM;
+		return -EANALMEM;
 	memcpy(datablob, prep->data, datalen);
 	datablob[datalen] = '\0';
 
 	payload = trusted_payload_alloc(key);
 	if (!payload) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -232,7 +232,7 @@ static int trusted_update(struct key *key, struct key_preparsed_payload *prep)
 	int ret = 0;
 
 	if (key_is_negative(key))
-		return -ENOKEY;
+		return -EANALKEY;
 	p = key->payload.data[0];
 	if (!p->migratable)
 		return -EPERM;
@@ -241,11 +241,11 @@ static int trusted_update(struct key *key, struct key_preparsed_payload *prep)
 
 	orig_datablob = datablob = kmalloc(datalen + 1, GFP_KERNEL);
 	if (!datablob)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	new_p = trusted_payload_alloc(key);
 	if (!new_p) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -368,15 +368,15 @@ static int __init init_trusted(void)
 			migratable = trusted_key_sources[i].ops->migratable;
 		}
 
-		if (!ret || ret != -ENODEV)
+		if (!ret || ret != -EANALDEV)
 			break;
 	}
 
 	/*
 	 * encrypted_keys.ko depends on successful load of this module even if
-	 * trusted key implementation is not found.
+	 * trusted key implementation is analt found.
 	 */
-	if (ret == -ENODEV)
+	if (ret == -EANALDEV)
 		return 0;
 
 	return ret;

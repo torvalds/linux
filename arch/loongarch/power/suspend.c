@@ -3,7 +3,7 @@
  * loongson-specific suspend support
  *
  * Author: Huacai Chen <chenhuacai@loongson.cn>
- * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2022 Loongson Techanallogy Corporation Limited
  */
 #include <linux/acpi.h>
 #include <linux/pm.h>

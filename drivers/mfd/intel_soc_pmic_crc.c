@@ -113,7 +113,7 @@ static const struct regmap_config crystal_cove_regmap_config = {
 	.val_bits = 8,
 
 	.max_register = CRYSTAL_COVE_MAX_REGISTER,
-	.cache_type = REGCACHE_NONE,
+	.cache_type = REGCACHE_ANALNE,
 };
 
 static const struct regmap_irq crystal_cove_irqs[] = {
@@ -137,7 +137,7 @@ static const struct regmap_irq_chip crystal_cove_irq_chip = {
 
 /* PWM consumed by the Intel GFX */
 static struct pwm_lookup crc_pwm_lookup[] = {
-	PWM_LOOKUP("crystal_cove_pwm", 0, "0000:00:02.0", "pwm_pmic_backlight", 0, PWM_POLARITY_NORMAL),
+	PWM_LOOKUP("crystal_cove_pwm", 0, "0000:00:02.0", "pwm_pmic_backlight", 0, PWM_POLARITY_ANALRMAL),
 };
 
 struct crystal_cove_config {
@@ -178,7 +178,7 @@ static int crystal_cove_i2c_probe(struct i2c_client *i2c)
 
 	pmic = devm_kzalloc(dev, sizeof(*pmic), GFP_KERNEL);
 	if (!pmic)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(i2c, pmic);
 
@@ -205,7 +205,7 @@ static int crystal_cove_i2c_probe(struct i2c_client *i2c)
 	irq_domain_update_bus_token(regmap_irq_get_domain(pmic->irq_chip_data),
 				    DOMAIN_BUS_NEXUS);
 
-	ret = mfd_add_devices(dev, PLATFORM_DEVID_NONE, config->cell_dev,
+	ret = mfd_add_devices(dev, PLATFORM_DEVID_ANALNE, config->cell_dev,
 			      config->n_cell_devs, NULL, 0,
 			      regmap_irq_get_domain(pmic->irq_chip_data));
 	if (ret)

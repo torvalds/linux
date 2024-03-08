@@ -2,7 +2,7 @@
 /*
  * fixmap.h: compile-time virtual memory allocation
  *
- * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2022 Loongson Techanallogy Corporation Limited
  */
 
 #ifndef _ASM_FIXMAP_H

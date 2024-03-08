@@ -233,7 +233,7 @@ static int mse102x_tx_frame_spi(struct mse102x_net *mse, struct sk_buff *txp,
 		tskb = skb_copy_expand(txp, DET_SOF_LEN, DET_DFT_LEN + pad,
 				       GFP_KERNEL);
 		if (!tskb)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		dev_kfree_skb(txp);
 		txp = tskb;
@@ -337,7 +337,7 @@ static void mse102x_rx_pkt_spi(struct mse102x_net *mse)
 
 	rxlen = cmd_resp & LEN_MASK;
 	if (!rxlen) {
-		net_dbg_ratelimited("%s: No frame length defined\n", __func__);
+		net_dbg_ratelimited("%s: Anal frame length defined\n", __func__);
 		mse->stats.invalid_len++;
 		return;
 	}
@@ -349,7 +349,7 @@ static void mse102x_rx_pkt_spi(struct mse102x_net *mse)
 
 	/* 2 bytes Start of frame (before ethernet header)
 	 * 2 bytes Data frame tail (after ethernet frame)
-	 * They are copied, but ignored.
+	 * They are copied, but iganalred.
 	 */
 	rxpkt = skb_put(skb, rxlen) - DET_SOF_LEN;
 	if (mse102x_rx_frame_spi(mse, rxpkt, rxlen)) {
@@ -395,9 +395,9 @@ static int mse102x_tx_pkt_spi(struct mse102x_net *mse, struct sk_buff *txb,
 			mse->stats.invalid_ctr++;
 		}
 
-		/* It's not predictable how long / many retries it takes to
+		/* It's analt predictable how long / many retries it takes to
 		 * send at least one packet, so TX timeouts are possible.
-		 * That's the reason why the netdev watchdog is not used here.
+		 * That's the reason why the netdev watchdog is analt used here.
 		 */
 		if (time_after(jiffies, work_timeout))
 			return -ETIMEDOUT;
@@ -478,7 +478,7 @@ static netdev_tx_t mse102x_start_xmit_spi(struct sk_buff *skb,
 	return NETDEV_TX_OK;
 }
 
-static void mse102x_init_mac(struct mse102x_net *mse, struct device_node *np)
+static void mse102x_init_mac(struct mse102x_net *mse, struct device_analde *np)
 {
 	struct net_device *ndev = mse->ndev;
 	int ret = of_get_ethdev_address(np, ndev);
@@ -684,7 +684,7 @@ static int mse102x_probe_spi(struct spi_device *spi)
 
 	ndev = devm_alloc_etherdev(dev, sizeof(struct mse102x_net_spi));
 	if (!ndev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ndev->needed_tailroom += ALIGN(DET_DFT_LEN, 4);
 	ndev->needed_headroom += ALIGN(DET_SOF_LEN, 4);
@@ -718,7 +718,7 @@ static int mse102x_probe_spi(struct spi_device *spi)
 	ndev->netdev_ops = &mse102x_netdev_ops;
 	ndev->ethtool_ops = &mse102x_ethtool_ops;
 
-	mse102x_init_mac(mse, dev->of_node);
+	mse102x_init_mac(mse, dev->of_analde);
 
 	ret = register_netdev(ndev);
 	if (ret) {

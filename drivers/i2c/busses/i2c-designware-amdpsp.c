@@ -56,7 +56,7 @@ static int check_i2c_req_sts(struct psp_i2c_req *req)
 
 /*
  * Errors in x86-PSP i2c-arbitration protocol may occur at two levels:
- * 1. mailbox communication - PSP is not operational or some IO errors with
+ * 1. mailbox communication - PSP is analt operational or some IO errors with
  *    basic communication had happened.
  * 2. i2c-requests - PSP refuses to grant i2c arbitration to x86 for too long.
  *
@@ -95,7 +95,7 @@ static int psp_send_i2c_req(enum psp_i2c_req_type i2c_req_type)
 	/* Allocate command-response buffer */
 	req = kzalloc(sizeof(*req), GFP_KERNEL);
 	if (!req)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	req->hdr.payload_size = sizeof(*req);
 	req->type = i2c_req_type;
@@ -154,7 +154,7 @@ static void psp_release_i2c_bus_deferred(struct work_struct *work)
 	mutex_lock(&psp_i2c_access_mutex);
 
 	/*
-	 * If there is any pending transaction, cannot release the bus here.
+	 * If there is any pending transaction, cananalt release the bus here.
 	 * psp_release_i2c_bus will take care of this later.
 	 */
 	if (psp_i2c_access_count)
@@ -180,7 +180,7 @@ static int psp_acquire_i2c_bus(void)
 	psp_i2c_access_count++;
 
 	/*
-	 * No need to request bus arbitration once we are inside semaphore
+	 * Anal need to request bus arbitration once we are inside semaphore
 	 * reservation period.
 	 */
 	if (psp_i2c_sem_acquired)
@@ -279,19 +279,19 @@ int i2c_dw_amdpsp_probe_lock_support(struct dw_i2c_dev *dev)
 	struct pci_dev *rdev;
 
 	if (!IS_REACHABLE(CONFIG_CRYPTO_DEV_CCP_DD))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!(dev->flags & ARBITRATION_SEMAPHORE))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Allow to bind only one instance of a driver */
 	if (psp_i2c_dev)
 		return -EEXIST;
 
-	/* Cezanne uses platform mailbox, Mendocino and later use doorbell */
+	/* Cezanne uses platform mailbox, Mendocianal and later use doorbell */
 	rdev = pci_get_domain_bus_and_slot(0, 0, PCI_DEVFN(0, 0));
 	if (rdev->device == 0x1630)
 		_psp_send_i2c_req = psp_send_i2c_req_cezanne;

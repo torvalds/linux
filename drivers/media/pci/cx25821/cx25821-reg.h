@@ -32,7 +32,7 @@
 #define RISC_SYNC_EVEN		 0x00000200
 #define RISC_SYNC_ODD_VBI	 0x00000006
 #define RISC_SYNC_EVEN_VBI	 0x00000207
-#define RISC_NOOP			 0xF0000000
+#define RISC_ANALOP			 0xF0000000
 
 /*****************************************************************************
 * ASB SRAM
@@ -1069,8 +1069,8 @@
 #define  PLL_D_POST_STAT_BIST      0x1100A4
 
 #define  CLK_RST                   0x11002C
-#define  FLD_VID_I_CLK_NOE         0x00001000
-#define  FLD_VID_J_CLK_NOE         0x00002000
+#define  FLD_VID_I_CLK_ANALE         0x00001000
+#define  FLD_VID_J_CLK_ANALE         0x00002000
 #define  FLD_USE_ALT_PLL_REF       0x00004000
 
 #define  VID_CH_MODE_SEL           0x110078
@@ -1475,7 +1475,7 @@
 #define  FLD_I2C_SADDR_LEN         0x00000300	/* RW [9:8] */
 						 /* RO [7:6] reserved */
 #define  FLD_I2C_SOFT              0x00000020	/* RW [5] */
-#define  FLD_I2C_NOSTOP            0x00000010	/* RW [4] */
+#define  FLD_I2C_ANALSTOP            0x00000010	/* RW [4] */
 #define  FLD_I2C_EXTEND            0x00000008	/* RW [3] */
 #define  FLD_I2C_SYNC              0x00000004	/* RW [2] */
 #define  FLD_I2C_READ_SA           0x00000002	/* RW [1] */

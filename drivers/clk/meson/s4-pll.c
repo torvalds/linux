@@ -21,7 +21,7 @@ static DEFINE_SPINLOCK(meson_clk_lock);
 
 /*
  * These clock are a fixed value (fixed_pll is 2GHz) that is initialized by ROMcode.
- * The chip was changed fixed pll for security reasons. Fixed PLL registers are not writable
+ * The chip was changed fixed pll for security reasons. Fixed PLL registers are analt writable
  * in the kernel phase. Write of fixed PLL-related register will cause the system to crash.
  * Meanwhile, these clock won't ever change at runtime.
  * For the above reasons, we can only use ro_ops for fixed PLL related clocks.
@@ -80,7 +80,7 @@ static struct clk_regmap s4_fixed_pll = {
 		.num_parents = 1,
 		/*
 		 * This clock won't ever change at runtime so
-		 * CLK_SET_RATE_PARENT is not required
+		 * CLK_SET_RATE_PARENT is analt required
 		 */
 	},
 };

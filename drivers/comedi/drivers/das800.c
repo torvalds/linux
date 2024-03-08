@@ -22,8 +22,8 @@
  * [0] - I/O port base address
  * [1] - IRQ (optional, required for timed or externally triggered conversions)
  *
- * Notes:
- *	IRQ can be omitted, although the cmd interface will not work without it.
+ * Analtes:
+ *	IRQ can be omitted, although the cmd interface will analt work without it.
  *
  *	All entries in the channel/gain list must use the same gain and be
  *	consecutive channels counting upwards in channel number (these are
@@ -32,15 +32,15 @@
  *	I've never tested the gain setting stuff since I only have a
  *	DAS-800 board with fixed gain.
  *
- *	The cio-das802/16 does not have a fifo-empty status bit!  Therefore
+ *	The cio-das802/16 does analt have a fifo-empty status bit!  Therefore
  *	only fifo-half-full transfers are possible with this card.
  *
  * cmd triggers supported:
- *	start_src:      TRIG_NOW | TRIG_EXT
+ *	start_src:      TRIG_ANALW | TRIG_EXT
  *	scan_begin_src: TRIG_FOLLOW
  *	scan_end_src:   TRIG_COUNT
  *	convert_src:    TRIG_TIMER | TRIG_EXT
- *	stop_src:       TRIG_NONE | TRIG_COUNT
+ *	stop_src:       TRIG_ANALNE | TRIG_COUNT
  */
 
 #include <linux/module.h>
@@ -297,12 +297,12 @@ static int das800_ai_do_cmdtest(struct comedi_device *dev,
 
 	/* Step 1 : check if triggers are trivially valid */
 
-	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_NOW | TRIG_EXT);
+	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_ANALW | TRIG_EXT);
 	err |= comedi_check_trigger_src(&cmd->scan_begin_src, TRIG_FOLLOW);
 	err |= comedi_check_trigger_src(&cmd->convert_src,
 					TRIG_TIMER | TRIG_EXT);
 	err |= comedi_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
-	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
+	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_ANALNE);
 
 	if (err)
 		return 1;
@@ -333,7 +333,7 @@ static int das800_ai_do_cmdtest(struct comedi_device *dev,
 
 	if (cmd->stop_src == TRIG_COUNT)
 		err |= comedi_check_trigger_arg_min(&cmd->stop_arg, 1);
-	else	/* TRIG_NONE */
+	else	/* TRIG_ANALNE */
 		err |= comedi_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
@@ -432,7 +432,7 @@ static irqreturn_t das800_interrupt(int irq, void *d)
 
 	status = inb(dev->iobase + DAS800_STATUS);
 	if (!(status & IRQ))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	if (!dev->attached)
 		return IRQ_HANDLED;
 
@@ -443,10 +443,10 @@ static irqreturn_t das800_interrupt(int irq, void *d)
 	status = das800_ind_read(dev, CONTROL1) & STATUS2_HCEN;
 	/*
 	 * Don't release spinlock yet since we want to make sure
-	 * no one else disables hardware conversions.
+	 * anal one else disables hardware conversions.
 	 */
 
-	/* if hardware conversions are not enabled, then quit */
+	/* if hardware conversions are analt enabled, then quit */
 	if (status == 0) {
 		spin_unlock_irqrestore(&dev->spinlock, irq_flags);
 		return IRQ_HANDLED;
@@ -458,7 +458,7 @@ static irqreturn_t das800_interrupt(int irq, void *d)
 			fifo_empty = !!(val & FIFO_EMPTY);
 			fifo_overflow = !!(val & FIFO_OVF);
 		} else {
-			/* cio-das802/16 has no fifo empty status bit */
+			/* cio-das802/16 has anal fifo empty status bit */
 			fifo_empty = false;
 			fifo_overflow = !!(inb(dev->iobase + DAS800_GAIN) &
 						CIO_FFOV);
@@ -606,7 +606,7 @@ static const struct das800_board *das800_probe(struct comedi_device *dev)
 	 * driver. If so, this function sanity checks the id_bits to verify
 	 * that the board is correct.
 	 *
-	 * If the dev->board_ptr is not set, the user is trying to attach
+	 * If the dev->board_ptr is analt set, the user is trying to attach
 	 * an unspecified board to this driver. In this case the id_bits
 	 * are used to 'probe' for the correct dev->board_ptr.
 	 */
@@ -632,7 +632,7 @@ static const struct das800_board *das800_probe(struct comedi_device *dev)
 		index = BOARD_DAS802;
 		break;
 	default:
-		dev_dbg(dev->class_dev, "Board model: 0x%x (unknown)\n",
+		dev_dbg(dev->class_dev, "Board model: 0x%x (unkanalwn)\n",
 			id_bits);
 		return NULL;
 	}
@@ -653,7 +653,7 @@ static int das800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = comedi_request_region(dev, it->options[0], 0x8);
 	if (ret)
@@ -661,7 +661,7 @@ static int das800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	board = das800_probe(dev);
 	if (!board)
-		return -ENODEV;
+		return -EANALDEV;
 	dev->board_ptr = board;
 	dev->board_name = board->name;
 

@@ -2,7 +2,7 @@
 /*
  * arch/arm/common/bL_switcher_dummy_if.c -- b.L switcher dummy interface
  *
- * Created by:	Nicolas Pitre, November 2012
+ * Created by:	Nicolas Pitre, Analvember 2012
  * Copyright:	(C) 2012-2013  Linaro Limited
  *
  * Dummy interface to user space for debugging purpose only.
@@ -49,7 +49,7 @@ static const struct file_operations bL_switcher_fops = {
 };
 
 static struct miscdevice bL_switcher_device = {
-	MISC_DYNAMIC_MINOR,
+	MISC_DYNAMIC_MIANALR,
 	"b.L_switcher",
 	&bL_switcher_fops
 };

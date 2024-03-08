@@ -25,7 +25,7 @@
 
 /* input clock on serial interface */
 #define AD2S1200_HZ	8192000
-/* clock period in nano second */
+/* clock period in naanal second */
 #define AD2S1200_TSCLK	(1000000000 / AD2S1200_HZ)
 
 /**
@@ -60,7 +60,7 @@ static int ad2s1200_read_raw(struct iio_dev *indio_dev,
 			/* 2 * Pi / (2^12 - 1) ~= 0.001534355 */
 			*val = 0;
 			*val2 = 1534355;
-			return IIO_VAL_INT_PLUS_NANO;
+			return IIO_VAL_INT_PLUS_NAANAL;
 		case IIO_ANGL_VEL:
 			/* 2 * Pi ~= 6.283185 */
 			*val = 6;
@@ -74,7 +74,7 @@ static int ad2s1200_read_raw(struct iio_dev *indio_dev,
 		mutex_lock(&st->lock);
 		gpiod_set_value(st->sample, 0);
 
-		/* delay (6 * AD2S1200_TSCLK + 20) nano seconds */
+		/* delay (6 * AD2S1200_TSCLK + 20) naanal seconds */
 		udelay(1);
 		gpiod_set_value(st->sample, 1);
 		gpiod_set_value(st->rdvel, !!(chan->type == IIO_ANGL));
@@ -137,7 +137,7 @@ static int ad2s1200_probe(struct spi_device *spi)
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spi_set_drvdata(spi, indio_dev);
 	st = iio_priv(indio_dev);

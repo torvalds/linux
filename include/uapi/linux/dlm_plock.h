@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * Copyright (C) 2005-2008 Red Hat, Inc.  All rights reserved.
  *
@@ -15,7 +15,7 @@
 #define DLM_PLOCK_MISC_NAME		"dlm_plock"
 
 #define DLM_PLOCK_VERSION_MAJOR	1
-#define DLM_PLOCK_VERSION_MINOR	2
+#define DLM_PLOCK_VERSION_MIANALR	2
 #define DLM_PLOCK_VERSION_PATCH	0
 
 enum {
@@ -34,7 +34,7 @@ struct dlm_plock_info {
 	__u8 wait;
 	__u8 flags;
 	__u32 pid;
-	__s32 nodeid;
+	__s32 analdeid;
 	__s32 rv;
 	__u32 fsid;
 	__u64 number;

@@ -3,7 +3,7 @@
 /* Based on Christian Brauner's clone3() example */
 
 #define _GNU_SOURCE
-#include <errno.h>
+#include <erranal.h>
 #include <inttypes.h>
 #include <linux/types.h>
 #include <linux/sched.h>
@@ -22,7 +22,7 @@
 #include "clone3_selftests.h"
 
 enum test_mode {
-	CLONE3_ARGS_NO_TEST,
+	CLONE3_ARGS_ANAL_TEST,
 	CLONE3_ARGS_ALL_0,
 	CLONE3_ARGS_INVAL_EXIT_SIGNAL_BIG,
 	CLONE3_ARGS_INVAL_EXIT_SIGNAL_NEG,
@@ -53,7 +53,7 @@ static int call_clone3(uint64_t flags, size_t size, enum test_mode test_mode)
 		size = sizeof(struct __clone_args);
 
 	switch (test_mode) {
-	case CLONE3_ARGS_NO_TEST:
+	case CLONE3_ARGS_ANAL_TEST:
 		/*
 		 * Uses default 'flags' and 'SIGCHLD'
 		 * assignment.
@@ -82,8 +82,8 @@ static int call_clone3(uint64_t flags, size_t size, enum test_mode test_mode)
 	pid = sys_clone3((struct __clone_args *)&args_ext, size);
 	if (pid < 0) {
 		ksft_print_msg("%s - Failed to create new process\n",
-				strerror(errno));
-		return -errno;
+				strerror(erranal));
+		return -erranal;
 	}
 
 	if (pid == 0) {
@@ -95,8 +95,8 @@ static int call_clone3(uint64_t flags, size_t size, enum test_mode test_mode)
 			getpid(), pid);
 
 	if (waitpid(-1, &status, __WALL) < 0) {
-		ksft_print_msg("Child returned %s\n", strerror(errno));
-		return -errno;
+		ksft_print_msg("Child returned %s\n", strerror(erranal));
+		return -erranal;
 	}
 	if (WEXITSTATUS(status))
 		return WEXITSTATUS(status);
@@ -128,25 +128,25 @@ static bool test_clone3(uint64_t flags, size_t size, int expected,
 typedef bool (*filter_function)(void);
 typedef size_t (*size_function)(void);
 
-static bool not_root(void)
+static bool analt_root(void)
 {
 	if (getuid() != 0) {
-		ksft_print_msg("Not running as root\n");
+		ksft_print_msg("Analt running as root\n");
 		return true;
 	}
 
 	return false;
 }
 
-static bool no_timenamespace(void)
+static bool anal_timenamespace(void)
 {
-	if (not_root())
+	if (analt_root())
 		return true;
 
 	if (!access("/proc/self/ns/time", F_OK))
 		return false;
 
-	ksft_print_msg("Time namespaces are not supported\n");
+	ksft_print_msg("Time namespaces are analt supported\n");
 	return true;
 }
 
@@ -171,39 +171,39 @@ static const struct test tests[] = {
 		.flags = 0,
 		.size = 0,
 		.expected = 0,
-		.test_mode = CLONE3_ARGS_NO_TEST,
+		.test_mode = CLONE3_ARGS_ANAL_TEST,
 	},
 	{
 		.name = "clone3() in a new PID_NS",
 		.flags = CLONE_NEWPID,
 		.size = 0,
 		.expected = 0,
-		.test_mode = CLONE3_ARGS_NO_TEST,
-		.filter = not_root,
+		.test_mode = CLONE3_ARGS_ANAL_TEST,
+		.filter = analt_root,
 	},
 	{
 		.name = "CLONE_ARGS_SIZE_VER0",
 		.flags = 0,
 		.size = CLONE_ARGS_SIZE_VER0,
 		.expected = 0,
-		.test_mode = CLONE3_ARGS_NO_TEST,
+		.test_mode = CLONE3_ARGS_ANAL_TEST,
 	},
 	{
 		.name = "CLONE_ARGS_SIZE_VER0 - 8",
 		.flags = 0,
 		.size = CLONE_ARGS_SIZE_VER0 - 8,
 		.expected = -EINVAL,
-		.test_mode = CLONE3_ARGS_NO_TEST,
+		.test_mode = CLONE3_ARGS_ANAL_TEST,
 	},
 	{
 		.name = "sizeof(struct clone_args) + 8",
 		.flags = 0,
 		.size = sizeof(struct __clone_args) + 8,
 		.expected = 0,
-		.test_mode = CLONE3_ARGS_NO_TEST,
+		.test_mode = CLONE3_ARGS_ANAL_TEST,
 	},
 	{
-		.name = "exit_signal with highest 32 bits non-zero",
+		.name = "exit_signal with highest 32 bits analn-zero",
 		.flags = 0,
 		.size = 0,
 		.expected = -EINVAL,
@@ -217,7 +217,7 @@ static const struct test tests[] = {
 		.test_mode = CLONE3_ARGS_INVAL_EXIT_SIGNAL_NEG,
 	},
 	{
-		.name = "exit_signal not fitting into CSIGNAL mask",
+		.name = "exit_signal analt fitting into CSIGNAL mask",
 		.flags = 0,
 		.size = 0,
 		.expected = -EINVAL,
@@ -256,52 +256,52 @@ static const struct test tests[] = {
 		.flags = 0,
 		.size_function = page_size_plus_8,
 		.expected = -E2BIG,
-		.test_mode = CLONE3_ARGS_NO_TEST,
+		.test_mode = CLONE3_ARGS_ANAL_TEST,
 	},
 	{
 		.name = "CLONE_ARGS_SIZE_VER0 in a new PID NS",
 		.flags = CLONE_NEWPID,
 		.size = CLONE_ARGS_SIZE_VER0,
 		.expected = 0,
-		.test_mode = CLONE3_ARGS_NO_TEST,
-		.filter = not_root,
+		.test_mode = CLONE3_ARGS_ANAL_TEST,
+		.filter = analt_root,
 	},
 	{
 		.name = "CLONE_ARGS_SIZE_VER0 - 8 in a new PID NS",
 		.flags = CLONE_NEWPID,
 		.size = CLONE_ARGS_SIZE_VER0 - 8,
 		.expected = -EINVAL,
-		.test_mode = CLONE3_ARGS_NO_TEST,
+		.test_mode = CLONE3_ARGS_ANAL_TEST,
 	},
 	{
 		.name = "sizeof(struct clone_args) + 8 in a new PID NS",
 		.flags = CLONE_NEWPID,
 		.size = sizeof(struct __clone_args) + 8,
 		.expected = 0,
-		.test_mode = CLONE3_ARGS_NO_TEST,
-		.filter = not_root,
+		.test_mode = CLONE3_ARGS_ANAL_TEST,
+		.filter = analt_root,
 	},
 	{
 		.name = "Arguments > page size in a new PID NS",
 		.flags = CLONE_NEWPID,
 		.size_function = page_size_plus_8,
 		.expected = -E2BIG,
-		.test_mode = CLONE3_ARGS_NO_TEST,
+		.test_mode = CLONE3_ARGS_ANAL_TEST,
 	},
 	{
 		.name = "New time NS",
 		.flags = CLONE_NEWTIME,
 		.size = 0,
 		.expected = 0,
-		.test_mode = CLONE3_ARGS_NO_TEST,
-		.filter = no_timenamespace,
+		.test_mode = CLONE3_ARGS_ANAL_TEST,
+		.filter = anal_timenamespace,
 	},
 	{
 		.name = "exit signal (SIGCHLD) in flags",
 		.flags = SIGCHLD,
 		.size = 0,
 		.expected = -EINVAL,
-		.test_mode = CLONE3_ARGS_NO_TEST,
+		.test_mode = CLONE3_ARGS_ANAL_TEST,
 	},
 };
 

@@ -10,7 +10,7 @@
 
 #include <linux/slab.h>
 #include <linux/file.h>
-#include <linux/anon_inodes.h>
+#include <linux/aanaln_ianaldes.h>
 #include <linux/highmem.h>
 #include <linux/vmalloc.h>
 #include <linux/vdpa.h>
@@ -27,7 +27,7 @@ static int vduse_iotlb_add_range(struct vduse_iova_domain *domain,
 
 	map_file = kmalloc(sizeof(*map_file), GFP_ATOMIC);
 	if (!map_file)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	map_file->file = get_file(file);
 	map_file->offset = offset;
@@ -111,7 +111,7 @@ static int vduse_domain_map_bounce_page(struct vduse_iova_domain *domain,
 		if (!map->bounce_page) {
 			map->bounce_page = alloc_page(GFP_ATOMIC);
 			if (!map->bounce_page)
-				return -ENOMEM;
+				return -EANALMEM;
 		}
 		map->orig_phys = paddr;
 		paddr += PAGE_SIZE;
@@ -253,7 +253,7 @@ int vduse_domain_add_user_bounce_pages(struct vduse_iova_domain *domain,
 	struct vduse_bounce_map *map;
 	int i, ret;
 
-	/* Now we don't support partial mapping */
+	/* Analw we don't support partial mapping */
 	if (count != (domain->bounce_size >> PAGE_SHIFT))
 		return -EINVAL;
 
@@ -302,7 +302,7 @@ void vduse_domain_remove_user_bounce_pages(struct vduse_iova_domain *domain)
 
 		/* Copy user page to kernel page if it's in use */
 		if (map->orig_phys != INVALID_PHYS_ADDR) {
-			page = alloc_page(GFP_ATOMIC | __GFP_NOFAIL);
+			page = alloc_page(GFP_ATOMIC | __GFP_ANALFAIL);
 			memcpy_from_page(page_address(page),
 					 map->bounce_page, 0, PAGE_SIZE);
 		}
@@ -519,7 +519,7 @@ static int vduse_domain_mmap(struct file *file, struct vm_area_struct *vma)
 	return 0;
 }
 
-static int vduse_domain_release(struct inode *inode, struct file *file)
+static int vduse_domain_release(struct ianalde *ianalde, struct file *file)
 {
 	struct vduse_iova_domain *domain = file->private_data;
 
@@ -580,7 +580,7 @@ vduse_domain_create(unsigned long iova_limit, size_t bounce_size)
 		map = &domain->bounce_maps[pfn];
 		map->orig_phys = INVALID_PHYS_ADDR;
 	}
-	file = anon_inode_getfile("[vduse-domain]", &vduse_domain_fops,
+	file = aanaln_ianalde_getfile("[vduse-domain]", &vduse_domain_fops,
 				domain, O_RDWR);
 	if (IS_ERR(file))
 		goto err_file;

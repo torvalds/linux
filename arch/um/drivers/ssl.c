@@ -21,7 +21,7 @@ static const int ssl_version = 1;
 
 #define NR_PORTS 64
 
-static void ssl_announce(char *dev_name, int dev)
+static void ssl_ananalunce(char *dev_name, int dev)
 {
 	printk(KERN_INFO "Serial line %d assigned device '%s'\n", dev,
 	       dev_name);
@@ -29,7 +29,7 @@ static void ssl_announce(char *dev_name, int dev)
 
 /* Almost const, except that xterm_title may be changed in an initcall */
 static struct chan_opts opts = {
-	.announce 	= ssl_announce,
+	.ananalunce 	= ssl_ananalunce,
 	.xterm_title	= "Serial Line #%d",
 	.raw		= 1,
 };
@@ -44,7 +44,7 @@ static struct line_driver driver = {
 	.name 			= "UML serial line",
 	.device_name 		= "ttyS",
 	.major 			= TTY_MAJOR,
-	.minor_start 		= 64,
+	.mianalr_start 		= 64,
 	.type 		 	= TTY_DRIVER_TYPE_SERIAL,
 	.subtype 	 	= 0,
 	.read_irq_name 		= "ssl",
@@ -132,7 +132,7 @@ static int ssl_console_setup(struct console *co, char *options)
 	return console_open_chan(line, co);
 }
 
-/* No locking for register_console call - relies on single-threaded initcalls */
+/* Anal locking for register_console call - relies on single-threaded initcalls */
 static struct console ssl_cons = {
 	.name		= "ttyS",
 	.write		= ssl_console_write,
@@ -193,10 +193,10 @@ static int ssl_chan_setup(char *str)
 __setup("ssl", ssl_chan_setup);
 __channel_help(ssl_chan_setup, "ssl");
 
-static int ssl_non_raw_setup(char *str)
+static int ssl_analn_raw_setup(char *str)
 {
 	opts.raw = 0;
 	return 1;
 }
-__setup("ssl-non-raw", ssl_non_raw_setup);
-__channel_help(ssl_non_raw_setup, "set serial lines to non-raw mode");
+__setup("ssl-analn-raw", ssl_analn_raw_setup);
+__channel_help(ssl_analn_raw_setup, "set serial lines to analn-raw mode");

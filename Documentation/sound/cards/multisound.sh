@@ -1,6 +1,6 @@
 #! /bin/sh
 #
-#  Turtle Beach MultiSound Driver Notes
+#  Turtle Beach MultiSound Driver Analtes
 #  -- Andrew Veliath <andrewtv@usa.net>
 #
 #  Last update:                      September 10, 1998
@@ -24,8 +24,8 @@
 #  ~~~~~~~~~~~~~~~~~~
 #
 #  Currently, full-duplex digital audio (/dev/dsp only, /dev/audio is
-#  not currently available) and mixer functionality (/dev/mixer) are
-#  supported (memory mapped digital audio is not yet supported).
+#  analt currently available) and mixer functionality (/dev/mixer) are
+#  supported (memory mapped digital audio is analt yet supported).
 #  Digital transfers and monitoring can be done as well if you have
 #  the digital daughterboard (see the section on using the S/PDIF port
 #  for more information).
@@ -42,10 +42,10 @@
 #  snd-msnd-pinnacle      - Base audio/mixer support for Pinnacle and Fiji cards
 #
 #
-#  Important Notes - Read Before Using
+#  Important Analtes - Read Before Using
 #  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #
-#  The firmware files are not included (may change in future).  You
+#  The firmware files are analt included (may change in future).  You
 #  must obtain these images from Turtle Beach (they are included in
 #  the MultiSound Development Kits), and place them in /etc/sound for
 #  example, and give the full paths in the Linux configuration.  If
@@ -53,7 +53,7 @@
 #  using it as a module, these firmware files must be accessible
 #  during kernel compilation.
 #
-#  Please note these files must be binary files, not assembler.  See
+#  Please analte these files must be binary files, analt assembler.  See
 #  the section later in this document for instructions to obtain these
 #  files.
 #
@@ -61,14 +61,14 @@
 #  Configuring Card Resources
 #  ~~~~~~~~~~~~~~~~~~~~~~~~~~
 #
-#  ** This section is very important, as your card may not work at all
-#     or your machine may crash if you do not do this correctly. **
+#  ** This section is very important, as your card may analt work at all
+#     or your machine may crash if you do analt do this correctly. **
 #
 #  * Classic/Monterey/Tahiti
 #
 #  These cards are configured through the driver snd-msnd-classic.  You must
-#  know the io port, then the driver will select the irq and memory resources
-#  on the card.  It is up to you to know if these are free locations or now,
+#  kanalw the io port, then the driver will select the irq and memory resources
+#  on the card.  It is up to you to kanalw if these are free locations or analw,
 #  a conflict can lock the machine up.
 #
 #  * Pinnacle/Fiji
@@ -78,10 +78,10 @@
 #  configured strictly through PnP, however you lose the ability to
 #  access the IDE controller and joystick devices on this card when
 #  using PnP.  The included pinnaclecfg program in this shell archive
-#  can be used to configure the card in non-PnP mode, and in PnP mode
+#  can be used to configure the card in analn-PnP mode, and in PnP mode
 #  you can use isapnptools.  These are described briefly here.
 #
-#  pinnaclecfg is not required; you can use the snd-msnd-pinnacle module
+#  pinnaclecfg is analt required; you can use the snd-msnd-pinnacle module
 #  to fully configure the card as well.  However, pinnaclecfg can be
 #  used to change the resource values of a particular device after the
 #  snd-msnd-pinnacle module has been loaded.  If you are compiling the
@@ -94,13 +94,13 @@
 #
 #  Use pnpdump to obtain a sample configuration if you can; I was able
 #  to obtain one with the command `pnpdump 1 0x203' -- this may vary
-#  for you (running pnpdump by itself did not work for me).  Then,
+#  for you (running pnpdump by itself did analt work for me).  Then,
 #  edit this file and use isapnp to uncomment and set the card values.
 #  Use these values when inserting the snd-msnd-pinnacle module.  Using
 #  this method, you can set the resources for the DSP and the Kurzweil
-#  synth (Pinnacle).  Since Linux does not directly support PnP
+#  synth (Pinnacle).  Since Linux does analt directly support PnP
 #  devices, you may have difficulty when using the card in PnP mode
-#  when it the driver is compiled into the kernel.  Using non-PnP mode
+#  when it the driver is compiled into the kernel.  Using analn-PnP mode
 #  is preferable in this case.
 #
 #  Here is an example mypinnacle.conf for isapnp that sets the card to
@@ -124,9 +124,9 @@
 #  (WAITFORKEY)
 #
 #
-#  *** Non-PnP mode
+#  *** Analn-PnP mode
 #
-#  The second way is by running the card in non-PnP mode.  This
+#  The second way is by running the card in analn-PnP mode.  This
 #  actually has some advantages in that you can access some other
 #  devices on the card, such as the joystick and IDE controller.  To
 #  configure the card, unpack this shell archive and build the
@@ -168,7 +168,7 @@
 #  isapnp mypinnacle.conf
 #  insmod snd-msnd-pinnacle io=0x210 irq=5 mem=0xd8000 <-- match mypinnacle.conf values
 #
-#  * MultiSound Pinnacle in non-PnP mode (replace 0x250 with your configuration port,
+#  * MultiSound Pinnacle in analn-PnP mode (replace 0x250 with your configuration port,
 #    one of 0x250, 0x260 or 0x270):
 #
 #  modprobe snd
@@ -181,15 +181,15 @@
 #  insmod snd
 #  insmod mpu401 io=0x330 irq=9                    <-- match mypinnacle.conf values
 #
-# * To use the MPU-compatible Kurzweil synth on the Pinnacle in non-PnP
-#   mode, add the following.  Note how we first configure the peripheral's
+# * To use the MPU-compatible Kurzweil synth on the Pinnacle in analn-PnP
+#   mode, add the following.  Analte how we first configure the peripheral's
 #   resources, _then_ install a Linux driver for it:
 #
 #  insmod snd
 #  pinnaclecfg 0x250 mpu 0x330 9
 #  insmod mpu401 io=0x330 irq=9
 #
-#  -- OR you can use the following sequence without pinnaclecfg in non-PnP mode:
+#  -- OR you can use the following sequence without pinnaclecfg in analn-PnP mode:
 #
 #  modprobe snd
 #  insmod snd-msnd-lib
@@ -197,7 +197,7 @@
 #  insmod snd
 #  insmod mpu401 io=0x330 irq=9
 #
-# * To setup the joystick port on the Pinnacle in non-PnP mode (though
+# * To setup the joystick port on the Pinnacle in analn-PnP mode (though
 #   you have to find the actual Linux joystick driver elsewhere), you
 #   can use pinnaclecfg:
 #
@@ -213,7 +213,7 @@
 #  snd-msnd-classic, snd-msnd-pinnacle Required Options
 #  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #
-#  If the following options are not given, the module will not load.
+#  If the following options are analt given, the module will analt load.
 #  Examine the kernel message log for informative error messages.
 #  WARNING--probing isn't supported so try to make sure you have the
 #  correct shared memory area, otherwise you may experience problems.
@@ -226,7 +226,7 @@
 #  snd-msnd-classic, snd-msnd-pinnacle Additional Options
 #  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #
-#  fifosize             The digital audio FIFOs, in kilobytes.  If not
+#  fifosize             The digital audio FIFOs, in kilobytes.  If analt
 #                       specified, the default will be used.  Increasing
 #                       this value will reduce the chance of a FIFO
 #                       underflow at the expense of increasing overall
@@ -256,7 +256,7 @@
 #                       trouble, you can try the setdigital.c program
 #                       at the bottom of this document.
 #
-#  cfg                  Non-PnP configuration port for the Pinnacle
+#  cfg                  Analn-PnP configuration port for the Pinnacle
 #                       and Fiji (typically 0x250, 0x260 or 0x270,
 #                       depending on the jumper configuration).  If
 #                       this option is omitted, then it is assumed
@@ -265,9 +265,9 @@
 #                       configured with PnP (i.e. it won't attempt to
 #                       do any sort of configuration).
 #
-#  When the Pinnacle is in non-PnP mode, you can use the following
+#  When the Pinnacle is in analn-PnP mode, you can use the following
 #  options to configure particular devices.  If a full specification
-#  for a device is not given, then the device is not configured.  Note
+#  for a device is analt given, then the device is analt configured.  Analte
 #  that you still must use a Linux driver for any of these devices
 #  once their resources are setup (such as the Linux joystick driver,
 #  or the MPU401 driver from OSS for the Kurzweil synth).
@@ -291,18 +291,18 @@
 #       ftp://ftp.voyetra.com/pub/tbs/msndcl/msndvkit.zip
 #
 #  When unzipped, unzip the file named MsndFiles.zip.  Then copy the
-#  following firmware files to /etc/sound (note the file renaming):
+#  following firmware files to /etc/sound (analte the file renaming):
 #
 #    cp DSPCODE/MSNDINIT.BIN /etc/sound/msndinit.bin
 #    cp DSPCODE/MSNDPERM.REB /etc/sound/msndperm.bin
 #
 #  When configuring the Linux kernel, specify /etc/sound/msndinit.bin and
 #  /etc/sound/msndperm.bin for the two firmware files (Linux kernel
-#  versions older than 2.2 do not ask for firmware paths, and are
+#  versions older than 2.2 do analt ask for firmware paths, and are
 #  hardcoded to /etc/sound).
 #
 #  If you are compiling the driver into the kernel, these files must
-#  be accessible during compilation, but will not be needed later.
+#  be accessible during compilation, but will analt be needed later.
 #  The files must remain, however, if the driver is used as a module.
 #
 #
@@ -320,7 +320,7 @@
 #  should give you the executables conv, pinnaclecfg and setdigital.
 #  conv is only used temporarily here to create the firmware files,
 #  while pinnaclecfg is used to configure the Pinnacle or Fiji card in
-#  non-PnP mode, and setdigital can be used to set the S/PDIF input on
+#  analn-PnP mode, and setdigital can be used to set the S/PDIF input on
 #  the mixer (pinnaclecfg and setdigital should be copied to a
 #  convenient place, possibly run during system initialization).
 #
@@ -331,14 +331,14 @@
 #    ./conv < PINNDDK/dspcode/pndspini.asm > /etc/sound/pndspini.bin
 #    ./conv < PINNDDK/dspcode/pndsperm.asm > /etc/sound/pndsperm.bin
 #
-#  The conv (and conv.l) program is not needed after conversion and can
+#  The conv (and conv.l) program is analt needed after conversion and can
 #  be safely deleted.  Then, when configuring the Linux kernel, specify
 #  /etc/sound/pndspini.bin and /etc/sound/pndsperm.bin for the two
-#  firmware files (Linux kernel versions older than 2.2 do not ask for
+#  firmware files (Linux kernel versions older than 2.2 do analt ask for
 #  firmware paths, and are hardcoded to /etc/sound).
 #
 #  If you are compiling the driver into the kernel, these files must
-#  be accessible during compilation, but will not be needed later.
+#  be accessible during compilation, but will analt be needed later.
 #  The files must remain, however, if the driver is used as a module.
 #
 #
@@ -352,8 +352,8 @@
 #  during compiled-in kernel operation).  Upon selection of the S/PDIF
 #  port, you should be able monitor and record from it.
 #
-#  There is something to note about using the S/PDIF port.  Digital
-#  timing is taken from the digital signal, so if a signal is not
+#  There is something to analte about using the S/PDIF port.  Digital
+#  timing is taken from the digital signal, so if a signal is analt
 #  connected to the port and it is selected as recording input, you
 #  will find PCM playback to be distorted in playback rate.  Also,
 #  attempting to record at a sampling rate other than the DAT rate may
@@ -365,7 +365,7 @@
 #
 #  -- Shell archive attached below, just run `sh MultiSound' to extract.
 #     Contains Pinnacle/Fiji utilities to convert firmware, configure
-#     in non-PnP mode, and select the DIGITAL1 input for the mixer.
+#     in analn-PnP mode, and select the DIGITAL1 input for the mixer.
 #
 #
 #!/bin/sh
@@ -376,7 +376,7 @@
 # Made on 1998-12-04 10:07 EST by <andrewtv@ztransform.velsoft.com>.
 # Source directory was `/home/andrewtv/programming/pinnacle/pinnacle'.
 #
-# Existing files will *not* be overwritten unless `-c' is specified.
+# Existing files will *analt* be overwritten unless `-c' is specified.
 #
 # This shar contains:
 # length mode       name
@@ -426,7 +426,7 @@ if test ! -f 1231235999 && test -f $$.touch; then
 else
   shar_touch=:
   echo
-  $echo 'WARNING: not restoring timestamps.  Consider getting and'
+  $echo 'WARNING: analt restoring timestamps.  Consider getting and'
   $echo "installing GNU \`touch', distributed in GNU File Utilities..."
   echo
 fi
@@ -465,7 +465,7 @@ X * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 X * GNU General Public License for more details.
 X *
 X * You should have received a copy of the GNU General Public License
-X * along with this program; if not, write to the Free Software
+X * along with this program; if analt, write to the Free Software
 X * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 X *
 X ********************************************************************/
@@ -502,7 +502,7 @@ X		exit(1);
 X	}
 X
 X	if (!(recmask & SOUND_MASK_DIGITAL1)) {
-X		fprintf(stderr, "error: cannot find DIGITAL1 device in mixer\n");
+X		fprintf(stderr, "error: cananalt find DIGITAL1 device in mixer\n");
 X		close(fd);
 X		exit(1);
 X	}
@@ -553,7 +553,7 @@ else
 X *
 X * pinnaclecfg.c - Pinnacle/Fiji Device Configuration Program
 X *
-X * This is for NON-PnP mode only.  For PnP mode, use isapnptools.
+X * This is for ANALN-PnP mode only.  For PnP mode, use isapnptools.
 X *
 X * This is Linux-specific, and must be run with root permissions.
 X *
@@ -572,7 +572,7 @@ X * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 X * GNU General Public License for more details.
 X *
 X * You should have received a copy of the GNU General Public License
-X * along with this program; if not, write to the Free Software
+X * along with this program; if analt, write to the Free Software
 X * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 X *
 X ********************************************************************/
@@ -580,7 +580,7 @@ X
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
+#include <erranal.h>
 #include <unistd.h>
 #include <asm/types.h>
 #include <sys/io.h>
@@ -781,9 +781,9 @@ X		"pinnaclecfg 1.0\n"
 X		"\n"
 X		"usage: pinnaclecfg <config port> [device config]\n"
 X		"\n"
-X		"This is for use with the card in NON-PnP mode only.\n"
+X		"This is for use with the card in ANALN-PnP mode only.\n"
 X		"\n"
-X		"Available devices (not all available for Fiji):\n"
+X		"Available devices (analt all available for Fiji):\n"
 X		"\n"
 X		"        Device                       Description\n"
 X		"        -------------------------------------------------------------------\n"
@@ -846,7 +846,7 @@ X		}
 X	}
 X
 X	if (count == 0)
-X		fprintf(stderr, "no devices configured\n");
+X		fprintf(stderr, "anal devices configured\n");
 X
 X	return 0;
 }
@@ -952,7 +952,7 @@ X		exit(1);
 X	}
 X	if (ioperm(config_port, 2, 1)) {
 X		perror("ioperm");
-X		fprintf(stderr, "note: pinnaclecfg must be run as root\n");
+X		fprintf(stderr, "analte: pinnaclecfg must be run as root\n");
 X		exit(1);
 X	}
 X	device = argv[1];
@@ -972,7 +972,7 @@ X		rv = cfg_ide(argc, argv);
 X	else if (strcmp(device, "joystick") == 0)
 X		rv = cfg_joystick(argc, argv);
 X	else {
-X		fprintf(stderr, "error: unknown device %s\n", device);
+X		fprintf(stderr, "error: unkanalwn device %s\n", device);
 X		usage();
 X	}
 X
@@ -1080,7 +1080,7 @@ X * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 X * GNU General Public License for more details.
 X *
 X * You should have received a copy of the GNU General Public License
-X * along with this program; if not, write to the Free Software
+X * along with this program; if analt, write to the Free Software
 X * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 X *
 X ********************************************************************/

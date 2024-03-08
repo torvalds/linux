@@ -72,9 +72,9 @@ enum iwl_legacy_cmds {
 	ECHO_CMD = 0x3,
 
 	/**
-	 * @INIT_COMPLETE_NOTIF: Notification that initialization is complete.
+	 * @INIT_COMPLETE_ANALTIF: Analtification that initialization is complete.
 	 */
-	INIT_COMPLETE_NOTIF = 0x4,
+	INIT_COMPLETE_ANALTIF = 0x4,
 
 	/**
 	 * @PHY_CONTEXT_CMD:
@@ -91,7 +91,7 @@ enum iwl_legacy_cmds {
 	/**
 	 * @SCAN_ITERATION_COMPLETE_UMAC:
 	 * Firmware indicates a scan iteration completed, using
-	 * &struct iwl_umac_scan_iter_complete_notif.
+	 * &struct iwl_umac_scan_iter_complete_analtif.
 	 */
 	SCAN_ITERATION_COMPLETE_UMAC = 0xb5,
 
@@ -118,10 +118,10 @@ enum iwl_legacy_cmds {
 	SCAN_COMPLETE_UMAC = 0xf,
 
 	/**
-	 * @BA_WINDOW_STATUS_NOTIFICATION_ID:
-	 * uses &struct iwl_ba_window_status_notif
+	 * @BA_WINDOW_STATUS_ANALTIFICATION_ID:
+	 * uses &struct iwl_ba_window_status_analtif
 	 */
-	BA_WINDOW_STATUS_NOTIFICATION_ID = 0x13,
+	BA_WINDOW_STATUS_ANALTIFICATION_ID = 0x13,
 
 	/**
 	 * @ADD_STA_KEY:
@@ -188,10 +188,10 @@ enum iwl_legacy_cmds {
 	TDLS_CHANNEL_SWITCH_CMD = 0x27,
 
 	/**
-	 * @TDLS_CHANNEL_SWITCH_NOTIFICATION:
-	 * uses &struct iwl_tdls_channel_switch_notif
+	 * @TDLS_CHANNEL_SWITCH_ANALTIFICATION:
+	 * uses &struct iwl_tdls_channel_switch_analtif
 	 */
-	TDLS_CHANNEL_SWITCH_NOTIFICATION = 0xaa,
+	TDLS_CHANNEL_SWITCH_ANALTIFICATION = 0xaa,
 
 	/**
 	 * @TDLS_CONFIG_CMD:
@@ -211,9 +211,9 @@ enum iwl_legacy_cmds {
 	TIME_EVENT_CMD = 0x29, /* both CMD and response */
 
 	/**
-	 * @TIME_EVENT_NOTIFICATION: &struct iwl_time_event_notif
+	 * @TIME_EVENT_ANALTIFICATION: &struct iwl_time_event_analtif
 	 */
-	TIME_EVENT_NOTIFICATION = 0x2a,
+	TIME_EVENT_ANALTIFICATION = 0x2a,
 
 	/**
 	 * @BINDING_CONTEXT_CMD:
@@ -227,10 +227,10 @@ enum iwl_legacy_cmds {
 	TIME_QUOTA_CMD = 0x2c,
 
 	/**
-	 * @NON_QOS_TX_COUNTER_CMD:
-	 * command is &struct iwl_nonqos_seq_query_cmd
+	 * @ANALN_QOS_TX_COUNTER_CMD:
+	 * command is &struct iwl_analnqos_seq_query_cmd
 	 */
-	NON_QOS_TX_COUNTER_CMD = 0x2d,
+	ANALN_QOS_TX_COUNTER_CMD = 0x2d,
 
 	/**
 	 * @LEDS_CMD: command is &struct iwl_led_cmd
@@ -254,7 +254,7 @@ enum iwl_legacy_cmds {
 	SCAN_OFFLOAD_REQUEST_CMD = 0x51,
 
 	/**
-	 * @SCAN_OFFLOAD_ABORT_CMD: abort the scan - no further contents
+	 * @SCAN_OFFLOAD_ABORT_CMD: abort the scan - anal further contents
 	 */
 	SCAN_OFFLOAD_ABORT_CMD = 0x52,
 
@@ -264,26 +264,26 @@ enum iwl_legacy_cmds {
 	HOT_SPOT_CMD = 0x53,
 
 	/**
-	 * @WNM_80211V_TIMING_MEASUREMENT_NOTIFICATION: Time Sync
-	 *	measurement notification for TM/FTM. Sent on receipt of
+	 * @WNM_80211V_TIMING_MEASUREMENT_ANALTIFICATION: Time Sync
+	 *	measurement analtification for TM/FTM. Sent on receipt of
 	 *	respective WNM action frame for TM protocol or public action
 	 *	frame for FTM protocol from peer device along with additional
-	 *	meta data specified in &struct iwl_time_msmt_notify
+	 *	meta data specified in &struct iwl_time_msmt_analtify
 	 */
-	WNM_80211V_TIMING_MEASUREMENT_NOTIFICATION = 0x67,
+	WNM_80211V_TIMING_MEASUREMENT_ANALTIFICATION = 0x67,
 
 	/**
-	 * @WNM_80211V_TIMING_MEASUREMENT_CONFIRM_NOTIFICATION: Time Sync
-	 *	measurement confirmation notification for TM/FTM. Sent on
+	 * @WNM_80211V_TIMING_MEASUREMENT_CONFIRM_ANALTIFICATION: Time Sync
+	 *	measurement confirmation analtification for TM/FTM. Sent on
 	 *	receipt of Ack from peer for previously Tx'ed TM/FTM
 	 *	action frame along with additional meta data specified in
-	 *	&struct iwl_time_msmt_cfm_notify
+	 *	&struct iwl_time_msmt_cfm_analtify
 	 */
-	WNM_80211V_TIMING_MEASUREMENT_CONFIRM_NOTIFICATION = 0x68,
+	WNM_80211V_TIMING_MEASUREMENT_CONFIRM_ANALTIFICATION = 0x68,
 
 	/**
 	 * @SCAN_OFFLOAD_COMPLETE:
-	 * notification, &struct iwl_periodic_scan_complete
+	 * analtification, &struct iwl_periodic_scan_complete
 	 */
 	SCAN_OFFLOAD_COMPLETE = 0x6D,
 
@@ -294,13 +294,13 @@ enum iwl_legacy_cmds {
 	SCAN_OFFLOAD_UPDATE_PROFILES_CMD = 0x6E,
 
 	/**
-	 * @MATCH_FOUND_NOTIFICATION: scan match found
+	 * @MATCH_FOUND_ANALTIFICATION: scan match found
 	 */
-	MATCH_FOUND_NOTIFICATION = 0xd9,
+	MATCH_FOUND_ANALTIFICATION = 0xd9,
 
 	/**
 	 * @SCAN_ITERATION_COMPLETE:
-	 * uses &struct iwl_lmac_scan_complete_notif
+	 * uses &struct iwl_lmac_scan_complete_analtif
 	 */
 	SCAN_ITERATION_COMPLETE = 0xe7,
 
@@ -311,9 +311,9 @@ enum iwl_legacy_cmds {
 	PHY_CONFIGURATION_CMD = 0x6a,
 
 	/**
-	 * @CALIB_RES_NOTIF_PHY_DB: &struct iwl_calib_res_notif_phy_db
+	 * @CALIB_RES_ANALTIF_PHY_DB: &struct iwl_calib_res_analtif_phy_db
 	 */
-	CALIB_RES_NOTIF_PHY_DB = 0x6b,
+	CALIB_RES_ANALTIF_PHY_DB = 0x6b,
 
 	/**
 	 * @PHY_DB_CMD: &struct iwl_phy_db_cmd
@@ -326,10 +326,10 @@ enum iwl_legacy_cmds {
 	POWER_TABLE_CMD = 0x77,
 
 	/**
-	 * @PSM_UAPSD_AP_MISBEHAVING_NOTIFICATION:
-	 * &struct iwl_uapsd_misbehaving_ap_notif
+	 * @PSM_UAPSD_AP_MISBEHAVING_ANALTIFICATION:
+	 * &struct iwl_uapsd_misbehaving_ap_analtif
 	 */
-	PSM_UAPSD_AP_MISBEHAVING_NOTIFICATION = 0x78,
+	PSM_UAPSD_AP_MISBEHAVING_ANALTIFICATION = 0x78,
 
 	/**
 	 * @LTR_CONFIG: &struct iwl_ltr_config_cmd
@@ -348,9 +348,9 @@ enum iwl_legacy_cmds {
 	NVM_ACCESS_CMD = 0x88,
 
 	/**
-	 * @BEACON_NOTIFICATION: &struct iwl_extended_beacon_notif
+	 * @BEACON_ANALTIFICATION: &struct iwl_extended_beacon_analtif
 	 */
-	BEACON_NOTIFICATION = 0x90,
+	BEACON_ANALTIFICATION = 0x90,
 
 	/**
 	 * @BEACON_TEMPLATE_CMD:
@@ -367,29 +367,29 @@ enum iwl_legacy_cmds {
 	/**
 	 * @STATISTICS_CMD:
 	 * one of &struct iwl_statistics_cmd,
-	 * &struct iwl_notif_statistics_v11,
-	 * &struct iwl_notif_statistics_v10,
-	 * &struct iwl_notif_statistics,
+	 * &struct iwl_analtif_statistics_v11,
+	 * &struct iwl_analtif_statistics_v10,
+	 * &struct iwl_analtif_statistics,
 	 * &struct iwl_statistics_operational_ntfy_ver_14
 	 */
 	STATISTICS_CMD = 0x9c,
 
 	/**
-	 * @STATISTICS_NOTIFICATION:
-	 * one of &struct iwl_notif_statistics_v10,
-	 * &struct iwl_notif_statistics_v11,
-	 * &struct iwl_notif_statistic,
+	 * @STATISTICS_ANALTIFICATION:
+	 * one of &struct iwl_analtif_statistics_v10,
+	 * &struct iwl_analtif_statistics_v11,
+	 * &struct iwl_analtif_statistic,
 	 * &struct iwl_statistics_operational_ntfy_ver_14
 	 * &struct iwl_statistics_operational_ntfy
 	 */
-	STATISTICS_NOTIFICATION = 0x9d,
+	STATISTICS_ANALTIFICATION = 0x9d,
 
 	/**
-	 * @EOSP_NOTIFICATION:
-	 * Notify that a service period ended,
-	 * &struct iwl_mvm_eosp_notification
+	 * @EOSP_ANALTIFICATION:
+	 * Analtify that a service period ended,
+	 * &struct iwl_mvm_eosp_analtification
 	 */
-	EOSP_NOTIFICATION = 0x9e,
+	EOSP_ANALTIFICATION = 0x9e,
 
 	/**
 	 * @REDUCE_TX_POWER_CMD:
@@ -398,9 +398,9 @@ enum iwl_legacy_cmds {
 	REDUCE_TX_POWER_CMD = 0x9f,
 
 	/**
-	 * @MISSED_BEACONS_NOTIFICATION: &struct iwl_missed_beacons_notif
+	 * @MISSED_BEACONS_ANALTIFICATION: &struct iwl_missed_beacons_analtif
 	 */
-	MISSED_BEACONS_NOTIFICATION = 0xa2,
+	MISSED_BEACONS_ANALTIFICATION = 0xa2,
 
 	/**
 	 * @MAC_PM_POWER_TABLE: using &struct iwl_mac_power_cmd
@@ -408,9 +408,9 @@ enum iwl_legacy_cmds {
 	MAC_PM_POWER_TABLE = 0xa9,
 
 	/**
-	 * @MFUART_LOAD_NOTIFICATION: &struct iwl_mfuart_load_notif
+	 * @MFUART_LOAD_ANALTIFICATION: &struct iwl_mfuart_load_analtif
 	 */
-	MFUART_LOAD_NOTIFICATION = 0xb1,
+	MFUART_LOAD_ANALTIFICATION = 0xb1,
 
 	/**
 	 * @RSS_CONFIG_CMD: &struct iwl_rss_config_cmd
@@ -429,7 +429,7 @@ enum iwl_legacy_cmds {
 	REPLY_RX_MPDU_CMD = 0xc1,
 
 	/**
-	 * @BAR_FRAME_RELEASE: Frame release from BAR notification, used for
+	 * @BAR_FRAME_RELEASE: Frame release from BAR analtification, used for
 	 *	multi-TID BAR (previously, the BAR frame itself was reported
 	 *	instead). Uses &struct iwl_bar_frame_release.
 	 */
@@ -437,17 +437,17 @@ enum iwl_legacy_cmds {
 
 	/**
 	 * @FRAME_RELEASE:
-	 * Frame release (reorder helper) notification, uses
+	 * Frame release (reorder helper) analtification, uses
 	 * &struct iwl_frame_release
 	 */
 	FRAME_RELEASE = 0xc3,
 
 	/**
-	 * @BA_NOTIF:
-	 * BlockAck notification, uses &struct iwl_mvm_compressed_ba_notif
-	 * or &struct iwl_mvm_ba_notif depending on the HW
+	 * @BA_ANALTIF:
+	 * BlockAck analtification, uses &struct iwl_mvm_compressed_ba_analtif
+	 * or &struct iwl_mvm_ba_analtif depending on the HW
 	 */
-	BA_NOTIF = 0xc5,
+	BA_ANALTIF = 0xc5,
 
 	/* Location Aware Regulatory */
 	/**
@@ -456,7 +456,7 @@ enum iwl_legacy_cmds {
 	MCC_UPDATE_CMD = 0xc8,
 
 	/**
-	 * @MCC_CHUB_UPDATE_CMD: using &struct iwl_mcc_chub_notif
+	 * @MCC_CHUB_UPDATE_CMD: using &struct iwl_mcc_chub_analtif
 	 */
 	MCC_CHUB_UPDATE_CMD = 0xc9,
 
@@ -467,9 +467,9 @@ enum iwl_legacy_cmds {
 	MARKER_CMD = 0xcb,
 
 	/**
-	 * @BT_PROFILE_NOTIFICATION: &struct iwl_bt_coex_profile_notif
+	 * @BT_PROFILE_ANALTIFICATION: &struct iwl_bt_coex_profile_analtif
 	 */
-	BT_PROFILE_NOTIFICATION = 0xce,
+	BT_PROFILE_ANALTIFICATION = 0xce,
 
 	/**
 	 * @BT_CONFIG: &struct iwl_bt_coex_cmd
@@ -497,11 +497,11 @@ enum iwl_legacy_cmds {
 	REPLY_BEACON_FILTERING_CMD = 0xd2,
 
 	/**
-	 * @DTS_MEASUREMENT_NOTIFICATION:
-	 * &struct iwl_dts_measurement_notif_v1 or
-	 * &struct iwl_dts_measurement_notif_v2
+	 * @DTS_MEASUREMENT_ANALTIFICATION:
+	 * &struct iwl_dts_measurement_analtif_v1 or
+	 * &struct iwl_dts_measurement_analtif_v2
 	 */
-	DTS_MEASUREMENT_NOTIFICATION = 0xdd,
+	DTS_MEASUREMENT_ANALTIFICATION = 0xdd,
 
 	/**
 	 * @LDBG_CONFIG_CMD: configure continuous trace recording
@@ -532,7 +532,7 @@ enum iwl_legacy_cmds {
 	PROT_OFFLOAD_CONFIG_CMD = 0xd4,
 
 	/**
-	 * @D0I3_END_CMD: End D0i3/D3 state, no command data
+	 * @D0I3_END_CMD: End D0i3/D3 state, anal command data
 	 */
 	D0I3_END_CMD = 0xed,
 
@@ -572,7 +572,7 @@ enum iwl_legacy_cmds {
 	WOWLAN_GET_STATUSES = 0xe5,
 
 	/**
-	 * @SCAN_OFFLOAD_PROFILES_QUERY_CMD: No command data, response is
+	 * @SCAN_OFFLOAD_PROFILES_QUERY_CMD: Anal command data, response is
 	 *	&struct iwl_scan_offload_profiles_query_v1
 	 */
 	SCAN_OFFLOAD_PROFILES_QUERY_CMD = 0x56,
@@ -625,14 +625,14 @@ enum iwl_system_subcmd_ids {
 	SYSTEM_STATISTICS_CMD = 0xf,
 
 	/**
-	 * @SYSTEM_STATISTICS_END_NOTIF: &struct iwl_system_statistics_end_notif
+	 * @SYSTEM_STATISTICS_END_ANALTIF: &struct iwl_system_statistics_end_analtif
 	 */
-	SYSTEM_STATISTICS_END_NOTIF = 0xfd,
+	SYSTEM_STATISTICS_END_ANALTIF = 0xfd,
 
 	/**
-	 * @RFI_DEACTIVATE_NOTIF: &struct iwl_rfi_deactivate_notif
+	 * @RFI_DEACTIVATE_ANALTIF: &struct iwl_rfi_deactivate_analtif
 	 */
-	RFI_DEACTIVATE_NOTIF = 0xff,
+	RFI_DEACTIVATE_ANALTIF = 0xff,
 };
 
 /**
@@ -640,16 +640,16 @@ enum iwl_system_subcmd_ids {
  */
 enum iwl_statistics_subcmd_ids {
 	/**
-	 * @STATISTICS_OPER_NOTIF: Notification about operational
-	 *	statistics &struct iwl_system_statistics_notif_oper
+	 * @STATISTICS_OPER_ANALTIF: Analtification about operational
+	 *	statistics &struct iwl_system_statistics_analtif_oper
 	 */
-	STATISTICS_OPER_NOTIF = 0x0,
+	STATISTICS_OPER_ANALTIF = 0x0,
 
 	/**
-	 * @STATISTICS_OPER_PART1_NOTIF: Notification about operational part1
-	 *	statistics &struct iwl_system_statistics_part1_notif_oper
+	 * @STATISTICS_OPER_PART1_ANALTIF: Analtification about operational part1
+	 *	statistics &struct iwl_system_statistics_part1_analtif_oper
 	 */
-	STATISTICS_OPER_PART1_NOTIF = 0x1,
+	STATISTICS_OPER_PART1_ANALTIF = 0x1,
 };
 
 #endif /* __iwl_fw_api_commands_h__ */

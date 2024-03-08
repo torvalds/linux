@@ -9,7 +9,7 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <string.h>
-#include <errno.h>
+#include <erranal.h>
 #include <stdbool.h>
 #include <signal.h>
 #include <fcntl.h>
@@ -87,17 +87,17 @@ int skb_use_parser;
 int txmsg_omit_skb_parser;
 
 static const struct option long_options[] = {
-	{"help",	no_argument,		NULL, 'h' },
+	{"help",	anal_argument,		NULL, 'h' },
 	{"cgroup",	required_argument,	NULL, 'c' },
 	{"rate",	required_argument,	NULL, 'r' },
 	{"verbose",	optional_argument,	NULL, 'v' },
 	{"iov_count",	required_argument,	NULL, 'i' },
 	{"length",	required_argument,	NULL, 'l' },
 	{"test",	required_argument,	NULL, 't' },
-	{"data_test",   no_argument,		NULL, 'd' },
-	{"txmsg",		no_argument,	&txmsg_pass,  1  },
-	{"txmsg_redir",		no_argument,	&txmsg_redir, 1  },
-	{"txmsg_drop",		no_argument,	&txmsg_drop, 1 },
+	{"data_test",   anal_argument,		NULL, 'd' },
+	{"txmsg",		anal_argument,	&txmsg_pass,  1  },
+	{"txmsg_redir",		anal_argument,	&txmsg_redir, 1  },
+	{"txmsg_drop",		anal_argument,	&txmsg_drop, 1 },
 	{"txmsg_apply",	required_argument,	NULL, 'a'},
 	{"txmsg_cork",	required_argument,	NULL, 'k'},
 	{"txmsg_start", required_argument,	NULL, 's'},
@@ -106,11 +106,11 @@ static const struct option long_options[] = {
 	{"txmsg_end_push",   required_argument,	NULL, 'q'},
 	{"txmsg_start_pop",  required_argument,	NULL, 'w'},
 	{"txmsg_pop",	     required_argument,	NULL, 'x'},
-	{"txmsg_ingress", no_argument,		&txmsg_ingress, 1 },
-	{"txmsg_redir_skb", no_argument,	&txmsg_redir_skb, 1 },
-	{"ktls", no_argument,			&ktls, 1 },
-	{"peek", no_argument,			&peek_flag, 1 },
-	{"txmsg_omit_skb_parser", no_argument,      &txmsg_omit_skb_parser, 1},
+	{"txmsg_ingress", anal_argument,		&txmsg_ingress, 1 },
+	{"txmsg_redir_skb", anal_argument,	&txmsg_redir_skb, 1 },
+	{"ktls", anal_argument,			&ktls, 1 },
+	{"peek", anal_argument,			&peek_flag, 1 },
+	{"txmsg_omit_skb_parser", anal_argument,      &txmsg_omit_skb_parser, 1},
 	{"whitelist", required_argument,	NULL, 'n' },
 	{"blacklist", required_argument,	NULL, 'b' },
 	{0, 0, NULL, 0 }
@@ -246,7 +246,7 @@ char *sock_to_string(int s)
 	else if (s == p2)
 		return "peer2";
 	else
-		return "unknown";
+		return "unkanalwn";
 }
 
 static int sockmap_init_ktls(int verbose, int s)
@@ -309,7 +309,7 @@ static int sockmap_init_sockets(int verbose)
 		*fds[i] = socket(AF_INET, SOCK_STREAM, 0);
 		if (*fds[i] < 0) {
 			perror("socket s1 failed()");
-			return errno;
+			return erranal;
 		}
 	}
 
@@ -319,16 +319,16 @@ static int sockmap_init_sockets(int verbose)
 				 (char *)&one, sizeof(one));
 		if (err) {
 			perror("setsockopt failed()");
-			return errno;
+			return erranal;
 		}
 	}
 
-	/* Non-blocking sockets */
+	/* Analn-blocking sockets */
 	for (i = 0; i < 2; i++) {
 		err = ioctl(*fds[i], FIONBIO, (char *)&one);
 		if (err < 0) {
 			perror("ioctl s1 failed()");
-			return errno;
+			return erranal;
 		}
 	}
 
@@ -341,14 +341,14 @@ static int sockmap_init_sockets(int verbose)
 	err = bind(s1, (struct sockaddr *)&addr, sizeof(addr));
 	if (err < 0) {
 		perror("bind s1 failed()");
-		return errno;
+		return erranal;
 	}
 
 	addr.sin_port = htons(S2_PORT);
 	err = bind(s2, (struct sockaddr *)&addr, sizeof(addr));
 	if (err < 0) {
 		perror("bind s2 failed()");
-		return errno;
+		return erranal;
 	}
 
 	/* Listen server sockets */
@@ -356,29 +356,29 @@ static int sockmap_init_sockets(int verbose)
 	err = listen(s1, 32);
 	if (err < 0) {
 		perror("listen s1 failed()");
-		return errno;
+		return erranal;
 	}
 
 	addr.sin_port = htons(S2_PORT);
 	err = listen(s2, 32);
 	if (err < 0) {
 		perror("listen s1 failed()");
-		return errno;
+		return erranal;
 	}
 
 	/* Initiate Connect */
 	addr.sin_port = htons(S1_PORT);
 	err = connect(c1, (struct sockaddr *)&addr, sizeof(addr));
-	if (err < 0 && errno != EINPROGRESS) {
+	if (err < 0 && erranal != EINPROGRESS) {
 		perror("connect c1 failed()");
-		return errno;
+		return erranal;
 	}
 
 	addr.sin_port = htons(S2_PORT);
 	err = connect(c2, (struct sockaddr *)&addr, sizeof(addr));
-	if (err < 0 && errno != EINPROGRESS) {
+	if (err < 0 && erranal != EINPROGRESS) {
 		perror("connect c2 failed()");
-		return errno;
+		return erranal;
 	} else if (err < 0) {
 		err = 0;
 	}
@@ -387,13 +387,13 @@ static int sockmap_init_sockets(int verbose)
 	p1 = accept(s1, NULL, NULL);
 	if (p1 < 0) {
 		perror("accept s1 failed()");
-		return errno;
+		return erranal;
 	}
 
 	p2 = accept(s2, NULL, NULL);
 	if (p2 < 0) {
 		perror("accept s1 failed()");
-		return errno;
+		return erranal;
 	}
 
 	if (verbose > 1) {
@@ -430,13 +430,13 @@ static int msg_loop_sendpage(int fd, int iov_length, int cnt,
 	fflush(file);
 	fseek(file, 0, SEEK_SET);
 
-	fp = fileno(file);
+	fp = fileanal(file);
 
-	clock_gettime(CLOCK_MONOTONIC, &s->start);
+	clock_gettime(CLOCK_MOANALTONIC, &s->start);
 	for (i = 0; i < cnt; i++) {
 		int sent;
 
-		errno = 0;
+		erranal = 0;
 		sent = sendfile(fd, fp, NULL, iov_length);
 
 		if (!drop && sent < 0) {
@@ -444,8 +444,8 @@ static int msg_loop_sendpage(int fd, int iov_length, int cnt,
 			fclose(file);
 			return sent;
 		} else if (drop && sent >= 0) {
-			printf("sendpage loop error expected: %i errno %i\n",
-			       sent, errno);
+			printf("sendpage loop error expected: %i erranal %i\n",
+			       sent, erranal);
 			fclose(file);
 			return -EIO;
 		}
@@ -453,7 +453,7 @@ static int msg_loop_sendpage(int fd, int iov_length, int cnt,
 		if (sent > 0)
 			s->bytes_sent += sent;
 	}
-	clock_gettime(CLOCK_MONOTONIC, &s->end);
+	clock_gettime(CLOCK_MOANALTONIC, &s->end);
 	fclose(file);
 	return 0;
 }
@@ -479,7 +479,7 @@ static int msg_alloc_iov(struct msghdr *msg,
 
 	iov = calloc(iov_count, sizeof(struct iovec));
 	if (!iov)
-		return errno;
+		return erranal;
 
 	for (i = 0; i < iov_count; i++) {
 		unsigned char *d = calloc(iov_length, sizeof(char));
@@ -506,7 +506,7 @@ static int msg_alloc_iov(struct msghdr *msg,
 unwind_iov:
 	for (i--; i >= 0 ; i--)
 		free(msg->msg_iov[i].iov_base);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int msg_verify_data(struct msghdr *msg, int size, int chunk_sz)
@@ -553,7 +553,7 @@ static int msg_loop(int fd, int iov_count, int iov_length, int cnt,
 		    struct sockmap_options *opt)
 {
 	struct msghdr msg = {0}, msg_peek = {0};
-	int err, i, flags = MSG_NOSIGNAL;
+	int err, i, flags = MSG_ANALSIGNAL;
 	bool drop = opt->drop_expected;
 	bool data = opt->data_test;
 	int iov_alloc_length = iov_length;
@@ -563,54 +563,54 @@ static int msg_loop(int fd, int iov_count, int iov_length, int cnt,
 
 	err = msg_alloc_iov(&msg, iov_count, iov_alloc_length, data, tx);
 	if (err)
-		goto out_errno;
+		goto out_erranal;
 	if (peek_flag) {
 		err = msg_alloc_iov(&msg_peek, iov_count, iov_length, data, tx);
 		if (err)
-			goto out_errno;
+			goto out_erranal;
 	}
 
 	if (tx) {
-		clock_gettime(CLOCK_MONOTONIC, &s->start);
+		clock_gettime(CLOCK_MOANALTONIC, &s->start);
 		for (i = 0; i < cnt; i++) {
 			int sent;
 
-			errno = 0;
+			erranal = 0;
 			sent = sendmsg(fd, &msg, flags);
 
 			if (!drop && sent < 0) {
-				if (opt->tx_wait_mem && errno == EACCES) {
-					errno = 0;
-					goto out_errno;
+				if (opt->tx_wait_mem && erranal == EACCES) {
+					erranal = 0;
+					goto out_erranal;
 				}
 				perror("sendmsg loop error");
-				goto out_errno;
+				goto out_erranal;
 			} else if (drop && sent >= 0) {
 				fprintf(stderr,
-					"sendmsg loop error expected: %i errno %i\n",
-					sent, errno);
-				errno = -EIO;
-				goto out_errno;
+					"sendmsg loop error expected: %i erranal %i\n",
+					sent, erranal);
+				erranal = -EIO;
+				goto out_erranal;
 			}
 			if (sent > 0)
 				s->bytes_sent += sent;
 		}
-		clock_gettime(CLOCK_MONOTONIC, &s->end);
+		clock_gettime(CLOCK_MOANALTONIC, &s->end);
 	} else {
 		int slct, recvp = 0, recv, max_fd = fd;
 		float total_bytes, txmsg_pop_total;
-		int fd_flags = O_NONBLOCK;
+		int fd_flags = O_ANALNBLOCK;
 		struct timeval timeout;
 		fd_set w;
 
 		fcntl(fd, fd_flags);
-		/* Account for pop bytes noting each iteration of apply will
+		/* Account for pop bytes analting each iteration of apply will
 		 * call msg_pop_data helper so we need to account for this
-		 * by calculating the number of apply iterations. Note user
-		 * of the tool can create cases where no data is sent by
+		 * by calculating the number of apply iterations. Analte user
+		 * of the tool can create cases where anal data is sent by
 		 * manipulating pop/push/pull/etc. For example txmsg_apply 1
 		 * with txmsg_pop 1 will try to apply 1B at a time but each
-		 * iteration will then pop 1B so no data will ever be sent.
+		 * iteration will then pop 1B so anal data will ever be sent.
 		 * This is really only useful for testing edge cases in code
 		 * paths.
 		 */
@@ -620,7 +620,7 @@ static int msg_loop(int fd, int iov_count, int iov_length, int cnt,
 		else
 			txmsg_pop_total = txmsg_pop * cnt;
 		total_bytes -= txmsg_pop_total;
-		err = clock_gettime(CLOCK_MONOTONIC, &s->start);
+		err = clock_gettime(CLOCK_MOANALTONIC, &s->start);
 		if (err < 0)
 			perror("recv start time");
 		while (s->bytes_recvd < total_bytes) {
@@ -639,33 +639,33 @@ static int msg_loop(int fd, int iov_count, int iov_length, int cnt,
 			slct = select(max_fd + 1, &w, NULL, NULL, &timeout);
 			if (slct == -1) {
 				perror("select()");
-				clock_gettime(CLOCK_MONOTONIC, &s->end);
-				goto out_errno;
+				clock_gettime(CLOCK_MOANALTONIC, &s->end);
+				goto out_erranal;
 			} else if (!slct) {
 				if (opt->verbose)
 					fprintf(stderr, "unexpected timeout: recved %zu/%f pop_total %f\n", s->bytes_recvd, total_bytes, txmsg_pop_total);
-				errno = -EIO;
-				clock_gettime(CLOCK_MONOTONIC, &s->end);
-				goto out_errno;
+				erranal = -EIO;
+				clock_gettime(CLOCK_MOANALTONIC, &s->end);
+				goto out_erranal;
 			}
 
 			if (opt->tx_wait_mem) {
 				FD_ZERO(&w);
 				FD_SET(fd, &w);
 				slct = select(max_fd + 1, NULL, NULL, &w, &timeout);
-				errno = 0;
+				erranal = 0;
 				close(fd);
-				goto out_errno;
+				goto out_erranal;
 			}
 
-			errno = 0;
+			erranal = 0;
 			if (peek_flag) {
 				flags |= MSG_PEEK;
 				recvp = recvmsg(fd, &msg_peek, flags);
 				if (recvp < 0) {
-					if (errno != EWOULDBLOCK) {
-						clock_gettime(CLOCK_MONOTONIC, &s->end);
-						goto out_errno;
+					if (erranal != EWOULDBLOCK) {
+						clock_gettime(CLOCK_MOANALTONIC, &s->end);
+						goto out_erranal;
 					}
 				}
 				flags = 0;
@@ -673,20 +673,20 @@ static int msg_loop(int fd, int iov_count, int iov_length, int cnt,
 
 			recv = recvmsg(fd, &msg, flags);
 			if (recv < 0) {
-				if (errno != EWOULDBLOCK) {
-					clock_gettime(CLOCK_MONOTONIC, &s->end);
+				if (erranal != EWOULDBLOCK) {
+					clock_gettime(CLOCK_MOANALTONIC, &s->end);
 					perror("recv failed()");
-					goto out_errno;
+					goto out_erranal;
 				}
 			}
 
 			s->bytes_recvd += recv;
 
 			if (opt->check_recved_len && s->bytes_recvd > total_bytes) {
-				errno = EMSGSIZE;
+				erranal = EMSGSIZE;
 				fprintf(stderr, "recv failed(), bytes_recvd:%zd, total_bytes:%f\n",
 						s->bytes_recvd, total_bytes);
-				goto out_errno;
+				goto out_erranal;
 			}
 
 			if (data) {
@@ -694,32 +694,32 @@ static int msg_loop(int fd, int iov_count, int iov_length, int cnt,
 						iov_length * cnt :
 						iov_length * iov_count;
 
-				errno = msg_verify_data(&msg, recv, chunk_sz);
-				if (errno) {
+				erranal = msg_verify_data(&msg, recv, chunk_sz);
+				if (erranal) {
 					perror("data verify msg failed");
-					goto out_errno;
+					goto out_erranal;
 				}
 				if (recvp) {
-					errno = msg_verify_data(&msg_peek,
+					erranal = msg_verify_data(&msg_peek,
 								recvp,
 								chunk_sz);
-					if (errno) {
+					if (erranal) {
 						perror("data verify msg_peek failed");
-						goto out_errno;
+						goto out_erranal;
 					}
 				}
 			}
 		}
-		clock_gettime(CLOCK_MONOTONIC, &s->end);
+		clock_gettime(CLOCK_MOANALTONIC, &s->end);
 	}
 
 	msg_free_iov(&msg);
 	msg_free_iov(&msg_peek);
 	return err;
-out_errno:
+out_erranal:
 	msg_free_iov(&msg);
 	msg_free_iov(&msg_peek);
-	return errno;
+	return erranal;
 }
 
 static float giga = 1000000000;
@@ -744,7 +744,7 @@ static int sendmsg_test(struct sockmap_options *opt)
 	int rx_status, tx_status;
 	int cnt = opt->rate;
 
-	errno = 0;
+	erranal = 0;
 
 	if (opt->base)
 		rx_fd = p1;
@@ -752,8 +752,8 @@ static int sendmsg_test(struct sockmap_options *opt)
 		rx_fd = p2;
 
 	if (ktls) {
-		/* Redirecting into non-TLS socket which sends into a TLS
-		 * socket is not a valid test. So in this case lets not
+		/* Redirecting into analn-TLS socket which sends into a TLS
+		 * socket is analt a valid test. So in this case lets analt
 		 * enable kTLS but still run the test.
 		 */
 		if (!txmsg_redir || txmsg_ingress) {
@@ -778,7 +778,7 @@ static int sendmsg_test(struct sockmap_options *opt)
 		err |= setsockopt(p2, SOL_SOCKET, SO_RCVBUFFORCE, &rxtx_buf_len, sizeof(int));
 		if (err) {
 			perror("setsockopt failed()");
-			return errno;
+			return erranal;
 		}
 	}
 
@@ -815,7 +815,7 @@ static int sendmsg_test(struct sockmap_options *opt)
 		exit(err ? 1 : 0);
 	} else if (rxpid == -1) {
 		perror("msg_loop_rx");
-		return errno;
+		return erranal;
 	}
 
 	if (opt->tx_wait_mem)
@@ -845,7 +845,7 @@ static int sendmsg_test(struct sockmap_options *opt)
 		exit(err ? 1 : 0);
 	} else if (txpid == -1) {
 		perror("msg_loop_tx");
-		return errno;
+		return erranal;
 	}
 
 	assert(waitpid(rxpid, &rx_status, 0) == rxpid);
@@ -910,7 +910,7 @@ static int forever_ping_pong(int rate, struct sockmap_options *opt)
 
 			rc = recv(i, buf, sizeof(buf), 0);
 			if (rc < 0) {
-				if (errno != EWOULDBLOCK) {
+				if (erranal != EWOULDBLOCK) {
 					perror("recv failed()");
 					return rc;
 				}
@@ -965,7 +965,7 @@ static int run_options(struct sockmap_options *options, int cg_fd,  int test)
 		if (err) {
 			fprintf(stderr,
 				"ERROR: bpf_prog_attach (sockmap %i->%i): %d (%s)\n",
-				prog_fd[0], map_fd[0], err, strerror(errno));
+				prog_fd[0], map_fd[0], err, strerror(erranal));
 			return err;
 		}
 	}
@@ -974,7 +974,7 @@ static int run_options(struct sockmap_options *options, int cg_fd,  int test)
 				BPF_SK_SKB_STREAM_VERDICT, 0);
 	if (err) {
 		fprintf(stderr, "ERROR: bpf_prog_attach (sockmap): %d (%s)\n",
-			err, strerror(errno));
+			err, strerror(erranal));
 		return err;
 	}
 
@@ -986,7 +986,7 @@ static int run_options(struct sockmap_options *options, int cg_fd,  int test)
 			if (err) {
 				fprintf(stderr,
 					"ERROR: bpf_prog_attach (TLS sockmap %i->%i): %d (%s)\n",
-					prog_fd[0], map_fd[8], err, strerror(errno));
+					prog_fd[0], map_fd[8], err, strerror(erranal));
 				return err;
 			}
 		}
@@ -995,7 +995,7 @@ static int run_options(struct sockmap_options *options, int cg_fd,  int test)
 				      BPF_SK_SKB_STREAM_VERDICT, 0);
 		if (err) {
 			fprintf(stderr, "ERROR: bpf_prog_attach (TLS sockmap): %d (%s)\n",
-				err, strerror(errno));
+				err, strerror(erranal));
 			return err;
 		}
 	}
@@ -1004,7 +1004,7 @@ static int run_options(struct sockmap_options *options, int cg_fd,  int test)
 	err = bpf_prog_attach(prog_fd[3], cg_fd, BPF_CGROUP_SOCK_OPS, 0);
 	if (err) {
 		fprintf(stderr, "ERROR: bpf_prog_attach (groups): %d (%s)\n",
-			err, strerror(errno));
+			err, strerror(erranal));
 		return err;
 	}
 
@@ -1037,7 +1037,7 @@ run:
 		if (err) {
 			fprintf(stderr,
 				"ERROR: bpf_prog_attach (txmsg): %d (%s)\n",
-				err, strerror(errno));
+				err, strerror(erranal));
 			goto out;
 		}
 
@@ -1045,7 +1045,7 @@ run:
 		if (err) {
 			fprintf(stderr,
 				"ERROR: bpf_map_update_elem (txmsg):  %d (%s\n",
-				err, strerror(errno));
+				err, strerror(erranal));
 			goto out;
 		}
 
@@ -1058,7 +1058,7 @@ run:
 		if (err) {
 			fprintf(stderr,
 				"ERROR: bpf_map_update_elem (txmsg):  %d (%s\n",
-				err, strerror(errno));
+				err, strerror(erranal));
 			goto out;
 		}
 
@@ -1068,7 +1068,7 @@ run:
 			if (err) {
 				fprintf(stderr,
 					"ERROR: bpf_map_update_elem (apply_bytes):  %d (%s\n",
-					err, strerror(errno));
+					err, strerror(erranal));
 				goto out;
 			}
 		}
@@ -1079,7 +1079,7 @@ run:
 			if (err) {
 				fprintf(stderr,
 					"ERROR: bpf_map_update_elem (cork_bytes):  %d (%s\n",
-					err, strerror(errno));
+					err, strerror(erranal));
 				goto out;
 			}
 		}
@@ -1090,7 +1090,7 @@ run:
 			if (err) {
 				fprintf(stderr,
 					"ERROR: bpf_map_update_elem (txmsg_start):  %d (%s)\n",
-					err, strerror(errno));
+					err, strerror(erranal));
 				goto out;
 			}
 		}
@@ -1102,7 +1102,7 @@ run:
 			if (err) {
 				fprintf(stderr,
 					"ERROR: bpf_map_update_elem (txmsg_end):  %d (%s)\n",
-					err, strerror(errno));
+					err, strerror(erranal));
 				goto out;
 			}
 		}
@@ -1114,7 +1114,7 @@ run:
 			if (err) {
 				fprintf(stderr,
 					"ERROR: bpf_map_update_elem (txmsg_start_push):  %d (%s)\n",
-					err, strerror(errno));
+					err, strerror(erranal));
 				goto out;
 			}
 		}
@@ -1126,7 +1126,7 @@ run:
 			if (err) {
 				fprintf(stderr,
 					"ERROR: bpf_map_update_elem %i@%i (txmsg_end_push):  %d (%s)\n",
-					txmsg_end_push, i, err, strerror(errno));
+					txmsg_end_push, i, err, strerror(erranal));
 				goto out;
 			}
 		}
@@ -1138,7 +1138,7 @@ run:
 			if (err) {
 				fprintf(stderr,
 					"ERROR: bpf_map_update_elem %i@%i (txmsg_start_pop):  %d (%s)\n",
-					txmsg_start_pop, i, err, strerror(errno));
+					txmsg_start_pop, i, err, strerror(erranal));
 				goto out;
 			}
 		} else {
@@ -1154,7 +1154,7 @@ run:
 			if (err) {
 				fprintf(stderr,
 					"ERROR: bpf_map_update_elem %i@%i (txmsg_pop):  %d (%s)\n",
-					txmsg_pop, i, err, strerror(errno));
+					txmsg_pop, i, err, strerror(erranal));
 				goto out;
 			}
 		} else {
@@ -1172,20 +1172,20 @@ run:
 			if (err) {
 				fprintf(stderr,
 					"ERROR: bpf_map_update_elem (txmsg_ingress): %d (%s)\n",
-					err, strerror(errno));
+					err, strerror(erranal));
 			}
 			i = 1;
 			err = bpf_map_update_elem(map_fd[1], &i, &p1, BPF_ANY);
 			if (err) {
 				fprintf(stderr,
 					"ERROR: bpf_map_update_elem (p1 txmsg): %d (%s)\n",
-					err, strerror(errno));
+					err, strerror(erranal));
 			}
 			err = bpf_map_update_elem(map_fd[2], &i, &p1, BPF_ANY);
 			if (err) {
 				fprintf(stderr,
 					"ERROR: bpf_map_update_elem (p1 redir): %d (%s)\n",
-					err, strerror(errno));
+					err, strerror(erranal));
 			}
 
 			i = 2;
@@ -1193,7 +1193,7 @@ run:
 			if (err) {
 				fprintf(stderr,
 					"ERROR: bpf_map_update_elem (p2 txmsg): %d (%s)\n",
-					err, strerror(errno));
+					err, strerror(erranal));
 			}
 		}
 
@@ -1205,7 +1205,7 @@ run:
 			if (err) {
 				fprintf(stderr,
 					"ERROR: bpf_map_update_elem (c1 sockmap): %d (%s)\n",
-					err, strerror(errno));
+					err, strerror(erranal));
 			}
 
 			if (txmsg_ktls_skb_redir) {
@@ -1215,7 +1215,7 @@ run:
 				if (err) {
 					fprintf(stderr,
 						"ERROR: bpf_map_update_elem (txmsg_ingress): %d (%s)\n",
-						err, strerror(errno));
+						err, strerror(erranal));
 				}
 			}
 
@@ -1236,7 +1236,7 @@ run:
 			if (err) {
 				fprintf(stderr,
 					"ERROR: bpf_map_update_elem (txmsg_ingress): %d (%s)\n",
-					err, strerror(errno));
+					err, strerror(erranal));
 			}
 
 			i = 3;
@@ -1244,7 +1244,7 @@ run:
 			if (err) {
 				fprintf(stderr,
 					"ERROR: bpf_map_update_elem (c1 sockmap): %d (%s)\n",
-					err, strerror(errno));
+					err, strerror(erranal));
 			}
 		}
 	}
@@ -1276,7 +1276,7 @@ run:
 		options->sendpage = true;
 		err = sendmsg_test(options);
 	} else
-		fprintf(stderr, "unknown test\n");
+		fprintf(stderr, "unkanalwn test\n");
 out:
 	/* Detatch and zero all the maps */
 	bpf_prog_detach2(prog_fd[3], cg_fd, BPF_CGROUP_SOCK_OPS);
@@ -1314,7 +1314,7 @@ static char *test_to_str(int test)
 	case SENDPAGE:
 		return "sendpage";
 	}
-	return "unknown";
+	return "unkanalwn";
 }
 
 static void append_str(char *dst, const char *src, size_t dst_cap)
@@ -1520,7 +1520,7 @@ static void test_txmsg_skb(int cgrp, struct sockmap_options *opt)
 	txmsg_pass = 1;
 
 	/* Using data verification so ensure iov layout is
-	 * expected from test receiver side. e.g. has enough
+	 * expected from test receiver side. e.g. has eanalugh
 	 * bytes to write test code.
 	 */
 	opt->iov_length = 100;
@@ -1848,7 +1848,7 @@ static int populate_progs(char *bpf_file)
 		map_fd[i] = bpf_map__fd(maps[i]);
 		if (map_fd[i] < 0) {
 			fprintf(stderr, "load_bpf_file: (%i) %s\n",
-				map_fd[i], strerror(errno));
+				map_fd[i], strerror(erranal));
 			return -1;
 		}
 	}
@@ -1882,7 +1882,7 @@ static int check_whitelist(struct _test *t, struct sockmap_options *opt)
 		return 0;
 	ptr = strdup(opt->whitelist);
 	if (!ptr)
-		return -ENOMEM;
+		return -EANALMEM;
 	entry = strtok(ptr, ",");
 	while (entry) {
 		if ((opt->prepend && strstr(opt->prepend, entry) != 0) ||
@@ -1902,7 +1902,7 @@ static int check_blacklist(struct _test *t, struct sockmap_options *opt)
 		return -EINVAL;
 	ptr = strdup(opt->blacklist);
 	if (!ptr)
-		return -ENOMEM;
+		return -EANALMEM;
 	entry = strtok(ptr, ",");
 	while (entry) {
 		if ((opt->prepend && strstr(opt->prepend, entry) != 0) ||
@@ -2053,12 +2053,12 @@ int main(int argc, char **argv)
 		case 'n':
 			options.whitelist = strdup(optarg);
 			if (!options.whitelist)
-				return -ENOMEM;
+				return -EANALMEM;
 			break;
 		case 'b':
 			options.blacklist = strdup(optarg);
 			if (!options.blacklist)
-				return -ENOMEM;
+				return -EANALMEM;
 		case 0:
 			break;
 		case 'h':
@@ -2086,7 +2086,7 @@ int main(int argc, char **argv)
 	err = populate_progs(bpf_file);
 	if (err) {
 		fprintf(stderr, "populate program: (%s) %s\n",
-			bpf_file, strerror(errno));
+			bpf_file, strerror(erranal));
 		return 1;
 	}
 	running = 1;

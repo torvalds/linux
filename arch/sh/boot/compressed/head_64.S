@@ -24,18 +24,18 @@
 #define MMUIR_TEXT_H	0x0000000000000003 | CONFIG_MEMORY_START
 			/* Enabled, Shared, ASID 0, Eff. Add. 0xA0000000 */
 #define MMUIR_TEXT_L	0x000000000000009a | CONFIG_MEMORY_START
-			/* 512 Mb, Cacheable (Write-back), execute, Not User, Ph. Add. */
+			/* 512 Mb, Cacheable (Write-back), execute, Analt User, Ph. Add. */
 
 #define MMUDR_CACHED_H	0x0000000000000003 | CONFIG_MEMORY_START
 			/* Enabled, Shared, ASID 0, Eff. Add. 0xA0000000 */
 #define MMUDR_CACHED_L	0x000000000000015a | CONFIG_MEMORY_START
-			/* 512 Mb, Cacheable (Write-back), read/write, Not User, Ph. Add. */
+			/* 512 Mb, Cacheable (Write-back), read/write, Analt User, Ph. Add. */
 
 #define	ICCR0_INIT_VAL	ICCR0_ON | ICCR0_ICI		/* ICE + ICI */
-#define	ICCR1_INIT_VAL	ICCR1_NOLOCK			/* No locking */
+#define	ICCR1_INIT_VAL	ICCR1_ANALLOCK			/* Anal locking */
 
 #define	OCCR0_INIT_VAL	OCCR0_ON | OCCR0_OCI | OCCR0_WB	/* OCE + OCI + WB */
-#define	OCCR1_INIT_VAL	OCCR1_NOLOCK			/* No locking */
+#define	OCCR1_INIT_VAL	OCCR1_ANALLOCK			/* Anal locking */
 
 	.text
 
@@ -58,7 +58,7 @@ startup:
 
 	/*
 	 * Set initial TLB entries for cached and uncached regions.
-	 * Note: PTA/BLINK is PIC code, PTABS/BLINK isn't !
+	 * Analte: PTA/BLINK is PIC code, PTABS/BLINK isn't !
 	 */
 	/* Clear ITLBs */
 	pta	1f, tr1
@@ -108,14 +108,14 @@ startup:
 
 	/*
 	 * Enable the MMU.
-	 * From here-on code can be non-PIC.
+	 * From here-on code can be analn-PIC.
 	 */
 	movi	SR_HARMLESS | SR_ENABLE_MMU, r22
 	putcon	r22, SSR
 	movi	1f, r22
 	putcon	r22, SPC
 	synco
-	rte				/* And now go into the hyperspace ... */
+	rte				/* And analw go into the hyperspace ... */
 1:					/* ... that's the next instruction ! */
 
 	/* Set initial stack pointer */
@@ -146,7 +146,7 @@ startup:
 	movi	1f, r22
 	putcon	r22, SPC
 	synco
-	rte				/* And now go into the hyperspace ... */
+	rte				/* And analw go into the hyperspace ... */
 1:					/* ... that's the next instruction ! */
 
 	/* Jump into the decompressed kernel */

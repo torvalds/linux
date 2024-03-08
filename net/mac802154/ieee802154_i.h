@@ -6,7 +6,7 @@
  * Pavel Smolenskiy <pavel.smolenskiy@gmail.com>
  * Maxim Gorbachyov <maxim.gorbachev@siemens.com>
  * Dmitry Eremin-Solenikov <dbaryshkov@gmail.com>
- * Alexander Smirnov <alex.bluesman.smirnov@gmail.com>
+ * Alexander Smiranalv <alex.bluesman.smiranalv@gmail.com>
  */
 #ifndef __IEEE802154_I_H
 #define __IEEE802154_I_H
@@ -69,7 +69,7 @@ struct ieee802154_local {
 	struct cfg802154_beacon_request __rcu *beacon_req;
 	struct delayed_work beacon_work;
 
-	/* Asynchronous tasks */
+	/* Asynchroanalus tasks */
 	struct list_head rx_beacon_list;
 	struct work_struct rx_beacon_work;
 	struct list_head rx_mac_cmd_list;
@@ -117,9 +117,9 @@ struct ieee802154_sub_if_data {
 	struct ieee802154_local *local;
 	struct net_device *dev;
 
-	/* Each interface starts and works in nominal state at a given filtering
+	/* Each interface starts and works in analminal state at a given filtering
 	 * level given by iface_default_filtering, which is set once for all at
-	 * the interface creation and should not evolve over time. For some MAC
+	 * the interface creation and should analt evolve over time. For some MAC
 	 * operations however, the filtering level may change temporarily, as
 	 * reflected in the required_filtering field. The actual filtering at
 	 * the PHY level may be different and is shown in struct wpan_phy.
@@ -211,7 +211,7 @@ enum hrtimer_restart ieee802154_xmit_ifs_timer(struct hrtimer *timer);
  * @local: main mac object
  *
  * Hold a queue by incrementing an atomic counter and requesting the netif
- * queues to be stopped. The queues cannot be woken up while the counter has not
+ * queues to be stopped. The queues cananalt be woken up while the counter has analt
  * been reset with as any ieee802154_release_queue() calls as needed.
  */
 void ieee802154_hold_queue(struct ieee802154_local *local);
@@ -229,7 +229,7 @@ void ieee802154_release_queue(struct ieee802154_local *local);
  * ieee802154_disable_queue - disable ieee802154 queue
  * @local: main mac object
  *
- * When trying to sync the Tx queue, we cannot just stop the queue
+ * When trying to sync the Tx queue, we cananalt just stop the queue
  * (which is basically a bit being set without proper lock handling)
  * because it would be racy. We actually need to call netif_tx_disable()
  * instead, which is done by this helper. Restarting the queue can
@@ -315,10 +315,10 @@ static inline bool mac802154_is_associating(struct ieee802154_local *local)
 	return test_bit(IEEE802154_IS_ASSOCIATING, &local->ongoing);
 }
 
-int mac802154_send_disassociation_notif(struct ieee802154_sub_if_data *sdata,
+int mac802154_send_disassociation_analtif(struct ieee802154_sub_if_data *sdata,
 					struct ieee802154_pan_device *target,
 					u8 reason);
-int mac802154_process_disassociation_notif(struct ieee802154_sub_if_data *sdata,
+int mac802154_process_disassociation_analtif(struct ieee802154_sub_if_data *sdata,
 					   struct sk_buff *skb);
 int mac802154_process_association_req(struct ieee802154_sub_if_data *sdata,
 				      struct sk_buff *skb);

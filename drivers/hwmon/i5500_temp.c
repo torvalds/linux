@@ -80,7 +80,7 @@ static int i5500_read(struct device *dev, enum hwmon_sensor_types type, u32 attr
 		break;
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static const struct hwmon_ops i5500_ops = {
@@ -126,8 +126,8 @@ static int i5500_temp_probe(struct pci_dev *pdev,
 	pci_read_config_byte(pdev, REG_TSFSC, &tsfsc);
 	pci_read_config_dword(pdev, REG_TSTIMER, &tstimer);
 	if (tsfsc == 0x7F && tstimer == 0x07D30D40) {
-		dev_notice(&pdev->dev, "Sensor seems to be disabled\n");
-		return -ENODEV;
+		dev_analtice(&pdev->dev, "Sensor seems to be disabled\n");
+		return -EANALDEV;
 	}
 
 	hwmon_dev = devm_hwmon_device_register_with_info(&pdev->dev, "intel5500", NULL,

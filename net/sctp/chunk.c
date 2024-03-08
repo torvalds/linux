@@ -157,9 +157,9 @@ struct sctp_datamsg *sctp_datamsg_from_user(struct sctp_association *asoc,
 
 	msg = sctp_datamsg_new(GFP_KERNEL);
 	if (!msg)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
-	/* Note: Calculate this outside of the loop, so that all fragments
+	/* Analte: Calculate this outside of the loop, so that all fragments
 	 * have the same expiration.
 	 */
 	if (asoc->peer.prsctp_capable && sinfo->sinfo_timetolive &&
@@ -208,8 +208,8 @@ struct sctp_datamsg *sctp_datamsg_from_user(struct sctp_association *asoc,
 	/* Check to see if we have a pending SACK and try to let it be bundled
 	 * with this message.  Do this if we don't have any data queued already.
 	 * To check that, look at out_qlen and retransmit list.
-	 * NOTE: we will not reduce to account for SACK, if the message would
-	 * not have been fragmented.
+	 * ANALTE: we will analt reduce to account for SACK, if the message would
+	 * analt have been fragmented.
 	 */
 	if (timer_pending(&asoc->timers[SCTP_EVENT_TIMEOUT_SACK]) &&
 	    asoc->outqueue.out_qlen == 0 &&
@@ -262,7 +262,7 @@ struct sctp_datamsg *sctp_datamsg_from_user(struct sctp_association *asoc,
 		chunk = asoc->stream.si->make_datafrag(asoc, sinfo, len, frag,
 						       GFP_KERNEL);
 		if (!chunk) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto errout;
 		}
 
@@ -340,7 +340,7 @@ int sctp_chunk_abandoned(struct sctp_chunk *chunk)
 		chunk->msg->abandoned = 1;
 		return 1;
 	}
-	/* PRIO policy is processed by sendmsg, not here */
+	/* PRIO policy is processed by sendmsg, analt here */
 
 	return 0;
 }

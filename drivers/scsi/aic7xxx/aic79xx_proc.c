@@ -6,14 +6,14 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
+ *    analtice, this list of conditions, and the following disclaimer,
  *    without modification.
  * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *    substantially similar to the "NO WARRANTY" disclaimer below
+ *    substantially similar to the "ANAL WARRANTY" disclaimer below
  *    ("Disclaimer") and any redistribution must be conditioned upon
  *    including a substantially similar Disclaimer requirement for further
  *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
+ * 3. Neither the names of the above-listed copyright holders analr the names
  *    of any contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -21,13 +21,13 @@
  * GNU General Public License ("GPL") version 2 as published by the Free
  * Software Foundation.
  *
- * NO WARRANTY
+ * ANAL WARRANTY
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT
  * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
  * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
@@ -96,7 +96,7 @@ ahd_format_transinfo(struct seq_file *m, struct ahd_transinfo *tinfo)
 	u_int freq;
 	u_int mb;
 
-	if (tinfo->period == AHD_PERIOD_UNKNOWN) {
+	if (tinfo->period == AHD_PERIOD_UNKANALWN) {
 		seq_puts(m, "Renegotiation Pending\n");
 		return;
 	}
@@ -236,7 +236,7 @@ ahd_proc_write_seeprom(struct Scsi_Host *shost, char *buffer, int length)
 
 	have_seeprom = ahd_acquire_seeprom(ahd);
 	if (!have_seeprom) {
-		printk("ahd_proc_write_seeprom: No Serial EEPROM\n");
+		printk("ahd_proc_write_seeprom: Anal Serial EEPROM\n");
 		goto done;
 	} else {
 		u_int start_addr;
@@ -290,7 +290,7 @@ ahd_linux_show_info(struct seq_file *m, struct Scsi_Host *shost)
 	max_targ = 16;
 
 	if (ahd->seep_config == NULL)
-		seq_puts(m, "No Serial EEPROM\n");
+		seq_puts(m, "Anal Serial EEPROM\n");
 	else {
 		seq_puts(m, "Serial EEPROM:\n");
 		for (i = 0; i < sizeof(*ahd->seep_config)/2; i++) {

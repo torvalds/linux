@@ -224,7 +224,7 @@
 				interrupts = <0x6 0x4>;
 				interrupt-parent = <&UIC1>;
 
-				nor_flash@0,0 {
+				analr_flash@0,0 {
 					compatible = "amd,s29gl512n", "cfi-flash";
 					bank-width = <2>;
 					reg = <0x00000000 0x00000000 0x04000000>;
@@ -438,13 +438,13 @@
 			large-inbound-windows;
 			enable-msi-hole;
 			reg = <0x0000000c 0x0ec00000   0x00000008	/* Config space access */
-			       0x00000000 0x00000000 0x00000000		/* no IACK cycles */
+			       0x00000000 0x00000000 0x00000000		/* anal IACK cycles */
 			       0x0000000c 0x0ed00000   0x00000004   /* Special cycles */
 			       0x0000000c 0x0ec80000 0x00000100	/* Internal registers */
 			       0x0000000c 0x0ec80100  0x000000fc>;	/* Internal messaging registers */
 
 			/* Outbound ranges, one memory and one IO,
-			 * later cannot be changed
+			 * later cananalt be changed
 			 */
 			ranges = <0x02000000 0x00000000 0x80000000 0x0000000d 0x80000000 0x00000000 0x80000000
 				  0x02000000 0x00000000 0x00000000 0x0000000c 0x0ee00000 0x00000000 0x00100000
@@ -475,7 +475,7 @@
 			sdr-base = <0x300>;
 
 			/* Outbound ranges, one memory and one IO,
-			 * later cannot be changed
+			 * later cananalt be changed
 			 */
 			ranges = <0x02000000 0x00000000 0x80000000 0x0000000e 0x00000000 0x00000000 0x80000000
 				  0x02000000 0x00000000 0x00000000 0x0000000f 0x00000000 0x00000000 0x00100000
@@ -487,11 +487,11 @@
 			/* This drives busses 40 to 0x7f */
 			bus-range = <0x40 0x7f>;
 
-			/* Legacy interrupts (note the weird polarity, the bridge seems
+			/* Legacy interrupts (analte the weird polarity, the bridge seems
 			 * to invert PCIe legacy interrupts).
 			 * We are de-swizzling here because the numbers are actually for
 			 * port of the root complex virtual P2P bridge. But I want
-			 * to avoid putting a node for it in the tree, so the numbers
+			 * to avoid putting a analde for it in the tree, so the numbers
 			 * below are basically de-swizzled numbers.
 			 * The real slot is on idsel 0, so the swizzling is 1:1
 			 */
@@ -517,7 +517,7 @@
 			sdr-base = <0x340>;
 
 			/* Outbound ranges, one memory and one IO,
-			 * later cannot be changed
+			 * later cananalt be changed
 			 */
 			ranges = <0x02000000 0x00000000 0x80000000 0x0000000e 0x80000000 0x00000000 0x80000000
 				  0x02000000 0x00000000 0x00000000 0x0000000f 0x00100000 0x00000000 0x00100000
@@ -529,11 +529,11 @@
 			/* This drives busses 80 to 0xbf */
 			bus-range = <0x80 0xbf>;
 
-			/* Legacy interrupts (note the weird polarity, the bridge seems
+			/* Legacy interrupts (analte the weird polarity, the bridge seems
 			 * to invert PCIe legacy interrupts).
 			 * We are de-swizzling here because the numbers are actually for
 			 * port of the root complex virtual P2P bridge. But I want
-			 * to avoid putting a node for it in the tree, so the numbers
+			 * to avoid putting a analde for it in the tree, so the numbers
 			 * below are basically de-swizzled numbers.
 			 * The real slot is on idsel 0, so the swizzling is 1:1
 			 */

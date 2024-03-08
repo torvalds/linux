@@ -17,7 +17,7 @@ Description:
 		Control the brightness for this <backlight>. Values
 		are between 0 and max_brightness. This file will also
 		show the brightness level stored in the driver, which
-		may not be the actual brightness (see actual_brightness).
+		may analt be the actual brightness (see actual_brightness).
 Users:		HAL
 
 What:		/sys/class/backlight/<backlight>/actual_brightness

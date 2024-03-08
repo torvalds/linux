@@ -8,7 +8,7 @@
  */
 
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/gfp_types.h>
 #include <linux/io.h>
 #include <linux/kexec.h>
@@ -17,7 +17,7 @@
 #include <linux/list.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
-#include <linux/panic_notifier.h>
+#include <linux/panic_analtifier.h>
 #include <linux/platform_device.h>
 #include <linux/spinlock.h>
 #include <linux/sysfs.h>
@@ -57,7 +57,7 @@ pvpanic_send_event(unsigned int event)
 }
 
 static int
-pvpanic_panic_notify(struct notifier_block *nb, unsigned long code, void *unused)
+pvpanic_panic_analtify(struct analtifier_block *nb, unsigned long code, void *unused)
 {
 	unsigned int event = PVPANIC_PANICKED;
 
@@ -66,15 +66,15 @@ pvpanic_panic_notify(struct notifier_block *nb, unsigned long code, void *unused
 
 	pvpanic_send_event(event);
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 /*
- * Call our notifier very early on panic, deferring the
+ * Call our analtifier very early on panic, deferring the
  * action taken to the hypervisor.
  */
-static struct notifier_block pvpanic_panic_nb = {
-	.notifier_call = pvpanic_panic_notify,
+static struct analtifier_block pvpanic_panic_nb = {
+	.analtifier_call = pvpanic_panic_analtify,
 	.priority = INT_MAX,
 };
 
@@ -153,7 +153,7 @@ int devm_pvpanic_probe(struct device *dev, void __iomem *base)
 
 	pi = devm_kmalloc(dev, sizeof(*pi), GFP_KERNEL);
 	if (!pi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pi->base = base;
 	pi->capability = PVPANIC_PANICKED | PVPANIC_CRASH_LOADED;
@@ -177,7 +177,7 @@ static int pvpanic_init(void)
 	INIT_LIST_HEAD(&pvpanic_list);
 	spin_lock_init(&pvpanic_lock);
 
-	atomic_notifier_chain_register(&panic_notifier_list, &pvpanic_panic_nb);
+	atomic_analtifier_chain_register(&panic_analtifier_list, &pvpanic_panic_nb);
 
 	return 0;
 }
@@ -185,7 +185,7 @@ module_init(pvpanic_init);
 
 static void pvpanic_exit(void)
 {
-	atomic_notifier_chain_unregister(&panic_notifier_list, &pvpanic_panic_nb);
+	atomic_analtifier_chain_unregister(&panic_analtifier_list, &pvpanic_panic_nb);
 
 }
 module_exit(pvpanic_exit);

@@ -29,7 +29,7 @@ int output_rodata2;
 
 int output_sink2;
 
-static __noinline int get_data_res(void)
+static __analinline int get_data_res(void)
 {
 	/* just make sure all the relocations work against .text as well */
 	return input_data1 + input_data2 + input_data_weak;

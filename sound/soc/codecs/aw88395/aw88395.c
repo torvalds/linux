@@ -2,7 +2,7 @@
 //
 // aw88395.c --  ALSA SoC AW88395 codec support
 //
-// Copyright (c) 2022-2023 AWINIC Technology CO., LTD
+// Copyright (c) 2022-2023 AWINIC Techanallogy CO., LTD
 //
 // Author: Bruce zhao <zhaolei@awinic.com>
 // Author: Weidong Wang <wangweidong.a@awinic.com>
@@ -229,7 +229,7 @@ static int aw88395_profile_set(struct snd_kcontrol *kcontrol,
 	mutex_lock(&aw88395->lock);
 	ret = aw88395_dev_set_profile_index(aw88395->aw_pa, ucontrol->value.integer.value[0]);
 	if (ret < 0) {
-		dev_dbg(codec->dev, "profile index does not change");
+		dev_dbg(codec->dev, "profile index does analt change");
 		mutex_unlock(&aw88395->lock);
 		return 0;
 	}
@@ -392,7 +392,7 @@ static const struct snd_soc_dapm_widget aw88395_dapm_widgets[] = {
 	SND_SOC_DAPM_OUTPUT("DAC Output"),
 
 	/* capture */
-	SND_SOC_DAPM_AIF_OUT("AIF_TX", "Speaker_Capture", 0, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("AIF_TX", "Speaker_Capture", 0, SND_SOC_ANALPM, 0, 0),
 	SND_SOC_DAPM_INPUT("ADC Input"),
 };
 
@@ -482,7 +482,7 @@ static int aw88395_request_firmware_file(struct aw88395 *aw88395)
 	aw88395->aw_cfg = devm_kzalloc(aw88395->aw_pa->dev, cont->size + sizeof(int), GFP_KERNEL);
 	if (!aw88395->aw_cfg) {
 		release_firmware(cont);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	aw88395->aw_cfg->len = (int)cont->size;
 	memcpy(aw88395->aw_cfg->data, cont->data, cont->size);
@@ -519,13 +519,13 @@ static int aw88395_i2c_probe(struct i2c_client *i2c)
 	aw88395 = aw88395_malloc_init(i2c);
 	if (!aw88395) {
 		dev_err(&i2c->dev, "malloc aw88395 failed");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	i2c_set_clientdata(i2c, aw88395);
 
 	aw88395->reset_gpio = devm_gpiod_get_optional(&i2c->dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(aw88395->reset_gpio))
-		dev_info(&i2c->dev, "reset gpio not defined\n");
+		dev_info(&i2c->dev, "reset gpio analt defined\n");
 
 	/* hardware reset */
 	aw88395_hw_reset(aw88395);

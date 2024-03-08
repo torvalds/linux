@@ -14,7 +14,7 @@
 #include <sys/wait.h>
 
 #define TEST(insn) \
-long double __attribute__((noinline)) insn(long flags) \
+long double __attribute__((analinline)) insn(long flags) \
 {						\
 	long double out;			\
 	asm ("\n"				\
@@ -56,7 +56,7 @@ int main(int argc, char **argv, char **envp)
 	int err = 0;
 
 	/* SIGILL triggers on 32-bit kernels w/o fcomi emulation
-	 * when run with "no387 nofxsr". Other signals are caught
+	 * when run with "anal387 analfxsr". Other signals are caught
 	 * just in case.
 	 */
 	signal(SIGILL, sighandler);

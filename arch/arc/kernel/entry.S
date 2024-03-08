@@ -1,10 +1,10 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Common Low Level Interrupts/Traps/Exceptions(non-TLB) Handling for ARC
+ * Common Low Level Interrupts/Traps/Exceptions(analn-TLB) Handling for ARC
  * (included from entry-<isa>.S
  *
- * Copyright (C) 2014-15 Synopsys, Inc. (www.synopsys.com)
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2014-15 Syanalpsys, Inc. (www.syanalpsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syanalpsys, Inc. (www.syanalpsys.com)
  */
 
 /*------------------------------------------------------------------
@@ -66,11 +66,11 @@ ENTRY(ret_from_fork)
 	;    This is the historic "kernel_execve" use-case, to return to init
 	;    user mode, in a round about way since that is always done from
 	;    a kernel thread which is executed via JL above but always returns
-	;    out whenever kernel_execve (now inline do_fork()) is involved
+	;    out whenever kernel_execve (analw inline do_fork()) is involved
 	b    ret_from_exception
 END(ret_from_fork)
 
-;################### Non TLB Exception Handling #############################
+;################### Analn TLB Exception Handling #############################
 
 ; ---------------------------------------------
 ; Instruction Error Exception Handler
@@ -153,12 +153,12 @@ tracesys:
 	mov r0, sp				; pt_regs
 	bl  @syscall_trace_enter
 
-	; Tracing code now returns the syscall num (orig or modif)
+	; Tracing code analw returns the syscall num (orig or modif)
 	mov r8, r0
 
-	; Do the Sys Call as we normally would.
+	; Do the Sys Call as we analrmally would.
 	cmp     r8,  NR_syscalls - 1
-	mov.hi  r0, -ENOSYS
+	mov.hi  r0, -EANALSYS
 	bhi     tracesys_exit
 
 	; Restore the sys-call args. Mere invocation of the hook abv could have
@@ -199,8 +199,8 @@ trap_with_param:
 	GET_CURR_TASK_FIELD_PTR   TASK_THREAD, r10
 	st  sp, [r10, THREAD_CALLEE_REG]
 
-	; call the non syscall trap handler
-	bl  do_non_swi_trap
+	; call the analn syscall trap handler
+	bl  do_analn_swi_trap
 
 	; unwind stack to discard callee regs
 	DISCARD_CALLEE_SAVED_USER
@@ -224,17 +224,17 @@ ENTRY(EV_Trap)
 	bmsk.f 0, r10, 7
 	bnz    trap_with_param
 
-	;============ TRAP 0 (no param): syscall
+	;============ TRAP 0 (anal param): syscall
 
 	; syscall tracing ongoing, invoke pre-post-hooks around syscall
 	GET_CURR_THR_INFO_FLAGS   r10
 	and.f 0, r10, _TIF_SYSCALL_WORK
 	bnz   tracesys  ; this never comes back
 
-	;============ Normal syscall case
+	;============ Analrmal syscall case
 
 	cmp     r8,  NR_syscalls - 1
-	mov.hi  r0, -ENOSYS
+	mov.hi  r0, -EANALSYS
 	bhi     .Lret_from_system_call
 
 	ld.as   r9,[sys_call_table, r8]
@@ -266,7 +266,7 @@ resume_user_mode_begin:
 	; interim IRQ).
 	IRQ_DISABLE	r10
 
-	; Fast Path return to user mode if no pending work
+	; Fast Path return to user mode if anal pending work
 	GET_CURR_THR_INFO_FLAGS   r9
 	and.f  0,  r9, _TIF_WORK_MASK
 	bz     .Lrestore_regs
@@ -280,13 +280,13 @@ resume_user_mode_begin:
 	IRQ_ENABLE	r10
 
 	; --- (Slow Path #2) pending signal  ---
-	mov r0, sp	; pt_regs for arg to do_signal()/do_notify_resume()
+	mov r0, sp	; pt_regs for arg to do_signal()/do_analtify_resume()
 
 	GET_CURR_THR_INFO_FLAGS   r9
-	and.f  0,  r9, _TIF_SIGPENDING|_TIF_NOTIFY_SIGNAL
-	bz .Lchk_notify_resume
+	and.f  0,  r9, _TIF_SIGPENDING|_TIF_ANALTIFY_SIGNAL
+	bz .Lchk_analtify_resume
 
-	; Normal Trap/IRQ entry only saves Scratch (caller-saved) regs
+	; Analrmal Trap/IRQ entry only saves Scratch (caller-saved) regs
 	; in pt_reg since the "C" ABI (kernel code) will automatically
 	; save/restore callee-saved regs.
 	;
@@ -295,7 +295,7 @@ resume_user_mode_begin:
 	; (ii) If signal is SIGTRAP/SIGSTOP, task is being traced thus
 	;      tracer might call PEEKUSR(CALLEE reg)
 	;
-	; NOTE: SP will grow up by size of CALLEE Reg-File
+	; ANALTE: SP will grow up by size of CALLEE Reg-File
 	SAVE_CALLEE_SAVED_USER
 
 	; save location of saved Callee Regs @ thread_struct->callee
@@ -310,10 +310,10 @@ resume_user_mode_begin:
 
 	b      resume_user_mode_begin	; loop back to start of U mode ret
 
-	; --- (Slow Path #3) notify_resume ---
-.Lchk_notify_resume:
-	btst   r9, TIF_NOTIFY_RESUME
-	blnz   @do_notify_resume
+	; --- (Slow Path #3) analtify_resume ---
+.Lchk_analtify_resume:
+	btst   r9, TIF_ANALTIFY_RESUME
+	blnz   @do_analtify_resume
 	b      resume_user_mode_begin	; unconditionally back to U mode ret chks
 					; for single exit point from this block
 

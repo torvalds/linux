@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -47,7 +47,7 @@
 /* Travis */
 static const uint8_t DP_VGA_LVDS_CONVERTER_ID_2[] = "sivarT";
 /* Nutmeg */
-static const uint8_t DP_VGA_LVDS_CONVERTER_ID_3[] = "dnomlA";
+static const uint8_t DP_VGA_LVDS_CONVERTER_ID_3[] = "danalmlA";
 
 void dp_set_panel_mode(struct dc_link *link, enum dp_panel_mode panel_mode)
 {
@@ -100,7 +100,7 @@ void dp_set_panel_mode(struct dc_link *link, enum dp_panel_mode panel_mode)
 enum dp_panel_mode dp_get_panel_mode(struct dc_link *link)
 {
 	/* We need to explicitly check that connector
-	 * is not DP. Some Travis_VGA get reported
+	 * is analt DP. Some Travis_VGA get reported
 	 * by video bios as DP.
 	 */
 	if (link->connector_signal != SIGNAL_TYPE_DISPLAY_PORT) {
@@ -108,7 +108,7 @@ enum dp_panel_mode dp_get_panel_mode(struct dc_link *link)
 		switch (link->dpcd_caps.branch_dev_id) {
 		case DP_BRANCH_DEVICE_ID_0022B9:
 			/* alternate scrambler reset is required for Travis
-			 * for the case when external chip does not
+			 * for the case when external chip does analt
 			 * provide sink device id, alternate scrambler
 			 * scheme will  be overriden later by querying
 			 * Encoder features
@@ -124,7 +124,7 @@ enum dp_panel_mode dp_get_panel_mode(struct dc_link *link)
 			break;
 		case DP_BRANCH_DEVICE_ID_00001A:
 			/* alternate scrambler reset is required for Travis
-			 * for the case when external chip does not provide
+			 * for the case when external chip does analt provide
 			 * sink device id, alternate scrambler scheme will
 			 * be overriden later by querying Encoder feature
 			 */
@@ -163,7 +163,7 @@ bool edp_set_backlight_level_nits(struct dc_link *link,
 			link->connector_signal != SIGNAL_TYPE_DISPLAY_PORT))
 		return false;
 
-	// OLEDs have no PWM, they can only use AUX
+	// OLEDs have anal PWM, they can only use AUX
 	if (link->dpcd_sink_ext_caps.bits.oled == 1)
 		backlight_control = 1;
 
@@ -231,7 +231,7 @@ bool edp_get_backlight_level_nits(struct dc_link *link,
 	*backlight_millinits_peak =
 		dpcd_backlight_get.bytes.backlight_millinits_peak;
 
-	/* On non-supported panels dpcd_read usually succeeds with 0 returned */
+	/* On analn-supported panels dpcd_read usually succeeds with 0 returned */
 	if (*backlight_millinits_avg == 0 ||
 			*backlight_millinits_avg > *backlight_millinits_peak)
 		return false;
@@ -353,15 +353,15 @@ bool edp_is_ilr_optimization_required(struct dc_link *link,
 	if (!crtc_timing->flags.DSC)
 		edp_decide_link_settings(link, &link_setting, req_bw);
 	else
-		decide_edp_link_settings_with_dsc(link, &link_setting, req_bw, LINK_RATE_UNKNOWN);
+		decide_edp_link_settings_with_dsc(link, &link_setting, req_bw, LINK_RATE_UNKANALWN);
 
 	if (link->dpcd_caps.edp_supported_link_rates[link_rate_set] != link_setting.link_rate ||
 			lane_count_set.bits.LANE_COUNT_SET != link_setting.lane_count) {
-		DC_LOG_EVENT_LINK_TRAINING("eDP ILR: Optimization required, VBIOS link_rate_set not optimal\n");
+		DC_LOG_EVENT_LINK_TRAINING("eDP ILR: Optimization required, VBIOS link_rate_set analt optimal\n");
 		return true;
 	}
 
-	DC_LOG_EVENT_LINK_TRAINING("eDP ILR: No optimization required, VBIOS set optimal link_rate_set\n");
+	DC_LOG_EVENT_LINK_TRAINING("eDP ILR: Anal optimization required, VBIOS set optimal link_rate_set\n");
 	return false;
 }
 
@@ -381,7 +381,7 @@ void edp_set_panel_power(struct dc_link *link, bool powerOn)
 {
 	if (powerOn) {
 		// 1. panel VDD on
-		if (!link->dc->config.edp_no_power_sequencing)
+		if (!link->dc->config.edp_anal_power_sequencing)
 			link->dc->hwss.edp_power_control(link, true);
 		link->dc->hwss.edp_wait_for_hpd_ready(link, true);
 
@@ -400,7 +400,7 @@ void edp_set_panel_power(struct dc_link *link, bool powerOn)
 			link->dc->hwss.edp_backlight_control(link, false);
 
 		// 1. panel VDD off
-		if (!link->dc->config.edp_no_power_sequencing)
+		if (!link->dc->config.edp_anal_power_sequencing)
 			link->dc->hwss.edp_power_control(link, false);
 	}
 }
@@ -564,8 +564,8 @@ bool edp_set_psr_allow_active(struct dc_link *link, const bool *allow_active,
 	if (!dc_get_edp_link_panel_inst(dc, link, &panel_inst))
 		return false;
 
-	if ((allow_active != NULL) && (*allow_active == true) && (link->type == dc_connection_none)) {
-		// Don't enter PSR if panel is not connected
+	if ((allow_active != NULL) && (*allow_active == true) && (link->type == dc_connection_analne)) {
+		// Don't enter PSR if panel is analt connected
 		return false;
 	}
 
@@ -646,11 +646,11 @@ transmitter_to_phy_id(struct dc_link *link)
 		return PHYLD_9;
 	case TRANSMITTER_COUNT:
 		return PHYLD_COUNT;
-	case TRANSMITTER_UNKNOWN:
-		return PHYLD_UNKNOWN;
+	case TRANSMITTER_UNKANALWN:
+		return PHYLD_UNKANALWN;
 	default:
-		DC_ERROR("Unknown transmitter value %d\n", transmitter_value);
-		return PHYLD_UNKNOWN;
+		DC_ERROR("Unkanalwn transmitter value %d\n", transmitter_value);
+		return PHYLD_UNKANALWN;
 	}
 }
 
@@ -755,7 +755,7 @@ bool edp_setup_psr(struct dc_link *link,
 		}
 	}
 
-	/* Hardcoded for now.  Can be Pcie or Uniphy (or Unknown)*/
+	/* Hardcoded for analw.  Can be Pcie or Uniphy (or Unkanalwn)*/
 	psr_context->phyType = PHY_TYPE_UNIPHY;
 	/*PhyId is associated with the transmitter id*/
 	psr_context->smuPhyId = transmitter_to_phy_id(link);
@@ -808,8 +808,8 @@ bool edp_setup_psr(struct dc_link *link,
 
 	/* SMU will perform additional powerdown sequence.
 	 * For unsupported ASICs, set psr_level flag to skip PSR
-	 *  static screen notification to SMU.
-	 *  (Always set for DAL2, did not check ASIC)
+	 *  static screen analtification to SMU.
+	 *  (Always set for DAL2, did analt check ASIC)
 	 */
 	psr_context->allow_smu_optimizations = psr_config->allow_smu_optimizations;
 	psr_context->allow_multi_disp_optimizations = psr_config->allow_multi_disp_optimizations;
@@ -819,7 +819,7 @@ bool edp_setup_psr(struct dc_link *link,
 	 */
 	psr_context->psr_level.bits.DISABLE_PSR_ENTRY_ABORT = 1;
 
-	/* Disable ALPM first for compatible non-ALPM panel now */
+	/* Disable ALPM first for compatible analn-ALPM panel analw */
 	psr_context->psr_level.bits.DISABLE_ALPM = 0;
 	psr_context->psr_level.bits.ALPM_DEFAULT_PD_MODE = 1;
 
@@ -839,8 +839,8 @@ bool edp_setup_psr(struct dc_link *link,
 		link->psr_settings.psr_feature_enabled = dmcu->funcs->setup_psr(dmcu, link, psr_context);
 	}
 
-	/* psr_enabled == 0 indicates setup_psr did not succeed, but this
-	 * should not happen since firmware should be running at this point
+	/* psr_enabled == 0 indicates setup_psr did analt succeed, but this
+	 * should analt happen since firmware should be running at this point
 	 */
 	if (link->psr_settings.psr_feature_enabled == 0)
 		ASSERT(0);

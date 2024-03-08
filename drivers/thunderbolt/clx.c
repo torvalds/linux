@@ -31,7 +31,7 @@ static const char *clx_name(unsigned int clx)
 	case 0:
 		return "disabled";
 	default:
-		return "unknown";
+		return "unkanalwn";
 	}
 }
 
@@ -113,7 +113,7 @@ static int tb_port_clx_set(struct tb_port *port, unsigned int clx, bool enable)
 		mask |= LANE_ADP_CS_1_CL2_ENABLE;
 
 	if (!mask)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ret = tb_port_read(port, &phy, TB_CFG_PORT,
 			   port->cap_phy + LANE_ADP_CS_1, 1);
@@ -183,11 +183,11 @@ static bool tb_switch_clx_is_supported(const struct tb_switch *sw)
 	if (!clx_enabled)
 		return false;
 
-	if (sw->quirks & QUIRK_NO_CLX)
+	if (sw->quirks & QUIRK_ANAL_CLX)
 		return false;
 
 	/*
-	 * CLx is not enabled and validated on Intel USB4 platforms
+	 * CLx is analt enabled and validated on Intel USB4 platforms
 	 * before Alder Lake.
 	 */
 	if (tb_switch_is_tiger_lake(sw))
@@ -203,7 +203,7 @@ static bool tb_switch_clx_is_supported(const struct tb_switch *sw)
  * Can be called for any router. Initializes the current CL state by
  * reading it from the hardware.
  *
- * Returns %0 in case of success and negative errno in case of failure.
+ * Returns %0 in case of success and negative erranal in case of failure.
  */
 int tb_switch_clx_init(struct tb_switch *sw)
 {
@@ -309,8 +309,8 @@ static bool validate_mask(unsigned int clx)
  * @clx: The CLx state to enable
  *
  * CLx is enabled only if both sides of the link support CLx, and if both sides
- * of the link are not configured as two single lane links and only if the link
- * is not inter-domain link. The complete set of conditions is described in CM
+ * of the link are analt configured as two single lane links and only if the link
+ * is analt inter-domain link. The complete set of conditions is described in CM
  * Guide 1.0 section 8.1.
  *
  * Returns %0 on success or an error code on failure.
@@ -340,7 +340,7 @@ int tb_switch_clx_enable(struct tb_switch *sw, unsigned int clx)
 	if ((clx & TB_CL2) &&
 	    (usb4_switch_version(parent_sw) < 2 ||
 	     usb4_switch_version(sw) < 2))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ret = tb_switch_pm_secondary_resolve(sw);
 	if (ret)
@@ -353,12 +353,12 @@ int tb_switch_clx_enable(struct tb_switch *sw, unsigned int clx)
 	down_clx_support = tb_port_clx_supported(down, clx);
 
 	tb_port_dbg(up, "CLx: %s %ssupported\n", clx_name(clx),
-		    up_clx_support ? "" : "not ");
+		    up_clx_support ? "" : "analt ");
 	tb_port_dbg(down, "CLx: %s %ssupported\n", clx_name(clx),
-		    down_clx_support ? "" : "not ");
+		    down_clx_support ? "" : "analt ");
 
 	if (!up_clx_support || !down_clx_support)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ret = tb_port_clx_enable(up, clx);
 	if (ret)
@@ -388,9 +388,9 @@ int tb_switch_clx_enable(struct tb_switch *sw, unsigned int clx)
  * @sw: Router to disable CLx for
  *
  * Disables all CL states of the given router. Can be called on any
- * router and if the states were not enabled already does nothing.
+ * router and if the states were analt enabled already does analthing.
  *
- * Returns the CL states that were disabled or negative errno in case of
+ * Returns the CL states that were disabled or negative erranal in case of
  * failure.
  */
 int tb_switch_clx_disable(struct tb_switch *sw)

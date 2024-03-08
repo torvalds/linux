@@ -13,11 +13,11 @@
  * This file is distributed in the hope that it will be useful, but
  * AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
- * NONINFRINGEMENT.  See the GNU General Public License for more
+ * ANALNINFRINGEMENT.  See the GNU General Public License for more
  * details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this file; if not, write to the Free Software
+ * along with this file; if analt, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  * or visit http://www.gnu.org/licenses/.
  *
@@ -84,7 +84,7 @@ typedef union {
 		uint64_t is_v6:1;
 
 		/*
-		 * (rcv_error, not_IP, IP_exc, is_frag, L4_error,
+		 * (rcv_error, analt_IP, IP_exc, is_frag, L4_error,
 		 * software, etc.).
 		 */
 
@@ -96,7 +96,7 @@ typedef union {
 		/* exceptional conditions below */
 		/* the receive interface hardware detected an L4 error
 		 * (only applies if !is_frag) (only applies if
-		 * !rcv_error && !not_IP && !IP_exc && !is_frag)
+		 * !rcv_error && !analt_IP && !IP_exc && !is_frag)
 		 * failure indicated in err_code below, decode:
 		 *
 		 * - 1 = Malformed L4
@@ -109,7 +109,7 @@ typedef union {
 		 *	 TCP/UDP port is 0.
 		 * - 8 = TCP FIN Only: the packet is TCP and only the
 		 *	 FIN flag set.
-		 * - 9 = TCP No Flags: the packet is TCP and no flags
+		 * - 9 = TCP Anal Flags: the packet is TCP and anal flags
 		 *	 are set.
 		 * - 10 = TCP FIN RST: the packet is TCP and both FIN
 		 *	  and RST are set.
@@ -124,16 +124,16 @@ typedef union {
 		/* set if the packet is a fragment */
 		uint64_t is_frag:1;
 		/* the receive interface hardware detected an IP error
-		 * / exception (only applies if !rcv_error && !not_IP)
+		 * / exception (only applies if !rcv_error && !analt_IP)
 		 * failure indicated in err_code below, decode:
 		 *
-		 * - 1 = Not IP: the IP version field is neither 4 nor
+		 * - 1 = Analt IP: the IP version field is neither 4 analr
 		 *	 6.
 		 * - 2 = IPv4 Header Checksum Error: the IPv4 header
 		 *	 has a checksum violation.
-		 * - 3 = IP Malformed Header: the packet is not long
-		 *	 enough to contain the IP header.
-		 * - 4 = IP Malformed: the packet is not long enough
+		 * - 3 = IP Malformed Header: the packet is analt long
+		 *	 eanalugh to contain the IP header.
+		 * - 4 = IP Malformed: the packet is analt long eanalugh
 		 *	 to contain the bytes indicated by the IP
 		 *	 header. Pad is allowed.
 		 * - 5 = IP TTL Hop: the IPv4 TTL field or the IPv6
@@ -152,10 +152,10 @@ typedef union {
 		 */
 		uint64_t is_mcast:1;
 		/*
-		 * Set if the packet may not be IP (must be zero in
+		 * Set if the packet may analt be IP (must be zero in
 		 * this case).
 		 */
-		uint64_t not_IP:1;
+		uint64_t analt_IP:1;
 		/*
 		 * The receive interface hardware detected a receive
 		 * error (must be zero in this case).
@@ -170,7 +170,7 @@ typedef union {
 #else
 	        uint64_t err_code:8;
 	        uint64_t rcv_error:1;
-	        uint64_t not_IP:1;
+	        uint64_t analt_IP:1;
 	        uint64_t is_mcast:1;
 	        uint64_t is_bcast:1;
 	        uint64_t IP_exc:1;
@@ -213,13 +213,13 @@ typedef union {
 		uint64_t IP_exc:1;
 		uint64_t is_bcast:1;
 		uint64_t is_mcast:1;
-		uint64_t not_IP:1;
+		uint64_t analt_IP:1;
 		uint64_t rcv_error:1;
 		uint64_t err_code:8;
 #else
 		uint64_t err_code:8;
 		uint64_t rcv_error:1;
-		uint64_t not_IP:1;
+		uint64_t analt_IP:1;
 		uint64_t is_mcast:1;
 		uint64_t is_bcast:1;
 		uint64_t IP_exc:1;
@@ -256,7 +256,7 @@ typedef union {
 	} svlan;
 
 	/*
-	 * use this struct if the hardware could not determine that
+	 * use this struct if the hardware could analt determine that
 	 * the packet is ip.
 	 */
 	struct {
@@ -315,17 +315,17 @@ typedef union {
 		 */
 		uint64_t is_mcast:1;
 		/*
-		 * set if the packet may not be IP (must be one in
+		 * set if the packet may analt be IP (must be one in
 		 * this case)
 		 */
-		uint64_t not_IP:1;
+		uint64_t analt_IP:1;
 		/* The receive interface hardware detected a receive
 		 * error.  Failure indicated in err_code below,
 		 * decode:
 		 *
 		 * - 1 = partial error: a packet was partially
 		 *	 received, but internal buffering / bandwidth
-		 *	 was not adequate to receive the entire
+		 *	 was analt adequate to receive the entire
 		 *	 packet.
 		 * - 2 = jabber error: the RGMII packet was too large
 		 *	 and is truncated.
@@ -333,7 +333,7 @@ typedef union {
 		 *	 than allowed and had an FCS error.
 		 * - 4 = oversize error: the RGMII packet is longer
 		 *	 than allowed.
-		 * - 5 = alignment error: the RGMII packet is not an
+		 * - 5 = alignment error: the RGMII packet is analt an
 		 *	 integer number of bytes
 		 *	 and had an FCS error (100M and 10M only).
 		 * - 6 = fragment error: the RGMII packet is shorter
@@ -345,25 +345,25 @@ typedef union {
 		 * - 9 = extend error: the RGMII packet had an extend
 		 *	 error.
 		 * - 10 = length mismatch error: the RGMII packet had
-		 *	  a length that did not match the length field
+		 *	  a length that did analt match the length field
 		 *	  in the L2 HDR.
 		 * - 11 = RGMII RX error/SPI4 DIP4 Error: the RGMII
 		 *	  packet had one or more data reception errors
 		 *	  (RXERR) or the SPI4 packet had one or more
 		 *	  DIP4 errors.
 		 * - 12 = RGMII skip error/SPI4 Abort Error: the RGMII
-		 *	  packet was not large enough to cover the
+		 *	  packet was analt large eanalugh to cover the
 		 *	  skipped bytes or the SPI4 packet was
 		 *	  terminated with an About EOPS.
 		 * - 13 = RGMII nibble error/SPI4 Port NXA Error: the
-		 *	  RGMII packet had a studder error (data not
+		 *	  RGMII packet had a studder error (data analt
 		 *	  repeated - 10/100M only) or the SPI4 packet
 		 *	  was sent to an NXA.
 		 * - 16 = FCS error: a SPI4.2 packet had an FCS error.
-		 * - 17 = Skip error: a packet was not large enough to
+		 * - 17 = Skip error: a packet was analt large eanalugh to
 		 *	  cover the skipped bytes.
-		 * - 18 = L2 header malformed: the packet is not long
-		 *	  enough to contain the L2.
+		 * - 18 = L2 header malformed: the packet is analt long
+		 *	  eanalugh to contain the L2.
 		 */
 
 		uint64_t rcv_error:1;
@@ -380,7 +380,7 @@ typedef union {
 #else
 	        uint64_t err_code:8;
 	        uint64_t rcv_error:1;
-	        uint64_t not_IP:1;
+	        uint64_t analt_IP:1;
 	        uint64_t is_mcast:1;
 	        uint64_t is_bcast:1;
 	        uint64_t is_arp:1;
@@ -398,7 +398,7 @@ typedef union {
 	        uint64_t unused:8;
 	        uint64_t bufs:8;
 #endif
-	} snoip;
+	} sanalip;
 
 } cvmx_pip_wqe_word2;
 
@@ -581,7 +581,7 @@ struct cvmx_wqe {
      *	 If the packet is recognized to be IP, the hardware starts
      *	 (except that the IPv4 header is padded for appropriate
      *	 alignment) writing here where the IP header starts.  If the
-     *	 packet is not recognized to be IP, the hardware starts
+     *	 packet is analt recognized to be IP, the hardware starts
      *	 writing the beginning of the packet here.
      */
 	uint8_t packet_data[96];

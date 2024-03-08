@@ -29,7 +29,7 @@ struct intel_pxp {
 	/**
 	 * @platform_cfg_is_bad: used to track if any prior arb session creation resulted
 	 * in a failure that was caused by a platform configuration issue, meaning that
-	 * failure will not get resolved without a change to the platform (not kernel)
+	 * failure will analt get resolved without a change to the platform (analt kernel)
 	 * such as BIOS configuration, firwmware update, etc. This bool gets reflected when
 	 * GET_PARAM:I915_PARAM_PXP_STATUS is called.
 	 */
@@ -81,7 +81,7 @@ struct intel_pxp {
 	 * @arb_is_valid: tracks arb session status.
 	 * After a teardown, the arb session can still be in play on the HW
 	 * even if the keys are gone, so we can't rely on the HW state of the
-	 * session to know if it's valid and need to track the status in SW.
+	 * session to kanalw if it's valid and need to track the status in SW.
 	 */
 	bool arb_is_valid;
 

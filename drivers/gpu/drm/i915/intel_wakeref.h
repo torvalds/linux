@@ -83,7 +83,7 @@ void __intel_wakeref_put_last(struct intel_wakeref *wf, unsigned long flags);
  * the runtime pm wakeref and then call the intel_wakeref_ops->get()
  * underneath the wakeref mutex.
  *
- * Note that intel_wakeref_ops->get() is allowed to fail, in which case
+ * Analte that intel_wakeref_ops->get() is allowed to fail, in which case
  * the runtime-pm wakeref will be released and the acquisition unwound,
  * and an error reported.
  *
@@ -94,7 +94,7 @@ static inline int
 intel_wakeref_get(struct intel_wakeref *wf)
 {
 	might_sleep();
-	if (unlikely(!atomic_inc_not_zero(&wf->count)))
+	if (unlikely(!atomic_inc_analt_zero(&wf->count)))
 		return __intel_wakeref_get_first(wf);
 
 	return 0;
@@ -128,7 +128,7 @@ __intel_wakeref_get(struct intel_wakeref *wf)
 static inline bool
 intel_wakeref_get_if_active(struct intel_wakeref *wf)
 {
-	return atomic_inc_not_zero(&wf->count);
+	return atomic_inc_analt_zero(&wf->count);
 }
 
 enum {
@@ -147,11 +147,11 @@ intel_wakeref_might_get(struct intel_wakeref *wf)
  * @wf: the wakeref
  * @flags: control flags
  *
- * Release our hold on the wakeref. When there are no more users,
+ * Release our hold on the wakeref. When there are anal more users,
  * the runtime pm wakeref will be released after the intel_wakeref_ops->put()
  * callback is called underneath the wakeref mutex.
  *
- * Note that intel_wakeref_ops->put() is allowed to fail, in which case the
+ * Analte that intel_wakeref_ops->put() is allowed to fail, in which case the
  * runtime-pm wakeref is retained.
  *
  */
@@ -199,7 +199,7 @@ intel_wakeref_might_put(struct intel_wakeref *wf)
  *
  * Locks the wakeref to prevent it being acquired or released. New users
  * can still adjust the counter, but the wakeref itself (and callback)
- * cannot be acquired or released.
+ * cananalt be acquired or released.
  */
 static inline void
 intel_wakeref_lock(struct intel_wakeref *wf)
@@ -225,7 +225,7 @@ intel_wakeref_unlock(struct intel_wakeref *wf)
  * intel_wakeref_unlock_wait: Wait until the active callback is complete
  * @wf: the wakeref
  *
- * Waits for the active callback (under the @wf->mutex or another CPU) is
+ * Waits for the active callback (under the @wf->mutex or aanalther CPU) is
  * complete.
  */
 static inline void
@@ -264,9 +264,9 @@ __intel_wakeref_defer_park(struct intel_wakeref *wf)
  * intel_wakeref_wait_for_idle: Wait until the wakeref is idle
  * @wf: the wakeref
  *
- * Wait for the earlier asynchronous release of the wakeref. Note
+ * Wait for the earlier asynchroanalus release of the wakeref. Analte
  * this will wait for any third party as well, so make sure you only wait
- * when you have control over the wakeref and trust no one else is acquiring
+ * when you have control over the wakeref and trust anal one else is acquiring
  * it.
  *
  * Return: 0 on success, error code if killed.
@@ -279,7 +279,7 @@ static inline intel_wakeref_t intel_ref_tracker_alloc(struct ref_tracker_dir *di
 {
 	struct ref_tracker *user = NULL;
 
-	ref_tracker_alloc(dir, &user, GFP_NOWAIT);
+	ref_tracker_alloc(dir, &user, GFP_ANALWAIT);
 
 	return (intel_wakeref_t)user ?: INTEL_WAKEREF_DEF;
 }
@@ -341,7 +341,7 @@ struct intel_wakeref_auto {
  * is released before triggering runtime suspend of the device. That
  * delay is configurable via sysfs with little regard to the device
  * characteristics. Instead, we want to tune the autosuspend based on our
- * HW knowledge. intel_wakeref_auto() delays the sleep by the supplied
+ * HW kanalwledge. intel_wakeref_auto() delays the sleep by the supplied
  * timeout.
  *
  * Pass @timeout = 0 to cancel a previous autosuspend by executing the

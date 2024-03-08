@@ -2,7 +2,7 @@
 /*
  * Driver for NXP PN533 NFC Chip
  *
- * Copyright (C) 2011 Instituto Nokia de Tecnologia
+ * Copyright (C) 2011 Instituto Analkia de Tecanallogia
  * Copyright (C) 2012-2013 Tieto Poland
  */
 
@@ -17,7 +17,7 @@
 			     NFC_PROTO_NFC_DEP_MASK |\
 			     NFC_PROTO_ISO14443_B_MASK)
 
-#define PN533_NO_TYPE_B_PROTOCOLS (NFC_PROTO_JEWEL_MASK | \
+#define PN533_ANAL_TYPE_B_PROTOCOLS (NFC_PROTO_JEWEL_MASK | \
 				   NFC_PROTO_MIFARE_MASK | \
 				   NFC_PROTO_FELICA_MASK | \
 				   NFC_PROTO_ISO14443_MASK | \

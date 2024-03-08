@@ -20,7 +20,7 @@
 		}									\
 	} while (0)
 
-#define TEST_EXPECT_NOSPC(expr) KUNIT_EXPECT_EQ(test, -ENOSPC, PTR_ERR(expr))
+#define TEST_EXPECT_ANALSPC(expr) KUNIT_EXPECT_EQ(test, -EANALSPC, PTR_ERR(expr))
 
 #define MAX_TEST_BREAKPOINTS 512
 
@@ -66,7 +66,7 @@ static void fill_one_bp_slot(struct kunit *test, int *id, int cpu, struct task_s
 {
 	struct perf_event *bp = register_test_bp(cpu, tsk, *id);
 
-	KUNIT_ASSERT_NOT_NULL(test, bp);
+	KUNIT_ASSERT_ANALT_NULL(test, bp);
 	KUNIT_ASSERT_FALSE(test, IS_ERR(bp));
 	KUNIT_ASSERT_NULL(test, test_bps[*id]);
 	test_bps[(*id)++] = bp;
@@ -124,8 +124,8 @@ static void test_one_cpu(struct kunit *test)
 	int idx = 0;
 
 	fill_bp_slots(test, &idx, get_test_cpu(0), NULL, 0);
-	TEST_EXPECT_NOSPC(register_test_bp(-1, current, idx));
-	TEST_EXPECT_NOSPC(register_test_bp(get_test_cpu(0), NULL, idx));
+	TEST_EXPECT_ANALSPC(register_test_bp(-1, current, idx));
+	TEST_EXPECT_ANALSPC(register_test_bp(get_test_cpu(0), NULL, idx));
 }
 
 static void test_many_cpus(struct kunit *test)
@@ -137,7 +137,7 @@ static void test_many_cpus(struct kunit *test)
 	for_each_online_cpu(cpu) {
 		bool do_continue = fill_bp_slots(test, &idx, cpu, NULL, 0);
 
-		TEST_EXPECT_NOSPC(register_test_bp(cpu, NULL, idx));
+		TEST_EXPECT_ANALSPC(register_test_bp(cpu, NULL, idx));
 		if (!do_continue)
 			break;
 	}
@@ -148,9 +148,9 @@ static void test_one_task_on_all_cpus(struct kunit *test)
 	int idx = 0;
 
 	fill_bp_slots(test, &idx, -1, current, 0);
-	TEST_EXPECT_NOSPC(register_test_bp(-1, current, idx));
-	TEST_EXPECT_NOSPC(register_test_bp(get_test_cpu(0), current, idx));
-	TEST_EXPECT_NOSPC(register_test_bp(get_test_cpu(0), NULL, idx));
+	TEST_EXPECT_ANALSPC(register_test_bp(-1, current, idx));
+	TEST_EXPECT_ANALSPC(register_test_bp(get_test_cpu(0), current, idx));
+	TEST_EXPECT_ANALSPC(register_test_bp(get_test_cpu(0), NULL, idx));
 	/* Remove one and adding back CPU-target should work. */
 	unregister_test_bp(&test_bps[0]);
 	fill_one_bp_slot(test, &idx, get_test_cpu(0), NULL);
@@ -164,14 +164,14 @@ static void test_two_tasks_on_all_cpus(struct kunit *test)
 	fill_bp_slots(test, &idx, -1, current, 0);
 	fill_bp_slots(test, &idx, -1, get_other_task(test), 0);
 
-	TEST_EXPECT_NOSPC(register_test_bp(-1, current, idx));
-	TEST_EXPECT_NOSPC(register_test_bp(-1, get_other_task(test), idx));
-	TEST_EXPECT_NOSPC(register_test_bp(get_test_cpu(0), current, idx));
-	TEST_EXPECT_NOSPC(register_test_bp(get_test_cpu(0), get_other_task(test), idx));
-	TEST_EXPECT_NOSPC(register_test_bp(get_test_cpu(0), NULL, idx));
-	/* Remove one from first task and adding back CPU-target should not work. */
+	TEST_EXPECT_ANALSPC(register_test_bp(-1, current, idx));
+	TEST_EXPECT_ANALSPC(register_test_bp(-1, get_other_task(test), idx));
+	TEST_EXPECT_ANALSPC(register_test_bp(get_test_cpu(0), current, idx));
+	TEST_EXPECT_ANALSPC(register_test_bp(get_test_cpu(0), get_other_task(test), idx));
+	TEST_EXPECT_ANALSPC(register_test_bp(get_test_cpu(0), NULL, idx));
+	/* Remove one from first task and adding back CPU-target should analt work. */
 	unregister_test_bp(&test_bps[0]);
-	TEST_EXPECT_NOSPC(register_test_bp(get_test_cpu(0), NULL, idx));
+	TEST_EXPECT_ANALSPC(register_test_bp(get_test_cpu(0), NULL, idx));
 }
 
 static void test_one_task_on_one_cpu(struct kunit *test)
@@ -179,9 +179,9 @@ static void test_one_task_on_one_cpu(struct kunit *test)
 	int idx = 0;
 
 	fill_bp_slots(test, &idx, get_test_cpu(0), current, 0);
-	TEST_EXPECT_NOSPC(register_test_bp(-1, current, idx));
-	TEST_EXPECT_NOSPC(register_test_bp(get_test_cpu(0), current, idx));
-	TEST_EXPECT_NOSPC(register_test_bp(get_test_cpu(0), NULL, idx));
+	TEST_EXPECT_ANALSPC(register_test_bp(-1, current, idx));
+	TEST_EXPECT_ANALSPC(register_test_bp(get_test_cpu(0), current, idx));
+	TEST_EXPECT_ANALSPC(register_test_bp(get_test_cpu(0), NULL, idx));
 	/*
 	 * Remove one and adding back CPU-target should work; this case is
 	 * special vs. above because the task's constraints are CPU-dependent.
@@ -198,16 +198,16 @@ static void test_one_task_mixed(struct kunit *test)
 
 	fill_one_bp_slot(test, &idx, get_test_cpu(0), current);
 	fill_bp_slots(test, &idx, -1, current, 1);
-	TEST_EXPECT_NOSPC(register_test_bp(-1, current, idx));
-	TEST_EXPECT_NOSPC(register_test_bp(get_test_cpu(0), current, idx));
-	TEST_EXPECT_NOSPC(register_test_bp(get_test_cpu(0), NULL, idx));
+	TEST_EXPECT_ANALSPC(register_test_bp(-1, current, idx));
+	TEST_EXPECT_ANALSPC(register_test_bp(get_test_cpu(0), current, idx));
+	TEST_EXPECT_ANALSPC(register_test_bp(get_test_cpu(0), NULL, idx));
 
 	/* Transition from CPU-dependent pinned count to CPU-independent. */
 	unregister_test_bp(&test_bps[0]);
 	unregister_test_bp(&test_bps[1]);
 	fill_one_bp_slot(test, &idx, get_test_cpu(0), NULL);
 	fill_one_bp_slot(test, &idx, get_test_cpu(0), NULL);
-	TEST_EXPECT_NOSPC(register_test_bp(get_test_cpu(0), NULL, idx));
+	TEST_EXPECT_ANALSPC(register_test_bp(get_test_cpu(0), NULL, idx));
 }
 
 static void test_two_tasks_on_one_cpu(struct kunit *test)
@@ -217,11 +217,11 @@ static void test_two_tasks_on_one_cpu(struct kunit *test)
 	fill_bp_slots(test, &idx, get_test_cpu(0), current, 0);
 	fill_bp_slots(test, &idx, get_test_cpu(0), get_other_task(test), 0);
 
-	TEST_EXPECT_NOSPC(register_test_bp(-1, current, idx));
-	TEST_EXPECT_NOSPC(register_test_bp(-1, get_other_task(test), idx));
-	TEST_EXPECT_NOSPC(register_test_bp(get_test_cpu(0), current, idx));
-	TEST_EXPECT_NOSPC(register_test_bp(get_test_cpu(0), get_other_task(test), idx));
-	TEST_EXPECT_NOSPC(register_test_bp(get_test_cpu(0), NULL, idx));
+	TEST_EXPECT_ANALSPC(register_test_bp(-1, current, idx));
+	TEST_EXPECT_ANALSPC(register_test_bp(-1, get_other_task(test), idx));
+	TEST_EXPECT_ANALSPC(register_test_bp(get_test_cpu(0), current, idx));
+	TEST_EXPECT_ANALSPC(register_test_bp(get_test_cpu(0), get_other_task(test), idx));
+	TEST_EXPECT_ANALSPC(register_test_bp(get_test_cpu(0), NULL, idx));
 	/* Can still create breakpoints on some other CPU. */
 	fill_bp_slots(test, &idx, get_test_cpu(1), NULL, 0);
 }
@@ -233,13 +233,13 @@ static void test_two_tasks_on_one_all_cpus(struct kunit *test)
 	fill_bp_slots(test, &idx, get_test_cpu(0), current, 0);
 	fill_bp_slots(test, &idx, -1, get_other_task(test), 0);
 
-	TEST_EXPECT_NOSPC(register_test_bp(-1, current, idx));
-	TEST_EXPECT_NOSPC(register_test_bp(-1, get_other_task(test), idx));
-	TEST_EXPECT_NOSPC(register_test_bp(get_test_cpu(0), current, idx));
-	TEST_EXPECT_NOSPC(register_test_bp(get_test_cpu(0), get_other_task(test), idx));
-	TEST_EXPECT_NOSPC(register_test_bp(get_test_cpu(0), NULL, idx));
-	/* Cannot create breakpoints on some other CPU either. */
-	TEST_EXPECT_NOSPC(register_test_bp(get_test_cpu(1), NULL, idx));
+	TEST_EXPECT_ANALSPC(register_test_bp(-1, current, idx));
+	TEST_EXPECT_ANALSPC(register_test_bp(-1, get_other_task(test), idx));
+	TEST_EXPECT_ANALSPC(register_test_bp(get_test_cpu(0), current, idx));
+	TEST_EXPECT_ANALSPC(register_test_bp(get_test_cpu(0), get_other_task(test), idx));
+	TEST_EXPECT_ANALSPC(register_test_bp(get_test_cpu(0), NULL, idx));
+	/* Cananalt create breakpoints on some other CPU either. */
+	TEST_EXPECT_ANALSPC(register_test_bp(get_test_cpu(1), NULL, idx));
 }
 
 static void test_task_on_all_and_one_cpu(struct kunit *test)
@@ -255,27 +255,27 @@ static void test_task_on_all_and_one_cpu(struct kunit *test)
 	fill_one_bp_slot(test, &idx, get_test_cpu(0), current);
 	fill_one_bp_slot(test, &idx, -1, current);
 
-	TEST_EXPECT_NOSPC(register_test_bp(-1, current, idx));
-	TEST_EXPECT_NOSPC(register_test_bp(get_test_cpu(0), current, idx));
-	TEST_EXPECT_NOSPC(register_test_bp(get_test_cpu(0), NULL, idx));
+	TEST_EXPECT_ANALSPC(register_test_bp(-1, current, idx));
+	TEST_EXPECT_ANALSPC(register_test_bp(get_test_cpu(0), current, idx));
+	TEST_EXPECT_ANALSPC(register_test_bp(get_test_cpu(0), NULL, idx));
 
-	/* We should still be able to use up another CPU's slots. */
+	/* We should still be able to use up aanalther CPU's slots. */
 	cpu_idx = idx;
 	fill_one_bp_slot(test, &idx, get_test_cpu(1), NULL);
-	TEST_EXPECT_NOSPC(register_test_bp(get_test_cpu(1), NULL, idx));
+	TEST_EXPECT_ANALSPC(register_test_bp(get_test_cpu(1), NULL, idx));
 
 	/* Transitioning back to task target on all CPUs. */
 	unregister_test_bp(&test_bps[tsk_on_cpu_idx]);
 	/* Still have a CPU target breakpoint in get_test_cpu(1). */
-	TEST_EXPECT_NOSPC(register_test_bp(-1, current, idx));
+	TEST_EXPECT_ANALSPC(register_test_bp(-1, current, idx));
 	/* Remove it and try again. */
 	unregister_test_bp(&test_bps[cpu_idx]);
 	fill_one_bp_slot(test, &idx, -1, current);
 
-	TEST_EXPECT_NOSPC(register_test_bp(-1, current, idx));
-	TEST_EXPECT_NOSPC(register_test_bp(get_test_cpu(0), current, idx));
-	TEST_EXPECT_NOSPC(register_test_bp(get_test_cpu(0), NULL, idx));
-	TEST_EXPECT_NOSPC(register_test_bp(get_test_cpu(1), NULL, idx));
+	TEST_EXPECT_ANALSPC(register_test_bp(-1, current, idx));
+	TEST_EXPECT_ANALSPC(register_test_bp(get_test_cpu(0), current, idx));
+	TEST_EXPECT_ANALSPC(register_test_bp(get_test_cpu(0), NULL, idx));
+	TEST_EXPECT_ANALSPC(register_test_bp(get_test_cpu(1), NULL, idx));
 }
 
 static struct kunit_case hw_breakpoint_test_cases[] = {
@@ -295,9 +295,9 @@ static int test_init(struct kunit *test)
 {
 	/* Most test cases want 2 distinct CPUs. */
 	if (num_online_cpus() < 2)
-		kunit_skip(test, "not enough cpus");
+		kunit_skip(test, "analt eanalugh cpus");
 
-	/* Want the system to not use breakpoints elsewhere. */
+	/* Want the system to analt use breakpoints elsewhere. */
 	if (hw_breakpoint_is_used())
 		kunit_skip(test, "hw breakpoint already in use");
 
@@ -316,7 +316,7 @@ static void test_exit(struct kunit *test)
 		__other_task = NULL;
 	}
 
-	/* Verify that internal state agrees that no breakpoints are in use. */
+	/* Verify that internal state agrees that anal breakpoints are in use. */
 	KUNIT_EXPECT_FALSE(test, hw_breakpoint_is_used());
 }
 

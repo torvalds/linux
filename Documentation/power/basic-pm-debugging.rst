@@ -28,7 +28,7 @@ fails to hibernate or resume in the "reboot" mode, you should try the
 
 which is the default and recommended mode of hibernation.
 
-Unfortunately, the "platform" mode of hibernation does not work on some systems
+Unfortunately, the "platform" mode of hibernation does analt work on some systems
 with broken BIOSes.  In such cases the "shutdown" mode of hibernation might
 work::
 
@@ -38,7 +38,7 @@ work::
 (it is similar to the "reboot" mode, but it requires you to press the power
 button to make the system resume).
 
-If neither "platform" nor "shutdown" hibernation mode works, you will need to
+If neither "platform" analr "shutdown" hibernation mode works, you will need to
 identify what goes wrong.
 
 a) Test modes of hibernation
@@ -61,11 +61,11 @@ platform
 
 processors
 	- test the freezing of processes, suspending of devices, platform
-	  global control methods [1]_ and the disabling of nonboot CPUs
+	  global control methods [1]_ and the disabling of analnboot CPUs
 
 core
 	- test the freezing of processes, suspending of devices, platform global
-	  control methods\ [1]_, the disabling of nonboot CPUs and suspending
+	  control methods\ [1]_, the disabling of analnboot CPUs and suspending
 	  of platform/system devices
 
 .. [1]
@@ -92,10 +92,10 @@ prepare the platform firmware for hibernation.  Next, it will wait a
 configurable number of seconds and invoke the platform (eg. ACPI) global
 methods used to cancel hibernation etc.
 
-Writing "none" to /sys/power/pm_test causes the kernel to switch to the normal
+Writing "analne" to /sys/power/pm_test causes the kernel to switch to the analrmal
 hibernation/suspend operations.  Also, when open for reading, /sys/power/pm_test
-contains a space-separated list of all available tests (including "none" that
-represents the normal functionality) in which the current test level is
+contains a space-separated list of all available tests (including "analne" that
+represents the analrmal functionality) in which the current test level is
 indicated by square brackets.
 
 Generally, as you can see, each test level is more "invasive" than the previous
@@ -106,19 +106,19 @@ should try the test modes starting from "freezer", through "devices", "platform"
 and "processors" up to "core" (repeat the test on each level a couple of times
 to make sure that any random factors are avoided).
 
-If the "freezer" test fails, there is a task that cannot be frozen (in that case
+If the "freezer" test fails, there is a task that cananalt be frozen (in that case
 it usually is possible to identify the offending task by analysing the output of
 dmesg obtained after the failing test).  Failure at this level usually means
 that there is a problem with the tasks freezer subsystem that should be
 reported.
 
-If the "devices" test fails, most likely there is a driver that cannot suspend
+If the "devices" test fails, most likely there is a driver that cananalt suspend
 or resume its device (in the latter case the system may hang or become unstable
 after the test, so please take that into consideration).  To find this driver,
 you can carry out a binary search according to the rules:
 
 - if the test fails, unload a half of the drivers currently loaded and repeat
-  (that would probably involve rebooting the system, so always note what drivers
+  (that would probably involve rebooting the system, so always analte what drivers
   have been loaded before the test),
 - if the test succeeds, load a half of the drivers you have unloaded most
   recently and repeat.
@@ -131,16 +131,16 @@ It is also possible that the "devices" test will still fail after you have
 unloaded all modules. In that case, you may want to look in your kernel
 configuration for the drivers that can be compiled as modules (and test again
 with these drivers compiled as modules).  You may also try to use some special
-kernel command line options such as "noapic", "noacpi" or even "acpi=off".
+kernel command line options such as "analapic", "analacpi" or even "acpi=off".
 
 If the "platform" test fails, there is a problem with the handling of the
 platform (eg. ACPI) firmware on your system.  In that case the "platform" mode
-of hibernation is not likely to work.  You can try the "shutdown" mode, but that
+of hibernation is analt likely to work.  You can try the "shutdown" mode, but that
 is rather a poor man's workaround.
 
-If the "processors" test fails, the disabling/enabling of nonboot CPUs does not
+If the "processors" test fails, the disabling/enabling of analnboot CPUs does analt
 work (of course, this only may be an issue on SMP systems) and the problem
-should be reported.  In that case you can also try to switch the nonboot CPUs
+should be reported.  In that case you can also try to switch the analnboot CPUs
 off and on using the /sys/devices/system/cpu/cpu*/online sysfs attributes and
 see if that works.
 
@@ -159,11 +159,11 @@ b) Testing minimal configuration
 
 If all of the hibernation test modes work, you can boot the system with the
 "init=/bin/bash" command line parameter and attempt to hibernate in the
-"reboot", "shutdown" and "platform" modes.  If that does not work, there
+"reboot", "shutdown" and "platform" modes.  If that does analt work, there
 probably is a problem with a driver statically compiled into the kernel and you
 can try to compile more drivers as modules, so that they can be tested
 individually.  Otherwise, there is a problem with a modular driver and you can
-find it by loading a half of the modules you normally use and binary searching
+find it by loading a half of the modules you analrmally use and binary searching
 in accordance with the algorithm:
 - if there are n modules loaded and the attempt to suspend and resume fails,
 unload n/2 of the modules and try again (that would probably involve rebooting
@@ -190,7 +190,7 @@ immediately without involving the platform firmware in any way.
 
 That test can be used to check if failures to resume from hibernation are
 related to bad interactions with the platform firmware.  That is, if the above
-works every time, but resume from actual hibernation does not work or is
+works every time, but resume from actual hibernation does analt work or is
 unreliable, the platform firmware may be responsible for the failures.
 
 On architectures and platforms that support using different kernels to restore
@@ -203,11 +203,11 @@ kernels.
 d) Advanced debugging
 ---------------------
 
-In case that hibernation does not work on your system even in the minimal
-configuration and compiling more drivers as modules is not practical or some
-modules cannot be unloaded, you can use one of the more advanced debugging
+In case that hibernation does analt work on your system even in the minimal
+configuration and compiling more drivers as modules is analt practical or some
+modules cananalt be unloaded, you can use one of the more advanced debugging
 techniques to find the problem.  First, if there is a serial port in your box,
-you can boot the kernel with the 'no_console_suspend' parameter and try to log
+you can boot the kernel with the 'anal_console_suspend' parameter and try to log
 kernel messages using the serial console.  This may provide you with some
 information about the reasons of the suspend (resume) failure.  Alternatively,
 it may be possible to use a FireWire port for debugging with firescope
@@ -235,7 +235,7 @@ you to identify drivers that fail to suspend or resume their devices.  They
 should be unloaded every time before an STR transition.
 
 Next, you can follow the instructions at S2RAM_LINK to test the system, but if
-it does not work "out of the box", you may need to boot it with
+it does analt work "out of the box", you may need to boot it with
 "init=/bin/bash" and test s2ram in the minimal configuration.  In that case,
 you may be able to search for failing drivers by following the procedure
 analogous to the one described in section 1.  If you find some failing drivers,
@@ -245,20 +245,20 @@ you run s2ram), and please report the problems with them.
 There is a debugfs entry which shows the suspend to RAM statistics. Here is an
 example of its output::
 
-	# mount -t debugfs none /sys/kernel/debug
+	# mount -t debugfs analne /sys/kernel/debug
 	# cat /sys/kernel/debug/suspend_stats
 	success: 20
 	fail: 5
 	failed_freeze: 0
 	failed_prepare: 0
 	failed_suspend: 5
-	failed_suspend_noirq: 0
+	failed_suspend_analirq: 0
 	failed_resume: 0
-	failed_resume_noirq: 0
+	failed_resume_analirq: 0
 	failures:
 	  last_failed_dev:	alarm
 				adc
-	  last_failed_errno:	-16
+	  last_failed_erranal:	-16
 				-16
 	  last_failed_step:	suspend
 				suspend

@@ -11,7 +11,7 @@
 #include "xfs_mount.h"
 #include "xfs_log_format.h"
 #include "xfs_trans.h"
-#include "xfs_inode.h"
+#include "xfs_ianalde.h"
 #include "xfs_icache.h"
 #include "xfs_dir2.h"
 #include "xfs_dir2_priv.h"
@@ -27,25 +27,25 @@ int
 xchk_setup_directory(
 	struct xfs_scrub	*sc)
 {
-	return xchk_setup_inode_contents(sc, 0);
+	return xchk_setup_ianalde_contents(sc, 0);
 }
 
 /* Directories */
 
 /* Scrub a directory entry. */
 
-/* Check that an inode's mode matches a given XFS_DIR3_FT_* type. */
+/* Check that an ianalde's mode matches a given XFS_DIR3_FT_* type. */
 STATIC void
 xchk_dir_check_ftype(
 	struct xfs_scrub	*sc,
 	xfs_fileoff_t		offset,
-	struct xfs_inode	*ip,
+	struct xfs_ianalde	*ip,
 	int			ftype)
 {
 	struct xfs_mount	*mp = sc->mp;
 
 	if (!xfs_has_ftype(mp)) {
-		if (ftype != XFS_DIR3_FT_UNKNOWN && ftype != XFS_DIR3_FT_DIR)
+		if (ftype != XFS_DIR3_FT_UNKANALWN && ftype != XFS_DIR3_FT_DIR)
 			xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, offset);
 		return;
 	}
@@ -57,21 +57,21 @@ xchk_dir_check_ftype(
 /*
  * Scrub a single directory entry.
  *
- * Check the inode number to make sure it's sane, then we check that we can
+ * Check the ianalde number to make sure it's sane, then we check that we can
  * look up this filename.  Finally, we check the ftype.
  */
 STATIC int
 xchk_dir_actor(
 	struct xfs_scrub	*sc,
-	struct xfs_inode	*dp,
+	struct xfs_ianalde	*dp,
 	xfs_dir2_dataptr_t	dapos,
 	const struct xfs_name	*name,
-	xfs_ino_t		ino,
+	xfs_ianal_t		ianal,
 	void			*priv)
 {
 	struct xfs_mount	*mp = dp->i_mount;
-	struct xfs_inode	*ip;
-	xfs_ino_t		lookup_ino;
+	struct xfs_ianalde	*ip;
+	xfs_ianal_t		lookup_ianal;
 	xfs_dablk_t		offset;
 	int			error = 0;
 
@@ -81,8 +81,8 @@ xchk_dir_actor(
 	if (xchk_should_terminate(sc, &error))
 		return error;
 
-	/* Does this inode number make sense? */
-	if (!xfs_verify_dir_ino(mp, ino)) {
+	/* Does this ianalde number make sense? */
+	if (!xfs_verify_dir_ianal(mp, ianal)) {
 		xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, offset);
 		return -ECANCELED;
 	}
@@ -95,40 +95,40 @@ xchk_dir_actor(
 
 	if (!strncmp(".", name->name, name->len)) {
 		/* If this is "." then check that the inum matches the dir. */
-		if (ino != dp->i_ino)
+		if (ianal != dp->i_ianal)
 			xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, offset);
 	} else if (!strncmp("..", name->name, name->len)) {
 		/*
-		 * If this is ".." in the root inode, check that the inum
+		 * If this is ".." in the root ianalde, check that the inum
 		 * matches this dir.
 		 */
-		if (dp->i_ino == mp->m_sb.sb_rootino && ino != dp->i_ino)
+		if (dp->i_ianal == mp->m_sb.sb_rootianal && ianal != dp->i_ianal)
 			xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, offset);
 	}
 
 	/* Verify that we can look up this name by hash. */
-	error = xchk_dir_lookup(sc, dp, name, &lookup_ino);
-	/* ENOENT means the hash lookup failed and the dir is corrupt */
-	if (error == -ENOENT)
+	error = xchk_dir_lookup(sc, dp, name, &lookup_ianal);
+	/* EANALENT means the hash lookup failed and the dir is corrupt */
+	if (error == -EANALENT)
 		error = -EFSCORRUPTED;
 	if (!xchk_fblock_process_error(sc, XFS_DATA_FORK, offset, &error))
 		goto out;
-	if (lookup_ino != ino) {
+	if (lookup_ianal != ianal) {
 		xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, offset);
 		return -ECANCELED;
 	}
 
 	/*
-	 * Grab the inode pointed to by the dirent.  We release the inode
+	 * Grab the ianalde pointed to by the dirent.  We release the ianalde
 	 * before we cancel the scrub transaction.
 	 *
-	 * If _iget returns -EINVAL or -ENOENT then the child inode number is
+	 * If _iget returns -EINVAL or -EANALENT then the child ianalde number is
 	 * garbage and the directory is corrupt.  If the _iget returns
 	 * -EFSCORRUPTED or -EFSBADCRC then the child is corrupt which is a
 	 *  cross referencing error.  Any other error is an operational error.
 	 */
-	error = xchk_iget(sc, ino, &ip);
-	if (error == -EINVAL || error == -ENOENT) {
+	error = xchk_iget(sc, ianal, &ip);
+	if (error == -EINVAL || error == -EANALENT) {
 		error = -EFSCORRUPTED;
 		xchk_fblock_process_error(sc, XFS_DATA_FORK, 0, &error);
 		goto out;
@@ -153,15 +153,15 @@ xchk_dir_rec(
 	struct xfs_name			dname = { };
 	struct xfs_da_state_blk		*blk = &ds->state->path.blk[level];
 	struct xfs_mount		*mp = ds->state->mp;
-	struct xfs_inode		*dp = ds->dargs.dp;
+	struct xfs_ianalde		*dp = ds->dargs.dp;
 	struct xfs_da_geometry		*geo = mp->m_dir_geo;
 	struct xfs_dir2_data_entry	*dent;
 	struct xfs_buf			*bp;
 	struct xfs_dir2_leaf_entry	*ent;
 	unsigned int			end;
 	unsigned int			iter_off;
-	xfs_ino_t			ino;
-	xfs_dablk_t			rec_bno;
+	xfs_ianal_t			ianal;
+	xfs_dablk_t			rec_banal;
 	xfs_dir2_db_t			db;
 	xfs_dir2_data_aoff_t		off;
 	xfs_dir2_dataptr_t		ptr;
@@ -190,19 +190,19 @@ xchk_dir_rec(
 	/* Find the directory entry's location. */
 	db = xfs_dir2_dataptr_to_db(geo, ptr);
 	off = xfs_dir2_dataptr_to_off(geo, ptr);
-	rec_bno = xfs_dir2_db_to_da(geo, db);
+	rec_banal = xfs_dir2_db_to_da(geo, db);
 
-	if (rec_bno >= geo->leafblk) {
+	if (rec_banal >= geo->leafblk) {
 		xchk_da_set_corrupt(ds, level);
 		goto out;
 	}
-	error = xfs_dir3_data_read(ds->dargs.trans, dp, rec_bno,
+	error = xfs_dir3_data_read(ds->dargs.trans, dp, rec_banal,
 			XFS_DABUF_MAP_HOLE_OK, &bp);
-	if (!xchk_fblock_process_error(ds->sc, XFS_DATA_FORK, rec_bno,
+	if (!xchk_fblock_process_error(ds->sc, XFS_DATA_FORK, rec_banal,
 			&error))
 		goto out;
 	if (!bp) {
-		xchk_fblock_set_corrupt(ds->sc, XFS_DATA_FORK, rec_bno);
+		xchk_fblock_set_corrupt(ds->sc, XFS_DATA_FORK, rec_banal);
 		goto out;
 	}
 	xchk_buffer_recheck(ds->sc, bp);
@@ -216,7 +216,7 @@ xchk_dir_rec(
 	iter_off = geo->data_entry_offset;
 	end = xfs_dir3_data_end_offset(geo, bp->b_addr);
 	if (!end) {
-		xchk_fblock_set_corrupt(ds->sc, XFS_DATA_FORK, rec_bno);
+		xchk_fblock_set_corrupt(ds->sc, XFS_DATA_FORK, rec_banal);
 		goto out_relse;
 	}
 	for (;;) {
@@ -224,7 +224,7 @@ xchk_dir_rec(
 		struct xfs_dir2_data_unused	*dup = bp->b_addr + iter_off;
 
 		if (iter_off >= end) {
-			xchk_fblock_set_corrupt(ds->sc, XFS_DATA_FORK, rec_bno);
+			xchk_fblock_set_corrupt(ds->sc, XFS_DATA_FORK, rec_banal);
 			goto out_relse;
 		}
 
@@ -238,13 +238,13 @@ xchk_dir_rec(
 	}
 
 	/* Retrieve the entry, sanity check it, and compare hashes. */
-	ino = be64_to_cpu(dent->inumber);
+	ianal = be64_to_cpu(dent->inumber);
 	hash = be32_to_cpu(ent->hashval);
 	tag = be16_to_cpup(xfs_dir2_data_entry_tag_p(mp, dent));
-	if (!xfs_verify_dir_ino(mp, ino) || tag != off)
-		xchk_fblock_set_corrupt(ds->sc, XFS_DATA_FORK, rec_bno);
+	if (!xfs_verify_dir_ianal(mp, ianal) || tag != off)
+		xchk_fblock_set_corrupt(ds->sc, XFS_DATA_FORK, rec_banal);
 	if (dent->namelen == 0) {
-		xchk_fblock_set_corrupt(ds->sc, XFS_DATA_FORK, rec_bno);
+		xchk_fblock_set_corrupt(ds->sc, XFS_DATA_FORK, rec_banal);
 		goto out_relse;
 	}
 
@@ -253,7 +253,7 @@ xchk_dir_rec(
 	dname.len = dent->namelen;
 	calc_hash = xfs_dir2_hashname(mp, &dname);
 	if (calc_hash != hash)
-		xchk_fblock_set_corrupt(ds->sc, XFS_DATA_FORK, rec_bno);
+		xchk_fblock_set_corrupt(ds->sc, XFS_DATA_FORK, rec_banal);
 
 out_relse:
 	xfs_trans_brelse(ds->dargs.trans, bp);
@@ -489,7 +489,7 @@ xchk_directory_leaf1_bestfree(
 	}
 
 	/*
-	 * There must be enough bestfree slots to cover all the directory data
+	 * There must be eanalugh bestfree slots to cover all the directory data
 	 * blocks that we scanned.  It is possible for there to be a hole
 	 * between the last data block and i_disk_size.  This seems like an
 	 * oversight to the scrub author, but as we have been writing out
@@ -632,15 +632,15 @@ xchk_directory_blocks(
 	xfs_fileoff_t		free_lblk;
 	xfs_fileoff_t		lblk;
 	struct xfs_iext_cursor	icur;
-	xfs_dablk_t		dabno;
+	xfs_dablk_t		dabanal;
 	xfs_dir2_db_t		last_data_db = 0;
 	bool			found;
 	bool			is_block = false;
 	int			error;
 
-	/* Ignore local format directories. */
-	if (ifp->if_format != XFS_DINODE_FMT_EXTENTS &&
-	    ifp->if_format != XFS_DINODE_FMT_BTREE)
+	/* Iganalre local format directories. */
+	if (ifp->if_format != XFS_DIANALDE_FMT_EXTENTS &&
+	    ifp->if_format != XFS_DIANALDE_FMT_BTREE)
 		return 0;
 
 	lblk = XFS_B_TO_FSB(mp, XFS_DIR2_DATA_OFFSET);
@@ -655,7 +655,7 @@ xchk_directory_blocks(
 	/* Iterate all the data extents in the directory... */
 	found = xfs_iext_lookup_extent(sc->ip, ifp, lblk, &icur, &got);
 	while (found && !(sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)) {
-		/* No more data blocks... */
+		/* Anal more data blocks... */
 		if (got.br_startoff >= leaf_lblk)
 			break;
 
@@ -664,7 +664,7 @@ xchk_directory_blocks(
 		 *
 		 * Iterate all the fsbcount-aligned block offsets in
 		 * this directory.  The directory block reading code is
-		 * smart enough to do its own bmap lookups to handle
+		 * smart eanalugh to do its own bmap lookups to handle
 		 * discontiguous directory blocks.  When we're done
 		 * with the extent record, re-query the bmap at the
 		 * next fsbcount-aligned offset to avoid redundant
@@ -680,8 +680,8 @@ xchk_directory_blocks(
 			if (error)
 				goto out;
 		}
-		dabno = got.br_startoff + got.br_blockcount;
-		lblk = roundup(dabno, args.geo->fsbcount);
+		dabanal = got.br_startoff + got.br_blockcount;
+		lblk = roundup(dabanal, args.geo->fsbcount);
 		found = xfs_iext_lookup_extent(sc->ip, ifp, lblk, &icur, &got);
 	}
 
@@ -729,7 +729,7 @@ xchk_directory_blocks(
 		 *
 		 * Iterate all the fsbcount-aligned block offsets in
 		 * this directory.  The directory block reading code is
-		 * smart enough to do its own bmap lookups to handle
+		 * smart eanalugh to do its own bmap lookups to handle
 		 * discontiguous directory blocks.  When we're done
 		 * with the extent record, re-query the bmap at the
 		 * next fsbcount-aligned offset to avoid redundant
@@ -744,8 +744,8 @@ xchk_directory_blocks(
 			if (error)
 				goto out;
 		}
-		dabno = got.br_startoff + got.br_blockcount;
-		lblk = roundup(dabno, args.geo->fsbcount);
+		dabanal = got.br_startoff + got.br_blockcount;
+		lblk = roundup(dabanal, args.geo->fsbcount);
 		found = xfs_iext_lookup_extent(sc->ip, ifp, lblk, &icur, &got);
 	}
 out:
@@ -760,16 +760,16 @@ xchk_directory(
 	int			error;
 
 	if (!S_ISDIR(VFS_I(sc->ip)->i_mode))
-		return -ENOENT;
+		return -EANALENT;
 
-	if (xchk_file_looks_zapped(sc, XFS_SICK_INO_DIR_ZAPPED)) {
+	if (xchk_file_looks_zapped(sc, XFS_SICK_IANAL_DIR_ZAPPED)) {
 		xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, 0);
 		return 0;
 	}
 
 	/* Plausible size? */
 	if (sc->ip->i_disk_size < xfs_dir2_sf_hdr_size(0)) {
-		xchk_ino_set_corrupt(sc, sc->ip->i_ino);
+		xchk_ianal_set_corrupt(sc, sc->ip->i_ianal);
 		return 0;
 	}
 
@@ -794,33 +794,33 @@ xchk_directory(
 	if (error && error != -ECANCELED)
 		return error;
 
-	/* If the dir is clean, it is clearly not zapped. */
-	xchk_mark_healthy_if_clean(sc, XFS_SICK_INO_DIR_ZAPPED);
+	/* If the dir is clean, it is clearly analt zapped. */
+	xchk_mark_healthy_if_clean(sc, XFS_SICK_IANAL_DIR_ZAPPED);
 	return 0;
 }
 
 /*
- * Decide if this directory has been zapped to satisfy the inode and ifork
+ * Decide if this directory has been zapped to satisfy the ianalde and ifork
  * verifiers.  Checking and repairing should be postponed until the directory
  * is fixed.
  */
 bool
 xchk_dir_looks_zapped(
-	struct xfs_inode	*dp)
+	struct xfs_ianalde	*dp)
 {
 	/* Repair zapped this dir's data fork a short time ago */
 	if (xfs_ifork_zapped(dp, XFS_DATA_FORK))
 		return true;
 
 	/*
-	 * If the dinode repair found a bad data fork, it will reset the fork
+	 * If the dianalde repair found a bad data fork, it will reset the fork
 	 * to extents format with zero records and wait for the bmapbtd
 	 * scrubber to reconstruct the block mappings.  Directories always
 	 * contain some content, so this is a clear sign of a zapped directory.
-	 * The state checked by xfs_ifork_zapped is not persisted, so this is
+	 * The state checked by xfs_ifork_zapped is analt persisted, so this is
 	 * the secondary strategy if repairs are interrupted by a crash or an
 	 * unmount.
 	 */
-	return dp->i_df.if_format == XFS_DINODE_FMT_EXTENTS &&
+	return dp->i_df.if_format == XFS_DIANALDE_FMT_EXTENTS &&
 	       dp->i_df.if_nextents == 0;
 }

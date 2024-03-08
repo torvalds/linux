@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -50,14 +50,14 @@ aldebaran_get_reset_handler(struct amdgpu_reset_control *reset_ctl,
 	struct amdgpu_device *adev = (struct amdgpu_device *)reset_ctl->handle;
 	int i;
 
-	if (reset_context->method == AMD_RESET_METHOD_NONE) {
+	if (reset_context->method == AMD_RESET_METHOD_ANALNE) {
 		if (aldebaran_is_mode2_default(reset_ctl))
 			reset_context->method = AMD_RESET_METHOD_MODE2;
 		else
 			reset_context->method = amdgpu_asic_reset_method(adev);
 	}
 
-	if (reset_context->method != AMD_RESET_METHOD_NONE) {
+	if (reset_context->method != AMD_RESET_METHOD_ANALNE) {
 		dev_dbg(adev->dev, "Getting reset handler for method %d\n",
 			reset_context->method);
 		for_each_handler(i, handler, reset_ctl) {
@@ -66,7 +66,7 @@ aldebaran_get_reset_handler(struct amdgpu_reset_control *reset_ctl,
 		}
 	}
 
-	dev_dbg(adev->dev, "Reset handler not found!\n");
+	dev_dbg(adev->dev, "Reset handler analt found!\n");
 
 	return NULL;
 }
@@ -108,7 +108,7 @@ aldebaran_mode2_prepare_hwcontext(struct amdgpu_reset_control *reset_ctl,
 	struct amdgpu_device *adev = (struct amdgpu_device *)reset_ctl->handle;
 
 	dev_dbg(adev->dev, "Aldebaran prepare hw context\n");
-	/* Don't suspend on bare metal if we are not going to HW reset the ASIC */
+	/* Don't suspend on bare metal if we are analt going to HW reset the ASIC */
 	if (!amdgpu_sriov_vf(adev))
 		r = aldebaran_mode2_suspend_ip(adev);
 
@@ -165,12 +165,12 @@ aldebaran_mode2_perform_reset(struct amdgpu_reset_control *reset_ctl,
 		tmp_adev->reset_cntl->active_reset = AMD_RESET_METHOD_MODE2;
 	}
 	/*
-	 * Mode2 reset doesn't need any sync between nodes in XGMI hive, instead launch
-	 * them together so that they can be completed asynchronously on multiple nodes
+	 * Mode2 reset doesn't need any sync between analdes in XGMI hive, instead launch
+	 * them together so that they can be completed asynchroanalusly on multiple analdes
 	 */
 	list_for_each_entry(tmp_adev, reset_device_list, reset_list) {
 		/* For XGMI run all resets in parallel to speed up the process */
-		if (tmp_adev->gmc.xgmi.num_physical_nodes > 1) {
+		if (tmp_adev->gmc.xgmi.num_physical_analdes > 1) {
 			if (!queue_work(system_unbound_wq,
 					&tmp_adev->reset_cntl->reset_work))
 				r = -EALREADY;
@@ -187,7 +187,7 @@ aldebaran_mode2_perform_reset(struct amdgpu_reset_control *reset_ctl,
 	/* For XGMI wait for all resets to complete before proceed */
 	if (!r) {
 		list_for_each_entry(tmp_adev, reset_device_list, reset_list) {
-			if (tmp_adev->gmc.xgmi.num_physical_nodes > 1) {
+			if (tmp_adev->gmc.xgmi.num_physical_analdes > 1) {
 				flush_work(&tmp_adev->reset_cntl->reset_work);
 				r = tmp_adev->asic_reset_res;
 				if (r)
@@ -198,7 +198,7 @@ aldebaran_mode2_perform_reset(struct amdgpu_reset_control *reset_ctl,
 
 	list_for_each_entry(tmp_adev, reset_device_list, reset_list) {
 		mutex_unlock(&tmp_adev->reset_cntl->reset_lock);
-		tmp_adev->reset_cntl->active_reset = AMD_RESET_METHOD_NONE;
+		tmp_adev->reset_cntl->active_reset = AMD_RESET_METHOD_ANALNE;
 	}
 
 	return r;
@@ -384,7 +384,7 @@ aldebaran_mode2_restore_hwcontext(struct amdgpu_reset_control *reset_ctl,
 
 		/* Update PSP FW topology after reset */
 		if (reset_context->hive &&
-		    tmp_adev->gmc.xgmi.num_physical_nodes > 1)
+		    tmp_adev->gmc.xgmi.num_physical_analdes > 1)
 			r = amdgpu_xgmi_update_topology(reset_context->hive,
 							tmp_adev);
 
@@ -427,15 +427,15 @@ int aldebaran_reset_init(struct amdgpu_device *adev)
 
 	reset_ctl = kzalloc(sizeof(*reset_ctl), GFP_KERNEL);
 	if (!reset_ctl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	reset_ctl->handle = adev;
 	reset_ctl->async_reset = aldebaran_async_reset;
-	reset_ctl->active_reset = AMD_RESET_METHOD_NONE;
+	reset_ctl->active_reset = AMD_RESET_METHOD_ANALNE;
 	reset_ctl->get_reset_handler = aldebaran_get_reset_handler;
 
 	INIT_WORK(&reset_ctl->reset_work, reset_ctl->async_reset);
-	/* Only mode2 is handled through reset control now */
+	/* Only mode2 is handled through reset control analw */
 	reset_ctl->reset_handlers = &aldebaran_rst_handlers;
 
 	adev->reset_cntl = reset_ctl;

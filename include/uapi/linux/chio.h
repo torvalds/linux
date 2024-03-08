@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * ioctl interface for the scsi media changer driver
  */
@@ -51,7 +51,7 @@ struct changer_vendor_params {
 
 /*
  * CHIOMOVE
- *    move a medium from one element to another
+ *    move a medium from one element to aanalther
  */
 struct changer_move {
 	int cm_fromtype;	/* type/unit of source element */
@@ -66,7 +66,7 @@ struct changer_move {
 /*
  * CHIOEXCHANGE
  *    move one medium from element #1 to element #2,
- *    and another one from element #2 to element #3.
+ *    and aanalther one from element #2 to element #3.
  *    element #1 and #3 are allowed to be identical.
  */
 struct changer_exchange {
@@ -118,7 +118,7 @@ struct changer_get_element {
 	int	cge_type;	 /* type/unit */
 	int	cge_unit;
 	int	cge_status;      /* status */
-	int     cge_errno;       /* errno */
+	int     cge_erranal;       /* erranal */
 	int     cge_srctype;     /* source element of the last move/exchange */
 	int     cge_srcunit;
 	int     cge_id;          /* scsi id  (for data transfer elements) */
@@ -128,7 +128,7 @@ struct changer_get_element {
 	int     cge_flags;
 };
 /* flags */
-#define CGE_ERRNO     0x01       /* errno available       */
+#define CGE_ERRANAL     0x01       /* erranal available       */
 #define CGE_INVERT    0x02       /* media inverted        */
 #define CGE_SRC       0x04       /* media src available   */
 #define CGE_IDLUN     0x08       /* ID+LUN available      */
@@ -154,8 +154,8 @@ struct changer_set_voltag {
 #define CHIOMOVE       _IOW('c', 1,struct changer_move)
 #define CHIOEXCHANGE   _IOW('c', 2,struct changer_exchange)
 #define CHIOPOSITION   _IOW('c', 3,struct changer_position)
-#define CHIOGPICKER    _IOR('c', 4,int)                        /* not impl. */
-#define CHIOSPICKER    _IOW('c', 5,int)                        /* not impl. */
+#define CHIOGPICKER    _IOR('c', 4,int)                        /* analt impl. */
+#define CHIOSPICKER    _IOW('c', 5,int)                        /* analt impl. */
 #define CHIOGPARAMS    _IOR('c', 6,struct changer_params)
 #define CHIOGSTATUS    _IOW('c', 8,struct changer_element_status)
 #define CHIOGELEM      _IOW('c',16,struct changer_get_element)

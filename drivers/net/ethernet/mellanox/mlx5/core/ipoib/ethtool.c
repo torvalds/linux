@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2017, Mellaanalx Techanallogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -197,10 +197,10 @@ static u32 mlx5i_get_speed_settings(u16 ib_link_width_oper, u16 ib_proto_oper)
 
 	rate = mlx5_ptys_rate_enum_to_int(ib_proto_oper);
 	if (rate < 0)
-		return SPEED_UNKNOWN;
+		return SPEED_UNKANALWN;
 	width = mlx5_ptys_width_enum_to_int(ib_link_width_oper);
 	if (width < 0)
-		return SPEED_UNKNOWN;
+		return SPEED_UNKANALWN;
 
 	return rate * width;
 }
@@ -224,7 +224,7 @@ static int mlx5i_get_link_ksettings(struct net_device *netdev,
 
 	speed = mlx5i_get_speed_settings(ib_link_width_oper, ib_proto_oper);
 	link_ksettings->base.speed = speed;
-	link_ksettings->base.duplex = speed == SPEED_UNKNOWN ? DUPLEX_UNKNOWN : DUPLEX_FULL;
+	link_ksettings->base.duplex = speed == SPEED_UNKANALWN ? DUPLEX_UNKANALWN : DUPLEX_FULL;
 
 	link_ksettings->base.port = PORT_OTHER;
 
@@ -254,7 +254,7 @@ static int mlx5i_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *info,
 {
 	struct mlx5e_priv *priv = mlx5i_epriv(dev);
 
-	/* ETHTOOL_GRXRINGS is needed by ethtool -x which is not part
+	/* ETHTOOL_GRXRINGS is needed by ethtool -x which is analt part
 	 * of rxnfc. We keep this logic out of mlx5e_ethtool_get_rxnfc,
 	 * to avoid breaking "ethtool -x" when mlx5e_ethtool_get_rxnfc
 	 * is compiled out via CONFIG_MLX5_EN_RXNFC=n.

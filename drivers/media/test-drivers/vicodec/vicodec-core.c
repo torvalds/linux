@@ -522,8 +522,8 @@ static void update_capture_data_from_header(struct vicodec_ctx *ctx)
 	unsigned int hdr_height_div = (flags & V4L2_FWHT_FL_CHROMA_FULL_HEIGHT) ? 1 : 2;
 
 	/*
-	 * This function should not be used by a stateless codec since
-	 * it changes values in q_data that are not request specific
+	 * This function should analt be used by a stateless codec since
+	 * it changes values in q_data that are analt request specific
 	 */
 	WARN_ON(ctx->is_stateless);
 
@@ -610,7 +610,7 @@ restart:
 	 * The current scanned frame might be the first frame of a new
 	 * resolution so its size might be larger than ctx->comp_max_size.
 	 * In that case it is copied up to the current buffer capacity and
-	 * the copy will continue after allocating new large enough buffer
+	 * the copy will continue after allocating new large eanalugh buffer
 	 * when restreaming
 	 */
 	max_to_copy = min(comp_frame_size, ctx->comp_max_size);
@@ -779,7 +779,7 @@ static int vidioc_g_fmt(struct vicodec_ctx *ctx, struct v4l2_format *f)
 		pix = &f->fmt.pix;
 		pix->width = q_data->coded_width;
 		pix->height = q_data->coded_height;
-		pix->field = V4L2_FIELD_NONE;
+		pix->field = V4L2_FIELD_ANALNE;
 		pix->pixelformat = info->id;
 		pix->bytesperline = q_data->coded_width *
 					info->bytesperline_mult;
@@ -797,7 +797,7 @@ static int vidioc_g_fmt(struct vicodec_ctx *ctx, struct v4l2_format *f)
 		pix_mp = &f->fmt.pix_mp;
 		pix_mp->width = q_data->coded_width;
 		pix_mp->height = q_data->coded_height;
-		pix_mp->field = V4L2_FIELD_NONE;
+		pix_mp->field = V4L2_FIELD_ANALNE;
 		pix_mp->pixelformat = info->id;
 		pix_mp->num_planes = 1;
 		pix_mp->plane_fmt[0].bytesperline =
@@ -848,7 +848,7 @@ static int vidioc_try_fmt(struct vicodec_ctx *ctx, struct v4l2_format *f)
 		pix->height = clamp(pix->height, MIN_HEIGHT, MAX_HEIGHT);
 		pix->height = vic_round_dim(pix->height, info->height_div);
 
-		pix->field = V4L2_FIELD_NONE;
+		pix->field = V4L2_FIELD_ANALNE;
 		pix->bytesperline =
 			pix->width * info->bytesperline_mult;
 		pix->sizeimage = pix->width * pix->height *
@@ -872,7 +872,7 @@ static int vidioc_try_fmt(struct vicodec_ctx *ctx, struct v4l2_format *f)
 		pix_mp->height = vic_round_dim(pix_mp->height,
 					       info->height_div);
 
-		pix_mp->field = V4L2_FIELD_NONE;
+		pix_mp->field = V4L2_FIELD_ANALNE;
 		plane->bytesperline =
 			pix_mp->width * info->bytesperline_mult;
 		plane->sizeimage = pix_mp->width * pix_mp->height *
@@ -1241,7 +1241,7 @@ static int vicodec_decoder_cmd(struct file *file, void *fh,
 	int ret;
 
 	/*
-	 * This ioctl should not be used with a stateless codec that doesn't
+	 * This ioctl should analt be used with a stateless codec that doesn't
 	 * support holding buffers and the associated flush command.
 	 */
 	WARN_ON(ctx->is_stateless);
@@ -1388,7 +1388,7 @@ static int vicodec_buf_out_validate(struct vb2_buffer *vb)
 {
 	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 
-	vbuf->field = V4L2_FIELD_NONE;
+	vbuf->field = V4L2_FIELD_ANALNE;
 	return 0;
 }
 
@@ -1403,8 +1403,8 @@ static int vicodec_buf_prepare(struct vb2_buffer *vb)
 	q_data = get_q_data(ctx, vb->vb2_queue->type);
 	if (V4L2_TYPE_IS_OUTPUT(vb->vb2_queue->type)) {
 		if (vbuf->field == V4L2_FIELD_ANY)
-			vbuf->field = V4L2_FIELD_NONE;
-		if (vbuf->field != V4L2_FIELD_NONE) {
+			vbuf->field = V4L2_FIELD_ANALNE;
+		if (vbuf->field != V4L2_FIELD_ANALNE) {
 			dprintk(ctx->dev, "%s field isn't supported\n",
 					__func__);
 			return -EINVAL;
@@ -1413,7 +1413,7 @@ static int vicodec_buf_prepare(struct vb2_buffer *vb)
 
 	if (vb2_plane_size(vb, 0) < q_data->vb2_sizeimage) {
 		dprintk(ctx->dev,
-			"%s data will not fit into plane (%lu < %lu)\n",
+			"%s data will analt fit into plane (%lu < %lu)\n",
 			__func__, vb2_plane_size(vb, 0),
 			(long)q_data->vb2_sizeimage);
 		return -EINVAL;
@@ -1447,7 +1447,7 @@ static void vicodec_buf_queue(struct vb2_buffer *vb)
 		for (i = 0; i < vb->num_planes; i++)
 			vb2_set_plane_payload(vb, i, 0);
 
-		vbuf->field = V4L2_FIELD_NONE;
+		vbuf->field = V4L2_FIELD_ANALNE;
 		vbuf->sequence =
 			get_q_data(ctx, vb->vb2_queue->type)->sequence++;
 
@@ -1603,7 +1603,7 @@ static int vicodec_start_streaming(struct vb2_queue *q,
 		kvfree(state->ref_frame.luma);
 		kvfree(new_comp_frame);
 		vicodec_return_bufs(q, VB2_BUF_STATE_QUEUED);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	/*
 	 * if state->compressed_frame was already allocated then
@@ -1835,7 +1835,7 @@ static int vicodec_open(struct file *file)
 		return -ERESTARTSYS;
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto open_unlock;
 	}
 
@@ -1968,15 +1968,15 @@ static int vicodec_request_validate(struct media_request *req)
 	}
 
 	if (!ctx) {
-		pr_err("No buffer was provided with the request\n");
-		return -ENOENT;
+		pr_err("Anal buffer was provided with the request\n");
+		return -EANALENT;
 	}
 
 	count = vb2_request_buffer_cnt(req);
 	if (!count) {
 		v4l2_info(&ctx->dev->v4l2_dev,
-			  "No buffer was provided with the request\n");
-		return -ENOENT;
+			  "Anal buffer was provided with the request\n");
+		return -EANALENT;
 	} else if (count > 1) {
 		v4l2_info(&ctx->dev->v4l2_dev,
 			  "More than one buffer was provided with the request\n");
@@ -1988,7 +1988,7 @@ static int vicodec_request_validate(struct media_request *req)
 	hdl = v4l2_ctrl_request_hdl_find(req, parent_hdl);
 	if (!hdl) {
 		v4l2_info(&ctx->dev->v4l2_dev, "Missing codec control\n");
-		return -ENOENT;
+		return -EANALENT;
 	}
 	ctrl = v4l2_ctrl_request_hdl_ctrl_find(hdl,
 					       vicodec_ctrl_stateless_state.id);
@@ -1996,7 +1996,7 @@ static int vicodec_request_validate(struct media_request *req)
 	if (!ctrl) {
 		v4l2_info(&ctx->dev->v4l2_dev,
 			  "Missing required codec control\n");
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	return vb2_request_validate(req);
@@ -2016,7 +2016,7 @@ static const struct video_device vicodec_videodev = {
 	.vfl_dir	= VFL_DIR_M2M,
 	.fops		= &vicodec_fops,
 	.ioctl_ops	= &vicodec_ioctl_ops,
-	.minor		= -1,
+	.mianalr		= -1,
 	.release	= video_device_release_empty,
 };
 
@@ -2094,7 +2094,7 @@ static int vicodec_probe(struct platform_device *pdev)
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = v4l2_device_register(&pdev->dev, &dev->v4l2_dev);
 	if (ret)

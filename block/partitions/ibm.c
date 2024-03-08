@@ -121,7 +121,7 @@ static int find_label(struct parsed_partitions *state,
 	 * - on an FBA disk it's block 1
 	 * - on an CMS formatted FBA disk it is sector 1, even if the block size
 	 *   is larger than 512 bytes (possible if the DIAG discipline is used)
-	 * If we have a valid info structure, then we know exactly which case we
+	 * If we have a valid info structure, then we kanalw exactly which case we
 	 * have, otherwise we just search through all possebilities.
 	 */
 	if (info) {
@@ -249,7 +249,7 @@ static int find_lnx1_partitions(struct parsed_partitions *state,
 		/*
 		 * Formated w/o large volume support. If the sanity check
 		 * 'size based on geo == size based on nr_sectors' is true, then
-		 * we can safely assume that we know the formatted size of
+		 * we can safely assume that we kanalw the formatted size of
 		 * the disk, otherwise we need additional information
 		 * that we can only get from a real DASD device.
 		 */
@@ -352,11 +352,11 @@ int ibm_partition(struct parsed_partitions *state)
 		goto out_symbol;
 	geo = kmalloc(sizeof(struct hd_geometry), GFP_KERNEL);
 	if (geo == NULL)
-		goto out_nogeo;
+		goto out_analgeo;
 	label = kmalloc(sizeof(union label_t), GFP_KERNEL);
 	if (label == NULL)
-		goto out_nolab;
-	/* set start if not filled by getgeo function e.g. virtblk */
+		goto out_anallab;
+	/* set start if analt filled by getgeo function e.g. virtblk */
 	geo->start = get_start_sect(bdev);
 	if (disk->fops->getgeo(bdev, geo))
 		goto out_freeall;
@@ -385,13 +385,13 @@ int ibm_partition(struct parsed_partitions *state)
 		/*
 		 * ugly but needed for backward compatibility:
 		 * If the block device is a DASD (i.e. BIODASDINFO2 works),
-		 * then we claim it in any case, even though it has no valid
+		 * then we claim it in any case, even though it has anal valid
 		 * label. If it has the LDL format, then we simply define a
 		 * partition as if it had an LNX1 label.
 		 */
 		res = 1;
 		if (info->format == DASD_FORMAT_LDL) {
-			strlcat(state->pp_buf, "(nonl)", PAGE_SIZE);
+			strlcat(state->pp_buf, "(analnl)", PAGE_SIZE);
 			size = nr_sectors;
 			offset = (info->label_block + 1) * (blocksize >> 9);
 			put_partition(state, 1, offset, size-offset);
@@ -402,9 +402,9 @@ int ibm_partition(struct parsed_partitions *state)
 
 out_freeall:
 	kfree(label);
-out_nolab:
+out_anallab:
 	kfree(geo);
-out_nogeo:
+out_analgeo:
 	kfree(info);
 out_symbol:
 	if (fn)

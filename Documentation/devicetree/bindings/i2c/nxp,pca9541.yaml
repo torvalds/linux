@@ -21,7 +21,7 @@ properties:
     $ref: /schemas/i2c/i2c-controller.yaml
     unevaluatedProperties: false
     description:
-      I2C arbitration bus node.
+      I2C arbitration bus analde.
 
 required:
   - compatible

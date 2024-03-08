@@ -12,7 +12,7 @@
 
 /*
  * This file contains both data structures defined by SGX architecture and Linux
- * defined software data structures and functions.  The two should not be mixed
+ * defined software data structures and functions.  The two should analt be mixed
  * together for better readability.  The architectural definitions come first.
  */
 
@@ -66,21 +66,21 @@ enum sgx_encls_function {
 /**
  * enum sgx_return_code - The return code type for ENCLS, ENCLU and ENCLV
  * %SGX_EPC_PAGE_CONFLICT:	Page is being written by other ENCLS function.
- * %SGX_NOT_TRACKED:		Previous ETRACK's shootdown sequence has not
+ * %SGX_ANALT_TRACKED:		Previous ETRACK's shootdown sequence has analt
  *				been completed yet.
  * %SGX_CHILD_PRESENT		SECS has child pages present in the EPC.
  * %SGX_INVALID_EINITTOKEN:	EINITTOKEN is invalid and enclave signer's
- *				public key does not match IA32_SGXLEPUBKEYHASH.
- * %SGX_PAGE_NOT_MODIFIABLE:	The EPC page cannot be modified because it
+ *				public key does analt match IA32_SGXLEPUBKEYHASH.
+ * %SGX_PAGE_ANALT_MODIFIABLE:	The EPC page cananalt be modified because it
  *				is in the PENDING or MODIFIED state.
  * %SGX_UNMASKED_EVENT:		An unmasked event, e.g. INTR, was received
  */
 enum sgx_return_code {
 	SGX_EPC_PAGE_CONFLICT		= 7,
-	SGX_NOT_TRACKED			= 11,
+	SGX_ANALT_TRACKED			= 11,
 	SGX_CHILD_PRESENT		= 13,
 	SGX_INVALID_EINITTOKEN		= 16,
-	SGX_PAGE_NOT_MODIFIABLE		= 20,
+	SGX_PAGE_ANALT_MODIFIABLE		= 20,
 	SGX_UNMASKED_EVENT		= 128,
 };
 
@@ -115,8 +115,8 @@ enum sgx_miscselect {
  * %SGX_ATTR_EINITTOKENKEY:	Allow to use token signing key that is used to
  *				sign cryptographic tokens that can be passed to
  *				EINIT as an authorization to run an enclave.
- * %SGX_ATTR_ASYNC_EXIT_NOTIFY:	Allow enclaves to be notified after an
- *				asynchronous exit has occurred.
+ * %SGX_ATTR_ASYNC_EXIT_ANALTIFY:	Allow enclaves to be analtified after an
+ *				asynchroanalus exit has occurred.
  */
 enum sgx_attribute {
 	SGX_ATTR_INIT		   = BIT(0),
@@ -129,7 +129,7 @@ enum sgx_attribute {
 	SGX_ATTR_KSS		   = BIT(7),
 				  /* BIT(8) is reserved */
 				  /* BIT(9) is reserved */
-	SGX_ATTR_ASYNC_EXIT_NOTIFY = BIT(10),
+	SGX_ATTR_ASYNC_EXIT_ANALTIFY = BIT(10),
 };
 
 #define SGX_ATTR_RESERVED_MASK	(BIT_ULL(3) | \
@@ -141,7 +141,7 @@ enum sgx_attribute {
 #define SGX_ATTR_UNPRIV_MASK	(SGX_ATTR_DEBUG	    | \
 				 SGX_ATTR_MODE64BIT | \
 				 SGX_ATTR_KSS	    | \
-				 SGX_ATTR_ASYNC_EXIT_NOTIFY)
+				 SGX_ATTR_ASYNC_EXIT_ANALTIFY)
 
 #define SGX_ATTR_PRIV_MASK	(SGX_ATTR_PROVISIONKEY	| \
 				 SGX_ATTR_EINITTOKENKEY)
@@ -161,7 +161,7 @@ enum sgx_attribute {
  * @isv_svn:		a user-defined value that is used in key derivation
  * @config_svn:		a user-defined value that is used in key derivation
  *
- * SGX Enclave Control Structure (SECS) is a special enclave page that is not
+ * SGX Enclave Control Structure (SECS) is a special enclave page that is analt
  * visible in the address space. In fact, this structure defines the address
  * range and other global attributes for the enclave and it is the first EPC
  * page created for any enclave. It is moved from a temporary buffer to an EPC
@@ -406,7 +406,7 @@ struct sgx_sigstruct {
 #define SGX_LAUNCH_TOKEN_SIZE 304
 
 /*
- * Do not put any hardware-defined SGX structure representations below this
+ * Do analt put any hardware-defined SGX structure representations below this
  * comment!
  */
 

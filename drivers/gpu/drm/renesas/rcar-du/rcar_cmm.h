@@ -36,7 +36,7 @@ int rcar_cmm_setup(struct platform_device *pdev,
 #else
 static inline int rcar_cmm_init(struct platform_device *pdev)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static inline int rcar_cmm_enable(struct platform_device *pdev)

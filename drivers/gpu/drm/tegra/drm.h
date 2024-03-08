@@ -124,17 +124,17 @@ void *tegra_drm_alloc(struct tegra_drm *tegra, size_t size, dma_addr_t *iova);
 void tegra_drm_free(struct tegra_drm *tegra, size_t size, void *virt,
 		    dma_addr_t iova);
 
-struct cec_notifier;
+struct cec_analtifier;
 
 struct tegra_output {
-	struct device_node *of_node;
+	struct device_analde *of_analde;
 	struct device *dev;
 
 	struct drm_bridge *bridge;
 	struct drm_panel *panel;
 	struct i2c_adapter *ddc;
 	const struct edid *edid;
-	struct cec_notifier *cec;
+	struct cec_analtifier *cec;
 	unsigned int hpd_irq;
 	struct gpio_desc *hpd_gpio;
 
@@ -168,7 +168,7 @@ tegra_output_connector_detect(struct drm_connector *connector, bool force);
 void tegra_output_connector_destroy(struct drm_connector *connector);
 
 /* from dpaux.c */
-struct drm_dp_aux *drm_dp_aux_find_by_of_node(struct device_node *np);
+struct drm_dp_aux *drm_dp_aux_find_by_of_analde(struct device_analde *np);
 enum drm_connector_status drm_dp_aux_detect(struct drm_dp_aux *aux);
 int drm_dp_aux_attach(struct drm_dp_aux *aux, struct tegra_output *output);
 int drm_dp_aux_detach(struct drm_dp_aux *aux);

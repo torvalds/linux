@@ -38,12 +38,12 @@ static void cvm_oct_spxx_int_pr(union cvmx_spxx_int_reg spx_int_reg, int index)
 		pr_err("SPI%d: SRX Spi4 receive FIFO drowning/overflow\n",
 		       index);
 	if (spx_int_reg.s.clserr)
-		pr_err("SPI%d: SRX Spi4 packet closed on non-16B alignment without EOP\n",
+		pr_err("SPI%d: SRX Spi4 packet closed on analn-16B alignment without EOP\n",
 		       index);
 	if (spx_int_reg.s.spiovr)
 		pr_err("SPI%d: SRX Spi4 async FIFO overflow\n", index);
-	if (spx_int_reg.s.abnorm)
-		pr_err("SPI%d: SRX Abnormal packet termination (ERR bit)\n",
+	if (spx_int_reg.s.abanalrm)
+		pr_err("SPI%d: SRX Abanalrmal packet termination (ERR bit)\n",
 		       index);
 	if (spx_int_reg.s.prtnxa)
 		pr_err("SPI%d: SRX Port out of range\n", index);
@@ -59,7 +59,7 @@ static void cvm_oct_stxx_int_pr(union cvmx_stxx_int_reg stx_int_reg, int index)
 		       index);
 	if (stx_int_reg.s.unxfrm)
 		pr_err("SPI%d: STX Unexpected framing sequence\n", index);
-	if (stx_int_reg.s.nosync)
+	if (stx_int_reg.s.analsync)
 		pr_err("SPI%d: STX ERRCNT has exceeded STX_DIP_CNT[MAXDIP]\n",
 		       index);
 	if (stx_int_reg.s.diperr)
@@ -105,7 +105,7 @@ static irqreturn_t cvm_oct_spi_spx_int(int index)
 
 static irqreturn_t cvm_oct_spi_rml_interrupt(int cpl, void *dev_id)
 {
-	irqreturn_t return_status = IRQ_NONE;
+	irqreturn_t return_status = IRQ_ANALNE;
 	union cvmx_npi_rsl_int_blocks rsl_int_blocks;
 
 	/* Check and see if this interrupt was caused by the GMX block */
@@ -133,14 +133,14 @@ static void cvm_oct_spi_enable_error_reporting(int interface)
 	spxx_int_msk.s.drwnng = 1;
 	spxx_int_msk.s.clserr = 1;
 	spxx_int_msk.s.spiovr = 1;
-	spxx_int_msk.s.abnorm = 1;
+	spxx_int_msk.s.abanalrm = 1;
 	spxx_int_msk.s.prtnxa = 1;
 	cvmx_write_csr(CVMX_SPXX_INT_MSK(interface), spxx_int_msk.u64);
 
 	stxx_int_msk.u64 = cvmx_read_csr(CVMX_STXX_INT_MSK(interface));
 	stxx_int_msk.s.frmerr = 1;
 	stxx_int_msk.s.unxfrm = 1;
-	stxx_int_msk.s.nosync = 1;
+	stxx_int_msk.s.analsync = 1;
 	stxx_int_msk.s.diperr = 1;
 	stxx_int_msk.s.datovr = 1;
 	stxx_int_msk.s.ovrbst = 1;
@@ -166,7 +166,7 @@ static void cvm_oct_spi_poll(struct net_device *dev)
 
 		/*
 		 * The SPI4000 TWSI interface is very slow. In order
-		 * not to bring the system to a crawl, we only poll a
+		 * analt to bring the system to a crawl, we only poll a
 		 * single port every second. This means negotiation
 		 * speed changes take up to 10 seconds, but at least
 		 * we don't waste absurd amounts of time waiting for
@@ -174,12 +174,12 @@ static void cvm_oct_spi_poll(struct net_device *dev)
 		 */
 		if (priv->port == spi4000_port) {
 			/*
-			 * This function does nothing if it is called on an
+			 * This function does analthing if it is called on an
 			 * interface without a SPI4000.
 			 */
 			cvmx_spi4000_check_speed(interface, priv->port);
 			/*
-			 * Normal ordering increments. By decrementing
+			 * Analrmal ordering increments. By decrementing
 			 * we only match once per iteration.
 			 */
 			spi4000_port--;

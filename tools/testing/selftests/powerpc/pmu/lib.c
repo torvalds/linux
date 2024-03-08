@@ -5,7 +5,7 @@
 
 #define _GNU_SOURCE	/* For CPU_ZERO etc. */
 
-#include <errno.h>
+#include <erranal.h>
 #include <sched.h>
 #include <setjmp.h>
 #include <stdlib.h>
@@ -39,7 +39,7 @@ int wait_for_parent(union pipe read_pipe)
 	return 0;
 }
 
-int notify_parent(union pipe write_pipe)
+int analtify_parent(union pipe write_pipe)
 {
 	char c = CHILD_TOKEN;
 
@@ -48,7 +48,7 @@ int notify_parent(union pipe write_pipe)
 	return 0;
 }
 
-int notify_parent_of_error(union pipe write_pipe)
+int analtify_parent_of_error(union pipe write_pipe)
 {
 	char c = ~CHILD_TOKEN;
 
@@ -91,7 +91,7 @@ static int eat_cpu_child(union pipe read_pipe, union pipe write_pipe)
 	 */
 	signal(SIGTERM, SIG_DFL);
 
-	notify_parent(write_pipe);
+	analtify_parent(write_pipe);
 	wait_for_parent(read_pipe);
 
 	/* Soak up cpu forever */
@@ -148,7 +148,7 @@ int parse_proc_maps(void)
 	}
 
 	do {
-		/* This skips line with no executable which is what we want */
+		/* This skips line with anal executable which is what we want */
 		rc = fscanf(f, "%lx-%lx %*c%*c%c%*c %*x %*d:%*d %*d %127s\n",
 			    &start, &end, &execute, name);
 		if (rc <= 0)
@@ -171,16 +171,16 @@ int parse_proc_maps(void)
 	return 0;
 }
 
-#define PARANOID_PATH	"/proc/sys/kernel/perf_event_paranoid"
+#define PARAANALID_PATH	"/proc/sys/kernel/perf_event_paraanalid"
 
-bool require_paranoia_below(int level)
+bool require_paraanalia_below(int level)
 {
 	int err;
 	long current;
 
-	err = read_long(PARANOID_PATH, &current, 10);
+	err = read_long(PARAANALID_PATH, &current, 10);
 	if (err) {
-		printf("Couldn't parse " PARANOID_PATH "?\n");
+		printf("Couldn't parse " PARAANALID_PATH "?\n");
 		return false;
 	}
 

@@ -120,7 +120,7 @@ int main(int argc, char **argv, char **envp)
 	int err = 0;
 
 	/* SIGILL triggers on 32-bit kernels w/o fisttp emulation
-	 * when run with "no387 nofxsr". Other signals are caught
+	 * when run with "anal387 analfxsr". Other signals are caught
 	 * just in case.
 	 */
 	signal(SIGILL, sighandler);

@@ -87,7 +87,7 @@ mediatek_gpio_irq_handler(int irq, void *data)
 {
 	struct gpio_chip *gc = data;
 	struct mtk_gc *rg = to_mediatek_gpio(gc);
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 	unsigned long pending;
 	int bit;
 
@@ -237,7 +237,7 @@ mediatek_gpio_bank_probe(struct device *dev, int bank)
 	diro = mtk->base + GPIO_REG_CTRL + (rg->bank * GPIO_BANK_STRIDE);
 
 	ret = bgpio_init(&rg->chip, dev, 4, dat, set, ctrl, diro, NULL,
-			 BGPIOF_NO_SET_ON_INPUT);
+			 BGPIOF_ANAL_SET_ON_INPUT);
 	if (ret) {
 		dev_err(dev, "bgpio_init() failed\n");
 		return ret;
@@ -248,7 +248,7 @@ mediatek_gpio_bank_probe(struct device *dev, int bank)
 	rg->chip.label = devm_kasprintf(dev, GFP_KERNEL, "%s-bank%d",
 					dev_name(dev), bank);
 	if (!rg->chip.label)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rg->chip.offset = bank * MTK_BANK_WIDTH;
 
@@ -275,13 +275,13 @@ mediatek_gpio_bank_probe(struct device *dev, int bank)
 		girq->parent_handler = NULL;
 		girq->num_parents = 0;
 		girq->parents = NULL;
-		girq->default_type = IRQ_TYPE_NONE;
+		girq->default_type = IRQ_TYPE_ANALNE;
 		girq->handler = handle_simple_irq;
 	}
 
 	ret = devm_gpiochip_add_data(dev, &rg->chip, mtk);
 	if (ret < 0) {
-		dev_err(dev, "Could not register gpio %d, ret=%d\n",
+		dev_err(dev, "Could analt register gpio %d, ret=%d\n",
 			rg->chip.ngpio, ret);
 		return ret;
 	}
@@ -304,7 +304,7 @@ mediatek_gpio_probe(struct platform_device *pdev)
 
 	mtk = devm_kzalloc(dev, sizeof(*mtk), GFP_KERNEL);
 	if (!mtk)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mtk->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(mtk->base))

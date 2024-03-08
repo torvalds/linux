@@ -2,7 +2,7 @@
 /*
  * Simple interface to link xor_vmx.c and xor_vmx_glue.c
  *
- * Separating these file ensures that no altivec instructions are run
+ * Separating these file ensures that anal altivec instructions are run
  * outside of the enable/disable altivec block.
  */
 

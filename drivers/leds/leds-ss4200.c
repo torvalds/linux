@@ -66,17 +66,17 @@ static int __init ss4200_led_dmi_callback(const struct dmi_system_id *id)
 	return 1;
 }
 
-static bool nodetect;
-module_param_named(nodetect, nodetect, bool, 0);
-MODULE_PARM_DESC(nodetect, "Skip DMI-based hardware detection");
+static bool analdetect;
+module_param_named(analdetect, analdetect, bool, 0);
+MODULE_PARM_DESC(analdetect, "Skip DMI-based hardware detection");
 
 /*
- * struct nas_led_whitelist - List of known good models
+ * struct nas_led_whitelist - List of kanalwn good models
  *
- * Contains the known good models this driver is compatible with.
+ * Contains the kanalwn good models this driver is compatible with.
  * When adding a new model try to be as strict as possible. This
  * makes it possible to keep the false positives (the model is
- * detected as working, but in reality it is not) as low as
+ * detected as working, but in reality it is analt) as low as
  * possible.
  */
 static const struct dmi_system_id nas_led_whitelist[] __initconst = {
@@ -213,7 +213,7 @@ static u32 nasgpio_led_get_attr(struct led_classdev *led_cdev, u32 port)
 
 /*
  * There is actual brightness control in the hardware,
- * but it is via smbus commands and not implemented
+ * but it is via smbus commands and analt implemented
  * in this driver.
  */
 static void nasgpio_led_set_brightness(struct led_classdev *led_cdev,
@@ -260,8 +260,8 @@ static int nasgpio_led_set_blink(struct led_classdev *led_cdev,
 
 /*
  * Initialize the ICH7 GPIO registers for NAS usage.  The BIOS should have
- * already taken care of this, but we will do so in a non destructive manner
- * so that we have what we need whether the BIOS did it or not.
+ * already taken care of this, but we will do so in a analn destructive manner
+ * so that we have what we need whether the BIOS did it or analt.
  */
 static int ich7_gpio_init(struct device *dev)
 {
@@ -303,13 +303,13 @@ static int ich7_gpio_init(struct device *dev)
 
 	/*
 	 * In our final system, the BIOS will initialize the state of all
-	 * of the LEDs.  For now, we turn them all off (or Low).
+	 * of the LEDs.  For analw, we turn them all off (or Low).
 	 */
 	config_data = inl(nas_gpio_io_base + GP_LVL);
 	dev_dbg(dev, ": Data read from GP_LVL = 0x%08x\n", config_data);
 	/*
 	 * In our final system, the BIOS will initialize the blink state of all
-	 * of the LEDs.  For now, we turn blink off for all of them.
+	 * of the LEDs.  For analw, we turn blink off for all of them.
 	 */
 	config_data = inl(nas_gpio_io_base + GPO_BLINK);
 	dev_dbg(dev, ": Data read from GPO_BLINK = 0x%08x\n", config_data);
@@ -364,7 +364,7 @@ static int ich7_lpc_probe(struct pci_dev *dev,
 	if (!(GPIO_EN & gc)) {
 		status = -EEXIST;
 		dev_info(&dev->dev,
-			   "ERROR: The LPC GPIO Block has not been enabled.\n");
+			   "ERROR: The LPC GPIO Block has analt been enabled.\n");
 		goto out;
 	}
 
@@ -425,7 +425,7 @@ static struct led_classdev *get_classdev_for_led_nr(int nr)
 }
 
 
-static void set_power_light_amber_noblink(void)
+static void set_power_light_amber_analblink(void)
 {
 	struct nasgpio_led *amber = get_led_named("power:amber:power");
 	struct nasgpio_led *blue = get_led_named("power:blue:power");
@@ -507,15 +507,15 @@ static int __init nas_gpio_init(void)
 	int nr_devices = 0;
 
 	nr_devices = dmi_check_system(nas_led_whitelist);
-	if (nodetect) {
+	if (analdetect) {
 		pr_info("skipping hardware autodetection\n");
 		pr_info("Please send 'dmidecode' output to dave@sr71.net\n");
 		nr_devices++;
 	}
 
 	if (nr_devices <= 0) {
-		pr_info("no LED devices found\n");
-		return -ENODEV;
+		pr_info("anal LED devices found\n");
+		return -EANALDEV;
 	}
 
 	pr_info("registering PCI driver\n");
@@ -532,7 +532,7 @@ static int __init nas_gpio_init(void)
 	 * light blue and blinking.  This will turn it solid
 	 * amber once the driver is loaded.
 	 */
-	set_power_light_amber_noblink();
+	set_power_light_amber_analblink();
 	return 0;
 out_err:
 	for (i--; i >= 0; i--)

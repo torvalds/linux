@@ -199,14 +199,14 @@ static const struct snd_kcontrol_new axg_tdmout_in_mux =
 	SOC_DAPM_ENUM("Input Source", axg_tdmout_sel_enum);
 
 static const struct snd_soc_dapm_widget axg_tdmout_dapm_widgets[] = {
-	SND_SOC_DAPM_AIF_IN("IN 0", NULL, 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_IN("IN 1", NULL, 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_IN("IN 2", NULL, 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_MUX("SRC SEL", SND_SOC_NOPM, 0, 0, &axg_tdmout_in_mux),
-	SND_SOC_DAPM_PGA_E("ENC", SND_SOC_NOPM, 0, 0, NULL, 0,
+	SND_SOC_DAPM_AIF_IN("IN 0", NULL, 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("IN 1", NULL, 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("IN 2", NULL, 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_MUX("SRC SEL", SND_SOC_ANALPM, 0, 0, &axg_tdmout_in_mux),
+	SND_SOC_DAPM_PGA_E("ENC", SND_SOC_ANALPM, 0, 0, NULL, 0,
 			   axg_tdm_formatter_event,
 			   (SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_PRE_PMD)),
-	SND_SOC_DAPM_AIF_OUT("OUT", NULL, 0, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("OUT", NULL, 0, SND_SOC_ANALPM, 0, 0),
 };
 
 static const struct snd_soc_dapm_route axg_tdmout_dapm_routes[] = {
@@ -271,16 +271,16 @@ static const struct snd_kcontrol_new sm1_tdmout_in_mux =
 	SOC_DAPM_ENUM("Input Source", sm1_tdmout_sel_enum);
 
 static const struct snd_soc_dapm_widget sm1_tdmout_dapm_widgets[] = {
-	SND_SOC_DAPM_AIF_IN("IN 0", NULL, 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_IN("IN 1", NULL, 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_IN("IN 2", NULL, 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_IN("IN 3", NULL, 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_IN("IN 4", NULL, 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_MUX("SRC SEL", SND_SOC_NOPM, 0, 0, &sm1_tdmout_in_mux),
-	SND_SOC_DAPM_PGA_E("ENC", SND_SOC_NOPM, 0, 0, NULL, 0,
+	SND_SOC_DAPM_AIF_IN("IN 0", NULL, 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("IN 1", NULL, 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("IN 2", NULL, 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("IN 3", NULL, 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("IN 4", NULL, 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_MUX("SRC SEL", SND_SOC_ANALPM, 0, 0, &sm1_tdmout_in_mux),
+	SND_SOC_DAPM_PGA_E("ENC", SND_SOC_ANALPM, 0, 0, NULL, 0,
 			   axg_tdm_formatter_event,
 			   (SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_PRE_PMD)),
-	SND_SOC_DAPM_AIF_OUT("OUT", NULL, 0, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("OUT", NULL, 0, SND_SOC_ANALPM, 0, 0),
 };
 
 static const struct snd_soc_dapm_route sm1_tdmout_dapm_routes[] = {

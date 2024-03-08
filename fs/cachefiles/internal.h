@@ -25,9 +25,9 @@ struct cachefiles_object;
 
 enum cachefiles_content {
 	/* These values are saved on disk */
-	CACHEFILES_CONTENT_NO_DATA	= 0, /* No content stored */
-	CACHEFILES_CONTENT_SINGLE	= 1, /* Content is monolithic, all is present */
-	CACHEFILES_CONTENT_ALL		= 2, /* Content is all present, no map */
+	CACHEFILES_CONTENT_ANAL_DATA	= 0, /* Anal content stored */
+	CACHEFILES_CONTENT_SINGLE	= 1, /* Content is moanallithic, all is present */
+	CACHEFILES_CONTENT_ALL		= 2, /* Content is all present, anal map */
 	CACHEFILES_CONTENT_BACKFS_MAP	= 3, /* Content is piecemeal, mapped through backing fs */
 	CACHEFILES_CONTENT_DIRTY	= 4, /* Content is dirty (only seen on disk) */
 	nr__cachefiles_content
@@ -41,12 +41,12 @@ struct cachefiles_volume {
 	struct list_head		cache_link;	/* Link in cache->volumes */
 	struct fscache_volume		*vcookie;	/* The netfs's representation */
 	struct dentry			*dentry;	/* The volume dentry */
-	struct dentry			*fanout[256];	/* Fanout subdirs */
+	struct dentry			*faanalut[256];	/* Faanalut subdirs */
 };
 
 enum cachefiles_object_state {
-	CACHEFILES_ONDEMAND_OBJSTATE_CLOSE, /* Anonymous fd closed by daemon or initial state */
-	CACHEFILES_ONDEMAND_OBJSTATE_OPEN, /* Anonymous fd associated with object is available */
+	CACHEFILES_ONDEMAND_OBJSTATE_CLOSE, /* Aanalnymous fd closed by daemon or initial state */
+	CACHEFILES_ONDEMAND_OBJSTATE_OPEN, /* Aanalnymous fd associated with object is available */
 	CACHEFILES_ONDEMAND_OBJSTATE_REOPENING, /* Object that was closed and is being reopened. */
 };
 
@@ -159,7 +159,7 @@ struct cachefiles_object *cachefiles_cres_object(struct netfs_cache_resources *c
 }
 
 /*
- * note change of state for daemon
+ * analte change of state for daemon
  */
 static inline void cachefiles_state_changed(struct cachefiles_cache *cache)
 {
@@ -219,7 +219,7 @@ static inline int cachefiles_inject_read_error(void)
 static inline int cachefiles_inject_write_error(void)
 {
 	return cachefiles_error_injection_state & 2 ? -EIO :
-		cachefiles_error_injection_state & 1 ? -ENOSPC :
+		cachefiles_error_injection_state & 1 ? -EANALSPC :
 		0;
 }
 
@@ -247,7 +247,7 @@ extern bool cachefiles_begin_operation(struct netfs_cache_resources *cres,
 extern int __cachefiles_prepare_write(struct cachefiles_object *object,
 				      struct file *file,
 				      loff_t *_start, size_t *_len, size_t upper_len,
-				      bool no_space_allocated_yet);
+				      bool anal_space_allocated_yet);
 extern int __cachefiles_write(struct cachefiles_object *object,
 			      struct file *file,
 			      loff_t start_pos,
@@ -268,7 +268,7 @@ extern struct kmem_cache *cachefiles_object_jar;
 /*
  * namei.c
  */
-extern void cachefiles_unmark_inode_in_use(struct cachefiles_object *object,
+extern void cachefiles_unmark_ianalde_in_use(struct cachefiles_object *object,
 					   struct file *file);
 extern int cachefiles_bury_object(struct cachefiles_cache *cache,
 				  struct cachefiles_object *object,
@@ -343,7 +343,7 @@ static inline bool cachefiles_ondemand_is_reopening_read(struct cachefiles_req *
 static inline ssize_t cachefiles_ondemand_daemon_read(struct cachefiles_cache *cache,
 					char __user *_buffer, size_t buflen)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int cachefiles_ondemand_init_object(struct cachefiles_object *object)
@@ -358,7 +358,7 @@ static inline void cachefiles_ondemand_clean_object(struct cachefiles_object *ob
 static inline int cachefiles_ondemand_read(struct cachefiles_object *object,
 					   loff_t pos, size_t len)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int cachefiles_ondemand_init_obj_info(struct cachefiles_object *obj,
@@ -477,9 +477,9 @@ do {							\
 } while (0)
 
 #else
-#define _enter(FMT, ...) no_printk("==> %s("FMT")", __func__, ##__VA_ARGS__)
-#define _leave(FMT, ...) no_printk("<== %s()"FMT"", __func__, ##__VA_ARGS__)
-#define _debug(FMT, ...) no_printk(FMT, ##__VA_ARGS__)
+#define _enter(FMT, ...) anal_printk("==> %s("FMT")", __func__, ##__VA_ARGS__)
+#define _leave(FMT, ...) anal_printk("<== %s()"FMT"", __func__, ##__VA_ARGS__)
+#define _debug(FMT, ...) anal_printk(FMT, ##__VA_ARGS__)
 #endif
 
 #if 1 /* defined(__KDEBUGALL) */

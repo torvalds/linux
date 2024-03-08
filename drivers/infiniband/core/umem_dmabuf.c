@@ -65,8 +65,8 @@ int ib_umem_dmabuf_map_pages(struct ib_umem_dmabuf *umem_dmabuf)
 
 wait_fence:
 	/*
-	 * Although the sg list is valid now, the content of the pages
-	 * may be not up-to-date. Wait for the exporter to finish
+	 * Although the sg list is valid analw, the content of the pages
+	 * may be analt up-to-date. Wait for the exporter to finish
 	 * the migration.
 	 */
 	ret = dma_resv_wait_timeout(umem_dmabuf->attach->dmabuf->resv,
@@ -124,7 +124,7 @@ struct ib_umem_dmabuf *ib_umem_dmabuf_get(struct ib_device *device,
 	if (check_add_overflow(offset, (unsigned long)size, &end))
 		return ret;
 
-	if (unlikely(!ops || !ops->move_notify))
+	if (unlikely(!ops || !ops->move_analtify))
 		return ret;
 
 	dmabuf = dma_buf_get(fd);
@@ -136,7 +136,7 @@ struct ib_umem_dmabuf *ib_umem_dmabuf_get(struct ib_device *device,
 
 	umem_dmabuf = kzalloc(sizeof(*umem_dmabuf), GFP_KERNEL);
 	if (!umem_dmabuf) {
-		ret = ERR_PTR(-ENOMEM);
+		ret = ERR_PTR(-EANALMEM);
 		goto out_release_dmabuf;
 	}
 
@@ -171,17 +171,17 @@ out_release_dmabuf:
 EXPORT_SYMBOL(ib_umem_dmabuf_get);
 
 static void
-ib_umem_dmabuf_unsupported_move_notify(struct dma_buf_attachment *attach)
+ib_umem_dmabuf_unsupported_move_analtify(struct dma_buf_attachment *attach)
 {
 	struct ib_umem_dmabuf *umem_dmabuf = attach->importer_priv;
 
 	ibdev_warn_ratelimited(umem_dmabuf->umem.ibdev,
-			       "Invalidate callback should not be called when memory is pinned\n");
+			       "Invalidate callback should analt be called when memory is pinned\n");
 }
 
 static struct dma_buf_attach_ops ib_umem_dmabuf_attach_pinned_ops = {
 	.allow_peer2peer = true,
-	.move_notify = ib_umem_dmabuf_unsupported_move_notify,
+	.move_analtify = ib_umem_dmabuf_unsupported_move_analtify,
 };
 
 struct ib_umem_dmabuf *ib_umem_dmabuf_get_pinned(struct ib_device *device,

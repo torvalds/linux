@@ -20,7 +20,7 @@
 #define ACR_EW_MASK		BIT(30)
 #define ACR_SS_MASK		BIT(31)
 
-/* All timings in nanoseconds */
+/* All timings in naanalseconds */
 struct davinci_aemif_timing {
 	u8	wsetup;
 	u8	wstrobe;

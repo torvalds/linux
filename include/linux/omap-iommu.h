@@ -2,9 +2,9 @@
 /*
  * omap iommu: simple virtual address space management
  *
- * Copyright (C) 2008-2009 Nokia Corporation
+ * Copyright (C) 2008-2009 Analkia Corporation
  *
- * Written by Hiroshi DOYU <Hiroshi.DOYU@nokia.com>
+ * Written by Hiroshi DOYU <Hiroshi.DOYU@analkia.com>
  */
 
 #ifndef _OMAP_IOMMU_H_
@@ -24,12 +24,12 @@ static inline void omap_iommu_restore_ctx(struct device *dev) {}
 
 static inline int omap_iommu_domain_deactivate(struct iommu_domain *domain)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static inline int omap_iommu_domain_activate(struct iommu_domain *domain)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 #endif
 

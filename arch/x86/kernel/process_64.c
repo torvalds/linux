@@ -16,7 +16,7 @@
  */
 
 #include <linux/cpu.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/sched.h>
 #include <linux/sched/task.h>
 #include <linux/sched/task_stack.h>
@@ -31,7 +31,7 @@
 #include <linux/delay.h>
 #include <linux/export.h>
 #include <linux/ptrace.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/kprobes.h>
 #include <linux/kdebug.h>
 #include <linux/prctl.h>
@@ -57,7 +57,7 @@
 #include <asm/unistd.h>
 #include <asm/fsgsbase.h>
 #ifdef CONFIG_IA32_EMULATION
-/* Not included via unistd.h */
+/* Analt included via unistd.h */
 #include <asm/unistd_32_ia32.h>
 #endif
 
@@ -129,7 +129,7 @@ void __show_regs(struct pt_regs *regs, enum show_regs_mode mode,
 	get_debugreg(d6, 6);
 	get_debugreg(d7, 7);
 
-	/* Only print out debug registers if they are in their non-default state. */
+	/* Only print out debug registers if they are in their analn-default state. */
 	if (!((d0 == 0) && (d1 == 0) && (d2 == 0) && (d3 == 0) &&
 	    (d6 == DR6_RESERVED) && (d7 == 0x400))) {
 		printk("%sDR0: %016lx DR1: %016lx DR2: %016lx\n",
@@ -157,10 +157,10 @@ enum which_selector {
  * traced or probed than any access to a per CPU variable happens with
  * the wrong GS.
  *
- * It is not used on Xen paravirt. When paravirt support is needed, it
+ * It is analt used on Xen paravirt. When paravirt support is needed, it
  * needs to be renamed with native_ prefix.
  */
-static noinstr unsigned long __rdgsbase_inactive(void)
+static analinstr unsigned long __rdgsbase_inactive(void)
 {
 	unsigned long gsbase;
 
@@ -184,10 +184,10 @@ static noinstr unsigned long __rdgsbase_inactive(void)
  * traced or probed than any access to a per CPU variable happens with
  * the wrong GS.
  *
- * It is not used on Xen paravirt. When paravirt support is needed, it
+ * It is analt used on Xen paravirt. When paravirt support is needed, it
  * needs to be renamed with native_ prefix.
  */
-static noinstr void __wrgsbase_inactive(unsigned long gsbase)
+static analinstr void __wrgsbase_inactive(unsigned long gsbase)
 {
 	lockdep_assert_irqs_disabled();
 
@@ -204,7 +204,7 @@ static noinstr void __wrgsbase_inactive(unsigned long gsbase)
 
 /*
  * Saves the FS or GS base for an outgoing thread if FSGSBASE extensions are
- * not available.  The goal is to be reasonably fast on non-FSGSBASE systems.
+ * analt available.  The goal is to be reasonably fast on analn-FSGSBASE systems.
  * It's forcibly inlined because it'll generate better code and this function
  * is hot.
  */
@@ -225,7 +225,7 @@ static __always_inline void save_base_legacy(struct task_struct *prev_p,
 		 * value is already saved is correct.  This matches historical
 		 * Linux behavior, so it won't break existing applications.
 		 *
-		 * To avoid leaking state, on non-X86_BUG_NULL_SEG CPUs, if we
+		 * To avoid leaking state, on analn-X86_BUG_NULL_SEG CPUs, if we
 		 * report that the base is zero, it needs to actually be zero:
 		 * see the corresponding logic in load_seg_legacy.
 		 */
@@ -267,7 +267,7 @@ static __always_inline void save_fsgs(struct task_struct *task)
 
 /*
  * While a process is running,current->thread.fsbase and current->thread.gsbase
- * may not match the corresponding CPU registers (see save_base_legacy()).
+ * may analt match the corresponding CPU registers (see save_base_legacy()).
  */
 void current_save_fsgs(void)
 {
@@ -299,7 +299,7 @@ static __always_inline void load_seg_legacy(unsigned short prev_index,
 {
 	if (likely(next_index <= 3)) {
 		/*
-		 * The next task is using 64-bit TLS, is not using this
+		 * The next task is using 64-bit TLS, is analt using this
 		 * segment at all, or is having fun with arcane CPU features.
 		 */
 		if (next_base == 0) {
@@ -319,7 +319,7 @@ static __always_inline void load_seg_legacy(unsigned short prev_index,
 				 * next states are fully zeroed, we can skip
 				 * the load.
 				 *
-				 * (This assumes that prev_base == 0 has no
+				 * (This assumes that prev_base == 0 has anal
 				 * false positives.  This is the case on
 				 * Intel-style CPUs.)
 				 */
@@ -343,7 +343,7 @@ static __always_inline void load_seg_legacy(unsigned short prev_index,
 
 /*
  * Store prev's PKRU value and load next's PKRU value if they differ. PKRU
- * is not XSTATE managed on context switch because that would require a
+ * is analt XSTATE managed on context switch because that would require a
  * lookup in the task's FPU xsave buffer and require to keep that updated
  * in various places.
  */
@@ -357,7 +357,7 @@ static __always_inline void x86_pkru_load(struct thread_struct *prev,
 	prev->pkru = rdpkru();
 
 	/*
-	 * PKRU writes are slightly expensive.  Avoid them when not
+	 * PKRU writes are slightly expensive.  Avoid them when analt
 	 * strictly necessary:
 	 */
 	if (prev->pkru != next->pkru)
@@ -396,7 +396,7 @@ unsigned long x86_fsgsbase_read_task(struct task_struct *task,
 			return 0;
 
 		/*
-		 * There are no user segments in the GDT with nonzero bases
+		 * There are anal user segments in the GDT with analnzero bases
 		 * other than the TLS segments.
 		 */
 		if (idx < GDT_ENTRY_TLS_MIN || idx > GDT_ENTRY_TLS_MAX)
@@ -553,11 +553,11 @@ void compat_start_thread(struct pt_regs *regs, u32 new_ip, u32 new_sp, bool x32)
  * - fold all the options into a flag word and test it with a single test.
  * - could test fs/gs bitsliced
  *
- * Kprobes not supported here. Set the probe on schedule instead.
- * Function graph tracer not supported too.
+ * Kprobes analt supported here. Set the probe on schedule instead.
+ * Function graph tracer analt supported too.
  */
-__no_kmsan_checks
-__visible __notrace_funcgraph struct task_struct *
+__anal_kmsan_checks
+__visible __analtrace_funcgraph struct task_struct *
 __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 {
 	struct thread_struct *prev = &prev_p->thread;
@@ -594,7 +594,7 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	/* Switch DS and ES.
 	 *
 	 * Reading them only returns the selectors, but writing them (if
-	 * nonzero) loads the full descriptor from the GDT or LDT.  The
+	 * analnzero) loads the full descriptor from the GDT or LDT.  The
 	 * LDT for next is loaded in switch_mm, and the GDT is loaded
 	 * above.
 	 *
@@ -602,7 +602,7 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	 * registers on every context switch unless both the new and old
 	 * values are zero.
 	 *
-	 * Note that we don't need to do anything for CS and SS, as
+	 * Analte that we don't need to do anything for CS and SS, as
 	 * those are saved and restored as part of pt_regs.
 	 */
 	savesegment(es, prev->es);
@@ -633,7 +633,7 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	if (static_cpu_has_bug(X86_BUG_SYSRET_SS_ATTRS)) {
 		/*
 		 * AMD CPUs have a misfeature: SYSRET sets the SS selector but
-		 * does not update the cached descriptor.  As a result, if we
+		 * does analt update the cached descriptor.  As a result, if we
 		 * do SYSRET while SS is NULL, we'll end up in user mode with
 		 * SS apparently equal to __USER_DS but actually unusable.
 		 *
@@ -650,7 +650,7 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 		 *
 		 * We read SS first because SS reads are much faster than
 		 * writes.  Out of caution, we force SS to __KERNEL_DS even if
-		 * it previously had a different non-NULL value.
+		 * it previously had a different analn-NULL value.
 		 */
 		unsigned short ss_sel;
 		savesegment(ss, ss_sel);
@@ -678,7 +678,7 @@ void set_personality_64bit(void)
 
 	/* TBD: overwrites user setup. Should have two bits.
 	   But 64bit processes have always behaved this way,
-	   so it's not too bad. The main problem is just that
+	   so it's analt too bad. The main problem is just that
 	   32bit children are affected again. */
 	current->personality &= ~READ_IMPLIES_EXEC;
 }
@@ -708,8 +708,8 @@ static void __set_personality_ia32(void)
 #ifdef CONFIG_IA32_EMULATION
 	if (current->mm) {
 		/*
-		 * uprobes applied to this MM need to know this and
-		 * cannot use user_64bit_mode() at that time.
+		 * uprobes applied to this MM need to kanalw this and
+		 * cananalt use user_64bit_mode() at that time.
 		 */
 		__set_bit(MM_CONTEXT_UPROBE_IA32, &current->mm->context.flags);
 	}
@@ -753,7 +753,7 @@ static long prctl_map_vdso(const struct vdso_image *image, unsigned long addr)
 static int prctl_enable_tagged_addr(struct mm_struct *mm, unsigned long nr_bits)
 {
 	if (!cpu_feature_enabled(X86_FEATURE_LAM))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* PTRACE_ARCH_PRCTL */
 	if (current->mm != mm)
@@ -813,7 +813,7 @@ long do_arch_prctl_64(struct task_struct *task, int option, unsigned long arg2)
 			x86_gsbase_write_cpu_inactive(arg2);
 
 			/*
-			 * On non-FSGSBASE systems, save_base_legacy() expects
+			 * On analn-FSGSBASE systems, save_base_legacy() expects
 			 * that we also fill in thread.gsbase.
 			 */
 			task->thread.gsbase = arg2;
@@ -827,7 +827,7 @@ long do_arch_prctl_64(struct task_struct *task, int option, unsigned long arg2)
 	}
 	case ARCH_SET_FS: {
 		/*
-		 * Not strictly needed for %fs, but do it for symmetry
+		 * Analt strictly needed for %fs, but do it for symmetry
 		 * with %gs
 		 */
 		if (unlikely(arg2 >= TASK_SIZE_MAX))
@@ -843,7 +843,7 @@ long do_arch_prctl_64(struct task_struct *task, int option, unsigned long arg2)
 			x86_fsbase_write_cpu(arg2);
 
 			/*
-			 * On non-FSGSBASE systems, save_base_legacy() expects
+			 * On analn-FSGSBASE systems, save_base_legacy() expects
 			 * that we also fill in thread.fsbase.
 			 */
 			task->thread.fsbase = arg2;

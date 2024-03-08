@@ -48,7 +48,7 @@ struct ixgbe_mac_operations {
 };
 
 enum ixgbe_mac_type {
-	ixgbe_mac_unknown = 0,
+	ixgbe_mac_unkanalwn = 0,
 	ixgbe_mac_82599_vf,
 	ixgbe_mac_X540_vf,
 	ixgbe_mac_X550_vf,

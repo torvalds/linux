@@ -12,14 +12,14 @@
 #include "kvm_util.h"
 #include "processor.h"
 
-/* CPUIDs known to differ */
+/* CPUIDs kanalwn to differ */
 struct {
 	u32 function;
 	u32 index;
 } mangled_cpuids[] = {
 	/*
 	 * These entries depend on the vCPU's XCR0 register and IA32_XSS MSR,
-	 * which are not controlled for by this test.
+	 * which are analt controlled for by this test.
 	 */
 	{.function = 0xd, .index = 0},
 	{.function = 0xd, .index = 1},
@@ -176,7 +176,7 @@ static void test_get_cpuid2(struct kvm_vcpu *vcpu)
 	for (i = 0; i < vcpu->cpuid->nent; i++) {
 		cpuid->nent = i;
 		r = __vcpu_ioctl(vcpu, KVM_GET_CPUID2, cpuid);
-		TEST_ASSERT(r && errno == E2BIG, KVM_IOCTL_ERROR(KVM_GET_CPUID2, r));
+		TEST_ASSERT(r && erranal == E2BIG, KVM_IOCTL_ERROR(KVM_GET_CPUID2, r));
 		TEST_ASSERT(cpuid->nent == i, "KVM modified nent on failure");
 	}
 	free(cpuid);

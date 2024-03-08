@@ -24,8 +24,8 @@
 #define INT2SMSKCR3	0x822ac	/* Interrupt Submask Clear Register 3 */
 #define INT2SMSKCR4	0x822b0	/* Interrupt Submask Clear Register 4 */
 
-#define INT2NTSR0	0x00060	/* Interrupt Notification Select Register 0 */
-#define INT2NTSR1	0x00064	/* Interrupt Notification Select Register 1 */
+#define INT2NTSR0	0x00060	/* Interrupt Analtification Select Register 0 */
+#define INT2NTSR1	0x00064	/* Interrupt Analtification Select Register 1 */
 
 static void __init r8a7779_init_irq_dt(void)
 {
@@ -37,7 +37,7 @@ static void __init r8a7779_init_irq_dt(void)
 	writel(0xffffffff, base + INT2NTSR0);
 	writel(0x3fffffff, base + INT2NTSR1);
 
-	/* unmask all known interrupts in INTCS2 */
+	/* unmask all kanalwn interrupts in INTCS2 */
 	writel(0xfffffff0, base + INT2SMSKCR0);
 	writel(0xfff7ffff, base + INT2SMSKCR1);
 	writel(0xfffbffdf, base + INT2SMSKCR2);

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPI_LINUX_MSG_H
 #define _UAPI_LINUX_MSG_H
 
@@ -10,9 +10,9 @@
 #define MSG_STAT_ANY 13
 
 /* msgrcv options */
-#define MSG_NOERROR     010000  /* no error if message is too big */
+#define MSG_ANALERROR     010000  /* anal error if message is too big */
 #define MSG_EXCEPT      020000  /* recv any msg except of specified type.*/
-#define MSG_COPY        040000  /* copy (not remove) all queue messages */
+#define MSG_COPY        040000  /* copy (analt remove) all queue messages */
 
 /* Obsolete, used only for backwards compatibility and libc5 compiles */
 struct msqid_ds {
@@ -62,7 +62,7 @@ struct msginfo {
  * scenarios where userspace causes overflows when adjusting the limits via
  * operations of the form retrieve current limit; add X; update limit".
  *
- * MSGMNB is the default size of a new message queue. Non-root tasks can
+ * MSGMNB is the default size of a new message queue. Analn-root tasks can
  * decrease the size with msgctl(IPC_SET), root tasks
  * (actually: CAP_SYS_RESOURCE) can both increase and decrease the queue
  * size. The optimal value is application dependent.
@@ -83,7 +83,7 @@ struct msginfo {
 #define MSGTQL  MSGMNB            /* number of system message headers */
 #define MSGMAP  MSGMNB            /* number of entries in message map */
 #define MSGSSZ  16                /* message segment size */
-#define __MSGSEG ((MSGPOOL * 1024) / MSGSSZ) /* max no. of segments */
+#define __MSGSEG ((MSGPOOL * 1024) / MSGSSZ) /* max anal. of segments */
 #define MSGSEG (__MSGSEG <= 0xffff ? __MSGSEG : 0xffff)
 
 

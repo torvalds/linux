@@ -2,8 +2,8 @@
 /*
  * StarFive JH7110 PLL Clock Generator Driver
  *
- * Copyright (C) 2023 StarFive Technology Co., Ltd.
- * Copyright (C) 2023 Emil Renner Berthing <emil.renner.berthing@canonical.com>
+ * Copyright (C) 2023 StarFive Techanallogy Co., Ltd.
+ * Copyright (C) 2023 Emil Renner Berthing <emil.renner.berthing@caanalnical.com>
  *
  * This driver is about to register JH7110 PLL clock generator and support ops.
  * The JH7110 have three PLL clock, PLL0, PLL1 and PLL2.
@@ -154,7 +154,7 @@ struct jh7110_pll_regvals {
 
 /*
  * Because the pll frequency is relatively fixed,
- * it cannot be set arbitrarily, so it needs a specific configuration.
+ * it cananalt be set arbitrarily, so it needs a specific configuration.
  * PLL0 frequency should be multiple of 125MHz (USB frequency).
  */
 static const struct jh7110_pll_preset jh7110_pll0_presets[] = {
@@ -307,7 +307,7 @@ static unsigned long jh7110_pll_recalc_rate(struct clk_hw *hw, unsigned long par
 
 	/*
 	 * dacpd = dsmpd = 0: fraction mode
-	 * dacpd = dsmpd = 1: integer mode, frac value ignored
+	 * dacpd = dsmpd = 1: integer mode, frac value iganalred
 	 *
 	 * rate = parent * (fbdiv + frac/2^24) / prediv / 2^postdiv1
 	 *      = (parent * fbdiv + parent * frac / 2^24) / (prediv * 2^postdiv1)
@@ -411,9 +411,9 @@ static int jh7110_pll_registers_read(struct seq_file *s, void *unused)
 	return 0;
 }
 
-static int jh7110_pll_registers_open(struct inode *inode, struct file *f)
+static int jh7110_pll_registers_open(struct ianalde *ianalde, struct file *f)
 {
-	return single_open(f, jh7110_pll_registers_read, inode->i_private);
+	return single_open(f, jh7110_pll_registers_read, ianalde->i_private);
 }
 
 static const struct file_operations jh7110_pll_registers_ops = {
@@ -461,10 +461,10 @@ static int jh7110_pll_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->dev = &pdev->dev;
-	priv->regmap = syscon_node_to_regmap(priv->dev->of_node->parent);
+	priv->regmap = syscon_analde_to_regmap(priv->dev->of_analde->parent);
 	if (IS_ERR(priv->regmap))
 		return PTR_ERR(priv->regmap);
 

@@ -26,7 +26,7 @@ static struct regulator *_devm_regulator_get(struct device *dev, const char *id,
 
 	ptr = devres_alloc(devm_regulator_release, sizeof(*ptr), GFP_KERNEL);
 	if (!ptr)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	regulator = _regulator_get(dev, id, get_type);
 	if (!IS_ERR(regulator)) {
@@ -50,7 +50,7 @@ static struct regulator *_devm_regulator_get(struct device *dev, const char *id,
  */
 struct regulator *devm_regulator_get(struct device *dev, const char *id)
 {
-	return _devm_regulator_get(dev, id, NORMAL_GET);
+	return _devm_regulator_get(dev, id, ANALRMAL_GET);
 }
 EXPORT_SYMBOL_GPL(devm_regulator_get);
 
@@ -125,7 +125,7 @@ EXPORT_SYMBOL_GPL(devm_regulator_get_enable_optional);
  */
 int devm_regulator_get_enable(struct device *dev, const char *id)
 {
-	return _devm_regulator_get_enable(dev, id, NORMAL_GET);
+	return _devm_regulator_get_enable(dev, id, ANALRMAL_GET);
 }
 EXPORT_SYMBOL_GPL(devm_regulator_get_enable);
 
@@ -159,8 +159,8 @@ static int devm_regulator_match(struct device *dev, void *res, void *data)
  * devm_regulator_put - Resource managed regulator_put()
  * @regulator: regulator to free
  *
- * Deallocate a regulator allocated with devm_regulator_get(). Normally
- * this function will not need to be called and the resource management
+ * Deallocate a regulator allocated with devm_regulator_get(). Analrmally
+ * this function will analt need to be called and the resource management
  * code will ensure that the resource is freed.
  */
 void devm_regulator_put(struct regulator *regulator)
@@ -196,7 +196,7 @@ static int _devm_regulator_bulk_get(struct device *dev, int num_consumers,
 	devres = devres_alloc(devm_regulator_bulk_release,
 			      sizeof(*devres), GFP_KERNEL);
 	if (!devres)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = _regulator_bulk_get(dev, num_consumers, consumers, get_type);
 	if (!ret) {
@@ -217,18 +217,18 @@ static int _devm_regulator_bulk_get(struct device *dev, int num_consumers,
  * @num_consumers: number of consumers to register
  * @consumers:     configuration of consumers; clients are stored here.
  *
- * @return 0 on success, an errno on failure.
+ * @return 0 on success, an erranal on failure.
  *
  * This helper function allows drivers to get several regulator
  * consumers in one operation with management, the regulators will
  * automatically be freed when the device is unbound.  If any of the
- * regulators cannot be acquired then any regulators that were
+ * regulators cananalt be acquired then any regulators that were
  * allocated will be freed before returning to the caller.
  */
 int devm_regulator_bulk_get(struct device *dev, int num_consumers,
 			    struct regulator_bulk_data *consumers)
 {
-	return _devm_regulator_bulk_get(dev, num_consumers, consumers, NORMAL_GET);
+	return _devm_regulator_bulk_get(dev, num_consumers, consumers, ANALRMAL_GET);
 }
 EXPORT_SYMBOL_GPL(devm_regulator_bulk_get);
 
@@ -240,12 +240,12 @@ EXPORT_SYMBOL_GPL(devm_regulator_bulk_get);
  * @num_consumers: number of consumers to register
  * @consumers:     configuration of consumers; clients are stored here.
  *
- * @return 0 on success, an errno on failure.
+ * @return 0 on success, an erranal on failure.
  *
  * This helper function allows drivers to exclusively get several
  * regulator consumers in one operation with management, the regulators
  * will automatically be freed when the device is unbound.  If any of
- * the regulators cannot be acquired then any regulators that were
+ * the regulators cananalt be acquired then any regulators that were
  * allocated will be freed before returning to the caller.
  */
 int devm_regulator_bulk_get_exclusive(struct device *dev, int num_consumers,
@@ -267,7 +267,7 @@ EXPORT_SYMBOL_GPL(devm_regulator_bulk_get_exclusive);
  * This is a convenience function to allow bulk regulator configuration
  * to be stored "static const" in files.
  *
- * Return: 0 on success, an errno on failure.
+ * Return: 0 on success, an erranal on failure.
  */
 int devm_regulator_bulk_get_const(struct device *dev, int num_consumers,
 				  const struct regulator_bulk_data *in_consumers,
@@ -277,7 +277,7 @@ int devm_regulator_bulk_get_const(struct device *dev, int num_consumers,
 				      num_consumers * sizeof(*in_consumers),
 				      GFP_KERNEL);
 	if (*out_consumers == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return devm_regulator_bulk_get(dev, num_consumers, *out_consumers);
 }
@@ -302,8 +302,8 @@ static int devm_regulator_bulk_match(struct device *dev, void *res,
  * devm_regulator_bulk_put - Resource managed regulator_bulk_put()
  * @consumers: consumers to free
  *
- * Deallocate regulators allocated with devm_regulator_bulk_get(). Normally
- * this function will not need to be called and the resource management
+ * Deallocate regulators allocated with devm_regulator_bulk_get(). Analrmally
+ * this function will analt need to be called and the resource management
  * code will ensure that the resource is freed.
  */
 void devm_regulator_bulk_put(struct regulator_bulk_data *consumers)
@@ -334,12 +334,12 @@ static void devm_regulator_bulk_disable(void *res)
  * @num_consumers: number of consumers to register
  * @id:            list of supply names or regulator IDs
  *
- * @return 0 on success, an errno on failure.
+ * @return 0 on success, an erranal on failure.
  *
  * This helper function allows drivers to get several regulator
  * consumers in one operation with management, the regulators will
  * automatically be freed when the device is unbound.  If any of the
- * regulators cannot be acquired then any regulators that were
+ * regulators cananalt be acquired then any regulators that were
  * allocated will be freed before returning to the caller.
  */
 int devm_regulator_bulk_get_enable(struct device *dev, int num_consumers,
@@ -351,13 +351,13 @@ int devm_regulator_bulk_get_enable(struct device *dev, int num_consumers,
 
 	devres = devm_kmalloc(dev, sizeof(*devres), GFP_KERNEL);
 	if (!devres)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	devres->consumers = devm_kcalloc(dev, num_consumers, sizeof(*consumers),
 					 GFP_KERNEL);
 	consumers = devres->consumers;
 	if (!consumers)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	devres->num_consumers = num_consumers;
 
@@ -413,7 +413,7 @@ struct regulator_dev *devm_regulator_register(struct device *dev,
 	ptr = devres_alloc(devm_rdev_release, sizeof(*ptr),
 			   GFP_KERNEL);
 	if (!ptr)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	rdev = regulator_register(dev, regulator_desc, config);
 	if (!IS_ERR(rdev)) {
@@ -472,7 +472,7 @@ int devm_regulator_register_supply_alias(struct device *dev, const char *id,
 			   sizeof(struct regulator_supply_alias_match),
 			   GFP_KERNEL);
 	if (!match)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	match->dev = dev;
 	match->id = id;
@@ -515,12 +515,12 @@ static void devm_regulator_unregister_supply_alias(struct device *dev,
  *             lookup the supply
  * @num_id:    number of aliases to register
  *
- * @return 0 on success, an errno on failure.
+ * @return 0 on success, an erranal on failure.
  *
  * This helper function allows drivers to register several supply
  * aliases in one operation, the aliases will be automatically
  * unregisters when the source device is unbound.  If any of the
- * aliases cannot be registered any aliases that were registered
+ * aliases cananalt be registered any aliases that were registered
  * will be removed before returning to the caller.
  */
 int devm_regulator_bulk_register_supply_alias(struct device *dev,
@@ -554,53 +554,53 @@ err:
 }
 EXPORT_SYMBOL_GPL(devm_regulator_bulk_register_supply_alias);
 
-struct regulator_notifier_match {
+struct regulator_analtifier_match {
 	struct regulator *regulator;
-	struct notifier_block *nb;
+	struct analtifier_block *nb;
 };
 
-static int devm_regulator_match_notifier(struct device *dev, void *res,
+static int devm_regulator_match_analtifier(struct device *dev, void *res,
 					 void *data)
 {
-	struct regulator_notifier_match *match = res;
-	struct regulator_notifier_match *target = data;
+	struct regulator_analtifier_match *match = res;
+	struct regulator_analtifier_match *target = data;
 
 	return match->regulator == target->regulator && match->nb == target->nb;
 }
 
-static void devm_regulator_destroy_notifier(struct device *dev, void *res)
+static void devm_regulator_destroy_analtifier(struct device *dev, void *res)
 {
-	struct regulator_notifier_match *match = res;
+	struct regulator_analtifier_match *match = res;
 
-	regulator_unregister_notifier(match->regulator, match->nb);
+	regulator_unregister_analtifier(match->regulator, match->nb);
 }
 
 /**
- * devm_regulator_register_notifier - Resource managed
- * regulator_register_notifier
+ * devm_regulator_register_analtifier - Resource managed
+ * regulator_register_analtifier
  *
  * @regulator: regulator source
- * @nb:        notifier block
+ * @nb:        analtifier block
  *
- * The notifier will be registers under the consumer device and be
+ * The analtifier will be registers under the consumer device and be
  * automatically be unregistered when the source device is unbound.
  */
-int devm_regulator_register_notifier(struct regulator *regulator,
-				     struct notifier_block *nb)
+int devm_regulator_register_analtifier(struct regulator *regulator,
+				     struct analtifier_block *nb)
 {
-	struct regulator_notifier_match *match;
+	struct regulator_analtifier_match *match;
 	int ret;
 
-	match = devres_alloc(devm_regulator_destroy_notifier,
-			     sizeof(struct regulator_notifier_match),
+	match = devres_alloc(devm_regulator_destroy_analtifier,
+			     sizeof(struct regulator_analtifier_match),
 			     GFP_KERNEL);
 	if (!match)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	match->regulator = regulator;
 	match->nb = nb;
 
-	ret = regulator_register_notifier(regulator, nb);
+	ret = regulator_register_analtifier(regulator, nb);
 	if (ret < 0) {
 		devres_free(match);
 		return ret;
@@ -610,34 +610,34 @@ int devm_regulator_register_notifier(struct regulator *regulator,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(devm_regulator_register_notifier);
+EXPORT_SYMBOL_GPL(devm_regulator_register_analtifier);
 
 /**
- * devm_regulator_unregister_notifier - Resource managed
- * regulator_unregister_notifier()
+ * devm_regulator_unregister_analtifier - Resource managed
+ * regulator_unregister_analtifier()
  *
  * @regulator: regulator source
- * @nb:        notifier block
+ * @nb:        analtifier block
  *
- * Unregister a notifier registered with devm_regulator_register_notifier().
- * Normally this function will not need to be called and the resource
+ * Unregister a analtifier registered with devm_regulator_register_analtifier().
+ * Analrmally this function will analt need to be called and the resource
  * management code will ensure that the resource is freed.
  */
-void devm_regulator_unregister_notifier(struct regulator *regulator,
-					struct notifier_block *nb)
+void devm_regulator_unregister_analtifier(struct regulator *regulator,
+					struct analtifier_block *nb)
 {
-	struct regulator_notifier_match match;
+	struct regulator_analtifier_match match;
 	int rc;
 
 	match.regulator = regulator;
 	match.nb = nb;
 
-	rc = devres_release(regulator->dev, devm_regulator_destroy_notifier,
-			    devm_regulator_match_notifier, &match);
+	rc = devres_release(regulator->dev, devm_regulator_destroy_analtifier,
+			    devm_regulator_match_analtifier, &match);
 	if (rc != 0)
 		WARN_ON(rc);
 }
-EXPORT_SYMBOL_GPL(devm_regulator_unregister_notifier);
+EXPORT_SYMBOL_GPL(devm_regulator_unregister_analtifier);
 
 static void regulator_irq_helper_drop(void *res)
 {
@@ -646,12 +646,12 @@ static void regulator_irq_helper_drop(void *res)
 
 /**
  * devm_regulator_irq_helper - resource managed registration of IRQ based
- * regulator event/error notifier
+ * regulator event/error analtifier
  *
  * @dev:		device to which lifetime the helper's lifetime is
  *			bound.
  * @d:			IRQ helper descriptor.
- * @irq:		IRQ used to inform events/errors to be notified.
+ * @irq:		IRQ used to inform events/errors to be analtified.
  * @irq_flags:		Extra IRQ flags to be OR'ed with the default
  *			IRQF_ONESHOT when requesting the (threaded) irq.
  * @common_errs:	Errors which can be flagged by this IRQ for all rdevs.
@@ -661,7 +661,7 @@ static void regulator_irq_helper_drop(void *res)
  *			for only some of the regulators. These errors will be
  *			or'ed with common errors. If this is given the array
  *			should contain rdev_amount flags. Can be set to NULL
- *			if there is no regulator specific error flags for this
+ *			if there is anal regulator specific error flags for this
  *			IRQ.
  * @rdev:		Array of pointers to regulators associated with this
  *			IRQ.

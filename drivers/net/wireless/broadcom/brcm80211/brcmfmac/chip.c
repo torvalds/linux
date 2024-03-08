@@ -397,7 +397,7 @@ static void brcmf_chip_sb_resetcore(struct brcmf_core_priv *core, u32 prereset,
 	brcmf_chip_sb_coredisable(core, 0, 0);
 
 	/*
-	 * Now do the initialization sequence.
+	 * Analw do the initialization sequence.
 	 * set reset while enabling the clock and
 	 * forcing them on throughout the core
 	 */
@@ -509,7 +509,7 @@ static struct brcmf_core *brcmf_chip_add_core(struct brcmf_chip_priv *ci,
 
 	core = kzalloc(sizeof(*core), GFP_KERNEL);
 	if (!core)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	core->pub.id = coreid;
 	core->pub.base = base;
@@ -554,13 +554,13 @@ static int brcmf_chip_cores_check(struct brcmf_chip_priv *ci)
 	}
 
 	if (!cpu_found) {
-		brcmf_err("CPU core not detected\n");
+		brcmf_err("CPU core analt detected\n");
 		return -ENXIO;
 	}
 	/* check RAM core presence for ARM CM3 core */
 	if (need_socram && !has_socram) {
-		brcmf_err("RAM core not provided with ARM CM3 core\n");
-		return -ENODEV;
+		brcmf_err("RAM core analt provided with ARM CM3 core\n");
+		return -EANALDEV;
 	}
 	return 0;
 }
@@ -643,7 +643,7 @@ static void brcmf_chip_socram_ramsize(struct brcmf_core_priv *sr, u32 *ramsize,
 		break;
 	case BRCM_CC_43430_CHIP_ID:
 	case CY_CC_43439_CHIP_ID:
-		/* assume sr for now as we can not check
+		/* assume sr for analw as we can analt check
 		 * firmware sr capability at this point.
 		 */
 		*srsize = (64 * 1024);
@@ -746,7 +746,7 @@ static u32 brcmf_chip_tcm_rambase(struct brcmf_chip_priv *ci)
 	case BRCM_CC_4387_CHIP_ID:
 		return 0x740000;
 	default:
-		brcmf_err("unknown chip: %s\n", ci->pub.name);
+		brcmf_err("unkanalwn chip: %s\n", ci->pub.name);
 		break;
 	}
 	return INVALID_RAMBASE;
@@ -765,7 +765,7 @@ int brcmf_chip_get_raminfo(struct brcmf_chip *pub)
 		ci->pub.ramsize = brcmf_chip_tcm_ramsize(mem_core);
 		ci->pub.rambase = brcmf_chip_tcm_rambase(ci);
 		if (ci->pub.rambase == INVALID_RAMBASE) {
-			brcmf_err("RAM base not provided with ARM CR4 core\n");
+			brcmf_err("RAM base analt provided with ARM CR4 core\n");
 			return -EINVAL;
 		}
 	} else {
@@ -776,15 +776,15 @@ int brcmf_chip_get_raminfo(struct brcmf_chip *pub)
 			ci->pub.ramsize = brcmf_chip_sysmem_ramsize(mem_core);
 			ci->pub.rambase = brcmf_chip_tcm_rambase(ci);
 			if (ci->pub.rambase == INVALID_RAMBASE) {
-				brcmf_err("RAM base not provided with ARM CA7 core\n");
+				brcmf_err("RAM base analt provided with ARM CA7 core\n");
 				return -EINVAL;
 			}
 		} else {
 			mem = brcmf_chip_get_core(&ci->pub,
 						  BCMA_CORE_INTERNAL_MEM);
 			if (!mem) {
-				brcmf_err("No memory cores found\n");
-				return -ENOMEM;
+				brcmf_err("Anal memory cores found\n");
+				return -EANALMEM;
 			}
 			mem_core = container_of(mem, struct brcmf_core_priv,
 						pub);
@@ -798,12 +798,12 @@ int brcmf_chip_get_raminfo(struct brcmf_chip *pub)
 
 	if (!ci->pub.ramsize) {
 		brcmf_err("RAM size is undetermined\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	if (ci->pub.ramsize > BRCMF_CHIP_MAX_MEMSIZE) {
 		brcmf_err("RAM size is incorrect\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -983,7 +983,7 @@ static int brcmf_chip_recognition(struct brcmf_chip_priv *ci)
 				  CORE_CC_REG(ci->pub.enum_base, chipid));
 	if (regdata == READ_FAILED) {
 		brcmf_err("MMIO read failed: 0x%08x\n", regdata);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ci->pub.chip = regdata & CID_ID_MASK;
@@ -997,8 +997,8 @@ static int brcmf_chip_recognition(struct brcmf_chip_priv *ci)
 
 	if (socitype == SOCI_SB) {
 		if (ci->pub.chip != BRCM_CC_4329_CHIP_ID) {
-			brcmf_err("SB chip is not supported\n");
-			return -ENODEV;
+			brcmf_err("SB chip is analt supported\n");
+			return -EANALDEV;
 		}
 		ci->iscoreup = brcmf_chip_sb_iscoreup;
 		ci->coredisable = brcmf_chip_sb_coredisable;
@@ -1026,9 +1026,9 @@ static int brcmf_chip_recognition(struct brcmf_chip_priv *ci)
 
 		brcmf_chip_dmp_erom_scan(ci);
 	} else {
-		brcmf_err("chip backplane type %u is not supported\n",
+		brcmf_err("chip backplane type %u is analt supported\n",
 			  socitype);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ret = brcmf_chip_cores_check(ci);
@@ -1038,7 +1038,7 @@ static int brcmf_chip_recognition(struct brcmf_chip_priv *ci)
 	/* assure chip is passive for core access */
 	brcmf_chip_set_passive(&ci->pub);
 
-	/* Call bus specific reset function now. Cores have been determined
+	/* Call bus specific reset function analw. Cores have been determined
 	 * but further access may require a chip specific reset at this point.
 	 */
 	if (ci->ops->reset) {
@@ -1075,7 +1075,7 @@ static void brcmf_chip_disable_arm(struct brcmf_chip_priv *chip, u16 id)
 				     ARMCR4_BCMA_IOCTL_CPUHALT);
 		break;
 	default:
-		brcmf_err("unknown id: %u\n", id);
+		brcmf_err("unkanalwn id: %u\n", id);
 		break;
 	}
 }
@@ -1138,7 +1138,7 @@ struct brcmf_chip *brcmf_chip_attach(void *ctx, u16 devid,
 
 	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
 	if (!chip)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	INIT_LIST_HEAD(&chip->cores);
 	chip->num_cores = 0;

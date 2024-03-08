@@ -63,7 +63,7 @@ examples:
         #address-cells = <1>;
         #size-cells = <0>;
 
-        /* Example for a I2C device node */
+        /* Example for a I2C device analde */
         accelerometer@53 {
             compatible = "adi,adxl313";
             reg = <0x53>;
@@ -79,7 +79,7 @@ examples:
         #address-cells = <1>;
         #size-cells = <0>;
 
-        /* Example for a SPI device node */
+        /* Example for a SPI device analde */
         accelerometer@0 {
             compatible = "adi,adxl313";
             reg = <0>;

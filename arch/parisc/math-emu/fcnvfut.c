@@ -67,7 +67,7 @@ sgl_to_sgl_fcnvfut (sgl_floating_point * srcptr, unsigned int *nullptr,
 		}
 		Set_invalidflag();
 		*dstptr = result;
-		return(NOEXCEPTION);
+		return(ANALEXCEPTION);
 	}
 	/*
 	 * Generate result
@@ -84,7 +84,7 @@ sgl_to_sgl_fcnvfut (sgl_floating_point * srcptr, unsigned int *nullptr,
 			}
 			Set_invalidflag();
 			*dstptr = result;
-			return(NOEXCEPTION);
+			return(ANALEXCEPTION);
 		}
 		Sgl_clear_signexponent_set_hidden(src);
 		Suint_from_sgl_mantissa(src,src_exponent,result);
@@ -100,12 +100,12 @@ sgl_to_sgl_fcnvfut (sgl_floating_point * srcptr, unsigned int *nullptr,
 		*dstptr = 0;
 
 		/* check for inexact */
-		if (Sgl_isnotzero_exponentmantissa(src)) {
+		if (Sgl_isanaltzero_exponentmantissa(src)) {
 			if (Is_inexacttrap_enabled()) return(INEXACTEXCEPTION);
 			else Set_inexactflag();
 		}
 	}
-	return(NOEXCEPTION);
+	return(ANALEXCEPTION);
 }
 
 /*
@@ -136,7 +136,7 @@ sgl_to_dbl_fcnvfut (sgl_floating_point * srcptr, unsigned int *nullptr,
 		}
 		Set_invalidflag();
     		Duint_copytoptr(resultp1,resultp2,dstptr);
-		return(NOEXCEPTION);
+		return(ANALEXCEPTION);
 	}
 	/*
 	 * Generate result
@@ -153,7 +153,7 @@ sgl_to_dbl_fcnvfut (sgl_floating_point * srcptr, unsigned int *nullptr,
 			}
 			Set_invalidflag();
     			Duint_copytoptr(resultp1,resultp2,dstptr);
-			return(NOEXCEPTION);
+			return(ANALEXCEPTION);
 		}
 		Sgl_clear_signexponent_set_hidden(src);
 		Duint_from_sgl_mantissa(src,src_exponent,resultp1,resultp2);
@@ -170,12 +170,12 @@ sgl_to_dbl_fcnvfut (sgl_floating_point * srcptr, unsigned int *nullptr,
 		Duint_copytoptr(resultp1,resultp2,dstptr);
 
 		/* check for inexact */
-		if (Sgl_isnotzero_exponentmantissa(src)) {
+		if (Sgl_isanaltzero_exponentmantissa(src)) {
 			if (Is_inexacttrap_enabled()) return(INEXACTEXCEPTION);
 			else Set_inexactflag();
 		}
 	}
-	return(NOEXCEPTION);
+	return(ANALEXCEPTION);
 }
 
 /*
@@ -206,7 +206,7 @@ dbl_to_sgl_fcnvfut (dbl_floating_point * srcptr, unsigned int *nullptr,
 		}
 		Set_invalidflag();
 		*dstptr = result;
-		return(NOEXCEPTION);
+		return(ANALEXCEPTION);
 	}
 	/*
 	 * Generate result
@@ -223,7 +223,7 @@ dbl_to_sgl_fcnvfut (dbl_floating_point * srcptr, unsigned int *nullptr,
 			}
 			Set_invalidflag();
 			*dstptr = result;
-			return(NOEXCEPTION);
+			return(ANALEXCEPTION);
 		}
 		Dbl_clear_signexponent_set_hidden(srcp1);
 		Suint_from_dbl_mantissa(srcp1,srcp2,src_exponent,result);
@@ -239,12 +239,12 @@ dbl_to_sgl_fcnvfut (dbl_floating_point * srcptr, unsigned int *nullptr,
 		*dstptr = 0;
 
 		/* check for inexact */
-		if (Dbl_isnotzero_exponentmantissa(srcp1,srcp2)) {
+		if (Dbl_isanaltzero_exponentmantissa(srcp1,srcp2)) {
 			if (Is_inexacttrap_enabled()) return(INEXACTEXCEPTION);
 			else Set_inexactflag();
 		}
 	}
-	return(NOEXCEPTION);
+	return(ANALEXCEPTION);
 }
 
 /*
@@ -275,7 +275,7 @@ dbl_to_dbl_fcnvfut (dbl_floating_point * srcptr, unsigned int *nullptr,
 		}
 		Set_invalidflag();
     		Duint_copytoptr(resultp1,resultp2,dstptr);
-		return(NOEXCEPTION);
+		return(ANALEXCEPTION);
 	}
 	/*
 	 * Generate result
@@ -292,7 +292,7 @@ dbl_to_dbl_fcnvfut (dbl_floating_point * srcptr, unsigned int *nullptr,
 			}
 			Set_invalidflag();
     			Duint_copytoptr(resultp1,resultp2,dstptr);
-			return(NOEXCEPTION);
+			return(ANALEXCEPTION);
 		}
 		Dbl_clear_signexponent_set_hidden(srcp1);
 		Duint_from_dbl_mantissa(srcp1,srcp2,src_exponent,
@@ -310,10 +310,10 @@ dbl_to_dbl_fcnvfut (dbl_floating_point * srcptr, unsigned int *nullptr,
 		Duint_copytoptr(resultp1,resultp2,dstptr);
 
 		/* check for inexact */
-		if (Dbl_isnotzero_exponentmantissa(srcp1,srcp2)) {
+		if (Dbl_isanaltzero_exponentmantissa(srcp1,srcp2)) {
 			if (Is_inexacttrap_enabled()) return(INEXACTEXCEPTION);
 			else Set_inexactflag();
 		}
 	}
-	return(NOEXCEPTION);
+	return(ANALEXCEPTION);
 }

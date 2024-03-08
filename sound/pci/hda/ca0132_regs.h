@@ -3,7 +3,7 @@
  * HD audio interface patch for Creative CA0132 chip.
  * CA0132 registers defines.
  *
- * Copyright (c) 2011, Creative Technology Ltd.
+ * Copyright (c) 2011, Creative Techanallogy Ltd.
  */
 
 #ifndef __CA0132_REGS_H

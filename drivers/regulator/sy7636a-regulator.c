@@ -66,8 +66,8 @@ static const struct regulator_desc desc = {
 	.type = REGULATOR_VOLTAGE,
 	.owner = THIS_MODULE,
 	.enable_reg = SY7636A_REG_OPERATION_MODE_CRL,
-	.enable_mask = SY7636A_OPERATION_MODE_CRL_ONOFF,
-	.regulators_node = of_match_ptr("regulators"),
+	.enable_mask = SY7636A_OPERATION_MODE_CRL_OANALFF,
+	.regulators_analde = of_match_ptr("regulators"),
 	.of_match = of_match_ptr("vcom"),
 };
 
@@ -91,7 +91,7 @@ static int sy7636a_regulator_probe(struct platform_device *pdev)
 
 	data = devm_kzalloc(&pdev->dev, sizeof(struct sy7636a_data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->regmap = regmap;
 	data->pgood_gpio = gdp;
@@ -105,7 +105,7 @@ static int sy7636a_regulator_probe(struct platform_device *pdev)
 	}
 
 	config.dev = &pdev->dev;
-	config.dev->of_node = pdev->dev.parent->of_node;
+	config.dev->of_analde = pdev->dev.parent->of_analde;
 	config.regmap = regmap;
 
 	rdev = devm_regulator_register(&pdev->dev, &desc, &config);
@@ -127,7 +127,7 @@ MODULE_DEVICE_TABLE(platform, sy7636a_regulator_id_table);
 static struct platform_driver sy7636a_regulator_driver = {
 	.driver = {
 		.name = "sy7636a-regulator",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 	.probe = sy7636a_regulator_probe,
 	.id_table = sy7636a_regulator_id_table,

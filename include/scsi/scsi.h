@@ -51,7 +51,7 @@ struct ccs_modesel_head {
 };
 
 /*
- * The Well Known LUNS (SAM-3) in our int representation of a LUN
+ * The Well Kanalwn LUNS (SAM-3) in our int representation of a LUN
  */
 #define SCSI_W_LUN_BASE 0xc100
 #define SCSI_W_LUN_REPORT_LUNS (SCSI_W_LUN_BASE + 1)
@@ -100,7 +100,7 @@ enum scsi_disposition {
 	SOFT_ERROR		= 0x2005,
 	ADD_TO_MLQUEUE		= 0x2006,
 	TIMEOUT_ERROR		= 0x2007,
-	SCSI_RETURN_NOT_HANDLED	= 0x2008,
+	SCSI_RETURN_ANALT_HANDLED	= 0x2008,
 	FAST_IO_FAIL		= 0x2009,
 };
 
@@ -150,7 +150,7 @@ enum scsi_disposition {
  *  variable is visible to the user via sysfs.
  */
 
-#define SCSI_UNKNOWN    0
+#define SCSI_UNKANALWN    0
 #define SCSI_1          1
 #define SCSI_1_CCS      2
 #define SCSI_2          3
@@ -165,14 +165,14 @@ enum scsi_disposition {
  * INQ PERIPHERAL QUALIFIERS
  */
 #define SCSI_INQ_PQ_CON         0x00
-#define SCSI_INQ_PQ_NOT_CON     0x01
-#define SCSI_INQ_PQ_NOT_CAP     0x03
+#define SCSI_INQ_PQ_ANALT_CON     0x01
+#define SCSI_INQ_PQ_ANALT_CAP     0x03
 
 
 /*
  * Here are some scsi specific ioctl commands which are sometimes useful.
  *
- * Note that include/linux/cdrom.h also defines IOCTL 0x5300 - 0x5395
+ * Analte that include/linux/cdrom.h also defines IOCTL 0x5300 - 0x5395
  */
 
 /* Used to obtain PUN and LUN info.  Conflicts with CDROMAUDIOBUFSIZ */
@@ -194,21 +194,21 @@ enum scsi_disposition {
  * @status: the status passed up from the driver (including host and
  *          driver components)
  *
- * This returns true for known good conditions that may be treated as
- * command completed normally
+ * This returns true for kanalwn good conditions that may be treated as
+ * command completed analrmally
  */
 static inline bool scsi_status_is_good(int status)
 {
 	if (status < 0)
 		return false;
 
-	if (host_byte(status) == DID_NO_CONNECT)
+	if (host_byte(status) == DID_ANAL_CONNECT)
 		return false;
 
 	/*
 	 * FIXME: bit0 is listed as reserved in SCSI-2, but is
-	 * significant in SCSI-3.  For now, we follow the SCSI-2
-	 * behaviour and ignore reserved bits.
+	 * significant in SCSI-3.  For analw, we follow the SCSI-2
+	 * behaviour and iganalre reserved bits.
 	 */
 	status &= 0xfe;
 	return ((status == SAM_STAT_GOOD) ||

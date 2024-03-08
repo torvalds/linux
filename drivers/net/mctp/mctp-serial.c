@@ -77,7 +77,7 @@ static int next_chunk_len(struct mctp_serial *dev)
 {
 	int i;
 
-	/* either we have no bytes to send ... */
+	/* either we have anal bytes to send ... */
 	if (dev->txpos == dev->txlen)
 		return 0;
 
@@ -88,7 +88,7 @@ static int next_chunk_len(struct mctp_serial *dev)
 		return 1;
 
 	/* ... or we have one or more bytes up to the next escape - this chunk
-	 * will be those non-escaped bytes, and does not include the escaped
+	 * will be those analn-escaped bytes, and does analt include the escaped
 	 * byte.
 	 */
 	for (i = 1; i + dev->txpos + 1 < dev->txlen; i++) {
@@ -430,7 +430,7 @@ static void mctp_serial_setup(struct net_device *ndev)
 	ndev->hard_header_len = 0;
 	ndev->addr_len = 0;
 	ndev->tx_queue_len = DEFAULT_TX_QUEUE_LEN;
-	ndev->flags = IFF_NOARP;
+	ndev->flags = IFF_ANALARP;
 	ndev->netdev_ops = &mctp_serial_netdev_ops;
 	ndev->needs_free_netdev = true;
 }
@@ -446,7 +446,7 @@ static int mctp_serial_open(struct tty_struct *tty)
 		return -EPERM;
 
 	if (!tty->ops->write)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	idx = ida_alloc(&mctp_serial_ida, GFP_KERNEL);
 	if (idx < 0)
@@ -456,7 +456,7 @@ static int mctp_serial_open(struct tty_struct *tty)
 	ndev = alloc_netdev(sizeof(*dev), name, NET_NAME_ENUM,
 			    mctp_serial_setup);
 	if (!ndev) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto free_ida;
 	}
 

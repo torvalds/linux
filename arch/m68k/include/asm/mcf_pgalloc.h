@@ -79,7 +79,7 @@ static inline void pgd_free(struct mm_struct *mm, pgd_t *pgd)
 static inline pgd_t *pgd_alloc(struct mm_struct *mm)
 {
 	pgd_t *new_pgd;
-	struct ptdesc *ptdesc = pagetable_alloc((GFP_DMA | __GFP_NOWARN) &
+	struct ptdesc *ptdesc = pagetable_alloc((GFP_DMA | __GFP_ANALWARN) &
 			~__GFP_HIGHMEM, 0);
 
 	if (!ptdesc)

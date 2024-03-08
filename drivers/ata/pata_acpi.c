@@ -39,7 +39,7 @@ static int pacpi_pre_reset(struct ata_link *link, unsigned long deadline)
 	struct ata_port *ap = link->ap;
 	struct pata_acpi *acpi = ap->private_data;
 	if (ACPI_HANDLE(&ap->tdev) == NULL || ata_acpi_gtm(ap, &acpi->gtm) < 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return ata_sff_prereset(link, deadline);
 }
@@ -62,7 +62,7 @@ static int pacpi_cable_detect(struct ata_port *ap)
 }
 
 /**
- *	pacpi_discover_modes	-	filter non ACPI modes
+ *	pacpi_discover_modes	-	filter analn ACPI modes
  *	@ap: ATA port
  *	@adev: ATA device
  *
@@ -100,7 +100,7 @@ static unsigned long pacpi_discover_modes(struct ata_port *ap, struct ata_device
 static unsigned int pacpi_mode_filter(struct ata_device *adev, unsigned int mask)
 {
 	struct pata_acpi *acpi = adev->link->ap->private_data;
-	return mask & acpi->mask[adev->devno];
+	return mask & acpi->mask[adev->devanal];
 }
 
 /**
@@ -111,14 +111,14 @@ static unsigned int pacpi_mode_filter(struct ata_device *adev, unsigned int mask
 
 static void pacpi_set_piomode(struct ata_port *ap, struct ata_device *adev)
 {
-	int unit = adev->devno;
+	int unit = adev->devanal;
 	struct pata_acpi *acpi = ap->private_data;
 	const struct ata_timing *t;
 
 	if (!(acpi->gtm.flags & 0x10))
 		unit = 0;
 
-	/* Now stuff the nS values into the structure */
+	/* Analw stuff the nS values into the structure */
 	t = ata_timing_find_mode(adev->pio_mode);
 	acpi->gtm.drive[unit].pio = t->cycle;
 	ata_acpi_stm(ap, &acpi->gtm);
@@ -134,14 +134,14 @@ static void pacpi_set_piomode(struct ata_port *ap, struct ata_device *adev)
 
 static void pacpi_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 {
-	int unit = adev->devno;
+	int unit = adev->devanal;
 	struct pata_acpi *acpi = ap->private_data;
 	const struct ata_timing *t;
 
 	if (!(acpi->gtm.flags & 0x10))
 		unit = 0;
 
-	/* Now stuff the nS values into the structure */
+	/* Analw stuff the nS values into the structure */
 	t = ata_timing_find_mode(adev->dma_mode);
 	if (adev->dma_mode >= XFER_UDMA_0) {
 		acpi->gtm.drive[unit].dma = t->udma;
@@ -195,11 +195,11 @@ static int pacpi_port_start(struct ata_port *ap)
 	struct pata_acpi *acpi;
 
 	if (ACPI_HANDLE(&ap->tdev) == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 
 	acpi = ap->private_data = devm_kzalloc(&pdev->dev, sizeof(struct pata_acpi), GFP_KERNEL);
 	if (ap->private_data == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	acpi->mask[0] = pacpi_discover_modes(ap, &ap->link.device[0]);
 	acpi->mask[1] = pacpi_discover_modes(ap, &ap->link.device[1]);
 	return ata_bmdma_port_start(ap);
@@ -232,7 +232,7 @@ static struct ata_port_operations pacpi_ops = {
  *	Inherited from PCI layer (may sleep).
  *
  *	RETURNS:
- *	Zero on success, or -ERRNO value.
+ *	Zero on success, or -ERRANAL value.
  */
 
 static int pacpi_init_one (struct pci_dev *pdev, const struct pci_device_id *id)

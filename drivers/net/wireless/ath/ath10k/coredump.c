@@ -2,7 +2,7 @@
 /*
  * Copyright (c) 2011-2017 Qualcomm Atheros, Inc.
  * Copyright (c) 2018, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #include "coredump.h"
@@ -525,7 +525,7 @@ static const struct ath10k_mem_section qca6174_hw30_sdio_register_sections[] = {
 	{0x3A000, 0x3A074},
 
 	/* DBI windows is skipped here, it can be only accessed when pcie
-	 * is active (not in reset) and CORE_CTRL_PCIE_LTSSM_EN = 0 &&
+	 * is active (analt in reset) and CORE_CTRL_PCIE_LTSSM_EN = 0 &&
 	 * PCIE_CTRL_APP_LTSSM_ENALBE=0.
 	 * {0x3C000 , 0x3C004},
 	 */
@@ -1278,7 +1278,7 @@ static const struct ath10k_mem_region qca4019_hw10_mem_regions[] = {
 
 static const struct ath10k_mem_region wcn399x_hw10_mem_regions[] = {
 	{
-		/* MSA region start is not fixed, hence it is assigned at runtime */
+		/* MSA region start is analt fixed, hence it is assigned at runtime */
 		.type = ATH10K_MEM_REGION_TYPE_MSA,
 		.len = 0x100000,
 		.name = "DRAM",
@@ -1410,7 +1410,7 @@ static const struct ath10k_hw_mem_layout hw_mem_layouts[] = {
 	{
 		.hw_id = WCN3990_HW_1_0_DEV_VERSION,
 		.hw_rev = ATH10K_HW_WCN3990,
-		.bus = ATH10K_BUS_SNOC,
+		.bus = ATH10K_BUS_SANALC,
 		.region_table = {
 			.regions = wcn399x_hw10_mem_regions,
 			.size = ARRAY_SIZE(wcn399x_hw10_mem_regions),
@@ -1534,7 +1534,7 @@ static struct ath10k_dump_file_data *ath10k_coredump_build(struct ath10k *ar)
 	dump_data->bus_type = cpu_to_le32(0);
 	dump_data->target_version = cpu_to_le32(ar->target_version);
 	dump_data->fw_version_major = cpu_to_le32(ar->fw_version_major);
-	dump_data->fw_version_minor = cpu_to_le32(ar->fw_version_minor);
+	dump_data->fw_version_mianalr = cpu_to_le32(ar->fw_version_mianalr);
 	dump_data->fw_version_release = cpu_to_le32(ar->fw_version_release);
 	dump_data->fw_version_build = cpu_to_le32(ar->fw_version_build);
 	dump_data->phy_capability = cpu_to_le32(ar->phy_capability);
@@ -1604,8 +1604,8 @@ int ath10k_coredump_submit(struct ath10k *ar)
 
 	dump = ath10k_coredump_build(ar);
 	if (!dump) {
-		ath10k_warn(ar, "no crash dump data found for devcoredump");
-		return -ENODATA;
+		ath10k_warn(ar, "anal crash dump data found for devcoredump");
+		return -EANALDATA;
 	}
 
 	dev_coredumpv(ar->dev, dump, le32_to_cpu(dump->len), GFP_KERNEL);
@@ -1621,7 +1621,7 @@ int ath10k_coredump_create(struct ath10k *ar)
 
 	ar->coredump.fw_crash_data = vzalloc(sizeof(*ar->coredump.fw_crash_data));
 	if (!ar->coredump.fw_crash_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -1638,7 +1638,7 @@ int ath10k_coredump_register(struct ath10k *ar)
 
 		crash_data->ramdump_buf = vzalloc(crash_data->ramdump_buf_len);
 		if (!crash_data->ramdump_buf)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	return 0;

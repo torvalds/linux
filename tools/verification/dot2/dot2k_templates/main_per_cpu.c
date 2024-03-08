@@ -17,7 +17,7 @@
 #include <trace/events/rv.h>
 
 /*
- * This is the self-generated part of the monitor. Generally, there is no need
+ * This is the self-generated part of the monitor. Generally, there is anal need
  * to touch this section.
  */
 #include "MODEL_NAME.h"

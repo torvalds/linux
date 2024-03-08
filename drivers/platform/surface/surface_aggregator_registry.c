@@ -2,8 +2,8 @@
 /*
  * Surface System Aggregator Module (SSAM) client device registry.
  *
- * Registry for non-platform/non-ACPI SSAM client devices, i.e. devices that
- * cannot be auto-detected. Provides device-hubs and performs instantiation
+ * Registry for analn-platform/analn-ACPI SSAM client devices, i.e. devices that
+ * cananalt be auto-detected. Provides device-hubs and performs instantiation
  * for these devices.
  *
  * Copyright (C) 2020-2022 Maximilian Luz <luzmaximilian@gmail.com>
@@ -33,165 +33,165 @@
  * values mentioned above, respectively.
  */
 
-/* Root node. */
-static const struct software_node ssam_node_root = {
+/* Root analde. */
+static const struct software_analde ssam_analde_root = {
 	.name = "ssam_platform_hub",
 };
 
 /* KIP device hub (connects keyboard cover devices on Surface Pro 8). */
-static const struct software_node ssam_node_hub_kip = {
+static const struct software_analde ssam_analde_hub_kip = {
 	.name = "ssam:00:00:01:0e:00",
-	.parent = &ssam_node_root,
+	.parent = &ssam_analde_root,
 };
 
 /* Base device hub (devices attached to Surface Book 3 base). */
-static const struct software_node ssam_node_hub_base = {
+static const struct software_analde ssam_analde_hub_base = {
 	.name = "ssam:00:00:01:11:00",
-	.parent = &ssam_node_root,
+	.parent = &ssam_analde_root,
 };
 
 /* AC adapter. */
-static const struct software_node ssam_node_bat_ac = {
+static const struct software_analde ssam_analde_bat_ac = {
 	.name = "ssam:01:02:01:01:01",
-	.parent = &ssam_node_root,
+	.parent = &ssam_analde_root,
 };
 
 /* Primary battery. */
-static const struct software_node ssam_node_bat_main = {
+static const struct software_analde ssam_analde_bat_main = {
 	.name = "ssam:01:02:01:01:00",
-	.parent = &ssam_node_root,
+	.parent = &ssam_analde_root,
 };
 
 /* Secondary battery (Surface Book 3). */
-static const struct software_node ssam_node_bat_sb3base = {
+static const struct software_analde ssam_analde_bat_sb3base = {
 	.name = "ssam:01:02:02:01:00",
-	.parent = &ssam_node_hub_base,
+	.parent = &ssam_analde_hub_base,
 };
 
 /* Platform profile / performance-mode device. */
-static const struct software_node ssam_node_tmp_pprof = {
+static const struct software_analde ssam_analde_tmp_pprof = {
 	.name = "ssam:01:03:01:00:01",
-	.parent = &ssam_node_root,
+	.parent = &ssam_analde_root,
 };
 
 /* Tablet-mode switch via KIP subsystem. */
-static const struct software_node ssam_node_kip_tablet_switch = {
+static const struct software_analde ssam_analde_kip_tablet_switch = {
 	.name = "ssam:01:0e:01:00:01",
-	.parent = &ssam_node_root,
+	.parent = &ssam_analde_root,
 };
 
 /* DTX / detachment-system device (Surface Book 3). */
-static const struct software_node ssam_node_bas_dtx = {
+static const struct software_analde ssam_analde_bas_dtx = {
 	.name = "ssam:01:11:01:00:00",
-	.parent = &ssam_node_root,
+	.parent = &ssam_analde_root,
 };
 
 /* HID keyboard (SAM, TID=1). */
-static const struct software_node ssam_node_hid_sam_keyboard = {
+static const struct software_analde ssam_analde_hid_sam_keyboard = {
 	.name = "ssam:01:15:01:01:00",
-	.parent = &ssam_node_root,
+	.parent = &ssam_analde_root,
 };
 
 /* HID pen stash (SAM, TID=1; pen taken / stashed away evens). */
-static const struct software_node ssam_node_hid_sam_penstash = {
+static const struct software_analde ssam_analde_hid_sam_penstash = {
 	.name = "ssam:01:15:01:02:00",
-	.parent = &ssam_node_root,
+	.parent = &ssam_analde_root,
 };
 
 /* HID touchpad (SAM, TID=1). */
-static const struct software_node ssam_node_hid_sam_touchpad = {
+static const struct software_analde ssam_analde_hid_sam_touchpad = {
 	.name = "ssam:01:15:01:03:00",
-	.parent = &ssam_node_root,
+	.parent = &ssam_analde_root,
 };
 
 /* HID device instance 6 (SAM, TID=1, HID sensor collection). */
-static const struct software_node ssam_node_hid_sam_sensors = {
+static const struct software_analde ssam_analde_hid_sam_sensors = {
 	.name = "ssam:01:15:01:06:00",
-	.parent = &ssam_node_root,
+	.parent = &ssam_analde_root,
 };
 
 /* HID device instance 7 (SAM, TID=1, UCM UCSI HID client). */
-static const struct software_node ssam_node_hid_sam_ucm_ucsi = {
+static const struct software_analde ssam_analde_hid_sam_ucm_ucsi = {
 	.name = "ssam:01:15:01:07:00",
-	.parent = &ssam_node_root,
+	.parent = &ssam_analde_root,
 };
 
 /* HID system controls (SAM, TID=1). */
-static const struct software_node ssam_node_hid_sam_sysctrl = {
+static const struct software_analde ssam_analde_hid_sam_sysctrl = {
 	.name = "ssam:01:15:01:08:00",
-	.parent = &ssam_node_root,
+	.parent = &ssam_analde_root,
 };
 
 /* HID keyboard. */
-static const struct software_node ssam_node_hid_main_keyboard = {
+static const struct software_analde ssam_analde_hid_main_keyboard = {
 	.name = "ssam:01:15:02:01:00",
-	.parent = &ssam_node_root,
+	.parent = &ssam_analde_root,
 };
 
 /* HID touchpad. */
-static const struct software_node ssam_node_hid_main_touchpad = {
+static const struct software_analde ssam_analde_hid_main_touchpad = {
 	.name = "ssam:01:15:02:03:00",
-	.parent = &ssam_node_root,
+	.parent = &ssam_analde_root,
 };
 
-/* HID device instance 5 (unknown HID device). */
-static const struct software_node ssam_node_hid_main_iid5 = {
+/* HID device instance 5 (unkanalwn HID device). */
+static const struct software_analde ssam_analde_hid_main_iid5 = {
 	.name = "ssam:01:15:02:05:00",
-	.parent = &ssam_node_root,
+	.parent = &ssam_analde_root,
 };
 
 /* HID keyboard (base hub). */
-static const struct software_node ssam_node_hid_base_keyboard = {
+static const struct software_analde ssam_analde_hid_base_keyboard = {
 	.name = "ssam:01:15:02:01:00",
-	.parent = &ssam_node_hub_base,
+	.parent = &ssam_analde_hub_base,
 };
 
 /* HID touchpad (base hub). */
-static const struct software_node ssam_node_hid_base_touchpad = {
+static const struct software_analde ssam_analde_hid_base_touchpad = {
 	.name = "ssam:01:15:02:03:00",
-	.parent = &ssam_node_hub_base,
+	.parent = &ssam_analde_hub_base,
 };
 
-/* HID device instance 5 (unknown HID device, base hub). */
-static const struct software_node ssam_node_hid_base_iid5 = {
+/* HID device instance 5 (unkanalwn HID device, base hub). */
+static const struct software_analde ssam_analde_hid_base_iid5 = {
 	.name = "ssam:01:15:02:05:00",
-	.parent = &ssam_node_hub_base,
+	.parent = &ssam_analde_hub_base,
 };
 
-/* HID device instance 6 (unknown HID device, base hub). */
-static const struct software_node ssam_node_hid_base_iid6 = {
+/* HID device instance 6 (unkanalwn HID device, base hub). */
+static const struct software_analde ssam_analde_hid_base_iid6 = {
 	.name = "ssam:01:15:02:06:00",
-	.parent = &ssam_node_hub_base,
+	.parent = &ssam_analde_hub_base,
 };
 
 /* HID keyboard (KIP hub). */
-static const struct software_node ssam_node_hid_kip_keyboard = {
+static const struct software_analde ssam_analde_hid_kip_keyboard = {
 	.name = "ssam:01:15:02:01:00",
-	.parent = &ssam_node_hub_kip,
+	.parent = &ssam_analde_hub_kip,
 };
 
 /* HID pen stash (KIP hub; pen taken / stashed away evens). */
-static const struct software_node ssam_node_hid_kip_penstash = {
+static const struct software_analde ssam_analde_hid_kip_penstash = {
 	.name = "ssam:01:15:02:02:00",
-	.parent = &ssam_node_hub_kip,
+	.parent = &ssam_analde_hub_kip,
 };
 
 /* HID touchpad (KIP hub). */
-static const struct software_node ssam_node_hid_kip_touchpad = {
+static const struct software_analde ssam_analde_hid_kip_touchpad = {
 	.name = "ssam:01:15:02:03:00",
-	.parent = &ssam_node_hub_kip,
+	.parent = &ssam_analde_hub_kip,
 };
 
 /* HID device instance 5 (KIP hub, type-cover firmware update). */
-static const struct software_node ssam_node_hid_kip_fwupd = {
+static const struct software_analde ssam_analde_hid_kip_fwupd = {
 	.name = "ssam:01:15:02:05:00",
-	.parent = &ssam_node_hub_kip,
+	.parent = &ssam_analde_hub_kip,
 };
 
 /* Tablet-mode switch via POS subsystem. */
-static const struct software_node ssam_node_pos_tablet_switch = {
+static const struct software_analde ssam_analde_pos_tablet_switch = {
 	.name = "ssam:01:26:01:00:01",
-	.parent = &ssam_node_root,
+	.parent = &ssam_analde_root,
 };
 
 /*
@@ -200,118 +200,118 @@ static const struct software_node ssam_node_pos_tablet_switch = {
  * - Surface Laptop 1 and 2,
  * - Surface Pro 5 and 6.
  */
-static const struct software_node *ssam_node_group_gen5[] = {
-	&ssam_node_root,
-	&ssam_node_tmp_pprof,
+static const struct software_analde *ssam_analde_group_gen5[] = {
+	&ssam_analde_root,
+	&ssam_analde_tmp_pprof,
 	NULL,
 };
 
 /* Devices for Surface Book 3. */
-static const struct software_node *ssam_node_group_sb3[] = {
-	&ssam_node_root,
-	&ssam_node_hub_base,
-	&ssam_node_bat_ac,
-	&ssam_node_bat_main,
-	&ssam_node_bat_sb3base,
-	&ssam_node_tmp_pprof,
-	&ssam_node_bas_dtx,
-	&ssam_node_hid_base_keyboard,
-	&ssam_node_hid_base_touchpad,
-	&ssam_node_hid_base_iid5,
-	&ssam_node_hid_base_iid6,
+static const struct software_analde *ssam_analde_group_sb3[] = {
+	&ssam_analde_root,
+	&ssam_analde_hub_base,
+	&ssam_analde_bat_ac,
+	&ssam_analde_bat_main,
+	&ssam_analde_bat_sb3base,
+	&ssam_analde_tmp_pprof,
+	&ssam_analde_bas_dtx,
+	&ssam_analde_hid_base_keyboard,
+	&ssam_analde_hid_base_touchpad,
+	&ssam_analde_hid_base_iid5,
+	&ssam_analde_hid_base_iid6,
 	NULL,
 };
 
 /* Devices for Surface Laptop 3 and 4. */
-static const struct software_node *ssam_node_group_sl3[] = {
-	&ssam_node_root,
-	&ssam_node_bat_ac,
-	&ssam_node_bat_main,
-	&ssam_node_tmp_pprof,
-	&ssam_node_hid_main_keyboard,
-	&ssam_node_hid_main_touchpad,
-	&ssam_node_hid_main_iid5,
+static const struct software_analde *ssam_analde_group_sl3[] = {
+	&ssam_analde_root,
+	&ssam_analde_bat_ac,
+	&ssam_analde_bat_main,
+	&ssam_analde_tmp_pprof,
+	&ssam_analde_hid_main_keyboard,
+	&ssam_analde_hid_main_touchpad,
+	&ssam_analde_hid_main_iid5,
 	NULL,
 };
 
 /* Devices for Surface Laptop 5. */
-static const struct software_node *ssam_node_group_sl5[] = {
-	&ssam_node_root,
-	&ssam_node_bat_ac,
-	&ssam_node_bat_main,
-	&ssam_node_tmp_pprof,
-	&ssam_node_hid_main_keyboard,
-	&ssam_node_hid_main_touchpad,
-	&ssam_node_hid_main_iid5,
-	&ssam_node_hid_sam_ucm_ucsi,
+static const struct software_analde *ssam_analde_group_sl5[] = {
+	&ssam_analde_root,
+	&ssam_analde_bat_ac,
+	&ssam_analde_bat_main,
+	&ssam_analde_tmp_pprof,
+	&ssam_analde_hid_main_keyboard,
+	&ssam_analde_hid_main_touchpad,
+	&ssam_analde_hid_main_iid5,
+	&ssam_analde_hid_sam_ucm_ucsi,
 	NULL,
 };
 
 /* Devices for Surface Laptop Studio. */
-static const struct software_node *ssam_node_group_sls[] = {
-	&ssam_node_root,
-	&ssam_node_bat_ac,
-	&ssam_node_bat_main,
-	&ssam_node_tmp_pprof,
-	&ssam_node_pos_tablet_switch,
-	&ssam_node_hid_sam_keyboard,
-	&ssam_node_hid_sam_penstash,
-	&ssam_node_hid_sam_touchpad,
-	&ssam_node_hid_sam_sensors,
-	&ssam_node_hid_sam_ucm_ucsi,
-	&ssam_node_hid_sam_sysctrl,
+static const struct software_analde *ssam_analde_group_sls[] = {
+	&ssam_analde_root,
+	&ssam_analde_bat_ac,
+	&ssam_analde_bat_main,
+	&ssam_analde_tmp_pprof,
+	&ssam_analde_pos_tablet_switch,
+	&ssam_analde_hid_sam_keyboard,
+	&ssam_analde_hid_sam_penstash,
+	&ssam_analde_hid_sam_touchpad,
+	&ssam_analde_hid_sam_sensors,
+	&ssam_analde_hid_sam_ucm_ucsi,
+	&ssam_analde_hid_sam_sysctrl,
 	NULL,
 };
 
 /* Devices for Surface Laptop Go. */
-static const struct software_node *ssam_node_group_slg1[] = {
-	&ssam_node_root,
-	&ssam_node_bat_ac,
-	&ssam_node_bat_main,
-	&ssam_node_tmp_pprof,
+static const struct software_analde *ssam_analde_group_slg1[] = {
+	&ssam_analde_root,
+	&ssam_analde_bat_ac,
+	&ssam_analde_bat_main,
+	&ssam_analde_tmp_pprof,
 	NULL,
 };
 
 /* Devices for Surface Pro 7 and Surface Pro 7+. */
-static const struct software_node *ssam_node_group_sp7[] = {
-	&ssam_node_root,
-	&ssam_node_bat_ac,
-	&ssam_node_bat_main,
-	&ssam_node_tmp_pprof,
+static const struct software_analde *ssam_analde_group_sp7[] = {
+	&ssam_analde_root,
+	&ssam_analde_bat_ac,
+	&ssam_analde_bat_main,
+	&ssam_analde_tmp_pprof,
 	NULL,
 };
 
 /* Devices for Surface Pro 8 */
-static const struct software_node *ssam_node_group_sp8[] = {
-	&ssam_node_root,
-	&ssam_node_hub_kip,
-	&ssam_node_bat_ac,
-	&ssam_node_bat_main,
-	&ssam_node_tmp_pprof,
-	&ssam_node_kip_tablet_switch,
-	&ssam_node_hid_kip_keyboard,
-	&ssam_node_hid_kip_penstash,
-	&ssam_node_hid_kip_touchpad,
-	&ssam_node_hid_kip_fwupd,
-	&ssam_node_hid_sam_sensors,
-	&ssam_node_hid_sam_ucm_ucsi,
+static const struct software_analde *ssam_analde_group_sp8[] = {
+	&ssam_analde_root,
+	&ssam_analde_hub_kip,
+	&ssam_analde_bat_ac,
+	&ssam_analde_bat_main,
+	&ssam_analde_tmp_pprof,
+	&ssam_analde_kip_tablet_switch,
+	&ssam_analde_hid_kip_keyboard,
+	&ssam_analde_hid_kip_penstash,
+	&ssam_analde_hid_kip_touchpad,
+	&ssam_analde_hid_kip_fwupd,
+	&ssam_analde_hid_sam_sensors,
+	&ssam_analde_hid_sam_ucm_ucsi,
 	NULL,
 };
 
 /* Devices for Surface Pro 9 */
-static const struct software_node *ssam_node_group_sp9[] = {
-	&ssam_node_root,
-	&ssam_node_hub_kip,
-	&ssam_node_bat_ac,
-	&ssam_node_bat_main,
-	&ssam_node_tmp_pprof,
-	&ssam_node_pos_tablet_switch,
-	&ssam_node_hid_kip_keyboard,
-	&ssam_node_hid_kip_penstash,
-	&ssam_node_hid_kip_touchpad,
-	&ssam_node_hid_kip_fwupd,
-	&ssam_node_hid_sam_sensors,
-	&ssam_node_hid_sam_ucm_ucsi,
+static const struct software_analde *ssam_analde_group_sp9[] = {
+	&ssam_analde_root,
+	&ssam_analde_hub_kip,
+	&ssam_analde_bat_ac,
+	&ssam_analde_bat_main,
+	&ssam_analde_tmp_pprof,
+	&ssam_analde_pos_tablet_switch,
+	&ssam_analde_hid_kip_keyboard,
+	&ssam_analde_hid_kip_penstash,
+	&ssam_analde_hid_kip_touchpad,
+	&ssam_analde_hid_kip_fwupd,
+	&ssam_analde_hid_sam_sensors,
+	&ssam_analde_hid_sam_ucm_ucsi,
 	NULL,
 };
 
@@ -320,55 +320,55 @@ static const struct software_node *ssam_node_group_sp9[] = {
 
 static const struct acpi_device_id ssam_platform_hub_match[] = {
 	/* Surface Pro 4, 5, and 6 (OMBR < 0x10) */
-	{ "MSHW0081", (unsigned long)ssam_node_group_gen5 },
+	{ "MSHW0081", (unsigned long)ssam_analde_group_gen5 },
 
 	/* Surface Pro 6 (OMBR >= 0x10) */
-	{ "MSHW0111", (unsigned long)ssam_node_group_gen5 },
+	{ "MSHW0111", (unsigned long)ssam_analde_group_gen5 },
 
 	/* Surface Pro 7 */
-	{ "MSHW0116", (unsigned long)ssam_node_group_sp7 },
+	{ "MSHW0116", (unsigned long)ssam_analde_group_sp7 },
 
 	/* Surface Pro 7+ */
-	{ "MSHW0119", (unsigned long)ssam_node_group_sp7 },
+	{ "MSHW0119", (unsigned long)ssam_analde_group_sp7 },
 
 	/* Surface Pro 8 */
-	{ "MSHW0263", (unsigned long)ssam_node_group_sp8 },
+	{ "MSHW0263", (unsigned long)ssam_analde_group_sp8 },
 
 	/* Surface Pro 9 */
-	{ "MSHW0343", (unsigned long)ssam_node_group_sp9 },
+	{ "MSHW0343", (unsigned long)ssam_analde_group_sp9 },
 
 	/* Surface Book 2 */
-	{ "MSHW0107", (unsigned long)ssam_node_group_gen5 },
+	{ "MSHW0107", (unsigned long)ssam_analde_group_gen5 },
 
 	/* Surface Book 3 */
-	{ "MSHW0117", (unsigned long)ssam_node_group_sb3 },
+	{ "MSHW0117", (unsigned long)ssam_analde_group_sb3 },
 
 	/* Surface Laptop 1 */
-	{ "MSHW0086", (unsigned long)ssam_node_group_gen5 },
+	{ "MSHW0086", (unsigned long)ssam_analde_group_gen5 },
 
 	/* Surface Laptop 2 */
-	{ "MSHW0112", (unsigned long)ssam_node_group_gen5 },
+	{ "MSHW0112", (unsigned long)ssam_analde_group_gen5 },
 
 	/* Surface Laptop 3 (13", Intel) */
-	{ "MSHW0114", (unsigned long)ssam_node_group_sl3 },
+	{ "MSHW0114", (unsigned long)ssam_analde_group_sl3 },
 
 	/* Surface Laptop 3 (15", AMD) and 4 (15", AMD) */
-	{ "MSHW0110", (unsigned long)ssam_node_group_sl3 },
+	{ "MSHW0110", (unsigned long)ssam_analde_group_sl3 },
 
 	/* Surface Laptop 4 (13", Intel) */
-	{ "MSHW0250", (unsigned long)ssam_node_group_sl3 },
+	{ "MSHW0250", (unsigned long)ssam_analde_group_sl3 },
 
 	/* Surface Laptop 5 */
-	{ "MSHW0350", (unsigned long)ssam_node_group_sl5 },
+	{ "MSHW0350", (unsigned long)ssam_analde_group_sl5 },
 
 	/* Surface Laptop Go 1 */
-	{ "MSHW0118", (unsigned long)ssam_node_group_slg1 },
+	{ "MSHW0118", (unsigned long)ssam_analde_group_slg1 },
 
 	/* Surface Laptop Go 2 */
-	{ "MSHW0290", (unsigned long)ssam_node_group_slg1 },
+	{ "MSHW0290", (unsigned long)ssam_analde_group_slg1 },
 
 	/* Surface Laptop Studio */
-	{ "MSHW0123", (unsigned long)ssam_node_group_sls },
+	{ "MSHW0123", (unsigned long)ssam_analde_group_sls },
 
 	{ },
 };
@@ -376,55 +376,55 @@ MODULE_DEVICE_TABLE(acpi, ssam_platform_hub_match);
 
 static int ssam_platform_hub_probe(struct platform_device *pdev)
 {
-	const struct software_node **nodes;
+	const struct software_analde **analdes;
 	struct ssam_controller *ctrl;
-	struct fwnode_handle *root;
+	struct fwanalde_handle *root;
 	int status;
 
-	nodes = (const struct software_node **)acpi_device_get_match_data(&pdev->dev);
-	if (!nodes)
-		return -ENODEV;
+	analdes = (const struct software_analde **)acpi_device_get_match_data(&pdev->dev);
+	if (!analdes)
+		return -EANALDEV;
 
 	/*
 	 * As we're adding the SSAM client devices as children under this device
-	 * and not the SSAM controller, we need to add a device link to the
+	 * and analt the SSAM controller, we need to add a device link to the
 	 * controller to ensure that we remove all of our devices before the
 	 * controller is removed. This also guarantees proper ordering for
 	 * suspend/resume of the devices on this hub.
 	 */
 	ctrl = ssam_client_bind(&pdev->dev);
 	if (IS_ERR(ctrl))
-		return PTR_ERR(ctrl) == -ENODEV ? -EPROBE_DEFER : PTR_ERR(ctrl);
+		return PTR_ERR(ctrl) == -EANALDEV ? -EPROBE_DEFER : PTR_ERR(ctrl);
 
-	status = software_node_register_node_group(nodes);
+	status = software_analde_register_analde_group(analdes);
 	if (status)
 		return status;
 
-	root = software_node_fwnode(&ssam_node_root);
+	root = software_analde_fwanalde(&ssam_analde_root);
 	if (!root) {
-		software_node_unregister_node_group(nodes);
-		return -ENOENT;
+		software_analde_unregister_analde_group(analdes);
+		return -EANALENT;
 	}
 
-	set_secondary_fwnode(&pdev->dev, root);
+	set_secondary_fwanalde(&pdev->dev, root);
 
 	status = __ssam_register_clients(&pdev->dev, ctrl, root);
 	if (status) {
-		set_secondary_fwnode(&pdev->dev, NULL);
-		software_node_unregister_node_group(nodes);
+		set_secondary_fwanalde(&pdev->dev, NULL);
+		software_analde_unregister_analde_group(analdes);
 	}
 
-	platform_set_drvdata(pdev, nodes);
+	platform_set_drvdata(pdev, analdes);
 	return status;
 }
 
 static void ssam_platform_hub_remove(struct platform_device *pdev)
 {
-	const struct software_node **nodes = platform_get_drvdata(pdev);
+	const struct software_analde **analdes = platform_get_drvdata(pdev);
 
 	ssam_remove_clients(&pdev->dev);
-	set_secondary_fwnode(&pdev->dev, NULL);
-	software_node_unregister_node_group(nodes);
+	set_secondary_fwanalde(&pdev->dev, NULL);
+	software_analde_unregister_analde_group(analdes);
 }
 
 static struct platform_driver ssam_platform_hub_driver = {
@@ -433,7 +433,7 @@ static struct platform_driver ssam_platform_hub_driver = {
 	.driver = {
 		.name = "surface_aggregator_platform_hub",
 		.acpi_match_table = ssam_platform_hub_match,
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 };
 module_platform_driver(ssam_platform_hub_driver);

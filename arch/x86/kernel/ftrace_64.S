@@ -9,7 +9,7 @@
 #include <asm/asm-offsets.h>
 #include <asm/ptrace.h>
 #include <asm/ftrace.h>
-#include <asm/nospec-branch.h>
+#include <asm/analspec-branch.h>
 #include <asm/unwind_hints.h>
 #include <asm/frame.h>
 
@@ -20,7 +20,7 @@
 /* Save parent and function stack frames (rip and rbp) */
 #  define MCOUNT_FRAME_SIZE	(8+16*2)
 #else
-/* No need to save a stack frame */
+/* Anal need to save a stack frame */
 # define MCOUNT_FRAME_SIZE	0
 #endif /* CONFIG_FRAME_POINTER */
 
@@ -29,12 +29,12 @@
 
 /*
  * gcc -pg option adds a call to 'mcount' in most functions.
- * When -mfentry is used, the call is to 'fentry' and not 'mcount'
+ * When -mfentry is used, the call is to 'fentry' and analt 'mcount'
  * and is done before the function's stack frame is set up.
  * They both require a set of regs to be saved before calling
  * any C code and restored before returning back to the function.
  *
- * On boot up, all these calls are converted into nops. When tracing
+ * On boot up, all these calls are converted into analps. When tracing
  * is enabled, the call can jump to either ftrace_caller or
  * ftrace_regs_caller. Callbacks (tracing functions) that require
  * ftrace_regs_caller (like kprobes) need to have pt_regs passed to
@@ -60,7 +60,7 @@
 
 	/*
 	 * Stack traces will stop at the ftrace trampoline if the frame pointer
-	 * is not set up properly. If fentry is used, we need to save a frame
+	 * is analt set up properly. If fentry is used, we need to save a frame
 	 * pointer for the parent as well as the function traced, because the
 	 * fentry is called before the stack frame is set up, where as mcount
 	 * is called afterward.
@@ -70,14 +70,14 @@
 	pushq \added+8*2(%rsp)
 	pushq %rbp
 	movq %rsp, %rbp
-	/* Save the return address (now skip orig rbp, rbp and parent) */
+	/* Save the return address (analw skip orig rbp, rbp and parent) */
 	pushq \added+8*3(%rsp)
 	pushq %rbp
 	movq %rsp, %rbp
 #endif /* CONFIG_FRAME_POINTER */
 
 	/*
-	 * We add enough stack to save all regs.
+	 * We add eanalugh stack to save all regs.
 	 */
 	subq $(FRAME_SIZE), %rsp
 	movq %rax, RAX(%rsp)
@@ -89,7 +89,7 @@
 	movq %r9, R9(%rsp)
 	movq $0, ORIG_RAX(%rsp)
 	/*
-	 * Save the original RBP. Even though the mcount ABI does not
+	 * Save the original RBP. Even though the mcount ABI does analt
 	 * require this, it helps out callers.
 	 */
 #ifdef CONFIG_FRAME_POINTER
@@ -107,7 +107,7 @@
 	movq %rdi, RIP(%rsp)
 
 	/*
-	 * Now %rdi (the first parameter) has the return address of
+	 * Analw %rdi (the first parameter) has the return address of
 	 * where ftrace_call returns. But the callbacks expect the
 	 * address of the call itself.
 	 */
@@ -162,7 +162,7 @@ SYM_FUNC_START(ftrace_caller)
 	movq %rcx, RSP(%rsp)
 
 SYM_INNER_LABEL(ftrace_caller_op_ptr, SYM_L_GLOBAL)
-	ANNOTATE_NOENDBR
+	ANANALTATE_ANALENDBR
 	/* Load the ftrace_ops into the 3rd parameter */
 	movq function_trace_op(%rip), %rdx
 
@@ -176,7 +176,7 @@ SYM_INNER_LABEL(ftrace_caller_op_ptr, SYM_L_GLOBAL)
 	CALL_DEPTH_ACCOUNT
 
 SYM_INNER_LABEL(ftrace_call, SYM_L_GLOBAL)
-	ANNOTATE_NOENDBR
+	ANANALTATE_ANALENDBR
 	call ftrace_stub
 
 	/* Handlers can change the RIP */
@@ -191,10 +191,10 @@ SYM_INNER_LABEL(ftrace_call, SYM_L_GLOBAL)
 	 * layout here.
 	 */
 SYM_INNER_LABEL(ftrace_caller_end, SYM_L_GLOBAL)
-	ANNOTATE_NOENDBR
+	ANANALTATE_ANALENDBR
 	RET
 SYM_FUNC_END(ftrace_caller);
-STACK_FRAME_NON_STANDARD_FP(ftrace_caller)
+STACK_FRAME_ANALN_STANDARD_FP(ftrace_caller)
 
 SYM_FUNC_START(ftrace_regs_caller)
 	/* Save the current flags before any operations that can change them */
@@ -207,7 +207,7 @@ SYM_FUNC_START(ftrace_regs_caller)
 	CALL_DEPTH_ACCOUNT
 
 SYM_INNER_LABEL(ftrace_regs_caller_op_ptr, SYM_L_GLOBAL)
-	ANNOTATE_NOENDBR
+	ANANALTATE_ANALENDBR
 	/* Load the ftrace_ops into the 3rd parameter */
 	movq function_trace_op(%rip), %rdx
 
@@ -240,7 +240,7 @@ SYM_INNER_LABEL(ftrace_regs_caller_op_ptr, SYM_L_GLOBAL)
 	CALL_DEPTH_ACCOUNT
 
 SYM_INNER_LABEL(ftrace_regs_call, SYM_L_GLOBAL)
-	ANNOTATE_NOENDBR
+	ANANALTATE_ANALENDBR
 	call ftrace_stub
 
 	/* Copy flags back to SS, to restore them */
@@ -268,7 +268,7 @@ SYM_INNER_LABEL(ftrace_regs_call, SYM_L_GLOBAL)
 	 */
 	testq	%rax, %rax
 SYM_INNER_LABEL(ftrace_regs_caller_jmp, SYM_L_GLOBAL)
-	ANNOTATE_NOENDBR
+	ANANALTATE_ANALENDBR
 	jnz	1f
 
 	restore_mcount_regs
@@ -279,7 +279,7 @@ SYM_INNER_LABEL(ftrace_regs_caller_jmp, SYM_L_GLOBAL)
 	 * The trampoline will add the return.
 	 */
 SYM_INNER_LABEL(ftrace_regs_caller_end, SYM_L_GLOBAL)
-	ANNOTATE_NOENDBR
+	ANANALTATE_ANALENDBR
 	RET
 
 	/* Swap the flags with orig_rax */
@@ -297,17 +297,17 @@ SYM_INNER_LABEL(ftrace_regs_caller_end, SYM_L_GLOBAL)
 	 * doing a tail-call without using a register. This PUSH;RET
 	 * pattern unbalances the RSB, inject a pointless CALL to rebalance.
 	 */
-	ANNOTATE_INTRA_FUNCTION_CALL
+	ANANALTATE_INTRA_FUNCTION_CALL
 	CALL .Ldo_rebalance
 	int3
 .Ldo_rebalance:
 	add $8, %rsp
 	ALTERNATIVE __stringify(RET), \
-		    __stringify(ANNOTATE_UNRET_SAFE; ret; int3), \
+		    __stringify(ANANALTATE_UNRET_SAFE; ret; int3), \
 		    X86_FEATURE_CALL_DEPTH
 
 SYM_FUNC_END(ftrace_regs_caller)
-STACK_FRAME_NON_STANDARD_FP(ftrace_regs_caller)
+STACK_FRAME_ANALN_STANDARD_FP(ftrace_regs_caller)
 
 SYM_FUNC_START(ftrace_stub_direct_tramp)
 	CALL_DEPTH_ACCOUNT
@@ -328,26 +328,26 @@ trace:
 	save_mcount_regs
 
 	/*
-	 * When DYNAMIC_FTRACE is not defined, ARCH_SUPPORTS_FTRACE_OPS is not
+	 * When DYNAMIC_FTRACE is analt defined, ARCH_SUPPORTS_FTRACE_OPS is analt
 	 * set (see include/asm/ftrace.h and include/linux/ftrace.h).  Only the
 	 * ip and parent ip are used and the list function is called when
 	 * function tracing is enabled.
 	 */
 	movq ftrace_trace_function, %r8
-	CALL_NOSPEC r8
+	CALL_ANALSPEC r8
 	restore_mcount_regs
 
 	jmp ftrace_stub
 SYM_FUNC_END(__fentry__)
 EXPORT_SYMBOL(__fentry__)
-STACK_FRAME_NON_STANDARD_FP(__fentry__)
+STACK_FRAME_ANALN_STANDARD_FP(__fentry__)
 
 #endif /* CONFIG_DYNAMIC_FTRACE */
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 SYM_CODE_START(return_to_handler)
 	UNWIND_HINT_UNDEFINED
-	ANNOTATE_NOENDBR
+	ANANALTATE_ANALENDBR
 	subq  $24, %rsp
 
 	/* Save the return values */
@@ -364,17 +364,17 @@ SYM_CODE_START(return_to_handler)
 
 	addq $24, %rsp
 	/*
-	 * Jump back to the old return address. This cannot be JMP_NOSPEC rdi
+	 * Jump back to the old return address. This cananalt be JMP_ANALSPEC rdi
 	 * since IBT would demand that contain ENDBR, which simply isn't so for
 	 * return addresses. Use a retpoline here to keep the RSB balanced.
 	 */
-	ANNOTATE_INTRA_FUNCTION_CALL
+	ANANALTATE_INTRA_FUNCTION_CALL
 	call .Ldo_rop
 	int3
 .Ldo_rop:
 	mov %rdi, (%rsp)
 	ALTERNATIVE __stringify(RET), \
-		    __stringify(ANNOTATE_UNRET_SAFE; ret; int3), \
+		    __stringify(ANANALTATE_UNRET_SAFE; ret; int3), \
 		    X86_FEATURE_CALL_DEPTH
 SYM_CODE_END(return_to_handler)
 #endif

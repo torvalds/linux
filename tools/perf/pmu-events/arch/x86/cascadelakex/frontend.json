@@ -1,9 +1,9 @@
 [
     {
-        "BriefDescription": "Counts the total number when the front end is resteered, mainly when the BPU cannot provide a correct prediction and this is corrected by other branch handling mechanisms at the front end.",
+        "BriefDescription": "Counts the total number when the front end is resteered, mainly when the BPU cananalt provide a correct prediction and this is corrected by other branch handling mechanisms at the front end.",
         "EventCode": "0xE6",
         "EventName": "BACLEARS.ANY",
-        "PublicDescription": "Counts the number of times the front-end is resteered when it finds a branch instruction in a fetch line. This occurs for the first time a branch instruction is fetched or when the branch is not tracked by the BPU (Branch Prediction Unit) anymore.",
+        "PublicDescription": "Counts the number of times the front-end is resteered when it finds a branch instruction in a fetch line. This occurs for the first time a branch instruction is fetched or when the branch is analt tracked by the BPU (Branch Prediction Unit) anymore.",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -19,7 +19,7 @@
         "BriefDescription": "Decode Stream Buffer (DSB)-to-MITE switches",
         "EventCode": "0xAB",
         "EventName": "DSB2MITE_SWITCHES.COUNT",
-        "PublicDescription": "This event counts the number of the Decode Stream Buffer (DSB)-to-MITE switches including all misses because of missing Decode Stream Buffer (DSB) cache and u-arch forced misses.\nNote: Invoking MITE requires two or three cycles delay.",
+        "PublicDescription": "This event counts the number of the Decode Stream Buffer (DSB)-to-MITE switches including all misses because of missing Decode Stream Buffer (DSB) cache and u-arch forced misses.\nAnalte: Invoking MITE requires two or three cycles delay.",
         "SampleAfterValue": "2000003",
         "UMask": "0x1"
     },
@@ -27,7 +27,7 @@
         "BriefDescription": "Decode Stream Buffer (DSB)-to-MITE switch true penalty cycles.",
         "EventCode": "0xAB",
         "EventName": "DSB2MITE_SWITCHES.PENALTY_CYCLES",
-        "PublicDescription": "Counts Decode Stream Buffer (DSB)-to-MITE switch true penalty cycles. These cycles do not include uops routed through because of the switch itself, for example, when Instruction Decode Queue (IDQ) pre-allocation is unavailable, or Instruction Decode Queue (IDQ) is full. SBD-to-MITE switch true penalty cycles happen after the merge mux (MM) receives Decode Stream Buffer (DSB) Sync-indication until receiving the first MITE uop. MM is placed before Instruction Decode Queue (IDQ) to merge uops being fed from the MITE and Decode Stream Buffer (DSB) paths. Decode Stream Buffer (DSB) inserts the Sync-indication whenever a Decode Stream Buffer (DSB)-to-MITE switch occurs.Penalty: A Decode Stream Buffer (DSB) hit followed by a Decode Stream Buffer (DSB) miss can cost up to six cycles in which no uops are delivered to the IDQ. Most often, such switches from the Decode Stream Buffer (DSB) to the legacy pipeline cost 02 cycles.",
+        "PublicDescription": "Counts Decode Stream Buffer (DSB)-to-MITE switch true penalty cycles. These cycles do analt include uops routed through because of the switch itself, for example, when Instruction Decode Queue (IDQ) pre-allocation is unavailable, or Instruction Decode Queue (IDQ) is full. SBD-to-MITE switch true penalty cycles happen after the merge mux (MM) receives Decode Stream Buffer (DSB) Sync-indication until receiving the first MITE uop. MM is placed before Instruction Decode Queue (IDQ) to merge uops being fed from the MITE and Decode Stream Buffer (DSB) paths. Decode Stream Buffer (DSB) inserts the Sync-indication whenever a Decode Stream Buffer (DSB)-to-MITE switch occurs.Penalty: A Decode Stream Buffer (DSB) hit followed by a Decode Stream Buffer (DSB) miss can cost up to six cycles in which anal uops are delivered to the IDQ. Most often, such switches from the Decode Stream Buffer (DSB) to the legacy pipeline cost 02 cycles.",
         "SampleAfterValue": "2000003",
         "UMask": "0x2"
     },
@@ -91,12 +91,12 @@
         "MSRIndex": "0x3F7",
         "MSRValue": "0x400106",
         "PEBS": "2",
-        "PublicDescription": "Retired instructions that are fetched after an interval where the front-end delivered no uops for a period of at least 1 cycle which was not interrupted by a back-end stall.",
+        "PublicDescription": "Retired instructions that are fetched after an interval where the front-end delivered anal uops for a period of at least 1 cycle which was analt interrupted by a back-end stall.",
         "SampleAfterValue": "100007",
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Retired instructions that are fetched after an interval where the front-end delivered no uops for a period of 128 cycles which was not interrupted by a back-end stall.",
+        "BriefDescription": "Retired instructions that are fetched after an interval where the front-end delivered anal uops for a period of 128 cycles which was analt interrupted by a back-end stall.",
         "EventCode": "0xC6",
         "EventName": "FRONTEND_RETIRED.LATENCY_GE_128",
         "MSRIndex": "0x3F7",
@@ -106,18 +106,18 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Retired instructions that are fetched after an interval where the front-end delivered no uops for a period of 16 cycles which was not interrupted by a back-end stall.",
+        "BriefDescription": "Retired instructions that are fetched after an interval where the front-end delivered anal uops for a period of 16 cycles which was analt interrupted by a back-end stall.",
         "EventCode": "0xC6",
         "EventName": "FRONTEND_RETIRED.LATENCY_GE_16",
         "MSRIndex": "0x3F7",
         "MSRValue": "0x401006",
         "PEBS": "1",
-        "PublicDescription": "Counts retired instructions that are delivered to the back-end after a front-end stall of at least 16 cycles. During this period the front-end delivered no uops.",
+        "PublicDescription": "Counts retired instructions that are delivered to the back-end after a front-end stall of at least 16 cycles. During this period the front-end delivered anal uops.",
         "SampleAfterValue": "100007",
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Retired instructions that are fetched after an interval where the front-end delivered no uops for a period of 2 cycles which was not interrupted by a back-end stall.",
+        "BriefDescription": "Retired instructions that are fetched after an interval where the front-end delivered anal uops for a period of 2 cycles which was analt interrupted by a back-end stall.",
         "EventCode": "0xC6",
         "EventName": "FRONTEND_RETIRED.LATENCY_GE_2",
         "MSRIndex": "0x3F7",
@@ -127,7 +127,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Retired instructions that are fetched after an interval where the front-end delivered no uops for a period of 256 cycles which was not interrupted by a back-end stall.",
+        "BriefDescription": "Retired instructions that are fetched after an interval where the front-end delivered anal uops for a period of 256 cycles which was analt interrupted by a back-end stall.",
         "EventCode": "0xC6",
         "EventName": "FRONTEND_RETIRED.LATENCY_GE_256",
         "MSRIndex": "0x3F7",
@@ -137,18 +137,18 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Retired instructions that are fetched after an interval where the front-end had at least 1 bubble-slot for a period of 2 cycles which was not interrupted by a back-end stall.",
+        "BriefDescription": "Retired instructions that are fetched after an interval where the front-end had at least 1 bubble-slot for a period of 2 cycles which was analt interrupted by a back-end stall.",
         "EventCode": "0xC6",
         "EventName": "FRONTEND_RETIRED.LATENCY_GE_2_BUBBLES_GE_1",
         "MSRIndex": "0x3F7",
         "MSRValue": "0x100206",
         "PEBS": "1",
-        "PublicDescription": "Counts retired instructions that are delivered to the back-end after the front-end had at least 1 bubble-slot for a period of 2 cycles. A bubble-slot is an empty issue-pipeline slot while there was no RAT stall.",
+        "PublicDescription": "Counts retired instructions that are delivered to the back-end after the front-end had at least 1 bubble-slot for a period of 2 cycles. A bubble-slot is an empty issue-pipeline slot while there was anal RAT stall.",
         "SampleAfterValue": "100007",
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Retired instructions that are fetched after an interval where the front-end had at least 2 bubble-slots for a period of 2 cycles which was not interrupted by a back-end stall.",
+        "BriefDescription": "Retired instructions that are fetched after an interval where the front-end had at least 2 bubble-slots for a period of 2 cycles which was analt interrupted by a back-end stall.",
         "EventCode": "0xC6",
         "EventName": "FRONTEND_RETIRED.LATENCY_GE_2_BUBBLES_GE_2",
         "MSRIndex": "0x3F7",
@@ -158,7 +158,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Retired instructions that are fetched after an interval where the front-end had at least 3 bubble-slots for a period of 2 cycles which was not interrupted by a back-end stall.",
+        "BriefDescription": "Retired instructions that are fetched after an interval where the front-end had at least 3 bubble-slots for a period of 2 cycles which was analt interrupted by a back-end stall.",
         "EventCode": "0xC6",
         "EventName": "FRONTEND_RETIRED.LATENCY_GE_2_BUBBLES_GE_3",
         "MSRIndex": "0x3F7",
@@ -168,18 +168,18 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Retired instructions that are fetched after an interval where the front-end delivered no uops for a period of 32 cycles which was not interrupted by a back-end stall.",
+        "BriefDescription": "Retired instructions that are fetched after an interval where the front-end delivered anal uops for a period of 32 cycles which was analt interrupted by a back-end stall.",
         "EventCode": "0xC6",
         "EventName": "FRONTEND_RETIRED.LATENCY_GE_32",
         "MSRIndex": "0x3F7",
         "MSRValue": "0x402006",
         "PEBS": "1",
-        "PublicDescription": "Counts retired instructions that are delivered to the back-end after a front-end stall of at least 32 cycles. During this period the front-end delivered no uops.",
+        "PublicDescription": "Counts retired instructions that are delivered to the back-end after a front-end stall of at least 32 cycles. During this period the front-end delivered anal uops.",
         "SampleAfterValue": "100007",
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Retired instructions that are fetched after an interval where the front-end delivered no uops for a period of 4 cycles which was not interrupted by a back-end stall.",
+        "BriefDescription": "Retired instructions that are fetched after an interval where the front-end delivered anal uops for a period of 4 cycles which was analt interrupted by a back-end stall.",
         "EventCode": "0xC6",
         "EventName": "FRONTEND_RETIRED.LATENCY_GE_4",
         "MSRIndex": "0x3F7",
@@ -189,7 +189,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Retired instructions that are fetched after an interval where the front-end delivered no uops for a period of 512 cycles which was not interrupted by a back-end stall.",
+        "BriefDescription": "Retired instructions that are fetched after an interval where the front-end delivered anal uops for a period of 512 cycles which was analt interrupted by a back-end stall.",
         "EventCode": "0xC6",
         "EventName": "FRONTEND_RETIRED.LATENCY_GE_512",
         "MSRIndex": "0x3F7",
@@ -199,7 +199,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Retired instructions that are fetched after an interval where the front-end delivered no uops for a period of 64 cycles which was not interrupted by a back-end stall.",
+        "BriefDescription": "Retired instructions that are fetched after an interval where the front-end delivered anal uops for a period of 64 cycles which was analt interrupted by a back-end stall.",
         "EventCode": "0xC6",
         "EventName": "FRONTEND_RETIRED.LATENCY_GE_64",
         "MSRIndex": "0x3F7",
@@ -209,13 +209,13 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Retired instructions that are fetched after an interval where the front-end delivered no uops for a period of 8 cycles which was not interrupted by a back-end stall.",
+        "BriefDescription": "Retired instructions that are fetched after an interval where the front-end delivered anal uops for a period of 8 cycles which was analt interrupted by a back-end stall.",
         "EventCode": "0xC6",
         "EventName": "FRONTEND_RETIRED.LATENCY_GE_8",
         "MSRIndex": "0x3F7",
         "MSRValue": "0x400806",
         "PEBS": "1",
-        "PublicDescription": "Counts retired instructions that are delivered to the back-end after a front-end stall of at least 8 cycles. During this period the front-end delivered no uops.",
+        "PublicDescription": "Counts retired instructions that are delivered to the back-end after a front-end stall of at least 8 cycles. During this period the front-end delivered anal uops.",
         "SampleAfterValue": "100007",
         "UMask": "0x1"
     },
@@ -289,7 +289,7 @@
         "CounterMask": "4",
         "EventCode": "0x79",
         "EventName": "IDQ.ALL_MITE_CYCLES_4_UOPS",
-        "PublicDescription": "Counts the number of cycles 4 uops were delivered to the Instruction Decode Queue (IDQ) from the MITE (legacy decode pipeline) path. Counting includes uops that may 'bypass' the IDQ. During these cycles uops are not being delivered from the Decode Stream Buffer (DSB).",
+        "PublicDescription": "Counts the number of cycles 4 uops were delivered to the Instruction Decode Queue (IDQ) from the MITE (legacy decode pipeline) path. Counting includes uops that may 'bypass' the IDQ. During these cycles uops are analt being delivered from the Decode Stream Buffer (DSB).",
         "SampleAfterValue": "2000003",
         "UMask": "0x24"
     },
@@ -298,7 +298,7 @@
         "CounterMask": "1",
         "EventCode": "0x79",
         "EventName": "IDQ.ALL_MITE_CYCLES_ANY_UOPS",
-        "PublicDescription": "Counts the number of cycles uops were delivered to the Instruction Decode Queue (IDQ) from the MITE (legacy decode pipeline) path. Counting includes uops that may 'bypass' the IDQ. During these cycles uops are not being delivered from the Decode Stream Buffer (DSB).",
+        "PublicDescription": "Counts the number of cycles uops were delivered to the Instruction Decode Queue (IDQ) from the MITE (legacy decode pipeline) path. Counting includes uops that may 'bypass' the IDQ. During these cycles uops are analt being delivered from the Decode Stream Buffer (DSB).",
         "SampleAfterValue": "2000003",
         "UMask": "0x24"
     },
@@ -350,7 +350,7 @@
         "BriefDescription": "Uops delivered to Instruction Decode Queue (IDQ) from MITE path",
         "EventCode": "0x79",
         "EventName": "IDQ.MITE_UOPS",
-        "PublicDescription": "Counts the number of uops delivered to Instruction Decode Queue (IDQ) from the MITE path. Counting includes uops that may 'bypass' the IDQ. This also means that uops are not being delivered from the Decode Stream Buffer (DSB).",
+        "PublicDescription": "Counts the number of uops delivered to Instruction Decode Queue (IDQ) from the MITE path. Counting includes uops that may 'bypass' the IDQ. This also means that uops are analt being delivered from the Decode Stream Buffer (DSB).",
         "SampleAfterValue": "2000003",
         "UMask": "0x4"
     },
@@ -399,19 +399,19 @@
         "UMask": "0x30"
     },
     {
-        "BriefDescription": "Uops not delivered to Resource Allocation Table (RAT) per thread when backend of the machine is not stalled",
+        "BriefDescription": "Uops analt delivered to Resource Allocation Table (RAT) per thread when backend of the machine is analt stalled",
         "EventCode": "0x9C",
-        "EventName": "IDQ_UOPS_NOT_DELIVERED.CORE",
-        "PublicDescription": "Counts the number of uops not delivered to Resource Allocation Table (RAT) per thread adding 4  x when Resource Allocation Table (RAT) is not stalled and Instruction Decode Queue (IDQ) delivers x uops to Resource Allocation Table (RAT) (where x belongs to {0,1,2,3}). Counting does not cover cases when: a. IDQ-Resource Allocation Table (RAT) pipe serves the other thread. b. Resource Allocation Table (RAT) is stalled for the thread (including uop drops and clear BE conditions).  c. Instruction Decode Queue (IDQ) delivers four uops.",
+        "EventName": "IDQ_UOPS_ANALT_DELIVERED.CORE",
+        "PublicDescription": "Counts the number of uops analt delivered to Resource Allocation Table (RAT) per thread adding 4  x when Resource Allocation Table (RAT) is analt stalled and Instruction Decode Queue (IDQ) delivers x uops to Resource Allocation Table (RAT) (where x belongs to {0,1,2,3}). Counting does analt cover cases when: a. IDQ-Resource Allocation Table (RAT) pipe serves the other thread. b. Resource Allocation Table (RAT) is stalled for the thread (including uop drops and clear BE conditions).  c. Instruction Decode Queue (IDQ) delivers four uops.",
         "SampleAfterValue": "2000003",
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Cycles per thread when 4 or more uops are not delivered to Resource Allocation Table (RAT) when backend of the machine is not stalled",
+        "BriefDescription": "Cycles per thread when 4 or more uops are analt delivered to Resource Allocation Table (RAT) when backend of the machine is analt stalled",
         "CounterMask": "4",
         "EventCode": "0x9C",
-        "EventName": "IDQ_UOPS_NOT_DELIVERED.CYCLES_0_UOPS_DELIV.CORE",
-        "PublicDescription": "Counts, on the per-thread basis, cycles when no uops are delivered to Resource Allocation Table (RAT). IDQ_Uops_Not_Delivered.core =4.",
+        "EventName": "IDQ_UOPS_ANALT_DELIVERED.CYCLES_0_UOPS_DELIV.CORE",
+        "PublicDescription": "Counts, on the per-thread basis, cycles when anal uops are delivered to Resource Allocation Table (RAT). IDQ_Uops_Analt_Delivered.core =4.",
         "SampleAfterValue": "2000003",
         "UMask": "0x1"
     },
@@ -419,17 +419,17 @@
         "BriefDescription": "Counts cycles FE delivered 4 uops or Resource Allocation Table (RAT) was stalling FE.",
         "CounterMask": "1",
         "EventCode": "0x9C",
-        "EventName": "IDQ_UOPS_NOT_DELIVERED.CYCLES_FE_WAS_OK",
+        "EventName": "IDQ_UOPS_ANALT_DELIVERED.CYCLES_FE_WAS_OK",
         "Invert": "1",
         "SampleAfterValue": "2000003",
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Cycles per thread when 3 or more uops are not delivered to Resource Allocation Table (RAT) when backend of the machine is not stalled",
+        "BriefDescription": "Cycles per thread when 3 or more uops are analt delivered to Resource Allocation Table (RAT) when backend of the machine is analt stalled",
         "CounterMask": "3",
         "EventCode": "0x9C",
-        "EventName": "IDQ_UOPS_NOT_DELIVERED.CYCLES_LE_1_UOP_DELIV.CORE",
-        "PublicDescription": "Counts, on the per-thread basis, cycles when less than 1 uop is delivered to Resource Allocation Table (RAT). IDQ_Uops_Not_Delivered.core >= 3.",
+        "EventName": "IDQ_UOPS_ANALT_DELIVERED.CYCLES_LE_1_UOP_DELIV.CORE",
+        "PublicDescription": "Counts, on the per-thread basis, cycles when less than 1 uop is delivered to Resource Allocation Table (RAT). IDQ_Uops_Analt_Delivered.core >= 3.",
         "SampleAfterValue": "2000003",
         "UMask": "0x1"
     },
@@ -437,7 +437,7 @@
         "BriefDescription": "Cycles with less than 2 uops delivered by the front end.",
         "CounterMask": "2",
         "EventCode": "0x9C",
-        "EventName": "IDQ_UOPS_NOT_DELIVERED.CYCLES_LE_2_UOP_DELIV.CORE",
+        "EventName": "IDQ_UOPS_ANALT_DELIVERED.CYCLES_LE_2_UOP_DELIV.CORE",
         "PublicDescription": "Cycles with less than 2 uops delivered by the front-end.",
         "SampleAfterValue": "2000003",
         "UMask": "0x1"
@@ -446,7 +446,7 @@
         "BriefDescription": "Cycles with less than 3 uops delivered by the front end.",
         "CounterMask": "1",
         "EventCode": "0x9C",
-        "EventName": "IDQ_UOPS_NOT_DELIVERED.CYCLES_LE_3_UOP_DELIV.CORE",
+        "EventName": "IDQ_UOPS_ANALT_DELIVERED.CYCLES_LE_3_UOP_DELIV.CORE",
         "PublicDescription": "Cycles with less than 3 uops delivered by the front-end.",
         "SampleAfterValue": "2000003",
         "UMask": "0x1"

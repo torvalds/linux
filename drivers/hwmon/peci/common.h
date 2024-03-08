@@ -33,10 +33,10 @@ struct peci_sensor_data {
 };
 
 /**
- * peci_sensor_need_update() - check whether sensor update is needed or not
+ * peci_sensor_need_update() - check whether sensor update is needed or analt
  * @sensor: pointer to sensor data struct
  *
- * Return: true if update is needed, false if not.
+ * Return: true if update is needed, false if analt.
  */
 
 static inline bool peci_sensor_need_update(struct peci_sensor_state *state)

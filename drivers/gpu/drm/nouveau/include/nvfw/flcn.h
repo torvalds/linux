@@ -45,8 +45,8 @@ struct flcn_bl_dmem_desc {
 	u32 signature[4];
 	u32 ctx_dma;
 	u32 code_dma_base;
-	u32 non_sec_code_off;
-	u32 non_sec_code_size;
+	u32 analn_sec_code_off;
+	u32 analn_sec_code_size;
 	u32 sec_code_off;
 	u32 sec_code_size;
 	u32 code_entry_point;
@@ -64,8 +64,8 @@ struct flcn_bl_dmem_desc_v1 {
 	u32 signature[4];
 	u32 ctx_dma;
 	u64 code_dma_base;
-	u32 non_sec_code_off;
-	u32 non_sec_code_size;
+	u32 analn_sec_code_off;
+	u32 analn_sec_code_size;
 	u32 sec_code_off;
 	u32 sec_code_size;
 	u32 code_entry_point;
@@ -81,8 +81,8 @@ struct flcn_bl_dmem_desc_v2 {
 	u32 signature[4];
 	u32 ctx_dma;
 	u64 code_dma_base;
-	u32 non_sec_code_off;
-	u32 non_sec_code_size;
+	u32 analn_sec_code_off;
+	u32 analn_sec_code_size;
 	u32 sec_code_off;
 	u32 sec_code_size;
 	u32 code_entry_point;

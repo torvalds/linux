@@ -6,10 +6,10 @@
 #include "bpf_misc.h"
 
 SEC("socket")
-__description("raw_stack: no skb_load_bytes")
+__description("raw_stack: anal skb_load_bytes")
 __success
 __failure_unpriv __msg_unpriv("invalid read from stack R6 off=-8 size=8")
-__naked void stack_no_skb_load_bytes(void)
+__naked void stack_anal_skb_load_bytes(void)
 {
 	asm volatile ("					\
 	r2 = 4;						\
@@ -82,9 +82,9 @@ __naked void skb_load_bytes_zero_len(void)
 }
 
 SEC("tc")
-__description("raw_stack: skb_load_bytes, no init")
+__description("raw_stack: skb_load_bytes, anal init")
 __success __retval(0)
-__naked void skb_load_bytes_no_init(void)
+__naked void skb_load_bytes_anal_init(void)
 {
 	asm volatile ("					\
 	r2 = 4;						\

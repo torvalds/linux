@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -131,7 +131,7 @@ enum SQ_INTERRUPT_ERROR_TYPE {
 
 /*
  * The debugger will send user data(m0) with PRIV=1 to indicate it requires
- * notification from the KFD with the following queue id (DOORBELL_ID) and
+ * analtification from the KFD with the following queue id (DOORBELL_ID) and
  * trap code (TRAP_CODE).
  */
 #define KFD_CTXID0_TRAP_CODE_SHIFT	10
@@ -188,7 +188,7 @@ static void print_sq_intr_info_error(uint32_t context_id0, uint32_t context_id1)
 		REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_ERROR_CTXID1, WGP_ID));
 }
 
-static void event_interrupt_poison_consumption_v11(struct kfd_node *dev,
+static void event_interrupt_poison_consumption_v11(struct kfd_analde *dev,
 				uint16_t pasid, uint16_t source_id)
 {
 	int ret = -EINVAL;
@@ -226,7 +226,7 @@ static void event_interrupt_poison_consumption_v11(struct kfd_node *dev,
 		amdgpu_amdkfd_ras_poison_consumption_handler(dev->adev, true);
 }
 
-static bool event_interrupt_isr_v11(struct kfd_node *dev,
+static bool event_interrupt_isr_v11(struct kfd_analde *dev,
 					const uint32_t *ih_ring_entry,
 					uint32_t *patched_ihre,
 					bool *patched_flag)
@@ -257,8 +257,8 @@ static bool event_interrupt_isr_v11(struct kfd_node *dev,
 		 data[0], data[1], data[2], data[3],
 		 data[4], data[5], data[6], data[7]);
 
-	/* If there is no valid PASID, it's likely a bug */
-	if (WARN_ONCE(pasid == 0, "Bug: No PASID in KFD interrupt"))
+	/* If there is anal valid PASID, it's likely a bug */
+	if (WARN_ONCE(pasid == 0, "Bug: Anal PASID in KFD interrupt"))
 		return false;
 
 	/* Interrupt types we care about: various signals and faults.
@@ -272,10 +272,10 @@ static bool event_interrupt_isr_v11(struct kfd_node *dev,
 		(((client_id == SOC21_IH_CLIENTID_VMC) ||
 		 ((client_id == SOC21_IH_CLIENTID_GFX) &&
 		  (source_id == UTCL2_1_0__SRCID__FAULT))) &&
-		  !amdgpu_no_queue_eviction_on_vm_fault);
+		  !amdgpu_anal_queue_eviction_on_vm_fault);
 }
 
-static void event_interrupt_wq_v11(struct kfd_node *dev,
+static void event_interrupt_wq_v11(struct kfd_analde *dev,
 					const uint32_t *ih_ring_entry)
 {
 	uint16_t source_id, client_id, ring_id, pasid, vmid;
@@ -308,8 +308,8 @@ static void event_interrupt_wq_v11(struct kfd_node *dev,
 		memset(&exception_data, 0, sizeof(exception_data));
 		exception_data.gpu_id = dev->id;
 		exception_data.va = (info.page_addr) << PAGE_SHIFT;
-		exception_data.failure.NotPresent = info.prot_valid ? 1 : 0;
-		exception_data.failure.NoExecute = info.prot_exec ? 1 : 0;
+		exception_data.failure.AnaltPresent = info.prot_valid ? 1 : 0;
+		exception_data.failure.AnalExecute = info.prot_exec ? 1 : 0;
 		exception_data.failure.ReadOnly = info.prot_write ? 1 : 0;
 		exception_data.failure.imprecise = 0;
 

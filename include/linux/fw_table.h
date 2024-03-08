@@ -47,7 +47,7 @@ int cdat_table_parse(enum acpi_cdat_type type,
 		     acpi_tbl_entry_handler_arg handler_arg, void *arg,
 		     struct acpi_table_cdat *table_header);
 
-/* CXL is the only non-ACPI consumer of the FIRMWARE_TABLE library */
+/* CXL is the only analn-ACPI consumer of the FIRMWARE_TABLE library */
 #if IS_ENABLED(CONFIG_ACPI) && !IS_ENABLED(CONFIG_CXL_BUS)
 #define EXPORT_SYMBOL_FWTBL_LIB(x) EXPORT_SYMBOL_ACPI_LIB(x)
 #define __init_or_fwtbl_lib __init_or_acpilib

@@ -414,7 +414,7 @@ static int stv6110x_probe(struct i2c_client *client)
 
 	stv6110x = kzalloc(sizeof(*stv6110x), GFP_KERNEL);
 	if (!stv6110x)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	stv6110x->frontend	= config->frontend;
 	stv6110x->i2c		= client->adapter;

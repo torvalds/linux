@@ -11,7 +11,7 @@
 #include <asm/facility.h>
 
 enum {
-	CACHE_SCOPE_NOTEXISTS,
+	CACHE_SCOPE_ANALTEXISTS,
 	CACHE_SCOPE_PRIVATE,
 	CACHE_SCOPE_SHARED,
 	CACHE_SCOPE_RESERVED,
@@ -88,10 +88,10 @@ void show_cacheinfo(struct seq_file *m)
 static inline enum cache_type get_cache_type(struct cache_info *ci, int level)
 {
 	if (level >= CACHE_MAX_LEVEL)
-		return CACHE_TYPE_NOCACHE;
+		return CACHE_TYPE_ANALCACHE;
 	ci += level;
 	if (ci->scope != CACHE_SCOPE_SHARED && ci->scope != CACHE_SCOPE_PRIVATE)
-		return CACHE_TYPE_NOCACHE;
+		return CACHE_TYPE_ANALCACHE;
 	return cache_type_map[ci->type];
 }
 
@@ -134,7 +134,7 @@ int init_cache_level(unsigned int cpu)
 	ct.raw = ecag(EXTRACT_TOPOLOGY, 0, 0);
 	do {
 		ctype = get_cache_type(&ct.ci[0], level);
-		if (ctype == CACHE_TYPE_NOCACHE)
+		if (ctype == CACHE_TYPE_ANALCACHE)
 			break;
 		/* Separate instruction and data caches */
 		leaves += (ctype == CACHE_TYPE_SEPARATE) ? 2 : 1;

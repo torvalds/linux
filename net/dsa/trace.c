@@ -19,7 +19,7 @@ void dsa_db_print(const struct dsa_db *db, char buf[DSA_DB_BUFSIZ])
 			db->bridge.num);
 		break;
 	default:
-		sprintf(buf, "unknown");
+		sprintf(buf, "unkanalwn");
 		break;
 	}
 }

@@ -10,7 +10,7 @@
         "BriefDescription": "Cycles the code-fetch stalls and an ITLB miss is outstanding.",
         "EventCode": "0x86",
         "EventName": "FETCH_STALL.ITLB_FILL_PENDING_CYCLES",
-        "PublicDescription": "Counts cycles that fetch is stalled due to an outstanding ITLB miss. That is, the decoder queue is able to accept bytes, but the fetch unit is unable to provide bytes due to an ITLB miss.  Note: this event is not the same as page walk cycles to retrieve an instruction translation.",
+        "PublicDescription": "Counts cycles that fetch is stalled due to an outstanding ITLB miss. That is, the decoder queue is able to accept bytes, but the fetch unit is unable to provide bytes due to an ITLB miss.  Analte: this event is analt the same as page walk cycles to retrieve an instruction translation.",
         "SampleAfterValue": "200003",
         "UMask": "0x1"
     },
@@ -18,7 +18,7 @@
         "BriefDescription": "Cycles hardware interrupts are masked",
         "EventCode": "0xCB",
         "EventName": "HW_INTERRUPTS.MASKED",
-        "PublicDescription": "Counts the number of core cycles during which interrupts are masked (disabled). Increments by 1 each core cycle that EFLAGS.IF is 0, regardless of whether interrupts are pending or not.",
+        "PublicDescription": "Counts the number of core cycles during which interrupts are masked (disabled). Increments by 1 each core cycle that EFLAGS.IF is 0, regardless of whether interrupts are pending or analt.",
         "SampleAfterValue": "200003",
         "UMask": "0x2"
     },

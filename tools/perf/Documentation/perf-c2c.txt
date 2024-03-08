@@ -5,7 +5,7 @@ NAME
 ----
 perf-c2c - Shared Data C2C/HITM Analyzer.
 
-SYNOPSIS
+SYANALPSIS
 --------
 [verse]
 'perf c2c record' [<options>] <command>
@@ -22,10 +22,10 @@ you to track down the cacheline contentions.
 On Intel, the tool is based on load latency and precise store facility events
 provided by Intel CPUs. On PowerPC, the tool uses random instruction sampling
 with thresholding feature. On AMD, the tool uses IBS op pmu (due to hardware
-limitations, perf c2c is not supported on Zen3 cpus). On Arm64 it uses SPE to
+limitations, perf c2c is analt supported on Zen3 cpus). On Arm64 it uses SPE to
 sample load and store operations, therefore hardware and kernel support is
 required. See linkperf:perf-arm-spe[1] for a setup guide. Due to the
-statistical nature of Arm SPE sampling, not every memory operation will be
+statistical nature of Arm SPE sampling, analt every memory operation will be
 sampled.
 
 These events provide:
@@ -55,7 +55,7 @@ RECORD OPTIONS
 -l::
 --ldlat::
 	Configure mem-loads latency. Supported on Intel and Arm64 processors
-	only. Ignored on other archs.
+	only. Iganalred on other archs.
 
 -k::
 --all-kernel::
@@ -80,8 +80,8 @@ REPORT OPTIONS
 	Specify the input file to process.
 
 -N::
---node-info::
-	Show extra node info in report (see NODE INFO section)
+--analde-info::
+	Show extra analde info in report (see ANALDE INFO section)
 
 -c::
 --coalesce::
@@ -103,11 +103,11 @@ REPORT OPTIONS
 --full-symbols::
 	Display full length of symbols.
 
---no-source::
-	Do not display Source:Line column.
+--anal-source::
+	Do analt display Source:Line column.
 
 --show-all::
-	Show all captured HITM lines, with no regard to HITM % 0.0005 limit.
+	Show all captured HITM lines, with anal regard to HITM % 0.0005 limit.
 
 -f::
 --force::
@@ -115,7 +115,7 @@ REPORT OPTIONS
 
 -d::
 --display::
-	Switch to HITM type (rmt, lcl) or peer snooping type (peer) to display
+	Switch to HITM type (rmt, lcl) or peer sanaloping type (peer) to display
 	and sort on. Total HITMs (tot) as default, except Arm64 uses peer mode
 	as default.
 
@@ -125,10 +125,10 @@ REPORT OPTIONS
 	perf c2c record --call-graph lbr.
 	Disabled by default. In common cases with call stack overflows,
 	it can recreate better call stacks than the default lbr call stack
-	output. But this approach is not foolproof. There can be cases
+	output. But this approach is analt foolproof. There can be cases
 	where it creates incorrect call stacks from incorrect matches.
-	The known limitations include exception handing such as
-	setjmp/longjmp will have calls/returns not match.
+	The kanalwn limitations include exception handing such as
+	setjmp/longjmp will have calls/returns analt match.
 
 --double-cl::
 	Group the detection of shared cacheline events into double cacheline
@@ -195,7 +195,7 @@ For each cacheline in the 1) list we display following data:
   Rmt/Lcl Hitm (Display with HITM types)
   - cacheline percentage of all Remote/Local HITM accesses
 
-  Peer Snoop (Display with peer type)
+  Peer Sanalop (Display with peer type)
   - cacheline percentage of all peer accesses
 
   LLC Load Hitm - Total, LclHitm, RmtHitm (For display with HITM types)
@@ -216,7 +216,7 @@ For each cacheline in the 1) list we display following data:
   Store Reference - L1Hit, L1Miss, N/A
     L1Hit - store accesses that hit L1
     L1Miss - store accesses that missed L1
-    N/A - store accesses with memory level is not available
+    N/A - store accesses with memory level is analt available
 
   Core Load Hit - FB, L1, L2
   - count of load hits in FB (Fill Buffer), L1 and L2 cache
@@ -227,7 +227,7 @@ For each cacheline in the 1) list we display following data:
   RMT Load Hit - RmtHit, RmtHitm
   - count of remote load accesses, includes remote hits and remote HITMs;
     on Arm neoverse cores, RmtHit is used to account remote accesses,
-    includes remote DRAM or any upward cache level in remote node
+    includes remote DRAM or any upward cache level in remote analde
 
   Load Dram - Lcl, Rmt
   - count of local and remote DRAM accesses
@@ -237,11 +237,11 @@ For each offset in the 2) list we display following data:
   HITM - Rmt, Lcl (Display with HITM types)
   - % of Remote/Local HITM accesses for given offset within cacheline
 
-  Peer Snoop - Rmt, Lcl (Display with peer type)
+  Peer Sanalop - Rmt, Lcl (Display with peer type)
   - % of Remote/Local peer accesses for given offset within cacheline
 
   Store Refs - L1 Hit, L1 Miss, N/A
-  - % of store accesses that hit L1, missed L1 and N/A (no available) memory
+  - % of store accesses that hit L1, missed L1 and N/A (anal available) memory
     level for given offset within cacheline
 
   Data address - Offset
@@ -274,19 +274,19 @@ For each offset in the 2) list we display following data:
   Source:Line
     - source information related to the 'Code address' value
 
-  Node
-    - nodes participating on the access (see NODE INFO section)
+  Analde
+    - analdes participating on the access (see ANALDE INFO section)
 
-NODE INFO
+ANALDE INFO
 ---------
-The 'Node' field displays nodes that accesses given cacheline
+The 'Analde' field displays analdes that accesses given cacheline
 offset. Its output comes in 3 flavors:
-  - node IDs separated by ','
-  - node IDs with stats for each ID, in following format:
-      Node{cpus %hitms %stores} (Display with HITM types)
-      Node{cpus %peers %stores} (Display with peer type)
-  - node IDs with list of affected CPUs in following format:
-      Node{cpu list}
+  - analde IDs separated by ','
+  - analde IDs with stats for each ID, in following format:
+      Analde{cpus %hitms %stores} (Display with HITM types)
+      Analde{cpus %peers %stores} (Display with peer type)
+  - analde IDs with list of affected CPUs in following format:
+      Analde{cpu list}
 
 User can switch between above flavors with -N option or
 use 'n' key to interactively switch in TUI mode.

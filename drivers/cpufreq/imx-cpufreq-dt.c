@@ -89,8 +89,8 @@ static int imx_cpufreq_dt_probe(struct platform_device *pdev)
 
 	cpu_dev = get_cpu_device(0);
 
-	if (!of_property_present(cpu_dev->of_node, "cpu-supply"))
-		return -ENODEV;
+	if (!of_property_present(cpu_dev->of_analde, "cpu-supply"))
+		return -EANALDEV;
 
 	if (of_machine_is_compatible("fsl,imx7ulp")) {
 		ret = clk_bulk_get(cpu_dev, ARRAY_SIZE(imx7ulp_clks),
@@ -133,9 +133,9 @@ static int imx_cpufreq_dt_probe(struct platform_device *pdev)
 			       >> OCOTP_CFG3_MKT_SEGMENT_SHIFT;
 
 	/*
-	 * Early samples without fuses written report "0 0" which may NOT
+	 * Early samples without fuses written report "0 0" which may ANALT
 	 * match any OPP defined in DT. So clamp to minimum OPP defined in
-	 * DT to avoid warning for "no OPPs".
+	 * DT to avoid warning for "anal OPPs".
 	 *
 	 * Applies to i.MX8M series SoCs.
 	 */

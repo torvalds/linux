@@ -31,10 +31,10 @@ MODULE_LICENSE("GPL v2");
 
 struct sja1000_of_data {
 	size_t  priv_sz;
-	void    (*init)(struct sja1000_priv *priv, struct device_node *of);
+	void    (*init)(struct sja1000_priv *priv, struct device_analde *of);
 };
 
-struct technologic_priv {
+struct techanallogic_priv {
 	spinlock_t      io_lock;
 };
 
@@ -68,9 +68,9 @@ static void sp_write_reg32(const struct sja1000_priv *priv, int reg, u8 val)
 	iowrite8(val, priv->reg_base + reg * 4);
 }
 
-static u8 sp_technologic_read_reg16(const struct sja1000_priv *priv, int reg)
+static u8 sp_techanallogic_read_reg16(const struct sja1000_priv *priv, int reg)
 {
-	struct technologic_priv *tp = priv->priv;
+	struct techanallogic_priv *tp = priv->priv;
 	unsigned long flags;
 	u8 val;
 
@@ -82,10 +82,10 @@ static u8 sp_technologic_read_reg16(const struct sja1000_priv *priv, int reg)
 	return val;
 }
 
-static void sp_technologic_write_reg16(const struct sja1000_priv *priv,
+static void sp_techanallogic_write_reg16(const struct sja1000_priv *priv,
 				       int reg, u8 val)
 {
-	struct technologic_priv *tp = priv->priv;
+	struct techanallogic_priv *tp = priv->priv;
 	unsigned long flags;
 
 	spin_lock_irqsave(&tp->io_lock, flags);
@@ -94,18 +94,18 @@ static void sp_technologic_write_reg16(const struct sja1000_priv *priv,
 	spin_unlock_irqrestore(&tp->io_lock, flags);
 }
 
-static void sp_technologic_init(struct sja1000_priv *priv, struct device_node *of)
+static void sp_techanallogic_init(struct sja1000_priv *priv, struct device_analde *of)
 {
-	struct technologic_priv *tp = priv->priv;
+	struct techanallogic_priv *tp = priv->priv;
 
-	priv->read_reg = sp_technologic_read_reg16;
-	priv->write_reg = sp_technologic_write_reg16;
+	priv->read_reg = sp_techanallogic_read_reg16;
+	priv->write_reg = sp_techanallogic_write_reg16;
 	spin_lock_init(&tp->io_lock);
 }
 
-static void sp_rzn1_init(struct sja1000_priv *priv, struct device_node *of)
+static void sp_rzn1_init(struct sja1000_priv *priv, struct device_analde *of)
 {
-	priv->flags = SJA1000_QUIRK_NO_CDR_REG | SJA1000_QUIRK_RESET_ON_OVERRUN;
+	priv->flags = SJA1000_QUIRK_ANAL_CDR_REG | SJA1000_QUIRK_RESET_ON_OVERRUN;
 }
 
 static void sp_populate(struct sja1000_priv *priv,
@@ -134,7 +134,7 @@ static void sp_populate(struct sja1000_priv *priv,
 	}
 }
 
-static void sp_populate_of(struct sja1000_priv *priv, struct device_node *of)
+static void sp_populate_of(struct sja1000_priv *priv, struct device_analde *of)
 {
 	int err;
 	u32 prop;
@@ -170,7 +170,7 @@ static void sp_populate_of(struct sja1000_priv *priv, struct device_node *of)
 	if (!err)
 		priv->ocr |= prop & OCR_MODE_MASK;
 	else
-		priv->ocr |= OCR_MODE_NORMAL; /* default */
+		priv->ocr |= OCR_MODE_ANALRMAL; /* default */
 
 	err = of_property_read_u32(of, "nxp,tx-output-config", &prop);
 	if (!err)
@@ -190,13 +190,13 @@ static void sp_populate_of(struct sja1000_priv *priv, struct device_node *of)
 		priv->cdr |= CDR_CLK_OFF; /* default */
 	}
 
-	if (!of_property_read_bool(of, "nxp,no-comparator-bypass"))
+	if (!of_property_read_bool(of, "nxp,anal-comparator-bypass"))
 		priv->cdr |= CDR_CBP; /* default */
 }
 
-static struct sja1000_of_data technologic_data = {
-	.priv_sz = sizeof(struct technologic_priv),
-	.init = sp_technologic_init,
+static struct sja1000_of_data techanallogic_data = {
+	.priv_sz = sizeof(struct techanallogic_priv),
+	.init = sp_techanallogic_init,
 };
 
 static struct sja1000_of_data renesas_data = {
@@ -206,7 +206,7 @@ static struct sja1000_of_data renesas_data = {
 static const struct of_device_id sp_of_table[] = {
 	{ .compatible = "nxp,sja1000", .data = NULL, },
 	{ .compatible = "renesas,rzn1-sja1000", .data = &renesas_data, },
-	{ .compatible = "technologic,sja1000", .data = &technologic_data, },
+	{ .compatible = "techanallogic,sja1000", .data = &techanallogic_data, },
 	{ /* sentinel */ },
 };
 MODULE_DEVICE_TABLE(of, sp_of_table);
@@ -219,20 +219,20 @@ static int sp_probe(struct platform_device *pdev)
 	struct sja1000_priv *priv;
 	struct resource *res_mem, *res_irq = NULL;
 	struct sja1000_platform_data *pdata;
-	struct device_node *of = pdev->dev.of_node;
+	struct device_analde *of = pdev->dev.of_analde;
 	const struct sja1000_of_data *of_data = NULL;
 	size_t priv_sz = 0;
 	struct clk *clk;
 
 	pdata = dev_get_platdata(&pdev->dev);
 	if (!pdata && !of) {
-		dev_err(&pdev->dev, "No platform data provided!\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "Anal platform data provided!\n");
+		return -EANALDEV;
 	}
 
 	res_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res_mem)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!devm_request_mem_region(&pdev->dev, res_mem->start,
 				     resource_size(res_mem), DRV_NAME))
@@ -241,7 +241,7 @@ static int sp_probe(struct platform_device *pdev)
 	addr = devm_ioremap(&pdev->dev, res_mem->start,
 				    resource_size(res_mem));
 	if (!addr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (of) {
 		irq = platform_get_irq(pdev, 0);
@@ -255,7 +255,7 @@ static int sp_probe(struct platform_device *pdev)
 	} else {
 		res_irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 		if (!res_irq)
-			return -ENODEV;
+			return -EANALDEV;
 	}
 
 	of_data = device_get_match_data(&pdev->dev);
@@ -264,7 +264,7 @@ static int sp_probe(struct platform_device *pdev)
 
 	dev = alloc_sja1000dev(priv_sz);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 	priv = netdev_priv(dev);
 
 	if (res_irq) {

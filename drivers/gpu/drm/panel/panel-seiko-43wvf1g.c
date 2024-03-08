@@ -244,7 +244,7 @@ static int seiko_panel_probe(struct device *dev,
 
 	panel = devm_kzalloc(dev, sizeof(*panel), GFP_KERNEL);
 	if (!panel)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	panel->enabled = false;
 	panel->prepared = false;
@@ -332,9 +332,9 @@ static int seiko_panel_platform_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *id;
 
-	id = of_match_node(platform_of_match, pdev->dev.of_node);
+	id = of_match_analde(platform_of_match, pdev->dev.of_analde);
 	if (!id)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return seiko_panel_probe(&pdev->dev, id->data);
 }

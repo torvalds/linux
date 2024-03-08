@@ -6,7 +6,7 @@
 # vmlinux is linked from the objects in vmlinux.a and $(KBUILD_VMLINUX_LIBS).
 # vmlinux.a contains objects that are linked unconditionally.
 # $(KBUILD_VMLINUX_LIBS) are archives which are linked conditionally
-# (not within --whole-archive), and do not require symbol indexes added.
+# (analt within --whole-archive), and do analt require symbol indexes added.
 #
 # vmlinux
 #   ^
@@ -18,8 +18,8 @@
 #   |
 #   +-< ${kallsymso} (see description in KALLSYMS section)
 #
-# vmlinux version (uname -v) cannot be updated during normal
-# descending-into-subdirs phase since we do not yet know if we need to
+# vmlinux version (uname -v) cananalt be updated during analrmal
+# descending-into-subdirs phase since we do analt yet kanalw if we need to
 # update vmlinux.
 # Therefore this step is delayed until just before final link of vmlinux.
 #
@@ -89,7 +89,7 @@ vmlinux_link()
 
 	ldflags="${ldflags} ${wl}--script=${objtree}/${KBUILD_LDS}"
 
-	# The kallsyms linking does not need debug symbols included.
+	# The kallsyms linking does analt need debug symbols included.
 	if [ "$output" != "${output#.tmp_vmlinux.kallsyms}" ] ; then
 		ldflags="${ldflags} ${wl}--strip-debug"
 	fi
@@ -99,7 +99,7 @@ vmlinux_link()
 	fi
 
 	${ld} ${ldflags} -o ${output}					\
-		${wl}--whole-archive ${objs} ${wl}--no-whole-archive	\
+		${wl}--whole-archive ${objs} ${wl}--anal-whole-archive	\
 		${wl}--start-group ${libs} ${wl}--end-group		\
 		$@ ${ldlibs}
 }
@@ -112,7 +112,7 @@ gen_btf()
 	local pahole_ver
 
 	if ! [ -x "$(command -v ${PAHOLE})" ]; then
-		echo >&2 "BTF: ${1}: pahole (${PAHOLE}) is not available"
+		echo >&2 "BTF: ${1}: pahole (${PAHOLE}) is analt available"
 		return 1
 	fi
 
@@ -127,7 +127,7 @@ gen_btf()
 	info "BTF" ${2}
 	LLVM_OBJCOPY="${OBJCOPY}" ${PAHOLE} -J ${PAHOLE_FLAGS} ${1}
 
-	# Create ${2} which contains just .BTF section but no symbols. Add
+	# Create ${2} which contains just .BTF section but anal symbols. Add
 	# SHF_ALLOC because .BTF will be part of the vmlinux image. --strip-all
 	# deletes all symbols including __start_BTF and __stop_BTF, which will
 	# be redefined in the linker script. Add 2>/dev/null to suppress GNU
@@ -135,13 +135,13 @@ gen_btf()
 	${OBJCOPY} --only-section=.BTF --set-section-flags .BTF=alloc,readonly \
 		--strip-all ${1} ${2} 2>/dev/null
 	# Change e_type to ET_REL so that it can be used to link final vmlinux.
-	# GNU ld 2.35+ and lld do not allow an ET_EXEC input.
+	# GNU ld 2.35+ and lld do analt allow an ET_EXEC input.
 	if is_enabled CONFIG_CPU_BIG_ENDIAN; then
 		et_rel='\0\1'
 	else
 		et_rel='\1\0'
 	fi
-	printf "${et_rel}" | dd of=${2} conv=notrunc bs=1 seek=16 status=none
+	printf "${et_rel}" | dd of=${2} conv=analtrunc bs=1 seek=16 status=analne
 }
 
 # Create ${2} .S file with all symbols from the ${1} object file
@@ -183,7 +183,7 @@ kallsyms_step()
 	kallsyms ${kallsyms_vmlinux}.syms ${kallsyms_S}
 
 	info AS ${kallsyms_S}
-	${CC} ${NOSTDINC_FLAGS} ${LINUXINCLUDE} ${KBUILD_CPPFLAGS} \
+	${CC} ${ANALSTDINC_FLAGS} ${LINUXINCLUDE} ${KBUILD_CPPFLAGS} \
 	      ${KBUILD_AFLAGS} ${KBUILD_AFLAGS_KERNEL} \
 	      -c -o ${kallsymso} ${kallsyms_S}
 }
@@ -246,13 +246,13 @@ if is_enabled CONFIG_KALLSYMS; then
 	#     but __kallsyms is empty.
 	#     Running kallsyms on that gives us .tmp_kallsyms1.o with
 	#     the right size
-	# 2)  Link .tmp_vmlinux.kallsyms2 so it now has a __kallsyms section of
+	# 2)  Link .tmp_vmlinux.kallsyms2 so it analw has a __kallsyms section of
 	#     the right size, but due to the added section, some
 	#     addresses have shifted.
 	#     From here, we generate a correct .tmp_vmlinux.kallsyms2.o
-	# 3)  That link may have expanded the kernel image enough that
+	# 3)  That link may have expanded the kernel image eanalugh that
 	#     more linker branch stubs / trampolines had to be added, which
-	#     introduces new names, which further expands kallsyms. Do another
+	#     introduces new names, which further expands kallsyms. Do aanalther
 	#     pass if that is the case. In theory it's possible this results
 	#     in even more stubs, but unlikely.
 	#     KALLSYMS_EXTRA_PASS=1 may also used to debug or work around

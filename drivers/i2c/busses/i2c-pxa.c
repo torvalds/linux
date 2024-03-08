@@ -19,7 +19,7 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
@@ -70,7 +70,7 @@
 #define ISR_IRF		(1 << 7)	   /* rx buffer full */
 #define ISR_GCAD	(1 << 8)	   /* general call address detected */
 #define ISR_SAD		(1 << 9)	   /* slave address detected */
-#define ISR_BED		(1 << 10)	   /* bus error no ACK/NAK */
+#define ISR_BED		(1 << 10)	   /* bus error anal ACK/NAK */
 
 #define ILCR_SLV_SHIFT		0
 #define ILCR_SLV_MASK		(0x1FF << ILCR_SLV_SHIFT)
@@ -93,7 +93,7 @@
  */
 #define DEF_TIMEOUT             32
 
-#define NO_SLAVE		(-ENXIO)
+#define ANAL_SLAVE		(-ENXIO)
 #define BUS_ERROR               (-EREMOTEIO)
 #define XFER_NAKED              (-ECONNREFUSED)
 #define I2C_RETRY               (-2000) /* an error has occurred retry transmit */
@@ -101,23 +101,23 @@
 /* ICR initialize bit values
  *
  * 15 FM     0 (100 kHz operation)
- * 14 UR     0 (No unit reset)
+ * 14 UR     0 (Anal unit reset)
  * 13 SADIE  0 (Disables the unit from interrupting on slave addresses
  *              matching its slave address)
  * 12 ALDIE  0 (Disables the unit from interrupt when it loses arbitration
  *              in master mode)
  * 11 SSDIE  0 (Disables interrupts from a slave stop detected, in slave mode)
- * 10 BEIE   1 (Enable interrupts from detected bus errors, no ACK sent)
+ * 10 BEIE   1 (Enable interrupts from detected bus errors, anal ACK sent)
  *  9 IRFIE  1 (Enable interrupts from full buffer received)
  *  8 ITEIE  1 (Enables the I2C unit to interrupt when transmit buffer empty)
  *  7 GCD    1 (Disables i2c unit response to general call messages as a slave)
  *  6 IUE    0 (Disable unit until we change settings)
  *  5 SCLE   1 (Enables the i2c clock output for master mode (drives SCL)
  *  4 MA     0 (Only send stop with the ICR stop bit)
- *  3 TB     0 (We are not transmitting a byte initially)
+ *  3 TB     0 (We are analt transmitting a byte initially)
  *  2 ACKNAK 0 (Send an ACK after the unit receives a byte)
- *  1 STOP   0 (Do not send a STOP)
- *  0 START  0 (Do not send a START)
+ *  1 STOP   0 (Do analt send a STOP)
+ *  0 START  0 (Do analt send a START)
  */
 #define I2C_ICR_INIT	(ICR_BEIE | ICR_IRFIE | ICR_ITEIE | ICR_GCD | ICR_SCLE)
 
@@ -177,7 +177,7 @@ static struct pxa_reg_layout pxa_reg_layout[] = {
 		.idbr =	0x0c,
 		.icr =	0x00,
 		.isr =	0x04,
-		/* no isar register */
+		/* anal isar register */
 		.fm = ICR_FM,
 		.hs = ICR_HS,
 	},
@@ -351,9 +351,9 @@ static void decode_ICR(unsigned int val)
 
 static unsigned int i2c_debug = DEBUG;
 
-static void i2c_pxa_show_state(struct pxa_i2c *i2c, int lno, const char *fname)
+static void i2c_pxa_show_state(struct pxa_i2c *i2c, int lanal, const char *fname)
 {
-	dev_dbg(&i2c->adap.dev, "state:%s:%d: ISR=%08x, ICR=%08x, IBMR=%02x\n", fname, lno,
+	dev_dbg(&i2c->adap.dev, "state:%s:%d: ISR=%08x, ICR=%08x, IBMR=%02x\n", fname, lanal,
 		readl(_ISR(i2c)), readl(_ICR(i2c)), readl(_IBMR(i2c)));
 }
 
@@ -422,7 +422,7 @@ static void i2c_pxa_abort(struct pxa_i2c *i2c)
 	       _ICR(i2c));
 }
 
-static int i2c_pxa_wait_bus_not_busy(struct pxa_i2c *i2c)
+static int i2c_pxa_wait_bus_analt_busy(struct pxa_i2c *i2c)
 {
 	int timeout = DEF_TIMEOUT;
 	u32 isr;
@@ -462,7 +462,7 @@ static int i2c_pxa_wait_master(struct pxa_i2c *i2c)
 			goto out;
 		}
 
-		/* wait for unit and bus being not busy, and we also do a
+		/* wait for unit and bus being analt busy, and we also do a
 		 * quick check of the i2c lines themselves to ensure they've
 		 * gone high...
 		 */
@@ -477,7 +477,7 @@ static int i2c_pxa_wait_master(struct pxa_i2c *i2c)
 	}
 
 	if (i2c_debug > 0)
-		dev_dbg(&i2c->adap.dev, "%s: did not free\n", __func__);
+		dev_dbg(&i2c->adap.dev, "%s: did analt free\n", __func__);
  out:
 	return 0;
 }
@@ -525,7 +525,7 @@ static int i2c_pxa_wait_slave(struct pxa_i2c *i2c)
 	}
 
 	if (i2c_debug > 0)
-		dev_dbg(&i2c->adap.dev, "%s: did not free\n", __func__);
+		dev_dbg(&i2c->adap.dev, "%s: did analt free\n", __func__);
 	return 0;
 }
 
@@ -559,7 +559,7 @@ static void i2c_pxa_set_slave(struct pxa_i2c *i2c, int errcode)
 	writel(readl(_ICR(i2c)) & ~ICR_SCLE, _ICR(i2c));
 
 	if (i2c_debug) {
-		dev_dbg(&i2c->adap.dev, "ICR now %08x, ISR %08x\n", readl(_ICR(i2c)), readl(_ISR(i2c)));
+		dev_dbg(&i2c->adap.dev, "ICR analw %08x, ISR %08x\n", readl(_ICR(i2c)), readl(_ISR(i2c)));
 		decode_ICR(readl(_ICR(i2c)));
 	}
 }
@@ -697,7 +697,7 @@ static void i2c_pxa_slave_stop(struct pxa_i2c *i2c)
 
 	/*
 	 * If we have a master-mode message waiting,
-	 * kick it off now that the slave has completed.
+	 * kick it off analw that the slave has completed.
 	 */
 	if (i2c->msg)
 		i2c_pxa_master_complete(i2c, I2C_RETRY);
@@ -711,7 +711,7 @@ static int i2c_pxa_slave_reg(struct i2c_client *slave)
 		return -EBUSY;
 
 	if (!i2c->reg_isar)
-		return -EAFNOSUPPORT;
+		return -EAFANALSUPPORT;
 
 	i2c->slave = slave;
 	i2c->slave_addr = slave->addr;
@@ -820,7 +820,7 @@ static inline void i2c_pxa_stop_message(struct pxa_i2c *i2c)
 /*
  * PXA I2C send master code
  * 1. Load master code to IDBR and send it.
- *    Note for HS mode, set ICR [GPIOEN].
+ *    Analte for HS mode, set ICR [GPIOEN].
  * 2. Wait until win arbitration.
  */
 static int i2c_pxa_send_mastercode(struct pxa_i2c *i2c)
@@ -876,16 +876,16 @@ static void i2c_pxa_irq_txempty(struct pxa_i2c *i2c, u32 isr)
 		i2c_pxa_scream_blue_murder(i2c, "ALD set");
 
 		/*
-		 * We ignore this error.  We seem to see spurious ALDs
-		 * for seemingly no reason.  If we handle them as I think
+		 * We iganalre this error.  We seem to see spurious ALDs
+		 * for seemingly anal reason.  If we handle them as I think
 		 * they should, we end up causing an I2C error, which
 		 * is painful for some systems.
 		 */
-		return; /* ignore */
+		return; /* iganalre */
 	}
 
 	if ((isr & ISR_BED) &&
-		(!((i2c->msg->flags & I2C_M_IGNORE_NAK) &&
+		(!((i2c->msg->flags & I2C_M_IGANALRE_NAK) &&
 			(isr & ISR_ACKNAK)))) {
 		int ret = BUS_ERROR;
 
@@ -896,7 +896,7 @@ static void i2c_pxa_irq_txempty(struct pxa_i2c *i2c, u32 isr)
 		 */
 		if (isr & ISR_ACKNAK) {
 			if (i2c->msg_ptr == 0 && i2c->msg_idx == 0)
-				ret = NO_SLAVE;
+				ret = ANAL_SLAVE;
 			else
 				ret = XFER_NAKED;
 		}
@@ -904,7 +904,7 @@ static void i2c_pxa_irq_txempty(struct pxa_i2c *i2c, u32 isr)
 	} else if (isr & ISR_RWM) {
 		/*
 		 * Read mode.  We have just sent the address byte, and
-		 * now we must initiate the transfer.
+		 * analw we must initiate the transfer.
 		 */
 		if (i2c->msg_ptr == i2c->msg->len - 1 &&
 		    i2c->msg_idx == i2c->msg_num - 1)
@@ -938,10 +938,10 @@ static void i2c_pxa_irq_txempty(struct pxa_i2c *i2c, u32 isr)
 
 		/*
 		 * If we aren't doing a repeated start and address,
-		 * go back and try to send the next byte.  Note that
-		 * we do not support switching the R/W direction here.
+		 * go back and try to send the next byte.  Analte that
+		 * we do analt support switching the R/W direction here.
 		 */
-		if (i2c->msg->flags & I2C_M_NOSTART)
+		if (i2c->msg->flags & I2C_M_ANALSTART)
 			goto again;
 
 		/*
@@ -1002,7 +1002,7 @@ static irqreturn_t i2c_pxa_handler(int this_irq, void *dev_id)
 	u32 isr = readl(_ISR(i2c));
 
 	if (!(isr & VALID_INT_SOURCE))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (i2c_debug > 2 && 0) {
 		dev_dbg(&i2c->adap.dev, "%s: ISR=%08x, ICR=%08x, IBMR=%02x\n",
@@ -1056,7 +1056,7 @@ static int i2c_pxa_do_xfer(struct pxa_i2c *i2c, struct i2c_msg *msg, int num)
 	/*
 	 * Wait for the bus to become free.
 	 */
-	ret = i2c_pxa_wait_bus_not_busy(i2c);
+	ret = i2c_pxa_wait_bus_analt_busy(i2c);
 	if (ret) {
 		dev_err(&i2c->adap.dev, "i2c_pxa: timeout waiting for bus free\n");
 		i2c_recover_bus(&i2c->adap);
@@ -1122,7 +1122,7 @@ static int i2c_pxa_internal_xfer(struct pxa_i2c *i2c,
 
 	for (i = 0; ; ) {
 		ret = xfer(i2c, msgs, num);
-		if (ret != I2C_RETRY && ret != NO_SLAVE)
+		if (ret != I2C_RETRY && ret != ANAL_SLAVE)
 			goto out;
 		if (++i >= i2c->adap.retries)
 			break;
@@ -1131,7 +1131,7 @@ static int i2c_pxa_internal_xfer(struct pxa_i2c *i2c,
 			dev_dbg(&i2c->adap.dev, "Retrying transmission\n");
 		udelay(100);
 	}
-	if (ret != NO_SLAVE)
+	if (ret != ANAL_SLAVE)
 		i2c_pxa_scream_blue_murder(i2c, "exhausted retries");
 	ret = -EREMOTEIO;
  out:
@@ -1150,7 +1150,7 @@ static int i2c_pxa_xfer(struct i2c_adapter *adap,
 static u32 i2c_pxa_functionality(struct i2c_adapter *adap)
 {
 	return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL |
-		I2C_FUNC_PROTOCOL_MANGLING | I2C_FUNC_NOSTART;
+		I2C_FUNC_PROTOCOL_MANGLING | I2C_FUNC_ANALSTART;
 }
 
 static const struct i2c_algorithm i2c_pxa_algorithm = {
@@ -1162,7 +1162,7 @@ static const struct i2c_algorithm i2c_pxa_algorithm = {
 #endif
 };
 
-/* Non-interrupt mode support */
+/* Analn-interrupt mode support */
 static int i2c_pxa_pio_set_master(struct pxa_i2c *i2c)
 {
 	/* make timeout the same as for interrupt based functions */
@@ -1255,9 +1255,9 @@ static const struct i2c_algorithm i2c_pxa_pio_algorithm = {
 static int i2c_pxa_probe_dt(struct platform_device *pdev, struct pxa_i2c *i2c,
 			    enum pxa_i2c_types *i2c_types)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 
-	if (!pdev->dev.of_node)
+	if (!pdev->dev.of_analde)
 		return 1;
 
 	/* For device tree we always use the dynamic or alias-assigned ID */
@@ -1312,7 +1312,7 @@ static void i2c_pxa_unprepare_recovery(struct i2c_adapter *adap)
 	u32 isr;
 
 	/*
-	 * The bus should now be free. Clear up the I2C controller before
+	 * The bus should analw be free. Clear up the I2C controller before
 	 * handing control of the bus back to avoid the bus changing state.
 	 */
 	isr = readl(_ISR(i2c));
@@ -1336,16 +1336,16 @@ static int i2c_pxa_init_recovery(struct pxa_i2c *i2c)
 	struct device *dev = i2c->adap.dev.parent;
 
 	/*
-	 * When slave mode is enabled, we are not the only master on the bus.
+	 * When slave mode is enabled, we are analt the only master on the bus.
 	 * Bus recovery can only be performed when we are the master, which
 	 * we can't be certain of. Therefore, when slave mode is enabled, do
-	 * not configure bus recovery.
+	 * analt configure bus recovery.
 	 */
 	if (IS_ENABLED(CONFIG_I2C_PXA_SLAVE))
 		return 0;
 
 	i2c->pinctrl = devm_pinctrl_get(dev);
-	if (PTR_ERR(i2c->pinctrl) == -ENODEV)
+	if (PTR_ERR(i2c->pinctrl) == -EANALDEV)
 		i2c->pinctrl = NULL;
 	if (IS_ERR(i2c->pinctrl))
 		return PTR_ERR(i2c->pinctrl);
@@ -1379,7 +1379,7 @@ static int i2c_pxa_init_recovery(struct pxa_i2c *i2c)
 
 	/*
 	 * We have SCL. Pull SCL low and wait a bit so that SDA glitches
-	 * have no effect.
+	 * have anal effect.
 	 */
 	gpiod_direction_output(bri->scl_gpiod, 0);
 	udelay(10);
@@ -1426,7 +1426,7 @@ static int i2c_pxa_probe(struct platform_device *dev)
 
 	i2c = devm_kzalloc(&dev->dev, sizeof(struct pxa_i2c), GFP_KERNEL);
 	if (!i2c)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Default adapter num to device id; i2c_pxa_probe_dt can override. */
 	i2c->adap.nr = dev->id;
@@ -1435,7 +1435,7 @@ static int i2c_pxa_probe(struct platform_device *dev)
 	i2c->adap.algo_data = i2c;
 	i2c->adap.dev.parent = &dev->dev;
 #ifdef CONFIG_OF
-	i2c->adap.dev.of_node = dev->dev.of_node;
+	i2c->adap.dev.of_analde = dev->dev.of_analde;
 #endif
 
 	i2c->reg_base = devm_platform_get_and_ioremap_resource(dev, 0, &res);
@@ -1499,7 +1499,7 @@ static int i2c_pxa_probe(struct platform_device *dev)
 			pr_info("i2c: <%s> set rate to %ld\n",
 				i2c->adap.name, clk_get_rate(i2c->clk));
 		} else
-			pr_warn("i2c: <%s> clock rate not set\n",
+			pr_warn("i2c: <%s> clock rate analt set\n",
 				i2c->adap.name);
 	}
 
@@ -1510,7 +1510,7 @@ static int i2c_pxa_probe(struct platform_device *dev)
 	} else {
 		i2c->adap.algo = &i2c_pxa_algorithm;
 		ret = devm_request_irq(&dev->dev, irq, i2c_pxa_handler,
-				IRQF_SHARED | IRQF_NO_SUSPEND,
+				IRQF_SHARED | IRQF_ANAL_SUSPEND,
 				dev_name(&dev->dev), i2c);
 		if (ret) {
 			dev_err(&dev->dev, "failed to request irq: %d\n", ret);
@@ -1548,7 +1548,7 @@ static void i2c_pxa_remove(struct platform_device *dev)
 	clk_disable_unprepare(i2c->clk);
 }
 
-static int i2c_pxa_suspend_noirq(struct device *dev)
+static int i2c_pxa_suspend_analirq(struct device *dev)
 {
 	struct pxa_i2c *i2c = dev_get_drvdata(dev);
 
@@ -1557,7 +1557,7 @@ static int i2c_pxa_suspend_noirq(struct device *dev)
 	return 0;
 }
 
-static int i2c_pxa_resume_noirq(struct device *dev)
+static int i2c_pxa_resume_analirq(struct device *dev)
 {
 	struct pxa_i2c *i2c = dev_get_drvdata(dev);
 
@@ -1568,8 +1568,8 @@ static int i2c_pxa_resume_noirq(struct device *dev)
 }
 
 static const struct dev_pm_ops i2c_pxa_dev_pm_ops = {
-	.suspend_noirq = i2c_pxa_suspend_noirq,
-	.resume_noirq = i2c_pxa_resume_noirq,
+	.suspend_analirq = i2c_pxa_suspend_analirq,
+	.resume_analirq = i2c_pxa_resume_analirq,
 };
 
 static struct platform_driver i2c_pxa_driver = {

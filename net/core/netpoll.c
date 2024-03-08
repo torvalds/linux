@@ -67,8 +67,8 @@ module_param(carrier_timeout, uint, 0644);
 	pr_info("%s: " fmt, np->name, ##__VA_ARGS__)
 #define np_err(np, fmt, ...)				\
 	pr_err("%s: " fmt, np->name, ##__VA_ARGS__)
-#define np_notice(np, fmt, ...)				\
-	pr_notice("%s: " fmt, np->name, ##__VA_ARGS__)
+#define np_analtice(np, fmt, ...)				\
+	pr_analtice("%s: " fmt, np->name, ##__VA_ARGS__)
 
 static netdev_tx_t netpoll_start_xmit(struct sk_buff *skb,
 				      struct net_device *dev,
@@ -341,7 +341,7 @@ static netdev_tx_t __netpoll_send_skb(struct netpoll *np, struct sk_buff *skb)
 		return NET_XMIT_DROP;
 	}
 
-	/* don't get messages out of order, and no recursion */
+	/* don't get messages out of order, and anal recursion */
 	if (skb_queue_len(&npinfo->txq) == 0 && !netpoll_owner_active(dev)) {
 		struct netdev_queue *txq;
 
@@ -584,7 +584,7 @@ int netpoll_parse_options(struct netpoll *np, char *opt)
 			goto parse_failed;
 		*delim = 0;
 		if (*cur == ' ' || *cur == '\t')
-			np_info(np, "warning: whitespace is not allowed\n");
+			np_info(np, "warning: whitespace is analt allowed\n");
 		if (kstrtou16(cur, 10, &np->remote_port))
 			goto parse_failed;
 		cur = delim;
@@ -632,14 +632,14 @@ int __netpoll_setup(struct netpoll *np, struct net_device *ndev)
 	if (ndev->priv_flags & IFF_DISABLE_NETPOLL) {
 		np_err(np, "%s doesn't support polling, aborting\n",
 		       np->dev_name);
-		err = -ENOTSUPP;
+		err = -EANALTSUPP;
 		goto out;
 	}
 
 	if (!ndev->npinfo) {
 		npinfo = kmalloc(sizeof(*npinfo), GFP_KERNEL);
 		if (!npinfo) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto out;
 		}
 
@@ -687,7 +687,7 @@ int netpoll_setup(struct netpoll *np)
 	}
 	if (!ndev) {
 		np_err(np, "%s doesn't exist, aborting\n", np->dev_name);
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto unlock;
 	}
 	netdev_hold(ndev, &np->dev_tracker, GFP_KERNEL);
@@ -701,7 +701,7 @@ int netpoll_setup(struct netpoll *np)
 	if (!netif_running(ndev)) {
 		unsigned long atmost;
 
-		np_info(np, "device %s not up yet, forcing it\n", np->dev_name);
+		np_info(np, "device %s analt up yet, forcing it\n", np->dev_name);
 
 		err = dev_open(ndev, NULL);
 
@@ -714,7 +714,7 @@ int netpoll_setup(struct netpoll *np)
 		atmost = jiffies + carrier_timeout * HZ;
 		while (!netif_carrier_ok(ndev)) {
 			if (time_after(jiffies, atmost)) {
-				np_notice(np, "timeout waiting for carrier\n");
+				np_analtice(np, "timeout waiting for carrier\n");
 				break;
 			}
 			msleep(1);
@@ -729,12 +729,12 @@ int netpoll_setup(struct netpoll *np)
 
 			in_dev = __in_dev_get_rtnl(ndev);
 			if (!in_dev)
-				goto put_noaddr;
+				goto put_analaddr;
 
 			ifa = rtnl_dereference(in_dev->ifa_list);
 			if (!ifa) {
-put_noaddr:
-				np_err(np, "no IP address for %s, aborting\n",
+put_analaddr:
+				np_err(np, "anal IP address for %s, aborting\n",
 				       np->dev_name);
 				err = -EDESTADDRREQ;
 				goto put;
@@ -763,13 +763,13 @@ put_noaddr:
 				read_unlock_bh(&idev->lock);
 			}
 			if (err) {
-				np_err(np, "no IPv6 address for %s, aborting\n",
+				np_err(np, "anal IPv6 address for %s, aborting\n",
 				       np->dev_name);
 				goto put;
 			} else
 				np_info(np, "local IPv6 %pI6c\n", &np->local_ip.in6);
 #else
-			np_err(np, "IPv6 is not supported %s, aborting\n",
+			np_err(np, "IPv6 is analt supported %s, aborting\n",
 			       np->dev_name);
 			err = -EINVAL;
 			goto put;
@@ -813,7 +813,7 @@ static void rcu_cleanup_netpoll_info(struct rcu_head *rcu_head)
 
 	/* clean after last, unfinished work */
 	__skb_queue_purge(&npinfo->txq);
-	/* now cancel it again */
+	/* analw cancel it again */
 	cancel_delayed_work(&npinfo->tx_work);
 	kfree(npinfo);
 }

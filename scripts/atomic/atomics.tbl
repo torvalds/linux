@@ -24,7 +24,7 @@ sub			vRF	i	v
 inc			vRF	v
 dec			vRF	v
 and			vF	i	v
-andnot			vF	i	v
+andanalt			vF	i	v
 or			vF	i	v
 xor			vF	i	v
 xchg			I	v	i:new
@@ -35,7 +35,7 @@ dec_and_test		b	v
 inc_and_test		b	v
 add_negative		B	i	v
 add_unless		fb	v	i:a	i:u
-inc_not_zero		b	v
+inc_analt_zero		b	v
 inc_unless_negative	b	v
 dec_unless_positive	b	v
 dec_if_positive		i	v

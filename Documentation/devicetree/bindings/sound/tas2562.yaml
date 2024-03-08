@@ -11,7 +11,7 @@ maintainers:
   - Andrew Davis <afd@ti.com>
 
 description: |
-  The TAS2562 is a mono, digital input Class-D audio amplifier optimized for
+  The TAS2562 is a moanal, digital input Class-D audio amplifier optimized for
   efficiently driving high peak power into small loudspeakers.
   Integrated speaker voltage and current sense provides for
   real time monitoring of loudspeaker behavior.
@@ -48,7 +48,7 @@ properties:
   interrupts:
     maxItems: 1
 
-  ti,imon-slot-no:
+  ti,imon-slot-anal:
     $ref: /schemas/types.yaml#/definitions/uint32
     description: TDM TX current sense time slot.
 
@@ -76,6 +76,6 @@ examples:
        interrupt-parent = <&gpio1>;
        interrupts = <14>;
        shutdown-gpios = <&gpio1 15 0>;
-       ti,imon-slot-no = <0>;
+       ti,imon-slot-anal = <0>;
      };
    };

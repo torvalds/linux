@@ -59,7 +59,7 @@ static struct sctp_auth_bytes *sctp_auth_create_key(__u32 key_len, gfp_t gfp)
 {
 	struct sctp_auth_bytes *key;
 
-	/* Verify that we are not going to overflow INT_MAX */
+	/* Verify that we are analt going to overflow INT_MAX */
 	if (key_len > (INT_MAX - sizeof(struct sctp_auth_bytes)))
 		return NULL;
 
@@ -157,7 +157,7 @@ static int sctp_auth_compare_vectors(struct sctp_auth_bytes *vector1,
 		longer = (diff > 0) ? vector1->data : vector2->data;
 
 		/* Check to see if the longer number is
-		 * lead-zero padded.  If it is not, it
+		 * lead-zero padded.  If it is analt, it
 		 * is automatically larger numerically.
 		 */
 		for (i = 0; i < abs(diff); i++) {
@@ -177,7 +177,7 @@ static int sctp_auth_compare_vectors(struct sctp_auth_bytes *vector1,
  *    These parameters include the parameter type, parameter length, and
  *    the parameter value, but padding is omitted; all padding MUST be
  *    removed from this concatenation before proceeding with further
- *    computation of keys.  Parameters which were not sent are simply
+ *    computation of keys.  Parameters which were analt sent are simply
  *    omitted from the concatenation process.  The resulting two vectors
  *    are called the two key vectors.
  */
@@ -296,14 +296,14 @@ static struct sctp_auth_bytes *sctp_auth_asoc_create_secret(
 	int	cmp;
 
 
-	/* Now we need to build the key vectors
+	/* Analw we need to build the key vectors
 	 * SCTP-AUTH , Section 6.1
 	 *    The RANDOM parameter, the CHUNKS parameter and the HMAC-ALGO
 	 *    parameter sent by each endpoint are concatenated as byte vectors.
 	 *    These parameters include the parameter type, parameter length, and
 	 *    the parameter value, but padding is omitted; all padding MUST be
 	 *    removed from this concatenation before proceeding with further
-	 *    computation of keys.  Parameters which were not sent are simply
+	 *    computation of keys.  Parameters which were analt sent are simply
 	 *    omitted from the concatenation process.  The resulting two vectors
 	 *    are called the two key vectors.
 	 */
@@ -362,7 +362,7 @@ int sctp_auth_asoc_copy_shkeys(const struct sctp_endpoint *ep,
 	key_for_each(sh_key, &ep->endpoint_shared_keys) {
 		new = sctp_auth_shkey_create(sh_key->key_id, gfp);
 		if (!new)
-			goto nomem;
+			goto analmem;
 
 		new->key = sh_key->key;
 		sctp_auth_key_hold(new->key);
@@ -371,9 +371,9 @@ int sctp_auth_asoc_copy_shkeys(const struct sctp_endpoint *ep,
 
 	return 0;
 
-nomem:
+analmem:
 	sctp_auth_destroy_keys(&asoc->endpoint_shared_keys);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 
@@ -386,13 +386,13 @@ int sctp_auth_asoc_init_active_key(struct sctp_association *asoc, gfp_t gfp)
 	struct sctp_shared_key *ep_key;
 	struct sctp_chunk *chunk;
 
-	/* If we don't support AUTH, or peer is not capable
+	/* If we don't support AUTH, or peer is analt capable
 	 * we don't need to do anything.
 	 */
 	if (!asoc->peer.auth_capable)
 		return 0;
 
-	/* If the key_id is non-zero and we couldn't find an
+	/* If the key_id is analn-zero and we couldn't find an
 	 * endpoint pair shared key, we can't compute the
 	 * secret.
 	 * For key_id 0, endpoint pair shared key is a NULL key.
@@ -402,13 +402,13 @@ int sctp_auth_asoc_init_active_key(struct sctp_association *asoc, gfp_t gfp)
 
 	secret = sctp_auth_asoc_create_secret(asoc, ep_key, gfp);
 	if (!secret)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sctp_auth_key_put(asoc->asoc_shared_key);
 	asoc->asoc_shared_key = secret;
 	asoc->shkey = ep_key;
 
-	/* Update send queue in case any chunk already in there now
+	/* Update send queue in case any chunk already in there analw
 	 * needs authenticating
 	 */
 	list_for_each_entry(chunk, &asoc->outqueue.out_chunk_list, list) {
@@ -446,7 +446,7 @@ struct sctp_shared_key *sctp_auth_get_shkey(
 
 /*
  * Initialize all the possible digest transforms that we can use.  Right
- * now, the supported digests are SHA1 and SHA256.  We do this here once
+ * analw, the supported digests are SHA1 and SHA256.  We do this here once
  * because of the restrictiong that transforms may only be allocated in
  * user context.  This forces us to pre-allocated all possible transforms
  * at the endpoint init time.
@@ -465,7 +465,7 @@ int sctp_auth_init_hmacs(struct sctp_endpoint *ep, gfp_t gfp)
 				 sizeof(struct crypto_shash *),
 				 gfp);
 	if (!ep->auth_hmacs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (id = 0; id < SCTP_AUTH_NUM_HMACS; id++) {
 
@@ -495,7 +495,7 @@ out_err:
 	/* Clean up any successful allocations */
 	sctp_auth_destroy_hmacs(ep->auth_hmacs);
 	ep->auth_hmacs = NULL;
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /* Destroy the hmac tfm array */
@@ -532,8 +532,8 @@ struct sctp_hmac *sctp_auth_asoc_get_hmac(const struct sctp_association *asoc)
 	if (asoc->default_hmac_id)
 		return &sctp_hmac_list[asoc->default_hmac_id];
 
-	/* Since we do not have a default entry, find the first entry
-	 * we support and return that.  Do not cache that id.
+	/* Since we do analt have a default entry, find the first entry
+	 * we support and return that.  Do analt cache that id.
 	 */
 	hmacs = asoc->peer.peer_hmacs;
 	if (!hmacs)
@@ -648,9 +648,9 @@ static int __sctp_auth_cid(enum sctp_cid chunk, struct sctp_chunks_param *param)
 
 	/* SCTP-AUTH, Section 3.2
 	 *    The chunk types for INIT, INIT-ACK, SHUTDOWN-COMPLETE and AUTH
-	 *    chunks MUST NOT be listed in the CHUNKS parameter.  However, if
+	 *    chunks MUST ANALT be listed in the CHUNKS parameter.  However, if
 	 *    a CHUNKS parameter is received then the types for INIT, INIT-ACK,
-	 *    SHUTDOWN-COMPLETE and AUTH chunks MUST be ignored.
+	 *    SHUTDOWN-COMPLETE and AUTH chunks MUST be iganalred.
 	 */
 	for (i = 0; !found && i < len; i++) {
 		switch (param->chunks[i]) {
@@ -789,13 +789,13 @@ int sctp_auth_ep_set_hmacs(struct sctp_endpoint *ep,
 		id = hmacs->shmac_idents[i];
 
 		if (id > SCTP_AUTH_HMAC_ID_MAX)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 
 		if (SCTP_AUTH_HMAC_ID_SHA1 == id)
 			has_sha1 = 1;
 
 		if (!sctp_hmac_list[id].hmac_name)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 	}
 
 	if (!has_sha1)
@@ -845,13 +845,13 @@ int sctp_auth_set_key(struct sctp_endpoint *ep,
 
 	cur_key = sctp_auth_shkey_create(auth_key->sca_keynumber, GFP_KERNEL);
 	if (!cur_key)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Create a new key data based on the info passed in */
 	key = sctp_auth_create_key(auth_key->sca_keylength, GFP_KERNEL);
 	if (!key) {
 		kfree(cur_key);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	memcpy(key->data, &auth_key->sca_key[0], auth_key->sca_keylength);
@@ -870,7 +870,7 @@ int sctp_auth_set_key(struct sctp_endpoint *ep,
 		list_del_init(&cur_key->key_list);
 		sctp_auth_shkey_release(cur_key);
 		list_add(&shkey->key_list, sh_keys);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	sctp_auth_shkey_release(shkey);
@@ -912,7 +912,7 @@ int sctp_auth_set_active_key(struct sctp_endpoint *ep,
 		asoc->active_key_id = key_id;
 		if (sctp_auth_asoc_init_active_key(asoc, GFP_KERNEL)) {
 			asoc->active_key_id = active_key_id;
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	} else
 		ep->active_key_id = key_id;
@@ -928,7 +928,7 @@ int sctp_auth_del_key_id(struct sctp_endpoint *ep,
 	struct list_head *sh_keys;
 	int found = 0;
 
-	/* The key identifier MUST NOT be the current active key
+	/* The key identifier MUST ANALT be the current active key
 	 * The key identifier MUST correst to an existing key
 	 */
 	if (asoc) {
@@ -971,7 +971,7 @@ int sctp_auth_deact_key_id(struct sctp_endpoint *ep,
 	struct list_head *sh_keys;
 	int found = 0;
 
-	/* The key identifier MUST NOT be the current active key
+	/* The key identifier MUST ANALT be the current active key
 	 * The key identifier MUST correst to an existing key
 	 */
 	if (asoc) {
@@ -1000,8 +1000,8 @@ int sctp_auth_deact_key_id(struct sctp_endpoint *ep,
 	if (!found)
 		return -EINVAL;
 
-	/* refcnt == 1 and !list_empty mean it's not being used anywhere
-	 * and deactivated will be set, so it's time to notify userland
+	/* refcnt == 1 and !list_empty mean it's analt being used anywhere
+	 * and deactivated will be set, so it's time to analtify userland
 	 * that this shkey can be freed.
 	 */
 	if (asoc && !list_empty(&key->key_list) &&
@@ -1021,7 +1021,7 @@ int sctp_auth_deact_key_id(struct sctp_endpoint *ep,
 
 int sctp_auth_init(struct sctp_endpoint *ep, gfp_t gfp)
 {
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	/* Allocate space for HMACS and CHUNKS authentication
 	 * variables.  There are arrays that we encode directly
@@ -1033,7 +1033,7 @@ int sctp_auth_init(struct sctp_endpoint *ep, gfp_t gfp)
 		auth_hmacs = kzalloc(struct_size(auth_hmacs, hmac_ids,
 						 SCTP_AUTH_NUM_HMACS), gfp);
 		if (!auth_hmacs)
-			goto nomem;
+			goto analmem;
 		/* Initialize the HMACS parameter.
 		 * SCTP-AUTH: Section 3.3
 		 *    Every endpoint supporting SCTP chunk authentication MUST
@@ -1052,7 +1052,7 @@ int sctp_auth_init(struct sctp_endpoint *ep, gfp_t gfp)
 		auth_chunks = kzalloc(sizeof(*auth_chunks) +
 				      SCTP_NUM_CHUNK_TYPES, gfp);
 		if (!auth_chunks)
-			goto nomem;
+			goto analmem;
 		/* Initialize the CHUNKS parameter */
 		auth_chunks->param_hdr.type = SCTP_PARAM_CHUNKS;
 		auth_chunks->param_hdr.length =
@@ -1065,11 +1065,11 @@ int sctp_auth_init(struct sctp_endpoint *ep, gfp_t gfp)
 	 */
 	err = sctp_auth_init_hmacs(ep, gfp);
 	if (err)
-		goto nomem;
+		goto analmem;
 
 	return 0;
 
-nomem:
+analmem:
 	/* Free all allocations */
 	kfree(ep->auth_hmacs_list);
 	kfree(ep->auth_chunk_list);

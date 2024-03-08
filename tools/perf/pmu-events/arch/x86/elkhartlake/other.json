@@ -40,11 +40,11 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts the number of bus locks a core issued its self (e.g. lock to UC or Split Lock) and does not include cache locks.",
+        "BriefDescription": "Counts the number of bus locks a core issued its self (e.g. lock to UC or Split Lock) and does analt include cache locks.",
         "EdgeDetect": "1",
         "EventCode": "0x63",
         "EventName": "BUS_LOCK.SELF_LOCKS",
-        "PublicDescription": "Counts the number of bus locks a core issued its self (e.g. lock to UC or Split Lock) and does not include cache locks. Counts on a per core basis.",
+        "PublicDescription": "Counts the number of bus locks a core issued its self (e.g. lock to UC or Split Lock) and does analt include cache locks. Counts on a per core basis.",
         "SampleAfterValue": "200003"
     },
     {
@@ -75,7 +75,7 @@
         "BriefDescription": "Counts the number of core cycles during which interrupts are masked (disabled).",
         "EventCode": "0xcb",
         "EventName": "HW_INTERRUPTS.MASKED",
-        "PublicDescription": "Counts the number of core cycles during which interrupts are masked (disabled). Increments by 1 each core cycle that EFLAGS.IF is 0, regardless of whether interrupts are pending or not.",
+        "PublicDescription": "Counts the number of core cycles during which interrupts are masked (disabled). Increments by 1 each core cycle that EFLAGS.IF is 0, regardless of whether interrupts are pending or analt.",
         "SampleAfterValue": "200003",
         "UMask": "0x2"
     },
@@ -83,7 +83,7 @@
         "BriefDescription": "Counts the number of core cycles during which there are pending interrupts while interrupts are masked (disabled).",
         "EventCode": "0xcb",
         "EventName": "HW_INTERRUPTS.PENDING_AND_MASKED",
-        "PublicDescription": "Counts the number of core cycles during which there are pending interrupts while interrupts are masked (disabled). Increments by 1 each core cycle that both EFLAGS.IF is 0 and an INTR is pending (which means the APIC is telling the ROB to cause an INTR). This event does not increment if EFLAGS.IF is 0 but all interrupt in the APICs Interrupt Request Register (IRR) are inhibited by the PPR (thus either by ISRV or TPR)  because in these cases the interrupts would be held up in the APIC and would not be pended to the ROB. This event does count when an interrupt is only inhibited by MOV/POP SS state machines or the STI state machine. These extra inhibits only last for a single instructions and would not be important.",
+        "PublicDescription": "Counts the number of core cycles during which there are pending interrupts while interrupts are masked (disabled). Increments by 1 each core cycle that both EFLAGS.IF is 0 and an INTR is pending (which means the APIC is telling the ROB to cause an INTR). This event does analt increment if EFLAGS.IF is 0 but all interrupt in the APICs Interrupt Request Register (IRR) are inhibited by the PPR (thus either by ISRV or TPR)  because in these cases the interrupts would be held up in the APIC and would analt be pended to the ROB. This event does count when an interrupt is only inhibited by MOV/POP SS state machines or the STI state machine. These extra inhibits only last for a single instructions and would analt be important.",
         "SampleAfterValue": "200003",
         "UMask": "0x4"
     },

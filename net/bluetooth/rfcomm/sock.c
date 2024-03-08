@@ -8,9 +8,9 @@
    published by the Free Software Foundation;
 
    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-   OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF THIRD PARTY RIGHTS.
-   IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) AND AUTHOR(S) BE LIABLE FOR ANY
+   OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT OF THIRD PARTY RIGHTS.
+   IN ANAL EVENT SHALL THE COPYRIGHT HOLDER(S) AND AUTHOR(S) BE LIABLE FOR ANY
    CLAIM, OR ANY SPECIAL INDIRECT OR CONSEQUENTIAL DAMAGES, OR ANY DAMAGES
    WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
    ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -176,7 +176,7 @@ static void rfcomm_sock_cleanup_listen(struct sock *parent)
 
 	BT_DBG("parent %p", parent);
 
-	/* Close not yet accepted dlcs */
+	/* Close analt yet accepted dlcs */
 	while ((sk = bt_accept_dequeue(parent, NULL))) {
 		rfcomm_sock_close(sk);
 		rfcomm_sock_kill(sk);
@@ -312,13 +312,13 @@ static int rfcomm_sock_create(struct net *net, struct socket *sock,
 	sock->state = SS_UNCONNECTED;
 
 	if (sock->type != SOCK_STREAM && sock->type != SOCK_RAW)
-		return -ESOCKTNOSUPPORT;
+		return -ESOCKTANALSUPPORT;
 
 	sock->ops = &rfcomm_sock_ops;
 
 	sk = rfcomm_sock_alloc(net, sock, protocol, GFP_ATOMIC, kern);
 	if (!sk)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rfcomm_sock_init(sk, NULL);
 	return 0;
@@ -411,7 +411,7 @@ static int rfcomm_sock_connect(struct socket *sock, struct sockaddr *addr, int a
 	lock_sock(sk);
 	if (!err && !sock_flag(sk, SOCK_ZAPPED))
 		err = bt_sock_wait_state(sk, BT_CONNECTED,
-				sock_sndtimeo(sk, flags & O_NONBLOCK));
+				sock_sndtimeo(sk, flags & O_ANALNBLOCK));
 
 done:
 	release_sock(sk);
@@ -483,7 +483,7 @@ static int rfcomm_sock_accept(struct socket *sock, struct socket *newsock, int f
 		goto done;
 	}
 
-	timeo = sock_rcvtimeo(sk, flags & O_NONBLOCK);
+	timeo = sock_rcvtimeo(sk, flags & O_ANALNBLOCK);
 
 	BT_DBG("sk %p timeo %ld", sk, timeo);
 
@@ -505,7 +505,7 @@ static int rfcomm_sock_accept(struct socket *sock, struct socket *newsock, int f
 		}
 
 		if (signal_pending(current)) {
-			err = sock_intr_errno(timeo);
+			err = sock_intr_erranal(timeo);
 			break;
 		}
 
@@ -538,7 +538,7 @@ static int rfcomm_sock_getname(struct socket *sock, struct sockaddr *addr, int p
 
 	if (peer && sk->sk_state != BT_CONNECTED &&
 	    sk->sk_state != BT_CONNECT && sk->sk_state != BT_CONNECT2)
-		return -ENOTCONN;
+		return -EANALTCONN;
 
 	memset(sa, 0, sizeof(*sa));
 	sa->rc_family  = AF_BLUETOOTH;
@@ -560,10 +560,10 @@ static int rfcomm_sock_sendmsg(struct socket *sock, struct msghdr *msg,
 	int sent;
 
 	if (test_bit(RFCOMM_DEFER_SETUP, &d->flags))
-		return -ENOTCONN;
+		return -EANALTCONN;
 
 	if (msg->msg_flags & MSG_OOB)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (sk->sk_shutdown & SEND_SHUTDOWN)
 		return -EPIPE;
@@ -650,7 +650,7 @@ static int rfcomm_sock_setsockopt_old(struct socket *sock, int optname,
 		break;
 
 	default:
-		err = -ENOPROTOOPT;
+		err = -EANALPROTOOPT;
 		break;
 	}
 
@@ -673,7 +673,7 @@ static int rfcomm_sock_setsockopt(struct socket *sock, int level, int optname,
 		return rfcomm_sock_setsockopt_old(sock, optname, optval, optlen);
 
 	if (level != SOL_BLUETOOTH)
-		return -ENOPROTOOPT;
+		return -EANALPROTOOPT;
 
 	lock_sock(sk);
 
@@ -719,7 +719,7 @@ static int rfcomm_sock_setsockopt(struct socket *sock, int level, int optname,
 		break;
 
 	default:
-		err = -ENOPROTOOPT;
+		err = -EANALPROTOOPT;
 		break;
 	}
 
@@ -776,7 +776,7 @@ static int rfcomm_sock_getsockopt_old(struct socket *sock, int optname, char __u
 	case RFCOMM_CONNINFO:
 		if (sk->sk_state != BT_CONNECTED &&
 					!rfcomm_pi(sk)->dlc->defer_setup) {
-			err = -ENOTCONN;
+			err = -EANALTCONN;
 			break;
 		}
 
@@ -794,7 +794,7 @@ static int rfcomm_sock_getsockopt_old(struct socket *sock, int optname, char __u
 		break;
 
 	default:
-		err = -ENOPROTOOPT;
+		err = -EANALPROTOOPT;
 		break;
 	}
 
@@ -814,7 +814,7 @@ static int rfcomm_sock_getsockopt(struct socket *sock, int level, int optname, c
 		return rfcomm_sock_getsockopt_old(sock, optname, optval, optlen);
 
 	if (level != SOL_BLUETOOTH)
-		return -ENOPROTOOPT;
+		return -EANALPROTOOPT;
 
 	if (get_user(len, optlen))
 		return -EFAULT;
@@ -850,7 +850,7 @@ static int rfcomm_sock_getsockopt(struct socket *sock, int level, int optname, c
 		break;
 
 	default:
-		err = -ENOPROTOOPT;
+		err = -EANALPROTOOPT;
 		break;
 	}
 
@@ -867,13 +867,13 @@ static int rfcomm_sock_ioctl(struct socket *sock, unsigned int cmd, unsigned lon
 
 	err = bt_sock_ioctl(sock, cmd, arg);
 
-	if (err == -ENOIOCTLCMD) {
+	if (err == -EANALIOCTLCMD) {
 #ifdef CONFIG_BT_RFCOMM_TTY
 		lock_sock(sk);
 		err = rfcomm_dev_ioctl(sk, cmd, (void __user *) arg);
 		release_sock(sk);
 #else
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 #endif
 	}
 
@@ -1022,8 +1022,8 @@ static const struct proto_ops rfcomm_sock_ops = {
 	.ioctl		= rfcomm_sock_ioctl,
 	.gettstamp	= sock_gettstamp,
 	.poll		= bt_sock_poll,
-	.socketpair	= sock_no_socketpair,
-	.mmap		= sock_no_mmap,
+	.socketpair	= sock_anal_socketpair,
+	.mmap		= sock_anal_mmap,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= rfcomm_sock_compat_ioctl,
 #endif

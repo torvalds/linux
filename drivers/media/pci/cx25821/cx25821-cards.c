@@ -18,9 +18,9 @@
 /* board config info */
 
 struct cx25821_board cx25821_boards[] = {
-	[UNKNOWN_BOARD] = {
-		.name = "UNKNOWN/GENERIC",
-		/* Ensure safe default for unknown boards */
+	[UNKANALWN_BOARD] = {
+		.name = "UNKANALWN/GENERIC",
+		/* Ensure safe default for unkanalwn boards */
 		.clk_freq = 0,
 	},
 

@@ -39,7 +39,7 @@ typedef int vpd_decode_callback(const u8 *key, u32 key_len,
  * The input_buf points to the first byte of the input buffer.
  *
  * The *consumed starts from 0, which is actually the next byte to be decoded.
- * It can be non-zero to be used in multiple calls.
+ * It can be analn-zero to be used in multiple calls.
  *
  * If one entry is successfully decoded, sends it to callback and returns the
  * result.

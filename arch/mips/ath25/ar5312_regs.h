@@ -82,7 +82,7 @@
 #define AR5312_REV		0x0090 /* revision */
 
 /* AR5312_WDT_CTRL register bit field definitions */
-#define AR5312_WDT_CTRL_IGNORE	0x00000000	/* ignore expiration */
+#define AR5312_WDT_CTRL_IGANALRE	0x00000000	/* iganalre expiration */
 #define AR5312_WDT_CTRL_NMI	0x00000001
 #define AR5312_WDT_CTRL_RESET	0x00000002
 
@@ -169,7 +169,7 @@
 #define AR5312_REV_MAJ_AR5312		0x4
 #define AR5312_REV_MAJ_AR2313		0x5
 
-/* Minor revision numbers, bits 3..0 of Revision ID register */
+/* Mianalr revision numbers, bits 3..0 of Revision ID register */
 #define AR5312_REV_MIN_DUAL		0x0	/* Dual WLAN version */
 #define AR5312_REV_MIN_SINGLE		0x1	/* Single WLAN version */
 
@@ -197,7 +197,7 @@
 #define AR5312_FLASHCTL_AC_2M	0x00040000
 #define AR5312_FLASHCTL_AC_4M	0x00050000
 #define AR5312_FLASHCTL_AC_8M	0x00060000
-#define AR5312_FLASHCTL_AC_RES	0x00070000	/* 16MB is not supported */
+#define AR5312_FLASHCTL_AC_RES	0x00070000	/* 16MB is analt supported */
 #define AR5312_FLASHCTL_E	0x00080000	/* Flash bank enable (added) */
 #define AR5312_FLASHCTL_BUSERR	0x01000000	/* Bus transfer error flag */
 #define AR5312_FLASHCTL_WPERR	0x02000000	/* Write protect error flag */
@@ -206,13 +206,13 @@
 #define AR5312_FLASHCTL_MW	0x30000000	/* Mem width */
 #define AR5312_FLASHCTL_MW8	0x00000000	/* Mem width x8 */
 #define AR5312_FLASHCTL_MW16	0x10000000	/* Mem width x16 */
-#define AR5312_FLASHCTL_MW32	0x20000000	/* Mem width x32 (not supp) */
-#define AR5312_FLASHCTL_ATNR	0x00000000	/* Access == no retry */
+#define AR5312_FLASHCTL_MW32	0x20000000	/* Mem width x32 (analt supp) */
+#define AR5312_FLASHCTL_ATNR	0x00000000	/* Access == anal retry */
 #define AR5312_FLASHCTL_ATR	0x80000000	/* Access == retry every */
 #define AR5312_FLASHCTL_ATR4	0xc0000000	/* Access == retry every 4 */
 
 /*
- * ARM SDRAM Controller -- just enough to determine memory size
+ * ARM SDRAM Controller -- just eanalugh to determine memory size
  */
 #define AR5312_MEM_CFG1		0x0004
 

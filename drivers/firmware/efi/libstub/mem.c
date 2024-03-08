@@ -9,7 +9,7 @@
  * efi_get_memory_map() - get memory map
  * @map:		pointer to memory map pointer to which to assign the
  *			newly allocated memory map
- * @install_cfg_tbl:	whether or not to install the boot memory map as a
+ * @install_cfg_tbl:	whether or analt to install the boot memory map as a
  *			configuration table
  *
  * Retrieve the UEFI memory map. The allocated memory leaves room for
@@ -74,11 +74,11 @@ free_map:
  * @addr:	On return the address of the first allocated page. The first
  *		allocated page has alignment EFI_ALLOC_ALIGN which is an
  *		architecture dependent multiple of the page size.
- * @max:	the address that the last allocated memory page shall not
+ * @max:	the address that the last allocated memory page shall analt
  *		exceed
  *
  * Allocate pages as EFI_LOADER_DATA. The allocated pages are aligned according
- * to EFI_ALLOC_ALIGN. The last allocated page will not exceed the address
+ * to EFI_ALLOC_ALIGN. The last allocated page will analt exceed the address
  * given by @max.
  *
  * Return:	status code

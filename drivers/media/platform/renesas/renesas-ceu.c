@@ -15,7 +15,7 @@
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
@@ -35,7 +35,7 @@
 #include <media/v4l2-dev.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-event.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 #include <media/v4l2-image-sizes.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-mediabus.h>
@@ -66,7 +66,7 @@
 #define CEU_CSTSR	0x7c /* Capture status register			*/
 #define CEU_CSRTR	0x80 /* Capture software reset register		*/
 
-/* Data synchronous fetch mode. */
+/* Data synchroanalus fetch mode. */
 #define CEU_CAMCR_JPEG			BIT(4)
 
 /* Input components ordering: CEU_CAMCR.DTARY field. */
@@ -82,8 +82,8 @@
 /* Bus width configuration. */
 #define CEU_CAMCR_DTIF_16BITS		BIT(12)
 
-/* No downsampling to planar YUV420 in image fetch mode. */
-#define CEU_CDOCR_NO_DOWSAMPLE		BIT(4)
+/* Anal downsampling to planar YUV420 in image fetch mode. */
+#define CEU_CDOCR_ANAL_DOWSAMPLE		BIT(4)
 
 /* Swap all input data in 8-bit, 16-bits and 32-bits units (Figure 46.45). */
 #define CEU_CDOCR_SWAP_ENDIANNESS	(7)
@@ -186,8 +186,8 @@ struct ceu_device {
 	enum v4l2_field	field;
 	struct v4l2_pix_format_mplane v4l2_pix;
 
-	/* async subdev notification helpers */
-	struct v4l2_async_notifier notifier;
+	/* async subdev analtification helpers */
+	struct v4l2_async_analtifier analtifier;
 
 	/* vb2 queue, capture buffer list and active buffer pointer */
 	struct vb2_queue	vb2_vq;
@@ -336,7 +336,7 @@ static int ceu_soft_reset(struct ceu_device *ceudev)
 		udelay(1);
 	}
 
-	/* If we get here, CEU has not reset properly. */
+	/* If we get here, CEU has analt reset properly. */
 	return -EIO;
 }
 
@@ -379,15 +379,15 @@ static int ceu_hw_config(struct ceu_device *ceudev)
 	 * handle downsampling to YUV420.
 	 *
 	 * If the memory output planar format is 'swapped' (Cr before Cb) and
-	 * input format is not, use the swapped version of CAMCR.DTARY.
+	 * input format is analt, use the swapped version of CAMCR.DTARY.
 	 *
-	 * If the memory output planar format is not 'swapped' (Cb before Cr)
+	 * If the memory output planar format is analt 'swapped' (Cb before Cr)
 	 * and input format is, use the swapped version of CAMCR.DTARY.
 	 *
 	 * CEU by default downsample to planar YUV420 (CDCOR[4] = 0).
 	 * If output is planar YUV422 set CDOCR[4] = 1
 	 *
-	 * No downsample for data fetch sync mode.
+	 * Anal downsample for data fetch sync mode.
 	 */
 	switch (pix->pixelformat) {
 	/* Data fetch sync mode */
@@ -396,14 +396,14 @@ static int ceu_hw_config(struct ceu_device *ceudev)
 	case V4L2_PIX_FMT_UYVY:
 	case V4L2_PIX_FMT_VYUY:
 		camcr	= CEU_CAMCR_JPEG;
-		cdocr	|= CEU_CDOCR_NO_DOWSAMPLE;
+		cdocr	|= CEU_CDOCR_ANAL_DOWSAMPLE;
 		cfzsr	= (pix->height << 16) | pix->width;
 		cdwdr	= pix->plane_fmt[0].bytesperline;
 		break;
 
-	/* Non-swapped planar image capture mode. */
+	/* Analn-swapped planar image capture mode. */
 	case V4L2_PIX_FMT_NV16:
-		cdocr	|= CEU_CDOCR_NO_DOWSAMPLE;
+		cdocr	|= CEU_CDOCR_ANAL_DOWSAMPLE;
 		fallthrough;
 	case V4L2_PIX_FMT_NV12:
 		if (mbus_fmt->swapped)
@@ -417,7 +417,7 @@ static int ceu_hw_config(struct ceu_device *ceudev)
 
 	/* Swapped planar image capture mode. */
 	case V4L2_PIX_FMT_NV61:
-		cdocr	|= CEU_CDOCR_NO_DOWSAMPLE;
+		cdocr	|= CEU_CDOCR_ANAL_DOWSAMPLE;
 		fallthrough;
 	case V4L2_PIX_FMT_NV21:
 		if (mbus_fmt->swapped)
@@ -443,7 +443,7 @@ static int ceu_hw_config(struct ceu_device *ceudev)
 
 	/*
 	 * TODO: make CAMOR offsets configurable.
-	 * CAMOR wants to know the number of blanks between a VS/HS signal
+	 * CAMOR wants to kanalw the number of blanks between a VS/HS signal
 	 * and valid data. This value should actually come from the sensor...
 	 */
 	ceu_write(ceudev, CEU_CAMOR, 0);
@@ -470,7 +470,7 @@ static int ceu_capture(struct ceu_device *ceudev)
 		vb2_dma_contig_plane_dma_addr(&ceudev->active->vb2_buf, 0);
 	ceu_write(ceudev, CEU_CDAYR, phys_addr_top);
 
-	/* Ignore CbCr plane for non multi-planar image formats. */
+	/* Iganalre CbCr plane for analn multi-planar image formats. */
 	if (ceu_fmt_mplane(pix)) {
 		phys_addr_top =
 			vb2_dma_contig_plane_dma_addr(&ceudev->active->vb2_buf,
@@ -500,11 +500,11 @@ static irqreturn_t ceu_irq(int irq, void *data)
 
 	/* Unexpected interrupt. */
 	if (!(status & CEU_CEIER_MASK))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	spin_lock(&ceudev->lock);
 
-	/* Stale interrupt from a released buffer, ignore it. */
+	/* Stale interrupt from a released buffer, iganalre it. */
 	vbuf = ceudev->active;
 	if (!vbuf) {
 		spin_unlock(&ceudev->lock);
@@ -512,8 +512,8 @@ static irqreturn_t ceu_irq(int irq, void *data)
 	}
 
 	/*
-	 * When a VBP interrupt occurs, no capture end interrupt will occur
-	 * and the image of that frame is not captured correctly.
+	 * When a VBP interrupt occurs, anal capture end interrupt will occur
+	 * and the image of that frame is analt captured correctly.
 	 */
 	if (status & CEU_CEIER_VBP) {
 		dev_err(ceudev->dev, "VBP interrupt: abort capture\n");
@@ -634,7 +634,7 @@ static int ceu_vb2_setup(struct vb2_queue *vq, unsigned int *count,
 		return 0;
 	}
 
-	/* num_planes not set: called from REQBUFS, just set plane sizes. */
+	/* num_planes analt set: called from REQBUFS, just set plane sizes. */
 	*num_planes = pix->num_planes;
 	for (i = 0; i < pix->num_planes; i++)
 		sizes[i] = pix->plane_fmt[i].sizeimage;
@@ -689,7 +689,7 @@ static int ceu_start_streaming(struct vb2_queue *vq, unsigned int count)
 		goto error_return_bufs;
 
 	ret = v4l2_subdev_call(v4l2_sd, video, s_stream, 1);
-	if (ret && ret != -ENOIOCTLCMD) {
+	if (ret && ret != -EANALIOCTLCMD) {
 		dev_dbg(ceudev->dev,
 			"Subdevice failed to start streaming: %d\n", ret);
 		goto error_return_bufs;
@@ -907,7 +907,7 @@ static int ceu_set_fmt(struct ceu_device *ceudev, struct v4l2_format *v4l2_fmt)
 		return ret;
 
 	ceudev->v4l2_pix = v4l2_fmt->fmt.pix_mp;
-	ceudev->field = V4L2_FIELD_NONE;
+	ceudev->field = V4L2_FIELD_ANALNE;
 
 	return 0;
 }
@@ -925,7 +925,7 @@ static int ceu_set_default_fmt(struct ceu_device *ceudev)
 		.fmt.pix_mp = {
 			.width		= VGA_WIDTH,
 			.height		= VGA_HEIGHT,
-			.field		= V4L2_FIELD_NONE,
+			.field		= V4L2_FIELD_ANALNE,
 			.pixelformat	= V4L2_PIX_FMT_NV16,
 			.num_planes	= 2,
 			.plane_fmt	= {
@@ -946,7 +946,7 @@ static int ceu_set_default_fmt(struct ceu_device *ceudev)
 		return ret;
 
 	ceudev->v4l2_pix = v4l2_fmt.fmt.pix_mp;
-	ceudev->field = V4L2_FIELD_NONE;
+	ceudev->field = V4L2_FIELD_ANALNE;
 
 	return 0;
 }
@@ -1011,7 +1011,7 @@ static int ceu_init_mbus_fmt(struct ceu_device *ceudev)
 	mbus_fmt->mbus_code	= sd_mbus_fmt.code;
 	mbus_fmt->bps		= 8;
 
-	/* Annotate the selected bus format components ordering. */
+	/* Ananaltate the selected bus format components ordering. */
 	switch (sd_mbus_fmt.code) {
 	case MEDIA_BUS_FMT_YUYV8_2X8:
 		mbus_fmt->fmt_order		= CEU_CAMCR_DTARY_8_YUYV;
@@ -1237,7 +1237,7 @@ static int ceu_s_input(struct file *file, void *priv, unsigned int i)
 		return -EINVAL;
 	}
 
-	/* Now that we're sure we can use the sensor, power off the old one. */
+	/* Analw that we're sure we can use the sensor, power off the old one. */
 	v4l2_subdev_call(ceu_sd_old->v4l2_sd, core, s_power, 0);
 	v4l2_subdev_call(ceudev->sd->v4l2_sd, core, s_power, 1);
 
@@ -1368,11 +1368,11 @@ static void ceu_vdev_release(struct video_device *vdev)
 	kfree(ceudev);
 }
 
-static int ceu_notify_bound(struct v4l2_async_notifier *notifier,
+static int ceu_analtify_bound(struct v4l2_async_analtifier *analtifier,
 			    struct v4l2_subdev *v4l2_sd,
 			    struct v4l2_async_connection *asd)
 {
-	struct v4l2_device *v4l2_dev = notifier->v4l2_dev;
+	struct v4l2_device *v4l2_dev = analtifier->v4l2_dev;
 	struct ceu_device *ceudev = v4l2_to_ceu(v4l2_dev);
 	struct ceu_subdev *ceu_sd = to_ceu_subdev(asd);
 
@@ -1382,9 +1382,9 @@ static int ceu_notify_bound(struct v4l2_async_notifier *notifier,
 	return 0;
 }
 
-static int ceu_notify_complete(struct v4l2_async_notifier *notifier)
+static int ceu_analtify_complete(struct v4l2_async_analtifier *analtifier)
 {
-	struct v4l2_device *v4l2_dev = notifier->v4l2_dev;
+	struct v4l2_device *v4l2_dev = analtifier->v4l2_dev;
 	struct ceu_device *ceudev = v4l2_to_ceu(v4l2_dev);
 	struct video_device *vdev = &ceudev->vdev;
 	struct vb2_queue *q = &ceudev->vb2_vq;
@@ -1398,7 +1398,7 @@ static int ceu_notify_complete(struct v4l2_async_notifier *notifier)
 	q->ops			= &ceu_vb2_ops;
 	q->mem_ops		= &vb2_dma_contig_memops;
 	q->buf_struct_size	= sizeof(struct ceu_buffer);
-	q->timestamp_flags	= V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	q->timestamp_flags	= V4L2_BUF_FLAG_TIMESTAMP_MOANALTONIC;
 	q->min_queued_buffers	= 2;
 	q->lock			= &ceudev->mlock;
 	q->dev			= ceudev->v4l2_dev.dev;
@@ -1449,9 +1449,9 @@ static int ceu_notify_complete(struct v4l2_async_notifier *notifier)
 	return 0;
 }
 
-static const struct v4l2_async_notifier_operations ceu_notify_ops = {
-	.bound		= ceu_notify_bound,
-	.complete	= ceu_notify_complete,
+static const struct v4l2_async_analtifier_operations ceu_analtify_ops = {
+	.bound		= ceu_analtify_bound,
+	.complete	= ceu_analtify_complete,
 };
 
 /*
@@ -1459,7 +1459,7 @@ static const struct v4l2_async_notifier_operations ceu_notify_ops = {
  *                           ceu device. Both DT and platform data parsing use
  *                           this routine.
  *
- * Returns 0 for success, -ENOMEM for failure.
+ * Returns 0 for success, -EANALMEM for failure.
  */
 static int ceu_init_async_subdevs(struct ceu_device *ceudev, unsigned int n_sd)
 {
@@ -1467,7 +1467,7 @@ static int ceu_init_async_subdevs(struct ceu_device *ceudev, unsigned int n_sd)
 	ceudev->subdevs = devm_kcalloc(ceudev->dev, n_sd,
 				       sizeof(*ceudev->subdevs), GFP_KERNEL);
 	if (!ceudev->subdevs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ceudev->sd = NULL;
 	ceudev->sd_index = 0;
@@ -1489,7 +1489,7 @@ static int ceu_parse_platform_data(struct ceu_device *ceudev,
 	int ret;
 
 	if (pdata->num_subdevs == 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = ceu_init_async_subdevs(ceudev, pdata->num_subdevs);
 	if (ret)
@@ -1499,12 +1499,12 @@ static int ceu_parse_platform_data(struct ceu_device *ceudev,
 
 		/* Setup the ceu subdevice and the async subdevice. */
 		async_sd = &pdata->subdevs[i];
-		ceu_sd = v4l2_async_nf_add_i2c(&ceudev->notifier,
+		ceu_sd = v4l2_async_nf_add_i2c(&ceudev->analtifier,
 					       async_sd->i2c_adapter_id,
 					       async_sd->i2c_address,
 					       struct ceu_subdev);
 		if (IS_ERR(ceu_sd)) {
-			v4l2_async_nf_cleanup(&ceudev->notifier);
+			v4l2_async_nf_cleanup(&ceudev->analtifier);
 			return PTR_ERR(ceu_sd);
 		}
 		ceu_sd->mbus_flags = async_sd->flags;
@@ -1519,8 +1519,8 @@ static int ceu_parse_platform_data(struct ceu_device *ceudev,
  */
 static int ceu_parse_dt(struct ceu_device *ceudev)
 {
-	struct device_node *of = ceudev->dev->of_node;
-	struct device_node *ep;
+	struct device_analde *of = ceudev->dev->of_analde;
+	struct device_analde *ep;
 	struct ceu_subdev *ceu_sd;
 	unsigned int i;
 	int num_ep;
@@ -1528,14 +1528,14 @@ static int ceu_parse_dt(struct ceu_device *ceudev)
 
 	num_ep = of_graph_get_endpoint_count(of);
 	if (!num_ep)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = ceu_init_async_subdevs(ceudev, num_ep);
 	if (ret)
 		return ret;
 
 	for (i = 0; i < num_ep; i++) {
-		struct v4l2_fwnode_endpoint fw_ep = {
+		struct v4l2_fwanalde_endpoint fw_ep = {
 			.bus_type = V4L2_MBUS_PARALLEL,
 			.bus = {
 				.parallel = {
@@ -1549,12 +1549,12 @@ static int ceu_parse_dt(struct ceu_device *ceudev)
 		ep = of_graph_get_endpoint_by_regs(of, 0, i);
 		if (!ep) {
 			dev_err(ceudev->dev,
-				"No subdevice connected on endpoint %u.\n", i);
-			ret = -ENODEV;
+				"Anal subdevice connected on endpoint %u.\n", i);
+			ret = -EANALDEV;
 			goto error_cleanup;
 		}
 
-		ret = v4l2_fwnode_endpoint_parse(of_fwnode_handle(ep), &fw_ep);
+		ret = v4l2_fwanalde_endpoint_parse(of_fwanalde_handle(ep), &fw_ep);
 		if (ret) {
 			dev_err(ceudev->dev,
 				"Unable to parse endpoint #%u: %d.\n", i, ret);
@@ -1562,8 +1562,8 @@ static int ceu_parse_dt(struct ceu_device *ceudev)
 		}
 
 		/* Setup the ceu subdevice and the async subdevice. */
-		ceu_sd = v4l2_async_nf_add_fwnode_remote(&ceudev->notifier,
-							 of_fwnode_handle(ep),
+		ceu_sd = v4l2_async_nf_add_fwanalde_remote(&ceudev->analtifier,
+							 of_fwanalde_handle(ep),
 							 struct ceu_subdev);
 		if (IS_ERR(ceu_sd)) {
 			ret = PTR_ERR(ceu_sd);
@@ -1572,14 +1572,14 @@ static int ceu_parse_dt(struct ceu_device *ceudev)
 		ceu_sd->mbus_flags = fw_ep.bus.parallel.flags;
 		ceudev->subdevs[i] = ceu_sd;
 
-		of_node_put(ep);
+		of_analde_put(ep);
 	}
 
 	return num_ep;
 
 error_cleanup:
-	v4l2_async_nf_cleanup(&ceudev->notifier);
-	of_node_put(ep);
+	v4l2_async_nf_cleanup(&ceudev->analtifier);
+	of_analde_put(ep);
 	return ret;
 }
 
@@ -1620,7 +1620,7 @@ static int ceu_probe(struct platform_device *pdev)
 
 	ceudev = kzalloc(sizeof(*ceudev), GFP_KERNEL);
 	if (!ceudev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, ceudev);
 	ceudev->dev = dev;
@@ -1653,9 +1653,9 @@ static int ceu_probe(struct platform_device *pdev)
 	if (ret)
 		goto error_pm_disable;
 
-	v4l2_async_nf_init(&ceudev->notifier, &ceudev->v4l2_dev);
+	v4l2_async_nf_init(&ceudev->analtifier, &ceudev->v4l2_dev);
 
-	if (IS_ENABLED(CONFIG_OF) && dev->of_node) {
+	if (IS_ENABLED(CONFIG_OF) && dev->of_analde) {
 		ceu_data = of_device_get_match_data(dev);
 		num_subdevs = ceu_parse_dt(ceudev);
 	} else if (dev->platform_data) {
@@ -1673,9 +1673,9 @@ static int ceu_probe(struct platform_device *pdev)
 	}
 	ceudev->irq_mask = ceu_data->irq_mask;
 
-	ceudev->notifier.v4l2_dev	= &ceudev->v4l2_dev;
-	ceudev->notifier.ops		= &ceu_notify_ops;
-	ret = v4l2_async_nf_register(&ceudev->notifier);
+	ceudev->analtifier.v4l2_dev	= &ceudev->v4l2_dev;
+	ceudev->analtifier.ops		= &ceu_analtify_ops;
+	ret = v4l2_async_nf_register(&ceudev->analtifier);
 	if (ret)
 		goto error_cleanup;
 
@@ -1684,7 +1684,7 @@ static int ceu_probe(struct platform_device *pdev)
 	return 0;
 
 error_cleanup:
-	v4l2_async_nf_cleanup(&ceudev->notifier);
+	v4l2_async_nf_cleanup(&ceudev->analtifier);
 error_v4l2_unregister:
 	v4l2_device_unregister(&ceudev->v4l2_dev);
 error_pm_disable:
@@ -1701,9 +1701,9 @@ static void ceu_remove(struct platform_device *pdev)
 
 	pm_runtime_disable(ceudev->dev);
 
-	v4l2_async_nf_unregister(&ceudev->notifier);
+	v4l2_async_nf_unregister(&ceudev->analtifier);
 
-	v4l2_async_nf_cleanup(&ceudev->notifier);
+	v4l2_async_nf_cleanup(&ceudev->analtifier);
 
 	v4l2_device_unregister(&ceudev->v4l2_dev);
 

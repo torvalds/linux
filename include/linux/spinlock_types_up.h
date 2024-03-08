@@ -29,7 +29,7 @@ typedef struct { } arch_spinlock_t;
 #endif
 
 typedef struct {
-	/* no debug version on UP */
+	/* anal debug version on UP */
 } arch_rwlock_t;
 
 #define __ARCH_RW_LOCK_UNLOCKED { }

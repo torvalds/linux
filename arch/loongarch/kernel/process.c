@@ -1,19 +1,19 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * Author: Huacai Chen <chenhuacai@loongson.cn>
- * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2022 Loongson Techanallogy Corporation Limited
  *
  * Derived from MIPS:
  * Copyright (C) 1994 - 1999, 2000 by Ralf Baechle and others.
  * Copyright (C) 2005, 2006 by Ralf Baechle (ralf@linux-mips.org)
  * Copyright (C) 1999, 2000 Silicon Graphics, Inc.
  * Copyright (C) 2004 Thiemo Seufer
- * Copyright (C) 2013  Imagination Technologies Ltd.
+ * Copyright (C) 2013  Imagination Techanallogies Ltd.
  */
 #include <linux/cpu.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/sched.h>
 #include <linux/sched/debug.h>
 #include <linux/sched/task.h>
@@ -60,7 +60,7 @@ EXPORT_SYMBOL(__stack_chk_guard);
  * Idle related variables and functions
  */
 
-unsigned long boot_option_idle_override = IDLE_NO_OVERRIDE;
+unsigned long boot_option_idle_override = IDLE_ANAL_OVERRIDE;
 EXPORT_SYMBOL(boot_option_idle_override);
 
 asmlinkage void ret_from_fork(void);
@@ -273,19 +273,19 @@ int get_stack_info(unsigned long stack, struct task_struct *task,
 	task = task ? : current;
 
 	if (!stack || stack & (SZREG - 1))
-		goto unknown;
+		goto unkanalwn;
 
 	if (in_task_stack(stack, task, info))
 		return 0;
 
 	if (task != current)
-		goto unknown;
+		goto unkanalwn;
 
 	if (in_irq_stack(stack, info))
 		return 0;
 
-unknown:
-	info->type = STACK_TYPE_UNKNOWN;
+unkanalwn:
+	info->type = STACK_TYPE_UNKANALWN;
 	return -EINVAL;
 }
 
@@ -310,7 +310,7 @@ unsigned long stack_top(void)
  */
 unsigned long arch_align_stack(unsigned long sp)
 {
-	if (!(current->personality & ADDR_NO_RANDOMIZE) && randomize_va_space)
+	if (!(current->personality & ADDR_ANAL_RANDOMIZE) && randomize_va_space)
 		sp -= get_random_u32_below(PAGE_SIZE);
 
 	return sp & STACK_ALIGN;
@@ -334,7 +334,7 @@ static void raise_backtrace(cpumask_t *mask)
 		/*
 		 * If we previously sent an IPI to the target CPU & it hasn't
 		 * cleared its bit in the busy cpumask then it didn't handle
-		 * our previous IPI & it's not safe for us to reuse the
+		 * our previous IPI & it's analt safe for us to reuse the
 		 * call_single_data_t.
 		 */
 		if (cpumask_test_and_set_cpu(cpu, &backtrace_csd_busy)) {

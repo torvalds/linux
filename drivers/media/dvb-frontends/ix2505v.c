@@ -263,7 +263,7 @@ struct dvb_frontend *ix2505v_attach(struct dvb_frontend *fe,
 	int ret;
 
 	if (NULL == config) {
-		deb_i2c("%s: no config ", __func__);
+		deb_i2c("%s: anal config ", __func__);
 		goto error;
 	}
 
@@ -281,7 +281,7 @@ struct dvb_frontend *ix2505v_attach(struct dvb_frontend *fe,
 		ret = ix2505v_read_status_reg(state);
 
 		if (ret & 0x80) {
-			deb_i2c("%s: No IX2505V found\n", __func__);
+			deb_i2c("%s: Anal IX2505V found\n", __func__);
 			goto error;
 		}
 

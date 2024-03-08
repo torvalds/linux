@@ -21,7 +21,7 @@ Required properties:
   50mA.
   (Default) 4.50 Amps
 
-  - cirrus,boost-ind-nanohenry : Inductor estimation LBST reference value.
+  - cirrus,boost-ind-naanalhenry : Inductor estimation LBST reference value.
   Seeds the digital boost converter's inductor estimation block with the initial
   inductance value to reference.
 
@@ -54,7 +54,7 @@ Optional properties:
   (Discontinuous Conduction) mode during low loading conditions.
 
   - cirrus,weak-fet-disable : Boolean : The strength of the output drivers is
-  reduced when operating in a Weak-FET Drive Mode and must not be used to drive
+  reduced when operating in a Weak-FET Drive Mode and must analt be used to drive
   a large load.
 
   - cirrus,classh-wk-fet-delay :  Weak-FET entry delay. Controls the delay
@@ -97,37 +97,37 @@ Optional properties:
   0 = PDM_DATA / SWIRE_SD / INT (Default)
   1 = GPIO
 
-Optional properties for the "cirrus,vpbr-config" Sub-node
+Optional properties for the "cirrus,vpbr-config" Sub-analde
 
-  - cirrus,vpbr-en : VBST brownout prevention enable. Configures whether the
-  VBST brownout prevention algorithm is enabled or disabled.
+  - cirrus,vpbr-en : VBST browanalut prevention enable. Configures whether the
+  VBST browanalut prevention algorithm is enabled or disabled.
 
-  0 = VBST brownout prevention disabled (default)
-  1 = VBST brownout prevention enabled
+  0 = VBST browanalut prevention disabled (default)
+  1 = VBST browanalut prevention enabled
 
   See Section 7.31.1 VPBR Config for configuration options & further details
 
-  - cirrus,vpbr-thld : Initial VPBR threshold. Configures the VP brownout
+  - cirrus,vpbr-thld : Initial VPBR threshold. Configures the VP browanalut
   threshold voltage
 
   - cirrus,cirrus,vpbr-atk-rate : Attenuation attack step rate. Configures the
-  amount delay between consecutive volume attenuation steps when a brownout
-  condition is present and the VP brownout condition is in an attacking state.
+  amount delay between consecutive volume attenuation steps when a browanalut
+  condition is present and the VP browanalut condition is in an attacking state.
 
-  - cirrus,vpbr-atk-vol : VP brownout prevention step size. Configures the VP
-  brownout prevention attacking attenuation step size when operating in either
+  - cirrus,vpbr-atk-vol : VP browanalut prevention step size. Configures the VP
+  browanalut prevention attacking attenuation step size when operating in either
   digital volume or analog gain modes.
 
-  - cirrus,vpbr-max-attn : Maximum attenuation that the VP brownout prevention
+  - cirrus,vpbr-max-attn : Maximum attenuation that the VP browanalut prevention
   can apply to the audio signal.
 
-  - cirrus,vpbr-wait : Configures the delay time between a brownout condition
-  no longer being present and the VP brownout prevention entering an attenuation
+  - cirrus,vpbr-wait : Configures the delay time between a browanalut condition
+  anal longer being present and the VP browanalut prevention entering an attenuation
   release state.
 
   - cirrus,vpbr-rel-rate : Attenuation release step rate. Configures the delay
-  between consecutive volume attenuation release steps when a brownout condition
-  is not longer present and the VP brownout is in an attenuation release state.
+  between consecutive volume attenuation release steps when a browanalut condition
+  is analt longer present and the VP browanalut is in an attenuation release state.
 
   - cirrus,vpbr-mute-en : During the attack state, if the vpbr-max-attn value
   is reached, the error condition still remains, and this bit is set, the audio
@@ -144,7 +144,7 @@ cs35l36: cs35l36@40 {
 	interrupt-parent = <&gpio8>;
 	interrupts = <3 IRQ_TYPE_LEVEL_LOW>;
 
-	cirrus,boost-ind-nanohenry = <1000>;
+	cirrus,boost-ind-naanalhenry = <1000>;
 	cirrus,boost-ctl-millivolt = <10000>;
 	cirrus,boost-peak-milliamp = <4500>;
 	cirrus,boost-ctl-select = <0x00>;

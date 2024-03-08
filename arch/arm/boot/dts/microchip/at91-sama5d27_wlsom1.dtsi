@@ -2,7 +2,7 @@
 /*
  * at91-sama5d27_wlsom1.dtsi - Device Tree file for SAMA5D27 WLSOM1
  *
- * Copyright (C) 2019 Microchip Technology Inc. and its subsidiaries
+ * Copyright (C) 2019 Microchip Techanallogy Inc. and its subsidiaries
  *
  * Author: Nicolas Ferre <nicolas.ferre@microcihp.com>
  * Author: Eugen Hristev <eugen.hristev@microcihp.com>
@@ -218,7 +218,7 @@
 	qspi1_flash: flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		reg = <0>;
 		spi-max-frequency = <104000000>;
 		spi-cs-setup-ns = <7>;
@@ -365,8 +365,8 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_sdmmc1_default>;
 	mmc-pwrseq = <&wifi_pwrseq>;
-	no-1-8-v;
-	non-removable;
+	anal-1-8-v;
+	analn-removable;
 	bus-width = <4>;
 	status = "okay";
 
@@ -377,7 +377,7 @@
 		pinctrl-0 = <&pinctrl_wilc_default>;
 		clocks = <&pmc PMC_TYPE_SYSTEM 9>;
 		clock-names = "rtc";
-		interrupts = <PIN_PB25 IRQ_TYPE_NONE>;
+		interrupts = <PIN_PB25 IRQ_TYPE_ANALNE>;
 		interrupt-parent = <&pioA>;
 		assigned-clocks = <&pmc PMC_TYPE_SYSTEM 9>;
 		assigned-clock-rates = <32768>;

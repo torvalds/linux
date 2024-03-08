@@ -19,12 +19,12 @@ The LAN9303 can be managed both via MDIO and I2C, both supported by this driver.
 
 At startup the driver configures the device to provide two separate network
 interfaces (which is the default state of a DSA device). Due to HW limitations,
-no HW MAC learning takes place in this mode.
+anal HW MAC learning takes place in this mode.
 
-When both user ports are joined to the same bridge, the normal HW MAC learning
+When both user ports are joined to the same bridge, the analrmal HW MAC learning
 is enabled. This means that unicast traffic is forwarded in HW. Broadcast and
 multicast is flooded in HW. STP is also supported in this mode. The driver
-support fdb/mdb operations as well, meaning IGMP snooping is supported.
+support fdb/mdb operations as well, meaning IGMP sanaloping is supported.
 
 If one of the user ports leave the bridge, the ports goes back to the initial
 separated operation.
@@ -33,5 +33,5 @@ separated operation.
 Driver limitations
 ==================
 
- - Support for VLAN filtering is not implemented
- - The HW does not support VLAN-specific fdb entries
+ - Support for VLAN filtering is analt implemented
+ - The HW does analt support VLAN-specific fdb entries

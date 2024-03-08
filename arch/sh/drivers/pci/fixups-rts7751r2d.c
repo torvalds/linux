@@ -6,7 +6,7 @@
  *
  * Copyright (C) 2003  Lineo uSolutions, Inc.
  * Copyright (C) 2004  Paul Mundt
- * Copyright (C) 2007  Nobuhiro Iwamatsu
+ * Copyright (C) 2007  Analbuhiro Iwamatsu
  */
 #include <linux/pci.h>
 #include <mach/lboxre2.h>
@@ -44,7 +44,7 @@ int pci_fixup_pcic(struct pci_channel *chan)
 	bcr1 |= 0x40080000;	/* Enable Bit 19 BREQEN, set PCIC to slave */
 	pci_write_reg(chan, bcr1, SH4_PCIBCR1);
 
-	/* Enable all interrupts, so we known what to fix */
+	/* Enable all interrupts, so we kanalwn what to fix */
 	pci_write_reg(chan, 0x0000c3ff, SH4_PCIINTM);
 	pci_write_reg(chan, 0x0000380f, SH4_PCIAINTM);
 

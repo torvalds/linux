@@ -14,7 +14,7 @@ Description:
 		4  ALED1/LED4
 		== ==========
 
-		Note that channels 5 and 6 represent LED2-ALED2 and LED1-ALED1
+		Analte that channels 5 and 6 represent LED2-ALED2 and LED1-ALED1
 		respectively which simply helper channels containing the
 		calculated difference in the value of stage 1 - 2 and 3 - 4.
 		The values are expressed in 24-bit twos complement.

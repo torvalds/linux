@@ -6,7 +6,7 @@
 #define RT5631_RESET				0x00
 #define RT5631_SPK_OUT_VOL			0x02
 #define RT5631_HP_OUT_VOL			0x04
-#define RT5631_MONO_AXO_1_2_VOL		0x06
+#define RT5631_MOANAL_AXO_1_2_VOL		0x06
 #define RT5631_AUX_IN_VOL			0x0A
 #define RT5631_STEREO_DAC_VOL_1		0x0C
 #define RT5631_MIC_CTRL_1			0x0E
@@ -21,12 +21,12 @@
 #define RT5631_AXO2MIXER_CTRL			0x20
 #define RT5631_MIC_CTRL_2			0x22
 #define RT5631_DIG_MIC_CTRL			0x24
-#define RT5631_MONO_INPUT_VOL			0x26
+#define RT5631_MOANAL_INPUT_VOL			0x26
 #define RT5631_SPK_MIXER_CTRL			0x28
-#define RT5631_SPK_MONO_OUT_CTRL		0x2A
-#define RT5631_SPK_MONO_HP_OUT_CTRL		0x2C
+#define RT5631_SPK_MOANAL_OUT_CTRL		0x2A
+#define RT5631_SPK_MOANAL_HP_OUT_CTRL		0x2C
 #define RT5631_SDP_CTRL				0x34
-#define RT5631_MONO_SDP_CTRL			0x36
+#define RT5631_MOANAL_SDP_CTRL			0x36
 #define RT5631_STEREO_AD_DA_CLK_CTRL		0x38
 #define RT5631_PWR_MANAG_ADD1		0x3A
 #define RT5631_PWR_MANAG_ADD2		0x3B
@@ -108,12 +108,12 @@
 #define RT5631_HP_R_VOL_SEL_VMID			(0x0 << 6)
 #define RT5631_HP_R_VOL_SEL_OUTMIX_R			(0x1 << 6)
 
-/* Output Control for AUXOUT/MONO(0x06) */
+/* Output Control for AUXOUT/MOANAL(0x06) */
 #define RT5631_AUXOUT_1_VOL_SEL_MASK			(0x1 << 14)
 #define RT5631_AUXOUT_1_VOL_SEL_VMID			(0x0 << 14)
 #define RT5631_AUXOUT_1_VOL_SEL_OUTMIX_L		(0x1 << 14)
-#define RT5631_MUTE_MONO				(0x1 << 13)
-#define RT5631_MUTE_MONO_SHIFT			13
+#define RT5631_MUTE_MOANAL				(0x1 << 13)
+#define RT5631_MUTE_MOANAL_SHIFT			13
 #define RT5631_AUXOUT_2_VOL_SEL_MASK			(0x1 << 6)
 #define RT5631_AUXOUT_2_VOL_SEL_VMID			(0x0 << 6)
 #define RT5631_AUXOUT_2_VOL_SEL_OUTMIX_R		(0x1 << 6)
@@ -134,16 +134,16 @@
 #define RT5631_M_MIC1_RECMIXL_BIT			14
 #define RT5631_M_AXIL_TO_RECMIXER_L			(0x1 << 13)
 #define RT5631_M_AXIL_RECMIXL_BIT			13
-#define RT5631_M_MONO_IN_TO_RECMIXER_L		(0x1 << 12)
-#define RT5631_M_MONO_IN_RECMIXL_BIT			12
+#define RT5631_M_MOANAL_IN_TO_RECMIXER_L		(0x1 << 12)
+#define RT5631_M_MOANAL_IN_RECMIXL_BIT			12
 #define RT5631_M_OUTMIXER_R_TO_RECMIXER_R		(0x1 << 7)
 #define RT5631_M_OUTMIXR_RECMIXR_BIT			7
 #define RT5631_M_MIC2_TO_RECMIXER_R			(0x1 << 6)
 #define RT5631_M_MIC2_RECMIXR_BIT			6
 #define RT5631_M_AXIR_TO_RECMIXER_R			(0x1 << 5)
 #define RT5631_M_AXIR_RECMIXR_BIT			5
-#define RT5631_M_MONO_IN_TO_RECMIXER_R		(0x1 << 4)
-#define RT5631_M_MONO_IN_RECMIXR_BIT			4
+#define RT5631_M_MOANAL_IN_TO_RECMIXER_R		(0x1 << 4)
+#define RT5631_M_MOANAL_IN_RECMIXR_BIT			4
 
 /* Left Output Mixer Control(0x1A) */
 #define RT5631_M_RECMIXER_L_TO_OUTMIXER_L		(0x1 << 15)
@@ -156,8 +156,8 @@
 #define RT5631_M_MIC1_OUTMIXL_BIT			12
 #define RT5631_M_MIC2_TO_OUTMIXER_L			(0x1 << 11)
 #define RT5631_M_MIC2_OUTMIXL_BIT			11
-#define RT5631_M_MONO_IN_P_TO_OUTMIXER_L		(0x1 << 10)
-#define RT5631_M_MONO_INP_OUTMIXL_BIT		10
+#define RT5631_M_MOANAL_IN_P_TO_OUTMIXER_L		(0x1 << 10)
+#define RT5631_M_MOANAL_INP_OUTMIXL_BIT		10
 #define RT5631_M_AXIL_TO_OUTMIXER_L			(0x1 << 9)
 #define RT5631_M_AXIL_OUTMIXL_BIT			9
 #define RT5631_M_AXIR_TO_OUTMIXER_L			(0x1 << 8)
@@ -176,8 +176,8 @@
 #define RT5631_M_MIC1_OUTMIXR_BIT			12
 #define RT5631_M_MIC2_TO_OUTMIXER_R			(0x1 << 11)
 #define RT5631_M_MIC2_OUTMIXR_BIT			11
-#define RT5631_M_MONO_IN_N_TO_OUTMIXER_R		(0x1 << 10)
-#define RT5631_M_MONO_INN_OUTMIXR_BIT		10
+#define RT5631_M_MOANAL_IN_N_TO_OUTMIXER_R		(0x1 << 10)
+#define RT5631_M_MOANAL_INN_OUTMIXR_BIT		10
 #define RT5631_M_AXIL_TO_OUTMIXER_R			(0x1 << 9)
 #define RT5631_M_AXIL_OUTMIXR_BIT			9
 #define RT5631_M_AXIR_TO_OUTMIXER_R			(0x1 << 8)
@@ -283,7 +283,7 @@
 #define RT5631_DMIC_CLK_CTRL_TO_32FS			(0x2 << 4)
 
 /* Microphone Input Volume(0x26) */
-#define RT5631_MONO_DIFF_INPUT_SHIFT			15
+#define RT5631_MOANAL_DIFF_INPUT_SHIFT			15
 
 /* Speaker Mixer Control(0x28) */
 #define RT5631_M_RECMIXER_L_TO_SPKMIXER_L		(0x1 << 15)
@@ -304,7 +304,7 @@
 #define RT5631_M_OUTMIXER_R_TO_SPKMIXER_R		(0x1 << 4)
 #define RT5631_M_OUTMIXR_SPKMIXR_BIT			4
 
-/* Speaker/Mono Output Control(0x2A) */
+/* Speaker/Moanal Output Control(0x2A) */
 #define RT5631_M_SPKVOL_L_TO_SPOL_MIXER		(0x1 << 15)
 #define RT5631_M_SPKVOLL_SPOLMIX_BIT			15
 #define RT5631_M_SPKVOL_R_TO_SPOL_MIXER		(0x1 << 14)
@@ -313,28 +313,28 @@
 #define RT5631_M_SPKVOLL_SPORMIX_BIT			13
 #define RT5631_M_SPKVOL_R_TO_SPOR_MIXER		(0x1 << 12)
 #define RT5631_M_SPKVOLR_SPORMIX_BIT			12
-#define RT5631_M_OUTVOL_L_TO_MONOMIXER		(0x1 << 11)
-#define RT5631_M_OUTVOLL_MONOMIX_BIT			11
-#define RT5631_M_OUTVOL_R_TO_MONOMIXER		(0x1 << 10)
-#define RT5631_M_OUTVOLR_MONOMIX_BIT			10
+#define RT5631_M_OUTVOL_L_TO_MOANALMIXER		(0x1 << 11)
+#define RT5631_M_OUTVOLL_MOANALMIX_BIT			11
+#define RT5631_M_OUTVOL_R_TO_MOANALMIXER		(0x1 << 10)
+#define RT5631_M_OUTVOLR_MOANALMIX_BIT			10
 
-/* Speaker/Mono/HP Output Control(0x2C) */
+/* Speaker/Moanal/HP Output Control(0x2C) */
 #define RT5631_SPK_L_MUX_SEL_MASK			(0x3 << 14)
 #define RT5631_SPK_L_MUX_SEL_SPKMIXER_L		(0x0 << 14)
-#define RT5631_SPK_L_MUX_SEL_MONO_IN			(0x1 << 14)
+#define RT5631_SPK_L_MUX_SEL_MOANAL_IN			(0x1 << 14)
 #define RT5631_SPK_L_MUX_SEL_DAC_L			(0x3 << 14)
 #define RT5631_SPK_L_MUX_SEL_SHIFT			14
 
 #define RT5631_SPK_R_MUX_SEL_MASK			(0x3 << 10)
 #define RT5631_SPK_R_MUX_SEL_SPKMIXER_R		(0x0 << 10)
-#define RT5631_SPK_R_MUX_SEL_MONO_IN			(0x1 << 10)
+#define RT5631_SPK_R_MUX_SEL_MOANAL_IN			(0x1 << 10)
 #define RT5631_SPK_R_MUX_SEL_DAC_R			(0x3 << 10)
 #define RT5631_SPK_R_MUX_SEL_SHIFT			10
 
-#define RT5631_MONO_MUX_SEL_MASK			(0x3 << 6)
-#define RT5631_MONO_MUX_SEL_MONOMIXER		(0x0 << 6)
-#define RT5631_MONO_MUX_SEL_MONO_IN			(0x1 << 6)
-#define RT5631_MONO_MUX_SEL_SHIFT			6
+#define RT5631_MOANAL_MUX_SEL_MASK			(0x3 << 6)
+#define RT5631_MOANAL_MUX_SEL_MOANALMIXER		(0x0 << 6)
+#define RT5631_MOANAL_MUX_SEL_MOANAL_IN			(0x1 << 6)
+#define RT5631_MOANAL_MUX_SEL_SHIFT			6
 
 #define RT5631_HP_L_MUX_SEL_MASK			(0x1 << 3)
 #define RT5631_HP_L_MUX_SEL_HPVOL_L			(0x0 << 3)
@@ -360,9 +360,9 @@
 #define RT5631_SDP_DAC_CPS_SEL_OFF			(0x0 << 8)
 #define RT5631_SDP_DAC_CPS_SEL_U_LAW			(0x1 << 8)
 #define RT5631_SDP_DAC_CPS_SEL_A_LAW			(0x2 << 8)
-/* 0:Normal 1:Invert */
+/* 0:Analrmal 1:Invert */
 #define RT5631_SDP_I2S_BCLK_POL_CTRL			(0x1 << 7)
-/* 0:Normal 1:Invert */
+/* 0:Analrmal 1:Invert */
 #define RT5631_SDP_DAC_R_INV				(0x1 << 6)
 /* 0:ADC data appear at left phase of LRCK
  * 1:ADC data appear at right phase of LRCK
@@ -472,12 +472,12 @@
 #define RT5631_PWR_AXO1MIXER_BIT			11
 #define RT5631_PWR_AXO2MIXER				(0x1 << 10)
 #define RT5631_PWR_AXO2MIXER_BIT			10
-#define RT5631_PWR_MONOMIXER				(0x1 << 9)
-#define RT5631_PWR_MONOMIXER_BIT			9
-#define RT5631_PWR_MONO_DEPOP_DIS			(0x1 << 8)
-#define RT5631_PWR_MONO_DEPOP_DIS_BIT		8
-#define RT5631_PWR_MONO_AMP_EN			(0x1 << 7)
-#define RT5631_PWR_MONO_AMP_EN_BIT			7
+#define RT5631_PWR_MOANALMIXER				(0x1 << 9)
+#define RT5631_PWR_MOANALMIXER_BIT			9
+#define RT5631_PWR_MOANAL_DEPOP_DIS			(0x1 << 8)
+#define RT5631_PWR_MOANAL_DEPOP_DIS_BIT		8
+#define RT5631_PWR_MOANAL_AMP_EN			(0x1 << 7)
+#define RT5631_PWR_MOANAL_AMP_EN_BIT			7
 #define RT5631_PWR_CHARGE_PUMP			(0x1 << 4)
 #define RT5631_PWR_CHARGE_PUMP_BIT			4
 #define RT5631_PWR_HP_L_AMP				(0x1 << 3)
@@ -506,10 +506,10 @@
 #define RT5631_PWR_AXIL_IN_VOL_BIT			9
 #define RT5631_PWR_AXIR_IN_VOL			(0x1 << 8)
 #define RT5631_PWR_AXIR_IN_VOL_BIT			8
-#define RT5631_PWR_MONO_IN_P_VOL			(0x1 << 7)
-#define RT5631_PWR_MONO_IN_P_VOL_BIT			7
-#define RT5631_PWR_MONO_IN_N_VOL			(0x1 << 6)
-#define RT5631_PWR_MONO_IN_N_VOL_BIT			6
+#define RT5631_PWR_MOANAL_IN_P_VOL			(0x1 << 7)
+#define RT5631_PWR_MOANAL_IN_P_VOL_BIT			7
+#define RT5631_PWR_MOANAL_IN_N_VOL			(0x1 << 6)
+#define RT5631_PWR_MOANAL_IN_N_VOL_BIT			6
 
 /* General Purpose Control Register(0x40) */
 #define RT5631_SPK_AMP_AUTO_RATIO_EN			(0x1 << 15)
@@ -624,11 +624,11 @@
 #define RT5631_JD_SPK_R_TRI_MASK			(0x1 << 6)
 #define RT5631_JD_SPK_R_TRI_HI				(0x1 << 6)
 #define RT5631_JD_SPK_R_TRI_LO				(0x0 << 6)
-/* JD trigger enable for monoout */
-#define RT5631_JD_MONO_EN				(0x1 << 5)
-#define RT5631_JD_MONO_TRI_MASK			(0x1 << 4)
-#define RT5631_JD_MONO_TRI_HI				(0x1 << 4)
-#define RT5631_JD_MONO_TRI_LO				(0x0 << 4)
+/* JD trigger enable for moanalout */
+#define RT5631_JD_MOANAL_EN				(0x1 << 5)
+#define RT5631_JD_MOANAL_TRI_MASK			(0x1 << 4)
+#define RT5631_JD_MOANAL_TRI_HI				(0x1 << 4)
+#define RT5631_JD_MOANAL_TRI_LO				(0x0 << 4)
 /* JD trigger enable for Lout */
 #define RT5631_JD_AUX_1_EN				(0x1 << 3)
 #define RT5631_JD_AUX_1_MASK				(0x1 << 2)
@@ -645,8 +645,8 @@
 #define RT5631_ALC_RECOVERY_RATE_MASK		(0x1F << 0)
 
 /* ALC CONTROL 2(0x65) */
-/* select Compensation gain for Noise gate function */
-#define RT5631_ALC_COM_NOISE_GATE_MASK		(0xF << 0)
+/* select Compensation gain for Analise gate function */
+#define RT5631_ALC_COM_ANALISE_GATE_MASK		(0xF << 0)
 
 /* ALC CONTROL 3(0x66) */
 #define RT5631_ALC_FUN_MASK				(0x3 << 14)
@@ -655,13 +655,13 @@
 #define RT5631_ALC_ENA_ADC_PATH			(0x3 << 14)
 #define RT5631_ALC_PARA_UPDATE			(0x1 << 13)
 #define RT5631_ALC_LIMIT_LEVEL_MASK			(0x1F << 8)
-#define RT5631_ALC_NOISE_GATE_FUN_MASK		(0x1 << 7)
-#define RT5631_ALC_NOISE_GATE_FUN_DIS			(0x0 << 7)
-#define RT5631_ALC_NOISE_GATE_FUN_ENA		(0x1 << 7)
-/* ALC noise gate hold data function */
-#define RT5631_ALC_NOISE_GATE_H_D_MASK		(0x1 << 6)
-#define RT5631_ALC_NOISE_GATE_H_D_DIS			(0x0 << 6)
-#define RT5631_ALC_NOISE_GATE_H_D_ENA		(0x1 << 6)
+#define RT5631_ALC_ANALISE_GATE_FUN_MASK		(0x1 << 7)
+#define RT5631_ALC_ANALISE_GATE_FUN_DIS			(0x0 << 7)
+#define RT5631_ALC_ANALISE_GATE_FUN_ENA		(0x1 << 7)
+/* ALC analise gate hold data function */
+#define RT5631_ALC_ANALISE_GATE_H_D_MASK		(0x1 << 6)
+#define RT5631_ALC_ANALISE_GATE_H_D_DIS			(0x0 << 6)
+#define RT5631_ALC_ANALISE_GATE_H_D_ENA		(0x1 << 6)
 
 /* Psedueo Stereo & Spatial Effect Block Control(0x68) */
 #define RT5631_SPATIAL_CTRL_EN				(0x1 << 15)

@@ -513,7 +513,7 @@ static void _rtl92e_dm_tx_power_tracking_callback_tssi(struct net_device *dev)
 		tx_cmd.op	= TXCMD_SET_TX_PWR_TRACKING;
 		tx_cmd.length	= 4;
 		tx_cmd.value	= priv->pwr_track >> 24;
-		rtl92e_send_cmd_pkt(dev, DESC_PACKET_TYPE_NORMAL, (u8 *)&tx_cmd,
+		rtl92e_send_cmd_pkt(dev, DESC_PACKET_TYPE_ANALRMAL, (u8 *)&tx_cmd,
 				    sizeof(struct dcmd_txcmd));
 		mdelay(1);
 		for (i = 0; i <= 30; i++) {
@@ -942,9 +942,9 @@ static void _rtl92e_dm_ctrl_initgain_byrssi(struct net_device *dev)
  *
  * Input:		IN	PADAPTER	pAdapter
  *
- * Output:		NONE
+ * Output:		ANALNE
  *
- * Return:		NONE
+ * Return:		ANALNE
  *
  * Revised History:
  *	When		Who		Remark
@@ -1042,7 +1042,7 @@ static void _rtl92e_dm_pd_th(struct net_device *dev)
 				 (dm_digtable.rssi_val <
 				  dm_digtable.rssi_high_power_lowthresh))
 				dm_digtable.curpd_thstate =
-							DIG_PD_AT_NORMAL_POWER;
+							DIG_PD_AT_ANALRMAL_POWER;
 			else
 				dm_digtable.curpd_thstate =
 						dm_digtable.prepd_thstate;
@@ -1061,7 +1061,7 @@ static void _rtl92e_dm_pd_th(struct net_device *dev)
 			else
 				rtl92e_writeb(dev, rOFDM0_RxDetector1, 0x42);
 		} else if (dm_digtable.curpd_thstate ==
-			   DIG_PD_AT_NORMAL_POWER) {
+			   DIG_PD_AT_ANALRMAL_POWER) {
 			if (priv->current_chnl_bw != HT_CHANNEL_WIDTH_20)
 				rtl92e_writeb(dev, (rOFDM0_XATxAFE + 3), 0x20);
 			else
@@ -1115,7 +1115,7 @@ void rtl92e_dm_init_edca_turbo(struct net_device *dev)
 	struct r8192_priv *priv = rtllib_priv(dev);
 
 	priv->bcurrent_turbo_EDCA = false;
-	priv->rtllib->bis_any_nonbepkts = false;
+	priv->rtllib->bis_any_analnbepkts = false;
 	priv->bis_cur_rdlstate = false;
 }
 
@@ -1134,7 +1134,7 @@ static void _rtl92e_dm_check_edca_turbo(struct net_device *dev)
 	if (priv->rtllib->ht_info->iot_action & HT_IOT_ACT_DISABLE_EDCA_TURBO)
 		goto dm_CheckEdcaTurbo_EXIT;
 
-	if (!priv->rtllib->bis_any_nonbepkts) {
+	if (!priv->rtllib->bis_any_analnbepkts) {
 		curTxOkCnt = priv->stats.txbytesunicast - lastTxOkCnt;
 		curRxOkCnt = priv->stats.rxbytesunicast - lastRxOkCnt;
 		if (ht_info->iot_action & HT_IOT_ACT_EDCA_BIAS_ON_RX) {
@@ -1192,7 +1192,7 @@ static void _rtl92e_dm_check_edca_turbo(struct net_device *dev)
 	}
 
 dm_CheckEdcaTurbo_EXIT:
-	priv->rtllib->bis_any_nonbepkts = false;
+	priv->rtllib->bis_any_analnbepkts = false;
 	lastTxOkCnt = priv->stats.txbytesunicast;
 	lastRxOkCnt = priv->stats.rxbytesunicast;
 }
@@ -1707,7 +1707,7 @@ static void _rtl92e_dm_start_sw_fsync(struct net_device *dev)
 static void _rtl92e_dm_check_fsync(struct net_device *dev)
 {
 #define	RegC38_Default			0
-#define	RegC38_NonFsync_Other_AP	1
+#define	RegC38_AnalnFsync_Other_AP	1
 #define	RegC38_Fsync_AP_BCM		2
 	struct r8192_priv *priv = rtllib_priv(dev);
 	static u8 reg_c38_State = RegC38_Default;
@@ -1769,13 +1769,13 @@ static void _rtl92e_dm_check_fsync(struct net_device *dev)
 			if (priv->undecorated_smoothed_pwdb <=
 			    RegC38_TH) {
 				if (reg_c38_State !=
-				    RegC38_NonFsync_Other_AP) {
+				    RegC38_AnalnFsync_Other_AP) {
 					rtl92e_writeb(dev,
 						      rOFDM0_RxDetector3,
 						      0x90);
 
 					reg_c38_State =
-					     RegC38_NonFsync_Other_AP;
+					     RegC38_AnalnFsync_Other_AP;
 				}
 			} else if (priv->undecorated_smoothed_pwdb >=
 				   (RegC38_TH + 5)) {

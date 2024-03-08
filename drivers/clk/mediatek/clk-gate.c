@@ -62,14 +62,14 @@ static void mtk_cg_clr_bit(struct clk_hw *hw)
 	regmap_write(cg->regmap, cg->clr_ofs, BIT(cg->bit));
 }
 
-static void mtk_cg_set_bit_no_setclr(struct clk_hw *hw)
+static void mtk_cg_set_bit_anal_setclr(struct clk_hw *hw)
 {
 	struct mtk_clk_gate *cg = to_mtk_clk_gate(hw);
 
 	regmap_set_bits(cg->regmap, cg->sta_ofs, BIT(cg->bit));
 }
 
-static void mtk_cg_clr_bit_no_setclr(struct clk_hw *hw)
+static void mtk_cg_clr_bit_anal_setclr(struct clk_hw *hw)
 {
 	struct mtk_clk_gate *cg = to_mtk_clk_gate(hw);
 
@@ -100,28 +100,28 @@ static void mtk_cg_disable_inv(struct clk_hw *hw)
 	mtk_cg_clr_bit(hw);
 }
 
-static int mtk_cg_enable_no_setclr(struct clk_hw *hw)
+static int mtk_cg_enable_anal_setclr(struct clk_hw *hw)
 {
-	mtk_cg_clr_bit_no_setclr(hw);
+	mtk_cg_clr_bit_anal_setclr(hw);
 
 	return 0;
 }
 
-static void mtk_cg_disable_no_setclr(struct clk_hw *hw)
+static void mtk_cg_disable_anal_setclr(struct clk_hw *hw)
 {
-	mtk_cg_set_bit_no_setclr(hw);
+	mtk_cg_set_bit_anal_setclr(hw);
 }
 
-static int mtk_cg_enable_inv_no_setclr(struct clk_hw *hw)
+static int mtk_cg_enable_inv_anal_setclr(struct clk_hw *hw)
 {
-	mtk_cg_set_bit_no_setclr(hw);
+	mtk_cg_set_bit_anal_setclr(hw);
 
 	return 0;
 }
 
-static void mtk_cg_disable_inv_no_setclr(struct clk_hw *hw)
+static void mtk_cg_disable_inv_anal_setclr(struct clk_hw *hw)
 {
-	mtk_cg_clr_bit_no_setclr(hw);
+	mtk_cg_clr_bit_anal_setclr(hw);
 }
 
 const struct clk_ops mtk_clk_gate_ops_setclr = {
@@ -138,19 +138,19 @@ const struct clk_ops mtk_clk_gate_ops_setclr_inv = {
 };
 EXPORT_SYMBOL_GPL(mtk_clk_gate_ops_setclr_inv);
 
-const struct clk_ops mtk_clk_gate_ops_no_setclr = {
+const struct clk_ops mtk_clk_gate_ops_anal_setclr = {
 	.is_enabled	= mtk_cg_bit_is_cleared,
-	.enable		= mtk_cg_enable_no_setclr,
-	.disable	= mtk_cg_disable_no_setclr,
+	.enable		= mtk_cg_enable_anal_setclr,
+	.disable	= mtk_cg_disable_anal_setclr,
 };
-EXPORT_SYMBOL_GPL(mtk_clk_gate_ops_no_setclr);
+EXPORT_SYMBOL_GPL(mtk_clk_gate_ops_anal_setclr);
 
-const struct clk_ops mtk_clk_gate_ops_no_setclr_inv = {
+const struct clk_ops mtk_clk_gate_ops_anal_setclr_inv = {
 	.is_enabled	= mtk_cg_bit_is_set,
-	.enable		= mtk_cg_enable_inv_no_setclr,
-	.disable	= mtk_cg_disable_inv_no_setclr,
+	.enable		= mtk_cg_enable_inv_anal_setclr,
+	.disable	= mtk_cg_disable_inv_anal_setclr,
 };
-EXPORT_SYMBOL_GPL(mtk_clk_gate_ops_no_setclr_inv);
+EXPORT_SYMBOL_GPL(mtk_clk_gate_ops_anal_setclr_inv);
 
 static struct clk_hw *mtk_clk_register_gate(struct device *dev, const char *name,
 					 const char *parent_name,
@@ -165,7 +165,7 @@ static struct clk_hw *mtk_clk_register_gate(struct device *dev, const char *name
 
 	cg = kzalloc(sizeof(*cg), GFP_KERNEL);
 	if (!cg)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = name;
 	init.flags = flags | CLK_SET_RATE_PARENT;
@@ -202,7 +202,7 @@ static void mtk_clk_unregister_gate(struct clk_hw *hw)
 	kfree(cg);
 }
 
-int mtk_clk_register_gates(struct device *dev, struct device_node *node,
+int mtk_clk_register_gates(struct device *dev, struct device_analde *analde,
 			   const struct mtk_gate *clks, int num,
 			   struct clk_hw_onecell_data *clk_data)
 {
@@ -211,11 +211,11 @@ int mtk_clk_register_gates(struct device *dev, struct device_node *node,
 	struct regmap *regmap;
 
 	if (!clk_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	regmap = device_node_to_regmap(node);
+	regmap = device_analde_to_regmap(analde);
 	if (IS_ERR(regmap)) {
-		pr_err("Cannot find regmap for %pOF: %pe\n", node, regmap);
+		pr_err("Cananalt find regmap for %pOF: %pe\n", analde, regmap);
 		return PTR_ERR(regmap);
 	}
 
@@ -224,7 +224,7 @@ int mtk_clk_register_gates(struct device *dev, struct device_node *node,
 
 		if (!IS_ERR_OR_NULL(clk_data->hws[gate->id])) {
 			pr_warn("%pOF: Trying to register duplicate clock ID: %d\n",
-				node, gate->id);
+				analde, gate->id);
 			continue;
 		}
 
@@ -255,7 +255,7 @@ err:
 			continue;
 
 		mtk_clk_unregister_gate(clk_data->hws[gate->id]);
-		clk_data->hws[gate->id] = ERR_PTR(-ENOENT);
+		clk_data->hws[gate->id] = ERR_PTR(-EANALENT);
 	}
 
 	return PTR_ERR(hw);
@@ -277,7 +277,7 @@ void mtk_clk_unregister_gates(const struct mtk_gate *clks, int num,
 			continue;
 
 		mtk_clk_unregister_gate(clk_data->hws[gate->id]);
-		clk_data->hws[gate->id] = ERR_PTR(-ENOENT);
+		clk_data->hws[gate->id] = ERR_PTR(-EANALENT);
 	}
 }
 EXPORT_SYMBOL_GPL(mtk_clk_unregister_gates);

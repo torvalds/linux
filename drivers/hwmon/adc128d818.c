@@ -26,7 +26,7 @@
  * since they are also used by some EEPROMs, which may result in false
  * positives.
  */
-static const unsigned short normal_i2c[] = {
+static const unsigned short analrmal_i2c[] = {
 	0x1d, 0x1e, 0x1f, 0x2d, 0x2e, 0x2f, I2C_CLIENT_END };
 
 /* registers */
@@ -50,7 +50,7 @@ static const unsigned short normal_i2c[] = {
 #define ADC128_REG_MAN_ID		0x3e
 #define ADC128_REG_DEV_ID		0x3f
 
-/* No. of voltage entries in adc128_attrs */
+/* Anal. of voltage entries in adc128_attrs */
 #define ADC128_ATTR_NUM_VOLT		(8 * 4)
 
 /* Voltage inputs visible per operation mode */
@@ -65,12 +65,12 @@ struct adc128_data {
 	bool valid;		/* true if following fields are valid */
 	unsigned long last_updated;	/* In jiffies */
 
-	u16 in[3][8];		/* Register value, normalized to 12 bit
+	u16 in[3][8];		/* Register value, analrmalized to 12 bit
 				 * 0: input voltage
 				 * 1: min limit
 				 * 2: max limit
 				 */
-	s16 temp[3];		/* Register value, normalized to 9 bit
+	s16 temp[3];		/* Register value, analrmalized to 9 bit
 				 * 0: sensor 1: limit 2: hyst
 				 */
 	u8 alarms;		/* alarm register value */
@@ -256,7 +256,7 @@ static umode_t adc128_is_visible(struct kobject *kobj,
 		if (index >= num_inputs[data->mode] * 4)
 			return 0;
 	} else {
-		/* Temperature, visible if not in mode 1 */
+		/* Temperature, visible if analt in mode 1 */
 		if (data->mode == 1)
 			return 0;
 	}
@@ -363,26 +363,26 @@ static int adc128_detect(struct i2c_client *client, struct i2c_board_info *info)
 	if (!i2c_check_functionality(client->adapter,
 				     I2C_FUNC_SMBUS_BYTE_DATA |
 				     I2C_FUNC_SMBUS_WORD_DATA))
-		return -ENODEV;
+		return -EANALDEV;
 
 	man_id = i2c_smbus_read_byte_data(client, ADC128_REG_MAN_ID);
 	dev_id = i2c_smbus_read_byte_data(client, ADC128_REG_DEV_ID);
 	if (man_id != 0x01 || dev_id != 0x09)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Check unused bits for confirmation */
 	if (i2c_smbus_read_byte_data(client, ADC128_REG_CONFIG) & 0xf4)
-		return -ENODEV;
+		return -EANALDEV;
 	if (i2c_smbus_read_byte_data(client, ADC128_REG_CONV_RATE) & 0xfe)
-		return -ENODEV;
+		return -EANALDEV;
 	if (i2c_smbus_read_byte_data(client, ADC128_REG_ONESHOT) & 0xfe)
-		return -ENODEV;
+		return -EANALDEV;
 	if (i2c_smbus_read_byte_data(client, ADC128_REG_SHUTDOWN) & 0xfe)
-		return -ENODEV;
+		return -EANALDEV;
 	if (i2c_smbus_read_byte_data(client, ADC128_REG_CONFIG_ADV) & 0xf8)
-		return -ENODEV;
+		return -EANALDEV;
 	if (i2c_smbus_read_byte_data(client, ADC128_REG_BUSY_STATUS) & 0xfc)
-		return -ENODEV;
+		return -EANALDEV;
 
 	strscpy(info->type, "adc128d818", I2C_NAME_SIZE);
 
@@ -403,7 +403,7 @@ static int adc128_init_client(struct adc128_data *data)
 	if (err)
 		return err;
 
-	/* Set operation mode, if non-default */
+	/* Set operation mode, if analn-default */
 	if (data->mode != 0)
 		regval |= data->mode << 1;
 
@@ -437,7 +437,7 @@ static int adc128_probe(struct i2c_client *client)
 
 	data = devm_kzalloc(dev, sizeof(struct adc128_data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* vref is optional. If specified, is used as chip reference voltage */
 	regulator = devm_regulator_get_optional(dev, "vref");
@@ -457,7 +457,7 @@ static int adc128_probe(struct i2c_client *client)
 	}
 
 	/* Operation mode is optional. If unspecified, keep current mode */
-	if (of_property_read_u8(dev->of_node, "ti,mode", &data->mode) == 0) {
+	if (of_property_read_u8(dev->of_analde, "ti,mode", &data->mode) == 0) {
 		if (data->mode > 3) {
 			dev_err(dev, "invalid operation mode %d\n",
 				data->mode);
@@ -525,7 +525,7 @@ static struct i2c_driver adc128_driver = {
 	.remove		= adc128_remove,
 	.id_table	= adc128_id,
 	.detect		= adc128_detect,
-	.address_list	= normal_i2c,
+	.address_list	= analrmal_i2c,
 };
 
 module_i2c_driver(adc128_driver);

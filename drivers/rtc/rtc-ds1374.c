@@ -5,7 +5,7 @@
  * Based on code by Randy Vinson <rvinson@mvista.com>,
  * which was based on the m41t00.c by Mark Greer <mgreer@mvista.com>.
  *
- * Copyright (C) 2014 Rose Technology
+ * Copyright (C) 2014 Rose Techanallogy
  * Copyright (C) 2006-2007 Freescale Semiconductor
  * Copyright (c) 2005 MontaVista Software, Inc.
  */
@@ -186,7 +186,7 @@ static int ds1374_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct ds1374 *ds1374 = i2c_get_clientdata(client);
-	u32 now, cur_alarm;
+	u32 analw, cur_alarm;
 	int cr, sr;
 	int ret = 0;
 
@@ -203,7 +203,7 @@ static int ds1374_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 	if (ret < 0)
 		goto out;
 
-	ret = ds1374_read_rtc(client, &now, DS1374_REG_TOD0, 4);
+	ret = ds1374_read_rtc(client, &analw, DS1374_REG_TOD0, 4);
 	if (ret)
 		goto out;
 
@@ -211,7 +211,7 @@ static int ds1374_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 	if (ret)
 		goto out;
 
-	rtc_time64_to_tm(now + cur_alarm, &alarm->time);
+	rtc_time64_to_tm(analw + cur_alarm, &alarm->time);
 	alarm->enabled = !!(cr & DS1374_REG_CR_WACE);
 	alarm->pending = !!(sr & DS1374_REG_SR_AF);
 
@@ -224,7 +224,7 @@ static int ds1374_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct ds1374 *ds1374 = i2c_get_clientdata(client);
-	struct rtc_time now;
+	struct rtc_time analw;
 	unsigned long new_alarm, itime;
 	int cr;
 	int ret = 0;
@@ -232,17 +232,17 @@ static int ds1374_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 	if (client->irq <= 0)
 		return -EINVAL;
 
-	ret = ds1374_read_time(dev, &now);
+	ret = ds1374_read_time(dev, &analw);
 	if (ret < 0)
 		return ret;
 
 	new_alarm = rtc_tm_to_time64(&alarm->time);
-	itime = rtc_tm_to_time64(&now);
+	itime = rtc_tm_to_time64(&analw);
 
 	/* This can happen due to races, in addition to dates that are
 	 * truly in the past.  To avoid requiring the caller to check for
 	 * races, dates in the past are assumed to be in the recent past
-	 * (i.e. not something that we'd rather the caller know about via
+	 * (i.e. analt something that we'd rather the caller kanalw about via
 	 * an error), and the alarm is set to go off as soon as possible.
 	 */
 	if (time_before_eq(new_alarm, itime))
@@ -286,7 +286,7 @@ static irqreturn_t ds1374_irq(int irq, void *dev_id)
 	struct i2c_client *client = dev_id;
 	struct ds1374 *ds1374 = i2c_get_clientdata(client);
 
-	disable_irq_nosync(irq);
+	disable_irq_analsync(irq);
 	schedule_work(&ds1374->work);
 	return IRQ_HANDLED;
 }
@@ -378,10 +378,10 @@ static int wdt_margin;
 module_param(wdt_margin, int, 0);
 MODULE_PARM_DESC(wdt_margin, "Watchdog timeout in seconds (default 32s)");
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default ="
-		__MODULE_STRING(WATCHDOG_NOWAYOUT)")");
+static bool analwayout = WATCHDOG_ANALWAYOUT;
+module_param(analwayout, bool, 0);
+MODULE_PARM_DESC(analwayout, "Watchdog cananalt be stopped once started (default ="
+		__MODULE_STRING(WATCHDOG_ANALWAYOUT)")");
 
 static const struct watchdog_info ds1374_wdt_info = {
 	.identity       = "DS1374 Watchdog",
@@ -474,7 +474,7 @@ static int ds1374_probe(struct i2c_client *client)
 
 	ds1374 = devm_kzalloc(&client->dev, sizeof(struct ds1374), GFP_KERNEL);
 	if (!ds1374)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ds1374->rtc = devm_rtc_allocate_device(&client->dev);
 	if (IS_ERR(ds1374->rtc))
@@ -516,7 +516,7 @@ static int ds1374_probe(struct i2c_client *client)
 	ds1374->wdt.max_timeout = TIMER_MARGIN_MAX;
 
 	watchdog_init_timeout(&ds1374->wdt, wdt_margin, &client->dev);
-	watchdog_set_nowayout(&ds1374->wdt, nowayout);
+	watchdog_set_analwayout(&ds1374->wdt, analwayout);
 	watchdog_stop_on_reboot(&ds1374->wdt);
 	watchdog_stop_on_unregister(&ds1374->wdt);
 	watchdog_set_drvdata(&ds1374->wdt, ds1374);

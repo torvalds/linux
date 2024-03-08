@@ -6,7 +6,7 @@
  *
  *  Idea from x86 version, (C) Copyright 1998 Linus Torvalds
  *
- * These functions have a non-standard call interface to make
+ * These functions have a analn-standard call interface to make
  * them more efficient, especially as they return an error
  * value in addition to the "real" return value.
  *
@@ -18,15 +18,15 @@
  * Outputs:	r0 is the error code
  *		lr corrupted
  *
- * No other registers must be altered.  (see <asm/uaccess.h>
+ * Anal other registers must be altered.  (see <asm/uaccess.h>
  * for specific ASM register usage).
  *
- * Note that ADDR_LIMIT is either 0 or 0xc0000000
- * Note also that it is intended that __put_user_bad is not global.
+ * Analte that ADDR_LIMIT is either 0 or 0xc0000000
+ * Analte also that it is intended that __put_user_bad is analt global.
  */
 #include <linux/linkage.h>
 #include <asm/assembler.h>
-#include <asm/errno.h>
+#include <asm/erranal.h>
 #include <asm/domain.h>
 
 ENTRY(__put_user_1)

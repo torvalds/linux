@@ -18,12 +18,12 @@
 #define SRTC_LPCR_EN_LP       BIT(3)	/* lp enable */
 #define SRTC_LPCR_WAE         BIT(4)	/* lp wakeup alarm enable */
 #define SRTC_LPCR_ALP         BIT(7)	/* lp alarm flag */
-#define SRTC_LPCR_NSA         BIT(11)	/* lp non secure access */
-#define SRTC_LPCR_NVE         BIT(14)	/* lp non valid state exit bit */
+#define SRTC_LPCR_NSA         BIT(11)	/* lp analn secure access */
+#define SRTC_LPCR_NVE         BIT(14)	/* lp analn valid state exit bit */
 #define SRTC_LPCR_IE          BIT(15)	/* lp init state exit bit */
 
 #define SRTC_LPSR_ALP         BIT(3)	/* lp alarm flag */
-#define SRTC_LPSR_NVES        BIT(14)	/* lp non-valid state exit status */
+#define SRTC_LPSR_NVES        BIT(14)	/* lp analn-valid state exit status */
 #define SRTC_LPSR_IES         BIT(15)	/* lp init state exit status */
 
 #define SRTC_LPSCMR	0x00	/* LP Secure Counter MSB Reg */
@@ -46,7 +46,7 @@ struct mxc_rtc_data {
 
 /*
  * This function does write synchronization for writes to the lp srtc block.
- * To take care of the asynchronous CKIL clock, all writes from the IP domain
+ * To take care of the asynchroanalus CKIL clock, all writes from the IP domain
  * will be synchronized to the CKIL domain.
  * The caller should hold the pdata->lock
  */
@@ -80,7 +80,7 @@ static irqreturn_t mxc_rtc_interrupt(int irq, void *dev_id)
 	spin_lock(&pdata->lock);
 	if (clk_enable(pdata->clk)) {
 		spin_unlock(&pdata->lock);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	lp_status = readl(ioaddr + SRTC_LPSR);
@@ -109,7 +109,7 @@ static irqreturn_t mxc_rtc_interrupt(int irq, void *dev_id)
 
 /*
  * Enable clk and aquire spinlock
- * @return  0 if successful; non-zero otherwise.
+ * @return  0 if successful; analn-zero otherwise.
  */
 static int mxc_rtc_lock(struct mxc_rtc_data *const pdata)
 {
@@ -136,7 +136,7 @@ static int mxc_rtc_unlock(struct mxc_rtc_data *const pdata)
  *
  * @param  tm           contains the RTC time value upon return
  *
- * @return  0 if successful; non-zero otherwise.
+ * @return  0 if successful; analn-zero otherwise.
  */
 static int mxc_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
@@ -144,9 +144,9 @@ static int mxc_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	const int clk_failed = clk_enable(pdata->clk);
 
 	if (!clk_failed) {
-		const time64_t now = readl(pdata->ioaddr + SRTC_LPSCMR);
+		const time64_t analw = readl(pdata->ioaddr + SRTC_LPSCMR);
 
-		rtc_time64_to_tm(now, tm);
+		rtc_time64_to_tm(analw, tm);
 		clk_disable(pdata->clk);
 		return 0;
 	}
@@ -158,7 +158,7 @@ static int mxc_rtc_read_time(struct device *dev, struct rtc_time *tm)
  *
  * @param  tm           the time value to be set in the RTC
  *
- * @return  0 if successful; non-zero otherwise.
+ * @return  0 if successful; analn-zero otherwise.
  */
 static int mxc_rtc_set_time(struct device *dev, struct rtc_time *tm)
 {
@@ -178,11 +178,11 @@ static int mxc_rtc_set_time(struct device *dev, struct rtc_time *tm)
 /*
  * This function reads the current alarm value into the passed in \b alrm
  * argument. It updates the \b alrm's pending field value based on the whether
- * an alarm interrupt occurs or not.
+ * an alarm interrupt occurs or analt.
  *
  * @param  alrm         contains the RTC alarm value upon return
  *
- * @return  0 if successful; non-zero otherwise.
+ * @return  0 if successful; analn-zero otherwise.
  */
 static int mxc_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 {
@@ -233,7 +233,7 @@ static int mxc_rtc_alarm_irq_enable(struct device *dev, unsigned int enable)
  *
  * @param  alrm         the alarm value to be set in the RTC
  *
- * @return  0 if successful; non-zero otherwise.
+ * @return  0 if successful; analn-zero otherwise.
  */
 static int mxc_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 {
@@ -283,7 +283,7 @@ static int mxc_rtc_probe(struct platform_device *pdev)
 
 	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pdata->ioaddr = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(pdata->ioaddr))
@@ -325,7 +325,7 @@ static int mxc_rtc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	/* move out of non-valid state */
+	/* move out of analn-valid state */
 	writel((SRTC_LPCR_IE | SRTC_LPCR_NVE | SRTC_LPCR_NSA |
 		SRTC_LPCR_EN_LP), ioaddr + SRTC_LPCR);
 	ret = mxc_rtc_wait_for_flag(ioaddr + SRTC_LPSR, SRTC_LPSR_NVES);
@@ -350,7 +350,7 @@ static int mxc_rtc_probe(struct platform_device *pdev)
 	    devm_request_irq(&pdev->dev, pdata->irq, mxc_rtc_interrupt, 0,
 			     pdev->name, &pdev->dev);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "interrupt not available.\n");
+		dev_err(&pdev->dev, "interrupt analt available.\n");
 		clk_unprepare(pdata->clk);
 		return ret;
 	}

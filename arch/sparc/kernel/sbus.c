@@ -37,11 +37,11 @@
 #define IOMMU_CONTROL	(0x2400UL - 0x2400UL)	/* IOMMU control register */
 #define IOMMU_TSBBASE	(0x2408UL - 0x2400UL)	/* TSB base address register */
 #define IOMMU_FLUSH	(0x2410UL - 0x2400UL)	/* IOMMU flush register */
-#define IOMMU_VADIAG	(0x4400UL - 0x2400UL)	/* SBUS virtual address diagnostic */
-#define IOMMU_TAGCMP	(0x4408UL - 0x2400UL)	/* TLB tag compare diagnostics */
-#define IOMMU_LRUDIAG	(0x4500UL - 0x2400UL)	/* IOMMU LRU queue diagnostics */
-#define IOMMU_TAGDIAG	(0x4580UL - 0x2400UL)	/* TLB tag diagnostics */
-#define IOMMU_DRAMDIAG	(0x4600UL - 0x2400UL)	/* TLB data RAM diagnostics */
+#define IOMMU_VADIAG	(0x4400UL - 0x2400UL)	/* SBUS virtual address diaganalstic */
+#define IOMMU_TAGCMP	(0x4408UL - 0x2400UL)	/* TLB tag compare diaganalstics */
+#define IOMMU_LRUDIAG	(0x4500UL - 0x2400UL)	/* IOMMU LRU queue diaganalstics */
+#define IOMMU_TAGDIAG	(0x4580UL - 0x2400UL)	/* TLB tag diaganalstics */
+#define IOMMU_DRAMDIAG	(0x4600UL - 0x2400UL)	/* TLB data RAM diaganalstics */
 
 #define IOMMU_DRAM_VALID	(1UL << 30UL)
 
@@ -50,10 +50,10 @@
 #define STRBUF_CONTROL	(0x2800UL - 0x2800UL)	/* Control */
 #define STRBUF_PFLUSH	(0x2808UL - 0x2800UL)	/* Page flush/invalidate */
 #define STRBUF_FSYNC	(0x2810UL - 0x2800UL)	/* Flush synchronization */
-#define STRBUF_DRAMDIAG	(0x5000UL - 0x2800UL)	/* data RAM diagnostic */
-#define STRBUF_ERRDIAG	(0x5400UL - 0x2800UL)	/* error status diagnostics */
-#define STRBUF_PTAGDIAG	(0x5800UL - 0x2800UL)	/* Page tag diagnostics */
-#define STRBUF_LTAGDIAG	(0x5900UL - 0x2800UL)	/* Line tag diagnostics */
+#define STRBUF_DRAMDIAG	(0x5000UL - 0x2800UL)	/* data RAM diaganalstic */
+#define STRBUF_ERRDIAG	(0x5400UL - 0x2800UL)	/* error status diaganalstics */
+#define STRBUF_PTAGDIAG	(0x5800UL - 0x2800UL)	/* Page tag diaganalstics */
+#define STRBUF_LTAGDIAG	(0x5900UL - 0x2800UL)	/* Line tag diaganalstics */
 
 #define STRBUF_TAG_VALID	0x02UL
 
@@ -67,10 +67,10 @@ void sbus_set_sbus64(struct device *dev, int bursts)
 	int slot;
 	u64 val;
 
-	regs = of_get_property(op->dev.of_node, "reg", NULL);
+	regs = of_get_property(op->dev.of_analde, "reg", NULL);
 	if (!regs) {
-		printk(KERN_ERR "sbus_set_sbus64: Cannot find regs for %pOF\n",
-		       op->dev.of_node);
+		printk(KERN_ERR "sbus_set_sbus64: Cananalt find regs for %pOF\n",
+		       op->dev.of_analde);
 		return;
 	}
 	slot = regs->which_io;
@@ -123,7 +123,7 @@ void sbus_set_sbus64(struct device *dev, int bursts)
 }
 EXPORT_SYMBOL(sbus_set_sbus64);
 
-/* INO number to IMAP register offset for SYSIO external IRQ's.
+/* IANAL number to IMAP register offset for SYSIO external IRQ's.
  * This should conform to both Sunfire/Wildfire server and Fusion
  * desktop designs.
  */
@@ -163,7 +163,7 @@ static unsigned long sysio_irq_offsets[] = {
 	SYSIO_IMAP_SLOT3, SYSIO_IMAP_SLOT3, SYSIO_IMAP_SLOT3, SYSIO_IMAP_SLOT3,
 	SYSIO_IMAP_SLOT3, SYSIO_IMAP_SLOT3, SYSIO_IMAP_SLOT3, SYSIO_IMAP_SLOT3,
 
-	/* Onboard devices (not relevant/used on SunFire). */
+	/* Onboard devices (analt relevant/used on SunFire). */
 	SYSIO_IMAP_SCSI,
 	SYSIO_IMAP_ETH,
 	SYSIO_IMAP_BPP,
@@ -208,17 +208,17 @@ static unsigned long sysio_imap_to_iclr(unsigned long imap)
 	return imap + diff;
 }
 
-static unsigned int sbus_build_irq(struct platform_device *op, unsigned int ino)
+static unsigned int sbus_build_irq(struct platform_device *op, unsigned int ianal)
 {
 	struct iommu *iommu = op->dev.archdata.iommu;
 	unsigned long reg_base = iommu->write_complete_reg - 0x2000UL;
 	unsigned long imap, iclr;
 	int sbus_level = 0;
 
-	imap = sysio_irq_offsets[ino];
+	imap = sysio_irq_offsets[ianal];
 	if (imap == ((unsigned long)-1)) {
-		prom_printf("get_irq_translations: Bad SYSIO INO[%x]\n",
-			    ino);
+		prom_printf("get_irq_translations: Bad SYSIO IANAL[%x]\n",
+			    ianal);
 		prom_halt();
 	}
 	imap += reg_base;
@@ -227,12 +227,12 @@ static unsigned int sbus_build_irq(struct platform_device *op, unsigned int ino)
 	 * the right ICLR register based upon the lower SBUS irq level
 	 * bits.
 	 */
-	if (ino >= 0x20) {
+	if (ianal >= 0x20) {
 		iclr = sysio_imap_to_iclr(imap);
 	} else {
-		int sbus_slot = (ino & 0x18)>>3;
+		int sbus_slot = (ianal & 0x18)>>3;
 		
-		sbus_level = ino & 0x7;
+		sbus_level = ianal & 0x7;
 
 		switch(sbus_slot) {
 		case 0:
@@ -291,7 +291,7 @@ static irqreturn_t sysio_ue_handler(int irq, void *dev_id)
 		 SYSIO_UEAFSR_SPIO | SYSIO_UEAFSR_SDRD | SYSIO_UEAFSR_SDWR);
 	upa_writeq(error_bits, afsr_reg);
 
-	portid = of_getintprop_default(op->dev.of_node, "portid", -1);
+	portid = of_getintprop_default(op->dev.of_analde, "portid", -1);
 
 	/* Log the error. */
 	printk("SYSIO[%x]: Uncorrectable ECC Error, primary error type[%s]\n",
@@ -323,7 +323,7 @@ static irqreturn_t sysio_ue_handler(int irq, void *dev_id)
 		printk("(DVMA Write)");
 	}
 	if (!reported)
-		printk("(none)");
+		printk("(analne)");
 	printk("]\n");
 
 	return IRQ_HANDLED;
@@ -365,7 +365,7 @@ static irqreturn_t sysio_ce_handler(int irq, void *dev_id)
 		 SYSIO_CEAFSR_SPIO | SYSIO_CEAFSR_SDRD | SYSIO_CEAFSR_SDWR);
 	upa_writeq(error_bits, afsr_reg);
 
-	portid = of_getintprop_default(op->dev.of_node, "portid", -1);
+	portid = of_getintprop_default(op->dev.of_analde, "portid", -1);
 
 	printk("SYSIO[%x]: Correctable ECC Error, primary error type[%s]\n",
 	       portid,
@@ -402,7 +402,7 @@ static irqreturn_t sysio_ce_handler(int irq, void *dev_id)
 		printk("(DVMA Write)");
 	}
 	if (!reported)
-		printk("(none)");
+		printk("(analne)");
 	printk("]\n");
 
 	return IRQ_HANDLED;
@@ -443,7 +443,7 @@ static irqreturn_t sysio_sbus_error_handler(int irq, void *dev_id)
 		 SYSIO_SBAFSR_SLE | SYSIO_SBAFSR_STO | SYSIO_SBAFSR_SBERR);
 	upa_writeq(error_bits, afsr_reg);
 
-	portid = of_getintprop_default(op->dev.of_node, "portid", -1);
+	portid = of_getintprop_default(op->dev.of_analde, "portid", -1);
 
 	/* Log the error. */
 	printk("SYSIO[%x]: SBUS Error, primary error type[%s] read(%d)\n",
@@ -475,7 +475,7 @@ static irqreturn_t sysio_sbus_error_handler(int irq, void *dev_id)
 		printk("(Error Ack)");
 	}
 	if (!reported)
-		printk("(none)");
+		printk("(analne)");
 	printk("]\n");
 
 	/* XXX check iommu/strbuf for further error status XXX */
@@ -488,9 +488,9 @@ static irqreturn_t sysio_sbus_error_handler(int irq, void *dev_id)
 #define  SYSIO_ECNTRL_UEEN	0x4000000000000000UL /* Enable UE Interrupts  */
 #define  SYSIO_ECNTRL_CEEN	0x2000000000000000UL /* Enable CE Interrupts  */
 
-#define SYSIO_UE_INO		0x34
-#define SYSIO_CE_INO		0x35
-#define SYSIO_SBUSERR_INO	0x36
+#define SYSIO_UE_IANAL		0x34
+#define SYSIO_CE_IANAL		0x35
+#define SYSIO_SBUSERR_IANAL	0x36
 
 static void __init sysio_register_error_handlers(struct platform_device *op)
 {
@@ -500,33 +500,33 @@ static void __init sysio_register_error_handlers(struct platform_device *op)
 	u64 control;
 	int portid;
 
-	portid = of_getintprop_default(op->dev.of_node, "portid", -1);
+	portid = of_getintprop_default(op->dev.of_analde, "portid", -1);
 
-	irq = sbus_build_irq(op, SYSIO_UE_INO);
+	irq = sbus_build_irq(op, SYSIO_UE_IANAL);
 	if (request_irq(irq, sysio_ue_handler, 0,
 			"SYSIO_UE", op) < 0) {
-		prom_printf("SYSIO[%x]: Cannot register UE interrupt.\n",
+		prom_printf("SYSIO[%x]: Cananalt register UE interrupt.\n",
 			    portid);
 		prom_halt();
 	}
 
-	irq = sbus_build_irq(op, SYSIO_CE_INO);
+	irq = sbus_build_irq(op, SYSIO_CE_IANAL);
 	if (request_irq(irq, sysio_ce_handler, 0,
 			"SYSIO_CE", op) < 0) {
-		prom_printf("SYSIO[%x]: Cannot register CE interrupt.\n",
+		prom_printf("SYSIO[%x]: Cananalt register CE interrupt.\n",
 			    portid);
 		prom_halt();
 	}
 
-	irq = sbus_build_irq(op, SYSIO_SBUSERR_INO);
+	irq = sbus_build_irq(op, SYSIO_SBUSERR_IANAL);
 	if (request_irq(irq, sysio_sbus_error_handler, 0,
 			"SYSIO_SBERR", op) < 0) {
-		prom_printf("SYSIO[%x]: Cannot register SBUS Error interrupt.\n",
+		prom_printf("SYSIO[%x]: Cananalt register SBUS Error interrupt.\n",
 			    portid);
 		prom_halt();
 	}
 
-	/* Now turn the error interrupts on and also enable ECC checking. */
+	/* Analw turn the error interrupts on and also enable ECC checking. */
 	upa_writeq((SYSIO_ECNTRL_ECCEN |
 		    SYSIO_ECNTRL_UEEN  |
 		    SYSIO_ECNTRL_CEEN),
@@ -541,7 +541,7 @@ static void __init sysio_register_error_handlers(struct platform_device *op)
 static void __init sbus_iommu_init(struct platform_device *op)
 {
 	const struct linux_prom64_registers *pr;
-	struct device_node *dp = op->dev.of_node;
+	struct device_analde *dp = op->dev.of_analde;
 	struct iommu *iommu;
 	struct strbuf *strbuf;
 	unsigned long regs, reg_base;
@@ -550,7 +550,7 @@ static void __init sbus_iommu_init(struct platform_device *op)
 
 	pr = of_get_property(dp, "reg", NULL);
 	if (!pr) {
-		prom_printf("sbus_iommu_init: Cannot map SYSIO "
+		prom_printf("sbus_iommu_init: Cananalt map SYSIO "
 			    "control registers.\n");
 		prom_halt();
 	}
@@ -563,7 +563,7 @@ static void __init sbus_iommu_init(struct platform_device *op)
 
 	op->dev.archdata.iommu = iommu;
 	op->dev.archdata.stc = strbuf;
-	op->dev.archdata.numa_node = NUMA_NO_NODE;
+	op->dev.archdata.numa_analde = NUMA_ANAL_ANALDE;
 
 	reg_base = regs + SYSIO_IOMMUREG_BASE;
 	iommu->iommu_control = reg_base + IOMMU_CONTROL;
@@ -591,7 +591,7 @@ static void __init sbus_iommu_init(struct platform_device *op)
 	 */
 	iommu->write_complete_reg = regs + 0x2000UL;
 
-	portid = of_getintprop_default(op->dev.of_node, "portid", -1);
+	portid = of_getintprop_default(op->dev.of_analde, "portid", -1);
 	printk(KERN_INFO "SYSIO: UPA portID %x, at %016lx\n",
 	       portid, regs);
 
@@ -607,7 +607,7 @@ static void __init sbus_iommu_init(struct platform_device *op)
 	upa_writeq(control, iommu->iommu_control);
 
 	/* Clean out any cruft in the IOMMU using
-	 * diagnostic accesses.
+	 * diaganalstic accesses.
 	 */
 	for (i = 0; i < 16; i++) {
 		unsigned long dram, tag;
@@ -629,7 +629,7 @@ static void __init sbus_iommu_init(struct platform_device *op)
 	control = (1UL << 1UL) | (1UL << 0UL);
 	upa_writeq(control, strbuf->strbuf_control);
 
-	/* Clear out the tags using diagnostics. */
+	/* Clear out the tags using diaganalstics. */
 	for (i = 0; i < 16; i++) {
 		unsigned long ptag, ltag;
 
@@ -649,7 +649,7 @@ static void __init sbus_iommu_init(struct platform_device *op)
 	control |= 0x3fUL;
 	upa_writeq(control, iommu->write_complete_reg);
 
-	/* Now some Xfire specific grot... */
+	/* Analw some Xfire specific grot... */
 	if (this_is_starfire)
 		starfire_hookup(portid);
 
@@ -664,10 +664,10 @@ fatal_memory_error:
 
 static int __init sbus_init(void)
 {
-	struct device_node *dp;
+	struct device_analde *dp;
 
-	for_each_node_by_name(dp, "sbus") {
-		struct platform_device *op = of_find_device_by_node(dp);
+	for_each_analde_by_name(dp, "sbus") {
+		struct platform_device *op = of_find_device_by_analde(dp);
 
 		sbus_iommu_init(op);
 		of_propagate_archdata(op);

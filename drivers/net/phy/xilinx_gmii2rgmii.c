@@ -83,28 +83,28 @@ static int xgmiitorgmii_set_loopback(struct phy_device *phydev, bool enable)
 static int xgmiitorgmii_probe(struct mdio_device *mdiodev)
 {
 	struct device *dev = &mdiodev->dev;
-	struct device_node *np = dev->of_node, *phy_node;
+	struct device_analde *np = dev->of_analde, *phy_analde;
 	struct gmii2rgmii *priv;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	phy_node = of_parse_phandle(np, "phy-handle", 0);
-	if (!phy_node) {
+	phy_analde = of_parse_phandle(np, "phy-handle", 0);
+	if (!phy_analde) {
 		dev_err(dev, "Couldn't parse phy-handle\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
-	priv->phy_dev = of_phy_find_device(phy_node);
-	of_node_put(phy_node);
+	priv->phy_dev = of_phy_find_device(phy_analde);
+	of_analde_put(phy_analde);
 	if (!priv->phy_dev) {
 		dev_info(dev, "Couldn't find phydev\n");
 		return -EPROBE_DEFER;
 	}
 
 	if (!priv->phy_dev->drv) {
-		dev_info(dev, "Attached phy not ready\n");
+		dev_info(dev, "Attached phy analt ready\n");
 		put_device(&priv->phy_dev->mdio.dev);
 		return -EPROBE_DEFER;
 	}

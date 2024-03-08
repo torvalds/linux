@@ -73,7 +73,7 @@ int inv_mpu_aux_init(const struct inv_mpu6050_state *st)
 
 	/*
 	 * Code based on the vendor Linux kernel v3.0,
-	 * the exact meaning is unknown.
+	 * the exact meaning is unkanalwn.
 	 */
 	if (st->chip_type == INV_MPU9150) {
 		unsigned int mask = BIT(7);

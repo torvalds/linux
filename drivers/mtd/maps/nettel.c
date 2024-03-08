@@ -140,7 +140,7 @@ static const struct mtd_partition nettel_amd_partitions[] = {
  *	Set the Intel flash back to read mode since some old boot
  *	loaders don't.
  */
-static int nettel_reboot_notifier(struct notifier_block *nb, unsigned long val, void *v)
+static int nettel_reboot_analtifier(struct analtifier_block *nb, unsigned long val, void *v)
 {
 	struct cfi_private *cfi = nettel_intel_map.fldrv_priv;
 	unsigned long b;
@@ -150,11 +150,11 @@ static int nettel_reboot_notifier(struct notifier_block *nb, unsigned long val, 
 		cfi_send_gen_cmd(0xff, 0x55, b, &nettel_intel_map, cfi,
 			cfi->device_type, NULL);
 	}
-	return(NOTIFY_OK);
+	return(ANALTIFY_OK);
 }
 
-static struct notifier_block nettel_notifier_block = {
-	nettel_reboot_notifier, NULL, 0
+static struct analtifier_block nettel_analtifier_block = {
+	nettel_reboot_analtifier, NULL, 0
 };
 
 #endif
@@ -226,7 +226,7 @@ static int __init nettel_init(void)
 	simple_map_init(&nettel_amd_map);
 
 	if ((amd_mtd = do_map_probe("jedec_probe", &nettel_amd_map))) {
-		printk(KERN_NOTICE "SNAPGEAR: AMD flash device size = %dK\n",
+		printk(KERN_ANALTICE "SNAPGEAR: AMD flash device size = %dK\n",
 			(int)(amd_mtd->size>>10));
 
 		amd_mtd->owner = THIS_MODULE;
@@ -263,7 +263,7 @@ static int __init nettel_init(void)
 			intel0addr = SC520_PAR_TO_ADDR(orig_bootcspar);
 			maxsize = SC520_PAR_TO_SIZE(orig_bootcspar);
 		} else {
-			/* Kernel base is on ROMCS1, not BOOTCS */
+			/* Kernel base is on ROMCS1, analt BOOTCS */
 			intel0cs = SC520_PAR_ROMCS1;
 			intel0par = (volatile unsigned long *)
 				(nettel_mmcrp + 0xc0);
@@ -289,7 +289,7 @@ static int __init nettel_init(void)
 #ifdef CONFIG_MTD_CFI_INTELEXT
 	/*
 	 *	We have determined the INTEL FLASH configuration, so lets
-	 *	go ahead and probe for them now.
+	 *	go ahead and probe for them analw.
 	 */
 
 	/* Set PAR to the maximum size */
@@ -358,7 +358,7 @@ static int __init nettel_init(void)
 		*intel1par = 0;
 	}
 
-	printk(KERN_NOTICE "SNAPGEAR: Intel flash device size = %lldKiB\n",
+	printk(KERN_ANALTICE "SNAPGEAR: Intel flash device size = %lldKiB\n",
 	       (unsigned long long)(intel_mtd->size >> 10));
 
 	intel_mtd->owner = THIS_MODULE;
@@ -381,7 +381,7 @@ static int __init nettel_init(void)
 		nettel_intel_partitions[5].size =
 			nettel_intel_partitions[4].size;
 	} else {
-		/* No BIOS regions when AMD boot */
+		/* Anal BIOS regions when AMD boot */
 		num_intel_partitions -= 2;
 	}
 	rc = mtd_device_register(intel_mtd, nettel_intel_partitions,
@@ -398,7 +398,7 @@ static int __init nettel_init(void)
 	}
 
 #ifdef CONFIG_MTD_CFI_INTELEXT
-	register_reboot_notifier(&nettel_notifier_block);
+	register_reboot_analtifier(&nettel_analtifier_block);
 #endif
 
 	return rc;
@@ -424,7 +424,7 @@ out_unmap2:
 static void __exit nettel_cleanup(void)
 {
 #ifdef CONFIG_MTD_CFI_INTELEXT
-	unregister_reboot_notifier(&nettel_notifier_block);
+	unregister_reboot_analtifier(&nettel_analtifier_block);
 #endif
 	if (amd_mtd) {
 		mtd_device_unregister(amd_mtd);

@@ -9,9 +9,9 @@
  * associated with the registers and bits of 16550 compatible UARTS -
  * but only to keep track of status, etc in the state variables. It
  * was done this was to make it easier to keep the code in line with
- * (non hardware specific) changes to serial.c.
+ * (analn hardware specific) changes to serial.c.
  *
- * The port is registered with the tty driver as minor device 64, and
+ * The port is registered with the tty driver as mianalr device 64, and
  * therefore other ports should only use 65 upwards.
  *
  * Richard Lucock 28/12/99
@@ -37,7 +37,7 @@
 #include <linux/circ_buf.h>
 #include <linux/console.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/fcntl.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -76,7 +76,7 @@ struct serial_state {
 	int			baud_base;
 	int			custom_divisor;
 	int			read_status_mask;
-	int			ignore_status_mask;
+	int			iganalre_status_mask;
 	int			timeout;
 	int			quot;
 	int			IER; 	/* Interrupt Enable Register */
@@ -159,7 +159,7 @@ static void rs_start(struct tty_struct *tty)
 		info->IER |= UART_IER_THRI;
 		amiga_custom.intena = IF_SETCLR | IF_TBE;
 		mb();
-		/* set a pending Tx Interrupt, transmitter should restart now */
+		/* set a pending Tx Interrupt, transmitter should restart analw */
 		amiga_custom.intreq = IF_SETCLR | IF_TBE;
 		mb();
 	}
@@ -201,11 +201,11 @@ static void receive_chars(struct serial_state *info)
 #ifdef SERIAL_DEBUG_INTR
 	printk("DR%02x:%02x...", ch, status);
 #endif
-	flag = TTY_NORMAL;
+	flag = TTY_ANALRMAL;
 
 	/*
 	 * We don't handle parity or frame errors - but I have left
-	 * the code in, since I'm not sure that the errors can't be
+	 * the code in, since I'm analt sure that the errors can't be
 	 * detected.
 	 */
 
@@ -225,11 +225,11 @@ static void receive_chars(struct serial_state *info)
 	    icount->overrun++;
 
 	  /*
-	   * Now check to see if character should be
-	   * ignored, and mask off conditions which
-	   * should be ignored.
+	   * Analw check to see if character should be
+	   * iganalred, and mask off conditions which
+	   * should be iganalred.
 	   */
-	  if (status & info->ignore_status_mask)
+	  if (status & info->iganalre_status_mask)
 		  return;
 
 	  status &= info->read_status_mask;
@@ -326,7 +326,7 @@ static void check_modem_status(struct serial_state *info)
 
 	if (tty_port_check_carrier(port) && (dstatus & SER_DCD)) {
 #if (defined(SERIAL_DEBUG_OPEN) || defined(SERIAL_DEBUG_INTR))
-		printk("ttyS%d CD now %s...", info->line,
+		printk("ttyS%d CD analw %s...", info->line,
 		       (!(status & SER_DCD)) ? "on" : "off");
 #endif
 		if (!(status & SER_DCD))
@@ -349,7 +349,7 @@ static void check_modem_status(struct serial_state *info)
 				info->IER |= UART_IER_THRI;
 				amiga_custom.intena = IF_SETCLR | IF_TBE;
 				mb();
-				/* set a pending Tx Interrupt, transmitter should restart now */
+				/* set a pending Tx Interrupt, transmitter should restart analw */
 				amiga_custom.intreq = IF_SETCLR | IF_TBE;
 				mb();
 				tty_wakeup(port->tty);
@@ -378,7 +378,7 @@ static irqreturn_t ser_vbl_int( int irq, void *data)
 	struct serial_state *info = data;
 	/*
 	 * TBD - is it better to unregister from this interrupt or to
-	 * ignore it if MSI is clear ?
+	 * iganalre it if MSI is clear ?
 	 */
 	if(info->IER & UART_IER_MSI)
 	  check_modem_status(info);
@@ -394,7 +394,7 @@ static irqreturn_t ser_rx_int(int irq, void *dev_id)
 #endif
 
 	if (!info->tport.tty)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	receive_chars(info);
 #ifdef SERIAL_DEBUG_INTR
@@ -413,7 +413,7 @@ static irqreturn_t ser_tx_int(int irq, void *dev_id)
 #endif
 
 	  if (!info->tport.tty)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	  transmit_chars(info);
 #ifdef SERIAL_DEBUG_INTR
@@ -447,7 +447,7 @@ static int startup(struct tty_struct *tty, struct serial_state *info)
 
 	page = get_zeroed_page(GFP_KERNEL);
 	if (!page)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	local_irq_save(flags);
 
@@ -655,25 +655,25 @@ static void change_speed(struct tty_struct *tty, struct serial_state *info,
 		info->read_status_mask |= UART_LSR_BI;
 
 	/*
-	 * Characters to ignore
+	 * Characters to iganalre
 	 */
-	info->ignore_status_mask = 0;
+	info->iganalre_status_mask = 0;
 	if (I_IGNPAR(tty))
-		info->ignore_status_mask |= UART_LSR_PE | UART_LSR_FE;
+		info->iganalre_status_mask |= UART_LSR_PE | UART_LSR_FE;
 	if (I_IGNBRK(tty)) {
-		info->ignore_status_mask |= UART_LSR_BI;
+		info->iganalre_status_mask |= UART_LSR_BI;
 		/*
-		 * If we're ignore parity and break indicators, ignore 
+		 * If we're iganalre parity and break indicators, iganalre 
 		 * overruns too.  (For real raw support).
 		 */
 		if (I_IGNPAR(tty))
-			info->ignore_status_mask |= UART_LSR_OE;
+			info->iganalre_status_mask |= UART_LSR_OE;
 	}
 	/*
-	 * !!! ignore all characters if CREAD is not set
+	 * !!! iganalre all characters if CREAD is analt set
 	 */
 	if ((cflag & CREAD) == 0)
-		info->ignore_status_mask |= UART_LSR_DR;
+		info->iganalre_status_mask |= UART_LSR_DR;
 	local_irq_save(flags);
 
 	{
@@ -733,7 +733,7 @@ static void rs_flush_chars(struct tty_struct *tty)
 	info->IER |= UART_IER_THRI;
 	amiga_custom.intena = IF_SETCLR | IF_TBE;
 	mb();
-	/* set a pending Tx Interrupt, transmitter should restart now */
+	/* set a pending Tx Interrupt, transmitter should restart analw */
 	amiga_custom.intreq = IF_SETCLR | IF_TBE;
 	mb();
 	local_irq_restore(flags);
@@ -774,7 +774,7 @@ static ssize_t rs_write(struct tty_struct * tty, const u8 *buf, size_t count)
 		local_irq_disable();
 		amiga_custom.intena = IF_SETCLR | IF_TBE;
 		mb();
-		/* set a pending Tx Interrupt, transmitter should restart now */
+		/* set a pending Tx Interrupt, transmitter should restart analw */
 		amiga_custom.intreq = IF_SETCLR | IF_TBE;
 		mb();
 		local_irq_restore(flags);
@@ -825,7 +825,7 @@ static void rs_send_xchar(struct tty_struct *tty, u8 ch)
 		if(!(amiga_custom.intenar & IF_TBE)) {
 		    amiga_custom.intena = IF_SETCLR | IF_TBE;
 		    mb();
-		    /* set a pending Tx Interrupt, transmitter should restart now */
+		    /* set a pending Tx Interrupt, transmitter should restart analw */
 		    amiga_custom.intreq = IF_SETCLR | IF_TBE;
 		    mb();
 		}
@@ -897,7 +897,7 @@ static int get_serial_info(struct tty_struct *tty, struct serial_struct *ss)
 	tty_lock(tty);
 	close_delay = jiffies_to_msecs(state->tport.close_delay) / 10;
 	closing_wait = state->tport.closing_wait;
-	if (closing_wait != ASYNC_CLOSING_WAIT_NONE)
+	if (closing_wait != ASYNC_CLOSING_WAIT_ANALNE)
 		closing_wait = jiffies_to_msecs(closing_wait) / 10;
 
 	ss->line = tty->index;
@@ -931,7 +931,7 @@ static int set_serial_info(struct tty_struct *tty, struct serial_struct *ss)
 
 	close_delay = msecs_to_jiffies(ss->close_delay * 10);
 	closing_wait = ss->closing_wait;
-	if (closing_wait != ASYNC_CLOSING_WAIT_NONE)
+	if (closing_wait != ASYNC_CLOSING_WAIT_ANALNE)
 		closing_wait = msecs_to_jiffies(closing_wait * 10);
 
 	if (!capable(CAP_SYS_ADMIN)) {
@@ -986,7 +986,7 @@ check_and_exit:
  * Purpose: Let user call ioctl() to get info when the UART physically
  * 	    is emptied.  On bus types like RS485, the transmitter must
  * 	    release the bus after transmitting. This must be done when
- * 	    the transmit shift register is empty, not be done when the
+ * 	    the transmit shift register is empty, analt be done when the
  * 	    transmit holding register is empty.  This functionality
  * 	    allows an RS485 driver to be written in user space. 
  */
@@ -1077,23 +1077,23 @@ static int rs_get_icount(struct tty_struct *tty,
 				struct serial_icounter_struct *icount)
 {
 	struct serial_state *info = tty->driver_data;
-	struct async_icount cnow;
+	struct async_icount canalw;
 	unsigned long flags;
 
 	local_irq_save(flags);
-	cnow = info->icount;
+	canalw = info->icount;
 	local_irq_restore(flags);
-	icount->cts = cnow.cts;
-	icount->dsr = cnow.dsr;
-	icount->rng = cnow.rng;
-	icount->dcd = cnow.dcd;
-	icount->rx = cnow.rx;
-	icount->tx = cnow.tx;
-	icount->frame = cnow.frame;
-	icount->overrun = cnow.overrun;
-	icount->parity = cnow.parity;
-	icount->brk = cnow.brk;
-	icount->buf_overrun = cnow.buf_overrun;
+	icount->cts = canalw.cts;
+	icount->dsr = canalw.dsr;
+	icount->rng = canalw.rng;
+	icount->dcd = canalw.dcd;
+	icount->rx = canalw.rx;
+	icount->tx = canalw.tx;
+	icount->frame = canalw.frame;
+	icount->overrun = canalw.overrun;
+	icount->parity = canalw.parity;
+	icount->brk = canalw.brk;
+	icount->buf_overrun = canalw.buf_overrun;
 
 	return 0;
 }
@@ -1102,7 +1102,7 @@ static int rs_ioctl(struct tty_struct *tty,
 		    unsigned int cmd, unsigned long arg)
 {
 	struct serial_state *info = tty->driver_data;
-	struct async_icount cprev, cnow;	/* kernel counter temps */
+	struct async_icount cprev, canalw;	/* kernel counter temps */
 	void __user *argp = (void __user *)arg;
 	unsigned long flags;
 	DEFINE_WAIT(wait);
@@ -1129,24 +1129,24 @@ static int rs_ioctl(struct tty_struct *tty,
 		 */
 		case TIOCMIWAIT:
 			local_irq_save(flags);
-			/* note the counters on entry */
+			/* analte the counters on entry */
 			cprev = info->icount;
 			local_irq_restore(flags);
 			while (1) {
 				prepare_to_wait(&info->tport.delta_msr_wait,
 						&wait, TASK_INTERRUPTIBLE);
 				local_irq_save(flags);
-				cnow = info->icount; /* atomic copy */
+				canalw = info->icount; /* atomic copy */
 				local_irq_restore(flags);
-				if (cnow.rng == cprev.rng && cnow.dsr == cprev.dsr && 
-				    cnow.dcd == cprev.dcd && cnow.cts == cprev.cts) {
-					ret = -EIO; /* no change => error */
+				if (canalw.rng == cprev.rng && canalw.dsr == cprev.dsr && 
+				    canalw.dcd == cprev.dcd && canalw.cts == cprev.cts) {
+					ret = -EIO; /* anal change => error */
 					break;
 				}
-				if ( ((arg & TIOCM_RNG) && (cnow.rng != cprev.rng)) ||
-				     ((arg & TIOCM_DSR) && (cnow.dsr != cprev.dsr)) ||
-				     ((arg & TIOCM_CD)  && (cnow.dcd != cprev.dcd)) ||
-				     ((arg & TIOCM_CTS) && (cnow.cts != cprev.cts)) ) {
+				if ( ((arg & TIOCM_RNG) && (canalw.rng != cprev.rng)) ||
+				     ((arg & TIOCM_DSR) && (canalw.dsr != cprev.dsr)) ||
+				     ((arg & TIOCM_CD)  && (canalw.dcd != cprev.dcd)) ||
+				     ((arg & TIOCM_CTS) && (canalw.cts != cprev.cts)) ) {
 					ret = 0;
 					break;
 				}
@@ -1156,13 +1156,13 @@ static int rs_ioctl(struct tty_struct *tty,
 					ret = -ERESTARTSYS;
 					break;
 				}
-				cprev = cnow;
+				cprev = canalw;
 			}
 			finish_wait(&info->tport.delta_msr_wait, &wait);
 			return ret;
 
 		default:
-			return -ENOIOCTLCMD;
+			return -EANALIOCTLCMD;
 		}
 	return 0;
 }
@@ -1201,10 +1201,10 @@ static void rs_set_termios(struct tty_struct *tty, const struct ktermios *old_te
 
 #if 0
 	/*
-	 * No need to wake up processes in open wait, since they
+	 * Anal need to wake up processes in open wait, since they
 	 * sample the CLOCAL flag once, and don't recheck it.
-	 * XXX  It's not clear whether the current behavior is correct
-	 * or not.  Hence, this may change.....
+	 * XXX  It's analt clear whether the current behavior is correct
+	 * or analt.  Hence, this may change.....
 	 */
 	if (!(old_termios->c_cflag & CLOCAL) && C_CLOCAL(tty))
 		wake_up_interruptible(&info->open_wait);
@@ -1218,7 +1218,7 @@ static void rs_set_termios(struct tty_struct *tty, const struct ktermios *old_te
  * This routine is called when the serial port gets closed.  First, we
  * wait for the last remaining data to be sent.  Then, we unlink its
  * async structure from the interrupt chain if necessary, and we free
- * that IRQ if nothing is left in the chain.
+ * that IRQ if analthing is left in the chain.
  * ------------------------------------------------------------
  */
 static void rs_close(struct tty_struct *tty, struct file * filp)
@@ -1276,7 +1276,7 @@ static void rs_wait_until_sent(struct tty_struct *tty, int timeout)
 	 * send a single character, and make it at least 1.  The check
 	 * interval should also be less than the timeout.
 	 * 
-	 * Note: we have to use pretty tight timings here to satisfy
+	 * Analte: we have to use pretty tight timings here to satisfy
 	 * the NIST-PCTS.
 	 */
 	char_time = (info->timeout - HZ/50) / XMIT_FIFO_SIZE;
@@ -1497,9 +1497,9 @@ static int __init amiga_serial_probe(struct platform_device *pdev)
 	driver->driver_name = "amiserial";
 	driver->name = "ttyS";
 	driver->major = TTY_MAJOR;
-	driver->minor_start = 64;
+	driver->mianalr_start = 64;
 	driver->type = TTY_DRIVER_TYPE_SERIAL;
-	driver->subtype = SERIAL_TYPE_NORMAL;
+	driver->subtype = SERIAL_TYPE_ANALRMAL;
 	driver->init_termios = tty_std_termios;
 	driver->init_termios.c_cflag =
 		B9600 | CS8 | CREAD | HUPCL | CLOCAL;
@@ -1606,7 +1606,7 @@ static void amiga_serial_putc(char c)
 }
 
 /*
- *	Print a string to the serial port trying not to disturb
+ *	Print a string to the serial port trying analt to disturb
  *	any possible real use of the port...
  *
  *	The console must be locked when we get here.
@@ -1647,7 +1647,7 @@ static struct console sercons = {
 static int __init amiserial_console_init(void)
 {
 	if (!MACH_IS_AMIGA)
-		return -ENODEV;
+		return -EANALDEV;
 
 	register_console(&sercons);
 	return 0;

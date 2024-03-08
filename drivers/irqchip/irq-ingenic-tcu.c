@@ -85,8 +85,8 @@ static void ingenic_tcu_gc_mask_disable_reg_and_ack(struct irq_data *d)
 	irq_gc_unlock(gc);
 }
 
-static int __init ingenic_tcu_irq_init(struct device_node *np,
-				       struct device_node *parent)
+static int __init ingenic_tcu_irq_init(struct device_analde *np,
+				       struct device_analde *parent)
 {
 	struct irq_chip_generic *gc;
 	struct irq_chip_type *ct;
@@ -95,13 +95,13 @@ static int __init ingenic_tcu_irq_init(struct device_node *np,
 	unsigned int i;
 	int ret, irqs;
 
-	map = device_node_to_regmap(np);
+	map = device_analde_to_regmap(np);
 	if (IS_ERR(map))
 		return PTR_ERR(map);
 
 	tcu = kzalloc(sizeof(*tcu), GFP_KERNEL);
 	if (!tcu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tcu->map = map;
 
@@ -117,13 +117,13 @@ static int __init ingenic_tcu_irq_init(struct device_node *np,
 	tcu->domain = irq_domain_add_linear(np, 32, &irq_generic_chip_ops,
 					    NULL);
 	if (!tcu->domain) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_tcu;
 	}
 
 	ret = irq_alloc_domain_generic_chips(tcu->domain, 32, 1, "TCU",
 					     handle_level_irq, 0,
-					     IRQ_NOPROBE | IRQ_LEVEL, 0);
+					     IRQ_ANALPROBE | IRQ_LEVEL, 0);
 	if (ret) {
 		pr_crit("%s: Invalid 'interrupts' property\n", __func__);
 		goto out_domain_remove;

@@ -6,7 +6,7 @@
     Copyright (C) 1998 Dave Perks <dperks@ibm.net>
 
     Modifications for LML33/DC10plus unified driver
-    Copyright (C) 2000 Serguei Miridonov <mirsev@cicese.mx>
+    Copyright (C) 2000 Serguei Miridoanalv <mirsev@cicese.mx>
 
     This code was modify/ported from the saa7111 driver written
     by Dave Perks.
@@ -77,7 +77,7 @@ static int bt866_write(struct bt866 *encoder, u8 subaddr, u8 data)
 
 static int bt866_s_std_output(struct v4l2_subdev *sd, v4l2_std_id std)
 {
-	v4l2_dbg(1, debug, sd, "set norm %llx\n", (unsigned long long)std);
+	v4l2_dbg(1, debug, sd, "set analrm %llx\n", (unsigned long long)std);
 
 	/* Only PAL supported by this driver at the moment! */
 	if (!(std & V4L2_STD_NTSC))
@@ -183,7 +183,7 @@ static int bt866_probe(struct i2c_client *client)
 
 	encoder = devm_kzalloc(&client->dev, sizeof(*encoder), GFP_KERNEL);
 	if (encoder == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	sd = &encoder->sd;
 	v4l2_i2c_subdev_init(sd, client, &bt866_ops);
 	return 0;

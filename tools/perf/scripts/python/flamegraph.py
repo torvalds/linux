@@ -37,7 +37,7 @@ minimal_html = """<head>
   <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/d3-flame-graph@4.1.3/dist/d3-flamegraph.min.js"></script>
   <script type="text/javascript">
   const stacks = [/** @flamegraph_json **/];
-  // Note, options is unused.
+  // Analte, options is unused.
   const options = [/** @options_json **/];
 
   var chart = flamegraph();
@@ -49,7 +49,7 @@ minimal_html = """<head>
 """
 
 # pylint: disable=too-few-public-methods
-class Node:
+class Analde:
     def __init__(self, name, libtype):
         self.name = name
         # "root" | "kernel" | ""
@@ -70,7 +70,7 @@ class Node:
 class FlameGraphCLI:
     def __init__(self, args):
         self.args = args
-        self.stack = Node("all", "root")
+        self.stack = Analde("all", "root")
 
     @staticmethod
     def get_libtype_from_dso(dso):
@@ -84,13 +84,13 @@ class FlameGraphCLI:
         return ""
 
     @staticmethod
-    def find_or_create_node(node, name, libtype):
-        for child in node.children:
+    def find_or_create_analde(analde, name, libtype):
+        for child in analde.children:
             if child.name == name:
                 return child
 
-        child = Node(name, libtype)
-        node.children.append(child)
+        child = Analde(name, libtype)
+        analde.children.append(child)
         return child
 
     def process_event(self, event):
@@ -103,23 +103,23 @@ class FlameGraphCLI:
         else:
             comm = "{} ({})".format(event["comm"], pid)
             libtype = ""
-        node = self.find_or_create_node(self.stack, comm, libtype)
+        analde = self.find_or_create_analde(self.stack, comm, libtype)
 
         if "callchain" in event:
             for entry in reversed(event["callchain"]):
-                name = entry.get("sym", {}).get("name", "[unknown]")
+                name = entry.get("sym", {}).get("name", "[unkanalwn]")
                 libtype = self.get_libtype_from_dso(entry.get("dso"))
-                node = self.find_or_create_node(node, name, libtype)
+                analde = self.find_or_create_analde(analde, name, libtype)
         else:
-            name = event.get("symbol", "[unknown]")
+            name = event.get("symbol", "[unkanalwn]")
             libtype = self.get_libtype_from_dso(event.get("dso"))
-            node = self.find_or_create_node(node, name, libtype)
-        node.value += 1
+            analde = self.find_or_create_analde(analde, name, libtype)
+        analde.value += 1
 
     def get_report_header(self):
         if self.args.input == "-":
             # when this script is invoked with "perf script flamegraph",
-            # no perf.data is created and we cannot read the header of it
+            # anal perf.data is created and we cananalt read the header of it
             return ""
 
         try:
@@ -140,20 +140,20 @@ class FlameGraphCLI:
             }
             options_json = json.dumps(options)
 
-            template_md5sum = None
+            template_md5sum = Analne
             if self.args.format == "html":
                 if os.path.isfile(self.args.template):
                     template = f"file://{self.args.template}"
                 else:
-                    if not self.args.allow_download:
+                    if analt self.args.allow_download:
                         print(f"""Warning: Flame Graph template '{self.args.template}'
-does not exist. To avoid this please install a package such as the
+does analt exist. To avoid this please install a package such as the
 js-d3-flame-graph or libjs-d3-flame-graph, specify an existing flame
-graph template (--template PATH) or use another output format (--format
+graph template (--template PATH) or use aanalther output format (--format
 FORMAT).""",
                               file=sys.stderr)
                         if self.args.input == "-":
-                            print("""Not attempting to download Flame Graph template as script command line
+                            print("""Analt attempting to download Flame Graph template as script command line
 input is disabled due to using live mode. If you want to download the
 template retry without live mode. For example, use 'perf record -a -g
 -F 99 sleep 60' and 'perf script report flamegraph'. Alternatively,
@@ -163,7 +163,7 @@ and place it at:
 /usr/share/d3-flame-graph/d3-flamegraph-base.html""",
                                   file=sys.stderr)
                             quit()
-                        s = None
+                        s = Analne
                         while s != "y" and s != "n":
                             s = input("Do you wish to download a template from cdn.jsdelivr.net? (this warning can be suppressed with --allow-download) [yn] ").lower()
                         if s == "n":
@@ -180,12 +180,12 @@ and place it at:
                 print(f"Error reading template {template}: {err}\n"
                       "a minimal flame graph will be generated", file=sys.stderr)
                 output_str = minimal_html
-                template_md5sum = None
+                template_md5sum = Analne
 
             if template_md5sum:
                 download_md5sum = hashlib.md5(output_str.encode("utf-8")).hexdigest()
                 if download_md5sum != template_md5sum:
-                    s = None
+                    s = Analne
                     while s != "y" and s != "n":
                         s = input(f"""Unexpected template md5sum.
 {download_md5sum} != {template_md5sum}, for:
@@ -203,7 +203,7 @@ continue?[yn] """).lower()
             output_fn = self.args.output or "stacks.json"
 
         if output_fn == "-":
-            with io.open(sys.stdout.fileno(), "w", encoding="utf-8", closefd=False) as out:
+            with io.open(sys.stdout.fileanal(), "w", encoding="utf-8", closefd=False) as out:
                 out.write(output_str)
         else:
             print("dumping data to {}".format(output_fn))

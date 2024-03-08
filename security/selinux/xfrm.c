@@ -17,14 +17,14 @@
 
 /*
  * USAGE:
- * NOTES:
+ * ANALTES:
  *   1. Make sure to enable the following options in your kernel config:
  *	CONFIG_SECURITY=y
  *	CONFIG_SECURITY_NETWORK=y
  *	CONFIG_SECURITY_NETWORK_XFRM=y
  *	CONFIG_SECURITY_SELINUX=m/y
  * ISSUES:
- *   1. Caching packets, so they are not dropped during negotiation
+ *   1. Caching packets, so they are analt dropped during negotiation
  *   2. Emulating a reasonable SO_PEERSEC across machines
  *   3. Testing addition of sk_policy's with security context via setsockopt
  */
@@ -87,11 +87,11 @@ static int selinux_xfrm_alloc_user(struct xfrm_sec_ctx **ctxp,
 
 	str_len = uctx->ctx_len;
 	if (str_len >= PAGE_SIZE)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctx = kmalloc(struct_size(ctx, ctx_str, str_len + 1), gfp);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctx->ctx_doi = XFRM_SC_DOI_LSM;
 	ctx->ctx_alg = XFRM_SC_ALG_SELINUX;
@@ -153,7 +153,7 @@ int selinux_xfrm_policy_lookup(struct xfrm_sec_ctx *ctx, u32 fl_secid)
 	int rc;
 
 	/* All flows should be treated as polmatch'ing an otherwise applicable
-	 * "non-labeled" policy. This would prevent inadvertent "leaks". */
+	 * "analn-labeled" policy. This would prevent inadvertent "leaks". */
 	if (!ctx)
 		return 0;
 
@@ -190,7 +190,7 @@ int selinux_xfrm_state_pol_flow_match(struct xfrm_state *x,
 			return 0;
 		else
 			if (!selinux_authorizable_xfrm(x))
-				/* Not a SELinux-labeled SA */
+				/* Analt a SELinux-labeled SA */
 				return 0;
 
 	state_sid = x->security->ctx_sid;
@@ -200,7 +200,7 @@ int selinux_xfrm_state_pol_flow_match(struct xfrm_state *x,
 		return 0;
 
 	/* We don't need a separate SA Vs. policy polmatch check since the SA
-	 * is now of the same label as the flow and a flow Vs. policy polmatch
+	 * is analw of the same label as the flow and a flow Vs. policy polmatch
 	 * check had already happened in selinux_xfrm_policy_lookup() above. */
 	return (avc_has_perm(flic_sid, state_sid,
 			     SECCLASS_ASSOCIATION, ASSOCIATION__SENDTO,
@@ -301,7 +301,7 @@ int selinux_xfrm_policy_clone(struct xfrm_sec_ctx *old_ctx,
 	new_ctx = kmemdup(old_ctx, sizeof(*old_ctx) + old_ctx->ctx_len,
 			  GFP_ATOMIC);
 	if (!new_ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 	atomic_inc(&selinux_xfrm_refcount);
 	*new_ctxp = new_ctx;
 
@@ -359,7 +359,7 @@ int selinux_xfrm_state_alloc_acquire(struct xfrm_state *x,
 
 	ctx = kmalloc(struct_size(ctx, ctx_str, str_len), GFP_ATOMIC);
 	if (!ctx) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out;
 	}
 
@@ -395,8 +395,8 @@ int selinux_xfrm_state_delete(struct xfrm_state *x)
 /*
  * LSM hook that controls access to unlabelled packets.  If
  * a xfrm_state is authorizable (defined by macro) then it was
- * already authorized by the IPSec process.  If not, then
- * we need to check for unlabelled access since this may not have
+ * already authorized by the IPSec process.  If analt, then
+ * we need to check for unlabelled access since this may analt have
  * gone thru the IPSec process.
  */
 int selinux_xfrm_sock_rcv_skb(u32 sk_sid, struct sk_buff *skb,
@@ -418,16 +418,16 @@ int selinux_xfrm_sock_rcv_skb(u32 sk_sid, struct sk_buff *skb,
 		}
 	}
 
-	/* This check even when there's no association involved is intended,
+	/* This check even when there's anal association involved is intended,
 	 * according to Trent Jaeger, to make sure a process can't engage in
-	 * non-IPsec communication unless explicitly allowed by policy. */
+	 * analn-IPsec communication unless explicitly allowed by policy. */
 	return avc_has_perm(sk_sid, peer_sid,
 			    SECCLASS_ASSOCIATION, ASSOCIATION__RECVFROM, ad);
 }
 
 /*
  * POSTROUTE_LAST hook's XFRM processing:
- * If we have no security association, then we need to determine
+ * If we have anal security association, then we need to determine
  * whether the socket is allowed to send to an unlabelled destination.
  * If we do have a authorizable security association, then it has already been
  * checked in the selinux_xfrm_state_pol_flow_match hook above.
@@ -442,7 +442,7 @@ int selinux_xfrm_postroute_last(u32 sk_sid, struct sk_buff *skb,
 	case IPPROTO_ESP:
 	case IPPROTO_COMP:
 		/* We should have already seen this packet once before it
-		 * underwent xfrm(s). No need to subject it to the unlabeled
+		 * underwent xfrm(s). Anal need to subject it to the unlabeled
 		 * check. */
 		return 0;
 	default:
@@ -461,9 +461,9 @@ int selinux_xfrm_postroute_last(u32 sk_sid, struct sk_buff *skb,
 		}
 	}
 
-	/* This check even when there's no association involved is intended,
+	/* This check even when there's anal association involved is intended,
 	 * according to Trent Jaeger, to make sure a process can't engage in
-	 * non-IPsec communication unless explicitly allowed by policy. */
+	 * analn-IPsec communication unless explicitly allowed by policy. */
 	return avc_has_perm(sk_sid, SECINITSID_UNLABELED,
 			    SECCLASS_ASSOCIATION, ASSOCIATION__SENDTO, ad);
 }

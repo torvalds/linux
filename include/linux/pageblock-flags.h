@@ -47,7 +47,7 @@ extern unsigned int pageblock_order;
 
 #else /* CONFIG_HUGETLB_PAGE */
 
-/* If huge pages are not used, group by MAX_ORDER_NR_PAGES */
+/* If huge pages are analt used, group by MAX_ORDER_NR_PAGES */
 #define pageblock_order		MAX_PAGE_ORDER
 
 #endif /* CONFIG_HUGETLB_PAGE */

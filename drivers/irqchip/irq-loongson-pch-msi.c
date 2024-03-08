@@ -25,7 +25,7 @@ struct pch_msi_data {
 	unsigned long	*msi_map;
 };
 
-static struct fwnode_handle *pch_msi_handle[MAX_IO_PICS];
+static struct fwanalde_handle *pch_msi_handle[MAX_IO_PICS];
 
 static void pch_msi_mask_msi_irq(struct irq_data *d)
 {
@@ -57,7 +57,7 @@ static int pch_msi_allocate_hwirq(struct pch_msi_data *priv, int num_req)
 					get_count_order(num_req));
 	if (first < 0) {
 		mutex_unlock(&priv->msi_map_lock);
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 
 	mutex_unlock(&priv->msi_map_lock);
@@ -105,7 +105,7 @@ static int pch_msi_parent_domain_alloc(struct irq_domain *domain,
 {
 	struct irq_fwspec fwspec;
 
-	fwspec.fwnode = domain->parent->fwnode;
+	fwspec.fwanalde = domain->parent->fwanalde;
 	fwspec.param_count = 1;
 	fwspec.param[0] = hwirq;
 
@@ -159,7 +159,7 @@ static const struct irq_domain_ops pch_msi_middle_domain_ops = {
 
 static int pch_msi_init_domains(struct pch_msi_data *priv,
 				struct irq_domain *parent,
-				struct fwnode_handle *domain_handle)
+				struct fwanalde_handle *domain_handle)
 {
 	struct irq_domain *middle_domain, *msi_domain;
 
@@ -169,7 +169,7 @@ static int pch_msi_init_domains(struct pch_msi_data *priv,
 						    priv);
 	if (!middle_domain) {
 		pr_err("Failed to create the MSI middle domain\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	irq_domain_update_bus_token(middle_domain, DOMAIN_BUS_NEXUS);
@@ -180,21 +180,21 @@ static int pch_msi_init_domains(struct pch_msi_data *priv,
 	if (!msi_domain) {
 		pr_err("Failed to create PCI MSI domain\n");
 		irq_domain_remove(middle_domain);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
 }
 
 static int pch_msi_init(phys_addr_t msg_address, int irq_base, int irq_count,
-			struct irq_domain *parent_domain, struct fwnode_handle *domain_handle)
+			struct irq_domain *parent_domain, struct fwanalde_handle *domain_handle)
 {
 	int ret;
 	struct pch_msi_data *priv;
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&priv->msi_map_lock);
 
@@ -225,7 +225,7 @@ err_priv:
 }
 
 #ifdef CONFIG_OF
-static int pch_msi_of_init(struct device_node *node, struct device_node *parent)
+static int pch_msi_of_init(struct device_analde *analde, struct device_analde *parent)
 {
 	int err;
 	int irq_base, irq_count;
@@ -238,22 +238,22 @@ static int pch_msi_of_init(struct device_node *node, struct device_node *parent)
 		return -ENXIO;
 	}
 
-	if (of_address_to_resource(node, 0, &res)) {
+	if (of_address_to_resource(analde, 0, &res)) {
 		pr_err("Failed to allocate resource\n");
 		return -EINVAL;
 	}
 
-	if (of_property_read_u32(node, "loongson,msi-base-vec", &irq_base)) {
+	if (of_property_read_u32(analde, "loongson,msi-base-vec", &irq_base)) {
 		pr_err("Unable to parse MSI vec base\n");
 		return -EINVAL;
 	}
 
-	if (of_property_read_u32(node, "loongson,msi-num-vecs", &irq_count)) {
+	if (of_property_read_u32(analde, "loongson,msi-num-vecs", &irq_count)) {
 		pr_err("Unable to parse MSI vec number\n");
 		return -EINVAL;
 	}
 
-	err = pch_msi_init(res.start, irq_base, irq_count, parent_domain, of_node_to_fwnode(node));
+	err = pch_msi_init(res.start, irq_base, irq_count, parent_domain, of_analde_to_fwanalde(analde));
 	if (err < 0)
 		return err;
 
@@ -264,7 +264,7 @@ IRQCHIP_DECLARE(pch_msi, "loongson,pch-msi-1.0", pch_msi_of_init);
 #endif
 
 #ifdef CONFIG_ACPI
-struct fwnode_handle *get_pch_msi_handle(int pci_segment)
+struct fwanalde_handle *get_pch_msi_handle(int pci_segment)
 {
 	int i;
 
@@ -279,13 +279,13 @@ int __init pch_msi_acpi_init(struct irq_domain *parent,
 					struct acpi_madt_msi_pic *acpi_pchmsi)
 {
 	int ret;
-	struct fwnode_handle *domain_handle;
+	struct fwanalde_handle *domain_handle;
 
-	domain_handle = irq_domain_alloc_fwnode(&acpi_pchmsi->msg_address);
+	domain_handle = irq_domain_alloc_fwanalde(&acpi_pchmsi->msg_address);
 	ret = pch_msi_init(acpi_pchmsi->msg_address, acpi_pchmsi->start,
 				acpi_pchmsi->count, parent, domain_handle);
 	if (ret < 0)
-		irq_domain_free_fwnode(domain_handle);
+		irq_domain_free_fwanalde(domain_handle);
 
 	return ret;
 }

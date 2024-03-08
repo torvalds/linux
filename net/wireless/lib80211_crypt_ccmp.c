@@ -113,7 +113,7 @@ static int ccmp_init_iv_and_aad(const struct ieee80211_hdr *hdr,
 	}
 
 	/* In CCM, the initial vectors (IV) used for CTR mode encryption and CBC
-	 * mode authentication are not allowed to collide, yet both are derived
+	 * mode authentication are analt allowed to collide, yet both are derived
 	 * from the same vector. We only set L := 1 here to indicate that the
 	 * data size can be represented in (L+1) bytes. The CCM layer will take
 	 * care of storing the data length in the top (L+1) bytes and setting
@@ -121,7 +121,7 @@ static int ccmp_init_iv_and_aad(const struct ieee80211_hdr *hdr,
 	 */
 	iv[0] = 0x1;
 
-	/* Nonce: QC | A2 | PN */
+	/* Analnce: QC | A2 | PN */
 	iv[1] = qc;
 	memcpy(iv + 2, hdr->addr2, ETH_ALEN);
 	memcpy(iv + 8, pn, CCMP_PN_LEN);
@@ -208,7 +208,7 @@ static int lib80211_ccmp_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 
 	req = aead_request_alloc(key->tfm, GFP_ATOMIC);
 	if (!req)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hdr = (struct ieee80211_hdr *)skb->data;
 	aad_len = ccmp_init_iv_and_aad(hdr, key->tx_pn, iv, aad);
@@ -285,7 +285,7 @@ static int lib80211_ccmp_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 		return -6;
 	}
 	if (!key->key_set) {
-		net_dbg_ratelimited("CCMP: received packet from %pM with keyid=%d that does not have a configured key\n",
+		net_dbg_ratelimited("CCMP: received packet from %pM with keyid=%d that does analt have a configured key\n",
 				    hdr->addr2, keyidx);
 		return -3;
 	}
@@ -312,7 +312,7 @@ static int lib80211_ccmp_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 
 	req = aead_request_alloc(key->tfm, GFP_ATOMIC);
 	if (!req)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	aad_len = ccmp_init_iv_and_aad(hdr, pn, iv, aad);
 

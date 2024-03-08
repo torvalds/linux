@@ -33,7 +33,7 @@ static int storm_ops_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	/*
-	 * as the CPU DAI is the I2S bus master and no system clock is needed by
+	 * as the CPU DAI is the I2S bus master and anal system clock is needed by
 	 * the MAX98357a DAC, simply set the system clock to be a constant
 	 * multiple of the bit clock for the clock divider
 	 */
@@ -68,17 +68,17 @@ static struct snd_soc_dai_link storm_dai_link = {
 static int storm_parse_of(struct snd_soc_card *card)
 {
 	struct snd_soc_dai_link *dai_link = card->dai_link;
-	struct device_node *np = card->dev->of_node;
+	struct device_analde *np = card->dev->of_analde;
 
-	dai_link->cpus->of_node = of_parse_phandle(np, "cpu", 0);
-	if (!dai_link->cpus->of_node) {
+	dai_link->cpus->of_analde = of_parse_phandle(np, "cpu", 0);
+	if (!dai_link->cpus->of_analde) {
 		dev_err(card->dev, "error getting cpu phandle\n");
 		return -EINVAL;
 	}
-	dai_link->platforms->of_node = dai_link->cpus->of_node;
+	dai_link->platforms->of_analde = dai_link->cpus->of_analde;
 
-	dai_link->codecs->of_node = of_parse_phandle(np, "codec", 0);
-	if (!dai_link->codecs->of_node) {
+	dai_link->codecs->of_analde = of_parse_phandle(np, "codec", 0);
+	if (!dai_link->codecs->of_analde) {
 		dev_err(card->dev, "error getting codec phandle\n");
 		return -EINVAL;
 	}
@@ -93,7 +93,7 @@ static int storm_platform_probe(struct platform_device *pdev)
 
 	card = devm_kzalloc(&pdev->dev, sizeof(*card), GFP_KERNEL);
 	if (!card)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	card->dev = &pdev->dev;
 	card->owner = THIS_MODULE;

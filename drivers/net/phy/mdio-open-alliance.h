@@ -8,7 +8,7 @@
 
 #include <linux/mdio.h>
 
-/* NOTE: all OATC14 registers are located in MDIO_MMD_VEND2 */
+/* ANALTE: all OATC14 registers are located in MDIO_MMD_VEND2 */
 
 /* Open Alliance TC14 (10BASE-T1S) registers */
 #define MDIO_OATC14_PLCA_IDVER	0xca00  /* PLCA ID and version */
@@ -27,8 +27,8 @@
 #define MDIO_OATC14_PLCA_RST	BIT(14) /* PLCA reset */
 
 /* Open Alliance TC14 PLCA CTRL1 register */
-#define MDIO_OATC14_PLCA_NCNT	0xff00	/* PLCA node count */
-#define MDIO_OATC14_PLCA_ID	0x00ff	/* PLCA local node ID */
+#define MDIO_OATC14_PLCA_NCNT	0xff00	/* PLCA analde count */
+#define MDIO_OATC14_PLCA_ID	0x00ff	/* PLCA local analde ID */
 
 /* Open Alliance TC14 PLCA STATUS register */
 #define MDIO_OATC14_PLCA_PST	BIT(15)	/* PLCA status indication */

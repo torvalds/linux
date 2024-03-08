@@ -18,6 +18,6 @@
 #define	NR_IRQS		32
 #include <asm-generic/irq.h>
 
-#define NO_IRQ		(-1)
+#define ANAL_IRQ		(-1)
 
 #endif /* __ASM_OPENRISC_IRQ_H__ */

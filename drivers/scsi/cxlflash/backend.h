@@ -42,7 +42,7 @@ struct cxlflash_backend_ops {
 	void * (*fops_get_context)(struct file *file);
 	int (*start_work)(void *ctx_cookie, u64 irqs);
 	int (*fd_mmap)(struct file *file, struct vm_area_struct *vm);
-	int (*fd_release)(struct inode *inode, struct file *file);
+	int (*fd_release)(struct ianalde *ianalde, struct file *file);
 };
 
 #endif /* _CXLFLASH_BACKEND_H */

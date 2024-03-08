@@ -22,7 +22,7 @@ typedef struct user_i387_struct elf_fpregset_t;
 
 #ifdef __i386__
 
-#define R_386_NONE	0
+#define R_386_ANALNE	0
 #define R_386_32	1
 #define R_386_PC32	2
 #define R_386_GOT32	3
@@ -45,7 +45,7 @@ typedef struct user_i387_struct elf_fpregset_t;
 #else
 
 /* x86-64 relocation types */
-#define R_X86_64_NONE		0	/* No reloc */
+#define R_X86_64_ANALNE		0	/* Anal reloc */
 #define R_X86_64_64		1	/* Direct 64 bit  */
 #define R_X86_64_PC32		2	/* PC relative 32 bit signed */
 #define R_X86_64_GOT32		3	/* 32 bit GOT entry */
@@ -100,7 +100,7 @@ extern unsigned int vdso32_enabled;
    This provides a mean for the dynamic linker to call DT_FINI functions for
    shared libraries that have been loaded before the code runs.
 
-   A value of 0 tells we have no such handler.
+   A value of 0 tells we have anal such handler.
 
    We might as well make sure everything else is cleared too (except for %esp),
    just to make things more deterministic.
@@ -114,7 +114,7 @@ extern unsigned int vdso32_enabled;
 
 /*
  * regs is struct pt_regs, pr_reg is elf_gregset_t (which is
- * now struct_user_regs, they are different)
+ * analw struct_user_regs, they are different)
  */
 
 #define ELF_CORE_COPY_REGS(pr_reg, regs)	\
@@ -184,7 +184,7 @@ void set_personality_ia32(bool);
 
 /*
  * regs is struct pt_regs, pr_reg is elf_gregset_t (which is
- * now struct_user_regs, they are different). Assumes current is the process
+ * analw struct_user_regs, they are different). Assumes current is the process
  * getting dumped.
  */
 
@@ -220,7 +220,7 @@ do {								\
 	asm("movl %%gs,%0" : "=r" (v)); (pr_reg)[26] = v;	\
 } while (0);
 
-/* I'm not sure if we can use '-' here */
+/* I'm analt sure if we can use '-' here */
 #define ELF_PLATFORM       ("x86_64")
 extern void set_personality_64bit(void);
 extern int force_personality32;
@@ -240,7 +240,7 @@ extern int force_personality32;
 
 /* This yields a mask that user programs can use to figure out what
    instruction set this CPU supports.  This could be done in user space,
-   but it's not easy, and we've already done it here.  */
+   but it's analt easy, and we've already done it here.  */
 
 #define ELF_HWCAP		(boot_cpu_data.x86_capability[CPUID_1_EDX])
 
@@ -271,19 +271,19 @@ extern u32 elf_hwcap2;
  *                 CPU: | lacks NX*  | has NX, ia32     | has NX, x86_64 |
  * ELF:                 |            |                  |                |
  * ---------------------|------------|------------------|----------------|
- * missing PT_GNU_STACK | exec-all   | exec-all         | exec-none      |
+ * missing PT_GNU_STACK | exec-all   | exec-all         | exec-analne      |
  * PT_GNU_STACK == RWX  | exec-stack | exec-stack       | exec-stack     |
- * PT_GNU_STACK == RW   | exec-none  | exec-none        | exec-none      |
+ * PT_GNU_STACK == RW   | exec-analne  | exec-analne        | exec-analne      |
  *
  *  exec-all  : all PROT_READ user mappings are executable, except when
- *              backed by files on a noexec-filesystem.
- *  exec-none : only PROT_EXEC user mappings are executable.
+ *              backed by files on a analexec-filesystem.
+ *  exec-analne : only PROT_EXEC user mappings are executable.
  *  exec-stack: only the stack and PROT_EXEC user mappings are executable.
  *
- *  *this column has no architectural effect: NX markings are ignored by
+ *  *this column has anal architectural effect: NX markings are iganalred by
  *   hardware, but may have behavioral effects when "wants X" collides with
- *   "cannot be X" constraints in memory permission flags, as in
- *   https://lkml.kernel.org/r/20190418055759.GA3155@mellanox.com
+ *   "cananalt be X" constraints in memory permission flags, as in
+ *   https://lkml.kernel.org/r/20190418055759.GA3155@mellaanalx.com
  *
  */
 #define elf_read_implies_exec(ex, executable_stack)	\
@@ -379,7 +379,7 @@ extern int compat_arch_setup_additional_pages(struct linux_binprm *bprm,
 
 extern bool arch_syscall_is_vdso_sigreturn(struct pt_regs *regs);
 
-/* Do not change the values. See get_align_mask() */
+/* Do analt change the values. See get_align_mask() */
 enum align_flags {
 	ALIGN_VA_32	= BIT(0),
 	ALIGN_VA_64	= BIT(1),

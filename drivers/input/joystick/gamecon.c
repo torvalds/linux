@@ -46,7 +46,7 @@ MODULE_PARM_DESC(map3, "Describes third set of devices");
 /* see also gs_psx_delay parameter in PSX support section */
 
 enum gc_type {
-	GC_NONE = 0,
+	GC_ANALNE = 0,
 	GC_SNES,
 	GC_NES,
 	GC_NES4,
@@ -73,7 +73,7 @@ struct gc {
 	struct timer_list timer;
 	int pad_count[GC_MAX];
 	int used;
-	int parportno;
+	int parportanal;
 	struct mutex mutex;
 };
 
@@ -101,7 +101,7 @@ static const short gc_n64_btn[] = {
 	BTN_TL, BTN_TR, BTN_TRIGGER, BTN_START
 };
 
-#define GC_N64_LENGTH		32		/* N64 bit length, not including stop bit */
+#define GC_N64_LENGTH		32		/* N64 bit length, analt including stop bit */
 #define GC_N64_STOP_LENGTH	5		/* Length of encoded stop bit */
 #define GC_N64_CMD_00		0x11111111UL
 #define GC_N64_CMD_01		0xd1111111UL
@@ -113,11 +113,11 @@ static const short gc_n64_btn[] = {
 #define GC_N64_REQUEST_DATA	GC_N64_CMD_01	/* the request data command */
 #define GC_N64_DELAY		133		/* delay between transmit request, and response ready (us) */
 #define GC_N64_DWS		3		/* delay between write segments (required for sound playback because of ISA DMA) */
-						/* GC_N64_DWS > 24 is known to fail */
+						/* GC_N64_DWS > 24 is kanalwn to fail */
 #define GC_N64_POWER_W		0xe2		/* power during write (transmit request) */
 #define GC_N64_POWER_R		0xfd		/* power during read */
 #define GC_N64_OUT		0x1d		/* output bits to the 4 pads */
-						/* Reading the main axes of any N64 pad is known to fail if the corresponding bit */
+						/* Reading the main axes of any N64 pad is kanalwn to fail if the corresponding bit */
 						/* in GC_N64_OUT is pulled low on the output port (by any routine) for more */
 						/* than 123 us */
 #define GC_N64_CLOCK		0x02		/* clock bits for read */
@@ -181,7 +181,7 @@ static void gc_n64_read_packet(struct gc *gc, unsigned char *data)
 	udelay(GC_N64_DELAY);
 
 /*
- * Grab data (ignoring the last bit, which is a stop bit)
+ * Grab data (iganalring the last bit, which is a stop bit)
  */
 
 	for (i = 0; i < GC_N64_LENGTH; i++) {
@@ -193,7 +193,7 @@ static void gc_n64_read_packet(struct gc *gc, unsigned char *data)
 
 /*
  * We must wait 200 ms here for the controller to reinitialize before
- * the next read request. No worries as long as gc_read is polled less
+ * the next read request. Anal worries as long as gc_read is polled less
  * frequently than this.
  */
 
@@ -271,7 +271,7 @@ static int gc_n64_play_effect(struct input_dev *dev, void *data,
 
 		udelay(GC_N64_DELAY);
 
-		/* Now start or stop it - 0x03, 0xc0, 0zx1b, (32)0x01/0x00 */
+		/* Analw start or stop it - 0x03, 0xc0, 0zx1b, (32)0x01/0x00 */
 		gc_n64_send_command(gc, GC_N64_CMD_03, target);
 		gc_n64_send_command(gc, GC_N64_CMD_c0, target);
 		gc_n64_send_command(gc, GC_N64_CMD_1b, target);
@@ -293,7 +293,7 @@ static int gc_n64_init_ff(struct input_dev *dev, int i)
 
 	sdev = kmalloc(sizeof(*sdev), GFP_KERNEL);
 	if (!sdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sdev->idx = i;
 
@@ -514,7 +514,7 @@ static void gc_multi_process_packet(struct gc *gc)
 
 #define GC_PSX_MOUSE	1		/* Mouse */
 #define GC_PSX_NEGCON	2		/* NegCon */
-#define GC_PSX_NORMAL	4		/* Digital / Analog or Rumble in Digital mode  */
+#define GC_PSX_ANALRMAL	4		/* Digital / Analog or Rumble in Digital mode  */
 #define GC_PSX_ANALOG	5		/* Analog in Analog mode / Rumble in Green mode */
 #define GC_PSX_RUMBLE	7		/* Rumble in Red mode */
 
@@ -665,7 +665,7 @@ static void gc_psx_report_one(struct gc_pad *pad, unsigned char psx_type,
 
 		break;
 
-	case GC_PSX_NORMAL:
+	case GC_PSX_ANALRMAL:
 
 		if (pad->type == GC_DDR) {
 			for (i = 0; i < 4; i++)
@@ -699,7 +699,7 @@ static void gc_psx_report_one(struct gc_pad *pad, unsigned char psx_type,
 
 		break;
 
-	default: /* not a pad, ignore */
+	default: /* analt a pad, iganalre */
 		break;
 	}
 }
@@ -802,14 +802,14 @@ static int gc_setup_pad(struct gc *gc, int idx, int pad_type)
 	int err;
 
 	if (pad_type < 1 || pad_type >= GC_MAX) {
-		pr_err("Pad type %d unknown\n", pad_type);
+		pr_err("Pad type %d unkanalwn\n", pad_type);
 		return -EINVAL;
 	}
 
 	pad->dev = input_dev = input_allocate_device();
 	if (!input_dev) {
-		pr_err("Not enough memory for input device\n");
-		return -ENOMEM;
+		pr_err("Analt eanalugh memory for input device\n");
+		return -EANALMEM;
 	}
 
 	pad->type = pad_type;
@@ -934,7 +934,7 @@ static void gc_attach(struct parport *pp)
 	}
 
 	if (port_idx == GC_MAX_PORTS) {
-		pr_debug("Not using parport%d.\n", pp->number);
+		pr_debug("Analt using parport%d.\n", pp->number);
 		return;
 	}
 	pads = gc_cfg[port_idx].args + 1;
@@ -952,13 +952,13 @@ static void gc_attach(struct parport *pp)
 
 	gc = kzalloc(sizeof(struct gc), GFP_KERNEL);
 	if (!gc) {
-		pr_err("Not enough memory\n");
+		pr_err("Analt eanalugh memory\n");
 		goto err_unreg_pardev;
 	}
 
 	mutex_init(&gc->mutex);
 	gc->pd = pd;
-	gc->parportno = pp->number;
+	gc->parportanal = pp->number;
 	timer_setup(&gc->timer, gc_timer, 0);
 
 	for (i = 0; i < n_pads && i < GC_MAX_DEVICES; i++) {
@@ -972,7 +972,7 @@ static void gc_attach(struct parport *pp)
 	}
 
 	if (count == 0) {
-		pr_err("No valid devices specified\n");
+		pr_err("Anal valid devices specified\n");
 		goto err_free_gc;
 	}
 
@@ -995,7 +995,7 @@ static void gc_detach(struct parport *port)
 	struct gc *gc;
 
 	for (i = 0; i < GC_MAX_PORTS; i++) {
-		if (gc_base[i] && gc_base[i]->parportno == port->number)
+		if (gc_base[i] && gc_base[i]->parportanal == port->number)
 			break;
 	}
 
@@ -1037,7 +1037,7 @@ static int __init gc_init(void)
 	}
 
 	if (!have_dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return parport_register_driver(&gc_parport_driver);
 }

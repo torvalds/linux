@@ -14,8 +14,8 @@
 CFS 带宽控制
 ============
 
-.. note::
-   本文只讨论了SCHED_NORMAL的CPU带宽控制。
+.. analte::
+   本文只讨论了SCHED_ANALRMAL的CPU带宽控制。
    SCHED_RT的情况在Documentation/scheduler/sched-rt-group.rst中有涉及。
 
 CFS带宽控制是一个CONFIG_FAIR_GROUP_SCHED扩展，它允许指定一个组或层次的最大CPU带宽。
@@ -64,7 +64,7 @@ https://lore.kernel.org/lkml/5371BD36-55AE-4F71-B9D7-B86DC32E3D2B@linux.alibaba.
 ----
 配额、周期和突发是在cpu子系统内通过cgroupfs管理的。
 
-.. note::
+.. analte::
    本节描述的cgroupfs文件只适用于cgroup v1.对于cgroup v2，请参阅Control Group v2。
    :ref:`Documentation/admin-guide/cgroup-v2.rst <cgroup-v2-cpu>`.
 
@@ -128,7 +128,7 @@ cpu.stat:
 
 [ 其中C是父方的带宽，c_i是其子方的带宽。 ]
 
-.. note::
+.. analte::
    译文中的父亲/孩子指的是cgroup parent, cgroup children。
 
 有两种方式可以使一个组变得限流:

@@ -103,7 +103,7 @@ static void sctp_sched_fc_enqueue(struct sctp_outq *q,
 	__u16 sid;
 
 	ch = list_first_entry(&msg->chunks, struct sctp_chunk, frag_list);
-	sid = sctp_chunk_stream_no(ch);
+	sid = sctp_chunk_stream_anal(ch);
 	stream = &q->asoc->stream;
 	sctp_sched_fc_sched(stream, SCTP_SO(stream, sid)->ext);
 }
@@ -136,7 +136,7 @@ static void sctp_sched_fc_dequeue_done(struct sctp_outq *q,
 	struct sctp_stream_out_ext *soute, *pos;
 	__u16 sid, i;
 
-	sid = sctp_chunk_stream_no(ch);
+	sid = sctp_chunk_stream_anal(ch);
 	soute = SCTP_SO(stream, sid)->ext;
 	/* reduce all fc_lengths by U32_MAX / 4 if the current fc_length overflows. */
 	if (soute->fc_length > U32_MAX - ch->skb->len) {
@@ -173,7 +173,7 @@ static void sctp_sched_fc_sched_all(struct sctp_stream *stream)
 
 	asoc = container_of(stream, struct sctp_association, stream);
 	list_for_each_entry(ch, &asoc->outqueue.out_chunk_list, list) {
-		__u16 sid = sctp_chunk_stream_no(ch);
+		__u16 sid = sctp_chunk_stream_anal(ch);
 
 		if (SCTP_SO(stream, sid)->ext)
 			sctp_sched_fc_sched(stream, SCTP_SO(stream, sid)->ext);

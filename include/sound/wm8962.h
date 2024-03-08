@@ -46,7 +46,7 @@ struct wm8962_pdata {
 
 	bool irq_active_low;
 
-	bool spk_mono;   /* Speaker outputs tied together as mono */
+	bool spk_moanal;   /* Speaker outputs tied together as moanal */
 
 	/**
 	 * This flag should be set if one or both IN4 inputs is wired

@@ -61,8 +61,8 @@ struct tegra186_dspk {
 	unsigned int osr_val;
 	unsigned int lrsel;
 	unsigned int ch_sel;
-	unsigned int mono_to_stereo;
-	unsigned int stereo_to_mono;
+	unsigned int moanal_to_stereo;
+	unsigned int stereo_to_moanal;
 	struct clk *clk_dspk;
 	struct regmap *regmap;
 };

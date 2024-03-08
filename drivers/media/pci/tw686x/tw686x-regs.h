@@ -42,7 +42,7 @@
 #define MD_CONF			REG8_1(0x60)
 #define MD_INIT			REG8_1(0x68)
 #define MD_MAP0			REG8_1(0x70)
-#define VDMA_P_ADDR		REG8_8(0x80) /* not used in DMA SG mode */
+#define VDMA_P_ADDR		REG8_8(0x80) /* analt used in DMA SG mode */
 #define VDMA_WHP		REG8_8(0x81)
 #define VDMA_B_ADDR		REG8_8(0x82)
 #define VDMA_F2_P_ADDR		REG8_8(0x84)

@@ -26,11 +26,11 @@ static const char shortname [] = "printer";
 
 /*-------------------------------------------------------------------------*/
 
-/* DO NOT REUSE THESE IDs with a protocol-incompatible driver!!  Ever!!
- * Instead:  allocate your own, using normal USB-IF procedures.
+/* DO ANALT REUSE THESE IDs with a protocol-incompatible driver!!  Ever!!
+ * Instead:  allocate your own, using analrmal USB-IF procedures.
  */
 
-/* Thanks to NetChip Technologies for donating this product ID.
+/* Thanks to NetChip Techanallogies for donating this product ID.
  */
 #define PRINTER_VENDOR_NUM	0x0525		/* NetChip */
 #define PRINTER_PRODUCT_NUM	0xa4a8		/* Linux-USB Printer Gadget */
@@ -47,7 +47,7 @@ static char *iPNPstring;
 module_param(iPNPstring, charp, S_IRUGO);
 MODULE_PARM_DESC(iPNPstring, "MFG:linux;MDL:g_printer;CLS:PRINTER;SN:1;");
 
-/* Number of requests to allocate per endpoint, not used for ep0. */
+/* Number of requests to allocate per endpoint, analt used for ep0. */
 static unsigned qlen = 10;
 module_param(qlen, uint, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(qlen, "The number of 8k buffers to use per endpoint");
@@ -146,12 +146,12 @@ static int printer_bind(struct usb_composite_dev *cdev)
 		return PTR_ERR(fi_printer);
 
 	opts = container_of(fi_printer, struct f_printer_opts, func_inst);
-	opts->minor = 0;
+	opts->mianalr = 0;
 	opts->q_len = QLEN;
 	if (iPNPstring) {
 		opts->pnp_string = kstrdup(iPNPstring, GFP_KERNEL);
 		if (!opts->pnp_string) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto fail_put_func_inst;
 		}
 		opts->pnp_string_allocated = true;
@@ -176,7 +176,7 @@ static int printer_bind(struct usb_composite_dev *cdev)
 
 		usb_desc = usb_otg_descriptor_alloc(cdev->gadget);
 		if (!usb_desc) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto fail_put_func_inst;
 		}
 		usb_otg_descriptor_init(cdev->gadget, usb_desc);

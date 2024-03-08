@@ -126,7 +126,7 @@ static int fw_check_class(struct tegra_drm_firewall *fw, u32 class)
 enum {
 	HOST1X_OPCODE_SETCLASS  = 0x00,
 	HOST1X_OPCODE_INCR      = 0x01,
-	HOST1X_OPCODE_NONINCR   = 0x02,
+	HOST1X_OPCODE_ANALNINCR   = 0x02,
 	HOST1X_OPCODE_MASK      = 0x03,
 	HOST1X_OPCODE_IMM       = 0x04,
 	HOST1X_OPCODE_RESTART   = 0x05,
@@ -135,7 +135,7 @@ enum {
 	HOST1X_OPCODE_SETAPPID  = 0x08,
 	HOST1X_OPCODE_SETPYLD   = 0x09,
 	HOST1X_OPCODE_INCR_W    = 0x0a,
-	HOST1X_OPCODE_NONINCR_W = 0x0b,
+	HOST1X_OPCODE_ANALNINCR_W = 0x0b,
 	HOST1X_OPCODE_GATHER_W  = 0x0c,
 	HOST1X_OPCODE_RESTART_W = 0x0d,
 	HOST1X_OPCODE_EXTEND    = 0x0e,
@@ -190,13 +190,13 @@ int tegra_drm_fw_validate(struct tegra_drm_client *client, u32 *data, u32 start,
 					 "illegal INCR(offset=0x%x, count=%u) in class 0x%x at word %u",
 					 offset, count, fw.class, fw.pos-1);
 			break;
-		case HOST1X_OPCODE_NONINCR:
+		case HOST1X_OPCODE_ANALNINCR:
 			offset = (word >> 16) & 0xfff;
 			count = word & 0xffff;
 			err = fw_check_regs_seq(&fw, offset, count, false);
 			if (err)
 				dev_warn(client->base.dev,
-					 "illegal NONINCR(offset=0x%x, count=%u) in class 0x%x at word %u",
+					 "illegal ANALNINCR(offset=0x%x, count=%u) in class 0x%x at word %u",
 					 offset, count, fw.class, fw.pos-1);
 			break;
 		case HOST1X_OPCODE_MASK:
@@ -209,7 +209,7 @@ int tegra_drm_fw_validate(struct tegra_drm_client *client, u32 *data, u32 start,
 					 offset, mask, fw.class, fw.pos-1);
 			break;
 		case HOST1X_OPCODE_IMM:
-			/* IMM cannot reasonably be used to write a pointer */
+			/* IMM cananalt reasonably be used to write a pointer */
 			offset = (word >> 16) & 0xfff;
 			err = fw_check_regs_imm(&fw, offset);
 			if (err)
@@ -232,7 +232,7 @@ int tegra_drm_fw_validate(struct tegra_drm_client *client, u32 *data, u32 start,
 					 "illegal INCR_W(offset=0x%x) in class 0x%x at word %u",
 					 offset, fw.class, fw.pos-1);
 			break;
-		case HOST1X_OPCODE_NONINCR_W:
+		case HOST1X_OPCODE_ANALNINCR_W:
 			if (!payload_valid)
 				return -EINVAL;
 
@@ -240,7 +240,7 @@ int tegra_drm_fw_validate(struct tegra_drm_client *client, u32 *data, u32 start,
 			err = fw_check_regs_seq(&fw, offset, payload, false);
 			if (err)
 				dev_warn(client->base.dev,
-					 "illegal NONINCR(offset=0x%x) in class 0x%x at word %u",
+					 "illegal ANALNINCR(offset=0x%x) in class 0x%x at word %u",
 					 offset, fw.class, fw.pos-1);
 			break;
 		default:

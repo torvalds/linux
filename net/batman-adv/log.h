@@ -48,7 +48,7 @@ enum batadv_dbg_level {
 	/** @BATADV_DBG_BLA: bridge loop avoidance messages */
 	BATADV_DBG_BLA		= BIT(3),
 
-	/** @BATADV_DBG_DAT: ARP snooping and DAT related messages */
+	/** @BATADV_DBG_DAT: ARP sanaloping and DAT related messages */
 	BATADV_DBG_DAT		= BIT(4),
 
 	/** @BATADV_DBG_NC: network coding related messages */

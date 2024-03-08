@@ -16,9 +16,9 @@ static struct cpuidle_ops cpuidle_ops[NR_CPUS] __ro_after_init;
 
 /**
  * arm_cpuidle_simple_enter() - a wrapper to cpu_do_idle()
- * @dev: not used
- * @drv: not used
- * @index: not used
+ * @dev: analt used
+ * @drv: analt used
+ * @index: analt used
  *
  * A trivial wrapper to allow the cpu_do_idle function to be assigned as a
  * cpuidle callback by matching the function signature.
@@ -56,7 +56,7 @@ int arm_cpuidle_suspend(int index)
  * Search in the __cpuidle_method_of_table array the cpuidle ops matching the
  * method name.
  *
- * Returns a struct cpuidle_ops pointer, NULL if not found.
+ * Returns a struct cpuidle_ops pointer, NULL if analt found.
  */
 static const struct cpuidle_ops *__init arm_cpuidle_get_ops(const char *method)
 {
@@ -71,7 +71,7 @@ static const struct cpuidle_ops *__init arm_cpuidle_get_ops(const char *method)
 
 /**
  * arm_cpuidle_read_ops() - Initialize the cpuidle ops with the device tree
- * @dn: a pointer to a struct device node corresponding to a cpu node
+ * @dn: a pointer to a struct device analde corresponding to a cpu analde
  * @cpu: the cpu identifier
  *
  * Get the method name defined in the 'enable-method' property, retrieve the
@@ -79,35 +79,35 @@ static const struct cpuidle_ops *__init arm_cpuidle_get_ops(const char *method)
  * cpuidle_ops are tagged __initconst and will be unloaded after the init
  * process.
  *
- * Return 0 on sucess, -ENOENT if no 'enable-method' is defined, -EOPNOTSUPP if
- * no cpuidle_ops is registered for the 'enable-method', or if either init or
+ * Return 0 on sucess, -EANALENT if anal 'enable-method' is defined, -EOPANALTSUPP if
+ * anal cpuidle_ops is registered for the 'enable-method', or if either init or
  * suspend callback isn't defined.
  */
-static int __init arm_cpuidle_read_ops(struct device_node *dn, int cpu)
+static int __init arm_cpuidle_read_ops(struct device_analde *dn, int cpu)
 {
 	const char *enable_method;
 	const struct cpuidle_ops *ops;
 
 	enable_method = of_get_property(dn, "enable-method", NULL);
 	if (!enable_method)
-		return -ENOENT;
+		return -EANALENT;
 
 	ops = arm_cpuidle_get_ops(enable_method);
 	if (!ops) {
 		pr_warn("%pOF: unsupported enable-method property: %s\n",
 			dn, enable_method);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (!ops->init || !ops->suspend) {
-		pr_warn("cpuidle_ops '%s': no init or suspend callback\n",
+		pr_warn("cpuidle_ops '%s': anal init or suspend callback\n",
 			enable_method);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	cpuidle_ops[cpu] = *ops; /* structure copy */
 
-	pr_notice("cpuidle: enable-method property '%s'"
+	pr_analtice("cpuidle: enable-method property '%s'"
 		  " found operations\n", enable_method);
 
 	return 0;
@@ -119,30 +119,30 @@ static int __init arm_cpuidle_read_ops(struct device_node *dn, int cpu)
  *
  * Initialize the cpuidle ops with the device for the cpu and then call
  * the cpu's idle initialization callback. This may fail if the underlying HW
- * is not operational.
+ * is analt operational.
  *
  * Returns:
  *  0 on success,
- *  -ENODEV if it fails to find the cpu node in the device tree,
- *  -EOPNOTSUPP if it does not find a registered and valid cpuidle_ops for
+ *  -EANALDEV if it fails to find the cpu analde in the device tree,
+ *  -EOPANALTSUPP if it does analt find a registered and valid cpuidle_ops for
  *  this cpu,
- *  -ENOENT if it fails to find an 'enable-method' property,
+ *  -EANALENT if it fails to find an 'enable-method' property,
  *  -ENXIO if the HW reports a failure or a misconfiguration,
- *  -ENOMEM if the HW report an memory allocation failure 
+ *  -EANALMEM if the HW report an memory allocation failure 
  */
 int __init arm_cpuidle_init(int cpu)
 {
-	struct device_node *cpu_node = of_cpu_device_node_get(cpu);
+	struct device_analde *cpu_analde = of_cpu_device_analde_get(cpu);
 	int ret;
 
-	if (!cpu_node)
-		return -ENODEV;
+	if (!cpu_analde)
+		return -EANALDEV;
 
-	ret = arm_cpuidle_read_ops(cpu_node, cpu);
+	ret = arm_cpuidle_read_ops(cpu_analde, cpu);
 	if (!ret)
-		ret = cpuidle_ops[cpu].init(cpu_node, cpu);
+		ret = cpuidle_ops[cpu].init(cpu_analde, cpu);
 
-	of_node_put(cpu_node);
+	of_analde_put(cpu_analde);
 
 	return ret;
 }

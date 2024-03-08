@@ -28,10 +28,10 @@ static pteval_t shared_pte_mask = L_PTE_MT_BUFFERABLE;
  * We take the easy way out of this problem - we make the
  * PTE uncacheable.  However, we leave the write buffer on.
  *
- * Note that the pte lock held when calling update_mmu_cache must also
+ * Analte that the pte lock held when calling update_mmu_cache must also
  * guard the pte (somewhere else in the same mm) that we modify here.
  * Therefore those configurations which might call adjust_pte (those
- * without CONFIG_CPU_CACHE_VIPT) cannot support split page_table_lock.
+ * without CONFIG_CPU_CACHE_VIPT) cananalt support split page_table_lock.
  */
 static int do_adjust_pte(struct vm_area_struct *vma, unsigned long address,
 	unsigned long pfn, pte_t *ptep)
@@ -46,7 +46,7 @@ static int do_adjust_pte(struct vm_area_struct *vma, unsigned long address,
 
 	/*
 	 * If this page isn't present, or is already setup to
-	 * fault (ie, is old), we can safely ignore any issues.
+	 * fault (ie, is old), we can safely iganalre any issues.
 	 */
 	if (ret && (pte_val(entry) & L_PTE_MT_MASK) != shared_pte_mask) {
 		flush_cache_page(vma, address, pfn);
@@ -65,7 +65,7 @@ static int do_adjust_pte(struct vm_area_struct *vma, unsigned long address,
 /*
  * If we are using split PTE locks, then we need to take the page
  * lock here.  Otherwise we are using shared mm->page_table_lock
- * which is already locked, thus cannot take it.
+ * which is already locked, thus cananalt take it.
  */
 static inline void do_pte_lock(spinlock_t *ptl)
 {
@@ -97,27 +97,27 @@ static int adjust_pte(struct vm_area_struct *vma, unsigned long address,
 	int ret;
 
 	pgd = pgd_offset(vma->vm_mm, address);
-	if (pgd_none_or_clear_bad(pgd))
+	if (pgd_analne_or_clear_bad(pgd))
 		return 0;
 
 	p4d = p4d_offset(pgd, address);
-	if (p4d_none_or_clear_bad(p4d))
+	if (p4d_analne_or_clear_bad(p4d))
 		return 0;
 
 	pud = pud_offset(p4d, address);
-	if (pud_none_or_clear_bad(pud))
+	if (pud_analne_or_clear_bad(pud))
 		return 0;
 
 	pmd = pmd_offset(pud, address);
-	if (pmd_none_or_clear_bad(pmd))
+	if (pmd_analne_or_clear_bad(pmd))
 		return 0;
 
 	/*
-	 * This is called while another page table is mapped, so we
+	 * This is called while aanalther page table is mapped, so we
 	 * must use the nested version.  This also means we need to
 	 * open-code the spin-locking.
 	 */
-	pte = pte_offset_map_nolock(vma->vm_mm, pmd, address, &ptl);
+	pte = pte_offset_map_anallock(vma->vm_mm, pmd, address, &ptl);
 	if (!pte)
 		return 0;
 
@@ -151,8 +151,8 @@ make_coherent(struct address_space *mapping, struct vm_area_struct *vma,
 	flush_dcache_mmap_lock(mapping);
 	vma_interval_tree_foreach(mpnt, &mapping->i_mmap, pgoff, pgoff) {
 		/*
-		 * If this VMA is not in our MM, we can ignore it.
-		 * Note that we intentionally mask out the VMA
+		 * If this VMA is analt in our MM, we can iganalre it.
+		 * Analte that we intentionally mask out the VMA
 		 * that we are fixing up.
 		 */
 		if (mpnt->vm_mm != mm || mpnt == vma)
@@ -172,13 +172,13 @@ make_coherent(struct address_space *mapping, struct vm_area_struct *vma,
  * a page table, or changing an existing PTE.  Basically, there are two
  * things that we need to take care of:
  *
- *  1. If PG_dcache_clean is not set for the page, we need to ensure
+ *  1. If PG_dcache_clean is analt set for the page, we need to ensure
  *     that any cache entries for the kernels virtual memory
  *     range are written back to the page.
  *  2. If we have multiple shared mappings of the same space in
  *     an object, we need to deal with the cache aliasing issues.
  *
- * Note that the pte lock will be held.
+ * Analte that the pte lock will be held.
  */
 void update_mmu_cache_range(struct vm_fault *vmf, struct vm_area_struct *vma,
 		unsigned long addr, pte_t *ptep, unsigned int nr)

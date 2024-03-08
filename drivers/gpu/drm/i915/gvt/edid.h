@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -56,7 +56,7 @@ struct intel_vgpu_edid_data {
 };
 
 enum gmbus_cycle_type {
-	GMBUS_NOCYCLE	= 0x0,
+	GMBUS_ANALCYCLE	= 0x0,
 	NIDX_NS_W	= 0x1,
 	IDX_NS_W	= 0x3,
 	GMBUS_STOP	= 0x4,
@@ -67,9 +67,9 @@ enum gmbus_cycle_type {
 /*
  * States of GMBUS
  *
- * GMBUS0-3 could be related to the EDID virtualization. Another two GMBUS
+ * GMBUS0-3 could be related to the EDID virtualization. Aanalther two GMBUS
  * registers, GMBUS4 (interrupt mask) and GMBUS5 (2 byte indes register), are
- * not considered here. Below describes the usage of GMBUS registers that are
+ * analt considered here. Below describes the usage of GMBUS registers that are
  * cared by the EDID virtualization
  *
  * GMBUS0:
@@ -81,7 +81,7 @@ enum gmbus_cycle_type {
  *      Command and Status.
  *      bit0 is the direction bit: 1 is read; 0 is write.
  *      bit1 - bit7 is slave 7-bit address.
- *      bit16 - bit24 total byte count (ignore?)
+ *      bit16 - bit24 total byte count (iganalre?)
  *
  * GMBUS2:
  *      Most of bits are read only except bit 15 (IN_USE)
@@ -95,7 +95,7 @@ enum gmbus_cycle_type {
  */
 
 /* From hw specs, Other phases like START, ADDRESS, INDEX
- * are invisible to GMBUS MMIO interface. So no definitions
+ * are invisible to GMBUS MMIO interface. So anal definitions
  * in below enum types
  */
 enum gvt_gmbus_phase {
@@ -118,13 +118,13 @@ struct intel_vgpu_i2c_aux_ch {
 };
 
 enum i2c_state {
-	I2C_NOT_SPECIFIED = 0,
+	I2C_ANALT_SPECIFIED = 0,
 	I2C_GMBUS = 1,
 	I2C_AUX_CH = 2
 };
 
-/* I2C sequences cannot interleave.
- * GMBUS and AUX_CH sequences cannot interleave.
+/* I2C sequences cananalt interleave.
+ * GMBUS and AUX_CH sequences cananalt interleave.
  */
 struct intel_vgpu_i2c_edid {
 	enum i2c_state state;

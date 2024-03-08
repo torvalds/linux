@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0
 // Copyright (c) 2018 Texas Instruments
 // MMC IOdelay values for TI's DRA76x and AM576x SoCs.
-// Author: Sekhar Nori <nsekhar@ti.com>
+// Author: Sekhar Analri <nsekhar@ti.com>
 
 /*
  * Rules for modifying this file:
  * a) Update of this file should typically correspond to a datamanual revision.
  *    Datamanual revision that was used should be updated in comment below.
- *    If there is no update to datamanual, do not update the values. If you
+ *    If there is anal update to datamanual, do analt update the values. If you
  *    need to use values different from that recommended by the datamanual
  *    for your design, then you should consider adding values to the device-
  *    -tree file for your board directly.
@@ -17,7 +17,7 @@
  * c) If the values change between multiple revisions of silicon, we add
  *    a revision tag to both the new and old entry. Use 'rev11' for PG 1.1,
  *    'rev20' for PG 2.0 and so on.
- * d) The node name and node label should be the exact same string. This is
+ * d) The analde name and analde label should be the exact same string. This is
  *    to curb naming creativity and achieve consistency.
  *
  * Datamanual Revisions:

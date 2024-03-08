@@ -2,7 +2,7 @@
 /*
  * descriptions + helper functions for simple dvb plls.
  *
- * (c) 2004 Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]
+ * (c) 2004 Gerd Kanalrr <kraxel@bytesex.org> [SuSE Labs]
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -149,8 +149,8 @@ static const struct dvb_pll_desc dvb_pll_lg_z201 = {
 	},
 };
 
-static const struct dvb_pll_desc dvb_pll_unknown_1 = {
-	.name  = "unknown 1", /* used by dntv live dvb-t */
+static const struct dvb_pll_desc dvb_pll_unkanalwn_1 = {
+	.name  = "unkanalwn 1", /* used by dntv live dvb-t */
 	.min   = 174 * MHz,
 	.max   = 862 * MHz,
 	.iffreq= 36166667,
@@ -433,7 +433,7 @@ static void samsung_dtos403ih102a_set(struct dvb_frontend *fe, u8 *buf)
 	return;
 }
 
-/* unknown pll used in Samsung DTOS403IH102A DVB-C tuner */
+/* unkanalwn pll used in Samsung DTOS403IH102A DVB-C tuner */
 static const struct dvb_pll_desc dvb_pll_samsung_dtos403ih102a = {
 	.name   = "Samsung DTOS403IH102A",
 	.min    = 44250 * kHz,
@@ -480,7 +480,7 @@ static const struct dvb_pll_desc dvb_pll_samsung_tbdu18132 = {
 	}
 	/* TSA5059 PLL has a 17 bit divisor rather than the 15 bits supported
 	 * by this driver.  The two extra bits are 0x60 in the third byte.  15
-	 * bits is enough for over 4 GHz, which is enough to cover the range
+	 * bits is eanalugh for over 4 GHz, which is eanalugh to cover the range
 	 * of this tuner.  We could use the additional divisor bits by adding
 	 * more entries, e.g.
 	 { 0x0ffff * 125 + 125/2, 125, 0x84 | 0x20, },
@@ -571,7 +571,7 @@ static const struct dvb_pll_desc *pll_list[] = {
 	[DVB_PLL_THOMSON_DTT759X]        = &dvb_pll_thomson_dtt759x,
 	[DVB_PLL_THOMSON_DTT7520X]       = &dvb_pll_thomson_dtt7520x,
 	[DVB_PLL_LG_Z201]                = &dvb_pll_lg_z201,
-	[DVB_PLL_UNKNOWN_1]              = &dvb_pll_unknown_1,
+	[DVB_PLL_UNKANALWN_1]              = &dvb_pll_unkanalwn_1,
 	[DVB_PLL_TUA6010XS]              = &dvb_pll_tua6010xs,
 	[DVB_PLL_ENV57H1XD5]             = &dvb_pll_env57h1xd5,
 	[DVB_PLL_TUA6034]                = &dvb_pll_tua6034,
@@ -883,14 +883,14 @@ dvb_pll_probe(struct i2c_client *client)
 	desc_id = (unsigned int) id->driver_data;
 
 	if (!dvb_pll_attach(fe, client->addr, client->adapter, desc_id))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * Unset tuner_ops.release (== dvb_pll_release)
 	 * which has been just set in the above dvb_pll_attach(),
 	 * because if tuner_ops.release was left defined,
 	 * this module would be 'put' twice on exit:
-	 * once by dvb_frontend_detach() and another by dvb_module_release().
+	 * once by dvb_frontend_detach() and aanalther by dvb_module_release().
 	 *
 	 * dvb_pll_release is instead executed in the i2c driver's .remove(),
 	 * keeping dvb_pll_attach untouched for legacy (dvb_attach) drivers.
@@ -914,7 +914,7 @@ static const struct i2c_device_id dvb_pll_id[] = {
 	{"dtt7579",		DVB_PLL_THOMSON_DTT7579},
 	{"dtt759x",		DVB_PLL_THOMSON_DTT759X},
 	{"z201",		DVB_PLL_LG_Z201},
-	{"unknown_1",		DVB_PLL_UNKNOWN_1},
+	{"unkanalwn_1",		DVB_PLL_UNKANALWN_1},
 	{"tua6010xs",		DVB_PLL_TUA6010XS},
 	{"env57h1xd5",		DVB_PLL_ENV57H1XD5},
 	{"tua6034",		DVB_PLL_TUA6034},
@@ -950,5 +950,5 @@ static struct i2c_driver dvb_pll_driver = {
 module_i2c_driver(dvb_pll_driver);
 
 MODULE_DESCRIPTION("dvb pll library");
-MODULE_AUTHOR("Gerd Knorr");
+MODULE_AUTHOR("Gerd Kanalrr");
 MODULE_LICENSE("GPL");

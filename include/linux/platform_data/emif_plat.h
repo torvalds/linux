@@ -70,14 +70,14 @@ struct ddr_device_info {
  *		performance is desired at the cost of power (typically
  *		at higher OPPs)
  * @lpmode_timeout_power: Timeout before LPMODE entry when better power
- *		savings is desired and performance is not important
+ *		savings is desired and performance is analt important
  *		(typically at lower loads indicated by lower OPPs)
  * @lpmode_freq_threshold: The DDR frequency threshold to identify between
  *		the above two cases:
  *		timeout = (freq >= lpmode_freq_threshold) ?
  *			lpmode_timeout_performance :
  *			lpmode_timeout_power;
- * @temp_alert_poll_interval_ms: LPDDR2 MR4 polling interval at nominal
+ * @temp_alert_poll_interval_ms: LPDDR2 MR4 polling interval at analminal
  *		temperature(in milliseconds). When temperature is high
  *		polling is done 4 times as frequently.
  */

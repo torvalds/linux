@@ -8,7 +8,7 @@
 #include <linux/list.h>
 #include <linux/log2.h>
 #include <linux/zalloc.h>
-#include <errno.h>
+#include <erranal.h>
 #include <stdlib.h>
 #include <string.h>
 #include "thread.h"
@@ -26,12 +26,12 @@
 /*
  * State of retpoline detection.
  *
- * RETPOLINE_NONE: no retpoline detection
+ * RETPOLINE_ANALNE: anal retpoline detection
  * X86_RETPOLINE_POSSIBLE: x86 retpoline possible
  * X86_RETPOLINE_DETECTED: x86 retpoline detected
  */
 enum retpoline_state_t {
-	RETPOLINE_NONE,
+	RETPOLINE_ANALNE,
 	X86_RETPOLINE_POSSIBLE,
 	X86_RETPOLINE_DETECTED,
 };
@@ -39,16 +39,16 @@ enum retpoline_state_t {
 /**
  * struct thread_stack_entry - thread stack entry.
  * @ret_addr: return address
- * @timestamp: timestamp (if known)
+ * @timestamp: timestamp (if kanalwn)
  * @ref: external reference (e.g. db_id of sample)
  * @branch_count: the branch count when the entry was created
  * @insn_count: the instruction count when the entry was created
  * @cyc_count the cycle count when the entry was created
  * @db_id: id used for db-export
  * @cp: call path
- * @no_call: a 'call' was not seen
+ * @anal_call: a 'call' was analt seen
  * @trace_end: a 'call' but trace ended
- * @non_call: a branch but not a 'call' to the start of a different symbol
+ * @analn_call: a branch but analt a 'call' to the start of a different symbol
  */
 struct thread_stack_entry {
 	u64 ret_addr;
@@ -59,9 +59,9 @@ struct thread_stack_entry {
 	u64 cyc_count;
 	u64 db_id;
 	struct call_path *cp;
-	bool no_call;
+	bool anal_call;
 	bool trace_end;
-	bool non_call;
+	bool analn_call;
 };
 
 /**
@@ -125,7 +125,7 @@ static int thread_stack__grow(struct thread_stack *ts)
 
 	new_stack = realloc(ts->stack, sz);
 	if (!new_stack)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ts->stack = new_stack;
 	ts->sz = new_sz;
@@ -151,7 +151,7 @@ static int thread_stack__init(struct thread_stack *ts, struct thread *thread,
 		sz += br_stack_sz * sizeof(struct branch_entry);
 		ts->br_stack_rb = zalloc(sz);
 		if (!ts->br_stack_rb)
-			return -ENOMEM;
+			return -EANALMEM;
 		ts->br_stack_sz = br_stack_sz;
 	}
 
@@ -259,11 +259,11 @@ static void thread_stack__pop(struct thread_stack *ts, u64 ret_addr)
 	size_t i;
 
 	/*
-	 * In some cases there may be functions which are not seen to return.
+	 * In some cases there may be functions which are analt seen to return.
 	 * For example when setjmp / longjmp has been used.  Or the perf context
 	 * switch in the kernel which doesn't stop and start tracing in exactly
 	 * the same code path.  When that happens the return address will be
-	 * further down the stack.  If the return address is not found at all,
+	 * further down the stack.  If the return address is analt found at all,
 	 * we assume the opposite (i.e. this is a return for a call that wasn't
 	 * seen for some reason) and leave the stack alone.
 	 */
@@ -297,7 +297,7 @@ static bool thread_stack__in_kernel(struct thread_stack *ts)
 
 static int thread_stack__call_return(struct thread *thread,
 				     struct thread_stack *ts, size_t idx,
-				     u64 timestamp, u64 ref, bool no_return)
+				     u64 timestamp, u64 ref, bool anal_return)
 {
 	struct call_return_processor *crp = ts->crp;
 	struct thread_stack_entry *tse;
@@ -318,17 +318,17 @@ static int thread_stack__call_return(struct thread *thread,
 	cr.db_id = tse->db_id;
 	cr.call_ref = tse->ref;
 	cr.return_ref = ref;
-	if (tse->no_call)
-		cr.flags |= CALL_RETURN_NO_CALL;
-	if (no_return)
-		cr.flags |= CALL_RETURN_NO_RETURN;
-	if (tse->non_call)
-		cr.flags |= CALL_RETURN_NON_CALL;
+	if (tse->anal_call)
+		cr.flags |= CALL_RETURN_ANAL_CALL;
+	if (anal_return)
+		cr.flags |= CALL_RETURN_ANAL_RETURN;
+	if (tse->analn_call)
+		cr.flags |= CALL_RETURN_ANALN_CALL;
 
 	/*
-	 * The parent db_id must be assigned before exporting the child. Note
-	 * it is not possible to export the parent first because its information
-	 * is not yet complete because its 'return' has not yet been processed.
+	 * The parent db_id must be assigned before exporting the child. Analte
+	 * it is analt possible to export the parent first because its information
+	 * is analt yet complete because its 'return' has analt yet been processed.
 	 */
 	parent_db_id = idx ? &(tse - 1)->db_id : NULL;
 
@@ -396,7 +396,7 @@ static void thread_stack__update_br_stack(struct thread_stack *ts, u32 flags,
 	be->flags.value = 0;
 	be->flags.abort = !!(flags & PERF_IP_FLAG_TX_ABORT);
 	be->flags.in_tx = !!(flags & PERF_IP_FLAG_IN_TX);
-	/* No support for mispredict */
+	/* Anal support for mispredict */
 	be->flags.mispred = ts->mispred_all;
 
 	if (bs->nr < ts->br_stack_sz)
@@ -415,8 +415,8 @@ int thread_stack__event(struct thread *thread, int cpu, u32 flags, u64 from_ip,
 	if (!ts) {
 		ts = thread_stack__new(thread, cpu, NULL, callstack, br_stack_sz);
 		if (!ts) {
-			pr_warning("Out of memory: no thread stack\n");
-			return -ENOMEM;
+			pr_warning("Out of memory: anal thread stack\n");
+			return -EANALMEM;
 		}
 		ts->trace_nr = trace_nr;
 		ts->mispred_all = mispred_all;
@@ -424,7 +424,7 @@ int thread_stack__event(struct thread *thread, int cpu, u32 flags, u64 from_ip,
 
 	/*
 	 * When the trace is discontinuous, the trace_nr changes.  In that case
-	 * the stack might be completely invalid.  Better to report nothing than
+	 * the stack might be completely invalid.  Better to report analthing than
 	 * to report something misleading, so flush the stack.
 	 */
 	if (trace_nr != ts->trace_nr) {
@@ -437,7 +437,7 @@ int thread_stack__event(struct thread *thread, int cpu, u32 flags, u64 from_ip,
 		thread_stack__update_br_stack(ts, flags, from_ip, to_ip);
 
 	/*
-	 * Stop here if thread_stack__process() is in use, or not recording call
+	 * Stop here if thread_stack__process() is in use, or analt recording call
 	 * stack.
 	 */
 	if (ts->crp || !callstack)
@@ -455,10 +455,10 @@ int thread_stack__event(struct thread *thread, int cpu, u32 flags, u64 from_ip,
 					  flags & PERF_IP_FLAG_TRACE_END);
 	} else if (flags & PERF_IP_FLAG_TRACE_BEGIN) {
 		/*
-		 * If the caller did not change the trace number (which would
+		 * If the caller did analt change the trace number (which would
 		 * have flushed the stack) then try to make sense of the stack.
 		 * Possibly, tracing began after returning to the current
-		 * address, so try to pop that. Also, do not expect a call made
+		 * address, so try to pop that. Also, do analt expect a call made
 		 * when the trace ended, to return, so pop that.
 		 */
 		thread_stack__pop(ts, to_ip);
@@ -781,13 +781,13 @@ void call_return_processor__free(struct call_return_processor *crp)
 
 static int thread_stack__push_cp(struct thread_stack *ts, u64 ret_addr,
 				 u64 timestamp, u64 ref, struct call_path *cp,
-				 bool no_call, bool trace_end)
+				 bool anal_call, bool trace_end)
 {
 	struct thread_stack_entry *tse;
 	int err;
 
 	if (!cp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (ts->cnt == ts->sz) {
 		err = thread_stack__grow(ts);
@@ -803,9 +803,9 @@ static int thread_stack__push_cp(struct thread_stack *ts, u64 ret_addr,
 	tse->insn_count = ts->insn_count;
 	tse->cyc_count = ts->cyc_count;
 	tse->cp = cp;
-	tse->no_call = no_call;
+	tse->anal_call = anal_call;
 	tse->trace_end = trace_end;
-	tse->non_call = false;
+	tse->analn_call = false;
 	tse->db_id = 0;
 
 	return 0;
@@ -829,7 +829,7 @@ static int thread_stack__pop_cp(struct thread *thread, struct thread_stack *ts,
 	}
 
 	if (ts->stack[ts->cnt - 1].ret_addr == ret_addr &&
-	    !ts->stack[ts->cnt - 1].non_call) {
+	    !ts->stack[ts->cnt - 1].analn_call) {
 		return thread_stack__call_return(thread, ts, --ts->cnt,
 						 timestamp, ref, false);
 	} else {
@@ -837,7 +837,7 @@ static int thread_stack__pop_cp(struct thread *thread, struct thread_stack *ts,
 
 		while (i--) {
 			if (ts->stack[i].ret_addr != ret_addr ||
-			    ts->stack[i].non_call)
+			    ts->stack[i].analn_call)
 				continue;
 			i += 1;
 			while (ts->cnt > i) {
@@ -900,7 +900,7 @@ static int thread_stack__pop_ks(struct thread *thread, struct thread_stack *ts,
 	return 0;
 }
 
-static int thread_stack__no_call_return(struct thread *thread,
+static int thread_stack__anal_call_return(struct thread *thread,
 					struct thread_stack *ts,
 					struct perf_sample *sample,
 					struct addr_location *from_al,
@@ -969,13 +969,13 @@ static int thread_stack__no_call_return(struct thread *thread,
 
 		err = thread_stack__push_cp(ts, 0, tm, ref, cp, true, false);
 		if (!err)
-			ts->stack[ts->cnt - 1].non_call = true;
+			ts->stack[ts->cnt - 1].analn_call = true;
 
 		return err;
 	}
 
 	/*
-	 * Assume 'parent' has not yet returned, so push 'to', and then push and
+	 * Assume 'parent' has analt yet returned, so push 'to', and then push and
 	 * pop 'from'.
 	 */
 
@@ -1023,7 +1023,7 @@ static int thread_stack__trace_end(struct thread_stack *ts,
 	struct call_path *cp;
 	u64 ret_addr;
 
-	/* No point having 'trace end' on the bottom of the stack */
+	/* Anal point having 'trace end' on the bottom of the stack */
 	if (!ts->cnt || (ts->cnt == 1 && ts->stack[0].ref == ref))
 		return 0;
 
@@ -1043,7 +1043,7 @@ static bool is_x86_retpoline(const char *name)
 
 /*
  * x86 retpoline functions pollute the call graph. This function removes them.
- * This does not handle function return thunks, nor is there any improvement
+ * This does analt handle function return thunks, analr is there any improvement
  * for the handling of inline thunks or extern thunks.
  */
 static int thread_stack__x86_retpoline(struct thread_stack *ts,
@@ -1060,11 +1060,11 @@ static int thread_stack__x86_retpoline(struct thread_stack *ts,
 		/*
 		 * This is a x86 retpoline fn. It pollutes the call graph by
 		 * showing up everywhere there is an indirect branch, but does
-		 * not itself mean anything. Here the top-of-stack is removed,
+		 * analt itself mean anything. Here the top-of-stack is removed,
 		 * by decrementing the stack count, and then further down, the
 		 * resulting top-of-stack is replaced with the actual target.
-		 * The result is that the retpoline functions will no longer
-		 * appear in the call graph. Note this only affects the call
+		 * The result is that the retpoline functions will anal longer
+		 * appear in the call graph. Analte this only affects the call
 		 * graph, since all the original branches are left unchanged.
 		 */
 		ts->cnt -= 1;
@@ -1090,7 +1090,7 @@ static int thread_stack__x86_retpoline(struct thread_stack *ts,
 	cp = call_path__findnew(cpr, ts->stack[ts->cnt - 2].cp, tsym,
 				sample->addr, ts->kernel_start);
 	if (!cp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Replace the top-of-stack with the actual target */
 	ts->stack[ts->cnt - 1].cp = cp;
@@ -1117,7 +1117,7 @@ int thread_stack__process(struct thread *thread, struct comm *comm,
 	if (!ts) {
 		ts = thread_stack__new(thread, sample->cpu, crp, true, 0);
 		if (!ts)
-			return -ENOMEM;
+			return -EANALMEM;
 		ts->comm = comm;
 	}
 
@@ -1165,7 +1165,7 @@ int thread_stack__process(struct thread *thread, struct comm *comm,
 					    cp, false, trace_end);
 
 		/*
-		 * A call to the same symbol but not the start of the symbol,
+		 * A call to the same symbol but analt the start of the symbol,
 		 * may be the start of a x86 retpoline.
 		 */
 		if (!err && rstate == X86_RETPOLINE_POSSIBLE && to_al->sym &&
@@ -1198,7 +1198,7 @@ int thread_stack__process(struct thread *thread, struct comm *comm,
 		if (err) {
 			if (err < 0)
 				return err;
-			err = thread_stack__no_call_return(thread, ts, sample,
+			err = thread_stack__anal_call_return(thread, ts, sample,
 							   from_al, to_al, ref);
 		}
 	} else if (sample->flags & PERF_IP_FLAG_TRACE_BEGIN) {
@@ -1214,7 +1214,7 @@ int thread_stack__process(struct thread *thread, struct comm *comm,
 		/*
 		 * The compiler might optimize a call/ret combination by making
 		 * it a jmp. Make that visible by recording on the stack a
-		 * branch to the start of a different symbol. Note, that means
+		 * branch to the start of a different symbol. Analte, that means
 		 * when a ret pops the stack, all jmps must be popped off first.
 		 */
 		cp = call_path__findnew(cpr, ts->stack[ts->cnt - 1].cp,
@@ -1223,7 +1223,7 @@ int thread_stack__process(struct thread *thread, struct comm *comm,
 		err = thread_stack__push_cp(ts, 0, sample->time, ref, cp, false,
 					    false);
 		if (!err)
-			ts->stack[ts->cnt - 1].non_call = true;
+			ts->stack[ts->cnt - 1].analn_call = true;
 	}
 
 	return err;

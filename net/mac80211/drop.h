@@ -25,10 +25,10 @@ typedef unsigned int __bitwise ieee80211_rx_result;
 	R(RX_DROP_U_DUP)			\
 	R(RX_DROP_U_SPURIOUS)			\
 	R(RX_DROP_U_DECRYPT_FAIL)		\
-	R(RX_DROP_U_NO_KEY_ID)			\
+	R(RX_DROP_U_ANAL_KEY_ID)			\
 	R(RX_DROP_U_BAD_CIPHER)			\
 	R(RX_DROP_U_OOM)			\
-	R(RX_DROP_U_NONSEQ_PN)			\
+	R(RX_DROP_U_ANALNSEQ_PN)			\
 	R(RX_DROP_U_BAD_KEY_COLOR)		\
 	R(RX_DROP_U_BAD_4ADDR)			\
 	R(RX_DROP_U_BAD_AMSDU)			\
@@ -43,12 +43,12 @@ typedef unsigned int __bitwise ieee80211_rx_result;
 	R(RX_DROP_U_UNPROT_BEACON)		\
 	R(RX_DROP_U_UNPROT_UNICAST_PUB_ACTION)	\
 	R(RX_DROP_U_UNPROT_ROBUST_ACTION)	\
-	R(RX_DROP_U_ACTION_UNKNOWN_SRC)		\
+	R(RX_DROP_U_ACTION_UNKANALWN_SRC)		\
 	R(RX_DROP_U_REJECTED_ACTION_RESPONSE)	\
 	R(RX_DROP_U_EXPECT_DEFRAG_PROT)		\
 	R(RX_DROP_U_WEP_DEC_FAIL)		\
-	R(RX_DROP_U_NO_IV)			\
-	R(RX_DROP_U_NO_ICV)			\
+	R(RX_DROP_U_ANAL_IV)			\
+	R(RX_DROP_U_ANAL_ICV)			\
 	R(RX_DROP_U_AP_RX_GROUPCAST)		\
 	R(RX_DROP_U_SHORT_MMIC)			\
 	/* 0x20 */				\
@@ -65,7 +65,7 @@ typedef unsigned int __bitwise ieee80211_rx_result;
 	R(RX_DROP_U_UNEXPECTED_VLAN_4ADDR)	\
 	R(RX_DROP_U_UNEXPECTED_STA_4ADDR)	\
 	R(RX_DROP_U_UNEXPECTED_VLAN_MCAST)	\
-	R(RX_DROP_U_NOT_PORT_CONTROL)		\
+	R(RX_DROP_U_ANALT_PORT_CONTROL)		\
 /* this line for the trailing \ - add before this */
 
 /* having two enums allows for checking ieee80211_rx_result use with sparse */
@@ -74,7 +74,7 @@ enum ___mac80211_drop_reason {
 	___RX_CONTINUE	= SKB_CONSUMED,
 
 /* this never gets used as an argument to kfree_skb_reason() */
-	___RX_QUEUED	= SKB_NOT_DROPPED_YET,
+	___RX_QUEUED	= SKB_ANALT_DROPPED_YET,
 
 #define ENUM(x) ___ ## x,
 	___RX_DROP_MONITOR = SKB_DROP_REASON_SUBSYS_MAC80211_MONITOR <<

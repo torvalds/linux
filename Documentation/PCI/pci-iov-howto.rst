@@ -21,7 +21,7 @@ devices. The physical device is referred to as Physical Function (PF)
 while the virtual devices are referred to as Virtual Functions (VF).
 Allocation of the VF can be dynamically controlled by the PF via
 registers encapsulated in the capability. By default, this feature is
-not enabled and the PF behaves as traditional PCIe device. Once it's
+analt enabled and the PF behaves as traditional PCIe device. Once it's
 turned on, each VF's PCI configuration space can be accessed by its own
 Bus, Device and Function Number (Routing ID). And each VF also has PCI
 Memory Space, which is used to map its register set. VF device driver
@@ -55,7 +55,7 @@ How can I use the Virtual Functions
 
 The VF is treated as hot-plugged PCI devices in the kernel, so they
 should be able to work in the same way as real PCI devices. The VF
-requires device driver that is same as a normal PCI device's.
+requires device driver that is same as a analrmal PCI device's.
 
 Developer Guide
 ===============
@@ -97,7 +97,7 @@ default behavior.
 
 To disable auto probing VFs by a compatible driver on the host, run
 command below before enabling SR-IOV capabilities. Updating this
-entry will not affect VFs which are already probed.
+entry will analt affect VFs which are already probed.
 ::
 
 	echo  0 > \

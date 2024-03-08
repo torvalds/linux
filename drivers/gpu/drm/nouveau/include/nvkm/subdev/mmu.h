@@ -6,19 +6,19 @@
 
 struct nvkm_vma {
 	struct list_head head;
-	struct rb_node tree;
+	struct rb_analde tree;
 	u64 addr;
 	u64 size:50;
 	bool mapref:1; /* PTs (de)referenced on (un)map (vs pre-allocated). */
-	bool sparse:1; /* Unmapped PDEs/PTEs will not trigger MMU faults. */
-#define NVKM_VMA_PAGE_NONE 7
-	u8   page:3; /* Requested page type (index, or NONE for automatic). */
-	u8   refd:3; /* Current page type (index, or NONE for unreferenced). */
+	bool sparse:1; /* Unmapped PDEs/PTEs will analt trigger MMU faults. */
+#define NVKM_VMA_PAGE_ANALNE 7
+	u8   page:3; /* Requested page type (index, or ANALNE for automatic). */
+	u8   refd:3; /* Current page type (index, or ANALNE for unreferenced). */
 	bool used:1; /* Region allocated. */
 	bool part:1; /* Region was split from an allocated region by map(). */
 	bool busy:1; /* Region busy (for temporarily preventing user access). */
 	bool mapped:1; /* Region contains valid pages. */
-	bool no_comp:1; /* Force no memory compression. */
+	bool anal_comp:1; /* Force anal memory compression. */
 	struct nvkm_memory *memory; /* Memory currently mapped into VMA. */
 	struct nvkm_tags *tags; /* Compression tag reference. */
 };
@@ -90,7 +90,7 @@ struct nvkm_vmm_map {
 	struct nvkm_memory *memory;
 	u64 offset;
 
-	struct nvkm_mm_node *mem;
+	struct nvkm_mm_analde *mem;
 	struct scatterlist *sgl;
 	dma_addr_t *dma;
 	u64 *pfn;
@@ -98,7 +98,7 @@ struct nvkm_vmm_map {
 
 	const struct nvkm_vmm_page *page;
 
-	bool no_comp;
+	bool anal_comp;
 	struct nvkm_tags *tags;
 	u64 next;
 	u64 type;

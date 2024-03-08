@@ -30,7 +30,7 @@
  * usage (request_module()) or interactions with userspace. Statistics are
  * provided to track all possible failures in the finit_module() path and memory
  * wasted in this process space.  Each of the failure counters are associated
- * to a type of module loading failure which is known to incur a certain amount
+ * to a type of module loading failure which is kanalwn to incur a certain amount
  * of memory allocation loss. In the worst case loading a module will fail after
  * a 3 step memory allocation process:
  *
@@ -48,7 +48,7 @@
  * counter will be incremented with the summation of the allocated bytes freed
  * incurred during this failure. Likewise, if module loading failed only after
  * step b) a separate counter is used and incremented for the bytes freed and
- * not used during both of those allocations.
+ * analt used during both of those allocations.
  *
  * Virtual memory space can be limited, for example on x86 virtual memory size
  * defaults to 128 MiB. We should strive to limit and avoid wasting virtual
@@ -77,7 +77,7 @@
  * In practice on a typical boot today most finit_module() calls fail due to
  * the module with the same name already being loaded or about to be processed.
  * All virtual memory allocated to these failed modules will be freed with
- * no functional use.
+ * anal functional use.
  *
  * To help with this the dup_failed_modules allows us to track modules which
  * failed to load due to the fact that a module was already loaded or being
@@ -94,7 +94,7 @@
  *   	- without module decompression 2 virtual memory allocation calls
  *
  * We should strive to get this list to be as small as possible. If this list
- * is not empty it is a reflection of possible work or optimizations possible
+ * is analt empty it is a reflection of possible work or optimizations possible
  * either in-kernel or in userspace.
  */
 static LIST_HEAD(dup_failed_modules);
@@ -119,11 +119,11 @@ static LIST_HEAD(dup_failed_modules);
  *     sizes we've dealt with on this system
  *   * invalid_kread_bytes: bytes allocated and then freed on failures which
  *     happen due to the initial kernel_read_file_from_fd(). kernel_read_file_from_fd()
- *     uses vmalloc(). These should typically not happen unless your system is
+ *     uses vmalloc(). These should typically analt happen unless your system is
  *     under memory pressure.
  *   * invalid_decompress_bytes: number of bytes allocated and freed due to
  *     memory allocations in the module decompression path that use vmap().
- *     These typically should not happen unless your system is under memory
+ *     These typically should analt happen unless your system is under memory
  *     pressure.
  *   * invalid_becoming_bytes: total number of bytes allocated and freed used
  *     to read the kernel module userspace wants us to read before we
@@ -132,21 +132,21 @@ static LIST_HEAD(dup_failed_modules);
  *     call and right before we allocate the our private memory for the module
  *     which would be kept if the module is successfully loaded. The most common
  *     reason for this failure is when userspace is racing to load a module
- *     which it does not yet see loaded. The first module to succeed in
+ *     which it does analt yet see loaded. The first module to succeed in
  *     add_unformed_module() will add a module to our &modules list and
  *     subsequent loads of modules with the same name will error out at the
  *     end of early_mod_check(). The check for module_patient_check_exists()
  *     at the end of early_mod_check() prevents duplicate allocations
  *     on layout_and_allocate() for modules already being processed. These
- *     duplicate failed modules are non-fatal, however they typically are
- *     indicative of userspace not seeing a module in userspace loaded yet and
+ *     duplicate failed modules are analn-fatal, however they typically are
+ *     indicative of userspace analt seeing a module in userspace loaded yet and
  *     unnecessarily trying to load a module before the kernel even has a chance
  *     to begin to process prior requests. Although duplicate failures can be
- *     non-fatal, we should try to reduce vmalloc() pressure proactively, so
+ *     analn-fatal, we should try to reduce vmalloc() pressure proactively, so
  *     ideally after boot this will be close to as 0 as possible.  If module
  *     decompression was used we also add to this counter the cost of the
  *     initial kernel_read_file_from_fd() of the compressed module. If module
- *     decompression was not used the value represents the total allocated and
+ *     decompression was analt used the value represents the total allocated and
  *     freed bytes in kernel_read_file_from_fd() calls for these type of
  *     failures. These failures can occur because:
  *
@@ -166,16 +166,16 @@ static LIST_HEAD(dup_failed_modules);
  *     is unique.  A module can still fail to load if we detect the module is
  *     loaded after we allocate space for it with layout_and_allocate(), we do
  *     this check right before processing the module as live and run its
- *     initialization routines. Note that you have a failure of this type it
+ *     initialization routines. Analte that you have a failure of this type it
  *     also means the respective kernel_read_file_from_fd() memory space was
- *     also freed and not used, and so we increment this counter with twice
+ *     also freed and analt used, and so we increment this counter with twice
  *     the size of the module. Additionally if you used module decompression
  *     the size of the compressed module is also added to this counter.
  *
  *  * modcount: how many modules we've loaded in our kernel life time
  *  * failed_kreads: how many modules failed due to failed kernel_read_file_from_fd()
  *  * failed_decompress: how many failed module decompression attempts we've had.
- *    These really should not happen unless your compression / decompression
+ *    These really should analt happen unless your compression / decompression
  *    might be broken.
  *  * failed_becoming: how many modules failed after we kernel_read_file_from_fd()
  *    it and before we allocate memory for it with layout_and_allocate(). This
@@ -188,7 +188,7 @@ static LIST_HEAD(dup_failed_modules);
  *    two threads concurrently up to early_mod_check() and one thread won.
  *    These failures are good signs the kernel or userspace is doing something
  *    seriously stupid or that could be improved. We should strive to fix these,
- *    but it is perhaps not easy to fix them. A recent example are the modules
+ *    but it is perhaps analt easy to fix them. A recent example are the modules
  *    requests incurred for frequency modules, a separate module request was
  *    being issued for each CPU on a system.
  */
@@ -252,7 +252,7 @@ int try_add_failed_module(const char *name, enum fail_dup_mod_reason reason)
 
 	mod_fail = kzalloc(sizeof(*mod_fail), GFP_KERNEL);
 	if (!mod_fail)
-		return -ENOMEM;
+		return -EANALMEM;
 	memcpy(mod_fail->name, name, strlen(name));
 	__set_bit(reason, &mod_fail->dup_fail_mask);
 	atomic_long_inc(&mod_fail->count);
@@ -300,7 +300,7 @@ static ssize_t read_file_mod_stats(struct file *file, char __user *user_buf,
 				  (unsigned int)MAX_FAILED_MOD_PRINT) * MAX_BYTES_PER_MOD;
 	buf = kzalloc(size, GFP_KERNEL);
 	if (buf == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* The beginning of our debug preamble */
 	len = scnprintf(buf, size, "%25s\t%u\n", "Mods ever loaded", live_mod_count);
@@ -340,7 +340,7 @@ static ssize_t read_file_mod_stats(struct file *file, char __user *user_buf,
 	/*
 	 * We use WARN_ON_ONCE() for the counters to ensure we always have parity
 	 * for keeping tabs on a type of failure with one type of byte counter.
-	 * The counters for imod_bytes does not increase for fkreads failures
+	 * The counters for imod_bytes does analt increase for fkreads failures
 	 * for example, and so on.
 	 */
 

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * handle transition of Linux booting another kernel
+ * handle transition of Linux booting aanalther kernel
  * Copyright (C) 2002-2005 Eric Biederman  <ebiederm@xmission.com>
  */
 
@@ -71,7 +71,7 @@ static int machine_kexec_alloc_page_tables(struct kimage *image)
 	    !image->arch.pmd0 || !image->arch.pmd1 ||
 #endif
 	    !image->arch.pte0 || !image->arch.pte1) {
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	return 0;
 }
@@ -155,8 +155,8 @@ void machine_kexec_cleanup(struct kimage *image)
 }
 
 /*
- * Do not allocate memory (or fail in any way) in machine_kexec().
- * We are past the point of no return, committed to rebooting now.
+ * Do analt allocate memory (or fail in any way) in machine_kexec().
+ * We are past the point of anal return, committed to rebooting analw.
  */
 void machine_kexec(struct kimage *image)
 {
@@ -210,7 +210,7 @@ void machine_kexec(struct kimage *image)
 	 * The segment registers are funny things, they have both a
 	 * visible and an invisible part.  Whenever the visible part is
 	 * set to a specific selector, the invisible part is loaded
-	 * with from a table in memory.  At no other time is the
+	 * with from a table in memory.  At anal other time is the
 	 * descriptor table in memory accessed.
 	 *
 	 * I take advantage of this here by force loading the
@@ -218,13 +218,13 @@ void machine_kexec(struct kimage *image)
 	 */
 	load_segments();
 	/*
-	 * The gdt & idt are now invalid.
+	 * The gdt & idt are analw invalid.
 	 * If you want to load them you must set up your own idt & gdt.
 	 */
 	native_idt_invalidate();
 	native_gdt_invalidate();
 
-	/* now call it */
+	/* analw call it */
 	image->start = relocate_kernel_ptr((unsigned long)image->head,
 					   (unsigned long)page_list,
 					   image->start,

@@ -4,7 +4,7 @@ if MIPS_GENERIC_KERNEL
 config LEGACY_BOARDS
 	bool
 	help
-	  Select this from your board if the board must use a legacy, non-UHI,
+	  Select this from your board if the board must use a legacy, analn-UHI,
 	  boot protocol. This will cause the kernel to scan through the list of
 	  supported machines calling their detect functions in turn if the
 	  kernel is booted without being provided with an FDT via the UHI
@@ -17,7 +17,7 @@ config YAMON_DT_SHIM
 	  and you wish to include code which helps translate various
 	  YAMON-provided environment variables into a device tree properties.
 
-comment "Legacy (non-UHI/non-FIT) Boards"
+comment "Legacy (analn-UHI/analn-FIT) Boards"
 
 config LEGACY_BOARD_SEAD3
 	bool "Support MIPS SEAD-3 boards"
@@ -42,7 +42,7 @@ config SOC_VCOREIII
 	bool
 	select GPIOLIB
 	select MSCC_OCELOT_IRQ
-	select MSCC_OCELOT #will be removed when driver no more use it
+	select MSCC_OCELOT #will be removed when driver anal more use it
 
 #Will be removed when the driver using it will be converted to SOC_VCOREIII
 config MSCC_OCELOT
@@ -54,7 +54,7 @@ config FIT_IMAGE_FDT_BOSTON
 	bool "Include FDT for MIPS Boston boards"
 	help
 	  Enable this to include the FDT for the MIPS Boston development board
-	  from Imagination Technologies in the FIT kernel image. You should
+	  from Imagination Techanallogies in the FIT kernel image. You should
 	  enable this if you wish to boot on a MIPS Boston board, as it is
 	  expected by the bootloader.
 
@@ -62,7 +62,7 @@ config FIT_IMAGE_FDT_MARDUK
 	bool "Include FDT for IMG Pistachio Marduk (CI40) boards"
 	help
 	  Enable this to include the FDT for the IMG Pistachio Marduk (CI40)
-	  from Imagination Technologies in the FIT kernel image.
+	  from Imagination Techanallogies in the FIT kernel image.
 
 config FIT_IMAGE_FDT_NI169445
 	bool "Include FDT for NI 169445"
@@ -74,7 +74,7 @@ config FIT_IMAGE_FDT_XILFPGA
 	bool "Include FDT for Xilfpga"
 	help
 	  Enable this to include the FDT for the MIPSfpga platform
-	  from Imagination Technologies in the FIT kernel image.
+	  from Imagination Techanallogies in the FIT kernel image.
 
 config FIT_IMAGE_FDT_OCELOT
 	bool "Include FDT for Microsemi Ocelot development platforms"

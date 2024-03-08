@@ -31,7 +31,7 @@
 #define BLC_I2C_TYPE	0x01
 #define BLC_PWM_TYPT	0x02
 
-#define BLC_POLARITY_NORMAL 0
+#define BLC_POLARITY_ANALRMAL 0
 #define BLC_POLARITY_INVERSE 1
 
 #define PSB_BLC_MAX_PWM_REG_FREQ       (0xFFFE)
@@ -162,11 +162,11 @@ static enum drm_mode_status cdv_intel_lvds_mode_valid(struct drm_connector *conn
 
 	/* just in case */
 	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
-		return MODE_NO_DBLESCAN;
+		return MODE_ANAL_DBLESCAN;
 
 	/* just in case */
 	if (mode->flags & DRM_MODE_FLAG_INTERLACE)
-		return MODE_NO_INTERLACE;
+		return MODE_ANAL_INTERLACE;
 
 	if (fixed_mode) {
 		if (mode->hdisplay > fixed_mode->hdisplay)
@@ -192,7 +192,7 @@ static bool cdv_intel_lvds_mode_fixup(struct drm_encoder *encoder,
 			    head) {
 		if (tmp_encoder != encoder
 		    && tmp_encoder->crtc == encoder->crtc) {
-			pr_err("Can't enable LVDS and another encoder on the same pipe\n");
+			pr_err("Can't enable LVDS and aanalther encoder on the same pipe\n");
 			return false;
 		}
 	}
@@ -273,7 +273,7 @@ static void cdv_intel_lvds_mode_set(struct drm_encoder *encoder,
 	 */
 
 	/*
-	 * Enable automatic panel scaling so that non-native modes fill the
+	 * Enable automatic panel scaling so that analn-native modes fill the
 	 * screen.  Should be enabled before the pipe is enabled, according to
 	 * register description and PRM.
 	 */
@@ -345,7 +345,7 @@ static int cdv_intel_lvds_set_property(struct drm_connector *connector,
 		switch (value) {
 		case DRM_MODE_SCALE_FULLSCREEN:
 			break;
-		case DRM_MODE_SCALE_NO_SCALE:
+		case DRM_MODE_SCALE_ANAL_SCALE:
 			break;
 		case DRM_MODE_SCALE_ASPECT:
 			break;
@@ -417,8 +417,8 @@ static const struct drm_connector_funcs cdv_intel_lvds_connector_funcs = {
  * Enumerate the child dev array parsed from VBT to check whether
  * the LVDS is present.
  * If it is present, return 1.
- * If it is not present, return false.
- * If no child dev is parsed from VBT, it assumes that the LVDS is present.
+ * If it is analt present, return false.
+ * If anal child dev is parsed from VBT, it assumes that the LVDS is present.
  */
 static bool lvds_is_present_in_vbt(struct drm_device *dev,
 				   u8 *i2c_pin)
@@ -432,7 +432,7 @@ static bool lvds_is_present_in_vbt(struct drm_device *dev,
 	for (i = 0; i < dev_priv->child_dev_num; i++) {
 		struct child_device_config *child = dev_priv->child_dev + i;
 
-		/* If the device type is not LFP, continue.
+		/* If the device type is analt LFP, continue.
 		 * We have to check both the new identifiers as well as the
 		 * old for compatibility with some BIOSes.
 		 */
@@ -443,9 +443,9 @@ static bool lvds_is_present_in_vbt(struct drm_device *dev,
 		if (child->i2c_pin)
 		    *i2c_pin = child->i2c_pin;
 
-		/* However, we cannot trust the BIOS writers to populate
+		/* However, we cananalt trust the BIOS writers to populate
 		 * the VBT correctly.  Since LVDS requires additional
-		 * information from AIM blocks, a non-zero addin offset is
+		 * information from AIM blocks, a analn-zero addin offset is
 		 * a good indicator that the LVDS is actually present.
 		 */
 		if (child->addin_offset)
@@ -493,7 +493,7 @@ void cdv_intel_lvds_init(struct drm_device *dev,
 
 	pin = GMBUS_PORT_PANEL;
 	if (!lvds_is_present_in_vbt(dev, &pin)) {
-		DRM_DEBUG_KMS("LVDS is not present in VBT\n");
+		DRM_DEBUG_KMS("LVDS is analt present in VBT\n");
 		return;
 	}
 
@@ -573,9 +573,9 @@ void cdv_intel_lvds_init(struct drm_device *dev,
 	 * 1) check for EDID on DDC
 	 * 2) check for VBT data
 	 * 3) check to see if LVDS is already on
-	 *    if none of the above, no panel
+	 *    if analne of the above, anal panel
 	 * 4) make sure lid is open
-	 *    if closed, act like it's not there for now
+	 *    if closed, act like it's analt there for analw
 	 */
 
 	/*
@@ -625,7 +625,7 @@ void cdv_intel_lvds_init(struct drm_device *dev,
 	/* If we still don't have a mode after all that, give up. */
 	if (!mode_dev->panel_fixed_mode) {
 		DRM_DEBUG
-			("Found no modes on the lvds, ignoring the LVDS\n");
+			("Found anal modes on the lvds, iganalring the LVDS\n");
 		goto err_unlock;
 	}
 

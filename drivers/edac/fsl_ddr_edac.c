@@ -235,7 +235,7 @@ static u8 syndrome_from_bit(unsigned int bit) {
 
 /*
  * Decode data and ecc syndrome to determine what went wrong
- * Note: This can only decode single-bit errors
+ * Analte: This can only decode single-bit errors
  */
 static void sbe_ecc_decode(u32 cap_high, u32 cap_low, u32 cap_ecc,
 		       int *bad_data_bit, int *bad_ecc_bit)
@@ -293,7 +293,7 @@ static void fsl_mc_check(struct mem_ctl_info *mci)
 	fsl_mc_printk(mci, KERN_ERR, "Err Detect Register: %#8.8x\n",
 		      err_detect);
 
-	/* no more processing if not ECC bit errors */
+	/* anal more processing if analt ECC bit errors */
 	if (!(err_detect & (DDR_EDE_SBE | DDR_EDE_MBE))) {
 		ddr_out32(pdata->mc_vbase + FSL_MC_ERR_DETECT, err_detect);
 		return;
@@ -378,7 +378,7 @@ static irqreturn_t fsl_mc_isr(int irq, void *dev_id)
 
 	err_detect = ddr_in32(pdata->mc_vbase + FSL_MC_ERR_DETECT);
 	if (!err_detect)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	fsl_mc_check(mci);
 
@@ -414,7 +414,7 @@ static void fsl_ddr_init_csrows(struct mem_ctl_info *mci)
 			mtype = MEM_RDDR4;
 			break;
 		default:
-			mtype = MEM_UNKNOWN;
+			mtype = MEM_UNKANALWN;
 			break;
 		}
 	} else {
@@ -432,7 +432,7 @@ static void fsl_ddr_init_csrows(struct mem_ctl_info *mci)
 			mtype = MEM_DDR4;
 			break;
 		default:
-			mtype = MEM_UNKNOWN;
+			mtype = MEM_UNKANALWN;
 			break;
 		}
 	}
@@ -451,7 +451,7 @@ static void fsl_ddr_init_csrows(struct mem_ctl_info *mci)
 		end   = (cs_bnds & 0x0000ffff);
 
 		if (start == end)
-			continue;	/* not populated */
+			continue;	/* analt populated */
 
 		start <<= (24 - PAGE_SHIFT);
 		end   <<= (24 - PAGE_SHIFT);
@@ -463,7 +463,7 @@ static void fsl_ddr_init_csrows(struct mem_ctl_info *mci)
 		dimm->nr_pages = end + 1 - start;
 		dimm->grain = 8;
 		dimm->mtype = mtype;
-		dimm->dtype = DEV_UNKNOWN;
+		dimm->dtype = DEV_UNKANALWN;
 		if (sdram_ctl & DSC_X32_EN)
 			dimm->dtype = DEV_X32;
 		dimm->edac_mode = EDAC_SECDED;
@@ -480,7 +480,7 @@ int fsl_mc_err_probe(struct platform_device *op)
 	int res;
 
 	if (!devres_open_group(&op->dev, fsl_mc_err_probe, GFP_KERNEL))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	layers[0].type = EDAC_MC_LAYER_CHIP_SELECT;
 	layers[0].size = 4;
@@ -492,7 +492,7 @@ int fsl_mc_err_probe(struct platform_device *op)
 			    sizeof(*pdata));
 	if (!mci) {
 		devres_release_group(&op->dev, fsl_mc_err_probe);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	pdata = mci->pvt_info;
@@ -507,9 +507,9 @@ int fsl_mc_err_probe(struct platform_device *op)
 	 * Get the endianness of DDR controller registers.
 	 * Default is big endian.
 	 */
-	little_endian = of_property_read_bool(op->dev.of_node, "little-endian");
+	little_endian = of_property_read_bool(op->dev.of_analde, "little-endian");
 
-	res = of_address_to_resource(op->dev.of_node, 0, &r);
+	res = of_address_to_resource(op->dev.of_analde, 0, &r);
 	if (res) {
 		pr_err("%s: Unable to get resource for MC err regs\n",
 		       __func__);
@@ -527,15 +527,15 @@ int fsl_mc_err_probe(struct platform_device *op)
 	pdata->mc_vbase = devm_ioremap(&op->dev, r.start, resource_size(&r));
 	if (!pdata->mc_vbase) {
 		pr_err("%s: Unable to setup MC err regs\n", __func__);
-		res = -ENOMEM;
+		res = -EANALMEM;
 		goto err;
 	}
 
 	sdram_ctl = ddr_in32(pdata->mc_vbase + FSL_MC_DDR_SDRAM_CFG);
 	if (!(sdram_ctl & DSC_ECC_EN)) {
-		/* no ECC */
-		pr_warn("%s: No ECC DIMMs discovered\n", __func__);
-		res = -ENODEV;
+		/* anal ECC */
+		pr_warn("%s: Anal ECC DIMMs discovered\n", __func__);
+		res = -EANALDEV;
 		goto err;
 	}
 
@@ -544,7 +544,7 @@ int fsl_mc_err_probe(struct platform_device *op)
 			 MEM_FLAG_DDR2 | MEM_FLAG_RDDR2 |
 			 MEM_FLAG_DDR3 | MEM_FLAG_RDDR3 |
 			 MEM_FLAG_DDR4 | MEM_FLAG_RDDR4;
-	mci->edac_ctl_cap = EDAC_FLAG_NONE | EDAC_FLAG_SECDED;
+	mci->edac_ctl_cap = EDAC_FLAG_ANALNE | EDAC_FLAG_SECDED;
 	mci->edac_cap = EDAC_FLAG_SECDED;
 	mci->mod_name = EDAC_MOD_STR;
 
@@ -590,7 +590,7 @@ int fsl_mc_err_probe(struct platform_device *op)
 		if (res < 0) {
 			pr_err("%s: Unable to request irq %d for FSL DDR DRAM ERR\n",
 			       __func__, pdata->irq);
-			res = -ENODEV;
+			res = -EANALDEV;
 			goto err2;
 		}
 

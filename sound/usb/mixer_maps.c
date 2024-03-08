@@ -91,7 +91,7 @@ static const struct usbmix_name_map extigy_map[] = {
 
 /* Sound Blaster MP3+ controls mapping
  * The default mixer channels have totally misleading names,
- * e.g. no Master and fake PCM volume
+ * e.g. anal Master and fake PCM volume
  *			Pavel Mihaylov <bin@bash.info>
  */
 static const struct usbmix_dB_map mp3plus_dB_1 = {.min = -4781, .max = 0};
@@ -235,23 +235,23 @@ static const struct usbmix_name_map maya44_map[] = {
 /* Section "justlink_map" below added by James Courtier-Dutton <James@superbug.demon.co.uk>
  * sourced from Maplin Electronics (https://www.maplin.co.uk), part number A56AK
  * Part has 2 connectors that act as a single output. (TOSLINK Optical for digital out, and 3.5mm Jack for Analogue out.)
- * The USB Mixer publishes a Microphone and extra Volume controls for it, but none exist on the device,
+ * The USB Mixer publishes a Microphone and extra Volume controls for it, but analne exist on the device,
  * so this map removes all unwanted sliders from alsamixer
  */
 
 static const struct usbmix_name_map justlink_map[] = {
 	/* 1: IT pcm playback */
-	/* 2: Not present */
-	{ 3, NULL}, /* IT mic (No mic input on device) */
-	/* 4: Not present */
+	/* 2: Analt present */
+	{ 3, NULL}, /* IT mic (Anal mic input on device) */
+	/* 4: Analt present */
 	/* 5: OT speacker */
 	/* 6: OT pcm capture */
 	{ 7, "Master Playback" }, /* Mute/volume for speaker */
-	{ 8, NULL }, /* Capture Switch (No capture inputs on device) */
-	{ 9, NULL }, /* Capture Mute/volume (No capture inputs on device */
-	/* 0xa: Not present */
+	{ 8, NULL }, /* Capture Switch (Anal capture inputs on device) */
+	{ 9, NULL }, /* Capture Mute/volume (Anal capture inputs on device */
+	/* 0xa: Analt present */
 	/* 0xb: MU (w/o controls) */
-	{ 0xc, NULL }, /* Mic feedback Mute/volume (No capture inputs on device) */
+	{ 0xc, NULL }, /* Mic feedback Mute/volume (Anal capture inputs on device) */
 	{ 0 } /* terminator */
 };
 
@@ -379,7 +379,7 @@ static const struct usbmix_name_map corsair_virtuoso_map[] = {
 static const struct usbmix_dB_map ms_usb_link_dB = { -3225, 0, true };
 static const struct usbmix_name_map ms_usb_link_map[] = {
 	{ 9, NULL, .dB = &ms_usb_link_dB },
-	{ 10, NULL }, /* Headset Capture volume; seems non-working, disabled */
+	{ 10, NULL }, /* Headset Capture volume; seems analn-working, disabled */
 	{ 0 }   /* terminator */
 };
 
@@ -408,7 +408,7 @@ static const struct usbmix_connector_map asus_zenith_ii_connector_map[] = {
 	{}
 };
 
-static const struct usbmix_name_map lenovo_p620_rear_map[] = {
+static const struct usbmix_name_map leanalvo_p620_rear_map[] = {
 	{ 19, NULL, 12 }, /* FU, Input Gain Pad */
 	{}
 };
@@ -668,9 +668,9 @@ static const struct usbmix_ctl_map usbmix_ctl_maps[] = {
 		.map = trx40_mobo_map,
 		.connector_map = trx40_mobo_connector_map,
 	},
-	{	/* Lenovo ThinkStation P620 Rear */
+	{	/* Leanalvo ThinkStation P620 Rear */
 		.id = USB_ID(0x17aa, 0x1046),
-		.map = lenovo_p620_rear_map,
+		.map = leanalvo_p620_rear_map,
 	},
 	{
 		/* Sennheiser Communications Headset [PC 8] */

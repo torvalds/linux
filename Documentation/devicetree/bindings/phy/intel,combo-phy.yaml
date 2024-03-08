@@ -14,7 +14,7 @@ description: |
   controllers. A single Combophy provides two PHY instances.
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "combophy(@.*|-([0-9]|[1-9][0-9]+))?$"
 
   compatible:
@@ -59,7 +59,7 @@ properties:
       - items:
           - description: phandle to HSIO registers
           - description: ComboPhy instance id
-    description: HSIO registers handle and ComboPhy instance id on NOC
+    description: HSIO registers handle and ComboPhy instance id on ANALC
 
   intel,aggregation:
     type: boolean

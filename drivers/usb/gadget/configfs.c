@@ -124,7 +124,7 @@ static int usb_string_copy(const char *s, char **s_copy)
 	} else {
 		str = kmalloc(USB_MAX_STRING_WITH_NULL_LEN, GFP_KERNEL);
 		if (!str)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 	strcpy(str, s);
 	if (str[ret - 1] == '\n')
@@ -255,7 +255,7 @@ static int unregister_gadget(struct gadget_info *gi)
 	int ret;
 
 	if (!gi->composite.gadget_driver.udc_name)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = usb_gadget_unregister_driver(&gi->composite.gadget_driver);
 	if (ret)
@@ -277,7 +277,7 @@ static ssize_t gadget_dev_desc_UDC_store(struct config_item *item,
 
 	name = kstrdup(page, GFP_KERNEL);
 	if (!name)
-		return -ENOMEM;
+		return -EANALMEM;
 	if (name[len - 1] == '\n')
 		name[len - 1] = '\0';
 
@@ -435,8 +435,8 @@ static int config_usb_cfg_link(
 
 	mutex_lock(&gi->lock);
 	/*
-	 * Make sure this function is from within our _this_ gadget and not
-	 * from another gadget or a random directory.
+	 * Make sure this function is from within our _this_ gadget and analt
+	 * from aanalther gadget or a random directory.
 	 * Also a function instance can only be linked once.
 	 */
 
@@ -726,10 +726,10 @@ static struct config_group *config_desc_make(
 
 	cfg = kzalloc(sizeof(*cfg), GFP_KERNEL);
 	if (!cfg)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	cfg->c.label = kstrdup(buf, GFP_KERNEL);
 	if (!cfg->c.label) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 	cfg->c.bConfigurationValue = num;
@@ -865,7 +865,7 @@ static struct config_item *gadget_language_string_make(struct config_group *grou
 
 	string = kzalloc(sizeof(*string), GFP_KERNEL);
 	if (!string)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	string->usb_string.id = language->nstrings++;
 	string->usb_string.s = string->string;
@@ -917,7 +917,7 @@ static struct config_group *gadget_language_make(struct config_group *group,
 
 	new = kzalloc(sizeof(*new), GFP_KERNEL);
 	if (!new)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ret = check_user_usb_string(name, &new->stringtab_dev);
 	if (ret)
@@ -1342,7 +1342,7 @@ static ssize_t ext_prop_data_store(struct config_item *item,
 		--len;
 	new_data = kmemdup(page, len, GFP_KERNEL);
 	if (!new_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (desc->opts_mutex)
 		mutex_lock(desc->opts_mutex);
@@ -1399,7 +1399,7 @@ static struct config_item *ext_prop_make(
 
 	vlabuf = kzalloc(vla_group_size(data_chunk), GFP_KERNEL);
 	if (!vlabuf)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ext_prop = vla_ptr(vlabuf, data_chunk, ext_prop);
 	ext_prop_type = vla_ptr(vlabuf, data_chunk, ext_prop_type);
@@ -1414,7 +1414,7 @@ static struct config_item *ext_prop_make(
 	ext_prop->name = kstrdup(name, GFP_KERNEL);
 	if (!ext_prop->name) {
 		kfree(vlabuf);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 	desc->ext_prop_len += 14;
 	ext_prop->name_len = 2 * strlen(ext_prop->name) + 2;
@@ -1528,7 +1528,7 @@ struct config_group *usb_os_desc_prepare_interf_dir(
 
 	char *vlabuf = kzalloc(vla_group_size(data_chunk), GFP_KERNEL);
 	if (!vlabuf)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	os_desc_group = vla_ptr(vlabuf, data_chunk, os_desc_group);
 	os_desc_type = vla_ptr(vlabuf, data_chunk, os_desc_type);
@@ -1557,7 +1557,7 @@ struct config_group *usb_os_desc_prepare_interf_dir(
 }
 EXPORT_SYMBOL(usb_os_desc_prepare_interf_dir);
 
-static int configfs_do_nothing(struct usb_composite_dev *cdev)
+static int configfs_do_analthing(struct usb_composite_dev *cdev)
 {
 	WARN_ON(1);
 	return -EINVAL;
@@ -1614,14 +1614,14 @@ configfs_attach_gadget_strings(struct gadget_info *gi)
 	list_for_each(iter, &gi->string_list)
 		nlangs++;
 
-	/* Bail out early if no languages are configured */
+	/* Bail out early if anal languages are configured */
 	if (!nlangs)
 		return NULL;
 
 	gadget_strings = kcalloc(nlangs + 1, /* including NULL terminator */
 				 sizeof(struct usb_gadget_strings *), GFP_KERNEL);
 	if (!gadget_strings)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	list_for_each_entry(language, &gi->string_list, list) {
 		struct usb_string *stringtab;
@@ -1637,7 +1637,7 @@ configfs_attach_gadget_strings(struct gadget_info *gi)
 		stringtab = kcalloc(language->nstrings + 1, sizeof(struct usb_string),
 				    GFP_KERNEL);
 		if (!stringtab) {
-			us = ERR_PTR(-ENOMEM);
+			us = ERR_PTR(-EANALMEM);
 			goto cleanup;
 		}
 
@@ -1691,7 +1691,7 @@ static int configfs_composite_bind(struct usb_gadget *gadget,
 	ret = composite_dev_prepare(composite, cdev);
 	if (ret)
 		return ret;
-	/* and now the gadget bind */
+	/* and analw the gadget bind */
 	ret = -EINVAL;
 
 	if (list_empty(&gi->cdev.configs)) {
@@ -1746,7 +1746,7 @@ static int configfs_composite_bind(struct usb_gadget *gadget,
 
 		usb_desc = usb_otg_descriptor_alloc(gadget);
 		if (!usb_desc) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_comp_cleanup;
 		}
 		usb_otg_descriptor_init(gadget, usb_desc);
@@ -1981,7 +1981,7 @@ static struct config_group *gadgets_make(
 
 	gi = kzalloc(sizeof(*gi), GFP_KERNEL);
 	if (!gi)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	config_group_init_type_name(&gi->group, name, &gadget_root_type);
 
@@ -2005,8 +2005,8 @@ static struct config_group *gadgets_make(
 			&webusb_type);
 	configfs_add_default_group(&gi->webusb_group, &gi->group);
 
-	gi->composite.bind = configfs_do_nothing;
-	gi->composite.unbind = configfs_do_nothing;
+	gi->composite.bind = configfs_do_analthing;
+	gi->composite.unbind = configfs_do_analthing;
 	gi->composite.suspend = NULL;
 	gi->composite.resume = NULL;
 	gi->composite.max_speed = USB_SPEED_SUPER_PLUS;
@@ -2040,7 +2040,7 @@ out_free_driver_name:
 	kfree(gi->composite.gadget_driver.driver.name);
 err:
 	kfree(gi);
-	return ERR_PTR(-ENOMEM);
+	return ERR_PTR(-EANALMEM);
 }
 
 static void gadgets_drop(struct config_group *group, struct config_item *item)

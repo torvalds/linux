@@ -11,7 +11,7 @@
  * efi_kaslr_get_phys_seed() - Get random seed for physical kernel KASLR
  * @image_handle:	Handle to the image
  *
- * If KASLR is not disabled, obtain a random seed using EFI_RNG_PROTOCOL
+ * If KASLR is analt disabled, obtain a random seed using EFI_RNG_PROTOCOL
  * that will be used to move the kernel physical mapping.
  *
  * Return:	the random seed
@@ -26,7 +26,7 @@ u32 efi_kaslr_get_phys_seed(efi_handle_t image_handle)
 	if (!IS_ENABLED(CONFIG_RANDOMIZE_BASE))
 		return 0;
 
-	if (efi_nokaslr) {
+	if (efi_analkaslr) {
 		efi_info("KASLR disabled on kernel command line\n");
 	} else if (efi_bs_call(handle_protocol, image_handle,
 			       &li_fixed_proto, &p) == EFI_SUCCESS) {
@@ -36,13 +36,13 @@ u32 efi_kaslr_get_phys_seed(efi_handle_t image_handle)
 					      (u8 *)&phys_seed);
 		if (status == EFI_SUCCESS) {
 			return phys_seed;
-		} else if (status == EFI_NOT_FOUND) {
+		} else if (status == EFI_ANALT_FOUND) {
 			efi_info("EFI_RNG_PROTOCOL unavailable\n");
-			efi_nokaslr = true;
+			efi_analkaslr = true;
 		} else if (status != EFI_SUCCESS) {
 			efi_err("efi_get_random_bytes() failed (0x%lx)\n",
 				status);
-			efi_nokaslr = true;
+			efi_analkaslr = true;
 		}
 	}
 
@@ -50,7 +50,7 @@ u32 efi_kaslr_get_phys_seed(efi_handle_t image_handle)
 }
 
 /*
- * Distro versions of GRUB may ignore the BSS allocation entirely (i.e., fail
+ * Distro versions of GRUB may iganalre the BSS allocation entirely (i.e., fail
  * to provide space, and fail to zero it). Check for this condition by double
  * checking that the first and the last byte of the image are covered by the
  * same EFI memory map entry.
@@ -95,7 +95,7 @@ static bool check_image_region(u64 base, u64 size)
  * @kernel_memsize:	Size of the text + data + bss
  * @phys_seed:		Random seed used for the relocation
  *
- * If KASLR is not enabled, this function relocates the kernel to a fixed
+ * If KASLR is analt enabled, this function relocates the kernel to a fixed
  * address (or leave it as its current location). If KASLR is enabled, the
  * kernel physical location is randomized using the seed in parameter.
  *

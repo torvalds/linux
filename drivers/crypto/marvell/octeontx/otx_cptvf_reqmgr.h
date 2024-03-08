@@ -51,7 +51,7 @@ union otx_cpt_opcode_info {
 	u16 flags;
 	struct {
 		u8 major;
-		u8 minor;
+		u8 mianalr;
 	} s;
 };
 
@@ -141,7 +141,7 @@ struct otx_cpt_pending_entry {
 	/* Kernel async request callback */
 	void (*callback)(int status, void *arg1, void *arg2);
 	struct crypto_async_request *areq; /* Async request callback arg */
-	u8 resume_sender;	/* Notify sender to resume sending requests */
+	u8 resume_sender;	/* Analtify sender to resume sending requests */
 	u8 busy;		/* Entry status (free/busy) */
 };
 

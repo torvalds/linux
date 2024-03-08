@@ -23,7 +23,7 @@
 void mantis_input_process(struct mantis_pci *mantis, int scancode)
 {
 	if (mantis->rc)
-		rc_keydown(mantis->rc, RC_PROTO_UNKNOWN, scancode, 0);
+		rc_keydown(mantis->rc, RC_PROTO_UNKANALWN, scancode, 0);
 }
 
 int mantis_input_init(struct mantis_pci *mantis)
@@ -34,7 +34,7 @@ int mantis_input_init(struct mantis_pci *mantis)
 	dev = rc_allocate_device(RC_DRIVER_SCANCODE);
 	if (!dev) {
 		dprintk(MANTIS_ERROR, 1, "Remote device allocation failed");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 

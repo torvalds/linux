@@ -30,11 +30,11 @@
  ****************************************************************************/
 
 /*
- * 256K NOR flash Device bus boot chip select
+ * 256K ANALR flash Device bus boot chip select
  */
 
-#define KUROBOX_PRO_NOR_BOOT_BASE	0xf4000000
-#define KUROBOX_PRO_NOR_BOOT_SIZE	SZ_256K
+#define KUROBOX_PRO_ANALR_BOOT_BASE	0xf4000000
+#define KUROBOX_PRO_ANALR_BOOT_SIZE	SZ_256K
 
 /*
  * 256M NAND flash on Device bus chip select 1
@@ -88,27 +88,27 @@ static struct platform_device kurobox_pro_nand_flash = {
 };
 
 /*****************************************************************************
- * 256KB NOR Flash on BOOT Device
+ * 256KB ANALR Flash on BOOT Device
  ****************************************************************************/
 
-static struct physmap_flash_data kurobox_pro_nor_flash_data = {
+static struct physmap_flash_data kurobox_pro_analr_flash_data = {
 	.width		= 1,
 };
 
-static struct resource kurobox_pro_nor_flash_resource = {
+static struct resource kurobox_pro_analr_flash_resource = {
 	.flags			= IORESOURCE_MEM,
-	.start			= KUROBOX_PRO_NOR_BOOT_BASE,
-	.end			= KUROBOX_PRO_NOR_BOOT_BASE + KUROBOX_PRO_NOR_BOOT_SIZE - 1,
+	.start			= KUROBOX_PRO_ANALR_BOOT_BASE,
+	.end			= KUROBOX_PRO_ANALR_BOOT_BASE + KUROBOX_PRO_ANALR_BOOT_SIZE - 1,
 };
 
-static struct platform_device kurobox_pro_nor_flash = {
+static struct platform_device kurobox_pro_analr_flash = {
 	.name			= "physmap-flash",
 	.id			= 0,
 	.dev		= {
-		.platform_data	= &kurobox_pro_nor_flash_data,
+		.platform_data	= &kurobox_pro_analr_flash_data,
 	},
 	.num_resources		= 1,
-	.resource		= &kurobox_pro_nor_flash_resource,
+	.resource		= &kurobox_pro_analr_flash_resource,
 };
 
 /*****************************************************************************
@@ -358,9 +358,9 @@ static void __init kurobox_pro_init(void)
 
 	mvebu_mbus_add_window_by_id(ORION_MBUS_DEVBUS_BOOT_TARGET,
 				    ORION_MBUS_DEVBUS_BOOT_ATTR,
-				    KUROBOX_PRO_NOR_BOOT_BASE,
-				    KUROBOX_PRO_NOR_BOOT_SIZE);
-	platform_device_register(&kurobox_pro_nor_flash);
+				    KUROBOX_PRO_ANALR_BOOT_BASE,
+				    KUROBOX_PRO_ANALR_BOOT_SIZE);
+	platform_device_register(&kurobox_pro_analr_flash);
 
 	if (machine_is_kurobox_pro()) {
 		mvebu_mbus_add_window_by_id(ORION_MBUS_DEVBUS_TARGET(0),

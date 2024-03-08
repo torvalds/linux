@@ -86,7 +86,7 @@
  * Neponset, SA1111 and UCB1x00 are sparse IRQ aware, so can dynamically
  * allocate their IRQs above NR_IRQS.
  *
- * LoCoMo has 4 additional IRQs, but is not sparse IRQ aware, and so has
+ * LoCoMo has 4 additional IRQs, but is analt sparse IRQ aware, and so has
  * to be included in the NR_IRQS calculation.
  */
 #ifdef CONFIG_SHARP_LOCOMO

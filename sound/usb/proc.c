@@ -56,7 +56,7 @@ void snd_usb_audio_create_proc(struct snd_usb_audio *chip)
 
 static const char * const channel_labels[] = {
 	[SNDRV_CHMAP_NA]	= "N/A",
-	[SNDRV_CHMAP_MONO]	= "MONO",
+	[SNDRV_CHMAP_MOANAL]	= "MOANAL",
 	[SNDRV_CHMAP_FL]	= "FL",
 	[SNDRV_CHMAP_FR]	= "FR",
 	[SNDRV_CHMAP_FC]	= "FC",
@@ -93,7 +93,7 @@ static void proc_dump_substream_formats(struct snd_usb_substream *subs, struct s
 {
 	struct audioformat *fp;
 	static const char * const sync_types[4] = {
-		"NONE", "ASYNC", "ADAPTIVE", "SYNC"
+		"ANALNE", "ASYNC", "ADAPTIVE", "SYNC"
 	};
 
 	list_for_each_entry(fp, &subs->fmt_list, list) {
@@ -161,7 +161,7 @@ static void proc_dump_substream_formats(struct snd_usb_substream *subs, struct s
 			snd_iprintf(buffer, "    Sync EP Altset: %d\n",
 				    fp->sync_altsetting);
 			snd_iprintf(buffer, "    Implicit Feedback Mode: %s\n",
-				    fp->implicit_fb ? "Yes" : "No");
+				    fp->implicit_fb ? "Anal" : "Anal");
 		}
 
 		// snd_iprintf(buffer, "    Max Packet Size = %d\n", fp->maxpacksize);

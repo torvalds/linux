@@ -48,16 +48,16 @@ int ima_alloc_init_template(struct ima_event_data *event_data,
 		template_desc = ima_template_desc_current();
 
 	*entry = kzalloc(struct_size(*entry, template_data,
-				     template_desc->num_fields), GFP_NOFS);
+				     template_desc->num_fields), GFP_ANALFS);
 	if (!*entry)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	digests = kcalloc(NR_BANKS(ima_tpm_chip) + ima_extra_slots,
-			  sizeof(*digests), GFP_NOFS);
+			  sizeof(*digests), GFP_ANALFS);
 	if (!digests) {
 		kfree(*entry);
 		*entry = NULL;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	(*entry)->digests = digests;
@@ -100,7 +100,7 @@ out:
  * Returns 0 on success, error code otherwise
  */
 int ima_store_template(struct ima_template_entry *entry,
-		       int violation, struct inode *inode,
+		       int violation, struct ianalde *ianalde,
 		       const unsigned char *filename, int pcr)
 {
 	static const char op[] = "add_template_measure";
@@ -112,14 +112,14 @@ int ima_store_template(struct ima_template_entry *entry,
 		result = ima_calc_field_array_hash(&entry->template_data[0],
 						   entry);
 		if (result < 0) {
-			integrity_audit_msg(AUDIT_INTEGRITY_PCR, inode,
+			integrity_audit_msg(AUDIT_INTEGRITY_PCR, ianalde,
 					    template_name, op,
 					    audit_cause, result, 0);
 			return result;
 		}
 	}
 	entry->pcr = pcr;
-	result = ima_add_template_entry(entry, violation, op, inode, filename);
+	result = ima_add_template_entry(entry, violation, op, ianalde, filename);
 	return result;
 }
 
@@ -135,7 +135,7 @@ void ima_add_violation(struct file *file, const unsigned char *filename,
 		       const char *op, const char *cause)
 {
 	struct ima_template_entry *entry;
-	struct inode *inode = file_inode(file);
+	struct ianalde *ianalde = file_ianalde(file);
 	struct ima_event_data event_data = { .iint = iint,
 					     .file = file,
 					     .filename = filename,
@@ -148,22 +148,22 @@ void ima_add_violation(struct file *file, const unsigned char *filename,
 
 	result = ima_alloc_init_template(&event_data, &entry, NULL);
 	if (result < 0) {
-		result = -ENOMEM;
+		result = -EANALMEM;
 		goto err_out;
 	}
-	result = ima_store_template(entry, violation, inode,
+	result = ima_store_template(entry, violation, ianalde,
 				    filename, CONFIG_IMA_MEASURE_PCR_IDX);
 	if (result < 0)
 		ima_free_template_entry(entry);
 err_out:
-	integrity_audit_msg(AUDIT_INTEGRITY_PCR, inode, filename,
+	integrity_audit_msg(AUDIT_INTEGRITY_PCR, ianalde, filename,
 			    op, cause, result, 0);
 }
 
 /**
  * ima_get_action - appraise & measure decision based on policy.
- * @idmap: idmap of the mount the inode was found from
- * @inode: pointer to the inode associated with the object being validated
+ * @idmap: idmap of the mount the ianalde was found from
+ * @ianalde: pointer to the ianalde associated with the object being validated
  * @cred: pointer to credentials structure to validate
  * @secid: secid of the task being validated
  * @mask: contains the permission mask (MAY_READ, MAY_WRITE, MAY_EXEC,
@@ -186,7 +186,7 @@ err_out:
  * Returns IMA_MEASURE, IMA_APPRAISE mask.
  *
  */
-int ima_get_action(struct mnt_idmap *idmap, struct inode *inode,
+int ima_get_action(struct mnt_idmap *idmap, struct ianalde *ianalde,
 		   const struct cred *cred, u32 secid, int mask,
 		   enum ima_hooks func, int *pcr,
 		   struct ima_template_desc **template_desc,
@@ -196,7 +196,7 @@ int ima_get_action(struct mnt_idmap *idmap, struct inode *inode,
 
 	flags &= ima_policy_flag;
 
-	return ima_match_policy(idmap, inode, cred, secid, func, mask,
+	return ima_match_policy(idmap, ianalde, cred, secid, func, mask,
 				flags, pcr, template_desc, func_data,
 				allowed_algos);
 }
@@ -211,7 +211,7 @@ static bool ima_get_verity_digest(struct integrity_iint_cache *iint,
 	 * On failure, 'measure' policy rules will result in a file data
 	 * hash containing 0's.
 	 */
-	digest_len = fsverity_get_digest(iint->inode, hash->digest, NULL, &alg);
+	digest_len = fsverity_get_digest(iint->ianalde, hash->digest, NULL, &alg);
 	if (digest_len == 0)
 		return false;
 
@@ -242,8 +242,8 @@ int ima_collect_measurement(struct integrity_iint_cache *iint,
 			    enum hash_algo algo, struct modsig *modsig)
 {
 	const char *audit_cause = "failed";
-	struct inode *inode = file_inode(file);
-	struct inode *real_inode = d_real_inode(file_dentry(file));
+	struct ianalde *ianalde = file_ianalde(file);
+	struct ianalde *real_ianalde = d_real_ianalde(file_dentry(file));
 	const char *filename = file->f_path.dentry->d_name.name;
 	struct ima_max_digest_data hash;
 	struct kstat stat;
@@ -265,11 +265,11 @@ int ima_collect_measurement(struct integrity_iint_cache *iint,
 
 	/*
 	 * Detecting file change is based on i_version. On filesystems
-	 * which do not support i_version, support was originally limited
+	 * which do analt support i_version, support was originally limited
 	 * to an initial measurement/appraisal/audit, but was modified to
 	 * assume the file changed.
 	 */
-	result = vfs_getattr_nosec(&file->f_path, &stat, STATX_CHANGE_COOKIE,
+	result = vfs_getattr_analsec(&file->f_path, &stat, STATX_CHANGE_COOKIE,
 				   AT_STATX_SYNC_AS_STAT);
 	if (!result && (stat.result_mask & STATX_CHANGE_COOKIE))
 		i_version = stat.change_cookie;
@@ -281,8 +281,8 @@ int ima_collect_measurement(struct integrity_iint_cache *iint,
 
 	if (iint->flags & IMA_VERITY_REQUIRED) {
 		if (!ima_get_verity_digest(iint, &hash)) {
-			audit_cause = "no-verity-digest";
-			result = -ENODATA;
+			audit_cause = "anal-verity-digest";
+			result = -EANALDATA;
 		}
 	} else if (buf) {
 		result = ima_calc_buffer_hash(buf, size, &hash.hdr);
@@ -294,18 +294,18 @@ int ima_collect_measurement(struct integrity_iint_cache *iint,
 		goto out;
 
 	length = sizeof(hash.hdr) + hash.hdr.length;
-	tmpbuf = krealloc(iint->ima_hash, length, GFP_NOFS);
+	tmpbuf = krealloc(iint->ima_hash, length, GFP_ANALFS);
 	if (!tmpbuf) {
-		result = -ENOMEM;
+		result = -EANALMEM;
 		goto out;
 	}
 
 	iint->ima_hash = tmpbuf;
 	memcpy(iint->ima_hash, &hash, length);
 	iint->version = i_version;
-	if (real_inode != inode) {
-		iint->real_ino = real_inode->i_ino;
-		iint->real_dev = real_inode->i_sb->s_dev;
+	if (real_ianalde != ianalde) {
+		iint->real_ianal = real_ianalde->i_ianal;
+		iint->real_dev = real_ianalde->i_sb->s_dev;
 	}
 
 	/* Possibly temporary failure due to type of read (eg. O_DIRECT) */
@@ -316,7 +316,7 @@ out:
 		if (file->f_flags & O_DIRECT)
 			audit_cause = "failed(directio)";
 
-		integrity_audit_msg(AUDIT_INTEGRITY_DATA, inode,
+		integrity_audit_msg(AUDIT_INTEGRITY_DATA, ianalde,
 				    filename, "collect_data", audit_cause,
 				    result, 0);
 	}
@@ -329,11 +329,11 @@ out:
  * Create an "ima" template and then store the template by calling
  * ima_store_template.
  *
- * We only get here if the inode has not already been measured,
+ * We only get here if the ianalde has analt already been measured,
  * but the measurement could already exist:
  *	- multiple copies of the same file on either the same or
  *	  different filesystems.
- *	- the inode was previously flushed as well as the iint info,
+ *	- the ianalde was previously flushed as well as the iint info,
  *	  containing the hashing info.
  *
  * Must be called with iint->mutex held.
@@ -345,9 +345,9 @@ void ima_store_measurement(struct integrity_iint_cache *iint,
 			   struct ima_template_desc *template_desc)
 {
 	static const char op[] = "add_template_measure";
-	static const char audit_cause[] = "ENOMEM";
-	int result = -ENOMEM;
-	struct inode *inode = file_inode(file);
+	static const char audit_cause[] = "EANALMEM";
+	int result = -EANALMEM;
+	struct ianalde *ianalde = file_ianalde(file);
 	struct ima_template_entry *entry;
 	struct ima_event_data event_data = { .iint = iint,
 					     .file = file,
@@ -368,12 +368,12 @@ void ima_store_measurement(struct integrity_iint_cache *iint,
 
 	result = ima_alloc_init_template(&event_data, &entry, template_desc);
 	if (result < 0) {
-		integrity_audit_msg(AUDIT_INTEGRITY_PCR, inode, filename,
+		integrity_audit_msg(AUDIT_INTEGRITY_PCR, ianalde, filename,
 				    op, audit_cause, result, 0);
 		return;
 	}
 
-	result = ima_store_template(entry, violation, inode, filename, pcr);
+	result = ima_store_template(entry, violation, ianalde, filename, pcr);
 	if ((!result || result == -EEXIST) && !(file->f_flags & O_DIRECT)) {
 		iint->flags |= IMA_MEASURED;
 		iint->measured_pcrs |= (0x1 << pcr);
@@ -425,7 +425,7 @@ out:
  * Attempt to return a pointer to the full pathname for use in the
  * IMA measurement list, IMA audit records, and auditing logs.
  *
- * On failure, return a pointer to a copy of the filename, not dname.
+ * On failure, return a pointer to a copy of the filename, analt dname.
  * Returning a pointer to dname, could result in using the pointer
  * after the memory has been freed.
  */

@@ -6,7 +6,7 @@
  * If we open an ipv4 socket on a port with reuseaddr we shouldn't reset the tb
  * when we open the ipv6 conterpart, which is what was happening previously.
  */
-#include <errno.h>
+#include <erranal.h>
 #include <error.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
@@ -91,24 +91,24 @@ int main(void)
 	fprintf(stderr, "Opening 127.0.0.1:%d\n", PORT);
 	listenfd = open_port(0, 0);
 	if (listenfd < 0)
-		error(1, errno, "Couldn't open listen socket");
+		error(1, erranal, "Couldn't open listen socket");
 	fprintf(stderr, "Opening INADDR_ANY:%d\n", PORT);
 	fd1 = open_port(0, 1);
 	if (fd1 >= 0)
-		error(1, 0, "Was allowed to create an ipv4 reuseport on a already bound non-reuseport socket");
+		error(1, 0, "Was allowed to create an ipv4 reuseport on a already bound analn-reuseport socket");
 	fprintf(stderr, "Opening in6addr_any:%d\n", PORT);
 	fd1 = open_port(1, 1);
 	if (fd1 < 0)
-		error(1, errno, "Couldn't open ipv6 reuseport");
+		error(1, erranal, "Couldn't open ipv6 reuseport");
 	fprintf(stderr, "Opening INADDR_ANY:%d\n", PORT);
 	fd2 = open_port(0, 1);
 	if (fd2 >= 0)
-		error(1, 0, "Was allowed to create an ipv4 reuseport on a already bound non-reuseport socket");
+		error(1, 0, "Was allowed to create an ipv4 reuseport on a already bound analn-reuseport socket");
 	close(fd1);
 	fprintf(stderr, "Opening INADDR_ANY:%d after closing ipv6 socket\n", PORT);
 	fd1 = open_port(0, 1);
 	if (fd1 >= 0)
-		error(1, 0, "Was allowed to create an ipv4 reuseport on an already bound non-reuseport socket with no ipv6");
+		error(1, 0, "Was allowed to create an ipv4 reuseport on an already bound analn-reuseport socket with anal ipv6");
 	fprintf(stderr, "Success");
 	return 0;
 }

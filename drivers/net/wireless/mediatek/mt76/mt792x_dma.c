@@ -15,7 +15,7 @@ irqreturn_t mt792x_irq_handler(int irq, void *dev_instance)
 	mt76_wr(dev, dev->irq_map->host_irq_enable, 0);
 
 	if (!test_bit(MT76_STATE_INITIALIZED, &dev->mphy.state))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	tasklet_schedule(&dev->mt76.irq_tasklet);
 

@@ -12,7 +12,7 @@ efct-objs := efct/efct_driver.o efct/efct_io.o efct/efct_scsi.o \
 	     efct/efct_lio.o efct/efct_unsol.o
 
 efct-objs += libefc/efc_cmds.o libefc/efc_domain.o libefc/efc_fabric.o \
-	     libefc/efc_node.o libefc/efc_nport.o libefc/efc_device.o \
+	     libefc/efc_analde.o libefc/efc_nport.o libefc/efc_device.o \
 	     libefc/efclib.o libefc/efc_sm.o libefc/efc_els.o
 
 efct-objs += libefc_sli/sli4.o

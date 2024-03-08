@@ -190,7 +190,7 @@ struct floppy_state {
 	int	secpercyl;	/* disk geometry information */
 	int	secpertrack;
 	int	total_secs;
-	int	write_prot;	/* 1 if write-protected, 0 if not, -1 dunno */
+	int	write_prot;	/* 1 if write-protected, 0 if analt, -1 dunanal */
 	struct dbdma_cmd *dma_cmd;
 	int	ref_count;
 	int	expect_cyl;
@@ -224,7 +224,7 @@ static unsigned short write_preamble[] = {
 	0x4e4e, 0x4e4e, 0x4e4e, 0x4e4e, 0x4e4e,	/* gap field */
 	0, 0, 0, 0, 0, 0,			/* sync field */
 	0x99a1, 0x99a1, 0x99a1, 0x99fb,		/* data address mark */
-	0x990f					/* no escape for 512 bytes */
+	0x990f					/* anal escape for 512 bytes */
 };
 
 static unsigned short write_postamble[] = {
@@ -340,9 +340,9 @@ static blk_status_t swim3_queue_rq(struct blk_mq_hw_ctx *hctx,
 	}
 
 	/*
-	 * Do not remove the cast. blk_rq_pos(req) is now a sector_t and can be
+	 * Do analt remove the cast. blk_rq_pos(req) is analw a sector_t and can be
 	 * 64 bits, but it will never go past 32 bits for this driver anyway, so
-	 * we can safely cast it down and not have to do a 64/32 division
+	 * we can safely cast it down and analt have to do a 64/32 division
 	 */
 	fs->req_cyl = ((long)blk_rq_pos(req)) / fs->secpercyl;
 	x = ((long)blk_rq_pos(req)) % fs->secpercyl;
@@ -407,7 +407,7 @@ static inline void seek_track(struct floppy_state *fs, int n)
  * XXX: this is a horrible hack, but at least allows ppc32 to get
  * out of defining virt_to_bus, and this driver out of using the
  * deprecated block layer bounce buffering for highmem addresses
- * for no good reason.
+ * for anal good reason.
  */
 static unsigned long swim3_phys_to_bus(phys_addr_t paddr)
 {
@@ -547,7 +547,7 @@ static void act(struct floppy_state *fs)
 			return;
 
 		default:
-			swim3_err("Unknown state %d\n", fs->state);
+			swim3_err("Unkanalwn state %d\n", fs->state);
 			return;
 		}
 	}
@@ -669,7 +669,7 @@ static irqreturn_t swim3_interrupt(int irq, void *dev_id)
 	intr = in_8(&sw->intr);
 	err = (intr & ERROR_INTR)? in_8(&sw->error): 0;
 	if ((intr & ERROR_INTR) && fs->state != do_transfer)
-		swim3_err("Non-transfer error interrupt: state=%d, dir=%x, intr=%x, err=%x\n",
+		swim3_err("Analn-transfer error interrupt: state=%d, dir=%x, intr=%x, err=%x\n",
 			  fs->state, rq_data_dir(req), intr, err);
 	switch (fs->state) {
 	case locating:
@@ -794,7 +794,7 @@ static irqreturn_t swim3_interrupt(int irq, void *dev_id)
 		}
 		break;
 	default:
-		swim3_err("Don't know what to do in state %d\n", fs->state);
+		swim3_err("Don't kanalw what to do in state %d\n", fs->state);
 	}
 	spin_unlock_irqrestore(&swim3_lock, flags);
 	return IRQ_HANDLED;
@@ -907,7 +907,7 @@ static int floppy_locked_ioctl(struct block_device *bdev, blk_mode_t mode,
 			return -EFAULT;
 		return 0;
 	}
-	return -ENOTTY;
+	return -EANALTTY;
 }
 
 static int floppy_ioctl(struct block_device *bdev, blk_mode_t mode,
@@ -1100,7 +1100,7 @@ static void swim3_mb_event(struct macio_dev* mdev, int mb_state)
 
 static int swim3_add_device(struct macio_dev *mdev, int index)
 {
-	struct device_node *swim = mdev->ofdev.dev.of_node;
+	struct device_analde *swim = mdev->ofdev.dev.of_analde;
 	struct floppy_state *fs = &floppy_states[index];
 	int rc = -EBUSY;
 
@@ -1109,11 +1109,11 @@ static int swim3_add_device(struct macio_dev *mdev, int index)
 
 	/* Check & Request resources */
 	if (macio_resource_count(mdev) < 2) {
-		swim3_err("%s", "No address in device-tree\n");
+		swim3_err("%s", "Anal address in device-tree\n");
 		return -ENXIO;
 	}
 	if (macio_irq_count(mdev) < 1) {
-		swim3_err("%s", "No interrupt in device-tree\n");
+		swim3_err("%s", "Anal interrupt in device-tree\n");
 		return -ENXIO;
 	}
 	if (macio_request_resource(mdev, 0, "swim3 (mmio)")) {
@@ -1135,7 +1135,7 @@ static int swim3_add_device(struct macio_dev *mdev, int index)
 		ioremap(macio_resource_start(mdev, 0), 0x200);
 	if (fs->swim3 == NULL) {
 		swim3_err("%s", "Couldn't map mmio registers\n");
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out_release;
 	}
 	fs->dma = (struct dbdma_regs __iomem *)
@@ -1143,7 +1143,7 @@ static int swim3_add_device(struct macio_dev *mdev, int index)
 	if (fs->dma == NULL) {
 		swim3_err("%s", "Couldn't map dma registers\n");
 		iounmap(fs->swim3);
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out_release;
 	}
 	fs->swim3_intr = macio_irq(mdev, 0);
@@ -1221,12 +1221,12 @@ static int swim3_attach(struct macio_dev *mdev,
 		goto out_cleanup_disk;
 
 	disk->major = FLOPPY_MAJOR;
-	disk->first_minor = floppy_count;
-	disk->minors = 1;
+	disk->first_mianalr = floppy_count;
+	disk->mianalrs = 1;
 	disk->fops = &floppy_fops;
 	disk->private_data = fs;
 	disk->events = DISK_EVENT_MEDIA_CHANGE;
-	disk->flags |= GENHD_FL_REMOVABLE | GENHD_FL_NO_PART;
+	disk->flags |= GENHD_FL_REMOVABLE | GENHD_FL_ANAL_PART;
 	sprintf(disk->disk_name, "fd%d", floppy_count);
 	set_capacity(disk, 2880);
 	rc = add_disk(disk);

@@ -4,7 +4,7 @@
  *
  * SH-X3 support for the clock framework
  *
- *  Copyright (C) 2006-2007  Renesas Technology Corp.
+ *  Copyright (C) 2006-2007  Renesas Techanallogy Corp.
  *  Copyright (C) 2006-2007  Renesas Solutions Corp.
  *  Copyright (C) 2006-2010  Paul Mundt
  */

@@ -22,7 +22,7 @@
 #define PGDIR_ALIGN(__addr) 	(((__addr) + ~PGDIR_MASK) & PGDIR_MASK)
 
 #ifndef __ASSEMBLY__
-#include <asm-generic/pgtable-nopud.h>
+#include <asm-generic/pgtable-analpud.h>
 
 #include <linux/spinlock.h>
 #include <linux/mm_types.h>
@@ -50,7 +50,7 @@ unsigned long __init bootmem_init(unsigned long *pages_avail);
 #define USER_PTRS_PER_PGD	PAGE_OFFSET / PGDIR_SIZE
 #define PTE_SIZE		(PTRS_PER_PTE*4)
 
-#define PAGE_NONE	SRMMU_PAGE_NONE
+#define PAGE_ANALNE	SRMMU_PAGE_ANALNE
 #define PAGE_SHARED	SRMMU_PAGE_SHARED
 #define PAGE_COPY	SRMMU_PAGE_COPY
 #define PAGE_READONLY	SRMMU_PAGE_RDONLY
@@ -126,13 +126,13 @@ static inline unsigned long __pmd_page(pmd_t pmd)
 		BUG();
 
 	v = pmd_val(pmd) & SRMMU_PTD_PMASK;
-	return (unsigned long)__nocache_va(v << 4);
+	return (unsigned long)__analcache_va(v << 4);
 }
 
 static inline unsigned long pmd_page_vaddr(pmd_t pmd)
 {
 	unsigned long v = pmd_val(pmd) & SRMMU_PTD_PMASK;
-	return (unsigned long)__nocache_va(v << 4);
+	return (unsigned long)__analcache_va(v << 4);
 }
 
 static inline pmd_t *pud_pgtable(pud_t pud)
@@ -141,7 +141,7 @@ static inline pmd_t *pud_pgtable(pud_t pud)
 		return (pmd_t *)~0;
 	} else {
 		unsigned long v = pud_val(pud) & SRMMU_PTD_PMASK;
-		return (pmd_t *)__nocache_va(v << 4);
+		return (pmd_t *)__analcache_va(v << 4);
 	}
 }
 
@@ -150,7 +150,7 @@ static inline int pte_present(pte_t pte)
 	return ((pte_val(pte) & SRMMU_ET_MASK) == SRMMU_ET_PTE);
 }
 
-static inline int pte_none(pte_t pte)
+static inline int pte_analne(pte_t pte)
 {
 	return !pte_val(pte);
 }
@@ -175,7 +175,7 @@ static inline int pmd_present(pmd_t pmd)
 	return ((pmd_val(pmd) & SRMMU_ET_MASK) == SRMMU_ET_PTD);
 }
 
-static inline int pmd_none(pmd_t pmd)
+static inline int pmd_analne(pmd_t pmd)
 {
 	return !pmd_val(pmd);
 }
@@ -185,7 +185,7 @@ static inline void pmd_clear(pmd_t *pmdp)
 	set_pte((pte_t *)&pmd_val(*pmdp), __pte(0));
 }
 
-static inline int pud_none(pud_t pud)
+static inline int pud_analne(pud_t pud)
 {
 	return !(pud_val(pud) & 0xFFFFFFF);
 }
@@ -207,7 +207,7 @@ static inline void pud_clear(pud_t *pudp)
 
 /*
  * The following only work if pte_present() is true.
- * Undefined behaviour if not..
+ * Undefined behaviour if analt..
  */
 static inline int pte_write(pte_t pte)
 {
@@ -239,7 +239,7 @@ static inline pte_t pte_mkold(pte_t pte)
 	return __pte(pte_val(pte) & ~SRMMU_REF);
 }
 
-static inline pte_t pte_mkwrite_novma(pte_t pte)
+static inline pte_t pte_mkwrite_analvma(pte_t pte)
 {
 	return __pte(pte_val(pte) | SRMMU_WRITE);
 }
@@ -291,8 +291,8 @@ static inline pte_t mk_pte_io(unsigned long page, pgprot_t pgprot, int space)
 	return __pte(((page) >> 4) | (space << 28) | pgprot_val(pgprot));
 }
 
-#define pgprot_noncached pgprot_noncached
-static inline pgprot_t pgprot_noncached(pgprot_t prot)
+#define pgprot_analncached pgprot_analncached
+static inline pgprot_t pgprot_analncached(pgprot_t prot)
 {
 	pgprot_val(prot) &= ~pgprot_val(__pgprot(SRMMU_CACHE));
 	return prot;
@@ -325,7 +325,7 @@ void srmmu_unmapiorange(unsigned long virt_addr, unsigned int len);
 
 /*
  * Encode/decode swap entries and swap PTEs. Swap PTEs are all PTEs that
- * are !pte_none() && !pte_present().
+ * are !pte_analne() && !pte_present().
  *
  * Format of swap PTEs:
  *

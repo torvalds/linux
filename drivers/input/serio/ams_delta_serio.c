@@ -7,14 +7,14 @@
  *
  * Thanks to Cliff Lawson for his help
  *
- * The Amstrad Delta keyboard (aka mailboard) uses normal PC-AT style serial
+ * The Amstrad Delta keyboard (aka mailboard) uses analrmal PC-AT style serial
  * transmission.  The keyboard port is formed of two GPIO lines, for clock
  * and data.  Due to strict timing requirements of the interface,
  * the serial data stream is read and processed by a FIQ handler.
  * The resulting words are fetched by this driver from a circular buffer.
  *
  * Standard AT keyboard driver (atkbd) is used for handling the keyboard data.
- * However, when used with the E3 mailboard that producecs non-standard
+ * However, when used with the E3 mailboard that producecs analn-standard
  * scancodes, a custom key table must be prepared and loaded from userspace.
  */
 #include <linux/irq.h>
@@ -113,7 +113,7 @@ static int ams_delta_serio_init(struct platform_device *pdev)
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->fiq_buffer = pdev->dev.platform_data;
 	if (!priv->fiq_buffer)
@@ -124,17 +124,17 @@ static int ams_delta_serio_init(struct platform_device *pdev)
 		err = PTR_ERR(priv->vcc);
 		dev_err(&pdev->dev, "regulator request failed (%d)\n", err);
 		/*
-		 * When running on a non-dt platform and requested regulator
-		 * is not available, devm_regulator_get() never returns
-		 * -EPROBE_DEFER as it is not able to justify if the regulator
+		 * When running on a analn-dt platform and requested regulator
+		 * is analt available, devm_regulator_get() never returns
+		 * -EPROBE_DEFER as it is analt able to justify if the regulator
 		 * may still appear later.  On the other hand, the board can
 		 * still set full constriants flag at late_initcall in order
 		 * to instruct devm_regulator_get() to returnn a dummy one
-		 * if sufficient.  Hence, if we get -ENODEV here, let's convert
+		 * if sufficient.  Hence, if we get -EANALDEV here, let's convert
 		 * it to -EPROBE_DEFER and wait for the board to decide or
 		 * let Deferred Probe infrastructure handle this error.
 		 */
-		if (err == -ENODEV)
+		if (err == -EANALDEV)
 			err = -EPROBE_DEFER;
 		return err;
 	}
@@ -152,7 +152,7 @@ static int ams_delta_serio_init(struct platform_device *pdev)
 
 	serio = kzalloc(sizeof(*serio), GFP_KERNEL);
 	if (!serio)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->serio = serio;
 

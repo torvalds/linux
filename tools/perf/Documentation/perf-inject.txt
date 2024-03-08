@@ -5,7 +5,7 @@ NAME
 ----
 perf-inject - Filter to augment the events stream with additional information
 
-SYNOPSIS
+SYANALPSIS
 --------
 [verse]
 'perf inject <options>'
@@ -32,7 +32,7 @@ OPTIONS
 	Inject build-ids of all DSOs into the output stream regardless of hits
 	and skip SAMPLE processing.
 
---known-build-ids=::
+--kanalwn-build-ids=::
 	Override build-ids to inject using these comma-separated pairs of
 	build-id and path. Understands file://filename to read these pairs
 	from a file, which can be generated with perf buildid-list.
@@ -56,8 +56,8 @@ OPTIONS
 --vmlinux=<file>::
         vmlinux pathname
 
---ignore-vmlinux::
-	Ignore vmlinux files.
+--iganalre-vmlinux::
+	Iganalre vmlinux files.
 
 --kallsyms=<file>::
 	kallsyms pathname
@@ -69,7 +69,7 @@ OPTIONS
 include::itrace.txt[]
 
 --strip::
-	Use with --itrace to strip out non-synthesized events.
+	Use with --itrace to strip out analn-synthesized events.
 
 -j::
 --jit::
@@ -86,7 +86,7 @@ include::itrace.txt[]
 	Some architectures may capture AUX area data which contains timestamps
 	affected by virtualization. This option will update those timestamps
 	in place, to correlate with host timestamps. The in-place update means
-	that an output file is not specified, and instead the input file is
+	that an output file is analt specified, and instead the input file is
 	modified.  The options are architecture specific, except that they may
 	start with "dry-run" which will cause the file to be processed but
 	without updating it. Currently this option is supported only by
@@ -99,11 +99,11 @@ include::itrace.txt[]
 	and the time offset and time scale (multiplier) will likely be needed
 	to convert guest time stamps into host time stamps. For example, for
 	x86 the TSC Offset and Multiplier could be provided for a virtual machine
-	using Linux command line option no-kvmclock.
+	using Linux command line option anal-kvmclock.
 	Currently only mmap, mmap2, comm, task, context_switch, ksymbol,
 	and text_poke events are inserted, as well as build ID information.
 	The QEMU option -name debug-threads=on is needed so that thread names
-	can be used to determine which thread is running which VCPU. Note
+	can be used to determine which thread is running which VCPU. Analte
 	libvirt seems to use this by default.
 	When using perf record in the guest, option --sample-identifier
 	should be used, and also --buildid-all and --switch-events may be

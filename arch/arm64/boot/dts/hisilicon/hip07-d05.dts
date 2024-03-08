@@ -13,11 +13,11 @@
 	model = "Hisilicon Hip07 D05 Development Board";
 	compatible = "hisilicon,hip07-d05";
 
-	/* the mem node will be updated by UEFI. */
+	/* the mem analde will be updated by UEFI. */
 	memory@0 {
 		device_type = "memory";
 		reg = <0x0 0x00000000 0x0 0x40000000>;
-		numa-node-id = <0>;
+		numa-analde-id = <0>;
 	};
 
 	distance-map {

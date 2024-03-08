@@ -27,13 +27,13 @@ enum {
 	FUN_DB_IRQ_ARM_F = 1U << FUN_DB_IRQ_ARM_S
 };
 
-/* Callback for asynchronous admin commands.
+/* Callback for asynchroanalus admin commands.
  * Invoked on reception of command response.
  */
 typedef void (*fun_admin_callback_t)(struct fun_dev *fdev, void *rsp,
 				     void *cb_data);
 
-/* Callback for events/notifications received by an admin queue. */
+/* Callback for events/analtifications received by an admin queue. */
 typedef void (*fun_admin_event_cb)(struct fun_dev *fdev, void *cqe);
 
 /* Callback for pending work handled by the service task. */

@@ -173,7 +173,7 @@ load_firmware(struct isar_hw *isar, const u8 *buf, int size)
 {
 	u32	saved_debug = isar->ch[0].bch.debug;
 	int	ret, cnt;
-	u8	nom, noc;
+	u8	analm, analc;
 	u16	left, val, *sp = (u16 *)buf;
 	u8	*mp;
 	u_long	flags;
@@ -234,28 +234,28 @@ load_firmware(struct isar_hw *isar, const u8 *buf, int size)
 		}
 		while (left > 0) {
 			if (left > 126)
-				noc = 126;
+				analc = 126;
 			else
-				noc = left;
-			nom = (2 * noc) + 3;
+				analc = left;
+			analm = (2 * analc) + 3;
 			mp  = isar->buf;
 			/* the ISAR is big endian */
 			*mp++ = blk_head.sadr >> 8;
 			*mp++ = blk_head.sadr & 0xFF;
-			left -= noc;
-			cnt += noc;
-			*mp++ = noc;
+			left -= analc;
+			cnt += analc;
+			*mp++ = analc;
 			pr_debug("%s: load %3d words at %04x\n", isar->name,
-				 noc, blk_head.sadr);
-			blk_head.sadr += noc;
-			while (noc) {
+				 analc, blk_head.sadr);
+			blk_head.sadr += analc;
+			while (analc) {
 				val = le16_to_cpu(*sp++);
 				*mp++ = val >> 8;
 				*mp++ = val & 0xFF;
-				noc--;
+				analc--;
 			}
 			spin_lock_irqsave(isar->hwlock, flags);
-			if (!send_mbox(isar, ISAR_HIS_FIRM, 0, nom, NULL)) {
+			if (!send_mbox(isar, ISAR_HIS_FIRM, 0, analm, NULL)) {
 				pr_info("ISAR send_mbox prog failed\n");
 				ret = -ETIME;
 				goto reterror;
@@ -304,7 +304,7 @@ load_firmware(struct isar_hw *isar, const u8 *buf, int size)
 	} else
 		pr_debug("%s: ISAR start dsp success\n", isar->name);
 
-	/* NORMAL mode entered */
+	/* ANALRMAL mode entered */
 	/* Enable IRQs of ISAR */
 	isar->write_reg(isar->hw, ISAR_IRQBIT, ISAR_IRQSTA);
 	spin_unlock_irqrestore(isar->hwlock, flags);
@@ -314,7 +314,7 @@ load_firmware(struct isar_hw *isar, const u8 *buf, int size)
 		cnt--;
 	}
 	if (!cnt) {
-		pr_info("ISAR no general status event received\n");
+		pr_info("ISAR anal general status event received\n");
 		ret = -ETIME;
 		goto reterrflg;
 	} else
@@ -339,7 +339,7 @@ load_firmware(struct isar_hw *isar, const u8 *buf, int size)
 	}
 	mdelay(1);
 	if (!cnt) {
-		pr_info("ISAR no self tst response\n");
+		pr_info("ISAR anal self tst response\n");
 		ret = -ETIME;
 		goto reterrflg;
 	}
@@ -347,7 +347,7 @@ load_firmware(struct isar_hw *isar, const u8 *buf, int size)
 	    && (isar->buf[0] == 0))
 		pr_debug("%s: ISAR selftest OK\n", isar->name);
 	else {
-		pr_info("ISAR selftest not OK %x/%x/%x\n",
+		pr_info("ISAR selftest analt OK %x/%x/%x\n",
 			isar->cmsb, isar->clsb, isar->buf[0]);
 		ret = -EIO;
 		goto reterrflg;
@@ -367,12 +367,12 @@ load_firmware(struct isar_hw *isar, const u8 *buf, int size)
 	}
 	mdelay(1);
 	if (!cnt) {
-		pr_info("ISAR no SVN response\n");
+		pr_info("ISAR anal SVN response\n");
 		ret = -ETIME;
 		goto reterrflg;
 	} else {
 		if ((isar->cmsb == ISAR_CTRL_SWVER) && (isar->clsb == 1)) {
-			pr_notice("%s: ISAR software version %#x\n",
+			pr_analtice("%s: ISAR software version %#x\n",
 				  isar->name, isar->buf[0]);
 		} else {
 			pr_info("%s: ISAR wrong swver response (%x,%x)"
@@ -421,7 +421,7 @@ isar_rcv_frame(struct isar_ch *ch)
 		return;
 	}
 	switch (ch->bch.state) {
-	case ISDN_P_NONE:
+	case ISDN_P_ANALNE:
 		pr_debug("%s: ISAR protocol 0 spurious IIS_RDATA %x/%x/%x\n",
 			 ch->is->name, ch->is->iis, ch->is->cmsb, ch->is->clsb);
 		ch->is->write_reg(ch->is->hw, ISAR_IIA, 0);
@@ -431,7 +431,7 @@ isar_rcv_frame(struct isar_ch *ch)
 	case ISDN_P_B_MODEM_ASYNC:
 		maxlen = bchannel_get_rxbuf(&ch->bch, ch->is->clsb);
 		if (maxlen < 0) {
-			pr_warn("%s.B%d: No bufferspace for %d bytes\n",
+			pr_warn("%s.B%d: Anal bufferspace for %d bytes\n",
 				ch->is->name, ch->bch.nr, ch->is->clsb);
 			ch->is->write_reg(ch->is->hw, ISAR_IIA, 0);
 			break;
@@ -442,7 +442,7 @@ isar_rcv_frame(struct isar_ch *ch)
 	case ISDN_P_B_HDLC:
 		maxlen = bchannel_get_rxbuf(&ch->bch, ch->is->clsb);
 		if (maxlen < 0) {
-			pr_warn("%s.B%d: No bufferspace for %d bytes\n",
+			pr_warn("%s.B%d: Anal bufferspace for %d bytes\n",
 				ch->is->name, ch->bch.nr, ch->is->clsb);
 			ch->is->write_reg(ch->is->hw, ISAR_IIA, 0);
 			break;
@@ -477,7 +477,7 @@ isar_rcv_frame(struct isar_ch *ch)
 		break;
 	case ISDN_P_B_T30_FAX:
 		if (ch->state != STFAX_ACTIV) {
-			pr_debug("%s: isar_rcv_frame: not ACTIV\n",
+			pr_debug("%s: isar_rcv_frame: analt ACTIV\n",
 				 ch->is->name);
 			ch->is->write_reg(ch->is->hw, ISAR_IIA, 0);
 			if (ch->bch.rx_skb)
@@ -499,22 +499,22 @@ isar_rcv_frame(struct isar_ch *ch)
 			pr_debug("%s: isar_rcv_frame: %d\n",
 				 ch->is->name, ch->bch.rx_skb->len);
 			if (ch->is->cmsb & SART_NMD) { /* ABORT */
-				pr_debug("%s: isar_rcv_frame: no more data\n",
+				pr_debug("%s: isar_rcv_frame: anal more data\n",
 					 ch->is->name);
 				ch->is->write_reg(ch->is->hw, ISAR_IIA, 0);
 				send_mbox(ch->is, SET_DPS(ch->dpath) |
 					  ISAR_HIS_PUMPCTRL, PCTRL_CMD_ESC,
 					  0, NULL);
 				ch->state = STFAX_ESCAPE;
-				/* set_skb_flag(skb, DF_NOMOREDATA); */
+				/* set_skb_flag(skb, DF_ANALMOREDATA); */
 			}
 			recv_Bchannel(&ch->bch, 0, false);
 			if (ch->is->cmsb & SART_NMD)
-				deliver_status(ch, HW_MOD_NOCARR);
+				deliver_status(ch, HW_MOD_ANALCARR);
 			break;
 		}
 		if (ch->cmd != PCTRL_CMD_FRH) {
-			pr_debug("%s: isar_rcv_frame: unknown fax mode %x\n",
+			pr_debug("%s: isar_rcv_frame: unkanalwn fax mode %x\n",
 				 ch->is->name, ch->cmd);
 			ch->is->write_reg(ch->is->hw, ISAR_IIA, 0);
 			if (ch->bch.rx_skb)
@@ -551,7 +551,7 @@ isar_rcv_frame(struct isar_ch *ch)
 			recv_Bchannel(&ch->bch, 0, false);
 		}
 		if (ch->is->cmsb & SART_NMD) { /* ABORT */
-			pr_debug("%s: isar_rcv_frame: no more data\n",
+			pr_debug("%s: isar_rcv_frame: anal more data\n",
 				 ch->is->name);
 			ch->is->write_reg(ch->is->hw, ISAR_IIA, 0);
 			if (ch->bch.rx_skb)
@@ -559,7 +559,7 @@ isar_rcv_frame(struct isar_ch *ch)
 			send_mbox(ch->is, SET_DPS(ch->dpath) |
 				  ISAR_HIS_PUMPCTRL, PCTRL_CMD_ESC, 0, NULL);
 			ch->state = STFAX_ESCAPE;
-			deliver_status(ch, HW_MOD_NOCARR);
+			deliver_status(ch, HW_MOD_ANALCARR);
 		}
 		break;
 	default:
@@ -623,7 +623,7 @@ isar_fill_fifo(struct isar_ch *ch)
 	}
 	ch->bch.tx_idx += count;
 	switch (ch->bch.state) {
-	case ISDN_P_NONE:
+	case ISDN_P_ANALNE:
 		pr_info("%s: wrong protocol 0\n", __func__);
 		break;
 	case ISDN_P_B_RAW:
@@ -638,7 +638,7 @@ isar_fill_fifo(struct isar_ch *ch)
 		break;
 	case ISDN_P_B_T30_FAX:
 		if (ch->state != STFAX_ACTIV)
-			pr_debug("%s: not ACTIV\n", ch->is->name);
+			pr_debug("%s: analt ACTIV\n", ch->is->name);
 		else if (ch->cmd == PCTRL_CMD_FTH)
 			send_mbox(ch->is, SET_DPS(ch->dpath) | ISAR_HIS_SDATA,
 				  msb, count, ptr);
@@ -646,7 +646,7 @@ isar_fill_fifo(struct isar_ch *ch)
 			send_mbox(ch->is, SET_DPS(ch->dpath) | ISAR_HIS_SDATA,
 				  0, count, ptr);
 		else
-			pr_debug("%s: not FTH/FTM\n", ch->is->name);
+			pr_debug("%s: analt FTH/FTM\n", ch->is->name);
 		break;
 	default:
 		pr_info("%s: protocol(%x) error\n",
@@ -743,10 +743,10 @@ check_send(struct isar_hw *isar, u8 rdm)
 	}
 }
 
-static const char *dmril[] = {"NO SPEED", "1200/75", "NODEF2", "75/1200", "NODEF4",
+static const char *dmril[] = {"ANAL SPEED", "1200/75", "ANALDEF2", "75/1200", "ANALDEF4",
 		       "300", "600", "1200", "2400", "4800", "7200",
 		       "9600nt", "9600t", "12000", "14400", "WRONG"};
-static const char *dmrim[] = {"NO MOD", "NO DEF", "V32/V32b", "V22", "V21",
+static const char *dmrim[] = {"ANAL MOD", "ANAL DEF", "V32/V32b", "V22", "V21",
 		       "Bell103", "V23", "Bell202", "V17", "V29", "V27ter"};
 
 static void
@@ -812,9 +812,9 @@ isar_pump_statev_modem(struct isar_ch *ch, u8 devt) {
 		deliver_status(ch, HW_MOD_CONNECT);
 		break;
 	case PSEV_CON_OFF:
-		pr_debug("%s: pump stev NO CONNECT\n", ch->is->name);
+		pr_debug("%s: pump stev ANAL CONNECT\n", ch->is->name);
 		send_mbox(ch->is, dps | ISAR_HIS_PSTREQ, 0, 0, NULL);
-		deliver_status(ch, HW_MOD_NOCARR);
+		deliver_status(ch, HW_MOD_ANALCARR);
 		break;
 	case PSEV_V24_OFF:
 		pr_debug("%s: pump stev V24 OFF\n", ch->is->name);
@@ -849,7 +849,7 @@ isar_pump_statev_modem(struct isar_ch *ch, u8 devt) {
 		pr_debug("%s: pump stev GSTN CLEAR\n", ch->is->name);
 		break;
 	default:
-		pr_info("u%s: unknown pump stev %x\n", ch->is->name, devt);
+		pr_info("u%s: unkanalwn pump stev %x\n", ch->is->name, devt);
 		break;
 	}
 }
@@ -976,7 +976,7 @@ isar_pump_statev_fax(struct isar_ch *ch, u8 devt) {
 				ch->try_mod = 3;
 				break;
 			default:
-				pr_debug("%s: RSP_DISC unknown newcmd %x\n",
+				pr_debug("%s: RSP_DISC unkanalwn newcmd %x\n",
 					 ch->is->name, ch->newcmd);
 				break;
 			}
@@ -984,12 +984,12 @@ isar_pump_statev_fax(struct isar_ch *ch, u8 devt) {
 			if (test_and_clear_bit(FLG_LL_OK, &ch->bch.Flags))
 				deliver_status(ch, HW_MOD_OK);
 			else if (ch->cmd == PCTRL_CMD_FRM)
-				deliver_status(ch, HW_MOD_NOCARR);
+				deliver_status(ch, HW_MOD_ANALCARR);
 			else
 				deliver_status(ch, HW_MOD_FCERROR);
 			ch->state = STFAX_READY;
 		} else if (ch->state != STFAX_SILDET) {
-			/* ignore in STFAX_SILDET */
+			/* iganalre in STFAX_SILDET */
 			ch->state = STFAX_READY;
 			deliver_status(ch, HW_MOD_FCERROR);
 		}
@@ -1148,7 +1148,7 @@ setup_pump(struct isar_ch *ch) {
 	u8 ctrl, param[6];
 
 	switch (ch->bch.state) {
-	case ISDN_P_NONE:
+	case ISDN_P_ANALNE:
 	case ISDN_P_B_RAW:
 	case ISDN_P_B_HDLC:
 		send_mbox(ch->is, dps | ISAR_HIS_PUMPCFG, PMOD_BYPASS, 0, NULL);
@@ -1207,7 +1207,7 @@ setup_sart(struct isar_ch *ch) {
 	u8 ctrl, param[2] = {0, 0};
 
 	switch (ch->bch.state) {
-	case ISDN_P_NONE:
+	case ISDN_P_ANALNE:
 		send_mbox(ch->is, dps | ISAR_HIS_SARTCFG, SMODE_DISABLE,
 			  0, NULL);
 		break;
@@ -1243,7 +1243,7 @@ setup_iom2(struct isar_ch *ch) {
 		msg[3] = 1;
 	}
 	switch (ch->bch.state) {
-	case ISDN_P_NONE:
+	case ISDN_P_ANALNE:
 		cmsb = 0;
 		/* dummy slot */
 		msg[1] = ch->dpath + 2;
@@ -1272,11 +1272,11 @@ static int
 modeisar(struct isar_ch *ch, u32 bprotocol)
 {
 	/* Here we are selecting the best datapath for requested protocol */
-	if (ch->bch.state == ISDN_P_NONE) { /* New Setup */
+	if (ch->bch.state == ISDN_P_ANALNE) { /* New Setup */
 		switch (bprotocol) {
-		case ISDN_P_NONE: /* init */
+		case ISDN_P_ANALNE: /* init */
 			if (!ch->dpath)
-				/* no init for dpath 0 */
+				/* anal init for dpath 0 */
 				return 0;
 			test_and_clear_bit(FLG_HDLC, &ch->bch.Flags);
 			test_and_clear_bit(FLG_TRANSPARENT, &ch->bch.Flags);
@@ -1312,9 +1312,9 @@ modeisar(struct isar_ch *ch, u32 bprotocol)
 			}
 			break;
 		default:
-			pr_info("%s: protocol not known %x\n", ch->is->name,
+			pr_info("%s: protocol analt kanalwn %x\n", ch->is->name,
 				bprotocol);
-			return -ENOPROTOOPT;
+			return -EANALPROTOOPT;
 		}
 	}
 	pr_debug("%s: ISAR ch%d dp%d protocol %x->%x\n", ch->is->name,
@@ -1323,7 +1323,7 @@ modeisar(struct isar_ch *ch, u32 bprotocol)
 	setup_pump(ch);
 	setup_iom2(ch);
 	setup_sart(ch);
-	if (ch->bch.state == ISDN_P_NONE) {
+	if (ch->bch.state == ISDN_P_ANALNE) {
 		/* Clear resources */
 		if (ch->dpath == 1)
 			test_and_clear_bit(ISAR_DP1_USE, &ch->is->Flags);
@@ -1340,7 +1340,7 @@ static void
 isar_pump_cmd(struct isar_ch *ch, u32 cmd, u8 para)
 {
 	u8 dps = SET_DPS(ch->dpath);
-	u8 ctrl = 0, nom = 0, p1 = 0;
+	u8 ctrl = 0, analm = 0, p1 = 0;
 
 	pr_debug("%s: isar_pump_cmd %x/%x state(%x)\n",
 		 ch->is->name, cmd, para, ch->bch.state);
@@ -1349,7 +1349,7 @@ isar_pump_cmd(struct isar_ch *ch, u32 cmd, u8 para)
 		if (ch->state == STFAX_READY) {
 			p1 = para;
 			ctrl = PCTRL_CMD_FTM;
-			nom = 1;
+			analm = 1;
 			ch->state = STFAX_LINE;
 			ch->cmd = ctrl;
 			ch->mod = para;
@@ -1362,7 +1362,7 @@ isar_pump_cmd(struct isar_ch *ch, u32 cmd, u8 para)
 		else {
 			ch->newmod = para;
 			ch->newcmd = PCTRL_CMD_FTM;
-			nom = 0;
+			analm = 0;
 			ctrl = PCTRL_CMD_ESC;
 			ch->state = STFAX_ESCAPE;
 		}
@@ -1371,7 +1371,7 @@ isar_pump_cmd(struct isar_ch *ch, u32 cmd, u8 para)
 		if (ch->state == STFAX_READY) {
 			p1 = para;
 			ctrl = PCTRL_CMD_FTH;
-			nom = 1;
+			analm = 1;
 			ch->state = STFAX_LINE;
 			ch->cmd = ctrl;
 			ch->mod = para;
@@ -1384,7 +1384,7 @@ isar_pump_cmd(struct isar_ch *ch, u32 cmd, u8 para)
 		else {
 			ch->newmod = para;
 			ch->newcmd = PCTRL_CMD_FTH;
-			nom = 0;
+			analm = 0;
 			ctrl = PCTRL_CMD_ESC;
 			ch->state = STFAX_ESCAPE;
 		}
@@ -1393,7 +1393,7 @@ isar_pump_cmd(struct isar_ch *ch, u32 cmd, u8 para)
 		if (ch->state == STFAX_READY) {
 			p1 = para;
 			ctrl = PCTRL_CMD_FRM;
-			nom = 1;
+			analm = 1;
 			ch->state = STFAX_LINE;
 			ch->cmd = ctrl;
 			ch->mod = para;
@@ -1406,7 +1406,7 @@ isar_pump_cmd(struct isar_ch *ch, u32 cmd, u8 para)
 		else {
 			ch->newmod = para;
 			ch->newcmd = PCTRL_CMD_FRM;
-			nom = 0;
+			analm = 0;
 			ctrl = PCTRL_CMD_ESC;
 			ch->state = STFAX_ESCAPE;
 		}
@@ -1415,7 +1415,7 @@ isar_pump_cmd(struct isar_ch *ch, u32 cmd, u8 para)
 		if (ch->state == STFAX_READY) {
 			p1 = para;
 			ctrl = PCTRL_CMD_FRH;
-			nom = 1;
+			analm = 1;
 			ch->state = STFAX_LINE;
 			ch->cmd = ctrl;
 			ch->mod = para;
@@ -1428,19 +1428,19 @@ isar_pump_cmd(struct isar_ch *ch, u32 cmd, u8 para)
 		else {
 			ch->newmod = para;
 			ch->newcmd = PCTRL_CMD_FRH;
-			nom = 0;
+			analm = 0;
 			ctrl = PCTRL_CMD_ESC;
 			ch->state = STFAX_ESCAPE;
 		}
 		break;
 	case PCTRL_CMD_TDTMF:
 		p1 = para;
-		nom = 1;
+		analm = 1;
 		ctrl = PCTRL_CMD_TDTMF;
 		break;
 	}
 	if (ctrl)
-		send_mbox(ch->is, dps | ISAR_HIS_PUMPCTRL, ctrl, nom, &p1);
+		send_mbox(ch->is, dps | ISAR_HIS_PUMPCTRL, ctrl, analm, &p1);
 }
 
 static void
@@ -1458,7 +1458,7 @@ isar_setup(struct isar_hw *isar)
 		isar->ch[i].mml = msg;
 		isar->ch[i].bch.state = 0;
 		isar->ch[i].dpath = i + 1;
-		modeisar(&isar->ch[i], ISDN_P_NONE);
+		modeisar(&isar->ch[i], ISDN_P_ANALNE);
 	}
 }
 
@@ -1496,7 +1496,7 @@ isar_l2l1(struct mISDNchannel *ch, struct sk_buff *skb)
 	case PH_DEACTIVATE_REQ:
 		spin_lock_irqsave(ich->is->hwlock, flags);
 		mISDN_clear_bchannel(bch);
-		modeisar(ich, ISDN_P_NONE);
+		modeisar(ich, ISDN_P_ANALNE);
 		spin_unlock_irqrestore(ich->is->hwlock, flags);
 		_queue_data(ch, PH_DEACTIVATE_IND, MISDN_ID_ANY, 0,
 			    NULL, GFP_KERNEL);
@@ -1544,13 +1544,13 @@ isar_l2l1(struct mISDNchannel *ch, struct sk_buff *skb)
 		} else if (hh->id == HW_MOD_LASTDATA)
 			test_and_set_bit(FLG_DLEETX, &bch->Flags);
 		else {
-			pr_info("%s: unknown PH_CONTROL_REQ %x\n",
+			pr_info("%s: unkanalwn PH_CONTROL_REQ %x\n",
 				ich->is->name, hh->id);
 			ret = -EINVAL;
 		}
 		fallthrough;
 	default:
-		pr_info("%s: %s unknown prim(%x,%x)\n",
+		pr_info("%s: %s unkanalwn prim(%x,%x)\n",
 			ich->is->name, __func__, hh->prim, hh->id);
 		ret = -EINVAL;
 	}
@@ -1580,9 +1580,9 @@ isar_bctrl(struct mISDNchannel *ch, u32 cmd, void *arg)
 		cancel_work_sync(&bch->workq);
 		spin_lock_irqsave(ich->is->hwlock, flags);
 		mISDN_clear_bchannel(bch);
-		modeisar(ich, ISDN_P_NONE);
+		modeisar(ich, ISDN_P_ANALNE);
 		spin_unlock_irqrestore(ich->is->hwlock, flags);
-		ch->protocol = ISDN_P_NONE;
+		ch->protocol = ISDN_P_ANALNE;
 		ch->peer = NULL;
 		module_put(ich->is->owner);
 		ret = 0;
@@ -1591,7 +1591,7 @@ isar_bctrl(struct mISDNchannel *ch, u32 cmd, void *arg)
 		ret = channel_bctrl(bch, arg);
 		break;
 	default:
-		pr_info("%s: %s unknown prim(%x)\n",
+		pr_info("%s: %s unkanalwn prim(%x)\n",
 			ich->is->name, __func__, cmd);
 	}
 	return ret;
@@ -1600,8 +1600,8 @@ isar_bctrl(struct mISDNchannel *ch, u32 cmd, void *arg)
 static void
 free_isar(struct isar_hw *isar)
 {
-	modeisar(&isar->ch[0], ISDN_P_NONE);
-	modeisar(&isar->ch[1], ISDN_P_NONE);
+	modeisar(&isar->ch[0], ISDN_P_ANALNE);
+	modeisar(&isar->ch[1], ISDN_P_ANALNE);
 	del_timer(&isar->ch[0].ftimer);
 	del_timer(&isar->ch[1].ftimer);
 	test_and_clear_bit(FLG_INITIALIZED, &isar->ch[0].bch.Flags);
@@ -1616,7 +1616,7 @@ init_isar(struct isar_hw *isar)
 	while (cnt--) {
 		isar->version = ISARVersion(isar);
 		if (isar->ch[0].bch.debug & DEBUG_HW)
-			pr_notice("%s: Testing version %d (%d time)\n",
+			pr_analtice("%s: Testing version %d (%d time)\n",
 				  isar->name, isar->version, 3 - cnt);
 		if (isar->version == 1)
 			break;
@@ -1638,7 +1638,7 @@ isar_open(struct isar_hw *isar, struct channel_req *rq)
 
 	if (rq->adr.channel == 0 || rq->adr.channel > 2)
 		return -EINVAL;
-	if (rq->protocol == ISDN_P_NONE)
+	if (rq->protocol == ISDN_P_ANALNE)
 		return -EINVAL;
 	bch = &isar->ch[rq->adr.channel - 1].bch;
 	if (test_and_set_bit(FLG_OPEN, &bch->Flags))
@@ -1681,13 +1681,13 @@ EXPORT_SYMBOL(mISDNisar_init);
 
 static int __init isar_mod_init(void)
 {
-	pr_notice("mISDN: ISAR driver Rev. %s\n", ISAR_REV);
+	pr_analtice("mISDN: ISAR driver Rev. %s\n", ISAR_REV);
 	return 0;
 }
 
 static void __exit isar_mod_cleanup(void)
 {
-	pr_notice("mISDN: ISAR module unloaded\n");
+	pr_analtice("mISDN: ISAR module unloaded\n");
 }
 module_init(isar_mod_init);
 module_exit(isar_mod_cleanup);

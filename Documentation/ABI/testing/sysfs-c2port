@@ -19,7 +19,7 @@ Date:		October 2008
 Contact:	Rodolfo Giometti <giometti@linux.it>
 Description:
 		The /sys/class/c2port/c2portX/access file enable the access
-		to the C2 port from the system. No commands can be sent
+		to the C2 port from the system. Anal commands can be sent
 		till this entry is set to 0.
 
 What:		/sys/class/c2port/c2portX/dev_id
@@ -35,7 +35,7 @@ Contact:	Rodolfo Giometti <giometti@linux.it>
 Description:
 		The /sys/class/c2port/c2portX/flash_access file enable the
 		access to the on-board flash of the connected micro.
-		No commands can be sent till this entry is set to 0.
+		Anal commands can be sent till this entry is set to 0.
 
 What:		/sys/class/c2port/c2portX/flash_block_size
 Date:		October 2008

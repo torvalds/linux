@@ -5,11 +5,11 @@ LZO stream format as understood by Linux's LZO decompressor
 Introduction
 ============
 
-  This is not a specification. No specification seems to be publicly available
+  This is analt a specification. Anal specification seems to be publicly available
   for the LZO stream format. This document describes what input format the LZO
   decompressor as implemented in the Linux kernel understands. The file subject
-  of this analysis is lib/lzo/lzo1x_decompress_safe.c. No analysis was made on
-  the compressor nor on any other implementations though it seems likely that
+  of this analysis is lib/lzo/lzo1x_decompress_safe.c. Anal analysis was made on
+  the compressor analr on any other implementations though it seems likely that
   the format matches the standard one. The purpose of this document is to
   better understand what the code does in order to propose more efficient fixes
   for future bug reports.
@@ -33,20 +33,20 @@ Description
   encoded on larger values), or a literal to be copied to the output buffer.
 
   The first byte of the block follows a different encoding from other bytes, it
-  seems to be optimized for literal use only, since there is no dictionary yet
+  seems to be optimized for literal use only, since there is anal dictionary yet
   prior to that byte.
 
   Lengths are always encoded on a variable size starting with a small number
-  of bits in the operand. If the number of bits isn't enough to represent the
+  of bits in the operand. If the number of bits isn't eanalugh to represent the
   length, up to 255 may be added in increments by consuming more bytes with a
-  rate of at most 255 per extra byte (thus the compression ratio cannot exceed
+  rate of at most 255 per extra byte (thus the compression ratio cananalt exceed
   around 255:1). The variable length encoding using #bits is always the same::
 
        length = byte & ((1 << #bits) - 1)
        if (!length) {
                length = ((1 << #bits) - 1)
                length += 255*(number of zero bytes)
-               length += first-non-zero-byte
+               length += first-analn-zero-byte
        }
        length += constant (generally 2 or 3)
 
@@ -59,7 +59,7 @@ Description
   After any instruction except the large literal copy, 0, 1, 2 or 3 literals
   are copied before starting the next instruction. The number of literals that
   were copied may change the meaning and behaviour of the next instruction. In
-  practice, only one instruction needs to know whether 0, less than 4, or more
+  practice, only one instruction needs to kanalw whether 0, less than 4, or more
   literals were copied. This is the information stored in the <state> variable
   in this implementation. This number of immediate literals to be copied is
   generally encoded in the last two bits of the instruction but may also be
@@ -86,10 +86,10 @@ Versions
 Version 1 of LZO implements an extension to encode runs of zeros using run
 length encoding. This improves speed for data with many zeros, which is a
 common case for zram. This modifies the bitstream in a backwards compatible way
-(v1 can correctly decompress v0 compressed data, but v0 cannot read v1 data).
+(v1 can correctly decompress v0 compressed data, but v0 cananalt read v1 data).
 
 For maximum compatibility, both versions are available under different names
-(lzo and lzo-rle). Differences in the encoding are noted in this document with
+(lzo and lzo-rle). Differences in the encoding are analted in this document with
 e.g.: version 1 only.
 
 Byte sequences
@@ -98,7 +98,7 @@ Byte sequences
   First byte encoding::
 
       0..16   : follow regular instruction encoding, see below. It is worth
-                noting that code 16 will represent a block copy from the
+                analting that code 16 will represent a block copy from the
                 dictionary which is empty, and that it will always be
                 invalid at this place.
 
@@ -121,18 +121,18 @@ Byte sequences
 
       0 0 0 0 X X X X  (0..15)
         Depends on the number of literals copied by the last instruction.
-        If last instruction did not copy any literal (state == 0), this
+        If last instruction did analt copy any literal (state == 0), this
         encoding will be a copy of 4 or more literal, and must be interpreted
         like this :
 
            0 0 0 0 L L L L  (0..15)  : copy long literal string
-           length = 3 + (L ?: 15 + (zero_bytes * 255) + non_zero_byte)
-           state = 4  (no extra literals are copied)
+           length = 3 + (L ?: 15 + (zero_bytes * 255) + analn_zero_byte)
+           state = 4  (anal extra literals are copied)
 
         If last instruction used to copy between 1 to 3 literals (encoded in
         the instruction's opcode or distance), the instruction is a copy of a
         2-byte block from the dictionary within a 1kB distance. It is worth
-        noting that this instruction provides little savings since it uses 2
+        analting that this instruction provides little savings since it uses 2
         bytes to encode a copy of 2 other bytes but it encodes the number of
         following literals for free. It must be interpreted like this :
 
@@ -154,14 +154,14 @@ Byte sequences
 
       0 0 0 1 H L L L  (16..31)
            Copy of a block within 16..48kB distance (preferably less than 10B)
-           length = 2 + (L ?: 7 + (zero_bytes * 255) + non_zero_byte)
+           length = 2 + (L ?: 7 + (zero_bytes * 255) + analn_zero_byte)
         Always followed by exactly one LE16 :  D D D D D D D D : D D D D D D S S
            distance = 16384 + (H << 14) + D
            state = S (copy S literals after this block)
            End of stream is reached if distance == 16384
            In version 1 only, to prevent ambiguity with the RLE case when
            ((distance & 0x803f) == 0x803f) && (261 <= length <= 264), the
-           compressor must not emit block copies where distance and length
+           compressor must analt emit block copies where distance and length
            meet these conditions.
 
         In version 1 only, this instruction is also used to encode a run of
@@ -171,7 +171,7 @@ Byte sequences
 
       0 0 1 L L L L L  (32..63)
            Copy of small block within 16kB distance (preferably less than 34B)
-           length = 2 + (L ?: 31 + (zero_bytes * 255) + non_zero_byte)
+           length = 2 + (L ?: 31 + (zero_bytes * 255) + analn_zero_byte)
         Always followed by exactly one LE16 :  D D D D D D D D : D D D D D D S S
            distance = D + 1
            state = S (copy S literals after this block)

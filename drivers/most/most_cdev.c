@@ -2,7 +2,7 @@
 /*
  * cdev.c - Character device component for Mostcore
  *
- * Copyright (C) 2013-2015 Microchip Technology Germany II GmbH & Co. KG
+ * Copyright (C) 2013-2015 Microchip Techanallogy Germany II GmbH & Co. KG
  */
 
 #include <linux/module.h>
@@ -20,8 +20,8 @@
 #define CHRDEV_REGION_SIZE 50
 
 static struct cdev_component {
-	dev_t devno;
-	struct ida minor_id;
+	dev_t devanal;
+	struct ida mianalr_id;
 	unsigned int major;
 	struct class *class;
 	struct most_component cc;
@@ -36,7 +36,7 @@ struct comp_channel {
 	struct most_interface *iface;
 	struct most_channel_config *cfg;
 	unsigned int channel_id;
-	dev_t devno;
+	dev_t devanal;
 	size_t mbo_offs;
 	DECLARE_KFIFO_PTR(fifo, typeof(struct mbo *));
 	int access_ref;
@@ -91,7 +91,7 @@ static void destroy_cdev(struct comp_channel *c)
 {
 	unsigned long flags;
 
-	device_destroy(comp.class, c->devno);
+	device_destroy(comp.class, c->devanal);
 	cdev_del(&c->cdev);
 	spin_lock_irqsave(&ch_list_lock, flags);
 	list_del(&c->list);
@@ -100,25 +100,25 @@ static void destroy_cdev(struct comp_channel *c)
 
 static void destroy_channel(struct comp_channel *c)
 {
-	ida_simple_remove(&comp.minor_id, MINOR(c->devno));
+	ida_simple_remove(&comp.mianalr_id, MIANALR(c->devanal));
 	kfifo_free(&c->fifo);
 	kfree(c);
 }
 
 /**
  * comp_open - implements the syscall to open the device
- * @inode: inode pointer
+ * @ianalde: ianalde pointer
  * @filp: file pointer
  *
  * This stores the channel pointer in the private data field of
  * the file structure and activates the channel within the core.
  */
-static int comp_open(struct inode *inode, struct file *filp)
+static int comp_open(struct ianalde *ianalde, struct file *filp)
 {
 	struct comp_channel *c;
 	int ret;
 
-	c = to_channel(inode->i_cdev);
+	c = to_channel(ianalde->i_cdev);
 	filp->private_data = c;
 
 	if (((c->cfg->direction == MOST_CH_RX) &&
@@ -131,7 +131,7 @@ static int comp_open(struct inode *inode, struct file *filp)
 	mutex_lock(&c->io_mutex);
 	if (!c->dev) {
 		mutex_unlock(&c->io_mutex);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (c->access_ref) {
@@ -149,14 +149,14 @@ static int comp_open(struct inode *inode, struct file *filp)
 
 /**
  * comp_close - implements the syscall to close the device
- * @inode: inode pointer
+ * @ianalde: ianalde pointer
  * @filp: file pointer
  *
  * This stops the channel within the core.
  */
-static int comp_close(struct inode *inode, struct file *filp)
+static int comp_close(struct ianalde *ianalde, struct file *filp)
 {
-	struct comp_channel *c = to_channel(inode->i_cdev);
+	struct comp_channel *c = to_channel(ianalde->i_cdev);
 
 	mutex_lock(&c->io_mutex);
 	spin_lock(&c->unlink);
@@ -191,7 +191,7 @@ static ssize_t comp_write(struct file *filp, const char __user *buf,
 	while (c->dev && !ch_get_mbo(c, &mbo)) {
 		mutex_unlock(&c->io_mutex);
 
-		if ((filp->f_flags & O_NONBLOCK))
+		if ((filp->f_flags & O_ANALNBLOCK))
 			return -EAGAIN;
 		if (wait_event_interruptible(c->wq, ch_has_mbo(c) || !c->dev))
 			return -ERESTARTSYS;
@@ -199,7 +199,7 @@ static ssize_t comp_write(struct file *filp, const char __user *buf,
 	}
 
 	if (unlikely(!c->dev)) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto unlock;
 	}
 
@@ -236,14 +236,14 @@ unlock:
 static ssize_t
 comp_read(struct file *filp, char __user *buf, size_t count, loff_t *offset)
 {
-	size_t to_copy, not_copied, copied;
+	size_t to_copy, analt_copied, copied;
 	struct mbo *mbo = NULL;
 	struct comp_channel *c = filp->private_data;
 
 	mutex_lock(&c->io_mutex);
 	while (c->dev && !kfifo_peek(&c->fifo, &mbo)) {
 		mutex_unlock(&c->io_mutex);
-		if (filp->f_flags & O_NONBLOCK)
+		if (filp->f_flags & O_ANALNBLOCK)
 			return -EAGAIN;
 		if (wait_event_interruptible(c->wq,
 					     (!kfifo_is_empty(&c->fifo) ||
@@ -255,18 +255,18 @@ comp_read(struct file *filp, char __user *buf, size_t count, loff_t *offset)
 	/* make sure we don't submit to gone devices */
 	if (unlikely(!c->dev)) {
 		mutex_unlock(&c->io_mutex);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	to_copy = min_t(size_t,
 			count,
 			mbo->processed_length - c->mbo_offs);
 
-	not_copied = copy_to_user(buf,
+	analt_copied = copy_to_user(buf,
 				  mbo->virt_address + c->mbo_offs,
 				  to_copy);
 
-	copied = to_copy - not_copied;
+	copied = to_copy - analt_copied;
 
 	c->mbo_offs += copied;
 	if (c->mbo_offs >= mbo->processed_length) {
@@ -288,10 +288,10 @@ static __poll_t comp_poll(struct file *filp, poll_table *wait)
 	mutex_lock(&c->io_mutex);
 	if (c->cfg->direction == MOST_CH_RX) {
 		if (!c->dev || !kfifo_is_empty(&c->fifo))
-			mask |= EPOLLIN | EPOLLRDNORM;
+			mask |= EPOLLIN | EPOLLRDANALRM;
 	} else {
 		if (!c->dev || !kfifo_is_empty(&c->fifo) || ch_has_mbo(c))
-			mask |= EPOLLOUT | EPOLLWRNORM;
+			mask |= EPOLLOUT | EPOLLWRANALRM;
 	}
 	mutex_unlock(&c->io_mutex);
 	return mask;
@@ -362,7 +362,7 @@ static int comp_rx_completion(struct mbo *mbo)
 	spin_lock(&c->unlink);
 	if (!c->access_ref || !c->dev) {
 		spin_unlock(&c->unlink);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	kfifo_in(&c->fifo, &mbo, 1);
 	spin_unlock(&c->unlink);
@@ -406,7 +406,7 @@ static int comp_tx_completion(struct most_interface *iface, int channel_id)
  * @name: name of the device to be created
  * @args: pointer to array of component parameters (from configfs)
  *
- * This allocates a channel object and creates the device node in /dev
+ * This allocates a channel object and creates the device analde in /dev
  *
  * Returns 0 on success or error code otherwise.
  */
@@ -416,7 +416,7 @@ static int comp_probe(struct most_interface *iface, int channel_id,
 	struct comp_channel *c;
 	unsigned long cl_flags;
 	int retval;
-	int current_minor;
+	int current_mianalr;
 
 	if (!cfg || !name)
 		return -EINVAL;
@@ -425,20 +425,20 @@ static int comp_probe(struct most_interface *iface, int channel_id,
 	if (c)
 		return -EEXIST;
 
-	current_minor = ida_simple_get(&comp.minor_id, 0, 0, GFP_KERNEL);
-	if (current_minor < 0)
-		return current_minor;
+	current_mianalr = ida_simple_get(&comp.mianalr_id, 0, 0, GFP_KERNEL);
+	if (current_mianalr < 0)
+		return current_mianalr;
 
 	c = kzalloc(sizeof(*c), GFP_KERNEL);
 	if (!c) {
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto err_remove_ida;
 	}
 
-	c->devno = MKDEV(comp.major, current_minor);
+	c->devanal = MKDEV(comp.major, current_mianalr);
 	cdev_init(&c->cdev, &channel_fops);
 	c->cdev.owner = THIS_MODULE;
-	retval = cdev_add(&c->cdev, c->devno, 1);
+	retval = cdev_add(&c->cdev, c->devanal, 1);
 	if (retval < 0)
 		goto err_free_c;
 	c->iface = iface;
@@ -455,7 +455,7 @@ static int comp_probe(struct most_interface *iface, int channel_id,
 	spin_lock_irqsave(&ch_list_lock, cl_flags);
 	list_add_tail(&c->list, &channel_list);
 	spin_unlock_irqrestore(&ch_list_lock, cl_flags);
-	c->dev = device_create(comp.class, NULL, c->devno, NULL, "%s", name);
+	c->dev = device_create(comp.class, NULL, c->devanal, NULL, "%s", name);
 
 	if (IS_ERR(c->dev)) {
 		retval = PTR_ERR(c->dev);
@@ -472,7 +472,7 @@ err_del_cdev_and_free_channel:
 err_free_c:
 	kfree(c);
 err_remove_ida:
-	ida_simple_remove(&comp.minor_id, current_minor);
+	ida_simple_remove(&comp.mianalr_id, current_mianalr);
 	return retval;
 }
 
@@ -495,12 +495,12 @@ static int __init most_cdev_init(void)
 	if (IS_ERR(comp.class))
 		return PTR_ERR(comp.class);
 
-	ida_init(&comp.minor_id);
+	ida_init(&comp.mianalr_id);
 
-	err = alloc_chrdev_region(&comp.devno, 0, CHRDEV_REGION_SIZE, "cdev");
+	err = alloc_chrdev_region(&comp.devanal, 0, CHRDEV_REGION_SIZE, "cdev");
 	if (err < 0)
 		goto dest_ida;
-	comp.major = MAJOR(comp.devno);
+	comp.major = MAJOR(comp.devanal);
 	err = most_register_component(&comp.cc);
 	if (err)
 		goto free_cdev;
@@ -512,9 +512,9 @@ static int __init most_cdev_init(void)
 deregister_comp:
 	most_deregister_component(&comp.cc);
 free_cdev:
-	unregister_chrdev_region(comp.devno, CHRDEV_REGION_SIZE);
+	unregister_chrdev_region(comp.devanal, CHRDEV_REGION_SIZE);
 dest_ida:
-	ida_destroy(&comp.minor_id);
+	ida_destroy(&comp.mianalr_id);
 	class_destroy(comp.class);
 	return err;
 }
@@ -530,8 +530,8 @@ static void __exit most_cdev_exit(void)
 		destroy_cdev(c);
 		destroy_channel(c);
 	}
-	unregister_chrdev_region(comp.devno, CHRDEV_REGION_SIZE);
-	ida_destroy(&comp.minor_id);
+	unregister_chrdev_region(comp.devanal, CHRDEV_REGION_SIZE);
+	ida_destroy(&comp.mianalr_id);
 	class_destroy(comp.class);
 }
 

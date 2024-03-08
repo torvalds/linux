@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C) Nokia Corporation
+ * Copyright (C) Analkia Corporation
  *
- * Written by Timo Kokkonen <timo.t.kokkonen at nokia.com>
+ * Written by Timo Kokkonen <timo.t.kokkonen at analkia.com>
  */
 
 #include <linux/module.h>
@@ -16,10 +16,10 @@
 
 #define TWL4030_WATCHDOG_CFG_REG_OFFS	0x3
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started "
-	"(default=" __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+static bool analwayout = WATCHDOG_ANALWAYOUT;
+module_param(analwayout, bool, 0);
+MODULE_PARM_DESC(analwayout, "Watchdog cananalt be stopped once started "
+	"(default=" __MODULE_STRING(WATCHDOG_ANALWAYOUT) ")");
 
 static int twl4030_wdt_write(unsigned char val)
 {
@@ -63,7 +63,7 @@ static int twl4030_wdt_probe(struct platform_device *pdev)
 
 	wdt = devm_kzalloc(dev, sizeof(*wdt), GFP_KERNEL);
 	if (!wdt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wdt->info		= &twl4030_wdt_info;
 	wdt->ops		= &twl4030_wdt_ops;
@@ -73,7 +73,7 @@ static int twl4030_wdt_probe(struct platform_device *pdev)
 	wdt->max_timeout	= 30;
 	wdt->parent = dev;
 
-	watchdog_set_nowayout(wdt, nowayout);
+	watchdog_set_analwayout(wdt, analwayout);
 	platform_set_drvdata(pdev, wdt);
 
 	twl4030_wdt_stop(wdt);
@@ -117,7 +117,7 @@ static struct platform_driver twl4030_wdt_driver = {
 
 module_platform_driver(twl4030_wdt_driver);
 
-MODULE_AUTHOR("Nokia Corporation");
+MODULE_AUTHOR("Analkia Corporation");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:twl4030_wdt");
 

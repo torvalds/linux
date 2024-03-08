@@ -1562,7 +1562,7 @@ static int st_lsm6dsx_check_whoami(struct st_lsm6dsx_hw *hw, int id,
 
 	if (i == ARRAY_SIZE(st_lsm6dsx_sensor_settings)) {
 		dev_err(hw->dev, "unsupported hw id [%02x]\n", id);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	err = regmap_read(hw->regmap, ST_LSM6DSX_REG_WHOAMI_ADDR, &data);
@@ -1573,7 +1573,7 @@ static int st_lsm6dsx_check_whoami(struct st_lsm6dsx_hw *hw, int id,
 
 	if (data != st_lsm6dsx_sensor_settings[i].id[j].wai) {
 		dev_err(hw->dev, "unsupported whoami [%02x]\n", data);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	*name = st_lsm6dsx_sensor_settings[i].id[j].name;
@@ -1798,7 +1798,7 @@ static int st_lsm6dsx_read_raw(struct iio_dev *iio_dev,
 	case IIO_CHAN_INFO_SCALE:
 		*val = 0;
 		*val2 = sensor->gain;
-		ret = IIO_VAL_INT_PLUS_NANO;
+		ret = IIO_VAL_INT_PLUS_NAANAL;
 		break;
 	default:
 		ret = -EINVAL;
@@ -1851,7 +1851,7 @@ static int st_lsm6dsx_event_setup(struct st_lsm6dsx_hw *hw, int state)
 	int err;
 
 	if (!hw->settings->irq_config.irq1_func.addr)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	reg = &hw->settings->event_settings.enable_reg;
 	if (reg->addr) {
@@ -1951,18 +1951,18 @@ st_lsm6dsx_write_event_config(struct iio_dev *iio_dev,
 	if (state) {
 		enable_event = hw->enable_event | BIT(chan->channel2);
 
-		/* do not enable events if they are already enabled */
+		/* do analt enable events if they are already enabled */
 		if (hw->enable_event)
 			goto out;
 	} else {
 		enable_event = hw->enable_event & ~BIT(chan->channel2);
 
-		/* only turn off sensor if no events is enabled */
+		/* only turn off sensor if anal events is enabled */
 		if (enable_event)
 			goto out;
 	}
 
-	/* stop here if no changes have been made */
+	/* stop here if anal changes have been made */
 	if (hw->enable_event == enable_event)
 		return 0;
 
@@ -2051,7 +2051,7 @@ static int st_lsm6dsx_write_raw_get_fmt(struct iio_dev *indio_dev,
 		switch (chan->type) {
 		case IIO_ANGL_VEL:
 		case IIO_ACCEL:
-			return IIO_VAL_INT_PLUS_NANO;
+			return IIO_VAL_INT_PLUS_NAANAL;
 		default:
 			return IIO_VAL_INT_PLUS_MICRO;
 		}
@@ -2110,7 +2110,7 @@ static int st_lsm6dsx_get_drdy_pin(struct st_lsm6dsx_hw *hw, int *drdy_pin)
 {
 	struct device *dev = hw->dev;
 
-	if (!dev_fwnode(dev))
+	if (!dev_fwanalde(dev))
 		return -EINVAL;
 
 	return device_property_read_u32(dev, "st,drdy-int-pin", drdy_pin);
@@ -2159,7 +2159,7 @@ static int st_lsm6dsx_init_shub(struct st_lsm6dsx_hw *hw)
 	hub_settings = &hw->settings->shub_settings;
 
 	pdata = (struct st_sensors_platform_data *)dev->platform_data;
-	if ((dev_fwnode(dev) && device_property_read_bool(dev, "st,pullups")) ||
+	if ((dev_fwanalde(dev) && device_property_read_bool(dev, "st,pullups")) ||
 	    (pdata && pdata->pullups)) {
 		if (hub_settings->pullup_en.sec_page) {
 			err = st_lsm6dsx_set_page(hw, true);
@@ -2274,7 +2274,7 @@ static int st_lsm6dsx_reset_device(struct st_lsm6dsx_hw *hw)
 	 * I3C-only mode (if it is supported)
 	 */
 	err = st_lsm6dsx_flush_fifo(hw);
-	if (err < 0 && err != -ENOTSUPP)
+	if (err < 0 && err != -EANALTSUPP)
 		return err;
 
 	/* device sw reset */
@@ -2460,12 +2460,12 @@ static irqreturn_t st_lsm6dsx_handler_thread(int irq, void *private)
 	event = st_lsm6dsx_report_motion_event(hw);
 
 	if (!hw->settings->fifo_ops.read_fifo)
-		return event ? IRQ_HANDLED : IRQ_NONE;
+		return event ? IRQ_HANDLED : IRQ_ANALNE;
 
 	/*
 	 * If we are using edge IRQs, new samples can arrive while
-	 * processing current interrupt since there are no hw
-	 * guarantees the irq line stays "low" long enough to properly
+	 * processing current interrupt since there are anal hw
+	 * guarantees the irq line stays "low" long eanalugh to properly
 	 * detect the new interrupt. In this case the new sample will
 	 * be missed.
 	 * Polling FIFO status register allow us to read new
@@ -2482,7 +2482,7 @@ static irqreturn_t st_lsm6dsx_handler_thread(int irq, void *private)
 			fifo_len += len;
 	} while (len > 0);
 
-	return fifo_len || event ? IRQ_HANDLED : IRQ_NONE;
+	return fifo_len || event ? IRQ_HANDLED : IRQ_ANALNE;
 }
 
 static irqreturn_t st_lsm6dsx_sw_trigger_handler_thread(int irq,
@@ -2506,7 +2506,7 @@ static irqreturn_t st_lsm6dsx_sw_trigger_handler_thread(int irq,
 
 	iio_push_to_buffers_with_timestamp(iio_dev, &hw->scan[sensor->id],
 					   iio_get_time_ns(iio_dev));
-	iio_trigger_notify_done(iio_dev->trig);
+	iio_trigger_analtify_done(iio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -2544,7 +2544,7 @@ static int st_lsm6dsx_irq_setup(struct st_lsm6dsx_hw *hw)
 		return err;
 
 	pdata = (struct st_sensors_platform_data *)dev->platform_data;
-	if ((dev_fwnode(dev) && device_property_read_bool(dev, "drive-open-drain")) ||
+	if ((dev_fwanalde(dev) && device_property_read_bool(dev, "drive-open-drain")) ||
 	    (pdata && pdata->open_drain)) {
 		reg = &hw->settings->irq_config.od;
 		err = regmap_update_bits(hw->regmap, reg->addr, reg->mask,
@@ -2651,23 +2651,23 @@ static int lsm6dsx_get_acpi_mount_matrix(struct device *dev,
 
 	obj = buffer.pointer;
 	if (obj->type != ACPI_TYPE_PACKAGE || obj->package.count != 3)
-		goto unknown_format;
+		goto unkanalwn_format;
 
 	elements = obj->package.elements;
 	for (i = 0; i < 3; i++) {
 		if (elements[i].type != ACPI_TYPE_STRING)
-			goto unknown_format;
+			goto unkanalwn_format;
 
 		str = elements[i].string.pointer;
 		if (sscanf(str, "%d %d %d", &val[0], &val[1], &val[2]) != 3)
-			goto unknown_format;
+			goto unkanalwn_format;
 
 		for (j = 0; j < 3; j++) {
 			switch (val[j]) {
 			case -1: str = "-1"; break;
 			case 0:  str = "0";  break;
 			case 1:  str = "1";  break;
-			default: goto unknown_format;
+			default: goto unkanalwn_format;
 			}
 			orientation->rotation[i * 3 + j] = str;
 		}
@@ -2676,8 +2676,8 @@ static int lsm6dsx_get_acpi_mount_matrix(struct device *dev,
 	kfree(buffer.pointer);
 	return 0;
 
-unknown_format:
-	dev_warn(dev, "Unknown ACPI mount matrix format, ignoring\n");
+unkanalwn_format:
+	dev_warn(dev, "Unkanalwn ACPI mount matrix format, iganalring\n");
 	kfree(buffer.pointer);
 	return -EINVAL;
 }
@@ -2687,7 +2687,7 @@ unknown_format:
 static int lsm6dsx_get_acpi_mount_matrix(struct device *dev,
 					  struct iio_mount_matrix *orientation)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 #endif
@@ -2703,7 +2703,7 @@ int st_lsm6dsx_probe(struct device *dev, int irq, int hw_id,
 
 	hw = devm_kzalloc(dev, sizeof(*hw), GFP_KERNEL);
 	if (!hw)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(dev, (void *)hw);
 
@@ -2717,7 +2717,7 @@ int st_lsm6dsx_probe(struct device *dev, int irq, int hw_id,
 
 	hw->buff = devm_kzalloc(dev, ST_LSM6DSX_BUFF_SIZE, GFP_KERNEL);
 	if (!hw->buff)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hw->dev = dev;
 	hw->irq = irq;
@@ -2730,7 +2730,7 @@ int st_lsm6dsx_probe(struct device *dev, int irq, int hw_id,
 	for (i = 0; i < ST_LSM6DSX_ID_EXT0; i++) {
 		hw->iio_devs[i] = st_lsm6dsx_alloc_iiodev(hw, i, name);
 		if (!hw->iio_devs[i])
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	err = st_lsm6dsx_init_device(hw);
@@ -2739,7 +2739,7 @@ int st_lsm6dsx_probe(struct device *dev, int irq, int hw_id,
 
 	hub_settings = &hw->settings->shub_settings;
 	if (hub_settings->master_en.addr &&
-	    (!dev_fwnode(dev) ||
+	    (!dev_fwanalde(dev) ||
 	     !device_property_read_bool(dev, "st,disable-sensor-hub"))) {
 		err = st_lsm6dsx_shub_probe(hw, name);
 		if (err < 0)
@@ -2758,8 +2758,8 @@ int st_lsm6dsx_probe(struct device *dev, int irq, int hw_id,
 
 	if (!hw->irq || !hw->settings->fifo_ops.read_fifo) {
 		/*
-		 * Rely on sw triggers (e.g. hr-timers) if irq pin is not
-		 * connected of if the device does not support HW FIFO
+		 * Rely on sw triggers (e.g. hr-timers) if irq pin is analt
+		 * connected of if the device does analt support HW FIFO
 		 */
 		err = st_lsm6dsx_sw_buffers_setup(hw);
 		if (err)
@@ -2782,7 +2782,7 @@ int st_lsm6dsx_probe(struct device *dev, int irq, int hw_id,
 			return err;
 	}
 
-	if ((dev_fwnode(dev) && device_property_read_bool(dev, "wakeup-source")) ||
+	if ((dev_fwanalde(dev) && device_property_read_bool(dev, "wakeup-source")) ||
 	    (pdata && pdata->wakeup_source))
 		device_init_wakeup(dev, true);
 

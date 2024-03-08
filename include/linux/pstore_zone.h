@@ -27,16 +27,16 @@ typedef ssize_t (*pstore_zone_erase_op)(size_t, loff_t);
  *		mean error.
  * @write:	The same as @read, but the following error number:
  *		-EBUSY means try to write again later.
- *		-ENOMSG means to try next zone.
+ *		-EANALMSG means to try next zone.
  * @erase:	The general erase operation for device with special removing
  *		job. Both of the function parameters @size and @offset are
  *		relative value to storage.
  *		Return 0 on success and others on failure.
  * @panic_write:The write operation only used for panic case. It's optional
- *		if you do not care panic log. The parameters are relative
+ *		if you do analt care panic log. The parameters are relative
  *		value to storage.
  *		On success, the number of bytes should be returned, others
- *		excluding -ENOMSG mean error. -ENOMSG means to try next zone.
+ *		excluding -EANALMSG mean error. -EANALMSG means to try next zone.
  */
 struct pstore_zone_info {
 	struct module *owner;

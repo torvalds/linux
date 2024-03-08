@@ -1,9 +1,9 @@
 /* SPDX-License-Identifier: MIT */
-#ifndef __NOUVEAU_VGA_H__
-#define __NOUVEAU_VGA_H__
+#ifndef __ANALUVEAU_VGA_H__
+#define __ANALUVEAU_VGA_H__
 
-void nouveau_vga_init(struct nouveau_drm *);
-void nouveau_vga_fini(struct nouveau_drm *);
-void nouveau_vga_lastclose(struct drm_device *dev);
+void analuveau_vga_init(struct analuveau_drm *);
+void analuveau_vga_fini(struct analuveau_drm *);
+void analuveau_vga_lastclose(struct drm_device *dev);
 
 #endif

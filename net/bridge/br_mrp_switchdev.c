@@ -15,14 +15,14 @@ br_mrp_switchdev_port_obj(struct net_bridge *br,
 	else
 		err = switchdev_port_obj_del(br->dev, obj);
 
-	/* In case of success just return and notify the SW that doesn't need
+	/* In case of success just return and analtify the SW that doesn't need
 	 * to do anything
 	 */
 	if (!err)
 		return BR_MRP_HW;
 
-	if (err != -EOPNOTSUPP)
-		return BR_MRP_NONE;
+	if (err != -EOPANALTSUPP)
+		return BR_MRP_ANALNE;
 
 	/* Continue with SW backup */
 	return BR_MRP_SW;
@@ -95,7 +95,7 @@ br_mrp_switchdev_set_ring_role(struct net_bridge *br, struct br_mrp *mrp,
 	if (!err)
 		return BR_MRP_SW;
 
-	return BR_MRP_NONE;
+	return BR_MRP_ANALNE;
 }
 
 enum br_mrp_hw_support
@@ -158,7 +158,7 @@ br_mrp_switchdev_set_in_role(struct net_bridge *br, struct br_mrp *mrp,
 
 	support = br_mrp_switchdev_port_obj(br, &mrp_role.obj,
 					    role != BR_MRP_IN_ROLE_DISABLED);
-	if (support != BR_MRP_NONE)
+	if (support != BR_MRP_ANALNE)
 		return support;
 
 	/* If the driver can't configure to run completely the protocol in HW,
@@ -173,7 +173,7 @@ br_mrp_switchdev_set_in_role(struct net_bridge *br, struct br_mrp *mrp,
 	if (!err)
 		return BR_MRP_SW;
 
-	return BR_MRP_NONE;
+	return BR_MRP_ANALNE;
 }
 
 int br_mrp_switchdev_set_in_state(struct net_bridge *br, struct br_mrp *mrp,

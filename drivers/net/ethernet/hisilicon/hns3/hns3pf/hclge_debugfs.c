@@ -203,7 +203,7 @@ hclge_dbg_dump_reg_tqp(struct hclge_dev *hdev,
 
 	desc_src = kcalloc(bd_num, sizeof(struct hclge_desc), GFP_KERNEL);
 	if (!desc_src)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	min_num = min_t(int, bd_num * HCLGE_DESC_DATA_LEN, reg_msg->msg_num);
 
@@ -257,7 +257,7 @@ hclge_dbg_dump_reg_common(struct hclge_dev *hdev,
 
 	desc_src = kcalloc(bd_num, sizeof(struct hclge_desc), GFP_KERNEL);
 	if (!desc_src)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	desc = desc_src;
 
@@ -672,7 +672,7 @@ static int hclge_dbg_dump_tc(struct hclge_dev *hdev, char *buf, int len)
 	if (!hnae3_dev_dcb_supported(hdev)) {
 		dev_err(&hdev->pdev->dev,
 			"Only DCB-supported dev supports tc\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_ETS_TC_WEIGHT, true);
@@ -805,7 +805,7 @@ static int hclge_dbg_dump_tm_pg(struct hclge_dev *hdev, char *buf, int len)
 	data_str = kcalloc(ARRAY_SIZE(tm_pg_items),
 			   HCLGE_DBG_DATA_STR_LEN, GFP_KERNEL);
 	if (!data_str)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = __hclge_dbg_dump_tm_pg(hdev, data_str, buf, len);
 
@@ -927,34 +927,34 @@ static int hclge_dbg_dump_tm_map(struct hclge_dev *hdev, char *buf, int len)
 	return 0;
 }
 
-static int hclge_dbg_dump_tm_nodes(struct hclge_dev *hdev, char *buf, int len)
+static int hclge_dbg_dump_tm_analdes(struct hclge_dev *hdev, char *buf, int len)
 {
-	struct hclge_tm_nodes_cmd *nodes;
+	struct hclge_tm_analdes_cmd *analdes;
 	struct hclge_desc desc;
 	int pos = 0;
 	int ret;
 
-	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_TM_NODES, true);
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_TM_ANALDES, true);
 	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
 	if (ret) {
 		dev_err(&hdev->pdev->dev,
-			"failed to dump tm nodes, ret = %d\n", ret);
+			"failed to dump tm analdes, ret = %d\n", ret);
 		return ret;
 	}
 
-	nodes = (struct hclge_tm_nodes_cmd *)desc.data;
+	analdes = (struct hclge_tm_analdes_cmd *)desc.data;
 
 	pos += scnprintf(buf + pos, len - pos, "       BASE_ID  MAX_NUM\n");
 	pos += scnprintf(buf + pos, len - pos, "PG      %4u      %4u\n",
-			 nodes->pg_base_id, nodes->pg_num);
+			 analdes->pg_base_id, analdes->pg_num);
 	pos += scnprintf(buf + pos, len - pos, "PRI     %4u      %4u\n",
-			 nodes->pri_base_id, nodes->pri_num);
+			 analdes->pri_base_id, analdes->pri_num);
 	pos += scnprintf(buf + pos, len - pos, "QSET    %4u      %4u\n",
-			 le16_to_cpu(nodes->qset_base_id),
-			 le16_to_cpu(nodes->qset_num));
+			 le16_to_cpu(analdes->qset_base_id),
+			 le16_to_cpu(analdes->qset_num));
 	pos += scnprintf(buf + pos, len - pos, "QUEUE   %4u      %4u\n",
-			 le16_to_cpu(nodes->queue_base_id),
-			 le16_to_cpu(nodes->queue_num));
+			 le16_to_cpu(analdes->queue_base_id),
+			 le16_to_cpu(analdes->queue_num));
 
 	return 0;
 }
@@ -995,7 +995,7 @@ static int hclge_dbg_dump_tm_pri(struct hclge_dev *hdev, char *buf, int len)
 	data_str = kcalloc(ARRAY_SIZE(tm_pri_items), HCLGE_DBG_DATA_STR_LEN,
 			   GFP_KERNEL);
 	if (!data_str)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < ARRAY_SIZE(tm_pri_items); i++)
 		result[i] = &data_str[i * HCLGE_DBG_DATA_STR_LEN];
@@ -1574,11 +1574,11 @@ static int hclge_dbg_fd_tcam_read(struct hclge_dev *hdev, bool sel_x,
 static int hclge_dbg_get_rules_location(struct hclge_dev *hdev, u16 *rule_locs)
 {
 	struct hclge_fd_rule *rule;
-	struct hlist_node *node;
+	struct hlist_analde *analde;
 	int cnt = 0;
 
 	spin_lock_bh(&hdev->fd_rule_lock);
-	hlist_for_each_entry_safe(rule, node, &hdev->fd_rule_list, rule_node) {
+	hlist_for_each_entry_safe(rule, analde, &hdev->fd_rule_list, rule_analde) {
 		rule_locs[cnt] = rule->location;
 		cnt++;
 	}
@@ -1602,7 +1602,7 @@ static int hclge_dbg_dump_fd_tcam(struct hclge_dev *hdev, char *buf, int len)
 	if (!hnae3_ae_dev_fd_supported(hdev->ae_dev)) {
 		dev_err(&hdev->pdev->dev,
 			"Only FD-supported dev supports dump fd tcam\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (!hdev->hclge_fd_rule_num || !rule_num)
@@ -1610,12 +1610,12 @@ static int hclge_dbg_dump_fd_tcam(struct hclge_dev *hdev, char *buf, int len)
 
 	rule_locs = kcalloc(rule_num, sizeof(u16), GFP_KERNEL);
 	if (!rule_locs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tcam_buf = kzalloc(HCLGE_DBG_TCAM_BUF_SIZE, GFP_KERNEL);
 	if (!tcam_buf) {
 		kfree(rule_locs);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	rule_cnt = hclge_dbg_get_rules_location(hdev, rule_locs);
@@ -1668,7 +1668,7 @@ static int hclge_dbg_dump_fd_counter(struct hclge_dev *hdev, char *buf, int len)
 	u8 i;
 
 	if (!hnae3_ae_dev_fd_supported(hdev->ae_dev))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	pos += scnprintf(buf + pos, len - pos,
 			 "func_id\thit_times\n");
@@ -1744,7 +1744,7 @@ static int hclge_dbg_dump_serv_info(struct hclge_dev *hdev, char *buf, int len)
 	u64 lc;
 
 	lc = local_clock();
-	rem_nsec = do_div(lc, HCLGE_BILLION_NANO_SECONDS);
+	rem_nsec = do_div(lc, HCLGE_BILLION_NAANAL_SECONDS);
 
 	pos += scnprintf(buf + pos, len - pos, "local_clock: [%5lu.%06lu]\n",
 			 (unsigned long)lc, rem_nsec / 1000);
@@ -1830,7 +1830,7 @@ hclge_dbg_get_imp_stats_info(struct hclge_dev *hdev, char *buf, int len)
 
 	desc_src = kcalloc(bd_num, sizeof(struct hclge_desc), GFP_KERNEL);
 	if (!desc_src)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret  = hclge_dbg_cmd_send(hdev, desc_src, 0, bd_num,
 				  HCLGE_OPC_IMP_STATS_INFO);
@@ -1983,7 +1983,7 @@ hclge_dbg_dump_mac_tnl_status(struct hclge_dev *hdev, char *buf, int len)
 			 "Recently generated mac tnl interruption:\n");
 
 	while (kfifo_get(&hdev->mac_tnl_log, &stats)) {
-		rem_nsec = do_div(stats.time, HCLGE_BILLION_NANO_SECONDS);
+		rem_nsec = do_div(stats.time, HCLGE_BILLION_NAANAL_SECONDS);
 
 		pos += scnprintf(buf + pos, len - pos,
 				 "[%07lu.%03lu] status = 0x%x\n",
@@ -2007,7 +2007,7 @@ static void hclge_dbg_dump_mac_list(struct hclge_dev *hdev, char *buf, int len,
 	char data_str[ARRAY_SIZE(mac_list_items)][HCLGE_DBG_DATA_STR_LEN];
 	char content[HCLGE_DBG_INFO_LEN], str_id[HCLGE_DBG_ID_LEN];
 	char *result[ARRAY_SIZE(mac_list_items)];
-	struct hclge_mac_node *mac_node, *tmp;
+	struct hclge_mac_analde *mac_analde, *tmp;
 	struct hclge_vport *vport;
 	struct list_head *list;
 	u32 func_id;
@@ -2027,13 +2027,13 @@ static void hclge_dbg_dump_mac_list(struct hclge_dev *hdev, char *buf, int len,
 		vport = &hdev->vport[func_id];
 		list = is_unicast ? &vport->uc_mac_list : &vport->mc_mac_list;
 		spin_lock_bh(&vport->mac_list_lock);
-		list_for_each_entry_safe(mac_node, tmp, list, node) {
+		list_for_each_entry_safe(mac_analde, tmp, list, analde) {
 			i = 0;
 			result[i++] = hclge_dbg_get_func_id_str(str_id,
 								func_id);
-			sprintf(result[i++], "%pM", mac_node->mac_addr);
+			sprintf(result[i++], "%pM", mac_analde->mac_addr);
 			sprintf(result[i++], "%5s",
-				hclge_mac_state_str[mac_node->state]);
+				hclge_mac_state_str[mac_analde->state]);
 			hclge_dbg_fill_content(content, sizeof(content),
 					       mac_list_items,
 					       (const char **)result,
@@ -2370,13 +2370,13 @@ static int hclge_dbg_dump_ptp_info(struct hclge_dev *hdev, char *buf, int len)
 			 ptp->info.name);
 	pos += scnprintf(buf + pos, len - pos, "ptp enable: %s\n",
 			 test_bit(HCLGE_PTP_FLAG_EN, &ptp->flags) ?
-			 "yes" : "no");
+			 "anal" : "anal");
 	pos += scnprintf(buf + pos, len - pos, "ptp tx enable: %s\n",
 			 test_bit(HCLGE_PTP_FLAG_TX_EN, &ptp->flags) ?
-			 "yes" : "no");
+			 "anal" : "anal");
 	pos += scnprintf(buf + pos, len - pos, "ptp rx enable: %s\n",
 			 test_bit(HCLGE_PTP_FLAG_RX_EN, &ptp->flags) ?
-			 "yes" : "no");
+			 "anal" : "anal");
 
 	last_rx = jiffies_to_msecs(ptp->last_rx);
 	pos += scnprintf(buf + pos, len - pos, "last rx time: %lu.%lu\n",
@@ -2423,8 +2423,8 @@ static int hclge_dbg_dump_mac_mc(struct hclge_dev *hdev, char *buf, int len)
 
 static const struct hclge_dbg_func hclge_dbg_cmd_func[] = {
 	{
-		.cmd = HNAE3_DBG_CMD_TM_NODES,
-		.dbg_dump = hclge_dbg_dump_tm_nodes,
+		.cmd = HNAE3_DBG_CMD_TM_ANALDES,
+		.dbg_dump = hclge_dbg_dump_tm_analdes,
 	},
 	{
 		.cmd = HNAE3_DBG_CMD_TM_PRI,

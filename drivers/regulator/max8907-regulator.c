@@ -220,22 +220,22 @@ static struct of_regulator_match max8907_matches[] = {
 
 static int max8907_regulator_parse_dt(struct platform_device *pdev)
 {
-	struct device_node *np, *regulators;
+	struct device_analde *np, *regulators;
 	int ret;
 
-	np = pdev->dev.parent->of_node;
+	np = pdev->dev.parent->of_analde;
 	if (!np)
 		return 0;
 
 	regulators = of_get_child_by_name(np, "regulators");
 	if (!regulators) {
-		dev_err(&pdev->dev, "regulators node not found\n");
+		dev_err(&pdev->dev, "regulators analde analt found\n");
 		return -EINVAL;
 	}
 
 	ret = of_regulator_match(&pdev->dev, regulators, max8907_matches,
 				 ARRAY_SIZE(max8907_matches));
-	of_node_put(regulators);
+	of_analde_put(regulators);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Error parsing regulator init data: %d\n",
 			ret);
@@ -250,9 +250,9 @@ static inline struct regulator_init_data *match_init_data(int index)
 	return max8907_matches[index].init_data;
 }
 
-static inline struct device_node *match_of_node(int index)
+static inline struct device_analde *match_of_analde(int index)
 {
-	return max8907_matches[index].of_node;
+	return max8907_matches[index].of_analde;
 }
 #else
 static int max8907_regulator_parse_dt(struct platform_device *pdev)
@@ -265,7 +265,7 @@ static inline struct regulator_init_data *match_init_data(int index)
 	return NULL;
 }
 
-static inline struct device_node *match_of_node(int index)
+static inline struct device_analde *match_of_analde(int index)
 {
 	return NULL;
 }
@@ -289,7 +289,7 @@ static int max8907_regulator_probe(struct platform_device *pdev)
 
 	pmic = devm_kzalloc(&pdev->dev, sizeof(*pmic), GFP_KERNEL);
 	if (!pmic)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, pmic);
 
@@ -319,7 +319,7 @@ static int max8907_regulator_probe(struct platform_device *pdev)
 		config.init_data = idata;
 		config.driver_data = pmic;
 		config.regmap = max8907->regmap_gen;
-		config.of_node = match_of_node(i);
+		config.of_analde = match_of_analde(i);
 
 		switch (pmic->desc[i].id) {
 		case MAX8907_MBATT:
@@ -372,7 +372,7 @@ static int max8907_regulator_probe(struct platform_device *pdev)
 static struct platform_driver max8907_regulator_driver = {
 	.driver = {
 		   .name = "max8907-regulator",
-		   .probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		   .probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		   },
 	.probe = max8907_regulator_probe,
 };

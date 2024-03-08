@@ -17,7 +17,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if analt, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110,
  * USA
  *
@@ -38,21 +38,21 @@
  * are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    analtice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    analtice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
+ *  * Neither the name Intel Corporation analr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT
  * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT
  * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
  * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
@@ -72,12 +72,12 @@
  *
  * Use _il_wr() and _il_rd() family to access these registers;
  * these provide simple PCI bus access, without waking up the MAC.
- * Do not use il_wr() family for these registers;
- * no need to "grab nic access" via CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ.
- * The MAC (uCode processor, etc.) does not need to be powered up for accessing
+ * Do analt use il_wr() family for these registers;
+ * anal need to "grab nic access" via CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ.
+ * The MAC (uCode processor, etc.) does analt need to be powered up for accessing
  * the CSR registers.
  *
- * NOTE:  Device does need to be awake in order to read this memory
+ * ANALTE:  Device does need to be awake in order to read this memory
  *        via CSR_EEPROM register
  */
 #define CSR_BASE    (0x000)
@@ -91,7 +91,7 @@
 #define CSR_RESET               (CSR_BASE+0x020)	/* busmaster enable, NMI, etc */
 #define CSR_GP_CNTRL            (CSR_BASE+0x024)
 
-/* 2nd byte of CSR_INT_COALESCING, not accessible via _il_wr()! */
+/* 2nd byte of CSR_INT_COALESCING, analt accessible via _il_wr()! */
 #define CSR_INT_PERIODIC_REG	(CSR_BASE+0x005)
 
 /*
@@ -102,15 +102,15 @@
  *  3-2:  Revision step:  0 = A, 1 = B, 2 = C, 3 = D
  *  1-0:  "Dash" (-) value, as in A-1, etc.
  *
- * NOTE:  Revision step affects calculation of CCK txpower for 4965.
- * NOTE:  See also CSR_HW_REV_WA_REG (work-around for bug in 4965).
+ * ANALTE:  Revision step affects calculation of CCK txpower for 4965.
+ * ANALTE:  See also CSR_HW_REV_WA_REG (work-around for bug in 4965).
  */
 #define CSR_HW_REV              (CSR_BASE+0x028)
 
 /*
  * EEPROM memory reads
  *
- * NOTE:  Device must be awake, initialized via apm_ops.init(),
+ * ANALTE:  Device must be awake, initialized via apm_ops.init(),
  *        in order to read.
  */
 #define CSR_EEPROM_REG          (CSR_BASE+0x02c)
@@ -174,7 +174,7 @@
 #define CSR_INT_PERIODIC_ENA			(0xFF)	/* 255*32 usec ~ 8 msec */
 
 /* interrupt flags in INTA, set by uCode or hardware (e.g. dma),
- * acknowledged (reset) by host writing "1" to flagged bits. */
+ * ackanalwledged (reset) by host writing "1" to flagged bits. */
 #define CSR_INT_BIT_FH_RX        (1 << 31)	/* Rx DMA, cmd responses, FH_INT[17:16] */
 #define CSR_INT_BIT_HW_ERR       (1 << 29)	/* DMA hardware error FH_INT[31] */
 #define CSR_INT_BIT_RX_PERIODIC	 (1 << 28)	/* Rx periodic */
@@ -242,7 +242,7 @@
  *         Indicates state of (platform's) hardware RF-Kill switch
  * 26-24:  POWER_SAVE_TYPE
  *         Indicates current power-saving mode:
- *         000 -- No power saving
+ *         000 -- Anal power saving
  *         001 -- MAC power-down
  *         010 -- PHY (radio) power-down
  *         011 -- Error
@@ -251,11 +251,11 @@
  *         as forced high/low by device circuit board.
  *     4:  GOING_TO_SLEEP
  *         Indicates MAC is entering a power-saving sleep power-down.
- *         Not a good time to access device-internal resources.
+ *         Analt a good time to access device-internal resources.
  *     3:  MAC_ACCESS_REQ
  *         Host sets this to request and maintain MAC wakeup, to allow host
  *         access to device-internal resources.  Host must wait for
- *         MAC_CLOCK_READY (and !GOING_TO_SLEEP) before accessing non-CSR
+ *         MAC_CLOCK_READY (and !GOING_TO_SLEEP) before accessing analn-CSR
  *         device registers.
  *     2:  INIT_DONE
  *         Host sets this to put device into fully operational D0 power mode.
@@ -263,14 +263,14 @@
  *     0:  MAC_CLOCK_READY
  *         Indicates MAC (ucode processor, etc.) is powered up and can run.
  *         Internal resources are accessible.
- *         NOTE:  This does not indicate that the processor is actually running.
- *         NOTE:  This does not indicate that 4965 or 3945 has completed
+ *         ANALTE:  This does analt indicate that the processor is actually running.
+ *         ANALTE:  This does analt indicate that 4965 or 3945 has completed
  *                init or post-power-down restore of internal SRAM memory.
  *                Use CSR_UCODE_DRV_GP1_BIT_MAC_SLEEP as indication that
- *                SRAM is restored and uCode is in normal operation mode.
- *                Later devices (5xxx/6xxx/1xxx) use non-volatile SRAM, and
- *                do not need to save/restore it.
- *         NOTE:  After device reset, this bit remains "0" until host sets
+ *                SRAM is restored and uCode is in analrmal operation mode.
+ *                Later devices (5xxx/6xxx/1xxx) use analn-volatile SRAM, and
+ *                do analt need to save/restore it.
+ *         ANALTE:  After device reset, this bit remains "0" until host sets
  *                INIT_DONE
  */
 #define CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY        (0x00000001)
@@ -298,7 +298,7 @@
 
 /* GP REG */
 #define CSR_GP_REG_POWER_SAVE_STATUS_MSK            (0x03000000)	/* bit 24/25 */
-#define CSR_GP_REG_NO_POWER_SAVE            (0x00000000)
+#define CSR_GP_REG_ANAL_POWER_SAVE            (0x00000000)
 #define CSR_GP_REG_MAC_POWER_SAVE           (0x01000000)
 #define CSR_GP_REG_PHY_POWER_SAVE           (0x02000000)
 #define CSR_GP_REG_POWER_SAVE_ERROR         (0x03000000)
@@ -316,23 +316,23 @@
  *         sending CARD_STATE command with "halt" bit set.
  *     3:  CT_KILL_EXIT
  *         Host sets this to request exit from CT_KILL state, i.e. host thinks
- *         device temperature is low enough to continue normal operation.
+ *         device temperature is low eanalugh to continue analrmal operation.
  *     2:  CMD_BLOCKED
  *         Host sets this during RF KILL power-down sequence (HW, SW, CT KILL)
  *         to release uCode to clear all Tx and command queues, enter
  *         unassociated mode, and power down.
- *         NOTE:  Some devices also use HBUS_TARG_MBX_C register for this bit.
+ *         ANALTE:  Some devices also use HBUS_TARG_MBX_C register for this bit.
  *     1:  SW_BIT_RFKILL
  *         Host sets this when issuing CARD_STATE command to request
  *         device sleep.
  *     0:  MAC_SLEEP
  *         uCode sets this when preparing a power-saving power-down.
  *         uCode resets this when power-up is complete and SRAM is sane.
- *         NOTE:  3945/4965 saves internal SRAM data to host when powering down,
+ *         ANALTE:  3945/4965 saves internal SRAM data to host when powering down,
  *                and must restore this data after powering back up.
  *                MAC_SLEEP is the best indication that restore is complete.
- *                Later devices (5xxx/6xxx/1xxx) use non-volatile SRAM, and
- *                do not need to save/restore it.
+ *                Later devices (5xxx/6xxx/1xxx) use analn-volatile SRAM, and
+ *                do analt need to save/restore it.
  */
 #define CSR_UCODE_DRV_GP1_BIT_MAC_SLEEP             (0x00000001)
 #define CSR_UCODE_SW_BIT_RFKILL                     (0x00000002)
@@ -340,7 +340,7 @@
 #define CSR_UCODE_DRV_GP1_REG_BIT_CT_KILL_EXIT      (0x00000008)
 
 /* GIO Chicken Bits (PCI Express bus link power management) */
-#define CSR_GIO_CHICKEN_BITS_REG_BIT_L1A_NO_L0S_RX  (0x00800000)
+#define CSR_GIO_CHICKEN_BITS_REG_BIT_L1A_ANAL_L0S_RX  (0x00800000)
 #define CSR_GIO_CHICKEN_BITS_REG_BIT_DIS_L0S_EXIT_TIMER  (0x20000000)
 
 /* LED */
@@ -371,7 +371,7 @@
  * to make sure the MAC (uCode processor, etc.) is powered up for accessing
  * internal resources.
  *
- * Do not use _il_wr()/_il_rd() family to access these registers;
+ * Do analt use _il_wr()/_il_rd() family to access these registers;
  * these provide only simple PCI bus access, without waking up the MAC.
  */
 #define HBUS_BASE	(0x400)

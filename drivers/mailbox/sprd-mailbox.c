@@ -48,7 +48,7 @@
 #define SPRD_INBOX_FIFO_IRQ_MASK		GENMASK(2, 0)
 
 /* Bit and mask definition for outbox's SPRD_MBOX_IRQ_MSK register */
-#define SPRD_OUTBOX_FIFO_NOT_EMPTY_IRQ		BIT(0)
+#define SPRD_OUTBOX_FIFO_ANALT_EMPTY_IRQ		BIT(0)
 #define SPRD_OUTBOX_FIFO_IRQ_MASK		GENMASK(4, 0)
 
 #define SPRD_OUTBOX_BASE_SPAN			0x1000
@@ -112,7 +112,7 @@ static irqreturn_t do_outbox_isr(void __iomem *base, struct sprd_mbox_priv *priv
 	fifo_len = sprd_mbox_get_fifo_len(priv, fifo_sts);
 	if (!fifo_len) {
 		dev_warn_ratelimited(priv->dev, "spurious outbox interrupt\n");
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	for (i = 0; i < fifo_len; i++) {
@@ -164,7 +164,7 @@ static irqreturn_t sprd_mbox_inbox_isr(int irq, void *data)
 		SPRD_INBOX_FIFO_DELIVER_SHIFT;
 	if (!send_sts) {
 		dev_warn_ratelimited(priv->dev, "spurious inbox interrupt\n");
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	while (send_sts) {
@@ -174,7 +174,7 @@ static irqreturn_t sprd_mbox_inbox_isr(int irq, void *data)
 		chan = &priv->chan[id];
 
 		/*
-		 * Check if the message was fetched by remote target, if yes,
+		 * Check if the message was fetched by remote target, if anal,
 		 * that means the transmission has been completed.
 		 */
 		busy = fifo_sts & SPRD_INBOX_FIFO_BUSY_MASK;
@@ -249,16 +249,16 @@ static int sprd_mbox_startup(struct mbox_chan *chan)
 		val &= ~(SPRD_INBOX_FIFO_OVERFLOW_IRQ | SPRD_INBOX_FIFO_DELIVER_IRQ);
 		writel(val, priv->inbox_base + SPRD_MBOX_IRQ_MSK);
 
-		/* Enable outbox FIFO not empty interrupt */
+		/* Enable outbox FIFO analt empty interrupt */
 		val = readl(priv->outbox_base + SPRD_MBOX_IRQ_MSK);
-		val &= ~SPRD_OUTBOX_FIFO_NOT_EMPTY_IRQ;
+		val &= ~SPRD_OUTBOX_FIFO_ANALT_EMPTY_IRQ;
 		writel(val, priv->outbox_base + SPRD_MBOX_IRQ_MSK);
 
 		/* Enable supplementary outbox as the fundamental one */
 		if (priv->supp_base) {
 			writel(0x0, priv->supp_base + SPRD_MBOX_FIFO_RST);
 			val = readl(priv->supp_base + SPRD_MBOX_IRQ_MSK);
-			val &= ~SPRD_OUTBOX_FIFO_NOT_EMPTY_IRQ;
+			val &= ~SPRD_OUTBOX_FIFO_ANALT_EMPTY_IRQ;
 			writel(val, priv->supp_base + SPRD_MBOX_IRQ_MSK);
 		}
 	}
@@ -307,7 +307,7 @@ static int sprd_mbox_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->dev = dev;
 	mutex_init(&priv->lock);
@@ -352,7 +352,7 @@ static int sprd_mbox_probe(struct platform_device *pdev)
 		return inbox_irq;
 
 	ret = devm_request_irq(dev, inbox_irq, sprd_mbox_inbox_isr,
-			       IRQF_NO_SUSPEND, dev_name(dev), priv);
+			       IRQF_ANAL_SUSPEND, dev_name(dev), priv);
 	if (ret) {
 		dev_err(dev, "failed to request inbox IRQ: %d\n", ret);
 		return ret;
@@ -363,7 +363,7 @@ static int sprd_mbox_probe(struct platform_device *pdev)
 		return outbox_irq;
 
 	ret = devm_request_irq(dev, outbox_irq, sprd_mbox_outbox_isr,
-			       IRQF_NO_SUSPEND, dev_name(dev), priv);
+			       IRQF_ANAL_SUSPEND, dev_name(dev), priv);
 	if (ret) {
 		dev_err(dev, "failed to request outbox IRQ: %d\n", ret);
 		return ret;
@@ -373,7 +373,7 @@ static int sprd_mbox_probe(struct platform_device *pdev)
 	supp_irq = platform_get_irq_byname(pdev, "supp-outbox");
 	if (supp_irq > 0) {
 		ret = devm_request_irq(dev, supp_irq, sprd_mbox_supp_isr,
-				       IRQF_NO_SUSPEND, dev_name(dev), priv);
+				       IRQF_ANAL_SUSPEND, dev_name(dev), priv);
 		if (ret) {
 			dev_err(dev, "failed to request outbox IRQ: %d\n", ret);
 			return ret;
@@ -381,8 +381,8 @@ static int sprd_mbox_probe(struct platform_device *pdev)
 
 		supp = (unsigned long) of_device_get_match_data(dev);
 		if (!supp) {
-			dev_err(dev, "no supplementary outbox specified\n");
-			return -ENODEV;
+			dev_err(dev, "anal supplementary outbox specified\n");
+			return -EANALDEV;
 		}
 		priv->supp_base = priv->outbox_base + (SPRD_OUTBOX_BASE_SPAN * supp);
 	}

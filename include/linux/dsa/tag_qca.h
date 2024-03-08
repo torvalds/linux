@@ -18,7 +18,7 @@ struct sk_buff;
 #define QCA_HDR_RECV_SOURCE_PORT	GENMASK(2, 0)
 
 /* Packet type for recv */
-#define QCA_HDR_RECV_TYPE_NORMAL	0x0
+#define QCA_HDR_RECV_TYPE_ANALRMAL	0x0
 #define QCA_HDR_RECV_TYPE_MIB		0x1
 #define QCA_HDR_RECV_TYPE_RW_REG_ACK	0x2
 
@@ -29,10 +29,10 @@ struct sk_buff;
 #define QCA_HDR_XMIT_DP_BIT		GENMASK(6, 0)
 
 /* Packet type for xmit */
-#define QCA_HDR_XMIT_TYPE_NORMAL	0x0
+#define QCA_HDR_XMIT_TYPE_ANALRMAL	0x0
 #define QCA_HDR_XMIT_TYPE_RW_REG	0x1
 
-/* Check code for a valid mgmt packet. Switch will ignore the packet
+/* Check code for a valid mgmt packet. Switch will iganalre the packet
  * with this wrong.
  */
 #define QCA_HDR_MGMT_CHECK_CODE_VAL	0x5

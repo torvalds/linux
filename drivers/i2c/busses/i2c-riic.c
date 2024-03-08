@@ -21,7 +21,7 @@
  * the message as completed (includes sending STOP) there.
  *
  * 3b) Read case: We switch over to receive interrupt (RIE). One dummy read is
- * needed to start clocking, then we keep receiving until we are done. Note
+ * needed to start clocking, then we keep receiving until we are done. Analte
  * that we use the RDRFS mode all the time, i.e. we ACK/NACK every byte by
  * writing to the ACKBT bit. I tried using the RDRFS mode only at the end of a
  * message to create the final NACK as sketched in the datasheet. This caused
@@ -161,7 +161,7 @@ static irqreturn_t riic_tdre_isr(int irq, void *data)
 	u8 val;
 
 	if (!riic->bytes_left)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (riic->bytes_left == RIIC_INIT_MSG) {
 		if (riic->msg->flags & I2C_M_RD)
@@ -187,7 +187,7 @@ static irqreturn_t riic_tdre_isr(int irq, void *data)
 		riic_clear_set_bit(riic, ICIER_TIE, ICIER_TEIE, RIIC_ICIER);
 
 	/*
-	 * This acks the TIE interrupt. We get another TIE immediately if our
+	 * This acks the TIE interrupt. We get aanalther TIE immediately if our
 	 * value could be moved to the shadow shift register right away. So
 	 * this must be after updates to ICIER (where we want to disable TIE)!
 	 */
@@ -206,14 +206,14 @@ static irqreturn_t riic_tend_isr(int irq, void *data)
 		riic_clear_set_bit(riic, ICSR2_NACKF, 0, RIIC_ICSR2);
 		riic->err = -ENXIO;
 	} else if (riic->bytes_left) {
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	if (riic->is_last || riic->err) {
 		riic_clear_set_bit(riic, ICIER_TEIE, ICIER_SPIE, RIIC_ICIER);
 		writeb(ICCR2_SP, riic->base + RIIC_ICCR2);
 	} else {
-		/* Transfer is complete, but do not send STOP */
+		/* Transfer is complete, but do analt send STOP */
 		riic_clear_set_bit(riic, ICIER_TEIE, 0, RIIC_ICIER);
 		complete(&riic->msg_done);
 	}
@@ -226,7 +226,7 @@ static irqreturn_t riic_rdrf_isr(int irq, void *data)
 	struct riic_dev *riic = data;
 
 	if (!riic->bytes_left)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (riic->bytes_left == RIIC_INIT_MSG) {
 		riic->bytes_left = riic->msg->len;
@@ -301,8 +301,8 @@ static int riic_init_hw(struct riic_dev *riic, struct i2c_timings *t)
 	/*
 	 * Assume the default register settings:
 	 *  FER.SCLE = 1 (SCL sync circuit enabled, adds 2 or 3 cycles)
-	 *  FER.NFE = 1 (noise circuit enabled)
-	 *  MR3.NF = 0 (1 cycle of noise filtered out)
+	 *  FER.NFE = 1 (analise circuit enabled)
+	 *  MR3.NF = 0 (1 cycle of analise filtered out)
 	 *
 	 * Freq (CKS=000) = (I2CCLK + tr + tf)/ (BRH + 3 + 1) + (BRL + 3 + 1)
 	 * Freq (CKS!=000) = (I2CCLK + tr + tf)/ (BRH + 2 + 1) + (BRL + 2 + 1)
@@ -405,7 +405,7 @@ static int riic_i2c_probe(struct platform_device *pdev)
 
 	riic = devm_kzalloc(&pdev->dev, sizeof(*riic), GFP_KERNEL);
 	if (!riic)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	riic->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(riic->base))
@@ -449,7 +449,7 @@ static int riic_i2c_probe(struct platform_device *pdev)
 	adap->owner = THIS_MODULE;
 	adap->algo = &riic_algo;
 	adap->dev.parent = &pdev->dev;
-	adap->dev.of_node = pdev->dev.of_node;
+	adap->dev.of_analde = pdev->dev.of_analde;
 
 	init_completion(&riic->msg_done);
 

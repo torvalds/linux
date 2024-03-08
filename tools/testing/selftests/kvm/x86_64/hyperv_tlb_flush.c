@@ -36,7 +36,7 @@ enum HV_GENERIC_SET_FORMAT {
 
 #define HV_FLUSH_ALL_PROCESSORS			BIT(0)
 #define HV_FLUSH_ALL_VIRTUAL_ADDRESS_SPACES	BIT(1)
-#define HV_FLUSH_NON_GLOBAL_MAPPINGS_ONLY	BIT(2)
+#define HV_FLUSH_ANALN_GLOBAL_MAPPINGS_ONLY	BIT(2)
 #define HV_FLUSH_USE_EXTENDED_RANGE_FORMAT	BIT(3)
 
 /* HvFlushVirtualAddressSpace, HvFlushVirtualAddressList hypercalls */
@@ -144,14 +144,14 @@ static void swap_two_test_pages(vm_paddr_t pte_gva1, vm_paddr_t pte_gva2)
 }
 
 /*
- * TODO: replace the silly NOP loop with a proper udelay() implementation.
+ * TODO: replace the silly ANALP loop with a proper udelay() implementation.
  */
 static inline void do_delay(void)
 {
 	int i;
 
 	for (i = 0; i < 1000000; i++)
-		asm volatile("nop");
+		asm volatile("analp");
 }
 
 /*
@@ -170,7 +170,7 @@ static inline void prepare_to_test(struct test_data *data)
 	/* Make sure workers are 'disabled' before we swap PTEs. */
 	wmb();
 
-	/* Make sure workers have enough time to notice */
+	/* Make sure workers have eanalugh time to analtice */
 	do_delay();
 
 	/* Swap test page mappings */
@@ -190,7 +190,7 @@ static inline void post_test(struct test_data *data, u64 exp1, u64 exp2)
 	set_expected_val((void *)data->test_pages, exp1, WORKER_VCPU_ID_1);
 	set_expected_val((void *)data->test_pages, exp2, WORKER_VCPU_ID_2);
 
-	/* Make sure workers have enough time to test */
+	/* Make sure workers have eanalugh time to test */
 	do_delay();
 }
 
@@ -543,8 +543,8 @@ static void *vcpu_thread(void *arg)
 	int old;
 	int r;
 
-	r = pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, &old);
-	TEST_ASSERT(!r, "pthread_setcanceltype failed on vcpu_id=%u with errno=%d",
+	r = pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHROANALUS, &old);
+	TEST_ASSERT(!r, "pthread_setcanceltype failed on vcpu_id=%u with erranal=%d",
 		    vcpu->id, r);
 
 	vcpu_run(vcpu);
@@ -553,7 +553,7 @@ static void *vcpu_thread(void *arg)
 	switch (get_ucall(vcpu, &uc)) {
 	case UCALL_ABORT:
 		REPORT_GUEST_ASSERT(uc);
-		/* NOT REACHED */
+		/* ANALT REACHED */
 	default:
 		TEST_FAIL("Unexpected ucall %lu, vCPU %d", uc.cmd, vcpu->id);
 	}
@@ -567,11 +567,11 @@ static void cancel_join_vcpu_thread(pthread_t thread, struct kvm_vcpu *vcpu)
 	int r;
 
 	r = pthread_cancel(thread);
-	TEST_ASSERT(!r, "pthread_cancel on vcpu_id=%d failed with errno=%d",
+	TEST_ASSERT(!r, "pthread_cancel on vcpu_id=%d failed with erranal=%d",
 		    vcpu->id, r);
 
 	r = pthread_join(thread, &retval);
-	TEST_ASSERT(!r, "pthread_join on vcpu_id=%d failed with errno=%d",
+	TEST_ASSERT(!r, "pthread_join on vcpu_id=%d failed with erranal=%d",
 		    vcpu->id, r);
 	TEST_ASSERT(retval == PTHREAD_CANCELED,
 		    "expected retval=%p, got %p", PTHREAD_CANCELED,
@@ -663,11 +663,11 @@ int main(int argc, char *argv[])
 			break;
 		case UCALL_ABORT:
 			REPORT_GUEST_ASSERT(uc);
-			/* NOT REACHED */
+			/* ANALT REACHED */
 		case UCALL_DONE:
 			goto done;
 		default:
-			TEST_FAIL("Unknown ucall %lu", uc.cmd);
+			TEST_FAIL("Unkanalwn ucall %lu", uc.cmd);
 		}
 
 		stage++;

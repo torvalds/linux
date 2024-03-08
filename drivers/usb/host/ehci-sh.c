@@ -79,7 +79,7 @@ static int ehci_hcd_sh_probe(struct platform_device *pdev)
 	int irq, ret;
 
 	if (usb_disabled())
-		return -ENODEV;
+		return -EANALDEV;
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
@@ -91,7 +91,7 @@ static int ehci_hcd_sh_probe(struct platform_device *pdev)
 	hcd = usb_create_hcd(&ehci_sh_hc_driver, &pdev->dev,
 			     dev_name(&pdev->dev));
 	if (!hcd) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail_create_hcd;
 	}
 
@@ -106,7 +106,7 @@ static int ehci_hcd_sh_probe(struct platform_device *pdev)
 	priv = devm_kzalloc(&pdev->dev, sizeof(struct ehci_sh_priv),
 			    GFP_KERNEL);
 	if (!priv) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail_request_resource;
 	}
 

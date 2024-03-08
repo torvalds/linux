@@ -21,12 +21,12 @@ extern struct page *empty_zero_page;
 
 #ifndef CONFIG_MMU
 
-#include <asm-generic/pgtable-nopud.h>
-#include <asm/pgtable-nommu.h>
+#include <asm-generic/pgtable-analpud.h>
+#include <asm/pgtable-analmmu.h>
 
 #else
 
-#include <asm-generic/pgtable-nopud.h>
+#include <asm-generic/pgtable-analpud.h>
 #include <asm/page.h>
 #include <asm/pgtable-hwdef.h>
 
@@ -65,7 +65,7 @@ extern void __pgd_error(const char *file, int line, pgd_t);
 /*
  * This is the lowest virtual address we can permit any user space
  * mapping to be mapped at.  This is particularly important for
- * non-high vector CPUs.
+ * analn-high vector CPUs.
  */
 #define FIRST_USER_ADDRESS	(PAGE_SIZE * 2)
 
@@ -91,7 +91,7 @@ extern pgprot_t		pgprot_kernel;
 
 #define _MOD_PROT(p, b)	__pgprot(pgprot_val(p) | (b))
 
-#define PAGE_NONE		_MOD_PROT(pgprot_user, L_PTE_XN | L_PTE_RDONLY | L_PTE_NONE)
+#define PAGE_ANALNE		_MOD_PROT(pgprot_user, L_PTE_XN | L_PTE_RDONLY | L_PTE_ANALNE)
 #define PAGE_SHARED		_MOD_PROT(pgprot_user, L_PTE_USER | L_PTE_XN)
 #define PAGE_SHARED_EXEC	_MOD_PROT(pgprot_user, L_PTE_USER)
 #define PAGE_COPY		_MOD_PROT(pgprot_user, L_PTE_USER | L_PTE_RDONLY | L_PTE_XN)
@@ -101,7 +101,7 @@ extern pgprot_t		pgprot_kernel;
 #define PAGE_KERNEL		_MOD_PROT(pgprot_kernel, L_PTE_XN)
 #define PAGE_KERNEL_EXEC	pgprot_kernel
 
-#define __PAGE_NONE		__pgprot(_L_PTE_DEFAULT | L_PTE_RDONLY | L_PTE_XN | L_PTE_NONE)
+#define __PAGE_ANALNE		__pgprot(_L_PTE_DEFAULT | L_PTE_RDONLY | L_PTE_XN | L_PTE_ANALNE)
 #define __PAGE_SHARED		__pgprot(_L_PTE_DEFAULT | L_PTE_USER | L_PTE_XN)
 #define __PAGE_SHARED_EXEC	__pgprot(_L_PTE_DEFAULT | L_PTE_USER)
 #define __PAGE_COPY		__pgprot(_L_PTE_DEFAULT | L_PTE_USER | L_PTE_RDONLY | L_PTE_XN)
@@ -112,7 +112,7 @@ extern pgprot_t		pgprot_kernel;
 #define __pgprot_modify(prot,mask,bits)		\
 	__pgprot((pgprot_val(prot) & ~(mask)) | (bits))
 
-#define pgprot_noncached(prot) \
+#define pgprot_analncached(prot) \
 	__pgprot_modify(prot, L_PTE_MT_MASK, L_PTE_MT_UNCACHED)
 
 #define pgprot_writecombine(prot) \
@@ -141,8 +141,8 @@ extern pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
 /*
  * The table below defines the page protection levels that we insert into our
  * Linux page table version.  These get translated into the best that the
- * architecture can perform.  Note that on most ARM hardware:
- *  1) We cannot do execute protection
+ * architecture can perform.  Analte that on most ARM hardware:
+ *  1) We cananalt do execute protection
  *  2) If we could do execute protection, then read is implied
  *  3) write implies read permissions
  */
@@ -156,7 +156,7 @@ extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
 #define pud_page(pud)		pmd_page(__pmd(pud_val(pud)))
 #define pud_write(pud)		pmd_write(__pmd(pud_val(pud)))
 
-#define pmd_none(pmd)		(!pmd_val(pmd))
+#define pmd_analne(pmd)		(!pmd_val(pmd))
 
 static inline pte_t *pmd_page_vaddr(pmd_t pmd)
 {
@@ -177,7 +177,7 @@ static inline pte_t *pmd_page_vaddr(pmd_t pmd)
 						: !!(pte_val(pte) & (val)))
 #define pte_isclear(pte, val)	(!(pte_val(pte) & (val)))
 
-#define pte_none(pte)		(!pte_val(pte))
+#define pte_analne(pte)		(!pte_val(pte))
 #define pte_present(pte)	(pte_isset((pte), L_PTE_PRESENT))
 #define pte_valid(pte)		(pte_isset((pte), L_PTE_VALID))
 #define pte_accessible(mm, pte)	(mm_tlb_flush_pending(mm) ? pte_present(pte) : pte_valid(pte))
@@ -230,7 +230,7 @@ static inline pte_t pte_wrprotect(pte_t pte)
 	return set_pte_bit(pte, __pgprot(L_PTE_RDONLY));
 }
 
-static inline pte_t pte_mkwrite_novma(pte_t pte)
+static inline pte_t pte_mkwrite_analvma(pte_t pte)
 {
 	return clear_pte_bit(pte, __pgprot(L_PTE_RDONLY));
 }
@@ -268,14 +268,14 @@ static inline pte_t pte_mknexec(pte_t pte)
 static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 {
 	const pteval_t mask = L_PTE_XN | L_PTE_RDONLY | L_PTE_USER |
-		L_PTE_NONE | L_PTE_VALID;
+		L_PTE_ANALNE | L_PTE_VALID;
 	pte_val(pte) = (pte_val(pte) & ~mask) | (pgprot_val(newprot) & mask);
 	return pte;
 }
 
 /*
  * Encode/decode swap entries and swap PTEs. Swap PTEs are all PTEs that
- * are !pte_none() && !pte_present().
+ * are !pte_analne() && !pte_present().
  *
  * Format of swap PTEs:
  *
@@ -283,10 +283,10 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
  *   1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
  *   <------------------- offset ------------------> E < type -> 0 0
  *
- *   E is the exclusive marker that is not stored in swap entries.
+ *   E is the exclusive marker that is analt stored in swap entries.
  *
- * This gives us up to 31 swap files and 64GB per swap file.  Note that
- * the offset field is always non-zero.
+ * This gives us up to 31 swap files and 64GB per swap file.  Analte that
+ * the offset field is always analn-zero.
  */
 #define __SWP_TYPE_SHIFT	2
 #define __SWP_TYPE_BITS		5
@@ -318,7 +318,7 @@ static inline pte_t pte_swp_clear_exclusive(pte_t pte)
 
 /*
  * It is an error for the kernel to have more swap files than we can
- * encode in the PTEs.  This ensures that we know when MAX_SWAPFILES
+ * encode in the PTEs.  This ensures that we kanalw when MAX_SWAPFILES
  * is increased beyond what we presently support.
  */
 #define MAX_SWAPFILES_CHECK() BUILD_BUG_ON(MAX_SWAPFILES_SHIFT > __SWP_TYPE_BITS)

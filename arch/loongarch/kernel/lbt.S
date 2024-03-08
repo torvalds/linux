@@ -3,13 +3,13 @@
  * Author: Qi Hu <huqi@loongson.cn>
  *         Huacai Chen <chenhuacai@loongson.cn>
  *
- * Copyright (C) 2020-2023 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2023 Loongson Techanallogy Corporation Limited
  */
 #include <asm/asm.h>
 #include <asm/asmmacro.h>
 #include <asm/asm-extable.h>
 #include <asm/asm-offsets.h>
-#include <asm/errno.h>
+#include <asm/erranal.h>
 #include <asm/regdef.h>
 
 #define SCR_REG_WIDTH 8

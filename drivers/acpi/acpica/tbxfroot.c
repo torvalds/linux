@@ -62,12 +62,12 @@ acpi_status acpi_tb_validate_rsdp(struct acpi_table_rsdp *rsdp)
 	/*
 	 * The signature and checksum must both be correct
 	 *
-	 * Note: Sometimes there exists more than one RSDP in memory; the valid
+	 * Analte: Sometimes there exists more than one RSDP in memory; the valid
 	 * RSDP has a valid checksum, all others have an invalid checksum.
 	 */
 	if (!ACPI_VALIDATE_RSDP_SIG(rsdp->signature)) {
 
-		/* Nope, BAD Signature */
+		/* Analpe, BAD Signature */
 
 		return (AE_BAD_SIGNATURE);
 	}
@@ -99,11 +99,11 @@ acpi_status acpi_tb_validate_rsdp(struct acpi_table_rsdp *rsdp)
  * DESCRIPTION: Search lower 1Mbyte of memory for the root system descriptor
  *              pointer structure. If it is found, set *RSDP to point to it.
  *
- * NOTE1:       The RSDP must be either in the first 1K of the Extended
+ * ANALTE1:       The RSDP must be either in the first 1K of the Extended
  *              BIOS Data Area or between E0000 and FFFFF (From ACPI Spec.)
  *              Only a 32-bit physical address is necessary.
  *
- * NOTE2:       This function is always available, regardless of the
+ * ANALTE2:       This function is always available, regardless of the
  *              initialization state of the rest of ACPI.
  *
  ******************************************************************************/
@@ -125,10 +125,10 @@ acpi_find_root_pointer(acpi_physical_address *table_address)
 				       ACPI_EBDA_PTR_LENGTH);
 	if (!table_ptr) {
 		ACPI_ERROR((AE_INFO,
-			    "Could not map memory at 0x%8.8X for length %u",
+			    "Could analt map memory at 0x%8.8X for length %u",
 			    ACPI_EBDA_PTR_LOCATION, ACPI_EBDA_PTR_LENGTH));
 
-		return_ACPI_STATUS(AE_NO_MEMORY);
+		return_ACPI_STATUS(AE_ANAL_MEMORY);
 	}
 
 	ACPI_MOVE_16_TO_32(&physical_address, table_ptr);
@@ -141,13 +141,13 @@ acpi_find_root_pointer(acpi_physical_address *table_address)
 	/* EBDA present? */
 
 	/*
-	 * Check that the EBDA pointer from memory is sane and does not point
+	 * Check that the EBDA pointer from memory is sane and does analt point
 	 * above valid low memory
 	 */
 	if (physical_address > 0x400 && physical_address < 0xA0000) {
 		/*
 		 * Calculate the scan window size
-		 * The EBDA is not guaranteed to be larger than a ki_b and in case
+		 * The EBDA is analt guaranteed to be larger than a ki_b and in case
 		 * that it is smaller, the scanning function would leave the low
 		 * memory and continue to the VGA range.
 		 */
@@ -162,10 +162,10 @@ acpi_find_root_pointer(acpi_physical_address *table_address)
 					       ebda_window_size);
 		if (!table_ptr) {
 			ACPI_ERROR((AE_INFO,
-				    "Could not map memory at 0x%8.8X for length %u",
+				    "Could analt map memory at 0x%8.8X for length %u",
 				    physical_address, ebda_window_size));
 
-			return_ACPI_STATUS(AE_NO_MEMORY);
+			return_ACPI_STATUS(AE_ANAL_MEMORY);
 		}
 
 		mem_rover =
@@ -194,11 +194,11 @@ acpi_find_root_pointer(acpi_physical_address *table_address)
 
 	if (!table_ptr) {
 		ACPI_ERROR((AE_INFO,
-			    "Could not map memory at 0x%8.8X for length %u",
+			    "Could analt map memory at 0x%8.8X for length %u",
 			    ACPI_HI_RSDP_WINDOW_BASE,
 			    ACPI_HI_RSDP_WINDOW_SIZE));
 
-		return_ACPI_STATUS(AE_NO_MEMORY);
+		return_ACPI_STATUS(AE_ANAL_MEMORY);
 	}
 
 	mem_rover =
@@ -217,10 +217,10 @@ acpi_find_root_pointer(acpi_physical_address *table_address)
 		return_ACPI_STATUS(AE_OK);
 	}
 
-	/* A valid RSDP was not found */
+	/* A valid RSDP was analt found */
 
-	ACPI_BIOS_ERROR((AE_INFO, "A valid RSDP was not found"));
-	return_ACPI_STATUS(AE_NOT_FOUND);
+	ACPI_BIOS_ERROR((AE_INFO, "A valid RSDP was analt found"));
+	return_ACPI_STATUS(AE_ANALT_FOUND);
 }
 
 ACPI_EXPORT_SYMBOL_INIT(acpi_find_root_pointer)
@@ -267,13 +267,13 @@ u8 *acpi_tb_scan_memory_for_rsdp(u8 *start_address, u32 length)
 			return_PTR(mem_rover);
 		}
 
-		/* No sig match or bad checksum, keep searching */
+		/* Anal sig match or bad checksum, keep searching */
 	}
 
-	/* Searched entire block, no RSDP was found */
+	/* Searched entire block, anal RSDP was found */
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-			  "Searched entire block from %p, valid RSDP was not found\n",
+			  "Searched entire block from %p, valid RSDP was analt found\n",
 			  start_address));
 	return_PTR(NULL);
 }

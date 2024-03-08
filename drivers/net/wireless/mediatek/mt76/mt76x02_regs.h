@@ -694,7 +694,7 @@ struct mt76_wcid_key {
 } __packed __aligned(4);
 
 enum mt76x02_cipher_type {
-	MT76X02_CIPHER_NONE,
+	MT76X02_CIPHER_ANALNE,
 	MT76X02_CIPHER_WEP40,
 	MT76X02_CIPHER_WEP104,
 	MT76X02_CIPHER_TKIP,

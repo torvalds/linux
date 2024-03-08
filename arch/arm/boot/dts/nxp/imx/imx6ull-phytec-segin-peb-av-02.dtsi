@@ -7,8 +7,8 @@
 #include "imx6ul-phytec-segin-peb-av-02.dtsi"
 
 &iomuxc {
-	/delete-node/ edtft5406grp;
-	/delete-node/ stmpegrp;
+	/delete-analde/ edtft5406grp;
+	/delete-analde/ stmpegrp;
 };
 
 &iomuxc_snvs {

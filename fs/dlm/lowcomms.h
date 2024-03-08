@@ -21,12 +21,12 @@
 #define CONN_HASH_SIZE 32
 
 /* This is deliberately very simple because most clusters have simple
- * sequential nodeids, so we should be able to go straight to a connection
+ * sequential analdeids, so we should be able to go straight to a connection
  * struct in the array
  */
-static inline int nodeid_hash(int nodeid)
+static inline int analdeid_hash(int analdeid)
 {
-	return nodeid & (CONN_HASH_SIZE-1);
+	return analdeid & (CONN_HASH_SIZE-1);
 }
 
 /* check if dlm is running */
@@ -34,21 +34,21 @@ bool dlm_lowcomms_is_running(void);
 
 int dlm_lowcomms_start(void);
 void dlm_lowcomms_shutdown(void);
-void dlm_lowcomms_shutdown_node(int nodeid, bool force);
+void dlm_lowcomms_shutdown_analde(int analdeid, bool force);
 void dlm_lowcomms_stop(void);
 void dlm_lowcomms_init(void);
 void dlm_lowcomms_exit(void);
-int dlm_lowcomms_close(int nodeid);
-struct dlm_msg *dlm_lowcomms_new_msg(int nodeid, int len, gfp_t allocation,
+int dlm_lowcomms_close(int analdeid);
+struct dlm_msg *dlm_lowcomms_new_msg(int analdeid, int len, gfp_t allocation,
 				     char **ppc, void (*cb)(void *data),
 				     void *data);
 void dlm_lowcomms_commit_msg(struct dlm_msg *msg);
 void dlm_lowcomms_put_msg(struct dlm_msg *msg);
 int dlm_lowcomms_resend_msg(struct dlm_msg *msg);
-int dlm_lowcomms_connect_node(int nodeid);
-int dlm_lowcomms_nodes_set_mark(int nodeid, unsigned int mark);
-int dlm_lowcomms_addr(int nodeid, struct sockaddr_storage *addr, int len);
-void dlm_midcomms_receive_done(int nodeid);
+int dlm_lowcomms_connect_analde(int analdeid);
+int dlm_lowcomms_analdes_set_mark(int analdeid, unsigned int mark);
+int dlm_lowcomms_addr(int analdeid, struct sockaddr_storage *addr, int len);
+void dlm_midcomms_receive_done(int analdeid);
 struct kmem_cache *dlm_lowcomms_writequeue_cache_create(void);
 struct kmem_cache *dlm_lowcomms_msg_cache_create(void);
 

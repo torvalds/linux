@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * Copyright (C) 2015 Imagination Technologies
+ * Copyright (C) 2015 Imagination Techanallogies
  * Author: Paul Burton <paul.burton@mips.com>
  */
 
@@ -164,7 +164,7 @@ NESTED(_mips_cps_putx64, 0, ra)
  * UART configured by CONFIG_MIPS_CPS_NS16550_*. As this BEV exception
  * will only be run if something goes horribly wrong very early during
  * the bringup of a core and it is very likely to be unsafe to perform
- * memory accesses at that point (cache state indeterminate, EVA may not
+ * memory accesses at that point (cache state indeterminate, EVA may analt
  * be configured, coherence may be disabled) let alone have a stack,
  * this is all written in assembly using only registers & unmapped
  * uncached access to the UART registers.

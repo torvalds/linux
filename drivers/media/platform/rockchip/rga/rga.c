@@ -210,7 +210,7 @@ static struct rga_fmt formats[] = {
 	},
 	{
 		.fourcc = V4L2_PIX_FMT_RGB24,
-		.color_swap = RGA_COLOR_NONE_SWAP,
+		.color_swap = RGA_COLOR_ANALNE_SWAP,
 		.hw_format = RGA_COLOR_FMT_RGB888,
 		.depth = 24,
 		.uv_factor = 1,
@@ -273,7 +273,7 @@ static struct rga_fmt formats[] = {
 	},
 	{
 		.fourcc = V4L2_PIX_FMT_NV12,
-		.color_swap = RGA_COLOR_NONE_SWAP,
+		.color_swap = RGA_COLOR_ANALNE_SWAP,
 		.hw_format = RGA_COLOR_FMT_YUV420SP,
 		.depth = 12,
 		.uv_factor = 4,
@@ -282,7 +282,7 @@ static struct rga_fmt formats[] = {
 	},
 	{
 		.fourcc = V4L2_PIX_FMT_NV12M,
-		.color_swap = RGA_COLOR_NONE_SWAP,
+		.color_swap = RGA_COLOR_ANALNE_SWAP,
 		.hw_format = RGA_COLOR_FMT_YUV420SP,
 		.depth = 12,
 		.uv_factor = 4,
@@ -291,7 +291,7 @@ static struct rga_fmt formats[] = {
 	},
 	{
 		.fourcc = V4L2_PIX_FMT_NV16,
-		.color_swap = RGA_COLOR_NONE_SWAP,
+		.color_swap = RGA_COLOR_ANALNE_SWAP,
 		.hw_format = RGA_COLOR_FMT_YUV422SP,
 		.depth = 16,
 		.uv_factor = 2,
@@ -300,7 +300,7 @@ static struct rga_fmt formats[] = {
 	},
 	{
 		.fourcc = V4L2_PIX_FMT_YUV420,
-		.color_swap = RGA_COLOR_NONE_SWAP,
+		.color_swap = RGA_COLOR_ANALNE_SWAP,
 		.hw_format = RGA_COLOR_FMT_YUV420P,
 		.depth = 12,
 		.uv_factor = 4,
@@ -309,7 +309,7 @@ static struct rga_fmt formats[] = {
 	},
 	{
 		.fourcc = V4L2_PIX_FMT_YUV422P,
-		.color_swap = RGA_COLOR_NONE_SWAP,
+		.color_swap = RGA_COLOR_ANALNE_SWAP,
 		.hw_format = RGA_COLOR_FMT_YUV422P,
 		.depth = 16,
 		.uv_factor = 2,
@@ -368,7 +368,7 @@ static int rga_open(struct file *file)
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 	ctx->rga = rga;
 	/* Set default formats */
 	ctx->in = def_frame;
@@ -473,7 +473,7 @@ static int vidioc_g_fmt(struct file *file, void *prv, struct v4l2_format *f)
 
 	v4l2_fill_pixfmt_mp(pix_fmt, frm->fmt->fourcc, frm->width, frm->height);
 
-	pix_fmt->field = V4L2_FIELD_NONE;
+	pix_fmt->field = V4L2_FIELD_ANALNE;
 	pix_fmt->colorspace = frm->colorspace;
 
 	return 0;
@@ -494,7 +494,7 @@ static int vidioc_try_fmt(struct file *file, void *prv, struct v4l2_format *f)
 				(u32)MIN_HEIGHT, (u32)MAX_HEIGHT);
 
 	v4l2_fill_pixfmt_mp(pix_fmt, fmt->fourcc, pix_fmt->width, pix_fmt->height);
-	pix_fmt->field = V4L2_FIELD_NONE;
+	pix_fmt->field = V4L2_FIELD_ANALNE;
 
 	return 0;
 }
@@ -694,7 +694,7 @@ static const struct video_device rga_videodev = {
 	.name = "rockchip-rga",
 	.fops = &rga_fops,
 	.ioctl_ops = &rga_ioctl_ops,
-	.minor = -1,
+	.mianalr = -1,
 	.release = video_device_release,
 	.vfl_dir = VFL_DIR_M2M,
 	.device_caps = V4L2_CAP_VIDEO_M2M_MPLANE | V4L2_CAP_STREAMING,
@@ -706,19 +706,19 @@ static int rga_enable_clocks(struct rockchip_rga *rga)
 
 	ret = clk_prepare_enable(rga->sclk);
 	if (ret) {
-		dev_err(rga->dev, "Cannot enable rga sclk: %d\n", ret);
+		dev_err(rga->dev, "Cananalt enable rga sclk: %d\n", ret);
 		return ret;
 	}
 
 	ret = clk_prepare_enable(rga->aclk);
 	if (ret) {
-		dev_err(rga->dev, "Cannot enable rga aclk: %d\n", ret);
+		dev_err(rga->dev, "Cananalt enable rga aclk: %d\n", ret);
 		goto err_disable_sclk;
 	}
 
 	ret = clk_prepare_enable(rga->hclk);
 	if (ret) {
-		dev_err(rga->dev, "Cannot enable rga hclk: %d\n", ret);
+		dev_err(rga->dev, "Cananalt enable rga hclk: %d\n", ret);
 		goto err_disable_aclk;
 	}
 
@@ -801,12 +801,12 @@ static int rga_probe(struct platform_device *pdev)
 	int ret = 0;
 	int irq;
 
-	if (!pdev->dev.of_node)
-		return -ENODEV;
+	if (!pdev->dev.of_analde)
+		return -EANALDEV;
 
 	rga = devm_kzalloc(&pdev->dev, sizeof(*rga), GFP_KERNEL);
 	if (!rga)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rga->dev = &pdev->dev;
 	spin_lock_init(&rga->ctrl_lock);
@@ -839,7 +839,7 @@ static int rga_probe(struct platform_device *pdev)
 
 	ret = dma_set_mask_and_coherent(rga->dev, DMA_BIT_MASK(32));
 	if (ret) {
-		dev_err(rga->dev, "32-bit DMA not supported");
+		dev_err(rga->dev, "32-bit DMA analt supported");
 		goto err_put_clk;
 	}
 
@@ -849,7 +849,7 @@ static int rga_probe(struct platform_device *pdev)
 	vfd = video_device_alloc();
 	if (!vfd) {
 		v4l2_err(&rga->v4l2_dev, "Failed to allocate video device\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto unreg_v4l2_dev;
 	}
 	*vfd = rga_videodev;
@@ -872,10 +872,10 @@ static int rga_probe(struct platform_device *pdev)
 		goto rel_m2m;
 
 	rga->version.major = (rga_read(rga, RGA_VERSION_INFO) >> 24) & 0xFF;
-	rga->version.minor = (rga_read(rga, RGA_VERSION_INFO) >> 20) & 0x0F;
+	rga->version.mianalr = (rga_read(rga, RGA_VERSION_INFO) >> 20) & 0x0F;
 
 	v4l2_info(&rga->v4l2_dev, "HW Version: 0x%02x.%02x\n",
-		  rga->version.major, rga->version.minor);
+		  rga->version.major, rga->version.mianalr);
 
 	pm_runtime_put(rga->dev);
 
@@ -884,7 +884,7 @@ static int rga_probe(struct platform_device *pdev)
 					   &rga->cmdbuf_phy, GFP_KERNEL,
 					   DMA_ATTR_WRITE_COMBINE);
 	if (!rga->cmdbuf_virt) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto rel_m2m;
 	}
 
@@ -898,7 +898,7 @@ static int rga_probe(struct platform_device *pdev)
 	}
 
 	v4l2_info(&rga->v4l2_dev, "Registered %s as /dev/%s\n",
-		  vfd->name, video_device_node_name(vfd));
+		  vfd->name, video_device_analde_name(vfd));
 
 	return 0;
 

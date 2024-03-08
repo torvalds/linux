@@ -65,11 +65,11 @@ int sof_acpi_probe(struct platform_device *pdev, const struct sof_dev_desc *desc
 
 	sof_pdata = devm_kzalloc(dev, sizeof(*sof_pdata), GFP_KERNEL);
 	if (!sof_pdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!desc->ops) {
-		dev_err(dev, "error: no matching ACPI descriptor ops\n");
-		return -ENODEV;
+		dev_err(dev, "error: anal matching ACPI descriptor ops\n");
+		return -EANALDEV;
 	}
 
 	sof_pdata->desc = desc;

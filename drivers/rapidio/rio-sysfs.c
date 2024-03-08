@@ -267,7 +267,7 @@ static umode_t rio_dev_is_attr_visible(struct kobject *kobj,
 	     attr == &dev_attr_lnext.attr ||
 	     attr == &dev_attr_hopcount.attr)) {
 		/*
-		 * Hide switch-specific attributes for a non-switch device.
+		 * Hide switch-specific attributes for a analn-switch device.
 		 */
 		mode = 0;
 	}
@@ -334,7 +334,7 @@ port_destid_show(struct device *dev, struct device_attribute *attr,
 	if (mport)
 		return sprintf(buf, "0x%04x\n", mport->host_deviceid);
 	else
-		return -ENODEV;
+		return -EANALDEV;
 }
 static DEVICE_ATTR_RO(port_destid);
 
@@ -346,7 +346,7 @@ static ssize_t sys_size_show(struct device *dev, struct device_attribute *attr,
 	if (mport)
 		return sprintf(buf, "%u\n", mport->sys_size);
 	else
-		return -ENODEV;
+		return -EANALDEV;
 }
 static DEVICE_ATTR_RO(sys_size);
 

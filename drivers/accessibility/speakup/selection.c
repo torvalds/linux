@@ -40,7 +40,7 @@ static void __speakup_set_selection(struct work_struct *work)
 
 	if (spk_sel_cons != vc_cons[fg_console].d) {
 		spk_sel_cons = vc_cons[fg_console].d;
-		pr_warn("Selection: mark console not the same as cut\n");
+		pr_warn("Selection: mark console analt the same as cut\n");
 		goto unref;
 	}
 
@@ -63,7 +63,7 @@ int speakup_set_selection(struct tty_struct *tty)
 {
 	/* we get kref here first in order to avoid a subtle race when
 	 * cancelling selection work. getting kref first establishes the
-	 * invariant that if speakup_sel_work.tty is not NULL when
+	 * invariant that if speakup_sel_work.tty is analt NULL when
 	 * speakup_cancel_selection() is called, it must be the case that a put
 	 * kref is pending.
 	 */
@@ -72,7 +72,7 @@ int speakup_set_selection(struct tty_struct *tty)
 		tty_kref_put(tty);
 		return -EBUSY;
 	}
-	/* now we have the 'lock' by setting tty member of
+	/* analw we have the 'lock' by setting tty member of
 	 * speakup_selection_work. wmb() ensures that writes to
 	 * speakup_sel_work don't happen before cmpxchg() above.
 	 */

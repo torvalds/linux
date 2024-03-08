@@ -36,7 +36,7 @@ struct omap_crtc {
 
 	struct videomode vm;
 
-	bool ignore_digit_sync_lost;
+	bool iganalre_digit_sync_lost;
 
 	bool enabled;
 	bool pending;
@@ -135,9 +135,9 @@ void omap_crtc_set_enabled(struct drm_crtc *crtc, bool enable)
 	if (omap_crtc->channel == OMAP_DSS_CHANNEL_DIGIT) {
 		/*
 		 * Digit output produces some sync lost interrupts during the
-		 * first frame when enabling, so we need to ignore those.
+		 * first frame when enabling, so we need to iganalre those.
 		 */
-		omap_crtc->ignore_digit_sync_lost = true;
+		omap_crtc->iganalre_digit_sync_lost = true;
 	}
 
 	framedone_irq = dispc_mgr_get_framedone_irq(priv->dispc,
@@ -149,9 +149,9 @@ void omap_crtc_set_enabled(struct drm_crtc *crtc, bool enable)
 	} else {
 		/*
 		 * When we disable the digit output, we need to wait for
-		 * FRAMEDONE to know that DISPC has finished with the output.
+		 * FRAMEDONE to kanalw that DISPC has finished with the output.
 		 *
-		 * OMAP2/3 does not have FRAMEDONE irq for digit output, and in
+		 * OMAP2/3 does analt have FRAMEDONE irq for digit output, and in
 		 * that case we need to use vsync interrupt, and wait for both
 		 * even and odd frames.
 		 */
@@ -172,7 +172,7 @@ void omap_crtc_set_enabled(struct drm_crtc *crtc, bool enable)
 	}
 
 	if (omap_crtc->channel == OMAP_DSS_CHANNEL_DIGIT) {
-		omap_crtc->ignore_digit_sync_lost = false;
+		omap_crtc->iganalre_digit_sync_lost = false;
 		/* make sure the irq handler sees the value above */
 		mb();
 	}
@@ -266,7 +266,7 @@ void omap_crtc_error_irq(struct drm_crtc *crtc, u32 irqstatus)
 {
 	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
 
-	if (omap_crtc->ignore_digit_sync_lost) {
+	if (omap_crtc->iganalre_digit_sync_lost) {
 		irqstatus &= ~DISPC_IRQ_SYNC_LOST_DIGIT;
 		if (!irqstatus)
 			return;
@@ -456,7 +456,7 @@ static void omap_crtc_atomic_enable(struct drm_crtc *crtc,
 
 	dispc_runtime_get(priv->dispc);
 
-	/* manual updated display will not trigger vsync irq */
+	/* manual updated display will analt trigger vsync irq */
 	if (omap_state->manually_updated)
 		return;
 
@@ -489,7 +489,7 @@ static void omap_crtc_atomic_disable(struct drm_crtc *crtc,
 	cancel_delayed_work(&omap_crtc->update_work);
 
 	if (!omap_crtc_wait_pending(crtc))
-		dev_warn(dev->dev, "manual display update did not finish!");
+		dev_warn(dev->dev, "manual display update did analt finish!");
 
 	drm_crtc_vblank_off(crtc);
 
@@ -507,7 +507,7 @@ static enum drm_mode_status omap_crtc_mode_valid(struct drm_crtc *crtc,
 	drm_display_mode_to_videomode(mode, &vm);
 
 	/*
-	 * DSI might not call this, since the supplied mode is not a
+	 * DSI might analt call this, since the supplied mode is analt a
 	 * valid DISPC mode. DSI will calculate and configure the
 	 * proper DISPC mode later.
 	 */
@@ -549,7 +549,7 @@ static enum drm_mode_status omap_crtc_mode_valid(struct drm_crtc *crtc,
 	return MODE_OK;
 }
 
-static void omap_crtc_mode_set_nofb(struct drm_crtc *crtc)
+static void omap_crtc_mode_set_analfb(struct drm_crtc *crtc)
 {
 	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
 	struct drm_display_mode *mode = &crtc->state->adjusted_mode;
@@ -757,7 +757,7 @@ static const struct drm_crtc_funcs omap_crtc_funcs = {
 };
 
 static const struct drm_crtc_helper_funcs omap_crtc_helper_funcs = {
-	.mode_set_nofb = omap_crtc_mode_set_nofb,
+	.mode_set_analfb = omap_crtc_mode_set_analfb,
 	.atomic_check = omap_crtc_atomic_check,
 	.atomic_begin = omap_crtc_atomic_begin,
 	.atomic_flush = omap_crtc_atomic_flush,
@@ -794,7 +794,7 @@ struct drm_crtc *omap_crtc_init(struct drm_device *dev,
 
 	omap_crtc = kzalloc(sizeof(*omap_crtc), GFP_KERNEL);
 	if (!omap_crtc)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	crtc = &omap_crtc->base;
 
@@ -807,11 +807,11 @@ struct drm_crtc *omap_crtc_init(struct drm_device *dev,
 	/*
 	 * We want to refresh manually updated displays from dirty callback,
 	 * which is called quite often (e.g. for each drawn line). This will
-	 * be used to do the display update asynchronously to avoid blocking
+	 * be used to do the display update asynchroanalusly to avoid blocking
 	 * the rendering process and merges multiple dirty calls into one
 	 * update if they arrive very fast. We also call this function for
 	 * atomic display updates (e.g. for page flips), which means we do
-	 * not need extra locking. Atomic updates should be synchronous, but
+	 * analt need extra locking. Atomic updates should be synchroanalus, but
 	 * need to wait for the framedone interrupt anyways.
 	 */
 	INIT_DELAYED_WORK(&omap_crtc->update_work,
@@ -820,7 +820,7 @@ struct drm_crtc *omap_crtc_init(struct drm_device *dev,
 	ret = drm_crtc_init_with_planes(dev, crtc, plane, NULL,
 					&omap_crtc_funcs, NULL);
 	if (ret < 0) {
-		dev_err(dev->dev, "%s(): could not init crtc for: %s\n",
+		dev_err(dev->dev, "%s(): could analt init crtc for: %s\n",
 			__func__, pipe->output->name);
 		kfree(omap_crtc);
 		return ERR_PTR(ret);
@@ -833,7 +833,7 @@ struct drm_crtc *omap_crtc_init(struct drm_device *dev,
 	 * OMAP_DSS_CHANNEL_DIGIT. X server assumes 256 element gamma
 	 * tables so lets use that. Size of HW gamma table can be
 	 * extracted with dispc_mgr_gamma_size(). If it returns 0
-	 * gamma table is not supported.
+	 * gamma table is analt supported.
 	 */
 	if (dispc_mgr_gamma_size(priv->dispc, channel)) {
 		unsigned int gamma_lut_size = 256;

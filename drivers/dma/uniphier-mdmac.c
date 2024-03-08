@@ -95,7 +95,7 @@ uniphier_mdmac_next_desc(struct uniphier_mdmac_chan *mc)
 		return NULL;
 	}
 
-	list_del(&vd->node);
+	list_del(&vd->analde);
 
 	mc->md = to_uniphier_mdmac_desc(vd);
 
@@ -188,7 +188,7 @@ static irqreturn_t uniphier_mdmac_interrupt(int irq, void *dev_id)
 	 * this is probably triggered by a different channel.
 	 */
 	if (!irq_stat) {
-		ret = IRQ_NONE;
+		ret = IRQ_ANALNE;
 		goto out;
 	}
 
@@ -197,7 +197,7 @@ static irqreturn_t uniphier_mdmac_interrupt(int irq, void *dev_id)
 
 	/*
 	 * UNIPHIER_MDMAC_CH_IRQ__DONE interrupt is asserted even when the DMA
-	 * is aborted. To distinguish the normal completion and the abort,
+	 * is aborted. To distinguish the analrmal completion and the abort,
 	 * check mc->md. If it is NULL, we are aborting.
 	 */
 	md = mc->md;
@@ -238,7 +238,7 @@ uniphier_mdmac_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 	if (!is_slave_direction(direction))
 		return NULL;
 
-	md = kzalloc(sizeof(*md), GFP_NOWAIT);
+	md = kzalloc(sizeof(*md), GFP_ANALWAIT);
 	if (!md)
 		return NULL;
 
@@ -291,7 +291,7 @@ static enum dma_status uniphier_mdmac_tx_status(struct dma_chan *chan,
 	int i;
 
 	stat = dma_cookie_status(chan, cookie, txstate);
-	/* Return immediately if we do not need to compute the residue. */
+	/* Return immediately if we do analt need to compute the residue. */
 	if (stat == DMA_COMPLETE || !txstate)
 		return stat;
 
@@ -360,7 +360,7 @@ static int uniphier_mdmac_chan_init(struct platform_device *pdev,
 	irq_name = devm_kasprintf(dev, GFP_KERNEL, "uniphier-mio-dmac-ch%d",
 				  chan_id);
 	if (!irq_name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = devm_request_irq(dev, irq, uniphier_mdmac_interrupt,
 			       IRQF_SHARED, irq_name, mc);
@@ -395,7 +395,7 @@ static int uniphier_mdmac_probe(struct platform_device *pdev)
 	mdev = devm_kzalloc(dev, struct_size(mdev, channels, nr_chans),
 			    GFP_KERNEL);
 	if (!mdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mdev->reg_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(mdev->reg_base))
@@ -436,7 +436,7 @@ static int uniphier_mdmac_probe(struct platform_device *pdev)
 	if (ret)
 		goto disable_clk;
 
-	ret = of_dma_controller_register(dev->of_node, of_dma_xlate_by_chan_id,
+	ret = of_dma_controller_register(dev->of_analde, of_dma_xlate_by_chan_id,
 					 ddev);
 	if (ret)
 		goto unregister_dmac;
@@ -463,10 +463,10 @@ static void uniphier_mdmac_remove(struct platform_device *pdev)
 	 * Before reaching here, almost all descriptors have been freed by the
 	 * ->device_free_chan_resources() hook. However, each channel might
 	 * be still holding one descriptor that was on-flight at that moment.
-	 * Terminate it to make sure this hardware is no longer running. Then,
+	 * Terminate it to make sure this hardware is anal longer running. Then,
 	 * free the channel resources once again to avoid memory leak.
 	 */
-	list_for_each_entry(chan, &mdev->ddev.channels, device_node) {
+	list_for_each_entry(chan, &mdev->ddev.channels, device_analde) {
 		ret = dmaengine_terminate_sync(chan);
 		if (ret) {
 			/*
@@ -480,7 +480,7 @@ static void uniphier_mdmac_remove(struct platform_device *pdev)
 		uniphier_mdmac_free_chan_resources(chan);
 	}
 
-	of_dma_controller_free(pdev->dev.of_node);
+	of_dma_controller_free(pdev->dev.of_analde);
 	dma_async_device_unregister(&mdev->ddev);
 	clk_disable_unprepare(mdev->clk);
 }

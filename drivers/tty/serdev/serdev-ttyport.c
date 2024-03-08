@@ -115,7 +115,7 @@ static int ttyport_open(struct serdev_controller *ctrl)
 	serport->tty = tty;
 
 	if (!tty->ops->open || !tty->ops->close) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_unlock;
 	}
 
@@ -125,16 +125,16 @@ static int ttyport_open(struct serdev_controller *ctrl)
 
 	tty_unlock(serport->tty);
 
-	/* Bring the UART into a known 8 bits no parity hw fc state */
+	/* Bring the UART into a kanalwn 8 bits anal parity hw fc state */
 	ktermios = tty->termios;
 	ktermios.c_iflag &= ~(IGNBRK | BRKINT | PARMRK | ISTRIP |
 			      INLCR | IGNCR | ICRNL | IXON);
 	ktermios.c_oflag &= ~OPOST;
-	ktermios.c_lflag &= ~(ECHO | ECHONL | ICANON | ISIG | IEXTEN);
+	ktermios.c_lflag &= ~(ECHO | ECHONL | ICAANALN | ISIG | IEXTEN);
 	ktermios.c_cflag &= ~(CSIZE | PARENB);
 	ktermios.c_cflag |= CS8;
 	ktermios.c_cflag |= CRTSCTS;
-	/* Hangups are not supported so make sure to ignore carrier detect. */
+	/* Hangups are analt supported so make sure to iganalre carrier detect. */
 	ktermios.c_cflag |= CLOCAL;
 	tty_set_termios(tty, &ktermios);
 
@@ -175,7 +175,7 @@ static unsigned int ttyport_set_baudrate(struct serdev_controller *ctrl, unsigne
 	ktermios.c_cflag &= ~CBAUD;
 	tty_termios_encode_baud_rate(&ktermios, speed, speed);
 
-	/* tty_set_termios() return not checked as it is always 0 */
+	/* tty_set_termios() return analt checked as it is always 0 */
 	tty_set_termios(tty, &ktermios);
 	return ktermios.c_ospeed;
 }
@@ -202,7 +202,7 @@ static int ttyport_set_parity(struct serdev_controller *ctrl,
 	struct ktermios ktermios = tty->termios;
 
 	ktermios.c_cflag &= ~(PARENB | PARODD | CMSPAR);
-	if (parity != SERDEV_PARITY_NONE) {
+	if (parity != SERDEV_PARITY_ANALNE) {
 		ktermios.c_cflag |= PARENB;
 		if (parity == SERDEV_PARITY_ODD)
 			ktermios.c_cflag |= PARODD;
@@ -231,7 +231,7 @@ static int ttyport_get_tiocm(struct serdev_controller *ctrl)
 	struct tty_struct *tty = serport->tty;
 
 	if (!tty->ops->tiocmget)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return tty->ops->tiocmget(tty);
 }
@@ -242,7 +242,7 @@ static int ttyport_set_tiocm(struct serdev_controller *ctrl, unsigned int set, u
 	struct tty_struct *tty = serport->tty;
 
 	if (!tty->ops->tiocmset)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return tty->ops->tiocmset(tty, set, clear);
 }
@@ -253,7 +253,7 @@ static int ttyport_break_ctl(struct serdev_controller *ctrl, unsigned int break_
 	struct tty_struct *tty = serport->tty;
 
 	if (!tty->ops->break_ctl)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return tty->ops->break_ctl(tty, break_state);
 }
@@ -283,11 +283,11 @@ struct device *serdev_tty_port_register(struct tty_port *port,
 	int ret;
 
 	if (!port || !drv || !parent)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	ctrl = serdev_controller_alloc(host, parent, sizeof(struct serport));
 	if (!ctrl)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	serport = serdev_controller_get_drvdata(ctrl);
 
 	serport->port = port;
@@ -320,7 +320,7 @@ int serdev_tty_port_unregister(struct tty_port *port)
 	struct serport *serport = serdev_controller_get_drvdata(ctrl);
 
 	if (!serport)
-		return -ENODEV;
+		return -EANALDEV;
 
 	serdev_controller_remove(ctrl);
 	port->client_data = NULL;

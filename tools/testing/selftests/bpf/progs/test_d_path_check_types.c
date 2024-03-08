@@ -11,7 +11,7 @@ struct {
 	__uint(max_entries, 1 << 12);
 } ringbuf SEC(".maps");
 
-SEC("fentry/security_inode_getattr")
+SEC("fentry/security_ianalde_getattr")
 int BPF_PROG(d_path_check_rdonly_mem, struct path *path, struct kstat *stat,
 	     __u32 request_mask, unsigned int query_flags)
 {
@@ -22,7 +22,7 @@ int BPF_PROG(d_path_check_rdonly_mem, struct path *path, struct kstat *stat,
 	active = (void *)bpf_per_cpu_ptr(&bpf_prog_active, cpu);
 	if (active) {
 		/* FAIL here! 'active' points to 'regular' memory. It
-		 * cannot be submitted to ring buffer.
+		 * cananalt be submitted to ring buffer.
 		 */
 		bpf_ringbuf_submit(active, 0);
 	}

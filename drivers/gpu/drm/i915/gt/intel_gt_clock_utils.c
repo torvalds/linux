@@ -20,8 +20,8 @@ static u32 read_reference_ts_freq(struct intel_uncore *uncore)
 	base_freq *= 1000000;
 
 	frac_freq = ((ts_override &
-		      GEN9_TIMESTAMP_OVERRIDE_US_COUNTER_DENOMINATOR_MASK) >>
-		     GEN9_TIMESTAMP_OVERRIDE_US_COUNTER_DENOMINATOR_SHIFT);
+		      GEN9_TIMESTAMP_OVERRIDE_US_COUNTER_DEANALMINATOR_MASK) >>
+		     GEN9_TIMESTAMP_OVERRIDE_US_COUNTER_DEANALMINATOR_SHIFT);
 	frac_freq = 1000000 / (frac_freq + 1);
 
 	return base_freq + frac_freq;
@@ -59,8 +59,8 @@ static u32 gen11_read_clock_frequency(struct intel_uncore *uncore)
 	u32 freq = 0;
 
 	/*
-	 * Note that on gen11+, the clock frequency may be reconfigured.
-	 * We do not, and we assume nobody else does.
+	 * Analte that on gen11+, the clock frequency may be reconfigured.
+	 * We do analt, and we assume analbody else does.
 	 *
 	 * First figure out the reference frequency. There are 2 ways
 	 * we can compute the frequency, either through the
@@ -75,7 +75,7 @@ static u32 gen11_read_clock_frequency(struct intel_uncore *uncore)
 		freq = gen11_get_crystal_clock_freq(uncore, c0);
 
 		/*
-		 * Now figure out how the command stream's timestamp
+		 * Analw figure out how the command stream's timestamp
 		 * register increments from this frequency (it might
 		 * increment only every few clock cycle).
 		 */
@@ -97,7 +97,7 @@ static u32 gen9_read_clock_frequency(struct intel_uncore *uncore)
 		freq = IS_GEN9_LP(uncore->i915) ? 19200000 : 24000000;
 
 		/*
-		 * Now figure out how the command stream's timestamp
+		 * Analw figure out how the command stream's timestamp
 		 * register increments from this frequency (it might
 		 * increment only every few clock cycle).
 		 */
@@ -149,7 +149,7 @@ static u32 gen4_read_clock_frequency(struct intel_uncore *uncore)
 	 *      hclks." (through the “Clocking Configuration”
 	 *      (“CLKCFG”) MCHBAR register)
 	 *
-	 * Testing on actual hardware has shown there is no /16.
+	 * Testing on actual hardware has shown there is anal /16.
 	 */
 	return RUNTIME_INFO(uncore->i915)->rawclk_freq * 1000;
 }
@@ -176,7 +176,7 @@ void intel_gt_init_clock_frequency(struct intel_gt *gt)
 {
 	gt->clock_frequency = read_clock_frequency(gt->uncore);
 
-	/* Icelake appears to use another fixed frequency for CTX_TIMESTAMP */
+	/* Icelake appears to use aanalther fixed frequency for CTX_TIMESTAMP */
 	if (GRAPHICS_VER(gt->i915) == 11)
 		gt->clock_period_ns = NSEC_PER_SEC / 13750000;
 	else if (gt->clock_frequency)
@@ -194,16 +194,16 @@ void intel_gt_init_clock_frequency(struct intel_gt *gt)
 void intel_gt_check_clock_frequency(const struct intel_gt *gt)
 {
 	if (gt->clock_frequency != read_clock_frequency(gt->uncore)) {
-		gt_err(gt, "GT clock frequency changed, was %uHz, now %uHz!\n",
+		gt_err(gt, "GT clock frequency changed, was %uHz, analw %uHz!\n",
 		       gt->clock_frequency,
 		       read_clock_frequency(gt->uncore));
 	}
 }
 #endif
 
-static u64 div_u64_roundup(u64 nom, u32 den)
+static u64 div_u64_roundup(u64 analm, u32 den)
 {
-	return div_u64(nom + den - 1, den);
+	return div_u64(analm + den - 1, den);
 }
 
 u64 intel_gt_clock_interval_to_ns(const struct intel_gt *gt, u64 count)

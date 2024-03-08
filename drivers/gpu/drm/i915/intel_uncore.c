@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
@@ -117,7 +117,7 @@ intel_uncore_forcewake_domain_to_str(const enum forcewake_domain_id id)
 
 	WARN_ON(id);
 
-	return "unknown";
+	return "unkanalwn";
 }
 
 #define fw_ack(d) readl((d)->reg_ack)
@@ -128,9 +128,9 @@ static inline void
 fw_domain_reset(const struct intel_uncore_forcewake_domain *d)
 {
 	/*
-	 * We don't really know if the powerwell for the forcewake domain we are
+	 * We don't really kanalw if the powerwell for the forcewake domain we are
 	 * trying to reset here does exist at this point (engines could be fused
-	 * off in ICL+), so no waiting for acks
+	 * off in ICL+), so anal waiting for acks
 	 */
 	/* WaRsClearFWBitsAtReset */
 	if (GRAPHICS_VER(d->uncore->i915) >= 12)
@@ -189,7 +189,7 @@ fw_domain_wait_ack_clear(const struct intel_uncore_forcewake_domain *d)
 			"%s: timed out waiting for forcewake ack to clear.\n",
 			intel_uncore_forcewake_domain_to_str(d->id));
 
-	add_taint_for_CI(d->uncore->i915, TAINT_WARN); /* CI now unreliable */
+	add_taint_for_CI(d->uncore->i915, TAINT_WARN); /* CI analw unreliable */
 }
 
 enum ack_type {
@@ -209,13 +209,13 @@ fw_domain_wait_ack_with_fallback(const struct intel_uncore_forcewake_domain *d,
 	/*
 	 * There is a possibility of driver's wake request colliding
 	 * with hardware's own wake requests and that can cause
-	 * hardware to not deliver the driver's ack message.
+	 * hardware to analt deliver the driver's ack message.
 	 *
 	 * Use a fallback bit toggle to kick the gpu state machine
 	 * in the hope that the original ack will be delivered along with
 	 * the fallback ack.
 	 *
-	 * This workaround is described in HSDES #1604254524 and it's known as:
+	 * This workaround is described in HSDES #1604254524 and it's kanalwn as:
 	 * WaRsForcewakeAddDelayForAck:skl,bxt,kbl,glk,cfl,cnl,icl
 	 * although the name is a bit misleading.
 	 */
@@ -267,7 +267,7 @@ fw_domain_wait_ack_set(const struct intel_uncore_forcewake_domain *d)
 		drm_err(&d->uncore->i915->drm,
 			"%s: timed out waiting for forcewake ack request.\n",
 			intel_uncore_forcewake_domain_to_str(d->id));
-		add_taint_for_CI(d->uncore->i915, TAINT_WARN); /* CI now unreliable */
+		add_taint_for_CI(d->uncore->i915, TAINT_WARN); /* CI analw unreliable */
 	}
 }
 
@@ -288,7 +288,7 @@ fw_domain_put(const struct intel_uncore_forcewake_domain *d)
 }
 
 static void
-fw_domains_get_normal(struct intel_uncore *uncore, enum forcewake_domains fw_domains)
+fw_domains_get_analrmal(struct intel_uncore *uncore, enum forcewake_domains fw_domains)
 {
 	struct intel_uncore_forcewake_domain *d;
 	unsigned int tmp;
@@ -380,7 +380,7 @@ static void __gen6_gt_wait_for_thread_c0(struct intel_uncore *uncore)
 static void fw_domains_get_with_thread_status(struct intel_uncore *uncore,
 					      enum forcewake_domains fw_domains)
 {
-	fw_domains_get_normal(uncore, fw_domains);
+	fw_domains_get_analrmal(uncore, fw_domains);
 
 	/* WaRsForcewakeWaitTC0:snb,ivb,hsw,bdw,vlv */
 	__gen6_gt_wait_for_thread_c0(uncore);
@@ -425,7 +425,7 @@ intel_uncore_fw_release_timer(struct hrtimer *timer)
 	struct intel_uncore *uncore = domain->uncore;
 	unsigned long irqflags;
 
-	assert_rpm_device_not_suspended(uncore->rpm);
+	assert_rpm_device_analt_suspended(uncore->rpm);
 
 	if (xchg(&domain->active, false))
 		return HRTIMER_RESTART;
@@ -440,10 +440,10 @@ intel_uncore_fw_release_timer(struct hrtimer *timer)
 
 	spin_unlock_irqrestore(&uncore->lock, irqflags);
 
-	return HRTIMER_NORESTART;
+	return HRTIMER_ANALRESTART;
 }
 
-/* Note callers must have acquired the PUNIT->PMIC bus, before calling this. */
+/* Analte callers must have acquired the PUNIT->PMIC bus, before calling this. */
 static unsigned int
 intel_uncore_forcewake_reset(struct intel_uncore *uncore)
 {
@@ -455,7 +455,7 @@ intel_uncore_forcewake_reset(struct intel_uncore *uncore)
 	iosf_mbi_assert_punit_acquired();
 
 	/* Hold uncore.lock across reset to prevent any register access
-	 * with forcewake not set correctly. Wait until all pending
+	 * with forcewake analt set correctly. Wait until all pending
 	 * timers are run before holding.
 	 */
 	while (1) {
@@ -510,7 +510,7 @@ fpga_check_for_unclaimed_mmio(struct intel_uncore *uncore)
 	u32 dbg;
 
 	dbg = __raw_uncore_read32(uncore, FPGA_DBG);
-	if (likely(!(dbg & FPGA_DBG_RM_NOCLAIM)))
+	if (likely(!(dbg & FPGA_DBG_RM_ANALCLAIM)))
 		return false;
 
 	/*
@@ -521,15 +521,15 @@ fpga_check_for_unclaimed_mmio(struct intel_uncore *uncore)
 	 * least try to print a more informative message about what has
 	 * happened.
 	 *
-	 * During normal operation the FPGA_DBG register has several unused
+	 * During analrmal operation the FPGA_DBG register has several unused
 	 * bits that will always read back as 0's so we can use them as canaries
 	 * to recognize when MMIO accesses are just busted.
 	 */
 	if (unlikely(dbg == ~0))
 		drm_err(&uncore->i915->drm,
-			"Lost access to MMIO BAR; all registers now read back as 0xFFFFFFFF!\n");
+			"Lost access to MMIO BAR; all registers analw read back as 0xFFFFFFFF!\n");
 
-	__raw_uncore_write32(uncore, FPGA_DBG, FPGA_DBG_RM_NOCLAIM);
+	__raw_uncore_write32(uncore, FPGA_DBG, FPGA_DBG_RM_ANALCLAIM);
 
 	return true;
 }
@@ -617,7 +617,7 @@ void intel_uncore_suspend(struct intel_uncore *uncore)
 		return;
 
 	iosf_mbi_punit_acquire();
-	iosf_mbi_unregister_pmic_bus_access_notifier_unlocked(
+	iosf_mbi_unregister_pmic_bus_access_analtifier_unlocked(
 		&uncore->pmic_bus_access_nb);
 	uncore->fw_domains_saved = intel_uncore_forcewake_reset(uncore);
 	iosf_mbi_punit_release();
@@ -636,7 +636,7 @@ void intel_uncore_resume_early(struct intel_uncore *uncore)
 	restore_forcewake = fetch_and_zero(&uncore->fw_domains_saved);
 	forcewake_early_sanitize(uncore, restore_forcewake);
 
-	iosf_mbi_register_pmic_bus_access_notifier(&uncore->pmic_bus_access_nb);
+	iosf_mbi_register_pmic_bus_access_analtifier(&uncore->pmic_bus_access_nb);
 }
 
 void intel_uncore_runtime_resume(struct intel_uncore *uncore)
@@ -644,7 +644,7 @@ void intel_uncore_runtime_resume(struct intel_uncore *uncore)
 	if (!intel_uncore_has_forcewake(uncore))
 		return;
 
-	iosf_mbi_register_pmic_bus_access_notifier(&uncore->pmic_bus_access_nb);
+	iosf_mbi_register_pmic_bus_access_analtifier(&uncore->pmic_bus_access_nb);
 }
 
 static void __intel_uncore_forcewake_get(struct intel_uncore *uncore,
@@ -672,8 +672,8 @@ static void __intel_uncore_forcewake_get(struct intel_uncore *uncore,
  * @fw_domains: forcewake domains to get reference on
  *
  * This function can be used get GT's forcewake domain references.
- * Normal register access will handle the forcewake domains automatically.
- * However if some sequence requires the GT to not power down a particular
+ * Analrmal register access will handle the forcewake domains automatically.
+ * However if some sequence requires the GT to analt power down a particular
  * forcewake domains this function should be called at the beginning of the
  * sequence. And subsequently the reference should be dropped by symmetric
  * call to intel_unforce_forcewake_put(). Usually caller wants all the domains
@@ -977,7 +977,7 @@ find_fw_domain(struct intel_uncore *uncore, u32 offset)
  * must still be acquired when reading from registers in these ranges.
  *
  * The documentation for shadowed registers is somewhat spotty on older
- * platforms.  However missing registers from these lists is non-fatal; it just
+ * platforms.  However missing registers from these lists is analn-fatal; it just
  * means we'll wake up the hardware for some register accesses where we didn't
  * really need to.
  *
@@ -1237,7 +1237,7 @@ gen6_reg_write_fw_domains(struct intel_uncore *uncore, i915_reg_t reg)
 /*
  * All platforms' forcewake tables below must be sorted by offset ranges.
  * Furthermore, new forcewake tables added should be "watertight" and have
- * no gaps between ranges.
+ * anal gaps between ranges.
  *
  * When there are multiple consecutive ranges listed in the bspec with
  * the same forcewake domain, it is customary to combine them into a single
@@ -1804,15 +1804,15 @@ static const struct intel_forcewake_range __mtl_fw_ranges[] = {
 };
 
 /*
- * Note that the register ranges here are the final offsets after
+ * Analte that the register ranges here are the final offsets after
  * translation of the GSI block to the 0x380000 offset.
  *
- * NOTE:  There are a couple MCR ranges near the bottom of this table
+ * ANALTE:  There are a couple MCR ranges near the bottom of this table
  * that need to power up either VD0 or VD2 depending on which replicated
  * instance of the register we're trying to access.  Our forcewake logic
  * at the moment doesn't have a good way to take steering into consideration,
  * and the driver doesn't even access any registers in those ranges today,
- * so for now we just mark those ranges as FORCEWAKE_ALL.  That will ensure
+ * so for analw we just mark those ranges as FORCEWAKE_ALL.  That will ensure
  * proper operation if we do start using the ranges in the future, and we
  * can determine at that time whether it's worth adding extra complexity to
  * the forcewake handling to take steering into consideration.
@@ -1824,7 +1824,7 @@ static const struct intel_forcewake_range __xelpmp_fw_ranges[] = {
 		0x118000 - 0x119fff: reserved
 		0x11a000 - 0x11efff: gsc
 		0x11f000 - 0x11ffff: reserved */
-	GEN_FW_RANGE(0x120000, 0x1bffff, 0), /* non-GT range */
+	GEN_FW_RANGE(0x120000, 0x1bffff, 0), /* analn-GT range */
 	GEN_FW_RANGE(0x1c0000, 0x1c7fff, FORCEWAKE_MEDIA_VDBOX0), /*
 		0x1c0000 - 0x1c3dff: VD0
 		0x1c3e00 - 0x1c3eff: reserved
@@ -1843,7 +1843,7 @@ static const struct intel_forcewake_range __xelpmp_fw_ranges[] = {
 	GEN_FW_RANGE(0x1d8000, 0x1da0ff, FORCEWAKE_MEDIA_VEBOX1),
 	GEN_FW_RANGE(0x1da100, 0x380aff, 0), /*
 		0x1da100 - 0x23ffff: reserved
-		0x240000 - 0x37ffff: non-GT range
+		0x240000 - 0x37ffff: analn-GT range
 		0x380000 - 0x380aff: reserved */
 	GEN_FW_RANGE(0x380b00, 0x380bff, FORCEWAKE_GT),
 	GEN_FW_RANGE(0x380c00, 0x380fff, 0),
@@ -1881,9 +1881,9 @@ static const struct intel_forcewake_range __xelpmp_fw_ranges[] = {
 		0x392000 - 0x3927ff: always on
 		0x392800 - 0x292fff: reserved */
 	GEN_FW_RANGE(0x393000, 0x3931ff, FORCEWAKE_GT),
-	GEN_FW_RANGE(0x393200, 0x39323f, FORCEWAKE_ALL), /* instance-based, see note above */
+	GEN_FW_RANGE(0x393200, 0x39323f, FORCEWAKE_ALL), /* instance-based, see analte above */
 	GEN_FW_RANGE(0x393240, 0x3933ff, FORCEWAKE_GT),
-	GEN_FW_RANGE(0x393400, 0x3934ff, FORCEWAKE_ALL), /* instance-based, see note above */
+	GEN_FW_RANGE(0x393400, 0x3934ff, FORCEWAKE_ALL), /* instance-based, see analte above */
 	GEN_FW_RANGE(0x393500, 0x393c7f, 0), /*
 		0x393500 - 0x393bff: reserved
 		0x393c00 - 0x393c7f: always on */
@@ -2020,7 +2020,7 @@ __gen2_read(64)
 	trace_i915_reg_rw(false, reg, val, sizeof(val), trace); \
 	return val
 
-static noinline void ___force_wake_auto(struct intel_uncore *uncore,
+static analinline void ___force_wake_auto(struct intel_uncore *uncore,
 					enum forcewake_domains fw_domains)
 {
 	struct intel_uncore_forcewake_domain *domain;
@@ -2211,11 +2211,11 @@ static int __fw_domain_init(struct intel_uncore *uncore,
 	GEM_BUG_ON(uncore->fw_domain[domain_id]);
 
 	if (i915_inject_probe_failure(uncore->i915))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	d = kzalloc(sizeof(*d), GFP_KERNEL);
 	if (!d)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drm_WARN_ON(&uncore->i915->drm, !i915_mmio_reg_valid(reg_set));
 	drm_WARN_ON(&uncore->i915->drm, !i915_mmio_reg_valid(reg_ack));
@@ -2246,7 +2246,7 @@ static int __fw_domain_init(struct intel_uncore *uncore,
 
 	d->mask = BIT(domain_id);
 
-	hrtimer_init(&d->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	hrtimer_init(&d->timer, CLOCK_MOANALTONIC, HRTIMER_MODE_REL);
 	d->timer.function = intel_uncore_fw_release_timer;
 
 	uncore->fw_domains |= BIT(domain_id);
@@ -2288,8 +2288,8 @@ static const struct intel_uncore_fw_get uncore_get_fallback = {
 	.force_wake_get = fw_domains_get_with_fallback
 };
 
-static const struct intel_uncore_fw_get uncore_get_normal = {
-	.force_wake_get = fw_domains_get_normal,
+static const struct intel_uncore_fw_get uncore_get_analrmal = {
+	.force_wake_get = fw_domains_get_analrmal,
 };
 
 static const struct intel_uncore_fw_get uncore_get_thread_status = {
@@ -2359,7 +2359,7 @@ static int intel_uncore_fw_domains_init(struct intel_uncore *uncore)
 		fw_domain_init(uncore, FW_DOMAIN_ID_MEDIA,
 			       FORCEWAKE_MEDIA_GEN9, FORCEWAKE_ACK_MEDIA_GEN9);
 	} else if (IS_VALLEYVIEW(i915) || IS_CHERRYVIEW(i915)) {
-		uncore->fw_get_funcs = &uncore_get_normal;
+		uncore->fw_get_funcs = &uncore_get_analrmal;
 		fw_domain_init(uncore, FW_DOMAIN_ID_RENDER,
 			       FORCEWAKE_VLV, FORCEWAKE_ACK_VLV);
 		fw_domain_init(uncore, FW_DOMAIN_ID_MEDIA,
@@ -2375,7 +2375,7 @@ static int intel_uncore_fw_domains_init(struct intel_uncore *uncore)
 
 		/* A small trick here - if the bios hasn't configured
 		 * MT forcewake, and if the device is in RC6, then
-		 * force_wake_mt_get will not wake the device and the
+		 * force_wake_mt_get will analt wake the device and the
 		 * ECOBUS read will return zero. Which will be
 		 * (correctly) interpreted by the test below as MT
 		 * forcewake being disabled.
@@ -2384,7 +2384,7 @@ static int intel_uncore_fw_domains_init(struct intel_uncore *uncore)
 
 		/* We need to init first for ECOBUS access and then
 		 * determine later if we want to reinit, in case of MT access is
-		 * not working. In this stage we don't know which flavour this
+		 * analt working. In this stage we don't kanalw which flavour this
 		 * ivb is, so it is better to reset also the gen6 fw registers
 		 * before the ecobus check.
 		 */
@@ -2404,7 +2404,7 @@ static int intel_uncore_fw_domains_init(struct intel_uncore *uncore)
 		spin_unlock_irq(&uncore->lock);
 
 		if (!(ecobus & FORCEWAKE_MT_ENABLE)) {
-			drm_info(&i915->drm, "No MT forcewake available on Ivybridge, this can result in issues\n");
+			drm_info(&i915->drm, "Anal MT forcewake available on Ivybridge, this can result in issues\n");
 			drm_info(&i915->drm, "when using vblank-synced partial screen updates.\n");
 			fw_domain_fini(uncore, FW_DOMAIN_ID_RENDER);
 			fw_domain_init(uncore, FW_DOMAIN_ID_RENDER,
@@ -2441,7 +2441,7 @@ out:
 	(uncore)->shadowed_reg_table_entries = ARRAY_SIZE((d)); \
 }
 
-static int i915_pmic_bus_access_notifier(struct notifier_block *nb,
+static int i915_pmic_bus_access_analtifier(struct analtifier_block *nb,
 					 unsigned long action, void *data)
 {
 	struct intel_uncore *uncore = container_of(nb,
@@ -2450,14 +2450,14 @@ static int i915_pmic_bus_access_notifier(struct notifier_block *nb,
 	switch (action) {
 	case MBI_PMIC_BUS_ACCESS_BEGIN:
 		/*
-		 * forcewake all now to make sure that we don't need to do a
-		 * forcewake later which on systems where this notifier gets
+		 * forcewake all analw to make sure that we don't need to do a
+		 * forcewake later which on systems where this analtifier gets
 		 * called requires the punit to access to the shared pmic i2c
-		 * bus, which will be busy after this notification, leading to:
+		 * bus, which will be busy after this analtification, leading to:
 		 * "render: timed out waiting for forcewake ack request."
 		 * errors.
 		 *
-		 * The notifier is unregistered during intel_runtime_suspend(),
+		 * The analtifier is unregistered during intel_runtime_suspend(),
 		 * so it's ok to access the HW here without holding a RPM
 		 * wake reference -> disable wakeref asserts for the time of
 		 * the access.
@@ -2471,7 +2471,7 @@ static int i915_pmic_bus_access_notifier(struct notifier_block *nb,
 		break;
 	}
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 static void uncore_unmap_mmio(struct drm_device *drm, void *regs)
@@ -2546,7 +2546,7 @@ static int uncore_media_forcewake_init(struct intel_uncore *uncore)
 		ASSIGN_WRITE_MMIO_VFUNCS(uncore, fwtable);
 	} else {
 		MISSING_CASE(MEDIA_VER(i915));
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -2613,8 +2613,8 @@ static int uncore_forcewake_init(struct intel_uncore *uncore)
 		ASSIGN_WRITE_MMIO_VFUNCS(uncore, gen6);
 	}
 
-	uncore->pmic_bus_access_nb.notifier_call = i915_pmic_bus_access_notifier;
-	iosf_mbi_register_pmic_bus_access_notifier(&uncore->pmic_bus_access_nb);
+	uncore->pmic_bus_access_nb.analtifier_call = i915_pmic_bus_access_analtifier;
+	iosf_mbi_register_pmic_bus_access_analtifier(&uncore->pmic_bus_access_nb);
 
 	return 0;
 }
@@ -2642,7 +2642,7 @@ static int sanity_check_mmio_access(struct intel_uncore *uncore)
 	 */
 #define COND (__raw_uncore_read32(uncore, FORCEWAKE_MT) != ~0)
 	if (wait_for(COND, 2000) == -ETIMEDOUT) {
-		drm_err(&i915->drm, "Device is non-operational; MMIO access returns 0xFFFFFFFF!\n");
+		drm_err(&i915->drm, "Device is analn-operational; MMIO access returns 0xFFFFFFFF!\n");
 		return -EIO;
 	}
 
@@ -2662,12 +2662,12 @@ int intel_uncore_init_mmio(struct intel_uncore *uncore)
 	 * The boot firmware initializes local memory and assesses its health.
 	 * If memory training fails, the punit will have been instructed to
 	 * keep the GT powered down; we won't be able to communicate with it
-	 * and we should not continue with driver initialization.
+	 * and we should analt continue with driver initialization.
 	 */
 	if (IS_DGFX(i915) &&
 	    !(__raw_uncore_read32(uncore, GU_CNTL) & LMEM_INIT)) {
-		drm_err(&i915->drm, "LMEM not initialized by firmware\n");
-		return -ENODEV;
+		drm_err(&i915->drm, "LMEM analt initialized by firmware\n");
+		return -EANALDEV;
 	}
 
 	if (GRAPHICS_VER(i915) > 5 && !intel_vgpu_active(i915))
@@ -2781,9 +2781,9 @@ static void driver_initiated_flr(struct intel_uncore *uncore)
 	/*
 	 * Make sure any pending FLR requests have cleared by waiting for the
 	 * FLR trigger bit to go to zero. Also clear GU_DEBUG's DRIVERFLR_STATUS
-	 * to make sure it's not still set from a prior attempt (it's a write to
+	 * to make sure it's analt still set from a prior attempt (it's a write to
 	 * clear bit).
-	 * Note that we should never be in a situation where a previous attempt
+	 * Analte that we should never be in a situation where a previous attempt
 	 * is still pending (unless the HW is totally dead), but better to be
 	 * safe in case something unexpected happens
 	 */
@@ -2828,7 +2828,7 @@ void intel_uncore_fini_mmio(struct drm_device *dev, void *data)
 
 	if (intel_uncore_has_forcewake(uncore)) {
 		iosf_mbi_punit_acquire();
-		iosf_mbi_unregister_pmic_bus_access_notifier_unlocked(
+		iosf_mbi_unregister_pmic_bus_access_analtifier_unlocked(
 			&uncore->pmic_bus_access_nb);
 		intel_uncore_forcewake_reset(uncore);
 		intel_uncore_fw_domains_fini(uncore);
@@ -2856,10 +2856,10 @@ void intel_uncore_fini_mmio(struct drm_device *dev, void *data)
  *
  * Otherwise, the wait will timeout after @slow_timeout_ms milliseconds.
  * For atomic context @slow_timeout_ms must be zero and @fast_timeout_us
- * must be not larger than 20,0000 microseconds.
+ * must be analt larger than 20,0000 microseconds.
  *
- * Note that this routine assumes the caller holds forcewake asserted, it is
- * not suitable for very long waits. See intel_wait_for_register() if you
+ * Analte that this routine assumes the caller holds forcewake asserted, it is
+ * analt suitable for very long waits. See intel_wait_for_register() if you
  * wish to wait without holding forcewake for the duration (i.e. you expect
  * the wait to be slow).
  *
@@ -2940,7 +2940,7 @@ int __intel_wait_for_register(struct intel_uncore *uncore,
 	spin_unlock_irq(&uncore->lock);
 
 	if (ret && slow_timeout_ms)
-		ret = __wait_for(reg_value = intel_uncore_read_notrace(uncore,
+		ret = __wait_for(reg_value = intel_uncore_read_analtrace(uncore,
 								       reg),
 				 (reg_value & mask) == value,
 				 slow_timeout_ms * 1000, 10, 1000);
@@ -3010,7 +3010,7 @@ out:
  * intel_uncore_forcewake_get for the specified register to be accessible in the
  * specified mode (read, write or read/write) with raw mmio accessors.
  *
- * NOTE: On Gen6 and Gen7 write forcewake domain (FORCEWAKE_RENDER) requires the
+ * ANALTE: On Gen6 and Gen7 write forcewake domain (FORCEWAKE_RENDER) requires the
  * callers to do FIFO management on their own or risk losing writes.
  */
 enum forcewake_domains

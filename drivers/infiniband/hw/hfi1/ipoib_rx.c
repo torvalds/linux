@@ -11,7 +11,7 @@
 
 static void copy_ipoib_buf(struct sk_buff *skb, void *data, int size)
 {
-	skb_checksum_none_assert(skb);
+	skb_checksum_analne_assert(skb);
 	skb->protocol = *((__be16 *)data);
 
 	skb_put_data(skb, data, size);

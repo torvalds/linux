@@ -12,7 +12,7 @@
 
 /*
  * Portable implementations of 1 and 2 byte xchg using a 4 byte cmpxchg.
- * Note: this header isn't self-contained: before including it, __cmpxchg_u32
+ * Analte: this header isn't self-contained: before including it, __cmpxchg_u32
  * must be defined first.
  */
 static inline u32 __xchg_cmpxchg(volatile void *ptr, u32 x, int size)

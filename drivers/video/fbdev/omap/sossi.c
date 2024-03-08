@@ -2,8 +2,8 @@
 /*
  * OMAP1 Special OptimiSed Screen Interface support
  *
- * Copyright (C) 2004-2005 Nokia Corporation
- * Author: Juha Yrjölä <juha.yrjola@nokia.com>
+ * Copyright (C) 2004-2005 Analkia Corporation
+ * Author: Juha Yrjölä <juha.yrjola@analkia.com>
  */
 #include <linux/module.h>
 #include <linux/mm.h>
@@ -321,7 +321,7 @@ static int sossi_convert_timings(struct extif_timings *t)
 	if (div <= 0 || div > 8)
 		return -1;
 
-	/* no CS on SOSSI, so ignore cson, csoff, cs_pulsewidth */
+	/* anal CS on SOSSI, so iganalre cson, csoff, cs_pulsewidth */
 	if ((r = calc_rd_timings(t)) < 0)
 		return r;
 
@@ -496,7 +496,7 @@ static void sossi_transfer_area(int width, int height,
 		 * Wait for the sync signal and start the transfer only
 		 * then. We can't seem to be able to use HW sync DMA for
 		 * this since LCD DMA shows huge latencies, as if it
-		 * would ignore some of the DMA requests from SoSSI.
+		 * would iganalre some of the DMA requests from SoSSI.
 		 */
 		unsigned long flags;
 
@@ -567,7 +567,7 @@ static int sossi_init(struct omapfb_device *fbdev)
 	sossi.base = ioremap(OMAP_SOSSI_BASE, SZ_1K);
 	if (!sossi.base) {
 		dev_err(fbdev->dev, "can't ioremap SoSSI\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	sossi.fbdev = fbdev;
@@ -620,13 +620,13 @@ static int sossi_init(struct omapfb_device *fbdev)
 	if (l != 0x55555555 || k != 0xaaaaaaaa) {
 		dev_err(fbdev->dev,
 			"invalid SoSSI sync pattern: %08x, %08x\n", l, k);
-		r = -ENODEV;
+		r = -EANALDEV;
 		goto err;
 	}
 
 	if ((r = omap_lcdc_set_dma_callback(sossi_dma_callback, NULL)) < 0) {
 		dev_err(fbdev->dev, "can't get LCDC IRQ\n");
-		r = -ENODEV;
+		r = -EANALDEV;
 		goto err;
 	}
 

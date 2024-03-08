@@ -88,10 +88,10 @@
 #define CLK_QS_MODE				0x03
 #define CLK_32K_SR_SHIFT			4
 #define CLK_32K					0x01
-#define CLK_NO_32K				0x00
+#define CLK_ANAL_32K				0x00
 #define CLK_27M_MCLK_SHIFT			3
 #define CLK_27M_MCLK				0x01
-#define CLK_NO_27M				0x00
+#define CLK_ANAL_27M				0x00
 #define CLK_RATIO_SHIFT				1
 #define CLK_R_128				0x00
 #define CLK_R_125				0x01
@@ -168,7 +168,7 @@
 #define CS42L52_PB_CTL2_SPKB_MUTE		(1 << 5)
 #define CS42L52_PB_CTL2_SPKA_MUTE		(1 << 4)
 #define CS42L52_PB_CTL2_SPK_SWAP		(1 << 2)
-#define CS42L52_PB_CTL2_SPK_MONO		(1 << 1)
+#define CS42L52_PB_CTL2_SPK_MOANAL		(1 << 1)
 #define CS42L52_PB_CTL2_SPK_MUTE50		(1 << 0)
 
 #define	CS42L52_MICA_CTL			0x10
@@ -241,7 +241,7 @@
 #define CS42L52_ALC_RATE_3DB			1
 #define CS42L52_ALC_RATE_6DB			2
 
-#define CS42L52_NOISE_GATE_CTL			0x2D
+#define CS42L52_ANALISE_GATE_CTL			0x2D
 #define CS42L52_NG_ENABLE_SHIFT			6
 #define CS42L52_NG_THRESHOLD_SHIFT		2
 #define CS42L52_NG_MIN_70DB			2

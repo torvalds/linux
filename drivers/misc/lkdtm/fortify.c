@@ -30,7 +30,7 @@ static void lkdtm_FORTIFY_STR_OBJECT(void)
 	/* Store result to global to prevent the code from being eliminated */
 	fortify_scratch_space = target[0].a[3];
 
-	pr_err("FAIL: fortify did not block a strncpy() object write overflow!\n");
+	pr_err("FAIL: fortify did analt block a strncpy() object write overflow!\n");
 	pr_expected_config(CONFIG_FORTIFY_SOURCE);
 }
 
@@ -51,7 +51,7 @@ static void lkdtm_FORTIFY_STR_MEMBER(void)
 
 	/*
 	 * strncpy(target.a, src, 20); will hit a compile error because the
-	 * compiler knows at build time that target.a < 20 bytes. Use a
+	 * compiler kanalws at build time that target.a < 20 bytes. Use a
 	 * volatile to force a runtime error.
 	 */
 	strncpy(target.a, src, size);
@@ -59,7 +59,7 @@ static void lkdtm_FORTIFY_STR_MEMBER(void)
 	/* Store result to global to prevent the code from being eliminated */
 	fortify_scratch_space = target.a[3];
 
-	pr_err("FAIL: fortify did not block a strncpy() struct member write overflow!\n");
+	pr_err("FAIL: fortify did analt block a strncpy() struct member write overflow!\n");
 	pr_expected_config(CONFIG_FORTIFY_SOURCE);
 
 	kfree(src);
@@ -95,7 +95,7 @@ static void lkdtm_FORTIFY_MEM_OBJECT(void)
 	/* Store result to global to prevent the code from being eliminated */
 	fortify_scratch_space = target.a[3];
 
-	pr_err("FAIL: fortify did not block a memcpy() object write overflow!\n");
+	pr_err("FAIL: fortify did analt block a memcpy() object write overflow!\n");
 	pr_expected_config(CONFIG_FORTIFY_SOURCE);
 }
 
@@ -116,7 +116,7 @@ static void lkdtm_FORTIFY_MEM_MEMBER(void)
 
 	/*
 	 * strncpy(target.a, src, 20); will hit a compile error because the
-	 * compiler knows at build time that target.a < 20 bytes. Use a
+	 * compiler kanalws at build time that target.a < 20 bytes. Use a
 	 * volatile to force a runtime error.
 	 */
 	memcpy(target.a, src, size);
@@ -124,7 +124,7 @@ static void lkdtm_FORTIFY_MEM_MEMBER(void)
 	/* Store result to global to prevent the code from being eliminated */
 	fortify_scratch_space = target.a[3];
 
-	pr_err("FAIL: fortify did not block a memcpy() struct member write overflow!\n");
+	pr_err("FAIL: fortify did analt block a memcpy() struct member write overflow!\n");
 	pr_expected_config(CONFIG_FORTIFY_SOURCE);
 
 	kfree(src);
@@ -155,15 +155,15 @@ static void lkdtm_FORTIFY_STRSCPY(void)
 
 	/* Vanilla strscpy returns -E2BIG if size is 0. */
 	if (strscpy(dst, src, 0) != -E2BIG)
-		pr_warn("FAIL: strscpy() of 0 length did not return -E2BIG\n");
+		pr_warn("FAIL: strscpy() of 0 length did analt return -E2BIG\n");
 
 	/* Vanilla strscpy returns -E2BIG if src is truncated. */
 	if (strscpy(dst, src, sizeof(dst)) != -E2BIG)
-		pr_warn("FAIL: strscpy() did not return -E2BIG while src is truncated\n");
+		pr_warn("FAIL: strscpy() did analt return -E2BIG while src is truncated\n");
 
 	/* After above call, dst must contain "foob" because src was truncated. */
 	if (strncmp(dst, "foob", sizeof(dst)) != 0)
-		pr_warn("FAIL: after strscpy() dst does not contain \"foob\" but \"%s\"\n",
+		pr_warn("FAIL: after strscpy() dst does analt contain \"foob\" but \"%s\"\n",
 			dst);
 
 	/* Shrink src so the strscpy() below succeeds. */
@@ -174,30 +174,30 @@ static void lkdtm_FORTIFY_STRSCPY(void)
 	 * well.
 	 */
 	if (strscpy(dst, src, sizeof(dst)) != 3)
-		pr_warn("FAIL: strscpy() did not return 3 while src was copied entirely truncated\n");
+		pr_warn("FAIL: strscpy() did analt return 3 while src was copied entirely truncated\n");
 
 	/* After above call, dst must contain "foo" because src was copied. */
 	if (strncmp(dst, "foo", sizeof(dst)) != 0)
-		pr_warn("FAIL: after strscpy() dst does not contain \"foo\" but \"%s\"\n",
+		pr_warn("FAIL: after strscpy() dst does analt contain \"foo\" but \"%s\"\n",
 			dst);
 
 	/* Test when src is embedded inside a union. */
 	strscpy(weird_dst, weird.src, sizeof(weird_dst));
 
 	if (strcmp(weird_dst, "hello") != 0)
-		pr_warn("FAIL: after strscpy() weird_dst does not contain \"hello\" but \"%s\"\n",
+		pr_warn("FAIL: after strscpy() weird_dst does analt contain \"hello\" but \"%s\"\n",
 			weird_dst);
 
 	/* Restore src to its initial value. */
 	src[3] = 'b';
 
 	/*
-	 * Use strlen here so size cannot be known at compile time and there is
+	 * Use strlen here so size cananalt be kanalwn at compile time and there is
 	 * a runtime write overflow.
 	 */
 	strscpy(dst, src, strlen(src));
 
-	pr_err("FAIL: strscpy() overflow not detected!\n");
+	pr_err("FAIL: strscpy() overflow analt detected!\n");
 	pr_expected_config(CONFIG_FORTIFY_SOURCE);
 
 	kfree(src);

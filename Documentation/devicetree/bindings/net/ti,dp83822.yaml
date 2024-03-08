@@ -32,7 +32,7 @@ properties:
     description: |
        DP83822 PHY in Fiber mode only.
        Sets the DP83822 to detect a link drop condition when the signal goes
-       high.  If not set then link drop will occur when the signal goes low.
+       high.  If analt set then link drop will occur when the signal goes low.
        This property is only applicable if the fiber mode support is strapped
        to on.
 
@@ -41,9 +41,9 @@ properties:
     description: |
        DP83822 PHY only.
        If present the DP83822 PHY is configured to operate in fiber mode
-       Fiber mode support can also be strapped. If the strap pin is not set
-       correctly or not set at all then this boolean can be used to enable it.
-       If the fiber mode is not strapped then signal detection for the PHY
+       Fiber mode support can also be strapped. If the strap pin is analt set
+       correctly or analt set at all then this boolean can be used to enable it.
+       If the fiber mode is analt strapped then signal detection for the PHY
        is disabled.
        In fiber mode, auto-negotiation is disabled and the PHY can only work in
        100base-fx (full and half duplex) modes.
@@ -51,14 +51,14 @@ properties:
   rx-internal-delay-ps:
     description: |
        DP83822 PHY only.
-       Setting this property to a non-zero number sets the RX internal delay
+       Setting this property to a analn-zero number sets the RX internal delay
        for the PHY.  The internal delay for the PHY is fixed to 3.5ns relative
        to receive data.
 
   tx-internal-delay-ps:
     description: |
        DP83822 PHY only.
-       Setting this property to a non-zero number sets the TX internal delay
+       Setting this property to a analn-zero number sets the TX internal delay
        for the PHY.  The internal delay for the PHY is fixed to 3.5ns relative
        to transmit data.
 

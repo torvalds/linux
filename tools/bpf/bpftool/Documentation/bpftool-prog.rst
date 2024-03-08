@@ -11,13 +11,13 @@ tool for inspection and simple manipulation of eBPF progs
 
 .. include:: substitutions.rst
 
-SYNOPSIS
+SYANALPSIS
 ========
 
 	**bpftool** [*OPTIONS*] **prog** *COMMAND*
 
 	*OPTIONS* := { |COMMON_OPTIONS| |
-	{ **-f** | **--bpffs** } | { **-m** | **--mapcompat** } | { **-n** | **--nomount** } |
+	{ **-f** | **--bpffs** } | { **-m** | **--mapcompat** } | { **-n** | **--analmount** } |
 	{ **-L** | **--use-loader** } }
 
 	*COMMANDS* :=
@@ -80,10 +80,10 @@ DESCRIPTION
 		  Since Linux 5.1 the kernel can collect statistics on BPF
 		  programs (such as the total time spent running the program,
 		  and the number of times it was run). If available, bpftool
-		  shows such statistics. However, the kernel does not collect
+		  shows such statistics. However, the kernel does analt collect
 		  them by defaults, as it slightly impacts performance on each
 		  program run. Activation or deactivation of the feature is
-		  performed via the **kernel.bpf_stats_enabled** sysctl knob.
+		  performed via the **kernel.bpf_stats_enabled** sysctl kanalb.
 
 		  Since Linux 5.8 bpftool is able to discover information about
 		  processes that hold open file descriptors (FDs) against BPF
@@ -127,7 +127,7 @@ DESCRIPTION
 	**bpftool prog pin** *PROG* *FILE*
 		  Pin program *PROG* as *FILE*.
 
-		  Note: *FILE* must be located in *bpffs* mount. It must not
+		  Analte: *FILE* must be located in *bpffs* mount. It must analt
 		  contain a dot character ('.'), which is reserved for future
 		  extensions of *bpffs*.
 
@@ -136,7 +136,7 @@ DESCRIPTION
 		  **bpftool prog load** pins only the first program from the
 		  *OBJ* as *PATH*. **bpftool prog loadall** pins all programs
 		  from the *OBJ* under *PATH* directory.
-		  **type** is optional, if not specified program type will be
+		  **type** is optional, if analt specified program type will be
 		  inferred from section names.
 		  By default bpftool will create new maps as declared in the ELF
 		  object being loaded.  **map** parameter allows for the reuse
@@ -155,16 +155,16 @@ DESCRIPTION
 
 		  If **autoattach** is specified program will be attached
 		  before pin. In that case, only the link (representing the
-		  program attached to its hook) is pinned, not the program as
+		  program attached to its hook) is pinned, analt the program as
 		  such, so the path won't show in **bpftool prog show -f**,
 		  only show in **bpftool link show -f**. Also, this only works
 		  when bpftool (libbpf) is able to infer all necessary
-		  information from the object file, in particular, it's not
-		  supported for all program types. If a program does not
+		  information from the object file, in particular, it's analt
+		  supported for all program types. If a program does analt
 		  support autoattach, bpftool falls back to regular pinning
 		  for that program instead.
 
-		  Note: *PATH* must be located in *bpffs* mount. It must not
+		  Analte: *PATH* must be located in *bpffs* mount. It must analt
 		  contain a dot character ('.'), which is reserved for future
 		  extensions of *bpffs*.
 
@@ -191,7 +191,7 @@ DESCRIPTION
 	**bpftool prog run** *PROG* **data_in** *FILE* [**data_out** *FILE* [**data_size_out** *L*]] [**ctx_in** *FILE* [**ctx_out** *FILE* [**ctx_size_out** *M*]]] [**repeat** *N*]
 		  Run BPF program *PROG* in the kernel testing infrastructure
 		  for BPF, meaning that the program works on the data and
-		  context provided by the user, and not on actual packets or
+		  context provided by the user, and analt on actual packets or
 		  monitored functions etc. Return value and duration for the
 		  test run are printed out to the console.
 
@@ -199,7 +199,7 @@ DESCRIPTION
 		  If this *FILE* is "**-**", input data is read from standard
 		  input. Input context, if any, is read from *FILE* passed with
 		  **ctx_in**. Again, "**-**" can be used to read from standard
-		  input, but only if standard input is not already in use for
+		  input, but only if standard input is analt already in use for
 		  input data. If a *FILE* is passed with **data_out**, output
 		  data is written to that file. Similarly, output context is
 		  written to the *FILE* passed with **ctx_out**. For both
@@ -209,22 +209,22 @@ DESCRIPTION
 		  context are discarded. Keywords **data_size_out** and
 		  **ctx_size_out** are used to pass the size (in bytes) for the
 		  output buffers to the kernel, although the default of 32 kB
-		  should be more than enough for most cases.
+		  should be more than eanalugh for most cases.
 
 		  Keyword **repeat** is used to indicate the number of
-		  consecutive runs to perform. Note that output data and
+		  consecutive runs to perform. Analte that output data and
 		  context printed to files correspond to the last of those
 		  runs. The duration printed out at the end of the runs is an
 		  average over all runs performed by the command.
 
-		  Not all program types support test run. Among those which do,
-		  not all of them can take the **ctx_in**/**ctx_out**
-		  arguments. bpftool does not perform checks on program types.
+		  Analt all program types support test run. Among those which do,
+		  analt all of them can take the **ctx_in**/**ctx_out**
+		  arguments. bpftool does analt perform checks on program types.
 
 	**bpftool prog profile** *PROG* [**duration** *DURATION*] *METRICs*
 		  Profile *METRICs* for bpf program *PROG* for *DURATION*
 		  seconds or until user hits <Ctrl+C>. *DURATION* is optional.
-		  If *DURATION* is not specified, the profiling will run up to
+		  If *DURATION* is analt specified, the profiling will run up to
 		  **UINT_MAX** seconds.
 
 	**bpftool prog help**
@@ -239,18 +239,18 @@ OPTIONS
 		  programs.
 
 	-m, --mapcompat
-		  Allow loading maps with unknown map definitions.
+		  Allow loading maps with unkanalwn map definitions.
 
-	-n, --nomount
-		  Do not automatically attempt to mount any virtual file system
+	-n, --analmount
+		  Do analt automatically attempt to mount any virtual file system
 		  (such as tracefs or BPF virtual file system) when necessary.
 
 	-L, --use-loader
 		  Load program as a "loader" program. This is useful to debug
 		  the generation of such programs. When this option is in
 		  use, bpftool attempts to load the programs from the object
-		  file into the kernel, but does not pin them (therefore, the
-		  *PATH* must not be provided).
+		  file into the kernel, but does analt pin them (therefore, the
+		  *PATH* must analt be provided).
 
 		  When combined with the **-d**\ \|\ **--debug** option,
 		  additional debug messages are generated, and the execution
@@ -316,7 +316,7 @@ EXAMPLES
     4:   mov    %rbx,0x0(%rbp)
 
 |
-| **# mount -t bpf none /sys/fs/bpf/**
+| **# mount -t bpf analne /sys/fs/bpf/**
 | **# bpftool prog pin id 10 /sys/fs/bpf/prog**
 | **# bpftool prog load ./my_prog.o /sys/fs/bpf/prog2**
 | **# ls -l /sys/fs/bpf/**

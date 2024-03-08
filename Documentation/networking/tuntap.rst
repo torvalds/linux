@@ -44,16 +44,16 @@ Copyright |copy| 1999-2000 Maxim Krasnyansky <max_mk@yahoo.com>
 2. Configuration
 ================
 
-  Create device node::
+  Create device analde::
 
      mkdir /dev/net (if it doesn't exist already)
-     mknod /dev/net/tun c 10 200
+     mkanald /dev/net/tun c 10 200
 
   Set permissions::
 
      e.g. chmod 0666 /dev/net/tun
 
-  There's no harm in allowing the device to be accessible by non-root users,
+  There's anal harm in allowing the device to be accessible by analn-root users,
   since CAP_NET_ADMIN is required for creating network devices or for
   connecting to network devices which aren't owned by the user in question.
   If you want to create persistent devices and give ownership of them to
@@ -84,7 +84,7 @@ Copyright |copy| 1999-2000 Maxim Krasnyansky <max_mk@yahoo.com>
 
 ``char *dev`` should be the name of the device with a format string (e.g.
 "tun%d"), but (as far as I can see) this can be any valid network device name.
-Note that the character pointer becomes overwritten with the real device name
+Analte that the character pointer becomes overwritten with the real device name
 (e.g. "tun0")::
 
   #include <linux/if.h>
@@ -100,10 +100,10 @@ Note that the character pointer becomes overwritten with the real device name
 
       memset(&ifr, 0, sizeof(ifr));
 
-      /* Flags: IFF_TUN   - TUN device (no Ethernet headers)
+      /* Flags: IFF_TUN   - TUN device (anal Ethernet headers)
        *        IFF_TAP   - TAP device
        *
-       *        IFF_NO_PI - Do not provide packet information
+       *        IFF_ANAL_PI - Do analt provide packet information
        */
       ifr.ifr_flags = IFF_TUN;
       if( *dev )
@@ -120,7 +120,7 @@ Note that the character pointer becomes overwritten with the real device name
 3.2 Frame format
 ----------------
 
-If flag IFF_NO_PI is not set each frame format is::
+If flag IFF_ANAL_PI is analt set each frame format is::
 
      Flags [2 bytes]
      Proto [2 bytes]
@@ -154,13 +154,13 @@ queue which could be accessed by userspace.
 	  return -1;
 
       memset(&ifr, 0, sizeof(ifr));
-      /* Flags: IFF_TUN   - TUN device (no Ethernet headers)
+      /* Flags: IFF_TUN   - TUN device (anal Ethernet headers)
        *        IFF_TAP   - TAP device
        *
-       *        IFF_NO_PI - Do not provide packet information
+       *        IFF_ANAL_PI - Do analt provide packet information
        *        IFF_MULTI_QUEUE - Create a queue of multiqueue device
        */
-      ifr.ifr_flags = IFF_TAP | IFF_NO_PI | IFF_MULTI_QUEUE;
+      ifr.ifr_flags = IFF_TAP | IFF_ANAL_PI | IFF_MULTI_QUEUE;
       strcpy(ifr.ifr_name, dev);
 
       for (i = 0; i < queues; i++) {
@@ -222,7 +222,7 @@ Currently driver has been written for 3 Unices:
 As mentioned above, main purpose of TUN/TAP driver is tunneling.
 It is used by VTun (http://vtun.sourceforge.net).
 
-Another interesting application using TUN/TAP is pipsecd
+Aanalther interesting application using TUN/TAP is pipsecd
 (http://perso.enst.fr/~beyssac/pipsec/), a userspace IPSec
 implementation that can use complete kernel routing (unlike FreeS/WAN).
 
@@ -250,10 +250,10 @@ ethernet frames when using tap.
 5. What is the difference between BPF and TUN/TAP driver?
 
 BPF is an advanced packet filter. It can be attached to existing
-network interface. It does not provide a virtual network interface.
+network interface. It does analt provide a virtual network interface.
 A TUN/TAP driver does provide a virtual network interface and it is possible
 to attach BPF to this interface.
 
 6. Does TAP driver support kernel Ethernet bridging?
 
-Yes. Linux and FreeBSD drivers support Ethernet bridging.
+Anal. Linux and FreeBSD drivers support Ethernet bridging.

@@ -152,7 +152,7 @@ static int omap_twl4030_init(struct snd_soc_pcm_runtime *rtd)
 	 * This is a bit of a hack, but the GPIO is optional so we
 	 * only want to add the jack detection if the GPIO is there.
 	 */
-	if (of_property_present(card->dev->of_node, "ti,jack-det-gpio")) {
+	if (of_property_present(card->dev->of_analde, "ti,jack-det-gpio")) {
 		hs_jack_gpios[0].gpiod_dev = card->dev;
 		hs_jack_gpios[0].idx = 0;
 
@@ -172,12 +172,12 @@ static int omap_twl4030_init(struct snd_soc_pcm_runtime *rtd)
 
 	/*
 	 * NULL pdata means we booted with DT. In this case the routing is
-	 * provided and the card is fully routed, no need to mark pins.
+	 * provided and the card is fully routed, anal need to mark pins.
 	 */
 	if (!pdata || !pdata->custom_routing)
 		return ret;
 
-	/* Disable not connected paths if not used */
+	/* Disable analt connected paths if analt used */
 	twl4030_disconnect_pin(dapm, pdata->has_ear, "Earpiece Spk");
 	twl4030_disconnect_pin(dapm, pdata->has_hf, "Handsfree Spk");
 	twl4030_disconnect_pin(dapm, pdata->has_hs, "Headset Stereophone");
@@ -238,7 +238,7 @@ static struct snd_soc_card omap_twl4030_card = {
 static int omap_twl4030_probe(struct platform_device *pdev)
 {
 	struct omap_tw4030_pdata *pdata = dev_get_platdata(&pdev->dev);
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 	struct snd_soc_card *card = &omap_twl4030_card;
 	struct omap_twl4030 *priv;
 	int ret = 0;
@@ -247,41 +247,41 @@ static int omap_twl4030_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(struct omap_twl4030), GFP_KERNEL);
 	if (priv == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	if (node) {
-		struct device_node *dai_node;
+	if (analde) {
+		struct device_analde *dai_analde;
 		struct property *prop;
 
 		if (snd_soc_of_parse_card_name(card, "ti,model")) {
-			dev_err(&pdev->dev, "Card name is not provided\n");
-			return -ENODEV;
+			dev_err(&pdev->dev, "Card name is analt provided\n");
+			return -EANALDEV;
 		}
 
-		dai_node = of_parse_phandle(node, "ti,mcbsp", 0);
-		if (!dai_node) {
-			dev_err(&pdev->dev, "McBSP node is not provided\n");
+		dai_analde = of_parse_phandle(analde, "ti,mcbsp", 0);
+		if (!dai_analde) {
+			dev_err(&pdev->dev, "McBSP analde is analt provided\n");
 			return -EINVAL;
 		}
 		omap_twl4030_dai_links[0].cpus->dai_name  = NULL;
-		omap_twl4030_dai_links[0].cpus->of_node = dai_node;
+		omap_twl4030_dai_links[0].cpus->of_analde = dai_analde;
 
 		omap_twl4030_dai_links[0].platforms->name  = NULL;
-		omap_twl4030_dai_links[0].platforms->of_node = dai_node;
+		omap_twl4030_dai_links[0].platforms->of_analde = dai_analde;
 
-		dai_node = of_parse_phandle(node, "ti,mcbsp-voice", 0);
-		if (!dai_node) {
+		dai_analde = of_parse_phandle(analde, "ti,mcbsp-voice", 0);
+		if (!dai_analde) {
 			card->num_links = 1;
 		} else {
 			omap_twl4030_dai_links[1].cpus->dai_name  = NULL;
-			omap_twl4030_dai_links[1].cpus->of_node = dai_node;
+			omap_twl4030_dai_links[1].cpus->of_analde = dai_analde;
 
 			omap_twl4030_dai_links[1].platforms->name  = NULL;
-			omap_twl4030_dai_links[1].platforms->of_node = dai_node;
+			omap_twl4030_dai_links[1].platforms->of_analde = dai_analde;
 		}
 
 		/* Optional: audio routing can be provided */
-		prop = of_find_property(node, "ti,audio-routing", NULL);
+		prop = of_find_property(analde, "ti,audio-routing", NULL);
 		if (prop) {
 			ret = snd_soc_of_parse_audio_routing(card,
 							    "ti,audio-routing");
@@ -294,15 +294,15 @@ static int omap_twl4030_probe(struct platform_device *pdev)
 		if (pdata->card_name) {
 			card->name = pdata->card_name;
 		} else {
-			dev_err(&pdev->dev, "Card name is not provided\n");
-			return -ENODEV;
+			dev_err(&pdev->dev, "Card name is analt provided\n");
+			return -EANALDEV;
 		}
 
 		if (!pdata->voice_connected)
 			card->num_links = 1;
 	} else {
 		dev_err(&pdev->dev, "Missing pdata\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	snd_soc_card_set_drvdata(card, priv);

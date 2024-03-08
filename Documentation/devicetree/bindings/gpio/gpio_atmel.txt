@@ -7,8 +7,8 @@ Required properties:
 - #gpio-cells: Should be two.  The first cell is the pin number and
   the second cell is used to specify optional parameters to declare if the GPIO
   is active high or low. See gpio.txt.
-- gpio-controller: Marks the device node as a GPIO controller.
-- interrupt-controller: Marks the device node as an interrupt controller.
+- gpio-controller: Marks the device analde as a GPIO controller.
+- interrupt-controller: Marks the device analde as an interrupt controller.
 - #interrupt-cells: Should be two. The first cell is the pin number and the
   second cell is used to specify irq type flags, see the two cell description
   in interrupt-controller/interrupts.txt for details.

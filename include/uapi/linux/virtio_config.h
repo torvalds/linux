@@ -7,19 +7,19 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    analtice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    analtice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of IBM nor the names of its contributors
+ * 3. Neither the name of IBM analr the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL IBM OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN ANAL EVENT SHALL IBM OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
@@ -33,7 +33,7 @@
 
 /* Status byte for guest to report progress, and synchronize features. */
 /* We have seen device and processed generic fields (VIRTIO_CONFIG_F_VIRTIO) */
-#define VIRTIO_CONFIG_S_ACKNOWLEDGE	1
+#define VIRTIO_CONFIG_S_ACKANALWLEDGE	1
 /* We have found a driver for the device. */
 #define VIRTIO_CONFIG_S_DRIVER		2
 /* Driver has used its parts of the config, and is happy */
@@ -54,14 +54,14 @@
 #define VIRTIO_TRANSPORT_F_START	28
 #define VIRTIO_TRANSPORT_F_END		42
 
-#ifndef VIRTIO_CONFIG_NO_LEGACY
+#ifndef VIRTIO_CONFIG_ANAL_LEGACY
 /* Do we get callbacks when the ring is completely used, even if we've
  * suppressed them? */
-#define VIRTIO_F_NOTIFY_ON_EMPTY	24
+#define VIRTIO_F_ANALTIFY_ON_EMPTY	24
 
 /* Can the device handle any descriptor layout? */
 #define VIRTIO_F_ANY_LAYOUT		27
-#endif /* VIRTIO_CONFIG_NO_LEGACY */
+#endif /* VIRTIO_CONFIG_ANAL_LEGACY */
 
 /* v1.0 compliant. */
 #define VIRTIO_F_VERSION_1		32
@@ -70,7 +70,7 @@
  * If clear - device has the platform DMA (e.g. IOMMU) bypass quirk feature.
  * If set - use platform DMA tools to access the memory.
  *
- * Note the reverse polarity (compared to most other features),
+ * Analte the reverse polarity (compared to most other features),
  * this is for compatibility with legacy systems.
  */
 #define VIRTIO_F_ACCESS_PLATFORM	33
@@ -83,7 +83,7 @@
 #define VIRTIO_F_RING_PACKED		34
 
 /*
- * Inorder feature indicates that all buffers are used by the device
+ * Ianalrder feature indicates that all buffers are used by the device
  * in the same order in which they have been made available.
  */
 #define VIRTIO_F_IN_ORDER		35
@@ -101,14 +101,14 @@
 
 /*
  * This feature indicates that the driver passes extra data (besides
- * identifying the virtqueue) in its device notifications.
+ * identifying the virtqueue) in its device analtifications.
  */
-#define VIRTIO_F_NOTIFICATION_DATA	38
+#define VIRTIO_F_ANALTIFICATION_DATA	38
 
 /* This feature indicates that the driver uses the data provided by the device
- * as a virtqueue identifier in available buffer notifications.
+ * as a virtqueue identifier in available buffer analtifications.
  */
-#define VIRTIO_F_NOTIF_CONFIG_DATA	39
+#define VIRTIO_F_ANALTIF_CONFIG_DATA	39
 
 /*
  * This feature indicates that the driver can reset a queue individually.

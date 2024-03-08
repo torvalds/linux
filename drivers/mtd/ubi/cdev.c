@@ -13,7 +13,7 @@
  * manipulate whole volumes: create, remove, and re-size them. Volume character
  * devices provide volume I/O capabilities.
  *
- * Major and minor numbers are assigned dynamically to both UBI and volume
+ * Major and mianalr numbers are assigned dynamically to both UBI and volume
  * character devices.
  *
  * Well, there is the third kind of character devices - the UBI control
@@ -89,12 +89,12 @@ static void revoke_exclusive(struct ubi_volume_desc *desc, int mode)
 	desc->mode = mode;
 }
 
-static int vol_cdev_open(struct inode *inode, struct file *file)
+static int vol_cdev_open(struct ianalde *ianalde, struct file *file)
 {
 	struct ubi_volume_desc *desc;
-	int vol_id = iminor(inode) - 1, mode, ubi_num;
+	int vol_id = imianalr(ianalde) - 1, mode, ubi_num;
 
-	ubi_num = ubi_major2num(imajor(inode));
+	ubi_num = ubi_major2num(imajor(ianalde));
 	if (ubi_num < 0)
 		return ubi_num;
 
@@ -114,7 +114,7 @@ static int vol_cdev_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int vol_cdev_release(struct inode *inode, struct file *file)
+static int vol_cdev_release(struct ianalde *ianalde, struct file *file)
 {
 	struct ubi_volume_desc *desc = file->private_data;
 	struct ubi_volume *vol = desc->vol;
@@ -123,7 +123,7 @@ static int vol_cdev_release(struct inode *inode, struct file *file)
 		vol->ubi->ubi_num, vol->vol_id, desc->mode);
 
 	if (vol->updating) {
-		ubi_warn(vol->ubi, "update of volume %d not finished, volume is damaged",
+		ubi_warn(vol->ubi, "update of volume %d analt finished, volume is damaged",
 			 vol->vol_id);
 		ubi_assert(!vol->changing_leb);
 		vol->updating = 0;
@@ -159,11 +159,11 @@ static int vol_cdev_fsync(struct file *file, loff_t start, loff_t end,
 {
 	struct ubi_volume_desc *desc = file->private_data;
 	struct ubi_device *ubi = desc->vol->ubi;
-	struct inode *inode = file_inode(file);
+	struct ianalde *ianalde = file_ianalde(file);
 	int err;
-	inode_lock(inode);
+	ianalde_lock(ianalde);
 	err = ubi_sync(ubi->ubi_num);
-	inode_unlock(inode);
+	ianalde_unlock(ianalde);
 	return err;
 }
 
@@ -203,7 +203,7 @@ static ssize_t vol_cdev_read(struct file *file, __user char *buf, size_t count,
 		tbuf_size = ALIGN(count, ubi->min_io_size);
 	tbuf = vmalloc(tbuf_size);
 	if (!tbuf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	len = count > tbuf_size ? tbuf_size : count;
 	lnum = div_u64_rem(*offp, vol->usable_leb_size, &off);
@@ -284,7 +284,7 @@ static ssize_t vol_cdev_direct_write(struct file *file, const char __user *buf,
 		tbuf_size = ALIGN(count, ubi->min_io_size);
 	tbuf = vmalloc(tbuf_size);
 	if (!tbuf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	len = count > tbuf_size ? tbuf_size : count;
 
@@ -337,7 +337,7 @@ static ssize_t vol_cdev_write(struct file *file, const char __user *buf,
 		err = ubi_more_leb_change_data(ubi, vol, buf, count);
 
 	if (err < 0) {
-		ubi_err(ubi, "cannot accept more %zd bytes of data, error %d",
+		ubi_err(ubi, "cananalt accept more %zd bytes of data, error %d",
 			count, err);
 		return err;
 	}
@@ -355,7 +355,7 @@ static ssize_t vol_cdev_write(struct file *file, const char __user *buf,
 		}
 
 		/*
-		 * We voluntarily do not take into account the skip_check flag
+		 * We voluntarily do analt take into account the skip_check flag
 		 * as we want to make sure what we wrote was correctly written.
 		 */
 		err = ubi_check_volume(ubi, vol->vol_id);
@@ -368,7 +368,7 @@ static ssize_t vol_cdev_write(struct file *file, const char __user *buf,
 			vol->corrupted = 1;
 		}
 		vol->checked = 1;
-		ubi_volume_notify(ubi, vol, UBI_VOLUME_UPDATED);
+		ubi_volume_analtify(ubi, vol, UBI_VOLUME_UPDATED);
 		revoke_exclusive(desc, UBI_READWRITE);
 	}
 
@@ -419,7 +419,7 @@ static long vol_cdev_ioctl(struct file *file, unsigned int cmd,
 
 		err = ubi_start_update(ubi, vol, bytes);
 		if (bytes == 0) {
-			ubi_volume_notify(ubi, vol, UBI_VOLUME_UPDATED);
+			ubi_volume_analtify(ubi, vol, UBI_VOLUME_UPDATED);
 			revoke_exclusive(desc, UBI_READWRITE);
 		}
 		break;
@@ -577,7 +577,7 @@ static long vol_cdev_ioctl(struct file *file, unsigned int cmd,
 	}
 
 	default:
-		err = -ENOTTY;
+		err = -EANALTTY;
 		break;
 	}
 	return err;
@@ -588,7 +588,7 @@ static long vol_cdev_ioctl(struct file *file, unsigned int cmd,
  * @ubi: UBI device description object
  * @req: the request to check
  *
- * This function zero if the request is correct, and %-EINVAL if not.
+ * This function zero if the request is correct, and %-EINVAL if analt.
  */
 static int verify_mkvol_req(const struct ubi_device *ubi,
 			    const struct ubi_mkvol_req *req)
@@ -652,7 +652,7 @@ bad:
  * @ubi: UBI device description object
  * @req: the request to check
  *
- * This function returns zero if the request is correct, and %-EINVAL if not.
+ * This function returns zero if the request is correct, and %-EINVAL if analt.
  */
 static int verify_rsvol_req(const struct ubi_device *ubi,
 			    const struct ubi_rsvol_req *req)
@@ -729,20 +729,20 @@ static int rename_volumes(struct ubi_device *ubi,
 
 		re = kzalloc(sizeof(struct ubi_rename_entry), GFP_KERNEL);
 		if (!re) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto out_free;
 		}
 
 		re->desc = ubi_open_volume(ubi->ubi_num, vol_id, UBI_METAONLY);
 		if (IS_ERR(re->desc)) {
 			err = PTR_ERR(re->desc);
-			ubi_err(ubi, "cannot open volume %d, error %d",
+			ubi_err(ubi, "cananalt open volume %d, error %d",
 				vol_id, err);
 			kfree(re);
 			goto out_free;
 		}
 
-		/* Skip this re-naming if the name does not really change */
+		/* Skip this re-naming if the name does analt really change */
 		if (re->desc->vol->name_len == name_len &&
 		    !memcmp(re->desc->vol->name, name, name_len)) {
 			ubi_close_volume(re->desc);
@@ -763,7 +763,7 @@ static int rename_volumes(struct ubi_device *ubi,
 	/* Find out the volumes which have to be removed */
 	list_for_each_entry(re, &rename_list, list) {
 		struct ubi_volume_desc *desc;
-		int no_remove_needed = 0;
+		int anal_remove_needed = 0;
 
 		/*
 		 * Volume @re->vol_id is going to be re-named to
@@ -775,12 +775,12 @@ static int rename_volumes(struct ubi_device *ubi,
 			if (re->new_name_len == re1->desc->vol->name_len &&
 			    !memcmp(re->new_name, re1->desc->vol->name,
 				    re1->desc->vol->name_len)) {
-				no_remove_needed = 1;
+				anal_remove_needed = 1;
 				break;
 			}
 		}
 
-		if (no_remove_needed)
+		if (anal_remove_needed)
 			continue;
 
 		/*
@@ -791,19 +791,19 @@ static int rename_volumes(struct ubi_device *ubi,
 					  UBI_EXCLUSIVE);
 		if (IS_ERR(desc)) {
 			err = PTR_ERR(desc);
-			if (err == -ENODEV)
-				/* Re-naming into a non-existing volume name */
+			if (err == -EANALDEV)
+				/* Re-naming into a analn-existing volume name */
 				continue;
 
 			/* The volume exists but busy, or an error occurred */
-			ubi_err(ubi, "cannot open volume \"%s\", error %d",
+			ubi_err(ubi, "cananalt open volume \"%s\", error %d",
 				re->new_name, err);
 			goto out_free;
 		}
 
 		re1 = kzalloc(sizeof(struct ubi_rename_entry), GFP_KERNEL);
 		if (!re1) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			ubi_close_volume(desc);
 			goto out_free;
 		}
@@ -841,7 +841,7 @@ static long ubi_cdev_ioctl(struct file *file, unsigned int cmd,
 
 	ubi = ubi_get_by_major(imajor(file->f_mapping->host));
 	if (!ubi)
-		return -ENODEV;
+		return -EANALDEV;
 
 	switch (cmd) {
 	/* Create volume command */
@@ -945,7 +945,7 @@ static long ubi_cdev_ioctl(struct file *file, unsigned int cmd,
 		dbg_gen("re-name volumes");
 		req = kmalloc(sizeof(struct ubi_rnvol_req), GFP_KERNEL);
 		if (!req) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			break;
 		}
 
@@ -992,7 +992,7 @@ static long ubi_cdev_ioctl(struct file *file, unsigned int cmd,
 	}
 
 	default:
-		err = -ENOTTY;
+		err = -EANALTTY;
 		break;
 	}
 
@@ -1036,7 +1036,7 @@ static long ctrl_cdev_ioctl(struct file *file, unsigned int cmd,
 		}
 
 		/*
-		 * Note, further request verification is done by
+		 * Analte, further request verification is done by
 		 * 'ubi_attach_mtd_dev()'.
 		 */
 		mutex_lock(&ubi_devices_mutex);
@@ -1072,7 +1072,7 @@ static long ctrl_cdev_ioctl(struct file *file, unsigned int cmd,
 	}
 
 	default:
-		err = -ENOTTY;
+		err = -EANALTTY;
 		break;
 	}
 
@@ -1095,7 +1095,7 @@ const struct file_operations ubi_vol_cdev_operations = {
 /* UBI character device operations */
 const struct file_operations ubi_cdev_operations = {
 	.owner          = THIS_MODULE,
-	.llseek         = no_llseek,
+	.llseek         = anal_llseek,
 	.unlocked_ioctl = ubi_cdev_ioctl,
 	.compat_ioctl   = compat_ptr_ioctl,
 };
@@ -1105,5 +1105,5 @@ const struct file_operations ubi_ctrl_cdev_operations = {
 	.owner          = THIS_MODULE,
 	.unlocked_ioctl = ctrl_cdev_ioctl,
 	.compat_ioctl   = compat_ptr_ioctl,
-	.llseek		= no_llseek,
+	.llseek		= anal_llseek,
 };

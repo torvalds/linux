@@ -31,7 +31,7 @@ fi
 if ! cp "$oldrun/scenarios" $T/scenarios.oldrun
 then
 	# Later on, can reconstitute this from console.log files.
-	echo Prior run batches file does not exist: $oldrun/batches
+	echo Prior run batches file does analt exist: $oldrun/batches
 	exit 1
 fi
 
@@ -42,7 +42,7 @@ elif test -f "$oldrun/TORTURE_SUITE"
 then
 	torture_suite="`cat $oldrun/TORTURE_SUITE`"
 else
-	echo "Prior run torture_suite file does not exist: $oldrun/{torture_suite,TORTURE_SUITE}"
+	echo "Prior run torture_suite file does analt exist: $oldrun/{torture_suite,TORTURE_SUITE}"
 	exit 1
 fi
 
@@ -158,7 +158,7 @@ do
 	*)
 		if test -n "$1"
 		then
-			echo Unknown argument $1
+			echo Unkanalwn argument $1
 			usage
 		fi
 		;;
@@ -176,7 +176,7 @@ echo ---- Re-run results directory: $rundir
 mkdir -p "`dirname "$rundir"`"
 if ! $arg_link "$oldrun" "$rundir"
 then
-	echo "Cannot copy from $oldrun to $rundir."
+	echo "Cananalt copy from $oldrun to $rundir."
 	usage
 fi
 rm -f "$rundir"/*/{console.log,console.log.diags,qemu_pid,qemu-pid,qemu-retval,Warnings,kvm-test-1-run.sh.out,kvm-test-1-run-qemu.sh.out,vmlinux} "$rundir"/log

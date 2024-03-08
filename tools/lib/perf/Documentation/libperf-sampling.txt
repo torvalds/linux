@@ -12,7 +12,7 @@ The sampling interface provides API to measure and get count for specific perf e
 
 The following test tries to explain count on `sampling.c` example.
 
-It is by no means complete guide to sampling, but shows libperf basic API for sampling.
+It is by anal means complete guide to sampling, but shows libperf basic API for sampling.
 
 The `sampling.c` comes with libperf package and can be compiled and run like:
 
@@ -104,7 +104,7 @@ In this case we will monitor all the available CPUs:
  46         }
 --
 
-Now we create libperf's event list, which will serve as holder for the cycles event:
+Analw we create libperf's event list, which will serve as holder for the cycles event:
 
 [source,c]
 --
@@ -152,7 +152,7 @@ Once the events list is open, we can create memory maps AKA perf ring buffers:
  74         }
 --
 
-The event is created as disabled (note the `disabled = 1` assignment above),
+The event is created as disabled (analte the `disabled = 1` assignment above),
 so we need to enable the events list explicitly.
 
 From this moment the cycles event is sampling.

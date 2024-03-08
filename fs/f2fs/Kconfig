@@ -19,12 +19,12 @@ config F2FS_FS
 	help
 	  F2FS is based on Log-structured File System (LFS), which supports
 	  versatile "flash-friendly" features. The design has been focused on
-	  addressing the fundamental issues in LFS, which are snowball effect
+	  addressing the fundamental issues in LFS, which are sanalwball effect
 	  of wandering tree and high cleaning overhead.
 
 	  Since flash-based storages show different characteristics according to
 	  the internal geometry or flash memory management schemes aka FTL, F2FS
-	  and tools support various parameters not only for configuring on-disk
+	  and tools support various parameters analt only for configuring on-disk
 	  layout, but also for selecting allocation and cleaning algorithms.
 
 	  If unsure, say N.
@@ -47,7 +47,7 @@ config F2FS_FS_XATTR
 	depends on F2FS_FS
 	default y
 	help
-	  Extended attributes are name:value pairs associated with inodes by
+	  Extended attributes are name:value pairs associated with ianaldes by
 	  the kernel or by users (see the attr(5) manual page for details).
 
 	  If unsure, say N.
@@ -61,7 +61,7 @@ config F2FS_FS_POSIX_ACL
 	  Posix Access Control Lists (ACLs) support permissions for users and
 	  groups beyond the owner/group/world scheme.
 
-	  If you don't know what Access Control Lists are, say N
+	  If you don't kanalw what Access Control Lists are, say N
 
 config F2FS_FS_SECURITY
 	bool "F2FS Security Labels"
@@ -75,7 +75,7 @@ config F2FS_FS_SECURITY
 	  option if you use the setcap command to assign initial process capabi-
 	  lities to executables (the security.* extended attributes).
 
-	  If you are not using a security module, say N.
+	  If you are analt using a security module, say N.
 
 config F2FS_CHECK_FS
 	bool "F2FS consistency checking feature"
@@ -89,7 +89,7 @@ config F2FS_FAULT_INJECTION
 	bool "F2FS fault injection facility"
 	depends on F2FS_FS
 	help
-	  Test F2FS to inject faults such as ENOMEM, ENOSPC, and so on.
+	  Test F2FS to inject faults such as EANALMEM, EANALSPC, and so on.
 
 	  If unsure, say N.
 
@@ -143,7 +143,7 @@ config F2FS_IOSTAT
 	help
 	  Support getting IO statistics through sysfs and printing out periodic
 	  IO statistics tracepoint events. You have to turn on "iostat_enable"
-	  sysfs node to enable this feature.
+	  sysfs analde to enable this feature.
 
 config F2FS_UNFAIR_RWSEM
 	bool "F2FS unfair rw_semaphore"

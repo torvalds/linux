@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -365,10 +365,10 @@ static int r100_hw_i2c_xfer(struct i2c_adapter *i2c_adap,
 		case CHIP_RS300:
 			switch (rec->mask_clk_reg) {
 			case RADEON_GPIO_DVI_DDC:
-				/* no gpio select bit */
+				/* anal gpio select bit */
 				break;
 			default:
-				DRM_ERROR("gpio not supported with hw i2c\n");
+				DRM_ERROR("gpio analt supported with hw i2c\n");
 				ret = -EINVAL;
 				goto done;
 			}
@@ -383,7 +383,7 @@ static int r100_hw_i2c_xfer(struct i2c_adapter *i2c_adap,
 				reg |= R200_DVI_I2C_PIN_SEL(R200_SEL_DDC3);
 				break;
 			default:
-				DRM_ERROR("gpio not supported with hw i2c\n");
+				DRM_ERROR("gpio analt supported with hw i2c\n");
 				ret = -EINVAL;
 				goto done;
 			}
@@ -402,7 +402,7 @@ static int r100_hw_i2c_xfer(struct i2c_adapter *i2c_adap,
 				reg |= R200_DVI_I2C_PIN_SEL(R200_SEL_DDC3);
 				break;
 			default:
-				DRM_ERROR("gpio not supported with hw i2c\n");
+				DRM_ERROR("gpio analt supported with hw i2c\n");
 				ret = -EINVAL;
 				goto done;
 			}
@@ -418,7 +418,7 @@ static int r100_hw_i2c_xfer(struct i2c_adapter *i2c_adap,
 				reg |= R200_DVI_I2C_PIN_SEL(R200_SEL_DDC3);
 				break;
 			default:
-				DRM_ERROR("gpio not supported with hw i2c\n");
+				DRM_ERROR("gpio analt supported with hw i2c\n");
 				ret = -EINVAL;
 				goto done;
 			}
@@ -442,7 +442,7 @@ static int r100_hw_i2c_xfer(struct i2c_adapter *i2c_adap,
 				reg |= R200_DVI_I2C_PIN_SEL(R200_SEL_DDC3);
 				break;
 			default:
-				DRM_ERROR("gpio not supported with hw i2c\n");
+				DRM_ERROR("gpio analt supported with hw i2c\n");
 				ret = -EINVAL;
 				goto done;
 			}
@@ -653,7 +653,7 @@ static int r500_hw_i2c_xfer(struct i2c_adapter *i2c_adap,
 		reg |= AVIVO_DC_I2C_PIN_SELECT(AVIVO_SEL_DDC3);
 		break;
 	default:
-		DRM_ERROR("gpio not supported with hw i2c\n");
+		DRM_ERROR("gpio analt supported with hw i2c\n");
 		ret = -EINVAL;
 		goto done;
 	}

@@ -20,12 +20,12 @@
 #define VPU_JSM_API_VER_MAJOR 3
 
 /*
- * Minor version changes when API backward compatibility is preserved.
+ * Mianalr version changes when API backward compatibility is preserved.
  */
-#define VPU_JSM_API_VER_MINOR 15
+#define VPU_JSM_API_VER_MIANALR 15
 
 /*
- * API header changed (field names, documentation, formatting) but API itself has not been changed
+ * API header changed (field names, documentation, formatting) but API itself has analt been changed
  */
 #define VPU_JSM_API_VER_PATCH 0
 
@@ -36,14 +36,14 @@
 
 /*
  * Number of Priority Bands for Hardware Scheduling
- * Bands: RealTime, Focus, Normal, Idle
+ * Bands: RealTime, Focus, Analrmal, Idle
  */
 #define VPU_HWS_NUM_PRIORITY_BANDS 4
 
 /* Max number of impacted contexts that can be dealt with the engine reset command */
 #define VPU_MAX_ENGINE_RESET_IMPACTED_CONTEXTS 3
 
-/** Pack the API structures for now, once alignment issues are fixed this can be removed */
+/** Pack the API structures for analw, once alignment issues are fixed this can be removed */
 #pragma pack(push, 1)
 
 /*
@@ -67,7 +67,7 @@
 #define VPU_JSM_STATUS_MVNCI_UNSUPPORTED_NETWORK_ELEMENT 0x8U
 #define VPU_JSM_STATUS_MVNCI_INVALID_HANDLE		 0x9U
 #define VPU_JSM_STATUS_MVNCI_OUT_OF_RESOURCES		 0xAU
-#define VPU_JSM_STATUS_MVNCI_NOT_IMPLEMENTED		 0xBU
+#define VPU_JSM_STATUS_MVNCI_ANALT_IMPLEMENTED		 0xBU
 #define VPU_JSM_STATUS_MVNCI_INTERNAL_ERROR		 0xCU
 /* Job status returned when the job was preempted mid-inference */
 #define VPU_JSM_STATUS_PREEMPTED_MID_INFERENCE		 0xDU
@@ -105,7 +105,7 @@
 /*
  * Max length (including trailing NULL char) of a dyndbg command.
  *
- * NOTE: 96 is used so that the size of 'struct vpu_ipc_msg' in the JSM API is
+ * ANALTE: 96 is used so that the size of 'struct vpu_ipc_msg' in the JSM API is
  * 128 bytes (multiple of 64 bytes, the cache line size).
  */
 #define VPU_DYNDBG_CMD_MAX_LEN 96
@@ -198,14 +198,14 @@ struct vpu_hws_log_buffer_header {
  * Total size is 32 bytes.
  */
 struct vpu_hws_log_buffer_entry {
-	/* VPU timestamp must be an invariant timer tick (not impacted by DVFS) */
+	/* VPU timestamp must be an invariant timer tick (analt impacted by DVFS) */
 	u64 vpu_timestamp;
 	/*
 	 * Operation type:
 	 *     0 - context state change
 	 *     1 - queue new work
 	 *     2 - queue unwait sync object
-	 *     3 - queue no more work
+	 *     3 - queue anal more work
 	 *     4 - queue wait sync object
 	 */
 	u32 operation_type;
@@ -218,7 +218,7 @@ struct vpu_hws_log_buffer_entry {
  * Host <-> VPU IPC messages types.
  */
 enum vpu_ipc_msg_type {
-	VPU_JSM_MSG_UNKNOWN = 0xFFFFFFFF,
+	VPU_JSM_MSG_UNKANALWN = 0xFFFFFFFF,
 	/* IPC Host -> Device, Async commands */
 	VPU_JSM_MSG_ASYNC_CMD = 0x1100,
 	VPU_JSM_MSG_ENGINE_RESET = VPU_JSM_MSG_ASYNC_CMD,
@@ -286,8 +286,8 @@ enum vpu_ipc_msg_type {
 	/** Control command: Set context scheduling properties */
 	VPU_JSM_MSG_SET_CONTEXT_SCHED_PROPERTIES = 0x1116,
 	/*
-	 * Register a doorbell to notify VPU of new work. The doorbell may later be
-	 * deallocated or reassigned to another context.
+	 * Register a doorbell to analtify VPU of new work. The doorbell may later be
+	 * deallocated or reassigned to aanalther context.
 	 */
 	VPU_JSM_MSG_HWS_REGISTER_DB = 0x1117,
 	/** Control command: Log buffer setting */
@@ -304,7 +304,7 @@ enum vpu_ipc_msg_type {
 	VPU_JSM_MSG_DCT_DISABLE = 0x111d,
 	/**
 	 * Dump VPU state. To be used for debug purposes only.
-	 * NOTE: Please introduce new ASYNC commands before this one. *
+	 * ANALTE: Please introduce new ASYNC commands before this one. *
 	 */
 	VPU_JSM_MSG_STATE_DUMP = 0x11FF,
 	/* IPC Host -> Device, General commands */
@@ -347,7 +347,7 @@ enum vpu_ipc_msg_type {
 	VPU_JSM_MSG_SSID_RELEASE_DONE = 0x220e,
 	/**
 	 * Response to VPU_JSM_MSG_METRIC_STREAMER_START.
-	 * VPU will return an error result if metric collection cannot be started,
+	 * VPU will return an error result if metric collection cananalt be started,
 	 * e.g. when the specified metric mask is invalid.
 	 * @see vpu_jsm_metric_streamer_done
 	 */
@@ -371,14 +371,14 @@ enum vpu_ipc_msg_type {
 	 */
 	VPU_JSM_MSG_METRIC_STREAMER_INFO_DONE = 0x2212,
 	/**
-	 * Asynchronous event sent from the VPU to the host either when the current
+	 * Asynchroanalus event sent from the VPU to the host either when the current
 	 * metric buffer is full or when the VPU has collected a multiple of
-	 * @notify_sample_count samples as indicated through the start command
+	 * @analtify_sample_count samples as indicated through the start command
 	 * (VPU_JSM_MSG_METRIC_STREAMER_START). Returns information about collected
 	 * metric data.
 	 * @see vpu_jsm_metric_streamer_done
 	 */
-	VPU_JSM_MSG_METRIC_STREAMER_NOTIFICATION = 0x2213,
+	VPU_JSM_MSG_METRIC_STREAMER_ANALTIFICATION = 0x2213,
 	/** Response to control command: Priority band setup */
 	VPU_JSM_MSG_SET_PRIORITY_BAND_SETUP_RSP = 0x2214,
 	/** Response to control command: Create command queue */
@@ -389,8 +389,8 @@ enum vpu_ipc_msg_type {
 	VPU_JSM_MSG_SET_CONTEXT_SCHED_PROPERTIES_RSP = 0x2217,
 	/** Response to control command: Log buffer setting */
 	VPU_JSM_MSG_HWS_SET_SCHEDULING_LOG_RSP = 0x2218,
-	/* IPC Device -> Host, HWS notify index entry of log buffer written */
-	VPU_JSM_MSG_HWS_SCHEDULING_LOG_NOTIFICATION = 0x2219,
+	/* IPC Device -> Host, HWS analtify index entry of log buffer written */
+	VPU_JSM_MSG_HWS_SCHEDULING_LOG_ANALTIFICATION = 0x2219,
 	/* IPC Device -> Host, HWS completion of a context suspend request */
 	VPU_JSM_MSG_HWS_SUSPEND_CMDQ_DONE = 0x221a,
 	/* Response to control command: Resume command queue */
@@ -403,7 +403,7 @@ enum vpu_ipc_msg_type {
 	VPU_JSM_MSG_DCT_DISABLE_DONE = 0x221e,
 	/**
 	 * Response to state dump control command.
-	 * NOTE: Please introduce new ASYNC responses before this one. *
+	 * ANALTE: Please introduce new ASYNC responses before this one. *
 	 */
 	VPU_JSM_MSG_STATE_DUMP_RSP = 0x22FF,
 	/* IPC Device -> Host, General command completion */
@@ -412,7 +412,7 @@ enum vpu_ipc_msg_type {
 	/** Response to VPU_JSM_MSG_DYNDBG_CONTROL. */
 	VPU_JSM_MSG_DYNDBG_CONTROL_RSP = 0x2301,
 	/**
-	 * Acknowledgment of completion of the save procedure initiated by
+	 * Ackanalwledgment of completion of the save procedure initiated by
 	 * VPU_JSM_MSG_PWR_D0I3_ENTER
 	 */
 	VPU_JSM_MSG_PWR_D0I3_ENTER_DONE = 0x2302,
@@ -482,7 +482,7 @@ struct vpu_ipc_msg_payload_power_level {
 	 * the get power level count command. A power level of 0
 	 * corresponds to the maximum possible power level, while
 	 * power_level_count-1 corresponds to the minimum possible
-	 * power level. Values outside of this range are not
+	 * power level. Values outside of this range are analt
 	 * considered to be valid.
 	 */
 	u32 power_level;
@@ -510,27 +510,27 @@ struct vpu_jsm_metric_streamer_start {
 	 * A metric group can belong only to one metric streamer instance at a time.
 	 * Since each metric streamer instance has a unique set of metric groups, it
 	 * can also identify a metric streamer instance if more than one instance was
-	 * started. If the VPU device does not support multiple metric streamer instances,
+	 * started. If the VPU device does analt support multiple metric streamer instances,
 	 * then VPU_JSM_MSG_METRIC_STREAMER_START will return an error even if the second
 	 * instance has different groups to the first.
 	 */
 	u64 metric_group_mask;
-	/** Sampling rate in nanoseconds. */
+	/** Sampling rate in naanalseconds. */
 	u64 sampling_rate;
 	/**
-	 * If > 0 the VPU will send a VPU_JSM_MSG_METRIC_STREAMER_NOTIFICATION message
-	 * after every @notify_sample_count samples is collected or dropped by the VPU.
-	 * If set to UINT_MAX the VPU will only generate a notification when the metric
-	 * buffer is full. If set to 0 the VPU will never generate a notification.
+	 * If > 0 the VPU will send a VPU_JSM_MSG_METRIC_STREAMER_ANALTIFICATION message
+	 * after every @analtify_sample_count samples is collected or dropped by the VPU.
+	 * If set to UINT_MAX the VPU will only generate a analtification when the metric
+	 * buffer is full. If set to 0 the VPU will never generate a analtification.
 	 */
-	u32 notify_sample_count;
+	u32 analtify_sample_count;
 	u32 reserved_0;
 	/**
 	 * Address and size of the buffer where the VPU will write metric data. The
-	 * VPU writes all counters from enabled metric groups one after another. If
-	 * there is no space left to write data at the next sample period the VPU
+	 * VPU writes all counters from enabled metric groups one after aanalther. If
+	 * there is anal space left to write data at the next sample period the VPU
 	 * will switch to the next buffer (@see next_buffer_addr) and will optionally
-	 * send a notification to the host driver if @notify_sample_count is non-zero.
+	 * send a analtification to the host driver if @analtify_sample_count is analn-zero.
 	 * If @next_buffer_addr is NULL the VPU will stop collecting metric data.
 	 */
 	u64 buffer_addr;
@@ -564,8 +564,8 @@ struct vpu_jsm_metric_streamer_update {
 	 * Address and size of the buffer where the VPU will write metric data. If
 	 * the buffer address is 0 or same as the currently used buffer the VPU will
 	 * continue writing metric data to the current buffer. In this case the
-	 * buffer size is ignored and the size of the current buffer is unchanged.
-	 * If the address is non-zero and differs from the current buffer address the
+	 * buffer size is iganalred and the size of the current buffer is unchanged.
+	 * If the address is analn-zero and differs from the current buffer address the
 	 * VPU will immediately switch data collection to the new buffer.
 	 */
 	u64 buffer_addr;
@@ -575,8 +575,8 @@ struct vpu_jsm_metric_streamer_update {
 	 * buffer is full. If the address is NULL the VPU will stop collecting metric
 	 * data but will continue to record dropped samples.
 	 *
-	 * Note that there is a hazard possible if both buffer_addr and the next_buffer_addr
-	 * are non-zero in same update request. It is the host's responsibility to ensure
+	 * Analte that there is a hazard possible if both buffer_addr and the next_buffer_addr
+	 * are analn-zero in same update request. It is the host's responsibility to ensure
 	 * that both addresses make sense even if the VPU just switched to writing samples
 	 * from the current to the next buffer.
 	 */
@@ -692,7 +692,7 @@ struct vpu_ipc_msg_payload_blob_deinit_done {
 /* HWS priority band setup request / response */
 struct vpu_ipc_msg_payload_hws_priority_band_setup {
 	/*
-	 * Grace period in 100ns units when preempting another priority band for
+	 * Grace period in 100ns units when preempting aanalther priority band for
 	 * this priority band
 	 */
 	u32 grace_period[VPU_HWS_NUM_PRIORITY_BANDS];
@@ -707,10 +707,10 @@ struct vpu_ipc_msg_payload_hws_priority_band_setup {
 	 */
 	u32 process_grace_period[VPU_HWS_NUM_PRIORITY_BANDS];
 	/*
-	 * For normal priority band, specifies the target VPU percentage
+	 * For analrmal priority band, specifies the target VPU percentage
 	 * in situations when it's starved by the focus band.
 	 */
-	u32 normal_band_percentage;
+	u32 analrmal_band_percentage;
 	/* Reserved */
 	u32 reserved_0;
 };
@@ -718,7 +718,7 @@ struct vpu_ipc_msg_payload_hws_priority_band_setup {
 /*
  * @brief HWS create command queue request.
  * Host will create a command queue via this command.
- * Note: Cmdq group is a handle of an object which
+ * Analte: Cmdq group is a handle of an object which
  * may contain one or more command queues.
  * @see VPU_JSM_MSG_CREATE_CMD_QUEUE
  * @see VPU_JSM_MSG_CREATE_CMD_QUEUE_RSP
@@ -801,10 +801,10 @@ struct vpu_ipc_msg_payload_hws_set_context_sched_properties {
 /*
  * @brief Register doorbell command structure.
  * This structure supports doorbell registration for both HW and OS scheduling.
- * Note: Queue base and size are added here so that the same structure can be used for
- * OS scheduling and HW scheduling. For OS scheduling, cmdq_id will be ignored
+ * Analte: Queue base and size are added here so that the same structure can be used for
+ * OS scheduling and HW scheduling. For OS scheduling, cmdq_id will be iganalred
  * and cmdq_base and cmdq_size will be used. For HW scheduling, cmdq_base and cmdq_size will be
- * ignored and cmdq_id is used.
+ * iganalred and cmdq_id is used.
  * @see VPU_JSM_MSG_HWS_REGISTER_DB
  */
 struct vpu_jsm_hws_register_db {
@@ -821,7 +821,7 @@ struct vpu_jsm_hws_register_db {
 };
 
 /*
- * @brief Structure to set another buffer to be used for scheduling-related logging.
+ * @brief Structure to set aanalther buffer to be used for scheduling-related logging.
  * The size of the logging buffer and the number of entries is defined as part of the
  * buffer itself as described next.
  * The log buffer received from the host is made up of;
@@ -830,16 +830,16 @@ struct vpu_jsm_hws_register_db {
  *   - log entry:  0 to n-1, each log entry is 32 bytes in size, as shown in
  *                 'struct vpu_hws_log_buffer_entry'.
  *                 The entry contains the VPU timestamp, operation type and data.
- * The host should provide the notify index value of log buffer to VPU. This is a
+ * The host should provide the analtify index value of log buffer to VPU. This is a
  * value defined within the log buffer and when written to will generate the
- * scheduling log notification.
+ * scheduling log analtification.
  * The host should set engine_idx and vpu_log_buffer_va to 0 to disable logging
  * for a particular engine.
  * VPU will handle one log buffer for each of supported engines.
  * VPU should allow the logging to consume one host_ssid.
  * @see VPU_JSM_MSG_HWS_SET_SCHEDULING_LOG
  * @see VPU_JSM_MSG_HWS_SET_SCHEDULING_LOG_RSP
- * @see VPU_JSM_MSG_HWS_SCHEDULING_LOG_NOTIFICATION
+ * @see VPU_JSM_MSG_HWS_SCHEDULING_LOG_ANALTIFICATION
  */
 struct vpu_ipc_msg_payload_hws_set_scheduling_log {
 	/* Engine ordinal */
@@ -852,21 +852,21 @@ struct vpu_ipc_msg_payload_hws_set_scheduling_log {
 	 */
 	u64 vpu_log_buffer_va;
 	/*
-	 * Notify index of log buffer. VPU_JSM_MSG_HWS_SCHEDULING_LOG_NOTIFICATION
+	 * Analtify index of log buffer. VPU_JSM_MSG_HWS_SCHEDULING_LOG_ANALTIFICATION
 	 * is generated when an event log is written to this index.
 	 */
-	u64 notify_index;
+	u64 analtify_index;
 };
 
 /*
- * @brief The scheduling log notification is generated by VPU when it writes
- * an event into the log buffer at the notify_index. VPU notifies host with
- * VPU_JSM_MSG_HWS_SCHEDULING_LOG_NOTIFICATION. This is an asynchronous
+ * @brief The scheduling log analtification is generated by VPU when it writes
+ * an event into the log buffer at the analtify_index. VPU analtifies host with
+ * VPU_JSM_MSG_HWS_SCHEDULING_LOG_ANALTIFICATION. This is an asynchroanalus
  * message from VPU to host.
- * @see VPU_JSM_MSG_HWS_SCHEDULING_LOG_NOTIFICATION
+ * @see VPU_JSM_MSG_HWS_SCHEDULING_LOG_ANALTIFICATION
  * @see VPU_JSM_MSG_HWS_SET_SCHEDULING_LOG
  */
-struct vpu_ipc_msg_payload_hws_scheduling_log_notification {
+struct vpu_ipc_msg_payload_hws_scheduling_log_analtification {
 	/* Engine ordinal */
 	u32 engine_idx;
 	/* Zero Padding */
@@ -878,16 +878,16 @@ struct vpu_ipc_msg_payload_hws_scheduling_log_notification {
  * Host will request the suspend of contexts and VPU will;
  *   - Suspend all work on this context
  *   - Preempt any running work
- *   - Asynchronously perform the above and return success immediately once
+ *   - Asynchroanalusly perform the above and return success immediately once
  *     all items above are started successfully
- *   - Notify the host of completion of these operations via
+ *   - Analtify the host of completion of these operations via
  *     VPU_JSM_MSG_HWS_SUSPEND_CMDQ_DONE
  *   - Reject any other context operations on a context with an in-flight
  *     suspend request running
- * Same structure used when VPU notifies host of completion of a context suspend
+ * Same structure used when VPU analtifies host of completion of a context suspend
  * request. The ids and suspend fence value reported in this command will match
  * the one in the request from the host to suspend the context. Once suspend is
- * complete, VPU will not access any data relating to this command queue until
+ * complete, VPU will analt access any data relating to this command queue until
  * it is resumed.
  * @see VPU_JSM_MSG_HWS_SUSPEND_CMDQ
  * @see VPU_JSM_MSG_HWS_SUSPEND_CMDQ_DONE
@@ -949,7 +949,7 @@ struct vpu_ipc_msg_payload_hws_resume_engine {
  * - For VPU_JSM_MSG_TRACE_SET_CONFIG_RSP, the payload reports the logging
  *   configuration that was set after a VPU_JSM_MSG_TRACE_SET_CONFIG request.
  *   The host can compare this payload with the one it sent in the
- *   VPU_JSM_MSG_TRACE_SET_CONFIG request to check whether or not the
+ *   VPU_JSM_MSG_TRACE_SET_CONFIG request to check whether or analt the
  *   configuration was set as desired.
  *
  * - VPU_JSM_MSG_TRACE_GET_CONFIG_RSP, the payload reports the current logging
@@ -1025,12 +1025,12 @@ struct vpu_ipc_msg_payload_trace_get_name_rsp {
 
 /**
  * Data sent from the VPU to the host in all metric streamer response messages
- * and in asynchronous notification.
+ * and in asynchroanalus analtification.
  * @see VPU_JSM_MSG_METRIC_STREAMER_START_DONE
  * @see VPU_JSM_MSG_METRIC_STREAMER_STOP_DONE
  * @see VPU_JSM_MSG_METRIC_STREAMER_UPDATE_DONE
  * @see VPU_JSM_MSG_METRIC_STREAMER_INFO_DONE
- * @see VPU_JSM_MSG_METRIC_STREAMER_NOTIFICATION
+ * @see VPU_JSM_MSG_METRIC_STREAMER_ANALTIFICATION
  */
 struct vpu_jsm_metric_streamer_done {
 	/** Metric group mask that identifies metric streamer instance. */
@@ -1043,13 +1043,13 @@ struct vpu_jsm_metric_streamer_done {
 	u32 reserved_0;
 	/**
 	 * Number of samples collected since the metric streamer was started.
-	 * This will be 0 if the metric streamer was not started.
+	 * This will be 0 if the metric streamer was analt started.
 	 */
 	u32 samples_collected;
 	/**
 	 * Number of samples dropped since the metric streamer was started. This
-	 * is incremented every time the metric streamer is not able to write
-	 * collected samples because the current buffer is full and there is no
+	 * is incremented every time the metric streamer is analt able to write
+	 * collected samples because the current buffer is full and there is anal
 	 * next buffer to switch to.
 	 */
 	u32 samples_dropped;
@@ -1090,7 +1090,7 @@ struct vpu_jsm_metric_group_descriptor {
 	/** Data size for all counters, must be a multiple of 8 bytes.*/
 	u32 metric_group_data_size;
 	/**
-	 * Metric group domain number. Cannot use multiple, simultaneous metric groups
+	 * Metric group domain number. Cananalt use multiple, simultaneous metric groups
 	 * from the same domain.
 	 */
 	u32 domain;
@@ -1122,7 +1122,7 @@ struct vpu_jsm_metric_counter_descriptor {
 	u32 next_metric_counter_info_offset;
 	/**
 	 * Offset to the counter data from the start of samples in this metric group.
-	 * Note that metric_data_offset % metric_data_size must be 0.
+	 * Analte that metric_data_offset % metric_data_size must be 0.
 	 */
 	u32 metric_data_offset;
 	/** Size of the metric counter data in bytes. */
@@ -1165,7 +1165,7 @@ struct vpu_jsm_metric_counter_descriptor {
  * have the same syntax as Linux
  * dyndbg commands.
  *
- * NOTE: in order for MVLOG_DEBUG messages to be actually printed, the host
+ * ANALTE: in order for MVLOG_DEBUG messages to be actually printed, the host
  * still has to set the logging level to MVLOG_DEBUG, using the
  * VPU_JSM_MSG_TRACE_SET_CONFIG command.
  *
@@ -1188,7 +1188,7 @@ struct vpu_ipc_msg_payload_dyndbg_control {
  */
 struct vpu_ipc_msg_payload_pwr_d0i3_enter {
 	/**
-	 * 0: VPU_JSM_MSG_PWR_D0I3_ENTER_DONE is not sent to the host driver
+	 * 0: VPU_JSM_MSG_PWR_D0I3_ENTER_DONE is analt sent to the host driver
 	 *    The driver will poll for D0i2 Idle state transitions.
 	 * 1: VPU_JSM_MSG_PWR_D0I3_ENTER_DONE is sent after VPU state save is complete
 	 */
@@ -1247,7 +1247,7 @@ union vpu_ipc_msg_payload {
 	struct vpu_ipc_msg_payload_hws_set_context_sched_properties
 		hws_set_context_sched_properties;
 	struct vpu_ipc_msg_payload_hws_set_scheduling_log hws_set_scheduling_log;
-	struct vpu_ipc_msg_payload_hws_scheduling_log_notification hws_scheduling_log_notification;
+	struct vpu_ipc_msg_payload_hws_scheduling_log_analtification hws_scheduling_log_analtification;
 	struct vpu_ipc_msg_payload_hws_suspend_cmdq hws_suspend_cmdq;
 	struct vpu_ipc_msg_payload_hws_resume_cmdq hws_resume_cmdq;
 	struct vpu_ipc_msg_payload_hws_resume_engine hws_resume_engine;
@@ -1258,7 +1258,7 @@ union vpu_ipc_msg_payload {
 /*
  * Host <-> LRT IPC message base structure.
  *
- * NOTE: All instances of this object must be aligned on a 64B boundary
+ * ANALTE: All instances of this object must be aligned on a 64B boundary
  * to allow proper handling of VPU cache operations.
  */
 struct vpu_jsm_msg {

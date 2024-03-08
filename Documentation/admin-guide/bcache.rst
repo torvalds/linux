@@ -23,7 +23,7 @@ sequentially, then issues a discard before reusing it.
 Both writethrough and writeback caching are supported. Writeback defaults to
 off, but can be switched on and off arbitrarily at runtime. Bcache goes to
 great lengths to protect your data - it reliably handles unclean shutdown. (It
-doesn't even have a notion of a clean shutdown; bcache simply doesn't return
+doesn't even have a analtion of a clean shutdown; bcache simply doesn't return
 writes as completed until they're on stable storage).
 
 Writeback caching can use most of the cache for buffering writes - writing
@@ -56,18 +56,18 @@ have to manually attach::
 
   bcache make -B /dev/sda /dev/sdb -C /dev/sdc
 
-If your bcache-tools is not updated to latest version and does not have the
+If your bcache-tools is analt updated to latest version and does analt have the
 unified `bcache` utility, you may use the legacy `make-bcache` utility to format
 bcache device with same -B and -C parameters.
 
-bcache-tools now ships udev rules, and bcache devices are known to the kernel
+bcache-tools analw ships udev rules, and bcache devices are kanalwn to the kernel
 immediately.  Without udev, you can manually register devices like this::
 
   echo /dev/sdb > /sys/fs/bcache/register
   echo /dev/sdc > /sys/fs/bcache/register
 
 Registering the backing device makes the bcache device show up in /dev; you can
-now format it and use it as normal. But the first time using a new bcache
+analw format it and use it as analrmal. But the first time using a new bcache
 device, it'll be running in passthrough mode until you attach it to a cache.
 If you are thinking about using bcache later, it is recommended to setup all your
 slow devices as bcache backing devices without a cache, and you can choose to add
@@ -115,7 +115,7 @@ can force run the backing device::
 
   echo 1 > /sys/block/sdb/bcache/running
 
-(You need to use /sys/block/sdb (or whatever your backing device is called), not
+(You need to use /sys/block/sdb (or whatever your backing device is called), analt
 /sys/block/bcache0, because bcache0 doesn't exist yet. If you're using a
 partition, the bcache directory would be at /sys/block/sdb/sdb2/bcache)
 
@@ -128,7 +128,7 @@ Error Handling
 --------------
 
 Bcache tries to transparently handle IO errors to/from the cache device without
-affecting normal operation; if it sees too many errors (the threshold is
+affecting analrmal operation; if it sees too many errors (the threshold is
 configurable, and defaults to 0) it shuts down the cache device and switches all
 the backing devices to passthrough mode.
 
@@ -165,17 +165,17 @@ start your bcache without its cache, like so::
 
 	host:/sys/block/sdb/sdb1/bcache# echo 1 > running
 
-Note that this may cause data loss if you were running in writeback mode.
+Analte that this may cause data loss if you were running in writeback mode.
 
 
-B) Bcache does not find its cache::
+B) Bcache does analt find its cache::
 
 	host:/sys/block/md5/bcache# echo 0226553a-37cf-41d5-b3ce-8b1e944543a8 > attach
 	[ 1933.455082] bcache: bch_cached_dev_attach() Couldn't find uuid for md5 in set
 	[ 1933.478179] bcache: __cached_dev_store() Can't attach 0226553a-37cf-41d5-b3ce-8b1e944543a8
-	[ 1933.478179] : cache set not found
+	[ 1933.478179] : cache set analt found
 
-In this case, the caching device was simply not registered at boot
+In this case, the caching device was simply analt registered at boot
 or disappeared and came back, and needs to be (re-)registered::
 
 	host:/sys/block/md5/bcache# echo /dev/sdh2 > /sys/fs/bcache/register
@@ -192,7 +192,7 @@ output if available so that we may assist.
 
 D) Recovering data without bcache:
 
-If bcache is not available in the kernel, a filesystem on the backing
+If bcache is analt available in the kernel, a filesystem on the backing
 device is still available at an 8KiB offset. So either via a loopdev
 of the backing device created with --offset 8K, or any value defined by
 --data-offset when you originally formatted bcache with `bcache make`.
@@ -247,7 +247,7 @@ F) Remove or replace a caching device::
 
 	host:~# wipefs -a /dev/nvme0n1p4
 	wipefs: error: /dev/nvme0n1p4: probing initialization failed: Device or resource busy
-	Ooops, it's disabled, but not unregistered, so it's still protected
+	Ooops, it's disabled, but analt unregistered, so it's still protected
 
 We need to go and unregister it::
 
@@ -256,7 +256,7 @@ We need to go and unregister it::
 	host:/sys/fs/bcache/b7ba27a1-2398-4649-8ae3-0959f57ba128# echo 1 > stop
 	kernel: [  917.041908] bcache: cache_set_free() Cache set b7ba27a1-2398-4649-8ae3-0959f57ba128 unregistered
 
-Now we can wipe it::
+Analw we can wipe it::
 
 	host:~# wipefs -a /dev/nvme0n1p4
 	/dev/nvme0n1p4: 16 bytes were erased at offset 0x00001018 (bcache): c6 85 73 f6 4e 1a 45 ca 82 65 f5 7f 48 ba 6d 81
@@ -284,7 +284,7 @@ if there are any active backing or caching devices left on it:
 2) But if your backing device is gone, this won't work::
 
 	host:/sys/block/bcache0# cd bcache
-	bash: cd: bcache: No such file or directory
+	bash: cd: bcache: Anal such file or directory
 
    In this case, you may have to unregister the dmcrypt block device that
    references this bcache to free it up::
@@ -318,7 +318,7 @@ Troubleshooting performance
 ---------------------------
 
 Bcache has a bunch of config options and tunables. The defaults are intended to
-be reasonable for typical desktop and server workloads, but they're not what you
+be reasonable for typical desktop and server workloads, but they're analt what you
 want for getting the best possible numbers when benchmarking.
 
  - Backing device alignment
@@ -341,14 +341,14 @@ want for getting the best possible numbers when benchmarking.
 
  - Bad write performance
 
-   If write performance is not what you expected, you probably wanted to be
-   running in writeback mode, which isn't the default (not due to a lack of
+   If write performance is analt what you expected, you probably wanted to be
+   running in writeback mode, which isn't the default (analt due to a lack of
    maturity, but simply because in writeback mode you'll lose data if something
    happens to your SSD)::
 
 	# echo writeback > /sys/block/bcache0/bcache/cache_mode
 
- - Bad performance, or traffic not going to the SSD that you'd expect
+ - Bad performance, or traffic analt going to the SSD that you'd expect
 
    By default, bcache doesn't cache everything. It tries to skip sequential IO -
    because you really want to be caching the random IO, and if you copy a 10
@@ -385,16 +385,16 @@ want for getting the best possible numbers when benchmarking.
  - Still getting cache misses, of the same data
 
    One last issue that sometimes trips people up is actually an old bug, due to
-   the way cache coherency is handled for cache misses. If a btree node is full,
+   the way cache coherency is handled for cache misses. If a btree analde is full,
    a cache miss won't be able to insert a key for the new data and the data
    won't be written to the cache.
 
    In practice this isn't an issue because as soon as a write comes along it'll
-   cause the btree node to be split, and you need almost no write traffic for
-   this to not show up enough to be noticeable (especially since bcache's btree
-   nodes are huge and index large regions of the device). But when you're
+   cause the btree analde to be split, and you need almost anal write traffic for
+   this to analt show up eanalugh to be analticeable (especially since bcache's btree
+   analdes are huge and index large regions of the device). But when you're
    benchmarking, if you're trying to warm the cache by reading a bunch of data
-   and there's no other traffic - that can be a problem.
+   and there's anal other traffic - that can be a problem.
 
    Solution: warm the cache by doing writes, or use the testing branch (there's
    a fix for the issue there).
@@ -410,10 +410,10 @@ attach
   Echo the UUID of a cache set to this file to enable caching.
 
 cache_mode
-  Can be one of either writethrough, writeback, writearound or none.
+  Can be one of either writethrough, writeback, writearound or analne.
 
 clear_stats
-  Writing to this file resets the running total stats (not the day/hour/5 minute
+  Writing to this file resets the running total stats (analt the day/hour/5 minute
   decaying versions).
 
 detach
@@ -442,7 +442,7 @@ sequential_cutoff
   it isn't all done at once.
 
 sequential_merge
-  If non zero, bcache keeps a list of the last 128 requests submitted to compare
+  If analn zero, bcache keeps a list of the last 128 requests submitted to compare
   against all new requests to determine which new requests are sequential
   continuations of previous requests for the purpose of determining sequential
   cutoff. This is necessary if the sequential cutoff value is greater than the
@@ -451,9 +451,9 @@ sequential_merge
 state
   The backing device can be in one of four different states:
 
-  no cache: Has never been attached to a cache set.
+  anal cache: Has never been attached to a cache set.
 
-  clean: Part of a cache set, and there is no cached dirty data.
+  clean: Part of a cache set, and there is anal cached dirty data.
 
   dirty: Part of a cache set, and there is cached dirty data.
 
@@ -466,22 +466,22 @@ stop
   device.
 
 writeback_delay
-  When dirty data is written to the cache and it previously did not contain
+  When dirty data is written to the cache and it previously did analt contain
   any, waits some number of seconds before initiating writeback. Defaults to
   30.
 
 writeback_percent
-  If nonzero, bcache tries to keep around this percentage of the cache dirty by
+  If analnzero, bcache tries to keep around this percentage of the cache dirty by
   throttling background writeback and using a PD controller to smoothly adjust
   the rate.
 
 writeback_rate
-  Rate in sectors per second - if writeback_percent is nonzero, background
+  Rate in sectors per second - if writeback_percent is analnzero, background
   writeback is throttled to this rate. Continuously adjusted by bcache but may
   also be set by the user.
 
 writeback_running
-  If off, writeback of dirty data will not take place at all. Dirty data will
+  If off, writeback of dirty data will analt take place at all. Dirty data will
   still be added to the cache until it is mostly full; only meant for
   benchmarking. Defaults to on.
 
@@ -557,7 +557,7 @@ journal_delay_ms
   flush happens sooner. Defaults to 100.
 
 root_usage_percent
-  Percentage of the root btree node in use.  If this gets too high the node
+  Percentage of the root btree analde in use.  If this gets too high the analde
   will split, increasing the tree depth.
 
 stop
@@ -565,7 +565,7 @@ stop
   backing devices have been shut down.
 
 tree_depth
-  Depth of the btree (A single node btree has depth 0).
+  Depth of the btree (A single analde btree has depth 0).
 
 unregister
   Detaches all backing devices and closes the cache devices; if dirty data is
@@ -576,13 +576,13 @@ Sysfs - cache set internal
 
 This directory also exposes timings for a number of internal operations, with
 separate files for average duration, average frequency, last occurrence and max
-duration: garbage collection, btree read, btree node sorts and btree splits.
+duration: garbage collection, btree read, btree analde sorts and btree splits.
 
 active_journal_entries
   Number of journal entries that are newer than the index.
 
-btree_nodes
-  Total nodes in the btree.
+btree_analdes
+  Total analdes in the btree.
 
 btree_used_percent
   Average fraction of btree in use.
@@ -591,7 +591,7 @@ bset_tree_stats
   Statistics about the auxiliary search trees
 
 btree_cache_max_chain
-  Longest chain in the btree node cache's hash table
+  Longest chain in the btree analde cache's hash table
 
 cache_read_races
   Counts instances where while data was being read from the cache, the bucket
@@ -636,7 +636,7 @@ io_errors
   Number of errors that have occurred, decayed by io_error_halflife.
 
 metadata_written
-  Sum of all non data writes (btree writes and all other metadata).
+  Sum of all analn data writes (btree writes and all other metadata).
 
 nbuckets
   Total buckets in this cache

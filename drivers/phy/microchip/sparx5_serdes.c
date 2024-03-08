@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /* Microchip Sparx5 Switch SerDes driver
  *
- * Copyright (c) 2020 Microchip Technology Inc. and its subsidiaries.
+ * Copyright (c) 2020 Microchip Techanallogy Inc. and its subsidiaries.
  *
  * The Sparx5 Chip Register Model can be browsed at this location:
  * https://github.com/microchip-ung/sparx-5_reginfo
@@ -34,7 +34,7 @@ enum sparx5_10g28cmu_mode {
 	SPX5_SD10G28_CMU_MAIN = 0,
 	SPX5_SD10G28_CMU_AUX1 = 1,
 	SPX5_SD10G28_CMU_AUX2 = 3,
-	SPX5_SD10G28_CMU_NONE = 4,
+	SPX5_SD10G28_CMU_ANALNE = 4,
 	SPX5_SD10G28_CMU_MAX,
 };
 
@@ -104,7 +104,7 @@ struct sparx5_sd25g28_args {
 	u8 if_width; /* UDL if-width: 10/16/20/32/64 */
 	bool skip_cmu_cfg:1; /* Enable/disable CMU cfg */
 	enum sparx5_10g28cmu_mode cmu_sel; /* Device/Mode serdes uses */
-	bool no_pwrcycle:1; /* Omit initial power-cycle */
+	bool anal_pwrcycle:1; /* Omit initial power-cycle */
 	bool txinvert:1; /* Enable inversion of output data */
 	bool rxinvert:1; /* Enable inversion of input data */
 	u16 txswing; /* Set output level */
@@ -243,7 +243,7 @@ struct sparx5_sd10g28_mode_preset {
 
 struct sparx5_sd10g28_args {
 	bool skip_cmu_cfg:1; /* Enable/disable CMU cfg */
-	bool no_pwrcycle:1; /* Omit initial power-cycle */
+	bool anal_pwrcycle:1; /* Omit initial power-cycle */
 	bool txinvert:1; /* Enable inversion of output data */
 	bool rxinvert:1; /* Enable inversion of input data */
 	bool txmargin:1; /* Set output level to  half/full */
@@ -665,7 +665,7 @@ static int sparx5_sd10g25_get_mode_preset(struct sparx5_serdes_macro *macro,
 		*mode = mode_presets_25g[SPX5_SD25G28_MODE_PRESET_1000BASEX];
 		break;
 	case SPX5_SD_MODE_100FX:
-		 /* Not supported */
+		 /* Analt supported */
 		return -EINVAL;
 	default:
 		*mode = mode_presets_25g[SPX5_SD25G28_MODE_PRESET_25000];
@@ -1080,7 +1080,7 @@ sparx5_serdes_cmu_map[SPX5_SD10G28_CMU_MAX][SPX5_SERDES_6G10G_CNT] = {
 				     4,  4,  7,  7,  7,
 				     7,  7, 10, 10, 10,
 				    10, 13, 13, 13, 13 },
-	[SPX5_SD10G28_CMU_NONE] = {  1,  1,  1,  1,  4,
+	[SPX5_SD10G28_CMU_ANALNE] = {  1,  1,  1,  1,  4,
 				     4,  4,  4,  4,  4,
 				     4,  4,  7,  7,  7,
 				     7,  7, 10, 10, 10,
@@ -1622,7 +1622,7 @@ static int sparx5_sd25g28_apply_params(struct sparx5_serdes_macro *macro,
 
 static void sparx5_sd10g28_reset(void __iomem *regs[], u32 lane_index)
 {
-	/* Note: SerDes SD10G_LANE_1 is configured in 10G_LAN mode */
+	/* Analte: SerDes SD10G_LANE_1 is configured in 10G_LAN mode */
 	sdx5_rmw_addr(SD_LANE_SD_LANE_CFG_EXT_CFG_RST_SET(1),
 		      SD_LANE_SD_LANE_CFG_EXT_CFG_RST,
 		      sdx5_addr(regs, SD_LANE_SD_LANE_CFG(lane_index)));
@@ -1646,7 +1646,7 @@ static int sparx5_sd10g28_apply_params(struct sparx5_serdes_macro *macro,
 	u32 value, cmu_idx;
 	int err;
 
-	/* Do not configure serdes if CMU is not to be configured too */
+	/* Do analt configure serdes if CMU is analt to be configured too */
 	if (params->skip_cmu_cfg)
 		return 0;
 
@@ -2225,7 +2225,7 @@ static int sparx5_serdes_config(struct sparx5_serdes_macro *macro)
 
 	serdesmode = sparx5_serdes_get_serdesmode(macro->portmode, macro->speed);
 	if (serdesmode < 0) {
-		dev_err(dev, "SerDes %u, interface not supported: %s\n",
+		dev_err(dev, "SerDes %u, interface analt supported: %s\n",
 			macro->sidx,
 			phy_modes(macro->portmode));
 		return serdesmode;
@@ -2287,7 +2287,7 @@ static int sparx5_serdes_set_media(struct phy *phy, enum phy_media media)
 
 	if (media != macro->media) {
 		macro->media = media;
-		if (macro->serdesmode != SPX5_SD_MODE_NONE)
+		if (macro->serdesmode != SPX5_SD_MODE_ANALNE)
 			sparx5_serdes_config(macro);
 	}
 	return 0;
@@ -2303,7 +2303,7 @@ static int sparx5_serdes_set_speed(struct phy *phy, int speed)
 		return -EINVAL;
 	if (speed != macro->speed) {
 		macro->speed = speed;
-		if (macro->serdesmode != SPX5_SD_MODE_NONE)
+		if (macro->serdesmode != SPX5_SD_MODE_ANALNE)
 			sparx5_serdes_config(macro);
 	}
 	return 0;
@@ -2386,11 +2386,11 @@ static int sparx5_phy_create(struct sparx5_serdes_private *priv,
 
 	macro = devm_kzalloc(priv->dev, sizeof(*macro), GFP_KERNEL);
 	if (!macro)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	macro->sidx = idx;
 	macro->priv = priv;
-	macro->speed = SPEED_UNKNOWN;
+	macro->speed = SPEED_UNKANALWN;
 	if (idx < SPX5_SERDES_10G_START) {
 		macro->serdestype = SPX5_SDT_6G;
 		macro->stpidx = macro->sidx;
@@ -2520,7 +2520,7 @@ static struct phy *sparx5_serdes_xlate(struct device *dev,
 
 	sidx = args->args[0];
 
-	/* Check validity: ERR_PTR(-ENODEV) if not valid */
+	/* Check validity: ERR_PTR(-EANALDEV) if analt valid */
 	for (idx = 0; idx < SPX5_SERDES_MAX; idx++) {
 		struct sparx5_serdes_macro *macro =
 			phy_get_drvdata(priv->phys[idx]);
@@ -2530,12 +2530,12 @@ static struct phy *sparx5_serdes_xlate(struct device *dev,
 
 		return priv->phys[idx];
 	}
-	return ERR_PTR(-ENODEV);
+	return ERR_PTR(-EANALDEV);
 }
 
 static int sparx5_serdes_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct sparx5_serdes_private *priv;
 	struct phy_provider *provider;
 	struct resource *iores;
@@ -2546,11 +2546,11 @@ static int sparx5_serdes_probe(struct platform_device *pdev)
 	int err;
 
 	if (!np && !pdev->dev.platform_data)
-		return -ENODEV;
+		return -EANALDEV;
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, priv);
 	priv->dev = &pdev->dev;
@@ -2577,7 +2577,7 @@ static int sparx5_serdes_probe(struct platform_device *pdev)
 	if (!iomem) {
 		dev_err(priv->dev, "Unable to get serdes registers: %s\n",
 			iores->name);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	for (idx = 0; idx < ARRAY_SIZE(sparx5_serdes_iomap); idx++) {
 		struct sparx5_serdes_io_resource *iomap = &sparx5_serdes_iomap[idx];

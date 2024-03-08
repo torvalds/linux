@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: (LGPL-2.1 OR BSD-2-Clause)
-/* Copyright (c) 2019 Netronome Systems, Inc. */
+/* Copyright (c) 2019 Netroanalme Systems, Inc. */
 
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <string.h>
 #include <stdlib.h>
@@ -31,7 +31,7 @@
 static __u32 get_ubuntu_kernel_version(void)
 {
 	const char *ubuntu_kver_file = "/proc/version_signature";
-	__u32 major, minor, patch;
+	__u32 major, mianalr, patch;
 	int ret;
 	FILE *f;
 
@@ -42,12 +42,12 @@ static __u32 get_ubuntu_kernel_version(void)
 	if (!f)
 		return 0;
 
-	ret = fscanf(f, "%*s %*s %u.%u.%u\n", &major, &minor, &patch);
+	ret = fscanf(f, "%*s %*s %u.%u.%u\n", &major, &mianalr, &patch);
 	fclose(f);
 	if (ret != 3)
 		return 0;
 
-	return KERNEL_VERSION(major, minor, patch);
+	return KERNEL_VERSION(major, mianalr, patch);
 }
 
 /* On Debian LINUX_VERSION_CODE doesn't correspond to info.release.
@@ -62,24 +62,24 @@ static __u32 get_ubuntu_kernel_version(void)
  */
 static __u32 get_debian_kernel_version(struct utsname *info)
 {
-	__u32 major, minor, patch;
+	__u32 major, mianalr, patch;
 	char *p;
 
 	p = strstr(info->version, "Debian ");
 	if (!p) {
-		/* This is not a Debian kernel. */
+		/* This is analt a Debian kernel. */
 		return 0;
 	}
 
-	if (sscanf(p, "Debian %u.%u.%u", &major, &minor, &patch) != 3)
+	if (sscanf(p, "Debian %u.%u.%u", &major, &mianalr, &patch) != 3)
 		return 0;
 
-	return KERNEL_VERSION(major, minor, patch);
+	return KERNEL_VERSION(major, mianalr, patch);
 }
 
 __u32 get_kernel_version(void)
 {
-	__u32 major, minor, patch, version;
+	__u32 major, mianalr, patch, version;
 	struct utsname info;
 
 	/* Check if this is an Ubuntu kernel. */
@@ -94,10 +94,10 @@ __u32 get_kernel_version(void)
 	if (version != 0)
 		return version;
 
-	if (sscanf(info.release, "%u.%u.%u", &major, &minor, &patch) != 3)
+	if (sscanf(info.release, "%u.%u.%u", &major, &mianalr, &patch) != 3)
 		return 0;
 
-	return KERNEL_VERSION(major, minor, patch);
+	return KERNEL_VERSION(major, mianalr, patch);
 }
 
 static int probe_prog_load(enum bpf_prog_type prog_type,
@@ -141,7 +141,7 @@ static int probe_prog_load(enum bpf_prog_type prog_type,
 		opts.attach_btf_id = 1;
 
 		exp_err = -EINVAL;
-		exp_msg = "attach_btf_id 1 is not a function";
+		exp_msg = "attach_btf_id 1 is analt a function";
 		break;
 	case BPF_PROG_TYPE_EXT:
 		opts.log_buf = buf;
@@ -150,13 +150,13 @@ static int probe_prog_load(enum bpf_prog_type prog_type,
 		opts.attach_btf_id = 1;
 
 		exp_err = -EINVAL;
-		exp_msg = "Cannot replace kernel functions";
+		exp_msg = "Cananalt replace kernel functions";
 		break;
 	case BPF_PROG_TYPE_SYSCALL:
 		opts.prog_flags = BPF_F_SLEEPABLE;
 		break;
 	case BPF_PROG_TYPE_STRUCT_OPS:
-		exp_err = -524; /* -ENOTSUPP */
+		exp_err = -524; /* -EANALTSUPP */
 		break;
 	case BPF_PROG_TYPE_UNSPEC:
 	case BPF_PROG_TYPE_SOCKET_FILTER:
@@ -185,11 +185,11 @@ static int probe_prog_load(enum bpf_prog_type prog_type,
 		opts.expected_attach_type = BPF_NETFILTER;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	fd = bpf_prog_load(prog_type, NULL, "GPL", insns, insns_cnt, &opts);
-	err = -errno;
+	err = -erranal;
 	if (fd >= 0)
 		close(fd);
 	if (exp_err) {
@@ -235,7 +235,7 @@ int libbpf__load_raw_btf(const char *raw_types, size_t types_len,
 	btf_len = hdr.hdr_len + hdr.type_len + hdr.str_len;
 	raw_btf = malloc(btf_len);
 	if (!raw_btf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy(raw_btf, &hdr, sizeof(hdr));
 	memcpy(raw_btf + hdr.hdr_len, raw_types, hdr.type_len);
@@ -292,7 +292,7 @@ static int probe_map_create(enum bpf_map_type map_type)
 	case BPF_MAP_TYPE_LPM_TRIE:
 		key_size	= sizeof(__u64);
 		value_size	= sizeof(__u64);
-		opts.map_flags	= BPF_F_NO_PREALLOC;
+		opts.map_flags	= BPF_F_ANAL_PREALLOC;
 		break;
 	case BPF_MAP_TYPE_CGROUP_STORAGE:
 	case BPF_MAP_TYPE_PERCPU_CGROUP_STORAGE:
@@ -305,14 +305,14 @@ static int probe_map_create(enum bpf_map_type map_type)
 		key_size	= 0;
 		break;
 	case BPF_MAP_TYPE_SK_STORAGE:
-	case BPF_MAP_TYPE_INODE_STORAGE:
+	case BPF_MAP_TYPE_IANALDE_STORAGE:
 	case BPF_MAP_TYPE_TASK_STORAGE:
 	case BPF_MAP_TYPE_CGRP_STORAGE:
 		btf_key_type_id = 1;
 		btf_value_type_id = 3;
 		value_size = 8;
 		max_entries = 0;
-		opts.map_flags = BPF_F_NO_PREALLOC;
+		opts.map_flags = BPF_F_ANAL_PREALLOC;
 		btf_fd = load_local_storage_btf();
 		if (btf_fd < 0)
 			return btf_fd;
@@ -324,9 +324,9 @@ static int probe_map_create(enum bpf_map_type map_type)
 		max_entries = sysconf(_SC_PAGE_SIZE);
 		break;
 	case BPF_MAP_TYPE_STRUCT_OPS:
-		/* we'll get -ENOTSUPP for invalid BTF type ID for struct_ops */
+		/* we'll get -EANALTSUPP for invalid BTF type ID for struct_ops */
 		opts.btf_vmlinux_value_type_id = 1;
-		exp_err = -524; /* -ENOTSUPP */
+		exp_err = -524; /* -EANALTSUPP */
 		break;
 	case BPF_MAP_TYPE_BLOOM_FILTER:
 		key_size = 0;
@@ -353,7 +353,7 @@ static int probe_map_create(enum bpf_map_type map_type)
 		break;
 	case BPF_MAP_TYPE_UNSPEC:
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (map_type == BPF_MAP_TYPE_ARRAY_OF_MAPS ||
@@ -373,7 +373,7 @@ static int probe_map_create(enum bpf_map_type map_type)
 	}
 
 	fd = bpf_map_create(map_type, NULL, key_size, value_size, max_entries, &opts);
-	err = -errno;
+	err = -erranal;
 
 cleanup:
 	if (fd >= 0)
@@ -415,14 +415,14 @@ int libbpf_probe_bpf_helper(enum bpf_prog_type prog_type, enum bpf_func_id helpe
 		return libbpf_err(-EINVAL);
 
 	/* we can't successfully load all prog types to check for BPF helper
-	 * support, so bail out with -EOPNOTSUPP error
+	 * support, so bail out with -EOPANALTSUPP error
 	 */
 	switch (prog_type) {
 	case BPF_PROG_TYPE_TRACING:
 	case BPF_PROG_TYPE_EXT:
 	case BPF_PROG_TYPE_LSM:
 	case BPF_PROG_TYPE_STRUCT_OPS:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	default:
 		break;
 	}
@@ -433,18 +433,18 @@ int libbpf_probe_bpf_helper(enum bpf_prog_type prog_type, enum bpf_func_id helpe
 		return libbpf_err(ret);
 
 	/* If BPF verifier doesn't recognize BPF helper ID (enum bpf_func_id)
-	 * at all, it will emit something like "invalid func unknown#181".
-	 * If BPF verifier recognizes BPF helper but it's not supported for
-	 * given BPF program type, it will emit "unknown func bpf_sys_bpf#166".
+	 * at all, it will emit something like "invalid func unkanalwn#181".
+	 * If BPF verifier recognizes BPF helper but it's analt supported for
+	 * given BPF program type, it will emit "unkanalwn func bpf_sys_bpf#166".
 	 * In both cases, provided combination of BPF program type and BPF
-	 * helper is not supported by the kernel.
+	 * helper is analt supported by the kernel.
 	 * In all other cases, probe_prog_load() above will either succeed (e.g.,
-	 * because BPF helper happens to accept no input arguments or it
+	 * because BPF helper happens to accept anal input arguments or it
 	 * accepts one input argument and initial PTR_TO_CTX is fine for
 	 * that), or we'll get some more specific BPF verifier error about
 	 * some unsatisfied conditions.
 	 */
-	if (ret == 0 && (strstr(buf, "invalid func ") || strstr(buf, "unknown func ")))
+	if (ret == 0 && (strstr(buf, "invalid func ") || strstr(buf, "unkanalwn func ")))
 		return 0;
 	return 1; /* assume supported */
 }

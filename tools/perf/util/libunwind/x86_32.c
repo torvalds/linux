@@ -6,7 +6,7 @@
  * The function 'LIBUNWIND__ARCH_REG_ID' name is set according to arch
  * name and the definition of this function is included directly from
  * 'arch/x86/util/unwind-libunwind.c', to make sure that this function
- * is defined no matter what arch the host is.
+ * is defined anal matter what arch the host is.
  *
  * Finally, the arch specific unwind methods are exported which will
  * be assigned to each x86 thread.
@@ -29,11 +29,11 @@
 #undef HAVE_ARCH_X86_64_SUPPORT
 #include "../../arch/x86/util/unwind-libunwind.c"
 
-/* Explicitly define NO_LIBUNWIND_DEBUG_FRAME, because non-ARM has no
+/* Explicitly define ANAL_LIBUNWIND_DEBUG_FRAME, because analn-ARM has anal
  * dwarf_find_debug_frame() function.
  */
-#ifndef NO_LIBUNWIND_DEBUG_FRAME
-#define NO_LIBUNWIND_DEBUG_FRAME
+#ifndef ANAL_LIBUNWIND_DEBUG_FRAME
+#define ANAL_LIBUNWIND_DEBUG_FRAME
 #endif
 #include "util/unwind-libunwind-local.c"
 

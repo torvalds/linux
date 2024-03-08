@@ -28,7 +28,7 @@ Description:
 		(RW) The AC alarm timer value.
 
 		Reads return the current AC alarm timer value in seconds or
-		"disabled", if the AC alarm is not set to wake up the system.
+		"disabled", if the AC alarm is analt set to wake up the system.
 
 		Write a new AC alarm timer value in seconds or "disabled" to it
 		to set the AC alarm timer or to disable it, respectively.
@@ -74,7 +74,7 @@ Description:
 
 		Reads also cause the AC alarm timer status to be reset.
 
-		Another way to reset the status of the AC alarm timer is to
+		Aanalther way to reset the status of the AC alarm timer is to
 		write (the number) 0 to this file.
 
 		If the status return value indicates that the timer has expired,

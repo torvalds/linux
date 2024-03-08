@@ -25,7 +25,7 @@
 #include <linux/sched.h>
 #include <linux/string.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/pci.h>
 #include <linux/dma-mapping.h>
 #include <linux/netdevice.h>
@@ -204,7 +204,7 @@ static void gem_get_cell(struct gem *gp)
 #ifdef CONFIG_PPC_PMAC
 	if (gp->cell_enabled == 1) {
 		mb();
-		pmac_call_feature(PMAC_FTR_GMAC_ENABLE, gp->of_node, 0, 1);
+		pmac_call_feature(PMAC_FTR_GMAC_ENABLE, gp->of_analde, 0, 1);
 		udelay(10);
 	}
 #endif /* CONFIG_PPC_PMAC */
@@ -218,7 +218,7 @@ static void gem_put_cell(struct gem *gp)
 #ifdef CONFIG_PPC_PMAC
 	if (gp->cell_enabled == 0) {
 		mb();
-		pmac_call_feature(PMAC_FTR_GMAC_ENABLE, gp->of_node, 0, 0);
+		pmac_call_feature(PMAC_FTR_GMAC_ENABLE, gp->of_analde, 0, 0);
 		udelay(10);
 	}
 #endif /* CONFIG_PPC_PMAC */
@@ -233,7 +233,7 @@ static inline void gem_netif_stop(struct gem *gp)
 
 static inline void gem_netif_start(struct gem *gp)
 {
-	/* NOTE: unconditional netif_wake_queue is only
+	/* ANALTE: unconditional netif_wake_queue is only
 	 * appropriate so long as all callers are assured to
 	 * have free tx slots.
 	 */
@@ -263,7 +263,7 @@ static int gem_pcs_interrupt(struct net_device *dev, struct gem *gp, u32 gem_sta
 			gp->dev->name, pcs_istat);
 
 	if (!(pcs_istat & PCS_ISTAT_LSC)) {
-		netdev_err(dev, "PCS irq but no link status change???\n");
+		netdev_err(dev, "PCS irq but anal link status change???\n");
 		return 0;
 	}
 
@@ -288,12 +288,12 @@ static int gem_pcs_interrupt(struct net_device *dev, struct gem *gp, u32 gem_sta
 	}
 
 	if (pcs_miistat & PCS_MIISTAT_LS) {
-		netdev_info(dev, "PCS link is now up\n");
+		netdev_info(dev, "PCS link is analw up\n");
 		netif_carrier_on(gp->dev);
 	} else {
-		netdev_info(dev, "PCS link is now down\n");
+		netdev_info(dev, "PCS link is analw down\n");
 		netif_carrier_off(gp->dev);
-		/* If this happens and the link timer is not running,
+		/* If this happens and the link timer is analt running,
 		 * reset so we re-negotiate.
 		 */
 		if (!timer_pending(&gp->link_timer))
@@ -311,7 +311,7 @@ static int gem_txmac_interrupt(struct net_device *dev, struct gem *gp, u32 gem_s
 		printk(KERN_DEBUG "%s: txmac interrupt, txmac_stat: 0x%x\n",
 			gp->dev->name, txmac_stat);
 
-	/* Defer timer expiration is quite normal,
+	/* Defer timer expiration is quite analrmal,
 	 * don't even log the event.
 	 */
 	if ((txmac_stat & MAC_TXSTAT_DTE) &&
@@ -344,7 +344,7 @@ static int gem_txmac_interrupt(struct net_device *dev, struct gem *gp, u32 gem_s
 		dev->stats.collisions += 0x10000;
 	}
 
-	/* We do not keep track of MAC_TXSTAT_FCE and
+	/* We do analt keep track of MAC_TXSTAT_FCE and
 	 * MAC_TXSTAT_PCE events.
 	 */
 	return 0;
@@ -371,7 +371,7 @@ static int gem_rxmac_reset(struct gem *gp)
 		udelay(10);
 	}
 	if (limit == 5000) {
-		netdev_err(dev, "RX MAC will not reset, resetting whole chip\n");
+		netdev_err(dev, "RX MAC will analt reset, resetting whole chip\n");
 		return 1;
 	}
 
@@ -383,7 +383,7 @@ static int gem_rxmac_reset(struct gem *gp)
 		udelay(10);
 	}
 	if (limit == 5000) {
-		netdev_err(dev, "RX MAC will not disable, resetting whole chip\n");
+		netdev_err(dev, "RX MAC will analt disable, resetting whole chip\n");
 		return 1;
 	}
 
@@ -395,7 +395,7 @@ static int gem_rxmac_reset(struct gem *gp)
 		udelay(10);
 	}
 	if (limit == 5000) {
-		netdev_err(dev, "RX DMA will not disable, resetting whole chip\n");
+		netdev_err(dev, "RX DMA will analt disable, resetting whole chip\n");
 		return 1;
 	}
 
@@ -410,7 +410,7 @@ static int gem_rxmac_reset(struct gem *gp)
 		udelay(10);
 	}
 	if (limit == 5000) {
-		netdev_err(dev, "RX reset command will not execute, resetting whole chip\n");
+		netdev_err(dev, "RX reset command will analt execute, resetting whole chip\n");
 		return 1;
 	}
 
@@ -427,7 +427,7 @@ static int gem_rxmac_reset(struct gem *gp)
 	}
 	gp->rx_new = gp->rx_old = 0;
 
-	/* Now we must reprogram the rest of RX unit. */
+	/* Analw we must reprogram the rest of RX unit. */
 	desc_dma = (u64) gp->gblock_dvma;
 	desc_dma += (INIT_BLOCK_TX_RING_SIZE * sizeof(struct gem_txd));
 	writel(desc_dma >> 32, gp->regs + RXDMA_DBHI);
@@ -484,7 +484,7 @@ static int gem_rxmac_interrupt(struct net_device *dev, struct gem *gp, u32 gem_s
 	if (rxmac_stat & MAC_RXSTAT_LCE)
 		dev->stats.rx_length_errors += 0x10000;
 
-	/* We do not track MAC_RXSTAT_FCE and MAC_RXSTAT_VCE
+	/* We do analt track MAC_RXSTAT_FCE and MAC_RXSTAT_VCE
 	 * events.
 	 */
 	return ret;
@@ -499,7 +499,7 @@ static int gem_mac_interrupt(struct net_device *dev, struct gem *gp, u32 gem_sta
 			gp->dev->name, mac_cstat);
 
 	/* This interrupt is just for pause frame and pause
-	 * tracking.  It is useful for diagnostics and debug
+	 * tracking.  It is useful for diaganalstics and debug
 	 * but probably by default we will mask these events.
 	 */
 	if (mac_cstat & MAC_CSTAT_PS)
@@ -533,7 +533,7 @@ static int gem_pci_interrupt(struct net_device *dev, struct gem *gp, u32 gem_sta
 		netdev_err(dev, "PCI error [%04x]", pci_estat);
 
 		if (pci_estat & GREG_PCIESTAT_BADACK)
-			pr_cont(" <No ACK64# during ABS64 cycle>");
+			pr_cont(" <Anal ACK64# during ABS64 cycle>");
 		if (pci_estat & GREG_PCIESTAT_DTRTO)
 			pr_cont(" <Delayed transaction timeout>");
 		if (pci_estat & GREG_PCIESTAT_OTHER)
@@ -570,17 +570,17 @@ static int gem_pci_interrupt(struct net_device *dev, struct gem *gp, u32 gem_sta
 	return 1;
 }
 
-/* All non-normal interrupt conditions get serviced here.
- * Returns non-zero if we should just exit the interrupt
- * handler right now (ie. if we reset the card which invalidates
+/* All analn-analrmal interrupt conditions get serviced here.
+ * Returns analn-zero if we should just exit the interrupt
+ * handler right analw (ie. if we reset the card which invalidates
  * all of the other original irq status bits).
  */
-static int gem_abnormal_irq(struct net_device *dev, struct gem *gp, u32 gem_status)
+static int gem_abanalrmal_irq(struct net_device *dev, struct gem *gp, u32 gem_status)
 {
-	if (gem_status & GREG_STAT_RXNOBUF) {
-		/* Frame arrived, no free RX buffers available. */
+	if (gem_status & GREG_STAT_RXANALBUF) {
+		/* Frame arrived, anal free RX buffers available. */
 		if (netif_msg_rx_err(gp))
-			printk(KERN_DEBUG "%s: no buffer for rx frame\n",
+			printk(KERN_DEBUG "%s: anal buffer for rx frame\n",
 				gp->dev->name);
 		dev->stats.rx_dropped++;
 	}
@@ -782,7 +782,7 @@ static int gem_rx(struct gem *gp, int work_to_do)
 				break;
 		}
 
-		/* We can now account for the work we're about to do */
+		/* We can analw account for the work we're about to do */
 		work_done++;
 
 		skb = gp->rx_skbs[entry];
@@ -879,18 +879,18 @@ static int gem_poll(struct napi_struct *napi, int budget)
 
 	work_done = 0;
 	do {
-		/* Handle anomalies */
-		if (unlikely(gp->status & GREG_STAT_ABNORMAL)) {
+		/* Handle aanalmalies */
+		if (unlikely(gp->status & GREG_STAT_ABANALRMAL)) {
 			struct netdev_queue *txq = netdev_get_tx_queue(dev, 0);
 			int reset;
 
-			/* We run the abnormal interrupt handling code with
+			/* We run the abanalrmal interrupt handling code with
 			 * the Tx lock. It only resets the Rx portion of the
 			 * chip, but we need to guard it against DMA being
 			 * restarted by the link poll timer
 			 */
 			__netif_tx_lock(txq, smp_processor_id());
-			reset = gem_abnormal_irq(dev, gp, gp->status);
+			reset = gem_abanalrmal_irq(dev, gp, gp->status);
 			__netif_tx_unlock(txq);
 			if (reset) {
 				gem_schedule_reset(gp);
@@ -931,7 +931,7 @@ static irqreturn_t gem_interrupt(int irq, void *dev_id)
 
 		if (unlikely(gem_status == 0)) {
 			napi_enable(&gp->napi);
-			return IRQ_NONE;
+			return IRQ_ANALNE;
 		}
 		if (netif_msg_intr(gp))
 			printk(KERN_DEBUG "%s: gem_interrupt() gem_status: 0x%x\n",
@@ -944,7 +944,7 @@ static irqreturn_t gem_interrupt(int irq, void *dev_id)
 
 	/* If polling was disabled at the time we received that
 	 * interrupt, we may return IRQ_HANDLED here while we
-	 * should return IRQ_NONE. No big deal...
+	 * should return IRQ_ANALNE. Anal big deal...
 	 */
 	return IRQ_HANDLED;
 }
@@ -1123,7 +1123,7 @@ static void gem_pcs_reset(struct gem *gp)
 			break;
 	}
 	if (limit < 0)
-		netdev_warn(gp->dev, "PCS reset bit would not clear\n");
+		netdev_warn(gp->dev, "PCS reset bit would analt clear\n");
 }
 
 static void gem_pcs_reinit_adv(struct gem *gp)
@@ -1259,7 +1259,7 @@ static void gem_begin_auto_negotiation(struct gem *gp,
 
 	if (gp->phy_type != phy_mii_mdio0 &&
 	    gp->phy_type != phy_mii_mdio1)
-		goto non_mii;
+		goto analn_mii;
 
 	/* Setup advertise */
 	if (found_mii_phy(gp))
@@ -1327,7 +1327,7 @@ start_aneg:
 		gp->lstate = link_force_ok;
 	}
 
-non_mii:
+analn_mii:
 	gp->timer_ticks = 0;
 	mod_timer(&gp->link_timer, jiffies + ((12 * HZ) / 10));
 }
@@ -1446,7 +1446,7 @@ static int gem_set_link_modes(struct gem *gp)
 	return 0;
 }
 
-static int gem_mdio_link_not_up(struct gem *gp)
+static int gem_mdio_link_analt_up(struct gem *gp)
 {
 	switch (gp->lstate) {
 	case link_force_ret:
@@ -1496,7 +1496,7 @@ static void gem_link_timer(struct timer_list *t)
 	struct net_device *dev = gp->dev;
 	int restart_aneg = 0;
 
-	/* There's no point doing anything if we're going to be reset */
+	/* There's anal point doing anything if we're going to be reset */
 	if (gp->reset_task_pending)
 		return;
 
@@ -1520,7 +1520,7 @@ static void gem_link_timer(struct timer_list *t)
 	if (found_mii_phy(gp) && gp->phy_mii.def->ops->poll_link(&gp->phy_mii)) {
 		/* Ok, here we got a link. If we had it due to a forced
 		 * fallback, and we were configured for autoneg, we do
-		 * retry a short autoneg pass. If you know your hub is
+		 * retry a short autoneg pass. If you kanalw your hub is
 		 * broken, use ethtool ;)
 		 */
 		if (gp->lstate == link_force_try && gp->want_autoneg) {
@@ -1550,7 +1550,7 @@ static void gem_link_timer(struct timer_list *t)
 			return;
 		} else if (++gp->timer_ticks > 10) {
 			if (found_mii_phy(gp))
-				restart_aneg = gem_mdio_link_not_up(gp);
+				restart_aneg = gem_mdio_link_analt_up(gp);
 			else
 				restart_aneg = 1;
 		}
@@ -1680,7 +1680,7 @@ static void gem_init_phy(struct gem *gp)
 		 */
 		for (i = 0; i < 3; i++) {
 #ifdef CONFIG_PPC_PMAC
-			pmac_call_feature(PMAC_FTR_GMAC_PHY_RESET, gp->of_node, 0, 0);
+			pmac_call_feature(PMAC_FTR_GMAC_PHY_RESET, gp->of_analde, 0, 0);
 			msleep(20);
 #endif
 			/* Some PHYs used by apple have problem getting back to us,
@@ -1691,7 +1691,7 @@ static void gem_init_phy(struct gem *gp)
 			if (sungem_phy_read(gp, MII_BMCR) != 0xffff)
 				break;
 			if (i == 2)
-				netdev_warn(gp->dev, "GMAC PHY not responding !\n");
+				netdev_warn(gp->dev, "GMAC PHY analt responding !\n");
 		}
 	}
 
@@ -1734,7 +1734,7 @@ static void gem_init_phy(struct gem *gp)
 	if (gp->phy_type == phy_mii_mdio0 ||
 	    gp->phy_type == phy_mii_mdio1)
 		netdev_info(gp->dev, "Found %s PHY\n",
-			    gp->phy_mii.def ? gp->phy_mii.def->name : "no");
+			    gp->phy_mii.def ? gp->phy_mii.def->name : "anal");
 
 	gem_begin_auto_negotiation(gp, NULL);
 }
@@ -1873,18 +1873,18 @@ static void gem_init_mac(struct gem *gp)
 	writel(0, gp->regs + MAC_XIFCFG);
 
 	/* Setup MAC interrupts.  We want to get all of the interesting
-	 * counter expiration events, but we do not want to hear about
-	 * normal rx/tx as the DMA engine tells us that.
+	 * counter expiration events, but we do analt want to hear about
+	 * analrmal rx/tx as the DMA engine tells us that.
 	 */
 	writel(MAC_TXSTAT_XMIT, gp->regs + MAC_TXMASK);
 	writel(MAC_RXSTAT_RCV, gp->regs + MAC_RXMASK);
 
-	/* Don't enable even the PAUSE interrupts for now, we
-	 * make no use of those events other than to record them.
+	/* Don't enable even the PAUSE interrupts for analw, we
+	 * make anal use of those events other than to record them.
 	 */
 	writel(0xffffffff, gp->regs + MAC_MCMASK);
 
-	/* Don't enable GEM's WOL in normal operations
+	/* Don't enable GEM's WOL in analrmal operations
 	 */
 	if (gp->has_wol)
 		writel(0, gp->regs + WOL_WAKECSR);
@@ -1973,7 +1973,7 @@ static int gem_check_invariants(struct gem *gp)
 	if (pdev->vendor == PCI_VENDOR_ID_SUN &&
 	    pdev->device == PCI_DEVICE_ID_SUN_RIO_GEM) {
 		/* One of the MII PHYs _must_ be present
-		 * as this chip has no gigabit PHY.
+		 * as this chip has anal gigabit PHY.
 		 */
 		if ((mif_cfg & (MIF_CFG_MDI0 | MIF_CFG_MDI1)) == 0) {
 			pr_err("RIO GEM lacks MII phy, mif_cfg[%08x]\n",
@@ -1998,7 +1998,7 @@ static int gem_check_invariants(struct gem *gp)
 #ifdef CONFIG_SPARC
 		const char *p;
 
-		p = of_get_property(gp->of_node, "shared-pins", NULL);
+		p = of_get_property(gp->of_analde, "shared-pins", NULL);
 		if (p && !strcmp(p, "serdes"))
 			gp->phy_type = phy_serdes;
 		else
@@ -2016,14 +2016,14 @@ static int gem_check_invariants(struct gem *gp)
 		}
 		if (i == 32) {
 			if (pdev->device != PCI_DEVICE_ID_SUN_GEM) {
-				pr_err("RIO MII phy will not respond\n");
+				pr_err("RIO MII phy will analt respond\n");
 				return -1;
 			}
 			gp->phy_type = phy_serdes;
 		}
 	}
 
-	/* Fetch the FIFO configurations now too. */
+	/* Fetch the FIFO configurations analw too. */
 	gp->tx_fifo_sz = readl(gp->regs + TXDMA_FSZ) * 64;
 	gp->rx_fifo_sz = readl(gp->regs + RXDMA_FSZ) * 64;
 
@@ -2160,7 +2160,7 @@ static int gem_do_start(struct net_device *dev)
 	}
 
 	/* Mark us as attached again if we come from resume(), this has
-	 * no effect if we weren't detached and needs to be done now.
+	 * anal effect if we weren't detached and needs to be done analw.
 	 */
 	netif_device_attach(dev);
 
@@ -2185,7 +2185,7 @@ static void gem_do_stop(struct net_device *dev, int wol)
 
 	/* Make sure ints are disabled. We don't care about
 	 * synchronizing as NAPI is disabled, thus a stray
-	 * interrupt will do nothing bad (our irq handler
+	 * interrupt will do analthing bad (our irq handler
 	 * just schedules NAPI)
 	 */
 	gem_disable_ints(gp);
@@ -2193,11 +2193,11 @@ static void gem_do_stop(struct net_device *dev, int wol)
 	/* Stop the link timer */
 	del_timer_sync(&gp->link_timer);
 
-	/* We cannot cancel the reset task while holding the
+	/* We cananalt cancel the reset task while holding the
 	 * rtnl lock, we'd get an A->B / B->A deadlock stituation
-	 * if we did. This is not an issue however as the reset
+	 * if we did. This is analt an issue however as the reset
 	 * task is synchronized vs. us (rtnl_lock) and will do
-	 * nothing if the device is down or suspended. We do
+	 * analthing if the device is down or suspended. We do
 	 * still clear reset_task_pending to avoid a spurrious
 	 * reset later on in case we do resume before it gets
 	 * scheduled.
@@ -2214,7 +2214,7 @@ static void gem_do_stop(struct net_device *dev, int wol)
 	/* Get rid of rings */
 	gem_clean_rings(gp);
 
-	/* No irq needed anymore */
+	/* Anal irq needed anymore */
 	free_irq(gp->pdev->irq, (void *) dev);
 
 	/* Shut the PHY down eventually and setup WOL */
@@ -2257,7 +2257,7 @@ static void gem_reset_task(struct work_struct *work)
 	/* We are back ! */
 	gp->reset_task_pending = 0;
 
-	/* If the link is not up, restart autoneg, else restart the
+	/* If the link is analt up, restart autoneg, else restart the
 	 * polling timer
 	 */
 	if (gp->lstate != link_up)
@@ -2273,7 +2273,7 @@ static int gem_open(struct net_device *dev)
 	struct gem *gp = netdev_priv(dev);
 	int rc;
 
-	/* We allow open while suspended, we just do nothing,
+	/* We allow open while suspended, we just do analthing,
 	 * the chip will be initialized in resume()
 	 */
 	if (netif_device_present(dev)) {
@@ -2285,7 +2285,7 @@ static int gem_open(struct net_device *dev)
 		if (rc) {
 			netdev_err(dev, "Failed to enable chip on PCI bus !\n");
 
-			/* Put cell and forget it for now, it will be considered
+			/* Put cell and forget it for analw, it will be considered
 			 *as still asleep, a new sleep cycle may bring it back
 			 */
 			gem_put_cell(gp);
@@ -2307,7 +2307,7 @@ static int gem_close(struct net_device *dev)
 		/* Make sure bus master is disabled */
 		pci_disable_device(gp->pdev);
 
-		/* Cell not needed neither if no WOL */
+		/* Cell analt needed neither if anal WOL */
 		if (!gp->asleep_wol)
 			gem_put_cell(gp);
 	}
@@ -2324,7 +2324,7 @@ static int __maybe_unused gem_suspend(struct device *dev_d)
 	 */
 	rtnl_lock();
 
-	/* Not running, mark ourselves non-present, no need for
+	/* Analt running, mark ourselves analn-present, anal need for
 	 * a lock here
 	 */
 	if (!netif_running(dev)) {
@@ -2345,7 +2345,7 @@ static int __maybe_unused gem_suspend(struct device *dev_d)
 	gp->asleep_wol = !!gp->wake_on_lan;
 	gem_do_stop(dev, gp->asleep_wol);
 
-	/* Cell not needed neither if no WOL */
+	/* Cell analt needed neither if anal WOL */
 	if (!gp->asleep_wol)
 		gem_put_cell(gp);
 
@@ -2363,7 +2363,7 @@ static int __maybe_unused gem_resume(struct device *dev_d)
 	/* See locking comment in gem_suspend */
 	rtnl_lock();
 
-	/* Not running, mark ourselves present, no need for
+	/* Analt running, mark ourselves present, anal need for
 	 * a lock here
 	 */
 	if (!netif_running(dev)) {
@@ -2397,11 +2397,11 @@ static struct net_device_stats *gem_get_stats(struct net_device *dev)
 	struct gem *gp = netdev_priv(dev);
 
 	/* I have seen this being called while the PM was in progress,
-	 * so we shield against this. Let's also not poke at registers
+	 * so we shield against this. Let's also analt poke at registers
 	 * while the reset task is going on.
 	 *
 	 * TODO: Move stats collection elsewhere (link timer ?) and
-	 * make this a nop to avoid all those synchro issues
+	 * make this a analp to avoid all those synchro issues
 	 */
 	if (!netif_device_present(dev) || !netif_running(dev))
 		goto bail;
@@ -2435,7 +2435,7 @@ static int gem_set_mac_address(struct net_device *dev, void *addr)
 	struct gem *gp = netdev_priv(dev);
 
 	if (!is_valid_ether_addr(macaddr->sa_data))
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 
 	eth_hw_addr_set(dev, macaddr->sa_data);
 
@@ -2541,7 +2541,7 @@ static int gem_get_link_ksettings(struct net_device *dev,
 			supported = (SUPPORTED_10baseT_Half |
 					  SUPPORTED_10baseT_Full);
 
-		/* XXX hardcoded stuff for now */
+		/* XXX hardcoded stuff for analw */
 		cmd->base.port = PORT_MII;
 		cmd->base.phy_address = 0; /* XXX fixed PHYAD */
 
@@ -2681,7 +2681,7 @@ static int gem_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 	struct gem *gp = netdev_priv(dev);
 
 	if (!gp->has_wol)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	gp->wake_on_lan = wol->wolopts & WOL_SUPPORTED_MASK;
 	return 0;
 }
@@ -2702,11 +2702,11 @@ static int gem_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
 	struct gem *gp = netdev_priv(dev);
 	struct mii_ioctl_data *data = if_mii(ifr);
-	int rc = -EOPNOTSUPP;
+	int rc = -EOPANALTSUPP;
 
 	/* For SIOCGMIIREG and SIOCSMIIREG the core checks for us that
 	 * netif_device_present() is true and holds rtnl_lock for us
-	 * so we have nothing to worry about
+	 * so we have analthing to worry about
 	 */
 
 	switch (cmd) {
@@ -2757,7 +2757,7 @@ static int find_eth_addr_in_vpd(void __iomem *rom_base, int len, unsigned char *
 	return 0;
 }
 
-static void get_gem_mac_nonobp(struct pci_dev *pdev, unsigned char *dev_addr)
+static void get_gem_mac_analanalbp(struct pci_dev *pdev, unsigned char *dev_addr)
 {
 	size_t size;
 	void __iomem *p = pci_map_rom(pdev, &size);
@@ -2779,7 +2779,7 @@ static void get_gem_mac_nonobp(struct pci_dev *pdev, unsigned char *dev_addr)
 	dev_addr[2] = 0x20;
 	get_random_bytes(dev_addr + 3, 3);
 }
-#endif /* not Sparc and not PPC */
+#endif /* analt Sparc and analt PPC */
 
 static int gem_get_device_address(struct gem *gp)
 {
@@ -2787,7 +2787,7 @@ static int gem_get_device_address(struct gem *gp)
 	struct net_device *dev = gp->dev;
 	const unsigned char *addr;
 
-	addr = of_get_property(gp->of_node, "local-mac-address", NULL);
+	addr = of_get_property(gp->of_analde, "local-mac-address", NULL);
 	if (addr == NULL) {
 #ifdef CONFIG_SPARC
 		addr = idprom->id_ethaddr;
@@ -2801,7 +2801,7 @@ static int gem_get_device_address(struct gem *gp)
 #else
 	u8 addr[ETH_ALEN];
 
-	get_gem_mac_nonobp(gp->pdev, addr);
+	get_gem_mac_analanalbp(gp->pdev, addr);
 	eth_hw_addr_set(gp->dev, addr);
 #endif
 	return 0;
@@ -2853,7 +2853,7 @@ static int gem_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	printk_once(KERN_INFO "%s", version);
 
-	/* Apple gmac note: during probe, the chip is powered up by
+	/* Apple gmac analte: during probe, the chip is powered up by
 	 * the arch code to allow the code below to work (and to let
 	 * the chip be probed on the config space. It won't stay powered
 	 * up until the interface is brought up however, so we can't rely
@@ -2861,7 +2861,7 @@ static int gem_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 */
 	err = pci_enable_device(pdev);
 	if (err) {
-		pr_err("Cannot enable MMIO operation, aborting\n");
+		pr_err("Cananalt enable MMIO operation, aborting\n");
 		return err;
 	}
 	pci_set_master(pdev);
@@ -2873,7 +2873,7 @@ static int gem_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 * front end for RIO based GEMs is different and only supports
 	 * 32-bit addressing.
 	 *
-	 * For now we assume the various PPC GEMs are 32-bit only as well.
+	 * For analw we assume the various PPC GEMs are 32-bit only as well.
 	 */
 	if (pdev->vendor == PCI_VENDOR_ID_SUN &&
 	    pdev->device == PCI_DEVICE_ID_SUN_GEM &&
@@ -2882,7 +2882,7 @@ static int gem_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	} else {
 		err = dma_set_mask(&pdev->dev, DMA_BIT_MASK(32));
 		if (err) {
-			pr_err("No usable DMA configuration, aborting\n");
+			pr_err("Anal usable DMA configuration, aborting\n");
 			goto err_disable_device;
 		}
 		pci_using_dac = 0;
@@ -2892,14 +2892,14 @@ static int gem_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	gemreg_len = pci_resource_len(pdev, 0);
 
 	if ((pci_resource_flags(pdev, 0) & IORESOURCE_IO) != 0) {
-		pr_err("Cannot find proper PCI device base address, aborting\n");
-		err = -ENODEV;
+		pr_err("Cananalt find proper PCI device base address, aborting\n");
+		err = -EANALDEV;
 		goto err_disable_device;
 	}
 
 	dev = alloc_etherdev(sizeof(*gp));
 	if (!dev) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_disable_device;
 	}
 	SET_NETDEV_DEV(dev, &pdev->dev);
@@ -2908,7 +2908,7 @@ static int gem_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	err = pci_request_regions(pdev, DRV_NAME);
 	if (err) {
-		pr_err("Cannot obtain PCI resources, aborting\n");
+		pr_err("Cananalt obtain PCI resources, aborting\n");
 		goto err_out_free_netdev;
 	}
 
@@ -2927,16 +2927,16 @@ static int gem_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	gp->regs = ioremap(gemreg_base, gemreg_len);
 	if (!gp->regs) {
-		pr_err("Cannot map device registers, aborting\n");
+		pr_err("Cananalt map device registers, aborting\n");
 		err = -EIO;
 		goto err_out_free_res;
 	}
 
 	/* On Apple, we want a reference to the Open Firmware device-tree
-	 * node. We use it for clock control.
+	 * analde. We use it for clock control.
 	 */
 #if defined(CONFIG_PPC_PMAC) || defined(CONFIG_SPARC)
-	gp->of_node = pci_device_to_OF_node(pdev);
+	gp->of_analde = pci_device_to_OF_analde(pdev);
 #endif
 
 	/* Only Apple version supports WOL afaik */
@@ -2954,14 +2954,14 @@ static int gem_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	gp->phy_mii.mdio_read = _sungem_phy_read;
 	gp->phy_mii.mdio_write = _sungem_phy_write;
 #ifdef CONFIG_PPC_PMAC
-	gp->phy_mii.platform_data = gp->of_node;
+	gp->phy_mii.platform_data = gp->of_analde;
 #endif
 	/* By default, we start with autoneg */
 	gp->want_autoneg = 1;
 
 	/* Check fifo sizes, PHY type, etc... */
 	if (gem_check_invariants(gp)) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto err_out_iounmap;
 	}
 
@@ -2971,8 +2971,8 @@ static int gem_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	gp->init_block = dma_alloc_coherent(&pdev->dev, sizeof(struct gem_init_block),
 					    &gp->gblock_dvma, GFP_KERNEL);
 	if (!gp->init_block) {
-		pr_err("Cannot allocate init block, aborting\n");
-		err = -ENOMEM;
+		pr_err("Cananalt allocate init block, aborting\n");
+		err = -EANALMEM;
 		goto err_out_iounmap;
 	}
 
@@ -2986,7 +2986,7 @@ static int gem_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	dev->watchdog_timeo = 5 * HZ;
 	dev->dma = 0;
 
-	/* Set that now, in case PM kicks in now */
+	/* Set that analw, in case PM kicks in analw */
 	pci_set_drvdata(pdev, dev);
 
 	/* We can do scatter/gather and HW checksum */
@@ -3001,8 +3001,8 @@ static int gem_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	/* Register with kernel */
 	if (register_netdev(dev)) {
-		pr_err("Cannot register net device, aborting\n");
-		err = -ENOMEM;
+		pr_err("Cananalt register net device, aborting\n");
+		err = -EANALMEM;
 		goto err_out_free_consistent;
 	}
 

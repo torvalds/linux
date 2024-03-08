@@ -112,19 +112,19 @@ int spu_sg_count(struct scatterlist *sg_list, unsigned int skip, int nbytes)
 }
 
 /**
- * spu_msg_sg_add() - Copy scatterlist entries from one sg to another, up to a
+ * spu_msg_sg_add() - Copy scatterlist entries from one sg to aanalther, up to a
  * given length.
  * @to_sg:       scatterlist to copy to
  * @from_sg:     scatterlist to copy from
- * @from_skip:   number of bytes to skip in from_sg. Non-zero when previous
+ * @from_skip:   number of bytes to skip in from_sg. Analn-zero when previous
  *		 request included part of the buffer in entry in from_sg.
  *		 Assumes from_skip < from_sg->length.
  * @from_nents:  number of entries in from_sg
  * @length:      number of bytes to copy. may reach this limit before exhausting
  *		 from_sg.
  *
- * Copies the entries themselves, not the data in the entries. Assumes to_sg has
- * enough entries. Does not limit the size of an individual buffer in to_sg.
+ * Copies the entries themselves, analt the data in the entries. Assumes to_sg has
+ * eanalugh entries. Does analt limit the size of an individual buffer in to_sg.
  *
  * to_sg, from_sg, skip are all updated to end of copy
  *
@@ -148,7 +148,7 @@ u32 spu_msg_sg_add(struct scatterlist **to_sg,
 		return 0;
 
 	for_each_sg(from, sg, from_nents, i) {
-		/* number of bytes in this from entry not yet used */
+		/* number of bytes in this from entry analt yet used */
 		entry_len = sg->length - skip;
 		frag_len = min(entry_len, length - copied);
 		offset = sg->offset + skip;
@@ -191,7 +191,7 @@ struct sdesc {
 };
 
 /**
- * do_shash() - Do a synchronous hash operation in software
+ * do_shash() - Do a synchroanalus hash operation in software
  * @name:       The name of the hash algorithm
  * @result:     Buffer where digest is to be written
  * @data1:      First part of data to hash. May be NULL.
@@ -199,10 +199,10 @@ struct sdesc {
  * @data2:      Second part of data to hash. May be NULL.
  * @data2_len:  Length of data2, in bytes
  * @key:	Key (if keyed hash)
- * @key_len:	Length of key, in bytes (or 0 if non-keyed hash)
+ * @key_len:	Length of key, in bytes (or 0 if analn-keyed hash)
  *
- * Note that the crypto API will not select this driver's own transform because
- * this driver only registers asynchronous algos.
+ * Analte that the crypto API will analt select this driver's own transform because
+ * this driver only registers asynchroanalus algos.
  *
  * Return: 0 if hash successfully stored in result
  *         < 0 otherwise
@@ -227,7 +227,7 @@ int do_shash(unsigned char *name, unsigned char *result,
 	size = sizeof(struct shash_desc) + crypto_shash_descsize(hash);
 	sdesc = kmalloc(size, GFP_KERNEL);
 	if (!sdesc) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto do_shash_err;
 	}
 	sdesc->shash.tfm = hash;
@@ -235,31 +235,31 @@ int do_shash(unsigned char *name, unsigned char *result,
 	if (key_len > 0) {
 		rc = crypto_shash_setkey(hash, key, key_len);
 		if (rc) {
-			pr_err("%s: Could not setkey %s shash\n", __func__, name);
+			pr_err("%s: Could analt setkey %s shash\n", __func__, name);
 			goto do_shash_err;
 		}
 	}
 
 	rc = crypto_shash_init(&sdesc->shash);
 	if (rc) {
-		pr_err("%s: Could not init %s shash\n", __func__, name);
+		pr_err("%s: Could analt init %s shash\n", __func__, name);
 		goto do_shash_err;
 	}
 	rc = crypto_shash_update(&sdesc->shash, data1, data1_len);
 	if (rc) {
-		pr_err("%s: Could not update1\n", __func__);
+		pr_err("%s: Could analt update1\n", __func__);
 		goto do_shash_err;
 	}
 	if (data2 && data2_len) {
 		rc = crypto_shash_update(&sdesc->shash, data2, data2_len);
 		if (rc) {
-			pr_err("%s: Could not update2\n", __func__);
+			pr_err("%s: Could analt update2\n", __func__);
 			goto do_shash_err;
 		}
 	}
 	rc = crypto_shash_final(&sdesc->shash, result);
 	if (rc)
-		pr_err("%s: Could not generate %s hash\n", __func__, name);
+		pr_err("%s: Could analt generate %s hash\n", __func__, name);
 
 do_shash_err:
 	crypto_free_shash(hash);
@@ -282,7 +282,7 @@ void __dump_sg(struct scatterlist *sg, unsigned int skip, unsigned int len)
 			count = (len - num_out > 16) ? 16 : len - num_out;
 			sg_copy_part_to_buf(sg, dbuf, count, idx);
 			num_out += count;
-			print_hex_dump(KERN_ALERT, "  sg: ", DUMP_PREFIX_NONE,
+			print_hex_dump(KERN_ALERT, "  sg: ", DUMP_PREFIX_ANALNE,
 				       4, 1, dbuf, count, false);
 			idx += 16;
 		}
@@ -364,7 +364,7 @@ static ssize_t spu_debugfs_read(struct file *filp, char __user *ubuf,
 
 	buf = kmalloc(out_count, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ipriv = filp->private_data;
 	out_offset = 0;
@@ -445,7 +445,7 @@ static ssize_t spu_debugfs_read(struct file *filp, char __user *ubuf,
 			       (u64)atomic64_read(&ipriv->bytes_in));
 	out_offset += scnprintf(buf + out_offset, out_count - out_offset,
 			       "Mailbox full...........%u\n",
-			       atomic_read(&ipriv->mb_no_spc));
+			       atomic_read(&ipriv->mb_anal_spc));
 	out_offset += scnprintf(buf + out_offset, out_count - out_offset,
 			       "Mailbox send failures..%u\n",
 			       atomic_read(&ipriv->mb_send_fail));
@@ -478,8 +478,8 @@ static const struct file_operations spu_debugfs_stats = {
 };
 
 /*
- * Create the debug FS directories. If the top-level directory has not yet
- * been created, create it now. Create a stats file in this directory for
+ * Create the debug FS directories. If the top-level directory has analt yet
+ * been created, create it analw. Create a stats file in this directory for
  * a SPU.
  */
 void spu_setup_debugfs(void)

@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -215,12 +215,12 @@ static const struct pci_device_id ath_pci_id_table[] = {
 	  .driver_data = ATH9K_PCI_BT_ANT_DIV },
 	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_ATHEROS,
 			 0x0032,
-			 PCI_VENDOR_ID_LENOVO,
+			 PCI_VENDOR_ID_LEANALVO,
 			 0x3218),
 	  .driver_data = ATH9K_PCI_BT_ANT_DIV },
 	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_ATHEROS,
 			 0x0032,
-			 PCI_VENDOR_ID_LENOVO,
+			 PCI_VENDOR_ID_LEANALVO,
 			 0x3219),
 	  .driver_data = ATH9K_PCI_BT_ANT_DIV },
 
@@ -229,87 +229,87 @@ static const struct pci_device_id ath_pci_id_table[] = {
 			 0x0032,
 			 PCI_VENDOR_ID_AZWAVE,
 			 0x2C97),
-	  .driver_data = ATH9K_PCI_NO_PLL_PWRSAVE },
+	  .driver_data = ATH9K_PCI_ANAL_PLL_PWRSAVE },
 	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_ATHEROS,
 			 0x0032,
 			 PCI_VENDOR_ID_AZWAVE,
 			 0x2100),
-	  .driver_data = ATH9K_PCI_NO_PLL_PWRSAVE },
+	  .driver_data = ATH9K_PCI_ANAL_PLL_PWRSAVE },
 	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_ATHEROS,
 			 0x0032,
 			 0x1C56, /* ASKEY */
 			 0x4001),
-	  .driver_data = ATH9K_PCI_NO_PLL_PWRSAVE },
+	  .driver_data = ATH9K_PCI_ANAL_PLL_PWRSAVE },
 	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_ATHEROS,
 			 0x0032,
 			 0x11AD, /* LITEON */
 			 0x6627),
-	  .driver_data = ATH9K_PCI_NO_PLL_PWRSAVE },
+	  .driver_data = ATH9K_PCI_ANAL_PLL_PWRSAVE },
 	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_ATHEROS,
 			 0x0032,
 			 0x11AD, /* LITEON */
 			 0x6628),
-	  .driver_data = ATH9K_PCI_NO_PLL_PWRSAVE },
+	  .driver_data = ATH9K_PCI_ANAL_PLL_PWRSAVE },
 	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_ATHEROS,
 			 0x0032,
 			 PCI_VENDOR_ID_FOXCONN,
 			 0xE04E),
-	  .driver_data = ATH9K_PCI_NO_PLL_PWRSAVE },
+	  .driver_data = ATH9K_PCI_ANAL_PLL_PWRSAVE },
 	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_ATHEROS,
 			 0x0032,
 			 PCI_VENDOR_ID_FOXCONN,
 			 0xE04F),
-	  .driver_data = ATH9K_PCI_NO_PLL_PWRSAVE },
+	  .driver_data = ATH9K_PCI_ANAL_PLL_PWRSAVE },
 	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_ATHEROS,
 			 0x0032,
 			 0x144F, /* ASKEY */
 			 0x7197),
-	  .driver_data = ATH9K_PCI_NO_PLL_PWRSAVE },
+	  .driver_data = ATH9K_PCI_ANAL_PLL_PWRSAVE },
 	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_ATHEROS,
 			 0x0032,
 			 0x1B9A, /* XAVI */
 			 0x2000),
-	  .driver_data = ATH9K_PCI_NO_PLL_PWRSAVE },
+	  .driver_data = ATH9K_PCI_ANAL_PLL_PWRSAVE },
 	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_ATHEROS,
 			 0x0032,
 			 0x1B9A, /* XAVI */
 			 0x2001),
-	  .driver_data = ATH9K_PCI_NO_PLL_PWRSAVE },
+	  .driver_data = ATH9K_PCI_ANAL_PLL_PWRSAVE },
 	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_ATHEROS,
 			 0x0032,
 			 PCI_VENDOR_ID_AZWAVE,
 			 0x1186),
-	  .driver_data = ATH9K_PCI_NO_PLL_PWRSAVE },
+	  .driver_data = ATH9K_PCI_ANAL_PLL_PWRSAVE },
 	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_ATHEROS,
 			 0x0032,
 			 PCI_VENDOR_ID_AZWAVE,
 			 0x1F86),
-	  .driver_data = ATH9K_PCI_NO_PLL_PWRSAVE },
+	  .driver_data = ATH9K_PCI_ANAL_PLL_PWRSAVE },
 	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_ATHEROS,
 			 0x0032,
 			 PCI_VENDOR_ID_AZWAVE,
 			 0x1195),
-	  .driver_data = ATH9K_PCI_NO_PLL_PWRSAVE },
+	  .driver_data = ATH9K_PCI_ANAL_PLL_PWRSAVE },
 	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_ATHEROS,
 			 0x0032,
 			 PCI_VENDOR_ID_AZWAVE,
 			 0x1F95),
-	  .driver_data = ATH9K_PCI_NO_PLL_PWRSAVE },
+	  .driver_data = ATH9K_PCI_ANAL_PLL_PWRSAVE },
 	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_ATHEROS,
 			 0x0032,
 			 0x1B9A, /* XAVI */
 			 0x1C00),
-	  .driver_data = ATH9K_PCI_NO_PLL_PWRSAVE },
+	  .driver_data = ATH9K_PCI_ANAL_PLL_PWRSAVE },
 	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_ATHEROS,
 			 0x0032,
 			 0x1B9A, /* XAVI */
 			 0x1C01),
-	  .driver_data = ATH9K_PCI_NO_PLL_PWRSAVE },
+	  .driver_data = ATH9K_PCI_ANAL_PLL_PWRSAVE },
 	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_ATHEROS,
 			 0x0032,
 			 PCI_VENDOR_ID_ASUSTEK,
 			 0x850D),
-	  .driver_data = ATH9K_PCI_NO_PLL_PWRSAVE },
+	  .driver_data = ATH9K_PCI_ANAL_PLL_PWRSAVE },
 #endif
 
 	{ PCI_VDEVICE(ATHEROS, 0x0032) }, /* PCI-E  AR9485 */
@@ -336,7 +336,7 @@ static const struct pci_device_id ath_pci_id_table[] = {
 	  .driver_data = ATH9K_PCI_WOW },
 	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_ATHEROS,
 			 0x0034,
-			 PCI_VENDOR_ID_LENOVO,
+			 PCI_VENDOR_ID_LEANALVO,
 			 0x3214),
 	  .driver_data = ATH9K_PCI_WOW },
 	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_ATHEROS,
@@ -748,12 +748,12 @@ static const struct pci_device_id ath_pci_id_table[] = {
 	  .driver_data = ATH9K_PCI_AR9565_2ANT | ATH9K_PCI_BT_ANT_DIV },
 	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_ATHEROS,
 			 0x0036,
-			 PCI_VENDOR_ID_LENOVO,
+			 PCI_VENDOR_ID_LEANALVO,
 			 0x3026),
 	  .driver_data = ATH9K_PCI_AR9565_2ANT | ATH9K_PCI_BT_ANT_DIV },
 	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_ATHEROS,
 			 0x0036,
-			 PCI_VENDOR_ID_LENOVO,
+			 PCI_VENDOR_ID_LEANALVO,
 			 0x4026),
 	  .driver_data = ATH9K_PCI_AR9565_2ANT | ATH9K_PCI_BT_ANT_DIV },
 	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_ATHEROS,
@@ -789,8 +789,8 @@ static void ath_pci_read_cachesize(struct ath_common *common, int *csz)
 
 	/*
 	 * This check was put in to avoid "unpleasant" consequences if
-	 * the bootrom has not fully initialized all PCI devices.
-	 * Sometimes the cache line size register is not set
+	 * the bootrom has analt fully initialized all PCI devices.
+	 * Sometimes the cache line size register is analt set
 	 */
 
 	if (*csz == 0)
@@ -834,7 +834,7 @@ static void ath_pci_aspm_init(struct ath_common *common)
 	if (!parent)
 		return;
 
-	if ((ath9k_hw_get_btcoex_scheme(ah) != ATH_BTCOEX_CFG_NONE) &&
+	if ((ath9k_hw_get_btcoex_scheme(ah) != ATH_BTCOEX_CFG_ANALNE) &&
 	    (AR_SREV_9285(ah))) {
 		/* Bluetooth coexistence requires disabling ASPM. */
 		pcie_capability_clear_word(pdev, PCI_EXP_LNKCTL,
@@ -898,7 +898,7 @@ static int ath_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
 	if (ret) {
-		pr_err("32-bit DMA not available\n");
+		pr_err("32-bit DMA analt available\n");
 		return ret;
 	}
 
@@ -938,14 +938,14 @@ static int ath_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	ret = pcim_iomap_regions(pdev, BIT(0), "ath9k");
 	if (ret) {
 		dev_err(&pdev->dev, "PCI memory region reserve error\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ath9k_fill_chanctx_ops();
 	hw = ieee80211_alloc_hw(sizeof(struct ath_softc), &ath9k_ops);
 	if (!hw) {
-		dev_err(&pdev->dev, "No memory for ieee80211_hw\n");
-		return -ENOMEM;
+		dev_err(&pdev->dev, "Anal memory for ieee80211_hw\n");
+		return -EANALMEM;
 	}
 
 	SET_IEEE80211_DEV(hw, &pdev->dev);
@@ -1027,7 +1027,7 @@ static int ath_pci_suspend(struct device *device)
 
 	/* The device has to be moved to FULLSLEEP forcibly.
 	 * Otherwise the chip never moved to full sleep,
-	 * when no interface is up.
+	 * when anal interface is up.
 	 */
 	ath9k_stop_btcoex(sc);
 	ath9k_hw_disable(sc->sc_ah);

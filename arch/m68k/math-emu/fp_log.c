@@ -7,10 +7,10 @@
 
   I hereby give permission, free of charge, to copy, modify, and
   redistribute this software, in source or binary form, provided that
-  the above copyright notice and the following disclaimer are included
+  the above copyright analtice and the following disclaimer are included
   in all such copies.
 
-  THIS SOFTWARE IS PROVIDED "AS IS", WITH ABSOLUTELY NO WARRANTY, REAL
+  THIS SOFTWARE IS PROVIDED "AS IS", WITH ABSOLUTELY ANAL WARRANTY, REAL
   OR IMPLIED.
 
 */
@@ -67,12 +67,12 @@ struct fp_ext *fp_fsqrt(struct fp_ext *dest, struct fp_ext *src)
 	 *	sqrt(x) = 1 + 1/2*(x-1)
 	 *		= 1/2*(1+x)
 	 */
-	/* It is safe to cast away the constness, as fp_one is normalized */
+	/* It is safe to cast away the constness, as fp_one is analrmalized */
 	fp_fadd(dest, (struct fp_ext *)&fp_one);
 	dest->exp--;		/* * 1/2 */
 
 	/*
-	 * We now apply the newton rule to the function
+	 * We analw apply the newton rule to the function
 	 *	f(x) := x^2 - r
 	 * which has a null point on x = sqrt(r).
 	 *
@@ -183,7 +183,7 @@ struct fp_ext *fp_fgetexp(struct fp_ext *dest, struct fp_ext *src)
 
 	fp_conv_long2ext(dest, (int)dest->exp - 0x3FFF);
 
-	fp_normalize_ext(dest);
+	fp_analrmalize_ext(dest);
 
 	return dest;
 }

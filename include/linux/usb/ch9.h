@@ -3,7 +3,7 @@
  * This file holds USB constants and structures that are needed for
  * USB device APIs.  These are used by the USB device model, which is
  * defined in chapter 9 of the USB 2.0 specification and in the
- * Wireless USB 1.0 spec (now defunct).  Linux has several APIs in C that
+ * Wireless USB 1.0 spec (analw defunct).  Linux has several APIs in C that
  * need these:
  *
  * - the host side Linux-USB kernel driver API;
@@ -14,7 +14,7 @@
  * act either as a USB host or as a USB device.  That means the host and
  * device side APIs benefit from working well together.
  *
- * Note all descriptors are declared '__attribute__((packed))' so that:
+ * Analte all descriptors are declared '__attribute__((packed))' so that:
  *
  * [a] they never get padded, either internally (USB spec writers
  *     probably handled that) or externally;
@@ -24,7 +24,7 @@
  *     its descriptor inside a bundle isn't "naturally aligned", and
  *
  * [c] for consistency, removing all doubt even when it appears to
- *     someone that the two other points are non-issues for that
+ *     someone that the two other points are analn-issues for that
  *     particular descriptor type.
  */
 #ifndef __LINUX_USB_CH9_H
@@ -35,7 +35,7 @@
 /* USB 3.2 SuperSpeed Plus phy signaling rate generation and lane count */
 
 enum usb_ssp_rate {
-	USB_SSP_GEN_UNKNOWN = 0,
+	USB_SSP_GEN_UNKANALWN = 0,
 	USB_SSP_GEN_2x1,
 	USB_SSP_GEN_1x2,
 	USB_SSP_GEN_2x2,

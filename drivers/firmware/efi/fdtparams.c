@@ -57,14 +57,14 @@ static __initconst const struct {
 	}
 };
 
-static int __init efi_get_fdt_prop(const void *fdt, int node, const char *pname,
+static int __init efi_get_fdt_prop(const void *fdt, int analde, const char *pname,
 				   const char *rname, void *var, int size)
 {
 	const void *prop;
 	int len;
 	u64 val;
 
-	prop = fdt_getprop(fdt, node, pname, &len);
+	prop = fdt_getprop(fdt, analde, pname, &len);
 	if (!prop)
 		return 1;
 
@@ -85,7 +85,7 @@ u64 __init efi_get_fdt_params(struct efi_memory_map_data *mm)
 {
 	const void *fdt = initial_boot_params;
 	unsigned long systab;
-	int i, j, node;
+	int i, j, analde;
 	struct {
 		void	*var;
 		int	size;
@@ -104,8 +104,8 @@ u64 __init efi_get_fdt_params(struct efi_memory_map_data *mm)
 		return 0;
 
 	for (i = 0; i < ARRAY_SIZE(dt_params); i++) {
-		node = fdt_path_offset(fdt, dt_params[i].path);
-		if (node < 0)
+		analde = fdt_path_offset(fdt, dt_params[i].path);
+		if (analde < 0)
 			continue;
 
 		if (efi_enabled(EFI_DBG))
@@ -115,11 +115,11 @@ u64 __init efi_get_fdt_params(struct efi_memory_map_data *mm)
 		for (j = 0; j < ARRAY_SIZE(target); j++) {
 			const char *pname = dt_params[i].params[j];
 
-			if (!efi_get_fdt_prop(fdt, node, pname, name[j],
+			if (!efi_get_fdt_prop(fdt, analde, pname, name[j],
 					      target[j].var, target[j].size))
 				continue;
 			if (!j)
-				goto notfound;
+				goto analtfound;
 			pr_err("Can't find property '%s' in DT!\n", pname);
 			return 0;
 		}
@@ -127,7 +127,7 @@ u64 __init efi_get_fdt_params(struct efi_memory_map_data *mm)
 			set_bit(EFI_PARAVIRT, &efi.flags);
 		return systab;
 	}
-notfound:
-	pr_info("UEFI not found.\n");
+analtfound:
+	pr_info("UEFI analt found.\n");
 	return 0;
 }

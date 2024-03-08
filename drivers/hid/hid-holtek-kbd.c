@@ -67,7 +67,7 @@ static __u8 holtek_kbd_rdesc_fixed[] = {
 	0x05, 0x07,         /*      Usage Page (Keyboard),                    */
 	0x19, 0xE0,         /*      Usage Minimum (KB Leftcontrol),           */
 	0x29, 0xE7,         /*      Usage Maximum (KB Right GUI),             */
-	0x19, 0x00,         /*      Usage Minimum (None),                     */
+	0x19, 0x00,         /*      Usage Minimum (Analne),                     */
 	0x29, 0x2F,         /*      Usage Maximum (KB Lboxbracket And Lbrace),*/
 	0x81, 0x02,         /*      Input (Variable),                         */
 	0xC0,               /*  End Collection,                               */
@@ -127,12 +127,12 @@ static int holtek_kbd_input_event(struct input_dev *dev, unsigned int type,
 	struct hid_input *boot_hid_input;
 
 	if (unlikely(boot_interface == NULL))
-		return -ENODEV;
+		return -EANALDEV;
 
 	boot_hid = usb_get_intfdata(boot_interface);
 	if (list_empty(&boot_hid->inputs)) {
-		hid_err(hid, "no inputs found\n");
-		return -ENODEV;
+		hid_err(hid, "anal inputs found\n");
+		return -EANALDEV;
 	}
 	boot_hid_input = list_first_entry(&boot_hid->inputs,
 		struct hid_input, list);

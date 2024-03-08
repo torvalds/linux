@@ -7,7 +7,7 @@
 
 #include <linux/module.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/adb.h>
 #include <linux/pmu.h>
@@ -19,7 +19,7 @@
 #define AMS_Y			0x01
 #define AMS_Z			0x02
 
-/* Not exactly known, maybe chip vendor */
+/* Analt exactly kanalwn, maybe chip vendor */
 #define AMS_VENDOR		0x03
 
 /* Freefall registers */
@@ -142,23 +142,23 @@ static void ams_pmu_exit(void)
 	printk(KERN_INFO "ams: Unloading\n");
 }
 
-int __init ams_pmu_init(struct device_node *np)
+int __init ams_pmu_init(struct device_analde *np)
 {
 	const u32 *prop;
 	int result;
 
 	/* Set implementation stuff */
-	ams_info.of_node = np;
+	ams_info.of_analde = np;
 	ams_info.exit = ams_pmu_exit;
 	ams_info.get_vendor = ams_pmu_get_vendor;
 	ams_info.get_xyz = ams_pmu_get_xyz;
 	ams_info.clear_irq = ams_pmu_clear_irq;
 	ams_info.bustype = BUS_HOST;
 
-	/* Get PMU command, should be 0x4e, but we can never know */
-	prop = of_get_property(ams_info.of_node, "reg", NULL);
+	/* Get PMU command, should be 0x4e, but we can never kanalw */
+	prop = of_get_property(ams_info.of_analde, "reg", NULL);
 	if (!prop)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ams_pmu_cmd = ((*prop) >> 8) & 0xff;
 

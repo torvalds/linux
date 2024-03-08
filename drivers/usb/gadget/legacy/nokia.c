@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * nokia.c -- Nokia Composite Gadget Driver
+ * analkia.c -- Analkia Composite Gadget Driver
  *
- * Copyright (C) 2008-2010 Nokia Corporation
- * Contact: Felipe Balbi <felipe.balbi@nokia.com>
+ * Copyright (C) 2008-2010 Analkia Corporation
+ * Contact: Felipe Balbi <felipe.balbi@analkia.com>
  *
  * This gadget driver borrows from serial.c which is:
  *
  * Copyright (C) 2003 Al Borchers (alborchers@steinerpoint.com)
  * Copyright (C) 2008 by David Brownell
- * Copyright (C) 2008 by Nokia Corporation
+ * Copyright (C) 2008 by Analkia Corporation
  */
 
 #include <linux/kernel.h>
@@ -24,8 +24,8 @@
 
 /* Defines */
 
-#define NOKIA_VERSION_NUM		0x0211
-#define NOKIA_LONG_NAME			"N900 (PC-Suite Mode)"
+#define ANALKIA_VERSION_NUM		0x0211
+#define ANALKIA_LONG_NAME			"N900 (PC-Suite Mode)"
 
 USB_GADGET_COMPOSITE_OPTIONS();
 
@@ -46,29 +46,29 @@ static unsigned int fsg_num_buffers = CONFIG_USB_GADGET_STORAGE_NUM_BUFFERS;
 
 /*
  * Number of buffers we will use.
- * 2 is usually enough for good buffering pipeline
+ * 2 is usually eanalugh for good buffering pipeline
  */
 #define fsg_num_buffers	CONFIG_USB_GADGET_STORAGE_NUM_BUFFERS
 
 #endif /* CONFIG_USB_DEBUG */
 
-FSG_MODULE_PARAMETERS(/* no prefix */, fsg_mod_data);
+FSG_MODULE_PARAMETERS(/* anal prefix */, fsg_mod_data);
 
-#define NOKIA_VENDOR_ID			0x0421	/* Nokia */
-#define NOKIA_PRODUCT_ID		0x01c8	/* Nokia Gadget */
+#define ANALKIA_VENDOR_ID			0x0421	/* Analkia */
+#define ANALKIA_PRODUCT_ID		0x01c8	/* Analkia Gadget */
 
 /* string IDs are assigned dynamically */
 
 #define STRING_DESCRIPTION_IDX		USB_GADGET_FIRST_AVAIL_IDX
 
-static char manufacturer_nokia[] = "Nokia";
-static const char description_nokia[] = "PC-Suite Configuration";
+static char manufacturer_analkia[] = "Analkia";
+static const char description_analkia[] = "PC-Suite Configuration";
 
 static struct usb_string strings_dev[] = {
-	[USB_GADGET_MANUFACTURER_IDX].s = manufacturer_nokia,
-	[USB_GADGET_PRODUCT_IDX].s = NOKIA_LONG_NAME,
+	[USB_GADGET_MANUFACTURER_IDX].s = manufacturer_analkia,
+	[USB_GADGET_PRODUCT_IDX].s = ANALKIA_LONG_NAME,
 	[USB_GADGET_SERIAL_IDX].s = "",
-	[STRING_DESCRIPTION_IDX].s = description_nokia,
+	[STRING_DESCRIPTION_IDX].s = description_analkia,
 	{  } /* end of list */
 };
 
@@ -87,9 +87,9 @@ static struct usb_device_descriptor device_desc = {
 	.bDescriptorType	= USB_DT_DEVICE,
 	/* .bcdUSB = DYNAMIC */
 	.bDeviceClass		= USB_CLASS_COMM,
-	.idVendor		= cpu_to_le16(NOKIA_VENDOR_ID),
-	.idProduct		= cpu_to_le16(NOKIA_PRODUCT_ID),
-	.bcdDevice		= cpu_to_le16(NOKIA_VERSION_NUM),
+	.idVendor		= cpu_to_le16(ANALKIA_VENDOR_ID),
+	.idProduct		= cpu_to_le16(ANALKIA_PRODUCT_ID),
+	.bcdDevice		= cpu_to_le16(ANALKIA_VERSION_NUM),
 	/* .iManufacturer = DYNAMIC */
 	/* .iProduct = DYNAMIC */
 	.bNumConfigurations =	1,
@@ -98,7 +98,7 @@ static struct usb_device_descriptor device_desc = {
 /*-------------------------------------------------------------------------*/
 
 /* Module */
-MODULE_DESCRIPTION("Nokia composite gadget driver for N900");
+MODULE_DESCRIPTION("Analkia composite gadget driver for N900");
 MODULE_AUTHOR("Felipe Balbi");
 MODULE_LICENSE("GPL");
 
@@ -117,7 +117,7 @@ static struct usb_function *f_msg_cfg1;
 static struct usb_function *f_msg_cfg2;
 
 
-static struct usb_configuration nokia_config_500ma_driver = {
+static struct usb_configuration analkia_config_500ma_driver = {
 	.label		= "Bus Powered",
 	.bConfigurationValue = 1,
 	/* .iConfiguration = DYNAMIC */
@@ -125,7 +125,7 @@ static struct usb_configuration nokia_config_500ma_driver = {
 	.MaxPower	= 500,
 };
 
-static struct usb_configuration nokia_config_100ma_driver = {
+static struct usb_configuration analkia_config_100ma_driver = {
 	.label		= "Self Powered",
 	.bConfigurationValue = 2,
 	/* .iConfiguration = DYNAMIC */
@@ -140,7 +140,7 @@ static struct usb_function_instance *fi_obex2;
 static struct usb_function_instance *fi_phonet;
 static struct usb_function_instance *fi_msg;
 
-static int nokia_bind_config(struct usb_configuration *c)
+static int analkia_bind_config(struct usb_configuration *c)
 {
 	struct usb_function *f_acm;
 	struct usb_function *f_phonet = NULL;
@@ -156,19 +156,19 @@ static int nokia_bind_config(struct usb_configuration *c)
 	if (!IS_ERR(fi_phonet)) {
 		f_phonet = usb_get_function(fi_phonet);
 		if (IS_ERR(f_phonet))
-			pr_debug("could not get phonet function\n");
+			pr_debug("could analt get phonet function\n");
 	}
 
 	if (!IS_ERR(fi_obex1)) {
 		f_obex1 = usb_get_function(fi_obex1);
 		if (IS_ERR(f_obex1))
-			pr_debug("could not get obex function 0\n");
+			pr_debug("could analt get obex function 0\n");
 	}
 
 	if (!IS_ERR(fi_obex2)) {
 		f_obex2 = usb_get_function(fi_obex2);
 		if (IS_ERR(f_obex2))
-			pr_debug("could not get obex function 1\n");
+			pr_debug("could analt get obex function 1\n");
 	}
 
 	f_acm = usb_get_function(fi_acm);
@@ -192,19 +192,19 @@ static int nokia_bind_config(struct usb_configuration *c)
 	if (!IS_ERR_OR_NULL(f_phonet)) {
 		phonet_stat = usb_add_function(c, f_phonet);
 		if (phonet_stat)
-			pr_debug("could not add phonet function\n");
+			pr_debug("could analt add phonet function\n");
 	}
 
 	if (!IS_ERR_OR_NULL(f_obex1)) {
 		obex1_stat = usb_add_function(c, f_obex1);
 		if (obex1_stat)
-			pr_debug("could not add obex function 0\n");
+			pr_debug("could analt add obex function 0\n");
 	}
 
 	if (!IS_ERR_OR_NULL(f_obex2)) {
 		obex2_stat = usb_add_function(c, f_obex2);
 		if (obex2_stat)
-			pr_debug("could not add obex function 1\n");
+			pr_debug("could analt add obex function 1\n");
 	}
 
 	status = usb_add_function(c, f_acm);
@@ -213,7 +213,7 @@ static int nokia_bind_config(struct usb_configuration *c)
 
 	status = usb_add_function(c, f_ecm);
 	if (status) {
-		pr_debug("could not bind ecm config %d\n", status);
+		pr_debug("could analt bind ecm config %d\n", status);
 		goto err_ecm;
 	}
 
@@ -221,7 +221,7 @@ static int nokia_bind_config(struct usb_configuration *c)
 	if (status)
 		goto err_msg;
 
-	if (c == &nokia_config_500ma_driver) {
+	if (c == &analkia_config_500ma_driver) {
 		f_acm_cfg1 = f_acm;
 		f_ecm_cfg1 = f_ecm;
 		f_phonet_cfg1 = f_phonet;
@@ -264,7 +264,7 @@ err_get_acm:
 	return status;
 }
 
-static int nokia_bind(struct usb_composite_dev *cdev)
+static int analkia_bind(struct usb_composite_dev *cdev)
 {
 	struct usb_gadget	*gadget = cdev->gadget;
 	struct fsg_opts		*fsg_opts;
@@ -277,25 +277,25 @@ static int nokia_bind(struct usb_composite_dev *cdev)
 	device_desc.iManufacturer = strings_dev[USB_GADGET_MANUFACTURER_IDX].id;
 	device_desc.iProduct = strings_dev[USB_GADGET_PRODUCT_IDX].id;
 	status = strings_dev[STRING_DESCRIPTION_IDX].id;
-	nokia_config_500ma_driver.iConfiguration = status;
-	nokia_config_100ma_driver.iConfiguration = status;
+	analkia_config_500ma_driver.iConfiguration = status;
+	analkia_config_100ma_driver.iConfiguration = status;
 
 	if (!gadget_is_altset_supported(gadget)) {
-		status = -ENODEV;
+		status = -EANALDEV;
 		goto err_usb;
 	}
 
 	fi_phonet = usb_get_function_instance("phonet");
 	if (IS_ERR(fi_phonet))
-		pr_debug("could not find phonet function\n");
+		pr_debug("could analt find phonet function\n");
 
 	fi_obex1 = usb_get_function_instance("obex");
 	if (IS_ERR(fi_obex1))
-		pr_debug("could not find obex function 1\n");
+		pr_debug("could analt find obex function 1\n");
 
 	fi_obex2 = usb_get_function_instance("obex");
 	if (IS_ERR(fi_obex2))
-		pr_debug("could not find obex function 2\n");
+		pr_debug("could analt find obex function 2\n");
 
 	fi_acm = usb_get_function_instance("acm");
 	if (IS_ERR(fi_acm)) {
@@ -317,11 +317,11 @@ static int nokia_bind(struct usb_composite_dev *cdev)
 
 	/* set up mass storage function */
 	fsg_config_from_params(&fsg_config, &fsg_mod_data, fsg_num_buffers);
-	fsg_config.vendor_name = "Nokia";
+	fsg_config.vendor_name = "Analkia";
 	fsg_config.product_name = "N900";
 
 	fsg_opts = fsg_opts_from_func_inst(fi_msg);
-	fsg_opts->no_configfs = true;
+	fsg_opts->anal_configfs = true;
 
 	status = fsg_common_set_num_buffers(fsg_opts->common, fsg_num_buffers);
 	if (status)
@@ -341,18 +341,18 @@ static int nokia_bind(struct usb_composite_dev *cdev)
 				      fsg_config.product_name);
 
 	/* finally register the configuration */
-	status = usb_add_config(cdev, &nokia_config_500ma_driver,
-			nokia_bind_config);
+	status = usb_add_config(cdev, &analkia_config_500ma_driver,
+			analkia_bind_config);
 	if (status < 0)
 		goto err_msg_luns;
 
-	status = usb_add_config(cdev, &nokia_config_100ma_driver,
-			nokia_bind_config);
+	status = usb_add_config(cdev, &analkia_config_100ma_driver,
+			analkia_bind_config);
 	if (status < 0)
 		goto err_put_cfg1;
 
 	usb_composite_overwrite_options(cdev, &coverwrite);
-	dev_info(&gadget->dev, "%s\n", NOKIA_LONG_NAME);
+	dev_info(&gadget->dev, "%s\n", ANALKIA_LONG_NAME);
 
 	return 0;
 
@@ -386,7 +386,7 @@ err_usb:
 	return status;
 }
 
-static int nokia_unbind(struct usb_composite_dev *cdev)
+static int analkia_unbind(struct usb_composite_dev *cdev)
 {
 	if (!IS_ERR_OR_NULL(f_obex1_cfg2))
 		usb_put_function(f_obex1_cfg2);
@@ -420,13 +420,13 @@ static int nokia_unbind(struct usb_composite_dev *cdev)
 	return 0;
 }
 
-static struct usb_composite_driver nokia_driver = {
-	.name		= "g_nokia",
+static struct usb_composite_driver analkia_driver = {
+	.name		= "g_analkia",
 	.dev		= &device_desc,
 	.strings	= dev_strings,
 	.max_speed	= USB_SPEED_HIGH,
-	.bind		= nokia_bind,
-	.unbind		= nokia_unbind,
+	.bind		= analkia_bind,
+	.unbind		= analkia_unbind,
 };
 
-module_usb_composite_driver(nokia_driver);
+module_usb_composite_driver(analkia_driver);

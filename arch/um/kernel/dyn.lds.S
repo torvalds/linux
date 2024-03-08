@@ -132,7 +132,7 @@ SECTIONS
     /* gcc uses crtbegin.o to find the start of
        the constructors, so we make sure it is
        first.  Because this is a wildcard, it
-       doesn't matter if the user does not
+       doesn't matter if the user does analt
        actually link against crtbegin.o; the
        linker won't look for a file to match a
        wildcard.  The wildcard also means that it
@@ -164,7 +164,7 @@ SECTIONS
    *(COMMON)
    /* Align here to ensure that the .bss section occupies space up to
       _end.  Align after .bss to ensure correct alignment even if the
-      .bss section disappears because there are no input sections.  */
+      .bss section disappears because there are anal input sections.  */
    . = ALIGN(32 / 8);
   . = ALIGN(32 / 8);
   }

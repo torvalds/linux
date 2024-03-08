@@ -8,7 +8,7 @@
 #define MSG_RESTOREPOINTERS	0x03 /* O/O */
 #define MSG_DISCONNECT		0x04 /* O/O */
 #define MSG_MESSAGE_REJECT	0x07 /* M/M */
-#define MSG_NOOP		0x08 /* M/M */
+#define MSG_ANALOP		0x08 /* M/M */
 
 /* Messages (2 byte) */
 #define MSG_SIMPLE_Q_TAG	0x20 /* O/O */

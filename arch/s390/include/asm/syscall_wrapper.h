@@ -29,7 +29,7 @@
 	if (__TYPE_IS_PTR(t))						\
 		__ReS = a & 0x7fffffff;					\
 	if (__TYPE_IS_LL(t))						\
-		return -ENOSYS;						\
+		return -EANALSYS;						\
 	(t)__ReS;							\
 })
 
@@ -39,15 +39,15 @@
  */
 #define COMPAT_SYSCALL_DEFINE0(sname)					\
 	long __s390_compat_sys_##sname(void);				\
-	ALLOW_ERROR_INJECTION(__s390_compat_sys_##sname, ERRNO);	\
+	ALLOW_ERROR_INJECTION(__s390_compat_sys_##sname, ERRANAL);	\
 	long __s390_compat_sys_##sname(void)
 
 #define SYSCALL_DEFINE0(sname)						\
 	SYSCALL_METADATA(_##sname, 0);					\
 	long __s390_sys_##sname(void);					\
-	ALLOW_ERROR_INJECTION(__s390_sys_##sname, ERRNO);		\
+	ALLOW_ERROR_INJECTION(__s390_sys_##sname, ERRANAL);		\
 	long __s390x_sys_##sname(void);					\
-	ALLOW_ERROR_INJECTION(__s390x_sys_##sname, ERRNO);		\
+	ALLOW_ERROR_INJECTION(__s390x_sys_##sname, ERRANAL);		\
 	static inline long __do_sys_##sname(void);			\
 	long __s390_sys_##sname(void)					\
 	{								\
@@ -65,7 +65,7 @@
 
 #define COMPAT_SYSCALL_DEFINEx(x, name, ...)						\
 	long __s390_compat_sys##name(struct pt_regs *regs);				\
-	ALLOW_ERROR_INJECTION(__s390_compat_sys##name, ERRNO);				\
+	ALLOW_ERROR_INJECTION(__s390_compat_sys##name, ERRANAL);				\
 	static inline long __se_compat_sys##name(__MAP(x, __SC_LONG, __VA_ARGS__));	\
 	static inline long __do_compat_sys##name(__MAP(x, __SC_DECL, __VA_ARGS__));	\
 	long __s390_compat_sys##name(struct pt_regs *regs)				\
@@ -80,7 +80,7 @@
 	static inline long __do_compat_sys##name(__MAP(x, __SC_DECL, __VA_ARGS__))
 
 /*
- * As some compat syscalls may not be implemented, we need to expand
+ * As some compat syscalls may analt be implemented, we need to expand
  * COND_SYSCALL_COMPAT in kernel/sys_ni.c to cover this case as well.
  */
 #define COND_SYSCALL_COMPAT(name)					\
@@ -88,7 +88,7 @@
 
 #define __S390_SYS_STUBx(x, name, ...)						\
 	long __s390_sys##name(struct pt_regs *regs);				\
-	ALLOW_ERROR_INJECTION(__s390_sys##name, ERRNO);				\
+	ALLOW_ERROR_INJECTION(__s390_sys##name, ERRANAL);				\
 	static inline long ___se_sys##name(__MAP(x, __SC_LONG, __VA_ARGS__));	\
 	long __s390_sys##name(struct pt_regs *regs)				\
 	{									\
@@ -105,7 +105,7 @@
 #define SYSCALL_DEFINE0(sname)						\
 	SYSCALL_METADATA(_##sname, 0);					\
 	long __s390x_sys_##sname(void);					\
-	ALLOW_ERROR_INJECTION(__s390x_sys_##sname, ERRNO);		\
+	ALLOW_ERROR_INJECTION(__s390x_sys_##sname, ERRANAL);		\
 	static inline long __do_sys_##sname(void);			\
 	long __s390x_sys_##sname(void)					\
 	{								\
@@ -122,7 +122,7 @@
 
 #define __SYSCALL_DEFINEx(x, name, ...)						\
 	long __s390x_sys##name(struct pt_regs *regs);				\
-	ALLOW_ERROR_INJECTION(__s390x_sys##name, ERRNO);			\
+	ALLOW_ERROR_INJECTION(__s390x_sys##name, ERRANAL);			\
 	static inline long __se_sys##name(__MAP(x, __SC_LONG, __VA_ARGS__));	\
 	static inline long __do_sys##name(__MAP(x, __SC_DECL, __VA_ARGS__));	\
 	__S390_SYS_STUBx(x, name, __VA_ARGS__);					\

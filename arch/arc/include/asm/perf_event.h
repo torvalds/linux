@@ -2,8 +2,8 @@
 /*
  * Linux performance counter support for ARC
  *
- * Copyright (C) 2014-2015 Synopsys, Inc. (www.synopsys.com)
- * Copyright (C) 2011-2013 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2014-2015 Syanalpsys, Inc. (www.syanalpsys.com)
+ * Copyright (C) 2011-2013 Syanalpsys, Inc. (www.syanalpsys.com)
  */
 
 #ifndef __ASM_PERF_EVENT_H

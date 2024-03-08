@@ -84,8 +84,8 @@ brcmf_fw_alloc_request(u32 chip, u32 chiprev,
 		       u32 n_fwnames);
 
 /*
- * Request firmware(s) asynchronously. When the asynchronous request
- * fails it will not use the callback, but call device_release_driver()
+ * Request firmware(s) asynchroanalusly. When the asynchroanalus request
+ * fails it will analt use the callback, but call device_release_driver()
  * instead which will call the driver .remove() callback.
  */
 int brcmf_fw_get_firmwares(struct device *dev, struct brcmf_fw_request *req,

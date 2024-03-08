@@ -69,7 +69,7 @@ static int __init bcm63xx_detect_flash_type(void)
 	case BCM6338_CPU_ID:
 	case BCM6345_CPU_ID:
 	case BCM6348_CPU_ID:
-		/* no way to auto detect so assume parallel */
+		/* anal way to auto detect so assume parallel */
 		return BCM63XX_FLASH_TYPE_PARALLEL;
 	case BCM3368_CPU_ID:
 	case BCM6358_CPU_ID:
@@ -119,13 +119,13 @@ int __init bcm63xx_flash_register(void)
 		return platform_device_register(&mtd_dev);
 	case BCM63XX_FLASH_TYPE_SERIAL:
 		pr_warn("unsupported serial flash detected\n");
-		return -ENODEV;
+		return -EANALDEV;
 	case BCM63XX_FLASH_TYPE_NAND:
 		pr_warn("unsupported NAND flash detected\n");
-		return -ENODEV;
+		return -EANALDEV;
 	default:
 		pr_err("flash detection failed for BCM%x: %d\n",
 		       bcm63xx_get_cpu_id(), flash_type);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 }

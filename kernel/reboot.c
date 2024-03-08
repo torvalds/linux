@@ -20,7 +20,7 @@
 #include <linux/uaccess.h>
 
 /*
- * this indicates whether you can reboot with ctrl-alt-del: the default is yes
+ * this indicates whether you can reboot with ctrl-alt-del: the default is anal
  */
 
 static int C_A_D = 1;
@@ -37,7 +37,7 @@ EXPORT_SYMBOL_GPL(reboot_mode);
 enum reboot_mode panic_reboot_mode = REBOOT_UNDEFINED;
 
 /*
- * This variable is used privately to keep track of whether or not
+ * This variable is used privately to keep track of whether or analt
  * reboot_type is still set to its default value (i.e., reboot= hasn't
  * been set on the command line).  This is needed so that we can
  * suppress DMI scanning for reboot quirks.  Without it, it's
@@ -49,7 +49,7 @@ enum reboot_type reboot_type = BOOT_ACPI;
 int reboot_force;
 
 struct sys_off_handler {
-	struct notifier_block nb;
+	struct analtifier_block nb;
 	int (*sys_off_cb)(struct sys_off_data *data);
 	void *cb_data;
 	enum sys_off_mode mode;
@@ -61,7 +61,7 @@ struct sys_off_handler {
 /*
  * This variable is used to indicate if a halt was initiated instead of a
  * reboot when the reboot call was invoked with LINUX_REBOOT_CMD_POWER_OFF, but
- * the system cannot be powered off. This allowes kernel_halt() to notify users
+ * the system cananalt be powered off. This allowes kernel_halt() to analtify users
  * of that.
  */
 static bool poweroff_fallback_to_halt;
@@ -76,7 +76,7 @@ void __weak (*pm_power_off)(void);
  *	emergency_restart - reboot the system
  *
  *	Without shutting down any hardware or taking any locks
- *	reboot the system.  This is called when we know we are in
+ *	reboot the system.  This is called when we kanalw we are in
  *	trouble so this is our best effort to reboot.  This is
  *	safe to call in interrupt context.
  */
@@ -90,59 +90,59 @@ EXPORT_SYMBOL_GPL(emergency_restart);
 
 void kernel_restart_prepare(char *cmd)
 {
-	blocking_notifier_call_chain(&reboot_notifier_list, SYS_RESTART, cmd);
+	blocking_analtifier_call_chain(&reboot_analtifier_list, SYS_RESTART, cmd);
 	system_state = SYSTEM_RESTART;
 	usermodehelper_disable();
 	device_shutdown();
 }
 
 /**
- *	register_reboot_notifier - Register function to be called at reboot time
- *	@nb: Info about notifier function to be called
+ *	register_reboot_analtifier - Register function to be called at reboot time
+ *	@nb: Info about analtifier function to be called
  *
  *	Registers a function with the list of functions
  *	to be called at reboot time.
  *
- *	Currently always returns zero, as blocking_notifier_chain_register()
+ *	Currently always returns zero, as blocking_analtifier_chain_register()
  *	always returns zero.
  */
-int register_reboot_notifier(struct notifier_block *nb)
+int register_reboot_analtifier(struct analtifier_block *nb)
 {
-	return blocking_notifier_chain_register(&reboot_notifier_list, nb);
+	return blocking_analtifier_chain_register(&reboot_analtifier_list, nb);
 }
-EXPORT_SYMBOL(register_reboot_notifier);
+EXPORT_SYMBOL(register_reboot_analtifier);
 
 /**
- *	unregister_reboot_notifier - Unregister previously registered reboot notifier
+ *	unregister_reboot_analtifier - Unregister previously registered reboot analtifier
  *	@nb: Hook to be unregistered
  *
  *	Unregisters a previously registered reboot
- *	notifier function.
+ *	analtifier function.
  *
- *	Returns zero on success, or %-ENOENT on failure.
+ *	Returns zero on success, or %-EANALENT on failure.
  */
-int unregister_reboot_notifier(struct notifier_block *nb)
+int unregister_reboot_analtifier(struct analtifier_block *nb)
 {
-	return blocking_notifier_chain_unregister(&reboot_notifier_list, nb);
+	return blocking_analtifier_chain_unregister(&reboot_analtifier_list, nb);
 }
-EXPORT_SYMBOL(unregister_reboot_notifier);
+EXPORT_SYMBOL(unregister_reboot_analtifier);
 
-static void devm_unregister_reboot_notifier(struct device *dev, void *res)
+static void devm_unregister_reboot_analtifier(struct device *dev, void *res)
 {
-	WARN_ON(unregister_reboot_notifier(*(struct notifier_block **)res));
+	WARN_ON(unregister_reboot_analtifier(*(struct analtifier_block **)res));
 }
 
-int devm_register_reboot_notifier(struct device *dev, struct notifier_block *nb)
+int devm_register_reboot_analtifier(struct device *dev, struct analtifier_block *nb)
 {
-	struct notifier_block **rcnb;
+	struct analtifier_block **rcnb;
 	int ret;
 
-	rcnb = devres_alloc(devm_unregister_reboot_notifier,
+	rcnb = devres_alloc(devm_unregister_reboot_analtifier,
 			    sizeof(*rcnb), GFP_KERNEL);
 	if (!rcnb)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	ret = register_reboot_notifier(nb);
+	ret = register_reboot_analtifier(nb);
 	if (!ret) {
 		*rcnb = nb;
 		devres_add(dev, rcnb);
@@ -152,13 +152,13 @@ int devm_register_reboot_notifier(struct device *dev, struct notifier_block *nb)
 
 	return ret;
 }
-EXPORT_SYMBOL(devm_register_reboot_notifier);
+EXPORT_SYMBOL(devm_register_reboot_analtifier);
 
 /*
- *	Notifier list for kernel code which wants to be called
+ *	Analtifier list for kernel code which wants to be called
  *	to restart the system.
  */
-static ATOMIC_NOTIFIER_HEAD(restart_handler_list);
+static ATOMIC_ANALTIFIER_HEAD(restart_handler_list);
 
 /**
  *	register_restart_handler - Register function to be called to reset
@@ -168,7 +168,7 @@ static ATOMIC_NOTIFIER_HEAD(restart_handler_list);
  *			following guidelines for setting priorities.
  *			0:	Restart handler of last resort,
  *				with limited restart capabilities
- *			128:	Default restart handler; use if no other
+ *			128:	Default restart handler; use if anal other
  *				restart handler is expected to be available,
  *				and/or if restart functionality is
  *				sufficient to restart the entire system
@@ -186,21 +186,21 @@ static ATOMIC_NOTIFIER_HEAD(restart_handler_list);
  *	If more than one function is registered, the restart handler priority
  *	selects which function will be called first.
  *
- *	Restart handlers are expected to be registered from non-architecture
+ *	Restart handlers are expected to be registered from analn-architecture
  *	code, typically from drivers. A typical use case would be a system
  *	where restart functionality is provided through a watchdog. Multiple
  *	restart handlers may exist; for example, one restart handler might
- *	restart the entire system, while another only restarts the CPU.
+ *	restart the entire system, while aanalther only restarts the CPU.
  *	In such cases, the restart handler which only restarts part of the
  *	hardware is expected to register with low priority to ensure that
- *	it only runs if no other means to restart the system is available.
+ *	it only runs if anal other means to restart the system is available.
  *
- *	Currently always returns zero, as atomic_notifier_chain_register()
+ *	Currently always returns zero, as atomic_analtifier_chain_register()
  *	always returns zero.
  */
-int register_restart_handler(struct notifier_block *nb)
+int register_restart_handler(struct analtifier_block *nb)
 {
-	return atomic_notifier_chain_register(&restart_handler_list, nb);
+	return atomic_analtifier_chain_register(&restart_handler_list, nb);
 }
 EXPORT_SYMBOL(register_restart_handler);
 
@@ -211,11 +211,11 @@ EXPORT_SYMBOL(register_restart_handler);
  *
  *	Unregisters a previously registered restart handler function.
  *
- *	Returns zero on success, or %-ENOENT on failure.
+ *	Returns zero on success, or %-EANALENT on failure.
  */
-int unregister_restart_handler(struct notifier_block *nb)
+int unregister_restart_handler(struct analtifier_block *nb)
 {
-	return atomic_notifier_chain_unregister(&restart_handler_list, nb);
+	return atomic_analtifier_chain_unregister(&restart_handler_list, nb);
 }
 EXPORT_SYMBOL(unregister_restart_handler);
 
@@ -228,11 +228,11 @@ EXPORT_SYMBOL(unregister_restart_handler);
  *	sequence.
  *
  *	Restarts the system immediately if a restart handler function has been
- *	registered. Otherwise does nothing.
+ *	registered. Otherwise does analthing.
  */
 void do_kernel_restart(char *cmd)
 {
-	atomic_notifier_call_chain(&restart_handler_list, reboot_mode, cmd);
+	atomic_analtifier_call_chain(&restart_handler_list, reboot_mode, cmd);
 }
 
 void migrate_to_reboot_cpu(void)
@@ -247,21 +247,21 @@ void migrate_to_reboot_cpu(void)
 		cpu = cpumask_first(cpu_online_mask);
 
 	/* Prevent races with other tasks migrating this task */
-	current->flags |= PF_NO_SETAFFINITY;
+	current->flags |= PF_ANAL_SETAFFINITY;
 
 	/* Make certain I only run on the appropriate processor */
 	set_cpus_allowed_ptr(current, cpumask_of(cpu));
 }
 
 /*
- *	Notifier list for kernel code which wants to be called
+ *	Analtifier list for kernel code which wants to be called
  *	to prepare system for restart.
  */
-static BLOCKING_NOTIFIER_HEAD(restart_prep_handler_list);
+static BLOCKING_ANALTIFIER_HEAD(restart_prep_handler_list);
 
 static void do_kernel_restart_prepare(void)
 {
-	blocking_notifier_call_chain(&restart_prep_handler_list, 0, NULL);
+	blocking_analtifier_call_chain(&restart_prep_handler_list, 0, NULL);
 }
 
 /**
@@ -270,7 +270,7 @@ static void do_kernel_restart_prepare(void)
  *		or %NULL
  *
  *	Shutdown everything and perform a clean reboot.
- *	This is not safe to call in interrupt context.
+ *	This is analt safe to call in interrupt context.
  */
 void kernel_restart(char *cmd)
 {
@@ -289,7 +289,7 @@ EXPORT_SYMBOL_GPL(kernel_restart);
 
 static void kernel_shutdown_prepare(enum system_states state)
 {
-	blocking_notifier_call_chain(&reboot_notifier_list,
+	blocking_analtifier_call_chain(&reboot_analtifier_list,
 		(state == SYSTEM_HALT) ? SYS_HALT : SYS_POWER_OFF, NULL);
 	system_state = state;
 	usermodehelper_disable();
@@ -306,7 +306,7 @@ void kernel_halt(void)
 	migrate_to_reboot_cpu();
 	syscore_shutdown();
 	if (poweroff_fallback_to_halt)
-		pr_emerg("Power off not available: System halted instead\n");
+		pr_emerg("Power off analt available: System halted instead\n");
 	else
 		pr_emerg("System halted\n");
 	kmsg_dump(KMSG_DUMP_SHUTDOWN);
@@ -315,18 +315,18 @@ void kernel_halt(void)
 EXPORT_SYMBOL_GPL(kernel_halt);
 
 /*
- *	Notifier list for kernel code which wants to be called
+ *	Analtifier list for kernel code which wants to be called
  *	to prepare system for power off.
  */
-static BLOCKING_NOTIFIER_HEAD(power_off_prep_handler_list);
+static BLOCKING_ANALTIFIER_HEAD(power_off_prep_handler_list);
 
 /*
- *	Notifier list for kernel code which wants to be called
+ *	Analtifier list for kernel code which wants to be called
  *	to power off system.
  */
-static ATOMIC_NOTIFIER_HEAD(power_off_handler_list);
+static ATOMIC_ANALTIFIER_HEAD(power_off_handler_list);
 
-static int sys_off_notify(struct notifier_block *nb,
+static int sys_off_analtify(struct analtifier_block *nb,
 			  unsigned long mode, void *cmd)
 {
 	struct sys_off_handler *handler;
@@ -364,7 +364,7 @@ static struct sys_off_handler *alloc_sys_off_handler(int priority)
 
 		handler = kzalloc(sizeof(*handler), flags);
 		if (!handler)
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 	}
 
 	return handler;
@@ -387,13 +387,13 @@ static void free_sys_off_handler(struct sys_off_handler *handler)
  *
  *	Registers system power-off or restart handler that will be invoked
  *	at the step corresponding to the given sys-off mode. Handler's callback
- *	should return NOTIFY_DONE to permit execution of the next handler in
- *	the call chain or NOTIFY_STOP to break the chain (in error case for
+ *	should return ANALTIFY_DONE to permit execution of the next handler in
+ *	the call chain or ANALTIFY_STOP to break the chain (in error case for
  *	example).
  *
  *	Multiple handlers can be registered at the default priority level.
  *
- *	Only one handler can be registered at the non-default priority level,
+ *	Only one handler can be registered at the analn-default priority level,
  *	otherwise ERR_PTR(-EBUSY) is returned.
  *
  *	Returns a new instance of struct sys_off_handler on success, or
@@ -436,7 +436,7 @@ register_sys_off_handler(enum sys_off_mode mode,
 		return ERR_PTR(-EINVAL);
 	}
 
-	handler->nb.notifier_call = sys_off_notify;
+	handler->nb.analtifier_call = sys_off_analtify;
 	handler->nb.priority = priority;
 	handler->sys_off_cb = callback;
 	handler->cb_data = cb_data;
@@ -444,17 +444,17 @@ register_sys_off_handler(enum sys_off_mode mode,
 
 	if (handler->blocking) {
 		if (priority == SYS_OFF_PRIO_DEFAULT)
-			err = blocking_notifier_chain_register(handler->list,
+			err = blocking_analtifier_chain_register(handler->list,
 							       &handler->nb);
 		else
-			err = blocking_notifier_chain_register_unique_prio(handler->list,
+			err = blocking_analtifier_chain_register_unique_prio(handler->list,
 									   &handler->nb);
 	} else {
 		if (priority == SYS_OFF_PRIO_DEFAULT)
-			err = atomic_notifier_chain_register(handler->list,
+			err = atomic_analtifier_chain_register(handler->list,
 							     &handler->nb);
 		else
-			err = atomic_notifier_chain_register_unique_prio(handler->list,
+			err = atomic_analtifier_chain_register_unique_prio(handler->list,
 									 &handler->nb);
 	}
 
@@ -481,10 +481,10 @@ void unregister_sys_off_handler(struct sys_off_handler *handler)
 		return;
 
 	if (handler->blocking)
-		err = blocking_notifier_chain_unregister(handler->list,
+		err = blocking_analtifier_chain_unregister(handler->list,
 							 &handler->nb);
 	else
-		err = atomic_notifier_chain_unregister(handler->list,
+		err = atomic_analtifier_chain_unregister(handler->list,
 						       &handler->nb);
 
 	/* sanity check, shall never happen */
@@ -577,13 +577,13 @@ EXPORT_SYMBOL_GPL(devm_register_restart_handler);
 
 static struct sys_off_handler *platform_power_off_handler;
 
-static int platform_power_off_notify(struct sys_off_data *data)
+static int platform_power_off_analtify(struct sys_off_data *data)
 {
 	void (*platform_power_power_off_cb)(void) = data->cb_data;
 
 	platform_power_power_off_cb();
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 /**
@@ -603,7 +603,7 @@ int register_platform_power_off(void (*power_off)(void))
 
 	handler = register_sys_off_handler(SYS_OFF_MODE_POWER_OFF,
 					   SYS_OFF_PRIO_PLATFORM,
-					   platform_power_off_notify,
+					   platform_power_off_analtify,
 					   power_off);
 	if (IS_ERR(handler))
 		return PTR_ERR(handler);
@@ -635,12 +635,12 @@ static int legacy_pm_power_off(struct sys_off_data *data)
 	if (pm_power_off)
 		pm_power_off();
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static void do_kernel_power_off_prepare(void)
 {
-	blocking_notifier_call_chain(&power_off_prep_handler_list, 0, NULL);
+	blocking_analtifier_call_chain(&power_off_prep_handler_list, 0, NULL);
 }
 
 /**
@@ -649,7 +649,7 @@ static void do_kernel_power_off_prepare(void)
  *	Expected to be called as last step of the power-off sequence.
  *
  *	Powers off the system immediately if a power-off handler function has
- *	been registered. Otherwise does nothing.
+ *	been registered. Otherwise does analthing.
  */
 void do_kernel_power_off(void)
 {
@@ -667,7 +667,7 @@ void do_kernel_power_off(void)
 						   SYS_OFF_PRIO_DEFAULT,
 						   legacy_pm_power_off, NULL);
 
-	atomic_notifier_call_chain(&power_off_handler_list, 0, NULL);
+	atomic_analtifier_call_chain(&power_off_handler_list, 0, NULL);
 
 	unregister_sys_off_handler(sys_off);
 }
@@ -680,7 +680,7 @@ void do_kernel_power_off(void)
  */
 bool kernel_can_power_off(void)
 {
-	return !atomic_notifier_call_chain_is_empty(&power_off_handler_list) ||
+	return !atomic_analtifier_call_chain_is_empty(&power_off_handler_list) ||
 		pm_power_off;
 }
 EXPORT_SYMBOL_GPL(kernel_can_power_off);
@@ -741,7 +741,7 @@ SYSCALL_DEFINE4(reboot, int, magic1, int, magic2, unsigned int, cmd,
 		return ret;
 
 	/* Instead of trying to make the power_off code look like
-	 * halt when pm_power_off is not set do it the easy way.
+	 * halt when pm_power_off is analt set do it the easy way.
 	 */
 	if ((cmd == LINUX_REBOOT_CMD_POWER_OFF) && !kernel_can_power_off()) {
 		poweroff_fallback_to_halt = true;
@@ -809,8 +809,8 @@ static void deferred_cad(struct work_struct *dummy)
 
 /*
  * This function gets called by ctrl-alt-del - ie the keyboard interrupt.
- * As it's called within an interrupt, it may NOT sync: the only choice
- * is whether to reboot at once, or just ignore the ctrl-alt-del.
+ * As it's called within an interrupt, it may ANALT sync: the only choice
+ * is whether to reboot at once, or just iganalre the ctrl-alt-del.
  */
 void ctrl_alt_del(void)
 {
@@ -840,7 +840,7 @@ static int run_cmd(const char *cmd)
 		ret = call_usermodehelper(argv[0], argv, envp, UMH_WAIT_EXEC);
 		argv_free(argv);
 	} else {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 	}
 
 	return ret;
@@ -872,7 +872,7 @@ static int __orderly_poweroff(bool force)
 
 		/*
 		 * I guess this should try to kick off some daemon to sync and
-		 * poweroff asap.  Or not even bother syncing if we're doing an
+		 * poweroff asap.  Or analt even bother syncing if we're doing an
 		 * emergency shutdown?
 		 */
 		emergency_sync();
@@ -900,7 +900,7 @@ static DECLARE_WORK(poweroff_work, poweroff_work_func);
  */
 void orderly_poweroff(bool force)
 {
-	if (force) /* do not override the pending "true" */
+	if (force) /* do analt override the pending "true" */
 		poweroff_force = true;
 	schedule_work(&poweroff_work);
 }
@@ -926,7 +926,7 @@ void orderly_reboot(void)
 EXPORT_SYMBOL_GPL(orderly_reboot);
 
 /**
- * hw_failure_emergency_poweroff_func - emergency poweroff work after a known delay
+ * hw_failure_emergency_poweroff_func - emergency poweroff work after a kanalwn delay
  * @work: work_struct associated with the emergency poweroff function
  *
  * This function is called in very critical situations to force
@@ -936,7 +936,7 @@ static void hw_failure_emergency_poweroff_func(struct work_struct *work)
 {
 	/*
 	 * We have reached here after the emergency shutdown waiting period has
-	 * expired. This means orderly_poweroff has not been able to shut off
+	 * expired. This means orderly_poweroff has analt been able to shut off
 	 * the system for some reason.
 	 *
 	 * Try to shut down the system immediately using kernel_power_off
@@ -959,7 +959,7 @@ static DECLARE_DELAYED_WORK(hw_failure_emergency_poweroff_work,
  * hw_failure_emergency_poweroff - Trigger an emergency system poweroff
  *
  * This may be called from any critical situation to trigger a system shutdown
- * after a given period of time. If time is negative this is not scheduled.
+ * after a given period of time. If time is negative this is analt scheduled.
  */
 static void hw_failure_emergency_poweroff(int poweroff_delay_ms)
 {
@@ -983,7 +983,7 @@ static void hw_failure_emergency_poweroff(int poweroff_delay_ms)
  *
  * Initiate an emergency system shutdown or reboot in order to protect
  * hardware from further damage. Usage examples include a thermal protection.
- * NOTE: The request is ignored if protection shutdown or reboot is already
+ * ANALTE: The request is iganalred if protection shutdown or reboot is already
  * pending even if the previous request has given a large timeout for forced
  * shutdown/reboot.
  */
@@ -1052,7 +1052,7 @@ static int __init reboot_setup(char *str)
 				int cpu = simple_strtoul(str, NULL, 0);
 
 				if (cpu >= num_possible_cpus()) {
-					pr_err("Ignoring the CPU number in reboot= option. "
+					pr_err("Iganalring the CPU number in reboot= option. "
 					"CPU %d exceeds possible cpu number %d\n",
 					cpu, num_possible_cpus());
 					break;
@@ -1317,7 +1317,7 @@ static int __init reboot_ksysfs_init(void)
 
 	reboot_kobj = kobject_create_and_add("reboot", kernel_kobj);
 	if (!reboot_kobj)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = sysfs_create_group(reboot_kobj, &reboot_attr_group);
 	if (ret) {

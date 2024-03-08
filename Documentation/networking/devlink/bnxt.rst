@@ -16,7 +16,7 @@ Parameters
      - Mode
    * - ``enable_sriov``
      - Permanent
-   * - ``ignore_ari``
+   * - ``iganalre_ari``
      - Permanent
    * - ``msix_vec_per_pf_max``
      - Permanent

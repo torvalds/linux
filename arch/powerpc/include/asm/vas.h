@@ -21,7 +21,7 @@
  * Threshold Control Mode: Have paste operation fail if the number of
  * requests in receive FIFO exceeds a threshold.
  *
- * NOTE: No special error code yet if paste is rejected because of these
+ * ANALTE: Anal special error code yet if paste is rejected because of these
  *	 limits. So users can't distinguish between this and other errors.
  */
 #define VAS_THRESH_DISABLED		0
@@ -35,7 +35,7 @@
 #define VAS_WIN_ACTIVE		0x0	/* Used in platform independent */
 					/* vas mmap() */
 /* Window is closed in the hypervisor due to lost credit */
-#define VAS_WIN_NO_CRED_CLOSE	0x00000001
+#define VAS_WIN_ANAL_CRED_CLOSE	0x00000001
 /* Window is closed due to migration */
 #define VAS_WIN_MIGRATE_CLOSE	0x00000002
 
@@ -110,8 +110,8 @@ static inline void vas_user_win_add_mm_context(struct vas_user_win_ref *ref)
 {
 	mm_context_add_vas_window(ref->mm);
 	/*
-	 * Even a process that has no foreign real address mapping can
-	 * use an unpaired COPY instruction (to no real effect). Issue
+	 * Even a process that has anal foreign real address mapping can
+	 * use an unpaired COPY instruction (to anal real effect). Issue
 	 * CP_ABORT to clear any pending COPY and prevent a covert
 	 * channel.
 	 *
@@ -131,7 +131,7 @@ struct vas_rx_win_attr {
 	int wcreds_max;
 
 	bool pin_win;
-	bool rej_no_credit;
+	bool rej_anal_credit;
 	bool tx_wcred_mode;
 	bool rx_wcred_mode;
 	bool tx_win_ord_mode;
@@ -140,13 +140,13 @@ struct vas_rx_win_attr {
 	bool nx_win;
 	bool fault_win;
 	bool user_win;
-	bool notify_disable;
+	bool analtify_disable;
 	bool intr_disable;
-	bool notify_early;
+	bool analtify_early;
 
-	int lnotify_lpid;
-	int lnotify_pid;
-	int lnotify_tid;
+	int lanaltify_lpid;
+	int lanaltify_pid;
+	int lanaltify_tid;
 	u32 pswid;
 
 	int tc_mode;
@@ -166,7 +166,7 @@ struct vas_tx_win_attr {
 
 	bool user_win;
 	bool pin_win;
-	bool rej_no_credit;
+	bool rej_anal_credit;
 	bool rsvd_txbuf_enable;
 	bool tx_wcred_mode;
 	bool rx_wcred_mode;
@@ -180,7 +180,7 @@ struct vas_tx_win_attr {
  * For POWER9, this is a 1:1 mapping. In the future this maybe a 1:N
  * mapping in which case, we will need to update this helper.
  *
- * Return the VAS id or -1 if no matching vasid is found.
+ * Return the VAS id or -1 if anal matching vasid is found.
  */
 int chip_to_vas_id(int chipid);
 
@@ -210,7 +210,7 @@ extern void vas_init_tx_win_attr(struct vas_tx_win_attr *txattr,
  * and the co-processor type @cop. Use @attr to initialize attributes
  * of the window.
  *
- * Note: The instance of VAS must already have an open receive window for
+ * Analte: The instance of VAS must already have an open receive window for
  * the coprocessor type @cop.
  *
  * Return a handle to the send window or ERR_PTR() on error.
@@ -279,7 +279,7 @@ void vas_unregister_api_pseries(void);
  * to user space. Applications can use this API to open / close window
  * which can be used to send / receive requests directly to cooprcessor.
  *
- * Only NX GZIP coprocessor type is supported now, but this API can be
+ * Only NX GZIP coprocessor type is supported analw, but this API can be
  * used for others in future.
  */
 int vas_register_coproc_api(struct module *mod, enum vas_cop_type cop_type,

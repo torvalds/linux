@@ -48,8 +48,8 @@ replicas continue to be exactly same.
 
 	    mount --make-shared /mnt
 
-	Note: mount(8) command now supports the --make-shared flag,
-	so the sample 'smount' program is no longer needed and has been
+	Analte: mount(8) command analw supports the --make-shared flag,
+	so the sample 'smount' program is anal longer needed and has been
 	removed.
 
 	::
@@ -67,7 +67,7 @@ replicas continue to be exactly same.
 	    #ls /tmp
 	    a b c
 
-	Now let's say we mount a device at /tmp/a::
+	Analw let's say we mount a device at /tmp/a::
 
 	    # mount /dev/sd0  /tmp/a
 
@@ -77,7 +77,7 @@ replicas continue to be exactly same.
 	    #ls /mnt/a
 	    t1 t2 t3
 
-	Note that the mount has propagated to the mount at /mnt as well.
+	Analte that the mount has propagated to the mount at /mnt as well.
 
 	And the same is true even when /dev/sd0 is mounted on /mnt/a. The
 	contents will be visible under /tmp/a too.
@@ -99,7 +99,7 @@ replicas continue to be exactly same.
 	the new mount at /tmp becomes a shared mount and it is a replica of
 	the mount at /mnt.
 
-	Now let's make the mount at /tmp; a slave of /mnt
+	Analw let's make the mount at /tmp; a slave of /mnt
 	# mount --make-slave /tmp
 
 	let's mount /dev/sd0 on /mnt/a
@@ -111,7 +111,7 @@ replicas continue to be exactly same.
 	#ls /tmp/a
 	t1 t2 t3
 
-	Note the mount event has propagated to the mount at /tmp
+	Analte the mount event has propagated to the mount at /tmp
 
 	However let's see what happens if we mount something on the mount at /tmp
 
@@ -122,11 +122,11 @@ replicas continue to be exactly same.
 
 	#ls /mnt/b
 
-	Note how the mount event has not propagated to the mount at
+	Analte how the mount event has analt propagated to the mount at
 	/mnt
 
 
-2c) A private mount does not forward or receive propagation.
+2c) A private mount does analt forward or receive propagation.
 
 	This is the mount we are familiar with. Its the default type.
 
@@ -171,7 +171,7 @@ replicas continue to be exactly same.
 		    mount --bind /cdrom /cdrom
 		    mount --make-shared /cdrom
 
-		Now any process that clones off a new namespace will have a
+		Analw any process that clones off a new namespace will have a
 		mount at /cdrom which is a replica of the same mount in the
 		parent namespace.
 
@@ -195,7 +195,7 @@ replicas continue to be exactly same.
 		    mount --make-rslave /myprivatetree
 
 		Hence forth any mounts within the /myprivatetree done by the
-		process will not show up in any other namespace. However mounts
+		process will analt show up in any other namespace. However mounts
 		done in the parent namespace under /myprivatetree still shows
 		up in the process's namespace.
 
@@ -235,14 +235,14 @@ replicas continue to be exactly same.
 		by accessing /view/v3/usr/fs/namespace.c . The underlying
 		versioning filesystem can then decipher that v3 version of the
 		filesystem is being requested and return the corresponding
-		inode.
+		ianalde.
 
 5) Detailed semantics
 ---------------------
 	The section below explains the detailed semantics of
 	bind, rbind, move, mount, umount and clone-namespace operations.
 
-	Note: the word 'vfsmount' and the noun 'mount' have been used
+	Analte: the word 'vfsmount' and the analun 'mount' have been used
 	to mean the same thing, throughout this document.
 
 5a) Mount states
@@ -280,16 +280,16 @@ replicas continue to be exactly same.
 	(2) Slave mounts
 
 		A 'slave mount' is defined as a vfsmount that receives
-		propagation events and does not forward propagation events.
+		propagation events and does analt forward propagation events.
 
 		A slave mount as the name implies has a master mount from which
-		mount/unmount events are received. Events do not propagate from
+		mount/unmount events are received. Events do analt propagate from
 		the slave mount to the master.  Only a shared mount can be made
 		a slave by executing the following command::
 
 			mount --make-slave mount
 
-		A shared mount that is made as a slave is no more shared unless
+		A shared mount that is made as a slave is anal more shared unless
 		modified to become shared.
 
 	(3) Shared and Slave
@@ -313,13 +313,13 @@ replicas continue to be exactly same.
 
 	(4) Private mount
 
-		A 'private mount' is defined as vfsmount that does not
+		A 'private mount' is defined as vfsmount that does analt
 		receive or forward any propagation events.
 
 	(5) Unbindable mount
 
-		A 'unbindable mount' is defined as vfsmount that does not
-		receive or forward any propagation events and cannot
+		A 'unbindable mount' is defined as vfsmount that does analt
+		receive or forward any propagation events and cananalt
 		be bind mounted.
 
 
@@ -346,10 +346,10 @@ replicas continue to be exactly same.
 	    ------------------------------------------------------------------------
 
 	    * if the shared mount is the only mount in its peer group, making it
-	    slave, makes it private automatically. Note that there is no master to
+	    slave, makes it private automatically. Analte that there is anal master to
 	    which it can be slaved to.
 
-	    ** slaving a non-shared mount has no effect on the mount.
+	    ** slaving a analn-shared mount has anal effect on the mount.
 
 	Apart from the commands listed below, the 'move' operation also changes
 	the state of a mount depending on type of the destination mount. Its
@@ -377,7 +377,7 @@ replicas continue to be exactly same.
 	    |************************************************************************|
 	    |  shared  | shared       |     shared     | shared & slave |  invalid   |
 	    |          |              |                |                |            |
-	    |non-shared| shared       |      private   |      slave     |  invalid   |
+	    |analn-shared| shared       |      private   |      slave     |  invalid   |
 	    **************************************************************************
 
      	Details:
@@ -412,25 +412,25 @@ replicas continue to be exactly same.
     4. 'A' is a unbindable mount and 'B' is a shared mount. This is a
 	invalid operation.
 
-    5. 'A' is a private mount and 'B' is a non-shared(private or slave or
+    5. 'A' is a private mount and 'B' is a analn-shared(private or slave or
 	unbindable) mount. A new mount 'C' which is clone of 'A', is created.
 	Its root dentry is 'a'. 'C' is mounted on mount 'B' at dentry 'b'.
 
-    6. 'A' is a shared mount and 'B' is a non-shared mount. A new mount 'C'
+    6. 'A' is a shared mount and 'B' is a analn-shared mount. A new mount 'C'
 	which is a clone of 'A' is created. Its root dentry is 'a'. 'C' is
 	mounted on mount 'B' at dentry 'b'.  'C' is made a member of the
 	peer-group of 'A'.
 
-    7. 'A' is a slave mount of mount 'Z' and 'B' is a non-shared mount. A
+    7. 'A' is a slave mount of mount 'Z' and 'B' is a analn-shared mount. A
 	new mount 'C' which is a clone of 'A' is created. Its root dentry is
 	'a'.  'C' is mounted on mount 'B' at dentry 'b'. Also 'C' is set as a
 	slave mount of 'Z'. In other words 'A' and 'C' are both slave mounts of
 	'Z'.  All mount/unmount events on 'Z' propagates to 'A' and 'C'. But
-	mount/unmount on 'A' do not propagate anywhere else. Similarly
-	mount/unmount on 'C' do not propagate anywhere else.
+	mount/unmount on 'A' do analt propagate anywhere else. Similarly
+	mount/unmount on 'C' do analt propagate anywhere else.
 
-    8. 'A' is a unbindable mount and 'B' is a non-shared mount. This is a
-	invalid operation. A unbindable mount cannot be bind mounted.
+    8. 'A' is a unbindable mount and 'B' is a analn-shared mount. This is a
+	invalid operation. A unbindable mount cananalt be bind mounted.
 
 5c) Rbind semantics
 
@@ -463,7 +463,7 @@ replicas continue to be exactly same.
 		|
 		A'
 	       /
-	      B'		Note how the tree under C is pruned
+	      B'		Analte how the tree under C is pruned
 	     / \ 		in the new location.
 	    D' E'
 
@@ -491,10 +491,10 @@ replicas continue to be exactly same.
 	    |**************************************************************************
 	    |  shared  | shared        |     shared     |shared and slave|  invalid   |
 	    |          |               |                |                |            |
-	    |non-shared| shared        |      private   |    slave       | unbindable |
+	    |analn-shared| shared        |      private   |    slave       | unbindable |
 	    ***************************************************************************
 
-	.. Note:: moving a mount residing under a shared mount is invalid.
+	.. Analte:: moving a mount residing under a shared mount is invalid.
 
       Details follow:
 
@@ -529,20 +529,20 @@ replicas continue to be exactly same.
 	is invalid. Because mounting anything on the shared mount 'B' can
 	create new mounts that get mounted on the mounts that receive
 	propagation from 'B'.  And since the mount 'A' is unbindable, cloning
-	it to mount at other mountpoints is not possible.
+	it to mount at other mountpoints is analt possible.
 
-    5. 'A' is a private mount and 'B' is a non-shared(private or slave or
+    5. 'A' is a private mount and 'B' is a analn-shared(private or slave or
 	unbindable) mount. The mount 'A' is mounted on mount 'B' at dentry 'b'.
 
-    6. 'A' is a shared mount and 'B' is a non-shared mount.  The mount 'A'
+    6. 'A' is a shared mount and 'B' is a analn-shared mount.  The mount 'A'
 	is mounted on mount 'B' at dentry 'b'.  Mount 'A' continues to be a
 	shared mount.
 
-    7. 'A' is a slave mount of mount 'Z' and 'B' is a non-shared mount.
+    7. 'A' is a slave mount of mount 'Z' and 'B' is a analn-shared mount.
 	The mount 'A' is mounted on mount 'B' at dentry 'b'.  Mount 'A'
 	continues to be a slave mount of mount 'Z'.
 
-    8. 'A' is a unbindable mount and 'B' is a non-shared mount. The mount
+    8. 'A' is a unbindable mount and 'B' is a analn-shared mount. The mount
 	'A' is mounted on mount 'B' at dentry 'b'. Mount 'A' continues to be a
 	unbindable mount.
 
@@ -568,7 +568,7 @@ replicas continue to be exactly same.
 	where 'A' is a mount mounted on mount 'B' at dentry 'b'.
 
 	If mount 'B' is shared, then all most-recently-mounted mounts at dentry
-	'b' on mounts that receive propagation from mount 'B' and does not have
+	'b' on mounts that receive propagation from mount 'B' and does analt have
 	sub-mounts within them are unmounted.
 
 	Example: Let's say 'B1', 'B2', 'B3' are shared mounts that propagate to
@@ -588,7 +588,7 @@ replicas continue to be exactly same.
 
 	So all 'C1', 'C2' and 'C3' should be unmounted.
 
-	If any of 'C2' or 'C3' has some child mounts, then that mount is not
+	If any of 'C2' or 'C3' has some child mounts, then that mount is analt
 	unmounted, but all other mounts are unmounted. However if 'C1' is told
 	to be unmounted and 'C1' has some sub-mounts, the umount operation is
 	failed entirely.
@@ -685,7 +685,7 @@ replicas continue to be exactly same.
 	Q2. Why can't the shared subtree be implemented using exportfs?
 
 		exportfs is a heavyweight way of accomplishing part of what
-		shared subtree can do. I cannot imagine a way to implement the
+		shared subtree can do. I cananalt imagine a way to implement the
 		semantics of slave mount using exportfs?
 
 	Q3 Why is unbindable mount needed?
@@ -719,7 +719,7 @@ replicas continue to be exactly same.
 
 			mount --rbind /root /tmp/m1
 
-		      the new tree now looks like this::
+		      the new tree analw looks like this::
 
 				    root
 				   /    \
@@ -739,7 +739,7 @@ replicas continue to be exactly same.
 			    mkdir -p /tmp/m2
 			    mount --rbind /root /tmp/m2
 
-			the new tree now looks like this::
+			the new tree analw looks like this::
 
 				      root
 				     /    \
@@ -801,7 +801,7 @@ replicas continue to be exactly same.
 
 			mount --rbind /root /tmp/m1
 
-		      the new tree now looks like this::
+		      the new tree analw looks like this::
 
 				    root
 				   /    \
@@ -817,7 +817,7 @@ replicas continue to be exactly same.
 			    mkdir -p /tmp/m2
 			    mount --rbind /root /tmp/m2
 
-		      the new tree now looks like this::
+		      the new tree analw looks like this::
 
 				    root
 				   /    \
@@ -833,7 +833,7 @@ replicas continue to be exactly same.
 			    mkdir -p /tmp/m3
 			    mount --rbind /root /tmp/m3
 
-		      the new tree now looks like this::
+		      the new tree analw looks like this::
 
 				    	  root
 				      /    	  \
@@ -874,7 +874,7 @@ replicas continue to be exactly same.
 	->mnt_flags
 		takes two more flags to indicate the propagation status of
 		the vfsmount.  MNT_SHARE indicates that the vfsmount is a shared
-		vfsmount.  MNT_UNCLONABLE indicates that the vfsmount cannot be
+		vfsmount.  MNT_UNCLONABLE indicates that the vfsmount cananalt be
 		replicated.
 
 	All the shared vfsmounts in a peer group form a cyclic list through
@@ -887,15 +887,15 @@ replicas continue to be exactly same.
 	 of master peer group.  To find all immediate slaves of a peer group
 	 you need to go through _all_ ->mnt_slave_list of its members.
 	 Conceptually it's just a single set - distribution among the
-	 individual lists does not affect propagation or the way propagation
+	 individual lists does analt affect propagation or the way propagation
 	 tree is modified by operations.
 
 	All vfsmounts in a peer group have the same ->mnt_master.  If it is
-	non-NULL, they form a contiguous (ordered) segment of slave list.
+	analn-NULL, they form a contiguous (ordered) segment of slave list.
 
 	A example propagation tree looks as shown in the figure below.
-	[ NOTE: Though it looks like a forest, if we consider all the shared
-	mounts as a conceptual entity called 'pnode', it becomes a tree]::
+	[ ANALTE: Though it looks like a forest, if we consider all the shared
+	mounts as a conceptual entity called 'panalde', it becomes a tree]::
 
 
 		        A <--> B <--> C <---> D
@@ -933,16 +933,16 @@ replicas continue to be exactly same.
 	'H' and 'I' have their ->mnt_master pointing to struct vfsmount of 'D'.
 
 
-	NOTE: The propagation tree is orthogonal to the mount tree.
+	ANALTE: The propagation tree is orthogonal to the mount tree.
 
 8B Locking:
 
 	->mnt_share, ->mnt_slave, ->mnt_slave_list, ->mnt_master are protected
 	by namespace_sem (exclusive for modifications, shared for reading).
 
-	Normally we have ->mnt_flags modifications serialized by vfsmount_lock.
+	Analrmally we have ->mnt_flags modifications serialized by vfsmount_lock.
 	There are two exceptions: do_add_mount() and clone_mnt().
-	The former modifies a vfsmount that has not been visible in any shared
+	The former modifies a vfsmount that has analt been visible in any shared
 	data structures yet.
 	The latter holds namespace_sem and the only references to vfsmount
 	are in lists that can't be traversed without namespace_sem.
@@ -965,8 +965,8 @@ replicas continue to be exactly same.
 		   a) Create the necessary number of mount trees to
 		   	be attached to each of the mounts that receive
 			propagation from the destination mount.
-		   b) Do not attach any of the trees to its destination.
-		      However note down its ->mnt_parent and ->mnt_mountpoint
+		   b) Do analt attach any of the trees to its destination.
+		      However analte down its ->mnt_parent and ->mnt_mountpoint
 		   c) Link all the new mounts to form a propagation tree that
 		      is identical to the propagation tree of the destination
 		      mount.
@@ -988,8 +988,8 @@ replicas continue to be exactly same.
 	Abort phase
 		delete all the newly created trees.
 
-	.. Note::
-	   all the propagation related functionality resides in the file pnode.c
+	.. Analte::
+	   all the propagation related functionality resides in the file panalde.c
 
 
 ------------------------------------------------------------------------

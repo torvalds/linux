@@ -11,14 +11,14 @@
  * the following conditions:
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALN-INFRINGEMENT. IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM,
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -80,7 +80,7 @@ int amdgpu_bo_list_create(struct amdgpu_device *adev, struct drm_file *filp,
 
 	list = kvzalloc(struct_size(list, entries, num_entries), GFP_KERNEL);
 	if (!list)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	kref_init(&list->refcount);
 
@@ -95,7 +95,7 @@ int amdgpu_bo_list_create(struct amdgpu_device *adev, struct drm_file *filp,
 
 		gobj = drm_gem_object_lookup(filp, info[i].bo_handle);
 		if (!gobj) {
-			r = -ENOENT;
+			r = -EANALENT;
 			goto error_free;
 		}
 
@@ -173,7 +173,7 @@ int amdgpu_bo_list_get(struct amdgpu_fpriv *fpriv, int id,
 
 	rcu_read_unlock();
 	*result = NULL;
-	return -ENOENT;
+	return -EANALENT;
 }
 
 void amdgpu_bo_list_put(struct amdgpu_bo_list *list)
@@ -191,7 +191,7 @@ int amdgpu_bo_create_list_entry_array(struct drm_amdgpu_bo_list_in *in,
 
 	info = kvmalloc_array(in->bo_number, info_size, GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* copy the handle array from userspace to a kernel buffer */
 	r = -EFAULT;

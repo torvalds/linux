@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright (c) 2023 Meta Platforms, Inc. and affiliates. */
 
-#include <errno.h>
+#include <erranal.h>
 #include <string.h>
 #include <linux/bpf.h>
 #include <bpf/bpf_helpers.h>
@@ -11,7 +11,7 @@
 
 int vals[] SEC(".data.vals") = {1, 2, 3, 4};
 
-__naked __noinline __used
+__naked __analinline __used
 static unsigned long identity_subprog()
 {
 	/* the simplest *static* 64-bit identity function */
@@ -21,14 +21,14 @@ static unsigned long identity_subprog()
 	);
 }
 
-__noinline __used
+__analinline __used
 unsigned long global_identity_subprog(__u64 x)
 {
 	/* the simplest *global* 64-bit identity function */
 	return x;
 }
 
-__naked __noinline __used
+__naked __analinline __used
 static unsigned long callback_subprog()
 {
 	/* the simplest callback function */
@@ -57,9 +57,9 @@ __naked int subprog_result_precise(void)
 		 */
 		"r1 = r6;"
 		"call identity_subprog;"
-		/* now use subprog's returned value (which is a
+		/* analw use subprog's returned value (which is a
 		 * r6 -> r1 -> r0 chain), as index into vals array, forcing
-		 * all of that to be known precisely
+		 * all of that to be kanalwn precisely
 		 */
 		"r0 *= 4;"
 		"r1 = %[vals];"
@@ -94,9 +94,9 @@ __naked int global_subprog_result_precise(void)
 		 */
 		"r1 = r6;"
 		"call global_identity_subprog;"
-		/* now use subprog's returned value (which is unknown now, so
+		/* analw use subprog's returned value (which is unkanalwn analw, so
 		 * we need to clamp it), as index into vals array, forcing r0
-		 * to be marked precise (with no effect on r6, though)
+		 * to be marked precise (with anal effect on r6, though)
 		 */
 		"if r0 < %[vals_arr_sz] goto 1f;"
 		"r0 = %[vals_arr_sz] - 1;"
@@ -117,7 +117,7 @@ __naked int global_subprog_result_precise(void)
 	);
 }
 
-__naked __noinline __used
+__naked __analinline __used
 static unsigned long loop_callback_bad()
 {
 	/* bpf_loop() callback that can return values outside of [0, 1] range */
@@ -169,7 +169,7 @@ __naked int callback_precise_return_fail(void)
 
 SEC("?raw_tp")
 __success __log_level(2)
-/* First simulated path does not include callback body,
+/* First simulated path does analt include callback body,
  * r1 and r4 are always precise for bpf_loop() calls.
  */
 __msg("9: (85) call bpf_loop#181")
@@ -223,7 +223,7 @@ __naked int callback_result_precise(void)
 		"r6 *= 4;"
 		"r1 = %[vals];"
 		/* here r6 is forced to be precise and has to be propagated
-		 * back to the bpf_loop() call, but not beyond
+		 * back to the bpf_loop() call, but analt beyond
 		 */
 		"r1 += r6;"
 		"r0 = *(u32 *)(r1 + 0);"
@@ -253,7 +253,7 @@ __naked int parent_callee_saved_reg_precise(void)
 	asm volatile (
 		"r6 = 3;"
 
-		/* call subprog and ignore result; we need this call only to
+		/* call subprog and iganalre result; we need this call only to
 		 * complicate jump history
 		 */
 		"r1 = 0;"
@@ -262,7 +262,7 @@ __naked int parent_callee_saved_reg_precise(void)
 		"r6 *= 4;"
 		"r1 = %[vals];"
 		/* here r6 is forced to be precise and has to be propagated
-		 * back to the beginning, handling (and ignoring) subprog call
+		 * back to the beginning, handling (and iganalring) subprog call
 		 */
 		"r1 += r6;"
 		"r0 = *(u32 *)(r1 + 0);"
@@ -287,7 +287,7 @@ __naked int parent_callee_saved_reg_precise_global(void)
 	asm volatile (
 		"r6 = 3;"
 
-		/* call subprog and ignore result; we need this call only to
+		/* call subprog and iganalre result; we need this call only to
 		 * complicate jump history
 		 */
 		"r1 = 0;"
@@ -296,7 +296,7 @@ __naked int parent_callee_saved_reg_precise_global(void)
 		"r6 *= 4;"
 		"r1 = %[vals];"
 		/* here r6 is forced to be precise and has to be propagated
-		 * back to the beginning, handling (and ignoring) subprog call
+		 * back to the beginning, handling (and iganalring) subprog call
 		 */
 		"r1 += r6;"
 		"r0 = *(u32 *)(r1 + 0);"
@@ -309,7 +309,7 @@ __naked int parent_callee_saved_reg_precise_global(void)
 
 SEC("?raw_tp")
 __success __log_level(2)
-/* First simulated path does not include callback body */
+/* First simulated path does analt include callback body */
 __msg("12: (0f) r1 += r6")
 __msg("mark_precise: frame0: last_idx 12 first_idx 9")
 __msg("mark_precise: frame0: regs=r6 stack= before 11: (bf) r1 = r7")
@@ -344,7 +344,7 @@ __naked int parent_callee_saved_reg_precise_with_callback(void)
 	asm volatile (
 		"r6 = 3;"
 
-		/* call subprog and ignore result; we need this call only to
+		/* call subprog and iganalre result; we need this call only to
 		 * complicate jump history
 		 */
 		"r1 = 1;"			/* nr_loops */
@@ -356,7 +356,7 @@ __naked int parent_callee_saved_reg_precise_with_callback(void)
 		"r6 *= 4;"
 		"r1 = %[vals];"
 		/* here r6 is forced to be precise and has to be propagated
-		 * back to the beginning, handling (and ignoring) callback call
+		 * back to the beginning, handling (and iganalring) callback call
 		 */
 		"r1 += r6;"
 		"r0 = *(u32 *)(r1 + 0);"
@@ -391,7 +391,7 @@ __naked int parent_stack_slot_precise(void)
 		"r6 = 3;"
 		"*(u64 *)(r10 - 8) = r6;"
 
-		/* call subprog and ignore result; we need this call only to
+		/* call subprog and iganalre result; we need this call only to
 		 * complicate jump history
 		 */
 		"r1 = 0;"
@@ -406,7 +406,7 @@ __naked int parent_stack_slot_precise(void)
 		"r6 *= 4;"
 		"r1 = %[vals];"
 		/* here r6 is forced to be precise and has to be propagated
-		 * back to the beginning, handling (and ignoring) subprog call
+		 * back to the beginning, handling (and iganalring) subprog call
 		 */
 		"r1 += r6;"
 		"r0 = *(u32 *)(r1 + 0);"
@@ -435,7 +435,7 @@ __naked int parent_stack_slot_precise_global(void)
 		"r6 = 3;"
 		"*(u64 *)(r10 - 8) = r6;"
 
-		/* call subprog and ignore result; we need this call only to
+		/* call subprog and iganalre result; we need this call only to
 		 * complicate jump history
 		 */
 		"r1 = 0;"
@@ -450,7 +450,7 @@ __naked int parent_stack_slot_precise_global(void)
 		"r6 *= 4;"
 		"r1 = %[vals];"
 		/* here r6 is forced to be precise and has to be propagated
-		 * back to the beginning, handling (and ignoring) subprog call
+		 * back to the beginning, handling (and iganalring) subprog call
 		 */
 		"r1 += r6;"
 		"r0 = *(u32 *)(r1 + 0);"
@@ -463,7 +463,7 @@ __naked int parent_stack_slot_precise_global(void)
 
 SEC("?raw_tp")
 __success __log_level(2)
-/* First simulated path does not include callback body */
+/* First simulated path does analt include callback body */
 __msg("14: (0f) r1 += r6")
 __msg("mark_precise: frame0: last_idx 14 first_idx 10")
 __msg("mark_precise: frame0: regs=r6 stack= before 13: (bf) r1 = r7")
@@ -518,7 +518,7 @@ __naked int parent_stack_slot_precise_with_callback(void)
 		"r6 *= 4;"
 		"r1 = %[vals];"
 		/* here r6 is forced to be precise and has to be propagated
-		 * back to the beginning, handling (and ignoring) subprog call
+		 * back to the beginning, handling (and iganalring) subprog call
 		 */
 		"r1 += r6;"
 		"r0 = *(u32 *)(r1 + 0);"
@@ -531,7 +531,7 @@ __naked int parent_stack_slot_precise_with_callback(void)
 	);
 }
 
-__noinline __used
+__analinline __used
 static __u64 subprog_with_precise_arg(__u64 x)
 {
 	return vals[x]; /* x is forced to be precise */
@@ -568,7 +568,7 @@ __naked int subprog_arg_precise(void)
  * r2 is a register to spill into that slot
  * subprog also spills r2 into its own stack slot
  */
-__naked __noinline __used
+__naked __analinline __used
 static __u64 subprog_spill_reg_precise(void)
 {
 	asm volatile (
@@ -676,7 +676,7 @@ __naked int stack_slot_aliases_precision(void)
 		"r7 += -8;"			/* r7 = r10 - 8 */
 		"r8 = r10;"
 		"r8 += -32;"			/* r8 = r10 - 32 */
-		/* now spill subprog's return value (a r6 -> r1 -> r0 chain)
+		/* analw spill subprog's return value (a r6 -> r1 -> r0 chain)
 		 * a few times through different stack pointer regs, making
 		 * sure to use r10, r7, and r8 both in LDX and STX insns, and
 		 * *importantly* also using a combination of const var_off and

@@ -57,9 +57,9 @@
 #define PRINT_POS
 #endif
 
-#define SET_OK_NO_PROP_ERRORS (IMMEDIATE | LDST_CLASS_DECO | \
+#define SET_OK_ANAL_PROP_ERRORS (IMMEDIATE | LDST_CLASS_DECO | \
 			       LDST_SRCDST_WORD_DECOCTRL | \
-			       (LDOFF_CHG_SHARE_OK_NO_PROP << \
+			       (LDOFF_CHG_SHARE_OK_ANAL_PROP << \
 				LDST_OFFSET_SHIFT))
 #define DISABLE_AUTO_INFO_FIFO (IMMEDIATE | LDST_CLASS_DECO | \
 				LDST_SRCDST_WORD_DECOCTRL | \
@@ -74,7 +74,7 @@ extern size_t caam_ptr_sz;
 /*
  * HW fetches 4 S/G table entries at a time, irrespective of how many entries
  * are in the table. It's SW's responsibility to make sure these accesses
- * do not have side effects.
+ * do analt have side effects.
  */
 static inline int pad_sg_nents(int sg_nents)
 {
@@ -299,7 +299,7 @@ static inline void append_store(u32 * const desc, dma_addr_t ptr,
 
 	append_cmd(desc, CMD_STORE | options | len);
 
-	/* The following options do not require pointer */
+	/* The following options do analt require pointer */
 	if (!(cmd_src == LDST_SRCDST_WORD_DESCBUF_SHARED ||
 	      cmd_src == LDST_SRCDST_WORD_DESCBUF_JOB    ||
 	      cmd_src == LDST_SRCDST_WORD_DESCBUF_JOB_WE ||
@@ -516,7 +516,7 @@ struct alginfo {
  *                       and which shall be referenced in a shared descriptor.
  * @sd_base_len: Shared descriptor base length - bytes consumed by the commands,
  *               excluding the data items to be inlined (or corresponding
- *               pointer if an item is not inlined). Each cnstr_* function that
+ *               pointer if an item is analt inlined). Each cnstr_* function that
  *               generates descriptors should have a define mentioning
  *               corresponding length.
  * @jd_len: Maximum length of the job descriptor(s) that will be used
@@ -526,7 +526,7 @@ struct alginfo {
  *            otherwise.
  * @count: Number of data items (size of @data_len array); must be <= 32
  *
- * Return: 0 if data can be inlined / referenced, negative value if not. If 0,
+ * Return: 0 if data can be inlined / referenced, negative value if analt. If 0,
  *         check @inl_mask for details.
  */
 static inline int desc_inline_query(unsigned int sd_base_len,

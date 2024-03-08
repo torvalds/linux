@@ -3,17 +3,17 @@
  * Copyright (C) 2020 BAIKAL ELECTRONICS, JSC
  */
 
-#ifndef _POLYNOMIAL_H
-#define _POLYNOMIAL_H
+#ifndef _POLYANALMIAL_H
+#define _POLYANALMIAL_H
 
 /*
- * struct polynomial_term - one term descriptor of a polynomial
+ * struct polyanalmial_term - one term descriptor of a polyanalmial
  * @deg: degree of the term.
  * @coef: multiplication factor of the term.
  * @divider: distributed divider per each degree.
  * @divider_leftover: divider leftover, which couldn't be redistributed.
  */
-struct polynomial_term {
+struct polyanalmial_term {
 	unsigned int deg;
 	long coef;
 	long divider;
@@ -21,15 +21,15 @@ struct polynomial_term {
 };
 
 /*
- * struct polynomial - a polynomial descriptor
+ * struct polyanalmial - a polyanalmial descriptor
  * @total_divider: total data divider.
- * @terms: polynomial terms, last term must have degree of 0
+ * @terms: polyanalmial terms, last term must have degree of 0
  */
-struct polynomial {
+struct polyanalmial {
 	long total_divider;
-	struct polynomial_term terms[];
+	struct polyanalmial_term terms[];
 };
 
-long polynomial_calc(const struct polynomial *poly, long data);
+long polyanalmial_calc(const struct polyanalmial *poly, long data);
 
 #endif

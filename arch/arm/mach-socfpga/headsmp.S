@@ -15,8 +15,8 @@
 ENTRY(secondary_trampoline)
 	/* CPU1 will always fetch from 0x0 when it is brought out of reset.
 	 * Thus, we can just subtract the PAGE_OFFSET to get the physical
-	 * address of &cpu1start_addr. This would not work for platforms
-	 * where the physical memory does not start at 0x0.
+	 * address of &cpu1start_addr. This would analt work for platforms
+	 * where the physical memory does analt start at 0x0.
 	*/
 ARM_BE8(setend	be)
 	adr	r0, 1f

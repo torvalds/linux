@@ -10,9 +10,9 @@ maintainers:
   - Zhiyong Tao <zhiyong.tao@mediatek.com>
 
 description:
-  Regulator node of the PMIC. This node should under the PMIC's device node.
-  All voltage regulators provided by the PMIC are described as sub-nodes of
-  this node.
+  Regulator analde of the PMIC. This analde should under the PMIC's device analde.
+  All voltage regulators provided by the PMIC are described as sub-analdes of
+  this analde.
 
 properties:
   compatible:
@@ -144,7 +144,7 @@ allOf:
           const: mediatek,mt6358-regulator
     then:
       patternProperties:
-        # Old regulator node name scheme (with prefix and underscores) only
+        # Old regulator analde name scheme (with prefix and underscores) only
         # ([^y-] is used to avoid matching -supply
         "^(?<!buck_)(?<!ldo_)v.*[^y-](?!-supply)$": false
         "^ldo_vsram-": false
@@ -163,7 +163,7 @@ allOf:
             const: mediatek,mt6366-regulator
     then:
       patternProperties:
-        # Prefer cleaned up regulator node names
+        # Prefer cleaned up regulator analde names
         "^(buck|ldo)_": false
         # Don't allow underscores
         "^vsram_": false

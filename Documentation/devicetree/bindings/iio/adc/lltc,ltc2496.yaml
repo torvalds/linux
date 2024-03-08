@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/iio/adc/lltc,ltc2496.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Linear Technology / Analog Devices LTC2496 ADC
+title: Linear Techanallogy / Analog Devices LTC2496 ADC
 
 maintainers:
   - Lars-Peter Clausen <lars@metafoo.de>

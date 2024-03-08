@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- *  Nano River Technologies viperboard GPIO lib driver
+ *  Naanal River Techanallogies viperboard GPIO lib driver
  *
  *  (C) 2012 by Lemonage GmbH
  *  Author: Lars Poeschel <poeschel@lemonage.de>
@@ -8,7 +8,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/types.h>
@@ -390,7 +390,7 @@ static int vprbrd_gpio_probe(struct platform_device *pdev)
 
 	vb_gpio = devm_kzalloc(&pdev->dev, sizeof(*vb_gpio), GFP_KERNEL);
 	if (vb_gpio == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vb_gpio->vb = vb;
 	/* registering gpio a */
@@ -466,6 +466,6 @@ static void __exit vprbrd_gpio_exit(void)
 module_exit(vprbrd_gpio_exit);
 
 MODULE_AUTHOR("Lars Poeschel <poeschel@lemonage.de>");
-MODULE_DESCRIPTION("GPIO driver for Nano River Techs Viperboard");
+MODULE_DESCRIPTION("GPIO driver for Naanal River Techs Viperboard");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:viperboard-gpio");

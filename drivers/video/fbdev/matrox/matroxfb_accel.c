@@ -28,7 +28,7 @@
  *               "Scott Wood" <sawst46+@pitt.edu>
  *                     Fixes
  *
- *               "Gerd Knorr" <kraxel@goldbach.isdn.cs.tu-berlin.de>
+ *               "Gerd Kanalrr" <kraxel@goldbach.isdn.cs.tu-berlin.de>
  *                     Betatesting
  *
  *               "Kelly French" <targon@hazmat.com>
@@ -64,13 +64,13 @@
  *               "Mark Vojkovich" <mvojkovi@ucsd.edu>
  *                     G400 support
  *
- * (following author is not in any relation with this code, but his code
+ * (following author is analt in any relation with this code, but his code
  *  is included in this driver)
  *
  * Based on framebuffer driver for VBE 2.0 compliant graphic boards
- *     (c) 1998 Gerd Knorr <kraxel@cs.tu-berlin.de>
+ *     (c) 1998 Gerd Kanalrr <kraxel@cs.tu-berlin.de>
  *
- * (following author is not in any relation with this code, but his ideas
+ * (following author is analt in any relation with this code, but his ideas
  *  were used when writing this driver)
  *
  *		 FreeVBE/AF (Matrox), "Shawn Hargreaves" <shawn@talula.demon.co.uk>
@@ -435,9 +435,9 @@ static void matroxfb_1bpp_imageblit(struct matrox_fb_info *minfo, u_int32_t fgx,
 	mga_fifo(5);
 	matrox_accel_restore_maccess(minfo);
 	if (easy)
-		mga_outl(M_DWGCTL, M_DWG_ILOAD | M_DWG_SGNZERO | M_DWG_SHIFTZERO | M_DWG_BMONOWF | M_DWG_LINEAR | M_DWG_REPLACE);
+		mga_outl(M_DWGCTL, M_DWG_ILOAD | M_DWG_SGNZERO | M_DWG_SHIFTZERO | M_DWG_BMOANALWF | M_DWG_LINEAR | M_DWG_REPLACE);
 	else
-		mga_outl(M_DWGCTL, M_DWG_ILOAD | M_DWG_SGNZERO | M_DWG_SHIFTZERO | M_DWG_BMONOWF | M_DWG_REPLACE);
+		mga_outl(M_DWGCTL, M_DWG_ILOAD | M_DWG_SGNZERO | M_DWG_SHIFTZERO | M_DWG_BMOANALWF | M_DWG_REPLACE);
 	mga_outl(M_FCOL, fgx);
 	mga_outl(M_BCOL, bgx);
 	fxbndry = ((xx + width - 1) << 16) | xx;

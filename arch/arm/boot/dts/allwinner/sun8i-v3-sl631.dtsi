@@ -117,7 +117,7 @@
 
 	flash@0 {
 		reg = <0>;
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		spi-max-frequency = <50000000>;
 	};
 };

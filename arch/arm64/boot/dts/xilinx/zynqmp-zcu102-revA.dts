@@ -239,7 +239,7 @@
 	tca6416_u97: gpio@20 {
 		compatible = "ti,tca6416";
 		reg = <0x20>;
-		gpio-controller; /* IRQ not connected */
+		gpio-controller; /* IRQ analt connected */
 		#gpio-cells = <2>;
 		gpio-line-names = "PS_GTR_LAN_SEL0", "PS_GTR_LAN_SEL1", "PS_GTR_LAN_SEL2", "PS_GTR_LAN_SEL3",
 				"PCI_CLK_DIR_SEL", "IIC_MUX_RESET_B", "GEM3_EXP_RESET_B",
@@ -273,7 +273,7 @@
 	tca6416_u61: gpio@21 {
 		compatible = "ti,tca6416";
 		reg = <0x21>;
-		gpio-controller; /* IRQ not connected */
+		gpio-controller; /* IRQ analt connected */
 		#gpio-cells = <2>;
 		gpio-line-names = "VCCPSPLL_EN", "MGTRAVCC_EN", "MGTRAVTT_EN", "VCCPSDDRPLL_EN", "MIO26_PMU_INPUT_LS",
 				"PL_PMBUS_ALERT", "PS_PMBUS_ALERT", "MAXIM_PMBUS_ALERT", "PL_DDR4_VTERM_EN",
@@ -487,7 +487,7 @@
 				reg = <0x73>;
 			};
 		};
-		/* Bus 3 is not connected */
+		/* Bus 3 is analt connected */
 	};
 };
 
@@ -932,7 +932,7 @@
 			bias-pull-up;
 		};
 
-		conf-pull-none {
+		conf-pull-analne {
 			pins = "MIO13", "MIO38";
 			bias-disable;
 		};
@@ -953,7 +953,7 @@
 &qspi {
 	status = "okay";
 	flash@0 {
-		compatible = "m25p80", "jedec,spi-nor"; /* 16MB + 16MB */
+		compatible = "m25p80", "jedec,spi-analr"; /* 16MB + 16MB */
 		#address-cells = <1>;
 		#size-cells = <1>;
 		reg = <0x0>;
@@ -989,7 +989,7 @@
 	 * 1.0 revision has level shifter and this property should be
 	 * removed for supporting UHS mode
 	 */
-	no-1-8-v;
+	anal-1-8-v;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_sdhci1_default>;
 	xlnx,mio-bank = <1>;

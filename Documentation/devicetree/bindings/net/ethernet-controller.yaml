@@ -10,7 +10,7 @@ maintainers:
   - David S. Miller <davem@davemloft.net>
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^ethernet(@.*)?$"
 
   label:
@@ -49,7 +49,7 @@ properties:
   nvmem-cells:
     maxItems: 1
     description:
-      Reference to an nvmem node for the MAC address
+      Reference to an nvmem analde for the MAC address
 
   nvmem-cell-names:
     const: mac-address
@@ -59,7 +59,7 @@ properties:
       Specifies interface type between the Ethernet device and a physical
       layer (PHY) device.
     enum:
-      # There is not a standard bus between the MAC and the PHY,
+      # There is analt a standard bus between the MAC and the PHY,
       # something proprietary is being used to embed the PHY in the
       # MAC.
       - internal
@@ -79,15 +79,15 @@ properties:
       - rgmii
 
       # RGMII with internal RX and TX delays provided by the PHY,
-      # the MAC should not add the RX or TX delays in this case
+      # the MAC should analt add the RX or TX delays in this case
       - rgmii-id
 
       # RGMII with internal RX delay provided by the PHY, the MAC
-      # should not add an RX delay in this case
+      # should analt add an RX delay in this case
       - rgmii-rxid
 
       # RGMII with internal TX delay provided by the PHY, the MAC
-      # should not add an TX delay in this case
+      # should analt add an TX delay in this case
       - rgmii-txid
       - rtbi
       - smii
@@ -113,7 +113,7 @@ properties:
     items:
       maxItems: 1
     description:
-      Specifies a reference to a node representing a PCS PHY device on a MDIO
+      Specifies a reference to a analde representing a PCS PHY device on a MDIO
       bus to link with an external PHY (phy-handle) if exists.
 
   pcs-handle-names:
@@ -123,7 +123,7 @@ properties:
   phy-handle:
     $ref: /schemas/types.yaml#/definitions/phandle
     description:
-      Specifies a reference to a node representing a PHY device.
+      Specifies a reference to a analde representing a PHY device.
 
   phy:
     $ref: "#/properties/phy-handle"
@@ -144,7 +144,7 @@ properties:
   sfp:
     $ref: /schemas/types.yaml#/definitions/phandle
     description:
-      Specifies a reference to a node representing a SFP cage.
+      Specifies a reference to a analde representing a SFP cage.
 
   tx-fifo-depth:
     $ref: /schemas/types.yaml#/definitions/uint32
@@ -155,7 +155,7 @@ properties:
   managed:
     description:
       Specifies the PHY management type. If auto is set and fixed-link
-      is not specified, it uses MDIO for management.
+      is analt specified, it uses MDIO for management.
     $ref: /schemas/types.yaml#/definitions/string
     default: auto
     enum:
@@ -184,11 +184,11 @@ properties:
 
           - enum: [0, 1]
             description:
-              Pause configuration. 0 for no pause, 1 for pause
+              Pause configuration. 0 for anal pause, 1 for pause
 
           - enum: [0, 1]
             description:
-              Asymmetric pause configuration. 0 for no asymmetric
+              Asymmetric pause configuration. 0 for anal asymmetric
               pause, 1 for asymmetric pause
       - type: object
         additionalProperties: false
@@ -226,7 +226,7 @@ properties:
   leds:
     description:
       Describes the LEDs associated by Ethernet Controller.
-      These LEDs are not integrated in the PHY and PHY doesn't have any
+      These LEDs are analt integrated in the PHY and PHY doesn't have any
       control on them. Ethernet Controller regs are used to control
       these defined LEDs.
 

@@ -40,7 +40,7 @@ properties:
     $ref: /schemas/graph.yaml#/$defs/port-base
     unevaluatedProperties: false
     description:
-      DCMI supports a single port node with parallel bus.
+      DCMI supports a single port analde with parallel bus.
 
     properties:
       endpoint:

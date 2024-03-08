@@ -141,7 +141,7 @@ static int hdq_write_byte(struct hdq_data *hdq_data, u8 val, u8 *status)
 	}
 
 	if (hdq_data->hdq_irqstatus)
-		dev_err(hdq_data->dev, "TX irqstatus not cleared (%02x)\n",
+		dev_err(hdq_data->dev, "TX irqstatus analt cleared (%02x)\n",
 			hdq_data->hdq_irqstatus);
 
 	*status = 0;
@@ -219,7 +219,7 @@ static void omap_w1_search_bus(void *_hdq, struct w1_master *master_dev,
 
 	rn_le = cpu_to_le64(module_id);
 	/*
-	 * HDQ might not obey truly the 1-wire spec.
+	 * HDQ might analt obey truly the 1-wire spec.
 	 * So calculate CRC based on module parameter.
 	 */
 	cs = w1_calc_crc8((u8 *)&rn_le, 7);
@@ -236,13 +236,13 @@ static int omap_hdq_break(struct hdq_data *hdq_data)
 
 	ret = mutex_lock_interruptible(&hdq_data->hdq_mutex);
 	if (ret < 0) {
-		dev_dbg(hdq_data->dev, "Could not acquire mutex\n");
+		dev_dbg(hdq_data->dev, "Could analt acquire mutex\n");
 		ret = -EINTR;
 		goto rtn;
 	}
 
 	if (hdq_data->hdq_irqstatus)
-		dev_err(hdq_data->dev, "break irqstatus not cleared (%02x)\n",
+		dev_err(hdq_data->dev, "break irqstatus analt cleared (%02x)\n",
 			hdq_data->hdq_irqstatus);
 
 	/* set the INIT and GO bit */
@@ -276,7 +276,7 @@ static int omap_hdq_break(struct hdq_data *hdq_data)
 	 */
 	if (!(hdq_reg_in(hdq_data, OMAP_HDQ_CTRL_STATUS) &
 			OMAP_HDQ_CTRL_STATUS_PRESENCE)) {
-		dev_dbg(hdq_data->dev, "Presence bit not set\n");
+		dev_dbg(hdq_data->dev, "Presence bit analt set\n");
 		ret = -ETIMEDOUT;
 		goto out;
 	}
@@ -360,7 +360,7 @@ static u8 omap_w1_triplet(void *_hdq, u8 bdir)
 {
 	u8 id_bit, comp_bit;
 	int err;
-	u8 ret = 0x3; /* no slaves responded */
+	u8 ret = 0x3; /* anal slaves responded */
 	struct hdq_data *hdq_data = _hdq;
 	u8 ctrl = OMAP_HDQ_CTRL_STATUS_SINGLE | OMAP_HDQ_CTRL_STATUS_GO |
 		  OMAP_HDQ_CTRL_STATUS_INTERRUPTMASK;
@@ -368,14 +368,14 @@ static u8 omap_w1_triplet(void *_hdq, u8 bdir)
 
 	err = pm_runtime_get_sync(hdq_data->dev);
 	if (err < 0) {
-		pm_runtime_put_noidle(hdq_data->dev);
+		pm_runtime_put_analidle(hdq_data->dev);
 
 		return err;
 	}
 
 	err = mutex_lock_interruptible(&hdq_data->hdq_mutex);
 	if (err < 0) {
-		dev_dbg(hdq_data->dev, "Could not acquire mutex\n");
+		dev_dbg(hdq_data->dev, "Could analt acquire mutex\n");
 		goto rtn;
 	}
 
@@ -386,7 +386,7 @@ static u8 omap_w1_triplet(void *_hdq, u8 bdir)
 				 (hdq_data->hdq_irqstatus
 				  & OMAP_HDQ_INT_STATUS_RXCOMPLETE),
 				 OMAP_HDQ_TIMEOUT);
-	/* Must clear irqstatus for another RXCOMPLETE interrupt */
+	/* Must clear irqstatus for aanalther RXCOMPLETE interrupt */
 	hdq_reset_irqstatus(hdq_data, OMAP_HDQ_INT_STATUS_RXCOMPLETE);
 
 	if (err == 0) {
@@ -402,7 +402,7 @@ static u8 omap_w1_triplet(void *_hdq, u8 bdir)
 				 (hdq_data->hdq_irqstatus
 				  & OMAP_HDQ_INT_STATUS_RXCOMPLETE),
 				 OMAP_HDQ_TIMEOUT);
-	/* Must clear irqstatus for another RXCOMPLETE interrupt */
+	/* Must clear irqstatus for aanalther RXCOMPLETE interrupt */
 	hdq_reset_irqstatus(hdq_data, OMAP_HDQ_INT_STATUS_RXCOMPLETE);
 
 	if (err == 0) {
@@ -412,7 +412,7 @@ static u8 omap_w1_triplet(void *_hdq, u8 bdir)
 	comp_bit = (hdq_reg_in(_hdq, OMAP_HDQ_RX_DATA) & 0x01);
 
 	if (id_bit && comp_bit) {
-		ret = 0x03;  /* no slaves responded */
+		ret = 0x03;  /* anal slaves responded */
 		goto out;
 	}
 	if (!id_bit && !comp_bit) {
@@ -431,7 +431,7 @@ static u8 omap_w1_triplet(void *_hdq, u8 bdir)
 				 (hdq_data->hdq_irqstatus
 				  & OMAP_HDQ_INT_STATUS_TXCOMPLETE),
 				 OMAP_HDQ_TIMEOUT);
-	/* Must clear irqstatus for another TXCOMPLETE interrupt */
+	/* Must clear irqstatus for aanalther TXCOMPLETE interrupt */
 	hdq_reset_irqstatus(hdq_data, OMAP_HDQ_INT_STATUS_TXCOMPLETE);
 
 	if (err == 0) {
@@ -459,7 +459,7 @@ static u8 omap_w1_reset_bus(void *_hdq)
 
 	err = pm_runtime_get_sync(hdq_data->dev);
 	if (err < 0) {
-		pm_runtime_put_noidle(hdq_data->dev);
+		pm_runtime_put_analidle(hdq_data->dev);
 
 		return err;
 	}
@@ -481,7 +481,7 @@ static u8 omap_w1_read_byte(void *_hdq)
 
 	ret = pm_runtime_get_sync(hdq_data->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(hdq_data->dev);
+		pm_runtime_put_analidle(hdq_data->dev);
 
 		return -1;
 	}
@@ -505,7 +505,7 @@ static void omap_w1_write_byte(void *_hdq, u8 byte)
 
 	ret = pm_runtime_get_sync(hdq_data->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(hdq_data->dev);
+		pm_runtime_put_analidle(hdq_data->dev);
 
 		return;
 	}
@@ -513,7 +513,7 @@ static void omap_w1_write_byte(void *_hdq, u8 byte)
 	/*
 	 * We need to reset the slave before
 	 * issuing the SKIP ROM command, else
-	 * the slave will not work.
+	 * the slave will analt work.
 	 */
 	if (byte == W1_SKIP_ROM)
 		omap_hdq_break(hdq_data);
@@ -574,7 +574,7 @@ static int omap_hdq_probe(struct platform_device *pdev)
 
 	hdq_data = devm_kzalloc(dev, sizeof(*hdq_data), GFP_KERNEL);
 	if (!hdq_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hdq_data->dev = dev;
 	platform_set_drvdata(pdev, hdq_data);
@@ -585,7 +585,7 @@ static int omap_hdq_probe(struct platform_device *pdev)
 
 	mutex_init(&hdq_data->hdq_mutex);
 
-	ret = of_property_read_string(pdev->dev.of_node, "ti,mode", &mode);
+	ret = of_property_read_string(pdev->dev.of_analde, "ti,mode", &mode);
 	if (ret < 0 || !strcmp(mode, "hdq")) {
 		hdq_data->mode = 0;
 		omap_w1_master.search = omap_w1_search_bus;
@@ -599,7 +599,7 @@ static int omap_hdq_probe(struct platform_device *pdev)
 	pm_runtime_set_autosuspend_delay(&pdev->dev, 300);
 	ret = pm_runtime_get_sync(&pdev->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(&pdev->dev);
+		pm_runtime_put_analidle(&pdev->dev);
 		dev_dbg(&pdev->dev, "pm_runtime_get_sync failed\n");
 		goto err_w1;
 	}
@@ -619,7 +619,7 @@ static int omap_hdq_probe(struct platform_device *pdev)
 
 	ret = devm_request_irq(dev, irq, hdq_isr, 0, "omap_hdq", hdq_data);
 	if (ret < 0) {
-		dev_dbg(&pdev->dev, "could not request irq\n");
+		dev_dbg(&pdev->dev, "could analt request irq\n");
 		goto err_irq;
 	}
 
@@ -653,7 +653,7 @@ static int omap_hdq_remove(struct platform_device *pdev)
 
 	active = pm_runtime_get_sync(&pdev->dev);
 	if (active < 0)
-		pm_runtime_put_noidle(&pdev->dev);
+		pm_runtime_put_analidle(&pdev->dev);
 
 	w1_remove_master_device(&omap_w1_master);
 

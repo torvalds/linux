@@ -13,7 +13,7 @@
  * This program is distributed in the hope that it will be useful. *
  * ALL EXPRESS OR IMPLIED CONDITIONS, REPRESENTATIONS AND          *
  * WARRANTIES, INCLUDING ANY IMPLIED WARRANTY OF MERCHANTABILITY,  *
- * FITNESS FOR A PARTICULAR PURPOSE, OR NON-INFRINGEMENT, ARE      *
+ * FITNESS FOR A PARTICULAR PURPOSE, OR ANALN-INFRINGEMENT, ARE      *
  * DISCLAIMED, EXCEPT TO THE EXTENT THAT SUCH DISCLAIMERS ARE HELD *
  * TO BE LEGALLY INVALID.  See the GNU General Public License for  *
  * more details, a copy of which can be found in the file COPYING  *
@@ -26,7 +26,7 @@
  */
 
 /*******************************************************************
-Note: HBA's SLI memory contains little-endian LW.
+Analte: HBA's SLI memory contains little-endian LW.
 Thus to access it from a little-endian host,
 memcpy_toio() and memcpy_fromio() can be used.
 However on a big-endian host, copy 4 bytes at a time,

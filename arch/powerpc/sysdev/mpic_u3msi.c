@@ -83,11 +83,11 @@ static u64 find_u4_magic_addr(struct pci_dev *pdev, unsigned int hwirq)
 	 * unfortunately, this is busted in HW, the bridge endian swaps
 	 * the value and hits the wrong nibble in the register.
 	 *
-	 * So instead we use another register set which is used normally
+	 * So instead we use aanalther register set which is used analrmally
 	 * for converting HT interrupts to MPIC interrupts, which decodes
 	 * the interrupt number as part of the low address bits
 	 *
-	 * This will not work if we ever use more than one legacy MSI in
+	 * This will analt work if we ever use more than one legacy MSI in
 	 * a block but we never do. For one MSI or multiple MSI-X where
 	 * each interrupt address can be specified separately, it works
 	 * just fine.
@@ -127,12 +127,12 @@ static int u3msi_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 	/* If we can't find a magic address then MSI ain't gonna work */
 	if (find_ht_magic_addr(pdev, 0) == 0 &&
 	    find_u4_magic_addr(pdev, 0) == 0) {
-		pr_debug("u3msi: no magic address found for %s\n",
+		pr_debug("u3msi: anal magic address found for %s\n",
 			 pci_name(pdev));
 		return -ENXIO;
 	}
 
-	msi_for_each_desc(entry, &pdev->dev, MSI_DESC_NOTASSOCIATED) {
+	msi_for_each_desc(entry, &pdev->dev, MSI_DESC_ANALTASSOCIATED) {
 		hwirq = msi_bitmap_alloc_hwirqs(&msi_mpic->msi_bitmap, 1);
 		if (hwirq < 0) {
 			pr_debug("u3msi: failed allocating hwirq\n");
@@ -149,7 +149,7 @@ static int u3msi_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 		if (!virq) {
 			pr_debug("u3msi: failed mapping hwirq 0x%x\n", hwirq);
 			msi_bitmap_free_hwirqs(&msi_mpic->msi_bitmap, hwirq, 1);
-			return -ENOSPC;
+			return -EANALSPC;
 		}
 
 		irq_set_msi_desc(virq, entry);
@@ -186,7 +186,7 @@ int __init mpic_u3msi_init(struct mpic *mpic)
 	BUG_ON(msi_mpic);
 	msi_mpic = mpic;
 
-	list_for_each_entry(phb, &hose_list, list_node) {
+	list_for_each_entry(phb, &hose_list, list_analde) {
 		WARN_ON(phb->controller_ops.setup_msi_irqs);
 		phb->controller_ops.setup_msi_irqs = u3msi_setup_msi_irqs;
 		phb->controller_ops.teardown_msi_irqs = u3msi_teardown_msi_irqs;

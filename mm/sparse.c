@@ -27,49 +27,49 @@
 struct mem_section **mem_section;
 #else
 struct mem_section mem_section[NR_SECTION_ROOTS][SECTIONS_PER_ROOT]
-	____cacheline_internodealigned_in_smp;
+	____cacheline_interanaldealigned_in_smp;
 #endif
 EXPORT_SYMBOL(mem_section);
 
-#ifdef NODE_NOT_IN_PAGE_FLAGS
+#ifdef ANALDE_ANALT_IN_PAGE_FLAGS
 /*
- * If we did not store the node number in the page then we have to
- * do a lookup in the section_to_node_table in order to find which
- * node the page belongs to.
+ * If we did analt store the analde number in the page then we have to
+ * do a lookup in the section_to_analde_table in order to find which
+ * analde the page belongs to.
  */
-#if MAX_NUMNODES <= 256
-static u8 section_to_node_table[NR_MEM_SECTIONS] __cacheline_aligned;
+#if MAX_NUMANALDES <= 256
+static u8 section_to_analde_table[NR_MEM_SECTIONS] __cacheline_aligned;
 #else
-static u16 section_to_node_table[NR_MEM_SECTIONS] __cacheline_aligned;
+static u16 section_to_analde_table[NR_MEM_SECTIONS] __cacheline_aligned;
 #endif
 
 int page_to_nid(const struct page *page)
 {
-	return section_to_node_table[page_to_section(page)];
+	return section_to_analde_table[page_to_section(page)];
 }
 EXPORT_SYMBOL(page_to_nid);
 
 static void set_section_nid(unsigned long section_nr, int nid)
 {
-	section_to_node_table[section_nr] = nid;
+	section_to_analde_table[section_nr] = nid;
 }
-#else /* !NODE_NOT_IN_PAGE_FLAGS */
+#else /* !ANALDE_ANALT_IN_PAGE_FLAGS */
 static inline void set_section_nid(unsigned long section_nr, int nid)
 {
 }
 #endif
 
 #ifdef CONFIG_SPARSEMEM_EXTREME
-static noinline struct mem_section __ref *sparse_index_alloc(int nid)
+static analinline struct mem_section __ref *sparse_index_alloc(int nid)
 {
 	struct mem_section *section = NULL;
 	unsigned long array_size = SECTIONS_PER_ROOT *
 				   sizeof(struct mem_section);
 
 	if (slab_is_available()) {
-		section = kzalloc_node(array_size, GFP_KERNEL, nid);
+		section = kzalloc_analde(array_size, GFP_KERNEL, nid);
 	} else {
-		section = memblock_alloc_node(array_size, SMP_CACHE_BYTES,
+		section = memblock_alloc_analde(array_size, SMP_CACHE_BYTES,
 					      nid);
 		if (!section)
 			panic("%s: Failed to allocate %lu bytes nid=%d\n",
@@ -96,7 +96,7 @@ static int __meminit sparse_index_init(unsigned long section_nr, int nid)
 
 	section = sparse_index_alloc(nid);
 	if (!section)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mem_section[root] = section;
 
@@ -112,8 +112,8 @@ static inline int sparse_index_init(unsigned long section_nr, int nid)
 /*
  * During early boot, before section_mem_map is used for an actual
  * mem_map, we use section_mem_map to store the section's NUMA
- * node.  This keeps us from having to use another data structure.  The
- * node information is cleared just before we store the real mem_map.
+ * analde.  This keeps us from having to use aanalther data structure.  The
+ * analde information is cleared just before we store the real mem_map.
  */
 static inline unsigned long sparse_encode_early_nid(int nid)
 {
@@ -132,7 +132,7 @@ static void __meminit mminit_validate_memmodel_limits(unsigned long *start_pfn,
 	unsigned long max_sparsemem_pfn = 1UL << (MAX_PHYSMEM_BITS-PAGE_SHIFT);
 
 	/*
-	 * Sanity checks - do not allow an architecture to pass
+	 * Sanity checks - do analt allow an architecture to pass
 	 * in larger pfns than the maximum scope of sparsemem:
 	 */
 	if (*start_pfn > max_sparsemem_pfn) {
@@ -221,7 +221,7 @@ void __init subsection_map_init(unsigned long pfn, unsigned long nr_pages)
 }
 #endif
 
-/* Record a memory area against a node. */
+/* Record a memory area against a analde. */
 static void __init memory_present(int nid, unsigned long start, unsigned long end)
 {
 	unsigned long pfn;
@@ -231,7 +231,7 @@ static void __init memory_present(int nid, unsigned long start, unsigned long en
 		unsigned long size, align;
 
 		size = sizeof(struct mem_section *) * NR_SECTION_ROOTS;
-		align = 1 << (INTERNODE_CACHE_SHIFT);
+		align = 1 << (INTERANALDE_CACHE_SHIFT);
 		mem_section = memblock_alloc(size, align);
 		if (!mem_section)
 			panic("%s: Failed to allocate %lu bytes align=0x%lx\n",
@@ -267,7 +267,7 @@ static void __init memblocks_present(void)
 	unsigned long start, end;
 	int i, nid;
 
-	for_each_mem_pfn_range(i, MAX_NUMNODES, &start, &end, &nid)
+	for_each_mem_pfn_range(i, MAX_NUMANALDES, &start, &end, &nid)
 		memory_present(nid, start, end);
 }
 
@@ -363,7 +363,7 @@ static void __init check_usemap_section_nr(int nid,
 	unsigned long usemap_snr, pgdat_snr;
 	static unsigned long old_usemap_snr;
 	static unsigned long old_pgdat_snr;
-	struct pglist_data *pgdat = NODE_DATA(nid);
+	struct pglist_data *pgdat = ANALDE_DATA(nid);
 	int usemap_nid;
 
 	/* First call */
@@ -386,7 +386,7 @@ static void __init check_usemap_section_nr(int nid,
 
 	usemap_nid = sparse_early_nid(__nr_to_section(usemap_snr));
 	if (usemap_nid != nid) {
-		pr_info("node %d must be removed before remove section %ld\n",
+		pr_info("analde %d must be removed before remove section %ld\n",
 			nid, usemap_snr);
 		return;
 	}
@@ -394,9 +394,9 @@ static void __init check_usemap_section_nr(int nid,
 	 * There is a circular dependency.
 	 * Some platforms allow un-removable section because they will just
 	 * gather other removable sections for dynamic partitioning.
-	 * Just notify un-removable section's number here.
+	 * Just analtify un-removable section's number here.
 	 */
-	pr_info("Section %ld and %ld (node %d) have a circular dependency on usemap and pgdat allocations\n",
+	pr_info("Section %ld and %ld (analde %d) have a circular dependency on usemap and pgdat allocations\n",
 		usemap_snr, pgdat_snr, nid);
 }
 #else
@@ -404,7 +404,7 @@ static struct mem_section_usage * __init
 sparse_early_usemaps_alloc_pgdat_section(struct pglist_data *pgdat,
 					 unsigned long size)
 {
-	return memblock_alloc_node(size, SMP_CACHE_BYTES, pgdat->node_id);
+	return memblock_alloc_analde(size, SMP_CACHE_BYTES, pgdat->analde_id);
 }
 
 static void __init check_usemap_section_nr(int nid,
@@ -499,8 +499,8 @@ void __weak __meminit vmemmap_populate_print_last(void)
 }
 
 /*
- * Initialize sparse on a specific node. The node spans [pnum_begin, pnum_end)
- * And number of present sections in this node is map_count.
+ * Initialize sparse on a specific analde. The analde spans [pnum_begin, pnum_end)
+ * And number of present sections in this analde is map_count.
  */
 static void __init sparse_init_nid(int nid, unsigned long pnum_begin,
 				   unsigned long pnum_end,
@@ -510,10 +510,10 @@ static void __init sparse_init_nid(int nid, unsigned long pnum_begin,
 	unsigned long pnum;
 	struct page *map;
 
-	usage = sparse_early_usemaps_alloc_pgdat_section(NODE_DATA(nid),
+	usage = sparse_early_usemaps_alloc_pgdat_section(ANALDE_DATA(nid),
 			mem_section_usage_size() * map_count);
 	if (!usage) {
-		pr_err("%s: node[%d] usemap allocation failed", __func__, nid);
+		pr_err("%s: analde[%d] usemap allocation failed", __func__, nid);
 		goto failed;
 	}
 	sparse_buffer_init(map_count * section_map_size(), nid);
@@ -526,7 +526,7 @@ static void __init sparse_init_nid(int nid, unsigned long pnum_begin,
 		map = __populate_section_memmap(pfn, PAGES_PER_SECTION,
 				nid, NULL, NULL);
 		if (!map) {
-			pr_err("%s: node[%d] memory map backing failed. Some memory will not be available.",
+			pr_err("%s: analde[%d] memory map backing failed. Some memory will analt be available.",
 			       __func__, nid);
 			pnum_begin = pnum;
 			sparse_buffer_fini();
@@ -540,7 +540,7 @@ static void __init sparse_init_nid(int nid, unsigned long pnum_begin,
 	sparse_buffer_fini();
 	return;
 failed:
-	/* We failed to allocate, mark all the following pnums as not present */
+	/* We failed to allocate, mark all the following pnums as analt present */
 	for_each_present_section_nr(pnum_begin, pnum) {
 		struct mem_section *ms;
 
@@ -552,7 +552,7 @@ failed:
 }
 
 /*
- * Allocate the accumulated non-linear sections, allocate a mem_map
+ * Allocate the accumulated analn-linear sections, allocate a mem_map
  * for each and record the physical to section mapping.
  */
 void __init sparse_init(void)
@@ -575,13 +575,13 @@ void __init sparse_init(void)
 			map_count++;
 			continue;
 		}
-		/* Init node with sections in range [pnum_begin, pnum_end) */
+		/* Init analde with sections in range [pnum_begin, pnum_end) */
 		sparse_init_nid(nid_begin, pnum_begin, pnum_end, map_count);
 		nid_begin = nid;
 		pnum_begin = pnum_end;
 		map_count = 1;
 	}
-	/* cover the last node */
+	/* cover the last analde */
 	sparse_init_nid(nid_begin, pnum_begin, pnum_end, map_count);
 	vmemmap_populate_print_last();
 }
@@ -704,7 +704,7 @@ static struct page * __meminit populate_section_memmap(unsigned long pfn,
 		unsigned long nr_pages, int nid, struct vmem_altmap *altmap,
 		struct dev_pagemap *pgmap)
 {
-	return kvmalloc_node(array_size(sizeof(struct page),
+	return kvmalloc_analde(array_size(sizeof(struct page),
 					PAGES_PER_SECTION), GFP_KERNEL, nid);
 }
 
@@ -726,7 +726,7 @@ static void free_map_bootmem(struct page *memmap)
 	for (i = 0; i < nr_pages; i++, page++) {
 		magic = page->index;
 
-		BUG_ON(magic == NODE_INFO);
+		BUG_ON(magic == ANALDE_INFO);
 
 		maps_section_nr = pfn_to_section_nr(page_to_pfn(page));
 		removing_section_nr = page_private(page);
@@ -735,7 +735,7 @@ static void free_map_bootmem(struct page *memmap)
 		 * When this function is called, the removing section is
 		 * logical offlined state. This means all pages are isolated
 		 * from page allocator. If removing section's memmap is placed
-		 * on the same section, it must not be freed.
+		 * on the same section, it must analt be freed.
 		 * If it is freed, page allocator may allocate it which will
 		 * be removed physically soon.
 		 */
@@ -771,7 +771,7 @@ static int fill_subsection_map(unsigned long pfn, unsigned long nr_pages)
  * 2. deactivation of a complete hot-added section.
  * 3. deactivation of a complete section from memory init.
  *
- * For 1, when subsection_map does not empty we will not be freeing the
+ * For 1, when subsection_map does analt empty we will analt be freeing the
  * usage map, but still need to free the vmemmap range.
  *
  * For 2 and 3, the SPARSEMEM_VMEMMAP={y,n} cases are unified
@@ -801,7 +801,7 @@ static void section_deactivate(unsigned long pfn, unsigned long nr_pages,
 		/*
 		 * When removing an early section, the usage map is kept (as the
 		 * usage maps of other sections fall into the same page). It
-		 * will be re-used when re-adding the section - which is then no
+		 * will be re-used when re-adding the section - which is then anal
 		 * longer an early section. If the usage map is PageReserved, it
 		 * was allocated during boot.
 		 */
@@ -837,7 +837,7 @@ static struct page * __meminit section_activate(int nid, unsigned long pfn,
 	if (!ms->usage) {
 		usage = kzalloc(mem_section_usage_size(), GFP_KERNEL);
 		if (!usage)
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 		ms->usage = usage;
 	}
 
@@ -850,10 +850,10 @@ static struct page * __meminit section_activate(int nid, unsigned long pfn,
 	}
 
 	/*
-	 * The early init code does not consider partially populated
+	 * The early init code does analt consider partially populated
 	 * initial sections, it simply assumes that memory will never be
 	 * referenced.  If we hot-add memory into such a section then we
-	 * do not need to populate the memmap and can simply reuse what
+	 * do analt need to populate the memmap and can simply reuse what
 	 * is already there.
 	 */
 	if (nr_pages < PAGES_PER_SECTION && early_section(ms))
@@ -862,7 +862,7 @@ static struct page * __meminit section_activate(int nid, unsigned long pfn,
 	memmap = populate_section_memmap(pfn, nr_pages, nid, altmap, pgmap);
 	if (!memmap) {
 		section_deactivate(pfn, nr_pages, altmap);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	return memmap;
@@ -870,7 +870,7 @@ static struct page * __meminit section_activate(int nid, unsigned long pfn,
 
 /**
  * sparse_add_section - add a memory section, or populate an existing one
- * @nid: The node to add section on
+ * @nid: The analde to add section on
  * @start_pfn: start pfn of the memory range
  * @nr_pages: number of pfns to add in the section
  * @altmap: alternate pfns to allocate the memmap backing store
@@ -878,14 +878,14 @@ static struct page * __meminit section_activate(int nid, unsigned long pfn,
  *
  * This is only intended for hotplug.
  *
- * Note that only VMEMMAP supports sub-section aligned hotplug,
+ * Analte that only VMEMMAP supports sub-section aligned hotplug,
  * the proper alignment and size are gated by check_pfn_span().
  *
  *
  * Return:
  * * 0		- On success.
  * * -EEXIST	- Section has been present.
- * * -ENOMEM	- Out of memory.
+ * * -EANALMEM	- Out of memory.
  */
 int __meminit sparse_add_section(int nid, unsigned long start_pfn,
 		unsigned long nr_pages, struct vmem_altmap *altmap,

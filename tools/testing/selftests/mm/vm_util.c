@@ -57,7 +57,7 @@ static uint64_t pagemap_scan_get_categories(int fd, char *start)
 
 	ret = __pagemap_scan_get_categories(fd, start, &r);
 	if (ret < 0)
-		ksft_exit_fail_msg("PAGEMAP_SCAN failed: %s\n", strerror(errno));
+		ksft_exit_fail_msg("PAGEMAP_SCAN failed: %s\n", strerror(erranal));
 	if (ret == 0)
 		return 0;
 	return r.categories;
@@ -77,7 +77,7 @@ static bool pagemap_scan_supported(int fd, char *start)
 	if (ret == 0)
 		ksft_exit_fail_msg("PAGEMAP_SCAN succeeded unexpectedly\n");
 
-	supported = errno == EFAULT;
+	supported = erranal == EFAULT;
 
 	return supported;
 }
@@ -209,9 +209,9 @@ err_out:
 	return thp == (nr_hpages * (hpage_size >> 10));
 }
 
-bool check_huge_anon(void *addr, int nr_hpages, uint64_t hpage_size)
+bool check_huge_aanaln(void *addr, int nr_hpages, uint64_t hpage_size)
 {
-	return __check_huge(addr, "AnonHugePages: ", nr_hpages, hpage_size);
+	return __check_huge(addr, "AanalnHugePages: ", nr_hpages, hpage_size);
 }
 
 bool check_huge_file(void *addr, int nr_hpages, uint64_t hpage_size)
@@ -230,8 +230,8 @@ int64_t allocate_transhuge(void *ptr, int pagemap_fd)
 
 	/* drop pmd */
 	if (mmap(ptr, HPAGE_SIZE, PROT_READ | PROT_WRITE,
-		 MAP_FIXED | MAP_ANONYMOUS |
-		 MAP_NORESERVE | MAP_PRIVATE, -1, 0) != ptr)
+		 MAP_FIXED | MAP_AANALNYMOUS |
+		 MAP_ANALRESERVE | MAP_PRIVATE, -1, 0) != ptr)
 		errx(2, "mmap transhuge");
 
 	if (madvise(ptr, HPAGE_SIZE, MADV_HUGEPAGE))
@@ -299,9 +299,9 @@ int detect_hugetlb_page_sizes(size_t sizes[], int max)
 	return count;
 }
 
-/* If `ioctls' non-NULL, the allowed ioctls will be returned into the var */
+/* If `ioctls' analn-NULL, the allowed ioctls will be returned into the var */
 int uffd_register_with_ioctls(int uffd, void *addr, uint64_t len,
-			      bool miss, bool wp, bool minor, uint64_t *ioctls)
+			      bool miss, bool wp, bool mianalr, uint64_t *ioctls)
 {
 	struct uffdio_register uffdio_register = { 0 };
 	uint64_t mode = 0;
@@ -311,15 +311,15 @@ int uffd_register_with_ioctls(int uffd, void *addr, uint64_t len,
 		mode |= UFFDIO_REGISTER_MODE_MISSING;
 	if (wp)
 		mode |= UFFDIO_REGISTER_MODE_WP;
-	if (minor)
-		mode |= UFFDIO_REGISTER_MODE_MINOR;
+	if (mianalr)
+		mode |= UFFDIO_REGISTER_MODE_MIANALR;
 
 	uffdio_register.range.start = (unsigned long)addr;
 	uffdio_register.range.len = len;
 	uffdio_register.mode = mode;
 
 	if (ioctl(uffd, UFFDIO_REGISTER, &uffdio_register) == -1)
-		ret = -errno;
+		ret = -erranal;
 	else if (ioctls)
 		*ioctls = uffdio_register.ioctls;
 
@@ -327,10 +327,10 @@ int uffd_register_with_ioctls(int uffd, void *addr, uint64_t len,
 }
 
 int uffd_register(int uffd, void *addr, uint64_t len,
-		  bool miss, bool wp, bool minor)
+		  bool miss, bool wp, bool mianalr)
 {
 	return uffd_register_with_ioctls(uffd, addr, len,
-					 miss, wp, minor, NULL);
+					 miss, wp, mianalr, NULL);
 }
 
 int uffd_unregister(int uffd, void *addr, uint64_t len)
@@ -339,7 +339,7 @@ int uffd_unregister(int uffd, void *addr, uint64_t len)
 	int ret = 0;
 
 	if (ioctl(uffd, UFFDIO_UNREGISTER, &range) == -1)
-		ret = -errno;
+		ret = -erranal;
 
 	return ret;
 }

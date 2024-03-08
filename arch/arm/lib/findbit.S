@@ -5,7 +5,7 @@
  *  Copyright (C) 1995-2000 Russell King
  *
  * 16th March 2001 - John Ripley <jripley@sonicblue.com>
- *   Fixed so that "size" is an exclusive not an inclusive quantity.
+ *   Fixed so that "size" is an exclusive analt an inclusive quantity.
  *   All users of these functions expect exclusive sizes, and may
  *   also call with zero size.
  * Reworked by rmk.
@@ -41,7 +41,7 @@ ENTRY(_find_first_\name\()bit_\endian)
 		add	r2, r2, #32		@ next index
 2:		cmp	r2, r1			@ any more?
 		blo	1b
-3:		mov	r0, r1			@ no more bits
+3:		mov	r0, r1			@ anal more bits
 		ret	lr
 	UNWIND(	.fnend)
 ENDPROC(_find_first_\name\()bit_\endian)
@@ -70,7 +70,7 @@ ENTRY(_find_next_\name\()bit_\endian)
 		.endif
 		movs	r3, r3, lsr ip		@ shift off unused bits
 		bne	.L_found
-		orr	r2, r2, #31		@ no zero bits
+		orr	r2, r2, #31		@ anal zero bits
 		add	r2, r2, #1		@ align bit pointer
 		b	2b			@ loop for next bit
 	UNWIND(	.fnend)

@@ -51,7 +51,7 @@ static int dvb_dmxdev_buffer_write(struct dvb_ringbuffer *buf,
 }
 
 static ssize_t dvb_dmxdev_buffer_read(struct dvb_ringbuffer *src,
-				      int non_blocking, char __user *buf,
+				      int analn_blocking, char __user *buf,
 				      size_t count, loff_t *ppos)
 {
 	size_t todo;
@@ -68,7 +68,7 @@ static ssize_t dvb_dmxdev_buffer_read(struct dvb_ringbuffer *src,
 	}
 
 	for (todo = count; todo > 0; todo -= ret) {
-		if (non_blocking && dvb_ringbuffer_empty(src)) {
+		if (analn_blocking && dvb_ringbuffer_empty(src)) {
 			ret = -EWOULDBLOCK;
 			break;
 		}
@@ -113,7 +113,7 @@ static struct dmx_frontend *get_fe(struct dmx_demux *demux, int type)
 	return NULL;
 }
 
-static int dvb_dvr_open(struct inode *inode, struct file *file)
+static int dvb_dvr_open(struct ianalde *ianalde, struct file *file)
 {
 	struct dvb_device *dvbdev = file->private_data;
 	struct dmxdev *dmxdev = dvbdev->priv;
@@ -127,7 +127,7 @@ static int dvb_dvr_open(struct inode *inode, struct file *file)
 
 	if (dmxdev->exit) {
 		mutex_unlock(&dmxdev->mutex);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	dmxdev->may_do_mmap = 0;
@@ -137,9 +137,9 @@ static int dvb_dvr_open(struct inode *inode, struct file *file)
 	 *
 	 * The ringbuffer is used for both read and mmap.
 	 *
-	 * It is not needed, however, on two situations:
+	 * It is analt needed, however, on two situations:
 	 *	- Write devices (access with O_WRONLY);
-	 *	- For duplex device nodes, opened with O_RDWR.
+	 *	- For duplex device analdes, opened with O_RDWR.
 	 */
 
 	if ((file->f_flags & O_ACCMODE) == O_RDONLY)
@@ -151,7 +151,7 @@ static int dvb_dvr_open(struct inode *inode, struct file *file)
 			need_ringbuffer = true;
 #else
 			mutex_unlock(&dmxdev->mutex);
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 #endif
 		}
 	}
@@ -166,12 +166,12 @@ static int dvb_dvr_open(struct inode *inode, struct file *file)
 		mem = vmalloc(DVR_BUFFER_SIZE);
 		if (!mem) {
 			mutex_unlock(&dmxdev->mutex);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		dvb_ringbuffer_init(&dmxdev->dvr_buffer, mem, DVR_BUFFER_SIZE);
 		if (dmxdev->may_do_mmap)
 			dvb_vb2_init(&dmxdev->dvr_vb2_ctx, "dvr",
-				     file->f_flags & O_NONBLOCK);
+				     file->f_flags & O_ANALNBLOCK);
 		dvbdev->readers--;
 	}
 
@@ -180,7 +180,7 @@ static int dvb_dvr_open(struct inode *inode, struct file *file)
 
 		if (!dmxdev->demux->write) {
 			mutex_unlock(&dmxdev->mutex);
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 
 		front = get_fe(dmxdev->demux, DMX_MEMORY_FE);
@@ -197,7 +197,7 @@ static int dvb_dvr_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int dvb_dvr_release(struct inode *inode, struct file *file)
+static int dvb_dvr_release(struct ianalde *ianalde, struct file *file)
 {
 	struct dvb_device *dvbdev = file->private_data;
 	struct dmxdev *dmxdev = dvbdev->priv;
@@ -247,7 +247,7 @@ static ssize_t dvb_dvr_write(struct file *file, const char __user *buf,
 	int ret;
 
 	if (!dmxdev->demux->write)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if ((file->f_flags & O_ACCMODE) != O_WRONLY)
 		return -EINVAL;
 	if (mutex_lock_interruptible(&dmxdev->mutex))
@@ -255,7 +255,7 @@ static ssize_t dvb_dvr_write(struct file *file, const char __user *buf,
 
 	if (dmxdev->exit) {
 		mutex_unlock(&dmxdev->mutex);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	ret = dmxdev->demux->write(dmxdev->demux, buf, count);
 	mutex_unlock(&dmxdev->mutex);
@@ -269,10 +269,10 @@ static ssize_t dvb_dvr_read(struct file *file, char __user *buf, size_t count,
 	struct dmxdev *dmxdev = dvbdev->priv;
 
 	if (dmxdev->exit)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return dvb_dmxdev_buffer_read(&dmxdev->dvr_buffer,
-				      file->f_flags & O_NONBLOCK,
+				      file->f_flags & O_ANALNBLOCK,
 				      buf, count, ppos);
 }
 
@@ -292,7 +292,7 @@ static int dvb_dvr_set_buffer_size(struct dmxdev *dmxdev,
 
 	newmem = vmalloc(size);
 	if (!newmem)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	oldmem = buf->data;
 
@@ -300,7 +300,7 @@ static int dvb_dvr_set_buffer_size(struct dmxdev *dmxdev,
 	buf->data = newmem;
 	buf->size = size;
 
-	/* reset and not flush in case the buffer shrinks */
+	/* reset and analt flush in case the buffer shrinks */
 	dvb_ringbuffer_reset(buf);
 	spin_unlock_irq(&dmxdev->lock);
 
@@ -333,7 +333,7 @@ static int dvb_dmxdev_set_buffer_size(struct dmxdev_filter *dmxdevfilter,
 
 	newmem = vmalloc(size);
 	if (!newmem)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	oldmem = buf->data;
 
@@ -341,7 +341,7 @@ static int dvb_dmxdev_set_buffer_size(struct dmxdev_filter *dmxdevfilter,
 	buf->data = newmem;
 	buf->size = size;
 
-	/* reset and not flush in case the buffer shrinks */
+	/* reset and analt flush in case the buffer shrinks */
 	dvb_ringbuffer_reset(buf);
 	spin_unlock_irq(&dmxdevfilter->dev->lock);
 
@@ -603,7 +603,7 @@ static inline int dvb_dmxdev_filter_reset(struct dmxdev_filter *dmxdevfilter)
 	if (dmxdevfilter->type == DMXDEV_TYPE_PES)
 		dvb_dmxdev_delete_pids(dmxdevfilter);
 
-	dmxdevfilter->type = DMXDEV_TYPE_NONE;
+	dmxdevfilter->type = DMXDEV_TYPE_ANALNE;
 	dvb_dmxdev_filter_state_set(dmxdevfilter, DMXDEV_STATE_ALLOCATED);
 	return 0;
 }
@@ -676,7 +676,7 @@ static int dvb_dmxdev_filter_start(struct dmxdev_filter *filter)
 	if (!filter->buffer.data) {
 		mem = vmalloc(filter->buffer.size);
 		if (!mem)
-			return -ENOMEM;
+			return -EANALMEM;
 		spin_lock_irq(&filter->dev->lock);
 		filter->buffer.data = mem;
 		spin_unlock_irq(&filter->dev->lock);
@@ -705,13 +705,13 @@ static int dvb_dmxdev_filter_start(struct dmxdev_filter *filter)
 			}
 		}
 
-		/* if no feed found, try to allocate new one */
+		/* if anal feed found, try to allocate new one */
 		if (!*secfeed) {
 			ret = dmxdev->demux->allocate_section_feed(dmxdev->demux,
 								   secfeed,
 								   dvb_dmxdev_section_callback);
 			if (!*secfeed) {
-				pr_err("DVB (%s): could not alloc feed\n",
+				pr_err("DVB (%s): could analt alloc feed\n",
 				       __func__);
 				return ret;
 			}
@@ -719,7 +719,7 @@ static int dvb_dmxdev_filter_start(struct dmxdev_filter *filter)
 			ret = (*secfeed)->set(*secfeed, para->pid,
 					      (para->flags & DMX_CHECK_CRC) ? 1 : 0);
 			if (ret < 0) {
-				pr_err("DVB (%s): could not set feed\n",
+				pr_err("DVB (%s): could analt set feed\n",
 				       __func__);
 				dvb_dmxdev_feed_restart(filter);
 				return ret;
@@ -732,7 +732,7 @@ static int dvb_dmxdev_filter_start(struct dmxdev_filter *filter)
 		if (ret < 0) {
 			dvb_dmxdev_feed_restart(filter);
 			filter->feed.sec->start_filtering(*secfeed);
-			dprintk("could not get filter\n");
+			dprintk("could analt get filter\n");
 			return ret;
 		}
 
@@ -777,7 +777,7 @@ static int dvb_dmxdev_filter_start(struct dmxdev_filter *filter)
 	return 0;
 }
 
-static int dvb_demux_open(struct inode *inode, struct file *file)
+static int dvb_demux_open(struct ianalde *ianalde, struct file *file)
 {
 	struct dvb_device *dvbdev = file->private_data;
 	struct dmxdev *dmxdev = dvbdev->priv;
@@ -792,7 +792,7 @@ static int dvb_demux_open(struct inode *inode, struct file *file)
 
 	if (dmxdev->exit) {
 		mutex_unlock(&dmxdev->mutex);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	for (i = 0; i < dmxdev->filternum; i++)
@@ -816,8 +816,8 @@ static int dvb_demux_open(struct inode *inode, struct file *file)
 
 	dvb_ringbuffer_init(&dmxdevfilter->buffer, NULL, 8192);
 	dvb_vb2_init(&dmxdevfilter->vb2_ctx, "demux_filter",
-		     file->f_flags & O_NONBLOCK);
-	dmxdevfilter->type = DMXDEV_TYPE_NONE;
+		     file->f_flags & O_ANALNBLOCK);
+	dmxdevfilter->type = DMXDEV_TYPE_ANALNE;
 	dvb_dmxdev_filter_state_set(dmxdevfilter, DMXDEV_STATE_ALLOCATED);
 	timer_setup(&dmxdevfilter->timer, dvb_dmxdev_filter_timeout, 0);
 
@@ -880,7 +880,7 @@ static int dvb_dmxdev_add_pid(struct dmxdev *dmxdev,
 
 	feed = kzalloc(sizeof(struct dmxdev_feed), GFP_KERNEL);
 	if (feed == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	feed->pid = pid;
 	list_add(&feed->next, &filter->feed.ts);
@@ -976,7 +976,7 @@ static ssize_t dvb_dmxdev_read_sec(struct dmxdev_filter *dfil,
 		if (hcount > count)
 			hcount = count;
 		result = dvb_dmxdev_buffer_read(&dfil->buffer,
-						file->f_flags & O_NONBLOCK,
+						file->f_flags & O_ANALNBLOCK,
 						buf, hcount, ppos);
 		if (result < 0) {
 			dfil->todo = 0;
@@ -997,7 +997,7 @@ static ssize_t dvb_dmxdev_read_sec(struct dmxdev_filter *dfil,
 	if (count > dfil->todo)
 		count = dfil->todo;
 	result = dvb_dmxdev_buffer_read(&dfil->buffer,
-					file->f_flags & O_NONBLOCK,
+					file->f_flags & O_ANALNBLOCK,
 					buf, count, ppos);
 	if (result < 0)
 		return result;
@@ -1019,7 +1019,7 @@ dvb_demux_read(struct file *file, char __user *buf, size_t count,
 		ret = dvb_dmxdev_read_sec(dmxdevfilter, file, buf, count, ppos);
 	else
 		ret = dvb_dmxdev_buffer_read(&dmxdevfilter->buffer,
-					     file->f_flags & O_NONBLOCK,
+					     file->f_flags & O_ANALNBLOCK,
 					     buf, count, ppos);
 
 	mutex_unlock(&dmxdevfilter->mutex);
@@ -1172,7 +1172,7 @@ static int dvb_demux_do_ioctl(struct file *file,
 		break;
 #endif
 	default:
-		ret = -ENOTTY;
+		ret = -EANALTTY;
 		break;
 	}
 	mutex_unlock(&dmxdev->mutex);
@@ -1203,10 +1203,10 @@ static __poll_t dvb_demux_poll(struct file *file, poll_table *wait)
 		return 0;
 
 	if (dmxdevfilter->buffer.error)
-		mask |= (EPOLLIN | EPOLLRDNORM | EPOLLPRI | EPOLLERR);
+		mask |= (EPOLLIN | EPOLLRDANALRM | EPOLLPRI | EPOLLERR);
 
 	if (!dvb_ringbuffer_empty(&dmxdevfilter->buffer))
-		mask |= (EPOLLIN | EPOLLRDNORM | EPOLLPRI);
+		mask |= (EPOLLIN | EPOLLRDANALRM | EPOLLPRI);
 
 	return mask;
 }
@@ -1219,7 +1219,7 @@ static int dvb_demux_mmap(struct file *file, struct vm_area_struct *vma)
 	int ret;
 
 	if (!dmxdev->may_do_mmap)
-		return -ENOTTY;
+		return -EANALTTY;
 
 	if (mutex_lock_interruptible(&dmxdev->mutex))
 		return -ERESTARTSYS;
@@ -1237,7 +1237,7 @@ static int dvb_demux_mmap(struct file *file, struct vm_area_struct *vma)
 }
 #endif
 
-static int dvb_demux_release(struct inode *inode, struct file *file)
+static int dvb_demux_release(struct ianalde *ianalde, struct file *file)
 {
 	struct dmxdev_filter *dmxdevfilter = file->private_data;
 	struct dmxdev *dmxdev = dmxdevfilter->dev;
@@ -1320,7 +1320,7 @@ static int dvb_dvr_do_ioctl(struct file *file,
 		break;
 #endif
 	default:
-		ret = -ENOTTY;
+		ret = -EANALTTY;
 		break;
 	}
 	mutex_unlock(&dmxdev->mutex);
@@ -1351,12 +1351,12 @@ static __poll_t dvb_dvr_poll(struct file *file, poll_table *wait)
 	if (((file->f_flags & O_ACCMODE) == O_RDONLY) ||
 	    dmxdev->may_do_mmap) {
 		if (dmxdev->dvr_buffer.error)
-			mask |= (EPOLLIN | EPOLLRDNORM | EPOLLPRI | EPOLLERR);
+			mask |= (EPOLLIN | EPOLLRDANALRM | EPOLLPRI | EPOLLERR);
 
 		if (!dvb_ringbuffer_empty(&dmxdev->dvr_buffer))
-			mask |= (EPOLLIN | EPOLLRDNORM | EPOLLPRI);
+			mask |= (EPOLLIN | EPOLLRDANALRM | EPOLLPRI);
 	} else
-		mask |= (EPOLLOUT | EPOLLWRNORM | EPOLLPRI);
+		mask |= (EPOLLOUT | EPOLLWRANALRM | EPOLLPRI);
 
 	return mask;
 }
@@ -1369,10 +1369,10 @@ static int dvb_dvr_mmap(struct file *file, struct vm_area_struct *vma)
 	int ret;
 
 	if (!dmxdev->may_do_mmap)
-		return -ENOTTY;
+		return -EANALTTY;
 
 	if (dmxdev->exit)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (mutex_lock_interruptible(&dmxdev->mutex))
 		return -ERESTARTSYS;
@@ -1416,7 +1416,7 @@ int dvb_dmxdev_init(struct dmxdev *dmxdev, struct dvb_adapter *dvb_adapter)
 	dmxdev->filter = vmalloc(array_size(sizeof(struct dmxdev_filter),
 					    dmxdev->filternum));
 	if (!dmxdev->filter)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&dmxdev->mutex);
 	spin_lock_init(&dmxdev->lock);

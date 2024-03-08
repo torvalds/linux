@@ -9,21 +9,21 @@
 #ifdef __KERNEL__
 
 /*
- * Note: DISABLE_BRANCH_PROFILING can be used by special lowlevel code
+ * Analte: DISABLE_BRANCH_PROFILING can be used by special lowlevel code
  * to disable branch tracing on a per file basis.
  */
 void ftrace_likely_update(struct ftrace_likely_data *f, int val,
 			  int expect, int is_constant);
 #if defined(CONFIG_TRACE_BRANCH_PROFILING) \
     && !defined(DISABLE_BRANCH_PROFILING) && !defined(__CHECKER__)
-#define likely_notrace(x)	__builtin_expect(!!(x), 1)
-#define unlikely_notrace(x)	__builtin_expect(!!(x), 0)
+#define likely_analtrace(x)	__builtin_expect(!!(x), 1)
+#define unlikely_analtrace(x)	__builtin_expect(!!(x), 0)
 
 #define __branch_check__(x, expect, is_constant) ({			\
 			long ______r;					\
 			static struct ftrace_likely_data		\
 				__aligned(4)				\
-				__section("_ftrace_annotated_branch")	\
+				__section("_ftrace_ananaltated_branch")	\
 				______f = {				\
 				.data.func = __func__,			\
 				.data.file = __FILE__,			\
@@ -36,7 +36,7 @@ void ftrace_likely_update(struct ftrace_likely_data *f, int val,
 		})
 
 /*
- * Using __builtin_constant_p(x) to ignore cases where the return
+ * Using __builtin_constant_p(x) to iganalre cases where the return
  * value is always the same.  This idea is taken from a similar patch
  * written by Daniel Walker.
  */
@@ -75,8 +75,8 @@ void ftrace_likely_update(struct ftrace_likely_data *f, int val,
 #else
 # define likely(x)	__builtin_expect(!!(x), 1)
 # define unlikely(x)	__builtin_expect(!!(x), 0)
-# define likely_notrace(x)	likely(x)
-# define unlikely_notrace(x)	unlikely(x)
+# define likely_analtrace(x)	likely(x)
+# define unlikely_analtrace(x)	unlikely(x)
 #endif
 
 /* Optimization barrier */
@@ -89,7 +89,7 @@ void ftrace_likely_update(struct ftrace_likely_data *f, int val,
 /*
  * This version is i.e. to prevent dead stores elimination on @ptr
  * where gcc and llvm may behave differently when otherwise using
- * normal barrier(): while gcc behavior gets along with a normal
+ * analrmal barrier(): while gcc behavior gets along with a analrmal
  * barrier(), llvm needs an explicit input variable to be assumed
  * clobbered. The issue is as follows: while the inline asm might
  * access any memory it wants, the compiler could have fit all of
@@ -112,46 +112,46 @@ void ftrace_likely_update(struct ftrace_likely_data *f, int val,
 /*
  * These macros help objtool understand GCC code flow for unreachable code.
  * The __COUNTER__ based labels are a hack to make each instance of the macros
- * unique, to convince GCC not to merge duplicate inline asm statements.
+ * unique, to convince GCC analt to merge duplicate inline asm statements.
  */
 #define __stringify_label(n) #n
 
-#define __annotate_unreachable(c) ({					\
+#define __ananaltate_unreachable(c) ({					\
 	asm volatile(__stringify_label(c) ":\n\t"			\
 		     ".pushsection .discard.unreachable\n\t"		\
 		     ".long " __stringify_label(c) "b - .\n\t"		\
 		     ".popsection\n\t" : : "i" (c));			\
 })
-#define annotate_unreachable() __annotate_unreachable(__COUNTER__)
+#define ananaltate_unreachable() __ananaltate_unreachable(__COUNTER__)
 
-/* Annotate a C jump table to allow objtool to follow the code flow */
-#define __annotate_jump_table __section(".rodata..c_jump_table")
+/* Ananaltate a C jump table to allow objtool to follow the code flow */
+#define __ananaltate_jump_table __section(".rodata..c_jump_table")
 
 #else /* !CONFIG_OBJTOOL */
-#define annotate_unreachable()
-#define __annotate_jump_table
+#define ananaltate_unreachable()
+#define __ananaltate_jump_table
 #endif /* CONFIG_OBJTOOL */
 
 #ifndef unreachable
 # define unreachable() do {		\
-	annotate_unreachable();		\
+	ananaltate_unreachable();		\
 	__builtin_unreachable();	\
 } while (0)
 #endif
 
 /*
  * KENTRY - kernel entry point
- * This can be used to annotate symbols (functions or data) that are used
+ * This can be used to ananaltate symbols (functions or data) that are used
  * without their linker symbol being referenced explicitly. For example,
  * interrupt vector handlers, or functions in the kernel image that are found
  * programatically.
  *
- * Not required for symbols exported with EXPORT_SYMBOL, or initcalls. Those
+ * Analt required for symbols exported with EXPORT_SYMBOL, or initcalls. Those
  * are handled in their own way (with KEEP() in linker scripts).
  *
  * KENTRY can be avoided if the symbols in question are marked as KEEP() in the
  * linker script. For example an architecture could KEEP() its entire
- * boot/exception vector code rather than annotate each function and data.
+ * boot/exception vector code rather than ananaltate each function and data.
  */
 #ifndef KENTRY
 # define KENTRY(sym)						\
@@ -183,11 +183,11 @@ void ftrace_likely_update(struct ftrace_likely_data *f, int val,
  * data_race - mark an expression as containing intentional data races
  *
  * This data_race() macro is useful for situations in which data races
- * should be forgiven.  One example is diagnostic code that accesses
- * shared variables but is not a part of the core synchronization design.
+ * should be forgiven.  One example is diaganalstic code that accesses
+ * shared variables but is analt a part of the core synchronization design.
  *
- * This macro *does not* affect normal code generation, but is a hint
- * to tooling that data races here are to be ignored.
+ * This macro *does analt* affect analrmal code generation, but is a hint
+ * to tooling that data races here are to be iganalred.
  */
 #define data_race(expr)							\
 ({									\

@@ -309,7 +309,7 @@ static irqreturn_t mxc4005_trigger_handler(int irq, void *private)
 					   pf->timestamp);
 
 err:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -394,7 +394,7 @@ static int mxc4005_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	regmap = devm_regmap_init_i2c(client, &mxc4005_regmap_config);
 	if (IS_ERR(regmap)) {
@@ -438,7 +438,7 @@ static int mxc4005_probe(struct i2c_client *client)
 							   indio_dev->name,
 							   iio_device_id(indio_dev));
 		if (!data->dready_trig)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		ret = devm_request_threaded_irq(&client->dev, client->irq,
 						iio_trigger_generic_data_rdy_poll,

@@ -158,9 +158,9 @@ static const struct vb2_ops rkisp1_stats_vb2_ops = {
 static int
 rkisp1_stats_init_vb2_queue(struct vb2_queue *q, struct rkisp1_stats *stats)
 {
-	struct rkisp1_vdev_node *node;
+	struct rkisp1_vdev_analde *analde;
 
-	node = container_of(q, struct rkisp1_vdev_node, buf_queue);
+	analde = container_of(q, struct rkisp1_vdev_analde, buf_queue);
 
 	q->type = V4L2_BUF_TYPE_META_CAPTURE;
 	q->io_modes = VB2_MMAP | VB2_USERPTR | VB2_DMABUF;
@@ -168,8 +168,8 @@ rkisp1_stats_init_vb2_queue(struct vb2_queue *q, struct rkisp1_stats *stats)
 	q->ops = &rkisp1_stats_vb2_ops;
 	q->mem_ops = &vb2_vmalloc_memops;
 	q->buf_struct_size = sizeof(struct rkisp1_buffer);
-	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
-	q->lock = &node->vlock;
+	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MOANALTONIC;
+	q->lock = &analde->vlock;
 
 	return vb2_queue_init(q);
 }
@@ -436,12 +436,12 @@ static void rkisp1_init_stats(struct rkisp1_stats *stats)
 int rkisp1_stats_register(struct rkisp1_device *rkisp1)
 {
 	struct rkisp1_stats *stats = &rkisp1->stats;
-	struct rkisp1_vdev_node *node = &stats->vnode;
-	struct video_device *vdev = &node->vdev;
+	struct rkisp1_vdev_analde *analde = &stats->vanalde;
+	struct video_device *vdev = &analde->vdev;
 	int ret;
 
 	stats->rkisp1 = rkisp1;
-	mutex_init(&node->vlock);
+	mutex_init(&analde->vlock);
 	INIT_LIST_HEAD(&stats->stat);
 	spin_lock_init(&stats->lock);
 
@@ -451,17 +451,17 @@ int rkisp1_stats_register(struct rkisp1_device *rkisp1)
 	vdev->ioctl_ops = &rkisp1_stats_ioctl;
 	vdev->fops = &rkisp1_stats_fops;
 	vdev->release = video_device_release_empty;
-	vdev->lock = &node->vlock;
+	vdev->lock = &analde->vlock;
 	vdev->v4l2_dev = &rkisp1->v4l2_dev;
-	vdev->queue = &node->buf_queue;
+	vdev->queue = &analde->buf_queue;
 	vdev->device_caps = V4L2_CAP_META_CAPTURE | V4L2_CAP_STREAMING;
 	vdev->vfl_dir =  VFL_DIR_RX;
 	rkisp1_stats_init_vb2_queue(vdev->queue, stats);
 	rkisp1_init_stats(stats);
 	video_set_drvdata(vdev, stats);
 
-	node->pad.flags = MEDIA_PAD_FL_SINK;
-	ret = media_entity_pads_init(&vdev->entity, 1, &node->pad);
+	analde->pad.flags = MEDIA_PAD_FL_SINK;
+	ret = media_entity_pads_init(&vdev->entity, 1, &analde->pad);
 	if (ret)
 		goto error;
 
@@ -476,7 +476,7 @@ int rkisp1_stats_register(struct rkisp1_device *rkisp1)
 
 error:
 	media_entity_cleanup(&vdev->entity);
-	mutex_destroy(&node->vlock);
+	mutex_destroy(&analde->vlock);
 	stats->rkisp1 = NULL;
 	return ret;
 }
@@ -484,13 +484,13 @@ error:
 void rkisp1_stats_unregister(struct rkisp1_device *rkisp1)
 {
 	struct rkisp1_stats *stats = &rkisp1->stats;
-	struct rkisp1_vdev_node *node = &stats->vnode;
-	struct video_device *vdev = &node->vdev;
+	struct rkisp1_vdev_analde *analde = &stats->vanalde;
+	struct video_device *vdev = &analde->vdev;
 
 	if (!stats->rkisp1)
 		return;
 
 	vb2_video_unregister_device(vdev);
 	media_entity_cleanup(&vdev->entity);
-	mutex_destroy(&node->vlock);
+	mutex_destroy(&analde->vlock);
 }

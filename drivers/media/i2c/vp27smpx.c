@@ -42,7 +42,7 @@ static void vp27smpx_set_audmode(struct v4l2_subdev *sd, u32 audmode)
 	u8 data[3] = { 0x00, 0x00, 0x04 };
 
 	switch (audmode) {
-	case V4L2_TUNER_MODE_MONO:
+	case V4L2_TUNER_MODE_MOANAL:
 	case V4L2_TUNER_MODE_LANG1:
 		break;
 	case V4L2_TUNER_MODE_STEREO:
@@ -68,7 +68,7 @@ static int vp27smpx_s_radio(struct v4l2_subdev *sd)
 	return 0;
 }
 
-static int vp27smpx_s_std(struct v4l2_subdev *sd, v4l2_std_id norm)
+static int vp27smpx_s_std(struct v4l2_subdev *sd, v4l2_std_id analrm)
 {
 	struct vp27smpx_state *state = to_state(sd);
 
@@ -94,7 +94,7 @@ static int vp27smpx_g_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *vt)
 	vt->audmode = state->audmode;
 	vt->capability = V4L2_TUNER_CAP_STEREO |
 		V4L2_TUNER_CAP_LANG1 | V4L2_TUNER_CAP_LANG2;
-	vt->rxsubchans = V4L2_TUNER_SUB_MONO;
+	vt->rxsubchans = V4L2_TUNER_SUB_MOANAL;
 	return 0;
 }
 
@@ -152,7 +152,7 @@ static int vp27smpx_probe(struct i2c_client *client)
 
 	state = devm_kzalloc(&client->dev, sizeof(*state), GFP_KERNEL);
 	if (state == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	sd = &state->sd;
 	v4l2_i2c_subdev_init(sd, client, &vp27smpx_ops);
 	state->audmode = V4L2_TUNER_MODE_STEREO;

@@ -13,7 +13,7 @@
  * struct venc_vpu_inst - encoder VPU driver instance
  * @wq_hd: wait queue used for vpu cmd trigger then wait vpu interrupt done
  * @signaled: flag used for checking vpu interrupt done
- * @failure: flag to show vpu cmd succeeds or not
+ * @failure: flag to show vpu cmd succeeds or analt
  * @state: enum venc_ipi_msg_enc_state
  * @bs_size: bitstream size for skip frame case usage
  * @is_key_frm: key frame flag

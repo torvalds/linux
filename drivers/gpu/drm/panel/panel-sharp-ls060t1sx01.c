@@ -196,7 +196,7 @@ static int sharp_ls060_get_modes(struct drm_panel *panel,
 
 	mode = drm_mode_duplicate(connector->dev, &sharp_ls060_mode);
 	if (!mode)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drm_mode_set_name(mode);
 
@@ -222,7 +222,7 @@ static int sharp_ls060_probe(struct mipi_dsi_device *dsi)
 
 	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctx->vddi_supply = devm_regulator_get(dev, "vddi");
 	if (IS_ERR(ctx->vddi_supply))
@@ -251,8 +251,8 @@ static int sharp_ls060_probe(struct mipi_dsi_device *dsi)
 	dsi->lanes = 4;
 	dsi->format = MIPI_DSI_FMT_RGB888;
 	dsi->mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST |
-			  MIPI_DSI_MODE_NO_EOT_PACKET |
-			  MIPI_DSI_CLOCK_NON_CONTINUOUS;
+			  MIPI_DSI_MODE_ANAL_EOT_PACKET |
+			  MIPI_DSI_CLOCK_ANALN_CONTINUOUS;
 
 	drm_panel_init(&ctx->panel, dev, &sharp_ls060_panel_funcs,
 		       DRM_MODE_CONNECTOR_DSI);

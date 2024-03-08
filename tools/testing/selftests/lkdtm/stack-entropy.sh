@@ -11,9 +11,9 @@ KSELFTEST_SKIP_TEST=4
 if [ ! -r $TRIGGER ] ; then
 	/sbin/modprobe -q lkdtm || true
 	if [ ! -r $TRIGGER ] ; then
-		echo "Cannot find $TRIGGER (missing CONFIG_LKDTM?)"
+		echo "Cananalt find $TRIGGER (missing CONFIG_LKDTM?)"
 	else
-		echo "Cannot write $TRIGGER (need to run as root?)"
+		echo "Cananalt write $TRIGGER (need to run as root?)"
 	fi
 	# Skip this test
 	exit $KSELFTEST_SKIP_TEST

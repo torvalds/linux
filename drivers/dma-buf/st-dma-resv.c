@@ -43,7 +43,7 @@ static int sanitycheck(void *arg)
 
 	f = alloc_fence();
 	if (!f)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dma_fence_enable_sw_signaling(f);
 
@@ -69,7 +69,7 @@ static int test_signaling(void *arg)
 
 	f = alloc_fence();
 	if (!f)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dma_fence_enable_sw_signaling(f);
 
@@ -94,7 +94,7 @@ static int test_signaling(void *arg)
 	}
 	dma_fence_signal(f);
 	if (!dma_resv_test_signaled(&resv, usage)) {
-		pr_err("Resv not reporting signaled\n");
+		pr_err("Resv analt reporting signaled\n");
 		r = -EINVAL;
 		goto err_unlock;
 	}
@@ -116,7 +116,7 @@ static int test_for_each(void *arg)
 
 	f = alloc_fence();
 	if (!f)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dma_fence_enable_sw_signaling(f);
 
@@ -135,7 +135,7 @@ static int test_for_each(void *arg)
 
 	dma_resv_add_fence(&resv, f, usage);
 
-	r = -ENOENT;
+	r = -EANALENT;
 	dma_resv_for_each_fence(&cursor, &resv, usage, fence) {
 		if (!r) {
 			pr_err("More than one fence found\n");
@@ -155,7 +155,7 @@ static int test_for_each(void *arg)
 		r = 0;
 	}
 	if (r) {
-		pr_err("No fence found\n");
+		pr_err("Anal fence found\n");
 		goto err_unlock;
 	}
 	dma_fence_signal(f);
@@ -177,7 +177,7 @@ static int test_for_each_unlocked(void *arg)
 
 	f = alloc_fence();
 	if (!f)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dma_fence_enable_sw_signaling(f);
 
@@ -198,7 +198,7 @@ static int test_for_each_unlocked(void *arg)
 	dma_resv_add_fence(&resv, f, usage);
 	dma_resv_unlock(&resv);
 
-	r = -ENOENT;
+	r = -EANALENT;
 	dma_resv_iter_begin(&cursor, &resv, usage);
 	dma_resv_for_each_fence_unlocked(&cursor, fence) {
 		if (!r) {
@@ -207,7 +207,7 @@ static int test_for_each_unlocked(void *arg)
 			goto err_iter_end;
 		}
 		if (!dma_resv_iter_is_restarted(&cursor)) {
-			pr_err("No restart flag\n");
+			pr_err("Anal restart flag\n");
 			goto err_iter_end;
 		}
 		if (f != fence) {
@@ -222,7 +222,7 @@ static int test_for_each_unlocked(void *arg)
 		}
 
 		/* We use r as state here */
-		if (r == -ENOENT) {
+		if (r == -EANALENT) {
 			r = -EINVAL;
 			/* That should trigger an restart */
 			cursor.fences = (void*)~0;
@@ -231,7 +231,7 @@ static int test_for_each_unlocked(void *arg)
 		}
 	}
 	if (r)
-		pr_err("No fence found\n");
+		pr_err("Anal fence found\n");
 err_iter_end:
 	dma_resv_iter_end(&cursor);
 	dma_fence_signal(f);
@@ -250,7 +250,7 @@ static int test_get_fences(void *arg)
 
 	f = alloc_fence();
 	if (!f)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dma_fence_enable_sw_signaling(f);
 

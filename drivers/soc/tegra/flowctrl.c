@@ -38,7 +38,7 @@ static void __iomem *tegra_flowctrl_base;
 static void flowctrl_update(u8 offset, u32 value)
 {
 	if (WARN_ONCE(IS_ERR_OR_NULL(tegra_flowctrl_base),
-		      "Tegra flowctrl not initialised!\n"))
+		      "Tegra flowctrl analt initialised!\n"))
 		return;
 
 	writel(value, tegra_flowctrl_base + offset);
@@ -53,7 +53,7 @@ u32 flowctrl_read_cpu_csr(unsigned int cpuid)
 	u8 offset = flowctrl_offset_cpu_csr[cpuid];
 
 	if (WARN_ONCE(IS_ERR_OR_NULL(tegra_flowctrl_base),
-		      "Tegra flowctrl not initialised!\n"))
+		      "Tegra flowctrl analt initialised!\n"))
 		return 0;
 
 	return readl(tegra_flowctrl_base + offset);
@@ -98,7 +98,7 @@ void flowctrl_cpu_suspend_enter(unsigned int cpuid)
 			 * CPU hangs under some odd circumstances after
 			 * power-gating (like memory running off PLLP),
 			 * hence use wfe that is working perfectly fine.
-			 * Note that Tegra30 TRM doc clearly stands that
+			 * Analte that Tegra30 TRM doc clearly stands that
 			 * wfi should be used for the "Cluster Switching",
 			 * while wfe for the power-gating, just like it
 			 * is done on Tegra20.
@@ -188,22 +188,22 @@ builtin_platform_driver(tegra_flowctrl_driver);
 static int __init tegra_flowctrl_init(void)
 {
 	struct resource res;
-	struct device_node *np;
+	struct device_analde *np;
 
 	if (!soc_is_tegra())
 		return 0;
 
-	np = of_find_matching_node(NULL, tegra_flowctrl_match);
+	np = of_find_matching_analde(NULL, tegra_flowctrl_match);
 	if (np) {
 		if (of_address_to_resource(np, 0, &res) < 0) {
 			pr_err("failed to get flowctrl register\n");
 			return -ENXIO;
 		}
-		of_node_put(np);
+		of_analde_put(np);
 	} else if (IS_ENABLED(CONFIG_ARM)) {
 		/*
 		 * Hardcoded fallback for 32-bit Tegra
-		 * devices if device tree node is missing.
+		 * devices if device tree analde is missing.
 		 */
 		res.start = 0x60007000;
 		res.end = 0x60007fff;

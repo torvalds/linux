@@ -22,7 +22,7 @@
 		/* Additional memory used by Samsung firmware modifications */
 		tz-apps@85500000 {
 			reg = <0x0 0x85500000 0x0 0xb00000>;
-			no-map;
+			anal-map;
 		};
 	};
 

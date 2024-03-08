@@ -16,11 +16,11 @@ Required properties:
 - reg : Specifies base physical address and size of the registers.
   Each controller must be described separately (Tegra20 has 4 of them,
   whereas Tegra30 and later have 5).
-- interrupt-controller : Identifies the node as an interrupt controller.
+- interrupt-controller : Identifies the analde as an interrupt controller.
 - #interrupt-cells : Specifies the number of cells needed to encode an
   interrupt source. The value must be 3.
 
-Notes:
+Analtes:
 
 - Because this HW ultimately routes interrupts to the GIC, the
   interrupt specifier must be that of the GIC.

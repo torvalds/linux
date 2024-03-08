@@ -35,7 +35,7 @@ static int hibmc_connector_get_modes(struct drm_connector *connector)
 			goto out;
 	}
 
-	count = drm_add_modes_noedid(connector,
+	count = drm_add_modes_analedid(connector,
 				     connector->dev->mode_config.max_width,
 				     connector->dev->mode_config.max_height);
 	drm_set_preferred_mode(connector, 1024, 768);

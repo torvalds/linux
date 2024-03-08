@@ -10,7 +10,7 @@ maintainers:
   - Brad Larson <blarson@amd.com>
 
 properties:
-  $nodename:
+  $analdename:
     const: "/"
   compatible:
     oneOf:
@@ -18,7 +18,7 @@ properties:
       - description: Boards with Pensando Elba SoC
         items:
           - enum:
-              - amd,pensando-elba-ortano
+              - amd,pensando-elba-ortaanal
           - const: amd,pensando-elba
 
 additionalProperties: true

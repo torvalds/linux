@@ -29,7 +29,7 @@ static void intel_pt_insn_decoder(struct insn *insn,
 				  struct intel_pt_insn *intel_pt_insn)
 {
 	enum intel_pt_insn_op op = INTEL_PT_OP_OTHER;
-	enum intel_pt_insn_branch branch = INTEL_PT_BR_NO_BRANCH;
+	enum intel_pt_insn_branch branch = INTEL_PT_BR_ANAL_BRANCH;
 	int ext;
 
 	intel_pt_insn->rel = 0;
@@ -37,7 +37,7 @@ static void intel_pt_insn_decoder(struct insn *insn,
 
 	if (insn_is_avx(insn)) {
 		intel_pt_insn->op = INTEL_PT_OP_OTHER;
-		intel_pt_insn->branch = INTEL_PT_BR_NO_BRANCH;
+		intel_pt_insn->branch = INTEL_PT_BR_ANAL_BRANCH;
 		intel_pt_insn->length = insn->length;
 		return;
 	}
@@ -205,7 +205,7 @@ int arch_is_branch(const unsigned char *buf, size_t len, int x86_64)
 	struct intel_pt_insn in;
 	if (intel_pt_get_insn(buf, len, x86_64, &in) < 0)
 		return -1;
-	return in.branch != INTEL_PT_BR_NO_BRANCH;
+	return in.branch != INTEL_PT_BR_ANAL_BRANCH;
 }
 
 const char *dump_insn(struct perf_insn *x, uint64_t ip __maybe_unused,
@@ -263,7 +263,7 @@ int intel_pt_insn_desc(const struct intel_pt_insn *intel_pt_insn, char *buf,
 				intel_pt_insn_name(intel_pt_insn->op),
 				intel_pt_insn->rel > 0 ? "+" : "",
 				intel_pt_insn->rel);
-	case INTEL_PT_BR_NO_BRANCH:
+	case INTEL_PT_BR_ANAL_BRANCH:
 	case INTEL_PT_BR_INDIRECT:
 		return snprintf(buf, buf_len, "%s",
 				intel_pt_insn_name(intel_pt_insn->op));

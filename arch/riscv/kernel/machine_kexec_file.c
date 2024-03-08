@@ -2,7 +2,7 @@
 /*
  * kexec_file for riscv, use vmlinux as the dump-capture kernel image.
  *
- * Copyright (C) 2021 Huawei Technologies Co, Ltd.
+ * Copyright (C) 2021 Huawei Techanallogies Co, Ltd.
  *
  * Author: Liao Chang (liaochang1@huawei.com)
  */

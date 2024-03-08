@@ -4,7 +4,7 @@
 How to use packet injection with mac80211
 =========================================
 
-mac80211 now allows arbitrary packets to be injected down any Monitor Mode
+mac80211 analw allows arbitrary packets to be injected down any Monitor Mode
 interface from userland.  The packet you inject needs to be composed in the
 following format::
 
@@ -31,7 +31,7 @@ radiotap headers and used to control injection:
  * IEEE80211_RADIOTAP_TX_FLAGS
 
    =============================  ========================================
-   IEEE80211_RADIOTAP_F_TX_NOACK  frame should be sent without waiting for
+   IEEE80211_RADIOTAP_F_TX_ANALACK  frame should be sent without waiting for
 				  an ACK even if it is a unicast frame
    =============================  ========================================
 

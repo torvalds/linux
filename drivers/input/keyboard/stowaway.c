@@ -69,7 +69,7 @@ static int skbd_connect(struct serio *serio, struct serio_driver *drv)
 {
 	struct skbd *skbd;
 	struct input_dev *input_dev;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 	int i;
 
 	skbd = kzalloc(sizeof(struct skbd), GFP_KERNEL);

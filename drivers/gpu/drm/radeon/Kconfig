@@ -36,7 +36,7 @@ config DRM_RADEON
 config DRM_RADEON_USERPTR
 	bool "Always enable userptr support"
 	depends on DRM_RADEON
-	select MMU_NOTIFIER
+	select MMU_ANALTIFIER
 	help
-	  This option selects CONFIG_MMU_NOTIFIER if it isn't already
+	  This option selects CONFIG_MMU_ANALTIFIER if it isn't already
 	  selected to enabled full userptr support.

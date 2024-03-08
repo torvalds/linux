@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -75,9 +75,9 @@ static void hif_usb_regout_cb(struct urb *urb)
 	switch (urb->status) {
 	case 0:
 		break;
-	case -ENOENT:
+	case -EANALENT:
 	case -ECONNRESET:
-	case -ENODEV:
+	case -EANALDEV:
 	case -ESHUTDOWN:
 		goto free;
 	default:
@@ -105,12 +105,12 @@ static int hif_usb_send_regout(struct hif_device_usb *hif_dev,
 
 	urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (urb == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
 	if (cmd == NULL) {
 		usb_free_urb(urb);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	cmd->skb = skb;
@@ -147,14 +147,14 @@ static void hif_usb_mgmt_cb(struct urb *urb)
 	switch (urb->status) {
 	case 0:
 		break;
-	case -ENOENT:
+	case -EANALENT:
 	case -ECONNRESET:
-	case -ENODEV:
+	case -EANALDEV:
 	case -ESHUTDOWN:
 		txok = false;
 
 		/*
-		 * If the URBs are being flushed, no need to complete
+		 * If the URBs are being flushed, anal need to complete
 		 * this packet.
 		 */
 		spin_lock_irqsave(&hif_dev->tx.tx_lock, flags);
@@ -188,12 +188,12 @@ static int hif_usb_send_mgmt(struct hif_device_usb *hif_dev,
 
 	urb = usb_alloc_urb(0, GFP_ATOMIC);
 	if (urb == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd = kzalloc(sizeof(*cmd), GFP_ATOMIC);
 	if (cmd == NULL) {
 		usb_free_urb(urb);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	cmd->skb = skb;
@@ -264,14 +264,14 @@ static void hif_usb_tx_cb(struct urb *urb)
 	switch (urb->status) {
 	case 0:
 		break;
-	case -ENOENT:
+	case -EANALENT:
 	case -ECONNRESET:
-	case -ENODEV:
+	case -EANALDEV:
 	case -ESHUTDOWN:
 		txok = false;
 
 		/*
-		 * If the URBs are being flushed, no need to add this
+		 * If the URBs are being flushed, anal need to add this
 		 * URB to the free list.
 		 */
 		spin_lock(&hif_dev->tx.tx_lock);
@@ -383,13 +383,13 @@ static int hif_usb_send_tx(struct hif_device_usb *hif_dev, struct sk_buff *skb)
 
 	if (hif_dev->tx.flags & HIF_USB_TX_STOP) {
 		spin_unlock_irqrestore(&hif_dev->tx.tx_lock, flags);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Check if the max queue count has been reached */
 	if (hif_dev->tx.tx_skb_cnt > MAX_TX_BUF_NUM) {
 		spin_unlock_irqrestore(&hif_dev->tx.tx_lock, flags);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	spin_unlock_irqrestore(&hif_dev->tx.tx_lock, flags);
@@ -404,7 +404,7 @@ static int hif_usb_send_tx(struct hif_device_usb *hif_dev, struct sk_buff *skb)
 
 	spin_lock_irqsave(&hif_dev->tx.tx_lock, flags);
 
-	if ((tx_ctl->type == ATH9K_HTC_NORMAL) ||
+	if ((tx_ctl->type == ATH9K_HTC_ANALRMAL) ||
 	    (tx_ctl->type == ATH9K_HTC_AMPDU)) {
 		__skb_queue_tail(&hif_dev->tx.tx_skb_queue, skb);
 		hif_dev->tx.tx_skb_cnt++;
@@ -701,9 +701,9 @@ static void ath9k_hif_usb_rx_cb(struct urb *urb)
 	switch (urb->status) {
 	case 0:
 		break;
-	case -ENOENT:
+	case -EANALENT:
 	case -ECONNRESET:
-	case -ENODEV:
+	case -EANALDEV:
 	case -ESHUTDOWN:
 		goto free;
 	default:
@@ -748,9 +748,9 @@ static void ath9k_hif_usb_reg_in_cb(struct urb *urb)
 	switch (urb->status) {
 	case 0:
 		break;
-	case -ENOENT:
+	case -EANALENT:
 	case -ECONNRESET:
-	case -ENODEV:
+	case -EANALDEV:
 	case -ESHUTDOWN:
 		goto free_skb;
 	default:
@@ -766,7 +766,7 @@ static void ath9k_hif_usb_reg_in_cb(struct urb *urb)
 		/*
 		 * Process the command first.
 		 * skb is either freed here or passed to be
-		 * managed to another callback function.
+		 * managed to aanalther callback function.
 		 */
 		ath9k_htc_rx_msg(hif_dev->htc_handle, skb,
 				 skb->len, USB_REG_IN_PIPE);
@@ -878,7 +878,7 @@ err:
 		kfree(tx_buf);
 	}
 	ath9k_hif_usb_dealloc_tx_urbs(hif_dev);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void ath9k_hif_usb_dealloc_rx_urbs(struct hif_device_usb *hif_dev)
@@ -901,21 +901,21 @@ static int ath9k_hif_usb_alloc_rx_urbs(struct hif_device_usb *hif_dev)
 
 		rx_buf = kzalloc(sizeof(*rx_buf), GFP_KERNEL);
 		if (!rx_buf) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_rxb;
 		}
 
 		/* Allocate URB */
 		urb = usb_alloc_urb(0, GFP_KERNEL);
 		if (urb == NULL) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_urb;
 		}
 
 		/* Allocate buffer */
 		skb = alloc_skb(MAX_RX_BUF_SIZE, GFP_KERNEL);
 		if (!skb) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_skb;
 		}
 
@@ -976,21 +976,21 @@ static int ath9k_hif_usb_alloc_reg_in_urbs(struct hif_device_usb *hif_dev)
 
 		rx_buf = kzalloc(sizeof(*rx_buf), GFP_KERNEL);
 		if (!rx_buf) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_rxb;
 		}
 
 		/* Allocate URB */
 		urb = usb_alloc_urb(0, GFP_KERNEL);
 		if (urb == NULL) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_urb;
 		}
 
 		/* Allocate buffer */
 		skb = alloc_skb(MAX_REG_IN_BUF_SIZE, GFP_KERNEL);
 		if (!skb) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_skb;
 		}
 
@@ -1056,7 +1056,7 @@ err_reg:
 err_rx:
 	ath9k_hif_usb_dealloc_tx_urbs(hif_dev);
 err:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 void ath9k_hif_usb_dealloc_urbs(struct hif_device_usb *hif_dev)
@@ -1077,7 +1077,7 @@ static int ath9k_hif_usb_download_fw(struct hif_device_usb *hif_dev)
 	u32 firm_offset;
 
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	while (len) {
 		transfer = min_t(size_t, len, 4096);
@@ -1149,7 +1149,7 @@ static void ath9k_hif_usb_dev_deinit(struct hif_device_usb *hif_dev)
 }
 
 /*
- * If initialization fails or the FW cannot be retrieved,
+ * If initialization fails or the FW cananalt be retrieved,
  * detach the device.
  */
 static void ath9k_hif_usb_firmware_fail(struct hif_device_usb *hif_dev)
@@ -1179,19 +1179,19 @@ static int ath9k_hif_request_firmware(struct hif_device_usb *hif_dev,
 
 	if (first) {
 		if (htc_use_dev_fw) {
-			hif_dev->fw_minor_index = FIRMWARE_MINOR_IDX_MAX + 1;
+			hif_dev->fw_mianalr_index = FIRMWARE_MIANALR_IDX_MAX + 1;
 			sprintf(index, "%s", "dev");
 		} else {
-			hif_dev->fw_minor_index = FIRMWARE_MINOR_IDX_MAX;
-			sprintf(index, "%d", hif_dev->fw_minor_index);
+			hif_dev->fw_mianalr_index = FIRMWARE_MIANALR_IDX_MAX;
+			sprintf(index, "%d", hif_dev->fw_mianalr_index);
 		}
 	} else {
-		hif_dev->fw_minor_index--;
-		sprintf(index, "%d", hif_dev->fw_minor_index);
+		hif_dev->fw_mianalr_index--;
+		sprintf(index, "%d", hif_dev->fw_mianalr_index);
 	}
 
 	/* test for FW 1.3 */
-	if (MAJOR_VERSION_REQ == 1 && hif_dev->fw_minor_index == 3) {
+	if (MAJOR_VERSION_REQ == 1 && hif_dev->fw_mianalr_index == 3) {
 		const char *filename;
 
 		if (IS_AR7010_DEVICE(hif_dev->usb_device_id->driver_info))
@@ -1205,10 +1205,10 @@ static int ath9k_hif_request_firmware(struct hif_device_usb *hif_dev,
 		snprintf(hif_dev->fw_name, sizeof(hif_dev->fw_name),
 			 "%s", filename);
 
-	} else if (hif_dev->fw_minor_index < FIRMWARE_MINOR_IDX_MIN) {
-		dev_err(&hif_dev->udev->dev, "no suitable firmware found!\n");
+	} else if (hif_dev->fw_mianalr_index < FIRMWARE_MIANALR_IDX_MIN) {
+		dev_err(&hif_dev->udev->dev, "anal suitable firmware found!\n");
 
-		return -ENOENT;
+		return -EANALENT;
 	} else {
 		if (IS_AR7010_DEVICE(hif_dev->usb_device_id->driver_info))
 			chip = "7010";
@@ -1224,7 +1224,7 @@ static int ath9k_hif_request_firmware(struct hif_device_usb *hif_dev,
 			 chip, MAJOR_VERSION_REQ, index);
 	}
 
-	ret = request_firmware_nowait(THIS_MODULE, true, hif_dev->fw_name,
+	ret = request_firmware_analwait(THIS_MODULE, true, hif_dev->fw_name,
 				      &hif_dev->udev->dev, GFP_KERNEL,
 				      hif_dev, ath9k_hif_usb_firmware_cb);
 	if (ret) {
@@ -1309,7 +1309,7 @@ static int send_eject_command(struct usb_interface *interface)
 	int r;
 
 	if (iface_desc->desc.bNumEndpoints < 2)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Find bulk out endpoint */
 	for (r = 1; r >= 0; r--) {
@@ -1322,13 +1322,13 @@ static int send_eject_command(struct usb_interface *interface)
 	}
 	if (r == -1) {
 		dev_err(&udev->dev,
-			"ath9k_htc: Could not find bulk out endpoint\n");
-		return -ENODEV;
+			"ath9k_htc: Could analt find bulk out endpoint\n");
+		return -EANALDEV;
 	}
 
 	cmd = kzalloc(31, GFP_KERNEL);
 	if (cmd == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* USB bulk command block */
 	cmd[0] = 0x55;	/* bulk command signature */
@@ -1371,8 +1371,8 @@ static int ath9k_hif_usb_probe(struct usb_interface *interface,
 	    usb_endpoint_num(int_in) != USB_REG_IN_PIPE ||
 	    usb_endpoint_num(int_out) != USB_REG_OUT_PIPE) {
 		dev_err(&udev->dev,
-			"ath9k_htc: Device endpoint numbers are not the expected ones\n");
-		return -ENODEV;
+			"ath9k_htc: Device endpoint numbers are analt the expected ones\n");
+		return -EANALDEV;
 	}
 
 	if (id->driver_info == STORAGE_DEVICE)
@@ -1380,7 +1380,7 @@ static int ath9k_hif_usb_probe(struct usb_interface *interface,
 
 	hif_dev = kzalloc(sizeof(struct hif_device_usb), GFP_KERNEL);
 	if (!hif_dev) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_alloc;
 	}
 
@@ -1432,7 +1432,7 @@ static void ath9k_hif_usb_disconnect(struct usb_interface *interface)
 {
 	struct usb_device *udev = interface_to_usbdev(interface);
 	struct hif_device_usb *hif_dev = usb_get_intfdata(interface);
-	bool unplugged = udev->state == USB_STATE_NOTATTACHED;
+	bool unplugged = udev->state == USB_STATE_ANALTATTACHED;
 
 	if (!hif_dev)
 		return;
@@ -1463,7 +1463,7 @@ static int ath9k_hif_usb_suspend(struct usb_interface *interface,
 	struct hif_device_usb *hif_dev = usb_get_intfdata(interface);
 
 	/*
-	 * The device has to be set to FULLSLEEP mode in case no
+	 * The device has to be set to FULLSLEEP mode in case anal
 	 * interface is up.
 	 */
 	if (!(hif_dev->flags & HIF_USB_START))

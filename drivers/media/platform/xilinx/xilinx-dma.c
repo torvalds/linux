@@ -68,7 +68,7 @@ static int xvip_dma_verify_format(struct xvip_dma *dma)
 
 	ret = v4l2_subdev_call(subdev, pad, get_fmt, NULL, &fmt);
 	if (ret < 0)
-		return ret == -ENOIOCTLCMD ? -EINVAL : ret;
+		return ret == -EANALIOCTLCMD ? -EINVAL : ret;
 
 	if (dma->fmtinfo->code != fmt.format.code ||
 	    dma->format.height != fmt.format.height ||
@@ -88,7 +88,7 @@ static int xvip_dma_verify_format(struct xvip_dma *dma)
  * @pipe: The pipeline
  * @start: Start (when true) or stop (when false) the pipeline
  *
- * Walk the entities chain starting at the pipeline output video node and start
+ * Walk the entities chain starting at the pipeline output video analde and start
  * or stop all of them.
  *
  * Return: 0 if successful, or the return value of the failed video::s_stream
@@ -116,7 +116,7 @@ static int xvip_pipeline_start_stop(struct xvip_pipeline *pipe, bool start)
 		subdev = media_entity_to_v4l2_subdev(entity);
 
 		ret = v4l2_subdev_call(subdev, video, s_stream, start);
-		if (start && ret < 0 && ret != -ENOIOCTLCMD)
+		if (start && ret < 0 && ret != -EANALIOCTLCMD)
 			return ret;
 	}
 
@@ -146,7 +146,7 @@ static int xvip_pipeline_start_stop(struct xvip_pipeline *pipe, bool start)
  *
  * Return: 0 if successful, or the return value of the failed video::s_stream
  * operation otherwise. Stopping the pipeline never fails. The pipeline state is
- * not updated when the operation fails.
+ * analt updated when the operation fails.
  */
 static int xvip_pipeline_set_stream(struct xvip_pipeline *pipe, bool on)
 {
@@ -179,7 +179,7 @@ static int xvip_pipeline_validate(struct xvip_pipeline *pipe,
 	unsigned int num_outputs = 0;
 	struct media_pad *pad;
 
-	/* Locate the video nodes in the pipeline. */
+	/* Locate the video analdes in the pipeline. */
 	media_pipeline_for_each_pad(&pipe->pipe, &iter, pad) {
 		struct xvip_dma *dma;
 
@@ -233,10 +233,10 @@ static void xvip_pipeline_cleanup(struct xvip_pipeline *pipe)
  * @pipe: the pipeline
  * @dma: DMA engine at one end of the pipeline
  *
- * Validate the pipeline if no user exists yet, otherwise just increase the use
+ * Validate the pipeline if anal user exists yet, otherwise just increase the use
  * count.
  *
- * Return: 0 if successful or -EPIPE if the pipeline is not valid.
+ * Return: 0 if successful or -EPIPE if the pipeline is analt valid.
  */
 static int xvip_pipeline_prepare(struct xvip_pipeline *pipe,
 				 struct xvip_dma *dma)
@@ -289,7 +289,7 @@ static void xvip_dma_complete(void *param)
 	list_del(&buf->queue);
 	spin_unlock(&dma->queued_lock);
 
-	buf->buf.field = V4L2_FIELD_NONE;
+	buf->buf.field = V4L2_FIELD_ANALNE;
 	buf->buf.sequence = dma->sequence++;
 	buf->buf.vb2_buf.timestamp = ktime_get_ns();
 	vb2_set_plane_payload(&buf->buf.vb2_buf, 0, dma->format.sizeimage);
@@ -303,7 +303,7 @@ xvip_dma_queue_setup(struct vb2_queue *vq,
 {
 	struct xvip_dma *dma = vb2_get_drv_priv(vq);
 
-	/* Make sure the image size is large enough. */
+	/* Make sure the image size is large eanalugh. */
 	if (*nplanes)
 		return sizes[0] < dma->format.sizeimage ? -EINVAL : 0;
 
@@ -381,7 +381,7 @@ static int xvip_dma_start_streaming(struct vb2_queue *vq, unsigned int count)
 	dma->sequence = 0;
 
 	/*
-	 * Start streaming on the pipeline. No link touching an entity in the
+	 * Start streaming on the pipeline. Anal link touching an entity in the
 	 * pipeline can be activated or deactivated once streaming is started.
 	 *
 	 * Use the pipeline object embedded in the first DMA object that starts
@@ -480,14 +480,14 @@ xvip_dma_querycap(struct file *file, void *fh, struct v4l2_capability *cap)
 	strscpy(cap->driver, "xilinx-vipp", sizeof(cap->driver));
 	strscpy(cap->card, dma->video.name, sizeof(cap->card));
 	snprintf(cap->bus_info, sizeof(cap->bus_info), "platform:%pOFn:%u",
-		 dma->xdev->dev->of_node, dma->port);
+		 dma->xdev->dev->of_analde, dma->port);
 
 	return 0;
 }
 
-/* FIXME: without this callback function, some applications are not configured
+/* FIXME: without this callback function, some applications are analt configured
  * with correct formats, and it results in frames in wrong format. Whether this
- * callback needs to be required is not clearly defined, so it should be
+ * callback needs to be required is analt clearly defined, so it should be
  * clarified through the mailing list.
  */
 static int
@@ -534,7 +534,7 @@ __xvip_dma_try_format(struct xvip_dma *dma, struct v4l2_pix_format *pix,
 	info = xvip_get_format_by_fourcc(pix->pixelformat);
 
 	pix->pixelformat = info->fourcc;
-	pix->field = V4L2_FIELD_NONE;
+	pix->field = V4L2_FIELD_ANALNE;
 
 	/* The transfer alignment requirements are expressed in bytes. Compute
 	 * the minimum and maximum values, clamp the requested width and convert
@@ -644,7 +644,7 @@ int xvip_dma_init(struct xvip_composite_device *xdev, struct xvip_dma *dma,
 	dma->fmtinfo = xvip_get_format_by_fourcc(V4L2_PIX_FMT_YUYV);
 	dma->format.pixelformat = dma->fmtinfo->fourcc;
 	dma->format.colorspace = V4L2_COLORSPACE_SRGB;
-	dma->format.field = V4L2_FIELD_NONE;
+	dma->format.field = V4L2_FIELD_ANALNE;
 	dma->format.width = XVIP_DMA_DEF_WIDTH;
 	dma->format.height = XVIP_DMA_DEF_HEIGHT;
 	dma->format.bytesperline = dma->format.width * dma->fmtinfo->bpp;
@@ -658,12 +658,12 @@ int xvip_dma_init(struct xvip_composite_device *xdev, struct xvip_dma *dma,
 	if (ret < 0)
 		goto error;
 
-	/* ... and the video node... */
+	/* ... and the video analde... */
 	dma->video.fops = &xvip_dma_fops;
 	dma->video.v4l2_dev = &xdev->v4l2_dev;
 	dma->video.queue = &dma->queue;
 	snprintf(dma->video.name, sizeof(dma->video.name), "%pOFn %s %u",
-		 xdev->dev->of_node,
+		 xdev->dev->of_analde,
 		 type == V4L2_BUF_TYPE_VIDEO_CAPTURE ? "output" : "input",
 		 port);
 	dma->video.vfl_type = VFL_TYPE_VIDEO;
@@ -695,7 +695,7 @@ int xvip_dma_init(struct xvip_composite_device *xdev, struct xvip_dma *dma,
 	dma->queue.buf_struct_size = sizeof(struct xvip_dma_buffer);
 	dma->queue.ops = &xvip_dma_queue_qops;
 	dma->queue.mem_ops = &vb2_dma_contig_memops;
-	dma->queue.timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC
+	dma->queue.timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MOANALTONIC
 				   | V4L2_BUF_FLAG_TSTAMP_SRC_EOF;
 	dma->queue.dev = dma->xdev->dev;
 	ret = vb2_queue_init(&dma->queue);
@@ -709,7 +709,7 @@ int xvip_dma_init(struct xvip_composite_device *xdev, struct xvip_dma *dma,
 	dma->dma = dma_request_chan(dma->xdev->dev, name);
 	if (IS_ERR(dma->dma)) {
 		ret = dev_err_probe(dma->xdev->dev, PTR_ERR(dma->dma),
-				    "no VDMA channel found\n");
+				    "anal VDMA channel found\n");
 		goto error;
 	}
 

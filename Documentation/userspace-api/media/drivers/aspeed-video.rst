@@ -62,4 +62,4 @@ The ASPEED video driver implements the following driver-specific control:
     * - ``(1)``
       - default
 
-**Copyright** |copy| 2022 ASPEED Technology Inc.
+**Copyright** |copy| 2022 ASPEED Techanallogy Inc.

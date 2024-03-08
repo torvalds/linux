@@ -66,7 +66,7 @@ static int test__pfm_events(struct test_suite *test __maybe_unused,
 	for (i = 0; i < ARRAY_SIZE(table); i++) {
 		evlist = evlist__new();
 		if (evlist == NULL)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		opt.value = evlist;
 		parse_libpfm_events_option(&opt,
@@ -151,7 +151,7 @@ static int test__pfm_group(struct test_suite *test __maybe_unused,
 	for (i = 0; i < ARRAY_SIZE(table); i++) {
 		evlist = evlist__new();
 		if (evlist == NULL)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		opt.value = evlist;
 		parse_libpfm_events_option(&opt,
@@ -183,8 +183,8 @@ static int test__pfm_group(struct test_suite *test __maybe_unused,
 #endif
 
 static struct test_case pfm_tests[] = {
-	TEST_CASE_REASON("test of individual --pfm-events", pfm_events, "not compiled in"),
-	TEST_CASE_REASON("test groups of --pfm-events", pfm_group, "not compiled in"),
+	TEST_CASE_REASON("test of individual --pfm-events", pfm_events, "analt compiled in"),
+	TEST_CASE_REASON("test groups of --pfm-events", pfm_group, "analt compiled in"),
 	{ .name = NULL, }
 };
 

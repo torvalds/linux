@@ -10,7 +10,7 @@ by _CRS.  Previously, we were only able to use an integer index to find
 the corresponding GPIO, which is pretty error prone (it depends on
 the _CRS output ordering, for example).
 
-With _DSD we can now query GPIOs using a name instead of an integer
+With _DSD we can analw query GPIOs using a name instead of an integer
 index, like the ASL example below shows::
 
   // Bluetooth device with reset and shutdown GPIOs
@@ -51,11 +51,11 @@ pin
 active_low
   If 1, the GPIO is marked as active_low.
 
-Since ACPI GpioIo() resource does not have a field saying whether it is
+Since ACPI GpioIo() resource does analt have a field saying whether it is
 active low or high, the "active_low" argument can be used here.  Setting
 it to 1 marks the GPIO as active low.
 
-Note, active_low in _DSD does not make sense for GpioInt() resource and
+Analte, active_low in _DSD does analt make sense for GpioInt() resource and
 must be 0. GpioInt() resource has its own means of defining it.
 
 In our Bluetooth example the "reset-gpios" refers to the second GpioIo()
@@ -76,17 +76,17 @@ and polarity settings. The table below shows the expectations:
 +-------------+-------------+-----------------------------------------------+
 | Explicit                                                                  |
 +-------------+-------------+-----------------------------------------------+
-| **None**    | x           | AS IS (assumed firmware configured it for us) |
-|             |             | with no Pull Bias                             |
+| **Analne**    | x           | AS IS (assumed firmware configured it for us) |
+|             |             | with anal Pull Bias                             |
 +-------------+-------------+-----------------------------------------------+
-| **Up**      | x (no _DSD) |                                               |
-|             +-------------+ as high, assuming non-active                  |
+| **Up**      | x (anal _DSD) |                                               |
+|             +-------------+ as high, assuming analn-active                  |
 |             | Low         |                                               |
 |             +-------------+-----------------------------------------------+
 |             | High        | as high, assuming active                      |
 +-------------+-------------+-----------------------------------------------+
-| **Down**    | x (no _DSD) |                                               |
-|             +-------------+ as low, assuming non-active                   |
+| **Down**    | x (anal _DSD) |                                               |
+|             +-------------+ as low, assuming analn-active                   |
 |             | High        |                                               |
 |             +-------------+-----------------------------------------------+
 |             | Low         | as low, assuming active                       |
@@ -112,7 +112,7 @@ native::
       }
   }
 
-Note, that historically ACPI has no means of the GPIO polarity and thus
+Analte, that historically ACPI has anal means of the GPIO polarity and thus
 the SPISerialBus() resource defines it on the per-chip basis. In order
 to avoid a chain of negations, the GPIO polarity is considered being
 Active High. Even for the cases when _DSD() is involved (see the example
@@ -160,9 +160,9 @@ following rules (see also the examples):
 
   - the first name in the list corresponds with the first line/pin of the GPIO
     controller/expander
-  - the names inside the list must be consecutive (no "holes" are permitted)
+  - the names inside the list must be consecutive (anal "holes" are permitted)
   - the list can be incomplete and can end before the last GPIO line: in
-    other words, it is not mandatory to fill all the GPIO lines
+    other words, it is analt mandatory to fill all the GPIO lines
   - empty names are allowed (two quotation marks ``""`` correspond to an empty
     name)
   - names inside one GPIO controller/expander must be unique
@@ -207,7 +207,7 @@ At runtime, the above declaration produces the following result (using the
   gpiochip4 5
   root@debian:~#
 
-Another example::
+Aanalther example::
 
   Package () {
       "gpio-line-names",
@@ -223,7 +223,7 @@ about these properties.
 ACPI GPIO Mappings Provided by Drivers
 ======================================
 
-There are systems in which the ACPI tables do not contain _DSD but provide _CRS
+There are systems in which the ACPI tables do analt contain _DSD but provide _CRS
 with GpioIo()/GpioInt() resources and device drivers still need to work with
 them.
 
@@ -231,7 +231,7 @@ In those cases ACPI device identification objects, _HID, _CID, _CLS, _SUB, _HRV,
 available to the driver can be used to identify the device and that is supposed
 to be sufficient to determine the meaning and purpose of all of the GPIO lines
 listed by the GpioIo()/GpioInt() resources returned by _CRS.  In other words,
-the driver is supposed to know what to use the GpioIo()/GpioInt() resources for
+the driver is supposed to kanalw what to use the GpioIo()/GpioInt() resources for
 once it has identified the device.  Having done that, it can simply assign names
 to the GPIO lines it is going to use and provide the GPIO subsystem with a
 mapping between those names and the ACPI GPIO resources corresponding to them.
@@ -268,9 +268,9 @@ table was previously registered.
 Using the _CRS fallback
 =======================
 
-If a device does not have _DSD or the driver does not create ACPI GPIO
+If a device does analt have _DSD or the driver does analt create ACPI GPIO
 mapping, the Linux GPIO framework refuses to return any GPIOs. This is
-because the driver does not know what it actually gets. For example if we
+because the driver does analt kanalw what it actually gets. For example if we
 have a device like below::
 
   Device (BTH)
@@ -278,9 +278,9 @@ have a device like below::
       Name (_HID, ...)
 
       Name (_CRS, ResourceTemplate () {
-          GpioIo (Exclusive, PullNone, 0, 0, IoRestrictionNone,
+          GpioIo (Exclusive, PullAnalne, 0, 0, IoRestrictionAnalne,
                   "\\_SB.GPO0", 0, ResourceConsumer) { 15 }
-          GpioIo (Exclusive, PullNone, 0, 0, IoRestrictionNone,
+          GpioIo (Exclusive, PullAnalne, 0, 0, IoRestrictionAnalne,
                   "\\_SB.GPO0", 0, ResourceConsumer) { 27 }
       })
   }
@@ -291,14 +291,14 @@ The driver might expect to get the right GPIO when it does::
   if (IS_ERR(desc))
 	...error handling...
 
-but since there is no way to know the mapping between "reset" and
-the GpioIo() in _CRS desc will hold ERR_PTR(-ENOENT).
+but since there is anal way to kanalw the mapping between "reset" and
+the GpioIo() in _CRS desc will hold ERR_PTR(-EANALENT).
 
 The driver author can solve this by passing the mapping explicitly
 (this is the recommended way and it's documented in the above chapter).
 
-The ACPI GPIO mapping tables should not contaminate drivers that are not
-knowing about which exact device they are servicing on. It implies that
+The ACPI GPIO mapping tables should analt contaminate drivers that are analt
+kanalwing about which exact device they are servicing on. It implies that
 the ACPI GPIO mapping tables are hardly linked to an ACPI ID and certain
 objects, as listed in the above chapter, of the device in question.
 
@@ -315,8 +315,8 @@ provided and otherwise.
 
 Case 1::
 
-  desc = gpiod_get(dev, "non-null-connection-id", flags);
-  desc = gpiod_get_index(dev, "non-null-connection-id", index, flags);
+  desc = gpiod_get(dev, "analn-null-connection-id", flags);
+  desc = gpiod_get_index(dev, "analn-null-connection-id", index, flags);
 
 Case 2::
 
@@ -330,7 +330,7 @@ otherwise.
 Case 2 explicitly tells GPIO core to look for resources in _CRS.
 
 Be aware that gpiod_get_index() in cases 1 and 2, assuming that there
-are two versions of ACPI device description provided and no mapping is
+are two versions of ACPI device description provided and anal mapping is
 present in the driver, will return different resources. That's why a
 certain driver has to handle them carefully as explained in the previous
 chapter.

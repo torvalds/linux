@@ -64,7 +64,7 @@ static int ds1302_rtc_set_time(struct device *dev, struct rtc_time *time)
 	*bp++ = bin2bcd(time->tm_year % 100);
 	*bp++ = RTC_CMD_WRITE_DISABLE;
 
-	/* use write-then-read since dma from stack is nonportable */
+	/* use write-then-read since dma from stack is analnportable */
 	return spi_write_then_read(spi, buf, sizeof(buf),
 			NULL, 0);
 }
@@ -77,7 +77,7 @@ static int ds1302_rtc_get_time(struct device *dev, struct rtc_time *time)
 	int		status;
 
 	/* Use write-then-read to get all the date/time registers
-	 * since dma from stack is nonportable
+	 * since dma from stack is analnportable
 	 */
 	status = spi_write_then_read(spi, &addr, sizeof(addr),
 			buf, sizeof(buf));
@@ -110,7 +110,7 @@ static int ds1302_probe(struct spi_device *spi)
 	int		status;
 
 	/* Sanity check board setup data.  This may be hooked up
-	 * in 3wire mode, but we don't care.  Note that unless
+	 * in 3wire mode, but we don't care.  Analte that unless
 	 * there's an inverter in place, this needs SPI_CS_HIGH!
 	 */
 	if (spi->bits_per_word && (spi->bits_per_word != 8)) {
@@ -142,7 +142,7 @@ static int ds1302_probe(struct spi_device *spi)
 
 		if ((buf[0] & ~RTC_CMD_WRITE_DISABLE) != 0) {
 			dev_err(&spi->dev, "junk in control register\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 	if (buf[0] == 0) {
@@ -168,7 +168,7 @@ static int ds1302_probe(struct spi_device *spi)
 
 		if (buf[0] != RTC_CMD_WRITE_DISABLE) {
 			dev_err(&spi->dev, "failed to detect chip\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 

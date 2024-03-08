@@ -10,7 +10,7 @@ Steve French (smfrench@gmail.com, sfrench@samba.org)
 The author wishes to express his appreciation and thanks to:
 Andrew Tridgell (Samba team) for his early suggestions about SMB/CIFS VFS
 improvements. Thanks to IBM for allowing me time and test resources to pursue
-this project, to Jim McDonough from IBM (and the Samba Team) for his help, to
+this project, to Jim McDoanalugh from IBM (and the Samba Team) for his help, to
 the IBM Linux JFS team for explaining many esoteric Linux filesystem features.
 Jeremy Allison of the Samba team has done invaluable work in adding the server
 side of the original CIFS Unix extensions and reviewing and implementing
@@ -40,7 +40,7 @@ Patch Contributors
 - Adrian Bunk (kcalloc cleanups)
 - Miklos Szeredi
 - Kazeon team for various fixes especially for 2.4 version.
-- Asser Ferno (Change Notify support)
+- Asser Feranal (Change Analtify support)
 - Shaggy (Dave Kleikamp) for innumerable small fs suggestions and some good cleanup
 - Gunter Kukkukk (testing and suggestions for support of old servers)
 - Igor Mammedov (DFS support)
@@ -60,9 +60,9 @@ Test case and Bug Report contributors
 Thanks to those in the community who have submitted detailed bug reports
 and debug of problems they have found:  Jochen Dolze, David Blaine,
 Rene Scharfe, Martin Josefsson, Alexander Wild, Anthony Liguori,
-Lars Muller, Urban Widmark, Massimiliano Ferrero, Howard Owen,
+Lars Muller, Urban Widmark, Massimiliaanal Ferrero, Howard Owen,
 Olaf Kirch, Kieron Briggs, Nick Millington and others. Also special
-mention to the Stanford Checker (SWAT) which pointed out many minor
+mention to the Stanford Checker (SWAT) which pointed out many mianalr
 bugs in error paths.  Valuable suggestions also have come from Al Viro
 and Dave Miller.
 

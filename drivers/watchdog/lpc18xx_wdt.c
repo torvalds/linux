@@ -4,7 +4,7 @@
  *
  * Copyright (c) 2015 Ariel D'Alessandro <ariel@vanguardiasur.com>
  *
- * Notes
+ * Analtes
  * -----
  * The Watchdog consists of a fixed divide-by-4 clock pre-scaler and a 24-bit
  * counter which decrements on every clock cycle.
@@ -43,10 +43,10 @@ module_param(heartbeat, int, 0);
 MODULE_PARM_DESC(heartbeat, "Watchdog heartbeats in seconds (default="
 		 __MODULE_STRING(LPC18XX_WDT_DEF_TIMEOUT) ")");
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
-		 __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+static bool analwayout = WATCHDOG_ANALWAYOUT;
+module_param(analwayout, bool, 0);
+MODULE_PARM_DESC(analwayout, "Watchdog cananalt be stopped once started (default="
+		 __MODULE_STRING(WATCHDOG_ANALWAYOUT) ")");
 
 struct lpc18xx_wdt_dev {
 	struct watchdog_device	wdt_dev;
@@ -88,7 +88,7 @@ static void lpc18xx_wdt_timer_feed(struct timer_list *t)
 }
 
 /*
- * Since LPC18xx Watchdog cannot be disabled in hardware, we must keep feeding
+ * Since LPC18xx Watchdog cananalt be disabled in hardware, we must keep feeding
  * it with a timer until userspace watchdog software takes over.
  */
 static int lpc18xx_wdt_stop(struct watchdog_device *wdt_dev)
@@ -143,7 +143,7 @@ static int lpc18xx_wdt_start(struct watchdog_device *wdt_dev)
 	writel(val, lpc18xx_wdt->base + LPC18XX_WDT_MOD);
 
 	/*
-	 * Setting the WDEN bit in the WDMOD register is not sufficient to
+	 * Setting the WDEN bit in the WDMOD register is analt sufficient to
 	 * enable the Watchdog. A valid feed sequence must be completed after
 	 * setting WDEN before the Watchdog is capable of generating a reset.
 	 */
@@ -204,7 +204,7 @@ static int lpc18xx_wdt_probe(struct platform_device *pdev)
 
 	lpc18xx_wdt = devm_kzalloc(dev, sizeof(*lpc18xx_wdt), GFP_KERNEL);
 	if (!lpc18xx_wdt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	lpc18xx_wdt->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(lpc18xx_wdt->base))
@@ -252,7 +252,7 @@ static int lpc18xx_wdt_probe(struct platform_device *pdev)
 
 	timer_setup(&lpc18xx_wdt->timer, lpc18xx_wdt_timer_feed, 0);
 
-	watchdog_set_nowayout(&lpc18xx_wdt->wdt_dev, nowayout);
+	watchdog_set_analwayout(&lpc18xx_wdt->wdt_dev, analwayout);
 	watchdog_set_restart_priority(&lpc18xx_wdt->wdt_dev, 128);
 
 	platform_set_drvdata(pdev, lpc18xx_wdt);
@@ -265,7 +265,7 @@ static void lpc18xx_wdt_remove(struct platform_device *pdev)
 {
 	struct lpc18xx_wdt_dev *lpc18xx_wdt = platform_get_drvdata(pdev);
 
-	dev_warn(&pdev->dev, "I quit now, hardware will probably reboot!\n");
+	dev_warn(&pdev->dev, "I quit analw, hardware will probably reboot!\n");
 	del_timer_sync(&lpc18xx_wdt->timer);
 }
 

@@ -2,7 +2,7 @@
 /*
  * Author: zhanghongchen <zhanghongchen@loongson.cn>
  *         Yinbo Zhu <zhuyinbo@loongson.cn>
- * Copyright (C) 2022-2023 Loongson Technology Corporation Limited
+ * Copyright (C) 2022-2023 Loongson Techanallogy Corporation Limited
  */
 
 #include <linux/init.h>
@@ -43,7 +43,7 @@ struct loongson2_pinctrl {
 	struct device *dev;
 	struct pinctrl_dev *pcdev;
 	struct pinctrl_desc desc;
-	struct device_node *of_node;
+	struct device_analde *of_analde;
 	spinlock_t lock;
 	void __iomem *reg_base;
 };
@@ -193,7 +193,7 @@ static const struct pinctrl_ops loongson2_pctrl_ops = {
 	.get_groups_count	= loongson2_get_groups_count,
 	.get_group_name		= loongson2_get_group_name,
 	.get_group_pins		= loongson2_get_group_pins,
-	.dt_node_to_map		= pinconf_generic_dt_node_to_map_all,
+	.dt_analde_to_map		= pinconf_generic_dt_analde_to_map_all,
 	.dt_free_map		= pinctrl_utils_free_map,
 	.pin_dbg_show		= loongson2_pin_dbg_show,
 };
@@ -256,7 +256,7 @@ static int loongson2_pinctrl_probe(struct platform_device *pdev)
 
 	pctrl = devm_kzalloc(dev, sizeof(*pctrl), GFP_KERNEL);
 	if (!pctrl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pctrl->reg_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(pctrl->reg_base))

@@ -2,7 +2,7 @@
 //
 // loongson_i2s_pci.c -- Loongson I2S controller driver
 //
-// Copyright (C) 2023 Loongson Technology Corporation Limited
+// Copyright (C) 2023 Loongson Techanallogy Corporation Limited
 // Author: Yingkun Meng <mengyingkun@loongson.cn>
 //
 
@@ -73,19 +73,19 @@ static const struct regmap_config loongson_i2s_regmap_config = {
 static int loongson_i2s_pci_probe(struct pci_dev *pdev,
 				  const struct pci_device_id *pid)
 {
-	const struct fwnode_handle *fwnode = pdev->dev.fwnode;
+	const struct fwanalde_handle *fwanalde = pdev->dev.fwanalde;
 	struct loongson_dma_data *tx_data, *rx_data;
 	struct loongson_i2s *i2s;
 	int ret;
 
 	if (pcim_enable_device(pdev)) {
 		dev_err(&pdev->dev, "pci_enable_device failed\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	i2s = devm_kzalloc(&pdev->dev, sizeof(*i2s), GFP_KERNEL);
 	if (!i2s)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2s->rev_id = pdev->revision;
 	i2s->dev = &pdev->dev;
@@ -113,13 +113,13 @@ static int loongson_i2s_pci_probe(struct pci_dev *pdev,
 	rx_data->dev_addr = pci_resource_start(pdev, 0) + LS_I2S_RX_DATA;
 	rx_data->order_addr = i2s->reg_base + LS_I2S_RX_ORDER;
 
-	tx_data->irq = fwnode_irq_get_byname(fwnode, "tx");
+	tx_data->irq = fwanalde_irq_get_byname(fwanalde, "tx");
 	if (tx_data->irq < 0) {
 		dev_err(&pdev->dev, "dma tx irq invalid\n");
 		return tx_data->irq;
 	}
 
-	rx_data->irq = fwnode_irq_get_byname(fwnode, "rx");
+	rx_data->irq = fwanalde_irq_get_byname(fwanalde, "rx");
 	if (rx_data->irq < 0) {
 		dev_err(&pdev->dev, "dma rx irq invalid\n");
 		return rx_data->irq;
@@ -167,5 +167,5 @@ static struct pci_driver loongson_i2s_driver = {
 module_pci_driver(loongson_i2s_driver);
 
 MODULE_DESCRIPTION("Loongson I2S Master Mode ASoC Driver");
-MODULE_AUTHOR("Loongson Technology Corporation Limited");
+MODULE_AUTHOR("Loongson Techanallogy Corporation Limited");
 MODULE_LICENSE("GPL");

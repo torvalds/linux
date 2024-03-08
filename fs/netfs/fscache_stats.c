@@ -15,7 +15,7 @@
  */
 atomic_t fscache_n_volumes;
 atomic_t fscache_n_volumes_collision;
-atomic_t fscache_n_volumes_nomem;
+atomic_t fscache_n_volumes_analmem;
 atomic_t fscache_n_cookies;
 atomic_t fscache_n_cookies_lru;
 atomic_t fscache_n_cookies_lru_expired;
@@ -42,10 +42,10 @@ atomic_t fscache_n_read;
 EXPORT_SYMBOL(fscache_n_read);
 atomic_t fscache_n_write;
 EXPORT_SYMBOL(fscache_n_write);
-atomic_t fscache_n_no_write_space;
-EXPORT_SYMBOL(fscache_n_no_write_space);
-atomic_t fscache_n_no_create_space;
-EXPORT_SYMBOL(fscache_n_no_create_space);
+atomic_t fscache_n_anal_write_space;
+EXPORT_SYMBOL(fscache_n_anal_write_space);
+atomic_t fscache_n_anal_create_space;
+EXPORT_SYMBOL(fscache_n_anal_create_space);
 atomic_t fscache_n_culled;
 EXPORT_SYMBOL(fscache_n_culled);
 atomic_t fscache_n_dio_misfit;
@@ -61,7 +61,7 @@ int fscache_stats_show(struct seq_file *m)
 		   atomic_read(&fscache_n_cookies),
 		   atomic_read(&fscache_n_volumes),
 		   atomic_read(&fscache_n_volumes_collision),
-		   atomic_read(&fscache_n_volumes_nomem)
+		   atomic_read(&fscache_n_volumes_analmem)
 		   );
 
 	seq_printf(m, "Acquire: n=%u ok=%u oom=%u\n",
@@ -90,9 +90,9 @@ int fscache_stats_show(struct seq_file *m)
 		   atomic_read(&fscache_n_relinquishes_retire),
 		   atomic_read(&fscache_n_relinquishes_dropped));
 
-	seq_printf(m, "NoSpace: nwr=%u ncr=%u cull=%u\n",
-		   atomic_read(&fscache_n_no_write_space),
-		   atomic_read(&fscache_n_no_create_space),
+	seq_printf(m, "AnalSpace: nwr=%u ncr=%u cull=%u\n",
+		   atomic_read(&fscache_n_anal_write_space),
+		   atomic_read(&fscache_n_anal_create_space),
 		   atomic_read(&fscache_n_culled));
 
 	seq_printf(m, "IO     : rd=%u wr=%u mis=%u\n",

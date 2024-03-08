@@ -44,7 +44,7 @@ bool ethtool_dev_mm_supported(struct net_device *dev);
 #else
 static inline int ethnl_cable_test_alloc(struct phy_device *phydev, u8 cmd)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline void ethnl_cable_test_free(struct phy_device *phydev)
@@ -57,30 +57,30 @@ static inline void ethnl_cable_test_finished(struct phy_device *phydev)
 static inline int ethnl_cable_test_result(struct phy_device *phydev, u8 pair,
 					  u8 result)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int ethnl_cable_test_fault_length(struct phy_device *phydev,
 						u8 pair, u32 cm)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int ethnl_cable_test_amplitude(struct phy_device *phydev,
 					     u8 pair, s16 mV)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int ethnl_cable_test_pulse(struct phy_device *phydev, u16 mV)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int ethnl_cable_test_step(struct phy_device *phydev, u32 first,
 					u32 last, u32 step)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline void

@@ -26,7 +26,7 @@ Description:
 		against for the events enabled by
 		in_illuminance0_thresh_either_en (0..255), where Y in 0..3.
 
-		Note that threshY_falling must be less than or equal to
+		Analte that threshY_falling must be less than or equal to
 		threshY_raising.
 
 		These thresholds correspond to the eight zone-boundary
@@ -52,5 +52,5 @@ Description:
 		These values correspond to the ALS-mapper target registers for
 		ALS-mapper Y + 1.
 
-		Note that out_currentY_raw provides the current for the
+		Analte that out_currentY_raw provides the current for the
 		current zone.

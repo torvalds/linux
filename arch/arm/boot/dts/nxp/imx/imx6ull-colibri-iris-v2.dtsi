@@ -22,6 +22,6 @@
 	cap-power-off-card;
 	vmmc-supply = <&reg_3v3_vmmc>;
 	/delete-property/ keep-power-in-suspend;
-	/delete-property/ no-1-8-v;
+	/delete-property/ anal-1-8-v;
 	status = "okay";
 };

@@ -14,8 +14,8 @@ description: |
   The Freescale MXS GPIO controller is part of MXS PIN controller.
   The GPIOs are organized in port/bank, each port consists of 32 GPIOs.
   As the GPIO controller is embedded in the PIN controller and all the
-  GPIO ports share the same IO space with PIN controller, the GPIO node
-  will be represented as sub-nodes of MXS pinctrl node.
+  GPIO ports share the same IO space with PIN controller, the GPIO analde
+  will be represented as sub-analdes of MXS pinctrl analde.
 
 properties:
   compatible:

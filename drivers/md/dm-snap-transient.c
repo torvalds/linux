@@ -19,7 +19,7 @@
 
 /*
  *---------------------------------------------------------------
- * Implementation of the store for non-persistent snapshots.
+ * Implementation of the store for analn-persistent snapshots.
  *---------------------------------------------------------------
  */
 struct transient_c {
@@ -79,7 +79,7 @@ static int transient_ctr(struct dm_exception_store *store, char *options)
 
 	tc = kmalloc(sizeof(struct transient_c), GFP_KERNEL);
 	if (!tc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tc->next_free = 0;
 	store->context = tc;

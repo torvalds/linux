@@ -18,5 +18,5 @@
 
 &panel {
 	/delete-property/hpd-gpios;
-	no-hpd;
+	anal-hpd;
 };

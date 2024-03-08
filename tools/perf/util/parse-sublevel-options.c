@@ -14,7 +14,7 @@ static int parse_one_sublevel_option(const char *str,
 	int v = 1;
 
 	if (!s) {
-		pr_err("no memory\n");
+		pr_err("anal memory\n");
 		return -1;
 	}
 
@@ -29,7 +29,7 @@ static int parse_one_sublevel_option(const char *str,
 	}
 
 	if (!opt->name) {
-		pr_err("Unknown option name '%s'\n", s);
+		pr_err("Unkanalwn option name '%s'\n", s);
 		free(s);
 		return -1;
 	}
@@ -50,7 +50,7 @@ int perf_parse_sublevel_options(const char *str, struct sublevel_option *opts)
 	int ret;
 
 	if (!s) {
-		pr_err("no memory\n");
+		pr_err("anal memory\n");
 		return -1;
 	}
 

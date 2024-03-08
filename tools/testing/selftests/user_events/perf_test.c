@@ -5,7 +5,7 @@
  * Copyright (c) 2021 Beau Belgrave <beaub@linux.microsoft.com>
  */
 
-#include <errno.h>
+#include <erranal.h>
 #include <linux/user_events.h>
 #include <linux/perf_event.h>
 #include <stdio.h>
@@ -96,11 +96,11 @@ static int clear(int *check)
 		return -1;
 
 	if (ioctl(fd, DIAG_IOCSUNREG, &unreg) == -1)
-		if (errno != ENOENT)
+		if (erranal != EANALENT)
 			return -1;
 
 	if (ioctl(fd, DIAG_IOCSDEL, "__test_event") == -1)
-		if (errno != ENOENT)
+		if (erranal != EANALENT)
 			return -1;
 
 	close(fd);

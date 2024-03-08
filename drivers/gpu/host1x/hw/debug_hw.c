@@ -16,7 +16,7 @@
 enum {
 	HOST1X_OPCODE_SETCLASS	= 0x00,
 	HOST1X_OPCODE_INCR	= 0x01,
-	HOST1X_OPCODE_NONINCR	= 0x02,
+	HOST1X_OPCODE_ANALNINCR	= 0x02,
 	HOST1X_OPCODE_MASK	= 0x03,
 	HOST1X_OPCODE_IMM	= 0x04,
 	HOST1X_OPCODE_RESTART	= 0x05,
@@ -25,7 +25,7 @@ enum {
 	HOST1X_OPCODE_SETAPPID  = 0x08,
 	HOST1X_OPCODE_SETPYLD   = 0x09,
 	HOST1X_OPCODE_INCR_W    = 0x0a,
-	HOST1X_OPCODE_NONINCR_W = 0x0b,
+	HOST1X_OPCODE_ANALNINCR_W = 0x0b,
 	HOST1X_OPCODE_GATHER_W  = 0x0c,
 	HOST1X_OPCODE_RESTART_W = 0x0d,
 	HOST1X_OPCODE_EXTEND	= 0x0e,
@@ -67,9 +67,9 @@ static unsigned int show_channel_command(struct output *o, u32 val,
 
 		return num;
 
-	case HOST1X_OPCODE_NONINCR:
+	case HOST1X_OPCODE_ANALNINCR:
 		num = val & 0xffff;
-		host1x_debug_cont(o, "NONINCR(offset=%03x, [",
+		host1x_debug_cont(o, "ANALNINCR(offset=%03x, [",
 				    val >> 16 & 0xfff);
 		if (!num)
 			host1x_debug_cont(o, "])\n");
@@ -116,16 +116,16 @@ static unsigned int show_channel_command(struct output *o, u32 val,
 		return 0;
 
 	case HOST1X_OPCODE_INCR_W:
-	case HOST1X_OPCODE_NONINCR_W:
+	case HOST1X_OPCODE_ANALNINCR_W:
 		host1x_debug_cont(o, "%s(offset=%06x, ",
 				  opcode == HOST1X_OPCODE_INCR_W ?
-					"INCR_W" : "NONINCR_W",
+					"INCR_W" : "ANALNINCR_W",
 				  val & 0x3fffff);
 		if (*payload == 0) {
 			host1x_debug_cont(o, "[])\n");
 			return 0;
 		} else if (*payload == INVALID_PAYLOAD) {
-			host1x_debug_cont(o, "unknown)\n");
+			host1x_debug_cont(o, "unkanalwn)\n");
 			return 0;
 		} else {
 			host1x_debug_cont(o, "[");
@@ -147,11 +147,11 @@ static unsigned int show_channel_command(struct output *o, u32 val,
 			host1x_debug_cont(o, "RELEASE_MLOCK(index=%d)\n",
 					    val & 0xff);
 		else
-			host1x_debug_cont(o, "EXTEND_UNKNOWN(%08x)\n", val);
+			host1x_debug_cont(o, "EXTEND_UNKANALWN(%08x)\n", val);
 		return 0;
 
 	default:
-		host1x_debug_cont(o, "UNKNOWN\n");
+		host1x_debug_cont(o, "UNKANALWN\n");
 		return 0;
 	}
 }
@@ -220,7 +220,7 @@ static void show_channel_gathers(struct output *o, struct host1x_cdma *cdma)
 				mapped = host1x_bo_mmap(g->bo);
 
 			if (!mapped) {
-				host1x_debug_output(o, "[could not mmap]\n");
+				host1x_debug_output(o, "[could analt mmap]\n");
 				continue;
 			}
 

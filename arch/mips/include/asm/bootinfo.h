@@ -17,19 +17,19 @@
 
 /*
  * The MACH_ IDs are sort of equivalent to PCI product IDs.  As such the
- * numbers do not necessarily reflect technical relations or similarities
+ * numbers do analt necessarily reflect technical relations or similarities
  * between systems.
  */
 
 /*
- * Valid machtype values for group unknown
+ * Valid machtype values for group unkanalwn
  */
-#define  MACH_UNKNOWN		0	/* whatever...			*/
+#define  MACH_UNKANALWN		0	/* whatever...			*/
 
 /*
  * Valid machtype for group DEC
  */
-#define  MACH_DSUNKNOWN		0
+#define  MACH_DSUNKANALWN		0
 #define  MACH_DS23100		1	/* DECstation 2100 or 3100	*/
 #define  MACH_DS5100		2	/* DECsystem 5100		*/
 #define  MACH_DS5000_200	3	/* DECstation 5000/200		*/
@@ -51,7 +51,7 @@
  * Valid machtype for Loongson family
  */
 enum loongson2ef_machine_type {
-	MACH_LOONGSON_UNKNOWN,
+	MACH_LOONGSON_UNKANALWN,
 	MACH_LEMOTE_FL2E,
 	MACH_LEMOTE_FL2F,
 	MACH_LEMOTE_ML2F7,
@@ -66,7 +66,7 @@ enum loongson2ef_machine_type {
  * Valid machtype for group INGENIC
  */
 enum ingenic_machine_type {
-	MACH_INGENIC_UNKNOWN,
+	MACH_INGENIC_UNKANALWN,
 	MACH_INGENIC_JZ4720,
 	MACH_INGENIC_JZ4725,
 	MACH_INGENIC_JZ4725B,
@@ -161,7 +161,7 @@ static inline void plat_swiotlb_setup(void) {}
  *
  * This function provides a platform independent API to get a pointer to the
  * flattened device tree blob. The interface between bootloader and kernel
- * is not consistent across platforms so it is necessary to provide this
+ * is analt consistent across platforms so it is necessary to provide this
  * API such that common startup code can locate the FDT.
  *
  * This is used by the KASLR code to get command line arguments and random

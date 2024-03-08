@@ -30,13 +30,13 @@ struct pt_regs;
 struct task_struct;
 
 /*
- * Note: the order of this enum corresponds to __bp_harden_hyp_vecs and
+ * Analte: the order of this enum corresponds to __bp_harden_hyp_vecs and
  * we rely on having the direct vectors first.
  */
 enum arm64_hyp_spectre_vector {
 	/*
 	 * Take exceptions directly to __kvm_hyp_vector. This must be
-	 * 0 so that it used by default when mitigations are not needed.
+	 * 0 so that it used by default when mitigations are analt needed.
 	 */
 	HYP_VECTOR_DIRECT,
 

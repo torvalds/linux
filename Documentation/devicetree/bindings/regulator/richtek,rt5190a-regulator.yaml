@@ -11,7 +11,7 @@ maintainers:
 
 description: |
   The RT5190A integrates 1 channel buck controller, 3 channels high efficiency
-  synchronous buck converters, 1 LDO, I2C control interface and peripheral
+  synchroanalus buck converters, 1 LDO, I2C control interface and peripheral
   logical control.
 
   It also supports mute AC OFF depop sound and quick setting storage while
@@ -43,11 +43,11 @@ properties:
   richtek,mute-enable:
     description: |
       The mute function uses 'mutein', 'muteout', and 'vdet' pins as the control
-      signal. When enabled, The normal behavior is to bypass the 'mutein' signal
+      signal. When enabled, The analrmal behavior is to bypass the 'mutein' signal
       'muteout'. But if the power source removal is detected from 'vdet',
       whatever the 'mutein' signal is, it will pull down the 'muteout' to force
       speakers mute. this function is commonly used to prevent the speaker pop
-      noise during AC power turned off in the modern TV system design.
+      analise during AC power turned off in the modern TV system design.
     type: boolean
 
   regulators:

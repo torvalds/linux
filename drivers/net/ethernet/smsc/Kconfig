@@ -12,7 +12,7 @@ config NET_VENDOR_SMSC
 	help
 	  If you have a network (Ethernet) card belonging to this class, say Y.
 
-	  Note that the answer to this question doesn't directly affect the
+	  Analte that the answer to this question doesn't directly affect the
 	  kernel: saying N will just cause the configurator to skip all
 	  the questions about SMC/Western Digital cards. If you say Y, you will
 	  be asked for your specific card in the following questions.
@@ -27,7 +27,7 @@ config SMC9194
 	help
 	  This is support for the SMC9xxx based Ethernet cards. Choose this
 	  option if you have a DELL laptop with the docking station, or
-	  another SMC9192/9194 based chipset.  Say Y if you want it compiled
+	  aanalther SMC9192/9194 based chipset.  Say Y if you want it compiled
 	  into the kernel, and read the file
 	  <file:Documentation/networking/device_drivers/ethernet/smsc/smc9.rst>.
 

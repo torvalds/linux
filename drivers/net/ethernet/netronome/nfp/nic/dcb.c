@@ -488,7 +488,7 @@ static int nfp_nic_dcbnl_ieee_delapp(struct net_device *dev,
 
 	/* Check if the dcb_app param match fw */
 	if (app->priority != dcb->dscp2prio[app->protocol])
-		return -ENOENT;
+		return -EANALENT;
 
 	/* Set fw dscp mapping to 0 */
 	err = nfp_nic_set_dscp2prio(nn, app->protocol, 0);
@@ -503,7 +503,7 @@ static int nfp_nic_dcbnl_ieee_delapp(struct net_device *dev,
 	/* Decrease dscp counter */
 	dcb->dscp_cnt--;
 
-	/* If no dscp mapping is configured, trust pcp */
+	/* If anal dscp mapping is configured, trust pcp */
 	if (dcb->dscp_cnt == 0)
 		return nfp_nic_set_trust_status(nn, NFP_DCB_TRUST_PCP);
 
@@ -532,7 +532,7 @@ int nfp_nic_dcb_init(struct nfp_net *nn)
 					   "_abi_dcb_cfg",
 					   dcb->cfg_offset, &dcb->dcbcfg_tbl_area);
 	if (IS_ERR(dcb->dcbcfg_tbl)) {
-		if (PTR_ERR(dcb->dcbcfg_tbl) != -ENOENT) {
+		if (PTR_ERR(dcb->dcbcfg_tbl) != -EANALENT) {
 			err = PTR_ERR(dcb->dcbcfg_tbl);
 			dcb->dcbcfg_tbl = NULL;
 			nfp_err(app->cpp,

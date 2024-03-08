@@ -35,7 +35,7 @@ mt76pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	mdev = mt76_alloc_device(&pdev->dev, sizeof(*dev), &mt7603_ops,
 				 &mt7603_drv_ops);
 	if (!mdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev = container_of(mdev, struct mt7603_dev, mt76);
 	mt76_mmio_init(mdev, pcim_iomap_table(pdev)[0]);

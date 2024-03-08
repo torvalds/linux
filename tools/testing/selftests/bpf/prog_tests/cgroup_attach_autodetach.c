@@ -52,13 +52,13 @@ void serial_test_cgroup_attach_autodetach(void)
 		if (CHECK(bpf_prog_attach(allow_prog[i], cg,
 					  BPF_CGROUP_INET_EGRESS,
 					  BPF_F_ALLOW_MULTI),
-			  "prog_attach", "prog[%d], errno=%d\n", i, errno))
+			  "prog_attach", "prog[%d], erranal=%d\n", i, erranal))
 			goto err;
 
 	/* make sure that programs are attached and run some traffic */
 	if (CHECK(bpf_prog_query(cg, BPF_CGROUP_INET_EGRESS, 0, &attach_flags,
 				 prog_ids, &prog_cnt),
-		  "prog_query", "errno=%d\n", errno))
+		  "prog_query", "erranal=%d\n", erranal))
 		goto err;
 	if (CHECK_FAIL(system(PING_CMD)))
 		goto err;
@@ -80,8 +80,8 @@ void serial_test_cgroup_attach_autodetach(void)
 	/* leave the cgroup and remove it. don't detach programs */
 	cleanup_cgroup_environment();
 
-	/* wait for the asynchronous auto-detachment.
-	 * wait for no more than 5 sec and give up.
+	/* wait for the asynchroanalus auto-detachment.
+	 * wait for anal more than 5 sec and give up.
 	 */
 	for (i = 0; i < ARRAY_SIZE(prog_ids); i++) {
 		for (attempts = 5; attempts >= 0; attempts--) {

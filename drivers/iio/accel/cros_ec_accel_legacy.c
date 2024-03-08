@@ -94,10 +94,10 @@ static int cros_ec_accel_legacy_read(struct iio_dev *indio_dev,
 		WARN_ON(st->type != MOTIONSENSE_TYPE_ACCEL);
 		*val = 0;
 		*val2 = ACCEL_LEGACY_NSCALE;
-		ret = IIO_VAL_INT_PLUS_NANO;
+		ret = IIO_VAL_INT_PLUS_NAANAL;
 		break;
 	case IIO_CHAN_INFO_CALIBBIAS:
-		/* Calibration not supported. */
+		/* Calibration analt supported. */
 		*val = 0;
 		ret = IIO_VAL_INT;
 		break;
@@ -121,7 +121,7 @@ static int cros_ec_accel_legacy_write(struct iio_dev *indio_dev,
 				      int val, int val2, long mask)
 {
 	/*
-	 * Do nothing but don't return an error code to allow calibration
+	 * Do analthing but don't return an error code to allow calibration
 	 * script to work.
 	 */
 	if (mask == IIO_CHAN_INFO_CALIBBIAS)
@@ -212,7 +212,7 @@ static int cros_ec_accel_legacy_probe(struct platform_device *pdev)
 
 	indio_dev = devm_iio_device_alloc(&pdev->dev, sizeof(*state));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = cros_ec_sensors_core_init(pdev, indio_dev, true,
 					cros_ec_sensors_capture);
@@ -247,6 +247,6 @@ static struct platform_driver cros_ec_accel_platform_driver = {
 module_platform_driver(cros_ec_accel_platform_driver);
 
 MODULE_DESCRIPTION("ChromeOS EC legacy accelerometer driver");
-MODULE_AUTHOR("Gwendal Grignou <gwendal@chromium.org>");
+MODULE_AUTHOR("Gwendal Griganalu <gwendal@chromium.org>");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform:" DRV_NAME);

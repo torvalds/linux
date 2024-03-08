@@ -95,7 +95,7 @@ static irqreturn_t vcnl4035_drdy_irq_thread(int irq, void *private)
 		return IRQ_HANDLED;
 	}
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 /* Triggered buffer */
@@ -118,7 +118,7 @@ static irqreturn_t vcnl4035_trigger_consumer_handler(int irq, void *p)
 					iio_get_time_ns(indio_dev));
 
 fail_read:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -245,7 +245,7 @@ static int vcnl4035_write_raw(struct iio_dev *indio_dev,
 	}
 }
 
-/* No direct ABI for persistence and threshold, so eventing */
+/* Anal direct ABI for persistence and threshold, so eventing */
 static int vcnl4035_read_thresh(struct iio_dev *indio_dev,
 		const struct iio_chan_spec *chan, enum iio_event_type type,
 		enum iio_event_direction dir, enum iio_event_info info,
@@ -419,7 +419,7 @@ static int vcnl4035_init(struct vcnl4035_data *data)
 	if (id != VCNL4035_DEV_ID_VAL) {
 		dev_err(&data->client->dev, "Wrong id, got %x, expected %x\n",
 			id, VCNL4035_DEV_ID_VAL);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ret = vcnl4035_set_als_power_state(data, VCNL4035_MODE_ALS_ENABLE);
@@ -511,7 +511,7 @@ static int vcnl4035_probe_trigger(struct iio_dev *indio_dev)
 			indio_dev->dev.parent,
 			"%s-dev%d", indio_dev->name, iio_device_id(indio_dev));
 	if (!data->drdy_trigger0)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->drdy_trigger0->ops = &vcnl4035_trigger_ops;
 	iio_trigger_set_drvdata(data->drdy_trigger0, indio_dev);
@@ -551,7 +551,7 @@ static int vcnl4035_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	regmap = devm_regmap_init_i2c(client, &vcnl4035_regmap_config);
 	if (IS_ERR(regmap)) {

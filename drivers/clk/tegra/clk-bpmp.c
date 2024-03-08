@@ -68,7 +68,7 @@ static int tegra_bpmp_clk_transfer(struct tegra_bpmp *bpmp,
 	request.cmd_and_id = (clk->cmd << 24) | clk->id;
 
 	/*
-	 * The mrq_clk_request structure has an anonymous union at offset 4
+	 * The mrq_clk_request structure has an aanalnymous union at offset 4
 	 * that contains all possible sub-command structures. Copy the data
 	 * to that union. Ideally we'd be able to refer to it by name, but
 	 * doing so would require changing the ABI header and increase the
@@ -286,7 +286,7 @@ static const struct clk_ops tegra_bpmp_clk_mux_ops = {
 	.unprepare = tegra_bpmp_clk_unprepare,
 	.is_prepared = tegra_bpmp_clk_is_prepared,
 	.recalc_rate = tegra_bpmp_clk_recalc_rate,
-	.determine_rate = clk_hw_determine_rate_no_reparent,
+	.determine_rate = clk_hw_determine_rate_anal_reparent,
 	.set_parent = tegra_bpmp_clk_set_parent,
 	.get_parent = tegra_bpmp_clk_get_parent,
 };
@@ -436,7 +436,7 @@ static int tegra_bpmp_probe_clocks(struct tegra_bpmp *bpmp,
 
 	clocks = kcalloc(max_id + 1, sizeof(*clocks), GFP_KERNEL);
 	if (!clocks)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (id = 0; id <= max_id; id++) {
 		struct tegra_bpmp_clk_info *info = &clocks[count];
@@ -452,7 +452,7 @@ static int tegra_bpmp_probe_clocks(struct tegra_bpmp *bpmp,
 			continue;
 		}
 
-		/* clock not exposed by BPMP */
+		/* clock analt exposed by BPMP */
 		if (info->name[0] == '\0') {
 			holes++;
 			continue;
@@ -512,7 +512,7 @@ tegra_bpmp_clk_register(struct tegra_bpmp *bpmp,
 
 	clk = devm_kzalloc(bpmp->dev, sizeof(*clk), GFP_KERNEL);
 	if (!clk)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	clk->id = info->id;
 	clk->bpmp = bpmp;
@@ -520,7 +520,7 @@ tegra_bpmp_clk_register(struct tegra_bpmp *bpmp,
 	clk->parents = devm_kcalloc(bpmp->dev, info->num_parents,
 				    sizeof(*clk->parents), GFP_KERNEL);
 	if (!clk->parents)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	clk->num_parents = info->num_parents;
 
@@ -559,7 +559,7 @@ tegra_bpmp_clk_register(struct tegra_bpmp *bpmp,
 
 	parents = kcalloc(info->num_parents, sizeof(*parents), GFP_KERNEL);
 	if (!parents)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	for (i = 0; i < info->num_parents; i++) {
 		const struct tegra_bpmp_clk_info *parent;
@@ -570,7 +570,7 @@ tegra_bpmp_clk_register(struct tegra_bpmp *bpmp,
 		parent = tegra_bpmp_clk_find(clocks, num_clocks,
 					     info->parents[i]);
 		if (!parent) {
-			dev_err(bpmp->dev, "no parent %u found for %u\n",
+			dev_err(bpmp->dev, "anal parent %u found for %u\n",
 				info->parents[i], info->id);
 			continue;
 		}
@@ -637,7 +637,7 @@ static int tegra_bpmp_register_clocks(struct tegra_bpmp *bpmp,
 
 	bpmp->clocks = devm_kcalloc(bpmp->dev, count, sizeof(struct tegra_bpmp_clk), GFP_KERNEL);
 	if (!bpmp->clocks)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < count; i++) {
 		tegra_bpmp_register_clocks_one(bpmp, infos, i, count);
@@ -691,7 +691,7 @@ int tegra_bpmp_init_clocks(struct tegra_bpmp *bpmp)
 	if (err < 0)
 		goto free;
 
-	err = of_clk_add_hw_provider(bpmp->dev->of_node,
+	err = of_clk_add_hw_provider(bpmp->dev->of_analde,
 				     tegra_bpmp_clk_of_xlate,
 				     bpmp);
 	if (err < 0) {

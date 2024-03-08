@@ -5,7 +5,7 @@
 #include <linux/mempool.h>
 #include <linux/string.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/skbuff.h>
@@ -141,13 +141,13 @@ snic_handle_link_event(struct snic *snic)
 } /* end of snic_handle_link_event */
 
 /*
- * snic_notify_set : sets notification area
- * This notification area is to receive events from fw
- * Note: snic supports only MSIX interrupts, in which we can just call
- *  svnic_dev_notify_set directly
+ * snic_analtify_set : sets analtification area
+ * This analtification area is to receive events from fw
+ * Analte: snic supports only MSIX interrupts, in which we can just call
+ *  svnic_dev_analtify_set directly
  */
 static int
-snic_notify_set(struct snic *snic)
+snic_analtify_set(struct snic *snic)
 {
 	int ret = 0;
 	enum vnic_dev_intr_mode intr_mode;
@@ -155,16 +155,16 @@ snic_notify_set(struct snic *snic)
 	intr_mode = svnic_dev_get_intr_mode(snic->vdev);
 
 	if (intr_mode == VNIC_DEV_INTR_MODE_MSIX) {
-		ret = svnic_dev_notify_set(snic->vdev, SNIC_MSIX_ERR_NOTIFY);
+		ret = svnic_dev_analtify_set(snic->vdev, SNIC_MSIX_ERR_ANALTIFY);
 	} else {
 		SNIC_HOST_ERR(snic->shost,
-			      "Interrupt mode should be setup before devcmd notify set %d\n",
+			      "Interrupt mode should be setup before devcmd analtify set %d\n",
 			      intr_mode);
 		ret = -1;
 	}
 
 	return ret;
-} /* end of snic_notify_set */
+} /* end of snic_analtify_set */
 
 /*
  * snic_dev_wait : polls vnic open status.
@@ -231,7 +231,7 @@ snic_cleanup(struct snic *snic)
 
 	snic_wq_cmpl_handler(snic, -1);
 
-	/* Clean up the IOs that have not completed */
+	/* Clean up the IOs that have analt completed */
 	for (i = 0; i < snic->wq_count; i++)
 		svnic_wq_clean(&snic->wq[i], snic_free_wq_buf);
 
@@ -301,12 +301,12 @@ snic_add_host(struct Scsi_Host *shost, struct pci_dev *pdev)
 
 	SNIC_BUG_ON(shost->work_q != NULL);
 	snprintf(shost->work_q_name, sizeof(shost->work_q_name), "scsi_wq_%d",
-		 shost->host_no);
+		 shost->host_anal);
 	shost->work_q = create_singlethread_workqueue(shost->work_q_name);
 	if (!shost->work_q) {
 		SNIC_HOST_ERR(shost, "Failed to Create ScsiHost wq.\n");
 
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 	}
 
 	return ret;
@@ -367,7 +367,7 @@ snic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	shost = scsi_host_alloc(&snic_host_template, sizeof(struct snic));
 	if (!shost) {
 		SNIC_ERR("Unable to alloc scsi_host\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 
 		goto prob_end;
 	}
@@ -375,11 +375,11 @@ snic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	snic->shost = shost;
 
 	snprintf(snic->name, sizeof(snic->name) - 1, "%s%d", SNIC_DRV_NAME,
-		 shost->host_no);
+		 shost->host_anal);
 
 	SNIC_HOST_INFO(shost,
 		       "snic%d = %p shost = %p device bus %x: slot %x: fn %x\n",
-		       shost->host_no, snic, shost, pdev->bus->number,
+		       shost->host_anal, snic, shost, pdev->bus->number,
 		       PCI_SLOT(pdev->devfn), PCI_FUNC(pdev->devfn));
 #ifdef CONFIG_SCSI_SNIC_DEBUG_FS
 	/* Per snic debugfs init */
@@ -393,7 +393,7 @@ snic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	ret = pci_enable_device(pdev);
 	if (ret) {
 		SNIC_HOST_ERR(shost,
-			      "Cannot enable PCI Resources, aborting : %d\n",
+			      "Cananalt enable PCI Resources, aborting : %d\n",
 			      ret);
 
 		goto err_free_snic;
@@ -402,7 +402,7 @@ snic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	ret = pci_request_regions(pdev, SNIC_DRV_NAME);
 	if (ret) {
 		SNIC_HOST_ERR(shost,
-			      "Cannot obtain PCI Resources, aborting : %d\n",
+			      "Cananalt obtain PCI Resources, aborting : %d\n",
 			      ret);
 
 		goto err_pci_disable;
@@ -420,7 +420,7 @@ snic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
 		if (ret) {
 			SNIC_HOST_ERR(shost,
-				      "No Usable DMA Configuration, aborting %d\n",
+				      "Anal Usable DMA Configuration, aborting %d\n",
 				      ret);
 			goto err_rel_regions;
 		}
@@ -428,18 +428,18 @@ snic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	/* Map vNIC resources from BAR0 */
 	if (!(pci_resource_flags(pdev, 0) & IORESOURCE_MEM)) {
-		SNIC_HOST_ERR(shost, "BAR0 not memory mappable aborting.\n");
+		SNIC_HOST_ERR(shost, "BAR0 analt memory mappable aborting.\n");
 
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_rel_regions;
 	}
 
 	snic->bar0.vaddr = pci_iomap(pdev, 0, 0);
 	if (!snic->bar0.vaddr) {
 		SNIC_HOST_ERR(shost,
-			      "Cannot memory map BAR0 res hdr aborting.\n");
+			      "Cananalt memory map BAR0 res hdr aborting.\n");
 
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_rel_regions;
 	}
 
@@ -452,7 +452,7 @@ snic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (!snic->vdev) {
 		SNIC_HOST_ERR(shost, "vNIC Resource Discovery Failed.\n");
 
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_iounmap;
 	}
 
@@ -551,7 +551,7 @@ snic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (!pool) {
 		SNIC_HOST_ERR(shost, "dflt sgl pool creation failed\n");
 
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_res;
 	}
 
@@ -562,7 +562,7 @@ snic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (!pool) {
 		SNIC_HOST_ERR(shost, "max sgl pool creation failed\n");
 
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_dflt_sgl_pool;
 	}
 
@@ -573,7 +573,7 @@ snic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (!pool) {
 		SNIC_HOST_ERR(shost, "snic tmreq info pool creation failed.\n");
 
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_max_sgl_pool;
 	}
 
@@ -584,11 +584,11 @@ snic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	atomic_set(&snic->ios_inflight, 0);
 
-	/* Setup notification buffer area */
-	ret = snic_notify_set(snic);
+	/* Setup analtification buffer area */
+	ret = snic_analtify_set(snic);
 	if (ret) {
 		SNIC_HOST_ERR(shost,
-			      "Failed to alloc notify buffer aborting. %d\n",
+			      "Failed to alloc analtify buffer aborting. %d\n",
 			      ret);
 
 		goto err_free_tmreq_pool;
@@ -675,7 +675,7 @@ err_req_intr:
 	svnic_dev_disable(snic->vdev);
 
 err_vdev_enable:
-	svnic_dev_notify_unset(snic->vdev);
+	svnic_dev_analtify_unset(snic->vdev);
 
 	for (i = 0; i < snic->wq_count; i++) {
 		int rc = 0;
@@ -789,7 +789,7 @@ snic_remove(struct pci_dev *pdev)
 #endif
 	snic_del_host(snic->shost);
 
-	svnic_dev_notify_unset(snic->vdev);
+	svnic_dev_analtify_unset(snic->vdev);
 	snic_free_intr(snic);
 	snic_free_vnic_res(snic);
 	snic_clear_intr_mode(snic);
@@ -809,7 +809,7 @@ struct snic_global *snic_glob;
 
 /*
  * snic_global_data_init: Initialize SNIC Global Data
- * Notes: All the global lists, variables should be part of global data
+ * Analtes: All the global lists, variables should be part of global data
  * this helps in debugging.
  */
 static int
@@ -824,7 +824,7 @@ snic_global_data_init(void)
 	if (!snic_glob) {
 		SNIC_ERR("Failed to allocate Global Context.\n");
 
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto gdi_end;
 	}
 
@@ -853,7 +853,7 @@ snic_global_data_init(void)
 				   SLAB_HWCACHE_ALIGN, NULL);
 	if (!cachep) {
 		SNIC_ERR("Failed to create snic default sgl slab\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 
 		goto err_dflt_req_slab;
 	}
@@ -866,7 +866,7 @@ snic_global_data_init(void)
 				   SLAB_HWCACHE_ALIGN, NULL);
 	if (!cachep) {
 		SNIC_ERR("Failed to create snic max sgl slab\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 
 		goto err_max_req_slab;
 	}
@@ -877,7 +877,7 @@ snic_global_data_init(void)
 				   SLAB_HWCACHE_ALIGN, NULL);
 	if (!cachep) {
 		SNIC_ERR("Failed to create snic tm req slab\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 
 		goto err_tmreq_slab;
 	}
@@ -887,7 +887,7 @@ snic_global_data_init(void)
 	snic_glob->event_q = create_singlethread_workqueue("snic_event_wq");
 	if (!snic_glob->event_q) {
 		SNIC_ERR("snic event queue create failed\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 
 		goto err_eventq;
 	}

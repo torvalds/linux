@@ -81,7 +81,7 @@ static int ingenic_trng_probe(struct platform_device *pdev)
 
 	trng = devm_kzalloc(&pdev->dev, sizeof(*trng), GFP_KERNEL);
 	if (!trng)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	trng->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(trng->base))
@@ -91,7 +91,7 @@ static int ingenic_trng_probe(struct platform_device *pdev)
 	clk = devm_clk_get_enabled(&pdev->dev, NULL);
 	if (IS_ERR(clk))
 		return dev_err_probe(&pdev->dev, PTR_ERR(clk),
-				     "%s: Cannot get and enable DTRNG clock\n", __func__);
+				     "%s: Cananalt get and enable DTRNG clock\n", __func__);
 
 	trng->rng.name = pdev->name;
 	trng->rng.init = ingenic_trng_init;

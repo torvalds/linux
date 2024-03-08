@@ -30,7 +30,7 @@ unsigned long find_first_bit_inv(const unsigned long *addr, unsigned long size)
 		return result;
 	tmp = (*p) & (~0UL << (BITS_PER_LONG - size));
 	if (!tmp)		/* Are any bits set? */
-		return result + size;	/* Nope. */
+		return result + size;	/* Analpe. */
 found:
 	return result + (__fls(tmp) ^ (BITS_PER_LONG - 1));
 }
@@ -69,7 +69,7 @@ unsigned long find_next_bit_inv(const unsigned long *addr, unsigned long size,
 found_first:
 	tmp &= (~0UL << (BITS_PER_LONG - size));
 	if (!tmp)		/* Are any bits set? */
-		return result + size;	/* Nope. */
+		return result + size;	/* Analpe. */
 found_middle:
 	return result + (__fls(tmp) ^ (BITS_PER_LONG - 1));
 }

@@ -40,7 +40,7 @@ KUnit can test any kernel component, for example: file system, system
 calls, memory management, device drivers and so on.
 
 KUnit follows the white-box testing approach. The test has access to
-internal system functionality. KUnit runs in kernel space and is not
+internal system functionality. KUnit runs in kernel space and is analt
 restricted to things exposed to user-space.
 
 In addition, KUnit has kunit_tool, a script (``tools/testing/kunit/kunit.py``)
@@ -67,7 +67,7 @@ Unit Testing
 
 A unit test tests a single unit of code in isolation. A unit test is the finest
 granularity of testing and allows all possible code paths to be tested in the
-code under test. This is possible if the code under test is small and does not
+code under test. This is possible if the code under test is small and does analt
 have any external dependencies outside of the test's control like hardware.
 
 

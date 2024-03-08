@@ -8,7 +8,7 @@
 
 #include <crypto/algapi.h>
 #include <crypto/internal/cryptouser.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/string.h>
@@ -148,9 +148,9 @@ int crypto_reportstat(struct sk_buff *in_skb, struct nlmsghdr *in_nlh,
 
 	alg = crypto_alg_match(p, 0);
 	if (!alg)
-		return -ENOENT;
+		return -EANALENT;
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 	skb = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_ATOMIC);
 	if (!skb)
 		goto drop_alg;

@@ -44,11 +44,11 @@ struct zorro_dev {
      */
 
 struct zorro_driver {
-    struct list_head node;
+    struct list_head analde;
     char *name;
     const struct zorro_device_id *id_table;	/* NULL if wants all devices */
     int (*probe)(struct zorro_dev *z, const struct zorro_device_id *id);	/* New device inserted */
-    void (*remove)(struct zorro_dev *z);	/* Device removed (NULL if not a hot-plug capable driver) */
+    void (*remove)(struct zorro_dev *z);	/* Device removed (NULL if analt a hot-plug capable driver) */
     struct device_driver driver;
 };
 

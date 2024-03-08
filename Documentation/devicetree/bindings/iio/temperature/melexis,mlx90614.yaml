@@ -25,9 +25,9 @@ properties:
   wakeup-gpios:
     description:
       GPIO connected to the SDA line to hold low in order to wake up the
-      device.  In normal operation, the GPIO is set as input and will
-      not interfere in I2C communication.  There is no need for a GPIO
-      driving the SCL line.  If no GPIO is given, power management is disabled.
+      device.  In analrmal operation, the GPIO is set as input and will
+      analt interfere in I2C communication.  There is anal need for a GPIO
+      driving the SCL line.  If anal GPIO is given, power management is disabled.
     maxItems: 1
 
 required:

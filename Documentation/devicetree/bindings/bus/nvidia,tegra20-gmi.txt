@@ -2,9 +2,9 @@ Device tree bindings for NVIDIA Tegra Generic Memory Interface bus
 
 The Generic Memory Interface bus enables memory transfers between internal and
 external memory. Can be used to attach various high speed devices such as
-synchronous/asynchronous NOR, FPGA, UARTS and more.
+synchroanalus/asynchroanalus ANALR, FPGA, UARTS and more.
 
-The actual devices are instantiated from the child nodes of a GMI node.
+The actual devices are instantiated from the child analdes of a GMI analde.
 
 Required properties:
  - compatible : Should contain one of the following:
@@ -24,7 +24,7 @@ Required properties:
    comments):
    <cs-number> <offset> <physical address of mapping> <size>
 
-Note that the GMI controller does not have any internal chip-select address
+Analte that the GMI controller does analt have any internal chip-select address
 decoding, because of that chip-selects either need to be managed via software
 or by employing external chip-select decoding logic.
 
@@ -34,43 +34,43 @@ assumes that they can fit in the 256MB address range. In this case only one
 child device is supported which represents the active chip-select line, see
 examples for more insight.
 
-The chip-select number is decoded from the child nodes second address cell of
-'ranges' property, if 'ranges' property is not present or empty chip-select will
+The chip-select number is decoded from the child analdes second address cell of
+'ranges' property, if 'ranges' property is analt present or empty chip-select will
 then be decoded from the first cell of the 'reg' property.
 
-Optional child cs node properties:
+Optional child cs analde properties:
 
- - nvidia,snor-data-width-32bit: Use 32bit data-bus, default is 16bit.
- - nvidia,snor-mux-mode: Enable address/data MUX mode.
- - nvidia,snor-rdy-active-before-data: Assert RDY signal one cycle before data.
+ - nvidia,sanalr-data-width-32bit: Use 32bit data-bus, default is 16bit.
+ - nvidia,sanalr-mux-mode: Enable address/data MUX mode.
+ - nvidia,sanalr-rdy-active-before-data: Assert RDY signal one cycle before data.
    If omitted it will be asserted with data.
- - nvidia,snor-rdy-active-high: RDY signal is active high
- - nvidia,snor-adv-active-high: ADV signal is active high
- - nvidia,snor-oe-active-high: WE/OE signal is active high
- - nvidia,snor-cs-active-high: CS signal is active high
+ - nvidia,sanalr-rdy-active-high: RDY signal is active high
+ - nvidia,sanalr-adv-active-high: ADV signal is active high
+ - nvidia,sanalr-oe-active-high: WE/OE signal is active high
+ - nvidia,sanalr-cs-active-high: CS signal is active high
 
-  Note that there is some special handling for the timing values.
+  Analte that there is some special handling for the timing values.
   From Tegra TRM:
   Programming 0 means 1 clock cycle: actual cycle = programmed cycle + 1
 
- - nvidia,snor-muxed-width: Number of cycles MUX address/data asserted on the
+ - nvidia,sanalr-muxed-width: Number of cycles MUX address/data asserted on the
    bus. Valid values are 0-15, default is 1
- - nvidia,snor-hold-width: Number of cycles CE stays asserted after the
+ - nvidia,sanalr-hold-width: Number of cycles CE stays asserted after the
    de-assertion of WR_N (in case of SLAVE/MASTER Request) or OE_N
    (in case of MASTER Request). Valid values are 0-15, default is 1
- - nvidia,snor-adv-width: Number of cycles during which ADV stays asserted.
+ - nvidia,sanalr-adv-width: Number of cycles during which ADV stays asserted.
    Valid values are 0-15, default is 1.
- - nvidia,snor-ce-width: Number of cycles before CE is asserted.
+ - nvidia,sanalr-ce-width: Number of cycles before CE is asserted.
    Valid values are 0-15, default is 4
- - nvidia,snor-we-width: Number of cycles during which WE stays asserted.
+ - nvidia,sanalr-we-width: Number of cycles during which WE stays asserted.
    Valid values are 0-15, default is 1
- - nvidia,snor-oe-width: Number of cycles during which OE stays asserted.
+ - nvidia,sanalr-oe-width: Number of cycles during which OE stays asserted.
    Valid values are 0-255, default is 1
- - nvidia,snor-wait-width: Number of cycles before READY is asserted.
+ - nvidia,sanalr-wait-width: Number of cycles before READY is asserted.
    Valid values are 0-255, default is 3
 
 Example with two SJA1000 CAN controllers connected to the GMI bus. We wrap the
-controllers with a simple-bus node since they are all connected to the same
+controllers with a simple-bus analde since they are all connected to the same
 chip-select (CS4), in this example external address decoding is provided:
 
 gmi@70009000 {
@@ -78,7 +78,7 @@ gmi@70009000 {
 	reg = <0x70009000 0x1000>;
 	#address-cells = <2>;
 	#size-cells = <1>;
-	clocks = <&tegra_car TEGRA20_CLK_NOR>;
+	clocks = <&tegra_car TEGRA20_CLK_ANALR>;
 	clock-names = "gmi";
 	resets = <&tegra_car 42>;
 	reset-names = "gmi";
@@ -90,8 +90,8 @@ gmi@70009000 {
 		#size-cells = <1>;
 		ranges = <0 4 0 0x40100>;
 
-		nvidia,snor-mux-mode;
-		nvidia,snor-adv-active-high;
+		nvidia,sanalr-mux-mode;
+		nvidia,sanalr-adv-active-high;
 
 		can@0 {
 			reg = <0 0x100>;
@@ -113,7 +113,7 @@ gmi@70009000 {
 	reg = <0x70009000 0x1000>;
 	#address-cells = <2>;
 	#size-cells = <1>;
-	clocks = <&tegra_car TEGRA20_CLK_NOR>;
+	clocks = <&tegra_car TEGRA20_CLK_ANALR>;
 	clock-names = "gmi";
 	resets = <&tegra_car 42>;
 	reset-names = "gmi";
@@ -121,8 +121,8 @@ gmi@70009000 {
 
 	can@4,0 {
 		reg = <4 0 0x100>;
-		nvidia,snor-mux-mode;
-		nvidia,snor-adv-active-high;
+		nvidia,sanalr-mux-mode;
+		nvidia,sanalr-adv-active-high;
 		...
 	};
 };

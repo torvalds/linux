@@ -2,7 +2,7 @@
 /* Copyright (c) 2013-2016, The Linux Foundation. All rights reserved.
  */
 
-/* Qualcomm Technologies, Inc. EMAC PHY Controller driver.
+/* Qualcomm Techanallogies, Inc. EMAC PHY Controller driver.
  */
 
 #include <linux/of_mdio.h>
@@ -91,14 +91,14 @@ static int emac_mdio_write(struct mii_bus *bus, int addr, int regnum, u16 val)
 /* Configure the MDIO bus and connect the external PHY */
 int emac_phy_config(struct platform_device *pdev, struct emac_adapter *adpt)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct mii_bus *mii_bus;
 	int ret;
 
 	/* Create the mii_bus object for talking to the MDIO bus */
 	adpt->mii_bus = mii_bus = devm_mdiobus_alloc(&pdev->dev);
 	if (!mii_bus)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mii_bus->name = "emac-mdio";
 	snprintf(mii_bus->id, MII_BUS_ID_SIZE, "%s", pdev->name);
@@ -112,7 +112,7 @@ int emac_phy_config(struct platform_device *pdev, struct emac_adapter *adpt)
 
 		ret = mdiobus_register(mii_bus);
 		if (ret) {
-			dev_err(&pdev->dev, "could not register mdio bus\n");
+			dev_err(&pdev->dev, "could analt register mdio bus\n");
 			return ret;
 		}
 		ret = device_property_read_u32(&pdev->dev, "phy-channel",
@@ -133,23 +133,23 @@ int emac_phy_config(struct platform_device *pdev, struct emac_adapter *adpt)
 		if (adpt->phydev)
 			get_device(&adpt->phydev->mdio.dev);
 	} else {
-		struct device_node *phy_np;
+		struct device_analde *phy_np;
 
 		ret = of_mdiobus_register(mii_bus, np);
 		if (ret) {
-			dev_err(&pdev->dev, "could not register mdio bus\n");
+			dev_err(&pdev->dev, "could analt register mdio bus\n");
 			return ret;
 		}
 
 		phy_np = of_parse_phandle(np, "phy-handle", 0);
 		adpt->phydev = of_phy_find_device(phy_np);
-		of_node_put(phy_np);
+		of_analde_put(phy_np);
 	}
 
 	if (!adpt->phydev) {
-		dev_err(&pdev->dev, "could not find external phy\n");
+		dev_err(&pdev->dev, "could analt find external phy\n");
 		mdiobus_unregister(mii_bus);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;

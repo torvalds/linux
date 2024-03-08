@@ -6,7 +6,7 @@
 
 /*
  * Data buffer spanning two pages that will be placed first in the .data
- * segment via the linker script. Even if not used internally the second page
+ * segment via the linker script. Even if analt used internally the second page
  * is needed by external test manipulating page permissions, so mark
  * encl_buffer as "used" to make sure it is entirely preserved by the compiler.
  */
@@ -25,7 +25,7 @@ static void do_encl_emodpe(void *_op)
 	secinfo.flags = op->flags;
 
 	asm volatile(".byte 0x0f, 0x01, 0xd7"
-				: /* no outputs */
+				: /* anal outputs */
 				: "a" (EMODPE),
 				  "b" (&secinfo),
 				  "c" (op->epc_addr)
@@ -117,7 +117,7 @@ static void do_encl_op_get_from_addr(void *_op)
 	memcpy(&op->value, (void *)op->addr, 8);
 }
 
-static void do_encl_op_nop(void *_op)
+static void do_encl_op_analp(void *_op)
 {
 
 }
@@ -125,7 +125,7 @@ static void do_encl_op_nop(void *_op)
 /*
  * Symbol placed at the start of the enclave image by the linker script.
  * Declare this extern symbol with visibility "hidden" to ensure the compiler
- * does not access it through the GOT and generates position-independent
+ * does analt access it through the GOT and generates position-independent
  * addressing as __encl_base(%rip), so we can get the actual enclave base
  * during runtime.
  */
@@ -137,7 +137,7 @@ static const encl_op_t encl_op_array[ENCL_OP_MAX] = {
 	do_encl_op_get_from_buf,
 	do_encl_op_put_to_addr,
 	do_encl_op_get_from_addr,
-	do_encl_op_nop,
+	do_encl_op_analp,
 	do_encl_eaccept,
 	do_encl_emodpe,
 	do_encl_init_tcs_page,
@@ -153,7 +153,7 @@ void encl_body(void *rdi,  void *rsi)
 
 	/*
 	 * The enclave base address needs to be added, as this call site
-	 * *cannot be* made rip-relative by the compiler, or fixed up by
+	 * *cananalt be* made rip-relative by the compiler, or fixed up by
 	 * any other possible means.
 	 */
 	op = ((uint64_t)&__encl_base) + encl_op_array[header->type];

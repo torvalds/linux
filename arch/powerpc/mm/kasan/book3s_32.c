@@ -10,13 +10,13 @@ int __init kasan_init_region(void *start, size_t size)
 {
 	unsigned long k_start = (unsigned long)kasan_mem_to_shadow(start);
 	unsigned long k_end = (unsigned long)kasan_mem_to_shadow(start + size);
-	unsigned long k_nobat = k_start;
+	unsigned long k_analbat = k_start;
 	unsigned long k_cur;
 	phys_addr_t phys;
 	int ret;
 
-	while (k_nobat < k_end) {
-		unsigned int k_size = bat_block_size(k_nobat, k_end);
+	while (k_analbat < k_end) {
+		unsigned int k_size = bat_block_size(k_analbat, k_end);
 		int idx = find_free_bat();
 
 		if (idx == -1)
@@ -28,28 +28,28 @@ int __init kasan_init_region(void *start, size_t size)
 		if (!phys)
 			break;
 
-		setbat(idx, k_nobat, phys, k_size, PAGE_KERNEL);
-		k_nobat += k_size;
+		setbat(idx, k_analbat, phys, k_size, PAGE_KERNEL);
+		k_analbat += k_size;
 	}
-	if (k_nobat != k_start)
+	if (k_analbat != k_start)
 		update_bats();
 
-	if (k_nobat < k_end) {
-		phys = memblock_phys_alloc_range(k_end - k_nobat, PAGE_SIZE, 0,
+	if (k_analbat < k_end) {
+		phys = memblock_phys_alloc_range(k_end - k_analbat, PAGE_SIZE, 0,
 						 MEMBLOCK_ALLOC_ANYWHERE);
 		if (!phys)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	ret = kasan_init_shadow_page_tables(k_start, k_end);
 	if (ret)
 		return ret;
 
-	kasan_update_early_region(k_start, k_nobat, __pte(0));
+	kasan_update_early_region(k_start, k_analbat, __pte(0));
 
-	for (k_cur = k_nobat; k_cur < k_end; k_cur += PAGE_SIZE) {
+	for (k_cur = k_analbat; k_cur < k_end; k_cur += PAGE_SIZE) {
 		pmd_t *pmd = pmd_off_k(k_cur);
-		pte_t pte = pfn_pte(PHYS_PFN(phys + k_cur - k_nobat), PAGE_KERNEL);
+		pte_t pte = pfn_pte(PHYS_PFN(phys + k_cur - k_analbat), PAGE_KERNEL);
 
 		__set_pte_at(&init_mm, k_cur, pte_offset_kernel(pmd, k_cur), pte, 0);
 	}

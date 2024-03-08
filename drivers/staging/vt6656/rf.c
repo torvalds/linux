@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
+ * Copyright (c) 1996, 2003 VIA Networking Techanallogies, Inc.
  * All rights reserved.
  *
  * Purpose: rf function code
@@ -19,7 +19,7 @@
  *
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include "mac.h"
 #include "rf.h"
 #include "baseband.h"
@@ -251,7 +251,7 @@ static int vnt_rf_set_txpower(struct vnt_private *priv, u8 power,
 		if (ret)
 			return ret;
 
-		if (ch->flags & IEEE80211_CHAN_NO_OFDM)
+		if (ch->flags & IEEE80211_CHAN_ANAL_OFDM)
 			ret = vnt_rf_write_embedded(priv, 0x0001b400);
 		else
 			ret = vnt_rf_write_embedded(priv, 0x0005a400);
@@ -264,7 +264,7 @@ static int vnt_rf_set_txpower(struct vnt_private *priv, u8 power,
 		if (ret)
 			return ret;
 
-		if (ch->flags & IEEE80211_CHAN_NO_OFDM) {
+		if (ch->flags & IEEE80211_CHAN_ANAL_OFDM) {
 			ret = vnt_rf_write_embedded(priv, 0x040c1400);
 			if (ret)
 				return ret;
@@ -286,7 +286,7 @@ static int vnt_rf_set_txpower(struct vnt_private *priv, u8 power,
 		ret = vnt_rf_write_embedded(priv, power_setting);
 		break;
 	case RF_VT3226D0:
-		if (ch->flags & IEEE80211_CHAN_NO_OFDM) {
+		if (ch->flags & IEEE80211_CHAN_ANAL_OFDM) {
 			u16 hw_value = ch->hw_value;
 
 			power_setting = ((0x3f - power) << 20) | (0xe07 << 8);
@@ -354,7 +354,7 @@ int vnt_rf_setpower(struct vnt_private *priv,
 	/* set channel number to array number */
 	channel = ch->hw_value - 1;
 
-	if (ch->flags & IEEE80211_CHAN_NO_OFDM) {
+	if (ch->flags & IEEE80211_CHAN_ANAL_OFDM) {
 		if (channel < ARRAY_SIZE(priv->cck_pwr_tbl))
 			power = priv->cck_pwr_tbl[channel];
 	} else if (ch->band == NL80211_BAND_5GHZ) {

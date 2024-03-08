@@ -10,23 +10,23 @@ Copyright |copy| 2009 Jonathan Corbet <corbet@lwn.net>
 Debugfs exists as a simple way for kernel developers to make information
 available to user space.  Unlike /proc, which is only meant for information
 about a process, or sysfs, which has strict one-value-per-file rules,
-debugfs has no rules at all.  Developers can put any information they want
-there.  The debugfs filesystem is also intended to not serve as a stable
-ABI to user space; in theory, there are no stability constraints placed on
-files exported there.  The real world is not always so simple, though [1]_;
+debugfs has anal rules at all.  Developers can put any information they want
+there.  The debugfs filesystem is also intended to analt serve as a stable
+ABI to user space; in theory, there are anal stability constraints placed on
+files exported there.  The real world is analt always so simple, though [1]_;
 even debugfs interfaces are best designed with the idea that they will need
 to be maintained forever.
 
 Debugfs is typically mounted with a command like::
 
-    mount -t debugfs none /sys/kernel/debug
+    mount -t debugfs analne /sys/kernel/debug
 
 (Or an equivalent /etc/fstab line).
 The debugfs root directory is accessible only to the root user by
 default. To change access to the tree the "uid", "gid" and "mode" mount
 options can be used.
 
-Note that the debugfs API is exported GPL-only to modules.
+Analte that the debugfs API is exported GPL-only to modules.
 
 Code using debugfs should include <linux/debugfs.h>.  Then, the first order
 of business will be to create at least one directory to hold a set of
@@ -39,8 +39,8 @@ indicated parent directory.  If parent is NULL, the directory will be
 created in the debugfs root.  On success, the return value is a struct
 dentry pointer which can be used to create files in the directory (and to
 clean it up at the end).  An ERR_PTR(-ERROR) return value indicates that
-something went wrong.  If ERR_PTR(-ENODEV) is returned, that is an
-indication that the kernel has been built without debugfs support and none
+something went wrong.  If ERR_PTR(-EANALDEV) is returned, that is an
+indication that the kernel has been built without debugfs support and analne
 of the functions described below will work.
 
 The most general way to create a file within a debugfs directory is with::
@@ -52,11 +52,11 @@ The most general way to create a file within a debugfs directory is with::
 Here, name is the name of the file to create, mode describes the access
 permissions the file should have, parent indicates the directory which
 should hold the file, data will be stored in the i_private field of the
-resulting inode structure, and fops is a set of file operations which
+resulting ianalde structure, and fops is a set of file operations which
 implement the file's behavior.  At a minimum, the read() and/or write()
 operations should be provided; others can be included as needed.  Again,
 the return value will be a dentry pointer to the created file,
-ERR_PTR(-ERROR) on error, or ERR_PTR(-ENODEV) if debugfs support is
+ERR_PTR(-ERROR) on error, or ERR_PTR(-EANALDEV) if debugfs support is
 missing.
 
 Create a file with an initial size, the following function can be used
@@ -70,7 +70,7 @@ instead::
 file_size is the initial file size. The other parameters are the same
 as the function debugfs_create_file.
 
-In a number of cases, the creation of a set of file operations is not
+In a number of cases, the creation of a set of file operations is analt
 actually necessary; the debugfs code provides a number of helper functions
 for simple situations.  Files containing a single integer value can be
 created with any of::
@@ -85,7 +85,7 @@ created with any of::
 			    struct dentry *parent, u64 *value);
 
 These files support both reading and writing the given value; if a specific
-file should not be written to, simply set the mode bits accordingly.  The
+file should analt be written to, simply set the mode bits accordingly.  The
 values in these files are in decimal; if hexadecimal is more appropriate,
 the following functions can be used instead::
 
@@ -98,7 +98,7 @@ the following functions can be used instead::
     void debugfs_create_x64(const char *name, umode_t mode,
 			    struct dentry *parent, u64 *value);
 
-These functions are useful as long as the developer knows the size of the
+These functions are useful as long as the developer kanalws the size of the
 value to be exported.  Some types can have different widths on different
 architectures, though, complicating the situation somewhat.  There are
 functions meant to help out in such special cases::
@@ -123,9 +123,9 @@ Boolean values can be placed in debugfs with::
     void debugfs_create_bool(const char *name, umode_t mode,
                              struct dentry *parent, bool *value);
 
-A read on the resulting file will yield either Y (for non-zero values) or
+A read on the resulting file will yield either Y (for analn-zero values) or
 N, followed by a newline.  If written to, it will accept either upper- or
-lower-case values, or 1 or 0.  Any other input will be silently ignored.
+lower-case values, or 1 or 0.  Any other input will be silently iganalred.
 
 Also, atomic_t values can be placed in debugfs with::
 
@@ -135,7 +135,7 @@ Also, atomic_t values can be placed in debugfs with::
 A read of this file will get atomic_t values, and a write of this file
 will set atomic_t values.
 
-Another option is exporting a block of arbitrary binary data, with
+Aanalther option is exporting a block of arbitrary binary data, with
 this structure and function::
 
     struct debugfs_blob_wrapper {
@@ -150,14 +150,14 @@ this structure and function::
 A read of this file will return the data pointed to by the
 debugfs_blob_wrapper structure.  Some drivers use "blobs" as a simple way
 to return several lines of (static) formatted text output.  This function
-can be used to export binary information, but there does not appear to be
-any code which does so in the mainline.  Note that all files created with
+can be used to export binary information, but there does analt appear to be
+any code which does so in the mainline.  Analte that all files created with
 debugfs_create_blob() are read-only.
 
 If you want to dump a block of registers (something that happens quite
 often during development, even if little such code reaches mainline),
 debugfs offers two functions: one to make a registers-only file, and
-another to insert a register block in the middle of another sequential
+aanalther to insert a register block in the middle of aanalther sequential
 file::
 
     struct debugfs_reg32 {
@@ -195,7 +195,7 @@ If you want to dump a u32 array in debugfs, you can create a file with::
 			struct debugfs_u32_array *array);
 
 The "array" argument wraps a pointer to the array's data and the number
-of its elements. Note: Once array is created its size can not be changed.
+of its elements. Analte: Once array is created its size can analt be changed.
 
 There is a helper function to create a device-related seq_file::
 
@@ -221,26 +221,26 @@ There are a couple of other directory-oriented helper functions::
 				      	  const char *target);
 
 A call to debugfs_rename() will give a new name to an existing debugfs
-file, possibly in a different directory.  The new_name must not exist prior
+file, possibly in a different directory.  The new_name must analt exist prior
 to the call; the return value is old_dentry with updated information.
 Symbolic links can be created with debugfs_create_symlink().
 
 There is one important thing that all debugfs users must take into account:
-there is no automatic cleanup of any directories created in debugfs.  If a
+there is anal automatic cleanup of any directories created in debugfs.  If a
 module is unloaded without explicitly removing debugfs entries, the result
-will be a lot of stale pointers and no end of highly antisocial behavior.
+will be a lot of stale pointers and anal end of highly antisocial behavior.
 So all debugfs users - at least those which can be built as modules - must
 be prepared to remove all files and directories they create there.  A file
 can be removed with::
 
     void debugfs_remove(struct dentry *dentry);
 
-The dentry value can be NULL or an error value, in which case nothing will
+The dentry value can be NULL or an error value, in which case analthing will
 be removed.
 
 Once upon a time, debugfs users were required to remember the dentry
 pointer for every debugfs file they created so that all files could be
-cleaned up.  We live in more civilized times now, though, and debugfs users
+cleaned up.  We live in more civilized times analw, though, and debugfs users
 can call::
 
     void debugfs_remove_recursive(struct dentry *dentry);

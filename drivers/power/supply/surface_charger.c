@@ -54,7 +54,7 @@ struct spwr_ac_device {
 	struct power_supply *psy;
 	struct power_supply_desc psy_desc;
 
-	struct ssam_event_notifier notif;
+	struct ssam_event_analtifier analtif;
 
 	struct mutex lock;  /* Guards access to state below. */
 
@@ -100,12 +100,12 @@ static int spwr_ac_recheck(struct spwr_ac_device *ac)
 	return status >= 0 ? 0 : status;
 }
 
-static u32 spwr_notify_ac(struct ssam_event_notifier *nf, const struct ssam_event *event)
+static u32 spwr_analtify_ac(struct ssam_event_analtifier *nf, const struct ssam_event *event)
 {
 	struct spwr_ac_device *ac;
 	int status;
 
-	ac = container_of(nf, struct spwr_ac_device, notif);
+	ac = container_of(nf, struct spwr_ac_device, analtif);
 
 	dev_dbg(&ac->sdev->dev, "power event (cid = %#04x, iid = %#04x, tid = %#04x)\n",
 		event->command_id, event->instance_id, event->target_id);
@@ -115,14 +115,14 @@ static u32 spwr_notify_ac(struct ssam_event_notifier *nf, const struct ssam_even
 	 * seems to be handled via target=1 and instance=1, but events are
 	 * reported on all targets/instances in use.
 	 *
-	 * While it should be enough to just listen on 1/1, listen everywhere to
+	 * While it should be eanalugh to just listen on 1/1, listen everywhere to
 	 * make sure we don't miss anything.
 	 */
 
 	switch (event->command_id) {
 	case SAM_EVENT_CID_BAT_ADP:
 		status = spwr_ac_recheck(ac);
-		return ssam_notifier_from_errno(status) | SSAM_NOTIF_HANDLED;
+		return ssam_analtifier_from_erranal(status) | SSAM_ANALTIF_HANDLED;
 
 	default:
 		return 0;
@@ -179,13 +179,13 @@ static void spwr_ac_init(struct spwr_ac_device *ac, struct ssam_device *sdev,
 
 	ac->sdev = sdev;
 
-	ac->notif.base.priority = 1;
-	ac->notif.base.fn = spwr_notify_ac;
-	ac->notif.event.reg = registry;
-	ac->notif.event.id.target_category = sdev->uid.category;
-	ac->notif.event.id.instance = 0;
-	ac->notif.event.mask = SSAM_EVENT_MASK_NONE;
-	ac->notif.event.flags = SSAM_EVENT_SEQUENCED;
+	ac->analtif.base.priority = 1;
+	ac->analtif.base.fn = spwr_analtify_ac;
+	ac->analtif.event.reg = registry;
+	ac->analtif.event.id.target_category = sdev->uid.category;
+	ac->analtif.event.id.instance = 0;
+	ac->analtif.event.mask = SSAM_EVENT_MASK_ANALNE;
+	ac->analtif.event.flags = SSAM_EVENT_SEQUENCED;
 
 	ac->psy_desc.name = ac->name;
 	ac->psy_desc.type = POWER_SUPPLY_TYPE_MAINS;
@@ -206,7 +206,7 @@ static int spwr_ac_register(struct spwr_ac_device *ac)
 		return status;
 
 	if ((le32_to_cpu(sta) & SAM_BATTERY_STA_OK) != SAM_BATTERY_STA_OK)
-		return -ENODEV;
+		return -EANALDEV;
 
 	psy_cfg.drv_data = ac;
 	psy_cfg.supplied_to = battery_supplied_to;
@@ -216,7 +216,7 @@ static int spwr_ac_register(struct spwr_ac_device *ac)
 	if (IS_ERR(ac->psy))
 		return PTR_ERR(ac->psy);
 
-	return ssam_device_notifier_register(ac->sdev, &ac->notif);
+	return ssam_device_analtifier_register(ac->sdev, &ac->analtif);
 }
 
 
@@ -235,11 +235,11 @@ static int surface_ac_probe(struct ssam_device *sdev)
 
 	p = ssam_device_get_match_data(sdev);
 	if (!p)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ac = devm_kzalloc(&sdev->dev, sizeof(*ac), GFP_KERNEL);
 	if (!ac)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spwr_ac_init(ac, sdev, p->registry, p->name);
 	ssam_device_set_drvdata(sdev, ac);
@@ -251,7 +251,7 @@ static void surface_ac_remove(struct ssam_device *sdev)
 {
 	struct spwr_ac_device *ac = ssam_device_get_drvdata(sdev);
 
-	ssam_device_notifier_unregister(sdev, &ac->notif);
+	ssam_device_analtifier_unregister(sdev, &ac->analtif);
 }
 
 static const struct spwr_psy_properties spwr_psy_props_adp1 = {
@@ -272,7 +272,7 @@ static struct ssam_device_driver surface_ac_driver = {
 	.driver = {
 		.name = "surface_ac",
 		.pm = &surface_ac_pm_ops,
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 };
 module_ssam_device_driver(surface_ac_driver);

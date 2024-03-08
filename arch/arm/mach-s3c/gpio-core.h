@@ -23,8 +23,8 @@
  * need to extend or change depending on the hardware and the s3c chip
  * selected at build or found at run time.
  *
- * These definitions are not intended for driver inclusion, there is
- * nothing here that should not live outside the platform and core
+ * These definitions are analt intended for driver inclusion, there is
+ * analthing here that should analt live outside the platform and core
  * specific code.
 */
 
@@ -51,13 +51,13 @@ struct samsung_gpio_cfg;
  * @config: special function and pull-resistor control information.
  * @lock: Lock for exclusive access to this gpio bank.
  * @pm_save: Save information for suspend/resume support.
- * @bitmap_gpio_int: Bitmap for representing GPIO interrupt or not.
+ * @bitmap_gpio_int: Bitmap for representing GPIO interrupt or analt.
  *
  * This wrapper provides the necessary information for the Samsung
  * specific gpios being registered with gpiolib.
  *
  * The lock protects each gpio bank from multiple access of the shared
- * configuration registers, or from reading of data whilst another thread
+ * configuration registers, or from reading of data whilst aanalther thread
  * is writing to the register set.
  *
  * Each chip has its own lock to avoid any  contention between different

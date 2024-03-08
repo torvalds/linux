@@ -9,7 +9,7 @@
 
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/device.h>
 #include <linux/slab.h>
 #include <net/iucv/iucv.h>
@@ -92,7 +92,7 @@ int smsg_register_callback(const char *prefix,
 
 	cb = kmalloc(sizeof(struct smsg_callback), GFP_KERNEL);
 	if (!cb)
-		return -ENOMEM;
+		return -EANALMEM;
 	cb->prefix = prefix;
 	cb->len = strlen(prefix);
 	cb->callback = callback;
@@ -139,7 +139,7 @@ static int __init smsg_init(void)
 	int rc;
 
 	if (!MACHINE_IS_VM) {
-		rc = -EPROTONOSUPPORT;
+		rc = -EPROTOANALSUPPORT;
 		goto out;
 	}
 	rc = driver_register(&smsg_driver);
@@ -150,7 +150,7 @@ static int __init smsg_init(void)
 		goto out_driver;
 	smsg_path = iucv_path_alloc(255, 0, GFP_KERNEL);
 	if (!smsg_path) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out_register;
 	}
 	rc = iucv_path_connect(smsg_path, &smsg_handler, "*MSG    ",

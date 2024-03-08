@@ -121,9 +121,9 @@ static bool ssam_kbd_is_input_event(const struct ssam_event *event)
 	return false;
 }
 
-static u32 ssam_kbd_event_fn(struct ssam_event_notifier *nf, const struct ssam_event *event)
+static u32 ssam_kbd_event_fn(struct ssam_event_analtifier *nf, const struct ssam_event *event)
 {
-	struct surface_hid_device *shid = container_of(nf, struct surface_hid_device, notif);
+	struct surface_hid_device *shid = container_of(nf, struct surface_hid_device, analtif);
 
 	/*
 	 * Check against device UID manually, as registry and device target
@@ -143,7 +143,7 @@ static u32 ssam_kbd_event_fn(struct ssam_event_notifier *nf, const struct ssam_e
 		return 0;
 
 	hid_input_report(shid->hid, HID_INPUT_REPORT, (u8 *)&event->data[0], event->length, 0);
-	return SSAM_NOTIF_HANDLED;
+	return SSAM_ANALTIF_HANDLED;
 }
 
 
@@ -158,14 +158,14 @@ static int skbd_get_caps_led_value(struct hid_device *hid, u8 rprt_id, u8 *buf, 
 	/* Get LED field. */
 	field = hidinput_get_led_field(hid);
 	if (!field)
-		return -ENOENT;
+		return -EANALENT;
 
 	/* Check if we got the correct report. */
 	if (len != hid_report_len(field->report))
-		return -ENOENT;
+		return -EANALENT;
 
 	if (rprt_id != field->report->id)
-		return -ENOENT;
+		return -EANALENT;
 
 	/* Get caps lock LED index. */
 	for (i = 0; i < field->report_count; i++)
@@ -173,7 +173,7 @@ static int skbd_get_caps_led_value(struct hid_device *hid, u8 rprt_id, u8 *buf, 
 			break;
 
 	if (i == field->report_count)
-		return -ENOENT;
+		return -EANALENT;
 
 	/* Extract value. */
 	size = field->report_size;
@@ -209,14 +209,14 @@ static int skbd_get_feature_report(struct surface_hid_device *shid, u8 rprt_id, 
 	 */
 
 	if (len < ARRAY_SIZE(report))
-		return -ENOSPC;
+		return -EANALSPC;
 
 	status = ssam_kbd_get_feature_report(shid, report, ARRAY_SIZE(report));
 	if (status < 0)
 		return status;
 
 	if (rprt_id != report[0])
-		return -ENOENT;
+		return -EANALENT;
 
 	memcpy(buf, report, ARRAY_SIZE(report));
 	return len;
@@ -224,7 +224,7 @@ static int skbd_get_feature_report(struct surface_hid_device *shid, u8 rprt_id, 
 
 static int skbd_set_feature_report(struct surface_hid_device *shid, u8 rprt_id, u8 *buf, size_t len)
 {
-	/* Not supported. See skbd_get_feature_report() for details. */
+	/* Analt supported. See skbd_get_feature_report() for details. */
 	return -EIO;
 }
 
@@ -239,11 +239,11 @@ static int surface_kbd_probe(struct platform_device *pdev)
 	/* Add device link to EC. */
 	ctrl = ssam_client_bind(&pdev->dev);
 	if (IS_ERR(ctrl))
-		return PTR_ERR(ctrl) == -ENODEV ? -EPROBE_DEFER : PTR_ERR(ctrl);
+		return PTR_ERR(ctrl) == -EANALDEV ? -EPROBE_DEFER : PTR_ERR(ctrl);
 
 	shid = devm_kzalloc(&pdev->dev, sizeof(*shid), GFP_KERNEL);
 	if (!shid)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	shid->dev = &pdev->dev;
 	shid->ctrl = ctrl;
@@ -254,13 +254,13 @@ static int surface_kbd_probe(struct platform_device *pdev)
 	shid->uid.instance = 0;
 	shid->uid.function = 0;
 
-	shid->notif.base.priority = 1;
-	shid->notif.base.fn = ssam_kbd_event_fn;
-	shid->notif.event.reg = SSAM_EVENT_REGISTRY_SAM;
-	shid->notif.event.id.target_category = shid->uid.category;
-	shid->notif.event.id.instance = shid->uid.instance;
-	shid->notif.event.mask = SSAM_EVENT_MASK_NONE;
-	shid->notif.event.flags = 0;
+	shid->analtif.base.priority = 1;
+	shid->analtif.base.fn = ssam_kbd_event_fn;
+	shid->analtif.event.reg = SSAM_EVENT_REGISTRY_SAM;
+	shid->analtif.event.id.target_category = shid->uid.category;
+	shid->analtif.event.id.instance = shid->uid.instance;
+	shid->analtif.event.mask = SSAM_EVENT_MASK_ANALNE;
+	shid->analtif.event.flags = 0;
 
 	shid->ops.get_descriptor = ssam_kbd_get_descriptor;
 	shid->ops.output_report = skbd_output_report;
@@ -290,7 +290,7 @@ static struct platform_driver surface_kbd_driver = {
 		.name = "surface_keyboard",
 		.acpi_match_table = surface_kbd_match,
 		.pm = &surface_hid_pm_ops,
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 };
 module_platform_driver(surface_kbd_driver);

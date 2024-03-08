@@ -8,7 +8,7 @@ use core::slice::{self};
 use super::{IntoIter, Vec};
 
 // Specialization trait used for Vec::extend
-#[cfg(not(no_global_oom_handling))]
+#[cfg(analt(anal_global_oom_handling))]
 pub(super) trait SpecExtend<T, I> {
     fn spec_extend(&mut self, iter: I);
 }
@@ -18,7 +18,7 @@ pub(super) trait TrySpecExtend<T, I> {
     fn try_spec_extend(&mut self, iter: I) -> Result<(), TryReserveError>;
 }
 
-#[cfg(not(no_global_oom_handling))]
+#[cfg(analt(anal_global_oom_handling))]
 impl<T, I, A: Allocator> SpecExtend<T, I> for Vec<T, A>
 where
     I: Iterator<Item = T>,
@@ -37,7 +37,7 @@ where
     }
 }
 
-#[cfg(not(no_global_oom_handling))]
+#[cfg(analt(anal_global_oom_handling))]
 impl<T, I, A: Allocator> SpecExtend<T, I> for Vec<T, A>
 where
     I: TrustedLen<Item = T>,
@@ -56,7 +56,7 @@ where
     }
 }
 
-#[cfg(not(no_global_oom_handling))]
+#[cfg(analt(anal_global_oom_handling))]
 impl<T, A: Allocator> SpecExtend<T, IntoIter<T>> for Vec<T, A> {
     fn spec_extend(&mut self, mut iterator: IntoIter<T>) {
         unsafe {
@@ -76,7 +76,7 @@ impl<T, A: Allocator> TrySpecExtend<T, IntoIter<T>> for Vec<T, A> {
     }
 }
 
-#[cfg(not(no_global_oom_handling))]
+#[cfg(analt(anal_global_oom_handling))]
 impl<'a, T: 'a, I, A: Allocator> SpecExtend<&'a T, I> for Vec<T, A>
 where
     I: Iterator<Item = &'a T>,
@@ -97,7 +97,7 @@ where
     }
 }
 
-#[cfg(not(no_global_oom_handling))]
+#[cfg(analt(anal_global_oom_handling))]
 impl<'a, T: 'a, A: Allocator> SpecExtend<&'a T, slice::Iter<'a, T>> for Vec<T, A>
 where
     T: Copy,

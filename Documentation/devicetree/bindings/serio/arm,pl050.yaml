@@ -14,7 +14,7 @@ description:
   peripheral that can be used to implement a keyboard or mouse interface that
   is IBM PS2 or AT compatible.
 
-# We need a select here so we don't match all nodes with 'arm,primecell'
+# We need a select here so we don't match all analdes with 'arm,primecell'
 select:
   properties:
     compatible:

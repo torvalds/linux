@@ -1,7 +1,7 @@
 LIST "SPDX-License-Identifier: GPL-2.0"
 LIST "partner-jet-setup.txt"
 LIST "(C) Copyright 2009 Renesas Solutions Corp"
-LIST "Kuninori Morimoto <morimoto.kuninori@renesas.com>"
+LIST "Kunianalri Morimoto <morimoto.kunianalri@renesas.com>"
 LIST "--------------------------------"
 LIST "zImage (RAM boot)"
 LIST "This script can be used to boot the kernel from RAM via JTAG:"

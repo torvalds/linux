@@ -208,7 +208,7 @@ static int fpga_phy_intr_handler(adapter_t *adapter)
 static irqreturn_t fpga_slow_intr(adapter_t *adapter)
 {
 	u32 cause = readl(adapter->regs + A_PL_CAUSE);
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 
 	cause &= ~F_PL_INTR_SGE_DATA;
 	if (cause & F_PL_INTR_SGE_ERR) {
@@ -238,10 +238,10 @@ static irqreturn_t fpga_slow_intr(adapter_t *adapter)
 	if (cause)
 		writel(cause, adapter->regs + A_PL_CAUSE);
 
-	if (ret != IRQ_NONE)
+	if (ret != IRQ_ANALNE)
 		return ret;
 
-	return cause == 0 ? IRQ_NONE : IRQ_HANDLED;
+	return cause == 0 ? IRQ_ANALNE : IRQ_HANDLED;
 }
 #endif
 
@@ -618,7 +618,7 @@ static int vpd_macaddress_get(adapter_t *adapter, int index, u8 mac_addr[])
  * If the PHY can auto-negotiate first decide what to advertise, then
  * enable/disable auto-negotiation as desired and reset.
  *
- * If the PHY does not auto-negotiate we just reset it.
+ * If the PHY does analt auto-negotiate we just reset it.
  *
  * If auto-negotiation is off set the MAC to the proper speed/duplex/FC,
  * otherwise do it later based on the outcome of auto-negotiation.
@@ -852,7 +852,7 @@ static irqreturn_t asic_slow_intr(adapter_t *adapter)
 
 	cause &= adapter->slow_intr_mask;
 	if (!cause)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	if (cause & F_PL_INTR_SGE_ERR) {
 		if (t1_sge_intr_error_handler(adapter->sge))
 			ret = IRQ_WAKE_THREAD;
@@ -948,7 +948,7 @@ static int board_init(adapter_t *adapter, const struct board_info *bi)
 		t1_tpi_par(adapter, 0xf);
 		t1_tpi_write(adapter, A_ELMER0_GPO, 0x1800);
 
-		/* TBD XXX Might not need.  This fixes a problem
+		/* TBD XXX Might analt need.  This fixes a problem
 		 *         described in the Intel SR XPAK errata.
 		 */
 		power_sequence_xpak(adapter);
@@ -973,7 +973,7 @@ static int board_init(adapter_t *adapter, const struct board_info *bi)
 }
 
 /*
- * Initialize and configure the Terminator HW modules.  Note that external
+ * Initialize and configure the Terminator HW modules.  Analte that external
  * MAC and PHYs are initialized separately.
  */
 int t1_init_hw_modules(adapter_t *adapter)
@@ -1127,7 +1127,7 @@ int t1_init_sw_modules(adapter_t *adapter, const struct board_info *bi)
 		if (!t1_is_asic(adapter) || bi->chip_mac == CHBT_MAC_DUMMY)
 			mac->ops->macaddress_get(mac, hw_addr);
 		else if (vpd_macaddress_get(adapter, i, hw_addr)) {
-			pr_err("%s: could not read MAC address from VPD ROM\n",
+			pr_err("%s: could analt read MAC address from VPD ROM\n",
 			       adapter->port[i].dev->name);
 			goto error;
 		}

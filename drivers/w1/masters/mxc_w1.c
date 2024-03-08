@@ -98,7 +98,7 @@ static int mxc_w1_probe(struct platform_device *pdev)
 	mdev = devm_kzalloc(&pdev->dev, sizeof(struct mxc_w1_device),
 			    GFP_KERNEL);
 	if (!mdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mdev->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(mdev->clk))

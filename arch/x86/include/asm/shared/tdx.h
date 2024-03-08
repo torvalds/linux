@@ -19,7 +19,7 @@
 #define TDG_VM_WR			8
 
 /* TDCS fields. To be used by TDG.VM.WR and TDG.VM.RD module calls */
-#define TDCS_NOTIFY_ENABLES		0x9100000000000010
+#define TDCS_ANALTIFY_ENABLES		0x9100000000000010
 
 /* TDX hypercall Leaf IDs */
 #define TDVMCALL_MAP_GPA		0x10001
@@ -68,7 +68,7 @@
 /*
  * Used in __tdcall*() to gather the input/output registers' values of the
  * TDCALL instruction when requesting services from the TDX module. This is a
- * software only structure and not part of the TDX module/VMM ABI
+ * software only structure and analt part of the TDX module/VMM ABI
  */
 struct tdx_module_args {
 	/* callee-clobbered */
@@ -98,7 +98,7 @@ u64 __tdcall_saved_ret(u64 fn, struct tdx_module_args *args);
 u64 __tdx_hypercall(struct tdx_module_args *args);
 
 /*
- * Wrapper for standard use of __tdx_hypercall with no output aside from
+ * Wrapper for standard use of __tdx_hypercall with anal output aside from
  * return code.
  */
 static inline u64 _tdx_hypercall(u64 fn, u64 r12, u64 r13, u64 r14, u64 r15)
@@ -117,7 +117,7 @@ static inline u64 _tdx_hypercall(u64 fn, u64 r12, u64 r13, u64 r14, u64 r15)
 
 
 /* Called from __tdx_hypercall() for unrecoverable failure */
-void __noreturn __tdx_hypercall_failed(void);
+void __analreturn __tdx_hypercall_failed(void);
 
 bool tdx_accept_memory(phys_addr_t start, phys_addr_t end);
 

@@ -84,24 +84,24 @@ static LIST_HEAD(ipu_prg_list);
 struct ipu_prg *
 ipu_prg_lookup_by_phandle(struct device *dev, const char *name, int ipu_id)
 {
-	struct device_node *prg_node = of_parse_phandle(dev->of_node,
+	struct device_analde *prg_analde = of_parse_phandle(dev->of_analde,
 							name, 0);
 	struct ipu_prg *prg;
 
 	mutex_lock(&ipu_prg_list_mutex);
 	list_for_each_entry(prg, &ipu_prg_list, list) {
-		if (prg_node == prg->dev->of_node) {
+		if (prg_analde == prg->dev->of_analde) {
 			mutex_unlock(&ipu_prg_list_mutex);
 			device_link_add(dev, prg->dev,
 					DL_FLAG_AUTOREMOVE_CONSUMER);
 			prg->id = ipu_id;
-			of_node_put(prg_node);
+			of_analde_put(prg_analde);
 			return prg;
 		}
 	}
 	mutex_unlock(&ipu_prg_list_mutex);
 
-	of_node_put(prg_node);
+	of_analde_put(prg_analde);
 
 	return NULL;
 }
@@ -163,7 +163,7 @@ void ipu_prg_disable(struct ipu_soc *ipu)
 EXPORT_SYMBOL_GPL(ipu_prg_disable);
 
 /*
- * The channel configuartion functions below are not thread safe, as they
+ * The channel configuartion functions below are analt thread safe, as they
  * must be only called from the atomic commit path in the DRM driver, which
  * is properly serialized.
  */
@@ -213,7 +213,7 @@ static int ipu_prg_get_pre(struct ipu_prg *prg, int prg_chan)
 			regmap_update_bits(prg->iomuxc_gpr, IOMUXC_GPR5,
 					   0x3 << shift, mux << shift);
 
-			/* check other mux, must not point to same channel */
+			/* check other mux, must analt point to same channel */
 			shift = (i == 1) ? 14 : 12;
 			regmap_read(prg->iomuxc_gpr, IOMUXC_GPR5, &val);
 			if (((val >> shift) & 0x3) == mux) {
@@ -227,7 +227,7 @@ static int ipu_prg_get_pre(struct ipu_prg *prg, int prg_chan)
 	}
 
 fail:
-	dev_err(prg->dev, "could not get PRE for PRG chan %d", prg_chan);
+	dev_err(prg->dev, "could analt get PRE for PRG chan %d", prg_chan);
 	return ret;
 }
 
@@ -364,7 +364,7 @@ static int ipu_prg_probe(struct platform_device *pdev)
 
 	prg = devm_kzalloc(dev, sizeof(*prg), GFP_KERNEL);
 	if (!prg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	prg->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(prg->regs))

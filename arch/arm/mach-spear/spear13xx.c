@@ -92,7 +92,7 @@ static void __init spear13xx_clk_init(void)
 	else if (of_machine_is_compatible("st,spear1340"))
 		spear1340_clk_init(VA_MISC_BASE);
 	else
-		pr_err("%s: Unknown machine\n", __func__);
+		pr_err("%s: Unkanalwn machine\n", __func__);
 }
 
 void __init spear13xx_timer_init(void)

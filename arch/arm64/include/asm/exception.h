@@ -26,7 +26,7 @@ static inline unsigned long disr_to_esr(u64 disr)
 	return esr;
 }
 
-asmlinkage void __noreturn handle_bad_stack(struct pt_regs *regs);
+asmlinkage void __analreturn handle_bad_stack(struct pt_regs *regs);
 
 asmlinkage void el1t_64_sync_handler(struct pt_regs *regs);
 asmlinkage void el1t_64_irq_handler(struct pt_regs *regs);
@@ -74,7 +74,7 @@ void do_el0_fpac(struct pt_regs *regs, unsigned long esr);
 void do_el1_fpac(struct pt_regs *regs, unsigned long esr);
 void do_el0_mops(struct pt_regs *regs, unsigned long esr);
 void do_serror(struct pt_regs *regs, unsigned long esr);
-void do_notify_resume(struct pt_regs *regs, unsigned long thread_flags);
+void do_analtify_resume(struct pt_regs *regs, unsigned long thread_flags);
 
-void __noreturn panic_bad_stack(struct pt_regs *regs, unsigned long esr, unsigned long far);
+void __analreturn panic_bad_stack(struct pt_regs *regs, unsigned long esr, unsigned long far);
 #endif	/* __ASM_EXCEPTION_H */

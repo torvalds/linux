@@ -8,15 +8,15 @@
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
-#include "xfs_inode.h"
+#include "xfs_ianalde.h"
 #include "xfs_trans.h"
 #include "xfs_bmap.h"
 #include "xfs_iomap.h"
 #include "xfs_pnfs.h"
 
 /*
- * Ensure that we do not have any outstanding pNFS layouts that can be used by
- * clients to directly read from or write to this inode.  This must be called
+ * Ensure that we do analt have any outstanding pNFS layouts that can be used by
+ * clients to directly read from or write to this ianalde.  This must be called
  * before every operation that can remove blocks from the extent map.
  * Additionally we call it during the write operation, where aren't concerned
  * about exposing unallocated blocks but just want to provide basic
@@ -26,17 +26,17 @@
  */
 int
 xfs_break_leased_layouts(
-	struct inode		*inode,
+	struct ianalde		*ianalde,
 	uint			*iolock,
 	bool			*did_unlock)
 {
-	struct xfs_inode	*ip = XFS_I(inode);
+	struct xfs_ianalde	*ip = XFS_I(ianalde);
 	int			error;
 
-	while ((error = break_layout(inode, false)) == -EWOULDBLOCK) {
+	while ((error = break_layout(ianalde, false)) == -EWOULDBLOCK) {
 		xfs_iunlock(ip, *iolock);
 		*did_unlock = true;
-		error = break_layout(inode, true);
+		error = break_layout(ianalde, true);
 		*iolock &= ~XFS_IOLOCK_SHARED;
 		*iolock |= XFS_IOLOCK_EXCL;
 		xfs_ilock(ip, *iolock);
@@ -58,7 +58,7 @@ xfs_fs_get_uuid(
 {
 	struct xfs_mount	*mp = XFS_M(sb);
 
-	xfs_notice_once(mp,
+	xfs_analtice_once(mp,
 "Using experimental pNFS feature, use at your own risk!");
 
 	if (*len < sizeof(uuid_t))
@@ -71,17 +71,17 @@ xfs_fs_get_uuid(
 }
 
 /*
- * We cannot use file based VFS helpers such as file_modified() to update
- * inode state as we modify the data/metadata in the inode here. Hence we have
+ * We cananalt use file based VFS helpers such as file_modified() to update
+ * ianalde state as we modify the data/metadata in the ianalde here. Hence we have
  * to open code the timestamp updates and SUID/SGID stripping. We also need
- * to set the inode prealloc flag to ensure that the extents we allocate are not
- * removed if the inode is reclaimed from memory before xfs_fs_block_commit()
+ * to set the ianalde prealloc flag to ensure that the extents we allocate are analt
+ * removed if the ianalde is reclaimed from memory before xfs_fs_block_commit()
  * is from the client to indicate that data has been written and the file size
  * can be extended.
  */
 static int
-xfs_fs_map_update_inode(
-	struct xfs_inode	*ip)
+xfs_fs_map_update_ianalde(
+	struct xfs_ianalde	*ip)
 {
 	struct xfs_trans	*tp;
 	int			error;
@@ -100,7 +100,7 @@ xfs_fs_map_update_inode(
 	xfs_trans_ichgtime(tp, ip, XFS_ICHGTIME_MOD | XFS_ICHGTIME_CHG);
 	ip->i_diflags |= XFS_DIFLAG_PREALLOC;
 
-	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
+	xfs_trans_log_ianalde(tp, ip, XFS_ILOG_CORE);
 	return xfs_trans_commit(tp);
 }
 
@@ -109,14 +109,14 @@ xfs_fs_map_update_inode(
  */
 int
 xfs_fs_map_blocks(
-	struct inode		*inode,
+	struct ianalde		*ianalde,
 	loff_t			offset,
 	u64			length,
 	struct iomap		*iomap,
 	bool			write,
 	u32			*device_generation)
 {
-	struct xfs_inode	*ip = XFS_I(inode);
+	struct xfs_ianalde	*ip = XFS_I(ianalde);
 	struct xfs_mount	*mp = ip->i_mount;
 	struct xfs_bmbt_irec	imap;
 	xfs_fileoff_t		offset_fsb, end_fsb;
@@ -131,18 +131,18 @@ xfs_fs_map_blocks(
 		return -EIO;
 
 	/*
-	 * We can't export inodes residing on the realtime device.  The realtime
-	 * device doesn't have a UUID to identify it, so the client has no way
+	 * We can't export ianaldes residing on the realtime device.  The realtime
+	 * device doesn't have a UUID to identify it, so the client has anal way
 	 * to find it.
 	 */
-	if (XFS_IS_REALTIME_INODE(ip))
+	if (XFS_IS_REALTIME_IANALDE(ip))
 		return -ENXIO;
 
 	/*
 	 * The pNFS block layout spec actually supports reflink like
 	 * functionality, but the Linux pNFS server doesn't implement it yet.
 	 */
-	if (xfs_is_reflink_inode(ip))
+	if (xfs_is_reflink_ianalde(ip))
 		return -ENXIO;
 
 	/*
@@ -157,17 +157,17 @@ xfs_fs_map_blocks(
 	error = -EINVAL;
 	limit = mp->m_super->s_maxbytes;
 	if (!write)
-		limit = max(limit, round_up(i_size_read(inode),
-				     inode->i_sb->s_blocksize));
+		limit = max(limit, round_up(i_size_read(ianalde),
+				     ianalde->i_sb->s_blocksize));
 	if (offset > limit)
 		goto out_unlock;
 	if (offset > limit - length)
 		length = limit - offset;
 
-	error = filemap_write_and_wait(inode->i_mapping);
+	error = filemap_write_and_wait(ianalde->i_mapping);
 	if (error)
 		goto out_unlock;
-	error = invalidate_inode_pages2(inode->i_mapping);
+	error = invalidate_ianalde_pages2(ianalde->i_mapping);
 	if (WARN_ON_ONCE(error))
 		goto out_unlock;
 
@@ -177,7 +177,7 @@ xfs_fs_map_blocks(
 	lock_flags = xfs_ilock_data_map_shared(ip);
 	error = xfs_bmapi_read(ip, offset_fsb, end_fsb - offset_fsb,
 				&imap, &nimaps, bmapi_flags);
-	seq = xfs_iomap_inode_sequence(ip, 0);
+	seq = xfs_iomap_ianalde_sequence(ip, 0);
 
 	ASSERT(!nimaps || imap.br_startblock != DELAYSTARTBLOCK);
 
@@ -196,13 +196,13 @@ xfs_fs_map_blocks(
 			goto out_unlock;
 
 		/*
-		 * Ensure the next transaction is committed synchronously so
+		 * Ensure the next transaction is committed synchroanalusly so
 		 * that the blocks allocated and handed out to the client are
 		 * guaranteed to be present even after a server crash.
 		 */
-		error = xfs_fs_map_update_inode(ip);
+		error = xfs_fs_map_update_ianalde(ip);
 		if (!error)
-			error = xfs_log_force_inode(ip);
+			error = xfs_log_force_ianalde(ip);
 		if (error)
 			goto out_unlock;
 
@@ -224,7 +224,7 @@ out_unlock:
  */
 static int
 xfs_pnfs_validate_isize(
-	struct xfs_inode	*ip,
+	struct xfs_ianalde	*ip,
 	xfs_off_t		isize)
 {
 	struct xfs_bmbt_irec	imap;
@@ -250,19 +250,19 @@ xfs_pnfs_validate_isize(
  * converting any unwritten extents, flushing the disk cache and updating the
  * time stamps.
  *
- * Note that we rely on the caller to always send us a timestamp update so that
+ * Analte that we rely on the caller to always send us a timestamp update so that
  * we always commit a transaction here.  If that stops being true we will have
  * to manually flush the cache here similar to what the fsync code path does
- * for datasyncs on files that have no dirty metadata.
+ * for datasyncs on files that have anal dirty metadata.
  */
 int
 xfs_fs_commit_blocks(
-	struct inode		*inode,
+	struct ianalde		*ianalde,
 	struct iomap		*maps,
 	int			nr_maps,
 	struct iattr		*iattr)
 {
-	struct xfs_inode	*ip = XFS_I(inode);
+	struct xfs_ianalde	*ip = XFS_I(ianalde);
 	struct xfs_mount	*mp = ip->i_mount;
 	struct xfs_trans	*tp;
 	bool			update_isize = false;
@@ -273,7 +273,7 @@ xfs_fs_commit_blocks(
 
 	xfs_ilock(ip, XFS_IOLOCK_EXCL);
 
-	size = i_size_read(inode);
+	size = i_size_read(ianalde);
 	if ((iattr->ia_valid & ATTR_SIZE) && iattr->ia_size > size) {
 		update_isize = true;
 		size = iattr->ia_size;
@@ -297,7 +297,7 @@ xfs_fs_commit_blocks(
 		/*
 		 * Make sure reads through the pagecache see the new data.
 		 */
-		error = invalidate_inode_pages2_range(inode->i_mapping,
+		error = invalidate_ianalde_pages2_range(ianalde->i_mapping,
 					start >> PAGE_SHIFT,
 					(end - 1) >> PAGE_SHIFT);
 		WARN_ON_ONCE(error);
@@ -319,12 +319,12 @@ xfs_fs_commit_blocks(
 
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
 	xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
-	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
+	xfs_trans_log_ianalde(tp, ip, XFS_ILOG_CORE);
 
 	ASSERT(!(iattr->ia_valid & (ATTR_UID | ATTR_GID)));
-	setattr_copy(&nop_mnt_idmap, inode, iattr);
+	setattr_copy(&analp_mnt_idmap, ianalde, iattr);
 	if (update_isize) {
-		i_size_write(inode, iattr->ia_size);
+		i_size_write(ianalde, iattr->ia_size);
 		ip->i_disk_size = iattr->ia_size;
 	}
 

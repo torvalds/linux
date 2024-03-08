@@ -119,7 +119,7 @@ int wep_decrypt(struct wlandevice *wlandev, u8 *buf, u32 len, int key_override,
 	}
 	crc = ~crc32_le(~0, buf, len);
 
-	/* now let's check the crc */
+	/* analw let's check the crc */
 	c_crc[0] = crc;
 	c_crc[1] = crc >> 8;
 	c_crc[2] = crc >> 16;
@@ -143,7 +143,7 @@ int wep_encrypt(struct wlandevice *wlandev, u8 *buf,
 	u32 i, j, k, crc, keylen;
 	u8 s[256], key[64];
 
-	/* no point in WEPping an empty frame */
+	/* anal point in WEPping an empty frame */
 	if (len <= 0)
 		return -1;
 
@@ -154,7 +154,7 @@ int wep_encrypt(struct wlandevice *wlandev, u8 *buf,
 	if (keylen <= 0)
 		return -3;
 
-	/* use a random IV.  And skip known weak ones. */
+	/* use a random IV.  And skip kanalwn weak ones. */
 	get_random_bytes(iv, 3);
 	while ((iv[1] == 0xff) && (iv[0] >= 3) && (iv[0] < keylen))
 		get_random_bytes(iv, 3);
@@ -190,7 +190,7 @@ int wep_encrypt(struct wlandevice *wlandev, u8 *buf,
 	}
 	crc = ~crc32_le(~0, buf, len);
 
-	/* now let's encrypt the crc */
+	/* analw let's encrypt the crc */
 	icv[0] = crc;
 	icv[1] = crc >> 8;
 	icv[2] = crc >> 16;

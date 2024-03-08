@@ -69,7 +69,7 @@ enum ipu_csi_dest {
 #define IPU_ROT_BIT_90    (1 << 2)
 
 enum ipu_rotate_mode {
-	IPU_ROTATE_NONE = 0,
+	IPU_ROTATE_ANALNE = 0,
 	IPU_ROTATE_VERT_FLIP = IPU_ROT_BIT_VFLIP,
 	IPU_ROTATE_HORIZ_FLIP = IPU_ROT_BIT_HFLIP,
 	IPU_ROTATE_180 = (IPU_ROT_BIT_VFLIP | IPU_ROT_BIT_HFLIP),
@@ -86,14 +86,14 @@ enum ipu_rotate_mode {
 enum ipu_color_space {
 	IPUV3_COLORSPACE_RGB,
 	IPUV3_COLORSPACE_YUV,
-	IPUV3_COLORSPACE_UNKNOWN,
+	IPUV3_COLORSPACE_UNKANALWN,
 };
 
 /*
  * Enumeration of VDI MOTION select
  */
 enum ipu_motion_sel {
-	MOTION_NONE = 0,
+	MOTION_ANALNE = 0,
 	LOW_MOTION,
 	MED_MOTION,
 	HIGH_MOTION,
@@ -117,7 +117,7 @@ enum ipu_channel_irq {
 #define IPUV3_CHANNEL_CSI3			 3
 #define IPUV3_CHANNEL_VDI_MEM_IC_VF		 5
 /*
- * NOTE: channels 6,7 are unused in the IPU and are not IDMAC channels,
+ * ANALTE: channels 6,7 are unused in the IPU and are analt IDMAC channels,
  * but the direct CSI->VDI linking is handled the same way as IDMAC
  * channel linking in the FSU via the IPU_FS_PROC_FLOW registers, so
  * these channel names are used to support the direct CSI->VDI link.
@@ -476,7 +476,7 @@ void ipu_vdi_put(struct ipu_vdi *vdi);
 /*
  * IPU Sensor Multiple FIFO Controller (SMFC) functions
  */
-struct ipu_smfc *ipu_smfc_get(struct ipu_soc *ipu, unsigned int chno);
+struct ipu_smfc *ipu_smfc_get(struct ipu_soc *ipu, unsigned int chanal);
 void ipu_smfc_put(struct ipu_smfc *smfc);
 int ipu_smfc_enable(struct ipu_smfc *smfc);
 int ipu_smfc_disable(struct ipu_smfc *smfc);
@@ -497,7 +497,7 @@ struct ipu_client_platformdata {
 	int dc;
 	int dp;
 	int dma[2];
-	struct device_node *of_node;
+	struct device_analde *of_analde;
 };
 
 #endif /* __DRM_IPU_H__ */

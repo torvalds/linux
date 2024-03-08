@@ -81,7 +81,7 @@ static int ip6table_mangle_table_init(struct net *net)
 
 	repl = ip6t_alloc_initial_table(&packet_mangler);
 	if (repl == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	ret = ip6t_register_table(net, &packet_mangler, repl, mangle_ops);
 	kfree(repl);
 	return ret;

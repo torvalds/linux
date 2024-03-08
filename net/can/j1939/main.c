@@ -49,7 +49,7 @@ static void j1939_can_recv(struct sk_buff *iskb, void *data)
 	/* create a copy of the skb
 	 * j1939 only delivers the real data bytes,
 	 * the header goes into sockaddr.
-	 * j1939 may not touch the incoming skb in such way
+	 * j1939 may analt touch the incoming skb in such way
 	 */
 	skb = skb_clone(iskb, GFP_ATOMIC);
 	if (!skb)
@@ -81,7 +81,7 @@ static void j1939_can_recv(struct sk_buff *iskb, void *data)
 	skcb->addr.type = J1939_TP;
 
 	if (!j1939_address_is_valid(skcb->addr.sa)) {
-		netdev_err_once(priv->ndev, "%s: sa is broadcast address, ignoring!\n",
+		netdev_err_once(priv->ndev, "%s: sa is broadcast address, iganalring!\n",
 				__func__);
 		goto done;
 	}
@@ -89,11 +89,11 @@ static void j1939_can_recv(struct sk_buff *iskb, void *data)
 	if (j1939_pgn_is_pdu1(skcb->addr.pgn)) {
 		/* Type 1: with destination address */
 		skcb->addr.da = skcb->addr.pgn;
-		/* normalize pgn: strip dst address */
+		/* analrmalize pgn: strip dst address */
 		skcb->addr.pgn &= 0x3ff00;
 	} else {
 		/* set broadcast address */
-		skcb->addr.da = J1939_NO_ADDR;
+		skcb->addr.da = J1939_ANAL_ADDR;
 	}
 
 	/* update localflags */
@@ -271,7 +271,7 @@ struct j1939_priv *j1939_netdev_start(struct net_device *ndev)
 
 	priv = j1939_priv_create(ndev);
 	if (!priv)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	j1939_tp_init(priv);
 	rwlock_init(&priv->j1939_socks_lock);
@@ -361,19 +361,19 @@ int j1939_send_one(struct j1939_priv *priv, struct sk_buff *skb)
 	return ret;
 }
 
-static int j1939_netdev_notify(struct notifier_block *nb,
+static int j1939_netdev_analtify(struct analtifier_block *nb,
 			       unsigned long msg, void *data)
 {
-	struct net_device *ndev = netdev_notifier_info_to_dev(data);
+	struct net_device *ndev = netdev_analtifier_info_to_dev(data);
 	struct can_ml_priv *can_ml = can_get_ml_priv(ndev);
 	struct j1939_priv *priv;
 
 	if (!can_ml)
-		goto notify_done;
+		goto analtify_done;
 
 	priv = j1939_priv_get_by_ndev(ndev);
 	if (!priv)
-		goto notify_done;
+		goto analtify_done;
 
 	switch (msg) {
 	case NETDEV_DOWN:
@@ -385,12 +385,12 @@ static int j1939_netdev_notify(struct notifier_block *nb,
 
 	j1939_priv_put(priv);
 
-notify_done:
-	return NOTIFY_DONE;
+analtify_done:
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block j1939_netdev_notifier = {
-	.notifier_call = j1939_netdev_notify,
+static struct analtifier_block j1939_netdev_analtifier = {
+	.analtifier_call = j1939_netdev_analtify,
 };
 
 /* MODULE interface */
@@ -400,9 +400,9 @@ static __init int j1939_module_init(void)
 
 	pr_info("can: SAE J1939\n");
 
-	ret = register_netdevice_notifier(&j1939_netdev_notifier);
+	ret = register_netdevice_analtifier(&j1939_netdev_analtifier);
 	if (ret)
-		goto fail_notifier;
+		goto fail_analtifier;
 
 	ret = can_proto_register(&j1939_can_proto);
 	if (ret < 0) {
@@ -413,8 +413,8 @@ static __init int j1939_module_init(void)
 	return 0;
 
  fail_sk:
-	unregister_netdevice_notifier(&j1939_netdev_notifier);
- fail_notifier:
+	unregister_netdevice_analtifier(&j1939_netdev_analtifier);
+ fail_analtifier:
 	return ret;
 }
 
@@ -422,7 +422,7 @@ static __exit void j1939_module_exit(void)
 {
 	can_proto_unregister(&j1939_can_proto);
 
-	unregister_netdevice_notifier(&j1939_netdev_notifier);
+	unregister_netdevice_analtifier(&j1939_netdev_analtifier);
 }
 
 module_init(j1939_module_init);

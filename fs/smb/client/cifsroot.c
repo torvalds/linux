@@ -42,7 +42,7 @@ static int __init cifs_root_setup(char *line)
 {
 	char *s;
 	int len;
-	__be32 srvaddr = htonl(INADDR_NONE);
+	__be32 srvaddr = htonl(INADDR_ANALNE);
 
 	ROOT_DEV = Root_CIFS;
 
@@ -82,8 +82,8 @@ __setup("cifsroot=", cifs_root_setup);
 
 int __init cifs_root_data(char **dev, char **opts)
 {
-	if (!root_dev[0] || root_server_addr == htonl(INADDR_NONE)) {
-		pr_err("Root-CIFS: no SMB server address\n");
+	if (!root_dev[0] || root_server_addr == htonl(INADDR_ANALNE)) {
+		pr_err("Root-CIFS: anal SMB server address\n");
 		return -1;
 	}
 

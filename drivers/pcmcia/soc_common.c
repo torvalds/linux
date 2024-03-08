@@ -4,7 +4,7 @@
     integrated SOCs like the SA-11x0 and PXA2xx microprocessors.
 
     The contents of this file are subject to the Mozilla Public
-    License Version 1.1 (the "License"); you may not use this file
+    License Version 1.1 (the "License"); you may analt use this file
     except in compliance with the License. You may obtain a copy of
     the License at http://www.mozilla.org/MPL/
 
@@ -21,10 +21,10 @@
     terms of the GNU Public License version 2 (the "GPL"), in which
     case the provisions of the GPL are applicable instead of the
     above.  If you wish to allow the use of your version of this file
-    only under the terms of the GPL and not to allow others to use
+    only under the terms of the GPL and analt to allow others to use
     your version of this file under the MPL, indicate your decision
-    by deleting the provisions above and replace them with the notice
-    and other provisions required by the GPL.  If you do not delete
+    by deleting the provisions above and replace them with the analtice
+    and other provisions required by the GPL.  If you do analt delete
     the provisions above, a recipient may use your version of this
     file under either the MPL or the GPL.
 
@@ -235,7 +235,7 @@ static int soc_pcmcia_hw_init(struct soc_pcmcia_socket *skt)
 		if (skt->stat[i].irq) {
 			ret = request_irq(skt->stat[i].irq,
 					  soc_common_pcmcia_interrupt,
-					  IRQF_TRIGGER_NONE,
+					  IRQF_TRIGGER_ANALNE,
 					  skt->stat[i].name, skt);
 			if (ret) {
 				__soc_pcmcia_hw_shutdown(skt, i);
@@ -264,12 +264,12 @@ static void soc_pcmcia_hw_disable(struct soc_pcmcia_socket *skt)
 
 	for (i = 0; i < ARRAY_SIZE(skt->stat); i++)
 		if (skt->stat[i].irq)
-			irq_set_irq_type(skt->stat[i].irq, IRQ_TYPE_NONE);
+			irq_set_irq_type(skt->stat[i].irq, IRQ_TYPE_ANALNE);
 }
 
 /*
  * The CF 3.0 specification says that cards tie VS1 to ground and leave
- * VS2 open.  Many implementations do not wire up the VS signals, so we
+ * VS2 open.  Many implementations do analt wire up the VS signals, so we
  * provide hard-coded values as per the CF 3.0 spec.
  */
 void soc_common_cf_socket_state(struct soc_pcmcia_socket *skt,
@@ -311,7 +311,7 @@ static unsigned int soc_common_pcmcia_skt_state(struct soc_pcmcia_socket *skt)
 	stat |= state.vs_3v  ? SS_3VCARD : 0;
 	stat |= state.vs_Xv  ? SS_XVCARD : 0;
 
-	/* The power status of individual sockets is not available
+	/* The power status of individual sockets is analt available
 	 * explicitly from the hardware, so we just remember the state
 	 * and regurgitate it upon request:
 	 */
@@ -367,7 +367,7 @@ static int soc_common_pcmcia_config_skt(
 
 		/*
 		 * This really needs a better solution.  The IRQ
-		 * may or may not be claimed by the driver.
+		 * may or may analt be claimed by the driver.
 		 */
 		if (skt->irq_state != 1 && state->io_irq) {
 			skt->irq_state = 1;
@@ -375,7 +375,7 @@ static int soc_common_pcmcia_config_skt(
 					 IRQ_TYPE_EDGE_FALLING);
 		} else if (skt->irq_state == 1 && state->io_irq == 0) {
 			skt->irq_state = 0;
-			irq_set_irq_type(skt->socket.pci_irq, IRQ_TYPE_NONE);
+			irq_set_irq_type(skt->socket.pci_irq, IRQ_TYPE_ANALNE);
 		}
 
 		skt->cs_state = *state;
@@ -447,7 +447,7 @@ static void soc_common_check_status(struct soc_pcmcia_socket *skt)
 		spin_unlock_irqrestore(&status_lock, flags);
 
 		debug(skt, 4, "events: %s%s%s%s%s%s\n",
-			events == 0         ? "<NONE>"   : "",
+			events == 0         ? "<ANALNE>"   : "",
 			events & SS_DETECT  ? "DETECT "  : "",
 			events & SS_READY   ? "READY "   : "",
 			events & SS_BATDEAD ? "BATDEAD " : "",
@@ -476,7 +476,7 @@ static void soc_common_pcmcia_poll_event(struct timer_list *t)
  * low-level PCMCIA init() operation via soc_common_pcmcia_thread()).
  * The actual interrupt-servicing work is performed by
  * soc_common_pcmcia_thread(), largely because the Card Services event-
- * handling code performs scheduling operations which cannot be
+ * handling code performs scheduling operations which cananalt be
  * executed from within an interrupt context.
  */
 static irqreturn_t soc_common_pcmcia_interrupt(int irq, void *dev)
@@ -497,7 +497,7 @@ static irqreturn_t soc_common_pcmcia_interrupt(int irq, void *dev)
  * fills in bits in `status' according to internal driver state or
  * the value of the voltage detect chipselect register.
  *
- * As a debugging note, during card startup, the PCMCIA core issues
+ * As a debugging analte, during card startup, the PCMCIA core issues
  * three set_socket() commands in a row the first with RESET deasserted,
  * the second with RESET asserted, and the last with RESET deasserted
  * again. Following the third set_socket(), a get_status() command will
@@ -531,13 +531,13 @@ static int soc_common_pcmcia_set_socket(
 	struct soc_pcmcia_socket *skt = to_soc_pcmcia_socket(sock);
 
 	debug(skt, 2, "mask: %s%s%s%s%s%s flags: %s%s%s%s%s%s Vcc %d Vpp %d irq %d\n",
-			(state->csc_mask == 0)		? "<NONE> " :	"",
+			(state->csc_mask == 0)		? "<ANALNE> " :	"",
 			(state->csc_mask & SS_DETECT)	? "DETECT " :	"",
 			(state->csc_mask & SS_READY)	? "READY " :	"",
 			(state->csc_mask & SS_BATDEAD)	? "BATDEAD " :	"",
 			(state->csc_mask & SS_BATWARN)	? "BATWARN " :	"",
 			(state->csc_mask & SS_STSCHG)	? "STSCHG " :	"",
-			(state->flags == 0)		? "<NONE> " :	"",
+			(state->flags == 0)		? "<ANALNE> " :	"",
 			(state->flags & SS_PWR_AUTO)	? "PWR_AUTO " :	"",
 			(state->flags & SS_IOCARD)	? "IOCARD " :	"",
 			(state->flags & SS_RESET)	? "RESET " :	"",
@@ -567,7 +567,7 @@ static int soc_common_pcmcia_set_io_map(
 		map->map, map->speed, (unsigned long long)map->start,
 		(unsigned long long)map->stop);
 	debug(skt, 2, "flags: %s%s%s%s%s%s%s%s\n",
-		(map->flags == 0)		? "<NONE>"	: "",
+		(map->flags == 0)		? "<ANALNE>"	: "",
 		(map->flags & MAP_ACTIVE)	? "ACTIVE "	: "",
 		(map->flags & MAP_16BIT)	? "16BIT "	: "",
 		(map->flags & MAP_AUTOSZ)	? "AUTOSZ "	: "",
@@ -609,7 +609,7 @@ static int soc_common_pcmcia_set_io_map(
  * the map speed as requested, but override the address ranges
  * supplied by Card Services.
  *
- * Returns: 0 on success, -ERRNO on error
+ * Returns: 0 on success, -ERRANAL on error
  */
 static int soc_common_pcmcia_set_mem_map(
 	struct pcmcia_socket *sock, struct pccard_mem_map *map)
@@ -621,7 +621,7 @@ static int soc_common_pcmcia_set_mem_map(
 	debug(skt, 2, "map %u speed %u card_start %08x\n",
 		map->map, map->speed, map->card_start);
 	debug(skt, 2, "flags: %s%s%s%s%s%s%s%s\n",
-		(map->flags == 0)		? "<NONE>"	: "",
+		(map->flags == 0)		? "<ANALNE>"	: "",
 		(map->flags & MAP_ACTIVE)	? "ACTIVE "	: "",
 		(map->flags & MAP_16BIT)	? "16BIT "	: "",
 		(map->flags & MAP_AUTOSZ)	? "AUTOSZ "	: "",
@@ -741,7 +741,7 @@ static struct pccard_operations soc_common_pcmcia_operations = {
 
 
 #ifdef CONFIG_CPU_FREQ
-static int soc_common_pcmcia_cpufreq_nb(struct notifier_block *nb,
+static int soc_common_pcmcia_cpufreq_nb(struct analtifier_block *nb,
 	unsigned long val, void *data)
 {
 	struct soc_pcmcia_socket *skt = container_of(nb, struct soc_pcmcia_socket, cpufreq_nb);
@@ -759,7 +759,7 @@ void soc_pcmcia_init_one(struct soc_pcmcia_socket *skt,
 	skt->ops = ops;
 	skt->socket.owner = ops->owner;
 	skt->socket.dev.parent = dev;
-	skt->socket.pci_irq = NO_IRQ;
+	skt->socket.pci_irq = ANAL_IRQ;
 
 	for (i = 0; i < ARRAY_SIZE(skt->stat); i++)
 		skt->stat[i].gpio = -EINVAL;
@@ -774,13 +774,13 @@ void soc_pcmcia_remove_one(struct soc_pcmcia_socket *skt)
 
 #ifdef CONFIG_CPU_FREQ
 	if (skt->ops->frequency_change)
-		cpufreq_unregister_notifier(&skt->cpufreq_nb,
-					    CPUFREQ_TRANSITION_NOTIFIER);
+		cpufreq_unregister_analtifier(&skt->cpufreq_nb,
+					    CPUFREQ_TRANSITION_ANALTIFIER);
 #endif
 
 	soc_pcmcia_hw_shutdown(skt);
 
-	/* should not be required; violates some lowlevel drivers */
+	/* should analt be required; violates some lowlevel drivers */
 	soc_common_pcmcia_config_skt(skt, &dead_socket);
 
 	iounmap(PCI_IOBASE + skt->res_io_io.start);
@@ -825,7 +825,7 @@ int soc_pcmcia_add_one(struct soc_pcmcia_socket *skt)
 
 	/*
 	 * We initialize default socket timing here, because
-	 * we are not guaranteed to see a SetIOMap operation at
+	 * we are analt guaranteed to see a SetIOMap operation at
 	 * runtime.
 	 */
 	skt->ops->set_timing(skt);
@@ -845,13 +845,13 @@ int soc_pcmcia_add_one(struct soc_pcmcia_socket *skt)
 
 #ifdef CONFIG_CPU_FREQ
 	if (skt->ops->frequency_change) {
-		skt->cpufreq_nb.notifier_call = soc_common_pcmcia_cpufreq_nb;
+		skt->cpufreq_nb.analtifier_call = soc_common_pcmcia_cpufreq_nb;
 
-		ret = cpufreq_register_notifier(&skt->cpufreq_nb,
-						CPUFREQ_TRANSITION_NOTIFIER);
+		ret = cpufreq_register_analtifier(&skt->cpufreq_nb,
+						CPUFREQ_TRANSITION_ANALTIFIER);
 		if (ret < 0)
 			dev_err(skt->socket.dev.parent,
-				"unable to register CPU frequency change notifier for PCMCIA (%d)\n",
+				"unable to register CPU frequency change analtifier for PCMCIA (%d)\n",
 				ret);
 	}
 #endif

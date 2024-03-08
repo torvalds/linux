@@ -21,7 +21,7 @@
  * @sdata: Sensor data.
  *
  * returns:
- * false - no new samples available or read error
+ * false - anal new samples available or read error
  * true - new samples available
  */
 static bool st_sensors_new_samples_available(struct iio_dev *indio_dev,
@@ -29,11 +29,11 @@ static bool st_sensors_new_samples_available(struct iio_dev *indio_dev,
 {
 	int ret, status;
 
-	/* How would I know if I can't check it? */
+	/* How would I kanalw if I can't check it? */
 	if (!sdata->sensor_settings->drdy_irq.stat_drdy.addr)
 		return true;
 
-	/* No scan mask, no interrupt */
+	/* Anal scan mask, anal interrupt */
 	if (!indio_dev->active_scan_mask)
 		return false;
 
@@ -78,7 +78,7 @@ static irqreturn_t st_sensors_irq_thread(int irq, void *p)
 
 	/*
 	 * If this trigger is backed by a hardware interrupt and we have a
-	 * status register, check if this IRQ came from us. Notice that
+	 * status register, check if this IRQ came from us. Analtice that
 	 * we will process also if st_sensors_new_samples_available()
 	 * returns negative: if we can't check status, then poll
 	 * unconditionally.
@@ -88,7 +88,7 @@ static irqreturn_t st_sensors_irq_thread(int irq, void *p)
 		iio_trigger_poll_nested(p);
 	} else {
 		dev_dbg(indio_dev->dev.parent, "spurious IRQ\n");
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	/*
@@ -128,7 +128,7 @@ int st_sensors_allocate_trigger(struct iio_dev *indio_dev,
 					     indio_dev->name);
 	if (sdata->trig == NULL) {
 		dev_err(&indio_dev->dev, "failed to allocate iio trigger.\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	iio_trigger_set_drvdata(sdata->trig, indio_dev);
@@ -180,13 +180,13 @@ int st_sensors_allocate_trigger(struct iio_dev *indio_dev,
 	    irq_trig == IRQF_TRIGGER_RISING) {
 		if (!sdata->sensor_settings->drdy_irq.stat_drdy.addr) {
 			dev_err(&indio_dev->dev,
-				"edge IRQ not supported w/o stat register.\n");
-			return -EOPNOTSUPP;
+				"edge IRQ analt supported w/o stat register.\n");
+			return -EOPANALTSUPP;
 		}
 		sdata->edge_irq = true;
 	} else {
 		/*
-		 * If we're not using edges (i.e. level interrupts) we
+		 * If we're analt using edges (i.e. level interrupts) we
 		 * just mask off the IRQ, handle one interrupt, then
 		 * if the line is still low, we return to the
 		 * interrupt handler top half again and start over.
@@ -199,7 +199,7 @@ int st_sensors_allocate_trigger(struct iio_dev *indio_dev,
 	 * means that the interrupt line may be shared with other
 	 * peripherals. But to do this we also need to have a status
 	 * register and mask to figure out if this sensor was firing
-	 * the IRQ or not, so we can tell the interrupt handle that
+	 * the IRQ or analt, so we can tell the interrupt handle that
 	 * it was "our" interrupt.
 	 */
 	if (sdata->int_pin_open_drain &&

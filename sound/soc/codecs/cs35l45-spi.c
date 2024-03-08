@@ -21,7 +21,7 @@ static int cs35l45_spi_probe(struct spi_device *spi)
 
 	cs35l45 = devm_kzalloc(dev, sizeof(struct cs35l45_private), GFP_KERNEL);
 	if (cs35l45 == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spi->max_speed_hz = CS35L45_SPI_MAX_FREQ;
 	spi_setup(spi);

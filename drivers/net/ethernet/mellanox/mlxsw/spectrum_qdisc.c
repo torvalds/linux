@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
-/* Copyright (c) 2017-2018 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2017-2018 Mellaanalx Techanallogies. All rights reserved */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/netdevice.h>
 #include <net/pkt_cls.h>
 #include <net/red.h>
@@ -16,7 +16,7 @@
 	MLXSW_SP_PRIO_BAND_TO_TCLASS((child - 1))
 
 enum mlxsw_sp_qdisc_type {
-	MLXSW_SP_QDISC_NO_QDISC,
+	MLXSW_SP_QDISC_ANAL_QDISC,
 	MLXSW_SP_QDISC_RED,
 	MLXSW_SP_QDISC_PRIO,
 	MLXSW_SP_QDISC_ETS,
@@ -42,10 +42,10 @@ struct mlxsw_sp_qdisc_ops {
 			  void *xstats_ptr);
 	void (*clean_stats)(struct mlxsw_sp_port *mlxsw_sp_port,
 			    struct mlxsw_sp_qdisc *mlxsw_sp_qdisc);
-	/* unoffload - to be used for a qdisc that stops being offloaded without
+	/* uanalffload - to be used for a qdisc that stops being offloaded without
 	 * being destroyed.
 	 */
-	void (*unoffload)(struct mlxsw_sp_port *mlxsw_sp_port,
+	void (*uanalffload)(struct mlxsw_sp_port *mlxsw_sp_port,
 			  struct mlxsw_sp_qdisc *mlxsw_sp_qdisc, void *params);
 	struct mlxsw_sp_qdisc *(*find_class)(struct mlxsw_sp_qdisc *mlxsw_sp_qdisc,
 					     u32 parent);
@@ -93,14 +93,14 @@ struct mlxsw_sp_qdisc_state {
 	struct mlxsw_sp_qdisc root_qdisc;
 
 	/* When a PRIO or ETS are added, the invisible FIFOs in their bands are
-	 * created first. When notifications for these FIFOs arrive, it is not
-	 * known what qdisc their parent handle refers to. It could be a
+	 * created first. When analtifications for these FIFOs arrive, it is analt
+	 * kanalwn what qdisc their parent handle refers to. It could be a
 	 * newly-created PRIO that will replace the currently-offloaded one, or
 	 * it could be e.g. a RED that will be attached below it.
 	 *
-	 * As the notifications start to arrive, use them to note what the
+	 * As the analtifications start to arrive, use them to analte what the
 	 * future parent handle is, and keep track of which child FIFOs were
-	 * seen. Then when the parent is known, retroactively offload those
+	 * seen. Then when the parent is kanalwn, retroactively offload those
 	 * FIFOs.
 	 */
 	u32 future_handle;
@@ -369,7 +369,7 @@ static int mlxsw_sp_qdisc_create(struct mlxsw_sp_port *mlxsw_sp_port,
 						 sizeof(*mlxsw_sp_qdisc->qdiscs),
 						 GFP_KERNEL);
 		if (!mlxsw_sp_qdisc->qdiscs)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		for (i = 0; i < ops->num_classes; i++)
 			mlxsw_sp_qdisc->qdiscs[i].parent = mlxsw_sp_qdisc;
@@ -422,14 +422,14 @@ mlxsw_sp_qdisc_change(struct mlxsw_sp_port *mlxsw_sp_port, u32 handle,
 
 	err = ops->check_params(mlxsw_sp_port, params);
 	if (err)
-		goto unoffload;
+		goto uanalffload;
 
 	err = ops->replace(mlxsw_sp_port, handle, mlxsw_sp_qdisc, params);
 	if (err)
-		goto unoffload;
+		goto uanalffload;
 
 	/* Check if the Qdisc changed. That includes a situation where an
-	 * invisible Qdisc replaces another one, or is being added for the
+	 * invisible Qdisc replaces aanalther one, or is being added for the
 	 * first time.
 	 */
 	if (mlxsw_sp_qdisc->handle != handle) {
@@ -440,9 +440,9 @@ mlxsw_sp_qdisc_change(struct mlxsw_sp_port *mlxsw_sp_port, u32 handle,
 	mlxsw_sp_qdisc->handle = handle;
 	return 0;
 
-unoffload:
-	if (ops->unoffload)
-		ops->unoffload(mlxsw_sp_port, mlxsw_sp_qdisc, params);
+uanalffload:
+	if (ops->uanalffload)
+		ops->uanalffload(mlxsw_sp_port, mlxsw_sp_qdisc, params);
 
 	mlxsw_sp_qdisc_destroy(mlxsw_sp_port, mlxsw_sp_qdisc);
 	return err;
@@ -480,7 +480,7 @@ mlxsw_sp_qdisc_get_stats(struct mlxsw_sp_port *mlxsw_sp_port,
 						      mlxsw_sp_qdisc,
 						      stats_ptr);
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int
@@ -494,7 +494,7 @@ mlxsw_sp_qdisc_get_xstats(struct mlxsw_sp_port *mlxsw_sp_port,
 						      mlxsw_sp_qdisc,
 						      xstats_ptr);
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static u64
@@ -740,11 +740,11 @@ mlxsw_sp_qdisc_red_replace(struct mlxsw_sp_port *mlxsw_sp_port, u32 handle,
 	max = mlxsw_sp_bytes_cells(mlxsw_sp, p->max);
 	return mlxsw_sp_tclass_congestion_enable(mlxsw_sp_port, tclass_num,
 						 min, max, prob,
-						 !p->is_nodrop, p->is_ecn);
+						 !p->is_analdrop, p->is_ecn);
 }
 
 static void
-mlxsw_sp_qdisc_leaf_unoffload(struct mlxsw_sp_port *mlxsw_sp_port,
+mlxsw_sp_qdisc_leaf_uanalffload(struct mlxsw_sp_port *mlxsw_sp_port,
 			      struct mlxsw_sp_qdisc *mlxsw_sp_qdisc,
 			      struct gnet_stats_queue *qstats)
 {
@@ -757,13 +757,13 @@ mlxsw_sp_qdisc_leaf_unoffload(struct mlxsw_sp_port *mlxsw_sp_port,
 }
 
 static void
-mlxsw_sp_qdisc_red_unoffload(struct mlxsw_sp_port *mlxsw_sp_port,
+mlxsw_sp_qdisc_red_uanalffload(struct mlxsw_sp_port *mlxsw_sp_port,
 			     struct mlxsw_sp_qdisc *mlxsw_sp_qdisc,
 			     void *params)
 {
 	struct tc_red_qopt_offload_params *p = params;
 
-	mlxsw_sp_qdisc_leaf_unoffload(mlxsw_sp_port, mlxsw_sp_qdisc, p->qstats);
+	mlxsw_sp_qdisc_leaf_uanalffload(mlxsw_sp_port, mlxsw_sp_qdisc, p->qstats);
 }
 
 static int
@@ -835,7 +835,7 @@ static struct mlxsw_sp_qdisc_ops mlxsw_sp_qdisc_ops_red = {
 	.type = MLXSW_SP_QDISC_RED,
 	.check_params = mlxsw_sp_qdisc_red_check_params,
 	.replace = mlxsw_sp_qdisc_red_replace,
-	.unoffload = mlxsw_sp_qdisc_red_unoffload,
+	.uanalffload = mlxsw_sp_qdisc_red_uanalffload,
 	.destroy = mlxsw_sp_qdisc_red_destroy,
 	.get_stats = mlxsw_sp_qdisc_get_red_stats,
 	.get_xstats = mlxsw_sp_qdisc_get_red_xstats,
@@ -855,7 +855,7 @@ static int __mlxsw_sp_setup_tc_red(struct mlxsw_sp_port *mlxsw_sp_port,
 
 	mlxsw_sp_qdisc = mlxsw_sp_qdisc_find(mlxsw_sp_port, p->parent);
 	if (!mlxsw_sp_qdisc)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (p->command == TC_RED_REPLACE)
 		return mlxsw_sp_qdisc_replace(mlxsw_sp_port, p->handle,
@@ -864,7 +864,7 @@ static int __mlxsw_sp_setup_tc_red(struct mlxsw_sp_port *mlxsw_sp_port,
 					      &p->set);
 
 	if (!mlxsw_sp_qdisc_compare(mlxsw_sp_qdisc, p->handle))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (p->command) {
 	case TC_RED_DESTROY:
@@ -879,7 +879,7 @@ static int __mlxsw_sp_setup_tc_red(struct mlxsw_sp_port *mlxsw_sp_port,
 		return mlxsw_sp_qdisc_graft(mlxsw_sp_port, mlxsw_sp_qdisc, 0,
 					    p->child_handle);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -924,9 +924,9 @@ mlxsw_sp_qdisc_tbf_hr(struct mlxsw_sp_port *mlxsw_sp_port,
 	/* Configure subgroup shaper, so that both UC and MC traffic is subject
 	 * to shaping. That is unlike RED, however UC queue lengths are going to
 	 * be different than MC ones due to different pool and quota
-	 * configurations, so the configuration is not applicable. For shaper on
+	 * configurations, so the configuration is analt applicable. For shaper on
 	 * the other hand, subjecting the overall stream to the configured
-	 * shaper makes sense. Also note that that is what we do for
+	 * shaper makes sense. Also analte that that is what we do for
 	 * ieee_setmaxrate().
 	 */
 	return MLXSW_REG_QEEC_HR_SUBGROUP;
@@ -1050,13 +1050,13 @@ mlxsw_sp_qdisc_tbf_replace(struct mlxsw_sp_port *mlxsw_sp_port, u32 handle,
 }
 
 static void
-mlxsw_sp_qdisc_tbf_unoffload(struct mlxsw_sp_port *mlxsw_sp_port,
+mlxsw_sp_qdisc_tbf_uanalffload(struct mlxsw_sp_port *mlxsw_sp_port,
 			     struct mlxsw_sp_qdisc *mlxsw_sp_qdisc,
 			     void *params)
 {
 	struct tc_tbf_qopt_offload_replace_params *p = params;
 
-	mlxsw_sp_qdisc_leaf_unoffload(mlxsw_sp_port, mlxsw_sp_qdisc, p->qstats);
+	mlxsw_sp_qdisc_leaf_uanalffload(mlxsw_sp_port, mlxsw_sp_qdisc, p->qstats);
 }
 
 static int
@@ -1073,7 +1073,7 @@ static struct mlxsw_sp_qdisc_ops mlxsw_sp_qdisc_ops_tbf = {
 	.type = MLXSW_SP_QDISC_TBF,
 	.check_params = mlxsw_sp_qdisc_tbf_check_params,
 	.replace = mlxsw_sp_qdisc_tbf_replace,
-	.unoffload = mlxsw_sp_qdisc_tbf_unoffload,
+	.uanalffload = mlxsw_sp_qdisc_tbf_uanalffload,
 	.destroy = mlxsw_sp_qdisc_tbf_destroy,
 	.get_stats = mlxsw_sp_qdisc_get_tbf_stats,
 	.clean_stats = mlxsw_sp_setup_tc_qdisc_leaf_clean_stats,
@@ -1088,7 +1088,7 @@ static int __mlxsw_sp_setup_tc_tbf(struct mlxsw_sp_port *mlxsw_sp_port,
 
 	mlxsw_sp_qdisc = mlxsw_sp_qdisc_find(mlxsw_sp_port, p->parent);
 	if (!mlxsw_sp_qdisc)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (p->command == TC_TBF_REPLACE)
 		return mlxsw_sp_qdisc_replace(mlxsw_sp_port, p->handle,
@@ -1097,7 +1097,7 @@ static int __mlxsw_sp_setup_tc_tbf(struct mlxsw_sp_port *mlxsw_sp_port,
 					      &p->replace_params);
 
 	if (!mlxsw_sp_qdisc_compare(mlxsw_sp_qdisc, p->handle))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (p->command) {
 	case TC_TBF_DESTROY:
@@ -1109,7 +1109,7 @@ static int __mlxsw_sp_setup_tc_tbf(struct mlxsw_sp_port *mlxsw_sp_port,
 		return mlxsw_sp_qdisc_graft(mlxsw_sp_port, mlxsw_sp_qdisc, 0,
 					    p->child_handle);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -1196,7 +1196,7 @@ static int __mlxsw_sp_setup_tc_fifo(struct mlxsw_sp_port *mlxsw_sp_port,
 	if (!mlxsw_sp_qdisc && p->handle == TC_H_UNSPEC) {
 		parent_handle = TC_H_MAJ(p->parent);
 		if (parent_handle != qdisc_state->future_handle) {
-			/* This notifications is for a different Qdisc than
+			/* This analtifications is for a different Qdisc than
 			 * previously. Wipe the future cache.
 			 */
 			mlxsw_sp_qdisc_future_fifos_init(mlxsw_sp_port,
@@ -1212,7 +1212,7 @@ static int __mlxsw_sp_setup_tc_fifo(struct mlxsw_sp_port *mlxsw_sp_port,
 		}
 	}
 	if (!mlxsw_sp_qdisc)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (p->command == TC_FIFO_REPLACE) {
 		return mlxsw_sp_qdisc_replace(mlxsw_sp_port, p->handle,
@@ -1221,7 +1221,7 @@ static int __mlxsw_sp_setup_tc_fifo(struct mlxsw_sp_port *mlxsw_sp_port,
 	}
 
 	if (!mlxsw_sp_qdisc_compare(mlxsw_sp_qdisc, p->handle))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (p->command) {
 	case TC_FIFO_DESTROY:
@@ -1233,7 +1233,7 @@ static int __mlxsw_sp_setup_tc_fifo(struct mlxsw_sp_port *mlxsw_sp_port,
 		break;
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 int mlxsw_sp_setup_tc_fifo(struct mlxsw_sp_port *mlxsw_sp_port,
@@ -1277,7 +1277,7 @@ static int
 __mlxsw_sp_qdisc_ets_check_params(unsigned int nbands)
 {
 	if (nbands > IEEE_8021QAZ_MAX_TCS)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return 0;
 }
@@ -1334,7 +1334,7 @@ __mlxsw_sp_qdisc_ets_replace(struct mlxsw_sp_port *mlxsw_sp_port,
 	if (!ets_data) {
 		ets_data = kzalloc(sizeof(*ets_data), GFP_KERNEL);
 		if (!ets_data)
-			return -ENOMEM;
+			return -EANALMEM;
 		mlxsw_sp_qdisc->ets_data = ets_data;
 
 		for (band = 0; band < mlxsw_sp_qdisc->num_classes; band++) {
@@ -1415,7 +1415,7 @@ mlxsw_sp_qdisc_prio_replace(struct mlxsw_sp_port *mlxsw_sp_port, u32 handle,
 }
 
 static void
-__mlxsw_sp_qdisc_ets_unoffload(struct mlxsw_sp_port *mlxsw_sp_port,
+__mlxsw_sp_qdisc_ets_uanalffload(struct mlxsw_sp_port *mlxsw_sp_port,
 			       struct mlxsw_sp_qdisc *mlxsw_sp_qdisc,
 			       struct gnet_stats_queue *qstats)
 {
@@ -1427,13 +1427,13 @@ __mlxsw_sp_qdisc_ets_unoffload(struct mlxsw_sp_port *mlxsw_sp_port,
 }
 
 static void
-mlxsw_sp_qdisc_prio_unoffload(struct mlxsw_sp_port *mlxsw_sp_port,
+mlxsw_sp_qdisc_prio_uanalffload(struct mlxsw_sp_port *mlxsw_sp_port,
 			      struct mlxsw_sp_qdisc *mlxsw_sp_qdisc,
 			      void *params)
 {
 	struct tc_prio_qopt_offload_params *p = params;
 
-	__mlxsw_sp_qdisc_ets_unoffload(mlxsw_sp_port, mlxsw_sp_qdisc,
+	__mlxsw_sp_qdisc_ets_uanalffload(mlxsw_sp_port, mlxsw_sp_qdisc,
 				       p->qstats);
 }
 
@@ -1528,7 +1528,7 @@ static struct mlxsw_sp_qdisc_ops mlxsw_sp_qdisc_ops_prio = {
 	.type = MLXSW_SP_QDISC_PRIO,
 	.check_params = mlxsw_sp_qdisc_prio_check_params,
 	.replace = mlxsw_sp_qdisc_prio_replace,
-	.unoffload = mlxsw_sp_qdisc_prio_unoffload,
+	.uanalffload = mlxsw_sp_qdisc_prio_uanalffload,
 	.destroy = mlxsw_sp_qdisc_prio_destroy,
 	.get_stats = mlxsw_sp_qdisc_get_prio_stats,
 	.clean_stats = mlxsw_sp_setup_tc_qdisc_prio_clean_stats,
@@ -1560,13 +1560,13 @@ mlxsw_sp_qdisc_ets_replace(struct mlxsw_sp_port *mlxsw_sp_port, u32 handle,
 }
 
 static void
-mlxsw_sp_qdisc_ets_unoffload(struct mlxsw_sp_port *mlxsw_sp_port,
+mlxsw_sp_qdisc_ets_uanalffload(struct mlxsw_sp_port *mlxsw_sp_port,
 			     struct mlxsw_sp_qdisc *mlxsw_sp_qdisc,
 			     void *params)
 {
 	struct tc_ets_qopt_offload_replace_params *p = params;
 
-	__mlxsw_sp_qdisc_ets_unoffload(mlxsw_sp_port, mlxsw_sp_qdisc,
+	__mlxsw_sp_qdisc_ets_uanalffload(mlxsw_sp_port, mlxsw_sp_qdisc,
 				       p->qstats);
 }
 
@@ -1581,7 +1581,7 @@ static struct mlxsw_sp_qdisc_ops mlxsw_sp_qdisc_ops_ets = {
 	.type = MLXSW_SP_QDISC_ETS,
 	.check_params = mlxsw_sp_qdisc_ets_check_params,
 	.replace = mlxsw_sp_qdisc_ets_replace,
-	.unoffload = mlxsw_sp_qdisc_ets_unoffload,
+	.uanalffload = mlxsw_sp_qdisc_ets_uanalffload,
 	.destroy = mlxsw_sp_qdisc_ets_destroy,
 	.get_stats = mlxsw_sp_qdisc_get_prio_stats,
 	.clean_stats = mlxsw_sp_setup_tc_qdisc_prio_clean_stats,
@@ -1592,7 +1592,7 @@ static struct mlxsw_sp_qdisc_ops mlxsw_sp_qdisc_ops_ets = {
 };
 
 /* Linux allows linking of Qdiscs to arbitrary classes (so long as the resulting
- * graph is free of cycles). These operations do not change the parent handle
+ * graph is free of cycles). These operations do analt change the parent handle
  * though, which means it can be incomplete (if there is more than one class
  * where the Qdisc in question is grafted) or outright wrong (if the Qdisc was
  * linked to a different class and then removed from the original class).
@@ -1609,12 +1609,12 @@ static struct mlxsw_sp_qdisc_ops mlxsw_sp_qdisc_ops_ets = {
  * from that band, its only parent will be 1:2, but it will continue to claim
  * that it is in fact 1:3.
  *
- * The notification for child Qdisc replace (e.g. TC_RED_REPLACE) comes before
- * the notification for parent graft (e.g. TC_PRIO_GRAFT). We take the replace
- * notification to offload the child Qdisc, based on its parent handle, and use
+ * The analtification for child Qdisc replace (e.g. TC_RED_REPLACE) comes before
+ * the analtification for parent graft (e.g. TC_PRIO_GRAFT). We take the replace
+ * analtification to offload the child Qdisc, based on its parent handle, and use
  * the graft operation to validate that the class where the child is actually
  * grafted corresponds to the parent handle. If the two don't match, we
- * unoffload the child.
+ * uanalffload the child.
  */
 static int mlxsw_sp_qdisc_graft(struct mlxsw_sp_port *mlxsw_sp_port,
 				struct mlxsw_sp_qdisc *mlxsw_sp_qdisc,
@@ -1629,13 +1629,13 @@ static int mlxsw_sp_qdisc_graft(struct mlxsw_sp_port *mlxsw_sp_port,
 
 	if (!child_handle) {
 		/* This is an invisible FIFO replacing the original Qdisc.
-		 * Ignore it--the original Qdisc's destroy will follow.
+		 * Iganalre it--the original Qdisc's destroy will follow.
 		 */
 		return 0;
 	}
 
 	/* See if the grafted qdisc is already offloaded on any tclass. If so,
-	 * unoffload it.
+	 * uanalffload it.
 	 */
 	old_qdisc = mlxsw_sp_qdisc_find_by_handle(mlxsw_sp_port,
 						  child_handle);
@@ -1648,7 +1648,7 @@ static int mlxsw_sp_qdisc_graft(struct mlxsw_sp_port *mlxsw_sp_port,
 	if (!WARN_ON(!mlxsw_sp_qdisc))
 		mlxsw_sp_qdisc_destroy(mlxsw_sp_port, mlxsw_sp_qdisc);
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int __mlxsw_sp_setup_tc_prio(struct mlxsw_sp_port *mlxsw_sp_port,
@@ -1658,7 +1658,7 @@ static int __mlxsw_sp_setup_tc_prio(struct mlxsw_sp_port *mlxsw_sp_port,
 
 	mlxsw_sp_qdisc = mlxsw_sp_qdisc_find(mlxsw_sp_port, p->parent);
 	if (!mlxsw_sp_qdisc)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (p->command == TC_PRIO_REPLACE)
 		return mlxsw_sp_qdisc_replace(mlxsw_sp_port, p->handle,
@@ -1667,7 +1667,7 @@ static int __mlxsw_sp_setup_tc_prio(struct mlxsw_sp_port *mlxsw_sp_port,
 					      &p->replace_params);
 
 	if (!mlxsw_sp_qdisc_compare(mlxsw_sp_qdisc, p->handle))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (p->command) {
 	case TC_PRIO_DESTROY:
@@ -1680,7 +1680,7 @@ static int __mlxsw_sp_setup_tc_prio(struct mlxsw_sp_port *mlxsw_sp_port,
 					    p->graft_params.band,
 					    p->graft_params.child_handle);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -1703,7 +1703,7 @@ static int __mlxsw_sp_setup_tc_ets(struct mlxsw_sp_port *mlxsw_sp_port,
 
 	mlxsw_sp_qdisc = mlxsw_sp_qdisc_find(mlxsw_sp_port, p->parent);
 	if (!mlxsw_sp_qdisc)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (p->command == TC_ETS_REPLACE)
 		return mlxsw_sp_qdisc_replace(mlxsw_sp_port, p->handle,
@@ -1712,7 +1712,7 @@ static int __mlxsw_sp_setup_tc_ets(struct mlxsw_sp_port *mlxsw_sp_port,
 					      &p->replace_params);
 
 	if (!mlxsw_sp_qdisc_compare(mlxsw_sp_qdisc, p->handle))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (p->command) {
 	case TC_ETS_DESTROY:
@@ -1725,7 +1725,7 @@ static int __mlxsw_sp_setup_tc_ets(struct mlxsw_sp_port *mlxsw_sp_port,
 					    p->graft_params.band,
 					    p->graft_params.child_handle);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -1879,8 +1879,8 @@ mlxsw_sp_qevent_entry_configure(struct mlxsw_sp *mlxsw_sp,
 				struct netlink_ext_ack *extack)
 {
 	if (!(BIT(mall_entry->type) & qevent_binding->action_mask)) {
-		NL_SET_ERR_MSG(extack, "Action not supported at this qevent");
-		return -EOPNOTSUPP;
+		NL_SET_ERR_MSG(extack, "Action analt supported at this qevent");
+		return -EOPANALTSUPP;
 	}
 
 	switch (mall_entry->type) {
@@ -1891,7 +1891,7 @@ mlxsw_sp_qevent_entry_configure(struct mlxsw_sp *mlxsw_sp,
 	default:
 		/* This should have been validated away. */
 		WARN_ON(1);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -1995,35 +1995,35 @@ static int mlxsw_sp_qevent_mall_replace(struct mlxsw_sp *mlxsw_sp,
 	struct flow_action_entry *act;
 	int err;
 
-	/* It should not currently be possible to replace a matchall rule. So
+	/* It should analt currently be possible to replace a matchall rule. So
 	 * this must be a new rule.
 	 */
 	if (!list_empty(&qevent_block->mall_entry_list)) {
 		NL_SET_ERR_MSG(f->common.extack, "At most one filter supported");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	if (f->rule->action.num_entries != 1) {
 		NL_SET_ERR_MSG(f->common.extack, "Only singular actions supported");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	if (f->common.chain_index) {
 		NL_SET_ERR_MSG(f->common.extack, "Only chain 0 is supported");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	if (f->common.protocol != htons(ETH_P_ALL)) {
-		NL_SET_ERR_MSG(f->common.extack, "Protocol matching not supported");
-		return -EOPNOTSUPP;
+		NL_SET_ERR_MSG(f->common.extack, "Protocol matching analt supported");
+		return -EOPANALTSUPP;
 	}
 
 	act = &f->rule->action.entries[0];
 	if (!(act->hw_stats & FLOW_ACTION_HW_STATS_DISABLED)) {
-		NL_SET_ERR_MSG(f->common.extack, "HW counters not supported on qevents");
-		return -EOPNOTSUPP;
+		NL_SET_ERR_MSG(f->common.extack, "HW counters analt supported on qevents");
+		return -EOPANALTSUPP;
 	}
 
 	mall_entry = kzalloc(sizeof(*mall_entry), GFP_KERNEL);
 	if (!mall_entry)
-		return -ENOMEM;
+		return -EANALMEM;
 	mall_entry->cookie = f->cookie;
 
 	if (act->id == FLOW_ACTION_MIRRED) {
@@ -2033,7 +2033,7 @@ static int mlxsw_sp_qevent_mall_replace(struct mlxsw_sp *mlxsw_sp,
 		mall_entry->type = MLXSW_SP_MALL_ACTION_TYPE_TRAP;
 	} else {
 		NL_SET_ERR_MSG(f->common.extack, "Unsupported action");
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		goto err_unsupported_action;
 	}
 
@@ -2079,7 +2079,7 @@ static int mlxsw_sp_qevent_block_mall_cb(struct mlxsw_sp_qevent_block *qevent_bl
 		mlxsw_sp_qevent_mall_destroy(qevent_block, f);
 		return 0;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -2091,7 +2091,7 @@ static int mlxsw_sp_qevent_block_cb(enum tc_setup_type type, void *type_data, vo
 	case TC_SETUP_CLSMATCHALL:
 		return mlxsw_sp_qevent_block_mall_cb(qevent_block, type_data);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -2134,7 +2134,7 @@ mlxsw_sp_qevent_binding_create(struct mlxsw_sp_port *mlxsw_sp_port, u32 handle, 
 
 	binding = kzalloc(sizeof(*binding), GFP_KERNEL);
 	if (!binding)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	binding->mlxsw_sp_port = mlxsw_sp_port;
 	binding->handle = handle;
@@ -2185,7 +2185,7 @@ mlxsw_sp_setup_tc_block_qevent_bind(struct mlxsw_sp_port *mlxsw_sp_port,
 	if (!block_cb) {
 		qevent_block = mlxsw_sp_qevent_block_create(mlxsw_sp, f->net);
 		if (!qevent_block)
-			return -ENOMEM;
+			return -EANALMEM;
 		block_cb = flow_block_cb_alloc(mlxsw_sp_qevent_block_cb, mlxsw_sp, qevent_block,
 					       mlxsw_sp_qevent_block_release);
 		if (IS_ERR(block_cb)) {
@@ -2200,8 +2200,8 @@ mlxsw_sp_setup_tc_block_qevent_bind(struct mlxsw_sp_port *mlxsw_sp_port,
 
 	qdisc = mlxsw_sp_qdisc_find_by_handle(mlxsw_sp_port, f->sch->handle);
 	if (!qdisc) {
-		NL_SET_ERR_MSG(f->extack, "Qdisc not offloaded");
-		err = -ENOENT;
+		NL_SET_ERR_MSG(f->extack, "Qdisc analt offloaded");
+		err = -EANALENT;
 		goto err_find_qdisc;
 	}
 
@@ -2292,7 +2292,7 @@ mlxsw_sp_setup_tc_block_qevent(struct mlxsw_sp_port *mlxsw_sp_port,
 		mlxsw_sp_setup_tc_block_qevent_unbind(mlxsw_sp_port, f, span_trigger);
 		return 0;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -2323,7 +2323,7 @@ int mlxsw_sp_tc_qdisc_init(struct mlxsw_sp_port *mlxsw_sp_port)
 
 	qdisc_state = kzalloc(sizeof(*qdisc_state), GFP_KERNEL);
 	if (!qdisc_state)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&qdisc_state->lock);
 	mlxsw_sp_port->qdisc = qdisc_state;

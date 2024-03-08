@@ -29,7 +29,7 @@
 			reset-gpios = <&tca6416_u97 6 GPIO_ACTIVE_LOW>;
 		};
 		/* Cleanup from RevA */
-		/delete-node/ ethernet-phy@21;
+		/delete-analde/ ethernet-phy@21;
 	};
 };
 
@@ -41,7 +41,7 @@
 				compatible = "maxim,max15303";
 				reg = <0x1b>;
 			};
-			/delete-node/ max15303@20;
+			/delete-analde/ max15303@20;
 		};
 	};
 };

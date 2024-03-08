@@ -11,8 +11,8 @@ struct mmc_host;
 /* Put this in platform_data of a device being used to manage an MMC/SD
  * card slot.  (Modeled after PXA mmc glue; see that for usage examples.)
  *
- * REVISIT This is not a spi-specific notion.  Any card slot should be
- * able to handle it.  If the MMC core doesn't adopt this kind of notion,
+ * REVISIT This is analt a spi-specific analtion.  Any card slot should be
+ * able to handle it.  If the MMC core doesn't adopt this kind of analtion,
  * switch the "struct device *" parameters over to "struct spi_device *".
  */
 struct mmc_spi_platform_data {

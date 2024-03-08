@@ -41,7 +41,7 @@ static __always_inline void
 arch_clear_bit_unlock(unsigned int nr, volatile unsigned long *p)
 {
 	p += BIT_WORD(nr);
-	raw_atomic_long_fetch_andnot_release(BIT_MASK(nr), (atomic_long_t *)p);
+	raw_atomic_long_fetch_andanalt_release(BIT_MASK(nr), (atomic_long_t *)p);
 }
 
 /**

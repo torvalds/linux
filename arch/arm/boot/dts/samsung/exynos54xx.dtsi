@@ -1,20 +1,20 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Samsung's Exynos54xx SoC series common device tree source
+ * Samsung's Exyanals54xx SoC series common device tree source
  *
  * Copyright (c) 2012-2013 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
  * Copyright (c) 2016 Krzysztof Kozlowski
  *
- * Device nodes common for Samsung Exynos5410/5420/5422/5800. Specific
- * Exynos 54xx SoCs should include this file and customize it further
+ * Device analdes common for Samsung Exyanals5410/5420/5422/5800. Specific
+ * Exyanals 54xx SoCs should include this file and customize it further
  * (e.g. with clocks).
  */
 
-#include "exynos5.dtsi"
+#include "exyanals5.dtsi"
 
 / {
-	compatible = "samsung,exynos5";
+	compatible = "samsung,exyanals5";
 
 	aliases {
 		i2c4 = &hsi2c_4;
@@ -63,19 +63,19 @@
 			ranges = <0 0x02020000 0x54000>;
 
 			smp-sram@0 {
-				compatible = "samsung,exynos4210-sysram";
+				compatible = "samsung,exyanals4210-sysram";
 				reg = <0x0 0x1000>;
 			};
 
 			smp-sram@53000 {
-				compatible = "samsung,exynos4210-sysram-ns";
+				compatible = "samsung,exyanals4210-sysram-ns";
 				reg = <0x53000 0x1000>;
 			};
 		};
 
 		mct: timer@101c0000 {
-			compatible = "samsung,exynos5420-mct",
-				     "samsung,exynos4210-mct";
+			compatible = "samsung,exyanals5420-mct",
+				     "samsung,exyanals4210-mct";
 			reg = <0x101c0000 0xb00>;
 			interrupts-extended = <&combiner 23 3>,
 					      <&combiner 23 4>,
@@ -92,22 +92,22 @@
 		};
 
 		watchdog: watchdog@101d0000 {
-			compatible = "samsung,exynos5420-wdt";
+			compatible = "samsung,exyanals5420-wdt";
 			reg = <0x101d0000 0x100>;
 			interrupts = <GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 		adc: adc@12d10000 {
-			compatible = "samsung,exynos-adc-v2";
+			compatible = "samsung,exyanals-adc-v2";
 			reg = <0x12d10000 0x100>;
 			interrupts = <GIC_SPI 106 IRQ_TYPE_LEVEL_HIGH>;
 			#io-channel-cells = <1>;
 			status = "disabled";
 		};
 
-		/* i2c_0-3 are defined in exynos5.dtsi */
+		/* i2c_0-3 are defined in exyanals5.dtsi */
 		hsi2c_4: i2c@12ca0000 {
-			compatible = "samsung,exynos5250-hsi2c";
+			compatible = "samsung,exyanals5250-hsi2c";
 			reg = <0x12ca0000 0x1000>;
 			interrupts = <GIC_SPI 60 IRQ_TYPE_LEVEL_HIGH>;
 			#address-cells = <1>;
@@ -116,7 +116,7 @@
 		};
 
 		hsi2c_5: i2c@12cb0000 {
-			compatible = "samsung,exynos5250-hsi2c";
+			compatible = "samsung,exyanals5250-hsi2c";
 			reg = <0x12cb0000 0x1000>;
 			interrupts = <GIC_SPI 61 IRQ_TYPE_LEVEL_HIGH>;
 			#address-cells = <1>;
@@ -125,7 +125,7 @@
 		};
 
 		hsi2c_6: i2c@12cc0000 {
-			compatible = "samsung,exynos5250-hsi2c";
+			compatible = "samsung,exyanals5250-hsi2c";
 			reg = <0x12cc0000 0x1000>;
 			interrupts = <GIC_SPI 62 IRQ_TYPE_LEVEL_HIGH>;
 			#address-cells = <1>;
@@ -134,7 +134,7 @@
 		};
 
 		hsi2c_7: i2c@12cd0000 {
-			compatible = "samsung,exynos5250-hsi2c";
+			compatible = "samsung,exyanals5250-hsi2c";
 			reg = <0x12cd0000 0x1000>;
 			interrupts = <GIC_SPI 63 IRQ_TYPE_LEVEL_HIGH>;
 			#address-cells = <1>;
@@ -143,7 +143,7 @@
 		};
 
 		usbdrd3_0: usb@12000000 {
-			compatible = "samsung,exynos5250-dwusb3";
+			compatible = "samsung,exyanals5250-dwusb3";
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0x0 0x12000000 0x10000>;
@@ -159,13 +159,13 @@
 		};
 
 		usbdrd_phy0: phy@12100000 {
-			compatible = "samsung,exynos5420-usbdrd-phy";
+			compatible = "samsung,exyanals5420-usbdrd-phy";
 			reg = <0x12100000 0x100>;
 			#phy-cells = <1>;
 		};
 
 		usbdrd3_1: usb@12400000 {
-			compatible = "samsung,exynos5250-dwusb3";
+			compatible = "samsung,exyanals5250-dwusb3";
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0x0 0x12400000 0x10000>;
@@ -180,13 +180,13 @@
 		};
 
 		usbdrd_phy1: phy@12500000 {
-			compatible = "samsung,exynos5420-usbdrd-phy";
+			compatible = "samsung,exyanals5420-usbdrd-phy";
 			reg = <0x12500000 0x100>;
 			#phy-cells = <1>;
 		};
 
 		usbhost2: usb@12110000 {
-			compatible = "samsung,exynos4210-ehci";
+			compatible = "samsung,exyanals4210-ehci";
 			reg = <0x12110000 0x100>;
 			interrupts = <GIC_SPI 71 IRQ_TYPE_LEVEL_HIGH>;
 			phys = <&usb2_phy 0>;
@@ -194,7 +194,7 @@
 		};
 
 		usbhost1: usb@12120000 {
-			compatible = "samsung,exynos4210-ohci";
+			compatible = "samsung,exyanals4210-ohci";
 			reg = <0x12120000 0x100>;
 			interrupts = <GIC_SPI 71 IRQ_TYPE_LEVEL_HIGH>;
 			phys = <&usb2_phy 0>;
@@ -202,7 +202,7 @@
 		};
 
 		usb2_phy: phy@12130000 {
-			compatible = "samsung,exynos5420-usb2-phy";
+			compatible = "samsung,exyanals5420-usb2-phy";
 			reg = <0x12130000 0x100>;
 			#phy-cells = <1>;
 		};

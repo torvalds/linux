@@ -12,7 +12,7 @@ maintainers:
 allOf:
   - $ref: /schemas/i2c/i2c-controller.yaml#
   - if:
-      not:
+      analt:
         required:
           - mrvl,i2c-polling
     then:

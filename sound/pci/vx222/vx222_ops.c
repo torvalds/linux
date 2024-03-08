@@ -166,7 +166,7 @@ static int vx2_test_xilinx(struct vx_core *_chip)
 
 	dev_dbg(_chip->card->dev, "testing xilinx...\n");
 	/* This test uses several write/read sequences on TEST0 and TEST1 bits
-	 * to figure out whever or not the xilinx was correctly loaded
+	 * to figure out whever or analt the xilinx was correctly loaded
 	 */
 
 	/* We write 1 on CDSP.TEST0. We should get 0 on STATUS.TEST0. */
@@ -175,7 +175,7 @@ static int vx2_test_xilinx(struct vx_core *_chip)
 	data = vx_inl(chip, STATUS);
 	if ((data & VX_STATUS_VAL_TEST0_MASK) == VX_STATUS_VAL_TEST0_MASK) {
 		dev_dbg(_chip->card->dev, "bad!\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* We write 0 on CDSP.TEST0. We should get 1 on STATUS.TEST0. */
@@ -184,18 +184,18 @@ static int vx2_test_xilinx(struct vx_core *_chip)
 	data = vx_inl(chip, STATUS);
 	if (! (data & VX_STATUS_VAL_TEST0_MASK)) {
 		dev_dbg(_chip->card->dev, "bad! #2\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (_chip->type == VX_TYPE_BOARD) {
-		/* not implemented on VX_2_BOARDS */
+		/* analt implemented on VX_2_BOARDS */
 		/* We write 1 on CDSP.TEST1. We should get 0 on STATUS.TEST1. */
 		vx_outl(chip, CDSP, chip->regCDSP | VX_CDSP_TEST1_MASK);
 		vx_inl(chip, ISR);
 		data = vx_inl(chip, STATUS);
 		if ((data & VX_STATUS_VAL_TEST1_MASK) == VX_STATUS_VAL_TEST1_MASK) {
 			dev_dbg(_chip->card->dev, "bad! #3\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 
 		/* We write 0 on CDSP.TEST1. We should get 1 on STATUS.TEST1. */
@@ -204,7 +204,7 @@ static int vx2_test_xilinx(struct vx_core *_chip)
 		data = vx_inl(chip, STATUS);
 		if (! (data & VX_STATUS_VAL_TEST1_MASK)) {
 			dev_dbg(_chip->card->dev, "bad! #4\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 	dev_dbg(_chip->card->dev, "ok, xilinx fine.\n");
@@ -429,7 +429,7 @@ static int vx2_load_dsp(struct vx_core *vx, int index, const struct firmware *ds
 
 
 /*
- * vx_test_and_ack - test and acknowledge interrupt
+ * vx_test_and_ack - test and ackanalwledge interrupt
  *
  * called from irq hander, too
  *
@@ -437,14 +437,14 @@ static int vx2_load_dsp(struct vx_core *vx, int index, const struct firmware *ds
  */
 static int vx2_test_and_ack(struct vx_core *chip)
 {
-	/* not booted yet? */
+	/* analt booted yet? */
 	if (! (chip->chip_status & VX_STAT_XILINX_LOADED))
 		return -ENXIO;
 
 	if (! (vx_inl(chip, STATUS) & VX_STATUS_MEMIRQ_MASK))
 		return -EIO;
 	
-	/* ok, interrupts generated, now ack it */
+	/* ok, interrupts generated, analw ack it */
 	/* set ACQUIT bit up and down */
 	vx_outl(chip, STATUS, 0);
 	/* useless read just to spend some time and maintain
@@ -673,7 +673,7 @@ static void vx2_write_akm(struct vx_core *chip, int reg, unsigned int data)
 	}
 
 	/* `data' is a value between 0x0 and VX2_AKM_LEVEL_MAX = 0x093, in the case of the AKM codecs, we need
-	   a look up table, as there is no linear matching between the driver codec values
+	   a look up table, as there is anal linear matching between the driver codec values
 	   and the real dBu value
 	*/
 	if (snd_BUG_ON(data >= sizeof(vx2_akm_gains_lut)))
@@ -740,13 +740,13 @@ static void vx2_reset_codec(struct vx_core *_chip)
 	
 	vx2_write_codec_reg(_chip, AKM_CODEC_CLOCK_FORMAT_CMD); /* default */
 	vx2_write_codec_reg(_chip, AKM_CODEC_MUTE_CMD); /* Mute = ON ,Deemphasis = OFF */
-	vx2_write_codec_reg(_chip, AKM_CODEC_RESET_OFF_CMD); /* DAC and ADC normal operation */
+	vx2_write_codec_reg(_chip, AKM_CODEC_RESET_OFF_CMD); /* DAC and ADC analrmal operation */
 
 	if (_chip->type == VX_TYPE_MIC) {
 		/* set up the micro input selector */
-		chip->regSELMIC =  MICRO_SELECT_INPUT_NORM |
+		chip->regSELMIC =  MICRO_SELECT_INPUT_ANALRM |
 			MICRO_SELECT_PREAMPLI_G_0 |
-			MICRO_SELECT_NOISE_T_52DB;
+			MICRO_SELECT_ANALISE_T_52DB;
 
 		/* reset phantom power supply */
 		chip->regSELMIC &= ~MICRO_SELECT_PHANTOM_ALIM;

@@ -13,7 +13,7 @@
 #include <linux/types.h>
 #include <linux/usb.h>
 
-#include <asm/errno.h>
+#include <asm/erranal.h>
 
 #include "ucsi.h"
 
@@ -46,7 +46,7 @@ static int ucsi_cmd(void *data, u64 val)
 					sizeof(ucsi->debugfs->response));
 		break;
 	default:
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 	}
 
 	if (ret < 0) {
@@ -58,7 +58,7 @@ static int ucsi_cmd(void *data, u64 val)
 }
 DEFINE_DEBUGFS_ATTRIBUTE(ucsi_cmd_fops, NULL, ucsi_cmd, "0x%llx\n");
 
-static int ucsi_resp_show(struct seq_file *s, void *not_used)
+static int ucsi_resp_show(struct seq_file *s, void *analt_used)
 {
 	struct ucsi *ucsi = s->private;
 

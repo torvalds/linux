@@ -40,7 +40,7 @@ union acpi_parse_object;
  * The acquire/release ordering protocol is implied via this list. Mutexes
  * with a lower value must be acquired before mutexes with a higher value.
  *
- * NOTE: any changes here must be reflected in the acpi_gbl_mutex_names
+ * ANALTE: any changes here must be reflected in the acpi_gbl_mutex_names
  * table below also!
  */
 #define ACPI_MTX_INTERPRETER            0	/* AML Interpreter, main lock */
@@ -71,9 +71,9 @@ struct acpi_rw_lock {
 #define ACPI_MAX_LOCK                   1
 #define ACPI_NUM_LOCK                   (ACPI_MAX_LOCK+1)
 
-/* This Thread ID means that the mutex is not in use (unlocked) */
+/* This Thread ID means that the mutex is analt in use (unlocked) */
 
-#define ACPI_MUTEX_NOT_ACQUIRED         ((acpi_thread_id) 0)
+#define ACPI_MUTEX_ANALT_ACQUIRED         ((acpi_thread_id) 0)
 
 /* This Thread ID means an invalid thread ID */
 
@@ -93,7 +93,7 @@ struct acpi_mutex_info {
 
 /* Lock flag parameter for various interfaces */
 
-#define ACPI_MTX_DO_NOT_LOCK            0
+#define ACPI_MTX_DO_ANALT_LOCK            0
 #define ACPI_MTX_LOCK                   1
 
 /* Field access granularities */
@@ -103,7 +103,7 @@ struct acpi_mutex_info {
 #define ACPI_FIELD_DWORD_GRANULARITY    4
 #define ACPI_FIELD_QWORD_GRANULARITY    8
 
-#define ACPI_ENTRY_NOT_FOUND            NULL
+#define ACPI_ENTRY_ANALT_FOUND            NULL
 
 /*****************************************************************************
  *
@@ -120,31 +120,31 @@ typedef enum {
 } acpi_interpreter_mode;
 
 /*
- * The Namespace Node describes a named object that appears in the AML.
+ * The Namespace Analde describes a named object that appears in the AML.
  * descriptor_type is used to differentiate between internal descriptors.
  *
- * The node is optimized for both 32-bit and 64-bit platforms:
+ * The analde is optimized for both 32-bit and 64-bit platforms:
  * 20 bytes for the 32-bit case, 32 bytes for the 64-bit case.
  *
- * Note: The descriptor_type and Type fields must appear in the identical
- * position in both the struct acpi_namespace_node and union acpi_operand_object
+ * Analte: The descriptor_type and Type fields must appear in the identical
+ * position in both the struct acpi_namespace_analde and union acpi_operand_object
  * structures.
  */
-struct acpi_namespace_node {
+struct acpi_namespace_analde {
 	union acpi_operand_object *object;	/* Interpreter object */
 	u8 descriptor_type;	/* Differentiate object descriptor types */
 	u8 type;		/* ACPI Type associated with this name */
 	u16 flags;		/* Miscellaneous flags */
 	union acpi_name_union name;	/* ACPI Name, always 4 chars per ACPI spec */
-	struct acpi_namespace_node *parent;	/* Parent node */
-	struct acpi_namespace_node *child;	/* First child */
-	struct acpi_namespace_node *peer;	/* First peer */
-	acpi_owner_id owner_id;	/* Node creator */
+	struct acpi_namespace_analde *parent;	/* Parent analde */
+	struct acpi_namespace_analde *child;	/* First child */
+	struct acpi_namespace_analde *peer;	/* First peer */
+	acpi_owner_id owner_id;	/* Analde creator */
 
 	/*
 	 * The following fields are used by the ASL compiler and disassembler only
 	 */
-#ifdef ACPI_LARGE_NAMESPACE_NODE
+#ifdef ACPI_LARGE_NAMESPACE_ANALDE
 	union acpi_parse_object *op;
 	void *method_locals;
 	void *method_args;
@@ -155,21 +155,21 @@ struct acpi_namespace_node {
 #endif
 };
 
-/* Namespace Node flags */
+/* Namespace Analde flags */
 
-#define ANOBJ_RESERVED                  0x01	/* Available for use */
-#define ANOBJ_TEMPORARY                 0x02	/* Node is create by a method and is temporary */
-#define ANOBJ_METHOD_ARG                0x04	/* Node is a method argument */
-#define ANOBJ_METHOD_LOCAL              0x08	/* Node is a method local */
-#define ANOBJ_SUBTREE_HAS_INI           0x10	/* Used to optimize device initialization */
-#define ANOBJ_EVALUATED                 0x20	/* Set on first evaluation of node */
-#define ANOBJ_ALLOCATED_BUFFER          0x40	/* Method AML buffer is dynamic (install_method) */
-#define ANOBJ_NODE_EARLY_INIT           0x80	/* acpi_exec only: Node was create via init file (-fi) */
+#define AANALBJ_RESERVED                  0x01	/* Available for use */
+#define AANALBJ_TEMPORARY                 0x02	/* Analde is create by a method and is temporary */
+#define AANALBJ_METHOD_ARG                0x04	/* Analde is a method argument */
+#define AANALBJ_METHOD_LOCAL              0x08	/* Analde is a method local */
+#define AANALBJ_SUBTREE_HAS_INI           0x10	/* Used to optimize device initialization */
+#define AANALBJ_EVALUATED                 0x20	/* Set on first evaluation of analde */
+#define AANALBJ_ALLOCATED_BUFFER          0x40	/* Method AML buffer is dynamic (install_method) */
+#define AANALBJ_ANALDE_EARLY_INIT           0x80	/* acpi_exec only: Analde was create via init file (-fi) */
 
-#define ANOBJ_IS_EXTERNAL               0x08	/* iASL only: This object created via External() */
-#define ANOBJ_METHOD_NO_RETVAL          0x10	/* iASL only: Method has no return value */
-#define ANOBJ_METHOD_SOME_NO_RETVAL     0x20	/* iASL only: Method has at least one return value */
-#define ANOBJ_IS_REFERENCED             0x80	/* iASL only: Object was referenced */
+#define AANALBJ_IS_EXTERNAL               0x08	/* iASL only: This object created via External() */
+#define AANALBJ_METHOD_ANAL_RETVAL          0x10	/* iASL only: Method has anal return value */
+#define AANALBJ_METHOD_SOME_ANAL_RETVAL     0x20	/* iASL only: Method has at least one return value */
+#define AANALBJ_IS_REFERENCED             0x80	/* iASL only: Object was referenced */
 
 /* Internal ACPI table management - master table list */
 
@@ -182,7 +182,7 @@ struct acpi_table_list {
 
 /* Flags for above */
 
-#define ACPI_ROOT_ORIGIN_UNKNOWN        (0)	/* ~ORIGIN_ALLOCATED */
+#define ACPI_ROOT_ORIGIN_UNKANALWN        (0)	/* ~ORIGIN_ALLOCATED */
 #define ACPI_ROOT_ORIGIN_ALLOCATED      (1)
 #define ACPI_ROOT_ALLOW_RESIZE          (2)
 
@@ -204,7 +204,7 @@ struct acpi_find_context {
 };
 
 struct acpi_ns_search_data {
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_analde *analde;
 };
 
 /* Object types used during package copies */
@@ -227,11 +227,11 @@ struct acpi_namestring_info {
 /* Field creation info */
 
 struct acpi_create_field_info {
-	struct acpi_namespace_node *region_node;
-	struct acpi_namespace_node *field_node;
-	struct acpi_namespace_node *register_node;
-	struct acpi_namespace_node *data_register_node;
-	struct acpi_namespace_node *connection_node;
+	struct acpi_namespace_analde *region_analde;
+	struct acpi_namespace_analde *field_analde;
+	struct acpi_namespace_analde *register_analde;
+	struct acpi_namespace_analde *data_register_analde;
+	struct acpi_namespace_analde *connection_analde;
 	u8 *resource_buffer;
 	u32 bank_value;
 	u32 field_bit_position;
@@ -362,7 +362,7 @@ union acpi_predefined_info {
 
 /* Return object auto-repair info */
 
-typedef acpi_status (*acpi_object_converter) (struct acpi_namespace_node *
+typedef acpi_status (*acpi_object_converter) (struct acpi_namespace_analde *
 					      scope,
 					      union acpi_operand_object *
 					      original_object,
@@ -378,11 +378,11 @@ struct acpi_simple_repair_info {
 
 /*
  * Bitmapped return value types
- * Note: the actual data types must be contiguous, a loop in nspredef.c
+ * Analte: the actual data types must be contiguous, a loop in nspredef.c
  * depends on this.
  */
 #define ACPI_RTYPE_ANY                  0x00
-#define ACPI_RTYPE_NONE                 0x01
+#define ACPI_RTYPE_ANALNE                 0x01
 #define ACPI_RTYPE_INTEGER              0x02
 #define ACPI_RTYPE_STRING               0x04
 #define ACPI_RTYPE_BUFFER               0x08
@@ -414,39 +414,39 @@ struct acpi_sci_handler_info {
 	void *context;		/* Context to be passed to handler */
 };
 
-/* Dispatch info for each GPE -- either a method or handler, cannot be both */
+/* Dispatch info for each GPE -- either a method or handler, cananalt be both */
 
 struct acpi_gpe_handler_info {
 	acpi_gpe_handler address;	/* Address of handler, if any */
 	void *context;		/* Context to be passed to handler */
-	struct acpi_namespace_node *method_node;	/* Method node for this GPE level (saved) */
+	struct acpi_namespace_analde *method_analde;	/* Method analde for this GPE level (saved) */
 	u8 original_flags;	/* Original (pre-handler) GPE info */
 	u8 originally_enabled;	/* True if GPE was originally enabled */
 };
 
-/* Notify info for implicit notify, multiple device objects */
+/* Analtify info for implicit analtify, multiple device objects */
 
-struct acpi_gpe_notify_info {
-	struct acpi_namespace_node *device_node;	/* Device to be notified */
-	struct acpi_gpe_notify_info *next;
+struct acpi_gpe_analtify_info {
+	struct acpi_namespace_analde *device_analde;	/* Device to be analtified */
+	struct acpi_gpe_analtify_info *next;
 };
 
 /*
  * GPE dispatch info. At any time, the GPE can have at most one type
- * of dispatch - Method, Handler, or Implicit Notify.
+ * of dispatch - Method, Handler, or Implicit Analtify.
  */
 union acpi_gpe_dispatch_info {
-	struct acpi_namespace_node *method_node;	/* Method node for this GPE level */
+	struct acpi_namespace_analde *method_analde;	/* Method analde for this GPE level */
 	struct acpi_gpe_handler_info *handler;  /* Installed GPE handler */
-	struct acpi_gpe_notify_info *notify_list;	/* List of _PRW devices for implicit notifies */
+	struct acpi_gpe_analtify_info *analtify_list;	/* List of _PRW devices for implicit analtifies */
 };
 
 /*
  * Information about a GPE, one per each GPE in an array.
- * NOTE: Important to keep this struct as small as possible.
+ * ANALTE: Important to keep this struct as small as possible.
  */
 struct acpi_gpe_event_info {
-	union acpi_gpe_dispatch_info dispatch;	/* Either Method, Handler, or notify_list */
+	union acpi_gpe_dispatch_info dispatch;	/* Either Method, Handler, or analtify_list */
 	struct acpi_gpe_register_info *register_info;	/* Backpointer to register info */
 	u8 flags;		/* Misc info about this GPE */
 	u8 gpe_number;		/* This GPE */
@@ -478,7 +478,7 @@ struct acpi_gpe_register_info {
  * GPE0, GPE1, and one per each installed GPE Block Device.
  */
 struct acpi_gpe_block_info {
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_analde *analde;
 	struct acpi_gpe_block_info *previous;
 	struct acpi_gpe_block_info *next;
 	struct acpi_gpe_xrupt_info *xrupt_block;	/* Backpointer to interrupt block */
@@ -502,7 +502,7 @@ struct acpi_gpe_xrupt_info {
 };
 
 struct acpi_gpe_walk_info {
-	struct acpi_namespace_node *gpe_device;
+	struct acpi_namespace_analde *gpe_device;
 	struct acpi_gpe_block_info *gpe_block;
 	u16 count;
 	acpi_owner_id owner_id;
@@ -513,7 +513,7 @@ struct acpi_gpe_device_info {
 	u32 index;
 	u32 next_block_base_index;
 	acpi_status status;
-	struct acpi_namespace_node *gpe_device;
+	struct acpi_namespace_analde *gpe_device;
 };
 
 typedef acpi_status (*acpi_gpe_callback) (struct acpi_gpe_xrupt_info *
@@ -548,7 +548,7 @@ struct acpi_field_info {
 struct acpi_ged_handler_info {
 	struct acpi_ged_handler_info *next;
 	u32 int_id;		/* The interrupt ID that triggers the execution ofthe evt_method. */
-	struct acpi_namespace_node *evt_method;	/* The _EVT method to be executed when an interrupt with ID = int_ID is received */
+	struct acpi_namespace_analde *evt_method;	/* The _EVT method to be executed when an interrupt with ID = int_ID is received */
 };
 
 /*****************************************************************************
@@ -557,7 +557,7 @@ struct acpi_ged_handler_info {
  *
  ****************************************************************************/
 
-#define ACPI_CONTROL_NORMAL                  0xC0
+#define ACPI_CONTROL_ANALRMAL                  0xC0
 #define ACPI_CONTROL_CONDITIONAL_EXECUTING   0xC1
 #define ACPI_CONTROL_PREDICATE_EXECUTING     0xC2
 #define ACPI_CONTROL_PREDICATE_FALSE         0xC3
@@ -615,7 +615,7 @@ struct acpi_control_state {
  */
 struct acpi_scope_state {
 	ACPI_STATE_COMMON;
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_analde *analde;
 };
 
 struct acpi_pscope_state {
@@ -655,23 +655,23 @@ acpi_status (*acpi_parse_downwards) (struct acpi_walk_state * walk_state,
 typedef
 acpi_status (*acpi_parse_upwards) (struct acpi_walk_state * walk_state);
 
-/* Global handlers for AML Notifies */
+/* Global handlers for AML Analtifies */
 
-struct acpi_global_notify_handler {
-	acpi_notify_handler handler;
+struct acpi_global_analtify_handler {
+	acpi_analtify_handler handler;
 	void *context;
 };
 
 /*
- * Notify info - used to pass info to the deferred notify
+ * Analtify info - used to pass info to the deferred analtify
  * handler/dispatcher.
  */
-struct acpi_notify_info {
+struct acpi_analtify_info {
 	ACPI_STATE_COMMON;
 	u8 handler_list_id;
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_analde *analde;
 	union acpi_operand_object *handler_list_head;
-	struct acpi_global_notify_handler *global;
+	struct acpi_global_analtify_handler *global;
 };
 
 /* Generic state is union of structs above */
@@ -685,7 +685,7 @@ union acpi_generic_state {
 	struct acpi_pkg_state pkg;
 	struct acpi_thread_state thread;
 	struct acpi_result_values results;
-	struct acpi_notify_info notify;
+	struct acpi_analtify_info analtify;
 };
 
 /*****************************************************************************
@@ -701,7 +701,7 @@ acpi_status (*acpi_execute_op) (struct acpi_walk_state * walk_state);
 
 struct acpi_address_range {
 	struct acpi_address_range *next;
-	struct acpi_namespace_node *region_node;
+	struct acpi_namespace_analde *region_analde;
 	acpi_physical_address start_address;
 	acpi_physical_address end_address;
 };
@@ -757,7 +757,7 @@ union acpi_parse_value {
 	u16                             aml_opcode;         /* AML opcode */\
 	u8                              *aml;               /* Address of declaration in AML */\
 	union acpi_parse_object         *next;              /* Next op */\
-	struct acpi_namespace_node      *node;              /* For use by interpreter */\
+	struct acpi_namespace_analde      *analde;              /* For use by interpreter */\
 	union acpi_parse_value          value;              /* Value or args associated with the opcode */\
 	u8                              arg_list_length;    /* Number of elements in the arg list */\
 	 ACPI_DISASM_ONLY_MEMBERS (\
@@ -767,20 +767,20 @@ union acpi_parse_value {
 	char                            aml_op_name[16])    /* Op name (debug only) */\
 	 ACPI_CONVERTER_ONLY_MEMBERS (\
 	char                            *inline_comment;    /* Inline comment */\
-	char                            *end_node_comment;  /* End of node comment */\
-	char                            *name_comment;      /* Comment associated with the first parameter of the name node */\
+	char                            *end_analde_comment;  /* End of analde comment */\
+	char                            *name_comment;      /* Comment associated with the first parameter of the name analde */\
 	char                            *close_brace_comment; /* Comments that come after } on the same as } */\
-	struct acpi_comment_node        *comment_list;      /* comments that appears before this node */\
-	struct acpi_comment_node        *end_blk_comment;   /* comments that at the end of a block but before ) or } */\
-	char                            *cv_filename;       /* Filename associated with this node. Used for ASL/ASL+ converter */\
-	char                            *cv_parent_filename)	/* Parent filename associated with this node. Used for ASL/ASL+ converter */
+	struct acpi_comment_analde        *comment_list;      /* comments that appears before this analde */\
+	struct acpi_comment_analde        *end_blk_comment;   /* comments that at the end of a block but before ) or } */\
+	char                            *cv_filename;       /* Filename associated with this analde. Used for ASL/ASL+ converter */\
+	char                            *cv_parent_filename)	/* Parent filename associated with this analde. Used for ASL/ASL+ converter */
 
 /* categories of comments */
 
 typedef enum {
 	STANDARD_COMMENT = 1,
 	INLINE_COMMENT,
-	ENDNODE_COMMENT,
+	ENDANALDE_COMMENT,
 	OPENBRACE_COMMENT,
 	CLOSE_BRACE_COMMENT,
 	STD_DEFBLK_COMMENT,
@@ -801,10 +801,10 @@ typedef enum {
 #define ACPI_DASM_UUID                  0x05	/* Buffer is a UUID/GUID */
 #define ACPI_DASM_EISAID                0x06	/* Integer is an EISAID */
 #define ACPI_DASM_MATCHOP               0x07	/* Parent opcode is a Match() operator */
-#define ACPI_DASM_LNOT_PREFIX           0x08	/* Start of a Lnot_equal (etc.) pair of opcodes */
-#define ACPI_DASM_LNOT_SUFFIX           0x09	/* End  of a Lnot_equal (etc.) pair of opcodes */
+#define ACPI_DASM_LANALT_PREFIX           0x08	/* Start of a Lanalt_equal (etc.) pair of opcodes */
+#define ACPI_DASM_LANALT_SUFFIX           0x09	/* End  of a Lanalt_equal (etc.) pair of opcodes */
 #define ACPI_DASM_HID_STRING            0x0A	/* String is a _HID or _CID */
-#define ACPI_DASM_IGNORE_SINGLE         0x0B	/* Ignore the opcode but not it's children */
+#define ACPI_DASM_IGANALRE_SINGLE         0x0B	/* Iganalre the opcode but analt it's children */
 #define ACPI_DASM_SWITCH                0x0C	/* While is a Switch */
 #define ACPI_DASM_SWITCH_PREDICATE      0x0D	/* Object is a predicate for a Switch or Case block */
 #define ACPI_DASM_CASE                  0x0E	/* If/Else is a Case in a Switch/Case block */
@@ -813,29 +813,29 @@ typedef enum {
 /*
  * List struct used in the -ca option
  */
-struct acpi_comment_node {
+struct acpi_comment_analde {
 	char *comment;
-	struct acpi_comment_node *next;
+	struct acpi_comment_analde *next;
 };
 
-struct acpi_comment_addr_node {
+struct acpi_comment_addr_analde {
 	u8 *addr;
-	struct acpi_comment_addr_node *next;
+	struct acpi_comment_addr_analde *next;
 };
 
 /*
- * File node - used for "Include" operator file stack and
+ * File analde - used for "Include" operator file stack and
  * dependency tree for the -ca option
  */
-struct acpi_file_node {
+struct acpi_file_analde {
 	void *file;
 	char *filename;
 	char *file_start;	/* Points to AML and indicates when the AML for this particular file starts. */
 	char *file_end;		/* Points to AML and indicates when the AML for this particular file ends. */
-	struct acpi_file_node *next;
-	struct acpi_file_node *parent;
+	struct acpi_file_analde *next;
+	struct acpi_file_analde *parent;
 	u8 include_written;
-	struct acpi_comment_node *include_comment;
+	struct acpi_comment_analde *include_comment;
 };
 
 /*
@@ -852,7 +852,7 @@ struct acpi_parse_obj_named {
 	ACPI_PARSE_COMMON char *path;
 	u8 *data;		/* AML body or bytelist data */
 	u32 length;		/* AML length */
-	u32 name;		/* 4-byte name or zero if no name */
+	u32 name;		/* 4-byte name or zero if anal name */
 };
 
 /* This version is used by the iASL compiler only */
@@ -898,7 +898,7 @@ struct asl_comment_state {
 	u8 comment_type;
 	u32 spaces_before;
 	union acpi_parse_object *latest_parse_op;
-	union acpi_parse_object *parsing_paren_brace_node;
+	union acpi_parse_object *parsing_paren_brace_analde;
 	u8 capture_comments;
 };
 
@@ -913,7 +913,7 @@ struct acpi_parse_state {
 	u8 *pkg_start;		/* Current package begin */
 	u8 *pkg_end;		/* Current package end */
 	union acpi_parse_object *start_op;	/* Root of parse tree */
-	struct acpi_namespace_node *start_node;
+	struct acpi_namespace_analde *start_analde;
 	union acpi_generic_state *scope;	/* Current scope */
 	union acpi_parse_object *start_scope;
 	u32 aml_size;
@@ -931,7 +931,7 @@ struct acpi_parse_state {
 
 /* Parse object disasm_flags */
 
-#define ACPI_PARSEOP_IGNORE                 0x0001
+#define ACPI_PARSEOP_IGANALRE                 0x0001
 #define ACPI_PARSEOP_PARAMETER_LIST         0x0002
 #define ACPI_PARSEOP_EMPTY_TERMLIST         0x0004
 #define ACPI_PARSEOP_PREDEFINED_CHECKED     0x0008
@@ -954,7 +954,7 @@ struct acpi_bit_register_info {
 };
 
 /*
- * Some ACPI registers have bits that must be ignored -- meaning that they
+ * Some ACPI registers have bits that must be iganalred -- meaning that they
  * must be preserved.
  */
 #define ACPI_PM1_STATUS_PRESERVED_BITS          0x0800	/* Bit 11 */
@@ -963,20 +963,20 @@ struct acpi_bit_register_info {
 
 #define ACPI_PM1_CONTROL_WRITEONLY_BITS         0x2004	/* Bits 13, 2 */
 
-/* For control registers, both ignored and reserved bits must be preserved */
+/* For control registers, both iganalred and reserved bits must be preserved */
 
 /*
  * For PM1 control, the SCI enable bit (bit 0, SCI_EN) is defined by the
  * ACPI specification to be a "preserved" bit - "OSPM always preserves this
  * bit position", section 4.7.3.2.1. However, on some machines the OS must
  * write a one to this bit after resume for the machine to work properly.
- * To enable this, we no longer attempt to preserve this bit. No machines
- * are known to fail if the bit is not preserved. (May 2009)
+ * To enable this, we anal longer attempt to preserve this bit. Anal machines
+ * are kanalwn to fail if the bit is analt preserved. (May 2009)
  */
-#define ACPI_PM1_CONTROL_IGNORED_BITS           0x0200	/* Bit 9 */
+#define ACPI_PM1_CONTROL_IGANALRED_BITS           0x0200	/* Bit 9 */
 #define ACPI_PM1_CONTROL_RESERVED_BITS          0xC1F8	/* Bits 14-15, 3-8 */
 #define ACPI_PM1_CONTROL_PRESERVED_BITS \
-	       (ACPI_PM1_CONTROL_IGNORED_BITS | ACPI_PM1_CONTROL_RESERVED_BITS)
+	       (ACPI_PM1_CONTROL_IGANALRED_BITS | ACPI_PM1_CONTROL_RESERVED_BITS)
 
 #define ACPI_PM2_CONTROL_PRESERVED_BITS         0xFFFFFFFE	/* All except bit 0 */
 
@@ -1101,7 +1101,7 @@ struct acpi_port_info {
 
 /*
  * Small resource descriptor "names" as defined by the ACPI specification.
- * Note: Bits 2:0 are used for the descriptor length
+ * Analte: Bits 2:0 are used for the descriptor length
  */
 #define ACPI_RESOURCE_NAME_IRQ                  0x20
 #define ACPI_RESOURCE_NAME_DMA                  0x28
@@ -1118,7 +1118,7 @@ struct acpi_port_info {
 
 /*
  * Large resource descriptor "names" as defined by the ACPI specification.
- * Note: includes the Large Descriptor bit in bit[7]
+ * Analte: includes the Large Descriptor bit in bit[7]
  */
 #define ACPI_RESOURCE_NAME_MEMORY24             0x81
 #define ACPI_RESOURCE_NAME_GENERIC_REGISTER     0x82
@@ -1209,7 +1209,7 @@ struct acpi_db_method_info {
 
 	/*
 	 * Arguments to be passed to method for the commands Threads and
-	 * Background. Note, ACPI specifies a maximum of 7 arguments (0 - 6).
+	 * Background. Analte, ACPI specifies a maximum of 7 arguments (0 - 6).
 	 *
 	 * For the Threads command, the Number of threads, ID of current
 	 * thread and Index of current thread inside all them created.
@@ -1225,7 +1225,7 @@ struct acpi_db_method_info {
 };
 
 struct acpi_integrity_info {
-	u32 nodes;
+	u32 analdes;
 	u32 objects;
 };
 
@@ -1267,7 +1267,7 @@ struct acpi_debug_mem_block {
 };
 
 #define ACPI_MEM_LIST_GLOBAL            0
-#define ACPI_MEM_LIST_NSNODE            1
+#define ACPI_MEM_LIST_NSANALDE            1
 #define ACPI_MEM_LIST_MAX               1
 #define ACPI_NUM_MEM_LISTS              2
 

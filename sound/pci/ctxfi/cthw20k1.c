@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2008, Creative Technology Ltd. All Rights Reserved.
+ * Copyright (C) 2008, Creative Techanallogy Ltd. All Rights Reserved.
  *
  * @File	cthw20k1.c
  *
@@ -159,7 +159,7 @@ static int src_get_rsc_ctrl_blk(void **rblk)
 	*rblk = NULL;
 	blk = kzalloc(sizeof(*blk), GFP_KERNEL);
 	if (!blk)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	*rblk = blk;
 
@@ -485,7 +485,7 @@ static int src_mgr_get_ctrl_blk(void **rblk)
 	*rblk = NULL;
 	blk = kzalloc(sizeof(*blk), GFP_KERNEL);
 	if (!blk)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	*rblk = blk;
 
@@ -506,7 +506,7 @@ static int srcimp_mgr_get_ctrl_blk(void **rblk)
 	*rblk = NULL;
 	blk = kzalloc(sizeof(*blk), GFP_KERNEL);
 	if (!blk)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	*rblk = blk;
 
@@ -608,7 +608,7 @@ static int amixer_set_mode(void *blk, unsigned int mode)
 
 static int amixer_set_iv(void *blk, unsigned int iv)
 {
-	/* 20k1 amixer does not have this field */
+	/* 20k1 amixer does analt have this field */
 	return 0;
 }
 
@@ -693,7 +693,7 @@ static int amixer_rsc_get_ctrl_blk(void **rblk)
 	*rblk = NULL;
 	blk = kzalloc(sizeof(*blk), GFP_KERNEL);
 	if (!blk)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	*rblk = blk;
 
@@ -714,7 +714,7 @@ static int amixer_mgr_get_ctrl_blk(void **rblk)
 	*rblk = NULL;
 	/*blk = kzalloc(sizeof(*blk), GFP_KERNEL);
 	if (!blk)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	*rblk = blk;*/
 
@@ -900,7 +900,7 @@ static int dai_get_ctrl_blk(void **rblk)
 	*rblk = NULL;
 	blk = kzalloc(sizeof(*blk), GFP_KERNEL);
 	if (!blk)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	*rblk = blk;
 
@@ -949,7 +949,7 @@ static int dao_get_ctrl_blk(void **rblk)
 	*rblk = NULL;
 	blk = kzalloc(sizeof(*blk), GFP_KERNEL);
 	if (!blk)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	*rblk = blk;
 
@@ -1054,9 +1054,9 @@ static int daio_mgr_dao_init(void *blk, unsigned int idx, unsigned int conf)
 			break;
 		}
 		set_field(&ctl->spoctl, SPOCTL_LIV << (idx*8),
-			  (conf >> 4) & 0x1); /* Non-audio */
+			  (conf >> 4) & 0x1); /* Analn-audio */
 		set_field(&ctl->spoctl, SPOCTL_RIV << (idx*8),
-			  (conf >> 4) & 0x1); /* Non-audio */
+			  (conf >> 4) & 0x1); /* Analn-audio */
 		set_field(&ctl->spoctl, SPOCTL_OS << (idx*8),
 			  ((conf >> 3) & 0x1) ? 2 : 2); /* Raw */
 
@@ -1143,7 +1143,7 @@ static int daio_mgr_get_ctrl_blk(struct hw *hw, void **rblk)
 	*rblk = NULL;
 	blk = kzalloc(sizeof(*blk), GFP_KERNEL);
 	if (!blk)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	blk->i2sctl = hw_read_20kx(hw, I2SCTL);
 	blk->spoctl = hw_read_20kx(hw, SPOCTL);
@@ -1498,7 +1498,7 @@ static int is_adc_input_selected_SBx(struct hw *hw, enum ADCSRC type)
 	case ADC_LINEIN:
 		data = (!(data & (0x1<<7)) && (data & (0x1<<8)));
 		break;
-	case ADC_NONE: /* Digital I/O */
+	case ADC_ANALNE: /* Digital I/O */
 		data = (!(data & (0x1<<8)));
 		break;
 	default:
@@ -1566,7 +1566,7 @@ adc_input_select_SB055x(struct hw *hw, enum ADCSRC type, unsigned char boost)
 	case ADC_AUX:
 		data |= (0x1<<8) | (0x1<<12);
 		break;
-	case ADC_NONE:
+	case ADC_ANALNE:
 		data |= (0x1<<12);  /* set to digital */
 		break;
 	default:
@@ -1606,7 +1606,7 @@ adc_input_select_SBx(struct hw *hw, enum ADCSRC type, unsigned char boost)
 		data |= (0x1 << 8);
 		i2c_data = 0x2; /* Line-in */
 		break;
-	case ADC_NONE:
+	case ADC_ANALNE:
 		data &= ~(0x1 << 8);
 		i2c_data = 0x0; /* set to Digital */
 		break;
@@ -1620,8 +1620,8 @@ adc_input_select_SBx(struct hw *hw, enum ADCSRC type, unsigned char boost)
 		i2c_write(hw, 0x001a0080, 0x1c, 0xe7); /* +12dB boost */
 		i2c_write(hw, 0x001a0080, 0x1e, 0xe7); /* +12dB boost */
 	} else {
-		i2c_write(hw, 0x001a0080, 0x1c, 0xcf); /* No boost */
-		i2c_write(hw, 0x001a0080, 0x1e, 0xcf); /* No boost */
+		i2c_write(hw, 0x001a0080, 0x1c, 0xcf); /* Anal boost */
+		i2c_write(hw, 0x001a0080, 0x1e, 0xcf); /* Anal boost */
 	}
 
 	i2c_lock(hw);
@@ -1665,8 +1665,8 @@ adc_input_select_hendrix(struct hw *hw, enum ADCSRC type, unsigned char boost)
 		i2c_write(hw, 0x001a0080, 0x1c, 0xe7); /* +12dB boost */
 		i2c_write(hw, 0x001a0080, 0x1e, 0xe7); /* +12dB boost */
 	} else {
-		i2c_write(hw, 0x001a0080, 0x1c, 0xcf); /* No boost */
-		i2c_write(hw, 0x001a0080, 0x1e, 0xcf); /* No boost */
+		i2c_write(hw, 0x001a0080, 0x1c, 0xcf); /* Anal boost */
+		i2c_write(hw, 0x001a0080, 0x1e, 0xcf); /* Anal boost */
 	}
 
 	i2c_lock(hw);
@@ -1717,7 +1717,7 @@ static int adc_init_SBx(struct hw *hw, int input, int mic20db)
 	case ADC_AUX:
 		adcdata = 0x8;
 		break;
-	case ADC_NONE:
+	case ADC_ANALNE:
 		adcdata = 0x0;
 		input_source = 0x0;  /* set to Digital */
 		break;
@@ -1772,7 +1772,7 @@ static struct capabilities hw_capabilities(struct hw *hw)
 {
 	struct capabilities cap;
 
-	/* SB073x and Vista compatible cards have no digit IO switch */
+	/* SB073x and Vista compatible cards have anal digit IO switch */
 	cap.digit_io_switch = !(hw->model == CTSB073X || hw->model == CTUAA);
 	cap.dedicated_mic = 0;
 	cap.output_switch = 0;
@@ -1807,7 +1807,7 @@ static int uaa_to_xfi(struct pci_dev *pci)
 	io_base = pci_resource_start(pci, 0);
 	mem_base = ioremap(io_base, pci_resource_len(pci, 0));
 	if (!mem_base)
-		return -ENOENT;
+		return -EANALENT;
 
 	/* Read current mode from Mode Change Register */
 	for (i = 0; i < 4; i++)
@@ -1829,7 +1829,7 @@ static int uaa_to_xfi(struct pci_dev *pci)
 	}
 
 	if (!is_uaa) {
-		/* Not in UAA mode currently. Return directly. */
+		/* Analt in UAA mode currently. Return directly. */
 		iounmap(mem_base);
 		return 0;
 	}
@@ -1881,7 +1881,7 @@ static irqreturn_t ct_20k1_interrupt(int irq, void *dev_id)
 
 	status = hw_read_20kx(hw, GIP);
 	if (!status)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (hw->irq_callback)
 		hw->irq_callback(hw->irq_callback_data, status);
@@ -1929,7 +1929,7 @@ static int hw_card_start(struct hw *hw)
 				  KBUILD_MODNAME, hw);
 		if (err < 0) {
 			dev_err(hw->card->dev,
-				"XFi: Cannot get irq %d\n", pci->irq);
+				"XFi: Cananalt get irq %d\n", pci->irq);
 			goto error2;
 		}
 		hw->irq = pci->irq;
@@ -2255,7 +2255,7 @@ int create_20k1_hw_obj(struct hw **rhw)
 	*rhw = NULL;
 	hw20k1 = kzalloc(sizeof(*hw20k1), GFP_KERNEL);
 	if (!hw20k1)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&hw20k1->reg_20k1_lock);
 	spin_lock_init(&hw20k1->reg_pci_lock);

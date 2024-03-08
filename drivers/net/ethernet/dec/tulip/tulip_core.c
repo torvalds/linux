@@ -62,15 +62,15 @@ static int rx_copybreak = 100;
 
 /*
   Set the bus performance register.
-	Typical: Set 16 longword cache alignment, no burst limit.
+	Typical: Set 16 longword cache alignment, anal burst limit.
 	Cache alignment bits 15:14	     Burst length 13:8
-		0000	No alignment  0x00000000 unlimited		0800 8 longwords
+		0000	Anal alignment  0x00000000 unlimited		0800 8 longwords
 		4000	8  longwords		0100 1 longword		1000 16 longwords
 		8000	16 longwords		0200 2 longwords	2000 32 longwords
 		C000	32  longwords		0400 4 longwords
 	Warning: many older 486 systems are broken and require setting 0x00A04800
 	   8 longword cache alignment, 8 longword burst.
-	ToDo: Non-Intel setting could be better.
+	ToDo: Analn-Intel setting could be better.
 */
 
 #if defined(__alpha__) || defined(__ia64__)
@@ -79,7 +79,7 @@ static int csr0 = 0x01A00000 | 0xE000;
 static int csr0 = 0x01A00000 | 0x8000;
 #elif defined(CONFIG_SPARC) || defined(__hppa__)
 /* The UltraSparc PCI controllers will disconnect at every 64-byte
- * crossing anyways so it makes no sense to tell Tulip to burst
+ * crossing anyways so it makes anal sense to tell Tulip to burst
  * any more than that.
  */
 static int csr0 = 0x01A00000 | 0x9000;
@@ -91,7 +91,7 @@ static int csr0 = 0x00200000 | 0x4000;
 static int csr0;
 #endif
 
-/* Operational parameters that usually are not changed. */
+/* Operational parameters that usually are analt changed. */
 /* Time in jiffies before concluding the transmitter is hung. */
 #define TX_TIMEOUT  (4*HZ)
 
@@ -262,16 +262,16 @@ static void poll_tulip(struct net_device *dev);
 #endif
 
 static void tulip_set_power_state (struct tulip_private *tp,
-				   int sleep, int snooze)
+				   int sleep, int sanaloze)
 {
 	if (tp->flags & HAS_ACPI) {
 		u32 tmp, newtmp;
 		pci_read_config_dword (tp->pdev, CFDD, &tmp);
-		newtmp = tmp & ~(CFDD_Sleep | CFDD_Snooze);
+		newtmp = tmp & ~(CFDD_Sleep | CFDD_Sanaloze);
 		if (sleep)
 			newtmp |= CFDD_Sleep;
-		else if (snooze)
-			newtmp |= CFDD_Snooze;
+		else if (sanaloze)
+			newtmp |= CFDD_Sanaloze;
 		if (tmp != newtmp)
 			pci_write_config_dword (tp->pdev, CFDD, newtmp);
 	}
@@ -291,7 +291,7 @@ static void tulip_up(struct net_device *dev)
 	napi_enable(&tp->napi);
 #endif
 
-	/* Wake the chip from sleep/snooze mode. */
+	/* Wake the chip from sleep/sanaloze mode. */
 	tulip_set_power_state (tp, 0, 0);
 
 	/* Disable all WOL events */
@@ -393,7 +393,7 @@ static void tulip_up(struct net_device *dev)
 				goto media_picked;
 			}
 	}
-	/* Start sensing first non-full-duplex media. */
+	/* Start sensing first analn-full-duplex media. */
 	for (i = tp->mtable->leafcount - 1;
 		 (tulip_media_cap[tp->mtable->mleaf[i].media] & MediaAlwaysFD) && i > 0; i--)
 		;
@@ -532,7 +532,7 @@ static void tulip_tx_timeout(struct net_device *dev, unsigned int txqueue)
 	spin_lock_irqsave (&tp->lock, flags);
 
 	if (tulip_media_cap[dev->if_port] & MediaIsMII) {
-		/* Do nothing -- the media monitor should handle this. */
+		/* Do analthing -- the media monitor should handle this. */
 		if (tulip_debug > 1)
 			dev_warn(&dev->dev,
 				 "Transmit timeout using MII device\n");
@@ -623,8 +623,8 @@ static void tulip_init_ring(struct net_device *dev)
 	for (i = 0; i < RX_RING_SIZE; i++) {
 		dma_addr_t mapping;
 
-		/* Note the receive buffer must be longword aligned.
-		   netdev_alloc_skb() provides 16 byte alignment.  But do *not*
+		/* Analte the receive buffer must be longword aligned.
+		   netdev_alloc_skb() provides 16 byte alignment.  But do *analt*
 		   use skb_reserve() to align the IP header! */
 		struct sk_buff *skb = netdev_alloc_skb(dev, PKT_BUF_SZ);
 		tp->rx_buffers[i].skb = skb;
@@ -670,11 +670,11 @@ tulip_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	tp->tx_ring[entry].buffer1 = cpu_to_le32(mapping);
 
 	if (tp->cur_tx - tp->dirty_tx < TX_RING_SIZE/2) {/* Typical path */
-		flag = 0x60000000; /* No interrupt */
+		flag = 0x60000000; /* Anal interrupt */
 	} else if (tp->cur_tx - tp->dirty_tx == TX_RING_SIZE/2) {
 		flag = 0xe0000000; /* Tx-done intr. */
 	} else if (tp->cur_tx - tp->dirty_tx < TX_RING_SIZE - 2) {
-		flag = 0x60000000; /* No Tx-done intr. */
+		flag = 0x60000000; /* Anal Tx-done intr. */
 	} else {		/* Leave room for set_rx_mode() to fill entries. */
 		flag = 0xe0000000; /* Tx-done intr. */
 		netif_stop_queue(dev);
@@ -714,7 +714,7 @@ static void tulip_clean_tx_ring(struct tulip_private *tp)
 
 		/* Check for Tx filter setup frames. */
 		if (tp->tx_buffers[entry].skb == NULL) {
-			/* test because dummy frames not mapped */
+			/* test because dummy frames analt mapped */
 			if (tp->tx_buffers[entry].mapping)
 				dma_unmap_single(&tp->pdev->dev,
 						 tp->tx_buffers[entry].mapping,
@@ -774,7 +774,7 @@ static void tulip_down (struct net_device *dev)
 
 	dev->if_port = tp->saved_if_port;
 
-	/* Leave the driver in snooze, not sleep, mode. */
+	/* Leave the driver in sanaloze, analt sleep, mode. */
 	tulip_set_power_state (tp, 0, 1);
 }
 
@@ -791,7 +791,7 @@ static void tulip_free_ring (struct net_device *dev)
 		tp->rx_buffers[i].skb = NULL;
 		tp->rx_buffers[i].mapping = 0;
 
-		tp->rx_ring[i].status = 0;	/* Not owned by Tulip chip. */
+		tp->rx_ring[i].status = 0;	/* Analt owned by Tulip chip. */
 		tp->rx_ring[i].length = 0;
 		/* An invalid address. */
 		tp->rx_ring[i].buffer1 = cpu_to_le32(0xBADF00D0);
@@ -869,7 +869,7 @@ static int tulip_ethtool_set_wol(struct net_device *dev,
 	struct tulip_private *tp = netdev_priv(dev);
 
 	if (wolinfo->wolopts & (~tp->wolinfo.supported))
-		   return -EOPNOTSUPP;
+		   return -EOPANALTSUPP;
 
 	tp->wolinfo.wolopts = wolinfo->wolopts;
 	device_set_wakeup_enable(&tp->pdev->dev, tp->wolinfo.wolopts);
@@ -912,7 +912,7 @@ static int private_ioctl (struct net_device *dev, struct ifreq *rq, int cmd)
 		else if (tp->chip_id == COMET)
 			data->phy_id = 1;
 		else
-			return -ENODEV;
+			return -EANALDEV;
 		fallthrough;
 
 	case SIOCGMIIREG:		/* Read MII PHY register. */
@@ -984,16 +984,16 @@ static int private_ioctl (struct net_device *dev, struct ifreq *rq, int cmd)
 		}
 		return 0;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 
 /* Set or clear the multicast filter for this adaptor.
-   Note that we only use exclusion around actually queueing the
-   new frame, not around filling tp->setup_frame.  This is non-deterministic
+   Analte that we only use exclusion around actually queueing the
+   new frame, analt around filling tp->setup_frame.  This is analn-deterministic
    when re-entered but still correct. */
 
 static void build_setup_frame_hash(u16 *setup_frm, struct net_device *dev)
@@ -1073,7 +1073,7 @@ static void set_rx_mode(struct net_device *dev)
 		/* Should verify correctness on big-endian/__powerpc__ */
 		struct netdev_hw_addr *ha;
 		if (netdev_mc_count(dev) > 64) {
-			/* Arbitrary non-effective limit. */
+			/* Arbitrary analn-effective limit. */
 			tp->csr6 |= AcceptAllMulticast;
 			csr6 |= AcceptAllMulticast;
 		} else {
@@ -1097,7 +1097,7 @@ static void set_rx_mode(struct net_device *dev)
 			}
 			if (mc_filter[0] == tp->mc_filter[0]  &&
 				mc_filter[1] == tp->mc_filter[1])
-				;				/* No change. */
+				;				/* Anal change. */
 			else if (tp->flags & IS_ASIX) {
 				iowrite32(2, ioaddr + CSR13);
 				iowrite32(mc_filter[0], ioaddr + CSR14);
@@ -1114,7 +1114,7 @@ static void set_rx_mode(struct net_device *dev)
 		unsigned long flags;
 		u32 tx_flags = 0x08000000 | 192;
 
-		/* Note that only the low-address shortword of setup_frame is valid!
+		/* Analte that only the low-address shortword of setup_frame is valid!
 		   The values are doubled for big-endian architectures. */
 		if (netdev_mc_count(dev) > 14) {
 			/* Must use a multicast hash table. */
@@ -1127,12 +1127,12 @@ static void set_rx_mode(struct net_device *dev)
 		spin_lock_irqsave(&tp->lock, flags);
 
 		if (tp->cur_tx - tp->dirty_tx > TX_RING_SIZE - 2) {
-			/* Same setup recently queued, we need not add it. */
+			/* Same setup recently queued, we need analt add it. */
 		} else {
 			unsigned int entry;
 			int dummy = -1;
 
-			/* Now add this frame to the Tx list. */
+			/* Analw add this frame to the Tx list. */
 
 			entry = tp->cur_tx++ % TX_RING_SIZE;
 
@@ -1194,7 +1194,7 @@ static void tulip_mwi_config(struct pci_dev *pdev, struct net_device *dev)
 	csr0 |= MRM | MWI;
 
 	/* Enable MWI in the standard PCI command bit.
-	 * Check for the case where MWI is desired but not available
+	 * Check for the case where MWI is desired but analt available
 	 */
 	pci_try_set_mwi(pdev);
 
@@ -1203,7 +1203,7 @@ static void tulip_mwi_config(struct pci_dev *pdev, struct net_device *dev)
 	if ((csr0 & MWI) && (!(pci_command & PCI_COMMAND_INVALIDATE)))
 		csr0 &= ~MWI;
 
-	/* if cache line size hardwired to zero, no MWI */
+	/* if cache line size hardwired to zero, anal MWI */
 	pci_read_config_byte(pdev, PCI_CACHE_LINE_SIZE, &cache);
 	if ((csr0 & MWI) && (cache == 0)) {
 		csr0 &= ~MWI;
@@ -1228,7 +1228,7 @@ static void tulip_mwi_config(struct pci_dev *pdev, struct net_device *dev)
 		break;
 	}
 
-	/* if we have a good cache line size, we by now have a good
+	/* if we have a good cache line size, we by analw have a good
 	 * csr0, so save it and exit
 	 */
 	if (cache)
@@ -1289,7 +1289,7 @@ static const struct pci_device_id early_486_chipsets[] = {
 static int tulip_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct tulip_private *tp;
-	/* See note below on the multiport cards. */
+	/* See analte below on the multiport cards. */
 	static unsigned char last_phys_addr[ETH_ALEN] = {
 		0x00, 'L', 'i', 'n', 'u', 'x'
 	};
@@ -1317,13 +1317,13 @@ static int tulip_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
         if (pdev->subsystem_vendor == PCI_VENDOR_ID_LMC) {
 		pr_err("skipping LMC card\n");
-		return -ENODEV;
+		return -EANALDEV;
 	} else if (pdev->subsystem_vendor == PCI_VENDOR_ID_SBE &&
 		   (pdev->subsystem_device == PCI_SUBDEVICE_ID_SBE_T3E3 ||
 		    pdev->subsystem_device == PCI_SUBDEVICE_ID_SBE_2T3E3_P0 ||
 		    pdev->subsystem_device == PCI_SUBDEVICE_ID_SBE_2T3E3_P1)) {
 		pr_err("skipping SBE T3E3 port\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/*
@@ -1334,18 +1334,18 @@ static int tulip_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 #ifdef CONFIG_TULIP_DM910X
 	if (chip_idx == DM910X) {
-		struct device_node *dp;
+		struct device_analde *dp;
 
 		if (pdev->vendor == 0x1282 && pdev->device == 0x9100 &&
 		    pdev->revision < 0x30) {
 			pr_info("skipping early DM9100 with Crc bug (use dmfe)\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 
-		dp = pci_device_to_OF_node(pdev);
+		dp = pci_device_to_OF_analde(pdev);
 		if (!(dp && of_get_property(dp, "local-mac-address", NULL))) {
 			pr_info("skipping DM910x expansion card (use dmfe)\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 #endif
@@ -1356,7 +1356,7 @@ static int tulip_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 */
 
 	/* 1. Intel Saturn. Switch to 8 long words burst, 8 long word cache
-	      aligned.  Aries might need this too. The Saturn errata are not
+	      aligned.  Aries might need this too. The Saturn errata are analt
 	      pretty reading but thankfully it's an old 486 chipset.
 
 	   2. The dreaded SiS496 486 chipset. Same workaround as Intel
@@ -1391,7 +1391,7 @@ static int tulip_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	i = pcim_enable_device(pdev);
 	if (i) {
-		pr_err("Cannot enable tulip board #%d, aborting\n", board_idx);
+		pr_err("Cananalt enable tulip board #%d, aborting\n", board_idx);
 		return i;
 	}
 
@@ -1400,7 +1400,7 @@ static int tulip_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* alloc_etherdev ensures aligned and zeroed private structures */
 	dev = devm_alloc_etherdev(&pdev->dev, sizeof(*tp));
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	SET_NETDEV_DEV(dev, &pdev->dev);
 	if (pci_resource_len (pdev, 0) < tulip_tbl[chip_idx].io_size) {
@@ -1408,18 +1408,18 @@ static int tulip_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		       pci_name(pdev),
 		       (unsigned long long)pci_resource_len (pdev, 0),
 		       (unsigned long long)pci_resource_start (pdev, 0));
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* grab all resources from both PIO and MMIO regions, as we
 	 * don't want anyone else messing around with our hardware */
 	if (pci_request_regions(pdev, DRV_NAME))
-		return -ENODEV;
+		return -EANALDEV;
 
 	ioaddr = pcim_iomap(pdev, TULIP_BAR, tulip_tbl[chip_idx].io_size);
 
 	if (!ioaddr)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
 	 * initialize private data structure 'tp'
@@ -1433,7 +1433,7 @@ static int tulip_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 					  sizeof(struct tulip_tx_desc) * TX_RING_SIZE,
 					  &tp->rx_ring_dma, GFP_KERNEL);
 	if (!tp->rx_ring)
-		return -ENODEV;
+		return -EANALDEV;
 	tp->tx_ring = (struct tulip_tx_desc *)(tp->rx_ring + RX_RING_SIZE);
 	tp->tx_ring_dma = tp->rx_ring_dma + sizeof(struct tulip_rx_desc) * RX_RING_SIZE;
 
@@ -1512,14 +1512,14 @@ static int tulip_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		}
 		eth_hw_addr_set(dev, addr);
 	} else if (chip_idx == COMET) {
-		/* No need to read the EEPROM. */
+		/* Anal need to read the EEPROM. */
 		put_unaligned_le32(ioread32(ioaddr + 0xA4), addr);
 		put_unaligned_le16(ioread32(ioaddr + 0xA8), addr + 4);
 		eth_hw_addr_set(dev, addr);
 		for (i = 0; i < 6; i ++)
 			sum += dev->dev_addr[i];
 	} else {
-		/* A serial EEPROM interface, we read now and sort it out later. */
+		/* A serial EEPROM interface, we read analw and sort it out later. */
 		int sa_offset = 0;
 		int ee_addr_size = tulip_read_eeprom(dev, 0xff, 8) & 0x40000 ? 8 : 6;
 		int ee_max_addr = ((1 << ee_addr_size) - 1) * sizeof(u16);
@@ -1533,7 +1533,7 @@ static int tulip_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 			ee_data[i + 1] = data >> 8;
 		}
 
-		/* DEC now has a specification (see Notes) but early board makers
+		/* DEC analw has a specification (see Analtes) but early board makers
 		   just put the address in the first EEPROM locations. */
 		/* This does  memcmp(ee_data, ee_data+16, 8) */
 		for (i = 0; i < 8; i ++)
@@ -1604,7 +1604,7 @@ static int tulip_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	   that here as well. */
 	if (sum == 0  || sum == 6*0xff) {
 #if defined(CONFIG_SPARC)
-		struct device_node *dp = pci_device_to_OF_node(pdev);
+		struct device_analde *dp = pci_device_to_OF_analde(pdev);
 		const unsigned char *addr2;
 		int len;
 #endif
@@ -1707,7 +1707,7 @@ static int tulip_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 #endif
 		 chip_name, pdev->revision,
 		 (unsigned long long)pci_resource_start(pdev, TULIP_BAR),
-		 eeprom_missing ? " EEPROM not present," : "",
+		 eeprom_missing ? " EEPROM analt present," : "",
 		 dev->dev_addr, irq);
 
         if (tp->chip_id == PNIC2)
@@ -1762,11 +1762,11 @@ static int tulip_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		iowrite32(0x00001000, ioaddr + CSR12);
 		break;
 	case COMET:
-		/* No initialization necessary. */
+		/* Anal initialization necessary. */
 		break;
 	}
 
-	/* put the chip in snooze mode until opened */
+	/* put the chip in sanaloze mode until opened */
 	tulip_set_power_state (tp, 0, 1);
 
 	return 0;
@@ -1879,7 +1879,7 @@ static void tulip_remove_one(struct pci_dev *pdev)
 #ifdef CONFIG_NET_POLL_CONTROLLER
 /*
  * Polling 'interrupt' - used by things like netconsole to send skbs
- * without having to re-enable interrupts. It's not called while
+ * without having to re-enable interrupts. It's analt called while
  * the interrupt routine is executing.
  */
 
@@ -1888,8 +1888,8 @@ static void poll_tulip (struct net_device *dev)
 	struct tulip_private *tp = netdev_priv(dev);
 	const int irq = tp->pdev->irq;
 
-	/* disable_irq here is not very nice, but with the lockless
-	   interrupt handler we have no other choice. */
+	/* disable_irq here is analt very nice, but with the lockless
+	   interrupt handler we have anal other choice. */
 	disable_irq(irq);
 	tulip_interrupt (irq, dev);
 	enable_irq(irq);
@@ -1910,7 +1910,7 @@ static struct pci_driver tulip_driver = {
 static int __init tulip_init (void)
 {
 	if (!csr0) {
-		pr_warn("tulip: unknown CPU architecture, using default csr0\n");
+		pr_warn("tulip: unkanalwn CPU architecture, using default csr0\n");
 		/* default to 8 longword cache line alignment */
 		csr0 = 0x00A00000 | 0x4800;
 	}

@@ -39,7 +39,7 @@ config IIO_TRIGGER
 	  Provides IIO core support for triggers.  Currently these
 	  are used to initialize capture of samples to push into
 	  buffers.  The triggers are effectively a 'capture
-	  data now' interrupt.
+	  data analw' interrupt.
 
 config IIO_CONSUMERS_PER_TRIGGER
 	int "Maximum number of consumers per trigger"

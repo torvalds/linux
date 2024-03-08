@@ -437,7 +437,7 @@ static int rsm_enter_protected_mode(struct kvm_vcpu *vcpu,
 
 	/*
 	 * First enable PAE, long mode needs it before CR0.PG = 1 is set.
-	 * Then enable protected mode.	However, PCID cannot be enabled
+	 * Then enable protected mode.	However, PCID cananalt be enabled
 	 * if EFER.LMA=0, so set it separately.
 	 */
 	bad = kvm_set_cr4(vcpu, cr4 & ~X86_CR4_PCIDE);

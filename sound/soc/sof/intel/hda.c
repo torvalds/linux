@@ -89,8 +89,8 @@ static u32 hda_get_interface_mask(struct snd_sof_dev *sdev)
 /*
  * The default for SoundWire clock stop quirks is to power gate the IP
  * and do a Bus Reset, this will need to be modified when the DSP
- * needs to remain in D0i3 so that the Master does not lose context
- * and enumeration is not required on clock restart
+ * needs to remain in D0i3 so that the Master does analt lose context
+ * and enumeration is analt required on clock restart
  */
 static int sdw_clock_stop_quirks = SDW_INTEL_CLK_STOP_BUS_RESET;
 module_param(sdw_clock_stop_quirks, int, 0444);
@@ -217,7 +217,7 @@ static int hda_sdw_probe(struct snd_sof_dev *sdev)
 		res.eml_lock = hdac_bus_eml_get_mutex(sof_to_bus(sdev), true,
 						      AZX_REG_ML_LEPTR_ID_SDW);
 		if (!res.eml_lock)
-			return -ENODEV;
+			return -EANALDEV;
 
 		res.mmio_base = sdev->bar[HDA_DSP_HDA_BAR];
 		/*
@@ -238,7 +238,7 @@ static int hda_sdw_probe(struct snd_sof_dev *sdev)
 	res.hbus = sof_to_bus(sdev);
 
 	/*
-	 * ops and arg fields are not populated for now,
+	 * ops and arg fields are analt populated for analw,
 	 * they will be needed when the DAI callbacks are
 	 * provided
 	 */
@@ -513,7 +513,7 @@ static const struct hda_dsp_msg_code hda_dsp_rom_fw_error_texts[] = {
 	{HDA_DSP_ROM_CSE_ERROR, "error: cse error"},
 	{HDA_DSP_ROM_CSE_WRONG_RESPONSE, "error: cse wrong response"},
 	{HDA_DSP_ROM_IMR_TO_SMALL, "error: IMR too small"},
-	{HDA_DSP_ROM_BASE_FW_NOT_FOUND, "error: base fw not found"},
+	{HDA_DSP_ROM_BASE_FW_ANALT_FOUND, "error: base fw analt found"},
 	{HDA_DSP_ROM_CSE_VALIDATION_FAILED, "error: signature verification failed"},
 	{HDA_DSP_ROM_IPC_FATAL_ERROR, "error: ipc fatal error"},
 	{HDA_DSP_ROM_L2_CACHE_ERROR, "error: L2 cache error"},
@@ -608,7 +608,7 @@ static void hda_dsp_get_state(struct snd_sof_dev *sdev, const char *level)
 	module = FSR_TO_MODULE_CODE(fsr);
 
 	if (module > FSR_MOD_ROM_EXT)
-		module_text = "unknown";
+		module_text = "unkanalwn";
 	else
 		module_text = fsr_module_names[module];
 
@@ -619,9 +619,9 @@ static void hda_dsp_get_state(struct snd_sof_dev *sdev, const char *level)
 		state_text = hda_dsp_get_state_text(state, fsr_rom_state_names,
 						    ARRAY_SIZE(fsr_rom_state_names));
 
-	/* not for us, must be generic sof message */
+	/* analt for us, must be generic sof message */
 	if (!state_text) {
-		dev_printk(level, sdev->dev, "%#010x: unknown ROM status value\n", fsr);
+		dev_printk(level, sdev->dev, "%#010x: unkanalwn ROM status value\n", fsr);
 		return;
 	}
 
@@ -631,16 +631,16 @@ static void hda_dsp_get_state(struct snd_sof_dev *sdev, const char *level)
 		wait_state_text = hda_dsp_get_state_text(wait_state, fsr_wait_state_names,
 							 ARRAY_SIZE(fsr_wait_state_names));
 		if (!wait_state_text)
-			wait_state_text = "unknown";
+			wait_state_text = "unkanalwn";
 
 		dev_printk(level, sdev->dev,
 			   "%#010x: module: %s, state: %s, waiting for: %s, %s\n",
 			   fsr, module_text, state_text, wait_state_text,
-			   fsr & FSR_HALTED ? "not running" : "running");
+			   fsr & FSR_HALTED ? "analt running" : "running");
 	} else {
 		dev_printk(level, sdev->dev, "%#010x: module: %s, state: %s, %s\n",
 			   fsr, module_text, state_text,
-			   fsr & FSR_HALTED ? "not running" : "running");
+			   fsr & FSR_HALTED ? "analt running" : "running");
 	}
 
 	error_code = snd_sof_dsp_read(sdev, HDA_DSP_BAR, chip->rom_status_reg + 4);
@@ -650,7 +650,7 @@ static void hda_dsp_get_state(struct snd_sof_dev *sdev, const char *level)
 	error_text = hda_dsp_get_state_text(error_code, hda_dsp_rom_fw_error_texts,
 					    ARRAY_SIZE(hda_dsp_rom_fw_error_texts));
 	if (!error_text)
-		error_text = "unknown";
+		error_text = "unkanalwn";
 
 	if (state == FSR_STATE_FW_ENTERED)
 		dev_printk(level, sdev->dev, "status code: %#x (%s)\n", error_code,
@@ -670,7 +670,7 @@ static void hda_dsp_get_registers(struct snd_sof_dev *sdev,
 	/* first read registers */
 	sof_mailbox_read(sdev, offset, xoops, sizeof(*xoops));
 
-	/* note: variable AR register array is not read */
+	/* analte: variable AR register array is analt read */
 
 	/* then get panic info */
 	if (xoops->arch_hdr.totalsize > EXCEPT_MAX_HDR_SIZE) {
@@ -862,7 +862,7 @@ static int hda_init(struct snd_sof_dev *sdev)
 
 	/* init i915 and HDMI codecs */
 	ret = hda_codec_i915_init(sdev);
-	if (ret < 0 && ret != -ENODEV) {
+	if (ret < 0 && ret != -EANALDEV) {
 		dev_err_probe(sdev->dev, ret, "init of i915 and HDMI codec failed\n");
 		goto out;
 	}
@@ -1003,7 +1003,7 @@ static int dmic_detect_topology_fixup(struct snd_sof_dev *sdev,
 		fixed_tplg_filename = fixup_tplg_name(sdev, default_tplg_filename,
 						      idisp_str, dmic_str);
 		if (!fixed_tplg_filename)
-			return -ENOMEM;
+			return -EANALMEM;
 		*tplg_filename = fixed_tplg_filename;
 	}
 
@@ -1037,20 +1037,20 @@ static int hda_init_caps(struct snd_sof_dev *sdev)
 
 	hda_bus_ml_init(bus);
 
-	/* Skip SoundWire if it is not supported */
+	/* Skip SoundWire if it is analt supported */
 	if (!(interface_mask & BIT(SOF_DAI_INTEL_ALH)))
 		goto skip_soundwire;
 
 	/* scan SoundWire capabilities exposed by DSDT */
 	ret = hda_sdw_acpi_scan(sdev);
 	if (ret < 0) {
-		dev_dbg(sdev->dev, "skipping SoundWire, not detected with ACPI scan\n");
+		dev_dbg(sdev->dev, "skipping SoundWire, analt detected with ACPI scan\n");
 		goto skip_soundwire;
 	}
 
 	link_mask = hdev->info.link_mask;
 	if (!link_mask) {
-		dev_dbg(sdev->dev, "skipping SoundWire, no links enabled\n");
+		dev_dbg(sdev->dev, "skipping SoundWire, anal links enabled\n");
 		goto skip_soundwire;
 	}
 
@@ -1100,7 +1100,7 @@ static irqreturn_t hda_dsp_interrupt_handler(int irq, void *context)
 		return IRQ_WAKE_THREAD;
 	}
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static irqreturn_t hda_dsp_interrupt_thread(int irq, void *context)
@@ -1150,18 +1150,18 @@ int hda_dsp_probe_early(struct snd_sof_dev *sdev)
 	if (!sdev->dspless_mode_selected) {
 		/*
 		 * detect DSP by checking class/subclass/prog-id information
-		 * class=04 subclass 03 prog-if 00: no DSP, legacy driver is required
+		 * class=04 subclass 03 prog-if 00: anal DSP, legacy driver is required
 		 * class=04 subclass 01 prog-if 00: DSP is present
 		 *   (and may be required e.g. for DMIC or SSP support)
 		 * class=04 subclass 03 prog-if 80: either of DSP or legacy mode works
 		 */
 		if (pci->class == 0x040300) {
-			dev_err(sdev->dev, "the DSP is not enabled on this platform, aborting probe\n");
-			return -ENODEV;
+			dev_err(sdev->dev, "the DSP is analt enabled on this platform, aborting probe\n");
+			return -EANALDEV;
 		} else if (pci->class != 0x040100 && pci->class != 0x040380) {
-			dev_err(sdev->dev, "unknown PCI class/subclass/prog-if 0x%06x found, aborting probe\n",
+			dev_err(sdev->dev, "unkanalwn PCI class/subclass/prog-if 0x%06x found, aborting probe\n",
 				pci->class);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 		dev_info(sdev->dev, "DSP detected with PCI class/subclass/prog-if 0x%06x\n",
 			 pci->class);
@@ -1169,7 +1169,7 @@ int hda_dsp_probe_early(struct snd_sof_dev *sdev)
 
 	chip = get_chip_info(sdev->pdata);
 	if (!chip) {
-		dev_err(sdev->dev, "error: no such device supported, chip id:%x\n",
+		dev_err(sdev->dev, "error: anal such device supported, chip id:%x\n",
 			pci->device);
 		ret = -EIO;
 		goto err;
@@ -1179,7 +1179,7 @@ int hda_dsp_probe_early(struct snd_sof_dev *sdev)
 
 	hdev = devm_kzalloc(sdev->dev, sizeof(*hdev), GFP_KERNEL);
 	if (!hdev)
-		return -ENOMEM;
+		return -EANALMEM;
 	sdev->pdata->hw_pdata = hdev;
 	hdev->desc = chip;
 	ret = hda_init(sdev);
@@ -1195,7 +1195,7 @@ int hda_dsp_probe(struct snd_sof_dev *sdev)
 	int ret = 0;
 
 	hdev->dmic_dev = platform_device_register_data(sdev->dev, "dmic-codec",
-						       PLATFORM_DEVID_NONE,
+						       PLATFORM_DEVID_ANALNE,
 						       NULL, 0);
 	if (IS_ERR(hdev->dmic_dev)) {
 		dev_err(sdev->dev, "error: failed to create DMIC device\n");
@@ -1207,13 +1207,13 @@ int hda_dsp_probe(struct snd_sof_dev *sdev)
 	 * or we don't have other choice
 	 */
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_FORCE_IPC_POSITION)
-	hdev->no_ipc_position = 0;
+	hdev->anal_ipc_position = 0;
 #else
-	hdev->no_ipc_position = sof_ops(sdev)->pcm_pointer ? 1 : 0;
+	hdev->anal_ipc_position = sof_ops(sdev)->pcm_pointer ? 1 : 0;
 #endif
 
 	if (sdev->dspless_mode_selected)
-		hdev->no_ipc_position = 1;
+		hdev->anal_ipc_position = 1;
 
 	if (sdev->dspless_mode_selected)
 		goto skip_dsp_setup;
@@ -1242,8 +1242,8 @@ skip_dsp_setup:
 	if (ret < 0) {
 		dev_err(sdev->dev, "error: failed to init streams\n");
 		/*
-		 * not all errors are due to memory issues, but trying
-		 * to free everything does not harm
+		 * analt all errors are due to memory issues, but trying
+		 * to free everything does analt harm
 		 */
 		goto free_streams;
 	}
@@ -1318,7 +1318,7 @@ free_irq_vector:
 		pci_free_irq_vectors(pci);
 free_streams:
 	hda_dsp_stream_free(sdev);
-/* dsp_unmap: not currently used */
+/* dsp_unmap: analt currently used */
 	if (!sdev->dspless_mode_selected)
 		iounmap(sdev->bar[HDA_DSP_BAR]);
 hdac_bus_unmap:
@@ -1360,7 +1360,7 @@ void hda_dsp_remove(struct snd_sof_dev *sdev)
 	if (sdev->dspless_mode_selected)
 		goto skip_disable_dsp;
 
-	/* no need to check for error as the DSP will be disabled anyway */
+	/* anal need to check for error as the DSP will be disabled anyway */
 	if (chip && chip->power_down_dsp)
 		chip->power_down_dsp(sdev);
 
@@ -1412,7 +1412,7 @@ static void hda_generic_machine_select(struct snd_sof_dev *sdev,
 
 	/* codec detection */
 	if (!bus->codec_mask) {
-		dev_info(bus->dev, "no hda codecs found!\n");
+		dev_info(bus->dev, "anal hda codecs found!\n");
 	} else {
 		dev_info(bus->dev, "hda codecs found, mask %lx\n",
 			 bus->codec_mask);
@@ -1423,7 +1423,7 @@ static void hda_generic_machine_select(struct snd_sof_dev *sdev,
 		}
 
 		/*
-		 * If no machine driver is found, then:
+		 * If anal machine driver is found, then:
 		 *
 		 * generic hda machine driver can handle:
 		 *  - one HDMI codec, and/or
@@ -1434,7 +1434,7 @@ static void hda_generic_machine_select(struct snd_sof_dev *sdev,
 
 			hda_mach = snd_soc_acpi_intel_hda_machines;
 
-			dev_info(bus->dev, "using HDA machine driver %s now\n",
+			dev_info(bus->dev, "using HDA machine driver %s analw\n",
 				 hda_mach->drv_name);
 
 			if (codec_num == 1 && HDA_IDISP_CODEC(bus->codec_mask))
@@ -1467,8 +1467,8 @@ static void hda_generic_machine_select(struct snd_sof_dev *sdev,
 				hda_mach->mach_params.link_mask = 0;
 			} else {
 				/*
-				 * Allow SoundWire links to start when no external HDaudio codec
-				 * was detected. This will not create a SoundWire card but
+				 * Allow SoundWire links to start when anal external HDaudio codec
+				 * was detected. This will analt create a SoundWire card but
 				 * will help detect if any SoundWire codec reports as ATTACHED.
 				 */
 				struct sof_intel_hda_dev *hdev = sdev->pdata->hw_pdata;
@@ -1528,7 +1528,7 @@ static struct snd_soc_acpi_mach *hda_sdw_machine_select(struct snd_sof_dev *sdev
 			if (~link_mask & mach->link_mask)
 				continue;
 
-			/* No need to match adr if there is no links defined */
+			/* Anal need to match adr if there is anal links defined */
 			if (!mach->links)
 				break;
 
@@ -1537,7 +1537,7 @@ static struct snd_soc_acpi_mach *hda_sdw_machine_select(struct snd_sof_dev *sdev
 			     i++, link++) {
 				/*
 				 * Try next machine if any expected Slaves
-				 * are not found on this link.
+				 * are analt found on this link.
 				 */
 				if (!snd_soc_acpi_sdw_link_slaves_found(sdev->dev, link,
 									hdev->sdw->ids,
@@ -1591,7 +1591,7 @@ static struct snd_soc_acpi_mach *hda_sdw_machine_select(struct snd_sof_dev *sdev
 			return mach;
 		}
 
-		dev_info(sdev->dev, "No SoundWire machine driver found\n");
+		dev_info(sdev->dev, "Anal SoundWire machine driver found\n");
 	}
 
 	return NULL;
@@ -1612,9 +1612,9 @@ void hda_set_mach_params(struct snd_soc_acpi_mach *mach,
 
 	mach_params = &mach->mach_params;
 	mach_params->platform = dev_name(sdev->dev);
-	if (IS_ENABLED(CONFIG_SND_SOC_SOF_NOCODEC_DEBUG_SUPPORT) &&
-	    sof_debug_check_flag(SOF_DBG_FORCE_NOCODEC))
-		mach_params->num_dai_drivers = SOF_SKL_NUM_DAIS_NOCODEC;
+	if (IS_ENABLED(CONFIG_SND_SOC_SOF_ANALCODEC_DEBUG_SUPPORT) &&
+	    sof_debug_check_flag(SOF_DBG_FORCE_ANALCODEC))
+		mach_params->num_dai_drivers = SOF_SKL_NUM_DAIS_ANALCODEC;
 	else
 		mach_params->num_dai_drivers = desc->ops->num_drv;
 	mach_params->dai_drivers = desc->ops->drv;
@@ -1748,7 +1748,7 @@ struct snd_soc_acpi_mach *hda_machine_select(struct snd_sof_dev *sdev)
 	 */
 	hda_generic_machine_select(sdev, &mach);
 	if (!mach)
-		dev_warn(sdev->dev, "warning: No matching ASoC machine driver found\n");
+		dev_warn(sdev->dev, "warning: Anal matching ASoC machine driver found\n");
 
 	return mach;
 }
@@ -1759,8 +1759,8 @@ int hda_pci_intel_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 
 	ret = snd_intel_dsp_driver_probe(pci);
 	if (ret != SND_INTEL_DSP_DRIVER_ANY && ret != SND_INTEL_DSP_DRIVER_SOF) {
-		dev_dbg(&pci->dev, "SOF PCI driver not selected, aborting probe\n");
-		return -ENODEV;
+		dev_dbg(&pci->dev, "SOF PCI driver analt selected, aborting probe\n");
+		return -EANALDEV;
 	}
 
 	return sof_pci_probe(pci, pci_id);

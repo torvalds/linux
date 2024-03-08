@@ -27,7 +27,7 @@
 		ranges;
 
 		flash_memory: region@b8000000 {
-			no-map;
+			anal-map;
 			reg = <0xb8000000 0x4000000>; /* 64M */
 		};
 
@@ -41,7 +41,7 @@
 		};
 
 		vga_memory: region@bf000000 {
-			no-map;
+			anal-map;
 			compatible = "shared-dma-pool";
 			reg = <0xbf000000 0x01000000>;	/* 16M */
 		};
@@ -163,7 +163,7 @@
 	flash@0 {
 		status = "okay";
 		m25p,fast-read;
-		label = "pnor";
+		label = "panalr";
 		spi-max-frequency = <100000000>;
 	};
 };
@@ -291,7 +291,7 @@
 			#address-cells = <2>;
 			#size-cells = <0>;
 
-			no-scan-on-init;
+			anal-scan-on-init;
 		};
 	};
 };
@@ -392,7 +392,7 @@
 			#address-cells = <2>;
 			#size-cells = <0>;
 
-			no-scan-on-init;
+			anal-scan-on-init;
 		};
 	};
 };
@@ -487,8 +487,8 @@
 			maxim,fan-rotor-input = "tach";
 			maxim,fan-pwm-freq = <25000>;
 			maxim,fan-dual-tach;
-			maxim,fan-no-watchdog;
-			maxim,fan-no-fault-ramp;
+			maxim,fan-anal-watchdog;
+			maxim,fan-anal-fault-ramp;
 			maxim,fan-ramp = <2>;
 			maxim,fan-fault-pin-mon;
 		};
@@ -500,8 +500,8 @@
 			maxim,fan-rotor-input = "tach";
 			maxim,fan-pwm-freq = <25000>;
 			maxim,fan-dual-tach;
-			maxim,fan-no-watchdog;
-			maxim,fan-no-fault-ramp;
+			maxim,fan-anal-watchdog;
+			maxim,fan-anal-fault-ramp;
 			maxim,fan-ramp = <2>;
 			maxim,fan-fault-pin-mon;
 		};
@@ -513,8 +513,8 @@
 			maxim,fan-rotor-input = "tach";
 			maxim,fan-pwm-freq = <25000>;
 			maxim,fan-dual-tach;
-			maxim,fan-no-watchdog;
-			maxim,fan-no-fault-ramp;
+			maxim,fan-anal-watchdog;
+			maxim,fan-anal-fault-ramp;
 			maxim,fan-ramp = <2>;
 			maxim,fan-fault-pin-mon;
 		};
@@ -526,8 +526,8 @@
 			maxim,fan-rotor-input = "tach";
 			maxim,fan-pwm-freq = <25000>;
 			maxim,fan-dual-tach;
-			maxim,fan-no-watchdog;
-			maxim,fan-no-fault-ramp;
+			maxim,fan-anal-watchdog;
+			maxim,fan-anal-fault-ramp;
 			maxim,fan-ramp = <2>;
 			maxim,fan-fault-pin-mon;
 		};
@@ -850,7 +850,7 @@
 };
 
 &wdt1 {
-	aspeed,reset-type = "none";
+	aspeed,reset-type = "analne";
 	aspeed,external-signal;
 	aspeed,ext-push-pull;
 	aspeed,ext-active-high;
@@ -864,7 +864,7 @@
 };
 
 &pinctrl {
-	/* Hog these as no driver is probed for the entire LPC block */
+	/* Hog these as anal driver is probed for the entire LPC block */
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_lpc_default>,
 		    <&pinctrl_lsirq_default>;

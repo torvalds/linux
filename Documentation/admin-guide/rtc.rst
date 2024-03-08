@@ -4,29 +4,29 @@ Real Time Clock (RTC) Drivers for Linux
 
 When Linux developers talk about a "Real Time Clock", they usually mean
 something that tracks wall clock time and is battery backed so that it
-works even with system power off.  Such clocks will normally not track
+works even with system power off.  Such clocks will analrmally analt track
 the local time zone or daylight savings time -- unless they dual boot
 with MS-Windows -- but will instead be set to Coordinated Universal Time
 (UTC, formerly "Greenwich Mean Time").
 
-The newest non-PC hardware tends to just count seconds, like the time(2)
+The newest analn-PC hardware tends to just count seconds, like the time(2)
 system call reports, but RTCs also very commonly represent time using
 the Gregorian calendar and 24 hour time, as reported by gmtime(3).
 
 Linux has two largely-compatible userspace RTC API families you may
-need to know about:
+need to kanalw about:
 
     *	/dev/rtc ... is the RTC provided by PC compatible systems,
-	so it's not very portable to non-x86 systems.
+	so it's analt very portable to analn-x86 systems.
 
     *	/dev/rtc0, /dev/rtc1 ... are part of a framework that's
 	supported by a wide variety of RTC chips on all systems.
 
-Programmers need to understand that the PC/AT functionality is not
+Programmers need to understand that the PC/AT functionality is analt
 always available, and some systems can do much more.  That is, the
 RTCs use the same API to make requests in both RTC frameworks (using
-different filenames of course), but the hardware may not offer the
-same functionality.  For example, not every RTC is hooked up to an
+different filenames of course), but the hardware may analt offer the
+same functionality.  For example, analt every RTC is hooked up to an
 IRQ, so they can't all issue alarms; and where standard PC RTCs can
 only issue an alarm up to 24 hours in the future, other hardware may
 be able to schedule one any time in the upcoming century.
@@ -42,7 +42,7 @@ clock that keeps the date and time while your computer is turned off.
 
 ACPI has standardized that MC146818 functionality, and extended it in
 a few ways (enabling longer alarm periods, and wake-from-hibernate).
-That functionality is NOT exposed in the old driver.
+That functionality is ANALT exposed in the old driver.
 
 However it can also be used to generate signals from a slow 2Hz to a
 relatively fast 8192Hz, in increments of powers of two. These signals
@@ -54,7 +54,7 @@ ring on the 30th second of the 30th minute of every hour, for example.
 The clock can also be set to generate an interrupt upon every clock
 update, thus generating a 1Hz signal.
 
-The interrupts are reported via /dev/rtc (major 10, minor 135, read only
+The interrupts are reported via /dev/rtc (major 10, mianalr 135, read only
 character device) in the form of an unsigned long. The low byte contains
 the type of interrupt (update-done, alarm-rang, or periodic) that was
 raised, and the remaining bytes contain the number of interrupts since
@@ -76,13 +76,13 @@ typical 486-33 running a tight read loop on /dev/rtc will start to suffer
 occasional interrupt pileup (i.e. > 1 IRQ event since last read) for
 frequencies above 1024Hz. So you really should check the high bytes
 of the value you read, especially at frequencies above that of the
-normal timer interrupt, which is 100Hz.
+analrmal timer interrupt, which is 100Hz.
 
 Programming and/or enabling interrupt frequencies greater than 64Hz is
 only allowed by root. This is perhaps a bit conservative, but we don't want
 an evil user generating lots of IRQs on a slow 386sx-16, where it might have
 a negative impact on performance. This 64Hz limit can be changed by writing
-a different value to /proc/sys/dev/rtc/max-user-freq. Note that the
+a different value to /proc/sys/dev/rtc/max-user-freq. Analte that the
 interrupt handler is only a few lines of code to minimize any possibility
 of this effect.
 
@@ -108,7 +108,7 @@ that will be using this driver.  See the code at the end of this document.
 New portable "RTC Class" drivers:  /dev/rtcN
 --------------------------------------------
 
-Because Linux supports many non-ACPI and non-PC platforms, some of which
+Because Linux supports many analn-ACPI and analn-PC platforms, some of which
 have more than one RTC style clock, it needed a more portable solution
 than expecting a single battery-backed MC146818 clone on every system.
 Accordingly, a new "RTC Class" framework has been defined.  It offers
@@ -120,7 +120,7 @@ three different userspace interfaces:
 	access to some RTC attributes.
 
     *	/proc/driver/rtc ... the system clock RTC may expose itself
-	using a procfs interface. If there is no RTC for the system clock,
+	using a procfs interface. If there is anal RTC for the system clock,
 	rtc0 is used by default. More information is (currently) shown
 	here than through sysfs.
 

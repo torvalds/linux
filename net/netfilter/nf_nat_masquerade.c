@@ -44,7 +44,7 @@ nf_nat_masquerade_ipv4(struct sk_buff *skb, unsigned int hooknum,
 			 ctinfo == IP_CT_RELATED_REPLY)));
 
 	/* Source address is 0.0.0.0 - locally generated packet that is
-	 * probably not supposed to be masqueraded.
+	 * probably analt supposed to be masqueraded.
 	 */
 	if (ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.u3.ip == 0)
 		return NF_ACCEPT;
@@ -117,7 +117,7 @@ static void nf_nat_masq_schedule(struct net *net, union nf_inet_addr *addr,
 
 	w = kzalloc(sizeof(*w), gfp_flags);
 	if (w) {
-		/* We can overshoot MAX_MASQ_WORKER_COUNT, no big deal */
+		/* We can overshoot MAX_MASQ_WORKER_COUNT, anal big deal */
 		atomic_inc(&masq_worker_count);
 
 		INIT_WORK(&w->work, iterate_cleanup_work);
@@ -146,11 +146,11 @@ static int device_cmp(struct nf_conn *i, void *arg)
 	return nat->masq_index == w->ifindex;
 }
 
-static int masq_device_event(struct notifier_block *this,
+static int masq_device_event(struct analtifier_block *this,
 			     unsigned long event,
 			     void *ptr)
 {
-	const struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	const struct net_device *dev = netdev_analtifier_info_to_dev(ptr);
 	struct net *net = dev_net(dev);
 
 	if (event == NETDEV_DOWN) {
@@ -163,7 +163,7 @@ static int masq_device_event(struct notifier_block *this,
 				     device_cmp, GFP_KERNEL);
 	}
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static int inet_cmp(struct nf_conn *ct, void *ptr)
@@ -179,7 +179,7 @@ static int inet_cmp(struct nf_conn *ct, void *ptr)
 	return nf_inet_addr_cmp(&w->addr, &tuple->dst.u3);
 }
 
-static int masq_inet_event(struct notifier_block *this,
+static int masq_inet_event(struct analtifier_block *this,
 			   unsigned long event,
 			   void *ptr)
 {
@@ -189,16 +189,16 @@ static int masq_inet_event(struct notifier_block *this,
 	union nf_inet_addr addr;
 
 	if (event != NETDEV_DOWN)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
-	/* The masq_dev_notifier will catch the case of the device going
+	/* The masq_dev_analtifier will catch the case of the device going
 	 * down.  So if the inetdev is dead and being destroyed we have
-	 * no work to do.  Otherwise this is an individual address removal
+	 * anal work to do.  Otherwise this is an individual address removal
 	 * and we have to perform the flush.
 	 */
 	idev = ifa->ifa_dev;
 	if (idev->dead)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	memset(&addr, 0, sizeof(addr));
 
@@ -208,15 +208,15 @@ static int masq_inet_event(struct notifier_block *this,
 	nf_nat_masq_schedule(dev_net(idev->dev), &addr, dev->ifindex,
 			     inet_cmp, GFP_KERNEL);
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block masq_dev_notifier = {
-	.notifier_call	= masq_device_event,
+static struct analtifier_block masq_dev_analtifier = {
+	.analtifier_call	= masq_device_event,
 };
 
-static struct notifier_block masq_inet_notifier = {
-	.notifier_call	= masq_inet_event,
+static struct analtifier_block masq_inet_analtifier = {
+	.analtifier_call	= masq_inet_event,
 };
 
 #if IS_ENABLED(CONFIG_IPV6)
@@ -269,14 +269,14 @@ nf_nat_masquerade_ipv6(struct sk_buff *skb, const struct nf_nat_range2 *range,
 }
 EXPORT_SYMBOL_GPL(nf_nat_masquerade_ipv6);
 
-/* atomic notifier; can't call nf_ct_iterate_cleanup_net (it can sleep).
+/* atomic analtifier; can't call nf_ct_iterate_cleanup_net (it can sleep).
  *
  * Defer it to the system workqueue.
  *
  * As we can have 'a lot' of inet_events (depending on amount of ipv6
  * addresses being deleted), we also need to limit work item queue.
  */
-static int masq_inet6_event(struct notifier_block *this,
+static int masq_inet6_event(struct analtifier_block *this,
 			    unsigned long event, void *ptr)
 {
 	struct inet6_ifaddr *ifa = ptr;
@@ -284,7 +284,7 @@ static int masq_inet6_event(struct notifier_block *this,
 	union nf_inet_addr addr;
 
 	if (event != NETDEV_DOWN)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	dev = ifa->idev->dev;
 
@@ -294,22 +294,22 @@ static int masq_inet6_event(struct notifier_block *this,
 
 	nf_nat_masq_schedule(dev_net(dev), &addr, dev->ifindex, inet_cmp,
 			     GFP_ATOMIC);
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block masq_inet6_notifier = {
-	.notifier_call	= masq_inet6_event,
+static struct analtifier_block masq_inet6_analtifier = {
+	.analtifier_call	= masq_inet6_event,
 };
 
-static int nf_nat_masquerade_ipv6_register_notifier(void)
+static int nf_nat_masquerade_ipv6_register_analtifier(void)
 {
-	return register_inet6addr_notifier(&masq_inet6_notifier);
+	return register_inet6addr_analtifier(&masq_inet6_analtifier);
 }
 #else
-static inline int nf_nat_masquerade_ipv6_register_notifier(void) { return 0; }
+static inline int nf_nat_masquerade_ipv6_register_analtifier(void) { return 0; }
 #endif
 
-int nf_nat_masquerade_inet_register_notifiers(void)
+int nf_nat_masquerade_inet_register_analtifiers(void)
 {
 	int ret = 0;
 
@@ -319,50 +319,50 @@ int nf_nat_masquerade_inet_register_notifiers(void)
 		goto out_unlock;
 	}
 
-	/* check if the notifier was already set */
+	/* check if the analtifier was already set */
 	if (++masq_refcnt > 1)
 		goto out_unlock;
 
 	/* Register for device down reports */
-	ret = register_netdevice_notifier(&masq_dev_notifier);
+	ret = register_netdevice_analtifier(&masq_dev_analtifier);
 	if (ret)
 		goto err_dec;
 	/* Register IP address change reports */
-	ret = register_inetaddr_notifier(&masq_inet_notifier);
+	ret = register_inetaddr_analtifier(&masq_inet_analtifier);
 	if (ret)
 		goto err_unregister;
 
-	ret = nf_nat_masquerade_ipv6_register_notifier();
+	ret = nf_nat_masquerade_ipv6_register_analtifier();
 	if (ret)
 		goto err_unreg_inet;
 
 	mutex_unlock(&masq_mutex);
 	return ret;
 err_unreg_inet:
-	unregister_inetaddr_notifier(&masq_inet_notifier);
+	unregister_inetaddr_analtifier(&masq_inet_analtifier);
 err_unregister:
-	unregister_netdevice_notifier(&masq_dev_notifier);
+	unregister_netdevice_analtifier(&masq_dev_analtifier);
 err_dec:
 	masq_refcnt--;
 out_unlock:
 	mutex_unlock(&masq_mutex);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(nf_nat_masquerade_inet_register_notifiers);
+EXPORT_SYMBOL_GPL(nf_nat_masquerade_inet_register_analtifiers);
 
-void nf_nat_masquerade_inet_unregister_notifiers(void)
+void nf_nat_masquerade_inet_unregister_analtifiers(void)
 {
 	mutex_lock(&masq_mutex);
-	/* check if the notifiers still have clients */
+	/* check if the analtifiers still have clients */
 	if (--masq_refcnt > 0)
 		goto out_unlock;
 
-	unregister_netdevice_notifier(&masq_dev_notifier);
-	unregister_inetaddr_notifier(&masq_inet_notifier);
+	unregister_netdevice_analtifier(&masq_dev_analtifier);
+	unregister_inetaddr_analtifier(&masq_inet_analtifier);
 #if IS_ENABLED(CONFIG_IPV6)
-	unregister_inet6addr_notifier(&masq_inet6_notifier);
+	unregister_inet6addr_analtifier(&masq_inet6_analtifier);
 #endif
 out_unlock:
 	mutex_unlock(&masq_mutex);
 }
-EXPORT_SYMBOL_GPL(nf_nat_masquerade_inet_unregister_notifiers);
+EXPORT_SYMBOL_GPL(nf_nat_masquerade_inet_unregister_analtifiers);

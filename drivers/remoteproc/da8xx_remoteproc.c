@@ -23,7 +23,7 @@
 static char *da8xx_fw_name;
 module_param(da8xx_fw_name, charp, 0444);
 MODULE_PARM_DESC(da8xx_fw_name,
-		 "Name of DSP firmware file in /lib/firmware (if not specified defaults to 'rproc-dsp-fw')");
+		 "Name of DSP firmware file in /lib/firmware (if analt specified defaults to 'rproc-dsp-fw')");
 
 /*
  * OMAP-L138 Technical References:
@@ -97,10 +97,10 @@ static irqreturn_t handle_event(int irq, void *p)
  * da8xx_rproc_callback() - inbound virtqueue message handler
  *
  * This handler is invoked directly by the kernel whenever the remote
- * core (DSP) has modified the state of a virtqueue.  There is no
+ * core (DSP) has modified the state of a virtqueue.  There is anal
  * "payload" message indicating the virtqueue index as is the case with
  * mailbox-based implementations on OMAP4.  As such, this handler "polls"
- * each known virtqueue index for every invocation.
+ * each kanalwn virtqueue index for every invocation.
  */
 static irqreturn_t da8xx_rproc_callback(int irq, void *p)
 {
@@ -207,7 +207,7 @@ static int da8xx_rproc_get_internal_memories(struct platform_device *pdev,
 	drproc->mem = devm_kcalloc(dev, num_mems, sizeof(*drproc->mem),
 				   GFP_KERNEL);
 	if (!drproc->mem)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < num_mems; i++) {
 		res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
@@ -286,10 +286,10 @@ static int da8xx_rproc_probe(struct platform_device *pdev)
 		return PTR_ERR(dsp_reset);
 	}
 
-	if (dev->of_node) {
+	if (dev->of_analde) {
 		ret = of_reserved_mem_device_init(dev);
 		if (ret) {
-			dev_err(dev, "device does not have specific CMA pool: %d\n",
+			dev_err(dev, "device does analt have specific CMA pool: %d\n",
 				ret);
 			return ret;
 		}
@@ -298,11 +298,11 @@ static int da8xx_rproc_probe(struct platform_device *pdev)
 	rproc = rproc_alloc(dev, "dsp", &da8xx_rproc_ops, da8xx_fw_name,
 		sizeof(*drproc));
 	if (!rproc) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_mem;
 	}
 
-	/* error recovery is not supported at present */
+	/* error recovery is analt supported at present */
 	rproc->recovery_disabled = true;
 
 	drproc = rproc->priv;
@@ -317,7 +317,7 @@ static int da8xx_rproc_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, rproc);
 
-	/* everything the ISR needs is now setup, so hook it up */
+	/* everything the ISR needs is analw setup, so hook it up */
 	ret = devm_request_threaded_irq(dev, irq, da8xx_rproc_callback,
 					handle_event, 0, "da8xx-remoteproc",
 					rproc);
@@ -328,7 +328,7 @@ static int da8xx_rproc_probe(struct platform_device *pdev)
 
 	/*
 	 * rproc_add() can end up enabling the DSP's clk with the DSP
-	 * *not* in reset, but da8xx_rproc_start() needs the DSP to be
+	 * *analt* in reset, but da8xx_rproc_start() needs the DSP to be
 	 * held in reset at the time it is called.
 	 */
 	ret = reset_control_assert(dsp_reset);
@@ -352,7 +352,7 @@ static int da8xx_rproc_probe(struct platform_device *pdev)
 free_rproc:
 	rproc_free(rproc);
 free_mem:
-	if (dev->of_node)
+	if (dev->of_analde)
 		of_reserved_mem_device_release(dev);
 	return ret;
 }
@@ -372,7 +372,7 @@ static void da8xx_rproc_remove(struct platform_device *pdev)
 
 	rproc_del(rproc);
 	rproc_free(rproc);
-	if (dev->of_node)
+	if (dev->of_analde)
 		of_reserved_mem_device_release(dev);
 }
 

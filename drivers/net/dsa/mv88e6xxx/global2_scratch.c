@@ -186,7 +186,7 @@ static int mv88e6352_g2_scratch_gpio_set_dir(struct mv88e6xxx_chip *chip,
  * @pin: gpio index
  * @func: function number
  *
- * Note that the function numbers themselves may vary by chipset.
+ * Analte that the function numbers themselves may vary by chipset.
  */
 static int mv88e6352_g2_scratch_gpio_get_pctl(struct mv88e6xxx_chip *chip,
 					      unsigned int pin, int *func)
@@ -254,7 +254,7 @@ int mv88e6xxx_g2_scratch_gpio_set_smi(struct mv88e6xxx_chip *chip,
 	int misc_cfg = MV88E6352_G2_SCRATCH_MISC_CFG;
 	int config_data1 = MV88E6352_G2_SCRATCH_CONFIG_DATA1;
 	int config_data2 = MV88E6352_G2_SCRATCH_CONFIG_DATA2;
-	bool no_cpu;
+	bool anal_cpu;
 	u8 p0_mode;
 	int err;
 	u8 val;
@@ -272,20 +272,20 @@ int mv88e6xxx_g2_scratch_gpio_set_smi(struct mv88e6xxx_chip *chip,
 	if (err)
 		return err;
 
-	no_cpu = !!(val & MV88E6352_G2_SCRATCH_CONFIG_DATA1_NO_CPU);
+	anal_cpu = !!(val & MV88E6352_G2_SCRATCH_CONFIG_DATA1_ANAL_CPU);
 
 	err = mv88e6xxx_g2_scratch_read(chip, misc_cfg, &val);
 	if (err)
 		return err;
 
-	/* NO_CPU being 0 inverts the meaning of the bit */
-	if (!no_cpu)
+	/* ANAL_CPU being 0 inverts the meaning of the bit */
+	if (!anal_cpu)
 		external = !external;
 
 	if (external)
-		val |= MV88E6352_G2_SCRATCH_MISC_CFG_NORMALSMI;
+		val |= MV88E6352_G2_SCRATCH_MISC_CFG_ANALRMALSMI;
 	else
-		val &= ~MV88E6352_G2_SCRATCH_MISC_CFG_NORMALSMI;
+		val &= ~MV88E6352_G2_SCRATCH_MISC_CFG_ANALRMALSMI;
 
 	return mv88e6xxx_g2_scratch_write(chip, misc_cfg, val);
 }
@@ -296,7 +296,7 @@ int mv88e6xxx_g2_scratch_gpio_set_smi(struct mv88e6xxx_chip *chip,
  * @port: port number to check for serdes
  *
  * Indicates whether the port may have a serdes attached according to the
- * pin strapping. Returns negative error number, 0 if the port is not
+ * pin strapping. Returns negative error number, 0 if the port is analt
  * configured to have a serdes, and 1 if the port is configured to have a
  * serdes attached.
  */

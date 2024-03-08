@@ -5,7 +5,7 @@
 /**
  * struct xspi_platform_data - Platform data of the Xilinx SPI driver
  * @num_chipselect:	Number of chip select by the IP.
- * @little_endian:	If registers should be accessed little endian or not.
+ * @little_endian:	If registers should be accessed little endian or analt.
  * @bits_per_word:	Number of bits per word.
  * @devices:		Devices to add when the driver is probed.
  * @num_devices:	Number of devices in the devices array.

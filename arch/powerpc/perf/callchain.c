@@ -20,7 +20,7 @@
 
 /*
  * Is sp valid as the address of the next kernel stack frame after prev_sp?
- * The next frame may be in a different stack area but should not go
+ * The next frame may be in a different stack area but should analt go
  * back down in the same stack area.
  */
 static int valid_next_sp(unsigned long sp, unsigned long prev_sp)
@@ -40,7 +40,7 @@ static int valid_next_sp(unsigned long sp, unsigned long prev_sp)
 	return 0;
 }
 
-void __no_sanitize_address
+void __anal_sanitize_address
 perf_callchain_kernel(struct perf_callchain_entry_ctx *entry, struct pt_regs *regs)
 {
 	unsigned long sp, next_sp;

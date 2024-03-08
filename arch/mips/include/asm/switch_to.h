@@ -7,7 +7,7 @@
  * Copyright (C) 1996 by Paul M. Antoine
  * Copyright (C) 1999 Silicon Graphics
  * Kevin D. Kissell, kevink@mips.org and Carsten Langgaard, carstenl@mips.com
- * Copyright (C) 2000 MIPS Technologies, Inc.
+ * Copyright (C) 2000 MIPS Techanallogies, Inc.
  */
 #ifndef _ASM_SWITCH_TO_H
 #define _ASM_SWITCH_TO_H
@@ -41,10 +41,10 @@ extern struct task_struct *ll_task;
  * Handle the scheduler resume end of FPU affinity management.	We do this
  * inline to try to keep the overhead down. If we have been forced to run on
  * a "CPU" with an FPU because of a previous high level of FP computation,
- * but did not actually use the FPU during the most recent time-slice (CU1
+ * but did analt actually use the FPU during the most recent time-slice (CU1
  * isn't set), we undo the restriction on cpus_mask.
  *
- * We're not calling set_cpus_allowed() here, because we have no need to
+ * We're analt calling set_cpus_allowed() here, because we have anal need to
  * force prompt migration - we're already switching the current CPU to a
  * different thread.
  */

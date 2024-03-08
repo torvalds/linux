@@ -91,7 +91,7 @@ static int panfrost_regulator_init(struct panfrost_device *pfdev)
 					 sizeof(*pfdev->regulators),
 					 GFP_KERNEL);
 	if (!pfdev->regulators)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < pfdev->comp->num_supplies; i++)
 		pfdev->regulators[i].supply = pfdev->comp->supply_names[i];
@@ -144,7 +144,7 @@ static int panfrost_pm_domain_init(struct panfrost_device *pfdev)
 	int err;
 	int i, num_domains;
 
-	num_domains = of_count_phandle_with_args(pfdev->dev->of_node,
+	num_domains = of_count_phandle_with_args(pfdev->dev->of_analde,
 						 "power-domains",
 						 "#power-domain-cells");
 
@@ -171,7 +171,7 @@ static int panfrost_pm_domain_init(struct panfrost_device *pfdev)
 			dev_pm_domain_attach_by_name(pfdev->dev,
 					pfdev->comp->pm_domain_names[i]);
 		if (IS_ERR_OR_NULL(pfdev->pm_domain_devs[i])) {
-			err = PTR_ERR(pfdev->pm_domain_devs[i]) ? : -ENODATA;
+			err = PTR_ERR(pfdev->pm_domain_devs[i]) ? : -EANALDATA;
 			pfdev->pm_domain_devs[i] = NULL;
 			dev_err(pfdev->dev,
 				"failed to get pm-domain %s(%d): %d\n",
@@ -185,7 +185,7 @@ static int panfrost_pm_domain_init(struct panfrost_device *pfdev)
 		if (!pfdev->pm_domain_links[i]) {
 			dev_err(pfdev->pm_domain_devs[i],
 				"adding device link failed!\n");
-			err = -ENODEV;
+			err = -EANALDEV;
 			goto err;
 		}
 	}
@@ -331,7 +331,7 @@ static const struct panfrost_exception_info panfrost_exception_infos[] = {
 	PANFROST_EXCEPTION(IMPRECISE_FAULT),
 	PANFROST_EXCEPTION(OOM),
 	PANFROST_EXCEPTION(OOM_AFBC),
-	PANFROST_EXCEPTION(UNKNOWN),
+	PANFROST_EXCEPTION(UNKANALWN),
 	PANFROST_EXCEPTION(DELAYED_BUS_FAULT),
 	PANFROST_EXCEPTION(GPU_SHAREABILITY_FAULT),
 	PANFROST_EXCEPTION(SYS_SHAREABILITY_FAULT),
@@ -366,17 +366,17 @@ static const struct panfrost_exception_info panfrost_exception_infos[] = {
 	PANFROST_EXCEPTION(MEM_ATTR_FAULT_1),
 	PANFROST_EXCEPTION(MEM_ATTR_FAULT_2),
 	PANFROST_EXCEPTION(MEM_ATTR_FAULT_3),
-	PANFROST_EXCEPTION(MEM_ATTR_NONCACHE_0),
-	PANFROST_EXCEPTION(MEM_ATTR_NONCACHE_1),
-	PANFROST_EXCEPTION(MEM_ATTR_NONCACHE_2),
-	PANFROST_EXCEPTION(MEM_ATTR_NONCACHE_3),
+	PANFROST_EXCEPTION(MEM_ATTR_ANALNCACHE_0),
+	PANFROST_EXCEPTION(MEM_ATTR_ANALNCACHE_1),
+	PANFROST_EXCEPTION(MEM_ATTR_ANALNCACHE_2),
+	PANFROST_EXCEPTION(MEM_ATTR_ANALNCACHE_3),
 };
 
 const char *panfrost_exception_name(u32 exception_code)
 {
 	if (WARN_ON(exception_code >= ARRAY_SIZE(panfrost_exception_infos) ||
 		    !panfrost_exception_infos[exception_code].name))
-		return "Unknown exception type";
+		return "Unkanalwn exception type";
 
 	return panfrost_exception_infos[exception_code].name;
 }
@@ -390,7 +390,7 @@ bool panfrost_exception_needs_reset(const struct panfrost_device *pfdev,
 	if (exception_code == DRM_PANFROST_EXCEPTION_JOB_BUS_FAULT)
 		return panfrost_has_hw_issue(pfdev, HW_ISSUE_TTRX_3076);
 
-	/* No other GPUs we support need a reset */
+	/* Anal other GPUs we support need a reset */
 	return false;
 }
 

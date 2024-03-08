@@ -2,7 +2,7 @@
 /*
  * Watchdog driver for Conexant Digicolor
  *
- * Copyright (C) 2015 Paradox Innovation Ltd.
+ * Copyright (C) 2015 Paradox Inanalvation Ltd.
  *
  */
 
@@ -121,7 +121,7 @@ static int dc_wdt_probe(struct platform_device *pdev)
 
 	wdt = devm_kzalloc(dev, sizeof(struct dc_wdt), GFP_KERNEL);
 	if (!wdt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wdt->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(wdt->base))

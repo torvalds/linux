@@ -14,18 +14,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -48,7 +48,7 @@ struct ch_tc_flower_entry {
 	struct ch_filter_specification fs;
 	struct ch_tc_flower_stats stats;
 	unsigned long tc_flower_cookie;
-	struct rhash_head node;
+	struct rhash_head analde;
 	struct rcu_head rcu;
 	spinlock_t lock; /* lock for stats */
 	u32 filter_id;
@@ -109,7 +109,7 @@ struct ch_tc_pedit_fields {
 #define PEDIT_UDP_SPORT_DPORT		0x0
 
 enum cxgb4_action_natmode_flags {
-	CXGB4_ACTION_NATMODE_NONE = 0,
+	CXGB4_ACTION_NATMODE_ANALNE = 0,
 	CXGB4_ACTION_NATMODE_DIP = (1 << 0),
 	CXGB4_ACTION_NATMODE_SIP = (1 << 1),
 	CXGB4_ACTION_NATMODE_DPORT = (1 << 2),

@@ -17,7 +17,7 @@ properties:
   "#dma-cells":
     const: 2
     description:
-      The first cell is either 0 or 1, the former to use the normal
+      The first cell is either 0 or 1, the former to use the analrmal
       DMA, 1 for dedicated DMA. The second cell is the request line
       number.
 

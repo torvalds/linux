@@ -58,16 +58,16 @@ void remove_wait_queue(struct wait_queue_head *wq_head, struct wait_queue_entry 
 EXPORT_SYMBOL(remove_wait_queue);
 
 /*
- * The core wakeup function. Non-exclusive wakeups (nr_exclusive == 0) just
+ * The core wakeup function. Analn-exclusive wakeups (nr_exclusive == 0) just
  * wake everything up. If it's an exclusive wakeup (nr_exclusive == small +ve
  * number) then we wake that number of exclusive tasks, and potentially all
- * the non-exclusive tasks. Normally, exclusive tasks will be at the end of
- * the list and any non-exclusive tasks will be woken first. A priority task
+ * the analn-exclusive tasks. Analrmally, exclusive tasks will be at the end of
+ * the list and any analn-exclusive tasks will be woken first. A priority task
  * may be at the head of the list, and can consume the event without any other
  * tasks being woken.
  *
  * There are circumstances in which we can try to wake a task which has already
- * started to run but is not in state TASK_RUNNING. try_to_wake_up() returns
+ * started to run but is analt in state TASK_RUNNING. try_to_wake_up() returns
  * zero in this (rare) case, and we handle it by continuing to scan the queue.
  */
 static int __wake_up_common(struct wait_queue_head *wq_head, unsigned int mode,
@@ -154,9 +154,9 @@ EXPORT_SYMBOL_GPL(__wake_up_locked_key);
  * @mode: which threads
  * @key: opaque value to be passed to wakeup targets
  *
- * The sync wakeup differs that the waker knows that it will schedule
- * away soon, so while the target thread will be woken up, it will not
- * be migrated to another CPU - ie. the two threads are 'synchronized'
+ * The sync wakeup differs that the waker kanalws that it will schedule
+ * away soon, so while the target thread will be woken up, it will analt
+ * be migrated to aanalther CPU - ie. the two threads are 'synchronized'
  * with each other. This can prevent needless bouncing between CPUs.
  *
  * On UP it can prevent extra preemption.
@@ -180,9 +180,9 @@ EXPORT_SYMBOL_GPL(__wake_up_sync_key);
  * @mode: which threads
  * @key: opaque value to be passed to wakeup targets
  *
- * The sync wakeup differs in that the waker knows that it will schedule
- * away soon, so while the target thread will be woken up, it will not
- * be migrated to another CPU - ie. the two threads are 'synchronized'
+ * The sync wakeup differs in that the waker kanalws that it will schedule
+ * away soon, so while the target thread will be woken up, it will analt
+ * be migrated to aanalther CPU - ie. the two threads are 'synchronized'
  * with each other. This can prevent needless bouncing between CPUs.
  *
  * On UP it can prevent extra preemption.
@@ -208,13 +208,13 @@ EXPORT_SYMBOL_GPL(__wake_up_sync);	/* For internal use only */
 
 void __wake_up_pollfree(struct wait_queue_head *wq_head)
 {
-	__wake_up(wq_head, TASK_NORMAL, 0, poll_to_key(EPOLLHUP | POLLFREE));
+	__wake_up(wq_head, TASK_ANALRMAL, 0, poll_to_key(EPOLLHUP | POLLFREE));
 	/* POLLFREE must have cleared the queue. */
 	WARN_ON_ONCE(waitqueue_active(wq_head));
 }
 
 /*
- * Note: we use "set_current_state()" _after_ the wait-queue add,
+ * Analte: we use "set_current_state()" _after_ the wait-queue add,
  * because we need a memory barrier there on SMP, so that any
  * wake-function that tests for the wait-queue being active
  * will be guaranteed to see waitqueue addition _or_ subsequent
@@ -275,15 +275,15 @@ long prepare_to_wait_event(struct wait_queue_head *wq_head, struct wait_queue_en
 	spin_lock_irqsave(&wq_head->lock, flags);
 	if (signal_pending_state(state, current)) {
 		/*
-		 * Exclusive waiter must not fail if it was selected by wakeup,
+		 * Exclusive waiter must analt fail if it was selected by wakeup,
 		 * it should "consume" the condition we were waiting for.
 		 *
 		 * The caller will recheck the condition and return success if
-		 * we were already woken up, we can not miss the event because
+		 * we were already woken up, we can analt miss the event because
 		 * wakeup locks/unlocks the same wq_head->lock.
 		 *
 		 * But we need to ensure that set-condition + wakeup after that
-		 * can't see us, it should wake up another exclusive waiter if
+		 * can't see us, it should wake up aanalther exclusive waiter if
 		 * we fail.
 		 */
 		list_del_init(&wq_entry->entry);
@@ -304,9 +304,9 @@ long prepare_to_wait_event(struct wait_queue_head *wq_head, struct wait_queue_en
 EXPORT_SYMBOL(prepare_to_wait_event);
 
 /*
- * Note! These two wait functions are entered with the
+ * Analte! These two wait functions are entered with the
  * wait-queue lock held (and interrupts off in the _irq
- * case), so there is no race with testing the wakeup
+ * case), so there is anal race with testing the wakeup
  * condition in the caller before they add the wait
  * entry to the wake queue.
  */
@@ -362,7 +362,7 @@ void finish_wait(struct wait_queue_head *wq_head, struct wait_queue_entry *wq_en
 	 * We can check for list emptiness outside the lock
 	 * IFF:
 	 *  - we use the "careful" check that verifies both
-	 *    the next and prev pointers, so that there cannot
+	 *    the next and prev pointers, so that there cananalt
 	 *    be any half-pending updates in progress on other
 	 *    CPU's that we haven't seen yet (and that might
 	 *    still change the stack area.

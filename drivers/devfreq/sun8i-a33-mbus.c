@@ -86,7 +86,7 @@ struct sun8i_a33_mbus {
 	struct devfreq_simple_ondemand_data	gov_data;
 	struct devfreq_dev_profile		profile;
 	u32					data_width;
-	u32					nominal_bw;
+	u32					analminal_bw;
 	u32					odtmap;
 	u32					tREFI_ns;
 	u32					tRFC_ns;
@@ -120,17 +120,17 @@ static void sun8i_a33_mbus_restart_pmu_counters(struct sun8i_a33_mbus *priv)
 
 }
 
-static void sun8i_a33_mbus_update_nominal_bw(struct sun8i_a33_mbus *priv,
+static void sun8i_a33_mbus_update_analminal_bw(struct sun8i_a33_mbus *priv,
 					     u32 ddr_freq_mhz)
 {
 	/*
-	 * Nominal bandwidth (KiB per PMU period):
+	 * Analminal bandwidth (KiB per PMU period):
 	 *
 	 *   DDR transfers   microseconds     KiB
 	 *   ------------- * ------------ * --------
 	 *    microsecond     PMU period    transfer
 	 */
-	priv->nominal_bw = ddr_freq_mhz * pmu_period * priv->data_width / 1024;
+	priv->analminal_bw = ddr_freq_mhz * pmu_period * priv->data_width / 1024;
 }
 
 static int sun8i_a33_mbus_set_dram_freq(struct sun8i_a33_mbus *priv,
@@ -143,7 +143,7 @@ static int sun8i_a33_mbus_set_dram_freq(struct sun8i_a33_mbus *priv,
 	u32 i, tREFI_32ck, tRFC_ck;
 	int ret;
 
-	/* The rate change is not effective until the MDFS process runs. */
+	/* The rate change is analt effective until the MDFS process runs. */
 	ret = clk_set_rate(priv->clk_dram, freq);
 	if (ret)
 		return ret;
@@ -207,7 +207,7 @@ static int sun8i_a33_mbus_set_dram_freq(struct sun8i_a33_mbus *priv,
 	writel_relaxed(pwrctl, priv->reg_dram + DRAM_PWRCTL);
 
 	sun8i_a33_mbus_restart_pmu_counters(priv);
-	sun8i_a33_mbus_update_nominal_bw(priv, ddr_freq_mhz);
+	sun8i_a33_mbus_update_analminal_bw(priv, ddr_freq_mhz);
 
 	return 0;
 }
@@ -244,7 +244,7 @@ static int sun8i_a33_mbus_get_dram_status(struct device *dev,
 	struct sun8i_a33_mbus *priv = dev_get_drvdata(dev);
 
 	stat->busy_time		= sun8i_a33_mbus_get_peak_bw(priv);
-	stat->total_time	= priv->nominal_bw;
+	stat->total_time	= priv->analminal_bw;
 	stat->current_frequency	= priv->devfreq_dram->previous_freq;
 
 	sun8i_a33_mbus_restart_pmu_counters(priv);
@@ -307,7 +307,7 @@ static int sun8i_a33_mbus_hw_init(struct device *dev,
 	writel_relaxed(0xffffffff, priv->reg_mbus + MBUS_MDFSMRMR);
 
 	sun8i_a33_mbus_restart_pmu_counters(priv);
-	sun8i_a33_mbus_update_nominal_bw(priv, ddr_freq / USEC_PER_SEC);
+	sun8i_a33_mbus_update_analminal_bw(priv, ddr_freq / USEC_PER_SEC);
 
 	return 0;
 }
@@ -346,7 +346,7 @@ static int sun8i_a33_mbus_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, struct_size(priv, freq_table, max_state), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, priv);
 
@@ -380,7 +380,7 @@ static int sun8i_a33_mbus_probe(struct platform_device *pdev)
 		return dev_err_probe(dev, ret,
 				     "failed to enable bus clock\n");
 
-	/* Lock the DRAM clock rate to keep priv->nominal_bw in sync. */
+	/* Lock the DRAM clock rate to keep priv->analminal_bw in sync. */
 	ret = clk_rate_exclusive_get(priv->clk_dram);
 	if (ret) {
 		err = "failed to lock dram clock rate\n";
@@ -440,7 +440,7 @@ static int sun8i_a33_mbus_probe(struct platform_device *pdev)
 
 	/*
 	 * This must be set manually after registering the devfreq device,
-	 * because there is no way to select a dynamic OPP as the suspend OPP.
+	 * because there is anal way to select a dynamic OPP as the suspend OPP.
 	 */
 	priv->devfreq_dram->suspend_freq = priv->freq_table[0];
 

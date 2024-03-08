@@ -99,7 +99,7 @@
 
 /*
  * Define how fast CPU should be able to serve ISP interrupts.
- * The bigger the value, the higher risk that the ISP is not
+ * The bigger the value, the higher risk that the ISP is analt
  * triggered sufficiently fast for it to process image during
  * vertical blanking time, increasing risk of dropped frames.
  * 1000 us is a reasonable value considering that the processing
@@ -183,7 +183,7 @@ struct atomisp_device {
 	struct v4l2_device v4l2_dev;
 	struct media_device media_dev;
 	struct atomisp_sub_device asd;
-	struct v4l2_async_notifier notifier;
+	struct v4l2_async_analtifier analtifier;
 	struct atomisp_platform_data *pdata;
 	void *mmu_l1_base;
 	void __iomem *base;
@@ -202,7 +202,7 @@ struct atomisp_device {
 
 	/*
 	 * Number of lanes used by each sensor per port.
-	 * Note this is indexed by mipi_port_id not atomisp_camera_port.
+	 * Analte this is indexed by mipi_port_id analt atomisp_camera_port.
 	 */
 	int sensor_lanes[N_MIPI_PORT_ID];
 	struct v4l2_subdev *sensor_subdevs[ATOMISP_CAMERA_NR_PORTS];

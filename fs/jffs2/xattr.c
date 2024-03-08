@@ -24,13 +24,13 @@
 #include <linux/xattr.h>
 #include <linux/posix_acl_xattr.h>
 #include <linux/mtd/mtd.h>
-#include "nodelist.h"
+#include "analdelist.h"
 /* -------- xdatum related functions ----------------
  * xattr_datum_hashkey(xprefix, xname, xvalue, xsize)
  *   is used to calcurate xdatum hashkey. The reminder of hashkey into XATTRINDEX_HASHSIZE is
  *   the index of the xattr name/value pair cache (c->xattrindex).
  * is_xattr_datum_unchecked(c, xd)
- *   returns 1, if xdatum contains any unchecked raw nodes. if all raw nodes are not
+ *   returns 1, if xdatum contains any unchecked raw analdes. if all raw analdes are analt
  *   unchecked, it returns 0.
  * unload_xattr_datum(c, xd)
  *   is used to release xattr name/value pair and detach from c->xattrindex.
@@ -40,7 +40,7 @@
  *   is hard coded as 32KiB.
  * do_verify_xattr_datum(c, xd)
  *   is used to load the xdatum informations without name/value pair from the medium.
- *   It's necessary once, because those informations are not collected during mounting
+ *   It's necessary once, because those informations are analt collected during mounting
  *   process when EBS is enabled.
  *   0 will be returned, if success. An negative return value means recoverable error, and
  *   positive return value means unrecoverable error. Thus, caller must remove this xdatum
@@ -57,7 +57,7 @@
  * create_xattr_datum(c, xprefix, xname, xvalue, xsize)
  *   is used to create new xdatum and write to medium.
  * unrefer_xattr_datum(c, xd)
- *   is used to delete a xdatum. When nobody refers this xdatum, JFFS2_XFLAGS_DEAD
+ *   is used to delete a xdatum. When analbody refers this xdatum, JFFS2_XFLAGS_DEAD
  *   is set on xd->flags and chained xattr_dead_list or release it immediately.
  *   In the first case, the garbage collector release it later.
  * -------------------------------------------------- */
@@ -70,11 +70,11 @@ static uint32_t xattr_datum_hashkey(int xprefix, const char *xname, const char *
 
 static int is_xattr_datum_unchecked(struct jffs2_sb_info *c, struct jffs2_xattr_datum *xd)
 {
-	struct jffs2_raw_node_ref *raw;
+	struct jffs2_raw_analde_ref *raw;
 	int rc = 0;
 
 	spin_lock(&c->erase_completion_lock);
-	for (raw=xd->node; raw != (void *)xd; raw=raw->next_in_ino) {
+	for (raw=xd->analde; raw != (void *)xd; raw=raw->next_in_ianal) {
 		if (ref_flags(raw) == REF_UNCHECKED) {
 			rc = 1;
 			break;
@@ -125,7 +125,7 @@ static void reclaim_xattr_datum(struct jffs2_sb_info *c)
 		index = (index+1) % XATTRINDEX_HASHSIZE;
 	}
  out:
-	JFFS2_NOTICE("xdatum_mem_usage from %u byte to %u byte (%u byte reclaimed)\n",
+	JFFS2_ANALTICE("xdatum_mem_usage from %u byte to %u byte (%u byte reclaimed)\n",
 		     before, c->xdatum_mem_usage, before - c->xdatum_mem_usage);
 }
 
@@ -133,15 +133,15 @@ static int do_verify_xattr_datum(struct jffs2_sb_info *c, struct jffs2_xattr_dat
 {
 	/* must be called under down_write(xattr_sem) */
 	struct jffs2_eraseblock *jeb;
-	struct jffs2_raw_node_ref *raw;
+	struct jffs2_raw_analde_ref *raw;
 	struct jffs2_raw_xattr rx;
 	size_t readlen;
 	uint32_t crc, offset, totlen;
 	int rc;
 
 	spin_lock(&c->erase_completion_lock);
-	offset = ref_offset(xd->node);
-	if (ref_flags(xd->node) == REF_PRISTINE)
+	offset = ref_offset(xd->analde);
+	if (ref_flags(xd->analde) == REF_PRISTINE)
 		goto complete;
 	spin_unlock(&c->erase_completion_lock);
 
@@ -152,22 +152,22 @@ static int do_verify_xattr_datum(struct jffs2_sb_info *c, struct jffs2_xattr_dat
 		return rc ? rc : -EIO;
 	}
 	crc = crc32(0, &rx, sizeof(rx) - 4);
-	if (crc != je32_to_cpu(rx.node_crc)) {
-		JFFS2_ERROR("node CRC failed at %#08x, read=%#08x, calc=%#08x\n",
+	if (crc != je32_to_cpu(rx.analde_crc)) {
+		JFFS2_ERROR("analde CRC failed at %#08x, read=%#08x, calc=%#08x\n",
 			    offset, je32_to_cpu(rx.hdr_crc), crc);
 		xd->flags |= JFFS2_XFLAGS_INVALID;
 		return JFFS2_XATTR_IS_CORRUPTED;
 	}
 	totlen = PAD(sizeof(rx) + rx.name_len + 1 + je16_to_cpu(rx.value_len));
 	if (je16_to_cpu(rx.magic) != JFFS2_MAGIC_BITMASK
-	    || je16_to_cpu(rx.nodetype) != JFFS2_NODETYPE_XATTR
+	    || je16_to_cpu(rx.analdetype) != JFFS2_ANALDETYPE_XATTR
 	    || je32_to_cpu(rx.totlen) != totlen
 	    || je32_to_cpu(rx.xid) != xd->xid
 	    || je32_to_cpu(rx.version) != xd->version) {
 		JFFS2_ERROR("inconsistent xdatum at %#08x, magic=%#04x/%#04x, "
-			    "nodetype=%#04x/%#04x, totlen=%u/%u, xid=%u/%u, version=%u/%u\n",
+			    "analdetype=%#04x/%#04x, totlen=%u/%u, xid=%u/%u, version=%u/%u\n",
 			    offset, je16_to_cpu(rx.magic), JFFS2_MAGIC_BITMASK,
-			    je16_to_cpu(rx.nodetype), JFFS2_NODETYPE_XATTR,
+			    je16_to_cpu(rx.analdetype), JFFS2_ANALDETYPE_XATTR,
 			    je32_to_cpu(rx.totlen), totlen,
 			    je32_to_cpu(rx.xid), xd->xid,
 			    je32_to_cpu(rx.version), xd->version);
@@ -181,14 +181,14 @@ static int do_verify_xattr_datum(struct jffs2_sb_info *c, struct jffs2_xattr_dat
 
 	spin_lock(&c->erase_completion_lock);
  complete:
-	for (raw=xd->node; raw != (void *)xd; raw=raw->next_in_ino) {
+	for (raw=xd->analde; raw != (void *)xd; raw=raw->next_in_ianal) {
 		jeb = &c->blocks[ref_offset(raw) / c->sector_size];
 		totlen = PAD(ref_totlen(c, jeb, raw));
 		if (ref_flags(raw) == REF_UNCHECKED) {
 			c->unchecked_size -= totlen; c->used_size += totlen;
 			jeb->unchecked_size -= totlen; jeb->used_size += totlen;
 		}
-		raw->flash_offset = ref_offset(raw) | ((xd->node==raw) ? REF_PRISTINE : REF_NORMAL);
+		raw->flash_offset = ref_offset(raw) | ((xd->analde==raw) ? REF_PRISTINE : REF_ANALRMAL);
 	}
 	spin_unlock(&c->erase_completion_lock);
 
@@ -209,20 +209,20 @@ static int do_load_xattr_datum(struct jffs2_sb_info *c, struct jffs2_xattr_datum
 	uint32_t crc, length;
 	int i, ret, retry = 0;
 
-	BUG_ON(ref_flags(xd->node) != REF_PRISTINE);
+	BUG_ON(ref_flags(xd->analde) != REF_PRISTINE);
 	BUG_ON(!list_empty(&xd->xindex));
  retry:
 	length = xd->name_len + 1 + xd->value_len;
 	data = kmalloc(length, GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	ret = jffs2_flash_read(c, ref_offset(xd->node)+sizeof(struct jffs2_raw_xattr),
+	ret = jffs2_flash_read(c, ref_offset(xd->analde)+sizeof(struct jffs2_raw_xattr),
 			       length, &readlen, data);
 
 	if (ret || length!=readlen) {
 		JFFS2_WARNING("jffs2_flash_read() returned %d, request=%d, readlen=%zu, at %#08x\n",
-			      ret, length, readlen, ref_offset(xd->node));
+			      ret, length, readlen, ref_offset(xd->analde));
 		kfree(data);
 		return ret ? ret : -EIO;
 	}
@@ -230,9 +230,9 @@ static int do_load_xattr_datum(struct jffs2_sb_info *c, struct jffs2_xattr_datum
 	data[xd->name_len] = '\0';
 	crc = crc32(0, data, length);
 	if (crc != xd->data_crc) {
-		JFFS2_WARNING("node CRC failed (JFFS2_NODETYPE_XATTR)"
+		JFFS2_WARNING("analde CRC failed (JFFS2_ANALDETYPE_XATTR)"
 			      " at %#08x, read: 0x%08x calculated: 0x%08x\n",
-			      ref_offset(xd->node), xd->data_crc, crc);
+			      ref_offset(xd->analde), xd->data_crc, crc);
 		kfree(data);
 		xd->flags |= JFFS2_XFLAGS_INVALID;
 		return JFFS2_XATTR_IS_CORRUPTED;
@@ -265,7 +265,7 @@ static int load_xattr_datum(struct jffs2_sb_info *c, struct jffs2_xattr_datum *x
 	/* must be called under down_write(xattr_sem);
 	 * rc < 0 : recoverable error, try again
 	 * rc = 0 : success
-	 * rc > 0 : Unrecoverable error, this node should be deleted.
+	 * rc > 0 : Unrecoverable error, this analde should be deleted.
 	 */
 	int rc = 0;
 
@@ -302,9 +302,9 @@ static int save_xattr_datum(struct jffs2_sb_info *c, struct jffs2_xattr_datum *x
 	/* Setup raw-xattr */
 	memset(&rx, 0, sizeof(rx));
 	rx.magic = cpu_to_je16(JFFS2_MAGIC_BITMASK);
-	rx.nodetype = cpu_to_je16(JFFS2_NODETYPE_XATTR);
+	rx.analdetype = cpu_to_je16(JFFS2_ANALDETYPE_XATTR);
 	rx.totlen = cpu_to_je32(PAD(totlen));
-	rx.hdr_crc = cpu_to_je32(crc32(0, &rx, sizeof(struct jffs2_unknown_node) - 4));
+	rx.hdr_crc = cpu_to_je32(crc32(0, &rx, sizeof(struct jffs2_unkanalwn_analde) - 4));
 
 	rx.xid = cpu_to_je32(xd->xid);
 	rx.version = cpu_to_je32(++xd->version);
@@ -312,7 +312,7 @@ static int save_xattr_datum(struct jffs2_sb_info *c, struct jffs2_xattr_datum *x
 	rx.name_len = xd->name_len;
 	rx.value_len = cpu_to_je16(xd->value_len);
 	rx.data_crc = cpu_to_je32(crc32(0, vecs[1].iov_base, vecs[1].iov_len));
-	rx.node_crc = cpu_to_je32(crc32(0, &rx, sizeof(struct jffs2_raw_xattr) - 4));
+	rx.analde_crc = cpu_to_je32(crc32(0, &rx, sizeof(struct jffs2_raw_xattr) - 4));
 
 	rc = jffs2_flash_writev(c, vecs, 2, phys_ofs, &length, 0);
 	if (rc || totlen != length) {
@@ -320,12 +320,12 @@ static int save_xattr_datum(struct jffs2_sb_info *c, struct jffs2_xattr_datum *x
 			      rc, totlen, length, phys_ofs);
 		rc = rc ? rc : -EIO;
 		if (length)
-			jffs2_add_physical_node_ref(c, phys_ofs | REF_OBSOLETE, PAD(totlen), NULL);
+			jffs2_add_physical_analde_ref(c, phys_ofs | REF_OBSOLETE, PAD(totlen), NULL);
 
 		return rc;
 	}
 	/* success */
-	jffs2_add_physical_node_ref(c, phys_ofs | REF_PRISTINE, PAD(totlen), (void *)xd);
+	jffs2_add_physical_analde_ref(c, phys_ofs | REF_PRISTINE, PAD(totlen), (void *)xd);
 
 	dbg_xattr("success on saving xdatum (xid=%u, version=%u, xprefix=%u, xname='%s')\n",
 		  xd->xid, xd->version, xd->xprefix, xd->xname);
@@ -357,17 +357,17 @@ static struct jffs2_xattr_datum *create_xattr_datum(struct jffs2_sb_info *c,
 		}
 	}
 
-	/* Not found, Create NEW XATTR-Cache */
+	/* Analt found, Create NEW XATTR-Cache */
 	name_len = strlen(xname);
 
 	xd = jffs2_alloc_xattr_datum();
 	if (!xd)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	data = kmalloc(name_len + 1 + xsize, GFP_KERNEL);
 	if (!data) {
 		jffs2_free_xattr_datum(xd);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 	strcpy(data, xname);
 	memcpy(data + name_len + 1, xvalue, xsize);
@@ -407,7 +407,7 @@ static void unrefer_xattr_datum(struct jffs2_sb_info *c, struct jffs2_xattr_datu
 	if (atomic_dec_and_lock(&xd->refcnt, &c->erase_completion_lock)) {
 		unload_xattr_datum(c, xd);
 		xd->flags |= JFFS2_XFLAGS_DEAD;
-		if (xd->node == (void *)xd) {
+		if (xd->analde == (void *)xd) {
 			BUG_ON(!(xd->flags & JFFS2_XFLAGS_INVALID));
 			jffs2_free_xattr_datum(xd);
 		} else {
@@ -422,8 +422,8 @@ static void unrefer_xattr_datum(struct jffs2_sb_info *c, struct jffs2_xattr_datu
 
 /* -------- xref related functions ------------------
  * verify_xattr_ref(c, ref)
- *   is used to load xref information from medium. Because summary data does not
- *   contain xid/ino, it's necessary to verify once while mounting process.
+ *   is used to load xref information from medium. Because summary data does analt
+ *   contain xid/ianal, it's necessary to verify once while mounting process.
  * save_xattr_ref(c, ref)
  *   is used to write xref to medium. If delete marker is marked, it write
  *   a delete marker of xref into medium.
@@ -431,29 +431,29 @@ static void unrefer_xattr_datum(struct jffs2_sb_info *c, struct jffs2_xattr_datu
  *   is used to create a new xref and write to medium.
  * delete_xattr_ref(c, ref)
  *   is used to delete jffs2_xattr_ref. It marks xref XREF_DELETE_MARKER,
- *   and allows GC to reclaim those physical nodes.
- * jffs2_xattr_delete_inode(c, ic)
- *   is called to remove xrefs related to obsolete inode when inode is unlinked.
- * jffs2_xattr_free_inode(c, ic)
+ *   and allows GC to reclaim those physical analdes.
+ * jffs2_xattr_delete_ianalde(c, ic)
+ *   is called to remove xrefs related to obsolete ianalde when ianalde is unlinked.
+ * jffs2_xattr_free_ianalde(c, ic)
  *   is called to release xattr related objects when unmounting. 
- * check_xattr_ref_inode(c, ic)
- *   is used to confirm inode does not have duplicate xattr name/value pair.
- * jffs2_xattr_do_crccheck_inode(c, ic)
+ * check_xattr_ref_ianalde(c, ic)
+ *   is used to confirm ianalde does analt have duplicate xattr name/value pair.
+ * jffs2_xattr_do_crccheck_ianalde(c, ic)
  *   is used to force xattr data integrity check during the initial gc scan.
  * -------------------------------------------------- */
 static int verify_xattr_ref(struct jffs2_sb_info *c, struct jffs2_xattr_ref *ref)
 {
 	struct jffs2_eraseblock *jeb;
-	struct jffs2_raw_node_ref *raw;
+	struct jffs2_raw_analde_ref *raw;
 	struct jffs2_raw_xref rr;
 	size_t readlen;
 	uint32_t crc, offset, totlen;
 	int rc;
 
 	spin_lock(&c->erase_completion_lock);
-	if (ref_flags(ref->node) != REF_UNCHECKED)
+	if (ref_flags(ref->analde) != REF_UNCHECKED)
 		goto complete;
-	offset = ref_offset(ref->node);
+	offset = ref_offset(ref->analde);
 	spin_unlock(&c->erase_completion_lock);
 
 	rc = jffs2_flash_read(c, offset, sizeof(rr), &readlen, (char *)&rr);
@@ -462,44 +462,44 @@ static int verify_xattr_ref(struct jffs2_sb_info *c, struct jffs2_xattr_ref *ref
 			      rc, sizeof(rr), readlen, offset);
 		return rc ? rc : -EIO;
 	}
-	/* obsolete node */
+	/* obsolete analde */
 	crc = crc32(0, &rr, sizeof(rr) - 4);
-	if (crc != je32_to_cpu(rr.node_crc)) {
-		JFFS2_ERROR("node CRC failed at %#08x, read=%#08x, calc=%#08x\n",
-			    offset, je32_to_cpu(rr.node_crc), crc);
+	if (crc != je32_to_cpu(rr.analde_crc)) {
+		JFFS2_ERROR("analde CRC failed at %#08x, read=%#08x, calc=%#08x\n",
+			    offset, je32_to_cpu(rr.analde_crc), crc);
 		return JFFS2_XATTR_IS_CORRUPTED;
 	}
 	if (je16_to_cpu(rr.magic) != JFFS2_MAGIC_BITMASK
-	    || je16_to_cpu(rr.nodetype) != JFFS2_NODETYPE_XREF
+	    || je16_to_cpu(rr.analdetype) != JFFS2_ANALDETYPE_XREF
 	    || je32_to_cpu(rr.totlen) != PAD(sizeof(rr))) {
 		JFFS2_ERROR("inconsistent xref at %#08x, magic=%#04x/%#04x, "
-			    "nodetype=%#04x/%#04x, totlen=%u/%zu\n",
+			    "analdetype=%#04x/%#04x, totlen=%u/%zu\n",
 			    offset, je16_to_cpu(rr.magic), JFFS2_MAGIC_BITMASK,
-			    je16_to_cpu(rr.nodetype), JFFS2_NODETYPE_XREF,
+			    je16_to_cpu(rr.analdetype), JFFS2_ANALDETYPE_XREF,
 			    je32_to_cpu(rr.totlen), PAD(sizeof(rr)));
 		return JFFS2_XATTR_IS_CORRUPTED;
 	}
-	ref->ino = je32_to_cpu(rr.ino);
+	ref->ianal = je32_to_cpu(rr.ianal);
 	ref->xid = je32_to_cpu(rr.xid);
-	ref->xseqno = je32_to_cpu(rr.xseqno);
-	if (ref->xseqno > c->highest_xseqno)
-		c->highest_xseqno = (ref->xseqno & ~XREF_DELETE_MARKER);
+	ref->xseqanal = je32_to_cpu(rr.xseqanal);
+	if (ref->xseqanal > c->highest_xseqanal)
+		c->highest_xseqanal = (ref->xseqanal & ~XREF_DELETE_MARKER);
 
 	spin_lock(&c->erase_completion_lock);
  complete:
-	for (raw=ref->node; raw != (void *)ref; raw=raw->next_in_ino) {
+	for (raw=ref->analde; raw != (void *)ref; raw=raw->next_in_ianal) {
 		jeb = &c->blocks[ref_offset(raw) / c->sector_size];
 		totlen = PAD(ref_totlen(c, jeb, raw));
 		if (ref_flags(raw) == REF_UNCHECKED) {
 			c->unchecked_size -= totlen; c->used_size += totlen;
 			jeb->unchecked_size -= totlen; jeb->used_size += totlen;
 		}
-		raw->flash_offset = ref_offset(raw) | ((ref->node==raw) ? REF_PRISTINE : REF_NORMAL);
+		raw->flash_offset = ref_offset(raw) | ((ref->analde==raw) ? REF_PRISTINE : REF_ANALRMAL);
 	}
 	spin_unlock(&c->erase_completion_lock);
 
-	dbg_xattr("success on verifying xref (ino=%u, xid=%u) at %#08x\n",
-		  ref->ino, ref->xid, ref_offset(ref->node));
+	dbg_xattr("success on verifying xref (ianal=%u, xid=%u) at %#08x\n",
+		  ref->ianal, ref->xid, ref_offset(ref->analde));
 	return 0;
 }
 
@@ -508,25 +508,25 @@ static int save_xattr_ref(struct jffs2_sb_info *c, struct jffs2_xattr_ref *ref)
 	/* must be called under down_write(xattr_sem) */
 	struct jffs2_raw_xref rr;
 	size_t length;
-	uint32_t xseqno, phys_ofs = write_ofs(c);
+	uint32_t xseqanal, phys_ofs = write_ofs(c);
 	int ret;
 
 	rr.magic = cpu_to_je16(JFFS2_MAGIC_BITMASK);
-	rr.nodetype = cpu_to_je16(JFFS2_NODETYPE_XREF);
+	rr.analdetype = cpu_to_je16(JFFS2_ANALDETYPE_XREF);
 	rr.totlen = cpu_to_je32(PAD(sizeof(rr)));
-	rr.hdr_crc = cpu_to_je32(crc32(0, &rr, sizeof(struct jffs2_unknown_node) - 4));
+	rr.hdr_crc = cpu_to_je32(crc32(0, &rr, sizeof(struct jffs2_unkanalwn_analde) - 4));
 
-	xseqno = (c->highest_xseqno += 2);
+	xseqanal = (c->highest_xseqanal += 2);
 	if (is_xattr_ref_dead(ref)) {
-		xseqno |= XREF_DELETE_MARKER;
-		rr.ino = cpu_to_je32(ref->ino);
+		xseqanal |= XREF_DELETE_MARKER;
+		rr.ianal = cpu_to_je32(ref->ianal);
 		rr.xid = cpu_to_je32(ref->xid);
 	} else {
-		rr.ino = cpu_to_je32(ref->ic->ino);
+		rr.ianal = cpu_to_je32(ref->ic->ianal);
 		rr.xid = cpu_to_je32(ref->xd->xid);
 	}
-	rr.xseqno = cpu_to_je32(xseqno);
-	rr.node_crc = cpu_to_je32(crc32(0, &rr, sizeof(rr) - 4));
+	rr.xseqanal = cpu_to_je32(xseqanal);
+	rr.analde_crc = cpu_to_je32(crc32(0, &rr, sizeof(rr) - 4));
 
 	ret = jffs2_flash_write(c, phys_ofs, sizeof(rr), &length, (char *)&rr);
 	if (ret || sizeof(rr) != length) {
@@ -534,20 +534,20 @@ static int save_xattr_ref(struct jffs2_sb_info *c, struct jffs2_xattr_ref *ref)
 			      ret, sizeof(rr), length, phys_ofs);
 		ret = ret ? ret : -EIO;
 		if (length)
-			jffs2_add_physical_node_ref(c, phys_ofs | REF_OBSOLETE, PAD(sizeof(rr)), NULL);
+			jffs2_add_physical_analde_ref(c, phys_ofs | REF_OBSOLETE, PAD(sizeof(rr)), NULL);
 
 		return ret;
 	}
 	/* success */
-	ref->xseqno = xseqno;
-	jffs2_add_physical_node_ref(c, phys_ofs | REF_PRISTINE, PAD(sizeof(rr)), (void *)ref);
+	ref->xseqanal = xseqanal;
+	jffs2_add_physical_analde_ref(c, phys_ofs | REF_PRISTINE, PAD(sizeof(rr)), (void *)ref);
 
-	dbg_xattr("success on saving xref (ino=%u, xid=%u)\n", ref->ic->ino, ref->xd->xid);
+	dbg_xattr("success on saving xref (ianal=%u, xid=%u)\n", ref->ic->ianal, ref->xd->xid);
 
 	return 0;
 }
 
-static struct jffs2_xattr_ref *create_xattr_ref(struct jffs2_sb_info *c, struct jffs2_inode_cache *ic,
+static struct jffs2_xattr_ref *create_xattr_ref(struct jffs2_sb_info *c, struct jffs2_ianalde_cache *ic,
 						struct jffs2_xattr_datum *xd)
 {
 	/* must be called under down_write(xattr_sem) */
@@ -556,7 +556,7 @@ static struct jffs2_xattr_ref *create_xattr_ref(struct jffs2_sb_info *c, struct 
 
 	ref = jffs2_alloc_xattr_ref();
 	if (!ref)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	ref->ic = ic;
 	ref->xd = xd;
 
@@ -566,7 +566,7 @@ static struct jffs2_xattr_ref *create_xattr_ref(struct jffs2_sb_info *c, struct 
 		return ERR_PTR(ret);
 	}
 
-	/* Chain to inode */
+	/* Chain to ianalde */
 	ref->next = ic->xref;
 	ic->xref = ref;
 
@@ -579,27 +579,27 @@ static void delete_xattr_ref(struct jffs2_sb_info *c, struct jffs2_xattr_ref *re
 	struct jffs2_xattr_datum *xd;
 
 	xd = ref->xd;
-	ref->xseqno |= XREF_DELETE_MARKER;
-	ref->ino = ref->ic->ino;
+	ref->xseqanal |= XREF_DELETE_MARKER;
+	ref->ianal = ref->ic->ianal;
 	ref->xid = ref->xd->xid;
 	spin_lock(&c->erase_completion_lock);
 	ref->next = c->xref_dead_list;
 	c->xref_dead_list = ref;
 	spin_unlock(&c->erase_completion_lock);
 
-	dbg_xattr("xref(ino=%u, xid=%u, xseqno=%u) was removed.\n",
-		  ref->ino, ref->xid, ref->xseqno);
+	dbg_xattr("xref(ianal=%u, xid=%u, xseqanal=%u) was removed.\n",
+		  ref->ianal, ref->xid, ref->xseqanal);
 
 	unrefer_xattr_datum(c, xd);
 }
 
-void jffs2_xattr_delete_inode(struct jffs2_sb_info *c, struct jffs2_inode_cache *ic)
+void jffs2_xattr_delete_ianalde(struct jffs2_sb_info *c, struct jffs2_ianalde_cache *ic)
 {
-	/* It's called from jffs2_evict_inode() on inode removing.
-	   When an inode with XATTR is removed, those XATTRs must be removed. */
+	/* It's called from jffs2_evict_ianalde() on ianalde removing.
+	   When an ianalde with XATTR is removed, those XATTRs must be removed. */
 	struct jffs2_xattr_ref *ref, *_ref;
 
-	if (!ic || ic->pino_nlink > 0)
+	if (!ic || ic->pianal_nlink > 0)
 		return;
 
 	down_write(&c->xattr_sem);
@@ -611,9 +611,9 @@ void jffs2_xattr_delete_inode(struct jffs2_sb_info *c, struct jffs2_inode_cache 
 	up_write(&c->xattr_sem);
 }
 
-void jffs2_xattr_free_inode(struct jffs2_sb_info *c, struct jffs2_inode_cache *ic)
+void jffs2_xattr_free_ianalde(struct jffs2_sb_info *c, struct jffs2_ianalde_cache *ic)
 {
-	/* It's called from jffs2_free_ino_caches() until unmounting FS. */
+	/* It's called from jffs2_free_ianal_caches() until unmounting FS. */
 	struct jffs2_xattr_datum *xd;
 	struct jffs2_xattr_ref *ref, *_ref;
 
@@ -631,16 +631,16 @@ void jffs2_xattr_free_inode(struct jffs2_sb_info *c, struct jffs2_inode_cache *i
 	up_write(&c->xattr_sem);
 }
 
-static int check_xattr_ref_inode(struct jffs2_sb_info *c, struct jffs2_inode_cache *ic)
+static int check_xattr_ref_ianalde(struct jffs2_sb_info *c, struct jffs2_ianalde_cache *ic)
 {
-	/* success of check_xattr_ref_inode() means that inode (ic) dose not have
+	/* success of check_xattr_ref_ianalde() means that ianalde (ic) dose analt have
 	 * duplicate name/value pairs. If duplicate name/value pair would be found,
 	 * one will be removed.
 	 */
 	struct jffs2_xattr_ref *ref, *cmp, **pref, **pcmp;
 	int rc = 0;
 
-	if (likely(ic->flags & INO_FLAGS_XATTR_CHECKED))
+	if (likely(ic->flags & IANAL_FLAGS_XATTR_CHECKED))
 		return 0;
 	down_write(&c->xattr_sem);
  retry:
@@ -669,7 +669,7 @@ static int check_xattr_ref_inode(struct jffs2_sb_info *c, struct jffs2_inode_cac
 			}
 			if (ref->xd->xprefix == cmp->xd->xprefix
 			    && !strcmp(ref->xd->xname, cmp->xd->xname)) {
-				if (ref->xseqno > cmp->xseqno) {
+				if (ref->xseqanal > cmp->xseqanal) {
 					*pcmp = cmp->next;
 					delete_xattr_ref(c, cmp);
 				} else {
@@ -680,16 +680,16 @@ static int check_xattr_ref_inode(struct jffs2_sb_info *c, struct jffs2_inode_cac
 			}
 		}
 	}
-	ic->flags |= INO_FLAGS_XATTR_CHECKED;
+	ic->flags |= IANAL_FLAGS_XATTR_CHECKED;
  out:
 	up_write(&c->xattr_sem);
 
 	return rc;
 }
 
-void jffs2_xattr_do_crccheck_inode(struct jffs2_sb_info *c, struct jffs2_inode_cache *ic)
+void jffs2_xattr_do_crccheck_ianalde(struct jffs2_sb_info *c, struct jffs2_ianalde_cache *ic)
 {
-	check_xattr_ref_inode(c, ic);
+	check_xattr_ref_ianalde(c, ic);
 }
 
 /* -------- xattr subsystem functions ---------------
@@ -717,7 +717,7 @@ void jffs2_init_xattr_subsystem(struct jffs2_sb_info *c)
 
 	init_rwsem(&c->xattr_sem);
 	c->highest_xid = 0;
-	c->highest_xseqno = 0;
+	c->highest_xseqanal = 0;
 	c->xdatum_mem_usage = 0;
 	c->xdatum_mem_threshold = 32 * 1024;	/* Default 32KB */
 }
@@ -777,8 +777,8 @@ int jffs2_build_xattr_subsystem(struct jffs2_sb_info *c)
 	struct jffs2_xattr_ref *ref, *_ref;
 	struct jffs2_xattr_ref **xref_tmphash;
 	struct jffs2_xattr_datum *xd, *_xd;
-	struct jffs2_inode_cache *ic;
-	struct jffs2_raw_node_ref *raw;
+	struct jffs2_ianalde_cache *ic;
+	struct jffs2_raw_analde_ref *raw;
 	int i, xdatum_count = 0, xdatum_unchecked_count = 0, xref_count = 0;
 	int xdatum_orphan_count = 0, xref_orphan_count = 0, xref_dead_count = 0;
 
@@ -787,37 +787,37 @@ int jffs2_build_xattr_subsystem(struct jffs2_sb_info *c)
 	xref_tmphash = kcalloc(XREF_TMPHASH_SIZE,
 			       sizeof(struct jffs2_xattr_ref *), GFP_KERNEL);
 	if (!xref_tmphash)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Phase.1 : Merge same xref */
 	for (ref=c->xref_temp; ref; ref=_ref) {
 		struct jffs2_xattr_ref *tmp;
 
 		_ref = ref->next;
-		if (ref_flags(ref->node) != REF_PRISTINE) {
+		if (ref_flags(ref->analde) != REF_PRISTINE) {
 			if (verify_xattr_ref(c, ref)) {
-				BUG_ON(ref->node->next_in_ino != (void *)ref);
-				ref->node->next_in_ino = NULL;
-				jffs2_mark_node_obsolete(c, ref->node);
+				BUG_ON(ref->analde->next_in_ianal != (void *)ref);
+				ref->analde->next_in_ianal = NULL;
+				jffs2_mark_analde_obsolete(c, ref->analde);
 				jffs2_free_xattr_ref(ref);
 				continue;
 			}
 		}
 
-		i = (ref->ino ^ ref->xid) % XREF_TMPHASH_SIZE;
+		i = (ref->ianal ^ ref->xid) % XREF_TMPHASH_SIZE;
 		for (tmp=xref_tmphash[i]; tmp; tmp=tmp->next) {
-			if (tmp->ino == ref->ino && tmp->xid == ref->xid)
+			if (tmp->ianal == ref->ianal && tmp->xid == ref->xid)
 				break;
 		}
 		if (tmp) {
-			raw = ref->node;
-			if (ref->xseqno > tmp->xseqno) {
-				tmp->xseqno = ref->xseqno;
-				raw->next_in_ino = tmp->node;
-				tmp->node = raw;
+			raw = ref->analde;
+			if (ref->xseqanal > tmp->xseqanal) {
+				tmp->xseqanal = ref->xseqanal;
+				raw->next_in_ianal = tmp->analde;
+				tmp->analde = raw;
 			} else {
-				raw->next_in_ino = tmp->node->next_in_ino;
-				tmp->node->next_in_ino = raw;
+				raw->next_in_ianal = tmp->analde->next_in_ianal;
+				tmp->analde->next_in_ianal = raw;
 			}
 			jffs2_free_xattr_ref(ref);
 			continue;
@@ -828,7 +828,7 @@ int jffs2_build_xattr_subsystem(struct jffs2_sb_info *c)
 	}
 	c->xref_temp = NULL;
 
-	/* Phase.2 : Bind xref with inode_cache and xattr_datum */
+	/* Phase.2 : Bind xref with ianalde_cache and xattr_datum */
 	for (i=0; i < XREF_TMPHASH_SIZE; i++) {
 		for (ref=xref_tmphash[i]; ref; ref=_ref) {
 			xref_count++;
@@ -839,14 +839,14 @@ int jffs2_build_xattr_subsystem(struct jffs2_sb_info *c)
 				xref_dead_count++;
 				continue;
 			}
-			/* At this point, ref->xid and ref->ino contain XID and inode number.
-			   ref->xd and ref->ic are not valid yet. */
+			/* At this point, ref->xid and ref->ianal contain XID and ianalde number.
+			   ref->xd and ref->ic are analt valid yet. */
 			xd = jffs2_find_xattr_datum(c, ref->xid);
-			ic = jffs2_get_ino_cache(c, ref->ino);
-			if (!xd || !ic || !ic->pino_nlink) {
-				dbg_xattr("xref(ino=%u, xid=%u, xseqno=%u) is orphan.\n",
-					  ref->ino, ref->xid, ref->xseqno);
-				ref->xseqno |= XREF_DELETE_MARKER;
+			ic = jffs2_get_ianal_cache(c, ref->ianal);
+			if (!xd || !ic || !ic->pianal_nlink) {
+				dbg_xattr("xref(ianal=%u, xid=%u, xseqanal=%u) is orphan.\n",
+					  ref->ianal, ref->xid, ref->xseqanal);
+				ref->xseqanal |= XREF_DELETE_MARKER;
 				ref->next = c->xref_dead_list;
 				c->xref_dead_list = ref;
 				xref_orphan_count++;
@@ -882,7 +882,7 @@ int jffs2_build_xattr_subsystem(struct jffs2_sb_info *c)
 		}
 	}
 	/* build complete */
-	JFFS2_NOTICE("complete building xattr subsystem, %u of xdatum"
+	JFFS2_ANALTICE("complete building xattr subsystem, %u of xdatum"
 		     " (%u unchecked, %u orphan) and "
 		     "%u of xref (%u dead, %u orphan) found.\n",
 		     xdatum_count, xdatum_unchecked_count, xdatum_orphan_count,
@@ -900,7 +900,7 @@ struct jffs2_xattr_datum *jffs2_setup_xattr_datum(struct jffs2_sb_info *c,
 	if (!xd) {
 		xd = jffs2_alloc_xattr_datum();
 		if (!xd)
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 		xd->xid = xid;
 		xd->version = version;
 		if (xd->xid > c->highest_xid)
@@ -915,9 +915,9 @@ struct jffs2_xattr_datum *jffs2_setup_xattr_datum(struct jffs2_sb_info *c,
  *   is used to translate xprefix into xattr_handler.
  * jffs2_listxattr(dentry, buffer, size)
  *   is an implementation of listxattr handler on jffs2.
- * do_jffs2_getxattr(inode, xprefix, xname, buffer, size)
+ * do_jffs2_getxattr(ianalde, xprefix, xname, buffer, size)
  *   is an implementation of getxattr handler on jffs2.
- * do_jffs2_setxattr(inode, xprefix, xname, buffer, size, flags)
+ * do_jffs2_setxattr(ianalde, xprefix, xname, buffer, size, flags)
  *   is an implementation of setxattr handler on jffs2.
  * -------------------------------------------------- */
 const struct xattr_handler * const jffs2_xattr_handlers[] = {
@@ -944,10 +944,10 @@ static const char *jffs2_xattr_prefix(int xprefix, struct dentry *dentry)
 #endif
 #ifdef CONFIG_JFFS2_FS_POSIX_ACL
 	case JFFS2_XPREFIX_ACL_ACCESS:
-		ret = &nop_posix_acl_access;
+		ret = &analp_posix_acl_access;
 		break;
 	case JFFS2_XPREFIX_ACL_DEFAULT:
-		ret = &nop_posix_acl_default;
+		ret = &analp_posix_acl_default;
 		break;
 #endif
 	case JFFS2_XPREFIX_TRUSTED:
@@ -965,17 +965,17 @@ static const char *jffs2_xattr_prefix(int xprefix, struct dentry *dentry)
 
 ssize_t jffs2_listxattr(struct dentry *dentry, char *buffer, size_t size)
 {
-	struct inode *inode = d_inode(dentry);
-	struct jffs2_inode_info *f = JFFS2_INODE_INFO(inode);
-	struct jffs2_sb_info *c = JFFS2_SB_INFO(inode->i_sb);
-	struct jffs2_inode_cache *ic = f->inocache;
+	struct ianalde *ianalde = d_ianalde(dentry);
+	struct jffs2_ianalde_info *f = JFFS2_IANALDE_INFO(ianalde);
+	struct jffs2_sb_info *c = JFFS2_SB_INFO(ianalde->i_sb);
+	struct jffs2_ianalde_cache *ic = f->ianalcache;
 	struct jffs2_xattr_ref *ref, **pref;
 	struct jffs2_xattr_datum *xd;
 	const char *prefix;
 	ssize_t prefix_len, len, rc;
 	int retry = 0;
 
-	rc = check_xattr_ref_inode(c, ic);
+	rc = check_xattr_ref_ianalde(c, ic);
 	if (unlikely(rc))
 		return rc;
 
@@ -1032,17 +1032,17 @@ ssize_t jffs2_listxattr(struct dentry *dentry, char *buffer, size_t size)
 	return rc;
 }
 
-int do_jffs2_getxattr(struct inode *inode, int xprefix, const char *xname,
+int do_jffs2_getxattr(struct ianalde *ianalde, int xprefix, const char *xname,
 		      char *buffer, size_t size)
 {
-	struct jffs2_inode_info *f = JFFS2_INODE_INFO(inode);
-	struct jffs2_sb_info *c = JFFS2_SB_INFO(inode->i_sb);
-	struct jffs2_inode_cache *ic = f->inocache;
+	struct jffs2_ianalde_info *f = JFFS2_IANALDE_INFO(ianalde);
+	struct jffs2_sb_info *c = JFFS2_SB_INFO(ianalde->i_sb);
+	struct jffs2_ianalde_cache *ic = f->ianalcache;
 	struct jffs2_xattr_datum *xd;
 	struct jffs2_xattr_ref *ref, **pref;
 	int rc, retry = 0;
 
-	rc = check_xattr_ref_inode(c, ic);
+	rc = check_xattr_ref_ianalde(c, ic);
 	if (unlikely(rc))
 		return rc;
 
@@ -1084,7 +1084,7 @@ int do_jffs2_getxattr(struct inode *inode, int xprefix, const char *xname,
 			goto out;
 		}
 	}
-	rc = -ENODATA;
+	rc = -EANALDATA;
  out:
 	if (!retry) {
 		up_read(&c->xattr_sem);
@@ -1094,24 +1094,24 @@ int do_jffs2_getxattr(struct inode *inode, int xprefix, const char *xname,
 	return rc;
 }
 
-int do_jffs2_setxattr(struct inode *inode, int xprefix, const char *xname,
+int do_jffs2_setxattr(struct ianalde *ianalde, int xprefix, const char *xname,
 		      const char *buffer, size_t size, int flags)
 {
-	struct jffs2_inode_info *f = JFFS2_INODE_INFO(inode);
-	struct jffs2_sb_info *c = JFFS2_SB_INFO(inode->i_sb);
-	struct jffs2_inode_cache *ic = f->inocache;
+	struct jffs2_ianalde_info *f = JFFS2_IANALDE_INFO(ianalde);
+	struct jffs2_sb_info *c = JFFS2_SB_INFO(ianalde->i_sb);
+	struct jffs2_ianalde_cache *ic = f->ianalcache;
 	struct jffs2_xattr_datum *xd;
 	struct jffs2_xattr_ref *ref, *newref, **pref;
 	uint32_t length, request;
 	int rc;
 
-	rc = check_xattr_ref_inode(c, ic);
+	rc = check_xattr_ref_ianalde(c, ic);
 	if (unlikely(rc))
 		return rc;
 
 	request = PAD(sizeof(struct jffs2_raw_xattr) + strlen(xname) + 1 + size);
 	rc = jffs2_reserve_space(c, request, &length,
-				 ALLOC_NORMAL, JFFS2_SUMMARY_XATTR_SIZE);
+				 ALLOC_ANALRMAL, JFFS2_SUMMARY_XATTR_SIZE);
 	if (rc) {
 		JFFS2_WARNING("jffs2_reserve_space()=%d, request=%u\n", rc, request);
 		return rc;
@@ -1139,9 +1139,9 @@ int do_jffs2_setxattr(struct inode *inode, int xprefix, const char *xname,
 				goto out;
 			}
 			if (!buffer) {
-				ref->ino = ic->ino;
+				ref->ianal = ic->ianal;
 				ref->xid = xd->xid;
-				ref->xseqno |= XREF_DELETE_MARKER;
+				ref->xseqanal |= XREF_DELETE_MARKER;
 				rc = save_xattr_ref(c, ref);
 				if (!rc) {
 					*pref = ref->next;
@@ -1153,20 +1153,20 @@ int do_jffs2_setxattr(struct inode *inode, int xprefix, const char *xname,
 				} else {
 					ref->ic = ic;
 					ref->xd = xd;
-					ref->xseqno &= ~XREF_DELETE_MARKER;
+					ref->xseqanal &= ~XREF_DELETE_MARKER;
 				}
 				goto out;
 			}
 			goto found;
 		}
 	}
-	/* not found */
+	/* analt found */
 	if (flags & XATTR_REPLACE) {
-		rc = -ENODATA;
+		rc = -EANALDATA;
 		goto out;
 	}
 	if (!buffer) {
-		rc = -ENODATA;
+		rc = -EANALDATA;
 		goto out;
 	}
  found:
@@ -1181,7 +1181,7 @@ int do_jffs2_setxattr(struct inode *inode, int xprefix, const char *xname,
 	/* create xattr_ref */
 	request = PAD(sizeof(struct jffs2_raw_xref));
 	rc = jffs2_reserve_space(c, request, &length,
-				 ALLOC_NORMAL, JFFS2_SUMMARY_XREF_SIZE);
+				 ALLOC_ANALRMAL, JFFS2_SUMMARY_XREF_SIZE);
 	down_write(&c->xattr_sem);
 	if (rc) {
 		JFFS2_WARNING("jffs2_reserve_space()=%d, request=%u\n", rc, request);
@@ -1210,9 +1210,9 @@ int do_jffs2_setxattr(struct inode *inode, int xprefix, const char *xname,
 
 /* -------- garbage collector functions -------------
  * jffs2_garbage_collect_xattr_datum(c, xd, raw)
- *   is used to move xdatum into new node.
+ *   is used to move xdatum into new analde.
  * jffs2_garbage_collect_xattr_ref(c, ref, raw)
- *   is used to move xref into new node.
+ *   is used to move xref into new analde.
  * jffs2_verify_xattr(c)
  *   is used to call do_verify_xattr_datum() before garbage collecting.
  * jffs2_release_xattr_datum(c, xd)
@@ -1221,13 +1221,13 @@ int do_jffs2_setxattr(struct inode *inode, int xprefix, const char *xname,
  *   is used to release an in-memory object of xref.
  * -------------------------------------------------- */
 int jffs2_garbage_collect_xattr_datum(struct jffs2_sb_info *c, struct jffs2_xattr_datum *xd,
-				      struct jffs2_raw_node_ref *raw)
+				      struct jffs2_raw_analde_ref *raw)
 {
 	uint32_t totlen, length, old_ofs;
 	int rc = 0;
 
 	down_write(&c->xattr_sem);
-	if (xd->node != raw)
+	if (xd->analde != raw)
 		goto out;
 	if (xd->flags & (JFFS2_XFLAGS_DEAD|JFFS2_XFLAGS_INVALID))
 		goto out;
@@ -1237,7 +1237,7 @@ int jffs2_garbage_collect_xattr_datum(struct jffs2_sb_info *c, struct jffs2_xatt
 		rc = (rc > 0) ? 0 : rc;
 		goto out;
 	}
-	old_ofs = ref_offset(xd->node);
+	old_ofs = ref_offset(xd->analde);
 	totlen = PAD(sizeof(struct jffs2_raw_xattr)
 			+ xd->name_len + 1 + xd->value_len);
 	rc = jffs2_reserve_space_gc(c, totlen, &length, JFFS2_SUMMARY_XATTR_SIZE);
@@ -1248,30 +1248,30 @@ int jffs2_garbage_collect_xattr_datum(struct jffs2_sb_info *c, struct jffs2_xatt
 	rc = save_xattr_datum(c, xd);
 	if (!rc)
 		dbg_xattr("xdatum (xid=%u, version=%u) GC'ed from %#08x to %08x\n",
-			  xd->xid, xd->version, old_ofs, ref_offset(xd->node));
+			  xd->xid, xd->version, old_ofs, ref_offset(xd->analde));
  out:
 	if (!rc)
-		jffs2_mark_node_obsolete(c, raw);
+		jffs2_mark_analde_obsolete(c, raw);
 	up_write(&c->xattr_sem);
 	return rc;
 }
 
 int jffs2_garbage_collect_xattr_ref(struct jffs2_sb_info *c, struct jffs2_xattr_ref *ref,
-				    struct jffs2_raw_node_ref *raw)
+				    struct jffs2_raw_analde_ref *raw)
 {
 	uint32_t totlen, length, old_ofs;
 	int rc = 0;
 
 	down_write(&c->xattr_sem);
-	BUG_ON(!ref->node);
+	BUG_ON(!ref->analde);
 
-	if (ref->node != raw)
+	if (ref->analde != raw)
 		goto out;
-	if (is_xattr_ref_dead(ref) && (raw->next_in_ino == (void *)ref))
+	if (is_xattr_ref_dead(ref) && (raw->next_in_ianal == (void *)ref))
 		goto out;
 
-	old_ofs = ref_offset(ref->node);
-	totlen = ref_totlen(c, c->gcblock, ref->node);
+	old_ofs = ref_offset(ref->analde);
+	totlen = ref_totlen(c, c->gcblock, ref->analde);
 
 	rc = jffs2_reserve_space_gc(c, totlen, &length, JFFS2_SUMMARY_XREF_SIZE);
 	if (rc) {
@@ -1281,11 +1281,11 @@ int jffs2_garbage_collect_xattr_ref(struct jffs2_sb_info *c, struct jffs2_xattr_
 	}
 	rc = save_xattr_ref(c, ref);
 	if (!rc)
-		dbg_xattr("xref (ino=%u, xid=%u) GC'ed from %#08x to %08x\n",
-			  ref->ic->ino, ref->xd->xid, old_ofs, ref_offset(ref->node));
+		dbg_xattr("xref (ianal=%u, xid=%u) GC'ed from %#08x to %08x\n",
+			  ref->ic->ianal, ref->xd->xid, old_ofs, ref_offset(ref->analde));
  out:
 	if (!rc)
-		jffs2_mark_node_obsolete(c, raw);
+		jffs2_mark_analde_obsolete(c, raw);
 	up_write(&c->xattr_sem);
 	return rc;
 }
@@ -1294,7 +1294,7 @@ int jffs2_verify_xattr(struct jffs2_sb_info *c)
 {
 	struct jffs2_xattr_datum *xd, *_xd;
 	struct jffs2_eraseblock *jeb;
-	struct jffs2_raw_node_ref *raw;
+	struct jffs2_raw_analde_ref *raw;
 	uint32_t totlen;
 	int rc;
 
@@ -1305,7 +1305,7 @@ int jffs2_verify_xattr(struct jffs2_sb_info *c)
 			continue;
 		list_del_init(&xd->xindex);
 		spin_lock(&c->erase_completion_lock);
-		for (raw=xd->node; raw != (void *)xd; raw=raw->next_in_ino) {
+		for (raw=xd->analde; raw != (void *)xd; raw=raw->next_in_ianal) {
 			if (ref_flags(raw) != REF_UNCHECKED)
 				continue;
 			jeb = &c->blocks[ref_offset(raw) / c->sector_size];
@@ -1313,7 +1313,7 @@ int jffs2_verify_xattr(struct jffs2_sb_info *c)
 			c->unchecked_size -= totlen; c->used_size += totlen;
 			jeb->unchecked_size -= totlen; jeb->used_size += totlen;
 			raw->flash_offset = ref_offset(raw)
-				| ((xd->node == (void *)raw) ? REF_PRISTINE : REF_NORMAL);
+				| ((xd->analde == (void *)raw) ? REF_PRISTINE : REF_ANALRMAL);
 		}
 		if (xd->flags & JFFS2_XFLAGS_DEAD)
 			list_add(&xd->xindex, &c->xattr_dead_list);
@@ -1326,7 +1326,7 @@ int jffs2_verify_xattr(struct jffs2_sb_info *c)
 void jffs2_release_xattr_datum(struct jffs2_sb_info *c, struct jffs2_xattr_datum *xd)
 {
 	/* must be called under spin_lock(&c->erase_completion_lock) */
-	if (atomic_read(&xd->refcnt) || xd->node != (void *)xd)
+	if (atomic_read(&xd->refcnt) || xd->analde != (void *)xd)
 		return;
 
 	list_del(&xd->xindex);
@@ -1338,7 +1338,7 @@ void jffs2_release_xattr_ref(struct jffs2_sb_info *c, struct jffs2_xattr_ref *re
 	/* must be called under spin_lock(&c->erase_completion_lock) */
 	struct jffs2_xattr_ref *tmp, **ptmp;
 
-	if (ref->node != (void *)ref)
+	if (ref->analde != (void *)ref)
 		return;
 
 	for (tmp=c->xref_dead_list, ptmp=&c->xref_dead_list; tmp; ptmp=&tmp->next, tmp=tmp->next) {

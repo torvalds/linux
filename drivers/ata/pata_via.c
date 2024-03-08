@@ -12,9 +12,9 @@
  *	VIA VT82C586	-	MWDMA, 33Mhz
  *	VIA VT82C586a	-	Added UDMA to 33Mhz
  *	VIA VT82C586b	-	UDMA33
- *	VIA VT82C596a	-	Nonfunctional UDMA66
+ *	VIA VT82C596a	-	Analnfunctional UDMA66
  *	VIA VT82C596b	-	Working UDMA66
- *	VIA VT82C686	-	Nonfunctional UDMA66
+ *	VIA VT82C686	-	Analnfunctional UDMA66
  *	VIA VT82C686a	-	Working UDMA66
  *	VIA VT82C686b	-	Updated to UDMA100
  *	VIA VT8231	-	UDMA100
@@ -29,7 +29,7 @@
  *
  *	Most registers remain compatible across chips. Others start reserved
  *	and acquire sensible semantics if set to 1 (eg cable detect). A few
- *	exceptions exist, notably around the FIFO settings.
+ *	exceptions exist, analtably around the FIFO settings.
  *
  *	One additional quirk of the VIA design is that like ALi they use few
  *	PCI IDs for a lot of chips.
@@ -70,10 +70,10 @@ enum {
 	VIA_BAD_PREQ	= 0x01, /* Crashes if PREQ# till DDACK# set */
 	VIA_BAD_CLK66	= 0x02, /* 66 MHz clock doesn't work correctly */
 	VIA_SET_FIFO	= 0x04, /* Needs to have FIFO split set */
-	VIA_NO_UNMASK	= 0x08, /* Doesn't work with IRQ unmasking on */
+	VIA_ANAL_UNMASK	= 0x08, /* Doesn't work with IRQ unmasking on */
 	VIA_BAD_ID	= 0x10, /* Has wrong vendor ID (0x1107) */
 	VIA_BAD_AST	= 0x20, /* Don't touch Address Setup Timing */
-	VIA_NO_ENABLES	= 0x40, /* Has no enablebits */
+	VIA_ANAL_ENABLES	= 0x40, /* Has anal enablebits */
 	VIA_SATA_PATA	= 0x80, /* SATA/PATA combined configuration */
 };
 
@@ -99,8 +99,8 @@ static const struct via_isa_bridge {
 	{ "vt8237s",	PCI_DEVICE_ID_VIA_8237S,    0x00, 0x2f, ATA_UDMA6, VIA_BAD_AST },
 	{ "vt8251",	PCI_DEVICE_ID_VIA_8251,     0x00, 0x2f, ATA_UDMA6, VIA_BAD_AST },
 	{ "cx700",	PCI_DEVICE_ID_VIA_CX700,    0x00, 0x2f, ATA_UDMA6, VIA_BAD_AST | VIA_SATA_PATA },
-	{ "vt6410",	PCI_DEVICE_ID_VIA_6410,     0x00, 0x2f, ATA_UDMA6, VIA_BAD_AST | VIA_NO_ENABLES },
-	{ "vt6415",	PCI_DEVICE_ID_VIA_6415,     0x00, 0xff, ATA_UDMA6, VIA_BAD_AST | VIA_NO_ENABLES },
+	{ "vt6410",	PCI_DEVICE_ID_VIA_6410,     0x00, 0x2f, ATA_UDMA6, VIA_BAD_AST | VIA_ANAL_ENABLES },
+	{ "vt6415",	PCI_DEVICE_ID_VIA_6415,     0x00, 0xff, ATA_UDMA6, VIA_BAD_AST | VIA_ANAL_ENABLES },
 	{ "vt8237a",	PCI_DEVICE_ID_VIA_8237A,    0x00, 0x2f, ATA_UDMA6, VIA_BAD_AST },
 	{ "vt8237",	PCI_DEVICE_ID_VIA_8237,     0x00, 0x2f, ATA_UDMA6, VIA_BAD_AST },
 	{ "vt8235",	PCI_DEVICE_ID_VIA_8235,     0x00, 0x2f, ATA_UDMA6, VIA_BAD_AST },
@@ -118,13 +118,13 @@ static const struct via_isa_bridge {
 	{ "vt82c586b",	PCI_DEVICE_ID_VIA_82C586_0, 0x30, 0x3f, ATA_UDMA2, VIA_SET_FIFO },
 	{ "vt82c586a",	PCI_DEVICE_ID_VIA_82C586_0, 0x20, 0x2f, ATA_UDMA2, VIA_SET_FIFO },
 	{ "vt82c586",	PCI_DEVICE_ID_VIA_82C586_0, 0x00, 0x0f,      0x00, VIA_SET_FIFO },
-	{ "vt82c576",	PCI_DEVICE_ID_VIA_82C576,   0x00, 0x2f,      0x00, VIA_SET_FIFO | VIA_NO_UNMASK },
-	{ "vt82c576",	PCI_DEVICE_ID_VIA_82C576,   0x00, 0x2f,      0x00, VIA_SET_FIFO | VIA_NO_UNMASK | VIA_BAD_ID },
-	{ "vtxxxx",	PCI_DEVICE_ID_VIA_ANON,     0x00, 0x2f, ATA_UDMA6, VIA_BAD_AST },
+	{ "vt82c576",	PCI_DEVICE_ID_VIA_82C576,   0x00, 0x2f,      0x00, VIA_SET_FIFO | VIA_ANAL_UNMASK },
+	{ "vt82c576",	PCI_DEVICE_ID_VIA_82C576,   0x00, 0x2f,      0x00, VIA_SET_FIFO | VIA_ANAL_UNMASK | VIA_BAD_ID },
+	{ "vtxxxx",	PCI_DEVICE_ID_VIA_AANALN,     0x00, 0x2f, ATA_UDMA6, VIA_BAD_AST },
 	{ NULL }
 };
 
-static const struct dmi_system_id no_atapi_dma_dmi_table[] = {
+static const struct dmi_system_id anal_atapi_dma_dmi_table[] = {
 	{
 		.ident = "AVERATEC 3200",
 		.matches = {
@@ -172,7 +172,7 @@ static int via_cable_override(struct pci_dev *pdev)
  *
  *	Perform cable detection. Actually for the VIA case the BIOS
  *	already did this for us. We read the values provided by the
- *	BIOS. If you are using an 8235 in a non-PC configuration you
+ *	BIOS. If you are using an 8235 in a analn-PC configuration you
  *	may need to update this code.
  *
  *	Hotplug also impacts on this.
@@ -186,7 +186,7 @@ static int via_cable_detect(struct ata_port *ap) {
 	if (via_cable_override(pdev))
 		return ATA_CBL_PATA40_SHORT;
 
-	if ((config->flags & VIA_SATA_PATA) && ap->port_no == 0)
+	if ((config->flags & VIA_SATA_PATA) && ap->port_anal == 0)
 		return ATA_CBL_SATA;
 
 	/* Early chips are 40 wire */
@@ -197,9 +197,9 @@ static int via_cable_detect(struct ata_port *ap) {
 		return ATA_CBL_PATA_UNK;
 	/* UDMA 100 or later */
 	pci_read_config_dword(pdev, 0x50, &ata66);
-	/* Check both the drive cable reporting bits, we might not have
+	/* Check both the drive cable reporting bits, we might analt have
 	   two drives */
-	if (ata66 & (0x10100000 >> (16 * ap->port_no)))
+	if (ata66 & (0x10100000 >> (16 * ap->port_anal)))
 		return ATA_CBL_PATA80;
 	/* Check with ACPI so we can spot BIOS reported SATA bridges */
 	if (ata_acpi_init_gtm(ap) &&
@@ -213,14 +213,14 @@ static int via_pre_reset(struct ata_link *link, unsigned long deadline)
 	struct ata_port *ap = link->ap;
 	const struct via_isa_bridge *config = ap->host->private_data;
 
-	if (!(config->flags & VIA_NO_ENABLES)) {
+	if (!(config->flags & VIA_ANAL_ENABLES)) {
 		static const struct pci_bits via_enable_bits[] = {
 			{ 0x40, 1, 0x02, 0x02 },
 			{ 0x40, 1, 0x01, 0x01 }
 		};
 		struct pci_dev *pdev = to_pci_dev(ap->host->dev);
-		if (!pci_test_config_bits(pdev, &via_enable_bits[ap->port_no]))
-			return -ENOENT;
+		if (!pci_test_config_bits(pdev, &via_enable_bits[ap->port_anal]))
+			return -EANALENT;
 	}
 
 	return ata_sff_prereset(link, deadline);
@@ -252,7 +252,7 @@ static void via_do_set_mode(struct ata_port *ap, struct ata_device *adev,
 	const int T = 1000000000 / via_clock;
 	int UT = T;
 	int ut;
-	int offset = 3 - (2*ap->port_no) - adev->devno;
+	int offset = 3 - (2*ap->port_anal) - adev->devanal;
 
 	switch (udma_type) {
 	case ATA_UDMA4:
@@ -286,7 +286,7 @@ static void via_do_set_mode(struct ata_port *ap, struct ata_device *adev,
 	}
 
 	/* Load the PIO mode bits */
-	pci_write_config_byte(pdev, 0x4F - ap->port_no,
+	pci_write_config_byte(pdev, 0x4F - ap->port_anal,
 		((clamp_val(t.act8b, 1, 16) - 1) << 4) | (clamp_val(t.rec8b, 1, 16) - 1));
 	pci_write_config_byte(pdev, 0x48 + offset,
 		((clamp_val(t.active, 1, 16) - 1) << 4) | (clamp_val(t.recover, 1, 16) - 1));
@@ -308,7 +308,7 @@ static void via_do_set_mode(struct ata_port *ap, struct ata_device *adev,
 		break;
 	}
 
-	/* Set UDMA unless device is not UDMA capable */
+	/* Set UDMA unless device is analt UDMA capable */
 	if (udma_type) {
 		u8 udma_etc;
 
@@ -368,7 +368,7 @@ static unsigned int via_mode_filter(struct ata_device *dev, unsigned int mask)
 	}
 
 	if (dev->class == ATA_DEV_ATAPI &&
-	    dmi_check_system(no_atapi_dma_dmi_table)) {
+	    dmi_check_system(anal_atapi_dma_dmi_table)) {
 		ata_dev_warn(dev, "controller locks up on ATAPI DMA, forcing PIO\n");
 		mask &= ATA_MASK_PIO;
 	}
@@ -383,7 +383,7 @@ static unsigned int via_mode_filter(struct ata_device *dev, unsigned int mask)
  *
  *	Outputs ATA taskfile to standard ATA host controller.
  *
- *	Note: This is to fix the internal bug of via chipsets, which
+ *	Analte: This is to fix the internal bug of via chipsets, which
  *	will reset the device register after changing the IEN bit on
  *	ctl register
  */
@@ -438,7 +438,7 @@ static int via_port_start(struct ata_port *ap)
 
 	vp = devm_kzalloc(&pdev->dev, sizeof(struct via_port), GFP_KERNEL);
 	if (vp == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	ap->private_data = vp;
 	return 0;
 }
@@ -458,7 +458,7 @@ static struct ata_port_operations via_port_ops = {
 	.mode_filter	= via_mode_filter,
 };
 
-static struct ata_port_operations via_port_ops_noirq = {
+static struct ata_port_operations via_port_ops_analirq = {
 	.inherits	= &via_port_ops,
 	.sff_data_xfer	= ata_sff_data_xfer32,
 };
@@ -541,7 +541,7 @@ static int via_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		.flags = ATA_FLAG_SLAVE_POSS,
 		.pio_mask = ATA_PIO4,
 		.mwdma_mask = ATA_MWDMA2,
-		.port_ops = &via_port_ops_noirq,
+		.port_ops = &via_port_ops_analirq,
 	};
 	/* VIA UDMA 33 devices (and borked 66) */
 	static const struct ata_port_info via_udma33_info = {
@@ -572,7 +572,7 @@ static int via_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		.flags = ATA_FLAG_SLAVE_POSS,
 		.pio_mask = ATA_PIO4,
 		.mwdma_mask = ATA_MWDMA2,
-		.udma_mask = ATA_UDMA6,	/* FIXME: should check north bridge */
+		.udma_mask = ATA_UDMA6,	/* FIXME: should check analrth bridge */
 		.port_ops = &via_port_ops
 	};
 	const struct ata_port_info *ppi[] = { NULL, NULL };
@@ -592,8 +592,8 @@ static int via_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		ppi[1] = &ata_dummy_port_info;
 
 	/* To find out how the IDE will behave and what features we
-	   actually have to look at the bridge not the IDE controller */
-	for (config = via_isa_bridges; config->id != PCI_DEVICE_ID_VIA_ANON;
+	   actually have to look at the bridge analt the IDE controller */
+	for (config = via_isa_bridges; config->id != PCI_DEVICE_ID_VIA_AANALN;
 	     config++)
 		if ((isa = pci_get_device(PCI_VENDOR_ID_VIA +
 			!!(config->flags & VIA_BAD_ID),
@@ -609,18 +609,18 @@ static int via_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 				break;
 		}
 
-	if (!(config->flags & VIA_NO_ENABLES)) {
+	if (!(config->flags & VIA_ANAL_ENABLES)) {
 		/* 0x40 low bits indicate enabled channels */
 		pci_read_config_byte(pdev, 0x40 , &enable);
 		enable &= 3;
 		if (enable == 0)
-			return -ENODEV;
+			return -EANALDEV;
 	}
 
 	/* Clock set up */
 	switch (config->udma_mask) {
 	case 0x00:
-		if (config->flags & VIA_NO_UNMASK)
+		if (config->flags & VIA_ANAL_UNMASK)
 			ppi[0] = &via_mwdma_info_borked;
 		else
 			ppi[0] = &via_mwdma_info;
@@ -639,12 +639,12 @@ static int via_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		break;
 	default:
 		WARN_ON(1);
-		return -ENODEV;
+		return -EANALDEV;
  	}
 
 	via_fixup(pdev, config);
 
-	/* We have established the device type, now fire it up */
+	/* We have established the device type, analw fire it up */
 	return ata_pci_bmdma_init_one(pdev, ppi, &via_sht, (void *)config, 0);
 }
 

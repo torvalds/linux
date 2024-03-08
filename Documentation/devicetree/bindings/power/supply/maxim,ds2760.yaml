@@ -10,8 +10,8 @@ maintainers:
   - Sebastian Reichel <sre@kernel.org>
 
 description: |
-  The ds2760 is a w1 slave device and must hence have its sub-node in
-  DT under a w1 bus master node.
+  The ds2760 is a w1 slave device and must hence have its sub-analde in
+  DT under a w1 bus master analde.
 
 allOf:
   - $ref: power-supply.yaml#
@@ -35,7 +35,7 @@ properties:
   rated-capacity-microamp-hours:
     description: |
       The rated capacity of the battery, in mAh.
-      If not specified, the value stored in the non-volatile chip memory is used.
+      If analt specified, the value stored in the analn-volatile chip memory is used.
 
 required:
   - compatible

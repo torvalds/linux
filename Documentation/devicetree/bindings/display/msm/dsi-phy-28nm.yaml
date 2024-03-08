@@ -34,7 +34,7 @@ properties:
       - const: dsi_phy_regulator
 
   vddio-supply:
-    description: Phandle to vdd-io regulator device node.
+    description: Phandle to vdd-io regulator device analde.
 
   qcom,dsi-phy-regulator-ldo-mode:
     type: boolean

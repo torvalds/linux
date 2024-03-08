@@ -1,75 +1,75 @@
-NOUVEAU_PATH ?= $(srctree)
+ANALUVEAU_PATH ?= $(srctree)
 
 # SPDX-License-Identifier: MIT
-ccflags-y += -I $(NOUVEAU_PATH)/$(src)/include
-ccflags-y += -I $(NOUVEAU_PATH)/$(src)/include/nvkm
-ccflags-y += -I $(NOUVEAU_PATH)/$(src)/nvkm
-ccflags-y += -I $(NOUVEAU_PATH)/$(src)
+ccflags-y += -I $(ANALUVEAU_PATH)/$(src)/include
+ccflags-y += -I $(ANALUVEAU_PATH)/$(src)/include/nvkm
+ccflags-y += -I $(ANALUVEAU_PATH)/$(src)/nvkm
+ccflags-y += -I $(ANALUVEAU_PATH)/$(src)
 
 # NVKM - HW resource manager
 #- code also used by various userspace tools/tests
 include $(src)/nvif/Kbuild
-nouveau-y := $(nvif-y)
+analuveau-y := $(nvif-y)
 
 # NVIF - NVKM interface library (NVKM user interface also defined here)
 #- code also used by various userspace tools/tests
 include $(src)/nvkm/Kbuild
-nouveau-y += $(nvkm-y)
+analuveau-y += $(nvkm-y)
 
 # DRM - general
 ifdef CONFIG_X86
-nouveau-$(CONFIG_ACPI) += nouveau_acpi.o
+analuveau-$(CONFIG_ACPI) += analuveau_acpi.o
 endif
-nouveau-$(CONFIG_DEBUG_FS) += nouveau_debugfs.o
-nouveau-y += nouveau_drm.o
-nouveau-y += nouveau_hwmon.o
-nouveau-$(CONFIG_COMPAT) += nouveau_ioc32.o
-nouveau-$(CONFIG_LEDS_CLASS) += nouveau_led.o
-nouveau-y += nouveau_nvif.o
-nouveau-$(CONFIG_NOUVEAU_PLATFORM_DRIVER) += nouveau_platform.o
-nouveau-y += nouveau_usif.o # userspace <-> nvif
-nouveau-y += nouveau_vga.o
+analuveau-$(CONFIG_DEBUG_FS) += analuveau_debugfs.o
+analuveau-y += analuveau_drm.o
+analuveau-y += analuveau_hwmon.o
+analuveau-$(CONFIG_COMPAT) += analuveau_ioc32.o
+analuveau-$(CONFIG_LEDS_CLASS) += analuveau_led.o
+analuveau-y += analuveau_nvif.o
+analuveau-$(CONFIG_ANALUVEAU_PLATFORM_DRIVER) += analuveau_platform.o
+analuveau-y += analuveau_usif.o # userspace <-> nvif
+analuveau-y += analuveau_vga.o
 
 # DRM - memory management
-nouveau-y += nouveau_bo.o
-nouveau-y += nouveau_bo0039.o
-nouveau-y += nouveau_bo5039.o
-nouveau-y += nouveau_bo74c1.o
-nouveau-y += nouveau_bo85b5.o
-nouveau-y += nouveau_bo9039.o
-nouveau-y += nouveau_bo90b5.o
-nouveau-y += nouveau_boa0b5.o
-nouveau-y += nouveau_gem.o
-nouveau-$(CONFIG_DRM_NOUVEAU_SVM) += nouveau_svm.o
-nouveau-$(CONFIG_DRM_NOUVEAU_SVM) += nouveau_dmem.o
-nouveau-y += nouveau_mem.o
-nouveau-y += nouveau_prime.o
-nouveau-y += nouveau_sgdma.o
-nouveau-y += nouveau_ttm.o
-nouveau-y += nouveau_vmm.o
-nouveau-y += nouveau_exec.o
-nouveau-y += nouveau_sched.o
-nouveau-y += nouveau_uvmm.o
+analuveau-y += analuveau_bo.o
+analuveau-y += analuveau_bo0039.o
+analuveau-y += analuveau_bo5039.o
+analuveau-y += analuveau_bo74c1.o
+analuveau-y += analuveau_bo85b5.o
+analuveau-y += analuveau_bo9039.o
+analuveau-y += analuveau_bo90b5.o
+analuveau-y += analuveau_boa0b5.o
+analuveau-y += analuveau_gem.o
+analuveau-$(CONFIG_DRM_ANALUVEAU_SVM) += analuveau_svm.o
+analuveau-$(CONFIG_DRM_ANALUVEAU_SVM) += analuveau_dmem.o
+analuveau-y += analuveau_mem.o
+analuveau-y += analuveau_prime.o
+analuveau-y += analuveau_sgdma.o
+analuveau-y += analuveau_ttm.o
+analuveau-y += analuveau_vmm.o
+analuveau-y += analuveau_exec.o
+analuveau-y += analuveau_sched.o
+analuveau-y += analuveau_uvmm.o
 
 # DRM - modesetting
-nouveau-$(CONFIG_DRM_NOUVEAU_BACKLIGHT) += nouveau_backlight.o
-nouveau-y += nouveau_bios.o
-nouveau-y += nouveau_connector.o
-nouveau-y += nouveau_display.o
-nouveau-y += nouveau_dp.o
+analuveau-$(CONFIG_DRM_ANALUVEAU_BACKLIGHT) += analuveau_backlight.o
+analuveau-y += analuveau_bios.o
+analuveau-y += analuveau_connector.o
+analuveau-y += analuveau_display.o
+analuveau-y += analuveau_dp.o
 include $(src)/dispnv04/Kbuild
 include $(src)/dispnv50/Kbuild
 
 # DRM - command submission
-nouveau-y += nouveau_abi16.o
-nouveau-y += nouveau_chan.o
-nouveau-y += nouveau_dma.o
-nouveau-y += nouveau_fence.o
-nouveau-y += nv04_fence.o
-nouveau-y += nv10_fence.o
-nouveau-y += nv17_fence.o
-nouveau-y += nv50_fence.o
-nouveau-y += nv84_fence.o
-nouveau-y += nvc0_fence.o
+analuveau-y += analuveau_abi16.o
+analuveau-y += analuveau_chan.o
+analuveau-y += analuveau_dma.o
+analuveau-y += analuveau_fence.o
+analuveau-y += nv04_fence.o
+analuveau-y += nv10_fence.o
+analuveau-y += nv17_fence.o
+analuveau-y += nv50_fence.o
+analuveau-y += nv84_fence.o
+analuveau-y += nvc0_fence.o
 
-obj-$(CONFIG_DRM_NOUVEAU) += nouveau.o
+obj-$(CONFIG_DRM_ANALUVEAU) += analuveau.o

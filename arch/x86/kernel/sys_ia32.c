@@ -4,7 +4,7 @@
  *             sys_sparc32
  *
  * Copyright (C) 2000		VA Linux Co
- * Copyright (C) 2000		Don Dugger <n0ano@valinux.com>
+ * Copyright (C) 2000		Don Dugger <n0aanal@valinux.com>
  * Copyright (C) 1999		Arun Sharma <arun.sharma@intel.com>
  * Copyright (C) 1997,1998	Jakub Jelinek (jj@sunsite.mff.cuni.cz)
  * Copyright (C) 1997		David S. Miller (davem@caip.rutgers.edu)
@@ -126,8 +126,8 @@ SYSCALL_DEFINE6(ia32_fallocate, int, fd, int, mode,
 
 #ifdef CONFIG_IA32_EMULATION
 /*
- * Another set for IA32/LFS -- x86_64 struct stat is different due to
- * support for 64bit inode numbers.
+ * Aanalther set for IA32/LFS -- x86_64 struct stat is different due to
+ * support for 64bit ianalde numbers.
  */
 static int cp_stat64(struct stat64 __user *ubuf, struct kstat *stat)
 {
@@ -138,8 +138,8 @@ static int cp_stat64(struct stat64 __user *ubuf, struct kstat *stat)
 	if (!user_write_access_begin(ubuf, sizeof(struct stat64)))
 		return -EFAULT;
 	unsafe_put_user(huge_encode_dev(stat->dev), &ubuf->st_dev, Efault);
-	unsafe_put_user(stat->ino, &ubuf->__st_ino, Efault);
-	unsafe_put_user(stat->ino, &ubuf->st_ino, Efault);
+	unsafe_put_user(stat->ianal, &ubuf->__st_ianal, Efault);
+	unsafe_put_user(stat->ianal, &ubuf->st_ianal, Efault);
 	unsafe_put_user(stat->mode, &ubuf->st_mode, Efault);
 	unsafe_put_user(stat->nlink, &ubuf->st_nlink, Efault);
 	unsafe_put_user(uid, &ubuf->st_uid, Efault);

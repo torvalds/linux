@@ -83,7 +83,7 @@ enum mrp_event {
 #define MRP_EVENT_MAX		(__MRP_EVENT_MAX - 1)
 
 enum mrp_tx_action {
-	MRP_TX_ACTION_NONE,
+	MRP_TX_ACTION_ANALNE,
 	MRP_TX_ACTION_S_NEW,
 	MRP_TX_ACTION_S_JOIN_IN,
 	MRP_TX_ACTION_S_JOIN_IN_OPTIONAL,
@@ -92,7 +92,7 @@ enum mrp_tx_action {
 };
 
 struct mrp_attr {
-	struct rb_node			node;
+	struct rb_analde			analde;
 	enum mrp_applicant_state	state;
 	u8				type;
 	u8				len;

@@ -14,7 +14,7 @@
 
 /*
  * Start with mapping PA=0 to both VA=0x0 and VA=0xc000000 as 16MB large pages.
- * No user mode access, RWX, write-back cache.  The entry needs
+ * Anal user mode access, RWX, write-back cache.  The entry needs
  * to be replicated for all 4 virtual segments mapping to the page.
  */
 
@@ -24,7 +24,7 @@
 		| __HEXAGON_C_WB_L2 << 6			\
 		| __HVM_PDE_S_16MB)
 
-/*  No cache version  */
+/*  Anal cache version  */
 
 #define BKPG_IO(pa) (((pa) & __HVM_PTE_PGMASK_16MB) \
 			| __HVM_PTE_R | __HVM_PTE_W | __HVM_PTE_X \

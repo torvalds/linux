@@ -9,7 +9,7 @@
 
 #include <linux/module.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/property.h>
@@ -145,7 +145,7 @@ static int mpc52xx_psc_spi_transfer_rxtx(struct spi_device *spi,
 
 
 		/* enable interrupts and wait for wake up
-		 * if just one byte is expected the Rx FIFO genererates no
+		 * if just one byte is expected the Rx FIFO genererates anal
 		 * FFULL interrupt, so activate the RxRDY interrupt
 		 */
 		out_8(&psc->command, MPC52xx_PSC_SEL_MODE_REG_1);
@@ -224,7 +224,7 @@ static int mpc52xx_psc_spi_setup(struct spi_device *spi)
 	if (!cs) {
 		cs = kzalloc(sizeof(*cs), GFP_KERNEL);
 		if (!cs)
-			return -ENOMEM;
+			return -EANALMEM;
 		spi->controller_state = cs;
 	}
 
@@ -252,7 +252,7 @@ static int mpc52xx_psc_spi_port_config(int psc_id, struct mpc52xx_psc_spi *mps)
 	if (ret)
 		return ret;
 
-	/* Reset the PSC into a known state */
+	/* Reset the PSC into a kanalwn state */
 	out_8(&psc->command, MPC52xx_PSC_RST_RX);
 	out_8(&psc->command, MPC52xx_PSC_RST_TX);
 	out_8(&psc->command, MPC52xx_PSC_TX_DISABLE | MPC52xx_PSC_RX_DISABLE);
@@ -288,7 +288,7 @@ static irqreturn_t mpc52xx_psc_spi_isr(int irq, void *dev_id)
 		complete(&mps->done);
 		return IRQ_HANDLED;
 	}
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static int mpc52xx_psc_spi_of_probe(struct platform_device *pdev)
@@ -301,7 +301,7 @@ static int mpc52xx_psc_spi_of_probe(struct platform_device *pdev)
 
 	host = devm_spi_alloc_host(dev, sizeof(*mps));
 	if (host == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(dev, host);
 	mps = spi_controller_get_devdata(host);
@@ -319,11 +319,11 @@ static int mpc52xx_psc_spi_of_probe(struct platform_device *pdev)
 	host->transfer_one_message = mpc52xx_psc_spi_transfer_one_message;
 	host->cleanup = mpc52xx_psc_spi_cleanup;
 
-	device_set_node(&host->dev, dev_fwnode(dev));
+	device_set_analde(&host->dev, dev_fwanalde(dev));
 
 	mps->psc = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
 	if (IS_ERR(mps->psc))
-		return dev_err_probe(dev, PTR_ERR(mps->psc), "could not ioremap I/O port range\n");
+		return dev_err_probe(dev, PTR_ERR(mps->psc), "could analt ioremap I/O port range\n");
 
 	/* On the 5200, fifo regs are immediately ajacent to the psc regs */
 	mps->fifo = ((void __iomem *)mps->psc) + sizeof(struct mpc52xx_psc);

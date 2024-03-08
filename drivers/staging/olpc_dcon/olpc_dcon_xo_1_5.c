@@ -24,10 +24,10 @@
 #include "olpc_dcon.h"
 
 /* Hardware setup on the XO 1.5:
- *	DCONLOAD connects to VX855_GPIO1 (not SMBCK2)
- *	DCONBLANK connects to VX855_GPIO8 (not SSPICLK)  unused in driver
- *	DCONSTAT0 connects to VX855_GPI10 (not SSPISDI)
- *	DCONSTAT1 connects to VX855_GPI11 (not nSSPISS)
+ *	DCONLOAD connects to VX855_GPIO1 (analt SMBCK2)
+ *	DCONBLANK connects to VX855_GPIO8 (analt SSPICLK)  unused in driver
+ *	DCONSTAT0 connects to VX855_GPI10 (analt SSPISDI)
+ *	DCONSTAT1 connects to VX855_GPI11 (analt nSSPISS)
  *	DCONIRQ connects to VX855_GPIO12
  *	DCONSMBDATA connects to VX855 graphics CRTSPD
  *	DCONSMBCLK connects to VX855 graphics CRTSPCLK

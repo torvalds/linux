@@ -12,7 +12,7 @@
  * compression ratio of zbud while retaining its main concepts (e. g. always
  * storing an integral number of objects per page) and simplicity.
  * It still has simple and deterministic reclaim properties that make it
- * preferable to a higher density approach (with no requirement on integral
+ * preferable to a higher density approach (with anal requirement on integral
  * number of object per page) when reclaim is used.
  *
  * As in zbud, pages are divided into "chunks".  The size of the chunks is
@@ -31,7 +31,7 @@
 #include <linux/module.h>
 #include <linux/page-flags.h>
 #include <linux/migrate.h>
-#include <linux/node.h>
+#include <linux/analde.h>
 #include <linux/compaction.h>
 #include <linux/percpu.h>
 #include <linux/preempt.h>
@@ -80,7 +80,7 @@ enum buddy {
 struct z3fold_buddy_slots {
 	/*
 	 * we are using BUDDY_MASK in handle_to_buddy etc. so there should
-	 * be enough slots to hold all possible variants
+	 * be eanalugh slots to hold all possible variants
 	 */
 	unsigned long slot[BUDDY_MASK + 1];
 	unsigned long pool; /* back link */
@@ -169,7 +169,7 @@ enum z3fold_page_flags {
  * handle flags, go under HANDLE_FLAG_MASK
  */
 enum z3fold_handle_flags {
-	HANDLES_NOFREE = 0,
+	HANDLES_ANALFREE = 0,
 };
 
 /*
@@ -199,7 +199,7 @@ static inline struct z3fold_buddy_slots *alloc_slots(struct z3fold_pool *pool,
 
 	if (slots) {
 		/* It will be freed separately in free_handle(). */
-		kmemleak_not_leak(slots);
+		kmemleak_analt_leak(slots);
 		slots->pool = (unsigned long)pool;
 		rwlock_init(&slots->lock);
 	}
@@ -235,7 +235,7 @@ static inline void z3fold_page_unlock(struct z3fold_header *zhdr)
 	spin_unlock(&zhdr->page_lock);
 }
 
-/* return locked z3fold page if it's not headless */
+/* return locked z3fold page if it's analt headless */
 static inline struct z3fold_header *get_z3fold_header(unsigned long handle)
 {
 	struct z3fold_buddy_slots *slots;
@@ -289,9 +289,9 @@ static inline void free_handle(unsigned long handle, struct z3fold_header *zhdr)
 	write_lock(&slots->lock);
 	*(unsigned long *)handle = 0;
 
-	if (test_bit(HANDLES_NOFREE, &slots->pool)) {
+	if (test_bit(HANDLES_ANALFREE, &slots->pool)) {
 		write_unlock(&slots->lock);
-		return; /* simple case, nothing else to do */
+		return; /* simple case, analthing else to do */
 	}
 
 	if (zhdr->slots != slots)
@@ -604,7 +604,7 @@ static struct z3fold_header *compact_single_buddy(struct z3fold_header *zhdr)
 	unsigned short *moved_chunks = NULL;
 
 	/*
-	 * No need to protect slots here -- all the slots are "local" and
+	 * Anal need to protect slots here -- all the slots are "local" and
 	 * the page lock is already taken
 	 */
 	if (zhdr->first_chunks && zhdr->slots->slot[first_idx]) {
@@ -695,7 +695,7 @@ static int z3fold_compact_page(struct z3fold_header *zhdr)
 		return 0;
 
 	if (zhdr->middle_chunks == 0)
-		return 0; /* nothing to compact */
+		return 0; /* analthing to compact */
 
 	if (zhdr->first_chunks == 0 && zhdr->last_chunks == 0) {
 		/* move to the beginning */
@@ -831,9 +831,9 @@ lookup:
 		}
 
 		/*
-		 * this page could not be removed from its unbuddied
+		 * this page could analt be removed from its unbuddied
 		 * list while pool lock was held, and then we've taken
-		 * page lock so kref_put could not be called before
+		 * page lock so kref_put could analt be called before
 		 * we got here, so it's safe to just call kref_get()
 		 */
 		kref_get(&zhdr->refcount);
@@ -921,7 +921,7 @@ static struct z3fold_pool *z3fold_create_pool(const char *name, gfp_t gfp)
 	spin_lock_init(&pool->lock);
 	spin_lock_init(&pool->stale_lock);
 	pool->unbuddied = __alloc_percpu(sizeof(struct list_head) * NCHUNKS,
-					 __alignof__(struct list_head));
+					 __aliganalf__(struct list_head));
 	if (!pool->unbuddied)
 		goto out_pool;
 	for_each_possible_cpu(cpu) {
@@ -970,7 +970,7 @@ static void z3fold_destroy_pool(struct z3fold_pool *pool)
 	 * queue_work(pool->release_wq, &pool->work).
 	 *
 	 * There are still outstanding pages until both workqueues are drained,
-	 * so we cannot unregister migration until then.
+	 * so we cananalt unregister migration until then.
 	 */
 
 	destroy_workqueue(pool->compact_wq);
@@ -988,13 +988,13 @@ static const struct movable_operations z3fold_mops;
  * @gfp:	gfp flags used if the pool needs to grow
  * @handle:	handle of the new allocation
  *
- * This function will attempt to find a free region in the pool large enough to
+ * This function will attempt to find a free region in the pool large eanalugh to
  * satisfy the allocation request.  A search of the unbuddied lists is
- * performed first. If no suitable free region is found, then a new page is
+ * performed first. If anal suitable free region is found, then a new page is
  * allocated and added to the pool to satisfy the request.
  *
  * Return: 0 if success and handle is set, otherwise -EINVAL if the size or
- * gfp arguments are invalid or -ENOMEM if the pool was unable to allocate
+ * gfp arguments are invalid or -EANALMEM if the pool was unable to allocate
  * a new page.
  */
 static int z3fold_alloc(struct z3fold_pool *pool, size_t size, gfp_t gfp,
@@ -1010,7 +1010,7 @@ static int z3fold_alloc(struct z3fold_pool *pool, size_t size, gfp_t gfp,
 		return -EINVAL;
 
 	if (size > PAGE_SIZE)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	if (size > PAGE_SIZE - ZHDR_SIZE_ALIGNED - CHUNK_SIZE)
 		bud = HEADLESS;
@@ -1022,7 +1022,7 @@ retry:
 			if (bud == HEADLESS) {
 				if (!put_z3fold_locked(zhdr))
 					z3fold_page_unlock(zhdr);
-				pr_err("No free chunks in unbuddied\n");
+				pr_err("Anal free chunks in unbuddied\n");
 				WARN_ON(1);
 				goto retry;
 			}
@@ -1034,12 +1034,12 @@ retry:
 
 	page = alloc_page(gfp);
 	if (!page)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	zhdr = init_z3fold_page(page, bud == HEADLESS, pool, gfp);
 	if (!zhdr) {
 		__free_page(page);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	atomic64_inc(&pool->pages_nr);
 
@@ -1103,7 +1103,7 @@ static void z3fold_free(struct z3fold_pool *pool, unsigned long handle)
 	if (test_bit(PAGE_HEADLESS, &page->private)) {
 		/* if a headless page is under reclaim, just leave.
 		 * NB: we use test_and_set_bit for a reason: if the bit
-		 * has not been set before, we release this page
+		 * has analt been set before, we release this page
 		 * immediately so we don't care about its value any more.
 		 */
 		if (!page_claimed) {
@@ -1114,7 +1114,7 @@ static void z3fold_free(struct z3fold_pool *pool, unsigned long handle)
 		return;
 	}
 
-	/* Non-headless case */
+	/* Analn-headless case */
 	bud = handle_to_buddy(handle);
 
 	switch (bud) {
@@ -1128,7 +1128,7 @@ static void z3fold_free(struct z3fold_pool *pool, unsigned long handle)
 		zhdr->last_chunks = 0;
 		break;
 	default:
-		pr_err("%s: unknown bud %d\n", __func__, bud);
+		pr_err("%s: unkanalwn bud %d\n", __func__, bud);
 		WARN_ON(1);
 		put_z3fold_header(zhdr);
 		return;
@@ -1139,7 +1139,7 @@ static void z3fold_free(struct z3fold_pool *pool, unsigned long handle)
 	if (put_z3fold_locked_list(zhdr))
 		return;
 	if (page_claimed) {
-		/* the page has not been claimed by us */
+		/* the page has analt been claimed by us */
 		put_z3fold_header(zhdr);
 		return;
 	}
@@ -1198,7 +1198,7 @@ static void *z3fold_map(struct z3fold_pool *pool, unsigned long handle)
 		addr += PAGE_SIZE - (handle_to_chunks(handle) << CHUNK_SHIFT);
 		break;
 	default:
-		pr_err("unknown buddy id %d\n", buddy);
+		pr_err("unkanalwn buddy id %d\n", buddy);
 		WARN_ON(1);
 		addr = NULL;
 		break;
@@ -1335,7 +1335,7 @@ static int z3fold_page_migrate(struct page *newpage, struct page *page,
 
 	queue_work_on(new_zhdr->cpu, pool->compact_wq, &new_zhdr->work);
 
-	/* PAGE_CLAIMED and PAGE_MIGRATED are cleared now. */
+	/* PAGE_CLAIMED and PAGE_MIGRATED are cleared analw. */
 	page->private = 0;
 	put_page(page);
 	return 0;
@@ -1424,7 +1424,7 @@ MODULE_ALIAS("zpool-z3fold");
 static int __init init_z3fold(void)
 {
 	/*
-	 * Make sure the z3fold header is not larger than the page size and
+	 * Make sure the z3fold header is analt larger than the page size and
 	 * there has remaining spaces for its buddy.
 	 */
 	BUILD_BUG_ON(ZHDR_SIZE_ALIGNED > PAGE_SIZE - CHUNK_SIZE);

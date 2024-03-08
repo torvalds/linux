@@ -43,7 +43,7 @@
 #define MEC_TEMP_LOC          GENMASK(31, 16)
 #define MEC_VERSION_LOC       GENMASK(15, 8)
 #define MEC_VERSION_MAJOR     GENMASK(15, 14)
-#define MEC_VERSION_MINOR     GENMASK(13, 8)
+#define MEC_VERSION_MIANALR     GENMASK(13, 8)
 
 #define EC_ADDR_MSB           (MEC_IO_BASE + 0x3)
 #define MEC_DATA_OFFSET(offset) (MEC_IO_BASE + 0x04 + (offset))
@@ -492,9 +492,9 @@ static struct silicom_platform_info silicom_plat_0222_cordoba_info __initdata = 
 	.gpiochip = &silicom_gpio_chip,
 	.gpio_channels = plat_0222_gpio_channels,
 	/*
-	 * The original generic cordoba does not have the last 4 outputs of the
+	 * The original generic cordoba does analt have the last 4 outputs of the
 	 * plat_0222 variant, the rest are the same, so use the same longer list,
-	 * but ignore the last entries here
+	 * but iganalre the last entries here
 	 */
 	.ngpio = ARRAY_SIZE(plat_0222_gpio_channels),
 
@@ -669,7 +669,7 @@ static ssize_t uc_version_show(struct device *dev,
 		return -EINVAL;
 
 	uc_version = FIELD_GET(MEC_VERSION_MAJOR, reg) * 100 +
-		     FIELD_GET(MEC_VERSION_MINOR, reg);
+		     FIELD_GET(MEC_VERSION_MIANALR, reg);
 
 	mec_uc_version = uc_version;
 
@@ -742,12 +742,12 @@ static int __init silicom_mc_leds_register(struct device *dev,
 
 		led = devm_kzalloc(dev, sizeof(*led), GFP_KERNEL);
 		if (!led)
-			return -ENOMEM;
+			return -EANALMEM;
 		memcpy(led, &mc_leds[i], sizeof(*led));
 
 		led->subled_info = devm_kzalloc(dev, led->num_colors * size, GFP_KERNEL);
 		if (!led->subled_info)
-			return -ENOMEM;
+			return -EANALMEM;
 		memcpy(led->subled_info, mc_leds[i].subled_info, led->num_colors * size);
 
 		err = devm_led_classdev_multicolor_register(dev, led);
@@ -815,7 +815,7 @@ static int silicom_fan_control_read_fan(struct device *dev, u32 attr, long *val)
 		*val = rpm_get();
 		return 0;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -826,7 +826,7 @@ static int silicom_fan_control_read_temp(struct device *dev, u32 attr, long *val
 		*val = temp_get();
 		return 0;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -855,7 +855,7 @@ static int silicom_fan_control_read(struct device *dev,
 	case hwmon_temp:
 		return silicom_fan_control_read_temp(dev, attr, val);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -872,7 +872,7 @@ static int silicom_fan_control_read_labels(struct device *dev,
 		*str = "Silicom_platform: Thermostat Sensor";
 		return 0;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -906,7 +906,7 @@ static int __init silicom_platform_probe(struct platform_device *device)
 
 	if (magic != SILICOM_MEC_MAGIC) {
 		dev_err(&device->dev, "Bad EC magic 0x%02x!\n", magic);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	err = silicom_mc_leds_register(&device->dev, silicom_led_info);
@@ -980,8 +980,8 @@ MODULE_DEVICE_TABLE(dmi, silicom_dmi_ids);
 static int __init silicom_platform_init(void)
 {
 	if (!dmi_check_system(silicom_dmi_ids)) {
-		pr_err("No DMI match for this platform\n");
-		return -ENODEV;
+		pr_err("Anal DMI match for this platform\n");
+		return -EANALDEV;
 	}
 	silicom_platform_dev = platform_create_bundle(&silicom_platform_driver,
 						      silicom_platform_probe,

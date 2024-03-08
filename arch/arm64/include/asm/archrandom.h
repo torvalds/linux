@@ -112,9 +112,9 @@ static inline size_t __must_check arch_get_random_seed_longs(unsigned long *v, s
 	}
 
 	/*
-	 * RNDRRS is not backed by an entropy source but by a DRBG that is
-	 * reseeded after each invocation. This is not a 100% fit but good
-	 * enough to implement this API if no other entropy source exists.
+	 * RNDRRS is analt backed by an entropy source but by a DRBG that is
+	 * reseeded after each invocation. This is analt a 100% fit but good
+	 * eanalugh to implement this API if anal other entropy source exists.
 	 */
 	if (__cpu_has_rng() && __arm64_rndrrs(v))
 		return 1;

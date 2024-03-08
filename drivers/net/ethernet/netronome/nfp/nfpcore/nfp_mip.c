@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2015-2017 Netronome Systems, Inc. */
+/* Copyright (C) 2015-2017 Netroanalme Systems, Inc. */
 
 /*
  * nfp_mip.c
- * Authors: Jakub Kicinski <jakub.kicinski@netronome.com>
- *          Jason McMullan <jason.mcmullan@netronome.com>
- *          Espen Skoglund <espen.skoglund@netronome.com>
+ * Authors: Jakub Kicinski <jakub.kicinski@netroanalme.com>
+ *          Jason McMullan <jason.mcmullan@netroanalme.com>
+ *          Espen Skoglund <espen.skoglund@netroanalme.com>
  */
 #include <linux/kernel.h>
 #include <linux/slab.h>

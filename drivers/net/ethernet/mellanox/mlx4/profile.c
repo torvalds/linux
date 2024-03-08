@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2004, 2005 Topspin Communications.  All rights reserved.
- * Copyright (c) 2005 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2005 Mellaanalx Techanallogies. All rights reserved.
  * Copyright (c) 2006, 2007 Cisco Systems, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -14,18 +14,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -87,13 +87,13 @@ u64 mlx4_make_profile(struct mlx4_dev *dev,
 
 	profile = kcalloc(MLX4_RES_NUM, sizeof(*profile), GFP_KERNEL);
 	if (!profile)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * We want to scale the number of MTTs with the size of the
 	 * system memory, since it makes sense to register a lot of
 	 * memory on a system with a lot of memory.  As a heuristic,
-	 * make sure we have enough MTTs to cover twice the system
+	 * make sure we have eanalugh MTTs to cover twice the system
 	 * memory (with PAGE_SIZE entries).
 	 *
 	 * This number has to be a power of two and fit into 32 bits
@@ -164,7 +164,7 @@ u64 mlx4_make_profile(struct mlx4_dev *dev,
 				 (unsigned long long) total_size,
 				 (unsigned long long) dev_cap->max_icm_sz);
 			kfree(profile);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		if (profile[i].size)
@@ -189,7 +189,7 @@ u64 mlx4_make_profile(struct mlx4_dev *dev,
 			for (priv->qp_table.rdmarc_shift = 0;
 			     request->num_qp << priv->qp_table.rdmarc_shift < profile[i].num;
 			     ++priv->qp_table.rdmarc_shift)
-				; /* nothing */
+				; /* analthing */
 			dev->caps.max_qp_dest_rdma = 1 << priv->qp_table.rdmarc_shift;
 			priv->qp_table.rdmarc_base   = (u32) profile[i].start;
 			init_hca->rdmarc_base	     = profile[i].start;

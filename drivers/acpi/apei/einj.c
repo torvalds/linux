@@ -69,7 +69,7 @@ struct vendor_error_type_extension {
 	u8	reserved[3];
 };
 
-static u32 notrigger;
+static u32 analtrigger;
 
 static u32 vendor_flags;
 static struct debugfs_blob_wrapper vendor_blob;
@@ -79,7 +79,7 @@ static char vendor_dev[64];
 /*
  * Some BIOSes allow parameters to the SET_ERROR_TYPE entries in the
  * EINJ table through an unpublished extension. Use with caution as
- * most will ignore the parameter and make their own choice of address
+ * most will iganalre the parameter and make their own choice of address
  * for error injection.  This extension is used only if
  * param_extension module parameter is specified.
  */
@@ -124,15 +124,15 @@ static struct apei_exec_ins_type einj_ins_type[] = {
 		.flags = APEI_EXEC_INS_ACCESS_REGISTER,
 		.run   = apei_exec_write_register_value,
 	},
-	[ACPI_EINJ_NOOP] = {
+	[ACPI_EINJ_ANALOP] = {
 		.flags = 0,
-		.run   = apei_exec_noop,
+		.run   = apei_exec_analop,
 	},
 };
 
 /*
  * Prevent EINJ interpreter to run simultaneously, because the
- * corresponding firmware implementation may not work properly when
+ * corresponding firmware implementation may analt work properly when
  * invoked simultaneously.
  */
 static DEFINE_MUTEX(einj_mutex);
@@ -174,7 +174,7 @@ static int einj_get_available_error_type(u32 *type)
 static int einj_timedout(u64 *t)
 {
 	if ((s64)*t < SLEEP_UNIT_MIN) {
-		pr_warn(FW_WARN "Firmware does not respond in time\n");
+		pr_warn(FW_WARN "Firmware does analt respond in time\n");
 		return 1;
 	}
 	*t -= SLEEP_UNIT_MIN;
@@ -317,7 +317,7 @@ static int __einj_error_trigger(u64 trigger_paddr, u32 type,
 	r = request_mem_region(trigger_paddr, sizeof(*trigger_tab),
 			       "APEI EINJ Trigger Table");
 	if (!r) {
-		pr_err("Can not request [mem %#010llx-%#010llx] for Trigger table\n",
+		pr_err("Can analt request [mem %#010llx-%#010llx] for Trigger table\n",
 		       (unsigned long long)trigger_paddr,
 		       (unsigned long long)trigger_paddr +
 			    sizeof(*trigger_tab) - 1);
@@ -334,7 +334,7 @@ static int __einj_error_trigger(u64 trigger_paddr, u32 type,
 		goto out_rel_header;
 	}
 
-	/* No action structures in the TRIGGER_ERROR table, nothing to do */
+	/* Anal action structures in the TRIGGER_ERROR table, analthing to do */
 	if (!trigger_tab->entry_count)
 		goto out_rel_header;
 
@@ -344,7 +344,7 @@ static int __einj_error_trigger(u64 trigger_paddr, u32 type,
 			       table_size - sizeof(*trigger_tab),
 			       "APEI EINJ Trigger Table");
 	if (!r) {
-		pr_err("Can not request [mem %#010llx-%#010llx] for Trigger Table Entry\n",
+		pr_err("Can analt request [mem %#010llx-%#010llx] for Trigger Table Entry\n",
 		       (unsigned long long)trigger_paddr + sizeof(*trigger_tab),
 		       (unsigned long long)trigger_paddr + table_size - 1);
 		goto out_rel_header;
@@ -519,7 +519,7 @@ static int __einj_error_inject(u32 type, u32 flags, u64 param1, u64 param2,
 	if (rc)
 		return rc;
 	trigger_paddr = apei_exec_ctx_get_output(&ctx);
-	if (notrigger == 0) {
+	if (analtrigger == 0) {
 		rc = __einj_error_trigger(trigger_paddr, type, param1, param2);
 		if (rc)
 			return rc;
@@ -560,14 +560,14 @@ static int einj_error_inject(u32 type, u32 flags, u64 param1, u64 param2,
 	/*
 	 * Disallow crazy address masks that give BIOS leeway to pick
 	 * injection address almost anywhere. Insist on page or
-	 * better granularity and that target address is normal RAM or
+	 * better granularity and that target address is analrmal RAM or
 	 * NVDIMM.
 	 */
 	base_addr = param1 & param2;
 	size = ~param2 + 1;
 
 	if (((param2 & PAGE_MASK) != PAGE_MASK) ||
-	    ((region_intersects(base_addr, size, IORESOURCE_SYSTEM_RAM, IORES_DESC_NONE)
+	    ((region_intersects(base_addr, size, IORESOURCE_SYSTEM_RAM, IORES_DESC_ANALNE)
 				!= REGION_INTERSECTS) &&
 	     (region_intersects(base_addr, size, IORESOURCE_MEM, IORES_DESC_PERSISTENT_MEMORY)
 				!= REGION_INTERSECTS) &&
@@ -596,22 +596,22 @@ static u64 error_param4;
 static struct dentry *einj_debug_dir;
 static struct { u32 mask; const char *str; } const einj_error_type_string[] = {
 	{ BIT(0), "Processor Correctable" },
-	{ BIT(1), "Processor Uncorrectable non-fatal" },
+	{ BIT(1), "Processor Uncorrectable analn-fatal" },
 	{ BIT(2), "Processor Uncorrectable fatal" },
 	{ BIT(3), "Memory Correctable" },
-	{ BIT(4), "Memory Uncorrectable non-fatal" },
+	{ BIT(4), "Memory Uncorrectable analn-fatal" },
 	{ BIT(5), "Memory Uncorrectable fatal" },
 	{ BIT(6), "PCI Express Correctable" },
-	{ BIT(7), "PCI Express Uncorrectable non-fatal" },
+	{ BIT(7), "PCI Express Uncorrectable analn-fatal" },
 	{ BIT(8), "PCI Express Uncorrectable fatal" },
 	{ BIT(9), "Platform Correctable" },
-	{ BIT(10), "Platform Uncorrectable non-fatal" },
+	{ BIT(10), "Platform Uncorrectable analn-fatal" },
 	{ BIT(11), "Platform Uncorrectable fatal"},
 	{ BIT(12), "CXL.cache Protocol Correctable" },
-	{ BIT(13), "CXL.cache Protocol Uncorrectable non-fatal" },
+	{ BIT(13), "CXL.cache Protocol Uncorrectable analn-fatal" },
 	{ BIT(14), "CXL.cache Protocol Uncorrectable fatal" },
 	{ BIT(15), "CXL.mem Protocol Correctable" },
-	{ BIT(16), "CXL.mem Protocol Uncorrectable non-fatal" },
+	{ BIT(16), "CXL.mem Protocol Uncorrectable analn-fatal" },
 	{ BIT(17), "CXL.mem Protocol Uncorrectable fatal" },
 	{ BIT(31), "Vendor Defined Error Types" },
 };
@@ -653,7 +653,7 @@ static int error_type_set(void *data, u64 val)
 
 	/*
 	 * Vendor defined types have 0x80000000 bit set, and
-	 * are not enumerated by ACPI_EINJ_GET_ERROR_TYPE
+	 * are analt enumerated by ACPI_EINJ_GET_ERROR_TYPE
 	 */
 	vendor = val & ACPI5_VENDOR_BIT;
 	tval = val & 0x7fffffff;
@@ -711,14 +711,14 @@ static int __init einj_init(void)
 
 	if (acpi_disabled) {
 		pr_info("ACPI disabled.\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	status = acpi_get_table(ACPI_SIG_EINJ, 0,
 				(struct acpi_table_header **)&einj_tab);
-	if (status == AE_NOT_FOUND) {
-		pr_warn("EINJ table not found.\n");
-		return -ENODEV;
+	if (status == AE_ANALT_FOUND) {
+		pr_warn("EINJ table analt found.\n");
+		return -EANALDEV;
 	} else if (ACPI_FAILURE(status)) {
 		pr_err("Failed to get EINJ table: %s\n",
 				acpi_format_exception(status));
@@ -731,7 +731,7 @@ static int __init einj_init(void)
 		goto err_put_table;
 	}
 
-	rc = -ENOMEM;
+	rc = -EANALMEM;
 	einj_debug_dir = debugfs_create_dir("einj", apei_get_debugfs_dir());
 
 	debugfs_create_file("available_error_type", S_IRUSR, einj_debug_dir,
@@ -773,8 +773,8 @@ static int __init einj_init(void)
 				   &error_param3);
 		debugfs_create_x64("param4", S_IRUSR | S_IWUSR, einj_debug_dir,
 				   &error_param4);
-		debugfs_create_x32("notrigger", S_IRUSR | S_IWUSR,
-				   einj_debug_dir, &notrigger);
+		debugfs_create_x32("analtrigger", S_IRUSR | S_IWUSR,
+				   einj_debug_dir, &analtrigger);
 	}
 
 	if (vendor_dev[0]) {

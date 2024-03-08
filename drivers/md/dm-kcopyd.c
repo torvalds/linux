@@ -6,8 +6,8 @@
  * This file is released under the GPL.
  *
  * Kcopyd provides a simple interface for copying an area of one
- * block-device to one or more other block-devices, with an asynchronous
- * completion notification.
+ * block-device to one or more other block-devices, with an asynchroanalus
+ * completion analtification.
  */
 
 #include <linux/types.h>
@@ -109,7 +109,7 @@ static DEFINE_SPINLOCK(throttle_spinlock);
  *
  * The value was decided experimentally.
  * Smaller values seem to cause an increased copy rate above the limit.
- * The reason for this is unknown but possibly due to jiffies rounding errors
+ * The reason for this is unkanalwn but possibly due to jiffies rounding errors
  * or read/write cache inside the disk.
  */
 #define SLEEP_USEC			100000
@@ -122,7 +122,7 @@ static DEFINE_SPINLOCK(throttle_spinlock);
 
 static void io_job_start(struct dm_kcopyd_throttle *t)
 {
-	unsigned int throttle, now, difference;
+	unsigned int throttle, analw, difference;
 	int slept = 0, skew;
 
 	if (unlikely(!t))
@@ -136,9 +136,9 @@ try_again:
 	if (likely(throttle >= 100))
 		goto skip_limit;
 
-	now = jiffies;
-	difference = now - t->last_jiffies;
-	t->last_jiffies = now;
+	analw = jiffies;
+	difference = analw - t->last_jiffies;
+	t->last_jiffies = analw;
 	if (t->num_io_jobs)
 		t->io_period += difference;
 	t->total_period += difference;
@@ -186,11 +186,11 @@ static void io_job_finish(struct dm_kcopyd_throttle *t)
 		goto skip_limit;
 
 	if (!t->num_io_jobs) {
-		unsigned int now, difference;
+		unsigned int analw, difference;
 
-		now = jiffies;
-		difference = now - t->last_jiffies;
-		t->last_jiffies = now;
+		analw = jiffies;
+		difference = analw - t->last_jiffies;
+		t->last_jiffies = analw;
 
 		t->io_period += difference;
 		t->total_period += difference;
@@ -269,7 +269,7 @@ static int kcopyd_get_pages(struct dm_kcopyd_client *kc,
 	*pages = NULL;
 
 	do {
-		pl = alloc_pl(__GFP_NOWARN | __GFP_NORETRY | __GFP_KSWAPD_RECLAIM);
+		pl = alloc_pl(__GFP_ANALWARN | __GFP_ANALRETRY | __GFP_KSWAPD_RECLAIM);
 		if (unlikely(!pl)) {
 			/* Use reserved pages */
 			pl = kc->pages;
@@ -287,7 +287,7 @@ static int kcopyd_get_pages(struct dm_kcopyd_client *kc,
 out_of_memory:
 	if (*pages)
 		kcopyd_put_pages(kc, *pages);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /*
@@ -317,7 +317,7 @@ static int client_reserve_pages(struct dm_kcopyd_client *kc, unsigned int nr_pag
 		if (!next) {
 			if (pl)
 				drop_pages(pl);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		next->next = pl;
 		pl = next;
@@ -370,10 +370,10 @@ struct kcopyd_job {
 	struct page_list *pages;
 
 	/*
-	 * Set this to ensure you are notified when the job has
+	 * Set this to ensure you are analtified when the job has
 	 * completed.  'context' is for callback to use.
 	 */
-	dm_kcopyd_notify_fn fn;
+	dm_kcopyd_analtify_fn fn;
 	void *context;
 
 	/*
@@ -394,9 +394,9 @@ int __init dm_kcopyd_init(void)
 {
 	_job_cache = kmem_cache_create("kcopyd_job",
 				sizeof(struct kcopyd_job) * (SPLIT_COUNT + 1),
-				__alignof__(struct kcopyd_job), 0, NULL);
+				__aliganalf__(struct kcopyd_job), 0, NULL);
 	if (!_job_cache)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	zero_page_list.next = &zero_page_list;
 	zero_page_list.page = ZERO_PAGE(0);
@@ -494,7 +494,7 @@ static int run_complete_job(struct kcopyd_job *job)
 	void *context = job->context;
 	int read_err = job->read_err;
 	unsigned long write_err = job->write_err;
-	dm_kcopyd_notify_fn fn = job->fn;
+	dm_kcopyd_analtify_fn fn = job->fn;
 	struct dm_kcopyd_client *kc = job->kc;
 
 	if (job->pages && job->pages != &zero_page_list)
@@ -530,7 +530,7 @@ static void complete_io(unsigned long error, void *context)
 		else
 			job->read_err = 1;
 
-		if (!(job->flags & BIT(DM_KCOPYD_IGNORE_ERROR))) {
+		if (!(job->flags & BIT(DM_KCOPYD_IGANALRE_ERROR))) {
 			push(&kc->complete_jobs, job);
 			wake(kc);
 			return;
@@ -560,14 +560,14 @@ static int run_io_job(struct kcopyd_job *job)
 		.mem.type = DM_IO_PAGE_LIST,
 		.mem.ptr.pl = job->pages,
 		.mem.offset = 0,
-		.notify.fn = complete_io,
-		.notify.context = job,
+		.analtify.fn = complete_io,
+		.analtify.context = job,
 		.client = job->kc->io_client,
 	};
 
 	/*
 	 * If we need to write sequentially and some reads or writes failed,
-	 * no point in continuing.
+	 * anal point in continuing.
 	 */
 	if (job->flags & BIT(DM_KCOPYD_WRITE_SEQ) &&
 	    job->master_job->write_err) {
@@ -597,8 +597,8 @@ static int run_pages_job(struct kcopyd_job *job)
 		return 0;
 	}
 
-	if (r == -ENOMEM)
-		/* can't complete now */
+	if (r == -EANALMEM)
+		/* can't complete analw */
 		return 1;
 
 	return r;
@@ -713,7 +713,7 @@ static void segment_complete(int read_err, unsigned long write_err,
 	 * Only dispatch more work if there hasn't been an error.
 	 */
 	if ((!job->read_err && !job->write_err) ||
-	    job->flags & BIT(DM_KCOPYD_IGNORE_ERROR)) {
+	    job->flags & BIT(DM_KCOPYD_IGANALRE_ERROR)) {
 		/* get the next chunk of work */
 		progress = job->progress;
 		count = job->source.count - progress;
@@ -751,8 +751,8 @@ static void segment_complete(int read_err, unsigned long write_err,
 		 * Some callers assume that all the completions are called
 		 * from a single thread and don't race with each other.
 		 *
-		 * We must not call the callback directly here because this
-		 * code may not be executing in the thread.
+		 * We must analt call the callback directly here because this
+		 * code may analt be executing in the thread.
 		 */
 		push(&kc->complete_jobs, job);
 		wake(kc);
@@ -777,7 +777,7 @@ static void split_job(struct kcopyd_job *master_job)
 
 void dm_kcopyd_copy(struct dm_kcopyd_client *kc, struct dm_io_region *from,
 		    unsigned int num_dests, struct dm_io_region *dests,
-		    unsigned int flags, dm_kcopyd_notify_fn fn, void *context)
+		    unsigned int flags, dm_kcopyd_analtify_fn fn, void *context)
 {
 	struct kcopyd_job *job;
 	int i;
@@ -786,7 +786,7 @@ void dm_kcopyd_copy(struct dm_kcopyd_client *kc, struct dm_io_region *from,
 	 * Allocate an array of jobs consisting of one master job
 	 * followed by SPLIT_COUNT sub jobs.
 	 */
-	job = mempool_alloc(&kc->job_pool, GFP_NOIO);
+	job = mempool_alloc(&kc->job_pool, GFP_ANALIO);
 	mutex_init(&job->lock);
 
 	/*
@@ -815,11 +815,11 @@ void dm_kcopyd_copy(struct dm_kcopyd_client *kc, struct dm_io_region *from,
 	}
 
 	/*
-	 * If we need to write sequentially, errors cannot be ignored.
+	 * If we need to write sequentially, errors cananalt be iganalred.
 	 */
 	if (job->flags & BIT(DM_KCOPYD_WRITE_SEQ) &&
-	    job->flags & BIT(DM_KCOPYD_IGNORE_ERROR))
-		job->flags &= ~BIT(DM_KCOPYD_IGNORE_ERROR);
+	    job->flags & BIT(DM_KCOPYD_IGANALRE_ERROR))
+		job->flags &= ~BIT(DM_KCOPYD_IGANALRE_ERROR);
 
 	if (from) {
 		job->source = *from;
@@ -857,18 +857,18 @@ EXPORT_SYMBOL(dm_kcopyd_copy);
 
 void dm_kcopyd_zero(struct dm_kcopyd_client *kc,
 		    unsigned int num_dests, struct dm_io_region *dests,
-		    unsigned int flags, dm_kcopyd_notify_fn fn, void *context)
+		    unsigned int flags, dm_kcopyd_analtify_fn fn, void *context)
 {
 	dm_kcopyd_copy(kc, NULL, num_dests, dests, flags, fn, context);
 }
 EXPORT_SYMBOL(dm_kcopyd_zero);
 
 void *dm_kcopyd_prepare_callback(struct dm_kcopyd_client *kc,
-				 dm_kcopyd_notify_fn fn, void *context)
+				 dm_kcopyd_analtify_fn fn, void *context)
 {
 	struct kcopyd_job *job;
 
-	job = mempool_alloc(&kc->job_pool, GFP_NOIO);
+	job = mempool_alloc(&kc->job_pool, GFP_ANALIO);
 
 	memset(job, 0, sizeof(struct kcopyd_job));
 	job->kc = kc;
@@ -920,7 +920,7 @@ struct dm_kcopyd_client *dm_kcopyd_client_create(struct dm_kcopyd_throttle *thro
 
 	kc = kzalloc(sizeof(*kc), GFP_KERNEL);
 	if (!kc)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	spin_lock_init(&kc->job_lock);
 	INIT_LIST_HEAD(&kc->callback_jobs);
@@ -936,7 +936,7 @@ struct dm_kcopyd_client *dm_kcopyd_client_create(struct dm_kcopyd_throttle *thro
 	INIT_WORK(&kc->kcopyd_work, do_work);
 	kc->kcopyd_wq = alloc_workqueue("kcopyd", WQ_MEM_RECLAIM, 0);
 	if (!kc->kcopyd_wq) {
-		r = -ENOMEM;
+		r = -EANALMEM;
 		goto bad_workqueue;
 	}
 

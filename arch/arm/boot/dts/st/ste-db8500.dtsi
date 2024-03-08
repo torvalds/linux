@@ -20,19 +20,19 @@
 		/* Modem trace memory */
 		ram@6000000 {
 			reg = <0x06000000 0x00f00000>;
-			no-map;
+			anal-map;
 		};
 
 		/* Modem shared memory */
 		ram@6f00000 {
 			reg = <0x06f00000 0x00100000>;
-			no-map;
+			anal-map;
 		};
 
 		/* Modem private memory */
 		ram@7000000 {
 			reg = <0x07000000 0x01000000>;
-			no-map;
+			anal-map;
 		};
 
 		/*
@@ -41,12 +41,12 @@
 		 * This is probably only used if the kernel tries
 		 * to actually call into trustzone to run secure
 		 * applications, which the mainline kernel probably
-		 * will not do on this old chipset. But you can never
+		 * will analt do on this old chipset. But you can never
 		 * be too careful, so reserve this memory anyway.
 		 */
 		ram@17f00000 {
 			reg = <0x17f00000 0x00100000>;
-			no-map;
+			anal-map;
 		};
 	};
 };

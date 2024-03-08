@@ -41,25 +41,25 @@ struct clps711x_fb_info {
 	bool			cmap_invert;
 };
 
-static int clps711x_fb_setcolreg(u_int regno, u_int red, u_int green,
+static int clps711x_fb_setcolreg(u_int reganal, u_int red, u_int green,
 				 u_int blue, u_int transp, struct fb_info *info)
 {
 	struct clps711x_fb_info *cfb = info->par;
 	u32 level, mask, shift;
 
-	if (regno >= BIT(info->var.bits_per_pixel))
+	if (reganal >= BIT(info->var.bits_per_pixel))
 		return -EINVAL;
 
-	shift = 4 * (regno & 7);
+	shift = 4 * (reganal & 7);
 	mask  = 0xf << shift;
 	/* gray = 0.30*R + 0.58*G + 0.11*B */
 	level = (((red * 77 + green * 151 + blue * 28) >> 20) << shift) & mask;
 	if (cfb->cmap_invert)
 		level = 0xf - level;
 
-	regno = (regno < 8) ? CLPS711X_PALLSW : CLPS711X_PALMSW;
+	reganal = (reganal < 8) ? CLPS711X_PALLSW : CLPS711X_PALMSW;
 
-	writel((readl(cfb->base + regno) & ~mask) | level, cfb->base + regno);
+	writel((readl(cfb->base + reganal) & ~mask) | level, cfb->base + reganal);
 
 	return 0;
 }
@@ -110,7 +110,7 @@ static int clps711x_fb_set_par(struct fb_info *info)
 
 	switch (info->var.bits_per_pixel) {
 	case 1:
-		info->fix.visual = FB_VISUAL_MONO01;
+		info->fix.visual = FB_VISUAL_MOANAL01;
 		break;
 	case 2:
 	case 4:
@@ -175,7 +175,7 @@ static int clps711x_lcd_get_power(struct lcd_device *lcddev)
 
 	if (!IS_ERR_OR_NULL(cfb->lcd_pwr))
 		if (!regulator_is_enabled(cfb->lcd_pwr))
-			return FB_BLANK_NORMAL;
+			return FB_BLANK_ANALRMAL;
 
 	return FB_BLANK_UNBLANK;
 }
@@ -206,20 +206,20 @@ static struct lcd_ops clps711x_lcd_ops = {
 static int clps711x_fb_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *disp, *np = dev->of_node;
+	struct device_analde *disp, *np = dev->of_analde;
 	struct clps711x_fb_info *cfb;
 	struct lcd_device *lcd;
 	struct fb_info *info;
 	struct resource *res;
-	int ret = -ENOENT;
+	int ret = -EANALENT;
 	u32 val;
 
 	if (fb_get_options(CLPS711X_FB_NAME, NULL))
-		return -ENODEV;
+		return -EANALDEV;
 
 	info = framebuffer_alloc(sizeof(*cfb), dev);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cfb = info->par;
 	platform_set_drvdata(pdev, info);
@@ -229,7 +229,7 @@ static int clps711x_fb_probe(struct platform_device *pdev)
 		goto out_fb_release;
 	cfb->base = devm_ioremap(dev, res->start, resource_size(res));
 	if (!cfb->base) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_fb_release;
 	}
 
@@ -265,14 +265,14 @@ static int clps711x_fb_probe(struct platform_device *pdev)
 
 	disp = of_parse_phandle(np, "display", 0);
 	if (!disp) {
-		dev_err(&pdev->dev, "No display defined\n");
-		ret = -ENODATA;
+		dev_err(&pdev->dev, "Anal display defined\n");
+		ret = -EANALDATA;
 		goto out_fb_release;
 	}
 
 	ret = of_get_fb_videomode(disp, &cfb->mode, OF_USE_NATIVE_MODE);
 	if (ret) {
-		of_node_put(disp);
+		of_analde_put(disp);
 		goto out_fb_release;
 	}
 
@@ -281,7 +281,7 @@ static int clps711x_fb_probe(struct platform_device *pdev)
 
 	ret = of_property_read_u32(disp, "bits-per-pixel",
 				   &info->var.bits_per_pixel);
-	of_node_put(disp);
+	of_analde_put(disp);
 	if (ret)
 		goto out_fb_release;
 
@@ -308,12 +308,12 @@ static int clps711x_fb_probe(struct platform_device *pdev)
 	}
 
 	info->fbops = &clps711x_fb_ops;
-	info->var.activate = FB_ACTIVATE_FORCE | FB_ACTIVATE_NOW;
+	info->var.activate = FB_ACTIVATE_FORCE | FB_ACTIVATE_ANALW;
 	info->var.height = -1;
 	info->var.width = -1;
-	info->var.vmode = FB_VMODE_NONINTERLACED;
+	info->var.vmode = FB_VMODE_ANALNINTERLACED;
 	info->fix.type = FB_TYPE_PACKED_PIXELS;
-	info->fix.accel = FB_ACCEL_NONE;
+	info->fix.accel = FB_ACCEL_ANALNE;
 	strscpy(info->fix.id, CLPS711X_FB_NAME, sizeof(info->fix.id));
 	fb_videomode_to_var(&info->var, &cfb->mode);
 

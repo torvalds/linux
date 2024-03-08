@@ -2,7 +2,7 @@
 /*
  * Thunderbolt driver - NHI driver
  *
- * Copyright (c) 2014 Andreas Noever <andreas.noever@gmail.com>
+ * Copyright (c) 2014 Andreas Analever <andreas.analever@gmail.com>
  * Copyright (C) 2018, Intel Corporation
  */
 
@@ -33,16 +33,16 @@ enum nhi_fw_mode nhi_mailbox_mode(struct tb_nhi *nhi);
 /**
  * struct tb_nhi_ops - NHI specific optional operations
  * @init: NHI specific initialization
- * @suspend_noirq: NHI specific suspend_noirq hook
- * @resume_noirq: NHI specific resume_noirq hook
+ * @suspend_analirq: NHI specific suspend_analirq hook
+ * @resume_analirq: NHI specific resume_analirq hook
  * @runtime_suspend: NHI specific runtime_suspend hook
  * @runtime_resume: NHI specific runtime_resume hook
  * @shutdown: NHI specific shutdown
  */
 struct tb_nhi_ops {
 	int (*init)(struct tb_nhi *nhi);
-	int (*suspend_noirq)(struct tb_nhi *nhi, bool wakeup);
-	int (*resume_noirq)(struct tb_nhi *nhi);
+	int (*suspend_analirq)(struct tb_nhi *nhi, bool wakeup);
+	int (*resume_analirq)(struct tb_nhi *nhi);
 	int (*runtime_suspend)(struct tb_nhi *nhi);
 	int (*runtime_resume)(struct tb_nhi *nhi);
 	void (*shutdown)(struct tb_nhi *nhi);
@@ -51,7 +51,7 @@ struct tb_nhi_ops {
 extern const struct tb_nhi_ops icl_nhi_ops;
 
 /*
- * PCI IDs used in this driver from Win Ridge forward. There is no
+ * PCI IDs used in this driver from Win Ridge forward. There is anal
  * need for the PCI quirk anymore as we will use ICM also on Apple
  * hardware.
  */

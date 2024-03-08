@@ -6,7 +6,7 @@
 
 #include <linux/futex.h>
 #include <linux/uaccess.h>
-#include <asm/errno.h>
+#include <asm/erranal.h>
 
 #define __futex_atomic_ex_table(err_reg)			\
 	"3:\n"							\
@@ -54,7 +54,7 @@ futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr,
 		return -EFAULT;
 
 	smp_mb();
-	/* Prefetching cannot fault */
+	/* Prefetching cananalt fault */
 	prefetchw(uaddr);
 	__ua_flags = uaccess_save_and_enable();
 	__asm__ __volatile__("@futex_atomic_cmpxchg_inatomic\n"
@@ -158,7 +158,7 @@ arch_futex_atomic_op_inuser(int op, int oparg, int *oval, u32 __user *uaddr)
 		__futex_atomic_op("eor	%0, %1, %4", ret, oldval, tmp, uaddr, oparg);
 		break;
 	default:
-		ret = -ENOSYS;
+		ret = -EANALSYS;
 	}
 
 #ifndef CONFIG_SMP
@@ -167,7 +167,7 @@ arch_futex_atomic_op_inuser(int op, int oparg, int *oval, u32 __user *uaddr)
 
 	/*
 	 * Store unconditionally. If ret != 0 the extra store is the least
-	 * of the worries but GCC cannot figure out that __futex_atomic_op()
+	 * of the worries but GCC cananalt figure out that __futex_atomic_op()
 	 * is either setting ret to -EFAULT or storing the old value in
 	 * oldval which results in a uninitialized warning at the call site.
 	 */

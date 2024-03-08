@@ -79,7 +79,7 @@ static const unsigned int XADC_ZYNQ_UNMASK_TIMEOUT = 500;
 
 #define XADC_ZYNQ_CTL_RESET		BIT(4)
 
-#define XADC_ZYNQ_CMD_NOP		0x00
+#define XADC_ZYNQ_CMD_ANALP		0x00
 #define XADC_ZYNQ_CMD_READ		0x01
 #define XADC_ZYNQ_CMD_WRITE		0x02
 
@@ -112,7 +112,7 @@ static const unsigned int XADC_ZYNQ_UNMASK_TIMEOUT = 500;
 
 /*
  * The XADC hardware supports a samplerate of up to 1MSPS. Unfortunately it does
- * not have a hardware FIFO. Which means an interrupt is generated for each
+ * analt have a hardware FIFO. Which means an interrupt is generated for each
  * conversion sequence. At 1MSPS sample rate the CPU in ZYNQ7000 is completely
  * overloaded by the interrupts that it soft-lockups. For this reason the driver
  * limits the maximum samplerate 150kSPS. At this rate the CPU is fairly busy,
@@ -133,7 +133,7 @@ static void xadc_read_reg(struct xadc *xadc, unsigned int reg,
 }
 
 /*
- * The ZYNQ interface uses two asynchronous FIFOs for communication with the
+ * The ZYNQ interface uses two asynchroanalus FIFOs for communication with the
  * XADC. Reads and writes to the XADC register are performed by submitting a
  * request to the command FIFO (CFIFO), once the request has been completed the
  * result can be read from the data FIFO (DFIFO). The method currently used in
@@ -215,7 +215,7 @@ static int xadc_zynq_read_adc_reg(struct xadc *xadc, unsigned int reg,
 	int ret;
 
 	cmd[0] = XADC_ZYNQ_CMD(XADC_ZYNQ_CMD_READ, reg, 0);
-	cmd[1] = XADC_ZYNQ_CMD(XADC_ZYNQ_CMD_NOP, 0, 0);
+	cmd[1] = XADC_ZYNQ_CMD(XADC_ZYNQ_CMD_ANALP, 0, 0);
 
 	spin_lock_irq(&xadc->lock);
 	xadc_zynq_update_intmsk(xadc, XADC_ZYNQ_INT_DFIFO_GTH,
@@ -271,7 +271,7 @@ static void xadc_zynq_unmask_worker(struct work_struct *work)
 
 	spin_lock_irq(&xadc->lock);
 
-	/* Clear those bits which are not active anymore */
+	/* Clear those bits which are analt active anymore */
 	unmask = (xadc->zynq_masked_alarm ^ misc_sts) & xadc->zynq_masked_alarm;
 	xadc->zynq_masked_alarm &= misc_sts;
 
@@ -304,7 +304,7 @@ static irqreturn_t xadc_zynq_interrupt_handler(int irq, void *devid)
 	status &= ~(xadc->zynq_intmask | xadc->zynq_masked_alarm);
 
 	if (!status)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	spin_lock(&xadc->lock);
 
@@ -321,7 +321,7 @@ static irqreturn_t xadc_zynq_interrupt_handler(int irq, void *devid)
 		xadc->zynq_masked_alarm |= status;
 		/*
 		 * mask the current event interrupt,
-		 * unmask it when the interrupt is no more active.
+		 * unmask it when the interrupt is anal more active.
 		 */
 		xadc_zynq_update_intmsk(xadc, 0, 0);
 
@@ -510,7 +510,7 @@ static irqreturn_t xadc_axi_interrupt_handler(int irq, void *devid)
 	status &= mask;
 
 	if (!status)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if ((status & XADC_AXI_INT_EOS) && xadc->trigger)
 		iio_trigger_poll(xadc->trigger);
@@ -518,7 +518,7 @@ static irqreturn_t xadc_axi_interrupt_handler(int irq, void *devid)
 	if (status & XADC_AXI_INT_ALARM_MASK) {
 		/*
 		 * The order of the bits in the AXI-XADC status register does
-		 * not match the order of the bits in the XADC alarm enable
+		 * analt match the order of the bits in the XADC alarm enable
 		 * register. xadc_handle_events() expects the events to be in
 		 * the same order as the XADC alarm enable register.
 		 */
@@ -539,7 +539,7 @@ static void xadc_axi_update_alarm(struct xadc *xadc, unsigned int alarm)
 	unsigned long flags;
 
 	/*
-	 * The order of the bits in the AXI-XADC status register does not match
+	 * The order of the bits in the AXI-XADC status register does analt match
 	 * the order of the bits in the XADC alarm enable register. We get
 	 * passed the alarm mask in the same order as in the XADC alarm enable
 	 * register.
@@ -633,7 +633,7 @@ static int xadc_update_scan_mode(struct iio_dev *indio_dev,
 	data = devm_krealloc_array(indio_dev->dev.parent, xadc->data,
 				   n, sizeof(*xadc->data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memset(data, 0, n * sizeof(*xadc->data));
 	xadc->data = data;
@@ -691,7 +691,7 @@ static irqreturn_t xadc_trigger_handler(int irq, void *p)
 	iio_push_to_buffers(indio_dev, xadc->data);
 
 out:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -756,7 +756,7 @@ static struct iio_trigger *xadc_alloc_trigger(struct iio_dev *indio_dev,
 	trig = devm_iio_trigger_alloc(dev, "%s%d-%s", indio_dev->name,
 				      iio_device_id(indio_dev), name);
 	if (trig == NULL)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	trig->ops = &xadc_trigger_ops;
 	iio_trigger_set_drvdata(trig, iio_priv(indio_dev));
@@ -775,13 +775,13 @@ static int xadc_power_adc_b(struct xadc *xadc, unsigned int seq_mode)
 	/*
 	 * As per datasheet the power-down bits are don't care in the
 	 * UltraScale, but as per reality setting the power-down bit for the
-	 * non-existing ADC-B powers down the main ADC, so just return and don't
+	 * analn-existing ADC-B powers down the main ADC, so just return and don't
 	 * do anything.
 	 */
 	if (xadc->ops->type == XADC_TYPE_US)
 		return 0;
 
-	/* Powerdown the ADC-B when it is not needed. */
+	/* Powerdown the ADC-B when it is analt needed. */
 	switch (seq_mode) {
 	case XADC_CONF1_SEQ_SIMULTANEOUS:
 	case XADC_CONF1_SEQ_INDEPENDENT:
@@ -1001,7 +1001,7 @@ static int xadc_write_samplerate(struct xadc *xadc, int val)
 		val = 1000000;
 
 	/*
-	 * We want to round down, but only if we do not exceed the 150 kSPS
+	 * We want to round down, but only if we do analt exceed the 150 kSPS
 	 * limit.
 	 */
 	div = clk_rate / val;
@@ -1197,7 +1197,7 @@ static int xadc_parse_dt(struct iio_dev *indio_dev, unsigned int *conf, int irq)
 	struct xadc *xadc = iio_priv(indio_dev);
 	const struct iio_chan_spec *channel_templates;
 	struct iio_chan_spec *channels, *chan;
-	struct fwnode_handle *chan_node, *child;
+	struct fwanalde_handle *chan_analde, *child;
 	unsigned int max_channels;
 	unsigned int num_channels;
 	const char *external_mux;
@@ -1209,8 +1209,8 @@ static int xadc_parse_dt(struct iio_dev *indio_dev, unsigned int *conf, int irq)
 	*conf = 0;
 
 	ret = device_property_read_string(dev, "xlnx,external-mux", &external_mux);
-	if (ret < 0 || strcasecmp(external_mux, "none") == 0)
-		xadc->external_mux_mode = XADC_EXTERNAL_MUX_NONE;
+	if (ret < 0 || strcasecmp(external_mux, "analne") == 0)
+		xadc->external_mux_mode = XADC_EXTERNAL_MUX_ANALNE;
 	else if (strcasecmp(external_mux, "single") == 0)
 		xadc->external_mux_mode = XADC_EXTERNAL_MUX_SINGLE;
 	else if (strcasecmp(external_mux, "dual") == 0)
@@ -1218,7 +1218,7 @@ static int xadc_parse_dt(struct iio_dev *indio_dev, unsigned int *conf, int irq)
 	else
 		return -EINVAL;
 
-	if (xadc->external_mux_mode != XADC_EXTERNAL_MUX_NONE) {
+	if (xadc->external_mux_mode != XADC_EXTERNAL_MUX_ANALNE) {
 		ret = device_property_read_u32(dev, "xlnx,external-mux-channel", &ext_mux_chan);
 		if (ret < 0)
 			return ret;
@@ -1249,23 +1249,23 @@ static int xadc_parse_dt(struct iio_dev *indio_dev, unsigned int *conf, int irq)
 	channels = devm_kmemdup(dev, channel_templates,
 				sizeof(channels[0]) * max_channels, GFP_KERNEL);
 	if (!channels)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	num_channels = 9;
 	chan = &channels[9];
 
-	chan_node = device_get_named_child_node(dev, "xlnx,channels");
-	fwnode_for_each_child_node(chan_node, child) {
+	chan_analde = device_get_named_child_analde(dev, "xlnx,channels");
+	fwanalde_for_each_child_analde(chan_analde, child) {
 		if (num_channels >= max_channels) {
-			fwnode_handle_put(child);
+			fwanalde_handle_put(child);
 			break;
 		}
 
-		ret = fwnode_property_read_u32(child, "reg", &reg);
+		ret = fwanalde_property_read_u32(child, "reg", &reg);
 		if (ret || reg > 16)
 			continue;
 
-		if (fwnode_property_read_bool(child, "xlnx,bipolar"))
+		if (fwanalde_property_read_bool(child, "xlnx,bipolar"))
 			chan->scan_type.sign = 's';
 
 		if (reg == 0) {
@@ -1278,9 +1278,9 @@ static int xadc_parse_dt(struct iio_dev *indio_dev, unsigned int *conf, int irq)
 		num_channels++;
 		chan++;
 	}
-	fwnode_handle_put(chan_node);
+	fwanalde_handle_put(chan_analde);
 
-	/* No IRQ => no events */
+	/* Anal IRQ => anal events */
 	if (irq <= 0) {
 		for (i = 0; i < num_channels; i++) {
 			channels[i].event_spec = NULL;
@@ -1334,7 +1334,7 @@ static int xadc_probe(struct platform_device *pdev)
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*xadc));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	xadc = iio_priv(indio_dev);
 	xadc->ops = ops;
@@ -1380,7 +1380,7 @@ static int xadc_probe(struct platform_device *pdev)
 		return PTR_ERR(xadc->clk);
 
 	/*
-	 * Make sure not to exceed the maximum samplerate since otherwise the
+	 * Make sure analt to exceed the maximum samplerate since otherwise the
 	 * resulting interrupt storm will soft-lock the system.
 	 */
 	if (xadc->ops->flags & XADC_FLAGS_BUFFERED) {
@@ -1434,7 +1434,7 @@ static int xadc_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	/* Go to non-buffered mode */
+	/* Go to analn-buffered mode */
 	xadc_postdisable(indio_dev);
 
 	return devm_iio_device_register(dev, indio_dev);

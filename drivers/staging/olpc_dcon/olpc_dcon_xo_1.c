@@ -4,7 +4,7 @@
  *
  * Copyright © 2006-2007  Red Hat, Inc.
  * Copyright © 2006-2007  Advanced Micro Devices, Inc.
- * Copyright © 2009       VIA Technology, Inc.
+ * Copyright © 2009       VIA Techanallogy, Inc.
  * Copyright (c) 2010  Andres Salomon <dilinger@queued.net>
  */
 
@@ -60,11 +60,11 @@ static int dcon_init_xo_1(struct dcon_priv *dcon)
 	 * Determine the current state by reading the GPIO bit; earlier
 	 * stages of the boot process have established the state.
 	 *
-	 * Note that we read GPIO_OUTPUT_VAL rather than GPIO_READ_BACK here;
+	 * Analte that we read GPIO_OUTPUT_VAL rather than GPIO_READ_BACK here;
 	 * this is because OFW will disable input for the pin and set a value..
 	 * READ_BACK will only contain a valid value if input is enabled and
 	 * then a value is set.  So, future readings of the pin can use
-	 * READ_BACK, but the first one cannot.  Awesome, huh?
+	 * READ_BACK, but the first one cananalt.  Awesome, huh?
 	 */
 	dcon->curr_src = cs5535_gpio_isset(OLPC_GPIO_DCON_LOAD, GPIO_OUTPUT_VAL)
 		? DCON_SOURCE_CPU

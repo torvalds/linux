@@ -31,7 +31,7 @@
 #define SHARPSL_CHARGE_ON_ACIN_HIGH    0x9b  /* 6V */
 #define SHARPSL_CHARGE_ON_ACIN_LOW     0x34  /* 2V */
 #define SHARPSL_FATAL_ACIN_VOLT        182   /* 3.45V */
-#define SHARPSL_FATAL_NOACIN_VOLT      170   /* 3.40V */
+#define SHARPSL_FATAL_ANALACIN_VOLT      170   /* 3.40V */
 
 static int spitz_last_ac_status;
 
@@ -75,7 +75,7 @@ static void spitz_discharge(int on)
 	gpio_set_value(SPITZ_GPIO_JK_A, on);
 }
 
-/* HACK - For unknown reasons, accurate voltage readings are only made with a load
+/* HACK - For unkanalwn reasons, accurate voltage readings are only made with a load
    on the power bus which the green led on spitz provides */
 static void spitz_discharge1(int on)
 {
@@ -106,7 +106,7 @@ static void spitz_presuspend(void)
 	PGSR2 |= GPIO_bit(SPITZ_GPIO_KEY_STROBE0);
 
 	pxa2xx_mfp_config(&gpio18_config, 1);
-	gpio_request_one(18, GPIOF_OUT_INIT_HIGH, "Unknown");
+	gpio_request_one(18, GPIOF_OUT_INIT_HIGH, "Unkanalwn");
 	gpio_free(18);
 
 	PRER = GPIO_bit(SPITZ_GPIO_KEY_INT);
@@ -213,14 +213,14 @@ struct sharpsl_charger_machinfo spitz_pm_machinfo = {
 	.charge_acin_high = SHARPSL_CHARGE_ON_ACIN_HIGH,
 	.charge_acin_low  = SHARPSL_CHARGE_ON_ACIN_LOW,
 	.fatal_acin_volt  = SHARPSL_FATAL_ACIN_VOLT,
-	.fatal_noacin_volt= SHARPSL_FATAL_NOACIN_VOLT,
+	.fatal_analacin_volt= SHARPSL_FATAL_ANALACIN_VOLT,
 	.bat_levels       = 40,
-	.bat_levels_noac  = sharpsl_battery_levels_noac,
+	.bat_levels_analac  = sharpsl_battery_levels_analac,
 	.bat_levels_acin  = sharpsl_battery_levels_acin,
 	.status_high_acin = 188,
 	.status_low_acin  = 178,
-	.status_high_noac = 185,
-	.status_low_noac  = 175,
+	.status_high_analac = 185,
+	.status_low_analac  = 175,
 };
 
 static struct platform_device *spitzpm_device;
@@ -231,11 +231,11 @@ static int spitzpm_init(void)
 
 	if (!machine_is_spitz() && !machine_is_akita()
 			&& !machine_is_borzoi())
-		return -ENODEV;
+		return -EANALDEV;
 
 	spitzpm_device = platform_device_alloc("sharpsl-pm", -1);
 	if (!spitzpm_device)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spitzpm_device->dev.platform_data = &spitz_pm_machinfo;
 	ret = platform_device_add(spitzpm_device);

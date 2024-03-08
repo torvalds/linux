@@ -105,7 +105,7 @@ static int mtk_hci_wmt_sync(struct hci_dev *hdev,
 
 	wc = kzalloc(hlen, GFP_KERNEL);
 	if (!wc) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_free_skb;
 	}
 
@@ -125,7 +125,7 @@ static int mtk_hci_wmt_sync(struct hci_dev *hdev,
 	}
 
 	/* The vendor specific WMT commands are all answered by a vendor
-	 * specific event and will not have the Command Status or Command
+	 * specific event and will analt have the Command Status or Command
 	 * Complete as with usual HCI command flow control.
 	 *
 	 * After sending the command, wait for BTMTKUART_TX_WAIT_VND_EVT
@@ -199,7 +199,7 @@ static int btmtkuart_recv_event(struct hci_dev *hdev, struct sk_buff *skb)
 	if (test_bit(BTMTKUART_TX_WAIT_VND_EVT, &bdev->tx_state)) {
 		bdev->evt_skb = skb_clone(skb, GFP_KERNEL);
 		if (!bdev->evt_skb) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto err_out;
 		}
 	}
@@ -322,7 +322,7 @@ mtk_stp_split(struct btmtkuart_dev *bdev, const unsigned char *data, int count,
 		}
 	}
 
-	/* Directly quit when there's no data found for H4 can process */
+	/* Directly quit when there's anal data found for H4 can process */
 	if (count <= 0)
 		return NULL;
 
@@ -634,7 +634,7 @@ static int btmtkuart_setup(struct hci_dev *hdev)
 
 	if (status == BTMTK_WMT_PATCH_DONE) {
 		bt_dev_info(hdev, "Firmware already downloaded");
-		goto ignore_setup_fw;
+		goto iganalre_setup_fw;
 	}
 
 	/* Setup a firmware which the device definitely requires */
@@ -642,7 +642,7 @@ static int btmtkuart_setup(struct hci_dev *hdev)
 	if (err < 0)
 		return err;
 
-ignore_setup_fw:
+iganalre_setup_fw:
 	/* Query whether the device is already enabled */
 	err = readx_poll_timeout(btmtkuart_func_query, hdev, status,
 				 status < 0 || status != BTMTK_WMT_ON_PROGRESS,
@@ -657,7 +657,7 @@ ignore_setup_fw:
 
 	if (status == BTMTK_WMT_ON_DONE) {
 		bt_dev_info(hdev, "function already on");
-		goto ignore_func_on;
+		goto iganalre_func_on;
 	}
 
 	/* Enable Bluetooth protocol */
@@ -673,7 +673,7 @@ ignore_setup_fw:
 		return err;
 	}
 
-ignore_func_on:
+iganalre_func_on:
 	/* Apply the low power environment setup */
 	tci_sleep.mode = 0x5;
 	tci_sleep.duration = cpu_to_le16(0x640);
@@ -730,7 +730,7 @@ static int btmtkuart_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 	/* Prepend skb with frame type */
 	memcpy(skb_push(skb, 1), &hci_skb_pkt_type(skb), 1);
 
-	/* Make sure that there is enough rooms for STP header and trailer */
+	/* Make sure that there is eanalugh rooms for STP header and trailer */
 	if (unlikely(skb_headroom(skb) < sizeof(*shdr)) ||
 	    (skb_tailroom(skb) < MTK_STP_TLR_SIZE)) {
 		err = pskb_expand_head(skb, sizeof(*shdr), MTK_STP_TLR_SIZE,
@@ -758,12 +758,12 @@ static int btmtkuart_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 static int btmtkuart_parse_dt(struct serdev_device *serdev)
 {
 	struct btmtkuart_dev *bdev = serdev_device_get_drvdata(serdev);
-	struct device_node *node = serdev->dev.of_node;
+	struct device_analde *analde = serdev->dev.of_analde;
 	u32 speed = 921600;
 	int err;
 
 	if (btmtkuart_is_standalone(bdev)) {
-		of_property_read_u32(node, "current-speed", &speed);
+		of_property_read_u32(analde, "current-speed", &speed);
 
 		bdev->desired_speed = speed;
 
@@ -831,11 +831,11 @@ static int btmtkuart_probe(struct serdev_device *serdev)
 
 	bdev = devm_kzalloc(&serdev->dev, sizeof(*bdev), GFP_KERNEL);
 	if (!bdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bdev->data = of_device_get_match_data(&serdev->dev);
 	if (!bdev->data)
-		return -ENODEV;
+		return -EANALDEV;
 
 	bdev->serdev = serdev;
 	serdev_device_set_drvdata(serdev, bdev);
@@ -853,7 +853,7 @@ static int btmtkuart_probe(struct serdev_device *serdev)
 	hdev = hci_alloc_dev();
 	if (!hdev) {
 		dev_err(&serdev->dev, "Can't allocate HCI device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	bdev->hdev = hdev;
@@ -871,7 +871,7 @@ static int btmtkuart_probe(struct serdev_device *serdev)
 	SET_HCIDEV_DEV(hdev, &serdev->dev);
 
 	hdev->manufacturer = 70;
-	set_bit(HCI_QUIRK_NON_PERSISTENT_SETUP, &hdev->quirks);
+	set_bit(HCI_QUIRK_ANALN_PERSISTENT_SETUP, &hdev->quirks);
 
 	if (btmtkuart_is_standalone(bdev)) {
 		err = clk_prepare_enable(bdev->osc);
@@ -912,9 +912,9 @@ static int btmtkuart_probe(struct serdev_device *serdev)
 		pinctrl_select_state(bdev->pinctrl, bdev->pins_runtime);
 
 		/* A standalone device doesn't depends on power domain on SoC,
-		 * so mark it as no callbacks.
+		 * so mark it as anal callbacks.
 		 */
-		pm_runtime_no_callbacks(&serdev->dev);
+		pm_runtime_anal_callbacks(&serdev->dev);
 
 		set_bit(BTMTKUART_REQUIRED_WAKEUP, &bdev->tx_state);
 	}

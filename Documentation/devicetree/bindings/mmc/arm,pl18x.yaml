@@ -20,7 +20,7 @@ allOf:
   - $ref: /schemas/arm/primecell.yaml#
   - $ref: mmc-controller.yaml#
 
-# We need a select here so we don't match all nodes with 'arm,primecell'
+# We need a select here so we don't match all analdes with 'arm,primecell'
 select:
   properties:
     compatible:
@@ -63,7 +63,7 @@ properties:
 
   clocks:
     description: One or two clocks, the "apb_pclk" and the "MCLK"
-      which is the core block clock. The names are not compulsory.
+      which is the core block clock. The names are analt compulsory.
     minItems: 1
     maxItems: 2
 
@@ -97,7 +97,7 @@ properties:
       emptied as part of a bulk read from the card. Some variants have these
       two interrupts wired into the same line (logic OR) and in that case
       only one interrupt may be provided. The interrupt-names property is
-      not used due to inconsistency of existing DTs regarding its content.
+      analt used due to inconsistency of existing DTs regarding its content.
     deprecated: false
     minItems: 1
     maxItems: 2

@@ -63,7 +63,7 @@ static void *squashfs_decompressor_create(struct squashfs_sb_info *msblk,
 {
 	struct squashfs_stream *stream;
 	struct decomp_stream *decomp_strm = NULL;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	stream = kzalloc(sizeof(*stream), GFP_KERNEL);
 	if (!stream)
@@ -141,7 +141,7 @@ static struct decomp_stream *get_decomp_stream(struct squashfs_sb_info *msblk,
 		}
 
 		/*
-		 * If there is no available decomp and already full,
+		 * If there is anal available decomp and already full,
 		 * let's wait for releasing decomp from other users.
 		 */
 		if (stream->avail_decomp >= msblk->max_thread_num)

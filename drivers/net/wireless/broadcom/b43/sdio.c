@@ -121,7 +121,7 @@ static int b43_sdio_probe(struct sdio_func *func,
 		tuple = tuple->next;
 	}
 	if (!vendor || !device) {
-		error = -ENODEV;
+		error = -EANALDEV;
 		goto out;
 	}
 
@@ -141,7 +141,7 @@ static int b43_sdio_probe(struct sdio_func *func,
 
 	sdio = kzalloc(sizeof(*sdio), GFP_KERNEL);
 	if (!sdio) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		dev_err(&func->dev, "failed to allocate ssb bus\n");
 		goto err_disable_func;
 	}

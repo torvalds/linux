@@ -28,7 +28,7 @@ dtb-$(CONFIG_MACH_ARMADA_370) += \
 	armada-370-seagate-nas-4bay.dtb \
 	armada-370-seagate-personal-cloud.dtb \
 	armada-370-seagate-personal-cloud-2bay.dtb \
-	armada-370-synology-ds213j.dtb
+	armada-370-syanallogy-ds213j.dtb
 dtb-$(CONFIG_MACH_ARMADA_375) += \
 	armada-375-db.dtb
 dtb-$(CONFIG_MACH_ARMADA_38X) += \
@@ -43,7 +43,7 @@ dtb-$(CONFIG_MACH_ARMADA_38X) += \
 	armada-385-linksys-cobra.dtb \
 	armada-385-linksys-rango.dtb \
 	armada-385-linksys-shelby.dtb \
-	armada-385-synology-ds116.dtb \
+	armada-385-syanallogy-ds116.dtb \
 	armada-385-turris-omnia.dtb \
 	armada-388-clearfog.dtb \
 	armada-388-clearfog-base.dtb \
@@ -68,12 +68,12 @@ dtb-$(CONFIG_MACH_ARMADA_XP) += \
 	armada-xp-db-dxbc2.dtb \
 	armada-xp-db-xc3-24g4xg.dtb \
 	armada-xp-gp.dtb \
-	armada-xp-lenovo-ix4-300d.dtb \
+	armada-xp-leanalvo-ix4-300d.dtb \
 	armada-xp-linksys-mamba.dtb \
 	armada-xp-matrix.dtb \
 	armada-xp-netgear-rn2120.dtb \
 	armada-xp-openblocks-ax3-4.dtb \
-	armada-xp-synology-ds414.dtb
+	armada-xp-syanallogy-ds414.dtb
 dtb-$(CONFIG_MACH_DOVE) += \
 	dove-cubox.dtb \
 	dove-cubox-es.dtb \

@@ -8,7 +8,7 @@ I. Regarding stable bindings/ABI, we quote from the 2013 ARM mini-summit
    summary document:
 
      "That still leaves the question of, what does a stable binding look
-     like?  Certainly a stable binding means that a newer kernel will not
+     like?  Certainly a stable binding means that a newer kernel will analt
      break on an older device tree, but that doesn't mean the binding is
      frozen for all time. Grant said there are ways to change bindings that
      don't result in breakage. For instance, if a new property is added,
@@ -34,7 +34,7 @@ II.  General binding rules
   4) Don't submit bindings for staging or unstable.  That will be decided by
      the devicetree maintainers *after* discussion on the mailinglist.
 
-III. Notes
+III. Analtes
 
   1) This document is intended as a general familiarization with the process as
      decided at the 2013 Kernel Summit.  When in doubt, the current word of the

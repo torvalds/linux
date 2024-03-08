@@ -15,7 +15,7 @@
  * missing from the main mcdi_pcol.h
  */
 
-/* MC_CMD_MAE_COUNTER_LIST_ALLOC is not (yet) a released API, but the
+/* MC_CMD_MAE_COUNTER_LIST_ALLOC is analt (yet) a released API, but the
  * following value is needed as an argument to MC_CMD_MAE_ACTION_SET_ALLOC.
  */
 /* enum: A counter ID that is guaranteed never to represent a real counter */

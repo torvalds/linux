@@ -119,9 +119,9 @@ int r8712_xmit_resource_alloc(struct _adapter *padapter,
 				usb_free_urb(pxmitbuf->pxmit_urb[k]);
 			}
 			netdev_err(padapter->pnetdev, "pxmitbuf->pxmit_urb[i] == NULL\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
-		kmemleak_not_leak(pxmitbuf->pxmit_urb[i]);
+		kmemleak_analt_leak(pxmitbuf->pxmit_urb[i]);
 	}
 	return 0;
 }

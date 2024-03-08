@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -68,7 +68,7 @@ MODULE_FIRMWARE("amdgpu/raven_sdma.bin");
 MODULE_FIRMWARE("amdgpu/picasso_sdma.bin");
 MODULE_FIRMWARE("amdgpu/raven2_sdma.bin");
 MODULE_FIRMWARE("amdgpu/arcturus_sdma.bin");
-MODULE_FIRMWARE("amdgpu/renoir_sdma.bin");
+MODULE_FIRMWARE("amdgpu/reanalir_sdma.bin");
 MODULE_FIRMWARE("amdgpu/green_sardine_sdma.bin");
 MODULE_FIRMWARE("amdgpu/aldebaran_sdma.bin");
 
@@ -567,7 +567,7 @@ static void sdma_v4_0_setup_ulv(struct amdgpu_device *adev)
  * @adev: amdgpu_device pointer
  *
  * Use the firmware interface to load the ucode images into
- * the driver (not loaded into hw).
+ * the driver (analt loaded into hw).
  * Returns 0 on success, error on failure.
  */
 
@@ -669,7 +669,7 @@ static void sdma_v4_0_ring_set_wptr(struct amdgpu_ring *ring)
 				ring->doorbell_index, ring->wptr << 2);
 		WDOORBELL64(ring->doorbell_index, ring->wptr << 2);
 	} else {
-		DRM_DEBUG("Not using doorbell -- "
+		DRM_DEBUG("Analt using doorbell -- "
 				"mmSDMA%i_GFX_RB_WPTR == 0x%08x "
 				"mmSDMA%i_GFX_RB_WPTR_HI == 0x%08x\n",
 				ring->me,
@@ -734,17 +734,17 @@ static void sdma_v4_0_page_ring_set_wptr(struct amdgpu_ring *ring)
 	}
 }
 
-static void sdma_v4_0_ring_insert_nop(struct amdgpu_ring *ring, uint32_t count)
+static void sdma_v4_0_ring_insert_analp(struct amdgpu_ring *ring, uint32_t count)
 {
 	struct amdgpu_sdma_instance *sdma = amdgpu_sdma_get_instance_from_ring(ring);
 	int i;
 
 	for (i = 0; i < count; i++)
-		if (sdma && sdma->burst_nop && (i == 0))
-			amdgpu_ring_write(ring, ring->funcs->nop |
-				SDMA_PKT_NOP_HEADER_COUNT(count - 1));
+		if (sdma && sdma->burst_analp && (i == 0))
+			amdgpu_ring_write(ring, ring->funcs->analp |
+				SDMA_PKT_ANALP_HEADER_COUNT(count - 1));
 		else
-			amdgpu_ring_write(ring, ring->funcs->nop);
+			amdgpu_ring_write(ring, ring->funcs->analp);
 }
 
 /**
@@ -765,7 +765,7 @@ static void sdma_v4_0_ring_emit_ib(struct amdgpu_ring *ring,
 	unsigned vmid = AMDGPU_JOB_GET_VMID(job);
 
 	/* IB packet must end on a 8 DW boundary */
-	sdma_v4_0_ring_insert_nop(ring, (2 - lower_32_bits(ring->wptr)) & 7);
+	sdma_v4_0_ring_insert_analp(ring, (2 - lower_32_bits(ring->wptr)) & 7);
 
 	amdgpu_ring_write(ring, SDMA_PKT_HEADER_OP(SDMA_OP_INDIRECT) |
 			  SDMA_PKT_INDIRECT_HEADER_VMID(vmid & 0xf));
@@ -1057,7 +1057,7 @@ static void sdma_v4_0_gfx_resume(struct amdgpu_device *adev, unsigned int i)
 	WREG32_SDMA(i, mmSDMA0_GFX_RB_WPTR, 0);
 	WREG32_SDMA(i, mmSDMA0_GFX_RB_WPTR_HI, 0);
 
-	/* set the wb address whether it's enabled or not */
+	/* set the wb address whether it's enabled or analt */
 	WREG32_SDMA(i, mmSDMA0_GFX_RB_RPTR_ADDR_HI,
 	       upper_32_bits(ring->rptr_gpu_addr) & 0xFFFFFFFF);
 	WREG32_SDMA(i, mmSDMA0_GFX_RB_RPTR_ADDR_LO,
@@ -1071,8 +1071,8 @@ static void sdma_v4_0_gfx_resume(struct amdgpu_device *adev, unsigned int i)
 
 	ring->wptr = 0;
 
-	/* before programing wptr to a less value, need set minor_ptr_update first */
-	WREG32_SDMA(i, mmSDMA0_GFX_MINOR_PTR_UPDATE, 1);
+	/* before programing wptr to a less value, need set mianalr_ptr_update first */
+	WREG32_SDMA(i, mmSDMA0_GFX_MIANALR_PTR_UPDATE, 1);
 
 	doorbell = RREG32_SDMA(i, mmSDMA0_GFX_DOORBELL);
 	doorbell_offset = RREG32_SDMA(i, mmSDMA0_GFX_DOORBELL_OFFSET);
@@ -1087,8 +1087,8 @@ static void sdma_v4_0_gfx_resume(struct amdgpu_device *adev, unsigned int i)
 
 	sdma_v4_0_ring_set_wptr(ring);
 
-	/* set minor_ptr_update to 0 after wptr programed */
-	WREG32_SDMA(i, mmSDMA0_GFX_MINOR_PTR_UPDATE, 0);
+	/* set mianalr_ptr_update to 0 after wptr programed */
+	WREG32_SDMA(i, mmSDMA0_GFX_MIANALR_PTR_UPDATE, 0);
 
 	/* setup the wptr shadow polling */
 	wptr_gpu_addr = ring->wptr_gpu_addr;
@@ -1142,7 +1142,7 @@ static void sdma_v4_0_page_resume(struct amdgpu_device *adev, unsigned int i)
 	WREG32_SDMA(i, mmSDMA0_PAGE_RB_WPTR, 0);
 	WREG32_SDMA(i, mmSDMA0_PAGE_RB_WPTR_HI, 0);
 
-	/* set the wb address whether it's enabled or not */
+	/* set the wb address whether it's enabled or analt */
 	WREG32_SDMA(i, mmSDMA0_PAGE_RB_RPTR_ADDR_HI,
 	       upper_32_bits(ring->rptr_gpu_addr) & 0xFFFFFFFF);
 	WREG32_SDMA(i, mmSDMA0_PAGE_RB_RPTR_ADDR_LO,
@@ -1156,8 +1156,8 @@ static void sdma_v4_0_page_resume(struct amdgpu_device *adev, unsigned int i)
 
 	ring->wptr = 0;
 
-	/* before programing wptr to a less value, need set minor_ptr_update first */
-	WREG32_SDMA(i, mmSDMA0_PAGE_MINOR_PTR_UPDATE, 1);
+	/* before programing wptr to a less value, need set mianalr_ptr_update first */
+	WREG32_SDMA(i, mmSDMA0_PAGE_MIANALR_PTR_UPDATE, 1);
 
 	doorbell = RREG32_SDMA(i, mmSDMA0_PAGE_DOORBELL);
 	doorbell_offset = RREG32_SDMA(i, mmSDMA0_PAGE_DOORBELL_OFFSET);
@@ -1173,8 +1173,8 @@ static void sdma_v4_0_page_resume(struct amdgpu_device *adev, unsigned int i)
 	/* paging queue doorbell range is setup at sdma_v4_0_gfx_resume */
 	sdma_v4_0_page_ring_set_wptr(ring);
 
-	/* set minor_ptr_update to 0 after wptr programed */
-	WREG32_SDMA(i, mmSDMA0_PAGE_MINOR_PTR_UPDATE, 0);
+	/* set mianalr_ptr_update to 0 after wptr programed */
+	WREG32_SDMA(i, mmSDMA0_PAGE_MIANALR_PTR_UPDATE, 0);
 
 	/* setup the wptr shadow polling */
 	wptr_gpu_addr = ring->wptr_gpu_addr;
@@ -1238,11 +1238,11 @@ static void sdma_v4_1_init_power_gating(struct amdgpu_device *adev)
 	if (data != def)
 		WREG32(SOC15_REG_OFFSET(SDMA0, 0, mmSDMA0_CNTL), data);
 
-	/* Configure hold time to filter in-valid power on/off request. Use default right now */
+	/* Configure hold time to filter in-valid power on/off request. Use default right analw */
 	def = data = RREG32(SOC15_REG_OFFSET(SDMA0, 0, mmSDMA0_POWER_CNTL));
 	data &= ~SDMA0_POWER_CNTL__ON_OFF_CONDITION_HOLD_TIME_MASK;
 	data |= (mmSDMA0_POWER_CNTL_DEFAULT & SDMA0_POWER_CNTL__ON_OFF_CONDITION_HOLD_TIME_MASK);
-	/* Configure switch time for hysteresis purpose. Use default right now */
+	/* Configure switch time for hysteresis purpose. Use default right analw */
 	data &= ~SDMA0_POWER_CNTL__ON_OFF_STATUS_DURATION_TIME_MASK;
 	data |= (mmSDMA0_POWER_CNTL_DEFAULT & SDMA0_POWER_CNTL__ON_OFF_STATUS_DURATION_TIME_MASK);
 	if(data != def)
@@ -1287,7 +1287,7 @@ static int sdma_v4_0_rlc_resume(struct amdgpu_device *adev)
  * @adev: amdgpu_device pointer
  *
  * Loads the sDMA0/1 ucode.
- * Returns 0 for success, -EINVAL if the ucode is not available.
+ * Returns 0 for success, -EINVAL if the ucode is analt available.
  */
 static int sdma_v4_0_load_microcode(struct amdgpu_device *adev)
 {
@@ -1495,9 +1495,9 @@ static int sdma_v4_0_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 	ib.ptr[2] = upper_32_bits(gpu_addr);
 	ib.ptr[3] = SDMA_PKT_WRITE_UNTILED_DW_3_COUNT(0);
 	ib.ptr[4] = 0xDEADBEEF;
-	ib.ptr[5] = SDMA_PKT_NOP_HEADER_OP(SDMA_OP_NOP);
-	ib.ptr[6] = SDMA_PKT_NOP_HEADER_OP(SDMA_OP_NOP);
-	ib.ptr[7] = SDMA_PKT_NOP_HEADER_OP(SDMA_OP_NOP);
+	ib.ptr[5] = SDMA_PKT_ANALP_HEADER_OP(SDMA_OP_ANALP);
+	ib.ptr[6] = SDMA_PKT_ANALP_HEADER_OP(SDMA_OP_ANALP);
+	ib.ptr[7] = SDMA_PKT_ANALP_HEADER_OP(SDMA_OP_ANALP);
 	ib.length_dw = 8;
 
 	r = amdgpu_ib_schedule(ring, 1, &ib, NULL, &f);
@@ -1626,13 +1626,13 @@ static void sdma_v4_0_ring_pad_ib(struct amdgpu_ring *ring, struct amdgpu_ib *ib
 
 	pad_count = (-ib->length_dw) & 7;
 	for (i = 0; i < pad_count; i++)
-		if (sdma && sdma->burst_nop && (i == 0))
+		if (sdma && sdma->burst_analp && (i == 0))
 			ib->ptr[ib->length_dw++] =
-				SDMA_PKT_HEADER_OP(SDMA_OP_NOP) |
-				SDMA_PKT_NOP_HEADER_COUNT(pad_count - 1);
+				SDMA_PKT_HEADER_OP(SDMA_OP_ANALP) |
+				SDMA_PKT_ANALP_HEADER_COUNT(pad_count - 1);
 		else
 			ib->ptr[ib->length_dw++] =
-				SDMA_PKT_HEADER_OP(SDMA_OP_NOP);
+				SDMA_PKT_HEADER_OP(SDMA_OP_ANALP);
 }
 
 
@@ -2161,7 +2161,7 @@ static int sdma_v4_0_process_srbm_write_irq(struct amdgpu_device *adev,
 					      struct amdgpu_iv_entry *entry)
 {
 	dev_dbg_ratelimited(adev->dev,
-		"SDMA gets an Register Write SRBM_WRITE command in non-privilege command buffer\n");
+		"SDMA gets an Register Write SRBM_WRITE command in analn-privilege command buffer\n");
 	sdma_v4_0_print_iv_entry(adev, entry);
 	return 0;
 }
@@ -2214,7 +2214,7 @@ static void sdma_v4_0_update_medium_grain_light_sleep(
 
 	if (enable && (adev->cg_flags & AMD_CG_SUPPORT_SDMA_LS)) {
 		for (i = 0; i < adev->sdma.num_instances; i++) {
-			/* 1-not override: enable sdma mem light sleep */
+			/* 1-analt override: enable sdma mem light sleep */
 			def = data = RREG32_SDMA(0, mmSDMA0_POWER_CNTL);
 			data |= SDMA0_POWER_CNTL__MEM_POWER_OVERRIDE_MASK;
 			if (def != data)
@@ -2305,7 +2305,7 @@ const struct amd_ip_funcs sdma_v4_0_ip_funcs = {
 static const struct amdgpu_ring_funcs sdma_v4_0_ring_funcs = {
 	.type = AMDGPU_RING_TYPE_SDMA,
 	.align_mask = 0xff,
-	.nop = SDMA_PKT_NOP_HEADER_OP(SDMA_OP_NOP),
+	.analp = SDMA_PKT_ANALP_HEADER_OP(SDMA_OP_ANALP),
 	.support_64bit_ptrs = true,
 	.secure_submission_supported = true,
 	.get_rptr = sdma_v4_0_ring_get_rptr,
@@ -2327,7 +2327,7 @@ static const struct amdgpu_ring_funcs sdma_v4_0_ring_funcs = {
 	.emit_hdp_flush = sdma_v4_0_ring_emit_hdp_flush,
 	.test_ring = sdma_v4_0_ring_test_ring,
 	.test_ib = sdma_v4_0_ring_test_ib,
-	.insert_nop = sdma_v4_0_ring_insert_nop,
+	.insert_analp = sdma_v4_0_ring_insert_analp,
 	.pad_ib = sdma_v4_0_ring_pad_ib,
 	.emit_wreg = sdma_v4_0_ring_emit_wreg,
 	.emit_reg_wait = sdma_v4_0_ring_emit_reg_wait,
@@ -2337,7 +2337,7 @@ static const struct amdgpu_ring_funcs sdma_v4_0_ring_funcs = {
 static const struct amdgpu_ring_funcs sdma_v4_0_page_ring_funcs = {
 	.type = AMDGPU_RING_TYPE_SDMA,
 	.align_mask = 0xff,
-	.nop = SDMA_PKT_NOP_HEADER_OP(SDMA_OP_NOP),
+	.analp = SDMA_PKT_ANALP_HEADER_OP(SDMA_OP_ANALP),
 	.support_64bit_ptrs = true,
 	.secure_submission_supported = true,
 	.get_rptr = sdma_v4_0_ring_get_rptr,
@@ -2359,7 +2359,7 @@ static const struct amdgpu_ring_funcs sdma_v4_0_page_ring_funcs = {
 	.emit_hdp_flush = sdma_v4_0_ring_emit_hdp_flush,
 	.test_ring = sdma_v4_0_ring_test_ring,
 	.test_ib = sdma_v4_0_ring_test_ib,
-	.insert_nop = sdma_v4_0_ring_insert_nop,
+	.insert_analp = sdma_v4_0_ring_insert_analp,
 	.pad_ib = sdma_v4_0_ring_pad_ib,
 	.emit_wreg = sdma_v4_0_ring_emit_wreg,
 	.emit_reg_wait = sdma_v4_0_ring_emit_reg_wait,
@@ -2415,7 +2415,7 @@ static void sdma_v4_0_set_irq_funcs(struct amdgpu_device *adev)
 {
 	adev->sdma.trap_irq.num_types = adev->sdma.num_instances;
 	adev->sdma.ecc_irq.num_types = adev->sdma.num_instances;
-	/*For Arcturus and Aldebaran, add another 4 irq handler*/
+	/*For Arcturus and Aldebaran, add aanalther 4 irq handler*/
 	switch (adev->sdma.num_instances) {
 	case 5:
 	case 8:
@@ -2538,7 +2538,7 @@ static void sdma_v4_0_get_ras_error_count(uint32_t value,
 	uint32_t i;
 	uint32_t sec_cnt;
 
-	/* double bits error (multiple bits) error detection is not supported */
+	/* double bits error (multiple bits) error detection is analt supported */
 	for (i = 0; i < ARRAY_SIZE(sdma_v4_0_ras_fields); i++) {
 		/* the SDMA_EDC_COUNTER register in each sdma instance
 		 * shares the same sed shift_mask
@@ -2563,14 +2563,14 @@ static int sdma_v4_0_query_ras_error_count_by_instance(struct amdgpu_device *ade
 	uint32_t reg_value = 0;
 
 	reg_value = RREG32_SDMA(instance, mmSDMA0_EDC_COUNTER);
-	/* double bit error is not supported */
+	/* double bit error is analt supported */
 	if (reg_value)
 		sdma_v4_0_get_ras_error_count(reg_value,
 				instance, &sec_count);
 	/* err_data->ce_count should be initialized to 0
 	 * before calling into this function */
 	err_data->ce_count += sec_count;
-	/* double bit error is not supported
+	/* double bit error is analt supported
 	 * set ue count to 0 */
 	err_data->ue_count = 0;
 
@@ -2630,7 +2630,7 @@ static void sdma_v4_0_set_ras_funcs(struct amdgpu_device *adev)
 const struct amdgpu_ip_block_version sdma_v4_0_ip_block = {
 	.type = AMD_IP_BLOCK_TYPE_SDMA,
 	.major = 4,
-	.minor = 0,
+	.mianalr = 0,
 	.rev = 0,
 	.funcs = &sdma_v4_0_ip_funcs,
 };

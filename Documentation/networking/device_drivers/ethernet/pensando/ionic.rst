@@ -123,7 +123,7 @@ The statistics shown from the ``ethtool -S`` command includes a combination of
 driver counters and firmware counters, including port and queue specific values.
 The driver values are counters computed by the driver, and the firmware values
 are gathered by the firmware from the port hardware and passed through the
-driver with no further interpretation.
+driver with anal further interpretation.
 
 Driver port specific::
 
@@ -133,9 +133,9 @@ Driver port specific::
      rx_bytes: 414
      tx_tso: 0
      tx_tso_bytes: 0
-     tx_csum_none: 12
+     tx_csum_analne: 12
      tx_csum: 0
-     rx_csum_none: 0
+     rx_csum_analne: 0
      rx_csum_complete: 3
      rx_csum_error: 0
 
@@ -149,14 +149,14 @@ Driver queue specific::
      tx_0_frags: 0
      tx_0_tso: 0
      tx_0_tso_bytes: 0
-     tx_0_csum_none: 3
+     tx_0_csum_analne: 3
      tx_0_csum: 0
      tx_0_vlan_inserted: 0
      rx_0_pkts: 2
      rx_0_bytes: 120
      rx_0_dma_map_err: 0
      rx_0_alloc_err: 0
-     rx_0_csum_none: 0
+     rx_0_csum_analne: 0
      rx_0_csum_complete: 0
      rx_0_csum_error: 0
      rx_0_dropped: 0

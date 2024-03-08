@@ -3,7 +3,7 @@
  * Low-level API for mac80211 ST-Ericsson CW1200 drivers
  *
  * Copyright (c) 2010, ST-Ericsson
- * Author: Dmitry Tarnyagin <dmitry.tarnyagin@lockless.no>
+ * Author: Dmitry Tarnyagin <dmitry.tarnyagin@lockless.anal>
  *
  * Based on:
  * ST-Ericsson UMAC CW1200 driver which is
@@ -39,11 +39,11 @@ struct download_cntl_t {
 	u32 image_size;
 	/* downloading flags */
 	u32 flags;
-	/* No. of bytes put into the download, init & updated by host */
+	/* Anal. of bytes put into the download, init & updated by host */
 	u32 put;
 	/* last traced program counter, last ARM reg_pc */
 	u32 trace_pc;
-	/* No. of bytes read from the download, host init, device updates */
+	/* Anal. of bytes read from the download, host init, device updates */
 	u32 get;
 	/* r0, boot losader status, host init to pending, device updates */
 	u32 status;
@@ -112,7 +112,7 @@ struct download_cntl_t {
 #define ST90TDS_SRAM_DPORT_REG_ID	(0x0005)
 /* 32 bits, t_settle/general */
 #define ST90TDS_TSET_GEN_R_W_REG_ID	(0x0006)
-/* 16 bits, Q mode read, no length */
+/* 16 bits, Q mode read, anal length */
 #define ST90TDS_FRAME_OUT_REG_ID	(0x0007)
 #define ST90TDS_ADDR_ID_MAX		(ST90TDS_FRAME_OUT_REG_ID)
 

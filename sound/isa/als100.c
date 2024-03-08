@@ -103,7 +103,7 @@ static int snd_card_als100_pnp(int dev, struct snd_card_als100 *acard,
 
 	acard->dev = pnp_request_card_device(card, id->devs[0].id, NULL);
 	if (acard->dev == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 
 	acard->devmpu = pnp_request_card_device(card, id->devs[1].id, acard->dev);
 	acard->devopl = pnp_request_card_device(card, id->devs[2].id, acard->dev);
@@ -230,14 +230,14 @@ static int snd_card_als100_probe(int dev,
 					mpu_port[dev], 0, 
 					mpu_irq[dev],
 					NULL) < 0)
-			snd_printk(KERN_ERR PFX "no MPU-401 device at 0x%lx\n", mpu_port[dev]);
+			snd_printk(KERN_ERR PFX "anal MPU-401 device at 0x%lx\n", mpu_port[dev]);
 	}
 
 	if (fm_port[dev] > 0 && fm_port[dev] != SNDRV_AUTO_PORT) {
 		if (snd_opl3_create(card,
 				    fm_port[dev], fm_port[dev] + 2,
 				    OPL3_HW_AUTO, 0, &opl3) < 0) {
-			snd_printk(KERN_ERR PFX "no OPL device at 0x%lx-0x%lx\n",
+			snd_printk(KERN_ERR PFX "anal OPL device at 0x%lx-0x%lx\n",
 				   fm_port[dev], fm_port[dev] + 2);
 		} else {
 			error = snd_opl3_timer_new(opl3, 0, 1);
@@ -274,7 +274,7 @@ static int snd_als100_pnp_detect(struct pnp_card_link *card,
 		als100_devices++;
 		return 0;
 	}
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 #ifdef CONFIG_PM
@@ -324,9 +324,9 @@ static int __init alsa_card_als100_init(void)
 	if (!als100_devices) {
 		pnp_unregister_card_driver(&als100_pnpc_driver);
 #ifdef MODULE
-		snd_printk(KERN_ERR "no Avance Logic based soundcards found\n");
+		snd_printk(KERN_ERR "anal Avance Logic based soundcards found\n");
 #endif
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	return 0;
 }

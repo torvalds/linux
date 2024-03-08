@@ -234,10 +234,10 @@ static const struct reg_val cfg_ter[] = {
  * pt3_fe_init: initialize demod sub modules and ISDB-T tuners all at once.
  *
  * As for demod IC (TC90522) and ISDB-T tuners (MxL301RF),
- * the i2c sequences for init'ing them are not public and hidden in a ROM,
+ * the i2c sequences for init'ing them are analt public and hidden in a ROM,
  * and include the board specific configurations as well.
- * They are stored in a lump and cannot be taken out / accessed separately,
- * thus cannot be moved to the FE/tuner driver.
+ * They are stored in a lump and cananalt be taken out / accessed separately,
+ * thus cananalt be moved to the FE/tuner driver.
  */
 static int pt3_fe_init(struct pt3_board *pt3)
 {
@@ -328,7 +328,7 @@ static int pt3_fe_init(struct pt3_board *pt3)
 		ret = 0;
 		if (fe->ops.delsys[0] == SYS_ISDBT)
 			ret = fe->ops.tuner_ops.init(fe);
-		/* set only when called from pt3_probe(), not resume() */
+		/* set only when called from pt3_probe(), analt resume() */
 		if (ret == 0 && fe->dtv_property_cache.frequency == 0) {
 			fe->dtv_property_cache.frequency =
 						adap_conf[i].init_freq;
@@ -377,11 +377,11 @@ static int pt3_attach_fe(struct pt3_board *pt3, int i)
 	cfg = adap_conf[i].demod_cfg;
 	cfg.tuner_i2c = NULL;
 
-	ret = -ENODEV;
+	ret = -EANALDEV;
 	cl = dvb_module_probe("tc90522", info->type, &pt3->i2c_adap,
 			      info->addr, &cfg);
 	if (!cl)
-		return -ENODEV;
+		return -EANALDEV;
 	pt3->adaps[i]->i2c_demod = cl;
 
 	if (!strncmp(cl->name, TC90522_I2C_DEV_SAT,
@@ -531,7 +531,7 @@ static int pt3_alloc_adapter(struct pt3_board *pt3, int index)
 
 	adap = kzalloc(sizeof(*adap), GFP_KERNEL);
 	if (!adap)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pt3->adaps[index] = adap;
 	adap->adap_idx = index;
@@ -696,11 +696,11 @@ static int pt3_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct i2c_adapter *i2c;
 
 	if (pci_read_config_byte(pdev, PCI_REVISION_ID, &rev) || rev != 1)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = pcim_enable_device(pdev);
 	if (ret < 0)
-		return -ENODEV;
+		return -EANALDEV;
 	pci_set_master(pdev);
 
 	ret = pcim_iomap_regions(pdev, BIT(0) | BIT(2), DRV_NAME);
@@ -715,7 +715,7 @@ static int pt3_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	pt3 = devm_kzalloc(&pdev->dev, sizeof(*pt3), GFP_KERNEL);
 	if (!pt3)
-		return -ENOMEM;
+		return -EANALMEM;
 	pci_set_drvdata(pdev, pt3);
 	pt3->pdev = pdev;
 	mutex_init(&pt3->lock);
@@ -724,16 +724,16 @@ static int pt3_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	ver = ioread32(pt3->regs[0] + REG_VERSION);
 	if ((ver >> 16) != 0x0301) {
-		dev_warn(&pdev->dev, "PT%d, I/F-ver.:%d not supported\n",
+		dev_warn(&pdev->dev, "PT%d, I/F-ver.:%d analt supported\n",
 			 ver >> 24, (ver & 0x00ff0000) >> 16);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	pt3->num_bufs = clamp_val(num_bufs, MIN_DATA_BUFS, MAX_DATA_BUFS);
 
 	pt3->i2c_buf = devm_kmalloc(&pdev->dev, sizeof(*pt3->i2c_buf), GFP_KERNEL);
 	if (!pt3->i2c_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 	i2c = &pt3->i2c_adap;
 	i2c->owner = THIS_MODULE;
 	i2c->algo = &pt3_i2c_algo;

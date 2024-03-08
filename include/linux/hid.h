@@ -90,8 +90,8 @@ struct hid_item {
 #define HID_MAIN_ITEM_VARIABLE		0x002
 #define HID_MAIN_ITEM_RELATIVE		0x004
 #define HID_MAIN_ITEM_WRAP		0x008
-#define HID_MAIN_ITEM_NONLINEAR		0x010
-#define HID_MAIN_ITEM_NO_PREFERRED	0x020
+#define HID_MAIN_ITEM_ANALNLINEAR		0x010
+#define HID_MAIN_ITEM_ANAL_PREFERRED	0x020
 #define HID_MAIN_ITEM_NULL_STATE	0x040
 #define HID_MAIN_ITEM_VOLATILE		0x080
 #define HID_MAIN_ITEM_BUFFERED_BYTE	0x100
@@ -210,7 +210,7 @@ struct hid_item {
 #define HID_GD_VBRX		0x00010043
 #define HID_GD_VBRY		0x00010044
 #define HID_GD_VBRZ		0x00010045
-#define HID_GD_VNO		0x00010046
+#define HID_GD_VANAL		0x00010046
 #define HID_GD_FEATURE		0x00010047
 #define HID_GD_RESOLUTION_MULTIPLIER	0x00010048
 #define HID_GD_SYSTEM_CONTROL	0x00010080
@@ -264,7 +264,7 @@ struct hid_item {
 #define HID_DG_PEN_LINE_STYLE_HIGHLIGHTER	0x000d0074
 #define HID_DG_PEN_LINE_STYLE_CHISEL_MARKER	0x000d0075
 #define HID_DG_PEN_LINE_STYLE_BRUSH		0x000d0076
-#define HID_DG_PEN_LINE_STYLE_NO_PREFERENCE	0x000d0077
+#define HID_DG_PEN_LINE_STYLE_ANAL_PREFERENCE	0x000d0077
 
 #define HID_CP_CONSUMERCONTROL	0x000c0001
 #define HID_CP_NUMERICKEYPAD	0x000c0002
@@ -290,7 +290,7 @@ struct hid_item {
 #define HID_CP_CHANNELSURROUND	0x000c0167
 #define HID_CP_CHANNELLOWFREQUENCYENHANCEMENT	0x000c0168
 #define HID_CP_CHANNELTOP	0x000c0169
-#define HID_CP_CHANNELUNKNOWN	0x000c016a
+#define HID_CP_CHANNELUNKANALWN	0x000c016a
 #define HID_CP_APPLICATIONLAUNCHBUTTONS	0x000c0180
 #define HID_CP_GENERICGUIAPPLICATIONCONTROLS	0x000c0200
 
@@ -343,9 +343,9 @@ struct hid_item {
 
 /**
  * DOC: HID quirks
- * | @HID_QUIRK_NOTOUCH:
- * | @HID_QUIRK_IGNORE: ignore this device
- * | @HID_QUIRK_NOGET:
+ * | @HID_QUIRK_ANALTOUCH:
+ * | @HID_QUIRK_IGANALRE: iganalre this device
+ * | @HID_QUIRK_ANALGET:
  * | @HID_QUIRK_HIDDEV_FORCE:
  * | @HID_QUIRK_BADPAD:
  * | @HID_QUIRK_MULTI_INPUT:
@@ -356,43 +356,43 @@ struct hid_item {
  * | @HID_QUIRK_Y_INVERT:
  * | @HID_QUIRK_SKIP_OUTPUT_REPORTS:
  * | @HID_QUIRK_SKIP_OUTPUT_REPORT_ID:
- * | @HID_QUIRK_NO_OUTPUT_REPORTS_ON_INTR_EP:
+ * | @HID_QUIRK_ANAL_OUTPUT_REPORTS_ON_INTR_EP:
  * | @HID_QUIRK_HAVE_SPECIAL_DRIVER:
  * | @HID_QUIRK_INCREMENT_USAGE_ON_DUPLICATE:
  * | @HID_QUIRK_FULLSPEED_INTERVAL:
- * | @HID_QUIRK_NO_INIT_REPORTS:
- * | @HID_QUIRK_NO_IGNORE:
- * | @HID_QUIRK_NO_INPUT_SYNC:
+ * | @HID_QUIRK_ANAL_INIT_REPORTS:
+ * | @HID_QUIRK_ANAL_IGANALRE:
+ * | @HID_QUIRK_ANAL_INPUT_SYNC:
  */
 /* BIT(0) reserved for backward compatibility, was HID_QUIRK_INVERT */
-#define HID_QUIRK_NOTOUCH			BIT(1)
-#define HID_QUIRK_IGNORE			BIT(2)
-#define HID_QUIRK_NOGET				BIT(3)
+#define HID_QUIRK_ANALTOUCH			BIT(1)
+#define HID_QUIRK_IGANALRE			BIT(2)
+#define HID_QUIRK_ANALGET				BIT(3)
 #define HID_QUIRK_HIDDEV_FORCE			BIT(4)
 #define HID_QUIRK_BADPAD			BIT(5)
 #define HID_QUIRK_MULTI_INPUT			BIT(6)
 #define HID_QUIRK_HIDINPUT_FORCE		BIT(7)
-/* BIT(8) reserved for backward compatibility, was HID_QUIRK_NO_EMPTY_INPUT */
-/* BIT(9) reserved for backward compatibility, was NO_INIT_INPUT_REPORTS */
+/* BIT(8) reserved for backward compatibility, was HID_QUIRK_ANAL_EMPTY_INPUT */
+/* BIT(9) reserved for backward compatibility, was ANAL_INIT_INPUT_REPORTS */
 #define HID_QUIRK_ALWAYS_POLL			BIT(10)
 #define HID_QUIRK_INPUT_PER_APP			BIT(11)
 #define HID_QUIRK_X_INVERT			BIT(12)
 #define HID_QUIRK_Y_INVERT			BIT(13)
 #define HID_QUIRK_SKIP_OUTPUT_REPORTS		BIT(16)
 #define HID_QUIRK_SKIP_OUTPUT_REPORT_ID		BIT(17)
-#define HID_QUIRK_NO_OUTPUT_REPORTS_ON_INTR_EP	BIT(18)
+#define HID_QUIRK_ANAL_OUTPUT_REPORTS_ON_INTR_EP	BIT(18)
 #define HID_QUIRK_HAVE_SPECIAL_DRIVER		BIT(19)
 #define HID_QUIRK_INCREMENT_USAGE_ON_DUPLICATE	BIT(20)
-#define HID_QUIRK_NOINVERT			BIT(21)
+#define HID_QUIRK_ANALINVERT			BIT(21)
 #define HID_QUIRK_FULLSPEED_INTERVAL		BIT(28)
-#define HID_QUIRK_NO_INIT_REPORTS		BIT(29)
-#define HID_QUIRK_NO_IGNORE			BIT(30)
-#define HID_QUIRK_NO_INPUT_SYNC			BIT(31)
+#define HID_QUIRK_ANAL_INIT_REPORTS		BIT(29)
+#define HID_QUIRK_ANAL_IGANALRE			BIT(30)
+#define HID_QUIRK_ANAL_INPUT_SYNC			BIT(31)
 
 /*
  * HID device groups
  *
- * Note: HID_GROUP_ANY is declared in linux/mod_devicetable.h
+ * Analte: HID_GROUP_ANY is declared in linux/mod_devicetable.h
  * and has a value of 0x0000
  */
 #define HID_GROUP_GENERIC			0x0001
@@ -493,7 +493,7 @@ struct hid_field {
 	unsigned  report_size;		/* size of this field in the report */
 	unsigned  report_count;		/* number of this field in the report */
 	unsigned  report_type;		/* (input,output,feature) */
-	__s32    *value;		/* last known value(s) */
+	__s32    *value;		/* last kanalwn value(s) */
 	__s32    *new_value;		/* newly read value(s) */
 	__s32    *usages_priorities;	/* priority of each usage when reading the report
 					 * bits 8-16 are reserved for hid-input usage
@@ -504,7 +504,7 @@ struct hid_field {
 	__s32     physical_maximum;
 	__s32     unit_exponent;
 	unsigned  unit;
-	bool      ignored;		/* this field is ignored in this event */
+	bool      iganalred;		/* this field is iganalred in this event */
 	struct hid_report *report;	/* associated report */
 	unsigned index;			/* index into report->field[] */
 	/* hidinput data */
@@ -587,11 +587,11 @@ struct hid_input {
 enum hid_type {
 	HID_TYPE_OTHER = 0,
 	HID_TYPE_USBMOUSE,
-	HID_TYPE_USBNONE
+	HID_TYPE_USBANALNE
 };
 
 enum hid_battery_status {
-	HID_BATTERY_UNKNOWN = 0,
+	HID_BATTERY_UNKANALWN = 0,
 	HID_BATTERY_QUERIED,		/* Kernel explicitly queried battery strength */
 	HID_BATTERY_REPORTED,		/* Device sent unsolicited battery strength report */
 };
@@ -631,7 +631,7 @@ struct hid_device {							/* device report descriptor */
 	/*
 	 * Power supply information for HID devices which report
 	 * battery strength. power_supply was successfully registered if
-	 * battery is non-NULL.
+	 * battery is analn-NULL.
 	 */
 	struct power_supply *battery;
 	__s32 battery_capacity;
@@ -765,41 +765,41 @@ struct hid_usage_id {
 /**
  * struct hid_driver
  * @name: driver name (e.g. "Footech_bar-wheel")
- * @id_table: which devices is this driver for (must be non-NULL for probe
+ * @id_table: which devices is this driver for (must be analn-NULL for probe
  * 	      to be called)
  * @dyn_list: list of dynamically added device ids
  * @dyn_lock: lock protecting @dyn_list
  * @match: check if the given device is handled by this driver
  * @probe: new device inserted
- * @remove: device removed (NULL if not a hot-plug capable driver)
+ * @remove: device removed (NULL if analt a hot-plug capable driver)
  * @report_table: on which reports to call raw_event (NULL means all)
- * @raw_event: if report in report_table, this hook is called (NULL means nop)
+ * @raw_event: if report in report_table, this hook is called (NULL means analp)
  * @usage_table: on which events to call event (NULL means all)
- * @event: if usage in usage_table, this hook is called (NULL means nop)
- * @report: this hook is called after parsing a report (NULL means nop)
- * @report_fixup: called before report descriptor parsing (NULL means nop)
+ * @event: if usage in usage_table, this hook is called (NULL means analp)
+ * @report: this hook is called after parsing a report (NULL means analp)
+ * @report_fixup: called before report descriptor parsing (NULL means analp)
  * @input_mapping: invoked on input registering before mapping an usage
  * @input_mapped: invoked on input registering after mapping an usage
  * @input_configured: invoked just before the device is registered
  * @feature_mapping: invoked on feature registering
- * @suspend: invoked on suspend (NULL means nop)
- * @resume: invoked on resume if device was not reset (NULL means nop)
- * @reset_resume: invoked on resume if device was reset (NULL means nop)
+ * @suspend: invoked on suspend (NULL means analp)
+ * @resume: invoked on resume if device was analt reset (NULL means analp)
+ * @reset_resume: invoked on resume if device was reset (NULL means analp)
  *
- * probe should return -errno on error, or 0 on success. During probe,
- * input will not be passed to raw_event unless hid_device_io_start is
+ * probe should return -erranal on error, or 0 on success. During probe,
+ * input will analt be passed to raw_event unless hid_device_io_start is
  * called.
  *
  * raw_event and event should return negative on error, any other value will
  * pass the event on to .event() typically return 0 for success.
  *
- * input_mapping shall return a negative value to completely ignore this usage
+ * input_mapping shall return a negative value to completely iganalre this usage
  * (e.g. doubled or invalid usage), zero to continue with parsing of this
- * usage by generic code (no special handling needed) or positive to skip
+ * usage by generic code (anal special handling needed) or positive to skip
  * generic parsing (needed special handling which was done in the hook already)
  * input_mapped shall return negative to inform the layer that this usage
- * should not be considered for further processing or zero to notify that
- * no processing was performed and should be done in a generic manner
+ * should analt be considered for further processing or zero to analtify that
+ * anal processing was performed and should be done in a generic manner
  * Both these functions may be NULL which means the same behavior as returning
  * zero from them.
  */
@@ -810,7 +810,7 @@ struct hid_driver {
 	struct list_head dyn_list;
 	spinlock_t dyn_lock;
 
-	bool (*match)(struct hid_device *dev, bool ignore_special_driver);
+	bool (*match)(struct hid_device *dev, bool iganalre_special_driver);
 	int (*probe)(struct hid_device *dev, const struct hid_device_id *id);
 	void (*remove)(struct hid_device *dev);
 
@@ -856,7 +856,7 @@ struct hid_driver {
  * @close: called by input layer on close
  * @power: request underlying hardware to enter requested power mode
  * @parse: this method is called only once to parse the device data,
- *	   shouldn't allocate anything to not leak memory
+ *	   shouldn't allocate anything to analt leak memory
  * @request: send report request to device (e.g. feature report)
  * @wait: wait for buffered io to complete (send/recv reports)
  * @raw_request: send raw report request to device (e.g. feature report)
@@ -896,10 +896,10 @@ struct hid_ll_driver {
 extern bool hid_is_usb(const struct hid_device *hdev);
 
 #define	PM_HINT_FULLON	1<<5
-#define PM_HINT_NORMAL	1<<1
+#define PM_HINT_ANALRMAL	1<<1
 
 /* Applications from HID Usage Tables 4/8/99 Version 1.1 */
-/* We ignore a few input applications that are not widely used */
+/* We iganalre a few input applications that are analt widely used */
 #define IS_INPUT_APPLICATION(a) \
 		(((a >= HID_UP_GENDESK) && (a <= HID_GD_MULTIAXIS)) \
 		|| ((a >= HID_DG_DIGITIZER) && (a <= HID_DG_WHITEBOARD)) \
@@ -908,7 +908,7 @@ extern bool hid_is_usb(const struct hid_device *hdev);
 
 /* HID core API */
 
-extern bool hid_ignore(struct hid_device *);
+extern bool hid_iganalre(struct hid_device *);
 extern int hid_add_device(struct hid_device *);
 extern void hid_destroy_device(struct hid_device *);
 
@@ -927,7 +927,7 @@ extern void hid_unregister_driver(struct hid_driver *);
  * module_hid_driver() - Helper macro for registering a HID driver
  * @__hid_driver: hid_driver struct
  *
- * Helper macro for HID drivers which do not do anything special in module
+ * Helper macro for HID drivers which do analt do anything special in module
  * init/exit. This eliminates a lot of boilerplate. Each module may only
  * use this macro once, and calling it replaces module_init() and module_exit()
  */
@@ -1110,7 +1110,7 @@ static inline void hid_map_usage_clear(struct hid_input *hidinput,
  * @hdev: hid device
  *
  * Call this from probe after you set up the device (if needed). Your
- * report_fixup will be called (if non-NULL) after reading raw report from
+ * report_fixup will be called (if analn-NULL) after reading raw report from
  * device before passing it to hid layer for real parsing.
  */
 static inline int __must_check hid_parse(struct hid_device *hdev)
@@ -1194,7 +1194,7 @@ static inline void hid_hw_wait(struct hid_device *hdev)
 /**
  * hid_report_len - calculate the report length
  *
- * @report: the report we want to know the length
+ * @report: the report we want to kanalw the length
  */
 static inline u32 hid_report_len(struct hid_report *report)
 {
@@ -1219,8 +1219,8 @@ int hid_pidff_init(struct hid_device *hid);
 
 #define hid_err(hid, fmt, ...)				\
 	dev_err(&(hid)->dev, fmt, ##__VA_ARGS__)
-#define hid_notice(hid, fmt, ...)			\
-	dev_notice(&(hid)->dev, fmt, ##__VA_ARGS__)
+#define hid_analtice(hid, fmt, ...)			\
+	dev_analtice(&(hid)->dev, fmt, ##__VA_ARGS__)
 #define hid_warn(hid, fmt, ...)				\
 	dev_warn(&(hid)->dev, fmt, ##__VA_ARGS__)
 #define hid_info(hid, fmt, ...)				\
@@ -1230,8 +1230,8 @@ int hid_pidff_init(struct hid_device *hid);
 
 #define hid_err_once(hid, fmt, ...)			\
 	dev_err_once(&(hid)->dev, fmt, ##__VA_ARGS__)
-#define hid_notice_once(hid, fmt, ...)			\
-	dev_notice_once(&(hid)->dev, fmt, ##__VA_ARGS__)
+#define hid_analtice_once(hid, fmt, ...)			\
+	dev_analtice_once(&(hid)->dev, fmt, ##__VA_ARGS__)
 #define hid_warn_once(hid, fmt, ...)			\
 	dev_warn_once(&(hid)->dev, fmt, ##__VA_ARGS__)
 #define hid_info_once(hid, fmt, ...)			\

@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
 %YAML 1.2
 ---
-$id: http://devicetree.org/schemas/media/samsung,exynos5250-gsc.yaml#
+$id: http://devicetree.org/schemas/media/samsung,exyanals5250-gsc.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Samsung Exynos SoC G-Scaler
+title: Samsung Exyanals SoC G-Scaler
 
 maintainers:
   - Inki Dae <inki.dae@samsung.com>
@@ -12,10 +12,10 @@ maintainers:
   - Seung-Woo Kim <sw0312.kim@samsung.com
 
 description:
-  G-Scaler is used for scaling and color space conversion on Samsung Exynos
+  G-Scaler is used for scaling and color space conversion on Samsung Exyanals
   SoCs.
 
-  Each G-Scaler node should have a numbered alias in the aliases node, in the
+  Each G-Scaler analde should have a numbered alias in the aliases analde, in the
   form of gscN, N = 0...3.
 
 properties:
@@ -23,12 +23,12 @@ properties:
     oneOf:
       - items:
           - enum:
-              - samsung,exynos5250-gsc
-              - samsung,exynos5420-gsc
-          - const: samsung,exynos5-gsc
+              - samsung,exyanals5250-gsc
+              - samsung,exyanals5420-gsc
+          - const: samsung,exyanals5-gsc
       - enum:
-          - samsung,exynos5433-gsc
-      - const: samsung,exynos5-gsc
+          - samsung,exyanals5433-gsc
+      - const: samsung,exyanals5-gsc
         deprecated: True
 
   clocks:
@@ -69,9 +69,9 @@ allOf:
         compatible:
           contains:
             enum:
-              - samsung,exynos5-gsc
-              - samsung,exynos5250-gsc
-              - samsung,exynos5420-gsc
+              - samsung,exyanals5-gsc
+              - samsung,exyanals5250-gsc
+              - samsung,exyanals5420-gsc
     then:
       properties:
         clocks:
@@ -95,11 +95,11 @@ additionalProperties: false
 
 examples:
   - |
-    #include <dt-bindings/clock/exynos5250.h>
+    #include <dt-bindings/clock/exyanals5250.h>
     #include <dt-bindings/interrupt-controller/arm-gic.h>
 
     video-scaler@13e00000 {
-        compatible = "samsung,exynos5250-gsc", "samsung,exynos5-gsc";
+        compatible = "samsung,exyanals5250-gsc", "samsung,exyanals5-gsc";
         reg = <0x13e00000 0x1000>;
         interrupts = <GIC_SPI 85 IRQ_TYPE_LEVEL_HIGH>;
         power-domains = <&pd_gsc>;

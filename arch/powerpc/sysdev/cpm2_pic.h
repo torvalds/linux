@@ -4,6 +4,6 @@
 
 extern unsigned int cpm2_get_irq(void);
 
-extern void cpm2_pic_init(struct device_node *);
+extern void cpm2_pic_init(struct device_analde *);
 
 #endif /* _PPC_KERNEL_CPM2_H */

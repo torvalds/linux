@@ -627,17 +627,17 @@ static const char * const adc_25_mux_text[] = {
 	"DMIC4",
 };
 
-static SOC_ENUM_SINGLE_DECL(rt715_adc22_enum, SND_SOC_NOPM, 0,
+static SOC_ENUM_SINGLE_DECL(rt715_adc22_enum, SND_SOC_ANALPM, 0,
 	adc_22_23_mux_text);
 
-static SOC_ENUM_SINGLE_DECL(rt715_adc23_enum, SND_SOC_NOPM, 0,
+static SOC_ENUM_SINGLE_DECL(rt715_adc23_enum, SND_SOC_ANALPM, 0,
 	adc_22_23_mux_text);
 
 static SOC_VALUE_ENUM_SINGLE_DECL(rt715_adc24_enum,
-	SND_SOC_NOPM, 0, 0xf,
+	SND_SOC_ANALPM, 0, 0xf,
 	adc_24_mux_text, rt715_adc_24_25_values);
 static SOC_VALUE_ENUM_SINGLE_DECL(rt715_adc25_enum,
-	SND_SOC_NOPM, 0, 0xf,
+	SND_SOC_ANALPM, 0, 0xf,
 	adc_25_mux_text, rt715_adc_24_25_values);
 
 static const struct snd_kcontrol_new rt715_adc22_mux =
@@ -690,24 +690,24 @@ static const struct snd_soc_dapm_widget rt715_sdca_dapm_widgets[] = {
 	SND_SOC_DAPM_INPUT("LINE1"),
 	SND_SOC_DAPM_INPUT("LINE2"),
 
-	SND_SOC_DAPM_SUPPLY("PDE23_24", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SUPPLY("PDE23_24", SND_SOC_ANALPM, 0, 0,
 		rt715_sdca_pde23_24_event,
 		SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 
-	SND_SOC_DAPM_ADC("ADC 07", NULL, SND_SOC_NOPM, 4, 0),
-	SND_SOC_DAPM_ADC("ADC 08", NULL, SND_SOC_NOPM, 4, 0),
-	SND_SOC_DAPM_ADC("ADC 09", NULL, SND_SOC_NOPM, 4, 0),
-	SND_SOC_DAPM_ADC("ADC 27", NULL, SND_SOC_NOPM, 4, 0),
-	SND_SOC_DAPM_MUX("ADC 22 Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_ADC("ADC 07", NULL, SND_SOC_ANALPM, 4, 0),
+	SND_SOC_DAPM_ADC("ADC 08", NULL, SND_SOC_ANALPM, 4, 0),
+	SND_SOC_DAPM_ADC("ADC 09", NULL, SND_SOC_ANALPM, 4, 0),
+	SND_SOC_DAPM_ADC("ADC 27", NULL, SND_SOC_ANALPM, 4, 0),
+	SND_SOC_DAPM_MUX("ADC 22 Mux", SND_SOC_ANALPM, 0, 0,
 		&rt715_adc22_mux),
-	SND_SOC_DAPM_MUX("ADC 23 Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("ADC 23 Mux", SND_SOC_ANALPM, 0, 0,
 		&rt715_adc23_mux),
-	SND_SOC_DAPM_MUX("ADC 24 Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("ADC 24 Mux", SND_SOC_ANALPM, 0, 0,
 		&rt715_adc24_mux),
-	SND_SOC_DAPM_MUX("ADC 25 Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("ADC 25 Mux", SND_SOC_ANALPM, 0, 0,
 		&rt715_adc25_mux),
-	SND_SOC_DAPM_AIF_OUT("DP4TX", "DP4 Capture", 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_OUT("DP6TX", "DP6 Capture", 0, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("DP4TX", "DP4 Capture", 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("DP6TX", "DP6 Capture", 0, SND_SOC_ANALPM, 0, 0),
 };
 
 static const struct snd_soc_dapm_route rt715_sdca_audio_map[] = {
@@ -974,7 +974,7 @@ int rt715_sdca_init(struct device *dev, struct regmap *mbq_regmap,
 
 	rt715 = devm_kzalloc(dev, sizeof(*rt715), GFP_KERNEL);
 	if (!rt715)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(dev, rt715);
 	rt715->slave = slave;
@@ -1003,14 +1003,14 @@ int rt715_sdca_init(struct device *dev, struct regmap *mbq_regmap,
 	pm_runtime_set_autosuspend_delay(dev, 3000);
 	pm_runtime_use_autosuspend(dev);
 
-	/* make sure the device does not suspend immediately */
+	/* make sure the device does analt suspend immediately */
 	pm_runtime_mark_last_busy(dev);
 
 	pm_runtime_enable(dev);
 
-	/* important note: the device is NOT tagged as 'active' and will remain
+	/* important analte: the device is ANALT tagged as 'active' and will remain
 	 * 'suspended' until the hardware is enumerated/initialized. This is required
-	 * to make sure the ASoC framework use of pm_runtime_get_sync() does not silently
+	 * to make sure the ASoC framework use of pm_runtime_get_sync() does analt silently
 	 * fail with -EACCESS because of race conditions between card creation and enumeration
 	 */
 
@@ -1040,7 +1040,7 @@ int rt715_sdca_io_init(struct device *dev, struct sdw_slave *slave)
 		rt715->first_hw_init = true;
 	}
 
-	pm_runtime_get_noresume(&slave->dev);
+	pm_runtime_get_analresume(&slave->dev);
 
 	rt715_sdca_index_read(rt715, RT715_VENDOR_REG,
 		RT715_PRODUCT_NUM, &hw_ver);

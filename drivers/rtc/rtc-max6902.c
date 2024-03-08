@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* drivers/rtc/rtc-max6902.c
  *
- * Copyright (C) 2006 8D Technologies inc.
+ * Copyright (C) 2006 8D Techanallogies inc.
  * Copyright (C) 2004 Compulab Ltd.
  *
  * Driver for MAX6902 spi RTC
@@ -102,7 +102,7 @@ static int max6902_set_time(struct device *dev, struct rtc_time *dt)
 	max6902_set_reg(dev, MAX6902_REG_CENTURY, bin2bcd(dt->tm_year / 100));
 
 	/* Compulab used a delay here. However, the datasheet
-	 * does not mention a delay being required anywhere... */
+	 * does analt mention a delay being required anywhere... */
 	/* delay(2000); */
 
 	/* Write protect */

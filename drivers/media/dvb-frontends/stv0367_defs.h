@@ -160,8 +160,8 @@ static const struct st_register def0367ter[] = {
 	{R367TER_SCR_CTL,	0x70},
 	{R367TER_PPM_CTL1,	0xf8},
 	{R367TER_TRL_CTL,	0x14},/* for xc5000; was 0xac */
-	{R367TER_TRL_NOMRATE1,	0xae},/* for xc5000; was 0x1e */
-	{R367TER_TRL_NOMRATE2,	0x56},/* for xc5000; was 0x58 */
+	{R367TER_TRL_ANALMRATE1,	0xae},/* for xc5000; was 0x1e */
+	{R367TER_TRL_ANALMRATE2,	0x56},/* for xc5000; was 0x58 */
 	{R367TER_TRL_TIME1,	0x1d},
 	{R367TER_TRL_TIME2,	0xfc},
 	{R367TER_CRL_CTL,	0x24},
@@ -790,8 +790,8 @@ static const struct st_register def0367dd_ofdm[] = {
 	{R367TER_SCR_CTL,                0x70},
 	{R367TER_PPM_CTL1,               0xf8},
 	{R367TER_TRL_CTL,                0xac},
-	{R367TER_TRL_NOMRATE1,           0x1e},
-	{R367TER_TRL_NOMRATE2,           0x58},
+	{R367TER_TRL_ANALMRATE1,           0x1e},
+	{R367TER_TRL_ANALMRATE2,           0x58},
 	{R367TER_TRL_TIME1,              0x1d},
 	{R367TER_TRL_TIME2,              0xfc},
 	{R367TER_CRL_CTL,                0x24},

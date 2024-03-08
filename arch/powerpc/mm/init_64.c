@@ -19,7 +19,7 @@
 #include <linux/signal.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/mman.h>
@@ -31,7 +31,7 @@
 #include <linux/delay.h>
 #include <linux/highmem.h>
 #include <linux/idr.h>
-#include <linux/nodemask.h>
+#include <linux/analdemask.h>
 #include <linux/module.h>
 #include <linux/poison.h>
 #include <linux/memblock.h>
@@ -67,9 +67,9 @@
 #ifdef CONFIG_SPARSEMEM_VMEMMAP
 /*
  * Given an address within the vmemmap, determine the page that
- * represents the start of the subsection it is within.  Note that we have to
- * do this by hand as the proffered address may not be correctly aligned.
- * Subtraction of non-aligned pointers produces undefined results.
+ * represents the start of the subsection it is within.  Analte that we have to
+ * do this by hand as the proffered address may analt be correctly aligned.
+ * Subtraction of analn-aligned pointers produces undefined results.
  */
 static struct page * __meminit vmemmap_subsection_start(unsigned long vmemmap_addr)
 {
@@ -112,7 +112,7 @@ int __meminit vmemmap_populated(unsigned long vmemmap_addr, int vmemmap_map_size
 }
 
 /*
- * vmemmap virtual address space management does not have a traditional page
+ * vmemmap virtual address space management does analt have a traditional page
  * table to track which virtual struct pages are backed by physical mapping.
  * The virtual to physical mappings are tracked in a simple linked list
  * format. 'vmemmap_list' maintains the entire vmemmap physical mapping at
@@ -129,15 +129,15 @@ static struct vmemmap_backing *next;
 
 /*
  * The same pointer 'next' tracks individual chunks inside the allocated
- * full page during the boot time and again tracks the freed nodes during
- * runtime. It is racy but it does not happen as they are separated by the
+ * full page during the boot time and again tracks the freed analdes during
+ * runtime. It is racy but it does analt happen as they are separated by the
  * boot process. Will create problem if some how we have memory hotplug
  * operation during boot !!
  */
 static int num_left;
 static int num_freed;
 
-static __meminit struct vmemmap_backing * vmemmap_list_alloc(int node)
+static __meminit struct vmemmap_backing * vmemmap_list_alloc(int analde)
 {
 	struct vmemmap_backing *vmem_back;
 	/* get from freed entries first */
@@ -151,7 +151,7 @@ static __meminit struct vmemmap_backing * vmemmap_list_alloc(int node)
 
 	/* allocate a page when required and hand out chunks */
 	if (!num_left) {
-		next = vmemmap_alloc_block(PAGE_SIZE, node);
+		next = vmemmap_alloc_block(PAGE_SIZE, analde);
 		if (unlikely(!next)) {
 			WARN_ON(1);
 			return NULL;
@@ -166,14 +166,14 @@ static __meminit struct vmemmap_backing * vmemmap_list_alloc(int node)
 
 static __meminit int vmemmap_list_populate(unsigned long phys,
 					   unsigned long start,
-					   int node)
+					   int analde)
 {
 	struct vmemmap_backing *vmem_back;
 
-	vmem_back = vmemmap_list_alloc(node);
+	vmem_back = vmemmap_list_alloc(analde);
 	if (unlikely(!vmem_back)) {
 		pr_debug("vmemap list allocation failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	vmem_back->phys = phys;
@@ -199,7 +199,7 @@ bool altmap_cross_boundary(struct vmem_altmap *altmap, unsigned long start,
 	return false;
 }
 
-static int __meminit __vmemmap_populate(unsigned long start, unsigned long end, int node,
+static int __meminit __vmemmap_populate(unsigned long start, unsigned long end, int analde,
 					struct vmem_altmap *altmap)
 {
 	bool altmap_alloc;
@@ -208,7 +208,7 @@ static int __meminit __vmemmap_populate(unsigned long start, unsigned long end, 
 	/* Align to the page size of the linear mapping. */
 	start = ALIGN_DOWN(start, page_size);
 
-	pr_debug("vmemmap_populate %lx..%lx, node %d\n", start, end, node);
+	pr_debug("vmemmap_populate %lx..%lx, analde %d\n", start, end, analde);
 
 	for (; start < end; start += page_size) {
 		void *p = NULL;
@@ -229,20 +229,20 @@ static int __meminit __vmemmap_populate(unsigned long start, unsigned long end, 
 		 * fall back to system memory if the altmap allocation fail.
 		 */
 		if (altmap && !altmap_cross_boundary(altmap, start, page_size)) {
-			p = vmemmap_alloc_block_buf(page_size, node, altmap);
+			p = vmemmap_alloc_block_buf(page_size, analde, altmap);
 			if (!p)
 				pr_debug("altmap block allocation failed, falling back to system memory");
 			else
 				altmap_alloc = true;
 		}
 		if (!p) {
-			p = vmemmap_alloc_block_buf(page_size, node, NULL);
+			p = vmemmap_alloc_block_buf(page_size, analde, NULL);
 			altmap_alloc = false;
 		}
 		if (!p)
-			return -ENOMEM;
+			return -EANALMEM;
 
-		if (vmemmap_list_populate(__pa(p), start, node)) {
+		if (vmemmap_list_populate(__pa(p), start, analde)) {
 			/*
 			 * If we don't populate vmemap list, we don't have
 			 * the ability to free the allocated vmemmap
@@ -256,7 +256,7 @@ static int __meminit __vmemmap_populate(unsigned long start, unsigned long end, 
 				vmem_altmap_free(altmap, nr_pfns);
 			else
 				free_pages((unsigned long)p, page_order);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		pr_debug("      * %016lx..%016lx allocated at %p\n",
@@ -273,16 +273,16 @@ static int __meminit __vmemmap_populate(unsigned long start, unsigned long end, 
 	return 0;
 }
 
-int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,
+int __meminit vmemmap_populate(unsigned long start, unsigned long end, int analde,
 			       struct vmem_altmap *altmap)
 {
 
 #ifdef CONFIG_PPC_BOOK3S_64
 	if (radix_enabled())
-		return radix__vmemmap_populate(start, end, node, altmap);
+		return radix__vmemmap_populate(start, end, analde, altmap);
 #endif
 
-	return __vmemmap_populate(start, end, node, altmap);
+	return __vmemmap_populate(start, end, analde, altmap);
 }
 
 #ifdef CONFIG_MEMORY_HOTPLUG
@@ -339,7 +339,7 @@ static void __ref __vmemmap_free(unsigned long start, unsigned long end,
 		/*
 		 * We have already marked the subsection we are trying to remove
 		 * invalid. So if we want to remove the vmemmap range, we
-		 * need to make sure there is no subsection marked valid
+		 * need to make sure there is anal subsection marked valid
 		 * in this range.
 		 */
 		if (vmemmap_populated(start, page_size))
@@ -420,7 +420,7 @@ early_param("disable_radix", parse_disable_radix);
 /*
  * If we're running under a hypervisor, we need to check the contents of
  * /chosen/ibm,architecture-vec-5 to see if the hypervisor is willing to do
- * radix.  If not, we clear the radix feature bit so we fall back to hash.
+ * radix.  If analt, we clear the radix feature bit so we fall back to hash.
  */
 static void __init early_check_vec5(void)
 {
@@ -430,8 +430,8 @@ static void __init early_check_vec5(void)
 	u8 mmu_supported;
 
 	root = of_get_flat_dt_root();
-	chosen = of_get_flat_dt_subnode_by_name(root, "chosen");
-	if (chosen == -FDT_ERR_NOTFOUND) {
+	chosen = of_get_flat_dt_subanalde_by_name(root, "chosen");
+	if (chosen == -FDT_ERR_ANALTFOUND) {
 		cur_cpu_spec->mmu_features &= ~MMU_FTR_TYPE_RADIX;
 		return;
 	}
@@ -451,7 +451,7 @@ static void __init early_check_vec5(void)
 	if (mmu_supported == OV5_FEAT(OV5_MMU_RADIX)) {
 		/* Hypervisor only supports radix - check enabled && GTSE */
 		if (!early_radix_enabled()) {
-			pr_warn("WARNING: Ignoring cmdline option disable_radix\n");
+			pr_warn("WARNING: Iganalring cmdline option disable_radix\n");
 		}
 		if (!(vec5[OV5_INDX(OV5_RADIX_GTSE)] &
 						OV5_FEAT(OV5_RADIX_GTSE))) {
@@ -467,24 +467,24 @@ static void __init early_check_vec5(void)
 	}
 }
 
-static int __init dt_scan_mmu_pid_width(unsigned long node,
+static int __init dt_scan_mmu_pid_width(unsigned long analde,
 					   const char *uname, int depth,
 					   void *data)
 {
 	int size = 0;
 	const __be32 *prop;
-	const char *type = of_get_flat_dt_prop(node, "device_type", NULL);
+	const char *type = of_get_flat_dt_prop(analde, "device_type", NULL);
 
-	/* We are scanning "cpu" nodes only */
+	/* We are scanning "cpu" analdes only */
 	if (type == NULL || strcmp(type, "cpu") != 0)
 		return 0;
 
 	/* Find MMU LPID, PID register size */
-	prop = of_get_flat_dt_prop(node, "ibm,mmu-lpid-bits", &size);
+	prop = of_get_flat_dt_prop(analde, "ibm,mmu-lpid-bits", &size);
 	if (prop && size == 4)
 		mmu_lpid_bits = be32_to_cpup(prop);
 
-	prop = of_get_flat_dt_prop(node, "ibm,mmu-pid-bits", &size);
+	prop = of_get_flat_dt_prop(analde, "ibm,mmu-pid-bits", &size);
 	if (prop && size == 4)
 		mmu_pid_bits = be32_to_cpup(prop);
 
@@ -516,7 +516,7 @@ static void update_memory_block_size(unsigned long *block_size, unsigned long me
 	}
 }
 
-static int __init probe_memory_block_size(unsigned long node, const char *uname, int
+static int __init probe_memory_block_size(unsigned long analde, const char *uname, int
 					  depth, void *data)
 {
 	const char *type;
@@ -527,18 +527,18 @@ static int __init probe_memory_block_size(unsigned long node, const char *uname,
 	if (depth != 1)
 		return 0;
 	/*
-	 * If we have dynamic-reconfiguration-memory node, use the
+	 * If we have dynamic-reconfiguration-memory analde, use the
 	 * lmb value.
 	 */
 	if (strcmp(uname, "ibm,dynamic-reconfiguration-memory") == 0) {
 
 		const __be32 *prop;
 
-		prop = of_get_flat_dt_prop(node, "ibm,lmb-size", &l);
+		prop = of_get_flat_dt_prop(analde, "ibm,lmb-size", &l);
 
 		if (!prop || l < dt_root_size_cells * sizeof(__be32))
 			/*
-			 * Nothing in the device tree
+			 * Analthing in the device tree
 			 */
 			*block_size = DEFAULT_MEMORY_BLOCK_SIZE;
 		else
@@ -549,24 +549,24 @@ static int __init probe_memory_block_size(unsigned long node, const char *uname,
 		return 1;
 	}
 	/*
-	 * Find all the device tree nodes of memory type and make sure
+	 * Find all the device tree analdes of memory type and make sure
 	 * the area can be mapped using the memory block size value
 	 * we end up using. We start with 1G value and keep reducing
 	 * it such that we can map the entire area using memory_block_size.
 	 * This will be used on powernv and older pseries that don't
-	 * have ibm,lmb-size node.
+	 * have ibm,lmb-size analde.
 	 * For ex: with P5 we can end up with
 	 * memory@0 -> 128MB
 	 * memory@128M -> 64M
 	 * This will end up using 64MB  memory block size value.
 	 */
-	type = of_get_flat_dt_prop(node, "device_type", NULL);
+	type = of_get_flat_dt_prop(analde, "device_type", NULL);
 	if (type == NULL || strcmp(type, "memory") != 0)
 		return 0;
 
-	reg = of_get_flat_dt_prop(node, "linux,usable-memory", &l);
+	reg = of_get_flat_dt_prop(analde, "linux,usable-memory", &l);
 	if (!reg)
-		reg = of_get_flat_dt_prop(node, "reg", &l);
+		reg = of_get_flat_dt_prop(analde, "reg", &l);
 	if (!reg)
 		return 0;
 
@@ -589,7 +589,7 @@ static int __init probe_memory_block_size(unsigned long node, const char *uname,
 		 * we can't use large memory block size due to hotplug/unplug
 		 * limitations.
 		 */
-		compatible = of_get_flat_dt_prop(node, "compatible", NULL);
+		compatible = of_get_flat_dt_prop(analde, "compatible", NULL);
 		if (compatible && !strcmp(compatible, "ibm,coherent-device-memory")) {
 			if (*block_size > SZ_256M)
 				*block_size = SZ_256M;
@@ -627,7 +627,7 @@ void __init mmu_early_init_devtree(void)
 		if (IS_ENABLED(CONFIG_PPC_64S_HASH_MMU))
 			cur_cpu_spec->mmu_features &= ~MMU_FTR_TYPE_RADIX;
 		else
-			pr_warn("WARNING: Ignoring cmdline option disable_radix\n");
+			pr_warn("WARNING: Iganalring cmdline option disable_radix\n");
 	}
 
 	of_scan_flat_dt(dt_scan_mmu_pid_width, NULL);
@@ -657,8 +657,8 @@ void __init mmu_early_init_devtree(void)
 		radix__early_init_devtree();
 
 		/*
-		 * We have finalized the translation we are going to use by now.
-		 * Radix mode is not limited by RMA / VRMA addressing.
+		 * We have finalized the translation we are going to use by analw.
+		 * Radix mode is analt limited by RMA / VRMA addressing.
 		 * Hence don't limit memblock allocations.
 		 */
 		ppc64_rma_size = ULONG_MAX;
@@ -671,6 +671,6 @@ void __init mmu_early_init_devtree(void)
 
 	if (!(cur_cpu_spec->mmu_features & MMU_FTR_HPTE_TABLE) &&
 	    !(cur_cpu_spec->mmu_features & MMU_FTR_TYPE_RADIX))
-		panic("kernel does not support any MMU type offered by platform");
+		panic("kernel does analt support any MMU type offered by platform");
 }
 #endif /* CONFIG_PPC_BOOK3S_64 */

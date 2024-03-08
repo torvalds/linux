@@ -17,13 +17,13 @@
  * and plane configuration.
  *
  * There are several cases to deal with here:
- *   - normal (i.e. non-self-refresh)
+ *   - analrmal (i.e. analn-self-refresh)
  *   - self-refresh (SR) mode
  *   - lines are large relative to FIFO size (buffer can hold up to 2)
  *   - lines are small relative to FIFO size (buffer can hold more than 2
  *     lines), so need to account for TLB latency
  *
- *   The normal calculation is:
+ *   The analrmal calculation is:
  *     watermark = dotclock * bytes per pixel * latency
  *   where latency is platform & configuration dependent (we assume pessimal
  *   values here).
@@ -33,14 +33,14 @@
  *       bytes per pixel
  *   where
  *     line time = htotal / dotclock
- *     surface width = hdisplay for normal plane and 64 for cursor
+ *     surface width = hdisplay for analrmal plane and 64 for cursor
  *   and latency is assumed to be high, as above.
  *
  * The final value programmed to the register should always be rounded up,
  * and include an extra 2 entries to account for clock crossings.
  *
- * We don't use the sprite, so we can ignore that.  And on Crestline we have
- * to set the non-SR watermarks to 8.
+ * We don't use the sprite, so we can iganalre that.  And on Crestline we have
+ * to set the analn-SR watermarks to 8.
  */
 void intel_update_watermarks(struct drm_i915_private *i915)
 {
@@ -153,7 +153,7 @@ void intel_print_wm_latency(struct drm_i915_private *dev_priv,
 
 		if (latency == 0) {
 			drm_dbg_kms(&dev_priv->drm,
-				    "%s WM%d latency not provided\n",
+				    "%s WM%d latency analt provided\n",
 				    name, level);
 			continue;
 		}
@@ -255,32 +255,32 @@ static int cur_wm_latency_show(struct seq_file *m, void *data)
 	return 0;
 }
 
-static int pri_wm_latency_open(struct inode *inode, struct file *file)
+static int pri_wm_latency_open(struct ianalde *ianalde, struct file *file)
 {
-	struct drm_i915_private *dev_priv = inode->i_private;
+	struct drm_i915_private *dev_priv = ianalde->i_private;
 
 	if (DISPLAY_VER(dev_priv) < 5 && !IS_G4X(dev_priv))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return single_open(file, pri_wm_latency_show, dev_priv);
 }
 
-static int spr_wm_latency_open(struct inode *inode, struct file *file)
+static int spr_wm_latency_open(struct ianalde *ianalde, struct file *file)
 {
-	struct drm_i915_private *dev_priv = inode->i_private;
+	struct drm_i915_private *dev_priv = ianalde->i_private;
 
 	if (HAS_GMCH(dev_priv))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return single_open(file, spr_wm_latency_show, dev_priv);
 }
 
-static int cur_wm_latency_open(struct inode *inode, struct file *file)
+static int cur_wm_latency_open(struct ianalde *ianalde, struct file *file)
 {
-	struct drm_i915_private *dev_priv = inode->i_private;
+	struct drm_i915_private *dev_priv = ianalde->i_private;
 
 	if (HAS_GMCH(dev_priv))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return single_open(file, cur_wm_latency_show, dev_priv);
 }
@@ -393,15 +393,15 @@ static const struct file_operations i915_cur_wm_latency_fops = {
 
 void intel_wm_debugfs_register(struct drm_i915_private *i915)
 {
-	struct drm_minor *minor = i915->drm.primary;
+	struct drm_mianalr *mianalr = i915->drm.primary;
 
-	debugfs_create_file("i915_pri_wm_latency", 0644, minor->debugfs_root,
+	debugfs_create_file("i915_pri_wm_latency", 0644, mianalr->debugfs_root,
 			    i915, &i915_pri_wm_latency_fops);
 
-	debugfs_create_file("i915_spr_wm_latency", 0644, minor->debugfs_root,
+	debugfs_create_file("i915_spr_wm_latency", 0644, mianalr->debugfs_root,
 			    i915, &i915_spr_wm_latency_fops);
 
-	debugfs_create_file("i915_cur_wm_latency", 0644, minor->debugfs_root,
+	debugfs_create_file("i915_cur_wm_latency", 0644, mianalr->debugfs_root,
 			    i915, &i915_cur_wm_latency_fops);
 
 	skl_watermark_debugfs_register(i915);

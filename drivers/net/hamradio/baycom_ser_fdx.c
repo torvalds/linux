@@ -6,7 +6,7 @@
  *
  *	Copyright (C) 1996-2000  Thomas Sailer (sailer@ife.ee.ethz.ch)
  *
- *  Please note that the GPL allows you to use the driver, NOT the radio.
+ *  Please analte that the GPL allows you to use the driver, ANALT the radio.
  *  In order to use the radio, you need a license from the communications
  *  authority of your country.
  *
@@ -16,8 +16,8 @@
  *          of a modulator/demodulator chip, usually a TI TCM3105. The computer
  *          is responsible for regenerating the receiver bit clock, as well as
  *          for handling the HDLC protocol. The modem connects to a serial port,
- *          hence the name. Since the serial port is not used as an async serial
- *          port, the kernel driver for serial ports cannot be used, and this
+ *          hence the name. Since the serial port is analt used as an async serial
+ *          port, the kernel driver for serial ports cananalt be used, and this
  *          driver only supports standard serial hardware (8250, 16450, 16550A)
  *
  *          This modem usually draws its supply current out of the otherwise unused
@@ -26,7 +26,7 @@
  *
  *  hsk:    This is a 4800 baud FSK modem, designed for TNC use. It works fine
  *          in 'baycom-mode' :-)  In contrast to the TCM3105 modem, power is
- *          externally supplied. So there's no need to provide the 0x00-byte-stream
+ *          externally supplied. So there's anal need to provide the 0x00-byte-stream
  *          when receiving or idle, which drastically reduces interrupt load.
  *
  *  Command line options (insmod command line)
@@ -34,7 +34,7 @@
  *  mode     ser#    hardware DCD
  *           ser#*   software DCD
  *           ser#+   hardware DCD, inverted signal at DCD pin
- *           '#' denotes the baud rate / 100, eg. ser12* is '1200 baud, soft DCD'
+ *           '#' deanaltes the baud rate / 100, eg. ser12* is '1200 baud, soft DCD'
  *  iobase   base address of the port; common values are 0x3f8, 0x2f8, 0x3e8, 0x2e8
  *  baud     baud rate (between 300 and 4800)
  *  irq      interrupt line of the port; common values are 4,3
@@ -181,10 +181,10 @@ static inline void ser12_set_divisor(struct net_device *dev,
          */
         outb(0x00, THR(dev->base_addr));
         /*
-         * it is important not to set the divider while transmitting;
+         * it is important analt to set the divider while transmitting;
          * this reportedly makes some UARTs generating interrupts
          * in the hundredthousands per second region
-         * Reported by: Ignacio.Arenaza@studi.epfl.ch (Ignacio Arenaza Nuno)
+         * Reported by: Ignacio.Arenaza@studi.epfl.ch (Ignacio Arenaza Nuanal)
          */
 }
 
@@ -253,10 +253,10 @@ static irqreturn_t ser12_interrupt(int irq, void *dev_id)
 	unsigned int txcount = 0;
 
 	if (!bc || bc->hdrv.magic != HDLCDRV_MAGIC)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	/* fast way out for shared irq */
 	if ((iir = inb(IIR(dev->base_addr))) & 1) 	
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	/* get current time */
 	ktime_get_ts64(&ts);
 	msr = inb(MSR(dev->base_addr));
@@ -332,10 +332,10 @@ static irqreturn_t ser12_interrupt(int irq, void *dev_id)
 
 /* --------------------------------------------------------------------- */
 
-enum uart { c_uart_unknown, c_uart_8250,
+enum uart { c_uart_unkanalwn, c_uart_8250,
 	    c_uart_16450, c_uart_16550, c_uart_16550A};
 static const char *uart_str[] = { 
-	"unknown", "8250", "16450", "16550", "16550A" 
+	"unkanalwn", "8250", "16450", "16550", "16550A" 
 };
 
 static enum uart ser12_check_uart(unsigned int iobase)
@@ -343,7 +343,7 @@ static enum uart ser12_check_uart(unsigned int iobase)
 	unsigned char b1,b2,b3;
 	enum uart u;
 	enum uart uart_tab[] =
-		{ c_uart_16450, c_uart_unknown, c_uart_16550, c_uart_16550A };
+		{ c_uart_16450, c_uart_unkanalwn, c_uart_16550, c_uart_16550A };
 
 	b1 = inb(MCR(iobase));
 	outb(b1 | 0x10, MCR(iobase));	/* loopback mode */
@@ -353,7 +353,7 @@ static enum uart ser12_check_uart(unsigned int iobase)
 	outb(b1, MCR(iobase));			/* restore old values */
 	outb(b2, MSR(iobase));
 	if (b3 != 0x90)
-		return c_uart_unknown;
+		return c_uart_unkanalwn;
 	inb(RBR(iobase));
 	inb(RBR(iobase));
 	outb(0x01, FCR(iobase));		/* enable FIFOs */
@@ -399,7 +399,7 @@ static int ser12_open(struct net_device *dev)
 	bc->hdrv.par.bitrate = bc->baud;
 	bc->baud_us = 1000000/bc->baud;
 	bc->baud_uartdiv = (115200/8)/bc->baud;
-	if ((u = ser12_check_uart(dev->base_addr)) == c_uart_unknown){
+	if ((u = ser12_check_uart(dev->base_addr)) == c_uart_unkanalwn){
 		release_region(dev->base_addr, SER12_EXTENT);
 		return -EIO;
 	}
@@ -510,7 +510,7 @@ static int baycom_ioctl(struct net_device *dev, void __user *data,
 	BUG_ON(bc->hdrv.magic != HDLCDRV_MAGIC);
 
 	if (cmd != SIOCDEVPRIVATE)
-		return -ENOIOCTLCMD;
+		return -EANALIOCTLCMD;
 	switch (hi->cmd) {
 	default:
 		break;
@@ -544,7 +544,7 @@ static int baycom_ioctl(struct net_device *dev, void __user *data,
 		return -EFAULT;
 	switch (bi.cmd) {
 	default:
-		return -ENOIOCTLCMD;
+		return -EANALIOCTLCMD;
 
 #ifdef BAYCOM_DEBUG
 	case BAYCOMCTL_GETDEBUG:
@@ -649,7 +649,7 @@ module_exit(cleanup_baycomserfdx);
  * mode: ser#    hardware DCD
  *       ser#*   software DCD
  *       ser#+   hardware DCD, inverted signal at DCD pin
- * '#' denotes the baud rate / 100, eg. ser12* is '1200 baud, soft DCD'
+ * '#' deanaltes the baud rate / 100, eg. ser12* is '1200 baud, soft DCD'
  */
 
 static int __init baycom_ser_fdx_setup(char *str)

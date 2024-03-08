@@ -5,7 +5,7 @@
 
 
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/device.h>
 #include <linux/i2c.h>
 #include <linux/regmap.h>
@@ -150,7 +150,7 @@ static int tas2562_set_dai_tdm_slot(struct snd_soc_dai *dai,
 	int ret;
 
 	if (!tx_mask) {
-		dev_err(component->dev, "tx masks must not be 0\n");
+		dev_err(component->dev, "tx masks must analt be 0\n");
 		return -EINVAL;
 	}
 
@@ -197,10 +197,10 @@ static int tas2562_set_dai_tdm_slot(struct snd_soc_dai *dai,
 		break;
 
 	case 0:
-		/* Do not change slot width */
+		/* Do analt change slot width */
 		break;
 	default:
-		dev_err(tas2562->dev, "slot width not supported");
+		dev_err(tas2562->dev, "slot width analt supported");
 		ret = -EINVAL;
 	}
 
@@ -317,7 +317,7 @@ static int tas2562_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		asi_cfg_1 |= TAS2562_TDM_CFG1_RX_FALLING;
 		break;
 	default:
-		dev_err(tas2562->dev, "ASI format Inverse is not found\n");
+		dev_err(tas2562->dev, "ASI format Inverse is analt found\n");
 		return -EINVAL;
 	}
 
@@ -339,7 +339,7 @@ static int tas2562_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		break;
 	default:
 		dev_err(tas2562->dev,
-			"DAI Format is not found, fmt=0x%x\n", fmt);
+			"DAI Format is analt found, fmt=0x%x\n", fmt);
 		return -EINVAL;
 	}
 
@@ -449,7 +449,7 @@ static int tas2562_dac_event(struct snd_soc_dapm_widget *w,
 		ret = tas2562_update_pwr_ctrl(tas2562);
 		break;
 	default:
-		dev_err(tas2562->dev, "Not supported evevt\n");
+		dev_err(tas2562->dev, "Analt supported evevt\n");
 		return -EINVAL;
 	}
 
@@ -527,9 +527,9 @@ static const struct snd_kcontrol_new tas2562_snd_controls[] = {
 };
 
 static const struct snd_soc_dapm_widget tas2110_dapm_widgets[] = {
-	SND_SOC_DAPM_AIF_IN("ASI1", "ASI1 Playback", 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_MUX("ASI1 Sel", SND_SOC_NOPM, 0, 0, &tas2562_asi1_mux),
-	SND_SOC_DAPM_DAC_E("DAC", NULL, SND_SOC_NOPM, 0, 0, tas2562_dac_event,
+	SND_SOC_DAPM_AIF_IN("ASI1", "ASI1 Playback", 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_MUX("ASI1 Sel", SND_SOC_ANALPM, 0, 0, &tas2562_asi1_mux),
+	SND_SOC_DAPM_DAC_E("DAC", NULL, SND_SOC_ANALPM, 0, 0, tas2562_dac_event,
 			   SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 	SND_SOC_DAPM_OUTPUT("OUT"),
 };
@@ -559,9 +559,9 @@ static const struct snd_soc_component_driver soc_component_dev_tas2110 = {
 };
 
 static const struct snd_soc_dapm_widget tas2562_dapm_widgets[] = {
-	SND_SOC_DAPM_AIF_IN("ASI1", "ASI1 Playback", 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_MUX("ASI1 Sel", SND_SOC_NOPM, 0, 0, &tas2562_asi1_mux),
-	SND_SOC_DAPM_DAC_E("DAC", NULL, SND_SOC_NOPM, 0, 0, tas2562_dac_event,
+	SND_SOC_DAPM_AIF_IN("ASI1", "ASI1 Playback", 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_MUX("ASI1 Sel", SND_SOC_ANALPM, 0, 0, &tas2562_asi1_mux),
+	SND_SOC_DAPM_DAC_E("DAC", NULL, SND_SOC_ANALPM, 0, 0, tas2562_dac_event,
 			   SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 	SND_SOC_DAPM_SWITCH("ISENSE", TAS2562_PWR_CTRL, 3, 1, &isense_switch),
 	SND_SOC_DAPM_SWITCH("VSENSE", TAS2562_PWR_CTRL, 2, 1, &vsense_switch),
@@ -601,7 +601,7 @@ static const struct snd_soc_dai_ops tas2562_speaker_dai_ops = {
 	.set_fmt	= tas2562_set_dai_fmt,
 	.set_tdm_slot	= tas2562_set_dai_tdm_slot,
 	.mute_stream	= tas2562_mute,
-	.no_capture_mute = 1,
+	.anal_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver tas2562_dai[] = {
@@ -693,20 +693,20 @@ static int tas2562_parse_dt(struct tas2562_data *tas2562)
 	if (tas2562->model_id == TAS2110)
 		return ret;
 
-	ret = fwnode_property_read_u32(dev->fwnode, "ti,imon-slot-no",
+	ret = fwanalde_property_read_u32(dev->fwanalde, "ti,imon-slot-anal",
 			&tas2562->i_sense_slot);
 	if (ret) {
 		dev_err(dev, "Property %s is missing setting default slot\n",
-			"ti,imon-slot-no");
+			"ti,imon-slot-anal");
 		tas2562->i_sense_slot = 0;
 	}
 
 
-	ret = fwnode_property_read_u32(dev->fwnode, "ti,vmon-slot-no",
+	ret = fwanalde_property_read_u32(dev->fwanalde, "ti,vmon-slot-anal",
 			&tas2562->v_sense_slot);
 	if (ret) {
 		dev_info(dev, "Property %s is missing setting default slot\n",
-			"ti,vmon-slot-no");
+			"ti,vmon-slot-anal");
 		tas2562->v_sense_slot = 2;
 	}
 
@@ -735,7 +735,7 @@ static int tas2562_probe(struct i2c_client *client)
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	id = i2c_match_id(tas2562_id, client);
 	data->client = client;

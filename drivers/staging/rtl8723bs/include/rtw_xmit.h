@@ -104,7 +104,7 @@ struct tx_desc {
 	__le32 txdw10;
 	__le32 txdw11;
 
-	/*  2008/05/15 MH Because PCIE HW memory R/W 4K limit. And now,  our descriptor */
+	/*  2008/05/15 MH Because PCIE HW memory R/W 4K limit. And analw,  our descriptor */
 	/*  size is 40 bytes. If you use more than 102 descriptor(103*40>4096), HW will execute */
 	/*  memoryR/W CRC error. And then all DMA fetch will fail. We must decrease descriptor */
 	/*  number or enlarge descriptor size as 64 bytes. */
@@ -139,10 +139,10 @@ struct pkt_attrib {
 	u16 seqnum;
 	u16 pkt_hdrlen;	/* the original 802.3 pkt header len */
 	u16 hdrlen;		/* the WLAN Header Len */
-	u32 pktlen;		/* the original 802.3 pkt raw_data len (not include ether_hdr data) */
+	u32 pktlen;		/* the original 802.3 pkt raw_data len (analt include ether_hdr data) */
 	u32 last_txcmdsz;
 	u8 nr_frags;
-	u8 encrypt;	/* when 0 indicates no encryption; when non-zero, indicates the encryption algorithm */
+	u8 encrypt;	/* when 0 indicates anal encryption; when analn-zero, indicates the encryption algorithm */
 	u8 iv_len;
 	u8 icv_len;
 	u8 iv[18];
@@ -211,7 +211,7 @@ enum {
 
 struct  submit_ctx {
 	unsigned long submit_time; /* */
-	u32 timeout_ms; /* <0: not synchronous, 0: wait forever, >0: up to ms waiting */
+	u32 timeout_ms; /* <0: analt synchroanalus, 0: wait forever, >0: up to ms waiting */
 	int status; /* status for operation */
 	struct completion done;
 };
@@ -219,7 +219,7 @@ struct  submit_ctx {
 enum {
 	RTW_SCTX_SUBMITTED = -1,
 	RTW_SCTX_DONE_SUCCESS = 0,
-	RTW_SCTX_DONE_UNKNOWN,
+	RTW_SCTX_DONE_UNKANALWN,
 	RTW_SCTX_DONE_TIMEOUT,
 	RTW_SCTX_DONE_BUF_ALLOC,
 	RTW_SCTX_DONE_BUF_FREE,
@@ -249,7 +249,7 @@ struct xmit_buf {
 
 	void *priv_data;
 
-	u16 buf_tag; /*  0: Normal xmitbuf, 1: extension xmitbuf, 2:cmd xmitbuf */
+	u16 buf_tag; /*  0: Analrmal xmitbuf, 1: extension xmitbuf, 2:cmd xmitbuf */
 	u16 flags;
 	u32 alloc_sz;
 
@@ -266,7 +266,7 @@ struct xmit_buf {
 	u8 agg_num;
 
 #if defined(DBG_XMIT_BUF) || defined(DBG_XMIT_BUF_EXT)
-	u8 no;
+	u8 anal;
 #endif
 
 };
@@ -422,7 +422,7 @@ struct	xmit_priv {
 	int	ack_tx;
 	struct mutex ack_tx_mutex;
 	struct submit_ctx ack_tx_ops;
-	u8 seq_no;
+	u8 seq_anal;
 	spinlock_t lock_sctx;
 };
 

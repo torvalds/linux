@@ -37,7 +37,7 @@
 #define MPU401_INFO_TX_IRQ	(1 << 4)	/* independent TX irq */
 #define MPU401_INFO_IRQ_HOOK	(1 << 5)	/* mpu401 irq handler is called
 						   from driver irq handler */
-#define MPU401_INFO_NO_ACK	(1 << 6)	/* No ACK cmd needed */
+#define MPU401_INFO_ANAL_ACK	(1 << 6)	/* Anal ACK cmd needed */
 #define MPU401_INFO_USE_TIMER	(1 << 15)	/* internal */
 
 #define MPU401_MODE_BIT_INPUT		0

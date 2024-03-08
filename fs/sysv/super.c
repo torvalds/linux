@@ -1,22 +1,22 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  linux/fs/sysv/inode.c
+ *  linux/fs/sysv/ianalde.c
  *
- *  minix/inode.c
+ *  minix/ianalde.c
  *  Copyright (C) 1991, 1992  Linus Torvalds
  *
- *  xenix/inode.c
+ *  xenix/ianalde.c
  *  Copyright (C) 1992  Doug Evans
  *
- *  coh/inode.c
- *  Copyright (C) 1993  Pascal Haible, Bruno Haible
+ *  coh/ianalde.c
+ *  Copyright (C) 1993  Pascal Haible, Bruanal Haible
  *
- *  sysv/inode.c
+ *  sysv/ianalde.c
  *  Copyright (C) 1993  Paul B. Monday
  *
- *  sysv/inode.c
- *  Copyright (C) 1993  Bruno Haible
- *  Copyright (C) 1997, 1998  Krzysztof G. Baranowski
+ *  sysv/ianalde.c
+ *  Copyright (C) 1993  Bruanal Haible
+ *  Copyright (C) 1997, 1998  Krzysztof G. Baraanalwski
  *
  *  This file contains code for read/parsing the superblock.
  */
@@ -35,10 +35,10 @@
  * - SystemV FS by its magic number.
  * - Coherent FS by its funny fname/fpack field.
  * - SCO AFS by s_nfree == 0xffff
- * - V7 FS has no distinguishing features.
+ * - V7 FS has anal distinguishing features.
  *
  * We discriminate among SystemV4 and SystemV2 FS by the assumption that
- * the time stamp is not < 01-01-1980.
+ * the time stamp is analt < 01-01-1980.
  */
 
 enum {
@@ -61,13 +61,13 @@ static void detected_xenix(struct sysv_sb_info *sbi, unsigned *max_links)
 	}
 
 	*max_links = XENIX_LINK_MAX;
-	sbi->s_fic_size = XENIX_NICINOD;
+	sbi->s_fic_size = XENIX_NICIANALD;
 	sbi->s_flc_size = XENIX_NICFREE;
 	sbi->s_sbd1 = (char *)sbd1;
 	sbi->s_sbd2 = (char *)sbd2;
-	sbi->s_sb_fic_count = &sbd1->s_ninode;
-	sbi->s_sb_fic_inodes = &sbd1->s_inode[0];
-	sbi->s_sb_total_free_inodes = &sbd2->s_tinode;
+	sbi->s_sb_fic_count = &sbd1->s_nianalde;
+	sbi->s_sb_fic_ianaldes = &sbd1->s_ianalde[0];
+	sbi->s_sb_total_free_ianaldes = &sbd2->s_tianalde;
 	sbi->s_bcache_count = &sbd1->s_nfree;
 	sbi->s_bcache = &sbd1->s_free[0];
 	sbi->s_free_blocks = &sbd2->s_tfree;
@@ -88,13 +88,13 @@ static void detected_sysv4(struct sysv_sb_info *sbi, unsigned *max_links)
 		sbd = (struct sysv4_super_block *) bh2->b_data;
 
 	*max_links = SYSV_LINK_MAX;
-	sbi->s_fic_size = SYSV_NICINOD;
+	sbi->s_fic_size = SYSV_NICIANALD;
 	sbi->s_flc_size = SYSV_NICFREE;
 	sbi->s_sbd1 = (char *)sbd;
 	sbi->s_sbd2 = (char *)sbd;
-	sbi->s_sb_fic_count = &sbd->s_ninode;
-	sbi->s_sb_fic_inodes = &sbd->s_inode[0];
-	sbi->s_sb_total_free_inodes = &sbd->s_tinode;
+	sbi->s_sb_fic_count = &sbd->s_nianalde;
+	sbi->s_sb_fic_ianaldes = &sbd->s_ianalde[0];
+	sbi->s_sb_total_free_ianaldes = &sbd->s_tianalde;
 	sbi->s_bcache_count = &sbd->s_nfree;
 	sbi->s_bcache = &sbd->s_free[0];
 	sbi->s_free_blocks = &sbd->s_tfree;
@@ -116,13 +116,13 @@ static void detected_sysv2(struct sysv_sb_info *sbi, unsigned *max_links)
 		sbd = (struct sysv2_super_block *) bh2->b_data;
 
 	*max_links = SYSV_LINK_MAX;
-	sbi->s_fic_size = SYSV_NICINOD;
+	sbi->s_fic_size = SYSV_NICIANALD;
 	sbi->s_flc_size = SYSV_NICFREE;
 	sbi->s_sbd1 = (char *)sbd;
 	sbi->s_sbd2 = (char *)sbd;
-	sbi->s_sb_fic_count = &sbd->s_ninode;
-	sbi->s_sb_fic_inodes = &sbd->s_inode[0];
-	sbi->s_sb_total_free_inodes = &sbd->s_tinode;
+	sbi->s_sb_fic_count = &sbd->s_nianalde;
+	sbi->s_sb_fic_ianaldes = &sbd->s_ianalde[0];
+	sbi->s_sb_total_free_ianaldes = &sbd->s_tianalde;
 	sbi->s_bcache_count = &sbd->s_nfree;
 	sbi->s_bcache = &sbd->s_free[0];
 	sbi->s_free_blocks = &sbd->s_tfree;
@@ -140,13 +140,13 @@ static void detected_coherent(struct sysv_sb_info *sbi, unsigned *max_links)
 	sbd = (struct coh_super_block *) bh1->b_data;
 
 	*max_links = COH_LINK_MAX;
-	sbi->s_fic_size = COH_NICINOD;
+	sbi->s_fic_size = COH_NICIANALD;
 	sbi->s_flc_size = COH_NICFREE;
 	sbi->s_sbd1 = (char *)sbd;
 	sbi->s_sbd2 = (char *)sbd;
-	sbi->s_sb_fic_count = &sbd->s_ninode;
-	sbi->s_sb_fic_inodes = &sbd->s_inode[0];
-	sbi->s_sb_total_free_inodes = &sbd->s_tinode;
+	sbi->s_sb_fic_count = &sbd->s_nianalde;
+	sbi->s_sb_fic_ianaldes = &sbd->s_ianalde[0];
+	sbi->s_sb_total_free_ianaldes = &sbd->s_tianalde;
 	sbi->s_bcache_count = &sbd->s_nfree;
 	sbi->s_bcache = &sbd->s_free[0];
 	sbi->s_free_blocks = &sbd->s_tfree;
@@ -161,13 +161,13 @@ static void detected_v7(struct sysv_sb_info *sbi, unsigned *max_links)
 	struct v7_super_block *sbd = (struct v7_super_block *)bh2->b_data;
 
 	*max_links = V7_LINK_MAX;
-	sbi->s_fic_size = V7_NICINOD;
+	sbi->s_fic_size = V7_NICIANALD;
 	sbi->s_flc_size = V7_NICFREE;
 	sbi->s_sbd1 = (char *)sbd;
 	sbi->s_sbd2 = (char *)sbd;
-	sbi->s_sb_fic_count = &sbd->s_ninode;
-	sbi->s_sb_fic_inodes = &sbd->s_inode[0];
-	sbi->s_sb_total_free_inodes = &sbd->s_tinode;
+	sbi->s_sb_fic_count = &sbd->s_nianalde;
+	sbi->s_sb_fic_ianaldes = &sbd->s_ianalde[0];
+	sbi->s_sb_total_free_ianaldes = &sbd->s_tianalde;
 	sbi->s_bcache_count = &sbd->s_nfree;
 	sbi->s_bcache = &sbd->s_free[0];
 	sbi->s_free_blocks = &sbd->s_tfree;
@@ -255,8 +255,8 @@ static int detect_coherent(struct sysv_sb_info *sbi, struct buffer_head *bh)
 	struct coh_super_block * sbd;
 
 	sbd = (struct coh_super_block *) (bh->b_data + BLOCK_SIZE/2);
-	if ((memcmp(sbd->s_fname,"noname",6) && memcmp(sbd->s_fname,"xxxxx ",6))
-	    || (memcmp(sbd->s_fpack,"nopack",6) && memcmp(sbd->s_fpack,"xxxxx\n",6)))
+	if ((memcmp(sbd->s_fname,"analname",6) && memcmp(sbd->s_fname,"xxxxx ",6))
+	    || (memcmp(sbd->s_fpack,"analpack",6) && memcmp(sbd->s_fpack,"xxxxx\n",6)))
 		return 0;
 	sbi->s_bytesex = BYTESEX_PDP;
 	sbi->s_type = FSTYPE_COH;
@@ -303,45 +303,45 @@ static void (*flavour_setup[])(struct sysv_sb_info *, unsigned *) = {
 static int complete_read_super(struct super_block *sb, int silent, int size)
 {
 	struct sysv_sb_info *sbi = SYSV_SB(sb);
-	struct inode *root_inode;
+	struct ianalde *root_ianalde;
 	char *found = flavour_names[sbi->s_type];
 	u_char n_bits = size+8;
 	int bsize = 1 << n_bits;
 	int bsize_4 = bsize >> 2;
 
-	sbi->s_firstinodezone = 2;
+	sbi->s_firstianaldezone = 2;
 
 	flavour_setup[sbi->s_type](sbi, &sb->s_max_links);
-	if (sbi->s_firstdatazone < sbi->s_firstinodezone)
+	if (sbi->s_firstdatazone < sbi->s_firstianaldezone)
 		return 0;
 
 	sbi->s_ndatazones = sbi->s_nzones - sbi->s_firstdatazone;
-	sbi->s_inodes_per_block = bsize >> 6;
-	sbi->s_inodes_per_block_1 = (bsize >> 6)-1;
-	sbi->s_inodes_per_block_bits = n_bits-6;
+	sbi->s_ianaldes_per_block = bsize >> 6;
+	sbi->s_ianaldes_per_block_1 = (bsize >> 6)-1;
+	sbi->s_ianaldes_per_block_bits = n_bits-6;
 	sbi->s_ind_per_block = bsize_4;
 	sbi->s_ind_per_block_2 = bsize_4*bsize_4;
 	sbi->s_toobig_block = 10 + bsize_4 * (1 + bsize_4 * (1 + bsize_4));
 	sbi->s_ind_per_block_bits = n_bits-2;
 
-	sbi->s_ninodes = (sbi->s_firstdatazone - sbi->s_firstinodezone)
-		<< sbi->s_inodes_per_block_bits;
+	sbi->s_nianaldes = (sbi->s_firstdatazone - sbi->s_firstianaldezone)
+		<< sbi->s_ianaldes_per_block_bits;
 
 	if (!silent)
 		printk("VFS: Found a %s FS (block size = %ld) on device %s\n",
 		       found, sb->s_blocksize, sb->s_id);
 
 	sb->s_magic = SYSV_MAGIC_BASE + sbi->s_type;
-	/* set up enough so that it can read an inode */
+	/* set up eanalugh so that it can read an ianalde */
 	sb->s_op = &sysv_sops;
 	if (sbi->s_forced_ro)
 		sb->s_flags |= SB_RDONLY;
-	root_inode = sysv_iget(sb, SYSV_ROOT_INO);
-	if (IS_ERR(root_inode)) {
-		printk("SysV FS: get root inode failed\n");
+	root_ianalde = sysv_iget(sb, SYSV_ROOT_IANAL);
+	if (IS_ERR(root_ianalde)) {
+		printk("SysV FS: get root ianalde failed\n");
 		return 0;
 	}
-	sb->s_root = d_make_root(root_inode);
+	sb->s_root = d_make_root(root_ianalde);
 	if (!sb->s_root) {
 		printk("SysV FS: get root dentry failed\n");
 		return 0;
@@ -360,11 +360,11 @@ static int sysv_fill_super(struct super_block *sb, void *data, int silent)
 	BUILD_BUG_ON(512 != sizeof (struct sysv4_super_block));
 	BUILD_BUG_ON(512 != sizeof (struct sysv2_super_block));
 	BUILD_BUG_ON(500 != sizeof (struct coh_super_block));
-	BUILD_BUG_ON(64 != sizeof (struct sysv_inode));
+	BUILD_BUG_ON(64 != sizeof (struct sysv_ianalde));
 
 	sbi = kzalloc(sizeof(struct sysv_sb_info), GFP_KERNEL);
 	if (!sbi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sbi->s_sb = sb;
 	sbi->s_block_base = 0;
@@ -383,7 +383,7 @@ static int sysv_fill_super(struct super_block *sb, void *data, int silent)
 	}
 
 	if (!size)
-		goto Eunknown;
+		goto Eunkanalwn;
 
 	switch (size) {
 		case 1:
@@ -416,12 +416,12 @@ static int sysv_fill_super(struct super_block *sb, void *data, int silent)
 	brelse(bh1);
 	brelse(bh);
 	sb_set_blocksize(sb, BLOCK_SIZE);
-	printk("oldfs: cannot read superblock\n");
+	printk("oldfs: cananalt read superblock\n");
 failed:
 	kfree(sbi);
 	return -EINVAL;
 
-Eunknown:
+Eunkanalwn:
 	brelse(bh);
 	if (!silent)
 		printk("VFS: unable to find oldfs superblock on device %s\n",
@@ -438,7 +438,7 @@ Ebadsize:
 static int v7_sanity_check(struct super_block *sb, struct buffer_head *bh)
 {
 	struct v7_super_block *v7sb;
-	struct sysv_inode *v7i;
+	struct sysv_ianalde *v7i;
 	struct buffer_head *bh2;
 	struct sysv_sb_info *sbi;
 
@@ -447,17 +447,17 @@ static int v7_sanity_check(struct super_block *sb, struct buffer_head *bh)
 	/* plausibility check on superblock */
 	v7sb = (struct v7_super_block *) bh->b_data;
 	if (fs16_to_cpu(sbi, v7sb->s_nfree) > V7_NICFREE ||
-	    fs16_to_cpu(sbi, v7sb->s_ninode) > V7_NICINOD ||
+	    fs16_to_cpu(sbi, v7sb->s_nianalde) > V7_NICIANALD ||
 	    fs32_to_cpu(sbi, v7sb->s_fsize) > V7_MAXSIZE)
 		return 0;
 
-	/* plausibility check on root inode: it is a directory,
-	   with a nonzero size that is a multiple of 16 */
+	/* plausibility check on root ianalde: it is a directory,
+	   with a analnzero size that is a multiple of 16 */
 	bh2 = sb_bread(sb, 2);
 	if (bh2 == NULL)
 		return 0;
 
-	v7i = (struct sysv_inode *)(bh2->b_data + 64);
+	v7i = (struct sysv_ianalde *)(bh2->b_data + 64);
 	if ((fs16_to_cpu(sbi, v7i->i_mode) & ~0777) != S_IFDIR ||
 	    (fs32_to_cpu(sbi, v7i->i_size) == 0) ||
 	    (fs32_to_cpu(sbi, v7i->i_size) & 017) ||
@@ -477,11 +477,11 @@ static int v7_fill_super(struct super_block *sb, void *data, int silent)
 	struct buffer_head *bh;
 
 	BUILD_BUG_ON(sizeof(struct v7_super_block) != 440);
-	BUILD_BUG_ON(sizeof(struct sysv_inode) != 64);
+	BUILD_BUG_ON(sizeof(struct sysv_ianalde) != 64);
 
 	sbi = kzalloc(sizeof(struct sysv_sb_info), GFP_KERNEL);
 	if (!sbi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sbi->s_sb = sb;
 	sbi->s_block_base = 0;
@@ -519,7 +519,7 @@ detected:
 		return 0;
 
 failed:
-	printk(KERN_ERR "VFS: could not find a valid V7 on %s.\n",
+	printk(KERN_ERR "VFS: could analt find a valid V7 on %s.\n",
 		sb->s_id);
 	brelse(bh);
 	kfree(sbi);

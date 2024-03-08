@@ -79,8 +79,8 @@
 #define GCC_PCIE_0_MSTR_AXI_CLK				70
 #define GCC_PCIE_0_PIPE_CLK				71
 #define GCC_PCIE_0_SLV_AXI_CLK				72
-#define GCC_PCNOC_USB2_CLK				73
-#define GCC_PCNOC_USB3_CLK				74
+#define GCC_PCANALC_USB2_CLK				73
+#define GCC_PCANALC_USB3_CLK				74
 #define GCC_PDM2_CLK					75
 #define GCC_PDM_AHB_CLK					76
 #define GCC_VSYNC_CLK_SRC				77
@@ -93,7 +93,7 @@
 #define GCC_SDCC1_ICE_CORE_CLK				84
 #define GCC_SDCC2_AHB_CLK				85
 #define GCC_SDCC2_APPS_CLK				86
-#define GCC_SYS_NOC_USB3_CLK				87
+#define GCC_SYS_ANALC_USB3_CLK				87
 #define GCC_USB20_MOCK_UTMI_CLK				88
 #define GCC_USB2A_PHY_SLEEP_CLK				89
 #define GCC_USB30_MASTER_CLK				90

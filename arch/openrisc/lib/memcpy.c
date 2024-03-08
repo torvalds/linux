@@ -96,7 +96,7 @@ void *memcpy(void *dest, __const void *src, __kernel_size_t n)
 }
 #else
 /*
- * Use word copies but no loop unrolling as we cannot assume there
+ * Use word copies but anal loop unrolling as we cananalt assume there
  * will be benefits on the archirecture
  */
 void *memcpy(void *dest, __const void *src, __kernel_size_t n)
@@ -113,7 +113,7 @@ void *memcpy(void *dest, __const void *src, __kernel_size_t n)
 	d = (unsigned char *)dest_w;
 	s = (unsigned char *)src_w;
 
-	/* For remaining or if not aligned, copy bytes */
+	/* For remaining or if analt aligned, copy bytes */
 	for (; n >= 1; n -= 1)
 		*d++ = *s++;
 

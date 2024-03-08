@@ -31,7 +31,7 @@ static int send4(struct wg_device *wg, struct sk_buff *skb,
 	struct sock *sock;
 	int ret = 0;
 
-	skb_mark_not_on_list(skb);
+	skb_mark_analt_on_list(skb);
 	skb->dev = wg->dev;
 	skb->mark = wg->fwmark;
 
@@ -39,7 +39,7 @@ static int send4(struct wg_device *wg, struct sk_buff *skb,
 	sock = rcu_dereference_bh(wg->sock4);
 
 	if (unlikely(!sock)) {
-		ret = -ENONET;
+		ret = -EANALNET;
 		goto err;
 	}
 
@@ -73,7 +73,7 @@ static int send4(struct wg_device *wg, struct sk_buff *skb,
 		}
 		if (IS_ERR(rt)) {
 			ret = PTR_ERR(rt);
-			net_dbg_ratelimited("%s: No route to %pISpfsc, error %d\n",
+			net_dbg_ratelimited("%s: Anal route to %pISpfsc, error %d\n",
 					    wg->dev->name, &endpoint->addr, ret);
 			goto err;
 		}
@@ -81,7 +81,7 @@ static int send4(struct wg_device *wg, struct sk_buff *skb,
 			dst_cache_set_ip4(cache, &rt->dst, fl.saddr);
 	}
 
-	skb->ignore_df = 1;
+	skb->iganalre_df = 1;
 	udp_tunnel_xmit_skb(rt, sock, skb, fl.saddr, fl.daddr, ds,
 			    ip4_dst_hoplimit(&rt->dst), 0, fl.fl4_sport,
 			    fl.fl4_dport, false, false);
@@ -111,7 +111,7 @@ static int send6(struct wg_device *wg, struct sk_buff *skb,
 	struct sock *sock;
 	int ret = 0;
 
-	skb_mark_not_on_list(skb);
+	skb_mark_analt_on_list(skb);
 	skb->dev = wg->dev;
 	skb->mark = wg->fwmark;
 
@@ -119,7 +119,7 @@ static int send6(struct wg_device *wg, struct sk_buff *skb,
 	sock = rcu_dereference_bh(wg->sock6);
 
 	if (unlikely(!sock)) {
-		ret = -ENONET;
+		ret = -EANALNET;
 		goto err;
 	}
 
@@ -140,7 +140,7 @@ static int send6(struct wg_device *wg, struct sk_buff *skb,
 						      NULL);
 		if (IS_ERR(dst)) {
 			ret = PTR_ERR(dst);
-			net_dbg_ratelimited("%s: No route to %pISpfsc, error %d\n",
+			net_dbg_ratelimited("%s: Anal route to %pISpfsc, error %d\n",
 					    wg->dev->name, &endpoint->addr, ret);
 			goto err;
 		}
@@ -148,7 +148,7 @@ static int send6(struct wg_device *wg, struct sk_buff *skb,
 			dst_cache_set_ip6(cache, dst, &fl.saddr);
 	}
 
-	skb->ignore_df = 1;
+	skb->iganalre_df = 1;
 	udp_tunnel6_xmit_skb(dst, sock, skb, skb->dev, &fl.saddr, &fl.daddr, ds,
 			     ip6_dst_hoplimit(dst), 0, fl.fl6_sport,
 			     fl.fl6_dport, false);
@@ -161,14 +161,14 @@ out:
 	return ret;
 #else
 	kfree_skb(skb);
-	return -EAFNOSUPPORT;
+	return -EAFANALSUPPORT;
 #endif
 }
 
 int wg_socket_send_skb_to_peer(struct wg_peer *peer, struct sk_buff *skb, u8 ds)
 {
 	size_t skb_len = skb->len;
-	int ret = -EAFNOSUPPORT;
+	int ret = -EAFANALSUPPORT;
 
 	read_lock_bh(&peer->endpoint_lock);
 	if (peer->endpoint.addr.sa_family == AF_INET)
@@ -192,7 +192,7 @@ int wg_socket_send_buffer_to_peer(struct wg_peer *peer, void *buffer,
 	struct sk_buff *skb = alloc_skb(len + SKB_HEADER_LEN, GFP_ATOMIC);
 
 	if (unlikely(!skb))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_reserve(skb, SKB_HEADER_LEN);
 	skb_set_inner_network_header(skb, 0);
@@ -216,7 +216,7 @@ int wg_socket_send_buffer_as_reply_to_skb(struct wg_device *wg,
 
 	skb = alloc_skb(len + SKB_HEADER_LEN, GFP_ATOMIC);
 	if (unlikely(!skb))
-		return -ENOMEM;
+		return -EANALMEM;
 	skb_reserve(skb, SKB_HEADER_LEN);
 	skb_set_inner_network_header(skb, 0);
 	skb_put_data(skb, buffer, len);
@@ -225,7 +225,7 @@ int wg_socket_send_buffer_as_reply_to_skb(struct wg_device *wg,
 		ret = send4(wg, skb, &endpoint, 0, NULL);
 	else if (endpoint.addr.sa_family == AF_INET6)
 		ret = send6(wg, skb, &endpoint, 0, NULL);
-	/* No other possibilities if the endpoint is valid, which it is,
+	/* Anal other possibilities if the endpoint is valid, which it is,
 	 * as we checked above.
 	 */
 
@@ -309,7 +309,7 @@ void wg_socket_clear_peer_endpoint_src(struct wg_peer *peer)
 {
 	write_lock_bh(&peer->endpoint_lock);
 	memset(&peer->endpoint.src6, 0, sizeof(peer->endpoint.src6));
-	dst_cache_reset_now(&peer->endpoint_cache);
+	dst_cache_reset_analw(&peer->endpoint_cache);
 	write_unlock_bh(&peer->endpoint_lock);
 }
 
@@ -322,7 +322,7 @@ static int wg_receive(struct sock *sk, struct sk_buff *skb)
 	wg = sk->sk_user_data;
 	if (unlikely(!wg))
 		goto err;
-	skb_mark_not_on_list(skb);
+	skb_mark_analt_on_list(skb);
 	wg_packet_receive(wg, skb);
 	return 0;
 
@@ -378,7 +378,7 @@ int wg_socket_init(struct wg_device *wg, u16 port)
 	net = net ? maybe_get_net(net) : NULL;
 	rcu_read_unlock();
 	if (unlikely(!net))
-		return -ENONET;
+		return -EANALNET;
 
 #if IS_ENABLED(CONFIG_IPV6)
 retry:
@@ -386,7 +386,7 @@ retry:
 
 	ret = udp_sock_create(net, &port4, &new4);
 	if (ret < 0) {
-		pr_err("%s: Could not create IPv4 socket\n", wg->dev->name);
+		pr_err("%s: Could analt create IPv4 socket\n", wg->dev->name);
 		goto out;
 	}
 	set_sock_opts(new4);
@@ -400,7 +400,7 @@ retry:
 			udp_tunnel_sock_release(new4);
 			if (ret == -EADDRINUSE && !port && retries++ < 100)
 				goto retry;
-			pr_err("%s: Could not create IPv6 socket\n",
+			pr_err("%s: Could analt create IPv6 socket\n",
 			       wg->dev->name);
 			goto out;
 		}

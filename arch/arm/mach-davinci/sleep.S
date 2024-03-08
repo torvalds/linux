@@ -3,7 +3,7 @@
  * (C) Copyright 2009, Texas Instruments, Inc. https://www.ti.com/
  */
 
-/* replicated define because linux/bitops.h cannot be included in assembly */
+/* replicated define because linux/bitops.h cananalt be included in assembly */
 #define BIT(nr)			(1 << (nr))
 
 #include <linux/linkage.h>
@@ -13,7 +13,7 @@
 
 #include "clock.h"
 
-/* Arbitrary, hardware currently does not update PHYRDY correctly */
+/* Arbitrary, hardware currently does analt update PHYRDY correctly */
 #define PHYRDY_CYCLES		0x1000
 
 /* Assume 25 MHz speed for the cycle conversions since PLLs are bypassed */
@@ -28,7 +28,7 @@
 /*
  * Move DaVinci into deep sleep state
  *
- * Note: This code is copied to internal SRAM by PM code. When the DaVinci
+ * Analte: This code is copied to internal SRAM by PM code. When the DaVinci
  *	 wakes up it continues execution at the point it went to sleep.
  * Register Usage:
  * 	r0: contains virtual base for DDR2 controller

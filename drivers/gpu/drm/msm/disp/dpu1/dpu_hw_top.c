@@ -71,7 +71,7 @@ static bool dpu_hw_setup_clk_force_ctrl(struct dpu_hw_mdp *mdp,
 	if (!mdp)
 		return false;
 
-	if (clk_ctrl <= DPU_CLK_CTRL_NONE || clk_ctrl >= DPU_CLK_CTRL_MAX)
+	if (clk_ctrl <= DPU_CLK_CTRL_ANALNE || clk_ctrl >= DPU_CLK_CTRL_MAX)
 		return false;
 
 	return dpu_hw_clk_force_ctrl(&mdp->hw, &mdp->caps->clk_ctrls[clk_ctrl], enable);
@@ -261,7 +261,7 @@ struct dpu_hw_mdp *dpu_hw_mdptop_init(struct drm_device *dev,
 
 	mdp = drmm_kzalloc(dev, sizeof(*mdp), GFP_KERNEL);
 	if (!mdp)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	mdp->hw.blk_addr = addr + cfg->base;
 	mdp->hw.log_mask = DPU_DBG_MASK_TOP;

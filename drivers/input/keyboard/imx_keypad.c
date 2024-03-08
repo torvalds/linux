@@ -52,7 +52,7 @@ struct imx_keypad {
 	struct timer_list	check_matrix_timer;
 
 	/*
-	 * The matrix is stable only if no changes are detected after
+	 * The matrix is stable only if anal changes are detected after
 	 * IMX_KEYPAD_SCANS_FOR_STABILITY scans
 	 */
 #define IMX_KEYPAD_SCANS_FOR_STABILITY 3
@@ -122,7 +122,7 @@ static void imx_keypad_scan_matrix(struct imx_keypad *keypad,
 
 		/*
 		 * 1s in matrix_volatile_state[col] means key pressures
-		 * throw data from non enabled rows.
+		 * throw data from analn enabled rows.
 		 */
 		reg_val = readw(keypad->mmio_base + KPDR);
 		matrix_volatile_state[col] = (~reg_val) & keypad->rows_en_mask;
@@ -152,19 +152,19 @@ static void imx_keypad_fire_events(struct imx_keypad *keypad,
 		int code;
 
 		if ((keypad->cols_en_mask & (1 << col)) == 0)
-			continue; /* Column is not enabled */
+			continue; /* Column is analt enabled */
 
 		bits_changed = keypad->matrix_stable_state[col] ^
 						matrix_volatile_state[col];
 
 		if (bits_changed == 0)
-			continue; /* Column does not contain changes */
+			continue; /* Column does analt contain changes */
 
 		for (row = 0; row < MAX_MATRIX_KEY_ROWS; row++) {
 			if ((keypad->rows_en_mask & (1 << row)) == 0)
-				continue; /* Row is not enabled */
+				continue; /* Row is analt enabled */
 			if ((bits_changed & (1 << row)) == 0)
-				continue; /* Row does not contain changes */
+				continue; /* Row does analt contain changes */
 
 			code = MATRIX_SCAN_CODE(row, col, MATRIX_ROW_SHIFT);
 			input_event(input_dev, EV_MSC, MSC_SCAN, code);
@@ -219,7 +219,7 @@ static void imx_keypad_check_for_events(struct timer_list *t)
 		keypad->stable_count++;
 
 	/*
-	 * If the matrix is not as stable as we want reschedule scan
+	 * If the matrix is analt as stable as we want reschedule scan
 	 * in the near future.
 	 */
 	if (keypad->stable_count < IMX_KEYPAD_SCANS_FOR_STABILITY) {
@@ -230,7 +230,7 @@ static void imx_keypad_check_for_events(struct timer_list *t)
 
 	/*
 	 * If the matrix state is stable, fire the events and save the new
-	 * stable state. Note, if the matrix is kept stable for longer
+	 * stable state. Analte, if the matrix is kept stable for longer
 	 * (keypad->stable_count > IMX_KEYPAD_SCANS_FOR_STABILITY) all
 	 * events have already been generated.
 	 */
@@ -390,12 +390,12 @@ static int imx_keypad_open(struct input_dev *dev)
 	if (error)
 		return error;
 
-	/* We became active from now */
+	/* We became active from analw */
 	keypad->enabled = true;
 
 	imx_keypad_config(keypad);
 
-	/* Sanity control, not all the rows must be actived now. */
+	/* Sanity control, analt all the rows must be actived analw. */
 	if ((readw(keypad->mmio_base + KPDR) & keypad->rows_en_mask) == 0) {
 		dev_err(&dev->dev,
 			"too many keys pressed, control pins initialisation\n");
@@ -428,13 +428,13 @@ static int imx_keypad_probe(struct platform_device *pdev)
 	input_dev = devm_input_allocate_device(&pdev->dev);
 	if (!input_dev) {
 		dev_err(&pdev->dev, "failed to allocate the input device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	keypad = devm_kzalloc(&pdev->dev, sizeof(*keypad), GFP_KERNEL);
 	if (!keypad) {
-		dev_err(&pdev->dev, "not enough memory for driver data\n");
-		return -ENOMEM;
+		dev_err(&pdev->dev, "analt eanalugh memory for driver data\n");
+		return -EANALMEM;
 	}
 
 	keypad->input_dev = input_dev;
@@ -514,7 +514,7 @@ static int imx_keypad_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __maybe_unused imx_kbd_noirq_suspend(struct device *dev)
+static int __maybe_unused imx_kbd_analirq_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct imx_keypad *kbd = platform_get_drvdata(pdev);
@@ -542,7 +542,7 @@ static int __maybe_unused imx_kbd_noirq_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused imx_kbd_noirq_resume(struct device *dev)
+static int __maybe_unused imx_kbd_analirq_resume(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct imx_keypad *kbd = platform_get_drvdata(pdev);
@@ -567,7 +567,7 @@ err_clk:
 }
 
 static const struct dev_pm_ops imx_kbd_pm_ops = {
-	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(imx_kbd_noirq_suspend, imx_kbd_noirq_resume)
+	SET_ANALIRQ_SYSTEM_SLEEP_PM_OPS(imx_kbd_analirq_suspend, imx_kbd_analirq_resume)
 };
 
 static struct platform_driver imx_keypad_driver = {

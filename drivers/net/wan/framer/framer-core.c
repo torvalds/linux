@@ -12,7 +12,7 @@
 #include <linux/framer/framer-provider.h>
 #include <linux/idr.h>
 #include <linux/module.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/of.h>
 #include <linux/pm_runtime.h>
 #include <linux/regulator/consumer.h>
@@ -30,11 +30,11 @@ int framer_pm_runtime_get(struct framer *framer)
 	int ret;
 
 	if (!pm_runtime_enabled(&framer->dev))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ret = pm_runtime_get(&framer->dev);
 	if (ret < 0 && ret != -EINPROGRESS)
-		pm_runtime_put_noidle(&framer->dev);
+		pm_runtime_put_analidle(&framer->dev);
 
 	return ret;
 }
@@ -45,7 +45,7 @@ int framer_pm_runtime_get_sync(struct framer *framer)
 	int ret;
 
 	if (!pm_runtime_enabled(&framer->dev))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ret = pm_runtime_get_sync(&framer->dev);
 	if (ret < 0)
@@ -58,7 +58,7 @@ EXPORT_SYMBOL_GPL(framer_pm_runtime_get_sync);
 int framer_pm_runtime_put(struct framer *framer)
 {
 	if (!pm_runtime_enabled(&framer->dev))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return pm_runtime_put(&framer->dev);
 }
@@ -67,7 +67,7 @@ EXPORT_SYMBOL_GPL(framer_pm_runtime_put);
 int framer_pm_runtime_put_sync(struct framer *framer)
 {
 	if (!pm_runtime_enabled(&framer->dev))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return pm_runtime_put_sync(&framer->dev);
 }
@@ -90,9 +90,9 @@ int framer_init(struct framer *framer)
 	int ret;
 
 	ret = framer_pm_runtime_get_sync(framer);
-	if (ret < 0 && ret != -EOPNOTSUPP)
+	if (ret < 0 && ret != -EOPANALTSUPP)
 		return ret;
-	ret = 0; /* Override possible ret == -EOPNOTSUPP */
+	ret = 0; /* Override possible ret == -EOPANALTSUPP */
 
 	mutex_lock(&framer->mutex);
 	if (framer->power_count > framer->init_count)
@@ -140,9 +140,9 @@ int framer_exit(struct framer *framer)
 	int ret;
 
 	ret = framer_pm_runtime_get_sync(framer);
-	if (ret < 0 && ret != -EOPNOTSUPP)
+	if (ret < 0 && ret != -EOPANALTSUPP)
 		return ret;
-	ret = 0; /* Override possible ret == -EOPNOTSUPP */
+	ret = 0; /* Override possible ret == -EOPANALTSUPP */
 
 	mutex_lock(&framer->mutex);
 	--framer->init_count;
@@ -182,7 +182,7 @@ int framer_power_on(struct framer *framer)
 	}
 
 	ret = framer_pm_runtime_get_sync(framer);
-	if (ret < 0 && ret != -EOPNOTSUPP)
+	if (ret < 0 && ret != -EOPANALTSUPP)
 		goto err_pm_sync;
 
 	mutex_lock(&framer->mutex);
@@ -254,9 +254,9 @@ int framer_get_status(struct framer *framer, struct framer_status *status)
 	int ret;
 
 	if (!framer->ops->get_status)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
-	/* Be sure to have known values (struct padding and future extensions) */
+	/* Be sure to have kanalwn values (struct padding and future extensions) */
 	memset(status, 0, sizeof(*status));
 
 	mutex_lock(&framer->mutex);
@@ -282,7 +282,7 @@ int framer_set_config(struct framer *framer, const struct framer_config *config)
 	int ret;
 
 	if (!framer->ops->set_config)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	mutex_lock(&framer->mutex);
 	ret = framer->ops->set_config(framer, config);
@@ -307,7 +307,7 @@ int framer_get_config(struct framer *framer, struct framer_config *config)
 	int ret;
 
 	if (!framer->ops->get_config)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	mutex_lock(&framer->mutex);
 	ret = framer->ops->get_config(framer, config);
@@ -329,7 +329,7 @@ static void framer_polling_work(struct work_struct *work)
 		goto end;
 	}
 	if (memcmp(&framer->prev_status, &status, sizeof(status))) {
-		blocking_notifier_call_chain(&framer->notifier_list,
+		blocking_analtifier_call_chain(&framer->analtifier_list,
 					     FRAMER_EVENT_STATUS, NULL);
 		memcpy(&framer->prev_status, &status, sizeof(status));
 	}
@@ -340,44 +340,44 @@ end:
 }
 
 /**
- * framer_notifier_register() - Registers a notifier
+ * framer_analtifier_register() - Registers a analtifier
  * @framer: the framer returned by framer_get()
- * @nb: the notifier block to register
+ * @nb: the analtifier block to register
  *
- * Used to register a notifier block on framer events. framer_init() must have
+ * Used to register a analtifier block on framer events. framer_init() must have
  * been called on the framer.
  * The available framer events are present in enum framer_events.
  *
  * Return: %0 if successful, a negative error code otherwise
  */
-int framer_notifier_register(struct framer *framer, struct notifier_block *nb)
+int framer_analtifier_register(struct framer *framer, struct analtifier_block *nb)
 {
-	return blocking_notifier_chain_register(&framer->notifier_list, nb);
+	return blocking_analtifier_chain_register(&framer->analtifier_list, nb);
 }
-EXPORT_SYMBOL_GPL(framer_notifier_register);
+EXPORT_SYMBOL_GPL(framer_analtifier_register);
 
 /**
- * framer_notifier_unregister() - Unregisters a notifier
+ * framer_analtifier_unregister() - Unregisters a analtifier
  * @framer: the framer returned by framer_get()
- * @nb: the notifier block to unregister
+ * @nb: the analtifier block to unregister
  *
- * Used to unregister a notifier block. framer_init() must have
+ * Used to unregister a analtifier block. framer_init() must have
  * been called on the framer.
  *
  * Return: %0 if successful, a negative error code otherwise
  */
-int framer_notifier_unregister(struct framer *framer, struct notifier_block *nb)
+int framer_analtifier_unregister(struct framer *framer, struct analtifier_block *nb)
 {
-	return blocking_notifier_chain_unregister(&framer->notifier_list, nb);
+	return blocking_analtifier_chain_unregister(&framer->analtifier_list, nb);
 }
-EXPORT_SYMBOL_GPL(framer_notifier_unregister);
+EXPORT_SYMBOL_GPL(framer_analtifier_unregister);
 
-static struct framer_provider *framer_provider_of_lookup(const struct device_node *node)
+static struct framer_provider *framer_provider_of_lookup(const struct device_analde *analde)
 {
 	struct framer_provider *framer_provider;
 
 	list_for_each_entry(framer_provider, &framer_provider_list, list) {
-		if (device_match_of_node(framer_provider->dev, node))
+		if (device_match_of_analde(framer_provider->dev, analde))
 			return framer_provider;
 	}
 
@@ -406,7 +406,7 @@ end:
 	return framer;
 }
 
-static struct framer *framer_of_get_byphandle(struct device_node *np, const char *propname,
+static struct framer *framer_of_get_byphandle(struct device_analde *np, const char *propname,
 					      int index)
 {
 	struct of_phandle_args args;
@@ -415,22 +415,22 @@ static struct framer *framer_of_get_byphandle(struct device_node *np, const char
 
 	ret = of_parse_phandle_with_optional_args(np, propname, "#framer-cells", index, &args);
 	if (ret)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	if (!of_device_is_available(args.np)) {
-		framer = ERR_PTR(-ENODEV);
-		goto out_node_put;
+		framer = ERR_PTR(-EANALDEV);
+		goto out_analde_put;
 	}
 
 	framer = framer_of_get_from_provider(&args);
 
-out_node_put:
-	of_node_put(args.np);
+out_analde_put:
+	of_analde_put(args.np);
 
 	return framer;
 }
 
-static struct framer *framer_of_get_byparent(struct device_node *np, int index)
+static struct framer *framer_of_get_byparent(struct device_analde *np, int index)
 {
 	struct of_phandle_args args;
 	struct framer *framer;
@@ -445,11 +445,11 @@ static struct framer *framer_of_get_byparent(struct device_node *np, int index)
 			args.np = of_get_next_parent(args.np);
 			continue;
 		}
-		of_node_put(args.np);
+		of_analde_put(args.np);
 		return framer;
 	}
 
-	return ERR_PTR(-ENODEV);
+	return ERR_PTR(-EANALDEV);
 }
 
 /**
@@ -458,20 +458,20 @@ static struct framer *framer_of_get_byparent(struct device_node *np, int index)
  * @con_id: name of the framer from device's point of view
  *
  * Returns the framer driver, after getting a refcount to it; or
- * -ENODEV if there is no such framer. The caller is responsible for
+ * -EANALDEV if there is anal such framer. The caller is responsible for
  * calling framer_put() to release that count.
  */
 struct framer *framer_get(struct device *dev, const char *con_id)
 {
-	struct framer *framer = ERR_PTR(-ENODEV);
+	struct framer *framer = ERR_PTR(-EANALDEV);
 	struct device_link *link;
 	int ret;
 
-	if (dev->of_node) {
+	if (dev->of_analde) {
 		if (con_id)
-			framer = framer_of_get_byphandle(dev->of_node, con_id, 0);
+			framer = framer_of_get_byphandle(dev->of_analde, con_id, 0);
 		else
-			framer = framer_of_get_byparent(dev->of_node, 0);
+			framer = framer_of_get_byparent(dev->of_analde, 0);
 	}
 
 	if (IS_ERR(framer))
@@ -539,7 +539,7 @@ struct framer *devm_framer_get(struct device *dev, const char *con_id)
 
 	ptr = devres_alloc(devm_framer_put, sizeof(*ptr), GFP_KERNEL);
 	if (!ptr)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	framer = framer_get(dev, con_id);
 	if (!IS_ERR(framer)) {
@@ -560,46 +560,46 @@ EXPORT_SYMBOL_GPL(devm_framer_get);
  * @dev: device that requests this framer
  * @con_id: name of the framer from device's point of view
  *
- * Same as devm_framer_get() except that if the framer does not exist, it is not
- * considered an error and -ENODEV will not be returned. Instead the NULL framer
+ * Same as devm_framer_get() except that if the framer does analt exist, it is analt
+ * considered an error and -EANALDEV will analt be returned. Instead the NULL framer
  * is returned.
  */
 struct framer *devm_framer_optional_get(struct device *dev, const char *con_id)
 {
 	struct framer *framer = devm_framer_get(dev, con_id);
 
-	if (PTR_ERR(framer) == -ENODEV)
+	if (PTR_ERR(framer) == -EANALDEV)
 		framer = NULL;
 
 	return framer;
 }
 EXPORT_SYMBOL_GPL(devm_framer_optional_get);
 
-static void framer_notify_status_work(struct work_struct *work)
+static void framer_analtify_status_work(struct work_struct *work)
 {
-	struct framer *framer = container_of(work, struct framer, notify_status_work);
+	struct framer *framer = container_of(work, struct framer, analtify_status_work);
 
-	blocking_notifier_call_chain(&framer->notifier_list, FRAMER_EVENT_STATUS, NULL);
+	blocking_analtifier_call_chain(&framer->analtifier_list, FRAMER_EVENT_STATUS, NULL);
 }
 
-void framer_notify_status_change(struct framer *framer)
+void framer_analtify_status_change(struct framer *framer)
 {
 	/* Can be called from atomic context -> just schedule a task to call
-	 * blocking notifiers
+	 * blocking analtifiers
 	 */
-	queue_work(system_power_efficient_wq, &framer->notify_status_work);
+	queue_work(system_power_efficient_wq, &framer->analtify_status_work);
 }
-EXPORT_SYMBOL_GPL(framer_notify_status_change);
+EXPORT_SYMBOL_GPL(framer_analtify_status_change);
 
 /**
  * framer_create() - create a new framer
  * @dev: device that is creating the new framer
- * @node: device node of the framer. default to dev->of_node.
+ * @analde: device analde of the framer. default to dev->of_analde.
  * @ops: function pointers for performing framer operations
  *
  * Called to create a framer using framer framework.
  */
-struct framer *framer_create(struct device *dev, struct device_node *node,
+struct framer *framer_create(struct device *dev, struct device_analde *analde,
 			     const struct framer_ops *ops)
 {
 	struct framer *framer;
@@ -612,7 +612,7 @@ struct framer *framer_create(struct device *dev, struct device_node *node,
 
 	framer = kzalloc(sizeof(*framer), GFP_KERNEL);
 	if (!framer)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	id = ida_alloc(&framer_ida, GFP_KERNEL);
 	if (id < 0) {
@@ -623,13 +623,13 @@ struct framer *framer_create(struct device *dev, struct device_node *node,
 
 	device_initialize(&framer->dev);
 	mutex_init(&framer->mutex);
-	INIT_WORK(&framer->notify_status_work, framer_notify_status_work);
+	INIT_WORK(&framer->analtify_status_work, framer_analtify_status_work);
 	INIT_DELAYED_WORK(&framer->polling_work, framer_polling_work);
-	BLOCKING_INIT_NOTIFIER_HEAD(&framer->notifier_list);
+	BLOCKING_INIT_ANALTIFIER_HEAD(&framer->analtifier_list);
 
 	framer->dev.class = framer_class;
 	framer->dev.parent = dev;
-	framer->dev.of_node = node ? node : dev->of_node;
+	framer->dev.of_analde = analde ? analde : dev->of_analde;
 	framer->id = id;
 	framer->ops = ops;
 
@@ -653,7 +653,7 @@ struct framer *framer_create(struct device *dev, struct device_node *node,
 
 	if (pm_runtime_enabled(dev)) {
 		pm_runtime_enable(&framer->dev);
-		pm_runtime_no_callbacks(&framer->dev);
+		pm_runtime_anal_callbacks(&framer->dev);
 	}
 
 	return framer;
@@ -676,11 +676,11 @@ EXPORT_SYMBOL_GPL(framer_create);
  */
 void framer_destroy(struct framer *framer)
 {
-	/* polling_work should already be stopped but if framer_exit() was not
+	/* polling_work should already be stopped but if framer_exit() was analt
 	 * called (bug), here it's the last time to do that ...
 	 */
 	cancel_delayed_work_sync(&framer->polling_work);
-	cancel_work_sync(&framer->notify_status_work);
+	cancel_work_sync(&framer->analtify_status_work);
 	pm_runtime_disable(&framer->dev);
 	device_unregister(&framer->dev); /* calls framer_release() which frees resources */
 }
@@ -696,7 +696,7 @@ static void devm_framer_destroy(struct device *dev, void *res)
 /**
  * devm_framer_create() - create a new framer
  * @dev: device that is creating the new framer
- * @node: device node of the framer
+ * @analde: device analde of the framer
  * @ops: function pointers for performing framer operations
  *
  * Creates a new framer device adding it to the framer class.
@@ -704,16 +704,16 @@ static void devm_framer_destroy(struct device *dev, void *res)
  * On driver detach, release function is invoked on the devres data,
  * then, devres data is freed.
  */
-struct framer *devm_framer_create(struct device *dev, struct device_node *node,
+struct framer *devm_framer_create(struct device *dev, struct device_analde *analde,
 				  const struct framer_ops *ops)
 {
 	struct framer **ptr, *framer;
 
 	ptr = devres_alloc(devm_framer_destroy, sizeof(*ptr), GFP_KERNEL);
 	if (!ptr)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
-	framer = framer_create(dev, node, ops);
+	framer = framer_create(dev, analde, ops);
 	if (!IS_ERR(framer)) {
 		*ptr = framer;
 		devres_add(dev, ptr);
@@ -728,7 +728,7 @@ EXPORT_SYMBOL_GPL(devm_framer_create);
 /**
  * framer_provider_simple_of_xlate() - returns the framer instance from framer provider
  * @dev: the framer provider device
- * @args: of_phandle_args (not used here)
+ * @args: of_phandle_args (analt used here)
  *
  * Intended to be used by framer provider for the common case where #framer-cells is
  * 0. For other cases where #framer-cells is greater than '0', the framer provider
@@ -743,7 +743,7 @@ struct framer *framer_provider_simple_of_xlate(struct device *dev, struct of_pha
 	class_dev_iter_init(&iter, framer_class, NULL, NULL);
 	while ((dev = class_dev_iter_next(&iter))) {
 		framer = dev_to_framer(dev);
-		if (args->np != framer->dev.of_node)
+		if (args->np != framer->dev.of_analde)
 			continue;
 
 		class_dev_iter_exit(&iter);
@@ -751,7 +751,7 @@ struct framer *framer_provider_simple_of_xlate(struct device *dev, struct of_pha
 	}
 
 	class_dev_iter_exit(&iter);
-	return ERR_PTR(-ENODEV);
+	return ERR_PTR(-EANALDEV);
 }
 EXPORT_SYMBOL_GPL(framer_provider_simple_of_xlate);
 
@@ -774,13 +774,13 @@ __framer_provider_of_register(struct device *dev, struct module *owner,
 
 	framer_provider = kzalloc(sizeof(*framer_provider), GFP_KERNEL);
 	if (!framer_provider)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	framer_provider->dev = dev;
 	framer_provider->owner = owner;
 	framer_provider->of_xlate = of_xlate;
 
-	of_node_get(framer_provider->dev->of_node);
+	of_analde_get(framer_provider->dev->of_analde);
 
 	mutex_lock(&framer_provider_mutex);
 	list_add_tail(&framer_provider->list, &framer_provider_list);
@@ -802,7 +802,7 @@ void framer_provider_of_unregister(struct framer_provider *framer_provider)
 	list_del(&framer_provider->list);
 	mutex_unlock(&framer_provider_mutex);
 
-	of_node_put(framer_provider->dev->of_node);
+	of_analde_put(framer_provider->dev->of_analde);
 	kfree(framer_provider);
 }
 EXPORT_SYMBOL_GPL(framer_provider_of_unregister);
@@ -836,7 +836,7 @@ __devm_framer_provider_of_register(struct device *dev, struct module *owner,
 
 	ptr = devres_alloc(devm_framer_provider_of_unregister, sizeof(*ptr), GFP_KERNEL);
 	if (!ptr)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	framer_provider = __framer_provider_of_register(dev, owner, of_xlate);
 	if (!IS_ERR(framer_provider)) {

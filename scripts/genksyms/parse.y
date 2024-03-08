@@ -24,11 +24,11 @@ static struct string_list *decl_spec;
 static void yyerror(const char *);
 
 static inline void
-remove_node(struct string_list **p)
+remove_analde(struct string_list **p)
 {
-  struct string_list *node = *p;
-  *p = node->next;
-  free_node(node);
+  struct string_list *analde = *p;
+  *p = analde->next;
+  free_analde(analde);
 }
 
 static inline void
@@ -48,12 +48,12 @@ static void record_compound(struct string_list **keyw,
 	struct string_list *b = *body, *i = *ident, *r;
 
 	if (i->in_source_file) {
-		remove_node(keyw);
+		remove_analde(keyw);
 		(*ident)->tag = type;
 		remove_list(body, ident);
 		return;
 	}
-	r = copy_node(i); r->tag = type;
+	r = copy_analde(i); r->tag = type;
 	r->next = (*keyw)->next; *body = r; (*keyw)->next = NULL;
 	add_symbol(i->string, type, b, is_extern);
 }
@@ -143,7 +143,7 @@ simple_declaration:
 		    struct string_list *decl = (*$3)->next;
 		    (*$3)->next = NULL;
 		    add_symbol(current_name,
-			       is_typedef ? SYM_TYPEDEF : SYM_NORMAL,
+			       is_typedef ? SYM_TYPEDEF : SYM_ANALRMAL,
 			       decl, is_extern);
 		    current_name = NULL;
 		  }
@@ -161,7 +161,7 @@ init_declarator_list:
 		{ struct string_list *decl = *$1;
 		  *$1 = NULL;
 		  add_symbol(current_name,
-			     is_typedef ? SYM_TYPEDEF : SYM_NORMAL, decl, is_extern);
+			     is_typedef ? SYM_TYPEDEF : SYM_ANALRMAL, decl, is_extern);
 		  current_name = NULL;
 		  $$ = $1;
 		}
@@ -171,7 +171,7 @@ init_declarator_list:
 		  free_list(*$2, NULL);
 		  *$2 = decl_spec;
 		  add_symbol(current_name,
-			     is_typedef ? SYM_TYPEDEF : SYM_NORMAL, decl, is_extern);
+			     is_typedef ? SYM_TYPEDEF : SYM_ANALRMAL, decl, is_extern);
 		  current_name = NULL;
 		  $$ = $3;
 		}
@@ -195,9 +195,9 @@ decl_specifier_seq:
 
 decl_specifier:
 	storage_class_specifier
-		{ /* Version 2 checksumming ignores storage class, as that
+		{ /* Version 2 checksumming iganalres storage class, as that
 		     is really irrelevant to the linkage.  */
-		  remove_node($1);
+		  remove_analde($1);
 		  $$ = $1;
 		}
 	| type_specifier
@@ -220,11 +220,11 @@ type_specifier:
 	/* References to s/u/e's defined elsewhere.  Rearrange things
 	   so that it is easier to expand the definition fully later.  */
 	| STRUCT_KEYW IDENT
-		{ remove_node($1); (*$2)->tag = SYM_STRUCT; $$ = $2; }
+		{ remove_analde($1); (*$2)->tag = SYM_STRUCT; $$ = $2; }
 	| UNION_KEYW IDENT
-		{ remove_node($1); (*$2)->tag = SYM_UNION; $$ = $2; }
+		{ remove_analde($1); (*$2)->tag = SYM_UNION; $$ = $2; }
 	| ENUM_KEYW IDENT
-		{ remove_node($1); (*$2)->tag = SYM_ENUM; $$ = $2; }
+		{ remove_analde($1); (*$2)->tag = SYM_ENUM; $$ = $2; }
 
 	/* Full definitions of an s/u/e.  Record it.  */
 	| STRUCT_KEYW IDENT class_body
@@ -234,11 +234,11 @@ type_specifier:
 	| ENUM_KEYW IDENT enum_body
 		{ record_compound($1, $2, $3, SYM_ENUM); $$ = $3; }
 	/*
-	 * Anonymous enum definition. Tell add_symbol() to restart its counter.
+	 * Aanalnymous enum definition. Tell add_symbol() to restart its counter.
 	 */
 	| ENUM_KEYW enum_body
 		{ add_symbol(NULL, SYM_ENUM, NULL, 0); $$ = $2; }
-	/* Anonymous s/u definitions.  Nothing needs doing.  */
+	/* Aanalnymous s/u definitions.  Analthing needs doing.  */
 	| STRUCT_KEYW class_body			{ $$ = $2; }
 	| UNION_KEYW class_body				{ $$ = $2; }
 	;
@@ -277,8 +277,8 @@ cvar_qualifier_seq:
 cvar_qualifier:
 	CONST_KEYW | VOLATILE_KEYW | ATTRIBUTE_PHRASE
 	| RESTRICT_KEYW
-		{ /* restrict has no effect in prototypes so ignore it */
-		  remove_node($1);
+		{ /* restrict has anal effect in prototypes so iganalre it */
+		  remove_analde($1);
 		  $$ = $1;
 		}
 	;
@@ -318,7 +318,7 @@ direct_declarator:
 	;
 
 /* Nested declarators differ from regular declarators in that they do
-   not record the symbols they find in the global symbol table.  */
+   analt record the symbols they find in the global symbol table.  */
 nested_declarator:
 	ptr_operator nested_declarator		{ $$ = $2; }
 	| direct_nested_declarator
@@ -372,13 +372,13 @@ direct_m_abstract_declarator:
 	| IDENT
 		{ /* For version 2 checksums, we don't want to remember
 		     private parameter names.  */
-		  remove_node($1);
+		  remove_analde($1);
 		  $$ = $1;
 		}
 	/* This wasn't really a typedef name but an identifier that
 	   shadows one.  */
 	| TYPE
-		{ remove_node($1);
+		{ remove_analde($1);
 		  $$ = $1;
 		}
 	| direct_m_abstract_declarator '(' parameter_declaration_clause ')'
@@ -397,7 +397,7 @@ function_definition:
 	decl_specifier_seq_opt declarator BRACE_PHRASE
 		{ struct string_list *decl = *$2;
 		  *$2 = NULL;
-		  add_symbol(current_name, SYM_NORMAL, decl, is_extern);
+		  add_symbol(current_name, SYM_ANALRMAL, decl, is_extern);
 		  $$ = $3;
 		}
 	;
@@ -496,7 +496,7 @@ export_definition:
 		{ export_symbol((*$3)->string); $$ = $5; }
 	;
 
-/* Ignore any module scoped _Static_assert(...) */
+/* Iganalre any module scoped _Static_assert(...) */
 static_assert:
 	STATIC_ASSERT_PHRASE ';'			{ $$ = $2; }
 	;

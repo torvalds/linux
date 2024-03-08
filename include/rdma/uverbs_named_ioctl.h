@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
 /*
- * Copyright (c) 2018, Mellanox Technologies inc.  All rights reserved.
+ * Copyright (c) 2018, Mellaanalx Techanallogies inc.  All rights reserved.
  */
 
 #ifndef _UVERBS_NAMED_IOCTL_
@@ -18,7 +18,7 @@
 #define UVERBS_HANDLER(id)	_UVERBS_NAME(UVERBS_MODULE_NAME, _handler_##id)
 #define UVERBS_OBJECT(id)	_UVERBS_NAME(UVERBS_MODULE_NAME, _object_##id)
 
-/* These are static so they do not need to be qualified */
+/* These are static so they do analt need to be qualified */
 #define UVERBS_METHOD_ATTRS(method_id) _method_attrs_##method_id
 #define UVERBS_OBJECT_METHODS(object_id) _UVERBS_NAME(_object_methods_##object_id, __LINE__)
 
@@ -34,7 +34,7 @@
 
 /* Create a standard destroy method using the default handler. The handle_attr
  * argument must be the attribute specifying the handle to destroy, the
- * default handler does not support any other attributes.
+ * default handler does analt support any other attributes.
  */
 #define DECLARE_UVERBS_NAMED_METHOD_DESTROY(_method_id, _handle_attr)          \
 	static const struct uverbs_attr_def *const UVERBS_METHOD_ATTRS(        \
@@ -59,7 +59,7 @@
 /*
  * Declare global methods. These still have a unique object_id because we
  * identify all uapi methods with a (object,method) tuple. However, they have
- * no type pointer.
+ * anal type pointer.
  */
 #define DECLARE_UVERBS_GLOBAL_METHODS(_object_id, ...)                         \
 	static const struct uverbs_method_def *const UVERBS_OBJECT_METHODS(    \

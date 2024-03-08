@@ -37,7 +37,7 @@ static int __init btf_vmlinux_init(void)
 
 	btf_kobj = kobject_create_and_add("btf", kernel_kobj);
 	if (!btf_kobj)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return sysfs_create_bin_file(btf_kobj, &bin_attr_btf_vmlinux);
 }

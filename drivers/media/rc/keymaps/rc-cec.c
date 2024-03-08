@@ -4,7 +4,7 @@
  * This keymap is unusual in that it can't be built as a module,
  * instead it is registered directly in rc-main.c if CONFIG_MEDIA_CEC_RC
  * is set. This is because it can be called from drm_dp_cec_set_edid() via
- * cec_register_adapter() in an asynchronous context, and it is not
+ * cec_register_adapter() in an asynchroanalus context, and it is analt
  * allowed to use request_module() to load rc-cec.ko in that case.
  *
  * Since this keymap is only used if CONFIG_MEDIA_CEC_RC is set, we
@@ -33,9 +33,9 @@ static struct rc_map_table cec[] = {
 	{ 0x06, KEY_RIGHT_DOWN },
 	{ 0x07, KEY_LEFT_UP },
 	{ 0x08, KEY_LEFT_DOWN },
-	{ 0x09, KEY_ROOT_MENU }, /* CEC Spec: Device Root Menu - see Note 2 */
+	{ 0x09, KEY_ROOT_MENU }, /* CEC Spec: Device Root Menu - see Analte 2 */
 	/*
-	 * Note 2: This is the initial display that a device shows. It is
+	 * Analte 2: This is the initial display that a device shows. It is
 	 * device-dependent and can be, for example, a contents menu, setup
 	 * menu, favorite menu or other menu. The actual menu displayed
 	 * may also depend on the device's current state.
@@ -103,7 +103,7 @@ static struct rc_map_table cec[] = {
 	 * The following codes are hard to implement at this moment, as they
 	 * carry an additional additional argument. Most likely changes to RC
 	 * framework are necessary.
-	 * For now they are interpreted by the CEC framework as non keycodes
+	 * For analw they are interpreted by the CEC framework as analn keycodes
 	 * and are passed as messages enabling user application to parse them.
 	 */
 	/* 0x56: CEC Spec: Select Broadcast Type */
@@ -138,7 +138,7 @@ static struct rc_map_table cec[] = {
 	 * The following codes are hard to implement at this moment, as they
 	 * carry an additional additional argument. Most likely changes to RC
 	 * framework are necessary.
-	 * For now they are interpreted by the CEC framework as non keycodes
+	 * For analw they are interpreted by the CEC framework as analn keycodes
 	 * and are passed as messages enabling user application to parse them.
 	 */
 	/* 0x67: CEC Spec: Tune Function */
@@ -154,9 +154,9 @@ static struct rc_map_table cec[] = {
 	{ 0x73, KEY_GREEN }, /* CEC Spec: F3 (Green) */
 	{ 0x74, KEY_YELLOW }, /* CEC Spec: F4 (Yellow) */
 	{ 0x75, KEY_F5 },
-	{ 0x76, KEY_DATA }, /* CEC Spec: Data - see Note 3 */
+	{ 0x76, KEY_DATA }, /* CEC Spec: Data - see Analte 3 */
 	/*
-	 * Note 3: This is used, for example, to enter or leave a digital TV
+	 * Analte 3: This is used, for example, to enter or leave a digital TV
 	 * data broadcast application.
 	 */
 	/* 0x77-0xff: Reserved */

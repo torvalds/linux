@@ -16,20 +16,20 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; see the file COPYING.  If not, see
+ * along with this program; see the file COPYING.  If analt, see
  * http://www.gnu.org/licenses/.
  *
  * This file incorporates work covered by the following copyright and
- * permission notice:
+ * permission analtice:
  *    Copyright (c) 2007-2008 Atheros Communications, Inc.
  *
  *    Permission to use, copy, modify, and/or distribute this software for any
  *    purpose with or without fee is hereby granted, provided that the above
- *    copyright notice and this permission notice appear in all copies.
+ *    copyright analtice and this permission analtice appear in all copies.
  *
  *    THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  *    WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- *    MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ *    MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  *    ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  *    WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  *    ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -136,7 +136,7 @@ int carl9170_reboot(struct ar9170 *ar)
 
 	cmd = carl9170_cmd_buf(ar, CARL9170_CMD_REBOOT_ASYNC, 0);
 	if (!cmd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = __carl9170_exec_cmd(ar, cmd, true);
 	return err;
@@ -156,7 +156,7 @@ int carl9170_bcn_ctrl(struct ar9170 *ar, const unsigned int vif_id,
 	cmd = carl9170_cmd_buf(ar, CARL9170_CMD_BCN_CTRL_ASYNC,
 			       sizeof(struct carl9170_bcn_ctrl_cmd));
 	if (!cmd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd->bcn_ctrl.vif_id = cpu_to_le32(vif_id);
 	cmd->bcn_ctrl.mode = cpu_to_le32(mode);
@@ -207,7 +207,7 @@ int carl9170_powersave(struct ar9170 *ar, const bool ps)
 	cmd = carl9170_cmd_buf(ar, CARL9170_CMD_PSM_ASYNC,
 			       sizeof(struct carl9170_psm));
 	if (!cmd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (ps) {
 		/* Sleep until next TBTT */

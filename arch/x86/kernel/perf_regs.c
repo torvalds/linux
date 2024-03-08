@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/sched/task_stack.h>
@@ -37,7 +37,7 @@ static unsigned int pt_regs_offset[PERF_REG_X86_MAX] = {
 	PT_REGS_OFFSET(PERF_REG_X86_GS, gs),
 #else
 	/*
-	 * The pt_regs struct does not store
+	 * The pt_regs struct does analt store
 	 * ds, es, fs, gs in 64 bit mode.
 	 */
 	(unsigned int) -1,
@@ -78,7 +78,7 @@ u64 perf_reg_value(struct pt_regs *regs, int idx)
 				 ~((1ULL << PERF_REG_X86_MAX) - 1))
 
 #ifdef CONFIG_X86_32
-#define REG_NOSUPPORT ((1ULL << PERF_REG_X86_R8) | \
+#define REG_ANALSUPPORT ((1ULL << PERF_REG_X86_R8) | \
 		       (1ULL << PERF_REG_X86_R9) | \
 		       (1ULL << PERF_REG_X86_R10) | \
 		       (1ULL << PERF_REG_X86_R11) | \
@@ -89,7 +89,7 @@ u64 perf_reg_value(struct pt_regs *regs, int idx)
 
 int perf_reg_validate(u64 mask)
 {
-	if (!mask || (mask & (REG_NOSUPPORT | PERF_REG_X86_RESERVED)))
+	if (!mask || (mask & (REG_ANALSUPPORT | PERF_REG_X86_RESERVED)))
 		return -EINVAL;
 
 	return 0;
@@ -107,14 +107,14 @@ void perf_get_regs_user(struct perf_regs *regs_user,
 	regs_user->abi = perf_reg_abi(current);
 }
 #else /* CONFIG_X86_64 */
-#define REG_NOSUPPORT ((1ULL << PERF_REG_X86_DS) | \
+#define REG_ANALSUPPORT ((1ULL << PERF_REG_X86_DS) | \
 		       (1ULL << PERF_REG_X86_ES) | \
 		       (1ULL << PERF_REG_X86_FS) | \
 		       (1ULL << PERF_REG_X86_GS))
 
 int perf_reg_validate(u64 mask)
 {
-	if (!mask || (mask & (REG_NOSUPPORT | PERF_REG_X86_RESERVED)))
+	if (!mask || (mask & (REG_ANALSUPPORT | PERF_REG_X86_RESERVED)))
 		return -EINVAL;
 
 	return 0;
@@ -150,7 +150,7 @@ void perf_get_regs_user(struct perf_regs *regs_user,
 	 */
 	if (regs->sp > (unsigned long)&user_regs->r11 &&
 	    regs->sp <= (unsigned long)(user_regs + 1)) {
-		regs_user->abi = PERF_SAMPLE_REGS_ABI_NONE;
+		regs_user->abi = PERF_SAMPLE_REGS_ABI_ANALNE;
 		regs_user->regs = NULL;
 		return;
 	}
@@ -191,7 +191,7 @@ void perf_get_regs_user(struct perf_regs *regs_user,
 	 * For this to be at all useful, we need a reasonable guess for
 	 * the ABI.  Be careful: we're in NMI context, and we're
 	 * considering current to be the current task, so we should
-	 * be careful not to look at any other percpu variables that might
+	 * be careful analt to look at any other percpu variables that might
 	 * change during context switches.
 	 */
 	regs_user->abi = user_64bit_mode(user_regs) ?

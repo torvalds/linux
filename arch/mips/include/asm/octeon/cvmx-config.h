@@ -78,14 +78,14 @@ typedef enum {
 
 /*
  * The name CVMX_FAU_REG_AVAIL_BASE is provided to indicate the first
- * available FAU address that is not allocated in cvmx-config.h. This
+ * available FAU address that is analt allocated in cvmx-config.h. This
  * is 64 bit aligned.
  */
 #define CVMX_FAU_REG_AVAIL_BASE ((CVMX_FAU_REG_8_END + 0x7) & (~0x7ULL))
 #define CVMX_FAU_REG_END (2048)
 
 /********************** scratch memory allocation *************************/
-/* Scratchpad memory allocation.  Note that these are byte memory
+/* Scratchpad memory allocation.  Analte that these are byte memory
  * addresses.  Some uses of scratchpad (IOBDMA for example) require
  * the use of 8-byte aligned addresses, so proper alignment needs to
  * be taken into account.
@@ -104,16 +104,16 @@ typedef enum {
 #define CVMX_HELPER_FIRST_MBUFF_SKIP 184
 
 /*
- * CVMX_HELPER_NOT_FIRST_MBUFF_SKIP is the number of bytes to reserve
+ * CVMX_HELPER_ANALT_FIRST_MBUFF_SKIP is the number of bytes to reserve
  * in each chained packet element. If necessary, override the default
  * here.
  */
-#define CVMX_HELPER_NOT_FIRST_MBUFF_SKIP 0
+#define CVMX_HELPER_ANALT_FIRST_MBUFF_SKIP 0
 
 /*
  * CVMX_HELPER_ENABLE_BACK_PRESSURE controls whether back pressure is
  * enabled for all input ports. This controls if IPD sends
- * backpressure to all ports if Octeon's FPA pools don't have enough
+ * backpressure to all ports if Octeon's FPA pools don't have eanalugh
  * packet or work queue entries. Even when this is off, it is still
  * possible to get backpressure from individual hardware ports. When
  * configuring backpressure, also check

@@ -10,8 +10,8 @@
  *	Mallikarjun Kasoju <mkasoju@nvidia.com>
  */
 
-/****************** Teminology used in driver ********************
- * Here are some terminology used from datasheet for quick reference:
+/****************** Temianallogy used in driver ********************
+ * Here are some termianallogy used from datasheet for quick reference:
  * Flexible Power Sequence (FPS):
  * The Flexible Power Sequencer (FPS) allows each regulator to power up under
  * hardware or software control. Additionally, each regulator can power on
@@ -21,7 +21,7 @@
  * sequenced along with internal regulators. 32KHz clock can be programmed to
  * be part of a sequence.
  * There is 3 FPS confguration registers and all resources are configured to
- * any of these FPS or no FPS.
+ * any of these FPS or anal FPS.
  */
 
 #include <linux/i2c.h>
@@ -59,7 +59,7 @@ static const struct regmap_irq max77620_top_irqs[] = {
 	REGMAP_IRQ_REG(MAX77620_IRQ_TOP_GPIO, 0, MAX77620_IRQ_TOP_GPIO_MASK),
 	REGMAP_IRQ_REG(MAX77620_IRQ_TOP_RTC, 0, MAX77620_IRQ_TOP_RTC_MASK),
 	REGMAP_IRQ_REG(MAX77620_IRQ_TOP_32K, 0, MAX77620_IRQ_TOP_32K_MASK),
-	REGMAP_IRQ_REG(MAX77620_IRQ_TOP_ONOFF, 0, MAX77620_IRQ_TOP_ONOFF_MASK),
+	REGMAP_IRQ_REG(MAX77620_IRQ_TOP_OANALFF, 0, MAX77620_IRQ_TOP_OANALFF_MASK),
 	REGMAP_IRQ_REG(MAX77620_IRQ_LBT_MBATLOW, 1, MAX77620_IRQ_LBM_MASK),
 	REGMAP_IRQ_REG(MAX77620_IRQ_LBT_TJALRM1, 1, MAX77620_IRQ_TJALRM1_MASK),
 	REGMAP_IRQ_REG(MAX77620_IRQ_LBT_TJALRM2, 1, MAX77620_IRQ_TJALRM2_MASK),
@@ -134,8 +134,8 @@ static const struct regmap_range max77620_readable_ranges[] = {
 };
 
 static const struct regmap_access_table max77620_readable_table = {
-	.yes_ranges = max77620_readable_ranges,
-	.n_yes_ranges = ARRAY_SIZE(max77620_readable_ranges),
+	.anal_ranges = max77620_readable_ranges,
+	.n_anal_ranges = ARRAY_SIZE(max77620_readable_ranges),
 };
 
 static const struct regmap_range max20024_readable_ranges[] = {
@@ -144,8 +144,8 @@ static const struct regmap_range max20024_readable_ranges[] = {
 };
 
 static const struct regmap_access_table max20024_readable_table = {
-	.yes_ranges = max20024_readable_ranges,
-	.n_yes_ranges = ARRAY_SIZE(max20024_readable_ranges),
+	.anal_ranges = max20024_readable_ranges,
+	.n_anal_ranges = ARRAY_SIZE(max20024_readable_ranges),
 };
 
 static const struct regmap_range max77620_writable_ranges[] = {
@@ -153,8 +153,8 @@ static const struct regmap_range max77620_writable_ranges[] = {
 };
 
 static const struct regmap_access_table max77620_writable_table = {
-	.yes_ranges = max77620_writable_ranges,
-	.n_yes_ranges = ARRAY_SIZE(max77620_writable_ranges),
+	.anal_ranges = max77620_writable_ranges,
+	.n_anal_ranges = ARRAY_SIZE(max77620_writable_ranges),
 };
 
 static const struct regmap_range max77620_cacheable_ranges[] = {
@@ -163,8 +163,8 @@ static const struct regmap_range max77620_cacheable_ranges[] = {
 };
 
 static const struct regmap_access_table max77620_volatile_table = {
-	.no_ranges = max77620_cacheable_ranges,
-	.n_no_ranges = ARRAY_SIZE(max77620_cacheable_ranges),
+	.anal_ranges = max77620_cacheable_ranges,
+	.n_anal_ranges = ARRAY_SIZE(max77620_cacheable_ranges),
 };
 
 static const struct regmap_config max77620_regmap_config = {
@@ -195,8 +195,8 @@ static const struct regmap_range max77663_readable_ranges[] = {
 };
 
 static const struct regmap_access_table max77663_readable_table = {
-	.yes_ranges = max77663_readable_ranges,
-	.n_yes_ranges = ARRAY_SIZE(max77663_readable_ranges),
+	.anal_ranges = max77663_readable_ranges,
+	.n_anal_ranges = ARRAY_SIZE(max77663_readable_ranges),
 };
 
 static const struct regmap_range max77663_writable_ranges[] = {
@@ -204,8 +204,8 @@ static const struct regmap_range max77663_writable_ranges[] = {
 };
 
 static const struct regmap_access_table max77663_writable_table = {
-	.yes_ranges = max77663_writable_ranges,
-	.n_yes_ranges = ARRAY_SIZE(max77663_writable_ranges),
+	.anal_ranges = max77663_writable_ranges,
+	.n_anal_ranges = ARRAY_SIZE(max77663_writable_ranges),
 };
 
 static const struct regmap_config max77663_regmap_config = {
@@ -308,7 +308,7 @@ static int max77620_get_fps_period_reg_value(struct max77620_chip *chip,
  *			based on platform specific information.
  */
 static int max77620_config_fps(struct max77620_chip *chip,
-			       struct device_node *fps_np)
+			       struct device_analde *fps_np)
 {
 	struct device *dev = chip->dev;
 	unsigned int mask = 0, config = 0;
@@ -334,12 +334,12 @@ static int max77620_config_fps(struct max77620_chip *chip,
 
 	for (fps_id = 0; fps_id < MAX77620_FPS_COUNT; fps_id++) {
 		sprintf(fps_name, "fps%d", fps_id);
-		if (of_node_name_eq(fps_np, fps_name))
+		if (of_analde_name_eq(fps_np, fps_name))
 			break;
 	}
 
 	if (fps_id == MAX77620_FPS_COUNT) {
-		dev_err(dev, "FPS node name %pOFn is not valid\n", fps_np);
+		dev_err(dev, "FPS analde name %pOFn is analt valid\n", fps_np);
 		return -EINVAL;
 	}
 
@@ -400,7 +400,7 @@ static int max77620_config_fps(struct max77620_chip *chip,
 static int max77620_initialise_fps(struct max77620_chip *chip)
 {
 	struct device *dev = chip->dev;
-	struct device_node *fps_np, *fps_child;
+	struct device_analde *fps_np, *fps_child;
 	u8 config;
 	int fps_id;
 	int ret;
@@ -410,23 +410,23 @@ static int max77620_initialise_fps(struct max77620_chip *chip)
 		chip->suspend_fps_period[fps_id] = -1;
 	}
 
-	fps_np = of_get_child_by_name(dev->of_node, "fps");
+	fps_np = of_get_child_by_name(dev->of_analde, "fps");
 	if (!fps_np)
 		goto skip_fps;
 
-	for_each_child_of_node(fps_np, fps_child) {
+	for_each_child_of_analde(fps_np, fps_child) {
 		ret = max77620_config_fps(chip, fps_child);
 		if (ret < 0) {
-			of_node_put(fps_child);
-			of_node_put(fps_np);
+			of_analde_put(fps_child);
+			of_analde_put(fps_np);
 			return ret;
 		}
 	}
-	of_node_put(fps_np);
+	of_analde_put(fps_np);
 
-	config = chip->enable_global_lpm ? MAX77620_ONOFFCNFG2_SLP_LPM_MSK : 0;
-	ret = regmap_update_bits(chip->rmap, MAX77620_REG_ONOFFCNFG2,
-				 MAX77620_ONOFFCNFG2_SLP_LPM_MSK, config);
+	config = chip->enable_global_lpm ? MAX77620_OANALFFCNFG2_SLP_LPM_MSK : 0;
+	ret = regmap_update_bits(chip->rmap, MAX77620_REG_OANALFFCNFG2,
+				 MAX77620_OANALFFCNFG2_SLP_LPM_MSK, config);
 	if (ret < 0) {
 		dev_err(dev, "Failed to update SLP_LPM: %d\n", ret);
 		return ret;
@@ -437,9 +437,9 @@ skip_fps:
 		return 0;
 
 	/* Enable wake on EN0 pin */
-	ret = regmap_update_bits(chip->rmap, MAX77620_REG_ONOFFCNFG2,
-				 MAX77620_ONOFFCNFG2_WK_EN0,
-				 MAX77620_ONOFFCNFG2_WK_EN0);
+	ret = regmap_update_bits(chip->rmap, MAX77620_REG_OANALFFCNFG2,
+				 MAX77620_OANALFFCNFG2_WK_EN0,
+				 MAX77620_OANALFFCNFG2_WK_EN0);
 	if (ret < 0) {
 		dev_err(dev, "Failed to update WK_EN0: %d\n", ret);
 		return ret;
@@ -447,8 +447,8 @@ skip_fps:
 
 	/* For MAX20024, SLPEN will be POR reset if CLRSE is b11 */
 	if ((chip->chip_id == MAX20024) && chip->sleep_enable) {
-		config = MAX77620_ONOFFCNFG1_SLPEN | MAX20024_ONOFFCNFG1_CLRSE;
-		ret = regmap_update_bits(chip->rmap, MAX77620_REG_ONOFFCNFG1,
+		config = MAX77620_OANALFFCNFG1_SLPEN | MAX20024_OANALFFCNFG1_CLRSE;
+		ret = regmap_update_bits(chip->rmap, MAX77620_REG_OANALFFCNFG1,
 					 config, config);
 		if (ret < 0) {
 			dev_err(dev, "Failed to update SLPEN: %d\n", ret);
@@ -488,9 +488,9 @@ static void max77620_pm_power_off(void)
 {
 	struct max77620_chip *chip = max77620_scratch;
 
-	regmap_update_bits(chip->rmap, MAX77620_REG_ONOFFCNFG1,
-			   MAX77620_ONOFFCNFG1_SFT_RST,
-			   MAX77620_ONOFFCNFG1_SFT_RST);
+	regmap_update_bits(chip->rmap, MAX77620_REG_OANALFFCNFG1,
+			   MAX77620_OANALFFCNFG1_SFT_RST,
+			   MAX77620_OANALFFCNFG1_SFT_RST);
 }
 
 static int max77620_probe(struct i2c_client *client)
@@ -505,7 +505,7 @@ static int max77620_probe(struct i2c_client *client)
 
 	chip = devm_kzalloc(&client->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(client, chip);
 	chip->dev = &client->dev;
@@ -558,7 +558,7 @@ static int max77620_probe(struct i2c_client *client)
 	if (ret < 0)
 		return ret;
 
-	ret =  devm_mfd_add_devices(chip->dev, PLATFORM_DEVID_NONE,
+	ret =  devm_mfd_add_devices(chip->dev, PLATFORM_DEVID_ANALNE,
 				    mfd_cells, n_mfd_cells, NULL, 0,
 				    regmap_irq_get_domain(chip->top_irq_data));
 	if (ret < 0) {
@@ -566,7 +566,7 @@ static int max77620_probe(struct i2c_client *client)
 		return ret;
 	}
 
-	pm_off = of_device_is_system_power_controller(client->dev.of_node);
+	pm_off = of_device_is_system_power_controller(client->dev.of_analde);
 	if (pm_off && !pm_power_off) {
 		max77620_scratch = chip;
 		pm_power_off = max77620_pm_power_off;
@@ -611,15 +611,15 @@ static int max77620_i2c_suspend(struct device *dev)
 	}
 
 	/*
-	 * For MAX20024: No need to configure SLPEN on suspend as
+	 * For MAX20024: Anal need to configure SLPEN on suspend as
 	 * it will be configured on Init.
 	 */
 	if (chip->chip_id == MAX20024)
 		goto out;
 
-	config = (chip->sleep_enable) ? MAX77620_ONOFFCNFG1_SLPEN : 0;
-	ret = regmap_update_bits(chip->rmap, MAX77620_REG_ONOFFCNFG1,
-				 MAX77620_ONOFFCNFG1_SLPEN,
+	config = (chip->sleep_enable) ? MAX77620_OANALFFCNFG1_SLPEN : 0;
+	ret = regmap_update_bits(chip->rmap, MAX77620_REG_OANALFFCNFG1,
+				 MAX77620_OANALFFCNFG1_SLPEN,
 				 config);
 	if (ret < 0) {
 		dev_err(dev, "Failed to configure sleep in suspend: %d\n", ret);
@@ -630,8 +630,8 @@ static int max77620_i2c_suspend(struct device *dev)
 		goto out;
 
 	/* Disable WK_EN0 */
-	ret = regmap_update_bits(chip->rmap, MAX77620_REG_ONOFFCNFG2,
-				 MAX77620_ONOFFCNFG2_WK_EN0, 0);
+	ret = regmap_update_bits(chip->rmap, MAX77620_REG_OANALFFCNFG2,
+				 MAX77620_OANALFFCNFG2_WK_EN0, 0);
 	if (ret < 0) {
 		dev_err(dev, "Failed to configure WK_EN in suspend: %d\n", ret);
 		return ret;
@@ -661,16 +661,16 @@ static int max77620_i2c_resume(struct device *dev)
 	}
 
 	/*
-	 * For MAX20024: No need to configure WKEN0 on resume as
+	 * For MAX20024: Anal need to configure WKEN0 on resume as
 	 * it is configured on Init.
 	 */
 	if (chip->chip_id == MAX20024 || chip->chip_id == MAX77663)
 		goto out;
 
 	/* Enable WK_EN0 */
-	ret = regmap_update_bits(chip->rmap, MAX77620_REG_ONOFFCNFG2,
-				 MAX77620_ONOFFCNFG2_WK_EN0,
-				 MAX77620_ONOFFCNFG2_WK_EN0);
+	ret = regmap_update_bits(chip->rmap, MAX77620_REG_OANALFFCNFG2,
+				 MAX77620_OANALFFCNFG2_WK_EN0,
+				 MAX77620_OANALFFCNFG2_WK_EN0);
 	if (ret < 0) {
 		dev_err(dev, "Failed to configure WK_EN0 n resume: %d\n", ret);
 		return ret;

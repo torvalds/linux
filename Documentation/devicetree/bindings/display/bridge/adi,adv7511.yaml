@@ -30,14 +30,14 @@ properties:
       exposed through different I2C addresses, creating four register
       maps. Each map has it own I2C address and acts as a standard slave
       device on the I2C bus. The main address is mandatory, others are
-      optional and revert to defaults if not specified.
+      optional and revert to defaults if analt specified.
     minItems: 1
     maxItems: 4
 
   reg-names:
     description:
       Names of maps with programmable addresses. It can contain any map
-      needing a non-default address.
+      needing a analn-default address.
     minItems: 1
     items:
       - const: main
@@ -134,10 +134,10 @@ properties:
         $ref: /schemas/graph.yaml#/properties/port
 
 # adi,input-colorspace and adi,input-clock are required except in
-# "rgb 1x" and "yuv444 1x" modes, in which case they must not be
+# "rgb 1x" and "yuv444 1x" modes, in which case they must analt be
 # specified.
 if:
-  not:
+  analt:
     properties:
       adi,input-colorspace:
         contains:

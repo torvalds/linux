@@ -13,47 +13,47 @@
 struct dlm_lock;
 struct dlm_ctxt;
 
-/* NOTE: changes made to this enum should be reflected in dlmdebug.c */
+/* ANALTE: changes made to this enum should be reflected in dlmdebug.c */
 enum dlm_status {
-	DLM_NORMAL = 0,           /*  0: request in progress */
+	DLM_ANALRMAL = 0,           /*  0: request in progress */
 	DLM_GRANTED,              /*  1: request granted */
 	DLM_DENIED,               /*  2: request denied */
-	DLM_DENIED_NOLOCKS,       /*  3: request denied, out of system resources */
+	DLM_DENIED_ANALLOCKS,       /*  3: request denied, out of system resources */
 	DLM_WORKING,              /*  4: async request in progress */
 	DLM_BLOCKED,              /*  5: lock request blocked */
 	DLM_BLOCKED_ORPHAN,       /*  6: lock request blocked by a orphan lock*/
 	DLM_DENIED_GRACE_PERIOD,  /*  7: topological change in progress */
 	DLM_SYSERR,               /*  8: system error */
-	DLM_NOSUPPORT,            /*  9: unsupported */
+	DLM_ANALSUPPORT,            /*  9: unsupported */
 	DLM_CANCELGRANT,          /* 10: can't cancel convert: already granted */
 	DLM_IVLOCKID,             /* 11: bad lockid */
-	DLM_SYNC,                 /* 12: synchronous request granted */
+	DLM_SYNC,                 /* 12: synchroanalus request granted */
 	DLM_BADTYPE,              /* 13: bad resource type */
 	DLM_BADRESOURCE,          /* 14: bad resource handle */
-	DLM_MAXHANDLES,           /* 15: no more resource handles */
-	DLM_NOCLINFO,             /* 16: can't contact cluster manager */
-	DLM_NOLOCKMGR,            /* 17: can't contact lock manager */
-	DLM_NOPURGED,             /* 18: can't contact purge daemon */
+	DLM_MAXHANDLES,           /* 15: anal more resource handles */
+	DLM_ANALCLINFO,             /* 16: can't contact cluster manager */
+	DLM_ANALLOCKMGR,            /* 17: can't contact lock manager */
+	DLM_ANALPURGED,             /* 18: can't contact purge daemon */
 	DLM_BADARGS,              /* 19: bad api args */
-	DLM_VOID,                 /* 20: no status */
-	DLM_NOTQUEUED,            /* 21: NOQUEUE was specified and request failed */
+	DLM_VOID,                 /* 20: anal status */
+	DLM_ANALTQUEUED,            /* 21: ANALQUEUE was specified and request failed */
 	DLM_IVBUFLEN,             /* 22: invalid resource name length */
 	DLM_CVTUNGRANT,           /* 23: attempted to convert ungranted lock */
 	DLM_BADPARAM,             /* 24: invalid lock mode specified */
-	DLM_VALNOTVALID,          /* 25: value block has been invalidated */
+	DLM_VALANALTVALID,          /* 25: value block has been invalidated */
 	DLM_REJECTED,             /* 26: request rejected, unrecognized client */
 	DLM_ABORT,                /* 27: blocked lock request cancelled */
 	DLM_CANCEL,               /* 28: conversion request cancelled */
 	DLM_IVRESHANDLE,          /* 29: invalid resource handle */
 	DLM_DEADLOCK,             /* 30: deadlock recovery refused this request */
-	DLM_DENIED_NOASTS,        /* 31: failed to allocate AST */
+	DLM_DENIED_ANALASTS,        /* 31: failed to allocate AST */
 	DLM_FORWARD,              /* 32: request must wait for primary's response */
 	DLM_TIMEOUT,              /* 33: timeout value for lock has expired */
 	DLM_IVGROUPID,            /* 34: invalid group specification */
 	DLM_VERS_CONFLICT,        /* 35: version conflicts prevent request handling */
-	DLM_BAD_DEVICE_PATH,      /* 36: Locks device does not exist or path wrong */
-	DLM_NO_DEVICE_PERMISSION, /* 37: Client has insufficient pers for device */
-	DLM_NO_CONTROL_DEVICE,    /* 38: Cannot set options on opened device */
+	DLM_BAD_DEVICE_PATH,      /* 36: Locks device does analt exist or path wrong */
+	DLM_ANAL_DEVICE_PERMISSION, /* 37: Client has insufficient pers for device */
+	DLM_ANAL_CONTROL_DEVICE,    /* 38: Cananalt set options on opened device */
 
 	DLM_RECOVERING,           /* 39: extension, allows caller to fail a lock
 				     request if it is being recovered */
@@ -67,10 +67,10 @@ const char *dlm_errmsg(enum dlm_status err);
 /* for pretty-printing dlm_status error names */
 const char *dlm_errname(enum dlm_status err);
 
-/* Eventually the DLM will use standard errno values, but in the
+/* Eventually the DLM will use standard erranal values, but in the
  * meantime this lets us track dlm errors as they bubble up. When we
  * bring its error reporting into line with the rest of the stack,
- * these can just be replaced with calls to mlog_errno. */
+ * these can just be replaced with calls to mlog_erranal. */
 #define dlm_error(st) do {						\
 	if ((st) != DLM_RECOVERING &&					\
 	    (st) != DLM_MIGRATING &&					\
@@ -118,20 +118,20 @@ struct dlm_lockstatus {
 #define LKM_BLOCK        0x00000040  /* blocking lock request (U) */
 #define LKM_LOCAL        0x00000080  /* local lock request */
 #define LKM_VALBLK       0x00000100  /* lock value block request */
-#define LKM_NOQUEUE      0x00000200  /* non blocking request */
+#define LKM_ANALQUEUE      0x00000200  /* analn blocking request */
 #define LKM_CONVERT      0x00000400  /* conversion request */
-#define LKM_NODLCKWT     0x00000800  /* this lock wont deadlock (U) */
+#define LKM_ANALDLCKWT     0x00000800  /* this lock wont deadlock (U) */
 #define LKM_UNLOCK       0x00001000  /* deallocate this lock */
 #define LKM_CANCEL       0x00002000  /* cancel conversion request */
 #define LKM_DEQALL       0x00004000  /* remove all locks held by proc (U) */
 #define LKM_INVVALBLK    0x00008000  /* invalidate lock value block */
-#define LKM_SYNCSTS      0x00010000  /* return synchronous status if poss (U) */
+#define LKM_SYNCSTS      0x00010000  /* return synchroanalus status if poss (U) */
 #define LKM_TIMEOUT      0x00020000  /* lock request contains timeout (U) */
 #define LKM_SNGLDLCK     0x00040000  /* request can self-deadlock (U) */
 #define LKM_FINDLOCAL    0x00080000  /* find local lock request (U) */
-#define LKM_PROC_OWNED   0x00100000  /* owned by process, not group (U) */
+#define LKM_PROC_OWNED   0x00100000  /* owned by process, analt group (U) */
 #define LKM_XID          0x00200000  /* use transaction id for deadlock (U) */
-#define LKM_XID_CONFLICT 0x00400000  /* do not allow lock inheritance (U) */
+#define LKM_XID_CONFLICT 0x00400000  /* do analt allow lock inheritance (U) */
 #define LKM_FORCE        0x00800000  /* force unlock flag */
 #define LKM_REVVALBLK    0x01000000  /* temporary solution: re-validate
 					lock value block (U) */
@@ -147,7 +147,7 @@ struct dlm_lockstatus {
 /* ocfs2 extensions: internal only
  * should never be used by caller */
 #define LKM_MIGRATION    0x10000000  /* extension: lockres is to be migrated
-					to another node */
+					to aanalther analde */
 #define LKM_PUT_LVB      0x20000000  /* extension: lvb is being passed
 					should be applied to lockres */
 #define LKM_GET_LVB      0x40000000  /* extension: lvb should be copied
@@ -178,7 +178,7 @@ enum dlm_status dlmunlock(struct dlm_ctxt *dlm,
 
 struct dlm_protocol_version {
 	u8 pv_major;
-	u8 pv_minor;
+	u8 pv_mianalr;
 };
 struct dlm_ctxt * dlm_register_domain(const char *domain, u32 key,
 				      struct dlm_protocol_version *fs_proto);

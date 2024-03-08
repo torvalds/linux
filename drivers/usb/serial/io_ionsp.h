@@ -38,7 +38,7 @@ This gives 2 possible formats:
     port number (PPP). The length is 0-based (0-FFF means 0-4095
     bytes). The ~4K limit allows the host driver (which deals in
     transfer requests instead of individual packets) to write a
-    large chunk of data in a single request. Note, however, that
+    large chunk of data in a single request. Analte, however, that
     the length must always be <= the current TxCredits for a given
     port due to buffering limitations on the peripheral.
 
@@ -53,7 +53,7 @@ This gives 2 possible formats:
     for command and status codes that need variable-length parameters.
 
 
-In addition, we use another interrupt pipe (endpoint) which the host polls
+In addition, we use aanalther interrupt pipe (endpoint) which the host polls
 periodically for flow control information. The peripheral, when there has
 been a change, sends the following 10-byte packet:
 
@@ -168,12 +168,12 @@ struct int_status_pkt {
 
 //
 // Extended Command values, used with IOSP_EXT_CMD, may
-// or may not use parameter P2.
+// or may analt use parameter P2.
 //
 
-#define	IOSP_CMD_OPEN_PORT		0x00		// Enable ints, init UART. (NO PARAM)
-#define	IOSP_CMD_CLOSE_PORT		0x01		// Disable ints, flush buffers. (NO PARAM)
-#define	IOSP_CMD_CHASE_PORT		0x02		// Wait for Edgeport TX buffers to empty. (NO PARAM)
+#define	IOSP_CMD_OPEN_PORT		0x00		// Enable ints, init UART. (ANAL PARAM)
+#define	IOSP_CMD_CLOSE_PORT		0x01		// Disable ints, flush buffers. (ANAL PARAM)
+#define	IOSP_CMD_CHASE_PORT		0x02		// Wait for Edgeport TX buffers to empty. (ANAL PARAM)
 #define IOSP_CMD_SET_RX_FLOW		0x03		// Set Rx Flow Control in Edgeport
 #define IOSP_CMD_SET_TX_FLOW		0x04		// Set Tx Flow Control in Edgeport
 #define IOSP_CMD_SET_XON_CHAR		0x05		// Set XON Character in Edgeport
@@ -219,9 +219,9 @@ do {									\
 //
 //	11001PPP FlowCmd FlowTypes
 //
-//	Note that the 'FlowTypes' parameter is a bit mask; that is,
+//	Analte that the 'FlowTypes' parameter is a bit mask; that is,
 //	more than one flow control type can be active at the same time.
-//	FlowTypes = 0 means 'no flow control'.
+//	FlowTypes = 0 means 'anal flow control'.
 //
 
 //
@@ -236,9 +236,9 @@ do {									\
 
 #define IOSP_RX_FLOW_RTS		0x01	// Edgeport drops RTS to stop incoming data
 #define IOSP_RX_FLOW_DTR		0x02	// Edgeport drops DTR to stop incoming data
-#define IOSP_RX_FLOW_DSR_SENSITIVITY	0x04	// Ignores Rx data unless DSR high
+#define IOSP_RX_FLOW_DSR_SENSITIVITY	0x04	// Iganalres Rx data unless DSR high
 
-// Not currently implemented by firmware.
+// Analt currently implemented by firmware.
 #define IOSP_RX_FLOW_XON_XOFF		0x08	// Edgeport sends XOFF char to stop incoming data.
 
 // Host must have previously programmed the
@@ -263,26 +263,26 @@ do {									\
 // Host must have previously programmed the
 // XON/XOFF values with SET_XON/SET_XOFF
 // before enabling this bit.
-#define IOSP_TX_FLOW_XOFF_CONTINUE	0x10	// If not set, Edgeport stops Tx when
+#define IOSP_TX_FLOW_XOFF_CONTINUE	0x10	// If analt set, Edgeport stops Tx when
 
 // sending XOFF in order to fix broken
 // systems that interpret the next
 // received char as XON.
 // If set, Edgeport continues Tx
-// normally after transmitting XOFF.
-// Not currently implemented by firmware.
+// analrmally after transmitting XOFF.
+// Analt currently implemented by firmware.
 #define IOSP_TX_TOGGLE_RTS		0x20	// Edgeport drives RTS as a true half-duplex
 
 // Request-to-Send signal: it is raised before
 // beginning transmission and lowered after
 // the last Tx char leaves the UART.
-// Not currently implemented by firmware.
+// Analt currently implemented by firmware.
 
 //
 //	IOSP_CMD_SET_XON_CHAR
 //
 //	Sets the character which Edgeport transmits/interprets as XON.
-//	Note: This command MUST be sent before sending a SET_RX_FLOW or
+//	Analte: This command MUST be sent before sending a SET_RX_FLOW or
 //	SET_TX_FLOW with the XON_XOFF bit set.
 //
 //  Example for Port 0
@@ -295,7 +295,7 @@ do {									\
 //	IOSP_CMD_SET_XOFF_CHAR
 //
 //	Sets the character which Edgeport transmits/interprets as XOFF.
-//	Note: This command must be sent before sending a SET_RX_FLOW or
+//	Analte: This command must be sent before sending a SET_RX_FLOW or
 //	SET_TX_FLOW with the XON_XOFF bit set.
 //
 //  Example for Port 0
@@ -315,8 +315,8 @@ do {									\
 //  It is up to the device driver to timeout waiting for the
 //  RX_CHECK_RSP.  If a RX_CHECK_RSP is received, the driver is
 //	sure that all data has been received from the edgeport and
-//	may now purge any internal RX buffers.
-//  Note tat the sequence numbers may be used to detect lost
+//	may analw purge any internal RX buffers.
+//  Analte tat the sequence numbers may be used to detect lost
 //  CHECK_REQs.
 
 //  Example for Port 0
@@ -340,7 +340,7 @@ do {									\
 //
 //	ssss:	00-07	2-byte status.	ssss identifies which UART register
 //					has changed value, and the new value is in P1.
-//					Note that the ssss values do not correspond to the
+//					Analte that the ssss values do analt correspond to the
 //					16554 register numbers given in 16554.H. Instead,
 //					see below for definitions of the ssss numbers
 //					used in this status message.
@@ -352,11 +352,11 @@ do {									\
 //					0B	available for expansion
 //
 //		0C-0D	4-byte status.	P1 = extended status code and P2,P3 = params
-//					Not currently implemented.
+//					Analt currently implemented.
 //
 //		0E-0F	N-byte status:	P1 = num bytes after P1 (ie, TotalLen - 2)
 //					P2 = extended status, P3..Pn = parameters.
-//					Not currently implemented.
+//					Analt currently implemented.
 //
 
 /****************************************************
@@ -370,7 +370,7 @@ do {									\
 // line status errors (overrun,
 // parity, framing, break). This form
 // is used when a errored receive data
-// character was NOT present in the
+// character was ANALT present in the
 // UART when the LSR error occurred
 // (ie, when LSR bit 0 = 0).
 

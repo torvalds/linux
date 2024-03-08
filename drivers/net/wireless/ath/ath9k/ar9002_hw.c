@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -85,7 +85,7 @@ static int ar9002_hw_init_mode_regs(struct ath_hw *ah)
 
 		data = devm_kzalloc(ah->dev, size, GFP_KERNEL);
 		if (!data)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		memcpy(data, addac->ia_array, size);
 		addac->ia_array = data;
@@ -96,8 +96,8 @@ static int ar9002_hw_init_mode_regs(struct ath_hw *ah)
 		}
 	}
 	if (AR_SREV_9287_11_OR_LATER(ah)) {
-		INIT_INI_ARRAY(&ah->iniCckfirNormal,
-		       ar9287Common_normal_cck_fir_coeff_9287_1_1);
+		INIT_INI_ARRAY(&ah->iniCckfirAnalrmal,
+		       ar9287Common_analrmal_cck_fir_coeff_9287_1_1);
 		INIT_INI_ARRAY(&ah->iniCckfirJapan2484,
 		       ar9287Common_japan_2484_cck_fir_coeff_9287_1_1);
 	}
@@ -108,7 +108,7 @@ static void ar9280_20_hw_init_rxgain_ini(struct ath_hw *ah)
 {
 	u32 rxgain_type;
 
-	if (ah->eep_ops->get_eeprom_rev(ah) >= AR5416_EEP_MINOR_VER_17) {
+	if (ah->eep_ops->get_eeprom_rev(ah) >= AR5416_EEP_MIANALR_VER_17) {
 		rxgain_type = ah->eep_ops->get_eeprom(ah, EEP_RXGAIN_TYPE);
 
 		if (rxgain_type == AR5416_EEP_RXGAIN_13DB_BACKOFF)
@@ -128,7 +128,7 @@ static void ar9280_20_hw_init_rxgain_ini(struct ath_hw *ah)
 
 static void ar9280_20_hw_init_txgain_ini(struct ath_hw *ah, u32 txgain_type)
 {
-	if (ah->eep_ops->get_eeprom_rev(ah) >= AR5416_EEP_MINOR_VER_19) {
+	if (ah->eep_ops->get_eeprom_rev(ah) >= AR5416_EEP_MIANALR_VER_19) {
 		if (txgain_type == AR5416_EEP_TXGAIN_HIGH_POWER)
 			INIT_INI_ARRAY(&ah->iniModesTxGain,
 				       ar9280Modes_high_power_tx_gain_9280_2);
@@ -148,7 +148,7 @@ static void ar9271_hw_init_txgain_ini(struct ath_hw *ah, u32 txgain_type)
 			       ar9271Modes_high_power_tx_gain_9271);
 	else
 		INIT_INI_ARRAY(&ah->iniModesTxGain,
-			       ar9271Modes_normal_power_tx_gain_9271);
+			       ar9271Modes_analrmal_power_tx_gain_9271);
 }
 
 static void ar9002_hw_init_mode_gain_regs(struct ath_hw *ah)
@@ -181,7 +181,7 @@ static void ar9002_hw_init_mode_gain_regs(struct ath_hw *ah)
 		} else {
 			if (AR_SREV_9285E_20(ah)) {
 				INIT_INI_ARRAY(&ah->iniModesTxGain,
-					       ar9285Modes_XE2_0_normal_power);
+					       ar9285Modes_XE2_0_analrmal_power);
 			} else {
 				INIT_INI_ARRAY(&ah->iniModesTxGain,
 					ar9285Modes_original_tx_gain_9285_1_2);
@@ -205,7 +205,7 @@ static void ar9002_hw_configpcipowersave(struct ath_hw *ah,
 	u8 i;
 	u32 val;
 
-	/* Nothing to do on restore for 11N */
+	/* Analthing to do on restore for 11N */
 	if (!power_off /* !restore */) {
 		if (AR_SREV_9280_20_OR_LATER(ah)) {
 			/*
@@ -229,7 +229,7 @@ static void ar9002_hw_configpcipowersave(struct ath_hw *ah,
 			REG_WRITE(ah, AR_PCIE_SERDES, 0xe5980579);
 
 			/*
-			 * Ignore ah->ah_config.pcie_clock_req setting for
+			 * Iganalre ah->ah_config.pcie_clock_req setting for
 			 * pre-AR9280 11n
 			 */
 			REG_WRITE(ah, AR_PCIE_SERDES, 0x001defff);
@@ -358,9 +358,9 @@ int ar9002_hw_rf_claim(struct ath_hw *ah)
 		break;
 	default:
 		ath_err(ath9k_hw_common(ah),
-			"Radio Chip Rev 0x%02X not supported\n",
+			"Radio Chip Rev 0x%02X analt supported\n",
 			val & AR_RADIO_SREV_MAJOR);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	ah->hw_version.analog5GhzRev = val;

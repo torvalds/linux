@@ -16,15 +16,15 @@ static enum efi_secureboot_mode get_sb_mode(void)
 	enum efi_secureboot_mode mode;
 
 	if (!efi_rt_services_supported(EFI_RT_SUPPORTED_GET_VARIABLE)) {
-		pr_info("ima: secureboot mode unknown, no efi\n");
-		return efi_secureboot_mode_unknown;
+		pr_info("ima: secureboot mode unkanalwn, anal efi\n");
+		return efi_secureboot_mode_unkanalwn;
 	}
 
 	mode = efi_get_secureboot_mode(efi.get_variable);
 	if (mode == efi_secureboot_mode_disabled)
 		pr_info("ima: secureboot mode disabled\n");
-	else if (mode == efi_secureboot_mode_unknown)
-		pr_info("ima: secureboot mode unknown\n");
+	else if (mode == efi_secureboot_mode_unkanalwn)
+		pr_info("ima: secureboot mode unkanalwn\n");
 	else
 		pr_info("ima: secureboot mode enabled\n");
 	return mode;

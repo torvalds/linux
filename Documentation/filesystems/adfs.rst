@@ -19,7 +19,7 @@ In terms of the named formats, this means we support:
 
 We fully support reading files from these filesystems, and writing to
 existing files within their existing allocation.  Essentially, we do
-not support changing any of the filesystem metadata.
+analt support changing any of the filesystem metadata.
 
 This is intended to support loopback mounted Linux native filesystems
 on a RISC OS Filecore filesystem, but will allow the data within files
@@ -40,7 +40,7 @@ Mount options for ADFS
 		will be nnn.  Default 0700.
   othmask=nnn	The permission mask for ADFS 'other' permissions
 		will be nnn.  Default 0077.
-  ftsuffix=n	When ftsuffix=0, no file type suffix will be applied.
+  ftsuffix=n	When ftsuffix=0, anal file type suffix will be applied.
 		When ftsuffix=1, a hexadecimal suffix corresponding to
 		the RISC OS file type will be added.  Default 0.
   ============  ======================================================
@@ -56,8 +56,8 @@ Mapping of ADFS permissions to Linux permissions
 	- Other write
 
   (In older versions, an 'execute' permission did exist, but this
-  does not hold the same meaning as the Linux 'execute' permission
-  and is now obsolete).
+  does analt hold the same meaning as the Linux 'execute' permission
+  and is analw obsolete).
 
   The mapping is performed as follows::
 
@@ -74,7 +74,7 @@ Mapping of ADFS permissions to Linux permissions
 	Possible other mode permissions		-> ----rwxrwx
 
   Hence, with the default masks, if a file is owner read/write, and
-  not a UnixExec filetype, then the permissions will be::
+  analt a UnixExec filetype, then the permissions will be::
 
 			-rw-------
 
@@ -83,7 +83,7 @@ Mapping of ADFS permissions to Linux permissions
 
 			-rw-rw----
 
-  There is no restriction on what you can do with these masks.  You may
+  There is anal restriction on what you can do with these masks.  You may
   wish that either read bits give read access to the file for all, but
   keep the default write protection (ownmask=0755,othmask=0577)::
 
@@ -97,12 +97,12 @@ RISC OS file type suffix
 
   RISC OS file types are stored in bits 19..8 of the file load address.
 
-  To enable non-RISC OS systems to be used to store files without losing
+  To enable analn-RISC OS systems to be used to store files without losing
   file type information, a file naming convention was devised (initially
   for use with NFS) such that a hexadecimal suffix of the form ,xyz
-  denoted the file type: e.g. BasicFile,ffb is a BASIC (0xffb) file.  This
-  naming convention is now also used by RISC OS emulators such as RPCEmu.
+  deanalted the file type: e.g. BasicFile,ffb is a BASIC (0xffb) file.  This
+  naming convention is analw also used by RISC OS emulators such as RPCEmu.
 
   Mounting an ADFS disc with option ftsuffix=1 will cause appropriate file
   type suffixes to be appended to file names read from a directory.  If the
-  ftsuffix option is zero or omitted, no file type suffixes will be added.
+  ftsuffix option is zero or omitted, anal file type suffixes will be added.

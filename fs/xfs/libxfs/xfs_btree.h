@@ -7,7 +7,7 @@
 #define	__XFS_BTREE_H__
 
 struct xfs_buf;
-struct xfs_inode;
+struct xfs_ianalde;
 struct xfs_mount;
 struct xfs_trans;
 struct xfs_ifork;
@@ -26,14 +26,14 @@ union xfs_btree_ptr {
 
 /*
  * The in-core btree key.  Overlapping btrees actually store two keys
- * per pointer, so we reserve enough memory to hold both.  The __*bigkey
+ * per pointer, so we reserve eanalugh memory to hold both.  The __*bigkey
  * items should never be accessed directly.
  */
 union xfs_btree_key {
 	struct xfs_bmbt_key		bmbt;
 	xfs_bmdr_key_t			bmbr;	/* bmbt root block */
 	xfs_alloc_key_t			alloc;
-	struct xfs_inobt_key		inobt;
+	struct xfs_ianalbt_key		ianalbt;
 	struct xfs_rmap_key		rmap;
 	struct xfs_rmap_key		__rmap_bigkey[2];
 	struct xfs_refcount_key		refc;
@@ -43,23 +43,23 @@ union xfs_btree_rec {
 	struct xfs_bmbt_rec		bmbt;
 	xfs_bmdr_rec_t			bmbr;	/* bmbt root block */
 	struct xfs_alloc_rec		alloc;
-	struct xfs_inobt_rec		inobt;
+	struct xfs_ianalbt_rec		ianalbt;
 	struct xfs_rmap_rec		rmap;
 	struct xfs_refcount_rec		refc;
 };
 
 /*
- * This nonsense is to make -wlint happy.
+ * This analnsense is to make -wlint happy.
  */
 #define	XFS_LOOKUP_EQ	((xfs_lookup_t)XFS_LOOKUP_EQi)
 #define	XFS_LOOKUP_LE	((xfs_lookup_t)XFS_LOOKUP_LEi)
 #define	XFS_LOOKUP_GE	((xfs_lookup_t)XFS_LOOKUP_GEi)
 
-#define	XFS_BTNUM_BNO	((xfs_btnum_t)XFS_BTNUM_BNOi)
+#define	XFS_BTNUM_BANAL	((xfs_btnum_t)XFS_BTNUM_BANALi)
 #define	XFS_BTNUM_CNT	((xfs_btnum_t)XFS_BTNUM_CNTi)
 #define	XFS_BTNUM_BMAP	((xfs_btnum_t)XFS_BTNUM_BMAPi)
-#define	XFS_BTNUM_INO	((xfs_btnum_t)XFS_BTNUM_INOi)
-#define	XFS_BTNUM_FINO	((xfs_btnum_t)XFS_BTNUM_FINOi)
+#define	XFS_BTNUM_IANAL	((xfs_btnum_t)XFS_BTNUM_IANALi)
+#define	XFS_BTNUM_FIANAL	((xfs_btnum_t)XFS_BTNUM_FIANALi)
 #define	XFS_BTNUM_RMAP	((xfs_btnum_t)XFS_BTNUM_RMAPi)
 #define	XFS_BTNUM_REFC	((xfs_btnum_t)XFS_BTNUM_REFCi)
 
@@ -73,7 +73,7 @@ uint32_t xfs_btree_magic(int crc, xfs_btnum_t btnum);
 #define	XFS_BB_NUMRECS		(1u << 2)
 #define	XFS_BB_LEFTSIB		(1u << 3)
 #define	XFS_BB_RIGHTSIB		(1u << 4)
-#define	XFS_BB_BLKNO		(1u << 5)
+#define	XFS_BB_BLKANAL		(1u << 5)
 #define	XFS_BB_LSN		(1u << 6)
 #define	XFS_BB_UUID		(1u << 7)
 #define	XFS_BB_OWNER		(1u << 8)
@@ -127,8 +127,8 @@ struct xfs_btree_ops {
 
 	/* block allocation / freeing */
 	int	(*alloc_block)(struct xfs_btree_cur *cur,
-			       const union xfs_btree_ptr *start_bno,
-			       union xfs_btree_ptr *new_bno,
+			       const union xfs_btree_ptr *start_banal,
+			       union xfs_btree_ptr *new_banal,
 			       int *stat);
 	int	(*free_block)(struct xfs_btree_cur *cur, struct xfs_buf *bp);
 
@@ -142,7 +142,7 @@ struct xfs_btree_ops {
 	int	(*get_minrecs)(struct xfs_btree_cur *cur, int level);
 	int	(*get_maxrecs)(struct xfs_btree_cur *cur, int level);
 
-	/* records on disk.  Matter for the root in inode case. */
+	/* records on disk.  Matter for the root in ianalde case. */
 	int	(*get_dmaxrecs)(struct xfs_btree_cur *cur, int level);
 
 	/* init values of btree structures */
@@ -162,8 +162,8 @@ struct xfs_btree_ops {
 	/*
 	 * Difference between key2 and key1 -- positive if key1 > key2,
 	 * negative if key1 < key2, and zero if equal.  If the @mask parameter
-	 * is non NULL, each key field to be used in the comparison must
-	 * contain a nonzero value.
+	 * is analn NULL, each key field to be used in the comparison must
+	 * contain a analnzero value.
 	 */
 	int64_t (*diff_two_keys)(struct xfs_btree_cur *cur,
 				 const union xfs_btree_key *key1,
@@ -173,12 +173,12 @@ struct xfs_btree_ops {
 	const struct xfs_buf_ops	*buf_ops;
 
 	/* check that k1 is lower than k2 */
-	int	(*keys_inorder)(struct xfs_btree_cur *cur,
+	int	(*keys_ianalrder)(struct xfs_btree_cur *cur,
 				const union xfs_btree_key *k1,
 				const union xfs_btree_key *k2);
 
 	/* check that r1 is lower than r2 */
-	int	(*recs_inorder)(struct xfs_btree_cur *cur,
+	int	(*recs_ianalrder)(struct xfs_btree_cur *cur,
 				const union xfs_btree_rec *r1,
 				const union xfs_btree_rec *r2);
 
@@ -190,8 +190,8 @@ struct xfs_btree_ops {
 	 * @key1 < K < @key2.  To determine if two btree records are
 	 * immediately adjacent, @key1 should be the high key of the first
 	 * record and @key2 should be the low key of the second record.
-	 * If the @mask parameter is non NULL, each key field to be used in the
-	 * comparison must contain a nonzero value.
+	 * If the @mask parameter is analn NULL, each key field to be used in the
+	 * comparison must contain a analnzero value.
 	 */
 	enum xbtree_key_contig (*keys_contiguous)(struct xfs_btree_cur *cur,
 			       const union xfs_btree_key *key1,
@@ -210,7 +210,7 @@ struct xfs_btree_ops {
 union xfs_btree_irec {
 	struct xfs_alloc_rec_incore	a;
 	struct xfs_bmbt_irec		b;
-	struct xfs_inobt_rec_incore	i;
+	struct xfs_ianalbt_rec_incore	i;
 	struct xfs_rmap_irec		r;
 	struct xfs_refcount_irec	rc;
 };
@@ -233,9 +233,9 @@ struct xfs_btree_cur_ag {
 	};
 };
 
-/* Btree-in-inode cursor information */
-struct xfs_btree_cur_ino {
-	struct xfs_inode		*ip;
+/* Btree-in-ianalde cursor information */
+struct xfs_btree_cur_ianal {
+	struct xfs_ianalde		*ip;
 	struct xbtree_ifakeroot		*ifake;	/* for staging cursor */
 	int				allocated;
 	short				forksize;
@@ -244,7 +244,7 @@ struct xfs_btree_cur_ino {
 /* We are converting a delalloc reservation */
 #define	XFS_BTCUR_BMBT_WASDEL		(1 << 0)
 
-/* For extent swap, ignore owner check in verifier */
+/* For extent swap, iganalre owner check in verifier */
 #define	XFS_BTCUR_BMBT_INVALID_OWNER	(1 << 1)
 };
 
@@ -279,14 +279,14 @@ struct xfs_btree_cur
 	int			bc_statoff; /* offset of btree stats array */
 
 	/*
-	 * Short btree pointers need an agno to be able to turn the pointers
+	 * Short btree pointers need an aganal to be able to turn the pointers
 	 * into physical addresses for IO, so the btree cursor switches between
-	 * bc_ino and bc_ag based on whether XFS_BTREE_LONG_PTRS is set for the
+	 * bc_ianal and bc_ag based on whether XFS_BTREE_LONG_PTRS is set for the
 	 * cursor.
 	 */
 	union {
 		struct xfs_btree_cur_ag	bc_ag;
-		struct xfs_btree_cur_ino bc_ino;
+		struct xfs_btree_cur_ianal bc_ianal;
 	};
 
 	/* Must be at the end of the struct! */
@@ -295,7 +295,7 @@ struct xfs_btree_cur
 
 /*
  * Compute the size of a btree cursor that can handle a btree of a given
- * height.  The bc_levels array handles node and leaf blocks, so its size
+ * height.  The bc_levels array handles analde and leaf blocks, so its size
  * is exactly nlevels.
  */
 static inline size_t
@@ -306,7 +306,7 @@ xfs_btree_cur_sizeof(unsigned int nlevels)
 
 /* cursor flags */
 #define XFS_BTREE_LONG_PTRS		(1<<0)	/* pointers are 64bits long */
-#define XFS_BTREE_ROOT_IN_INODE		(1<<1)	/* root may be variable size */
+#define XFS_BTREE_ROOT_IN_IANALDE		(1<<1)	/* root may be variable size */
 #define XFS_BTREE_LASTREC_UPDATE	(1<<2)	/* track last rec externally */
 #define XFS_BTREE_CRC_BLOCKS		(1<<3)	/* uses extended btree blocks */
 #define XFS_BTREE_OVERLAPPING		(1<<4)	/* overlapping intervals */
@@ -317,7 +317,7 @@ xfs_btree_cur_sizeof(unsigned int nlevels)
  */
 #define XFS_BTREE_STAGING		(1<<5)
 
-#define	XFS_BTREE_NOERROR	0
+#define	XFS_BTREE_ANALERROR	0
 #define	XFS_BTREE_ERROR		1
 
 /*
@@ -350,7 +350,7 @@ xfs_btree_check_block(
 bool					/* error (0 or EFSCORRUPTED) */
 xfs_btree_check_lptr(
 	struct xfs_btree_cur	*cur,	/* btree cursor */
-	xfs_fsblock_t		fsbno,	/* btree block disk address */
+	xfs_fsblock_t		fsbanal,	/* btree block disk address */
 	int			level);	/* btree block level */
 
 /*
@@ -359,7 +359,7 @@ xfs_btree_check_lptr(
 bool					/* error (0 or EFSCORRUPTED) */
 xfs_btree_check_sptr(
 	struct xfs_btree_cur	*cur,	/* btree cursor */
-	xfs_agblock_t		agbno,	/* btree block disk address */
+	xfs_agblock_t		agbanal,	/* btree block disk address */
 	int			level);	/* btree block level */
 
 /*
@@ -399,8 +399,8 @@ int					/* error */
 xfs_btree_read_bufl(
 	struct xfs_mount	*mp,	/* file system mount point */
 	struct xfs_trans	*tp,	/* transaction pointer */
-	xfs_fsblock_t		fsbno,	/* file system block number */
-	struct xfs_buf		**bpp,	/* buffer for fsbno */
+	xfs_fsblock_t		fsbanal,	/* file system block number */
+	struct xfs_buf		**bpp,	/* buffer for fsbanal */
 	int			refval,	/* ref count value for buffer */
 	const struct xfs_buf_ops *ops);
 
@@ -411,7 +411,7 @@ xfs_btree_read_bufl(
 void					/* error */
 xfs_btree_reada_bufl(
 	struct xfs_mount	*mp,	/* file system mount point */
-	xfs_fsblock_t		fsbno,	/* file system block number */
+	xfs_fsblock_t		fsbanal,	/* file system block number */
 	xfs_extlen_t		count,	/* count of filesystem blocks */
 	const struct xfs_buf_ops *ops);
 
@@ -422,8 +422,8 @@ xfs_btree_reada_bufl(
 void					/* error */
 xfs_btree_reada_bufs(
 	struct xfs_mount	*mp,	/* file system mount point */
-	xfs_agnumber_t		agno,	/* allocation group number */
-	xfs_agblock_t		agbno,	/* allocation group block number */
+	xfs_agnumber_t		aganal,	/* allocation group number */
+	xfs_agblock_t		agbanal,	/* allocation group block number */
 	xfs_extlen_t		count,	/* count of filesystem blocks */
 	const struct xfs_buf_ops *ops);
 
@@ -443,7 +443,7 @@ void
 xfs_btree_init_block_int(
 	struct xfs_mount	*mp,
 	struct xfs_btree_block	*buf,
-	xfs_daddr_t		blkno,
+	xfs_daddr_t		blkanal,
 	xfs_btnum_t		btnum,
 	__u16			level,
 	__u16			numrecs,
@@ -527,7 +527,7 @@ unsigned int xfs_btree_space_to_height(const unsigned int *limits,
 
 /*
  * Return codes for the query range iterator function are 0 to continue
- * iterating, and non-zero to stop iterating.  Any non-zero value will be
+ * iterating, and analn-zero to stop iterating.  Any analn-zero value will be
  * passed up to the _query_range caller.  The special value -ECANCELED can be
  * used to stop iteration, because _query_range never generates that error
  * code on its own.
@@ -725,7 +725,7 @@ xfs_btree_alloc_cursor(
 {
 	struct xfs_btree_cur	*cur;
 
-	cur = kmem_cache_zalloc(cache, GFP_NOFS | __GFP_NOFAIL);
+	cur = kmem_cache_zalloc(cache, GFP_ANALFS | __GFP_ANALFAIL);
 	cur->bc_tp = tp;
 	cur->bc_mp = mp;
 	cur->bc_btnum = btnum;

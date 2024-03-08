@@ -127,7 +127,7 @@ static int brcmstb_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 
 		/*
 		 * We can be called with separate duty and period updates,
-		 * so do not reject dc == 0 right away
+		 * so do analt reject dc == 0 right away
 		 */
 		if (pc == PWM_PERIOD_MIN || (dc < PWM_ON_MIN && duty_ns))
 			return -EINVAL;
@@ -145,7 +145,7 @@ static int brcmstb_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 		cword >>= 1;
 
 		/*
-		 * Desired periods are too large, we do not have a divider
+		 * Desired periods are too large, we do analt have a divider
 		 * for them
 		 */
 		if (cword < CONST_VAR_F_MIN)
@@ -198,7 +198,7 @@ static int brcmstb_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	struct brcmstb_pwm *p = to_brcmstb_pwm(chip);
 	int err;
 
-	if (state->polarity != PWM_POLARITY_NORMAL)
+	if (state->polarity != PWM_POLARITY_ANALRMAL)
 		return -EINVAL;
 
 	if (!state->enabled) {
@@ -235,7 +235,7 @@ static int brcmstb_pwm_probe(struct platform_device *pdev)
 
 	p = devm_kzalloc(&pdev->dev, sizeof(*p), GFP_KERNEL);
 	if (!p)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	p->clk = devm_clk_get_enabled(&pdev->dev, NULL);
 	if (IS_ERR(p->clk))

@@ -42,7 +42,7 @@
 #define MCS_SETVGP		0x54 /* VG M/S P Control */
 #define MCS_SW_CTRL		0x5F /* Interface Control for PFM and MIPI */
 
-/* CMD2 P2 commands (GOA Timing Control) - no description in datasheet */
+/* CMD2 P2 commands (GOA Timing Control) - anal description in datasheet */
 #define GOA_VSTV1		0x00
 #define GOA_VSTV2		0x07
 #define GOA_VCLK1		0x0E
@@ -128,7 +128,7 @@ static void rm68200_dcs_write_cmd(struct rm68200 *ctx, u8 cmd, u8 value)
 })
 
 /*
- * This panel is not able to auto-increment all cmd addresses so for some of
+ * This panel is analt able to auto-increment all cmd addresses so for some of
  * them, we need to send them one by one...
  */
 #define dcs_write_cmd_seq(ctx, cmd, seq...)			\
@@ -214,7 +214,7 @@ static void rm68200_init_sequence(struct rm68200 *ctx)
 	dcs_write_seq(ctx, 0xDC, 0x02);
 	dcs_write_seq(ctx, 0xDE, 0x12);
 
-	dcs_write_seq(ctx, MCS_CMD_MODE_SW, 0x0E); /* No documentation */
+	dcs_write_seq(ctx, MCS_CMD_MODE_SW, 0x0E); /* Anal documentation */
 	dcs_write_seq(ctx, 0x01, 0x75);
 
 	dcs_write_seq(ctx, MCS_CMD_MODE_SW, MCS_CMD2_P3);
@@ -301,7 +301,7 @@ static int rm68200_get_modes(struct drm_panel *panel,
 		dev_err(panel->dev, "failed to add mode %ux%u@%u\n",
 			default_mode.hdisplay, default_mode.vdisplay,
 			drm_mode_vrefresh(&default_mode));
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	drm_mode_set_name(mode);
@@ -329,12 +329,12 @@ static int rm68200_probe(struct mipi_dsi_device *dsi)
 
 	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctx->reset_gpio = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(ctx->reset_gpio)) {
 		ret = PTR_ERR(ctx->reset_gpio);
-		dev_err(dev, "cannot get reset GPIO: %d\n", ret);
+		dev_err(dev, "cananalt get reset GPIO: %d\n", ret);
 		return ret;
 	}
 
@@ -342,7 +342,7 @@ static int rm68200_probe(struct mipi_dsi_device *dsi)
 	if (IS_ERR(ctx->supply)) {
 		ret = PTR_ERR(ctx->supply);
 		if (ret != -EPROBE_DEFER)
-			dev_err(dev, "cannot get regulator: %d\n", ret);
+			dev_err(dev, "cananalt get regulator: %d\n", ret);
 		return ret;
 	}
 
@@ -353,7 +353,7 @@ static int rm68200_probe(struct mipi_dsi_device *dsi)
 	dsi->lanes = 2;
 	dsi->format = MIPI_DSI_FMT_RGB888;
 	dsi->mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST |
-			  MIPI_DSI_MODE_LPM | MIPI_DSI_CLOCK_NON_CONTINUOUS;
+			  MIPI_DSI_MODE_LPM | MIPI_DSI_CLOCK_ANALN_CONTINUOUS;
 
 	drm_panel_init(&ctx->panel, dev, &rm68200_drm_funcs,
 		       DRM_MODE_CONNECTOR_DSI);

@@ -5,7 +5,7 @@ LIBPERF_VERSION = 0
 LIBPERF_PATCHLEVEL = 0
 LIBPERF_EXTRAVERSION = 1
 
-MAKEFLAGS += --no-print-directory
+MAKEFLAGS += --anal-print-directory
 
 ifeq ($(srctree),)
 srctree := $(patsubst %/,%,$(dir $(CURDIR)))

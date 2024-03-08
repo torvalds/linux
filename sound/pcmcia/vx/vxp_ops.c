@@ -84,7 +84,7 @@ static int vx_check_magic(struct vx_core *chip)
 			return 0;
 		msleep(10);
 	} while (time_after_eq(end_time, jiffies));
-	snd_printk(KERN_ERR "cannot find xilinx magic word (%x)\n", c);
+	snd_printk(KERN_ERR "cananalt find xilinx magic word (%x)\n", c);
 	return -EIO;
 }
 
@@ -261,7 +261,7 @@ static int vxp_load_dsp(struct vx_core *vx, int index, const struct firmware *fw
 		
 
 /*
- * vx_test_and_ack - test and acknowledge interrupt
+ * vx_test_and_ack - test and ackanalwledge interrupt
  *
  * called from irq hander, too
  *
@@ -271,14 +271,14 @@ static int vxp_test_and_ack(struct vx_core *_chip)
 {
 	struct snd_vxpocket *chip = to_vxpocket(_chip);
 
-	/* not booted yet? */
+	/* analt booted yet? */
 	if (! (_chip->chip_status & VX_STAT_XILINX_LOADED))
 		return -ENXIO;
 
 	if (! (vx_inb(chip, DIALOG) & VXP_DLG_MEMIRQ_MASK))
 		return -EIO;
 	
-	/* ok, interrupts generated, now ack it */
+	/* ok, interrupts generated, analw ack it */
 	/* set ACQUIT bit up and down */
 	vx_outb(chip, DIALOG, chip->regDIALOG | VXP_DLG_ACK_MEMIRQ_MASK);
 	/* useless read just to spend some time and maintain

@@ -25,7 +25,7 @@ int __init cachefiles_register_error_injection(void)
 {
 	cachefiles_sysctl = register_sysctl("cachefiles", cachefiles_sysctls);
 	if (!cachefiles_sysctl)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 
 }

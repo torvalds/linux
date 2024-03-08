@@ -415,18 +415,18 @@ static int bu21013_probe(struct i2c_client *client)
 
 	if (!i2c_check_functionality(client->adapter,
 				     I2C_FUNC_SMBUS_BYTE_DATA)) {
-		dev_err(dev, "i2c smbus byte data not supported\n");
+		dev_err(dev, "i2c smbus byte data analt supported\n");
 		return -EIO;
 	}
 
 	if (!client->irq) {
-		dev_err(dev, "No IRQ set up\n");
+		dev_err(dev, "Anal IRQ set up\n");
 		return -EINVAL;
 	}
 
 	ts = devm_kzalloc(dev, sizeof(*ts), GFP_KERNEL);
 	if (!ts)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ts->client = client;
 
@@ -436,7 +436,7 @@ static int bu21013_probe(struct i2c_client *client)
 	in_dev = devm_input_allocate_device(dev);
 	if (!in_dev) {
 		dev_err(dev, "device memory alloc failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	ts->in_dev = in_dev;
 	input_set_drvdata(in_dev, ts);

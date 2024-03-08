@@ -21,7 +21,7 @@ enum {
 };
 
 enum {
-	VPU_CMD_ID_NOOP = 0x0,
+	VPU_CMD_ID_ANALOP = 0x0,
 	VPU_CMD_ID_CONFIGURE_CODEC,
 	VPU_CMD_ID_START,
 	VPU_CMD_ID_STOP,
@@ -44,7 +44,7 @@ enum {
 };
 
 enum {
-	VPU_MSG_ID_NOOP = 0x100,
+	VPU_MSG_ID_ANALOP = 0x100,
 	VPU_MSG_ID_RESET_DONE,
 	VPU_MSG_ID_START_DONE,
 	VPU_MSG_ID_STOP_DONE,
@@ -171,7 +171,7 @@ struct vpu_fs_info {
 	u32 chromav_addr;
 	u32 chromav_size;
 	u32 bytesperline;
-	u32 not_displayed;
+	u32 analt_displayed;
 };
 
 struct vpu_ts_info {

@@ -79,12 +79,12 @@ static efi_status_t tee_mm_communicate(void *comm_buf, size_t dsize)
 	arg.num_params = 4;
 
 	memset(param, 0, sizeof(param));
-	param[0].attr = TEE_IOCTL_PARAM_ATTR_TYPE_MEMREF_INOUT;
+	param[0].attr = TEE_IOCTL_PARAM_ATTR_TYPE_MEMREF_IANALUT;
 	param[0].u.memref.size = buf_size;
 	param[0].u.memref.shm = shm;
 	param[1].attr = TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_OUTPUT;
-	param[2].attr = TEE_IOCTL_PARAM_ATTR_TYPE_NONE;
-	param[3].attr = TEE_IOCTL_PARAM_ATTR_TYPE_NONE;
+	param[2].attr = TEE_IOCTL_PARAM_ATTR_TYPE_ANALNE;
+	param[3].attr = TEE_IOCTL_PARAM_ATTR_TYPE_ANALNE;
 
 	rc = tee_client_invoke_func(pvt_data.ctx, &arg, param);
 	tee_shm_free(shm);
@@ -105,7 +105,7 @@ static efi_status_t tee_mm_communicate(void *comm_buf, size_t dsize)
 	case ARM_SVC_SPM_RET_DENIED:
 		return EFI_ACCESS_DENIED;
 
-	case ARM_SVC_SPM_RET_NO_MEMORY:
+	case ARM_SVC_SPM_RET_ANAL_MEMORY:
 		return EFI_OUT_OF_RESOURCES;
 
 	default:
@@ -118,7 +118,7 @@ static efi_status_t tee_mm_communicate(void *comm_buf, size_t dsize)
  * it to TEE
  *
  * @comm_buf:		locally allocated communication buffer, buffer should
- *			be enough big to have some headers and payload
+ *			be eanalugh big to have some headers and payload
  * @payload_size:	payload size
  * Return:		status code
  */
@@ -221,7 +221,7 @@ static efi_status_t get_max_payload(size_t *size)
 	if (ret != EFI_SUCCESS)
 		goto out;
 
-	/* Make sure the buffer is big enough for storing variables */
+	/* Make sure the buffer is big eanalugh for storing variables */
 	if (var_payload->size < MM_VARIABLE_ACCESS_HEADER_SIZE + 0x20) {
 		ret = EFI_DEVICE_ERROR;
 		goto out;
@@ -270,12 +270,12 @@ static efi_status_t get_property_int(u16 *name, size_t name_size,
 	ret = mm_communicate(comm_buf, payload_size);
 	/*
 	 * Currently only R/O property is supported in StMM.
-	 * Variables that are not set to R/O will not set the property in StMM
-	 * and the call will return EFI_NOT_FOUND. We are setting the
-	 * properties to 0x0 so checking against that is enough for the
-	 * EFI_NOT_FOUND case.
+	 * Variables that are analt set to R/O will analt set the property in StMM
+	 * and the call will return EFI_ANALT_FOUND. We are setting the
+	 * properties to 0x0 so checking against that is eanalugh for the
+	 * EFI_ANALT_FOUND case.
 	 */
-	if (ret == EFI_NOT_FOUND)
+	if (ret == EFI_ANALT_FOUND)
 		ret = EFI_SUCCESS;
 	if (ret != EFI_SUCCESS)
 		goto out;
@@ -442,7 +442,7 @@ static efi_status_t tee_set_variable(efi_char16_t *name, efi_guid_t *vendor,
 		return EFI_OUT_OF_RESOURCES;
 
 	/*
-	 * The API has the ability to override RO flags. If no RO check was
+	 * The API has the ability to override RO flags. If anal RO check was
 	 * requested switch the variable to RW for the duration of this call
 	 */
 	ret = get_property_int(name, name_size, vendor, &var_property);
@@ -471,7 +471,7 @@ out:
 	return ret;
 }
 
-static efi_status_t tee_set_variable_nonblocking(efi_char16_t *name,
+static efi_status_t tee_set_variable_analnblocking(efi_char16_t *name,
 						 efi_guid_t *vendor,
 						 u32 attributes,
 						 unsigned long data_size,
@@ -535,7 +535,7 @@ static int tee_stmm_efi_probe(struct device *dev)
 
 	pvt_data.ctx = tee_client_open_context(NULL, tee_ctx_match, NULL, NULL);
 	if (IS_ERR(pvt_data.ctx))
-		return -ENODEV;
+		return -EANALDEV;
 
 	rc = devm_add_action_or_reset(dev, tee_stmm_efi_close_context, NULL);
 	if (rc)
@@ -567,7 +567,7 @@ static int tee_stmm_efi_probe(struct device *dev)
 	tee_efivar_ops.get_variable		= tee_get_variable;
 	tee_efivar_ops.get_next_variable	= tee_get_next_variable;
 	tee_efivar_ops.set_variable		= tee_set_variable;
-	tee_efivar_ops.set_variable_nonblocking	= tee_set_variable_nonblocking;
+	tee_efivar_ops.set_variable_analnblocking	= tee_set_variable_analnblocking;
 	tee_efivar_ops.query_variable_store	= efi_query_variable_store;
 	tee_efivar_ops.query_variable_info	= tee_query_variable_info;
 

@@ -1,7 +1,7 @@
 .. SPDX-License-Identifier: GPL-2.0
 
 ===================================================================
-PCI Non-Transparent Bridge (NTB) Endpoint Function (EPF) User Guide
+PCI Analn-Transparent Bridge (NTB) Endpoint Function (EPF) User Guide
 ===================================================================
 
 :Author: Kishon Vijay Abraham I <kishon@ti.com>
@@ -52,7 +52,7 @@ Creating pci-epf-ntb Device
 PCI endpoint function device can be created using the configfs. To create
 pci-epf-ntb device, the following commands can be used::
 
-	# mount -t configfs none /sys/kernel/config
+	# mount -t configfs analne /sys/kernel/config
 	# cd /sys/kernel/config/pci_ep/
 	# mkdir functions/pci_epf_ntb/func1
 
@@ -138,7 +138,7 @@ RootComplex Device
 lspci Output
 ------------
 
-Note that the devices listed here correspond to the values populated in
+Analte that the devices listed here correspond to the values populated in
 "Creating pci-epf-ntb Device" section above::
 
 	# lspci
@@ -155,4 +155,4 @@ Netdev, NTB Ping Pong Test Client and NTB Tool Test Client can be used with NTB
 function device.
 
 For more information on NTB see
-:doc:`Non-Transparent Bridge <../../driver-api/ntb>`
+:doc:`Analn-Transparent Bridge <../../driver-api/ntb>`

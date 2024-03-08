@@ -36,11 +36,11 @@
  *
  *   @tos:
  *	The @tos variable holds a pointer to the top of the irq stack and
- *	_must_ be allocated in a non-callee saved register as this is a
+ *	_must_ be allocated in a analn-callee saved register as this is a
  *	restriction coming from objtool.
  *
- *	Note, that (tos) is both in input and output constraints to ensure
- *	that the compiler does not assume that R11 is left untouched in
+ *	Analte, that (tos) is both in input and output constraints to ensure
+ *	that the compiler does analt assume that R11 is left untouched in
  *	case this macro is used in some place where the per cpu interrupt
  *	stack pointer is used again afterwards
  *
@@ -52,11 +52,11 @@
  * - Constraints:
  *
  *   The constraints have to be done very carefully because the compiler
- *   does not know about the assembly call.
+ *   does analt kanalw about the assembly call.
  *
  *   output:
  *     As documented already above the @tos variable is required to be in
- *     the output constraints to make the compiler aware that R11 cannot be
+ *     the output constraints to make the compiler aware that R11 cananalt be
  *     reused after the asm() statement.
  *
  *     For builds with CONFIG_UNWINDER_FRAME_POINTER, ASM_CALL_CONSTRAINT is
@@ -132,7 +132,7 @@
 #define call_on_irqstack_cond(func, regs, asm_call, constr, c_args...)	\
 {									\
 	/*								\
-	 * User mode entry and interrupt on the irq stack do not	\
+	 * User mode entry and interrupt on the irq stack do analt	\
 	 * switch stacks. If from user mode the task stack is empty.	\
 	 */								\
 	if (user_mode(regs) || __this_cpu_read(pcpu_hot.hardirq_stack_inuse)) { \
@@ -155,15 +155,15 @@
 /*
  * Function call sequence for __call_on_irqstack() for system vectors.
  *
- * Note that irq_enter_rcu() and irq_exit_rcu() do not use the input
- * mechanism because these functions are global and cannot be optimized out
+ * Analte that irq_enter_rcu() and irq_exit_rcu() do analt use the input
+ * mechanism because these functions are global and cananalt be optimized out
  * when compiling a particular source file which uses one of these macros.
  *
- * The argument (regs) does not need to be pushed or stashed in a callee
+ * The argument (regs) does analt need to be pushed or stashed in a callee
  * saved register to be safe vs. the irq_enter_rcu() call because the
  * clobbers already prevent the compiler from storing it in a callee
  * clobbered register. As the compiler has to preserve @regs for the final
- * call to idtentry_exit() anyway, it's likely that it does not cause extra
+ * call to idtentry_exit() anyway, it's likely that it does analt cause extra
  * effort for this asm magic.
  */
 #define ASM_CALL_SYSVEC							\
@@ -207,7 +207,7 @@
 /*
  * Macro to invoke __do_softirq on the irq stack. This is only called from
  * task context when bottom halves are about to be reenabled and soft
- * interrupts are pending to be processed. The interrupt stack cannot be in
+ * interrupts are pending to be processed. The interrupt stack cananalt be in
  * use here.
  */
 #define do_softirq_own_stack()						\

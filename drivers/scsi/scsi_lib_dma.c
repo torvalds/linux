@@ -18,7 +18,7 @@
  * @cmd:	scsi command
  *
  * Returns the number of sg lists actually used, zero if the sg lists
- * is NULL, or -ENOMEM if the mapping failed.
+ * is NULL, or -EANALMEM if the mapping failed.
  */
 int scsi_dma_map(struct scsi_cmnd *cmd)
 {
@@ -30,7 +30,7 @@ int scsi_dma_map(struct scsi_cmnd *cmd)
 		nseg = dma_map_sg(dev, scsi_sglist(cmd), scsi_sg_count(cmd),
 				  cmd->sc_data_direction);
 		if (unlikely(!nseg))
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 	return nseg;
 }

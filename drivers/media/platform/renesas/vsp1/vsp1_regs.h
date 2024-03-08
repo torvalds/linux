@@ -221,9 +221,9 @@
 #define VI6_RPF_SRCM_ADDR_AI		0x0348
 
 #define VI6_RPF_MULT_ALPHA		0x036c
-#define VI6_RPF_MULT_ALPHA_A_MMD_NONE	(0 << 12)
+#define VI6_RPF_MULT_ALPHA_A_MMD_ANALNE	(0 << 12)
 #define VI6_RPF_MULT_ALPHA_A_MMD_RATIO	(1 << 12)
-#define VI6_RPF_MULT_ALPHA_P_MMD_NONE	(0 << 8)
+#define VI6_RPF_MULT_ALPHA_P_MMD_ANALNE	(0 << 8)
 #define VI6_RPF_MULT_ALPHA_P_MMD_RATIO	(1 << 8)
 #define VI6_RPF_MULT_ALPHA_P_MMD_IMAGE	(2 << 8)
 #define VI6_RPF_MULT_ALPHA_P_MMD_BOTH	(3 << 8)
@@ -406,20 +406,20 @@
 
 #define VI6_DPR_UIF_ROUTE(n)		(0x2074 + (n) * 4)
 
-#define VI6_DPR_NODE_RPF(n)		(n)
-#define VI6_DPR_NODE_UIF(n)		(12 + (n))
-#define VI6_DPR_NODE_SRU		16
-#define VI6_DPR_NODE_UDS(n)		(17 + (n))
-#define VI6_DPR_NODE_LUT		22
-#define VI6_DPR_NODE_BRU_IN(n)		(((n) <= 3) ? 23 + (n) : 49)
-#define VI6_DPR_NODE_BRU_OUT		27
-#define VI6_DPR_NODE_CLU		29
-#define VI6_DPR_NODE_HST		30
-#define VI6_DPR_NODE_HSI		31
-#define VI6_DPR_NODE_BRS_IN(n)		(38 + (n))
-#define VI6_DPR_NODE_LIF		55		/* Gen2 only */
-#define VI6_DPR_NODE_WPF(n)		(56 + (n))
-#define VI6_DPR_NODE_UNUSED		63
+#define VI6_DPR_ANALDE_RPF(n)		(n)
+#define VI6_DPR_ANALDE_UIF(n)		(12 + (n))
+#define VI6_DPR_ANALDE_SRU		16
+#define VI6_DPR_ANALDE_UDS(n)		(17 + (n))
+#define VI6_DPR_ANALDE_LUT		22
+#define VI6_DPR_ANALDE_BRU_IN(n)		(((n) <= 3) ? 23 + (n) : 49)
+#define VI6_DPR_ANALDE_BRU_OUT		27
+#define VI6_DPR_ANALDE_CLU		29
+#define VI6_DPR_ANALDE_HST		30
+#define VI6_DPR_ANALDE_HSI		31
+#define VI6_DPR_ANALDE_BRS_IN(n)		(38 + (n))
+#define VI6_DPR_ANALDE_LIF		55		/* Gen2 only */
+#define VI6_DPR_ANALDE_WPF(n)		(56 + (n))
+#define VI6_DPR_ANALDE_UNUSED		63
 
 /* -----------------------------------------------------------------------------
  * SRU Control Registers
@@ -566,7 +566,7 @@
  * BRS and BRU Control Registers
  */
 
-#define VI6_ROP_NOP			0
+#define VI6_ROP_ANALP			0
 #define VI6_ROP_AND			1
 #define VI6_ROP_AND_REV			2
 #define VI6_ROP_COPY			3
@@ -574,7 +574,7 @@
 #define VI6_ROP_CLEAR			5
 #define VI6_ROP_XOR			6
 #define VI6_ROP_OR			7
-#define VI6_ROP_NOR			8
+#define VI6_ROP_ANALR			8
 #define VI6_ROP_EQUIV			9
 #define VI6_ROP_INVERT			10
 #define VI6_ROP_OR_REV			11
@@ -791,7 +791,7 @@
 #define VI6_IP_VERSION_MODEL_VSPDL_GEN3	(0x19 << 8)
 #define VI6_IP_VERSION_MODEL_VSPBS_GEN3	(0x1a << 8)
 #define VI6_IP_VERSION_MODEL_VSPD_GEN4	(0x1c << 8)
-/* RZ/G2L SoCs have no version register, So use 0x80 as the model version */
+/* RZ/G2L SoCs have anal version register, So use 0x80 as the model version */
 #define VI6_IP_VERSION_MODEL_VSPD_RZG2L	(0x80 << 8)
 
 #define VI6_IP_VERSION_SOC_MASK		(0xff << 0)
@@ -807,7 +807,7 @@
 #define VI6_IP_VERSION_SOC_E3		(0x04 << 0)
 #define VI6_IP_VERSION_SOC_V3U		(0x05 << 0)
 #define VI6_IP_VERSION_SOC_V4H		(0x06 << 0)
-/* RZ/G2L SoCs have no version register, So use 0x80 for SoC Identification */
+/* RZ/G2L SoCs have anal version register, So use 0x80 for SoC Identification */
 #define VI6_IP_VERSION_SOC_RZG2L	(0x80 << 0)
 
 #define VI6_IP_VERSION_VSP_SW		(0xfffe << 16) /* SW VSP version */

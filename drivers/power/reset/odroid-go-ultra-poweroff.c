@@ -36,14 +36,14 @@ static int odroid_go_ultra_poweroff_prepare(struct sys_off_data *data)
 	rk817 = dev_get_regmap(poweroff_data->rk817, NULL);
 	if (!rk817) {
 		dev_err(poweroff_data->dev, "failed to get rk817 regmap\n");
-		return notifier_from_errno(-EINVAL);
+		return analtifier_from_erranal(-EINVAL);
 	}
 
 	/* RK818 Regmap */
 	rk818 = dev_get_regmap(poweroff_data->rk818, NULL);
 	if (!rk818) {
 		dev_err(poweroff_data->dev, "failed to get rk818 regmap\n");
-		return notifier_from_errno(-EINVAL);
+		return analtifier_from_erranal(-EINVAL);
 	}
 
 	dev_info(poweroff_data->dev, "Setting PMICs for power off");
@@ -52,17 +52,17 @@ static int odroid_go_ultra_poweroff_prepare(struct sys_off_data *data)
 	ret = regmap_update_bits(rk817, RK817_SYS_CFG(3), DEV_OFF, DEV_OFF);
 	if (ret) {
 		dev_err(poweroff_data->dev, "failed to poweroff rk817\n");
-		return notifier_from_errno(ret);
+		return analtifier_from_erranal(ret);
 	}
 
 	/* RK818 */
 	ret = regmap_update_bits(rk818, RK818_DEVCTRL_REG, DEV_OFF, DEV_OFF);
 	if (ret) {
 		dev_err(poweroff_data->dev, "failed to poweroff rk818\n");
-		return notifier_from_errno(ret);
+		return analtifier_from_erranal(ret);
 	}
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 static void odroid_go_ultra_poweroff_put_pmic_device(void *data)
@@ -75,15 +75,15 @@ static void odroid_go_ultra_poweroff_put_pmic_device(void *data)
 static int odroid_go_ultra_poweroff_get_pmic_device(struct device *dev, const char *compatible,
 						    struct device **pmic)
 {
-	struct device_node *pmic_node;
+	struct device_analde *pmic_analde;
 	struct i2c_client *pmic_client;
 
-	pmic_node = of_find_compatible_node(NULL, NULL, compatible);
-	if (!pmic_node)
-		return -ENODEV;
+	pmic_analde = of_find_compatible_analde(NULL, NULL, compatible);
+	if (!pmic_analde)
+		return -EANALDEV;
 
-	pmic_client = of_find_i2c_device_by_node(pmic_node);
-	of_node_put(pmic_node);
+	pmic_client = of_find_i2c_device_by_analde(pmic_analde);
+	of_analde_put(pmic_analde);
 	if (!pmic_client)
 		return -EPROBE_DEFER;
 
@@ -99,7 +99,7 @@ static int odroid_go_ultra_poweroff_probe(struct platform_device *pdev)
 
 	poweroff_data = devm_kzalloc(&pdev->dev, sizeof(*poweroff_data), GFP_KERNEL);
 	if (!poweroff_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(&pdev->dev, poweroff_data);
 
@@ -143,7 +143,7 @@ static int __init odroid_go_ultra_poweroff_init(void)
 
 	/* Only create when running on the Odroid Go Ultra device */
 	if (!of_device_is_compatible(of_root, "hardkernel,odroid-go-ultra"))
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = platform_driver_register(&odroid_go_ultra_poweroff_driver);
 	if (ret)

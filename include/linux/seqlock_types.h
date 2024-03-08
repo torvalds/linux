@@ -11,7 +11,7 @@
  *
  * This is the raw counting mechanism, without any writer protection.
  *
- * Write side critical sections must be serialized and non-preemptible.
+ * Write side critical sections must be serialized and analn-preemptible.
  *
  * If readers can be invoked from hardirq or softirq contexts,
  * interrupts or bottom halves must also be respectively disabled before
@@ -25,7 +25,7 @@
  * (seqcount_LOCKNAME_t) instead.
  *
  * If it's desired to automatically handle the sequence counter writer
- * serialization and non-preemptibility requirements, use a sequential
+ * serialization and analn-preemptibility requirements, use a sequential
  * lock (seqlock_t) instead.
  *
  * See Documentation/locking/seqlock.rst
@@ -38,9 +38,9 @@ typedef struct seqcount {
 } seqcount_t;
 
 /*
- * For PREEMPT_RT, seqcount_LOCKNAME_t write side critical sections cannot
+ * For PREEMPT_RT, seqcount_LOCKNAME_t write side critical sections cananalt
  * disable preemption. It can lead to higher latencies, and the write side
- * sections will not be able to acquire locks which become sleeping locks
+ * sections will analt be able to acquire locks which become sleeping locks
  * (e.g. spinlock_t).
  *
  * To remain preemptible while avoiding a possible livelock caused by the
@@ -75,7 +75,7 @@ SEQCOUNT_LOCKNAME(mutex,        struct mutex,    true,     mutex)
  * Sequential locks (seqlock_t)
  *
  * Sequence counters with an embedded spinlock for writer serialization
- * and non-preemptibility.
+ * and analn-preemptibility.
  *
  * For more info, see:
  *    - Comments on top of seqcount_t

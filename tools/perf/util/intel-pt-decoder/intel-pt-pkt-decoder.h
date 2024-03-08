@@ -73,7 +73,7 @@ struct intel_pt_pkt {
  * context must be recorded and passed to the packet decoder.
  */
 enum intel_pt_pkt_ctx {
-	INTEL_PT_NO_CTX,	/* BIP packets are invalid */
+	INTEL_PT_ANAL_CTX,	/* BIP packets are invalid */
 	INTEL_PT_BLK_4_CTX,	/* 4-byte BIP packets */
 	INTEL_PT_BLK_8_CTX,	/* 8-byte BIP packets */
 };

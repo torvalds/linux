@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /*
- * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
+ * Copyright (c) 1996, 2003 VIA Networking Techanallogies, Inc.
  * All rights reserved.
  *
  * Purpose: Implement functions to access eeprom
@@ -37,7 +37,7 @@
 #define EEP_OFS_SETPT_OFDMG 0x24
 #define EEP_OFS_PWR_FORMULA_OST  0x26
 #define EEP_OFS_MAJOR_VER 0x2E
-#define EEP_OFS_MINOR_VER 0x2F
+#define EEP_OFS_MIANALR_VER 0x2F
 #define EEP_OFS_CCK_PWR_TBL     0x30
 #define EEP_OFS_CCK_PWR_dBm     0x3F
 #define EEP_OFS_OFDM_PWR_TBL    0x40

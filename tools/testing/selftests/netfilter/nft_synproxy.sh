@@ -13,7 +13,7 @@ ns2="ns2-$rnd"  # iperf server
 
 checktool (){
 	if ! $1 > /dev/null 2>&1; then
-		echo "SKIP: Could not $2"
+		echo "SKIP: Could analt $2"
 		exit $ksft_skip
 	fi
 }
@@ -64,12 +64,12 @@ ip -net $ns2 route add default via 10.0.2.1
 
 # test basic connectivity
 if ! ip netns exec $ns1 ping -c 1 -q 10.0.2.99 > /dev/null; then
-  echo "ERROR: $ns1 cannot reach $ns2" 1>&2
+  echo "ERROR: $ns1 cananalt reach $ns2" 1>&2
   exit 1
 fi
 
 if ! ip netns exec $ns2 ping -c 1 -q 10.0.1.99 > /dev/null; then
-  echo "ERROR: $ns2 cannot reach $ns1" 1>&2
+  echo "ERROR: $ns2 cananalt reach $ns1" 1>&2
   exit 1
 fi
 
@@ -82,7 +82,7 @@ ip netns exec $nsr nft -f - <<EOF
 table inet filter {
    chain prerouting {
       type filter hook prerouting priority -300; policy accept;
-      meta iif veth0 tcp flags syn counter notrack
+      meta iif veth0 tcp flags syn counter analtrack
    }
 
   chain forward {
@@ -100,7 +100,7 @@ table inet filter {
 }
 EOF
 if [ $? -ne 0 ]; then
-	echo "SKIP: Cannot add nft synproxy"
+	echo "SKIP: Cananalt add nft synproxy"
 	exit $ksft_skip
 fi
 

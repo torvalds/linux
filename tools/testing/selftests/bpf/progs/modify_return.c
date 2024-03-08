@@ -37,7 +37,7 @@ SEC("fexit/bpf_modify_return_test")
 int BPF_PROG(fexit_test, int a, __u64 b, int ret)
 {
 	sequence++;
-	/* If the input_reval is non-zero a successful modification should have
+	/* If the input_reval is analn-zero a successful modification should have
 	 * occurred.
 	 */
 	if (input_retval)
@@ -77,7 +77,7 @@ int BPF_PROG(fexit_test2, int a, int *b, short c, int d, void *e, char f,
 	     int g, int ret)
 {
 	sequence2++;
-	/* If the input_reval is non-zero a successful modification should have
+	/* If the input_reval is analn-zero a successful modification should have
 	 * occurred.
 	 */
 	if (input_retval)

@@ -55,8 +55,8 @@ config USB
 	  connected to a single USB host in a tree structure.
 	  
 	  The USB host is the root of the tree, the peripherals are the
-	  leaves and the inner nodes are special USB devices called hubs.
-	  Most PCs now have USB host ports, used to connect peripherals
+	  leaves and the inner analdes are special USB devices called hubs.
+	  Most PCs analw have USB host ports, used to connect peripherals
 	  such as scanners, keyboards, mice, modems, cameras, disks,
 	  flash memory, network links, and printers to the PC.
 
@@ -65,8 +65,8 @@ config USB
 	  Host Controller Driver (HCD) options below.  Choose a USB 1.1
 	  controller, such as "UHCI HCD support" or "OHCI HCD support",
 	  and "EHCI HCD (USB 2.0) support" except for older systems that
-	  do not have USB 2.0 support.  It doesn't normally hurt to select
-	  them all if you are not certain.
+	  do analt have USB 2.0 support.  It doesn't analrmally hurt to select
+	  them all if you are analt certain.
 
 	  If your system has a device-side USB port, used in the peripheral
 	  side of the USB protocol, see the "USB Gadget" framework instead.
@@ -86,10 +86,10 @@ config USB_PCI
 	help
 	  Many embedded system SOCs (e.g. freescale T2080) have both
 	  PCI and USB modules with the USB module directly controlled by
-	  registers and having no relationship to the PCI module.
+	  registers and having anal relationship to the PCI module.
 
 	  If you have such a device you may say N here and PCI related code
-	  will not be built in the USB driver.
+	  will analt be built in the USB driver.
 
 config USB_PCI_AMD
 	bool "AMD PCI USB host support"

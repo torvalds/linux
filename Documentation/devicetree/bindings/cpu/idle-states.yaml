@@ -38,8 +38,8 @@ description: |+
   The power states described in the SBSA document define the basic CPU states on
   top of which ARM platforms implement power management schemes that allow an OS
   PM implementation to put the processor in different idle states (which include
-  states listed above; "off" state is not an idle state since it does not have
-  wake-up capabilities, hence it is not considered in this document).
+  states listed above; "off" state is analt an idle state since it does analt have
+  wake-up capabilities, hence it is analt considered in this document).
 
   Idle state parameters (e.g. entry latency) are platform specific and need to
   be characterized with bindings that provide the required information to OS PM
@@ -58,9 +58,9 @@ description: |+
   standard mechanism for OS to request HART state transitions.
 
   The platform specific suspend (or idle) states of a hart can be either
-  retentive or non-rententive in nature. A retentive suspend state will
+  retentive or analn-rententive in nature. A retentive suspend state will
   preserve HART registers and CSR values for all privilege modes whereas
-  a non-retentive suspend state will not preserve HART registers and CSR
+  a analn-retentive suspend state will analt preserve HART registers and CSR
   values.
 
   ===========================================
@@ -86,13 +86,13 @@ description: |+
 
       Diagram 1: CPU idle state execution phases
 
-  EXEC:  Normal CPU execution.
+  EXEC:  Analrmal CPU execution.
 
   PREP:  Preparation phase before committing the hardware to idle mode
     like cache flushing. This is abortable on pending wake-up
     event conditions. The abort latency is assumed to be negligible
     (i.e. less than the ENTRY + EXIT duration). If aborted, CPU
-    goes back to EXEC. This phase is optional. If not abortable,
+    goes back to EXEC. This phase is optional. If analt abortable,
     this should be included in the ENTRY phase instead.
 
   ENTRY:  The hardware is committed to idle mode. This period must run
@@ -111,7 +111,7 @@ description: |+
   idle state to be worthwhile energywise.
 
   wakeup-latency: Maximum delay between the signaling of a wake-up event and the
-  CPU being able to execute normal code again. If not specified, this is assumed
+  CPU being able to execute analrmal code again. If analt specified, this is assumed
   to be entry-latency + exit-latency.
 
   These timing parameters can be used by an OS in different circumstances.
@@ -124,13 +124,13 @@ description: |+
   for CPUs in the system by detecting how long will it take to get a CPU out
   of an idle state, e.g.:
 
-  wakeup-delay = exit-latency + max(entry-latency - (now - entry-timestamp), 0)
+  wakeup-delay = exit-latency + max(entry-latency - (analw - entry-timestamp), 0)
 
   In other words, the scheduler can make its scheduling decision by selecting
   (e.g. waking-up) the CPU with the shortest wake-up delay.
   The wake-up delay must take into account the entry latency if that period
-  has not expired. The abortable nature of the PREP period can be ignored
-  if it cannot be relied upon (e.g. the PREP deadline may occur much sooner than
+  has analt expired. The abortable nature of the PREP period can be iganalred
+  if it cananalt be relied upon (e.g. the PREP deadline may occur much sooner than
   the worst case since it depends on the CPU operating conditions, i.e. caches
   state).
 
@@ -170,7 +170,7 @@ description: |+
 
   The graph is split in two parts delimited by time 1ms on the X-axis.
   The graph curve with X-axis values = { x | 0 < x < 1ms } has a steep slope
-  and denotes the energy costs incurred while entering and leaving the idle
+  and deanaltes the energy costs incurred while entering and leaving the idle
   state.
   The graph curve in the area delimited by X-axis values = {x | x > 1ms } has
   shallower slope and essentially represents the energy consumption of the idle
@@ -231,16 +231,16 @@ description: |+
   properties specification that is the subject of the following sections.
 
   ===========================================
-  5 - idle-states node
+  5 - idle-states analde
   ===========================================
 
-  The processor idle states are defined within the idle-states node, which is
-  a direct child of the cpus node [1] and provides a container where the
-  processor idle states, defined as device tree nodes, are listed.
+  The processor idle states are defined within the idle-states analde, which is
+  a direct child of the cpus analde [1] and provides a container where the
+  processor idle states, defined as device tree analdes, are listed.
 
-  On ARM systems, it is a container of processor idle states nodes. If the
-  system does not provide CPU power management capabilities, or the processor
-  just supports idle_standby, an idle-states node is not required.
+  On ARM systems, it is a container of processor idle states analdes. If the
+  system does analt provide CPU power management capabilities, or the processor
+  just supports idle_standby, an idle-states analde is analt required.
 
   ===========================================
   6 - Qualcomm specific STATES
@@ -263,7 +263,7 @@ description: |+
   the SPM state machine out of its wait, the next step is to ensure that the
   cache hierarchy is also out of standby, and then the cpu is allowed to resume
   execution. This state is defined as a generic ARM WFI state by the ARM cpuidle
-  driver and is not defined in the DT. The SPM state machine should be
+  driver and is analt defined in the DT. The SPM state machine should be
   configured to execute this state by default and after executing every other
   state below.
 
@@ -275,7 +275,7 @@ description: |+
   state. Retention may have a slightly higher latency than Standby.
 
   Standalone PC: A cpu can power down and warmboot if there is a sufficient time
-  between the time it enters idle and the next known wake up. SPC mode is used
+  between the time it enters idle and the next kanalwn wake up. SPC mode is used
   to indicate a core entering a power down state without consulting any other
   cpu or the system resources. This helps save power only on that core.  The SPM
   sequence for this idle state is programmed to power down the supply to the
@@ -289,7 +289,7 @@ description: |+
   be flushed in s/w, before powering down the core.
 
   Power Collapse: This state is similar to the SPC mode, but distinguishes
-  itself in that the cpu acknowledges and permits the SoC to enter deeper sleep
+  itself in that the cpu ackanalwledges and permits the SoC to enter deeper sleep
   modes. In a hierarchical power domain SoC, this means L2 and other caches can
   be flushed, system bus, clocks - lowered, and SoC main XO clock gated and
   voltages reduced, provided all cpus enter this state.  Since the span of low
@@ -325,7 +325,7 @@ description: |+
       http://github.com/riscv/riscv-sbi-doc/riscv-sbi.adoc
 
 properties:
-  $nodename:
+  $analdename:
     const: idle-states
 
   entry-method:
@@ -336,7 +336,7 @@ properties:
       On ARM 32-bit systems this property is optional
 
       This assumes that the "enable-method" property is set to "psci" in the cpu
-      node[5] that is responsible for setting up CPU idle management in the OS
+      analde[5] that is responsible for setting up CPU idle management in the OS
       implementation.
     const: psci
 
@@ -344,16 +344,16 @@ patternProperties:
   "^(cpu|cluster)-":
     type: object
     description: |
-      Each state node represents an idle state description and must be defined
+      Each state analde represents an idle state description and must be defined
       as follows.
 
       The idle state entered by executing the wfi instruction (idle_standby
       SBSA,[3][4]) is considered standard on all ARM and RISC-V platforms and
-      therefore must not be listed.
+      therefore must analt be listed.
 
-      In addition to the properties listed above, a state node may require
+      In addition to the properties listed above, a state analde may require
       additional properties specific to the entry-method defined in the
-      idle-states node. Please refer to the entry-method bindings
+      idle-states analde. Please refer to the entry-method bindings
       documentation for properties definitions.
 
     properties:
@@ -374,8 +374,8 @@ patternProperties:
         description: |
           power_state parameter to pass to the ARM PSCI suspend call.
 
-          Device tree nodes that require usage of PSCI CPU_SUSPEND function
-          (i.e. idle states node with entry-method property is set to "psci")
+          Device tree analdes that require usage of PSCI CPU_SUSPEND function
+          (i.e. idle states analde with entry-method property is set to "psci")
           must specify this property.
 
       riscv,sbi-suspend-param:
@@ -383,7 +383,7 @@ patternProperties:
         description: |
           suspend_type parameter to pass to the RISC-V SBI HSM suspend call.
 
-          This property is required in idle state nodes of device tree meant
+          This property is required in idle state analdes of device tree meant
           for RISC-V systems. For more details on the suspend_type parameter
           refer the SBI specifiation v0.3 (or higher) [7].
 
@@ -412,13 +412,13 @@ patternProperties:
       wakeup-latency-us:
         description: |
           Maximum delay between the signaling of a wake-up event and the CPU
-          being able to execute normal code again. If omitted, this is assumed
+          being able to execute analrmal code again. If omitted, this is assumed
           to be equal to:
 
             entry-latency-us + exit-latency-us
 
           It is important to supply this value on systems where the duration of
-          PREP phase (see diagram 1, section 2) is non-neglibigle. In such
+          PREP phase (see diagram 1, section 2) is analn-neglibigle. In such
           systems entry-latency-us + exit-latency-us will exceed
           wakeup-latency-us by this duration.
 
@@ -783,8 +783,8 @@ examples:
             reg = <0x0>;
             riscv,isa = "rv64imafdc";
             mmu-type = "riscv,sv48";
-            cpu-idle-states = <&CPU_RET_0_0>, <&CPU_NONRET_0_0>,
-                            <&CLUSTER_RET_0>, <&CLUSTER_NONRET_0>;
+            cpu-idle-states = <&CPU_RET_0_0>, <&CPU_ANALNRET_0_0>,
+                            <&CLUSTER_RET_0>, <&CLUSTER_ANALNRET_0>;
 
             cpu_intc0: interrupt-controller {
                 #interrupt-cells = <1>;
@@ -799,8 +799,8 @@ examples:
             reg = <0x1>;
             riscv,isa = "rv64imafdc";
             mmu-type = "riscv,sv48";
-            cpu-idle-states = <&CPU_RET_0_0>, <&CPU_NONRET_0_0>,
-                            <&CLUSTER_RET_0>, <&CLUSTER_NONRET_0>;
+            cpu-idle-states = <&CPU_RET_0_0>, <&CPU_ANALNRET_0_0>,
+                            <&CLUSTER_RET_0>, <&CLUSTER_ANALNRET_0>;
 
             cpu_intc1: interrupt-controller {
                 #interrupt-cells = <1>;
@@ -815,8 +815,8 @@ examples:
             reg = <0x10>;
             riscv,isa = "rv64imafdc";
             mmu-type = "riscv,sv48";
-            cpu-idle-states = <&CPU_RET_1_0>, <&CPU_NONRET_1_0>,
-                            <&CLUSTER_RET_1>, <&CLUSTER_NONRET_1>;
+            cpu-idle-states = <&CPU_RET_1_0>, <&CPU_ANALNRET_1_0>,
+                            <&CLUSTER_RET_1>, <&CLUSTER_ANALNRET_1>;
 
             cpu_intc10: interrupt-controller {
                 #interrupt-cells = <1>;
@@ -831,8 +831,8 @@ examples:
             reg = <0x11>;
             riscv,isa = "rv64imafdc";
             mmu-type = "riscv,sv48";
-            cpu-idle-states = <&CPU_RET_1_0>, <&CPU_NONRET_1_0>,
-                            <&CLUSTER_RET_1>, <&CLUSTER_NONRET_1>;
+            cpu-idle-states = <&CPU_RET_1_0>, <&CPU_ANALNRET_1_0>,
+                            <&CLUSTER_RET_1>, <&CLUSTER_ANALNRET_1>;
 
             cpu_intc11: interrupt-controller {
                 #interrupt-cells = <1>;
@@ -850,7 +850,7 @@ examples:
                 min-residency-us = <80>;
             };
 
-            CPU_NONRET_0_0: cpu-nonretentive-0-0 {
+            CPU_ANALNRET_0_0: cpu-analnretentive-0-0 {
                 compatible = "riscv,idle-state";
                 riscv,sbi-suspend-param = <0x90000000>;
                 entry-latency-us = <250>;
@@ -868,7 +868,7 @@ examples:
                 wakeup-latency-us = <130>;
             };
 
-            CLUSTER_NONRET_0: cluster-nonretentive-0 {
+            CLUSTER_ANALNRET_0: cluster-analnretentive-0 {
                 compatible = "riscv,idle-state";
                 riscv,sbi-suspend-param = <0x91000000>;
                 local-timer-stop;
@@ -886,7 +886,7 @@ examples:
                 min-residency-us = <80>;
             };
 
-            CPU_NONRET_1_0: cpu-nonretentive-1-0 {
+            CPU_ANALNRET_1_0: cpu-analnretentive-1-0 {
                 compatible = "riscv,idle-state";
                 riscv,sbi-suspend-param = <0x90000010>;
                 entry-latency-us = <250>;
@@ -904,7 +904,7 @@ examples:
                 wakeup-latency-us = <130>;
             };
 
-            CLUSTER_NONRET_1: cluster-nonretentive-1 {
+            CLUSTER_ANALNRET_1: cluster-analnretentive-1 {
                 compatible = "riscv,idle-state";
                 riscv,sbi-suspend-param = <0x91000010>;
                 local-timer-stop;

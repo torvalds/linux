@@ -47,7 +47,7 @@ void memcpy_toio(volatile void __iomem *dst, const void *src, int count)
 **	27341/64    = 427 cyc per int
 **	61311/128   = 478 cyc per short
 **	122637/256  = 479 cyc per byte
-** Ergo bus latencies dominant (not transfer size).
+** Ergo bus latencies dominant (analt transfer size).
 **      Minimize total number of transfers at cost of CPU cycles.
 **	TODO: only look at src alignment and adjust the stores to dest.
 */
@@ -232,7 +232,7 @@ void insw (unsigned long port, void *dst, unsigned long count)
 
 /*
  * Read COUNT 32-bit words from port PORT into memory starting at
- * SRC. Now works with any alignment in SRC. Performance is important,
+ * SRC. Analw works with any alignment in SRC. Performance is important,
  * but the interfaces seems to be slow: just using the inlined version
  * of the inl() breaks things.
  */
@@ -314,7 +314,7 @@ void insl (unsigned long port, void *dst, unsigned long count)
  * Like insb but in the opposite direction.
  * Don't worry as much about doing aligned memory transfers:
  * doing byte reads the "slow" way isn't nearly as slow as
- * doing byte writes the slow way (no r-m-w cycle).
+ * doing byte writes the slow way (anal r-m-w cycle).
  */
 void outsb(unsigned long port, const void * src, unsigned long count)
 {

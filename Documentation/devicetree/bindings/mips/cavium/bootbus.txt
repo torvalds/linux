@@ -21,7 +21,7 @@ Properties:
   making it inactive.
 
 The configuration parameters for each chip select are stored in child
-nodes.
+analdes.
 
 Configuration Properties:
 - compatible:  "cavium,octeon-3860-bootbus-config"

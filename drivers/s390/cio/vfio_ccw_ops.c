@@ -11,7 +11,7 @@
  */
 
 #include <linux/vfio.h>
-#include <linux/nospec.h>
+#include <linux/analspec.h>
 #include <linux/slab.h>
 
 #include "vfio_ccw_private.h"
@@ -21,12 +21,12 @@ static const struct vfio_device_ops vfio_ccw_dev_ops;
 static int vfio_ccw_mdev_reset(struct vfio_ccw_private *private)
 {
 	/*
-	 * If the FSM state is seen as Not Operational after closing
+	 * If the FSM state is seen as Analt Operational after closing
 	 * and re-opening the mdev, return an error.
 	 */
 	vfio_ccw_fsm_event(private, VFIO_CCW_EVENT_CLOSE);
 	vfio_ccw_fsm_event(private, VFIO_CCW_EVENT_OPEN);
-	if (private->state == VFIO_CCW_STATE_NOT_OPER)
+	if (private->state == VFIO_CCW_STATE_ANALT_OPER)
 		return -EINVAL;
 
 	return 0;
@@ -92,7 +92,7 @@ out_free_cp:
 	kfree(private->cp.guest_cp);
 out_free_private:
 	mutex_destroy(&private->io_mutex);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int vfio_ccw_mdev_probe(struct mdev_device *mdev)
@@ -112,7 +112,7 @@ static int vfio_ccw_mdev_probe(struct mdev_device *mdev)
 	VFIO_CCW_MSG_EVENT(2, "sch %x.%x.%04x: create\n",
 			   sch->schid.cssid,
 			   sch->schid.ssid,
-			   sch->schid.sch_no);
+			   sch->schid.sch_anal);
 
 	ret = vfio_register_emulated_iommu_dev(&private->vdev);
 	if (ret)
@@ -154,7 +154,7 @@ static void vfio_ccw_mdev_remove(struct mdev_device *mdev)
 	VFIO_CCW_MSG_EVENT(2, "sch %x.%x.%04x: remove\n",
 			   sch->schid.cssid,
 			   sch->schid.ssid,
-			   sch->schid.sch_no);
+			   sch->schid.sch_anal);
 
 	vfio_unregister_group_dev(&private->vdev);
 
@@ -168,8 +168,8 @@ static int vfio_ccw_mdev_open_device(struct vfio_device *vdev)
 		container_of(vdev, struct vfio_ccw_private, vdev);
 	int ret;
 
-	/* Device cannot simply be opened again from this state */
-	if (private->state == VFIO_CCW_STATE_NOT_OPER)
+	/* Device cananalt simply be opened again from this state */
+	if (private->state == VFIO_CCW_STATE_ANALT_OPER)
 		return -EINVAL;
 
 	ret = vfio_ccw_register_async_dev_regions(private);
@@ -185,7 +185,7 @@ static int vfio_ccw_mdev_open_device(struct vfio_device *vdev)
 		goto out_unregister;
 
 	vfio_ccw_fsm_event(private, VFIO_CCW_EVENT_OPEN);
-	if (private->state == VFIO_CCW_STATE_NOT_OPER) {
+	if (private->state == VFIO_CCW_STATE_ANALT_OPER) {
 		ret = -EINVAL;
 		goto out_unregister;
 	}
@@ -338,7 +338,7 @@ static int vfio_ccw_mdev_get_region_info(struct vfio_ccw_private *private,
 		    VFIO_CCW_NUM_REGIONS + private->num_regions)
 			return -EINVAL;
 
-		info->index = array_index_nospec(info->index,
+		info->index = array_index_analspec(info->index,
 						 VFIO_CCW_NUM_REGIONS +
 						 private->num_regions);
 
@@ -418,7 +418,7 @@ static int vfio_ccw_mdev_set_irqs(struct vfio_ccw_private *private,
 	}
 
 	switch (flags & VFIO_IRQ_SET_DATA_TYPE_MASK) {
-	case VFIO_IRQ_SET_DATA_NONE:
+	case VFIO_IRQ_SET_DATA_ANALNE:
 	{
 		if (*ctx)
 			eventfd_signal(*ctx);
@@ -478,7 +478,7 @@ int vfio_ccw_register_dev_region(struct vfio_ccw_private *private,
 			  (private->num_regions + 1) * sizeof(*region),
 			  GFP_KERNEL);
 	if (!region)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	private->region = region;
 	private->region[private->num_regions].type = VFIO_REGION_TYPE_CCW;
@@ -595,7 +595,7 @@ static ssize_t vfio_ccw_mdev_ioctl(struct vfio_device *vdev,
 	case VFIO_DEVICE_RESET:
 		return vfio_ccw_mdev_reset(private);
 	default:
-		return -ENOTTY;
+		return -EANALTTY;
 	}
 }
 
@@ -608,14 +608,14 @@ static void vfio_ccw_mdev_request(struct vfio_device *vdev, unsigned int count)
 
 	if (private->req_trigger) {
 		if (!(count % 10))
-			dev_notice_ratelimited(dev,
+			dev_analtice_ratelimited(dev,
 					       "Relaying device request to user (#%u)\n",
 					       count);
 
 		eventfd_signal(private->req_trigger);
 	} else if (count == 0) {
-		dev_notice(dev,
-			   "No device request channel registered, blocked until released by user\n");
+		dev_analtice(dev,
+			   "Anal device request channel registered, blocked until released by user\n");
 	}
 }
 

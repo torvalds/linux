@@ -61,11 +61,11 @@ Efuse_Write1ByteToFakeContent(u16 Offset, u8 Value)
  *			pwr on state. When we stop write, we should switch to 500k mode
  *			and disable LDO 2.5V.
  *
- * Input:       NONE
+ * Input:       ANALNE
  *
- * Output:      NONE
+ * Output:      ANALNE
  *
- * Return:      NONE
+ * Return:      ANALNE
  *
  * Revised History:
  * When			Who		Remark
@@ -86,11 +86,11 @@ u8 PwrState)
  *
  * Overview:	Get current efuse size!!!
  *
- * Input:       NONE
+ * Input:       ANALNE
  *
- * Output:      NONE
+ * Output:      ANALNE
  *
- * Return:      NONE
+ * Return:      ANALNE
  *
  * Revised History:
  * When			Who		Remark
@@ -180,11 +180,11 @@ EFUSE_GetEfuseDefinition(
  *
  * Overview:	Copy from WMAC fot EFUSE read 1 byte.
  *
- * Input:       NONE
+ * Input:       ANALNE
  *
- * Output:      NONE
+ * Output:      ANALNE
  *
- * Return:      NONE
+ * Return:      ANALNE
  *
  * Revised History:
  * When			Who		Remark
@@ -298,7 +298,7 @@ u8 efuse_OneByteWrite(struct adapter *padapter, u16 addr, u8 data, bool bPseudoT
 	efuseValue |= ((addr<<8 | data) & 0x3FFFF);
 
 
-	/*  <20130227, Kordan> 8192E MP chip A-cut had better not set 0x34[11] until B-Cut. */
+	/*  <20130227, Kordan> 8192E MP chip A-cut had better analt set 0x34[11] until B-Cut. */
 
 	/*  <20130121, Kordan> For SMIC EFUSE specificatoin. */
 	/* 0x34[11]: SW force PGMEN input of efuse to high. (for the bank selected by 0x34[9:8]) */
@@ -348,11 +348,11 @@ Efuse_PgPacketWrite(struct adapter *padapter,
  *
  * Overview:	Read allowed word in current efuse section data.
  *
- * Input:       NONE
+ * Input:       ANALNE
  *
- * Output:      NONE
+ * Output:      ANALNE
  *
- * Return:      NONE
+ * Return:      ANALNE
  *
  * Revised History:
  * When			Who		Remark
@@ -401,11 +401,11 @@ Efuse_WordEnableDataWrite(struct adapter *padapter,
  *
  * Overview:	Read All Efuse content
  *
- * Input:       NONE
+ * Input:       ANALNE
  *
- * Output:      NONE
+ * Output:      ANALNE
  *
- * Return:      NONE
+ * Return:      ANALNE
  *
  * Revised History:
  * When			Who		Remark
@@ -438,11 +438,11 @@ void Efuse_ReadAllMap(struct adapter *padapter, u8 efuseType, u8 *Efuse, bool bP
  *
  * Overview:	Read from efuse init map by one/two/four bytes !!!!!
  *
- * Input:       NONE
+ * Input:       ANALNE
  *
- * Output:      NONE
+ * Output:      ANALNE
  *
- * Return:      NONE
+ * Return:      ANALNE
  *
  * Revised History:
  * When			Who		Remark
@@ -484,11 +484,11 @@ static void efuse_ShadowRead4Byte(struct adapter *padapter, u16 Offset, u32 *Val
  *
  * Overview:	Transfer current EFUSE content to shadow init and modify map.
  *
- * Input:       NONE
+ * Input:       ANALNE
  *
- * Output:      NONE
+ * Output:      ANALNE
  *
- * Return:      NONE
+ * Return:      ANALNE
  *
  * Revised History:
  * When			Who		Remark
@@ -517,11 +517,11 @@ void EFUSE_ShadowMapUpdate(struct adapter *padapter, u8 efuseType, bool bPseudoT
  *
  * Overview:	Read from efuse init map !!!!!
  *
- * Input:       NONE
+ * Input:       ANALNE
  *
- * Output:      NONE
+ * Output:      ANALNE
  *
- * Return:      NONE
+ * Return:      ANALNE
  *
  * Revised History:
  * When			Who		Remark

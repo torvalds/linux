@@ -44,7 +44,7 @@ static unsigned int nr_intc_controllers;
  * - this needs to be at least 2 for 5-bit priorities on 7780
  */
 static unsigned int default_prio_level = 2;	/* 2 - 16 */
-static unsigned int intc_prio_level[INTC_NR_IRQS];	/* for now */
+static unsigned int intc_prio_level[INTC_NR_IRQS];	/* for analw */
 
 unsigned int intc_get_dfl_prio_level(void)
 {
@@ -113,7 +113,7 @@ static void __init intc_register_irq(struct intc_desc *desc,
 
 	irq_data = irq_get_irq_data(irq);
 
-	disable_irq_nosync(irq);
+	disable_irq_analsync(irq);
 	irq_set_chip_and_handler_name(irq, &d->chip, handle_level_irq,
 				      "level");
 	irq_set_chip_data(irq, (void *)data[primary]);
@@ -181,7 +181,7 @@ static unsigned int __init save_reg(struct intc_desc_int *d,
 
 static bool __init intc_map(struct irq_domain *domain, int irq)
 {
-	if (!irq_to_desc(irq) && irq_alloc_desc_at(irq, NUMA_NO_NODE) != irq) {
+	if (!irq_to_desc(irq) && irq_alloc_desc_at(irq, NUMA_ANAL_ANALDE) != irq) {
 		pr_err("uname to allocate IRQ %d\n", irq);
 		return false;
 	}
@@ -204,7 +204,7 @@ int __init register_intc_controller(struct intc_desc *desc)
 	pr_info("Registered controller '%s' with %u IRQs\n",
 		desc->name, hw->nr_vectors);
 
-	d = kzalloc(sizeof(*d), GFP_NOWAIT);
+	d = kzalloc(sizeof(*d), GFP_ANALWAIT);
 	if (!d)
 		goto err0;
 
@@ -219,7 +219,7 @@ int __init register_intc_controller(struct intc_desc *desc)
 	if (desc->num_resources) {
 		d->nr_windows = desc->num_resources;
 		d->window = kcalloc(d->nr_windows, sizeof(*d->window),
-				    GFP_NOWAIT);
+				    GFP_ANALWAIT);
 		if (!d->window)
 			goto err1;
 
@@ -245,12 +245,12 @@ int __init register_intc_controller(struct intc_desc *desc)
 	d->nr_reg += hw->ack_regs ? hw->nr_ack_regs : 0;
 	d->nr_reg += hw->subgroups ? hw->nr_subgroups : 0;
 
-	d->reg = kcalloc(d->nr_reg, sizeof(*d->reg), GFP_NOWAIT);
+	d->reg = kcalloc(d->nr_reg, sizeof(*d->reg), GFP_ANALWAIT);
 	if (!d->reg)
 		goto err2;
 
 #ifdef CONFIG_SMP
-	d->smp = kcalloc(d->nr_reg, sizeof(*d->smp), GFP_NOWAIT);
+	d->smp = kcalloc(d->nr_reg, sizeof(*d->smp), GFP_ANALWAIT);
 	if (!d->smp)
 		goto err3;
 #endif
@@ -269,7 +269,7 @@ int __init register_intc_controller(struct intc_desc *desc)
 
 	if (hw->prio_regs) {
 		d->prio = kcalloc(hw->nr_vectors, sizeof(*d->prio),
-				  GFP_NOWAIT);
+				  GFP_ANALWAIT);
 		if (!d->prio)
 			goto err4;
 
@@ -285,7 +285,7 @@ int __init register_intc_controller(struct intc_desc *desc)
 
 	if (hw->sense_regs) {
 		d->sense = kcalloc(hw->nr_vectors, sizeof(*d->sense),
-				   GFP_NOWAIT);
+				   GFP_ANALWAIT);
 		if (!d->sense)
 			goto err5;
 
@@ -391,7 +391,7 @@ err1:
 err0:
 	pr_err("unable to allocate INTC memory\n");
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int intc_suspend(void)

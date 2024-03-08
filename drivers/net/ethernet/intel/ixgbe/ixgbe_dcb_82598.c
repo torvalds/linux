@@ -58,7 +58,7 @@ s32 ixgbe_dcb_config_rx_arbiter_82598(struct ixgbe_hw *hw,
 	IXGBE_WRITE_REG(hw, IXGBE_RDRXCTL, reg);
 
 	reg = IXGBE_READ_REG(hw, IXGBE_RXCTRL);
-	/* Make sure there is enough descriptors before arbitration */
+	/* Make sure there is eanalugh descriptors before arbitration */
 	reg &= ~IXGBE_RXCTRL_DMBYPS;
 	IXGBE_WRITE_REG(hw, IXGBE_RXCTRL, reg);
 

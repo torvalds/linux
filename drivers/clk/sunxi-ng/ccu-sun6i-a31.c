@@ -45,9 +45,9 @@ static SUNXI_CCU_NKM_WITH_GATE_LOCK(pll_cpu_clk, "pll-cpu",
  *
  * With sigma-delta modulation for fractional-N on the audio PLL,
  * we have to use specific dividers. This means the variable divider
- * can no longer be used, as the audio codec requests the exact clock
- * rates we support through this mechanism. So we now hard code the
- * variable divider to 1. This means the clock rates will no longer
+ * can anal longer be used, as the audio codec requests the exact clock
+ * rates we support through this mechanism. So we analw hard code the
+ * variable divider to 1. This means the clock rates will anal longer
  * match the clock names.
  */
 #define SUN6I_A31_PLL_AUDIO_REG	0x008
@@ -138,7 +138,7 @@ static SUNXI_CCU_NM_WITH_FRAC_GATE_LOCK(pll_gpu_clk, "pll-gpu",
  *
  * The MIPI mode is a standard NKM-style clock. The HDMI mode is an
  * integer / fractional clock with switchable multipliers and dividers.
- * This is not supported here. We hardcode the PLL to MIPI mode.
+ * This is analt supported here. We hardcode the PLL to MIPI mode.
  */
 #define SUN6I_A31_PLL_MIPI_REG	0x040
 
@@ -490,7 +490,7 @@ static SUNXI_CCU_GATE(usb_ohci1_clk,	"usb-ohci1",	"osc24M",
 static SUNXI_CCU_GATE(usb_ohci2_clk,	"usb-ohci2",	"osc24M",
 		      0x0cc, BIT(18), 0);
 
-/* TODO emac clk not supported yet */
+/* TODO emac clk analt supported yet */
 
 static const char * const dram_parents[] = { "pll-ddr", "pll-periph" };
 static SUNXI_CCU_MP_WITH_MUX_GATE(mdfs_clk, "mdfs", dram_parents, 0x0f0,
@@ -960,7 +960,7 @@ static const struct clk_hw *clk_parent_pll_audio[] = {
 	&pll_audio_base_clk.common.hw
 };
 
-/* We hardcode the divider to 1 for now */
+/* We hardcode the divider to 1 for analw */
 static CLK_FIXED_FACTOR_HWS(pll_audio_clk, "pll-audio",
 			    clk_parent_pll_audio,
 			    1, 1, CLK_SET_RATE_PARENT);
@@ -1261,7 +1261,7 @@ static int sun6i_a31_ccu_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	ccu_mux_notifier_register(pll_cpu_clk.common.hw.clk,
+	ccu_mux_analtifier_register(pll_cpu_clk.common.hw.clk,
 				  &sun6i_a31_cpu_nb);
 
 	return 0;

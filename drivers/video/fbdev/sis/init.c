@@ -23,7 +23,7 @@
  * * GNU General Public License for more details.
  * *
  * * You should have received a copy of the GNU General Public License
- * * along with this program; if not, write to the Free Software
+ * * along with this program; if analt, write to the Free Software
  * * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307, USA
  *
  * Otherwise, the following license terms apply:
@@ -32,19 +32,19 @@
  * * modification, are permitted provided that the following conditions
  * * are met:
  * * 1) Redistributions of source code must retain the above copyright
- * *    notice, this list of conditions and the following disclaimer.
+ * *    analtice, this list of conditions and the following disclaimer.
  * * 2) Redistributions in binary form must reproduce the above copyright
- * *    notice, this list of conditions and the following disclaimer in the
+ * *    analtice, this list of conditions and the following disclaimer in the
  * *    documentation and/or other materials provided with the distribution.
- * * 3) The name of the author may not be used to endorse or promote products
+ * * 3) The name of the author may analt be used to endorse or promote products
  * *    derived from this software without specific prior written permission.
  * *
  * * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
- * * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * * IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE IMPLIED WARRANTIES
  * * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
- * * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * * IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
  * * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * * ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
  * * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
  * * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
@@ -52,7 +52,7 @@
  *
  * Author: 	Thomas Winischhofer <thomas@winischhofer.net>
  *
- * Formerly based on non-functional code-fragements for 300 series by SiS, Inc.
+ * Formerly based on analn-functional code-fragements for 300 series by SiS, Inc.
  * Used by permission.
  */
 
@@ -125,7 +125,7 @@ InitCommonPointer(struct SiS_Private *SiS_Pr)
    SiS_Pr->SiS_LCD1680x1050Data     = SiS_LCD1680x1050Data;
    SiS_Pr->SiS_StLCD1600x1200Data   = SiS_StLCD1600x1200Data;
    SiS_Pr->SiS_ExtLCD1600x1200Data  = SiS_ExtLCD1600x1200Data;
-   SiS_Pr->SiS_NoScaleData          = SiS_NoScaleData;
+   SiS_Pr->SiS_AnalScaleData          = SiS_AnalScaleData;
 
    SiS_Pr->SiS_LVDS320x240Data_1   = SiS_LVDS320x240Data_1;
    SiS_Pr->SiS_LVDS320x240Data_2   = SiS_LVDS320x240Data_2;
@@ -190,10 +190,10 @@ InitTo300Pointer(struct SiS_Private *SiS_Pr)
 
    SiS_Pr->SiS_CHTVUPALData  = SiS300_CHTVUPALData;
    SiS_Pr->SiS_CHTVOPALData  = SiS300_CHTVOPALData;
-   SiS_Pr->SiS_CHTVUPALMData = SiS_CHTVUNTSCData;    /* not supported on 300 series */
-   SiS_Pr->SiS_CHTVOPALMData = SiS_CHTVONTSCData;    /* not supported on 300 series */
-   SiS_Pr->SiS_CHTVUPALNData = SiS300_CHTVUPALData;  /* not supported on 300 series */
-   SiS_Pr->SiS_CHTVOPALNData = SiS300_CHTVOPALData;  /* not supported on 300 series */
+   SiS_Pr->SiS_CHTVUPALMData = SiS_CHTVUNTSCData;    /* analt supported on 300 series */
+   SiS_Pr->SiS_CHTVOPALMData = SiS_CHTVONTSCData;    /* analt supported on 300 series */
+   SiS_Pr->SiS_CHTVUPALNData = SiS300_CHTVUPALData;  /* analt supported on 300 series */
+   SiS_Pr->SiS_CHTVOPALNData = SiS300_CHTVOPALData;  /* analt supported on 300 series */
    SiS_Pr->SiS_CHTVSOPALData = SiS300_CHTVSOPALData;
 
    SiS_Pr->SiS_LVDS848x480Data_1   = SiS300_LVDS848x480Data_1;
@@ -216,19 +216,19 @@ InitTo300Pointer(struct SiS_Private *SiS_Pr)
    SiS_Pr->SiS_CHTVReg_ONTSC = SiS300_CHTVReg_ONTSC;
    SiS_Pr->SiS_CHTVReg_UPAL  = SiS300_CHTVReg_UPAL;
    SiS_Pr->SiS_CHTVReg_OPAL  = SiS300_CHTVReg_OPAL;
-   SiS_Pr->SiS_CHTVReg_UPALM = SiS300_CHTVReg_UNTSC;  /* not supported on 300 series */
-   SiS_Pr->SiS_CHTVReg_OPALM = SiS300_CHTVReg_ONTSC;  /* not supported on 300 series */
-   SiS_Pr->SiS_CHTVReg_UPALN = SiS300_CHTVReg_UPAL;   /* not supported on 300 series */
-   SiS_Pr->SiS_CHTVReg_OPALN = SiS300_CHTVReg_OPAL;   /* not supported on 300 series */
+   SiS_Pr->SiS_CHTVReg_UPALM = SiS300_CHTVReg_UNTSC;  /* analt supported on 300 series */
+   SiS_Pr->SiS_CHTVReg_OPALM = SiS300_CHTVReg_ONTSC;  /* analt supported on 300 series */
+   SiS_Pr->SiS_CHTVReg_UPALN = SiS300_CHTVReg_UPAL;   /* analt supported on 300 series */
+   SiS_Pr->SiS_CHTVReg_OPALN = SiS300_CHTVReg_OPAL;   /* analt supported on 300 series */
    SiS_Pr->SiS_CHTVReg_SOPAL = SiS300_CHTVReg_SOPAL;
    SiS_Pr->SiS_CHTVVCLKUNTSC = SiS300_CHTVVCLKUNTSC;
    SiS_Pr->SiS_CHTVVCLKONTSC = SiS300_CHTVVCLKONTSC;
    SiS_Pr->SiS_CHTVVCLKUPAL  = SiS300_CHTVVCLKUPAL;
    SiS_Pr->SiS_CHTVVCLKOPAL  = SiS300_CHTVVCLKOPAL;
-   SiS_Pr->SiS_CHTVVCLKUPALM = SiS300_CHTVVCLKUNTSC;  /* not supported on 300 series */
-   SiS_Pr->SiS_CHTVVCLKOPALM = SiS300_CHTVVCLKONTSC;  /* not supported on 300 series */
-   SiS_Pr->SiS_CHTVVCLKUPALN = SiS300_CHTVVCLKUPAL;   /* not supported on 300 series */
-   SiS_Pr->SiS_CHTVVCLKOPALN = SiS300_CHTVVCLKOPAL;   /* not supported on 300 series */
+   SiS_Pr->SiS_CHTVVCLKUPALM = SiS300_CHTVVCLKUNTSC;  /* analt supported on 300 series */
+   SiS_Pr->SiS_CHTVVCLKOPALM = SiS300_CHTVVCLKONTSC;  /* analt supported on 300 series */
+   SiS_Pr->SiS_CHTVVCLKUPALN = SiS300_CHTVVCLKUPAL;   /* analt supported on 300 series */
+   SiS_Pr->SiS_CHTVVCLKOPALN = SiS300_CHTVVCLKOPAL;   /* analt supported on 300 series */
    SiS_Pr->SiS_CHTVVCLKSOPAL = SiS300_CHTVVCLKSOPAL;
 }
 #endif
@@ -1013,7 +1013,7 @@ SiS_GetSysFlags(struct SiS_Private *SiS_Pr)
 {
    unsigned char cr5f, temp1, temp2;
 
-   /* 661 and newer: NEVER write non-zero to SR11[7:4] */
+   /* 661 and newer: NEVER write analn-zero to SR11[7:4] */
    /* (SR11 is used for DDC and in enable/disablebridge) */
    SiS_Pr->SiS_SensibleSR11 = false;
    SiS_Pr->SiS_MyCR63 = 0x63;
@@ -1024,7 +1024,7 @@ SiS_GetSysFlags(struct SiS_Private *SiS_Pr)
       }
    }
 
-   /* You should use the macros, not these flags directly */
+   /* You should use the macros, analt these flags directly */
 
    SiS_Pr->SiS_SysFlags = 0;
    if(SiS_Pr->ChipType == SIS_650) {
@@ -1131,7 +1131,7 @@ SiSInitPCIetc(struct SiS_Private *SiS_Pr)
    case SIS_550:
       /* See above */
       SiS_SetRegOR(SiS_Pr->SiS_P3c4,0x20,0xa1);
-      /* No 3D engine ! */
+      /* Anal 3D engine ! */
       /*  - Enable 2D (0x40)
        *  - disable 3D
        */
@@ -1201,7 +1201,7 @@ SiSSetLVDSetc(struct SiS_Private *SiS_Pr)
 	temp = (SiS_GetReg(SiS_Pr->SiS_P3d4,0x38) & 0xe0) >> 5;
 	if((temp >= 2) && (temp <= 3)) 	SiS_Pr->SiS_IF_DEF_LVDS = 1;
 	if(temp == 3)			SiS_Pr->SiS_IF_DEF_CH70xx = 2;
-	if(temp == 4)			SiS_Pr->SiS_IF_DEF_CONEX = 1;  /* Not yet supported */
+	if(temp == 4)			SiS_Pr->SiS_IF_DEF_CONEX = 1;  /* Analt yet supported */
 	break;
 #endif
    default:
@@ -1230,12 +1230,12 @@ SiS_SetEnableFstn(struct SiS_Private *SiS_Pr, int enable)
 /*********************************************/
 
 unsigned short
-SiS_GetModeFlag(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
+SiS_GetModeFlag(struct SiS_Private *SiS_Pr, unsigned short ModeAnal,
 		unsigned short ModeIdIndex)
 {
    if(SiS_Pr->UseCustomMode) {
       return SiS_Pr->CModeFlag;
-   } else if(ModeNo <= 0x13) {
+   } else if(ModeAnal <= 0x13) {
       return SiS_Pr->SiS_SModeIDTable[ModeIdIndex].St_ModeFlag;
    } else {
       return SiS_Pr->SiS_EModeIDTable[ModeIdIndex].Ext_ModeFlag;
@@ -1417,7 +1417,7 @@ static
 void
 SiS_GetVBType(struct SiS_Private *SiS_Pr)
 {
-   unsigned short flag = 0, rev = 0, nolcd = 0;
+   unsigned short flag = 0, rev = 0, anallcd = 0;
    unsigned short p4_0f, p4_25, p4_27;
 
    SiS_Pr->SiS_VBType = 0;
@@ -1442,9 +1442,9 @@ SiS_GetVBType(struct SiS_Private *SiS_Pr)
 	 SiS_Pr->SiS_VBType = VB_SIS301C;
       } else if(rev >= 0xB0) {
 	 SiS_Pr->SiS_VBType = VB_SIS301B;
-	 /* Check if 30xB DH version (no LCD support, use Panel Link instead) */
-	 nolcd = SiS_GetReg(SiS_Pr->SiS_Part4Port,0x23);
-	 if(!(nolcd & 0x02)) SiS_Pr->SiS_VBType |= VB_NoLCD;
+	 /* Check if 30xB DH version (anal LCD support, use Panel Link instead) */
+	 anallcd = SiS_GetReg(SiS_Pr->SiS_Part4Port,0x23);
+	 if(!(anallcd & 0x02)) SiS_Pr->SiS_VBType |= VB_AnalLCD;
       } else {
 	 SiS_Pr->SiS_VBType = VB_SIS301;
       }
@@ -1479,11 +1479,11 @@ SiS_GetVBType(struct SiS_Private *SiS_Pr)
 /*********************************************/
 
 static bool
-SiS_CheckMemorySize(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
+SiS_CheckMemorySize(struct SiS_Private *SiS_Pr, unsigned short ModeAnal,
 		unsigned short ModeIdIndex)
 {
    unsigned short AdapterMemSize = SiS_Pr->VideoMemorySize / (1024*1024);
-   unsigned short modeflag = SiS_GetModeFlag(SiS_Pr, ModeNo, ModeIdIndex);
+   unsigned short modeflag = SiS_GetModeFlag(SiS_Pr, ModeAnal, ModeIdIndex);
    unsigned short memorysize = ((modeflag & MemoryInfoFlag) >> MemorySizeShift) + 1;
 
    if(!AdapterMemSize) return true;
@@ -1564,7 +1564,7 @@ SiS_GetMCLK(struct SiS_Private *SiS_Pr)
 /*********************************************/
 
 static void
-SiS_ClearBuffer(struct SiS_Private *SiS_Pr, unsigned short ModeNo)
+SiS_ClearBuffer(struct SiS_Private *SiS_Pr, unsigned short ModeAnal)
 {
    unsigned char  SISIOMEMTYPE *memaddr = SiS_Pr->VideoMemoryAddress;
    unsigned int   memsize = SiS_Pr->VideoMemorySize;
@@ -1574,7 +1574,7 @@ SiS_ClearBuffer(struct SiS_Private *SiS_Pr, unsigned short ModeNo)
    if(!memaddr || !memsize) return;
 
    if(SiS_Pr->SiS_ModeType >= ModeEGA) {
-      if(ModeNo > 0x13) {
+      if(ModeAnal > 0x13) {
 	 memset_io(memaddr, 0, memsize);
       } else {
 	 pBuffer = (unsigned short SISIOMEMTYPE *)memaddr;
@@ -1593,25 +1593,25 @@ SiS_ClearBuffer(struct SiS_Private *SiS_Pr, unsigned short ModeNo)
 /*********************************************/
 
 bool
-SiS_SearchModeID(struct SiS_Private *SiS_Pr, unsigned short *ModeNo,
+SiS_SearchModeID(struct SiS_Private *SiS_Pr, unsigned short *ModeAnal,
 		unsigned short *ModeIdIndex)
 {
    unsigned char VGAINFO = SiS_Pr->SiS_VGAINFO;
 
-   if((*ModeNo) <= 0x13) {
+   if((*ModeAnal) <= 0x13) {
 
-      if((*ModeNo) <= 0x05) (*ModeNo) |= 0x01;
+      if((*ModeAnal) <= 0x05) (*ModeAnal) |= 0x01;
 
       for((*ModeIdIndex) = 0; ;(*ModeIdIndex)++) {
-	 if(SiS_Pr->SiS_SModeIDTable[(*ModeIdIndex)].St_ModeID == (*ModeNo)) break;
+	 if(SiS_Pr->SiS_SModeIDTable[(*ModeIdIndex)].St_ModeID == (*ModeAnal)) break;
 	 if(SiS_Pr->SiS_SModeIDTable[(*ModeIdIndex)].St_ModeID == 0xFF) return false;
       }
 
-      if((*ModeNo) == 0x07) {
+      if((*ModeAnal) == 0x07) {
 	  if(VGAINFO & 0x10) (*ModeIdIndex)++;   /* 400 lines */
 	  /* else 350 lines */
       }
-      if((*ModeNo) <= 0x03) {
+      if((*ModeAnal) <= 0x03) {
 	 if(!(VGAINFO & 0x80)) (*ModeIdIndex)++;
 	 if(VGAINFO & 0x10)    (*ModeIdIndex)++; /* 400 lines  */
 	 /* else 350 lines  */
@@ -1621,7 +1621,7 @@ SiS_SearchModeID(struct SiS_Private *SiS_Pr, unsigned short *ModeNo,
    } else {
 
       for((*ModeIdIndex) = 0; ;(*ModeIdIndex)++) {
-	 if(SiS_Pr->SiS_EModeIDTable[(*ModeIdIndex)].Ext_ModeID == (*ModeNo)) break;
+	 if(SiS_Pr->SiS_EModeIDTable[(*ModeIdIndex)].Ext_ModeID == (*ModeAnal)) break;
 	 if(SiS_Pr->SiS_EModeIDTable[(*ModeIdIndex)].Ext_ModeID == 0xFF) return false;
       }
 
@@ -1634,11 +1634,11 @@ SiS_SearchModeID(struct SiS_Private *SiS_Pr, unsigned short *ModeNo,
 /*********************************************/
 
 unsigned short
-SiS_GetModePtr(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short ModeIdIndex)
+SiS_GetModePtr(struct SiS_Private *SiS_Pr, unsigned short ModeAnal, unsigned short ModeIdIndex)
 {
    unsigned short index;
 
-   if(ModeNo <= 0x13) {
+   if(ModeAnal <= 0x13) {
       index = SiS_Pr->SiS_SModeIDTable[ModeIdIndex].St_StTableIndex;
    } else {
       if(SiS_Pr->SiS_ModeType <= ModeEGA) index = 0x1B;
@@ -1658,7 +1658,7 @@ SiS_GetRefCRTVCLK(struct SiS_Private *SiS_Pr, unsigned short Index, int UseWide)
       if(UseWide == 1) {
          return SiS_Pr->SiS_RefIndex[Index].Ext_CRTVCLK_WIDE;
       } else {
-         return SiS_Pr->SiS_RefIndex[Index].Ext_CRTVCLK_NORM;
+         return SiS_Pr->SiS_RefIndex[Index].Ext_CRTVCLK_ANALRM;
       }
    } else {
       return SiS_Pr->SiS_RefIndex[Index].Ext_CRTVCLK;
@@ -1672,7 +1672,7 @@ SiS_GetRefCRT1CRTC(struct SiS_Private *SiS_Pr, unsigned short Index, int UseWide
       if(UseWide == 1) {
          return SiS_Pr->SiS_RefIndex[Index].Ext_CRT1CRTC_WIDE;
       } else {
-         return SiS_Pr->SiS_RefIndex[Index].Ext_CRT1CRTC_NORM;
+         return SiS_Pr->SiS_RefIndex[Index].Ext_CRT1CRTC_ANALRM;
       }
    } else {
       return SiS_Pr->SiS_RefIndex[Index].Ext_CRT1CRTC;
@@ -1684,11 +1684,11 @@ SiS_GetRefCRT1CRTC(struct SiS_Private *SiS_Pr, unsigned short Index, int UseWide
 /*********************************************/
 
 static bool
-SiS_DoLowModeTest(struct SiS_Private *SiS_Pr, unsigned short ModeNo)
+SiS_DoLowModeTest(struct SiS_Private *SiS_Pr, unsigned short ModeAnal)
 {
    unsigned short temp, temp1, temp2;
 
-   if((ModeNo != 0x03) && (ModeNo != 0x10) && (ModeNo != 0x12))
+   if((ModeAnal != 0x03) && (ModeAnal != 0x10) && (ModeAnal != 0x12))
       return true;
    temp = SiS_GetReg(SiS_Pr->SiS_P3d4,0x11);
    SiS_SetRegOR(SiS_Pr->SiS_P3d4,0x11,0x80);
@@ -1711,9 +1711,9 @@ SiS_DoLowModeTest(struct SiS_Private *SiS_Pr, unsigned short ModeNo)
 }
 
 static void
-SiS_SetLowModeTest(struct SiS_Private *SiS_Pr, unsigned short ModeNo)
+SiS_SetLowModeTest(struct SiS_Private *SiS_Pr, unsigned short ModeAnal)
 {
-   if(SiS_DoLowModeTest(SiS_Pr, ModeNo)) {
+   if(SiS_DoLowModeTest(SiS_Pr, ModeAnal)) {
       SiS_Pr->SiS_SetFlag |= LowModeTests;
    }
 }
@@ -1775,17 +1775,17 @@ SiS_HandleCRT1(struct SiS_Private *SiS_Pr)
 /*********************************************/
 
 unsigned short
-SiS_GetColorDepth(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
+SiS_GetColorDepth(struct SiS_Private *SiS_Pr, unsigned short ModeAnal,
 		unsigned short ModeIdIndex)
 {
    static const unsigned short ColorDepth[6] = { 1, 2, 4, 4, 6, 8 };
    unsigned short modeflag;
    short index;
 
-   /* Do NOT check UseCustomMode, will skrew up FIFO */
-   if(ModeNo == 0xfe) {
+   /* Do ANALT check UseCustomMode, will skrew up FIFO */
+   if(ModeAnal == 0xfe) {
       modeflag = SiS_Pr->CModeFlag;
-   } else if(ModeNo <= 0x13) {
+   } else if(ModeAnal <= 0x13) {
       modeflag = SiS_Pr->SiS_SModeIDTable[ModeIdIndex].St_ModeFlag;
    } else {
       modeflag = SiS_Pr->SiS_EModeIDTable[ModeIdIndex].Ext_ModeFlag;
@@ -1801,7 +1801,7 @@ SiS_GetColorDepth(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
 /*********************************************/
 
 unsigned short
-SiS_GetOffset(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
+SiS_GetOffset(struct SiS_Private *SiS_Pr, unsigned short ModeAnal,
 		unsigned short ModeIdIndex, unsigned short RRTI)
 {
    unsigned short xres, temp, colordepth, infoflag;
@@ -1814,7 +1814,7 @@ SiS_GetOffset(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
       xres = SiS_Pr->SiS_RefIndex[RRTI].XRes;
    }
 
-   colordepth = SiS_GetColorDepth(SiS_Pr, ModeNo, ModeIdIndex);
+   colordepth = SiS_GetColorDepth(SiS_Pr, ModeAnal, ModeIdIndex);
 
    temp = xres / 16;
    if(infoflag & InterlaceMode) temp <<= 1;
@@ -1999,7 +1999,7 @@ SiS_SetGRCRegs(struct SiS_Private *SiS_Pr, unsigned short StandTableIndex)
 /*********************************************/
 
 static void
-SiS_ClearExt1Regs(struct SiS_Private *SiS_Pr, unsigned short ModeNo)
+SiS_ClearExt1Regs(struct SiS_Private *SiS_Pr, unsigned short ModeAnal)
 {
    unsigned short i;
 
@@ -2009,8 +2009,8 @@ SiS_ClearExt1Regs(struct SiS_Private *SiS_Pr, unsigned short ModeNo)
 
    if(SiS_Pr->ChipType >= SIS_315H) {
       SiS_SetRegAND(SiS_Pr->SiS_P3c4,0x37,0xFE);
-      if(ModeNo <= 0x13) {
-	 if(ModeNo == 0x06 || ModeNo >= 0x0e) {
+      if(ModeAnal <= 0x13) {
+	 if(ModeAnal == 0x06 || ModeAnal >= 0x0e) {
 	    SiS_SetReg(SiS_Pr->SiS_P3c4,0x0e,0x20);
 	 }
       }
@@ -2070,13 +2070,13 @@ SiS_SetCRT1Sync(struct SiS_Private *SiS_Pr, unsigned short RRTI)
 /*********************************************/
 
 static void
-SiS_SetCRT1CRTC(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
+SiS_SetCRT1CRTC(struct SiS_Private *SiS_Pr, unsigned short ModeAnal,
 		unsigned short ModeIdIndex, unsigned short RRTI)
 {
    unsigned short temp, i, j, modeflag;
    unsigned char  *crt1data = NULL;
 
-   modeflag = SiS_GetModeFlag(SiS_Pr, ModeNo, ModeIdIndex);
+   modeflag = SiS_GetModeFlag(SiS_Pr, ModeAnal, ModeIdIndex);
 
    if(SiS_Pr->UseCustomMode) {
 
@@ -2140,7 +2140,7 @@ SiS_SetCRT1CRTC(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
 /*********************************************/
 
 static void
-SiS_SetCRT1Offset(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
+SiS_SetCRT1Offset(struct SiS_Private *SiS_Pr, unsigned short ModeAnal,
 		unsigned short ModeIdIndex, unsigned short RRTI)
 {
    unsigned short temp, DisplayUnit, infoflag;
@@ -2151,7 +2151,7 @@ SiS_SetCRT1Offset(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
       infoflag = SiS_Pr->SiS_RefIndex[RRTI].Ext_InfoFlag;
    }
 
-   DisplayUnit = SiS_GetOffset(SiS_Pr, ModeNo, ModeIdIndex, RRTI);
+   DisplayUnit = SiS_GetOffset(SiS_Pr, ModeAnal, ModeIdIndex, RRTI);
 
    temp = (DisplayUnit >> 8) & 0x0f;
    SiS_SetRegANDOR(SiS_Pr->SiS_P3c4,0x0E,0xF0,temp);
@@ -2164,7 +2164,7 @@ SiS_SetCRT1Offset(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
    temp = (DisplayUnit >> 8) + 1;
    if(DisplayUnit & 0xff) temp++;
    if(SiS_Pr->ChipType == XGI_20) {
-      if(ModeNo == 0x4a || ModeNo == 0x49) temp--;
+      if(ModeAnal == 0x4a || ModeAnal == 0x49) temp--;
    }
    SiS_SetReg(SiS_Pr->SiS_P3c4,0x10,temp);
 }
@@ -2174,7 +2174,7 @@ SiS_SetCRT1Offset(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
 /*********************************************/
 
 static void
-SiS_SetCRT1VCLK(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
+SiS_SetCRT1VCLK(struct SiS_Private *SiS_Pr, unsigned short ModeAnal,
 		unsigned short ModeIdIndex, unsigned short RRTI)
 {
    unsigned short index = 0, clka, clkb;
@@ -2183,7 +2183,7 @@ SiS_SetCRT1VCLK(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
       clka = SiS_Pr->CSR2B;
       clkb = SiS_Pr->CSR2C;
    } else {
-      index = SiS_GetVCLK2Ptr(SiS_Pr, ModeNo, ModeIdIndex, RRTI);
+      index = SiS_GetVCLK2Ptr(SiS_Pr, ModeAnal, ModeIdIndex, RRTI);
       if((SiS_Pr->SiS_VBType & VB_SIS30xBLV) &&
 	 (SiS_Pr->SiS_VBInfo & SetCRT2ToLCDA)) {
 	 /* Alternate for 1600x1200 LCDA */
@@ -2205,7 +2205,7 @@ SiS_SetCRT1VCLK(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
 #ifdef CONFIG_FB_SIS_315
       SiS_SetReg(SiS_Pr->SiS_P3c4,0x2D,0x01);
       if(SiS_Pr->ChipType == XGI_20) {
-         unsigned short mf = SiS_GetModeFlag(SiS_Pr, ModeNo, ModeIdIndex);
+         unsigned short mf = SiS_GetModeFlag(SiS_Pr, ModeAnal, ModeIdIndex);
 	 if(mf & HalfDCLK) {
 	    SiS_SetReg(SiS_Pr->SiS_P3c4,0x2b,SiS_GetReg(SiS_Pr->SiS_P3c4,0x2b));
 	    clkb = SiS_GetReg(SiS_Pr->SiS_P3c4,0x2c);
@@ -2299,14 +2299,14 @@ SiS_CalcDelay(struct SiS_Private *SiS_Pr, unsigned short VCLK,
 }
 
 static void
-SiS_SetCRT1FIFO_300(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
+SiS_SetCRT1FIFO_300(struct SiS_Private *SiS_Pr, unsigned short ModeAnal,
 		unsigned short RefreshRateTableIndex)
 {
    unsigned short ThresholdLow = 0;
    unsigned short temp, index, VCLK, MCLK, colorth;
    static const unsigned short colortharray[6] = { 1, 1, 2, 2, 3, 4 };
 
-   if(ModeNo > 0x13) {
+   if(ModeAnal > 0x13) {
 
       /* Get VCLK  */
       if(SiS_Pr->UseCustomMode) {
@@ -2343,7 +2343,7 @@ SiS_SetCRT1FIFO_300(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
    SiS_SetReg(SiS_Pr->SiS_P3c4,0x08,temp);
 
    temp = (ThresholdLow & 0x10) << 1;
-   if(ModeNo > 0x13) temp |= 0x40;
+   if(ModeAnal > 0x13) temp |= 0x40;
    SiS_SetRegANDOR(SiS_Pr->SiS_P3c4,0x0f,0x9f,temp);
 
    /* What is this? */
@@ -2400,7 +2400,7 @@ SiS_CalcDelay2(struct SiS_Private *SiS_Pr, unsigned char key)
 }
 
 static void
-SiS_SetCRT1FIFO_630(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
+SiS_SetCRT1FIFO_630(struct SiS_Private *SiS_Pr, unsigned short ModeAnal,
                     unsigned short RefreshRateTableIndex)
 {
    unsigned short  ThresholdLow = 0;
@@ -2433,7 +2433,7 @@ SiS_SetCRT1FIFO_630(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
 	else
 		queuedata = &FQBQData[0];
 
-   if(ModeNo > 0x13) {
+   if(ModeAnal > 0x13) {
 
       /* Get VCLK  */
       if(SiS_Pr->UseCustomMode) {
@@ -2502,7 +2502,7 @@ SiS_SetCRT1FIFO_630(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
    } else {
 
       templ &= 0xf0ffffff;
-      if( (ModeNo <= 0x13) &&
+      if( (ModeAnal <= 0x13) &&
           (SiS_Pr->ChipType == SIS_630) &&
 	  (SiS_Pr->ChipRevision >= 0x30) ) {
 	 templ |= 0x0b000000;
@@ -2535,18 +2535,18 @@ SiS_SetCRT1FIFO_630(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
 
 #ifdef CONFIG_FB_SIS_315
 static void
-SiS_SetCRT1FIFO_310(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short ModeIdIndex)
+SiS_SetCRT1FIFO_310(struct SiS_Private *SiS_Pr, unsigned short ModeAnal, unsigned short ModeIdIndex)
 {
    unsigned short modeflag;
 
    /* disable auto-threshold */
    SiS_SetRegAND(SiS_Pr->SiS_P3c4,0x3D,0xFE);
 
-   modeflag = SiS_GetModeFlag(SiS_Pr, ModeNo, ModeIdIndex);
+   modeflag = SiS_GetModeFlag(SiS_Pr, ModeAnal, ModeIdIndex);
 
    SiS_SetReg(SiS_Pr->SiS_P3c4,0x08,0xAE);
    SiS_SetRegAND(SiS_Pr->SiS_P3c4,0x09,0xF0);
-   if(ModeNo > 0x13) {
+   if(ModeAnal > 0x13) {
       if(SiS_Pr->ChipType >= XGI_20) {
 	 SiS_SetReg(SiS_Pr->SiS_P3c4,0x08,0x34);
 	 SiS_SetRegOR(SiS_Pr->SiS_P3c4,0x3D,0x01);
@@ -2570,16 +2570,16 @@ SiS_SetCRT1FIFO_310(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned 
 /*********************************************/
 
 static void
-SiS_SetVCLKState(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
+SiS_SetVCLKState(struct SiS_Private *SiS_Pr, unsigned short ModeAnal,
 		unsigned short RefreshRateTableIndex, unsigned short ModeIdIndex)
 {
    unsigned short data = 0, VCLK = 0, index = 0;
 
-   if(ModeNo > 0x13) {
+   if(ModeAnal > 0x13) {
       if(SiS_Pr->UseCustomMode) {
          VCLK = SiS_Pr->CSRClock;
       } else {
-         index = SiS_GetVCLK2Ptr(SiS_Pr, ModeNo, ModeIdIndex, RefreshRateTableIndex);
+         index = SiS_GetVCLK2Ptr(SiS_Pr, ModeAnal, ModeIdIndex, RefreshRateTableIndex);
          VCLK = SiS_Pr->SiS_VCLKData[index].CLOCK;
       }
    }
@@ -2628,7 +2628,7 @@ SiS_SetVCLKState(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
       else if(VCLK >= 135) data = 0x02;
 
       if(SiS_Pr->ChipType == SIS_540) {
-         /* Was == 203 or < 234 which made no sense */
+         /* Was == 203 or < 234 which made anal sense */
          if (VCLK < 234) data = 0x02;
       }
 
@@ -2636,7 +2636,7 @@ SiS_SetVCLKState(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
          SiS_SetRegANDOR(SiS_Pr->SiS_P3c4,0x07,0xFC,data);
       } else {
          if(SiS_Pr->ChipType > SIS_315PRO) {
-            if(ModeNo > 0x13) data &= 0xfc;
+            if(ModeAnal > 0x13) data &= 0xfc;
          }
          SiS_SetRegANDOR(SiS_Pr->SiS_P3c4,0x07,0xF8,data);
       }
@@ -2645,7 +2645,7 @@ SiS_SetVCLKState(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
 }
 
 static void
-SiS_SetCRT1ModeRegs(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
+SiS_SetCRT1ModeRegs(struct SiS_Private *SiS_Pr, unsigned short ModeAnal,
 		unsigned short ModeIdIndex, unsigned short RRTI)
 {
    unsigned short data, infoflag = 0, modeflag;
@@ -2654,12 +2654,12 @@ SiS_SetCRT1ModeRegs(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
    unsigned short data2, data3;
 #endif
 
-   modeflag = SiS_GetModeFlag(SiS_Pr, ModeNo, ModeIdIndex);
+   modeflag = SiS_GetModeFlag(SiS_Pr, ModeAnal, ModeIdIndex);
 
    if(SiS_Pr->UseCustomMode) {
       infoflag = SiS_Pr->CInfoFlag;
    } else {
-      if(ModeNo > 0x13) {
+      if(ModeAnal > 0x13) {
 	 infoflag = SiS_Pr->SiS_RefIndex[RRTI].Ext_InfoFlag;
       }
    }
@@ -2668,7 +2668,7 @@ SiS_SetCRT1ModeRegs(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
    SiS_SetRegAND(SiS_Pr->SiS_P3c4,0x1F,0x3F);
 
    data = 0;
-   if(ModeNo > 0x13) {
+   if(ModeAnal > 0x13) {
       if(SiS_Pr->SiS_ModeType > ModeEGA) {
          data |= 0x02;
          data |= ((SiS_Pr->SiS_ModeType - ModeVGA) << 2);
@@ -2702,7 +2702,7 @@ SiS_SetCRT1ModeRegs(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
    } else {
       if(SiS_Pr->ChipType >= XGI_20) data |= 0x20;
       if(SiS_Pr->SiS_ModeType == ModeEGA) {
-	 if(ModeNo > 0x13) {
+	 if(ModeAnal > 0x13) {
 	    data |= 0x40;
 	 }
       }
@@ -2720,9 +2720,9 @@ SiS_SetCRT1ModeRegs(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
       if(SiS_Pr->SiS_ModeType == ModeText) {
 	 data &= 0xc7;
       } else {
-	 data2 = SiS_GetOffset(SiS_Pr, ModeNo, ModeIdIndex, RRTI) >> 1;
+	 data2 = SiS_GetOffset(SiS_Pr, ModeAnal, ModeIdIndex, RRTI) >> 1;
 	 if(infoflag & InterlaceMode) data2 >>= 1;
-	 data3 = SiS_GetColorDepth(SiS_Pr, ModeNo, ModeIdIndex) >> 1;
+	 data3 = SiS_GetColorDepth(SiS_Pr, ModeAnal, ModeIdIndex) >> 1;
 	 if(data3) data2 /= data3;
 	 if(data2 >= 0x50) {
 	    data &= 0x0f;
@@ -2747,11 +2747,11 @@ SiS_SetCRT1ModeRegs(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
 	 if(SiS_Pr->UseCustomMode) {
 	    data2 = SiS_Pr->CSRClock;
 	 } else {
-	    data2 = SiS_GetVCLK2Ptr(SiS_Pr, ModeNo, ModeIdIndex, RRTI);
+	    data2 = SiS_GetVCLK2Ptr(SiS_Pr, ModeAnal, ModeIdIndex, RRTI);
 	    data2 = SiS_Pr->SiS_VCLKData[data2].CLOCK;
 	 }
 
-	 data3 = SiS_GetColorDepth(SiS_Pr, ModeNo, ModeIdIndex) >> 1;
+	 data3 = SiS_GetColorDepth(SiS_Pr, ModeAnal, ModeIdIndex) >> 1;
 	 if(data3) data2 *= data3;
 
 	 data2 = ((unsigned int)(SiS_GetMCLK(SiS_Pr) * 1024)) / data2;
@@ -2784,7 +2784,7 @@ SiS_SetCRT1ModeRegs(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
       SiS_SetReg(SiS_Pr->SiS_P3c4,0x17,data);
 
    }
-      /* XGI: Nothing. */
+      /* XGI: Analthing. */
       /* TODO: Check SiS340 */
 #endif
 
@@ -2797,7 +2797,7 @@ SiS_SetCRT1ModeRegs(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
    }
    SiS_SetRegANDOR(SiS_Pr->SiS_P3c4,0x21,0x1F,data);
 
-   SiS_SetVCLKState(SiS_Pr, ModeNo, RRTI, ModeIdIndex);
+   SiS_SetVCLKState(SiS_Pr, ModeAnal, RRTI, ModeIdIndex);
 
 #ifdef CONFIG_FB_SIS_315
    if(((SiS_Pr->ChipType >= SIS_315H) && (SiS_Pr->ChipType < SIS_661)) ||
@@ -2869,14 +2869,14 @@ SiS_WriteDAC(struct SiS_Private *SiS_Pr, SISIOADDRESS DACData, unsigned short sh
 }
 
 void
-SiS_LoadDAC(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short ModeIdIndex)
+SiS_LoadDAC(struct SiS_Private *SiS_Pr, unsigned short ModeAnal, unsigned short ModeIdIndex)
 {
    unsigned short data, data2, time, i, j, k, m, n, o;
    unsigned short si, di, bx, sf;
    SISIOADDRESS DACAddr, DACData;
    const unsigned char *table = NULL;
 
-   data = SiS_GetModeFlag(SiS_Pr, ModeNo, ModeIdIndex) & DACInfoFlag;
+   data = SiS_GetModeFlag(SiS_Pr, ModeAnal, ModeIdIndex) & DACInfoFlag;
 
    j = time = 64;
    if(data == 0x00)      table = SiS_MDA_DAC;
@@ -2889,7 +2889,7 @@ SiS_LoadDAC(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short Mo
    }
 
    if( ( (SiS_Pr->SiS_VBInfo & SetCRT2ToLCD) &&        /* 301B-DH LCD */
-         (SiS_Pr->SiS_VBType & VB_NoLCD) )        ||
+         (SiS_Pr->SiS_VBType & VB_AnalLCD) )        ||
        (SiS_Pr->SiS_VBInfo & SetCRT2ToLCDA)       ||   /* LCDA */
        (!(SiS_Pr->SiS_SetFlag & ProgrammingCRT2)) ) {  /* Programming CRT1 */
       SiS_SetRegByte(SiS_Pr->SiS_P3c6,0xFF);
@@ -2945,13 +2945,13 @@ SiS_LoadDAC(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short Mo
 /*********************************************/
 
 static void
-SiS_SetCRT1Group(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short ModeIdIndex)
+SiS_SetCRT1Group(struct SiS_Private *SiS_Pr, unsigned short ModeAnal, unsigned short ModeIdIndex)
 {
    unsigned short StandTableIndex, RefreshRateTableIndex;
 
-   SiS_Pr->SiS_CRT1Mode = ModeNo;
+   SiS_Pr->SiS_CRT1Mode = ModeAnal;
 
-   StandTableIndex = SiS_GetModePtr(SiS_Pr, ModeNo, ModeIdIndex);
+   StandTableIndex = SiS_GetModePtr(SiS_Pr, ModeAnal, ModeIdIndex);
 
    if(SiS_Pr->SiS_SetFlag & LowModeTests) {
       if(SiS_Pr->SiS_VBInfo & (SetSimuScanMode | SwitchCRT2)) {
@@ -2966,7 +2966,7 @@ SiS_SetCRT1Group(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned sho
    SiS_SetCRTCRegs(SiS_Pr, StandTableIndex);
    SiS_SetATTRegs(SiS_Pr, StandTableIndex);
    SiS_SetGRCRegs(SiS_Pr, StandTableIndex);
-   SiS_ClearExt1Regs(SiS_Pr, ModeNo);
+   SiS_ClearExt1Regs(SiS_Pr, ModeAnal);
    SiS_ResetCRT1VCLK(SiS_Pr);
 
    SiS_Pr->SiS_SelectCRT2Rate = 0;
@@ -2982,7 +2982,7 @@ SiS_SetCRT1Group(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned sho
       SiS_Pr->SiS_SetFlag |= ProgrammingCRT2;
    }
 
-   RefreshRateTableIndex = SiS_GetRatePtr(SiS_Pr, ModeNo, ModeIdIndex);
+   RefreshRateTableIndex = SiS_GetRatePtr(SiS_Pr, ModeAnal, ModeIdIndex);
 
    if(!(SiS_Pr->SiS_VBInfo & SetCRT2ToLCDA)) {
       SiS_Pr->SiS_SetFlag &= ~ProgrammingCRT2;
@@ -2990,27 +2990,27 @@ SiS_SetCRT1Group(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned sho
 
    if(RefreshRateTableIndex != 0xFFFF) {
       SiS_SetCRT1Sync(SiS_Pr, RefreshRateTableIndex);
-      SiS_SetCRT1CRTC(SiS_Pr, ModeNo, ModeIdIndex, RefreshRateTableIndex);
-      SiS_SetCRT1Offset(SiS_Pr, ModeNo, ModeIdIndex, RefreshRateTableIndex);
-      SiS_SetCRT1VCLK(SiS_Pr, ModeNo, ModeIdIndex, RefreshRateTableIndex);
+      SiS_SetCRT1CRTC(SiS_Pr, ModeAnal, ModeIdIndex, RefreshRateTableIndex);
+      SiS_SetCRT1Offset(SiS_Pr, ModeAnal, ModeIdIndex, RefreshRateTableIndex);
+      SiS_SetCRT1VCLK(SiS_Pr, ModeAnal, ModeIdIndex, RefreshRateTableIndex);
    }
 
    switch(SiS_Pr->ChipType) {
 #ifdef CONFIG_FB_SIS_300
    case SIS_300:
-      SiS_SetCRT1FIFO_300(SiS_Pr, ModeNo, RefreshRateTableIndex);
+      SiS_SetCRT1FIFO_300(SiS_Pr, ModeAnal, RefreshRateTableIndex);
       break;
    case SIS_540:
    case SIS_630:
    case SIS_730:
-      SiS_SetCRT1FIFO_630(SiS_Pr, ModeNo, RefreshRateTableIndex);
+      SiS_SetCRT1FIFO_630(SiS_Pr, ModeAnal, RefreshRateTableIndex);
       break;
 #endif
    default:
 #ifdef CONFIG_FB_SIS_315
       if(SiS_Pr->ChipType == XGI_20) {
          unsigned char sr2b = 0, sr2c = 0;
-         switch(ModeNo) {
+         switch(ModeAnal) {
 	 case 0x00:
 	 case 0x01: sr2b = 0x4e; sr2c = 0xe9; break;
 	 case 0x04:
@@ -3023,12 +3023,12 @@ SiS_SetCRT1Group(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned sho
 	    SiS_SetRegByte(SiS_Pr->SiS_P3c2,(SiS_GetRegByte(SiS_Pr->SiS_P3cc) | 0x0c));
 	 }
       }
-      SiS_SetCRT1FIFO_310(SiS_Pr, ModeNo, ModeIdIndex);
+      SiS_SetCRT1FIFO_310(SiS_Pr, ModeAnal, ModeIdIndex);
 #endif
       break;
    }
 
-   SiS_SetCRT1ModeRegs(SiS_Pr, ModeNo, ModeIdIndex, RefreshRateTableIndex);
+   SiS_SetCRT1ModeRegs(SiS_Pr, ModeAnal, ModeIdIndex, RefreshRateTableIndex);
 
 #ifdef CONFIG_FB_SIS_315
    if(SiS_Pr->ChipType == XGI_40) {
@@ -3036,10 +3036,10 @@ SiS_SetCRT1Group(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned sho
    }
 #endif
 
-   SiS_LoadDAC(SiS_Pr, ModeNo, ModeIdIndex);
+   SiS_LoadDAC(SiS_Pr, ModeAnal, ModeIdIndex);
 
    if(SiS_Pr->SiS_flag_clearbuffer) {
-      SiS_ClearBuffer(SiS_Pr, ModeNo);
+      SiS_ClearBuffer(SiS_Pr, ModeAnal);
    }
 
    if(!(SiS_Pr->SiS_VBInfo & (SetSimuScanMode | SwitchCRT2 | SetCRT2ToLCDA))) {
@@ -3111,11 +3111,11 @@ SiS_StrangeStuff(struct SiS_Private *SiS_Pr)
       SiS_Pr->ChipType == XGI_40) {
       SiS_SetReg(SiS_Pr->SiS_VidCapt, 0x3f, 0x00);   /* Fiddle with capture regs */
       SiS_SetReg(SiS_Pr->SiS_VidCapt, 0x00, 0x00);
-      SiS_SetReg(SiS_Pr->SiS_VidPlay, 0x00, 0x86);   /* (BIOS does NOT unlock) */
+      SiS_SetReg(SiS_Pr->SiS_VidPlay, 0x00, 0x86);   /* (BIOS does ANALT unlock) */
       SiS_SetRegAND(SiS_Pr->SiS_VidPlay, 0x30, 0xfe); /* Fiddle with video regs */
       SiS_SetRegAND(SiS_Pr->SiS_VidPlay, 0x3f, 0xef);
    }
-   /* !!! This does not support modes < 0x13 !!! */
+   /* !!! This does analt support modes < 0x13 !!! */
 #endif
 }
 
@@ -3164,10 +3164,10 @@ SiS_Handle760(struct SiS_Private *SiS_Pr)
 /*********************************************/
 
 bool
-SiSSetMode(struct SiS_Private *SiS_Pr, unsigned short ModeNo)
+SiSSetMode(struct SiS_Private *SiS_Pr, unsigned short ModeAnal)
 {
    SISIOADDRESS BaseAddr = SiS_Pr->IOAddress;
-   unsigned short RealModeNo, ModeIdIndex;
+   unsigned short RealModeAnal, ModeIdIndex;
    unsigned char  backupreg = 0;
    unsigned short KeepLockReg;
 
@@ -3177,15 +3177,15 @@ SiSSetMode(struct SiS_Private *SiS_Pr, unsigned short ModeNo)
    SiS_Pr->SiS_flag_clearbuffer = 0;
 
    if(SiS_Pr->UseCustomMode) {
-      ModeNo = 0xfe;
+      ModeAnal = 0xfe;
    } else {
-      if(!(ModeNo & 0x80)) SiS_Pr->SiS_flag_clearbuffer = 1;
-      ModeNo &= 0x7f;
+      if(!(ModeAnal & 0x80)) SiS_Pr->SiS_flag_clearbuffer = 1;
+      ModeAnal &= 0x7f;
    }
 
    /* Don't use FSTN mode for CRT1 */
-   RealModeNo = ModeNo;
-   if(ModeNo == 0x5b) ModeNo = 0x56;
+   RealModeAnal = ModeAnal;
+   if(ModeAnal == 0x5b) ModeAnal = 0x56;
 
    SiSInitPtr(SiS_Pr);
    SiSRegInit(SiS_Pr, BaseAddr);
@@ -3203,7 +3203,7 @@ SiSSetMode(struct SiS_Private *SiS_Pr, unsigned short ModeNo)
    SiS_UnLockCRT2(SiS_Pr);
 
    if(!SiS_Pr->UseCustomMode) {
-      if(!(SiS_SearchModeID(SiS_Pr, &ModeNo, &ModeIdIndex))) return false;
+      if(!(SiS_SearchModeID(SiS_Pr, &ModeAnal, &ModeIdIndex))) return false;
    } else {
       ModeIdIndex = 0;
    }
@@ -3224,14 +3224,14 @@ SiSSetMode(struct SiS_Private *SiS_Pr, unsigned short ModeNo)
    }
 
    /* Get VB information (connectors, connected devices) */
-   SiS_GetVBInfo(SiS_Pr, ModeNo, ModeIdIndex, (SiS_Pr->UseCustomMode) ? 0 : 1);
+   SiS_GetVBInfo(SiS_Pr, ModeAnal, ModeIdIndex, (SiS_Pr->UseCustomMode) ? 0 : 1);
    SiS_SetYPbPr(SiS_Pr);
-   SiS_SetTVMode(SiS_Pr, ModeNo, ModeIdIndex);
-   SiS_GetLCDResInfo(SiS_Pr, ModeNo, ModeIdIndex);
-   SiS_SetLowModeTest(SiS_Pr, ModeNo);
+   SiS_SetTVMode(SiS_Pr, ModeAnal, ModeIdIndex);
+   SiS_GetLCDResInfo(SiS_Pr, ModeAnal, ModeIdIndex);
+   SiS_SetLowModeTest(SiS_Pr, ModeAnal);
 
    /* Check memory size (kernel framebuffer driver only) */
-   if(!SiS_CheckMemorySize(SiS_Pr, ModeNo, ModeIdIndex)) {
+   if(!SiS_CheckMemorySize(SiS_Pr, ModeAnal, ModeIdIndex)) {
       return false;
    }
 
@@ -3248,7 +3248,7 @@ SiSSetMode(struct SiS_Private *SiS_Pr, unsigned short ModeNo)
    /* Set mode on CRT1 */
    if( (SiS_Pr->SiS_VBInfo & (SetSimuScanMode | SetCRT2ToLCDA)) ||
        (!(SiS_Pr->SiS_VBInfo & SwitchCRT2)) ) {
-      SiS_SetCRT1Group(SiS_Pr, ModeNo, ModeIdIndex);
+      SiS_SetCRT1Group(SiS_Pr, ModeAnal, ModeIdIndex);
    }
 
    /* Set mode on CRT2 */
@@ -3257,7 +3257,7 @@ SiSSetMode(struct SiS_Private *SiS_Pr, unsigned short ModeNo)
 	  (SiS_Pr->SiS_IF_DEF_LVDS     == 1) ||
 	  (SiS_Pr->SiS_IF_DEF_CH70xx   != 0) ||
 	  (SiS_Pr->SiS_IF_DEF_TRUMPION != 0) ) {
-	 SiS_SetCRT2Group(SiS_Pr, RealModeNo);
+	 SiS_SetCRT2Group(SiS_Pr, RealModeAnal);
       }
    }
 
@@ -3292,7 +3292,7 @@ SiSSetMode(struct SiS_Private *SiS_Pr, unsigned short ModeNo)
 	 SiS_SetReg(SiS_Pr->SiS_P3d4,0x38,backupreg);
 
 	 if((IS_SIS650) && (SiS_GetReg(SiS_Pr->SiS_P3d4,0x30) & 0xfc)) {
-	    if((ModeNo == 0x03) || (ModeNo == 0x10)) {
+	    if((ModeAnal == 0x03) || (ModeAnal == 0x10)) {
 	       SiS_SetRegOR(SiS_Pr->SiS_P3d4,0x51,0x80);
 	       SiS_SetRegOR(SiS_Pr->SiS_P3d4,0x56,0x08);
 	    }
@@ -3381,7 +3381,7 @@ SiS_CalcCRRegisters(struct SiS_Private *SiS_Pr, int depth)
 }
 
 void
-SiS_CalcLCDACRT1Timing(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
+SiS_CalcLCDACRT1Timing(struct SiS_Private *SiS_Pr, unsigned short ModeAnal,
 		unsigned short ModeIdIndex)
 {
    unsigned short modeflag, tempax, tempbx = 0, remaining = 0;
@@ -3391,7 +3391,7 @@ SiS_CalcLCDACRT1Timing(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
    /* 1:1 data: use data set by setcrt1crtc() */
    if(SiS_Pr->SiS_LCDInfo & LCDPass11) return;
 
-   modeflag = SiS_GetModeFlag(SiS_Pr, ModeNo, ModeIdIndex);
+   modeflag = SiS_GetModeFlag(SiS_Pr, ModeAnal, ModeIdIndex);
 
    if(modeflag & HalfDCLK) VGAHDE >>= 1;
 
@@ -3414,7 +3414,7 @@ SiS_CalcLCDACRT1Timing(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
 #ifdef CONFIG_FB_SIS_315
       /* OK for LCDA, LVDS */
       tempbx = SiS_Pr->PanelHT - SiS_Pr->PanelXRes;
-      tempax = SiS_Pr->SiS_VGAHDE;  /* not /2 ! */
+      tempax = SiS_Pr->SiS_VGAHDE;  /* analt /2 ! */
       if(SiS_Pr->SiS_LCDInfo & DontExpandLCD) {
          tempax = SiS_Pr->PanelXRes;
       }
@@ -3615,7 +3615,7 @@ SiS_Generic_ConvertCRData(struct SiS_Private *SiS_Pr, unsigned char *crdata,
 	/* Terrible hack, but correct CRTC data for
 	 * these modes only produces a black screen...
 	 * (HRE is 0, leading into a too large C and
-	 * a negative D. The CRT controller does not
+	 * a negative D. The CRT controller does analt
 	 * seem to like correcting HRE to 50)
 	 */
       var->left_margin = (400 - 376);

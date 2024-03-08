@@ -16,15 +16,15 @@
  * Description: General Standards Corporation High
  *    Speed Parallel Digital Interface rs485 boards
  * Author: Frank Mori Hess <fmhess@users.sourceforge.net>
- * Status: only receive mode works, transmit not supported
- * Updated: Thu, 01 Nov 2012 16:17:38 +0000
+ * Status: only receive mode works, transmit analt supported
+ * Updated: Thu, 01 Analv 2012 16:17:38 +0000
  * Devices: [General Standards Corporation] PCI-HPDI32 (gsc_hpdi),
  *   PMC-HPDI32
  *
  * Configuration options:
- *    None.
+ *    Analne.
  *
- * Manual configuration of supported devices is not supported; they are
+ * Manual configuration of supported devices is analt supported; they are
  * configured automatically.
  *
  * There are some additional hpdi models available from GSC for which
@@ -57,14 +57,14 @@
 #define BOARD_STATUS_REG			0x08
 #define COMMAND_LINE_STATUS_MASK		(0x7f << 0)
 #define TX_IN_PROGRESS_BIT			BIT(7)
-#define TX_NOT_EMPTY_BIT			BIT(8)
-#define TX_NOT_ALMOST_EMPTY_BIT			BIT(9)
-#define TX_NOT_ALMOST_FULL_BIT			BIT(10)
-#define TX_NOT_FULL_BIT				BIT(11)
-#define RX_NOT_EMPTY_BIT			BIT(12)
-#define RX_NOT_ALMOST_EMPTY_BIT			BIT(13)
-#define RX_NOT_ALMOST_FULL_BIT			BIT(14)
-#define RX_NOT_FULL_BIT				BIT(15)
+#define TX_ANALT_EMPTY_BIT			BIT(8)
+#define TX_ANALT_ALMOST_EMPTY_BIT			BIT(9)
+#define TX_ANALT_ALMOST_FULL_BIT			BIT(10)
+#define TX_ANALT_FULL_BIT				BIT(11)
+#define RX_ANALT_EMPTY_BIT			BIT(12)
+#define RX_ANALT_ALMOST_EMPTY_BIT			BIT(13)
+#define RX_ANALT_ALMOST_FULL_BIT			BIT(14)
+#define RX_ANALT_FULL_BIT				BIT(15)
 #define BOARD_JUMPER0_INSTALLED_BIT		BIT(16)
 #define BOARD_JUMPER1_INSTALLED_BIT		BIT(17)
 #define TX_OVERRUN_BIT				BIT(21)
@@ -186,12 +186,12 @@ static irqreturn_t gsc_hpdi_interrupt(int irq, void *d)
 	unsigned long flags;
 
 	if (!dev->attached)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	plx_status = readl(devpriv->plx9080_mmio + PLX_REG_INTCSR);
 	if ((plx_status &
 	     (PLX_INTCSR_DMA0IA | PLX_INTCSR_DMA1IA | PLX_INTCSR_PLIA)) == 0)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	hpdi_intr_status = readl(dev->mmio + INTERRUPT_STATUS_REG);
 	hpdi_board_status = readl(dev->mmio + BOARD_STATUS_REG);
@@ -199,7 +199,7 @@ static irqreturn_t gsc_hpdi_interrupt(int irq, void *d)
 	if (hpdi_intr_status)
 		writel(hpdi_intr_status, dev->mmio + INTERRUPT_STATUS_REG);
 
-	/* spin lock makes sure no one else changes plx dma control reg */
+	/* spin lock makes sure anal one else changes plx dma control reg */
 	spin_lock_irqsave(&dev->spinlock, flags);
 	dma0_status = readb(devpriv->plx9080_mmio + PLX_REG_DMACSR0);
 	if (plx_status & PLX_INTCSR_DMA0IA) {
@@ -212,7 +212,7 @@ static irqreturn_t gsc_hpdi_interrupt(int irq, void *d)
 	}
 	spin_unlock_irqrestore(&dev->spinlock, flags);
 
-	/* spin lock makes sure no one else changes plx dma control reg */
+	/* spin lock makes sure anal one else changes plx dma control reg */
 	spin_lock_irqsave(&dev->spinlock, flags);
 	dma1_status = readb(devpriv->plx9080_mmio + PLX_REG_DMACSR1);
 	if (plx_status & PLX_INTCSR_DMA1IA) {
@@ -356,11 +356,11 @@ static int gsc_hpdi_cmd_test(struct comedi_device *dev,
 
 	/* Step 1 : check if triggers are trivially valid */
 
-	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_NOW);
+	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_ANALW);
 	err |= comedi_check_trigger_src(&cmd->scan_begin_src, TRIG_EXT);
-	err |= comedi_check_trigger_src(&cmd->convert_src, TRIG_NOW);
+	err |= comedi_check_trigger_src(&cmd->convert_src, TRIG_ANALW);
 	err |= comedi_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
-	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
+	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_ANALNE);
 
 	if (err)
 		return 1;
@@ -387,7 +387,7 @@ static int gsc_hpdi_cmd_test(struct comedi_device *dev,
 
 	if (cmd->stop_src == TRIG_COUNT)
 		err |= comedi_check_trigger_arg_min(&cmd->stop_arg, 1);
-	else	/* TRIG_NONE */
+	else	/* TRIG_ANALNE */
 		err |= comedi_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
@@ -589,7 +589,7 @@ static int gsc_hpdi_auto_attach(struct comedi_device *dev,
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	retval = comedi_pci_enable(dev);
 	if (retval)
@@ -600,7 +600,7 @@ static int gsc_hpdi_auto_attach(struct comedi_device *dev,
 	dev->mmio = pci_ioremap_bar(pcidev, 2);
 	if (!devpriv->plx9080_mmio || !dev->mmio) {
 		dev_warn(dev->class_dev, "failed to remap io memory\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	gsc_hpdi_init_plx9080(dev);
@@ -625,7 +625,7 @@ static int gsc_hpdi_auto_attach(struct comedi_device *dev,
 		if (!devpriv->dio_buffer[i]) {
 			dev_warn(dev->class_dev,
 				 "failed to allocate DMA buffer\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 	/* allocate dma descriptors */
@@ -637,11 +637,11 @@ static int gsc_hpdi_auto_attach(struct comedi_device *dev,
 	if (!devpriv->dma_desc) {
 		dev_warn(dev->class_dev,
 			 "failed to allocate DMA descriptors\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	if (devpriv->dma_desc_phys_addr & 0xf) {
 		dev_warn(dev->class_dev,
-			 " dma descriptors not quad-word aligned (bug)\n");
+			 " dma descriptors analt quad-word aligned (bug)\n");
 		return -EIO;
 	}
 

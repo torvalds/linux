@@ -34,10 +34,10 @@ mt76x02_mac_get_key_info(struct ieee80211_key_conf *key, u8 *key_data)
 {
 	memset(key_data, 0, 32);
 	if (!key)
-		return MT76X02_CIPHER_NONE;
+		return MT76X02_CIPHER_ANALNE;
 
 	if (key->keylen > 32)
-		return MT76X02_CIPHER_NONE;
+		return MT76X02_CIPHER_ANALNE;
 
 	memcpy(key_data, key->key, key->keylen);
 
@@ -51,7 +51,7 @@ mt76x02_mac_get_key_info(struct ieee80211_key_conf *key, u8 *key_data)
 	case WLAN_CIPHER_SUITE_CCMP:
 		return MT76X02_CIPHER_AES_CCMP;
 	default:
-		return MT76X02_CIPHER_NONE;
+		return MT76X02_CIPHER_ANALNE;
 	}
 }
 
@@ -63,8 +63,8 @@ int mt76x02_mac_shared_key_setup(struct mt76x02_dev *dev, u8 vif_idx,
 	u32 val;
 
 	cipher = mt76x02_mac_get_key_info(key, key_data);
-	if (cipher == MT76X02_CIPHER_NONE && key)
-		return -EOPNOTSUPP;
+	if (cipher == MT76X02_CIPHER_ANALNE && key)
+		return -EOPANALTSUPP;
 
 	val = mt76_rr(dev, MT_SKEY_MODE(vif_idx));
 	val &= ~(MT_SKEY_MODE_MASK << MT_SKEY_MODE_SHIFT(vif_idx, key_idx));
@@ -112,8 +112,8 @@ int mt76x02_mac_wcid_set_key(struct mt76x02_dev *dev, u8 idx,
 	u64 pn;
 
 	cipher = mt76x02_mac_get_key_info(key, key_data);
-	if (cipher == MT76X02_CIPHER_NONE && key)
-		return -EOPNOTSUPP;
+	if (cipher == MT76X02_CIPHER_ANALNE && key)
+		return -EOPANALTSUPP;
 
 	mt76_wr_copy(dev, MT_WCID_KEY(idx), key_data, sizeof(key_data));
 	mt76_rmw_field(dev, MT_WCID_ATTR(idx), MT_WCID_ATTR_PKEY_MODE, cipher);
@@ -406,7 +406,7 @@ void mt76x02_mac_write_txwi(struct mt76x02_dev *dev, struct mt76x02_txwi *txwi,
 		txwi->rate |= cpu_to_le16(MT_RXWI_RATE_STBC);
 	if (nss > 1 && sta && sta->deflink.smps_mode == IEEE80211_SMPS_DYNAMIC)
 		txwi_flags |= MT_TXWI_FLAGS_MMPS;
-	if (!(info->flags & IEEE80211_TX_CTL_NO_ACK))
+	if (!(info->flags & IEEE80211_TX_CTL_ANAL_ACK))
 		txwi->ack_ctl |= MT_TXWI_ACK_CTL_REQ;
 	if (info->flags & IEEE80211_TX_CTL_ASSIGN_SEQ)
 		txwi->ack_ctl |= MT_TXWI_ACK_CTL_NSEQ;
@@ -532,7 +532,7 @@ mt76x02_mac_fill_tx_status(struct mt76x02_dev *dev, struct mt76x02_sta *msta,
 			       IEEE80211_TX_STAT_AMPDU;
 
 	if (!st->ack_req)
-		info->flags |= IEEE80211_TX_CTL_NO_ACK;
+		info->flags |= IEEE80211_TX_CTL_ANAL_ACK;
 	else if (st->success)
 		info->flags |= IEEE80211_TX_STAT_ACK;
 }
@@ -559,7 +559,7 @@ void mt76x02_send_tx_status(struct mt76x02_dev *dev,
 	u32 ac = 0;
 	int len = 0;
 
-	if (stat->pktid == MT_PACKET_ID_NO_ACK)
+	if (stat->pktid == MT_PACKET_ID_ANAL_ACK)
 		return;
 
 	rcu_read_lock();
@@ -840,7 +840,7 @@ int mt76x02_mac_process_rx(struct mt76x02_dev *dev, struct sk_buff *skb,
 		status->ampdu_ref = dev->ampdu_ref;
 
 		/*
-		 * When receiving an A-MPDU subframe and RSSI info is not valid,
+		 * When receiving an A-MPDU subframe and RSSI info is analt valid,
 		 * we can assume that more subframes belonging to the same A-MPDU
 		 * are coming. The last one will have valid RSSI info
 		 */
@@ -870,7 +870,7 @@ int mt76x02_mac_process_rx(struct mt76x02_dev *dev, struct sk_buff *skb,
 
 	hdr = (struct ieee80211_hdr *)skb->data;
 	status->qos_ctl = *ieee80211_get_qos_ctl(hdr);
-	status->seqno = FIELD_GET(MT_RXWI_SN, tid_sn);
+	status->seqanal = FIELD_GET(MT_RXWI_SN, tid_sn);
 
 	return mt76x02_mac_process_rate(dev, status, rate);
 }
@@ -946,7 +946,7 @@ void mt76x02_mac_set_tx_protection(struct mt76x02_dev *dev, bool legacy_prot,
 				   int ht_mode)
 {
 	int mode = ht_mode & IEEE80211_HT_OP_MODE_PROTECTION;
-	bool non_gf = !!(ht_mode & IEEE80211_HT_OP_MODE_NON_GF_STA_PRSNT);
+	bool analn_gf = !!(ht_mode & IEEE80211_HT_OP_MODE_ANALN_GF_STA_PRSNT);
 	u32 prot[6];
 	u32 vht_prot[3];
 	int i;
@@ -995,8 +995,8 @@ void mt76x02_mac_set_tx_protection(struct mt76x02_dev *dev, bool legacy_prot,
 	}
 
 	switch (mode) {
-	case IEEE80211_HT_OP_MODE_PROTECTION_NONMEMBER:
-	case IEEE80211_HT_OP_MODE_PROTECTION_NONHT_MIXED:
+	case IEEE80211_HT_OP_MODE_PROTECTION_ANALNMEMBER:
+	case IEEE80211_HT_OP_MODE_PROTECTION_ANALNHT_MIXED:
 		prot[2] |= MT_PROT_CTRL_RTS_CTS;
 		prot[3] |= MT_PROT_CTRL_RTS_CTS;
 		prot[4] |= MT_PROT_CTRL_RTS_CTS;
@@ -1013,7 +1013,7 @@ void mt76x02_mac_set_tx_protection(struct mt76x02_dev *dev, bool legacy_prot,
 		break;
 	}
 
-	if (non_gf) {
+	if (analn_gf) {
 		prot[4] |= MT_PROT_CTRL_RTS_CTS;
 		prot[5] |= MT_PROT_CTRL_RTS_CTS;
 	}

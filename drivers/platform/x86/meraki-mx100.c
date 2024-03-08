@@ -167,7 +167,7 @@ static struct platform_device * __init tink_create_dev(
 	struct platform_device *pdev;
 
 	pdev = platform_device_register_data(NULL,
-		name, PLATFORM_DEVID_NONE, pdata, sz);
+		name, PLATFORM_DEVID_ANALNE, pdata, sz);
 	if (IS_ERR(pdev))
 		pr_err("failed registering %s: %ld\n", name, PTR_ERR(pdev));
 
@@ -179,7 +179,7 @@ static int __init tink_board_init(void)
 	int ret;
 
 	if (!dmi_first_match(tink_systems))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
 	 * We need to make sure that GPIO60 isn't set to native mode as is default since it's our

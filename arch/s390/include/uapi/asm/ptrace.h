@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  *  S390 version
  *    Copyright IBM Corp. 1999, 2000
@@ -295,7 +295,7 @@ typedef struct {
 } user_pt_regs;
 
 /*
- * Now for the user space program event recording (trace) definitions.
+ * Analw for the user space program event recording (trace) definitions.
  * The following structures are used only for the ptrace interface, don't
  * touch or even look at it if you don't want to modify the user-space
  * ptrace interface. In particular stay away from it for in-kernel PER.
@@ -385,7 +385,7 @@ typedef struct {
 } ptrace_area;
 
 /*
- * S/390 specific non posix ptrace requests. I chose unusual values so
+ * S/390 specific analn posix ptrace requests. I chose unusual values so
  * they are unlikely to clash with future ptrace definitions.
  */
 #define PTRACE_PEEKUSR_AREA	      0x5000
@@ -403,7 +403,7 @@ typedef struct {
 
 /*
  * The numbers chosen here are somewhat arbitrary but absolutely MUST
- * not overlap with any of the number assigned in <linux/ptrace.h>.
+ * analt overlap with any of the number assigned in <linux/ptrace.h>.
  */
 #define PTRACE_SINGLEBLOCK	12	/* resume execution until next branch */
 
@@ -443,7 +443,7 @@ struct user_regs_struct {
 	s390_fp_regs fp_regs;
 	/*
 	 * These per registers are in here so that gdb can modify them
-	 * itself as there is no "official" ptrace interface for hardware
+	 * itself as there is anal "official" ptrace interface for hardware
 	 * watchpoints. This is the way intel does it.
 	 */
 	per_struct per_info;

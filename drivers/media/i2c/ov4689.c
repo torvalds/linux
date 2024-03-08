@@ -17,7 +17,7 @@
 #include <media/v4l2-async.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-subdev.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 
 #define CHIP_ID				0x004688
 #define OV4689_REG_CHIP_ID		0x300a
@@ -240,7 +240,7 @@ static const char *const ov4689_test_pattern_menu[] = {
 
 /*
  * These coefficients are based on those used in Rockchip's camera
- * engine, with minor tweaks for continuity.
+ * engine, with mianalr tweaks for continuity.
  */
 static const struct ov4689_gain_range ov4689_gain_ranges[] = {
 	{
@@ -360,7 +360,7 @@ static void ov4689_fill_fmt(const struct ov4689_mode *mode,
 	fmt->code = MEDIA_BUS_FMT_SBGGR10_1X10;
 	fmt->width = mode->width;
 	fmt->height = mode->height;
-	fmt->field = V4L2_FIELD_NONE;
+	fmt->field = V4L2_FIELD_ANALNE;
 }
 
 static int ov4689_set_fmt(struct v4l2_subdev *sd,
@@ -370,7 +370,7 @@ static int ov4689_set_fmt(struct v4l2_subdev *sd,
 	struct v4l2_mbus_framefmt *mbus_fmt = &fmt->format;
 	struct ov4689 *ov4689 = to_ov4689(sd);
 
-	/* only one mode supported for now */
+	/* only one mode supported for analw */
 	ov4689_fill_fmt(ov4689->cur_mode, mbus_fmt);
 
 	return 0;
@@ -383,7 +383,7 @@ static int ov4689_get_fmt(struct v4l2_subdev *sd,
 	struct v4l2_mbus_framefmt *mbus_fmt = &fmt->format;
 	struct ov4689 *ov4689 = to_ov4689(sd);
 
-	/* only one mode supported for now */
+	/* only one mode supported for analw */
 	ov4689_fill_fmt(ov4689->cur_mode, mbus_fmt);
 
 	return 0;
@@ -621,7 +621,7 @@ static int ov4689_map_gain(struct ov4689 *ov4689, int logical_gain, int *result)
 	}
 
 	if (n == ARRAY_SIZE(ov4689_gain_ranges)) {
-		dev_warn_ratelimited(dev, "no mapping found for gain %d\n",
+		dev_warn_ratelimited(dev, "anal mapping found for gain %d\n",
 				     logical_gain);
 		return -EINVAL;
 	}
@@ -703,7 +703,7 @@ static const struct v4l2_ctrl_ops ov4689_ctrl_ops = {
 static int ov4689_initialize_controls(struct ov4689 *ov4689)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&ov4689->subdev);
-	struct v4l2_fwnode_device_properties props;
+	struct v4l2_fwanalde_device_properties props;
 	struct v4l2_ctrl_handler *handler;
 	const struct ov4689_mode *mode;
 	s64 exposure_max, vblank_def;
@@ -761,11 +761,11 @@ static int ov4689_initialize_controls(struct ov4689 *ov4689)
 		goto err_free_handler;
 	}
 
-	ret = v4l2_fwnode_device_parse(&client->dev, &props);
+	ret = v4l2_fwanalde_device_parse(&client->dev, &props);
 	if (ret)
 		goto err_free_handler;
 
-	ret = v4l2_ctrl_new_fwnode_properties(handler, &ov4689_ctrl_ops,
+	ret = v4l2_ctrl_new_fwanalde_properties(handler, &ov4689_ctrl_ops,
 					      &props);
 	if (ret)
 		goto err_free_handler;
@@ -790,14 +790,14 @@ static int ov4689_check_sensor_id(struct ov4689 *ov4689,
 	ret = ov4689_read_reg(client, OV4689_REG_CHIP_ID,
 			      OV4689_REG_VALUE_16BIT, &id);
 	if (ret) {
-		dev_err(dev, "Cannot read sensor ID\n");
+		dev_err(dev, "Cananalt read sensor ID\n");
 		return ret;
 	}
 
 	if (id != CHIP_ID) {
 		dev_err(dev, "Unexpected sensor ID %06x, expected %06x\n",
 			id, CHIP_ID);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	dev_info(dev, "Detected OV%06x sensor\n", CHIP_ID);
@@ -817,7 +817,7 @@ static int ov4689_configure_regulators(struct ov4689 *ov4689)
 				       ov4689->supplies);
 }
 
-static u64 ov4689_check_link_frequency(struct v4l2_fwnode_endpoint *ep)
+static u64 ov4689_check_link_frequency(struct v4l2_fwanalde_endpoint *ep)
 {
 	const u64 *freqs = link_freq_menu_items;
 	unsigned int i, j;
@@ -833,19 +833,19 @@ static u64 ov4689_check_link_frequency(struct v4l2_fwnode_endpoint *ep)
 
 static int ov4689_check_hwcfg(struct device *dev)
 {
-	struct fwnode_handle *fwnode = dev_fwnode(dev);
-	struct v4l2_fwnode_endpoint bus_cfg = {
+	struct fwanalde_handle *fwanalde = dev_fwanalde(dev);
+	struct v4l2_fwanalde_endpoint bus_cfg = {
 		.bus_type = V4L2_MBUS_CSI2_DPHY,
 	};
-	struct fwnode_handle *endpoint;
+	struct fwanalde_handle *endpoint;
 	int ret;
 
-	endpoint = fwnode_graph_get_next_endpoint(fwnode, NULL);
+	endpoint = fwanalde_graph_get_next_endpoint(fwanalde, NULL);
 	if (!endpoint)
 		return -EINVAL;
 
-	ret = v4l2_fwnode_endpoint_alloc_parse(endpoint, &bus_cfg);
-	fwnode_handle_put(endpoint);
+	ret = v4l2_fwanalde_endpoint_alloc_parse(endpoint, &bus_cfg);
+	fwanalde_handle_put(endpoint);
 	if (ret)
 		return ret;
 
@@ -856,12 +856,12 @@ static int ov4689_check_hwcfg(struct device *dev)
 	}
 
 	if (!ov4689_check_link_frequency(&bus_cfg)) {
-		dev_err(dev, "No supported link frequency found\n");
+		dev_err(dev, "Anal supported link frequency found\n");
 		ret = -EINVAL;
 	}
 
 out_free_bus_cfg:
-	v4l2_fwnode_endpoint_free(&bus_cfg);
+	v4l2_fwanalde_endpoint_free(&bus_cfg);
 
 	return ret;
 }
@@ -879,7 +879,7 @@ static int ov4689_probe(struct i2c_client *client)
 
 	ov4689 = devm_kzalloc(dev, sizeof(*ov4689), GFP_KERNEL);
 	if (!ov4689)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ov4689->client = client;
 	ov4689->cur_mode = &supported_modes[OV4689_MODE_2688_1520];
@@ -891,7 +891,7 @@ static int ov4689_probe(struct i2c_client *client)
 
 	if (!ov4689->xvclk) {
 		dev_dbg(dev,
-			"No clock provided, using clock-frequency property\n");
+			"Anal clock provided, using clock-frequency property\n");
 		device_property_read_u32(dev, "clock-frequency",
 					 &ov4689->clock_rate);
 	} else {
@@ -940,7 +940,7 @@ static int ov4689_probe(struct i2c_client *client)
 		goto err_power_off;
 
 	sd->internal_ops = &ov4689_internal_ops;
-	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 
 	ov4689->pad.flags = MEDIA_PAD_FL_SOURCE;
 	sd->entity.function = MEDIA_ENT_F_CAM_SENSOR;

@@ -10,17 +10,17 @@ maintainers:
   - Peter Rosin <peda@axentia.se>
 
 description: |
-  An i2c gate is useful to e.g. reduce the digital noise for RF tuners connected
+  An i2c gate is useful to e.g. reduce the digital analise for RF tuners connected
   to the i2c bus. Gates are similar to arbitrators in that you need to perform
   some kind of operation to access the i2c bus past the arbitrator/gate, but
-  there are no competing masters to consider for gates and therefore there is
-  no arbitration happening for gates.
+  there are anal competing masters to consider for gates and therefore there is
+  anal arbitration happening for gates.
 
 allOf:
   - $ref: /schemas/i2c/i2c-controller.yaml
 
 properties:
-  $nodename:
+  $analdename:
     const: i2c-gate
 
 additionalProperties: true

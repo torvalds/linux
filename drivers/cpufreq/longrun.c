@@ -91,7 +91,7 @@ static int longrun_set_policy(struct cpufreq_policy *policy)
 	if (pctg_lo > pctg_hi)
 		pctg_lo = pctg_hi;
 
-	/* performance or economy mode */
+	/* performance or ecoanalmy mode */
 	rdmsr(MSR_TMTA_LONGRUN_FLAGS, msr_lo, msr_hi);
 	msr_lo &= 0xFFFFFFFE;
 	switch (policy->policy) {
@@ -255,7 +255,7 @@ static int longrun_cpu_init(struct cpufreq_policy *policy)
 
 	/* capability check */
 	if (policy->cpu != 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* detect low and high frequency */
 	result = longrun_determine_freqs(&longrun_low_freq, &longrun_high_freq);
@@ -294,7 +294,7 @@ MODULE_DEVICE_TABLE(x86cpu, longrun_ids);
 static int __init longrun_init(void)
 {
 	if (!x86_match_cpu(longrun_ids))
-		return -ENODEV;
+		return -EANALDEV;
 	return cpufreq_register_driver(&longrun_driver);
 }
 

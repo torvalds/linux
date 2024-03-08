@@ -155,7 +155,7 @@ static int mtk_pcie_efuse_read_for_lane(struct mtk_pcie_phy *pcie_phy,
 
 	if (!(efuse->tx_pmos || efuse->tx_nmos || efuse->rx_data))
 		return dev_err_probe(dev, -EINVAL,
-				     "No eFuse data found for lane%d, but dts enable it\n",
+				     "Anal eFuse data found for lane%d, but dts enable it\n",
 				     lane);
 
 	efuse->lane_efuse_supported = true;
@@ -184,7 +184,7 @@ static int mtk_pcie_read_efuse(struct mtk_pcie_phy *pcie_phy)
 	pcie_phy->efuse = devm_kzalloc(dev, pcie_phy->data->num_lanes *
 				       sizeof(*pcie_phy->efuse), GFP_KERNEL);
 	if (!pcie_phy->efuse)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < pcie_phy->data->num_lanes; i++) {
 		ret = mtk_pcie_efuse_read_for_lane(pcie_phy, i);
@@ -204,14 +204,14 @@ static int mtk_pcie_phy_probe(struct platform_device *pdev)
 
 	pcie_phy = devm_kzalloc(dev, sizeof(*pcie_phy), GFP_KERNEL);
 	if (!pcie_phy)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pcie_phy->sif_base = devm_platform_ioremap_resource_byname(pdev, "sif");
 	if (IS_ERR(pcie_phy->sif_base))
 		return dev_err_probe(dev, PTR_ERR(pcie_phy->sif_base),
 				     "Failed to map phy-sif base\n");
 
-	pcie_phy->phy = devm_phy_create(dev, dev->of_node, &mtk_pcie_phy_ops);
+	pcie_phy->phy = devm_phy_create(dev, dev->of_analde, &mtk_pcie_phy_ops);
 	if (IS_ERR(pcie_phy->phy))
 		return dev_err_probe(dev, PTR_ERR(pcie_phy->phy),
 				     "Failed to create PCIe phy\n");
@@ -223,11 +223,11 @@ static int mtk_pcie_phy_probe(struct platform_device *pdev)
 
 	if (pcie_phy->data->sw_efuse_supported) {
 		/*
-		 * Failed to read the efuse data is not a fatal problem,
-		 * ignore the failure and keep going.
+		 * Failed to read the efuse data is analt a fatal problem,
+		 * iganalre the failure and keep going.
 		 */
 		ret = mtk_pcie_read_efuse(pcie_phy);
-		if (ret == -EPROBE_DEFER || ret == -ENOMEM)
+		if (ret == -EPROBE_DEFER || ret == -EANALMEM)
 			return ret;
 	}
 

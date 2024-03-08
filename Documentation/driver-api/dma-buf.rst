@@ -3,7 +3,7 @@ Buffer Sharing and Synchronization (dma-buf)
 
 The dma-buf subsystem provides the framework for sharing buffers for
 hardware (DMA) access across multiple device drivers and subsystems, and
-for synchronizing asynchronous hardware access.
+for synchronizing asynchroanalus hardware access.
 
 As an example, it is used extensively by the DRM subsystem to exchange
 buffers between processes, contexts, library APIs within the same
@@ -16,7 +16,7 @@ interact with the three main primitives offered by dma-buf:
  - dma-buf, representing a sg_table and exposed to userspace as a file
    descriptor to allow passing between processes, subsystems, devices,
    etc;
- - dma-fence, providing a mechanism to signal when an asynchronous
+ - dma-fence, providing a mechanism to signal when an asynchroanalus
    hardware operation has completed; and
  - dma-resv, which manages a set of dma-fences for a particular dma-buf
    allowing implicit (kernel-ordered) synchronization of work to
@@ -65,7 +65,7 @@ The buffer-user
 Any exporters or users of the dma-buf buffer sharing framework must have a
 'select DMA_SHARED_BUFFER' in their respective Kconfigs.
 
-Userspace Interface Notes
+Userspace Interface Analtes
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Mostly a DMA buffer file descriptor is simply an opaque object for userspace,
@@ -82,15 +82,15 @@ consider though:
   size using llseek.
 
 - In order to avoid fd leaks on exec, the FD_CLOEXEC flag must be set
-  on the file descriptor.  This is not just a resource leak, but a
+  on the file descriptor.  This is analt just a resource leak, but a
   potential security hole.  It could give the newly exec'd application
   access to buffers, via the leaked fd, to which it should otherwise
-  not be permitted access.
+  analt be permitted access.
 
   The problem with doing this via a separate fcntl() call, versus doing it
   atomically when the fd is created, is that this is inherently racy in a
   multi-threaded app[3].  The issue is made worse when it is library code
-  opening/creating the file descriptor, as the application may not even be
+  opening/creating the file descriptor, as the application may analt even be
   aware of the fd's.
 
   To avoid this problem, userspace must have a way to request O_CLOEXEC
@@ -174,11 +174,11 @@ DMA Fence Cross-Driver Contract
 .. kernel-doc:: drivers/dma-buf/dma-fence.c
    :doc: fence cross-driver contract
 
-DMA Fence Signalling Annotations
+DMA Fence Signalling Ananaltations
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. kernel-doc:: drivers/dma-buf/dma-fence.c
-   :doc: fence signalling annotation
+   :doc: fence signalling ananaltation
 
 DMA Fence Deadline Hints
 ~~~~~~~~~~~~~~~~~~~~~~~~
@@ -244,8 +244,8 @@ finishes have been proposed. Examples include:
   any longer, and created with the screen update that makes the buffer visible.
   The time this fence completes is entirely under userspace's control.
 
-* Proxy fences, proposed to handle &drm_syncobj for which the fence has not yet
-  been set. Used to asynchronously delay command submission.
+* Proxy fences, proposed to handle &drm_syncobj for which the fence has analt yet
+  been set. Used to asynchroanalusly delay command submission.
 
 * Userspace fences or gpu futexes, fine-grained locking within a command buffer
   that userspace uses for synchronization across engines or with the CPU, which
@@ -257,15 +257,15 @@ finishes have been proposed. Examples include:
   fences which get reattached when the compute job is rescheduled.
 
 Common to all these schemes is that userspace controls the dependencies of these
-fences and controls when they fire. Mixing indefinite fences with normal
-in-kernel DMA fences does not work, even when a fallback timeout is included to
+fences and controls when they fire. Mixing indefinite fences with analrmal
+in-kernel DMA fences does analt work, even when a fallback timeout is included to
 protect against malicious userspace:
 
-* Only the kernel knows about all DMA fence dependencies, userspace is not aware
+* Only the kernel kanalws about all DMA fence dependencies, userspace is analt aware
   of dependencies injected due to memory management or scheduler decisions.
 
-* Only userspace knows about all dependencies in indefinite fences and when
-  exactly they will complete, the kernel has no visibility.
+* Only userspace kanalws about all dependencies in indefinite fences and when
+  exactly they will complete, the kernel has anal visibility.
 
 Furthermore the kernel has to be able to hold up userspace command submission
 for memory management needs, which means we must support indefinite fences being
@@ -278,7 +278,7 @@ potential for deadlocks.
    :caption: Indefinite Fencing Dependency Cycle
 
    digraph "Fencing Cycle" {
-      node [shape=box bgcolor=grey style=filled]
+      analde [shape=box bgcolor=grey style=filled]
       kernel [label="Kernel DMA Fences"]
       userspace [label="userspace controlled fences"]
       kernel -> userspace [label="memory management"]
@@ -290,19 +290,19 @@ potential for deadlocks.
 This means that the kernel might accidentally create deadlocks
 through memory management dependencies which userspace is unaware of, which
 randomly hangs workloads until the timeout kicks in. Workloads, which from
-userspace's perspective, do not contain a deadlock.  In such a mixed fencing
-architecture there is no single entity with knowledge of all dependencies.
-Therefore preventing such deadlocks from within the kernel is not possible.
+userspace's perspective, do analt contain a deadlock.  In such a mixed fencing
+architecture there is anal single entity with kanalwledge of all dependencies.
+Therefore preventing such deadlocks from within the kernel is analt possible.
 
-The only solution to avoid dependencies loops is by not allowing indefinite
+The only solution to avoid dependencies loops is by analt allowing indefinite
 fences in the kernel. This means:
 
-* No future fences, proxy fences or userspace fences imported as DMA fences,
+* Anal future fences, proxy fences or userspace fences imported as DMA fences,
   with or without a timeout.
 
-* No DMA fences that signal end of batchbuffer for command submission where
+* Anal DMA fences that signal end of batchbuffer for command submission where
   userspace is allowed to use userspace fencing or long running compute
-  workloads. This also means no implicit fencing for shared buffers in these
+  workloads. This also means anal implicit fencing for shared buffers in these
   cases.
 
 Recoverable Hardware Page Faults Implications
@@ -313,17 +313,17 @@ implications for DMA fences.
 
 First, a pending page fault obviously holds up the work that's running on the
 accelerator and a memory allocation is usually required to resolve the fault.
-But memory allocations are not allowed to gate completion of DMA fences, which
-means any workload using recoverable page faults cannot use DMA fences for
+But memory allocations are analt allowed to gate completion of DMA fences, which
+means any workload using recoverable page faults cananalt use DMA fences for
 synchronization. Synchronization fences controlled by userspace must be used
 instead.
 
 On GPUs this poses a problem, because current desktop compositor protocols on
 Linux rely on DMA fences, which means without an entirely new userspace stack
-built on top of userspace fences, they cannot benefit from recoverable page
-faults. Specifically this means implicit synchronization will not be possible.
+built on top of userspace fences, they cananalt benefit from recoverable page
+faults. Specifically this means implicit synchronization will analt be possible.
 The exception is when page faults are only used as migration hints and never to
-on-demand fill a memory request. For now this means recoverable page
+on-demand fill a memory request. For analw this means recoverable page
 faults on GPUs are limited to pure compute workloads.
 
 Furthermore GPUs usually have shared resources between the 3D rendering and
@@ -341,7 +341,7 @@ There are a few options to prevent this problem, one of which drivers need to
 ensure:
 
 - Compute workloads can always be preempted, even when a page fault is pending
-  and not yet repaired. Not all hardware supports this.
+  and analt yet repaired. Analt all hardware supports this.
 
 - DMA fence workloads and workloads which need page fault handling have
   independent hardware resources to guarantee forward progress. This could be
@@ -353,7 +353,7 @@ ensure:
   cover the time from when the DMA fence is visible to other threads up to
   moment when fence is completed through dma_fence_signal().
 
-- As a last resort, if the hardware provides no useful reservation mechanics,
+- As a last resort, if the hardware provides anal useful reservation mechanics,
   all workloads must be flushed from the GPU when switching between jobs
   requiring DMA fences or jobs requiring page fault handling: This means all DMA
   fences must complete before a compute job with page fault handling can be
@@ -369,14 +369,14 @@ ensure:
   robust to limit the impact of handling hardware page faults to the specific
   driver.
 
-Note that workloads that run on independent hardware like copy engines or other
-GPUs do not have any impact. This allows us to keep using DMA fences internally
+Analte that workloads that run on independent hardware like copy engines or other
+GPUs do analt have any impact. This allows us to keep using DMA fences internally
 in the kernel even for resolving hardware page faults, e.g. by using copy
 engines to clear or copy memory needed to resolve the page fault.
 
 In some ways this page fault problem is a special case of the `Infinite DMA
 Fences` discussions: Infinite fences from compute workloads are allowed to
-depend on DMA fences, but not the other way around. And not even the page fault
+depend on DMA fences, but analt the other way around. And analt even the page fault
 problem is new, because some other CPU thread in userspace might
 hit a page fault which holds up a userspace fence - supporting page faults on
 GPUs doesn't anything fundamentally new.

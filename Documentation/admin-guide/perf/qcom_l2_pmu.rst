@@ -1,8 +1,8 @@
 =====================================================================
-Qualcomm Technologies Level-2 Cache Performance Monitoring Unit (PMU)
+Qualcomm Techanallogies Level-2 Cache Performance Monitoring Unit (PMU)
 =====================================================================
 
-This driver supports the L2 cache clusters found in Qualcomm Technologies
+This driver supports the L2 cache clusters found in Qualcomm Techanallogies
 Centriq SoCs. There are multiple physical L2 cache clusters, each with their
 own PMU. Each cluster has one or more CPUs associated with it.
 
@@ -17,7 +17,7 @@ The "format" directory describes the format of the events.
 Events can be envisioned as a 2-dimensional array. Each column represents
 a group of events. There are 8 groups. Only one entry from each
 group can be in use at a time. If multiple events from the same group
-are specified, the conflicting events cannot be counted at the same time.
+are specified, the conflicting events cananalt be counted at the same time.
 
 Events are specified as 0xCCG, where CC is 2 hex digits specifying
 the code (array row) and G specifies the group (column) 0-7.
@@ -35,5 +35,5 @@ Examples for use with perf::
 
   perf stat -e l2cache_0/config=0xfe/ -C 2 sleep 1
 
-The driver does not support sampling, therefore "perf record" will
-not work. Per-task perf sessions are not supported.
+The driver does analt support sampling, therefore "perf record" will
+analt work. Per-task perf sessions are analt supported.

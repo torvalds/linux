@@ -83,12 +83,12 @@ static ssize_t dlm_id_store(struct dlm_ls *ls, const char *buf, size_t len)
 	return len;
 }
 
-static ssize_t dlm_nodir_show(struct dlm_ls *ls, char *buf)
+static ssize_t dlm_analdir_show(struct dlm_ls *ls, char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%u\n", dlm_no_directory(ls));
+	return snprintf(buf, PAGE_SIZE, "%u\n", dlm_anal_directory(ls));
 }
 
-static ssize_t dlm_nodir_store(struct dlm_ls *ls, const char *buf, size_t len)
+static ssize_t dlm_analdir_store(struct dlm_ls *ls, const char *buf, size_t len)
 {
 	int val;
 	int rc = kstrtoint(buf, 0, &val);
@@ -96,7 +96,7 @@ static ssize_t dlm_nodir_store(struct dlm_ls *ls, const char *buf, size_t len)
 	if (rc)
 		return rc;
 	if (val == 1)
-		set_bit(LSFL_NODIR, &ls->ls_flags);
+		set_bit(LSFL_ANALDIR, &ls->ls_flags);
 	return len;
 }
 
@@ -106,9 +106,9 @@ static ssize_t dlm_recover_status_show(struct dlm_ls *ls, char *buf)
 	return snprintf(buf, PAGE_SIZE, "%x\n", status);
 }
 
-static ssize_t dlm_recover_nodeid_show(struct dlm_ls *ls, char *buf)
+static ssize_t dlm_recover_analdeid_show(struct dlm_ls *ls, char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%d\n", ls->ls_recover_nodeid);
+	return snprintf(buf, PAGE_SIZE, "%d\n", ls->ls_recover_analdeid);
 }
 
 struct dlm_attr {
@@ -133,10 +133,10 @@ static struct dlm_attr dlm_attr_id = {
 	.store = dlm_id_store
 };
 
-static struct dlm_attr dlm_attr_nodir = {
-	.attr  = {.name = "nodir", .mode = S_IRUGO | S_IWUSR},
-	.show  = dlm_nodir_show,
-	.store = dlm_nodir_store
+static struct dlm_attr dlm_attr_analdir = {
+	.attr  = {.name = "analdir", .mode = S_IRUGO | S_IWUSR},
+	.show  = dlm_analdir_show,
+	.store = dlm_analdir_store
 };
 
 static struct dlm_attr dlm_attr_recover_status = {
@@ -144,18 +144,18 @@ static struct dlm_attr dlm_attr_recover_status = {
 	.show  = dlm_recover_status_show
 };
 
-static struct dlm_attr dlm_attr_recover_nodeid = {
-	.attr  = {.name = "recover_nodeid", .mode = S_IRUGO},
-	.show  = dlm_recover_nodeid_show
+static struct dlm_attr dlm_attr_recover_analdeid = {
+	.attr  = {.name = "recover_analdeid", .mode = S_IRUGO},
+	.show  = dlm_recover_analdeid_show
 };
 
 static struct attribute *dlm_attrs[] = {
 	&dlm_attr_control.attr,
 	&dlm_attr_event.attr,
 	&dlm_attr_id.attr,
-	&dlm_attr_nodir.attr,
+	&dlm_attr_analdir.attr,
 	&dlm_attr_recover_status.attr,
-	&dlm_attr_recover_nodeid.attr,
+	&dlm_attr_recover_analdeid.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(dlm);
@@ -236,8 +236,8 @@ int __init dlm_lockspace_init(void)
 
 	dlm_kset = kset_create_and_add("dlm", &dlm_uevent_ops, kernel_kobj);
 	if (!dlm_kset) {
-		printk(KERN_WARNING "%s: can not create kset\n", __func__);
-		return -ENOMEM;
+		printk(KERN_WARNING "%s: can analt create kset\n", __func__);
+		return -EANALMEM;
 	}
 	return 0;
 }
@@ -337,13 +337,13 @@ struct dlm_ls *dlm_find_lockspace_local(dlm_lockspace_t *lockspace)
 	return ls;
 }
 
-struct dlm_ls *dlm_find_lockspace_device(int minor)
+struct dlm_ls *dlm_find_lockspace_device(int mianalr)
 {
 	struct dlm_ls *ls;
 
 	spin_lock(&lslist_lock);
 	list_for_each_entry(ls, &lslist, ls_list) {
-		if (ls->ls_device.minor == minor) {
+		if (ls->ls_device.mianalr == mianalr) {
 			atomic_inc(&ls->ls_count);
 			goto out;
 		}
@@ -383,13 +383,13 @@ static int threads_start(void)
 	/* Thread for sending/receiving messages for all lockspace's */
 	error = dlm_midcomms_start();
 	if (error) {
-		log_print("cannot start dlm midcomms %d", error);
+		log_print("cananalt start dlm midcomms %d", error);
 		goto fail;
 	}
 
 	error = dlm_scand_start();
 	if (error) {
-		log_print("cannot start dlm_scand thread %d", error);
+		log_print("cananalt start dlm_scand thread %d", error);
 		goto midcomms_fail;
 	}
 
@@ -421,14 +421,14 @@ static int new_lockspace(const char *name, const char *cluster,
 		return -EINVAL;
 
 	if (!dlm_user_daemon_available()) {
-		log_print("dlm user daemon not available");
+		log_print("dlm user daemon analt available");
 		error = -EUNATCH;
 		goto out;
 	}
 
 	if (ops && ops_result) {
 	       	if (!dlm_config.ci_recover_callbacks)
-			*ops_result = -EOPNOTSUPP;
+			*ops_result = -EOPANALTSUPP;
 		else
 			*ops_result = 0;
 	}
@@ -439,7 +439,7 @@ static int new_lockspace(const char *name, const char *cluster,
 
 	if (dlm_config.ci_recover_callbacks && cluster &&
 	    strncmp(cluster, dlm_config.ci_cluster_name, DLM_LOCKSPACE_LEN)) {
-		log_print("dlm cluster name '%s' does not match "
+		log_print("dlm cluster name '%s' does analt match "
 			  "the application cluster name '%s'",
 			  dlm_config.ci_cluster_name, cluster);
 		error = -EBADR;
@@ -469,9 +469,9 @@ static int new_lockspace(const char *name, const char *cluster,
 	if (error)
 		goto out;
 
-	error = -ENOMEM;
+	error = -EANALMEM;
 
-	ls = kzalloc(sizeof(*ls), GFP_NOFS);
+	ls = kzalloc(sizeof(*ls), GFP_ANALFS);
 	if (!ls)
 		goto out;
 	memcpy(ls->ls_name, name, namelen);
@@ -487,8 +487,8 @@ static int new_lockspace(const char *name, const char *cluster,
 		ls->ls_ops_arg = ops_arg;
 	}
 
-	/* ls_exflags are forced to match among nodes, and we don't
-	 * need to require all nodes to have some flags set
+	/* ls_exflags are forced to match among analdes, and we don't
+	 * need to require all analdes to have some flags set
 	 */
 	ls->ls_exflags = (flags & ~(DLM_LSFL_FS | DLM_LSFL_NEWEXCL));
 
@@ -499,8 +499,8 @@ static int new_lockspace(const char *name, const char *cluster,
 	if (!ls->ls_rsbtbl)
 		goto out_lsfree;
 	for (i = 0; i < size; i++) {
-		ls->ls_rsbtbl[i].keep.rb_node = NULL;
-		ls->ls_rsbtbl[i].toss.rb_node = NULL;
+		ls->ls_rsbtbl[i].keep.rb_analde = NULL;
+		ls->ls_rsbtbl[i].toss.rb_analde = NULL;
 		spin_lock_init(&ls->ls_rsbtbl[i].lock);
 	}
 
@@ -522,12 +522,12 @@ static int new_lockspace(const char *name, const char *cluster,
 	INIT_LIST_HEAD(&ls->ls_new_rsb);
 	spin_lock_init(&ls->ls_new_rsb_spin);
 
-	INIT_LIST_HEAD(&ls->ls_nodes);
-	INIT_LIST_HEAD(&ls->ls_nodes_gone);
-	ls->ls_num_nodes = 0;
-	ls->ls_low_nodeid = 0;
+	INIT_LIST_HEAD(&ls->ls_analdes);
+	INIT_LIST_HEAD(&ls->ls_analdes_gone);
+	ls->ls_num_analdes = 0;
+	ls->ls_low_analdeid = 0;
 	ls->ls_total_weight = 0;
-	ls->ls_node_array = NULL;
+	ls->ls_analde_array = NULL;
 
 	memset(&ls->ls_local_rsb, 0, sizeof(struct dlm_rsb));
 	ls->ls_local_rsb.res_ls = ls;
@@ -561,10 +561,10 @@ static int new_lockspace(const char *name, const char *cluster,
 
 	/* Due backwards compatibility with 3.1 we need to use maximum
 	 * possible dlm message size to be sure the message will fit and
-	 * not having out of bounds issues. However on sending side 3.2
+	 * analt having out of bounds issues. However on sending side 3.2
 	 * might send less.
 	 */
-	ls->ls_recover_buf = kmalloc(DLM_MAX_SOCKET_BUFSIZE, GFP_NOFS);
+	ls->ls_recover_buf = kmalloc(DLM_MAX_SOCKET_BUFSIZE, GFP_ANALFS);
 	if (!ls->ls_recover_buf)
 		goto out_lkbidr;
 
@@ -625,7 +625,7 @@ static int new_lockspace(const char *name, const char *cluster,
 	kobject_uevent(&ls->ls_kobj, KOBJ_ADD);
 
 	/* This uevent triggers dlm_controld in userspace to add us to the
-	   group of nodes that are members of this lockspace (managed by the
+	   group of analdes that are members of this lockspace (managed by the
 	   cluster infrastructure.)  Once it's done that, it tells us who the
 	   current lockspace members are (via configfs) and then tells the
 	   lockspace to start running (via sysfs) in dlm_ls_start(). */
@@ -649,7 +649,7 @@ static int new_lockspace(const char *name, const char *cluster,
  out_members:
 	do_uevent(ls, 0);
 	dlm_clear_members(ls);
-	kfree(ls->ls_node_array);
+	kfree(ls->ls_analde_array);
  out_recoverd:
 	dlm_recoverd_stop(ls);
  out_callback:
@@ -729,7 +729,7 @@ static int lkb_idr_is_local(int id, void *p, void *data)
 {
 	struct dlm_lkb *lkb = p;
 
-	return lkb->lkb_nodeid == 0 && lkb->lkb_grmode != DLM_LOCK_IV;
+	return lkb->lkb_analdeid == 0 && lkb->lkb_grmode != DLM_LOCK_IV;
 }
 
 static int lkb_idr_is_any(int id, void *p, void *data)
@@ -748,7 +748,7 @@ static int lkb_idr_free(int id, void *p, void *data)
 	return 0;
 }
 
-/* NOTE: We check the lkbidr here rather than the resource table.
+/* ANALTE: We check the lkbidr here rather than the resource table.
    This is because there may be LKBs queued as ASTs that have been unlinked
    from their RSBs and are pending deletion once the AST has been delivered */
 
@@ -771,7 +771,7 @@ static int lockspace_busy(struct dlm_ls *ls, int force)
 static int release_lockspace(struct dlm_ls *ls, int force)
 {
 	struct dlm_rsb *rsb;
-	struct rb_node *n;
+	struct rb_analde *n;
 	int i, busy, rv;
 
 	busy = lockspace_busy(ls, force);
@@ -793,7 +793,7 @@ static int release_lockspace(struct dlm_ls *ls, int force)
 	spin_unlock(&lslist_lock);
 
 	if (rv) {
-		log_debug(ls, "release_lockspace no remove %d", rv);
+		log_debug(ls, "release_lockspace anal remove %d", rv);
 		return rv;
 	}
 
@@ -835,13 +835,13 @@ static int release_lockspace(struct dlm_ls *ls, int force)
 
 	for (i = 0; i < ls->ls_rsbtbl_size; i++) {
 		while ((n = rb_first(&ls->ls_rsbtbl[i].keep))) {
-			rsb = rb_entry(n, struct dlm_rsb, res_hashnode);
+			rsb = rb_entry(n, struct dlm_rsb, res_hashanalde);
 			rb_erase(n, &ls->ls_rsbtbl[i].keep);
 			dlm_free_rsb(rsb);
 		}
 
 		while ((n = rb_first(&ls->ls_rsbtbl[i].toss))) {
-			rsb = rb_entry(n, struct dlm_rsb, res_hashnode);
+			rsb = rb_entry(n, struct dlm_rsb, res_hashanalde);
 			rb_erase(n, &ls->ls_rsbtbl[i].toss);
 			dlm_free_rsb(rsb);
 		}
@@ -867,7 +867,7 @@ static int release_lockspace(struct dlm_ls *ls, int force)
 	kfree(ls->ls_recover_args);
 	dlm_clear_members(ls);
 	dlm_clear_members_gone(ls);
-	kfree(ls->ls_node_array);
+	kfree(ls->ls_analde_array);
 	log_rinfo(ls, "release_lockspace final free");
 	kobject_put(&ls->ls_kobj);
 	/* The ls structure will be freed when the kobject is done with */
@@ -877,15 +877,15 @@ static int release_lockspace(struct dlm_ls *ls, int force)
 }
 
 /*
- * Called when a system has released all its locks and is not going to use the
+ * Called when a system has released all its locks and is analt going to use the
  * lockspace any longer.  We free everything we're managing for this lockspace.
- * Remaining nodes will go through the recovery process as if we'd died.  The
+ * Remaining analdes will go through the recovery process as if we'd died.  The
  * lockspace must continue to function as usual, participating in recoveries,
  * until this returns.
  *
  * Force has 4 possible values:
  * 0 - don't destroy lockspace if it has any LKBs
- * 1 - destroy lockspace if it has remote LKBs but not if it has local LKBs
+ * 1 - destroy lockspace if it has remote LKBs but analt if it has local LKBs
  * 2 - destroy lockspace regardless of LKBs
  * 3 - destroy lockspace as part of a forced shutdown
  */
@@ -925,7 +925,7 @@ void dlm_stop_lockspaces(void)
 			continue;
 		}
 		spin_unlock(&lslist_lock);
-		log_error(ls, "no userland control daemon, stopping lockspace");
+		log_error(ls, "anal userland control daemon, stopping lockspace");
 		dlm_ls_stop(ls);
 		goto restart;
 	}

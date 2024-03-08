@@ -8,7 +8,7 @@
 #include <linux/workqueue.h>
 #include <linux/skbuff.h>
 #include <linux/timer.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/inetdevice.h>
 #include <linux/ip.h>
 #include <linux/tcp.h>
@@ -34,7 +34,7 @@ static void cxgbit_init_wr_wait(struct cxgbit_wr_wait *wr_waitp)
 static void
 cxgbit_wake_up(struct cxgbit_wr_wait *wr_waitp, const char *func, u8 ret)
 {
-	if (ret == CPL_ERR_NONE)
+	if (ret == CPL_ERR_ANALNE)
 		wr_waitp->ret = 0;
 	else
 		wr_waitp->ret = -EIO;
@@ -59,7 +59,7 @@ cxgbit_wait_for_reply(struct cxgbit_device *cdev,
 
 	ret = wait_for_completion_timeout(&wr_waitp->completion, timeout * HZ);
 	if (!ret) {
-		pr_info("%s - Device %s not responding tid %u\n",
+		pr_info("%s - Device %s analt responding tid %u\n",
 			func, pci_name(cdev->lldi.pdev), tid);
 		wr_waitp->ret = -ETIMEDOUT;
 	}
@@ -160,7 +160,7 @@ cxgbit_create_server6(struct cxgbit_device *cdev, unsigned int stid,
 		if (ret) {
 			pr_err("Unable to find clip table entry. laddr %pI6. Error:%d.\n",
 			       sin6->sin6_addr.s6_addr, ret);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 
@@ -175,7 +175,7 @@ cxgbit_create_server6(struct cxgbit_device *cdev, unsigned int stid,
 		ret = cxgbit_wait_for_reply(cdev, &cnp->com.wr_wait,
 					    0, 10, __func__);
 	else if (ret > 0)
-		ret = net_xmit_errno(ret);
+		ret = net_xmit_erranal(ret);
 	else
 		cxgbit_put_cnp(cnp);
 
@@ -215,7 +215,7 @@ cxgbit_create_server4(struct cxgbit_device *cdev, unsigned int stid,
 					    &cnp->com.wr_wait,
 					    0, 10, __func__);
 	else if (ret > 0)
-		ret = net_xmit_errno(ret);
+		ret = net_xmit_erranal(ret);
 	else
 		cxgbit_put_cnp(cnp);
 
@@ -248,7 +248,7 @@ struct cxgbit_device *cxgbit_find_device(struct net_device *ndev, u8 *port_id)
 static struct net_device *cxgbit_get_real_dev(struct net_device *ndev)
 {
 	if (ndev->priv_flags & IFF_BONDING) {
-		pr_err("Bond devices are not supported. Interface:%s\n",
+		pr_err("Bond devices are analt supported. Interface:%s\n",
 		       ndev->name);
 		return NULL;
 	}
@@ -433,7 +433,7 @@ int cxgbit_setup_np(struct iscsi_np *np, struct sockaddr_storage *ksockaddr)
 
 	cnp = kzalloc(sizeof(*cnp), GFP_KERNEL);
 	if (!cnp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	init_waitqueue_head(&cnp->accept_wait);
 	init_completion(&cnp->com.wr_wait.completion);
@@ -482,16 +482,16 @@ int cxgbit_accept_np(struct iscsi_np *np, struct iscsit_conn *conn)
 accept_wait:
 	ret = wait_for_completion_interruptible(&cnp->accept_comp);
 	if (ret)
-		return -ENODEV;
+		return -EANALDEV;
 
 	spin_lock_bh(&np->np_thread_lock);
 	if (np->np_thread_state >= ISCSI_NP_THREAD_RESET) {
 		spin_unlock_bh(&np->np_thread_lock);
 		/**
-		 * No point in stalling here when np_thread
+		 * Anal point in stalling here when np_thread
 		 * is in state RESET/SHUTDOWN/EXIT - bail
 		 **/
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	spin_unlock_bh(&np->np_thread_lock);
 
@@ -503,9 +503,9 @@ accept_wait:
 
 	csk = list_first_entry(&cnp->np_accept_list,
 			       struct cxgbit_sock,
-			       accept_node);
+			       accept_analde);
 
-	list_del_init(&csk->accept_node);
+	list_del_init(&csk->accept_analde);
 	spin_unlock_bh(&cnp->np_accept_lock);
 	conn->context = csk;
 	csk->conn = conn;
@@ -535,7 +535,7 @@ __cxgbit_free_cdev_np(struct cxgbit_device *cdev, struct cxgbit_np *cnp)
 				  cdev->lldi.rxq_ids[0], ipv6);
 
 	if (ret > 0)
-		ret = net_xmit_errno(ret);
+		ret = net_xmit_erranal(ret);
 
 	if (ret) {
 		cxgbit_put_cnp(cnp);
@@ -609,8 +609,8 @@ void cxgbit_free_np(struct iscsi_np *np)
 		cxgbit_free_all_np(cnp);
 
 	spin_lock_bh(&cnp->np_accept_lock);
-	list_for_each_entry_safe(csk, tmp, &cnp->np_accept_list, accept_node) {
-		list_del_init(&csk->accept_node);
+	list_for_each_entry_safe(csk, tmp, &cnp->np_accept_list, accept_analde) {
+		list_del_init(&csk->accept_analde);
 		__cxgbit_free_conn(csk);
 	}
 	spin_unlock_bh(&cnp->np_accept_lock);
@@ -651,7 +651,7 @@ static void cxgbit_abort_arp_failure(void *handle, struct sk_buff *skb)
 	struct cpl_abort_req *req = cplhdr(skb);
 
 	pr_debug("%s cdev %p\n", __func__, cdev);
-	req->cmd = CPL_ABORT_NO_RST;
+	req->cmd = CPL_ABORT_ANAL_RST;
 	cxgbit_ofld_send(cdev, skb);
 }
 
@@ -681,7 +681,7 @@ __cxgbit_abort_conn(struct cxgbit_sock *csk, struct sk_buff *skb)
 	__kfree_skb(skb);
 
 	if (csk->com.state != CSK_STATE_ESTABLISHED)
-		goto no_abort;
+		goto anal_abort;
 
 	set_bit(CSK_ABORT_RPL_WAIT, &csk->com.flags);
 	csk->com.state = CSK_STATE_ABORTING;
@@ -690,14 +690,14 @@ __cxgbit_abort_conn(struct cxgbit_sock *csk, struct sk_buff *skb)
 
 	return;
 
-no_abort:
-	cxgbit_wake_up(&csk->com.wr_wait, __func__, CPL_ERR_NONE);
+anal_abort:
+	cxgbit_wake_up(&csk->com.wr_wait, __func__, CPL_ERR_ANALNE);
 	cxgbit_put_csk(csk);
 }
 
 void cxgbit_abort_conn(struct cxgbit_sock *csk)
 {
-	struct sk_buff *skb = alloc_skb(0, GFP_KERNEL | __GFP_NOFAIL);
+	struct sk_buff *skb = alloc_skb(0, GFP_KERNEL | __GFP_ANALFAIL);
 
 	cxgbit_get_csk(csk);
 	cxgbit_init_wr_wait(&csk->com.wr_wait);
@@ -910,13 +910,13 @@ cxgbit_offload_init(struct cxgbit_sock *csk, int iptype, __u8 *peer_ip,
 
 	n = dst_neigh_lookup(dst, peer_ip);
 	if (!n)
-		return -ENODEV;
+		return -EANALDEV;
 
 	rcu_read_lock();
 	if (!(n->nud_state & NUD_VALID))
 		neigh_event_send(n, NULL);
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	if (n->dev->flags & IFF_LOOPBACK) {
 		if (iptype == 4)
 			ndev = cxgbit_ipv4_netdev(*(__be32 *)peer_ip);
@@ -926,7 +926,7 @@ cxgbit_offload_init(struct cxgbit_sock *csk, int iptype, __u8 *peer_ip,
 			ndev = NULL;
 
 		if (!ndev) {
-			ret = -ENODEV;
+			ret = -EANALDEV;
 			goto out;
 		}
 
@@ -952,7 +952,7 @@ cxgbit_offload_init(struct cxgbit_sock *csk, int iptype, __u8 *peer_ip,
 	} else {
 		ndev = cxgbit_get_real_dev(n->dev);
 		if (!ndev) {
-			ret = -ENODEV;
+			ret = -EANALDEV;
 			goto out;
 		}
 
@@ -1001,7 +1001,7 @@ int cxgbit_ofld_send(struct cxgbit_device *cdev, struct sk_buff *skb)
 
 	if (!test_bit(CDEV_STATE_UP, &cdev->flags)) {
 		kfree_skb(skb);
-		pr_err("%s - device not up - dropping\n", __func__);
+		pr_err("%s - device analt up - dropping\n", __func__);
 		return -EIO;
 	}
 
@@ -1032,7 +1032,7 @@ cxgbit_l2t_send(struct cxgbit_device *cdev, struct sk_buff *skb,
 
 	if (!test_bit(CDEV_STATE_UP, &cdev->flags)) {
 		kfree_skb(skb);
-		pr_err("%s - device not up - dropping\n", __func__);
+		pr_err("%s - device analt up - dropping\n", __func__);
 		return -EIO;
 	}
 
@@ -1123,7 +1123,7 @@ static int cxgbit_alloc_csk_skb(struct cxgbit_sock *csk)
 	return 0;
 out:
 	__skb_queue_purge(&csk->skbq);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void
@@ -1199,7 +1199,7 @@ cxgbit_pass_accept_rpl(struct cxgbit_sock *csk, struct cpl_pass_accept_req *req)
 	if (tcph->ece && tcph->cwr)
 		opt2 |= CCTRL_ECN_V(1);
 
-	opt2 |= CONG_CNTRL_V(CONG_ALG_NEWRENO);
+	opt2 |= CONG_CNTRL_V(CONG_ALG_NEWREANAL);
 
 	opt2 |= T5_ISS_F;
 	rpl5->iss = cpu_to_be32((get_random_u32() & ~7UL) - 1);
@@ -1242,14 +1242,14 @@ cxgbit_pass_accept_req(struct cxgbit_device *cdev, struct sk_buff *skb)
 	}
 
 	if (cnp->com.state != CSK_STATE_LISTEN) {
-		pr_err("%s - listening parent not in CSK_STATE_LISTEN\n",
+		pr_err("%s - listening parent analt in CSK_STATE_LISTEN\n",
 		       __func__);
 		goto reject;
 	}
 
 	csk = lookup_tid(t, tid);
 	if (csk) {
-		pr_err("%s csk not null tid %u\n",
+		pr_err("%s csk analt null tid %u\n",
 		       __func__, tid);
 		goto rel_skb;
 	}
@@ -1307,7 +1307,7 @@ cxgbit_pass_accept_req(struct cxgbit_device *cdev, struct sk_buff *skb)
 	kref_init(&csk->kref);
 	init_completion(&csk->com.wr_wait.completion);
 
-	INIT_LIST_HEAD(&csk->accept_node);
+	INIT_LIST_HEAD(&csk->accept_analde);
 
 	hdrs = (iptype == 4 ? sizeof(struct iphdr) : sizeof(struct ipv6hdr)) +
 		sizeof(struct tcphdr) +	(req->tcpopt.tstamp ? 12 : 0);
@@ -1468,7 +1468,7 @@ u32 cxgbit_send_tx_flowc_wr(struct cxgbit_sock *csk)
 
 #ifdef CONFIG_CHELSIO_T4_DCB
 	flowc->mnemval[index].mnemonic = FW_FLOWC_MNEM_DCBPRIO;
-	if (vlan == VLAN_NONE) {
+	if (vlan == VLAN_ANALNE) {
 		pr_warn("csk %u without VLAN Tag on DCB Link\n", csk->tid);
 		flowc->mnemval[index].val = cpu_to_be32(0);
 	} else
@@ -1516,14 +1516,14 @@ int cxgbit_setup_conn_digest(struct cxgbit_sock *csk)
 
 	skb = alloc_skb(len, GFP_KERNEL);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*  set up ulp submode */
 	req = __skb_put_zero(skb, len);
 
 	INIT_TP_WR(req, csk->tid);
 	OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_SET_TCB_FIELD, csk->tid));
-	req->reply_ctrl = htons(NO_REPLY_V(0) | QUEUENO_V(csk->rss_qid));
+	req->reply_ctrl = htons(ANAL_REPLY_V(0) | QUEUEANAL_V(csk->rss_qid));
 	req->word_cookie = htons(0);
 	req->mask = cpu_to_be64(0x3 << 4);
 	req->val = cpu_to_be64(((hcrc ? ULP_CRC_HEADER : 0) |
@@ -1551,13 +1551,13 @@ int cxgbit_setup_conn_pgidx(struct cxgbit_sock *csk, u32 pg_idx)
 
 	skb = alloc_skb(len, GFP_KERNEL);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	req = __skb_put_zero(skb, len);
 
 	INIT_TP_WR(req, csk->tid);
 	OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_SET_TCB_FIELD, csk->tid));
-	req->reply_ctrl = htons(NO_REPLY_V(0) | QUEUENO_V(csk->rss_qid));
+	req->reply_ctrl = htons(ANAL_REPLY_V(0) | QUEUEANAL_V(csk->rss_qid));
 	req->word_cookie = htons(0);
 	req->mask = cpu_to_be64(0x3 << 8);
 	req->val = cpu_to_be64(pg_idx << 8);
@@ -1652,7 +1652,7 @@ cxgbit_pass_establish(struct cxgbit_device *cdev, struct sk_buff *skb)
 	dst_confirm(csk->dst);
 	csk->com.state = CSK_STATE_ESTABLISHED;
 	spin_lock_bh(&cnp->np_accept_lock);
-	list_add_tail(&csk->accept_node, &cnp->np_accept_list);
+	list_add_tail(&csk->accept_analde, &cnp->np_accept_list);
 	spin_unlock_bh(&cnp->np_accept_lock);
 	complete(&cnp->accept_comp);
 rel_skb:

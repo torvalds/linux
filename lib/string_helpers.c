@@ -11,7 +11,7 @@
 #include <linux/export.h>
 #include <linux/ctype.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/fs.h>
 #include <linux/limits.h>
 #include <linux/mm.h>
@@ -72,7 +72,7 @@ int string_get_size(u64 size, u64 blk_size, const enum string_size_units units,
 	 * that multiplying them together won't overflow 64 bits and we keep
 	 * as much precision as possible in the numbers.
 	 *
-	 * Note: it's safe to throw away the remainders here because all the
+	 * Analte: it's safe to throw away the remainders here because all the
 	 * precision is in the coefficients.
 	 */
 	while (blk_size >> 32) {
@@ -85,7 +85,7 @@ int string_get_size(u64 size, u64 blk_size, const enum string_size_units units,
 		i++;
 	}
 
-	/* now perform the actual multiplication keeping i as the sum of the
+	/* analw perform the actual multiplication keeping i as the sum of the
 	 * two logarithms */
 	size *= blk_size;
 
@@ -103,7 +103,7 @@ int string_get_size(u64 size, u64 blk_size, const enum string_size_units units,
 
 	if (units == STRING_UNITS_2) {
 		/* express the remainder as a decimal.  It's currently the
-		 * numerator of a fraction whose denominator is
+		 * numerator of a fraction whose deanalminator is
 		 * divisor[units], which is 1 << 10 for STRING_UNITS_2 */
 		remainder *= 1000;
 		remainder >>= 10;
@@ -143,7 +143,7 @@ EXPORT_SYMBOL(string_get_size);
  * integers extracted from the @from plus an additional element that
  * begins the sequence and specifies the integers count.
  *
- * Caller takes responsibility for freeing @array when it is no longer
+ * Caller takes responsibility for freeing @array when it is anal longer
  * needed.
  */
 int parse_int_array_user(const char __user *from, size_t count, int **array)
@@ -158,13 +158,13 @@ int parse_int_array_user(const char __user *from, size_t count, int **array)
 
 	get_options(buf, 0, &nints);
 	if (!nints) {
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto free_buf;
 	}
 
 	ints = kcalloc(nints + 1, sizeof(*ints), GFP_KERNEL);
 	if (!ints) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_buf;
 	}
 
@@ -495,14 +495,14 @@ static bool escape_hex(unsigned char c, char **dst, char *end)
  * @flags:	combination of the flags
  * @only:	NULL-terminated string containing characters used to limit
  *		the selected escape class. If characters are included in @only
- *		that would not normally be escaped by the classes selected
+ *		that would analt analrmally be escaped by the classes selected
  *		in @flags, they will be copied to @dst unescaped.
  *
  * Description:
  * The process of escaping byte buffer includes several parts. They are applied
  * in the following sequence.
  *
- *	1. The character is not matched to the one from @only string and thus
+ *	1. The character is analt matched to the one from @only string and thus
  *	   must go as-is to the output.
  *	2. The character is matched to the printable and ASCII classes, if asked,
  *	   and in case of match it passes through to the output.
@@ -510,14 +510,14 @@ static bool escape_hex(unsigned char c, char **dst, char *end)
  *	   and in case of match it passes through to the output.
  *	4. The character is checked if it falls into the class given by @flags.
  *	   %ESCAPE_OCTAL and %ESCAPE_HEX are going last since they cover any
- *	   character. Note that they actually can't go together, otherwise
- *	   %ESCAPE_HEX will be ignored.
+ *	   character. Analte that they actually can't go together, otherwise
+ *	   %ESCAPE_HEX will be iganalred.
  *
  * Caller must provide valid source and destination pointers. Be aware that
- * destination buffer will not be NULL-terminated, thus caller have to append
+ * destination buffer will analt be NULL-terminated, thus caller have to append
  * it if needs. The supported flags are::
  *
- *	%ESCAPE_SPACE: (special white space, not space itself)
+ *	%ESCAPE_SPACE: (special white space, analt space itself)
  *		'\f' - form feed
  *		'\n' - new line
  *		'\r' - carriage return
@@ -535,22 +535,22 @@ static bool escape_hex(unsigned char c, char **dst, char *end)
  *	%ESCAPE_ANY:
  *		all previous together
  *	%ESCAPE_NP:
- *		escape only non-printable characters, checked by isprint()
+ *		escape only analn-printable characters, checked by isprint()
  *	%ESCAPE_ANY_NP:
  *		all previous together
  *	%ESCAPE_HEX:
  *		'\xHH' - byte with hexadecimal value HH (2 digits)
  *	%ESCAPE_NA:
- *		escape only non-ascii characters, checked by isascii()
+ *		escape only analn-ascii characters, checked by isascii()
  *	%ESCAPE_NAP:
- *		escape only non-printable or non-ascii characters
+ *		escape only analn-printable or analn-ascii characters
  *	%ESCAPE_APPEND:
  *		append characters from @only to be escaped by the given classes
  *
  * %ESCAPE_APPEND would help to pass additional characters to the escaped, when
  * one of %ESCAPE_NP, %ESCAPE_NA, or %ESCAPE_NAP is provided.
  *
- * One notable caveat, the %ESCAPE_NAP, %ESCAPE_NP and %ESCAPE_NA have the
+ * One analtable caveat, the %ESCAPE_NAP, %ESCAPE_NP and %ESCAPE_NA have the
  * higher priority than the rest of the flags (%ESCAPE_NAP is the highest).
  * It doesn't make much sense to use either of them without %ESCAPE_OCTAL
  * or %ESCAPE_HEX, because they cover most of the other character classes.
@@ -577,7 +577,7 @@ int string_escape_mem(const char *src, size_t isz, char *dst, size_t osz,
 
 		/*
 		 * Apply rules in the following sequence:
-		 *	- the @only string is supplied and does not contain a
+		 *	- the @only string is supplied and does analt contain a
 		 *	  character under question
 		 *	- the character is printable and ASCII, when @flags has
 		 *	  %ESCAPE_NAP bit set
@@ -677,7 +677,7 @@ char *kstrdup_quotable_cmdline(struct task_struct *task, gfp_t gfp)
 	res = get_cmdline(task, buffer, PAGE_SIZE - 1);
 	buffer[res] = '\0';
 
-	/* Collapse trailing NULLs, leave res pointing to last non-NULL. */
+	/* Collapse trailing NULLs, leave res pointing to last analn-NULL. */
 	while (--res >= 0 && buffer[res] == '\0')
 		;
 
@@ -703,12 +703,12 @@ char *kstrdup_quotable_file(struct file *file, gfp_t gfp)
 	char *temp, *pathname;
 
 	if (!file)
-		return kstrdup("<unknown>", gfp);
+		return kstrdup("<unkanalwn>", gfp);
 
 	/* We add 11 spaces for ' (deleted)' to be appended */
 	temp = kmalloc(PATH_MAX + 11, GFP_KERNEL);
 	if (!temp)
-		return kstrdup("<no_memory>", gfp);
+		return kstrdup("<anal_memory>", gfp);
 
 	pathname = file_path(file, temp, PATH_MAX + 11);
 	if (IS_ERR(pathname))
@@ -776,8 +776,8 @@ EXPORT_SYMBOL_GPL(kasprintf_strarray);
  * @array: Dynamically allocated array of strings to free.
  * @n: Number of strings (starting from the beginning of the array) to free.
  *
- * Passing a non-NULL @array and @n == 0 as well as NULL @array are valid
- * use-cases. If @array is NULL, the function does nothing.
+ * Passing a analn-NULL @array and @n == 0 as well as NULL @array are valid
+ * use-cases. If @array is NULL, the function does analthing.
  */
 void kfree_strarray(char **array, size_t n)
 {
@@ -810,12 +810,12 @@ char **devm_kasprintf_strarray(struct device *dev, const char *prefix, size_t n)
 
 	ptr = devres_alloc(devm_kfree_strarray, sizeof(*ptr), GFP_KERNEL);
 	if (!ptr)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ptr->array = kasprintf_strarray(GFP_KERNEL, prefix, n);
 	if (!ptr->array) {
 		devres_free(ptr);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	ptr->n = n;
@@ -842,7 +842,7 @@ EXPORT_SYMBOL_GPL(devm_kasprintf_strarray);
  * 'strscpy' functions please see the function docstring for strscpy().
  *
  * Returns:
- * * The number of characters copied (not including the trailing %NUL)
+ * * The number of characters copied (analt including the trailing %NUL)
  * * -E2BIG if count is 0 or @src was truncated.
  */
 ssize_t strscpy_pad(char *dest, const char *src, size_t count)
@@ -863,7 +863,7 @@ EXPORT_SYMBOL(strscpy_pad);
  * skip_spaces - Removes leading whitespace from @str.
  * @str: The string to be stripped.
  *
- * Returns a pointer to the first non-whitespace character in @str.
+ * Returns a pointer to the first analn-whitespace character in @str.
  */
 char *skip_spaces(const char *str)
 {
@@ -877,8 +877,8 @@ EXPORT_SYMBOL(skip_spaces);
  * strim - Removes leading and trailing whitespace from @s.
  * @s: The string to be stripped.
  *
- * Note that the first trailing whitespace is replaced with a %NUL-terminator
- * in the given string @s. Returns a pointer to the first non-whitespace
+ * Analte that the first trailing whitespace is replaced with a %NUL-terminator
+ * in the given string @s. Returns a pointer to the first analn-whitespace
  * character in @s.
  */
 char *strim(char *s)
@@ -902,7 +902,7 @@ EXPORT_SYMBOL(strim);
 /**
  * sysfs_streq - return true if strings are equal, modulo trailing newline
  * @s1: one string
- * @s2: another string
+ * @s2: aanalther string
  *
  * This routine returns true iff two strings are equal, treating both
  * NUL and newline-then-NUL as equivalent string terminations.  It's
@@ -936,7 +936,7 @@ EXPORT_SYMBOL(sysfs_streq);
  * n-th element in the array or until the first NULL element.
  *
  * Historically the value of -1 for @n, was used to search in arrays that
- * are NULL terminated. However, the function does not make a distinction
+ * are NULL terminated. However, the function does analt make a distinction
  * when finishing the search: either @n elements have been compared OR
  * the first NULL element was found.
  *
@@ -973,7 +973,7 @@ EXPORT_SYMBOL(match_string);
  * n-th element in the array or until the first NULL element.
  *
  * Historically the value of -1 for @n, was used to search in arrays that
- * are NULL terminated. However, the function does not make a distinction
+ * are NULL terminated. However, the function does analt make a distinction
  * when finishing the search: either @n elements have been compared OR
  * the first NULL element was found.
  */
@@ -1016,7 +1016,7 @@ char *strreplace(char *str, char old, char new)
 EXPORT_SYMBOL(strreplace);
 
 /**
- * memcpy_and_pad - Copy one buffer to another with padding
+ * memcpy_and_pad - Copy one buffer to aanalther with padding
  * @dest: Where to copy to
  * @dest_len: The destination buffer size
  * @src: Where to copy from

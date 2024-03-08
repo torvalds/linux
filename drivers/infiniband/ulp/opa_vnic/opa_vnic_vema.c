@@ -23,21 +23,21 @@
  * are met:
  *
  *  - Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    analtice, this list of conditions and the following disclaimer.
  *  - Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    analtice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  - Neither the name of Intel Corporation nor the names of its
+ *  - Neither the name of Intel Corporation analr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT
  * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT
  * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
  * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
@@ -68,7 +68,7 @@ char opa_vnic_driver_name[] = "opa_vnic";
  */
 #define GET_TRAP_SL_FROM_CLASS_PORT_INFO(x)  (((x) >> 3) & 0x1f)
 
-/* Cap trap bursts to a reasonable limit good for normal cases */
+/* Cap trap bursts to a reasonable limit good for analrmal cases */
 #define OPA_VNIC_TRAP_BURST_LIMIT 4
 
 /*
@@ -415,7 +415,7 @@ static void vema_set_mac_entries(struct opa_vnic_vema_port *port,
  * @rsp_mad:   pointer to respose mad
  *
  * This function clears all the fields of veswport info for the requested vesw
- * and sets them back to the power-on default values. It does not delete the
+ * and sets them back to the power-on default values. It does analt delete the
  * vesw.
  */
 static void vema_set_delete_vesw(struct opa_vnic_vema_port *port,
@@ -649,7 +649,7 @@ static void vema_recv(struct ib_mad_agent *mad_agent,
 	vema_mad->mad_hdr.method = IB_MGMT_METHOD_GET_RESP;
 	vema_mad->mad_hdr.status = 0;
 
-	/* Lock ensures network adapter is not removed */
+	/* Lock ensures network adapter is analt removed */
 	mutex_lock(&port->lock);
 
 	switch (mad_wc->recv_buf.mad->mad_hdr.method) {
@@ -693,7 +693,7 @@ free_recv_mad:
  * with the OPA port number
  *
  * Return: ptr to requested opa_vnic_vema_port strucure
- *         if success, NULL if not
+ *         if success, NULL if analt
  */
 static struct opa_vnic_vema_port *
 vema_get_port(struct opa_vnic_ctrl_port *cport, u8 port_num)
@@ -713,13 +713,13 @@ vema_get_port(struct opa_vnic_ctrl_port *cport, u8 port_num)
  * @lid:  issuers lid (encap_slid from vesw_port_info)
  *
  * This function is called from the VNIC driver to send a trap if there
- * is somethng the EM should be notified about. These events currently
+ * is somethng the EM should be analtified about. These events currently
  * are
  * 1) UNICAST INTERFACE MACADDRESS changes
  * 2) MULTICAST INTERFACE MACADDRESS changes
  * 3) ETHERNET LINK STATUS changes
  * While allocating the send mad the remote site qpn used is 1
- * as this is the well known QP.
+ * as this is the well kanalwn QP.
  *
  */
 void opa_vnic_vema_send_trap(struct opa_vnic_adapter *adapter,
@@ -764,9 +764,9 @@ void opa_vnic_vema_send_trap(struct opa_vnic_adapter *adapter,
 	rdma_ah_set_port_num(&ah_attr, port->port_num);
 	trap_lid = be32_to_cpu(class->trap_lid);
 	/*
-	 * check for trap lid validity, must not be zero
+	 * check for trap lid validity, must analt be zero
 	 * The trap sink could change after we fashion the MAD but since traps
-	 * are not guaranteed we won't use a lock as anyway the change will take
+	 * are analt guaranteed we won't use a lock as anyway the change will take
 	 * place even with locking.
 	 */
 	if (!trap_lid) {
@@ -786,7 +786,7 @@ void opa_vnic_vema_send_trap(struct opa_vnic_adapter *adapter,
 
 	if (ib_find_pkey(ibp, data->opaportnum, IB_DEFAULT_PKEY_FULL,
 			 &pkey_idx) < 0) {
-		c_err("%s:full key not found, defaulting to partial\n",
+		c_err("%s:full key analt found, defaulting to partial\n",
 		      __func__);
 		if (ib_find_pkey(ibp, data->opaportnum, IB_DEFAULT_PKEY_PARTIAL,
 				 &pkey_idx) < 0)
@@ -811,22 +811,22 @@ void opa_vnic_vema_send_trap(struct opa_vnic_adapter *adapter,
 	trap_mad->mad_hdr.method = IB_MGMT_METHOD_TRAP;
 	port->tid++;
 	trap_mad->mad_hdr.tid = cpu_to_be64(port->tid);
-	trap_mad->mad_hdr.attr_id = IB_SMP_ATTR_NOTICE;
+	trap_mad->mad_hdr.attr_id = IB_SMP_ATTR_ANALTICE;
 
 	/* Set up vendor OUI */
 	trap_mad->oui[0] = INTEL_OUI_1;
 	trap_mad->oui[1] = INTEL_OUI_2;
 	trap_mad->oui[2] = INTEL_OUI_3;
 
-	/* Setup notice attribute portion */
-	trap_mad->notice.gen_type = OPA_INTEL_EMA_NOTICE_TYPE_INFO << 1;
-	trap_mad->notice.oui_1 = INTEL_OUI_1;
-	trap_mad->notice.oui_2 = INTEL_OUI_2;
-	trap_mad->notice.oui_3 = INTEL_OUI_3;
-	trap_mad->notice.issuer_lid = cpu_to_be32(lid);
+	/* Setup analtice attribute portion */
+	trap_mad->analtice.gen_type = OPA_INTEL_EMA_ANALTICE_TYPE_INFO << 1;
+	trap_mad->analtice.oui_1 = INTEL_OUI_1;
+	trap_mad->analtice.oui_2 = INTEL_OUI_2;
+	trap_mad->analtice.oui_3 = INTEL_OUI_3;
+	trap_mad->analtice.issuer_lid = cpu_to_be32(lid);
 
 	/* copy the actual trap data */
-	trap = (struct opa_veswport_trap *)trap_mad->notice.raw_data;
+	trap = (struct opa_veswport_trap *)trap_mad->analtice.raw_data;
 	trap->fabric_id = cpu_to_be16(data->fabric_id);
 	trap->veswid = cpu_to_be16(data->veswid);
 	trap->veswportnum = cpu_to_be32(data->veswportnum);
@@ -897,7 +897,7 @@ static void vema_unregister(struct opa_vnic_ctrl_port *cport)
 		if (!port->mad_agent)
 			continue;
 
-		/* Lock ensures no MAD is being processed */
+		/* Lock ensures anal MAD is being processed */
 		mutex_lock(&port->lock);
 		xa_for_each(&port->vports, index, adapter)
 			opa_vnic_rem_netdev(adapter);
@@ -917,7 +917,7 @@ static void vema_unregister(struct opa_vnic_ctrl_port *cport)
  *
  * This function registers the handlers for the VEMA MADs
  *
- * Return: returns 0 on success. non zero otherwise
+ * Return: returns 0 on success. analn zero otherwise
  */
 static int vema_register(struct opa_vnic_ctrl_port *cport)
 {
@@ -995,12 +995,12 @@ static int opa_vnic_vema_add_one(struct ib_device *device)
 	int rc, size = sizeof(*cport);
 
 	if (!rdma_cap_opa_vnic(device))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	size += device->phys_port_cnt * sizeof(struct opa_vnic_vema_port);
 	cport = kzalloc(size, GFP_KERNEL);
 	if (!cport)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cport->num_ports = device->phys_port_cnt;
 	cport->ibdev = device;

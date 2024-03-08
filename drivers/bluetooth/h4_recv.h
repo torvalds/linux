@@ -60,7 +60,7 @@ static inline struct sk_buff *h4_recv_buf(struct hci_dev *hdev,
 				skb = bt_skb_alloc((&pkts[i])->maxlen,
 						   GFP_ATOMIC);
 				if (!skb)
-					return ERR_PTR(-ENOMEM);
+					return ERR_PTR(-EANALMEM);
 
 				hci_skb_pkt_type(skb) = (&pkts[i])->type;
 				hci_skb_expect(skb) = (&pkts[i])->hlen;
@@ -100,7 +100,7 @@ static inline struct sk_buff *h4_recv_buf(struct hci_dev *hdev,
 
 			switch ((&pkts[i])->lsize) {
 			case 0:
-				/* No variable data length */
+				/* Anal variable data length */
 				dlen = 0;
 				break;
 			case 1:
@@ -131,7 +131,7 @@ static inline struct sk_buff *h4_recv_buf(struct hci_dev *hdev,
 			}
 
 			if (!dlen) {
-				/* No more data, complete frame */
+				/* Anal more data, complete frame */
 				(&pkts[i])->recv(hdev, skb);
 				skb = NULL;
 			}

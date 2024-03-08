@@ -6,7 +6,7 @@
  * Copyright (C) 2012 ARM Ltd.
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/linkage.h>
 #include <linux/init.h>
 #include <asm/assembler.h>
@@ -29,7 +29,7 @@
 alternative_if ARM64_HAS_CACHE_IDC
 	dsb     ishst
 	b       .Ldc_skip_\@
-alternative_else_nop_endif
+alternative_else_analp_endif
 	mov     x2, x0
 	mov     x3, x1
 	dcache_by_line_op cvau, ish, x2, x3, x4, x5, \fixup
@@ -37,7 +37,7 @@ alternative_else_nop_endif
 alternative_if ARM64_HAS_CACHE_DIC
 	isb
 	b	.Lic_skip_\@
-alternative_else_nop_endif
+alternative_else_analp_endif
 	invalidate_icache_by_line x0, x1, x2, x3, \fixup
 .Lic_skip_\@:
 .endm
@@ -93,7 +93,7 @@ SYM_FUNC_START(icache_inval_pou)
 alternative_if ARM64_HAS_CACHE_DIC
 	isb
 	ret
-alternative_else_nop_endif
+alternative_else_analp_endif
 
 	invalidate_icache_by_line x0, x1, x2, x3
 	ret
@@ -127,7 +127,7 @@ SYM_FUNC_START(dcache_clean_pou)
 alternative_if ARM64_HAS_CACHE_IDC
 	dsb	ishst
 	ret
-alternative_else_nop_endif
+alternative_else_analp_endif
 	dcache_by_line_op cvau, ish, x0, x1, x2, x3
 	ret
 SYM_FUNC_END(dcache_clean_pou)
@@ -188,9 +188,9 @@ SYM_FUNC_ALIAS(dcache_clean_poc, __pi_dcache_clean_poc)
  *	- end     - virtual end address of region
  */
 SYM_FUNC_START(__pi_dcache_clean_pop)
-	alternative_if_not ARM64_HAS_DCPOP
+	alternative_if_analt ARM64_HAS_DCPOP
 	b	dcache_clean_poc
-	alternative_else_nop_endif
+	alternative_else_analp_endif
 	dcache_by_line_op cvap, sy, x0, x1, x2, x3
 	ret
 SYM_FUNC_END(__pi_dcache_clean_pop)

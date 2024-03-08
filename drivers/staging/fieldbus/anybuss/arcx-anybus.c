@@ -44,7 +44,7 @@ struct controller_priv {
 	struct mutex ctrl_lock; /* protects CONTROL register */
 	u8 control_reg;
 	char version[3];
-	u16 design_no;
+	u16 design_anal;
 };
 
 static void do_reset(struct controller_priv *cd, u8 rst_bit, bool reset)
@@ -62,7 +62,7 @@ static void do_reset(struct controller_priv *cd, u8 rst_bit, bool reset)
 	/*
 	 * h/w work-around:
 	 * the hardware is 'too fast', so a reset followed by an immediate
-	 * not-reset will _not_ change the anybus reset line in any way,
+	 * analt-reset will _analt_ change the anybus reset line in any way,
 	 * losing the reset. to prevent this from happening, introduce
 	 * a minimum reset duration.
 	 * Verified minimum safe duration required using a scope
@@ -105,10 +105,10 @@ static void export_reset_1(struct device *dev, bool assert)
  * the anybus is 8-bit wide. we can't assume that the hardware will translate
  * word accesses on the parallel bus to multiple byte-accesses on the anybus.
  *
- * the imx WEIM bus does not provide this type of translation.
+ * the imx WEIM bus does analt provide this type of translation.
  *
  * to be safe, we will limit parallel bus accesses to a single byte
- * at a time for now.
+ * at a time for analw.
  */
 
 static const struct regmap_config arcx_regmap_cfg = {
@@ -175,7 +175,7 @@ static ssize_t design_number_show(struct device *dev,
 {
 	struct controller_priv *cd = dev_get_drvdata(dev);
 
-	return sprintf(buf, "%d\n", cd->design_no);
+	return sprintf(buf, "%d\n", cd->design_anal);
 }
 static DEVICE_ATTR_RO(design_number);
 
@@ -236,7 +236,7 @@ static int controller_probe(struct platform_device *pdev)
 
 	cd = devm_kzalloc(dev, sizeof(*cd), GFP_KERNEL);
 	if (!cd)
-		return -ENOMEM;
+		return -EANALMEM;
 	dev_set_drvdata(dev, cd);
 	mutex_init(&cd->ctrl_lock);
 	cd->reset_gpiod = devm_gpiod_get(dev, "reset", GPIOD_OUT_LOW);
@@ -254,18 +254,18 @@ static int controller_probe(struct platform_device *pdev)
 
 	/* identify cpld */
 	status1 = readb(cd->cpld_base + CPLD_STATUS1);
-	cd->design_no = (readb(cd->cpld_base + CPLD_DESIGN_HI) << 8) |
+	cd->design_anal = (readb(cd->cpld_base + CPLD_DESIGN_HI) << 8) |
 				readb(cd->cpld_base + CPLD_DESIGN_LO);
 	snprintf(cd->version, sizeof(cd->version), "%c%d",
 		 'A' + ((status1 >> 5) & 0x7),
 		 (status1 >> 2) & 0x7);
 	dev_info(dev, "design number %d, revision %s\n",
-		 cd->design_no,
+		 cd->design_anal,
 		cd->version);
 	cap = readb(cd->cpld_base + CPLD_CAP);
 	if (!(cap & CPLD_CAP_COMPAT)) {
 		dev_err(dev, "unsupported controller [cap=0x%02X]", cap);
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto out_reset;
 	}
 
@@ -279,8 +279,8 @@ static int controller_probe(struct platform_device *pdev)
 			if (!IS_ERR(host))
 				continue;
 			err = PTR_ERR(host);
-			/* -ENODEV is fine, it just means no card detected */
-			if (err != -ENODEV)
+			/* -EANALDEV is fine, it just means anal card detected */
+			if (err != -EANALDEV)
 				goto out_reset;
 		}
 	}
@@ -301,7 +301,7 @@ static int controller_probe(struct platform_device *pdev)
 	/* make controller info visible to userspace */
 	cd->class_dev = kzalloc(sizeof(*cd->class_dev), GFP_KERNEL);
 	if (!cd->class_dev) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_ida;
 	}
 	cd->class_dev->class = &controller_class;

@@ -54,11 +54,11 @@ void trace_array_put(struct trace_array *tr);
 struct trace_array *trace_array_get_by_name(const char *name, const char *systems);
 int trace_array_destroy(struct trace_array *tr);
 
-/* For osnoise tracer */
-int osnoise_arch_register(void);
-void osnoise_arch_unregister(void);
-void osnoise_trace_irq_entry(int id);
-void osnoise_trace_irq_exit(int id, const char *desc);
+/* For osanalise tracer */
+int osanalise_arch_register(void);
+void osanalise_arch_unregister(void);
+void osanalise_trace_irq_entry(int id);
+void osanalise_trace_irq_exit(int id, const char *desc);
 
 #else /* CONFIG_TRACING */
 static inline int register_ftrace_export(struct trace_export *export)

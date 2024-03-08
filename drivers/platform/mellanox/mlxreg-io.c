@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Mellanox register access driver
+ * Mellaanalx register access driver
  *
- * Copyright (C) 2018 Mellanox Technologies
- * Copyright (C) 2018 Vadim Pasternak <vadimp@mellanox.com>
+ * Copyright (C) 2018 Mellaanalx Techanallogies
+ * Copyright (C) 2018 Vadim Pasternak <vadimp@mellaanalx.com>
  */
 
 #include <linux/bitops.h>
@@ -57,9 +57,9 @@ mlxreg_io_get_reg(void *regmap, struct mlxreg_core_data *data, u32 in_val,
 	/*
 	 * There are four kinds of attributes: single bit, full register's
 	 * bits, bit sequence, bits in few registers For the first kind field
-	 * mask indicates which bits are not related and field bit is set zero.
+	 * mask indicates which bits are analt related and field bit is set zero.
 	 * For the second kind field mask is set to zero and field bit is set
-	 * with all bits one. No special handling for such kind of attributes -
+	 * with all bits one. Anal special handling for such kind of attributes -
 	 * pass value as is. For the third kind, the field mask indicates which
 	 * bits are related and the field bit is set to the first bit number
 	 * (from 1 to 32) is the bit sequence. For the fourth kind - the number
@@ -186,7 +186,7 @@ static int mlxreg_io_attr_init(struct mlxreg_io_priv_data *priv)
 					 sizeof(struct attribute *),
 					 GFP_KERNEL);
 	if (!priv->group.attrs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < priv->pdata->counter; i++) {
 		priv->mlxreg_io_attr[i] =
@@ -202,7 +202,7 @@ static int mlxreg_io_attr_init(struct mlxreg_io_priv_data *priv)
 		if (!priv->mlxreg_io_attr[i]->name) {
 			dev_err(&priv->pdev->dev, "Memory allocation failed for sysfs attribute %d.\n",
 				i + 1);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		priv->mlxreg_io_dev_attr[i].dev_attr.attr.mode =
@@ -227,7 +227,7 @@ static int mlxreg_io_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->pdata = dev_get_platdata(&pdev->dev);
 	if (!priv->pdata) {
@@ -280,7 +280,7 @@ static struct platform_driver mlxreg_io_driver = {
 
 module_platform_driver(mlxreg_io_driver);
 
-MODULE_AUTHOR("Vadim Pasternak <vadimp@mellanox.com>");
-MODULE_DESCRIPTION("Mellanox regmap I/O access driver");
+MODULE_AUTHOR("Vadim Pasternak <vadimp@mellaanalx.com>");
+MODULE_DESCRIPTION("Mellaanalx regmap I/O access driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:mlxreg-io");

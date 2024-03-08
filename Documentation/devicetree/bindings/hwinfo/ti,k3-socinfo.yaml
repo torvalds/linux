@@ -8,7 +8,7 @@ title: Texas Instruments K3 Multicore SoC platforms chipid module
 
 maintainers:
   - Tero Kristo <t-kristo@ti.com>
-  - Nishanth Menon <nm@ti.com>
+  - Nishanth Meanaln <nm@ti.com>
 
 description: |
   Texas Instruments (ARM64) K3 Multicore SoC platforms chipid module is
@@ -16,7 +16,7 @@ description: |
   SoC id and revision.
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^chipid@[0-9a-f]+$"
 
   compatible:

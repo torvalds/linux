@@ -24,11 +24,11 @@
 #include <asm/kdebug.h>
 #include <asm/winmacro.h>
 #include <asm/thread_info.h>	/* TI_UWINMASK */
-#include <asm/errno.h>
+#include <asm/erranal.h>
 #include <asm/pgtable.h>	/* PGDIR_SHIFT */
 
 	.data
-/* The following are used with the prom_vector node-ops to figure out
+/* The following are used with the prom_vector analde-ops to figure out
  * the cpu-type
  */
 	.align 4
@@ -44,12 +44,12 @@ cputypvar:
 
 	.align 4
 
-notsup:
-	.asciz	"Sparc-Linux sun4/sun4c or MMU-less not supported\n\n"
+analtsup:
+	.asciz	"Sparc-Linux sun4/sun4c or MMU-less analt supported\n\n"
 	.align 4
 
-sun4e_notsup:
-        .asciz  "Sparc-Linux sun4e support does not exist\n\n"
+sun4e_analtsup:
+        .asciz  "Sparc-Linux sun4e support does analt exist\n\n"
 	.align 4
 
 /* The trap-table - located in the __HEAD section */
@@ -96,7 +96,7 @@ sparc_ramdisk_size:
  * a v0, v2, or v3 prom.
  */
 gokernel:
-		/* Ok, it's nice to know, as early as possible, if we
+		/* Ok, it's nice to kanalw, as early as possible, if we
 		 * are already mapped where we expect to be in virtual
 		 * memory.  The Solaris /boot elf format bootloader
 		 * will peek into our elf header and load us where
@@ -112,13 +112,13 @@ gokernel:
 		/* Jump to it, and pray... */
 current_pc:
 		call	1f
-		 nop
+		 analp
 
 1:
 		mov	%o7, %g3
 
 		tst	%o0
-		be	no_sun4u_here
+		be	anal_sun4u_here
 		 mov	%g4, %o7		/* Previous %o7. */
 
 		mov	%o0, %l0		! stash away romvec
@@ -129,7 +129,7 @@ current_pc:
 		set	current_pc, %g5
 		cmp	%g3, %g5
 		be	already_mapped
-		 nop
+		 analp
 
 		/* %l6 will hold the offset we have to subtract
 		 * from absolute symbols in order to access areas
@@ -138,7 +138,7 @@ current_pc:
 		 */
 		set	KERNBASE, %l6
 		b	copy_prom_lvl14
-		 nop
+		 analp
 
 already_mapped:
 		mov	0, %l6
@@ -173,34 +173,34 @@ copy_prom_lvl14:
  * we need their values afterwards!
  */
 
-		/* Now check whether we are already mapped, if we
+		/* Analw check whether we are already mapped, if we
 		 * are we can skip all this garbage coming up.
 		 */
 copy_prom_done:
 		cmp	%l6, 0
-		be	go_to_highmem		! this will be a nop then
-		 nop
+		be	go_to_highmem		! this will be a analp then
+		 analp
 
 		/* Validate that we are in fact running on an
 		 * SRMMU based cpu.
 		 */
 		set	0x4000, %g6
 		cmp	%g7, %g6
-		bne	not_a_sun4
-		 nop
+		bne	analt_a_sun4
+		 analp
 
-halt_notsup:
+halt_analtsup:
 		ld	[%g7 + 0x68], %o1
-		set	notsup, %o0
+		set	analtsup, %o0
 		sub	%o0, %l6, %o0
 		call	%o1
-		 nop
+		 analp
 		ba	halt_me
-		 nop
+		 analp
 
-not_a_sun4:
+analt_a_sun4:
 		/* It looks like this is a machine we support.
-		 * Now find out what MMU we are dealing with
+		 * Analw find out what MMU we are dealing with
 		 * LEON - identified by the psr.impl field
 		 * Viking - identified by the psr.impl field
 		 * In all other cases a sun4m srmmu.
@@ -213,22 +213,22 @@ not_a_sun4:
 		and	%g3, PSR_IMPL_SHIFTED_MASK, %g3
 		cmp	%g3, PSR_IMPL_LEON
 		be	leon_remap		/* It is a LEON - jump */
-		 nop
+		 analp
 
 		/* Sanity-check, is MMU enabled */
 		lda	[%g0] ASI_M_MMUREGS, %g1
 		andcc	%g1, 1, %g0
-		be	halt_notsup
-		 nop
+		be	halt_analtsup
+		 analp
 
 		/* Check for a viking (TI) module. */
 		cmp	%g3, PSR_IMPL_TI
-		bne	srmmu_not_viking
-		 nop
+		bne	srmmu_analt_viking
+		 analp
 
 		/* Figure out what kind of viking we are on.
-		 * We need to know if we have to play with the
-		 * AC bit and disable traps or not.
+		 * We need to kanalw if we have to play with the
+		 * AC bit and disable traps or analt.
 		 */
 
 		/* I've only seen MicroSparc's on SparcClassics with this
@@ -238,10 +238,10 @@ not_a_sun4:
 		lda	[%g0] ASI_M_MMUREGS, %g3	! peek in the control reg
 		and	%g2, %g3, %g3
 		subcc	%g3, 0x0, %g0
-		bnz	srmmu_not_viking			! is in mbus mode
-		 nop
+		bnz	srmmu_analt_viking			! is in mbus mode
+		 analp
 
-		rd	%psr, %g3			! DO NOT TOUCH %g3
+		rd	%psr, %g3			! DO ANALT TOUCH %g3
 		andn	%g3, PSR_ET, %g2
 		wr	%g2, 0x0, %psr
 		WRITE_PAUSE
@@ -252,13 +252,13 @@ not_a_sun4:
 		set	AC_M_CTPR, %g4
 		lda	[%g4] ASI_M_MMUREGS, %g4
 		sll	%g4, 0x4, %g4			! We use this below
-							! DO NOT TOUCH %g4
+							! DO ANALT TOUCH %g4
 
 		/* Set the AC bit in the Viking's MMU control reg. */
-		lda	[%g0] ASI_M_MMUREGS, %g5	! DO NOT TOUCH %g5
+		lda	[%g0] ASI_M_MMUREGS, %g5	! DO ANALT TOUCH %g5
 		set	0x8000, %g6			! AC bit mask
 		or	%g5, %g6, %g6			! Or it in...
-		sta	%g6, [%g0] ASI_M_MMUREGS	! Close your eyes...
+		sta	%g6, [%g0] ASI_M_MMUREGS	! Close your eanal...
 
 		/* Grrr, why does it seem like every other load/store
 		 * on the sun4m is in some ASI space...
@@ -280,7 +280,7 @@ not_a_sun4:
 
 		/* I don't get it Sun, if you engineered all these
 		 * boot loaders and the PROM (thank you for the debugging
-		 * features btw) why did you not have them load kernel
+		 * features btw) why did you analt have them load kernel
 		 * images up in high address space, since this is necessary
 		 * for ABI compliance anyways?  Does this low-mapping provide
 		 * enhanced interoperability?
@@ -294,16 +294,16 @@ not_a_sun4:
 		/* Turn traps back on.  We saved it in %g3 earlier. */
 		wr	%g3, 0x0, %psr			! tick tock, tick tock
 
-		/* Now we burn precious CPU cycles due to bad engineering. */
+		/* Analw we burn precious CPU cycles due to bad engineering. */
 		WRITE_PAUSE
 
 		/* Wow, all that just to move a 32-bit value from one
-		 * place to another...  Jump to high memory.
+		 * place to aanalther...  Jump to high memory.
 		 */
 		b	go_to_highmem
-		 nop
+		 analp
 
-srmmu_not_viking:
+srmmu_analt_viking:
 		/* This works on viking's in Mbus mode and all
 		 * other MBUS modules.  It is virtually the same as
 		 * the above madness sans turning traps off and flipping
@@ -320,17 +320,17 @@ srmmu_not_viking:
 		add	%g1, KERNBASE >> (PGDIR_SHIFT - 2), %g3
 		sta	%g2, [%g3] ASI_M_BYPASS		! place at KERNBASE entry
 		b	go_to_highmem
-		 nop					! wheee....
+		 analp					! wheee....
 
 
 leon_remap:
 		/* Sanity-check, is MMU enabled */
 		lda	[%g0] ASI_LEON_MMUREGS, %g1
 		andcc	%g1, 1, %g0
-		be	halt_notsup
-		 nop
+		be	halt_analtsup
+		 analp
 
-		/* Same code as in the srmmu_not_viking case,
+		/* Same code as in the srmmu_analt_viking case,
 		 * with the LEON ASI for mmuregs
 		 */
 		set	AC_M_CTPR, %g1
@@ -344,13 +344,13 @@ leon_remap:
 		add	%g1, KERNBASE >> (PGDIR_SHIFT - 2), %g3
 		sta	%g2, [%g3] ASI_M_BYPASS		! place at KERNBASE entry
 		b	go_to_highmem
-		 nop					! wheee....
+		 analp					! wheee....
 
-/* Now do a non-relative jump so that PC is in high-memory */
+/* Analw do a analn-relative jump so that PC is in high-memory */
 go_to_highmem:
 		set	execute_in_high_mem, %g1
 		jmpl	%g1, %g0
-		 nop
+		 analp
 
 /* The code above should be at beginning and we have to take care about
  * short jumps, as branching to .init.text section from .text is usually
@@ -370,23 +370,23 @@ execute_in_high_mem:
 		st	%o1, [%g1 + %lo(linux_dbvec)]
 
 		/* Get the machine type via the romvec
-		 * getprops node operation
+		 * getprops analde operation
 		 */
 		add	%g7, 0x1c, %l1
 		ld	[%l1], %l0
 		ld	[%l0], %l0
 		call	%l0
-		 or	%g0, %g0, %o0		! next_node(0) = first_node
+		 or	%g0, %g0, %o0		! next_analde(0) = first_analde
 		or	%o0, %g0, %g6
 
-		sethi	%hi(cputypvar), %o1	! First node has cpu-arch
+		sethi	%hi(cputypvar), %o1	! First analde has cpu-arch
 		or	%o1, %lo(cputypvar), %o1
 		sethi	%hi(cputypval), %o2	! information, the string
 		or	%o2, %lo(cputypval), %o2
 		ld	[%l1], %l0		! 'compatible' tells
 		ld	[%l0 + 0xc], %l0	! that we want 'sun4x' where
 		call	%l0			! x is one of 'm', 'd' or 'e'.
-		 nop				! %o2 holds pointer
+		 analp				! %o2 holds pointer
 						! to a buf where above string
 						! will get stored by the prom.
 
@@ -397,8 +397,8 @@ execute_in_high_mem:
 		 * sun4m => sun4m
 		 * sun4s => sun4m
 		 * sun4d => sun4d
-		 * sun4e => "no_sun4e_here"
-		 * '*'   => "no_sun4u_here"
+		 * sun4e => "anal_sun4e_here"
+		 * '*'   => "anal_sun4u_here"
 		 * Check single letters only
 		 */
 
@@ -407,7 +407,7 @@ execute_in_high_mem:
 		ldub	[%o2], %l1
 		cmp	%l1, 'l'
 		be	leon_init
-		 nop
+		 analp
 
 		/* Check cputypval[4] to find the sun model */
 		ldub	[%o2 + 0x4], %l1
@@ -419,10 +419,10 @@ execute_in_high_mem:
 		 cmp	%l1, 'd'
 		be	sun4d_init
 		 cmp	%l1, 'e'
-		be	no_sun4e_here		! Could be a sun4e.
-		 nop
-		b	no_sun4u_here		! AIEEE, a V9 sun4u... Get our BIG BROTHER kernel :))
-		 nop
+		be	anal_sun4e_here		! Could be a sun4e.
+		 analp
+		b	anal_sun4u_here		! AIEEE, a V9 sun4u... Get our BIG BROTHER kernel :))
+		 analp
 
 leon_init:
 		/* LEON CPU - set boot_cpu_id */
@@ -432,7 +432,7 @@ leon_init:
 		ldub	[%g2 + %lo(boot_cpu_id)], %g1
 		cmp	%g1, 0xff		! unset means first CPU
 		bne	leon_smp_cpu_startup	! continue only with master
-		 nop
+		 analp
 #endif
 		/* Get CPU-ID from most significant 4-bit of ASR17 */
 		rd     %asr17, %g1
@@ -442,7 +442,7 @@ leon_init:
 		stub	%g1, [%g2 + %lo(boot_cpu_id)]
 
 		ba continue_boot
-		 nop
+		 analp
 
 /* CPUID in bootbus can be found at PA 0xff0140000 */
 #define SUN4D_BOOTBUS_CPUID     0xf0140000
@@ -482,28 +482,28 @@ sun4m_init:
 
 		subcc	%o1, PSR_IMPL_TI, %g0		! TI: Viking or MicroSPARC
 		be	continue_boot
-		 nop
+		 analp
 
 		set	AC_M_SFSR, %o0
 		lda	[%o0] ASI_M_MMUREGS, %g0
 		set	AC_M_SFAR, %o0
 		lda	[%o0] ASI_M_MMUREGS, %g0
 
-		/* Fujitsu MicroSPARC-II has no asynchronous flavors of FARs */
+		/* Fujitsu MicroSPARC-II has anal asynchroanalus flavors of FARs */
 		subcc	%o1, 0, %g0
 		be	continue_boot
-		 nop
+		 analp
 
 		set	AC_M_AFSR, %o0
 		lda	[%o0] ASI_M_MMUREGS, %g0
 		set	AC_M_AFAR, %o0
 		lda	[%o0] ASI_M_MMUREGS, %g0
-		 nop
+		 analp
 
 
 continue_boot:
 
-/* Aieee, now set PC and nPC, enable traps, give ourselves a stack and it's
+/* Aieee, analw set PC and nPC, enable traps, give ourselves a stack and it's
  * show-time!
  */
 		/* Turn on Supervisor, EnableFloating, and all the PIL bits.
@@ -513,7 +513,7 @@ continue_boot:
 		wr	%g2, 0x0, %psr
 		WRITE_PAUSE
 
-		/* I want a kernel stack NOW! */
+		/* I want a kernel stack ANALW! */
 		set	init_thread_union, %g1
 		set	(THREAD_SIZE - STACKFRAME_SZ - TRACEREG_SZ), %g2
 		add	%g1, %g2, %sp
@@ -529,14 +529,14 @@ continue_boot:
 		bl	1b
 		 add	%o0, 0x1, %o0
 
-		/* If boot_cpu_id has not been setup by machine specific
+		/* If boot_cpu_id has analt been setup by machine specific
 		 * init-code above we default it to zero.
 		 */
 		sethi	%hi(boot_cpu_id), %g2
 		ldub	[%g2 + %lo(boot_cpu_id)], %g3
 		cmp	%g3, 0xff
 		bne	1f
-		 nop
+		 analp
 		mov	%g0, %g3
 		stub	%g3, [%g2 + %lo(boot_cpu_id)]
 
@@ -555,12 +555,12 @@ continue_boot:
 
 		st	%g0, [%g6 + TI_UWINMASK]
 
-/* Compute NWINDOWS and stash it away. Now uses %wim trick explained
+/* Compute NWINDOWS and stash it away. Analw uses %wim trick explained
  * in the V8 manual. Ok, this method seems to work, Sparc is cool...
- * No, it doesn't work, have to play the save/readCWP/restore trick.
+ * Anal, it doesn't work, have to play the save/readCWP/restore trick.
  */
 
-		wr	%g0, 0x0, %wim			! so we do not get a trap
+		wr	%g0, 0x0, %wim			! so we do analt get a trap
 		WRITE_PAUSE
 
 		save
@@ -578,7 +578,7 @@ continue_boot:
 
 		cmp	%g3, 0x7
 		bne	2f
-		 nop
+		 analp
 
 		/* Adjust our window handling routines to
 		 * do things correctly on 7 window Sparcs.
@@ -617,7 +617,7 @@ continue_boot:
 		/* Patch for killing user windows from the register file. */
 		PATCH_INSN(kuw_patch1_7win, kuw_patch1)
 
-		/* Now patch the kernel window flush sequences.
+		/* Analw patch the kernel window flush sequences.
 		 * This saves 2 traps on every switch and fork.
 		 */
 		set	0x01000000, %g4
@@ -664,19 +664,19 @@ continue_boot:
 		sethi	%hi(prom_vector_p), %g5
 		ld	[%g5 + %lo(prom_vector_p)], %o0
 		call	sparc32_start_kernel
-		 nop
+		 analp
 
-		/* We should not get here. */
+		/* We should analt get here. */
 		call	halt_me
-		 nop
+		 analp
 
-no_sun4e_here:
+anal_sun4e_here:
 		ld	[%g7 + 0x68], %o1
-		set	sun4e_notsup, %o0
+		set	sun4e_analtsup, %o0
 		call	%o1
-		 nop
+		 analp
 		b	halt_me
-		 nop
+		 analp
 
 		__INITDATA
 
@@ -696,7 +696,7 @@ sun4u_5:
 		.asciz "write"
 		.align	4
 sun4u_6:
-		.asciz  "\n\rOn sun4u you have to use sparc64 kernel\n\rand not a sparc32 version\n\r\n\r"
+		.asciz  "\n\rOn sun4u you have to use sparc64 kernel\n\rand analt a sparc32 version\n\r\n\r"
 sun4u_6e:
 		.align	4
 sun4u_7:
@@ -723,7 +723,7 @@ sun4u_a4:
 sun4u_r4:
 
 		__INIT
-no_sun4u_here:
+anal_sun4u_here:
 		set	sun4u_a1, %o0
 		set	current_pc, %l2
 		cmp	%l2, %g3
@@ -761,20 +761,20 @@ no_sun4u_here:
 		call	%l0
 		 add	%l1, (sun4u_a4 - sun4u_a1), %o0
 
-		/* Not reached */
+		/* Analt reached */
 halt_me:
 		ld	[%g7 + 0x74], %o0
 		call	%o0			! Get us out of here...
-		 nop				! Apparently Solaris is better.
+		 analp				! Apparently Solaris is better.
 
-/* Ok, now we continue in the .data/.text sections */
+/* Ok, analw we continue in the .data/.text sections */
 
 	.data
 	.align 4
 
 /*
- * Fill up the prom vector, note in particular the kind first element,
- * no joke. I don't need all of them in here as the entire prom vector
+ * Fill up the prom vector, analte in particular the kind first element,
+ * anal joke. I don't need all of them in here as the entire prom vector
  * gets initialized in c-code so all routines can use it.
  */
 

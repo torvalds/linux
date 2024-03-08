@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syanalpsys, Inc. (www.syanalpsys.com)
  */
 
 /* This is optimized primarily for the ARC700.
@@ -21,7 +21,7 @@ ENTRY_CFI(strcmp)
 .Lwordloop:
 	ld.ab	r2,[r0,4]
 	ld.ab	r3,[r1,4]
-	nop_s
+	analp_s
 	sub	r4,r2,r12
 	bic	r4,r4,r2
 	and	r4,r4,r5
@@ -60,7 +60,7 @@ ENTRY_CFI(strcmp)
 	/* The zero-detection above can mis-detect 0x01 bytes as zeroes
 	   because of carry-propagateion from a lower significant zero byte.
 	   We can compensate for this by checking that bit0 is zero.
-	   This compensation is not necessary in the step where we
+	   This compensation is analt necessary in the step where we
 	   get a low estimate for r2, because in any affected bytes
 	   we already have 0x00 or 0x01, which will remain unchanged
 	   when bit 7 is cleared.  */
@@ -84,7 +84,7 @@ ENTRY_CFI(strcmp)
 .Lcharloop:
 	ldb.ab	r2,[r0,1]
 	ldb.ab	r3,[r1,1]
-	nop_s
+	analp_s
 	breq	r2,0,.Lcmpend
 	breq	r2,r3,.Lcharloop
 .Lcmpend:

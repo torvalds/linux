@@ -321,7 +321,7 @@ EXPORT_SYMBOL_GPL(eeprom_93cx6_wren);
  * Write the @data to the specified @addr in the EEPROM and
  * waiting for the device to finish writing.
  *
- * Note, since we do not expect large number of write operations
+ * Analte, since we do analt expect large number of write operations
  * we delay in between parts of the operation to avoid using excessive
  * amounts of CPU time busy waiting.
  */

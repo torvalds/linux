@@ -9,7 +9,7 @@
 #include <linux/linkage.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/syscalls.h>
 #include <linux/ktime.h>
 #include <linux/timekeeping.h>
@@ -18,7 +18,7 @@
 #include <linux/compat.h>
 
 /*
- * We preserve minimal support for CLOCK_REALTIME and CLOCK_MONOTONIC
+ * We preserve minimal support for CLOCK_REALTIME and CLOCK_MOANALTONIC
  * as it is easy to remain compatible with little code. CLOCK_BOOTTIME
  * is also included for convenience as at least systemd uses it.
  */
@@ -42,9 +42,9 @@ static int do_clock_gettime(clockid_t which_clock, struct timespec64 *tp)
 	case CLOCK_REALTIME:
 		ktime_get_real_ts64(tp);
 		break;
-	case CLOCK_MONOTONIC:
+	case CLOCK_MOANALTONIC:
 		ktime_get_ts64(tp);
-		timens_add_monotonic(tp);
+		timens_add_moanaltonic(tp);
 		break;
 	case CLOCK_BOOTTIME:
 		ktime_get_boottime_ts64(tp);
@@ -81,7 +81,7 @@ SYSCALL_DEFINE2(clock_getres, const clockid_t, which_clock, struct __kernel_time
 
 	switch (which_clock) {
 	case CLOCK_REALTIME:
-	case CLOCK_MONOTONIC:
+	case CLOCK_MOANALTONIC:
 	case CLOCK_BOOTTIME:
 		if (put_timespec64(&rtn_tp, tp))
 			return -EFAULT;
@@ -91,7 +91,7 @@ SYSCALL_DEFINE2(clock_getres, const clockid_t, which_clock, struct __kernel_time
 	}
 }
 
-SYSCALL_DEFINE4(clock_nanosleep, const clockid_t, which_clock, int, flags,
+SYSCALL_DEFINE4(clock_naanalsleep, const clockid_t, which_clock, int, flags,
 		const struct __kernel_timespec __user *, rqtp,
 		struct __kernel_timespec __user *, rmtp)
 {
@@ -100,7 +100,7 @@ SYSCALL_DEFINE4(clock_nanosleep, const clockid_t, which_clock, int, flags,
 
 	switch (which_clock) {
 	case CLOCK_REALTIME:
-	case CLOCK_MONOTONIC:
+	case CLOCK_MOANALTONIC:
 	case CLOCK_BOOTTIME:
 		break;
 	default:
@@ -113,13 +113,13 @@ SYSCALL_DEFINE4(clock_nanosleep, const clockid_t, which_clock, int, flags,
 		return -EINVAL;
 	if (flags & TIMER_ABSTIME)
 		rmtp = NULL;
-	current->restart_block.fn = do_no_restart_syscall;
-	current->restart_block.nanosleep.type = rmtp ? TT_NATIVE : TT_NONE;
-	current->restart_block.nanosleep.rmtp = rmtp;
+	current->restart_block.fn = do_anal_restart_syscall;
+	current->restart_block.naanalsleep.type = rmtp ? TT_NATIVE : TT_ANALNE;
+	current->restart_block.naanalsleep.rmtp = rmtp;
 	texp = timespec64_to_ktime(t);
 	if (flags & TIMER_ABSTIME)
 		texp = timens_ktime_to_host(which_clock, texp);
-	return hrtimer_nanosleep(texp, flags & TIMER_ABSTIME ?
+	return hrtimer_naanalsleep(texp, flags & TIMER_ABSTIME ?
 				 HRTIMER_MODE_ABS : HRTIMER_MODE_REL,
 				 which_clock);
 }
@@ -164,7 +164,7 @@ SYSCALL_DEFINE2(clock_getres_time32, clockid_t, which_clock,
 
 	switch (which_clock) {
 	case CLOCK_REALTIME:
-	case CLOCK_MONOTONIC:
+	case CLOCK_MOANALTONIC:
 	case CLOCK_BOOTTIME:
 		if (put_old_timespec32(&rtn_tp, tp))
 			return -EFAULT;
@@ -174,7 +174,7 @@ SYSCALL_DEFINE2(clock_getres_time32, clockid_t, which_clock,
 	}
 }
 
-SYSCALL_DEFINE4(clock_nanosleep_time32, clockid_t, which_clock, int, flags,
+SYSCALL_DEFINE4(clock_naanalsleep_time32, clockid_t, which_clock, int, flags,
 		struct old_timespec32 __user *, rqtp,
 		struct old_timespec32 __user *, rmtp)
 {
@@ -183,7 +183,7 @@ SYSCALL_DEFINE4(clock_nanosleep_time32, clockid_t, which_clock, int, flags,
 
 	switch (which_clock) {
 	case CLOCK_REALTIME:
-	case CLOCK_MONOTONIC:
+	case CLOCK_MOANALTONIC:
 	case CLOCK_BOOTTIME:
 		break;
 	default:
@@ -196,13 +196,13 @@ SYSCALL_DEFINE4(clock_nanosleep_time32, clockid_t, which_clock, int, flags,
 		return -EINVAL;
 	if (flags & TIMER_ABSTIME)
 		rmtp = NULL;
-	current->restart_block.fn = do_no_restart_syscall;
-	current->restart_block.nanosleep.type = rmtp ? TT_COMPAT : TT_NONE;
-	current->restart_block.nanosleep.compat_rmtp = rmtp;
+	current->restart_block.fn = do_anal_restart_syscall;
+	current->restart_block.naanalsleep.type = rmtp ? TT_COMPAT : TT_ANALNE;
+	current->restart_block.naanalsleep.compat_rmtp = rmtp;
 	texp = timespec64_to_ktime(t);
 	if (flags & TIMER_ABSTIME)
 		texp = timens_ktime_to_host(which_clock, texp);
-	return hrtimer_nanosleep(texp, flags & TIMER_ABSTIME ?
+	return hrtimer_naanalsleep(texp, flags & TIMER_ABSTIME ?
 				 HRTIMER_MODE_ABS : HRTIMER_MODE_REL,
 				 which_clock);
 }

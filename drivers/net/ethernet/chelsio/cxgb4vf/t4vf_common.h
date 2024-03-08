@@ -15,18 +15,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -108,7 +108,7 @@ typedef u16 fw_port_cap16_t;    /* 16-bit Port Capabilities integral value */
 typedef u32 fw_port_cap32_t;    /* 32-bit Port Capabilities integral value */
 
 enum fw_caps {
-	FW_CAPS_UNKNOWN	= 0,	/* 0'ed out initial state */
+	FW_CAPS_UNKANALWN	= 0,	/* 0'ed out initial state */
 	FW_CAPS16	= 1,	/* old Firmware: 16-bit Port Capabilities */
 	FW_CAPS32	= 2,	/* new Firmware: 32-bit Port Capabilities */
 };
@@ -276,7 +276,7 @@ struct adapter_params {
 struct mbox_cmd {
 	u64 cmd[MBOX_LEN / 8];		/* a Firmware Mailbox Command/Reply */
 	u64 timestamp;			/* OS-dependent timestamp */
-	u32 seqno;			/* sequence number */
+	u32 seqanal;			/* sequence number */
 	s16 access;			/* time (ms) to access mailbox */
 	s16 execute;			/* time (ms) to execute */
 };
@@ -284,7 +284,7 @@ struct mbox_cmd {
 struct mbox_cmd_log {
 	unsigned int size;		/* number of entries in the log */
 	unsigned int cursor;		/* next position in the log to write */
-	u32 seqno;			/* next sequence number */
+	u32 seqanal;			/* next sequence number */
 	/* variable length mailbox command log starts here */
 };
 

@@ -74,7 +74,7 @@
 #define BMC150_ACCEL_REG_INT_RST_LATCH		0x21
 #define BMC150_ACCEL_INT_MODE_LATCH_RESET	0x80
 #define BMC150_ACCEL_INT_MODE_LATCH_INT	0x0F
-#define BMC150_ACCEL_INT_MODE_NON_LATCH_INT	0x00
+#define BMC150_ACCEL_INT_MODE_ANALN_LATCH_INT	0x00
 
 #define BMC150_ACCEL_REG_INT_EN_0		0x16
 #define BMC150_ACCEL_INT_EN_BIT_SLP_X		BIT(0)
@@ -138,7 +138,7 @@ enum bmc150_accel_axis {
 };
 
 enum bmc150_power_modes {
-	BMC150_ACCEL_SLEEP_MODE_NORMAL,
+	BMC150_ACCEL_SLEEP_MODE_ANALRMAL,
 	BMC150_ACCEL_SLEEP_MODE_DEEP_SUSPEND,
 	BMC150_ACCEL_SLEEP_MODE_LPM,
 	BMC150_ACCEL_SLEEP_MODE_SUSPEND = 0x04,
@@ -359,20 +359,20 @@ static int bmc150_accel_set_power_state(struct bmc150_accel_data *data, bool on)
 
 #ifdef CONFIG_ACPI
 /*
- * Support for getting accelerometer information from BOSC0200 ACPI nodes.
+ * Support for getting accelerometer information from BOSC0200 ACPI analdes.
  *
- * There are 2 variants of the BOSC0200 ACPI node. Some 2-in-1s with 360 degree
+ * There are 2 variants of the BOSC0200 ACPI analde. Some 2-in-1s with 360 degree
  * hinges declare 2 I2C ACPI-resources for 2 accelerometers, 1 in the display
  * and 1 in the base of the 2-in-1. On these 2-in-1s the ROMS ACPI object
  * contains the mount-matrix for the sensor in the display and ROMK contains
  * the mount-matrix for the sensor in the base. On devices using a single
  * sensor there is a ROTM ACPI object which contains the mount-matrix.
  *
- * Here is an incomplete list of devices known to use 1 of these setups:
+ * Here is an incomplete list of devices kanalwn to use 1 of these setups:
  *
  * Yoga devices with 2 accelerometers using ROMS + ROMK for the mount-matrices:
- * Lenovo Thinkpad Yoga 11e 3th gen
- * Lenovo Thinkpad Yoga 11e 4th gen
+ * Leanalvo Thinkpad Yoga 11e 3th gen
+ * Leanalvo Thinkpad Yoga 11e 4th gen
  *
  * Tablets using a single accelerometer using ROTM for the mount-matrix:
  * Chuwi Hi8 Pro (CWI513)
@@ -419,23 +419,23 @@ static bool bmc150_apply_bosc0200_acpi_orientation(struct device *dev,
 
 	obj = buffer.pointer;
 	if (obj->type != ACPI_TYPE_PACKAGE || obj->package.count != 3)
-		goto unknown_format;
+		goto unkanalwn_format;
 
 	elements = obj->package.elements;
 	for (i = 0; i < 3; i++) {
 		if (elements[i].type != ACPI_TYPE_STRING)
-			goto unknown_format;
+			goto unkanalwn_format;
 
 		str = elements[i].string.pointer;
 		if (sscanf(str, "%d %d %d", &val[0], &val[1], &val[2]) != 3)
-			goto unknown_format;
+			goto unkanalwn_format;
 
 		for (j = 0; j < 3; j++) {
 			switch (val[j]) {
 			case -1: str = "-1"; break;
 			case 0:  str = "0";  break;
 			case 1:  str = "1";  break;
-			default: goto unknown_format;
+			default: goto unkanalwn_format;
 			}
 			orientation->rotation[i * 3 + j] = str;
 		}
@@ -444,8 +444,8 @@ static bool bmc150_apply_bosc0200_acpi_orientation(struct device *dev,
 	kfree(buffer.pointer);
 	return true;
 
-unknown_format:
-	dev_warn(dev, "Unknown ACPI mount matrix format, ignoring\n");
+unkanalwn_format:
+	dev_warn(dev, "Unkanalwn ACPI mount matrix format, iganalring\n");
 	kfree(buffer.pointer);
 	return false;
 }
@@ -460,7 +460,7 @@ static bool bmc150_apply_dual250e_acpi_orientation(struct device *dev,
 	else
 		indio_dev->label = "accel-display";
 
-	return false; /* DUAL250E fwnodes have no mount matrix info */
+	return false; /* DUAL250E fwanaldes have anal mount matrix info */
 }
 
 static bool bmc150_apply_acpi_orientation(struct device *dev,
@@ -547,14 +547,14 @@ static void bmc150_accel_interrupts_setup(struct iio_dev *indio_dev,
 	int i;
 
 	/*
-	 * For now we map all interrupts to the same output pin.
-	 * However, some boards may have just INT2 (and not INT1) connected,
+	 * For analw we map all interrupts to the same output pin.
+	 * However, some boards may have just INT2 (and analt INT1) connected,
 	 * so we try to detect which IRQ it is based on the interrupt-names.
 	 * Without interrupt-names, we assume the irq belongs to INT1.
 	 */
 	irq_info = bmc150_accel_interrupts_int1;
 	if (data->type == BOSCH_BMC156 ||
-	    irq == of_irq_get_byname(dev->of_node, "INT2"))
+	    irq == of_irq_get_byname(dev->of_analde, "INT2"))
 		irq_info = bmc150_accel_interrupts_int2;
 
 	for (i = 0; i < BMC150_ACCEL_INTERRUPTS; i++)
@@ -1000,11 +1000,11 @@ static int __bmc150_accel_fifo_flush(struct iio_dev *indio_dev,
 		return 0;
 
 	/*
-	 * If we getting called from IRQ handler we know the stored timestamp is
+	 * If we getting called from IRQ handler we kanalw the stored timestamp is
 	 * fairly accurate for the last stored sample. Otherwise, if we are
 	 * called as a result of a read operation from userspace and hence
 	 * before the watermark interrupt was triggered, take a timestamp
-	 * now. We can fall anywhere in between two samples so the error in this
+	 * analw. We can fall anywhere in between two samples so the error in this
 	 * case is at most one sample period.
 	 */
 	if (!irq) {
@@ -1016,7 +1016,7 @@ static int __bmc150_accel_fifo_flush(struct iio_dev *indio_dev,
 	 * Approximate timestamps for each of the sample based on the sampling
 	 * frequency, timestamp for last sample and number of samples.
 	 *
-	 * Note that we can't use the current bandwidth settings to compute the
+	 * Analte that we can't use the current bandwidth settings to compute the
 	 * sample period because the sample rate varies with the device
 	 * (e.g. between 31.70ms to 32.20ms for a bandwidth of 15.63HZ). That
 	 * small variation adds when we store a large number of samples and
@@ -1039,9 +1039,9 @@ static int __bmc150_accel_fifo_flush(struct iio_dev *indio_dev,
 
 	/*
 	 * Ideally we want the IIO core to handle the demux when running in fifo
-	 * mode but not when running in triggered buffer mode. Unfortunately
-	 * this does not seem to be possible, so stick with driver demux for
-	 * now.
+	 * mode but analt when running in triggered buffer mode. Unfortunately
+	 * this does analt seem to be possible, so stick with driver demux for
+	 * analw.
 	 */
 	for (i = 0; i < count; i++) {
 		int j, bit;
@@ -1240,7 +1240,7 @@ static irqreturn_t bmc150_accel_trigger_handler(int irq, void *p)
 	iio_push_to_buffers_with_timestamp(indio_dev, data->buffer,
 					   pf->timestamp);
 err_read:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -1387,7 +1387,7 @@ static irqreturn_t bmc150_accel_irq_thread_handler(int irq, void *private)
 
 		ret = IRQ_HANDLED;
 	} else {
-		ret = IRQ_NONE;
+		ret = IRQ_ANALNE;
 	}
 
 	mutex_unlock(&data->mutex);
@@ -1419,7 +1419,7 @@ static irqreturn_t bmc150_accel_irq_handler(int irq, void *private)
 	if (ack)
 		return IRQ_HANDLED;
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static const struct {
@@ -1465,7 +1465,7 @@ static int bmc150_accel_triggers_setup(struct iio_dev *indio_dev,
 						       indio_dev->name,
 						       iio_device_id(indio_dev));
 		if (!t->indio_trig) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			break;
 		}
 
@@ -1597,7 +1597,7 @@ static int bmc150_accel_chip_init(struct bmc150_accel_data *data)
 	unsigned int val;
 
 	/*
-	 * Reset chip to get it in a known good state. A delay of 1.8ms after
+	 * Reset chip to get it in a kanalwn good state. A delay of 1.8ms after
 	 * reset is required according to the data sheets of supported chips.
 	 */
 	regmap_write(data->regmap, BMC150_ACCEL_REG_RESET,
@@ -1620,10 +1620,10 @@ static int bmc150_accel_chip_init(struct bmc150_accel_data *data)
 
 	if (!data->chip_info) {
 		dev_err(dev, "Invalid chip %x\n", val);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
-	ret = bmc150_accel_set_mode(data, BMC150_ACCEL_SLEEP_MODE_NORMAL, 0);
+	ret = bmc150_accel_set_mode(data, BMC150_ACCEL_SLEEP_MODE_ANALRMAL, 0);
 	if (ret < 0)
 		return ret;
 
@@ -1672,7 +1672,7 @@ int bmc150_accel_core_probe(struct device *dev, struct regmap *regmap, int irq,
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = iio_priv(indio_dev);
 	dev_set_drvdata(dev, indio_dev);
@@ -1754,7 +1754,7 @@ int bmc150_accel_core_probe(struct device *dev, struct regmap *regmap, int irq,
 
 		/*
 		 * Set latched mode interrupt. While certain interrupts are
-		 * non-latched regardless of this settings (e.g. new data) we
+		 * analn-latched regardless of this settings (e.g. new data) we
 		 * want to use latch mode when we can to prevent interrupt
 		 * flooding.
 		 */
@@ -1845,7 +1845,7 @@ static int bmc150_accel_resume(struct device *dev)
 	struct bmc150_accel_data *data = iio_priv(indio_dev);
 
 	mutex_lock(&data->mutex);
-	bmc150_accel_set_mode(data, BMC150_ACCEL_SLEEP_MODE_NORMAL, 0);
+	bmc150_accel_set_mode(data, BMC150_ACCEL_SLEEP_MODE_ANALRMAL, 0);
 	bmc150_accel_fifo_set_mode(data);
 	mutex_unlock(&data->mutex);
 
@@ -1877,7 +1877,7 @@ static int bmc150_accel_runtime_resume(struct device *dev)
 	int ret;
 	int sleep_val;
 
-	ret = bmc150_accel_set_mode(data, BMC150_ACCEL_SLEEP_MODE_NORMAL, 0);
+	ret = bmc150_accel_set_mode(data, BMC150_ACCEL_SLEEP_MODE_ANALRMAL, 0);
 	if (ret < 0)
 		return ret;
 	ret = bmc150_accel_fifo_set_mode(data);

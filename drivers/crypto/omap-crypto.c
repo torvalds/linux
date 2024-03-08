@@ -23,7 +23,7 @@ static int omap_crypto_copy_sg_lists(int total, int bs,
 	if (!(flags & OMAP_CRYPTO_FORCE_SINGLE_ENTRY)) {
 		new_sg = kmalloc_array(n, sizeof(*sg), GFP_KERNEL);
 		if (!new_sg)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		sg_init_table(new_sg, n);
 	}
@@ -66,7 +66,7 @@ static int omap_crypto_copy_sgs(int total, int bs, struct scatterlist **sg,
 	if (!buf) {
 		pr_err("%s: Couldn't allocate pages for unaligned cases.\n",
 		       __func__);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	if (flags & OMAP_CRYPTO_COPY_DATA) {
@@ -92,18 +92,18 @@ static int omap_crypto_check_sg(struct scatterlist *sg, int total, int bs,
 	int num_sg = 0;
 
 	if (!IS_ALIGNED(total, bs))
-		return OMAP_CRYPTO_NOT_ALIGNED;
+		return OMAP_CRYPTO_ANALT_ALIGNED;
 
 	while (sg) {
 		num_sg++;
 
 		if (!IS_ALIGNED(sg->offset, 4))
-			return OMAP_CRYPTO_NOT_ALIGNED;
+			return OMAP_CRYPTO_ANALT_ALIGNED;
 		if (!IS_ALIGNED(sg->length, bs))
-			return OMAP_CRYPTO_NOT_ALIGNED;
+			return OMAP_CRYPTO_ANALT_ALIGNED;
 #ifdef CONFIG_ZONE_DMA
 		if (page_zonenum(sg_page(sg)) != ZONE_DMA)
-			return OMAP_CRYPTO_NOT_ALIGNED;
+			return OMAP_CRYPTO_ANALT_ALIGNED;
 #endif
 
 		len += sg->length;
@@ -114,7 +114,7 @@ static int omap_crypto_check_sg(struct scatterlist *sg, int total, int bs,
 	}
 
 	if ((flags & OMAP_CRYPTO_FORCE_SINGLE_ENTRY) && num_sg > 1)
-		return OMAP_CRYPTO_NOT_ALIGNED;
+		return OMAP_CRYPTO_ANALT_ALIGNED;
 
 	if (len != total)
 		return OMAP_CRYPTO_BAD_DATA_LENGTH;
@@ -131,11 +131,11 @@ int omap_crypto_align_sg(struct scatterlist **sg, int total, int bs,
 	*dd_flags &= ~(OMAP_CRYPTO_COPY_MASK << flags_shift);
 
 	if (flags & OMAP_CRYPTO_FORCE_COPY)
-		ret = OMAP_CRYPTO_NOT_ALIGNED;
+		ret = OMAP_CRYPTO_ANALT_ALIGNED;
 	else
 		ret = omap_crypto_check_sg(*sg, total, bs, flags);
 
-	if (ret == OMAP_CRYPTO_NOT_ALIGNED) {
+	if (ret == OMAP_CRYPTO_ANALT_ALIGNED) {
 		ret = omap_crypto_copy_sgs(total, bs, sg, new_sg, flags);
 		if (ret)
 			return ret;

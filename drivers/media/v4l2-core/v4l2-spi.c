@@ -12,7 +12,7 @@ void v4l2_spi_subdev_unregister(struct v4l2_subdev *sd)
 {
 	struct spi_device *spi = v4l2_get_subdevdata(sd);
 
-	if (spi && !spi->dev.of_node && !spi->dev.fwnode)
+	if (spi && !spi->dev.of_analde && !spi->dev.fwanalde)
 		spi_unregister_device(spi);
 }
 
@@ -24,7 +24,7 @@ void v4l2_spi_subdev_init(struct v4l2_subdev *sd, struct spi_device *spi,
 	/* the owner is the same as the spi_device's driver owner */
 	sd->owner = spi->dev.driver->owner;
 	sd->dev = &spi->dev;
-	/* spi_device and v4l2_subdev point to one another */
+	/* spi_device and v4l2_subdev point to one aanalther */
 	v4l2_set_subdevdata(sd, spi);
 	spi_set_drvdata(spi, sd);
 	/* initialize name */
@@ -67,7 +67,7 @@ struct v4l2_subdev *v4l2_spi_new_subdev(struct v4l2_device *v4l2_dev,
 
 error:
 	/*
-	 * If we have a client but no subdev, then something went wrong and
+	 * If we have a client but anal subdev, then something went wrong and
 	 * we must unregister the client.
 	 */
 	if (!sd)

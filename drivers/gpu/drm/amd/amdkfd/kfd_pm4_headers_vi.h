@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -211,9 +211,9 @@ queue_sel__mes_map_queues__map_to_hws_determined_queue_slots_vi = 1
 };
 
 enum mes_map_queues_queue_type_vi_enum {
-	queue_type__mes_map_queues__normal_compute_vi = 0,
+	queue_type__mes_map_queues__analrmal_compute_vi = 0,
 	queue_type__mes_map_queues__debug_interface_queue_vi = 1,
-	queue_type__mes_map_queues__normal_latency_static_queue_vi = 2,
+	queue_type__mes_map_queues__analrmal_latency_static_queue_vi = 2,
 queue_type__mes_map_queues__low_latency_static_queue_vi = 3
 };
 
@@ -337,7 +337,7 @@ enum mes_unmap_queues_queue_sel_enum {
 	queue_sel__mes_unmap_queues__perform_request_on_specified_queues = 0,
 	queue_sel__mes_unmap_queues__perform_request_on_pasid_queues = 1,
 	queue_sel__mes_unmap_queues__unmap_all_queues = 2,
-	queue_sel__mes_unmap_queues__unmap_all_non_static_queues = 3
+	queue_sel__mes_unmap_queues__unmap_all_analn_static_queues = 3
 };
 
 enum mes_unmap_queues_engine_sel_enum {
@@ -427,14 +427,14 @@ enum RELEASE_MEM_dst_sel_enum {
 };
 
 enum RELEASE_MEM_int_sel_enum {
-	int_sel___release_mem__none = 0,
+	int_sel___release_mem__analne = 0,
 	int_sel___release_mem__send_interrupt_only = 1,
 	int_sel___release_mem__send_interrupt_after_write_confirm = 2,
 	int_sel___release_mem__send_data_after_write_confirm = 3
 };
 
 enum RELEASE_MEM_data_sel_enum {
-	data_sel___release_mem__none = 0,
+	data_sel___release_mem__analne = 0,
 	data_sel___release_mem__send_32_bit_low = 1,
 	data_sel___release_mem__send_64_bit_data = 2,
 	data_sel___release_mem__send_gpu_clock_counter = 3,

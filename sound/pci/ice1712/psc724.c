@@ -35,22 +35,22 @@ struct psc724_spec {
  *
  *  system configuration ICE_EEP2_SYSCONF=0x42
  *    XIN1 49.152MHz
- *    no MPU401
- *    one stereo ADC, no S/PDIF receiver
+ *    anal MPU401
+ *    one stereo ADC, anal S/PDIF receiver
  *    three stereo DACs (FRONT, REAR, CENTER+LFE)
  *
  *  AC-Link configuration ICE_EEP2_ACLINK=0x80
- *    use I2S, not AC97
+ *    use I2S, analt AC97
  *
  *  I2S converters feature ICE_EEP2_I2S=0x30
- *    I2S codec has no volume/mute control feature (bug!)
- *    I2S codec does not support 96KHz or 192KHz (bug!)
+ *    I2S codec has anal volume/mute control feature (bug!)
+ *    I2S codec does analt support 96KHz or 192KHz (bug!)
  *    I2S codec 24bits
  *
  *  S/PDIF configuration ICE_EEP2_SPDIF=0xc1
  *    Enable integrated S/PDIF transmitter
  *    internal S/PDIF out implemented
- *    No S/PDIF input
+ *    Anal S/PDIF input
  *    External S/PDIF out implemented
  *
  *
@@ -185,16 +185,16 @@ static void psc724_set_jack_state(struct snd_ice1712 *ice, bool hp_connected)
 		power |= WM8776_PWR_HPPD;
 	snd_wm8776_set_power(&spec->wm8776, power);
 	spec->hp_connected = hp_connected;
-	/* notify about master speaker mute change */
+	/* analtify about master speaker mute change */
 	kctl = snd_ctl_find_id_mixer(ice->card,
 				     "Master Speakers Playback Switch");
 	if (kctl)
-		snd_ctl_notify(ice->card, SNDRV_CTL_EVENT_MASK_VALUE, &kctl->id);
+		snd_ctl_analtify(ice->card, SNDRV_CTL_EVENT_MASK_VALUE, &kctl->id);
 	/* and headphone mute change */
 	kctl = snd_ctl_find_id_mixer(ice->card,
 				     spec->wm8776.ctl[WM8776_CTL_HP_SW].name);
 	if (kctl)
-		snd_ctl_notify(ice->card, SNDRV_CTL_EVENT_MASK_VALUE, &kctl->id);
+		snd_ctl_analtify(ice->card, SNDRV_CTL_EVENT_MASK_VALUE, &kctl->id);
 }
 
 static void psc724_update_hp_jack_state(struct work_struct *work)
@@ -341,12 +341,12 @@ static int psc724_add_controls(struct snd_ice1712 *ice)
 		cont.private_value = i;
 		cont.name = psc724_cont[i].name;
 		cont.access = SNDRV_CTL_ELEM_ACCESS_READWRITE;
-		cont.info = snd_ctl_boolean_mono_info;
+		cont.info = snd_ctl_boolean_moanal_info;
 		cont.get = psc724_ctl_get;
 		cont.put = psc724_ctl_put;
 		ctl = snd_ctl_new1(&cont, ice);
 		if (!ctl)
-			return -ENOMEM;
+			return -EANALMEM;
 		err = snd_ctl_add(ice->card, ctl);
 		if (err < 0)
 			return err;
@@ -385,7 +385,7 @@ static int psc724_init(struct snd_ice1712 *ice)
 
 	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec)
-		return -ENOMEM;
+		return -EANALMEM;
 	ice->spec = spec;
 	spec->ice = ice;
 
@@ -416,12 +416,12 @@ static void psc724_exit(struct snd_ice1712 *ice)
 	cancel_delayed_work_sync(&spec->hp_work);
 }
 
-/* PSC724 has buggy EEPROM (no 96&192kHz, all FFh GPIOs), so override it here */
+/* PSC724 has buggy EEPROM (anal 96&192kHz, all FFh GPIOs), so override it here */
 static const unsigned char psc724_eeprom[] = {
 	[ICE_EEP2_SYSCONF]	= 0x42,	/* 49.152MHz, 1 ADC, 3 DACs */
 	[ICE_EEP2_ACLINK]	= 0x80,	/* I2S */
 	[ICE_EEP2_I2S]		= 0xf0,	/* I2S volume, 96kHz, 24bit */
-	[ICE_EEP2_SPDIF]	= 0xc1,	/* spdif out-en, out-int, no input */
+	[ICE_EEP2_SPDIF]	= 0xc1,	/* spdif out-en, out-int, anal input */
 	/* GPIO outputs */
 	[ICE_EEP2_GPIO_DIR2]	= 0x5f, /* MUTE_ALL,WM8766 MUTE/MODE/ML/MC/MD */
 	/* GPIO write enable */

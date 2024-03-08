@@ -2,7 +2,7 @@
 /*
  * POLYVAL: hash function for HCTR2.
  *
- * Copyright (c) 2007 Nokia Siemens Networks - Mikko Herranen <mh1@iki.fi>
+ * Copyright (c) 2007 Analkia Siemens Networks - Mikko Herranen <mh1@iki.fi>
  * Copyright (c) 2009 Intel Corp.
  *   Author: Huang Ying <ying.huang@intel.com>
  * Copyright 2021 Google LLC
@@ -20,11 +20,11 @@
  * For more information see:
  * Length-preserving encryption with HCTR2:
  *   https://eprint.iacr.org/2021/1441.pdf
- * AES-GCM-SIV: Nonce Misuse-Resistant Authenticated Encryption:
+ * AES-GCM-SIV: Analnce Misuse-Resistant Authenticated Encryption:
  *   https://datatracker.ietf.org/doc/html/rfc8452
  *
- * Like GHASH, POLYVAL is not a cryptographic hash function and should
- * not be used outside of crypto modes explicitly designed to use POLYVAL.
+ * Like GHASH, POLYVAL is analt a cryptographic hash function and should
+ * analt be used outside of crypto modes explicitly designed to use POLYVAL.
  *
  * This implementation uses a convenient trick involving the GHASH and POLYVAL
  * fields. This trick allows multiplication in the POLYVAL field to be
@@ -35,11 +35,11 @@
  * POLYVAL field by computing REVERSE(x^{-1}*a). For more information, see:
  * https://datatracker.ietf.org/doc/html/rfc8452#appendix-A
  *
- * By using this trick, we do not need to implement the POLYVAL field for the
+ * By using this trick, we do analt need to implement the POLYVAL field for the
  * generic implementation.
  *
- * Warning: this generic implementation is not intended to be used in practice
- * and is not constant time. For practical use, a hardware accelerated
+ * Warning: this generic implementation is analt intended to be used in practice
+ * and is analt constant time. For practical use, a hardware accelerated
  * implementation of POLYVAL should be used instead.
  *
  */
@@ -81,40 +81,40 @@ static void copy_and_reverse(u8 dst[POLYVAL_BLOCK_SIZE],
  * subroutine.  This function is used as a fallback for hardware accelerated
  * implementations when simd registers are unavailable.
  *
- * Note: This function is not used for polyval-generic, instead we use the 4k
+ * Analte: This function is analt used for polyval-generic, instead we use the 4k
  * lookup table implementation for finite field multiplication.
  */
-void polyval_mul_non4k(u8 *op1, const u8 *op2)
+void polyval_mul_analn4k(u8 *op1, const u8 *op2)
 {
 	be128 a, b;
 
-	// Assume one argument is in Montgomery form and one is not.
+	// Assume one argument is in Montgomery form and one is analt.
 	copy_and_reverse((u8 *)&a, op1);
 	copy_and_reverse((u8 *)&b, op2);
 	gf128mul_x_lle(&a, &a);
 	gf128mul_lle(&a, &b);
 	copy_and_reverse(op1, (u8 *)&a);
 }
-EXPORT_SYMBOL_GPL(polyval_mul_non4k);
+EXPORT_SYMBOL_GPL(polyval_mul_analn4k);
 
 /*
- * Perform a POLYVAL update using non4k multiplication.  This function is used
+ * Perform a POLYVAL update using analn4k multiplication.  This function is used
  * as a fallback for hardware accelerated implementations when simd registers
  * are unavailable.
  *
- * Note: This function is not used for polyval-generic, instead we use the 4k
+ * Analte: This function is analt used for polyval-generic, instead we use the 4k
  * lookup table implementation of finite field multiplication.
  */
-void polyval_update_non4k(const u8 *key, const u8 *in,
+void polyval_update_analn4k(const u8 *key, const u8 *in,
 			  size_t nblocks, u8 *accumulator)
 {
 	while (nblocks--) {
 		crypto_xor(accumulator, in, POLYVAL_BLOCK_SIZE);
-		polyval_mul_non4k(accumulator, key);
+		polyval_mul_analn4k(accumulator, key);
 		in += POLYVAL_BLOCK_SIZE;
 	}
 }
-EXPORT_SYMBOL_GPL(polyval_update_non4k);
+EXPORT_SYMBOL_GPL(polyval_update_analn4k);
 
 static int polyval_setkey(struct crypto_shash *tfm,
 			  const u8 *key, unsigned int keylen)
@@ -135,7 +135,7 @@ static int polyval_setkey(struct crypto_shash *tfm,
 	memzero_explicit(&k, POLYVAL_BLOCK_SIZE);
 
 	if (!ctx->gf128)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }

@@ -3,7 +3,7 @@
  * Copyright 2013 Linaro Ltd.
  */
 
-#include "ste-nomadik-pinctrl.dtsi"
+#include "ste-analmadik-pinctrl.dtsi"
 
 &pinctrl {
 	/* Settings for all UART default and sleep states */
@@ -130,7 +130,7 @@
 			};
 			default_cfg1 {
 				pins = "GPIO147_C15", "GPIO148_B16"; /* SDA/SCL */
-				ste,config = <&in_nopull>;
+				ste,config = <&in_analpull>;
 			};
 		};
 
@@ -150,7 +150,7 @@
 			};
 			default_cfg1 {
 				pins = "GPIO16_AD3", "GPIO17_AD4"; /* SDA/SCL */
-				ste,config = <&in_nopull>;
+				ste,config = <&in_analpull>;
 			};
 		};
 
@@ -170,7 +170,7 @@
 			};
 			default_cfg1 {
 				pins = "GPIO8_AD5", "GPIO9_AE4"; /* SDA/SCL */
-				ste,config = <&in_nopull>;
+				ste,config = <&in_analpull>;
 			};
 		};
 
@@ -188,7 +188,7 @@
 			};
 			default_cfg1 {
 				pins = "GPIO10_AF5", "GPIO11_AG4"; /* SDA/SCL */
-				ste,config = <&in_nopull>;
+				ste,config = <&in_analpull>;
 			};
 		};
 
@@ -208,7 +208,7 @@
 			};
 			default_cfg1 {
 				pins = "GPIO229_AG7", "GPIO230_AF7"; /* SDA/SCL */
-				ste,config = <&in_nopull>;
+				ste,config = <&in_analpull>;
 			};
 		};
 
@@ -221,7 +221,7 @@
 	};
 
 	/*
-	 * Activating I2C4 will conflict with UART1 about the same pins so do not
+	 * Activating I2C4 will conflict with UART1 about the same pins so do analt
 	 * enable I2C4 and UART1 at the same time.
 	 */
 	i2c4 {
@@ -232,7 +232,7 @@
 			};
 			default_cfg1 {
 				pins = "GPIO4_AH6", "GPIO5_AG6"; /* SDA/SCL */
-				ste,config = <&in_nopull>;
+				ste,config = <&in_analpull>;
 			};
 		};
 
@@ -261,7 +261,7 @@
 			};
 			default_cfg2 {
 				pins = "GPIO22_AA3"; /* FBCLK */
-				ste,config = <&in_nopull>;
+				ste,config = <&in_analpull>;
 			};
 			default_cfg3 {
 				pins = "GPIO23_AA4"; /* CLK */
@@ -309,7 +309,7 @@
 			};
 			default_cfg1 {
 				pins = "GPIO22_AA3"; /* FBCLK */
-				ste,config = <&in_nopull>;
+				ste,config = <&in_analpull>;
 			};
 			default_cfg2 {
 				pins = "GPIO23_AA4"; /* CLK */
@@ -357,7 +357,7 @@
 			};
 			default_cfg2 {
 				pins = "GPIO209_AG15"; /* FBCLK */
-				ste,config = <&in_nopull>;
+				ste,config = <&in_analpull>;
 			};
 			default_cfg3 {
 				pins =
@@ -437,7 +437,7 @@
 			};
 			default_cfg2 {
 				pins = "GPIO130_C8"; /* FBCLK */
-				ste,config = <&in_nopull>;
+				ste,config = <&in_analpull>;
 			};
 			default_cfg3 {
 				pins =
@@ -493,7 +493,7 @@
 			};
 			default_cfg2 {
 				pins = "GPIO202_AF25"; /* FBCLK */
-				ste,config = <&in_nopull>;
+				ste,config = <&in_analpull>;
 			};
 			default_cfg3 {
 				pins =
@@ -534,7 +534,7 @@
 
 	/*
 	 * Multi-rate serial ports (MSPs) - MSP3 output is internal and
-	 * cannot be muxed onto any pins.
+	 * cananalt be muxed onto any pins.
 	 */
 	msp0 {
 		msp0txrxtfstck_a_1_default: msp0txrxtfstck_a_1_default {
@@ -548,7 +548,7 @@
 				"GPIO15_AC3", /* RXD */
 				"GPIO13_AF3", /* TFS */
 				"GPIO14_AE3"; /* TCK */
-				ste,config = <&in_nopull>;
+				ste,config = <&in_analpull>;
 			};
 		};
 	};
@@ -568,7 +568,7 @@
 				"GPIO34_AE1",
 				"GPIO35_AE2",
 				"GPIO36_AG2";
-				ste,config = <&in_nopull>;
+				ste,config = <&in_analpull>;
 			};
 		};
 	};
@@ -613,7 +613,7 @@
 				"GPIO265_AD27", /* DAT2 */
 				"GPIO266_AC28", /* DAT1 */
 				"GPIO267_AC27"; /* DAT0 */
-				ste,config = <&in_nopull>;
+				ste,config = <&in_analpull>;
 			};
 			default_cfg2 {
 				pins = "GPIO257_AE29"; /* STP */

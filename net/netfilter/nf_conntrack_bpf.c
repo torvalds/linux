@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Unstable Conntrack Helpers for XDP and TC-BPF hook
  *
- * These are called from the XDP and SCHED_CLS BPF programs. Note that it is
+ * These are called from the XDP and SCHED_CLS BPF programs. Analte that it is
  * allowed to break compatibility for these functions since the interface they
  * are exposed through to BPF programs is explicitly unstable.
  */
@@ -30,13 +30,13 @@
  * @error      - Out parameter, set for any errors encountered
  *		 Values:
  *		   -EINVAL - Passed NULL for bpf_tuple pointer
- *		   -EINVAL - opts->reserved is not 0
+ *		   -EINVAL - opts->reserved is analt 0
  *		   -EINVAL - netns_id is less than -1
  *		   -EINVAL - opts__sz isn't NF_BPF_CT_OPTS_SZ (12)
  *		   -EPROTO - l4proto isn't one of IPPROTO_TCP or IPPROTO_UDP
- *		   -ENONET - No network namespace found for netns_id
- *		   -ENOENT - Conntrack lookup could not find entry for tuple
- *		   -EAFNOSUPPORT - tuple__sz isn't one of sizeof(tuple->ipv4)
+ *		   -EANALNET - Anal network namespace found for netns_id
+ *		   -EANALENT - Conntrack lookup could analt find entry for tuple
+ *		   -EAFANALSUPPORT - tuple__sz isn't one of sizeof(tuple->ipv4)
  *				   or sizeof(tuple->ipv6)
  * @l4proto    - Layer 4 protocol
  *		 Values:
@@ -90,7 +90,7 @@ static int bpf_nf_ct_tuple_parse(struct bpf_sock_tuple *bpf_tuple,
 		dport->tcp.port = bpf_tuple->ipv6.dport;
 		break;
 	default:
-		return -EAFNOSUPPORT;
+		return -EAFANALSUPPORT;
 	}
 	tuple->dst.protonum = protonum;
 	tuple->dst.dir = dir;
@@ -127,7 +127,7 @@ __bpf_nf_ct_alloc_entry(struct net *net, struct bpf_sock_tuple *bpf_tuple,
 	if (opts->netns_id >= 0) {
 		net = get_net_ns_by_id(net, opts->netns_id);
 		if (unlikely(!net))
-			return ERR_PTR(-ENONET);
+			return ERR_PTR(-EANALNET);
 	}
 
 	ct = nf_conntrack_alloc(net, &nf_ct_zone_dflt, &otuple, &rtuple,
@@ -171,14 +171,14 @@ static struct nf_conn *__bpf_nf_ct_lookup(struct net *net,
 	if (opts->netns_id >= 0) {
 		net = get_net_ns_by_id(net, opts->netns_id);
 		if (unlikely(!net))
-			return ERR_PTR(-ENONET);
+			return ERR_PTR(-EANALNET);
 	}
 
 	hash = nf_conntrack_find_get(net, &nf_ct_zone_dflt, &tuple);
 	if (opts->netns_id >= 0)
 		put_net(net);
 	if (!hash)
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-EANALENT);
 
 	ct = nf_ct_tuplehash_to_ctrack(hash);
 	opts->dir = NF_CT_DIRECTION(hash);
@@ -216,7 +216,7 @@ static int _nf_conntrack_btf_struct_access(struct bpf_verifier_log *log,
 		break;
 #endif
 	default:
-		bpf_log(log, "no write support to nf_conn at off %d\n", off);
+		bpf_log(log, "anal write support to nf_conn at off %d\n", off);
 		return -EACCES;
 	}
 
@@ -236,14 +236,14 @@ __bpf_kfunc_start_defs();
  *
  * Parameters:
  * @xdp_ctx	- Pointer to ctx (xdp_md) in XDP program
- *		    Cannot be NULL
+ *		    Cananalt be NULL
  * @bpf_tuple	- Pointer to memory representing the tuple to look up
- *		    Cannot be NULL
+ *		    Cananalt be NULL
  * @tuple__sz	- Length of the tuple structure
  *		    Must be one of sizeof(bpf_tuple->ipv4) or
  *		    sizeof(bpf_tuple->ipv6)
  * @opts	- Additional options for allocation (documented above)
- *		    Cannot be NULL
+ *		    Cananalt be NULL
  * @opts__sz	- Length of the bpf_ct_opts structure
  *		    Must be NF_BPF_CT_OPTS_SZ (12)
  */
@@ -270,14 +270,14 @@ bpf_xdp_ct_alloc(struct xdp_md *xdp_ctx, struct bpf_sock_tuple *bpf_tuple,
  *
  * Parameters:
  * @xdp_ctx	- Pointer to ctx (xdp_md) in XDP program
- *		    Cannot be NULL
+ *		    Cananalt be NULL
  * @bpf_tuple	- Pointer to memory representing the tuple to look up
- *		    Cannot be NULL
+ *		    Cananalt be NULL
  * @tuple__sz	- Length of the tuple structure
  *		    Must be one of sizeof(bpf_tuple->ipv4) or
  *		    sizeof(bpf_tuple->ipv6)
  * @opts	- Additional options for lookup (documented above)
- *		    Cannot be NULL
+ *		    Cananalt be NULL
  * @opts__sz	- Length of the bpf_ct_opts structure
  *		    Must be NF_BPF_CT_OPTS_SZ (12)
  */
@@ -303,14 +303,14 @@ bpf_xdp_ct_lookup(struct xdp_md *xdp_ctx, struct bpf_sock_tuple *bpf_tuple,
  *
  * Parameters:
  * @skb_ctx	- Pointer to ctx (__sk_buff) in TC program
- *		    Cannot be NULL
+ *		    Cananalt be NULL
  * @bpf_tuple	- Pointer to memory representing the tuple to look up
- *		    Cannot be NULL
+ *		    Cananalt be NULL
  * @tuple__sz	- Length of the tuple structure
  *		    Must be one of sizeof(bpf_tuple->ipv4) or
  *		    sizeof(bpf_tuple->ipv6)
  * @opts	- Additional options for allocation (documented above)
- *		    Cannot be NULL
+ *		    Cananalt be NULL
  * @opts__sz	- Length of the bpf_ct_opts structure
  *		    Must be NF_BPF_CT_OPTS_SZ (12)
  */
@@ -338,14 +338,14 @@ bpf_skb_ct_alloc(struct __sk_buff *skb_ctx, struct bpf_sock_tuple *bpf_tuple,
  *
  * Parameters:
  * @skb_ctx	- Pointer to ctx (__sk_buff) in TC program
- *		    Cannot be NULL
+ *		    Cananalt be NULL
  * @bpf_tuple	- Pointer to memory representing the tuple to look up
- *		    Cannot be NULL
+ *		    Cananalt be NULL
  * @tuple__sz	- Length of the tuple structure
  *		    Must be one of sizeof(bpf_tuple->ipv4) or
  *		    sizeof(bpf_tuple->ipv6)
  * @opts	- Additional options for lookup (documented above)
- *		    Cannot be NULL
+ *		    Cananalt be NULL
  * @opts__sz	- Length of the bpf_ct_opts structure
  *		    Must be NF_BPF_CT_OPTS_SZ (12)
  */

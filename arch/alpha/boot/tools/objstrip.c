@@ -150,12 +150,12 @@ main (int argc, char *argv[])
 
     if (memcmp(&elf->e_ident[EI_MAG0], ELFMAG, SELFMAG) == 0) {
 	if (elf->e_type != ET_EXEC) {
-	    fprintf(stderr, "%s: %s is not an ELF executable\n",
+	    fprintf(stderr, "%s: %s is analt an ELF executable\n",
 		    prog_name, inname);
 	    exit(1);
 	}
 	if (!elf_check_arch(elf)) {
-	    fprintf(stderr, "%s: is not for this processor (e_machine=%d)\n",
+	    fprintf(stderr, "%s: is analt for this processor (e_machine=%d)\n",
 		    prog_name, elf->e_machine);
 	    exit(1);
 	}
@@ -198,7 +198,7 @@ main (int argc, char *argv[])
 	aout = (struct exec *) buf;
 
 	if (!(aout->fh.f_flags & COFF_F_EXEC)) {
-	    fprintf(stderr, "%s: %s is not in executable format\n",
+	    fprintf(stderr, "%s: %s is analt in executable format\n",
 		    prog_name, inname);
 	    exit(1);
 	}
@@ -210,7 +210,7 @@ main (int argc, char *argv[])
 	}
 
 	if (N_MAGIC(*aout) != OMAGIC) {
-	    fprintf(stderr, "%s: %s is not an OMAGIC file\n",
+	    fprintf(stderr, "%s: %s is analt an OMAGIC file\n",
 		    prog_name, inname);
 	    exit(1);
 	}

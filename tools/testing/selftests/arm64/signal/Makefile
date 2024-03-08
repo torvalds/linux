@@ -8,7 +8,7 @@ SRCS := $(filter-out testcases/testcases.c,$(wildcard testcases/*.c))
 PROGS := $(patsubst %.c,%,$(SRCS))
 
 # Generated binaries to be installed by top KSFT script
-TEST_GEN_PROGS := $(notdir $(PROGS))
+TEST_GEN_PROGS := $(analtdir $(PROGS))
 
 # Get Kernel headers installed and use them.
 

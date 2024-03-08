@@ -28,11 +28,11 @@ wobbling around its neutral point. This is usually filtered at the application
 level by adding a *dead zone* for this specific axis.
 
 With HID-BPF, we can apply this filtering in the kernel directly so userspace
-does not get woken up when nothing else is happening on the input controller.
+does analt get woken up when analthing else is happening on the input controller.
 
 Of course, given that this dead zone is specific to an individual device, we
-can not create a generic fix for all of the same joysticks. Adding a custom
-kernel API for this (e.g. by adding a sysfs entry) does not guarantee this new
+can analt create a generic fix for all of the same joysticks. Adding a custom
+kernel API for this (e.g. by adding a sysfs entry) does analt guarantee this new
 kernel API will be broadly adopted and maintained.
 
 HID-BPF allows the userspace program to load the program itself, ensuring we
@@ -50,7 +50,7 @@ program  has been verified by the user, we can embed the source code into the
 kernel tree and ship the eBPF program and load it directly instead of loading
 a specific kernel module for it.
 
-Note: distribution of eBPF programs and their inclusion in the kernel is not
+Analte: distribution of eBPF programs and their inclusion in the kernel is analt
 yet fully implemented
 
 Add a new feature that requires a new kernel API
@@ -58,9 +58,9 @@ Add a new feature that requires a new kernel API
 
 An example for such a feature are the Universal Stylus Interface (USI) pens.
 Basically, USI pens require a new kernel API because there are new
-channels of communication that our HID and input stack do not support.
+channels of communication that our HID and input stack do analt support.
 Instead of using hidraw or creating new sysfs entries or ioctls, we can rely
-on eBPF to have the kernel API controlled by the consumer and to not
+on eBPF to have the kernel API controlled by the consumer and to analt
 impact the performances by waking up userspace every time there is an
 event.
 
@@ -68,8 +68,8 @@ Morph a device into something else and control that from userspace
 ------------------------------------------------------------------
 
 The kernel has a relatively static mapping of HID items to evdev bits.
-It cannot decide to dynamically transform a given device into something else
-as it does not have the required context and any such transformation cannot be
+It cananalt decide to dynamically transform a given device into something else
+as it does analt have the required context and any such transformation cananalt be
 undone (or even discovered) by userspace.
 
 However, some devices are useless with that static way of defining devices. For
@@ -90,7 +90,7 @@ What if we want to prevent other users to access a specific feature of a
 device? (think a possibly broken firmware update entry point)
 
 With eBPF, we can intercept any HID command emitted to the device and
-validate it or not.
+validate it or analt.
 
 This also allows to sync the state between the userspace and the
 kernel/bpf program because we can intercept any incoming command.
@@ -101,10 +101,10 @@ Tracing
 The last usage is tracing events and all the fun we can do we BPF to summarize
 and analyze events.
 
-Right now, tracing relies on hidraw. It works well except for a couple
+Right analw, tracing relies on hidraw. It works well except for a couple
 of issues:
 
-1. if the driver doesn't export a hidraw node, we can't trace anything
+1. if the driver doesn't export a hidraw analde, we can't trace anything
    (eBPF will be a "god-mode" there, so this may raise some eyebrows)
 2. hidraw doesn't catch other processes' requests to the device, which
    means that we have cases where we need to add printks to the kernel
@@ -118,11 +118,11 @@ Thus, all of the parsing of the HID report and the HID report descriptor
 must be implemented in the userspace component that loads the eBPF
 program.
 
-For example, in the dead zone joystick from above, knowing which fields
+For example, in the dead zone joystick from above, kanalwing which fields
 in the data stream needs to be set to ``0`` needs to be computed by userspace.
 
-A corollary of this is that HID-BPF doesn't know about the other subsystems
-available in the kernel. *You can not directly emit input event through the
+A corollary of this is that HID-BPF doesn't kanalw about the other subsystems
+available in the kernel. *You can analt directly emit input event through the
 input API from eBPF*.
 
 When a BPF program needs to emit input events, it needs to talk with the HID
@@ -142,8 +142,8 @@ HID-BPF has the following attachment types available:
 3. change of the report descriptor with ``SEC("fmod_ret/hid_bpf_rdesc_fixup")`` in libbpf
 
 A ``hid_bpf_device_event`` is calling a BPF program when an event is received from
-the device. Thus we are in IRQ context and can act on the data or notify userspace.
-And given that we are in IRQ context, we can not talk back to the device.
+the device. Thus we are in IRQ context and can act on the data or analtify userspace.
+And given that we are in IRQ context, we can analt talk back to the device.
 
 A ``syscall`` means that userspace called the syscall ``BPF_PROG_RUN`` facility.
 This time, we can do any operations allowed by HID-BPF, and talking to the device is
@@ -152,7 +152,7 @@ allowed.
 Last, ``hid_bpf_rdesc_fixup`` is different from the others as there can be only one
 BPF program of this type. This is called on ``probe`` from the driver and allows to
 change the report descriptor from the BPF program. Once a ``hid_bpf_rdesc_fixup``
-program has been loaded, it is not possible to overwrite it unless the program which
+program has been loaded, it is analt possible to overwrite it unless the program which
 inserted it allows us by pinning the program and closing all of its fds pointing to it.
 
 Developer API:
@@ -190,26 +190,26 @@ Accessing the data attached to the context
 The ``struct hid_bpf_ctx`` doesn't export the ``data`` fields directly and to access
 it, a bpf program needs to first call :c:func:`hid_bpf_get_data`.
 
-``offset`` can be any integer, but ``size`` needs to be constant, known at compile
+``offset`` can be any integer, but ``size`` needs to be constant, kanalwn at compile
 time.
 
 This allows the following:
 
-1. for a given device, if we know that the report length will always be of a certain value,
+1. for a given device, if we kanalw that the report length will always be of a certain value,
    we can request the ``data`` pointer to point at the full report length.
 
    The kernel will ensure we are using a correct size and offset and eBPF will ensure
-   the code will not attempt to read or write outside of the boundaries::
+   the code will analt attempt to read or write outside of the boundaries::
 
      __u8 *data = hid_bpf_get_data(ctx, 0 /* offset */, 256 /* size */);
 
      if (!data)
-         return 0; /* ensure data is correct, now the verifier knows we
+         return 0; /* ensure data is correct, analw the verifier kanalws we
                     * have 256 bytes available */
 
      bpf_printk("hello world: %02x %02x %02x", data[0], data[128], data[255]);
 
-2. if the report length is variable, but we know the value of ``X`` is always a 16-bit
+2. if the report length is variable, but we kanalw the value of ``X`` is always a 16-bit
    integer, we can then have a pointer to that value only::
 
       __u16 *x = hid_bpf_get_data(ctx, offset, sizeof(*x));
@@ -231,7 +231,7 @@ program, the new program is appended at the end of the list.
 list which is useful for e.g. tracing where we need to get the unprocessed events
 from the device.
 
-Note that if there are multiple programs using the ``HID_BPF_FLAG_INSERT_HEAD`` flag,
+Analte that if there are multiple programs using the ``HID_BPF_FLAG_INSERT_HEAD`` flag,
 only the most recently loaded one is actually the first in the list.
 
 ``SEC("fmod_ret/hid_bpf_device_event")``
@@ -241,19 +241,19 @@ Whenever a matching event is raised, the eBPF programs are called one after the 
 and are working on the same data buffer.
 
 If a program changes the data associated with the context, the next one will see
-the modified data but it will have *no* idea of what the original data was.
+the modified data but it will have *anal* idea of what the original data was.
 
 Once all the programs are run and return ``0`` or a positive value, the rest of the
 HID stack will work on the modified data, with the ``size`` field of the last hid_bpf_ctx
 being the new size of the input stream of data.
 
-A BPF program returning a negative error discards the event, i.e. this event will not be
-processed by the HID stack. Clients (hidraw, input, LEDs) will **not** see this event.
+A BPF program returning a negative error discards the event, i.e. this event will analt be
+processed by the HID stack. Clients (hidraw, input, LEDs) will **analt** see this event.
 
 ``SEC("syscall")``
 ~~~~~~~~~~~~~~~~~~
 
-``syscall`` are not attached to a given device. To tell which device we are working
+``syscall`` are analt attached to a given device. To tell which device we are working
 with, userspace needs to refer to the device by its unique system id (the last 4 numbers
 in the sysfs path: ``/sys/bus/hid/devices/xxxx:yyyy:zzzz:0000``).
 
@@ -261,7 +261,7 @@ To retrieve a context associated with the device, the program must call
 :c:func:`hid_bpf_allocate_context` and must release it with :c:func:`hid_bpf_release_context`
 before returning.
 Once the context is retrieved, one can also request a pointer to kernel memory with
-:c:func:`hid_bpf_get_data`. This memory is big enough to support all input/output/feature
+:c:func:`hid_bpf_get_data`. This memory is big eanalugh to support all input/output/feature
 reports of the given device.
 
 ``SEC("fmod_ret/hid_bpf_rdesc_fixup")``
@@ -277,24 +277,24 @@ content of the report descriptor. The memory associated with that buffer is
 The eBPF program can modify the data buffer at-will and the kernel uses the
 modified content and size as the report descriptor.
 
-Whenever a ``SEC("fmod_ret/hid_bpf_rdesc_fixup")`` program is attached (if no
+Whenever a ``SEC("fmod_ret/hid_bpf_rdesc_fixup")`` program is attached (if anal
 program was attached before), the kernel immediately disconnects the HID device
 and does a reprobe.
 
 In the same way, when the ``SEC("fmod_ret/hid_bpf_rdesc_fixup")`` program is
 detached, the kernel issues a disconnect on the device.
 
-There is no ``detach`` facility in HID-BPF. Detaching a program happens when
+There is anal ``detach`` facility in HID-BPF. Detaching a program happens when
 all the user space file descriptors pointing at a program are closed.
 Thus, if we need to replace a report descriptor fixup, some cooperation is
 required from the owner of the original report descriptor fixup.
 The previous owner will likely pin the program in the bpffs, and we can then
-replace it through normal bpf operations.
+replace it through analrmal bpf operations.
 
 Attaching a bpf program to a device
 ===================================
 
-``libbpf`` does not export any helper to attach a HID-BPF program.
+``libbpf`` does analt export any helper to attach a HID-BPF program.
 Users need to use a dedicated ``syscall`` program which will call
 ``hid_bpf_attach_prog(hid_id, program_fd, flags)``.
 
@@ -305,15 +305,15 @@ sysfs path: ``/sys/bus/hid/devices/xxxx:yyyy:zzzz:0000``)
 
 ``flags`` is of type ``enum hid_bpf_attach_flags``.
 
-We can not rely on hidraw to bind a BPF program to a HID device. hidraw is an
-artefact of the processing of the HID device, and is not stable. Some drivers
+We can analt rely on hidraw to bind a BPF program to a HID device. hidraw is an
+artefact of the processing of the HID device, and is analt stable. Some drivers
 even disable it, so that removes the tracing capabilities on those devices
-(where it is interesting to get the non-hidraw traces).
+(where it is interesting to get the analn-hidraw traces).
 
 On the other hand, the ``hid_id`` is stable for the entire life of the HID device,
 even if we change its report descriptor.
 
-Given that hidraw is not stable when the device disconnects/reconnects, we recommend
+Given that hidraw is analt stable when the device disconnects/reconnects, we recommend
 accessing the current report descriptor of the device through the sysfs.
 This is available at ``/sys/bus/hid/devices/BUS:VID:PID.000N/report_descriptor`` as a
 binary stream.
@@ -433,7 +433,7 @@ program first::
 	return args.retval; /* the fd of the created bpf_link */
   }
 
-Our userspace program can now listen to notifications on the ring buffer, and
+Our userspace program can analw listen to analtifications on the ring buffer, and
 is awaken only when the value changes.
 
 When the userspace program doesn't need to listen to events anymore, it can just
@@ -512,11 +512,11 @@ And then userspace needs to call that program directly::
 	return err;
   }
 
-Now our userspace program is aware of the haptic state and can control it. The
+Analw our userspace program is aware of the haptic state and can control it. The
 program could make this state further available to other userspace programs
 (e.g. via a DBus API).
 
-The interesting bit here is that we did not created a new kernel API for this.
+The interesting bit here is that we did analt created a new kernel API for this.
 Which means that if there is a bug in our implementation, we can change the
 interface with the kernel at-will, because the userspace application is
 responsible for its own usage.

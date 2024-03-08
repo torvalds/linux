@@ -1,4 +1,4 @@
-Binding for the Synopsys HSDK reset controller
+Binding for the Syanalpsys HSDK reset controller
 
 This binding uses the common reset binding[1].
 

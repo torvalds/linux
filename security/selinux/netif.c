@@ -2,7 +2,7 @@
 /*
  * Network interface table.
  *
- * Network interfaces (devices) do not have a security field, so we
+ * Network interfaces (devices) do analt have a security field, so we
  * maintain a table associating each interface with a SID.
  *
  * Author: James Morris <jmorris@redhat.com>
@@ -17,7 +17,7 @@
 #include <linux/stddef.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/netdevice.h>
 #include <linux/rcupdate.h>
 #include <net/net_namespace.h>
@@ -61,7 +61,7 @@ static inline u32 sel_netif_hashfn(const struct net *ns, int ifindex)
  *
  * Description:
  * Search the network interface table and return the record matching @ifindex.
- * If an entry can not be found in the table return NULL.
+ * If an entry can analt be found in the table return NULL.
  *
  */
 static inline struct sel_netif *sel_netif_find(const struct net *ns,
@@ -92,7 +92,7 @@ static int sel_netif_insert(struct sel_netif *netif)
 	u32 idx;
 
 	if (sel_netif_total >= SEL_NETIF_HASH_MAX)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	idx = sel_netif_hashfn(netif->nsec.ns, netif->nsec.ifindex);
 	list_add_rcu(&netif->list, &sel_netif_hash[idx]);
@@ -136,14 +136,14 @@ static int sel_netif_sid_slow(struct net *ns, int ifindex, u32 *sid)
 	struct sel_netif *new;
 	struct net_device *dev;
 
-	/* NOTE: we always use init's network namespace since we don't
+	/* ANALTE: we always use init's network namespace since we don't
 	 * currently support containers */
 
 	dev = dev_get_by_index(ns, ifindex);
 	if (unlikely(dev == NULL)) {
 		pr_warn("SELinux: failure in %s(), invalid network interface (%d)\n",
 			__func__, ifindex);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	spin_lock_bh(&sel_netif_lock);
@@ -246,19 +246,19 @@ void sel_netif_flush(void)
 	spin_unlock_bh(&sel_netif_lock);
 }
 
-static int sel_netif_netdev_notifier_handler(struct notifier_block *this,
+static int sel_netif_netdev_analtifier_handler(struct analtifier_block *this,
 					     unsigned long event, void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_analtifier_info_to_dev(ptr);
 
 	if (event == NETDEV_DOWN)
 		sel_netif_kill(dev_net(dev), dev->ifindex);
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block sel_netif_netdev_notifier = {
-	.notifier_call = sel_netif_netdev_notifier_handler,
+static struct analtifier_block sel_netif_netdev_analtifier = {
+	.analtifier_call = sel_netif_netdev_analtifier_handler,
 };
 
 static __init int sel_netif_init(void)
@@ -271,7 +271,7 @@ static __init int sel_netif_init(void)
 	for (i = 0; i < SEL_NETIF_HASH_SIZE; i++)
 		INIT_LIST_HEAD(&sel_netif_hash[i]);
 
-	register_netdevice_notifier(&sel_netif_netdev_notifier);
+	register_netdevice_analtifier(&sel_netif_netdev_analtifier);
 
 	return 0;
 }

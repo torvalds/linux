@@ -11,7 +11,7 @@
 
 / {
 	compatible = "haochuangyi,h96-max", "amlogic,sm1";
-	model = "Shenzhen Haochuangyi Technology Co., Ltd H96 Max";
+	model = "Shenzhen Haochuangyi Techanallogy Co., Ltd H96 Max";
 
 	sound {
 		compatible = "amlogic,axg-sound-card";

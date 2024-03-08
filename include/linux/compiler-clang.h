@@ -18,27 +18,27 @@
 #define KASAN_ABI_VERSION 5
 
 /*
- * Note: Checking __has_feature(*_sanitizer) is only true if the feature is
- * enabled. Therefore it is not required to additionally check defined(CONFIG_*)
+ * Analte: Checking __has_feature(*_sanitizer) is only true if the feature is
+ * enabled. Therefore it is analt required to additionally check defined(CONFIG_*)
  * to avoid adding redundant attributes in other configurations.
  */
 
 #if __has_feature(address_sanitizer) || __has_feature(hwaddress_sanitizer)
 /* Emulate GCC's __SANITIZE_ADDRESS__ flag */
 #define __SANITIZE_ADDRESS__
-#define __no_sanitize_address \
-		__attribute__((no_sanitize("address", "hwaddress")))
+#define __anal_sanitize_address \
+		__attribute__((anal_sanitize("address", "hwaddress")))
 #else
-#define __no_sanitize_address
+#define __anal_sanitize_address
 #endif
 
 #if __has_feature(thread_sanitizer)
 /* emulate gcc's __SANITIZE_THREAD__ flag */
 #define __SANITIZE_THREAD__
-#define __no_sanitize_thread \
-		__attribute__((no_sanitize("thread")))
+#define __anal_sanitize_thread \
+		__attribute__((anal_sanitize("thread")))
 #else
-#define __no_sanitize_thread
+#define __anal_sanitize_thread
 #endif
 
 #if defined(CONFIG_ARCH_USE_BUILTIN_BSWAP)
@@ -48,54 +48,54 @@
 #endif /* CONFIG_ARCH_USE_BUILTIN_BSWAP */
 
 #if __has_feature(undefined_behavior_sanitizer)
-/* GCC does not have __SANITIZE_UNDEFINED__ */
-#define __no_sanitize_undefined \
-		__attribute__((no_sanitize("undefined")))
+/* GCC does analt have __SANITIZE_UNDEFINED__ */
+#define __anal_sanitize_undefined \
+		__attribute__((anal_sanitize("undefined")))
 #else
-#define __no_sanitize_undefined
+#define __anal_sanitize_undefined
 #endif
 
 #if __has_feature(memory_sanitizer)
 #define __SANITIZE_MEMORY__
 /*
  * Unlike other sanitizers, KMSAN still inserts code into functions marked with
- * no_sanitize("kernel-memory"). Using disable_sanitizer_instrumentation
- * provides the behavior consistent with other __no_sanitize_ attributes,
- * guaranteeing that __no_sanitize_memory functions remain uninstrumented.
+ * anal_sanitize("kernel-memory"). Using disable_sanitizer_instrumentation
+ * provides the behavior consistent with other __anal_sanitize_ attributes,
+ * guaranteeing that __anal_sanitize_memory functions remain uninstrumented.
  */
-#define __no_sanitize_memory __disable_sanitizer_instrumentation
+#define __anal_sanitize_memory __disable_sanitizer_instrumentation
 
 /*
- * The __no_kmsan_checks attribute ensures that a function does not produce
+ * The __anal_kmsan_checks attribute ensures that a function does analt produce
  * false positive reports by:
  *  - initializing all local variables and memory stores in this function;
  *  - skipping all shadow checks;
  *  - passing initialized arguments to this function's callees.
  */
-#define __no_kmsan_checks __attribute__((no_sanitize("kernel-memory")))
+#define __anal_kmsan_checks __attribute__((anal_sanitize("kernel-memory")))
 #else
-#define __no_sanitize_memory
-#define __no_kmsan_checks
+#define __anal_sanitize_memory
+#define __anal_kmsan_checks
 #endif
 
 /*
  * Support for __has_feature(coverage_sanitizer) was added in Clang 13 together
- * with no_sanitize("coverage"). Prior versions of Clang support coverage
- * instrumentation, but cannot be queried for support by the preprocessor.
+ * with anal_sanitize("coverage"). Prior versions of Clang support coverage
+ * instrumentation, but cananalt be queried for support by the preprocessor.
  */
 #if __has_feature(coverage_sanitizer)
-#define __no_sanitize_coverage __attribute__((no_sanitize("coverage")))
+#define __anal_sanitize_coverage __attribute__((anal_sanitize("coverage")))
 #else
-#define __no_sanitize_coverage
+#define __anal_sanitize_coverage
 #endif
 
 #if __has_feature(shadow_call_stack)
-# define __noscs	__attribute__((__no_sanitize__("shadow-call-stack")))
+# define __analscs	__attribute__((__anal_sanitize__("shadow-call-stack")))
 #endif
 
 #if __has_feature(kcfi)
 /* Disable CFI checking inside a function. */
-#define __nocfi		__attribute__((__no_sanitize__("kcfi")))
+#define __analcfi		__attribute__((__anal_sanitize__("kcfi")))
 #endif
 
 /*
@@ -106,13 +106,13 @@
 	__diag_clang_ ## version(__diag_clang_ ## severity s)
 
 /* Severity used in pragma directives */
-#define __diag_clang_ignore	ignored
+#define __diag_clang_iganalre	iganalred
 #define __diag_clang_warn	warning
 #define __diag_clang_error	error
 
 #define __diag_str1(s)		#s
 #define __diag_str(s)		__diag_str1(s)
-#define __diag(s)		_Pragma(__diag_str(clang diagnostic s))
+#define __diag(s)		_Pragma(__diag_str(clang diaganalstic s))
 
 #if CONFIG_CLANG_VERSION >= 110000
 #define __diag_clang_11(s)	__diag(s)
@@ -120,5 +120,5 @@
 #define __diag_clang_11(s)
 #endif
 
-#define __diag_ignore_all(option, comment) \
-	__diag_clang(11, ignore, option)
+#define __diag_iganalre_all(option, comment) \
+	__diag_clang(11, iganalre, option)

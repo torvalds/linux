@@ -75,7 +75,7 @@ static void pinconf_generic_dump_one(struct pinctrl_dev *pctldev,
 		else
 			ret = pin_config_get_for_pin(pctldev, pin, &config);
 		/* These are legal errors */
-		if (ret == -EINVAL || ret == -ENOTSUPP)
+		if (ret == -EINVAL || ret == -EANALTSUPP)
 			continue;
 		if (ret) {
 			seq_printf(s, "ERROR READING CONFIG SETTING %d ", i);
@@ -192,18 +192,18 @@ static const struct pinconf_generic_params dt_params[] = {
 
 /**
  * parse_dt_cfg() - Parse DT pinconf parameters
- * @np:	DT node
+ * @np:	DT analde
  * @params:	Array of describing generic parameters
  * @count:	Number of entries in @params
  * @cfg:	Array of parsed config options
  * @ncfg:	Number of entries in @cfg
  *
  * Parse the config options described in @params from @np and puts the result
- * in @cfg. @cfg does not need to be empty, entries are added beginning at
+ * in @cfg. @cfg does analt need to be empty, entries are added beginning at
  * @ncfg. @ncfg is updated to reflect the number of entries after parsing. @cfg
- * needs to have enough memory allocated to hold all possible entries.
+ * needs to have eanalugh memory allocated to hold all possible entries.
  */
-static void parse_dt_cfg(struct device_node *np,
+static void parse_dt_cfg(struct device_analde *np,
 			 const struct pinconf_generic_params *params,
 			 unsigned int count, unsigned long *cfg,
 			 unsigned int *ncfg)
@@ -217,11 +217,11 @@ static void parse_dt_cfg(struct device_node *np,
 
 		ret = of_property_read_u32(np, par->property, &val);
 
-		/* property not found */
+		/* property analt found */
 		if (ret == -EINVAL)
 			continue;
 
-		/* use default value, when no value is specified */
+		/* use default value, when anal value is specified */
 		if (ret)
 			val = par->default_value;
 
@@ -234,13 +234,13 @@ static void parse_dt_cfg(struct device_node *np,
 /**
  * pinconf_generic_parse_dt_config()
  * parse the config properties into generic pinconfig values.
- * @np: node containing the pinconfig properties
+ * @np: analde containing the pinconfig properties
  * @pctldev: pincontrol device
  * @configs: array with nconfigs entries containing the generic pinconf values
- *           must be freed when no longer necessary.
+ *           must be freed when anal longer necessary.
  * @nconfigs: number of configurations
  */
-int pinconf_generic_parse_dt_config(struct device_node *np,
+int pinconf_generic_parse_dt_config(struct device_analde *np,
 				    struct pinctrl_dev *pctldev,
 				    unsigned long **configs,
 				    unsigned int *nconfigs)
@@ -252,13 +252,13 @@ int pinconf_generic_parse_dt_config(struct device_node *np,
 	if (!np)
 		return -EINVAL;
 
-	/* allocate a temporary array big enough to hold one of each option */
+	/* allocate a temporary array big eanalugh to hold one of each option */
 	max_cfg = ARRAY_SIZE(dt_params);
 	if (pctldev)
 		max_cfg += pctldev->desc->num_custom_params;
 	cfg = kcalloc(max_cfg, sizeof(*cfg), GFP_KERNEL);
 	if (!cfg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	parse_dt_cfg(np, dt_params, ARRAY_SIZE(dt_params), cfg, &ncfg);
 	if (pctldev && pctldev->desc->num_custom_params &&
@@ -268,7 +268,7 @@ int pinconf_generic_parse_dt_config(struct device_node *np,
 
 	ret = 0;
 
-	/* no configs found at all */
+	/* anal configs found at all */
 	if (ncfg == 0) {
 		*configs = NULL;
 		*nconfigs = 0;
@@ -276,12 +276,12 @@ int pinconf_generic_parse_dt_config(struct device_node *np,
 	}
 
 	/*
-	 * Now limit the number of configs to the real number of
+	 * Analw limit the number of configs to the real number of
 	 * found properties.
 	 */
 	*configs = kmemdup(cfg, ncfg * sizeof(unsigned long), GFP_KERNEL);
 	if (!*configs) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -293,8 +293,8 @@ out:
 }
 EXPORT_SYMBOL_GPL(pinconf_generic_parse_dt_config);
 
-int pinconf_generic_dt_subnode_to_map(struct pinctrl_dev *pctldev,
-		struct device_node *np, struct pinctrl_map **map,
+int pinconf_generic_dt_subanalde_to_map(struct pinctrl_dev *pctldev,
+		struct device_analde *np, struct pinctrl_map **map,
 		unsigned int *reserved_maps, unsigned int *num_maps,
 		enum pinctrl_map_type type)
 {
@@ -306,17 +306,17 @@ int pinconf_generic_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 	unsigned int reserve, strings_count;
 	struct property *prop;
 	const char *group;
-	const char *subnode_target_type = "pins";
+	const char *subanalde_target_type = "pins";
 
 	ret = of_property_count_strings(np, "pins");
 	if (ret < 0) {
 		ret = of_property_count_strings(np, "groups");
 		if (ret < 0)
-			/* skip this node; may contain config child nodes */
+			/* skip this analde; may contain config child analdes */
 			return 0;
 		if (type == PIN_MAP_TYPE_INVALID)
 			type = PIN_MAP_TYPE_CONFIGS_GROUP;
-		subnode_target_type = "groups";
+		subanalde_target_type = "groups";
 	} else {
 		if (type == PIN_MAP_TYPE_INVALID)
 			type = PIN_MAP_TYPE_CONFIGS_PIN;
@@ -327,7 +327,7 @@ int pinconf_generic_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 	if (ret < 0) {
 		/* EINVAL=missing, which is fine since it's optional */
 		if (ret != -EINVAL)
-			dev_err(dev, "%pOF: could not parse property function\n",
+			dev_err(dev, "%pOF: could analt parse property function\n",
 				np);
 		function = NULL;
 	}
@@ -335,7 +335,7 @@ int pinconf_generic_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 	ret = pinconf_generic_parse_dt_config(np, pctldev, &configs,
 					      &num_configs);
 	if (ret < 0) {
-		dev_err(dev, "%pOF: could not parse node property\n", np);
+		dev_err(dev, "%pOF: could analt parse analde property\n", np);
 		return ret;
 	}
 
@@ -352,7 +352,7 @@ int pinconf_generic_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 	if (ret < 0)
 		goto exit;
 
-	of_property_for_each_string(np, subnode_target_type, prop, group) {
+	of_property_for_each_string(np, subanalde_target_type, prop, group) {
 		if (function) {
 			ret = pinctrl_utils_add_map_mux(pctldev, map,
 					reserved_maps, num_maps, group,
@@ -375,30 +375,30 @@ exit:
 	kfree(configs);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(pinconf_generic_dt_subnode_to_map);
+EXPORT_SYMBOL_GPL(pinconf_generic_dt_subanalde_to_map);
 
-int pinconf_generic_dt_node_to_map(struct pinctrl_dev *pctldev,
-		struct device_node *np_config, struct pinctrl_map **map,
+int pinconf_generic_dt_analde_to_map(struct pinctrl_dev *pctldev,
+		struct device_analde *np_config, struct pinctrl_map **map,
 		unsigned int *num_maps, enum pinctrl_map_type type)
 {
 	unsigned int reserved_maps;
-	struct device_node *np;
+	struct device_analde *np;
 	int ret;
 
 	reserved_maps = 0;
 	*map = NULL;
 	*num_maps = 0;
 
-	ret = pinconf_generic_dt_subnode_to_map(pctldev, np_config, map,
+	ret = pinconf_generic_dt_subanalde_to_map(pctldev, np_config, map,
 						&reserved_maps, num_maps, type);
 	if (ret < 0)
 		goto exit;
 
-	for_each_available_child_of_node(np_config, np) {
-		ret = pinconf_generic_dt_subnode_to_map(pctldev, np, map,
+	for_each_available_child_of_analde(np_config, np) {
+		ret = pinconf_generic_dt_subanalde_to_map(pctldev, np, map,
 					&reserved_maps, num_maps, type);
 		if (ret < 0) {
-			of_node_put(np);
+			of_analde_put(np);
 			goto exit;
 		}
 	}
@@ -408,7 +408,7 @@ exit:
 	pinctrl_utils_free_map(pctldev, *map, *num_maps);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(pinconf_generic_dt_node_to_map);
+EXPORT_SYMBOL_GPL(pinconf_generic_dt_analde_to_map);
 
 void pinconf_generic_dt_free_map(struct pinctrl_dev *pctldev,
 				 struct pinctrl_map *map,

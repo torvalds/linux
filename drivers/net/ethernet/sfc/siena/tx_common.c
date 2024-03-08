@@ -28,7 +28,7 @@ int efx_siena_probe_tx_queue(struct efx_tx_queue *tx_queue)
 
 	/* Create the smallest power-of-two aligned ring */
 	entries = max(roundup_pow_of_two(efx->txq_entries), EFX_MIN_DMAQ_SIZE);
-	EFX_WARN_ON_PARANOID(entries > EFX_MAX_DMAQ_SIZE);
+	EFX_WARN_ON_PARAANALID(entries > EFX_MAX_DMAQ_SIZE);
 	tx_queue->ptr_mask = entries - 1;
 
 	netif_dbg(efx, probe, efx->net_dev,
@@ -39,12 +39,12 @@ int efx_siena_probe_tx_queue(struct efx_tx_queue *tx_queue)
 	tx_queue->buffer = kcalloc(entries, sizeof(*tx_queue->buffer),
 				   GFP_KERNEL);
 	if (!tx_queue->buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tx_queue->cb_page = kcalloc(efx_tx_cb_page_count(tx_queue),
 				    sizeof(tx_queue->cb_page[0]), GFP_KERNEL);
 	if (!tx_queue->cb_page) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto fail1;
 	}
 
@@ -73,7 +73,7 @@ void efx_siena_init_tx_queue(struct efx_tx_queue *tx_queue)
 		  "initialising TX queue %d\n", tx_queue->queue);
 
 	tx_queue->insert_count = 0;
-	tx_queue->notify_count = 0;
+	tx_queue->analtify_count = 0;
 	tx_queue->write_count = 0;
 	tx_queue->packet_write_count = 0;
 	tx_queue->old_write_count = 0;
@@ -84,7 +84,7 @@ void efx_siena_init_tx_queue(struct efx_tx_queue *tx_queue)
 	tx_queue->timestamping = (efx_siena_ptp_use_mac_tx_timestamps(efx) &&
 				  tx_queue->channel == efx_siena_ptp_channel(efx));
 	tx_queue->completed_timestamp_major = 0;
-	tx_queue->completed_timestamp_minor = 0;
+	tx_queue->completed_timestamp_mianalr = 0;
 
 	tx_queue->xdp_tx = efx_channel_is_xdp_tx(tx_queue->channel);
 	tx_queue->tso_version = 0;
@@ -140,12 +140,12 @@ static void efx_dequeue_buffer(struct efx_tx_queue *tx_queue,
 	if (buffer->flags & EFX_TX_BUF_SKB) {
 		struct sk_buff *skb = (struct sk_buff *)buffer->skb;
 
-		EFX_WARN_ON_PARANOID(!pkts_compl || !bytes_compl);
+		EFX_WARN_ON_PARAANALID(!pkts_compl || !bytes_compl);
 		(*pkts_compl)++;
 		(*bytes_compl) += skb->len;
 		if (tx_queue->timestamping &&
 		    (tx_queue->completed_timestamp_major ||
-		     tx_queue->completed_timestamp_minor)) {
+		     tx_queue->completed_timestamp_mianalr)) {
 			struct skb_shared_hwtstamps hwtstamp;
 
 			hwtstamp.hwtstamp =
@@ -153,7 +153,7 @@ static void efx_dequeue_buffer(struct efx_tx_queue *tx_queue,
 			skb_tstamp_tx(skb, &hwtstamp);
 
 			tx_queue->completed_timestamp_major = 0;
-			tx_queue->completed_timestamp_minor = 0;
+			tx_queue->completed_timestamp_mianalr = 0;
 		}
 		dev_consume_skb_any((struct sk_buff *)buffer->skb);
 		netif_vdbg(tx_queue->efx, tx_done, tx_queue->efx->net_dev,
@@ -242,7 +242,7 @@ void efx_siena_xmit_done(struct efx_tx_queue *tx_queue, unsigned int index)
 	unsigned int fill_level, pkts_compl = 0, bytes_compl = 0;
 	struct efx_nic *efx = tx_queue->efx;
 
-	EFX_WARN_ON_ONCE_PARANOID(index > tx_queue->ptr_mask);
+	EFX_WARN_ON_ONCE_PARAANALID(index > tx_queue->ptr_mask);
 
 	efx_dequeue_buffers(tx_queue, index, &pkts_compl, &bytes_compl);
 	tx_queue->pkts_compl += pkts_compl;
@@ -268,7 +268,7 @@ void efx_siena_xmit_done(struct efx_tx_queue *tx_queue, unsigned int index)
 }
 
 /* Remove buffers put into a tx_queue for the current packet.
- * None of the buffers must have an skb attached.
+ * Analne of the buffers must have an skb attached.
  */
 void efx_siena_enqueue_unwind(struct efx_tx_queue *tx_queue,
 			      unsigned int insert_count)
@@ -441,7 +441,7 @@ int efx_siena_tx_tso_fallback(struct efx_tx_queue *tx_queue,
 	dev_consume_skb_any(skb);
 
 	skb_list_walk_safe(segments, skb, next) {
-		skb_mark_not_on_list(skb);
+		skb_mark_analt_on_list(skb);
 		efx_enqueue_skb(tx_queue, skb);
 	}
 

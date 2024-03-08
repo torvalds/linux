@@ -236,7 +236,7 @@
 				reg = <0x16480000 0x1000>;
 				interrupts = <GIC_SPI 155 IRQ_TYPE_LEVEL_HIGH>;
 
-				/* QUP clock is not initialized, set rate */
+				/* QUP clock is analt initialized, set rate */
 				assigned-clocks = <&gcc GSBI5_QUP_CLK>;
 				assigned-clock-rates = <24000000>;
 
@@ -313,7 +313,7 @@
 			cap-sd-highspeed;
 			cap-mmc-highspeed;
 			max-frequency = <48000000>;
-			no-1-8-v;
+			anal-1-8-v;
 			vmmc-supply = <&vsdcc_fixed>;
 			dmas = <&sdcc2bam 2>, <&sdcc2bam 1>;
 			dma-names = "tx", "rx";

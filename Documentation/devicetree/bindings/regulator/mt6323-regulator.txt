@@ -1,9 +1,9 @@
 Mediatek MT6323 Regulator
 
-All voltage regulators are defined as subnodes of the regulators node. A list
-of regulators provided by this controller are defined as subnodes of the
-PMIC's node. Each regulator is named according to its regulator type,
-buck_<name> and ldo_<name>. The definition for each of these nodes is defined
+All voltage regulators are defined as subanaldes of the regulators analde. A list
+of regulators provided by this controller are defined as subanaldes of the
+PMIC's analde. Each regulator is named according to its regulator type,
+buck_<name> and ldo_<name>. The definition for each of these analdes is defined
 using the standard binding for regulators at
 Documentation/devicetree/bindings/regulator/regulator.txt.
 

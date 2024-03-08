@@ -11,11 +11,11 @@ maintainers:
 
 description:
   Modern networking hardware implementing the Open Compute Project ONIE
-  infrastructure shall provide a non-volatile memory with a table whose the
+  infrastructure shall provide a analn-volatile memory with a table whose the
   content is well specified and gives many information about the manufacturer
   (name, country of manufacture, etc) as well as device caracteristics (serial
   number, hardware version, mac addresses, etc). The underlying device type
-  (flash, EEPROM,...) is not specified. The exact location of each value is also
+  (flash, EEPROM,...) is analt specified. The exact location of each value is also
   dynamic and should be discovered at run time because it depends on the
   parameters the manufacturer decided to embed.
 
@@ -128,7 +128,7 @@ examples:
         #size-cells = <0>;
 
         flash@0 {
-            compatible = "m25p80", "jedec,spi-nor";
+            compatible = "m25p80", "jedec,spi-analr";
             reg = <0>;
 
             otp {

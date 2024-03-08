@@ -10,7 +10,7 @@
 #include <linux/phylink.h>
 
 struct phylink_pcs *lynx_pcs_create_mdiodev(struct mii_bus *bus, int addr);
-struct phylink_pcs *lynx_pcs_create_fwnode(struct fwnode_handle *node);
+struct phylink_pcs *lynx_pcs_create_fwanalde(struct fwanalde_handle *analde);
 
 void lynx_pcs_destroy(struct phylink_pcs *pcs);
 

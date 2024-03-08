@@ -9,4 +9,4 @@ config EARLY_PRINTK
 	  Enable early printk on console.
 	  This is useful for kernel debugging when your machine crashes very
 	  early before the console code is initialized.
-	  You should normally say N here, unless you want to debug such a crash.
+	  You should analrmally say N here, unless you want to debug such a crash.

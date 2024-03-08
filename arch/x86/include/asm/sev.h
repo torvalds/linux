@@ -24,7 +24,7 @@
 
 enum es_result {
 	ES_OK,			/* All good */
-	ES_UNSUPPORTED,		/* Requested operation not supported */
+	ES_UNSUPPORTED,		/* Requested operation analt supported */
 	ES_VMM_ERROR,		/* Unexpected state from the VMM */
 	ES_DECODE_FAILED,	/* Instruction decoding failed */
 	ES_EXCEPTION,		/* Instruction caused exception */
@@ -49,7 +49,7 @@ struct es_em_ctxt {
 /*
  * AMD SEV Confidential computing blob structure. The structure is
  * defined in OVMF UEFI firmware header:
- * https://github.com/tianocore/edk2/blob/master/OvmfPkg/Include/Guid/ConfidentialComputingSevSnpBlob.h
+ * https://github.com/tiaanalcore/edk2/blob/master/OvmfPkg/Include/Guid/ConfidentialComputingSevSnpBlob.h
  */
 #define CC_BLOB_SEV_HDR_MAGIC	0x45444d41
 struct cc_blob_sev_info {
@@ -64,7 +64,7 @@ struct cc_blob_sev_info {
 	u32 rsvd2;
 } __packed;
 
-void do_vc_no_ghcb(struct pt_regs *regs, unsigned long exit_code);
+void do_vc_anal_ghcb(struct pt_regs *regs, unsigned long exit_code);
 
 static inline u64 lower_bits(u64 val, unsigned int bits)
 {
@@ -77,7 +77,7 @@ struct real_mode_header;
 enum stack_type;
 
 /* Early IDT entry points for #VC handler */
-extern void vc_no_ghcb(void);
+extern void vc_anal_ghcb(void);
 extern void vc_boot_ghcb(void);
 extern bool handle_vc_boot_ghcb(struct pt_regs *regs);
 
@@ -85,7 +85,7 @@ extern bool handle_vc_boot_ghcb(struct pt_regs *regs);
 #define PVALIDATE_FAIL_SIZEMISMATCH	6
 
 /* Software defined (when rFlags.CF = 1) */
-#define PVALIDATE_FAIL_NOUPDATE		255
+#define PVALIDATE_FAIL_ANALUPDATE		255
 
 /* RMP page size */
 #define RMP_PG_SIZE_4K			0
@@ -113,10 +113,10 @@ struct sev_guest_platform_data {
  * See the GHCB spec section Secret page layout for the format for this area.
  */
 struct secrets_os_area {
-	u32 msg_seqno_0;
-	u32 msg_seqno_1;
-	u32 msg_seqno_2;
-	u32 msg_seqno_3;
+	u32 msg_seqanal_0;
+	u32 msg_seqanal_1;
+	u32 msg_seqanal_2;
+	u32 msg_seqanal_3;
 	u64 ap_jump_table_pa;
 	u8 rsvd[40];
 	u8 guest_usage[32];
@@ -180,18 +180,18 @@ static inline int rmpadjust(unsigned long vaddr, bool rmp_psize, unsigned long a
 }
 static inline int pvalidate(unsigned long vaddr, bool rmp_psize, bool validate)
 {
-	bool no_rmpupdate;
+	bool anal_rmpupdate;
 	int rc;
 
 	/* "pvalidate" mnemonic support in binutils 2.36 and newer */
 	asm volatile(".byte 0xF2, 0x0F, 0x01, 0xFF\n\t"
 		     CC_SET(c)
-		     : CC_OUT(c) (no_rmpupdate), "=a"(rc)
+		     : CC_OUT(c) (anal_rmpupdate), "=a"(rc)
 		     : "a"(vaddr), "c"(rmp_psize), "d"(validate)
 		     : "memory", "cc");
 
-	if (no_rmpupdate)
-		return PVALIDATE_FAIL_NOUPDATE;
+	if (anal_rmpupdate)
+		return PVALIDATE_FAIL_ANALUPDATE;
 
 	return rc;
 }
@@ -208,7 +208,7 @@ void snp_set_memory_shared(unsigned long vaddr, unsigned long npages);
 void snp_set_memory_private(unsigned long vaddr, unsigned long npages);
 void snp_set_wakeup_secondary_cpu(void);
 bool snp_init(struct boot_params *bp);
-void __init __noreturn snp_abort(void);
+void __init __analreturn snp_abort(void);
 int snp_issue_guest_request(u64 exit_code, struct snp_req_data *input, struct snp_guest_request_ioctl *rio);
 void snp_accept_memory(phys_addr_t start, phys_addr_t end);
 u64 snp_get_unsupported_features(u64 status);
@@ -235,7 +235,7 @@ static inline bool snp_init(struct boot_params *bp) { return false; }
 static inline void snp_abort(void) { }
 static inline int snp_issue_guest_request(u64 exit_code, struct snp_req_data *input, struct snp_guest_request_ioctl *rio)
 {
-	return -ENOTTY;
+	return -EANALTTY;
 }
 
 static inline void snp_accept_memory(phys_addr_t start, phys_addr_t end) { }

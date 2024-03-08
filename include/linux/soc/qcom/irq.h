@@ -5,7 +5,7 @@
 
 #include <linux/irqdomain.h>
 
-#define GPIO_NO_WAKE_IRQ	~0U
+#define GPIO_ANAL_WAKE_IRQ	~0U
 
 /*
  * QCOM specific IRQ domain flags that distinguishes the handling of wakeup
@@ -15,8 +15,8 @@
  *                                  interrupt configuration is done at PDC
  * IRQ_DOMAIN_FLAG_QCOM_MPM_WAKEUP: Interrupt configuration is handled at TLMM
  */
-#define IRQ_DOMAIN_FLAG_QCOM_PDC_WAKEUP		(IRQ_DOMAIN_FLAG_NONCORE << 0)
-#define IRQ_DOMAIN_FLAG_QCOM_MPM_WAKEUP		(IRQ_DOMAIN_FLAG_NONCORE << 1)
+#define IRQ_DOMAIN_FLAG_QCOM_PDC_WAKEUP		(IRQ_DOMAIN_FLAG_ANALNCORE << 0)
+#define IRQ_DOMAIN_FLAG_QCOM_MPM_WAKEUP		(IRQ_DOMAIN_FLAG_ANALNCORE << 1)
 
 /**
  * irq_domain_qcom_handle_wakeup: Return if the domain handles interrupt

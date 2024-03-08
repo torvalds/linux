@@ -142,7 +142,7 @@ static unsigned int rt712_sdca_button_detect(struct rt712_sdca_priv *rt712)
 	if (ret < 0)
 		return 0;
 
-	/* if owner is device then there is no button event from device */
+	/* if owner is device then there is anal button event from device */
 	if (owner == 1)
 		return 0;
 
@@ -424,9 +424,9 @@ static void rt712_sdca_jack_init(struct rt712_sdca_priv *rt712)
 		}
 
 		/* set SCP_SDCA_IntMask1[0]=1 */
-		sdw_write_no_pm(rt712->slave, SDW_SCP_SDCA_INTMASK1, SDW_SCP_SDCA_INTMASK_SDCA_0);
+		sdw_write_anal_pm(rt712->slave, SDW_SCP_SDCA_INTMASK1, SDW_SCP_SDCA_INTMASK_SDCA_0);
 		/* set SCP_SDCA_IntMask2[0]=1 */
-		sdw_write_no_pm(rt712->slave, SDW_SCP_SDCA_INTMASK2, SDW_SCP_SDCA_INTMASK_SDCA_8);
+		sdw_write_anal_pm(rt712->slave, SDW_SCP_SDCA_INTMASK2, SDW_SCP_SDCA_INTMASK_SDCA_8);
 		dev_dbg(&rt712->slave->dev, "in %s enable\n", __func__);
 
 		/* trigger GE interrupt */
@@ -463,8 +463,8 @@ static int rt712_sdca_set_jack_detect(struct snd_soc_component *component,
 			return ret;
 		}
 
-		/* pm_runtime not enabled yet */
-		dev_dbg(component->dev,	"%s: skipping jack init for now\n", __func__);
+		/* pm_runtime analt enabled yet */
+		dev_dbg(component->dev,	"%s: skipping jack init for analw\n", __func__);
 		return 0;
 	}
 
@@ -653,7 +653,7 @@ static const struct snd_kcontrol_new rt712_sdca_controls[] = {
 		SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT712_SDCA_ENT_USER_FU05, RT712_SDCA_CTL_FU_VOLUME, CH_R),
 		0, 0x57, 0,
 		rt712_sdca_set_gain_get, rt712_sdca_set_gain_put, out_vol_tlv),
-	SOC_DOUBLE_EXT("FU0F Capture Switch", SND_SOC_NOPM, 0, 1, 1, 0,
+	SOC_DOUBLE_EXT("FU0F Capture Switch", SND_SOC_ANALPM, 0, 1, 1, 0,
 		rt712_sdca_fu0f_capture_get, rt712_sdca_fu0f_capture_put),
 	SOC_DOUBLE_R_EXT_TLV("FU0F Capture Volume",
 		SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT712_SDCA_ENT_USER_FU0F, RT712_SDCA_CTL_FU_VOLUME, CH_L),
@@ -745,7 +745,7 @@ static const char * const adc_mux_text[] = {
 };
 
 static SOC_ENUM_SINGLE_DECL(
-	rt712_adc23_enum, SND_SOC_NOPM, 0, adc_mux_text);
+	rt712_adc23_enum, SND_SOC_ANALPM, 0, adc_mux_text);
 
 static const struct snd_kcontrol_new rt712_sdca_adc23_mux =
 	SOC_DAPM_ENUM_EXT("ADC 23 Mux", rt712_adc23_enum,
@@ -894,24 +894,24 @@ static const struct snd_soc_dapm_widget rt712_sdca_dapm_widgets[] = {
 	SND_SOC_DAPM_INPUT("MIC2"),
 	SND_SOC_DAPM_INPUT("LINE2"),
 
-	SND_SOC_DAPM_SUPPLY("PDE 40", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SUPPLY("PDE 40", SND_SOC_ANALPM, 0, 0,
 		rt712_sdca_pde40_event,
 		SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
-	SND_SOC_DAPM_SUPPLY("PDE 12", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SUPPLY("PDE 12", SND_SOC_ANALPM, 0, 0,
 		rt712_sdca_pde12_event,
 		SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 
-	SND_SOC_DAPM_DAC_E("FU 05", NULL, SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_DAC_E("FU 05", NULL, SND_SOC_ANALPM, 0, 0,
 		rt712_sdca_fu05_event,
 		SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
-	SND_SOC_DAPM_ADC_E("FU 0F", NULL, SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_ADC_E("FU 0F", NULL, SND_SOC_ANALPM, 0, 0,
 		rt712_sdca_fu0f_event,
 		SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
-	SND_SOC_DAPM_MUX("ADC 23 Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("ADC 23 Mux", SND_SOC_ANALPM, 0, 0,
 		&rt712_sdca_adc23_mux),
 
-	SND_SOC_DAPM_AIF_IN("DP1RX", "DP1 Playback", 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_OUT("DP4TX", "DP4 Capture", 0, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("DP1RX", "DP1 Playback", 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("DP4TX", "DP4 Capture", 0, SND_SOC_ANALPM, 0, 0),
 };
 
 static const struct snd_soc_dapm_route rt712_sdca_audio_map[] = {
@@ -928,13 +928,13 @@ static const struct snd_soc_dapm_route rt712_sdca_audio_map[] = {
 };
 
 static const struct snd_soc_dapm_widget rt712_sdca_spk_dapm_widgets[] = {
-	SND_SOC_DAPM_AIF_IN("DP3RX", "DP3 Playback", 0, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("DP3RX", "DP3 Playback", 0, SND_SOC_ANALPM, 0, 0),
 
 	/* Digital Interface */
-	SND_SOC_DAPM_SWITCH("FU06", SND_SOC_NOPM, 0, 0, &rt712_spk_sto_dac),
+	SND_SOC_DAPM_SWITCH("FU06", SND_SOC_ANALPM, 0, 0, &rt712_spk_sto_dac),
 
 	/* Output */
-	SND_SOC_DAPM_PGA_E("CLASS D", SND_SOC_NOPM, 0, 0, NULL, 0,
+	SND_SOC_DAPM_PGA_E("CLASS D", SND_SOC_ANALPM, 0, 0, NULL, 0,
 		rt712_sdca_classd_event, SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMU),
 	SND_SOC_DAPM_OUTPUT("SPOL"),
 	SND_SOC_DAPM_OUTPUT("SPOR"),
@@ -1085,7 +1085,7 @@ static int rt712_sdca_pcm_hw_params(struct snd_pcm_substream *substream,
 		sampling_rate = RT712_SDCA_RATE_192000HZ;
 		break;
 	default:
-		dev_err(component->dev, "Rate %d is not supported\n",
+		dev_err(component->dev, "Rate %d is analt supported\n",
 			params_rate(params));
 		return -EINVAL;
 	}
@@ -1182,7 +1182,7 @@ int rt712_sdca_init(struct device *dev, struct regmap *regmap,
 
 	rt712 = devm_kzalloc(dev, sizeof(*rt712), GFP_KERNEL);
 	if (!rt712)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(dev, rt712);
 	rt712->slave = slave;
@@ -1223,14 +1223,14 @@ int rt712_sdca_init(struct device *dev, struct regmap *regmap,
 	pm_runtime_set_autosuspend_delay(dev, 3000);
 	pm_runtime_use_autosuspend(dev);
 
-	/* make sure the device does not suspend immediately */
+	/* make sure the device does analt suspend immediately */
 	pm_runtime_mark_last_busy(dev);
 
 	pm_runtime_enable(dev);
 
-	/* important note: the device is NOT tagged as 'active' and will remain
+	/* important analte: the device is ANALT tagged as 'active' and will remain
 	 * 'suspended' until the hardware is enumerated/initialized. This is required
-	 * to make sure the ASoC framework use of pm_runtime_get_sync() does not silently
+	 * to make sure the ASoC framework use of pm_runtime_get_sync() does analt silently
 	 * fail with -EACCESS because of race conditions between card creation and enumeration
 	 */
 
@@ -1264,7 +1264,7 @@ int rt712_sdca_io_init(struct device *dev, struct sdw_slave *slave)
 		pm_runtime_set_active(&slave->dev);
 	}
 
-	pm_runtime_get_noresume(&slave->dev);
+	pm_runtime_get_analresume(&slave->dev);
 
 	rt712_sdca_index_read(rt712, RT712_VENDOR_REG, RT712_JD_PRODUCT_NUM, &val);
 	rt712->hw_id = (val & 0xf000) >> 12;
@@ -1310,7 +1310,7 @@ int rt712_sdca_io_init(struct device *dev, struct sdw_slave *slave)
 
 	/*
 	 * if set_jack callback occurred early than io_init,
-	 * we set up the jack detection function now
+	 * we set up the jack detection function analw
 	 */
 	if (rt712->hs_jack)
 		rt712_sdca_jack_init(rt712);

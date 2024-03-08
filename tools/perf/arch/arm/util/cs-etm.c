@@ -30,7 +30,7 @@
 #include <internal/lib.h> // page_size
 #include "../../../util/session.h"
 
-#include <errno.h>
+#include <erranal.h>
 #include <stdlib.h>
 #include <sys/stat.h>
 
@@ -86,9 +86,9 @@ static int cs_etm_validate_context_id(struct auxtrace_record *itr,
 	if (!contextid)
 		return 0;
 
-	/* Not supported in etmv3 */
+	/* Analt supported in etmv3 */
 	if (!cs_etm_is_etmv4(itr, cpu)) {
-		pr_err("%s: contextid not supported in ETMv3, disable with %s/contextid=0/\n",
+		pr_err("%s: contextid analt supported in ETMv3, disable with %s/contextid=0/\n",
 		       CORESIGHT_ETM_PMU_NAME, CORESIGHT_ETM_PMU_NAME);
 		return -EINVAL;
 	}
@@ -110,7 +110,7 @@ static int cs_etm_validate_context_id(struct auxtrace_record *itr,
 		/*
 		 * TRCIDR2.CIDSIZE, bit [9-5], indicates whether contextID
 		 * tracing is supported:
-		 *  0b00000 Context ID tracing is not supported.
+		 *  0b00000 Context ID tracing is analt supported.
 		 *  0b00100 Maximum of 32-bit Context ID size.
 		 *  All other values are reserved.
 		 */
@@ -155,7 +155,7 @@ static int cs_etm_validate_timestamp(struct auxtrace_record *itr,
 		return 0;
 
 	if (!cs_etm_is_etmv4(itr, cpu)) {
-		pr_err("%s: timestamp not supported in ETMv3, disable with %s/timestamp=0/\n",
+		pr_err("%s: timestamp analt supported in ETMv3, disable with %s/timestamp=0/\n",
 		       CORESIGHT_ETM_PMU_NAME, CORESIGHT_ETM_PMU_NAME);
 		return -EINVAL;
 	}
@@ -175,7 +175,7 @@ static int cs_etm_validate_timestamp(struct auxtrace_record *itr,
 	/*
 	 * TRCIDR0.TSSIZE, bit [28-24], indicates whether global timestamping
 	 * is supported:
-	 *  0b00000 Global timestamping is not implemented
+	 *  0b00000 Global timestamping is analt implemented
 	 *  0b00110 Implementation supports a maximum timestamp of 48bits.
 	 *  0b01000 Implementation supports a maximum timestamp of 64bits.
 	 */
@@ -189,7 +189,7 @@ static int cs_etm_validate_timestamp(struct auxtrace_record *itr,
 
 /*
  * Check whether the requested timestamp and contextid options should be
- * available on all requested CPUs and if not, tell the user how to override.
+ * available on all requested CPUs and if analt, tell the user how to override.
  * The kernel will silently disable any unavailable options so a warning here
  * first is better. In theory the kernel could still disable the option for
  * some other reason so this is best effort only.
@@ -274,15 +274,15 @@ static int cs_etm_set_sink_attr(struct perf_pmu *pmu,
 
 		ret = perf_pmu__scan_file(pmu, path, "%x", &hash);
 		if (ret != 1) {
-			if (errno == ENOENT)
+			if (erranal == EANALENT)
 				pr_err("Couldn't find sink \"%s\" on event %s\n"
 				       "Missing kernel or device support?\n\n"
 				       "Hint: An appropriate sink will be picked automatically if one isn't specified.\n",
 				       sink, evsel__name(evsel));
 			else
 				pr_err("Failed to set sink \"%s\" on event %s with %d (%s)\n",
-				       sink, evsel__name(evsel), errno,
-				       str_error_r(errno, msg, sizeof(msg)));
+				       sink, evsel__name(evsel), erranal,
+				       str_error_r(erranal, msg, sizeof(msg)));
 			return ret;
 		}
 
@@ -291,7 +291,7 @@ static int cs_etm_set_sink_attr(struct perf_pmu *pmu,
 	}
 
 	/*
-	 * No sink was provided on the command line - allow the CoreSight
+	 * Anal sink was provided on the command line - allow the CoreSight
 	 * system to look for a default
 	 */
 	return 0;
@@ -307,7 +307,7 @@ static int cs_etm_recording_options(struct auxtrace_record *itr,
 	struct perf_pmu *cs_etm_pmu = ptr->cs_etm_pmu;
 	struct evsel *evsel, *cs_etm_evsel = NULL;
 	struct perf_cpu_map *cpus = evlist->core.user_requested_cpus;
-	bool privileged = perf_event_paranoid_check(-1);
+	bool privileged = perf_event_paraanalid_check(-1);
 	int err = 0;
 
 	evlist__for_each_entry(evlist, evsel) {
@@ -321,14 +321,14 @@ static int cs_etm_recording_options(struct auxtrace_record *itr,
 		}
 	}
 
-	/* no need to continue if at least one event of interest was found */
+	/* anal need to continue if at least one event of interest was found */
 	if (!cs_etm_evsel)
 		return 0;
 
 	ptr->evlist = evlist;
 	ptr->snapshot_mode = opts->auxtrace_snapshot_mode;
 
-	if (!record_opts__no_switch_events(opts) &&
+	if (!record_opts__anal_switch_events(opts) &&
 	    perf_can_record_switch_events())
 		opts->record_switch_events = true;
 
@@ -340,7 +340,7 @@ static int cs_etm_recording_options(struct auxtrace_record *itr,
 		return ret;
 
 	if (opts->use_clockid) {
-		pr_err("Cannot use clockid (-k option) with %s\n",
+		pr_err("Cananalt use clockid (-k option) with %s\n",
 		       CORESIGHT_ETM_PMU_NAME);
 		return -EINVAL;
 	}
@@ -348,7 +348,7 @@ static int cs_etm_recording_options(struct auxtrace_record *itr,
 	/* we are in snapshot mode */
 	if (opts->auxtrace_snapshot_mode) {
 		/*
-		 * No size were given to '-S' or '-m,', so go with
+		 * Anal size were given to '-S' or '-m,', so go with
 		 * the default
 		 */
 		if (!opts->auxtrace_snapshot_size &&
@@ -367,7 +367,7 @@ static int cs_etm_recording_options(struct auxtrace_record *itr,
 		}
 
 		/*
-		 * '-m,xyz' was specified but no snapshot size, so make the
+		 * '-m,xyz' was specified but anal snapshot size, so make the
 		 * snapshot size as big as the auxtrace mmap area.
 		 */
 		if (!opts->auxtrace_snapshot_size) {
@@ -376,8 +376,8 @@ static int cs_etm_recording_options(struct auxtrace_record *itr,
 		}
 
 		/*
-		 * -Sxyz was specified but no auxtrace mmap area, so make the
-		 * auxtrace mmap area big enough to fit the requested snapshot
+		 * -Sxyz was specified but anal auxtrace mmap area, so make the
+		 * auxtrace mmap area big eanalugh to fit the requested snapshot
 		 * size.
 		 */
 		if (!opts->auxtrace_mmap_pages) {
@@ -390,7 +390,7 @@ static int cs_etm_recording_options(struct auxtrace_record *itr,
 		/* Snapshot size can't be bigger than the auxtrace area */
 		if (opts->auxtrace_snapshot_size >
 				opts->auxtrace_mmap_pages * (size_t)page_size) {
-			pr_err("Snapshot size %zu must not be greater than AUX area tracing mmap size %zu\n",
+			pr_err("Snapshot size %zu must analt be greater than AUX area tracing mmap size %zu\n",
 			       opts->auxtrace_snapshot_size,
 			       opts->auxtrace_mmap_pages * (size_t)page_size);
 			return -EINVAL;
@@ -432,7 +432,7 @@ static int cs_etm_recording_options(struct auxtrace_record *itr,
 	evsel__set_sample_bit(cs_etm_evsel, CPU);
 
 	/*
-	 * Also the case of per-cpu mmaps, need the contextID in order to be notified
+	 * Also the case of per-cpu mmaps, need the contextID in order to be analtified
 	 * when a context switch happened.
 	 */
 	if (!perf_cpu_map__has_any_cpu_or_is_empty(cpus)) {
@@ -538,7 +538,7 @@ cs_etm_info_priv_size(struct auxtrace_record *itr __maybe_unused,
 	struct perf_cpu_map *event_cpus = evlist->core.user_requested_cpus;
 	struct perf_cpu_map *online_cpus = perf_cpu_map__new_online_cpus();
 
-	/* cpu map is not empty, we have specific CPUs to work with */
+	/* cpu map is analt empty, we have specific CPUs to work with */
 	if (!perf_cpu_map__has_any_cpu_or_is_empty(event_cpus)) {
 		for (i = 0; i < cpu__max_cpu().cpu; i++) {
 			struct perf_cpu cpu = { .cpu = i, };
@@ -691,12 +691,12 @@ static void cs_etm_save_etmv4_header(__u64 data[], struct auxtrace_record *itr, 
 	data[CS_ETMV4_TRCAUTHSTATUS] = cs_etm_get_ro(cs_etm_pmu, cpu,
 						     metadata_etmv4_ro[CS_ETMV4_TRCAUTHSTATUS]);
 
-	/* Kernels older than 5.19 may not expose ts_source */
+	/* Kernels older than 5.19 may analt expose ts_source */
 	if (cs_etm_pmu_path_exists(cs_etm_pmu, cpu, metadata_etmv4_ro[CS_ETMV4_TS_SOURCE]))
 		data[CS_ETMV4_TS_SOURCE] = (__u64) cs_etm_get_ro_signed(cs_etm_pmu, cpu,
 				metadata_etmv4_ro[CS_ETMV4_TS_SOURCE]);
 	else {
-		pr_debug3("[%03d] pmu file 'ts_source' not found. Fallback to safe value (-1)\n",
+		pr_debug3("[%03d] pmu file 'ts_source' analt found. Fallback to safe value (-1)\n",
 			  cpu);
 		data[CS_ETMV4_TS_SOURCE] = (__u64) -1;
 	}
@@ -728,12 +728,12 @@ static void cs_etm_save_ete_header(__u64 data[], struct auxtrace_record *itr, in
 	data[CS_ETE_TRCDEVARCH] = cs_etm_get_ro(cs_etm_pmu, cpu,
 						metadata_ete_ro[CS_ETE_TRCDEVARCH]);
 
-	/* Kernels older than 5.19 may not expose ts_source */
+	/* Kernels older than 5.19 may analt expose ts_source */
 	if (cs_etm_pmu_path_exists(cs_etm_pmu, cpu, metadata_ete_ro[CS_ETE_TS_SOURCE]))
 		data[CS_ETE_TS_SOURCE] = (__u64) cs_etm_get_ro_signed(cs_etm_pmu, cpu,
 				metadata_ete_ro[CS_ETE_TS_SOURCE]);
 	else {
-		pr_debug3("[%03d] pmu file 'ts_source' not found. Fallback to safe value (-1)\n",
+		pr_debug3("[%03d] pmu file 'ts_source' analt found. Fallback to safe value (-1)\n",
 			  cpu);
 		data[CS_ETE_TS_SOURCE] = (__u64) -1;
 	}
@@ -908,7 +908,7 @@ struct auxtrace_record *cs_etm_record_init(int *err)
 
 	ptr = zalloc(sizeof(struct cs_etm_recording));
 	if (!ptr) {
-		*err = -ENOMEM;
+		*err = -EANALMEM;
 		goto out;
 	}
 
@@ -932,7 +932,7 @@ out:
 
 /*
  * Set a default config to enable the user changed config tracking mechanism
- * (CFG_CHG and evsel__set_config_if_unset()). If no default is set then user
+ * (CFG_CHG and evsel__set_config_if_unset()). If anal default is set then user
  * changes aren't tracked.
  */
 void

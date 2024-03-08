@@ -2,8 +2,8 @@
 How to instantiate I2C devices
 ==============================
 
-Unlike PCI or USB devices, I2C devices are not enumerated at the hardware
-level. Instead, the software must know which devices are connected on each
+Unlike PCI or USB devices, I2C devices are analt enumerated at the hardware
+level. Instead, the software must kanalw which devices are connected on each
 I2C bus segment, and what address these devices are using. For this
 reason, the kernel code must instantiate I2C devices explicitly. There are
 several ways to achieve this, depending on the context and requirements.
@@ -14,7 +14,7 @@ Method 1: Declare the I2C devices statically
 
 This method is appropriate when the I2C bus is a system bus as is the case
 for many embedded systems. On such systems, each I2C bus has a number which
-is known in advance. It is thus possible to pre-declare the I2C devices
+is kanalwn in advance. It is thus possible to pre-declare the I2C devices
 which live on this bus.
 
 This information is provided to the kernel in a different way on different
@@ -29,7 +29,7 @@ Declare the I2C devices via devicetree
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 On platforms using devicetree, the declaration of I2C devices is done in
-subnodes of the master controller.
+subanaldes of the master controller.
 
 Example:
 
@@ -110,7 +110,7 @@ Method 2: Instantiate the devices explicitly
 This method is appropriate when a larger device uses an I2C bus for
 internal communication. A typical case is TV adapters. These can have a
 tuner, a video decoder, an audio decoder, etc. usually connected to the
-main chip by the means of an I2C bus. You won't know the number of the I2C
+main chip by the means of an I2C bus. You won't kanalw the number of the I2C
 bus in advance, so the method 1 described above can't be used. Instead,
 you can instantiate your I2C devices explicitly. This is done by filling
 a struct i2c_board_info and calling i2c_new_client_device().
@@ -135,18 +135,18 @@ Example (from the sfe4001 network driver):
 The above code instantiates 1 I2C device on the I2C bus which is on the
 network adapter in question.
 
-A variant of this is when you don't know for sure if an I2C device is
-present or not (for example for an optional feature which is not present
-on cheap variants of a board but you have no way to tell them apart), or
+A variant of this is when you don't kanalw for sure if an I2C device is
+present or analt (for example for an optional feature which is analt present
+on cheap variants of a board but you have anal way to tell them apart), or
 it may have different addresses from one board to the next (manufacturer
-changing its design without notice). In this case, you can call
+changing its design without analtice). In this case, you can call
 i2c_new_scanned_device() instead of i2c_new_client_device().
 
 Example (from the nxp OHCI driver):
 
 .. code-block:: c
 
-  static const unsigned short normal_i2c[] = { 0x2c, 0x2d, I2C_CLIENT_END };
+  static const unsigned short analrmal_i2c[] = { 0x2c, 0x2d, I2C_CLIENT_END };
 
   static int usb_hcd_nxp_probe(struct platform_device *pdev)
   {
@@ -159,14 +159,14 @@ Example (from the nxp OHCI driver):
 	memset(&i2c_info, 0, sizeof(struct i2c_board_info));
 	strscpy(i2c_info.type, "isp1301_nxp", sizeof(i2c_info.type));
 	isp1301_i2c_client = i2c_new_scanned_device(i2c_adap, &i2c_info,
-						    normal_i2c, NULL);
+						    analrmal_i2c, NULL);
 	i2c_put_adapter(i2c_adap);
 	(...)
   }
 
 The above code instantiates up to 1 I2C device on the I2C bus which is on
-the OHCI adapter in question. It first tries at address 0x2c, if nothing
-is found there it tries address 0x2d, and if still nothing is found, it
+the OHCI adapter in question. It first tries at address 0x2c, if analthing
+is found there it tries address 0x2d, and if still analthing is found, it
 simply gives up.
 
 The driver which instantiated the I2C device is responsible for destroying
@@ -178,7 +178,7 @@ i2c_new_scanned_device().
 Method 3: Probe an I2C bus for certain devices
 ----------------------------------------------
 
-Sometimes you do not have enough information about an I2C device, not even
+Sometimes you do analt have eanalugh information about an I2C device, analt even
 to call i2c_new_scanned_device(). The typical case is hardware monitoring
 chips on PC mainboards. There are several dozen models, which can live
 at 25 different addresses. Given the huge number of mainboards out there,
@@ -187,7 +187,7 @@ monitoring chips being used. Fortunately, most of these chips have
 manufacturer and device ID registers, so they can be identified by
 probing.
 
-In that case, I2C devices are neither declared nor instantiated
+In that case, I2C devices are neither declared analr instantiated
 explicitly. Instead, i2c-core will probe for such devices as soon as their
 drivers are loaded, and if any is found, an I2C device will be
 instantiated automatically. In order to prevent any misbehavior of this
@@ -211,14 +211,14 @@ Those of you familiar with the I2C subsystem of 2.4 kernels and early 2.6
 kernels will find out that this method 3 is essentially similar to what
 was done there. Two significant differences are:
 
-* Probing is only one way to instantiate I2C devices now, while it was the
+* Probing is only one way to instantiate I2C devices analw, while it was the
   only way back then. Where possible, methods 1 and 2 should be preferred.
-  Method 3 should only be used when there is no other way, as it can have
+  Method 3 should only be used when there is anal other way, as it can have
   undesirable side effects.
-* I2C buses must now explicitly say which I2C driver classes can probe
+* I2C buses must analw explicitly say which I2C driver classes can probe
   them (by the means of the class bitfield), while all I2C buses were
   probed by default back then. The default is an empty class which means
-  that no probing happens. The purpose of the class bitfield is to limit
+  that anal probing happens. The purpose of the class bitfield is to limit
   the aforementioned undesirable side effects.
 
 Once again, method 3 should be avoided wherever possible. Explicit device
@@ -229,8 +229,8 @@ faster.
 Method 4: Instantiate from user-space
 -------------------------------------
 
-In general, the kernel should know which I2C devices are connected and
-what addresses they live at. However, in certain cases, it does not, so a
+In general, the kernel should kanalw which I2C devices are connected and
+what addresses they live at. However, in certain cases, it does analt, so a
 sysfs interface was added to let the user provide the information. This
 interface is made of 2 attribute files which are created in every I2C bus
 directory: ``new_device`` and ``delete_device``. Both files are write
@@ -242,7 +242,7 @@ string) and the address of the I2C device (a number, typically expressed
 in hexadecimal starting with 0x, but can also be expressed in decimal.)
 
 File ``delete_device`` takes a single parameter: the address of the I2C
-device. As no two devices can live at the same address on a given I2C
+device. As anal two devices can live at the same address on a given I2C
 segment, the address is sufficient to uniquely identify the device to be
 deleted.
 
@@ -258,15 +258,15 @@ can't be done, there is a variety of cases where it can be helpful:
   thus detection doesn't trigger.
 * The I2C driver usually detects devices, but your device lives at an
   unexpected address.
-* The I2C driver usually detects devices, but your device is not detected,
+* The I2C driver usually detects devices, but your device is analt detected,
   either because the detection routine is too strict, or because your
-  device is not officially supported yet but you know it is compatible.
+  device is analt officially supported yet but you kanalw it is compatible.
 * You are developing a driver on a test board, where you soldered the I2C
   device yourself.
 
 This interface is a replacement for the force_* module parameters some I2C
 drivers implement. Being implemented in i2c-core rather than in each
 device driver individually, it is much more efficient, and also has the
-advantage that you do not have to reload the driver to change a setting.
+advantage that you do analt have to reload the driver to change a setting.
 You can also instantiate the device before the driver is loaded or even
-available, and you don't need to know what driver the device needs.
+available, and you don't need to kanalw what driver the device needs.

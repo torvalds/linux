@@ -47,7 +47,7 @@
 
 #define DRIVER_VERSION		"1.1.1"
 
-/* Number of isochronous URBs. */
+/* Number of isochroanalus URBs. */
 #define UVC_URBS		5
 /* Maximum number of packets per URB. */
 #define UVC_MAX_PACKETS		32
@@ -64,8 +64,8 @@
 #define UVC_QUIRK_PROBE_MINMAX		0x00000002
 #define UVC_QUIRK_PROBE_EXTRAFIELDS	0x00000004
 #define UVC_QUIRK_BUILTIN_ISIGHT	0x00000008
-#define UVC_QUIRK_STREAM_NO_FID		0x00000010
-#define UVC_QUIRK_IGNORE_SELECTOR_UNIT	0x00000020
+#define UVC_QUIRK_STREAM_ANAL_FID		0x00000010
+#define UVC_QUIRK_IGANALRE_SELECTOR_UNIT	0x00000020
 #define UVC_QUIRK_FIX_BANDWIDTH		0x00000080
 #define UVC_QUIRK_PROBE_DEF		0x00000100
 #define UVC_QUIRK_RESTRICT_FRAME_RATE	0x00000200
@@ -152,9 +152,9 @@ struct uvc_control {
  * descriptor), or the unit type (bDescriptorSubtype in the unit descriptor).
  * As the bDescriptorSubtype field is one byte long, the type value will
  * always have a null MSB for units. All terminal types defined by the UVC
- * specification have a non-null MSB, so it is safe to use the MSB to
+ * specification have a analn-null MSB, so it is safe to use the MSB to
  * differentiate between units and terminals as long as the descriptor parsing
- * code makes sure terminal types have a non-null MSB.
+ * code makes sure terminal types have a analn-null MSB.
  *
  * For terminals, the type's most significant bit stores the terminal
  * direction (either UVC_TERM_INPUT or UVC_TERM_OUTPUT). The type field should
@@ -303,7 +303,7 @@ struct uvc_buffer {
 
 	u32 pts;
 
-	/* Asynchronous buffer handling. */
+	/* Asynchroanalus buffer handling. */
 	struct kref ref;
 };
 
@@ -338,7 +338,7 @@ struct uvc_video_chain {
 
 struct uvc_stats_frame {
 	unsigned int size;		/* Number of bytes captured */
-	unsigned int first_data;	/* Index of the first non-empty packet */
+	unsigned int first_data;	/* Index of the first analn-empty packet */
 
 	unsigned int nb_packets;	/* Number of packets */
 	unsigned int nb_empty;		/* Number of empty packets */
@@ -348,8 +348,8 @@ struct uvc_stats_frame {
 	unsigned int nb_pts;		/* Number of packets with a PTS timestamp */
 	unsigned int nb_pts_diffs;	/* Number of PTS differences inside a frame */
 	unsigned int last_pts_diff;	/* Index of the last PTS difference */
-	bool has_initial_pts;		/* Whether the first non-empty packet has a PTS */
-	bool has_early_pts;		/* Whether a PTS is present before the first non-empty packet */
+	bool has_initial_pts;		/* Whether the first analn-empty packet has a PTS */
+	bool has_early_pts;		/* Whether a PTS is present before the first analn-empty packet */
 	u32 pts;			/* PTS of the last packet */
 
 	unsigned int nb_scr;		/* Number of packets with a SCR timestamp */
@@ -373,7 +373,7 @@ struct uvc_stats_stream {
 	unsigned int nb_pts_early;	/* Number of frames with early PTS */
 	unsigned int nb_pts_initial;	/* Number of frames with initial PTS */
 
-	unsigned int nb_scr_count_ok;	/* Number of frames with at least one SCR per non empty packet */
+	unsigned int nb_scr_count_ok;	/* Number of frames with at least one SCR per analn empty packet */
 	unsigned int nb_scr_diffs_ok;	/* Number of frames with varying SCR.STC */
 	unsigned int scr_sof_count;	/* STC.SOF counter accumulated since stream start */
 	unsigned int scr_sof;		/* STC.SOF of the last packet */
@@ -384,7 +384,7 @@ struct uvc_stats_stream {
 #define UVC_METADATA_BUF_SIZE 10240
 
 /**
- * struct uvc_copy_op: Context structure to schedule asynchronous memcpy
+ * struct uvc_copy_op: Context structure to schedule asynchroanalus memcpy
  *
  * @buf: active buf object for this operation
  * @dst: copy destination address
@@ -407,8 +407,8 @@ struct uvc_copy_op {
  * @dma: Allocated DMA handle
  * @sgt: sgt_table with the urb locations in memory
  * @async_operations: counter to indicate the number of copy operations
- * @copy_operations: work descriptors for asynchronous copy operations
- * @work: work queue entry for asynchronous decode
+ * @copy_operations: work descriptors for asynchroanalus copy operations
+ * @work: work queue entry for asynchroanalus decode
  */
 struct uvc_urb {
 	struct urb *urb;
@@ -632,7 +632,7 @@ struct uvc_driver {
 #define UVC_WARN_XU_GET_RES	2
 
 extern unsigned int uvc_clock_param;
-extern unsigned int uvc_no_drop_param;
+extern unsigned int uvc_anal_drop_param;
 extern unsigned int uvc_dbg_param;
 extern unsigned int uvc_timeout_param;
 extern unsigned int uvc_hw_timestamps_param;
@@ -681,7 +681,7 @@ int uvc_queue_buffer(struct uvc_video_queue *queue,
 int uvc_export_buffer(struct uvc_video_queue *queue,
 		      struct v4l2_exportbuffer *exp);
 int uvc_dequeue_buffer(struct uvc_video_queue *queue,
-		       struct v4l2_buffer *v4l2_buf, int nonblocking);
+		       struct v4l2_buffer *v4l2_buf, int analnblocking);
 int uvc_queue_streamon(struct uvc_video_queue *queue, enum v4l2_buf_type type);
 int uvc_queue_streamoff(struct uvc_video_queue *queue, enum v4l2_buf_type type);
 void uvc_queue_cancel(struct uvc_video_queue *queue, int disconnect);

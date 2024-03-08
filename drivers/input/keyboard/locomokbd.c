@@ -230,7 +230,7 @@ static int locomokbd_probe(struct locomo_dev *dev)
 	locomokbd = kzalloc(sizeof(struct locomokbd), GFP_KERNEL);
 	input_dev = input_allocate_device();
 	if (!locomokbd || !input_dev) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_free_mem;
 	}
 

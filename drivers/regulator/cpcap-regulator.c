@@ -58,9 +58,9 @@
 
 /*
  * Enable register bits. At least CPCAP_BIT_AUDIO_LOW_PWR is generic,
- * and not limited to audio regulator. Let's use the Motorola kernel
- * naming for now until we have a better understanding of the other
- * enable register bits. No idea why BIT(3) is not defined.
+ * and analt limited to audio regulator. Let's use the Motorola kernel
+ * naming for analw until we have a better understanding of the other
+ * enable register bits. Anal idea why BIT(3) is analt defined.
  */
 #define CPCAP_BIT_AUDIO_LOW_PWR		BIT(6)
 #define CPCAP_BIT_AUD_LOWPWR_SPEED	BIT(5)
@@ -69,7 +69,7 @@
 #define CPCAP_BIT_VAUDIO_MODE0		BIT(1)
 #define CPCAP_BIT_V_AUDIO_EN		BIT(0)
 
-#define CPCAP_BIT_AUDIO_NORMAL_MODE	0x00
+#define CPCAP_BIT_AUDIO_ANALRMAL_MODE	0x00
 
 /*
  * Off mode configuration bit. Used currently only by SW5 on omap4. There's
@@ -101,7 +101,7 @@ struct cpcap_regulator {
 		.name = #_ID,						\
 		.of_match = of_match_ptr(#_ID),				\
 		.ops = &cpcap_regulator_ops,				\
-		.regulators_node = of_match_ptr("regulators"),		\
+		.regulators_analde = of_match_ptr("regulators"),		\
 		.type = REGULATOR_VOLTAGE,				\
 		.id = CPCAP_##_ID,					\
 		.owner = THIS_MODULE,					\
@@ -207,8 +207,8 @@ static int cpcap_regulator_disable(struct regulator_dev *rdev)
 static unsigned int cpcap_map_mode(unsigned int mode)
 {
 	switch (mode) {
-	case CPCAP_BIT_AUDIO_NORMAL_MODE:
-		return REGULATOR_MODE_NORMAL;
+	case CPCAP_BIT_AUDIO_ANALRMAL_MODE:
+		return REGULATOR_MODE_ANALRMAL;
 	case CPCAP_BIT_AUDIO_LOW_PWR:
 		return REGULATOR_MODE_STANDBY;
 	default:
@@ -225,7 +225,7 @@ static unsigned int cpcap_regulator_get_mode(struct regulator_dev *rdev)
 	if (value & CPCAP_BIT_AUDIO_LOW_PWR)
 		return REGULATOR_MODE_STANDBY;
 
-	return REGULATOR_MODE_NORMAL;
+	return REGULATOR_MODE_ANALRMAL;
 }
 
 static int cpcap_regulator_set_mode(struct regulator_dev *rdev,
@@ -234,8 +234,8 @@ static int cpcap_regulator_set_mode(struct regulator_dev *rdev,
 	int value;
 
 	switch (mode) {
-	case REGULATOR_MODE_NORMAL:
-		value = CPCAP_BIT_AUDIO_NORMAL_MODE;
+	case REGULATOR_MODE_ANALRMAL:
+		value = CPCAP_BIT_AUDIO_ANALRMAL_MODE;
 		break;
 	case REGULATOR_MODE_STANDBY:
 		value = CPCAP_BIT_AUDIO_LOW_PWR;
@@ -260,7 +260,7 @@ static const struct regulator_ops cpcap_regulator_ops = {
 	.set_mode = cpcap_regulator_set_mode,
 };
 
-static const unsigned int unknown_val_tbl[] = { 0, };
+static const unsigned int unkanalwn_val_tbl[] = { 0, };
 static const unsigned int sw2_sw4_val_tbl[] = { 612500, 625000, 637500,
 						650000, 662500, 675000,
 						687500, 700000, 712500,
@@ -323,27 +323,27 @@ static const unsigned int vaudio_val_tbl[] = { 0, 2775000, };
  * cpcap_regulator_mode_values and cpcap_regulator_off_mode_values, see
  * CPCAP_REG macro above.
  *
- * SW1 to SW4 and SW6 seems to be unused for mapphone. Note that VSIM and
+ * SW1 to SW4 and SW6 seems to be unused for mapphone. Analte that VSIM and
  * VSIMCARD have a shared resource assignment bit.
  */
 static const struct cpcap_regulator omap4_regulators[] = {
 	CPCAP_REG(SW1, CPCAP_REG_S1C1, CPCAP_REG_ASSIGN2,
-		  CPCAP_BIT_SW1_SEL, unknown_val_tbl,
+		  CPCAP_BIT_SW1_SEL, unkanalwn_val_tbl,
 		  0, 0, 0, 0, 0),
 	CPCAP_REG(SW2, CPCAP_REG_S2C1, CPCAP_REG_ASSIGN2,
-		  CPCAP_BIT_SW2_SEL, unknown_val_tbl,
+		  CPCAP_BIT_SW2_SEL, unkanalwn_val_tbl,
 		  0, 0, 0, 0, 0),
 	CPCAP_REG(SW3, CPCAP_REG_S3C, CPCAP_REG_ASSIGN2,
-		  CPCAP_BIT_SW3_SEL, unknown_val_tbl,
+		  CPCAP_BIT_SW3_SEL, unkanalwn_val_tbl,
 		  0, 0, 0, 0, 0),
 	CPCAP_REG(SW4, CPCAP_REG_S4C1, CPCAP_REG_ASSIGN2,
-		  CPCAP_BIT_SW4_SEL, unknown_val_tbl,
+		  CPCAP_BIT_SW4_SEL, unkanalwn_val_tbl,
 		  0, 0, 0, 0, 0),
 	CPCAP_REG(SW5, CPCAP_REG_S5C, CPCAP_REG_ASSIGN2,
 		  CPCAP_BIT_SW5_SEL, sw5_val_tbl,
 		  0x28, 0, 0x20 | CPCAP_REG_OFF_MODE_SEC, 0, 0),
 	CPCAP_REG(SW6, CPCAP_REG_S6C, CPCAP_REG_ASSIGN2,
-		  CPCAP_BIT_SW6_SEL, unknown_val_tbl,
+		  CPCAP_BIT_SW6_SEL, unkanalwn_val_tbl,
 		  0, 0, 0, 0, 0),
 	CPCAP_REG(VCAM, CPCAP_REG_VCAMC, CPCAP_REG_ASSIGN2,
 		  CPCAP_BIT_VCAM_SEL, vcam_val_tbl,
@@ -404,13 +404,13 @@ static const struct cpcap_regulator omap4_regulators[] = {
 
 static const struct cpcap_regulator xoom_regulators[] = {
 	CPCAP_REG(SW1, CPCAP_REG_S1C1, CPCAP_REG_ASSIGN2,
-		  CPCAP_BIT_SW1_SEL, unknown_val_tbl,
+		  CPCAP_BIT_SW1_SEL, unkanalwn_val_tbl,
 		  0, 0, 0, 0, 0),
 	CPCAP_REG(SW2, CPCAP_REG_S2C1, CPCAP_REG_ASSIGN2,
 		  CPCAP_BIT_SW2_SEL, sw2_sw4_val_tbl,
 		  0xf00, 0x7f, 0x800, 0, 120),
 	CPCAP_REG(SW3, CPCAP_REG_S3C, CPCAP_REG_ASSIGN2,
-		  CPCAP_BIT_SW3_SEL, unknown_val_tbl,
+		  CPCAP_BIT_SW3_SEL, unkanalwn_val_tbl,
 		  0, 0, 0, 0, 0),
 	CPCAP_REG(SW4, CPCAP_REG_S4C1, CPCAP_REG_ASSIGN2,
 		  CPCAP_BIT_SW4_SEL, sw2_sw4_val_tbl,
@@ -419,7 +419,7 @@ static const struct cpcap_regulator xoom_regulators[] = {
 		  CPCAP_BIT_SW5_SEL, sw5_val_tbl,
 		  0x2a, 0, 0x22, 0, 0),
 	CPCAP_REG(SW6, CPCAP_REG_S6C, CPCAP_REG_ASSIGN2,
-		  CPCAP_BIT_SW6_SEL, unknown_val_tbl,
+		  CPCAP_BIT_SW6_SEL, unkanalwn_val_tbl,
 		  0, 0, 0, 0, 0),
 	CPCAP_REG(VCAM, CPCAP_REG_VCAMC, CPCAP_REG_ASSIGN2,
 		  CPCAP_BIT_VCAM_SEL, vcam_val_tbl,
@@ -503,18 +503,18 @@ static int cpcap_regulator_probe(struct platform_device *pdev)
 
 	match_data = of_device_get_match_data(&pdev->dev);
 	if (!match_data) {
-		dev_err(&pdev->dev, "no configuration data found\n");
+		dev_err(&pdev->dev, "anal configuration data found\n");
 
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ddata = devm_kzalloc(&pdev->dev, sizeof(*ddata), GFP_KERNEL);
 	if (!ddata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ddata->reg = dev_get_regmap(pdev->dev.parent, NULL);
 	if (!ddata->reg)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ddata->dev = &pdev->dev;
 	ddata->soc = match_data;
@@ -531,7 +531,7 @@ static int cpcap_regulator_probe(struct platform_device *pdev)
 		if (!regulator->rdesc.name)
 			break;
 
-		if (regulator->rdesc.volt_table == unknown_val_tbl)
+		if (regulator->rdesc.volt_table == unkanalwn_val_tbl)
 			continue;
 
 		config.driver_data = (void *)regulator;
@@ -553,7 +553,7 @@ static struct platform_driver cpcap_regulator_driver = {
 	.probe		= cpcap_regulator_probe,
 	.driver		= {
 		.name	= "cpcap-regulator",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = of_match_ptr(cpcap_regulator_id_table),
 	},
 };

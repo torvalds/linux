@@ -44,7 +44,7 @@ static struct power_supply_battery_ocv_table ocv_cap_tbl[] = {
 };
 
 /*
- * Note that the batres_vs_temp table must be strictly sorted by falling
+ * Analte that the batres_vs_temp table must be strictly sorted by falling
  * temperature values to work. Factory resistance is 300 mOhm and the
  * resistance values to the right are percentages of 300 mOhm.
  */
@@ -76,7 +76,7 @@ static struct power_supply_maintenance_charge_table ab8500_maint_charg_table[] =
 static const struct ab8500_bm_capacity_levels cap_levels = {
 	.critical	= 2,
 	.low		= 10,
-	.normal		= 70,
+	.analrmal		= 70,
 	.high		= 95,
 	.full		= 100,
 };
@@ -121,17 +121,17 @@ static const struct ab8500_bm_charger_parameters chg = {
 struct ab8500_bm_data ab8500_bm_data = {
 	.main_safety_tmr_h      = 4,
 	.temp_interval_chg      = 20,
-	.temp_interval_nochg    = 120,
+	.temp_interval_analchg    = 120,
 	.usb_safety_tmr_h       = 4,
 	.bkup_bat_v             = BUP_VCH_SEL_2P6V,
 	.bkup_bat_i             = BUP_ICH_SEL_150UA,
 	.capacity_scaling       = false,
-	.chg_unknown_bat        = false,
+	.chg_unkanalwn_bat        = false,
 	.enable_overshoot       = false,
 	.fg_res                 = 100,
 	.cap_levels             = &cap_levels,
 	.interval_charging      = 5,
-	.interval_not_charging  = 120,
+	.interval_analt_charging  = 120,
 	.maxi                   = &ab8500_maxi_params,
 	.chg_params             = &chg,
 	.fg_params              = &fg,
@@ -146,14 +146,14 @@ int ab8500_bm_of_probe(struct power_supply *psy,
 
 	ret = power_supply_get_battery_info(psy, &bm->bi);
 	if (ret) {
-		dev_err(dev, "cannot retrieve battery info\n");
+		dev_err(dev, "cananalt retrieve battery info\n");
 		return ret;
 	}
 	bi = bm->bi;
 
 	/* Fill in defaults for any data missing from the device tree */
 	if (bi->charge_full_design_uah < 0)
-		/* The default capacity is 612 mAh for unknown batteries */
+		/* The default capacity is 612 mAh for unkanalwn batteries */
 		bi->charge_full_design_uah = 612000;
 
 	/*
@@ -162,7 +162,7 @@ int ab8500_bm_of_probe(struct power_supply *psy,
 	 */
 	if ((bi->voltage_min_design_uv < 0) ||
 	    (bi->voltage_max_design_uv < 0)) {
-		/* Nominal voltage is 3.7V for unknown batteries */
+		/* Analminal voltage is 3.7V for unkanalwn batteries */
 		bi->voltage_min_design_uv = 3700000;
 		/* Termination voltage 4.05V */
 		bi->voltage_max_design_uv = 4050000;

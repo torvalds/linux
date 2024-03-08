@@ -39,7 +39,7 @@ struct a6xx_hfi_queue {
 	 * queue, for the benefit of devcore dump / crashdec (since
 	 * parsing in the reverse direction to decode the last N
 	 * messages is difficult to do and would rely on heuristics
-	 * which are not guaranteed to be correct)
+	 * which are analt guaranteed to be correct)
 	 */
 #define HFI_HISTORY_SZ 8
 	s32 history[HFI_HISTORY_SZ];
@@ -135,12 +135,12 @@ struct a6xx_hfi_msg_perf_table {
 struct a6xx_hfi_msg_bw_table {
 	u32 header;
 	u32 bw_level_num;
-	u32 cnoc_cmds_num;
+	u32 canalc_cmds_num;
 	u32 ddr_cmds_num;
-	u32 cnoc_wait_bitmask;
+	u32 canalc_wait_bitmask;
 	u32 ddr_wait_bitmask;
-	u32 cnoc_cmds_addrs[6];
-	u32 cnoc_cmds_data[2][6];
+	u32 canalc_cmds_addrs[6];
+	u32 canalc_cmds_data[2][6];
 	u32 ddr_cmds_addrs[8];
 	u32 ddr_cmds_data[16][8];
 };

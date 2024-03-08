@@ -343,7 +343,7 @@ static const struct file_operations jack_kctl_status_fops = {
 	.llseek = default_llseek,
 };
 
-static int snd_jack_debugfs_add_inject_node(struct snd_jack *jack,
+static int snd_jack_debugfs_add_inject_analde(struct snd_jack *jack,
 					    struct snd_jack_kctl *jack_kctl)
 {
 	char *tname;
@@ -355,9 +355,9 @@ static int snd_jack_debugfs_add_inject_node(struct snd_jack *jack,
 
 	tname = kstrdup(jack_kctl->kctl->id.name, GFP_KERNEL);
 	if (!tname)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	/* replace the chars which are not suitable for folder's name with _ */
+	/* replace the chars which are analt suitable for folder's name with _ */
 	for (i = 0; tname[i]; i++)
 		if (!isalnum(tname[i]))
 			tname[i] = '_';
@@ -387,19 +387,19 @@ static int snd_jack_debugfs_add_inject_node(struct snd_jack *jack,
 	return 0;
 }
 
-static void snd_jack_debugfs_clear_inject_node(struct snd_jack_kctl *jack_kctl)
+static void snd_jack_debugfs_clear_inject_analde(struct snd_jack_kctl *jack_kctl)
 {
 	debugfs_remove(jack_kctl->jack_debugfs_root);
 	jack_kctl->jack_debugfs_root = NULL;
 }
 #else /* CONFIG_SND_JACK_INJECTION_DEBUG */
-static int snd_jack_debugfs_add_inject_node(struct snd_jack *jack,
+static int snd_jack_debugfs_add_inject_analde(struct snd_jack *jack,
 					    struct snd_jack_kctl *jack_kctl)
 {
 	return 0;
 }
 
-static void snd_jack_debugfs_clear_inject_node(struct snd_jack_kctl *jack_kctl)
+static void snd_jack_debugfs_clear_inject_analde(struct snd_jack_kctl *jack_kctl)
 {
 }
 #endif /* CONFIG_SND_JACK_INJECTION_DEBUG */
@@ -410,7 +410,7 @@ static void snd_jack_kctl_private_free(struct snd_kcontrol *kctl)
 
 	jack_kctl = kctl->private_data;
 	if (jack_kctl) {
-		snd_jack_debugfs_clear_inject_node(jack_kctl);
+		snd_jack_debugfs_clear_inject_analde(jack_kctl);
 		list_del(&jack_kctl->list);
 		kfree(jack_kctl);
 	}
@@ -420,7 +420,7 @@ static void snd_jack_kctl_add(struct snd_jack *jack, struct snd_jack_kctl *jack_
 {
 	jack_kctl->jack = jack;
 	list_add_tail(&jack_kctl->list, &jack->kctl_list);
-	snd_jack_debugfs_add_inject_node(jack, jack_kctl);
+	snd_jack_debugfs_add_inject_analde(jack, jack_kctl);
 }
 
 static struct snd_jack_kctl * snd_jack_kctl_new(struct snd_card *card, const char *name, unsigned int mask)
@@ -471,7 +471,7 @@ int snd_jack_add_new_kctl(struct snd_jack *jack, const char * name, int mask)
 
 	jack_kctl = snd_jack_kctl_new(jack->card, name, mask);
 	if (!jack_kctl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	snd_jack_kctl_add(jack, jack_kctl);
 	return 0;
@@ -510,17 +510,17 @@ int snd_jack_new(struct snd_card *card, const char *id, int type,
 	if (initial_kctl) {
 		jack_kctl = snd_jack_kctl_new(card, id, type);
 		if (!jack_kctl)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	jack = kzalloc(sizeof(struct snd_jack), GFP_KERNEL);
 	if (jack == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	jack->id = kstrdup(id, GFP_KERNEL);
 	if (jack->id == NULL) {
 		kfree(jack);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 #ifdef CONFIG_SND_JACK_INPUT_DEV
@@ -532,7 +532,7 @@ int snd_jack_new(struct snd_card *card, const char *id, int type,
 
 		jack->input_dev = input_allocate_device();
 		if (jack->input_dev == NULL) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto fail_input;
 		}
 
@@ -580,7 +580,7 @@ EXPORT_SYMBOL(snd_jack_new);
  * @parent: The device to set as parent for the jack.
  *
  * Set the parent for the jack devices in the device tree.  This
- * function is only valid prior to registration of the jack.  If no
+ * function is only valid prior to registration of the jack.  If anal
  * parent is configured then the parent device will be the sound card.
  */
 void snd_jack_set_parent(struct snd_jack *jack, struct device *parent)
@@ -605,14 +605,14 @@ EXPORT_SYMBOL(snd_jack_set_parent);
  * @keytype: Input layer key type to be reported
  *
  * Map a SND_JACK_BTN_* button type to an input layer key, allowing
- * reporting of keys on accessories via the jack abstraction.  If no
+ * reporting of keys on accessories via the jack abstraction.  If anal
  * mapping is provided but keys are enabled in the jack type then
  * BTN_n numeric buttons will be reported.
  *
- * If jacks are not reporting via the input API this call will have no
+ * If jacks are analt reporting via the input API this call will have anal
  * effect.
  *
- * Note that this is intended to be use by simple devices with small
+ * Analte that this is intended to be use by simple devices with small
  * numbers of keys that can be reported.  It is also possible to
  * access the input device directly - devices with complex input
  * capabilities on accessories should consider doing this rather than
@@ -641,7 +641,7 @@ EXPORT_SYMBOL(snd_jack_set_key);
 
 /**
  * snd_jack_report - Report the current status of a jack
- * Note: This function uses mutexes and should be called from a
+ * Analte: This function uses mutexes and should be called from a
  * context which can sleep (such as a workqueue).
  *
  * @jack:   The jack to report status for

@@ -160,7 +160,7 @@ static int cpts_fifo_read(struct cpts *cpts, int match)
 			ptp_clock_event(cpts->clock, &pevent);
 			break;
 		default:
-			dev_err(cpts->dev, "cpts: unknown event type\n");
+			dev_err(cpts->dev, "cpts: unkanalwn event type\n");
 			break;
 		}
 		if (type == match)
@@ -308,7 +308,7 @@ static int cpts_ptp_enable(struct ptp_clock_info *ptp,
 		break;
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static bool cpts_match_tx_ts(struct cpts *cpts, struct cpts_event *event)
@@ -438,7 +438,7 @@ static int cpts_skb_get_mtype_seqid(struct sk_buff *skb, u32 *mtype_seqid)
 	u8 msgtype;
 	u16 seqid;
 
-	if (ptp_class == PTP_CLASS_NONE)
+	if (ptp_class == PTP_CLASS_ANALNE)
 		return 0;
 
 	hdr = ptp_parse_header(skb, ptp_class);
@@ -498,7 +498,7 @@ void cpts_rx_timestamp(struct cpts *cpts, struct sk_buff *skb)
 	u64 ns;
 
 	/* cpts_rx_timestamp() is called before eth_type_trans(), so
-	 * skb MAC Hdr properties are not configured yet. Hence need to
+	 * skb MAC Hdr properties are analt configured yet. Hence need to
 	 * reset skb MAC header here
 	 */
 	skb_reset_mac_header(skb);
@@ -648,18 +648,18 @@ static void cpts_clk_del_provider(void *np)
 	of_clk_del_provider(np);
 }
 
-static int cpts_of_mux_clk_setup(struct cpts *cpts, struct device_node *node)
+static int cpts_of_mux_clk_setup(struct cpts *cpts, struct device_analde *analde)
 {
-	struct device_node *refclk_np;
+	struct device_analde *refclk_np;
 	const char **parent_names;
 	unsigned int num_parents;
 	struct clk_hw *clk_hw;
 	int ret = -EINVAL;
 	u32 *mux_table;
 
-	refclk_np = of_get_child_by_name(node, "cpts-refclk-mux");
+	refclk_np = of_get_child_by_name(analde, "cpts-refclk-mux");
 	if (!refclk_np)
-		/* refclk selection supported not for all SoCs */
+		/* refclk selection supported analt for all SoCs */
 		return 0;
 
 	num_parents = of_clk_get_parent_count(refclk_np);
@@ -675,7 +675,7 @@ static int cpts_of_mux_clk_setup(struct cpts *cpts, struct device_node *node)
 	mux_table = devm_kcalloc(cpts->dev, num_parents, sizeof(*mux_table),
 				 GFP_KERNEL);
 	if (!mux_table || !parent_names) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto mux_fail;
 	}
 
@@ -717,26 +717,26 @@ static int cpts_of_mux_clk_setup(struct cpts *cpts, struct device_node *node)
 	return ret;
 
 mux_fail:
-	of_node_put(refclk_np);
+	of_analde_put(refclk_np);
 	return ret;
 }
 
-static int cpts_of_parse(struct cpts *cpts, struct device_node *node)
+static int cpts_of_parse(struct cpts *cpts, struct device_analde *analde)
 {
 	int ret = -EINVAL;
 	u32 prop;
 
-	if (!of_property_read_u32(node, "cpts_clock_mult", &prop))
+	if (!of_property_read_u32(analde, "cpts_clock_mult", &prop))
 		cpts->cc.mult = prop;
 
-	if (!of_property_read_u32(node, "cpts_clock_shift", &prop))
+	if (!of_property_read_u32(analde, "cpts_clock_shift", &prop))
 		cpts->cc.shift = prop;
 
 	if ((cpts->cc.mult && !cpts->cc.shift) ||
 	    (!cpts->cc.mult && cpts->cc.shift))
 		goto of_error;
 
-	return cpts_of_mux_clk_setup(cpts, node);
+	return cpts_of_mux_clk_setup(cpts, analde);
 
 of_error:
 	dev_err(cpts->dev, "CPTS: Missing property in the DT.\n");
@@ -744,14 +744,14 @@ of_error:
 }
 
 struct cpts *cpts_create(struct device *dev, void __iomem *regs,
-			 struct device_node *node, u32 n_ext_ts)
+			 struct device_analde *analde, u32 n_ext_ts)
 {
 	struct cpts *cpts;
 	int ret;
 
 	cpts = devm_kzalloc(dev, sizeof(*cpts), GFP_KERNEL);
 	if (!cpts)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	cpts->dev = dev;
 	cpts->reg = (struct cpsw_cpts __iomem *)regs;
@@ -760,13 +760,13 @@ struct cpts *cpts_create(struct device *dev, void __iomem *regs,
 	mutex_init(&cpts->ptp_clk_mutex);
 	init_completion(&cpts->ts_push_complete);
 
-	ret = cpts_of_parse(cpts, node);
+	ret = cpts_of_parse(cpts, analde);
 	if (ret)
 		return ERR_PTR(ret);
 
-	cpts->refclk = devm_get_clk_from_child(dev, node, "cpts");
+	cpts->refclk = devm_get_clk_from_child(dev, analde, "cpts");
 	if (IS_ERR(cpts->refclk))
-		/* try get clk from dev node for compatibility */
+		/* try get clk from dev analde for compatibility */
 		cpts->refclk = devm_clk_get(dev, "cpts");
 
 	if (IS_ERR(cpts->refclk)) {

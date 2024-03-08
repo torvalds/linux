@@ -26,13 +26,13 @@
 static LIST_HEAD(bus_type_list);
 static DECLARE_RWSEM(bus_type_sem);
 
-#define PHYSICAL_NODE_STRING "physical_node"
-#define PHYSICAL_NODE_NAME_SIZE (sizeof(PHYSICAL_NODE_STRING) + 10)
+#define PHYSICAL_ANALDE_STRING "physical_analde"
+#define PHYSICAL_ANALDE_NAME_SIZE (sizeof(PHYSICAL_ANALDE_STRING) + 10)
 
 int register_acpi_bus_type(struct acpi_bus_type *type)
 {
 	if (acpi_disabled)
-		return -ENODEV;
+		return -EANALDEV;
 	if (type && type->match && type->find_companion) {
 		down_write(&bus_type_sem);
 		list_add_tail(&type->list, &bus_type_list);
@@ -40,7 +40,7 @@ int register_acpi_bus_type(struct acpi_bus_type *type)
 		pr_info("bus type %s registered\n", type->name);
 		return 0;
 	}
-	return -ENODEV;
+	return -EANALDEV;
 }
 EXPORT_SYMBOL_GPL(register_acpi_bus_type);
 
@@ -55,7 +55,7 @@ int unregister_acpi_bus_type(struct acpi_bus_type *type)
 		pr_info("bus type %s unregistered\n", type->name);
 		return 0;
 	}
-	return -ENODEV;
+	return -EANALDEV;
 }
 EXPORT_SYMBOL_GPL(unregister_acpi_bus_type);
 
@@ -78,7 +78,7 @@ static struct acpi_bus_type *acpi_get_bus_type(struct device *dev)
 #define FIND_CHILD_MID_SCORE	2
 #define FIND_CHILD_MAX_SCORE	3
 
-static int match_any(struct acpi_device *adev, void *not_used)
+static int match_any(struct acpi_device *adev, void *analt_used)
 {
 	return 1;
 }
@@ -94,10 +94,10 @@ static int find_child_checks(struct acpi_device *adev, bool check_children)
 	acpi_status status;
 
 	if (check_children && !acpi_dev_has_children(adev))
-		return -ENODEV;
+		return -EANALDEV;
 
 	status = acpi_evaluate_integer(adev->handle, "_STA", NULL, &sta);
-	if (status == AE_NOT_FOUND) {
+	if (status == AE_ANALT_FOUND) {
 		/*
 		 * Special case: backlight device objects without _STA are
 		 * preferred to other objects with the same _ADR value, because
@@ -110,12 +110,12 @@ static int find_child_checks(struct acpi_device *adev, bool check_children)
 	}
 
 	if (ACPI_FAILURE(status) || !(sta & ACPI_STA_DEVICE_ENABLED))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
 	 * If the device has a _HID returning a valid ACPI/PNP device ID, it is
 	 * better to make it look less attractive here, so that the other device
-	 * with the same _ADR value (that may not have a valid device ID) can be
+	 * with the same _ADR value (that may analt have a valid device ID) can be
 	 * matched going forward.  [This means a second spec violation in a row,
 	 * so whatever we do here is best effort anyway.]
 	 */
@@ -143,7 +143,7 @@ static int check_one_child(struct acpi_device *adev, void *data)
 
 	if (!wd->adev) {
 		/*
-		 * This is the first matching object, so save it.  If it is not
+		 * This is the first matching object, so save it.  If it is analt
 		 * necessary to look for any other matching objects, stop the
 		 * search.
 		 */
@@ -216,21 +216,21 @@ struct acpi_device *acpi_find_child_by_adr(struct acpi_device *adev,
 }
 EXPORT_SYMBOL_GPL(acpi_find_child_by_adr);
 
-static void acpi_physnode_link_name(char *buf, unsigned int node_id)
+static void acpi_physanalde_link_name(char *buf, unsigned int analde_id)
 {
-	if (node_id > 0)
-		snprintf(buf, PHYSICAL_NODE_NAME_SIZE,
-			 PHYSICAL_NODE_STRING "%u", node_id);
+	if (analde_id > 0)
+		snprintf(buf, PHYSICAL_ANALDE_NAME_SIZE,
+			 PHYSICAL_ANALDE_STRING "%u", analde_id);
 	else
-		strcpy(buf, PHYSICAL_NODE_STRING);
+		strcpy(buf, PHYSICAL_ANALDE_STRING);
 }
 
 int acpi_bind_one(struct device *dev, struct acpi_device *acpi_dev)
 {
-	struct acpi_device_physical_node *physical_node, *pn;
-	char physical_node_name[PHYSICAL_NODE_NAME_SIZE];
-	struct list_head *physnode_list;
-	unsigned int node_id;
+	struct acpi_device_physical_analde *physical_analde, *pn;
+	char physical_analde_name[PHYSICAL_ANALDE_NAME_SIZE];
+	struct list_head *physanalde_list;
+	unsigned int analde_id;
 	int retval = -EINVAL;
 
 	if (has_acpi_companion(dev)) {
@@ -246,27 +246,27 @@ int acpi_bind_one(struct device *dev, struct acpi_device *acpi_dev)
 
 	acpi_dev_get(acpi_dev);
 	get_device(dev);
-	physical_node = kzalloc(sizeof(*physical_node), GFP_KERNEL);
-	if (!physical_node) {
-		retval = -ENOMEM;
+	physical_analde = kzalloc(sizeof(*physical_analde), GFP_KERNEL);
+	if (!physical_analde) {
+		retval = -EANALMEM;
 		goto err;
 	}
 
-	mutex_lock(&acpi_dev->physical_node_lock);
+	mutex_lock(&acpi_dev->physical_analde_lock);
 
 	/*
-	 * Keep the list sorted by node_id so that the IDs of removed nodes can
+	 * Keep the list sorted by analde_id so that the IDs of removed analdes can
 	 * be recycled easily.
 	 */
-	physnode_list = &acpi_dev->physical_node_list;
-	node_id = 0;
-	list_for_each_entry(pn, &acpi_dev->physical_node_list, node) {
+	physanalde_list = &acpi_dev->physical_analde_list;
+	analde_id = 0;
+	list_for_each_entry(pn, &acpi_dev->physical_analde_list, analde) {
 		/* Sanity check. */
 		if (pn->dev == dev) {
-			mutex_unlock(&acpi_dev->physical_node_lock);
+			mutex_unlock(&acpi_dev->physical_analde_lock);
 
-			dev_warn(dev, "Already associated with ACPI node\n");
-			kfree(physical_node);
+			dev_warn(dev, "Already associated with ACPI analde\n");
+			kfree(physical_analde);
 			if (ACPI_COMPANION(dev) != acpi_dev)
 				goto err;
 
@@ -274,34 +274,34 @@ int acpi_bind_one(struct device *dev, struct acpi_device *acpi_dev)
 			acpi_dev_put(acpi_dev);
 			return 0;
 		}
-		if (pn->node_id == node_id) {
-			physnode_list = &pn->node;
-			node_id++;
+		if (pn->analde_id == analde_id) {
+			physanalde_list = &pn->analde;
+			analde_id++;
 		}
 	}
 
-	physical_node->node_id = node_id;
-	physical_node->dev = dev;
-	list_add(&physical_node->node, physnode_list);
-	acpi_dev->physical_node_count++;
+	physical_analde->analde_id = analde_id;
+	physical_analde->dev = dev;
+	list_add(&physical_analde->analde, physanalde_list);
+	acpi_dev->physical_analde_count++;
 
 	if (!has_acpi_companion(dev))
 		ACPI_COMPANION_SET(dev, acpi_dev);
 
-	acpi_physnode_link_name(physical_node_name, node_id);
+	acpi_physanalde_link_name(physical_analde_name, analde_id);
 	retval = sysfs_create_link(&acpi_dev->dev.kobj, &dev->kobj,
-				   physical_node_name);
+				   physical_analde_name);
 	if (retval)
 		dev_err(&acpi_dev->dev, "Failed to create link %s (%d)\n",
-			physical_node_name, retval);
+			physical_analde_name, retval);
 
 	retval = sysfs_create_link(&dev->kobj, &acpi_dev->dev.kobj,
-				   "firmware_node");
+				   "firmware_analde");
 	if (retval)
-		dev_err(dev, "Failed to create link firmware_node (%d)\n",
+		dev_err(dev, "Failed to create link firmware_analde (%d)\n",
 			retval);
 
-	mutex_unlock(&acpi_dev->physical_node_lock);
+	mutex_unlock(&acpi_dev->physical_analde_lock);
 
 	if (acpi_dev->wakeup.flags.valid)
 		device_set_wakeup_capable(dev, true);
@@ -319,23 +319,23 @@ EXPORT_SYMBOL_GPL(acpi_bind_one);
 int acpi_unbind_one(struct device *dev)
 {
 	struct acpi_device *acpi_dev = ACPI_COMPANION(dev);
-	struct acpi_device_physical_node *entry;
+	struct acpi_device_physical_analde *entry;
 
 	if (!acpi_dev)
 		return 0;
 
-	mutex_lock(&acpi_dev->physical_node_lock);
+	mutex_lock(&acpi_dev->physical_analde_lock);
 
-	list_for_each_entry(entry, &acpi_dev->physical_node_list, node)
+	list_for_each_entry(entry, &acpi_dev->physical_analde_list, analde)
 		if (entry->dev == dev) {
-			char physnode_name[PHYSICAL_NODE_NAME_SIZE];
+			char physanalde_name[PHYSICAL_ANALDE_NAME_SIZE];
 
-			list_del(&entry->node);
-			acpi_dev->physical_node_count--;
+			list_del(&entry->analde);
+			acpi_dev->physical_analde_count--;
 
-			acpi_physnode_link_name(physnode_name, entry->node_id);
-			sysfs_remove_link(&acpi_dev->dev.kobj, physnode_name);
-			sysfs_remove_link(&dev->kobj, "firmware_node");
+			acpi_physanalde_link_name(physanalde_name, entry->analde_id);
+			sysfs_remove_link(&acpi_dev->dev.kobj, physanalde_name);
+			sysfs_remove_link(&dev->kobj, "firmware_analde");
 			ACPI_COMPANION_SET(dev, NULL);
 			/* Drop references taken by acpi_bind_one(). */
 			put_device(dev);
@@ -344,12 +344,12 @@ int acpi_unbind_one(struct device *dev)
 			break;
 		}
 
-	mutex_unlock(&acpi_dev->physical_node_lock);
+	mutex_unlock(&acpi_dev->physical_analde_lock);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(acpi_unbind_one);
 
-void acpi_device_notify(struct device *dev)
+void acpi_device_analtify(struct device *dev)
 {
 	struct acpi_device *adev;
 	int ret;
@@ -363,7 +363,7 @@ void acpi_device_notify(struct device *dev)
 
 		adev = type->find_companion(dev);
 		if (!adev) {
-			dev_dbg(dev, "ACPI companion not found\n");
+			dev_dbg(dev, "ACPI companion analt found\n");
 			goto err;
 		}
 		ret = acpi_bind_one(dev, adev);
@@ -395,10 +395,10 @@ done:
 	return;
 
 err:
-	dev_dbg(dev, "No ACPI support\n");
+	dev_dbg(dev, "Anal ACPI support\n");
 }
 
-void acpi_device_notify_remove(struct device *dev)
+void acpi_device_analtify_remove(struct device *dev)
 {
 	struct acpi_device *adev = ACPI_COMPANION(dev);
 

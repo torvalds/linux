@@ -18,7 +18,7 @@ kafs-y := \
 	fsclient.o \
 	fs_operation.o \
 	fs_probe.o \
-	inode.o \
+	ianalde.o \
 	main.o \
 	misc.o \
 	mntpt.o \

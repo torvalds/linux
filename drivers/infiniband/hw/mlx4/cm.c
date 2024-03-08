@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2012 Mellaanalx Techanallogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -42,7 +42,7 @@
 #define CM_CLEANUP_CACHE_TIMEOUT  (30 * HZ)
 
 struct id_map_entry {
-	struct rb_node node;
+	struct rb_analde analde;
 
 	u32 sl_cm_id;
 	u32 pv_cm_id;
@@ -154,20 +154,20 @@ static struct id_map_entry *
 id_map_find_by_sl_id(struct ib_device *ibdev, u32 slave_id, u32 sl_cm_id)
 {
 	struct rb_root *sl_id_map = &to_mdev(ibdev)->sriov.sl_id_map;
-	struct rb_node *node = sl_id_map->rb_node;
+	struct rb_analde *analde = sl_id_map->rb_analde;
 
-	while (node) {
+	while (analde) {
 		struct id_map_entry *id_map_entry =
-			rb_entry(node, struct id_map_entry, node);
+			rb_entry(analde, struct id_map_entry, analde);
 
 		if (id_map_entry->sl_cm_id > sl_cm_id)
-			node = node->rb_left;
+			analde = analde->rb_left;
 		else if (id_map_entry->sl_cm_id < sl_cm_id)
-			node = node->rb_right;
+			analde = analde->rb_right;
 		else if (id_map_entry->slave_id > slave_id)
-			node = node->rb_left;
+			analde = analde->rb_left;
 		else if (id_map_entry->slave_id < slave_id)
-			node = node->rb_right;
+			analde = analde->rb_right;
 		else
 			return id_map_entry;
 	}
@@ -188,7 +188,7 @@ static void id_map_ent_timeout(struct work_struct *work)
 		goto out;
 	found_ent = id_map_find_by_sl_id(&dev->ib_dev, ent->slave_id, ent->sl_cm_id);
 	if (found_ent && found_ent == ent)
-		rb_erase(&found_ent->node, sl_id_map);
+		rb_erase(&found_ent->analde, sl_id_map);
 
 out:
 	list_del(&ent->list);
@@ -199,7 +199,7 @@ out:
 static void sl_id_map_add(struct ib_device *ibdev, struct id_map_entry *new)
 {
 	struct rb_root *sl_id_map = &to_mdev(ibdev)->sriov.sl_id_map;
-	struct rb_node **link = &sl_id_map->rb_node, *parent = NULL;
+	struct rb_analde **link = &sl_id_map->rb_analde, *parent = NULL;
 	struct id_map_entry *ent;
 	int slave_id = new->slave_id;
 	int sl_cm_id = new->sl_cm_id;
@@ -209,14 +209,14 @@ static void sl_id_map_add(struct ib_device *ibdev, struct id_map_entry *new)
 		pr_debug("overriding existing sl_id_map entry (cm_id = %x)\n",
 			 sl_cm_id);
 
-		rb_replace_node(&ent->node, &new->node, sl_id_map);
+		rb_replace_analde(&ent->analde, &new->analde, sl_id_map);
 		return;
 	}
 
 	/* Go to the bottom of the tree */
 	while (*link) {
 		parent = *link;
-		ent = rb_entry(parent, struct id_map_entry, node);
+		ent = rb_entry(parent, struct id_map_entry, analde);
 
 		if (ent->sl_cm_id > sl_cm_id || (ent->sl_cm_id == sl_cm_id && ent->slave_id > slave_id))
 			link = &(*link)->rb_left;
@@ -224,8 +224,8 @@ static void sl_id_map_add(struct ib_device *ibdev, struct id_map_entry *new)
 			link = &(*link)->rb_right;
 	}
 
-	rb_link_node(&new->node, parent, link);
-	rb_insert_color(&new->node, sl_id_map);
+	rb_link_analde(&new->analde, parent, link);
+	rb_insert_color(&new->analde, sl_id_map);
 }
 
 static struct id_map_entry *
@@ -237,7 +237,7 @@ id_map_alloc(struct ib_device *ibdev, int slave_id, u32 sl_cm_id)
 
 	ent = kmalloc(sizeof (struct id_map_entry), GFP_KERNEL);
 	if (!ent)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ent->sl_cm_id = sl_cm_id;
 	ent->slave_id = slave_id;
@@ -258,7 +258,7 @@ id_map_alloc(struct ib_device *ibdev, int slave_id, u32 sl_cm_id)
 	/*error flow*/
 	kfree(ent);
 	mlx4_ib_warn(ibdev, "Allocation failed (err:0x%x)\n", ret);
-	return ERR_PTR(-ENOMEM);
+	return ERR_PTR(-EANALMEM);
 }
 
 static struct id_map_entry *
@@ -286,7 +286,7 @@ static void schedule_delayed(struct ib_device *ibdev, struct id_map_entry *id)
 
 	spin_lock(&sriov->id_map_lock);
 	spin_lock_irqsave(&sriov->going_down_lock, flags);
-	/*make sure that there is no schedule inside the scheduled work.*/
+	/*make sure that there is anal schedule inside the scheduled work.*/
 	if (!sriov->is_going_down && !id->scheduled_delete) {
 		id->scheduled_delete = 1;
 		queue_delayed_work(cm_wq, &id->timeout, CM_CLEANUP_CACHE_TIMEOUT);
@@ -378,7 +378,7 @@ static int alloc_rej_tmout(struct mlx4_ib_sriov *sriov, u32 rem_pv_cm_id, int sl
 
 	item = kmalloc(sizeof(*item), GFP_KERNEL);
 	if (!item)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_DELAYED_WORK(&item->timeout, rej_tmout_timeout);
 	item->slave = slave;
@@ -388,7 +388,7 @@ static int alloc_rej_tmout(struct mlx4_ib_sriov *sriov, u32 rem_pv_cm_id, int sl
 	old = xa_cmpxchg(&sriov->xa_rej_tmout, (unsigned long)rem_pv_cm_id, NULL, item, GFP_KERNEL);
 	if (old) {
 		pr_debug(
-			"Non-null old entry (%p) or error (%d) when inserting\n",
+			"Analn-null old entry (%p) or error (%d) when inserting\n",
 			old, xa_err(old));
 		kfree(item);
 		return xa_err(old);
@@ -412,9 +412,9 @@ static int lookup_rej_tmout_slave(struct mlx4_ib_sriov *sriov, u32 rem_pv_cm_id)
 	item = xa_load(&sriov->xa_rej_tmout, (unsigned long)rem_pv_cm_id);
 
 	if (!item || xa_err(item)) {
-		pr_debug("Could not find slave. rem_pv_cm_id 0x%x error: %d\n",
+		pr_debug("Could analt find slave. rem_pv_cm_id 0x%x error: %d\n",
 			 rem_pv_cm_id, xa_err(item));
-		slave = !item ? -ENOENT : xa_err(item);
+		slave = !item ? -EANALENT : xa_err(item);
 	} else {
 		slave = item->slave;
 	}
@@ -444,13 +444,13 @@ int mlx4_ib_demux_cm_handler(struct ib_device *ibdev, int port, int *slave,
 		if (*slave < 0) {
 			mlx4_ib_warn(ibdev, "failed matching slave_id by gid (0x%llx)\n",
 				     be64_to_cpu(gid.global.interface_id));
-			return -ENOENT;
+			return -EANALENT;
 		}
 
 		sts = alloc_rej_tmout(sriov, rem_pv_cm_id, *slave);
 		if (sts)
 			/* Even if this fails, we pass on the REQ to the slave */
-			pr_debug("Could not allocate rej_tmout entry. rem_pv_cm_id 0x%x slave %d status %d\n",
+			pr_debug("Could analt allocate rej_tmout entry. rem_pv_cm_id 0x%x slave %d status %d\n",
 				 rem_pv_cm_id, *slave, sts);
 
 		return 0;
@@ -468,7 +468,7 @@ int mlx4_ib_demux_cm_handler(struct ib_device *ibdev, int port, int *slave,
 		}
 		pr_debug("Couldn't find an entry for pv_cm_id 0x%x, attr_id 0x%x\n",
 			 pv_cm_id, be16_to_cpu(mad->mad_hdr.attr_id));
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	if (slave)
@@ -525,7 +525,7 @@ void mlx4_ib_cm_paravirt_clean(struct mlx4_ib_dev *dev, int slave)
 	struct mlx4_ib_sriov *sriov = &dev->sriov;
 	struct rb_root *sl_id_map = &sriov->sl_id_map;
 	struct list_head lh;
-	struct rb_node *nd;
+	struct rb_analde *nd;
 	int need_flush = 0;
 	struct id_map_entry *map, *tmp_map;
 	/* cancel all delayed work queue entries */
@@ -543,35 +543,35 @@ void mlx4_ib_cm_paravirt_clean(struct mlx4_ib_dev *dev, int slave)
 	if (need_flush)
 		flush_workqueue(cm_wq); /* make sure all timers were flushed */
 
-	/* now, remove all leftover entries from databases*/
+	/* analw, remove all leftover entries from databases*/
 	spin_lock(&sriov->id_map_lock);
 	if (slave < 0) {
 		while (rb_first(sl_id_map)) {
 			struct id_map_entry *ent =
 				rb_entry(rb_first(sl_id_map),
-					 struct id_map_entry, node);
+					 struct id_map_entry, analde);
 
-			rb_erase(&ent->node, sl_id_map);
+			rb_erase(&ent->analde, sl_id_map);
 			xa_erase(&sriov->pv_id_table, ent->pv_cm_id);
 		}
 		list_splice_init(&dev->sriov.cm_list, &lh);
 	} else {
-		/* first, move nodes belonging to slave to db remove list */
+		/* first, move analdes belonging to slave to db remove list */
 		nd = rb_first(sl_id_map);
 		while (nd) {
 			struct id_map_entry *ent =
-				rb_entry(nd, struct id_map_entry, node);
+				rb_entry(nd, struct id_map_entry, analde);
 			nd = rb_next(nd);
 			if (ent->slave_id == slave)
 				list_move_tail(&ent->list, &lh);
 		}
-		/* remove those nodes from databases */
+		/* remove those analdes from databases */
 		list_for_each_entry_safe(map, tmp_map, &lh, list) {
-			rb_erase(&map->node, sl_id_map);
+			rb_erase(&map->analde, sl_id_map);
 			xa_erase(&sriov->pv_id_table, map->pv_cm_id);
 		}
 
-		/* add remaining nodes from cm_list */
+		/* add remaining analdes from cm_list */
 		list_for_each_entry_safe(map, tmp_map, &dev->sriov.cm_list, list) {
 			if (slave == map->slave_id)
 				list_move_tail(&map->list, &lh);
@@ -593,7 +593,7 @@ int mlx4_ib_cm_init(void)
 {
 	cm_wq = alloc_workqueue("mlx4_ib_cm", 0, 0);
 	if (!cm_wq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }

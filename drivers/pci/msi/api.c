@@ -22,10 +22,10 @@
  * Linux IRQ will be saved at @dev->irq. The driver must invoke
  * pci_disable_msi() on cleanup.
  *
- * NOTE: The newer pci_alloc_irq_vectors() / pci_free_irq_vectors() API
+ * ANALTE: The newer pci_alloc_irq_vectors() / pci_free_irq_vectors() API
  * pair should, in general, be used instead.
  *
- * Return: 0 on success, errno otherwise
+ * Return: 0 on success, erranal otherwise
  */
 int pci_enable_msi(struct pci_dev *dev)
 {
@@ -45,7 +45,7 @@ EXPORT_SYMBOL(pci_enable_msi);
  * The PCI device Linux IRQ (@dev->irq) is restored to its default
  * pin-assertion IRQ. This is the cleanup pair of pci_enable_msi().
  *
- * NOTE: The newer pci_alloc_irq_vectors() / pci_free_irq_vectors() API
+ * ANALTE: The newer pci_alloc_irq_vectors() / pci_free_irq_vectors() API
  * pair should, in general, be used instead.
  */
 void pci_disable_msi(struct pci_dev *dev)
@@ -66,7 +66,7 @@ EXPORT_SYMBOL(pci_disable_msi);
  *
  * Return: number of MSI-X interrupt vectors available on this device
  * (i.e., the device's MSI-X capability structure "table size"), -EINVAL
- * if the device is not MSI-X capable, other errnos otherwise.
+ * if the device is analt MSI-X capable, other erranals otherwise.
  */
 int pci_msix_vec_count(struct pci_dev *dev)
 {
@@ -94,16 +94,16 @@ EXPORT_SYMBOL(pci_msix_vec_count);
  * vector numbers can be queried through pci_msix_vec_count().  If
  * successful, the driver must invoke pci_disable_msix() on cleanup.
  *
- * NOTE: The newer pci_alloc_irq_vectors() / pci_free_irq_vectors() API
+ * ANALTE: The newer pci_alloc_irq_vectors() / pci_free_irq_vectors() API
  * pair should, in general, be used instead.
  *
  * Return: number of MSI-X vectors allocated (which might be smaller
  * than @maxvecs), where Linux IRQ numbers for such allocated vectors
  * are saved back in the @entries array elements' "vector" field. Return
- * -ENOSPC if less than @minvecs interrupt vectors are available.
+ * -EANALSPC if less than @minvecs interrupt vectors are available.
  * Return -EINVAL if one of the passed @entries members "entry" field
  * was invalid or a duplicate, or if plain MSI interrupts mode was
- * earlier enabled on device. Return other errnos otherwise.
+ * earlier enabled on device. Return other erranals otherwise.
  */
 int pci_enable_msix_range(struct pci_dev *dev, struct msix_entry *entries,
 			  int minvec, int maxvec)
@@ -149,7 +149,7 @@ EXPORT_SYMBOL_GPL(pci_msix_can_alloc_dyn);
 struct msi_map pci_msix_alloc_irq_at(struct pci_dev *dev, unsigned int index,
 				     const struct irq_affinity_desc *affdesc)
 {
-	struct msi_map map = { .index = -ENOTSUPP };
+	struct msi_map map = { .index = -EANALTSUPP };
 
 	if (!dev->msix_enabled)
 		return map;
@@ -167,7 +167,7 @@ EXPORT_SYMBOL_GPL(pci_msix_alloc_irq_at);
  * @dev:	The PCI device to operate on
  * @map:	A struct msi_map describing the interrupt to free
  *
- * Undo an interrupt vector allocation. Does not disable MSI-X.
+ * Undo an interrupt vector allocation. Does analt disable MSI-X.
  */
 void pci_msix_free_irq(struct pci_dev *dev, struct msi_map map)
 {
@@ -188,7 +188,7 @@ EXPORT_SYMBOL_GPL(pci_msix_free_irq);
  * The PCI device Linux IRQ (@dev->irq) is restored to its default pin
  * assertion IRQ. This is the cleanup pair of pci_enable_msix_range().
  *
- * NOTE: The newer pci_alloc_irq_vectors() / pci_free_irq_vectors() API
+ * ANALTE: The newer pci_alloc_irq_vectors() / pci_free_irq_vectors() API
  * pair should, in general, be used instead.
  */
 void pci_disable_msix(struct pci_dev *dev)
@@ -228,8 +228,8 @@ EXPORT_SYMBOL(pci_disable_msix);
  * The driver must call pci_free_irq_vectors() on cleanup.
  *
  * Return: number of allocated vectors (which might be smaller than
- * @max_vecs), -ENOSPC if less than @min_vecs interrupt vectors are
- * available, other errnos otherwise.
+ * @max_vecs), -EANALSPC if less than @min_vecs interrupt vectors are
+ * available, other erranals otherwise.
  */
 int pci_alloc_irq_vectors(struct pci_dev *dev, unsigned int min_vecs,
 			  unsigned int max_vecs, unsigned int flags)
@@ -256,7 +256,7 @@ int pci_alloc_irq_vectors_affinity(struct pci_dev *dev, unsigned int min_vecs,
 				   struct irq_affinity *affd)
 {
 	struct irq_affinity msi_default_affd = {0};
-	int nvecs = -ENOSPC;
+	int nvecs = -EANALSPC;
 
 	if (flags & PCI_IRQ_AFFINITY) {
 		if (!affd)
@@ -348,7 +348,7 @@ const struct cpumask *pci_irq_get_affinity(struct pci_dev *dev, int nr)
 		return NULL;
 
 	desc = irq_get_msi_desc(irq);
-	/* Non-MSI does not have the information handy */
+	/* Analn-MSI does analt have the information handy */
 	if (!desc)
 		return cpu_possible_mask;
 
@@ -374,8 +374,8 @@ EXPORT_SYMBOL(pci_irq_get_affinity);
  *		interrupt chip callbacks or domain specific setup functions.
  * @affdesc:	Optional pointer to an interrupt affinity descriptor
  *
- * There is no index for IMS allocations as IMS is an implementation
- * specific storage and does not have any direct associations between
+ * There is anal index for IMS allocations as IMS is an implementation
+ * specific storage and does analt have any direct associations between
  * index, which might be a pure software construct, and device
  * functionality. This association is established by the driver either via
  * the index - if there is a hardware table - or in case of purely software
@@ -448,8 +448,8 @@ EXPORT_SYMBOL_GPL(pci_restore_msi_state);
 /**
  * pci_msi_enabled() - Are MSI(-X) interrupts enabled system-wide?
  *
- * Return: true if MSI has not been globally disabled through ACPI FADT,
- * PCI bridge quirks, or the "pci=nomsi" kernel command-line option.
+ * Return: true if MSI has analt been globally disabled through ACPI FADT,
+ * PCI bridge quirks, or the "pci=analmsi" kernel command-line option.
  */
 int pci_msi_enabled(void)
 {

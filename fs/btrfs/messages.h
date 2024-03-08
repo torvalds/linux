@@ -15,7 +15,7 @@ struct btrfs_fs_info;
 #ifdef __KERNEL__
 
 static inline __printf(2, 3) __cold
-void btrfs_no_printk(const struct btrfs_fs_info *fs_info, const char *fmt, ...)
+void btrfs_anal_printk(const struct btrfs_fs_info *fs_info, const char *fmt, ...)
 {
 }
 
@@ -33,7 +33,7 @@ void _btrfs_printk(const struct btrfs_fs_info *fs_info, const char *fmt, ...);
 #else
 
 #define btrfs_printk(fs_info, fmt, args...) \
-	btrfs_no_printk(fs_info, fmt, ##args)
+	btrfs_anal_printk(fs_info, fmt, ##args)
 #endif
 
 #define btrfs_emerg(fs_info, fmt, args...) \
@@ -46,8 +46,8 @@ void _btrfs_printk(const struct btrfs_fs_info *fs_info, const char *fmt, ...);
 	btrfs_printk(fs_info, KERN_ERR fmt, ##args)
 #define btrfs_warn(fs_info, fmt, args...) \
 	btrfs_printk(fs_info, KERN_WARNING fmt, ##args)
-#define btrfs_notice(fs_info, fmt, args...) \
-	btrfs_printk(fs_info, KERN_NOTICE fmt, ##args)
+#define btrfs_analtice(fs_info, fmt, args...) \
+	btrfs_printk(fs_info, KERN_ANALTICE fmt, ##args)
 #define btrfs_info(fs_info, fmt, args...) \
 	btrfs_printk(fs_info, KERN_INFO fmt, ##args)
 
@@ -64,8 +64,8 @@ void _btrfs_printk(const struct btrfs_fs_info *fs_info, const char *fmt, ...);
 	btrfs_printk_in_rcu(fs_info, KERN_ERR fmt, ##args)
 #define btrfs_warn_in_rcu(fs_info, fmt, args...) \
 	btrfs_printk_in_rcu(fs_info, KERN_WARNING fmt, ##args)
-#define btrfs_notice_in_rcu(fs_info, fmt, args...) \
-	btrfs_printk_in_rcu(fs_info, KERN_NOTICE fmt, ##args)
+#define btrfs_analtice_in_rcu(fs_info, fmt, args...) \
+	btrfs_printk_in_rcu(fs_info, KERN_ANALTICE fmt, ##args)
 #define btrfs_info_in_rcu(fs_info, fmt, args...) \
 	btrfs_printk_in_rcu(fs_info, KERN_INFO fmt, ##args)
 
@@ -82,8 +82,8 @@ void _btrfs_printk(const struct btrfs_fs_info *fs_info, const char *fmt, ...);
 	btrfs_printk_rl_in_rcu(fs_info, KERN_ERR fmt, ##args)
 #define btrfs_warn_rl_in_rcu(fs_info, fmt, args...) \
 	btrfs_printk_rl_in_rcu(fs_info, KERN_WARNING fmt, ##args)
-#define btrfs_notice_rl_in_rcu(fs_info, fmt, args...) \
-	btrfs_printk_rl_in_rcu(fs_info, KERN_NOTICE fmt, ##args)
+#define btrfs_analtice_rl_in_rcu(fs_info, fmt, args...) \
+	btrfs_printk_rl_in_rcu(fs_info, KERN_ANALTICE fmt, ##args)
 #define btrfs_info_rl_in_rcu(fs_info, fmt, args...) \
 	btrfs_printk_rl_in_rcu(fs_info, KERN_INFO fmt, ##args)
 
@@ -100,23 +100,23 @@ void _btrfs_printk(const struct btrfs_fs_info *fs_info, const char *fmt, ...);
 	btrfs_printk_ratelimited(fs_info, KERN_ERR fmt, ##args)
 #define btrfs_warn_rl(fs_info, fmt, args...) \
 	btrfs_printk_ratelimited(fs_info, KERN_WARNING fmt, ##args)
-#define btrfs_notice_rl(fs_info, fmt, args...) \
-	btrfs_printk_ratelimited(fs_info, KERN_NOTICE fmt, ##args)
+#define btrfs_analtice_rl(fs_info, fmt, args...) \
+	btrfs_printk_ratelimited(fs_info, KERN_ANALTICE fmt, ##args)
 #define btrfs_info_rl(fs_info, fmt, args...) \
 	btrfs_printk_ratelimited(fs_info, KERN_INFO fmt, ##args)
 
 #if defined(CONFIG_DYNAMIC_DEBUG)
 #define btrfs_debug(fs_info, fmt, args...)				\
-	_dynamic_func_call_no_desc(fmt, btrfs_printk,			\
+	_dynamic_func_call_anal_desc(fmt, btrfs_printk,			\
 				   fs_info, KERN_DEBUG fmt, ##args)
 #define btrfs_debug_in_rcu(fs_info, fmt, args...)			\
-	_dynamic_func_call_no_desc(fmt, btrfs_printk_in_rcu,		\
+	_dynamic_func_call_anal_desc(fmt, btrfs_printk_in_rcu,		\
 				   fs_info, KERN_DEBUG fmt, ##args)
 #define btrfs_debug_rl_in_rcu(fs_info, fmt, args...)			\
-	_dynamic_func_call_no_desc(fmt, btrfs_printk_rl_in_rcu,		\
+	_dynamic_func_call_anal_desc(fmt, btrfs_printk_rl_in_rcu,		\
 				   fs_info, KERN_DEBUG fmt, ##args)
 #define btrfs_debug_rl(fs_info, fmt, args...)				\
-	_dynamic_func_call_no_desc(fmt, btrfs_printk_ratelimited,	\
+	_dynamic_func_call_anal_desc(fmt, btrfs_printk_ratelimited,	\
 				   fs_info, KERN_DEBUG fmt, ##args)
 #elif defined(DEBUG)
 #define btrfs_debug(fs_info, fmt, args...) \
@@ -129,13 +129,13 @@ void _btrfs_printk(const struct btrfs_fs_info *fs_info, const char *fmt, ...);
 	btrfs_printk_ratelimited(fs_info, KERN_DEBUG fmt, ##args)
 #else
 #define btrfs_debug(fs_info, fmt, args...) \
-	btrfs_no_printk(fs_info, KERN_DEBUG fmt, ##args)
+	btrfs_anal_printk(fs_info, KERN_DEBUG fmt, ##args)
 #define btrfs_debug_in_rcu(fs_info, fmt, args...) \
-	btrfs_no_printk_in_rcu(fs_info, KERN_DEBUG fmt, ##args)
+	btrfs_anal_printk_in_rcu(fs_info, KERN_DEBUG fmt, ##args)
 #define btrfs_debug_rl_in_rcu(fs_info, fmt, args...) \
-	btrfs_no_printk_in_rcu(fs_info, KERN_DEBUG fmt, ##args)
+	btrfs_anal_printk_in_rcu(fs_info, KERN_DEBUG fmt, ##args)
 #define btrfs_debug_rl(fs_info, fmt, args...) \
-	btrfs_no_printk(fs_info, KERN_DEBUG fmt, ##args)
+	btrfs_anal_printk(fs_info, KERN_DEBUG fmt, ##args)
 #endif
 
 #define btrfs_printk_in_rcu(fs_info, fmt, args...)	\
@@ -145,10 +145,10 @@ do {							\
 	rcu_read_unlock();				\
 } while (0)
 
-#define btrfs_no_printk_in_rcu(fs_info, fmt, args...)	\
+#define btrfs_anal_printk_in_rcu(fs_info, fmt, args...)	\
 do {							\
 	rcu_read_lock();				\
-	btrfs_no_printk(fs_info, fmt, ##args);		\
+	btrfs_anal_printk(fs_info, fmt, ##args);		\
 	rcu_read_unlock();				\
 } while (0)
 

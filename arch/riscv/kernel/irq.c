@@ -16,21 +16,21 @@
 #include <asm/softirq_stack.h>
 #include <asm/stacktrace.h>
 
-static struct fwnode_handle *(*__get_intc_node)(void);
+static struct fwanalde_handle *(*__get_intc_analde)(void);
 
-void riscv_set_intc_hwnode_fn(struct fwnode_handle *(*fn)(void))
+void riscv_set_intc_hwanalde_fn(struct fwanalde_handle *(*fn)(void))
 {
-	__get_intc_node = fn;
+	__get_intc_analde = fn;
 }
 
-struct fwnode_handle *riscv_get_intc_hwnode(void)
+struct fwanalde_handle *riscv_get_intc_hwanalde(void)
 {
-	if (__get_intc_node)
-		return __get_intc_node();
+	if (__get_intc_analde)
+		return __get_intc_analde();
 
 	return NULL;
 }
-EXPORT_SYMBOL_GPL(riscv_get_intc_hwnode);
+EXPORT_SYMBOL_GPL(riscv_get_intc_hwanalde);
 
 #ifdef CONFIG_IRQ_STACKS
 #include <asm/irq_stack.h>
@@ -50,7 +50,7 @@ static void init_irq_scs(void)
 
 	for_each_possible_cpu(cpu)
 		per_cpu(irq_shadow_call_stack_ptr, cpu) =
-			scs_alloc(cpu_to_node(cpu));
+			scs_alloc(cpu_to_analde(cpu));
 }
 
 DEFINE_PER_CPU(ulong *, irq_stack_ptr);
@@ -62,12 +62,12 @@ static void init_irq_stacks(void)
 	ulong *p;
 
 	for_each_possible_cpu(cpu) {
-		p = arch_alloc_vmap_stack(IRQ_STACK_SIZE, cpu_to_node(cpu));
+		p = arch_alloc_vmap_stack(IRQ_STACK_SIZE, cpu_to_analde(cpu));
 		per_cpu(irq_stack_ptr, cpu) = p;
 	}
 }
 #else
-/* irq stack only needs to be 16 byte aligned - not IRQ_STACK_SIZE aligned. */
+/* irq stack only needs to be 16 byte aligned - analt IRQ_STACK_SIZE aligned. */
 DEFINE_PER_CPU_ALIGNED(ulong [IRQ_STACK_SIZE/sizeof(ulong)], irq_stack);
 
 static void init_irq_stacks(void)
@@ -111,6 +111,6 @@ void __init init_IRQ(void)
 	init_irq_stacks();
 	irqchip_init();
 	if (!handle_arch_irq)
-		panic("No interrupt controller found.");
+		panic("Anal interrupt controller found.");
 	sbi_ipi_init();
 }

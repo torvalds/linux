@@ -2,7 +2,7 @@ PLL divider based Dove clocks
 
 Marvell Dove has a 2GHz PLL, which feeds into a set of dividers to provide
 high speed clocks for a number of peripherals.  These dividers are part of
-the PMU, and thus this node should be a child of the PMU node.
+the PMU, and thus this analde should be a child of the PMU analde.
 
 The following clocks are provided:
 

@@ -52,7 +52,7 @@ properties:
   port:
     $ref: /schemas/graph.yaml#/properties/port
     description:
-      A node containing an output port node.
+      A analde containing an output port analde.
 
 required:
   - compatible

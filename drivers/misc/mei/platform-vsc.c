@@ -311,7 +311,7 @@ static void mei_vsc_event_cb(void *context)
 
 		ret = mei_irq_read_handler(mei_dev, &cmpl_list, &slots);
 		if (ret) {
-			if (ret != -ENODATA) {
+			if (ret != -EANALDATA) {
 				if (mei_dev->dev_state != MEI_DEV_RESETTING &&
 				    mei_dev->dev_state != MEI_DEV_POWER_DOWN)
 					schedule_work(&mei_dev->reset_work);
@@ -340,12 +340,12 @@ static int mei_vsc_probe(struct platform_device *pdev)
 
 	tp = *(struct vsc_tp **)dev_get_platdata(dev);
 	if (!tp)
-		return dev_err_probe(dev, -ENODEV, "no platform data\n");
+		return dev_err_probe(dev, -EANALDEV, "anal platform data\n");
 
 	mei_dev = devm_kzalloc(dev, size_add(sizeof(*mei_dev), sizeof(*hw)),
 			       GFP_KERNEL);
 	if (!mei_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mei_device_init(mei_dev, dev, false, &mei_vsc_hw_ops);
 	mei_dev->fw_f_fw_ver_supported = 0;
@@ -438,7 +438,7 @@ static struct platform_driver mei_vsc_drv = {
 	.driver = {
 		.name = MEI_VSC_DRV_NAME,
 		.pm = &mei_vsc_pm_ops,
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 };
 module_platform_driver(mei_vsc_drv);

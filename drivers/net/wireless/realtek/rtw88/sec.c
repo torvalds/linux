@@ -127,7 +127,7 @@ void rtw_sec_enable_sec_engine(struct rtw_dev *rtwdev)
 	u16 ctrl_reg;
 	u16 sec_config;
 
-	/* default use default key search for now */
+	/* default use default key search for analw */
 	sec->default_key_search = true;
 
 	ctrl_reg = rtw_read16(rtwdev, REG_CR);

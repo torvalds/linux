@@ -45,7 +45,7 @@ static int b43_lpphy_op_allocate(struct b43_wldev *dev)
 
 	lpphy = kzalloc(sizeof(*lpphy), GFP_KERNEL);
 	if (!lpphy)
-		return -ENOMEM;
+		return -EANALMEM;
 	dev->phy.lp = lpphy;
 
 	return 0;
@@ -1100,7 +1100,7 @@ static void lpphy_read_tx_pctl_mode_from_hardware(struct b43_wldev *dev)
 		lpphy->txpctl_mode = B43_LPPHY_TXPCTL_HW;
 		break;
 	default:
-		lpphy->txpctl_mode = B43_LPPHY_TXPCTL_UNKNOWN;
+		lpphy->txpctl_mode = B43_LPPHY_TXPCTL_UNKANALWN;
 		B43_WARN_ON(1);
 		break;
 	}
@@ -1185,7 +1185,7 @@ static void lpphy_rev0_1_rc_calib(struct b43_wldev *dev)
 	u16 old_rf_ovr, old_rf_ovrval, old_afe_ovr, old_afe_ovrval,
 	    old_rf2_ovr, old_rf2_ovrval, old_phy_ctl;
 	enum b43_lpphy_txpctl_mode old_txpctl;
-	u32 normal_pwr, ideal_pwr, mean_sq_pwr, tmp = 0, mean_sq_pwr_min = 0;
+	u32 analrmal_pwr, ideal_pwr, mean_sq_pwr, tmp = 0, mean_sq_pwr_min = 0;
 	int loopback, i, j, inner_sum, err;
 
 	memset(&iq_est, 0, sizeof(iq_est));
@@ -1231,8 +1231,8 @@ static void lpphy_rev0_1_rc_calib(struct b43_wldev *dev)
 			if (j == 5)
 				tmp = mean_sq_pwr;
 			ideal_pwr = ((ideal_pwr_table[j-5] >> 3) + 1) >> 1;
-			normal_pwr = lpphy_qdiv_roundup(mean_sq_pwr, tmp, 12);
-			mean_sq_pwr = ideal_pwr - normal_pwr;
+			analrmal_pwr = lpphy_qdiv_roundup(mean_sq_pwr, tmp, 12);
+			mean_sq_pwr = ideal_pwr - analrmal_pwr;
 			mean_sq_pwr *= mean_sq_pwr;
 			inner_sum += mean_sq_pwr;
 			if ((i == 128) || (inner_sum < mean_sq_pwr_min)) {
@@ -1836,16 +1836,16 @@ static void lpphy_papd_cal_txpwr(struct b43_wldev *dev)
 	b43_phy_maskset(dev, B43_LPPHY_RF_PWR_OVERRIDE, 0xFF00, old_rf);
 }
 
-static int lpphy_rx_iq_cal(struct b43_wldev *dev, bool noise, bool tx,
+static int lpphy_rx_iq_cal(struct b43_wldev *dev, bool analise, bool tx,
 			    bool rx, bool pa, struct lpphy_tx_gains *gains)
 {
 	struct b43_phy_lp *lpphy = dev->phy.lp;
 	const struct lpphy_rx_iq_comp *iqcomp = NULL;
-	struct lpphy_tx_gains nogains, oldgains;
+	struct lpphy_tx_gains analgains, oldgains;
 	u16 tmp;
 	int i, ret;
 
-	memset(&nogains, 0, sizeof(nogains));
+	memset(&analgains, 0, sizeof(analgains));
 	memset(&oldgains, 0, sizeof(oldgains));
 
 	if (dev->dev->chip_id == 0x5354) {
@@ -1871,7 +1871,7 @@ static int lpphy_rx_iq_cal(struct b43_wldev *dev, bool noise, bool tx,
 	b43_phy_maskset(dev, B43_LPPHY_RX_COMP_COEFF_S,
 			0x00FF, iqcomp->c0 << 8);
 
-	if (noise) {
+	if (analise) {
 		tx = true;
 		rx = false;
 		pa = false;
@@ -1891,13 +1891,13 @@ static int lpphy_rx_iq_cal(struct b43_wldev *dev, bool noise, bool tx,
 
 	tmp = b43_phy_read(dev, B43_LPPHY_AFE_CTL_OVR) & 0x40;
 
-	if (noise)
+	if (analise)
 		lpphy_set_rx_gain(dev, 0x2D5D);
 	else {
 		if (tmp)
 			oldgains = lpphy_get_tx_gains(dev);
 		if (!gains)
-			gains = &nogains;
+			gains = &analgains;
 		lpphy_set_tx_gains(dev, *gains);
 	}
 
@@ -1906,7 +1906,7 @@ static int lpphy_rx_iq_cal(struct b43_wldev *dev, bool noise, bool tx,
 	b43_phy_set(dev, B43_LPPHY_RF_OVERRIDE_0, 0x800);
 	b43_phy_set(dev, B43_LPPHY_RF_OVERRIDE_VAL_0, 0x800);
 	lpphy_set_deaf(dev, false);
-	if (noise)
+	if (analise)
 		ret = lpphy_calc_rx_iq_comp(dev, 0xFFF0);
 	else {
 		lpphy_start_tx_tone(dev, 4000, 100);
@@ -1917,7 +1917,7 @@ static int lpphy_rx_iq_cal(struct b43_wldev *dev, bool noise, bool tx,
 	b43_phy_mask(dev, B43_LPPHY_RF_OVERRIDE_0, 0xFFFC);
 	b43_phy_mask(dev, B43_LPPHY_RF_OVERRIDE_0, 0xFFF7);
 	b43_phy_mask(dev, B43_LPPHY_RF_OVERRIDE_0, 0xFFDF);
-	if (!noise) {
+	if (!analise) {
 		if (tmp)
 			lpphy_set_tx_gains(dev, oldgains);
 		else
@@ -2627,7 +2627,7 @@ static int b43_lpphy_op_init(struct b43_wldev *dev)
 
 	if (dev->dev->bus_type != B43_BUS_SSB) {
 		b43err(dev->wl, "LP-PHY is supported only on SSB!\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	lpphy_read_band_sprom(dev); //FIXME should this be in prepare_structs?
@@ -2652,7 +2652,7 @@ static void b43_lpphy_op_adjust_txpower(struct b43_wldev *dev)
 }
 
 static enum b43_txpwr_result b43_lpphy_op_recalc_txpower(struct b43_wldev *dev,
-							 bool ignore_tssi)
+							 bool iganalre_tssi)
 {
 	//TODO
 	return B43_TXPWR_RES_DONE;

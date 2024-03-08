@@ -25,12 +25,12 @@
  *			buffers will be used.
  * @buffer_attrs:	Extra sysfs buffer attributes for this IIO buffer
  *
- * This function combines some common tasks which will normally be performed
+ * This function combines some common tasks which will analrmally be performed
  * when setting up a triggered buffer. It will allocate the buffer and the
  * pollfunc.
  *
  * Before calling this function the indio_dev structure should already be
- * completely initialized, but not yet registered. In practice this means that
+ * completely initialized, but analt yet registered. In practice this means that
  * this function should be called right before iio_device_register().
  *
  * To free the resources allocated by this function call
@@ -51,14 +51,14 @@ int iio_triggered_buffer_setup_ext(struct iio_dev *indio_dev,
 	 * is assigned to indio_dev->buffer but this is only the case if this
 	 * function is the first caller to iio_device_attach_buffer(). If
 	 * indio_dev->buffer is already set then we can't proceed otherwise the
-	 * cleanup function will try to free a buffer that was not allocated here.
+	 * cleanup function will try to free a buffer that was analt allocated here.
 	 */
 	if (indio_dev->buffer)
 		return -EADDRINUSE;
 
 	buffer = iio_kfifo_allocate();
 	if (!buffer) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error_ret;
 	}
 
@@ -70,7 +70,7 @@ int iio_triggered_buffer_setup_ext(struct iio_dev *indio_dev,
 						 indio_dev->name,
 						 iio_device_id(indio_dev));
 	if (indio_dev->pollfunc == NULL) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error_kfifo_free;
 	}
 

@@ -41,7 +41,7 @@ MODULE_LICENSE("GPL");
  * mei_cl_device structure here.
  * Define a mutex that will synchronize all the flows between iwlwifi and
  * iwlmei.
- * Note that iwlmei can't have several instances, so it ok to have static
+ * Analte that iwlmei can't have several instances, so it ok to have static
  * variables here.
  */
 static struct mei_cl_device *iwl_mei_global_cldev;
@@ -68,7 +68,7 @@ struct iwl_sap_q_ctrl_blk {
 };
 
 enum iwl_sap_q_idx {
-	SAP_QUEUE_IDX_NOTIF = 0,
+	SAP_QUEUE_IDX_ANALTIF = 0,
 	SAP_QUEUE_IDX_DATA,
 	SAP_QUEUE_IDX_MAX,
 };
@@ -98,11 +98,11 @@ struct iwl_sap_shared_mem_ctrl_blk {
  * +-----------------------------------+
  * |Host -> ME data queue              |
  * +-----------------------------------+
- * |Host -> ME notif queue             |
+ * |Host -> ME analtif queue             |
  * +-----------------------------------+
  * |ME -> Host data queue              |
  * +-----------------------------------+
- * |ME -> host notif queue             |
+ * |ME -> host analtif queue             |
  * +-----------------------------------+
  * |SAP control block id (SAP!)        |
  * +-----------------------------------+
@@ -110,13 +110,13 @@ struct iwl_sap_shared_mem_ctrl_blk {
 
 #define SAP_H2M_DATA_Q_SZ	48256
 #define SAP_M2H_DATA_Q_SZ	24128
-#define SAP_H2M_NOTIF_Q_SZ	2240
-#define SAP_M2H_NOTIF_Q_SZ	62720
+#define SAP_H2M_ANALTIF_Q_SZ	2240
+#define SAP_M2H_ANALTIF_Q_SZ	62720
 
 #define _IWL_MEI_SAP_SHARED_MEM_SZ \
 	(sizeof(struct iwl_sap_shared_mem_ctrl_blk) + \
-	 SAP_H2M_DATA_Q_SZ + SAP_H2M_NOTIF_Q_SZ + \
-	 SAP_M2H_DATA_Q_SZ + SAP_M2H_NOTIF_Q_SZ + 4)
+	 SAP_H2M_DATA_Q_SZ + SAP_H2M_ANALTIF_Q_SZ + \
+	 SAP_M2H_DATA_Q_SZ + SAP_M2H_ANALTIF_Q_SZ + 4)
 
 #define IWL_MEI_SAP_SHARED_MEM_SZ \
 	(roundup(_IWL_MEI_SAP_SHARED_MEM_SZ, PAGE_SIZE))
@@ -163,8 +163,8 @@ struct iwl_mei_filters {
  *	avoid taking the rtnl lock in the SAP messages handlers.
  * @ownership_dwork: used to re-ask for NIC ownership after ownership was taken
  *	by CSME or when a previous ownership request failed.
- * @sap_seq_no: the sequence number for the SAP messages
- * @seq_no: the sequence number for the SAP messages
+ * @sap_seq_anal: the sequence number for the SAP messages
+ * @seq_anal: the sequence number for the SAP messages
  * @dbgfs_dir: the debugfs dir entry
  */
 struct iwl_mei {
@@ -188,8 +188,8 @@ struct iwl_mei {
 	struct work_struct netdev_work;
 	struct delayed_work ownership_dwork;
 
-	atomic_t sap_seq_no;
-	atomic_t seq_no;
+	atomic_t sap_seq_anal;
+	atomic_t seq_anal;
 
 	struct dentry *dbgfs_dir;
 };
@@ -214,7 +214,7 @@ struct iwl_mei {
 struct iwl_mei_cache {
 	const struct iwl_mei_ops *ops;
 	struct net_device __rcu *netdev;
-	const struct iwl_sap_notif_connection_info *conn_info;
+	const struct iwl_sap_analtif_connection_info *conn_info;
 	const __le16 *power_limit;
 	u32 rf_kill;
 	u16 mcc;
@@ -276,12 +276,12 @@ static void iwl_mei_init_shared_mem(struct iwl_mei *mei)
 
 	h2m->q_ctrl_blk[SAP_QUEUE_IDX_DATA].size =
 		cpu_to_le32(SAP_H2M_DATA_Q_SZ);
-	h2m->q_ctrl_blk[SAP_QUEUE_IDX_NOTIF].size =
-		cpu_to_le32(SAP_H2M_NOTIF_Q_SZ);
+	h2m->q_ctrl_blk[SAP_QUEUE_IDX_ANALTIF].size =
+		cpu_to_le32(SAP_H2M_ANALTIF_Q_SZ);
 	m2h->q_ctrl_blk[SAP_QUEUE_IDX_DATA].size =
 		cpu_to_le32(SAP_M2H_DATA_Q_SZ);
-	m2h->q_ctrl_blk[SAP_QUEUE_IDX_NOTIF].size =
-		cpu_to_le32(SAP_M2H_NOTIF_Q_SZ);
+	m2h->q_ctrl_blk[SAP_QUEUE_IDX_ANALTIF].size =
+		cpu_to_le32(SAP_M2H_ANALTIF_Q_SZ);
 
 	/* q_head points to the start of the first queue */
 	q_head = (void *)(mem->ctrl + 1);
@@ -301,13 +301,13 @@ static void iwl_mei_init_shared_mem(struct iwl_mei *mei)
 }
 
 static ssize_t iwl_mei_write_cyclic_buf(struct mei_cl_device *cldev,
-					struct iwl_sap_q_ctrl_blk *notif_q,
+					struct iwl_sap_q_ctrl_blk *analtif_q,
 					u8 *q_head,
 					const struct iwl_sap_hdr *hdr,
 					u32 q_sz)
 {
-	u32 rd = le32_to_cpu(READ_ONCE(notif_q->rd_ptr));
-	u32 wr = le32_to_cpu(READ_ONCE(notif_q->wr_ptr));
+	u32 rd = le32_to_cpu(READ_ONCE(analtif_q->rd_ptr));
+	u32 wr = le32_to_cpu(READ_ONCE(analtif_q->wr_ptr));
 	size_t room_in_buf;
 	size_t tx_sz = sizeof(*hdr) + le16_to_cpu(hdr->len);
 
@@ -319,11 +319,11 @@ static ssize_t iwl_mei_write_cyclic_buf(struct mei_cl_device *cldev,
 
 	room_in_buf = wr >= rd ? q_sz - wr + rd : rd - wr;
 
-	/* we don't have enough room for the data to write */
+	/* we don't have eanalugh room for the data to write */
 	if (room_in_buf < tx_sz) {
 		dev_err(&cldev->dev,
-			"Not enough room in the buffer\n");
-		return -ENOSPC;
+			"Analt eanalugh room in the buffer\n");
+		return -EANALSPC;
 	}
 
 	if (wr + tx_sz <= q_sz) {
@@ -333,23 +333,23 @@ static ssize_t iwl_mei_write_cyclic_buf(struct mei_cl_device *cldev,
 		memcpy(q_head, (const u8 *)hdr + q_sz - wr, tx_sz - (q_sz - wr));
 	}
 
-	WRITE_ONCE(notif_q->wr_ptr, cpu_to_le32((wr + tx_sz) % q_sz));
+	WRITE_ONCE(analtif_q->wr_ptr, cpu_to_le32((wr + tx_sz) % q_sz));
 	return 0;
 }
 
 static bool iwl_mei_host_to_me_data_pending(const struct iwl_mei *mei)
 {
-	struct iwl_sap_q_ctrl_blk *notif_q;
+	struct iwl_sap_q_ctrl_blk *analtif_q;
 	struct iwl_sap_dir *dir;
 
 	dir = &mei->shared_mem.ctrl->dir[SAP_DIRECTION_HOST_TO_ME];
-	notif_q = &dir->q_ctrl_blk[SAP_QUEUE_IDX_DATA];
+	analtif_q = &dir->q_ctrl_blk[SAP_QUEUE_IDX_DATA];
 
-	if (READ_ONCE(notif_q->wr_ptr) != READ_ONCE(notif_q->rd_ptr))
+	if (READ_ONCE(analtif_q->wr_ptr) != READ_ONCE(analtif_q->rd_ptr))
 		return true;
 
-	notif_q = &dir->q_ctrl_blk[SAP_QUEUE_IDX_NOTIF];
-	return READ_ONCE(notif_q->wr_ptr) != READ_ONCE(notif_q->rd_ptr);
+	analtif_q = &dir->q_ctrl_blk[SAP_QUEUE_IDX_ANALTIF];
+	return READ_ONCE(analtif_q->wr_ptr) != READ_ONCE(analtif_q->rd_ptr);
 }
 
 static int iwl_mei_send_check_shared_area(struct mei_cl_device *cldev)
@@ -357,7 +357,7 @@ static int iwl_mei_send_check_shared_area(struct mei_cl_device *cldev)
 	struct iwl_mei *mei = mei_cldev_get_drvdata(cldev);
 	struct iwl_sap_me_msg_start msg = {
 		.hdr.type = cpu_to_le32(SAP_ME_MSG_CHECK_SHARED_AREA),
-		.hdr.seq_num = cpu_to_le32(atomic_inc_return(&mei->seq_no)),
+		.hdr.seq_num = cpu_to_le32(atomic_inc_return(&mei->seq_anal)),
 	};
 	int ret;
 
@@ -402,7 +402,7 @@ static int iwl_mei_send_sap_msg_payload(struct mei_cl_device *cldev,
 					struct iwl_sap_hdr *hdr)
 {
 	struct iwl_mei *mei = mei_cldev_get_drvdata(cldev);
-	struct iwl_sap_q_ctrl_blk *notif_q;
+	struct iwl_sap_q_ctrl_blk *analtif_q;
 	struct iwl_sap_dir *dir;
 	void *q_head;
 	u32 q_sz;
@@ -412,24 +412,24 @@ static int iwl_mei_send_sap_msg_payload(struct mei_cl_device *cldev,
 
 	if (!mei->shared_mem.ctrl) {
 		dev_err(&cldev->dev,
-			"No shared memory, can't send any SAP message\n");
+			"Anal shared memory, can't send any SAP message\n");
 		return -EINVAL;
 	}
 
 	if (!iwl_mei_is_connected()) {
 		dev_err(&cldev->dev,
-			"Can't send a SAP message if we're not connected\n");
-		return -ENODEV;
+			"Can't send a SAP message if we're analt connected\n");
+		return -EANALDEV;
 	}
 
-	hdr->seq_num = cpu_to_le32(atomic_inc_return(&mei->sap_seq_no));
+	hdr->seq_num = cpu_to_le32(atomic_inc_return(&mei->sap_seq_anal));
 	dev_dbg(&cldev->dev, "Sending %d\n", hdr->type);
 
 	dir = &mei->shared_mem.ctrl->dir[SAP_DIRECTION_HOST_TO_ME];
-	notif_q = &dir->q_ctrl_blk[SAP_QUEUE_IDX_NOTIF];
-	q_head = mei->shared_mem.q_head[SAP_DIRECTION_HOST_TO_ME][SAP_QUEUE_IDX_NOTIF];
-	q_sz = mei->shared_mem.q_size[SAP_DIRECTION_HOST_TO_ME][SAP_QUEUE_IDX_NOTIF];
-	ret = iwl_mei_write_cyclic_buf(q_head, notif_q, q_head, hdr, q_sz);
+	analtif_q = &dir->q_ctrl_blk[SAP_QUEUE_IDX_ANALTIF];
+	q_head = mei->shared_mem.q_head[SAP_DIRECTION_HOST_TO_ME][SAP_QUEUE_IDX_ANALTIF];
+	q_sz = mei->shared_mem.q_size[SAP_DIRECTION_HOST_TO_ME][SAP_QUEUE_IDX_ANALTIF];
+	ret = iwl_mei_write_cyclic_buf(q_head, analtif_q, q_head, hdr, q_sz);
 
 	if (ret < 0)
 		return ret;
@@ -441,7 +441,7 @@ static int iwl_mei_send_sap_msg_payload(struct mei_cl_device *cldev,
 
 void iwl_mei_add_data_to_ring(struct sk_buff *skb, bool cb_tx)
 {
-	struct iwl_sap_q_ctrl_blk *notif_q;
+	struct iwl_sap_q_ctrl_blk *analtif_q;
 	struct iwl_sap_dir *dir;
 	struct iwl_mei *mei;
 	size_t room_in_buf;
@@ -477,12 +477,12 @@ void iwl_mei_add_data_to_ring(struct sk_buff *skb, bool cb_tx)
 	 * is done in netdev_rx_handler_unregister).
 	 */
 	dir = &mei->shared_mem.ctrl->dir[SAP_DIRECTION_HOST_TO_ME];
-	notif_q = &dir->q_ctrl_blk[SAP_QUEUE_IDX_DATA];
+	analtif_q = &dir->q_ctrl_blk[SAP_QUEUE_IDX_DATA];
 	q_head = mei->shared_mem.q_head[SAP_DIRECTION_HOST_TO_ME][SAP_QUEUE_IDX_DATA];
 	q_sz = mei->shared_mem.q_size[SAP_DIRECTION_HOST_TO_ME][SAP_QUEUE_IDX_DATA];
 
-	rd = le32_to_cpu(READ_ONCE(notif_q->rd_ptr));
-	wr = le32_to_cpu(READ_ONCE(notif_q->wr_ptr));
+	rd = le32_to_cpu(READ_ONCE(analtif_q->rd_ptr));
+	wr = le32_to_cpu(READ_ONCE(analtif_q->wr_ptr));
 	hdr_sz = cb_tx ? sizeof(struct iwl_sap_cb_data) :
 			 sizeof(struct iwl_sap_hdr);
 	tx_sz = skb->len + hdr_sz;
@@ -495,16 +495,16 @@ void iwl_mei_add_data_to_ring(struct sk_buff *skb, bool cb_tx)
 
 	room_in_buf = wr >= rd ? q_sz - wr + rd : rd - wr;
 
-	/* we don't have enough room for the data to write */
+	/* we don't have eanalugh room for the data to write */
 	if (room_in_buf < tx_sz) {
 		dev_err(&mei->cldev->dev,
-			"Not enough room in the buffer for this data\n");
+			"Analt eanalugh room in the buffer for this data\n");
 		goto out;
 	}
 
 	if (skb_headroom(skb) < hdr_sz) {
 		dev_err(&mei->cldev->dev,
-			"Not enough headroom in the skb to write the SAP header\n");
+			"Analt eanalugh headroom in the skb to write the SAP header\n");
 		goto out;
 	}
 
@@ -514,7 +514,7 @@ void iwl_mei_add_data_to_ring(struct sk_buff *skb, bool cb_tx)
 		memset(cb_hdr, 0, sizeof(*cb_hdr));
 		cb_hdr->hdr.type = cpu_to_le16(SAP_MSG_CB_DATA_PACKET);
 		cb_hdr->hdr.len = cpu_to_le16(skb->len - sizeof(cb_hdr->hdr));
-		cb_hdr->hdr.seq_num = cpu_to_le32(atomic_inc_return(&mei->sap_seq_no));
+		cb_hdr->hdr.seq_num = cpu_to_le32(atomic_inc_return(&mei->sap_seq_anal));
 		cb_hdr->to_me_filt_status = cpu_to_le32(BIT(CB_TX_DHCP_FILT_IDX));
 		cb_hdr->data_len = cpu_to_le32(skb->len - sizeof(*cb_hdr));
 		trace_iwlmei_sap_data(skb, IWL_SAP_TX_DHCP);
@@ -523,7 +523,7 @@ void iwl_mei_add_data_to_ring(struct sk_buff *skb, bool cb_tx)
 
 		hdr->type = cpu_to_le16(SAP_MSG_DATA_PACKET);
 		hdr->len = cpu_to_le16(skb->len - sizeof(*hdr));
-		hdr->seq_num = cpu_to_le32(atomic_inc_return(&mei->sap_seq_no));
+		hdr->seq_num = cpu_to_le32(atomic_inc_return(&mei->sap_seq_anal));
 		trace_iwlmei_sap_data(skb, IWL_SAP_TX_DATA_FROM_AIR);
 	}
 
@@ -534,7 +534,7 @@ void iwl_mei_add_data_to_ring(struct sk_buff *skb, bool cb_tx)
 		skb_copy_bits(skb, q_sz - wr, q_head, tx_sz - (q_sz - wr));
 	}
 
-	WRITE_ONCE(notif_q->wr_ptr, cpu_to_le32((wr + tx_sz) % q_sz));
+	WRITE_ONCE(analtif_q->wr_ptr, cpu_to_le32((wr + tx_sz) % q_sz));
 
 out:
 	spin_unlock_bh(&mei->data_q_lock);
@@ -581,7 +581,7 @@ static rx_handler_result_t iwl_mei_rx_handler(struct sk_buff **pskb)
 	 */
 	if (!iwl_mei_is_connected()) {
 		dev_err(&mei->cldev->dev,
-			"Got an Rx packet, but we're not connected to SAP?\n");
+			"Got an Rx packet, but we're analt connected to SAP?\n");
 		return RX_HANDLER_PASS;
 	}
 
@@ -689,7 +689,7 @@ static void iwl_mei_handle_csme_filters(struct mei_cl_device *cldev,
 
 static void
 iwl_mei_handle_conn_status(struct mei_cl_device *cldev,
-			   const struct iwl_sap_notif_conn_status *status)
+			   const struct iwl_sap_analtif_conn_status *status)
 {
 	struct iwl_mei *mei = mei_cldev_get_drvdata(cldev);
 	struct iwl_mei_conn_info conn_info = {
@@ -713,8 +713,8 @@ iwl_mei_handle_conn_status(struct mei_cl_device *cldev,
 	mei->link_prot_state = status->link_prot_state;
 
 	/*
-	 * Update the Rfkill state in case the host does not own the device:
-	 * if we are in Link Protection, ask to not touch the device, else,
+	 * Update the Rfkill state in case the host does analt own the device:
+	 * if we are in Link Protection, ask to analt touch the device, else,
 	 * unblock rfkill.
 	 * If the host owns the device, inform the user space whether it can
 	 * roam.
@@ -729,25 +729,25 @@ iwl_mei_handle_conn_status(struct mei_cl_device *cldev,
 
 static void iwl_mei_set_init_conf(struct iwl_mei *mei)
 {
-	struct iwl_sap_notif_host_link_up link_msg = {
-		.hdr.type = cpu_to_le16(SAP_MSG_NOTIF_HOST_LINK_UP),
+	struct iwl_sap_analtif_host_link_up link_msg = {
+		.hdr.type = cpu_to_le16(SAP_MSG_ANALTIF_HOST_LINK_UP),
 		.hdr.len = cpu_to_le16(sizeof(link_msg) - sizeof(link_msg.hdr)),
 	};
-	struct iwl_sap_notif_country_code mcc_msg = {
-		.hdr.type = cpu_to_le16(SAP_MSG_NOTIF_COUNTRY_CODE),
+	struct iwl_sap_analtif_country_code mcc_msg = {
+		.hdr.type = cpu_to_le16(SAP_MSG_ANALTIF_COUNTRY_CODE),
 		.hdr.len = cpu_to_le16(sizeof(mcc_msg) - sizeof(mcc_msg.hdr)),
 		.mcc = cpu_to_le16(iwl_mei_cache.mcc),
 	};
-	struct iwl_sap_notif_sar_limits sar_msg = {
-		.hdr.type = cpu_to_le16(SAP_MSG_NOTIF_SAR_LIMITS),
+	struct iwl_sap_analtif_sar_limits sar_msg = {
+		.hdr.type = cpu_to_le16(SAP_MSG_ANALTIF_SAR_LIMITS),
 		.hdr.len = cpu_to_le16(sizeof(sar_msg) - sizeof(sar_msg.hdr)),
 	};
-	struct iwl_sap_notif_host_nic_info nic_info_msg = {
-		.hdr.type = cpu_to_le16(SAP_MSG_NOTIF_NIC_INFO),
+	struct iwl_sap_analtif_host_nic_info nic_info_msg = {
+		.hdr.type = cpu_to_le16(SAP_MSG_ANALTIF_NIC_INFO),
 		.hdr.len = cpu_to_le16(sizeof(nic_info_msg) - sizeof(nic_info_msg.hdr)),
 	};
 	struct iwl_sap_msg_dw rfkill_msg = {
-		.hdr.type = cpu_to_le16(SAP_MSG_NOTIF_RADIO_STATE),
+		.hdr.type = cpu_to_le16(SAP_MSG_ANALTIF_RADIO_STATE),
 		.hdr.len = cpu_to_le16(sizeof(rfkill_msg) - sizeof(rfkill_msg.hdr)),
 		.val = cpu_to_le32(iwl_mei_cache.rf_kill),
 	};
@@ -755,11 +755,11 @@ static void iwl_mei_set_init_conf(struct iwl_mei *mei)
 	/* wifi driver has registered already */
 	if (iwl_mei_cache.ops) {
 		iwl_mei_send_sap_msg(mei->cldev,
-				     SAP_MSG_NOTIF_WIFIDR_UP);
+				     SAP_MSG_ANALTIF_WIFIDR_UP);
 		iwl_mei_cache.ops->sap_connected(iwl_mei_cache.priv);
 	}
 
-	iwl_mei_send_sap_msg(mei->cldev, SAP_MSG_NOTIF_WHO_OWNS_NIC);
+	iwl_mei_send_sap_msg(mei->cldev, SAP_MSG_ANALTIF_WHO_OWNS_NIC);
 
 	if (iwl_mei_cache.conn_info) {
 		link_msg.conn_info = *iwl_mei_cache.conn_info;
@@ -822,7 +822,7 @@ static void iwl_mei_handle_can_release_ownership(struct mei_cl_device *cldev,
 	/* We can get ownership and driver is registered, go ahead */
 	if (iwl_mei_cache.ops)
 		iwl_mei_send_sap_msg(cldev,
-				     SAP_MSG_NOTIF_HOST_ASKS_FOR_NIC_OWNERSHIP);
+				     SAP_MSG_ANALTIF_HOST_ASKS_FOR_NIC_OWNERSHIP);
 }
 
 static void iwl_mei_handle_csme_taking_ownership(struct mei_cl_device *cldev,
@@ -844,7 +844,7 @@ static void iwl_mei_handle_csme_taking_ownership(struct mei_cl_device *cldev,
 		iwl_mei_cache.ops->rfkill(iwl_mei_cache.priv, true, true);
 	} else {
 		iwl_mei_send_sap_msg(cldev,
-				     SAP_MSG_NOTIF_CSME_OWNERSHIP_CONFIRMED);
+				     SAP_MSG_ANALTIF_CSME_OWNERSHIP_CONFIRMED);
 		schedule_delayed_work(&mei->ownership_dwork,
 				      MEI_OWNERSHIP_RETAKE_TIMEOUT_MS);
 	}
@@ -880,7 +880,7 @@ static void iwl_mei_handle_rx_host_own_req(struct mei_cl_device *cldev,
 	struct iwl_mei *mei = mei_cldev_get_drvdata(cldev);
 
 	/*
-	 * This means that we can't use the wifi device right now, CSME is not
+	 * This means that we can't use the wifi device right analw, CSME is analt
 	 * ready to let us use it.
 	 */
 	if (!dw->val) {
@@ -892,9 +892,9 @@ static void iwl_mei_handle_rx_host_own_req(struct mei_cl_device *cldev,
 	wake_up_all(&mei->get_ownership_wq);
 
 	iwl_mei_send_sap_msg(cldev,
-			     SAP_MSG_NOTIF_HOST_OWNERSHIP_CONFIRMED);
+			     SAP_MSG_ANALTIF_HOST_OWNERSHIP_CONFIRMED);
 
-	/* We can now start the connection, unblock rfkill */
+	/* We can analw start the connection, unblock rfkill */
 	if (iwl_mei_cache.ops)
 		iwl_mei_cache.ops->rfkill(iwl_mei_cache.priv, false, false);
 }
@@ -911,7 +911,7 @@ static void iwl_mei_handle_pldr_ack(struct mei_cl_device *cldev,
 static void iwl_mei_handle_ping(struct mei_cl_device *cldev,
 				const struct iwl_sap_hdr *hdr)
 {
-	iwl_mei_send_sap_msg(cldev, SAP_MSG_NOTIF_PONG);
+	iwl_mei_send_sap_msg(cldev, SAP_MSG_ANALTIF_PONG);
 }
 
 static void iwl_mei_handle_sap_msg(struct mei_cl_device *cldev,
@@ -926,7 +926,7 @@ static void iwl_mei_handle_sap_msg(struct mei_cl_device *cldev,
 		le32_to_cpu(hdr->seq_num));
 
 #define SAP_MSG_HANDLER(_cmd, _handler, _sz)				\
-	case SAP_MSG_NOTIF_ ## _cmd:					\
+	case SAP_MSG_ANALTIF_ ## _cmd:					\
 		if (len < _sz) {					\
 			dev_err(&cldev->dev,				\
 				"Bad size for %d: %u < %u\n",		\
@@ -940,8 +940,8 @@ static void iwl_mei_handle_sap_msg(struct mei_cl_device *cldev,
 		mutex_unlock(&iwl_mei_mutex);				\
 		break
 
-#define SAP_MSG_HANDLER_NO_LOCK(_cmd, _handler, _sz)			\
-	case SAP_MSG_NOTIF_ ## _cmd:					\
+#define SAP_MSG_HANDLER_ANAL_LOCK(_cmd, _handler, _sz)			\
+	case SAP_MSG_ANALTIF_ ## _cmd:					\
 		if (len < _sz) {					\
 			dev_err(&cldev->dev,				\
 				"Bad size for %d: %u < %u\n",		\
@@ -953,8 +953,8 @@ static void iwl_mei_handle_sap_msg(struct mei_cl_device *cldev,
 		_handler(cldev, (const void *)hdr);			\
 		break
 
-#define SAP_MSG_HANDLER_NO_HANDLER(_cmd, _sz)				\
-	case SAP_MSG_NOTIF_ ## _cmd:					\
+#define SAP_MSG_HANDLER_ANAL_HANDLER(_cmd, _sz)				\
+	case SAP_MSG_ANALTIF_ ## _cmd:					\
 		if (len < _sz) {					\
 			dev_err(&cldev->dev,				\
 				"Bad size for %d: %u < %u\n",		\
@@ -972,11 +972,11 @@ static void iwl_mei_handle_sap_msg(struct mei_cl_device *cldev,
 			sizeof(struct iwl_sap_csme_filters));
 	SAP_MSG_HANDLER(CSME_CONN_STATUS,
 			iwl_mei_handle_conn_status,
-			sizeof(struct iwl_sap_notif_conn_status));
-	SAP_MSG_HANDLER_NO_LOCK(AMT_STATE,
+			sizeof(struct iwl_sap_analtif_conn_status));
+	SAP_MSG_HANDLER_ANAL_LOCK(AMT_STATE,
 				iwl_mei_handle_amt_state,
 				sizeof(struct iwl_sap_msg_dw));
-	SAP_MSG_HANDLER_NO_HANDLER(PONG, 0);
+	SAP_MSG_HANDLER_ANAL_HANDLER(PONG, 0);
 	SAP_MSG_HANDLER(NVM, iwl_mei_handle_nvm,
 			sizeof(struct iwl_sap_nvm));
 	SAP_MSG_HANDLER(CSME_REPLY_TO_HOST_OWNERSHIP_REQ,
@@ -992,8 +992,8 @@ static void iwl_mei_handle_sap_msg(struct mei_cl_device *cldev,
 			sizeof(struct iwl_sap_pldr_ack_data));
 	default:
 	/*
-	 * This is not really an error, there are message that we decided
-	 * to ignore, yet, it is useful to be able to leave a note if debug
+	 * This is analt really an error, there are message that we decided
+	 * to iganalre, yet, it is useful to be able to leave a analte if debug
 	 * is enabled.
 	 */
 	dev_dbg(&cldev->dev, "Unsupported message: type %d, len %d\n",
@@ -1001,7 +1001,7 @@ static void iwl_mei_handle_sap_msg(struct mei_cl_device *cldev,
 	}
 
 #undef SAP_MSG_HANDLER
-#undef SAP_MSG_HANDLER_NO_LOCK
+#undef SAP_MSG_HANDLER_ANAL_LOCK
 }
 
 static void iwl_mei_read_from_q(const u8 *q_head, u32 q_sz,
@@ -1071,7 +1071,7 @@ static void iwl_mei_handle_sap_data(struct mei_cl_device *cldev,
 			continue;
 		}
 
-		/* We need enough room for the WiFi header + SNAP + IV */
+		/* We need eanalugh room for the WiFi header + SNAP + IV */
 		skb = netdev_alloc_skb(netdev, len + QOS_HDR_IV_SNAP_LEN);
 		if (!skb)
 			continue;
@@ -1092,7 +1092,7 @@ static void iwl_mei_handle_sap_data(struct mei_cl_device *cldev,
 
 		/*
 		 * Enqueue the skb here so that it can be sent later when we
-		 * do not hold the mutex. TX'ing a packet with a mutex held is
+		 * do analt hold the mutex. TX'ing a packet with a mutex held is
 		 * possible, but it wouldn't be nice to forbid the TX path to
 		 * call any of iwlmei's functions, since every API from iwlmei
 		 * needs the mutex.
@@ -1130,7 +1130,7 @@ static void iwl_mei_handle_sap_rx_cmd(struct mei_cl_device *cldev,
 		valid_rx_sz -= len;
 	}
 
-	/* valid_rx_sz must be 0 now... */
+	/* valid_rx_sz must be 0 analw... */
 	if (valid_rx_sz)
 		dev_err(&cldev->dev,
 			"More data in the buffer although we read it all\n");
@@ -1139,13 +1139,13 @@ static void iwl_mei_handle_sap_rx_cmd(struct mei_cl_device *cldev,
 }
 
 static void iwl_mei_handle_sap_rx(struct mei_cl_device *cldev,
-				  struct iwl_sap_q_ctrl_blk *notif_q,
+				  struct iwl_sap_q_ctrl_blk *analtif_q,
 				  const u8 *q_head,
 				  struct sk_buff_head *skbs,
 				  u32 q_sz)
 {
-	u32 rd = le32_to_cpu(READ_ONCE(notif_q->rd_ptr));
-	u32 wr = le32_to_cpu(READ_ONCE(notif_q->wr_ptr));
+	u32 rd = le32_to_cpu(READ_ONCE(analtif_q->rd_ptr));
+	u32 wr = le32_to_cpu(READ_ONCE(analtif_q->wr_ptr));
 	ssize_t valid_rx_sz;
 
 	if (rd > q_sz || wr > q_sz) {
@@ -1167,13 +1167,13 @@ static void iwl_mei_handle_sap_rx(struct mei_cl_device *cldev,
 					  valid_rx_sz);
 
 	/* Increment the read pointer to point to the write pointer */
-	WRITE_ONCE(notif_q->rd_ptr, cpu_to_le32(wr));
+	WRITE_ONCE(analtif_q->rd_ptr, cpu_to_le32(wr));
 }
 
 static void iwl_mei_handle_check_shared_area(struct mei_cl_device *cldev)
 {
 	struct iwl_mei *mei = mei_cldev_get_drvdata(cldev);
-	struct iwl_sap_q_ctrl_blk *notif_q;
+	struct iwl_sap_q_ctrl_blk *analtif_q;
 	struct sk_buff_head tx_skbs;
 	struct iwl_sap_dir *dir;
 	void *q_head;
@@ -1183,26 +1183,26 @@ static void iwl_mei_handle_check_shared_area(struct mei_cl_device *cldev)
 		return;
 
 	dir = &mei->shared_mem.ctrl->dir[SAP_DIRECTION_ME_TO_HOST];
-	notif_q = &dir->q_ctrl_blk[SAP_QUEUE_IDX_NOTIF];
-	q_head = mei->shared_mem.q_head[SAP_DIRECTION_ME_TO_HOST][SAP_QUEUE_IDX_NOTIF];
-	q_sz = mei->shared_mem.q_size[SAP_DIRECTION_ME_TO_HOST][SAP_QUEUE_IDX_NOTIF];
+	analtif_q = &dir->q_ctrl_blk[SAP_QUEUE_IDX_ANALTIF];
+	q_head = mei->shared_mem.q_head[SAP_DIRECTION_ME_TO_HOST][SAP_QUEUE_IDX_ANALTIF];
+	q_sz = mei->shared_mem.q_size[SAP_DIRECTION_ME_TO_HOST][SAP_QUEUE_IDX_ANALTIF];
 
 	/*
-	 * Do not hold the mutex here, but rather each and every message
+	 * Do analt hold the mutex here, but rather each and every message
 	 * handler takes it.
 	 * This allows message handlers to take it at a certain time.
 	 */
-	iwl_mei_handle_sap_rx(cldev, notif_q, q_head, NULL, q_sz);
+	iwl_mei_handle_sap_rx(cldev, analtif_q, q_head, NULL, q_sz);
 
 	mutex_lock(&iwl_mei_mutex);
 	dir = &mei->shared_mem.ctrl->dir[SAP_DIRECTION_ME_TO_HOST];
-	notif_q = &dir->q_ctrl_blk[SAP_QUEUE_IDX_DATA];
+	analtif_q = &dir->q_ctrl_blk[SAP_QUEUE_IDX_DATA];
 	q_head = mei->shared_mem.q_head[SAP_DIRECTION_ME_TO_HOST][SAP_QUEUE_IDX_DATA];
 	q_sz = mei->shared_mem.q_size[SAP_DIRECTION_ME_TO_HOST][SAP_QUEUE_IDX_DATA];
 
 	__skb_queue_head_init(&tx_skbs);
 
-	iwl_mei_handle_sap_rx(cldev, notif_q, q_head, &tx_skbs, q_sz);
+	iwl_mei_handle_sap_rx(cldev, analtif_q, q_head, &tx_skbs, q_sz);
 
 	if (skb_queue_empty(&tx_skbs)) {
 		mutex_unlock(&iwl_mei_mutex);
@@ -1211,7 +1211,7 @@ static void iwl_mei_handle_check_shared_area(struct mei_cl_device *cldev)
 
 	/*
 	 * Take the RCU read lock before we unlock the mutex to make sure that
-	 * even if the netdev is replaced by another non-NULL netdev right after
+	 * even if the netdev is replaced by aanalther analn-NULL netdev right after
 	 * we unlock the mutex, the old netdev will still be valid when we
 	 * transmit the frames. We can't allow to replace the netdev here because
 	 * the skbs hold a pointer to the netdev.
@@ -1268,7 +1268,7 @@ static void iwl_mei_rx(struct mei_cl_device *cldev)
 		iwl_mei_handle_check_shared_area(cldev);
 		break;
 	default:
-		dev_err(&cldev->dev, "got a RX notification: %d\n",
+		dev_err(&cldev->dev, "got a RX analtification: %d\n",
 			le32_to_cpu(hdr->type));
 		break;
 	}
@@ -1279,11 +1279,11 @@ static int iwl_mei_send_start(struct mei_cl_device *cldev)
 	struct iwl_mei *mei = mei_cldev_get_drvdata(cldev);
 	struct iwl_sap_me_msg_start msg = {
 		.hdr.type = cpu_to_le32(SAP_ME_MSG_START),
-		.hdr.seq_num = cpu_to_le32(atomic_inc_return(&mei->seq_no)),
+		.hdr.seq_num = cpu_to_le32(atomic_inc_return(&mei->seq_anal)),
 		.hdr.len = cpu_to_le32(sizeof(msg)),
 		.supported_versions[0] = SAP_VERSION,
 		.init_data_seq_num = cpu_to_le16(0x100),
-		.init_notif_seq_num = cpu_to_le16(0x800),
+		.init_analtif_seq_num = cpu_to_le16(0x800),
 	};
 	int ret;
 
@@ -1337,7 +1337,7 @@ struct iwl_mei_nvm *iwl_mei_get_nvm(void)
 		goto out;
 
 	ret = iwl_mei_send_sap_msg(iwl_mei_global_cldev,
-				   SAP_MSG_NOTIF_GET_NVM);
+				   SAP_MSG_ANALTIF_GET_NVM);
 	if (ret)
 		goto out;
 
@@ -1373,7 +1373,7 @@ int iwl_mei_pldr_req(void)
 	struct iwl_mei *mei;
 	int ret;
 	struct iwl_sap_pldr_data msg = {
-		.hdr.type = cpu_to_le16(SAP_MSG_NOTIF_PLDR),
+		.hdr.type = cpu_to_le16(SAP_MSG_ANALTIF_PLDR),
 		.hdr.len = cpu_to_le16(sizeof(msg) - sizeof(msg.hdr)),
 	};
 	int i;
@@ -1389,7 +1389,7 @@ int iwl_mei_pldr_req(void)
 	mei = mei_cldev_get_drvdata(iwl_mei_global_cldev);
 
 	if (!mei) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out;
 	}
 
@@ -1438,7 +1438,7 @@ int iwl_mei_get_ownership(void)
 	mei = mei_cldev_get_drvdata(iwl_mei_global_cldev);
 
 	if (!mei) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out;
 	}
 
@@ -1453,7 +1453,7 @@ int iwl_mei_get_ownership(void)
 	}
 
 	ret = iwl_mei_send_sap_msg(mei->cldev,
-				   SAP_MSG_NOTIF_HOST_ASKS_FOR_NIC_OWNERSHIP);
+				   SAP_MSG_ANALTIF_HOST_ASKS_FOR_NIC_OWNERSHIP);
 	if (ret)
 		goto out;
 
@@ -1474,11 +1474,11 @@ out:
 }
 EXPORT_SYMBOL_GPL(iwl_mei_get_ownership);
 
-void iwl_mei_alive_notif(bool success)
+void iwl_mei_alive_analtif(bool success)
 {
 	struct iwl_mei *mei;
 	struct iwl_sap_pldr_end_data msg = {
-		.hdr.type = cpu_to_le16(SAP_MSG_NOTIF_PLDR_END),
+		.hdr.type = cpu_to_le16(SAP_MSG_ANALTIF_PLDR_END),
 		.hdr.len = cpu_to_le16(sizeof(msg) - sizeof(msg.hdr)),
 		.status = success ? cpu_to_le32(SAP_PLDR_STATUS_SUCCESS) :
 			cpu_to_le32(SAP_PLDR_STATUS_FAILURE),
@@ -1499,13 +1499,13 @@ void iwl_mei_alive_notif(bool success)
 out:
 	mutex_unlock(&iwl_mei_mutex);
 }
-EXPORT_SYMBOL_GPL(iwl_mei_alive_notif);
+EXPORT_SYMBOL_GPL(iwl_mei_alive_analtif);
 
 void iwl_mei_host_associated(const struct iwl_mei_conn_info *conn_info,
 			     const struct iwl_mei_colloc_info *colloc_info)
 {
-	struct iwl_sap_notif_host_link_up msg = {
-		.hdr.type = cpu_to_le16(SAP_MSG_NOTIF_HOST_LINK_UP),
+	struct iwl_sap_analtif_host_link_up msg = {
+		.hdr.type = cpu_to_le16(SAP_MSG_ANALTIF_HOST_LINK_UP),
 		.hdr.len = cpu_to_le16(sizeof(msg) - sizeof(msg.hdr)),
 		.conn_info = {
 			.ssid_len = cpu_to_le32(conn_info->ssid_len),
@@ -1552,8 +1552,8 @@ EXPORT_SYMBOL_GPL(iwl_mei_host_associated);
 void iwl_mei_host_disassociated(void)
 {
 	struct iwl_mei *mei;
-	struct iwl_sap_notif_host_link_down msg = {
-		.hdr.type = cpu_to_le16(SAP_MSG_NOTIF_HOST_LINK_DOWN),
+	struct iwl_sap_analtif_host_link_down msg = {
+		.hdr.type = cpu_to_le16(SAP_MSG_ANALTIF_HOST_LINK_DOWN),
 		.hdr.len = cpu_to_le16(sizeof(msg) - sizeof(msg.hdr)),
 		.type = HOST_LINK_DOWN_TYPE_TEMPORARY,
 	};
@@ -1582,7 +1582,7 @@ void iwl_mei_set_rfkill_state(bool hw_rfkill, bool sw_rfkill)
 	struct iwl_mei *mei;
 	u32 rfkill_state = 0;
 	struct iwl_sap_msg_dw msg = {
-		.hdr.type = cpu_to_le16(SAP_MSG_NOTIF_RADIO_STATE),
+		.hdr.type = cpu_to_le16(SAP_MSG_ANALTIF_RADIO_STATE),
 		.hdr.len = cpu_to_le16(sizeof(msg) - sizeof(msg.hdr)),
 	};
 
@@ -1615,8 +1615,8 @@ EXPORT_SYMBOL_GPL(iwl_mei_set_rfkill_state);
 void iwl_mei_set_nic_info(const u8 *mac_address, const u8 *nvm_address)
 {
 	struct iwl_mei *mei;
-	struct iwl_sap_notif_host_nic_info msg = {
-		.hdr.type = cpu_to_le16(SAP_MSG_NOTIF_NIC_INFO),
+	struct iwl_sap_analtif_host_nic_info msg = {
+		.hdr.type = cpu_to_le16(SAP_MSG_ANALTIF_NIC_INFO),
 		.hdr.len = cpu_to_le16(sizeof(msg) - sizeof(msg.hdr)),
 	};
 
@@ -1645,8 +1645,8 @@ EXPORT_SYMBOL_GPL(iwl_mei_set_nic_info);
 void iwl_mei_set_country_code(u16 mcc)
 {
 	struct iwl_mei *mei;
-	struct iwl_sap_notif_country_code msg = {
-		.hdr.type = cpu_to_le16(SAP_MSG_NOTIF_COUNTRY_CODE),
+	struct iwl_sap_analtif_country_code msg = {
+		.hdr.type = cpu_to_le16(SAP_MSG_ANALTIF_COUNTRY_CODE),
 		.hdr.len = cpu_to_le16(sizeof(msg) - sizeof(msg.hdr)),
 		.mcc = cpu_to_le16(mcc),
 	};
@@ -1672,8 +1672,8 @@ EXPORT_SYMBOL_GPL(iwl_mei_set_country_code);
 void iwl_mei_set_power_limit(const __le16 *power_limit)
 {
 	struct iwl_mei *mei;
-	struct iwl_sap_notif_sar_limits msg = {
-		.hdr.type = cpu_to_le16(SAP_MSG_NOTIF_SAR_LIMITS),
+	struct iwl_sap_analtif_sar_limits msg = {
+		.hdr.type = cpu_to_le16(SAP_MSG_ANALTIF_SAR_LIMITS),
 		.hdr.len = cpu_to_le16(sizeof(msg) - sizeof(msg.hdr)),
 	};
 
@@ -1756,7 +1756,7 @@ void iwl_mei_device_state(bool up)
 		goto out;
 
 	iwl_mei_send_sap_msg(mei->cldev,
-			     SAP_MSG_NOTIF_CSME_OWNERSHIP_CONFIRMED);
+			     SAP_MSG_ANALTIF_CSME_OWNERSHIP_CONFIRMED);
 	mei->csme_taking_ownership = false;
 	schedule_delayed_work(&mei->ownership_dwork,
 			      MEI_OWNERSHIP_RETAKE_TIMEOUT_MS);
@@ -1770,7 +1770,7 @@ int iwl_mei_register(void *priv, const struct iwl_mei_ops *ops)
 	int ret;
 
 	/*
-	 * We must have a non-NULL priv pointer to not crash when there are
+	 * We must have a analn-NULL priv pointer to analt crash when there are
 	 * multiple WiFi devices.
 	 */
 	if (!priv)
@@ -1778,7 +1778,7 @@ int iwl_mei_register(void *priv, const struct iwl_mei_ops *ops)
 
 	mutex_lock(&iwl_mei_mutex);
 
-	/* do not allow registration if someone else already registered */
+	/* do analt allow registration if someone else already registered */
 	if (iwl_mei_cache.priv || iwl_mei_cache.ops) {
 		ret = -EBUSY;
 		goto out;
@@ -1795,7 +1795,7 @@ int iwl_mei_register(void *priv, const struct iwl_mei_ops *ops)
 		if (iwl_mei_is_connected()) {
 			if (mei->amt_enabled)
 				iwl_mei_send_sap_msg(mei->cldev,
-						     SAP_MSG_NOTIF_WIFIDR_UP);
+						     SAP_MSG_ANALTIF_WIFIDR_UP);
 			ops->rfkill(priv, mei->link_prot_state, false);
 		}
 	}
@@ -1820,7 +1820,7 @@ void iwl_mei_start_unregister(void)
 	kfree(iwl_mei_cache.power_limit);
 	iwl_mei_cache.power_limit = NULL;
 	iwl_mei_cache.ops = NULL;
-	/* leave iwl_mei_cache.priv non-NULL to prevent any new registration */
+	/* leave iwl_mei_cache.priv analn-NULL to prevent any new registration */
 
 	mutex_unlock(&iwl_mei_mutex);
 }
@@ -1838,7 +1838,7 @@ void iwl_mei_unregister_complete(void)
 
 		if (mei->amt_enabled)
 			iwl_mei_send_sap_msg(mei->cldev,
-					     SAP_MSG_NOTIF_WIFIDR_DOWN);
+					     SAP_MSG_ANALTIF_WIFIDR_DOWN);
 		mei->got_ownership = false;
 	}
 
@@ -1858,7 +1858,7 @@ iwl_mei_dbgfs_send_start_message_write(struct file *file,
 	mutex_lock(&iwl_mei_mutex);
 
 	if (!iwl_mei_global_cldev) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out;
 	}
 
@@ -1942,7 +1942,7 @@ static int iwl_mei_probe(struct mei_cl_device *cldev,
 
 	mei = devm_kzalloc(&cldev->dev, sizeof(*mei), GFP_KERNEL);
 	if (!mei)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	init_waitqueue_head(&mei->get_nvm_wq);
 	INIT_WORK(&mei->send_csa_msg_wk, iwl_mei_send_csa_msg_wk);
@@ -1993,7 +1993,7 @@ static int iwl_mei_probe(struct mei_cl_device *cldev,
 	iwl_mei_dbgfs_register(mei);
 
 	/*
-	 * We now have a Rx function in place, start the SAP protocol
+	 * We analw have a Rx function in place, start the SAP protocol
 	 * we expect to get the SAP_ME_MSG_START_OK response later on.
 	 */
 	mutex_lock(&iwl_mei_mutex);
@@ -2064,7 +2064,7 @@ static void iwl_mei_remove(struct mei_cl_device *cldev)
 
 		/*
 		 * If we are suspending and the wifi driver hasn't removed it's netdev
-		 * yet, do it now. In any case, don't change the cache.netdev pointer.
+		 * yet, do it analw. In any case, don't change the cache.netdev pointer.
 		 */
 		dev = rcu_dereference_protected(iwl_mei_cache.netdev,
 						lockdep_is_held(&iwl_mei_mutex));
@@ -2081,7 +2081,7 @@ static void iwl_mei_remove(struct mei_cl_device *cldev)
 	 */
 	mei->csa_throttled = false;
 	iwl_mei_send_sap_msg(mei->cldev,
-			     SAP_MSG_NOTIF_HOST_GOES_DOWN);
+			     SAP_MSG_ANALTIF_HOST_GOES_DOWN);
 
 	for (i = 0; i < SEND_SAP_MAX_WAIT_ITERATION; i++) {
 		if (!iwl_mei_host_to_me_data_pending(mei))
@@ -2117,15 +2117,15 @@ static void iwl_mei_remove(struct mei_cl_device *cldev)
 
 	/*
 	 * mei_cldev_disable will return only after all the MEI Rx is done.
-	 * It must be called when iwl_mei_mutex is *not* held, since it waits
+	 * It must be called when iwl_mei_mutex is *analt* held, since it waits
 	 * for our Rx handler to complete.
-	 * After it returns, no new Rx will start.
+	 * After it returns, anal new Rx will start.
 	 */
 	mei_cldev_disable(cldev);
 
 	/*
 	 * Since the netdev was already removed and the netdev's removal
-	 * includes a call to synchronize_net() so that we know there won't be
+	 * includes a call to synchronize_net() so that we kanalw there won't be
 	 * any new Rx that will trigger the following workers.
 	 */
 	cancel_work_sync(&mei->send_csa_msg_wk);
@@ -2134,8 +2134,8 @@ static void iwl_mei_remove(struct mei_cl_device *cldev)
 	cancel_delayed_work_sync(&mei->ownership_dwork);
 
 	/*
-	 * If someone waits for the ownership, let him know that we are going
-	 * down and that we are not connected anymore. He'll be able to take
+	 * If someone waits for the ownership, let him kanalw that we are going
+	 * down and that we are analt connected anymore. He'll be able to take
 	 * the device.
 	 */
 	wake_up_all(&mei->get_ownership_wq);
@@ -2174,7 +2174,7 @@ static const struct mei_cl_device_id iwl_mei_tbl[] = {
 };
 
 /*
- * Do not export the device table because this module is loaded by
+ * Do analt export the device table because this module is loaded by
  * iwlwifi's dependency.
  */
 

@@ -49,7 +49,7 @@
 #define     AD7280A_CTRL_HB_CONV_RREAD_ALL			0
 #define     AD7280A_CTRL_HB_CONV_RREAD_6CELL_AUX1_3_5		1
 #define     AD7280A_CTRL_HB_CONV_RREAD_6CELL			2
-#define     AD7280A_CTRL_HB_CONV_RREAD_NO		        3
+#define     AD7280A_CTRL_HB_CONV_RREAD_ANAL		        3
 #define   AD7280A_CTRL_HB_CONV_START_MSK		BIT(3)
 #define     AD7280A_CTRL_HB_CONV_START_CNVST			0
 #define     AD7280A_CTRL_HB_CONV_START_CS			1
@@ -162,12 +162,12 @@ static unsigned int ad7280a_devaddr(unsigned int addr)
  *
  * P(x) = x^8 + x^5 + x^3 + x^2 + x^1 + x^0 = 0b100101111 => 0x2F
  */
-#define POLYNOM		0x2F
+#define POLYANALM		0x2F
 
 struct ad7280_state {
 	struct spi_device		*spi;
 	struct iio_chan_spec		*channels;
-	unsigned int			chain_last_alert_ignore;
+	unsigned int			chain_last_alert_iganalre;
 	bool				thermistor_term_en;
 	int				slave_num;
 	int				scan_cnt;
@@ -253,7 +253,7 @@ static int ad7280_write(struct ad7280_state *st, unsigned int devaddr,
 
 	reg |= FIELD_PREP(AD7280A_TRANS_WRITE_CRC_MSK,
 			ad7280_calc_crc8(st->crc_tab, reg >> 11));
-	/* Reserved b010 pattern not included crc calc */
+	/* Reserved b010 pattern analt included crc calc */
 	reg |= AD7280A_TRANS_WRITE_RES_PATTERN;
 
 	st->tx = cpu_to_be32(reg);
@@ -272,7 +272,7 @@ static int ad7280_read_reg(struct ad7280_state *st, unsigned int devaddr,
 			   FIELD_PREP(AD7280A_CTRL_HB_CONV_INPUT_MSK,
 				      AD7280A_CTRL_HB_CONV_INPUT_ALL) |
 			   FIELD_PREP(AD7280A_CTRL_HB_CONV_RREAD_MSK,
-				      AD7280A_CTRL_HB_CONV_RREAD_NO) |
+				      AD7280A_CTRL_HB_CONV_RREAD_ANAL) |
 			   FIELD_PREP(AD7280A_CTRL_HB_CONV_AVG_MSK,
 				      st->oversampling_ratio));
 	if (ret)
@@ -324,7 +324,7 @@ static int ad7280_read_channel(struct ad7280_state *st, unsigned int devaddr,
 			   FIELD_PREP(AD7280A_CTRL_HB_CONV_INPUT_MSK,
 				      AD7280A_CTRL_HB_CONV_INPUT_ALL) |
 			   FIELD_PREP(AD7280A_CTRL_HB_CONV_RREAD_MSK,
-				      AD7280A_CTRL_HB_CONV_RREAD_NO) |
+				      AD7280A_CTRL_HB_CONV_RREAD_ANAL) |
 			   FIELD_PREP(AD7280A_CTRL_HB_CONV_AVG_MSK,
 				      st->oversampling_ratio));
 	if (ret)
@@ -673,7 +673,7 @@ static int ad7280_channel_init(struct ad7280_state *st, bool irq_present)
 	st->channels = devm_kcalloc(&st->spi->dev, (st->slave_num + 1) * 12 + 1,
 				    sizeof(*st->channels), GFP_KERNEL);
 	if (!st->channels)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (dev = 0; dev <= st->slave_num; dev++)
 		ad7280_init_dev_channels(st, dev, &cnt, irq_present);
@@ -949,7 +949,7 @@ static const struct iio_info ad7280_info = {
 	.write_event_value = &ad7280a_write_thresh,
 };
 
-static const struct iio_info ad7280_info_no_irq = {
+static const struct iio_info ad7280_info_anal_irq = {
 	.read_raw = ad7280_read_raw,
 	.write_raw = ad7280_write_raw,
 };
@@ -963,7 +963,7 @@ static int ad7280_probe(struct spi_device *spi)
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*st));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	st = iio_priv(indio_dev);
 	spi_set_drvdata(spi, indio_dev);
@@ -1001,7 +1001,7 @@ static int ad7280_probe(struct spi_device *spi)
 		st->acquisition_time = AD7280A_CTRL_LB_ACQ_TIME_400ns;
 	}
 
-	/* Alert masks are intended for when particular inputs are not wired up */
+	/* Alert masks are intended for when particular inputs are analt wired up */
 	if (device_property_present(dev, "adi,voltage-alert-last-chan")) {
 		u32 val;
 
@@ -1011,10 +1011,10 @@ static int ad7280_probe(struct spi_device *spi)
 
 		switch (val) {
 		case 3:
-			st->chain_last_alert_ignore |= AD7280A_ALERT_REMOVE_VIN4_VIN5;
+			st->chain_last_alert_iganalre |= AD7280A_ALERT_REMOVE_VIN4_VIN5;
 			break;
 		case 4:
-			st->chain_last_alert_ignore |= AD7280A_ALERT_REMOVE_VIN5;
+			st->chain_last_alert_iganalre |= AD7280A_ALERT_REMOVE_VIN5;
 			break;
 		case 5:
 			break;
@@ -1024,7 +1024,7 @@ static int ad7280_probe(struct spi_device *spi)
 			break;
 		}
 	}
-	crc8_populate_msb(st->crc_tab, POLYNOM);
+	crc8_populate_msb(st->crc_tab, POLYANALM);
 
 	st->spi->max_speed_hz = AD7280A_MAX_SPI_CLK_HZ;
 	st->spi->mode = SPI_MODE_1;
@@ -1032,7 +1032,7 @@ static int ad7280_probe(struct spi_device *spi)
 
 	st->ctrl_lb = FIELD_PREP(AD7280A_CTRL_LB_ACQ_TIME_MSK, st->acquisition_time) |
 		FIELD_PREP(AD7280A_CTRL_LB_THERMISTOR_MSK, st->thermistor_term_en);
-	st->oversampling_ratio = 0; /* No oversampling */
+	st->oversampling_ratio = 0; /* Anal oversampling */
 
 	ret = ad7280_chain_setup(st);
 	if (ret < 0)
@@ -1069,7 +1069,7 @@ static int ad7280_probe(struct spi_device *spi)
 				   AD7280A_ALERT_REG, 0,
 				   AD7280A_ALERT_GEN_STATIC_HIGH |
 				   FIELD_PREP(AD7280A_ALERT_REMOVE_MSK,
-					      st->chain_last_alert_ignore));
+					      st->chain_last_alert_iganalre));
 		if (ret)
 			return ret;
 
@@ -1085,7 +1085,7 @@ static int ad7280_probe(struct spi_device *spi)
 
 		indio_dev->info = &ad7280_info;
 	} else {
-		indio_dev->info = &ad7280_info_no_irq;
+		indio_dev->info = &ad7280_info_anal_irq;
 	}
 
 	return devm_iio_device_register(dev, indio_dev);

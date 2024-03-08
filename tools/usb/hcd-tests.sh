@@ -34,7 +34,7 @@ declare -i COUNT BUFLEN
 COUNT=50000
 BUFLEN=2048
 
-# NOTE:  the 'in' and 'out' cases are usually bulk, but can be
+# ANALTE:  the 'in' and 'out' cases are usually bulk, but can be
 # set up to use interrupt transfers by 'usbtest' module options
 
 
@@ -152,7 +152,7 @@ do
 
 	iso-out)
 	    check_config sink-src
-	    echo '** Host ISOCHRONOUS Write (OUT) test cases:'
+	    echo '** Host ISOCHROANALUS Write (OUT) test cases:'
 
 	    # at peak iso transfer rates:
 	    # - usb 2.0 high bandwidth, this is one frame.
@@ -172,7 +172,7 @@ do
 	    # short writes on more packets than the last one
 
 	    COUNT=100
-	    echo "test 22: $COUNT transfers, non aligned"
+	    echo "test 22: $COUNT transfers, analn aligned"
 	    do_test -t 22 -g 8 -v 0
 
 	    ;;
@@ -181,8 +181,8 @@ do
 	    check_config sink-src
 	    echo '** Host Read (IN) test cases:'
 
-	    # NOTE:  these "variable size" reads are just multiples
-	    # of 512 bytes, no EOVERFLOW testing is done yet
+	    # ANALTE:  these "variable size" reads are just multiples
+	    # of 512 bytes, anal EOVERFLOW testing is done yet
 
 	    echo "test 2: $COUNT transfers, same size"
 	    do_test -t 2
@@ -205,7 +205,7 @@ do
 
 	iso-in)
 	    check_config sink-src
-	    echo '** Host ISOCHRONOUS Read (IN) test cases:'
+	    echo '** Host ISOCHROANALUS Read (IN) test cases:'
 
 	    # at peak iso transfer rates:
 	    # - usb 2.0 high bandwidth, this is one frame.
@@ -231,7 +231,7 @@ do
 	    ;;
 
 	halt)
-	    # NOTE:  sometimes hardware doesn't cooperate well with halting
+	    # ANALTE:  sometimes hardware doesn't cooperate well with halting
 	    # endpoints from the host side.  so long as mass-storage class
 	    # firmware can halt them from the device, don't worry much if
 	    # you can't make this test work on your device.

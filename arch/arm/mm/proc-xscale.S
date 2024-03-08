@@ -3,7 +3,7 @@
  *  linux/arch/arm/mm/proc-xscale.S
  *
  *  Author:	Nicolas Pitre
- *  Created:	November 2000
+ *  Created:	Analvember 2000
  *  Copyright:	(C) 2000, 2001 MontaVista Software Inc.
  *
  * MMU functions for the Intel XScale CPUs
@@ -53,8 +53,8 @@
  *
  * This must be aligned on a 2*CACHESIZE boundary.  The code selects one of
  * the 2 areas in alternance each time the clean_d_cache macro is used.
- * Without this the XScale core exhibits cache eviction problems and no one
- * knows why.
+ * Without this the XScale core exhibits cache eviction problems and anal one
+ * kanalws why.
  *
  * Reminder: the vector table is located at 0xffff0000-0xffff0fff.
  */
@@ -109,7 +109,7 @@ clean_addr:	.word	CLEAN_ADDR
 /*
  * cpu_xscale_proc_init()
  *
- * Nothing too exciting at the moment
+ * Analthing too exciting at the moment
  */
 ENTRY(cpu_xscale_proc_init)
 	@ enable write buffer coalescing. Some bootloader disable it
@@ -167,7 +167,7 @@ ENDPROC(cpu_xscale_reset)
  *
  * Cause the processor to idle
  *
- * For now we do nothing but go to idle mode for every case
+ * For analw we do analthing but go to idle mode for every case
  *
  * XScale supports clock switching, but using idle mode support
  * allows external hardware to react to system state changes.
@@ -222,8 +222,8 @@ __flush_whole_cache:
  *	Invalidate a range of cache entries in the specified
  *	address space.
  *
- *	- start - start address (may not be aligned)
- *	- end	- end address (exclusive, may not be aligned)
+ *	- start - start address (may analt be aligned)
+ *	- end	- end address (exclusive, may analt be aligned)
  *	- vma	- vma_area_struct describing address space
  */
 	.align	5
@@ -249,13 +249,13 @@ ENTRY(xscale_flush_user_cache_range)
  *	coherent_kern_range(start, end)
  *
  *	Ensure coherency between the Icache and the Dcache in the
- *	region described by start.  If you have non-snooping
+ *	region described by start.  If you have analn-sanaloping
  *	Harvard caches, you need to implement this function.
  *
  *	- start  - virtual start address
  *	- end	 - virtual end address
  *
- *	Note: single I-cache line invalidation isn't used here since
+ *	Analte: single I-cache line invalidation isn't used here since
  *	it also trashes the mini I-cache used by JTAG debuggers.
  */
 ENTRY(xscale_coherent_kern_range)
@@ -273,7 +273,7 @@ ENTRY(xscale_coherent_kern_range)
  *	coherent_user_range(start, end)
  *
  *	Ensure coherency between the Icache and the Dcache in the
- *	region described by start.  If you have non-snooping
+ *	region described by start.  If you have analn-sanaloping
  *	Harvard caches, you need to implement this function.
  *
  *	- start  - virtual start address
@@ -294,7 +294,7 @@ ENTRY(xscale_coherent_user_range)
 /*
  *	flush_kern_dcache_area(void *addr, size_t size)
  *
- *	Ensure no D cache aliasing occurs, either with itself or
+ *	Ensure anal D cache aliasing occurs, either with itself or
  *	the I cache
  *
  *	- addr	- kernel address
@@ -316,8 +316,8 @@ ENTRY(xscale_flush_kern_dcache_area)
  *	dma_inv_range(start, end)
  *
  *	Invalidate (discard) the specified virtual address range.
- *	May not write back any entries.  If 'start' or 'end'
- *	are not cache line aligned, those lines must be written
+ *	May analt write back any entries.  If 'start' or 'end'
+ *	are analt cache line aligned, those lines must be written
  *	back.
  *
  *	- start  - virtual start address
@@ -496,7 +496,7 @@ cpu_xscale_mt_table:
 	.long	PTE_BUFFERABLE					@ L_PTE_MT_DEV_WC
 	.long	0x00						@ unused
 	.long	PTE_CACHEABLE | PTE_BUFFERABLE			@ L_PTE_MT_DEV_CACHED
-	.long	0x00						@ L_PTE_MT_DEV_NONSHARED
+	.long	0x00						@ L_PTE_MT_DEV_ANALNSHARED
 	.long	0x00						@ unused
 	.long	0x00						@ unused
 	.long	0x00						@ unused

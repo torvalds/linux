@@ -8,36 +8,36 @@ MODULE_AUTHOR("Intel Corporation, <e1000-rdma@lists.sourceforge.net>");
 MODULE_DESCRIPTION("Intel(R) Ethernet Protocol Driver for RDMA");
 MODULE_LICENSE("Dual BSD/GPL");
 
-static struct notifier_block irdma_inetaddr_notifier = {
-	.notifier_call = irdma_inetaddr_event
+static struct analtifier_block irdma_inetaddr_analtifier = {
+	.analtifier_call = irdma_inetaddr_event
 };
 
-static struct notifier_block irdma_inetaddr6_notifier = {
-	.notifier_call = irdma_inet6addr_event
+static struct analtifier_block irdma_inetaddr6_analtifier = {
+	.analtifier_call = irdma_inet6addr_event
 };
 
-static struct notifier_block irdma_net_notifier = {
-	.notifier_call = irdma_net_event
+static struct analtifier_block irdma_net_analtifier = {
+	.analtifier_call = irdma_net_event
 };
 
-static struct notifier_block irdma_netdevice_notifier = {
-	.notifier_call = irdma_netdevice_event
+static struct analtifier_block irdma_netdevice_analtifier = {
+	.analtifier_call = irdma_netdevice_event
 };
 
-static void irdma_register_notifiers(void)
+static void irdma_register_analtifiers(void)
 {
-	register_inetaddr_notifier(&irdma_inetaddr_notifier);
-	register_inet6addr_notifier(&irdma_inetaddr6_notifier);
-	register_netevent_notifier(&irdma_net_notifier);
-	register_netdevice_notifier(&irdma_netdevice_notifier);
+	register_inetaddr_analtifier(&irdma_inetaddr_analtifier);
+	register_inet6addr_analtifier(&irdma_inetaddr6_analtifier);
+	register_netevent_analtifier(&irdma_net_analtifier);
+	register_netdevice_analtifier(&irdma_netdevice_analtifier);
 }
 
-static void irdma_unregister_notifiers(void)
+static void irdma_unregister_analtifiers(void)
 {
-	unregister_netevent_notifier(&irdma_net_notifier);
-	unregister_inetaddr_notifier(&irdma_inetaddr_notifier);
-	unregister_inet6addr_notifier(&irdma_inetaddr6_notifier);
-	unregister_netdevice_notifier(&irdma_netdevice_notifier);
+	unregister_netevent_analtifier(&irdma_net_analtifier);
+	unregister_inetaddr_analtifier(&irdma_inetaddr_analtifier);
+	unregister_inet6addr_analtifier(&irdma_inetaddr6_analtifier);
+	unregister_netdevice_analtifier(&irdma_netdevice_analtifier);
 }
 
 static void irdma_prep_tc_change(struct irdma_device *iwdev)
@@ -117,7 +117,7 @@ static void irdma_iidc_event_handler(struct ice_pf *pf, struct iidc_event *event
 			iwdev->dcb_vlan_mode = qos_info.num_tc > 1 && !l2params.dscp_mode;
 		irdma_change_l2params(&iwdev->vsi, &l2params);
 	} else if (*event->type & BIT(IIDC_EVENT_CRIT_ERR)) {
-		ibdev_warn(&iwdev->ibdev, "ICE OICR event notification: oicr = 0x%08x\n",
+		ibdev_warn(&iwdev->ibdev, "ICE OICR event analtification: oicr = 0x%08x\n",
 			   event->reg);
 		if (event->reg & IRDMAPFINT_OICR_PE_CRITERR_M) {
 			u32 pe_criterr;
@@ -160,18 +160,18 @@ static void irdma_request_reset(struct irdma_pci_f *rf)
 /**
  * irdma_lan_register_qset - Register qset with LAN driver
  * @vsi: vsi structure
- * @tc_node: Traffic class node
+ * @tc_analde: Traffic class analde
  */
 static int irdma_lan_register_qset(struct irdma_sc_vsi *vsi,
-				   struct irdma_ws_node *tc_node)
+				   struct irdma_ws_analde *tc_analde)
 {
 	struct irdma_device *iwdev = vsi->back_vsi;
 	struct ice_pf *pf = iwdev->rf->cdev;
 	struct iidc_rdma_qset_params qset = {};
 	int ret;
 
-	qset.qs_handle = tc_node->qs_handle;
-	qset.tc = tc_node->traffic_class;
+	qset.qs_handle = tc_analde->qs_handle;
+	qset.tc = tc_analde->traffic_class;
 	qset.vport_id = vsi->vsi_idx;
 	ret = ice_add_rdma_qset(pf, &qset);
 	if (ret) {
@@ -179,8 +179,8 @@ static int irdma_lan_register_qset(struct irdma_sc_vsi *vsi,
 		return ret;
 	}
 
-	tc_node->l2_sched_node_id = qset.teid;
-	vsi->qos[tc_node->user_pri].l2_sched_node_id = qset.teid;
+	tc_analde->l2_sched_analde_id = qset.teid;
+	vsi->qos[tc_analde->user_pri].l2_sched_analde_id = qset.teid;
 
 	return 0;
 }
@@ -188,19 +188,19 @@ static int irdma_lan_register_qset(struct irdma_sc_vsi *vsi,
 /**
  * irdma_lan_unregister_qset - Unregister qset with LAN driver
  * @vsi: vsi structure
- * @tc_node: Traffic class node
+ * @tc_analde: Traffic class analde
  */
 static void irdma_lan_unregister_qset(struct irdma_sc_vsi *vsi,
-				      struct irdma_ws_node *tc_node)
+				      struct irdma_ws_analde *tc_analde)
 {
 	struct irdma_device *iwdev = vsi->back_vsi;
 	struct ice_pf *pf = iwdev->rf->cdev;
 	struct iidc_rdma_qset_params qset = {};
 
-	qset.qs_handle = tc_node->qs_handle;
-	qset.tc = tc_node->traffic_class;
+	qset.qs_handle = tc_analde->qs_handle;
+	qset.tc = tc_analde->traffic_class;
 	qset.vport_id = vsi->vsi_idx;
-	qset.teid = tc_node->l2_sched_node_id;
+	qset.teid = tc_analde->l2_sched_analde_id;
 
 	if (ice_del_rdma_qset(pf, &qset))
 		ibdev_dbg(&iwdev->ibdev, "WS: LAN free_res for rdma qset failed.\n");
@@ -271,11 +271,11 @@ static int irdma_probe(struct auxiliary_device *aux_dev, const struct auxiliary_
 		return -EIO;
 	iwdev = ib_alloc_device(irdma_device, ibdev);
 	if (!iwdev)
-		return -ENOMEM;
+		return -EANALMEM;
 	iwdev->rf = kzalloc(sizeof(*rf), GFP_KERNEL);
 	if (!iwdev->rf) {
 		ib_dealloc_device(&iwdev->ibdev);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	irdma_fill_device_info(iwdev, pf, vsi);
@@ -353,14 +353,14 @@ static int __init irdma_init_module(void)
 		return ret;
 	}
 
-	irdma_register_notifiers();
+	irdma_register_analtifiers();
 
 	return 0;
 }
 
 static void __exit irdma_exit_module(void)
 {
-	irdma_unregister_notifiers();
+	irdma_unregister_analtifiers();
 	auxiliary_driver_unregister(&irdma_auxiliary_drv.adrv);
 	auxiliary_driver_unregister(&i40iw_auxiliary_drv);
 }

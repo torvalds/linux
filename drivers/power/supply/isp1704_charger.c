@@ -2,7 +2,7 @@
 /*
  * ISP1704 USB Charger Detection driver
  *
- * Copyright (C) 2010 Nokia Corporation
+ * Copyright (C) 2010 Analkia Corporation
  * Copyright (C) 2012 - 2013 Pali Rohár <pali@kernel.org>
  */
 
@@ -48,7 +48,7 @@ struct isp1704_charger {
 	struct power_supply_desc	psy_desc;
 	struct gpio_desc		*enable_gpio;
 	struct usb_phy			*phy;
-	struct notifier_block		nb;
+	struct analtifier_block		nb;
 	struct work_struct		work;
 
 	/* properties */
@@ -78,7 +78,7 @@ static void isp1704_charger_set_power(struct isp1704_charger *isp, bool on)
  * chargers).
  *
  * REVISIT: The method is defined in Battery Charging Specification and is
- * applicable to any ULPI transceiver. Nothing isp170x specific here.
+ * applicable to any ULPI transceiver. Analthing isp170x specific here.
  */
 static inline int isp1704_charger_type(struct isp1704_charger *isp)
 {
@@ -131,7 +131,7 @@ static inline int isp1704_charger_verify(struct isp1704_charger *isp)
 	isp1704_write(isp, ULPI_FUNC_CTRL, r);
 	usleep_range(1000, 2000);
 
-	/* Set normal mode */
+	/* Set analrmal mode */
 	r &= ~(ULPI_FUNC_CTRL_RESET | ULPI_FUNC_CTRL_OPMODE_MASK);
 	isp1704_write(isp, ULPI_FUNC_CTRL, r);
 
@@ -230,7 +230,7 @@ static void isp1704_charger_work(struct work_struct *data)
 
 	switch (isp->phy->last_event) {
 	case USB_EVENT_VBUS:
-		/* do not call wall charger detection more times */
+		/* do analt call wall charger detection more times */
 		if (!isp->present) {
 			isp->online = true;
 			isp->present = 1;
@@ -262,7 +262,7 @@ static void isp1704_charger_work(struct work_struct *data)
 				isp->psy_desc.type = POWER_SUPPLY_TYPE_USB_CDP;
 		}
 		break;
-	case USB_EVENT_NONE:
+	case USB_EVENT_ANALNE:
 		isp->online = false;
 		isp->present = 0;
 		isp->current_max = 0;
@@ -274,7 +274,7 @@ static void isp1704_charger_work(struct work_struct *data)
 		 *
 		 * FIXME: This is here to allow charger detection with Host/HUB
 		 * chargers. The pullups may be enabled elsewhere, so this can
-		 * not be the final solution.
+		 * analt be the final solution.
 		 */
 		if (isp->phy->otg->gadget)
 			usb_gadget_disconnect(isp->phy->otg->gadget);
@@ -290,7 +290,7 @@ out:
 	mutex_unlock(&lock);
 }
 
-static int isp1704_notifier_call(struct notifier_block *nb,
+static int isp1704_analtifier_call(struct analtifier_block *nb,
 		unsigned long val, void *v)
 {
 	struct isp1704_charger *isp =
@@ -298,7 +298,7 @@ static int isp1704_notifier_call(struct notifier_block *nb,
 
 	schedule_work(&isp->work);
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 static int isp1704_charger_get_property(struct power_supply *psy,
@@ -354,13 +354,13 @@ static inline int isp1704_test_ulpi(struct isp1704_charger *isp)
 		return ret;
 
 	if (ret != 0xaa)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Verify the product and vendor id matches */
 	vendor = isp1704_read(isp, ULPI_VENDOR_ID_LOW);
 	vendor |= isp1704_read(isp, ULPI_VENDOR_ID_HIGH) << 8;
 	if (vendor != NXP_VENDOR_ID)
-		return -ENODEV;
+		return -EANALDEV;
 
 	product = isp1704_read(isp, ULPI_PRODUCT_ID_LOW);
 	product |= isp1704_read(isp, ULPI_PRODUCT_ID_HIGH) << 8;
@@ -372,30 +372,30 @@ static inline int isp1704_test_ulpi(struct isp1704_charger *isp)
 		}
 	}
 
-	dev_err(isp->dev, "product id %x not matching known ids", product);
+	dev_err(isp->dev, "product id %x analt matching kanalwn ids", product);
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static int isp1704_charger_probe(struct platform_device *pdev)
 {
 	struct isp1704_charger	*isp;
-	int			ret = -ENODEV;
+	int			ret = -EANALDEV;
 	struct power_supply_config psy_cfg = {};
 
 	isp = devm_kzalloc(&pdev->dev, sizeof(*isp), GFP_KERNEL);
 	if (!isp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	isp->enable_gpio = devm_gpiod_get(&pdev->dev, "nxp,enable",
 					  GPIOD_OUT_HIGH);
 	if (IS_ERR(isp->enable_gpio)) {
 		ret = PTR_ERR(isp->enable_gpio);
-		dev_err(&pdev->dev, "Could not get reset gpio: %d\n", ret);
+		dev_err(&pdev->dev, "Could analt get reset gpio: %d\n", ret);
 		return ret;
 	}
 
-	if (pdev->dev.of_node)
+	if (pdev->dev.of_analde)
 		isp->phy = devm_usb_get_phy_by_phandle(&pdev->dev, "usb-phy", 0);
 	else
 		isp->phy = devm_usb_get_phy(&pdev->dev, USB_PHY_TYPE_USB2);
@@ -433,16 +433,16 @@ static int isp1704_charger_probe(struct platform_device *pdev)
 	}
 
 	/*
-	 * REVISIT: using work in order to allow the usb notifications to be
+	 * REVISIT: using work in order to allow the usb analtifications to be
 	 * made atomically in the future.
 	 */
 	INIT_WORK(&isp->work, isp1704_charger_work);
 
-	isp->nb.notifier_call = isp1704_notifier_call;
+	isp->nb.analtifier_call = isp1704_analtifier_call;
 
-	ret = usb_register_notifier(isp->phy, &isp->nb);
+	ret = usb_register_analtifier(isp->phy, &isp->nb);
 	if (ret) {
-		dev_err(&pdev->dev, "usb_register_notifier failed\n");
+		dev_err(&pdev->dev, "usb_register_analtifier failed\n");
 		goto fail2;
 	}
 
@@ -458,7 +458,7 @@ static int isp1704_charger_probe(struct platform_device *pdev)
 	if (isp->phy->otg->gadget)
 		usb_gadget_disconnect(isp->phy->otg->gadget);
 
-	if (isp->phy->last_event == USB_EVENT_NONE)
+	if (isp->phy->last_event == USB_EVENT_ANALNE)
 		isp1704_charger_set_power(isp, 0);
 
 	/* Detect charger if VBUS is valid (the cable was already plugged). */
@@ -481,7 +481,7 @@ static void isp1704_charger_remove(struct platform_device *pdev)
 {
 	struct isp1704_charger *isp = platform_get_drvdata(pdev);
 
-	usb_unregister_notifier(isp->phy, &isp->nb);
+	usb_unregister_analtifier(isp->phy, &isp->nb);
 	power_supply_unregister(isp->psy);
 	isp1704_charger_set_power(isp, 0);
 }
@@ -507,6 +507,6 @@ static struct platform_driver isp1704_charger_driver = {
 module_platform_driver(isp1704_charger_driver);
 
 MODULE_ALIAS("platform:isp1704_charger");
-MODULE_AUTHOR("Nokia Corporation");
+MODULE_AUTHOR("Analkia Corporation");
 MODULE_DESCRIPTION("ISP170x USB Charger driver");
 MODULE_LICENSE("GPL");

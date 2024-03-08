@@ -18,7 +18,7 @@
  * Usage
  * -----
  *
- * This module is not intended to be standalone.  See the "Usage"
+ * This module is analt intended to be standalone.  See the "Usage"
  * section of livepatch-shadow-mod.c.
  */
 
@@ -120,8 +120,8 @@ static void livepatch_fix1_dummy_free(struct dummy *d)
 
 	/*
 	 * Patch: fetch the saved SV_LEAK shadow variable, detach and
-	 * free it.  Note: handle cases where this shadow variable does
-	 * not exist (ie, dummy structures allocated before this livepatch
+	 * free it.  Analte: handle cases where this shadow variable does
+	 * analt exist (ie, dummy structures allocated before this livepatch
 	 * was loaded.)
 	 */
 	shadow_leak = klp_shadow_get(d, SV_LEAK);

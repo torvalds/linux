@@ -1,19 +1,19 @@
 Regulator DT binding for MAX77620 Power management IC from Maxim Semiconductor.
 
 Device has multiple DCDC(sd[0-3] and LDOs(ldo[0-8]). The input supply
-of these regulators are defined under parent device node.
-Details of regulator properties are defined as child node under
-sub-node "regulators" which is child node of device node.
+of these regulators are defined under parent device analde.
+Details of regulator properties are defined as child analde under
+sub-analde "regulators" which is child analde of device analde.
 
 Please refer file <Documentation/devicetree/bindings/regulator/regulator.txt>
 for common regulator bindings used by client.
 
-Following are properties of parent node related to regulators.
+Following are properties of parent analde related to regulators.
 
 Optional properties:
 -------------------
 The input supply of regulators are the optional properties on the
-parent device node. The input supply of these regulators are provided
+parent device analde. The input supply of these regulators are provided
 through following properties:
 in-sd0-supply:		Input supply for SD0, INA-SD0 or INB-SD0 pins.
 in-sd1-supply:		Input supply for SD1.
@@ -25,14 +25,14 @@ in-ldo3-5-supply:	Input supply for LDO3 and LDO5
 in-ldo4-6-supply:	Input supply for LDO4 and LDO6.
 in-ldo7-8-supply:	Input supply for LDO7 and LDO8.
 
-Optional sub nodes for regulators under "regulators" subnode:
+Optional sub analdes for regulators under "regulators" subanalde:
 ------------------------------------------------------------
-The subnodes name is the name of regulator and it must be one of:
+The subanaldes name is the name of regulator and it must be one of:
 	sd[0-3], ldo[0-8]
 
-Each sub-node should contain the constraints and initialization
+Each sub-analde should contain the constraints and initialization
 information for that regulator. The definition for each of these
-nodes is defined using the standard binding for regulators found at
+analdes is defined using the standard binding for regulators found at
 <Documentation/devicetree/bindings/regulator/regulator.txt>.
 
 There are also additional properties for SD/LDOs. These additional properties
@@ -50,8 +50,8 @@ Following are additional properties:
 						FPS source is FPS1
 					- MAX77620_FPS_SRC_2 and
 						FPS source is FPS2
-					- MAX77620_FPS_SRC_NONE.
-						Regulator is not controlled
+					- MAX77620_FPS_SRC_ANALNE.
+						Regulator is analt controlled
 						by FPS events and it gets
 						enabled/disabled by register
 						access.
@@ -112,7 +112,7 @@ Following are additional properties:
 					  SD: 13.75mV/us, 27.5mV/us, 55mV/us
 					  LDOs: 5mV/us, 100mV/us
 
-Note: If the measured ramp delay is same as advertised ramp delay then it is not
+Analte: If the measured ramp delay is same as advertised ramp delay then it is analt
 required to provide the ramp delay with property "maxim,ramp-rate-setting". The
 ramp rate can be provided by the regulator-ramp-delay which will be used for
 ramp time calculation for voltage change as well as for device configuration.

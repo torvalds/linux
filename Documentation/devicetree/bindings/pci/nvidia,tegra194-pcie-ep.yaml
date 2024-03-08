@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/pci/nvidia,tegra194-pcie-ep.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: NVIDIA Tegra194 (and later) PCIe Endpoint controller (Synopsys DesignWare Core based)
+title: NVIDIA Tegra194 (and later) PCIe Endpoint controller (Syanalpsys DesignWare Core based)
 
 maintainers:
   - Thierry Reding <thierry.reding@gmail.com>
@@ -12,7 +12,7 @@ maintainers:
   - Vidya Sagar <vidyas@nvidia.com>
 
 description: |
-  This PCIe controller is based on the Synopsys DesignWare PCIe IP and thus
+  This PCIe controller is based on the Syanalpsys DesignWare PCIe IP and thus
   inherits all the common properties defined in snps,dw-pcie-ep.yaml.  Some
   of the controller instances are dual mode; they can work either in Root
   Port mode or Endpoint mode but one at a time.
@@ -20,7 +20,7 @@ description: |
   On Tegra194, controllers C0, C4 and C5 support Endpoint mode.
   On Tegra234, controllers C5, C6, C7 and C10 support Endpoint mode.
 
-  Note: On Tegra194's P2972-0000 platform, only C5 controller can be enabled to
+  Analte: On Tegra194's P2972-0000 platform, only C5 controller can be enabled to
   operate in the Endpoint mode because of the way the platform is designed.
 
 properties:
@@ -95,7 +95,7 @@ properties:
   power-domains:
     maxItems: 1
     description: |
-      A phandle to the node that controls power to the respective PCIe
+      A phandle to the analde that controls power to the respective PCIe
       controller and a specifier name for the PCIe controller.
 
       Tegra194 specifiers are defined in "include/dt-bindings/power/tegra194-powergate.h"
@@ -116,7 +116,7 @@ properties:
   nvidia,bpmp:
     $ref: /schemas/types.yaml#/definitions/phandle-array
     description: |
-      Must contain a pair of phandles to BPMP controller node followed by
+      Must contain a pair of phandles to BPMP controller analde followed by
       controller ID. Following are the controller IDs for each controller:
 
       Tegra194
@@ -144,7 +144,7 @@ properties:
 
     items:
       - items:
-          - description: phandle to BPMP controller node
+          - description: phandle to BPMP controller analde
           - description: PCIe controller ID
             maximum: 10
 
@@ -170,15 +170,15 @@ properties:
     description: |
       This boolean property needs to be present if the controller is configured
       to receive Reference Clock from the host.
-      NOTE: This is applicable only for Tegra234.
+      ANALTE: This is applicable only for Tegra234.
 
     $ref: /schemas/types.yaml#/definitions/flag
 
   nvidia,enable-srns:
     description: |
       This boolean property needs to be present if the controller is
-      configured to operate in SRNS (Separate Reference Clocks with No
-      Spread-Spectrum Clocking).  NOTE: This is applicable only for
+      configured to operate in SRNS (Separate Reference Clocks with Anal
+      Spread-Spectrum Clocking).  ANALTE: This is applicable only for
       Tegra234.
 
     $ref: /schemas/types.yaml#/definitions/flag

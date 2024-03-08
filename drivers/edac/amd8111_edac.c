@@ -245,7 +245,7 @@ static void amd8111_lpc_bridge_init(struct amd8111_dev_info *dev_info)
 	else {
 		val8 = __do_inb(REG_AT_COMPAT);
 		if (val8 == 0xff) { /* buggy port */
-			printk(KERN_INFO "%s: port %d is buggy, not supported"
+			printk(KERN_INFO "%s: port %d is buggy, analt supported"
 				" by hardware?\n", __func__, REG_AT_COMPAT);
 			at_compat_reg_broken = 1;
 			release_region(REG_AT_COMPAT, LEGACY_NR_PORTS);
@@ -337,13 +337,13 @@ static int amd8111_dev_probe(struct pci_dev *dev,
 				const struct pci_device_id *id)
 {
 	struct amd8111_dev_info *dev_info = &amd8111_devices[id->driver_data];
-	int ret = -ENODEV;
+	int ret = -EANALDEV;
 
 	dev_info->dev = pci_get_device(PCI_VENDOR_ID_AMD,
 					dev_info->err_dev, NULL);
 
 	if (!dev_info->dev) {
-		printk(KERN_ERR "EDAC device not found:"
+		printk(KERN_ERR "EDAC device analt found:"
 			"vendor %x, device %x, name %s\n",
 			PCI_VENDOR_ID_AMD, dev_info->err_dev,
 			dev_info->ctl_name);
@@ -359,7 +359,7 @@ static int amd8111_dev_probe(struct pci_dev *dev,
 	}
 
 	/*
-	 * we do not allocate extra private structure for
+	 * we do analt allocate extra private structure for
 	 * edac_device_ctl_info, but make use of existing
 	 * one instead.
 	*/
@@ -369,7 +369,7 @@ static int amd8111_dev_probe(struct pci_dev *dev,
 					   NULL, 0, 0,
 					   NULL, 0, dev_info->edac_idx);
 	if (!dev_info->edac_dev) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_dev_put;
 	}
 
@@ -432,13 +432,13 @@ static int amd8111_pci_probe(struct pci_dev *dev,
 				const struct pci_device_id *id)
 {
 	struct amd8111_pci_info *pci_info = &amd8111_pcis[id->driver_data];
-	int ret = -ENODEV;
+	int ret = -EANALDEV;
 
 	pci_info->dev = pci_get_device(PCI_VENDOR_ID_AMD,
 					pci_info->err_dev, NULL);
 
 	if (!pci_info->dev) {
-		printk(KERN_ERR "EDAC device not found:"
+		printk(KERN_ERR "EDAC device analt found:"
 			"vendor %x, device %x, name %s\n",
 			PCI_VENDOR_ID_AMD, pci_info->err_dev,
 			pci_info->ctl_name);
@@ -454,14 +454,14 @@ static int amd8111_pci_probe(struct pci_dev *dev,
 	}
 
 	/*
-	 * we do not allocate extra private structure for
+	 * we do analt allocate extra private structure for
 	 * edac_pci_ctl_info, but make use of existing
 	 * one instead.
 	*/
 	pci_info->edac_idx = edac_pci_alloc_index();
 	pci_info->edac_dev = edac_pci_alloc_ctl_info(0, pci_info->ctl_name);
 	if (!pci_info->edac_dev) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_dev_put;
 	}
 

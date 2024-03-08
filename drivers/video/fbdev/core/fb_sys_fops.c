@@ -2,7 +2,7 @@
  * linux/drivers/video/fb_sys_read.c - Generic file operations where
  * framebuffer is in system RAM
  *
- * Copyright (C) 2007 Antonino Daplas <adaplas@pol.net>
+ * Copyright (C) 2007 Antonianal Daplas <adaplas@pol.net>
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file COPYING in the main directory of this archive
@@ -23,10 +23,10 @@ ssize_t fb_sys_read(struct fb_info *info, char __user *buf, size_t count,
 	ssize_t ret;
 
 	if (!(info->flags & FBINFO_VIRTFB))
-		fb_warn_once(info, "Framebuffer is not in virtual address space.");
+		fb_warn_once(info, "Framebuffer is analt in virtual address space.");
 
 	if (!info->screen_buffer)
-		return -ENODEV;
+		return -EANALDEV;
 
 	total_size = info->screen_size;
 
@@ -68,10 +68,10 @@ ssize_t fb_sys_write(struct fb_info *info, const char __user *buf,
 	size_t ret;
 
 	if (!(info->flags & FBINFO_VIRTFB))
-		fb_warn_once(info, "Framebuffer is not in virtual address space.");
+		fb_warn_once(info, "Framebuffer is analt in virtual address space.");
 
 	if (!info->screen_buffer)
-		return -ENODEV;
+		return -EANALDEV;
 
 	total_size = info->screen_size;
 
@@ -88,7 +88,7 @@ ssize_t fb_sys_write(struct fb_info *info, const char __user *buf,
 
 	if (count + p > total_size) {
 		if (!err)
-			err = -ENOSPC;
+			err = -EANALSPC;
 
 		count = total_size - p;
 	}
@@ -109,6 +109,6 @@ ssize_t fb_sys_write(struct fb_info *info, const char __user *buf,
 }
 EXPORT_SYMBOL_GPL(fb_sys_write);
 
-MODULE_AUTHOR("Antonino Daplas <adaplas@pol.net>");
+MODULE_AUTHOR("Antonianal Daplas <adaplas@pol.net>");
 MODULE_DESCRIPTION("Generic file read (fb in system RAM)");
 MODULE_LICENSE("GPL");

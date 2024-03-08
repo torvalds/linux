@@ -43,13 +43,13 @@
 
 /********************* FSF SPECIFIC DEFINES *********************************/
 
-/* ATTENTION: value must not be used by hardware */
+/* ATTENTION: value must analt be used by hardware */
 #define FSF_QTCB_UNSOLICITED_STATUS		0x6305
 
 /*************** ADAPTER/PORT/UNIT AND FSF_REQ STATUS FLAGS ******************/
 
 /*
- * Note, the leftmost 12 status bits (3 nibbles) are common among adapter, port
+ * Analte, the leftmost 12 status bits (3 nibbles) are common among adapter, port
  * and unit. This is a mask for bitwise 'and' with status values.
  */
 #define ZFCP_COMMON_FLAGS			0xfff00000
@@ -62,7 +62,7 @@
 #define ZFCP_STATUS_COMMON_ERP_INUSE		0x01000000
 #define ZFCP_STATUS_COMMON_ACCESS_DENIED	0x00800000
 #define ZFCP_STATUS_COMMON_ACCESS_BOXED		0x00400000
-#define ZFCP_STATUS_COMMON_NOESC		0x00200000
+#define ZFCP_STATUS_COMMON_ANALESC		0x00200000
 
 /* adapter status */
 #define ZFCP_STATUS_ADAPTER_MB_ACT		0x00000001
@@ -78,11 +78,11 @@
 #define ZFCP_STATUS_PORT_PHYS_OPEN		0x00000001
 #define ZFCP_STATUS_PORT_LINK_TEST		0x00000002
 
-/* FSF request status (this does not have a common part) */
+/* FSF request status (this does analt have a common part) */
 #define ZFCP_STATUS_FSFREQ_ERROR		0x00000008
 #define ZFCP_STATUS_FSFREQ_CLEANUP		0x00000010
 #define ZFCP_STATUS_FSFREQ_ABORTSUCCEEDED	0x00000040
-#define ZFCP_STATUS_FSFREQ_ABORTNOTNEEDED       0x00000080
+#define ZFCP_STATUS_FSFREQ_ABORTANALTNEEDED       0x00000080
 #define ZFCP_STATUS_FSFREQ_TMFUNCFAILED         0x00000200
 #define ZFCP_STATUS_FSFREQ_DISMISSED            0x00001000
 #define ZFCP_STATUS_FSFREQ_XDATAINCOMPLETE	0x00020000
@@ -163,9 +163,9 @@ struct zfcp_adapter {
 	struct Scsi_Host	*scsi_host;	   /* Pointer to mid-layer */
 	struct list_head	port_list;	   /* remote port list */
 	rwlock_t		port_list_lock;    /* port list lock */
-	u64			req_no;		   /* unique FSF req number */
+	u64			req_anal;		   /* unique FSF req number */
 	struct zfcp_reqlist	*req_list;
-	u32			fsf_req_seq_no;	   /* FSF cmnd seq number */
+	u32			fsf_req_seq_anal;	   /* FSF cmnd seq number */
 	rwlock_t		abort_lock;        /* Protects against SCSI
 						      stack abort/command
 						      completion races */
@@ -199,7 +199,7 @@ struct zfcp_adapter {
 	struct device_dma_parameters dma_parms;
 	struct zfcp_fc_events events;
 	unsigned long		next_port_scan;
-	struct zfcp_diag_adapter	*diagnostics;
+	struct zfcp_diag_adapter	*diaganalstics;
 	struct work_struct	version_change_lost_work;
 };
 
@@ -212,7 +212,7 @@ struct zfcp_port {
 	rwlock_t		unit_list_lock; /* unit list lock */
 	atomic_t		units;	       /* zfcp_unit count */
 	atomic_t	       status;	       /* status of this remote port */
-	u64		       wwnn;	       /* WWNN if known */
+	u64		       wwnn;	       /* WWNN if kanalwn */
 	u64		       wwpn;	       /* WWPN */
 	u32		       d_id;	       /* D_ID */
 	u32		       handle;	       /* handle assigned by FSF */
@@ -225,7 +225,7 @@ struct zfcp_port {
 	struct work_struct     gid_pn_work;
 	struct work_struct     test_link_work;
 	struct work_struct     rport_work;
-	enum { RPORT_NONE, RPORT_ADD, RPORT_DEL }  rport_task;
+	enum { RPORT_ANALNE, RPORT_ADD, RPORT_DEL }  rport_task;
 	unsigned int		starget_id;
 };
 

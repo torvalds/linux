@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 #ifndef _LINUX_CABLEMODEM_H_
 #define _LINUX_CABLEMODEM_H_
 /*

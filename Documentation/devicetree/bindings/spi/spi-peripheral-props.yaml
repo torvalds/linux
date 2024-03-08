@@ -10,7 +10,7 @@ description:
   Many SPI controllers need to add properties to peripheral devices. They could
   be common properties like spi-max-frequency, spi-cpha, etc. or they could be
   controller specific like delay in clock or data lines, etc. These properties
-  need to be defined in the peripheral node because they are per-peripheral and
+  need to be defined in the peripheral analde because they are per-peripheral and
   there can be multiple peripherals attached to a controller. All those
   properties are listed here. The controller specific properties should go in
   their own separate schema that should be referenced from here.
@@ -46,23 +46,23 @@ properties:
 
   spi-cs-setup-delay-ns:
     description:
-      Delay in nanoseconds to be introduced by the controller after CS is
+      Delay in naanalseconds to be introduced by the controller after CS is
       asserted.
 
   spi-cs-hold-delay-ns:
     description:
-      Delay in nanoseconds to be introduced by the controller before CS is
+      Delay in naanalseconds to be introduced by the controller before CS is
       de-asserted.
 
   spi-cs-inactive-delay-ns:
     description:
-      Delay in nanoseconds to be introduced by the controller after CS is
+      Delay in naanalseconds to be introduced by the controller after CS is
       de-asserted.
 
   spi-rx-bus-width:
     description:
       Bus width to the SPI bus used for read transfers.
-      If 0 is provided, then no RX will be possible on this device.
+      If 0 is provided, then anal RX will be possible on this device.
     $ref: /schemas/types.yaml#/definitions/uint32
     enum: [0, 1, 2, 4, 8]
     default: 1
@@ -72,14 +72,14 @@ properties:
       Delay, in microseconds, after a read transfer.
 
   rx-sample-delay-ns:
-    description: SPI Rx sample delay offset, unit is nanoseconds.
+    description: SPI Rx sample delay offset, unit is naanalseconds.
       The delay from the default sample time before the actual
       sample of the rxd input signal occurs.
 
   spi-tx-bus-width:
     description:
       Bus width to the SPI bus used for write transfers.
-      If 0 is provided, then no TX will be possible on this device.
+      If 0 is provided, then anal TX will be possible on this device.
     $ref: /schemas/types.yaml#/definitions/uint32
     enum: [0, 1, 2, 4, 8]
     default: 1
@@ -103,7 +103,7 @@ properties:
   parallel-memories:
     description: Several SPI memories can be wired in parallel mode.
       The devices are physically on a different buses but will always
-      act synchronously as each data word is spread across the
+      act synchroanalusly as each data word is spread across the
       different memories (eg. even bits are stored in one memory, odd
       bits in the other). This basically doubles the address space and
       the throughput while greatly complexifying the wiring because as
@@ -116,12 +116,12 @@ properties:
   st,spi-midi-ns:
     description: |
       Only for STM32H7, (Master Inter-Data Idleness) minimum time
-      delay in nanoseconds inserted between two consecutive data frames.
+      delay in naanalseconds inserted between two consecutive data frames.
 
 # The controller specific properties go here.
 allOf:
   - $ref: arm,pl022-peripheral-props.yaml#
-  - $ref: cdns,qspi-nor-peripheral-props.yaml#
+  - $ref: cdns,qspi-analr-peripheral-props.yaml#
   - $ref: samsung,spi-peripheral-props.yaml#
   - $ref: nvidia,tegra210-quad-peripheral-props.yaml#
 

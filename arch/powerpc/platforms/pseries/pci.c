@@ -21,12 +21,12 @@
 #if 0
 void pcibios_name_device(struct pci_dev *dev)
 {
-	struct device_node *dn;
+	struct device_analde *dn;
 
 	/*
 	 * Add IBM loc code (slot) as a prefix to the device names for service
 	 */
-	dn = pci_device_to_OF_node(dev);
+	dn = pci_device_to_OF_analde(dev);
 	if (dn) {
 		const char *loc_code = of_get_property(dn, "ibm,loc-code",
 				NULL);
@@ -62,11 +62,11 @@ static int pseries_send_map_pe(struct pci_dev *pdev, u16 num_vfs,
 	unsigned long buid, addr;
 	int ibm_map_pes = rtas_function_token(RTAS_FN_IBM_OPEN_SRIOV_MAP_PE_NUMBER);
 
-	if (ibm_map_pes == RTAS_UNKNOWN_SERVICE)
+	if (ibm_map_pes == RTAS_UNKANALWN_SERVICE)
 		return -EINVAL;
 
 	pdn = pci_get_pdn(pdev);
-	addr = rtas_config_addr(pdn->busno, pdn->devfn, 0);
+	addr = rtas_config_addr(pdn->busanal, pdn->devfn, 0);
 	buid = pdn->phb->buid;
 	spin_lock(&rtas_data_buf_lock);
 	memcpy(rtas_data_buf, vf_pe_array,
@@ -110,7 +110,7 @@ static int pseries_associate_pes(struct pci_dev *pdev, u16 num_vfs)
 
 	vf_pe_array = kzalloc(RTAS_DATA_BUF_SIZE, GFP_KERNEL);
 	if (!vf_pe_array)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pdn = pci_get_pdn(pdev);
 	/* create firmware structure to associate pes */
@@ -150,7 +150,7 @@ static int pseries_pci_sriov_enable(struct pci_dev *pdev, u16 num_vfs)
 	int                    rc;
 	const int *max_vfs;
 	int max_config_vfs;
-	struct device_node *dn = pci_device_to_OF_node(pdev);
+	struct device_analde *dn = pci_device_to_OF_analde(pdev);
 
 	max_vfs = of_get_property(dn, "ibm,number-of-configurable-vfs", NULL);
 
@@ -172,7 +172,7 @@ static int pseries_pci_sriov_enable(struct pci_dev *pdev, u16 num_vfs)
 					sizeof(*pdn->pe_num_map),
 					GFP_KERNEL);
 	if (!pdn->pe_num_map)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = pseries_associate_pes(pdev, num_vfs);
 
@@ -280,13 +280,13 @@ static enum pci_bus_speed prop_to_pci_speed(u32 prop)
 		return PCIE_SPEED_32_0GT;
 	default:
 		pr_debug("Unexpected PCI link speed property value\n");
-		return PCI_SPEED_UNKNOWN;
+		return PCI_SPEED_UNKANALWN;
 	}
 }
 
 int pseries_root_bridge_prepare(struct pci_host_bridge *bridge)
 {
-	struct device_node *dn, *pdn;
+	struct device_analde *dn, *pdn;
 	struct pci_bus *bus;
 	u32 pcie_link_speed_stats[2];
 	int rc;
@@ -297,7 +297,7 @@ int pseries_root_bridge_prepare(struct pci_host_bridge *bridge)
 	pci_set_host_bridge_release(bridge, pcibios_free_controller_deferred,
 					(void *) pci_bus_to_host(bus));
 
-	dn = pcibios_get_phb_of_node(bus);
+	dn = pcibios_get_phb_of_analde(bus);
 	if (!dn)
 		return 0;
 
@@ -309,10 +309,10 @@ int pseries_root_bridge_prepare(struct pci_host_bridge *bridge)
 			break;
 	}
 
-	of_node_put(pdn);
+	of_analde_put(pdn);
 
 	if (rc) {
-		pr_debug("no ibm,pcie-link-speed-stats property\n");
+		pr_debug("anal ibm,pcie-link-speed-stats property\n");
 		return 0;
 	}
 

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -36,17 +36,17 @@ r535_fb_ram_new(struct nvkm_fb *fb, struct nvkm_ram **pram)
 	int ret;
 
 	if (!(ram = *pram = kzalloc(sizeof(*ram), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ram->func = &r535_fb_ram;
 	ram->fb = fb;
-	ram->type = NVKM_RAM_TYPE_UNKNOWN; /*TODO: pull this from GSP. */
+	ram->type = NVKM_RAM_TYPE_UNKANALWN; /*TODO: pull this from GSP. */
 	ram->size = gsp->fb.size;
 	ram->stolen = false;
 	mutex_init(&ram->mutex);
 
 	for (int i = 0; i < gsp->fb.region_nr; i++) {
-		ret = nvkm_mm_init(&ram->vram, NVKM_RAM_MM_NORMAL,
+		ret = nvkm_mm_init(&ram->vram, NVKM_RAM_MM_ANALRMAL,
 				   gsp->fb.region[i].addr >> NVKM_RAM_MM_SHIFT,
 				   gsp->fb.region[i].size >> NVKM_RAM_MM_SHIFT,
 				   1);
@@ -72,7 +72,7 @@ r535_fb_new(const struct nvkm_fb_func *hw,
 	int ret;
 
 	if (!(rm = kzalloc(sizeof(*rm), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rm->dtor = r535_fb_dtor;
 	rm->sysmem.flush_page_init = hw->sysmem.flush_page_init;

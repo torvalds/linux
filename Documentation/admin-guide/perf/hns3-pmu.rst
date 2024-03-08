@@ -40,9 +40,9 @@ device.
 
 Example usage of checking event code and subevent code::
 
-  $# cat /sys/devices/hns3_pmu_sicl_0/events/dly_tx_normal_to_mac_time
+  $# cat /sys/devices/hns3_pmu_sicl_0/events/dly_tx_analrmal_to_mac_time
   config=0x00204
-  $# cat /sys/devices/hns3_pmu_sicl_0/events/dly_tx_normal_to_mac_packet_num
+  $# cat /sys/devices/hns3_pmu_sicl_0/events/dly_tx_analrmal_to_mac_packet_num
   config=0x10204
 
 Each performance statistic has a pair of events to get two values to

@@ -19,7 +19,7 @@ static u64 sgx_pubkey_hash[4] __ro_after_init;
 
 /*
  * ENCLS's memory operands use a fixed segment (DS) and a fixed
- * address size based on the mode.  Related prefixes are ignored.
+ * address size based on the mode.  Related prefixes are iganalred.
  */
 static int sgx_get_encls_gva(struct kvm_vcpu *vcpu, unsigned long offset,
 			     int size, int alignment, gva_t *gva)
@@ -38,7 +38,7 @@ static int sgx_get_encls_gva(struct kvm_vcpu *vcpu, unsigned long offset,
 		fault = true;
 	} else if (likely(is_64_bit_mode(vcpu))) {
 		*gva = vmx_get_untagged_addr(vcpu, *gva, 0);
-		fault = is_noncanonical_address(*gva, vcpu);
+		fault = is_analncaanalnical_address(*gva, vcpu);
 	} else {
 		*gva &= 0xffffffff;
 		fault = (s.unusable) ||
@@ -107,8 +107,8 @@ static int sgx_inject_fault(struct kvm_vcpu *vcpu, gva_t gva, int trapnr)
 	struct x86_exception ex;
 
 	/*
-	 * A non-EPCM #PF indicates a bad userspace HVA.  This *should* check
-	 * for PFEC.SGX and not assume any #PF on SGX2 originated in the EPC,
+	 * A analn-EPCM #PF indicates a bad userspace HVA.  This *should* check
+	 * for PFEC.SGX and analt assume any #PF on SGX2 originated in the EPC,
 	 * but the error code isn't (yet) plumbed through the ENCLS helpers.
 	 */
 	if (trapnr == PF_VECTOR && !boot_cpu_has(X86_FEATURE_SGX2)) {
@@ -166,13 +166,13 @@ static int __handle_encls_ecreate(struct kvm_vcpu *vcpu,
 	if (!vcpu->kvm->arch.sgx_provisioning_allowed &&
 	    (attributes & SGX_ATTR_PROVISIONKEY)) {
 		if (sgx_12_1->eax & SGX_ATTR_PROVISIONKEY)
-			pr_warn_once("SGX PROVISIONKEY advertised but not allowed\n");
+			pr_warn_once("SGX PROVISIONKEY advertised but analt allowed\n");
 		kvm_inject_gp(vcpu, 0);
 		return 1;
 	}
 
 	/*
-	 * Enforce CPUID restrictions on MISCSELECT, ATTRIBUTES and XFRM.  Note
+	 * Enforce CPUID restrictions on MISCSELECT, ATTRIBUTES and XFRM.  Analte
 	 * that the allowed XFRM (XFeature Request Mask) isn't strictly bound
 	 * by the supported XCR0.  FP+SSE *must* be set in XFRM, even if XSAVE
 	 * is unsupported, i.e. even if XCR0 itself is completely unsupported.
@@ -276,7 +276,7 @@ static int handle_encls_ecreate(struct kvm_vcpu *vcpu)
 	 */
 	contents = (struct sgx_secs *)__get_free_page(GFP_KERNEL_ACCOUNT);
 	if (!contents)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Exit to userspace if copying from a host userspace address fails. */
 	if (sgx_read_hva(vcpu, contents_hva, (void *)contents, PAGE_SIZE)) {
@@ -319,8 +319,8 @@ static int handle_encls_einit(struct kvm_vcpu *vcpu)
 	/*
 	 * ...and then to HVA.  The order of accesses isn't architectural, i.e.
 	 * KVM doesn't have to fully process one address at a time.  Exit to
-	 * userspace if a GPA is invalid.  Note, all structures are aligned and
-	 * cannot split pages.
+	 * userspace if a GPA is invalid.  Analte, all structures are aligned and
+	 * cananalt split pages.
 	 */
 	if (sgx_gpa_to_hva(vcpu, sig_gpa, &sig_hva) ||
 	    sgx_gpa_to_hva(vcpu, secs_gpa, &secs_hva) ||
@@ -394,7 +394,7 @@ int handle_encls(struct kvm_vcpu *vcpu)
 		if (leaf == EINIT)
 			return handle_encls_einit(vcpu);
 		WARN_ONCE(1, "unexpected exit on ENCLS[%u]", leaf);
-		vcpu->run->exit_reason = KVM_EXIT_UNKNOWN;
+		vcpu->run->exit_reason = KVM_EXIT_UNKANALWN;
 		vcpu->run->hw.hardware_exit_reason = EXIT_REASON_ENCLS;
 		return 0;
 	}
@@ -405,11 +405,11 @@ void setup_default_sgx_lepubkeyhash(void)
 {
 	/*
 	 * Use Intel's default value for Skylake hardware if Launch Control is
-	 * not supported, i.e. Intel's hash is hardcoded into silicon, or if
+	 * analt supported, i.e. Intel's hash is hardcoded into silicon, or if
 	 * Launch Control is supported and enabled, i.e. mimic the reset value
 	 * and let the guest write the MSRs at will.  If Launch Control is
 	 * supported but disabled, then use the current MSR values as the hash
-	 * MSRs exist but are read-only (locked and not writable).
+	 * MSRs exist but are read-only (locked and analt writable).
 	 */
 	if (!enable_sgx || boot_cpu_has(X86_FEATURE_SGX_LC) ||
 	    rdmsrl_safe(MSR_IA32_SGXLEPUBKEYHASH0, &sgx_pubkey_hash[0])) {
@@ -468,15 +468,15 @@ static bool sgx_intercept_encls_ecreate(struct kvm_vcpu *vcpu)
 void vmx_write_encls_bitmap(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12)
 {
 	/*
-	 * There is no software enable bit for SGX that is virtualized by
-	 * hardware, e.g. there's no CR4.SGXE, so when SGX is disabled in the
+	 * There is anal software enable bit for SGX that is virtualized by
+	 * hardware, e.g. there's anal CR4.SGXE, so when SGX is disabled in the
 	 * guest (either by the host or by the guest's BIOS) but enabled in the
 	 * host, trap all ENCLS leafs and inject #UD/#GP as needed to emulate
 	 * the expected system behavior for ENCLS.
 	 */
 	u64 bitmap = -1ull;
 
-	/* Nothing to do if hardware doesn't support SGX */
+	/* Analthing to do if hardware doesn't support SGX */
 	if (!cpu_has_vmx_encls_vmexit())
 		return;
 
@@ -495,7 +495,7 @@ void vmx_write_encls_bitmap(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12)
 		 * Trap and execute EINIT if launch control is enabled in the
 		 * host using the guest's values for launch control MSRs, even
 		 * if the guest's values are fixed to hardware default values.
-		 * The MSRs are not loaded/saved on VM-Enter/VM-Exit as writing
+		 * The MSRs are analt loaded/saved on VM-Enter/VM-Exit as writing
 		 * the MSRs is extraordinarily expensive.
 		 */
 		if (boot_cpu_has(X86_FEATURE_SGX_LC))

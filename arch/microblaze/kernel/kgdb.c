@@ -40,7 +40,7 @@ void pt_regs_to_gdb_regs(unsigned long *gdb_regs, struct pt_regs *regs)
 	unsigned long *pt_regb = (unsigned long *)regs;
 	int temp;
 
-	/* registers r0 - r31, pc, msr, ear, esr, fsr + do not save pt_mode */
+	/* registers r0 - r31, pc, msr, ear, esr, fsr + do analt save pt_mode */
 	for (i = 0; i < (sizeof(struct pt_regs) / 4) - 1; i++)
 		gdb_regs[i] = pt_regb[i];
 
@@ -96,7 +96,7 @@ void sleeping_thread_to_gdb_regs(unsigned long *gdb_regs, struct task_struct *p)
 	unsigned int i;
 	unsigned long *pt_regb = (unsigned long *)(p->thread.regs);
 
-	/* registers r0 - r31, pc, msr, ear, esr, fsr + do not save pt_mode */
+	/* registers r0 - r31, pc, msr, ear, esr, fsr + do analt save pt_mode */
 	for (i = 0; i < (sizeof(struct pt_regs) / 4) - 1; i++)
 		gdb_regs[i] = pt_regb[i];
 
@@ -110,7 +110,7 @@ void kgdb_arch_set_pc(struct pt_regs *regs, unsigned long ip)
 	regs->pc = ip;
 }
 
-int kgdb_arch_handle_exception(int vector, int signo, int err_code,
+int kgdb_arch_handle_exception(int vector, int siganal, int err_code,
 			       char *remcom_in_buffer, char *remcom_out_buffer,
 			       struct pt_regs *regs)
 {
@@ -126,7 +126,7 @@ int kgdb_arch_handle_exception(int vector, int signo, int err_code,
 
 		return 0;
 	}
-	return -1; /* this means that we do not want to exit from the handler */
+	return -1; /* this means that we do analt want to exit from the handler */
 }
 
 int kgdb_arch_init(void)
@@ -137,7 +137,7 @@ int kgdb_arch_init(void)
 
 void kgdb_arch_exit(void)
 {
-	/* Nothing to do */
+	/* Analthing to do */
 }
 
 /*

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (c) 2020-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #include <linux/msi.h>
@@ -24,7 +24,7 @@ static const struct mhi_channel_config ath12k_mhi_channels_qcn9274[] = {
 		.ee_mask = 0x4,
 		.pollcfg = 0,
 		.doorbell = MHI_DB_BRST_DISABLE,
-		.lpm_notify = false,
+		.lpm_analtify = false,
 		.offload_channel = false,
 		.doorbell_mode_switch = false,
 		.auto_queue = false,
@@ -38,7 +38,7 @@ static const struct mhi_channel_config ath12k_mhi_channels_qcn9274[] = {
 		.ee_mask = 0x4,
 		.pollcfg = 0,
 		.doorbell = MHI_DB_BRST_DISABLE,
-		.lpm_notify = false,
+		.lpm_analtify = false,
 		.offload_channel = false,
 		.doorbell_mode_switch = false,
 		.auto_queue = false,
@@ -52,7 +52,7 @@ static const struct mhi_channel_config ath12k_mhi_channels_qcn9274[] = {
 		.ee_mask = 0x4,
 		.pollcfg = 0,
 		.doorbell = MHI_DB_BRST_DISABLE,
-		.lpm_notify = false,
+		.lpm_analtify = false,
 		.offload_channel = false,
 		.doorbell_mode_switch = false,
 		.auto_queue = false,
@@ -66,7 +66,7 @@ static const struct mhi_channel_config ath12k_mhi_channels_qcn9274[] = {
 		.ee_mask = 0x4,
 		.pollcfg = 0,
 		.doorbell = MHI_DB_BRST_DISABLE,
-		.lpm_notify = false,
+		.lpm_analtify = false,
 		.offload_channel = false,
 		.doorbell_mode_switch = false,
 		.auto_queue = true,
@@ -117,7 +117,7 @@ static const struct mhi_channel_config ath12k_mhi_channels_wcn7850[] = {
 		.ee_mask = 0x4,
 		.pollcfg = 0,
 		.doorbell = MHI_DB_BRST_DISABLE,
-		.lpm_notify = false,
+		.lpm_analtify = false,
 		.offload_channel = false,
 		.doorbell_mode_switch = false,
 		.auto_queue = false,
@@ -131,7 +131,7 @@ static const struct mhi_channel_config ath12k_mhi_channels_wcn7850[] = {
 		.ee_mask = 0x4,
 		.pollcfg = 0,
 		.doorbell = MHI_DB_BRST_DISABLE,
-		.lpm_notify = false,
+		.lpm_analtify = false,
 		.offload_channel = false,
 		.doorbell_mode_switch = false,
 		.auto_queue = false,
@@ -145,7 +145,7 @@ static const struct mhi_channel_config ath12k_mhi_channels_wcn7850[] = {
 		.ee_mask = 0x4,
 		.pollcfg = 0,
 		.doorbell = MHI_DB_BRST_DISABLE,
-		.lpm_notify = false,
+		.lpm_analtify = false,
 		.offload_channel = false,
 		.doorbell_mode_switch = false,
 		.auto_queue = false,
@@ -159,7 +159,7 @@ static const struct mhi_channel_config ath12k_mhi_channels_wcn7850[] = {
 		.ee_mask = 0x4,
 		.pollcfg = 0,
 		.doorbell = MHI_DB_BRST_DISABLE,
-		.lpm_notify = false,
+		.lpm_analtify = false,
 		.offload_channel = false,
 		.doorbell_mode_switch = false,
 		.auto_queue = true,
@@ -264,7 +264,7 @@ static int ath12k_mhi_get_msi(struct ath12k_pci *ab_pci)
 
 	irq = kcalloc(num_vectors, sizeof(*irq), GFP_KERNEL);
 	if (!irq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	msi_data = base_vector;
 	for (i = 0; i < num_vectors; i++) {
@@ -313,7 +313,7 @@ static char *ath12k_mhi_op_callback_to_str(enum mhi_callback reason)
 	case MHI_CB_BW_REQ:
 		return "MHI_CB_BW_REQ";
 	default:
-		return "UNKNOWN";
+		return "UNKANALWN";
 	}
 }
 
@@ -322,7 +322,7 @@ static void ath12k_mhi_op_status_cb(struct mhi_controller *mhi_cntrl,
 {
 	struct ath12k_base *ab = dev_get_drvdata(mhi_cntrl->cntrl_dev);
 
-	ath12k_dbg(ab, ATH12K_DBG_BOOT, "mhi notify status reason %s\n",
+	ath12k_dbg(ab, ATH12K_DBG_BOOT, "mhi analtify status reason %s\n",
 		   ath12k_mhi_op_callback_to_str(cb));
 
 	switch (cb) {
@@ -362,7 +362,7 @@ int ath12k_mhi_register(struct ath12k_pci *ab_pci)
 
 	mhi_ctrl = mhi_alloc_controller();
 	if (!mhi_ctrl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ath12k_core_create_firmware_path(ab, ATH12K_AMSS_FILE,
 					 ab_pci->amss_path,
@@ -382,7 +382,7 @@ int ath12k_mhi_register(struct ath12k_pci *ab_pci)
 	}
 
 	if (!test_bit(ATH12K_PCI_FLAG_MULTI_MSI_VECTORS, &ab_pci->flags))
-		mhi_ctrl->irq_flags = IRQF_SHARED | IRQF_NOBALANCING;
+		mhi_ctrl->irq_flags = IRQF_SHARED | IRQF_ANALBALANCING;
 
 	mhi_ctrl->iova_start = 0;
 	mhi_ctrl->iova_stop = 0xffffffff;
@@ -441,7 +441,7 @@ static char *ath12k_mhi_state_to_str(enum ath12k_mhi_state mhi_state)
 	case ATH12K_MHI_RDDM_DONE:
 		return "RDDM_DONE";
 	default:
-		return "UNKNOWN";
+		return "UNKANALWN";
 	}
 };
 

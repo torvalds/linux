@@ -15,21 +15,21 @@
 static struct class *hnae_class;
 
 static void
-hnae_list_add(spinlock_t *lock, struct list_head *node, struct list_head *head)
+hnae_list_add(spinlock_t *lock, struct list_head *analde, struct list_head *head)
 {
 	unsigned long flags;
 
 	spin_lock_irqsave(lock, flags);
-	list_add_tail_rcu(node, head);
+	list_add_tail_rcu(analde, head);
 	spin_unlock_irqrestore(lock, flags);
 }
 
-static void hnae_list_del(spinlock_t *lock, struct list_head *node)
+static void hnae_list_del(spinlock_t *lock, struct list_head *analde)
 {
 	unsigned long flags;
 
 	spin_lock_irqsave(lock, flags);
-	list_del_rcu(node);
+	list_del_rcu(analde);
 	spin_unlock_irqrestore(lock, flags);
 }
 
@@ -39,7 +39,7 @@ static int hnae_alloc_buffer(struct hnae_ring *ring, struct hnae_desc_cb *cb)
 	struct page *p = dev_alloc_pages(order);
 
 	if (!p)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cb->priv = p;
 	cb->page_offset = 0;
@@ -96,22 +96,22 @@ static int __ae_match(struct device *dev, const void *data)
 {
 	struct hnae_ae_dev *hdev = cls_to_ae_dev(dev);
 
-	if (dev_of_node(hdev->dev))
-		return (data == &hdev->dev->of_node->fwnode);
-	else if (is_acpi_node(hdev->dev->fwnode))
-		return (data == hdev->dev->fwnode);
+	if (dev_of_analde(hdev->dev))
+		return (data == &hdev->dev->of_analde->fwanalde);
+	else if (is_acpi_analde(hdev->dev->fwanalde))
+		return (data == hdev->dev->fwanalde);
 
-	dev_err(dev, "__ae_match cannot read cfg data from OF or acpi\n");
+	dev_err(dev, "__ae_match cananalt read cfg data from OF or acpi\n");
 	return 0;
 }
 
-static struct hnae_ae_dev *find_ae(const struct fwnode_handle *fwnode)
+static struct hnae_ae_dev *find_ae(const struct fwanalde_handle *fwanalde)
 {
 	struct device *dev;
 
-	WARN_ON(!fwnode);
+	WARN_ON(!fwanalde);
 
-	dev = class_find_device(hnae_class, NULL, fwnode, __ae_match);
+	dev = class_find_device(hnae_class, NULL, fwanalde, __ae_match);
 
 	return dev ? cls_to_ae_dev(dev) : NULL;
 }
@@ -161,7 +161,7 @@ static int hnae_alloc_desc(struct hnae_ring *ring)
 
 	ring->desc = kzalloc(size, GFP_KERNEL);
 	if (!ring->desc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ring->desc_dma_addr = dma_map_single(ring_to_dev(ring),
 		ring->desc, size, ring_to_dma_dir(ring));
@@ -169,7 +169,7 @@ static int hnae_alloc_desc(struct hnae_ring *ring)
 		ring->desc_dma_addr = 0;
 		kfree(ring->desc);
 		ring->desc = NULL;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -202,14 +202,14 @@ hnae_init_ring(struct hnae_queue *q, struct hnae_ring *ring, int flags)
 	ring->coal_param = q->handle->coal_param;
 	assert(!ring->desc && !ring->desc_cb && !ring->desc_dma_addr);
 
-	/* not matter for tx or rx ring, the ntc and ntc start from 0 */
+	/* analt matter for tx or rx ring, the ntc and ntc start from 0 */
 	assert(ring->next_to_use == 0);
 	assert(ring->next_to_clean == 0);
 
 	ring->desc_cb = kcalloc(ring->desc_num, sizeof(ring->desc_cb[0]),
 			GFP_KERNEL);
 	if (!ring->desc_cb) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -273,20 +273,20 @@ static void hnae_fini_queue(struct hnae_queue *q)
 /*
  * ae_chain - define ae chain head
  */
-static RAW_NOTIFIER_HEAD(ae_chain);
+static RAW_ANALTIFIER_HEAD(ae_chain);
 
-int hnae_register_notifier(struct notifier_block *nb)
+int hnae_register_analtifier(struct analtifier_block *nb)
 {
-	return raw_notifier_chain_register(&ae_chain, nb);
+	return raw_analtifier_chain_register(&ae_chain, nb);
 }
-EXPORT_SYMBOL(hnae_register_notifier);
+EXPORT_SYMBOL(hnae_register_analtifier);
 
-void hnae_unregister_notifier(struct notifier_block *nb)
+void hnae_unregister_analtifier(struct analtifier_block *nb)
 {
-	if (raw_notifier_chain_unregister(&ae_chain, nb))
-		dev_err(NULL, "notifier chain unregister fail\n");
+	if (raw_analtifier_chain_unregister(&ae_chain, nb))
+		dev_err(NULL, "analtifier chain unregister fail\n");
 }
-EXPORT_SYMBOL(hnae_unregister_notifier);
+EXPORT_SYMBOL(hnae_unregister_analtifier);
 
 int hnae_reinit_handle(struct hnae_handle *handle)
 {
@@ -321,7 +321,7 @@ EXPORT_SYMBOL(hnae_reinit_handle);
  * return handle ptr or ERR_PTR
  */
 struct hnae_handle *hnae_get_handle(struct device *owner_dev,
-				    const struct fwnode_handle	*fwnode,
+				    const struct fwanalde_handle	*fwanalde,
 				    u32 port_id,
 				    struct hnae_buf_ops *bops)
 {
@@ -330,9 +330,9 @@ struct hnae_handle *hnae_get_handle(struct device *owner_dev,
 	int i, j;
 	int ret;
 
-	dev = find_ae(fwnode);
+	dev = find_ae(fwanalde);
 	if (!dev)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	handle = dev->ops->get_handle(dev, port_id);
 	if (IS_ERR(handle)) {
@@ -353,7 +353,7 @@ struct hnae_handle *hnae_get_handle(struct device *owner_dev,
 
 	__module_get(dev->owner);
 
-	hnae_list_add(&dev->lock, &handle->node, &dev->handle_list);
+	hnae_list_add(&dev->lock, &handle->analde, &dev->handle_list);
 
 	return handle;
 
@@ -363,7 +363,7 @@ out_when_init_queue:
 
 	put_device(&dev->cls_dev);
 
-	return ERR_PTR(-ENOMEM);
+	return ERR_PTR(-EANALMEM);
 }
 EXPORT_SYMBOL(hnae_get_handle);
 
@@ -378,7 +378,7 @@ void hnae_put_handle(struct hnae_handle *h)
 	if (h->dev->ops->reset)
 		h->dev->ops->reset(h);
 
-	hnae_list_del(&dev->lock, &h->node);
+	hnae_list_del(&dev->lock, &h->analde);
 
 	if (dev->ops->put_handle)
 		dev->ops->put_handle(h);
@@ -397,7 +397,7 @@ static void hnae_release(struct device *dev)
  * hnae_ae_register - register a AE engine to hnae framework
  * @hdev: the hnae ae engine device
  * @owner:  the module who provides this dev
- * NOTE: the duplicated name will not be checked
+ * ANALTE: the duplicated name will analt be checked
  */
 int hnae_ae_register(struct hnae_ae_dev *hdev, struct module *owner)
 {
@@ -405,7 +405,7 @@ int hnae_ae_register(struct hnae_ae_dev *hdev, struct module *owner)
 	int ret;
 
 	if (!hdev->dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!hdev->ops || !hdev->ops->get_handle ||
 	    !hdev->ops->toggle_ring_irq ||
@@ -427,10 +427,10 @@ int hnae_ae_register(struct hnae_ae_dev *hdev, struct module *owner)
 	INIT_LIST_HEAD(&hdev->handle_list);
 	spin_lock_init(&hdev->lock);
 
-	ret = raw_notifier_call_chain(&ae_chain, HNAE_AE_REGISTER, NULL);
+	ret = raw_analtifier_call_chain(&ae_chain, HNAE_AE_REGISTER, NULL);
 	if (ret)
 		dev_dbg(hdev->dev,
-			"has not notifier for AE: %s\n", hdev->name);
+			"has analt analtifier for AE: %s\n", hdev->name);
 
 	return 0;
 }
@@ -464,4 +464,4 @@ MODULE_AUTHOR("Hisilicon, Inc.");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Hisilicon Network Acceleration Engine Framework");
 
-/* vi: set tw=78 noet: */
+/* vi: set tw=78 analet: */

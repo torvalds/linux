@@ -6,129 +6,129 @@
 #include <linux/fs.h>
 #include <linux/quotaops.h>
 #include "jfs_incore.h"
-#include "jfs_inode.h"
+#include "jfs_ianalde.h"
 #include "jfs_filsys.h"
 #include "jfs_imap.h"
-#include "jfs_dinode.h"
+#include "jfs_dianalde.h"
 #include "jfs_debug.h"
 
 
-void jfs_set_inode_flags(struct inode *inode)
+void jfs_set_ianalde_flags(struct ianalde *ianalde)
 {
-	unsigned int flags = JFS_IP(inode)->mode2;
+	unsigned int flags = JFS_IP(ianalde)->mode2;
 	unsigned int new_fl = 0;
 
 	if (flags & JFS_IMMUTABLE_FL)
 		new_fl |= S_IMMUTABLE;
 	if (flags & JFS_APPEND_FL)
 		new_fl |= S_APPEND;
-	if (flags & JFS_NOATIME_FL)
-		new_fl |= S_NOATIME;
+	if (flags & JFS_ANALATIME_FL)
+		new_fl |= S_ANALATIME;
 	if (flags & JFS_DIRSYNC_FL)
 		new_fl |= S_DIRSYNC;
 	if (flags & JFS_SYNC_FL)
 		new_fl |= S_SYNC;
-	inode_set_flags(inode, new_fl, S_IMMUTABLE | S_APPEND | S_NOATIME |
+	ianalde_set_flags(ianalde, new_fl, S_IMMUTABLE | S_APPEND | S_ANALATIME |
 			S_DIRSYNC | S_SYNC);
 }
 
 /*
  * NAME:	ialloc()
  *
- * FUNCTION:	Allocate a new inode
+ * FUNCTION:	Allocate a new ianalde
  *
  */
-struct inode *ialloc(struct inode *parent, umode_t mode)
+struct ianalde *ialloc(struct ianalde *parent, umode_t mode)
 {
 	struct super_block *sb = parent->i_sb;
-	struct inode *inode;
-	struct jfs_inode_info *jfs_inode;
+	struct ianalde *ianalde;
+	struct jfs_ianalde_info *jfs_ianalde;
 	int rc;
 
-	inode = new_inode(sb);
-	if (!inode) {
-		jfs_warn("ialloc: new_inode returned NULL!");
-		return ERR_PTR(-ENOMEM);
+	ianalde = new_ianalde(sb);
+	if (!ianalde) {
+		jfs_warn("ialloc: new_ianalde returned NULL!");
+		return ERR_PTR(-EANALMEM);
 	}
 
-	jfs_inode = JFS_IP(inode);
+	jfs_ianalde = JFS_IP(ianalde);
 
-	rc = diAlloc(parent, S_ISDIR(mode), inode);
+	rc = diAlloc(parent, S_ISDIR(mode), ianalde);
 	if (rc) {
 		jfs_warn("ialloc: diAlloc returned %d!", rc);
 		goto fail_put;
 	}
 
-	if (insert_inode_locked(inode) < 0) {
+	if (insert_ianalde_locked(ianalde) < 0) {
 		rc = -EINVAL;
 		goto fail_put;
 	}
 
-	inode_init_owner(&nop_mnt_idmap, inode, parent, mode);
+	ianalde_init_owner(&analp_mnt_idmap, ianalde, parent, mode);
 	/*
-	 * New inodes need to save sane values on disk when
+	 * New ianaldes need to save sane values on disk when
 	 * uid & gid mount options are used
 	 */
-	jfs_inode->saved_uid = inode->i_uid;
-	jfs_inode->saved_gid = inode->i_gid;
+	jfs_ianalde->saved_uid = ianalde->i_uid;
+	jfs_ianalde->saved_gid = ianalde->i_gid;
 
 	/*
-	 * Allocate inode to quota.
+	 * Allocate ianalde to quota.
 	 */
-	rc = dquot_initialize(inode);
+	rc = dquot_initialize(ianalde);
 	if (rc)
 		goto fail_drop;
-	rc = dquot_alloc_inode(inode);
+	rc = dquot_alloc_ianalde(ianalde);
 	if (rc)
 		goto fail_drop;
 
 	/* inherit flags from parent */
-	jfs_inode->mode2 = JFS_IP(parent)->mode2 & JFS_FL_INHERIT;
+	jfs_ianalde->mode2 = JFS_IP(parent)->mode2 & JFS_FL_INHERIT;
 
 	if (S_ISDIR(mode)) {
-		jfs_inode->mode2 |= IDIRECTORY;
-		jfs_inode->mode2 &= ~JFS_DIRSYNC_FL;
+		jfs_ianalde->mode2 |= IDIRECTORY;
+		jfs_ianalde->mode2 &= ~JFS_DIRSYNC_FL;
 	}
 	else {
-		jfs_inode->mode2 |= INLINEEA | ISPARSE;
+		jfs_ianalde->mode2 |= INLINEEA | ISPARSE;
 		if (S_ISLNK(mode))
-			jfs_inode->mode2 &= ~(JFS_IMMUTABLE_FL|JFS_APPEND_FL);
+			jfs_ianalde->mode2 &= ~(JFS_IMMUTABLE_FL|JFS_APPEND_FL);
 	}
-	jfs_inode->mode2 |= inode->i_mode;
+	jfs_ianalde->mode2 |= ianalde->i_mode;
 
-	inode->i_blocks = 0;
-	simple_inode_init_ts(inode);
-	jfs_inode->otime = inode_get_ctime_sec(inode);
-	inode->i_generation = JFS_SBI(sb)->gengen++;
+	ianalde->i_blocks = 0;
+	simple_ianalde_init_ts(ianalde);
+	jfs_ianalde->otime = ianalde_get_ctime_sec(ianalde);
+	ianalde->i_generation = JFS_SBI(sb)->gengen++;
 
-	jfs_inode->cflag = 0;
+	jfs_ianalde->cflag = 0;
 
 	/* Zero remaining fields */
-	memset(&jfs_inode->acl, 0, sizeof(dxd_t));
-	memset(&jfs_inode->ea, 0, sizeof(dxd_t));
-	jfs_inode->next_index = 0;
-	jfs_inode->acltype = 0;
-	jfs_inode->btorder = 0;
-	jfs_inode->btindex = 0;
-	jfs_inode->bxflag = 0;
-	jfs_inode->blid = 0;
-	jfs_inode->atlhead = 0;
-	jfs_inode->atltail = 0;
-	jfs_inode->xtlid = 0;
-	jfs_set_inode_flags(inode);
+	memset(&jfs_ianalde->acl, 0, sizeof(dxd_t));
+	memset(&jfs_ianalde->ea, 0, sizeof(dxd_t));
+	jfs_ianalde->next_index = 0;
+	jfs_ianalde->acltype = 0;
+	jfs_ianalde->btorder = 0;
+	jfs_ianalde->btindex = 0;
+	jfs_ianalde->bxflag = 0;
+	jfs_ianalde->blid = 0;
+	jfs_ianalde->atlhead = 0;
+	jfs_ianalde->atltail = 0;
+	jfs_ianalde->xtlid = 0;
+	jfs_set_ianalde_flags(ianalde);
 
-	jfs_info("ialloc returns inode = 0x%p", inode);
+	jfs_info("ialloc returns ianalde = 0x%p", ianalde);
 
-	return inode;
+	return ianalde;
 
 fail_drop:
-	dquot_drop(inode);
-	inode->i_flags |= S_NOQUOTA;
-	clear_nlink(inode);
-	discard_new_inode(inode);
+	dquot_drop(ianalde);
+	ianalde->i_flags |= S_ANALQUOTA;
+	clear_nlink(ianalde);
+	discard_new_ianalde(ianalde);
 	return ERR_PTR(rc);
 
 fail_put:
-	iput(inode);
+	iput(ianalde);
 	return ERR_PTR(rc);
 }

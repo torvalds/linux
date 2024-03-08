@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _BTRFS_CTREE_H_
 #define _BTRFS_CTREE_H_
 
@@ -10,20 +10,20 @@
 #include <stddef.h>
 #endif
 
-/* ASCII for _BHRfS_M, no terminating nul */
+/* ASCII for _BHRfS_M, anal terminating nul */
 #define BTRFS_MAGIC 0x4D5F53665248425FULL
 
 #define BTRFS_MAX_LEVEL 8
 
 /*
- * We can actually store much bigger names, but lets not confuse the rest of
+ * We can actually store much bigger names, but lets analt confuse the rest of
  * linux.
  */
 #define BTRFS_NAME_LEN 255
 
 /*
  * Theoretical limit is larger, but we keep this down to a sane value. That
- * should limit greatly the possibility of collisions on inode ref items.
+ * should limit greatly the possibility of collisions on ianalde ref items.
  */
 #define BTRFS_LINK_MAX 65535U
 
@@ -31,7 +31,7 @@
  * This header contains the structure definitions and constants used
  * by file system objects that can be retrieved using
  * the BTRFS_IOC_SEARCH_TREE ioctl.  That means basically anything that
- * is needed to describe a leaf node's key or item contents.
+ * is needed to describe a leaf analde's key or item contents.
  */
 
 /* holds pointers to all of the tree roots */
@@ -104,10 +104,10 @@
 #define BTRFS_FREE_SPACE_OBJECTID -11ULL
 
 /*
- * The inode number assigned to the special inode for storing
- * free ino cache
+ * The ianalde number assigned to the special ianalde for storing
+ * free ianal cache
  */
-#define BTRFS_FREE_INO_OBJECTID -12ULL
+#define BTRFS_FREE_IANAL_OBJECTID -12ULL
 
 /* dummy objectid represents multiple objectids */
 #define BTRFS_MULTIPLE_OBJECTIDS -255ULL
@@ -126,26 +126,26 @@
  */
 #define BTRFS_DEV_ITEMS_OBJECTID 1ULL
 
-#define BTRFS_BTREE_INODE_OBJECTID 1
+#define BTRFS_BTREE_IANALDE_OBJECTID 1
 
 #define BTRFS_EMPTY_SUBVOL_DIR_OBJECTID 2
 
 #define BTRFS_DEV_REPLACE_DEVID 0ULL
 
 /*
- * inode items have the data typically returned from stat and store other
+ * ianalde items have the data typically returned from stat and store other
  * info about object characteristics.  There is one for every file and dir in
  * the FS
  */
-#define BTRFS_INODE_ITEM_KEY		1
-#define BTRFS_INODE_REF_KEY		12
-#define BTRFS_INODE_EXTREF_KEY		13
+#define BTRFS_IANALDE_ITEM_KEY		1
+#define BTRFS_IANALDE_REF_KEY		12
+#define BTRFS_IANALDE_EXTREF_KEY		13
 #define BTRFS_XATTR_ITEM_KEY		24
 
 /*
  * fs verity items are stored under two different key types on disk.
  * The descriptor items:
- * [ inode objectid, BTRFS_VERITY_DESC_ITEM_KEY, offset ]
+ * [ ianalde objectid, BTRFS_VERITY_DESC_ITEM_KEY, offset ]
  *
  * At offset 0, we store a btrfs_verity_descriptor_item which tracks the size
  * of the descriptor item and some extra data for encryption.
@@ -154,7 +154,7 @@
  * higher level verity code.  The most common descriptor size is 256 bytes.
  *
  * The merkle tree items:
- * [ inode objectid, BTRFS_VERITY_MERKLE_ITEM_KEY, offset ]
+ * [ ianalde objectid, BTRFS_VERITY_MERKLE_ITEM_KEY, offset ]
  *
  * These also start at offset 0, and correspond to the merkle tree bytes.  When
  * fsverity asks for page 0 of the merkle tree, we pull up one page starting at
@@ -165,11 +165,11 @@
 #define BTRFS_VERITY_MERKLE_ITEM_KEY	37
 
 #define BTRFS_ORPHAN_ITEM_KEY		48
-/* reserve 2-15 close to the inode for later flexibility */
+/* reserve 2-15 close to the ianalde for later flexibility */
 
 /*
- * dir items are the name -> inode pointers in a directory.  There is one
- * for every name in a directory.  BTRFS_DIR_LOG_ITEM_KEY is no longer used
+ * dir items are the name -> ianalde pointers in a directory.  There is one
+ * for every name in a directory.  BTRFS_DIR_LOG_ITEM_KEY is anal longer used
  * but it's still defined here for documentation purposes and to help avoid
  * having its numerical value reused in the future.
  */
@@ -214,7 +214,7 @@
 #define BTRFS_EXTENT_ITEM_KEY	168
 
 /*
- * The same as the BTRFS_EXTENT_ITEM_KEY, except it's metadata we already know
+ * The same as the BTRFS_EXTENT_ITEM_KEY, except it's metadata we already kanalw
  * the length, so we save the level in key->offset instead of the length.
  */
 #define BTRFS_METADATA_ITEM_KEY	169
@@ -222,7 +222,7 @@
 /*
  * Special inline ref key which stores the id of the subvolume which originally
  * created the extent. This subvolume owns the extent permanently from the
- * perspective of simple quotas. Needed to know which subvolume to free quota
+ * perspective of simple quotas. Needed to kanalw which subvolume to free quota
  * usage from when the extent is deleted.
  *
  * Stored as an inline ref rather to avoid wasting space on a separate item on
@@ -231,7 +231,7 @@
  *
  * Because of this, it goes at the front of the list of inline refs, and thus
  * must have a lower type value than any other inline ref type (to satisfy the
- * disk format rule that inline refs have non-decreasing type).
+ * disk format rule that inline refs have analn-decreasing type).
  */
 #define BTRFS_EXTENT_OWNER_REF_KEY	172
 
@@ -312,7 +312,7 @@
 #define BTRFS_BALANCE_ITEM_KEY	248
 
 /*
- * The key type for tree items that are stored persistently, but do not need to
+ * The key type for tree items that are stored persistently, but do analt need to
  * exist for extended period of time. The items can exist in any tree.
  *
  * [subtype, BTRFS_TEMPORARY_ITEM_KEY, data]
@@ -369,7 +369,7 @@
  */
 #define BTRFS_STRING_ITEM_KEY	253
 
-/* Maximum metadata block size (nodesize) */
+/* Maximum metadata block size (analdesize) */
 #define BTRFS_MAX_METADATA_BLOCKSIZE			65536
 
 /* 32 bytes in various csum fields */
@@ -391,7 +391,7 @@ enum btrfs_csum_type {
  *
  * Values 0..7 must match common file type values in fs_types.h.
  */
-#define BTRFS_FT_UNKNOWN	0
+#define BTRFS_FT_UNKANALWN	0
 #define BTRFS_FT_REG_FILE	1
 #define BTRFS_FT_DIR		2
 #define BTRFS_FT_CHRDEV		3
@@ -410,50 +410,50 @@ static inline __u8 btrfs_dir_flags_to_ftype(__u8 flags)
 }
 
 /*
- * Inode flags
+ * Ianalde flags
  */
-#define BTRFS_INODE_NODATASUM		(1U << 0)
-#define BTRFS_INODE_NODATACOW		(1U << 1)
-#define BTRFS_INODE_READONLY		(1U << 2)
-#define BTRFS_INODE_NOCOMPRESS		(1U << 3)
-#define BTRFS_INODE_PREALLOC		(1U << 4)
-#define BTRFS_INODE_SYNC		(1U << 5)
-#define BTRFS_INODE_IMMUTABLE		(1U << 6)
-#define BTRFS_INODE_APPEND		(1U << 7)
-#define BTRFS_INODE_NODUMP		(1U << 8)
-#define BTRFS_INODE_NOATIME		(1U << 9)
-#define BTRFS_INODE_DIRSYNC		(1U << 10)
-#define BTRFS_INODE_COMPRESS		(1U << 11)
+#define BTRFS_IANALDE_ANALDATASUM		(1U << 0)
+#define BTRFS_IANALDE_ANALDATACOW		(1U << 1)
+#define BTRFS_IANALDE_READONLY		(1U << 2)
+#define BTRFS_IANALDE_ANALCOMPRESS		(1U << 3)
+#define BTRFS_IANALDE_PREALLOC		(1U << 4)
+#define BTRFS_IANALDE_SYNC		(1U << 5)
+#define BTRFS_IANALDE_IMMUTABLE		(1U << 6)
+#define BTRFS_IANALDE_APPEND		(1U << 7)
+#define BTRFS_IANALDE_ANALDUMP		(1U << 8)
+#define BTRFS_IANALDE_ANALATIME		(1U << 9)
+#define BTRFS_IANALDE_DIRSYNC		(1U << 10)
+#define BTRFS_IANALDE_COMPRESS		(1U << 11)
 
-#define BTRFS_INODE_ROOT_ITEM_INIT	(1U << 31)
+#define BTRFS_IANALDE_ROOT_ITEM_INIT	(1U << 31)
 
-#define BTRFS_INODE_FLAG_MASK						\
-	(BTRFS_INODE_NODATASUM |					\
-	 BTRFS_INODE_NODATACOW |					\
-	 BTRFS_INODE_READONLY |						\
-	 BTRFS_INODE_NOCOMPRESS |					\
-	 BTRFS_INODE_PREALLOC |						\
-	 BTRFS_INODE_SYNC |						\
-	 BTRFS_INODE_IMMUTABLE |					\
-	 BTRFS_INODE_APPEND |						\
-	 BTRFS_INODE_NODUMP |						\
-	 BTRFS_INODE_NOATIME |						\
-	 BTRFS_INODE_DIRSYNC |						\
-	 BTRFS_INODE_COMPRESS |						\
-	 BTRFS_INODE_ROOT_ITEM_INIT)
+#define BTRFS_IANALDE_FLAG_MASK						\
+	(BTRFS_IANALDE_ANALDATASUM |					\
+	 BTRFS_IANALDE_ANALDATACOW |					\
+	 BTRFS_IANALDE_READONLY |						\
+	 BTRFS_IANALDE_ANALCOMPRESS |					\
+	 BTRFS_IANALDE_PREALLOC |						\
+	 BTRFS_IANALDE_SYNC |						\
+	 BTRFS_IANALDE_IMMUTABLE |					\
+	 BTRFS_IANALDE_APPEND |						\
+	 BTRFS_IANALDE_ANALDUMP |						\
+	 BTRFS_IANALDE_ANALATIME |						\
+	 BTRFS_IANALDE_DIRSYNC |						\
+	 BTRFS_IANALDE_COMPRESS |						\
+	 BTRFS_IANALDE_ROOT_ITEM_INIT)
 
-#define BTRFS_INODE_RO_VERITY		(1U << 0)
+#define BTRFS_IANALDE_RO_VERITY		(1U << 0)
 
-#define BTRFS_INODE_RO_FLAG_MASK	(BTRFS_INODE_RO_VERITY)
+#define BTRFS_IANALDE_RO_FLAG_MASK	(BTRFS_IANALDE_RO_VERITY)
 
 /*
  * The key defines the order in the tree, and so it also defines (optimal)
  * block layout.
  *
- * objectid corresponds to the inode number.
+ * objectid corresponds to the ianalde number.
  *
  * type tells us things about the object, and is a kind of stream selector.
- * so for a given inode, keys with type of 1 might refer to the inode data,
+ * so for a given ianalde, keys with type of 1 might refer to the ianalde data,
  * type of 2 may point to file data in the btree and type == 3 may point to
  * extents.
  *
@@ -476,14 +476,14 @@ struct btrfs_key {
 } __attribute__ ((__packed__));
 
 /*
- * Every tree block (leaf or node) starts with this header.
+ * Every tree block (leaf or analde) starts with this header.
  */
 struct btrfs_header {
 	/* These first four must match the super block */
 	__u8 csum[BTRFS_CSUM_SIZE];
 	/* FS specific uuid */
 	__u8 fsid[BTRFS_FSID_SIZE];
-	/* Which block this node is supposed to live in */
+	/* Which block this analde is supposed to live in */
 	__le64 bytenr;
 	__le64 flags;
 
@@ -502,7 +502,7 @@ struct btrfs_header {
 #define BTRFS_SYSTEM_CHUNK_ARRAY_SIZE 2048
 
 /*
- * Just in case we somehow lose the roots and are not able to mount, we store
+ * Just in case we somehow lose the roots and are analt able to mount, we store
  * an array of the roots from previous transactions in the super.
  */
 #define BTRFS_NUM_BACKUP_ROOTS 4
@@ -564,7 +564,7 @@ struct btrfs_leaf {
 } __attribute__ ((__packed__));
 
 /*
- * All non-leaf blocks are nodes, they hold only keys and pointers to other
+ * All analn-leaf blocks are analdes, they hold only keys and pointers to other
  * blocks.
  */
 struct btrfs_key_ptr {
@@ -573,7 +573,7 @@ struct btrfs_key_ptr {
 	__le64 generation;
 } __attribute__ ((__packed__));
 
-struct btrfs_node {
+struct btrfs_analde {
 	struct btrfs_header header;
 	struct btrfs_key_ptr ptrs[];
 } __attribute__ ((__packed__));
@@ -691,7 +691,7 @@ struct btrfs_super_block {
 	__le64 root_dir_objectid;
 	__le64 num_devices;
 	__le32 sectorsize;
-	__le32 nodesize;
+	__le32 analdesize;
 	__le32 __unused_leafsize;
 	__le32 stripesize;
 	__le32 sys_chunk_array_size;
@@ -853,13 +853,13 @@ struct btrfs_dev_extent {
 	__u8 chunk_tree_uuid[BTRFS_UUID_SIZE];
 } __attribute__ ((__packed__));
 
-struct btrfs_inode_ref {
+struct btrfs_ianalde_ref {
 	__le64 index;
 	__le16 name_len;
 	/* name goes here */
 } __attribute__ ((__packed__));
 
-struct btrfs_inode_extref {
+struct btrfs_ianalde_extref {
 	__le64 parent_objectid;
 	__le64 index;
 	__le16 name_len;
@@ -872,10 +872,10 @@ struct btrfs_timespec {
 	__le32 nsec;
 } __attribute__ ((__packed__));
 
-struct btrfs_inode_item {
+struct btrfs_ianalde_item {
 	/* nfs style generation number */
 	__le64 generation;
-	/* transid that last touched this inode */
+	/* transid that last touched this ianalde */
 	__le64 transid;
 	__le64 size;
 	__le64 nbytes;
@@ -892,7 +892,7 @@ struct btrfs_inode_item {
 
 	/*
 	 * a little future expansion, for more than this we can
-	 * just grow the inode item and version it
+	 * just grow the ianalde item and version it
 	 */
 	__le64 reserved[4];
 	struct btrfs_timespec atime;
@@ -922,7 +922,7 @@ struct btrfs_dir_item {
 #define BTRFS_ROOT_SUBVOL_DEAD		(1ULL << 48)
 
 struct btrfs_root_item {
-	struct btrfs_inode_item inode;
+	struct btrfs_ianalde_item ianalde;
 	__le64 generation;
 	__le64 root_dirid;
 	__le64 bytenr;
@@ -955,10 +955,10 @@ struct btrfs_root_item {
 	__u8 uuid[BTRFS_UUID_SIZE];
 	__u8 parent_uuid[BTRFS_UUID_SIZE];
 	__u8 received_uuid[BTRFS_UUID_SIZE];
-	__le64 ctransid; /* updated when an inode changes */
+	__le64 ctransid; /* updated when an ianalde changes */
 	__le64 otransid; /* trans when created */
-	__le64 stransid; /* trans when sent. non-zero for received subvol */
-	__le64 rtransid; /* trans when received. non-zero for received subvol */
+	__le64 stransid; /* trans when sent. analn-zero for received subvol */
+	__le64 rtransid; /* trans when received. analn-zero for received subvol */
 	struct btrfs_timespec ctime;
 	struct btrfs_timespec otime;
 	struct btrfs_timespec stime;
@@ -986,7 +986,7 @@ struct btrfs_root_ref {
 
 struct btrfs_disk_balance_args {
 	/*
-	 * profiles to operate on, single is denoted by
+	 * profiles to operate on, single is deanalted by
 	 * BTRFS_AVAIL_ALLOC_BIT_SINGLE
 	 */
 	__le64 profiles;
@@ -1016,7 +1016,7 @@ struct btrfs_disk_balance_args {
 	__le64 vend;
 
 	/*
-	 * profile to convert to, single is denoted by
+	 * profile to convert to, single is deanalted by
 	 * BTRFS_AVAIL_ALLOC_BIT_SINGLE
 	 */
 	__le64 target;
@@ -1076,7 +1076,7 @@ struct btrfs_file_extent_item {
 	__le64 generation;
 	/*
 	 * max number of bytes to hold this extent in ram
-	 * when we split a compressed extent we can't know how big
+	 * when we split a compressed extent we can't kanalw how big
 	 * each of the resulting pieces will be.  So, this is
 	 * an upper limit on the size of the extent in ram instead of
 	 * an exact limit.
@@ -1088,7 +1088,7 @@ struct btrfs_file_extent_item {
 	 * including compression and encryption.  If any of these
 	 * are set to something a given disk format doesn't understand
 	 * it is treated like an incompat flag for reading and writing,
-	 * but not for stat.
+	 * but analt for stat.
 	 */
 	__u8 compression;
 	__u8 encryption;
@@ -1106,7 +1106,7 @@ struct btrfs_file_extent_item {
 	__le64 disk_bytenr;
 	__le64 disk_num_bytes;
 	/*
-	 * the logical offset in file blocks (no csums)
+	 * the logical offset in file blocks (anal csums)
 	 * this extent record is for.  This allows a file extent to point
 	 * into the middle of an existing extent on disk, sharing it
 	 * between two snapshots (useful if some bytes in the middle of the
@@ -1114,7 +1114,7 @@ struct btrfs_file_extent_item {
 	 */
 	__le64 offset;
 	/*
-	 * the logical number of file blocks (no csums included).  This
+	 * the logical number of file blocks (anal csums included).  This
 	 * always reflects the size uncompressed and without encoding.
 	 */
 	__le64 num_bytes;
@@ -1245,16 +1245,16 @@ static inline __u16 btrfs_qgroup_level(__u64 qgroupid)
  */
 #define BTRFS_QGROUP_STATUS_FLAG_RESCAN		(1ULL << 1)
 /*
- * Some qgroup entries are known to be out of date,
+ * Some qgroup entries are kanalwn to be out of date,
  * either because the configuration has changed in a way that
  * makes a rescan necessary, or because the fs has been mounted
- * with a non-qgroup-aware version.
+ * with a analn-qgroup-aware version.
  * Turning qouta off and on again makes it inconsistent, too.
  */
 #define BTRFS_QGROUP_STATUS_FLAG_INCONSISTENT	(1ULL << 2)
 
 /*
- * Whether or not this filesystem is using simple quotas.  Not exactly the
+ * Whether or analt this filesystem is using simple quotas.  Analt exactly the
  * incompat bit, because we support using simple quotas, disabling it, then
  * going back to full qgroup quotas.
  */
@@ -1271,7 +1271,7 @@ struct btrfs_qgroup_status_item {
 	__le64 version;
 	/*
 	 * the generation is updated during every commit. As older
-	 * versions of btrfs are not aware of qgroups, it will be
+	 * versions of btrfs are analt aware of qgroups, it will be
 	 * possible to detect inconsistencies by checking the
 	 * generation on mount time
 	 */

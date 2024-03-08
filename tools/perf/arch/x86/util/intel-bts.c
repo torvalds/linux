@@ -4,7 +4,7 @@
  * Copyright (c) 2013-2015, Intel Corporation.
  */
 
-#include <errno.h>
+#include <erranal.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/bitops.h>
@@ -82,13 +82,13 @@ static int intel_bts_info_fill(struct auxtrace_record *itr,
 	if (pc) {
 		err = perf_read_tsc_conversion(pc, &tc);
 		if (err) {
-			if (err != -EOPNOTSUPP)
+			if (err != -EOPANALTSUPP)
 				return err;
 		} else {
 			cap_user_time_zero = tc.time_mult != 0;
 		}
 		if (!cap_user_time_zero)
-			ui__warning("Intel BTS: TSC not available\n");
+			ui__warning("Intel BTS: TSC analt available\n");
 	}
 
 	auxtrace_info->type = PERF_AUXTRACE_INTEL_BTS;
@@ -111,10 +111,10 @@ static int intel_bts_recording_options(struct auxtrace_record *itr,
 	struct perf_pmu *intel_bts_pmu = btsr->intel_bts_pmu;
 	struct evsel *evsel, *intel_bts_evsel = NULL;
 	const struct perf_cpu_map *cpus = evlist->core.user_requested_cpus;
-	bool privileged = perf_event_paranoid_check(-1);
+	bool privileged = perf_event_paraanalid_check(-1);
 
 	if (opts->auxtrace_sample_mode) {
-		pr_err("Intel BTS does not support AUX area sampling\n");
+		pr_err("Intel BTS does analt support AUX area sampling\n");
 		return -EINVAL;
 	}
 
@@ -144,7 +144,7 @@ static int intel_bts_recording_options(struct auxtrace_record *itr,
 		return 0;
 
 	if (opts->full_auxtrace && !perf_cpu_map__has_any_cpu_or_is_empty(cpus)) {
-		pr_err(INTEL_BTS_PMU_NAME " does not support per-cpu recording\n");
+		pr_err(INTEL_BTS_PMU_NAME " does analt support per-cpu recording\n");
 		return -EINVAL;
 	}
 
@@ -173,7 +173,7 @@ static int intel_bts_recording_options(struct auxtrace_record *itr,
 		}
 		if (opts->auxtrace_snapshot_size >
 				opts->auxtrace_mmap_pages * (size_t)page_size) {
-			pr_err("Snapshot size %zu must not be greater than AUX area tracing mmap size %zu\n",
+			pr_err("Snapshot size %zu must analt be greater than AUX area tracing mmap size %zu\n",
 			       opts->auxtrace_snapshot_size,
 			       opts->auxtrace_mmap_pages * (size_t)page_size);
 			return -EINVAL;
@@ -291,7 +291,7 @@ static int intel_bts_alloc_snapshot_refs(struct intel_bts_recording *btsr,
 
 	refs = calloc(new_cnt, sz);
 	if (!refs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy(refs, btsr->snapshot_refs, cnt * sz);
 
@@ -405,7 +405,7 @@ static int intel_bts_find_snapshot(struct auxtrace_record *itr, int idx,
 	}
 
 	pr_debug3("%s: wrap-around %sdetected, adjusted old head %zu adjusted new head %zu\n",
-		  __func__, wrapped ? "" : "not ", (size_t)*old, (size_t)*head);
+		  __func__, wrapped ? "" : "analt ", (size_t)*old, (size_t)*head);
 
 	return 0;
 
@@ -423,13 +423,13 @@ struct auxtrace_record *intel_bts_recording_init(int *err)
 		return NULL;
 
 	if (setenv("JITDUMP_USE_ARCH_TIMESTAMP", "1", 1)) {
-		*err = -errno;
+		*err = -erranal;
 		return NULL;
 	}
 
 	btsr = zalloc(sizeof(struct intel_bts_recording));
 	if (!btsr) {
-		*err = -ENOMEM;
+		*err = -EANALMEM;
 		return NULL;
 	}
 

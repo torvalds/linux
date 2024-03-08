@@ -62,23 +62,23 @@ static inline void user_wait_on_blocked_lock(struct user_lock_res *lockres)
 static inline struct ocfs2_cluster_connection *
 cluster_connection_from_user_lockres(struct user_lock_res *lockres)
 {
-	struct dlmfs_inode_private *ip;
+	struct dlmfs_ianalde_private *ip;
 
 	ip = container_of(lockres,
-			  struct dlmfs_inode_private,
+			  struct dlmfs_ianalde_private,
 			  ip_lockres);
 	return ip->ip_conn;
 }
 
-static struct inode *
-user_dlm_inode_from_user_lockres(struct user_lock_res *lockres)
+static struct ianalde *
+user_dlm_ianalde_from_user_lockres(struct user_lock_res *lockres)
 {
-	struct dlmfs_inode_private *ip;
+	struct dlmfs_ianalde_private *ip;
 
 	ip = container_of(lockres,
-			  struct dlmfs_inode_private,
+			  struct dlmfs_ianalde_private,
 			  ip_lockres);
-	return &ip->ip_vfs_inode;
+	return &ip->ip_vfs_ianalde;
 }
 
 static inline void user_recover_from_dlm_error(struct user_lock_res *lockres)
@@ -150,11 +150,11 @@ static void user_ast(struct ocfs2_dlm_lksb *lksb)
 	wake_up(&lockres->l_event);
 }
 
-static inline void user_dlm_grab_inode_ref(struct user_lock_res *lockres)
+static inline void user_dlm_grab_ianalde_ref(struct user_lock_res *lockres)
 {
-	struct inode *inode;
-	inode = user_dlm_inode_from_user_lockres(lockres);
-	if (!igrab(inode))
+	struct ianalde *ianalde;
+	ianalde = user_dlm_ianalde_from_user_lockres(lockres);
+	if (!igrab(ianalde))
 		BUG();
 }
 
@@ -163,7 +163,7 @@ static void user_dlm_unblock_lock(struct work_struct *work);
 static void __user_dlm_queue_lockres(struct user_lock_res *lockres)
 {
 	if (!(lockres->l_flags & USER_LOCK_QUEUED)) {
-		user_dlm_grab_inode_ref(lockres);
+		user_dlm_grab_ianalde_ref(lockres);
 
 		INIT_WORK(&lockres->l_work, user_dlm_unblock_lock);
 
@@ -237,7 +237,7 @@ static void user_unlock_ast(struct ocfs2_dlm_lksb *lksb, int status)
 		 * ast should've done this already. */
 		BUG_ON(!(lockres->l_flags & USER_LOCK_IN_CANCEL));
 		lockres->l_flags &= ~USER_LOCK_IN_CANCEL;
-		goto out_noclear;
+		goto out_analclear;
 	} else {
 		BUG_ON(!(lockres->l_flags & USER_LOCK_IN_CANCEL));
 		/* Cancel succeeded, we want to re-queue */
@@ -246,13 +246,13 @@ static void user_unlock_ast(struct ocfs2_dlm_lksb *lksb, int status)
 						    * request. */
 		lockres->l_flags &= ~USER_LOCK_IN_CANCEL;
 		/* we want the unblock thread to look at it again
-		 * now. */
+		 * analw. */
 		if (lockres->l_flags & USER_LOCK_BLOCKED)
 			__user_dlm_queue_lockres(lockres);
 	}
 
 	lockres->l_flags &= ~USER_LOCK_BUSY;
-out_noclear:
+out_analclear:
 	spin_unlock(&lockres->l_lock);
 
 	wake_up(&lockres->l_event);
@@ -266,18 +266,18 @@ out_noclear:
 static struct ocfs2_locking_protocol user_dlm_lproto = {
 	.lp_max_version = {
 		.pv_major = OCFS2_LOCKING_PROTOCOL_MAJOR,
-		.pv_minor = OCFS2_LOCKING_PROTOCOL_MINOR,
+		.pv_mianalr = OCFS2_LOCKING_PROTOCOL_MIANALR,
 	},
 	.lp_lock_ast		= user_ast,
 	.lp_blocking_ast	= user_bast,
 	.lp_unlock_ast		= user_unlock_ast,
 };
 
-static inline void user_dlm_drop_inode_ref(struct user_lock_res *lockres)
+static inline void user_dlm_drop_ianalde_ref(struct user_lock_res *lockres)
 {
-	struct inode *inode;
-	inode = user_dlm_inode_from_user_lockres(lockres);
-	iput(inode);
+	struct ianalde *ianalde;
+	ianalde = user_dlm_ianalde_from_user_lockres(lockres);
+	iput(ianalde);
 }
 
 static void user_dlm_unblock_lock(struct work_struct *work)
@@ -296,14 +296,14 @@ static void user_dlm_unblock_lock(struct work_struct *work)
 			"Lockres %.*s, flags 0x%x\n",
 			lockres->l_namelen, lockres->l_name, lockres->l_flags);
 
-	/* notice that we don't clear USER_LOCK_BLOCKED here. If it's
+	/* analtice that we don't clear USER_LOCK_BLOCKED here. If it's
 	 * set, we want user_ast clear it. */
 	lockres->l_flags &= ~USER_LOCK_QUEUED;
 
-	/* It's valid to get here and no longer be blocked - if we get
+	/* It's valid to get here and anal longer be blocked - if we get
 	 * several basts in a row, we might be queued by the first
 	 * one, the unblock thread might run and clear the queued
-	 * flag, and finally we might get another bast which re-queues
+	 * flag, and finally we might get aanalther bast which re-queues
 	 * us before our ast for the downconvert is called. */
 	if (!(lockres->l_flags & USER_LOCK_BLOCKED)) {
 		mlog(ML_BASTS, "lockres %.*s USER_LOCK_BLOCKED\n",
@@ -358,7 +358,7 @@ static void user_dlm_unblock_lock(struct work_struct *work)
 		goto drop_ref;
 	}
 
-	/* yay, we can downconvert now. */
+	/* yay, we can downconvert analw. */
 	new_level = user_highest_compat_lock_level(lockres->l_blocking);
 	lockres->l_requested = new_level;
 	lockres->l_flags |= USER_LOCK_BUSY;
@@ -366,7 +366,7 @@ static void user_dlm_unblock_lock(struct work_struct *work)
 	     lockres->l_namelen, lockres->l_name, lockres->l_level, new_level);
 	spin_unlock(&lockres->l_lock);
 
-	/* need lock downconvert request now... */
+	/* need lock downconvert request analw... */
 	status = ocfs2_dlm_lock(conn, new_level, &lockres->l_lksb,
 				DLM_LKF_CONVERT|DLM_LKF_VALBLK,
 				lockres->l_name,
@@ -377,7 +377,7 @@ static void user_dlm_unblock_lock(struct work_struct *work)
 	}
 
 drop_ref:
-	user_dlm_drop_inode_ref(lockres);
+	user_dlm_drop_ianalde_ref(lockres);
 }
 
 static inline void user_dlm_inc_holders(struct user_lock_res *lockres,
@@ -396,7 +396,7 @@ static inline void user_dlm_inc_holders(struct user_lock_res *lockres,
 }
 
 /* predict what lock level we'll be dropping down to on behalf
- * of another node, and return true if the currently wanted
+ * of aanalther analde, and return true if the currently wanted
  * level will be compatible with it. */
 static inline int
 user_may_continue_on_blocked_lock(struct user_lock_res *lockres,
@@ -455,7 +455,7 @@ again:
 	if ((lockres->l_flags & USER_LOCK_BLOCKED) &&
 	    (!user_may_continue_on_blocked_lock(lockres, level))) {
 		/* is the lock is currently blocked on behalf of
-		 * another node */
+		 * aanalther analde */
 		spin_unlock(&lockres->l_lock);
 
 		user_wait_on_blocked_lock(lockres);
@@ -474,12 +474,12 @@ again:
 		BUG_ON(level == DLM_LOCK_IV);
 		BUG_ON(level == DLM_LOCK_NL);
 
-		/* call dlm_lock to upgrade lock now */
+		/* call dlm_lock to upgrade lock analw */
 		status = ocfs2_dlm_lock(conn, level, &lockres->l_lksb,
 					local_flags, lockres->l_name,
 					lockres->l_namelen);
 		if (status) {
-			if ((lkm_flags & DLM_LKF_NOQUEUE) &&
+			if ((lkm_flags & DLM_LKF_ANALQUEUE) &&
 			    (status != -EAGAIN))
 				user_log_dlm_error("ocfs2_dlm_lock",
 						   status, lockres);
@@ -532,11 +532,11 @@ void user_dlm_cluster_unlock(struct user_lock_res *lockres,
 	spin_unlock(&lockres->l_lock);
 }
 
-void user_dlm_write_lvb(struct inode *inode,
+void user_dlm_write_lvb(struct ianalde *ianalde,
 			const char *val,
 			unsigned int len)
 {
-	struct user_lock_res *lockres = &DLMFS_I(inode)->ip_lockres;
+	struct user_lock_res *lockres = &DLMFS_I(ianalde)->ip_lockres;
 	char *lvb;
 
 	BUG_ON(len > DLM_LVB_LEN);
@@ -550,9 +550,9 @@ void user_dlm_write_lvb(struct inode *inode,
 	spin_unlock(&lockres->l_lock);
 }
 
-bool user_dlm_read_lvb(struct inode *inode, char *val)
+bool user_dlm_read_lvb(struct ianalde *ianalde, char *val)
 {
-	struct user_lock_res *lockres = &DLMFS_I(inode)->ip_lockres;
+	struct user_lock_res *lockres = &DLMFS_I(ianalde)->ip_lockres;
 	char *lvb;
 	bool ret = true;
 
@@ -649,10 +649,10 @@ bail:
 	return status;
 }
 
-static void user_dlm_recovery_handler_noop(int node_num,
+static void user_dlm_recovery_handler_analop(int analde_num,
 					   void *recovery_data)
 {
-	/* We ignore recovery events */
+	/* We iganalre recovery events */
 	return;
 }
 
@@ -666,12 +666,12 @@ struct ocfs2_cluster_connection *user_dlm_register(const struct qstr *name)
 	int rc;
 	struct ocfs2_cluster_connection *conn;
 
-	rc = ocfs2_cluster_connect_agnostic(name->name, name->len,
+	rc = ocfs2_cluster_connect_aganalstic(name->name, name->len,
 					    &user_dlm_lproto,
-					    user_dlm_recovery_handler_noop,
+					    user_dlm_recovery_handler_analop,
 					    NULL, &conn);
 	if (rc)
-		mlog_errno(rc);
+		mlog_erranal(rc);
 
 	return rc ? ERR_PTR(rc) : conn;
 }

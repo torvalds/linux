@@ -91,12 +91,12 @@ mei_hdcp_initiate_session(struct device *dev, struct hdcp_port_data *data,
 
 /**
  * mei_hdcp_verify_receiver_cert_prepare_km() - Verify the Receiver Certificate
- * AKE_Send_Cert and prepare AKE_Stored_Km/AKE_No_Stored_Km
+ * AKE_Send_Cert and prepare AKE_Stored_Km/AKE_Anal_Stored_Km
  * @dev: device corresponding to the mei_cl_device
  * @data: Intel HW specific hdcp data
  * @rx_cert: AKE_Send_Cert for verification
  * @km_stored: Pairing status flag output
- * @ek_pub_km: AKE_Stored_Km/AKE_No_Stored_Km output msg
+ * @ek_pub_km: AKE_Stored_Km/AKE_Anal_Stored_Km output msg
  * @msg_sz : size of AKE_XXXXX_Km output msg
  *
  * Return: 0 on Success, <0 on Failure
@@ -106,7 +106,7 @@ mei_hdcp_verify_receiver_cert_prepare_km(struct device *dev,
 					 struct hdcp_port_data *data,
 					 struct hdcp2_ake_send_cert *rx_cert,
 					 bool *km_stored,
-					 struct hdcp2_ake_no_stored_km
+					 struct hdcp2_ake_anal_stored_km
 								*ek_pub_km,
 					 size_t *msg_sz)
 {
@@ -160,8 +160,8 @@ mei_hdcp_verify_receiver_cert_prepare_km(struct device *dev,
 		ek_pub_km->msg_id = HDCP_2_2_AKE_STORED_KM;
 		*msg_sz = sizeof(struct hdcp2_ake_stored_km);
 	} else {
-		ek_pub_km->msg_id = HDCP_2_2_AKE_NO_STORED_KM;
-		*msg_sz = sizeof(struct hdcp2_ake_no_stored_km);
+		ek_pub_km->msg_id = HDCP_2_2_AKE_ANAL_STORED_KM;
+		*msg_sz = sizeof(struct hdcp2_ake_anal_stored_km);
 	}
 
 	memcpy(ek_pub_km->e_kpub_km, &verify_rxcert_out.ekm_buff,
@@ -564,7 +564,7 @@ static int mei_hdcp_verify_mprime(struct device *dev,
 
 	verify_mprime_in = kzalloc(cmd_size, GFP_KERNEL);
 	if (!verify_mprime_in)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	verify_mprime_in->header.api_version = HDCP_API_VERSION;
 	verify_mprime_in->header.command_id = WIRED_REPEATER_AUTH_STREAM_REQ;
@@ -811,7 +811,7 @@ static int mei_hdcp_probe(struct mei_cl_device *cldev,
 
 	comp_arbiter = kzalloc(sizeof(*comp_arbiter), GFP_KERNEL);
 	if (!comp_arbiter) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_exit;
 	}
 
@@ -819,7 +819,7 @@ static int mei_hdcp_probe(struct mei_cl_device *cldev,
 	component_match_add_typed(&cldev->dev, &master_match,
 				  mei_hdcp_component_match, &cldev->dev);
 	if (IS_ERR_OR_NULL(master_match)) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_exit;
 	}
 

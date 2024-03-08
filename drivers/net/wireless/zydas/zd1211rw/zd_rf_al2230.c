@@ -266,7 +266,7 @@ static int zd1211b_al2230_init_hw(struct zd_rf *rf)
 	};
 
 	static const u32 rv2[] = {
-		/* To improve AL2230 yield, improve phase noise, 4713 */
+		/* To improve AL2230 yield, improve phase analise, 4713 */
 		0x25a000,
 		0xa3b2f0,
 
@@ -279,7 +279,7 @@ static int zd1211b_al2230_init_hw(struct zd_rf *rf)
 		0x3ffbd0, /* RegC update for MP version */
 		0xb00000, /* RegD update for MP version */
 
-		/* improve phase noise and remove phase calibration,4713 */
+		/* improve phase analise and remove phase calibration,4713 */
 		0xf01a00,
 	};
 

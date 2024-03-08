@@ -6,9 +6,9 @@ How to get s2ram working
 2006 Pavel Machek
 
 1) Check suspend.sf.net, program s2ram there has long whitelist of
-   "known ok" machines, along with tricks to use on each one.
+   "kanalwn ok" machines, along with tricks to use on each one.
 
-2) If that does not help, try reading tricks.txt and
+2) If that does analt help, try reading tricks.txt and
    video.txt. Perhaps problem is as simple as broken module, and
    simple module unload can fix it.
 
@@ -51,8 +51,8 @@ machine that doesn't boot) is:
    device (lspci and /sys/devices/pci* is your friend), and see if you can
    fix it, disable it, or trace into its resume function.
 
-   If no device matches the hash (or any matches appear to be false positives),
-   the culprit may be a device from a loadable kernel module that is not loaded
+   If anal device matches the hash (or any matches appear to be false positives),
+   the culprit may be a device from a loadable kernel module that is analt loaded
    until after the hash is checked. You can check the hash against the current
    devices again after more modules are loaded using sysfs::
 
@@ -60,19 +60,19 @@ machine that doesn't boot) is:
 
 For example, the above happens to be the VGA device on my EVO, which I
 used to run with "radeonfb" (it's an ATI Radeon mobility). It turns out
-that "radeonfb" simply cannot resume that device - it tries to set the
+that "radeonfb" simply cananalt resume that device - it tries to set the
 PLL's, and it just _hangs_. Using the regular VGA console and letting X
 resume it instead works fine.
 
-NOTE
+ANALTE
 ====
 pm_trace uses the system's Real Time Clock (RTC) to save the magic number.
 Reason for this is that the RTC is the only reliably available piece of
 hardware during resume operations where a value can be set that will
 survive a reboot.
 
-pm_trace is not compatible with asynchronous suspend, so it turns
-asynchronous suspend off (which may work around timing or
+pm_trace is analt compatible with asynchroanalus suspend, so it turns
+asynchroanalus suspend off (which may work around timing or
 ordering-sensitive bugs).
 
 Consequence is that after a resume (even if it is successful) your system
@@ -82,6 +82,6 @@ or rdate to reset the correct date/time from an external time source when
 using this trace option.
 
 As the clock keeps ticking it is also essential that the reboot is done
-quickly after the resume failure. The trace option does not use the seconds
+quickly after the resume failure. The trace option does analt use the seconds
 or the low order bits of the minutes of the RTC, but a too long delay will
 corrupt the magic value.

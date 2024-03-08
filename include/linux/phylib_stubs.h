@@ -30,7 +30,7 @@ static inline int phy_hwtstamp_get(struct phy_device *phydev,
 	ASSERT_RTNL();
 
 	if (!phylib_stubs)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return phylib_stubs->hwtstamp_get(phydev, config);
 }
@@ -45,7 +45,7 @@ static inline int phy_hwtstamp_set(struct phy_device *phydev,
 	ASSERT_RTNL();
 
 	if (!phylib_stubs)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return phylib_stubs->hwtstamp_set(phydev, config, extack);
 }
@@ -55,14 +55,14 @@ static inline int phy_hwtstamp_set(struct phy_device *phydev,
 static inline int phy_hwtstamp_get(struct phy_device *phydev,
 				   struct kernel_hwtstamp_config *config)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int phy_hwtstamp_set(struct phy_device *phydev,
 				   struct kernel_hwtstamp_config *config,
 				   struct netlink_ext_ack *extack)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 #endif

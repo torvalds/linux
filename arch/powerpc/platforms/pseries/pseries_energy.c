@@ -9,7 +9,7 @@
 
 #include <linux/module.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/seq_file.h>
 #include <linux/device.h>
@@ -35,13 +35,13 @@ static int sysfs_entries;
 
 static u32 cpu_to_drc_index(int cpu)
 {
-	struct device_node *dn = NULL;
+	struct device_analde *dn = NULL;
 	struct property *info;
 	int thread_index;
 	int rc = 1;
 	u32 ret = 0;
 
-	dn = of_find_node_by_path("/cpus");
+	dn = of_find_analde_by_path("/cpus");
 	if (dn == NULL)
 		goto err;
 
@@ -57,7 +57,7 @@ static u32 cpu_to_drc_index(int cpu)
 
 		value = of_prop_next_u32(info, NULL, &num_set_entries);
 		if (!value)
-			goto err_of_node_put;
+			goto err_of_analde_put;
 		else
 			value++;
 
@@ -84,22 +84,22 @@ static u32 cpu_to_drc_index(int cpu)
 		rc = of_property_read_u32_index(dn, "ibm,drc-indexes",
 						0, &nr_drc_indexes);
 		if (rc)
-			goto err_of_node_put;
+			goto err_of_analde_put;
 
 		WARN_ON_ONCE(thread_index > nr_drc_indexes);
 		rc = of_property_read_u32_index(dn, "ibm,drc-indexes",
 						thread_index + 1,
 						&thread_drc_index);
 		if (rc)
-			goto err_of_node_put;
+			goto err_of_analde_put;
 
 		ret = thread_drc_index;
 	}
 
 	rc = 0;
 
-err_of_node_put:
-	of_node_put(dn);
+err_of_analde_put:
+	of_analde_put(dn);
 err:
 	if (rc)
 		printk(KERN_WARNING "cpu_to_drc_index(%d) failed", cpu);
@@ -108,13 +108,13 @@ err:
 
 static int drc_index_to_cpu(u32 drc_index)
 {
-	struct device_node *dn = NULL;
+	struct device_analde *dn = NULL;
 	struct property *info;
 	const int *indexes;
 	int thread_index = 0, cpu = 0;
 	int rc = 1;
 
-	dn = of_find_node_by_path("/cpus");
+	dn = of_find_analde_by_path("/cpus");
 	if (dn == NULL)
 		goto err;
 	info = of_find_property(dn, "ibm,drc-info", NULL);
@@ -126,7 +126,7 @@ static int drc_index_to_cpu(u32 drc_index)
 
 		value = of_prop_next_u32(info, NULL, &num_set_entries);
 		if (!value)
-			goto err_of_node_put;
+			goto err_of_analde_put;
 		else
 			value++;
 
@@ -152,7 +152,7 @@ static int drc_index_to_cpu(u32 drc_index)
 
 		indexes = of_get_property(dn, "ibm,drc-indexes", NULL);
 		if (indexes == NULL)
-			goto err_of_node_put;
+			goto err_of_analde_put;
 		/*
 		 * First element in the array is the number of drc_indexes
 		 * returned.  Search through the list to find the matching
@@ -167,8 +167,8 @@ static int drc_index_to_cpu(u32 drc_index)
 		rc = 0;
 	}
 
-err_of_node_put:
-	of_node_put(dn);
+err_of_analde_put:
+	of_analde_put(dn);
 err:
 	if (rc)
 		printk(KERN_WARNING "drc_index_to_cpu(%d) failed", drc_index);
@@ -195,7 +195,7 @@ static ssize_t get_best_energy_list(char *page, int activate)
 
 	buf_page = (u32 *) get_zeroed_page(GFP_KERNEL);
 	if (!buf_page)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	flags = FLAGS_MODE1;
 	if (activate)
@@ -303,7 +303,7 @@ static int __init pseries_energy_init(void)
 	struct device *cpu_dev, *dev_root;
 
 	if (!firmware_has_feature(FW_FEATURE_BEST_ENERGY))
-		return 0; /* H_BEST_ENERGY hcall not supported */
+		return 0; /* H_BEST_ENERGY hcall analt supported */
 
 	/* Create the sysfs files */
 	dev_root = bus_get_dev_root(&cpu_subsys);

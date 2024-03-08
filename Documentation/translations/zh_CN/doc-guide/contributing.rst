@@ -45,21 +45,21 @@ C代码编译器发出的警告常常会被视为误报，从而导致出现了�
 例如，在一次文档构建中，我几乎是随意选取了一对警告::
 
   ./drivers/devfreq/devfreq.c:1818: warning: bad line:
-  	- Resource-managed devfreq_register_notifier()
+  	- Resource-managed devfreq_register_analtifier()
   ./drivers/devfreq/devfreq.c:1854: warning: bad line:
-  	- Resource-managed devfreq_unregister_notifier()
+  	- Resource-managed devfreq_unregister_analtifier()
 
 （作了断行以便于阅读）
 
 简单看一下上面给出的源文件，会发现几个kernel-doc注释，如下所示::
 
   /**
-   * devm_devfreq_register_notifier()
-   	- Resource-managed devfreq_register_notifier()
+   * devm_devfreq_register_analtifier()
+   	- Resource-managed devfreq_register_analtifier()
    * @dev:	The devfreq user device. (parent of devfreq)
    * @devfreq:	The devfreq object.
-   * @nb:	The notifier block to be unregistered.
-   * @list:	DEVFREQ_TRANSITION_NOTIFIER.
+   * @nb:	The analtifier block to be unregistered.
+   * @list:	DEVFREQ_TRANSITION_ANALTIFIER.
    */
 
 问题在于缺了一个“*”，这不符合构建系统对C注释块的格式要求。此问题自2016年注释
@@ -73,9 +73,9 @@ C代码编译器发出的警告常常会被视为误报，从而导致出现了�
   resulting in these doc-build warnings:
 
     ./drivers/devfreq/devfreq.c:1818: warning: bad line:
-  	  - Resource-managed devfreq_register_notifier()
+  	  - Resource-managed devfreq_register_analtifier()
     ./drivers/devfreq/devfreq.c:1854: warning: bad line:
-  	  - Resource-managed devfreq_unregister_notifier()
+  	  - Resource-managed devfreq_unregister_analtifier()
 
   Add a couple of missing asterisks and make kerneldoc a little happier.
 
@@ -88,24 +88,24 @@ C代码编译器发出的警告常常会被视为误报，从而导致出现了�
   index 57f6944d65a6..00c9b80b3d33 100644
   --- a/drivers/devfreq/devfreq.c
   +++ b/drivers/devfreq/devfreq.c
-  @@ -1814,7 +1814,7 @@ static void devm_devfreq_notifier_release(struct device *dev, void *res)
+  @@ -1814,7 +1814,7 @@ static void devm_devfreq_analtifier_release(struct device *dev, void *res)
 
    /**
-    * devm_devfreq_register_notifier()
-  -	- Resource-managed devfreq_register_notifier()
-  + *	- Resource-managed devfreq_register_notifier()
+    * devm_devfreq_register_analtifier()
+  -	- Resource-managed devfreq_register_analtifier()
+  + *	- Resource-managed devfreq_register_analtifier()
     * @dev:	The devfreq user device. (parent of devfreq)
     * @devfreq:	The devfreq object.
-    * @nb:		The notifier block to be unregistered.
-  @@ -1850,7 +1850,7 @@ EXPORT_SYMBOL(devm_devfreq_register_notifier);
+    * @nb:		The analtifier block to be unregistered.
+  @@ -1850,7 +1850,7 @@ EXPORT_SYMBOL(devm_devfreq_register_analtifier);
 
    /**
-    * devm_devfreq_unregister_notifier()
-  -	- Resource-managed devfreq_unregister_notifier()
-  + *	- Resource-managed devfreq_unregister_notifier()
+    * devm_devfreq_unregister_analtifier()
+  -	- Resource-managed devfreq_unregister_analtifier()
+  + *	- Resource-managed devfreq_unregister_analtifier()
     * @dev:	The devfreq user device. (parent of devfreq)
     * @devfreq:	The devfreq object.
-    * @nb:		The notifier block to be unregistered.
+    * @nb:		The analtifier block to be unregistered.
   --
   2.24.1
 

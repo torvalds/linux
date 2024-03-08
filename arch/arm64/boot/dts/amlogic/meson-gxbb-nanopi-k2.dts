@@ -10,8 +10,8 @@
 #include <dt-bindings/sound/meson-aiu.h>
 
 / {
-	compatible = "friendlyarm,nanopi-k2", "amlogic,meson-gxbb";
-	model = "FriendlyARM NanoPi K2";
+	compatible = "friendlyarm,naanalpi-k2", "amlogic,meson-gxbb";
+	model = "FriendlyARM NaanalPi K2";
 
 	aliases {
 		serial0 = &uart_AO;
@@ -31,7 +31,7 @@
 		compatible = "gpio-leds";
 
 		led-stat {
-			label = "nanopi-k2:blue:stat";
+			label = "naanalpi-k2:blue:stat";
 			gpios = <&gpio_ao GPIOAO_13 GPIO_ACTIVE_HIGH>;
 			default-state = "on";
 			panic-indicator;
@@ -134,7 +134,7 @@
 
 	sound {
 		compatible = "amlogic,gx-sound-card";
-		model = "NANOPI-K2";
+		model = "NAANALPI-K2";
 		assigned-clocks = <&clkc CLKID_MPLL0>,
 				  <&clkc CLKID_MPLL1>,
 				  <&clkc CLKID_MPLL2>;
@@ -316,7 +316,7 @@
 	cap-sd-highspeed;
 	max-frequency = <50000000>;
 
-	non-removable;
+	analn-removable;
 	disable-wp;
 
 	/* WiFi firmware requires power to be kept while in suspend */
@@ -364,7 +364,7 @@
 
 	bus-width = <8>;
 	max-frequency = <200000000>;
-	non-removable;
+	analn-removable;
 	disable-wp;
 	cap-mmc-highspeed;
 	mmc-ddr-1_8v;

@@ -5,7 +5,7 @@
 #include <linux/bio.h>
 #include <linux/blkdev.h>
 #include <linux/closure.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/freezer.h>
 #include <linux/kernel.h>
 #include <linux/sched/clock.h>
@@ -63,7 +63,7 @@ static inline void vpfree(void *p, size_t size)
 
 static inline void *vpmalloc(size_t size, gfp_t gfp_mask)
 {
-	return (void *) __get_free_pages(gfp_mask|__GFP_NOWARN,
+	return (void *) __get_free_pages(gfp_mask|__GFP_ANALWARN,
 					 get_order(size)) ?:
 		__vmalloc(size, gfp_mask);
 }
@@ -362,7 +362,7 @@ static inline void prt_bdevname(struct printbuf *out, struct block_device *bdev)
 }
 
 #define NR_QUANTILES	15
-#define QUANTILE_IDX(i)	inorder_to_eytzinger0(i, NR_QUANTILES)
+#define QUANTILE_IDX(i)	ianalrder_to_eytzinger0(i, NR_QUANTILES)
 #define QUANTILE_FIRST	eytzinger0_first(NR_QUANTILES)
 #define QUANTILE_LAST	eytzinger0_last(NR_QUANTILES)
 
@@ -383,7 +383,7 @@ struct bch2_time_stat_buffer {
 
 struct bch2_time_stats {
 	spinlock_t	lock;
-	/* all fields are in nanoseconds */
+	/* all fields are in naanalseconds */
 	u64             min_duration;
 	u64		max_duration;
 	u64		total_duration;
@@ -399,7 +399,7 @@ struct bch2_time_stats {
 	struct bch2_time_stat_buffer __percpu *buffer;
 };
 
-#ifndef CONFIG_BCACHEFS_NO_LATENCY_ACCT
+#ifndef CONFIG_BCACHEFS_ANAL_LATENCY_ACCT
 void __bch2_time_stats_update(struct bch2_time_stats *stats, u64, u64);
 
 static inline void bch2_time_stats_update(struct bch2_time_stats *stats, u64 start)
@@ -448,11 +448,11 @@ void bch2_time_stats_init(struct bch2_time_stats *);
 })
 
 struct bch_ratelimit {
-	/* Next time we want to do some work, in nanoseconds */
+	/* Next time we want to do some work, in naanalseconds */
 	u64			next;
 
 	/*
-	 * Rate at which we want to do work, in units per nanosecond
+	 * Rate at which we want to do work, in units per naanalsecond
 	 * The units here correspond to the units passed to
 	 * bch2_ratelimit_increment()
 	 */
@@ -478,15 +478,15 @@ struct bch_pd_controller {
 	unsigned		d_smooth;
 	unsigned		d_term;
 
-	/* for exporting to sysfs (no effect on behavior) */
+	/* for exporting to sysfs (anal effect on behavior) */
 	s64			last_derivative;
 	s64			last_proportional;
 	s64			last_change;
 	s64			last_target;
 
 	/*
-	 * If true, the rate will not increase if bch2_ratelimit_delay()
-	 * is not being called often enough.
+	 * If true, the rate will analt increase if bch2_ratelimit_delay()
+	 * is analt being called often eanalugh.
 	 */
 	bool			backpressure;
 };
@@ -554,7 +554,7 @@ int bch2_bio_alloc_pages(struct bio *, size_t, gfp_t);
 
 static inline sector_t bdev_sectors(struct block_device *bdev)
 {
-	return bdev->bd_inode->i_size >> 9;
+	return bdev->bd_ianalde->i_size >> 9;
 }
 
 #define closure_bio_submit(bio, cl)					\

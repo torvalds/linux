@@ -72,10 +72,10 @@ The driver is a client driver to the core PMBus driver. Please see
 Documentation/hwmon/pmbus.rst for details on PMBus client drivers.
 
 
-Usage Notes
+Usage Analtes
 -----------
 
-This driver does not auto-detect devices. You will have to instantiate the
+This driver does analt auto-detect devices. You will have to instantiate the
 devices explicitly. Please see Documentation/i2c/instantiating-devices.rst for
 details.
 
@@ -111,7 +111,7 @@ in2_min_alarm		VAUX voltage low alarm (LM25056 only).
 in2_max_alarm		VAUX voltage high alarm (LM25056 only).
 
 in3_label		"vout1"
-			Not supported on LM25056.
+			Analt supported on LM25056.
 in3_input		Measured output voltage.
 in3_average		Average measured output voltage.
 in3_min			Minimum output voltage.

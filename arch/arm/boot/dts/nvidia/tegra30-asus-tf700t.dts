@@ -31,7 +31,7 @@
 				nvidia,pins = "lcd_pwr2_pc6",
 						"lcd_dc1_pd2";
 				nvidia,function = "displaya";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,pull = <TEGRA_PIN_PULL_ANALNE>;
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 				nvidia,enable-input = <TEGRA_PIN_DISABLE>;
 			};
@@ -39,7 +39,7 @@
 			pbb3 {
 				nvidia,pins = "pbb3";
 				nvidia,function = "vgp3";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,pull = <TEGRA_PIN_PULL_ANALNE>;
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 				nvidia,enable-input = <TEGRA_PIN_DISABLE>;
 			};
@@ -47,7 +47,7 @@
 			spi2_mosi_px0 {
 				nvidia,pins = "spi2_mosi_px0";
 				nvidia,function = "spi2";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,pull = <TEGRA_PIN_PULL_ANALNE>;
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 				nvidia,enable-input = <TEGRA_PIN_DISABLE>;
 			};
@@ -55,7 +55,7 @@
 			pbb7 {
 				nvidia,pins = "pbb7";
 				nvidia,function = "i2s4";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,pull = <TEGRA_PIN_PULL_ANALNE>;
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 				nvidia,enable-input = <TEGRA_PIN_DISABLE>;
 			};
@@ -63,7 +63,7 @@
 			kb_row7_pr7 {
 				nvidia,pins = "kb_row7_pr7";
 				nvidia,function = "kbc";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,pull = <TEGRA_PIN_PULL_ANALNE>;
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 				nvidia,enable-input = <TEGRA_PIN_DISABLE>;
 			};
@@ -802,11 +802,11 @@
 	};
 
 	opp-table-actmon {
-		/delete-node/ opp-900000000;
+		/delete-analde/ opp-900000000;
 	};
 
 	opp-table-emc {
-		/delete-node/ opp-900000000-1350;
+		/delete-analde/ opp-900000000-1350;
 	};
 
 	vdd_1v2_mipi: regulator-mipi {

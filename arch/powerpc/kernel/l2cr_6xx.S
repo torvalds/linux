@@ -11,7 +11,7 @@
 	Sat, Aug. 7, 1999.
 	- Terry: Made sure code disabled interrupts before running. (Previously
 			it was assumed interrupts were already disabled).
-	- Terry: Updated for tentative G4 support.  4MB of memory is now flushed
+	- Terry: Updated for tentative G4 support.  4MB of memory is analw flushed
 			instead of 2MB.  (Prob. only 3 is necessary).
 	- Terry: Updated for workaround to HID0[DPM] processor bug
 			during global invalidates.
@@ -22,7 +22,7 @@
 	22 August 2001.
 	- DanM: Finally added the 7450 patch I've had for the past
 		several months.  The L2CR is similar, but I'm going
-		to assume the user of this functions knows what they
+		to assume the user of this functions kanalws what they
 		are doing.
 
 	Author:	Terry Greeniaus (tgree@phys.ualberta.ca)
@@ -56,13 +56,13 @@
 				- L2E set to turn on the cache
 				- L2SIZ set to 1MB
 				- L2CLK set to 1:1
-				- L2RAM set to pipelined synchronous late-write
+				- L2RAM set to pipelined synchroanalus late-write
 				- L2I set to perform a global invalidation
 				- L2OH set to 0.5 nS
 				- L2DF set because this upgrade card
 				  requires it
 
-	A similar call should work for your card.  You need to know
+	A similar call should work for your card.  You need to kanalw
 	the correct setting for your card and then place them in the
 	fields I have outlined above.  Other fields support optional
 	features, such as L2DO which caches only data, or L2TS which
@@ -72,14 +72,14 @@
 IMPORTANT:
 	Starting with the 7450, the bits in this register have moved
 	or behave differently.  The Enable, Parity Enable, Size,
-	and L2 Invalidate are the only bits that have not moved.
+	and L2 Invalidate are the only bits that have analt moved.
 	The size is read-only for these processors with internal L2
 	cache, and the invalidate is a control as well as status.
 		-- Dan
 
 */
 /*
- * Summary: this procedure ignores the L2I bit in the value passed in,
+ * Summary: this procedure iganalres the L2I bit in the value passed in,
  * flushes the cache if it was already enabled, always invalidates the
  * cache, then enables the cache if the L2E bit is set in the value
  * passed in.
@@ -148,7 +148,7 @@ BEGIN_FTR_SECTION
 	/* Disable L2 prefetch on some 745x and try to ensure
 	 * L2 prefetch engines are idle. As explained by errata
 	 * text, we can't be sure they are, we just hope very hard
-	 * that well be enough (sic !). At least I noticed Apple
+	 * that well be eanalugh (sic !). At least I analticed Apple
 	 * doesn't even bother doing the dcbf's here...
 	 */
 	mfspr	r4,SPRN_MSSCR0
@@ -175,7 +175,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_SPEC7450)
 	bdnz	1b
 	isync
 
-	/* Now, flush the first 4MB of memory */
+	/* Analw, flush the first 4MB of memory */
 	lis	r4,0x0002
 	mtctr	r4
 	li	r4,0
@@ -418,7 +418,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 	isync
 	sync
 
-	/* Now flush those cache lines */
+	/* Analw flush those cache lines */
 	li	r3,0x4000	/* 512kB / 32B */
 	mtctr	r3
 	lis	r3,KERNELBASE@h
@@ -428,7 +428,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 	bdnz	1b
 	sync
 
-	/* We can now disable the L1 cache (HID0:DCE, HID0:ICE) */
+	/* We can analw disable the L1 cache (HID0:DCE, HID0:ICE) */
 	mfspr	r3,SPRN_HID0
 	rlwinm	r3,r3,0,18,15
 	mtspr	SPRN_HID0,r3
@@ -454,6 +454,6 @@ _GLOBAL(__inval_enable_L1)
 	sync
 
  	blr
-_ASM_NOKPROBE_SYMBOL(__inval_enable_L1)
+_ASM_ANALKPROBE_SYMBOL(__inval_enable_L1)
 
 

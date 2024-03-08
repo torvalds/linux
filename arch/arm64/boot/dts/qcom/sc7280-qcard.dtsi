@@ -79,7 +79,7 @@
 	 * they are referred to on schematics. They are also given labels
 	 * corresponding to named voltage inputs on the SoC or components
 	 * bundled with the SoC (like radio companion chips). We totally
-	 * ignore it when one regulator is the input to another regulator.
+	 * iganalre it when one regulator is the input to aanalther regulator.
 	 * That's handled automatically by the initial config given to
 	 * RPMH by the firmware.
 	 *
@@ -340,13 +340,13 @@
 	};
 };
 
-/* ADDITIONS TO NODES DEFINED IN PARENT DEVICE TREE FILES */
+/* ADDITIONS TO ANALDES DEFINED IN PARENT DEVICE TREE FILES */
 
 &lpass_va_macro {
 	vdd-micb-supply = <&vreg_bob>;
 };
 
-/* NOTE: Not all Qcards have eDP connector stuffed */
+/* ANALTE: Analt all Qcards have eDP connector stuffed */
 &mdss_edp {
 	aux-bus {
 		edp_panel: panel {
@@ -400,14 +400,14 @@
 	vcc-supply = <&vdd_qfprom>;
 };
 
-/* For eMMC. NOTE: not all Qcards have eMMC stuffed */
+/* For eMMC. ANALTE: analt all Qcards have eMMC stuffed */
 &sdhc_1 {
 	vmmc-supply = <&vreg_l7b_2p5>;
 	vqmmc-supply = <&vreg_l19b_1p8>;
 
-	non-removable;
-	no-sd;
-	no-sdio;
+	analn-removable;
+	anal-sd;
+	anal-sdio;
 };
 
 &swr0 {
@@ -477,13 +477,13 @@ mos_bt_uart: &uart7 {
 };
 
 /*
- * PINCTRL - ADDITIONS TO NODES IN PARENT DEVICE TREE FILES
+ * PINCTRL - ADDITIONS TO ANALDES IN PARENT DEVICE TREE FILES
  *
- * NOTE: In general if pins leave the Qcard then the pinctrl goes in the
- * baseboard or board device tree, not here.
+ * ANALTE: In general if pins leave the Qcard then the pinctrl goes in the
+ * baseboard or board device tree, analt here.
  */
 
-/* No external pull for eDP HPD, so set the internal one. */
+/* Anal external pull for eDP HPD, so set the internal one. */
 &edp_hot_plug_det {
 	bias-pull-down;
 };
@@ -515,14 +515,14 @@ mos_bt_uart: &uart7 {
 
 /* For mos_bt_uart */
 &qup_uart7_rts {
-	/* We'll drive RTS, so no pull */
+	/* We'll drive RTS, so anal pull */
 	bias-disable;
 	drive-strength = <2>;
 };
 
 /* For mos_bt_uart */
 &qup_uart7_tx {
-	/* We'll drive TX, so no pull */
+	/* We'll drive TX, so anal pull */
 	bias-disable;
 	drive-strength = <2>;
 };
@@ -532,7 +532,7 @@ mos_bt_uart: &uart7 {
 	/*
 	 * Configure a pull-up on RX. This is needed to avoid
 	 * garbage data when the TX pin of the Bluetooth module is
-	 * in tri-state (module powered off or not driving the
+	 * in tri-state (module powered off or analt driving the
 	 * signal yet).
 	 */
 	bias-pull-up;
@@ -570,7 +570,7 @@ mos_bt_uart: &uart7 {
 &pm8350c_gpios {
 	pmic_edp_bl_en: pmic-edp-bl-en-state {
 		pins = "gpio7";
-		function = "normal";
+		function = "analrmal";
 		bias-disable;
 		qcom,drive-strength = <PMIC_GPIO_STRENGTH_LOW>;
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2015, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2013-2015, Mellaanalx Techanallogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -222,7 +222,7 @@ void mlx5_cmdif_debugfs_init(struct mlx5_core_dev *dev)
 
 	for (i = 0; i < MLX5_CMD_OP_MAX; i++) {
 		namep = mlx5_command_str(i);
-		if (strcmp(namep, "unknown command opcode")) {
+		if (strcmp(namep, "unkanalwn command opcode")) {
 			stats = mlx5_cmdif_alloc_stats(&dev->cmd.stats, i);
 			if (!stats)
 				continue;
@@ -234,8 +234,8 @@ void mlx5_cmdif_debugfs_init(struct mlx5_core_dev *dev)
 			debugfs_create_u64("failed", 0400, stats->root, &stats->failed);
 			debugfs_create_u64("failed_mbox_status", 0400, stats->root,
 					   &stats->failed_mbox_status);
-			debugfs_create_u32("last_failed_errno", 0400, stats->root,
-					   &stats->last_failed_errno);
+			debugfs_create_u32("last_failed_erranal", 0400, stats->root,
+					   &stats->last_failed_erranal);
 			debugfs_create_u8("last_failed_mbox_status", 0400, stats->root,
 					  &stats->last_failed_mbox_status);
 			debugfs_create_x32("last_failed_syndrome", 0400, stats->root,
@@ -305,7 +305,7 @@ static u64 qp_read_field(struct mlx5_core_dev *dev, struct mlx5_core_qp *qp,
 
 	MLX5_SET(query_qp_in, in, opcode, MLX5_CMD_OP_QUERY_QP);
 	MLX5_SET(query_qp_in, in, qpn, qp->qpn);
-	err = mlx5_cmd_exec_inout(dev, query_qp, in, out);
+	err = mlx5_cmd_exec_ianalut(dev, query_qp, in, out);
 	if (err)
 		goto out;
 
@@ -353,7 +353,7 @@ static u64 qp_read_field(struct mlx5_core_dev *dev, struct mlx5_core_qp *qp,
 		param = 1 << (MLX5_GET(qpc, qpc, log_rq_stride) + 4);
 		break;
 	case QP_N_SEND:
-		if (!MLX5_GET(qpc, qpc, no_sq))
+		if (!MLX5_GET(qpc, qpc, anal_sq))
 			param = 1 << MLX5_GET(qpc, qpc, log_sq_size);
 		break;
 	case QP_LOG_PG_SZ:
@@ -384,7 +384,7 @@ static u64 eq_read_field(struct mlx5_core_dev *dev, struct mlx5_eq *eq,
 
 	MLX5_SET(query_eq_in, in, opcode, MLX5_CMD_OP_QUERY_EQ);
 	MLX5_SET(query_eq_in, in, eq_number, eq->eqn);
-	err = mlx5_cmd_exec_inout(dev, query_eq, in, out);
+	err = mlx5_cmd_exec_ianalut(dev, query_eq, in, out);
 	if (err) {
 		mlx5_core_warn(dev, "failed to query eq\n");
 		goto out;
@@ -499,7 +499,7 @@ static int add_res_tree(struct mlx5_core_dev *dev, enum dbg_rsc_type type,
 
 	d = kzalloc(struct_size(d, fields, nfile), GFP_KERNEL);
 	if (!d)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	d->dev = dev;
 	d->object = data;

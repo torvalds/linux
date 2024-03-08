@@ -1,8 +1,8 @@
-Some notes about the working of the atomisp drivers (learned while working
+Some analtes about the working of the atomisp drivers (learned while working
 on cleaning it up).
 
 The atomisp seems to be a generic DSP(ISP) like processor without a fixed
-pipeline. It does not have its own memory, but instead uses main memory.
+pipeline. It does analt have its own memory, but instead uses main memory.
 The ISP has its own address-space and main memory needs to be mapped into
 its address space through the ISP's MMU.
 
@@ -18,9 +18,9 @@ struct with various input and output parameters and then calling
 ia_css_binary_find(). Some binaries support creating multiple outputs
 (preview + video frame?) at the same time.
 
-For example for the /dev/video0 preview node load_preview_binaries()
+For example for the /dev/video0 preview analde load_preview_binaries()
 from atomisp/pci/sh_css.c is called and then loads a preview and
-optionally a scalar binary. Note when digital zoom is disabled
+optionally a scalar binary. Analte when digital zoom is disabled
 (it is enabled by default) only the preview binary is loaded.
 So in this case a single binary handles the entire pipeline.
 

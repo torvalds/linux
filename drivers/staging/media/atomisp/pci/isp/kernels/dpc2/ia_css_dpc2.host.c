@@ -53,7 +53,7 @@ ia_css_init_dpc2_state(
 	(void)size;
 }
 
-#ifndef IA_CSS_NO_DEBUG
+#ifndef IA_CSS_ANAL_DEBUG
 /* TODO: AM: This needs a proper implementation. */
 void
 ia_css_dpc2_debug_dtrace(

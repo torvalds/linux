@@ -103,7 +103,7 @@ static const struct afs_call_type afs_SRXYFSCB_CallBack = {
 
 /*
  * route an incoming cache manager call
- * - return T if supported, F if not
+ * - return T if supported, F if analt
  */
 bool afs_cm_incoming_call(struct afs_call *call)
 {
@@ -152,7 +152,7 @@ static int afs_find_cm_server_by_peer(struct afs_call *call)
 
 	server = afs_find_server(call->net, peer);
 	if (!server) {
-		trace_afs_cm_no_server(call, &srx);
+		trace_afs_cm_anal_server(call, &srx);
 		return 0;
 	}
 
@@ -173,7 +173,7 @@ static int afs_find_cm_server_by_uuid(struct afs_call *call,
 	server = afs_find_server_by_uuid(call->net, call->request);
 	rcu_read_unlock();
 	if (!server) {
-		trace_afs_cm_no_server_u(call, call->request);
+		trace_afs_cm_anal_server_u(call, call->request);
 		return 0;
 	}
 
@@ -259,7 +259,7 @@ static int afs_deliver_cb_callback(struct afs_call *call)
 		call->buffer = kmalloc(array3_size(call->count, 3, 4),
 				       GFP_KERNEL);
 		if (!call->buffer)
-			return -ENOMEM;
+			return -EANALMEM;
 		afs_extract_to_buf(call, call->count * 3 * 4);
 		call->unmarshall++;
 
@@ -275,13 +275,13 @@ static int afs_deliver_cb_callback(struct afs_call *call)
 					sizeof(struct afs_callback_break),
 					GFP_KERNEL);
 		if (!call->request)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		cb = call->request;
 		bp = call->buffer;
 		for (loop = call->count; loop > 0; loop--, cb++) {
 			cb->fid.vid	= ntohl(*bp++);
-			cb->fid.vnode	= ntohl(*bp++);
+			cb->fid.vanalde	= ntohl(*bp++);
 			cb->fid.unique	= ntohl(*bp++);
 		}
 
@@ -324,7 +324,7 @@ static int afs_deliver_cb_callback(struct afs_call *call)
 		return afs_io_error(call, afs_io_error_cm_reply);
 
 	/* we'll need the file server record as that tells us which set of
-	 * vnodes to operate upon */
+	 * vanaldes to operate upon */
 	return afs_find_cm_server_by_peer(call);
 }
 
@@ -359,7 +359,7 @@ static int afs_deliver_cb_init_call_back_state(struct afs_call *call)
 		return ret;
 
 	/* we'll need the file server record as that tells us which set of
-	 * vnodes to operate upon */
+	 * vanaldes to operate upon */
 	return afs_find_cm_server_by_peer(call);
 }
 
@@ -381,7 +381,7 @@ static int afs_deliver_cb_init_call_back_state3(struct afs_call *call)
 	case 0:
 		call->buffer = kmalloc_array(11, sizeof(__be32), GFP_KERNEL);
 		if (!call->buffer)
-			return -ENOMEM;
+			return -EANALMEM;
 		afs_extract_to_buf(call, 11 * sizeof(__be32));
 		call->unmarshall++;
 
@@ -398,7 +398,7 @@ static int afs_deliver_cb_init_call_back_state3(struct afs_call *call)
 		_debug("unmarshall UUID");
 		call->request = kmalloc(sizeof(struct afs_uuid), GFP_KERNEL);
 		if (!call->request)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		b = call->buffer;
 		r = call->request;
@@ -409,7 +409,7 @@ static int afs_deliver_cb_init_call_back_state3(struct afs_call *call)
 		r->clock_seq_low		= ntohl(b[4]);
 
 		for (loop = 0; loop < 6; loop++)
-			r->node[loop] = ntohl(b[loop + 5]);
+			r->analde[loop] = ntohl(b[loop + 5]);
 
 		call->unmarshall++;
 		fallthrough;
@@ -422,7 +422,7 @@ static int afs_deliver_cb_init_call_back_state3(struct afs_call *call)
 		return afs_io_error(call, afs_io_error_cm_reply);
 
 	/* we'll need the file server record as that tells us which set of
-	 * vnodes to operate upon */
+	 * vanaldes to operate upon */
 	return afs_find_cm_server_by_uuid(call, call->request);
 }
 
@@ -494,7 +494,7 @@ static int afs_deliver_cb_probe_uuid(struct afs_call *call)
 	case 0:
 		call->buffer = kmalloc_array(11, sizeof(__be32), GFP_KERNEL);
 		if (!call->buffer)
-			return -ENOMEM;
+			return -EANALMEM;
 		afs_extract_to_buf(call, 11 * sizeof(__be32));
 		call->unmarshall++;
 
@@ -511,7 +511,7 @@ static int afs_deliver_cb_probe_uuid(struct afs_call *call)
 		_debug("unmarshall UUID");
 		call->request = kmalloc(sizeof(struct afs_uuid), GFP_KERNEL);
 		if (!call->request)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		b = call->buffer;
 		r = call->request;
@@ -522,7 +522,7 @@ static int afs_deliver_cb_probe_uuid(struct afs_call *call)
 		r->clock_seq_low		= ntohl(b[4]);
 
 		for (loop = 0; loop < 6; loop++)
-			r->node[loop] = ntohl(b[loop + 5]);
+			r->analde[loop] = ntohl(b[loop + 5]);
 
 		call->unmarshall++;
 		fallthrough;
@@ -568,7 +568,7 @@ static void SRXAFSCB_TellMeAboutYourself(struct work_struct *work)
 	reply.ia.uuid[3] = htonl((s8) call->net->uuid.clock_seq_hi_and_reserved);
 	reply.ia.uuid[4] = htonl((s8) call->net->uuid.clock_seq_low);
 	for (loop = 0; loop < 6; loop++)
-		reply.ia.uuid[loop + 5] = htonl((s8) call->net->uuid.node[loop]);
+		reply.ia.uuid[loop + 5] = htonl((s8) call->net->uuid.analde[loop]);
 
 	reply.cap.capcount = htonl(1);
 	reply.cap.caps[0] = htonl(AFS_CAP_ERROR_TRANSLATION);
@@ -629,7 +629,7 @@ static int afs_deliver_yfs_cb_callback(struct afs_call *call)
 		size = array_size(call->count, sizeof(struct yfs_xdr_YFSFid));
 		call->buffer = kmalloc(size, GFP_KERNEL);
 		if (!call->buffer)
-			return -ENOMEM;
+			return -EANALMEM;
 		afs_extract_to_buf(call, size);
 		call->unmarshall++;
 
@@ -645,15 +645,15 @@ static int afs_deliver_yfs_cb_callback(struct afs_call *call)
 					sizeof(struct afs_callback_break),
 					GFP_KERNEL);
 		if (!call->request)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		cb = call->request;
 		bp = call->buffer;
 		for (loop = call->count; loop > 0; loop--, cb++) {
 			cb->fid.vid	= xdr_to_u64(bp->volume);
-			cb->fid.vnode	= xdr_to_u64(bp->vnode.lo);
-			cb->fid.vnode_hi = ntohl(bp->vnode.hi);
-			cb->fid.unique	= ntohl(bp->vnode.unique);
+			cb->fid.vanalde	= xdr_to_u64(bp->vanalde.lo);
+			cb->fid.vanalde_hi = ntohl(bp->vanalde.hi);
+			cb->fid.unique	= ntohl(bp->vanalde.unique);
 			bp++;
 		}
 
@@ -669,7 +669,7 @@ static int afs_deliver_yfs_cb_callback(struct afs_call *call)
 		return afs_io_error(call, afs_io_error_cm_reply);
 
 	/* We'll need the file server record as that tells us which set of
-	 * vnodes to operate upon.
+	 * vanaldes to operate upon.
 	 */
 	return afs_find_cm_server_by_peer(call);
 }

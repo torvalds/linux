@@ -51,9 +51,9 @@ struct sm5502_muic_info {
 
 	/*
 	 * Use delayed workqueue to detect cable state and then
-	 * notify cable state to notifiee/platform through uevent.
+	 * analtify cable state to analtifiee/platform through uevent.
 	 * After completing the booting of platform, the extcon provider
-	 * driver should notify cable state to upper layer.
+	 * driver should analtify cable state to upper layer.
 	 */
 	struct delayed_work wq_detcable;
 };
@@ -131,7 +131,7 @@ static const unsigned int sm5502_extcon_cable[] = {
 	EXTCON_USB_HOST,
 	EXTCON_CHG_USB_SDP,
 	EXTCON_CHG_USB_DCP,
-	EXTCON_NONE,
+	EXTCON_ANALNE,
 };
 
 /* Define supported accessory type */
@@ -323,12 +323,12 @@ static int sm5502_muic_set_path(struct sm5502_muic_info *info,
 					 con_sw);
 		if (ret < 0) {
 			dev_err(info->dev,
-				"cannot update DM_CON/DP_CON switch\n");
+				"cananalt update DM_CON/DP_CON switch\n");
 			return ret;
 		}
 		break;
 	default:
-		dev_err(info->dev, "Unknown DM_CON/DP_CON switch type (%d)\n",
+		dev_err(info->dev, "Unkanalwn DM_CON/DP_CON switch type (%d)\n",
 				con_sw);
 		return -EINVAL;
 	}
@@ -343,12 +343,12 @@ static int sm5502_muic_set_path(struct sm5502_muic_info *info,
 					 vbus_sw);
 		if (ret < 0) {
 			dev_err(info->dev,
-				"cannot update VBUSIN switch\n");
+				"cananalt update VBUSIN switch\n");
 			return ret;
 		}
 		break;
 	default:
-		dev_err(info->dev, "Unknown VBUS switch type (%d)\n", vbus_sw);
+		dev_err(info->dev, "Unkanalwn VBUS switch type (%d)\n", vbus_sw);
 		return -EINVAL;
 	}
 
@@ -387,7 +387,7 @@ static unsigned int sm5502_muic_get_cable_type(struct sm5502_muic_info *info)
 			cable_type = SM5502_MUIC_ADC_GROUND_USB_OTG;
 		} else {
 			dev_dbg(info->dev,
-				"cannot identify the cable type: adc(0x%x), dev_type1(0x%x)\n",
+				"cananalt identify the cable type: adc(0x%x), dev_type1(0x%x)\n",
 				adc, dev_type1);
 			return -EINVAL;
 		}
@@ -452,7 +452,7 @@ static unsigned int sm5502_muic_get_cable_type(struct sm5502_muic_info *info)
 			break;
 		default:
 			dev_dbg(info->dev,
-				"cannot identify the cable type: adc(0x%x)\n",
+				"cananalt identify the cable type: adc(0x%x)\n",
 				adc);
 			return -EINVAL;
 		}
@@ -502,7 +502,7 @@ static int sm5502_muic_cable_handler(struct sm5502_muic_info *info,
 		break;
 	default:
 		dev_dbg(info->dev,
-			"cannot handle this cable_type (0x%x)\n", cable_type);
+			"cananalt handle this cable_type (0x%x)\n", cable_type);
 		return 0;
 	}
 
@@ -549,7 +549,7 @@ static void sm5502_muic_irq_work(struct work_struct *work)
 
 /*
  * Sets irq_attach or irq_detach in sm5502_muic_info and returns 0.
- * Returns -ESRCH if irq_type does not match registered IRQ for this dev type.
+ * Returns -ESRCH if irq_type does analt match registered IRQ for this dev type.
  */
 static int sm5502_parse_irq(struct sm5502_muic_info *info, int irq_type)
 {
@@ -618,7 +618,7 @@ static irqreturn_t sm5502_muic_irq_handler(int irq, void *data)
 
 	ret = info->type->parse_irq(info, irq_type);
 	if (ret < 0) {
-		dev_warn(info->dev, "cannot handle is interrupt:%d\n",
+		dev_warn(info->dev, "cananalt handle is interrupt:%d\n",
 				    irq_type);
 		return IRQ_HANDLED;
 	}
@@ -633,7 +633,7 @@ static void sm5502_muic_detect_cable_wq(struct work_struct *work)
 				struct sm5502_muic_info, wq_detcable);
 	int ret;
 
-	/* Notify the state of connector cable or not  */
+	/* Analtify the state of connector cable or analt  */
 	ret = sm5502_muic_cable_handler(info, true);
 	if (ret < 0)
 		dev_warn(info->dev, "failed to detect cable state\n");
@@ -674,7 +674,7 @@ static void sm5502_init_dev_type(struct sm5502_muic_info *info)
 
 static int sm5022_muic_i2c_probe(struct i2c_client *i2c)
 {
-	struct device_node *np = i2c->dev.of_node;
+	struct device_analde *np = i2c->dev.of_analde;
 	struct sm5502_muic_info *info;
 	int i, ret, irq_flags;
 
@@ -683,7 +683,7 @@ static int sm5022_muic_i2c_probe(struct i2c_client *i2c)
 
 	info = devm_kzalloc(&i2c->dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 	i2c_set_clientdata(i2c, info);
 
 	info->dev = &i2c->dev;
@@ -731,7 +731,7 @@ static int sm5022_muic_i2c_probe(struct i2c_client *i2c)
 
 		ret = devm_request_threaded_irq(info->dev, virq, NULL,
 						sm5502_muic_irq_handler,
-						IRQF_NO_SUSPEND | IRQF_ONESHOT,
+						IRQF_ANAL_SUSPEND | IRQF_ONESHOT,
 						muic_irq->name, info);
 		if (ret) {
 			dev_err(info->dev,
@@ -745,7 +745,7 @@ static int sm5022_muic_i2c_probe(struct i2c_client *i2c)
 	info->edev = devm_extcon_dev_allocate(info->dev, sm5502_extcon_cable);
 	if (IS_ERR(info->edev)) {
 		dev_err(info->dev, "failed to allocate memory for extcon\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Register extcon device */
@@ -759,9 +759,9 @@ static int sm5022_muic_i2c_probe(struct i2c_client *i2c)
 	 * Detect accessory after completing the initialization of platform
 	 *
 	 * - Use delayed workqueue to detect cable state and then
-	 * notify cable state to notifiee/platform through uevent.
+	 * analtify cable state to analtifiee/platform through uevent.
 	 * After completing the booting of platform, the extcon provider
-	 * driver should notify cable state to upper layer.
+	 * driver should analtify cable state to upper layer.
 	 */
 	INIT_DELAYED_WORK(&info->wq_detcable, sm5502_muic_detect_cable_wq);
 	queue_delayed_work(system_power_efficient_wq, &info->wq_detcable,

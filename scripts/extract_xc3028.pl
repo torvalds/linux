@@ -38,7 +38,7 @@ sub verify ($$)
 	$testhash =~ /([a-zA-Z0-9]*)/;
 	$testhash = $1;
 	close CMD;
-		die "Hash of extracted file does not match (found $testhash, expected $hash!\n" if ($testhash ne $hash);
+		die "Hash of extracted file does analt match (found $testhash, expected $hash!\n" if ($testhash ne $hash);
 }
 
 sub get_hunk ($$)
@@ -506,7 +506,7 @@ sub main_firmware_24($$$$)
 	write_hunk_fix_endian(302536, 161);
 
 	#
-	# Firmware 39, type: STD FW    LCD NOGD (0x00003000), id: NTSC/M Kr (0000000000008000), size: 161
+	# Firmware 39, type: STD FW    LCD ANALGD (0x00003000), id: NTSC/M Kr (0000000000008000), size: 161
 	#
 
 	write_le32(0x00003000);			# Type
@@ -542,7 +542,7 @@ sub main_firmware_24($$$$)
 	write_hunk_fix_endian(303216, 161);
 
 	#
-	# Firmware 43, type: STD FW    LCD NOGD (0x00003000), id: NTSC PAL/M PAL/N (000000000000b700), size: 161
+	# Firmware 43, type: STD FW    LCD ANALGD (0x00003000), id: NTSC PAL/M PAL/N (000000000000b700), size: 161
 	#
 
 	write_le32(0x00003000);			# Type
@@ -578,7 +578,7 @@ sub main_firmware_24($$$$)
 	write_hunk_fix_endian(303896, 169);
 
 	#
-	# Firmware 47, type: STD FW    MTS LCD NOGD (0x00003004), id: NTSC PAL/M PAL/N (000000000000b700), size: 169
+	# Firmware 47, type: STD FW    MTS LCD ANALGD (0x00003004), id: NTSC PAL/M PAL/N (000000000000b700), size: 169
 	#
 
 	write_le32(0x00003004);			# Type
@@ -667,7 +667,7 @@ sub main_firmware_24($$$$)
 	write_hunk(308856, 192);
 
 	#
-	# Firmware 56, type: SCODE FW  MONO HAS IF (0x60008000), IF = 4.32 MHz id: NTSC/M Kr (0000000000008000), size: 192
+	# Firmware 56, type: SCODE FW  MOANAL HAS IF (0x60008000), IF = 4.32 MHz id: NTSC/M Kr (0000000000008000), size: 192
 	#
 
 	write_le32(0x60008000);			# Type
@@ -687,7 +687,7 @@ sub main_firmware_24($$$$)
 	write_hunk(309816, 192);
 
 	#
-	# Firmware 58, type: SCODE FW  MTS LCD NOGD MONO IF HAS IF (0x6002b004), IF = 4.50 MHz id: NTSC PAL/M PAL/N (000000000000b700), size: 192
+	# Firmware 58, type: SCODE FW  MTS LCD ANALGD MOANAL IF HAS IF (0x6002b004), IF = 4.50 MHz id: NTSC PAL/M PAL/N (000000000000b700), size: 192
 	#
 
 	write_le32(0x6002b004);			# Type
@@ -697,7 +697,7 @@ sub main_firmware_24($$$$)
 	write_hunk(304824, 192);
 
 	#
-	# Firmware 59, type: SCODE FW  LCD NOGD IF HAS IF (0x60023000), IF = 4.60 MHz id: NTSC/M Kr (0000000000008000), size: 192
+	# Firmware 59, type: SCODE FW  LCD ANALGD IF HAS IF (0x60023000), IF = 4.60 MHz id: NTSC/M Kr (0000000000008000), size: 192
 	#
 
 	write_le32(0x60023000);			# Type
@@ -737,7 +737,7 @@ sub main_firmware_24($$$$)
 	write_hunk(307704, 192);
 
 	#
-	# Firmware 63, type: SCODE FW  MONO HAS IF (0x60008000), IF = 5.32 MHz id: PAL/BG A2 NICAM (0000000f00000007), size: 192
+	# Firmware 63, type: SCODE FW  MOANAL HAS IF (0x60008000), IF = 5.32 MHz id: PAL/BG A2 NICAM (0000000f00000007), size: 192
 	#
 
 	write_le32(0x60008000);			# Type
@@ -797,7 +797,7 @@ sub main_firmware_24($$$$)
 	write_hunk(307512, 192);
 
 	#
-	# Firmware 69, type: SCODE FW  MONO HAS IF (0x60008000), IF = 6.00 MHz id: PAL/DK PAL/I SECAM/K3 SECAM/L SECAM/Lc NICAM (0000000c04c000f0), size: 192
+	# Firmware 69, type: SCODE FW  MOANAL HAS IF (0x60008000), IF = 6.00 MHz id: PAL/DK PAL/I SECAM/K3 SECAM/L SECAM/Lc NICAM (0000000c04c000f0), size: 192
 	#
 
 	write_le32(0x60008000);			# Type
@@ -827,7 +827,7 @@ sub main_firmware_24($$$$)
 	write_hunk(305400, 192);
 
 	#
-	# Firmware 72, type: SCODE FW  MONO HAS IF (0x60008000), IF = 6.32 MHz id: SECAM/K1 (0000000000200000), size: 192
+	# Firmware 72, type: SCODE FW  MOANAL HAS IF (0x60008000), IF = 6.32 MHz id: SECAM/K1 (0000000000200000), size: 192
 	#
 
 	write_le32(0x60008000);			# Type
@@ -847,7 +847,7 @@ sub main_firmware_24($$$$)
 	write_hunk(306360, 192);
 
 	#
-	# Firmware 74, type: SCODE FW  MONO HAS IF (0x60008000), IF = 6.50 MHz id: PAL/DK SECAM/K3 SECAM/L NICAM (0000000c044000e0), size: 192
+	# Firmware 74, type: SCODE FW  MOANAL HAS IF (0x60008000), IF = 6.50 MHz id: PAL/DK SECAM/K3 SECAM/L NICAM (0000000c044000e0), size: 192
 	#
 
 	write_le32(0x60008000);			# Type
@@ -877,7 +877,7 @@ sub main_firmware_24($$$$)
 	write_hunk(306168, 192);
 
 	#
-	# Firmware 77, type: SCODE FW  MONO HAS IF (0x60008000), IF = 6.68 MHz id: PAL/DK A2 (00000003000000e0), size: 192
+	# Firmware 77, type: SCODE FW  MOANAL HAS IF (0x60008000), IF = 6.68 MHz id: PAL/DK A2 (00000003000000e0), size: 192
 	#
 
 	write_le32(0x60008000);			# Type
@@ -1277,7 +1277,7 @@ sub main_firmware_27($$$$)
 	write_hunk_fix_endian(870752, 161);
 
 	#
-	# Firmware 39, type: STD FW    LCD NOGD (0x00003000), id: NTSC/M Kr (0000000000008000), size: 161
+	# Firmware 39, type: STD FW    LCD ANALGD (0x00003000), id: NTSC/M Kr (0000000000008000), size: 161
 	#
 
 	write_le32(0x00003000);			# Type
@@ -1313,7 +1313,7 @@ sub main_firmware_27($$$$)
 	write_hunk_fix_endian(871432, 161);
 
 	#
-	# Firmware 43, type: STD FW    LCD NOGD (0x00003000), id: NTSC PAL/M PAL/N (000000000000b700), size: 161
+	# Firmware 43, type: STD FW    LCD ANALGD (0x00003000), id: NTSC PAL/M PAL/N (000000000000b700), size: 161
 	#
 
 	write_le32(0x00003000);			# Type
@@ -1349,7 +1349,7 @@ sub main_firmware_27($$$$)
 	write_hunk_fix_endian(872112, 169);
 
 	#
-	# Firmware 47, type: STD FW    MTS LCD NOGD (0x00003004), id: NTSC PAL/M PAL/N (000000000000b700), size: 169
+	# Firmware 47, type: STD FW    MTS LCD ANALGD (0x00003004), id: NTSC PAL/M PAL/N (000000000000b700), size: 169
 	#
 
 	write_le32(0x00003004);			# Type
@@ -1438,7 +1438,7 @@ sub main_firmware_27($$$$)
 	write_hunk(811704, 192);
 
 	#
-	# Firmware 56, type: SCODE FW  MONO HAS IF (0x60008000), IF = 4.32 MHz id: NTSC/M Kr (0000000000008000), size: 192
+	# Firmware 56, type: SCODE FW  MOANAL HAS IF (0x60008000), IF = 4.32 MHz id: NTSC/M Kr (0000000000008000), size: 192
 	#
 
 	write_le32(0x60008000);			# Type
@@ -1458,7 +1458,7 @@ sub main_firmware_27($$$$)
 	write_hunk(812664, 192);
 
 	#
-	# Firmware 58, type: SCODE FW  MTS LCD NOGD MONO IF HAS IF (0x6002b004), IF = 4.50 MHz id: NTSC PAL/M PAL/N (000000000000b700), size: 192
+	# Firmware 58, type: SCODE FW  MTS LCD ANALGD MOANAL IF HAS IF (0x6002b004), IF = 4.50 MHz id: NTSC PAL/M PAL/N (000000000000b700), size: 192
 	#
 
 	write_le32(0x6002b004);			# Type
@@ -1468,7 +1468,7 @@ sub main_firmware_27($$$$)
 	write_hunk(807672, 192);
 
 	#
-	# Firmware 59, type: SCODE FW  LCD NOGD IF HAS IF (0x60023000), IF = 4.60 MHz id: NTSC/M Kr (0000000000008000), size: 192
+	# Firmware 59, type: SCODE FW  LCD ANALGD IF HAS IF (0x60023000), IF = 4.60 MHz id: NTSC/M Kr (0000000000008000), size: 192
 	#
 
 	write_le32(0x60023000);			# Type
@@ -1508,7 +1508,7 @@ sub main_firmware_27($$$$)
 	write_hunk(810552, 192);
 
 	#
-	# Firmware 63, type: SCODE FW  MONO HAS IF (0x60008000), IF = 5.32 MHz id: PAL/BG A2 NICAM (0000000f00000007), size: 192
+	# Firmware 63, type: SCODE FW  MOANAL HAS IF (0x60008000), IF = 5.32 MHz id: PAL/BG A2 NICAM (0000000f00000007), size: 192
 	#
 
 	write_le32(0x60008000);			# Type
@@ -1568,7 +1568,7 @@ sub main_firmware_27($$$$)
 	write_hunk(810360, 192);
 
 	#
-	# Firmware 69, type: SCODE FW  MONO HAS IF (0x60008000), IF = 6.00 MHz id: PAL/DK PAL/I SECAM/K3 SECAM/L SECAM/Lc NICAM (0000000c04c000f0), size: 192
+	# Firmware 69, type: SCODE FW  MOANAL HAS IF (0x60008000), IF = 6.00 MHz id: PAL/DK PAL/I SECAM/K3 SECAM/L SECAM/Lc NICAM (0000000c04c000f0), size: 192
 	#
 
 	write_le32(0x60008000);			# Type
@@ -1598,7 +1598,7 @@ sub main_firmware_27($$$$)
 	write_hunk(808248, 192);
 
 	#
-	# Firmware 72, type: SCODE FW  MONO HAS IF (0x60008000), IF = 6.32 MHz id: SECAM/K1 (0000000000200000), size: 192
+	# Firmware 72, type: SCODE FW  MOANAL HAS IF (0x60008000), IF = 6.32 MHz id: SECAM/K1 (0000000000200000), size: 192
 	#
 
 	write_le32(0x60008000);			# Type
@@ -1618,7 +1618,7 @@ sub main_firmware_27($$$$)
 	write_hunk(809208, 192);
 
 	#
-	# Firmware 74, type: SCODE FW  MONO HAS IF (0x60008000), IF = 6.50 MHz id: PAL/DK SECAM/K3 SECAM/L NICAM (0000000c044000e0), size: 192
+	# Firmware 74, type: SCODE FW  MOANAL HAS IF (0x60008000), IF = 6.50 MHz id: PAL/DK SECAM/K3 SECAM/L NICAM (0000000c044000e0), size: 192
 	#
 
 	write_le32(0x60008000);			# Type
@@ -1648,7 +1648,7 @@ sub main_firmware_27($$$$)
 	write_hunk(809016, 192);
 
 	#
-	# Firmware 77, type: SCODE FW  MONO HAS IF (0x60008000), IF = 6.68 MHz id: PAL/DK A2 (00000003000000e0), size: 192
+	# Firmware 77, type: SCODE FW  MOANAL HAS IF (0x60008000), IF = 6.68 MHz id: PAL/DK A2 (00000003000000e0), size: 192
 	#
 
 	write_le32(0x60008000);			# Type

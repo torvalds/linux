@@ -17,7 +17,7 @@
 #define BW_8_MHZ		0x03
 
 /* hierarchy priority selection values */
-#define HIER_NO_PRIORITY	0x00
+#define HIER_ANAL_PRIORITY	0x00
 #define HIER_LOW_PRIORITY	0x01
 #define HIER_HIGH_PRIORITY	0x02
 
@@ -25,19 +25,19 @@
 #define CONST_QPSK		0x00
 #define CONST_QAM16		0x01
 #define CONST_QAM64		0x02
-#define CONST_UNKNOWN		0xFF
+#define CONST_UNKANALWN		0xFF
 
 /* hierarchy available values */
-#define HIER_NONE		0x00
+#define HIER_ANALNE		0x00
 #define HIER_ALPHA_1		0x01
 #define HIER_ALPHA_2		0x02
 #define HIER_ALPHA_4		0x03
-#define HIER_UNKNOWN		0xFF
+#define HIER_UNKANALWN		0xFF
 
 /* interleaving available values */
 #define INTLV_NATIVE		0x00
 #define INTLV_IN_DEPTH		0x01
-#define INTLV_UNKNOWN		0xFF
+#define INTLV_UNKANALWN		0xFF
 
 /* code rate available values */
 #define CODE_RATE_1_2		0x00
@@ -45,27 +45,27 @@
 #define CODE_RATE_3_4		0x02
 #define CODE_RATE_5_6		0x03
 #define CODE_RATE_7_8		0x04
-#define CODE_RATE_UNKNOWN	0xFF
+#define CODE_RATE_UNKANALWN	0xFF
 
 /* guard interval available values */
 #define GUARD_INT_1_32		0x00
 #define GUARD_INT_1_16		0x01
 #define GUARD_INT_1_8		0x02
 #define GUARD_INT_1_4		0x03
-#define GUARD_UNKNOWN		0xFF
+#define GUARD_UNKANALWN		0xFF
 
 /* transmission mode available values */
 #define TRANS_MODE_2K		0x00
 #define TRANS_MODE_8K		0x01
 #define TRANS_MODE_4K		0x02
-#define TRANS_MODE_UNKNOWN	0xFF
+#define TRANS_MODE_UNKANALWN	0xFF
 
 /* DVBH signalling available values */
 #define TIMESLICING_PRESENT	0x01
 #define MPE_FEC_PRESENT		0x02
 
 /* tune state available */
-#define TUNE_STATUS_NOT_TUNED		0x00
+#define TUNE_STATUS_ANALT_TUNED		0x00
 #define TUNE_STATUS_IDLE		0x01
 #define TUNE_STATUS_LOCKING		0x02
 #define TUNE_STATUS_SIGNAL_DVB_OK	0x03
@@ -150,7 +150,7 @@ struct as10x_demod_stats {
 	uint32_t bytes_fixed_by_rs;
 	/* Averaged MER */
 	uint16_t mer;
-	/* statistics calculation state indicator (started or not) */
+	/* statistics calculation state indicator (started or analt) */
 	uint8_t has_started;
 } __packed;
 

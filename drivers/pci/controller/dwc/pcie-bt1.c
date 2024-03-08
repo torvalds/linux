@@ -91,8 +91,8 @@
 #define BT1_CCU_PCIE_AUX_PM_EN			BIT(22)
 #define BT1_CCU_PCIE_AUX_PWR_DET		BIT(23)
 #define BT1_CCU_PCIE_WAKE_DET			BIT(24)
-#define BT1_CCU_PCIE_TURNOFF_REQ		BIT(30)
-#define BT1_CCU_PCIE_TURNOFF_ACK		BIT(31)
+#define BT1_CCU_PCIE_TURANALFF_REQ		BIT(30)
+#define BT1_CCU_PCIE_TURANALFF_ACK		BIT(31)
 
 #define BT1_CCU_PCIE_GENC			0x14c
 #define BT1_CCU_PCIE_LTSSM_EN			BIT(1)
@@ -154,7 +154,7 @@ static const enum dw_pcie_app_rst bt1_pcie_app_rsts[] = {
 };
 
 static const enum dw_pcie_core_rst bt1_pcie_core_rsts[] = {
-	DW_PCIE_NON_STICKY_RST, DW_PCIE_STICKY_RST, DW_PCIE_CORE_RST,
+	DW_PCIE_ANALN_STICKY_RST, DW_PCIE_STICKY_RST, DW_PCIE_CORE_RST,
 	DW_PCIE_PIPE_RST, DW_PCIE_PHY_RST, DW_PCIE_HOT_RST, DW_PCIE_PWR_RST,
 };
 
@@ -167,7 +167,7 @@ struct bt1_pcie {
 
 /*
  * Baikal-T1 MMIO space must be read/written by the dword-aligned
- * instructions. Note the methods are optimized to have the dword operations
+ * instructions. Analte the methods are optimized to have the dword operations
  * performed with minimum overhead as the most frequently used ones.
  */
 static int bt1_pcie_read_mmio(void __iomem *addr, int size, u32 *val)
@@ -334,7 +334,7 @@ static int bt1_pcie_get_resources(struct bt1_pcie *btpci)
 
 	/* These CSRs are in MMIO so we won't check the regmap-methods status */
 	btpci->sys_regs =
-		syscon_regmap_lookup_by_phandle(dev->of_node, "baikal,bt1-syscon");
+		syscon_regmap_lookup_by_phandle(dev->of_analde, "baikal,bt1-syscon");
 	if (IS_ERR(btpci->sys_regs))
 		return dev_err_probe(dev, PTR_ERR(btpci->sys_regs),
 				     "Failed to get syscon\n");
@@ -343,28 +343,28 @@ static int bt1_pcie_get_resources(struct bt1_pcie *btpci)
 	for (i = 0; i < BT1_PCIE_NUM_APP_CLKS; i++) {
 		if (!btpci->dw.app_clks[bt1_pcie_app_clks[i]].clk) {
 			dev_err(dev, "App clocks set is incomplete\n");
-			return -ENOENT;
+			return -EANALENT;
 		}
 	}
 
 	for (i = 0; i < BT1_PCIE_NUM_CORE_CLKS; i++) {
 		if (!btpci->dw.core_clks[bt1_pcie_core_clks[i]].clk) {
 			dev_err(dev, "Core clocks set is incomplete\n");
-			return -ENOENT;
+			return -EANALENT;
 		}
 	}
 
 	for (i = 0; i < BT1_PCIE_NUM_APP_RSTS; i++) {
 		if (!btpci->dw.app_rsts[bt1_pcie_app_rsts[i]].rstc) {
 			dev_err(dev, "App resets set is incomplete\n");
-			return -ENOENT;
+			return -EANALENT;
 		}
 	}
 
 	for (i = 0; i < BT1_PCIE_NUM_CORE_RSTS; i++) {
 		if (!btpci->dw.core_rsts[bt1_pcie_core_rsts[i]].rstc) {
 			dev_err(dev, "Core resets set is incomplete\n");
-			return -ENOENT;
+			return -EANALENT;
 		}
 	}
 
@@ -445,7 +445,7 @@ static int bt1_pcie_cold_start_bus(struct bt1_pcie *btpci)
 		goto err_assert_hot_rst;
 	}
 
-	/* Clocks can be now enabled, but the ref one is crucial at this stage */
+	/* Clocks can be analw enabled, but the ref one is crucial at this stage */
 	ret = clk_bulk_prepare_enable(DW_PCIE_NUM_APP_CLKS, pci->app_clks);
 	if (ret) {
 		dev_err(dev, "Failed to enable app clocks\n");
@@ -467,7 +467,7 @@ static int bt1_pcie_cold_start_bus(struct bt1_pcie *btpci)
 		goto err_disable_core_clk;
 	}
 
-	/* PCS-PIPE interface and controller core can be now activated */
+	/* PCS-PIPE interface and controller core can be analw activated */
 	ret = reset_control_deassert(pci->core_rsts[DW_PCIE_PIPE_RST].rstc);
 	if (ret) {
 		dev_err(dev, "Failed to deassert PIPE reset\n");
@@ -487,16 +487,16 @@ static int bt1_pcie_cold_start_bus(struct bt1_pcie *btpci)
 		goto err_assert_core_rst;
 	}
 
-	/* Sticky/Non-sticky CSR flags can be now unreset too */
+	/* Sticky/Analn-sticky CSR flags can be analw unreset too */
 	ret = reset_control_deassert(pci->core_rsts[DW_PCIE_STICKY_RST].rstc);
 	if (ret) {
 		dev_err(dev, "Failed to deassert sticky reset\n");
 		goto err_assert_core_rst;
 	}
 
-	ret = reset_control_deassert(pci->core_rsts[DW_PCIE_NON_STICKY_RST].rstc);
+	ret = reset_control_deassert(pci->core_rsts[DW_PCIE_ANALN_STICKY_RST].rstc);
 	if (ret) {
-		dev_err(dev, "Failed to deassert non-sticky reset\n");
+		dev_err(dev, "Failed to deassert analn-sticky reset\n");
 		goto err_assert_sticky_rst;
 	}
 
@@ -569,7 +569,7 @@ static struct bt1_pcie *bt1_pcie_create_data(struct platform_device *pdev)
 
 	btpci = devm_kzalloc(&pdev->dev, sizeof(*btpci), GFP_KERNEL);
 	if (!btpci)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	btpci->pdev = pdev;
 

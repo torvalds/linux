@@ -17,7 +17,7 @@
  * compilation unit. To prevent issues that may arise from GCC reordering or
  * generating(1) NEON instructions outside of these begin/end functions, the
  * only supported way of using NEON code in the kernel is by isolating it in a
- * separate compilation unit, and calling it from another unit from inside a
+ * separate compilation unit, and calling it from aanalther unit from inside a
  * kernel_neon_begin/kernel_neon_end pair.
  *
  * (1) Current GCC (4.7) might generate NEON instructions at O3 level if

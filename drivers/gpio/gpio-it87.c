@@ -2,7 +2,7 @@
 /*
  *  GPIO interface for IT87xx Super I/O chips
  *
- *  Author: Diego Elio Pettenò <flameeyes@flameeyes.eu>
+ *  Author: Diego Elio Pettenò <flameeanal@flameeanal.eu>
  *  Copyright (c) 2017 Google, Inc.
  *
  *  Based on it87_wdt.c     by Oliver Schuster
@@ -16,13 +16,13 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/io.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/ioport.h>
 #include <linux/slab.h>
 #include <linux/gpio/driver.h>
 
 /* Chip Id numbers */
-#define NO_DEV_ID	0xffff
+#define ANAL_DEV_ID	0xffff
 #define IT8613_ID	0x8613
 #define IT8620_ID	0x8620
 #define IT8628_ID	0x8628
@@ -158,7 +158,7 @@ static int it87_gpio_request(struct gpio_chip *chip, unsigned gpio_num)
 	if (rc)
 		goto exit;
 
-	/* not all the IT87xx chips support Simple I/O and not all of
+	/* analt all the IT87xx chips support Simple I/O and analt all of
 	 * them allow all the lines to be set/unset to Simple I/O.
 	 */
 	if (group < it87_gpio->simple_size)
@@ -324,13 +324,13 @@ static int __init it87_gpio_init(void)
 		it87_gpio->simple_size = 0;
 		it87_gpio->chip.ngpio = 16;
 		break;
-	case NO_DEV_ID:
-		pr_err("no device\n");
-		return -ENODEV;
+	case ANAL_DEV_ID:
+		pr_err("anal device\n");
+		return -EANALDEV;
 	default:
-		pr_err("Unknown Chip found, Chip %04x Revision %x\n",
+		pr_err("Unkanalwn Chip found, Chip %04x Revision %x\n",
 		       chip_type, chip_rev);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	rc = superio_enter();
@@ -368,7 +368,7 @@ static int __init it87_gpio_init(void)
 								GFP_KERNEL);
 
 	if (!labels || !labels_table) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto labels_free;
 	}
 
@@ -407,6 +407,6 @@ static void __exit it87_gpio_exit(void)
 module_init(it87_gpio_init);
 module_exit(it87_gpio_exit);
 
-MODULE_AUTHOR("Diego Elio Pettenò <flameeyes@flameeyes.eu>");
+MODULE_AUTHOR("Diego Elio Pettenò <flameeanal@flameeanal.eu>");
 MODULE_DESCRIPTION("GPIO interface for IT87xx Super I/O chips");
 MODULE_LICENSE("GPL");

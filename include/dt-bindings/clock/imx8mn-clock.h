@@ -101,7 +101,7 @@
 #define IMX8MN_CLK_USB_BUS			80
 #define IMX8MN_CLK_GPU_AXI			81
 #define IMX8MN_CLK_GPU_AHB			82
-#define IMX8MN_CLK_NOC				83
+#define IMX8MN_CLK_ANALC				83
 #define IMX8MN_CLK_AHB				84
 #define IMX8MN_CLK_AUDIO_AHB			85
 

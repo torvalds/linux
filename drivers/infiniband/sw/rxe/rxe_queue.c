@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /*
- * Copyright (c) 2016 Mellanox Technologies Ltd. All rights reserved.
+ * Copyright (c) 2016 Mellaanalx Techanallogies Ltd. All rights reserved.
  * Copyright (c) 2015 System Fabric Works, Inc. All rights reserved.
  */
 
@@ -47,7 +47,7 @@ inline void rxe_queue_reset(struct rxe_queue *q)
 {
 	/* queue is comprised from header and the memory
 	 * of the actual queue. See "struct rxe_queue_buf" in rxe_queue.h
-	 * reset only the queue itself and not the management header
+	 * reset only the queue itself and analt the management header
 	 */
 	memset(q->buf->data, 0, q->buf_size - sizeof(struct rxe_queue_buf));
 }
@@ -157,7 +157,7 @@ int rxe_queue_resize(struct rxe_queue *q, unsigned int *num_elem_p,
 
 	new_q = rxe_queue_init(q->rxe, &num_elem, elem_size, q->type);
 	if (!new_q)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = do_mmap_info(new_q->rxe, outbuf, udata, new_q->buf,
 			   new_q->buf_size, &new_q->ip);

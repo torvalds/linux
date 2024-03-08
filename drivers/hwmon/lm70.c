@@ -169,7 +169,7 @@ static int lm70_probe(struct spi_device *spi)
 	struct lm70 *p_lm70;
 	int chip;
 
-	if (dev_fwnode(&spi->dev))
+	if (dev_fwanalde(&spi->dev))
 		chip = (int)(uintptr_t)device_get_match_data(&spi->dev);
 	else
 		chip = spi_get_device_id(spi)->driver_data;
@@ -179,11 +179,11 @@ static int lm70_probe(struct spi_device *spi)
 	if ((spi->mode & SPI_MODE_X_MASK) != SPI_MODE_0)
 		return -EINVAL;
 
-	/* NOTE:  we assume 8-bit words, and convert to 16 bits manually */
+	/* ANALTE:  we assume 8-bit words, and convert to 16 bits manually */
 
 	p_lm70 = devm_kzalloc(&spi->dev, sizeof(*p_lm70), GFP_KERNEL);
 	if (!p_lm70)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&p_lm70->lock);
 	p_lm70->chip = chip;

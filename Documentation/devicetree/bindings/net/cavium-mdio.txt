@@ -12,7 +12,7 @@ Properties:
 
 - #address-cells: Must be <1>.
 
-- #size-cells: Must be <0>.  MDIO addresses have no size component.
+- #size-cells: Must be <0>.  MDIO addresses have anal size component.
 
 Typically an MDIO bus might have several children.
 

@@ -26,7 +26,7 @@ enum {
  * (Android media layer)
  */
 enum {
-	GBAUDIO_DEVICE_NONE                     = 0x0,
+	GBAUDIO_DEVICE_ANALNE                     = 0x0,
 	/* reserved bits */
 	GBAUDIO_DEVICE_BIT_IN                   = 0x80000000,
 	GBAUDIO_DEVICE_BIT_DEFAULT              = 0x40000000,

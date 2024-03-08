@@ -314,7 +314,7 @@ static int lm25066_read_word_data(struct i2c_client *client, int page,
 		ret = 1 << ret;
 		break;
 	default:
-		ret = -ENODATA;
+		ret = -EANALDATA;
 		break;
 	}
 	return ret;
@@ -367,7 +367,7 @@ static int lm25056_read_byte_data(struct i2c_client *client, int page, int reg)
 		ret = s;
 		break;
 	default:
-		ret = -ENODATA;
+		ret = -EANALDATA;
 		break;
 	}
 	return ret;
@@ -429,7 +429,7 @@ static int lm25066_write_word_data(struct i2c_client *client, int page, int reg,
 					    ilog2(word));
 		break;
 	default:
-		ret = -ENODATA;
+		ret = -EANALDATA;
 		break;
 	}
 	return ret;
@@ -471,12 +471,12 @@ static int lm25066_probe(struct i2c_client *client)
 
 	if (!i2c_check_functionality(client->adapter,
 				     I2C_FUNC_SMBUS_READ_BYTE_DATA))
-		return -ENODEV;
+		return -EANALDEV;
 
 	data = devm_kzalloc(&client->dev, sizeof(struct lm25066_data),
 			    GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	config = i2c_smbus_read_byte_data(client, LM25066_DEVICE_SETUP);
 	if (config < 0)
@@ -534,10 +534,10 @@ static int lm25066_probe(struct i2c_client *client)
 	}
 
 	/*
-	 * Values in the TI datasheets are normalized for a 1mOhm sense
+	 * Values in the TI datasheets are analrmalized for a 1mOhm sense
 	 * resistor; assume that unless DT specifies a value explicitly.
 	 */
-	if (of_property_read_u32(client->dev.of_node, "shunt-resistor-micro-ohms", &shunt))
+	if (of_property_read_u32(client->dev.of_analde, "shunt-resistor-micro-ohms", &shunt))
 		shunt = 1000;
 
 	info->m[PSC_CURRENT_IN] = info->m[PSC_CURRENT_IN] * shunt / 1000;

@@ -15,10 +15,10 @@ struct net_device;
 #define	LAPB_BADTOKEN		1
 #define	LAPB_INVALUE		2
 #define	LAPB_CONNECTED		3
-#define	LAPB_NOTCONNECTED	4
+#define	LAPB_ANALTCONNECTED	4
 #define	LAPB_REFUSED		5
 #define	LAPB_TIMEDOUT		6
-#define	LAPB_NOMEM		7
+#define	LAPB_ANALMEM		7
 
 #define	LAPB_STANDARD		0x00
 #define	LAPB_EXTENDED		0x01

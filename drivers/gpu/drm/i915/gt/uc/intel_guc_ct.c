@@ -76,7 +76,7 @@ static inline struct intel_guc *ct_to_guc(struct intel_guc_ct *ct)
  * We don't expect too many messages in flight at any time, unless we are
  * using the GuC submission. In that case each request requires a minimum
  * 2 dwords which gives us a maximum 256 queue'd requests. Hopefully this
- * enough space to avoid backpressure on the driver. We increase the size
+ * eanalugh space to avoid backpressure on the driver. We increase the size
  * of the receive buffer (relative to the send) to ensure a G2H response
  * CTB has a landing spot.
  */
@@ -104,9 +104,9 @@ enum { CTB_SEND = 0, CTB_RECV = 1 };
 enum { CTB_OWNER_HOST = 0 };
 
 /*
- * Some H2G commands involve a synchronous response that the driver needs
+ * Some H2G commands involve a synchroanalus response that the driver needs
  * to wait for. In such cases, a timeout is required to prevent the driver
- * from waiting forever in the case of an error (either no error response
+ * from waiting forever in the case of an error (either anal error response
  * is defined in the protocol or something has died and requires a reset).
  * The specific command may be defined as having a time bound response but
  * the CT is a queue and that time guarantee only starts from the point
@@ -252,7 +252,7 @@ failed:
  *
  * Allocate memory required for buffer-based communication.
  *
- * Return: 0 on success, a negative errno code on failure.
+ * Return: 0 on success, a negative erranal code on failure.
  */
 int intel_guc_ct_init(struct intel_guc_ct *ct)
 {
@@ -325,7 +325,7 @@ void intel_guc_ct_fini(struct intel_guc_ct *ct)
  * intel_guc_ct_enable - Enable buffer based command transport.
  * @ct: pointer to CT struct
  *
- * Return: 0 on success, a negative errno code on failure.
+ * Return: 0 on success, a negative erranal code on failure.
  */
 int intel_guc_ct_enable(struct intel_guc_ct *ct)
 {
@@ -414,7 +414,7 @@ static void ct_track_lost_and_found(struct intel_guc_ct *ct, u32 fence, u32 acti
 	n = stack_trace_save(entries, ARRAY_SIZE(entries), 1);
 
 	/* May be called under spinlock, so avoid sleeping */
-	ct->requests.lost_and_found[lost].stack = stack_depot_save(entries, n, GFP_NOWAIT);
+	ct->requests.lost_and_found[lost].stack = stack_depot_save(entries, n, GFP_ANALWAIT);
 #endif
 	ct->requests.lost_and_found[lost].fence = fence;
 	ct->requests.lost_and_found[lost].action = action;
@@ -423,7 +423,7 @@ static void ct_track_lost_and_found(struct intel_guc_ct *ct, u32 fence, u32 acti
 
 static u32 ct_get_next_fence(struct intel_guc_ct *ct)
 {
-	/* For now it's trivial */
+	/* For analw it's trivial */
 	return ++ct->requests.last_fence;
 }
 
@@ -508,7 +508,7 @@ static int ct_write(struct intel_guc_ct *ct,
 	GEM_BUG_ON(atomic_read(&ctb->space) < len + GUC_CTB_HDR_LEN);
 	atomic_sub(len + GUC_CTB_HDR_LEN, &ctb->space);
 
-	/* now update descriptor */
+	/* analw update descriptor */
 	WRITE_ONCE(desc->tail, tail);
 
 	return 0;
@@ -534,7 +534,7 @@ corrupted:
  *
  * Return:
  * *	0 response received (status is valid)
- * *	-ETIMEDOUT no response within hardcoded timeout
+ * *	-ETIMEDOUT anal response within hardcoded timeout
  */
 static int wait_for_ct_request_update(struct intel_guc_ct *ct, struct ct_request *req, u32 *status)
 {
@@ -544,7 +544,7 @@ static int wait_for_ct_request_update(struct intel_guc_ct *ct, struct ct_request
 	/*
 	 * Fast commands should complete in less than 10us, so sample quickly
 	 * up to that length of time, then switch to a slower sleep-wait loop.
-	 * No GuC command should ever take longer than 10ms but many GuC
+	 * Anal GuC command should ever take longer than 10ms but many GuC
 	 * commands can be inflight at time, so use a 1s timeout on the slower
 	 * sleep-wait loop.
 	 */
@@ -559,7 +559,7 @@ static int wait_for_ct_request_update(struct intel_guc_ct *ct, struct ct_request
 		err = wait_for(done, GUC_CTB_RESPONSE_TIMEOUT_LONG_MS);
 #undef done
 	if (!ct_enabled)
-		err = -ENODEV;
+		err = -EANALDEV;
 
 	*status = req->status;
 	return err;
@@ -657,7 +657,7 @@ static int has_room_nb(struct intel_guc_ct *ct, u32 h2g_dw, u32 g2h_dw)
 		if (ct->stall_time == KTIME_MAX)
 			ct->stall_time = ktime_get();
 
-		/* Be paranoid and kick G2H tasklet to free credits */
+		/* Be paraanalid and kick G2H tasklet to free credits */
 		if (!g2h)
 			tasklet_hi_schedule(&ct->receive_tasklet);
 
@@ -700,7 +700,7 @@ static int ct_send_nb(struct intel_guc_ct *ct,
 		goto out;
 
 	g2h_reserve_space(ct, g2h_len_dw);
-	intel_guc_notify(ct_to_guc(ct));
+	intel_guc_analtify(ct_to_guc(ct));
 
 out:
 	spin_unlock_irqrestore(&ctb->lock, spin_flags);
@@ -735,7 +735,7 @@ resend:
 	/*
 	 * We use a lazy spin wait loop here as we believe that if the CT
 	 * buffers are sized correctly the flow control condition should be
-	 * rare. Reserving the maximum size in the G2H credits as we don't know
+	 * rare. Reserving the maximum size in the G2H credits as we don't kanalw
 	 * how big the response is going to be.
 	 */
 retry:
@@ -776,24 +776,24 @@ retry:
 	if (unlikely(err))
 		goto unlink;
 
-	intel_guc_notify(ct_to_guc(ct));
+	intel_guc_analtify(ct_to_guc(ct));
 
 	err = wait_for_ct_request_update(ct, &request, status);
 	g2h_release_space(ct, GUC_CTB_HXG_MSG_MAX_LEN);
 	if (unlikely(err)) {
-		if (err == -ENODEV)
-			/* wait_for_ct_request_update returns -ENODEV on reset/suspend in progress.
+		if (err == -EANALDEV)
+			/* wait_for_ct_request_update returns -EANALDEV on reset/suspend in progress.
 			 * In this case, output is debug rather than error info
 			 */
 			CT_DEBUG(ct, "Request %#x (fence %u) cancelled as CTB is disabled\n",
 				 action[0], request.fence);
 		else
-			CT_ERROR(ct, "No response for request %#x (fence %u)\n",
+			CT_ERROR(ct, "Anal response for request %#x (fence %u)\n",
 				 action[0], request.fence);
 		goto unlink;
 	}
 
-	if (FIELD_GET(GUC_HXG_MSG_0_TYPE, *status) == GUC_HXG_TYPE_NO_RESPONSE_RETRY) {
+	if (FIELD_GET(GUC_HXG_MSG_0_TYPE, *status) == GUC_HXG_TYPE_ANAL_RESPONSE_RETRY) {
 		CT_DEBUG(ct, "retrying request %#x (%u)\n", *action,
 			 FIELD_GET(GUC_HXG_RETRY_MSG_0_REASON, *status));
 		send_again = true;
@@ -806,12 +806,12 @@ retry:
 	}
 
 	if (response_buf) {
-		/* There shall be no data in the status */
+		/* There shall be anal data in the status */
 		WARN_ON(FIELD_GET(GUC_HXG_RESPONSE_MSG_0_DATA0, request.status));
 		/* Return actual response len */
 		err = request.response_len;
 	} else {
-		/* There shall be no response payload */
+		/* There shall be anal response payload */
 		WARN_ON(request.response_len);
 		/* Return data decoded from the status dword */
 		err = FIELD_GET(GUC_HXG_RESPONSE_MSG_0_DATA0, *status);
@@ -842,7 +842,7 @@ int intel_guc_ct_send(struct intel_guc_ct *ct, const u32 *action, u32 len,
 		struct intel_uc *uc = container_of(guc, struct intel_uc, guc);
 
 		WARN(!uc->reset_in_progress, "Unexpected send: action=%#x\n", *action);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (unlikely(ct->ctbs.send.broken))
@@ -853,7 +853,7 @@ int intel_guc_ct_send(struct intel_guc_ct *ct, const u32 *action, u32 len,
 
 	ret = ct_send(ct, action, len, response_buf, response_buf_size, &status);
 	if (unlikely(ret < 0)) {
-		if (ret != -ENODEV)
+		if (ret != -EANALDEV)
 			CT_ERROR(ct, "Sending action %#x failed (%pe) status=%#X\n",
 				 action[0], ERR_PTR(ret), status);
 	} else if (unlikely(ret)) {
@@ -906,7 +906,7 @@ static int ct_read(struct intel_guc_ct *ct, struct ct_incoming_msg **msg)
 			/*
 			 * Potentially valid if a CLIENT_RESET request resulted in
 			 * contexts/engines being reset. But should never happen as
-			 * no contexts should be active when CLIENT_RESET is sent.
+			 * anal contexts should be active when CLIENT_RESET is sent.
 			 */
 			CT_ERROR(ct, "Unexpected G2H after GuC has stopped!\n");
 			status &= ~GUC_CTB_STATUS_UNUSED;
@@ -964,7 +964,7 @@ static int ct_read(struct intel_guc_ct *ct, struct ct_incoming_msg **msg)
 
 	*msg = ct_alloc_msg(len);
 	if (!*msg) {
-		CT_ERROR(ct, "No memory for message %*ph %*ph %*ph\n",
+		CT_ERROR(ct, "Anal memory for message %*ph %*ph %*ph\n",
 			 4, &header,
 			 4 * (head + available - 1 > size ?
 			      size - head : available - 1), &cmds[head],
@@ -984,7 +984,7 @@ static int ct_read(struct intel_guc_ct *ct, struct ct_incoming_msg **msg)
 	/* update local copies */
 	ctb->head = head;
 
-	/* now update descriptor */
+	/* analw update descriptor */
 	WRITE_ONCE(desc->head, head);
 
 	intel_guc_write_barrier(ct_to_guc(ct));
@@ -1014,7 +1014,7 @@ static bool ct_check_lost_and_found(struct intel_guc_ct *ct, u32 fence)
 		found = true;
 
 #if IS_ENABLED(CONFIG_DRM_I915_DEBUG_GUC)
-		buf = kmalloc(SZ_4K, GFP_NOWAIT);
+		buf = kmalloc(SZ_4K, GFP_ANALWAIT);
 		if (buf && stack_depot_snprint(ct->requests.lost_and_found[n].stack,
 					       buf, SZ_4K, 0)) {
 			CT_ERROR(ct, "Fence %u was used by action %#04x sent at\n%s",
@@ -1051,7 +1051,7 @@ static int ct_handle_response(struct intel_guc_ct *ct, struct ct_incoming_msg *r
 	GEM_BUG_ON(len < GUC_HXG_MSG_MIN_LEN);
 	GEM_BUG_ON(FIELD_GET(GUC_HXG_MSG_0_ORIGIN, hxg[0]) != GUC_HXG_ORIGIN_GUC);
 	GEM_BUG_ON(FIELD_GET(GUC_HXG_MSG_0_TYPE, hxg[0]) != GUC_HXG_TYPE_RESPONSE_SUCCESS &&
-		   FIELD_GET(GUC_HXG_MSG_0_TYPE, hxg[0]) != GUC_HXG_TYPE_NO_RESPONSE_RETRY &&
+		   FIELD_GET(GUC_HXG_MSG_0_TYPE, hxg[0]) != GUC_HXG_TYPE_ANAL_RESPONSE_RETRY &&
 		   FIELD_GET(GUC_HXG_MSG_0_TYPE, hxg[0]) != GUC_HXG_TYPE_RESPONSE_FAILURE);
 
 	CT_DEBUG(ct, "response fence %u status %#x\n", fence, hxg[0]);
@@ -1093,7 +1093,7 @@ static int ct_handle_response(struct intel_guc_ct *ct, struct ct_incoming_msg *r
 				CT_ERROR(ct, "request %u awaits response\n",
 					 req->fence);
 		}
-		err = -ENOKEY;
+		err = -EANALKEY;
 	}
 	spin_unlock_irqrestore(&ct->requests.lock, flags);
 
@@ -1131,31 +1131,31 @@ static int ct_process_request(struct intel_guc_ct *ct, struct ct_incoming_msg *r
 	case INTEL_GUC_ACTION_SCHED_CONTEXT_MODE_DONE:
 		ret = intel_guc_sched_done_process_msg(guc, payload, len);
 		break;
-	case INTEL_GUC_ACTION_CONTEXT_RESET_NOTIFICATION:
+	case INTEL_GUC_ACTION_CONTEXT_RESET_ANALTIFICATION:
 		ret = intel_guc_context_reset_process_msg(guc, payload, len);
 		break;
-	case INTEL_GUC_ACTION_STATE_CAPTURE_NOTIFICATION:
+	case INTEL_GUC_ACTION_STATE_CAPTURE_ANALTIFICATION:
 		ret = intel_guc_error_capture_process_msg(guc, payload, len);
 		if (unlikely(ret))
-			CT_ERROR(ct, "error capture notification failed %x %*ph\n",
+			CT_ERROR(ct, "error capture analtification failed %x %*ph\n",
 				 action, 4 * len, payload);
 		break;
-	case INTEL_GUC_ACTION_ENGINE_FAILURE_NOTIFICATION:
+	case INTEL_GUC_ACTION_ENGINE_FAILURE_ANALTIFICATION:
 		ret = intel_guc_engine_failure_process_msg(guc, payload, len);
 		break;
-	case INTEL_GUC_ACTION_NOTIFY_FLUSH_LOG_BUFFER_TO_FILE:
+	case INTEL_GUC_ACTION_ANALTIFY_FLUSH_LOG_BUFFER_TO_FILE:
 		intel_guc_log_handle_flush_event(&guc->log);
 		ret = 0;
 		break;
-	case INTEL_GUC_ACTION_NOTIFY_CRASH_DUMP_POSTED:
-	case INTEL_GUC_ACTION_NOTIFY_EXCEPTION:
+	case INTEL_GUC_ACTION_ANALTIFY_CRASH_DUMP_POSTED:
+	case INTEL_GUC_ACTION_ANALTIFY_EXCEPTION:
 		ret = intel_guc_crash_process_msg(guc, action);
 		break;
 	case INTEL_GUC_ACTION_TLB_INVALIDATION_DONE:
 		ret = intel_guc_tlb_invalidation_done(guc, payload, len);
 		break;
 	default:
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		break;
 	}
 
@@ -1231,7 +1231,7 @@ static int ct_handle_event(struct intel_guc_ct *ct, struct ct_incoming_msg *requ
 
 	/*
 	 * TLB invalidation responses must be handled immediately as processing
-	 * of other G2H notifications may be blocked by an invalidation request.
+	 * of other G2H analtifications may be blocked by an invalidation request.
 	 */
 	if (action == INTEL_GUC_ACTION_TLB_INVALIDATION_DONE)
 		return ct_process_request(ct, request);
@@ -1268,11 +1268,11 @@ static int ct_handle_hxg(struct intel_guc_ct *ct, struct ct_incoming_msg *msg)
 		break;
 	case GUC_HXG_TYPE_RESPONSE_SUCCESS:
 	case GUC_HXG_TYPE_RESPONSE_FAILURE:
-	case GUC_HXG_TYPE_NO_RESPONSE_RETRY:
+	case GUC_HXG_TYPE_ANAL_RESPONSE_RETRY:
 		err = ct_handle_response(ct, msg);
 		break;
 	default:
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 	}
 
 	if (unlikely(err)) {
@@ -1291,7 +1291,7 @@ static void ct_handle_msg(struct intel_guc_ct *ct, struct ct_incoming_msg *msg)
 	if (format == GUC_CTB_FORMAT_HXG)
 		err = ct_handle_hxg(ct, msg);
 	else
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 
 	if (unlikely(err)) {
 		CT_ERROR(ct, "Failed to process CT message (%pe) %*ph\n",
@@ -1343,7 +1343,7 @@ static void ct_receive_tasklet_func(struct tasklet_struct *t)
 
 /*
  * When we're communicating with the GuC over CT, GuC uses events
- * to notify us about new messages being posted on the RECV buffer.
+ * to analtify us about new messages being posted on the RECV buffer.
  */
 void intel_guc_ct_event_handler(struct intel_guc_ct *ct)
 {

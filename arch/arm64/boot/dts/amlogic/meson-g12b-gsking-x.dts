@@ -113,7 +113,7 @@
 	cooling-maps {
 		map {
 			trip = <&cpu_active>;
-			cooling-device = <&gpio_fan THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+			cooling-device = <&gpio_fan THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 		};
 	};
 };

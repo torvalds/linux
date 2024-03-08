@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/sched/signal.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/dcache.h>
 #include <linux/path.h>
 #include <linux/fdtable.h>
@@ -23,13 +23,13 @@
 static int seq_show(struct seq_file *m, void *v)
 {
 	struct files_struct *files = NULL;
-	int f_flags = 0, ret = -ENOENT;
+	int f_flags = 0, ret = -EANALENT;
 	struct file *file = NULL;
 	struct task_struct *task;
 
 	task = get_proc_task(m->private);
 	if (!task)
-		return -ENOENT;
+		return -EANALENT;
 
 	task_lock(task);
 	files = task->files;
@@ -56,10 +56,10 @@ static int seq_show(struct seq_file *m, void *v)
 	if (ret)
 		return ret;
 
-	seq_printf(m, "pos:\t%lli\nflags:\t0%o\nmnt_id:\t%i\nino:\t%lu\n",
+	seq_printf(m, "pos:\t%lli\nflags:\t0%o\nmnt_id:\t%i\nianal:\t%lu\n",
 		   (long long)file->f_pos, f_flags,
 		   real_mount(file->f_path.mnt)->mnt_id,
-		   file_inode(file)->i_ino);
+		   file_ianalde(file)->i_ianal);
 
 	/* show_fd_locks() never deferences files so a stale value is safe */
 	show_fd_locks(m, file, files);
@@ -74,10 +74,10 @@ out:
 	return 0;
 }
 
-static int proc_fdinfo_access_allowed(struct inode *inode)
+static int proc_fdinfo_access_allowed(struct ianalde *ianalde)
 {
 	bool allowed = false;
-	struct task_struct *task = get_proc_task(inode);
+	struct task_struct *task = get_proc_task(ianalde);
 
 	if (!task)
 		return -ESRCH;
@@ -91,14 +91,14 @@ static int proc_fdinfo_access_allowed(struct inode *inode)
 	return 0;
 }
 
-static int seq_fdinfo_open(struct inode *inode, struct file *file)
+static int seq_fdinfo_open(struct ianalde *ianalde, struct file *file)
 {
-	int ret = proc_fdinfo_access_allowed(inode);
+	int ret = proc_fdinfo_access_allowed(ianalde);
 
 	if (ret)
 		return ret;
 
-	return single_open(file, seq_show, inode);
+	return single_open(file, seq_show, ianalde);
 }
 
 static const struct file_operations proc_fdinfo_file_operations = {
@@ -122,39 +122,39 @@ static bool tid_fd_mode(struct task_struct *task, unsigned fd, fmode_t *mode)
 	return !!file;
 }
 
-static void tid_fd_update_inode(struct task_struct *task, struct inode *inode,
+static void tid_fd_update_ianalde(struct task_struct *task, struct ianalde *ianalde,
 				fmode_t f_mode)
 {
-	task_dump_owner(task, 0, &inode->i_uid, &inode->i_gid);
+	task_dump_owner(task, 0, &ianalde->i_uid, &ianalde->i_gid);
 
-	if (S_ISLNK(inode->i_mode)) {
+	if (S_ISLNK(ianalde->i_mode)) {
 		unsigned i_mode = S_IFLNK;
 		if (f_mode & FMODE_READ)
 			i_mode |= S_IRUSR | S_IXUSR;
 		if (f_mode & FMODE_WRITE)
 			i_mode |= S_IWUSR | S_IXUSR;
-		inode->i_mode = i_mode;
+		ianalde->i_mode = i_mode;
 	}
-	security_task_to_inode(task, inode);
+	security_task_to_ianalde(task, ianalde);
 }
 
 static int tid_fd_revalidate(struct dentry *dentry, unsigned int flags)
 {
 	struct task_struct *task;
-	struct inode *inode;
+	struct ianalde *ianalde;
 	unsigned int fd;
 
 	if (flags & LOOKUP_RCU)
 		return -ECHILD;
 
-	inode = d_inode(dentry);
-	task = get_proc_task(inode);
-	fd = proc_fd(inode);
+	ianalde = d_ianalde(dentry);
+	task = get_proc_task(ianalde);
+	fd = proc_fd(ianalde);
 
 	if (task) {
 		fmode_t f_mode;
 		if (tid_fd_mode(task, fd, &f_mode)) {
-			tid_fd_update_inode(task, inode, f_mode);
+			tid_fd_update_ianalde(task, ianalde, f_mode);
 			put_task_struct(task);
 			return 1;
 		}
@@ -171,11 +171,11 @@ static const struct dentry_operations tid_fd_dentry_operations = {
 static int proc_fd_link(struct dentry *dentry, struct path *path)
 {
 	struct task_struct *task;
-	int ret = -ENOENT;
+	int ret = -EANALENT;
 
-	task = get_proc_task(d_inode(dentry));
+	task = get_proc_task(d_ianalde(dentry));
 	if (task) {
-		unsigned int fd = proc_fd(d_inode(dentry));
+		unsigned int fd = proc_fd(d_ianalde(dentry));
 		struct file *fd_file;
 
 		fd_file = fget_task(task, fd);
@@ -200,36 +200,36 @@ static struct dentry *proc_fd_instantiate(struct dentry *dentry,
 	struct task_struct *task, const void *ptr)
 {
 	const struct fd_data *data = ptr;
-	struct proc_inode *ei;
-	struct inode *inode;
+	struct proc_ianalde *ei;
+	struct ianalde *ianalde;
 
-	inode = proc_pid_make_inode(dentry->d_sb, task, S_IFLNK);
-	if (!inode)
-		return ERR_PTR(-ENOENT);
+	ianalde = proc_pid_make_ianalde(dentry->d_sb, task, S_IFLNK);
+	if (!ianalde)
+		return ERR_PTR(-EANALENT);
 
-	ei = PROC_I(inode);
+	ei = PROC_I(ianalde);
 	ei->fd = data->fd;
 
-	inode->i_op = &proc_pid_link_inode_operations;
-	inode->i_size = 64;
+	ianalde->i_op = &proc_pid_link_ianalde_operations;
+	ianalde->i_size = 64;
 
 	ei->op.proc_get_link = proc_fd_link;
-	tid_fd_update_inode(task, inode, data->mode);
+	tid_fd_update_ianalde(task, ianalde, data->mode);
 
 	d_set_d_op(dentry, &tid_fd_dentry_operations);
-	return d_splice_alias(inode, dentry);
+	return d_splice_alias(ianalde, dentry);
 }
 
-static struct dentry *proc_lookupfd_common(struct inode *dir,
+static struct dentry *proc_lookupfd_common(struct ianalde *dir,
 					   struct dentry *dentry,
 					   instantiate_t instantiate)
 {
 	struct task_struct *task = get_proc_task(dir);
 	struct fd_data data = {.fd = name_to_int(&dentry->d_name)};
-	struct dentry *result = ERR_PTR(-ENOENT);
+	struct dentry *result = ERR_PTR(-EANALENT);
 
 	if (!task)
-		goto out_no_task;
+		goto out_anal_task;
 	if (data.fd == ~0U)
 		goto out;
 	if (!tid_fd_mode(task, data.fd, &data.mode))
@@ -238,18 +238,18 @@ static struct dentry *proc_lookupfd_common(struct inode *dir,
 	result = instantiate(dentry, task, &data);
 out:
 	put_task_struct(task);
-out_no_task:
+out_anal_task:
 	return result;
 }
 
 static int proc_readfd_common(struct file *file, struct dir_context *ctx,
 			      instantiate_t instantiate)
 {
-	struct task_struct *p = get_proc_task(file_inode(file));
+	struct task_struct *p = get_proc_task(file_ianalde(file));
 	unsigned int fd;
 
 	if (!p)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (!dir_emit_dots(file, ctx))
 		goto out;
@@ -284,13 +284,13 @@ out:
 	return 0;
 }
 
-static int proc_readfd_count(struct inode *inode, loff_t *count)
+static int proc_readfd_count(struct ianalde *ianalde, loff_t *count)
 {
-	struct task_struct *p = get_proc_task(inode);
+	struct task_struct *p = get_proc_task(ianalde);
 	struct fdtable *fdt;
 
 	if (!p)
-		return -ENOENT;
+		return -EANALENT;
 
 	task_lock(p);
 	if (p->files) {
@@ -319,7 +319,7 @@ const struct file_operations proc_fd_operations = {
 	.llseek		= generic_file_llseek,
 };
 
-static struct dentry *proc_lookupfd(struct inode *dir, struct dentry *dentry,
+static struct dentry *proc_lookupfd(struct ianalde *dir, struct dentry *dentry,
 				    unsigned int flags)
 {
 	return proc_lookupfd_common(dir, dentry, proc_fd_instantiate);
@@ -330,17 +330,17 @@ static struct dentry *proc_lookupfd(struct inode *dir, struct dentry *dentry,
  * access /proc/self/fd after it has executed a setuid().
  */
 int proc_fd_permission(struct mnt_idmap *idmap,
-		       struct inode *inode, int mask)
+		       struct ianalde *ianalde, int mask)
 {
 	struct task_struct *p;
 	int rv;
 
-	rv = generic_permission(&nop_mnt_idmap, inode, mask);
+	rv = generic_permission(&analp_mnt_idmap, ianalde, mask);
 	if (rv == 0)
 		return rv;
 
 	rcu_read_lock();
-	p = pid_task(proc_pid(inode), PIDTYPE_PID);
+	p = pid_task(proc_pid(ianalde), PIDTYPE_PID);
 	if (p && same_thread_group(p, current))
 		rv = 0;
 	rcu_read_unlock();
@@ -352,14 +352,14 @@ static int proc_fd_getattr(struct mnt_idmap *idmap,
 			const struct path *path, struct kstat *stat,
 			u32 request_mask, unsigned int query_flags)
 {
-	struct inode *inode = d_inode(path->dentry);
+	struct ianalde *ianalde = d_ianalde(path->dentry);
 	int rv = 0;
 
-	generic_fillattr(&nop_mnt_idmap, request_mask, inode, stat);
+	generic_fillattr(&analp_mnt_idmap, request_mask, ianalde, stat);
 
 	/* If it's a directory, put the number of open fds there */
-	if (S_ISDIR(inode->i_mode)) {
-		rv = proc_readfd_count(inode, &stat->size);
+	if (S_ISDIR(ianalde->i_mode)) {
+		rv = proc_readfd_count(ianalde, &stat->size);
 		if (rv < 0)
 			return rv;
 	}
@@ -367,7 +367,7 @@ static int proc_fd_getattr(struct mnt_idmap *idmap,
 	return rv;
 }
 
-const struct inode_operations proc_fd_inode_operations = {
+const struct ianalde_operations proc_fd_ianalde_operations = {
 	.lookup		= proc_lookupfd,
 	.permission	= proc_fd_permission,
 	.getattr	= proc_fd_getattr,
@@ -378,25 +378,25 @@ static struct dentry *proc_fdinfo_instantiate(struct dentry *dentry,
 	struct task_struct *task, const void *ptr)
 {
 	const struct fd_data *data = ptr;
-	struct proc_inode *ei;
-	struct inode *inode;
+	struct proc_ianalde *ei;
+	struct ianalde *ianalde;
 
-	inode = proc_pid_make_inode(dentry->d_sb, task, S_IFREG | S_IRUGO);
-	if (!inode)
-		return ERR_PTR(-ENOENT);
+	ianalde = proc_pid_make_ianalde(dentry->d_sb, task, S_IFREG | S_IRUGO);
+	if (!ianalde)
+		return ERR_PTR(-EANALENT);
 
-	ei = PROC_I(inode);
+	ei = PROC_I(ianalde);
 	ei->fd = data->fd;
 
-	inode->i_fop = &proc_fdinfo_file_operations;
-	tid_fd_update_inode(task, inode, 0);
+	ianalde->i_fop = &proc_fdinfo_file_operations;
+	tid_fd_update_ianalde(task, ianalde, 0);
 
 	d_set_d_op(dentry, &tid_fd_dentry_operations);
-	return d_splice_alias(inode, dentry);
+	return d_splice_alias(ianalde, dentry);
 }
 
 static struct dentry *
-proc_lookupfdinfo(struct inode *dir, struct dentry *dentry, unsigned int flags)
+proc_lookupfdinfo(struct ianalde *dir, struct dentry *dentry, unsigned int flags)
 {
 	return proc_lookupfd_common(dir, dentry, proc_fdinfo_instantiate);
 }
@@ -407,9 +407,9 @@ static int proc_readfdinfo(struct file *file, struct dir_context *ctx)
 				  proc_fdinfo_instantiate);
 }
 
-static int proc_open_fdinfo(struct inode *inode, struct file *file)
+static int proc_open_fdinfo(struct ianalde *ianalde, struct file *file)
 {
-	int ret = proc_fdinfo_access_allowed(inode);
+	int ret = proc_fdinfo_access_allowed(ianalde);
 
 	if (ret)
 		return ret;
@@ -417,7 +417,7 @@ static int proc_open_fdinfo(struct inode *inode, struct file *file)
 	return 0;
 }
 
-const struct inode_operations proc_fdinfo_inode_operations = {
+const struct ianalde_operations proc_fdinfo_ianalde_operations = {
 	.lookup		= proc_lookupfdinfo,
 	.setattr	= proc_setattr,
 };

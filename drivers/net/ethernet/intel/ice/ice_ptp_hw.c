@@ -82,13 +82,13 @@ static const struct ice_cgu_pin_desc ice_e810t_qsfp_cgu_outputs[] = {
 };
 
 static const struct ice_cgu_pin_desc ice_e823_si_cgu_inputs[] = {
-	{ "NONE",	  SI_REF0P, 0, 0 },
-	{ "NONE",	  SI_REF0N, 0, 0 },
+	{ "ANALNE",	  SI_REF0P, 0, 0 },
+	{ "ANALNE",	  SI_REF0N, 0, 0 },
 	{ "SYNCE0_DP",	  SI_REF1P, DPLL_PIN_TYPE_MUX, 0 },
 	{ "SYNCE0_DN",	  SI_REF1N, DPLL_PIN_TYPE_MUX, 0 },
 	{ "EXT_CLK_SYNC", SI_REF2P, DPLL_PIN_TYPE_EXT,
 		ARRAY_SIZE(ice_cgu_pin_freq_common), ice_cgu_pin_freq_common },
-	{ "NONE",	  SI_REF2N, 0, 0 },
+	{ "ANALNE",	  SI_REF2N, 0, 0 },
 	{ "EXT_PPS_OUT",  SI_REF3,  DPLL_PIN_TYPE_EXT,
 		ARRAY_SIZE(ice_cgu_pin_freq_common), ice_cgu_pin_freq_common },
 	{ "INT_PPS_OUT",  SI_REF4,  DPLL_PIN_TYPE_EXT,
@@ -106,16 +106,16 @@ static const struct ice_cgu_pin_desc ice_e823_si_cgu_outputs[] = {
 };
 
 static const struct ice_cgu_pin_desc ice_e823_zl_cgu_inputs[] = {
-	{ "NONE",	  ZL_REF0P, 0, 0 },
+	{ "ANALNE",	  ZL_REF0P, 0, 0 },
 	{ "INT_PPS_OUT",  ZL_REF0N, DPLL_PIN_TYPE_EXT,
 		ARRAY_SIZE(ice_cgu_pin_freq_1_hz), ice_cgu_pin_freq_1_hz },
 	{ "SYNCE0_DP",	  ZL_REF1P, DPLL_PIN_TYPE_MUX, 0 },
 	{ "SYNCE0_DN",	  ZL_REF1N, DPLL_PIN_TYPE_MUX, 0 },
-	{ "NONE",	  ZL_REF2P, 0, 0 },
-	{ "NONE",	  ZL_REF2N, 0, 0 },
+	{ "ANALNE",	  ZL_REF2P, 0, 0 },
+	{ "ANALNE",	  ZL_REF2N, 0, 0 },
 	{ "EXT_CLK_SYNC", ZL_REF3P, DPLL_PIN_TYPE_EXT,
 		ARRAY_SIZE(ice_cgu_pin_freq_common), ice_cgu_pin_freq_common },
-	{ "NONE",	  ZL_REF3N, 0, 0 },
+	{ "ANALNE",	  ZL_REF3N, 0, 0 },
 	{ "EXT_PPS_OUT",  ZL_REF4P, DPLL_PIN_TYPE_EXT,
 		ARRAY_SIZE(ice_cgu_pin_freq_1_hz), ice_cgu_pin_freq_1_hz },
 	{ "OCXO",	  ZL_REF4N, DPLL_PIN_TYPE_INT_OSCILLATOR, 0 },
@@ -130,7 +130,7 @@ static const struct ice_cgu_pin_desc ice_e823_zl_cgu_outputs[] = {
 	{ "1588-TIME_REF", ZL_OUT3, DPLL_PIN_TYPE_SYNCE_ETH_PORT, 0 },
 	{ "CPK-TIME_SYNC", ZL_OUT4, DPLL_PIN_TYPE_EXT,
 		ARRAY_SIZE(ice_cgu_pin_freq_common), ice_cgu_pin_freq_common },
-	{ "NONE",	   ZL_OUT5, 0, 0 },
+	{ "ANALNE",	   ZL_OUT5, 0, 0 },
 };
 
 /* Low level functions for interacting with and managing the device clock used
@@ -188,10 +188,10 @@ static const struct ice_cgu_pin_desc ice_e823_zl_cgu_outputs[] = {
  *
  * To support this, very low level functions have an e810 or e822 suffix
  * indicating what type of device they work on. Higher level abstractions for
- * tasks that can be done on both devices do not have the suffix and will
+ * tasks that can be done on both devices do analt have the suffix and will
  * correctly look up the appropriate low level function when running.
  *
- * Functions which only make sense on a single device family may not have
+ * Functions which only make sense on a single device family may analt have
  * a suitable generic implementation
  */
 
@@ -257,7 +257,7 @@ void ice_ptp_src_cmd(struct ice_hw *hw, enum ice_ptp_tmr_cmd cmd)
 	case ICE_PTP_READ_TIME:
 		cmd_val |= GLTSYN_CMD_READ_TIME;
 		break;
-	case ICE_PTP_NOP:
+	case ICE_PTP_ANALP:
 		break;
 	}
 
@@ -270,7 +270,7 @@ void ice_ptp_src_cmd(struct ice_hw *hw, enum ice_ptp_tmr_cmd cmd)
  *
  * Write the SYNC_EXEC_CMD bit to the GLTSYN_CMD_SYNC register, and flush the
  * write immediately. This triggers the hardware to begin executing all of the
- * source and PHY timer commands synchronously.
+ * source and PHY timer commands synchroanalusly.
  */
 static void ice_ptp_exec_tmr_cmd(struct ice_hw *hw)
 {
@@ -319,7 +319,7 @@ ice_fill_phy_msg_e82x(struct ice_sbq_msg_input *msg, u8 port, u16 offset)
  * @low_addr: the low address to check
  * @high_addr: on return, contains the high address of the 64bit register
  *
- * Checks if the provided low address is one of the known 64bit PHY values
+ * Checks if the provided low address is one of the kanalwn 64bit PHY values
  * represented as two 32bit registers. If it is, return the appropriate high
  * register offset to use.
  */
@@ -372,7 +372,7 @@ static bool ice_is_64b_phy_reg_e82x(u16 low_addr, u16 *high_addr)
  * @low_addr: the low address to check
  * @high_addr: on return, contains the high address of the 40bit value
  *
- * Checks if the provided low address is one of the known 40bit PHY values
+ * Checks if the provided low address is one of the kanalwn 40bit PHY values
  * split into two registers with the lower 8 bits in the low register and the
  * upper 32 bits in the high register. If it is, return the appropriate high
  * register offset to use.
@@ -452,7 +452,7 @@ ice_read_phy_reg_e82x(struct ice_hw *hw, u8 port, u16 offset, u32 *val)
  * Reads the two registers associated with a 64bit value and returns it in the
  * val pointer. The offset always specifies the lower register offset to use.
  * The high offset is looked up. This function only operates on registers
- * known to be two parts of a 64bit value.
+ * kanalwn to be two parts of a 64bit value.
  */
 static int
 ice_read_64b_phy_reg_e82x(struct ice_hw *hw, u8 port, u16 low_addr, u64 *val)
@@ -461,7 +461,7 @@ ice_read_64b_phy_reg_e82x(struct ice_hw *hw, u8 port, u16 low_addr, u64 *val)
 	u16 high_addr;
 	int err;
 
-	/* Only operate on registers known to be split into two 32bit
+	/* Only operate on registers kanalwn to be split into two 32bit
 	 * registers.
 	 */
 	if (!ice_is_64b_phy_reg_e82x(low_addr, &high_addr)) {
@@ -535,7 +535,7 @@ ice_write_40b_phy_reg_e82x(struct ice_hw *hw, u8 port, u16 low_addr, u64 val)
 	u16 high_addr;
 	int err;
 
-	/* Only operate on registers known to be split into a lower 8 bit
+	/* Only operate on registers kanalwn to be split into a lower 8 bit
 	 * register and an upper 32 bit register.
 	 */
 	if (!ice_is_40b_phy_reg_e82x(low_addr, &high_addr)) {
@@ -573,7 +573,7 @@ ice_write_40b_phy_reg_e82x(struct ice_hw *hw, u8 port, u16 low_addr, u64 val)
  *
  * Write the 64bit value to the two associated 32bit PHY registers. The offset
  * is always specified as the lower register, and the high address is looked
- * up. This function only operates on registers known to be two parts of
+ * up. This function only operates on registers kanalwn to be two parts of
  * a 64bit value.
  */
 static int
@@ -583,7 +583,7 @@ ice_write_64b_phy_reg_e82x(struct ice_hw *hw, u8 port, u16 low_addr, u64 val)
 	u16 high_addr;
 	int err;
 
-	/* Only operate on registers known to be split into two 32bit
+	/* Only operate on registers kanalwn to be split into two 32bit
 	 * registers.
 	 */
 	if (!ice_is_64b_phy_reg_e82x(low_addr, &high_addr)) {
@@ -763,7 +763,7 @@ ice_read_phy_tstamp_e82x(struct ice_hw *hw, u8 quad, u8 idx, u64 *tstamp)
  * the PHY quad block that is shared between the internal PHYs of the E822
  * devices.
  *
- * Note that unlike E810, software cannot directly write to the quad memory
+ * Analte that unlike E810, software cananalt directly write to the quad memory
  * bank registers. E822 relies on the ice_get_phy_tx_tstamp_ready() function
  * to determine which timestamps are valid. Reading a timestamp auto-clears
  * the valid bit.
@@ -902,7 +902,7 @@ static const char *ice_clk_freq_str(u8 clk_freq)
 	case ICE_TIME_REF_FREQ_245_760:
 		return "245.76 MHz";
 	default:
-		return "Unknown";
+		return "Unkanalwn";
 	}
 }
 
@@ -920,7 +920,7 @@ static const char *ice_clk_src_str(u8 clk_src)
 	case ICE_CLK_SRC_TIME_REF:
 		return "TIME_REF";
 	default:
-		return "Unknown";
+		return "Unkanalwn";
 	}
 }
 
@@ -1161,7 +1161,7 @@ static int ice_ptp_init_phc_e82x(struct ice_hw *hw)
  * Program the PHY port registers with a new initial time value. The port
  * clock will be initialized once the driver issues an ICE_PTP_INIT_TIME sync
  * command. The time value is the upper 32 bits of the PHY timer, usually in
- * units of nominal nanoseconds.
+ * units of analminal naanalseconds.
  */
 static int
 ice_ptp_prep_phy_time_e82x(struct ice_hw *hw, u32 time)
@@ -1210,8 +1210,8 @@ exit_err:
  * registers. The atomic adjustment won't be completed until the driver issues
  * an ICE_PTP_ADJ_TIME command.
  *
- * Note that time is not in units of nanoseconds. It is in clock time
- * including the lower sub-nanosecond portion of the port timer.
+ * Analte that time is analt in units of naanalseconds. It is in clock time
+ * including the lower sub-naanalsecond portion of the port timer.
  *
  * Negative adjustments are supported using 2s complement arithmetic.
  */
@@ -1257,7 +1257,7 @@ exit_err:
 /**
  * ice_ptp_prep_phy_adj_e82x - Prep PHY ports for a time adjustment
  * @hw: pointer to HW struct
- * @adj: adjustment in nanoseconds
+ * @adj: adjustment in naanalseconds
  *
  * Prepare the PHY ports for an atomic time adjustment by programming the PHY
  * Tx and Rx port registers. The actual adjustment is completed by issuing an
@@ -1269,8 +1269,8 @@ ice_ptp_prep_phy_adj_e82x(struct ice_hw *hw, s32 adj)
 	s64 cycles;
 	u8 port;
 
-	/* The port clock supports adjustment of the sub-nanosecond portion of
-	 * the clock. We shift the provided adjustment in nanoseconds to
+	/* The port clock supports adjustment of the sub-naanalsecond portion of
+	 * the clock. We shift the provided adjustment in naanalseconds to
 	 * calculate the appropriate adjustment to program into the PHY ports.
 	 */
 	if (adj > 0)
@@ -1329,7 +1329,7 @@ exit_err:
  *
  * Read the port's Tx and Rx local time capture values.
  *
- * Note this has no equivalent for the E810 devices.
+ * Analte this has anal equivalent for the E810 devices.
  */
 static int
 ice_ptp_read_port_capture(struct ice_hw *hw, u8 port, u64 *tx_ts, u64 *rx_ts)
@@ -1369,7 +1369,7 @@ ice_ptp_read_port_capture(struct ice_hw *hw, u8 port, u64 *tx_ts, u64 *rx_ts)
  *
  * Prepare the requested port for an upcoming timer sync command.
  *
- * Do not use this function directly. If you want to configure exactly one
+ * Do analt use this function directly. If you want to configure exactly one
  * port, use ice_ptp_one_port_cmd() instead.
  */
 static int ice_ptp_write_port_cmd_e82x(struct ice_hw *hw, u8 port,
@@ -1397,7 +1397,7 @@ static int ice_ptp_write_port_cmd_e82x(struct ice_hw *hw, u8 port,
 	case ICE_PTP_ADJ_TIME_AT_TIME:
 		cmd_val |= PHY_CMD_ADJ_TIME_AT_TIME;
 		break;
-	case ICE_PTP_NOP:
+	case ICE_PTP_ANALP:
 		break;
 	}
 
@@ -1451,8 +1451,8 @@ static int ice_ptp_write_port_cmd_e82x(struct ice_hw *hw, u8 port,
  * @configured_cmd: timer command to prepare on the configured_port
  *
  * Prepare the configured_port for the configured_cmd, and prepare all other
- * ports for ICE_PTP_NOP. This causes the configured_port to execute the
- * desired command while all other ports perform no operation.
+ * ports for ICE_PTP_ANALP. This causes the configured_port to execute the
+ * desired command while all other ports perform anal operation.
  */
 static int
 ice_ptp_one_port_cmd(struct ice_hw *hw, u8 configured_port,
@@ -1467,7 +1467,7 @@ ice_ptp_one_port_cmd(struct ice_hw *hw, u8 configured_port,
 		if (port == configured_port)
 			cmd = configured_cmd;
 		else
-			cmd = ICE_PTP_NOP;
+			cmd = ICE_PTP_ANALP;
 
 		err = ice_ptp_write_port_cmd_e82x(hw, port, cmd);
 		if (err)
@@ -1512,8 +1512,8 @@ ice_ptp_port_cmd_e82x(struct ice_hw *hw, enum ice_ptp_tmr_cmd cmd)
  * ice_phy_get_speed_and_fec_e82x - Get link speed and FEC based on serdes mode
  * @hw: pointer to HW struct
  * @port: the port to read from
- * @link_out: if non-NULL, holds link speed on success
- * @fec_out: if non-NULL, holds FEC algorithm on success
+ * @link_out: if analn-NULL, holds link speed on success
+ * @fec_out: if analn-NULL, holds FEC algorithm on success
  *
  * Read the serdes data for the PHY port and extract the link speed and FEC
  * algorithm.
@@ -1645,13 +1645,13 @@ static void ice_phy_cfg_lane_e82x(struct ice_hw *hw, u8 port)
  *
  * a) the clock frequency in Hz (cycles per second)
  * b) the number of TUs per cycle (the increment value of the clock)
- * c) 1 second per 1 billion nanoseconds
- * d) the duration of 66 UIs in nanoseconds
+ * c) 1 second per 1 billion naanalseconds
+ * d) the duration of 66 UIs in naanalseconds
  *
  * Given these facts, we can use the following table to work out what ratios
  * to multiply in order to get the number of TUs per 66 UIs:
  *
- * cycles |   1 second   | incval (TUs) | nanoseconds
+ * cycles |   1 second   | incval (TUs) | naanalseconds
  * -------+--------------+--------------+-------------
  * second | 1 billion ns |    cycle     |   66 UIs
  *
@@ -1661,7 +1661,7 @@ static void ice_phy_cfg_lane_e82x(struct ice_hw *hw, u8 port)
  * (freq * incval * 6600 LINE_UI ) / ( 100 * 1 billion)
  *
  * We scale up to using 6600 UI instead of 66 in order to avoid fractional
- * nanosecond UIs (66 UI at 10G/40G is 6.4 ns)
+ * naanalsecond UIs (66 UI at 10G/40G is 6.4 ns)
  *
  * The increment value has a maximum expected range of about 34 bits, while
  * the frequency value is about 29 bits. Multiplying these values shouldn't
@@ -1682,8 +1682,8 @@ static int ice_phy_cfg_uix_e82x(struct ice_hw *hw, u8 port)
 	/* Calculate TUs per second divided by 256 */
 	tu_per_sec = (cur_freq * clk_incval) >> 8;
 
-#define LINE_UI_10G_40G 640 /* 6600 UIs is 640 nanoseconds at 10Gb/40Gb */
-#define LINE_UI_25G_100G 256 /* 6600 UIs is 256 nanoseconds at 25Gb/100Gb */
+#define LINE_UI_10G_40G 640 /* 6600 UIs is 640 naanalseconds at 10Gb/40Gb */
+#define LINE_UI_25G_100G 256 /* 6600 UIs is 256 naanalseconds at 25Gb/100Gb */
 
 	/* Program the 10Gb/40Gb conversion ratio */
 	uix = div_u64(tu_per_sec * LINE_UI_10G_40G, 390625000);
@@ -1749,7 +1749,7 @@ static int ice_phy_cfg_uix_e82x(struct ice_hw *hw, u8 port)
  * calibration to calculate the total Tx or Rx offset to adjust the timestamp
  * in order to calibrate for the internal PHY delays.
  *
- * Note that the increment value ranges up to ~34 bits, and the clock
+ * Analte that the increment value ranges up to ~34 bits, and the clock
  * frequency is ~29 bits, so multiplying them together should fit within the
  * 64 bit arithmetic.
  */
@@ -1773,7 +1773,7 @@ static int ice_phy_cfg_parpcs_e82x(struct ice_hw *hw, u8 port)
 	/* For each PHY conversion register, look up the appropriate link
 	 * speed frequency and determine the TUs per that clock's cycle time.
 	 * Split this into a high and low value and then program the
-	 * appropriate register. If that link speed does not use the
+	 * appropriate register. If that link speed does analt use the
 	 * associated register, write zeros to clear it instead.
 	 */
 
@@ -1877,7 +1877,7 @@ static int ice_phy_cfg_parpcs_e82x(struct ice_hw *hw, u8 port)
  * @hw: pointer to the HW struct
  * @link_spd: the Link speed to calculate for
  *
- * Calculate the fixed offset due to known static latency data.
+ * Calculate the fixed offset due to kanalwn static latency data.
  */
 static u64
 ice_calc_fixed_tx_offset_e82x(struct ice_hw *hw, enum ice_ptp_link_spd link_spd)
@@ -1891,7 +1891,7 @@ ice_calc_fixed_tx_offset_e82x(struct ice_hw *hw, enum ice_ptp_link_spd link_spd)
 	tu_per_sec = cur_freq * clk_incval;
 
 	/* Calculate number of TUs to add for the fixed Tx latency. Since the
-	 * latency measurement is in 1/100th of a nanosecond, we need to
+	 * latency measurement is in 1/100th of a naanalsecond, we need to
 	 * multiply by tu_per_sec and then divide by 1e11. This calculation
 	 * overflows 64 bit integer arithmetic, so break it up into two
 	 * divisions by 1e4 first then by 1e7.
@@ -1909,22 +1909,22 @@ ice_calc_fixed_tx_offset_e82x(struct ice_hw *hw, enum ice_ptp_link_spd link_spd)
  * @port: the PHY port to configure
  *
  * Program the P_REG_TOTAL_TX_OFFSET register with the total number of TUs to
- * adjust Tx timestamps by. This is calculated by combining some known static
+ * adjust Tx timestamps by. This is calculated by combining some kanalwn static
  * latency along with the Vernier offset computations done by hardware.
  *
- * This function will not return successfully until the Tx offset calculations
+ * This function will analt return successfully until the Tx offset calculations
  * have been completed, which requires waiting until at least one packet has
  * been transmitted by the device. It is safe to call this function
  * periodically until calibration succeeds, as it will only program the offset
  * once.
  *
- * To avoid overflow, when calculating the offset based on the known static
- * latency values, we use measurements in 1/100th of a nanosecond, and divide
+ * To avoid overflow, when calculating the offset based on the kanalwn static
+ * latency values, we use measurements in 1/100th of a naanalsecond, and divide
  * the TUs per second up front. This avoids overflow while allowing
  * calculation of the adjustment using integer arithmetic.
  *
  * Returns zero on success, -EBUSY if the hardware vernier offset
- * calibration has not completed, or another error code on failure.
+ * calibration has analt completed, or aanalther error code on failure.
  */
 int ice_phy_cfg_tx_offset_e82x(struct ice_hw *hw, u8 port)
 {
@@ -1934,7 +1934,7 @@ int ice_phy_cfg_tx_offset_e82x(struct ice_hw *hw, u8 port)
 	int err;
 	u32 reg;
 
-	/* Nothing to do if we've already programmed the offset */
+	/* Analthing to do if we've already programmed the offset */
 	err = ice_read_phy_reg_e82x(hw, port, P_REG_TX_OR, &reg);
 	if (err) {
 		ice_debug(hw, ICE_DBG_PTP, "Failed to read TX_OR for port %u, err %d\n",
@@ -1994,7 +1994,7 @@ int ice_phy_cfg_tx_offset_e82x(struct ice_hw *hw, u8 port)
 		total_offset += val;
 	}
 
-	/* Now that the total offset has been calculated, program it to the
+	/* Analw that the total offset has been calculated, program it to the
 	 * PHY and indicate that the Tx offset is ready. After this,
 	 * timestamps will be enabled.
 	 */
@@ -2053,7 +2053,7 @@ ice_phy_calc_pmd_adj_e82x(struct ice_hw *hw, u8 port,
 	/* The PMD alignment adjustment measurement depends on the link speed,
 	 * and whether FEC is enabled. For each link speed, the alignment
 	 * adjustment is calculated by dividing a value by the length of
-	 * a Time Unit in nanoseconds.
+	 * a Time Unit in naanalseconds.
 	 *
 	 * 1G: align == 4 ? 10 * 0.8 : (align + 6 % 10) * 0.8
 	 * 10G: align == 65 ? 0 : (align * 0.1 * 32/33)
@@ -2069,7 +2069,7 @@ ice_phy_calc_pmd_adj_e82x(struct ice_hw *hw, u8 port,
 	 *
 	 * To allow for calculating this value using integer arithmetic, we
 	 * instead start with the number of TUs per second, (inverse of the
-	 * length of a Time Unit in nanoseconds), multiply by a value based
+	 * length of a Time Unit in naanalseconds), multiply by a value based
 	 * on the PMD alignment register, and then divide by the right value
 	 * calculated based on the table above. To avoid integer overflow this
 	 * division is broken up into a step of dividing by 125 first.
@@ -2096,12 +2096,12 @@ ice_phy_calc_pmd_adj_e82x(struct ice_hw *hw, u8 port,
 		else
 			mult = pmd_align;
 	} else {
-		ice_debug(hw, ICE_DBG_PTP, "Unknown link speed %d, skipping PMD adjustment\n",
+		ice_debug(hw, ICE_DBG_PTP, "Unkanalwn link speed %d, skipping PMD adjustment\n",
 			  link_spd);
 		mult = 0;
 	}
 
-	/* In some cases, there's no need to adjust for the PMD alignment */
+	/* In some cases, there's anal need to adjust for the PMD alignment */
 	if (!mult) {
 		*pmd_adj = 0;
 		return 0;
@@ -2190,7 +2190,7 @@ ice_calc_fixed_rx_offset_e82x(struct ice_hw *hw, enum ice_ptp_link_spd link_spd)
 	tu_per_sec = cur_freq * clk_incval;
 
 	/* Calculate number of TUs to add for the fixed Rx latency. Since the
-	 * latency measurement is in 1/100th of a nanosecond, we need to
+	 * latency measurement is in 1/100th of a naanalsecond, we need to
 	 * multiply by tu_per_sec and then divide by 1e11. This calculation
 	 * overflows 64 bit integer arithmetic, so break it up into two
 	 * divisions by 1e4 first then by 1e7.
@@ -2209,10 +2209,10 @@ ice_calc_fixed_rx_offset_e82x(struct ice_hw *hw, enum ice_ptp_link_spd link_spd)
  *
  * Program the P_REG_TOTAL_RX_OFFSET register with the number of Time Units to
  * adjust Rx timestamps by. This combines calculations from the Vernier offset
- * measurements taken in hardware with some data about known fixed delay as
+ * measurements taken in hardware with some data about kanalwn fixed delay as
  * well as adjusting for multi-lane alignment delay.
  *
- * This function will not return successfully until the Rx offset calculations
+ * This function will analt return successfully until the Rx offset calculations
  * have been completed, which requires waiting until at least one packet has
  * been received by the device. It is safe to call this function periodically
  * until calibration succeeds, as it will only program the offset once.
@@ -2221,13 +2221,13 @@ ice_calc_fixed_rx_offset_e82x(struct ice_hw *hw, enum ice_ptp_link_spd link_spd)
  * i.e. after the Vernier calibration wait has passed, to ensure that the PHY
  * has measured the offset.
  *
- * To avoid overflow, when calculating the offset based on the known static
- * latency values, we use measurements in 1/100th of a nanosecond, and divide
+ * To avoid overflow, when calculating the offset based on the kanalwn static
+ * latency values, we use measurements in 1/100th of a naanalsecond, and divide
  * the TUs per second up front. This avoids overflow while allowing
  * calculation of the adjustment using integer arithmetic.
  *
  * Returns zero on success, -EBUSY if the hardware vernier offset
- * calibration has not completed, or another error code on failure.
+ * calibration has analt completed, or aanalther error code on failure.
  */
 int ice_phy_cfg_rx_offset_e82x(struct ice_hw *hw, u8 port)
 {
@@ -2237,7 +2237,7 @@ int ice_phy_cfg_rx_offset_e82x(struct ice_hw *hw, u8 port)
 	int err;
 	u32 reg;
 
-	/* Nothing to do if we've already programmed the offset */
+	/* Analthing to do if we've already programmed the offset */
 	err = ice_read_phy_reg_e82x(hw, port, P_REG_RX_OR, &reg);
 	if (err) {
 		ice_debug(hw, ICE_DBG_PTP, "Failed to read RX_OR for port %u, err %d\n",
@@ -2276,7 +2276,7 @@ int ice_phy_cfg_rx_offset_e82x(struct ice_hw *hw, u8 port)
 	total_offset += val;
 
 	/* For Rx, all multi-lane link speeds include a second Vernier
-	 * calibration, because the lanes might not be aligned.
+	 * calibration, because the lanes might analt be aligned.
 	 */
 	if (link_spd == ICE_PTP_LNK_SPD_40G ||
 	    link_spd == ICE_PTP_LNK_SPD_50G ||
@@ -2304,7 +2304,7 @@ int ice_phy_cfg_rx_offset_e82x(struct ice_hw *hw, u8 port)
 	else
 		total_offset -= pmd;
 
-	/* Now that the total offset has been calculated, program it to the
+	/* Analw that the total offset has been calculated, program it to the
 	 * PHY and indicate that the Rx offset is ready. After this,
 	 * timestamps will be enabled.
 	 */
@@ -2366,12 +2366,12 @@ ice_read_phy_and_phc_time_e82x(struct ice_hw *hw, u8 port, u64 *phy_time,
 		return err;
 
 	/* If the PHY Tx and Rx timers don't match, log a warning message.
-	 * Note that this should not happen in normal circumstances since the
+	 * Analte that this should analt happen in analrmal circumstances since the
 	 * driver always programs them together.
 	 */
 	if (tx_time != rx_time)
 		dev_warn(ice_hw_to_dev(hw),
-			 "PHY port %u Tx and Rx timers do not match, tx_time 0x%016llX, rx_time 0x%016llX\n",
+			 "PHY port %u Tx and Rx timers do analt match, tx_time 0x%016llX, rx_time 0x%016llX\n",
 			 port, (unsigned long long)tx_time,
 			 (unsigned long long)rx_time);
 
@@ -2409,7 +2409,7 @@ static int ice_sync_phy_timer_e82x(struct ice_hw *hw, u8 port)
 	/* Calculate the amount required to add to the port time in order for
 	 * it to match the PHC time.
 	 *
-	 * Note that the port adjustment is done using 2s complement
+	 * Analte that the port adjustment is done using 2s complement
 	 * arithmetic. This is convenient since it means that we can simply
 	 * calculate the difference between the PHC time and the port time,
 	 * and it will be interpreted correctly.
@@ -2424,8 +2424,8 @@ static int ice_sync_phy_timer_e82x(struct ice_hw *hw, u8 port)
 	if (err)
 		goto err_unlock;
 
-	/* Do not perform any action on the main timer */
-	ice_ptp_src_cmd(hw, ICE_PTP_NOP);
+	/* Do analt perform any action on the main timer */
+	ice_ptp_src_cmd(hw, ICE_PTP_ANALP);
 
 	/* Issue the sync to activate the time adjustment */
 	ice_ptp_exec_tmr_cmd(hw);
@@ -2547,8 +2547,8 @@ int ice_start_phy_timer_e82x(struct ice_hw *hw, u8 port)
 	if (err)
 		return err;
 
-	/* Do not perform any action on the main timer */
-	ice_ptp_src_cmd(hw, ICE_PTP_NOP);
+	/* Do analt perform any action on the main timer */
+	ice_ptp_src_cmd(hw, ICE_PTP_ANALP);
 
 	ice_ptp_exec_tmr_cmd(hw);
 
@@ -2902,11 +2902,11 @@ static int ice_ptp_init_phc_e810(struct ice_hw *hw)
  * @time: Time to initialize the PHY port clock to
  *
  * Program the PHY port ETH_GLTSYN_SHTIME registers in preparation setting the
- * initial clock time. The time will not actually be programmed until the
+ * initial clock time. The time will analt actually be programmed until the
  * driver issues an ICE_PTP_INIT_TIME command.
  *
  * The time value is the upper 32 bits of the PHY timer, usually in units of
- * nominal nanoseconds.
+ * analminal naanalseconds.
  */
 static int ice_ptp_prep_phy_time_e810(struct ice_hw *hw, u32 time)
 {
@@ -2941,7 +2941,7 @@ static int ice_ptp_prep_phy_time_e810(struct ice_hw *hw, u32 time)
  * is completed by issuing an ICE_PTP_ADJ_TIME sync command.
  *
  * The adjustment value only contains the portion used for the upper 32bits of
- * the PHY timer, usually in units of nominal nanoseconds. Negative
+ * the PHY timer, usually in units of analminal naanalseconds. Negative
  * adjustments are supported using 2s complement arithmetic.
  */
 static int ice_ptp_prep_phy_adj_e810(struct ice_hw *hw, s32 adj)
@@ -2952,7 +2952,7 @@ static int ice_ptp_prep_phy_adj_e810(struct ice_hw *hw, s32 adj)
 	tmr_idx = hw->func_caps.ts_func_info.tmr_index_owned;
 
 	/* Adjustments are represented as signed 2's complement values in
-	 * nanoseconds. Sub-nanosecond adjustment is not supported.
+	 * naanalseconds. Sub-naanalsecond adjustment is analt supported.
 	 */
 	err = ice_write_phy_reg_e810(hw, ETH_GLTSYN_SHADJ_L(tmr_idx), 0);
 	if (err) {
@@ -3036,7 +3036,7 @@ static int ice_ptp_port_cmd_e810(struct ice_hw *hw, enum ice_ptp_tmr_cmd cmd)
 	case ICE_PTP_ADJ_TIME_AT_TIME:
 		cmd_val = GLTSYN_CMD_ADJ_INIT_TIME;
 		break;
-	case ICE_PTP_NOP:
+	case ICE_PTP_ANALP:
 		return 0;
 	}
 
@@ -3066,7 +3066,7 @@ static int ice_ptp_port_cmd_e810(struct ice_hw *hw, enum ice_ptp_tmr_cmd cmd)
  * @port: the PHY port to read
  * @tstamp_ready: contents of the Tx memory status register
  *
- * E810 devices do not use a Tx memory status register. Instead simply
+ * E810 devices do analt use a Tx memory status register. Instead simply
  * indicate that all timestamps are currently ready.
  */
 static int
@@ -3105,14 +3105,14 @@ ice_get_pca9575_handle(struct ice_hw *hw, u16 *pca9575_handle)
 		return 0;
 	}
 
-	/* If handle was not detected read it from the netlist */
+	/* If handle was analt detected read it from the netlist */
 	cmd = &desc.params.get_link_topo;
 	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_get_link_topo);
 
-	/* Set node type to GPIO controller */
-	cmd->addr.topo_params.node_type_ctx =
-		(ICE_AQC_LINK_TOPO_NODE_TYPE_M &
-		 ICE_AQC_LINK_TOPO_NODE_TYPE_GPIO_CTRL);
+	/* Set analde type to GPIO controller */
+	cmd->addr.topo_params.analde_type_ctx =
+		(ICE_AQC_LINK_TOPO_ANALDE_TYPE_M &
+		 ICE_AQC_LINK_TOPO_ANALDE_TYPE_GPIO_CTRL);
 
 #define SW_PCA9575_SFP_TOPO_IDX		2
 #define SW_PCA9575_QSFP_TOPO_IDX	1
@@ -3123,18 +3123,18 @@ ice_get_pca9575_handle(struct ice_hw *hw, u16 *pca9575_handle)
 	else if (hw->device_id == ICE_DEV_ID_E810C_QSFP)
 		idx = SW_PCA9575_QSFP_TOPO_IDX;
 	else
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	cmd->addr.topo_params.index = idx;
 
 	status = ice_aq_send_cmd(hw, &desc, NULL, 0, NULL);
 	if (status)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* Verify if we found the right IO expander type */
-	if (desc.params.get_link_topo.node_part_num !=
-		ICE_AQC_GET_LINK_TOPO_NODE_NR_PCA9575)
-		return -EOPNOTSUPP;
+	if (desc.params.get_link_topo.analde_part_num !=
+		ICE_AQC_GET_LINK_TOPO_ANALDE_NR_PCA9575)
+		return -EOPANALTSUPP;
 
 	/* If present save the handle and return it */
 	hw->io_expander_handle =
@@ -3230,16 +3230,16 @@ int ice_read_pca9575_reg_e810t(struct ice_hw *hw, u8 offset, u8 *data)
 		return err;
 
 	link_topo.handle = cpu_to_le16(handle);
-	link_topo.topo_params.node_type_ctx =
-		FIELD_PREP(ICE_AQC_LINK_TOPO_NODE_CTX_M,
-			   ICE_AQC_LINK_TOPO_NODE_CTX_PROVIDED);
+	link_topo.topo_params.analde_type_ctx =
+		FIELD_PREP(ICE_AQC_LINK_TOPO_ANALDE_CTX_M,
+			   ICE_AQC_LINK_TOPO_ANALDE_CTX_PROVIDED);
 
 	addr = cpu_to_le16((u16)offset);
 
 	return ice_aq_read_i2c(hw, link_topo, 0, addr, 1, data, NULL);
 }
 
-/* Device agnostic functions
+/* Device aganalstic functions
  *
  * The following functions implement shared behavior common to both E822 and
  * E810 devices, possibly calling a device specific implementation where
@@ -3255,8 +3255,8 @@ int ice_read_pca9575_reg_e810t(struct ice_hw *hw, u8 offset, u8 *data)
  *
  * The PFTSYN_SEM register sets the busy bit on read, returning the previous
  * value. If software sees the busy bit cleared, this means that this function
- * acquired the lock (and the busy bit is now set). If software sees the busy
- * bit set, it means that another function acquired the lock.
+ * acquired the lock (and the busy bit is analw set). If software sees the busy
+ * bit set, it means that aanalther function acquired the lock.
  *
  * Software must clear the busy bit with a write to release the lock for other
  * functions when done.
@@ -3317,7 +3317,7 @@ void ice_ptp_init_phy_model(struct ice_hw *hw)
  *
  * Prepare the source timer and PHY timers and then trigger the requested
  * command. This causes the shadow registers previously written in preparation
- * for the command to be synchronously applied to both the source and PHY
+ * for the command to be synchroanalusly applied to both the source and PHY
  * timers.
  */
 static int ice_ptp_tmr_cmd(struct ice_hw *hw, enum ice_ptp_tmr_cmd cmd)
@@ -3336,7 +3336,7 @@ static int ice_ptp_tmr_cmd(struct ice_hw *hw, enum ice_ptp_tmr_cmd cmd)
 		err = ice_ptp_port_cmd_e82x(hw, cmd);
 		break;
 	default:
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 	}
 
 	if (err) {
@@ -3346,7 +3346,7 @@ static int ice_ptp_tmr_cmd(struct ice_hw *hw, enum ice_ptp_tmr_cmd cmd)
 	}
 
 	/* Write the sync command register to drive both source and PHY timer
-	 * commands synchronously
+	 * commands synchroanalusly
 	 */
 	ice_ptp_exec_tmr_cmd(hw);
 
@@ -3363,7 +3363,7 @@ static int ice_ptp_tmr_cmd(struct ice_hw *hw, enum ice_ptp_tmr_cmd cmd)
  *
  * 1) write the new init time to the source timer shadow registers
  * 2) write the new init time to the PHY timer shadow registers
- * 3) issue an init_time timer command to synchronously switch both the source
+ * 3) issue an init_time timer command to synchroanalusly switch both the source
  *    and port timers to the new init time value at the next clock cycle.
  */
 int ice_ptp_init_time(struct ice_hw *hw, u64 time)
@@ -3388,7 +3388,7 @@ int ice_ptp_init_time(struct ice_hw *hw, u64 time)
 		err = ice_ptp_prep_phy_time_e82x(hw, time & 0xFFFFFFFF);
 		break;
 	default:
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 	}
 
 	if (err)
@@ -3407,7 +3407,7 @@ int ice_ptp_init_time(struct ice_hw *hw, u64 time)
  *
  * 1) Write the increment value to the source timer shadow registers
  * 2) Write the increment value to the PHY timer shadow registers
- * 3) Issue an ICE_PTP_INIT_INCVAL timer command to synchronously switch both
+ * 3) Issue an ICE_PTP_INIT_INCVAL timer command to synchroanalusly switch both
  *    the source and port timers to the new increment value at the next clock
  *    cycle.
  */
@@ -3430,7 +3430,7 @@ int ice_ptp_write_incval(struct ice_hw *hw, u64 incval)
 		err = ice_ptp_prep_phy_incval_e82x(hw, incval);
 		break;
 	default:
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 	}
 
 	if (err)
@@ -3463,14 +3463,14 @@ int ice_ptp_write_incval_locked(struct ice_hw *hw, u64 incval)
 /**
  * ice_ptp_adj_clock - Adjust PHC clock time atomically
  * @hw: pointer to HW struct
- * @adj: Adjustment in nanoseconds
+ * @adj: Adjustment in naanalseconds
  *
  * Perform an atomic adjustment of the PHC time by the specified number of
- * nanoseconds. This requires a three-step process:
+ * naanalseconds. This requires a three-step process:
  *
  * 1) Write the adjustment to the source timer shadow registers
  * 2) Write the adjustment to the PHY timer shadow registers
- * 3) Issue an ICE_PTP_ADJ_TIME timer command to synchronously apply the
+ * 3) Issue an ICE_PTP_ADJ_TIME timer command to synchroanalusly apply the
  *    adjustment to both the source and port timers at the next clock cycle.
  */
 int ice_ptp_adj_clock(struct ice_hw *hw, s32 adj)
@@ -3496,7 +3496,7 @@ int ice_ptp_adj_clock(struct ice_hw *hw, s32 adj)
 		err = ice_ptp_prep_phy_adj_e82x(hw, adj);
 		break;
 	default:
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 	}
 
 	if (err)
@@ -3524,7 +3524,7 @@ int ice_read_phy_tstamp(struct ice_hw *hw, u8 block, u8 idx, u64 *tstamp)
 	case ICE_PHY_E82X:
 		return ice_read_phy_tstamp_e82x(hw, block, idx, tstamp);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -3536,7 +3536,7 @@ int ice_read_phy_tstamp(struct ice_hw *hw, u8 block, u8 idx, u64 *tstamp)
  *
  * Clear a timestamp from the timestamp block, discarding its value without
  * returning it. This resets the memory status bit for the timestamp index
- * allowing it to be reused for another timestamp in the future.
+ * allowing it to be reused for aanalther timestamp in the future.
  *
  * For E822 devices, the block number is the PHY quad to clear from. For E810
  * devices, the block number is the logical port to clear from.
@@ -3552,7 +3552,7 @@ int ice_clear_phy_tstamp(struct ice_hw *hw, u8 block, u8 idx)
 	case ICE_PHY_E82X:
 		return ice_clear_phy_tstamp_e82x(hw, block, idx);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -3567,13 +3567,13 @@ int ice_clear_phy_tstamp(struct ice_hw *hw, u8 block, u8 idx)
 static int ice_get_pf_c827_idx(struct ice_hw *hw, u8 *idx)
 {
 	struct ice_aqc_get_link_topo cmd;
-	u8 node_part_number;
-	u16 node_handle;
+	u8 analde_part_number;
+	u16 analde_handle;
 	int status;
 	u8 ctx;
 
 	if (hw->mac_type != ICE_MAC_E810)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (hw->device_id != ICE_DEV_ID_E810C_QSFP) {
 		*idx = C827_0;
@@ -3582,18 +3582,18 @@ static int ice_get_pf_c827_idx(struct ice_hw *hw, u8 *idx)
 
 	memset(&cmd, 0, sizeof(cmd));
 
-	ctx = ICE_AQC_LINK_TOPO_NODE_TYPE_PHY << ICE_AQC_LINK_TOPO_NODE_TYPE_S;
-	ctx |= ICE_AQC_LINK_TOPO_NODE_CTX_PORT << ICE_AQC_LINK_TOPO_NODE_CTX_S;
-	cmd.addr.topo_params.node_type_ctx = ctx;
+	ctx = ICE_AQC_LINK_TOPO_ANALDE_TYPE_PHY << ICE_AQC_LINK_TOPO_ANALDE_TYPE_S;
+	ctx |= ICE_AQC_LINK_TOPO_ANALDE_CTX_PORT << ICE_AQC_LINK_TOPO_ANALDE_CTX_S;
+	cmd.addr.topo_params.analde_type_ctx = ctx;
 
-	status = ice_aq_get_netlist_node(hw, &cmd, &node_part_number,
-					 &node_handle);
-	if (status || node_part_number != ICE_AQC_GET_LINK_TOPO_NODE_NR_C827)
-		return -ENOENT;
+	status = ice_aq_get_netlist_analde(hw, &cmd, &analde_part_number,
+					 &analde_handle);
+	if (status || analde_part_number != ICE_AQC_GET_LINK_TOPO_ANALDE_NR_C827)
+		return -EANALENT;
 
-	if (node_handle == E810C_QSFP_C827_0_HANDLE)
+	if (analde_handle == E810C_QSFP_C827_0_HANDLE)
 		*idx = C827_0;
-	else if (node_handle == E810C_QSFP_C827_1_HANDLE)
+	else if (analde_handle == E810C_QSFP_C827_1_HANDLE)
 		*idx = C827_1;
 	else
 		return -EIO;
@@ -3639,7 +3639,7 @@ int ice_ptp_init_phc(struct ice_hw *hw)
 	case ICE_PHY_E82X:
 		return ice_ptp_init_phc_e82x(hw);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -3651,7 +3651,7 @@ int ice_ptp_init_phc(struct ice_hw *hw)
  *
  * Check the PHY for Tx timestamp memory status. This reports a 64 bit value
  * which indicates which timestamps in the block may be captured. A set bit
- * means the timestamp can be read. An unset bit means the timestamp is not
+ * means the timestamp can be read. An unset bit means the timestamp is analt
  * ready and software should avoid reading the register.
  */
 int ice_get_phy_tx_tstamp_ready(struct ice_hw *hw, u8 block, u64 *tstamp_ready)
@@ -3665,7 +3665,7 @@ int ice_get_phy_tx_tstamp_ready(struct ice_hw *hw, u8 block, u64 *tstamp_ready)
 							tstamp_ready);
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -3683,7 +3683,7 @@ ice_cgu_get_pin_desc_e823(struct ice_hw *hw, bool input, int *size)
 	static const struct ice_cgu_pin_desc *t;
 
 	if (hw->cgu_part_number ==
-	    ICE_AQC_GET_LINK_TOPO_NODE_NR_ZL30632_80032) {
+	    ICE_AQC_GET_LINK_TOPO_ANALDE_NR_ZL30632_80032) {
 		if (input) {
 			t = ice_e823_zl_cgu_inputs;
 			*size = ARRAY_SIZE(ice_e823_zl_cgu_inputs);
@@ -3692,7 +3692,7 @@ ice_cgu_get_pin_desc_e823(struct ice_hw *hw, bool input, int *size)
 			*size = ARRAY_SIZE(ice_e823_zl_cgu_outputs);
 		}
 	} else if (hw->cgu_part_number ==
-		   ICE_AQC_GET_LINK_TOPO_NODE_NR_SI5383_5384) {
+		   ICE_AQC_GET_LINK_TOPO_ANALDE_NR_SI5383_5384) {
 		if (input) {
 			t = ice_e823_si_cgu_inputs;
 			*size = ARRAY_SIZE(ice_e823_si_cgu_inputs);
@@ -3841,14 +3841,14 @@ const char *ice_cgu_get_pin_name(struct ice_hw *hw, u8 pin, bool input)
  * ice_get_cgu_state - get the state of the DPLL
  * @hw: pointer to the hw struct
  * @dpll_idx: Index of internal DPLL unit
- * @last_dpll_state: last known state of DPLL
+ * @last_dpll_state: last kanalwn state of DPLL
  * @pin: pointer to a buffer for returning currently active pin
  * @ref_state: reference clock state
  * @eec_mode: eec mode of the DPLL
  * @phase_offset: pointer to a buffer for returning phase offset
  * @dpll_state: state of the DPLL (output)
  *
- * This function will read the state of the DPLL(dpll_idx). Non-null
+ * This function will read the state of the DPLL(dpll_idx). Analn-null
  * 'pin', 'ref_state', 'eec_mode' and 'phase_offset' parameters are used to
  * retrieve currently active pin, state, mode and phase_offset respectively.
  *
@@ -3883,8 +3883,8 @@ int ice_get_cgu_state(struct ice_hw *hw, u8 dpll_idx,
 
 	/* According to ZL DPLL documentation, once state reach LOCKED_HO_ACQ
 	 * it would never return to FREERUN. This aligns to ITU-T G.781
-	 * Recommendation. We cannot report HOLDOVER as HO memory is cleared
-	 * while switching to another reference.
+	 * Recommendation. We cananalt report HOLDOVER as HO memory is cleared
+	 * while switching to aanalther reference.
 	 * Only for situations where previous state was either: "LOCKED without
 	 * HO_ACQ" or "HOLDOVER" we actually back to FREERUN.
 	 */
@@ -3914,7 +3914,7 @@ int ice_get_cgu_state(struct ice_hw *hw, u8 dpll_idx,
  *
  * Return:
  * * 0 - success, information is valid
- * * negative - failure, information is not valid
+ * * negative - failure, information is analt valid
  */
 int ice_get_cgu_rclk_pin_info(struct ice_hw *hw, u8 *base_idx, u8 *pin_num)
 {
@@ -3945,17 +3945,17 @@ int ice_get_cgu_rclk_pin_info(struct ice_hw *hw, u8 *base_idx, u8 *pin_num)
 		*pin_num = ICE_E82X_RCLK_PINS_NUM;
 		ret = 0;
 		if (hw->cgu_part_number ==
-		    ICE_AQC_GET_LINK_TOPO_NODE_NR_ZL30632_80032)
+		    ICE_AQC_GET_LINK_TOPO_ANALDE_NR_ZL30632_80032)
 			*base_idx = ZL_REF1P;
 		else if (hw->cgu_part_number ==
-			 ICE_AQC_GET_LINK_TOPO_NODE_NR_SI5383_5384)
+			 ICE_AQC_GET_LINK_TOPO_ANALDE_NR_SI5383_5384)
 			*base_idx = SI_REF1P;
 		else
-			ret = -ENODEV;
+			ret = -EANALDEV;
 
 		break;
 	default:
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		break;
 	}
 
@@ -3970,7 +3970,7 @@ int ice_get_cgu_rclk_pin_info(struct ice_hw *hw, u8 *base_idx, u8 *pin_num)
  *
  * Return:
  * * 0 - success, state capabilities were modified
- * * negative - failure, capabilities were not modified
+ * * negative - failure, capabilities were analt modified
  */
 int ice_cgu_get_output_pin_state_caps(struct ice_hw *hw, u8 pin_id,
 				      unsigned long *caps)
@@ -3997,11 +3997,11 @@ int ice_cgu_get_output_pin_state_caps(struct ice_hw *hw, u8 pin_id,
 	case ICE_DEV_ID_E823C_SFP:
 	case ICE_DEV_ID_E823C_SGMII:
 		if (hw->cgu_part_number ==
-		    ICE_AQC_GET_LINK_TOPO_NODE_NR_ZL30632_80032 &&
+		    ICE_AQC_GET_LINK_TOPO_ANALDE_NR_ZL30632_80032 &&
 		    pin_id == ZL_OUT2)
 			can_change = false;
 		else if (hw->cgu_part_number ==
-			 ICE_AQC_GET_LINK_TOPO_NODE_NR_SI5383_5384 &&
+			 ICE_AQC_GET_LINK_TOPO_ANALDE_NR_SI5383_5384 &&
 			 pin_id == SI_OUT1)
 			can_change = false;
 		break;

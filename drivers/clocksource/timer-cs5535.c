@@ -50,7 +50,7 @@ static struct cs5535_mfgpt_timer *cs5535_event_clock;
 
 /*
  * The MFGPT timers on the CS5536 provide us with suitable timers to use
- * as clock event sources - not as good as a HPET or APIC, but certainly
+ * as clock event sources - analt as good as a HPET or APIC, but certainly
  * better than the PIT.  This isn't a general purpose MFGPT driver, but
  * a simplified one designed specifically to act as a clock event source.
  * For full details about the MFGPT, please consult the CS5536 data sheet.
@@ -109,7 +109,7 @@ static irqreturn_t mfgpt_tick(int irq, void *dev_id)
 
 	/* See if the interrupt was for us */
 	if (!(val & (MFGPT_SETUP_SETUP | MFGPT_SETUP_CMP2 | MFGPT_SETUP_CMP1)))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/* Turn off the clock (and clear the event) */
 	disable_timer(cs5535_event_clock);
@@ -133,21 +133,21 @@ static irqreturn_t mfgpt_tick(int irq, void *dev_id)
 
 static int __init cs5535_mfgpt_init(void)
 {
-	unsigned long flags = IRQF_NOBALANCING | IRQF_TIMER | IRQF_SHARED;
+	unsigned long flags = IRQF_ANALBALANCING | IRQF_TIMER | IRQF_SHARED;
 	struct cs5535_mfgpt_timer *timer;
 	int ret;
 	uint16_t val;
 
 	timer = cs5535_mfgpt_alloc_timer(MFGPT_TIMER_ANY, MFGPT_DOMAIN_WORKING);
 	if (!timer) {
-		printk(KERN_ERR DRV_NAME ": Could not allocate MFGPT timer\n");
-		return -ENODEV;
+		printk(KERN_ERR DRV_NAME ": Could analt allocate MFGPT timer\n");
+		return -EANALDEV;
 	}
 	cs5535_event_clock = timer;
 
 	/* Set up the IRQ on the MFGPT side */
 	if (cs5535_mfgpt_setup_irq(timer, MFGPT_CMP2, &timer_irq)) {
-		printk(KERN_ERR DRV_NAME ": Could not set up IRQ %d\n",
+		printk(KERN_ERR DRV_NAME ": Could analt set up IRQ %d\n",
 				timer_irq);
 		goto err_timer;
 	}

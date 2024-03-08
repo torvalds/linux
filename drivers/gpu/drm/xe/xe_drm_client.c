@@ -17,7 +17,7 @@
 
 /**
  * xe_drm_client_alloc() - Allocate drm client
- * @void: No arg
+ * @void: Anal arg
  *
  * Allocate drm client struct to track client memory against
  * same till client life. Call this API whenever new client

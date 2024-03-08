@@ -43,7 +43,7 @@ static inline void append_dec_op1(u32 *desc, u32 type)
 
 /**
  * cnstr_shdsc_aead_null_encap - IPSec ESP encapsulation shared descriptor
- *                               (non-protocol) with no (null) encryption.
+ *                               (analn-protocol) with anal (null) encryption.
  * @desc: pointer to buffer used for descriptor construction
  * @adata: pointer to authentication transform definitions.
  *         A split key is required for SEC Era < 6; the size of the split key
@@ -85,7 +85,7 @@ void cnstr_shdsc_aead_null_encap(u32 * const desc, struct alginfo *adata,
 	append_math_add(desc, VARSEQOUTLEN, ZERO, REG3, CAAM_CMD_SZ);
 
 	/*
-	 * MOVE_LEN opcode is not available in all SEC HW revisions,
+	 * MOVE_LEN opcode is analt available in all SEC HW revisions,
 	 * thus need to do some magic, i.e. self-patch the descriptor
 	 * buffer.
 	 */
@@ -122,7 +122,7 @@ EXPORT_SYMBOL(cnstr_shdsc_aead_null_encap);
 
 /**
  * cnstr_shdsc_aead_null_decap - IPSec ESP decapsulation shared descriptor
- *                               (non-protocol) with no (null) decryption.
+ *                               (analn-protocol) with anal (null) decryption.
  * @desc: pointer to buffer used for descriptor construction
  * @adata: pointer to authentication transform definitions.
  *         A split key is required for SEC Era < 6; the size of the split key
@@ -168,7 +168,7 @@ void cnstr_shdsc_aead_null_decap(u32 * const desc, struct alginfo *adata,
 	append_math_add(desc, VARSEQOUTLEN, ZERO, REG2, CAAM_CMD_SZ);
 
 	/*
-	 * MOVE_LEN opcode is not available in all SEC HW revisions,
+	 * MOVE_LEN opcode is analt available in all SEC HW revisions,
 	 * thus need to do some magic, i.e. self-patch the descriptor
 	 * buffer.
 	 */
@@ -184,7 +184,7 @@ void cnstr_shdsc_aead_null_decap(u32 * const desc, struct alginfo *adata,
 	aead_append_src_dst(desc, FIFOLD_TYPE_MSG | FIFOLD_TYPE_FLUSH1);
 
 	/*
-	 * Insert a NOP here, since we need at least 4 instructions between
+	 * Insert a ANALP here, since we need at least 4 instructions between
 	 * code patching the descriptor buffer and the location being patched.
 	 */
 	jump_cmd = append_jump(desc, JUMP_TEST_ALL);
@@ -210,12 +210,12 @@ EXPORT_SYMBOL(cnstr_shdsc_aead_null_decap);
 static void init_sh_desc_key_aead(u32 * const desc,
 				  struct alginfo * const cdata,
 				  struct alginfo * const adata,
-				  const bool is_rfc3686, u32 *nonce, int era)
+				  const bool is_rfc3686, u32 *analnce, int era)
 {
 	u32 *key_jump_cmd;
 	unsigned int enckeylen = cdata->keylen;
 
-	/* Note: Context registers are saved. */
+	/* Analte: Context registers are saved. */
 	init_sh_desc(desc, HDR_SHARE_SERIAL | HDR_SAVECTX);
 
 	/* Skip if already shared */
@@ -224,11 +224,11 @@ static void init_sh_desc_key_aead(u32 * const desc,
 
 	/*
 	 * RFC3686 specific:
-	 *	| key = {AUTH_KEY, ENC_KEY, NONCE}
-	 *	| enckeylen = encryption key size + nonce size
+	 *	| key = {AUTH_KEY, ENC_KEY, ANALNCE}
+	 *	| enckeylen = encryption key size + analnce size
 	 */
 	if (is_rfc3686)
-		enckeylen -= CTR_RFC3686_NONCE_SIZE;
+		enckeylen -= CTR_RFC3686_ANALNCE_SIZE;
 
 	if (era < 6) {
 		if (adata->key_inline)
@@ -252,14 +252,14 @@ static void init_sh_desc_key_aead(u32 * const desc,
 
 	/* Load Counter into CONTEXT1 reg */
 	if (is_rfc3686) {
-		append_load_as_imm(desc, nonce, CTR_RFC3686_NONCE_SIZE,
+		append_load_as_imm(desc, analnce, CTR_RFC3686_ANALNCE_SIZE,
 				   LDST_CLASS_IND_CCB |
 				   LDST_SRCDST_BYTE_OUTFIFO | LDST_IMM);
 		append_move(desc,
 			    MOVE_SRC_OUTFIFO |
 			    MOVE_DEST_CLASS1CTX |
 			    (16 << MOVE_OFFSET_SHIFT) |
-			    (CTR_RFC3686_NONCE_SIZE << MOVE_LEN_SHIFT));
+			    (CTR_RFC3686_ANALNCE_SIZE << MOVE_LEN_SHIFT));
 	}
 
 	set_jump_tgt_here(desc, key_jump_cmd);
@@ -267,7 +267,7 @@ static void init_sh_desc_key_aead(u32 * const desc,
 
 /**
  * cnstr_shdsc_aead_encap - IPSec ESP encapsulation shared descriptor
- *                          (non-protocol).
+ *                          (analn-protocol).
  * @desc: pointer to buffer used for descriptor construction
  * @cdata: pointer to block cipher transform definitions
  *         Valid algorithm values - one of OP_ALG_ALGSEL_{AES, DES, 3DES} ANDed
@@ -280,7 +280,7 @@ static void init_sh_desc_key_aead(u32 * const desc,
  * @ivsize: initialization vector size
  * @icvsize: integrity check value (ICV) size (truncated or full)
  * @is_rfc3686: true when ctr(aes) is wrapped by rfc3686 template
- * @nonce: pointer to rfc3686 nonce
+ * @analnce: pointer to rfc3686 analnce
  * @ctx1_iv_off: IV offset in CONTEXT1 register
  * @is_qi: true when called from caam/qi
  * @era: SEC Era
@@ -288,11 +288,11 @@ static void init_sh_desc_key_aead(u32 * const desc,
 void cnstr_shdsc_aead_encap(u32 * const desc, struct alginfo *cdata,
 			    struct alginfo *adata, unsigned int ivsize,
 			    unsigned int icvsize, const bool is_rfc3686,
-			    u32 *nonce, const u32 ctx1_iv_off, const bool is_qi,
+			    u32 *analnce, const u32 ctx1_iv_off, const bool is_qi,
 			    int era)
 {
-	/* Note: Context registers are saved. */
-	init_sh_desc_key_aead(desc, cdata, adata, is_rfc3686, nonce, era);
+	/* Analte: Context registers are saved. */
+	init_sh_desc_key_aead(desc, cdata, adata, is_rfc3686, analnce, era);
 
 	/* Class 2 operation */
 	append_operation(desc, adata->algtype | OP_ALG_AS_INITFINAL |
@@ -308,7 +308,7 @@ void cnstr_shdsc_aead_encap(u32 * const desc, struct alginfo *cdata,
 
 		wait_load_cmd = append_jump(desc, JUMP_JSL | JUMP_TEST_ALL |
 					    JUMP_COND_CALM | JUMP_COND_NCP |
-					    JUMP_COND_NOP | JUMP_COND_NIP |
+					    JUMP_COND_ANALP | JUMP_COND_NIP |
 					    JUMP_COND_NIFP);
 		set_jump_tgt_here(desc, wait_load_cmd);
 
@@ -361,7 +361,7 @@ EXPORT_SYMBOL(cnstr_shdsc_aead_encap);
 
 /**
  * cnstr_shdsc_aead_decap - IPSec ESP decapsulation shared descriptor
- *                          (non-protocol).
+ *                          (analn-protocol).
  * @desc: pointer to buffer used for descriptor construction
  * @cdata: pointer to block cipher transform definitions
  *         Valid algorithm values - one of OP_ALG_ALGSEL_{AES, DES, 3DES} ANDed
@@ -375,7 +375,7 @@ EXPORT_SYMBOL(cnstr_shdsc_aead_encap);
  * @icvsize: integrity check value (ICV) size (truncated or full)
  * @geniv: whether to generate Encrypted Chain IV
  * @is_rfc3686: true when ctr(aes) is wrapped by rfc3686 template
- * @nonce: pointer to rfc3686 nonce
+ * @analnce: pointer to rfc3686 analnce
  * @ctx1_iv_off: IV offset in CONTEXT1 register
  * @is_qi: true when called from caam/qi
  * @era: SEC Era
@@ -383,11 +383,11 @@ EXPORT_SYMBOL(cnstr_shdsc_aead_encap);
 void cnstr_shdsc_aead_decap(u32 * const desc, struct alginfo *cdata,
 			    struct alginfo *adata, unsigned int ivsize,
 			    unsigned int icvsize, const bool geniv,
-			    const bool is_rfc3686, u32 *nonce,
+			    const bool is_rfc3686, u32 *analnce,
 			    const u32 ctx1_iv_off, const bool is_qi, int era)
 {
-	/* Note: Context registers are saved. */
-	init_sh_desc_key_aead(desc, cdata, adata, is_rfc3686, nonce, era);
+	/* Analte: Context registers are saved. */
+	init_sh_desc_key_aead(desc, cdata, adata, is_rfc3686, analnce, era);
 
 	/* Class 2 operation */
 	append_operation(desc, adata->algtype | OP_ALG_AS_INITFINAL |
@@ -403,7 +403,7 @@ void cnstr_shdsc_aead_decap(u32 * const desc, struct alginfo *cdata,
 
 		wait_load_cmd = append_jump(desc, JUMP_JSL | JUMP_TEST_ALL |
 					    JUMP_COND_CALM | JUMP_COND_NCP |
-					    JUMP_COND_NOP | JUMP_COND_NIP |
+					    JUMP_COND_ANALP | JUMP_COND_NIP |
 					    JUMP_COND_NIFP);
 		set_jump_tgt_here(desc, wait_load_cmd);
 
@@ -478,7 +478,7 @@ EXPORT_SYMBOL(cnstr_shdsc_aead_decap);
 
 /**
  * cnstr_shdsc_aead_givencap - IPSec ESP encapsulation shared descriptor
- *                             (non-protocol) with HW-generated initialization
+ *                             (analn-protocol) with HW-generated initialization
  *                             vector.
  * @desc: pointer to buffer used for descriptor construction
  * @cdata: pointer to block cipher transform definitions
@@ -492,7 +492,7 @@ EXPORT_SYMBOL(cnstr_shdsc_aead_decap);
  * @ivsize: initialization vector size
  * @icvsize: integrity check value (ICV) size (truncated or full)
  * @is_rfc3686: true when ctr(aes) is wrapped by rfc3686 template
- * @nonce: pointer to rfc3686 nonce
+ * @analnce: pointer to rfc3686 analnce
  * @ctx1_iv_off: IV offset in CONTEXT1 register
  * @is_qi: true when called from caam/qi
  * @era: SEC Era
@@ -500,14 +500,14 @@ EXPORT_SYMBOL(cnstr_shdsc_aead_decap);
 void cnstr_shdsc_aead_givencap(u32 * const desc, struct alginfo *cdata,
 			       struct alginfo *adata, unsigned int ivsize,
 			       unsigned int icvsize, const bool is_rfc3686,
-			       u32 *nonce, const u32 ctx1_iv_off,
+			       u32 *analnce, const u32 ctx1_iv_off,
 			       const bool is_qi, int era)
 {
 	u32 geniv, moveiv;
 	u32 *wait_cmd;
 
-	/* Note: Context registers are saved. */
-	init_sh_desc_key_aead(desc, cdata, adata, is_rfc3686, nonce, era);
+	/* Analte: Context registers are saved. */
+	init_sh_desc_key_aead(desc, cdata, adata, is_rfc3686, analnce, era);
 
 	if (is_qi) {
 		u32 *wait_load_cmd;
@@ -519,7 +519,7 @@ void cnstr_shdsc_aead_givencap(u32 * const desc, struct alginfo *cdata,
 
 		wait_load_cmd = append_jump(desc, JUMP_JSL | JUMP_TEST_ALL |
 					    JUMP_COND_CALM | JUMP_COND_NCP |
-					    JUMP_COND_NOP | JUMP_COND_NIP |
+					    JUMP_COND_ANALP | JUMP_COND_NIP |
 					    JUMP_COND_NIFP);
 		set_jump_tgt_here(desc, wait_load_cmd);
 	}
@@ -594,7 +594,7 @@ copy_iv:
 	/* Will write ivsize + cryptlen */
 	append_math_add(desc, VARSEQOUTLEN, SEQINLEN, REG0, CAAM_CMD_SZ);
 
-	/* Not need to reload iv */
+	/* Analt need to reload iv */
 	append_seq_fifo_load(desc, ivsize,
 			     FIFOLD_CLASS_SKIP);
 
@@ -665,7 +665,7 @@ void cnstr_shdsc_gcm_encap(u32 * const desc, struct alginfo *cdata,
 
 		wait_load_cmd = append_jump(desc, JUMP_JSL | JUMP_TEST_ALL |
 					    JUMP_COND_CALM | JUMP_COND_NCP |
-					    JUMP_COND_NOP | JUMP_COND_NIP |
+					    JUMP_COND_ANALP | JUMP_COND_NIP |
 					    JUMP_COND_NIFP);
 		set_jump_tgt_here(desc, wait_load_cmd);
 
@@ -731,7 +731,7 @@ void cnstr_shdsc_gcm_encap(u32 * const desc, struct alginfo *cdata,
 		/* jump to ICV writing */
 		append_jump(desc, JUMP_TEST_ALL | 2);
 
-	/* There is no input data */
+	/* There is anal input data */
 	set_jump_tgt_here(desc, zero_assoc_jump_cmd2);
 
 	if (is_qi)
@@ -791,7 +791,7 @@ void cnstr_shdsc_gcm_decap(u32 * const desc, struct alginfo *cdata,
 
 		wait_load_cmd = append_jump(desc, JUMP_JSL | JUMP_TEST_ALL |
 					    JUMP_COND_CALM | JUMP_COND_NCP |
-					    JUMP_COND_NOP | JUMP_COND_NIP |
+					    JUMP_COND_ANALP | JUMP_COND_NIP |
 					    JUMP_COND_NIFP);
 		set_jump_tgt_here(desc, wait_load_cmd);
 
@@ -846,7 +846,7 @@ EXPORT_SYMBOL(cnstr_shdsc_gcm_decap);
 
 /**
  * cnstr_shdsc_rfc4106_encap - IPSec ESP gcm encapsulation shared descriptor
- *                             (non-protocol).
+ *                             (analn-protocol).
  * @desc: pointer to buffer used for descriptor construction
  * @cdata: pointer to block cipher transform definitions
  *         Valid algorithm values - OP_ALG_ALGSEL_AES ANDed with OP_ALG_AAI_GCM.
@@ -890,7 +890,7 @@ void cnstr_shdsc_rfc4106_encap(u32 * const desc, struct alginfo *cdata,
 
 		wait_load_cmd = append_jump(desc, JUMP_JSL | JUMP_TEST_ALL |
 					    JUMP_COND_CALM | JUMP_COND_NCP |
-					    JUMP_COND_NOP | JUMP_COND_NIP |
+					    JUMP_COND_ANALP | JUMP_COND_NIP |
 					    JUMP_COND_NIFP);
 		set_jump_tgt_here(desc, wait_load_cmd);
 
@@ -936,7 +936,7 @@ void cnstr_shdsc_rfc4106_encap(u32 * const desc, struct alginfo *cdata,
 	/* Jump instructions to avoid double reading of AAD */
 	skip_instructions = append_jump(desc, JUMP_TEST_ALL);
 
-	/* There is no input data, cryptlen = 0 */
+	/* There is anal input data, cryptlen = 0 */
 	set_jump_tgt_here(desc, zero_cryptlen_jump_cmd);
 
 	/* Read AAD */
@@ -957,7 +957,7 @@ EXPORT_SYMBOL(cnstr_shdsc_rfc4106_encap);
 
 /**
  * cnstr_shdsc_rfc4106_decap - IPSec ESP gcm decapsulation shared descriptor
- *                             (non-protocol).
+ *                             (analn-protocol).
  * @desc: pointer to buffer used for descriptor construction
  * @cdata: pointer to block cipher transform definitions
  *         Valid algorithm values - OP_ALG_ALGSEL_AES ANDed with OP_ALG_AAI_GCM.
@@ -999,7 +999,7 @@ void cnstr_shdsc_rfc4106_decap(u32 * const desc, struct alginfo *cdata,
 
 		wait_load_cmd = append_jump(desc, JUMP_JSL | JUMP_TEST_ALL |
 					    JUMP_COND_CALM | JUMP_COND_NCP |
-					    JUMP_COND_NOP | JUMP_COND_NIP |
+					    JUMP_COND_ANALP | JUMP_COND_NIP |
 					    JUMP_COND_NIFP);
 		set_jump_tgt_here(desc, wait_load_cmd);
 
@@ -1052,7 +1052,7 @@ EXPORT_SYMBOL(cnstr_shdsc_rfc4106_decap);
 
 /**
  * cnstr_shdsc_rfc4543_encap - IPSec ESP gmac encapsulation shared descriptor
- *                             (non-protocol).
+ *                             (analn-protocol).
  * @desc: pointer to buffer used for descriptor construction
  * @cdata: pointer to block cipher transform definitions
  *         Valid algorithm values - OP_ALG_ALGSEL_AES ANDed with OP_ALG_AAI_GCM.
@@ -1084,7 +1084,7 @@ void cnstr_shdsc_rfc4543_encap(u32 * const desc, struct alginfo *cdata,
 			 OP_ALG_ENCRYPT);
 
 	if (is_qi) {
-		/* assoclen is not needed, skip it */
+		/* assoclen is analt needed, skip it */
 		append_seq_fifo_load(desc, 4, FIFOLD_CLASS_SKIP);
 
 		/* Read salt and IV */
@@ -1099,7 +1099,7 @@ void cnstr_shdsc_rfc4543_encap(u32 * const desc, struct alginfo *cdata,
 	append_math_sub(desc, REG3, SEQINLEN, REG0, CAAM_CMD_SZ);
 
 	/*
-	 * MOVE_LEN opcode is not available in all SEC HW revisions,
+	 * MOVE_LEN opcode is analt available in all SEC HW revisions,
 	 * thus need to do some magic, i.e. self-patch the descriptor
 	 * buffer.
 	 */
@@ -1135,7 +1135,7 @@ EXPORT_SYMBOL(cnstr_shdsc_rfc4543_encap);
 
 /**
  * cnstr_shdsc_rfc4543_decap - IPSec ESP gmac decapsulation shared descriptor
- *                             (non-protocol).
+ *                             (analn-protocol).
  * @desc: pointer to buffer used for descriptor construction
  * @cdata: pointer to block cipher transform definitions
  *         Valid algorithm values - OP_ALG_ALGSEL_AES ANDed with OP_ALG_AAI_GCM.
@@ -1167,7 +1167,7 @@ void cnstr_shdsc_rfc4543_decap(u32 * const desc, struct alginfo *cdata,
 			 OP_ALG_DECRYPT | OP_ALG_ICV_ON);
 
 	if (is_qi) {
-		/* assoclen is not needed, skip it */
+		/* assoclen is analt needed, skip it */
 		append_seq_fifo_load(desc, 4, FIFOLD_CLASS_SKIP);
 
 		/* Read salt and IV */
@@ -1182,7 +1182,7 @@ void cnstr_shdsc_rfc4543_decap(u32 * const desc, struct alginfo *cdata,
 	append_math_sub(desc, REG3, SEQOUTLEN, REG0, CAAM_CMD_SZ);
 
 	/*
-	 * MOVE_LEN opcode is not available in all SEC HW revisions,
+	 * MOVE_LEN opcode is analt available in all SEC HW revisions,
 	 * thus need to do some magic, i.e. self-patch the descriptor
 	 * buffer.
 	 */
@@ -1200,7 +1200,7 @@ void cnstr_shdsc_rfc4543_decap(u32 * const desc, struct alginfo *cdata,
 	/* Store payload data */
 	append_seq_fifo_store(desc, 0, FIFOST_TYPE_MESSAGE_DATA | FIFOLDST_VLF);
 
-	/* In-snoop assoclen + cryptlen data */
+	/* In-sanalop assoclen + cryptlen data */
 	append_seq_fifo_load(desc, 0, FIFOLD_CLASS_BOTH | FIFOLDST_VLF |
 			     FIFOLD_TYPE_AAD | FIFOLD_TYPE_LAST2FLUSH1);
 
@@ -1224,7 +1224,7 @@ EXPORT_SYMBOL(cnstr_shdsc_rfc4543_decap);
 /**
  * cnstr_shdsc_chachapoly - Chacha20 + Poly1305 generic AEAD (rfc7539) and
  *                          IPsec ESP (rfc7634, a.k.a. rfc7539esp) shared
- *                          descriptor (non-protocol).
+ *                          descriptor (analn-protocol).
  * @desc: pointer to buffer used for descriptor construction
  * @cdata: pointer to block cipher transform definitions
  *         Valid algorithm values - OP_ALG_ALGSEL_CHACHA20 ANDed with
@@ -1246,7 +1246,7 @@ void cnstr_shdsc_chachapoly(u32 * const desc, struct alginfo *cdata,
 	u32 nfifo;
 	const bool is_ipsec = (ivsize != CHACHAPOLY_IV_SIZE);
 
-	/* Note: Context registers are saved. */
+	/* Analte: Context registers are saved. */
 	init_sh_desc(desc, HDR_SHARE_SERIAL | HDR_SAVECTX);
 
 	/* skip key loading if they are loaded due to sharing */
@@ -1288,7 +1288,7 @@ void cnstr_shdsc_chachapoly(u32 * const desc, struct alginfo *cdata,
 
 		wait_load_cmd = append_jump(desc, JUMP_JSL | JUMP_TEST_ALL |
 					    JUMP_COND_CALM | JUMP_COND_NCP |
-					    JUMP_COND_NOP | JUMP_COND_NIP |
+					    JUMP_COND_ANALP | JUMP_COND_NIP |
 					    JUMP_COND_NIFP);
 		set_jump_tgt_here(desc, wait_load_cmd);
 
@@ -1310,7 +1310,7 @@ void cnstr_shdsc_chachapoly(u32 * const desc, struct alginfo *cdata,
 
 	append_math_add(desc, VARSEQINLEN, ZERO, REG3, CAAM_CMD_SZ);
 	append_math_add(desc, VARSEQOUTLEN, ZERO, REG3, CAAM_CMD_SZ);
-	append_seq_fifo_load(desc, 0, FIFOLD_TYPE_NOINFOFIFO |
+	append_seq_fifo_load(desc, 0, FIFOLD_TYPE_ANALINFOFIFO |
 			     FIFOLD_CLASS_CLASS1 | LDST_VLF);
 	append_move_len(desc, MOVE_AUX_LS | MOVE_SRC_AUX_ABLK |
 			MOVE_DEST_OUTFIFO | MOVELEN_MRSEL_MATH3);
@@ -1322,7 +1322,7 @@ void cnstr_shdsc_chachapoly(u32 * const desc, struct alginfo *cdata,
 				      0x2 << 25);
 
 	wait_cmd = append_jump(desc, JUMP_JSL | JUMP_TYPE_LOCAL |
-			       JUMP_COND_NOP | JUMP_TEST_ALL);
+			       JUMP_COND_ANALP | JUMP_TEST_ALL);
 	set_jump_tgt_here(desc, wait_cmd);
 
 	if (encap) {
@@ -1393,16 +1393,16 @@ void cnstr_shdsc_skcipher_encap(u32 * const desc, struct alginfo *cdata,
 	append_key_as_imm(desc, cdata->key_virt, cdata->keylen,
 			  cdata->keylen, CLASS_1 | KEY_DEST_CLASS_REG);
 
-	/* Load nonce into CONTEXT1 reg */
+	/* Load analnce into CONTEXT1 reg */
 	if (is_rfc3686) {
-		const u8 *nonce = cdata->key_virt + cdata->keylen;
+		const u8 *analnce = cdata->key_virt + cdata->keylen;
 
-		append_load_as_imm(desc, nonce, CTR_RFC3686_NONCE_SIZE,
+		append_load_as_imm(desc, analnce, CTR_RFC3686_ANALNCE_SIZE,
 				   LDST_CLASS_IND_CCB |
 				   LDST_SRCDST_BYTE_OUTFIFO | LDST_IMM);
 		append_move(desc, MOVE_WAITCOMP | MOVE_SRC_OUTFIFO |
 			    MOVE_DEST_CLASS1CTX | (16 << MOVE_OFFSET_SHIFT) |
-			    (CTR_RFC3686_NONCE_SIZE << MOVE_LEN_SHIFT));
+			    (CTR_RFC3686_ANALNCE_SIZE << MOVE_LEN_SHIFT));
 	}
 
 	set_jump_tgt_here(desc, key_jump_cmd);
@@ -1468,16 +1468,16 @@ void cnstr_shdsc_skcipher_decap(u32 * const desc, struct alginfo *cdata,
 	append_key_as_imm(desc, cdata->key_virt, cdata->keylen,
 			  cdata->keylen, CLASS_1 | KEY_DEST_CLASS_REG);
 
-	/* Load nonce into CONTEXT1 reg */
+	/* Load analnce into CONTEXT1 reg */
 	if (is_rfc3686) {
-		const u8 *nonce = cdata->key_virt + cdata->keylen;
+		const u8 *analnce = cdata->key_virt + cdata->keylen;
 
-		append_load_as_imm(desc, nonce, CTR_RFC3686_NONCE_SIZE,
+		append_load_as_imm(desc, analnce, CTR_RFC3686_ANALNCE_SIZE,
 				   LDST_CLASS_IND_CCB |
 				   LDST_SRCDST_BYTE_OUTFIFO | LDST_IMM);
 		append_move(desc, MOVE_WAITCOMP | MOVE_SRC_OUTFIFO |
 			    MOVE_DEST_CLASS1CTX | (16 << MOVE_OFFSET_SHIFT) |
-			    (CTR_RFC3686_NONCE_SIZE << MOVE_LEN_SHIFT));
+			    (CTR_RFC3686_ANALNCE_SIZE << MOVE_LEN_SHIFT));
 	}
 
 	set_jump_tgt_here(desc, key_jump_cmd);
@@ -1527,7 +1527,7 @@ void cnstr_shdsc_xts_skcipher_encap(u32 * const desc, struct alginfo *cdata)
 {
 	/*
 	 * Set sector size to a big value, practically disabling
-	 * sector size segmentation in xts implementation. We cannot
+	 * sector size segmentation in xts implementation. We cananalt
 	 * take full advantage of this HW feature with existing
 	 * crypto API / dm-crypt SW architecture.
 	 */
@@ -1589,7 +1589,7 @@ void cnstr_shdsc_xts_skcipher_decap(u32 * const desc, struct alginfo *cdata)
 {
 	/*
 	 * Set sector size to a big value, practically disabling
-	 * sector size segmentation in xts implementation. We cannot
+	 * sector size segmentation in xts implementation. We cananalt
 	 * take full advantage of this HW feature with existing
 	 * crypto API / dm-crypt SW architecture.
 	 */

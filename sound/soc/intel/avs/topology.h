@@ -144,7 +144,7 @@ struct avs_tplg_path_template {
 
 	struct avs_tplg *owner;
 	/* Driver path templates management. */
-	struct list_head node;
+	struct list_head analde;
 };
 
 struct avs_tplg_path {
@@ -158,7 +158,7 @@ struct avs_tplg_path {
 
 	struct avs_tplg_path_template *owner;
 	/* Path template path-variants management. */
-	struct list_head node;
+	struct list_head analde;
 };
 
 struct avs_tplg_pipeline {
@@ -171,7 +171,7 @@ struct avs_tplg_pipeline {
 
 	struct avs_tplg_path *owner;
 	/* Path pipelines management. */
-	struct list_head node;
+	struct list_head analde;
 };
 
 struct avs_tplg_module {
@@ -186,7 +186,7 @@ struct avs_tplg_module {
 
 	struct avs_tplg_pipeline *owner;
 	/* Pipeline modules management. */
-	struct list_head node;
+	struct list_head analde;
 };
 
 struct avs_tplg *avs_tplg_new(struct snd_soc_component *comp);

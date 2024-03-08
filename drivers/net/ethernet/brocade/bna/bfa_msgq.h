@@ -111,7 +111,7 @@ struct bfa_msgq {
 	struct bfa_wc			init_wc;
 	struct bfa_mbox_cmd init_mb;
 
-	struct bfa_ioc_notify ioc_notify;
+	struct bfa_ioc_analtify ioc_analtify;
 	struct bfa_ioc *ioc;
 };
 

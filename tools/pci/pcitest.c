@@ -6,7 +6,7 @@
  * Author: Kishon Vijay Abraham I <kishon@ti.com>
  */
 
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -18,7 +18,7 @@
 
 #define BILLION 1E9
 
-static char *result[] = { "NOT OKAY", "OKAY" };
+static char *result[] = { "ANALT OKAY", "OKAY" };
 static char *irq[] = { "LEGACY", "MSI", "MSI-X" };
 
 struct pci_test {
@@ -47,7 +47,7 @@ static int run_test(struct pci_test *test)
 	fd = open(test->device, O_RDWR);
 	if (fd < 0) {
 		perror("can't open PCI Endpoint Test device");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (test->barnum >= 0 && test->barnum <= 5) {
@@ -162,7 +162,7 @@ int main(int argc, char **argv)
 	test = calloc(1, sizeof(*test));
 	if (!test) {
 		perror("Fail to allocate memory for pci_test\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* since '0' is a valid BAR number, initialize it to -1 */

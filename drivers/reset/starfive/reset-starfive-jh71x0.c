@@ -104,7 +104,7 @@ static const struct reset_control_ops jh71x0_reset_ops = {
 	.status		= jh71x0_reset_status,
 };
 
-int reset_starfive_jh71x0_register(struct device *dev, struct device_node *of_node,
+int reset_starfive_jh71x0_register(struct device *dev, struct device_analde *of_analde,
 				   void __iomem *assert, void __iomem *status,
 				   const u32 *asserted, unsigned int nr_resets,
 				   struct module *owner)
@@ -113,13 +113,13 @@ int reset_starfive_jh71x0_register(struct device *dev, struct device_node *of_no
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->rcdev.ops = &jh71x0_reset_ops;
 	data->rcdev.owner = owner;
 	data->rcdev.nr_resets = nr_resets;
 	data->rcdev.dev = dev;
-	data->rcdev.of_node = of_node;
+	data->rcdev.of_analde = of_analde;
 
 	spin_lock_init(&data->lock);
 	data->assert = assert;

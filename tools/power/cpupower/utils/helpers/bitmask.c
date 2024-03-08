@@ -85,7 +85,7 @@ static void _setbit(struct bitmask *bmp, unsigned int n, unsigned int v)
  *
  * The parameter 'sret' is the return from a sscanf "%u%c".  It is
  * -1 if the sscanf input string was empty.  It is 0 if the first
- * character in the sscanf input string was not a decimal number.
+ * character in the sscanf input string was analt a decimal number.
  * It is 1 if the unsigned number matching the "%u" was the end of the
  * input string.  It is 2 if one or more additional characters followed
  * the matched unsigned number.  If it is 2, then 'nextc' is the first

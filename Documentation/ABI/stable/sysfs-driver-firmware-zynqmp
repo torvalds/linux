@@ -67,9 +67,9 @@ Description:
 
 		subsystem:
 				Only the APU along with all of its peripherals
-				not used by other processing units will be
+				analt used by other processing units will be
 				shut down. This may result in the FPD power
-				domain being shut down provided that no other
+				domain being shut down provided that anal other
 				processing unit uses FPD peripherals or DRAM.
 		ps_only:
 				The complete PS will be shut down, including the
@@ -99,7 +99,7 @@ Description:
 		is compiled with CHECK_HEALTHY_BOOT, it will check the healthy
 		bit on FPD WDT expiration. If healthy bit is set by a user
 		application running in Linux, PMUFW will do APU only restart. If
-		healthy bit is not set during FPD WDT expiration, PMUFW will do
+		healthy bit is analt set during FPD WDT expiration, PMUFW will do
 		system restart.
 
 		Usage:
@@ -126,7 +126,7 @@ Description:
 		temperature and external watchdog. Here, the external watchdog
 		is completely different than the /dev/watchdog as the external
 		watchdog is running on the firmware and it is used to monitor
-		the health of firmware not APU(Linux). Also, the external
+		the health of firmware analt APU(Linux). Also, the external
 		watchdog is interfaced outside of the zynqmp soc.
 
 		The supported config ids are for the feature configuration is,
@@ -144,28 +144,28 @@ Description:
 		Select over temperature config ID to enable/disable feature
 		# echo 1 > /sys/devices/platform/firmware\:zynqmp-firmware/feature_config_id
 
-		Check over temperature config ID is selected or not
+		Check over temperature config ID is selected or analt
 		# cat /sys/devices/platform/firmware\:zynqmp-firmware/feature_config_id
 		The expected result is 1.
 
 		Select over temperature config ID to configure OT limit
 		# echo 2 > /sys/devices/platform/firmware\:zynqmp-firmware/feature_config_id
 
-		Check over temperature config ID is selected or not
+		Check over temperature config ID is selected or analt
 		# cat /sys/devices/platform/firmware\:zynqmp-firmware/feature_config_id
 		The expected result is 2.
 
 		Select external watchdog config ID to enable/disable feature
 		# echo 3 > /sys/devices/platform/firmware\:zynqmp-firmware/feature_config_id
 
-		Check external watchdog config ID is selected or not
+		Check external watchdog config ID is selected or analt
 		# cat /sys/devices/platform/firmware\:zynqmp-firmware/feature_config_id
 		The expected result is 3.
 
 		Select external watchdog config ID to configure time interval
 		# echo 4 > /sys/devices/platform/firmware\:zynqmp-firmware/feature_config_id
 
-		Check external watchdog config ID is selected or not
+		Check external watchdog config ID is selected or analt
 		# cat /sys/devices/platform/firmware\:zynqmp-firmware/feature_config_id
 		The expected result is 4.
 
@@ -183,7 +183,7 @@ Description:
 		external watchdog. Here, the external watchdog is completely
 		different than the /dev/watchdog as the external watchdog is
 		running on the firmware and it is used to monitor the health
-		of firmware not APU(Linux). Also, the external watchdog is
+		of firmware analt APU(Linux). Also, the external watchdog is
 		interfaced outside of the zynqmp soc.
 
 		By default the features are disabled in the firmware. The user
@@ -209,7 +209,7 @@ Description:
 		# echo 1 > /sys/devices/platform/firmware\:zynqmp-firmware/feature_config_id
 		# echo 1 > /sys/devices/platform/firmware\:zynqmp-firmware/feature_config_value
 
-		Check whether the over temperature feature is enabled or not
+		Check whether the over temperature feature is enabled or analt
 		# cat /sys/devices/platform/firmware\:zynqmp-firmware/feature_config_value
 		The expected result is 1.
 
@@ -217,7 +217,7 @@ Description:
 		# echo 1 > /sys/devices/platform/firmware\:zynqmp-firmware/feature_config_id
 		# echo 0 > /sys/devices/platform/firmware\:zynqmp-firmware/feature_config_value
 
-		Check whether the over temperature feature is disabled or not
+		Check whether the over temperature feature is disabled or analt
 		# cat /sys/devices/platform/firmware\:zynqmp-firmware/feature_config_value
 		The expected result is 0.
 
@@ -225,7 +225,7 @@ Description:
 		# echo 2 > /sys/devices/platform/firmware\:zynqmp-firmware/feature_config_id
 		# echo 50 > /sys/devices/platform/firmware\:zynqmp-firmware/feature_config_value
 
-		Check whether the over temperature limit is configured or not
+		Check whether the over temperature limit is configured or analt
 		# cat /sys/devices/platform/firmware\:zynqmp-firmware/feature_config_value
 		The expected result is 50.
 
@@ -233,7 +233,7 @@ Description:
 		# echo 3 > /sys/devices/platform/firmware\:zynqmp-firmware/feature_config_id
 		# echo 1 > /sys/devices/platform/firmware\:zynqmp-firmware/feature_config_value
 
-		Check whether the external watchdog feature is enabled or not
+		Check whether the external watchdog feature is enabled or analt
 		# cat /sys/devices/platform/firmware\:zynqmp-firmware/feature_config_value
 		The expected result is 1.
 
@@ -241,7 +241,7 @@ Description:
 		# echo 3 > /sys/devices/platform/firmware\:zynqmp-firmware/feature_config_id
 		# echo 0 > /sys/devices/platform/firmware\:zynqmp-firmware/feature_config_value
 
-		Check whether the external watchdog feature is disabled or not
+		Check whether the external watchdog feature is disabled or analt
 		# cat /sys/devices/platform/firmware\:zynqmp-firmware/feature_config_value
 		The expected result is 0.
 
@@ -249,7 +249,7 @@ Description:
 		# echo 4 > /sys/devices/platform/firmware\:zynqmp-firmware/feature_config_id
 		# echo 500 > /sys/devices/platform/firmware\:zynqmp-firmware/feature_config_value
 
-		Check whether the external watchdog timer interval is configured or not
+		Check whether the external watchdog timer interval is configured or analt
 		# cat /sys/devices/platform/firmware\:zynqmp-firmware/feature_config_value
 		The expected result is 500.
 

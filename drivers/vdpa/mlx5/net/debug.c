@@ -83,7 +83,7 @@ static int bytes_show(struct seq_file *file, void *priv)
 DEFINE_SHOW_ATTRIBUTE(packets);
 DEFINE_SHOW_ATTRIBUTE(bytes);
 
-static void add_counter_node(struct mlx5_vdpa_counter *counter,
+static void add_counter_analde(struct mlx5_vdpa_counter *counter,
 			     struct dentry *parent)
 {
 	debugfs_create_file("packets", 0444, parent, counter,
@@ -93,45 +93,45 @@ static void add_counter_node(struct mlx5_vdpa_counter *counter,
 }
 
 void mlx5_vdpa_add_rx_counters(struct mlx5_vdpa_net *ndev,
-			       struct macvlan_node *node)
+			       struct macvlan_analde *analde)
 {
 	static const char *ut = "untagged";
 	char vidstr[9];
 	u16 vid;
 
-	node->ucast_counter.mdev = ndev->mvdev.mdev;
-	node->mcast_counter.mdev = ndev->mvdev.mdev;
-	if (node->tagged) {
-		vid = key2vid(node->macvlan);
+	analde->ucast_counter.mdev = ndev->mvdev.mdev;
+	analde->mcast_counter.mdev = ndev->mvdev.mdev;
+	if (analde->tagged) {
+		vid = key2vid(analde->macvlan);
 		snprintf(vidstr, sizeof(vidstr), "0x%x", vid);
 	} else {
 		strcpy(vidstr, ut);
 	}
 
-	node->dent = debugfs_create_dir(vidstr, ndev->rx_dent);
-	if (IS_ERR(node->dent)) {
-		node->dent = NULL;
+	analde->dent = debugfs_create_dir(vidstr, ndev->rx_dent);
+	if (IS_ERR(analde->dent)) {
+		analde->dent = NULL;
 		return;
 	}
 
-	node->ucast_counter.dent = debugfs_create_dir("ucast", node->dent);
-	if (IS_ERR(node->ucast_counter.dent))
+	analde->ucast_counter.dent = debugfs_create_dir("ucast", analde->dent);
+	if (IS_ERR(analde->ucast_counter.dent))
 		return;
 
-	add_counter_node(&node->ucast_counter, node->ucast_counter.dent);
+	add_counter_analde(&analde->ucast_counter, analde->ucast_counter.dent);
 
-	node->mcast_counter.dent = debugfs_create_dir("mcast", node->dent);
-	if (IS_ERR(node->mcast_counter.dent))
+	analde->mcast_counter.dent = debugfs_create_dir("mcast", analde->dent);
+	if (IS_ERR(analde->mcast_counter.dent))
 		return;
 
-	add_counter_node(&node->mcast_counter, node->mcast_counter.dent);
+	add_counter_analde(&analde->mcast_counter, analde->mcast_counter.dent);
 }
 
 void mlx5_vdpa_remove_rx_counters(struct mlx5_vdpa_net *ndev,
-				  struct macvlan_node *node)
+				  struct macvlan_analde *analde)
 {
-	if (node->dent && ndev->debugfs)
-		debugfs_remove_recursive(node->dent);
+	if (analde->dent && ndev->debugfs)
+		debugfs_remove_recursive(analde->dent);
 }
 #endif
 

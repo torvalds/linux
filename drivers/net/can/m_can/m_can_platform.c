@@ -88,7 +88,7 @@ static int m_can_plat_probe(struct platform_device *pdev)
 	mcan_class = m_can_class_allocate_dev(&pdev->dev,
 					      sizeof(struct m_can_plat_priv));
 	if (!mcan_class)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv = cdev_to_priv(mcan_class);
 
@@ -111,20 +111,20 @@ static int m_can_plat_probe(struct platform_device *pdev)
 		}
 	} else {
 		dev_dbg(mcan_class->dev, "Polling enabled, initialize hrtimer");
-		hrtimer_init(&mcan_class->hrtimer, CLOCK_MONOTONIC,
+		hrtimer_init(&mcan_class->hrtimer, CLOCK_MOANALTONIC,
 			     HRTIMER_MODE_REL_PINNED);
 	}
 
 	/* message ram could be shared */
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "message_ram");
 	if (!res) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto probe_fail;
 	}
 
 	mram_addr = devm_ioremap(&pdev->dev, res->start, resource_size(res));
 	if (!mram_addr) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto probe_fail;
 	}
 

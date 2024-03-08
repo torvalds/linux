@@ -124,7 +124,7 @@ static int sp2_ci_op_cam(struct dvb_ca_en50221 *en50221, int slot, u8 acs,
 	if (ci_op_cam) {
 		ret = ci_op_cam(s->priv, read, addr, data, &mem);
 	} else {
-		dev_err(&s->client->dev, "callback not defined");
+		dev_err(&s->client->dev, "callback analt defined");
 		return -EINVAL;
 	}
 
@@ -209,7 +209,7 @@ int sp2_ci_slot_shutdown(struct dvb_ca_en50221 *en50221, int slot)
 
 	dev_dbg(&s->client->dev, "slot:%d\n", slot);
 
-	/* not implemented */
+	/* analt implemented */
 	return 0;
 }
 
@@ -297,7 +297,7 @@ static int sp2_init(struct sp2 *s)
 		0x00, /* USCG1 */
 		0x04, /* ack active low */
 		0x00, /* LOCK = 0 */
-		0x22, /* unknown */
+		0x22, /* unkanalwn */
 		0x00, /* synchronization? */
 	};
 
@@ -373,7 +373,7 @@ static int sp2_probe(struct i2c_client *client)
 
 	s = kzalloc(sizeof(*s), GFP_KERNEL);
 	if (!s) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 

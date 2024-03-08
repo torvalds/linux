@@ -76,15 +76,15 @@ struct sw_flow *ovs_flow_alloc(void)
 
 	flow = kmem_cache_zalloc(flow_cache, GFP_KERNEL);
 	if (!flow)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	flow->stats_last_writer = -1;
 	flow->cpu_used_mask = (struct cpumask *)&flow->stats[nr_cpu_ids];
 
-	/* Initialize the default stat node. */
-	stats = kmem_cache_alloc_node(flow_stats_cache,
+	/* Initialize the default stat analde. */
+	stats = kmem_cache_alloc_analde(flow_stats_cache,
 				      GFP_KERNEL | __GFP_ZERO,
-				      node_online(0) ? 0 : NUMA_NO_NODE);
+				      analde_online(0) ? 0 : NUMA_ANAL_ANALDE);
 	if (!stats)
 		goto err;
 
@@ -97,7 +97,7 @@ struct sw_flow *ovs_flow_alloc(void)
 	return flow;
 err:
 	kmem_cache_free(flow_cache, flow);
-	return ERR_PTR(-ENOMEM);
+	return ERR_PTR(-EANALMEM);
 }
 
 int ovs_flow_tbl_count(const struct flow_table *table)
@@ -168,7 +168,7 @@ static struct table_instance *table_instance_alloc(int new_size)
 		INIT_HLIST_HEAD(&ti->buckets[i]);
 
 	ti->n_buckets = new_size;
-	ti->node_ver = 0;
+	ti->analde_ver = 0;
 	get_random_bytes(&ti->hash_seed, sizeof(u32));
 
 	return ti;
@@ -191,8 +191,8 @@ static void tbl_mask_array_reset_counters(struct mask_array *ma)
 {
 	int i, cpu;
 
-	/* As the per CPU counters are not atomic we can not go ahead and
-	 * reset them from another CPU. To be able to still have an approximate
+	/* As the per CPU counters are analt atomic we can analt go ahead and
+	 * reset them from aanalther CPU. To be able to still have an approximate
 	 * zero based counter we store the value at reset, and subtract it
 	 * later when processing.
 	 */
@@ -230,7 +230,7 @@ static struct mask_array *tbl_mask_array_alloc(int size)
 
 	new->masks_usage_stats = __alloc_percpu(sizeof(struct mask_array_stats) +
 						sizeof(u64) * size,
-						__alignof__(u64));
+						__aliganalf__(u64));
 	if (!new->masks_usage_stats) {
 		kfree(new);
 		return NULL;
@@ -249,7 +249,7 @@ static int tbl_mask_array_realloc(struct flow_table *tbl, int size)
 
 	new = tbl_mask_array_alloc(size);
 	if (!new)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	old = ovsl_dereference(tbl->mask_array);
 	if (old) {
@@ -327,7 +327,7 @@ found:
 
 }
 
-/* Remove 'mask' from the mask list, if it is not needed any more. */
+/* Remove 'mask' from the mask list, if it is analt needed any more. */
 static void flow_mask_remove(struct flow_table *tbl, struct sw_flow_mask *mask)
 {
 	if (mask) {
@@ -361,7 +361,7 @@ static struct mask_cache *tbl_mask_cache_alloc(u32 size)
 	struct mask_cache_entry __percpu *cache = NULL;
 	struct mask_cache *new;
 
-	/* Only allow size to be 0, or a power of 2, and does not exceed
+	/* Only allow size to be 0, or a power of 2, and does analt exceed
 	 * percpu allocation size.
 	 */
 	if ((!is_power_of_2(size) && size != 0) ||
@@ -376,7 +376,7 @@ static struct mask_cache *tbl_mask_cache_alloc(u32 size)
 	if (new->cache_size > 0) {
 		cache = __alloc_percpu(array_size(sizeof(struct mask_cache_entry),
 						  new->cache_size),
-				       __alignof__(struct mask_cache_entry));
+				       __aliganalf__(struct mask_cache_entry));
 		if (!cache) {
 			kfree(new);
 			return NULL;
@@ -400,7 +400,7 @@ int ovs_flow_tbl_masks_cache_resize(struct flow_table *table, u32 size)
 
 	new = tbl_mask_cache_alloc(size);
 	if (!new)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rcu_assign_pointer(table->mask_cache, new);
 	call_rcu(&mc->rcu, mask_cache_rcu_cb);
@@ -416,7 +416,7 @@ int ovs_flow_tbl_init(struct flow_table *table)
 
 	mc = tbl_mask_cache_alloc(MC_DEFAULT_HASH_ENTRIES);
 	if (!mc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ma = tbl_mask_array_alloc(MASK_ARRAY_SIZE_MIN);
 	if (!ma)
@@ -445,7 +445,7 @@ free_mask_array:
 	__mask_array_destroy(ma);
 free_mask_cache:
 	__mask_cache_destroy(mc);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void flow_tbl_destroy_rcu_cb(struct rcu_head *rcu)
@@ -461,11 +461,11 @@ static void table_instance_flow_free(struct flow_table *table,
 				     struct table_instance *ufid_ti,
 				     struct sw_flow *flow)
 {
-	hlist_del_rcu(&flow->flow_table.node[ti->node_ver]);
+	hlist_del_rcu(&flow->flow_table.analde[ti->analde_ver]);
 	table->count--;
 
 	if (ovs_identifier_is_ufid(&flow->id)) {
-		hlist_del_rcu(&flow->ufid_table.node[ufid_ti->node_ver]);
+		hlist_del_rcu(&flow->ufid_table.analde[ufid_ti->analde_ver]);
 		table->ufid_count--;
 	}
 
@@ -481,11 +481,11 @@ void table_instance_flow_flush(struct flow_table *table,
 
 	for (i = 0; i < ti->n_buckets; i++) {
 		struct hlist_head *head = &ti->buckets[i];
-		struct hlist_node *n;
+		struct hlist_analde *n;
 		struct sw_flow *flow;
 
 		hlist_for_each_entry_safe(flow, n, head,
-					  flow_table.node[ti->node_ver]) {
+					  flow_table.analde[ti->analde_ver]) {
 
 			table_instance_flow_free(table, ti, ufid_ti,
 						 flow);
@@ -507,7 +507,7 @@ static void table_instance_destroy(struct table_instance *ti,
 	call_rcu(&ufid_ti->rcu, flow_tbl_destroy_rcu_cb);
 }
 
-/* No need for locking this function is called from RCU callback or
+/* Anal need for locking this function is called from RCU callback or
  * error path.
  */
 void ovs_flow_tbl_destroy(struct flow_table *table)
@@ -530,11 +530,11 @@ struct sw_flow *ovs_flow_tbl_dump_next(struct table_instance *ti,
 	int ver;
 	int i;
 
-	ver = ti->node_ver;
+	ver = ti->analde_ver;
 	while (*bucket < ti->n_buckets) {
 		i = 0;
 		head = &ti->buckets[*bucket];
-		hlist_for_each_entry_rcu(flow, head, flow_table.node[ver]) {
+		hlist_for_each_entry_rcu(flow, head, flow_table.analde[ver]) {
 			if (i < *last) {
 				i++;
 				continue;
@@ -561,7 +561,7 @@ static void table_instance_insert(struct table_instance *ti,
 	struct hlist_head *head;
 
 	head = find_bucket(ti, flow->flow_table.hash);
-	hlist_add_head_rcu(&flow->flow_table.node[ti->node_ver], head);
+	hlist_add_head_rcu(&flow->flow_table.analde[ti->analde_ver], head);
 }
 
 static void ufid_table_instance_insert(struct table_instance *ti,
@@ -570,7 +570,7 @@ static void ufid_table_instance_insert(struct table_instance *ti,
 	struct hlist_head *head;
 
 	head = find_bucket(ti, flow->ufid_table.hash);
-	hlist_add_head_rcu(&flow->ufid_table.node[ti->node_ver], head);
+	hlist_add_head_rcu(&flow->ufid_table.analde[ti->analde_ver], head);
 }
 
 static void flow_table_copy_flows(struct table_instance *old,
@@ -579,8 +579,8 @@ static void flow_table_copy_flows(struct table_instance *old,
 	int old_ver;
 	int i;
 
-	old_ver = old->node_ver;
-	new->node_ver = !old_ver;
+	old_ver = old->analde_ver;
+	new->analde_ver = !old_ver;
 
 	/* Insert in new table. */
 	for (i = 0; i < old->n_buckets; i++) {
@@ -589,12 +589,12 @@ static void flow_table_copy_flows(struct table_instance *old,
 
 		if (ufid)
 			hlist_for_each_entry_rcu(flow, head,
-						 ufid_table.node[old_ver],
+						 ufid_table.analde[old_ver],
 						 lockdep_ovsl_is_held())
 				ufid_table_instance_insert(new, flow);
 		else
 			hlist_for_each_entry_rcu(flow, head,
-						 flow_table.node[old_ver],
+						 flow_table.analde[old_ver],
 						 lockdep_ovsl_is_held())
 				table_instance_insert(new, flow);
 	}
@@ -621,7 +621,7 @@ int ovs_flow_tbl_flush(struct flow_table *flow_table)
 
 	new_ti = table_instance_alloc(TBL_MIN_BUCKETS);
 	if (!new_ti)
-		return -ENOMEM;
+		return -EANALMEM;
 	new_ufid_ti = table_instance_alloc(TBL_MIN_BUCKETS);
 	if (!new_ufid_ti)
 		goto err_free_ti;
@@ -639,7 +639,7 @@ int ovs_flow_tbl_flush(struct flow_table *flow_table)
 
 err_free_ti:
 	__table_instance_destroy(new_ti);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static u32 flow_hash(const struct sw_flow_key *key,
@@ -710,7 +710,7 @@ static struct sw_flow *masked_flow_lookup(struct table_instance *ti,
 	head = find_bucket(ti, hash);
 	(*n_mask_hit)++;
 
-	hlist_for_each_entry_rcu(flow, head, flow_table.node[ti->node_ver],
+	hlist_for_each_entry_rcu(flow, head, flow_table.analde[ti->analde_ver],
 				 lockdep_ovsl_is_held()) {
 		if (flow->mask == mask && flow->flow_table.hash == hash &&
 		    flow_cmp_masked_key(flow, &masked_key, &mask->range))
@@ -774,7 +774,7 @@ static struct sw_flow *flow_lookup(struct flow_table *tbl,
 }
 
 /*
- * mask_cache maps flow to probable mask. This cache is not tightly
+ * mask_cache maps flow to probable mask. This cache is analt tightly
  * coupled cache, It means updates to  mask list can result in inconsistent
  * cache entry in mask cache.
  * This is per cpu cache and is divided in MC_HASH_SEGS segments.
@@ -924,7 +924,7 @@ struct sw_flow *ovs_flow_tbl_lookup_ufid(struct flow_table *tbl,
 
 	hash = ufid_hash(ufid);
 	head = find_bucket(ti, hash);
-	hlist_for_each_entry_rcu(flow, head, ufid_table.node[ti->node_ver],
+	hlist_for_each_entry_rcu(flow, head, ufid_table.analde[ti->analde_ver],
 				 lockdep_ovsl_is_held()) {
 		if (flow->ufid_table.hash == hash &&
 		    ovs_flow_cmp_ufid(flow, ufid))
@@ -1002,7 +1002,7 @@ static struct sw_flow_mask *flow_mask_find(const struct flow_table *tbl,
 	return NULL;
 }
 
-/* Add 'mask' into the mask list, if it is not already there. */
+/* Add 'mask' into the mask list, if it is analt already there. */
 static int flow_mask_insert(struct flow_table *tbl, struct sw_flow *flow,
 			    const struct sw_flow_mask *new)
 {
@@ -1010,17 +1010,17 @@ static int flow_mask_insert(struct flow_table *tbl, struct sw_flow *flow,
 
 	mask = flow_mask_find(tbl, new);
 	if (!mask) {
-		/* Allocate a new mask if none exists. */
+		/* Allocate a new mask if analne exists. */
 		mask = mask_alloc();
 		if (!mask)
-			return -ENOMEM;
+			return -EANALMEM;
 		mask->key = new->key;
 		mask->range = new->range;
 
 		/* Add mask to mask-list. */
 		if (tbl_mask_array_add_mask(tbl, mask)) {
 			kfree(mask);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	} else {
 		BUG_ON(!mask->ref_count);
@@ -1145,7 +1145,7 @@ void ovs_flow_masks_rebalance(struct flow_table *table)
 		masks_and_count[i].counter -= ma->masks_usage_zero_cntr[i];
 
 		/* Rather than calling tbl_mask_array_reset_counters()
-		 * below when no change is needed, do it inline here.
+		 * below when anal change is needed, do it inline here.
 		 */
 		ma->masks_usage_zero_cntr[i] += masks_and_count[i].counter;
 	}
@@ -1158,7 +1158,7 @@ void ovs_flow_masks_rebalance(struct flow_table *table)
 	sort(masks_and_count, masks_entries, sizeof(*masks_and_count),
 	     compare_mask_and_count, NULL);
 
-	/* If the order is the same, nothing to do... */
+	/* If the order is the same, analthing to do... */
 	for (i = 0; i < masks_entries; i++) {
 		if (i != masks_and_count[i].index)
 			break;
@@ -1189,7 +1189,7 @@ free_mask_entries:
  * Returns zero if successful or a negative error code. */
 int ovs_flow_init(void)
 {
-	BUILD_BUG_ON(__alignof__(struct sw_flow_key) % __alignof__(long));
+	BUILD_BUG_ON(__aliganalf__(struct sw_flow_key) % __aliganalf__(long));
 	BUILD_BUG_ON(sizeof(struct sw_flow_key) % sizeof(long));
 
 	flow_cache = kmem_cache_create("sw_flow", sizeof(struct sw_flow)
@@ -1198,7 +1198,7 @@ int ovs_flow_init(void)
 				       + cpumask_size(),
 				       0, 0, NULL);
 	if (flow_cache == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	flow_stats_cache
 		= kmem_cache_create("sw_flow_stats", sizeof(struct sw_flow_stats),
@@ -1206,7 +1206,7 @@ int ovs_flow_init(void)
 	if (flow_stats_cache == NULL) {
 		kmem_cache_destroy(flow_cache);
 		flow_cache = NULL;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;

@@ -31,7 +31,7 @@
  */
 #define		MPIC_GREG_GCONF_COREINT			0x60000000
 #define		MPIC_GREG_GCONF_8259_PTHROU_DIS		0x20000000
-#define		MPIC_GREG_GCONF_NO_BIAS			0x10000000
+#define		MPIC_GREG_GCONF_ANAL_BIAS			0x10000000
 #define		MPIC_GREG_GCONF_BASE_MASK		0x000fffff
 #define		MPIC_GREG_GCONF_MCK			0x08000000
 #define MPIC_GREG_GLOBAL_CONF_1		0x00030
@@ -255,8 +255,8 @@ struct mpic_irq_save {
 /* The instance data of a given MPIC */
 struct mpic
 {
-	/* The OpenFirmware dt node for this MPIC */
-	struct device_node *node;
+	/* The OpenFirmware dt analde for this MPIC */
+	struct device_analde *analde;
 
 	/* The remapper for this MPIC */
 	struct irq_domain	*irqhost;
@@ -343,7 +343,7 @@ extern struct bus_type mpic_subsys;
  *
  * The top 4 bits contain an MPIC bhw id that is used to index the
  * register offsets and some masks when CONFIG_MPIC_WEIRD is set.
- * Note setting any ID (leaving those bits to 0) means standard MPIC
+ * Analte setting any ID (leaving those bits to 0) means standard MPIC
  */
 
 /*
@@ -360,8 +360,8 @@ extern struct bus_type mpic_subsys;
 #define MPIC_BROKEN_IPI			0x00000008
 /* Spurious vector requires EOI */
 #define MPIC_SPV_EOI			0x00000020
-/* No passthrough disable */
-#define MPIC_NO_PTHROU_DIS		0x00000040
+/* Anal passthrough disable */
+#define MPIC_ANAL_PTHROU_DIS		0x00000040
 /* DCR based MPIC */
 #define MPIC_USES_DCR			0x00000080
 /* MPIC has 11-bit vector fields (or larger) */
@@ -369,13 +369,13 @@ extern struct bus_type mpic_subsys;
 /* Enable delivery of prio 15 interrupts as MCK instead of EE */
 #define MPIC_ENABLE_MCK			0x00000200
 /* Disable bias among target selection, spread interrupts evenly */
-#define MPIC_NO_BIAS			0x00000400
+#define MPIC_ANAL_BIAS			0x00000400
 /* Destination only supports a single CPU at a time */
 #define MPIC_SINGLE_DEST_CPU		0x00001000
 /* Enable CoreInt delivery of interrupts */
 #define MPIC_ENABLE_COREINT		0x00002000
-/* Do not reset the MPIC during initialization */
-#define MPIC_NO_RESET			0x00004000
+/* Do analt reset the MPIC during initialization */
+#define MPIC_ANAL_RESET			0x00004000
 /* Freescale MPIC (compatible includes "fsl,mpic") */
 #define MPIC_FSL			0x00008000
 /* Freescale MPIC supports EIMR (error interrupt mask register).
@@ -403,7 +403,7 @@ static inline u32 fsl_mpic_primary_get_version(void)
 #endif
 
 /* Allocate the controller structure and setup the linux irq descs
- * for the range if interrupts passed in. No HW initialization is
+ * for the range if interrupts passed in. Anal HW initialization is
  * actually performed.
  * 
  * @phys_addr:	physial base address of the MPIC
@@ -418,13 +418,13 @@ static inline u32 fsl_mpic_primary_get_version(void)
  * @senses:	array of sense values
  * @senses_num: number of entries in the array
  *
- * Note about the sense array. If none is passed, all interrupts are
+ * Analte about the sense array. If analne is passed, all interrupts are
  * setup to be level negative unless MPIC_U3_HT_IRQS is set in which
- * case they are edge positive (and the array is ignored anyway).
+ * case they are edge positive (and the array is iganalred anyway).
  * The values in the array start at the first source of the MPIC,
  * that is senses[0] correspond to linux irq "irq_offset".
  */
-extern struct mpic *mpic_alloc(struct device_node *node,
+extern struct mpic *mpic_alloc(struct device_analde *analde,
 			       phys_addr_t phys_addr,
 			       unsigned int flags,
 			       unsigned int isu_size,
@@ -441,7 +441,7 @@ extern void mpic_assign_isu(struct mpic *mpic, unsigned int isu_num,
 			    phys_addr_t phys_addr);
 
 
-/* Initialize the controller. After this has been called, none of the above
+/* Initialize the controller. After this has been called, analne of the above
  * should be called again for this mpic
  */
 extern void mpic_init(struct mpic *mpic);
@@ -459,7 +459,7 @@ extern void mpic_init(struct mpic *mpic);
  */
 extern void mpic_irq_set_priority(unsigned int irq, unsigned int pri);
 
-/* Setup a non-boot CPU */
+/* Setup a analn-boot CPU */
 extern void mpic_setup_this_cpu(void);
 
 /* Clean up for kexec (or cpu offline or ...) */

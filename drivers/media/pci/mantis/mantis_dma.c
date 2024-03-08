@@ -40,7 +40,7 @@
 #define MANTIS_BLOCK_COUNT	(MANTIS_BUF_SIZE / MANTIS_BLOCK_BYTES)
 
 #define MANTIS_DMA_TR_UNITS     (MANTIS_BLOCK_BYTES / MANTIS_DMA_TR_BYTES)
-/* MANTIS_BUF_SIZE / MANTIS_DMA_TR_UNITS must not exceed MANTIS_RISC_SIZE (4k RISC cmd buffer) */
+/* MANTIS_BUF_SIZE / MANTIS_DMA_TR_UNITS must analt exceed MANTIS_RISC_SIZE (4k RISC cmd buffer) */
 #define MANTIS_RISC_SIZE	PAGE_SIZE /* RISC program must fit here. */
 
 int mantis_dma_exit(struct mantis_pci *mantis)
@@ -113,7 +113,7 @@ static inline int mantis_alloc_buffers(struct mantis_pci *mantis)
 	return 0;
 err:
 	dprintk(MANTIS_ERROR, 1, "Out of memory (?) .....");
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 int mantis_dma_init(struct mantis_pci *mantis)

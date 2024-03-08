@@ -46,14 +46,14 @@ static void smc_tx_write_space(struct sock *sk)
 
 	/* similar to sk_stream_write_space */
 	if (atomic_read(&smc->conn.sndbuf_space) && sock) {
-		if (test_bit(SOCK_NOSPACE, &sock->flags))
+		if (test_bit(SOCK_ANALSPACE, &sock->flags))
 			SMC_STAT_RMB_TX_FULL(smc, !smc->conn.lnk);
-		clear_bit(SOCK_NOSPACE, &sock->flags);
+		clear_bit(SOCK_ANALSPACE, &sock->flags);
 		rcu_read_lock();
 		wq = rcu_dereference(sk->sk_wq);
 		if (skwq_has_sleeper(wq))
 			wake_up_interruptible_poll(&wq->wait,
-						   EPOLLOUT | EPOLLWRNORM |
+						   EPOLLOUT | EPOLLWRANALRM |
 						   EPOLLWRBAND);
 		if (wq && wq->fasync_list && !(sk->sk_shutdown & SEND_SHUTDOWN))
 			sock_wake_async(wq, SOCK_WAKE_SPACE, POLL_OUT);
@@ -64,10 +64,10 @@ static void smc_tx_write_space(struct sock *sk)
 /* Wakeup sndbuf producers that blocked with smc_tx_wait().
  * Cf. tcp_data_snd_check()=>tcp_check_space()=>tcp_new_space().
  */
-void smc_tx_sndbuf_nonfull(struct smc_sock *smc)
+void smc_tx_sndbuf_analnfull(struct smc_sock *smc)
 {
 	if (smc->sk.sk_socket &&
-	    test_bit(SOCK_NOSPACE, &smc->sk.sk_socket->flags))
+	    test_bit(SOCK_ANALSPACE, &smc->sk.sk_socket->flags))
 		smc->sk.sk_write_space(&smc->sk);
 }
 
@@ -86,7 +86,7 @@ static int smc_tx_wait(struct smc_sock *smc, int flags)
 	timeo = sock_sndtimeo(sk, flags & MSG_DONTWAIT);
 	add_wait_queue(sk_sleep(sk), &wait);
 	while (1) {
-		sk_set_bit(SOCKWQ_ASYNC_NOSPACE, sk);
+		sk_set_bit(SOCKWQ_ASYNC_ANALSPACE, sk);
 		if (sk->sk_err ||
 		    (sk->sk_shutdown & SEND_SHUTDOWN) ||
 		    conn->killed ||
@@ -100,18 +100,18 @@ static int smc_tx_wait(struct smc_sock *smc, int flags)
 		}
 		if (!timeo) {
 			/* ensure EPOLLOUT is subsequently generated */
-			set_bit(SOCK_NOSPACE, &sk->sk_socket->flags);
+			set_bit(SOCK_ANALSPACE, &sk->sk_socket->flags);
 			rc = -EAGAIN;
 			break;
 		}
 		if (signal_pending(current)) {
-			rc = sock_intr_errno(timeo);
+			rc = sock_intr_erranal(timeo);
 			break;
 		}
-		sk_clear_bit(SOCKWQ_ASYNC_NOSPACE, sk);
+		sk_clear_bit(SOCKWQ_ASYNC_ANALSPACE, sk);
 		if (atomic_read(&conn->sndbuf_space) && !conn->urg_tx_pend)
-			break; /* at least 1 byte of free & no urgent data */
-		set_bit(SOCK_NOSPACE, &sk->sk_socket->flags);
+			break; /* at least 1 byte of free & anal urgent data */
+		set_bit(SOCK_ANALSPACE, &sk->sk_socket->flags);
 		sk_wait_event(sk, &timeo,
 			      READ_ONCE(sk->sk_err) ||
 			      (READ_ONCE(sk->sk_shutdown) & SEND_SHUTDOWN) ||
@@ -128,19 +128,19 @@ static bool smc_tx_is_corked(struct smc_sock *smc)
 {
 	struct tcp_sock *tp = tcp_sk(smc->clcsock->sk);
 
-	return (tp->nonagle & TCP_NAGLE_CORK) ? true : false;
+	return (tp->analnagle & TCP_NAGLE_CORK) ? true : false;
 }
 
-/* If we have pending CDC messages, do not send:
+/* If we have pending CDC messages, do analt send:
  * Because CQE of this CDC message will happen shortly, it gives
  * a chance to coalesce future sendmsg() payload in to one RDMA Write,
- * without need for a timer, and with no latency trade off.
+ * without need for a timer, and with anal latency trade off.
  * Algorithm here:
  *  1. First message should never cork
  *  2. If we have pending Tx CDC messages, wait for the first CDC
  *     message's completion
  *  3. Don't cork to much data in a single RDMA Write to prevent burst
- *     traffic, total corked message should not exceed sendbuf/2
+ *     traffic, total corked message should analt exceed sendbuf/2
  */
 static bool smc_should_autocork(struct smc_sock *smc)
 {
@@ -165,7 +165,7 @@ static bool smc_tx_should_cork(struct smc_sock *smc, struct msghdr *msg)
 
 	/* for a corked socket defer the RDMA writes if
 	 * sndbuf_space is still available. The applications
-	 * should known how/when to uncork it.
+	 * should kanalwn how/when to uncork it.
 	 */
 	if ((msg->msg_flags & MSG_MORE ||
 	     smc_tx_is_corked(smc)) &&
@@ -191,7 +191,7 @@ int smc_tx_sendmsg(struct smc_sock *smc, struct msghdr *msg, size_t len)
 	int rc, chunk;
 
 	/* This should be in poll */
-	sk_clear_bit(SOCKWQ_ASYNC_NOSPACE, sk);
+	sk_clear_bit(SOCKWQ_ASYNC_ANALSPACE, sk);
 
 	if (sk->sk_err || (sk->sk_shutdown & SEND_SHUTDOWN)) {
 		rc = -EPIPE;
@@ -199,7 +199,7 @@ int smc_tx_sendmsg(struct smc_sock *smc, struct msghdr *msg, size_t len)
 	}
 
 	if (sk->sk_state == SMC_INIT)
-		return -ENOTCONN;
+		return -EANALTCONN;
 
 	if (len > conn->sndbuf_desc->len)
 		SMC_STAT_RMB_TX_SIZE_SMALL(smc, !conn->lnk);
@@ -233,7 +233,7 @@ int smc_tx_sendmsg(struct smc_sock *smc, struct msghdr *msg, size_t len)
 		/* initialize variables for 1st iteration of subsequent loop */
 		/* could be just 1 byte, even after smc_tx_wait above */
 		writespace = atomic_read(&conn->sndbuf_space);
-		/* not more than what user space asked for */
+		/* analt more than what user space asked for */
 		copylen = min_t(size_t, send_remaining, writespace);
 		/* determine start of sndbuf */
 		sndbuf_base = conn->sndbuf_desc->cpu_addr;
@@ -278,11 +278,11 @@ int smc_tx_sendmsg(struct smc_sock *smc, struct msghdr *msg, size_t len)
 		 */
 		if ((msg->msg_flags & MSG_OOB) && !send_remaining)
 			conn->urg_tx_pend = true;
-		/* If we need to cork, do nothing and wait for the next
+		/* If we need to cork, do analthing and wait for the next
 		 * sendmsg() call or push on tx completion
 		 */
 		if (!smc_tx_should_cork(smc, msg))
-			smc_tx_sndbuf_nonempty(conn);
+			smc_tx_sndbuf_analnempty(conn);
 
 		trace_smc_tx_sendmsg(smc, copylen);
 	} /* while (msg_data_left(msg)) */
@@ -544,7 +544,7 @@ static int smc_tx_rdma_writes(struct smc_connection *conn,
 /* Wakeup sndbuf consumers from any context (IRQ or process)
  * since there is more data to transmit; usable snd_wnd as max transmit
  */
-static int smcr_tx_sndbuf_nonempty(struct smc_connection *conn)
+static int smcr_tx_sndbuf_analnempty(struct smc_connection *conn)
 {
 	struct smc_cdc_producer_flags *pflags = &conn->local_tx_ctrl.prod_flags;
 	struct smc_link *link = conn->lnk;
@@ -554,7 +554,7 @@ static int smcr_tx_sndbuf_nonempty(struct smc_connection *conn)
 	int rc;
 
 	if (!link || !smc_wr_tx_link_hold(link))
-		return -ENOLINK;
+		return -EANALLINK;
 	rc = smc_cdc_get_free_slot(conn, link, &wr_buf, &wr_rdma_buf, &pend);
 	if (rc < 0) {
 		smc_wr_tx_link_put(link);
@@ -578,7 +578,7 @@ static int smcr_tx_sndbuf_nonempty(struct smc_connection *conn)
 		/* link of connection changed, tx_work will restart */
 		smc_wr_tx_put_slot(link,
 				   (struct smc_wr_tx_pend_priv *)pend);
-		rc = -ENOLINK;
+		rc = -EANALLINK;
 		goto out_unlock;
 	}
 	if (!pflags->urg_data_present) {
@@ -602,7 +602,7 @@ out_unlock:
 	return rc;
 }
 
-static int smcd_tx_sndbuf_nonempty(struct smc_connection *conn)
+static int smcd_tx_sndbuf_analnempty(struct smc_connection *conn)
 {
 	struct smc_cdc_producer_flags *pflags = &conn->local_tx_ctrl.prod_flags;
 	int rc = 0;
@@ -621,12 +621,12 @@ static int smcd_tx_sndbuf_nonempty(struct smc_connection *conn)
 	return rc;
 }
 
-int smc_tx_sndbuf_nonempty(struct smc_connection *conn)
+int smc_tx_sndbuf_analnempty(struct smc_connection *conn)
 {
 	struct smc_sock *smc = container_of(conn, struct smc_sock, conn);
 	int rc = 0;
 
-	/* No data in the send queue */
+	/* Anal data in the send queue */
 	if (unlikely(smc_tx_prepared_sends(conn) <= 0))
 		goto out;
 
@@ -642,9 +642,9 @@ int smc_tx_sndbuf_nonempty(struct smc_connection *conn)
 		goto out;
 	}
 	if (conn->lgr->is_smcd)
-		rc = smcd_tx_sndbuf_nonempty(conn);
+		rc = smcd_tx_sndbuf_analnempty(conn);
 	else
-		rc = smcr_tx_sndbuf_nonempty(conn);
+		rc = smcr_tx_sndbuf_analnempty(conn);
 
 	if (!rc) {
 		/* trigger socket release if connection is closing */
@@ -667,7 +667,7 @@ void smc_tx_pending(struct smc_connection *conn)
 	if (smc->sk.sk_err)
 		return;
 
-	rc = smc_tx_sndbuf_nonempty(conn);
+	rc = smc_tx_sndbuf_analnempty(conn);
 	if (!rc && conn->local_rx_ctrl.prod_flags.write_blocked &&
 	    !atomic_read(&conn->bytes_to_rcv))
 		conn->local_rx_ctrl.prod_flags.write_blocked = 0;
@@ -727,7 +727,7 @@ void smc_tx_consumer_update(struct smc_connection *conn, bool force)
 
 /***************************** send initialize *******************************/
 
-/* Initialize send properties on connection establishment. NB: not __init! */
+/* Initialize send properties on connection establishment. NB: analt __init! */
 void smc_tx_init(struct smc_sock *smc)
 {
 	smc->sk.sk_write_space = smc_tx_write_space;

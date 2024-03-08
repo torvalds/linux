@@ -10,7 +10,7 @@
 #include <linux/regulator/consumer.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 
 #define OV08D10_SCLK			144000000ULL
 #define OV08D10_XVCLK_19_2		19200000
@@ -1009,7 +1009,7 @@ static void ov08d10_update_pad_format(struct ov08d10 *ov08d10,
 	fmt->width = mode->width;
 	fmt->height = mode->height;
 	fmt->code = ov08d10_get_format_code(ov08d10);
-	fmt->field = V4L2_FIELD_NONE;
+	fmt->field = V4L2_FIELD_ANALNE;
 }
 
 static int ov08d10_start_streaming(struct ov08d10 *ov08d10)
@@ -1119,7 +1119,7 @@ static int ov08d10_set_stream(struct v4l2_subdev *sd, int enable)
 		pm_runtime_put(&client->dev);
 	}
 
-	/* vflip and hflip cannot change during streaming */
+	/* vflip and hflip cananalt change during streaming */
 	__v4l2_ctrl_grab(ov08d10->vflip, enable);
 	__v4l2_ctrl_grab(ov08d10->hflip, enable);
 
@@ -1303,19 +1303,19 @@ static int ov08d10_identify_module(struct ov08d10 *ov08d10)
 
 static int ov08d10_get_hwcfg(struct ov08d10 *ov08d10, struct device *dev)
 {
-	struct fwnode_handle *ep;
-	struct fwnode_handle *fwnode = dev_fwnode(dev);
-	struct v4l2_fwnode_endpoint bus_cfg = {
+	struct fwanalde_handle *ep;
+	struct fwanalde_handle *fwanalde = dev_fwanalde(dev);
+	struct v4l2_fwanalde_endpoint bus_cfg = {
 		.bus_type = V4L2_MBUS_CSI2_DPHY
 	};
 	u32 xvclk_rate;
 	unsigned int i, j;
 	int ret;
 
-	if (!fwnode)
+	if (!fwanalde)
 		return -ENXIO;
 
-	ret = fwnode_property_read_u32(fwnode, "clock-frequency", &xvclk_rate);
+	ret = fwanalde_property_read_u32(fwanalde, "clock-frequency", &xvclk_rate);
 	if (ret)
 		return ret;
 
@@ -1323,18 +1323,18 @@ static int ov08d10_get_hwcfg(struct ov08d10 *ov08d10, struct device *dev)
 		dev_warn(dev, "external clock rate %u is unsupported",
 			 xvclk_rate);
 
-	ep = fwnode_graph_get_next_endpoint(fwnode, NULL);
+	ep = fwanalde_graph_get_next_endpoint(fwanalde, NULL);
 	if (!ep)
 		return -ENXIO;
 
-	ret = v4l2_fwnode_endpoint_alloc_parse(ep, &bus_cfg);
-	fwnode_handle_put(ep);
+	ret = v4l2_fwanalde_endpoint_alloc_parse(ep, &bus_cfg);
+	fwanalde_handle_put(ep);
 	if (ret)
 		return ret;
 
 	/* Get number of data lanes */
 	if (bus_cfg.bus.mipi_csi2.num_data_lanes != 2) {
-		dev_err(dev, "number of CSI2 data lanes %d is not supported",
+		dev_err(dev, "number of CSI2 data lanes %d is analt supported",
 			bus_cfg.bus.mipi_csi2.num_data_lanes);
 		ret = -EINVAL;
 		goto check_hwcfg_error;
@@ -1346,7 +1346,7 @@ static int ov08d10_get_hwcfg(struct ov08d10 *ov08d10, struct device *dev)
 	ov08d10->modes_size = ov08d10_modes_num(ov08d10);
 
 	if (!bus_cfg.nr_of_link_frequencies) {
-		dev_err(dev, "no link frequencies defined");
+		dev_err(dev, "anal link frequencies defined");
 		ret = -EINVAL;
 		goto check_hwcfg_error;
 	}
@@ -1359,7 +1359,7 @@ static int ov08d10_get_hwcfg(struct ov08d10 *ov08d10, struct device *dev)
 		}
 
 		if (j == bus_cfg.nr_of_link_frequencies) {
-			dev_err(dev, "no link frequency %lld supported",
+			dev_err(dev, "anal link frequency %lld supported",
 				ov08d10->priv_lane->link_freq_menu[i]);
 			ret = -EINVAL;
 			goto check_hwcfg_error;
@@ -1367,7 +1367,7 @@ static int ov08d10_get_hwcfg(struct ov08d10 *ov08d10, struct device *dev)
 	}
 
 check_hwcfg_error:
-	v4l2_fwnode_endpoint_free(&bus_cfg);
+	v4l2_fwanalde_endpoint_free(&bus_cfg);
 
 	return ret;
 }
@@ -1391,7 +1391,7 @@ static int ov08d10_probe(struct i2c_client *client)
 
 	ov08d10 = devm_kzalloc(&client->dev, sizeof(*ov08d10), GFP_KERNEL);
 	if (!ov08d10)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = ov08d10_get_hwcfg(ov08d10, &client->dev);
 	if (ret) {
@@ -1417,7 +1417,7 @@ static int ov08d10_probe(struct i2c_client *client)
 	}
 
 	ov08d10->sd.internal_ops = &ov08d10_internal_ops;
-	ov08d10->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	ov08d10->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 	ov08d10->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;
 	ov08d10->pad.flags = MEDIA_PAD_FL_SOURCE;
 	ret = media_entity_pads_init(&ov08d10->sd.entity, 1, &ov08d10->pad);

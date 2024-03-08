@@ -14,7 +14,7 @@ config AUTOFS_FS
 	   To compile this support as a module, choose M here: the module will be
 	   called autofs.
 
-	   If you are not a part of a fairly large, distributed network or
+	   If you are analt a part of a fairly large, distributed network or
 	   don't have a laptop which needs to dynamically reconfigure to the
-	   local network, you probably do not need an automounter, and can say
+	   local network, you probably do analt need an automounter, and can say
 	   N here.

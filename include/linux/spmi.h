@@ -73,7 +73,7 @@ void spmi_device_remove(struct spmi_device *sdev);
  * struct spmi_controller - interface to the SPMI master controller
  * @dev:	Driver model representation of the device.
  * @nr:		board-specific number identifier for this controller/bus
- * @cmd:	sends a non-data command sequence on the SPMI bus.
+ * @cmd:	sends a analn-data command sequence on the SPMI bus.
  * @read_cmd:	sends a register read command sequence on the SPMI bus.
  * @write_cmd:	sends a register write command sequence on the SPMI bus.
  */
@@ -167,9 +167,9 @@ static inline void spmi_driver_unregister(struct spmi_driver *sdrv)
 	module_driver(__spmi_driver, spmi_driver_register, \
 			spmi_driver_unregister)
 
-struct device_node;
+struct device_analde;
 
-struct spmi_device *spmi_find_device_by_of_node(struct device_node *np);
+struct spmi_device *spmi_find_device_by_of_analde(struct device_analde *np);
 int spmi_register_read(struct spmi_device *sdev, u8 addr, u8 *buf);
 int spmi_ext_register_read(struct spmi_device *sdev, u8 addr, u8 *buf,
 			   size_t len);

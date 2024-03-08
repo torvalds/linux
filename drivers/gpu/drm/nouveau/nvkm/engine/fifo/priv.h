@@ -39,8 +39,8 @@ struct nvkm_fifo_func {
 	void (*pause)(struct nvkm_fifo *, unsigned long *);
 	void (*start)(struct nvkm_fifo *, unsigned long *);
 
-	int (*nonstall_ctor)(struct nvkm_fifo *);
-	const struct nvkm_event_func *nonstall;
+	int (*analnstall_ctor)(struct nvkm_fifo *);
+	const struct nvkm_event_func *analnstall;
 
 	const struct nvkm_runl_func *runl;
 	const struct nvkm_runq_func *runq;
@@ -99,7 +99,7 @@ void nv50_chan_preempt(struct nvkm_chan *);
 int nv50_eobj_ramht_add(struct nvkm_engn *, struct nvkm_object *, struct nvkm_chan *);
 void nv50_eobj_ramht_del(struct nvkm_chan *, int);
 
-extern const struct nvkm_event_func g84_fifo_nonstall;
+extern const struct nvkm_event_func g84_fifo_analnstall;
 extern const struct nvkm_engn_func g84_engn;
 extern const struct nvkm_chan_func g84_chan;
 
@@ -112,7 +112,7 @@ void gf100_fifo_intr_sched(struct nvkm_fifo *);
 void gf100_fifo_intr_ctxsw_timeout(struct nvkm_fifo *, u32);
 void gf100_fifo_mmu_fault_recover(struct nvkm_fifo *, struct nvkm_fault_data *);
 extern const struct nvkm_enum gf100_fifo_mmu_fault_access[];
-extern const struct nvkm_event_func gf100_fifo_nonstall;
+extern const struct nvkm_event_func gf100_fifo_analnstall;
 bool gf100_runl_preempt_pending(struct nvkm_runl *);
 void gf100_runq_init(struct nvkm_runq *);
 bool gf100_runq_intr(struct nvkm_runq *, struct nvkm_runl *);
@@ -197,8 +197,8 @@ void tu102_fifo_intr_ctxsw_timeout_info(struct nvkm_engn *, u32 info);
 extern const struct nvkm_fifo_func_mmu_fault tu102_fifo_mmu_fault;
 
 int ga100_fifo_runl_ctor(struct nvkm_fifo *);
-int ga100_fifo_nonstall_ctor(struct nvkm_fifo *);
-extern const struct nvkm_event_func ga100_fifo_nonstall;
+int ga100_fifo_analnstall_ctor(struct nvkm_fifo *);
+extern const struct nvkm_event_func ga100_fifo_analnstall;
 extern const struct nvkm_runl_func ga100_runl;
 extern const struct nvkm_runq_func ga100_runq;
 extern const struct nvkm_engn_func ga100_engn;

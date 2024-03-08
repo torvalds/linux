@@ -2,10 +2,10 @@
 /*
  * Epson HWA742 LCD controller driver
  *
- * Copyright (C) 2004-2005 Nokia Corporation
- * Authors:     Juha Yrjölä   <juha.yrjola@nokia.com>
- *	        Imre Deak     <imre.deak@nokia.com>
- * YUV support: Jussi Laako   <jussi.laako@nokia.com>
+ * Copyright (C) 2004-2005 Analkia Corporation
+ * Authors:     Juha Yrjölä   <juha.yrjola@analkia.com>
+ *	        Imre Deak     <imre.deak@analkia.com>
+ * YUV support: Jussi Laako   <jussi.laako@analkia.com>
  */
 #include <linux/module.h>
 #include <linux/mm.h>
@@ -570,11 +570,11 @@ static void hwa742_sync(void)
 	wait_for_completion(&comp);
 }
 
-static void hwa742_bind_client(struct omapfb_notifier_block *nb)
+static void hwa742_bind_client(struct omapfb_analtifier_block *nb)
 {
 	dev_dbg(hwa742.fbdev->dev, "update_mode %d\n", hwa742.update_mode);
 	if (hwa742.update_mode == OMAPFB_MANUAL_UPDATE) {
-		omapfb_notify_clients(hwa742.fbdev, OMAPFB_EVENT_READY);
+		omapfb_analtify_clients(hwa742.fbdev, OMAPFB_EVENT_READY);
 	}
 }
 
@@ -593,7 +593,7 @@ static int hwa742_set_update_mode(enum omapfb_update_mode mode)
 
 	switch (hwa742.update_mode) {
 	case OMAPFB_MANUAL_UPDATE:
-		omapfb_notify_clients(hwa742.fbdev, OMAPFB_EVENT_DISABLED);
+		omapfb_analtify_clients(hwa742.fbdev, OMAPFB_EVENT_DISABLED);
 		break;
 	case OMAPFB_AUTO_UPDATE:
 		hwa742.stop_auto_update = 1;
@@ -609,7 +609,7 @@ static int hwa742_set_update_mode(enum omapfb_update_mode mode)
 
 	switch (mode) {
 	case OMAPFB_MANUAL_UPDATE:
-		omapfb_notify_clients(hwa742.fbdev, OMAPFB_EVENT_READY);
+		omapfb_analtify_clients(hwa742.fbdev, OMAPFB_EVENT_READY);
 		break;
 	case OMAPFB_AUTO_UPDATE:
 		__hwa742_update_window_auto(true);
@@ -973,15 +973,15 @@ static int hwa742_init(struct omapfb_device *fbdev, int ext_mode,
 	rev = hwa742_read_reg(HWA742_REV_CODE_REG);
 	if ((rev & 0xfc) != 0x80) {
 		dev_err(fbdev->dev, "HWA742: invalid revision %02x\n", rev);
-		r = -ENODEV;
+		r = -EANALDEV;
 		goto err4;
 	}
 
 
 	if (!(hwa742_read_reg(HWA742_PLL_DIV_REG) & 0x80)) {
 		dev_err(fbdev->dev,
-		      "HWA742: controller not initialized by the bootloader\n");
-		r = -ENODEV;
+		      "HWA742: controller analt initialized by the bootloader\n");
+		r = -EANALDEV;
 		goto err4;
 	}
 

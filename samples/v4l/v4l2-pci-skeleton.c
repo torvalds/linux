@@ -36,7 +36,7 @@ MODULE_LICENSE("GPL v2");
  * struct skeleton - All internal data for one instance of device
  * @pdev: PCI device
  * @v4l2_dev: top-level v4l2 device struct
- * @vdev: video node structure
+ * @vdev: video analde structure
  * @ctrl_handler: control handler structure
  * @lock: ioctl serialization mutex
  * @std: current SDTV standard
@@ -107,7 +107,7 @@ static const struct v4l2_dv_timings_cap skel_timings_cap = {
  * Supported SDTV standards. This does the same job as skel_timings_cap, but
  * for standard TV formats.
  */
-#define SKEL_TVNORMS V4L2_STD_ALL
+#define SKEL_TVANALRMS V4L2_STD_ALL
 
 /*
  * Interrupt handler: typically interrupts happen after a new frame has been
@@ -148,7 +148,7 @@ static irqreturn_t skeleton_irq(int irq, void *dev_id)
  * per buffer and the size and allocation context of each plane, it also
  * checks if sufficient buffers have been allocated. Usually 3 is a good
  * minimum number: many DMA engines need a minimum of 2 buffers in the
- * queue and you need to have another available for userspace processing.
+ * queue and you need to have aanalther available for userspace processing.
  */
 static int queue_setup(struct vb2_queue *vq,
 		       unsigned int *nbuffers, unsigned int *nplanes,
@@ -160,8 +160,8 @@ static int queue_setup(struct vb2_queue *vq,
 	skel->field = skel->format.field;
 	if (skel->field == V4L2_FIELD_ALTERNATE) {
 		/*
-		 * You cannot use read() with FIELD_ALTERNATE since the field
-		 * information (TOP/BOTTOM) cannot be passed back to the user.
+		 * You cananalt use read() with FIELD_ALTERNATE since the field
+		 * information (TOP/BOTTOM) cananalt be passed back to the user.
 		 */
 		if (vb2_fileio_is_active(vq))
 			return -EINVAL;
@@ -218,11 +218,11 @@ static void buffer_queue(struct vb2_buffer *vb)
 static void return_all_buffers(struct skeleton *skel,
 			       enum vb2_buffer_state state)
 {
-	struct skel_buffer *buf, *node;
+	struct skel_buffer *buf, *analde;
 	unsigned long flags;
 
 	spin_lock_irqsave(&skel->qlock, flags);
-	list_for_each_entry_safe(buf, node, &skel->buf_list, list) {
+	list_for_each_entry_safe(buf, analde, &skel->buf_list, list) {
 		vb2_buffer_done(&buf->vb.vb2_buf, state);
 		list_del(&buf->list);
 	}
@@ -231,8 +231,8 @@ static void return_all_buffers(struct skeleton *skel,
 
 /*
  * Start streaming. First check if the minimum number of buffers have been
- * queued. If not, then return -ENOBUFS and the vb2 framework will call
- * this function again the next time a buffer has been queued until enough
+ * queued. If analt, then return -EANALBUFS and the vb2 framework will call
+ * this function again the next time a buffer has been queued until eanalugh
  * buffers are available to actually start the DMA engine.
  */
 static int start_streaming(struct vb2_queue *vq, unsigned int count)
@@ -269,7 +269,7 @@ static void stop_streaming(struct vb2_queue *vq)
 }
 
 /*
- * The vb2 queue ops. Note that since q->lock is set we can use the standard
+ * The vb2 queue ops. Analte that since q->lock is set we can use the standard
  * vb2_ops_wait_prepare/finish helper functions. If q->lock would be NULL,
  * then this driver would have to provide these ops.
  */
@@ -284,7 +284,7 @@ static const struct vb2_ops skel_qops = {
 };
 
 /*
- * Required ioctl querycap. Note that the version field is prefilled with
+ * Required ioctl querycap. Analte that the version field is prefilled with
  * the version of the kernel.
  */
 static int skeleton_querycap(struct file *file, void *priv,
@@ -301,7 +301,7 @@ static int skeleton_querycap(struct file *file, void *priv,
 
 /*
  * Helper function to check and correct struct v4l2_pix_format. It's used
- * not only in VIDIOC_TRY/S_FMT, but also elsewhere if changes to the SDTV
+ * analt only in VIDIOC_TRY/S_FMT, but also elsewhere if changes to the SDTV
  * standard, HDTV timings or the video input would require updating the
  * current format.
  */
@@ -323,7 +323,7 @@ static void skeleton_fill_pix_format(struct skeleton *skel,
 			pix->field = V4L2_FIELD_ALTERNATE;
 			pix->height /= 2;
 		} else {
-			pix->field = V4L2_FIELD_NONE;
+			pix->field = V4L2_FIELD_ANALNE;
 		}
 		pix->colorspace = V4L2_COLORSPACE_REC709;
 	}
@@ -366,7 +366,7 @@ static int skeleton_s_fmt_vid_cap(struct file *file, void *priv,
 		return ret;
 
 	/*
-	 * It is not allowed to change the format while buffers for use with
+	 * It is analt allowed to change the format while buffers for use with
 	 * streaming have already been allocated.
 	 */
 	if (vb2_is_busy(&skel->queue))
@@ -400,12 +400,12 @@ static int skeleton_s_std(struct file *file, void *priv, v4l2_std_id std)
 {
 	struct skeleton *skel = video_drvdata(file);
 
-	/* S_STD is not supported on the HDMI input */
+	/* S_STD is analt supported on the HDMI input */
 	if (skel->input)
-		return -ENODATA;
+		return -EANALDATA;
 
 	/*
-	 * No change, so just return. Some applications call S_STD again after
+	 * Anal change, so just return. Some applications call S_STD again after
 	 * the buffers for streaming have been set up, so we have to allow for
 	 * this behavior.
 	 */
@@ -413,7 +413,7 @@ static int skeleton_s_std(struct file *file, void *priv, v4l2_std_id std)
 		return 0;
 
 	/*
-	 * Changing the standard implies a format change, which is not allowed
+	 * Changing the standard implies a format change, which is analt allowed
 	 * while buffers for use with streaming have already been allocated.
 	 */
 	if (vb2_is_busy(&skel->queue))
@@ -432,9 +432,9 @@ static int skeleton_g_std(struct file *file, void *priv, v4l2_std_id *std)
 {
 	struct skeleton *skel = video_drvdata(file);
 
-	/* G_STD is not supported on the HDMI input */
+	/* G_STD is analt supported on the HDMI input */
 	if (skel->input)
-		return -ENODATA;
+		return -EANALDATA;
 
 	*std = skel->std;
 	return 0;
@@ -443,17 +443,17 @@ static int skeleton_g_std(struct file *file, void *priv, v4l2_std_id *std)
 /*
  * Query the current standard as seen by the hardware. This function shall
  * never actually change the standard, it just detects and reports.
- * The framework will initially set *std to tvnorms (i.e. the set of
+ * The framework will initially set *std to tvanalrms (i.e. the set of
  * supported standards by this input), and this function should just AND
- * this value. If there is no signal, then *std should be set to 0.
+ * this value. If there is anal signal, then *std should be set to 0.
  */
 static int skeleton_querystd(struct file *file, void *priv, v4l2_std_id *std)
 {
 	struct skeleton *skel = video_drvdata(file);
 
-	/* QUERY_STD is not supported on the HDMI input */
+	/* QUERY_STD is analt supported on the HDMI input */
 	if (skel->input)
-		return -ENODATA;
+		return -EANALDATA;
 
 #ifdef TODO
 	/*
@@ -461,7 +461,7 @@ static int skeleton_querystd(struct file *file, void *priv, v4l2_std_id *std)
 	 * V4L2_STD_ALL. This function should look something like this:
 	 */
 	get_signal_info();
-	if (no_signal) {
+	if (anal_signal) {
 		*std = 0;
 		return 0;
 	}
@@ -479,9 +479,9 @@ static int skeleton_s_dv_timings(struct file *file, void *_fh,
 {
 	struct skeleton *skel = video_drvdata(file);
 
-	/* S_DV_TIMINGS is not supported on the S-Video input */
+	/* S_DV_TIMINGS is analt supported on the S-Video input */
 	if (skel->input == 0)
-		return -ENODATA;
+		return -EANALDATA;
 
 	/* Quick sanity check */
 	if (!v4l2_valid_dv_timings(timings, &skel_timings_cap, NULL, NULL))
@@ -497,7 +497,7 @@ static int skeleton_s_dv_timings(struct file *file, void *_fh,
 		return 0;
 
 	/*
-	 * Changing the timings implies a format change, which is not allowed
+	 * Changing the timings implies a format change, which is analt allowed
 	 * while buffers for use with streaming have already been allocated.
 	 */
 	if (vb2_is_busy(&skel->queue))
@@ -518,9 +518,9 @@ static int skeleton_g_dv_timings(struct file *file, void *_fh,
 {
 	struct skeleton *skel = video_drvdata(file);
 
-	/* G_DV_TIMINGS is not supported on the S-Video input */
+	/* G_DV_TIMINGS is analt supported on the S-Video input */
 	if (skel->input == 0)
-		return -ENODATA;
+		return -EANALDATA;
 
 	*timings = skel->timings;
 	return 0;
@@ -531,9 +531,9 @@ static int skeleton_enum_dv_timings(struct file *file, void *_fh,
 {
 	struct skeleton *skel = video_drvdata(file);
 
-	/* ENUM_DV_TIMINGS is not supported on the S-Video input */
+	/* ENUM_DV_TIMINGS is analt supported on the S-Video input */
 	if (skel->input == 0)
-		return -ENODATA;
+		return -EANALDATA;
 
 	return v4l2_enum_dv_timings_cap(timings, &skel_timings_cap,
 					NULL, NULL);
@@ -542,10 +542,10 @@ static int skeleton_enum_dv_timings(struct file *file, void *_fh,
 /*
  * Query the current timings as seen by the hardware. This function shall
  * never actually change the timings, it just detects and reports.
- * If no signal is detected, then return -ENOLINK. If the hardware cannot
- * lock to the signal, then return -ENOLCK. If the signal is out of range
+ * If anal signal is detected, then return -EANALLINK. If the hardware cananalt
+ * lock to the signal, then return -EANALLCK. If the signal is out of range
  * of the capabilities of the system (e.g., it is possible that the receiver
- * can lock but that the DMA engine it is connected to cannot handle
+ * can lock but that the DMA engine it is connected to cananalt handle
  * pixelclocks above a certain frequency), then -ERANGE is returned.
  */
 static int skeleton_query_dv_timings(struct file *file, void *_fh,
@@ -553,9 +553,9 @@ static int skeleton_query_dv_timings(struct file *file, void *_fh,
 {
 	struct skeleton *skel = video_drvdata(file);
 
-	/* QUERY_DV_TIMINGS is not supported on the S-Video input */
+	/* QUERY_DV_TIMINGS is analt supported on the S-Video input */
 	if (skel->input == 0)
-		return -ENODATA;
+		return -EANALDATA;
 
 #ifdef TODO
 	/*
@@ -563,10 +563,10 @@ static int skeleton_query_dv_timings(struct file *file, void *_fh,
 	 * something like this:
 	 */
 	detect_timings();
-	if (no_signal)
-		return -ENOLINK;
-	if (cannot_lock_to_signal)
-		return -ENOLCK;
+	if (anal_signal)
+		return -EANALLINK;
+	if (cananalt_lock_to_signal)
+		return -EANALLCK;
 	if (signal_out_of_range_of_capabilities)
 		return -ERANGE;
 
@@ -582,9 +582,9 @@ static int skeleton_dv_timings_cap(struct file *file, void *fh,
 {
 	struct skeleton *skel = video_drvdata(file);
 
-	/* DV_TIMINGS_CAP is not supported on the S-Video input */
+	/* DV_TIMINGS_CAP is analt supported on the S-Video input */
 	if (skel->input == 0)
-		return -ENODATA;
+		return -EANALDATA;
 	*cap = skel_timings_cap;
 	return 0;
 }
@@ -597,7 +597,7 @@ static int skeleton_enum_input(struct file *file, void *priv,
 
 	i->type = V4L2_INPUT_TYPE_CAMERA;
 	if (i->index == 0) {
-		i->std = SKEL_TVNORMS;
+		i->std = SKEL_TVANALRMS;
 		strscpy(i->name, "S-Video", sizeof(i->name));
 		i->capabilities = V4L2_IN_CAP_STD;
 	} else {
@@ -616,7 +616,7 @@ static int skeleton_s_input(struct file *file, void *priv, unsigned int i)
 		return -EINVAL;
 
 	/*
-	 * Changing the input implies a format change, which is not allowed
+	 * Changing the input implies a format change, which is analt allowed
 	 * while buffers for use with streaming have already been allocated.
 	 */
 	if (vb2_is_busy(&skel->queue))
@@ -624,11 +624,11 @@ static int skeleton_s_input(struct file *file, void *priv, unsigned int i)
 
 	skel->input = i;
 	/*
-	 * Update tvnorms. The tvnorms value is used by the core to implement
-	 * VIDIOC_ENUMSTD so it has to be correct. If tvnorms == 0, then
-	 * ENUMSTD will return -ENODATA.
+	 * Update tvanalrms. The tvanalrms value is used by the core to implement
+	 * VIDIOC_ENUMSTD so it has to be correct. If tvanalrms == 0, then
+	 * ENUMSTD will return -EANALDATA.
 	 */
-	skel->vdev.tvnorms = i ? 0 : SKEL_TVNORMS;
+	skel->vdev.tvanalrms = i ? 0 : SKEL_TVANALRMS;
 
 	/* Update the internal format */
 	skeleton_fill_pix_format(skel, &skel->format);
@@ -677,7 +677,7 @@ static const struct v4l2_ctrl_ops skel_ctrl_ops = {
 };
 
 /*
- * The set of all supported ioctls. Note that all the streaming ioctls
+ * The set of all supported ioctls. Analte that all the streaming ioctls
  * use the vb2 helper functions that take care of all the locking and
  * that also do ownership tracking (i.e. only the filehandle that requested
  * the buffers can call the streaming ioctls, all other filehandles will
@@ -722,7 +722,7 @@ static const struct v4l2_ioctl_ops skel_ioctl_ops = {
 };
 
 /*
- * The set of file operations. Note that all these ops are standard core
+ * The set of file operations. Analte that all these ops are standard core
  * helper functions.
  */
 static const struct v4l2_file_operations skel_fops = {
@@ -736,7 +736,7 @@ static const struct v4l2_file_operations skel_fops = {
 };
 
 /*
- * The initial setup of this device instance. Note that the initial state of
+ * The initial setup of this device instance. Analte that the initial state of
  * the driver should be complete. So the initial format, standard, timings
  * and video input should all be initialized to some reasonable value.
  */
@@ -757,14 +757,14 @@ static int skeleton_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return ret;
 	ret = dma_set_mask(&pdev->dev, DMA_BIT_MASK(32));
 	if (ret) {
-		dev_err(&pdev->dev, "no suitable DMA available.\n");
+		dev_err(&pdev->dev, "anal suitable DMA available.\n");
 		goto disable_pci;
 	}
 
 	/* Allocate a new instance */
 	skel = devm_kzalloc(&pdev->dev, sizeof(struct skeleton), GFP_KERNEL);
 	if (!skel) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto disable_pci;
 	}
 
@@ -815,7 +815,7 @@ static int skeleton_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	q->buf_struct_size = sizeof(struct skel_buffer);
 	q->ops = &skel_qops;
 	q->mem_ops = &vb2_dma_contig_memops;
-	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MOANALTONIC;
 	/*
 	 * Assume that this DMA engine needs to have at least two buffers
 	 * available before it can be started. The start_streaming() op
@@ -824,11 +824,11 @@ static int skeleton_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	q->min_queued_buffers = 2;
 	/*
 	 * The serialization lock for the streaming ioctls. This is the same
-	 * as the main serialization lock, but if some of the non-streaming
+	 * as the main serialization lock, but if some of the analn-streaming
 	 * ioctls could take a long time to execute, then you might want to
 	 * have a different lock here to prevent VIDIOC_DQBUF from being
-	 * blocked while waiting for another action to finish. This is
-	 * generally not needed for PCI devices, but USB devices usually do
+	 * blocked while waiting for aanalther action to finish. This is
+	 * generally analt needed for PCI devices, but USB devices usually do
 	 * want a separate lock here.
 	 */
 	q->lock = &skel->lock;
@@ -848,8 +848,8 @@ static int skeleton_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	vdev = &skel->vdev;
 	strscpy(vdev->name, KBUILD_MODNAME, sizeof(vdev->name));
 	/*
-	 * There is nothing to clean up, so release is set to an empty release
-	 * function. The release callback must be non-NULL.
+	 * There is analthing to clean up, so release is set to an empty release
+	 * function. The release callback must be analn-NULL.
 	 */
 	vdev->release = video_device_release_empty;
 	vdev->fops = &skel_fops,
@@ -865,7 +865,7 @@ static int skeleton_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	vdev->queue = q;
 	vdev->v4l2_dev = &skel->v4l2_dev;
 	/* Supported SDTV standards, if any */
-	vdev->tvnorms = SKEL_TVNORMS;
+	vdev->tvanalrms = SKEL_TVANALRMS;
 	video_set_drvdata(vdev, skel);
 
 	ret = video_register_device(vdev, VFL_TYPE_VIDEO, -1);

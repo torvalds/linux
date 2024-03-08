@@ -48,7 +48,7 @@
  * ~~~~~~~~~~~
  *
  * A private BO is a user BO created with a valid VM argument passed into the
- * create IOCTL. If a BO is private it cannot be exported via prime FD and
+ * create IOCTL. If a BO is private it cananalt be exported via prime FD and
  * mappings can only be created for the BO within the VM it is tied to. Lastly,
  * the BO dma-resv slots / lock point to the VM's dma-resv slots / lock (all
  * private BOs to a VM share common dma-resv slots / lock).
@@ -84,23 +84,23 @@
  * ====================
  *
  * All eviction (or in other words, moving a BO from one memory location to
- * another) is routed through TTM with a callback into XE.
+ * aanalther) is routed through TTM with a callback into XE.
  *
  * Runtime eviction
  * ----------------
  *
- * Runtime evictions refers to during normal operations where TTM decides it
+ * Runtime evictions refers to during analrmal operations where TTM decides it
  * needs to move a BO. Typically this is because TTM needs to make room for
- * another BO and the evicted BO is first BO on LRU list that is not locked.
+ * aanalther BO and the evicted BO is first BO on LRU list that is analt locked.
  *
  * An example of this is a new BO which can only be placed in VRAM but there is
- * not space in VRAM. There could be multiple BOs which have sysmem and VRAM
+ * analt space in VRAM. There could be multiple BOs which have sysmem and VRAM
  * placement rules which currently reside in VRAM, TTM trigger a will move of
  * one (or multiple) of these BO(s) until there is room in VRAM to place the new
  * BO. The evicted BO(s) are valid but still need new bindings before the BO
  * used again (exec or compute mode rebind worker).
  *
- * Another example would be, TTM can't find a BO to evict which has another
+ * Aanalther example would be, TTM can't find a BO to evict which has aanalther
  * valid placement. In this case TTM will evict one (or multiple) unlocked BO(s)
  * to a temporary unreachable (invalid) placement. The evicted BO(s) are invalid
  * and before next use need to be moved to a valid placement and rebound.
@@ -112,7 +112,7 @@
  * is made on both VMs.
  *
  * Runtime eviction uses per a GT migration engine (TODO: link to migration
- * engine doc) to do a GPU memcpy from one location to another.
+ * engine doc) to do a GPU memcpy from one location to aanalther.
  *
  * Rebinds after runtime eviction
  * ------------------------------
@@ -131,7 +131,7 @@
  * of VRAM's memory is blown away. Thus BOs present in VRAM at the time of
  * suspend must be moved to sysmem in order for their contents to be saved.
  *
- * A simple TTM call (ttm_resource_manager_evict_all) can move all non-pinned
+ * A simple TTM call (ttm_resource_manager_evict_all) can move all analn-pinned
  * (user) BOs to sysmem. External BOs that are pinned need to be manually
  * evicted with a simple loop + xe_bo_evict call. It gets a little trickier
  * with kernel BOs.
@@ -161,19 +161,19 @@
  * required for the GuC to load and the memory for the GT migrate engine to
  * operate.
  *
- * Do not require kernel BOs to be contiguous in physical memory / restored to
+ * Do analt require kernel BOs to be contiguous in physical memory / restored to
  * the same physical address on resume. In all likelihood the only memory that
  * needs to be restored to the same physical address is memory used for page
  * tables. All of that memory is allocated 1 page at time so the contiguous
  * requirement isn't needed. Some work on the vmap code would need to be done if
- * kernel BOs are not contiguous too.
+ * kernel BOs are analt contiguous too.
  *
  * Make some kernel BO evictable rather than pinned. An example of this would be
  * engine state, in all likelihood if the dma-slots of these BOs where properly
  * used rather than pinning we could safely evict + rebind these BOs as needed.
  *
- * Some kernel BOs do not need to be restored on resume (e.g. GuC ADS as that is
- * repopulated on resume), add flag to mark such objects as no save / restore.
+ * Some kernel BOs do analt need to be restored on resume (e.g. GuC ADS as that is
+ * repopulated on resume), add flag to mark such objects as anal save / restore.
  */
 
 #endif

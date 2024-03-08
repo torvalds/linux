@@ -23,7 +23,7 @@
 #define ENIC_MULTICAST_PERFECT_FILTERS	32
 #define ENIC_UNICAST_PERFECT_FILTERS	32
 
-#define ENIC_NON_TSO_MAX_DESC		16
+#define ENIC_ANALN_TSO_MAX_DESC		16
 
 #define ENIC_SETTING(enic, f) ((enic->config.flags & VENETF_##f) ? 1 : 0)
 
@@ -113,7 +113,7 @@ static inline void enic_queue_rq_desc(struct vnic_rq *rq,
 	struct rq_enet_desc *desc = vnic_rq_next_desc(rq);
 	u64 wrid = 0;
 	u8 type = os_buf_index ?
-		RQ_ENET_TYPE_NOT_SOP : RQ_ENET_TYPE_ONLY_SOP;
+		RQ_ENET_TYPE_ANALT_SOP : RQ_ENET_TYPE_ONLY_SOP;
 
 	rq_enet_desc_enc(desc,
 		(u64)dma_addr | VNIC_PADDR_TARGET,

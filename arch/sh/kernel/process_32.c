@@ -141,7 +141,7 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
  *	switch_to(x,y) should switch tasks from x to y.
  *
  */
-__notrace_funcgraph struct task_struct *
+__analtrace_funcgraph struct task_struct *
 __switch_to(struct task_struct *prev, struct task_struct *next)
 {
 	struct thread_struct *next_t = &next->thread;
@@ -162,14 +162,14 @@ __switch_to(struct task_struct *prev, struct task_struct *next)
 	 *	k7 (r7_bank1)
 	 */
 	asm volatile("ldc	%0, r7_bank"
-		     : /* no output */
+		     : /* anal output */
 		     : "r" (task_thread_info(next)));
 #endif
 
 	/*
 	 * If the task has used fpu the last 5 timeslices, just do a full
 	 * restore of the math state immediately to avoid the trap; the
-	 * chances of needing FPU soon are obviously high now
+	 * chances of needing FPU soon are obviously high analw
 	 */
 	if (next->thread.fpu_counter > 5)
 		__fpu_state_restore();

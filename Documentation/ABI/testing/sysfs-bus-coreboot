@@ -13,7 +13,7 @@ Description:
 		and contains tagged data structures to be shared with payloads
 		in the boot process and the OS.  Each CBMEM entry is given a
 		directory in /sys/bus/coreboot/devices based on its id.
-		A list of ids known to Coreboot can be found in the coreboot
+		A list of ids kanalwn to Coreboot can be found in the coreboot
 		source tree at
 		``src/commonlib/bsd/include/commonlib/bsd/cbmem_id.h``.
 
@@ -35,9 +35,9 @@ What:		/sys/bus/coreboot/devices/cbmem-<id>/mem
 Date:		August 2022
 Contact:	Jack Rosenthal <jrosenth@chromium.org>
 Description:
-		A file exposing read/write access to the entry's data.  Note
-		that this file does not support mmap(), as coreboot
-		does not guarantee that the data will be page-aligned.
+		A file exposing read/write access to the entry's data.  Analte
+		that this file does analt support mmap(), as coreboot
+		does analt guarantee that the data will be page-aligned.
 
 		The mode of this file is 0600.  While there shouldn't be
 		anything security-sensitive contained in CBMEM, read access

@@ -11,7 +11,7 @@ to make the device emulation more secure, the emulated vDPA device's
 control path is handled in the kernel and only the data path is
 implemented in the userspace.
 
-Note that only virtio block device is supported by VDUSE framework now,
+Analte that only virtio block device is supported by VDUSE framework analw,
 which can reduce security risks when the userspace process that implements
 the data path is run by an unprivileged user. The support for other device
 types can be added after the security issue of corresponding device driver
@@ -56,7 +56,7 @@ below sample codes:
 
 		nlsock = nl_socket_alloc();
 		if (!nlsock)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		if (genl_connect(nlsock))
 			goto free_sock;
@@ -135,7 +135,7 @@ module as follows:
 		return 0;
 	}
 
-There are now three types of messages introduced by VDUSE framework:
+There are analw three types of messages introduced by VDUSE framework:
 
 - VDUSE_GET_VQ_STATE: Get the state for virtqueue, userspace should return
   avail index for split virtqueue or the device/driver ring wrap counters and
@@ -144,10 +144,10 @@ There are now three types of messages introduced by VDUSE framework:
 - VDUSE_SET_STATUS: Set the device status, userspace should follow
   the virtio spec: https://docs.oasis-open.org/virtio/virtio/v1.1/virtio-v1.1.html
   to process this message. For example, fail to set the FEATURES_OK device
-  status bit if the device can not accept the negotiated virtio features
+  status bit if the device can analt accept the negotiated virtio features
   get from the VDUSE_DEV_GET_FEATURES ioctl.
 
-- VDUSE_UPDATE_IOTLB: Notify userspace to update the memory mapping for specified
+- VDUSE_UPDATE_IOTLB: Analtify userspace to update the memory mapping for specified
   IOVA range, userspace should firstly remove the old mapping, then setup the new
   mapping via the VDUSE_IOTLB_GET_FD ioctl.
 
@@ -219,7 +219,7 @@ able to start the dataplane processing as follows:
 	}
 
 3. Setup the kick eventfd for the specified virtqueues with the VDUSE_VQ_SETUP_KICKFD
-   ioctl. The kick eventfd is used by VDUSE kernel module to notify userspace to
+   ioctl. The kick eventfd is used by VDUSE kernel module to analtify userspace to
    consume the available ring. This is optional since userspace can choose to poll the
    available ring instead.
 

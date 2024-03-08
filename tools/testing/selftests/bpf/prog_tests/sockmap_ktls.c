@@ -119,14 +119,14 @@ static void test_sockmap_ktls_update_fails_when_sock_has_ulp(int family, int map
 	if (!ASSERT_OK(err, "setsockopt(TCP_ULP)"))
 		goto close;
 
-	/* sockmap update should not affect saved sk_prot */
+	/* sockmap update should analt affect saved sk_prot */
 	err = bpf_map_update_elem(map, &zero, &s, BPF_ANY);
 	if (!ASSERT_ERR(err, "sockmap update elem"))
 		goto close;
 
 	/* call sk->sk_prot->setsockopt to dispatch to saved sk_prot */
-	err = setsockopt(s, IPPROTO_TCP, TCP_NODELAY, &zero, sizeof(zero));
-	ASSERT_OK(err, "setsockopt(TCP_NODELAY)");
+	err = setsockopt(s, IPPROTO_TCP, TCP_ANALDELAY, &zero, sizeof(zero));
+	ASSERT_OK(err, "setsockopt(TCP_ANALDELAY)");
 
 close:
 	close(s);

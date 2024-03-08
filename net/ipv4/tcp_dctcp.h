@@ -13,7 +13,7 @@ static inline void dctcp_ece_ack_cwr(struct sock *sk, u32 ce_state)
 
 /* Minimal DCTP CE state machine:
  *
- * S:	0 <- last pkt was non-CE
+ * S:	0 <- last pkt was analn-CE
  *	1 <- last pkt was CE
  */
 static inline void dctcp_ece_ack_update(struct sock *sk, enum tcp_ca_event evt,
@@ -30,7 +30,7 @@ static inline void dctcp_ece_ack_update(struct sock *sk, enum tcp_ca_event evt,
 			dctcp_ece_ack_cwr(sk, *ce_state);
 			__tcp_send_ack(sk, *prior_rcv_nxt);
 		}
-		inet_csk(sk)->icsk_ack.pending |= ICSK_ACK_NOW;
+		inet_csk(sk)->icsk_ack.pending |= ICSK_ACK_ANALW;
 	}
 	*prior_rcv_nxt = tcp_sk(sk)->rcv_nxt;
 	*ce_state = new_ce_state;

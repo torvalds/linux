@@ -16,7 +16,7 @@ Status
 Almost everything is working.  video, sound, tuner, radio, mpeg ts, ...
 
 As with bttv, card-specific tweaks are needed.  Check CARDLIST for a
-list of known TV cards and saa7134-cards.c for the drivers card
+list of kanalwn TV cards and saa7134-cards.c for the drivers card
 configuration info.
 
 
@@ -75,11 +75,11 @@ describe at the lots  what it changes / which problem it fixes / whatever
 it is good for ...
 
 
-Known Problems
+Kanalwn Problems
 --------------
 
 * The tuner for the flyvideos isn't detected automatically and the
-  default might not work for you depending on which version you have.
+  default might analt work for you depending on which version you have.
   There is a ``tuner=`` insmod option to override the driver's default.
 
 Credits

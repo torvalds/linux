@@ -72,11 +72,11 @@ static int prestera_flower_parse_actions(struct prestera_flow_block *block,
 		return 0;
 
 	if (!flow_action_mixed_hw_stats_check(flow_action, extack))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	act = flow_action_first_entry_get(flow_action);
 	if (act->hw_stats & FLOW_ACTION_HW_STATS_DISABLED) {
-		/* Nothing to do */
+		/* Analthing to do */
 	} else if (act->hw_stats & FLOW_ACTION_HW_STATS_DELAYED) {
 		/* setup counter first */
 		rule->re_arg.count.valid = true;
@@ -86,7 +86,7 @@ static int prestera_flower_parse_actions(struct prestera_flow_block *block,
 			return err;
 	} else {
 		NL_SET_ERR_MSG_MOD(extack, "Unsupported action HW stats type");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	flow_action_for_each(i, act, flow_action) {
@@ -129,7 +129,7 @@ static int prestera_flower_parse_actions(struct prestera_flow_block *block,
 		default:
 			NL_SET_ERR_MSG_MOD(extack, "Unsupported action");
 			pr_err("Unsupported action\n");
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 	}
 
@@ -151,7 +151,7 @@ static int prestera_flower_parse_meta(struct prestera_acl_rule *rule,
 
 	if (match.mask->l2_miss) {
 		NL_SET_ERR_MSG_MOD(f->common.extack, "Can't match on \"l2_miss\"");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (match.mask->ingress_ifindex != 0xFFFFFFFF) {
@@ -213,7 +213,7 @@ static int prestera_flower_parse(struct prestera_flow_block *block,
 	      BIT_ULL(FLOW_DISSECTOR_KEY_PORTS_RANGE) |
 	      BIT_ULL(FLOW_DISSECTOR_KEY_VLAN))) {
 		NL_SET_ERR_MSG_MOD(f->common.extack, "Unsupported key");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	prestera_acl_rule_priority_set(rule, f->common.prio);
@@ -375,8 +375,8 @@ static int prestera_flower_prio_check(struct prestera_flow_block *block,
 	int err;
 
 	err = prestera_mall_prio_get(block, &mall_prio_min, &mall_prio_max);
-	if (err == -ENOENT)
-		/* No matchall filters installed on this chain. */
+	if (err == -EANALENT)
+		/* Anal matchall filters installed on this chain. */
 		return 0;
 
 	if (err) {
@@ -387,11 +387,11 @@ static int prestera_flower_prio_check(struct prestera_flow_block *block,
 	if (f->common.prio <= mall_prio_max && block->ingress) {
 		NL_SET_ERR_MSG(f->common.extack,
 			       "Failed to add in front of existing matchall rules");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	if (f->common.prio >= mall_prio_min && !block->ingress) {
 		NL_SET_ERR_MSG(f->common.extack, "Failed to add behind of existing matchall rules");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -493,7 +493,7 @@ int prestera_flower_tmplt_create(struct prestera_flow_block *block,
 
 	template = kmalloc(sizeof(*template), GFP_KERNEL);
 	if (!template) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_malloc;
 	}
 
@@ -510,7 +510,7 @@ int prestera_flower_tmplt_create(struct prestera_flow_block *block,
 	if (err)
 		goto err_ruleset_keymask_set;
 
-	/* skip error, as it is not possible to reject template operation,
+	/* skip error, as it is analt possible to reject template operation,
 	 * so, keep the reference to the ruleset for rules to be added
 	 * to that ruleset later. In case of offload fail, the ruleset
 	 * will be offloaded again during adding a new rule. Also,

@@ -3,7 +3,7 @@
  * Copyright (C)2006 USAGI/WIDE Project
  *
  * Author:
- * 	Kazunori Miyazawa <miyazawa@linux-ipv6.org>
+ * 	Kazuanalri Miyazawa <miyazawa@linux-ipv6.org>
  */
 
 #include <crypto/internal/cipher.h>
@@ -195,7 +195,7 @@ static int xcbc_create(struct crypto_template *tmpl, struct rtattr **tb)
 
 	inst = kzalloc(sizeof(*inst) + sizeof(*spawn), GFP_KERNEL);
 	if (!inst)
-		return -ENOMEM;
+		return -EANALMEM;
 	spawn = shash_instance_ctx(inst);
 
 	err = crypto_grab_cipher(spawn, shash_crypto_instance(inst),

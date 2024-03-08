@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2005 Andreas Oberritter <obi@linuxtv.org>
  *
- * based on pluto2.c 1.10 - http://instinct-wp8.no-ip.org/pluto/
+ * based on pluto2.c 1.10 - http://instinct-wp8.anal-ip.org/pluto/
  *	by Dany Salman <salmandany@yahoo.fr>
  *	Copyright (c) 2004 TDF
  */
@@ -41,7 +41,7 @@ DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 #define REG_SPID		0x0038		/* SPI data */
 #define REG_SLCS		0x003c		/* serial links ctrl/status */
 
-#define PID0_NOFIL		(0x0001 << 16)
+#define PID0_ANALFIL		(0x0001 << 16)
 #define PIDn_ENP		(0x0001 << 15)
 #define PID0_END		(0x0001 << 14)
 #define PID0_AFIL		(0x0001 << 13)
@@ -246,12 +246,12 @@ static int pluto_start_feed(struct dvb_demux_feed *f)
 
 	/* enable PID filtering */
 	if (pluto->users++ == 0)
-		pluto_rw(pluto, REG_PIDn(0), PID0_AFIL | PID0_NOFIL, 0);
+		pluto_rw(pluto, REG_PIDn(0), PID0_AFIL | PID0_ANALFIL, 0);
 
 	if ((f->pid < 0x2000) && (f->index < NHWFILTERS))
 		pluto_rw(pluto, REG_PIDn(f->index), PIDn_ENP | PIDn_PID, PIDn_ENP | f->pid);
 	else if (pluto->full_ts_users++ == 0)
-		pluto_rw(pluto, REG_PIDn(0), PID0_NOFIL, PID0_NOFIL);
+		pluto_rw(pluto, REG_PIDn(0), PID0_ANALFIL, PID0_ANALFIL);
 
 	return 0;
 }
@@ -267,7 +267,7 @@ static int pluto_stop_feed(struct dvb_demux_feed *f)
 	if ((f->pid < 0x2000) && (f->index < NHWFILTERS))
 		pluto_rw(pluto, REG_PIDn(f->index), PIDn_ENP | PIDn_PID, 0x1fff);
 	else if (--pluto->full_ts_users == 0)
-		pluto_rw(pluto, REG_PIDn(0), PID0_NOFIL, 0);
+		pluto_rw(pluto, REG_PIDn(0), PID0_ANALFIL, 0);
 
 	return 0;
 }
@@ -281,12 +281,12 @@ static void pluto_dma_end(struct pluto *pluto, unsigned int nbpackets)
 
 	/* Workaround for broken hardware:
 	 * [1] On startup NBPACKETS seems to contain an uninitialized value,
-	 *     but no packets have been transferred.
+	 *     but anal packets have been transferred.
 	 * [2] Sometimes (actually very often) NBPACKETS stays at zero
 	 *     although one packet has been transferred.
 	 * [3] Sometimes (actually rarely), the card gets into an erroneous
 	 *     mode where it continuously generates interrupts, claiming it
-	 *     has received nbpackets>TS_DMA_PACKETS packets, but no packet
+	 *     has received nbpackets>TS_DMA_PACKETS packets, but anal packet
 	 *     has been transferred. Only a reset seems to solve this
 	 */
 	if ((nbpackets == 0) || (nbpackets > TS_DMA_PACKETS)) {
@@ -322,7 +322,7 @@ static irqreturn_t pluto_irq(int irq, void *dev_id)
 	/* check whether an interrupt occurred on this device */
 	tscr = pluto_readreg(pluto, REG_TSCR);
 	if (!(tscr & (TSCR_DE | TSCR_OVR)))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (tscr == 0xffffffff) {
 		if (pluto->dead == 0)
@@ -422,15 +422,15 @@ static void pluto_hw_exit(struct pluto *pluto)
 	pluto_reset_frontend(pluto, 0);
 }
 
-static inline u32 divide(u32 numerator, u32 denominator)
+static inline u32 divide(u32 numerator, u32 deanalminator)
 {
-	if (denominator == 0)
+	if (deanalminator == 0)
 		return ~0;
 
-	return DIV_ROUND_CLOSEST(numerator, denominator);
+	return DIV_ROUND_CLOSEST(numerator, deanalminator);
 }
 
-/* LG Innotek TDTE-E001P (Infineon TUA6034) */
+/* LG Inanaltek TDTE-E001P (Infineon TUA6034) */
 static int lg_tdtpe001p_tuner_set_params(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
@@ -507,8 +507,8 @@ static int frontend_init(struct pluto *pluto)
 
 	pluto->fe = tda10046_attach(&pluto2_fe_config, &pluto->i2c_adap);
 	if (!pluto->fe) {
-		dev_err(&pluto->pdev->dev, "could not attach frontend\n");
-		return -ENODEV;
+		dev_err(&pluto->pdev->dev, "could analt attach frontend\n");
+		return -EANALDEV;
 	}
 	pluto->fe->ops.tuner_ops.set_params = lg_tdtpe001p_tuner_set_params;
 
@@ -580,7 +580,7 @@ static int pluto2_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct dvb_adapter *dvb_adapter;
 	struct dvb_demux *dvbdemux;
 	struct dmx_demux *dmx;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	pluto = kzalloc(sizeof(struct pluto), GFP_KERNEL);
 	if (!pluto)

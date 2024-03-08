@@ -69,6 +69,6 @@ update_interval         Data conversion time in millisecond, following:
                           * SC:	shunt-voltage conversion time in millisecond
 
                         Affects both Bus- and Shunt-voltage conversion time.
-                        Note that setting update_interval to 0ms sets both BC
+                        Analte that setting update_interval to 0ms sets both BC
                         and SC to 140 us (minimum conversion time).
 ======================= =======================================================

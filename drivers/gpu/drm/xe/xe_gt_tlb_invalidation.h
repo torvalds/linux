@@ -20,7 +20,7 @@ int xe_gt_tlb_invalidation_guc(struct xe_gt *gt);
 int xe_gt_tlb_invalidation_vma(struct xe_gt *gt,
 			       struct xe_gt_tlb_invalidation_fence *fence,
 			       struct xe_vma *vma);
-int xe_gt_tlb_invalidation_wait(struct xe_gt *gt, int seqno);
+int xe_gt_tlb_invalidation_wait(struct xe_gt *gt, int seqanal);
 int xe_guc_tlb_invalidation_done_handler(struct xe_guc *guc, u32 *msg, u32 len);
 
 #endif	/* _XE_GT_TLB_INVALIDATION_ */

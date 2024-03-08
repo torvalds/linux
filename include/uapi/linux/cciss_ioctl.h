@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPICCISS_IOCTLH
 #define _UAPICCISS_IOCTLH
 
@@ -23,7 +23,7 @@ typedef struct _cciss_coalint_struct
 	__u32  count;
 } cciss_coalint_struct;
 
-typedef char NodeName_type[16];
+typedef char AnaldeName_type[16];
 
 typedef __u32 Heartbeat_type;
 
@@ -67,8 +67,8 @@ typedef struct _LogvolInfo_struct{
 #define CCISS_GETINTINFO _IOR(CCISS_IOC_MAGIC, 2, cciss_coalint_struct)
 #define CCISS_SETINTINFO _IOW(CCISS_IOC_MAGIC, 3, cciss_coalint_struct)
 
-#define CCISS_GETNODENAME _IOR(CCISS_IOC_MAGIC, 4, NodeName_type)
-#define CCISS_SETNODENAME _IOW(CCISS_IOC_MAGIC, 5, NodeName_type)
+#define CCISS_GETANALDENAME _IOR(CCISS_IOC_MAGIC, 4, AnaldeName_type)
+#define CCISS_SETANALDENAME _IOW(CCISS_IOC_MAGIC, 5, AnaldeName_type)
 
 #define CCISS_GETHEARTBEAT _IOR(CCISS_IOC_MAGIC, 6, Heartbeat_type)
 #define CCISS_GETBUSTYPES  _IOR(CCISS_IOC_MAGIC, 7, BusTypes_type)
@@ -78,7 +78,7 @@ typedef struct _LogvolInfo_struct{
 #define CCISS_PASSTHRU	   _IOWR(CCISS_IOC_MAGIC, 11, IOCTL_Command_struct)
 #define CCISS_DEREGDISK	   _IO(CCISS_IOC_MAGIC, 12)
 
-/* no longer used... use REGNEWD instead */ 
+/* anal longer used... use REGNEWD instead */ 
 #define CCISS_REGNEWDISK  _IOW(CCISS_IOC_MAGIC, 13, int)
 
 #define CCISS_REGNEWD	   _IO(CCISS_IOC_MAGIC, 14)

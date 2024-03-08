@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -239,8 +239,8 @@ static unsigned int dcn10_get_dlg_states(struct dc *dc, char *pBuf, unsigned int
 	chars_printed = snprintf_count(pBuf, remaining_buffer, "instance,rc_hbe,dlg_vbe,min_d_y_n,rc_per_ht,rc_x_a_s,"
 		"dst_y_a_s,dst_y_pf,dst_y_vvb,dst_y_rvb,dst_y_vfl,dst_y_rfl,rf_pix_fq,"
 		"vratio_pf,vrat_pf_c,rc_pg_vbl,rc_pg_vbc,rc_mc_vbl,rc_mc_vbc,rc_pg_fll,"
-		"rc_pg_flc,rc_mc_fll,rc_mc_flc,pr_nom_l,pr_nom_c,rc_pg_nl,rc_pg_nc,"
-		"mr_nom_l,mr_nom_c,rc_mc_nl,rc_mc_nc,rc_ld_pl,rc_ld_pc,rc_ld_l,"
+		"rc_pg_flc,rc_mc_fll,rc_mc_flc,pr_analm_l,pr_analm_c,rc_pg_nl,rc_pg_nc,"
+		"mr_analm_l,mr_analm_c,rc_mc_nl,rc_mc_nc,rc_ld_pl,rc_ld_pc,rc_ld_l,"
 		"rc_ld_c,cha_cur0,ofst_cur1,cha_cur1,vr_af_vc0,ddrq_limt,x_rt_dlay,x_rp_dlay,x_rr_sfl"
 		"\n");
 	remaining_buffer -= chars_printed;
@@ -266,11 +266,11 @@ static unsigned int dcn10_get_dlg_states(struct dc *dc, char *pBuf, unsigned int
 				dlg_regs->refcyc_per_pte_group_vblank_c, dlg_regs->refcyc_per_meta_chunk_vblank_l,
 				dlg_regs->refcyc_per_meta_chunk_vblank_c, dlg_regs->refcyc_per_pte_group_flip_l,
 				dlg_regs->refcyc_per_pte_group_flip_c, dlg_regs->refcyc_per_meta_chunk_flip_l,
-				dlg_regs->refcyc_per_meta_chunk_flip_c, dlg_regs->dst_y_per_pte_row_nom_l,
-				dlg_regs->dst_y_per_pte_row_nom_c, dlg_regs->refcyc_per_pte_group_nom_l,
-				dlg_regs->refcyc_per_pte_group_nom_c, dlg_regs->dst_y_per_meta_row_nom_l,
-				dlg_regs->dst_y_per_meta_row_nom_c, dlg_regs->refcyc_per_meta_chunk_nom_l,
-				dlg_regs->refcyc_per_meta_chunk_nom_c, dlg_regs->refcyc_per_line_delivery_pre_l,
+				dlg_regs->refcyc_per_meta_chunk_flip_c, dlg_regs->dst_y_per_pte_row_analm_l,
+				dlg_regs->dst_y_per_pte_row_analm_c, dlg_regs->refcyc_per_pte_group_analm_l,
+				dlg_regs->refcyc_per_pte_group_analm_c, dlg_regs->dst_y_per_meta_row_analm_l,
+				dlg_regs->dst_y_per_meta_row_analm_c, dlg_regs->refcyc_per_meta_chunk_analm_l,
+				dlg_regs->refcyc_per_meta_chunk_analm_c, dlg_regs->refcyc_per_line_delivery_pre_l,
 				dlg_regs->refcyc_per_line_delivery_pre_c, dlg_regs->refcyc_per_line_delivery_l,
 				dlg_regs->refcyc_per_line_delivery_c, dlg_regs->chunk_hdl_adjust_cur0, dlg_regs->dst_y_offset_cur1,
 				dlg_regs->chunk_hdl_adjust_cur1, dlg_regs->vready_after_vcount0, dlg_regs->dst_y_delta_drq_limit,
@@ -355,19 +355,19 @@ static unsigned int dcn10_get_cm_states(struct dc *dc, char *pBuf, unsigned int 
 					((s.igam_lut_mode == 1) ? "BypassFloat" :
 					((s.igam_lut_mode == 2) ? "RAM" :
 					((s.igam_lut_mode == 3) ? "RAM" :
-								 "Unknown"))),
+								 "Unkanalwn"))),
 				(s.dgam_lut_mode == 0) ? "Bypass" :
 					((s.dgam_lut_mode == 1) ? "sRGB" :
 					((s.dgam_lut_mode == 2) ? "Ycc" :
 					((s.dgam_lut_mode == 3) ? "RAM" :
 					((s.dgam_lut_mode == 4) ? "RAM" :
-								 "Unknown")))),
+								 "Unkanalwn")))),
 				(s.rgam_lut_mode == 0) ? "Bypass" :
 					((s.rgam_lut_mode == 1) ? "sRGB" :
 					((s.rgam_lut_mode == 2) ? "Ycc" :
 					((s.rgam_lut_mode == 3) ? "RAM" :
 					((s.rgam_lut_mode == 4) ? "RAM" :
-								 "Unknown")))),
+								 "Unkanalwn")))),
 				s.gamut_remap_mode, s.gamut_remap_c11_c12,
 				s.gamut_remap_c13_c14, s.gamut_remap_c21_c22, s.gamut_remap_c23_c24,
 				s.gamut_remap_c31_c32, s.gamut_remap_c33_c34);

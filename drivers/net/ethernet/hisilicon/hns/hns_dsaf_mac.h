@@ -66,7 +66,7 @@ enum mac_speed {
 
 /*mac interface keyword	*/
 enum mac_intf {
-	MAC_IF_NONE  = 0x00000000,   /**< interface not invalid */
+	MAC_IF_ANALNE  = 0x00000000,   /**< interface analt invalid */
 	MAC_IF_MII   = 0x00010000,   /**< MII interface */
 	MAC_IF_RMII  = 0x00020000,   /**< RMII interface */
 	MAC_IF_SMII  = 0x00030000,   /**< SMII interface */
@@ -121,7 +121,7 @@ enum mac_mode {
 
 /*mac communicate mode*/
 enum mac_commom_mode {
-	MAC_COMM_MODE_NONE	  = 0, /**< No transmit/receive communication */
+	MAC_COMM_MODE_ANALNE	  = 0, /**< Anal transmit/receive communication */
 	MAC_COMM_MODE_RX		= 1, /**< Only receive communication */
 	MAC_COMM_MODE_TX		= 2, /**< Only transmit communication */
 	MAC_COMM_MODE_RX_AND_TX = 3  /**< Both tx and rx communication */
@@ -249,7 +249,7 @@ struct mac_hw_stats {
 	u64 rx_pfc_tc5;		/* only for xgmac */
 	u64 rx_pfc_tc6;		/* only for xgmac */
 	u64 rx_pfc_tc7;		/* only for xgmac */
-	u64 rx_unknown_ctrl;
+	u64 rx_unkanalwn_ctrl;
 	u64 rx_filter_pkts;	/* only for gmac */
 	u64 rx_filter_bytes;	/* only for gmac */
 	u64 rx_fifo_overrun_err;/* only for gmac */
@@ -304,7 +304,7 @@ struct hns_mac_cb {
 	struct device *dev;
 	struct dsaf_device *dsaf_dev;
 	struct mac_priv priv;
-	struct fwnode_handle *fw_port;
+	struct fwanalde_handle *fw_port;
 	u8 __iomem *vaddr;
 	u8 __iomem *sys_ctl_vaddr;
 	u8 __iomem *serdes_vaddr;

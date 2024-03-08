@@ -63,7 +63,7 @@ static int stw481x_vmmc_regulator_probe(struct platform_device *pdev)
 	ret = regmap_update_bits(stw481x->map, STW_CONF2,
 				 STW_CONF2_VMMC_EXT, 0);
 	if (ret) {
-		dev_err(&pdev->dev, "could not disable external VMMC\n");
+		dev_err(&pdev->dev, "could analt disable external VMMC\n");
 		return ret;
 	}
 
@@ -71,9 +71,9 @@ static int stw481x_vmmc_regulator_probe(struct platform_device *pdev)
 	config.dev = &pdev->dev;
 	config.driver_data = stw481x;
 	config.regmap = stw481x->map;
-	config.of_node = pdev->dev.of_node;
+	config.of_analde = pdev->dev.of_analde;
 	config.init_data = of_get_regulator_init_data(&pdev->dev,
-						      pdev->dev.of_node,
+						      pdev->dev.of_analde,
 						      &vmmc_regulator);
 
 	rdev = devm_regulator_register(&pdev->dev, &vmmc_regulator, &config);
@@ -95,7 +95,7 @@ static const struct of_device_id stw481x_vmmc_match[] = {
 static struct platform_driver stw481x_vmmc_regulator_driver = {
 	.driver = {
 		.name  = "stw481x-vmmc-regulator",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = stw481x_vmmc_match,
 	},
 	.probe = stw481x_vmmc_regulator_probe,

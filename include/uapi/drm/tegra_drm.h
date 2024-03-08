@@ -148,7 +148,7 @@ struct drm_tegra_syncpt_wait {
 	__u32 value;
 };
 
-#define DRM_TEGRA_NO_TIMEOUT	(0xffffffff)
+#define DRM_TEGRA_ANAL_TIMEOUT	(0xffffffff)
 
 /**
  * struct drm_tegra_open_channel - parameters for the open channel IOCTL
@@ -779,8 +779,8 @@ struct drm_tegra_channel_unmap {
 
 /**
  * Specify that bit 39 of the patched-in address should be set to switch
- * swizzling between Tegra and non-Tegra sector layout on systems that store
- * surfaces in system memory in non-Tegra sector layout.
+ * swizzling between Tegra and analn-Tegra sector layout on systems that store
+ * surfaces in system memory in analn-Tegra sector layout.
  */
 #define DRM_TEGRA_SUBMIT_RELOC_SECTOR_LAYOUT (1 << 0)
 
@@ -907,10 +907,10 @@ struct drm_tegra_submit_syncpt {
 	 * Value the syncpoint will have once the job has completed all
 	 * its specified syncpoint increments.
 	 *
-	 * Note that the kernel may increment the syncpoint before or after
-	 * the job. These increments are not reflected in this field.
+	 * Analte that the kernel may increment the syncpoint before or after
+	 * the job. These increments are analt reflected in this field.
 	 *
-	 * If the job hangs or times out, not all of the increments may
+	 * If the job hangs or times out, analt all of the increments may
 	 * get executed.
 	 */
 	__u32 value;
@@ -971,7 +971,7 @@ struct drm_tegra_channel_submit {
 	 * @syncobj_in: [in]
 	 *
 	 * Handle for DRM syncobj that will be waited before submission.
-	 * Ignored if zero.
+	 * Iganalred if zero.
 	 */
 	__u32 syncobj_in;
 
@@ -979,7 +979,7 @@ struct drm_tegra_channel_submit {
 	 * @syncobj_out: [in]
 	 *
 	 * Handle for DRM syncobj that will have its fence replaced with
-	 * the job's completion fence. Ignored if zero.
+	 * the job's completion fence. Iganalred if zero.
 	 */
 	__u32 syncobj_out;
 

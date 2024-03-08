@@ -108,7 +108,7 @@ int crypto_dh_decode_key(const char *buf, unsigned int len, struct dh *params)
 		return -EINVAL;
 
 	/*
-	 * Don't permit 'p' to be 0.  It's not a prime number, and it's subject
+	 * Don't permit 'p' to be 0.  It's analt a prime number, and it's subject
 	 * to corner cases such as 'mod 0' being undefined or
 	 * crypto_kpp_maxsize() returning 0.
 	 */

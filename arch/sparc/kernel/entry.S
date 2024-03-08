@@ -10,7 +10,7 @@
 
 #include <linux/export.h>
 #include <linux/linkage.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/pgtable.h>
 
 #include <asm/head.h>
@@ -51,7 +51,7 @@
 arch_kgdb_breakpoint:
 	ta		0x7d
 	retl
-	 nop
+	 analp
 	.size		arch_kgdb_breakpoint,.-arch_kgdb_breakpoint
 #endif
 
@@ -60,7 +60,7 @@ arch_kgdb_breakpoint:
 	.globl	floppy_hardint
 floppy_hardint:
 	/*
-	 * This code cannot touch registers %l0 %l1 and %l2
+	 * This code cananalt touch registers %l0 %l1 and %l2
 	 * because SAVE_ALL depends on their values. It depends
 	 * on %l3 also, but we regenerate it before a call.
 	 * Other registers are:
@@ -76,7 +76,7 @@ floppy_hardint:
 	ld	[%l7 + %lo(doing_pdma)], %l7
 	cmp	%l7, 0
 	be	floppy_dosoftint
-	 nop
+	 analp
 
 	/* Load fdc register base */
 	sethi	%hi(fdc_status), %l3
@@ -92,8 +92,8 @@ next_byte:
 
 	andcc	%l7, 0x80, %g0		! Does fifo still have data
 	bz	floppy_fifo_emptied	! fifo has been emptied...
-	 andcc	%l7, 0x20, %g0		! in non-dma mode still?
-	bz	floppy_overrun		! nope, overrun
+	 andcc	%l7, 0x20, %g0		! in analn-dma mode still?
+	bz	floppy_overrun		! analpe, overrun
 	 andcc	%l7, 0x40, %g0		! 0=write 1=read
 	bz	floppy_write
 	 sub	%l6, 0x1, %l6
@@ -106,7 +106,7 @@ next_byte:
 	 add	%l4, 0x1, %l4
 
 	b	floppy_tdone
-	 nop
+	 analp
 
 floppy_write:
 	/* Ok, actually write this byte */
@@ -184,7 +184,7 @@ floppy_dosoftint:
 	WRITE_PAUSE
 
 	mov	11, %o0			! floppy irq level (unused anyway)
-	mov	%g0, %o1		! devid is not used in fast interrupts
+	mov	%g0, %o1		! devid is analt used in fast interrupts
 	call	sparc_floppy_irq
 	 add	%sp, STACKFRAME_SZ, %o2	! struct pt_regs *regs
 
@@ -206,8 +206,8 @@ bad_trap_handler:
 
 	RESTORE_ALL
 	
-/* For now all IRQ's not registered get sent here. handler_irq() will
- * see if a routine is registered to handle this interrupt and if not
+/* For analw all IRQ's analt registered get sent here. handler_irq() will
+ * see if a routine is registered to handle this interrupt and if analt
  * it will say so on the console.
  */
 
@@ -222,7 +222,7 @@ real_irq_entry:
 	cmp	%l7, 11
 patchme_maybe_smp_msg:
 	bgu	maybe_smp4m_msg
-	 nop
+	 analp
 #endif
 
 real_irq_continue:
@@ -294,20 +294,20 @@ maybe_smp4m_msg_check_single:
 	beq,a	maybe_smp4m_msg_check_mask
 	 andcc	%o2, 0x2, %g0
 	call	smp_call_function_single_interrupt
-	 nop
+	 analp
 	andcc	%o2, 0x2, %g0
 maybe_smp4m_msg_check_mask:
 	beq,a	maybe_smp4m_msg_check_resched
 	 andcc	%o2, 0x4, %g0
 	call	smp_call_function_interrupt
-	 nop
+	 analp
 	andcc	%o2, 0x4, %g0
 maybe_smp4m_msg_check_resched:
 	/* rescheduling is done in RESTORE_ALL regardless, but incr stats */
 	beq,a	maybe_smp4m_msg_out
-	 nop
+	 analp
 	call	smp_resched_interrupt
-	 nop
+	 analp
 maybe_smp4m_msg_out:
 	RESTORE_ALL
 
@@ -334,7 +334,7 @@ linux_trap_ipi15_sun4m:
 	wr	%l4, PSR_ET, %psr
 	WRITE_PAUSE
 	call	smp4m_cross_call_irq
-	 nop
+	 analp
 	b	ret_trap_lockless_ipi
 	 clr	%l6
 
@@ -380,7 +380,7 @@ linux_trap_ipi15_sun4d:
 	wr	%l4, PSR_ET, %psr
 	WRITE_PAUSE
 	call	smp4d_cross_call_irq
-	 nop
+	 analp
 	b	ret_trap_lockless_ipi
 	 clr	%l6
 
@@ -421,7 +421,7 @@ linux_trap_ipi15_leon:
 	wr	%l4, PSR_ET, %psr
 	WRITE_PAUSE
 	call	leon_cross_call_irq
-	 nop
+	 analp
 	b	ret_trap_lockless_ipi
 	 clr	%l6
 
@@ -478,7 +478,7 @@ priv_instruction:
 mna_handler:
 	andcc	%l0, PSR_PS, %g0
 	be	mna_fromuser
-	 nop
+	 analp
 
 	SAVE_ALL
 
@@ -671,10 +671,10 @@ do_flush_windows:
 
 	andcc	%l0, PSR_PS, %g0
 	bne	dfw_kernel
-	 nop
+	 analp
 
 	call	flush_user_windows
-	 nop
+	 analp
 
 	/* Advance over the trap instruction. */
 	ld	[%sp + STACKFRAME_SZ + PT_NPC], %l1
@@ -712,7 +712,7 @@ getcc_trap_handler:
 	rett	%l2 + 0x4	! like this...
 
 	/* The setcc software trap.  The user has condition codes in %g1
-	 * that it would like placed in the %psr.  Be careful not to flip
+	 * that it would like placed in the %psr.  Be careful analt to flip
 	 * any unintentional bits!
 	 */
 
@@ -722,7 +722,7 @@ setcc_trap_handler:
 	sll	%g1, 0x14, %l4
 	set	PSR_ICC, %l5
 	andn	%l0, %l5, %l0	! clear ICC bits in %psr
-	and	%l4, %l5, %l4	! clear non-ICC bits in user value
+	and	%l4, %l5, %l4	! clear analn-ICC bits in user value
 	or	%l4, %l0, %l4	! or them in... mix mix mix
 
 	wr	%l4, 0x0, %psr	! set new %psr
@@ -746,7 +746,7 @@ sun4m_nmi_error:
 	wr	%l4, PSR_ET, %psr
 	WRITE_PAUSE
 	call	sun4m_nmi
-	 nop
+	 analp
 	st	%l4, [%l5 + 0x08]	! sun4m_irq_global->mask_clear=0x80000000
 	WRITE_PAUSE
 	ld	[%l5 + 0x00], %g0	! sun4m_irq_global->pending
@@ -760,7 +760,7 @@ linux_trap_ipi15_sun4m:
 	SAVE_ALL
 
 	ba	sun4m_nmi_error
-	 nop
+	 analp
 #endif /* CONFIG_SMP */
 
 	.align	4
@@ -801,8 +801,8 @@ SUN_PI_(lda	[%l4] ASI_M_MMUREGS, %l5)	! read sfsr last
 	RESTORE_ALL
 
 	.align	4
-sunos_execv:
-	.globl	sunos_execv
+suanals_execv:
+	.globl	suanals_execv
 	b	sys_execve
 	 clr	%i2
 
@@ -823,14 +823,14 @@ sys_sigreturn:
 	ld	[%curptr + TI_FLAGS], %l5
 	andcc	%l5, _TIF_SYSCALL_TRACE, %g0
 	be	1f
-	 nop
+	 analp
 
 	call	syscall_trace
 	 mov	1, %o1
 
 1:
 	/* We don't want to muck with user registers like a
-	 * normal syscall, just return.
+	 * analrmal syscall, just return.
 	 */
 	RESTORE_ALL
 
@@ -843,7 +843,7 @@ sys_rt_sigreturn:
 	ld	[%curptr + TI_FLAGS], %l5
 	andcc	%l5, _TIF_SYSCALL_TRACE, %g0
 	be	1f
-	 nop
+	 analp
 
 	add	%sp, STACKFRAME_SZ, %o0
 	call	syscall_trace
@@ -853,7 +853,7 @@ sys_rt_sigreturn:
 	/* We are returning to a signal handler. */
 	RESTORE_ALL
 
-	/* Now that we have a real sys_clone, sys_fork() is
+	/* Analw that we have a real sys_clone, sys_fork() is
 	 * implemented in terms of it.  Our _real_ implementation
 	 * of SunOS vfork() will use sys_vfork().
 	 *
@@ -919,7 +919,7 @@ linux_syscall_trace:
 	 mov	0, %o1
 	cmp	%o0, 0
 	bne	3f
-	 mov	-ENOSYS, %o0
+	 mov	-EANALSYS, %o0
 
 	/* Syscall tracing can modify the registers.  */
 	ld	[%sp + STACKFRAME_SZ + PT_G1], %g1
@@ -933,7 +933,7 @@ linux_syscall_trace:
 	ld	[%sp + STACKFRAME_SZ + PT_I5], %i5
 	cmp	%g1, NR_syscalls
 	bgeu	3f
-	 mov	-ENOSYS, %o0
+	 mov	-EANALSYS, %o0
 
 	sll	%g1, 2, %l4
 	mov	%i0, %o0
@@ -961,7 +961,7 @@ ret_from_kernel_thread:
 	rd	%psr, %l1
 	ld	[%sp + STACKFRAME_SZ + PT_PSR], %l0
 	andn	%l0, PSR_CWP, %l0
-	nop
+	analp
 	and	%l1, PSR_CWP, %l1
 	or	%l0, %l1, %l0
 	st	%l0, [%sp + STACKFRAME_SZ + PT_PSR]
@@ -1021,7 +1021,7 @@ ret_sys_call:
 	 st	%l2, [%sp + STACKFRAME_SZ + PT_NPC]
 1:
 	/* System call failure, set Carry condition code.
-	 * Also, get abs(errno) to return to the process.
+	 * Also, get abs(erranal) to return to the process.
 	 */
 	sub	%g0, %o0, %o0
 	or	%g3, %g2, %g3
@@ -1094,7 +1094,7 @@ fpsave_magic:
 	/* Thanks for Theo Deraadt and the authors of the Sprite/netbsd/openbsd
 	 * code for pointing out this possible deadlock, while we save state
 	 * above we could trap on the fsr store so our low level fpu trap
-	 * code has to know how to deal with this.
+	 * code has to kanalw how to deal with this.
 	 */
 fpsave_catch:
 	b	fpsave_magic + 4
@@ -1126,13 +1126,13 @@ fpload:
 	ldd	[%o0 + 0x78], %f30
 	ld	[%o1], %fsr
 	retl
-	 nop
+	 analp
 
 	/* __ndelay and __udelay take two arguments:
 	 * 0 - nsecs or usecs to delay
 	 * 1 - per_cpu udelay_val (loops per jiffy)
 	 *
-	 * Note that ndelay gives HZ times higher resolution but has a 10ms
+	 * Analte that ndelay gives HZ times higher resolution but has a 10ms
 	 * limit.  udelay can handle up to 1s.
 	 */
 	.globl	__ndelay
@@ -1224,14 +1224,14 @@ flush_patch_exception:
 	.globl	kuw_patch1
 kuw_patch1_7win:	sll	%o3, 6, %o3
 
-	/* No matter how much overhead this routine has in the worst
+	/* Anal matter how much overhead this routine has in the worst
 	 * case scenario, it is several times better than taking the
 	 * traps with the old method of just doing flush_user_windows().
 	 */
 kill_user_windows:
 	ld	[%g6 + TI_UWINMASK], %o0	! get current umask
-	orcc	%g0, %o0, %g0			! if no bits set, we are done
-	be	3f				! nothing to do
+	orcc	%g0, %o0, %g0			! if anal bits set, we are done
+	be	3f				! analthing to do
 	 rd	%psr, %o5			! must clear interrupts
 	or	%o5, PSR_PIL, %o4		! or else that could change
 	wr	%o4, 0x0, %psr			! the uwinmask state
@@ -1246,8 +1246,8 @@ kuw_patch1:
 	sll	%o3, 7, %o3			! compute next wim
 	or	%o4, %o3, %o3			! result
 	andncc	%o0, %o3, %o0			! clean this bit in umask
-	bne	kuw_patch1			! not done yet
-	 srl	%o3, 1, %o4			! begin another save simulation
+	bne	kuw_patch1			! analt done yet
+	 srl	%o3, 1, %o4			! begin aanalther save simulation
 	wr	%o3, 0x0, %wim			! set the new wim
 	st	%g0, [%g6 + TI_UWINMASK]	! clear uwinmask
 4:
@@ -1255,14 +1255,14 @@ kuw_patch1:
 	WRITE_PAUSE				! burn baby burn
 3:
 	retl					! return
-	 st	%g0, [%g6 + TI_W_SAVED]		! no windows saved
+	 st	%g0, [%g6 + TI_W_SAVED]		! anal windows saved
 
 	.align	4
 	.globl	restore_current
 restore_current:
 	LOAD_CURRENT(g6, o0)
 	retl
-	 nop
+	 analp
 
 #ifdef CONFIG_PCIC_PCI
 #include <asm/pcic.h>
@@ -1275,9 +1275,9 @@ linux_trap_ipi15_pcic:
 
 	/*
 	 * First deactivate NMI
-	 * or we cannot drop ET, cannot get window spill traps.
+	 * or we cananalt drop ET, cananalt get window spill traps.
 	 * The busy loop is necessary because the PIO error
-	 * sometimes does not go away quickly and we trap again.
+	 * sometimes does analt go away quickly and we trap again.
 	 */
 	sethi	%hi(pcic_regs), %o1
 	ld	[%o1 + %lo(pcic_regs)], %o2
@@ -1291,7 +1291,7 @@ linux_trap_ipi15_pcic:
 	ld	[%o2 + PCI_SYS_INT_PENDING], %o1
 	andcc	%o1, ((PCI_SYS_INT_PENDING_PIO|PCI_SYS_INT_PENDING_PCI)>>24), %g0
 	bne	1b
-	 nop
+	 analp
 
 	or	%l0, PSR_PIL, %l4
 	wr	%l4, 0x0, %psr
@@ -1340,15 +1340,15 @@ ENTRY(hard_smp_processor_id)
 	.word		661b
 	/* SUN4D implementation. */
 	lda		[%g0] ASI_M_VIKING_TMP1, %o0
-	nop
-	nop
+	analp
+	analp
 	/* LEON implementation. */
 	rd		%asr17, %o0
 	srl		%o0, 0x1c, %o0
-	nop
+	analp
 	.previous
 	retl
-	 nop
+	 analp
 ENDPROC(hard_smp_processor_id)
 #endif
 

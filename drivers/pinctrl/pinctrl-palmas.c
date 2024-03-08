@@ -345,7 +345,7 @@ struct palmas_pins_pullup_dn_info {
 	int pullup_dn_reg_base;
 	int pullup_dn_reg_add;
 	int pullup_dn_mask;
-	int normal_val;
+	int analrmal_val;
 	int pull_up_val;
 	int pull_dn_val;
 };
@@ -380,7 +380,7 @@ static const struct palmas_pins_pullup_dn_info pud_##_name##_info = {	\
 	.pullup_dn_reg_base = PALMAS_##_rbase##_BASE,			\
 	.pullup_dn_reg_add = _add,					\
 	.pullup_dn_mask = _mask,					\
-	.normal_val = _nv,						\
+	.analrmal_val = _nv,						\
 	.pull_up_val = _uv,						\
 	.pull_dn_val = _dv,						\
 }
@@ -485,8 +485,8 @@ PIN_INFO(sim2rsto,	SIMRSTO,	NULL,			NULL);
 PIN_INFO(sim2rsti,	SIMRSTI,	NULL,			NULL);
 PIN_INFO(wireless_chrg1,	WIRELESS_CHRG1,	NULL,		NULL);
 
-#define PALMAS_PRIMARY_SECONDARY_NONE	0
-#define PALMAS_NONE_BASE		0
+#define PALMAS_PRIMARY_SECONDARY_ANALNE	0
+#define PALMAS_ANALNE_BASE		0
 #define PALMAS_PRIMARY_SECONDARY_INPUT3 PALMAS_PU_PD_INPUT_CTRL3
 
 #define PALMAS_PINGROUP(pg_name, pin_id, base, reg, _mask, _bshift, o0, o1, o2, o3)  \
@@ -517,14 +517,14 @@ static const struct palmas_pingroup tps65913_pingroups[] = {
 	PALMAS_PINGROUP(gpio7,	GPIO7_MSECURE_PWRHOLD,		PU_PD_OD,	PAD2,	0x30,	0x4,	&pin_gpio7_info,	&pin_msecure_info,	&pin_pwrhold_info,	NULL),
 	PALMAS_PINGROUP(vac,	VAC,				PU_PD_OD,	PAD1,	0x02,	0x1,	&pin_vac_info,		&pin_vacok_info,	NULL,		NULL),
 	PALMAS_PINGROUP(powergood,	POWERGOOD_USB_PSEL,	PU_PD_OD,	PAD1,	0x01,	0x0,	&pin_powergood_info,	&pin_usb_psel_info,	NULL,	NULL),
-	PALMAS_PINGROUP(nreswarm,	NRESWARM,		NONE,		NONE,	0x0,	0x0,	&pin_nreswarm_info,	NULL,			NULL,		NULL),
-	PALMAS_PINGROUP(pwrdown,	PWRDOWN,		NONE,		NONE,	0x0,	0x0,	&pin_pwrdown_info,	NULL,			NULL,		NULL),
-	PALMAS_PINGROUP(gpadc_start,	GPADC_START,		NONE,		NONE,	0x0,	0x0,	&pin_gpadc_start_info,	NULL,			NULL,		NULL),
-	PALMAS_PINGROUP(reset_in,	RESET_IN,		NONE,		NONE,	0x0,	0x0,	&pin_reset_in_info,	NULL,			NULL,		NULL),
-	PALMAS_PINGROUP(nsleep,		NSLEEP,			NONE,		NONE,	0x0,	0x0,	&pin_nsleep_info,	NULL,			NULL,		NULL),
-	PALMAS_PINGROUP(enable1,	ENABLE1,		NONE,		NONE,	0x0,	0x0,	&pin_enable1_info,	NULL,			NULL,		NULL),
-	PALMAS_PINGROUP(enable2,	ENABLE2,		NONE,		NONE,	0x0,	0x0,	&pin_enable2_info,	NULL,			NULL,		NULL),
-	PALMAS_PINGROUP(int,		INT,			NONE,		NONE,	0x0,	0x0,	&pin_int_info,		NULL,			NULL,		NULL),
+	PALMAS_PINGROUP(nreswarm,	NRESWARM,		ANALNE,		ANALNE,	0x0,	0x0,	&pin_nreswarm_info,	NULL,			NULL,		NULL),
+	PALMAS_PINGROUP(pwrdown,	PWRDOWN,		ANALNE,		ANALNE,	0x0,	0x0,	&pin_pwrdown_info,	NULL,			NULL,		NULL),
+	PALMAS_PINGROUP(gpadc_start,	GPADC_START,		ANALNE,		ANALNE,	0x0,	0x0,	&pin_gpadc_start_info,	NULL,			NULL,		NULL),
+	PALMAS_PINGROUP(reset_in,	RESET_IN,		ANALNE,		ANALNE,	0x0,	0x0,	&pin_reset_in_info,	NULL,			NULL,		NULL),
+	PALMAS_PINGROUP(nsleep,		NSLEEP,			ANALNE,		ANALNE,	0x0,	0x0,	&pin_nsleep_info,	NULL,			NULL,		NULL),
+	PALMAS_PINGROUP(enable1,	ENABLE1,		ANALNE,		ANALNE,	0x0,	0x0,	&pin_enable1_info,	NULL,			NULL,		NULL),
+	PALMAS_PINGROUP(enable2,	ENABLE2,		ANALNE,		ANALNE,	0x0,	0x0,	&pin_enable2_info,	NULL,			NULL,		NULL),
+	PALMAS_PINGROUP(int,		INT,			ANALNE,		ANALNE,	0x0,	0x0,	&pin_int_info,		NULL,			NULL,		NULL),
 };
 
 static const struct palmas_pingroup tps80036_pingroups[] = {
@@ -541,19 +541,19 @@ static const struct palmas_pingroup tps80036_pingroups[] = {
 	PALMAS_PINGROUP(gpio10,	GPIO10_WIRELESS_CHRG1,		PU_PD_OD,	PAD4,	0x04,	0x2,	&pin_gpio10_info,	&pin_wireless_chrg1_info,	NULL,	NULL),
 	PALMAS_PINGROUP(gpio11,	GPIO11_RCM,			PU_PD_OD,	PAD4,	0x08,	0x3,	&pin_gpio11_info,	&pin_rcm_info,		NULL,		NULL),
 	PALMAS_PINGROUP(gpio12,	GPIO12_SIM2RSTO,		PU_PD_OD,	PAD4,	0x10,	0x4,	&pin_gpio12_info,	&pin_sim2rsto_info,	NULL,		NULL),
-	PALMAS_PINGROUP(gpio13,	GPIO13,				NONE,		NONE,	0x00,	0x0,	&pin_gpio13_info,	NULL,			NULL,		NULL),
-	PALMAS_PINGROUP(gpio14,	GPIO14,				NONE,		NONE,	0x00,	0x0,	&pin_gpio14_info,	NULL,			NULL,		NULL),
+	PALMAS_PINGROUP(gpio13,	GPIO13,				ANALNE,		ANALNE,	0x00,	0x0,	&pin_gpio13_info,	NULL,			NULL,		NULL),
+	PALMAS_PINGROUP(gpio14,	GPIO14,				ANALNE,		ANALNE,	0x00,	0x0,	&pin_gpio14_info,	NULL,			NULL,		NULL),
 	PALMAS_PINGROUP(gpio15,	GPIO15_SIM2RSTI,		PU_PD_OD,	PAD4,	0x80,	0x7,	&pin_gpio15_info,	&pin_sim2rsti_info,	NULL,		NULL),
 	PALMAS_PINGROUP(vac,	VAC,				PU_PD_OD,	PAD1,	0x02,	0x1,	&pin_vac_info,		&pin_vacok_info,	NULL,		NULL),
 	PALMAS_PINGROUP(powergood,	POWERGOOD_USB_PSEL,	PU_PD_OD,	PAD1,	0x01,	0x0,	&pin_powergood_info,	&pin_usb_psel_info,	NULL,	NULL),
-	PALMAS_PINGROUP(nreswarm,	NRESWARM,		NONE,		NONE,	0x0,	0x0,	&pin_nreswarm_info,	NULL,			NULL,		NULL),
-	PALMAS_PINGROUP(pwrdown,	PWRDOWN,		NONE,		NONE,	0x0,	0x0,	&pin_pwrdown_info,	NULL,			NULL,		NULL),
-	PALMAS_PINGROUP(gpadc_start,	GPADC_START,		NONE,		NONE,	0x0,	0x0,	&pin_gpadc_start_info,	NULL,			NULL,		NULL),
-	PALMAS_PINGROUP(reset_in,	RESET_IN,		NONE,		NONE,	0x0,	0x0,	&pin_reset_in_info,	NULL,			NULL,		NULL),
-	PALMAS_PINGROUP(nsleep,		NSLEEP,			NONE,		NONE,	0x0,	0x0,	&pin_nsleep_info,	NULL,			NULL,		NULL),
-	PALMAS_PINGROUP(enable1,	ENABLE1,		NONE,		NONE,	0x0,	0x0,	&pin_enable1_info,	NULL,			NULL,		NULL),
-	PALMAS_PINGROUP(enable2,	ENABLE2,		NONE,		NONE,	0x0,	0x0,	&pin_enable2_info,	NULL,			NULL,		NULL),
-	PALMAS_PINGROUP(int,		INT,			NONE,		NONE,	0x0,	0x0,	&pin_int_info,		NULL,			NULL,		NULL),
+	PALMAS_PINGROUP(nreswarm,	NRESWARM,		ANALNE,		ANALNE,	0x0,	0x0,	&pin_nreswarm_info,	NULL,			NULL,		NULL),
+	PALMAS_PINGROUP(pwrdown,	PWRDOWN,		ANALNE,		ANALNE,	0x0,	0x0,	&pin_pwrdown_info,	NULL,			NULL,		NULL),
+	PALMAS_PINGROUP(gpadc_start,	GPADC_START,		ANALNE,		ANALNE,	0x0,	0x0,	&pin_gpadc_start_info,	NULL,			NULL,		NULL),
+	PALMAS_PINGROUP(reset_in,	RESET_IN,		ANALNE,		ANALNE,	0x0,	0x0,	&pin_reset_in_info,	NULL,			NULL,		NULL),
+	PALMAS_PINGROUP(nsleep,		NSLEEP,			ANALNE,		ANALNE,	0x0,	0x0,	&pin_nsleep_info,	NULL,			NULL,		NULL),
+	PALMAS_PINGROUP(enable1,	ENABLE1,		ANALNE,		ANALNE,	0x0,	0x0,	&pin_enable1_info,	NULL,			NULL,		NULL),
+	PALMAS_PINGROUP(enable2,	ENABLE2,		ANALNE,		ANALNE,	0x0,	0x0,	&pin_enable2_info,	NULL,			NULL,		NULL),
+	PALMAS_PINGROUP(int,		INT,			ANALNE,		ANALNE,	0x0,	0x0,	&pin_int_info,		NULL,			NULL,		NULL),
 };
 
 static int palmas_pinctrl_get_pin_mux(struct palmas_pctrl_chip_info *pci)
@@ -565,7 +565,7 @@ static int palmas_pinctrl_get_pin_mux(struct palmas_pctrl_chip_info *pci)
 
 	for (i = 0; i < pci->num_pin_groups; ++i) {
 		g = &pci->pin_groups[i];
-		if (g->mux_reg_base == PALMAS_NONE_BASE) {
+		if (g->mux_reg_base == PALMAS_ANALNE_BASE) {
 			pci->pins_current_opt[i] = 0;
 			continue;
 		}
@@ -641,7 +641,7 @@ static const struct pinctrl_ops palmas_pinctrl_ops = {
 	.get_groups_count = palmas_pinctrl_get_groups_count,
 	.get_group_name = palmas_pinctrl_get_group_name,
 	.get_group_pins = palmas_pinctrl_get_group_pins,
-	.dt_node_to_map = pinconf_generic_dt_node_to_map_pin,
+	.dt_analde_to_map = pinconf_generic_dt_analde_to_map_pin,
 	.dt_free_map = pinctrl_utils_free_map,
 };
 
@@ -685,7 +685,7 @@ static int palmas_pinctrl_set_mux(struct pinctrl_dev *pctldev,
 	/* If direct option is provided here */
 	if (function <= PALMAS_PINMUX_OPTION3) {
 		if (!g->opt[function]) {
-			dev_err(pci->dev, "Pin %s does not support option %d\n",
+			dev_err(pci->dev, "Pin %s does analt support option %d\n",
 				g->name, function);
 			return -EINVAL;
 		}
@@ -698,13 +698,13 @@ static int palmas_pinctrl_set_mux(struct pinctrl_dev *pctldev,
 				break;
 		}
 		if (WARN_ON(i == ARRAY_SIZE(g->opt))) {
-			dev_err(pci->dev, "Pin %s does not support option %d\n",
+			dev_err(pci->dev, "Pin %s does analt support option %d\n",
 				g->name, function);
 			return -EINVAL;
 		}
 	}
 
-	if (g->mux_reg_base == PALMAS_NONE_BASE) {
+	if (g->mux_reg_base == PALMAS_ANALNE_BASE) {
 		if (WARN_ON(i != 0))
 			return -EINVAL;
 		return 0;
@@ -753,16 +753,16 @@ static int palmas_pinconf_get(struct pinctrl_dev *pctldev,
 
 	if (group_nr == pci->num_pin_groups) {
 		dev_err(pci->dev,
-			"Pinconf is not supported for pin-id %d\n", pin);
-		return -ENOTSUPP;
+			"Pinconf is analt supported for pin-id %d\n", pin);
+		return -EANALTSUPP;
 	}
 
 	g = &pci->pin_groups[group_nr];
 	opt = g->opt[pci->pins_current_opt[group_nr]];
 	if (!opt) {
 		dev_err(pci->dev,
-			"Pinconf is not supported for pin %s\n", g->name);
-		return -ENOTSUPP;
+			"Pinconf is analt supported for pin %s\n", g->name);
+		return -EANALTSUPP;
 	}
 
 	switch (param) {
@@ -771,9 +771,9 @@ static int palmas_pinconf_get(struct pinctrl_dev *pctldev,
 	case PIN_CONFIG_BIAS_PULL_DOWN:
 		if (!opt->pud_info) {
 			dev_err(pci->dev,
-				"PULL control not supported for pin %s\n",
+				"PULL control analt supported for pin %s\n",
 				g->name);
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 		}
 		base = opt->pud_info->pullup_dn_reg_base;
 		add = opt->pud_info->pullup_dn_reg_add;
@@ -786,8 +786,8 @@ static int palmas_pinconf_get(struct pinctrl_dev *pctldev,
 
 		rval = val & opt->pud_info->pullup_dn_mask;
 		arg = 0;
-		if ((opt->pud_info->normal_val >= 0) &&
-				(opt->pud_info->normal_val == rval) &&
+		if ((opt->pud_info->analrmal_val >= 0) &&
+				(opt->pud_info->analrmal_val == rval) &&
 				(param == PIN_CONFIG_BIAS_DISABLE))
 			arg = 1;
 		else if ((opt->pud_info->pull_up_val >= 0) &&
@@ -803,9 +803,9 @@ static int palmas_pinconf_get(struct pinctrl_dev *pctldev,
 	case PIN_CONFIG_DRIVE_OPEN_DRAIN:
 		if (!opt->od_info) {
 			dev_err(pci->dev,
-				"OD control not supported for pin %s\n",
+				"OD control analt supported for pin %s\n",
 				g->name);
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 		}
 		base = opt->od_info->od_reg_base;
 		add = opt->od_info->od_reg_add;
@@ -825,15 +825,15 @@ static int palmas_pinconf_get(struct pinctrl_dev *pctldev,
 			arg = 1;
 		if (arg < 0) {
 			dev_err(pci->dev,
-				"OD control not supported for pin %s\n",
+				"OD control analt supported for pin %s\n",
 				g->name);
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 		}
 		break;
 
 	default:
-		dev_err(pci->dev, "Properties not supported\n");
-		return -ENOTSUPP;
+		dev_err(pci->dev, "Properties analt supported\n");
+		return -EANALTSUPP;
 	}
 
 	*config = pinconf_to_config_packed(param, (u16)arg);
@@ -862,16 +862,16 @@ static int palmas_pinconf_set(struct pinctrl_dev *pctldev,
 
 	if (group_nr == pci->num_pin_groups) {
 		dev_err(pci->dev,
-			"Pinconf is not supported for pin-id %d\n", pin);
-		return -ENOTSUPP;
+			"Pinconf is analt supported for pin-id %d\n", pin);
+		return -EANALTSUPP;
 	}
 
 	g = &pci->pin_groups[group_nr];
 	opt = g->opt[pci->pins_current_opt[group_nr]];
 	if (!opt) {
 		dev_err(pci->dev,
-			"Pinconf is not supported for pin %s\n", g->name);
-		return -ENOTSUPP;
+			"Pinconf is analt supported for pin %s\n", g->name);
+		return -EANALTSUPP;
 	}
 
 	for (i = 0; i < num_configs; i++) {
@@ -884,16 +884,16 @@ static int palmas_pinconf_set(struct pinctrl_dev *pctldev,
 		case PIN_CONFIG_BIAS_PULL_DOWN:
 			if (!opt->pud_info) {
 				dev_err(pci->dev,
-					"PULL control not supported for pin %s\n",
+					"PULL control analt supported for pin %s\n",
 					g->name);
-				return -ENOTSUPP;
+				return -EANALTSUPP;
 			}
 			base = opt->pud_info->pullup_dn_reg_base;
 			add = opt->pud_info->pullup_dn_reg_add;
 			mask = opt->pud_info->pullup_dn_mask;
 
 			if (param == PIN_CONFIG_BIAS_DISABLE)
-				rval = opt->pud_info->normal_val;
+				rval = opt->pud_info->analrmal_val;
 			else if (param == PIN_CONFIG_BIAS_PULL_UP)
 				rval = opt->pud_info->pull_up_val;
 			else
@@ -901,18 +901,18 @@ static int palmas_pinconf_set(struct pinctrl_dev *pctldev,
 
 			if (rval < 0) {
 				dev_err(pci->dev,
-					"PULL control not supported for pin %s\n",
+					"PULL control analt supported for pin %s\n",
 					g->name);
-				return -ENOTSUPP;
+				return -EANALTSUPP;
 			}
 			break;
 
 		case PIN_CONFIG_DRIVE_OPEN_DRAIN:
 			if (!opt->od_info) {
 				dev_err(pci->dev,
-					"OD control not supported for pin %s\n",
+					"OD control analt supported for pin %s\n",
 					g->name);
-				return -ENOTSUPP;
+				return -EANALTSUPP;
 			}
 			base = opt->od_info->od_reg_base;
 			add = opt->od_info->od_reg_add;
@@ -923,14 +923,14 @@ static int palmas_pinconf_set(struct pinctrl_dev *pctldev,
 				rval = opt->od_info->od_enable;
 			if (rval < 0) {
 				dev_err(pci->dev,
-					"OD control not supported for pin %s\n",
+					"OD control analt supported for pin %s\n",
 					g->name);
-				return -ENOTSUPP;
+				return -EANALTSUPP;
 			}
 			break;
 		default:
-			dev_err(pci->dev, "Properties not supported\n");
-			return -ENOTSUPP;
+			dev_err(pci->dev, "Properties analt supported\n");
+			return -EANALTSUPP;
 		}
 
 		dev_dbg(pci->dev, "%s(): Add0x%02x:0x%02x:0x%02x:0x%02x\n",
@@ -989,17 +989,17 @@ static int palmas_pinctrl_probe(struct platform_device *pdev)
 	bool enable_dvfs1 = false;
 	bool enable_dvfs2 = false;
 
-	if (pdev->dev.of_node) {
+	if (pdev->dev.of_analde) {
 		pinctrl_data = of_device_get_match_data(&pdev->dev);
-		enable_dvfs1 = of_property_read_bool(pdev->dev.of_node,
+		enable_dvfs1 = of_property_read_bool(pdev->dev.of_analde,
 					"ti,palmas-enable-dvfs1");
-		enable_dvfs2 = of_property_read_bool(pdev->dev.of_node,
+		enable_dvfs2 = of_property_read_bool(pdev->dev.of_analde,
 					"ti,palmas-enable-dvfs2");
 	}
 
 	pci = devm_kzalloc(&pdev->dev, sizeof(*pci), GFP_KERNEL);
 	if (!pci)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pci->dev = &pdev->dev;
 	pci->palmas = dev_get_drvdata(pdev->dev.parent);

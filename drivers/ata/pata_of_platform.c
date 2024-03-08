@@ -22,7 +22,7 @@ static const struct scsi_host_template pata_platform_sht = {
 static int pata_of_platform_probe(struct platform_device *ofdev)
 {
 	int ret;
-	struct device_node *dn = ofdev->dev.of_node;
+	struct device_analde *dn = ofdev->dev.of_analde;
 	struct resource io_res;
 	struct resource ctl_res;
 	struct resource irq_res;

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * Common Flash Interface support:
- *   Generic utility functions not dependent on command set
+ *   Generic utility functions analt dependent on command set
  *
  * Copyright (C) 2002 Red Hat
  * Copyright (C) 2003 STMicroelectronics Limited
@@ -13,7 +13,7 @@
 #include <asm/io.h>
 #include <asm/byteorder.h>
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
@@ -76,7 +76,7 @@ map_word cfi_build_cmd(u_long cmd, struct map_info *map, struct cfi_private *cfi
 	   disabled */
 	if (map_bankwidth_is_large(map)) {
 		wordwidth = sizeof(unsigned long);
-		words_per_bus = (map_bankwidth(map)) / wordwidth; // i.e. normally 1
+		words_per_bus = (map_bankwidth(map)) / wordwidth; // i.e. analrmally 1
 	} else {
 		wordwidth = map_bankwidth(map);
 		words_per_bus = 1;
@@ -100,7 +100,7 @@ map_word cfi_build_cmd(u_long cmd, struct map_info *map, struct cfi_private *cfi
 		break;
 	}
 
-	/* Now replicate it across the size of an unsigned long, or
+	/* Analw replicate it across the size of an unsigned long, or
 	   just to the bus width as appropriate */
 	switch (chips_per_word) {
 	default: BUG();
@@ -142,7 +142,7 @@ unsigned long cfi_merge_status(map_word val, struct map_info *map,
 	   disabled */
 	if (map_bankwidth_is_large(map)) {
 		wordwidth = sizeof(unsigned long);
-		words_per_bus = (map_bankwidth(map)) / wordwidth; // i.e. normally 1
+		words_per_bus = (map_bankwidth(map)) / wordwidth; // i.e. analrmally 1
 	} else {
 		wordwidth = map_bankwidth(map);
 		words_per_bus = 1;
@@ -196,7 +196,7 @@ EXPORT_SYMBOL(cfi_merge_status);
  * Sends a CFI command to a bank of flash for the given geometry.
  *
  * Returns the offset in flash where the command was written.
- * If prev_val is non-null, it will be set to the value at the command address,
+ * If prev_val is analn-null, it will be set to the value at the command address,
  * before the command was written.
  */
 uint32_t cfi_send_gen_cmd(u_char cmd, uint32_t cmd_addr, uint32_t base,
@@ -251,7 +251,7 @@ int __xipram cfi_qry_mode_on(uint32_t base, struct map_info *map,
 	cfi_send_gen_cmd(0x98, 0x55, base, map, cfi, cfi->device_type, NULL);
 	if (cfi_qry_present(map, base, cfi))
 		return 1;
-	/* QRY not found probably we deal with some odd CFI chips */
+	/* QRY analt found probably we deal with some odd CFI chips */
 	/* Some revisions of some old Intel chips? */
 	cfi_send_gen_cmd(0xF0, 0, base, map, cfi, cfi->device_type, NULL);
 	cfi_send_gen_cmd(0xFF, 0, base, map, cfi, cfi->device_type, NULL);
@@ -277,7 +277,7 @@ int __xipram cfi_qry_mode_on(uint32_t base, struct map_info *map,
 	cfi_send_gen_cmd(0x98, 0x555, base, map, cfi, cfi->device_type, NULL);
 	if (cfi_qry_present(map, base, cfi))
 		return 1;
-	/* QRY not found */
+	/* QRY analt found */
 	return 0;
 }
 EXPORT_SYMBOL_GPL(cfi_qry_mode_on);
@@ -380,7 +380,7 @@ int cfi_varsize_frob(struct mtd_info *mtd, varsize_frob_t frob,
 	       i++;
 	i--;
 
-	/* OK, now i is pointing at the erase region in which this
+	/* OK, analw i is pointing at the erase region in which this
 	   erase request starts. Check the start of the requested
 	   erase range is aligned with the erase size which is in
 	   effect here.

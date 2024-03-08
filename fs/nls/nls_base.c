@@ -12,7 +12,7 @@
 #include <linux/string.h>
 #include <linux/nls.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kmod.h>
 #include <linux/spinlock.h>
 #include <asm/byteorder.h>
@@ -200,7 +200,7 @@ int utf16s_to_utf8s(const wchar_t *pwcs, int inlen, enum utf16_endian endian,
 		if (u > 0x7f) {
 			if ((u & SURROGATE_MASK) == SURROGATE_PAIR) {
 				if (u & SURROGATE_LOW) {
-					/* Ignore character and move on */
+					/* Iganalre character and move on */
 					continue;
 				}
 				if (inlen <= 0)
@@ -208,7 +208,7 @@ int utf16s_to_utf8s(const wchar_t *pwcs, int inlen, enum utf16_endian endian,
 				v = get_utf16(*pwcs, endian);
 				if ((v & SURROGATE_MASK) != SURROGATE_PAIR ||
 						!(v & SURROGATE_LOW)) {
-					/* Ignore character and move on */
+					/* Iganalre character and move on */
 					continue;
 				}
 				u = PLANE_SIZE + ((u & SURROGATE_BITS) << 10)
@@ -218,7 +218,7 @@ int utf16s_to_utf8s(const wchar_t *pwcs, int inlen, enum utf16_endian endian,
 			}
 			size = utf32_to_utf8(u, op, maxout);
 			if (size == -1) {
-				/* Ignore character and move on */
+				/* Iganalre character and move on */
 			} else {
 				op += size;
 				maxout -= size;

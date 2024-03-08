@@ -53,22 +53,22 @@ out:
 static int tegra124_cpufreq_probe(struct platform_device *pdev)
 {
 	struct tegra124_cpufreq_priv *priv;
-	struct device_node *np;
+	struct device_analde *np;
 	struct device *cpu_dev;
 	struct platform_device_info cpufreq_dt_devinfo = {};
 	int ret;
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cpu_dev = get_cpu_device(0);
 	if (!cpu_dev)
-		return -ENODEV;
+		return -EANALDEV;
 
-	np = of_cpu_device_node_get(0);
+	np = of_cpu_device_analde_get(0);
 	if (!np)
-		return -ENODEV;
+		return -EANALDEV;
 
 	priv->cpu_clk = of_clk_get_by_name(np, "cpu_g");
 	if (IS_ERR(priv->cpu_clk)) {
@@ -110,7 +110,7 @@ static int tegra124_cpufreq_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, priv);
 
-	of_node_put(np);
+	of_analde_put(np);
 
 	return 0;
 
@@ -123,7 +123,7 @@ out_put_dfll_clk:
 out_put_cpu_clk:
 	clk_put(priv->cpu_clk);
 out_put_np:
-	of_node_put(np);
+	of_analde_put(np);
 
 	return ret;
 }
@@ -198,7 +198,7 @@ static int __init tegra_cpufreq_init(void)
 
 	if (!(of_machine_is_compatible("nvidia,tegra124") ||
 		of_machine_is_compatible("nvidia,tegra210")))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
 	 * Platform driver+device required for handling EPROBE_DEFER with

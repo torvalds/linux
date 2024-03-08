@@ -18,7 +18,7 @@
 
 
 /* Addresses to scan */
-static const unsigned short normal_i2c[] = {
+static const unsigned short analrmal_i2c[] = {
 	0x18, 0x19, 0x1a, 0x29, 0x2a, 0x2b, 0x4c, 0x4d, 0x4e, I2C_CLIENT_END };
 
 enum chips {
@@ -58,7 +58,7 @@ enum chips {
 /* Initial values */
 
 /*
- * Note: Even though I left the low and high limits named os and hyst,
+ * Analte: Even though I left the low and high limits named os and hyst,
  * they don't quite work like a thermostat the way the LM75 does.  I.e.,
  * a lower temp than THYST actually triggers an alarm instead of
  * clearing it.  Weird, ey?   --Phil
@@ -318,7 +318,7 @@ static const struct attribute_group adm1021_min_group = {
 	.attrs = adm1021_min_attributes,
 };
 
-/* Return 0 if detection is successful, -ENODEV otherwise */
+/* Return 0 if detection is successful, -EANALDEV otherwise */
 static int adm1021_detect(struct i2c_client *client,
 			  struct i2c_board_info *info)
 {
@@ -327,8 +327,8 @@ static int adm1021_detect(struct i2c_client *client,
 	int reg, conv_rate, status, config, man_id, dev_id;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA)) {
-		pr_debug("detect failed, smbus byte data not supported!\n");
-		return -ENODEV;
+		pr_debug("detect failed, smbus byte data analt supported!\n");
+		return -EANALDEV;
 	}
 
 	status = i2c_smbus_read_byte_data(client, ADM1021_REG_STATUS);
@@ -338,8 +338,8 @@ static int adm1021_detect(struct i2c_client *client,
 
 	/* Check unused bits */
 	if ((status & 0x03) || (config & 0x3F) || (conv_rate & 0xF8)) {
-		pr_debug("detect failed, chip not detected!\n");
-		return -ENODEV;
+		pr_debug("detect failed, chip analt detected!\n");
+		return -EANALDEV;
 	}
 
 	/* Determine the chip type. */
@@ -347,7 +347,7 @@ static int adm1021_detect(struct i2c_client *client,
 	dev_id = i2c_smbus_read_byte_data(client, ADM1021_REG_DEV_ID);
 
 	if (man_id < 0 || dev_id < 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (man_id == 0x4d && dev_id == 0x01) {
 		/*
@@ -359,7 +359,7 @@ static int adm1021_detect(struct i2c_client *client,
 		reg = i2c_smbus_read_byte_data(client,
 					       ADM1023_REG_REM_TEMP_PREC);
 		if (reg != dev_id)
-			return -ENODEV;
+			return -EANALDEV;
 		type_name = "max1617a";
 	} else if (man_id == 0x41) {
 		if ((dev_id & 0xF0) == 0x30)
@@ -367,7 +367,7 @@ static int adm1021_detect(struct i2c_client *client,
 		else if ((dev_id & 0xF0) == 0x00)
 			type_name = "adm1021";
 		else
-			return -ENODEV;
+			return -EANALDEV;
 	} else if (man_id == 0x49)
 		type_name = "thmc10";
 	else if (man_id == 0x23)
@@ -384,7 +384,7 @@ static int adm1021_detect(struct i2c_client *client,
 
 		/* fail if any of the additional register reads failed */
 		if (llo < 0 || rlo < 0)
-			return -ENODEV;
+			return -EANALDEV;
 
 		lte = i2c_smbus_read_byte_data(client, ADM1021_REG_TEMP(0));
 		rte = i2c_smbus_read_byte_data(client, ADM1021_REG_TEMP(1));
@@ -396,12 +396,12 @@ static int adm1021_detect(struct i2c_client *client,
 		 * This check also catches read errors on the tested registers.
 		 */
 		if ((s8)lte < 0 || (s8)rte < 0 || (s8)lhi < 0 || (s8)rhi < 0)
-			return -ENODEV;
+			return -EANALDEV;
 
 		/* fail if all registers hold the same value */
 		if (lte == rte && lte == lhi && lte == rhi && lte == llo
 		    && lte == rlo)
-			return -ENODEV;
+			return -EANALDEV;
 
 		/*
 		 * LM84 Mfr ID is in a different place,
@@ -416,10 +416,10 @@ static int adm1021_detect(struct i2c_client *client,
 			type_name = "lm84";
 		} else {
 			if ((config & 0x3f) || (status & 0x03))
-				return -ENODEV;
+				return -EANALDEV;
 			/* fail if low limits are larger than high limits */
 			if ((s8)llo > lhi || (s8)rlo > rhi)
-				return -ENODEV;
+				return -EANALDEV;
 			type_name = "max1617";
 		}
 	}
@@ -450,7 +450,7 @@ static int adm1021_probe(struct i2c_client *client)
 
 	data = devm_kzalloc(dev, sizeof(struct adm1021_data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->client = client;
 	data->type = i2c_match_id(adm1021_id, client)->driver_data;
@@ -491,7 +491,7 @@ static struct i2c_driver adm1021_driver = {
 	.probe		= adm1021_probe,
 	.id_table	= adm1021_id,
 	.detect		= adm1021_detect,
-	.address_list	= normal_i2c,
+	.address_list	= analrmal_i2c,
 };
 
 module_i2c_driver(adm1021_driver);

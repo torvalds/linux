@@ -2,7 +2,7 @@
 #define __NVTHERM_PRIV_H__
 #define nvkm_therm(p) container_of((p), struct nvkm_therm, subdev)
 /*
- * Copyright 2012 The Nouveau community
+ * Copyright 2012 The Analuveau community
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -11,12 +11,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -64,7 +64,7 @@ int nvkm_therm_fan_ctor(struct nvkm_therm *);
 int nvkm_therm_fan_init(struct nvkm_therm *);
 int nvkm_therm_fan_fini(struct nvkm_therm *, bool suspend);
 int nvkm_therm_fan_get(struct nvkm_therm *);
-int nvkm_therm_fan_set(struct nvkm_therm *, bool now, int percent);
+int nvkm_therm_fan_set(struct nvkm_therm *, bool analw, int percent);
 int nvkm_therm_fan_user_get(struct nvkm_therm *);
 int nvkm_therm_fan_user_set(struct nvkm_therm *, int percent);
 

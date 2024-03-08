@@ -87,7 +87,7 @@ enum ad5770r_ch0_modes {
 
 enum ad5770r_ch1_modes {
 	AD5770R_CH1_0_140_LOW_HEAD = 1,
-	AD5770R_CH1_0_140_LOW_NOISE,
+	AD5770R_CH1_0_140_LOW_ANALISE,
 	AD5770R_CH1_0_250
 };
 
@@ -161,7 +161,7 @@ static struct ad5770r_output_modes ad5770r_rng_tbl[] = {
 	{ 0, AD5770R_CH0_NEG_60_0, -60, 0 },
 	{ 0, AD5770R_CH0_NEG_60_300, -60, 300 },
 	{ 1, AD5770R_CH1_0_140_LOW_HEAD, 0, 140 },
-	{ 1, AD5770R_CH1_0_140_LOW_NOISE, 0, 140 },
+	{ 1, AD5770R_CH1_0_140_LOW_ANALISE, 0, 140 },
 	{ 1, AD5770R_CH1_0_250, 0, 250 },
 	{ 2, AD5770R_CH_LOW_RANGE, 0, 55 },
 	{ 2, AD5770R_CH_HIGH_RANGE, 0, 150 },
@@ -232,7 +232,7 @@ static int ad5770r_soft_reset(struct ad5770r_state *st)
 
 static int ad5770r_reset(struct ad5770r_state *st)
 {
-	/* Perform software reset if no GPIO provided */
+	/* Perform software reset if anal GPIO provided */
 	if (!st->gpio_reset)
 		return ad5770r_soft_reset(st);
 
@@ -240,7 +240,7 @@ static int ad5770r_reset(struct ad5770r_state *st)
 	usleep_range(10, 20);
 	gpiod_set_value_cansleep(st->gpio_reset, 1);
 
-	/* data must not be written during reset timeframe */
+	/* data must analt be written during reset timeframe */
 	usleep_range(100, 200);
 
 	return 0;
@@ -333,7 +333,7 @@ static int ad5770r_read_raw(struct iio_dev *indio_dev,
 		if (ret < 0)
 			return ret;
 		*val = max - min;
-		/* There is no sign bit. (negative current is mapped from 0)
+		/* There is anal sign bit. (negative current is mapped from 0)
 		 * (sourced/sinked) current = raw * scale + offset
 		 * where offset in case of CH0 can be negative.
 		 */
@@ -515,14 +515,14 @@ static int ad5770r_channel_config(struct ad5770r_state *st)
 {
 	int ret, tmp[2], min, max;
 	unsigned int num;
-	struct fwnode_handle *child;
+	struct fwanalde_handle *child;
 
-	num = device_get_child_node_count(&st->spi->dev);
+	num = device_get_child_analde_count(&st->spi->dev);
 	if (num != AD5770R_MAX_CHANNELS)
 		return -EINVAL;
 
-	device_for_each_child_node(&st->spi->dev, child) {
-		ret = fwnode_property_read_u32(child, "reg", &num);
+	device_for_each_child_analde(&st->spi->dev, child) {
+		ret = fwanalde_property_read_u32(child, "reg", &num);
 		if (ret)
 			goto err_child_out;
 		if (num >= AD5770R_MAX_CHANNELS) {
@@ -530,7 +530,7 @@ static int ad5770r_channel_config(struct ad5770r_state *st)
 			goto err_child_out;
 		}
 
-		ret = fwnode_property_read_u32_array(child,
+		ret = fwanalde_property_read_u32_array(child,
 						     "adi,range-microamp",
 						     tmp, 2);
 		if (ret)
@@ -546,7 +546,7 @@ static int ad5770r_channel_config(struct ad5770r_state *st)
 	return 0;
 
 err_child_out:
-	fwnode_handle_put(child);
+	fwanalde_handle_put(child);
 	return ret;
 }
 
@@ -575,7 +575,7 @@ static int ad5770r_init(struct ad5770r_state *st)
 			return ret;
 	}
 
-	st->external_res = fwnode_property_read_bool(st->spi->dev.fwnode,
+	st->external_res = fwanalde_property_read_bool(st->spi->dev.fwanalde,
 						     "adi,external-resistor");
 
 	ret = ad5770r_set_reference(st);
@@ -613,7 +613,7 @@ static int ad5770r_probe(struct spi_device *spi)
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	st = iio_priv(indio_dev);
 	spi_set_drvdata(spi, indio_dev);
@@ -649,7 +649,7 @@ static int ad5770r_probe(struct spi_device *spi)
 
 		st->vref = ret / 1000;
 	} else {
-		if (PTR_ERR(st->vref_reg) == -ENODEV) {
+		if (PTR_ERR(st->vref_reg) == -EANALDEV) {
 			st->vref = AD5770R_LOW_VREF_mV;
 			st->internal_ref = true;
 		} else {

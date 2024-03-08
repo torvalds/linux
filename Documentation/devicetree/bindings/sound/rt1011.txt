@@ -1,4 +1,4 @@
-RT1011 Mono Class D Audio Amplifier
+RT1011 Moanal Class D Audio Amplifier
 
 This device supports I2C only.
 

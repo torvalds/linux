@@ -2,7 +2,7 @@
 /*
  * (c) 1998  Grant R. Guenther <grant@torque.net>
  *
- * ktti.c is a low-level protocol driver for the KT Technology
+ * ktti.c is a low-level protocol driver for the KT Techanallogy
  * parallel port adapter.  This adapter is used in the "PHd"
  * portable hard-drives.  As far as I can tell, this device
  * supports 4-bit mode _only_.
@@ -107,5 +107,5 @@ static struct pi_protocol ktti = {
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Grant R. Guenther <grant@torque.net>");
-MODULE_DESCRIPTION("KT Technology parallel port IDE adapter protocol driver");
+MODULE_DESCRIPTION("KT Techanallogy parallel port IDE adapter protocol driver");
 module_pata_parport_driver(ktti);

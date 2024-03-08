@@ -34,7 +34,7 @@ static struct platform_device *cpufreq_dt_pdev, *sun50i_cpufreq_pdev;
 static int sun50i_cpufreq_get_efuse(u32 *versions)
 {
 	struct nvmem_cell *speedbin_nvmem;
-	struct device_node *np;
+	struct device_analde *np;
 	struct device *cpu_dev;
 	u32 *speedbin, efuse_value;
 	size_t len;
@@ -42,24 +42,24 @@ static int sun50i_cpufreq_get_efuse(u32 *versions)
 
 	cpu_dev = get_cpu_device(0);
 	if (!cpu_dev)
-		return -ENODEV;
+		return -EANALDEV;
 
-	np = dev_pm_opp_of_get_opp_desc_node(cpu_dev);
+	np = dev_pm_opp_of_get_opp_desc_analde(cpu_dev);
 	if (!np)
-		return -ENOENT;
+		return -EANALENT;
 
 	ret = of_device_is_compatible(np,
 				      "allwinner,sun50i-h6-operating-points");
 	if (!ret) {
-		of_node_put(np);
-		return -ENOENT;
+		of_analde_put(np);
+		return -EANALENT;
 	}
 
 	speedbin_nvmem = of_nvmem_cell_get(np, NULL);
-	of_node_put(np);
+	of_analde_put(np);
 	if (IS_ERR(speedbin_nvmem))
 		return dev_err_probe(cpu_dev, PTR_ERR(speedbin_nvmem),
-				     "Could not get nvmem cell\n");
+				     "Could analt get nvmem cell\n");
 
 	speedbin = nvmem_cell_read(speedbin_nvmem, &len);
 	nvmem_cell_put(speedbin_nvmem);
@@ -93,7 +93,7 @@ static int sun50i_cpufreq_nvmem_probe(struct platform_device *pdev)
 	opp_tokens = kcalloc(num_possible_cpus(), sizeof(*opp_tokens),
 			     GFP_KERNEL);
 	if (!opp_tokens)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = sun50i_cpufreq_get_efuse(&speed);
 	if (ret) {
@@ -107,7 +107,7 @@ static int sun50i_cpufreq_nvmem_probe(struct platform_device *pdev)
 		struct device *cpu_dev = get_cpu_device(cpu);
 
 		if (!cpu_dev) {
-			ret = -ENODEV;
+			ret = -EANALDEV;
 			goto free_opp;
 		}
 
@@ -164,14 +164,14 @@ static const struct of_device_id sun50i_cpufreq_match_list[] = {
 };
 MODULE_DEVICE_TABLE(of, sun50i_cpufreq_match_list);
 
-static const struct of_device_id *sun50i_cpufreq_match_node(void)
+static const struct of_device_id *sun50i_cpufreq_match_analde(void)
 {
 	const struct of_device_id *match;
-	struct device_node *np;
+	struct device_analde *np;
 
-	np = of_find_node_by_path("/");
-	match = of_match_node(sun50i_cpufreq_match_list, np);
-	of_node_put(np);
+	np = of_find_analde_by_path("/");
+	match = of_match_analde(sun50i_cpufreq_match_list, np);
+	of_analde_put(np);
 
 	return match;
 }
@@ -186,9 +186,9 @@ static int __init sun50i_cpufreq_init(void)
 	const struct of_device_id *match;
 	int ret;
 
-	match = sun50i_cpufreq_match_node();
+	match = sun50i_cpufreq_match_analde();
 	if (!match)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = platform_driver_register(&sun50i_cpufreq_driver);
 	if (unlikely(ret < 0))

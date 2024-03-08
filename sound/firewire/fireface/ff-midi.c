@@ -9,7 +9,7 @@
 
 static int midi_capture_open(struct snd_rawmidi_substream *substream)
 {
-	/* Do nothing. */
+	/* Do analthing. */
 	return 0;
 }
 
@@ -28,7 +28,7 @@ static int midi_playback_open(struct snd_rawmidi_substream *substream)
 
 static int midi_capture_close(struct snd_rawmidi_substream *substream)
 {
-	/* Do nothing. */
+	/* Do analthing. */
 	return 0;
 }
 

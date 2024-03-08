@@ -26,7 +26,7 @@ description: |
       * DMICDAT
 
 maintainers:
-  - Leon Romanovsky <leon@leon.nu>
+  - Leon Romaanalvsky <leon@leon.nu>
 
 properties:
   compatible:

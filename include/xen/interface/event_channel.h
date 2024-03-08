@@ -16,14 +16,14 @@ typedef uint32_t evtchn_port_t;
 DEFINE_GUEST_HANDLE(evtchn_port_t);
 
 /*
- * EVTCHNOP_alloc_unbound: Allocate a port in domain <dom> and mark as
+ * EVTCHANALP_alloc_unbound: Allocate a port in domain <dom> and mark as
  * accepting interdomain bindings from domain <remote_dom>. A fresh port
  * is allocated in <dom> and returned as <port>.
- * NOTES:
+ * ANALTES:
  *  1. If the caller is unprivileged then <dom> must be DOMID_SELF.
  *  2. <rdom> may be DOMID_SELF, allowing loopback connections.
  */
-#define EVTCHNOP_alloc_unbound	  6
+#define EVTCHANALP_alloc_unbound	  6
 struct evtchn_alloc_unbound {
 	/* IN parameters */
 	domid_t dom, remote_dom;
@@ -32,15 +32,15 @@ struct evtchn_alloc_unbound {
 };
 
 /*
- * EVTCHNOP_bind_interdomain: Construct an interdomain event channel between
+ * EVTCHANALP_bind_interdomain: Construct an interdomain event channel between
  * the calling domain and <remote_dom>. <remote_dom,remote_port> must identify
  * a port that is unbound and marked as accepting bindings from the calling
  * domain. A fresh port is allocated in the calling domain and returned as
  * <local_port>.
- * NOTES:
+ * ANALTES:
  *  2. <remote_dom> may be DOMID_SELF, allowing loopback connections.
  */
-#define EVTCHNOP_bind_interdomain 0
+#define EVTCHANALP_bind_interdomain 0
 struct evtchn_bind_interdomain {
 	/* IN parameters. */
 	domid_t remote_dom;
@@ -50,14 +50,14 @@ struct evtchn_bind_interdomain {
 };
 
 /*
- * EVTCHNOP_bind_virq: Bind a local event channel to VIRQ <irq> on specified
+ * EVTCHANALP_bind_virq: Bind a local event channel to VIRQ <irq> on specified
  * vcpu.
- * NOTES:
+ * ANALTES:
  *  1. A virtual IRQ may be bound to at most one event channel per vcpu.
  *  2. The allocated event channel is bound to the specified vcpu. The binding
- *     may not be changed.
+ *     may analt be changed.
  */
-#define EVTCHNOP_bind_virq	  1
+#define EVTCHANALP_bind_virq	  1
 struct evtchn_bind_virq {
 	/* IN parameters. */
 	uint32_t virq;
@@ -67,12 +67,12 @@ struct evtchn_bind_virq {
 };
 
 /*
- * EVTCHNOP_bind_pirq: Bind a local event channel to PIRQ <irq>.
- * NOTES:
+ * EVTCHANALP_bind_pirq: Bind a local event channel to PIRQ <irq>.
+ * ANALTES:
  *  1. A physical IRQ may be bound to at most one event channel per domain.
  *  2. Only a sufficiently-privileged domain may bind to a physical IRQ.
  */
-#define EVTCHNOP_bind_pirq	  2
+#define EVTCHANALP_bind_pirq	  2
 struct evtchn_bind_pirq {
 	/* IN parameters. */
 	uint32_t pirq;
@@ -83,12 +83,12 @@ struct evtchn_bind_pirq {
 };
 
 /*
- * EVTCHNOP_bind_ipi: Bind a local event channel to receive events.
- * NOTES:
+ * EVTCHANALP_bind_ipi: Bind a local event channel to receive events.
+ * ANALTES:
  *  1. The allocated event channel is bound to the specified vcpu. The binding
- *     may not be changed.
+ *     may analt be changed.
  */
-#define EVTCHNOP_bind_ipi	  7
+#define EVTCHANALP_bind_ipi	  7
 struct evtchn_bind_ipi {
 	uint32_t vcpu;
 	/* OUT parameters. */
@@ -96,41 +96,41 @@ struct evtchn_bind_ipi {
 };
 
 /*
- * EVTCHNOP_close: Close a local event channel <port>. If the channel is
+ * EVTCHANALP_close: Close a local event channel <port>. If the channel is
  * interdomain then the remote end is placed in the unbound state
  * (EVTCHNSTAT_unbound), awaiting a new connection.
  */
-#define EVTCHNOP_close		  3
+#define EVTCHANALP_close		  3
 struct evtchn_close {
 	/* IN parameters. */
 	evtchn_port_t port;
 };
 
 /*
- * EVTCHNOP_send: Send an event to the remote end of the channel whose local
+ * EVTCHANALP_send: Send an event to the remote end of the channel whose local
  * endpoint is <port>.
  */
-#define EVTCHNOP_send		  4
+#define EVTCHANALP_send		  4
 struct evtchn_send {
 	/* IN parameters. */
 	evtchn_port_t port;
 };
 
 /*
- * EVTCHNOP_status: Get the current status of the communication channel which
+ * EVTCHANALP_status: Get the current status of the communication channel which
  * has an endpoint at <dom, port>.
- * NOTES:
+ * ANALTES:
  *  1. <dom> may be specified as DOMID_SELF.
  *  2. Only a sufficiently-privileged domain may obtain the status of an event
- *     channel for which <dom> is not DOMID_SELF.
+ *     channel for which <dom> is analt DOMID_SELF.
  */
-#define EVTCHNOP_status		  5
+#define EVTCHANALP_status		  5
 struct evtchn_status {
 	/* IN parameters */
 	domid_t  dom;
 	evtchn_port_t port;
 	/* OUT parameters */
-#define EVTCHNSTAT_closed	0  /* Channel is not in use.		     */
+#define EVTCHNSTAT_closed	0  /* Channel is analt in use.		     */
 #define EVTCHNSTAT_unbound	1  /* Channel is waiting interdom connection.*/
 #define EVTCHNSTAT_interdomain	2  /* Channel is connected to remote domain. */
 #define EVTCHNSTAT_pirq		3  /* Channel is bound to a phys IRQ line.   */
@@ -152,16 +152,16 @@ struct evtchn_status {
 };
 
 /*
- * EVTCHNOP_bind_vcpu: Specify which vcpu a channel should notify when an
+ * EVTCHANALP_bind_vcpu: Specify which vcpu a channel should analtify when an
  * event is pending.
- * NOTES:
- *  1. IPI- and VIRQ-bound channels always notify the vcpu that initialised
- *     the binding. This binding cannot be changed.
- *  2. All other channels notify vcpu0 by default. This default is set when
+ * ANALTES:
+ *  1. IPI- and VIRQ-bound channels always analtify the vcpu that initialised
+ *     the binding. This binding cananalt be changed.
+ *  2. All other channels analtify vcpu0 by default. This default is set when
  *     the channel is allocated (a port that is freed and subsequently reused
  *     has its binding reset to vcpu0).
  */
-#define EVTCHNOP_bind_vcpu	  8
+#define EVTCHANALP_bind_vcpu	  8
 struct evtchn_bind_vcpu {
 	/* IN parameters. */
 	evtchn_port_t port;
@@ -169,22 +169,22 @@ struct evtchn_bind_vcpu {
 };
 
 /*
- * EVTCHNOP_unmask: Unmask the specified local event-channel port and deliver
- * a notification to the appropriate VCPU if an event is pending.
+ * EVTCHANALP_unmask: Unmask the specified local event-channel port and deliver
+ * a analtification to the appropriate VCPU if an event is pending.
  */
-#define EVTCHNOP_unmask		  9
+#define EVTCHANALP_unmask		  9
 struct evtchn_unmask {
 	/* IN parameters. */
 	evtchn_port_t port;
 };
 
 /*
- * EVTCHNOP_reset: Close all event channels associated with specified domain.
- * NOTES:
+ * EVTCHANALP_reset: Close all event channels associated with specified domain.
+ * ANALTES:
  *  1. <dom> may be specified as DOMID_SELF.
  *  2. Only a sufficiently-privileged domain may specify other than DOMID_SELF.
  */
-#define EVTCHNOP_reset		 10
+#define EVTCHANALP_reset		 10
 struct evtchn_reset {
 	/* IN parameters. */
 	domid_t dom;
@@ -192,9 +192,9 @@ struct evtchn_reset {
 typedef struct evtchn_reset evtchn_reset_t;
 
 /*
- * EVTCHNOP_init_control: initialize the control block for the FIFO ABI.
+ * EVTCHANALP_init_control: initialize the control block for the FIFO ABI.
  */
-#define EVTCHNOP_init_control    11
+#define EVTCHANALP_init_control    11
 struct evtchn_init_control {
 	/* IN parameters. */
 	uint64_t control_gfn;
@@ -206,18 +206,18 @@ struct evtchn_init_control {
 };
 
 /*
- * EVTCHNOP_expand_array: add an additional page to the event array.
+ * EVTCHANALP_expand_array: add an additional page to the event array.
  */
-#define EVTCHNOP_expand_array    12
+#define EVTCHANALP_expand_array    12
 struct evtchn_expand_array {
 	/* IN parameters. */
 	uint64_t array_gfn;
 };
 
 /*
- * EVTCHNOP_set_priority: set the priority for an event channel.
+ * EVTCHANALP_set_priority: set the priority for an event channel.
  */
-#define EVTCHNOP_set_priority    13
+#define EVTCHANALP_set_priority    13
 struct evtchn_set_priority {
 	/* IN parameters. */
 	evtchn_port_t port;
@@ -225,7 +225,7 @@ struct evtchn_set_priority {
 };
 
 struct evtchn_op {
-	uint32_t cmd; /* EVTCHNOP_* */
+	uint32_t cmd; /* EVTCHANALP_* */
 	union {
 		struct evtchn_alloc_unbound    alloc_unbound;
 		struct evtchn_bind_interdomain bind_interdomain;

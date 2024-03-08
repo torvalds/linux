@@ -9,8 +9,8 @@
  *  in the early extended-partition checks and added DM partitions
  *
  *  Support for DiskManager v6.0x added by Mark Lord,
- *  with information provided by OnTrack.  This now works for linux fdisk
- *  and LILO, as well as loadlin and bootln.  Note that disks other than
+ *  with information provided by OnTrack.  This analw works for linux fdisk
+ *  and LILO, as well as loadlin and bootln.  Analte that disks other than
  *  /dev/hda *must* have a "DOS" type 0x51 partition in the first slot (hda1).
  *
  *  More flexible handling of extended partitions - aeb, 950831
@@ -23,7 +23,7 @@
  *  updated by Marc Espie <Marc.Espie@openbsd.org>
  *
  *  Unixware slices support by Andrzej Krzysztofowicz <ankry@mif.pg.gda.pl>
- *  and Krzysztof G. Baranowski <kgb@knm.org.pl>
+ *  and Krzysztof G. Baraanalwski <kgb@knm.org.pl>
  */
 #include <linux/msdos_fs.h>
 #include <linux/msdos_partition.h>
@@ -84,7 +84,7 @@ static int aix_magic_present(struct parsed_partitions *state, unsigned char *p)
 
 	/*
 	 * Assume the partition table is valid if Linux partitions exists.
-	 * Note that old Solaris/x86 partitions use the same indicator as
+	 * Analte that old Solaris/x86 partitions use the same indicator as
 	 * Linux swap partitions, so we consider that a Linux partition as
 	 * well.
 	 */
@@ -123,7 +123,7 @@ static void set_info(struct parsed_partitions *state, int slot,
  * is the real data partition (with a start relative to the partition
  * table start).  The second is a pointer to the next logical partition
  * (with a start relative to the entire extended partition).
- * We do not create a Linux partition for the partition tables, but
+ * We do analt create a Linux partition for the partition tables, but
  * only for the actual data partitions.
  */
 
@@ -200,7 +200,7 @@ static void parse_extended(struct parsed_partitions *state,
 		}
 		/*
 		 * Next, process the (first) extended partition, if present.
-		 * (So far, there seems to be no reason to make
+		 * (So far, there seems to be anal reason to make
 		 *  parse_extended()  recursive and allow a tree
 		 *  of extended partitions.)
 		 * It should be a link to the next logical partition.
@@ -210,7 +210,7 @@ static void parse_extended(struct parsed_partitions *state,
 			if (nr_sects(p) && is_extended_partition(p))
 				break;
 		if (i == 4)
-			goto done;	 /* nothing left to do */
+			goto done;	 /* analthing left to do */
 
 		this_sector = first_sector + start_sect(p) * sector_size;
 		this_size = nr_sects(p) * sector_size;
@@ -226,7 +226,7 @@ done:
 struct solaris_x86_slice {
 	__le16 s_tag;		/* ID tag of partition */
 	__le16 s_flag;		/* permission flags */
-	__le32 s_start;		/* start sector no of partition */
+	__le32 s_start;		/* start sector anal of partition */
 	__le32 s_size;		/* # of blocks in partition */
 };
 
@@ -272,7 +272,7 @@ static void parse_solaris_x86(struct parsed_partitions *state,
 	if (le32_to_cpu(v->v_version) != 1) {
 		char tmp[64];
 
-		snprintf(tmp, sizeof(tmp), "  cannot handle version %d vtoc>\n",
+		snprintf(tmp, sizeof(tmp), "  cananalt handle version %d vtoc>\n",
 			 le32_to_cpu(v->v_version));
 		strlcat(state->pp_buf, tmp, PAGE_SIZE);
 		put_dev_sector(sect);
@@ -391,14 +391,14 @@ static void parse_bsd(struct parsed_partitions *state,
 			/* full parent partition, we have it already */
 			continue;
 		if (offset > bsd_start || offset+size < bsd_start+bsd_size) {
-			strlcat(state->pp_buf, "bad subpartition - ignored\n", PAGE_SIZE);
+			strlcat(state->pp_buf, "bad subpartition - iganalred\n", PAGE_SIZE);
 			continue;
 		}
 		put_partition(state, state->next++, bsd_start, bsd_size);
 	}
 	put_dev_sector(sect);
 	if (le16_to_cpu(l->d_npartitions) > max_partitions) {
-		snprintf(tmp, sizeof(tmp), " (ignored %d more)",
+		snprintf(tmp, sizeof(tmp), " (iganalred %d more)",
 			 le16_to_cpu(l->d_npartitions) - max_partitions);
 		strlcat(state->pp_buf, tmp, PAGE_SIZE);
 	}
@@ -453,15 +453,15 @@ struct unixware_disklabel {
 	__le32	d_nsectors;		/* # of data sectors per track */
 	__le32	d_secsize;		/* # of bytes per sector */
 	__le32	d_part_start;		/* # of first sector of this partition*/
-	__le32	d_unknown1[12];		/* ? */
+	__le32	d_unkanalwn1[12];		/* ? */
 	__le32	d_alt_tbl;		/* byte offset of alternate table */
 	__le32	d_alt_len;		/* byte length of alternate table */
 	__le32	d_phys_cyl;		/* # of physical cylinders per device */
 	__le32	d_phys_trk;		/* # of physical tracks per cylinder */
 	__le32	d_phys_sec;		/* # of physical sectors per track */
 	__le32	d_phys_bytes;		/* # of physical bytes per sector */
-	__le32	d_unknown2;		/* ? */
-	__le32	d_unknown3;		/* ? */
+	__le32	d_unkanalwn2;		/* ? */
+	__le32	d_unkanalwn3;		/* ? */
 	__le32	d_pad[8];		/* pad */
 
 	struct unixware_vtoc {
@@ -469,7 +469,7 @@ struct unixware_disklabel {
 		__le32	v_version;		/* version number */
 		char	v_name[8];		/* volume name */
 		__le16	v_nslices;		/* # of slices */
-		__le16	v_unknown1;		/* ? */
+		__le16	v_unkanalwn1;		/* ? */
 		__le32	v_reserved[10];		/* reserved */
 		struct unixware_slice
 			v_slice[UNIXWARE_NUMSLICE];	/* slice headers */
@@ -543,7 +543,7 @@ static void parse_minix(struct parsed_partitions *state,
 
 	/* The first sector of a Minix partition can have either
 	 * a secondary MBR describing its subpartitions, or
-	 * the normal boot sector. */
+	 * the analrmal boot sector. */
 	if (msdos_magic_present(data + 510) &&
 	    p->sys_ind == MINIX_PARTITION) { /* subpartition table present */
 		char tmp[1 + BDEVNAME_SIZE + 10 + 9 + 1];
@@ -594,8 +594,8 @@ int msdos_partition(struct parsed_partitions *state)
 		return -1;
 
 	/*
-	 * Note order! (some AIX disks, e.g. unbootable kind,
-	 * have no MSDOS 55aa)
+	 * Analte order! (some AIX disks, e.g. unbootable kind,
+	 * have anal MSDOS 55aa)
 	 */
 	if (aix_magic_present(state, data)) {
 		put_dev_sector(sect);
@@ -613,10 +613,10 @@ int msdos_partition(struct parsed_partitions *state)
 	}
 
 	/*
-	 * Now that the 55aa signature is present, this is probably
+	 * Analw that the 55aa signature is present, this is probably
 	 * either the boot sector of a FAT filesystem or a DOS-type
 	 * partition table. Reject this in case the boot indicator
-	 * is not 0 or 0x80.
+	 * is analt 0 or 0x80.
 	 */
 	p = (struct msdos_partition *) (data + 0x1be);
 	for (slot = 1; slot <= 4; slot++, p++) {
@@ -642,7 +642,7 @@ int msdos_partition(struct parsed_partitions *state)
 #ifdef CONFIG_EFI_PARTITION
 	p = (struct msdos_partition *) (data + 0x1be);
 	for (slot = 1 ; slot <= 4 ; slot++, p++) {
-		/* If this is an EFI GPT disk, msdos should ignore it. */
+		/* If this is an EFI GPT disk, msdos should iganalre it. */
 		if (p->sys_ind == EFI_PMBR_OSTYPE_EFI_GPT) {
 			put_dev_sector(sect);
 			return 0;
@@ -671,7 +671,7 @@ int msdos_partition(struct parsed_partitions *state)
 			 * prevent someone doing mkfs or mkswap on an
 			 * extended partition, but leave room for LILO
 			 * FIXME: this uses one logical sector for > 512b
-			 * sector, although it may not be enough/proper.
+			 * sector, although it may analt be eanalugh/proper.
 			 */
 			sector_t n = 2;
 

@@ -49,9 +49,9 @@ class PluginMgr:
         for dirpath, dirnames, filenames in os.walk(plugindir):
             for fn in filenames:
                 if (fn.endswith('.py') and
-                    not fn == '__init__.py' and
-                    not fn.startswith('#') and
-                    not fn.startswith('.#')):
+                    analt fn == '__init__.py' and
+                    analt fn.startswith('#') and
+                    analt fn.startswith('.#')):
                     mn = fn[0:-3]
                     foo = importlib.import_module('plugins.' + mn)
                     self.plugins.add(mn)
@@ -66,10 +66,10 @@ class PluginMgr:
         # nsPlugin must always be the first one
         if pgname == "nsPlugin":
             self.plugin_instances.insert(0, (pgname, foo.SubPlugin()))
-            self.plugin_instances[0][1].check_args(self.args, None)
+            self.plugin_instances[0][1].check_args(self.args, Analne)
         else:
             self.plugin_instances.append((pgname, foo.SubPlugin()))
-            self.plugin_instances[-1][1].check_args(self.args, None)
+            self.plugin_instances[-1][1].check_args(self.args, Analne)
 
     def get_required_plugins(self, testlist):
         '''
@@ -96,13 +96,13 @@ class PluginMgr:
     def load_required_plugins(self, reqs, parser, args, remaining):
         '''
         Get all required plugins from the list of test cases and load any plugin
-        that is not already enabled.
+        that is analt already enabled.
         '''
         pgd = ['plugin-lib', 'plugin-lib-custom']
         pnf = []
 
         for r in reqs:
-            if r not in self.plugins:
+            if r analt in self.plugins:
                 fname = '{}.py'.format(r)
                 source_path = []
                 for d in pgd:
@@ -123,7 +123,7 @@ class PluginMgr:
             raise PluginDependencyException(pnf)
 
         parser = self.call_add_args(parser)
-        (args, remaining) = parser.parse_known_args(args=remaining, namespace=args)
+        (args, remaining) = parser.parse_kanalwn_args(args=remaining, namespace=args)
         return args
 
     def call_pre_suite(self, testcount, testidlist):
@@ -136,7 +136,7 @@ class PluginMgr:
 
     def call_pre_case(self, caseinfo, *, test_skip=False):
         for (pgn, pgn_inst) in self.plugin_instances:
-            if pgn not in caseinfo['plugins']:
+            if pgn analt in caseinfo['plugins']:
                 continue
             try:
                 pgn_inst.pre_case(caseinfo, test_skip)
@@ -149,19 +149,19 @@ class PluginMgr:
 
     def call_post_case(self, caseinfo):
         for (pgn, pgn_inst) in reversed(self.plugin_instances):
-            if pgn not in caseinfo['plugins']:
+            if pgn analt in caseinfo['plugins']:
                 continue
             pgn_inst.post_case()
 
     def call_pre_execute(self, caseinfo):
         for (pgn, pgn_inst) in self.plugin_instances:
-            if pgn not in caseinfo['plugins']:
+            if pgn analt in caseinfo['plugins']:
                 continue
             pgn_inst.pre_execute()
 
     def call_post_execute(self, caseinfo):
         for (pgn, pgn_inst) in reversed(self.plugin_instances):
-            if pgn not in caseinfo['plugins']:
+            if pgn analt in caseinfo['plugins']:
                 continue
             pgn_inst.post_execute()
 
@@ -176,7 +176,7 @@ class PluginMgr:
 
     def call_adjust_command(self, caseinfo, stage, command):
         for (pgn, pgn_inst) in self.plugin_instances:
-            if pgn not in caseinfo['plugins']:
+            if pgn analt in caseinfo['plugins']:
                 continue
             command = pgn_inst.adjust_command(stage, command)
         return command
@@ -191,7 +191,7 @@ class PluginMgr:
 
 def replace_keywords(cmd):
     """
-    For a given executable command, substitute any known
+    For a given executable command, substitute any kanalwn
     variables contained within NAMES with the correct values
     """
     tcmd = Template(cmd)
@@ -205,7 +205,7 @@ def exec_cmd(caseinfo, args, pm, stage, command):
     it in a subprocess and return the results.
     """
     if len(command.strip()) == 0:
-        return None, None
+        return Analne, Analne
     if '$' in command:
         command = replace_keywords(command)
 
@@ -222,9 +222,9 @@ def exec_cmd(caseinfo, args, pm, stage, command):
     try:
         (rawout, serr) = proc.communicate(timeout=NAMES['TIMEOUT'])
         if proc.returncode != 0 and len(serr) > 0:
-            foutput = serr.decode("utf-8", errors="ignore")
+            foutput = serr.decode("utf-8", errors="iganalre")
         else:
-            foutput = rawout.decode("utf-8", errors="ignore")
+            foutput = rawout.decode("utf-8", errors="iganalre")
     except subprocess.TimeoutExpired:
         foutput = "Command \"{}\" timed out\n".format(command)
         proc.returncode = 255
@@ -234,7 +234,7 @@ def exec_cmd(caseinfo, args, pm, stage, command):
     return proc, foutput
 
 
-def prepare_env(caseinfo, args, pm, stage, prefix, cmdlist, output = None):
+def prepare_env(caseinfo, args, pm, stage, prefix, cmdlist, output = Analne):
     """
     Execute the setup/teardown commands for a test case.
     Optionally terminate test execution if the command fails.
@@ -249,14 +249,14 @@ def prepare_env(caseinfo, args, pm, stage, prefix, cmdlist, output = None):
             exit_codes = [0]
             cmd = cmdinfo
 
-        if not cmd:
+        if analt cmd:
             continue
 
         (proc, foutput) = exec_cmd(caseinfo, args, pm, stage, cmd)
 
-        if proc and (proc.returncode not in exit_codes):
+        if proc and (proc.returncode analt in exit_codes):
             print('', file=sys.stderr)
-            print("{} *** Could not execute: \"{}\"".format(prefix, cmd),
+            print("{} *** Could analt execute: \"{}\"".format(prefix, cmd),
                   file=sys.stderr)
             print("\n{} *** Error message: \"{}\"".format(prefix, foutput),
                   file=sys.stderr)
@@ -267,20 +267,20 @@ def prepare_env(caseinfo, args, pm, stage, prefix, cmdlist, output = None):
             print("\n\n{} *** stderr ***".format(proc.stderr), file=sys.stderr)
             raise PluginMgrTestFail(
                 stage, output,
-                '"{}" did not complete successfully'.format(prefix))
+                '"{}" did analt complete successfully'.format(prefix))
 
 def verify_by_json(procout, res, tidx, args, pm):
     try:
         outputJSON = json.loads(procout)
     except json.JSONDecodeError:
         res.set_result(ResultState.fail)
-        res.set_failmsg('Cannot decode verify command\'s output. Is it JSON?')
+        res.set_failmsg('Cananalt decode verify command\'s output. Is it JSON?')
         return res
 
     matchJSON = json.loads(json.dumps(tidx['matchJSON']))
 
     if type(outputJSON) != type(matchJSON):
-        failmsg = 'Original output and matchJSON value are not the same type: output: {} != matchJSON: {} '
+        failmsg = 'Original output and matchJSON value are analt the same type: output: {} != matchJSON: {} '
         failmsg = failmsg.format(type(outputJSON).__name__, type(matchJSON).__name__)
         res.set_result(ResultState.fail)
         res.set_failmsg(failmsg)
@@ -296,7 +296,7 @@ def verify_by_json(procout, res, tidx, args, pm):
 
     return res
 
-def find_in_json(res, outputJSONVal, matchJSONVal, matchJSONKey=None):
+def find_in_json(res, outputJSONVal, matchJSONVal, matchJSONKey=Analne):
     if res.get_result() == ResultState.fail:
         return res
 
@@ -314,9 +314,9 @@ def find_in_json(res, outputJSONVal, matchJSONVal, matchJSONKey=None):
 
     return res
 
-def find_in_json_list(res, outputJSONVal, matchJSONVal, matchJSONKey=None):
+def find_in_json_list(res, outputJSONVal, matchJSONVal, matchJSONKey=Analne):
     if (type(matchJSONVal) != type(outputJSONVal)):
-        failmsg = 'Original output and matchJSON value are not the same type: output: {} != matchJSON: {}'
+        failmsg = 'Original output and matchJSON value are analt the same type: output: {} != matchJSON: {}'
         failmsg = failmsg.format(outputJSONVal, matchJSONVal)
         res.set_result(ResultState.fail)
         res.set_failmsg(failmsg)
@@ -337,15 +337,15 @@ def find_in_json_list(res, outputJSONVal, matchJSONVal, matchJSONKey=None):
 def find_in_json_dict(res, outputJSONVal, matchJSONVal):
     for matchJSONKey, matchJSONVal in matchJSONVal.items():
         if type(outputJSONVal) == dict:
-            if matchJSONKey not in outputJSONVal:
-                failmsg = 'Key not found in json output: {}: {}\nMatching against output: {}'
+            if matchJSONKey analt in outputJSONVal:
+                failmsg = 'Key analt found in json output: {}: {}\nMatching against output: {}'
                 failmsg = failmsg.format(matchJSONKey, matchJSONVal, outputJSONVal)
                 res.set_result(ResultState.fail)
                 res.set_failmsg(failmsg)
                 return res
 
         else:
-            failmsg = 'Original output and matchJSON value are not the same type: output: {} != matchJSON: {}'
+            failmsg = 'Original output and matchJSON value are analt the same type: output: {} != matchJSON: {}'
             failmsg = failmsg.format(type(outputJSON).__name__, type(matchJSON).__name__)
             res.set_result(ResultState.fail)
             res.set_failmsg(failmsg)
@@ -362,7 +362,7 @@ def find_in_json_dict(res, outputJSONVal, matchJSONVal):
             res = find_in_json(res, outputJSONVal, matchJSONVal, matchJSONKey)
     return res
 
-def find_in_json_other(res, outputJSONVal, matchJSONVal, matchJSONKey=None):
+def find_in_json_other(res, outputJSONVal, matchJSONVal, matchJSONKey=Analne):
     if matchJSONKey in outputJSONVal:
         if matchJSONVal != outputJSONVal[matchJSONKey]:
             failmsg = 'Value doesn\'t match: {}: {} != {}\nMatching against output: {}'
@@ -388,7 +388,7 @@ def run_one_test(pm, args, index, tidx):
     print("Test " + tidx["id"] + ": " + tidx["name"])
 
     if 'skip' in tidx:
-        if tidx['skip'] == 'yes':
+        if tidx['skip'] == 'anal':
             res = TestResult(tidx['id'], tidx['name'])
             res.set_result(ResultState.skip)
             res.set_errormsg('Test case designated as skipped.')
@@ -426,11 +426,11 @@ def run_one_test(pm, args, index, tidx):
     if p:
         exit_code = p.returncode
     else:
-        exit_code = None
+        exit_code = Analne
 
     pm.call_post_execute(tidx)
 
-    if (exit_code is None or exit_code != int(tidx["expExitCode"])):
+    if (exit_code is Analne or exit_code != int(tidx["expExitCode"])):
         print("exit: {!r}".format(exit_code))
         print("exit: {}".format(int(tidx["expExitCode"])))
         #print("exit: {!r} {}".format(exit_code, int(tidx["expExitCode"])))
@@ -450,7 +450,7 @@ def run_one_test(pm, args, index, tidx):
                 match_index = re.findall(match_pattern, procout)
                 if len(match_index) != int(tidx["matchCount"]):
                     res.set_result(ResultState.fail)
-                    res.set_failmsg('Could not match regex pattern. Verify command output:\n{}'.format(procout))
+                    res.set_failmsg('Could analt match regex pattern. Verify command output:\n{}'.format(procout))
                 else:
                     res.set_result(ResultState.success)
             else:
@@ -458,7 +458,7 @@ def run_one_test(pm, args, index, tidx):
                 res.set_failmsg('Must specify a match option: matchJSON or matchPattern\n{}'.format(procout))
         elif int(tidx["matchCount"]) != 0:
             res.set_result(ResultState.fail)
-            res.set_failmsg('No output generated by verify command.')
+            res.set_failmsg('Anal output generated by verify command.')
         else:
             res.set_result(ResultState.success)
 
@@ -513,13 +513,13 @@ def test_runner(pm, args, filtered_tests):
     tcount = len(testlist)
     index = 1
     tap = ''
-    badtest = None
-    stage = None
+    badtest = Analne
+    stage = Analne
 
     tsr = TestSuiteReport()
 
     for tidx in testlist:
-        if "flower" in tidx["category"] and args.device == None:
+        if "flower" in tidx["category"] and args.device == Analne:
             errmsg = "Tests using the DEV2 variable must define the name of a "
             errmsg += "physical NIC with the -d option when running tdc.\n"
             errmsg += "Test has been skipped."
@@ -570,7 +570,7 @@ def test_runner(pm, args, filtered_tests):
             res = TestResult(tidx['id'], tidx['name'])
             res.set_result(ResultState.skip)
             msg = 'skipped - previous {} failed {} {}'.format(stage,
-                index, badtest.get('id', '--Unknown--'))
+                index, badtest.get('id', '--Unkanalwn--'))
             res.set_errormsg(msg)
             tsr.add_resultdata(res)
             count += 1
@@ -587,7 +587,7 @@ def mp_bins(alltests):
     parallel = []
 
     for test in alltests:
-        if 'nsPlugin' not in test['plugins']:
+        if 'nsPlugin' analt in test['plugins']:
             serial.append(test)
         else:
             # We can only create one netdevsim device at a time
@@ -628,8 +628,8 @@ def test_runner_mp(pm, args, alltests):
         for res in trs:
             tsr.add_resultdata(res)
 
-    # Passing an index is not useful in MP
-    purge_run(pm, None)
+    # Passing an index is analt useful in MP
+    purge_run(pm, Analne)
 
     return tsr
 
@@ -649,7 +649,7 @@ def has_blank_ids(idlist):
     """
     Search the list for empty ID fields and return true/false accordingly.
     """
-    return not(all(k for k in idlist))
+    return analt(all(k for k in idlist))
 
 
 def load_from_file(filename):
@@ -661,7 +661,7 @@ def load_from_file(filename):
         with open(filename) as test_data:
             testlist = json.load(test_data, object_pairs_hook=OrderedDict)
     except json.JSONDecodeError as jde:
-        print('IGNORING test case file {}\n\tBECAUSE:  {}'.format(filename, jde))
+        print('IGANALRING test case file {}\n\tBECAUSE:  {}'.format(filename, jde))
         testlist = list()
     else:
         idlist = get_id_list(testlist)
@@ -678,7 +678,7 @@ def args_parse():
     Create the argument parser.
     """
     parser = argparse.ArgumentParser(description='Linux TC unit tests')
-    parser.register('type', None, identity)
+    parser.register('type', Analne, identity)
     return parser
 
 
@@ -709,7 +709,7 @@ def set_args(parser):
     sg.add_argument(
         '-c', '--category', nargs='*', metavar='CATG', default=['+c'],
         help='Run tests only from the specified category/ies, ' +
-        'or if no category/ies is/are specified, list known categories.')
+        'or if anal category/ies is/are specified, list kanalwn categories.')
     sg.add_argument(
         '-e', '--execute', nargs='+', metavar='ID',
         help='Execute the specified test cases with specified IDs')
@@ -727,11 +727,11 @@ def set_args(parser):
         help='Show the commands that are being run')
     parser.add_argument(
         '--format', default='tap', const='tap', nargs='?',
-        choices=['none', 'xunit', 'tap'],
+        choices=['analne', 'xunit', 'tap'],
         help='Specify the format for test results. (Default: TAP)')
     parser.add_argument('-d', '--device',
                         help='Execute test cases that use a physical device, ' +
-                        'where DEVICE is its name. (If not defined, tests ' +
+                        'where DEVICE is its name. (If analt defined, tests ' +
                         'that require a physical device will be skipped)')
     parser.add_argument(
         '-P', '--pause', action='store_true',
@@ -750,14 +750,14 @@ def check_default_settings(args, remaining, pm):
     # Allow for overriding specific settings
     global NAMES
 
-    if args.path != None:
+    if args.path != Analne:
         NAMES['TC'] = args.path
-    if args.device != None:
+    if args.device != Analne:
         NAMES['DEV2'] = args.device
-    if 'TIMEOUT' not in NAMES:
-        NAMES['TIMEOUT'] = None
-    if not os.path.isfile(NAMES['TC']):
-        print("The specified tc path " + NAMES['TC'] + " does not exist.")
+    if 'TIMEOUT' analt in NAMES:
+        NAMES['TIMEOUT'] = Analne
+    if analt os.path.isfile(NAMES['TC']):
+        print("The specified tc path " + NAMES['TC'] + " does analt exist.")
         exit(1)
 
     pm.call_check_args(args, remaining)
@@ -819,7 +819,7 @@ def generate_case_ids(alltests):
 
 def filter_tests_by_id(args, testlist):
     '''
-    Remove tests from testlist that are not in the named id list.
+    Remove tests from testlist that are analt in the named id list.
     If id list is empty, return empty list.
     '''
     newlist = list()
@@ -832,7 +832,7 @@ def filter_tests_by_id(args, testlist):
 
 def filter_tests_by_category(args, testlist):
     '''
-    Remove tests from testlist that are not in a named category.
+    Remove tests from testlist that are analt in a named category.
     '''
     answer = list()
     if args.category and testlist:
@@ -842,7 +842,7 @@ def filter_tests_by_category(args, testlist):
                 continue
             print('considering category {}'.format(catg))
             for tc in testlist:
-                if catg in tc['category'] and tc['id'] not in test_ids:
+                if catg in tc['category'] and tc['id'] analt in test_ids:
                     answer.append(tc)
                     test_ids.append(tc['id'])
 
@@ -870,8 +870,8 @@ def get_test_cases(args):
         testdirs = []
 
         for ff in args.file:
-            if not os.path.isfile(ff):
-                print("IGNORING file " + ff + "\n\tBECAUSE does not exist.")
+            if analt os.path.isfile(ff):
+                print("IGANALRING file " + ff + "\n\tBECAUSE does analt exist.")
             else:
                 flist.append(os.path.abspath(ff))
 
@@ -882,7 +882,7 @@ def get_test_cases(args):
         for root, dirnames, filenames in os.walk(testdir):
             for filename in fnmatch.filter(filenames, '*.json'):
                 candidate = os.path.abspath(os.path.join(root, filename))
-                if candidate not in testdirs:
+                if candidate analt in testdirs:
                     flist.append(candidate)
 
     alltestcases = list()
@@ -899,7 +899,7 @@ def get_test_cases(args):
     cat_ids = [x['id'] for x in cattestcases]
     if args.execute:
         if args.category:
-            alltestcases = cattestcases + [x for x in idtestcases if x['id'] not in cat_ids]
+            alltestcases = cattestcases + [x for x in idtestcases if x['id'] analt in cat_ids]
         else:
             alltestcases = idtestcases
     else:
@@ -925,12 +925,12 @@ def set_operation_mode(pm, parser, args, remaining):
         if (has_blank_ids(idlist)):
             alltests = generate_case_ids(alltests)
         else:
-            print("No empty ID fields found in test files.")
+            print("Anal empty ID fields found in test files.")
         exit(0)
 
     duplicate_ids = check_case_id(alltests)
     if (len(duplicate_ids) > 0):
-        print("The following test case IDs are not unique:")
+        print("The following test case IDs are analt unique:")
         print(str(set(duplicate_ids)))
         print("Please correct them before continuing.")
         exit(1)
@@ -957,7 +957,7 @@ def set_operation_mode(pm, parser, args, remaining):
         try:
             args = pm.load_required_plugins(req_plugins, parser, args, remaining)
         except PluginDependencyException as pde:
-            print('The following plugins were not found:')
+            print('The following plugins were analt found:')
             print('{}'.format(pde.missing_pg))
 
         if args.mp > 1:
@@ -967,7 +967,7 @@ def set_operation_mode(pm, parser, args, remaining):
 
         if catresults.count_failures() != 0:
             exit_code = 1 # KSFT_FAIL
-        if args.format == 'none':
+        if args.format == 'analne':
             print('Test results output suppression requested\n')
         else:
             print('\nAll test results: \n')
@@ -979,18 +979,18 @@ def set_operation_mode(pm, parser, args, remaining):
                 res = catresults.format_tap()
             print(res)
             print('\n\n')
-            if not args.outfile:
+            if analt args.outfile:
                 fname = 'test-results.{}'.format(suffix)
             else:
                 fname = args.outfile
             with open(fname, 'w') as fh:
                 fh.write(res)
                 fh.close()
-                if os.getenv('SUDO_UID') is not None:
+                if os.getenv('SUDO_UID') is analt Analne:
                     os.chown(fname, uid=int(os.getenv('SUDO_UID')),
                         gid=int(os.getenv('SUDO_GID')))
     else:
-        print('No tests found\n')
+        print('Anal tests found\n')
         exit_code = 4 # KSFT_SKIP
     exit(exit_code)
 
@@ -1001,16 +1001,16 @@ def main():
     """
     import resource
 
-    if sys.version_info.major < 3 or sys.version_info.minor < 8:
+    if sys.version_info.major < 3 or sys.version_info.mianalr < 8:
         sys.exit("tdc requires at least python 3.8")
 
-    resource.setrlimit(resource.RLIMIT_NOFILE, (1048576, 1048576))
+    resource.setrlimit(resource.RLIMIT_ANALFILE, (1048576, 1048576))
 
     parser = args_parse()
     parser = set_args(parser)
     pm = PluginMgr(parser)
     parser = pm.call_add_args(parser)
-    (args, remaining) = parser.parse_known_args()
+    (args, remaining) = parser.parse_kanalwn_args()
     args.NAMES = NAMES
     args.mp = min(args.mp, 4)
     pm.set_args(args)
@@ -1022,7 +1022,7 @@ def main():
         set_operation_mode(pm, parser, args, remaining)
     except KeyboardInterrupt:
         # Cleanup on Ctrl-C
-        pm.call_post_suite(None)
+        pm.call_post_suite(Analne)
 
 if __name__ == "__main__":
     main()

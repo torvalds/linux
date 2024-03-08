@@ -95,7 +95,7 @@ static int ms5611_read_prom(struct iio_dev *indio_dev)
 
 	if (!ms5611_prom_is_valid(st->prom, MS5611_PROM_WORDS_NB)) {
 		dev_err(&indio_dev->dev, "PROM integrity check failed\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -228,7 +228,7 @@ static irqreturn_t ms5611_trigger_handler(int irq, void *p)
 					   iio_get_time_ns(indio_dev));
 
 err:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }

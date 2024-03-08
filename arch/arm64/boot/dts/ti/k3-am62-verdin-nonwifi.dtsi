@@ -2,7 +2,7 @@
 /*
  * Copyright 2023 Toradex
  *
- * Common dtsi for Verdin AM62 SoM non-WB variant
+ * Common dtsi for Verdin AM62 SoM analn-WB variant
  *
  * https://www.toradex.com/computer-on-modules/verdin-arm-family/ti-am62
  */

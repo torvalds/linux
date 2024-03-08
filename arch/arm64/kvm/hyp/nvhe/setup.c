@@ -42,27 +42,27 @@ static int divide_memory_pool(void *virt, unsigned long size)
 	nr_pages = hyp_vmemmap_pages(sizeof(struct hyp_page));
 	vmemmap_base = hyp_early_alloc_contig(nr_pages);
 	if (!vmemmap_base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nr_pages = hyp_vm_table_pages();
 	vm_table_base = hyp_early_alloc_contig(nr_pages);
 	if (!vm_table_base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nr_pages = hyp_s1_pgtable_pages();
 	hyp_pgt_base = hyp_early_alloc_contig(nr_pages);
 	if (!hyp_pgt_base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nr_pages = host_s2_pgtable_pages();
 	host_s2_pgt_base = hyp_early_alloc_contig(nr_pages);
 	if (!host_s2_pgt_base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nr_pages = hyp_ffa_proxy_pages();
 	ffa_proxy_pages = hyp_early_alloc_contig(nr_pages);
 	if (!ffa_proxy_pages)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -128,7 +128,7 @@ static int recreate_hyp_mappings(phys_addr_t phys, unsigned long size,
 	/*
 	 * Map the host sections RO in the hypervisor, but transfer the
 	 * ownership from the host to the hypervisor itself to make sure they
-	 * can't be donated or shared with another entity.
+	 * can't be donated or shared with aanalther entity.
 	 *
 	 * The ownership transition requires matching changes in the host
 	 * stage-2. This will be done later (see finalize_host_mappings()) once
@@ -255,14 +255,14 @@ static int fix_hyp_pgtable_refcnt(void)
 				&walker);
 }
 
-void __noreturn __pkvm_init_finalise(void)
+void __analreturn __pkvm_init_finalise(void)
 {
 	struct kvm_host_data *host_data = this_cpu_ptr(&kvm_host_data);
 	struct kvm_cpu_context *host_ctxt = &host_data->host_ctxt;
 	unsigned long nr_pages, reserved_pages, pfn;
 	int ret;
 
-	/* Now that the vmemmap is backed, install the full-fledged allocator */
+	/* Analw that the vmemmap is backed, install the full-fledged allocator */
 	pfn = hyp_virt_to_pfn(hyp_pgt_base);
 	nr_pages = hyp_s1_pgtable_pages();
 	reserved_pages = hyp_early_alloc_nr_used_pages();
@@ -303,7 +303,7 @@ void __noreturn __pkvm_init_finalise(void)
 	pkvm_hyp_vm_table_init(vm_table_base);
 out:
 	/*
-	 * We tail-called to here from handle___pkvm_init() and will not return,
+	 * We tail-called to here from handle___pkvm_init() and will analt return,
 	 * so make sure to propagate the return value to the host.
 	 */
 	cpu_reg(host_ctxt, 1) = ret;

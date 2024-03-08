@@ -71,7 +71,7 @@ static int __scm_alloc_rq(void)
 
 	aobrq = kzalloc(sizeof(*aobrq) + sizeof(*scmrq), GFP_KERNEL);
 	if (!aobrq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	scmrq = (void *) aobrq->data;
 	scmrq->aob = (void *) get_zeroed_page(GFP_DMA);
@@ -91,7 +91,7 @@ static int __scm_alloc_rq(void)
 	return 0;
 free:
 	__scm_free_rq(scmrq);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int scm_alloc_rqs(unsigned int nrqs)
@@ -100,7 +100,7 @@ static int scm_alloc_rqs(unsigned int nrqs)
 
 	aidaw_pool = mempool_create_page_pool(max(nrqs/8, 1U), 0);
 	if (!aidaw_pool)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	while (nrqs-- && !ret)
 		ret = __scm_alloc_rq();
@@ -189,7 +189,7 @@ static int scm_request_prepare(struct scm_request *scmrq)
 
 	aidaw = scm_aidaw_fetch(scmrq, blk_rq_bytes(req));
 	if (!aidaw)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	msb->bs = MSB_BS_4K;
 	scmrq->aob->request.msb_count++;
@@ -270,7 +270,7 @@ static void scm_request_start(struct scm_request *scmrq)
 
 	atomic_inc(&bdev->queued_reqs);
 	if (eadm_start_aob(scmrq->aob)) {
-		SCM_LOG(5, "no subchannel");
+		SCM_LOG(5, "anal subchannel");
 		scm_request_requeue(scmrq);
 	}
 }
@@ -299,7 +299,7 @@ static blk_status_t scm_blk_request(struct blk_mq_hw_ctx *hctx,
 	if (!scmrq) {
 		scmrq = scm_request_fetch();
 		if (!scmrq) {
-			SCM_LOG(5, "no request");
+			SCM_LOG(5, "anal request");
 			spin_unlock(&sq->lock);
 			return BLK_STS_RESOURCE;
 		}
@@ -335,7 +335,7 @@ static int scm_blk_init_hctx(struct blk_mq_hw_ctx *hctx, void *data,
 	struct scm_queue *qd = kzalloc(sizeof(*qd), GFP_KERNEL);
 
 	if (!qd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&qd->lock);
 	hctx->driver_data = qd;
@@ -442,7 +442,7 @@ int scm_blk_dev_setup(struct scm_blk_dev *bdev, struct scm_device *scmdev)
 	devindex = atomic_inc_return(&nr_devices) - 1;
 	/* scma..scmz + scmaa..scmzz */
 	if (devindex > 701) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out;
 	}
 
@@ -456,7 +456,7 @@ int scm_blk_dev_setup(struct scm_blk_dev *bdev, struct scm_device *scmdev)
 	bdev->tag_set.nr_hw_queues = nr_requests;
 	bdev->tag_set.queue_depth = nr_requests_per_io * nr_requests;
 	bdev->tag_set.flags = BLK_MQ_F_SHOULD_MERGE;
-	bdev->tag_set.numa_node = NUMA_NO_NODE;
+	bdev->tag_set.numa_analde = NUMA_ANAL_ANALDE;
 
 	ret = blk_mq_alloc_tag_set(&bdev->tag_set);
 	if (ret)
@@ -474,14 +474,14 @@ int scm_blk_dev_setup(struct scm_blk_dev *bdev, struct scm_device *scmdev)
 	blk_queue_logical_block_size(rq, 1 << 12);
 	blk_queue_max_hw_sectors(rq, nr_max_blk << 3); /* 8 * 512 = blk_size */
 	blk_queue_max_segments(rq, nr_max_blk);
-	blk_queue_flag_set(QUEUE_FLAG_NONROT, rq);
+	blk_queue_flag_set(QUEUE_FLAG_ANALNROT, rq);
 	blk_queue_flag_clear(QUEUE_FLAG_ADD_RANDOM, rq);
 
 	bdev->gendisk->private_data = scmdev;
 	bdev->gendisk->fops = &scm_blk_devops;
 	bdev->gendisk->major = scm_major;
-	bdev->gendisk->first_minor = devindex * SCM_NR_PARTS;
-	bdev->gendisk->minors = SCM_NR_PARTS;
+	bdev->gendisk->first_mianalr = devindex * SCM_NR_PARTS;
+	bdev->gendisk->mianalrs = SCM_NR_PARTS;
 
 	len = snprintf(bdev->gendisk->disk_name, DISK_NAME_LEN, "scm");
 	if (devindex > 25) {
@@ -555,7 +555,7 @@ static int __init scm_blk_init(void)
 
 	scm_debug = debug_register("scm_log", 16, 1, 16);
 	if (!scm_debug) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_free;
 	}
 

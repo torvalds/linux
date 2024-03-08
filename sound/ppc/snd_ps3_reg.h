@@ -64,9 +64,9 @@
   PS3_AUDIO_INTR_0 register tells an interrupt handler which audio
   DMA channel triggered the interrupt.  The interrupt status for a channel
   can be cleared by writing a '1' to the corresponding bit.  A new interrupt
-  cannot be generated until the previous interrupt has been cleared.
+  cananalt be generated until the previous interrupt has been cleared.
 
-  Note that the status reported by PS3_AUDIO_INTR_0 is independent of the
+  Analte that the status reported by PS3_AUDIO_INTR_0 is independent of the
   value of PS3_AUDIO_INTR_EN_0.
 
  31            24 23           16 15            8 7             0
@@ -114,7 +114,7 @@
    will occur as if the transfer had finished.
    Since this bit is designed to recover from DMA related issues
    which are caused by unpredictable situations, it is preferred to wait
-   for normal DMA transfer end without using this bit.
+   for analrmal DMA transfer end without using this bit.
 */
 #define PS3_AUDIO_CONFIG_CLEAR          (1 << 8)  /* RWIVF */
 
@@ -228,7 +228,7 @@ For the fields in this register, the following values apply:
 */
 /*
 All 3-Wire Audio Serial Outputs Interrupt Mode
-Configures the Interrupt and Signal Notification
+Configures the Interrupt and Signal Analtification
 condition of all 3-wire Audio Serial Outputs.
 */
 #define PS3_AUDIO_AX_IC_AASOIMD_MASK          (0x3 << 12) /* RWIVF */
@@ -238,7 +238,7 @@ condition of all 3-wire Audio Serial Outputs.
 
 /*
 S/PDIF Output Channel Interrupt Modes
-Configures the Interrupt and signal Notification
+Configures the Interrupt and signal Analtification
 conditions of S/PDIF output channels.
 */
 #define PS3_AUDIO_AX_IC_SPO1IMD_MASK          (0x3 << 16) /* RWIVF */
@@ -307,7 +307,7 @@ Audio Port Interrupt Status Register
 Indicates Interrupt status, which interrupt has occurred, and can clear
 each interrupt in this register.
 Writing 1b to a field containing 1b clears field and de-asserts interrupt.
-Writing 0b to a field has no effect.
+Writing 0b to a field has anal effect.
 Field values are the following:
 0 - Interrupt hasn't occurred.
 1 - Interrupt has occurred.
@@ -743,10 +743,10 @@ The registers for a DMA channel should only be written if REQUEST is IDLE.
 The STATUS field can be used to monitor the progress of a DMA request.
 DONE indicates the previous request has completed.
 EVENT indicates that the DMA engine is waiting for the EVENT to occur.
-PENDING indicates that the DMA engine has not started processing this
+PENDING indicates that the DMA engine has analt started processing this
 request, but the EVENT has occurred.
 DMA indicates that the data transfer is in progress.
-NOTIFY indicates that the notifier signalling end of transfer is being written.
+ANALTIFY indicates that the analtifier signalling end of transfer is being written.
 CLEAR indicated that the previous transfer was cleared.
 ERROR indicates the previous transfer requested an unsupported
 source/destination combination.
@@ -757,7 +757,7 @@ source/destination combination.
 #define PS3_AUDIO_KICK_STATUS_EVENT	(0x1 << 24) /* R---V */
 #define PS3_AUDIO_KICK_STATUS_PENDING	(0x2 << 24) /* R---V */
 #define PS3_AUDIO_KICK_STATUS_DMA	(0x3 << 24) /* R---V */
-#define PS3_AUDIO_KICK_STATUS_NOTIFY	(0x4 << 24) /* R---V */
+#define PS3_AUDIO_KICK_STATUS_ANALTIFY	(0x4 << 24) /* R---V */
 #define PS3_AUDIO_KICK_STATUS_CLEAR	(0x5 << 24) /* R---V */
 #define PS3_AUDIO_KICK_STATUS_ERROR	(0x6 << 24) /* R---V */
 
@@ -844,18 +844,18 @@ So a value of 0 means 128-bytes will get transferred.
  *
  *	Write
  *	  ' ' = Other Information
- *	  '-' = Must not be written (D), value ignored when written (R,A,F)
+ *	  '-' = Must analt be written (D), value iganalred when written (R,A,F)
  *	  'W' = Can be written
  *
  *	Internal State
  *	  ' ' = Other Information
- *	  '-' = No internal state
- *	  'X' = Internal state, initial value is unknown
- *	  'I' = Internal state, initial value is known and follows (I)
+ *	  '-' = Anal internal state
+ *	  'X' = Internal state, initial value is unkanalwn
+ *	  'I' = Internal state, initial value is kanalwn and follows (I)
  *
  *	Declaration/Size
  *	  ' ' = Other Information
- *	  '-' = Does Not Apply
+ *	  '-' = Does Analt Apply
  *	  'V' = Type is void
  *	  'U' = Type is unsigned integer
  *	  'S' = Type is signed integer

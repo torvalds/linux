@@ -69,7 +69,7 @@ enum nix_makr_fmt_indexes {
 	NIX_MARK_CFG_MAX,
 };
 
-/* For now considering MC resources needed for broadcast
+/* For analw considering MC resources needed for broadcast
  * pkt replication only. i.e 256 HWVFs + 12 PFs.
  */
 #define MC_TBL_SIZE	MC_TBL_SZ_2K
@@ -78,7 +78,7 @@ enum nix_makr_fmt_indexes {
 #define MC_TX_MAX	2048
 
 struct mce {
-	struct hlist_node	node;
+	struct hlist_analde	analde;
 	u32			rq_rss_index;
 	u16			pcifunc;
 	u16			channel;
@@ -182,7 +182,7 @@ static int nix_alloc_mce_list(struct nix_mcast *mcast, int count, u8 dir)
 
 	mce_counter = &mcast->mce_counter[dir];
 	if (!rvu_rsrc_check_contig(mce_counter, count))
-		return -ENOSPC;
+		return -EANALSPC;
 
 	idx = rvu_alloc_rsrc_contig(mce_counter, count);
 	return idx;
@@ -330,7 +330,7 @@ static int nix_interface_init(struct rvu *rvu, u16 pcifunc, int type, int nixlf,
 	struct rvu_pfvf *parent_pf, *pfvf = rvu_get_pfvf(rvu, pcifunc);
 	u16 req_chan_base, req_chan_end, req_chan_cnt;
 	struct rvu_hwinfo *hw = rvu->hw;
-	struct sdp_node_info *sdp_info;
+	struct sdp_analde_info *sdp_info;
 	int pkind, pf, vf, lbkid, vfid;
 	u8 cgx_id, lmac_id;
 	bool from_vf;
@@ -394,9 +394,9 @@ static int nix_interface_init(struct rvu *rvu, u16 pcifunc, int type, int nixlf,
 		if (loop)
 			lbkid = !lbkid;
 
-		/* Note that AF's VFs work in pairs and talk over consecutive
+		/* Analte that AF's VFs work in pairs and talk over consecutive
 		 * loopback channels.Therefore if odd number of AF VFs are
-		 * enabled then the last VF remains with no pair.
+		 * enabled then the last VF remains with anal pair.
 		 */
 		pfvf->rx_chan_base = rvu_nix_chan_lbk(rvu, lbkid, vf);
 		pfvf->tx_chan_base = vf & 0x1 ?
@@ -669,7 +669,7 @@ static void nix_setup_lso_tso_l3(struct rvu *rvu, int blkaddr,
 		    NIX_AF_LSO_FORMATX_FIELDX(format, (*fidx)++),
 		    *(u64 *)&field);
 
-	/* No ID field in IPv6 header */
+	/* Anal ID field in IPv6 header */
 	if (!v4)
 		return;
 
@@ -732,7 +732,7 @@ static void nix_setup_lso(struct rvu *rvu, struct nix_hw *nix_hw, int blkaddr)
 	nix_setup_lso_tso_l3(rvu, blkaddr, idx, true, &fidx);
 	nix_setup_lso_tso_l4(rvu, blkaddr, idx, &fidx);
 
-	/* Set rest of the fields to NOP */
+	/* Set rest of the fields to ANALP */
 	for (; fidx < 8; fidx++) {
 		rvu_write64(rvu, blkaddr,
 			    NIX_AF_LSO_FORMATX_FIELDX(idx, fidx), 0x0ULL);
@@ -745,7 +745,7 @@ static void nix_setup_lso(struct rvu *rvu, struct nix_hw *nix_hw, int blkaddr)
 	nix_setup_lso_tso_l3(rvu, blkaddr, idx, false, &fidx);
 	nix_setup_lso_tso_l4(rvu, blkaddr, idx, &fidx);
 
-	/* Set rest of the fields to NOP */
+	/* Set rest of the fields to ANALP */
 	for (; fidx < 8; fidx++) {
 		rvu_write64(rvu, blkaddr,
 			    NIX_AF_LSO_FORMATX_FIELDX(idx, fidx), 0x0ULL);
@@ -790,7 +790,7 @@ static int nixlf_rss_ctx_init(struct rvu *rvu, int blkaddr,
 	int err, grp, num_indices;
 	u64 val;
 
-	/* RSS is not requested for this NIXLF */
+	/* RSS is analt requested for this NIXLF */
 	if (!rss_sz)
 		return 0;
 	num_indices = rss_sz * rss_grps;
@@ -841,7 +841,7 @@ static int nix_aq_enqueue_wait(struct rvu *rvu, struct rvu_block *block,
 
 	/* Ring the doorbell and wait for result */
 	rvu_write64(rvu, block->addr, NIX_AF_AQ_DOOR, 1);
-	while (result->compcode == NIX_AQ_COMP_NOTDONE) {
+	while (result->compcode == NIX_AQ_COMP_ANALTDONE) {
 		cpu_relax();
 		udelay(1);
 		timeout--;
@@ -860,7 +860,7 @@ static int nix_aq_enqueue_wait(struct rvu *rvu, struct rvu_block *block,
 			ret |= rvu_ndc_fix_locked_cacheline(rvu, BLKADDR_NDC_NIX1_TX);
 			if (ret)
 				dev_err(rvu->dev,
-					"%s: Not able to unlock cachelines\n", __func__);
+					"%s: Analt able to unlock cachelines\n", __func__);
 		}
 
 		return -EBUSY;
@@ -904,7 +904,7 @@ static int rvu_nix_blk_aq_enq_inst(struct rvu *rvu, struct nix_hw *nix_hw,
 	block = &hw->block[blkaddr];
 	aq = block->aq;
 	if (!aq) {
-		dev_warn(rvu->dev, "%s: NIX AQ not initialized\n", __func__);
+		dev_warn(rvu->dev, "%s: NIX AQ analt initialized\n", __func__);
 		return NIX_AF_ERR_AQ_ENQUEUE;
 	}
 
@@ -922,7 +922,7 @@ static int rvu_nix_blk_aq_enq_inst(struct rvu *rvu, struct nix_hw *nix_hw,
 
 	switch (req->ctype) {
 	case NIX_AQ_CTYPE_RQ:
-		/* Check if index exceeds max no of queues */
+		/* Check if index exceeds max anal of queues */
 		if (!pfvf->rq_ctx || req->qidx >= pfvf->rq_ctx->qsize)
 			rc = NIX_AF_ERR_AQ_ENQUEUE;
 		break;
@@ -949,8 +949,8 @@ static int rvu_nix_blk_aq_enq_inst(struct rvu *rvu, struct nix_hw *nix_hw,
 		    (req->qidx >= (256UL << (cfg & 0xF))))
 			rc = NIX_AF_ERR_AQ_ENQUEUE;
 
-		/* Adding multicast lists for requests from PF/VFs is not
-		 * yet supported, so ignore this.
+		/* Adding multicast lists for requests from PF/VFs is analt
+		 * yet supported, so iganalre this.
 		 */
 		if (rsp)
 			rc = NIX_AF_ERR_AQ_ENQUEUE;
@@ -968,7 +968,7 @@ static int rvu_nix_blk_aq_enq_inst(struct rvu *rvu, struct nix_hw *nix_hw,
 		return rc;
 
 	nix_get_aq_req_smq(rvu, req, &smq, &smq_mask);
-	/* Check if SQ pointed SMQ belongs to this PF/VF or not */
+	/* Check if SQ pointed SMQ belongs to this PF/VF or analt */
 	if (req->ctype == NIX_AQ_CTYPE_SQ &&
 	    ((req->op == NIX_AQ_INSTOP_INIT && req->sq.ena) ||
 	     (req->op == NIX_AQ_INSTOP_WRITE &&
@@ -983,7 +983,7 @@ static int rvu_nix_blk_aq_enq_inst(struct rvu *rvu, struct nix_hw *nix_hw,
 	inst.cindex = req->qidx;
 	inst.ctype = req->ctype;
 	inst.op = req->op;
-	/* Currently we are not supporting enqueuing multiple instructions,
+	/* Currently we are analt supporting enqueuing multiple instructions,
 	 * so always choose first entry in result memory.
 	 */
 	inst.res_addr = (u64)aq->res->iova;
@@ -1035,7 +1035,7 @@ static int rvu_nix_blk_aq_enq_inst(struct rvu *rvu, struct nix_hw *nix_hw,
 		else if (req->ctype == NIX_AQ_CTYPE_BANDPROF)
 			memcpy(ctx, &req->prof, sizeof(struct nix_bandprof_s));
 		break;
-	case NIX_AQ_INSTOP_NOP:
+	case NIX_AQ_INSTOP_ANALP:
 	case NIX_AQ_INSTOP_READ:
 	case NIX_AQ_INSTOP_LOCK:
 	case NIX_AQ_INSTOP_UNLOCK:
@@ -1160,7 +1160,7 @@ static int rvu_nix_verify_aq_ctx(struct rvu *rvu, struct nix_hw *nix_hw,
 	 * are changed in AQ WRITE operation.
 	 * for example cq.drop = 0xa;
 	 *	       cq_mask.drop = 0xff;
-	 * Below logic performs '&' between cq and cq_mask so that non
+	 * Below logic performs '&' between cq and cq_mask so that analn
 	 * updated fields are masked out for request and response
 	 * comparison
 	 */
@@ -1198,7 +1198,7 @@ retry:
 
 	/* HW errata 'AQ Modification to CQ could be discarded on heavy traffic'
 	 * As a work around perfrom CQ context read after each AQ write. If AQ
-	 * read shows AQ write is not updated perform AQ write again.
+	 * read shows AQ write is analt updated perform AQ write again.
 	 */
 	if (!err && req->op == NIX_AQ_INSTOP_WRITE) {
 		err = rvu_nix_verify_aq_ctx(rvu, nix_hw, req, NIX_AQ_CTYPE_CQ);
@@ -1291,7 +1291,7 @@ static int nix_lf_hwctx_lockdown(struct rvu *rvu, struct nix_aq_enq_req *req)
 		return 0;
 
 	if (req->ctype == NIX_AQ_CTYPE_MCE ||
-	    req->ctype == NIX_AQ_CTYPE_DYNO)
+	    req->ctype == NIX_AQ_CTYPE_DYANAL)
 		return 0;
 
 	memset(&lock_ctx_req, 0, sizeof(struct nix_aq_enq_req));
@@ -1532,7 +1532,7 @@ int rvu_mbox_handler_nix_lf_alloc(struct rvu *rvu,
 	if (err)
 		goto free_mem;
 
-	/* Disable NPC entries as NIXLF's contexts are not initialized yet */
+	/* Disable NPC entries as NIXLF's contexts are analt initialized yet */
 	rvu_npc_disable_default_entries(rvu, pcifunc, nixlf);
 
 	/* Configure RX VTAG Type 7 (strip) for vf vlan */
@@ -1544,7 +1544,7 @@ int rvu_mbox_handler_nix_lf_alloc(struct rvu *rvu,
 
 free_mem:
 	nix_ctx_free(rvu, pfvf);
-	rc = -ENOMEM;
+	rc = -EANALMEM;
 
 exit:
 	/* Set macaddr of this PF/VF */
@@ -1643,7 +1643,7 @@ int rvu_mbox_handler_nix_mark_format_cfg(struct rvu *rvu,
 
 	rc = rvu_nix_reserve_mark_format(rvu, nix_hw, blkaddr, cfg);
 	if (rc < 0) {
-		dev_err(rvu->dev, "No mark_format_ctl for (pf:%d, vf:%d)",
+		dev_err(rvu->dev, "Anal mark_format_ctl for (pf:%d, vf:%d)",
 			rvu_get_pf(pcifunc), pcifunc & RVU_PFVF_FUNC_MASK);
 		return NIX_AF_ERR_MARK_CFG_FAIL;
 	}
@@ -1705,7 +1705,7 @@ handle_txschq_shaper_update(struct rvu *rvu, int blkaddr, int nixlf,
 	if (!rate_reg)
 		return false;
 
-	/* Nothing special to do when state is not toggled */
+	/* Analthing special to do when state is analt toggled */
 	oldval = rvu_read64(rvu, blkaddr, reg);
 	if ((oldval & 0x1) == (regval & 0x1)) {
 		rvu_write64(rvu, blkaddr, reg, regval);
@@ -1762,7 +1762,7 @@ static void nix_reset_tx_schedule(struct rvu *rvu, int blkaddr,
 		tlx_schedule = NIX_AF_TL4X_SCHEDULE(schq);
 		break;
 	case NIX_TXSCH_LVL_MDQ:
-		/* no need to reset SMQ_CFG as HW clears this CSR
+		/* anal need to reset SMQ_CFG as HW clears this CSR
 		 * on SMQ flush
 		 */
 		tlx_parent   = NIX_AF_MDQX_PARENT(schq);
@@ -1792,7 +1792,7 @@ static void nix_reset_tx_shaping(struct rvu *rvu, int blkaddr,
 	switch (lvl) {
 	case NIX_TXSCH_LVL_TL1:
 		cir_reg = NIX_AF_TL1X_CIR(schq);
-		pir_reg = 0; /* PIR not available at TL1 */
+		pir_reg = 0; /* PIR analt available at TL1 */
 		break;
 	case NIX_TXSCH_LVL_TL2:
 		cir_reg = NIX_AF_TL2X_CIR(schq);
@@ -1865,7 +1865,7 @@ static void nix_clear_tx_xoff(struct rvu *rvu, int blkaddr,
 	struct rvu_hwinfo *hw = rvu->hw;
 	u64 reg;
 
-	/* Skip this if shaping is not supported */
+	/* Skip this if shaping is analt supported */
 	if (!hw->cap.nix_shaping)
 		return;
 
@@ -1946,7 +1946,7 @@ static int nix_check_txschq_alloc_req(struct rvu *rvu, int lvl, u16 pcifunc,
 
 	link = nix_get_tx_link(rvu, pcifunc);
 
-	/* For traffic aggregating scheduler level, one queue is enough */
+	/* For traffic aggregating scheduler level, one queue is eanalugh */
 	if (lvl >= hw->cap.nix_tx_aggr_lvl) {
 		if (req_schq != 1)
 			return NIX_AF_ERR_TLX_ALLOC_FAIL;
@@ -1996,7 +1996,7 @@ static void nix_txsch_alloc(struct rvu *rvu, struct nix_txsch *txsch,
 			rsp->schq_contig_list[lvl][0] = start;
 		}
 
-		/* Both contig and non-contig reqs doesn't make sense here */
+		/* Both contig and analn-contig reqs doesn't make sense here */
 		if (rsp->schq_contig[lvl])
 			rsp->schq[lvl] = 0;
 
@@ -2046,7 +2046,7 @@ static void nix_txsch_alloc(struct rvu *rvu, struct nix_txsch *txsch,
 		}
 	}
 
-	/* Allocate non-contiguous queue indices */
+	/* Allocate analn-contiguous queue indices */
 	if (rsp->schq[lvl]) {
 		idx = 0;
 		for (schq = start; schq < end; schq++) {
@@ -2197,7 +2197,7 @@ static void nix_smq_flush_fill_ctx(struct rvu *rvu, int blkaddr, int smq,
 		if (smq_tree_ctx->pir_off)
 			smq_tree_ctx->pir_val = rvu_read64(rvu, blkaddr, smq_tree_ctx->pir_off);
 
-		/* get parent txsch node */
+		/* get parent txsch analde */
 		if (parent_off) {
 			regval = rvu_read64(rvu, blkaddr, parent_off);
 			schq = (regval >> 16) & 0x1FF;
@@ -2292,7 +2292,7 @@ static int nix_smq_flush(struct rvu *rvu, int blkaddr,
 	/* XOFF all TL2s whose parent TL1 matches SMQ tree TL1 */
 	smq_flush_ctx = kzalloc(sizeof(*smq_flush_ctx), GFP_KERNEL);
 	if (!smq_flush_ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 	nix_smq_flush_fill_ctx(rvu, blkaddr, smq, smq_flush_ctx);
 	nix_smq_flush_enadis_xoff(rvu, blkaddr, smq_flush_ctx, true);
 	nix_smq_flush_enadis_rate(rvu, blkaddr, smq_flush_ctx, false);
@@ -2372,7 +2372,7 @@ static int nix_txschq_free(struct rvu *rvu, u16 pcifunc)
 	if (!(pcifunc & RVU_PFVF_FUNC_MASK)) {
 		txsch = &nix_hw->txsch[NIX_TXSCH_LVL_TL1];
 		schq = nix_get_tx_link(rvu, pcifunc);
-		/* Do not clear pcifunc in txsch->pfvf_map[schq] because
+		/* Do analt clear pcifunc in txsch->pfvf_map[schq] because
 		 * VF might be using this TL1 queue
 		 */
 		map_func = TXSCH_MAP_FUNC(txsch->pfvf_map[schq]);
@@ -2387,7 +2387,7 @@ static int nix_txschq_free(struct rvu *rvu, u16 pcifunc)
 		nix_smq_flush(rvu, blkaddr, schq, pcifunc, nixlf);
 	}
 
-	/* Now free scheduler queues to free pool */
+	/* Analw free scheduler queues to free pool */
 	for (lvl = 0; lvl < NIX_TXSCH_LVL_CNT; lvl++) {
 		 /* TLs above aggregation level are shared across all PF
 		  * and it's VFs, hence skip freeing them.
@@ -2503,7 +2503,7 @@ static bool is_txschq_hierarchy_valid(struct rvu *rvu, u16 pcifunc, int blkaddr,
 		return false;
 
 	schq = TXSCHQ_IDX(reg, TXSCHQ_IDX_SHIFT);
-	/* Check if this schq belongs to this PF/VF or not */
+	/* Check if this schq belongs to this PF/VF or analt */
 	if (!is_valid_txschq(rvu, blkaddr, lvl, pcifunc, schq))
 		return false;
 
@@ -2538,8 +2538,8 @@ static bool is_txschq_shaping_valid(struct rvu_hwinfo *hw, int lvl, u64 reg)
 	if (hw->cap.nix_shaping)
 		return true;
 
-	/* If shaping and coloring is not supported, then
-	 * *_CIR and *_PIR registers should not be configured.
+	/* If shaping and coloring is analt supported, then
+	 * *_CIR and *_PIR registers should analt be configured.
 	 */
 	regbase = reg & 0xFFFF;
 
@@ -2729,7 +2729,7 @@ int rvu_mbox_handler_nix_txschq_cfg(struct rvu *rvu,
 			regval |= ((u64)nixlf << 24);
 		}
 
-		/* Clear 'BP_ENA' config, if it's not allowed */
+		/* Clear 'BP_ENA' config, if it's analt allowed */
 		if (!hw->cap.nix_tx_link_bp) {
 			if (schq_regbase == NIX_AF_TL4X_SDP_LINK_CFG(0) ||
 			    (schq_regbase & 0xFF00) ==
@@ -2920,7 +2920,7 @@ static int nix_tx_vtag_cfg(struct rvu *rvu, int blkaddr,
 					  req->tx.vtag0, req->vtag_size);
 
 		if (rsp->vtag0_idx < 0)
-			return NIX_AF_ERR_TX_VTAG_NOSPC;
+			return NIX_AF_ERR_TX_VTAG_ANALSPC;
 
 		vlan->entry2pfvf_map[rsp->vtag0_idx] = pcifunc;
 	}
@@ -2942,7 +2942,7 @@ err_free:
 	if (req->tx.cfg_vtag0)
 		nix_tx_vtag_free(rvu, blkaddr, pcifunc, rsp->vtag0_idx);
 
-	return NIX_AF_ERR_TX_VTAG_NOSPC;
+	return NIX_AF_ERR_TX_VTAG_ANALSPC;
 }
 
 int rvu_mbox_handler_nix_vtag_cfg(struct rvu *rvu,
@@ -3010,12 +3010,12 @@ static int nix_blk_setup_mce(struct rvu *rvu, struct nix_hw *nix_hw,
 
 static void nix_delete_mcast_mce_list(struct nix_mce_list *mce_list)
 {
-	struct hlist_node *tmp;
+	struct hlist_analde *tmp;
 	struct mce *mce;
 
 	/* Scan through the current list */
-	hlist_for_each_entry_safe(mce, tmp, &mce_list->head, node) {
-		hlist_del(&mce->node);
+	hlist_for_each_entry_safe(mce, tmp, &mce_list->head, analde) {
+		hlist_del(&mce->analde);
 		kfree(mce);
 	}
 
@@ -3039,7 +3039,7 @@ static int nix_update_ingress_mce_list_hw(struct rvu *rvu,
 	mce_list = &elem->mcast_mce_list;
 	idx = elem->mce_start_index;
 	last_idx = nix_get_last_mce_list_index(elem);
-	hlist_for_each_entry(mce, &mce_list->head, node) {
+	hlist_for_each_entry(mce, &mce_list->head, analde) {
 		if (idx > last_idx)
 			break;
 
@@ -3091,7 +3091,7 @@ static void nix_update_egress_mce_list_hw(struct rvu *rvu,
 	mce_list = &elem->mcast_mce_list;
 	idx = elem->mce_start_index;
 	last_idx = nix_get_last_mce_list_index(elem);
-	hlist_for_each_entry(mce, &mce_list->head, node) {
+	hlist_for_each_entry(mce, &mce_list->head, analde) {
 		if (idx > last_idx)
 			break;
 
@@ -3139,10 +3139,10 @@ static int nix_del_mce_list_entry(struct rvu *rvu,
 	mce_list = &elem->mcast_mce_list;
 	for (i = 0; i < num_entry; i++) {
 		is_found = false;
-		hlist_for_each_entry(mce, &mce_list->head, node) {
+		hlist_for_each_entry(mce, &mce_list->head, analde) {
 			/* If already exists, then delete */
 			if (mce->pcifunc == req->pcifunc[i]) {
-				hlist_del(&mce->node);
+				hlist_del(&mce->analde);
 				kfree(mce);
 				mce_list->count--;
 				is_found = true;
@@ -3170,7 +3170,7 @@ static int nix_add_mce_list_entry(struct rvu *rvu,
 {
 	u32 num_entry = req->num_mce_entry;
 	struct nix_mce_list *mce_list;
-	struct hlist_node *tmp;
+	struct hlist_analde *tmp;
 	struct mce *mce;
 	int i;
 
@@ -3185,7 +3185,7 @@ static int nix_add_mce_list_entry(struct rvu *rvu,
 		mce->rq_rss_index = req->rq_rss_index[i];
 		mce->dest_type = req->dest_type[i];
 		mce->is_active = 1;
-		hlist_add_head(&mce->node, &mce_list->head);
+		hlist_add_head(&mce->analde, &mce_list->head);
 		mce_list->count++;
 	}
 
@@ -3199,13 +3199,13 @@ static int nix_add_mce_list_entry(struct rvu *rvu,
 	return 0;
 
 free_mce:
-	hlist_for_each_entry_safe(mce, tmp, &mce_list->head, node) {
-		hlist_del(&mce->node);
+	hlist_for_each_entry_safe(mce, tmp, &mce_list->head, analde) {
+		hlist_del(&mce->analde);
 		kfree(mce);
 		mce_list->count--;
 	}
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int nix_update_mce_list_entry(struct nix_mce_list *mce_list,
@@ -3215,7 +3215,7 @@ static int nix_update_mce_list_entry(struct nix_mce_list *mce_list,
 	bool delete = false;
 
 	/* Scan through the current list */
-	hlist_for_each_entry(mce, &mce_list->head, node) {
+	hlist_for_each_entry(mce, &mce_list->head, analde) {
 		/* If already exists, then delete */
 		if (mce->pcifunc == pcifunc && !add) {
 			delete = true;
@@ -3228,7 +3228,7 @@ static int nix_update_mce_list_entry(struct nix_mce_list *mce_list,
 	}
 
 	if (delete) {
-		hlist_del(&mce->node);
+		hlist_del(&mce->analde);
 		kfree(mce);
 		mce_list->count--;
 		return 0;
@@ -3240,12 +3240,12 @@ static int nix_update_mce_list_entry(struct nix_mce_list *mce_list,
 	/* Add a new one to the list, at the tail */
 	mce = kzalloc(sizeof(*mce), GFP_KERNEL);
 	if (!mce)
-		return -ENOMEM;
+		return -EANALMEM;
 	mce->pcifunc = pcifunc;
 	if (!tail)
-		hlist_add_head(&mce->node, &mce_list->head);
+		hlist_add_head(&mce->analde, &mce_list->head);
 	else
-		hlist_add_behind(&mce->node, &tail->node);
+		hlist_add_behind(&mce->analde, &tail->analde);
 	mce_list->count++;
 	return 0;
 }
@@ -3295,7 +3295,7 @@ int nix_update_mce_list(struct rvu *rvu, u16 pcifunc,
 	/* Dump the updated list to HW */
 	idx = mce_idx;
 	last_idx = idx + mce_list->count - 1;
-	hlist_for_each_entry(mce, &mce_list->head, node) {
+	hlist_for_each_entry(mce, &mce_list->head, analde) {
 		if (idx > last_idx)
 			break;
 
@@ -3405,7 +3405,7 @@ static int nix_setup_mce_tables(struct rvu *rvu, struct nix_hw *nix_hw)
 	/* Skip PF0 (i.e AF) */
 	for (pf = 1; pf < (rvu->cgx_mapped_pfs + 1); pf++) {
 		cfg = rvu_read64(rvu, BLKADDR_RVUM, RVU_PRIV_PFX_CFG(pf));
-		/* If PF is not enabled, nothing to do */
+		/* If PF is analt enabled, analthing to do */
 		if (!((cfg >> 20) & 0x01))
 			continue;
 		/* Get numVFs attached to this PF */
@@ -3433,7 +3433,7 @@ static int nix_setup_mce_tables(struct rvu *rvu, struct nix_hw *nix_hw)
 			/* idx-0 is for PF, followed by VFs */
 			pcifunc = (pf << RVU_PFVF_PF_SHIFT);
 			pcifunc |= idx;
-			/* Add dummy entries now, so that we don't have to check
+			/* Add dummy entries analw, so that we don't have to check
 			 * for whether AQ_OP should be INIT/WRITE later on.
 			 * Will be updated when a NIXLF is attached/detached to
 			 * these PF/VFs.
@@ -3478,14 +3478,14 @@ static int nix_setup_mcast(struct rvu *rvu, struct nix_hw *nix_hw, int blkaddr)
 	mcast->mce_counter[NIX_MCAST_INGRESS].max = 256UL << MC_TBL_SIZE;
 	err = rvu_alloc_bitmap(&mcast->mce_counter[NIX_MCAST_INGRESS]);
 	if (err)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Allocate bitmap for tx mce entries */
 	mcast->mce_counter[NIX_MCAST_EGRESS].max = MC_TX_MAX;
 	err = rvu_alloc_bitmap(&mcast->mce_counter[NIX_MCAST_EGRESS]);
 	if (err) {
 		rvu_free_bitmap(&mcast->mce_counter[NIX_MCAST_INGRESS]);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Alloc memory for multicast/mirror replication entries */
@@ -3494,13 +3494,13 @@ static int nix_setup_mcast(struct rvu *rvu, struct nix_hw *nix_hw, int blkaddr)
 	if (err) {
 		rvu_free_bitmap(&mcast->mce_counter[NIX_MCAST_INGRESS]);
 		rvu_free_bitmap(&mcast->mce_counter[NIX_MCAST_EGRESS]);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	rvu_write64(rvu, blkaddr, NIX_AF_RX_MCAST_BASE,
 		    (u64)mcast->mce_ctx->iova);
 
-	/* Set max list length equal to max no of VFs per PF  + PF itself */
+	/* Set max list length equal to max anal of VFs per PF  + PF itself */
 	rvu_write64(rvu, blkaddr, NIX_AF_RX_MCAST_CFG,
 		    BIT_ULL(36) | (hw->max_vfs_per_pf << 4) | MC_TBL_SIZE);
 
@@ -3511,7 +3511,7 @@ static int nix_setup_mcast(struct rvu *rvu, struct nix_hw *nix_hw, int blkaddr)
 	if (err) {
 		rvu_free_bitmap(&mcast->mce_counter[NIX_MCAST_INGRESS]);
 		rvu_free_bitmap(&mcast->mce_counter[NIX_MCAST_EGRESS]);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	rvu_write64(rvu, blkaddr, NIX_AF_RX_MCAST_BUF_BASE,
@@ -3540,7 +3540,7 @@ static int nix_setup_txvlan(struct rvu *rvu, struct nix_hw *nix_hw)
 	vlan->rsrc.max = NIX_TX_VTAG_DEF_MAX;
 	err = rvu_alloc_bitmap(&vlan->rsrc);
 	if (err)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Alloc memory for saving entry to RVU PFFUNC allocation mapping */
 	vlan->entry2pfvf_map = devm_kcalloc(rvu->dev, vlan->rsrc.max,
@@ -3553,7 +3553,7 @@ static int nix_setup_txvlan(struct rvu *rvu, struct nix_hw *nix_hw)
 
 free_mem:
 	kfree(vlan->rsrc.bmap);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int nix_setup_txschq(struct rvu *rvu, struct nix_hw *nix_hw, int blkaddr)
@@ -3597,7 +3597,7 @@ static int nix_setup_txschq(struct rvu *rvu, struct nix_hw *nix_hw, int blkaddr)
 		txsch->pfvf_map = devm_kcalloc(rvu->dev, txsch->schq.max,
 					       sizeof(u32), GFP_KERNEL);
 		if (!txsch->pfvf_map)
-			return -ENOMEM;
+			return -EANALMEM;
 		for (schq = 0; schq < txsch->schq.max; schq++)
 			txsch->pfvf_map[schq] = TXSCH_MAP(0, NIX_TXSCHQ_FREE);
 	}
@@ -3659,7 +3659,7 @@ static int nix_af_mark_format_setup(struct rvu *rvu, struct nix_hw *nix_hw,
 	nix_hw->mark_format.cfg = devm_kcalloc(rvu->dev, total, sizeof(u32),
 					       GFP_KERNEL);
 	if (!nix_hw->mark_format.cfg)
-		return -ENOMEM;
+		return -EANALMEM;
 	for (i = 0; i < NIX_MARK_CFG_MAX; i++) {
 		rc = rvu_nix_reserve_mark_format(rvu, nix_hw, blkaddr, cfgs[i]);
 		if (rc < 0)
@@ -3793,7 +3793,7 @@ static int set_flowkey_fields(struct nix_rx_flowkey_alg *alg, u32 flow_cfg)
 
 	/* Each of the 32 possible flow key algorithm definitions should
 	 * fall into above incremental config (except ALG0). Otherwise a
-	 * single NPC MCAM entry is not sufficient for supporting RSS.
+	 * single NPC MCAM entry is analt sufficient for supporting RSS.
 	 *
 	 * If a different definition or combination needed then NPC MCAM
 	 * has to be programmed to filter such pkts and it's action should
@@ -3930,7 +3930,7 @@ static int set_flowkey_fields(struct nix_rx_flowkey_alg *alg, u32 flow_cfg)
 			}
 
 			/* Enum values for NPC_LID_LD and NPC_LID_LG are same,
-			 * so no need to change the ltype_match, just change
+			 * so anal need to change the ltype_match, just change
 			 * the lid for inner protocols
 			 */
 			BUILD_BUG_ON((int)NPC_LT_LD_TCP !=
@@ -3960,7 +3960,7 @@ static int set_flowkey_fields(struct nix_rx_flowkey_alg *alg, u32 flow_cfg)
 			if (key_type == NIX_FLOW_KEY_TYPE_SCTP ||
 			    key_type == NIX_FLOW_KEY_TYPE_INNR_SCTP) {
 				/* Handle the case where any of the group item
-				 * is enabled in the group but not the final one
+				 * is enabled in the group but analt the final one
 				 */
 				if (group_member) {
 					valid_key = true;
@@ -4091,7 +4091,7 @@ static int set_flowkey_fields(struct nix_rx_flowkey_alg *alg, u32 flow_cfg)
 	if (idx == max_bit_pos && key_off <= MAX_KEY_OFF)
 		return 0;
 	else
-		return NIX_AF_ERR_RSS_NOSPC_FIELD;
+		return NIX_AF_ERR_RSS_ANALSPC_FIELD;
 }
 
 static int reserve_flowkey_alg_idx(struct rvu *rvu, int blkaddr, u32 flow_cfg)
@@ -4104,9 +4104,9 @@ static int reserve_flowkey_alg_idx(struct rvu *rvu, int blkaddr, u32 flow_cfg)
 	if (!hw)
 		return NIX_AF_ERR_INVALID_NIXBLK;
 
-	/* No room to add new flow hash algoritham */
+	/* Anal room to add new flow hash algoritham */
 	if (hw->flowkey.in_use >= NIX_FLOW_KEY_ALG_MAX)
-		return NIX_AF_ERR_RSS_NOSPC_ALGO;
+		return NIX_AF_ERR_RSS_ANALSPC_ALGO;
 
 	/* Generate algo fields for the given flow_cfg */
 	rc = set_flowkey_fields((struct nix_rx_flowkey_alg *)field, flow_cfg);
@@ -4246,7 +4246,7 @@ int rvu_mbox_handler_nix_set_mac_addr(struct rvu *rvu,
 	if (!test_bit(PF_SET_VF_TRUSTED, &pfvf->flags) &&
 	    (from_vf && test_bit(PF_SET_VF_MAC, &pfvf->flags))) {
 		dev_warn(rvu->dev,
-			 "MAC address set by admin(PF) cannot be overwritten by untrusted VF");
+			 "MAC address set by admin(PF) cananalt be overwritten by untrusted VF");
 		return -EPERM;
 	}
 
@@ -4298,7 +4298,7 @@ int rvu_mbox_handler_nix_set_rx_mode(struct rvu *rvu, struct nix_rx_mode *req,
 	if (is_vf(pcifunc) && !nix_rx_multicast &&
 	    (promisc || allmulti)) {
 		dev_warn_ratelimited(rvu->dev,
-				     "VF promisc/multicast not supported\n");
+				     "VF promisc/multicast analt supported\n");
 		return 0;
 	}
 
@@ -4553,7 +4553,7 @@ static void nix_link_config(struct rvu *rvu, int blkaddr,
 	 */
 	for (cgx = 0; cgx < hw->cgx; cgx++) {
 		lmac_cnt = cgx_get_lmac_cnt(rvu_cgx_pdata(cgx, rvu));
-		/* Skip when cgx is not available or lmac cnt is zero */
+		/* Skip when cgx is analt available or lmac cnt is zero */
 		if (lmac_cnt <= 0)
 			continue;
 		slink = cgx * hw->lmac_per_cgx;
@@ -4576,7 +4576,7 @@ static void nix_link_config(struct rvu *rvu, int blkaddr,
 			link = iter + slink;
 			nix_hw->tx_credits[link] = tx_credits;
 			rvu_write64(rvu, blkaddr,
-				    NIX_AF_TX_LINKX_NORM_CREDIT(link), cfg);
+				    NIX_AF_TX_LINKX_ANALRM_CREDIT(link), cfg);
 		}
 	}
 
@@ -4588,7 +4588,7 @@ static void nix_link_config(struct rvu *rvu, int blkaddr,
 		/* Enable credits and set credit pkt count to max allowed */
 		tx_credits =  (tx_credits << 12) | (0x1FF << 2) | BIT_ULL(1);
 		rvu_write64(rvu, blkaddr,
-			    NIX_AF_TX_LINKX_NORM_CREDIT(link), tx_credits);
+			    NIX_AF_TX_LINKX_ANALRM_CREDIT(link), tx_credits);
 	}
 }
 
@@ -4611,7 +4611,7 @@ static int nix_calibrate_x2p(struct rvu *rvu, int blkaddr)
 	status = rvu_read64(rvu, blkaddr, NIX_AF_STATUS);
 	/* Check if CGX devices are ready */
 	for (idx = 0; idx < rvu->cgx_cnt_max; idx++) {
-		/* Skip when cgx port is not available */
+		/* Skip when cgx port is analt available */
 		if (!rvu_cgx_pdata(idx, rvu) ||
 		    (status & (BIT_ULL(16 + idx))))
 			continue;
@@ -4653,7 +4653,7 @@ static int nix_aq_init(struct rvu *rvu, struct rvu_block *block)
 	rvu_write64(rvu, block->addr, NIX_AF_CFG, cfg);
 #endif
 
-	/* Do not bypass NDC cache */
+	/* Do analt bypass NDC cache */
 	cfg = rvu_read64(rvu, block->addr, NIX_AF_NDC_CFG);
 	cfg &= ~0x3FFEULL;
 #ifdef CONFIG_NDC_DIS_DYNAMIC_CACHING
@@ -4726,7 +4726,7 @@ static int rvu_nix_block_init(struct rvu *rvu, struct nix_hw *nix_hw)
 		rvu_write64(rvu, blkaddr, NIX_AF_PSE_CHANNEL_LEVEL, 0x01);
 
 		/* Disable SQ manager's sticky mode operation (set TM6 = 0)
-		 * This sticky mode is known to cause SQ stalls when multiple
+		 * This sticky mode is kanalwn to cause SQ stalls when multiple
 		 * SQs are mapped to same SMQ and transmitting pkts at a time.
 		 */
 		cfg = rvu_read64(rvu, blkaddr, NIX_AF_SQM_DBG_CTL_STATUS);
@@ -4866,7 +4866,7 @@ static int rvu_nix_block_init(struct rvu *rvu, struct nix_hw *nix_hw)
 		nix_hw->tx_credits = kcalloc(hw->cgx_links + hw->lbk_links,
 					     sizeof(u64), GFP_KERNEL);
 		if (!nix_hw->tx_credits)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		/* Initialize CGX/LBK/SDP link credits, min/max pkt lengths */
 		nix_link_config(rvu, blkaddr, nix_hw);
@@ -4887,7 +4887,7 @@ int rvu_nix_init(struct rvu *rvu)
 	hw->nix = devm_kcalloc(rvu->dev, MAX_NIX_BLKS, sizeof(struct nix_hw),
 			       GFP_KERNEL);
 	if (!hw->nix)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	blkaddr = rvu_get_next_nix_blkaddr(rvu, blkaddr);
 	while (blkaddr) {
@@ -5003,7 +5003,7 @@ static void nix_mcast_update_mce_entry(struct rvu *rvu, u16 pcifunc, u8 is_activ
 		 * received the disable request.
 		 */
 		mce_list = &elem->mcast_mce_list;
-		hlist_for_each_entry(mce, &mce_list->head, node) {
+		hlist_for_each_entry(mce, &mce_list->head, analde) {
 			if (mce->pcifunc == pcifunc) {
 				mce->is_active = is_active;
 				break;
@@ -5498,7 +5498,7 @@ static int nix_setup_ipolicers(struct rvu *rvu,
 	nix_hw->ipolicer = devm_kcalloc(rvu->dev, BAND_PROF_NUM_LAYERS,
 					sizeof(*ipolicer), GFP_KERNEL);
 	if (!nix_hw->ipolicer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cfg = rvu_read64(rvu, blkaddr, NIX_AF_PL_CONST);
 
@@ -5527,21 +5527,21 @@ static int nix_setup_ipolicers(struct rvu *rvu,
 						  ipolicer->band_prof.max,
 						  sizeof(u16), GFP_KERNEL);
 		if (!ipolicer->pfvf_map)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		ipolicer->match_id = devm_kcalloc(rvu->dev,
 						  ipolicer->band_prof.max,
 						  sizeof(u16), GFP_KERNEL);
 		if (!ipolicer->match_id)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		for (prof_idx = 0;
 		     prof_idx < ipolicer->band_prof.max; prof_idx++) {
 			/* Set AF as current owner for INIT ops to succeed */
 			ipolicer->pfvf_map[prof_idx] = 0x00;
 
-			/* There is no enable bit in the profile context,
-			 * so no context disable. So let's INIT them here
+			/* There is anal enable bit in the profile context,
+			 * so anal context disable. So let's INIT them here
 			 * so that PF/VF later on have to just do WRITE to
 			 * setup policer rates and config.
 			 */
@@ -5562,7 +5562,7 @@ static int nix_setup_ipolicers(struct rvu *rvu,
 						   ipolicer->band_prof.max,
 						   sizeof(u16), GFP_KERNEL);
 		if (!ipolicer->ref_count)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	/* Set policer timeunit to 2us ie  (19 + 1) * 100 nsec = 2us */
@@ -5605,7 +5605,7 @@ static int nix_verify_bandprof(struct nix_cn10k_aq_enq_req *req,
 	if (prof_idx >= ipolicer->band_prof.max)
 		return -EINVAL;
 
-	/* Check if the profile is allocated to the requesting PCIFUNC or not
+	/* Check if the profile is allocated to the requesting PCIFUNC or analt
 	 * with the exception of AF. AF is allowed to read and update contexts.
 	 */
 	if (pcifunc && ipolicer->pfvf_map[prof_idx] != pcifunc)
@@ -5613,7 +5613,7 @@ static int nix_verify_bandprof(struct nix_cn10k_aq_enq_req *req,
 
 	/* If this profile is linked to higher layer profile then check
 	 * if that profile is also allocated to the requesting PCIFUNC
-	 * or not.
+	 * or analt.
 	 */
 	if (!req->prof.hl_en)
 		return 0;
@@ -5647,7 +5647,7 @@ int rvu_mbox_handler_nix_bandprof_alloc(struct rvu *rvu,
 	struct nix_hw *nix_hw;
 
 	if (!rvu->hw->cap.ipolicer)
-		return NIX_AF_ERR_IPOLICER_NOTSUPP;
+		return NIX_AF_ERR_IPOLICER_ANALTSUPP;
 
 	err = nix_get_struct_ptrs(rvu, pcifunc, &nix_hw, &blkaddr);
 	if (err)
@@ -5685,7 +5685,7 @@ static int nix_free_all_bandprof(struct rvu *rvu, u16 pcifunc)
 	struct nix_hw *nix_hw;
 
 	if (!rvu->hw->cap.ipolicer)
-		return NIX_AF_ERR_IPOLICER_NOTSUPP;
+		return NIX_AF_ERR_IPOLICER_ANALTSUPP;
 
 	err = nix_get_struct_ptrs(rvu, pcifunc, &nix_hw, &blkaddr);
 	if (err)
@@ -5729,7 +5729,7 @@ int rvu_mbox_handler_nix_bandprof_free(struct rvu *rvu,
 		return nix_free_all_bandprof(rvu, pcifunc);
 
 	if (!rvu->hw->cap.ipolicer)
-		return NIX_AF_ERR_IPOLICER_NOTSUPP;
+		return NIX_AF_ERR_IPOLICER_ANALTSUPP;
 
 	err = nix_get_struct_ptrs(rvu, pcifunc, &nix_hw, &blkaddr);
 	if (err)
@@ -6014,7 +6014,7 @@ int rvu_mbox_handler_nix_bandprof_get_hwinfo(struct rvu *rvu, struct msg_req *re
 	u64 tu;
 
 	if (!rvu->hw->cap.ipolicer)
-		return NIX_AF_ERR_IPOLICER_NOTSUPP;
+		return NIX_AF_ERR_IPOLICER_ANALTSUPP;
 
 	err = nix_get_struct_ptrs(rvu, req->hdr.pcifunc, &nix_hw, &blkaddr);
 	if (err)
@@ -6031,7 +6031,7 @@ int rvu_mbox_handler_nix_bandprof_get_hwinfo(struct rvu *rvu, struct msg_req *re
 	}
 	mutex_unlock(&rvu->rsrc_lock);
 
-	/* Set the policer timeunit in nanosec */
+	/* Set the policer timeunit in naanalsec */
 	tu = rvu_read64(rvu, blkaddr, NIX_AF_PL_TS) & GENMASK_ULL(9, 0);
 	rsp->policer_timeunit = (tu + 1) * 100;
 
@@ -6101,7 +6101,7 @@ void rvu_nix_mcast_flr_free_entries(struct rvu *rvu, u16 pcifunc)
 	mutex_lock(&mcast_grp->mcast_grp_lock);
 	list_for_each_entry_safe(elem, tmp, &mcast_grp->mcast_grp_head, list) {
 		struct nix_mce_list *mce_list;
-		struct hlist_node *tmp;
+		struct hlist_analde *tmp;
 		struct mce *mce;
 
 		/* If the pcifunc which created the multicast/mirror
@@ -6120,7 +6120,7 @@ void rvu_nix_mcast_flr_free_entries(struct rvu *rvu, u16 pcifunc)
 		 * received the FLR.
 		 */
 		mce_list = &elem->mcast_mce_list;
-		hlist_for_each_entry_safe(mce, tmp, &mce_list->head, node) {
+		hlist_for_each_entry_safe(mce, tmp, &mce_list->head, analde) {
 			if (mce->pcifunc == pcifunc) {
 				ureq.hdr.pcifunc = pcifunc;
 				ureq.num_mce_entry = 1;
@@ -6177,7 +6177,7 @@ int rvu_mbox_handler_nix_mcast_grp_create(struct rvu *rvu,
 	mcast_grp = &nix_hw->mcast_grp;
 	elem = kzalloc(sizeof(*elem), GFP_KERNEL);
 	if (!elem)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_HLIST_HEAD(&elem->mcast_mce_list.head);
 	elem->mcam_index = -1;
@@ -6225,7 +6225,7 @@ int rvu_mbox_handler_nix_mcast_grp_destroy(struct rvu *rvu,
 		goto unlock_grp;
 	}
 
-	/* If no mce entries are associated with the group
+	/* If anal mce entries are associated with the group
 	 * then just remove it from the global list.
 	 */
 	if (!elem->mcast_mce_list.count)
@@ -6325,12 +6325,12 @@ int rvu_mbox_handler_nix_mcast_grp_update(struct rvu *rvu,
 
 		elem->mce_start_index = nix_alloc_mce_list(mcast, new_count, elem->dir);
 
-		/* It is possible not to get contiguous memory */
+		/* It is possible analt to get contiguous memory */
 		if (elem->mce_start_index < 0) {
 			if (elem->mcam_index != -1) {
 				npc_enable_mcam_entry(rvu, mcam, npc_blkaddr,
 						      elem->mcam_index, true);
-				ret = NIX_AF_ERR_NON_CONTIG_MCE_LIST;
+				ret = NIX_AF_ERR_ANALN_CONTIG_MCE_LIST;
 				goto unlock_mce;
 			}
 		}

@@ -80,7 +80,7 @@ static void rtsx5228_fetch_vendor_settings(struct rtsx_pcr *pcr)
 
 	pcr->rtd3_en = rtsx_reg_to_rtd3(reg);
 	if (rtsx_check_mmc_support(reg))
-		pcr->extra_caps |= EXTRA_CAPS_NO_MMC;
+		pcr->extra_caps |= EXTRA_CAPS_ANAL_MMC;
 	pcr->sd30_drive_sel_3v3 = rtsx_reg_to_sd30_drive_sel_3v3(reg);
 	if (rtsx_reg_check_reverse_socket(reg))
 		pcr->flags |= PCR_REVERSE_SOCKET;
@@ -167,7 +167,7 @@ static const u32 rts5228_sd_pull_ctl_disable_tbl[] = {
 static int rts5228_sd_set_sample_push_timing_sd30(struct rtsx_pcr *pcr)
 {
 	rtsx_pci_write_register(pcr, SD_CFG1, SD_MODE_SELECT_MASK
-		| SD_ASYNC_FIFO_NOT_RST, SD_30_MODE | SD_ASYNC_FIFO_NOT_RST);
+		| SD_ASYNC_FIFO_ANALT_RST, SD_30_MODE | SD_ASYNC_FIFO_ANALT_RST);
 	rtsx_pci_write_register(pcr, CLK_CTL, CLK_LOW_FREQ, CLK_LOW_FREQ);
 	rtsx_pci_write_register(pcr, CARD_CLK_SOURCE, 0xFF,
 			CRC_VAR_CLK0 | SD30_FIX_CLK | SAMPLE_VAR_CLK1);
@@ -375,7 +375,7 @@ static void rts5228_process_ocp(struct rtsx_pcr *pcr)
 
 	rtsx_pci_get_ocpstat(pcr, &pcr->ocp_stat);
 
-	if (pcr->ocp_stat & (SD_OC_NOW | SD_OC_EVER)) {
+	if (pcr->ocp_stat & (SD_OC_ANALW | SD_OC_EVER)) {
 		rts5228_clear_ocpstat(pcr);
 		rts5228_card_power_off(pcr, RTSX_SD_CARD);
 		rtsx_pci_write_register(pcr, CARD_OE, SD_OUTPUT_EN, 0);
@@ -491,7 +491,7 @@ static void rts5228_disable_aspm(struct rtsx_pcr *pcr, bool enable)
 	mask = FORCE_ASPM_VAL_MASK | FORCE_ASPM_CTL0 | FORCE_ASPM_CTL1;
 	val = FORCE_ASPM_CTL0 | FORCE_ASPM_CTL1;
 	rtsx_pci_write_register(pcr, ASPM_FORCE_CTL, mask, val);
-	rtsx_pci_write_register(pcr, SD_CFG1, SD_ASYNC_FIFO_NOT_RST, 0);
+	rtsx_pci_write_register(pcr, SD_CFG1, SD_ASYNC_FIFO_ANALT_RST, 0);
 	mdelay(10);
 	pcr->aspm_enabled = enable;
 }
@@ -516,7 +516,7 @@ static void rts5228_set_l1off_cfg_sub_d0(struct rtsx_pcr *pcr, int active)
 	if (active) {
 		/* run, latency: 60us */
 		if (aspm_L1_1)
-			val = option->ltr_l1off_snooze_sspwrgate;
+			val = option->ltr_l1off_sanaloze_sspwrgate;
 	} else {
 		/* l1off, latency: 300us */
 		if (aspm_L1_2)
@@ -656,13 +656,13 @@ int rts5228_pci_switch_clock(struct rtsx_pcr *pcr, unsigned int card_clock,
 	rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, SSC_CTL1, SSC_RSTB, SSC_RSTB);
 	if (vpclk) {
 		rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, SD_VPCLK0_CTL,
-				PHASE_NOT_RESET, 0);
+				PHASE_ANALT_RESET, 0);
 		rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, SD_VPCLK1_CTL,
-				PHASE_NOT_RESET, 0);
+				PHASE_ANALT_RESET, 0);
 		rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, SD_VPCLK0_CTL,
-				PHASE_NOT_RESET, PHASE_NOT_RESET);
+				PHASE_ANALT_RESET, PHASE_ANALT_RESET);
 		rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, SD_VPCLK1_CTL,
-				PHASE_NOT_RESET, PHASE_NOT_RESET);
+				PHASE_ANALT_RESET, PHASE_ANALT_RESET);
 	}
 
 	err = rtsx_pci_send_cmd(pcr, 2000);
@@ -712,9 +712,9 @@ void rts5228_init_params(struct rtsx_pcr *pcr)
 	option->ltr_active_latency = LTR_ACTIVE_LATENCY_DEF;
 	option->ltr_idle_latency = LTR_IDLE_LATENCY_DEF;
 	option->ltr_l1off_latency = LTR_L1OFF_LATENCY_DEF;
-	option->l1_snooze_delay = L1_SNOOZE_DELAY_DEF;
+	option->l1_sanaloze_delay = L1_SANALOZE_DELAY_DEF;
 	option->ltr_l1off_sspwrgate = 0x7F;
-	option->ltr_l1off_snooze_sspwrgate = 0x78;
+	option->ltr_l1off_sanaloze_sspwrgate = 0x78;
 
 	option->ocp_en = 1;
 	hw_param->interrupt_en |= SD_OC_INT_EN;

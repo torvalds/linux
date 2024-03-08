@@ -188,7 +188,7 @@ static irqreturn_t tegra_hsp_doorbell_irq(int irq, void *data)
 
 	db = tegra_hsp_doorbell_get(hsp, TEGRA_HSP_DB_MASTER_CCPLEX);
 	if (!db)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	value = tegra_hsp_channel_readl(&db->channel, HSP_DB_PENDING);
 	tegra_hsp_channel_writel(&db->channel, value, HSP_DB_PENDING);
@@ -205,9 +205,9 @@ static irqreturn_t tegra_hsp_doorbell_irq(int irq, void *data)
 		 * interrupt will immediately fire.
 		 *
 		 * In that case, db->channel.chan will still be NULL here and
-		 * cause a crash if not properly guarded.
+		 * cause a crash if analt properly guarded.
 		 *
-		 * It remains to be seen if ignoring the doorbell in that case
+		 * It remains to be seen if iganalring the doorbell in that case
 		 * is the correct solution.
 		 */
 		if (db && db->channel.chan)
@@ -276,7 +276,7 @@ tegra_hsp_doorbell_create(struct tegra_hsp *hsp, const char *name,
 
 	db = devm_kzalloc(hsp->dev, sizeof(*db), GFP_KERNEL);
 	if (!db)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	offset = (1 + (hsp->num_sm / 2) + hsp->num_ss + hsp->num_as) * SZ_64K;
 	offset += index * hsp->soc->reg_stride;
@@ -321,7 +321,7 @@ static int tegra_hsp_doorbell_startup(struct mbox_chan *chan)
 
 	ccplex = tegra_hsp_doorbell_get(hsp, TEGRA_HSP_DB_MASTER_CCPLEX);
 	if (!ccplex)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
 	 * On simulation platforms the BPMP hasn't had a chance yet to mark
@@ -329,7 +329,7 @@ static int tegra_hsp_doorbell_startup(struct mbox_chan *chan)
 	 * checks here.
 	 */
 	if (tegra_is_silicon() && !tegra_hsp_doorbell_can_ring(db))
-		return -ENODEV;
+		return -EANALDEV;
 
 	spin_lock_irqsave(&hsp->lock, flags);
 
@@ -582,14 +582,14 @@ static struct mbox_chan *tegra_hsp_db_xlate(struct mbox_controller *mbox,
 {
 	struct tegra_hsp *hsp = container_of(mbox, struct tegra_hsp, mbox_db);
 	unsigned int type = args->args[0], master = args->args[1];
-	struct tegra_hsp_channel *channel = ERR_PTR(-ENODEV);
+	struct tegra_hsp_channel *channel = ERR_PTR(-EANALDEV);
 	struct tegra_hsp_doorbell *db;
 	struct mbox_chan *chan;
 	unsigned long flags;
 	unsigned int i;
 
 	if (type != TEGRA_HSP_MBOX_TYPE_DB || !hsp->doorbell_irq)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	db = tegra_hsp_doorbell_get(hsp, master);
 	if (db)
@@ -627,13 +627,13 @@ static struct mbox_chan *tegra_hsp_sm_xlate(struct mbox_controller *mbox,
 
 	if ((type & HSP_MBOX_TYPE_MASK) != TEGRA_HSP_MBOX_TYPE_SM ||
 	    !hsp->shared_irqs || index >= hsp->num_sm)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	mb = &hsp->mailboxes[index];
 
 	if (type & TEGRA_HSP_MBOX_TYPE_SM_128BIT) {
 		if (!hsp->soc->has_128_bit_mb)
-			return ERR_PTR(-ENODEV);
+			return ERR_PTR(-EANALDEV);
 
 		mb->ops = &tegra_hsp_sm_128bit_ops;
 	} else {
@@ -672,7 +672,7 @@ static int tegra_hsp_add_mailboxes(struct tegra_hsp *hsp, struct device *dev)
 	hsp->mailboxes = devm_kcalloc(dev, hsp->num_sm, sizeof(*hsp->mailboxes),
 				      GFP_KERNEL);
 	if (!hsp->mailboxes)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < hsp->num_sm; i++) {
 		struct tegra_hsp_mailbox *mb = &hsp->mailboxes[i];
@@ -718,7 +718,7 @@ static int tegra_hsp_request_shared_irq(struct tegra_hsp *hsp)
 
 	if (i == hsp->num_si) {
 		dev_err(hsp->dev, "failed to find available interrupt\n");
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	return 0;
@@ -733,7 +733,7 @@ static int tegra_hsp_probe(struct platform_device *pdev)
 
 	hsp = devm_kzalloc(&pdev->dev, sizeof(*hsp), GFP_KERNEL);
 	if (!hsp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hsp->dev = &pdev->dev;
 	hsp->soc = of_device_get_match_data(&pdev->dev);
@@ -762,14 +762,14 @@ static int tegra_hsp_probe(struct platform_device *pdev)
 						sizeof(*hsp->shared_irqs),
 						GFP_KERNEL);
 		if (!hsp->shared_irqs)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		for (i = 0; i < hsp->num_si; i++) {
 			char *name;
 
 			name = kasprintf(GFP_KERNEL, "shared%u", i);
 			if (!name)
-				return -ENOMEM;
+				return -EANALMEM;
 
 			err = platform_get_irq_byname_optional(pdev, name);
 			if (err >= 0) {
@@ -796,7 +796,7 @@ static int tegra_hsp_probe(struct platform_device *pdev)
 					  sizeof(*hsp->mbox_db.chans),
 					  GFP_KERNEL);
 	if (!hsp->mbox_db.chans)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (hsp->doorbell_irq) {
 		err = tegra_hsp_add_doorbells(hsp);
@@ -824,7 +824,7 @@ static int tegra_hsp_probe(struct platform_device *pdev)
 					  sizeof(*hsp->mbox_sm.chans),
 					  GFP_KERNEL);
 	if (!hsp->mbox_sm.chans)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (hsp->shared_irqs) {
 		err = tegra_hsp_add_mailboxes(hsp, &pdev->dev);
@@ -846,7 +846,7 @@ static int tegra_hsp_probe(struct platform_device *pdev)
 
 	if (hsp->doorbell_irq) {
 		err = devm_request_irq(&pdev->dev, hsp->doorbell_irq,
-				       tegra_hsp_doorbell_irq, IRQF_NO_SUSPEND,
+				       tegra_hsp_doorbell_irq, IRQF_ANAL_SUSPEND,
 				       dev_name(&pdev->dev), hsp);
 		if (err < 0) {
 			dev_err(&pdev->dev,
@@ -899,7 +899,7 @@ static int __maybe_unused tegra_hsp_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops tegra_hsp_pm_ops = {
-	.resume_noirq = tegra_hsp_resume,
+	.resume_analirq = tegra_hsp_resume,
 };
 
 static const struct tegra_hsp_db_map tegra186_hsp_db_map[] = {

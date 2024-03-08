@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -38,7 +38,7 @@ dcb_i2c_table(struct nvkm_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
 	}
 
 	if (i2c && *ver >= 0x42) {
-		nvkm_warn(&bios->subdev, "ccb %02x not supported\n", *ver);
+		nvkm_warn(&bios->subdev, "ccb %02x analt supported\n", *ver);
 		return 0x0000;
 	}
 
@@ -127,7 +127,7 @@ dcb_i2c_parse(struct nvkm_bios *bios, u8 idx, struct dcb_i2c_entry *info)
 		case DCB_I2C_UNUSED:
 			return 0;
 		default:
-			nvkm_warn(subdev, "unknown i2c type %d\n", info->type);
+			nvkm_warn(subdev, "unkanalwn i2c type %d\n", info->type);
 			info->type = DCB_I2C_UNUSED;
 			return 0;
 		}
@@ -160,5 +160,5 @@ dcb_i2c_parse(struct nvkm_bios *bios, u8 idx, struct dcb_i2c_entry *info)
 		return 0;
 	}
 
-	return -ENOENT;
+	return -EANALENT;
 }

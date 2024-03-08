@@ -61,7 +61,7 @@
 #define B4			2
 #define B8			3
 
-/* Refresh rate in nano-seconds */
+/* Refresh rate in naanal-seconds */
 #define T_REFI_15_6		15600
 #define T_REFI_7_8		7800
 #define T_REFI_3_9		3900
@@ -103,7 +103,7 @@
 #define MR4_TUF_MASK					(1 << 7)
 
 /* MR4 SDRAM Refresh Rate field values */
-#define SDRAM_TEMP_NOMINAL				0x3
+#define SDRAM_TEMP_ANALMINAL				0x3
 #define SDRAM_TEMP_RESERVED_4				0x4
 #define SDRAM_TEMP_HIGH_DERATE_REFRESH			0x5
 #define SDRAM_TEMP_HIGH_DERATE_REFRESH_AND_TIMINGS	0x6
@@ -167,7 +167,7 @@ struct lpddr2_timings {
 
 /*
  * Min value for some parameters in terms of number of tCK cycles(nCK)
- * Please set to zero parameters that are not valid for a given memory
+ * Please set to zero parameters that are analt valid for a given memory
  * type
  */
 struct lpddr2_min_tck {
@@ -204,7 +204,7 @@ union lpddr2_basic_config4 {
 /*
  * Structure for information about LPDDR2 chip. All parameters are
  * matching raw values of standard mode register bitfields or set to
- * -ENOENT if info unavailable.
+ * -EANALENT if info unavailable.
  */
 struct lpddr2_info {
 	int arch_type;
@@ -250,7 +250,7 @@ struct lpddr3_timings {
 
 /*
  * Min value for some parameters in terms of number of tCK cycles(nCK)
- * Please set to zero parameters that are not valid for a given memory
+ * Please set to zero parameters that are analt valid for a given memory
  * type
  */
 struct lpddr3_min_tck {

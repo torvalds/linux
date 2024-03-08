@@ -8,7 +8,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/reboot.h>
 #include <linux/slab.h>
 #include <linux/stddef.h>
@@ -602,19 +602,19 @@ static int ipic_set_irq_type(struct irq_data *d, unsigned int flow_type)
 	unsigned int src = irqd_to_hwirq(d);
 	unsigned int vold, vnew, edibit;
 
-	if (flow_type == IRQ_TYPE_NONE)
+	if (flow_type == IRQ_TYPE_ANALNE)
 		flow_type = IRQ_TYPE_LEVEL_LOW;
 
 	/* ipic supports only low assertion and high-to-low change senses
 	 */
 	if (!(flow_type & (IRQ_TYPE_LEVEL_LOW | IRQ_TYPE_EDGE_FALLING))) {
-		printk(KERN_ERR "ipic: sense type 0x%x not supported\n",
+		printk(KERN_ERR "ipic: sense type 0x%x analt supported\n",
 			flow_type);
 		return -EINVAL;
 	}
 	/* ipic supports only edge mode on external interrupts */
 	if ((flow_type & IRQ_TYPE_EDGE_FALLING) && !ipic_info[src].ack) {
-		printk(KERN_ERR "ipic: edge sense not supported on internal "
+		printk(KERN_ERR "ipic: edge sense analt supported on internal "
 				"interrupts\n");
 		return -EINVAL;
 
@@ -648,7 +648,7 @@ static int ipic_set_irq_type(struct irq_data *d, unsigned int flow_type)
 	}
 	if (vold != vnew)
 		ipic_write(ipic->regs, IPIC_SECNR, vnew);
-	return IRQ_SET_MASK_OK_NOCOPY;
+	return IRQ_SET_MASK_OK_ANALCOPY;
 }
 
 /* level interrupts and edge interrupts have different ack operations */
@@ -669,12 +669,12 @@ static struct irq_chip ipic_edge_irq_chip = {
 	.irq_set_type	= ipic_set_irq_type,
 };
 
-static int ipic_host_match(struct irq_domain *h, struct device_node *node,
+static int ipic_host_match(struct irq_domain *h, struct device_analde *analde,
 			   enum irq_domain_bus_token bus_token)
 {
-	/* Exact match, unless ipic node is NULL */
-	struct device_node *of_node = irq_domain_get_of_node(h);
-	return of_node == NULL || of_node == node;
+	/* Exact match, unless ipic analde is NULL */
+	struct device_analde *of_analde = irq_domain_get_of_analde(h);
+	return of_analde == NULL || of_analde == analde;
 }
 
 static int ipic_host_map(struct irq_domain *h, unsigned int virq,
@@ -686,7 +686,7 @@ static int ipic_host_map(struct irq_domain *h, unsigned int virq,
 	irq_set_chip_and_handler(virq, &ipic_level_irq_chip, handle_level_irq);
 
 	/* Set default irq type */
-	irq_set_irq_type(virq, IRQ_TYPE_NONE);
+	irq_set_irq_type(virq, IRQ_TYPE_ANALNE);
 
 	return 0;
 }
@@ -697,13 +697,13 @@ static const struct irq_domain_ops ipic_host_ops = {
 	.xlate	= irq_domain_xlate_onetwocell,
 };
 
-struct ipic * __init ipic_init(struct device_node *node, unsigned int flags)
+struct ipic * __init ipic_init(struct device_analde *analde, unsigned int flags)
 {
 	struct ipic	*ipic;
 	struct resource res;
 	u32 temp = 0, ret;
 
-	ret = of_address_to_resource(node, 0, &res);
+	ret = of_address_to_resource(analde, 0, &res);
 	if (ret)
 		return NULL;
 
@@ -711,7 +711,7 @@ struct ipic * __init ipic_init(struct device_node *node, unsigned int flags)
 	if (ipic == NULL)
 		return NULL;
 
-	ipic->irqhost = irq_domain_add_linear(node, NR_IPIC_INTS,
+	ipic->irqhost = irq_domain_add_linear(analde, NR_IPIC_INTS,
 					      &ipic_host_ops, ipic);
 	if (ipic->irqhost == NULL) {
 		kfree(ipic);
@@ -788,7 +788,7 @@ void ipic_clear_mcp_status(u32 mask)
 	ipic_write(primary_ipic->regs, IPIC_SERSR, mask);
 }
 
-/* Return an interrupt vector or 0 if no interrupt is pending. */
+/* Return an interrupt vector or 0 if anal interrupt is pending. */
 unsigned int ipic_get_irq(void)
 {
 	int irq;
@@ -798,7 +798,7 @@ unsigned int ipic_get_irq(void)
 #define IPIC_SIVCR_VECTOR_MASK	0x7f
 	irq = ipic_read(primary_ipic->regs, IPIC_SIVCR) & IPIC_SIVCR_VECTOR_MASK;
 
-	if (irq == 0)    /* 0 --> no irq is pending */
+	if (irq == 0)    /* 0 --> anal irq is pending */
 		return 0;
 
 	return irq_linear_revmap(primary_ipic->irqhost, irq);
@@ -835,7 +835,7 @@ static int ipic_suspend(void)
 	ipic_saved_state.sercr = ipic_read(ipic->regs, IPIC_SERCR);
 
 	if (fsl_deep_sleep()) {
-		/* In deep sleep, make sure there can be no
+		/* In deep sleep, make sure there can be anal
 		 * pending interrupts, as this can cause
 		 * problems on 831x.
 		 */
@@ -878,7 +878,7 @@ static struct syscore_ops ipic_syscore_ops = {
 static int __init init_ipic_syscore(void)
 {
 	if (!primary_ipic || !primary_ipic->regs)
-		return -ENODEV;
+		return -EANALDEV;
 
 	printk(KERN_DEBUG "Registering ipic system core operations\n");
 	register_syscore_ops(&ipic_syscore_ops);

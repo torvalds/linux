@@ -50,7 +50,7 @@ static int uvc_control_add_xu_mapping(struct uvc_video_chain *chain,
 	size = xmap->menu_count * sizeof(*map->menu_mapping);
 	map->menu_mapping = kzalloc(size, GFP_KERNEL);
 	if (!map->menu_mapping) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto done;
 	}
 
@@ -71,7 +71,7 @@ static int uvc_control_add_xu_mapping(struct uvc_video_chain *chain,
 		size = xmap->menu_count * sizeof(map->menu_names[0]);
 		map->menu_names = kzalloc(size, GFP_KERNEL);
 		if (!map->menu_names) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto done;
 		}
 
@@ -108,10 +108,10 @@ static int uvc_ioctl_xu_ctrl_map(struct uvc_video_chain *chain,
 
 	map = kzalloc(sizeof(*map), GFP_KERNEL);
 	if (map == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	map->id = xmap->id;
-	/* Non standard control id. */
+	/* Analn standard control id. */
 	if (v4l2_ctrl_get_name(map->id) == NULL) {
 		if (xmap->name[0] == '\0') {
 			ret = -EINVAL;
@@ -141,7 +141,7 @@ static int uvc_ioctl_xu_ctrl_map(struct uvc_video_chain *chain,
 	default:
 		uvc_dbg(chain->dev, CONTROL,
 			"Unsupported V4L2 control type %u\n", xmap->v4l2_type);
-		ret = -ENOTTY;
+		ret = -EANALTTY;
 		break;
 	}
 
@@ -248,7 +248,7 @@ static int uvc_v4l2_try_format(struct uvc_streaming *stream,
 
 	/*
 	 * Find the closest image size. The distance between image sizes is
-	 * the size in pixels of the non-overlapping regions between the
+	 * the size in pixels of the analn-overlapping regions between the
 	 * requested size and the frame-specified size.
 	 */
 	rw = fmt->fmt.pix.width;
@@ -328,7 +328,7 @@ static int uvc_v4l2_try_format(struct uvc_streaming *stream,
 
 	if (i == stream->nformats)
 		uvc_dbg(stream->dev, FORMAT,
-			"Unknown bFormatIndex %u, using default\n",
+			"Unkanalwn bFormatIndex %u, using default\n",
 			probe->bFormatIndex);
 
 	for (i = 0; i < format->nframes; ++i) {
@@ -340,12 +340,12 @@ static int uvc_v4l2_try_format(struct uvc_streaming *stream,
 
 	if (i == format->nframes)
 		uvc_dbg(stream->dev, FORMAT,
-			"Unknown bFrameIndex %u, using default\n",
+			"Unkanalwn bFrameIndex %u, using default\n",
 			probe->bFrameIndex);
 
 	fmt->fmt.pix.width = frame->wWidth;
 	fmt->fmt.pix.height = frame->wHeight;
-	fmt->fmt.pix.field = V4L2_FIELD_NONE;
+	fmt->fmt.pix.field = V4L2_FIELD_ANALNE;
 	fmt->fmt.pix.bytesperline = uvc_v4l2_get_bytesperline(format, frame);
 	fmt->fmt.pix.sizeimage = probe->dwMaxVideoFrameSize;
 	fmt->fmt.pix.pixelformat = format->fcc;
@@ -383,7 +383,7 @@ static int uvc_v4l2_get_format(struct uvc_streaming *stream,
 	fmt->fmt.pix.pixelformat = format->fcc;
 	fmt->fmt.pix.width = frame->wWidth;
 	fmt->fmt.pix.height = frame->wHeight;
-	fmt->fmt.pix.field = V4L2_FIELD_NONE;
+	fmt->fmt.pix.field = V4L2_FIELD_ANALNE;
 	fmt->fmt.pix.bytesperline = uvc_v4l2_get_bytesperline(format, frame);
 	fmt->fmt.pix.sizeimage = stream->ctrl.dwMaxVideoFrameSize;
 	fmt->fmt.pix.colorspace = format->colorspace;
@@ -429,7 +429,7 @@ done:
 static int uvc_v4l2_get_streamparm(struct uvc_streaming *stream,
 		struct v4l2_streamparm *parm)
 {
-	u32 numerator, denominator;
+	u32 numerator, deanalminator;
 
 	if (parm->type != stream->type)
 		return -EINVAL;
@@ -438,8 +438,8 @@ static int uvc_v4l2_get_streamparm(struct uvc_streaming *stream,
 	numerator = stream->ctrl.dwFrameInterval;
 	mutex_unlock(&stream->mutex);
 
-	denominator = 10000000;
-	v4l2_simplify_fraction(&numerator, &denominator, 8, 333);
+	deanalminator = 10000000;
+	v4l2_simplify_fraction(&numerator, &deanalminator, 8, 333);
 
 	memset(parm, 0, sizeof(*parm));
 	parm->type = stream->type;
@@ -448,14 +448,14 @@ static int uvc_v4l2_get_streamparm(struct uvc_streaming *stream,
 		parm->parm.capture.capability = V4L2_CAP_TIMEPERFRAME;
 		parm->parm.capture.capturemode = 0;
 		parm->parm.capture.timeperframe.numerator = numerator;
-		parm->parm.capture.timeperframe.denominator = denominator;
+		parm->parm.capture.timeperframe.deanalminator = deanalminator;
 		parm->parm.capture.extendedmode = 0;
 		parm->parm.capture.readbuffers = 0;
 	} else {
 		parm->parm.output.capability = V4L2_CAP_TIMEPERFRAME;
 		parm->parm.output.outputmode = 0;
 		parm->parm.output.timeperframe.numerator = numerator;
-		parm->parm.output.timeperframe.denominator = denominator;
+		parm->parm.output.timeperframe.deanalminator = deanalminator;
 	}
 
 	return 0;
@@ -481,9 +481,9 @@ static int uvc_v4l2_set_streamparm(struct uvc_streaming *stream,
 		timeperframe = parm->parm.output.timeperframe;
 
 	interval = v4l2_fraction_to_interval(timeperframe.numerator,
-		timeperframe.denominator);
+		timeperframe.deanalminator);
 	uvc_dbg(stream->dev, FORMAT, "Setting frame interval to %u/%u (%u)\n",
-		timeperframe.numerator, timeperframe.denominator, interval);
+		timeperframe.numerator, timeperframe.deanalminator, interval);
 
 	mutex_lock(&stream->mutex);
 
@@ -533,9 +533,9 @@ static int uvc_v4l2_set_streamparm(struct uvc_streaming *stream,
 
 	/* Return the actual frame period. */
 	timeperframe.numerator = probe.dwFrameInterval;
-	timeperframe.denominator = 10000000;
+	timeperframe.deanalminator = 10000000;
 	v4l2_simplify_fraction(&timeperframe.numerator,
-		&timeperframe.denominator, 8, 333);
+		&timeperframe.deanalminator, 8, 333);
 
 	if (parm->type == V4L2_BUF_TYPE_VIDEO_CAPTURE) {
 		parm->parm.capture.timeperframe = timeperframe;
@@ -557,7 +557,7 @@ static int uvc_v4l2_set_streamparm(struct uvc_streaming *stream,
  * implementation is completely transparent for the end-user and doesn't
  * require explicit use of the VIDIOC_G_PRIORITY and VIDIOC_S_PRIORITY ioctls.
  * Those ioctls enable finer control on the device (by making possible for a
- * user to request exclusive access to a device), but are not mature yet.
+ * user to request exclusive access to a device), but are analt mature yet.
  * Switching to the V4L2 priority mechanism might be considered in the future
  * if this situation changes.
  *
@@ -625,7 +625,7 @@ static int uvc_v4l2_open(struct file *file)
 	handle = kzalloc(sizeof(*handle), GFP_KERNEL);
 	if (handle == NULL) {
 		usb_autopm_put_interface(stream->dev->intf);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	mutex_lock(&stream->dev->lock);
@@ -869,7 +869,7 @@ static int uvc_ioctl_dqbuf(struct file *file, void *fh, struct v4l2_buffer *buf)
 		return -EBUSY;
 
 	return uvc_dequeue_buffer(&stream->queue, buf,
-				  file->f_flags & O_NONBLOCK);
+				  file->f_flags & O_ANALNBLOCK);
 }
 
 static int uvc_ioctl_create_bufs(struct file *file, void *fh,
@@ -930,7 +930,7 @@ static int uvc_ioctl_enum_input(struct file *file, void *fh,
 	u32 index = input->index;
 
 	if (selector == NULL ||
-	    (chain->dev->quirks & UVC_QUIRK_IGNORE_SELECTOR_UNIT)) {
+	    (chain->dev->quirks & UVC_QUIRK_IGANALRE_SELECTOR_UNIT)) {
 		if (index != 0)
 			return -EINVAL;
 		list_for_each_entry(it, &chain->entities, chain) {
@@ -970,14 +970,14 @@ static int uvc_ioctl_g_input(struct file *file, void *fh, unsigned int *input)
 	int ret;
 
 	if (chain->selector == NULL ||
-	    (chain->dev->quirks & UVC_QUIRK_IGNORE_SELECTOR_UNIT)) {
+	    (chain->dev->quirks & UVC_QUIRK_IGANALRE_SELECTOR_UNIT)) {
 		*input = 0;
 		return 0;
 	}
 
 	buf = kmalloc(1, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = uvc_query_ctrl(chain->dev, UVC_GET_CUR, chain->selector->id,
 			     chain->dev->intfnum,  UVC_SU_INPUT_SELECT_CONTROL,
@@ -1002,7 +1002,7 @@ static int uvc_ioctl_s_input(struct file *file, void *fh, unsigned int input)
 		return ret;
 
 	if (chain->selector == NULL ||
-	    (chain->dev->quirks & UVC_QUIRK_IGNORE_SELECTOR_UNIT)) {
+	    (chain->dev->quirks & UVC_QUIRK_IGANALRE_SELECTOR_UNIT)) {
 		if (input)
 			return -EINVAL;
 		return 0;
@@ -1013,7 +1013,7 @@ static int uvc_ioctl_s_input(struct file *file, void *fh, unsigned int input)
 
 	buf = kmalloc(1, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	*buf = input + 1;
 	ret = uvc_query_ctrl(chain->dev, UVC_SET_CUR, chain->selector->id,
@@ -1324,23 +1324,23 @@ static int uvc_ioctl_enum_frameintervals(struct file *file, void *fh,
 		fival->type = V4L2_FRMIVAL_TYPE_DISCRETE;
 		fival->discrete.numerator =
 			frame->dwFrameInterval[index];
-		fival->discrete.denominator = 10000000;
+		fival->discrete.deanalminator = 10000000;
 		v4l2_simplify_fraction(&fival->discrete.numerator,
-			&fival->discrete.denominator, 8, 333);
+			&fival->discrete.deanalminator, 8, 333);
 	} else {
 		fival->type = V4L2_FRMIVAL_TYPE_STEPWISE;
 		fival->stepwise.min.numerator = frame->dwFrameInterval[0];
-		fival->stepwise.min.denominator = 10000000;
+		fival->stepwise.min.deanalminator = 10000000;
 		fival->stepwise.max.numerator = frame->dwFrameInterval[1];
-		fival->stepwise.max.denominator = 10000000;
+		fival->stepwise.max.deanalminator = 10000000;
 		fival->stepwise.step.numerator = frame->dwFrameInterval[2];
-		fival->stepwise.step.denominator = 10000000;
+		fival->stepwise.step.deanalminator = 10000000;
 		v4l2_simplify_fraction(&fival->stepwise.min.numerator,
-			&fival->stepwise.min.denominator, 8, 333);
+			&fival->stepwise.min.deanalminator, 8, 333);
 		v4l2_simplify_fraction(&fival->stepwise.max.numerator,
-			&fival->stepwise.max.denominator, 8, 333);
+			&fival->stepwise.max.deanalminator, 8, 333);
 		v4l2_simplify_fraction(&fival->stepwise.step.numerator,
-			&fival->stepwise.step.denominator, 8, 333);
+			&fival->stepwise.step.deanalminator, 8, 333);
 	}
 
 	return 0;
@@ -1372,7 +1372,7 @@ static long uvc_ioctl_default(struct file *file, void *fh, bool valid_prio,
 		return uvc_xu_ctrl_query(chain, arg);
 
 	default:
-		return -ENOTTY;
+		return -EANALTTY;
 	}
 }
 
@@ -1501,7 +1501,7 @@ static long uvc_v4l2_compat_ioctl32(struct file *file,
 		break;
 
 	default:
-		return -ENOIOCTLCMD;
+		return -EANALIOCTLCMD;
 	}
 
 	return ret;
@@ -1514,7 +1514,7 @@ static ssize_t uvc_v4l2_read(struct file *file, char __user *data,
 	struct uvc_fh *handle = file->private_data;
 	struct uvc_streaming *stream = handle->stream;
 
-	uvc_dbg(stream->dev, CALLS, "%s: not implemented\n", __func__);
+	uvc_dbg(stream->dev, CALLS, "%s: analt implemented\n", __func__);
 	return -EINVAL;
 }
 

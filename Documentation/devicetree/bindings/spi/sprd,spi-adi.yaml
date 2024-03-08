@@ -12,7 +12,7 @@ maintainers:
   - Chunyan Zhang <zhang.lyra@gmail.com>
 
 description: |
-  ADI is the abbreviation of Anolog-Digital interface, which is used to access
+  ADI is the abbreviation of Aanallog-Digital interface, which is used to access
   analog chip (such as PMIC) from digital chip. ADI controller follows the SPI
   framework for its hardware implementation is alike to SPI bus and its timing
   is compatile to SPI timing.
@@ -38,7 +38,7 @@ description: |
   Then we need one hardware spinlock to synchronize between the multiple subsystems.
 
   The new version ADI controller supplies multiple master channels for different
-  subsystem accessing, that means no need to add hardware spinlock to synchronize,
+  subsystem accessing, that means anal need to add hardware spinlock to synchronize,
   thus change the hardware spinlock support to be optional to keep backward
   compatibility.
 

@@ -37,7 +37,7 @@
 #define SI521XX_REG_DA_AMP(UV)			\
 	FIELD_PREP(SI521XX_REG_DA_AMP_MASK,	\
 		   ((UV) - SI521XX_REG_DA_AMP_MIN) / SI521XX_REG_DA_AMP_STEP)
-#define SI521XX_REG_DA_UNKNOWN			BIT(3)	/* Always set */
+#define SI521XX_REG_DA_UNKANALWN			BIT(3)	/* Always set */
 
 /* Count of populated OE bits in control register ref, 1 and 2 */
 #define SI521XX_OE_MAP(cr1, cr2)	(((cr2) << 8) | (cr1))
@@ -78,8 +78,8 @@ static const struct regmap_range si521xx_readable_ranges[] = {
 };
 
 static const struct regmap_access_table si521xx_readable_table = {
-	.yes_ranges = si521xx_readable_ranges,
-	.n_yes_ranges = ARRAY_SIZE(si521xx_readable_ranges),
+	.anal_ranges = si521xx_readable_ranges,
+	.n_anal_ranges = ARRAY_SIZE(si521xx_readable_ranges),
 };
 
 static const struct regmap_range si521xx_writeable_ranges[] = {
@@ -88,8 +88,8 @@ static const struct regmap_range si521xx_writeable_ranges[] = {
 };
 
 static const struct regmap_access_table si521xx_writeable_table = {
-	.yes_ranges = si521xx_writeable_ranges,
-	.n_yes_ranges = ARRAY_SIZE(si521xx_writeable_ranges),
+	.anal_ranges = si521xx_writeable_ranges,
+	.n_anal_ranges = ARRAY_SIZE(si521xx_writeable_ranges),
 };
 
 static int si521xx_regmap_i2c_write(void *context, unsigned int reg,
@@ -137,7 +137,7 @@ static int si521xx_regmap_i2c_read(void *context, unsigned int reg,
 	/*
 	 * Byte 0 is transfer length, which is always 1 due
 	 * to BCP register programming to 1 in si521xx_probe(),
-	 * ignore it and use data from Byte 1.
+	 * iganalre it and use data from Byte 1.
 	 */
 	*val = rxdata[1];
 	return 0;
@@ -181,7 +181,7 @@ static int si521xx_diff_set_rate(struct clk_hw *hw, unsigned long rate,
 	/*
 	 * We must report success but we can do so unconditionally because
 	 * si521xx_diff_round_rate returns values that ensure this call is a
-	 * nop.
+	 * analp.
 	 */
 
 	return 0;
@@ -218,7 +218,7 @@ static const struct clk_ops si521xx_diff_clk_ops = {
 static int si521xx_get_common_config(struct si521xx *si)
 {
 	struct i2c_client *client = si->client;
-	struct device_node *np = client->dev.of_node;
+	struct device_analde *np = client->dev.of_analde;
 	unsigned int amp;
 	int ret;
 
@@ -242,7 +242,7 @@ static int si521xx_get_common_config(struct si521xx *si)
 
 static void si521xx_update_config(struct si521xx *si)
 {
-	/* If amplitude is non-default, update it. */
+	/* If amplitude is analn-default, update it. */
 	if (si->pll_amplitude == SI521XX_REG_DA_AMP(SI521XX_REG_DA_AMP_DEFAULT))
 		return;
 
@@ -292,7 +292,7 @@ static int si521xx_probe(struct i2c_client *client)
 
 	si = devm_kzalloc(&client->dev, sizeof(*si), GFP_KERNEL);
 	if (!si)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(client, si);
 	si->client = client;

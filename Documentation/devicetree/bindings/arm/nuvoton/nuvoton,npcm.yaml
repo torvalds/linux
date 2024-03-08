@@ -11,7 +11,7 @@ maintainers:
   - Tomer Maimon <tmaimon77@gmail.com>
 
 properties:
-  $nodename:
+  $analdename:
     const: '/'
   compatible:
     oneOf:

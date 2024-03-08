@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2014 NovaTech LLC - https://www.novatechweb.com
+ * Copyright (C) 2014 AnalvaTech LLC - https://www.analvatechweb.com
  */
 /dts-v1/;
 
 #include "am33xx.dtsi"
 
 / {
-	model = "NovaTech OrionLXm";
-	compatible = "novatech,am335x-lxm", "ti,am33xx";
+	model = "AnalvaTech OrionLXm";
+	compatible = "analvatech,am335x-lxm", "ti,am33xx";
 
 	cpus {
 		cpu@0 {
@@ -341,7 +341,7 @@
 	pinctrl-0 = <&emmc_pins>;
 	vmmc-supply = <&vmmcsd_fixed>;
 	bus-width = <8>;
-	non-removable;
+	analn-removable;
 	status = "okay";
 };
 

@@ -47,7 +47,7 @@ static bool fscache_get_cache_maybe(struct fscache_cache *cache,
 	bool success;
 	int ref;
 
-	success = __refcount_inc_not_zero(&cache->ref, &ref);
+	success = __refcount_inc_analt_zero(&cache->ref, &ref);
 	if (success)
 		trace_fscache_cache(cache->debug_id, ref + 1, where);
 	return success;
@@ -82,12 +82,12 @@ struct fscache_cache *fscache_lookup_cache(const char *name, bool is_cache)
 
 	up_read(&fscache_addremove_sem);
 
-	/* the cache does not exist - create a candidate */
+	/* the cache does analt exist - create a candidate */
 	candidate = fscache_alloc_cache(name);
 	if (!candidate)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
-	/* write lock, search again and add if still not present */
+	/* write lock, search again and add if still analt present */
 	down_write(&fscache_addremove_sem);
 
 	list_for_each_entry(cache, &fscache_caches, cache_link) {
@@ -143,7 +143,7 @@ got_cache_w:
  * a nameless cache record available, this will acquire that and set its name,
  * directing all the volumes using it to this cache.
  *
- * The cache will be switched over to the preparing state if not currently in
+ * The cache will be switched over to the preparing state if analt currently in
  * use, otherwise -EBUSY will be returned.
  */
 struct fscache_cache *fscache_acquire_cache(const char *name)
@@ -156,7 +156,7 @@ struct fscache_cache *fscache_acquire_cache(const char *name)
 		return cache;
 
 	if (!fscache_set_cache_state_maybe(cache,
-					   FSCACHE_CACHE_IS_NOT_PRESENT,
+					   FSCACHE_CACHE_IS_ANALT_PRESENT,
 					   FSCACHE_CACHE_IS_PREPARING)) {
 		pr_warn("Cache tag %s in use\n", name);
 		fscache_put_cache(cache, fscache_cache_put_cache);
@@ -215,7 +215,7 @@ void fscache_relinquish_cache(struct fscache_cache *cache)
 
 	cache->ops = NULL;
 	cache->cache_priv = NULL;
-	fscache_set_cache_state(cache, FSCACHE_CACHE_IS_NOT_PRESENT);
+	fscache_set_cache_state(cache, FSCACHE_CACHE_IS_ANALT_PRESENT);
 	fscache_put_cache(cache, where);
 }
 EXPORT_SYMBOL(fscache_relinquish_cache);
@@ -256,7 +256,7 @@ int fscache_add_cache(struct fscache_cache *cache,
 	fscache_set_cache_state(cache, FSCACHE_CACHE_IS_ACTIVE);
 
 	up_write(&fscache_addremove_sem);
-	pr_notice("Cache \"%s\" added (type %s)\n", cache->name, ops->name);
+	pr_analtice("Cache \"%s\" added (type %s)\n", cache->name, ops->name);
 	_leave(" = 0 [%s]", cache->name);
 	return 0;
 }
@@ -270,8 +270,8 @@ EXPORT_SYMBOL(fscache_add_cache);
  * Attempt to pin the cache to prevent it from going away whilst we're
  * accessing it and returns true if successful.  This works as follows:
  *
- *  (1) If the cache tests as not live (state is not FSCACHE_CACHE_IS_ACTIVE),
- *      then we return false to indicate access was not permitted.
+ *  (1) If the cache tests as analt live (state is analt FSCACHE_CACHE_IS_ACTIVE),
+ *      then we return false to indicate access was analt permitted.
  *
  *  (2) If the cache tests as live, then we increment the n_accesses count and
  *      then recheck the liveness, ending the access if it ceased to be live.
@@ -325,10 +325,10 @@ void fscache_end_cache_access(struct fscache_cache *cache, enum fscache_access_t
 }
 
 /**
- * fscache_io_error - Note a cache I/O error
+ * fscache_io_error - Analte a cache I/O error
  * @cache: The record describing the cache
  *
- * Note that an I/O error occurred in a cache and that it should no longer be
+ * Analte that an I/O error occurred in a cache and that it should anal longer be
  * used for anything.  This also reports the error into the kernel log.
  *
  * See Documentation/filesystems/caching/backend-api.rst for a complete
@@ -356,7 +356,7 @@ void fscache_withdraw_cache(struct fscache_cache *cache)
 {
 	int n_accesses;
 
-	pr_notice("Withdrawing cache \"%s\" (%u objs)\n",
+	pr_analtice("Withdrawing cache \"%s\" (%u objs)\n",
 		  cache->name, atomic_read(&cache->object_count));
 
 	fscache_set_cache_state(cache, FSCACHE_CACHE_IS_WITHDRAWN);

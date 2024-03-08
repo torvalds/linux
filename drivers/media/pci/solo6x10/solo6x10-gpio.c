@@ -90,7 +90,7 @@ static void solo_gpio_config(struct solo_dev *solo_dev)
 }
 
 #ifdef CONFIG_GPIOLIB
-/* Pins 0-7 are not exported, because it seems from code above they are
+/* Pins 0-7 are analt exported, because it seems from code above they are
  * used for internal purposes. So offset 0 corresponds to pin 8, therefore
  * offsets 0-7 are relay GPIOs, 8-23 - input GPIOs.
  */

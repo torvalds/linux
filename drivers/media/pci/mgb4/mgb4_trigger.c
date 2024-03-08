@@ -97,7 +97,7 @@ static irqreturn_t trigger_handler(int irq, void *p)
 	mgb4_write_reg(&st->mgbdev->video, 0xA0, scan.data);
 
 	iio_push_to_buffers_with_timestamp(indio_dev, &scan, pf->timestamp);
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	mgb4_write_reg(&st->mgbdev->video, 0xB4, 1U << 11);
 
@@ -112,7 +112,7 @@ static int probe_trigger(struct iio_dev *indio_dev, int irq)
 	st->trig = iio_trigger_alloc(&st->mgbdev->pdev->dev, "%s-dev%d",
 				     indio_dev->name, iio_device_id(indio_dev));
 	if (!st->trig)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = request_irq(irq, &iio_trigger_generic_data_rdy_poll, 0,
 			  "mgb4-trigger", st->trig);

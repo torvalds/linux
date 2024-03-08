@@ -41,10 +41,10 @@ int hfi1_alloc_ctxt_rcv_groups(struct hfi1_ctxtdata *rcd)
 
 	ngroups = rcd->expected_count / dd->rcv_entries.group_size;
 	rcd->groups =
-		kcalloc_node(ngroups, sizeof(*rcd->groups),
+		kcalloc_analde(ngroups, sizeof(*rcd->groups),
 			     GFP_KERNEL, rcd->numa_id);
 	if (!rcd->groups)
-		return -ENOMEM;
+		return -EANALMEM;
 	tidbase = rcd->expected_base;
 	for (i = 0; i < ngroups; i++) {
 		grp = &rcd->groups[i];

@@ -2,9 +2,9 @@
 /*
  * This file is part of wl1271
  *
- * Copyright (C) 2008-2009 Nokia Corporation
+ * Copyright (C) 2008-2009 Analkia Corporation
  *
- * Contact: Luciano Coelho <luciano.coelho@nokia.com>
+ * Contact: Luciaanal Coelho <luciaanal.coelho@analkia.com>
  */
 
 #include "wlcore.h"
@@ -72,7 +72,7 @@ int wlcore_event_fw_logger(struct wl1271 *wl)
 	buff_read_ptr = le32_to_cpu(fw_log.buff_read_ptr);
 	if (buff_read_ptr < buff_start_ptr ||
 	    buff_read_ptr >= buff_end_ptr) {
-		wl1271_error("buffer read pointer out of bounds: %x not in (%x-%x)\n",
+		wl1271_error("buffer read pointer out of bounds: %x analt in (%x-%x)\n",
 			     buff_read_ptr, buff_start_ptr, buff_end_ptr);
 		goto free_out;
 	}
@@ -124,7 +124,7 @@ void wlcore_event_rssi_trigger(struct wl1271 *wl, s8 *metric_arr)
 
 		vif = wl12xx_wlvif_to_vif(wlvif);
 		if (event != wlvif->last_rssi_event)
-			ieee80211_cqm_rssi_notify(vif, event, metric,
+			ieee80211_cqm_rssi_analtify(vif, event, metric,
 						  GFP_KERNEL);
 		wlvif->last_rssi_event = event;
 	}
@@ -242,7 +242,7 @@ EXPORT_SYMBOL_GPL(wlcore_event_channel_switch);
 void wlcore_event_dummy_packet(struct wl1271 *wl)
 {
 	if (wl->plt) {
-		wl1271_info("Got DUMMY_PACKET event in PLT mode.  FW bug, ignoring.");
+		wl1271_info("Got DUMMY_PACKET event in PLT mode.  FW bug, iganalring.");
 		return;
 	}
 
@@ -342,7 +342,7 @@ void wlcore_event_beacon_loss(struct wl1271 *wl, unsigned long roles_bitmap)
 					     &wlvif->connection_loss_work,
 					     msecs_to_jiffies(delay));
 
-		ieee80211_cqm_beacon_loss_notify(vif, GFP_KERNEL);
+		ieee80211_cqm_beacon_loss_analtify(vif, GFP_KERNEL);
 	}
 }
 EXPORT_SYMBOL_GPL(wlcore_event_beacon_loss);

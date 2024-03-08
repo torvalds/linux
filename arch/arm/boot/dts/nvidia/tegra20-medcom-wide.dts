@@ -55,12 +55,12 @@
 		brightness-levels = <0 4 8 16 32 64 128 255>;
 		default-brightness-level = <6>;
 
-		/* close enough */
+		/* close eanalugh */
 		power-supply = <&vdd_3v3_reg>;
 	};
 
 	panel: panel {
-		compatible = "innolux,n156bge-l21";
+		compatible = "inanallux,n156bge-l21";
 
 		power-supply =  <&vdd_1v8_reg>; // <&vdd_3v3_reg>;
 		enable-gpios = <&gpio TEGRA_GPIO(B, 2) GPIO_ACTIVE_HIGH>;

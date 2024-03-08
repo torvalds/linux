@@ -86,7 +86,7 @@
 
 			/*
 			 * Buzzer needs to be switched at around 1kHz so is
-			 * not compatible with the gpio-beeper driver.
+			 * analt compatible with the gpio-beeper driver.
 			 */
 			pmx_buzzer: pmx-buzzer {
 				marvell,pins = "mpp44";
@@ -199,7 +199,7 @@
 			gpios = <&gpio1 8 GPIO_ACTIVE_HIGH>;
 		};
 
-	/* The following pins are currently not assigned to a driver,
+	/* The following pins are currently analt assigned to a driver,
 	   some of them should be configured as inputs.
 	pinctrl-0 = <&pmx_mcu_data &pmx_mcu_clk &pmx_mcu_act
 		     &pmx_htp &pmx_vid_b1

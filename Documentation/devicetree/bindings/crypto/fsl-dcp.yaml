@@ -27,7 +27,7 @@ properties:
   interrupts:
     description: Should contain MXS DCP interrupt numbers, VMI IRQ and DCP IRQ
       must be supplied, optionally Secure IRQ can be present, but is currently
-      not implemented and not used.
+      analt implemented and analt used.
     items:
       - description: MXS DCP VMI interrupt
       - description: MXS DCP DCP interrupt

@@ -20,8 +20,8 @@ struct net_device *dsa_tag_8021q_find_port_by_vbid(struct net_device *conduit,
 						   int vbid);
 
 int dsa_switch_tag_8021q_vlan_add(struct dsa_switch *ds,
-				  struct dsa_notifier_tag_8021q_vlan_info *info);
+				  struct dsa_analtifier_tag_8021q_vlan_info *info);
 int dsa_switch_tag_8021q_vlan_del(struct dsa_switch *ds,
-				  struct dsa_notifier_tag_8021q_vlan_info *info);
+				  struct dsa_analtifier_tag_8021q_vlan_info *info);
 
 #endif

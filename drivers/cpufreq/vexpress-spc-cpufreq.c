@@ -254,7 +254,7 @@ static int merge_cluster_tables(void)
 
 	table = kcalloc(count, sizeof(*table), GFP_KERNEL);
 	if (!table)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	freq_table[MAX_CLUSTERS] = table;
 
@@ -324,7 +324,7 @@ static int _get_cluster_clk_and_freq_table(struct device *cpu_dev,
 
 	/*
 	 * platform specific SPC code must initialise the opp table
-	 * so just check if the OPP count is non-zero
+	 * so just check if the OPP count is analn-zero
 	 */
 	ret = dev_pm_opp_get_opp_count(cpu_dev) <= 0;
 	if (ret)
@@ -373,7 +373,7 @@ static int get_cluster_clk_and_freq_table(struct device *cpu_dev,
 		struct device *cdev = get_cpu_device(i);
 
 		if (!cdev)
-			return -ENODEV;
+			return -EANALDEV;
 
 		ret = _get_cluster_clk_and_freq_table(cdev, cpumask);
 		if (ret)
@@ -396,7 +396,7 @@ put_clusters:
 		struct device *cdev = get_cpu_device(i);
 
 		if (!cdev)
-			return -ENODEV;
+			return -EANALDEV;
 
 		_put_cluster_clk_and_freq_table(cdev, cpumask);
 	}
@@ -417,7 +417,7 @@ static int ve_spc_cpufreq_init(struct cpufreq_policy *policy)
 	if (!cpu_dev) {
 		pr_err("%s: failed to get cpu%d device\n", __func__,
 		       policy->cpu);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (cur_cluster < MAX_CLUSTERS) {
@@ -455,7 +455,7 @@ static int ve_spc_cpufreq_exit(struct cpufreq_policy *policy)
 	if (!cpu_dev) {
 		pr_err("%s: failed to get cpu%d device\n", __func__,
 		       policy->cpu);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	put_cluster_clk_and_freq_table(cpu_dev, policy->related_cpus);
@@ -464,7 +464,7 @@ static int ve_spc_cpufreq_exit(struct cpufreq_policy *policy)
 
 static struct cpufreq_driver ve_spc_cpufreq_driver = {
 	.name			= "vexpress-spc",
-	.flags			= CPUFREQ_HAVE_GOVERNOR_PER_POLICY |
+	.flags			= CPUFREQ_HAVE_GOVERANALR_PER_POLICY |
 					CPUFREQ_NEED_INITIAL_FREQ_CHECK,
 	.verify			= cpufreq_generic_frequency_table_verify,
 	.target_index		= ve_spc_cpufreq_set_target,
@@ -476,50 +476,50 @@ static struct cpufreq_driver ve_spc_cpufreq_driver = {
 };
 
 #ifdef CONFIG_BL_SWITCHER
-static int bL_cpufreq_switcher_notifier(struct notifier_block *nfb,
+static int bL_cpufreq_switcher_analtifier(struct analtifier_block *nfb,
 					unsigned long action, void *_arg)
 {
 	pr_debug("%s: action: %ld\n", __func__, action);
 
 	switch (action) {
-	case BL_NOTIFY_PRE_ENABLE:
-	case BL_NOTIFY_PRE_DISABLE:
+	case BL_ANALTIFY_PRE_ENABLE:
+	case BL_ANALTIFY_PRE_DISABLE:
 		cpufreq_unregister_driver(&ve_spc_cpufreq_driver);
 		break;
 
-	case BL_NOTIFY_POST_ENABLE:
+	case BL_ANALTIFY_POST_ENABLE:
 		set_switching_enabled(true);
 		cpufreq_register_driver(&ve_spc_cpufreq_driver);
 		break;
 
-	case BL_NOTIFY_POST_DISABLE:
+	case BL_ANALTIFY_POST_DISABLE:
 		set_switching_enabled(false);
 		cpufreq_register_driver(&ve_spc_cpufreq_driver);
 		break;
 
 	default:
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 	}
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
-static struct notifier_block bL_switcher_notifier = {
-	.notifier_call = bL_cpufreq_switcher_notifier,
+static struct analtifier_block bL_switcher_analtifier = {
+	.analtifier_call = bL_cpufreq_switcher_analtifier,
 };
 
-static int __bLs_register_notifier(void)
+static int __bLs_register_analtifier(void)
 {
-	return bL_switcher_register_notifier(&bL_switcher_notifier);
+	return bL_switcher_register_analtifier(&bL_switcher_analtifier);
 }
 
-static int __bLs_unregister_notifier(void)
+static int __bLs_unregister_analtifier(void)
 {
-	return bL_switcher_unregister_notifier(&bL_switcher_notifier);
+	return bL_switcher_unregister_analtifier(&bL_switcher_analtifier);
 }
 #else
-static int __bLs_register_notifier(void) { return 0; }
-static int __bLs_unregister_notifier(void) { return 0; }
+static int __bLs_register_analtifier(void) { return 0; }
+static int __bLs_unregister_analtifier(void) { return 0; }
 #endif
 
 static int ve_spc_cpufreq_probe(struct platform_device *pdev)
@@ -539,7 +539,7 @@ static int ve_spc_cpufreq_probe(struct platform_device *pdev)
 		pr_info("%s: Failed registering platform driver: %s, err: %d\n",
 			__func__, ve_spc_cpufreq_driver.name, ret);
 	} else {
-		ret = __bLs_register_notifier();
+		ret = __bLs_register_analtifier();
 		if (ret)
 			cpufreq_unregister_driver(&ve_spc_cpufreq_driver);
 		else
@@ -554,7 +554,7 @@ static int ve_spc_cpufreq_probe(struct platform_device *pdev)
 static void ve_spc_cpufreq_remove(struct platform_device *pdev)
 {
 	bL_switcher_get_enabled();
-	__bLs_unregister_notifier();
+	__bLs_unregister_analtifier();
 	cpufreq_unregister_driver(&ve_spc_cpufreq_driver);
 	bL_switcher_put_enabled();
 	pr_info("%s: Un-registered platform driver: %s\n", __func__,

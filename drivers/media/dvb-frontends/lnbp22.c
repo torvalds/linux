@@ -8,7 +8,7 @@
  * the project's page is at https://linuxtv.org
  */
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -108,9 +108,9 @@ struct dvb_frontend *lnbp22_attach(struct dvb_frontend *fe,
 	lnbp22->i2c = i2c;
 	fe->sec_priv = lnbp22;
 
-	/* detect if it is present or not */
+	/* detect if it is present or analt */
 	if (lnbp22_set_voltage(fe, SEC_VOLTAGE_OFF)) {
-		dprintk(0, "%s LNBP22 not found\n", __func__);
+		dprintk(0, "%s LNBP22 analt found\n", __func__);
 		kfree(lnbp22);
 		fe->sec_priv = NULL;
 		return NULL;

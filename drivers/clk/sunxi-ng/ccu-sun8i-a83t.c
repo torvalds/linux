@@ -26,9 +26,9 @@
 /*
  * The CPU PLLs are actually NP clocks, with P being /1 or /4. However
  * P should only be used for output frequencies lower than 228 MHz.
- * Neither mainline Linux, U-boot, nor the vendor BSPs use these.
+ * Neither mainline Linux, U-boot, analr the vendor BSPs use these.
  *
- * For now we can just model it as a multiplier clock, and force P to /1.
+ * For analw we can just model it as a multiplier clock, and force P to /1.
  */
 #define SUN8I_A83T_PLL_C0CPUX_REG	0x000
 #define SUN8I_A83T_PLL_C1CPUX_REG	0x004
@@ -64,7 +64,7 @@ static struct ccu_mult pll_c1cpux_clk = {
 /*
  * The Audio PLL has d1, d2 dividers in addition to the usual N, M
  * factors. Since we only need 2 frequencies from this PLL: 22.5792 MHz
- * and 24.576 MHz, ignore them for now. Enforce the default for them,
+ * and 24.576 MHz, iganalre them for analw. Enforce the default for them,
  * which is d1 = 0, d2 = 1.
  */
 #define SUN8I_A83T_PLL_AUDIO_REG	0x008
@@ -94,7 +94,7 @@ static struct ccu_nm pll_audio_clk = {
 	},
 };
 
-/* Some PLLs are input * N / div1 / P. Model them as NKMP with no K */
+/* Some PLLs are input * N / div1 / P. Model them as NKMP with anal K */
 static struct ccu_nkmp pll_video0_clk = {
 	.enable		= BIT(31),
 	.lock		= BIT(3),
@@ -863,14 +863,14 @@ static void sun8i_a83t_cpu_pll_fixup(void __iomem *reg)
 {
 	u32 val = readl(reg);
 
-	/* bail out if P divider is not used */
+	/* bail out if P divider is analt used */
 	if (!(val & BIT(SUN8I_A83T_PLL_P_SHIFT)))
 		return;
 
 	/*
 	 * If P is used, output should be less than 288 MHz. When we
 	 * set P to 1, we should also decrease the multiplier so the
-	 * output doesn't go out of range, but not too much such that
+	 * output doesn't go out of range, but analt too much such that
 	 * the multiplier stays above 12, the minimal operation value.
 	 *
 	 * To keep it simple, set the multiplier to 17, the reset value.

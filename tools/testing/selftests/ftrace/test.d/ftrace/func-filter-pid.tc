@@ -11,7 +11,7 @@ do_function_fork=1
 
 if [ ! -f options/function-fork ]; then
     do_function_fork=0
-    echo "no option for function-fork found. Option will not be tested."
+    echo "anal option for function-fork found. Option will analt be tested."
 fi
 
 read PID _ < /proc/self/stat
@@ -46,7 +46,7 @@ do_test() {
 
     if [ $do_function_fork -eq 1 ]; then
 	# don't allow children to be traced
-	echo nofunction-fork > trace_options
+	echo analfunction-fork > trace_options
     fi
 
     enable_tracing
@@ -57,7 +57,7 @@ do_test() {
 
     # count_other should be 0
     if [ $count_pid -eq 0 -o $count_other -ne 0 ]; then
-	fail "PID filtering not working?"
+	fail "PID filtering analt working?"
     fi
 
     disable_tracing
@@ -76,9 +76,9 @@ do_test() {
     count_pid=`cat trace | grep -v ^# | grep $PID | wc -l`
     count_other=`cat trace | grep -v ^# | grep -v $PID | wc -l`
 
-    # count_other should NOT be 0
+    # count_other should ANALT be 0
     if [ $count_pid -eq 0 -o $count_other -eq 0 ]; then
-	fail "PID filtering not following fork?"
+	fail "PID filtering analt following fork?"
     fi
 }
 

@@ -25,7 +25,7 @@ retry:
 		if (!xas_error(&xas))
 			break;
 		xas_unlock(&xas);
-		if (!xas_nomem(&xas, gfp_mask))
+		if (!xas_analmem(&xas, gfp_mask))
 			return xas_error(&xas);
 		goto retry;
 	}
@@ -40,7 +40,7 @@ retry:
 
 /*
  * Create the specified range of folios in the buffer attached to the read
- * request.  The folios are marked with NETFS_BUF_PUT_MARK so that we know that
+ * request.  The folios are marked with NETFS_BUF_PUT_MARK so that we kanalw that
  * these need freeing later.
  */
 int netfs_add_folios_to_buffer(struct xarray *buffer,
@@ -57,7 +57,7 @@ int netfs_add_folios_to_buffer(struct xarray *buffer,
 		/* TODO: Figure out what order folio can be allocated here */
 		folio = filemap_alloc_folio(readahead_gfp_mask(mapping), 0);
 		if (!folio)
-			return -ENOMEM;
+			return -EANALMEM;
 		folio->index = index;
 		ret = netfs_xa_store_and_mark(buffer, index, folio,
 					      NETFS_FLAG_PUT_MARK, gfp_mask);
@@ -102,8 +102,8 @@ void netfs_clear_buffer(struct xarray *buffer)
  */
 bool netfs_dirty_folio(struct address_space *mapping, struct folio *folio)
 {
-	struct inode *inode = mapping->host;
-	struct netfs_inode *ictx = netfs_inode(inode);
+	struct ianalde *ianalde = mapping->host;
+	struct netfs_ianalde *ictx = netfs_ianalde(ianalde);
 	struct fscache_cookie *cookie = netfs_i_cookie(ictx);
 	bool need_use = false;
 
@@ -114,13 +114,13 @@ bool netfs_dirty_folio(struct address_space *mapping, struct folio *folio)
 	if (!fscache_cookie_valid(cookie))
 		return true;
 
-	if (!(inode->i_state & I_PINNING_NETFS_WB)) {
-		spin_lock(&inode->i_lock);
-		if (!(inode->i_state & I_PINNING_NETFS_WB)) {
-			inode->i_state |= I_PINNING_NETFS_WB;
+	if (!(ianalde->i_state & I_PINNING_NETFS_WB)) {
+		spin_lock(&ianalde->i_lock);
+		if (!(ianalde->i_state & I_PINNING_NETFS_WB)) {
+			ianalde->i_state |= I_PINNING_NETFS_WB;
 			need_use = true;
 		}
-		spin_unlock(&inode->i_lock);
+		spin_unlock(&ianalde->i_lock);
 
 		if (need_use)
 			fscache_use_cookie(cookie, true);
@@ -131,15 +131,15 @@ EXPORT_SYMBOL(netfs_dirty_folio);
 
 /**
  * netfs_unpin_writeback - Unpin writeback resources
- * @inode: The inode on which the cookie resides
+ * @ianalde: The ianalde on which the cookie resides
  * @wbc: The writeback control
  *
  * Unpin the writeback resources pinned by netfs_dirty_folio().  This is
- * intended to be called as/by the netfs's ->write_inode() method.
+ * intended to be called as/by the netfs's ->write_ianalde() method.
  */
-int netfs_unpin_writeback(struct inode *inode, struct writeback_control *wbc)
+int netfs_unpin_writeback(struct ianalde *ianalde, struct writeback_control *wbc)
 {
-	struct fscache_cookie *cookie = netfs_i_cookie(netfs_inode(inode));
+	struct fscache_cookie *cookie = netfs_i_cookie(netfs_ianalde(ianalde));
 
 	if (wbc->unpinned_netfs_wb)
 		fscache_unuse_cookie(cookie, NULL, NULL);
@@ -148,23 +148,23 @@ int netfs_unpin_writeback(struct inode *inode, struct writeback_control *wbc)
 EXPORT_SYMBOL(netfs_unpin_writeback);
 
 /**
- * netfs_clear_inode_writeback - Clear writeback resources pinned by an inode
- * @inode: The inode to clean up
- * @aux: Auxiliary data to apply to the inode
+ * netfs_clear_ianalde_writeback - Clear writeback resources pinned by an ianalde
+ * @ianalde: The ianalde to clean up
+ * @aux: Auxiliary data to apply to the ianalde
  *
- * Clear any writeback resources held by an inode when the inode is evicted.
- * This must be called before clear_inode() is called.
+ * Clear any writeback resources held by an ianalde when the ianalde is evicted.
+ * This must be called before clear_ianalde() is called.
  */
-void netfs_clear_inode_writeback(struct inode *inode, const void *aux)
+void netfs_clear_ianalde_writeback(struct ianalde *ianalde, const void *aux)
 {
-	struct fscache_cookie *cookie = netfs_i_cookie(netfs_inode(inode));
+	struct fscache_cookie *cookie = netfs_i_cookie(netfs_ianalde(ianalde));
 
-	if (inode->i_state & I_PINNING_NETFS_WB) {
-		loff_t i_size = i_size_read(inode);
+	if (ianalde->i_state & I_PINNING_NETFS_WB) {
+		loff_t i_size = i_size_read(ianalde);
 		fscache_unuse_cookie(cookie, aux, &i_size);
 	}
 }
-EXPORT_SYMBOL(netfs_clear_inode_writeback);
+EXPORT_SYMBOL(netfs_clear_ianalde_writeback);
 
 /**
  * netfs_invalidate_folio - Invalidate or partially invalidate a folio
@@ -234,12 +234,12 @@ EXPORT_SYMBOL(netfs_invalidate_folio);
  * @folio: Folio proposed for release
  * @gfp: Flags qualifying the release
  *
- * Request release of a folio and clean up its private state if it's not busy.
- * Returns true if the folio can now be released, false if not
+ * Request release of a folio and clean up its private state if it's analt busy.
+ * Returns true if the folio can analw be released, false if analt
  */
 bool netfs_release_folio(struct folio *folio, gfp_t gfp)
 {
-	struct netfs_inode *ctx = netfs_inode(folio_inode(folio));
+	struct netfs_ianalde *ctx = netfs_ianalde(folio_ianalde(folio));
 	unsigned long long end;
 
 	end = folio_pos(folio) + folio_size(folio);
@@ -254,7 +254,7 @@ bool netfs_release_folio(struct folio *folio, gfp_t gfp)
 		folio_wait_fscache(folio);
 	}
 
-	fscache_note_page_release(netfs_i_cookie(ctx));
+	fscache_analte_page_release(netfs_i_cookie(ctx));
 	return true;
 }
 EXPORT_SYMBOL(netfs_release_folio);

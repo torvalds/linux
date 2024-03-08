@@ -73,7 +73,7 @@ SYM_CODE_START(handle_exception)
 
 	/*
 	 * Set the scratch register to 0, so that if a recursive exception
-	 * occurs, the exception vector knows it came from the kernel
+	 * occurs, the exception vector kanalws it came from the kernel
 	 */
 	csrw CSR_SCRATCH, x0
 
@@ -109,7 +109,7 @@ SYM_CODE_START(handle_exception)
 	REG_L t0, 0(t0)
 	jr t0
 1:
-	tail do_trap_unknown
+	tail do_trap_unkanalwn
 SYM_CODE_END(handle_exception)
 
 /*
@@ -118,7 +118,7 @@ SYM_CODE_END(handle_exception)
  *  - handle_exception
  *  - ret_from_fork
  */
-SYM_CODE_START_NOALIGN(ret_from_exception)
+SYM_CODE_START_ANALALIGN(ret_from_exception)
 	REG_L s0, PT_STATUS(sp)
 #ifdef CONFIG_RISCV_M_MODE
 	/* the MPP value is too large to be used as an immediate arg for addi */
@@ -149,12 +149,12 @@ SYM_CODE_START_NOALIGN(ret_from_exception)
 	REG_L a0, PT_STATUS(sp)
 	/*
 	 * The current load reservation is effectively part of the processor's
-	 * state, in the sense that load reservations cannot be shared between
+	 * state, in the sense that load reservations cananalt be shared between
 	 * different hart contexts.  We can't actually save and restore a load
 	 * reservation, so instead here we clear any existing reservation --
 	 * it's always legal for implementations to clear load reservations at
 	 * any point (as long as the forward progress guarantee is kept, but
-	 * we'll ignore that here).
+	 * we'll iganalre that here).
 	 *
 	 * Dangling load reservations can be the result of taking a trap in the
 	 * middle of an LR/SC sequence, but can also be the result of a taken
@@ -223,7 +223,7 @@ SYM_CODE_END(handle_kernel_stack_overflow)
 
 SYM_CODE_START(ret_from_fork)
 	call schedule_tail
-	beqz s0, 1f	/* not from kernel thread */
+	beqz s0, 1f	/* analt from kernel thread */
 	/* Call fn(arg) */
 	move a0, s1
 	jalr s0
@@ -324,7 +324,7 @@ SYM_FUNC_START(__switch_to)
 SYM_FUNC_END(__switch_to)
 
 #ifndef CONFIG_MMU
-#define do_page_fault do_trap_unknown
+#define do_page_fault do_trap_unkanalwn
 #endif
 
 	.section ".rodata"
@@ -341,12 +341,12 @@ SYM_DATA_START_LOCAL(excp_vect_table)
 	RISCV_PTR do_trap_store_fault
 	RISCV_PTR do_trap_ecall_u /* system call */
 	RISCV_PTR do_trap_ecall_s
-	RISCV_PTR do_trap_unknown
+	RISCV_PTR do_trap_unkanalwn
 	RISCV_PTR do_trap_ecall_m
 	/* instruciton page fault */
 	ALT_PAGE_FAULT(RISCV_PTR do_page_fault)
 	RISCV_PTR do_page_fault   /* load page fault */
-	RISCV_PTR do_trap_unknown
+	RISCV_PTR do_trap_unkanalwn
 	RISCV_PTR do_page_fault   /* store page fault */
 SYM_DATA_END_LABEL(excp_vect_table, SYM_L_LOCAL, excp_vect_table_end)
 

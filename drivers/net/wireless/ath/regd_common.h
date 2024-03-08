@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -18,7 +18,7 @@
 #define REGD_COMMON_H
 
 enum EnumRd {
-	NO_ENUMRD = 0x00,
+	ANAL_ENUMRD = 0x00,
 	NULL1_WORLD = 0x03,
 	NULL1_ETSIB = 0x07,
 	NULL1_ETSIC = 0x08,
@@ -164,10 +164,10 @@ enum EnumRd {
 /* Regpair to CTL band mapping */
 static struct reg_dmn_pair_mapping regDomainPairs[] = {
 	/* regpair, 5 GHz CTL, 2 GHz CTL */
-	{NO_ENUMRD, DEBUG_REG_DMN, DEBUG_REG_DMN},
-	{NULL1_WORLD, NO_CTL, CTL_ETSI},
-	{NULL1_ETSIB, NO_CTL, CTL_ETSI},
-	{NULL1_ETSIC, NO_CTL, CTL_ETSI},
+	{ANAL_ENUMRD, DEBUG_REG_DMN, DEBUG_REG_DMN},
+	{NULL1_WORLD, ANAL_CTL, CTL_ETSI},
+	{NULL1_ETSIB, ANAL_CTL, CTL_ETSI},
+	{NULL1_ETSIC, ANAL_CTL, CTL_ETSI},
 
 	{FCC2_FCCA, CTL_FCC, CTL_FCC},
 	{FCC2_WORLD, CTL_FCC, CTL_ETSI},
@@ -189,7 +189,7 @@ static struct reg_dmn_pair_mapping regDomainPairs[] = {
 	{ETSI8_WORLD, CTL_ETSI, CTL_ETSI},
 	{ETSI9_WORLD, CTL_ETSI, CTL_ETSI},
 
-	/* XXX: For ETSI3_ETSIA, Was NO_CTL meant for the 2 GHz band ? */
+	/* XXX: For ETSI3_ETSIA, Was ANAL_CTL meant for the 2 GHz band ? */
 	{ETSI3_ETSIA, CTL_ETSI, CTL_ETSI},
 	{FRANCE_RES, CTL_ETSI, CTL_ETSI},
 
@@ -211,7 +211,7 @@ static struct reg_dmn_pair_mapping regDomainPairs[] = {
 	{APL7_FCCA, CTL_FCC, CTL_FCC},
 	{APL1_ETSIC, CTL_FCC, CTL_ETSI},
 	{APL2_ETSIC, CTL_FCC, CTL_ETSI},
-	{APL2_APLD, CTL_FCC, NO_CTL},
+	{APL2_APLD, CTL_FCC, ANAL_CTL},
 
 	{MKK1_MKKA, CTL_MKK, CTL_MKK},
 	{MKK1_MKKB, CTL_MKK, CTL_MKK},
@@ -283,23 +283,23 @@ static struct reg_dmn_pair_mapping regDomainPairs[] = {
 	{MKK14_MKKA1, CTL_MKK, CTL_MKK},
 	{MKK15_MKKA1, CTL_MKK, CTL_MKK},
 
-	{WOR0_WORLD, NO_CTL, NO_CTL},
-	{WOR1_WORLD, NO_CTL, NO_CTL},
-	{WOR2_WORLD, NO_CTL, NO_CTL},
-	{WOR3_WORLD, NO_CTL, NO_CTL},
-	{WOR4_WORLD, NO_CTL, NO_CTL},
-	{WOR5_ETSIC, NO_CTL, NO_CTL},
-	{WOR01_WORLD, NO_CTL, NO_CTL},
-	{WOR02_WORLD, NO_CTL, NO_CTL},
-	{EU1_WORLD, NO_CTL, NO_CTL},
-	{WOR9_WORLD, NO_CTL, NO_CTL},
-	{WORA_WORLD, NO_CTL, NO_CTL},
-	{WORB_WORLD, NO_CTL, NO_CTL},
-	{WORC_WORLD, NO_CTL, NO_CTL},
+	{WOR0_WORLD, ANAL_CTL, ANAL_CTL},
+	{WOR1_WORLD, ANAL_CTL, ANAL_CTL},
+	{WOR2_WORLD, ANAL_CTL, ANAL_CTL},
+	{WOR3_WORLD, ANAL_CTL, ANAL_CTL},
+	{WOR4_WORLD, ANAL_CTL, ANAL_CTL},
+	{WOR5_ETSIC, ANAL_CTL, ANAL_CTL},
+	{WOR01_WORLD, ANAL_CTL, ANAL_CTL},
+	{WOR02_WORLD, ANAL_CTL, ANAL_CTL},
+	{EU1_WORLD, ANAL_CTL, ANAL_CTL},
+	{WOR9_WORLD, ANAL_CTL, ANAL_CTL},
+	{WORA_WORLD, ANAL_CTL, ANAL_CTL},
+	{WORB_WORLD, ANAL_CTL, ANAL_CTL},
+	{WORC_WORLD, ANAL_CTL, ANAL_CTL},
 };
 
 static struct country_code_to_enum_rd allCountries[] = {
-	{CTRY_DEBUG, NO_ENUMRD, "DB"},
+	{CTRY_DEBUG, ANAL_ENUMRD, "DB"},
 	{CTRY_DEFAULT, FCC1_FCCA, "CO"},
 	{CTRY_ALBANIA, ETSI1_WORLD, "AL"},
 	{CTRY_ALGERIA, APL13_WORLD, "DZ"},
@@ -424,14 +424,14 @@ static struct country_code_to_enum_rd allCountries[] = {
 	{CTRY_JORDAN, ETSI2_WORLD, "JO"},
 	{CTRY_KAZAKHSTAN, NULL1_WORLD, "KZ"},
 	{CTRY_KENYA, APL1_WORLD, "KE"},
-	{CTRY_KOREA_NORTH, APL9_WORLD, "KP"},
+	{CTRY_KOREA_ANALRTH, APL9_WORLD, "KP"},
 	{CTRY_KOREA_ROC, APL9_WORLD, "KR"},
 	{CTRY_KOREA_ROC2, APL2_WORLD, "K2"},
 	{CTRY_KOREA_ROC3, APL9_WORLD, "K3"},
 	{CTRY_KOREA_ROC4, APL10_WORLD, "K4"},
 	{CTRY_KUWAIT, ETSI3_WORLD, "KW"},
 	{CTRY_LATVIA, ETSI1_WORLD, "LV"},
-	{CTRY_LEBANON, NULL1_WORLD, "LB"},
+	{CTRY_LEBAANALN, NULL1_WORLD, "LB"},
 	{CTRY_LIECHTENSTEIN, ETSI1_WORLD, "LI"},
 	{CTRY_LITHUANIA, ETSI1_WORLD, "LT"},
 	{CTRY_LUXEMBOURG, ETSI1_WORLD, "LU"},
@@ -449,7 +449,7 @@ static struct country_code_to_enum_rd allCountries[] = {
 	{CTRY_NETHERLANDS_ANTILLES, ETSI1_WORLD, "AN"},
 	{CTRY_NEW_ZEALAND, FCC3_ETSIC, "NZ"},
 	{CTRY_NICARAGUA, FCC3_FCCA, "NI"},
-	{CTRY_NORWAY, ETSI1_WORLD, "NO"},
+	{CTRY_ANALRWAY, ETSI1_WORLD, "ANAL"},
 	{CTRY_OMAN, FCC3_WORLD, "OM"},
 	{CTRY_PAKISTAN, NULL1_WORLD, "PK"},
 	{CTRY_PANAMA, FCC1_FCCA, "PA"},
@@ -490,7 +490,7 @@ static struct country_code_to_enum_rd allCountries[] = {
 	{CTRY_UNITED_STATES3, FCC3_FCCA, "US"},
 	/* This "PS" is for US public safety actually... to support this we
 	 * would need to assign new special alpha2 to CRDA db as with the world
-	 * regdomain and use another alpha2 */
+	 * regdomain and use aanalther alpha2 */
 	{CTRY_UNITED_STATES_FCC49, FCC4_FCCA, "PS"},
 	{CTRY_URUGUAY, FCC3_WORLD, "UY"},
 	{CTRY_UZBEKISTAN, FCC3_FCCA, "UZ"},

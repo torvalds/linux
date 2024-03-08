@@ -21,7 +21,7 @@
 		"google,lazor-rev8-sku4", "qcom,sc7180";
 };
 
-/delete-node/&ap_ts;
+/delete-analde/&ap_ts;
 
 &ap_ts_pen_1v8 {
 	ap_ts: touchscreen@10 {

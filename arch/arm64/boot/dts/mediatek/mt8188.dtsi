@@ -690,14 +690,14 @@
 			status = "disabled";
 		};
 
-		nor_flash: spi@1132c000 {
-			compatible = "mediatek,mt8188-nor", "mediatek,mt8186-nor";
+		analr_flash: spi@1132c000 {
+			compatible = "mediatek,mt8188-analr", "mediatek,mt8186-analr";
 			reg = <0 0x1132c000 0 0x1000>;
-			clocks = <&topckgen CLK_TOP_SPINOR>,
+			clocks = <&topckgen CLK_TOP_SPIANALR>,
 				 <&pericfg_ao CLK_PERI_AO_FLASHIFLASHCK>,
 				 <&pericfg_ao CLK_PERI_AO_FLASHIF_BUS>;
 			clock-names = "spi", "sf", "axi";
-			assigned-clocks = <&topckgen CLK_TOP_SPINOR>;
+			assigned-clocks = <&topckgen CLK_TOP_SPIANALR>;
 			interrupts = <GIC_SPI 825 IRQ_TYPE_LEVEL_HIGH 0>;
 			status = "disabled";
 		};

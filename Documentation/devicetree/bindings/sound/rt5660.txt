@@ -22,7 +22,7 @@ Optional properties:
   added delay time for waiting codec power ready.
 
 - realtek,dmic1-data-pin
-  0: dmic1 is not used
+  0: dmic1 is analt used
   1: using GPIO2 pin as dmic1 data pin
   2: using IN1P pin as dmic1 data pin
 

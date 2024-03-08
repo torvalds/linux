@@ -8,7 +8,7 @@
 
 #define HE_COLORSET_TOP		50
 #define HE_COLORSET_MEDIUM	51
-#define HE_COLORSET_NORMAL	52
+#define HE_COLORSET_ANALRMAL	52
 #define HE_COLORSET_SELECTED	53
 #define HE_COLORSET_JUMP_ARROWS	54
 #define HE_COLORSET_ADDR	55
@@ -23,7 +23,7 @@ struct ui_browser {
 	void	      *priv;
 	const char    *title;
 	char	      *helpline;
-	const char    *no_samples_msg;
+	const char    *anal_samples_msg;
 	void 	      (*refresh_dimensions)(struct ui_browser *browser);
 	unsigned int  (*refresh)(struct ui_browser *browser);
 	void	      (*write)(struct ui_browser *browser, void *entry, int row);
@@ -67,7 +67,7 @@ void __ui_browser__vline(struct ui_browser *browser, unsigned int column,
 int ui_browser__warning(struct ui_browser *browser, int timeout,
 			const char *format, ...);
 int ui_browser__help_window(struct ui_browser *browser, const char *text);
-bool ui_browser__dialog_yesno(struct ui_browser *browser, const char *text);
+bool ui_browser__dialog_analanal(struct ui_browser *browser, const char *text);
 int ui_browser__input_window(const char *title, const char *text, char *input,
 			     const char *exit_msg, int delay_sec);
 struct perf_env;

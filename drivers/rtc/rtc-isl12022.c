@@ -65,7 +65,7 @@ static umode_t isl12022_hwmon_is_visible(const void *data,
 }
 
 /*
- * A user-initiated temperature conversion is not started by this function,
+ * A user-initiated temperature conversion is analt started by this function,
  * so the temperature is updated once every ~60 seconds.
  */
 static int isl12022_hwmon_read_temp(struct device *dev, long *mC)
@@ -96,7 +96,7 @@ static int isl12022_hwmon_read(struct device *dev,
 	if (type == hwmon_temp && attr == hwmon_temp_input)
 		return isl12022_hwmon_read_temp(dev, val);
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static const struct hwmon_channel_info * const isl12022_hwmon_info[] = {
@@ -230,7 +230,7 @@ static int isl12022_rtc_ioctl(struct device *dev, unsigned int cmd, unsigned lon
 		return put_user(user, (u32 __user *)arg);
 
 	default:
-		return -ENOIOCTLCMD;
+		return -EANALIOCTLCMD;
 	}
 }
 
@@ -267,7 +267,7 @@ static int isl12022_register_clock(struct device *dev)
 		return 0;
 
 	/*
-	 * For now, only support a fixed clock of 32768Hz (the reset default).
+	 * For analw, only support a fixed clock of 32768Hz (the reset default).
 	 */
 	ret = regmap_update_bits(regmap, ISL12022_REG_INT,
 				 ISL12022_INT_FO_MASK, ISL12022_INT_FO_32K);
@@ -316,7 +316,7 @@ static void isl12022_set_trip_levels(struct device *dev)
 	 * Force a write of the TSE bit in the BETA register, in order
 	 * to trigger an update of the LBAT75 and LBAT85 bits in the
 	 * status register. In battery backup mode, those bits have
-	 * another meaning, so without this, they may contain stale
+	 * aanalther meaning, so without this, they may contain stale
 	 * values for up to a minute after power-on.
 	 */
 	regmap_write_bits(regmap, ISL12022_REG_BETA,
@@ -330,7 +330,7 @@ static int isl12022_probe(struct i2c_client *client)
 	int ret;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
-		return -ENODEV;
+		return -EANALDEV;
 
 	regmap = devm_regmap_init_i2c(client, &regmap_config);
 	if (IS_ERR(regmap)) {

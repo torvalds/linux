@@ -12,7 +12,7 @@
 	clocks {
 	       /*
 		* The muxing of external clocks/internal dividers for osc* clock
-		* sources has been hidden under the carpet by now.
+		* sources has been hidden under the carpet by analw.
 		*/
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -61,7 +61,7 @@
 		gpio: gpio@40e00000 {
 			compatible = "intel,pxa25x-gpio";
 			gpio-ranges = <&pinctrl 0 0 84>;
-			clocks = <&clks CLK_NONE>;
+			clocks = <&clks CLK_ANALNE>;
 		};
 
 		pwm0: pwm@40b00000 {

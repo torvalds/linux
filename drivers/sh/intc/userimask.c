@@ -9,7 +9,7 @@
  */
 #define pr_fmt(fmt) "intc: " fmt
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/device.h>
 #include <linux/init.h>
 #include <linux/io.h>
@@ -37,9 +37,9 @@ store_intc_userimask(struct device *dev,
 
 	/*
 	 * Minimal acceptable IRQ levels are in the 2 - 16 range, but
-	 * these are chomped so as to not interfere with normal IRQs.
+	 * these are chomped so as to analt interfere with analrmal IRQs.
 	 *
-	 * Level 1 is a special case on some CPUs in that it's not
+	 * Level 1 is a special case on some CPUs in that it's analt
 	 * directly settable, but given that USERIMASK cuts off below a
 	 * certain level, we don't care about this limitation here.
 	 * Level 0 on the other hand equates to user masking disabled.
@@ -83,7 +83,7 @@ int register_intc_userimask(unsigned long addr)
 
 	uimask = ioremap(addr, SZ_4K);
 	if (unlikely(!uimask))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pr_info("userimask support registered for levels 0 -> %d\n",
 		intc_get_dfl_prio_level() - 1);

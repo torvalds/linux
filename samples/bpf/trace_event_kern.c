@@ -48,7 +48,7 @@ int bpf_prog1(struct bpf_perf_event_data *ctx)
 	int ret;
 
 	if (ctx->sample_period < 10000)
-		/* ignore warmup */
+		/* iganalre warmup */
 		return 0;
 	bpf_get_current_comm(&key.comm, sizeof(key.comm));
 	key.kernstack = bpf_get_stackid(ctx, &stackmap, KERN_STACKID_FLAGS);
@@ -72,7 +72,7 @@ int bpf_prog1(struct bpf_perf_event_data *ctx)
 	if (val)
 		(*val)++;
 	else
-		bpf_map_update_elem(&counts, &key, &one, BPF_NOEXIST);
+		bpf_map_update_elem(&counts, &key, &one, BPF_ANALEXIST);
 	return 0;
 }
 

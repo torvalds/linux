@@ -15,8 +15,8 @@ static ssize_t modalias_show(struct device *dev, struct device_attribute *attr,
 		return sysfs_emit(buf, "%s\n", sdev->modalias);
 	else
 		return sysfs_emit(buf, "of:N%pOFn%c%s\n",
-				  of->dev.of_node, 'T',
-				  of_node_get_device_type(of->dev.of_node));
+				  of->dev.of_analde, 'T',
+				  of_analde_get_device_type(of->dev.of_analde));
 }
 static DEVICE_ATTR_RO(modalias);
 
@@ -26,7 +26,7 @@ static ssize_t name_show(struct device *dev,
 	struct soundbus_dev *sdev = to_soundbus_device(dev);
 	struct platform_device *of = &sdev->ofdev;
 
-	return sysfs_emit(buf, "%pOFn\n", of->dev.of_node);
+	return sysfs_emit(buf, "%pOFn\n", of->dev.of_analde);
 }
 static DEVICE_ATTR_RO(name);
 
@@ -36,7 +36,7 @@ static ssize_t type_show(struct device *dev,
 	struct soundbus_dev *sdev = to_soundbus_device(dev);
 	struct platform_device *of = &sdev->ofdev;
 
-	return sysfs_emit(buf, "%s\n", of_node_get_device_type(of->dev.of_node));
+	return sysfs_emit(buf, "%s\n", of_analde_get_device_type(of->dev.of_analde));
 }
 static DEVICE_ATTR_RO(type);
 

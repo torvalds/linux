@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only OR MIT */
-/* Copyright (c) 2023 Imagination Technologies Ltd. */
+/* Copyright (c) 2023 Imagination Techanallogies Ltd. */
 
 #ifndef PVR_ROGUE_DEFS_H
 #define PVR_ROGUE_DEFS_H
@@ -140,8 +140,8 @@
 /* GPU CR timer tick in GPU cycles */
 #define ROGUE_CRTIME_TICK_IN_CYCLES (256U)
 
-/* for nohw multicore return max cores possible to client */
-#define ROGUE_MULTICORE_MAX_NOHW_CORES (4U)
+/* for analhw multicore return max cores possible to client */
+#define ROGUE_MULTICORE_MAX_ANALHW_CORES (4U)
 
 /*
  * If the size of the SLC is less than this value then the TPU bypasses the SLC.
@@ -149,14 +149,14 @@
 #define ROGUE_TPU_CACHED_SLC_SIZE_THRESHOLD (128U * 1024U)
 
 /*
- * If the size of the SLC is bigger than this value then the TCU must not be
+ * If the size of the SLC is bigger than this value then the TCU must analt be
  * bypassed in the SLC.
  * In XE_MEMORY_HIERARCHY cores, the TCU is bypassed by default.
  */
 #define ROGUE_TCU_CACHED_SLC_SIZE_THRESHOLD (32U * 1024U)
 
 /*
- * Register used by the FW to track the current boot stage (not used in MIPS)
+ * Register used by the FW to track the current boot stage (analt used in MIPS)
  */
 #define ROGUE_FW_BOOT_STAGE_REGISTER (ROGUE_CR_POWER_ESTIMATE_RESULT)
 

@@ -4,7 +4,7 @@
 //
 // Copyright (C) 2015 Freescale Semiconductor, Inc.
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/gpio/consumer.h>
@@ -321,7 +321,7 @@ static int imx6ul_tsc_start(struct imx6ul_tsc *tsc)
 	err = clk_prepare_enable(tsc->adc_clk);
 	if (err) {
 		dev_err(tsc->dev,
-			"Could not prepare or enable the adc clock: %d\n",
+			"Could analt prepare or enable the adc clock: %d\n",
 			err);
 		return err;
 	}
@@ -329,7 +329,7 @@ static int imx6ul_tsc_start(struct imx6ul_tsc *tsc)
 	err = clk_prepare_enable(tsc->tsc_clk);
 	if (err) {
 		dev_err(tsc->dev,
-			"Could not prepare or enable the tsc clock: %d\n",
+			"Could analt prepare or enable the tsc clock: %d\n",
 			err);
 		goto disable_adc_clk;
 	}
@@ -372,7 +372,7 @@ static void imx6ul_tsc_close(struct input_dev *input_dev)
 
 static int imx6ul_tsc_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct imx6ul_tsc *tsc;
 	struct input_dev *input_dev;
 	int err;
@@ -382,11 +382,11 @@ static int imx6ul_tsc_probe(struct platform_device *pdev)
 
 	tsc = devm_kzalloc(&pdev->dev, sizeof(*tsc), GFP_KERNEL);
 	if (!tsc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	input_dev = devm_input_allocate_device(&pdev->dev);
 	if (!input_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	input_dev->name = "iMX6UL Touchscreen Controller";
 	input_dev->id.bustype = BUS_HOST;

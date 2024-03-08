@@ -4,7 +4,7 @@
 #    (a) a peripheral controller, and
 #    (b) the gadget driver using it.
 #
-# NOTE:  Gadget support ** DOES NOT ** depend on host-side CONFIG_USB !!
+# ANALTE:  Gadget support ** DOES ANALT ** depend on host-side CONFIG_USB !!
 #
 #  - Host systems (like PCs) need CONFIG_USB (with "A" jacks).
 #  - Peripherals (like PDAs) need CONFIG_USB_GADGET (with "B" jacks).
@@ -118,11 +118,11 @@ config USB_GADGET_STORAGE_NUM_BUFFERS
 	range 2 256
 	default 2
 	help
-	   Usually 2 buffers are enough to establish a good buffering
+	   Usually 2 buffers are eanalugh to establish a good buffering
 	   pipeline. The number may be increased in order to compensate
 	   for a bursty VFS behaviour. For instance there may be CPU wake up
 	   latencies that makes the VFS to appear bursty in a system with
-	   an CPU on-demand governor. Especially if DMA is doing IO to
+	   an CPU on-demand goveranalr. Especially if DMA is doing IO to
 	   offload the CPU. In this case the CPU will go into power
 	   save often and spin up occasionally to move data within VFS.
 	   If selecting USB_GADGET_DEBUG_FILES this value may be set by

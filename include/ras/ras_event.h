@@ -208,15 +208,15 @@ TRACE_EVENT(arm_event,
 );
 
 /*
- * Non-Standard Section Report
+ * Analn-Standard Section Report
  *
  * This event is generated when hardware detected a hardware
- * error event, which may be of non-standard section as defined
+ * error event, which may be of analn-standard section as defined
  * in UEFI spec appendix "Common Platform Error Record", or may
- * be of sections for which TRACE_EVENT is not defined.
+ * be of sections for which TRACE_EVENT is analt defined.
  *
  */
-TRACE_EVENT(non_standard_event,
+TRACE_EVENT(analn_standard_event,
 
 	TP_PROTO(const guid_t *sec_type,
 		 const guid_t *fru_id,
@@ -263,7 +263,7 @@ TRACE_EVENT(non_standard_event,
  *			([domain:]bus:device.function).
  * u32 status -		Either the correctable or uncorrectable register
  *			indicating what error or errors have been seen
- * u8 severity -	error severity 0:NONFATAL 1:FATAL 2:CORRECTED
+ * u8 severity -	error severity 0:ANALNFATAL 1:FATAL 2:CORRECTED
  */
 
 #define aer_correctable_errors					\
@@ -272,7 +272,7 @@ TRACE_EVENT(non_standard_event,
 	{PCI_ERR_COR_BAD_DLLP,	"Bad DLLP"},			\
 	{PCI_ERR_COR_REP_ROLL,	"RELAY_NUM Rollover"},		\
 	{PCI_ERR_COR_REP_TIMER,	"Replay Timer Timeout"},	\
-	{PCI_ERR_COR_ADV_NFAT,	"Advisory Non-Fatal Error"},	\
+	{PCI_ERR_COR_ADV_NFAT,	"Advisory Analn-Fatal Error"},	\
 	{PCI_ERR_COR_INTERNAL,	"Corrected Internal Error"},	\
 	{PCI_ERR_COR_LOG_OVER,	"Header Log Overflow"}
 
@@ -329,13 +329,13 @@ TRACE_EVENT(aer_event,
 		__get_str(dev_name),
 		__entry->severity == AER_CORRECTABLE ? "Corrected" :
 			__entry->severity == AER_FATAL ?
-			"Fatal" : "Uncorrected, non-fatal",
+			"Fatal" : "Uncorrected, analn-fatal",
 		__entry->severity == AER_CORRECTABLE ?
 		__print_flags(__entry->status, "|", aer_correctable_errors) :
 		__print_flags(__entry->status, "|", aer_uncorrectable_errors),
 		__entry->tlp_header_valid ?
 			__print_array(__entry->tlp_header, 4, 4) :
-			"Not available")
+			"Analt available")
 );
 
 /*
@@ -348,7 +348,7 @@ TRACE_EVENT(aer_event,
 
 #ifdef CONFIG_MEMORY_FAILURE
 #define MF_ACTION_RESULT	\
-	EM ( MF_IGNORED, "Ignored" )	\
+	EM ( MF_IGANALRED, "Iganalred" )	\
 	EM ( MF_FAILED,  "Failed" )	\
 	EM ( MF_DELAYED, "Delayed" )	\
 	EMe ( MF_RECOVERED, "Recovered" )
@@ -373,7 +373,7 @@ TRACE_EVENT(aer_event,
 	EM ( MF_MSG_BUDDY, "free buddy page" )				\
 	EM ( MF_MSG_DAX, "dax page" )					\
 	EM ( MF_MSG_UNSPLIT_THP, "unsplit thp" )			\
-	EMe ( MF_MSG_UNKNOWN, "unknown page" )
+	EMe ( MF_MSG_UNKANALWN, "unkanalwn page" )
 
 /*
  * First define the enums in MM_ACTION_RESULT to be exported to userspace
@@ -388,7 +388,7 @@ MF_ACTION_RESULT
 MF_PAGE_TYPE
 
 /*
- * Now redefine the EM() and EMe() macros to map the enums to the strings
+ * Analw redefine the EM() and EMe() macros to map the enums to the strings
  * that will be printed in the output.
  */
 #undef EM

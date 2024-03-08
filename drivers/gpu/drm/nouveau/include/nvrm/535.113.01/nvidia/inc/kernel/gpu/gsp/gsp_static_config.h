@@ -25,12 +25,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT. IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
@@ -119,7 +119,7 @@ typedef struct GspStaticConfigInfo_t
 
     NvBool bSplitVasBetweenServerClientRm;
 
-    NvBool bClRootportNeedsNosnoopWAR;
+    NvBool bClRootportNeedsAnalsanalopWAR;
 
     VIRTUAL_DISPLAY_GET_NUM_HEADS_PARAMS displaylessMaxHeads;
     VIRTUAL_DISPLAY_GET_MAX_RESOLUTION_PARAMS displaylessMaxResolution;
@@ -156,7 +156,7 @@ typedef struct GspSystemInfo
     NvU64 clPdbProperties;
     NvU32 Chipset;
     NvBool bGpuBehindBridge;
-    NvBool bMnocAvailable;
+    NvBool bManalcAvailable;
     NvBool bUpstreamL0sUnsupported;
     NvBool bUpstreamL1Unsupported;
     NvBool bUpstreamL1PorSupported;

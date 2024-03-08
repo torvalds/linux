@@ -67,7 +67,7 @@ static int max_contaminant_adc_to_mv(struct max_tcpci_chip *chip, enum fladc_sel
 	else if (!ua_src && (channel == CC1_SCALE2 || channel == CC2_SCALE2))
 		return FLADC_CC_LOW_RANGE_OFFSET_MV + (fladc * FLADC_CC_LOW_RANGE_LSB_MV);
 
-	dev_err_once(chip->dev, "ADC ERROR: SCALE UNKNOWN");
+	dev_err_once(chip->dev, "ADC ERROR: SCALE UNKANALWN");
 
 	return -EINVAL;
 }
@@ -225,17 +225,17 @@ static int max_contaminant_detect_contaminant(struct max_tcpci_chip *chip)
 	int cc1_k, cc2_k, sbu1_k, sbu2_k, ret;
 	u8 vendor_cc_status2_cc1 = 0xff, vendor_cc_status2_cc2 = 0xff;
 	u8 role_ctrl = 0, role_ctrl_backup = 0;
-	int inferred_state = NOT_DETECTED;
+	int inferred_state = ANALT_DETECTED;
 
 	ret = max_tcpci_read8(chip, TCPC_ROLE_CTRL, &role_ctrl);
 	if (ret < 0)
-		return NOT_DETECTED;
+		return ANALT_DETECTED;
 
 	role_ctrl_backup = role_ctrl;
 	role_ctrl = 0x0F;
 	ret = max_tcpci_write8(chip, TCPC_ROLE_CTRL, role_ctrl);
 	if (ret < 0)
-		return NOT_DETECTED;
+		return ANALT_DETECTED;
 
 	cc1_k = max_contaminant_read_resistance_kohm(chip, CC1_SCALE2, READ1_SLEEP_MS, false);
 	if (cc1_k < 0)
@@ -267,7 +267,7 @@ static int max_contaminant_detect_contaminant(struct max_tcpci_chip *chip)
 		 (sbu1_k < CONTAMINANT_THRESHOLD_SBU_K || sbu2_k < CONTAMINANT_THRESHOLD_SBU_K))
 		inferred_state = DETECTED;
 
-	if (inferred_state == NOT_DETECTED)
+	if (inferred_state == ANALT_DETECTED)
 		max_tcpci_write8(chip, TCPC_ROLE_CTRL, role_ctrl_backup);
 	else
 		max_tcpci_write8(chip, TCPC_ROLE_CTRL, (TCPC_ROLE_CTRL_DRP | 0xA));
@@ -275,7 +275,7 @@ static int max_contaminant_detect_contaminant(struct max_tcpci_chip *chip)
 	return inferred_state;
 exit:
 	max_tcpci_write8(chip, TCPC_ROLE_CTRL, role_ctrl_backup);
-	return NOT_DETECTED;
+	return ANALT_DETECTED;
 }
 
 static int max_contaminant_enable_dry_detection(struct max_tcpci_chip *chip)
@@ -335,7 +335,7 @@ bool max_contaminant_is_contaminant(struct max_tcpci_chip *chip, bool disconnect
 	if (ret < 0)
 		return false;
 
-	if (chip->contaminant_state == NOT_DETECTED || chip->contaminant_state == SINK) {
+	if (chip->contaminant_state == ANALT_DETECTED || chip->contaminant_state == SINK) {
 		if (!disconnect_while_debounce)
 			msleep(100);
 

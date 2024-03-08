@@ -11,7 +11,7 @@
  * struct optee_msg_arg::arg holds values defined by OPTEE_RPC_CMD_* below.
  * Only the commands handled by the kernel driver are defined here.
  *
- * RPC communication with tee-supplicant is reversed compared to normal
+ * RPC communication with tee-supplicant is reversed compared to analrmal
  * client communication described above. The supplicant receives requests
  * and sends responses.
  */
@@ -19,36 +19,36 @@
 /*
  * Get time
  *
- * Returns number of seconds and nano seconds since the Epoch,
+ * Returns number of seconds and naanal seconds since the Epoch,
  * 1970-01-01 00:00:00 +0000 (UTC).
  *
  * [out]    value[0].a	    Number of seconds
- * [out]    value[0].b	    Number of nano seconds.
+ * [out]    value[0].b	    Number of naanal seconds.
  */
 #define OPTEE_RPC_CMD_GET_TIME		3
 
 /*
- * Notification from/to secure world.
+ * Analtification from/to secure world.
  *
  * If secure world needs to wait for something, for instance a mutex, it
- * does a notification wait request instead of spinning in secure world.
- * Conversely can a synchronous notification can be sent when a secure
+ * does a analtification wait request instead of spinning in secure world.
+ * Conversely can a synchroanalus analtification can be sent when a secure
  * world mutex with a thread waiting thread is unlocked.
  *
- * This interface can also be used to wait for a asynchronous notification
- * which instead is sent via a non-secure interrupt.
+ * This interface can also be used to wait for a asynchroanalus analtification
+ * which instead is sent via a analn-secure interrupt.
  *
- * Waiting on notification
- * [in]    value[0].a	    OPTEE_RPC_NOTIFICATION_WAIT
- * [in]    value[0].b	    notification value
+ * Waiting on analtification
+ * [in]    value[0].a	    OPTEE_RPC_ANALTIFICATION_WAIT
+ * [in]    value[0].b	    analtification value
  *
- * Sending a synchronous notification
- * [in]    value[0].a	    OPTEE_RPC_NOTIFICATION_SEND
- * [in]    value[0].b	    notification value
+ * Sending a synchroanalus analtification
+ * [in]    value[0].a	    OPTEE_RPC_ANALTIFICATION_SEND
+ * [in]    value[0].b	    analtification value
  */
-#define OPTEE_RPC_CMD_NOTIFICATION	4
-#define OPTEE_RPC_NOTIFICATION_WAIT	0
-#define OPTEE_RPC_NOTIFICATION_SEND	1
+#define OPTEE_RPC_CMD_ANALTIFICATION	4
+#define OPTEE_RPC_ANALTIFICATION_WAIT	0
+#define OPTEE_RPC_ANALTIFICATION_SEND	1
 
 /*
  * Suspend execution
@@ -67,9 +67,9 @@
  * [out]   memref[0]	    Buffer
  */
 #define OPTEE_RPC_CMD_SHM_ALLOC		6
-/* Memory that can be shared with a non-secure user space application */
+/* Memory that can be shared with a analn-secure user space application */
 #define OPTEE_RPC_SHM_TYPE_APPL		0
-/* Memory only shared with non-secure kernel */
+/* Memory only shared with analn-secure kernel */
 #define OPTEE_RPC_SHM_TYPE_KERNEL	1
 
 /*

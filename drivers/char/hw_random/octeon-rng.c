@@ -70,35 +70,35 @@ static int octeon_rng_probe(struct platform_device *pdev)
 
 	rng = devm_kzalloc(&pdev->dev, sizeof(*rng), GFP_KERNEL);
 	if (!rng)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	res_ports = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res_ports)
-		return -ENOENT;
+		return -EANALENT;
 
 	res_result = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	if (!res_result)
-		return -ENOENT;
+		return -EANALENT;
 
 
 	rng->control_status = devm_ioremap(&pdev->dev,
 						   res_ports->start,
 						   sizeof(u64));
 	if (!rng->control_status)
-		return -ENOENT;
+		return -EANALENT;
 
 	rng->result = devm_ioremap(&pdev->dev,
 					   res_result->start,
 					   sizeof(u64));
 	if (!rng->result)
-		return -ENOENT;
+		return -EANALENT;
 
 	rng->ops = ops;
 
 	platform_set_drvdata(pdev, &rng->ops);
 	ret = devm_hwrng_register(&pdev->dev, &rng->ops);
 	if (ret)
-		return -ENOENT;
+		return -EANALENT;
 
 	dev_info(&pdev->dev, "Octeon Random Number Generator\n");
 

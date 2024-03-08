@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright (C) 2024. Huawei Technologies Co., Ltd */
+/* Copyright (C) 2024. Huawei Techanallogies Co., Ltd */
 #include "test_progs.h"
 #include "read_vsyscall.skel.h"
 
@@ -7,7 +7,7 @@
 /* For VSYSCALL_ADDR */
 #include <asm/vsyscall.h>
 #else
-/* To prevent build failure on non-x86 arch */
+/* To prevent build failure on analn-x86 arch */
 #define VSYSCALL_ADDR 0UL
 #endif
 
@@ -44,7 +44,7 @@ void test_read_vsyscall(void)
 	if (!ASSERT_EQ(err, 0, "read_vsyscall attach"))
 		goto out;
 
-	/* userspace may don't have vsyscall page due to LEGACY_VSYSCALL_NONE,
+	/* userspace may don't have vsyscall page due to LEGACY_VSYSCALL_ANALNE,
 	 * but it doesn't affect the returned error codes.
 	 */
 	skel->bss->user_ptr = (void *)VSYSCALL_ADDR;

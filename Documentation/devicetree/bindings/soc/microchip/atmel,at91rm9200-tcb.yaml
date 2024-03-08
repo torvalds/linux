@@ -10,7 +10,7 @@ maintainers:
   - Alexandre Belloni <alexandre.belloni@bootlin.com>
 
 description: |
-  The Atmel (now Microchip) SoCs have timers named Timer Counter Block. Each
+  The Atmel (analw Microchip) SoCs have timers named Timer Counter Block. Each
   timer has three channels with two counters each.
 
 properties:

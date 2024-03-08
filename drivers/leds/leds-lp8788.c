@@ -127,7 +127,7 @@ static int lp8788_led_probe(struct platform_device *pdev)
 
 	led = devm_kzalloc(dev, sizeof(struct lp8788_led), GFP_KERNEL);
 	if (!led)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	led->lp = lp;
 	led->led_dev.max_brightness = MAX_BRIGHTNESS;

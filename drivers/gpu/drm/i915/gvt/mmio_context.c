@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -59,18 +59,18 @@ static struct engine_mmio gen8_engine_mmio_list[] __cacheline_aligned = {
 	{RCS0, GEN9_CTX_PREEMPT_REG, 0x0, false}, /* 0x2248 */
 	{RCS0, HWSTAM, 0x0, false}, /* 0x2098 */
 	{RCS0, INSTPM, 0xffff, true}, /* 0x20c0 */
-	{RCS0, RING_FORCE_TO_NONPRIV(RENDER_RING_BASE, 0), 0, false}, /* 0x24d0 */
-	{RCS0, RING_FORCE_TO_NONPRIV(RENDER_RING_BASE, 1), 0, false}, /* 0x24d4 */
-	{RCS0, RING_FORCE_TO_NONPRIV(RENDER_RING_BASE, 2), 0, false}, /* 0x24d8 */
-	{RCS0, RING_FORCE_TO_NONPRIV(RENDER_RING_BASE, 3), 0, false}, /* 0x24dc */
-	{RCS0, RING_FORCE_TO_NONPRIV(RENDER_RING_BASE, 4), 0, false}, /* 0x24e0 */
-	{RCS0, RING_FORCE_TO_NONPRIV(RENDER_RING_BASE, 5), 0, false}, /* 0x24e4 */
-	{RCS0, RING_FORCE_TO_NONPRIV(RENDER_RING_BASE, 6), 0, false}, /* 0x24e8 */
-	{RCS0, RING_FORCE_TO_NONPRIV(RENDER_RING_BASE, 7), 0, false}, /* 0x24ec */
-	{RCS0, RING_FORCE_TO_NONPRIV(RENDER_RING_BASE, 8), 0, false}, /* 0x24f0 */
-	{RCS0, RING_FORCE_TO_NONPRIV(RENDER_RING_BASE, 9), 0, false}, /* 0x24f4 */
-	{RCS0, RING_FORCE_TO_NONPRIV(RENDER_RING_BASE, 10), 0, false}, /* 0x24f8 */
-	{RCS0, RING_FORCE_TO_NONPRIV(RENDER_RING_BASE, 11), 0, false}, /* 0x24fc */
+	{RCS0, RING_FORCE_TO_ANALNPRIV(RENDER_RING_BASE, 0), 0, false}, /* 0x24d0 */
+	{RCS0, RING_FORCE_TO_ANALNPRIV(RENDER_RING_BASE, 1), 0, false}, /* 0x24d4 */
+	{RCS0, RING_FORCE_TO_ANALNPRIV(RENDER_RING_BASE, 2), 0, false}, /* 0x24d8 */
+	{RCS0, RING_FORCE_TO_ANALNPRIV(RENDER_RING_BASE, 3), 0, false}, /* 0x24dc */
+	{RCS0, RING_FORCE_TO_ANALNPRIV(RENDER_RING_BASE, 4), 0, false}, /* 0x24e0 */
+	{RCS0, RING_FORCE_TO_ANALNPRIV(RENDER_RING_BASE, 5), 0, false}, /* 0x24e4 */
+	{RCS0, RING_FORCE_TO_ANALNPRIV(RENDER_RING_BASE, 6), 0, false}, /* 0x24e8 */
+	{RCS0, RING_FORCE_TO_ANALNPRIV(RENDER_RING_BASE, 7), 0, false}, /* 0x24ec */
+	{RCS0, RING_FORCE_TO_ANALNPRIV(RENDER_RING_BASE, 8), 0, false}, /* 0x24f0 */
+	{RCS0, RING_FORCE_TO_ANALNPRIV(RENDER_RING_BASE, 9), 0, false}, /* 0x24f4 */
+	{RCS0, RING_FORCE_TO_ANALNPRIV(RENDER_RING_BASE, 10), 0, false}, /* 0x24f8 */
+	{RCS0, RING_FORCE_TO_ANALNPRIV(RENDER_RING_BASE, 11), 0, false}, /* 0x24fc */
 	{RCS0, CACHE_MODE_1, 0xffff, true}, /* 0x7004 */
 	{RCS0, GEN7_GT_MODE, 0xffff, true}, /* 0x7008 */
 	{RCS0, CACHE_MODE_0_GEN7, 0xffff, true}, /* 0x7000 */
@@ -91,18 +91,18 @@ static struct engine_mmio gen9_engine_mmio_list[] __cacheline_aligned = {
 	{RCS0, GEN9_CTX_PREEMPT_REG, 0x0, false}, /* 0x2248 */
 	{RCS0, HWSTAM, 0x0, false}, /* 0x2098 */
 	{RCS0, INSTPM, 0xffff, true}, /* 0x20c0 */
-	{RCS0, RING_FORCE_TO_NONPRIV(RENDER_RING_BASE, 0), 0, false}, /* 0x24d0 */
-	{RCS0, RING_FORCE_TO_NONPRIV(RENDER_RING_BASE, 1), 0, false}, /* 0x24d4 */
-	{RCS0, RING_FORCE_TO_NONPRIV(RENDER_RING_BASE, 2), 0, false}, /* 0x24d8 */
-	{RCS0, RING_FORCE_TO_NONPRIV(RENDER_RING_BASE, 3), 0, false}, /* 0x24dc */
-	{RCS0, RING_FORCE_TO_NONPRIV(RENDER_RING_BASE, 4), 0, false}, /* 0x24e0 */
-	{RCS0, RING_FORCE_TO_NONPRIV(RENDER_RING_BASE, 5), 0, false}, /* 0x24e4 */
-	{RCS0, RING_FORCE_TO_NONPRIV(RENDER_RING_BASE, 6), 0, false}, /* 0x24e8 */
-	{RCS0, RING_FORCE_TO_NONPRIV(RENDER_RING_BASE, 7), 0, false}, /* 0x24ec */
-	{RCS0, RING_FORCE_TO_NONPRIV(RENDER_RING_BASE, 8), 0, false}, /* 0x24f0 */
-	{RCS0, RING_FORCE_TO_NONPRIV(RENDER_RING_BASE, 9), 0, false}, /* 0x24f4 */
-	{RCS0, RING_FORCE_TO_NONPRIV(RENDER_RING_BASE, 10), 0, false}, /* 0x24f8 */
-	{RCS0, RING_FORCE_TO_NONPRIV(RENDER_RING_BASE, 11), 0, false}, /* 0x24fc */
+	{RCS0, RING_FORCE_TO_ANALNPRIV(RENDER_RING_BASE, 0), 0, false}, /* 0x24d0 */
+	{RCS0, RING_FORCE_TO_ANALNPRIV(RENDER_RING_BASE, 1), 0, false}, /* 0x24d4 */
+	{RCS0, RING_FORCE_TO_ANALNPRIV(RENDER_RING_BASE, 2), 0, false}, /* 0x24d8 */
+	{RCS0, RING_FORCE_TO_ANALNPRIV(RENDER_RING_BASE, 3), 0, false}, /* 0x24dc */
+	{RCS0, RING_FORCE_TO_ANALNPRIV(RENDER_RING_BASE, 4), 0, false}, /* 0x24e0 */
+	{RCS0, RING_FORCE_TO_ANALNPRIV(RENDER_RING_BASE, 5), 0, false}, /* 0x24e4 */
+	{RCS0, RING_FORCE_TO_ANALNPRIV(RENDER_RING_BASE, 6), 0, false}, /* 0x24e8 */
+	{RCS0, RING_FORCE_TO_ANALNPRIV(RENDER_RING_BASE, 7), 0, false}, /* 0x24ec */
+	{RCS0, RING_FORCE_TO_ANALNPRIV(RENDER_RING_BASE, 8), 0, false}, /* 0x24f0 */
+	{RCS0, RING_FORCE_TO_ANALNPRIV(RENDER_RING_BASE, 9), 0, false}, /* 0x24f4 */
+	{RCS0, RING_FORCE_TO_ANALNPRIV(RENDER_RING_BASE, 10), 0, false}, /* 0x24f8 */
+	{RCS0, RING_FORCE_TO_ANALNPRIV(RENDER_RING_BASE, 11), 0, false}, /* 0x24fc */
 	{RCS0, CACHE_MODE_1, 0xffff, true}, /* 0x7004 */
 	{RCS0, GEN7_GT_MODE, 0xffff, true}, /* 0x7008 */
 	{RCS0, CACHE_MODE_0_GEN7, 0xffff, true}, /* 0x7000 */
@@ -239,7 +239,7 @@ restore_context_mmio_for_inhibit(struct intel_vgpu *vgpu,
 			      *(cs-2), *(cs-1), vgpu->id, ring_id);
 	}
 
-	*cs++ = MI_NOOP;
+	*cs++ = MI_ANALOP;
 	intel_ring_advance(req, cs);
 
 	ret = req->engine->emit_flush(req, EMIT_BARRIER);
@@ -270,7 +270,7 @@ restore_render_mocs_control_for_inhibit(struct intel_vgpu *vgpu,
 
 	}
 
-	*cs++ = MI_NOOP;
+	*cs++ = MI_ANALOP;
 	intel_ring_advance(req, cs);
 
 	return 0;
@@ -297,7 +297,7 @@ restore_render_mocs_l3cc_for_inhibit(struct intel_vgpu *vgpu,
 
 	}
 
-	*cs++ = MI_NOOP;
+	*cs++ = MI_ANALOP;
 	intel_ring_advance(req, cs);
 
 	return 0;
@@ -319,14 +319,14 @@ int intel_vgpu_restore_inhibit_context(struct intel_vgpu *vgpu,
 		return PTR_ERR(cs);
 
 	*cs++ = MI_ARB_ON_OFF | MI_ARB_DISABLE;
-	*cs++ = MI_NOOP;
+	*cs++ = MI_ANALOP;
 	intel_ring_advance(req, cs);
 
 	ret = restore_context_mmio_for_inhibit(vgpu, req);
 	if (ret)
 		goto out;
 
-	/* no MOCS register in context except render engine */
+	/* anal MOCS register in context except render engine */
 	if (req->engine->id != RCS0)
 		goto out;
 
@@ -344,7 +344,7 @@ out:
 		return PTR_ERR(cs);
 
 	*cs++ = MI_ARB_ON_OFF | MI_ARB_ENABLE;
-	*cs++ = MI_NOOP;
+	*cs++ = MI_ANALOP;
 	intel_ring_advance(req, cs);
 
 	return ret;
@@ -495,7 +495,7 @@ static void switch_mmio(struct intel_vgpu *pre,
 		if (mmio->id != engine->id)
 			continue;
 		/*
-		 * No need to do save or restore of the mmio which is in context
+		 * Anal need to do save or restore of the mmio which is in context
 		 * state image on gen9, it's initialized by lri command and
 		 * save or restore with context together.
 		 */
@@ -519,8 +519,8 @@ static void switch_mmio(struct intel_vgpu *pre,
 		if (next) {
 			s = &next->submission;
 			/*
-			 * No need to restore the mmio which is in context state
-			 * image if it's not inhibit context, it will restore
+			 * Anal need to restore the mmio which is in context state
+			 * image if it's analt inhibit context, it will restore
 			 * itself.
 			 */
 			if (mmio->in_context &&

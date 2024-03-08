@@ -224,7 +224,7 @@ static struct counter_comp stm32_count_ext[] = {
 };
 
 static const enum counter_synapse_action stm32_synapse_actions[] = {
-	COUNTER_SYNAPSE_ACTION_NONE,
+	COUNTER_SYNAPSE_ACTION_ANALNE,
 	COUNTER_SYNAPSE_ACTION_BOTH_EDGES
 };
 
@@ -243,21 +243,21 @@ static int stm32_action_read(struct counter_device *counter,
 	switch (function) {
 	case COUNTER_FUNCTION_INCREASE:
 		/* counts on internal clock when CEN=1 */
-		*action = COUNTER_SYNAPSE_ACTION_NONE;
+		*action = COUNTER_SYNAPSE_ACTION_ANALNE;
 		return 0;
 	case COUNTER_FUNCTION_QUADRATURE_X2_A:
 		/* counts up/down on TI1FP1 edge depending on TI2FP2 level */
 		if (synapse->signal->id == count->synapses[0].signal->id)
 			*action = COUNTER_SYNAPSE_ACTION_BOTH_EDGES;
 		else
-			*action = COUNTER_SYNAPSE_ACTION_NONE;
+			*action = COUNTER_SYNAPSE_ACTION_ANALNE;
 		return 0;
 	case COUNTER_FUNCTION_QUADRATURE_X2_B:
 		/* counts up/down on TI2FP2 edge depending on TI1FP1 level */
 		if (synapse->signal->id == count->synapses[1].signal->id)
 			*action = COUNTER_SYNAPSE_ACTION_BOTH_EDGES;
 		else
-			*action = COUNTER_SYNAPSE_ACTION_NONE;
+			*action = COUNTER_SYNAPSE_ACTION_ANALNE;
 		return 0;
 	case COUNTER_FUNCTION_QUADRATURE_X4:
 		/* counts up/down on both TI1FP1 and TI2FP2 edges */
@@ -324,7 +324,7 @@ static int stm32_timer_cnt_probe(struct platform_device *pdev)
 
 	counter = devm_counter_alloc(dev, sizeof(*priv));
 	if (!counter)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv = counter_priv(counter);
 

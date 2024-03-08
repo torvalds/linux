@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2012 - 2018 Microchip Technology Inc., and its subsidiaries.
+ * Copyright (c) 2012 - 2018 Microchip Techanallogy Inc., and its subsidiaries.
  * All rights reserved.
  */
 
@@ -100,7 +100,7 @@ struct wilc_attr_ch_list {
 
 struct wilc_ch_list_elem {
 	u8 op_class;
-	u8 no_of_channels;
+	u8 anal_of_channels;
 	u8 ch_list[];
 } __packed;
 
@@ -200,7 +200,7 @@ static void cfg_connect_result(enum conn_event conn_disconn_evt, u8 mac_status,
 				     NL80211_TIMEOUT_UNSPECIFIED);
 
 		vif->bss = NULL;
-	} else if (conn_disconn_evt == CONN_DISCONN_EVENT_DISCONN_NOTIF) {
+	} else if (conn_disconn_evt == CONN_DISCONN_EVENT_DISCONN_ANALTIF) {
 		u16 reason = 0;
 
 		eth_zero_addr(priv->associated_bss);
@@ -303,8 +303,8 @@ static int connect(struct wiphy *wiphy, struct net_device *dev,
 	struct host_if_drv *wfi_drv = priv->hif_drv;
 	int ret;
 	u32 i;
-	u8 security = WILC_FW_SEC_NO;
-	enum mfptype mfp_type = WILC_FW_MFP_NONE;
+	u8 security = WILC_FW_SEC_ANAL;
+	enum mfptype mfp_type = WILC_FW_MFP_ANALNE;
 	enum authtype auth_type = WILC_FW_AUTH_ANY;
 	u32 cipher_group;
 	struct cfg80211_bss *bss;
@@ -326,7 +326,7 @@ static int connect(struct wiphy *wiphy, struct net_device *dev,
 			else
 				security = WILC_FW_SEC_WPA_AES;
 		} else {
-			ret = -ENOTSUPP;
+			ret = -EANALTSUPP;
 			netdev_err(dev, "%s: Unsupported cipher\n",
 				   __func__);
 			goto out_error;
@@ -423,7 +423,7 @@ static int connect(struct wiphy *wiphy, struct net_device *dev,
 	ret = wilc_set_join_req(vif, bss->bssid, sme->ie, sme->ie_len);
 	if (ret) {
 		netdev_err(dev, "wilc_set_join_req(): Error\n");
-		ret = -ENOENT;
+		ret = -EANALENT;
 		if (vif->iftype != WILC_CLIENT_MODE)
 			vif->wilc->sta_ch = WILC_INVALID_CHANNEL;
 		wilc_wlan_set_bssid(dev, NULL, WILC_STATION_MODE);
@@ -486,14 +486,14 @@ static int wilc_wfi_cfg_allocate_wpa_entry(struct wilc_priv *priv, u8 idx)
 		priv->wilc_gtk[idx] = kzalloc(sizeof(*priv->wilc_gtk[idx]),
 					      GFP_KERNEL);
 		if (!priv->wilc_gtk[idx])
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	if (!priv->wilc_ptk[idx]) {
 		priv->wilc_ptk[idx] = kzalloc(sizeof(*priv->wilc_ptk[idx]),
 					      GFP_KERNEL);
 		if (!priv->wilc_ptk[idx])
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	return 0;
@@ -506,7 +506,7 @@ static int wilc_wfi_cfg_allocate_wpa_igtk_entry(struct wilc_priv *priv, u8 idx)
 		priv->wilc_igtk[idx] = kzalloc(sizeof(*priv->wilc_igtk[idx]),
 					       GFP_KERNEL);
 		if (!priv->wilc_igtk[idx])
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 	return 0;
 }
@@ -518,7 +518,7 @@ static int wilc_wfi_cfg_copy_wpa_info(struct wilc_wfi_key *key_info,
 
 	key_info->key = kmemdup(params->key, params->key_len, GFP_KERNEL);
 	if (!key_info->key)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	kfree(key_info->seq);
 
@@ -526,7 +526,7 @@ static int wilc_wfi_cfg_copy_wpa_info(struct wilc_wfi_key *key_info,
 		key_info->seq = kmemdup(params->seq, params->seq_len,
 					GFP_KERNEL);
 		if (!key_info->seq)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	key_info->cipher = params->cipher;
@@ -544,7 +544,7 @@ static int add_key(struct wiphy *wiphy, struct net_device *netdev, int link_id,
 	int ret = 0, keylen = params->key_len;
 	const u8 *rx_mic = NULL;
 	const u8 *tx_mic = NULL;
-	u8 mode = WILC_FW_SEC_NO;
+	u8 mode = WILC_FW_SEC_ANAL;
 	u8 op_mode;
 	struct wilc_vif *vif = netdev_priv(netdev);
 	struct wilc_priv *priv = &vif->priv;
@@ -559,7 +559,7 @@ static int add_key(struct wiphy *wiphy, struct net_device *netdev, int link_id,
 
 			ret = wilc_wfi_cfg_allocate_wpa_entry(priv, key_index);
 			if (ret)
-				return -ENOMEM;
+				return -EANALMEM;
 
 			if (params->key_len > 16 &&
 			    params->cipher == WLAN_CIPHER_SUITE_TKIP) {
@@ -587,7 +587,7 @@ static int add_key(struct wiphy *wiphy, struct net_device *netdev, int link_id,
 			}
 			ret = wilc_wfi_cfg_copy_wpa_info(key, params);
 			if (ret)
-				return -ENOMEM;
+				return -EANALMEM;
 
 			op_mode = WILC_AP_MODE;
 		} else {
@@ -615,12 +615,12 @@ static int add_key(struct wiphy *wiphy, struct net_device *netdev, int link_id,
 	case WLAN_CIPHER_SUITE_AES_CMAC:
 		ret = wilc_wfi_cfg_allocate_wpa_igtk_entry(priv, key_index);
 		if (ret)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		key = priv->wilc_igtk[key_index - 4];
 		ret = wilc_wfi_cfg_copy_wpa_info(key, params);
 		if (ret)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		if (priv->wdev.iftype == NL80211_IFTYPE_AP ||
 		    priv->wdev.iftype == NL80211_IFTYPE_P2P_GO)
@@ -635,7 +635,7 @@ static int add_key(struct wiphy *wiphy, struct net_device *netdev, int link_id,
 
 	default:
 		netdev_err(netdev, "%s: Unsupported cipher\n", __func__);
-		ret = -ENOTSUPP;
+		ret = -EANALTSUPP;
 	}
 
 	return ret;
@@ -719,7 +719,7 @@ static int get_key(struct wiphy *wiphy, struct net_device *netdev, int link_id,
 	return 0;
 }
 
-/* wiphy_new_nm() will WARNON if not present */
+/* wiphy_new_nm() will WARANALN if analt present */
 static int set_default_key(struct wiphy *wiphy, struct net_device *netdev,
 			   int link_id, u8 key_index, bool unicast,
 			   bool multicast)
@@ -756,8 +756,8 @@ static int get_station(struct wiphy *wiphy, struct net_device *dev,
 		}
 
 		if (associatedsta == ~0) {
-			netdev_err(dev, "sta required is not associated\n");
-			return -ENOENT;
+			netdev_err(dev, "sta required is analt associated\n");
+			return -EANALENT;
 		}
 
 		sinfo->filled |= BIT_ULL(NL80211_STA_INFO_INACTIVE_TIME);
@@ -992,12 +992,12 @@ static inline void wilc_wfi_cfg_parse_ch_attr(u8 *buf, u32 len, u8 sta_ch)
 			if (i > elem_size)
 				break;
 
-			i += e->no_of_channels;
+			i += e->anal_of_channels;
 			if (i > elem_size)
 				break;
 
 			if (e->op_class == WILC_WLAN_OPERATING_CLASS_2_4GHZ) {
-				memset(e->ch_list, sta_ch, e->no_of_channels);
+				memset(e->ch_list, sta_ch, e->anal_of_channels);
 				break;
 			}
 		}
@@ -1151,7 +1151,7 @@ static int cancel_remain_on_channel(struct wiphy *wiphy,
 	struct wilc_priv *priv = &vif->priv;
 
 	if (cookie != priv->remain_on_ch_params.listen_cookie)
-		return -ENOENT;
+		return -EANALENT;
 
 	return wilc_listen_state_expired(vif, cookie);
 }
@@ -1185,13 +1185,13 @@ static int mgmt_tx(struct wiphy *wiphy,
 
 	mgmt_tx = kmalloc(sizeof(*mgmt_tx), GFP_KERNEL);
 	if (!mgmt_tx) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
 	mgmt_tx->buff = kmemdup(buf, len, GFP_KERNEL);
 	if (!mgmt_tx->buff) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		kfree(mgmt_tx);
 		goto out;
 	}
@@ -1282,21 +1282,21 @@ void wilc_update_mgmt_frame_registrations(struct wiphy *wiphy,
 
 	if (wl->initialized) {
 		bool prev = vif->mgmt_reg_stypes & presp_bit;
-		bool now = upd->interface_stypes & presp_bit;
+		bool analw = upd->interface_stypes & presp_bit;
 
-		if (now != prev)
-			wilc_frame_register(vif, IEEE80211_STYPE_PROBE_REQ, now);
+		if (analw != prev)
+			wilc_frame_register(vif, IEEE80211_STYPE_PROBE_REQ, analw);
 
 		prev = vif->mgmt_reg_stypes & action_bit;
-		now = upd->interface_stypes & action_bit;
+		analw = upd->interface_stypes & action_bit;
 
-		if (now != prev)
-			wilc_frame_register(vif, IEEE80211_STYPE_ACTION, now);
+		if (analw != prev)
+			wilc_frame_register(vif, IEEE80211_STYPE_ACTION, analw);
 
 		prev = vif->mgmt_reg_stypes & pauth_bit;
-		now = upd->interface_stypes & pauth_bit;
-		if (now != prev)
-			wilc_frame_register(vif, IEEE80211_STYPE_AUTH, now);
+		analw = upd->interface_stypes & pauth_bit;
+		if (analw != prev)
+			wilc_frame_register(vif, IEEE80211_STYPE_AUTH, analw);
 	}
 
 	vif->mgmt_reg_stypes =
@@ -1327,7 +1327,7 @@ static int dump_station(struct wiphy *wiphy, struct net_device *dev,
 	int ret;
 
 	if (idx != 0)
-		return -ENOENT;
+		return -EANALENT;
 
 	ret = wilc_get_rssi(vif, &sinfo->signal);
 	if (ret)
@@ -1411,7 +1411,7 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 		break;
 
 	default:
-		netdev_err(dev, "Unknown interface type= %d\n", type);
+		netdev_err(dev, "Unkanalwn interface type= %d\n", type);
 		return -EINVAL;
 	}
 
@@ -1586,7 +1586,7 @@ validate_interface:
 		iftype = WILC_AP_MODE;
 		break;
 	default:
-		return ERR_PTR(-EOPNOTSUPP);
+		return ERR_PTR(-EOPANALTSUPP);
 	}
 
 	vif = wilc_netdev_ifc_init(wl, name, iftype, type, true);
@@ -1692,7 +1692,7 @@ static int get_tx_power(struct wiphy *wiphy, struct wireless_dev *wdev,
 	struct wilc_vif *vif = netdev_priv(wdev->netdev);
 	struct wilc *wl = vif->wilc;
 
-	/* If firmware is not started, return. */
+	/* If firmware is analt started, return. */
 	if (!wl->initialized)
 		return -EIO;
 
@@ -1847,7 +1847,7 @@ struct wilc *wilc_create_wiphy(struct device *dev)
 	wl->band.ht_cap.cap |= (1 << IEEE80211_HT_CAP_RX_STBC_SHIFT);
 	wl->band.ht_cap.mcs.rx_mask[0] = 0xff;
 	wl->band.ht_cap.ampdu_factor = IEEE80211_HT_MAX_AMPDU_8K;
-	wl->band.ht_cap.ampdu_density = IEEE80211_HT_MPDU_DENSITY_NONE;
+	wl->band.ht_cap.ampdu_density = IEEE80211_HT_MPDU_DENSITY_ANALNE;
 
 	wiphy->bands[NL80211_BAND_2GHZ] = &wl->band;
 

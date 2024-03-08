@@ -15,15 +15,15 @@
  * list in order to map/unmap it's entries, can't occur concurrently.
  *
  * Accessing the DRM_GPUVA_INVALIDATED flag doesn't need any separate
- * protection, since there are no accesses other than from BO move callbacks
+ * protection, since there are anal accesses other than from BO move callbacks
  * and from the fence signalling critical path, which are already protected by
  * the corresponding GEMs DMA reservation fence.
  */
 
-#include "nouveau_drv.h"
-#include "nouveau_gem.h"
-#include "nouveau_mem.h"
-#include "nouveau_uvmm.h"
+#include "analuveau_drv.h"
+#include "analuveau_gem.h"
+#include "analuveau_mem.h"
+#include "analuveau_uvmm.h"
 
 #include <nvif/vmm.h>
 #include <nvif/mem.h>
@@ -32,9 +32,9 @@
 #include <nvif/if000c.h>
 #include <nvif/if900d.h>
 
-#define NOUVEAU_VA_SPACE_BITS		47 /* FIXME */
-#define NOUVEAU_VA_SPACE_START		0x0
-#define NOUVEAU_VA_SPACE_END		(1ULL << NOUVEAU_VA_SPACE_BITS)
+#define ANALUVEAU_VA_SPACE_BITS		47 /* FIXME */
+#define ANALUVEAU_VA_SPACE_START		0x0
+#define ANALUVEAU_VA_SPACE_END		(1ULL << ANALUVEAU_VA_SPACE_BITS)
 
 #define list_last_op(_ops) list_last_entry(_ops, struct bind_job_op, entry)
 #define list_prev_op(_op) list_prev_entry(_op, entry)
@@ -44,16 +44,16 @@
 #define list_for_each_op_safe(_op, _n, _ops) list_for_each_entry_safe(_op, _n, _ops, entry)
 
 enum vm_bind_op {
-	OP_MAP = DRM_NOUVEAU_VM_BIND_OP_MAP,
-	OP_UNMAP = DRM_NOUVEAU_VM_BIND_OP_UNMAP,
+	OP_MAP = DRM_ANALUVEAU_VM_BIND_OP_MAP,
+	OP_UNMAP = DRM_ANALUVEAU_VM_BIND_OP_UNMAP,
 	OP_MAP_SPARSE,
 	OP_UNMAP_SPARSE,
 };
 
-struct nouveau_uvma_prealloc {
-	struct nouveau_uvma *map;
-	struct nouveau_uvma *prev;
-	struct nouveau_uvma *next;
+struct analuveau_uvma_prealloc {
+	struct analuveau_uvma *map;
+	struct analuveau_uvma *prev;
+	struct analuveau_uvma *next;
 };
 
 struct bind_job_op {
@@ -75,20 +75,20 @@ struct bind_job_op {
 		struct drm_gem_object *obj;
 	} gem;
 
-	struct nouveau_uvma_region *reg;
-	struct nouveau_uvma_prealloc new;
+	struct analuveau_uvma_region *reg;
+	struct analuveau_uvma_prealloc new;
 	struct drm_gpuva_ops *ops;
 };
 
 struct uvmm_map_args {
-	struct nouveau_uvma_region *region;
+	struct analuveau_uvma_region *region;
 	u64 addr;
 	u64 range;
 	u8 kind;
 };
 
 static int
-nouveau_uvmm_vmm_sparse_ref(struct nouveau_uvmm *uvmm,
+analuveau_uvmm_vmm_sparse_ref(struct analuveau_uvmm *uvmm,
 			    u64 addr, u64 range)
 {
 	struct nvif_vmm *vmm = &uvmm->vmm.vmm;
@@ -97,7 +97,7 @@ nouveau_uvmm_vmm_sparse_ref(struct nouveau_uvmm *uvmm,
 }
 
 static int
-nouveau_uvmm_vmm_sparse_unref(struct nouveau_uvmm *uvmm,
+analuveau_uvmm_vmm_sparse_unref(struct analuveau_uvmm *uvmm,
 			      u64 addr, u64 range)
 {
 	struct nvif_vmm *vmm = &uvmm->vmm.vmm;
@@ -106,7 +106,7 @@ nouveau_uvmm_vmm_sparse_unref(struct nouveau_uvmm *uvmm,
 }
 
 static int
-nouveau_uvmm_vmm_get(struct nouveau_uvmm *uvmm,
+analuveau_uvmm_vmm_get(struct analuveau_uvmm *uvmm,
 		     u64 addr, u64 range)
 {
 	struct nvif_vmm *vmm = &uvmm->vmm.vmm;
@@ -115,7 +115,7 @@ nouveau_uvmm_vmm_get(struct nouveau_uvmm *uvmm,
 }
 
 static int
-nouveau_uvmm_vmm_put(struct nouveau_uvmm *uvmm,
+analuveau_uvmm_vmm_put(struct analuveau_uvmm *uvmm,
 		     u64 addr, u64 range)
 {
 	struct nvif_vmm *vmm = &uvmm->vmm.vmm;
@@ -124,7 +124,7 @@ nouveau_uvmm_vmm_put(struct nouveau_uvmm *uvmm,
 }
 
 static int
-nouveau_uvmm_vmm_unmap(struct nouveau_uvmm *uvmm,
+analuveau_uvmm_vmm_unmap(struct analuveau_uvmm *uvmm,
 		       u64 addr, u64 range, bool sparse)
 {
 	struct nvif_vmm *vmm = &uvmm->vmm.vmm;
@@ -133,10 +133,10 @@ nouveau_uvmm_vmm_unmap(struct nouveau_uvmm *uvmm,
 }
 
 static int
-nouveau_uvmm_vmm_map(struct nouveau_uvmm *uvmm,
+analuveau_uvmm_vmm_map(struct analuveau_uvmm *uvmm,
 		     u64 addr, u64 range,
 		     u64 bo_offset, u8 kind,
-		     struct nouveau_mem *mem)
+		     struct analuveau_mem *mem)
 {
 	struct nvif_vmm *vmm = &uvmm->vmm.vmm;
 	union {
@@ -160,7 +160,7 @@ nouveau_uvmm_vmm_map(struct nouveau_uvmm *uvmm,
 		break;
 	default:
 		WARN_ON(1);
-		return -ENOSYS;
+		return -EANALSYS;
 	}
 
 	return nvif_vmm_raw_map(vmm, addr, range, PAGE_SHIFT,
@@ -169,37 +169,37 @@ nouveau_uvmm_vmm_map(struct nouveau_uvmm *uvmm,
 }
 
 static int
-nouveau_uvma_region_sparse_unref(struct nouveau_uvma_region *reg)
+analuveau_uvma_region_sparse_unref(struct analuveau_uvma_region *reg)
 {
 	u64 addr = reg->va.addr;
 	u64 range = reg->va.range;
 
-	return nouveau_uvmm_vmm_sparse_unref(reg->uvmm, addr, range);
+	return analuveau_uvmm_vmm_sparse_unref(reg->uvmm, addr, range);
 }
 
 static int
-nouveau_uvma_vmm_put(struct nouveau_uvma *uvma)
+analuveau_uvma_vmm_put(struct analuveau_uvma *uvma)
 {
 	u64 addr = uvma->va.va.addr;
 	u64 range = uvma->va.va.range;
 
-	return nouveau_uvmm_vmm_put(to_uvmm(uvma), addr, range);
+	return analuveau_uvmm_vmm_put(to_uvmm(uvma), addr, range);
 }
 
 static int
-nouveau_uvma_map(struct nouveau_uvma *uvma,
-		 struct nouveau_mem *mem)
+analuveau_uvma_map(struct analuveau_uvma *uvma,
+		 struct analuveau_mem *mem)
 {
 	u64 addr = uvma->va.va.addr;
 	u64 offset = uvma->va.gem.offset;
 	u64 range = uvma->va.va.range;
 
-	return nouveau_uvmm_vmm_map(to_uvmm(uvma), addr, range,
+	return analuveau_uvmm_vmm_map(to_uvmm(uvma), addr, range,
 				    offset, uvma->kind, mem);
 }
 
 static int
-nouveau_uvma_unmap(struct nouveau_uvma *uvma)
+analuveau_uvma_unmap(struct analuveau_uvma *uvma)
 {
 	u64 addr = uvma->va.va.addr;
 	u64 range = uvma->va.va.range;
@@ -208,43 +208,43 @@ nouveau_uvma_unmap(struct nouveau_uvma *uvma)
 	if (drm_gpuva_invalidated(&uvma->va))
 		return 0;
 
-	return nouveau_uvmm_vmm_unmap(to_uvmm(uvma), addr, range, sparse);
+	return analuveau_uvmm_vmm_unmap(to_uvmm(uvma), addr, range, sparse);
 }
 
 static int
-nouveau_uvma_alloc(struct nouveau_uvma **puvma)
+analuveau_uvma_alloc(struct analuveau_uvma **puvma)
 {
 	*puvma = kzalloc(sizeof(**puvma), GFP_KERNEL);
 	if (!*puvma)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
 
 static void
-nouveau_uvma_free(struct nouveau_uvma *uvma)
+analuveau_uvma_free(struct analuveau_uvma *uvma)
 {
 	kfree(uvma);
 }
 
 static void
-nouveau_uvma_gem_get(struct nouveau_uvma *uvma)
+analuveau_uvma_gem_get(struct analuveau_uvma *uvma)
 {
 	drm_gem_object_get(uvma->va.gem.obj);
 }
 
 static void
-nouveau_uvma_gem_put(struct nouveau_uvma *uvma)
+analuveau_uvma_gem_put(struct analuveau_uvma *uvma)
 {
 	drm_gem_object_put(uvma->va.gem.obj);
 }
 
 static int
-nouveau_uvma_region_alloc(struct nouveau_uvma_region **preg)
+analuveau_uvma_region_alloc(struct analuveau_uvma_region **preg)
 {
 	*preg = kzalloc(sizeof(**preg), GFP_KERNEL);
 	if (!*preg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	kref_init(&(*preg)->kref);
 
@@ -252,29 +252,29 @@ nouveau_uvma_region_alloc(struct nouveau_uvma_region **preg)
 }
 
 static void
-nouveau_uvma_region_free(struct kref *kref)
+analuveau_uvma_region_free(struct kref *kref)
 {
-	struct nouveau_uvma_region *reg =
-		container_of(kref, struct nouveau_uvma_region, kref);
+	struct analuveau_uvma_region *reg =
+		container_of(kref, struct analuveau_uvma_region, kref);
 
 	kfree(reg);
 }
 
 static void
-nouveau_uvma_region_get(struct nouveau_uvma_region *reg)
+analuveau_uvma_region_get(struct analuveau_uvma_region *reg)
 {
 	kref_get(&reg->kref);
 }
 
 static void
-nouveau_uvma_region_put(struct nouveau_uvma_region *reg)
+analuveau_uvma_region_put(struct analuveau_uvma_region *reg)
 {
-	kref_put(&reg->kref, nouveau_uvma_region_free);
+	kref_put(&reg->kref, analuveau_uvma_region_free);
 }
 
 static int
-__nouveau_uvma_region_insert(struct nouveau_uvmm *uvmm,
-			     struct nouveau_uvma_region *reg)
+__analuveau_uvma_region_insert(struct analuveau_uvmm *uvmm,
+			     struct analuveau_uvma_region *reg)
 {
 	u64 addr = reg->va.addr;
 	u64 range = reg->va.range;
@@ -298,8 +298,8 @@ __nouveau_uvma_region_insert(struct nouveau_uvmm *uvmm,
 }
 
 static int
-nouveau_uvma_region_insert(struct nouveau_uvmm *uvmm,
-			   struct nouveau_uvma_region *reg,
+analuveau_uvma_region_insert(struct analuveau_uvmm *uvmm,
+			   struct analuveau_uvma_region *reg,
 			   u64 addr, u64 range)
 {
 	int ret;
@@ -308,7 +308,7 @@ nouveau_uvma_region_insert(struct nouveau_uvmm *uvmm,
 	reg->va.addr = addr;
 	reg->va.range = range;
 
-	ret = __nouveau_uvma_region_insert(uvmm, reg);
+	ret = __analuveau_uvma_region_insert(uvmm, reg);
 	if (ret)
 		return ret;
 
@@ -316,47 +316,47 @@ nouveau_uvma_region_insert(struct nouveau_uvmm *uvmm,
 }
 
 static void
-nouveau_uvma_region_remove(struct nouveau_uvma_region *reg)
+analuveau_uvma_region_remove(struct analuveau_uvma_region *reg)
 {
-	struct nouveau_uvmm *uvmm = reg->uvmm;
+	struct analuveau_uvmm *uvmm = reg->uvmm;
 	MA_STATE(mas, &uvmm->region_mt, reg->va.addr, 0);
 
 	mas_erase(&mas);
 }
 
 static int
-nouveau_uvma_region_create(struct nouveau_uvmm *uvmm,
+analuveau_uvma_region_create(struct analuveau_uvmm *uvmm,
 			   u64 addr, u64 range)
 {
-	struct nouveau_uvma_region *reg;
+	struct analuveau_uvma_region *reg;
 	int ret;
 
 	if (!drm_gpuvm_interval_empty(&uvmm->base, addr, range))
-		return -ENOSPC;
+		return -EANALSPC;
 
-	ret = nouveau_uvma_region_alloc(&reg);
+	ret = analuveau_uvma_region_alloc(&reg);
 	if (ret)
 		return ret;
 
-	ret = nouveau_uvma_region_insert(uvmm, reg, addr, range);
+	ret = analuveau_uvma_region_insert(uvmm, reg, addr, range);
 	if (ret)
 		goto err_free_region;
 
-	ret = nouveau_uvmm_vmm_sparse_ref(uvmm, addr, range);
+	ret = analuveau_uvmm_vmm_sparse_ref(uvmm, addr, range);
 	if (ret)
 		goto err_region_remove;
 
 	return 0;
 
 err_region_remove:
-	nouveau_uvma_region_remove(reg);
+	analuveau_uvma_region_remove(reg);
 err_free_region:
-	nouveau_uvma_region_put(reg);
+	analuveau_uvma_region_put(reg);
 	return ret;
 }
 
-static struct nouveau_uvma_region *
-nouveau_uvma_region_find_first(struct nouveau_uvmm *uvmm,
+static struct analuveau_uvma_region *
+analuveau_uvma_region_find_first(struct analuveau_uvmm *uvmm,
 			       u64 addr, u64 range)
 {
 	MA_STATE(mas, &uvmm->region_mt, addr, 0);
@@ -364,13 +364,13 @@ nouveau_uvma_region_find_first(struct nouveau_uvmm *uvmm,
 	return mas_find(&mas, addr + range - 1);
 }
 
-static struct nouveau_uvma_region *
-nouveau_uvma_region_find(struct nouveau_uvmm *uvmm,
+static struct analuveau_uvma_region *
+analuveau_uvma_region_find(struct analuveau_uvmm *uvmm,
 			 u64 addr, u64 range)
 {
-	struct nouveau_uvma_region *reg;
+	struct analuveau_uvma_region *reg;
 
-	reg = nouveau_uvma_region_find_first(uvmm, addr, range);
+	reg = analuveau_uvma_region_find_first(uvmm, addr, range);
 	if (!reg)
 		return NULL;
 
@@ -382,9 +382,9 @@ nouveau_uvma_region_find(struct nouveau_uvmm *uvmm,
 }
 
 static bool
-nouveau_uvma_region_empty(struct nouveau_uvma_region *reg)
+analuveau_uvma_region_empty(struct analuveau_uvma_region *reg)
 {
-	struct nouveau_uvmm *uvmm = reg->uvmm;
+	struct analuveau_uvmm *uvmm = reg->uvmm;
 
 	return drm_gpuvm_interval_empty(&uvmm->base,
 					reg->va.addr,
@@ -392,37 +392,37 @@ nouveau_uvma_region_empty(struct nouveau_uvma_region *reg)
 }
 
 static int
-__nouveau_uvma_region_destroy(struct nouveau_uvma_region *reg)
+__analuveau_uvma_region_destroy(struct analuveau_uvma_region *reg)
 {
-	struct nouveau_uvmm *uvmm = reg->uvmm;
+	struct analuveau_uvmm *uvmm = reg->uvmm;
 	u64 addr = reg->va.addr;
 	u64 range = reg->va.range;
 
-	if (!nouveau_uvma_region_empty(reg))
+	if (!analuveau_uvma_region_empty(reg))
 		return -EBUSY;
 
-	nouveau_uvma_region_remove(reg);
-	nouveau_uvmm_vmm_sparse_unref(uvmm, addr, range);
-	nouveau_uvma_region_put(reg);
+	analuveau_uvma_region_remove(reg);
+	analuveau_uvmm_vmm_sparse_unref(uvmm, addr, range);
+	analuveau_uvma_region_put(reg);
 
 	return 0;
 }
 
 static int
-nouveau_uvma_region_destroy(struct nouveau_uvmm *uvmm,
+analuveau_uvma_region_destroy(struct analuveau_uvmm *uvmm,
 			    u64 addr, u64 range)
 {
-	struct nouveau_uvma_region *reg;
+	struct analuveau_uvma_region *reg;
 
-	reg = nouveau_uvma_region_find(uvmm, addr, range);
+	reg = analuveau_uvma_region_find(uvmm, addr, range);
 	if (!reg)
-		return -ENOENT;
+		return -EANALENT;
 
-	return __nouveau_uvma_region_destroy(reg);
+	return __analuveau_uvma_region_destroy(reg);
 }
 
 static void
-nouveau_uvma_region_dirty(struct nouveau_uvma_region *reg)
+analuveau_uvma_region_dirty(struct analuveau_uvma_region *reg)
 {
 
 	init_completion(&reg->complete);
@@ -430,18 +430,18 @@ nouveau_uvma_region_dirty(struct nouveau_uvma_region *reg)
 }
 
 static void
-nouveau_uvma_region_complete(struct nouveau_uvma_region *reg)
+analuveau_uvma_region_complete(struct analuveau_uvma_region *reg)
 {
 	complete_all(&reg->complete);
 }
 
 static void
-op_map_prepare_unwind(struct nouveau_uvma *uvma)
+op_map_prepare_unwind(struct analuveau_uvma *uvma)
 {
 	struct drm_gpuva *va = &uvma->va;
-	nouveau_uvma_gem_put(uvma);
+	analuveau_uvma_gem_put(uvma);
 	drm_gpuva_remove(va);
-	nouveau_uvma_free(uvma);
+	analuveau_uvma_free(uvma);
 }
 
 static void
@@ -451,8 +451,8 @@ op_unmap_prepare_unwind(struct drm_gpuva *va)
 }
 
 static void
-nouveau_uvmm_sm_prepare_unwind(struct nouveau_uvmm *uvmm,
-			       struct nouveau_uvma_prealloc *new,
+analuveau_uvmm_sm_prepare_unwind(struct analuveau_uvmm *uvmm,
+			       struct analuveau_uvma_prealloc *new,
 			       struct drm_gpuva_ops *ops,
 			       struct drm_gpuva_op *last,
 			       struct uvmm_map_args *args)
@@ -500,7 +500,7 @@ nouveau_uvmm_sm_prepare_unwind(struct nouveau_uvmm *uvmm,
 			u64 vmm_get_range = vmm_get_end - vmm_get_start;
 
 			if (vmm_get_range)
-				nouveau_uvmm_vmm_put(uvmm, vmm_get_start,
+				analuveau_uvmm_vmm_put(uvmm, vmm_get_start,
 						     vmm_get_range);
 			break;
 		}
@@ -529,7 +529,7 @@ nouveau_uvmm_sm_prepare_unwind(struct nouveau_uvmm *uvmm,
 			u64 urange = va->va.range;
 			u64 uend = ustart + urange;
 
-			/* Nothing to do for mappings we merge with. */
+			/* Analthing to do for mappings we merge with. */
 			if (uend == vmm_get_start ||
 			    ustart == vmm_get_end)
 				break;
@@ -537,7 +537,7 @@ nouveau_uvmm_sm_prepare_unwind(struct nouveau_uvmm *uvmm,
 			if (ustart > vmm_get_start) {
 				u64 vmm_get_range = ustart - vmm_get_start;
 
-				nouveau_uvmm_vmm_put(uvmm, vmm_get_start,
+				analuveau_uvmm_vmm_put(uvmm, vmm_get_start,
 						     vmm_get_range);
 			}
 			vmm_get_start = uend;
@@ -553,8 +553,8 @@ nouveau_uvmm_sm_prepare_unwind(struct nouveau_uvmm *uvmm,
 }
 
 static void
-nouveau_uvmm_sm_map_prepare_unwind(struct nouveau_uvmm *uvmm,
-				   struct nouveau_uvma_prealloc *new,
+analuveau_uvmm_sm_map_prepare_unwind(struct analuveau_uvmm *uvmm,
+				   struct analuveau_uvma_prealloc *new,
 				   struct drm_gpuva_ops *ops,
 				   u64 addr, u64 range)
 {
@@ -564,29 +564,29 @@ nouveau_uvmm_sm_map_prepare_unwind(struct nouveau_uvmm *uvmm,
 		.range = range,
 	};
 
-	nouveau_uvmm_sm_prepare_unwind(uvmm, new, ops, last, &args);
+	analuveau_uvmm_sm_prepare_unwind(uvmm, new, ops, last, &args);
 }
 
 static void
-nouveau_uvmm_sm_unmap_prepare_unwind(struct nouveau_uvmm *uvmm,
-				     struct nouveau_uvma_prealloc *new,
+analuveau_uvmm_sm_unmap_prepare_unwind(struct analuveau_uvmm *uvmm,
+				     struct analuveau_uvma_prealloc *new,
 				     struct drm_gpuva_ops *ops)
 {
 	struct drm_gpuva_op *last = drm_gpuva_last_op(ops);
 
-	nouveau_uvmm_sm_prepare_unwind(uvmm, new, ops, last, NULL);
+	analuveau_uvmm_sm_prepare_unwind(uvmm, new, ops, last, NULL);
 }
 
 static int
-op_map_prepare(struct nouveau_uvmm *uvmm,
-	       struct nouveau_uvma **puvma,
+op_map_prepare(struct analuveau_uvmm *uvmm,
+	       struct analuveau_uvma **puvma,
 	       struct drm_gpuva_op_map *op,
 	       struct uvmm_map_args *args)
 {
-	struct nouveau_uvma *uvma;
+	struct analuveau_uvma *uvma;
 	int ret;
 
-	ret = nouveau_uvma_alloc(&uvma);
+	ret = analuveau_uvma_alloc(&uvma);
 	if (ret)
 		return ret;
 
@@ -596,7 +596,7 @@ op_map_prepare(struct nouveau_uvmm *uvmm,
 	drm_gpuva_map(&uvmm->base, &uvma->va, op);
 
 	/* Keep a reference until this uvma is destroyed. */
-	nouveau_uvma_gem_get(uvma);
+	analuveau_uvma_gem_get(uvma);
 
 	*puvma = uvma;
 	return 0;
@@ -609,11 +609,11 @@ op_unmap_prepare(struct drm_gpuva_op_unmap *u)
 }
 
 /*
- * Note: @args should not be NULL when calling for a map operation.
+ * Analte: @args should analt be NULL when calling for a map operation.
  */
 static int
-nouveau_uvmm_sm_prepare(struct nouveau_uvmm *uvmm,
-			struct nouveau_uvma_prealloc *new,
+analuveau_uvmm_sm_prepare(struct analuveau_uvmm *uvmm,
+			struct analuveau_uvma_prealloc *new,
 			struct drm_gpuva_ops *ops,
 			struct uvmm_map_args *args)
 {
@@ -632,7 +632,7 @@ nouveau_uvmm_sm_prepare(struct nouveau_uvmm *uvmm,
 				goto unwind;
 
 			if (vmm_get_range) {
-				ret = nouveau_uvmm_vmm_get(uvmm, vmm_get_start,
+				ret = analuveau_uvmm_vmm_get(uvmm, vmm_get_start,
 							   vmm_get_range);
 				if (ret) {
 					op_map_prepare_unwind(new->map);
@@ -695,7 +695,7 @@ nouveau_uvmm_sm_prepare(struct nouveau_uvmm *uvmm,
 			if (!args)
 				break;
 
-			/* Nothing to do for mappings we merge with. */
+			/* Analthing to do for mappings we merge with. */
 			if (uend == vmm_get_start ||
 			    ustart == vmm_get_end)
 				break;
@@ -703,7 +703,7 @@ nouveau_uvmm_sm_prepare(struct nouveau_uvmm *uvmm,
 			if (ustart > vmm_get_start) {
 				u64 vmm_get_range = ustart - vmm_get_start;
 
-				ret = nouveau_uvmm_vmm_get(uvmm, vmm_get_start,
+				ret = analuveau_uvmm_vmm_get(uvmm, vmm_get_start,
 							   vmm_get_range);
 				if (ret) {
 					op_unmap_prepare_unwind(va);
@@ -724,16 +724,16 @@ nouveau_uvmm_sm_prepare(struct nouveau_uvmm *uvmm,
 
 unwind:
 	if (op != drm_gpuva_first_op(ops))
-		nouveau_uvmm_sm_prepare_unwind(uvmm, new, ops,
+		analuveau_uvmm_sm_prepare_unwind(uvmm, new, ops,
 					       drm_gpuva_prev_op(op),
 					       args);
 	return ret;
 }
 
 static int
-nouveau_uvmm_sm_map_prepare(struct nouveau_uvmm *uvmm,
-			    struct nouveau_uvma_prealloc *new,
-			    struct nouveau_uvma_region *region,
+analuveau_uvmm_sm_map_prepare(struct analuveau_uvmm *uvmm,
+			    struct analuveau_uvma_prealloc *new,
+			    struct analuveau_uvma_region *region,
 			    struct drm_gpuva_ops *ops,
 			    u64 addr, u64 range, u8 kind)
 {
@@ -744,15 +744,15 @@ nouveau_uvmm_sm_map_prepare(struct nouveau_uvmm *uvmm,
 		.kind = kind,
 	};
 
-	return nouveau_uvmm_sm_prepare(uvmm, new, ops, &args);
+	return analuveau_uvmm_sm_prepare(uvmm, new, ops, &args);
 }
 
 static int
-nouveau_uvmm_sm_unmap_prepare(struct nouveau_uvmm *uvmm,
-			      struct nouveau_uvma_prealloc *new,
+analuveau_uvmm_sm_unmap_prepare(struct analuveau_uvmm *uvmm,
+			      struct analuveau_uvma_prealloc *new,
 			      struct drm_gpuva_ops *ops)
 {
-	return nouveau_uvmm_sm_prepare(uvmm, new, ops, NULL);
+	return analuveau_uvmm_sm_prepare(uvmm, new, ops, NULL);
 }
 
 static struct drm_gem_object *
@@ -770,47 +770,47 @@ op_gem_obj(struct drm_gpuva_op *op)
 	case DRM_GPUVA_OP_UNMAP:
 		return op->unmap.va->gem.obj;
 	default:
-		WARN(1, "Unknown operation.\n");
+		WARN(1, "Unkanalwn operation.\n");
 		return NULL;
 	}
 }
 
 static void
-op_map(struct nouveau_uvma *uvma)
+op_map(struct analuveau_uvma *uvma)
 {
-	struct nouveau_bo *nvbo = nouveau_gem_object(uvma->va.gem.obj);
+	struct analuveau_bo *nvbo = analuveau_gem_object(uvma->va.gem.obj);
 
-	nouveau_uvma_map(uvma, nouveau_mem(nvbo->bo.resource));
+	analuveau_uvma_map(uvma, analuveau_mem(nvbo->bo.resource));
 }
 
 static void
 op_unmap(struct drm_gpuva_op_unmap *u)
 {
 	struct drm_gpuva *va = u->va;
-	struct nouveau_uvma *uvma = uvma_from_va(va);
+	struct analuveau_uvma *uvma = uvma_from_va(va);
 
-	/* nouveau_uvma_unmap() does not unmap if backing BO is evicted. */
+	/* analuveau_uvma_unmap() does analt unmap if backing BO is evicted. */
 	if (!u->keep)
-		nouveau_uvma_unmap(uvma);
+		analuveau_uvma_unmap(uvma);
 }
 
 static void
 op_unmap_range(struct drm_gpuva_op_unmap *u,
 	       u64 addr, u64 range)
 {
-	struct nouveau_uvma *uvma = uvma_from_va(u->va);
+	struct analuveau_uvma *uvma = uvma_from_va(u->va);
 	bool sparse = !!uvma->region;
 
 	if (!drm_gpuva_invalidated(u->va))
-		nouveau_uvmm_vmm_unmap(to_uvmm(uvma), addr, range, sparse);
+		analuveau_uvmm_vmm_unmap(to_uvmm(uvma), addr, range, sparse);
 }
 
 static void
 op_remap(struct drm_gpuva_op_remap *r,
-	 struct nouveau_uvma_prealloc *new)
+	 struct analuveau_uvma_prealloc *new)
 {
 	struct drm_gpuva_op_unmap *u = r->unmap;
-	struct nouveau_uvma *uvma = uvma_from_va(u->va);
+	struct analuveau_uvma *uvma = uvma_from_va(u->va);
 	u64 addr = uvma->va.va.addr;
 	u64 range = uvma->va.va.range;
 
@@ -824,8 +824,8 @@ op_remap(struct drm_gpuva_op_remap *r,
 }
 
 static int
-nouveau_uvmm_sm(struct nouveau_uvmm *uvmm,
-		struct nouveau_uvma_prealloc *new,
+analuveau_uvmm_sm(struct analuveau_uvmm *uvmm,
+		struct analuveau_uvma_prealloc *new,
 		struct drm_gpuva_ops *ops)
 {
 	struct drm_gpuva_op *op;
@@ -850,24 +850,24 @@ nouveau_uvmm_sm(struct nouveau_uvmm *uvmm,
 }
 
 static int
-nouveau_uvmm_sm_map(struct nouveau_uvmm *uvmm,
-		    struct nouveau_uvma_prealloc *new,
+analuveau_uvmm_sm_map(struct analuveau_uvmm *uvmm,
+		    struct analuveau_uvma_prealloc *new,
 		    struct drm_gpuva_ops *ops)
 {
-	return nouveau_uvmm_sm(uvmm, new, ops);
+	return analuveau_uvmm_sm(uvmm, new, ops);
 }
 
 static int
-nouveau_uvmm_sm_unmap(struct nouveau_uvmm *uvmm,
-		      struct nouveau_uvma_prealloc *new,
+analuveau_uvmm_sm_unmap(struct analuveau_uvmm *uvmm,
+		      struct analuveau_uvma_prealloc *new,
 		      struct drm_gpuva_ops *ops)
 {
-	return nouveau_uvmm_sm(uvmm, new, ops);
+	return analuveau_uvmm_sm(uvmm, new, ops);
 }
 
 static void
-nouveau_uvmm_sm_cleanup(struct nouveau_uvmm *uvmm,
-			struct nouveau_uvma_prealloc *new,
+analuveau_uvmm_sm_cleanup(struct analuveau_uvmm *uvmm,
+			struct analuveau_uvma_prealloc *new,
 			struct drm_gpuva_ops *ops, bool unmap)
 {
 	struct drm_gpuva_op *op;
@@ -881,7 +881,7 @@ nouveau_uvmm_sm_cleanup(struct nouveau_uvmm *uvmm,
 			struct drm_gpuva_op_map *p = r->prev;
 			struct drm_gpuva_op_map *n = r->next;
 			struct drm_gpuva *va = r->unmap->va;
-			struct nouveau_uvma *uvma = uvma_from_va(va);
+			struct analuveau_uvma *uvma = uvma_from_va(va);
 
 			if (unmap) {
 				u64 addr = va->va.addr;
@@ -893,23 +893,23 @@ nouveau_uvmm_sm_cleanup(struct nouveau_uvmm *uvmm,
 				if (n)
 					end = n->va.addr;
 
-				nouveau_uvmm_vmm_put(uvmm, addr, end - addr);
+				analuveau_uvmm_vmm_put(uvmm, addr, end - addr);
 			}
 
-			nouveau_uvma_gem_put(uvma);
-			nouveau_uvma_free(uvma);
+			analuveau_uvma_gem_put(uvma);
+			analuveau_uvma_free(uvma);
 			break;
 		}
 		case DRM_GPUVA_OP_UNMAP: {
 			struct drm_gpuva_op_unmap *u = &op->unmap;
 			struct drm_gpuva *va = u->va;
-			struct nouveau_uvma *uvma = uvma_from_va(va);
+			struct analuveau_uvma *uvma = uvma_from_va(va);
 
 			if (unmap)
-				nouveau_uvma_vmm_put(uvma);
+				analuveau_uvma_vmm_put(uvma);
 
-			nouveau_uvma_gem_put(uvma);
-			nouveau_uvma_free(uvma);
+			analuveau_uvma_gem_put(uvma);
+			analuveau_uvma_free(uvma);
 			break;
 		}
 		default:
@@ -919,23 +919,23 @@ nouveau_uvmm_sm_cleanup(struct nouveau_uvmm *uvmm,
 }
 
 static void
-nouveau_uvmm_sm_map_cleanup(struct nouveau_uvmm *uvmm,
-			    struct nouveau_uvma_prealloc *new,
+analuveau_uvmm_sm_map_cleanup(struct analuveau_uvmm *uvmm,
+			    struct analuveau_uvma_prealloc *new,
 			    struct drm_gpuva_ops *ops)
 {
-	nouveau_uvmm_sm_cleanup(uvmm, new, ops, false);
+	analuveau_uvmm_sm_cleanup(uvmm, new, ops, false);
 }
 
 static void
-nouveau_uvmm_sm_unmap_cleanup(struct nouveau_uvmm *uvmm,
-			      struct nouveau_uvma_prealloc *new,
+analuveau_uvmm_sm_unmap_cleanup(struct analuveau_uvmm *uvmm,
+			      struct analuveau_uvma_prealloc *new,
 			      struct drm_gpuva_ops *ops)
 {
-	nouveau_uvmm_sm_cleanup(uvmm, new, ops, true);
+	analuveau_uvmm_sm_cleanup(uvmm, new, ops, true);
 }
 
 static int
-nouveau_uvmm_validate_range(struct nouveau_uvmm *uvmm, u64 addr, u64 range)
+analuveau_uvmm_validate_range(struct analuveau_uvmm *uvmm, u64 addr, u64 range)
 {
 	if (addr & ~PAGE_MASK)
 		return -EINVAL;
@@ -950,11 +950,11 @@ nouveau_uvmm_validate_range(struct nouveau_uvmm *uvmm, u64 addr, u64 range)
 }
 
 static int
-nouveau_uvmm_bind_job_alloc(struct nouveau_uvmm_bind_job **pjob)
+analuveau_uvmm_bind_job_alloc(struct analuveau_uvmm_bind_job **pjob)
 {
 	*pjob = kzalloc(sizeof(**pjob), GFP_KERNEL);
 	if (!*pjob)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	kref_init(&(*pjob)->kref);
 
@@ -962,10 +962,10 @@ nouveau_uvmm_bind_job_alloc(struct nouveau_uvmm_bind_job **pjob)
 }
 
 static void
-nouveau_uvmm_bind_job_free(struct kref *kref)
+analuveau_uvmm_bind_job_free(struct kref *kref)
 {
-	struct nouveau_uvmm_bind_job *job =
-		container_of(kref, struct nouveau_uvmm_bind_job, kref);
+	struct analuveau_uvmm_bind_job *job =
+		container_of(kref, struct analuveau_uvmm_bind_job, kref);
 	struct bind_job_op *op, *next;
 
 	list_for_each_op_safe(op, next, &job->ops) {
@@ -973,27 +973,27 @@ nouveau_uvmm_bind_job_free(struct kref *kref)
 		kfree(op);
 	}
 
-	nouveau_job_free(&job->base);
+	analuveau_job_free(&job->base);
 	kfree(job);
 }
 
 static void
-nouveau_uvmm_bind_job_get(struct nouveau_uvmm_bind_job *job)
+analuveau_uvmm_bind_job_get(struct analuveau_uvmm_bind_job *job)
 {
 	kref_get(&job->kref);
 }
 
 static void
-nouveau_uvmm_bind_job_put(struct nouveau_uvmm_bind_job *job)
+analuveau_uvmm_bind_job_put(struct analuveau_uvmm_bind_job *job)
 {
-	kref_put(&job->kref, nouveau_uvmm_bind_job_free);
+	kref_put(&job->kref, analuveau_uvmm_bind_job_free);
 }
 
 static int
-bind_validate_op(struct nouveau_job *job,
+bind_validate_op(struct analuveau_job *job,
 		 struct bind_job_op *op)
 {
-	struct nouveau_uvmm *uvmm = nouveau_cli_uvmm(job->cli);
+	struct analuveau_uvmm *uvmm = analuveau_cli_uvmm(job->cli);
 	struct drm_gem_object *obj = op->gem.obj;
 
 	if (op->op == OP_MAP) {
@@ -1007,21 +1007,21 @@ bind_validate_op(struct nouveau_job *job,
 			return -EINVAL;
 	}
 
-	return nouveau_uvmm_validate_range(uvmm, op->va.addr, op->va.range);
+	return analuveau_uvmm_validate_range(uvmm, op->va.addr, op->va.range);
 }
 
 static void
-bind_validate_map_sparse(struct nouveau_job *job, u64 addr, u64 range)
+bind_validate_map_sparse(struct analuveau_job *job, u64 addr, u64 range)
 {
-	struct nouveau_sched *sched = job->sched;
-	struct nouveau_job *__job;
+	struct analuveau_sched *sched = job->sched;
+	struct analuveau_job *__job;
 	struct bind_job_op *op;
 	u64 end = addr + range;
 
 again:
 	spin_lock(&sched->job.list.lock);
 	list_for_each_entry(__job, &sched->job.list.head, entry) {
-		struct nouveau_uvmm_bind_job *bind_job = to_uvmm_bind_job(__job);
+		struct analuveau_uvmm_bind_job *bind_job = to_uvmm_bind_job(__job);
 
 		list_for_each_op(op, &bind_job->ops) {
 			if (op->op == OP_UNMAP) {
@@ -1029,10 +1029,10 @@ again:
 				u64 op_end = op_addr + op->va.range;
 
 				if (!(end <= op_addr || addr >= op_end)) {
-					nouveau_uvmm_bind_job_get(bind_job);
+					analuveau_uvmm_bind_job_get(bind_job);
 					spin_unlock(&sched->job.list.lock);
 					wait_for_completion(&bind_job->complete);
-					nouveau_uvmm_bind_job_put(bind_job);
+					analuveau_uvmm_bind_job_put(bind_job);
 					goto again;
 				}
 			}
@@ -1042,19 +1042,19 @@ again:
 }
 
 static int
-bind_validate_map_common(struct nouveau_job *job, u64 addr, u64 range,
+bind_validate_map_common(struct analuveau_job *job, u64 addr, u64 range,
 			 bool sparse)
 {
-	struct nouveau_uvmm *uvmm = nouveau_cli_uvmm(job->cli);
-	struct nouveau_uvma_region *reg;
+	struct analuveau_uvmm *uvmm = analuveau_cli_uvmm(job->cli);
+	struct analuveau_uvma_region *reg;
 	u64 reg_addr, reg_end;
 	u64 end = addr + range;
 
 again:
-	nouveau_uvmm_lock(uvmm);
-	reg = nouveau_uvma_region_find_first(uvmm, addr, range);
+	analuveau_uvmm_lock(uvmm);
+	reg = analuveau_uvma_region_find_first(uvmm, addr, range);
 	if (!reg) {
-		nouveau_uvmm_unlock(uvmm);
+		analuveau_uvmm_unlock(uvmm);
 		return 0;
 	}
 
@@ -1062,16 +1062,16 @@ again:
 	 * dirty regions can be modified concurrently.
 	 */
 	if (reg->dirty) {
-		nouveau_uvma_region_get(reg);
-		nouveau_uvmm_unlock(uvmm);
+		analuveau_uvma_region_get(reg);
+		analuveau_uvmm_unlock(uvmm);
 		wait_for_completion(&reg->complete);
-		nouveau_uvma_region_put(reg);
+		analuveau_uvma_region_put(reg);
 		goto again;
 	}
-	nouveau_uvmm_unlock(uvmm);
+	analuveau_uvmm_unlock(uvmm);
 
 	if (sparse)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	reg_addr = reg->va.addr;
 	reg_end = reg_addr + reg->va.range;
@@ -1080,15 +1080,15 @@ again:
 	 * region or fully enclosed by a region.
 	 */
 	if (reg_addr > addr || reg_end < end)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	return 0;
 }
 
 static int
-bind_validate_region(struct nouveau_job *job)
+bind_validate_region(struct analuveau_job *job)
 {
-	struct nouveau_uvmm_bind_job *bind_job = to_uvmm_bind_job(job);
+	struct analuveau_uvmm_bind_job *bind_job = to_uvmm_bind_job(job);
 	struct bind_job_op *op;
 	int ret;
 
@@ -1119,7 +1119,7 @@ bind_validate_region(struct nouveau_job *job)
 static void
 bind_link_gpuvas(struct bind_job_op *bop)
 {
-	struct nouveau_uvma_prealloc *new = &bop->new;
+	struct analuveau_uvma_prealloc *new = &bop->new;
 	struct drm_gpuvm_bo *vm_bo = bop->vm_bo;
 	struct drm_gpuva_ops *ops = bop->ops;
 	struct drm_gpuva_op *op;
@@ -1149,10 +1149,10 @@ bind_link_gpuvas(struct bind_job_op *bop)
 }
 
 static int
-bind_lock_validate(struct nouveau_job *job, struct drm_exec *exec,
+bind_lock_validate(struct analuveau_job *job, struct drm_exec *exec,
 		   unsigned int num_fences)
 {
-	struct nouveau_uvmm_bind_job *bind_job = to_uvmm_bind_job(job);
+	struct analuveau_uvmm_bind_job *bind_job = to_uvmm_bind_job(job);
 	struct bind_job_op *op;
 	int ret;
 
@@ -1173,12 +1173,12 @@ bind_lock_validate(struct nouveau_job *job, struct drm_exec *exec,
 				return ret;
 
 			/* Don't validate GEMs backing mappings we're about to
-			 * unmap, it's not worth the effort.
+			 * unmap, it's analt worth the effort.
 			 */
 			if (va_op->op == DRM_GPUVA_OP_UNMAP)
 				continue;
 
-			ret = nouveau_bo_validate(nouveau_gem_object(obj),
+			ret = analuveau_bo_validate(analuveau_gem_object(obj),
 						  true, false);
 			if (ret)
 				return ret;
@@ -1189,11 +1189,11 @@ bind_lock_validate(struct nouveau_job *job, struct drm_exec *exec,
 }
 
 static int
-nouveau_uvmm_bind_job_submit(struct nouveau_job *job,
+analuveau_uvmm_bind_job_submit(struct analuveau_job *job,
 			     struct drm_gpuvm_exec *vme)
 {
-	struct nouveau_uvmm *uvmm = nouveau_cli_uvmm(job->cli);
-	struct nouveau_uvmm_bind_job *bind_job = to_uvmm_bind_job(job);
+	struct analuveau_uvmm *uvmm = analuveau_cli_uvmm(job->cli);
+	struct analuveau_uvmm_bind_job *bind_job = to_uvmm_bind_job(job);
 	struct drm_exec *exec = &vme->exec;
 	struct bind_job_op *op;
 	int ret;
@@ -1204,7 +1204,7 @@ nouveau_uvmm_bind_job_submit(struct nouveau_job *job,
 				drm_gem_object_lookup(job->file_priv,
 						      op->gem.handle);
 			if (!obj)
-				return -ENOENT;
+				return -EANALENT;
 
 			dma_resv_lock(obj->resv, NULL);
 			op->vm_bo = drm_gpuvm_bo_obtain(&uvmm->base, obj);
@@ -1234,12 +1234,12 @@ nouveau_uvmm_bind_job_submit(struct nouveau_job *job,
 	 * VA space changes must appear atomically and we need to be able to
 	 * unwind all GPU VA space changes on failure.
 	 */
-	nouveau_uvmm_lock(uvmm);
+	analuveau_uvmm_lock(uvmm);
 
 	list_for_each_op(op, &bind_job->ops) {
 		switch (op->op) {
 		case OP_MAP_SPARSE:
-			ret = nouveau_uvma_region_create(uvmm,
+			ret = analuveau_uvma_region_create(uvmm,
 							 op->va.addr,
 							 op->va.range);
 			if (ret)
@@ -1247,10 +1247,10 @@ nouveau_uvmm_bind_job_submit(struct nouveau_job *job,
 
 			break;
 		case OP_UNMAP_SPARSE:
-			op->reg = nouveau_uvma_region_find(uvmm, op->va.addr,
+			op->reg = analuveau_uvma_region_find(uvmm, op->va.addr,
 							   op->va.range);
 			if (!op->reg || op->reg->dirty) {
-				ret = -ENOENT;
+				ret = -EANALENT;
 				goto unwind_continue;
 			}
 
@@ -1262,7 +1262,7 @@ nouveau_uvmm_bind_job_submit(struct nouveau_job *job,
 				goto unwind_continue;
 			}
 
-			ret = nouveau_uvmm_sm_unmap_prepare(uvmm, &op->new,
+			ret = analuveau_uvmm_sm_unmap_prepare(uvmm, &op->new,
 							    op->ops);
 			if (ret) {
 				drm_gpuva_ops_free(&uvmm->base, op->ops);
@@ -1271,13 +1271,13 @@ nouveau_uvmm_bind_job_submit(struct nouveau_job *job,
 				goto unwind_continue;
 			}
 
-			nouveau_uvma_region_dirty(op->reg);
+			analuveau_uvma_region_dirty(op->reg);
 
 			break;
 		case OP_MAP: {
-			struct nouveau_uvma_region *reg;
+			struct analuveau_uvma_region *reg;
 
-			reg = nouveau_uvma_region_find_first(uvmm,
+			reg = analuveau_uvma_region_find_first(uvmm,
 							     op->va.addr,
 							     op->va.range);
 			if (reg) {
@@ -1295,7 +1295,7 @@ nouveau_uvmm_bind_job_submit(struct nouveau_job *job,
 				 * region or fully enclosed by a region.
 				 */
 				if (reg_addr > op_addr || reg_end < op_end) {
-					ret = -ENOSPC;
+					ret = -EANALSPC;
 					goto unwind_continue;
 				}
 			}
@@ -1310,7 +1310,7 @@ nouveau_uvmm_bind_job_submit(struct nouveau_job *job,
 				goto unwind_continue;
 			}
 
-			ret = nouveau_uvmm_sm_map_prepare(uvmm, &op->new,
+			ret = analuveau_uvmm_sm_map_prepare(uvmm, &op->new,
 							  reg, op->ops,
 							  op->va.addr,
 							  op->va.range,
@@ -1332,7 +1332,7 @@ nouveau_uvmm_bind_job_submit(struct nouveau_job *job,
 				goto unwind_continue;
 			}
 
-			ret = nouveau_uvmm_sm_unmap_prepare(uvmm, &op->new,
+			ret = analuveau_uvmm_sm_unmap_prepare(uvmm, &op->new,
 							    op->ops);
 			if (ret) {
 				drm_gpuva_ops_free(&uvmm->base, op->ops);
@@ -1370,11 +1370,11 @@ nouveau_uvmm_bind_job_submit(struct nouveau_job *job,
 	 *
 	 * GEMs from map and remap operations must be validated before linking
 	 * their corresponding mappings to prevent the actual PT update to
-	 * happen right away in validate() rather than asynchronously as
+	 * happen right away in validate() rather than asynchroanalusly as
 	 * intended.
 	 *
-	 * Note that after linking and unlinking the GPUVAs in this loop this
-	 * function cannot fail anymore, hence there is no need for an unwind
+	 * Analte that after linking and unlinking the GPUVAs in this loop this
+	 * function cananalt fail anymore, hence there is anal need for an unwind
 	 * path.
 	 */
 	list_for_each_op(op, &bind_job->ops) {
@@ -1388,7 +1388,7 @@ nouveau_uvmm_bind_job_submit(struct nouveau_job *job,
 			break;
 		}
 	}
-	nouveau_uvmm_unlock(uvmm);
+	analuveau_uvmm_unlock(uvmm);
 
 	return 0;
 
@@ -1398,22 +1398,22 @@ unwind:
 	list_for_each_op_from_reverse(op, &bind_job->ops) {
 		switch (op->op) {
 		case OP_MAP_SPARSE:
-			nouveau_uvma_region_destroy(uvmm, op->va.addr,
+			analuveau_uvma_region_destroy(uvmm, op->va.addr,
 						    op->va.range);
 			break;
 		case OP_UNMAP_SPARSE:
-			__nouveau_uvma_region_insert(uvmm, op->reg);
-			nouveau_uvmm_sm_unmap_prepare_unwind(uvmm, &op->new,
+			__analuveau_uvma_region_insert(uvmm, op->reg);
+			analuveau_uvmm_sm_unmap_prepare_unwind(uvmm, &op->new,
 							     op->ops);
 			break;
 		case OP_MAP:
-			nouveau_uvmm_sm_map_prepare_unwind(uvmm, &op->new,
+			analuveau_uvmm_sm_map_prepare_unwind(uvmm, &op->new,
 							   op->ops,
 							   op->va.addr,
 							   op->va.range);
 			break;
 		case OP_UNMAP:
-			nouveau_uvmm_sm_unmap_prepare_unwind(uvmm, &op->new,
+			analuveau_uvmm_sm_unmap_prepare_unwind(uvmm, &op->new,
 							     op->ops);
 			break;
 		}
@@ -1423,13 +1423,13 @@ unwind:
 		op->reg = NULL;
 	}
 
-	nouveau_uvmm_unlock(uvmm);
+	analuveau_uvmm_unlock(uvmm);
 	drm_gpuvm_exec_unlock(vme);
 	return ret;
 }
 
 static void
-nouveau_uvmm_bind_job_armed_submit(struct nouveau_job *job,
+analuveau_uvmm_bind_job_armed_submit(struct analuveau_job *job,
 				   struct drm_gpuvm_exec *vme)
 {
 	drm_gpuvm_exec_resv_add_fence(vme, job->done_fence,
@@ -1438,27 +1438,27 @@ nouveau_uvmm_bind_job_armed_submit(struct nouveau_job *job,
 }
 
 static struct dma_fence *
-nouveau_uvmm_bind_job_run(struct nouveau_job *job)
+analuveau_uvmm_bind_job_run(struct analuveau_job *job)
 {
-	struct nouveau_uvmm_bind_job *bind_job = to_uvmm_bind_job(job);
-	struct nouveau_uvmm *uvmm = nouveau_cli_uvmm(job->cli);
+	struct analuveau_uvmm_bind_job *bind_job = to_uvmm_bind_job(job);
+	struct analuveau_uvmm *uvmm = analuveau_cli_uvmm(job->cli);
 	struct bind_job_op *op;
 	int ret = 0;
 
 	list_for_each_op(op, &bind_job->ops) {
 		switch (op->op) {
 		case OP_MAP_SPARSE:
-			/* noop */
+			/* analop */
 			break;
 		case OP_MAP:
-			ret = nouveau_uvmm_sm_map(uvmm, &op->new, op->ops);
+			ret = analuveau_uvmm_sm_map(uvmm, &op->new, op->ops);
 			if (ret)
 				goto out;
 			break;
 		case OP_UNMAP_SPARSE:
 			fallthrough;
 		case OP_UNMAP:
-			ret = nouveau_uvmm_sm_unmap(uvmm, &op->new, op->ops);
+			ret = analuveau_uvmm_sm_unmap(uvmm, &op->new, op->ops);
 			if (ret)
 				goto out;
 			break;
@@ -1472,45 +1472,45 @@ out:
 }
 
 static void
-nouveau_uvmm_bind_job_cleanup(struct nouveau_job *job)
+analuveau_uvmm_bind_job_cleanup(struct analuveau_job *job)
 {
-	struct nouveau_uvmm_bind_job *bind_job = to_uvmm_bind_job(job);
-	struct nouveau_uvmm *uvmm = nouveau_cli_uvmm(job->cli);
+	struct analuveau_uvmm_bind_job *bind_job = to_uvmm_bind_job(job);
+	struct analuveau_uvmm *uvmm = analuveau_cli_uvmm(job->cli);
 	struct bind_job_op *op;
 
 	list_for_each_op(op, &bind_job->ops) {
 		struct drm_gem_object *obj = op->gem.obj;
 
-		/* When nouveau_uvmm_bind_job_submit() fails op->ops and op->reg
+		/* When analuveau_uvmm_bind_job_submit() fails op->ops and op->reg
 		 * will be NULL, hence skip the cleanup.
 		 */
 		switch (op->op) {
 		case OP_MAP_SPARSE:
-			/* noop */
+			/* analop */
 			break;
 		case OP_UNMAP_SPARSE:
 			if (!IS_ERR_OR_NULL(op->ops))
-				nouveau_uvmm_sm_unmap_cleanup(uvmm, &op->new,
+				analuveau_uvmm_sm_unmap_cleanup(uvmm, &op->new,
 							      op->ops);
 
 			if (op->reg) {
-				nouveau_uvma_region_sparse_unref(op->reg);
-				nouveau_uvmm_lock(uvmm);
-				nouveau_uvma_region_remove(op->reg);
-				nouveau_uvmm_unlock(uvmm);
-				nouveau_uvma_region_complete(op->reg);
-				nouveau_uvma_region_put(op->reg);
+				analuveau_uvma_region_sparse_unref(op->reg);
+				analuveau_uvmm_lock(uvmm);
+				analuveau_uvma_region_remove(op->reg);
+				analuveau_uvmm_unlock(uvmm);
+				analuveau_uvma_region_complete(op->reg);
+				analuveau_uvma_region_put(op->reg);
 			}
 
 			break;
 		case OP_MAP:
 			if (!IS_ERR_OR_NULL(op->ops))
-				nouveau_uvmm_sm_map_cleanup(uvmm, &op->new,
+				analuveau_uvmm_sm_map_cleanup(uvmm, &op->new,
 							    op->ops);
 			break;
 		case OP_UNMAP:
 			if (!IS_ERR_OR_NULL(op->ops))
-				nouveau_uvmm_sm_unmap_cleanup(uvmm, &op->new,
+				analuveau_uvmm_sm_unmap_cleanup(uvmm, &op->new,
 							      op->ops);
 			break;
 		}
@@ -1528,36 +1528,36 @@ nouveau_uvmm_bind_job_cleanup(struct nouveau_job *job)
 			drm_gem_object_put(obj);
 	}
 
-	nouveau_job_done(job);
+	analuveau_job_done(job);
 	complete_all(&bind_job->complete);
 
-	nouveau_uvmm_bind_job_put(bind_job);
+	analuveau_uvmm_bind_job_put(bind_job);
 }
 
-static struct nouveau_job_ops nouveau_bind_job_ops = {
-	.submit = nouveau_uvmm_bind_job_submit,
-	.armed_submit = nouveau_uvmm_bind_job_armed_submit,
-	.run = nouveau_uvmm_bind_job_run,
-	.free = nouveau_uvmm_bind_job_cleanup,
+static struct analuveau_job_ops analuveau_bind_job_ops = {
+	.submit = analuveau_uvmm_bind_job_submit,
+	.armed_submit = analuveau_uvmm_bind_job_armed_submit,
+	.run = analuveau_uvmm_bind_job_run,
+	.free = analuveau_uvmm_bind_job_cleanup,
 };
 
 static int
 bind_job_op_from_uop(struct bind_job_op **pop,
-		     struct drm_nouveau_vm_bind_op *uop)
+		     struct drm_analuveau_vm_bind_op *uop)
 {
 	struct bind_job_op *op;
 
 	op = *pop = kzalloc(sizeof(*op), GFP_KERNEL);
 	if (!op)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	switch (uop->op) {
 	case OP_MAP:
-		op->op = uop->flags & DRM_NOUVEAU_VM_BIND_SPARSE ?
+		op->op = uop->flags & DRM_ANALUVEAU_VM_BIND_SPARSE ?
 			 OP_MAP_SPARSE : OP_MAP;
 		break;
 	case OP_UNMAP:
-		op->op = uop->flags & DRM_NOUVEAU_VM_BIND_SPARSE ?
+		op->op = uop->flags & DRM_ANALUVEAU_VM_BIND_SPARSE ?
 			 OP_UNMAP_SPARSE : OP_UNMAP;
 		break;
 	default:
@@ -1586,15 +1586,15 @@ bind_job_ops_free(struct list_head *ops)
 }
 
 static int
-nouveau_uvmm_bind_job_init(struct nouveau_uvmm_bind_job **pjob,
-			   struct nouveau_uvmm_bind_job_args *__args)
+analuveau_uvmm_bind_job_init(struct analuveau_uvmm_bind_job **pjob,
+			   struct analuveau_uvmm_bind_job_args *__args)
 {
-	struct nouveau_uvmm_bind_job *job;
-	struct nouveau_job_args args = {};
+	struct analuveau_uvmm_bind_job *job;
+	struct analuveau_job_args args = {};
 	struct bind_job_op *op;
 	int i, ret;
 
-	ret = nouveau_uvmm_bind_job_alloc(&job);
+	ret = analuveau_uvmm_bind_job_alloc(&job);
 	if (ret)
 		return ret;
 
@@ -1621,11 +1621,11 @@ nouveau_uvmm_bind_job_init(struct nouveau_uvmm_bind_job **pjob,
 	args.out_sync.count = __args->out_sync.count;
 	args.out_sync.s = __args->out_sync.s;
 
-	args.sync = !(__args->flags & DRM_NOUVEAU_VM_BIND_RUN_ASYNC);
-	args.ops = &nouveau_bind_job_ops;
+	args.sync = !(__args->flags & DRM_ANALUVEAU_VM_BIND_RUN_ASYNC);
+	args.ops = &analuveau_bind_job_ops;
 	args.resv_usage = DMA_RESV_USAGE_BOOKKEEP;
 
-	ret = nouveau_job_init(&job->base, &args);
+	ret = analuveau_job_init(&job->base, &args);
 	if (ret)
 		goto err_free;
 
@@ -1641,31 +1641,31 @@ err_free:
 }
 
 static int
-nouveau_uvmm_vm_bind(struct nouveau_uvmm_bind_job_args *args)
+analuveau_uvmm_vm_bind(struct analuveau_uvmm_bind_job_args *args)
 {
-	struct nouveau_uvmm_bind_job *job;
+	struct analuveau_uvmm_bind_job *job;
 	int ret;
 
-	ret = nouveau_uvmm_bind_job_init(&job, args);
+	ret = analuveau_uvmm_bind_job_init(&job, args);
 	if (ret)
 		return ret;
 
-	ret = nouveau_job_submit(&job->base);
+	ret = analuveau_job_submit(&job->base);
 	if (ret)
 		goto err_job_fini;
 
 	return 0;
 
 err_job_fini:
-	nouveau_job_fini(&job->base);
+	analuveau_job_fini(&job->base);
 	return ret;
 }
 
 static int
-nouveau_uvmm_vm_bind_ucopy(struct nouveau_uvmm_bind_job_args *args,
-			   struct drm_nouveau_vm_bind *req)
+analuveau_uvmm_vm_bind_ucopy(struct analuveau_uvmm_bind_job_args *args,
+			   struct drm_analuveau_vm_bind *req)
 {
-	struct drm_nouveau_sync **s;
+	struct drm_analuveau_sync **s;
 	u32 inc = req->wait_count;
 	u64 ins = req->wait_ptr;
 	u32 outc = req->sig_count;
@@ -1716,7 +1716,7 @@ err_free_ins:
 }
 
 static void
-nouveau_uvmm_vm_bind_ufree(struct nouveau_uvmm_bind_job_args *args)
+analuveau_uvmm_vm_bind_ufree(struct analuveau_uvmm_bind_job_args *args)
 {
 	u_free(args->op.s);
 	u_free(args->in_sync.s);
@@ -1724,36 +1724,36 @@ nouveau_uvmm_vm_bind_ufree(struct nouveau_uvmm_bind_job_args *args)
 }
 
 int
-nouveau_uvmm_ioctl_vm_bind(struct drm_device *dev,
+analuveau_uvmm_ioctl_vm_bind(struct drm_device *dev,
 			   void *data,
 			   struct drm_file *file_priv)
 {
-	struct nouveau_cli *cli = nouveau_cli(file_priv);
-	struct nouveau_uvmm_bind_job_args args = {};
-	struct drm_nouveau_vm_bind *req = data;
+	struct analuveau_cli *cli = analuveau_cli(file_priv);
+	struct analuveau_uvmm_bind_job_args args = {};
+	struct drm_analuveau_vm_bind *req = data;
 	int ret = 0;
 
-	if (unlikely(!nouveau_cli_uvmm_locked(cli)))
-		return -ENOSYS;
+	if (unlikely(!analuveau_cli_uvmm_locked(cli)))
+		return -EANALSYS;
 
-	ret = nouveau_uvmm_vm_bind_ucopy(&args, req);
+	ret = analuveau_uvmm_vm_bind_ucopy(&args, req);
 	if (ret)
 		return ret;
 
 	args.sched = cli->sched;
 	args.file_priv = file_priv;
 
-	ret = nouveau_uvmm_vm_bind(&args);
+	ret = analuveau_uvmm_vm_bind(&args);
 	if (ret)
 		goto out_free_args;
 
 out_free_args:
-	nouveau_uvmm_vm_bind_ufree(&args);
+	analuveau_uvmm_vm_bind_ufree(&args);
 	return ret;
 }
 
 void
-nouveau_uvmm_bo_map_all(struct nouveau_bo *nvbo, struct nouveau_mem *mem)
+analuveau_uvmm_bo_map_all(struct analuveau_bo *nvbo, struct analuveau_mem *mem)
 {
 	struct drm_gem_object *obj = &nvbo->bo.base;
 	struct drm_gpuvm_bo *vm_bo;
@@ -1763,16 +1763,16 @@ nouveau_uvmm_bo_map_all(struct nouveau_bo *nvbo, struct nouveau_mem *mem)
 
 	drm_gem_for_each_gpuvm_bo(vm_bo, obj) {
 		drm_gpuvm_bo_for_each_va(va, vm_bo) {
-			struct nouveau_uvma *uvma = uvma_from_va(va);
+			struct analuveau_uvma *uvma = uvma_from_va(va);
 
-			nouveau_uvma_map(uvma, mem);
+			analuveau_uvma_map(uvma, mem);
 			drm_gpuva_invalidate(va, false);
 		}
 	}
 }
 
 void
-nouveau_uvmm_bo_unmap_all(struct nouveau_bo *nvbo)
+analuveau_uvmm_bo_unmap_all(struct analuveau_bo *nvbo)
 {
 	struct drm_gem_object *obj = &nvbo->bo.base;
 	struct drm_gpuvm_bo *vm_bo;
@@ -1782,45 +1782,45 @@ nouveau_uvmm_bo_unmap_all(struct nouveau_bo *nvbo)
 
 	drm_gem_for_each_gpuvm_bo(vm_bo, obj) {
 		drm_gpuvm_bo_for_each_va(va, vm_bo) {
-			struct nouveau_uvma *uvma = uvma_from_va(va);
+			struct analuveau_uvma *uvma = uvma_from_va(va);
 
-			nouveau_uvma_unmap(uvma);
+			analuveau_uvma_unmap(uvma);
 			drm_gpuva_invalidate(va, true);
 		}
 	}
 }
 
 static void
-nouveau_uvmm_free(struct drm_gpuvm *gpuvm)
+analuveau_uvmm_free(struct drm_gpuvm *gpuvm)
 {
-	struct nouveau_uvmm *uvmm = uvmm_from_gpuvm(gpuvm);
+	struct analuveau_uvmm *uvmm = uvmm_from_gpuvm(gpuvm);
 
 	kfree(uvmm);
 }
 
 static int
-nouveau_uvmm_bo_validate(struct drm_gpuvm_bo *vm_bo, struct drm_exec *exec)
+analuveau_uvmm_bo_validate(struct drm_gpuvm_bo *vm_bo, struct drm_exec *exec)
 {
-	struct nouveau_bo *nvbo = nouveau_gem_object(vm_bo->obj);
+	struct analuveau_bo *nvbo = analuveau_gem_object(vm_bo->obj);
 
-	return nouveau_bo_validate(nvbo, true, false);
+	return analuveau_bo_validate(nvbo, true, false);
 }
 
 static const struct drm_gpuvm_ops gpuvm_ops = {
-	.vm_free = nouveau_uvmm_free,
-	.vm_bo_validate = nouveau_uvmm_bo_validate,
+	.vm_free = analuveau_uvmm_free,
+	.vm_bo_validate = analuveau_uvmm_bo_validate,
 };
 
 int
-nouveau_uvmm_ioctl_vm_init(struct drm_device *dev,
+analuveau_uvmm_ioctl_vm_init(struct drm_device *dev,
 			   void *data,
 			   struct drm_file *file_priv)
 {
-	struct nouveau_uvmm *uvmm;
-	struct nouveau_cli *cli = nouveau_cli(file_priv);
+	struct analuveau_uvmm *uvmm;
+	struct analuveau_cli *cli = analuveau_cli(file_priv);
 	struct drm_device *drm = cli->drm->dev;
 	struct drm_gem_object *r_obj;
-	struct drm_nouveau_vm_init *init = data;
+	struct drm_analuveau_vm_init *init = data;
 	u64 kernel_managed_end;
 	int ret;
 
@@ -1829,26 +1829,26 @@ nouveau_uvmm_ioctl_vm_init(struct drm_device *dev,
 			       &kernel_managed_end))
 		return -EINVAL;
 
-	if (kernel_managed_end > NOUVEAU_VA_SPACE_END)
+	if (kernel_managed_end > ANALUVEAU_VA_SPACE_END)
 		return -EINVAL;
 
 	mutex_lock(&cli->mutex);
 
 	if (unlikely(cli->uvmm.disabled)) {
-		ret = -ENOSYS;
+		ret = -EANALSYS;
 		goto out_unlock;
 	}
 
 	uvmm = kzalloc(sizeof(*uvmm), GFP_KERNEL);
 	if (!uvmm) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_unlock;
 	}
 
 	r_obj = drm_gpuvm_resv_object_alloc(drm);
 	if (!r_obj) {
 		kfree(uvmm);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_unlock;
 	}
 
@@ -1857,8 +1857,8 @@ nouveau_uvmm_ioctl_vm_init(struct drm_device *dev,
 	mt_set_external_lock(&uvmm->region_mt, &uvmm->mutex);
 
 	drm_gpuvm_init(&uvmm->base, cli->name, 0, drm, r_obj,
-		       NOUVEAU_VA_SPACE_START,
-		       NOUVEAU_VA_SPACE_END,
+		       ANALUVEAU_VA_SPACE_START,
+		       ANALUVEAU_VA_SPACE_END,
 		       init->kernel_managed_addr,
 		       init->kernel_managed_size,
 		       &gpuvm_ops);
@@ -1887,19 +1887,19 @@ out_unlock:
 }
 
 void
-nouveau_uvmm_fini(struct nouveau_uvmm *uvmm)
+analuveau_uvmm_fini(struct analuveau_uvmm *uvmm)
 {
 	MA_STATE(mas, &uvmm->region_mt, 0, 0);
-	struct nouveau_uvma_region *reg;
-	struct nouveau_cli *cli = uvmm->vmm.cli;
+	struct analuveau_uvma_region *reg;
+	struct analuveau_cli *cli = uvmm->vmm.cli;
 	struct drm_gpuva *va, *next;
 
-	nouveau_uvmm_lock(uvmm);
+	analuveau_uvmm_lock(uvmm);
 	drm_gpuvm_for_each_va_safe(va, next, &uvmm->base) {
-		struct nouveau_uvma *uvma = uvma_from_va(va);
+		struct analuveau_uvma *uvma = uvma_from_va(va);
 		struct drm_gem_object *obj = va->gem.obj;
 
-		if (unlikely(va == &uvmm->base.kernel_alloc_node))
+		if (unlikely(va == &uvmm->base.kernel_alloc_analde))
 			continue;
 
 		drm_gpuva_remove(va);
@@ -1908,26 +1908,26 @@ nouveau_uvmm_fini(struct nouveau_uvmm *uvmm)
 		drm_gpuva_unlink(va);
 		dma_resv_unlock(obj->resv);
 
-		nouveau_uvma_unmap(uvma);
-		nouveau_uvma_vmm_put(uvma);
+		analuveau_uvma_unmap(uvma);
+		analuveau_uvma_vmm_put(uvma);
 
-		nouveau_uvma_gem_put(uvma);
-		nouveau_uvma_free(uvma);
+		analuveau_uvma_gem_put(uvma);
+		analuveau_uvma_free(uvma);
 	}
 
 	mas_for_each(&mas, reg, ULONG_MAX) {
 		mas_erase(&mas);
-		nouveau_uvma_region_sparse_unref(reg);
-		nouveau_uvma_region_put(reg);
+		analuveau_uvma_region_sparse_unref(reg);
+		analuveau_uvma_region_put(reg);
 	}
 
 	WARN(!mtree_empty(&uvmm->region_mt),
-	     "nouveau_uvma_region tree not empty, potentially leaking memory.");
+	     "analuveau_uvma_region tree analt empty, potentially leaking memory.");
 	__mt_destroy(&uvmm->region_mt);
-	nouveau_uvmm_unlock(uvmm);
+	analuveau_uvmm_unlock(uvmm);
 
 	mutex_lock(&cli->mutex);
-	nouveau_vmm_fini(&uvmm->vmm);
+	analuveau_vmm_fini(&uvmm->vmm);
 	drm_gpuvm_put(&uvmm->base);
 	mutex_unlock(&cli->mutex);
 }

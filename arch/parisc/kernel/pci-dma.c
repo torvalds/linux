@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
 ** PARISC 1.1 Dynamic DMA mapping support.
-** This implementation is for PA-RISC platforms that do not support
+** This implementation is for PA-RISC platforms that do analt support
 ** I/O TLBs (aka DMA address translation hardware).
 ** See Documentation/core-api/dma-api-howto.rst for interface definitions.
 **
@@ -11,7 +11,7 @@
 **      (c) Copyright 2000 John Marvin
 **
 ** "leveraged" from 2.3.47: arch/ia64/kernel/pci-dma.c.
-** (I assume it's from David Mosberger-Tang but there was no Copyright)
+** (I assume it's from David Mosberger-Tang but there was anal Copyright)
 **
 ** AFAIK, all PA7100LC and PA7300LC platforms can use this code.
 **
@@ -87,7 +87,7 @@ static inline int map_pte_uncached(pte_t * pte,
 	do {
 		unsigned long flags;
 
-		if (!pte_none(*pte))
+		if (!pte_analne(*pte))
 			printk(KERN_ERR "map_pte_uncached: page already exists\n");
 		purge_tlb_start(flags);
 		set_pte(pte, __mk_pte(*paddr_ptr, PAGE_KERNEL_UNC));
@@ -114,9 +114,9 @@ static inline int map_pmd_uncached(pmd_t * pmd, unsigned long vaddr,
 	do {
 		pte_t * pte = pte_alloc_kernel(pmd, vaddr);
 		if (!pte)
-			return -ENOMEM;
+			return -EANALMEM;
 		if (map_pte_uncached(pte, orig_vaddr, end - vaddr, paddr_ptr))
-			return -ENOMEM;
+			return -EANALMEM;
 		vaddr = (vaddr + PMD_SIZE) & PMD_MASK;
 		orig_vaddr += PMD_SIZE;
 		pmd++;
@@ -141,9 +141,9 @@ static inline int map_uncached_pages(unsigned long vaddr, unsigned long size,
 		pmd = pmd_alloc(NULL, pud, vaddr);
 
 		if (!pmd)
-			return -ENOMEM;
+			return -EANALMEM;
 		if (map_pmd_uncached(pmd, vaddr, end - vaddr, &paddr))
-			return -ENOMEM;
+			return -EANALMEM;
 		vaddr = vaddr + PGDIR_SIZE;
 		dir++;
 	} while (vaddr && (vaddr < end));
@@ -157,7 +157,7 @@ static inline void unmap_uncached_pte(pmd_t * pmd, unsigned long vaddr,
 	unsigned long end;
 	unsigned long orig_vaddr = vaddr;
 
-	if (pmd_none(*pmd))
+	if (pmd_analne(*pmd))
 		return;
 	if (pmd_bad(*pmd)) {
 		pmd_ERROR(*pmd);
@@ -180,7 +180,7 @@ static inline void unmap_uncached_pte(pmd_t * pmd, unsigned long vaddr,
 		vaddr += PAGE_SIZE;
 		orig_vaddr += PAGE_SIZE;
 		pte++;
-		if (pte_none(page) || pte_present(page))
+		if (pte_analne(page) || pte_present(page))
 			continue;
 		printk(KERN_CRIT "Whee.. Swapped out page in kernel page table\n");
 	} while (vaddr < end);
@@ -193,7 +193,7 @@ static inline void unmap_uncached_pmd(pgd_t * dir, unsigned long vaddr,
 	unsigned long end;
 	unsigned long orig_vaddr = vaddr;
 
-	if (pgd_none(*dir))
+	if (pgd_analne(*dir))
 		return;
 	if (pgd_bad(*dir)) {
 		pgd_ERROR(*dir);

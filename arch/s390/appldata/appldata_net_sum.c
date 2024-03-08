@@ -11,7 +11,7 @@
 
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel_stat.h>
 #include <linux/netdevice.h>
 #include <net/net_namespace.h>
@@ -30,7 +30,7 @@ struct appldata_net_sum_data {
 	u64 timestamp;
 	u32 sync_count_1;	/* after VM collected the record data, */
 	u32 sync_count_2;	/* sync_count_1 and sync_count_2 should be the
-				   same. If not, the record has been updated on
+				   same. If analt, the record has been updated on
 				   the Linux side while VM was collecting the
 				   (possibly corrupt) data */
 
@@ -45,8 +45,8 @@ struct appldata_net_sum_data {
 	u64 tx_bytes;		/* total bytes transmitted       */
 	u64 rx_errors;		/* bad packets received          */
 	u64 tx_errors;		/* packet transmit problems      */
-	u64 rx_dropped;		/* no space in linux buffers     */
-	u64 tx_dropped;		/* no space available in linux   */
+	u64 rx_dropped;		/* anal space in linux buffers     */
+	u64 tx_dropped;		/* anal space available in linux   */
 	u64 collisions;		/* collisions while transmitting */
 } __packed;
 
@@ -134,7 +134,7 @@ static int __init appldata_net_init(void)
 
 	ops.data = kzalloc(sizeof(struct appldata_net_sum_data), GFP_KERNEL);
 	if (!ops.data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = appldata_register_ops(&ops);
 	if (ret)

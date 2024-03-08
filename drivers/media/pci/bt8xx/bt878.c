@@ -7,7 +7,7 @@
  * large parts based on the bttv driver
  * Copyright (C) 1996,97,98 Ralph  Metzler (rjkm@metzlerbros.de)
  *                        & Marcus Metzler (mocm@metzlerbros.de)
- * (c) 1999,2000 Gerd Knorr <kraxel@goldbach.in-berlin.de>
+ * (c) 1999,2000 Gerd Kanalrr <kraxel@goldbach.in-berlin.de>
  */
 
 #include <linux/module.h>
@@ -38,7 +38,7 @@ static unsigned int bt878_debug;
 
 module_param_named(verbose, bt878_verbose, int, 0444);
 MODULE_PARM_DESC(verbose,
-		 "verbose startup messages, default is 1 (yes)");
+		 "verbose startup messages, default is 1 (anal)");
 module_param_named(debug, bt878_debug, int, 0644);
 MODULE_PARM_DESC(debug, "Turn on/off debugging, default is 0 (off).");
 
@@ -87,7 +87,7 @@ static int bt878_mem_alloc(struct bt878 *bt)
 		bt->buf_cpu = dma_alloc_coherent(&bt->dev->dev, bt->buf_size,
 						 &bt->buf_dma, GFP_KERNEL);
 		if (!bt->buf_cpu)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	if (!bt->risc_cpu) {
@@ -96,7 +96,7 @@ static int bt878_mem_alloc(struct bt878 *bt)
 						  &bt->risc_dma, GFP_KERNEL);
 		if (!bt->risc_cpu) {
 			bt878_mem_free(bt);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 
@@ -183,12 +183,12 @@ static void bt878_risc_program(struct bt878 *bt, u32 op_sync_orin)
 /*****************************/
 
 void bt878_start(struct bt878 *bt, u32 controlreg, u32 op_sync_orin,
-		u32 irq_err_ignore)
+		u32 irq_err_iganalre)
 {
 	u32 int_mask;
 
 	dprintk("bt878 debug: bt878_start (ctl=%8.8x)\n", controlreg);
-	/* complete the writing of the risc dma program now we have
+	/* complete the writing of the risc dma program analw we have
 	 * the card specifics
 	 */
 	bt878_risc_program(bt, op_sync_orin);
@@ -209,8 +209,8 @@ void bt878_start(struct bt878 *bt, u32 controlreg, u32 op_sync_orin,
 		BT878_AFBUS | BT878_ARISCI;
 
 
-	/* ignore pesky bits */
-	int_mask &= ~irq_err_ignore;
+	/* iganalre pesky bits */
+	int_mask &= ~irq_err_iganalre;
 
 	btwrite(int_mask, BT878_AINT_MASK);
 	btwrite(controlreg, BT878_AGPIO_DMA_CTL);
@@ -257,7 +257,7 @@ static irqreturn_t bt878_irq(int irq, void *dev_id)
 		stat = btread(BT878_AINT_STAT);
 		mask = btread(BT878_AINT_MASK);
 		if (!(astat = (stat & mask)))
-			return IRQ_NONE;	/* this interrupt is not for me */
+			return IRQ_ANALNE;	/* this interrupt is analt for me */
 /*		dprintk("bt878(%d) debug: irq count %d, stat 0x%8.8x, mask 0x%8.8x\n",bt->nr,count,stat,mask); */
 		btwrite(astat, BT878_AINT_STAT);	/* try to clear interrupt condition */
 
@@ -388,7 +388,7 @@ MODULE_DEVICE_TABLE(pci, bt878_pci_tbl);
 
 static const char * card_name(const struct pci_device_id *id)
 {
-	return id->driver_data ? (const char *)id->driver_data : "Unknown";
+	return id->driver_data ? (const char *)id->driver_data : "Unkanalwn";
 }
 
 /***********************/
@@ -406,7 +406,7 @@ static int bt878_probe(struct pci_dev *dev, const struct pci_device_id *pci_id)
 	       bt878_num);
 	if (bt878_num >= BT878_MAX) {
 		printk(KERN_ERR "bt878: Too many devices inserted\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	if (pci_enable_device(dev))
 		return -EIO;
@@ -522,7 +522,7 @@ static void bt878_remove(struct pci_dev *pci_dev)
 	release_mem_region(pci_resource_start(bt->dev, 0),
 			   pci_resource_len(bt->dev, 0));
 	/* wake up any waiting processes
-	   because shutdown flag is set, no new processes (in this queue)
+	   because shutdown flag is set, anal new processes (in this queue)
 	   are expected
 	 */
 	bt->shutdown = 1;

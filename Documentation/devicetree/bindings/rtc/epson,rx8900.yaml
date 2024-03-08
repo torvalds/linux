@@ -25,7 +25,7 @@ properties:
   epson,vdet-disable:
     type: boolean
     description: |
-      Disable voltage detector. Should be set if no backup battery is used.
+      Disable voltage detector. Should be set if anal backup battery is used.
 
   trickle-diode-disable: true
 

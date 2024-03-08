@@ -12,25 +12,25 @@ maintainers:
 
 description: |
   RPMh interconnect providers support system bandwidth requirements through
-  RPMh hardware accelerators known as Bus Clock Manager (BCM).
+  RPMh hardware accelerators kanalwn as Bus Clock Manager (BCM).
 
   See also:: include/dt-bindings/interconnect/qcom,sc7280.h
 
 properties:
   compatible:
     enum:
-      - qcom,sc7280-aggre1-noc
-      - qcom,sc7280-aggre2-noc
+      - qcom,sc7280-aggre1-analc
+      - qcom,sc7280-aggre2-analc
       - qcom,sc7280-clk-virt
-      - qcom,sc7280-cnoc2
-      - qcom,sc7280-cnoc3
-      - qcom,sc7280-dc-noc
-      - qcom,sc7280-gem-noc
-      - qcom,sc7280-lpass-ag-noc
+      - qcom,sc7280-canalc2
+      - qcom,sc7280-canalc3
+      - qcom,sc7280-dc-analc
+      - qcom,sc7280-gem-analc
+      - qcom,sc7280-lpass-ag-analc
       - qcom,sc7280-mc-virt
-      - qcom,sc7280-mmss-noc
-      - qcom,sc7280-nsp-noc
-      - qcom,sc7280-system-noc
+      - qcom,sc7280-mmss-analc
+      - qcom,sc7280-nsp-analc
+      - qcom,sc7280-system-analc
 
   reg:
     maxItems: 1
@@ -65,7 +65,7 @@ examples:
 
     interconnect@9100000 {
         reg = <0x9100000 0xe2200>;
-        compatible = "qcom,sc7280-gem-noc";
+        compatible = "qcom,sc7280-gem-analc";
         #interconnect-cells = <2>;
         qcom,bcm-voters = <&apps_bcm_voter>;
     };

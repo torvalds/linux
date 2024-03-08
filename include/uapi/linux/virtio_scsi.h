@@ -6,17 +6,17 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    analtice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    analtice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
  * THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL AUTHOR OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN ANAL EVENT SHALL AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
@@ -84,7 +84,7 @@ struct virtio_scsi_ctrl_tmf_resp {
 	__u8 response;
 } __attribute__((packed));
 
-/* Asynchronous notification query/subscription */
+/* Asynchroanalus analtification query/subscription */
 struct virtio_scsi_ctrl_an_req {
 	__virtio32 type;
 	__u8 lun[8];
@@ -116,7 +116,7 @@ struct virtio_scsi_config {
 } __attribute__((packed));
 
 /* Feature Bits */
-#define VIRTIO_SCSI_F_INOUT                    0
+#define VIRTIO_SCSI_F_IANALUT                    0
 #define VIRTIO_SCSI_F_HOTPLUG                  1
 #define VIRTIO_SCSI_F_CHANGE                   2
 #define VIRTIO_SCSI_F_T10_PI                   3
@@ -153,9 +153,9 @@ struct virtio_scsi_config {
 
 /* Events.  */
 #define VIRTIO_SCSI_T_EVENTS_MISSED            0x80000000
-#define VIRTIO_SCSI_T_NO_EVENT                 0
+#define VIRTIO_SCSI_T_ANAL_EVENT                 0
 #define VIRTIO_SCSI_T_TRANSPORT_RESET          1
-#define VIRTIO_SCSI_T_ASYNC_NOTIFY             2
+#define VIRTIO_SCSI_T_ASYNC_ANALTIFY             2
 #define VIRTIO_SCSI_T_PARAM_CHANGE             3
 
 /* Reasons of transport reset event */

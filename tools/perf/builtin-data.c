@@ -59,7 +59,7 @@ static int cmd_data_convert(int argc, const char **argv)
 	}
 
 	if (to_json && to_ctf) {
-		pr_err("You cannot specify both --to-ctf and --to-json.\n");
+		pr_err("You cananalt specify both --to-ctf and --to-json.\n");
 		return -1;
 	}
 #ifdef HAVE_LIBBABELTRACE_SUPPORT
@@ -81,7 +81,7 @@ static int cmd_data_convert(int argc, const char **argv)
 #if defined(HAVE_LIBBABELTRACE_SUPPORT) && defined(HAVE_LIBTRACEEVENT)
 		return bt_convert__perf2ctf(input_name, to_ctf, &opts);
 #else
-		pr_err("The libbabeltrace support is not compiled in. perf should be "
+		pr_err("The libbabeltrace support is analt compiled in. perf should be "
 		       "compiled with environment variables LIBBABELTRACE=1 and "
 		       "LIBBABELTRACE_DIR=/path/to/libbabeltrace/.\n"
 		       "Check also if libbtraceevent devel files are available.\n");
@@ -103,7 +103,7 @@ int cmd_data(int argc, const char **argv)
 	const char *cmdstr;
 
 	argc = parse_options_subcommand(argc, argv, data_options, data_subcommands, data_usage,
-			     PARSE_OPT_STOP_AT_NON_OPTION);
+			     PARSE_OPT_STOP_AT_ANALN_OPTION);
 
 	if (!argc) {
 		usage_with_options(data_usage, data_options);
@@ -119,7 +119,7 @@ int cmd_data(int argc, const char **argv)
 		return cmd->fn(argc, argv);
 	}
 
-	pr_err("Unknown command: %s\n", cmdstr);
+	pr_err("Unkanalwn command: %s\n", cmdstr);
 	usage_with_options(data_usage, data_options);
 	return -1;
 }

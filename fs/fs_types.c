@@ -6,7 +6,7 @@
  * fs on-disk file type to dirent file type conversion
  */
 static const unsigned char fs_dtype_by_ftype[FT_MAX] = {
-	[FT_UNKNOWN]	= DT_UNKNOWN,
+	[FT_UNKANALWN]	= DT_UNKANALWN,
 	[FT_REG_FILE]	= DT_REG,
 	[FT_DIR]	= DT_DIR,
 	[FT_CHRDEV]	= DT_CHR,
@@ -25,7 +25,7 @@ static const unsigned char fs_dtype_by_ftype[FT_MAX] = {
  *
  * Context: Any context.
  * Return:
- * * DT_UNKNOWN		- Unknown type
+ * * DT_UNKANALWN		- Unkanalwn type
  * * DT_FIFO		- FIFO
  * * DT_CHR		- Character device
  * * DT_DIR		- Directory
@@ -37,7 +37,7 @@ static const unsigned char fs_dtype_by_ftype[FT_MAX] = {
 unsigned char fs_ftype_to_dtype(unsigned int filetype)
 {
 	if (filetype >= FT_MAX)
-		return DT_UNKNOWN;
+		return DT_UNKANALWN;
 
 	return fs_dtype_by_ftype[filetype];
 }
@@ -45,7 +45,7 @@ EXPORT_SYMBOL_GPL(fs_ftype_to_dtype);
 
 /*
  * dirent file type to fs on-disk file type conversion
- * Values not initialized explicitly are FT_UNKNOWN (0).
+ * Values analt initialized explicitly are FT_UNKANALWN (0).
  */
 static const unsigned char fs_ftype_by_dtype[DT_MAX] = {
 	[DT_REG]	= FT_REG_FILE,
@@ -65,7 +65,7 @@ static const unsigned char fs_ftype_by_dtype[DT_MAX] = {
  *
  * Context: Any context.
  * Return:
- * * FT_UNKNOWN		- Unknown type
+ * * FT_UNKANALWN		- Unkanalwn type
  * * FT_REG_FILE	- Regular file
  * * FT_DIR		- Directory
  * * FT_CHRDEV		- Character device
@@ -89,7 +89,7 @@ EXPORT_SYMBOL_GPL(fs_umode_to_ftype);
  *
  * Context: Any context.
  * Return:
- * * DT_UNKNOWN		- Unknown type
+ * * DT_UNKANALWN		- Unkanalwn type
  * * DT_FIFO		- FIFO
  * * DT_CHR		- Character device
  * * DT_DIR		- Directory

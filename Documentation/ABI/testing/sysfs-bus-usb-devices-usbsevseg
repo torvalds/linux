@@ -3,7 +3,7 @@ Date:		August 2008
 KernelVersion:	2.6.26
 Contact:	Harrison Metzger <harrisonmetz@gmail.com>
 Description:	Controls whether the device's display will powered.
-		A value of 0 is off and a non-zero value is on.
+		A value of 0 is off and a analn-zero value is on.
 
 What:		/sys/bus/usb/.../mode_msb
 What:		/sys/bus/usb/.../mode_lsb
@@ -42,5 +42,5 @@ Description:	Controls the decimal places on the device.
 		To set the nth decimal place, give this field
 		the value of ``10 ** n``. Assume this field has
 		the value k and has 1 or more decimal places set,
-		to set the mth place (where m is not already set),
+		to set the mth place (where m is analt already set),
 		change this fields value to ``k + 10 ** m``.

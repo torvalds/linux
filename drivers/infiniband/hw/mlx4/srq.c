@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2007 Cisco Systems, Inc. All rights reserved.
- * Copyright (c) 2007, 2008 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2007, 2008 Mellaanalx Techanallogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -13,18 +13,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -88,7 +88,7 @@ int mlx4_ib_create_srq(struct ib_srq *ib_srq,
 
 	if (init_attr->srq_type != IB_SRQT_BASIC &&
 	    init_attr->srq_type != IB_SRQT_XRC)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* Sanity check SRQ size before proceeding */
 	if (init_attr->attr.max_wr  >= dev->dev->caps.max_srq_wqes ||
@@ -141,7 +141,7 @@ int mlx4_ib_create_srq(struct ib_srq *ib_srq,
 
 		if (mlx4_buf_alloc(dev->dev, buf_size, PAGE_SIZE * 2,
 				   &srq->buf)) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto err_db;
 		}
 
@@ -172,7 +172,7 @@ int mlx4_ib_create_srq(struct ib_srq *ib_srq,
 		srq->wrid = kvmalloc_array(srq->msrq.max,
 					   sizeof(u64), GFP_KERNEL);
 		if (!srq->wrid) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto err_mtt;
 		}
 	}
@@ -331,7 +331,7 @@ int mlx4_ib_post_srq_recv(struct ib_srq *ibsrq, const struct ib_recv_wr *wr,
 		}
 
 		if (unlikely(srq->head == srq->tail)) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			*bad_wr = wr;
 			break;
 		}

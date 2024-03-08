@@ -29,7 +29,7 @@ ksft_skip=4
 ret=0
 GREEN='\033[0;92m'
 RED='\033[0;31m'
-NC='\033[0m' # No Color
+NC='\033[0m' # Anal Color
 
 readonly port=8080
 
@@ -48,20 +48,20 @@ sysipvsnet="/proc/sys/net/ipv4/vs/"
 if [ ! -d $sysipvsnet ]; then
 	modprobe -q ip_vs
 	if [ $? -ne 0 ]; then
-		echo "skip: could not run test without ipvs module"
+		echo "skip: could analt run test without ipvs module"
 		exit $ksft_skip
 	fi
 fi
 
 ip -Version > /dev/null 2>&1
 if [ $? -ne 0 ]; then
-	echo "SKIP: Could not run test without ip tool"
+	echo "SKIP: Could analt run test without ip tool"
 	exit $ksft_skip
 fi
 
 ipvsadm -v > /dev/null 2>&1
 if [ $? -ne 0 ]; then
-	echo "SKIP: Could not run test without ipvsadm"
+	echo "SKIP: Could analt run test without ipvsadm"
 	exit $ksft_skip
 fi
 
@@ -96,7 +96,7 @@ setup() {
 
 	sleep 1
 
-	dd if=/dev/urandom of="${infile}" bs="${datalen}" count=1 status=none
+	dd if=/dev/urandom of="${infile}" bs="${datalen}" count=1 status=analne
 }
 
 cleanup() {
@@ -144,8 +144,8 @@ test_dr() {
 	ip netns exec ns1 ip addr add ${vip_v4}/32 dev lo:1
 
 	# avoid incorrect arp response
-	ip netns exec ns2 sysctl -qw net.ipv4.conf.all.arp_ignore=1
-	ip netns exec ns2 sysctl -qw net.ipv4.conf.all.arp_announce=2
+	ip netns exec ns2 sysctl -qw net.ipv4.conf.all.arp_iganalre=1
+	ip netns exec ns2 sysctl -qw net.ipv4.conf.all.arp_ananalunce=2
 	# avoid reverse route lookup
 	ip netns exec ns2 sysctl -qw  net.ipv4.conf.all.rp_filter=0
 	ip netns exec ns2 sysctl -qw  net.ipv4.conf.veth21.rp_filter=0
@@ -182,8 +182,8 @@ test_tun() {
 
 	ip netns exec ns2 modprobe ipip
 	ip netns exec ns2 ip link set tunl0 up
-	ip netns exec ns2 sysctl -qw net.ipv4.conf.all.arp_ignore=1
-	ip netns exec ns2 sysctl -qw net.ipv4.conf.all.arp_announce=2
+	ip netns exec ns2 sysctl -qw net.ipv4.conf.all.arp_iganalre=1
+	ip netns exec ns2 sysctl -qw net.ipv4.conf.all.arp_ananalunce=2
 	ip netns exec ns2 sysctl -qw net.ipv4.conf.all.rp_filter=0
 	ip netns exec ns2 sysctl -qw net.ipv4.conf.tunl0.rp_filter=0
 	ip netns exec ns2 sysctl -qw net.ipv4.conf.veth21.rp_filter=0

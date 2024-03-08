@@ -9,7 +9,7 @@
 
 /*
  * These defines are used to indicate a resource. Resources include peripherals
- * and bus masters (but not memory regions). Note items from list should
+ * and bus masters (but analt memory regions). Analte items from list should
  * never be changed or removed (only added to at the end of the list).
  */
 

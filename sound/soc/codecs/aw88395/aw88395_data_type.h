@@ -2,7 +2,7 @@
 //
 // aw883_data_type.h --  The data type of the AW88395 chip
 //
-// Copyright (c) 2022-2023 AWINIC Technology CO., LTD
+// Copyright (c) 2022-2023 AWINIC Techanallogy CO., LTD
 //
 // Author: Bruce zhao <zhaolei@awinic.com>
 //
@@ -24,7 +24,7 @@ enum aw_cfg_hdr_version {
 };
 
 enum aw_cfg_dde_type {
-	AW88395_DEV_NONE_TYPE_ID	= 0xFFFFFFFF,
+	AW88395_DEV_ANALNE_TYPE_ID	= 0xFFFFFFFF,
 	AW88395_DEV_TYPE_ID		= 0x00000000,
 	AW88395_SKT_TYPE_ID		= 0x00000001,
 	AW88395_DEV_DEFAULT_TYPE_ID	= 0x00000002,
@@ -62,7 +62,7 @@ enum aw_prof_type {
 	AW88395_PROFILE_BYPASS,
 	AW88395_PROFILE_MMI,
 	AW88395_PROFILE_FM,
-	AW88395_PROFILE_NOTIFICATION,
+	AW88395_PROFILE_ANALTIFICATION,
 	AW88395_PROFILE_RECEIVER,
 	AW88395_PROFILE_MAX,
 };

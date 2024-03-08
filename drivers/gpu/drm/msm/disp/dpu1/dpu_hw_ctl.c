@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #include <linux/delay.h>
@@ -415,7 +415,7 @@ static int dpu_hw_ctl_wait_reset_status(struct dpu_hw_ctl *ctx)
 
 	pr_debug("hw ctl reset is set for ctl:%d\n", ctx->idx);
 	if (dpu_hw_ctl_poll_reset_status(ctx, DPU_REG_RESET_TIMEOUT_US)) {
-		pr_err("hw recovery is not complete for ctl:%d\n", ctx->idx);
+		pr_err("hw recovery is analt complete for ctl:%d\n", ctx->idx);
 		return -EINVAL;
 	}
 
@@ -444,7 +444,7 @@ struct ctl_blend_config {
 };
 
 static const struct ctl_blend_config ctl_blend_config[][2] = {
-	[SSPP_NONE] = { { -1 }, { -1 } },
+	[SSPP_ANALNE] = { { -1 }, { -1 } },
 	[SSPP_MAX] =  { { -1 }, { -1 } },
 	[SSPP_VIG0] = { { 0, 0,  0  }, { 3, 0 } },
 	[SSPP_VIG1] = { { 0, 3,  2  }, { 3, 4 } },
@@ -537,7 +537,7 @@ static void dpu_hw_ctl_intf_cfg_v1(struct dpu_hw_ctl *ctx,
 
 	/* CTL_TOP[31:28] carries group_id to collate CTL paths
 	 * per VM. Explicitly disable it until VM support is
-	 * added in SW. Power on reset value is not disable.
+	 * added in SW. Power on reset value is analt disable.
 	 */
 	if ((test_bit(DPU_CTL_VM_CFG, &ctx->caps->features)))
 		mode_sel = CTL_DEFAULT_GROUP_ID  << 28;
@@ -595,7 +595,7 @@ static void dpu_hw_ctl_intf_cfg(struct dpu_hw_ctl *ctx,
 		intf_cfg |= ((cfg->stream_sel & 0x3) << 15);
 		break;
 	default:
-		pr_err("unknown interface type %d\n", cfg->intf_mode_sel);
+		pr_err("unkanalwn interface type %d\n", cfg->intf_mode_sel);
 		return;
 	}
 
@@ -726,7 +726,7 @@ struct dpu_hw_ctl *dpu_hw_ctl_init(struct drm_device *dev,
 
 	c = drmm_kzalloc(dev, sizeof(*c), GFP_KERNEL);
 	if (!c)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	c->hw.blk_addr = addr + cfg->base;
 	c->hw.log_mask = DPU_DBG_MASK_CTL;

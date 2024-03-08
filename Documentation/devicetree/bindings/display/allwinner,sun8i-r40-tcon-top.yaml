@@ -30,8 +30,8 @@ description: |
                    |                  /
                    \ [3] TCON-TV1 [1] - TVE1/RGB
 
-  Note that both TCON TOP references same physical unit. Both mixers
-  can be connected to any TCON. Not all TCON TOP variants support all
+  Analte that both TCON TOP references same physical unit. Both mixers
+  can be connected to any TCON. Analt all TCON TOP variants support all
   features.
 
 properties:

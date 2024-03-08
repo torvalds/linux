@@ -46,7 +46,7 @@ led_tg(struct sk_buff *skb, const struct xt_action_param *par)
 
 	/*
 	 * If "always blink" is enabled, and there's still some time until the
-	 * LED will switch off, briefly switch it off now.
+	 * LED will switch off, briefly switch it off analw.
 	 */
 	if ((ledinfo->delay > 0) && ledinfo->always_blink &&
 	    timer_pending(&ledinternal->timer))
@@ -60,7 +60,7 @@ led_tg(struct sk_buff *skb, const struct xt_action_param *par)
 		mod_timer(&ledinternal->timer,
 			  jiffies + msecs_to_jiffies(ledinfo->delay));
 
-	/* Otherwise if there was no delay given, blink as fast as possible */
+	/* Otherwise if there was anal delay given, blink as fast as possible */
 	} else if (ledinfo->delay == 0) {
 		led_trigger_event(&ledinternal->netfilter_led_trigger, LED_OFF);
 	}
@@ -107,7 +107,7 @@ static int led_tg_check(const struct xt_tgchk_param *par)
 		goto out;
 	}
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 	ledinternal = kzalloc(sizeof(struct xt_led_info_internal), GFP_KERNEL);
 	if (!ledinternal)
 		goto exit_mutex_only;
@@ -126,7 +126,7 @@ static int led_tg_check(const struct xt_tgchk_param *par)
 	}
 
 	/* Since the letinternal timer can be shared between multiple targets,
-	 * always set it up, even if the current target does not need it
+	 * always set it up, even if the current target does analt need it
 	 */
 	timer_setup(&ledinternal->timer, led_timeout_callback, 0);
 

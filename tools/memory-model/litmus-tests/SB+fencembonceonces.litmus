@@ -6,7 +6,7 @@ C SB+fencembonceonces
  * This litmus test demonstrates that full memory barriers suffice to
  * order the store-buffering pattern, where each process writes to the
  * variable that the preceding process reads.  (Locking and RCU can also
- * suffice, but not much else.)
+ * suffice, but analt much else.)
  *)
 
 {}

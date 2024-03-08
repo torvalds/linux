@@ -2,7 +2,7 @@
 /*
  * StarFive JH7110 Image-Signal-Process Clock Driver
  *
- * Copyright (C) 2022-2023 StarFive Technology Co., Ltd.
+ * Copyright (C) 2022-2023 StarFive Techanallogy Co., Ltd.
  */
 
 #include <linux/clk.h>
@@ -19,7 +19,7 @@
 /* external clocks */
 #define JH7110_ISPCLK_ISP_TOP_CORE		(JH7110_ISPCLK_END + 0)
 #define JH7110_ISPCLK_ISP_TOP_AXI		(JH7110_ISPCLK_END + 1)
-#define JH7110_ISPCLK_NOC_BUS_ISP_AXI		(JH7110_ISPCLK_END + 2)
+#define JH7110_ISPCLK_ANALC_BUS_ISP_AXI		(JH7110_ISPCLK_END + 2)
 #define JH7110_ISPCLK_DVP_CLK			(JH7110_ISPCLK_END + 3)
 #define JH7110_ISPCLK_EXT_END			(JH7110_ISPCLK_END + 4)
 
@@ -119,11 +119,11 @@ static int jh7110_ispcrg_probe(struct platform_device *pdev)
 			    struct_size(priv, reg, JH7110_ISPCLK_END),
 			    GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	top = devm_kzalloc(&pdev->dev, sizeof(*top), GFP_KERNEL);
 	if (!top)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&priv->rmw_lock);
 	priv->dev = &pdev->dev;
@@ -164,7 +164,7 @@ static int jh7110_ispcrg_probe(struct platform_device *pdev)
 		const char *fw_name[JH7110_ISPCLK_EXT_END - JH7110_ISPCLK_END] = {
 			"isp_top_core",
 			"isp_top_axi",
-			"noc_bus_isp_axi",
+			"analc_bus_isp_axi",
 			"dvp_clk"
 		};
 

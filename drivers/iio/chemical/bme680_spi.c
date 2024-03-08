@@ -123,7 +123,7 @@ static int bme680_spi_probe(struct spi_device *spi)
 
 	bus_context = devm_kzalloc(&spi->dev, sizeof(*bus_context), GFP_KERNEL);
 	if (!bus_context)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bus_context->spi = spi;
 	bus_context->current_page = 0xff; /* Undefined on warm boot */

@@ -9,14 +9,14 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial
  * portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
- * IN NO EVENT SHALL THE COPYRIGHT OWNER(S) AND/OR ITS SUPPLIERS BE
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.
+ * IN ANAL EVENT SHALL THE COPYRIGHT OWNER(S) AND/OR ITS SUPPLIERS BE
  * LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
@@ -30,14 +30,14 @@
 
 #include <linux/leds.h>
 
-#include "nouveau_led.h"
+#include "analuveau_led.h"
 #include <nvkm/subdev/gpio.h>
 
 static enum led_brightness
-nouveau_led_get_brightness(struct led_classdev *led)
+analuveau_led_get_brightness(struct led_classdev *led)
 {
-	struct drm_device *drm_dev = container_of(led, struct nouveau_led, led)->dev;
-	struct nouveau_drm *drm = nouveau_drm(drm_dev);
+	struct drm_device *drm_dev = container_of(led, struct analuveau_led, led)->dev;
+	struct analuveau_drm *drm = analuveau_drm(drm_dev);
 	struct nvif_object *device = &drm->client.device.object;
 	u32 div, duty;
 
@@ -51,23 +51,23 @@ nouveau_led_get_brightness(struct led_classdev *led)
 }
 
 static void
-nouveau_led_set_brightness(struct led_classdev *led, enum led_brightness value)
+analuveau_led_set_brightness(struct led_classdev *led, enum led_brightness value)
 {
-	struct drm_device *drm_dev = container_of(led, struct nouveau_led, led)->dev;
-	struct nouveau_drm *drm = nouveau_drm(drm_dev);
+	struct drm_device *drm_dev = container_of(led, struct analuveau_led, led)->dev;
+	struct analuveau_drm *drm = analuveau_drm(drm_dev);
 	struct nvif_object *device = &drm->client.device.object;
 
 	u32 input_clk = 27e6; /* PDISPLAY.SOR[1].PWM is connected to the crystal */
-	u32 freq = 100; /* this is what nvidia uses and it should be good-enough */
+	u32 freq = 100; /* this is what nvidia uses and it should be good-eanalugh */
 	u32 div, duty;
 
 	div = input_clk / freq;
 	duty = value * div / LED_FULL;
 
-	/* for now, this is safe to directly poke those registers because:
+	/* for analw, this is safe to directly poke those registers because:
 	 *  - A: nvidia never puts the logo led to any other PWM controler
 	 *       than PDISPLAY.SOR[1].PWM.
-	 *  - B: nouveau does not touch these registers anywhere else
+	 *  - B: analuveau does analt touch these registers anywhere else
 	 */
 	nvif_wr32(device, 0x61c880, div);
 	nvif_wr32(device, 0x61c884, 0xc0000000 | duty);
@@ -75,9 +75,9 @@ nouveau_led_set_brightness(struct led_classdev *led, enum led_brightness value)
 
 
 int
-nouveau_led_init(struct drm_device *dev)
+analuveau_led_init(struct drm_device *dev)
 {
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct analuveau_drm *drm = analuveau_drm(dev);
 	struct nvkm_gpio *gpio = nvxx_gpio(&drm->client.device);
 	struct dcb_gpio_func logo_led;
 	int ret;
@@ -91,13 +91,13 @@ nouveau_led_init(struct drm_device *dev)
 
 	drm->led = kzalloc(sizeof(*drm->led), GFP_KERNEL);
 	if (!drm->led)
-		return -ENOMEM;
+		return -EANALMEM;
 	drm->led->dev = dev;
 
 	drm->led->led.name = "nvidia-logo";
 	drm->led->led.max_brightness = 255;
-	drm->led->led.brightness_get = nouveau_led_get_brightness;
-	drm->led->led.brightness_set = nouveau_led_set_brightness;
+	drm->led->led.brightness_get = analuveau_led_get_brightness;
+	drm->led->led.brightness_set = analuveau_led_set_brightness;
 
 	ret = led_classdev_register(dev->dev, &drm->led->led);
 	if (ret) {
@@ -110,27 +110,27 @@ nouveau_led_init(struct drm_device *dev)
 }
 
 void
-nouveau_led_suspend(struct drm_device *dev)
+analuveau_led_suspend(struct drm_device *dev)
 {
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct analuveau_drm *drm = analuveau_drm(dev);
 
 	if (drm->led)
 		led_classdev_suspend(&drm->led->led);
 }
 
 void
-nouveau_led_resume(struct drm_device *dev)
+analuveau_led_resume(struct drm_device *dev)
 {
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct analuveau_drm *drm = analuveau_drm(dev);
 
 	if (drm->led)
 		led_classdev_resume(&drm->led->led);
 }
 
 void
-nouveau_led_fini(struct drm_device *dev)
+analuveau_led_fini(struct drm_device *dev)
 {
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct analuveau_drm *drm = analuveau_drm(dev);
 
 	if (drm->led) {
 		led_classdev_unregister(&drm->led->led);

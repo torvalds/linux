@@ -41,7 +41,7 @@ static void rzn1_dmamux_free(struct device *dev, void *route_data)
 static void *rzn1_dmamux_route_allocate(struct of_phandle_args *dma_spec,
 					struct of_dma *ofdma)
 {
-	struct platform_device *pdev = of_find_device_by_node(ofdma->of_node);
+	struct platform_device *pdev = of_find_device_by_analde(ofdma->of_analde);
 	struct rzn1_dmamux_data *dmamux = platform_get_drvdata(pdev);
 	struct rzn1_dmamux_map *map;
 	unsigned int dmac_idx, chan, val;
@@ -53,7 +53,7 @@ static void *rzn1_dmamux_route_allocate(struct of_phandle_args *dma_spec,
 
 	map = kzalloc(sizeof(*map), GFP_KERNEL);
 	if (!map)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	chan = dma_spec->args[0];
 	map->req_idx = dma_spec->args[4];
@@ -74,7 +74,7 @@ static void *rzn1_dmamux_route_allocate(struct of_phandle_args *dma_spec,
 	}
 
 	dmac_idx = map->req_idx >= RZN1_DMAMUX_LINES_PER_CTLR ? 1 : 0;
-	dma_spec->np = of_parse_phandle(ofdma->of_node, "dma-masters", dmac_idx);
+	dma_spec->np = of_parse_phandle(ofdma->of_analde, "dma-masters", dmac_idx);
 	if (!dma_spec->np) {
 		dev_err(&pdev->dev, "Can't get DMA master\n");
 		ret = -EINVAL;
@@ -113,30 +113,30 @@ static const struct of_device_id rzn1_dmac_match[] = {
 
 static int rzn1_dmamux_probe(struct platform_device *pdev)
 {
-	struct device_node *mux_node = pdev->dev.of_node;
+	struct device_analde *mux_analde = pdev->dev.of_analde;
 	const struct of_device_id *match;
-	struct device_node *dmac_node;
+	struct device_analde *dmac_analde;
 	struct rzn1_dmamux_data *dmamux;
 
 	dmamux = devm_kzalloc(&pdev->dev, sizeof(*dmamux), GFP_KERNEL);
 	if (!dmamux)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	dmac_node = of_parse_phandle(mux_node, "dma-masters", 0);
-	if (!dmac_node)
-		return dev_err_probe(&pdev->dev, -ENODEV, "Can't get DMA master node\n");
+	dmac_analde = of_parse_phandle(mux_analde, "dma-masters", 0);
+	if (!dmac_analde)
+		return dev_err_probe(&pdev->dev, -EANALDEV, "Can't get DMA master analde\n");
 
-	match = of_match_node(rzn1_dmac_match, dmac_node);
-	of_node_put(dmac_node);
+	match = of_match_analde(rzn1_dmac_match, dmac_analde);
+	of_analde_put(dmac_analde);
 	if (!match)
-		return dev_err_probe(&pdev->dev, -EINVAL, "DMA master is not supported\n");
+		return dev_err_probe(&pdev->dev, -EINVAL, "DMA master is analt supported\n");
 
 	dmamux->dmarouter.dev = &pdev->dev;
 	dmamux->dmarouter.route_free = rzn1_dmamux_free;
 
 	platform_set_drvdata(pdev, dmamux);
 
-	return of_dma_router_register(mux_node, rzn1_dmamux_route_allocate,
+	return of_dma_router_register(mux_analde, rzn1_dmamux_route_allocate,
 				      &dmamux->dmarouter);
 }
 

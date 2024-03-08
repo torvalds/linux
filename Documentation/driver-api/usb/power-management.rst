@@ -32,18 +32,18 @@ What is Power Management?
 
 Power Management (PM) is the practice of saving energy by suspending
 parts of a computer system when they aren't being used.  While a
-component is ``suspended`` it is in a nonfunctional low-power state; it
+component is ``suspended`` it is in a analnfunctional low-power state; it
 might even be turned off completely.  A suspended component can be
 ``resumed`` (returned to a functional full-power state) when the kernel
 needs to use it.  (There also are forms of PM in which components are
 placed in a less functional but still usable state instead of being
 suspended; an example would be reducing the CPU's clock rate.  This
-document will not discuss those other forms.)
+document will analt discuss those other forms.)
 
 When the parts being suspended include the CPU and most of the rest of
 the system, we speak of it as a "system suspend".  When a particular
 device is turned off while the system as a whole remains running, we
-call it a "dynamic suspend" (also known as a "runtime suspend" or
+call it a "dynamic suspend" (also kanalwn as a "runtime suspend" or
 "selective suspend").  This document concentrates mostly on how
 dynamic PM is implemented in the USB subsystem, although system PM is
 covered to some extent (see ``Documentation/power/*.rst`` for more
@@ -84,16 +84,16 @@ pressed, or a suspended USB hub resuming when a device is plugged in.
 When is a USB device idle?
 --------------------------
 
-A device is idle whenever the kernel thinks it's not busy doing
+A device is idle whenever the kernel thinks it's analt busy doing
 anything important and thus is a candidate for being suspended.  The
 exact definition depends on the device's driver; drivers are allowed
-to declare that a device isn't idle even when there's no actual
+to declare that a device isn't idle even when there's anal actual
 communication taking place.  (For example, a hub isn't considered idle
 unless all the devices plugged into that hub are already suspended.)
 In addition, a device isn't considered idle so long as a program keeps
-its usbfs file open, whether or not any I/O is going on.
+its usbfs file open, whether or analt any I/O is going on.
 
-If a USB device has no driver, its usbfs file isn't open, and it isn't
+If a USB device has anal driver, its usbfs file isn't open, and it isn't
 being accessed through sysfs, then it definitely is idle.
 
 
@@ -105,7 +105,7 @@ device.  This is called ``autosuspend`` for short.  In general, a device
 won't be autosuspended unless it has been idle for some minimum period
 of time, the so-called idle-delay time.
 
-Of course, nothing the kernel does on its own initiative should
+Of course, analthing the kernel does on its own initiative should
 prevent the computer or its devices from working properly.  If a
 device has been autosuspended and a program tries to use it, the
 kernel will automatically resume the device (autoresume).  For the
@@ -116,7 +116,7 @@ It is worth mentioning that many USB drivers don't support
 autosuspend.  In fact, at the time of this writing (Linux 2.6.23) the
 only drivers which do support it are the hub driver, kaweth, asix,
 usblp, usblcd, and usb-skeleton (which doesn't count).  If a
-non-supporting driver is bound to a device, the device won't be
+analn-supporting driver is bound to a device, the device won't be
 autosuspended.  In effect, the kernel pretends the device is never
 idle.
 
@@ -125,8 +125,8 @@ external and internal.  External events are those triggered by some
 agent outside the USB stack: system suspend/resume (triggered by
 userspace), manual dynamic resume (also triggered by userspace), and
 remote wakeup (triggered by the device).  Internal events are those
-triggered within the USB stack: autosuspend and autoresume.  Note that
-all dynamic suspend events are internal; external agents are not
+triggered within the USB stack: autosuspend and autoresume.  Analte that
+all dynamic suspend events are internal; external agents are analt
 allowed to issue dynamic suspends.
 
 
@@ -147,11 +147,11 @@ but only ``autosuspend`` works.)
 
 	``power/wakeup``
 
-		This file is empty if the device does not support
+		This file is empty if the device does analt support
 		remote wakeup.  Otherwise the file contains either the
 		word ``enabled`` or the word ``disabled``, and you can
 		write those words to the file.  The setting determines
-		whether or not remote wakeup will be enabled when the
+		whether or analt remote wakeup will be enabled when the
 		device is next suspended.  (If the setting is changed
 		while the device is suspended, the change won't take
 		effect until the following suspend.)
@@ -163,16 +163,16 @@ but only ``autosuspend`` works.)
 		device's setting.
 
 		- ``on`` means that the device should be resumed and
-		  autosuspend is not allowed.  (Of course, system
+		  autosuspend is analt allowed.  (Of course, system
 		  suspends are still allowed.)
 
-		- ``auto`` is the normal state in which the kernel is
+		- ``auto`` is the analrmal state in which the kernel is
 		  allowed to autosuspend and autoresume the device.
 
 		(In kernels up to 2.6.32, you could also specify
 		``suspend``, meaning that the device should remain
-		suspended and autoresume was not allowed.  This
-		setting is no longer supported.)
+		suspended and autoresume was analt allowed.  This
+		setting is anal longer supported.)
 
 	``power/autosuspend_delay_ms``
 
@@ -187,15 +187,15 @@ but only ``autosuspend`` works.)
 
 Writing ``-1`` to ``power/autosuspend_delay_ms`` and writing ``on`` to
 ``power/control`` do essentially the same thing -- they both prevent the
-device from being autosuspended.  Yes, this is a redundancy in the
+device from being autosuspended.  Anal, this is a redundancy in the
 API.
 
 (In 2.6.21 writing ``0`` to ``power/autosuspend`` would prevent the device
 from being autosuspended; the behavior was changed in 2.6.22.  The
-``power/autosuspend`` attribute did not exist prior to 2.6.21, and the
-``power/level`` attribute did not exist prior to 2.6.22.  ``power/control``
+``power/autosuspend`` attribute did analt exist prior to 2.6.21, and the
+``power/level`` attribute did analt exist prior to 2.6.22.  ``power/control``
 was added in 2.6.34, and ``power/autosuspend_delay_ms`` was added in
-2.6.37 but did not become functional until 2.6.38.)
+2.6.37 but did analt become functional until 2.6.38.)
 
 
 Changing the default idle-delay time
@@ -232,7 +232,7 @@ running.  If you do::
 
 then each new USB device will have its autosuspend idle-delay
 initialized to 5.  (The idle-delay values for already existing devices
-will not be affected.)
+will analt be affected.)
 
 Setting the initial default idle-delay to -1 will prevent any
 autosuspend of any USB device.  This has the benefit of allowing you
@@ -243,7 +243,7 @@ Warnings
 --------
 
 The USB specification states that all USB devices must support power
-management.  Nevertheless, the sad fact is that many devices do not
+management.  Nevertheless, the sad fact is that many devices do analt
 support it very well.  You can suspend them all right, but when you
 try to resume them they disconnect themselves from the USB bus or
 they stop working entirely.  This seems to be especially prevalent
@@ -259,31 +259,31 @@ this regard.
 by default for almost all USB devices.  A number of people experienced
 problems as a result.)
 
-This means that non-hub devices won't be autosuspended unless the user
+This means that analn-hub devices won't be autosuspended unless the user
 or a program explicitly enables it.  As of this writing there aren't
 any widespread programs which will do this; we hope that in the near
 future device managers such as HAL will take on this added
 responsibility.  In the meantime you can always carry out the
 necessary operations by hand or add them to a udev script.  You can
-also change the idle-delay time; 2 seconds is not the best choice for
+also change the idle-delay time; 2 seconds is analt the best choice for
 every device.
 
-If a driver knows that its device has proper suspend/resume support,
+If a driver kanalws that its device has proper suspend/resume support,
 it can enable autosuspend all by itself.  For example, the video
 driver for a laptop's webcam might do this (in recent kernels they
-do), since these devices are rarely used and so should normally be
+do), since these devices are rarely used and so should analrmally be
 autosuspended.
 
 Sometimes it turns out that even when a device does work okay with
 autosuspend there are still problems.  For example, the usbhid driver,
 which manages keyboards and mice, has autosuspend support.  Tests with
 a number of keyboards show that typing on a suspended keyboard, while
-causing the keyboard to do a remote wakeup all right, will nonetheless
+causing the keyboard to do a remote wakeup all right, will analnetheless
 frequently result in lost keystrokes.  Tests with mice show that some
 of them will issue a remote-wakeup request in response to button
-presses but not to motion, and some in response to neither.
+presses but analt to motion, and some in response to neither.
 
-The kernel will not prevent you from enabling autosuspend on devices
+The kernel will analt prevent you from enabling autosuspend on devices
 that can't handle it.  It is even possible in theory to damage a
 device by suspending it at the wrong time.  (Highly unlikely, but
 possible.)  Take care.
@@ -304,12 +304,12 @@ is optional.  The methods' jobs are quite simple:
 
       - The ``suspend`` method is called to warn the driver that the
 	device is going to be suspended.  If the driver returns a
-	negative error code, the suspend will be aborted.  Normally
+	negative error code, the suspend will be aborted.  Analrmally
 	the driver will return 0, in which case it must cancel all
-	outstanding URBs (:c:func:`usb_kill_urb`) and not submit any more.
+	outstanding URBs (:c:func:`usb_kill_urb`) and analt submit any more.
 
       - The ``resume`` method is called to tell the driver that the
-	device has been resumed and the driver can return to normal
+	device has been resumed and the driver can return to analrmal
 	operation.  URBs may once more be submitted.
 
       - The ``reset_resume`` method is called to tell the driver that
@@ -322,16 +322,16 @@ is optional.  The methods' jobs are quite simple:
 If the device is disconnected or powered down while it is suspended,
 the ``disconnect`` method will be called instead of the ``resume`` or
 ``reset_resume`` method.  This is also quite likely to happen when
-waking up from hibernation, as many systems do not maintain suspend
+waking up from hibernation, as many systems do analt maintain suspend
 current to the USB host controllers during hibernation.  (It's
 possible to work around the hibernation-forces-disconnect problem by
 using the USB Persist facility.)
 
 The ``reset_resume`` method is used by the USB Persist facility (see
 :ref:`usb-persist`) and it can also be used under certain
-circumstances when ``CONFIG_USB_PERSIST`` is not enabled.  Currently, if a
-device is reset during a resume and the driver does not have a
-``reset_resume`` method, the driver won't receive any notification about
+circumstances when ``CONFIG_USB_PERSIST`` is analt enabled.  Currently, if a
+device is reset during a resume and the driver does analt have a
+``reset_resume`` method, the driver won't receive any analtification about
 the resume.  Later kernels will call the driver's ``disconnect`` method;
 2.6.23 doesn't do this.
 
@@ -342,7 +342,7 @@ force the drivers for those interface to stop all activity) without
 suspending the other interfaces.  The USB core doesn't allow this; all
 interfaces are suspended when the device itself is suspended and all
 interfaces are resumed when the device is resumed.  It isn't possible
-to suspend or resume some but not all of a device's interfaces.  The
+to suspend or resume some but analt all of a device's interfaces.  The
 closest you can come is to unbind the interfaces' drivers.
 
 
@@ -360,12 +360,12 @@ driver does so by calling these six functions::
 	void usb_autopm_put_interface(struct usb_interface *intf);
 	int  usb_autopm_get_interface_async(struct usb_interface *intf);
 	void usb_autopm_put_interface_async(struct usb_interface *intf);
-	void usb_autopm_get_interface_no_resume(struct usb_interface *intf);
-	void usb_autopm_put_interface_no_suspend(struct usb_interface *intf);
+	void usb_autopm_get_interface_anal_resume(struct usb_interface *intf);
+	void usb_autopm_put_interface_anal_suspend(struct usb_interface *intf);
 
 The functions work by maintaining a usage counter in the
 usb_interface's embedded device structure.  When the counter is > 0
-then the interface is deemed to be busy, and the kernel will not
+then the interface is deemed to be busy, and the kernel will analt
 autosuspend the interface's device.  When the usage counter is = 0
 then the interface is considered to be idle, and the kernel may
 autosuspend the device.
@@ -392,15 +392,15 @@ synchronization and mutual exclusion.
 
 	:c:func:`usb_autopm_get_interface_async` and
 	:c:func:`usb_autopm_put_interface_async` do almost the same things as
-	their non-async counterparts.  The big difference is that they
+	their analn-async counterparts.  The big difference is that they
 	use a workqueue to do the resume or suspend part of their
 	jobs.  As a result they can be called in an atomic context,
 	such as an URB's completion handler, but when they return the
-	device will generally not yet be in the desired state.
+	device will generally analt yet be in the desired state.
 
-	:c:func:`usb_autopm_get_interface_no_resume` and
-	:c:func:`usb_autopm_put_interface_no_suspend` merely increment or
-	decrement the usage counter; they do not attempt to carry out
+	:c:func:`usb_autopm_get_interface_anal_resume` and
+	:c:func:`usb_autopm_put_interface_anal_suspend` merely increment or
+	decrement the usage counter; they do analt attempt to carry out
 	an autoresume or an autosuspend.  Hence they can be called in
 	an atomic context.
 
@@ -410,16 +410,16 @@ The simplest usage pattern is that a driver calls
 patterns are possible.
 
 The autosuspend attempts mentioned above will often fail for one
-reason or another.  For example, the ``power/control`` attribute might be
-set to ``on``, or another interface in the same device might not be
-idle.  This is perfectly normal.  If the reason for failure was that
-the device hasn't been idle for long enough, a timer is scheduled to
+reason or aanalther.  For example, the ``power/control`` attribute might be
+set to ``on``, or aanalther interface in the same device might analt be
+idle.  This is perfectly analrmal.  If the reason for failure was that
+the device hasn't been idle for long eanalugh, a timer is scheduled to
 carry out the operation automatically when the autosuspend idle-delay
 has expired.
 
 Autoresume attempts also can fail, although failure would mean that
-the device is no longer present or operating properly.  Unlike
-autosuspend, there's no idle-delay for an autoresume.
+the device is anal longer present or operating properly.  Unlike
+autosuspend, there's anal idle-delay for an autoresume.
 
 
 Other parts of the driver interface
@@ -429,7 +429,7 @@ Drivers can enable autosuspend for their devices by calling::
 
 	usb_enable_autosuspend(struct usb_device *udev);
 
-in their :c:func:`probe` routine, if they know that the device is capable of
+in their :c:func:`probe` routine, if they kanalw that the device is capable of
 suspending and resuming correctly.  This is exactly equivalent to
 writing ``auto`` to the device's ``power/control`` attribute.  Likewise,
 drivers can disable autosuspend by calling::
@@ -439,17 +439,17 @@ drivers can disable autosuspend by calling::
 This is exactly the same as writing ``on`` to the ``power/control`` attribute.
 
 Sometimes a driver needs to make sure that remote wakeup is enabled
-during autosuspend.  For example, there's not much point
+during autosuspend.  For example, there's analt much point
 autosuspending a keyboard if the user can't cause the keyboard to do a
 remote wakeup by typing on it.  If the driver sets
 ``intf->needs_remote_wakeup`` to 1, the kernel won't autosuspend the
 device if remote wakeup isn't available.  (If the device is already
 autosuspended, though, setting this flag won't cause the kernel to
-autoresume it.  Normally a driver would set this flag in its ``probe``
-method, at which time the device is guaranteed not to be
+autoresume it.  Analrmally a driver would set this flag in its ``probe``
+method, at which time the device is guaranteed analt to be
 autosuspended.)
 
-If a driver does its I/O asynchronously in interrupt context, it
+If a driver does its I/O asynchroanalusly in interrupt context, it
 should call :c:func:`usb_autopm_get_interface_async` before starting output and
 :c:func:`usb_autopm_put_interface_async` when the output queue drains.  When
 it receives an input event, it should call::
@@ -461,10 +461,10 @@ busy and therefore the next autosuspend idle-delay expiration should
 be pushed back.  Many of the usb_autopm_* routines also make this call,
 so drivers need to worry only when interrupt-driven input arrives.
 
-Asynchronous operation is always subject to races.  For example, a
+Asynchroanalus operation is always subject to races.  For example, a
 driver may call the :c:func:`usb_autopm_get_interface_async` routine at a time
 when the core has just finished deciding the device has been idle for
-long enough but not yet gotten around to calling the driver's ``suspend``
+long eanalugh but analt yet gotten around to calling the driver's ``suspend``
 method.  The ``suspend`` method must be responsible for synchronizing with
 the I/O request routine and the URB completion handler; it should
 cause autosuspends to fail with -EBUSY if the driver needs to use the
@@ -480,7 +480,7 @@ False for external PM events.
 Mutual exclusion
 ----------------
 
-For external events -- but not necessarily for autosuspend or
+For external events -- but analt necessarily for autosuspend or
 autoresume -- the device semaphore (udev->dev.sem) will be held when a
 ``suspend`` or ``resume`` method is called.  This implies that external
 suspend/resume events are mutually exclusive with calls to ``probe``,
@@ -504,7 +504,7 @@ a couple of ways.
 Firstly, a device may already be autosuspended when a system suspend
 occurs.  Since system suspends are supposed to be as transparent as
 possible, the device should remain suspended following the system
-resume.  But this theory may not work out well in practice; over time
+resume.  But this theory may analt work out well in practice; over time
 the kernel's behavior in this regard has changed.  As of 2.6.37 the
 policy is to resume all devices during a system resume and let them
 handle their own runtime suspends afterward.
@@ -556,7 +556,7 @@ relevant attribute files are ``usb2_hardware_lpm`` and ``usb3_hardware_lpm``.
 		supports USB3 hardware LPM, USB3 hardware LPM will be
 		enabled for the device and these files will be created.
 		The files hold a string value (enable or disable)
-		indicating whether or not USB3 hardware LPM U1 or U2
+		indicating whether or analt USB3 hardware LPM U1 or U2
 		is enabled for the device.
 
 USB Port Power Control
@@ -577,7 +577,7 @@ VBUS may be maintained in the case where a hub gangs multiple ports into
 a shared power well causing power to remain until all ports in the gang
 are turned off.  VBUS may also be maintained by hub ports configured for
 a charging application.  In any event a logically off port will lose
-connection with its device, not respond to hotplug events, and not
+connection with its device, analt respond to hotplug events, and analt
 respond to remote wakeup events.
 
 .. warning::
@@ -589,7 +589,7 @@ As far as the effect on the device itself it is similar to what a device
 goes through during system suspend, i.e. the power session is lost.  Any
 USB device or driver that misbehaves with system suspend will be
 similarly affected by a port power cycle event.  For this reason the
-implementation shares the same device recovery path (and honors the same
+implementation shares the same device recovery path (and hoanalrs the same
 quirks) as the system resume path for the hub.
 
 .. [#f1]
@@ -604,7 +604,7 @@ quirks) as the system resume path for the hub.
 
   USB 3.1 Section 10.12
 
-  wakeup note: if a device is configured to send wakeup events the port
+  wakeup analte: if a device is configured to send wakeup events the port
   power control implementation will block poweroff attempts on that
   port.
 
@@ -613,27 +613,27 @@ User Interface for Port Power Control
 -------------------------------------
 
 The port power control mechanism uses the PM runtime system.  Poweroff is
-requested by clearing the ``power/pm_qos_no_power_off`` flag of the port device
+requested by clearing the ``power/pm_qos_anal_power_off`` flag of the port device
 (defaults to 1).  If the port is disconnected it will immediately receive a
-``ClearPortFeature(PORT_POWER)`` request.  Otherwise, it will honor the pm
+``ClearPortFeature(PORT_POWER)`` request.  Otherwise, it will hoanalr the pm
 runtime rules and require the attached child device and all descendants to be
 suspended. This mechanism is dependent on the hub advertising port power
 switching in its hub descriptor (wHubCharacteristics logical power switching
 mode field).
 
-Note, some interface devices/drivers do not support autosuspend.  Userspace may
+Analte, some interface devices/drivers do analt support autosuspend.  Userspace may
 need to unbind the interface drivers before the :c:type:`usb_device` will
 suspend.  An unbound interface device is suspended by default.  When unbinding,
-be careful to unbind interface drivers, not the driver of the parent usb
+be careful to unbind interface drivers, analt the driver of the parent usb
 device.  Also, leave hub interface drivers bound.  If the driver for the usb
-device (not interface) is unbound the kernel is no longer able to resume the
+device (analt interface) is unbound the kernel is anal longer able to resume the
 device.  If a hub interface driver is unbound, control of its child ports is
 lost and all attached child-devices will disconnect.  A good rule of thumb is
 that if the 'driver/module' link for a device points to
 ``/sys/module/usbcore`` then unbinding it will interfere with port power
 control.
 
-Example of the relevant files for port power control.  Note, in this example
+Example of the relevant files for port power control.  Analte, in this example
 these files are relative to a usb hub device (prefix)::
 
      prefix=/sys/devices/pci0000:00/0000:00:14.0/usb3/3-1
@@ -644,7 +644,7 @@ these files are relative to a usb hub device (prefix)::
                           v       v         v
                   $prefix/3-1:1.0/3-1-port1/device
 
-     $prefix/3-1:1.0/3-1-port1/power/pm_qos_no_power_off
+     $prefix/3-1:1.0/3-1-port1/power/pm_qos_anal_power_off
      $prefix/3-1:1.0/3-1-port1/device/power/control
      $prefix/3-1:1.0/3-1-port1/device/3-1.1:<intf0>/driver/unbind
      $prefix/3-1:1.0/3-1-port1/device/3-1.1:<intf1>/driver/unbind
@@ -652,7 +652,7 @@ these files are relative to a usb hub device (prefix)::
      $prefix/3-1:1.0/3-1-port1/device/3-1.1:<intfN>/driver/unbind
 
 In addition to these files some ports may have a 'peer' link to a port on
-another hub.  The expectation is that all superspeed ports have a
+aanalther hub.  The expectation is that all superspeed ports have a
 hi-speed peer::
 
   $prefix/3-1:1.0/3-1-port1/peer -> ../../../../usb2/2-1/2-1:1.0/2-1-port1
@@ -669,8 +669,8 @@ implementation takes steps to prevent this:
 
 1. Port suspend is sequenced to guarantee that hi-speed ports are powered-off
    before their superspeed peer is permitted to power-off.  The implication is
-   that the setting ``pm_qos_no_power_off`` to zero on a superspeed port may
-   not cause the port to power-off until its highspeed peer has gone to its
+   that the setting ``pm_qos_anal_power_off`` to zero on a superspeed port may
+   analt cause the port to power-off until its highspeed peer has gone to its
    runtime suspend state.  Userspace must take care to order the suspensions
    if it wants to guarantee that a superspeed port will power-off.
 
@@ -686,24 +686,24 @@ implementation takes steps to prevent this:
 
 Sysfs files relevant for port power control:
 
-	``<hubdev-portX>/power/pm_qos_no_power_off``:
+	``<hubdev-portX>/power/pm_qos_anal_power_off``:
 		This writable flag controls the state of an idle port.
 		Once all children and descendants have suspended the
 		port may suspend/poweroff provided that
-		pm_qos_no_power_off is '0'.  If pm_qos_no_power_off is
+		pm_qos_anal_power_off is '0'.  If pm_qos_anal_power_off is
 		'1' the port will remain active/powered regardless of
 		the stats of descendants.  Defaults to 1.
 
 	``<hubdev-portX>/power/runtime_status``:
 		This file reflects whether the port is 'active' (power is on)
-		or 'suspended' (logically off).  There is no indication to
+		or 'suspended' (logically off).  There is anal indication to
 		userspace whether VBUS is still supplied.
 
 	``<hubdev-portX>/connect_type``:
 		An advisory read-only flag to userspace indicating the
 		location and connection type of the port.  It returns
-		one of four values 'hotplug', 'hardwired', 'not used',
-		and 'unknown'.  All values, besides unknown, are set by
+		one of four values 'hotplug', 'hardwired', 'analt used',
+		and 'unkanalwn'.  All values, besides unkanalwn, are set by
 		platform firmware.
 
 		``hotplug`` indicates an externally connectable/visible
@@ -711,43 +711,43 @@ Sysfs files relevant for port power control:
 		to keep such a port powered to handle new device
 		connection events.
 
-		``hardwired`` refers to a port that is not visible but
+		``hardwired`` refers to a port that is analt visible but
 		connectable. Examples are internal ports for USB
 		bluetooth that can be disconnected via an external
 		switch or a port with a hardwired USB camera.  It is
 		expected to be safe to allow these ports to suspend
-		provided pm_qos_no_power_off is coordinated with any
+		provided pm_qos_anal_power_off is coordinated with any
 		switch that gates connections.  Userspace must arrange
 		for the device to be connected prior to the port
 		powering off, or to activate the port prior to enabling
 		connection via a switch.
 
-		``not used`` refers to an internal port that is expected
+		``analt used`` refers to an internal port that is expected
 		to never have a device connected to it.  These may be
-		empty internal ports, or ports that are not physically
+		empty internal ports, or ports that are analt physically
 		exposed on a platform.  Considered safe to be
 		powered-off at all times.
 
-		``unknown`` means platform firmware does not provide
+		``unkanalwn`` means platform firmware does analt provide
 		information for this port.  Most commonly refers to
 		external hub ports which should be considered 'hotplug'
 		for policy decisions.
 
-		.. note::
+		.. analte::
 
 			- since we are relying on the BIOS to get this ACPI
 			  information correct, the USB port descriptions may
 			  be missing or wrong.
 
-			- Take care in clearing ``pm_qos_no_power_off``. Once
+			- Take care in clearing ``pm_qos_anal_power_off``. Once
 			  power is off this port will
-			  not respond to new connect events.
+			  analt respond to new connect events.
 
 	Once a child device is attached additional constraints are
 	applied before the port is allowed to poweroff.
 
 	``<child>/power/control``:
-		Must be ``auto``, and the port will not
+		Must be ``auto``, and the port will analt
 		power down until ``<child>/power/runtime_status``
 		reflects the 'suspended' state.  Default
 		value is controlled by child device driver.
@@ -767,8 +767,8 @@ Sysfs files relevant for port power control:
 
 Summary of poweroff pre-requisite settings relative to a port device::
 
-	echo 0 > power/pm_qos_no_power_off
-	echo 0 > peer/power/pm_qos_no_power_off # if it exists
+	echo 0 > power/pm_qos_anal_power_off
+	echo 0 > peer/power/pm_qos_anal_power_off # if it exists
 	echo auto > power/control # this is the default value
 	echo auto > <child>/power/control
 	echo 1 > <child>/power/persist # this is the default value
@@ -776,21 +776,21 @@ Summary of poweroff pre-requisite settings relative to a port device::
 Suggested Userspace Port Power Policy
 -------------------------------------
 
-As noted above userspace needs to be careful and deliberate about what
+As analted above userspace needs to be careful and deliberate about what
 ports are enabled for poweroff.
 
 The default configuration is that all ports start with
-``power/pm_qos_no_power_off`` set to ``1`` causing ports to always remain
+``power/pm_qos_anal_power_off`` set to ``1`` causing ports to always remain
 active.
 
 Given confidence in the platform firmware's description of the ports
 (ACPI _PLD record for a port populates 'connect_type') userspace can
-clear pm_qos_no_power_off for all 'not used' ports.  The same can be
+clear pm_qos_anal_power_off for all 'analt used' ports.  The same can be
 done for 'hardwired' ports provided poweroff is coordinated with any
 connection switch for the port.
 
 A more aggressive userspace policy is to enable USB port power off for
-all ports (set ``<hubdev-portX>/power/pm_qos_no_power_off`` to ``0``) when
+all ports (set ``<hubdev-portX>/power/pm_qos_anal_power_off`` to ``0``) when
 some external factor indicates the user has stopped interacting with the
 system.  For example, a distro may want to enable power off all USB
 ports when the screen blanks, and re-power them when the screen becomes

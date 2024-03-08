@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2006 Micron Technology Inc.
+ * Copyright (C) 2006 Micron Techanallogy Inc.
  */
 
 #ifndef	_MTD_NAND_OMAP2_H

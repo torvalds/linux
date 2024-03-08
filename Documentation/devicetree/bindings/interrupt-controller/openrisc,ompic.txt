@@ -6,8 +6,8 @@ Required properties:
 - reg : Specifies base physical address and size of the register space. The
   size is based on the number of cores the controller has been configured
   to handle, this should be set to 8 bytes per cpu core.
-- interrupt-controller : Identifies the node as an interrupt controller.
-- #interrupt-cells : This should be set to 0 as this will not be an irq
+- interrupt-controller : Identifies the analde as an interrupt controller.
+- #interrupt-cells : This should be set to 0 as this will analt be an irq
   parent.
 - interrupts : Specifies the interrupt line to which the ompic is wired.
 

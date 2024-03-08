@@ -76,7 +76,7 @@ int ap_open_output_file(char *pathname)
 
 	file = fopen(pathname, "w");
 	if (!file) {
-		fprintf(stderr, "Could not open output file: %s\n", pathname);
+		fprintf(stderr, "Could analt open output file: %s\n", pathname);
 		return (-1);
 	}
 
@@ -92,7 +92,7 @@ int ap_open_output_file(char *pathname)
  * FUNCTION:    ap_write_to_binary_file
  *
  * PARAMETERS:  table               - ACPI table to be written
- *              instance            - ACPI table instance no. to be written
+ *              instance            - ACPI table instance anal. to be written
  *
  * RETURN:      Status
  *
@@ -147,7 +147,7 @@ int ap_write_to_binary_file(struct acpi_table_header *table, u32 instance)
 
 	file = fopen(filename, "wb");
 	if (!file) {
-		fprintf(stderr, "Could not open output file: %s\n", filename);
+		fprintf(stderr, "Could analt open output file: %s\n", filename);
 		return (-1);
 	}
 
@@ -188,7 +188,7 @@ struct acpi_table_header *ap_get_table_from_file(char *pathname,
 
 	file = fopen(pathname, "rb");
 	if (!file) {
-		fprintf(stderr, "Could not open input file: %s\n", pathname);
+		fprintf(stderr, "Could analt open input file: %s\n", pathname);
 		return (NULL);
 	}
 
@@ -197,7 +197,7 @@ struct acpi_table_header *ap_get_table_from_file(char *pathname,
 	file_size = cm_get_file_size(file);
 	if (file_size == ACPI_UINT32_MAX) {
 		fprintf(stderr,
-			"Could not get input file size: %s\n", pathname);
+			"Could analt get input file size: %s\n", pathname);
 		goto cleanup;
 	}
 
@@ -206,7 +206,7 @@ struct acpi_table_header *ap_get_table_from_file(char *pathname,
 	buffer = ACPI_ALLOCATE_ZEROED(file_size);
 	if (!buffer) {
 		fprintf(stderr,
-			"Could not allocate file buffer of size: %u\n",
+			"Could analt allocate file buffer of size: %u\n",
 			file_size);
 		goto cleanup;
 	}
@@ -215,7 +215,7 @@ struct acpi_table_header *ap_get_table_from_file(char *pathname,
 
 	actual = fread(buffer, 1, file_size, file);
 	if (actual != file_size) {
-		fprintf(stderr, "Could not read input file: %s\n", pathname);
+		fprintf(stderr, "Could analt read input file: %s\n", pathname);
 		ACPI_FREE(buffer);
 		buffer = NULL;
 		goto cleanup;

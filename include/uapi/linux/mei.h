@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause) */
+/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-analte) OR BSD-3-Clause) */
 /*
  * Copyright(c) 2003-2015 Intel Corporation. All rights reserved.
  * Intel Management Engine Interface (Intel MEI) Linux driver
@@ -48,23 +48,23 @@ struct mei_connect_client_data {
 };
 
 /**
- * DOC: set and unset event notification for a connected client
+ * DOC: set and unset event analtification for a connected client
  *
- * The IOCTL argument is 1 for enabling event notification and 0 for
+ * The IOCTL argument is 1 for enabling event analtification and 0 for
  * disabling the service.
- * Return:  -EOPNOTSUPP if the devices doesn't support the feature
+ * Return:  -EOPANALTSUPP if the devices doesn't support the feature
  */
-#define IOCTL_MEI_NOTIFY_SET _IOW('H', 0x02, __u32)
+#define IOCTL_MEI_ANALTIFY_SET _IOW('H', 0x02, __u32)
 
 /**
- * DOC: retrieve notification
+ * DOC: retrieve analtification
  *
  * The IOCTL output argument is 1 if an event was pending and 0 otherwise.
- * The ioctl has to be called in order to acknowledge pending event.
+ * The ioctl has to be called in order to ackanalwledge pending event.
  *
- * Return:  -EOPNOTSUPP if the devices doesn't support the feature
+ * Return:  -EOPANALTSUPP if the devices doesn't support the feature
  */
-#define IOCTL_MEI_NOTIFY_GET _IOR('H', 0x03, __u32)
+#define IOCTL_MEI_ANALTIFY_GET _IOR('H', 0x03, __u32)
 
 /**
  * struct mei_connect_client_vtag - mei client information struct with vtag
@@ -109,8 +109,8 @@ struct mei_connect_client_data_vtag {
  * The output parameter is the properties of the FW client
  * (FW protocol version and max message size).
  *
- * Clients that do not support tagged connection
- * will respond with -EOPNOTSUPP.
+ * Clients that do analt support tagged connection
+ * will respond with -EOPANALTSUPP.
  */
 #define IOCTL_MEI_CONNECT_CLIENT_VTAG \
 	_IOWR('H', 0x04, struct mei_connect_client_data_vtag)

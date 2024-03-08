@@ -2,7 +2,7 @@
 /*
  * PCM3168A codec driver header
  *
- * Copyright (C) 2015 Imagination Technologies Ltd.
+ * Copyright (C) 2015 Imagination Techanallogies Ltd.
  *
  * Author: Damien Horsley <Damien.Horsley@imgtec.com>
  */

@@ -10,7 +10,7 @@ maintainers:
   - Lei Wang <lewan@microsoft.com>
 
 description: |+
-  DMC-520 node is defined to describe DRAM error detection and correction.
+  DMC-520 analde is defined to describe DRAM error detection and correction.
 
   https://static.docs.arm.com/100000/0200/corelink_dmc520_trm_100000_0200_01_en.pdf
 

@@ -154,7 +154,7 @@
 	mediatek,hs400-cmd-resp-sel-rising;
 	vmmc-supply = <&mt6397_vemc_3v3_reg>;
 	vqmmc-supply = <&mt6397_vio18_reg>;
-	non-removable;
+	analn-removable;
 };
 
 &mmc1 {

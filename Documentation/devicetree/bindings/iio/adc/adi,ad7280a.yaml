@@ -32,7 +32,7 @@ properties:
     $ref: /schemas/types.yaml#/definitions/uint32
     description:
       Allows limiting of scope of which channels are considered for voltage
-      alerts, typically because not all are wired to anything. Only applies to
+      alerts, typically because analt all are wired to anything. Only applies to
       last device in the daisy chain.
     default: 5
     enum: [3, 4, 5]

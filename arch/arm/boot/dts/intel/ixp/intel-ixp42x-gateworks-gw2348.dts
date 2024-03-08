@@ -97,7 +97,7 @@
 				intel,ixp4xx-eb-ahb-split-transfers = <0>;
 				intel,ixp4xx-eb-write-enable = <1>;
 				intel,ixp4xx-eb-byte-access = <1>;
-				/* First register set is CMD second is CTL (notice it uses CS2) */
+				/* First register set is CMD second is CTL (analtice it uses CS2) */
 				reg = <1 0x00000000 0x1000000>, <2 0x00000000 0x1000000>;
 				interrupt-parent = <&gpio0>;
 				interrupts = <12 IRQ_TYPE_EDGE_RISING>;

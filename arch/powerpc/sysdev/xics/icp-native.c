@@ -19,7 +19,7 @@
 #include <asm/io.h>
 #include <asm/smp.h>
 #include <asm/irq.h>
-#include <asm/errno.h>
+#include <asm/erranal.h>
 #include <asm/xics.h>
 #include <asm/kvm_ppc.h>
 #include <asm/dbell.h>
@@ -129,7 +129,7 @@ static unsigned int icp_native_get_irq(void)
 	}
 
 	/* We don't have a linux mapping, so have rtas mask it. */
-	xics_mask_unknown_vec(vec);
+	xics_mask_unkanalwn_vec(vec);
 
 	/* We might learn about it later, so EOI it */
 	icp_native_set_xirr(xirr);
@@ -149,7 +149,7 @@ static void icp_native_cause_ipi(int cpu)
 void icp_native_cause_ipi_rm(int cpu)
 {
 	/*
-	 * Currently not used to send IPIs to another CPU
+	 * Currently analt used to send IPIs to aanalther CPU
 	 * on the same core. Only caller is KVM real mode.
 	 * Need the physical address of the XICS to be
 	 * previously saved in kvm_hstate in the paca.
@@ -185,7 +185,7 @@ void icp_native_flush_interrupt(void)
 	} else {
 		pr_err("XICS: hw interrupt 0x%x to offline cpu, disabling\n",
 		       vec);
-		xics_mask_unknown_vec(vec);
+		xics_mask_unkanalwn_vec(vec);
 	}
 	/* EOI the interrupt */
 	icp_native_set_xirr(xirr);
@@ -215,7 +215,7 @@ static int __init icp_native_map_one_cpu(int hw_id, unsigned long addr,
 	char *rname;
 	int i, cpu = -1;
 
-	/* This may look gross but it's good enough for now, we don't quite
+	/* This may look gross but it's good eanalugh for analw, we don't quite
 	 * have a hard -> linux processor id matching.
 	 */
 	for_each_possible_cpu(i) {
@@ -227,7 +227,7 @@ static int __init icp_native_map_one_cpu(int hw_id, unsigned long addr,
 		}
 	}
 
-	/* Fail, skip that CPU. Don't print, it's normal, some XICS come up
+	/* Fail, skip that CPU. Don't print, it's analrmal, some XICS come up
 	 * with way more entries in there than you have CPUs
 	 */
 	if (cpu == -1)
@@ -237,9 +237,9 @@ static int __init icp_native_map_one_cpu(int hw_id, unsigned long addr,
 			  cpu, hw_id);
 
 	if (!rname)
-		return -ENOMEM;
+		return -EANALMEM;
 	if (!request_mem_region(addr, size, rname)) {
-		pr_warn("icp_native: Could not reserve ICP MMIO for CPU %d, interrupt server #0x%x\n",
+		pr_warn("icp_native: Could analt reserve ICP MMIO for CPU %d, interrupt server #0x%x\n",
 			cpu, hw_id);
 		return -EBUSY;
 	}
@@ -250,12 +250,12 @@ static int __init icp_native_map_one_cpu(int hw_id, unsigned long addr,
 		pr_warn("icp_native: Failed ioremap for CPU %d, interrupt server #0x%x, addr %#lx\n",
 			cpu, hw_id, addr);
 		release_mem_region(addr, size);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	return 0;
 }
 
-static int __init icp_native_init_one_node(struct device_node *np,
+static int __init icp_native_init_one_analde(struct device_analde *np,
 					   unsigned int *indx)
 {
 	unsigned int ilen;
@@ -271,7 +271,7 @@ static int __init icp_native_init_one_node(struct device_node *np,
 	 */
 	ireg = of_get_property(np, "ibm,interrupt-server-ranges", &ilen);
 
-	/* Do that ever happen ? we'll know soon enough... but even good'old
+	/* Do that ever happen ? we'll kanalw soon eanalugh... but even good'old
 	 * f80 does have that property ..
 	 */
 	WARN_ON((ireg == NULL) || (ilen != 2*sizeof(u32)));
@@ -295,7 +295,7 @@ static int __init icp_native_init_one_node(struct device_node *np,
 
 		err = of_address_to_resource(np, i, &r);
 		if (err) {
-			pr_err("icp_native: Could not translate ICP MMIO"
+			pr_err("icp_native: Could analt translate ICP MMIO"
 			       " for interrupt server 0x%x (%d)\n", *indx, err);
 			return -1;
 		}
@@ -322,23 +322,23 @@ static const struct icp_ops icp_native_ops = {
 
 int __init icp_native_init(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	u32 indx = 0;
 	int found = 0;
 
-	for_each_compatible_node(np, NULL, "ibm,ppc-xicp")
-		if (icp_native_init_one_node(np, &indx) == 0)
+	for_each_compatible_analde(np, NULL, "ibm,ppc-xicp")
+		if (icp_native_init_one_analde(np, &indx) == 0)
 			found = 1;
 	if (!found) {
-		for_each_node_by_type(np,
+		for_each_analde_by_type(np,
 			"PowerPC-External-Interrupt-Presentation") {
-				if (icp_native_init_one_node(np, &indx) == 0)
+				if (icp_native_init_one_analde(np, &indx) == 0)
 					found = 1;
 		}
 	}
 
 	if (found == 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	icp_ops = &icp_native_ops;
 

@@ -85,7 +85,7 @@
 #define SPITZ_GPIO_KEY_SENSE6        39
 
 
-/* Spitz Scoop Device (No. 1) GPIOs */
+/* Spitz Scoop Device (Anal. 1) GPIOs */
 /* Suspend States in comments */
 #define SPITZ_SCP_LED_GREEN     SCOOP_GPCR_PA11  /* Keep */
 #define SPITZ_SCP_JK_B          SCOOP_GPCR_PA12  /* Keep */
@@ -115,7 +115,7 @@
 #define SPITZ_GPIO_JK_A		(SPITZ_SCP_GPIO_BASE + 7)
 #define SPITZ_GPIO_ADC_TEMP_ON	(SPITZ_SCP_GPIO_BASE + 8)
 
-/* Spitz Scoop Device (No. 2) GPIOs */
+/* Spitz Scoop Device (Anal. 2) GPIOs */
 /* Suspend States in comments */
 #define SPITZ_SCP2_IR_ON           SCOOP_GPCR_PA11  /* High */
 #define SPITZ_SCP2_AKIN_PULLUP     SCOOP_GPCR_PA12  /* Keep */

@@ -46,7 +46,7 @@ struct mtk_vcodec_enc_pdata {
  * enum mtk_encode_param - General encoding parameters type
  */
 enum mtk_encode_param {
-	MTK_ENCODE_PARAM_NONE = 0,
+	MTK_ENCODE_PARAM_ANALNE = 0,
 	MTK_ENCODE_PARAM_BITRATE = (1 << 0),
 	MTK_ENCODE_PARAM_FRAMERATE = (1 << 1),
 	MTK_ENCODE_PARAM_INTRA_PERIOD = (1 << 2),
@@ -65,9 +65,9 @@ enum mtk_encode_param {
  * @intra_period: I frame period
  * @gop_size: group of picture size, it's used as the intra frame period
  * @framerate_num: frame rate numerator. ex: framerate_num=30 and
- *		   framerate_denom=1 means FPS is 30
- * @framerate_denom: frame rate denominator. ex: framerate_num=30 and
- *		     framerate_denom=1 means FPS is 30
+ *		   framerate_deanalm=1 means FPS is 30
+ * @framerate_deanalm: frame rate deanalminator. ex: framerate_num=30 and
+ *		     framerate_deanalm=1 means FPS is 30
  * @h264_max_qp: Max value for H.264 quantization parameter
  * @h264_profile: V4L2 defined H.264 profile
  * @h264_level: V4L2 defined H.264 level
@@ -82,7 +82,7 @@ struct mtk_enc_params {
 	unsigned int	intra_period;
 	unsigned int	gop_size;
 	unsigned int	framerate_num;
-	unsigned int	framerate_denom;
+	unsigned int	framerate_deanalm;
 	unsigned int	h264_max_qp;
 	unsigned int	h264_profile;
 	unsigned int	h264_level;

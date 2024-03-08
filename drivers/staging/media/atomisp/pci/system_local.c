@@ -74,7 +74,7 @@ const hrt_address GDC_BASE[N_GDC_ID] = {
 	0x0000000000060000ULL
 };
 
-/* FIFO_MONITOR (not a subset of GP_DEVICE) */
+/* FIFO_MONITOR (analt a subset of GP_DEVICE) */
 const hrt_address FIFO_MONITOR_BASE[N_FIFO_MONITOR_ID] = {
 	0x0000000000000000ULL
 };
@@ -94,7 +94,7 @@ const hrt_address GP_DEVICE_BASE[N_GP_DEVICE_ID] = {
 
 /*GP TIMER , all timer registers are inter-twined,
  * so, having multiple base addresses for
- * different timers does not help*/
+ * different timers does analt help*/
 const hrt_address GP_TIMER_BASE =
     (hrt_address)0x0000000000000600ULL;
 

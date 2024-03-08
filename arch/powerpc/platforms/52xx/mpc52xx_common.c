@@ -43,8 +43,8 @@ static const struct of_device_id mpc52xx_bus_ids[] __initconst = {
 /*
  * This variable is mapped in mpc52xx_map_wdt() and used in mpc52xx_restart().
  * Permanent mapping is required because mpc52xx_restart() can be called
- * from interrupt context while node mapping (which calls ioremap())
- * cannot be used at such point.
+ * from interrupt context while analde mapping (which calls ioremap())
+ * cananalt be used at such point.
  */
 static DEFINE_SPINLOCK(mpc52xx_lock);
 static struct mpc52xx_gpt __iomem *mpc52xx_wdt;
@@ -56,16 +56,16 @@ static struct mpc52xx_cdm __iomem *mpc52xx_cdm;
 void __init
 mpc5200_setup_xlb_arbiter(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	struct mpc52xx_xlb  __iomem *xlb;
 
-	np = of_find_matching_node(NULL, mpc52xx_xlb_ids);
+	np = of_find_matching_analde(NULL, mpc52xx_xlb_ids);
 	xlb = of_iomap(np, 0);
-	of_node_put(np);
+	of_analde_put(np);
 	if (!xlb) {
 		printk(KERN_ERR __FILE__ ": "
 			"Error mapping XLB in mpc52xx_setup_cpu(). "
-			"Expect some abnormal behavior\n");
+			"Expect some abanalrmal behavior\n");
 		return;
 	}
 
@@ -77,7 +77,7 @@ mpc5200_setup_xlb_arbiter(void)
 	 * Disable XLB pipelining
 	 * (cfr errate 292. We could do this only just before ATA PIO
 	 *  transaction and re-enable it afterwards ...)
-	 * Not needed on MPC5200B.
+	 * Analt needed on MPC5200B.
 	 */
 	if ((mfspr(SPRN_SVR) & MPC5200_SVR_MASK) == MPC5200_SVR)
 		out_be32(&xlb->config, in_be32(&xlb->config) | MPC52xx_XLB_CFG_PLDIS);
@@ -134,35 +134,35 @@ static const struct of_device_id mpc52xx_gpio_wkup[] __initconst = {
 void __init
 mpc52xx_map_common_devices(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 
 	/* mpc52xx_wdt is mapped here and used in mpc52xx_restart,
 	 * possibly from a interrupt context. wdt is only implement
 	 * on a gpt0, so check has-wdt property before mapping.
 	 */
-	for_each_matching_node(np, mpc52xx_gpt_ids) {
+	for_each_matching_analde(np, mpc52xx_gpt_ids) {
 		if (of_property_read_bool(np, "fsl,has-wdt") ||
 		    of_property_read_bool(np, "has-wdt")) {
 			mpc52xx_wdt = of_iomap(np, 0);
-			of_node_put(np);
+			of_analde_put(np);
 			break;
 		}
 	}
 
 	/* Clock Distribution Module, used by PSC clock setting function */
-	np = of_find_matching_node(NULL, mpc52xx_cdm_ids);
+	np = of_find_matching_analde(NULL, mpc52xx_cdm_ids);
 	mpc52xx_cdm = of_iomap(np, 0);
-	of_node_put(np);
+	of_analde_put(np);
 
 	/* simple_gpio registers */
-	np = of_find_matching_node(NULL, mpc52xx_gpio_simple);
+	np = of_find_matching_analde(NULL, mpc52xx_gpio_simple);
 	simple_gpio = of_iomap(np, 0);
-	of_node_put(np);
+	of_analde_put(np);
 
 	/* wkup_gpio registers */
-	np = of_find_matching_node(NULL, mpc52xx_gpio_wkup);
+	np = of_find_matching_analde(NULL, mpc52xx_gpio_wkup);
 	wkup_gpio = of_iomap(np, 0);
-	of_node_put(np);
+	of_analde_put(np);
 }
 
 /**
@@ -180,7 +180,7 @@ int mpc52xx_set_psc_clkdiv(int psc_id, int clkdiv)
 	u32 mclken_div;
 
 	if (!mpc52xx_cdm)
-		return -ENODEV;
+		return -EANALDEV;
 
 	mclken_div = 0x8000 | (clkdiv & 0x1FF);
 	switch (psc_id) {
@@ -189,7 +189,7 @@ int mpc52xx_set_psc_clkdiv(int psc_id, int clkdiv)
 	case 3: reg = &mpc52xx_cdm->mclken_div_psc3; mask = 0x80; break;
 	case 6: reg = &mpc52xx_cdm->mclken_div_psc6; mask = 0x10; break;
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Set the rate and enable the clock */
@@ -206,7 +206,7 @@ EXPORT_SYMBOL(mpc52xx_set_psc_clkdiv);
 /**
  * mpc52xx_restart: ppc_md->restart hook for mpc5200 using the watchdog timer
  */
-void __noreturn mpc52xx_restart(char *cmd)
+void __analreturn mpc52xx_restart(char *cmd)
 {
 	local_irq_disable();
 
@@ -248,7 +248,7 @@ int mpc5200_psc_ac97_gpio_reset(int psc_number)
 	int sync;
 
 	if ((!simple_gpio) || (!wkup_gpio))
-		return -ENODEV;
+		return -EANALDEV;
 
 	switch (psc_number) {
 	case 0:
@@ -264,9 +264,9 @@ int mpc5200_psc_ac97_gpio_reset(int psc_number)
 		gpio    = MPC52xx_GPIO_PSC2_MASK;
 		break;
 	default:
-		pr_err(__FILE__ ": Unable to determine PSC, no ac97 "
+		pr_err(__FILE__ ": Unable to determine PSC, anal ac97 "
 		       "cold-reset will be performed\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	spin_lock_irqsave(&gpio_lock, flags);

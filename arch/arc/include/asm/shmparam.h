@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2013 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2013 Syanalpsys, Inc. (www.syanalpsys.com)
  */
 
 #ifndef __ARC_ASM_SHMPARAM_H

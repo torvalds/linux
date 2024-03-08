@@ -3,7 +3,7 @@
 #define _M68K_IO_H
 
 #if defined(__uClinux__) || defined(CONFIG_COLDFIRE)
-#include <asm/io_no.h>
+#include <asm/io_anal.h>
 #else
 #include <asm/io_mm.h>
 #endif

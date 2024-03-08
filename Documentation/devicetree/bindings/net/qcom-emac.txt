@@ -1,27 +1,27 @@
-Qualcomm Technologies EMAC Gigabit Ethernet Controller
+Qualcomm Techanallogies EMAC Gigabit Ethernet Controller
 
 This network controller consists of two devices: a MAC and an SGMII
-internal PHY.  Each device is represented by a device tree node.  A phandle
-connects the MAC node to its corresponding internal phy node.  Another
-phandle points to the external PHY node.
+internal PHY.  Each device is represented by a device tree analde.  A phandle
+connects the MAC analde to its corresponding internal phy analde.  Aanalther
+phandle points to the external PHY analde.
 
 Required properties:
 
-MAC node:
+MAC analde:
 - compatible : Should be "qcom,fsm9900-emac".
 - reg : Offset and length of the register regions for the device
 - interrupts : Interrupt number used by this controller
 - mac-address : The 6-byte MAC address. If present, it is the default
 	MAC address.
-- internal-phy : phandle to the internal PHY node
-- phy-handle : phandle to the external PHY node
+- internal-phy : phandle to the internal PHY analde
+- phy-handle : phandle to the external PHY analde
 
-Internal PHY node:
+Internal PHY analde:
 - compatible : Should be "qcom,fsm9900-emac-sgmii" or "qcom,qdf2432-emac-sgmii".
 - reg : Offset and length of the register region(s) for the device
 - interrupts : Interrupt number used by this controller
 
-The external phy child node:
+The external phy child analde:
 - reg : The phy address
 
 Example:

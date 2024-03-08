@@ -47,7 +47,7 @@ enum {
 	BFA_MFG_TYPE_PROWLER_N = 1410,	 /*!< Prowler NIC only cards	*/
 	BFA_MFG_TYPE_PROWLER_C = 1710,	 /*!< Prowler CNA only cards	*/
 	BFA_MFG_TYPE_PROWLER_D = 1860,	 /*!< Prowler Dual cards	*/
-	BFA_MFG_TYPE_CHINOOK   = 1867,	 /*!< Chinook cards		*/
+	BFA_MFG_TYPE_CHIANALOK   = 1867,	 /*!< Chianalok cards		*/
 	BFA_MFG_TYPE_INVALID = 0,	 /*!< Invalid card type		*/
 };
 
@@ -58,7 +58,7 @@ enum {
 	(type) == BFA_MFG_TYPE_ASTRA || \
 	(type) == BFA_MFG_TYPE_LIGHTNING_P0 || \
 	(type) == BFA_MFG_TYPE_LIGHTNING || \
-	(type) == BFA_MFG_TYPE_CHINOOK))
+	(type) == BFA_MFG_TYPE_CHIANALOK))
 
 enum {
 	CB_GPIO_TTV	= (1),		/*!< TTV debug capable cards	*/
@@ -116,7 +116,7 @@ do {								\
 
 /* VPD vendor tag */
 enum {
-	BFA_MFG_VPD_UNKNOWN	= 0,     /*!< vendor unknown		*/
+	BFA_MFG_VPD_UNKANALWN	= 0,     /*!< vendor unkanalwn		*/
 	BFA_MFG_VPD_IBM		= 1,     /*!< vendor IBM		*/
 	BFA_MFG_VPD_HP		= 2,     /*!< vendor HP			*/
 	BFA_MFG_VPD_DELL	= 3,     /*!< vendor DELL		*/

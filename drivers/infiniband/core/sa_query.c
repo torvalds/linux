@@ -14,18 +14,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -722,7 +722,7 @@ static void ib_nl_set_path_rec_attrs(struct sk_buff *skb,
 		query->path_use = LS_RESOLVE_PATH_USE_UNIDIRECTIONAL;
 	header->path_use = query->path_use;
 
-	/* Now build the attributes */
+	/* Analw build the attributes */
 	if (comp_mask & IB_SA_PATH_REC_SERVICE_ID) {
 		val64 = be64_to_cpu(sa_rec->service_id);
 		nla_put(skb, RDMA_NLA_F_MANDATORY | LS_NLA_TYPE_SERVICE_ID,
@@ -802,9 +802,9 @@ static int ib_nl_make_request(struct ib_sa_query *query, gfp_t gfp_mask)
 
 	skb = nlmsg_new(len, gfp_mask);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	/* Put nlmsg header only for now */
+	/* Put nlmsg header only for analw */
 	data = ibnl_put_msg(skb, &nlh, query->seq, 0, RDMA_NL_LS,
 			    RDMA_NL_LS_OP_RESOLVE, NLM_F_REQUEST);
 	if (!data) {
@@ -819,7 +819,7 @@ static int ib_nl_make_request(struct ib_sa_query *query, gfp_t gfp_mask)
 	nlmsg_end(skb, nlh);
 
 	gfp_flag = ((gfp_mask & GFP_ATOMIC) == GFP_ATOMIC) ? GFP_ATOMIC :
-		GFP_NOWAIT;
+		GFP_ANALWAIT;
 
 	spin_lock_irqsave(&ib_nl_request_lock, flags);
 	ret = rdma_nl_multicast(&init_net, skb, RDMA_NL_GROUP_LS, gfp_flag);
@@ -1144,7 +1144,7 @@ EXPORT_SYMBOL(ib_sa_unregister_client);
  * @query:query pointer to cancel
  *
  * Try to cancel an SA query.  If the id and query don't match up or
- * the query has already completed, nothing is done.  Otherwise the
+ * the query has already completed, analthing is done.  Otherwise the
  * query is canceled and will complete with a status of -EINTR.
  */
 void ib_sa_cancel_query(int id, struct ib_sa_query *query)
@@ -1296,7 +1296,7 @@ static int alloc_mad(struct ib_sa_query *query, gfp_t gfp_mask)
 					     IB_MGMT_BASE_VERSION));
 	if (IS_ERR(query->mad_buf)) {
 		kref_put(&query->sm_ah->ref, free_sm_ah);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	query->mad_buf->ah = query->sm_ah->ah;
@@ -1371,9 +1371,9 @@ static int send_mad(struct ib_sa_query *query, unsigned long timeout_ms,
 	}
 
 	/*
-	 * It's not safe to dereference query any more, because the
+	 * It's analt safe to dereference query any more, because the
 	 * send may already have completed and freed the query in
-	 * another context.
+	 * aanalther context.
 	 */
 	return ret ? ret : id;
 }
@@ -1412,7 +1412,7 @@ ret:
 }
 
 enum opa_pr_supported {
-	PR_NOT_SUPPORTED,
+	PR_ANALT_SUPPORTED,
 	PR_OPA_SUPPORTED,
 	PR_IB_SUPPORTED
 };
@@ -1420,7 +1420,7 @@ enum opa_pr_supported {
 /*
  * opa_pr_query_possible - Check if current PR query can be an OPA query.
  *
- * Retuns PR_NOT_SUPPORTED if a path record query is not
+ * Retuns PR_ANALT_SUPPORTED if a path record query is analt
  * possible, PR_OPA_SUPPORTED if an OPA path record query
  * is possible and PR_IB_SUPPORTED if an IB path record
  * query is possible.
@@ -1432,13 +1432,13 @@ static int opa_pr_query_possible(struct ib_sa_client *client,
 	struct ib_port_attr port_attr;
 
 	if (ib_query_port(device, port_num, &port_attr))
-		return PR_NOT_SUPPORTED;
+		return PR_ANALT_SUPPORTED;
 
 	if (ib_sa_opa_pathrecord_support(client, sa_dev, port_num))
 		return PR_OPA_SUPPORTED;
 
 	if (port_attr.lid >= be16_to_cpu(IB_MULTICAST_LID_BASE))
-		return PR_NOT_SUPPORTED;
+		return PR_ANALT_SUPPORTED;
 	else
 		return PR_IB_SUPPORTED;
 }
@@ -1533,7 +1533,7 @@ int ib_sa_path_rec_get(struct ib_sa_client *client,
 	int ret;
 
 	if (!sa_dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if ((rec->rec_type != SA_PATH_REC_TYPE_IB) &&
 	    (rec->rec_type != SA_PATH_REC_TYPE_OPA))
@@ -1544,12 +1544,12 @@ int ib_sa_path_rec_get(struct ib_sa_client *client,
 
 	query = kzalloc(sizeof(*query), gfp_mask);
 	if (!query)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	query->sa_query.port     = port;
 	if (rec->rec_type == SA_PATH_REC_TYPE_OPA) {
 		status = opa_pr_query_possible(client, sa_dev, device, port_num);
-		if (status == PR_NOT_SUPPORTED) {
+		if (status == PR_ANALT_SUPPORTED) {
 			ret = -EINVAL;
 			goto err1;
 		} else if (status == PR_OPA_SUPPORTED) {
@@ -1558,7 +1558,7 @@ int ib_sa_path_rec_get(struct ib_sa_client *client,
 			query->conv_pr =
 				kmalloc(sizeof(*query->conv_pr), gfp_mask);
 			if (!query->conv_pr) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto err1;
 			}
 		}
@@ -1659,14 +1659,14 @@ int ib_sa_mcmember_rec_query(struct ib_sa_client *client,
 	int ret;
 
 	if (!sa_dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	port  = &sa_dev->port[port_num - sa_dev->start_port];
 	agent = port->agent;
 
 	query = kzalloc(sizeof(*query), gfp_mask);
 	if (!query)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	query->sa_query.port     = port;
 	ret = alloc_mad(&query->sa_query, gfp_mask);
@@ -1749,7 +1749,7 @@ int ib_sa_guid_info_rec_query(struct ib_sa_client *client,
 	int ret;
 
 	if (!sa_dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (method != IB_MGMT_METHOD_GET &&
 	    method != IB_MGMT_METHOD_SET &&
@@ -1762,7 +1762,7 @@ int ib_sa_guid_info_rec_query(struct ib_sa_client *client,
 
 	query = kzalloc(sizeof(*query), gfp_mask);
 	if (!query)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	query->sa_query.port = port;
 	ret = alloc_mad(&query->sa_query, gfp_mask);
@@ -1891,7 +1891,7 @@ static int ib_sa_classport_info_rec_query(struct ib_sa_port *port,
 
 	query = kzalloc(sizeof(*query), gfp_mask);
 	if (!query)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	query->sa_query.port = port;
 	query->sa_query.flags |= rdma_cap_opa_ah(port->agent->device,
@@ -1937,7 +1937,7 @@ static void update_ib_cpi(struct work_struct *work)
 	unsigned long flags;
 	int ret;
 
-	/* If the classport info is valid, nothing
+	/* If the classport info is valid, analthing
 	 * to do here.
 	 */
 	spin_lock_irqsave(&port->classport_lock, flags);
@@ -1949,7 +1949,7 @@ static void update_ib_cpi(struct work_struct *work)
 
 	cb_context = kmalloc(sizeof(*cb_context), GFP_KERNEL);
 	if (!cb_context)
-		goto err_nomem;
+		goto err_analmem;
 
 	init_completion(&cb_context->done);
 
@@ -1963,7 +1963,7 @@ free_cb_err:
 	kfree(cb_context);
 	spin_lock_irqsave(&port->classport_lock, flags);
 
-	/* If the classport info is still not valid, the query should have
+	/* If the classport info is still analt valid, the query should have
 	 * failed for some reason. Retry issuing the query
 	 */
 	if (!port->classport_info.valid) {
@@ -1978,7 +1978,7 @@ free_cb_err:
 	}
 	spin_unlock_irqrestore(&port->classport_lock, flags);
 
-err_nomem:
+err_analmem:
 	return;
 }
 
@@ -1991,7 +1991,7 @@ static void send_handler(struct ib_mad_agent *agent,
 	if (query->callback)
 		switch (mad_send_wc->status) {
 		case IB_WC_SUCCESS:
-			/* No callback -- already got recv */
+			/* Anal callback -- already got recv */
 			break;
 		case IB_WC_RESP_TIMEOUT_ERR:
 			query->callback(query, -ETIMEDOUT, NULL);
@@ -2089,7 +2089,7 @@ static void update_sm_ah(struct work_struct *work)
 		rdma_ah_set_subnet_prefix(&ah_attr,
 					  cpu_to_be64(port_attr.subnet_prefix));
 		rdma_ah_set_interface_id(&ah_attr,
-					 cpu_to_be64(IB_SA_WELL_KNOWN_GUID));
+					 cpu_to_be64(IB_SA_WELL_KANALWN_GUID));
 	}
 
 	new_ah->ah = rdma_create_ah(port->agent->qp->pd, &ah_attr,
@@ -2163,7 +2163,7 @@ static int ib_sa_add_one(struct ib_device *device)
 				     size_add(size_sub(e, s), 1)),
 			 GFP_KERNEL);
 	if (!sa_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sa_dev->start_port = s;
 	sa_dev->end_port   = e;
@@ -2196,7 +2196,7 @@ static int ib_sa_add_one(struct ib_device *device)
 	}
 
 	if (!count) {
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		goto free;
 	}
 
@@ -2272,7 +2272,7 @@ int ib_sa_init(void)
 
 	ib_nl_wq = alloc_ordered_workqueue("ib_nl_sa_wq", WQ_MEM_RECLAIM);
 	if (!ib_nl_wq) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err3;
 	}
 

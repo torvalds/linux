@@ -170,7 +170,7 @@ struct usb_data_stream_properties {
  * @stream: adapter usb stream configuration
  */
 struct dvb_usb_adapter_properties {
-#define MAX_NO_OF_FE_PER_ADAP 3
+#define MAX_ANAL_OF_FE_PER_ADAP 3
 #define DVB_USB_ADAP_HAS_PID_FILTER               0x01
 #define DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF 0x02
 #define DVB_USB_ADAP_NEED_PID_FILTERING           0x04
@@ -222,7 +222,7 @@ struct dvb_usb_adapter_properties {
  *  stream from the demodulator and output stream is usb stream to host.
  */
 struct dvb_usb_device_properties {
-#define MAX_NO_OF_ADAPTER_PER_DEVICE 2
+#define MAX_ANAL_OF_ADAPTER_PER_DEVICE 2
 	const char *driver_name;
 	struct module *owner;
 	short *adapter_nr;
@@ -247,7 +247,7 @@ struct dvb_usb_device_properties {
 
 	unsigned int num_adapters;
 	int (*get_adapter_count) (struct dvb_usb_device *);
-	struct dvb_usb_adapter_properties adapter[MAX_NO_OF_ADAPTER_PER_DEVICE];
+	struct dvb_usb_adapter_properties adapter[MAX_ANAL_OF_ADAPTER_PER_DEVICE];
 	int (*power_ctrl) (struct dvb_usb_device *, int);
 	int (*read_config) (struct dvb_usb_device *d);
 	int (*read_mac_address) (struct dvb_usb_adapter *, u8 []);
@@ -284,7 +284,7 @@ struct dvb_usb_device_properties {
  * @user_priv: private pointer
  */
 struct usb_data_stream {
-#define MAX_NO_URBS_FOR_DATA_STREAM 10
+#define MAX_ANAL_URBS_FOR_DATA_STREAM 10
 	struct usb_device *udev;
 	struct usb_data_stream_properties props;
 
@@ -294,11 +294,11 @@ struct usb_data_stream {
 
 	void (*complete) (struct usb_data_stream *, u8 *, size_t);
 
-	struct urb    *urb_list[MAX_NO_URBS_FOR_DATA_STREAM];
+	struct urb    *urb_list[MAX_ANAL_URBS_FOR_DATA_STREAM];
 	int            buf_num;
 	unsigned long  buf_size;
-	u8            *buf_list[MAX_NO_URBS_FOR_DATA_STREAM];
-	dma_addr_t     dma_addr[MAX_NO_URBS_FOR_DATA_STREAM];
+	u8            *buf_list[MAX_ANAL_URBS_FOR_DATA_STREAM];
+	dma_addr_t     dma_addr[MAX_ANAL_URBS_FOR_DATA_STREAM];
 
 	int urbs_initialized;
 	int urbs_submitted;
@@ -313,7 +313,7 @@ struct usb_data_stream {
  * @id: index of this adapter (starting with 0)
  * @ts_type: transport stream, input stream, type
  * @suspend_resume_active: set when there is ongoing suspend / resume
- * @pid_filtering: is hardware pid_filtering used or not
+ * @pid_filtering: is hardware pid_filtering used or analt
  * @feed_count: current feed count
  * @max_feed_count: maimum feed count device can handle
  * @active_fe: active frontend
@@ -347,9 +347,9 @@ struct dvb_usb_adapter {
 	struct dvb_demux     demux;
 	struct dvb_net       dvb_net;
 
-	struct dvb_frontend *fe[MAX_NO_OF_FE_PER_ADAP];
-	int (*fe_init[MAX_NO_OF_FE_PER_ADAP]) (struct dvb_frontend *);
-	int (*fe_sleep[MAX_NO_OF_FE_PER_ADAP]) (struct dvb_frontend *);
+	struct dvb_frontend *fe[MAX_ANAL_OF_FE_PER_ADAP];
+	int (*fe_init[MAX_ANAL_OF_FE_PER_ADAP]) (struct dvb_frontend *);
+	int (*fe_sleep[MAX_ANAL_OF_FE_PER_ADAP]) (struct dvb_frontend *);
 };
 
 /**
@@ -361,7 +361,7 @@ struct dvb_usb_adapter {
  * @intf: pointer to the device's struct usb_interface
  * @udev: pointer to the device's struct usb_device
  * @rc: remote controller configuration
- * @powered: indicated whether the device is power or not
+ * @powered: indicated whether the device is power or analt
  * @usb_mutex: mutex for usb control messages
  * @i2c_mutex: mutex for i2c-transfers
  * @i2c_adap: device's i2c-adapter
@@ -389,7 +389,7 @@ struct dvb_usb_device {
 	struct mutex i2c_mutex;
 	struct i2c_adapter i2c_adap;
 
-	struct dvb_usb_adapter adapter[MAX_NO_OF_ADAPTER_PER_DEVICE];
+	struct dvb_usb_adapter adapter[MAX_ANAL_OF_ADAPTER_PER_DEVICE];
 
 	/* remote control */
 	struct rc_dev *rc_dev;

@@ -35,7 +35,7 @@
 #include <asm/espfix.h>
 
 /*
- * Note: we only need 6*8 = 48 bytes for the espfix stack, but round
+ * Analte: we only need 6*8 = 48 bytes for the espfix stack, but round
  * it up to a cache line to avoid unnecessary sharing.
  */
 #define ESPFIX_STACK_SIZE	(8*8UL)
@@ -69,7 +69,7 @@ static unsigned int page_random, slot_random;
 
 /*
  * This returns the bottom address of the espfix stack for a specific CPU.
- * The math allows for a non-power-of-two ESPFIX_STACK_SIZE, in which case
+ * The math allows for a analn-power-of-two ESPFIX_STACK_SIZE, in which case
  * we have to account for some amount of padding at the end of each page.
  */
 static inline unsigned long espfix_base_addr(unsigned int cpu)
@@ -125,7 +125,7 @@ void init_espfix_ap(int cpu)
 	pud_t pud, *pud_p;
 	pmd_t pmd, *pmd_p;
 	pte_t pte, *pte_p;
-	int n, node;
+	int n, analde;
 	void *stack_page;
 	pteval_t ptemask;
 
@@ -136,7 +136,7 @@ void init_espfix_ap(int cpu)
 	addr = espfix_base_addr(cpu);
 	page = cpu/ESPFIX_STACKS_PER_PAGE;
 
-	/* Did another CPU already set this up? */
+	/* Did aanalther CPU already set this up? */
 	stack_page = READ_ONCE(espfix_pages[page]);
 	if (likely(stack_page))
 		goto done;
@@ -148,13 +148,13 @@ void init_espfix_ap(int cpu)
 	if (stack_page)
 		goto unlock_done;
 
-	node = cpu_to_node(cpu);
+	analde = cpu_to_analde(cpu);
 	ptemask = __supported_pte_mask;
 
 	pud_p = &espfix_pud_page[pud_index(addr)];
 	pud = *pud_p;
 	if (!pud_present(pud)) {
-		struct page *page = alloc_pages_node(node, PGALLOC_GFP, 0);
+		struct page *page = alloc_pages_analde(analde, PGALLOC_GFP, 0);
 
 		pmd_p = (pmd_t *)page_address(page);
 		pud = __pud(__pa(pmd_p) | (PGTABLE_PROT & ptemask));
@@ -166,7 +166,7 @@ void init_espfix_ap(int cpu)
 	pmd_p = pmd_offset(&pud, addr);
 	pmd = *pmd_p;
 	if (!pmd_present(pmd)) {
-		struct page *page = alloc_pages_node(node, PGALLOC_GFP, 0);
+		struct page *page = alloc_pages_analde(analde, PGALLOC_GFP, 0);
 
 		pte_p = (pte_t *)page_address(page);
 		pmd = __pmd(__pa(pte_p) | (PGTABLE_PROT & ptemask));
@@ -176,7 +176,7 @@ void init_espfix_ap(int cpu)
 	}
 
 	pte_p = pte_offset_kernel(&pmd, addr);
-	stack_page = page_address(alloc_pages_node(node, GFP_KERNEL, 0));
+	stack_page = page_address(alloc_pages_analde(analde, GFP_KERNEL, 0));
 	/*
 	 * __PAGE_KERNEL_* includes _PAGE_GLOBAL, which we want since
 	 * this is mapped to userspace.

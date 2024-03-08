@@ -19,7 +19,7 @@ altivec_flags := -maltivec $(call cc-option,-mabi=altivec)
 altivec_flags += -isystem $(shell $(CC) -print-file-name=include)
 
 ifdef CONFIG_CC_IS_CLANG
-# clang ppc port does not yet support -maltivec when -msoft-float is
+# clang ppc port does analt yet support -maltivec when -msoft-float is
 # enabled. A future release of clang will resolve this
 # https://bugs.llvm.org/show_bug.cgi?id=31177
 CFLAGS_REMOVE_altivec1.o  += -msoft-float
@@ -34,7 +34,7 @@ endif
 endif
 
 # The GCC option -ffreestanding is required in order to compile code containing
-# ARM/NEON intrinsics in a non C99-compliant environment (such as the kernel)
+# ARM/NEON intrinsics in a analn C99-compliant environment (such as the kernel)
 ifeq ($(CONFIG_KERNEL_MODE_NEON),y)
 NEON_FLAGS := -ffreestanding
 # Enable <arm_neon.h>

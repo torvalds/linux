@@ -34,7 +34,7 @@ static int mac_hid_create_emumouse(void)
 
 	mac_hid_emumouse_dev = input_allocate_device();
 	if (!mac_hid_emumouse_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	lockdep_set_class(&mac_hid_emumouse_dev->event_lock,
 			  &mac_hid_emumouse_dev_event_class);
@@ -99,11 +99,11 @@ static int mac_hid_emumouse_connect(struct input_handler *handler,
 
 	/* Don't bind to ourselves */
 	if (dev == mac_hid_emumouse_dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	handle = kzalloc(sizeof(struct input_handle), GFP_KERNEL);
 	if (!handle)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	handle->dev = dev;
 	handle->handler = handler;
@@ -244,7 +244,7 @@ static int __init mac_hid_init(void)
 {
 	mac_hid_sysctl_header = register_sysctl("dev/mac_hid", mac_hid_files);
 	if (!mac_hid_sysctl_header)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }

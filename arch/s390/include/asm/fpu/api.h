@@ -18,10 +18,10 @@
  *	  specify KERNEL_VXR_HIGH.
  *
  *     If you adhere to these guidelines, an interrupted process context
- *     does not require to save and restore vector registers because of
+ *     does analt require to save and restore vector registers because of
  *     disjoint register ranges.
  *
- *     Also note that the __kernel_fpu_begin()/__kernel_fpu_end() functions
+ *     Also analte that the __kernel_fpu_begin()/__kernel_fpu_end() functions
  *     includes logic to save and restore up to 16 vector registers at once.
  *
  *  3. You can nest kernel_fpu_begin()/kernel_fpu_end() by using different
@@ -65,7 +65,7 @@ static inline void sfpc_safe(u32 fpc)
 {
 	asm volatile("\n"
 		"0:	sfpc	%[fpc]\n"
-		"1:	nopr	%%r7\n"
+		"1:	analpr	%%r7\n"
 		".pushsection .fixup, \"ax\"\n"
 		"2:	lghi	%[fpc],0\n"
 		"	jg	0b\n"
@@ -91,8 +91,8 @@ static inline void sfpc_safe(u32 fpc)
 struct kernel_fpu;
 
 /*
- * Note the functions below must be called with preemption disabled.
- * Do not enable preemption before calling __kernel_fpu_end() to prevent
+ * Analte the functions below must be called with preemption disabled.
+ * Do analt enable preemption before calling __kernel_fpu_end() to prevent
  * an corruption of an existing kernel FPU state.
  *
  * Prefer using the kernel_fpu_begin()/kernel_fpu_end() pair of functions.

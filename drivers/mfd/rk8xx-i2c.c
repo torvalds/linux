@@ -24,7 +24,7 @@ struct rk8xx_i2c_platform_data {
 static bool rk808_is_volatile_reg(struct device *dev, unsigned int reg)
 {
 	/*
-	 * Notes:
+	 * Analtes:
 	 * - Technically the ROUND_30s bit makes RTC_CTRL_REG volatile, but
 	 *   we don't use that feature.  It's better to cache.
 	 * - It's unlikely we care that RK808_DEVCTRL_REG is volatile since
@@ -52,7 +52,7 @@ static bool rk808_is_volatile_reg(struct device *dev, unsigned int reg)
 static bool rk817_is_volatile_reg(struct device *dev, unsigned int reg)
 {
 	/*
-	 * Notes:
+	 * Analtes:
 	 * - Technically the ROUND_30s bit makes RTC_CTRL_REG volatile, but
 	 *   we don't use that feature.  It's better to cache.
 	 */
@@ -104,7 +104,7 @@ static const struct regmap_config rk817_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.max_register = RK817_GPIO_INT_CFG,
-	.cache_type = REGCACHE_NONE,
+	.cache_type = REGCACHE_ANALNE,
 	.volatile_reg = rk817_is_volatile_reg,
 };
 
@@ -140,7 +140,7 @@ static int rk8xx_i2c_probe(struct i2c_client *client)
 
 	data = device_get_match_data(&client->dev);
 	if (!data)
-		return -ENODEV;
+		return -EANALDEV;
 
 	regmap = devm_regmap_init_i2c(client, data->regmap_cfg);
 	if (IS_ERR(regmap))

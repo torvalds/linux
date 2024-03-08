@@ -8,7 +8,7 @@
 /**
  * This file contains common DT entry for all fab version of Cardhu.
  * There is multiple fab version of Cardhu starting from A01 to A07.
- * Cardhu fab version A01 and A03 are not supported. Cardhu fab version
+ * Cardhu fab version A01 and A03 are analt supported. Cardhu fab version
  * A02 will have different sets of GPIOs for fixed regulator compare to
  * Cardhu fab version A04. The Cardhu fab version A05, A06, A07 are
  * compatible with fab version A04. Based on Cardhu fab version, the
@@ -90,7 +90,7 @@
 			sdmmc1_clk_pz0 {
 				nvidia,pins = "sdmmc1_clk_pz0";
 				nvidia,function = "sdmmc1";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,pull = <TEGRA_PIN_PULL_ANALNE>;
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 			};
 			sdmmc1_cmd_pz1 {
@@ -106,7 +106,7 @@
 			sdmmc3_clk_pa6 {
 				nvidia,pins = "sdmmc3_clk_pa6";
 				nvidia,function = "sdmmc3";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,pull = <TEGRA_PIN_PULL_ANALNE>;
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 			};
 			sdmmc3_cmd_pa7 {
@@ -123,7 +123,7 @@
 				nvidia,pins =	"sdmmc4_clk_pcc4",
 						"sdmmc4_rst_n_pcc3";
 				nvidia,function = "sdmmc4";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,pull = <TEGRA_PIN_PULL_ANALNE>;
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 			};
 			sdmmc4_dat0_paa0 {
@@ -145,7 +145,7 @@
 						"dap2_din_pa4",
 						"dap2_dout_pa5";
 				nvidia,function = "i2s1";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,pull = <TEGRA_PIN_PULL_ANALNE>;
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 			};
 			sdio3 {
@@ -163,7 +163,7 @@
 						"uart3_rts_n_pc0",
 						"uart3_rxd_pw7";
 				nvidia,function = "uartc";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,pull = <TEGRA_PIN_PULL_ANALNE>;
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 			};
 		};
@@ -309,7 +309,7 @@
 					regulator-max-microvolt = <1050000>;
 				};
 
-				/* LDO3 is not connected to anything */
+				/* LDO3 is analt connected to anything */
 
 				ldo4_reg: ldo4 {
 					regulator-name = "vdd_rtc";
@@ -380,7 +380,7 @@
 		spi-max-frequency = <25000000>;
 
 		flash@1 {
-			compatible = "winbond,w25q32", "jedec,spi-nor";
+			compatible = "winbond,w25q32", "jedec,spi-analr";
 			reg = <1>;
 			spi-max-frequency = <20000000>;
 		};
@@ -416,7 +416,7 @@
 	mmc@78000600 {
 		status = "okay";
 		bus-width = <8>;
-		non-removable;
+		analn-removable;
 	};
 
 	usb@7d008000 {
@@ -703,10 +703,10 @@
 			cooling-maps {
 				map0 {
 					trip = <&trip0>;
-					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&cpu1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&cpu2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&cpu3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&cpu0 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&cpu1 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&cpu2 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&cpu3 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 			};
 		};

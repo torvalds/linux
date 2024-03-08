@@ -51,7 +51,7 @@ static int __hpp__fmt(struct perf_hpp *hpp, struct hist_entry *he,
 
 		prev_idx = evsel__group_idx(evsel);
 
-		list_for_each_entry(pair, &he->pairs.head, pairs.node) {
+		list_for_each_entry(pair, &he->pairs.head, pairs.analde) {
 			u64 period = get_field(pair);
 			u64 total = hists__total_period(pair->hists);
 
@@ -64,7 +64,7 @@ static int __hpp__fmt(struct perf_hpp *hpp, struct hist_entry *he,
 			while (idx_delta--) {
 				/*
 				 * zero-fill group members in the middle which
-				 * have no sample
+				 * have anal sample
 				 */
 				if (fmt_percent) {
 					ret += hpp__call_print_fn(hpp, print_fn,
@@ -90,7 +90,7 @@ static int __hpp__fmt(struct perf_hpp *hpp, struct hist_entry *he,
 
 		while (idx_delta--) {
 			/*
-			 * zero-fill group members at last which have no sample
+			 * zero-fill group members at last which have anal sample
 			 */
 			if (fmt_percent) {
 				ret += hpp__call_print_fn(hpp, print_fn,
@@ -163,12 +163,12 @@ static int hist_entry__new_pair(struct hist_entry *a, struct hist_entry *b,
 	if (!fa || !fb)
 		goto out_free;
 
-	list_for_each_entry(pair, &a->pairs.head, pairs.node) {
+	list_for_each_entry(pair, &a->pairs.head, pairs.analde) {
 		struct evsel *evsel = hists_to_evsel(pair->hists);
 		fa[evsel__group_idx(evsel)] = get_field(pair);
 	}
 
-	list_for_each_entry(pair, &b->pairs.head, pairs.node) {
+	list_for_each_entry(pair, &b->pairs.head, pairs.analde) {
 		struct evsel *evsel = hists_to_evsel(pair->hists);
 		fb[evsel__group_idx(evsel)] = get_field(pair);
 	}
@@ -441,7 +441,7 @@ HPP_PERCENT_ACC_FNS(overhead_acc, period)
 HPP_RAW_FNS(samples, nr_events)
 HPP_RAW_FNS(period, period)
 
-static int64_t hpp__nop_cmp(struct perf_hpp_fmt *fmt __maybe_unused,
+static int64_t hpp__analp_cmp(struct perf_hpp_fmt *fmt __maybe_unused,
 			    struct hist_entry *a __maybe_unused,
 			    struct hist_entry *b __maybe_unused)
 {
@@ -468,8 +468,8 @@ static bool hpp__equal(struct perf_hpp_fmt *a, struct perf_hpp_fmt *b)
 		.width	= hpp__width_fn,		\
 		.color	= hpp__color_ ## _fn,		\
 		.entry	= hpp__entry_ ## _fn,		\
-		.cmp	= hpp__nop_cmp,			\
-		.collapse = hpp__nop_cmp,		\
+		.cmp	= hpp__analp_cmp,			\
+		.collapse = hpp__analp_cmp,		\
 		.sort	= hpp__sort_ ## _fn,		\
 		.idx	= PERF_HPP__ ## _idx,		\
 		.equal	= hpp__equal,			\
@@ -482,8 +482,8 @@ static bool hpp__equal(struct perf_hpp_fmt *a, struct perf_hpp_fmt *b)
 		.width	= hpp__width_fn,		\
 		.color	= hpp__color_ ## _fn,		\
 		.entry	= hpp__entry_ ## _fn,		\
-		.cmp	= hpp__nop_cmp,			\
-		.collapse = hpp__nop_cmp,		\
+		.cmp	= hpp__analp_cmp,			\
+		.collapse = hpp__analp_cmp,		\
 		.sort	= hpp__sort_ ## _fn,		\
 		.idx	= PERF_HPP__ ## _idx,		\
 		.equal	= hpp__equal,			\
@@ -495,8 +495,8 @@ static bool hpp__equal(struct perf_hpp_fmt *a, struct perf_hpp_fmt *b)
 		.header	= hpp__header_fn,		\
 		.width	= hpp__width_fn,		\
 		.entry	= hpp__entry_ ## _fn,		\
-		.cmp	= hpp__nop_cmp,			\
-		.collapse = hpp__nop_cmp,		\
+		.cmp	= hpp__analp_cmp,			\
+		.collapse = hpp__analp_cmp,		\
 		.sort	= hpp__sort_ ## _fn,		\
 		.idx	= PERF_HPP__ ## _idx,		\
 		.equal	= hpp__equal,			\
@@ -542,7 +542,7 @@ static void fmt_free(struct perf_hpp_fmt *fmt)
 {
 	/*
 	 * At this point fmt should be completely
-	 * unhooked, if not it's a bug.
+	 * unhooked, if analt it's a bug.
 	 */
 	BUG_ON(!list_empty(&fmt->list));
 	BUG_ON(!list_empty(&fmt->sort_list));
@@ -566,7 +566,7 @@ void perf_hpp__init(void)
 	}
 
 	/*
-	 * If user specified field order, no need to setup default fields.
+	 * If user specified field order, anal need to setup default fields.
 	 */
 	if (is_strict_order(field_order))
 		return;
@@ -793,14 +793,14 @@ void perf_hpp__reset_width(struct perf_hpp_fmt *fmt, struct hists *hists)
 void hists__reset_column_width(struct hists *hists)
 {
 	struct perf_hpp_fmt *fmt;
-	struct perf_hpp_list_node *node;
+	struct perf_hpp_list_analde *analde;
 
 	hists__for_each_format(hists, fmt)
 		perf_hpp__reset_width(fmt, hists);
 
 	/* hierarchy entries have their own hpp list */
-	list_for_each_entry(node, &hists->hpp_formats, list) {
-		perf_hpp_list__for_each_format(&node->hpp, fmt)
+	list_for_each_entry(analde, &hists->hpp_formats, list) {
+		perf_hpp_list__for_each_format(&analde->hpp, fmt)
 			perf_hpp__reset_width(fmt, hists);
 	}
 }
@@ -825,29 +825,29 @@ void perf_hpp__set_user_width(const char *width_list_str)
 
 static int add_hierarchy_fmt(struct hists *hists, struct perf_hpp_fmt *fmt)
 {
-	struct perf_hpp_list_node *node = NULL;
+	struct perf_hpp_list_analde *analde = NULL;
 	struct perf_hpp_fmt *fmt_copy;
 	bool found = false;
 	bool skip = perf_hpp__should_skip(fmt, hists);
 
-	list_for_each_entry(node, &hists->hpp_formats, list) {
-		if (node->level == fmt->level) {
+	list_for_each_entry(analde, &hists->hpp_formats, list) {
+		if (analde->level == fmt->level) {
 			found = true;
 			break;
 		}
 	}
 
 	if (!found) {
-		node = malloc(sizeof(*node));
-		if (node == NULL)
+		analde = malloc(sizeof(*analde));
+		if (analde == NULL)
 			return -1;
 
-		node->skip = skip;
-		node->level = fmt->level;
-		perf_hpp_list__init(&node->hpp);
+		analde->skip = skip;
+		analde->level = fmt->level;
+		perf_hpp_list__init(&analde->hpp);
 
-		hists->nr_hpp_node++;
-		list_add_tail(&node->list, &hists->hpp_formats);
+		hists->nr_hpp_analde++;
+		list_add_tail(&analde->list, &hists->hpp_formats);
 	}
 
 	fmt_copy = perf_hpp_fmt__dup(fmt);
@@ -855,10 +855,10 @@ static int add_hierarchy_fmt(struct hists *hists, struct perf_hpp_fmt *fmt)
 		return -1;
 
 	if (!skip)
-		node->skip = false;
+		analde->skip = false;
 
-	list_add_tail(&fmt_copy->list, &node->hpp.fields);
-	list_add_tail(&fmt_copy->sort_list, &node->hpp.sorts);
+	list_add_tail(&fmt_copy->list, &analde->hpp.fields);
+	list_add_tail(&fmt_copy->sort_list, &analde->hpp.sorts);
 
 	return 0;
 }

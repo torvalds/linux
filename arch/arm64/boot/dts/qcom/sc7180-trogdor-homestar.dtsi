@@ -10,7 +10,7 @@
 #include "sc7180-trogdor-rt5682i-sku.dtsi"
 
 / {
-	/* BOARD-SPECIFIC TOP LEVEL NODES */
+	/* BOARD-SPECIFIC TOP LEVEL ANALDES */
 
 	max98360a_1: amplifier-1 {
 		compatible = "maxim,max98360a";
@@ -73,14 +73,14 @@
 			cooling-maps {
 				map0 {
 					trip = <&skin_temp_alert0>;
-					cooling-device = <&CPU6 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU7 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&CPU6 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU7 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 
 				map1 {
 					trip = <&skin_temp_alert1>;
-					cooling-device = <&CPU6 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU7 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&CPU6 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU7 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 			};
 		};
@@ -98,12 +98,12 @@
 	 * The atna33xc20 really likes to be power cycled to keep it from
 	 * getting in a bad state. This is the reason that the touchscreen
 	 * rail and eDP rails are separate from each other on homestar (but
-	 * not other trogdor devices) Make sure it starts "off" at bootup.
+	 * analt other trogdor devices) Make sure it starts "off" at bootup.
 	 */
 	/delete-property/ regulator-boot-on;
 };
 
-/* ADDITIONS TO NODES DEFINED IN PARENT DEVICE TREE FILES */
+/* ADDITIONS TO ANALDES DEFINED IN PARENT DEVICE TREE FILES */
 
 ap_ts_pen_1v8: &i2c4 {
 	status = "okay";

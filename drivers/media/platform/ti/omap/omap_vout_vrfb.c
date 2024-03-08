@@ -22,7 +22,7 @@
 #include "omap_voutlib.h"
 #include "omap_vout_vrfb.h"
 
-#define OMAP_DMA_NO_DEVICE	0
+#define OMAP_DMA_ANAL_DEVICE	0
 
 /*
  * Function for allocating video buffers
@@ -51,7 +51,7 @@ static int omap_vout_allocate_vrfb_buffers(struct omap_vout_device *vout,
 				vout->smsshado_phy_addr[j] = 0;
 			}
 			*count = 0;
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		memset((void *)(long)vout->smsshado_virt_addr[i], 0,
 		       vout->smsshado_size);
@@ -108,7 +108,7 @@ int omap_vout_setup_vrfb_bufs(struct platform_device *pdev, int vid_num,
 			dev_info(&pdev->dev, ": VRFB allocation failed\n");
 			for (j = 0; j < i; j++)
 				omap_vrfb_release_ctx(&vout->vrfb_context[j]);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 
@@ -134,7 +134,7 @@ int omap_vout_setup_vrfb_bufs(struct platform_device *pdev, int vid_num,
 	dma_cap_set(DMA_INTERLEAVE, mask);
 	vout->vrfb_dma_tx.chan = dma_request_chan_by_mask(&mask);
 	if (IS_ERR(vout->vrfb_dma_tx.chan)) {
-		vout->vrfb_dma_tx.req_status = DMA_CHAN_NOT_ALLOTED;
+		vout->vrfb_dma_tx.req_status = DMA_CHAN_ANALT_ALLOTED;
 	} else {
 		size_t xt_size = sizeof(struct dma_interleaved_template) +
 				 sizeof(struct data_chunk);
@@ -142,14 +142,14 @@ int omap_vout_setup_vrfb_bufs(struct platform_device *pdev, int vid_num,
 		vout->vrfb_dma_tx.xt = kzalloc(xt_size, GFP_KERNEL);
 		if (!vout->vrfb_dma_tx.xt) {
 			dma_release_channel(vout->vrfb_dma_tx.chan);
-			vout->vrfb_dma_tx.req_status = DMA_CHAN_NOT_ALLOTED;
+			vout->vrfb_dma_tx.req_status = DMA_CHAN_ANALT_ALLOTED;
 		}
 	}
 
-	if (vout->vrfb_dma_tx.req_status == DMA_CHAN_NOT_ALLOTED)
+	if (vout->vrfb_dma_tx.req_status == DMA_CHAN_ANALT_ALLOTED)
 		dev_info(&pdev->dev,
 			 ": failed to allocate DMA Channel for video%d\n",
-			 vfd->minor);
+			 vfd->mianalr);
 
 	init_waitqueue_head(&vout->vrfb_dma_tx.wait);
 
@@ -159,7 +159,7 @@ int omap_vout_setup_vrfb_bufs(struct platform_device *pdev, int vid_num,
 	 */
 	if (static_vrfb_allocation) {
 		if (omap_vout_allocate_vrfb_buffers(vout, &vrfb_num_bufs, -1)) {
-			ret =  -ENOMEM;
+			ret =  -EANALMEM;
 			goto release_vrfb_ctx;
 		}
 		vout->vrfb_static_allocation = true;
@@ -183,7 +183,7 @@ void omap_vout_release_vrfb(struct omap_vout_device *vout)
 		omap_vrfb_release_ctx(&vout->vrfb_context[i]);
 
 	if (vout->vrfb_dma_tx.req_status == DMA_CHAN_ALLOTED) {
-		vout->vrfb_dma_tx.req_status = DMA_CHAN_NOT_ALLOTED;
+		vout->vrfb_dma_tx.req_status = DMA_CHAN_ANALT_ALLOTED;
 		kfree(vout->vrfb_dma_tx.xt);
 		dmaengine_terminate_sync(vout->vrfb_dma_tx.chan);
 		dma_release_channel(vout->vrfb_dma_tx.chan);
@@ -206,12 +206,12 @@ int omap_vout_vrfb_buffer_setup(struct omap_vout_device *vout,
 	/* If rotation is enabled, allocate memory for VRFB space also */
 	*count = *count > VRFB_NUM_BUFS ? VRFB_NUM_BUFS : *count;
 
-	/* Allocate the VRFB buffers only if the buffers are not
+	/* Allocate the VRFB buffers only if the buffers are analt
 	 * allocated during init time.
 	 */
 	if (!vout->vrfb_static_allocation)
 		if (omap_vout_allocate_vrfb_buffers(vout, count, startindex))
-			return -ENOMEM;
+			return -EANALMEM;
 
 	if (vout->dss_mode == OMAP_DSS_COLOR_YUV2 ||
 			vout->dss_mode == OMAP_DSS_COLOR_UYVY)

@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
-# Makefile for the Mellanox device drivers.
+# Makefile for the Mellaanalx device drivers.
 #
 
 obj-$(CONFIG_MLX4_CORE) += mlx4/

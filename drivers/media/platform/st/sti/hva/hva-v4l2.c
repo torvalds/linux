@@ -198,7 +198,7 @@ static int hva_open_encoder(struct hva_ctx *ctx, u32 streamformat,
 	enc = (struct hva_enc *)hva_find_encoder(ctx, pixelformat,
 						 streamformat);
 	if (!enc) {
-		dev_err(dev, "%s no encoder found matching %4.4s => %4.4s\n",
+		dev_err(dev, "%s anal encoder found matching %4.4s => %4.4s\n",
 			ctx->name, (char *)&pixelformat, (char *)&streamformat);
 		return -EINVAL;
 	}
@@ -300,7 +300,7 @@ static int hva_g_fmt_stream(struct file *file, void *fh, struct v4l2_format *f)
 
 	f->fmt.pix.width = streaminfo->width;
 	f->fmt.pix.height = streaminfo->height;
-	f->fmt.pix.field = V4L2_FIELD_NONE;
+	f->fmt.pix.field = V4L2_FIELD_ANALNE;
 	f->fmt.pix.colorspace = ctx->colorspace;
 	f->fmt.pix.xfer_func = ctx->xfer_func;
 	f->fmt.pix.ycbcr_enc = ctx->ycbcr_enc;
@@ -319,7 +319,7 @@ static int hva_g_fmt_frame(struct file *file, void *fh, struct v4l2_format *f)
 
 	f->fmt.pix.width = frameinfo->width;
 	f->fmt.pix.height = frameinfo->height;
-	f->fmt.pix.field = V4L2_FIELD_NONE;
+	f->fmt.pix.field = V4L2_FIELD_ANALNE;
 	f->fmt.pix.colorspace = ctx->colorspace;
 	f->fmt.pix.xfer_func = ctx->xfer_func;
 	f->fmt.pix.ycbcr_enc = ctx->ycbcr_enc;
@@ -391,7 +391,7 @@ static int hva_try_fmt_stream(struct file *file, void *priv,
 	pix->xfer_func = ctx->xfer_func;
 	pix->ycbcr_enc = ctx->ycbcr_enc;
 	pix->quantization = ctx->quantization;
-	pix->field = V4L2_FIELD_NONE;
+	pix->field = V4L2_FIELD_ANALNE;
 
 	return 0;
 }
@@ -442,7 +442,7 @@ static int hva_try_fmt_frame(struct file *file, void *priv,
 
 	pix->bytesperline = frame_stride(width, pixelformat);
 	pix->sizeimage = frame_size(width, height, pixelformat);
-	pix->field = V4L2_FIELD_NONE;
+	pix->field = V4L2_FIELD_ANALNE;
 
 	return 0;
 }
@@ -525,8 +525,8 @@ static int hva_g_parm(struct file *file, void *fh, struct v4l2_streamparm *sp)
 
 	sp->parm.output.capability = V4L2_CAP_TIMEPERFRAME;
 	sp->parm.output.timeperframe.numerator = time_per_frame->numerator;
-	sp->parm.output.timeperframe.denominator =
-		time_per_frame->denominator;
+	sp->parm.output.timeperframe.deanalminator =
+		time_per_frame->deanalminator;
 
 	return 0;
 }
@@ -540,13 +540,13 @@ static int hva_s_parm(struct file *file, void *fh, struct v4l2_streamparm *sp)
 		return -EINVAL;
 
 	if (!sp->parm.output.timeperframe.numerator ||
-	    !sp->parm.output.timeperframe.denominator)
+	    !sp->parm.output.timeperframe.deanalminator)
 		return hva_g_parm(file, fh, sp);
 
 	sp->parm.output.capability = V4L2_CAP_TIMEPERFRAME;
 	time_per_frame->numerator = sp->parm.output.timeperframe.numerator;
-	time_per_frame->denominator =
-		sp->parm.output.timeperframe.denominator;
+	time_per_frame->deanalminator =
+		sp->parm.output.timeperframe.deanalminator;
 
 	return 0;
 }
@@ -571,7 +571,7 @@ static int hva_qbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 		vq = v4l2_m2m_get_vq(ctx->fh.m2m_ctx, buf->type);
 		vb2_buf = vb2_get_buffer(vq, buf->index);
 		if (!vb2_buf) {
-			dev_dbg(dev, "%s buffer index %d not found\n", ctx->name, buf->index);
+			dev_dbg(dev, "%s buffer index %d analt found\n", ctx->name, buf->index);
 			return -EINVAL;
 		}
 		stream = to_hva_stream(to_vb2_v4l2_buffer(vb2_buf));
@@ -790,7 +790,7 @@ static int hva_ctrls_setup(struct hva_ctx *ctx)
 
 	/* set default time per frame */
 	ctx->ctrls.time_per_frame.numerator = HVA_DEFAULT_FRAME_NUM;
-	ctx->ctrls.time_per_frame.denominator = HVA_DEFAULT_FRAME_DEN;
+	ctx->ctrls.time_per_frame.deanalminator = HVA_DEFAULT_FRAME_DEN;
 
 	return 0;
 }
@@ -831,7 +831,7 @@ static void hva_run_work(struct work_struct *work)
 	} else {
 		/* propagate frame timestamp */
 		dst_buf->vb2_buf.timestamp = src_buf->vb2_buf.timestamp;
-		dst_buf->field = V4L2_FIELD_NONE;
+		dst_buf->field = V4L2_FIELD_ANALNE;
 		dst_buf->sequence = ctx->stream_num - 1;
 
 		ctx->encoded_frames++;
@@ -873,19 +873,19 @@ static int hva_job_ready(void *priv)
 	struct device *dev = ctx_to_dev(ctx);
 
 	if (!v4l2_m2m_num_src_bufs_ready(ctx->fh.m2m_ctx)) {
-		dev_dbg(dev, "%s job not ready: no frame buffers\n",
+		dev_dbg(dev, "%s job analt ready: anal frame buffers\n",
 			ctx->name);
 		return 0;
 	}
 
 	if (!v4l2_m2m_num_dst_bufs_ready(ctx->fh.m2m_ctx)) {
-		dev_dbg(dev, "%s job not ready: no stream buffers\n",
+		dev_dbg(dev, "%s job analt ready: anal stream buffers\n",
 			ctx->name);
 		return 0;
 	}
 
 	if (ctx->aborting) {
-		dev_dbg(dev, "%s job not ready: aborting\n", ctx->name);
+		dev_dbg(dev, "%s job analt ready: aborting\n", ctx->name);
 		return 0;
 	}
 
@@ -937,10 +937,10 @@ static int hva_buf_prepare(struct vb2_buffer *vb)
 		struct hva_frame *frame = to_hva_frame(vbuf);
 
 		if (vbuf->field == V4L2_FIELD_ANY)
-			vbuf->field = V4L2_FIELD_NONE;
-		if (vbuf->field != V4L2_FIELD_NONE) {
+			vbuf->field = V4L2_FIELD_ANALNE;
+		if (vbuf->field != V4L2_FIELD_ANALNE) {
 			dev_dbg(dev,
-				"%s frame[%d] prepare: %d field not supported\n",
+				"%s frame[%d] prepare: %d field analt supported\n",
 				ctx->name, vb->index, vbuf->field);
 			return -EINVAL;
 		}
@@ -1023,7 +1023,7 @@ static int hva_start_streaming(struct vb2_queue *vq, unsigned int count)
 
 	if (!found) {
 		dev_err(dev, "%s maximum instances reached\n", ctx->name);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
@@ -1166,7 +1166,7 @@ static int hva_open(struct file *file)
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 	ctx->hva_dev = hva;
@@ -1284,7 +1284,7 @@ static int hva_register_device(struct hva_dev *hva)
 	struct device *dev;
 
 	if (!hva)
-		return -ENODEV;
+		return -EANALDEV;
 	dev = hva_to_dev(hva);
 
 	hva->m2m_dev = v4l2_m2m_init(&hva_m2m_ops);
@@ -1299,7 +1299,7 @@ static int hva_register_device(struct hva_dev *hva)
 	if (!vdev) {
 		dev_err(dev, "%s failed to allocate video device\n",
 			HVA_PREFIX);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_m2m_release;
 	}
 
@@ -1351,7 +1351,7 @@ static int hva_probe(struct platform_device *pdev)
 
 	hva = devm_kzalloc(dev, sizeof(*hva), GFP_KERNEL);
 	if (!hva) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
@@ -1392,7 +1392,7 @@ static int hva_probe(struct platform_device *pdev)
 	if (!hva->work_queue) {
 		dev_err(dev, "%s %s failed to allocate work queue\n",
 			HVA_PREFIX, HVA_NAME);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_v4l2;
 	}
 
@@ -1449,7 +1449,7 @@ static const struct of_device_id hva_match_types[] = {
 	{
 	 .compatible = "st,st-hva",
 	},
-	{ /* end node */ }
+	{ /* end analde */ }
 };
 
 MODULE_DEVICE_TABLE(of, hva_match_types);

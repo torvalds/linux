@@ -15,18 +15,18 @@
 /* Macros for tables used for debug output */
 
 #define ACPI_EXD_OFFSET(f)          (u8) ACPI_OFFSET (union acpi_operand_object,f)
-#define ACPI_EXD_NSOFFSET(f)        (u8) ACPI_OFFSET (struct acpi_namespace_node,f)
+#define ACPI_EXD_NSOFFSET(f)        (u8) ACPI_OFFSET (struct acpi_namespace_analde,f)
 #define ACPI_EXD_TABLE_SIZE(name)   (sizeof(name) / sizeof (struct acpi_exdump_info))
 
 /*
  * If possible, pack the following structures to byte alignment, since we
- * don't care about performance for debug output. Two cases where we cannot
+ * don't care about performance for debug output. Two cases where we cananalt
  * pack the structures:
  *
- * 1) Hardware does not support misaligned memory transfers
- * 2) Compiler does not support pointers within packed structures
+ * 1) Hardware does analt support misaligned memory transfers
+ * 2) Compiler does analt support pointers within packed structures
  */
-#if (!defined(ACPI_MISALIGNMENT_NOT_SUPPORTED) && !defined(ACPI_PACKED_POINTERS_NOT_SUPPORTED))
+#if (!defined(ACPI_MISALIGNMENT_ANALT_SUPPORTED) && !defined(ACPI_PACKED_POINTERS_ANALT_SUPPORTED))
 #pragma pack(1)
 #endif
 
@@ -56,7 +56,7 @@ typedef const struct acpi_exdump_info {
 #define ACPI_EXD_LIST                   14	/* Operand object list */
 #define ACPI_EXD_HDLR_LIST              15	/* Address Handler list */
 #define ACPI_EXD_RGN_LIST               16	/* Region list */
-#define ACPI_EXD_NODE                   17	/* Namespace Node */
+#define ACPI_EXD_ANALDE                   17	/* Namespace Analde */
 
 /* restore default alignment */
 
@@ -99,12 +99,12 @@ acpi_ex_do_debug_object(union acpi_operand_object *source_desc,
 			u32 level, u32 index);
 
 void
-acpi_ex_start_trace_method(struct acpi_namespace_node *method_node,
+acpi_ex_start_trace_method(struct acpi_namespace_analde *method_analde,
 			   union acpi_operand_object *obj_desc,
 			   struct acpi_walk_state *walk_state);
 
 void
-acpi_ex_stop_trace_method(struct acpi_namespace_node *method_node,
+acpi_ex_stop_trace_method(struct acpi_namespace_analde *method_analde,
 			  union acpi_operand_object *obj_desc,
 			  struct acpi_walk_state *walk_state);
 
@@ -294,7 +294,7 @@ acpi_ex_write_gpio(union acpi_operand_object *source_desc,
  * exsystem - Interface to OS services
  */
 acpi_status
-acpi_ex_system_do_notify_op(union acpi_operand_object *value,
+acpi_ex_system_do_analtify_op(union acpi_operand_object *value,
 			    union acpi_operand_object *obj_desc);
 
 acpi_status acpi_ex_system_do_sleep(u64 time);
@@ -364,10 +364,10 @@ acpi_ex_resolve_multiple(struct acpi_walk_state *walk_state,
 			 union acpi_operand_object **return_desc);
 
 /*
- * exresnte - resolve namespace node
+ * exresnte - resolve namespace analde
  */
 acpi_status
-acpi_ex_resolve_node_to_value(struct acpi_namespace_node **stack_ptr,
+acpi_ex_resolve_analde_to_value(struct acpi_namespace_analde **stack_ptr,
 			      struct acpi_walk_state *walk_state);
 
 /*
@@ -390,7 +390,7 @@ acpi_ex_dump_operands(union acpi_operand_object **operands,
 void
 acpi_ex_dump_object_descriptor(union acpi_operand_object *object, u32 flags);
 
-void acpi_ex_dump_namespace_node(struct acpi_namespace_node *node, u32 flags);
+void acpi_ex_dump_namespace_analde(struct acpi_namespace_analde *analde, u32 flags);
 
 /*
  * exnames - AML namestring support
@@ -409,8 +409,8 @@ acpi_ex_store(union acpi_operand_object *val_desc,
 	      struct acpi_walk_state *walk_state);
 
 acpi_status
-acpi_ex_store_object_to_node(union acpi_operand_object *source_desc,
-			     struct acpi_namespace_node *node,
+acpi_ex_store_object_to_analde(union acpi_operand_object *source_desc,
+			     struct acpi_namespace_analde *analde,
 			     struct acpi_walk_state *walk_state,
 			     u8 implicit_conversion);
 
@@ -452,7 +452,7 @@ acpi_ex_copy_integer_to_bank_field(union acpi_operand_object *source_desc,
 
 acpi_status
 acpi_ex_copy_data_to_named_field(union acpi_operand_object *source_desc,
-				 struct acpi_namespace_node *node);
+				 struct acpi_namespace_analde *analde);
 
 acpi_status
 acpi_ex_copy_integer_to_buffer_field(union acpi_operand_object *source_desc,

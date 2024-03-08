@@ -2,7 +2,7 @@
 /*
  * kgdb support for ARC
  *
- * Copyright (C) 2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2012 Syanalpsys, Inc. (www.syanalpsys.com)
  */
 
 #include <linux/kgdb.h>
@@ -14,13 +14,13 @@
 static void to_gdb_regs(unsigned long *gdb_regs, struct pt_regs *kernel_regs,
 			struct callee_regs *cregs)
 {
-	int regno;
+	int reganal;
 
-	for (regno = 0; regno <= 26; regno++)
-		gdb_regs[_R0 + regno] = get_reg(regno, kernel_regs, cregs);
+	for (reganal = 0; reganal <= 26; reganal++)
+		gdb_regs[_R0 + reganal] = get_reg(reganal, kernel_regs, cregs);
 
-	for (regno = 27; regno < GDB_MAX_REGS; regno++)
-		gdb_regs[regno] = 0;
+	for (reganal = 27; reganal < GDB_MAX_REGS; reganal++)
+		gdb_regs[reganal] = 0;
 
 	gdb_regs[_FP]		= kernel_regs->fp;
 	gdb_regs[__SP]		= kernel_regs->sp;
@@ -37,10 +37,10 @@ static void to_gdb_regs(unsigned long *gdb_regs, struct pt_regs *kernel_regs,
 static void from_gdb_regs(unsigned long *gdb_regs, struct pt_regs *kernel_regs,
 			struct callee_regs *cregs)
 {
-	int regno;
+	int reganal;
 
-	for (regno = 0; regno <= 26; regno++)
-		set_reg(regno, gdb_regs[regno + _R0], kernel_regs, cregs);
+	for (reganal = 0; reganal <= 26; reganal++)
+		set_reg(reganal, gdb_regs[reganal + _R0], kernel_regs, cregs);
 
 	kernel_regs->fp		= gdb_regs[_FP];
 	kernel_regs->sp		= gdb_regs[__SP];
@@ -125,7 +125,7 @@ static void do_single_step(struct pt_regs *regs)
 	single_step_data.armed++;
 }
 
-int kgdb_arch_handle_exception(int e_vector, int signo, int err_code,
+int kgdb_arch_handle_exception(int e_vector, int siganal, int err_code,
 			       char *remcomInBuffer, char *remcomOutBuffer,
 			       struct pt_regs *regs)
 {
@@ -190,7 +190,7 @@ void kgdb_arch_set_pc(struct pt_regs *regs, unsigned long ip)
 	instruction_pointer(regs) = ip;
 }
 
-void kgdb_call_nmi_hook(void *ignored)
+void kgdb_call_nmi_hook(void *iganalred)
 {
 	/* Default implementation passes get_irq_regs() but we don't */
 	kgdb_nmicallback(raw_smp_processor_id(), NULL);

@@ -54,7 +54,7 @@ static int qcom_pcie2_phy_init(struct phy *phy)
 
 	ret = reset_control_deassert(qphy->phy_reset);
 	if (ret) {
-		dev_err(qphy->dev, "cannot deassert pipe reset\n");
+		dev_err(qphy->dev, "cananalt deassert pipe reset\n");
 		return ret;
 	}
 
@@ -148,7 +148,7 @@ static int qcom_pcie2_phy_power_on(struct phy *phy)
 
 	ret = reset_control_deassert(qphy->pipe_reset);
 	if (ret) {
-		dev_err(qphy->dev, "cannot deassert pipe reset\n");
+		dev_err(qphy->dev, "cananalt deassert pipe reset\n");
 		goto out;
 	}
 
@@ -222,20 +222,20 @@ static const struct phy_ops qcom_pcie2_ops = {
  */
 static int phy_pipe_clksrc_register(struct qcom_phy *qphy)
 {
-	struct device_node *np = qphy->dev->of_node;
+	struct device_analde *np = qphy->dev->of_analde;
 	struct clk_fixed_rate *fixed;
 	struct clk_init_data init = { };
 	int ret;
 
 	ret = of_property_read_string(np, "clock-output-names", &init.name);
 	if (ret) {
-		dev_err(qphy->dev, "%s: No clock-output-names\n", np->name);
+		dev_err(qphy->dev, "%s: Anal clock-output-names\n", np->name);
 		return ret;
 	}
 
 	fixed = devm_kzalloc(qphy->dev, sizeof(*fixed), GFP_KERNEL);
 	if (!fixed)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	init.ops = &clk_fixed_rate_ops;
 
@@ -260,7 +260,7 @@ static int qcom_pcie2_phy_probe(struct platform_device *pdev)
 
 	qphy = devm_kzalloc(dev, sizeof(*qphy), GFP_KERNEL);
 	if (!qphy)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	qphy->dev = dev;
 	qphy->base = devm_platform_ioremap_resource(pdev, 0);
@@ -297,7 +297,7 @@ static int qcom_pcie2_phy_probe(struct platform_device *pdev)
 		return PTR_ERR(qphy->pipe_reset);
 	}
 
-	phy = devm_phy_create(dev, dev->of_node, &qcom_pcie2_ops);
+	phy = devm_phy_create(dev, dev->of_analde, &qcom_pcie2_ops);
 	if (IS_ERR(phy)) {
 		dev_err(dev, "failed to create phy\n");
 		return PTR_ERR(phy);

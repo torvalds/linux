@@ -17,7 +17,7 @@ Mounting configfs
 The PCI Endpoint Core layer creates pci_ep directory in the mounted configfs
 directory. configfs can be mounted using the following command::
 
-	mount -t configfs none /sys/kernel/config
+	mount -t configfs analne /sys/kernel/config
 
 Directory Structure
 ===================
@@ -76,7 +76,7 @@ created)
 			                ... <Symlink EPC Device2>/
 
 If an EPF device has to be associated with 2 EPCs (like in the case of
-Non-transparent bridge), symlink of endpoint controller connected to primary
+Analn-transparent bridge), symlink of endpoint controller connected to primary
 interface should be added in 'primary' directory and symlink of endpoint
 controller connected to secondary interface should be added in 'secondary'
 directory.
@@ -86,7 +86,7 @@ The <EPF Device> directory can have a list of symbolic links
 be created by the user to represent the virtual functions that are bound to
 the physical function. In the above directory structure <EPF Device 11> is a
 physical function and <EPF Device 31> is a virtual function. An EPF device once
-it's linked to another EPF device, cannot be linked to a EPC device.
+it's linked to aanalther EPF device, cananalt be linked to a EPC device.
 
 EPC Device
 ==========

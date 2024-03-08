@@ -17,7 +17,7 @@ description:
   Virtio I2C device, see /schemas/virtio/virtio-device.yaml for more details.
 
 properties:
-  $nodename:
+  $analdename:
     const: i2c
 
   compatible:

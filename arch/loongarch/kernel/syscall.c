@@ -3,11 +3,11 @@
  * Author: Hanlu Li <lihanlu@loongson.cn>
  *         Huacai Chen <chenhuacai@loongson.cn>
  *
- * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2022 Loongson Techanallogy Corporation Limited
  */
 #include <linux/capability.h>
 #include <linux/entry-common.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/linkage.h>
 #include <linux/syscalls.h>
 #include <linux/unistd.h>
@@ -38,7 +38,7 @@ void *sys_call_table[__NR_syscalls] = {
 typedef long (*sys_call_fn)(unsigned long, unsigned long,
 	unsigned long, unsigned long, unsigned long, unsigned long);
 
-void noinstr do_syscall(struct pt_regs *regs)
+void analinstr do_syscall(struct pt_regs *regs)
 {
 	unsigned long nr;
 	sys_call_fn syscall_fn;
@@ -50,7 +50,7 @@ void noinstr do_syscall(struct pt_regs *regs)
 
 	regs->csr_era += 4;
 	regs->orig_a0 = regs->regs[4];
-	regs->regs[4] = -ENOSYS;
+	regs->regs[4] = -EANALSYS;
 
 	nr = syscall_enter_from_user_mode(regs, nr);
 

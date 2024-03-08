@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C) 2010-2017 Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
+ * Copyright (C) 2010-2017 Mathieu Desanalyers <mathieu.desanalyers@efficios.com>
  *
  * membarrier system call
  */
@@ -35,10 +35,10 @@
  *
  *                     BUG_ON(r1 == 0 && r2 == 0)
  *
- * The write to y and load from x by CPU1 are unordered by the hardware,
+ * The write to y and load from x by CPU1 are uanalrdered by the hardware,
  * so it's possible to have "r1 = x" reordered before "y = 1" at any
  * point after (b).  If the memory barrier at (a) is omitted, then "x = 1"
- * can be reordered after (a) (although not after (c)), so we get r1 == 0
+ * can be reordered after (a) (although analt after (c)), so we get r1 == 0
  * and r2 == 0.  This violates the guarantee that membarrier() is
  * supposed by provide.
  *
@@ -70,10 +70,10 @@
  *         r1 = x
  *         BUG_ON(r1 == 0 && r2 == 1)
  *
- * The writes to x and y are unordered by the hardware, so it's possible to
+ * The writes to x and y are uanalrdered by the hardware, so it's possible to
  * have "r2 = 1" even though the write to x doesn't execute until (b).  If
  * the memory barrier at (c) is omitted then "r1 = x" can be reordered
- * before (b) (although not before (a)), so we get "r1 = 0".  This violates
+ * before (b) (although analt before (a)), so we get "r1 = 0".  This violates
  * the guarantee that membarrier() is supposed to provide.
  *
  * The timing of the memory barrier at (c) has to ensure that it executes
@@ -97,7 +97,7 @@
  * D) exit_mm vs membarrier
  *
  * Two thread groups are created, A and B.  Thread group B is created by
- * issuing clone from group A with flag CLONE_VM set, but not CLONE_THREAD.
+ * issuing clone from group A with flag CLONE_VM set, but analt CLONE_THREAD.
  * Let's assume we have a single thread within each thread group (Thread A
  * and Thread B).  Thread A runs on CPU0, Thread B runs on CPU1.
  *
@@ -167,7 +167,7 @@ static DEFINE_MUTEX(membarrier_ipi_mutex);
 
 static void ipi_mb(void *info)
 {
-	smp_mb();	/* IPIs should be serializing but paranoid. */
+	smp_mb();	/* IPIs should be serializing but paraanalid. */
 }
 
 static void ipi_sync_core(void *info)
@@ -182,7 +182,7 @@ static void ipi_sync_core(void *info)
 	 * sync_core_before_usermode() might end up being deferred until
 	 * after membarrier()'s smp_mb().
 	 */
-	smp_mb();	/* IPIs should be serializing but paranoid. */
+	smp_mb();	/* IPIs should be serializing but paraanalid. */
 
 	sync_core_before_usermode();
 }
@@ -211,7 +211,7 @@ static void ipi_sync_rq_state(void *info)
 	/*
 	 * Issue a memory barrier after setting
 	 * MEMBARRIER_STATE_GLOBAL_EXPEDITED in the current runqueue to
-	 * guarantee that no memory access following registration is reordered
+	 * guarantee that anal memory access following registration is reordered
 	 * before registration.
 	 */
 	smp_mb();
@@ -221,7 +221,7 @@ void membarrier_exec_mmap(struct mm_struct *mm)
 {
 	/*
 	 * Issue a memory barrier before clearing membarrier_state to
-	 * guarantee that no memory access prior to exec is reordered after
+	 * guarantee that anal memory access prior to exec is reordered after
 	 * clearing this state.
 	 */
 	smp_mb();
@@ -257,10 +257,10 @@ static int membarrier_global_expedited(void)
 	 * Matches memory barriers around rq->curr modification in
 	 * scheduler.
 	 */
-	smp_mb();	/* system call entry is not a mb. */
+	smp_mb();	/* system call entry is analt a mb. */
 
 	if (!zalloc_cpumask_var(&tmpmask, GFP_KERNEL))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	SERIALIZE_IPI();
 	cpus_read_lock();
@@ -284,7 +284,7 @@ static int membarrier_global_expedited(void)
 			continue;
 
 		/*
-		 * Skip the CPU if it runs a kernel thread which is not using
+		 * Skip the CPU if it runs a kernel thread which is analt using
 		 * a task mm.
 		 */
 		p = rcu_dereference(cpu_rq(cpu)->curr);
@@ -307,7 +307,7 @@ static int membarrier_global_expedited(void)
 	 * waiting for the last IPI. Matches memory barriers around
 	 * rq->curr modification in scheduler.
 	 */
-	smp_mb();	/* exit from system call is not a mb */
+	smp_mb();	/* exit from system call is analt a mb */
 	return 0;
 }
 
@@ -346,10 +346,10 @@ static int membarrier_private_expedited(int flags, int cpu_id)
 	 * Matches memory barriers around rq->curr modification in
 	 * scheduler.
 	 */
-	smp_mb();	/* system call entry is not a mb. */
+	smp_mb();	/* system call entry is analt a mb. */
 
 	if (cpu_id < 0 && !zalloc_cpumask_var(&tmpmask, GFP_KERNEL))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	SERIALIZE_IPI();
 	cpus_read_lock();
@@ -401,7 +401,7 @@ static int membarrier_private_expedited(int flags, int cpu_id)
 		 * running without a core sync.
 		 *
 		 * For RSEQ, don't rseq_preempt() the caller.  User code
-		 * is not supposed to issue syscalls at all from inside an
+		 * is analt supposed to issue syscalls at all from inside an
 		 * rseq critical section.
 		 */
 		if (flags != MEMBARRIER_FLAG_SYNC_CORE) {
@@ -423,7 +423,7 @@ out:
 	 * waiting for the last IPI. Matches memory barriers around
 	 * rq->curr modification in scheduler.
 	 */
-	smp_mb();	/* exit from system call is not a mb */
+	smp_mb();	/* exit from system call is analt a mb */
 
 	return 0;
 }
@@ -440,7 +440,7 @@ static int sync_runqueues_membarrier_state(struct mm_struct *mm)
 		/*
 		 * For single mm user, we can simply issue a memory barrier
 		 * after setting MEMBARRIER_STATE_GLOBAL_EXPEDITED in the
-		 * mm and in the current runqueue to guarantee that no memory
+		 * mm and in the current runqueue to guarantee that anal memory
 		 * access following registration is reordered before
 		 * registration.
 		 */
@@ -449,7 +449,7 @@ static int sync_runqueues_membarrier_state(struct mm_struct *mm)
 	}
 
 	if (!zalloc_cpumask_var(&tmpmask, GFP_KERNEL))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * For mm with multiple users, we need to ensure all future
@@ -529,7 +529,7 @@ static int membarrier_register_private_expedited(int flags)
 
 	/*
 	 * We need to consider threads belonging to different thread
-	 * groups, which use the same mm. (CLONE_VM but not
+	 * groups, which use the same mm. (CLONE_VM but analt
 	 * CLONE_THREAD).
 	 */
 	if ((atomic_read(&mm->membarrier_state) & ready_state) == ready_state)
@@ -593,13 +593,13 @@ static int membarrier_get_registrations(void)
  *          RSEQ CS should be interrupted (@cmd must be
  *          MEMBARRIER_CMD_PRIVATE_EXPEDITED_RSEQ).
  *
- * If this system call is not implemented, -ENOSYS is returned. If the
- * command specified does not exist, not available on the running
+ * If this system call is analt implemented, -EANALSYS is returned. If the
+ * command specified does analt exist, analt available on the running
  * kernel, or if the command argument is invalid, this system call
  * returns -EINVAL. For a given command, with flags argument set to 0,
- * if this system call returns -ENOSYS or -EINVAL, it is guaranteed to
+ * if this system call returns -EANALSYS or -EINVAL, it is guaranteed to
  * always return the same value until reboot. In addition, it can return
- * -ENOMEM if there is not enough memory available to perform the system
+ * -EANALMEM if there is analt eanalugh memory available to perform the system
  * call.
  *
  * All memory accesses performed in program order from each targeted thread
@@ -610,7 +610,7 @@ static int membarrier_get_registrations(void)
  * ordering across the barrier, we have the following ordering table for
  * each pair of barrier(), sys_membarrier() and smp_mb():
  *
- * The pair ordering is detailed as (O: ordered, X: not ordered):
+ * The pair ordering is detailed as (O: ordered, X: analt ordered):
  *
  *                        barrier()   smp_mb() sys_membarrier()
  *        barrier()          X           X            O
@@ -637,13 +637,13 @@ SYSCALL_DEFINE3(membarrier, int, cmd, unsigned int, flags, int, cpu_id)
 	{
 		int cmd_mask = MEMBARRIER_CMD_BITMASK;
 
-		if (tick_nohz_full_enabled())
+		if (tick_analhz_full_enabled())
 			cmd_mask &= ~MEMBARRIER_CMD_GLOBAL;
 		return cmd_mask;
 	}
 	case MEMBARRIER_CMD_GLOBAL:
-		/* MEMBARRIER_CMD_GLOBAL is not compatible with nohz_full. */
-		if (tick_nohz_full_enabled())
+		/* MEMBARRIER_CMD_GLOBAL is analt compatible with analhz_full. */
+		if (tick_analhz_full_enabled())
 			return -EINVAL;
 		if (num_online_cpus() > 1)
 			synchronize_rcu();

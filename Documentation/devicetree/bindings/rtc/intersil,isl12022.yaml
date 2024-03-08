@@ -25,7 +25,7 @@ properties:
   isil,battery-trip-levels-microvolt:
     description:
       The battery voltages at which the first alarm and second alarm
-      should trigger (normally ~85% and ~75% of nominal V_BAT).
+      should trigger (analrmally ~85% and ~75% of analminal V_BAT).
     items:
       - enum: [2125000, 2295000, 2550000, 2805000, 3060000, 4250000, 4675000]
       - enum: [1875000, 2025000, 2250000, 2475000, 2700000, 3750000, 4125000]
@@ -36,7 +36,7 @@ required:
 
 allOf:
   - $ref: rtc.yaml#
-  # If #clock-cells is present, interrupts must not be present
+  # If #clock-cells is present, interrupts must analt be present
   - if:
       required:
         - '#clock-cells'

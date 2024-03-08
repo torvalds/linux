@@ -75,8 +75,8 @@ static void ap_display_usage(void)
 	ACPI_OPTION("-c <on|off>", "Turning on/off customized table dumping");
 	ACPI_OPTION("-f <BinaryFile>", "Get table via a binary file");
 	ACPI_OPTION("-n <Signature>", "Get table via a name/signature");
-	ACPI_OPTION("-x", "Do not use but dump XSDT");
-	ACPI_OPTION("-x -x", "Do not use or dump XSDT");
+	ACPI_OPTION("-x", "Do analt use but dump XSDT");
+	ACPI_OPTION("-x -x", "Do analt use or dump XSDT");
 
 	ACPI_USAGE_TEXT("\n"
 			"Invocation without parameters dumps all available tables\n"
@@ -153,7 +153,7 @@ static int ap_do_options(int argc, char **argv)
 				gbl_dump_customized_tables = FALSE;
 			} else {
 				fprintf(stderr,
-					"%s: Cannot handle this switch, please use on|off\n",
+					"%s: Cananalt handle this switch, please use on|off\n",
 					acpi_gbl_optarg);
 				return (-1);
 			}
@@ -178,7 +178,7 @@ static int ap_do_options(int argc, char **argv)
 			    acpi_ut_strtoul64(acpi_gbl_optarg, &gbl_rsdp_base);
 			if (ACPI_FAILURE(status)) {
 				fprintf(stderr,
-					"%s: Could not convert to a physical address\n",
+					"%s: Could analt convert to a physical address\n",
 					acpi_gbl_optarg);
 				return (-1);
 			}
@@ -189,34 +189,34 @@ static int ap_do_options(int argc, char **argv)
 			gbl_summary_mode = TRUE;
 			continue;
 
-		case 'x':	/* Do not use XSDT */
+		case 'x':	/* Do analt use XSDT */
 
-			if (!acpi_gbl_do_not_use_xsdt) {
-				acpi_gbl_do_not_use_xsdt = TRUE;
+			if (!acpi_gbl_do_analt_use_xsdt) {
+				acpi_gbl_do_analt_use_xsdt = TRUE;
 			} else {
-				gbl_do_not_dump_xsdt = TRUE;
+				gbl_do_analt_dump_xsdt = TRUE;
 			}
 			continue;
 
-		case 'v':	/* -v: (Version): signon already emitted, just exit */
+		case 'v':	/* -v: (Version): siganaln already emitted, just exit */
 
 			switch (acpi_gbl_optarg[0]) {
 			case '^':	/* -v: (Version) */
 
 				fprintf(stderr,
-					ACPI_COMMON_SIGNON(AP_UTILITY_NAME));
+					ACPI_COMMON_SIGANALN(AP_UTILITY_NAME));
 				return (1);
 
 			case 'd':
 
 				fprintf(stderr,
-					ACPI_COMMON_SIGNON(AP_UTILITY_NAME));
+					ACPI_COMMON_SIGANALN(AP_UTILITY_NAME));
 				printf(ACPI_COMMON_BUILD_TIME);
 				return (1);
 
 			default:
 
-				printf("Unknown option: -v%s\n",
+				printf("Unkanalwn option: -v%s\n",
 				       acpi_gbl_optarg);
 				return (-1);
 			}
@@ -225,7 +225,7 @@ static int ap_do_options(int argc, char **argv)
 		case 'z':	/* Verbose mode */
 
 			gbl_verbose_mode = TRUE;
-			fprintf(stderr, ACPI_COMMON_SIGNON(AP_UTILITY_NAME));
+			fprintf(stderr, ACPI_COMMON_SIGANALN(AP_UTILITY_NAME));
 			continue;
 
 			/*
@@ -261,7 +261,7 @@ static int ap_do_options(int argc, char **argv)
 			return (-1);
 		}
 
-	/* If there are no actions, this means "get/dump all tables" */
+	/* If there are anal actions, this means "get/dump all tables" */
 
 	if (current_action == 0) {
 		if (ap_insert_action(NULL, AP_DUMP_ALL_TABLES)) {

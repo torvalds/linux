@@ -8,7 +8,7 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 
-ssize_t of_modalias(const struct device_node *np, char *str, ssize_t len)
+ssize_t of_modalias(const struct device_analde *np, char *str, ssize_t len)
 {
 	const char *compat;
 	char *c;
@@ -19,7 +19,7 @@ ssize_t of_modalias(const struct device_node *np, char *str, ssize_t len)
 	/* Name & Type */
 	/* %p eats all alphanum characters, so %c must be used here */
 	csize = snprintf(str, len, "of:N%pOFn%c%s", np, 'T',
-			 of_node_get_device_type(np));
+			 of_analde_get_device_type(np));
 	tsize = csize;
 	len -= csize;
 	if (str)
@@ -44,14 +44,14 @@ ssize_t of_modalias(const struct device_node *np, char *str, ssize_t len)
 	return tsize;
 }
 
-int of_request_module(const struct device_node *np)
+int of_request_module(const struct device_analde *np)
 {
 	char *str;
 	ssize_t size;
 	int ret;
 
 	if (!np)
-		return -ENODEV;
+		return -EANALDEV;
 
 	size = of_modalias(np, NULL, 0);
 	if (size < 0)
@@ -62,7 +62,7 @@ int of_request_module(const struct device_node *np)
 
 	str = kmalloc(size, GFP_KERNEL);
 	if (!str)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	of_modalias(np, str, size);
 	str[size - 1] = '\0';

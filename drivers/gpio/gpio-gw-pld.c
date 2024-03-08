@@ -4,7 +4,7 @@
 //
 // Copyright (C) 2019 Linus Walleij <linus.walleij@linaro.org>
 //
-// Based on code and know-how from the OpenWrt driver:
+// Based on code and kanalw-how from the OpenWrt driver:
 // Copyright (C) 2009 Gateworks Corporation
 // Authors: Chris Lang, Imre Kaloz
 
@@ -75,7 +75,7 @@ static int gw_pld_probe(struct i2c_client *client)
 
 	gw = devm_kzalloc(dev, sizeof(*gw), GFP_KERNEL);
 	if (!gw)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gw->chip.base = -1;
 	gw->chip.can_sleep = true;
@@ -90,11 +90,11 @@ static int gw_pld_probe(struct i2c_client *client)
 	gw->client = client;
 
 	/*
-	 * The Gateworks I2C PLD chip does not properly send the acknowledge
+	 * The Gateworks I2C PLD chip does analt properly send the ackanalwledge
 	 * bit at all times, but we can still use the standard i2c_smbus
-	 * functions by simply ignoring this bit.
+	 * functions by simply iganalring this bit.
 	 */
-	client->flags |= I2C_M_IGNORE_NAK;
+	client->flags |= I2C_M_IGANALRE_NAK;
 	gw->out = 0xFF;
 
 	i2c_set_clientdata(client, gw);

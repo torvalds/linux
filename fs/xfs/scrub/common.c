@@ -12,7 +12,7 @@
 #include "xfs_btree.h"
 #include "xfs_log_format.h"
 #include "xfs_trans.h"
-#include "xfs_inode.h"
+#include "xfs_ianalde.h"
 #include "xfs_icache.h"
 #include "xfs_alloc.h"
 #include "xfs_alloc_btree.h"
@@ -43,17 +43,17 @@
  * The *_process_error() family of functions are used to process error return
  * codes from functions called as part of a scrub operation.
  *
- * If there's no error, we return true to tell the caller that it's ok
+ * If there's anal error, we return true to tell the caller that it's ok
  * to move on to the next check in its list.
  *
- * For non-verifier errors (e.g. ENOMEM) we return false to tell the
+ * For analn-verifier errors (e.g. EANALMEM) we return false to tell the
  * caller that something bad happened, and we preserve *error so that
  * the caller can return the *error up the stack to userspace.
  *
  * Verifier errors (EFSBADCRC/EFSCORRUPTED) are recorded by setting
  * OFLAG_CORRUPT in sm_flags and the *error is cleared.  In other words,
  * we track verifier errors (and failed scrub checks) via OFLAG_CORRUPT,
- * not via return codes.  We return false to tell the caller that
+ * analt via return codes.  We return false to tell the caller that
  * something bad happened.  Since the error has been cleared, the caller
  * will (presumably) return that zero and scrubbing will move on to
  * whatever's next.
@@ -66,8 +66,8 @@
 static bool
 __xchk_process_error(
 	struct xfs_scrub	*sc,
-	xfs_agnumber_t		agno,
-	xfs_agblock_t		bno,
+	xfs_agnumber_t		aganal,
+	xfs_agblock_t		banal,
 	int			*error,
 	__u32			errflag,
 	void			*ret_ip)
@@ -79,17 +79,17 @@ __xchk_process_error(
 	case -ECHRNG:
 		/* Used to restart an op with deadlock avoidance. */
 		trace_xchk_deadlock_retry(
-				sc->ip ? sc->ip : XFS_I(file_inode(sc->file)),
+				sc->ip ? sc->ip : XFS_I(file_ianalde(sc->file)),
 				sc->sm, *error);
 		break;
 	case -EFSBADCRC:
 	case -EFSCORRUPTED:
-		/* Note the badness but don't abort. */
+		/* Analte the badness but don't abort. */
 		sc->sm->sm_flags |= errflag;
 		*error = 0;
 		fallthrough;
 	default:
-		trace_xchk_op_error(sc, agno, bno, *error,
+		trace_xchk_op_error(sc, aganal, banal, *error,
 				ret_ip);
 		break;
 	}
@@ -99,22 +99,22 @@ __xchk_process_error(
 bool
 xchk_process_error(
 	struct xfs_scrub	*sc,
-	xfs_agnumber_t		agno,
-	xfs_agblock_t		bno,
+	xfs_agnumber_t		aganal,
+	xfs_agblock_t		banal,
 	int			*error)
 {
-	return __xchk_process_error(sc, agno, bno, error,
+	return __xchk_process_error(sc, aganal, banal, error,
 			XFS_SCRUB_OFLAG_CORRUPT, __return_address);
 }
 
 bool
 xchk_xref_process_error(
 	struct xfs_scrub	*sc,
-	xfs_agnumber_t		agno,
-	xfs_agblock_t		bno,
+	xfs_agnumber_t		aganal,
+	xfs_agblock_t		banal,
 	int			*error)
 {
-	return __xchk_process_error(sc, agno, bno, error,
+	return __xchk_process_error(sc, aganal, banal, error,
 			XFS_SCRUB_OFLAG_XFAIL, __return_address);
 }
 
@@ -138,7 +138,7 @@ __xchk_fblock_process_error(
 		break;
 	case -EFSBADCRC:
 	case -EFSCORRUPTED:
-		/* Note the badness but don't abort. */
+		/* Analte the badness but don't abort. */
 		sc->sm->sm_flags |= errflag;
 		*error = 0;
 		fallthrough;
@@ -178,7 +178,7 @@ xchk_fblock_xref_process_error(
  * The *_set_{corrupt,preen,warning}() family of functions are used to
  * record the presence of metadata that is incorrect (corrupt), could be
  * optimized somehow (preen), or should be flagged for administrative
- * review but is not incorrect (warn).
+ * review but is analt incorrect (warn).
  *
  * ftrace can be used to record the precise metadata location and
  * approximate code location of the failed check.
@@ -195,17 +195,17 @@ xchk_block_set_preen(
 }
 
 /*
- * Record an inode which could be optimized.  The trace data will
+ * Record an ianalde which could be optimized.  The trace data will
  * include the block given by bp if bp is given; otherwise it will use
- * the block location of the inode record itself.
+ * the block location of the ianalde record itself.
  */
 void
-xchk_ino_set_preen(
+xchk_ianal_set_preen(
 	struct xfs_scrub	*sc,
-	xfs_ino_t		ino)
+	xfs_ianal_t		ianal)
 {
 	sc->sm->sm_flags |= XFS_SCRUB_OFLAG_PREEN;
-	trace_xchk_ino_preen(sc, ino, __return_address);
+	trace_xchk_ianal_preen(sc, ianal, __return_address);
 }
 
 /* Record something being wrong with the filesystem primary superblock. */
@@ -238,27 +238,27 @@ xchk_block_xref_set_corrupt(
 }
 
 /*
- * Record a corrupt inode.  The trace data will include the block given
+ * Record a corrupt ianalde.  The trace data will include the block given
  * by bp if bp is given; otherwise it will use the block location of the
- * inode record itself.
+ * ianalde record itself.
  */
 void
-xchk_ino_set_corrupt(
+xchk_ianal_set_corrupt(
 	struct xfs_scrub	*sc,
-	xfs_ino_t		ino)
+	xfs_ianal_t		ianal)
 {
 	sc->sm->sm_flags |= XFS_SCRUB_OFLAG_CORRUPT;
-	trace_xchk_ino_error(sc, ino, __return_address);
+	trace_xchk_ianal_error(sc, ianal, __return_address);
 }
 
-/* Record a corruption while cross-referencing with an inode. */
+/* Record a corruption while cross-referencing with an ianalde. */
 void
-xchk_ino_xref_set_corrupt(
+xchk_ianal_xref_set_corrupt(
 	struct xfs_scrub	*sc,
-	xfs_ino_t		ino)
+	xfs_ianal_t		ianal)
 {
 	sc->sm->sm_flags |= XFS_SCRUB_OFLAG_XCORRUPT;
-	trace_xchk_ino_error(sc, ino, __return_address);
+	trace_xchk_ianal_error(sc, ianal, __return_address);
 }
 
 /* Record corruption in a block indexed by a file fork. */
@@ -284,16 +284,16 @@ xchk_fblock_xref_set_corrupt(
 }
 
 /*
- * Warn about inodes that need administrative review but is not
+ * Warn about ianaldes that need administrative review but is analt
  * incorrect.
  */
 void
-xchk_ino_set_warning(
+xchk_ianal_set_warning(
 	struct xfs_scrub	*sc,
-	xfs_ino_t		ino)
+	xfs_ianal_t		ianal)
 {
 	sc->sm->sm_flags |= XFS_SCRUB_OFLAG_WARNING;
-	trace_xchk_ino_warning(sc, ino, __return_address);
+	trace_xchk_ianal_warning(sc, ianal, __return_address);
 }
 
 /* Warn about a block indexed by a file fork that needs review. */
@@ -342,7 +342,7 @@ xchk_count_rmap_ownedby_irec(
 	if (rec->rm_owner != sroi->oinfo->oi_owner)
 		return 0;
 
-	if (XFS_RMAP_NON_INODE_OWNER(rec->rm_owner) || irec_attr == oinfo_attr)
+	if (XFS_RMAP_ANALN_IANALDE_OWNER(rec->rm_owner) || irec_attr == oinfo_attr)
 		(*sroi->blocks) += rec->rm_blockcount;
 
 	return 0;
@@ -447,15 +447,15 @@ xchk_perag_drain_and_lock(
 			return error;
 
 		/*
-		 * If we've grabbed an inode for scrubbing then we assume that
+		 * If we've grabbed an ianalde for scrubbing then we assume that
 		 * holding its ILOCK will suffice to coordinate with any intent
-		 * chains involving this inode.
+		 * chains involving this ianalde.
 		 */
 		if (sc->ip)
 			return 0;
 
 		/*
-		 * Decide if this AG is quiet enough for all metadata to be
+		 * Decide if this AG is quiet eanalugh for all metadata to be
 		 * consistent with each other.  XFS allows the AG header buffer
 		 * locks to cycle across transaction rolls while processing
 		 * chains of deferred ops, which means that there could be
@@ -465,7 +465,7 @@ xchk_perag_drain_and_lock(
 		 * (which is why we don't need a per-AG lock), but scrub and
 		 * repair have to serialize against chained operations.
 		 *
-		 * We just locked all the AG headers buffers; now take a look
+		 * We just locked all the AG headers buffers; analw take a look
 		 * to see if there are any intents in progress.  If there are,
 		 * drop the AG headers and wait for the intents to drain.
 		 * Since we hold all the AG header locks for the duration of
@@ -502,21 +502,21 @@ xchk_perag_drain_and_lock(
 
 /*
  * Grab the per-AG structure, grab all AG header buffers, and wait until there
- * aren't any pending intents.  Returns -ENOENT if we can't grab the perag
+ * aren't any pending intents.  Returns -EANALENT if we can't grab the perag
  * structure.
  */
 int
 xchk_ag_read_headers(
 	struct xfs_scrub	*sc,
-	xfs_agnumber_t		agno,
+	xfs_agnumber_t		aganal,
 	struct xchk_ag		*sa)
 {
 	struct xfs_mount	*mp = sc->mp;
 
 	ASSERT(!sa->pag);
-	sa->pag = xfs_perag_get(mp, agno);
+	sa->pag = xfs_perag_get(mp, aganal);
 	if (!sa->pag)
-		return -ENOENT;
+		return -EANALENT;
 
 	return xchk_perag_drain_and_lock(sc);
 }
@@ -530,20 +530,20 @@ xchk_ag_btcur_free(
 		xfs_btree_del_cursor(sa->refc_cur, XFS_BTREE_ERROR);
 	if (sa->rmap_cur)
 		xfs_btree_del_cursor(sa->rmap_cur, XFS_BTREE_ERROR);
-	if (sa->fino_cur)
-		xfs_btree_del_cursor(sa->fino_cur, XFS_BTREE_ERROR);
-	if (sa->ino_cur)
-		xfs_btree_del_cursor(sa->ino_cur, XFS_BTREE_ERROR);
+	if (sa->fianal_cur)
+		xfs_btree_del_cursor(sa->fianal_cur, XFS_BTREE_ERROR);
+	if (sa->ianal_cur)
+		xfs_btree_del_cursor(sa->ianal_cur, XFS_BTREE_ERROR);
 	if (sa->cnt_cur)
 		xfs_btree_del_cursor(sa->cnt_cur, XFS_BTREE_ERROR);
-	if (sa->bno_cur)
-		xfs_btree_del_cursor(sa->bno_cur, XFS_BTREE_ERROR);
+	if (sa->banal_cur)
+		xfs_btree_del_cursor(sa->banal_cur, XFS_BTREE_ERROR);
 
 	sa->refc_cur = NULL;
 	sa->rmap_cur = NULL;
-	sa->fino_cur = NULL;
-	sa->ino_cur = NULL;
-	sa->bno_cur = NULL;
+	sa->fianal_cur = NULL;
+	sa->ianal_cur = NULL;
+	sa->banal_cur = NULL;
 	sa->cnt_cur = NULL;
 }
 
@@ -556,43 +556,43 @@ xchk_ag_btcur_init(
 	struct xfs_mount	*mp = sc->mp;
 
 	if (sa->agf_bp &&
-	    xchk_ag_btree_healthy_enough(sc, sa->pag, XFS_BTNUM_BNO)) {
-		/* Set up a bnobt cursor for cross-referencing. */
-		sa->bno_cur = xfs_allocbt_init_cursor(mp, sc->tp, sa->agf_bp,
-				sa->pag, XFS_BTNUM_BNO);
+	    xchk_ag_btree_healthy_eanalugh(sc, sa->pag, XFS_BTNUM_BANAL)) {
+		/* Set up a banalbt cursor for cross-referencing. */
+		sa->banal_cur = xfs_allocbt_init_cursor(mp, sc->tp, sa->agf_bp,
+				sa->pag, XFS_BTNUM_BANAL);
 	}
 
 	if (sa->agf_bp &&
-	    xchk_ag_btree_healthy_enough(sc, sa->pag, XFS_BTNUM_CNT)) {
+	    xchk_ag_btree_healthy_eanalugh(sc, sa->pag, XFS_BTNUM_CNT)) {
 		/* Set up a cntbt cursor for cross-referencing. */
 		sa->cnt_cur = xfs_allocbt_init_cursor(mp, sc->tp, sa->agf_bp,
 				sa->pag, XFS_BTNUM_CNT);
 	}
 
-	/* Set up a inobt cursor for cross-referencing. */
+	/* Set up a ianalbt cursor for cross-referencing. */
 	if (sa->agi_bp &&
-	    xchk_ag_btree_healthy_enough(sc, sa->pag, XFS_BTNUM_INO)) {
-		sa->ino_cur = xfs_inobt_init_cursor(sa->pag, sc->tp, sa->agi_bp,
-				XFS_BTNUM_INO);
+	    xchk_ag_btree_healthy_eanalugh(sc, sa->pag, XFS_BTNUM_IANAL)) {
+		sa->ianal_cur = xfs_ianalbt_init_cursor(sa->pag, sc->tp, sa->agi_bp,
+				XFS_BTNUM_IANAL);
 	}
 
-	/* Set up a finobt cursor for cross-referencing. */
-	if (sa->agi_bp && xfs_has_finobt(mp) &&
-	    xchk_ag_btree_healthy_enough(sc, sa->pag, XFS_BTNUM_FINO)) {
-		sa->fino_cur = xfs_inobt_init_cursor(sa->pag, sc->tp, sa->agi_bp,
-				XFS_BTNUM_FINO);
+	/* Set up a fianalbt cursor for cross-referencing. */
+	if (sa->agi_bp && xfs_has_fianalbt(mp) &&
+	    xchk_ag_btree_healthy_eanalugh(sc, sa->pag, XFS_BTNUM_FIANAL)) {
+		sa->fianal_cur = xfs_ianalbt_init_cursor(sa->pag, sc->tp, sa->agi_bp,
+				XFS_BTNUM_FIANAL);
 	}
 
 	/* Set up a rmapbt cursor for cross-referencing. */
 	if (sa->agf_bp && xfs_has_rmapbt(mp) &&
-	    xchk_ag_btree_healthy_enough(sc, sa->pag, XFS_BTNUM_RMAP)) {
+	    xchk_ag_btree_healthy_eanalugh(sc, sa->pag, XFS_BTNUM_RMAP)) {
 		sa->rmap_cur = xfs_rmapbt_init_cursor(mp, sc->tp, sa->agf_bp,
 				sa->pag);
 	}
 
 	/* Set up a refcountbt cursor for cross-referencing. */
 	if (sa->agf_bp && xfs_has_reflink(mp) &&
-	    xchk_ag_btree_healthy_enough(sc, sa->pag, XFS_BTNUM_REFC)) {
+	    xchk_ag_btree_healthy_eanalugh(sc, sa->pag, XFS_BTNUM_REFC)) {
 		sa->refc_cur = xfs_refcountbt_init_cursor(mp, sc->tp,
 				sa->agf_bp, sa->pag);
 	}
@@ -625,17 +625,17 @@ xchk_ag_free(
  * order.  Locking order requires us to get the AGI before the AGF.  We use the
  * transaction to avoid deadlocking on crosslinked metadata buffers; either the
  * caller passes one in (bmap scrub) or we have to create a transaction
- * ourselves.  Returns ENOENT if the perag struct cannot be grabbed.
+ * ourselves.  Returns EANALENT if the perag struct cananalt be grabbed.
  */
 int
 xchk_ag_init(
 	struct xfs_scrub	*sc,
-	xfs_agnumber_t		agno,
+	xfs_agnumber_t		aganal,
 	struct xchk_ag		*sa)
 {
 	int			error;
 
-	error = xchk_ag_read_headers(sc, agno, sa);
+	error = xchk_ag_read_headers(sc, aganal, sa);
 	if (error)
 		return error;
 
@@ -711,7 +711,7 @@ xchk_setup_ag_btree(
 	if (error)
 		return error;
 
-	return xchk_ag_init(sc, sc->sm->sm_agno, &sc->sa);
+	return xchk_ag_init(sc, sc->sm->sm_aganal, &sc->sa);
 }
 
 /* Push everything out of the log onto disk. */
@@ -728,12 +728,12 @@ xchk_checkpoint_log(
 	return 0;
 }
 
-/* Verify that an inode is allocated ondisk, then return its cached inode. */
+/* Verify that an ianalde is allocated ondisk, then return its cached ianalde. */
 int
 xchk_iget(
 	struct xfs_scrub	*sc,
-	xfs_ino_t		inum,
-	struct xfs_inode	**ipp)
+	xfs_ianal_t		inum,
+	struct xfs_ianalde	**ipp)
 {
 	ASSERT(sc->tp != NULL);
 
@@ -741,27 +741,27 @@ xchk_iget(
 }
 
 /*
- * Try to grab an inode in a manner that avoids races with physical inode
+ * Try to grab an ianalde in a manner that avoids races with physical ianalde
  * allocation.  If we can't, return the locked AGI buffer so that the caller
  * can single-step the loading process to see where things went wrong.
  * Callers must have a valid scrub transaction.
  *
- * If the iget succeeds, return 0, a NULL AGI, and the inode.
+ * If the iget succeeds, return 0, a NULL AGI, and the ianalde.
  *
- * If the iget fails, return the error, the locked AGI, and a NULL inode.  This
- * can include -EINVAL and -ENOENT for invalid inode numbers or inodes that are
- * no longer allocated; or any other corruption or runtime error.
+ * If the iget fails, return the error, the locked AGI, and a NULL ianalde.  This
+ * can include -EINVAL and -EANALENT for invalid ianalde numbers or ianaldes that are
+ * anal longer allocated; or any other corruption or runtime error.
  *
- * If the AGI read fails, return the error, a NULL AGI, and NULL inode.
+ * If the AGI read fails, return the error, a NULL AGI, and NULL ianalde.
  *
- * If a fatal signal is pending, return -EINTR, a NULL AGI, and a NULL inode.
+ * If a fatal signal is pending, return -EINTR, a NULL AGI, and a NULL ianalde.
  */
 int
 xchk_iget_agi(
 	struct xfs_scrub	*sc,
-	xfs_ino_t		inum,
+	xfs_ianal_t		inum,
 	struct xfs_buf		**agi_bpp,
-	struct xfs_inode	**ipp)
+	struct xfs_ianalde	**ipp)
 {
 	struct xfs_mount	*mp = sc->mp;
 	struct xfs_trans	*tp = sc->tp;
@@ -782,29 +782,29 @@ again:
 	 * Attach the AGI buffer to the scrub transaction to avoid deadlocks
 	 * in the iget cache miss path.
 	 */
-	pag = xfs_perag_get(mp, XFS_INO_TO_AGNO(mp, inum));
+	pag = xfs_perag_get(mp, XFS_IANAL_TO_AGANAL(mp, inum));
 	error = xfs_ialloc_read_agi(pag, tp, agi_bpp);
 	xfs_perag_put(pag);
 	if (error)
 		return error;
 
 	error = xfs_iget(mp, tp, inum,
-			XFS_IGET_NORETRY | XFS_IGET_UNTRUSTED, 0, ipp);
+			XFS_IGET_ANALRETRY | XFS_IGET_UNTRUSTED, 0, ipp);
 	if (error == -EAGAIN) {
 		/*
-		 * The inode may be in core but temporarily unavailable and may
+		 * The ianalde may be in core but temporarily unavailable and may
 		 * require the AGI buffer before it can be returned.  Drop the
 		 * AGI buffer and retry the lookup.
 		 *
 		 * Incore lookup will fail with EAGAIN on a cache hit if the
-		 * inode is queued to the inactivation list.  The inactivation
-		 * worker may remove the inode from the unlinked list and hence
+		 * ianalde is queued to the inactivation list.  The inactivation
+		 * worker may remove the ianalde from the unlinked list and hence
 		 * needs the AGI.
 		 *
 		 * Hence xchk_iget_agi() needs to drop the AGI lock on EAGAIN
-		 * to allow inodegc to make progress and move the inode to
+		 * to allow ianaldegc to make progress and move the ianalde to
 		 * IRECLAIMABLE state where xfs_iget will be able to return it
-		 * again if it can lock the inode.
+		 * again if it can lock the ianalde.
 		 */
 		xfs_trans_brelse(tp, *agi_bpp);
 		delay(1);
@@ -813,7 +813,7 @@ again:
 	if (error)
 		return error;
 
-	/* We got the inode, so we can release the AGI. */
+	/* We got the ianalde, so we can release the AGI. */
 	ASSERT(*ipp != NULL);
 	xfs_trans_brelse(tp, *agi_bpp);
 	*agi_bpp = NULL;
@@ -822,12 +822,12 @@ again:
 
 #ifdef CONFIG_XFS_QUOTA
 /*
- * Try to attach dquots to this inode if we think we might want to repair it.
- * Callers must not hold any ILOCKs.  If the dquots are broken and cannot be
+ * Try to attach dquots to this ianalde if we think we might want to repair it.
+ * Callers must analt hold any ILOCKs.  If the dquots are broken and cananalt be
  * attached, a quotacheck will be scheduled.
  */
 int
-xchk_ino_dqattach(
+xchk_ianal_dqattach(
 	struct xfs_scrub	*sc)
 {
 	ASSERT(sc->tp != NULL);
@@ -836,19 +836,19 @@ xchk_ino_dqattach(
 	if (!xchk_could_repair(sc))
 		return 0;
 
-	return xrep_ino_dqattach(sc);
+	return xrep_ianal_dqattach(sc);
 }
 #endif
 
-/* Install an inode that we opened by handle for scrubbing. */
+/* Install an ianalde that we opened by handle for scrubbing. */
 int
-xchk_install_handle_inode(
+xchk_install_handle_ianalde(
 	struct xfs_scrub	*sc,
-	struct xfs_inode	*ip)
+	struct xfs_ianalde	*ip)
 {
 	if (VFS_I(ip)->i_generation != sc->sm->sm_gen) {
 		xchk_irele(sc, ip);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	sc->ip = ip;
@@ -856,17 +856,17 @@ xchk_install_handle_inode(
 }
 
 /*
- * Install an already-referenced inode for scrubbing.  Get our own reference to
- * the inode to make disposal simpler.  The inode must not be in I_FREEING or
+ * Install an already-referenced ianalde for scrubbing.  Get our own reference to
+ * the ianalde to make disposal simpler.  The ianalde must analt be in I_FREEING or
  * I_WILL_FREE state!
  */
 int
-xchk_install_live_inode(
+xchk_install_live_ianalde(
 	struct xfs_scrub	*sc,
-	struct xfs_inode	*ip)
+	struct xfs_ianalde	*ip)
 {
 	if (!igrab(VFS_I(ip))) {
-		xchk_ino_set_corrupt(sc, ip->i_ino);
+		xchk_ianal_set_corrupt(sc, ip->i_ianal);
 		return -EFSCORRUPTED;
 	}
 
@@ -875,11 +875,11 @@ xchk_install_live_inode(
 }
 
 /*
- * In preparation to scrub metadata structures that hang off of an inode,
- * grab either the inode referenced in the scrub control structure or the
- * inode passed in.  If the inumber does not reference an allocated inode
- * record, the function returns ENOENT to end the scrub early.  The inode
- * is not locked.
+ * In preparation to scrub metadata structures that hang off of an ianalde,
+ * grab either the ianalde referenced in the scrub control structure or the
+ * ianalde passed in.  If the inumber does analt reference an allocated ianalde
+ * record, the function returns EANALENT to end the scrub early.  The ianalde
+ * is analt locked.
  */
 int
 xchk_iget_for_scrubbing(
@@ -889,63 +889,63 @@ xchk_iget_for_scrubbing(
 	struct xfs_mount	*mp = sc->mp;
 	struct xfs_perag	*pag;
 	struct xfs_buf		*agi_bp;
-	struct xfs_inode	*ip_in = XFS_I(file_inode(sc->file));
-	struct xfs_inode	*ip = NULL;
-	xfs_agnumber_t		agno = XFS_INO_TO_AGNO(mp, sc->sm->sm_ino);
+	struct xfs_ianalde	*ip_in = XFS_I(file_ianalde(sc->file));
+	struct xfs_ianalde	*ip = NULL;
+	xfs_agnumber_t		aganal = XFS_IANAL_TO_AGANAL(mp, sc->sm->sm_ianal);
 	int			error;
 
 	ASSERT(sc->tp == NULL);
 
-	/* We want to scan the inode we already had opened. */
-	if (sc->sm->sm_ino == 0 || sc->sm->sm_ino == ip_in->i_ino)
-		return xchk_install_live_inode(sc, ip_in);
+	/* We want to scan the ianalde we already had opened. */
+	if (sc->sm->sm_ianal == 0 || sc->sm->sm_ianal == ip_in->i_ianal)
+		return xchk_install_live_ianalde(sc, ip_in);
 
-	/* Reject internal metadata files and obviously bad inode numbers. */
-	if (xfs_internal_inum(mp, sc->sm->sm_ino))
-		return -ENOENT;
-	if (!xfs_verify_ino(sc->mp, sc->sm->sm_ino))
-		return -ENOENT;
+	/* Reject internal metadata files and obviously bad ianalde numbers. */
+	if (xfs_internal_inum(mp, sc->sm->sm_ianal))
+		return -EANALENT;
+	if (!xfs_verify_ianal(sc->mp, sc->sm->sm_ianal))
+		return -EANALENT;
 
 	/* Try a safe untrusted iget. */
-	error = xchk_iget_safe(sc, sc->sm->sm_ino, &ip);
+	error = xchk_iget_safe(sc, sc->sm->sm_ianal, &ip);
 	if (!error)
-		return xchk_install_handle_inode(sc, ip);
-	if (error == -ENOENT)
+		return xchk_install_handle_ianalde(sc, ip);
+	if (error == -EANALENT)
 		return error;
 	if (error != -EINVAL)
 		goto out_error;
 
 	/*
 	 * EINVAL with IGET_UNTRUSTED probably means one of several things:
-	 * userspace gave us an inode number that doesn't correspond to fs
-	 * space; the inode btree lacks a record for this inode; or there is a
-	 * record, and it says this inode is free.
+	 * userspace gave us an ianalde number that doesn't correspond to fs
+	 * space; the ianalde btree lacks a record for this ianalde; or there is a
+	 * record, and it says this ianalde is free.
 	 *
-	 * We want to look up this inode in the inobt to distinguish two
-	 * scenarios: (1) the inobt says the inode is free, in which case
-	 * there's nothing to do; and (2) the inobt says the inode is
+	 * We want to look up this ianalde in the ianalbt to distinguish two
+	 * scenarios: (1) the ianalbt says the ianalde is free, in which case
+	 * there's analthing to do; and (2) the ianalbt says the ianalde is
 	 * allocated, but loading it failed due to corruption.
 	 *
-	 * Allocate a transaction and grab the AGI to prevent inobt activity
-	 * in this AG.  Retry the iget in case someone allocated a new inode
+	 * Allocate a transaction and grab the AGI to prevent ianalbt activity
+	 * in this AG.  Retry the iget in case someone allocated a new ianalde
 	 * after the first iget failed.
 	 */
 	error = xchk_trans_alloc(sc, 0);
 	if (error)
 		goto out_error;
 
-	error = xchk_iget_agi(sc, sc->sm->sm_ino, &agi_bp, &ip);
+	error = xchk_iget_agi(sc, sc->sm->sm_ianal, &agi_bp, &ip);
 	if (error == 0) {
-		/* Actually got the inode, so install it. */
+		/* Actually got the ianalde, so install it. */
 		xchk_trans_cancel(sc);
-		return xchk_install_handle_inode(sc, ip);
+		return xchk_install_handle_ianalde(sc, ip);
 	}
-	if (error == -ENOENT)
+	if (error == -EANALENT)
 		goto out_gone;
 	if (error != -EINVAL)
 		goto out_cancel;
 
-	/* Ensure that we have protected against inode allocation/freeing. */
+	/* Ensure that we have protected against ianalde allocation/freeing. */
 	if (agi_bp == NULL) {
 		ASSERT(agi_bp != NULL);
 		error = -ECANCELED;
@@ -953,31 +953,31 @@ xchk_iget_for_scrubbing(
 	}
 
 	/*
-	 * Untrusted iget failed a second time.  Let's try an inobt lookup.
-	 * If the inobt thinks this the inode neither can exist inside the
-	 * filesystem nor is allocated, return ENOENT to signal that the check
+	 * Untrusted iget failed a second time.  Let's try an ianalbt lookup.
+	 * If the ianalbt thinks this the ianalde neither can exist inside the
+	 * filesystem analr is allocated, return EANALENT to signal that the check
 	 * can be skipped.
 	 *
-	 * If the lookup returns corruption, we'll mark this inode corrupt and
+	 * If the lookup returns corruption, we'll mark this ianalde corrupt and
 	 * exit to userspace.  There's little chance of fixing anything until
-	 * the inobt is straightened out, but there's nothing we can do here.
+	 * the ianalbt is straightened out, but there's analthing we can do here.
 	 *
 	 * If the lookup encounters any other error, exit to userspace.
 	 *
 	 * If the lookup succeeds, something else must be very wrong in the fs
-	 * such that setting up the incore inode failed in some strange way.
+	 * such that setting up the incore ianalde failed in some strange way.
 	 * Treat those as corruptions.
 	 */
-	pag = xfs_perag_get(mp, XFS_INO_TO_AGNO(mp, sc->sm->sm_ino));
+	pag = xfs_perag_get(mp, XFS_IANAL_TO_AGANAL(mp, sc->sm->sm_ianal));
 	if (!pag) {
 		error = -EFSCORRUPTED;
 		goto out_cancel;
 	}
 
-	error = xfs_imap(pag, sc->tp, sc->sm->sm_ino, &imap,
+	error = xfs_imap(pag, sc->tp, sc->sm->sm_ianal, &imap,
 			XFS_IGET_UNTRUSTED);
 	xfs_perag_put(pag);
-	if (error == -EINVAL || error == -ENOENT)
+	if (error == -EINVAL || error == -EANALENT)
 		goto out_gone;
 	if (!error)
 		error = -EFSCORRUPTED;
@@ -985,42 +985,42 @@ xchk_iget_for_scrubbing(
 out_cancel:
 	xchk_trans_cancel(sc);
 out_error:
-	trace_xchk_op_error(sc, agno, XFS_INO_TO_AGBNO(mp, sc->sm->sm_ino),
+	trace_xchk_op_error(sc, aganal, XFS_IANAL_TO_AGBANAL(mp, sc->sm->sm_ianal),
 			error, __return_address);
 	return error;
 out_gone:
-	/* The file is gone, so there's nothing to check. */
+	/* The file is gone, so there's analthing to check. */
 	xchk_trans_cancel(sc);
-	return -ENOENT;
+	return -EANALENT;
 }
 
-/* Release an inode, possibly dropping it in the process. */
+/* Release an ianalde, possibly dropping it in the process. */
 void
 xchk_irele(
 	struct xfs_scrub	*sc,
-	struct xfs_inode	*ip)
+	struct xfs_ianalde	*ip)
 {
 	if (current->journal_info != NULL) {
 		ASSERT(current->journal_info == sc->tp);
 
 		/*
-		 * If we are in a transaction, we /cannot/ drop the inode
+		 * If we are in a transaction, we /cananalt/ drop the ianalde
 		 * ourselves, because the VFS will trigger writeback, which
 		 * can require a transaction.  Clear DONTCACHE to force the
-		 * inode to the LRU, where someone else can take care of
+		 * ianalde to the LRU, where someone else can take care of
 		 * dropping it.
 		 *
-		 * Note that when we grabbed our reference to the inode, it
+		 * Analte that when we grabbed our reference to the ianalde, it
 		 * could have had an active ref and DONTCACHE set if a sysadmin
 		 * is trying to coerce a change in file access mode.  icache
-		 * hits do not clear DONTCACHE, so we must do it here.
+		 * hits do analt clear DONTCACHE, so we must do it here.
 		 */
 		spin_lock(&VFS_I(ip)->i_lock);
 		VFS_I(ip)->i_state &= ~I_DONTCACHE;
 		spin_unlock(&VFS_I(ip)->i_lock);
 	} else if (atomic_read(&VFS_I(ip)->i_count) == 1) {
 		/*
-		 * If this is the last reference to the inode and the caller
+		 * If this is the last reference to the ianalde and the caller
 		 * permits it, set DONTCACHE to avoid thrashing.
 		 */
 		d_mark_dontcache(VFS_I(ip));
@@ -1030,12 +1030,12 @@ xchk_irele(
 }
 
 /*
- * Set us up to scrub metadata mapped by a file's fork.  Callers must not use
+ * Set us up to scrub metadata mapped by a file's fork.  Callers must analt use
  * this to operate on user-accessible regular file data because the MMAPLOCK is
- * not taken.
+ * analt taken.
  */
 int
-xchk_setup_inode_contents(
+xchk_setup_ianalde_contents(
 	struct xfs_scrub	*sc,
 	unsigned int		resblks)
 {
@@ -1045,20 +1045,20 @@ xchk_setup_inode_contents(
 	if (error)
 		return error;
 
-	/* Lock the inode so the VFS cannot touch this file. */
+	/* Lock the ianalde so the VFS cananalt touch this file. */
 	xchk_ilock(sc, XFS_IOLOCK_EXCL);
 
 	error = xchk_trans_alloc(sc, resblks);
 	if (error)
 		goto out;
 
-	error = xchk_ino_dqattach(sc);
+	error = xchk_ianal_dqattach(sc);
 	if (error)
 		goto out;
 
 	xchk_ilock(sc, XFS_ILOCK_EXCL);
 out:
-	/* scrub teardown will unlock and release the inode for us */
+	/* scrub teardown will unlock and release the ianalde for us */
 	return error;
 }
 
@@ -1072,11 +1072,11 @@ xchk_ilock(
 }
 
 bool
-xchk_ilock_nowait(
+xchk_ilock_analwait(
 	struct xfs_scrub	*sc,
 	unsigned int		ilock_flags)
 {
-	if (xfs_ilock_nowait(sc->ip, ilock_flags)) {
+	if (xfs_ilock_analwait(sc->ip, ilock_flags)) {
 		sc->ilock_flags |= ilock_flags;
 		return true;
 	}
@@ -1104,7 +1104,7 @@ xchk_should_check_xref(
 	int			*error,
 	struct xfs_btree_cur	**curpp)
 {
-	/* No point in xref if we already know we're corrupt. */
+	/* Anal point in xref if we already kanalw we're corrupt. */
 	if (xchk_skip_xref(sc->sm))
 		return false;
 
@@ -1125,8 +1125,8 @@ xchk_should_check_xref(
 	trace_xchk_xref_error(sc, *error, __return_address);
 
 	/*
-	 * Errors encountered during cross-referencing with another
-	 * data structure should not cause this scrubber to abort.
+	 * Errors encountered during cross-referencing with aanalther
+	 * data structure should analt cause this scrubber to abort.
 	 */
 	*error = 0;
 	return false;
@@ -1156,7 +1156,7 @@ xchk_buffer_recheck(
 }
 
 static inline int
-xchk_metadata_inode_subtype(
+xchk_metadata_ianalde_subtype(
 	struct xfs_scrub	*sc,
 	unsigned int		scrub_type)
 {
@@ -1167,8 +1167,8 @@ xchk_metadata_inode_subtype(
 	sc->sm->sm_type = scrub_type;
 
 	switch (scrub_type) {
-	case XFS_SCRUB_TYPE_INODE:
-		error = xchk_inode(sc);
+	case XFS_SCRUB_TYPE_IANALDE:
+		error = xchk_ianalde(sc);
 		break;
 	case XFS_SCRUB_TYPE_BMBTD:
 		error = xchk_bmap_data(sc);
@@ -1185,11 +1185,11 @@ xchk_metadata_inode_subtype(
 }
 
 /*
- * Scrub the attr/data forks of a metadata inode.  The metadata inode must be
+ * Scrub the attr/data forks of a metadata ianalde.  The metadata ianalde must be
  * pointed to by sc->ip and the ILOCK must be held.
  */
 int
-xchk_metadata_inode_forks(
+xchk_metadata_ianalde_forks(
 	struct xfs_scrub	*sc)
 {
 	bool			shared;
@@ -1198,43 +1198,43 @@ xchk_metadata_inode_forks(
 	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
 		return 0;
 
-	/* Check the inode record. */
-	error = xchk_metadata_inode_subtype(sc, XFS_SCRUB_TYPE_INODE);
+	/* Check the ianalde record. */
+	error = xchk_metadata_ianalde_subtype(sc, XFS_SCRUB_TYPE_IANALDE);
 	if (error || (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT))
 		return error;
 
-	/* Metadata inodes don't live on the rt device. */
+	/* Metadata ianaldes don't live on the rt device. */
 	if (sc->ip->i_diflags & XFS_DIFLAG_REALTIME) {
-		xchk_ino_set_corrupt(sc, sc->ip->i_ino);
+		xchk_ianal_set_corrupt(sc, sc->ip->i_ianal);
 		return 0;
 	}
 
 	/* They should never participate in reflink. */
-	if (xfs_is_reflink_inode(sc->ip)) {
-		xchk_ino_set_corrupt(sc, sc->ip->i_ino);
+	if (xfs_is_reflink_ianalde(sc->ip)) {
+		xchk_ianal_set_corrupt(sc, sc->ip->i_ianal);
 		return 0;
 	}
 
 	/* They also should never have extended attributes. */
-	if (xfs_inode_hasattr(sc->ip)) {
-		xchk_ino_set_corrupt(sc, sc->ip->i_ino);
+	if (xfs_ianalde_hasattr(sc->ip)) {
+		xchk_ianal_set_corrupt(sc, sc->ip->i_ianal);
 		return 0;
 	}
 
 	/* Invoke the data fork scrubber. */
-	error = xchk_metadata_inode_subtype(sc, XFS_SCRUB_TYPE_BMBTD);
+	error = xchk_metadata_ianalde_subtype(sc, XFS_SCRUB_TYPE_BMBTD);
 	if (error || (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT))
 		return error;
 
 	/* Look for incorrect shared blocks. */
 	if (xfs_has_reflink(sc->mp)) {
-		error = xfs_reflink_inode_has_shared_extents(sc->tp, sc->ip,
+		error = xfs_reflink_ianalde_has_shared_extents(sc->tp, sc->ip,
 				&shared);
 		if (!xchk_fblock_process_error(sc, XFS_DATA_FORK, 0,
 				&error))
 			return error;
 		if (shared)
-			xchk_ino_set_corrupt(sc, sc->ip->i_ino);
+			xchk_ianal_set_corrupt(sc, sc->ip->i_ianal);
 	}
 
 	return 0;
@@ -1242,7 +1242,7 @@ xchk_metadata_inode_forks(
 
 /*
  * Enable filesystem hooks (i.e. runtime code patching) before starting a scrub
- * operation.  Callers must not hold any locks that intersect with the CPU
+ * operation.  Callers must analt hold any locks that intersect with the CPU
  * hotplug lock (e.g. writeback locks) because code patching must halt the CPUs
  * to change kernel code.
  */
@@ -1263,31 +1263,31 @@ xchk_fsgates_enable(
 }
 
 /*
- * Decide if this is this a cached inode that's also allocated.  The caller
- * must hold a reference to an AG and the AGI buffer lock to prevent inodes
+ * Decide if this is this a cached ianalde that's also allocated.  The caller
+ * must hold a reference to an AG and the AGI buffer lock to prevent ianaldes
  * from being allocated or freed.
  *
- * Look up an inode by number in the given file system.  If the inode number
- * is invalid, return -EINVAL.  If the inode is not in cache, return -ENODATA.
- * If the inode is being reclaimed, return -ENODATA because we know the inode
- * cache cannot be updating the ondisk metadata.
+ * Look up an ianalde by number in the given file system.  If the ianalde number
+ * is invalid, return -EINVAL.  If the ianalde is analt in cache, return -EANALDATA.
+ * If the ianalde is being reclaimed, return -EANALDATA because we kanalw the ianalde
+ * cache cananalt be updating the ondisk metadata.
  *
- * Otherwise, the incore inode is the one we want, and it is either live,
- * somewhere in the inactivation machinery, or reclaimable.  The inode is
- * allocated if i_mode is nonzero.  In all three cases, the cached inode will
- * be more up to date than the ondisk inode buffer, so we must use the incore
+ * Otherwise, the incore ianalde is the one we want, and it is either live,
+ * somewhere in the inactivation machinery, or reclaimable.  The ianalde is
+ * allocated if i_mode is analnzero.  In all three cases, the cached ianalde will
+ * be more up to date than the ondisk ianalde buffer, so we must use the incore
  * i_mode.
  */
 int
-xchk_inode_is_allocated(
+xchk_ianalde_is_allocated(
 	struct xfs_scrub	*sc,
-	xfs_agino_t		agino,
+	xfs_agianal_t		agianal,
 	bool			*inuse)
 {
 	struct xfs_mount	*mp = sc->mp;
 	struct xfs_perag	*pag = sc->sa.pag;
-	xfs_ino_t		ino;
-	struct xfs_inode	*ip;
+	xfs_ianal_t		ianal;
+	struct xfs_ianalde	*ip;
 	int			error;
 
 	/* caller must hold perag reference */
@@ -1302,58 +1302,58 @@ xchk_inode_is_allocated(
 		return -EINVAL;
 	}
 
-	/* reject inode numbers outside existing AGs */
-	ino = XFS_AGINO_TO_INO(sc->mp, pag->pag_agno, agino);
-	if (!xfs_verify_ino(mp, ino))
+	/* reject ianalde numbers outside existing AGs */
+	ianal = XFS_AGIANAL_TO_IANAL(sc->mp, pag->pag_aganal, agianal);
+	if (!xfs_verify_ianal(mp, ianal))
 		return -EINVAL;
 
-	error = -ENODATA;
+	error = -EANALDATA;
 	rcu_read_lock();
-	ip = radix_tree_lookup(&pag->pag_ici_root, agino);
+	ip = radix_tree_lookup(&pag->pag_ici_root, agianal);
 	if (!ip) {
 		/* cache miss */
 		goto out_rcu;
 	}
 
 	/*
-	 * If the inode number doesn't match, the incore inode got reused
+	 * If the ianalde number doesn't match, the incore ianalde got reused
 	 * during an RCU grace period and the radix tree hasn't been updated.
-	 * This isn't the inode we want.
+	 * This isn't the ianalde we want.
 	 */
 	spin_lock(&ip->i_flags_lock);
-	if (ip->i_ino != ino)
+	if (ip->i_ianal != ianal)
 		goto out_skip;
 
-	trace_xchk_inode_is_allocated(ip);
+	trace_xchk_ianalde_is_allocated(ip);
 
 	/*
-	 * We have an incore inode that matches the inode we want, and the
+	 * We have an incore ianalde that matches the ianalde we want, and the
 	 * caller holds the perag structure and the AGI buffer.  Let's check
 	 * our assumptions below:
 	 */
 
 #ifdef DEBUG
 	/*
-	 * (1) If the incore inode is live (i.e. referenced from the dcache),
-	 * it will not be INEW, nor will it be in the inactivation or reclaim
-	 * machinery.  The ondisk inode had better be allocated.  This is the
+	 * (1) If the incore ianalde is live (i.e. referenced from the dcache),
+	 * it will analt be INEW, analr will it be in the inactivation or reclaim
+	 * machinery.  The ondisk ianalde had better be allocated.  This is the
 	 * most trivial case.
 	 */
 	if (!(ip->i_flags & (XFS_NEED_INACTIVE | XFS_INEW | XFS_IRECLAIMABLE |
 			     XFS_INACTIVATING))) {
-		/* live inode */
+		/* live ianalde */
 		ASSERT(VFS_I(ip)->i_mode != 0);
 	}
 
 	/*
-	 * If the incore inode is INEW, there are several possibilities:
+	 * If the incore ianalde is INEW, there are several possibilities:
 	 *
-	 * (2) For a file that is being created, note that we allocate the
-	 * ondisk inode before allocating, initializing, and adding the incore
-	 * inode to the radix tree.
+	 * (2) For a file that is being created, analte that we allocate the
+	 * ondisk ianalde before allocating, initializing, and adding the incore
+	 * ianalde to the radix tree.
 	 *
-	 * (3) If the incore inode is being recycled, the inode has to be
-	 * allocated because we don't allow freed inodes to be recycled.
+	 * (3) If the incore ianalde is being recycled, the ianalde has to be
+	 * allocated because we don't allow freed ianaldes to be recycled.
 	 * Recycling doesn't touch i_mode.
 	 */
 	if (ip->i_flags & XFS_INEW) {
@@ -1362,8 +1362,8 @@ xchk_inode_is_allocated(
 	}
 
 	/*
-	 * (4) If the inode is queued for inactivation (NEED_INACTIVE) but
-	 * inactivation has not started (!INACTIVATING), it is still allocated.
+	 * (4) If the ianalde is queued for inactivation (NEED_INACTIVE) but
+	 * inactivation has analt started (!INACTIVATING), it is still allocated.
 	 */
 	if ((ip->i_flags & XFS_NEED_INACTIVE) &&
 	    !(ip->i_flags & XFS_INACTIVATING)) {
@@ -1373,11 +1373,11 @@ xchk_inode_is_allocated(
 #endif
 
 	/*
-	 * If the incore inode is undergoing inactivation (INACTIVATING), there
+	 * If the incore ianalde is undergoing inactivation (INACTIVATING), there
 	 * are two possibilities:
 	 *
 	 * (5) It is before the point where it would get freed ondisk, in which
-	 * case i_mode is still nonzero.
+	 * case i_mode is still analnzero.
 	 *
 	 * (6) It has already been freed, in which case i_mode is zero.
 	 *
@@ -1387,20 +1387,20 @@ xchk_inode_is_allocated(
 	 */
 
 	/*
-	 * (7) Inodes undergoing inactivation (INACTIVATING) or queued for
+	 * (7) Ianaldes undergoing inactivation (INACTIVATING) or queued for
 	 * reclaim (IRECLAIMABLE) could be allocated or free.  i_mode still
 	 * reflects the ondisk state.
 	 */
 
 	/*
-	 * (8) If the inode is in IFLUSHING, it's safe to query i_mode because
-	 * the flush code uses i_mode to format the ondisk inode.
+	 * (8) If the ianalde is in IFLUSHING, it's safe to query i_mode because
+	 * the flush code uses i_mode to format the ondisk ianalde.
 	 */
 
 	/*
-	 * (9) If the inode is in IRECLAIM and was reachable via the radix
+	 * (9) If the ianalde is in IRECLAIM and was reachable via the radix
 	 * tree, it still has the same i_mode as it did before it entered
-	 * reclaim.  The inode object is still alive because we hold the RCU
+	 * reclaim.  The ianalde object is still alive because we hold the RCU
 	 * read lock.
 	 */
 

@@ -24,7 +24,7 @@
  * struct sof_ipc4_msg - Placeholder of an IPC4 message
  * @header_u64:		IPC4 header as single u64 number
  * @primary:		Primary, mandatory part of the header
- * @extension:		Extended part of the header, if not used it should be
+ * @extension:		Extended part of the header, if analt used it should be
  *			set to 0
  * @data_size:		Size of data in bytes pointed by @data_ptr
  * @data_ptr:		Pointer to the optional payload of a message
@@ -61,7 +61,7 @@ struct sof_ipc4_tuple {
  * extension - extra params such as msg data size in mailbox
  *
  * These are sent at the start of the IPC message in the mailbox. Messages
- * should not be sent in the doorbell (special exceptions for firmware).
+ * should analt be sent in the doorbell (special exceptions for firmware).
  */
 
 /*
@@ -89,7 +89,7 @@ enum sof_ipc4_global_msg {
 	SOF_IPC4_GLB_ROM_CONTROL,
 	SOF_IPC4_GLB_IPCGATEWAY_CMD,
 
-	/* 3 .. 12: RESERVED - do not use */
+	/* 3 .. 12: RESERVED - do analt use */
 
 	SOF_IPC4_GLB_PERF_MEASUREMENTS_CMD = 13,
 	SOF_IPC4_GLB_CHAIN_DMA,
@@ -120,10 +120,10 @@ enum sof_ipc4_global_msg {
 
 	SOF_IPC4_GLB_INTERNAL_MESSAGE,
 
-	/* Notification (FW to SW driver) */
-	SOF_IPC4_GLB_NOTIFICATION,
+	/* Analtification (FW to SW driver) */
+	SOF_IPC4_GLB_ANALTIFICATION,
 
-	/* 28 .. 31: RESERVED - do not use */
+	/* 28 .. 31: RESERVED - do analt use */
 
 	SOF_IPC4_GLB_TYPE_LAST,
 };
@@ -234,7 +234,7 @@ enum sof_ipc4_pipeline_state {
 
 enum sof_ipc4_channel_config {
 	/* one channel only. */
-	SOF_IPC4_CHANNEL_CONFIG_MONO,
+	SOF_IPC4_CHANNEL_CONFIG_MOANAL,
 	/* L & R. */
 	SOF_IPC4_CHANNEL_CONFIG_STEREO,
 	/* L, R & LFE; PCM only. */
@@ -252,7 +252,7 @@ enum sof_ipc4_channel_config {
 	/* L, C, R, Ls, Rs & LFE. */
 	SOF_IPC4_CHANNEL_CONFIG_5_POINT_1,
 	/* one channel replicated in two. */
-	SOF_IPC4_CHANNEL_CONFIG_DUAL_MONO,
+	SOF_IPC4_CHANNEL_CONFIG_DUAL_MOANAL,
 	/* Stereo (L,R) in 4 slots, 1st stream: [ L, R, -, - ] */
 	SOF_IPC4_CHANNEL_CONFIG_I2S_DUAL_STEREO_0,
 	/* Stereo (L,R) in 4 slots, 2nd stream: [ -, -, L, R ] */
@@ -263,7 +263,7 @@ enum sof_ipc4_channel_config {
 
 enum sof_ipc4_interleaved_style {
 	SOF_IPC4_CHANNELS_INTERLEAVED,
-	SOF_IPC4_CHANNELS_NONINTERLEAVED,
+	SOF_IPC4_CHANNELS_ANALNINTERLEAVED,
 };
 
 enum sof_ipc4_sample_type {
@@ -433,7 +433,7 @@ enum sof_ipc4_fw_config_params {
 
 struct sof_ipc4_fw_version {
 	uint16_t major;
-	uint16_t minor;
+	uint16_t mianalr;
 	uint16_t hotfix;
 	uint16_t build;
 } __packed;
@@ -460,60 +460,60 @@ struct sof_ipc4_dx_state_info {
 
 #define SOF_IPC4_REPLY_STATUS			GENMASK(23, 0)
 
-/* Notification messages */
+/* Analtification messages */
 
 /*
- * IPC4 primary header bit allocation for notifications
- * bit 0-15:	notification type specific
- * bit 16-23:	enum sof_ipc4_notification_type
- * bit 24-28:	SOF_IPC4_GLB_NOTIFICATION
+ * IPC4 primary header bit allocation for analtifications
+ * bit 0-15:	analtification type specific
+ * bit 16-23:	enum sof_ipc4_analtification_type
+ * bit 24-28:	SOF_IPC4_GLB_ANALTIFICATION
  * bit 29:	response - sof_ipc4_msg_dir
  * bit 30:	target - enum sof_ipc4_msg_target
  * bit 31:	reserved, unused
  */
 
-#define SOF_IPC4_MSG_IS_NOTIFICATION(x)		(SOF_IPC4_MSG_TYPE_GET(x) == \
-						 SOF_IPC4_GLB_NOTIFICATION)
+#define SOF_IPC4_MSG_IS_ANALTIFICATION(x)		(SOF_IPC4_MSG_TYPE_GET(x) == \
+						 SOF_IPC4_GLB_ANALTIFICATION)
 
-#define SOF_IPC4_NOTIFICATION_TYPE_SHIFT	16
-#define SOF_IPC4_NOTIFICATION_TYPE_MASK		GENMASK(23, 16)
-#define SOF_IPC4_NOTIFICATION_TYPE_GET(x)	(((x) & SOF_IPC4_NOTIFICATION_TYPE_MASK) >> \
-						 SOF_IPC4_NOTIFICATION_TYPE_SHIFT)
+#define SOF_IPC4_ANALTIFICATION_TYPE_SHIFT	16
+#define SOF_IPC4_ANALTIFICATION_TYPE_MASK		GENMASK(23, 16)
+#define SOF_IPC4_ANALTIFICATION_TYPE_GET(x)	(((x) & SOF_IPC4_ANALTIFICATION_TYPE_MASK) >> \
+						 SOF_IPC4_ANALTIFICATION_TYPE_SHIFT)
 
 #define SOF_IPC4_LOG_CORE_SHIFT			12
 #define SOF_IPC4_LOG_CORE_MASK			GENMASK(15, 12)
 #define SOF_IPC4_LOG_CORE_GET(x)		(((x) & SOF_IPC4_LOG_CORE_MASK) >> \
 						 SOF_IPC4_LOG_CORE_SHIFT)
 
-/* Value of notification type field - must fit into 8 bits */
-enum sof_ipc4_notification_type {
-	/* Phrase detected (notification from WoV module) */
-	SOF_IPC4_NOTIFY_PHRASE_DETECTED = 4,
+/* Value of analtification type field - must fit into 8 bits */
+enum sof_ipc4_analtification_type {
+	/* Phrase detected (analtification from WoV module) */
+	SOF_IPC4_ANALTIFY_PHRASE_DETECTED = 4,
 	/* Event from a resource (pipeline or module instance) */
-	SOF_IPC4_NOTIFY_RESOURCE_EVENT,
+	SOF_IPC4_ANALTIFY_RESOURCE_EVENT,
 	/* Debug log buffer status changed */
-	SOF_IPC4_NOTIFY_LOG_BUFFER_STATUS,
+	SOF_IPC4_ANALTIFY_LOG_BUFFER_STATUS,
 	/* Timestamp captured at the link */
-	SOF_IPC4_NOTIFY_TIMESTAMP_CAPTURED,
+	SOF_IPC4_ANALTIFY_TIMESTAMP_CAPTURED,
 	/* FW complete initialization */
-	SOF_IPC4_NOTIFY_FW_READY,
+	SOF_IPC4_ANALTIFY_FW_READY,
 	/* Audio classifier result (ACA) */
-	SOF_IPC4_NOTIFY_FW_AUD_CLASS_RESULT,
+	SOF_IPC4_ANALTIFY_FW_AUD_CLASS_RESULT,
 	/* Exception caught by DSP FW */
-	SOF_IPC4_NOTIFY_EXCEPTION_CAUGHT,
+	SOF_IPC4_ANALTIFY_EXCEPTION_CAUGHT,
 	/* 11 is skipped by the existing cavs firmware */
-	/* Custom module notification */
-	SOF_IPC4_NOTIFY_MODULE_NOTIFICATION = 12,
-	/* 13 is reserved - do not use */
-	/* Probe notify data available */
-	SOF_IPC4_NOTIFY_PROBE_DATA_AVAILABLE = 14,
-	/* AM module notifications */
-	SOF_IPC4_NOTIFY_ASYNC_MSG_SRVC_MESSAGE,
+	/* Custom module analtification */
+	SOF_IPC4_ANALTIFY_MODULE_ANALTIFICATION = 12,
+	/* 13 is reserved - do analt use */
+	/* Probe analtify data available */
+	SOF_IPC4_ANALTIFY_PROBE_DATA_AVAILABLE = 14,
+	/* AM module analtifications */
+	SOF_IPC4_ANALTIFY_ASYNC_MSG_SRVC_MESSAGE,
 
-	SOF_IPC4_NOTIFY_TYPE_LAST,
+	SOF_IPC4_ANALTIFY_TYPE_LAST,
 };
 
-struct sof_ipc4_notify_resource_data {
+struct sof_ipc4_analtify_resource_data {
 	uint32_t resource_type;
 	uint32_t resource_id;
 	uint32_t event_type;
@@ -539,14 +539,14 @@ struct sof_ipc4_notify_resource_data {
 #define SOF_IPC4_DEBUG_SLOT_BROKEN		0x44414544
 
 /**
- * struct sof_ipc4_notify_module_data - payload for module notification
- * @instance_id: instance ID of the originator module of the notification
- * @module_id: module ID of the originator of the notification
+ * struct sof_ipc4_analtify_module_data - payload for module analtification
+ * @instance_id: instance ID of the originator module of the analtification
+ * @module_id: module ID of the originator of the analtification
  * @event_id: module specific event id
  * @event_data_size: Size of the @event_data (if any) in bytes
- * @event_data: Optional notification data, module and notification dependent
+ * @event_data: Optional analtification data, module and analtification dependent
  */
-struct sof_ipc4_notify_module_data {
+struct sof_ipc4_analtify_module_data {
 	uint16_t instance_id;
 	uint16_t module_id;
 	uint32_t event_id;
@@ -555,17 +555,17 @@ struct sof_ipc4_notify_module_data {
 } __packed __aligned(4);
 
 /*
- * ALSA kcontrol change notification
+ * ALSA kcontrol change analtification
  *
- * The event_id of struct sof_ipc4_notify_module_data is divided into two u16:
+ * The event_id of struct sof_ipc4_analtify_module_data is divided into two u16:
  *  upper u16: magic number for ALSA kcontrol types: 0xA15A
  *  lower u16: param_id of the control, which is the type of the control
  * The event_data contains the struct sof_ipc4_control_msg_payload of the control
- * which sent the notification.
+ * which sent the analtification.
  */
-#define SOF_IPC4_NOTIFY_MODULE_EVENTID_ALSA_MAGIC_MASK		GENMASK(31, 16)
-#define SOF_IPC4_NOTIFY_MODULE_EVENTID_ALSA_MAGIC_VAL		0xA15A0000
-#define SOF_IPC4_NOTIFY_MODULE_EVENTID_ALSA_PARAMID_MASK	GENMASK(15, 0)
+#define SOF_IPC4_ANALTIFY_MODULE_EVENTID_ALSA_MAGIC_MASK		GENMASK(31, 16)
+#define SOF_IPC4_ANALTIFY_MODULE_EVENTID_ALSA_MAGIC_VAL		0xA15A0000
+#define SOF_IPC4_ANALTIFY_MODULE_EVENTID_ALSA_PARAMID_MASK	GENMASK(15, 0)
 
 /** @}*/
 

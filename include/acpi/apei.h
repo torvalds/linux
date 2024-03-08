@@ -20,7 +20,7 @@
 enum hest_status {
 	HEST_ENABLED,
 	HEST_DISABLED,
-	HEST_NOT_FOUND,
+	HEST_ANALT_FOUND,
 };
 
 extern int hest_disable;

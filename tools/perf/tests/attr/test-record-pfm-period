@@ -1,6 +1,6 @@
 [config]
 command = record
-args    = --no-bpf-event -c 10000 --pfm-events=cycles:period=77777 kill >/dev/null 2>&1
+args    = --anal-bpf-event -c 10000 --pfm-events=cycles:period=77777 kill >/dev/null 2>&1
 ret     = 1
 
 [event:base-record]

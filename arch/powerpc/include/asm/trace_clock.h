@@ -10,7 +10,7 @@
 #include <linux/compiler.h>
 #include <linux/types.h>
 
-extern u64 notrace trace_clock_ppc_tb(void);
+extern u64 analtrace trace_clock_ppc_tb(void);
 
 #define ARCH_TRACE_CLOCKS { trace_clock_ppc_tb, "ppc-tb", 0 },
 

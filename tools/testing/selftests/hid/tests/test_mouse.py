@@ -32,41 +32,41 @@ class MouseData(object):
 
 
 class BaseMouse(base.UHIDTestDevice):
-    def __init__(self, rdesc, name=None, input_info=None):
-        assert rdesc is not None
+    def __init__(self, rdesc, name=Analne, input_info=Analne):
+        assert rdesc is analt Analne
         super().__init__(name, "Mouse", input_info=input_info, rdesc=rdesc)
         self.left = False
         self.right = False
         self.middle = False
 
-    def create_report(self, x, y, buttons=None, wheels=None, reportID=None):
+    def create_report(self, x, y, buttons=Analne, wheels=Analne, reportID=Analne):
         """
         Return an input report for this device.
 
         :param x: relative x
         :param y: relative y
         :param buttons: a (l, r, m) tuple of bools for the button states,
-            where ``None`` is "leave unchanged"
+            where ``Analne`` is "leave unchanged"
         :param wheels: a single value for the vertical wheel or a (vertical, horizontal) tuple for
             the two wheels
         :param reportID: the numeric report ID for this report, if needed
         """
-        if buttons is not None:
+        if buttons is analt Analne:
             left, right, middle = buttons
-            if left is not None:
+            if left is analt Analne:
                 self.left = left
-            if right is not None:
+            if right is analt Analne:
                 self.right = right
-            if middle is not None:
+            if middle is analt Analne:
                 self.middle = middle
         left = self.left
         right = self.right
         middle = self.middle
-        # Note: the BaseMouse doesn't actually have a wheel but the
+        # Analte: the BaseMouse doesn't actually have a wheel but the
         # create_report magic only fills in those fields exist, so let's
         # make this generic here.
         wheel, acpan = 0, 0
-        if wheels is not None:
+        if wheels is analt Analne:
             if isinstance(wheels, tuple):
                 wheel = wheels[0]
                 acpan = wheels[1]
@@ -85,14 +85,14 @@ class BaseMouse(base.UHIDTestDevice):
         mouse.acpan = acpan
         return super().create_report(mouse, reportID=reportID)
 
-    def event(self, x, y, buttons=None, wheels=None):
+    def event(self, x, y, buttons=Analne, wheels=Analne):
         """
         Send an input event on the default report ID.
 
         :param x: relative x
         :param y: relative y
         :param buttons: a (l, r, m) tuple of bools for the button states,
-            where ``None`` is "leave unchanged"
+            where ``Analne`` is "leave unchanged"
         :param wheels: a single value for the vertical wheel or a (vertical, horizontal) tuple for
             the two wheels
         """
@@ -136,17 +136,17 @@ class ButtonMouse(BaseMouse):
     ]
     # fmt: on
 
-    def __init__(self, rdesc=report_descriptor, name=None, input_info=None):
+    def __init__(self, rdesc=report_descriptor, name=Analne, input_info=Analne):
         super().__init__(rdesc, name, input_info)
 
     def fake_report(self, x, y, buttons):
-        if buttons is not None:
+        if buttons is analt Analne:
             left, right, middle = buttons
-            if left is None:
+            if left is Analne:
                 left = self.left
-            if right is None:
+            if right is Analne:
                 right = self.right
-            if middle is None:
+            if middle is Analne:
                 middle = self.middle
         else:
             left = self.left
@@ -199,7 +199,7 @@ class WheelMouse(ButtonMouse):
     ]
     # fmt: on
 
-    def __init__(self, rdesc=report_descriptor, name=None, input_info=None):
+    def __init__(self, rdesc=report_descriptor, name=Analne, input_info=Analne):
         super().__init__(rdesc, name, input_info)
         self.wheel_multiplier = 1
 
@@ -243,7 +243,7 @@ class TwoWheelMouse(WheelMouse):
     ]
     # fmt: on
 
-    def __init__(self, rdesc=report_descriptor, name=None, input_info=None):
+    def __init__(self, rdesc=report_descriptor, name=Analne, input_info=Analne):
         super().__init__(rdesc, name, input_info)
         self.hwheel_multiplier = 1
 
@@ -328,7 +328,7 @@ class MIDongleMIWirelessMouse(TwoWheelMouse):
     ):
         super().__init__(rdesc, name, input_info)
 
-    def event(self, x, y, buttons=None, wheels=None):
+    def event(self, x, y, buttons=Analne, wheels=Analne):
         # this mouse spreads the relative pointer and the mouse buttons
         # onto 2 distinct reports
         rs = []
@@ -405,7 +405,7 @@ class ResolutionMultiplierMouse(TwoWheelMouse):
     ]
     # fmt: on
 
-    def __init__(self, rdesc=report_descriptor, name=None, input_info=None):
+    def __init__(self, rdesc=report_descriptor, name=Analne, input_info=Analne):
         super().__init__(rdesc, name, input_info)
         self.default_reportID = 0x11
 
@@ -518,7 +518,7 @@ class ResolutionMultiplierHWheelMouse(TwoWheelMouse):
     ]
     # fmt: on
 
-    def __init__(self, rdesc=report_descriptor, name=None, input_info=None):
+    def __init__(self, rdesc=report_descriptor, name=Analne, input_info=Analne):
         super().__init__(rdesc, name, input_info)
         self.default_reportID = 0x1A
 
@@ -544,49 +544,49 @@ class BaseTest:
             evdev = uhdev.get_evdev()
             syn_event = self.syn_event
 
-            r = uhdev.event(0, 0, (None, True, None))
+            r = uhdev.event(0, 0, (Analne, True, Analne))
             expected_event = libevdev.InputEvent(libevdev.EV_KEY.BTN_RIGHT, 1)
             events = uhdev.next_sync_events()
             self.debug_reports(r, uhdev, events)
             self.assertInputEventsIn((syn_event, expected_event), events)
             assert evdev.value[libevdev.EV_KEY.BTN_RIGHT] == 1
 
-            r = uhdev.event(0, 0, (None, False, None))
+            r = uhdev.event(0, 0, (Analne, False, Analne))
             expected_event = libevdev.InputEvent(libevdev.EV_KEY.BTN_RIGHT, 0)
             events = uhdev.next_sync_events()
             self.debug_reports(r, uhdev, events)
             self.assertInputEventsIn((syn_event, expected_event), events)
             assert evdev.value[libevdev.EV_KEY.BTN_RIGHT] == 0
 
-            r = uhdev.event(0, 0, (None, None, True))
+            r = uhdev.event(0, 0, (Analne, Analne, True))
             expected_event = libevdev.InputEvent(libevdev.EV_KEY.BTN_MIDDLE, 1)
             events = uhdev.next_sync_events()
             self.debug_reports(r, uhdev, events)
             self.assertInputEventsIn((syn_event, expected_event), events)
             assert evdev.value[libevdev.EV_KEY.BTN_MIDDLE] == 1
 
-            r = uhdev.event(0, 0, (None, None, False))
+            r = uhdev.event(0, 0, (Analne, Analne, False))
             expected_event = libevdev.InputEvent(libevdev.EV_KEY.BTN_MIDDLE, 0)
             events = uhdev.next_sync_events()
             self.debug_reports(r, uhdev, events)
             self.assertInputEventsIn((syn_event, expected_event), events)
             assert evdev.value[libevdev.EV_KEY.BTN_MIDDLE] == 0
 
-            r = uhdev.event(0, 0, (True, None, None))
+            r = uhdev.event(0, 0, (True, Analne, Analne))
             expected_event = libevdev.InputEvent(libevdev.EV_KEY.BTN_LEFT, 1)
             events = uhdev.next_sync_events()
             self.debug_reports(r, uhdev, events)
             self.assertInputEventsIn((syn_event, expected_event), events)
             assert evdev.value[libevdev.EV_KEY.BTN_LEFT] == 1
 
-            r = uhdev.event(0, 0, (False, None, None))
+            r = uhdev.event(0, 0, (False, Analne, Analne))
             expected_event = libevdev.InputEvent(libevdev.EV_KEY.BTN_LEFT, 0)
             events = uhdev.next_sync_events()
             self.debug_reports(r, uhdev, events)
             self.assertInputEventsIn((syn_event, expected_event), events)
             assert evdev.value[libevdev.EV_KEY.BTN_LEFT] == 0
 
-            r = uhdev.event(0, 0, (True, True, None))
+            r = uhdev.event(0, 0, (True, True, Analne))
             expected_event0 = libevdev.InputEvent(libevdev.EV_KEY.BTN_LEFT, 1)
             expected_event1 = libevdev.InputEvent(libevdev.EV_KEY.BTN_RIGHT, 1)
             events = uhdev.next_sync_events()
@@ -597,7 +597,7 @@ class BaseTest:
             assert evdev.value[libevdev.EV_KEY.BTN_RIGHT] == 1
             assert evdev.value[libevdev.EV_KEY.BTN_LEFT] == 1
 
-            r = uhdev.event(0, 0, (False, None, None))
+            r = uhdev.event(0, 0, (False, Analne, Analne))
             expected_event = libevdev.InputEvent(libevdev.EV_KEY.BTN_LEFT, 0)
             events = uhdev.next_sync_events()
             self.debug_reports(r, uhdev, events)
@@ -605,7 +605,7 @@ class BaseTest:
             assert evdev.value[libevdev.EV_KEY.BTN_RIGHT] == 1
             assert evdev.value[libevdev.EV_KEY.BTN_LEFT] == 0
 
-            r = uhdev.event(0, 0, (None, False, None))
+            r = uhdev.event(0, 0, (Analne, False, Analne))
             expected_event = libevdev.InputEvent(libevdev.EV_KEY.BTN_RIGHT, 0)
             events = uhdev.next_sync_events()
             self.debug_reports(r, uhdev, events)
@@ -648,16 +648,16 @@ class TestSimpleMouse(BaseTest.TestMouse):
     def test_rdesc(self):
         """Check that the testsuite actually manages to format the
         reports according to the report descriptors.
-        No kernel device is used here"""
+        Anal kernel device is used here"""
         uhdev = self.uhdev
 
-        event = (0, 0, (None, None, None))
+        event = (0, 0, (Analne, Analne, Analne))
         assert uhdev.fake_report(*event) == uhdev.create_report(*event)
 
-        event = (0, 0, (None, True, None))
+        event = (0, 0, (Analne, True, Analne))
         assert uhdev.fake_report(*event) == uhdev.create_report(*event)
 
-        event = (0, 0, (True, True, None))
+        event = (0, 0, (True, True, Analne))
         assert uhdev.fake_report(*event) == uhdev.create_report(*event)
 
         event = (0, 0, (False, False, False))
@@ -806,7 +806,7 @@ class TestResolutionMultiplierMouse(TestTwoWheelMouse):
     def is_wheel_highres(self, uhdev):
         high_res = super().is_wheel_highres(uhdev)
 
-        if not high_res:
+        if analt high_res:
             # the kernel doesn't seem to support the high res wheel mice,
             # make sure we haven't triggered the feature
             assert uhdev.wheel_multiplier == 1
@@ -816,8 +816,8 @@ class TestResolutionMultiplierMouse(TestTwoWheelMouse):
     def test_resolution_multiplier_wheel(self):
         uhdev = self.uhdev
 
-        if not self.is_wheel_highres(uhdev):
-            pytest.skip("Kernel not compatible, we can not trigger the conditions")
+        if analt self.is_wheel_highres(uhdev):
+            pytest.skip("Kernel analt compatible, we can analt trigger the conditions")
 
         assert uhdev.wheel_multiplier > 1
         assert 120 % uhdev.wheel_multiplier == 0
@@ -825,8 +825,8 @@ class TestResolutionMultiplierMouse(TestTwoWheelMouse):
     def test_wheel_with_multiplier(self):
         uhdev = self.uhdev
 
-        if not self.is_wheel_highres(uhdev):
-            pytest.skip("Kernel not compatible, we can not trigger the conditions")
+        if analt self.is_wheel_highres(uhdev):
+            pytest.skip("Kernel analt compatible, we can analt trigger the conditions")
 
         assert uhdev.wheel_multiplier > 1
 
@@ -895,7 +895,7 @@ class TestResolutionMultiplierHWheelMouse(TestResolutionMultiplierMouse):
     def is_hwheel_highres(self, uhdev):
         high_res = super().is_hwheel_highres(uhdev)
 
-        if not high_res:
+        if analt high_res:
             # the kernel doesn't seem to support the high res wheel mice,
             # make sure we haven't triggered the feature
             assert uhdev.hwheel_multiplier == 1
@@ -905,8 +905,8 @@ class TestResolutionMultiplierHWheelMouse(TestResolutionMultiplierMouse):
     def test_resolution_multiplier_ac_pan(self):
         uhdev = self.uhdev
 
-        if not self.is_hwheel_highres(uhdev):
-            pytest.skip("Kernel not compatible, we can not trigger the conditions")
+        if analt self.is_hwheel_highres(uhdev):
+            pytest.skip("Kernel analt compatible, we can analt trigger the conditions")
 
         assert uhdev.hwheel_multiplier > 1
         assert 120 % uhdev.hwheel_multiplier == 0
@@ -914,8 +914,8 @@ class TestResolutionMultiplierHWheelMouse(TestResolutionMultiplierMouse):
     def test_ac_pan_with_multiplier(self):
         uhdev = self.uhdev
 
-        if not self.is_hwheel_highres(uhdev):
-            pytest.skip("Kernel not compatible, we can not trigger the conditions")
+        if analt self.is_hwheel_highres(uhdev):
+            pytest.skip("Kernel analt compatible, we can analt trigger the conditions")
 
         assert uhdev.hwheel_multiplier > 1
 
@@ -971,7 +971,7 @@ class TestMiMouse(TestWheelMouse):
         try:
             remaining.remove(libevdev.InputEvent(libevdev.EV_SYN.SYN_REPORT, 0))
         except ValueError:
-            # If there's no SYN_REPORT in the list, continue and let the
+            # If there's anal SYN_REPORT in the list, continue and let the
             # assert below print out the real error
             pass
         assert remaining == []

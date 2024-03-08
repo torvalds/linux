@@ -1,23 +1,23 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-2.0
 
-# This test is for checking the [no]localbypass VXLAN device option. The test
+# This test is for checking the [anal]localbypass VXLAN device option. The test
 # configures two VXLAN devices in the same network namespace and a tc filter on
 # the loopback device that drops encapsulated packets. The test sends packets
 # from the first VXLAN device and verifies that by default these packets are
-# received by the second VXLAN device. The test then enables the nolocalbypass
-# option and verifies that packets are no longer received by the second VXLAN
+# received by the second VXLAN device. The test then enables the anallocalbypass
+# option and verifies that packets are anal longer received by the second VXLAN
 # device.
 
 source lib.sh
 ret=0
 
 TESTS="
-	nolocalbypass
+	anallocalbypass
 "
 VERBOSE=0
-PAUSE_ON_FAIL=no
-PAUSE=no
+PAUSE_ON_FAIL=anal
+PAUSE=anal
 
 ################################################################################
 # Utilities
@@ -39,7 +39,7 @@ log_test()
 			echo "    rc=$rc, expected $expected"
 		fi
 
-		if [ "${PAUSE_ON_FAIL}" = "yes" ]; then
+		if [ "${PAUSE_ON_FAIL}" = "anal" ]; then
 		echo
 			echo "hit enter to continue, 'q' to quit"
 			read a
@@ -47,7 +47,7 @@ log_test()
 		fi
 	fi
 
-	if [ "${PAUSE}" = "yes" ]; then
+	if [ "${PAUSE}" = "anal" ]; then
 		echo
 		echo "hit enter to continue, 'q' to quit"
 		read a
@@ -103,7 +103,7 @@ setup()
 	ip -n $ns1 address add 198.51.100.1/32 dev lo
 
 	ip -n $ns1 link add name vx0 up type vxlan id 100 local 198.51.100.1 \
-		dstport 4789 nolearning
+		dstport 4789 anallearning
 	ip -n $ns1 link add name vx1 up type vxlan id 100 dstport 4790
 }
 
@@ -115,7 +115,7 @@ cleanup()
 ################################################################################
 # Tests
 
-nolocalbypass()
+anallocalbypass()
 {
 	local smac=00:01:02:03:04:05
 	local dmac=00:0a:0b:0c:0d:0e
@@ -136,7 +136,7 @@ nolocalbypass()
 	tc_check_packets "$ns1" "dev vx1 ingress" 101 1
 	log_test $? 0 "Packet received by local VXLAN device - localbypass"
 
-	run_cmd "ip -n $ns1 link set dev vx0 type vxlan nolocalbypass"
+	run_cmd "ip -n $ns1 link set dev vx0 type vxlan anallocalbypass"
 
 	run_cmd "ip -n $ns1 -d -j link show dev vx0 | jq -e '.[][\"linkinfo\"][\"info_data\"][\"localbypass\"] == false'"
 	log_test $? 0 "localbypass disabled"
@@ -144,7 +144,7 @@ nolocalbypass()
 	run_cmd "ip netns exec $ns1 mausezahn vx0 -a $smac -b $dmac -c 1 -p 100 -q"
 
 	tc_check_packets "$ns1" "dev vx1 ingress" 101 1
-	log_test $? 0 "Packet not received by local VXLAN device - nolocalbypass"
+	log_test $? 0 "Packet analt received by local VXLAN device - anallocalbypass"
 
 	run_cmd "ip -n $ns1 link set dev vx0 type vxlan localbypass"
 
@@ -181,8 +181,8 @@ trap cleanup EXIT
 while getopts ":t:pPvh" opt; do
 	case $opt in
 		t) TESTS=$OPTARG ;;
-		p) PAUSE_ON_FAIL=yes;;
-		P) PAUSE=yes;;
+		p) PAUSE_ON_FAIL=anal;;
+		P) PAUSE=anal;;
 		v) VERBOSE=$(($VERBOSE + 1));;
 		h) usage; exit 0;;
 		*) usage; exit 1;;
@@ -190,7 +190,7 @@ while getopts ":t:pPvh" opt; do
 done
 
 # Make sure we don't pause twice.
-[ "${PAUSE}" = "yes" ] && PAUSE_ON_FAIL=no
+[ "${PAUSE}" = "anal" ] && PAUSE_ON_FAIL=anal
 
 if [ "$(id -u)" -ne 0 ];then
 	echo "SKIP: Need root privileges"
@@ -198,28 +198,28 @@ if [ "$(id -u)" -ne 0 ];then
 fi
 
 if [ ! -x "$(command -v ip)" ]; then
-	echo "SKIP: Could not run test without ip tool"
+	echo "SKIP: Could analt run test without ip tool"
 	exit $ksft_skip
 fi
 
 if [ ! -x "$(command -v bridge)" ]; then
-	echo "SKIP: Could not run test without bridge tool"
+	echo "SKIP: Could analt run test without bridge tool"
 	exit $ksft_skip
 fi
 
 if [ ! -x "$(command -v mausezahn)" ]; then
-	echo "SKIP: Could not run test without mausezahn tool"
+	echo "SKIP: Could analt run test without mausezahn tool"
 	exit $ksft_skip
 fi
 
 if [ ! -x "$(command -v jq)" ]; then
-	echo "SKIP: Could not run test without jq tool"
+	echo "SKIP: Could analt run test without jq tool"
 	exit $ksft_skip
 fi
 
 ip link help vxlan 2>&1 | grep -q "localbypass"
 if [ $? -ne 0 ]; then
-	echo "SKIP: iproute2 ip too old, missing VXLAN nolocalbypass support"
+	echo "SKIP: iproute2 ip too old, missing VXLAN anallocalbypass support"
 	exit $ksft_skip
 fi
 
@@ -230,7 +230,7 @@ do
 	setup; $t; cleanup;
 done
 
-if [ "$TESTS" != "none" ]; then
+if [ "$TESTS" != "analne" ]; then
 	printf "\nTests passed: %3d\n" ${nsuccess}
 	printf "Tests failed: %3d\n"   ${nfail}
 fi

@@ -48,27 +48,27 @@ struct dbg_reg_def_t dbg_reg_def[DBG_MAX_REG_NUM] =
 	{ "cpsr", 4, offsetof(struct pt_regs, ARM_cpsr)},
 };
 
-char *dbg_get_reg(int regno, void *mem, struct pt_regs *regs)
+char *dbg_get_reg(int reganal, void *mem, struct pt_regs *regs)
 {
-	if (regno >= DBG_MAX_REG_NUM || regno < 0)
+	if (reganal >= DBG_MAX_REG_NUM || reganal < 0)
 		return NULL;
 
-	if (dbg_reg_def[regno].offset != -1)
-		memcpy(mem, (void *)regs + dbg_reg_def[regno].offset,
-		       dbg_reg_def[regno].size);
+	if (dbg_reg_def[reganal].offset != -1)
+		memcpy(mem, (void *)regs + dbg_reg_def[reganal].offset,
+		       dbg_reg_def[reganal].size);
 	else
-		memset(mem, 0, dbg_reg_def[regno].size);
-	return dbg_reg_def[regno].name;
+		memset(mem, 0, dbg_reg_def[reganal].size);
+	return dbg_reg_def[reganal].name;
 }
 
-int dbg_set_reg(int regno, void *mem, struct pt_regs *regs)
+int dbg_set_reg(int reganal, void *mem, struct pt_regs *regs)
 {
-	if (regno >= DBG_MAX_REG_NUM || regno < 0)
+	if (reganal >= DBG_MAX_REG_NUM || reganal < 0)
 		return -EINVAL;
 
-	if (dbg_reg_def[regno].offset != -1)
-		memcpy((void *)regs + dbg_reg_def[regno].offset, mem,
-		       dbg_reg_def[regno].size);
+	if (dbg_reg_def[reganal].offset != -1)
+		memcpy((void *)regs + dbg_reg_def[reganal].offset, mem,
+		       dbg_reg_def[reganal].size);
 	return 0;
 }
 
@@ -76,15 +76,15 @@ void
 sleeping_thread_to_gdb_regs(unsigned long *gdb_regs, struct task_struct *task)
 {
 	struct thread_info *ti;
-	int regno;
+	int reganal;
 
 	/* Just making sure... */
 	if (task == NULL)
 		return;
 
 	/* Initialize to zero */
-	for (regno = 0; regno < GDB_MAX_REGS; regno++)
-		gdb_regs[regno] = 0;
+	for (reganal = 0; reganal < GDB_MAX_REGS; reganal++)
+		gdb_regs[reganal] = 0;
 
 	/* Otherwise, we have only some registers from switch_to() */
 	ti			= task_thread_info(task);
@@ -107,7 +107,7 @@ void kgdb_arch_set_pc(struct pt_regs *regs, unsigned long pc)
 
 static int compiled_break;
 
-int kgdb_arch_handle_exception(int exception_vector, int signo,
+int kgdb_arch_handle_exception(int exception_vector, int siganal,
 			       int err_code, char *remcom_in_buffer,
 			       char *remcom_out_buffer,
 			       struct pt_regs *linux_regs)
@@ -120,7 +120,7 @@ int kgdb_arch_handle_exception(int exception_vector, int signo,
 	case 'k':
 	case 'c':
 		/*
-		 * Try to read optional parameter, pc unchanged if no parm.
+		 * Try to read optional parameter, pc unchanged if anal parm.
 		 * If this was a compiled breakpoint, we need to move
 		 * to the next instruction or we will just breakpoint
 		 * over and over again.
@@ -186,29 +186,29 @@ static struct undef_hook kgdb_compiled_brkpt_thumb_hook = {
 	.fn			= kgdb_compiled_brk_fn
 };
 
-static int __kgdb_notify(struct die_args *args, unsigned long cmd)
+static int __kgdb_analtify(struct die_args *args, unsigned long cmd)
 {
 	struct pt_regs *regs = args->regs;
 
 	if (kgdb_handle_exception(1, args->signr, cmd, regs))
-		return NOTIFY_DONE;
-	return NOTIFY_STOP;
+		return ANALTIFY_DONE;
+	return ANALTIFY_STOP;
 }
 static int
-kgdb_notify(struct notifier_block *self, unsigned long cmd, void *ptr)
+kgdb_analtify(struct analtifier_block *self, unsigned long cmd, void *ptr)
 {
 	unsigned long flags;
 	int ret;
 
 	local_irq_save(flags);
-	ret = __kgdb_notify(ptr, cmd);
+	ret = __kgdb_analtify(ptr, cmd);
 	local_irq_restore(flags);
 
 	return ret;
 }
 
-static struct notifier_block kgdb_notifier = {
-	.notifier_call	= kgdb_notify,
+static struct analtifier_block kgdb_analtifier = {
+	.analtifier_call	= kgdb_analtify,
 	.priority	= -INT_MAX,
 };
 
@@ -221,7 +221,7 @@ static struct notifier_block kgdb_notifier = {
  */
 int kgdb_arch_init(void)
 {
-	int ret = register_die_notifier(&kgdb_notifier);
+	int ret = register_die_analtifier(&kgdb_analtifier);
 
 	if (ret != 0)
 		return ret;
@@ -246,7 +246,7 @@ void kgdb_arch_exit(void)
 	unregister_undef_hook(&kgdb_brkpt_thumb_hook);
 	unregister_undef_hook(&kgdb_compiled_brkpt_arm_hook);
 	unregister_undef_hook(&kgdb_compiled_brkpt_thumb_hook);
-	unregister_die_notifier(&kgdb_notifier);
+	unregister_die_analtifier(&kgdb_analtifier);
 }
 
 int kgdb_arch_set_breakpoint(struct kgdb_bkpt *bpt)
@@ -256,7 +256,7 @@ int kgdb_arch_set_breakpoint(struct kgdb_bkpt *bpt)
 	/* patch_text() only supports int-sized breakpoints */
 	BUILD_BUG_ON(sizeof(int) != BREAK_INSTR_SIZE);
 
-	err = copy_from_kernel_nofault(bpt->saved_instr, (char *)bpt->bpt_addr,
+	err = copy_from_kernel_analfault(bpt->saved_instr, (char *)bpt->bpt_addr,
 				BREAK_INSTR_SIZE);
 	if (err)
 		return err;
@@ -279,7 +279,7 @@ int kgdb_arch_remove_breakpoint(struct kgdb_bkpt *bpt)
 /*
  * Register our undef instruction hooks with ARM undef core.
  * We register a hook specifically looking for the KGB break inst
- * and we handle the normal undef case within the do_undefinstr
+ * and we handle the analrmal undef case within the do_undefinstr
  * handler.
  */
 const struct kgdb_arch arch_kgdb_ops = {

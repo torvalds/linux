@@ -14,7 +14,7 @@
  * that occur between the SBUS and physical memory.  Access by
  * the cpu to IO registers and similar go over the xdbus so are
  * translated by the on chip SRMMU.  The io-unit and the srmmu do
- * not need to have the same translations at all, in fact most
+ * analt need to have the same translations at all, in fact most
  * of the time the translations they handle are a disjunct set.
  * Basically the io-unit handles all dvma sbus activity.
  */

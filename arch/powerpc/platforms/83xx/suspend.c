@@ -143,7 +143,7 @@ static int mpc83xx_change_state(void)
 static irqreturn_t pmc_irq_handler(int irq, void *dev_id)
 {
 	u32 event = in_be32(&pmc_regs->event);
-	int ret = IRQ_NONE;
+	int ret = IRQ_ANALNE;
 
 	if (mpc83xx_change_state())
 		ret = IRQ_HANDLED;
@@ -304,7 +304,7 @@ static int mpc83xx_is_pci_agent(void)
 	                   sizeof(struct mpc83xx_rcw));
 
 	if (!rcw_regs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = !(in_be32(&rcw_regs->rcwhr) & RCW_PCI_HOST);
 
@@ -342,7 +342,7 @@ static const struct of_device_id pmc_match[] = {
 
 static int pmc_probe(struct platform_device *ofdev)
 {
-	struct device_node *np = ofdev->dev.of_node;
+	struct device_analde *np = ofdev->dev.of_analde;
 	struct resource res;
 	const struct pmc_type *type;
 	int ret = 0;
@@ -352,7 +352,7 @@ static int pmc_probe(struct platform_device *ofdev)
 		return -EINVAL;
 
 	if (!of_device_is_available(np))
-		return -ENODEV;
+		return -EANALDEV;
 
 	has_deep_sleep = type->has_deep_sleep;
 	immrbase = get_immrbase();
@@ -363,7 +363,7 @@ static int pmc_probe(struct platform_device *ofdev)
 
 	ret = of_address_to_resource(np, 0, &res);
 	if (ret)
-		return -ENODEV;
+		return -EANALDEV;
 
 	pmc_irq = irq_of_parse_and_map(np, 0);
 	if (pmc_irq) {
@@ -377,20 +377,20 @@ static int pmc_probe(struct platform_device *ofdev)
 	pmc_regs = ioremap(res.start, sizeof(*pmc_regs));
 
 	if (!pmc_regs) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
 	ret = of_address_to_resource(np, 1, &res);
 	if (ret) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out_pmc;
 	}
 
 	clock_regs = ioremap(res.start, sizeof(*clock_regs));
 
 	if (!clock_regs) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_pmc;
 	}
 
@@ -398,7 +398,7 @@ static int pmc_probe(struct platform_device *ofdev)
 		syscr_regs = ioremap(immrbase + IMMR_SYSCR_OFFSET,
 				     sizeof(*syscr_regs));
 		if (!syscr_regs) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out_syscr;
 		}
 	}

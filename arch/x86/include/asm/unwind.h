@@ -17,7 +17,7 @@ struct unwind_state {
 	struct task_struct *task;
 	int graph_idx;
 #if defined(CONFIG_RETHOOK)
-	struct llist_node *kr_cur;
+	struct llist_analde *kr_cur;
 #endif
 	bool error;
 #if defined(CONFIG_UNWINDER_ORC)
@@ -28,9 +28,9 @@ struct unwind_state {
 	bool got_irq;
 	unsigned long *bp, *orig_sp, ip;
 	/*
-	 * If non-NULL: The current frame is incomplete and doesn't contain a
+	 * If analn-NULL: The current frame is incomplete and doesn't contain a
 	 * valid BP. When looking for the next frame, use this instead of the
-	 * non-existent saved BP.
+	 * analn-existent saved BP.
 	 */
 	unsigned long *next_bp;
 	struct pt_regs *regs;
@@ -47,7 +47,7 @@ unsigned long *unwind_get_return_address_ptr(struct unwind_state *state);
 
 static inline bool unwind_done(struct unwind_state *state)
 {
-	return state->stack_info.type == STACK_TYPE_UNKNOWN;
+	return state->stack_info.type == STACK_TYPE_UNKANALWN;
 }
 
 static inline bool unwind_error(struct unwind_state *state)
@@ -128,8 +128,8 @@ unsigned long unwind_recover_ret_addr(struct unwind_state *state,
 }
 
 /*
- * This disables KASAN checking when reading a value from another task's stack,
- * since the other task could be running on another CPU and could have poisoned
+ * This disables KASAN checking when reading a value from aanalther task's stack,
+ * since the other task could be running on aanalther CPU and could have poisoned
  * the stack in the meantime.
  */
 #define READ_ONCE_TASK_STACK(task, x)			\
@@ -138,11 +138,11 @@ unsigned long unwind_recover_ret_addr(struct unwind_state *state,
 	if (task == current)				\
 		val = READ_ONCE(x);			\
 	else						\
-		val = READ_ONCE_NOCHECK(x);		\
+		val = READ_ONCE_ANALCHECK(x);		\
 	val;						\
 })
 
-static inline bool task_on_another_cpu(struct task_struct *task)
+static inline bool task_on_aanalther_cpu(struct task_struct *task)
 {
 #ifdef CONFIG_SMP
 	return task != current && task->on_cpu;

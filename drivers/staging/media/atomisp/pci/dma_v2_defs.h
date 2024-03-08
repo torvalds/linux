@@ -22,7 +22,7 @@
 #define _DMA_V2_DEV_FIFO_DEPTH_ID             DevFifoDepth
 #define _DMA_V2_DEV_FIFO_RD_LAT_ID            DevFifoRdLat
 #define _DMA_V2_DEV_FIFO_LAT_BYPASS_ID        DevFifoRdLatBypass
-#define _DMA_V2_DEV_NO_BURST_ID               DevNoBurst
+#define _DMA_V2_DEV_ANAL_BURST_ID               DevAnalBurst
 #define _DMA_V2_DEV_RD_ACCEPT_ID              DevRdAccept
 #define _DMA_V2_DEV_SRMD_ID                   DevSRMD
 #define _DMA_V2_DEV_HAS_CRUN_ID               CRunMasters
@@ -30,7 +30,7 @@
 #define _DMA_V2_CMD_FIFO_DEPTH_ID             CommandFifoDepth
 #define _DMA_V2_CMD_FIFO_RD_LAT_ID            CommandFifoRdLat
 #define _DMA_V2_CMD_FIFO_LAT_BYPASS_ID        CommandFifoRdLatBypass
-#define _DMA_V2_NO_PACK_ID                    has_no_pack
+#define _DMA_V2_ANAL_PACK_ID                    has_anal_pack
 
 #define _DMA_V2_REG_ALIGN                4
 #define _DMA_V2_REG_ADDR_BITS            2
@@ -82,28 +82,28 @@
 /* Command IDs */
 #define _DMA_V2_MOVE_B2A_COMMAND                             0
 #define _DMA_V2_MOVE_B2A_BLOCK_COMMAND                       1
-#define _DMA_V2_MOVE_B2A_NO_SYNC_CHK_COMMAND                 2
-#define _DMA_V2_MOVE_B2A_BLOCK_NO_SYNC_CHK_COMMAND           3
+#define _DMA_V2_MOVE_B2A_ANAL_SYNC_CHK_COMMAND                 2
+#define _DMA_V2_MOVE_B2A_BLOCK_ANAL_SYNC_CHK_COMMAND           3
 #define _DMA_V2_MOVE_A2B_COMMAND                             4
 #define _DMA_V2_MOVE_A2B_BLOCK_COMMAND                       5
-#define _DMA_V2_MOVE_A2B_NO_SYNC_CHK_COMMAND                 6
-#define _DMA_V2_MOVE_A2B_BLOCK_NO_SYNC_CHK_COMMAND           7
+#define _DMA_V2_MOVE_A2B_ANAL_SYNC_CHK_COMMAND                 6
+#define _DMA_V2_MOVE_A2B_BLOCK_ANAL_SYNC_CHK_COMMAND           7
 #define _DMA_V2_INIT_A_COMMAND                               8
 #define _DMA_V2_INIT_A_BLOCK_COMMAND                         9
-#define _DMA_V2_INIT_A_NO_SYNC_CHK_COMMAND                  10
-#define _DMA_V2_INIT_A_BLOCK_NO_SYNC_CHK_COMMAND            11
+#define _DMA_V2_INIT_A_ANAL_SYNC_CHK_COMMAND                  10
+#define _DMA_V2_INIT_A_BLOCK_ANAL_SYNC_CHK_COMMAND            11
 #define _DMA_V2_INIT_B_COMMAND                              12
 #define _DMA_V2_INIT_B_BLOCK_COMMAND                        13
-#define _DMA_V2_INIT_B_NO_SYNC_CHK_COMMAND                  14
-#define _DMA_V2_INIT_B_BLOCK_NO_SYNC_CHK_COMMAND            15
-#define _DMA_V2_NO_ACK_MOVE_B2A_NO_SYNC_CHK_COMMAND         (_DMA_V2_MOVE_B2A_NO_SYNC_CHK_COMMAND       + 16)
-#define _DMA_V2_NO_ACK_MOVE_B2A_BLOCK_NO_SYNC_CHK_COMMAND   (_DMA_V2_MOVE_B2A_BLOCK_NO_SYNC_CHK_COMMAND + 16)
-#define _DMA_V2_NO_ACK_MOVE_A2B_NO_SYNC_CHK_COMMAND         (_DMA_V2_MOVE_A2B_NO_SYNC_CHK_COMMAND       + 16)
-#define _DMA_V2_NO_ACK_MOVE_A2B_BLOCK_NO_SYNC_CHK_COMMAND   (_DMA_V2_MOVE_A2B_BLOCK_NO_SYNC_CHK_COMMAND + 16)
-#define _DMA_V2_NO_ACK_INIT_A_NO_SYNC_CHK_COMMAND           (_DMA_V2_INIT_A_NO_SYNC_CHK_COMMAND         + 16)
-#define _DMA_V2_NO_ACK_INIT_A_BLOCK_NO_SYNC_CHK_COMMAND     (_DMA_V2_INIT_A_BLOCK_NO_SYNC_CHK_COMMAND   + 16)
-#define _DMA_V2_NO_ACK_INIT_B_NO_SYNC_CHK_COMMAND           (_DMA_V2_INIT_B_NO_SYNC_CHK_COMMAND         + 16)
-#define _DMA_V2_NO_ACK_INIT_B_BLOCK_NO_SYNC_CHK_COMMAND     (_DMA_V2_INIT_B_BLOCK_NO_SYNC_CHK_COMMAND   + 16)
+#define _DMA_V2_INIT_B_ANAL_SYNC_CHK_COMMAND                  14
+#define _DMA_V2_INIT_B_BLOCK_ANAL_SYNC_CHK_COMMAND            15
+#define _DMA_V2_ANAL_ACK_MOVE_B2A_ANAL_SYNC_CHK_COMMAND         (_DMA_V2_MOVE_B2A_ANAL_SYNC_CHK_COMMAND       + 16)
+#define _DMA_V2_ANAL_ACK_MOVE_B2A_BLOCK_ANAL_SYNC_CHK_COMMAND   (_DMA_V2_MOVE_B2A_BLOCK_ANAL_SYNC_CHK_COMMAND + 16)
+#define _DMA_V2_ANAL_ACK_MOVE_A2B_ANAL_SYNC_CHK_COMMAND         (_DMA_V2_MOVE_A2B_ANAL_SYNC_CHK_COMMAND       + 16)
+#define _DMA_V2_ANAL_ACK_MOVE_A2B_BLOCK_ANAL_SYNC_CHK_COMMAND   (_DMA_V2_MOVE_A2B_BLOCK_ANAL_SYNC_CHK_COMMAND + 16)
+#define _DMA_V2_ANAL_ACK_INIT_A_ANAL_SYNC_CHK_COMMAND           (_DMA_V2_INIT_A_ANAL_SYNC_CHK_COMMAND         + 16)
+#define _DMA_V2_ANAL_ACK_INIT_A_BLOCK_ANAL_SYNC_CHK_COMMAND     (_DMA_V2_INIT_A_BLOCK_ANAL_SYNC_CHK_COMMAND   + 16)
+#define _DMA_V2_ANAL_ACK_INIT_B_ANAL_SYNC_CHK_COMMAND           (_DMA_V2_INIT_B_ANAL_SYNC_CHK_COMMAND         + 16)
+#define _DMA_V2_ANAL_ACK_INIT_B_BLOCK_ANAL_SYNC_CHK_COMMAND     (_DMA_V2_INIT_B_BLOCK_ANAL_SYNC_CHK_COMMAND   + 16)
 #define _DMA_V2_CONFIG_CHANNEL_COMMAND                      32
 #define _DMA_V2_SET_CHANNEL_PARAM_COMMAND                   33
 #define _DMA_V2_SET_CRUN_COMMAND                            62

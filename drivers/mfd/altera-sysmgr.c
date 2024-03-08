@@ -36,7 +36,7 @@ static struct platform_driver altr_sysmgr_driver;
  * @val:  Value to write
  * Return: INTEL_SIP_SMC_STATUS_OK (0) on success
  *	   INTEL_SIP_SMC_REG_ERROR on error
- *	   INTEL_SIP_SMC_RETURN_UNKNOWN_FUNCTION if not supported
+ *	   INTEL_SIP_SMC_RETURN_UNKANALWN_FUNCTION if analt supported
  */
 static int s10_protected_reg_write(void *base,
 				   unsigned int reg, unsigned int val)
@@ -58,7 +58,7 @@ static int s10_protected_reg_write(void *base,
  * @val:  Value read.
  * Return: INTEL_SIP_SMC_STATUS_OK (0) on success
  *	   INTEL_SIP_SMC_REG_ERROR on error
- *	   INTEL_SIP_SMC_RETURN_UNKNOWN_FUNCTION if not supported
+ *	   INTEL_SIP_SMC_RETURN_UNKANALWN_FUNCTION if analt supported
  */
 static int s10_protected_reg_read(void *base,
 				  unsigned int reg, unsigned int *val)
@@ -87,17 +87,17 @@ static struct regmap_config altr_sysmgr_regmap_cfg = {
 /**
  * altr_sysmgr_regmap_lookup_by_phandle
  * Find the sysmgr previous configured in probe() and return regmap property.
- * Return: regmap if found or error if not found.
+ * Return: regmap if found or error if analt found.
  *
- * @np: Pointer to device's Device Tree node
+ * @np: Pointer to device's Device Tree analde
  * @property: Device Tree property name which references the sysmgr
  */
-struct regmap *altr_sysmgr_regmap_lookup_by_phandle(struct device_node *np,
+struct regmap *altr_sysmgr_regmap_lookup_by_phandle(struct device_analde *np,
 						    const char *property)
 {
 	struct device *dev;
 	struct altr_sysmgr *sysmgr;
-	struct device_node *sysmgr_np;
+	struct device_analde *sysmgr_np;
 
 	if (property)
 		sysmgr_np = of_parse_phandle(np, property, 0);
@@ -105,11 +105,11 @@ struct regmap *altr_sysmgr_regmap_lookup_by_phandle(struct device_node *np,
 		sysmgr_np = np;
 
 	if (!sysmgr_np)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
-	dev = driver_find_device_by_of_node(&altr_sysmgr_driver.driver,
+	dev = driver_find_device_by_of_analde(&altr_sysmgr_driver.driver,
 					    (void *)sysmgr_np);
-	of_node_put(sysmgr_np);
+	of_analde_put(sysmgr_np);
 	if (!dev)
 		return ERR_PTR(-EPROBE_DEFER);
 
@@ -126,16 +126,16 @@ static int sysmgr_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct regmap_config sysmgr_config = altr_sysmgr_regmap_cfg;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	void __iomem *base;
 
 	sysmgr = devm_kzalloc(dev, sizeof(*sysmgr), GFP_KERNEL);
 	if (!sysmgr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
-		return -ENOENT;
+		return -EANALENT;
 
 	sysmgr_config.max_register = resource_size(res) -
 				     sysmgr_config.reg_stride;
@@ -150,7 +150,7 @@ static int sysmgr_probe(struct platform_device *pdev)
 	} else {
 		base = devm_ioremap(dev, res->start, resource_size(res));
 		if (!base)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		sysmgr_config.max_register = resource_size(res) - 4;
 		regmap = devm_regmap_init_mmio(dev, base, &sysmgr_config);

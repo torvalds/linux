@@ -61,7 +61,7 @@ hw_stats_test()
 		-t ip -q
 
 	tc_check_packets "dev $swp1 ingress" 101 $expected_packet_count
-	check_err $? "Did not match incoming packet"
+	check_err $? "Did analt match incoming packet"
 
 	tc filter del dev $swp1 ingress protocol ip pref 1 handle 101 flower
 

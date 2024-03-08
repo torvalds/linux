@@ -68,7 +68,7 @@ examples:
         interrupts = <29>;
         allwinner,ts-attached;
         #thermal-sensor-cells = <0>;
-        /* sensitive/noisy touch panel */
+        /* sensitive/analisy touch panel */
         allwinner,tp-sensitive-adjust = <0>;
         allwinner,filter-type = <3>;
     };

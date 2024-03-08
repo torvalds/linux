@@ -9,7 +9,7 @@
 #include "spte.h"
 
 /*
- * TDP MMU SPTEs are RCU protected to allow paging structures (non-leaf SPTEs)
+ * TDP MMU SPTEs are RCU protected to allow paging structures (analn-leaf SPTEs)
  * to be zapped while holding mmu_lock for read, and to allow TLB flushes to be
  * batched without having to collect the list of zapped SPs.  Flows that can
  * remove SPs must service pending TLB flushes prior to dropping RCU protection.
@@ -35,10 +35,10 @@ static inline void __kvm_tdp_mmu_write_spte(tdp_ptep_t sptep, u64 new_spte)
  * of mmu_lock.  The Writable bit can be set by KVM's fast page fault
  * handler, and Accessed and Dirty bits can be set by the CPU.
  *
- * Note, non-leaf SPTEs do have Accessed bits and those bits are
+ * Analte, analn-leaf SPTEs do have Accessed bits and those bits are
  * technically volatile, but KVM doesn't consume the Accessed bit of
- * non-leaf SPTEs, i.e. KVM doesn't care if it clobbers the bit.  This
- * logic needs to be reassessed if KVM were to use non-leaf Accessed
+ * analn-leaf SPTEs, i.e. KVM doesn't care if it clobbers the bit.  This
+ * logic needs to be reassessed if KVM were to use analn-leaf Accessed
  * bits, e.g. to skip stepping down into child SPTEs when aging SPTEs.
  */
 static inline bool kvm_tdp_mmu_spte_need_atomic_write(u64 old_spte, int level)

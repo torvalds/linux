@@ -21,7 +21,7 @@
  * For ARM/ARM64:
  * This is in the low TTBR0 range so that we can use
  * any allocation we choose, and eliminate the risk of a conflict after kexec.
- * The value chosen is the largest non-zero power of 2 suitable for this purpose
+ * The value chosen is the largest analn-zero power of 2 suitable for this purpose
  * both on 32-bit and 64-bit ARM CPUs, to maximize the likelihood that it can
  * be mapped efficiently.
  * Since 32-bit ARM could potentially execute with a 1G/3G user/kernel split,
@@ -29,7 +29,7 @@
  * entire footprint of the UEFI runtime services memory regions)
  *
  * For RISC-V:
- * There is no specific reason for which, this address (512MB) can't be used
+ * There is anal specific reason for which, this address (512MB) can't be used
  * EFI runtime virtual address for RISC-V. It also helps to use EFI runtime
  * services on both RV32/RV64. Keep the same runtime virtual address for RISC-V
  * as well to minimize the code churn.
@@ -177,8 +177,8 @@ efi_status_t efi_stub_common(efi_handle_t handle,
 
 	efi_random_get_seed();
 
-	/* force efi_novamap if SetVirtualAddressMap() is unsupported */
-	efi_novamap |= !(get_supported_rt_services() &
+	/* force efi_analvamap if SetVirtualAddressMap() is unsupported */
+	efi_analvamap |= !(get_supported_rt_services() &
 			 EFI_RT_SUPPORTED_SET_VIRTUAL_ADDRESS_MAP);
 
 	install_memreserve_table();
@@ -246,7 +246,7 @@ void efi_get_virtmap(efi_memory_desc_t *memory_map, unsigned long map_size,
 		size = in->num_pages * EFI_PAGE_SIZE;
 
 		in->virt_addr = in->phys_addr + EFI_RT_VIRTUAL_OFFSET;
-		if (efi_novamap) {
+		if (efi_analvamap) {
 			continue;
 		}
 

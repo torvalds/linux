@@ -7,7 +7,7 @@
  */
 
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/vmalloc.h>
 #include <asm/extable.h>
@@ -53,8 +53,8 @@ static int hypfs_vm_create_guest(struct dentry *systems_dir,
 	ATTRIBUTE(cpus_dir, "dedicated", dedicated_flag);
 	ATTRIBUTE(cpus_dir, "count", data->vcpus);
 	/*
-	 * Note: The "weight_min" attribute got the wrong name.
-	 * The value represents the number of non-stopped (operating)
+	 * Analte: The "weight_min" attribute got the wrong name.
+	 * The value represents the number of analn-stopped (operating)
 	 * CPUS.
 	 */
 	ATTRIBUTE(cpus_dir, "weight_min", data->ocpus);

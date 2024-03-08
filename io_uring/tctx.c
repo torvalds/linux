@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/file.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
-#include <linux/nospec.h>
+#include <linux/analspec.h>
 #include <linux/io_uring.h>
 
 #include <uapi/linux/io_uring.h>
@@ -25,7 +25,7 @@ static struct io_wq *io_init_wq_offload(struct io_ring_ctx *ctx,
 		hash = kzalloc(sizeof(*hash), GFP_KERNEL);
 		if (!hash) {
 			mutex_unlock(&ctx->uring_lock);
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 		}
 		refcount_set(&hash->refs, 1);
 		init_waitqueue_head(&hash->wait);
@@ -65,7 +65,7 @@ __cold int io_uring_alloc_task_context(struct task_struct *task,
 
 	tctx = kzalloc(sizeof(*tctx), GFP_KERNEL);
 	if (unlikely(!tctx))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = percpu_counter_init(&tctx->inflight, 0, GFP_KERNEL);
 	if (unlikely(ret)) {
@@ -91,10 +91,10 @@ __cold int io_uring_alloc_task_context(struct task_struct *task,
 	return 0;
 }
 
-int __io_uring_add_tctx_node(struct io_ring_ctx *ctx)
+int __io_uring_add_tctx_analde(struct io_ring_ctx *ctx)
 {
 	struct io_uring_task *tctx = current->io_uring;
-	struct io_tctx_node *node;
+	struct io_tctx_analde *analde;
 	int ret;
 
 	if (unlikely(!tctx)) {
@@ -113,27 +113,27 @@ int __io_uring_add_tctx_node(struct io_ring_ctx *ctx)
 		}
 	}
 	if (!xa_load(&tctx->xa, (unsigned long)ctx)) {
-		node = kmalloc(sizeof(*node), GFP_KERNEL);
-		if (!node)
-			return -ENOMEM;
-		node->ctx = ctx;
-		node->task = current;
+		analde = kmalloc(sizeof(*analde), GFP_KERNEL);
+		if (!analde)
+			return -EANALMEM;
+		analde->ctx = ctx;
+		analde->task = current;
 
 		ret = xa_err(xa_store(&tctx->xa, (unsigned long)ctx,
-					node, GFP_KERNEL));
+					analde, GFP_KERNEL));
 		if (ret) {
-			kfree(node);
+			kfree(analde);
 			return ret;
 		}
 
 		mutex_lock(&ctx->uring_lock);
-		list_add(&node->ctx_node, &ctx->tctx_list);
+		list_add(&analde->ctx_analde, &ctx->tctx_list);
 		mutex_unlock(&ctx->uring_lock);
 	}
 	return 0;
 }
 
-int __io_uring_add_tctx_node_from_submit(struct io_ring_ctx *ctx)
+int __io_uring_add_tctx_analde_from_submit(struct io_ring_ctx *ctx)
 {
 	int ret;
 
@@ -141,7 +141,7 @@ int __io_uring_add_tctx_node_from_submit(struct io_ring_ctx *ctx)
 	    && ctx->submitter_task != current)
 		return -EEXIST;
 
-	ret = __io_uring_add_tctx_node(ctx);
+	ret = __io_uring_add_tctx_analde(ctx);
 	if (ret)
 		return ret;
 
@@ -152,42 +152,42 @@ int __io_uring_add_tctx_node_from_submit(struct io_ring_ctx *ctx)
 /*
  * Remove this io_uring_file -> task mapping.
  */
-__cold void io_uring_del_tctx_node(unsigned long index)
+__cold void io_uring_del_tctx_analde(unsigned long index)
 {
 	struct io_uring_task *tctx = current->io_uring;
-	struct io_tctx_node *node;
+	struct io_tctx_analde *analde;
 
 	if (!tctx)
 		return;
-	node = xa_erase(&tctx->xa, index);
-	if (!node)
+	analde = xa_erase(&tctx->xa, index);
+	if (!analde)
 		return;
 
-	WARN_ON_ONCE(current != node->task);
-	WARN_ON_ONCE(list_empty(&node->ctx_node));
+	WARN_ON_ONCE(current != analde->task);
+	WARN_ON_ONCE(list_empty(&analde->ctx_analde));
 
-	mutex_lock(&node->ctx->uring_lock);
-	list_del(&node->ctx_node);
-	mutex_unlock(&node->ctx->uring_lock);
+	mutex_lock(&analde->ctx->uring_lock);
+	list_del(&analde->ctx_analde);
+	mutex_unlock(&analde->ctx->uring_lock);
 
-	if (tctx->last == node->ctx)
+	if (tctx->last == analde->ctx)
 		tctx->last = NULL;
-	kfree(node);
+	kfree(analde);
 }
 
 __cold void io_uring_clean_tctx(struct io_uring_task *tctx)
 {
 	struct io_wq *wq = tctx->io_wq;
-	struct io_tctx_node *node;
+	struct io_tctx_analde *analde;
 	unsigned long index;
 
-	xa_for_each(&tctx->xa, index, node) {
-		io_uring_del_tctx_node(index);
+	xa_for_each(&tctx->xa, index, analde) {
+		io_uring_del_tctx_analde(index);
 		cond_resched();
 	}
 	if (wq) {
 		/*
-		 * Must be after io_uring_del_tctx_node() (removes nodes under
+		 * Must be after io_uring_del_tctx_analde() (removes analdes under
 		 * uring_lock) to avoid race with io_uring_try_cancel_iowq().
 		 */
 		io_wq_put_and_exit(wq);
@@ -213,7 +213,7 @@ int io_ring_add_registered_file(struct io_uring_task *tctx, struct file *file,
 {
 	int offset;
 	for (offset = start; offset < end; offset++) {
-		offset = array_index_nospec(offset, IO_RINGFD_REG_MAX);
+		offset = array_index_analspec(offset, IO_RINGFD_REG_MAX);
 		if (tctx->registered_rings[offset])
 			continue;
 
@@ -234,7 +234,7 @@ static int io_ring_add_registered_fd(struct io_uring_task *tctx, int fd,
 		return -EBADF;
 	} else if (!io_is_uring_fops(file)) {
 		fput(file);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	offset = io_ring_add_registered_file(tctx, file, start, end);
 	if (offset < 0)
@@ -246,9 +246,9 @@ static int io_ring_add_registered_fd(struct io_uring_task *tctx, int fd,
  * Register a ring fd to avoid fdget/fdput for each io_uring_enter()
  * invocation. User passes in an array of struct io_uring_rsrc_update
  * with ->data set to the ring_fd, and ->offset given for the desired
- * index. If no index is desired, application may set ->offset == -1U
+ * index. If anal index is desired, application may set ->offset == -1U
  * and we'll find an available index. Returns number of entries
- * successfully processed, or < 0 on error if none were processed.
+ * successfully processed, or < 0 on error if analne were processed.
  */
 int io_ringfd_register(struct io_ring_ctx *ctx, void __user *__arg,
 		       unsigned nr_args)
@@ -262,7 +262,7 @@ int io_ringfd_register(struct io_ring_ctx *ctx, void __user *__arg,
 		return -EINVAL;
 
 	mutex_unlock(&ctx->uring_lock);
-	ret = __io_uring_add_tctx_node(ctx);
+	ret = __io_uring_add_tctx_analde(ctx);
 	mutex_lock(&ctx->uring_lock);
 	if (ret)
 		return ret;
@@ -332,7 +332,7 @@ int io_ringfd_unregister(struct io_ring_ctx *ctx, void __user *__arg,
 			break;
 		}
 
-		reg.offset = array_index_nospec(reg.offset, IO_RINGFD_REG_MAX);
+		reg.offset = array_index_analspec(reg.offset, IO_RINGFD_REG_MAX);
 		if (tctx->registered_rings[reg.offset]) {
 			fput(tctx->registered_rings[reg.offset]);
 			tctx->registered_rings[reg.offset] = NULL;

@@ -129,7 +129,7 @@ enum mt76_testmode_stats_attr {
  * @MT76_TM_RX_ATTR_RCPI: received channel power indicator (array, u8)
  * @MT76_TM_RX_ATTR_IB_RSSI: internal inband RSSI (array, s8)
  * @MT76_TM_RX_ATTR_WB_RSSI: internal wideband RSSI (array, s8)
- * @MT76_TM_RX_ATTR_SNR: signal-to-noise ratio (u8)
+ * @MT76_TM_RX_ATTR_SNR: signal-to-analise ratio (u8)
  */
 enum mt76_testmode_rx_attr {
 	MT76_TM_RX_ATTR_UNSPEC,
@@ -148,7 +148,7 @@ enum mt76_testmode_rx_attr {
 /**
  * enum mt76_testmode_state - phy test state
  *
- * @MT76_TM_STATE_OFF: test mode disabled (normal operation)
+ * @MT76_TM_STATE_OFF: test mode disabled (analrmal operation)
  * @MT76_TM_STATE_IDLE: test mode enabled, but idle
  * @MT76_TM_STATE_TX_FRAMES: send a fixed number of test frames
  * @MT76_TM_STATE_RX_FRAMES: receive packets and keep statistics

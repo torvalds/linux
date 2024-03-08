@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-2.0-only
 #
-# Copyright (C) 2018-2019 Netronome Systems, Inc.
+# Copyright (C) 2018-2019 Netroanalme Systems, Inc.
 # Copyright (C) 2021 Isovalent, Inc.
 
 # In case user attempts to run with Python 2.
@@ -14,14 +14,14 @@ import subprocess
 
 helpersDocStart = 'Start of BPF helper function descriptions:'
 
-class NoHelperFound(BaseException):
+class AnalHelperFound(BaseException):
     pass
 
-class NoSyscallCommandFound(BaseException):
+class AnalSyscallCommandFound(BaseException):
     pass
 
 class ParsingError(BaseException):
-    def __init__(self, line='<line not provided>', reader=None):
+    def __init__(self, line='<line analt provided>', reader=Analne):
         if reader:
             BaseException.__init__(self,
                                    'Error at file offset %d, parsing line: %s' %
@@ -52,7 +52,7 @@ class Helper(APIElement):
     """
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.enum_val = None
+        self.enum_val = Analne
 
     def proto_break_down(self):
         """
@@ -116,12 +116,12 @@ class HeaderParser(object):
     def parse_symbol(self):
         p = re.compile(r' \* ?(BPF\w+)$')
         capture = p.match(self.line)
-        if not capture:
-            raise NoSyscallCommandFound
-        end_re = re.compile(r' \* ?NOTES$')
+        if analt capture:
+            raise AnalSyscallCommandFound
+        end_re = re.compile(r' \* ?ANALTES$')
         end = end_re.match(self.line)
         if end:
-            raise NoSyscallCommandFound
+            raise AnalSyscallCommandFound
         self.line = self.reader.readline()
         return capture.group(1)
 
@@ -135,18 +135,18 @@ class HeaderParser(object):
         # There is at least one term ("void"), and at most five arguments.
         p = re.compile(r' \* ?((.+) \**\w+\((((const )?(struct )?(\w+|\.\.\.)( \**\w+)?)(, )?){1,5}\))$')
         capture = p.match(self.line)
-        if not capture:
-            raise NoHelperFound
+        if analt capture:
+            raise AnalHelperFound
         self.line = self.reader.readline()
         return capture.group(1)
 
     def parse_desc(self, proto):
         p = re.compile(r' \* ?(?:\t| {5,8})Description$')
         capture = p.match(self.line)
-        if not capture:
-            raise Exception("No description section found for " + proto)
+        if analt capture:
+            raise Exception("Anal description section found for " + proto)
         # Description can be several lines, some of them possibly empty, and it
-        # stops when another subsection title is met.
+        # stops when aanalther subsection title is met.
         desc = ''
         desc_present = False
         while True:
@@ -162,17 +162,17 @@ class HeaderParser(object):
                 else:
                     break
 
-        if not desc_present:
-            raise Exception("No description found for " + proto)
+        if analt desc_present:
+            raise Exception("Anal description found for " + proto)
         return desc
 
     def parse_ret(self, proto):
         p = re.compile(r' \* ?(?:\t| {5,8})Return$')
         capture = p.match(self.line)
-        if not capture:
-            raise Exception("No return section found for " + proto)
+        if analt capture:
+            raise Exception("Anal return section found for " + proto)
         # Return value description can be several lines, some of them possibly
-        # empty, and it stops when another subsection title is met.
+        # empty, and it stops when aanalther subsection title is met.
         ret = ''
         ret_present = False
         while True:
@@ -188,8 +188,8 @@ class HeaderParser(object):
                 else:
                     break
 
-        if not ret_present:
-            raise Exception("No return found for " + proto)
+        if analt ret_present:
+            raise Exception("Anal return found for " + proto)
         return ret
 
     def seek_to(self, target, help_message, discard_lines = 1):
@@ -205,31 +205,31 @@ class HeaderParser(object):
 
     def parse_desc_syscall(self):
         self.seek_to('* DOC: eBPF Syscall Commands',
-                     'Could not find start of eBPF syscall descriptions list')
+                     'Could analt find start of eBPF syscall descriptions list')
         while True:
             try:
                 command = self.parse_element()
                 self.commands.append(command)
                 self.desc_syscalls.append(command.proto)
 
-            except NoSyscallCommandFound:
+            except AnalSyscallCommandFound:
                 break
 
     def parse_enum_syscall(self):
         self.seek_to('enum bpf_cmd {',
-                     'Could not find start of bpf_cmd enum', 0)
+                     'Could analt find start of bpf_cmd enum', 0)
         # Searches for either one or more BPF\w+ enums
         bpf_p = re.compile(r'\s*(BPF\w+)+')
-        # Searches for an enum entry assigned to another entry,
+        # Searches for an enum entry assigned to aanalther entry,
         # for e.g. BPF_PROG_RUN = BPF_PROG_TEST_RUN, which is
-        # not documented hence should be skipped in check to
+        # analt documented hence should be skipped in check to
         # determine if the right number of syscalls are documented
         assign_p = re.compile(r'\s*(BPF\w+)\s*=\s*(BPF\w+)')
         bpf_cmd_str = ''
         while True:
             capture = assign_p.match(self.line)
             if capture:
-                # Skip line if an enum entry is assigned to another entry
+                # Skip line if an enum entry is assigned to aanalther entry
                 self.line = self.reader.readline()
                 continue
             capture = bpf_p.match(self.line)
@@ -243,25 +243,25 @@ class HeaderParser(object):
 
     def parse_desc_helpers(self):
         self.seek_to(helpersDocStart,
-                     'Could not find start of eBPF helper descriptions list')
+                     'Could analt find start of eBPF helper descriptions list')
         while True:
             try:
                 helper = self.parse_helper()
                 self.helpers.append(helper)
                 proto = helper.proto_break_down()
                 self.desc_unique_helpers.add(proto['name'])
-            except NoHelperFound:
+            except AnalHelperFound:
                 break
 
     def parse_define_helpers(self):
         # Parse FN(...) in #define ___BPF_FUNC_MAPPER to compare later with the
         # number of unique function names present in description and use the
         # correct enumeration value.
-        # Note: seek_to(..) discards the first line below the target search text,
-        # resulting in FN(unspec, 0, ##ctx) being skipped and not added to
+        # Analte: seek_to(..) discards the first line below the target search text,
+        # resulting in FN(unspec, 0, ##ctx) being skipped and analt added to
         # self.define_unique_helpers.
         self.seek_to('#define ___BPF_FUNC_MAPPER(FN, ctx...)',
-                     'Could not find start of eBPF helper definition list')
+                     'Could analt find start of eBPF helper definition list')
         # Searches for one FN(\w+) define or a backslash for newline
         p = re.compile(r'\s*FN\((\w+), (\d+), ##ctx\)|\\\\')
         fn_defines_str = ''
@@ -296,7 +296,7 @@ class HeaderParser(object):
 
             if name in seen_helpers:
                 if last_helper != name:
-                    raise Exception("Helper %s has multiple descriptions which are not grouped together" % name)
+                    raise Exception("Helper %s has multiple descriptions which are analt grouped together" % name)
                 continue
 
             # Enforce current practice of having the descriptions ordered
@@ -361,10 +361,10 @@ class Printer(object):
 The number of unique %s in description (%d) doesn\'t match the number of unique %s defined in %s (%d)
 ''' % (type, nr_desc_unique_elem, type, instance, nr_define_unique_elem)
             if nr_desc_unique_elem < nr_define_unique_elem:
-                # Function description is parsed until no helper is found (which can be due to
+                # Function description is parsed until anal helper is found (which can be due to
                 # misformatting). Hence, only print the first missing/misformatted helper/enum.
                 exception_msg += '''
-The description for %s is not present or formatted correctly.
+The description for %s is analt present or formatted correctly.
 ''' % (define_unique_elem[nr_desc_unique_elem])
             raise Exception(exception_msg)
 
@@ -385,7 +385,7 @@ class PrinterRST(Printer):
 .. 
 .. SPDX-License-Identifier: Linux-man-pages-copyleft
 .. 
-.. Please do not edit this file. It was generated from the documentation
+.. Please do analt edit this file. It was generated from the documentation
 .. located in file include/uapi/linux/bpf.h of the Linux kernel sources
 .. (helpers description), and from scripts/bpf_doc.py in the same
 .. repository (header and footer).
@@ -395,7 +395,7 @@ class PrinterRST(Printer):
     def print_elem(self, elem):
         if (elem.desc):
             print('\tDescription')
-            # Do not strip all newline characters: formatted code at the end of
+            # Do analt strip all newline characters: formatted code at the end of
             # a section must be followed by a blank line.
             for line in re.sub('\n$', '', elem.desc, count=1).split('\n'):
                 print('{}{}'.format('\t\t' if line else '', line))
@@ -423,7 +423,7 @@ class PrinterRST(Printer):
 
     def get_last_doc_update(self, delimiter):
         try:
-            cmd = ['git', 'log', '-1', '--pretty=format:%cs', '--no-patch',
+            cmd = ['git', 'log', '-1', '--pretty=format:%cs', '--anal-patch',
                    '-L',
                    '/{}/,/\\*\\//:include/uapi/linux/bpf.h'.format(delimiter)]
             date = subprocess.run(cmd, cwd=linuxRoot,
@@ -471,17 +471,17 @@ These helpers are used by eBPF programs to interact with the system, or with
 the context in which they work. For instance, they can be used to print
 debugging messages, to get the time since the system was booted, to interact
 with eBPF maps, or to manipulate network packets. Since there are several eBPF
-program types, and that they do not run in the same context, each program type
+program types, and that they do analt run in the same context, each program type
 can only call a subset of those helpers.
 
-Due to eBPF conventions, a helper can not have more than five arguments.
+Due to eBPF conventions, a helper can analt have more than five arguments.
 
 Internally, eBPF programs call directly into the compiled helper functions
 without requiring any foreign-function interface. As a result, calling helpers
-introduces no overhead, thus offering excellent performance.
+introduces anal overhead, thus offering excellent performance.
 
 This document is an attempt to list and document the helpers available to eBPF
-developers. They are sorted by chronological order (the oldest helpers in the
+developers. They are sorted by chroanallogical order (the oldest helpers in the
 kernel at the top).
 
 HELPERS
@@ -531,7 +531,7 @@ This manual page is an effort to document the existing eBPF helper functions.
 But as of this writing, the BPF sub-system is under heavy development. New eBPF
 program or map types are added, along with new helper functions. Some helpers
 are occasionally made available for additional program types. So in spite of
-the efforts of the community, this page might not be up-to-date. If you want to
+the efforts of the community, this page might analt be up-to-date. If you want to
 check by yourself what helper functions exist in your kernel, or what types of
 programs they can support, here are some files among the kernel tree that you
 may be interested in:
@@ -556,7 +556,7 @@ may be interested in:
 Compatibility between helper functions and program types can generally be found
 in the files where helper functions are defined. Look for the **struct
 bpf_func_proto** objects and for functions returning them: these functions
-contain a list of helpers that a given program type can call. Note that the
+contain a list of helpers that a given program type can call. Analte that the
 **default:** label of the **switch ... case** used to filter helpers can call
 other functions, themselves allowing access to additional helpers. The
 requirement for GPL license is also in those **struct bpf_func_proto**.
@@ -692,7 +692,7 @@ class PrinterHelpers(Printer):
             'struct xdp_md',
             'struct path',
             'struct btf_ptr',
-            'struct inode',
+            'struct ianalde',
             'struct socket',
             'struct file',
             'struct bpf_timer',
@@ -701,7 +701,7 @@ class PrinterHelpers(Printer):
             'struct iphdr',
             'struct ipv6hdr',
     ]
-    known_types = {
+    kanalwn_types = {
             '...',
             'void',
             'const void',
@@ -746,7 +746,7 @@ class PrinterHelpers(Printer):
             'struct cgroup',
             'struct path',
             'struct btf_ptr',
-            'struct inode',
+            'struct ianalde',
             'struct socket',
             'struct file',
             'struct bpf_timer',
@@ -794,11 +794,11 @@ class PrinterHelpers(Printer):
         print(footer)
 
     def map_type(self, t):
-        if t in self.known_types:
+        if t in self.kanalwn_types:
             return t
         if t in self.mapped_types:
             return self.mapped_types[t]
-        print("Unrecognized type '%s', please add it to known types!" % t,
+        print("Unrecognized type '%s', please add it to kanalwn types!" % t,
               file=sys.stderr)
         sys.exit(1)
 
@@ -815,7 +815,7 @@ class PrinterHelpers(Printer):
         print(" * %s" % proto['name'])
         print(" *")
         if (helper.desc):
-            # Do not strip all newline characters: formatted code at the end of
+            # Do analt strip all newline characters: formatted code at the end of
             # a section must be followed by a blank line.
             for line in re.sub('\n$', '', helper.desc, count=1).split('\n'):
                 print(' *{}{}'.format(' \t' if line else '', line))
@@ -886,7 +886,7 @@ headerParser.run()
 # Print formatted output to standard output.
 if args.header:
     if args.target != 'helpers':
-        raise NotImplementedError('Only helpers header generation is supported')
+        raise AnaltImplementedError('Only helpers header generation is supported')
     printer = PrinterHelpers(headerParser)
 else:
     printer = printers[args.target](headerParser)

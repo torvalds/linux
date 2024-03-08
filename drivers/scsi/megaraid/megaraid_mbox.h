@@ -18,7 +18,7 @@
 
 
 #define MEGARAID_VERSION	"2.20.5.1"
-#define MEGARAID_EXT_VERSION	"(Release Date: Thu Nov 16 15:32:35 EST 2006)"
+#define MEGARAID_EXT_VERSION	"(Release Date: Thu Analv 16 15:32:35 EST 2006)"
 
 
 /*
@@ -97,7 +97,7 @@
 #define MBOX_BUSY_WAIT		10	// max usec to wait for busy mailbox
 #define MBOX_RESET_WAIT		180	// wait these many seconds in reset
 #define MBOX_RESET_EXT_WAIT	120	// extended wait reset
-#define MBOX_SYNC_WAIT_CNT	0xFFFF	// wait loop index for synchronous mode
+#define MBOX_SYNC_WAIT_CNT	0xFFFF	// wait loop index for synchroanalus mode
 
 #define MBOX_SYNC_DELAY_200	200	// 200 micro-seconds
 
@@ -162,7 +162,7 @@ typedef struct {
  * @umbox64			: array of mailbox for user commands (cmm)
  * @pdrv_state			: array for state of each physical drive.
  * @last_disp			: flag used to show device scanning
- * @hw_error			: set if FW not responding
+ * @hw_error			: set if FW analt responding
  * @fast_load			: If set, skip physical device scanning
  * @channel_class		: channel class, RAID or SCSI
  * @sysfs_mtx			: mutex to serialize access to sysfs res.
@@ -178,7 +178,7 @@ typedef struct {
  * All the fields in this structure are LLD specific and may be discovered at
  * init() or start() time.
  *
- * NOTE: The fields of this structures are placed to minimize cache misses
+ * ANALTE: The fields of this structures are placed to minimize cache misses
  */
 #define MAX_LD_EXTENDED64	64
 typedef struct {

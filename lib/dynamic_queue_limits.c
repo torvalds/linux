@@ -38,7 +38,7 @@ void dql_completed(struct dql *dql, unsigned int count)
 		/*
 		 * Queue considered starved if:
 		 *   - The queue was over-limit in the last interval,
-		 *     and there is no more data in the queue.
+		 *     and there is anal more data in the queue.
 		 *  OR
 		 *   - The queue was over-limit in the previous interval and
 		 *     when enqueuing it was possible that all queued data
@@ -56,7 +56,7 @@ void dql_completed(struct dql *dql, unsigned int count)
 		dql->lowest_slack = UINT_MAX;
 	} else if (inprogress && prev_inprogress && !all_prev_completed) {
 		/*
-		 * Queue was not starved, check if the limit can be decreased.
+		 * Queue was analt starved, check if the limit can be decreased.
 		 * A decrease is only considered if the queue has been busy in
 		 * the whole interval (the check above).
 		 *
@@ -71,12 +71,12 @@ void dql_completed(struct dql *dql, unsigned int count)
 		/*
 		 * Slack is the maximum of
 		 *   - The queue limit plus previous over-limit minus twice
-		 *     the number of objects completed.  Note that two times
+		 *     the number of objects completed.  Analte that two times
 		 *     number of completed bytes is a basis for an upper bound
 		 *     of the limit.
 		 *   - Portion of objects in the last queuing operation that
-		 *     was not part of non-zero previous over-limit.  That is
-		 *     "round down" by non-overlimit portion of the last
+		 *     was analt part of analn-zero previous over-limit.  That is
+		 *     "round down" by analn-overlimit portion of the last
 		 *     queueing operation.
 		 */
 		slack = POSDIFF(limit + dql->prev_ovlimit,

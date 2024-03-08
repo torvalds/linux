@@ -16,7 +16,7 @@
 #include <linux/time.h>
 #include <linux/fs.h>
 #include <linux/jbd2.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/crc32.h>
 #include <linux/blkdev.h>
 #endif
@@ -53,13 +53,13 @@ static void journal_brelse_array(struct buffer_head *b[], int n)
 
 /*
  * When reading from the journal, we are going through the block device
- * layer directly and so there is no readahead being done for us.  We
+ * layer directly and so there is anal readahead being done for us.  We
  * need to implement any readahead ourselves if we want it to happen at
  * all.  Recovery is basically one long sequential read, so make sure we
  * do the IO in reasonably large chunks.
  *
- * This is not so critical that we need to be enormously clever about
- * the readahead size, though.  128K is a purely arbitrary, good-enough
+ * This is analt so critical that we need to be eanalrmously clever about
+ * the readahead size, though.  128K is a purely arbitrary, good-eanalugh
  * fixed value.
  */
 
@@ -94,7 +94,7 @@ static int do_readahead(journal_t *journal, unsigned int start)
 
 		bh = __getblk(journal->j_dev, blocknr, journal->j_blocksize);
 		if (!bh) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto failed;
 		}
 
@@ -150,7 +150,7 @@ static int jread(struct buffer_head **bhp, journal_t *journal,
 
 	bh = __getblk(journal->j_dev, blocknr, journal->j_blocksize);
 	if (!bh)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!buffer_uptodate(bh)) {
 		/*
@@ -159,7 +159,7 @@ static int jread(struct buffer_head **bhp, journal_t *journal,
 		 */
 		bool need_readahead = !buffer_req(bh);
 
-		bh_read_nowait(bh, 0);
+		bh_read_analwait(bh, 0);
 		if (need_readahead)
 			do_readahead(journal, offset);
 		wait_on_buffer(bh);
@@ -299,7 +299,7 @@ int jbd2_journal_recover(journal_t *journal)
 	 * unmounted.
 	 */
 	if (!sb->s_start) {
-		jbd2_debug(1, "No recovery required, last transaction %d, head block %u\n",
+		jbd2_debug(1, "Anal recovery required, last transaction %d, head block %u\n",
 			  be32_to_cpu(sb->s_sequence), be32_to_cpu(sb->s_head));
 		journal->j_transaction_sequence = be32_to_cpu(sb->s_sequence) + 1;
 		journal->j_head = be32_to_cpu(sb->s_head);
@@ -346,7 +346,7 @@ int jbd2_journal_recover(journal_t *journal)
  * @journal: journal to startup
  *
  * Locate any valid recovery information from the journal and set up the
- * journal structures in memory to ignore it (presumably because the
+ * journal structures in memory to iganalre it (presumably because the
  * caller has evidence that it is out of date).
  * This function doesn't appear to be exported..
  *
@@ -373,7 +373,7 @@ int jbd2_journal_skip_recovery(journal_t *journal)
 		int dropped = info.end_transaction - 
 			be32_to_cpu(journal->j_superblock->s_sequence);
 		jbd2_debug(1,
-			  "JBD2: ignoring %d transaction%s from the journal.\n",
+			  "JBD2: iganalring %d transaction%s from the journal.\n",
 			  dropped, (dropped == 1) ? "" : "s");
 #endif
 		journal->j_transaction_sequence = ++info.end_transaction;
@@ -499,7 +499,7 @@ static int do_one_pass(journal_t *journal,
 	jbd2_debug(1, "Starting recovery pass %d\n", pass);
 
 	/*
-	 * Now we walk through the log, transaction by transaction,
+	 * Analw we walk through the log, transaction by transaction,
 	 * making sure that each transaction has a commit block in the
 	 * expected place.  Each complete transaction gets replayed back
 	 * into the main filesystem.
@@ -514,8 +514,8 @@ static int do_one_pass(journal_t *journal,
 
 		cond_resched();
 
-		/* If we already know where to stop the log traversal,
-		 * check right now that we haven't gone past the end of
+		/* If we already kanalw where to stop the log traversal,
+		 * check right analw that we haven't gone past the end of
 		 * the log. */
 
 		if (pass != PASS_SCAN)
@@ -614,7 +614,7 @@ static int do_one_pass(journal_t *journal,
 				continue;
 			}
 
-			/* A descriptor block: we can now write all of
+			/* A descriptor block: we can analw write all of
 			 * the data blocks.  Yay, useful work is finally
 			 * getting done here! */
 
@@ -679,7 +679,7 @@ static int do_one_pass(journal_t *journal,
 						printk(KERN_ERR
 						       "JBD2: Out of memory "
 						       "during recovery.\n");
-						err = -ENOMEM;
+						err = -EANALMEM;
 						brelse(bh);
 						brelse(obh);
 						goto failed;
@@ -733,7 +733,7 @@ static int do_one_pass(journal_t *journal,
 			 *		|
 			 * 	 _______|______________
 			 * 	|	 	      |
-			 * Commit block found	Commit block not found
+			 * Commit block found	Commit block analt found
 			 *      |		      |
 			 * "Journal Corruption"       |
 			 *		 _____________|_________
@@ -742,7 +742,7 @@ static int do_one_pass(journal_t *journal,
 			 *	and (n+1)th interrupted     interrupted
 			 *	before commit block
 			 *      could reach the disk.
-			 *	(Cannot find the difference in above
+			 *	(Cananalt find the difference in above
 			 *	 mentioned conditions. Hence assume
 			 *	 "Interrupted Commit".)
 			 */
@@ -763,12 +763,12 @@ static int do_one_pass(journal_t *journal,
 					brelse(bh);
 					goto failed;
 				}
-			ignore_crc_mismatch:
+			iganalre_crc_mismatch:
 				/*
-				 * It likely does not belong to same journal,
+				 * It likely does analt belong to same journal,
 				 * just end this recovery with success.
 				 */
-				jbd2_debug(1, "JBD2: Invalid checksum ignored in transaction %u, likely stale data\n",
+				jbd2_debug(1, "JBD2: Invalid checksum iganalred in transaction %u, likely stale data\n",
 					  next_commit_ID);
 				brelse(bh);
 				goto done;
@@ -776,7 +776,7 @@ static int do_one_pass(journal_t *journal,
 
 			/*
 			 * Found an expected commit block: if checksums
-			 * are present, verify them in PASS_SCAN; else not
+			 * are present, verify them in PASS_SCAN; else analt
 			 * much to do other than move on to the next sequence
 			 * number.
 			 */
@@ -794,7 +794,7 @@ static int do_one_pass(journal_t *journal,
 					break;
 				}
 
-				/* Neither checksum match nor unused? */
+				/* Neither checksum match analr unused? */
 				if (!((crc32_sum == found_chksum &&
 				       cbh->h_chksum_type ==
 						JBD2_CRC32_CHKSUM &&
@@ -812,7 +812,7 @@ static int do_one_pass(journal_t *journal,
 							   bh->b_data)) {
 			chksum_error:
 				if (commit_time < last_trans_commit_time)
-					goto ignore_crc_mismatch;
+					goto iganalre_crc_mismatch;
 				info->end_transaction = next_commit_ID;
 				info->head_block = head_block;
 
@@ -868,8 +868,8 @@ static int do_one_pass(journal_t *journal,
  done:
 	/*
 	 * We broke out of the log scan loop: either we came to the
-	 * known end of the log or we found an unexpected block in the
-	 * log.  If the latter happened, then we know that the "current"
+	 * kanalwn end of the log or we found an unexpected block in the
+	 * log.  If the latter happened, then we kanalw that the "current"
 	 * transaction marks the end of the valid log.
 	 */
 

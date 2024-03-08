@@ -37,7 +37,7 @@ upstream community.
 Level 0
 =======
 
-* Software Engineers are not allowed to contribute patches to the Linux
+* Software Engineers are analt allowed to contribute patches to the Linux
   kernel.
 
 

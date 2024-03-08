@@ -55,7 +55,7 @@ static void setup_ctx(void)
 
 	ctx.fd = open("/proc/self/comm", O_WRONLY|O_TRUNC);
 	if (ctx.fd < 0) {
-		fprintf(stderr, "failed to open /proc/self/comm: %d\n", -errno);
+		fprintf(stderr, "failed to open /proc/self/comm: %d\n", -erranal);
 		exit(1);
 	}
 }

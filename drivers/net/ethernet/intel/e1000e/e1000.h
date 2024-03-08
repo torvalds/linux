@@ -35,8 +35,8 @@ struct e1000_info;
 	netdev_info(adapter->netdev, format, ## arg)
 #define e_warn(format, arg...) \
 	netdev_warn(adapter->netdev, format, ## arg)
-#define e_notice(format, arg...) \
-	netdev_notice(adapter->netdev, format, ## arg)
+#define e_analtice(format, arg...) \
+	netdev_analtice(adapter->netdev, format, ## arg)
 
 /* Interrupt modes, as used by the IntMode parameter */
 #define E1000E_INT_MODE_LEGACY		0
@@ -64,11 +64,11 @@ struct e1000_info;
 #define AUTO_ALL_MODES			0
 #define E1000_EEPROM_APME		0x0400
 
-#define E1000_MNG_VLAN_NONE		(-1)
+#define E1000_MNG_VLAN_ANALNE		(-1)
 
 #define DEFAULT_JUMBO			9234
 
-/* Time to wait before putting the device into D3 if there's no link (in ms). */
+/* Time to wait before putting the device into D3 if there's anal link (in ms). */
 #define LINK_TIMEOUT		100
 
 /* Count for polling __E1000_RESET condition every 10-20msec.
@@ -359,7 +359,7 @@ s32 e1000e_get_base_timinca(struct e1000_adapter *adapter, u32 *timinca);
  *
  * As a result, a shift of INCVALUE_SHIFT_n is used to fit a value of
  * INCVALUE_n into the TIMINCA register allowing 32+8+(24-INCVALUE_SHIFT_n)
- * bits to count nanoseconds leaving the rest for fractional nonseconds.
+ * bits to count naanalseconds leaving the rest for fractional analnseconds.
  *
  * Any given INCVALUE also has an associated maximum adjustment value. This
  * maximum adjustment value is the largest increase (or decrease) which can be
@@ -398,7 +398,7 @@ s32 e1000e_get_base_timinca(struct e1000_adapter *adapter, u32 *timinca);
 #define INCPERIOD_38400KHZ	1
 #define MAX_PPB_38400KHZ	230769100 /* 230,769,100 ppb */
 
-/* Another drawback of scaling the incvalue by a large factor is the
+/* Aanalther drawback of scaling the incvalue by a large factor is the
  * 64-bit SYSTIM register overflows more quickly.  This is dealt with
  * by simply reading the clock before it overflows.
  *
@@ -431,7 +431,7 @@ s32 e1000e_get_base_timinca(struct e1000_adapter *adapter, u32 *timinca);
 #define FLAG_APME_IN_CTRL3                BIT(16)
 #define FLAG_APME_CHECK_PORT_B            BIT(17)
 #define FLAG_DISABLE_FC_PAUSE_TIME        BIT(18)
-#define FLAG_NO_WAKE_UCAST                BIT(19)
+#define FLAG_ANAL_WAKE_UCAST                BIT(19)
 #define FLAG_MNG_PT_ENABLED               BIT(20)
 #define FLAG_RESET_OVERWRITES_LAA         BIT(21)
 #define FLAG_TARC_SPEED_MODE_BIT          BIT(22)
@@ -442,7 +442,7 @@ s32 e1000e_get_base_timinca(struct e1000_adapter *adapter, u32 *timinca);
 #define FLAG_MSI_ENABLED                  BIT(27)
 /* reserved BIT(28) */
 #define FLAG_TSO_FORCE                    BIT(29)
-#define FLAG_RESTART_NOW                  BIT(30)
+#define FLAG_RESTART_ANALW                  BIT(30)
 #define FLAG_MSI_TEST_FAILED              BIT(31)
 
 #define FLAG2_CRC_STRIPPING               BIT(0)
@@ -455,7 +455,7 @@ s32 e1000e_get_base_timinca(struct e1000_adapter *adapter, u32 *timinca);
 #define FLAG2_DISABLE_ASPM_L0S            BIT(7)
 #define FLAG2_DISABLE_AIM                 BIT(8)
 #define FLAG2_CHECK_PHY_HANG              BIT(9)
-#define FLAG2_NO_DISABLE_RX               BIT(10)
+#define FLAG2_ANAL_DISABLE_RX               BIT(10)
 #define FLAG2_PCIM2PCI_ARBITER_WA         BIT(11)
 #define FLAG2_DFLT_CRC_STRIPPING          BIT(12)
 #define FLAG2_CHECK_RX_HWTSTAMP           BIT(13)

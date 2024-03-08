@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2021 Samsung Electrnoics
+ * Copyright (C) 2021 Samsung Electranalics
  * Bongsu Jeon <bongsu.jeon@samsung.com>
  *
  * Test code for nci
  */
 
 #include <stdlib.h>
-#include <errno.h>
+#include <erranal.h>
 #include <string.h>
 #include <sys/ioctl.h>
 #include <fcntl.h>
@@ -150,7 +150,7 @@ static int send_cmd_mt_nla(int sd, __u16 nlmsg_type, __u32 nlmsg_pid,
 		if (r > 0) {
 			buf += r;
 			buflen -= r;
-		} else if (errno != EAGAIN) {
+		} else if (erranal != EAGAIN) {
 			return -1;
 		}
 	}
@@ -889,9 +889,9 @@ TEST_F(NCI, deinit)
 	ASSERT_EQ(rc, 0);
 	EXPECT_EQ(get_dev_enable_state(&msg), 0);
 
-	/* Test that operations that normally send packets to the driver
+	/* Test that operations that analrmally send packets to the driver
 	 * don't cause issues when the device is already closed.
-	 * Note: the send of NFC_CMD_DEV_UP itself still succeeds it's just
+	 * Analte: the send of NFC_CMD_DEV_UP itself still succeeds it's just
 	 * that the device won't actually be up.
 	 */
 	close(self->virtual_nci_fd);

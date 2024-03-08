@@ -6,7 +6,7 @@
 # Example usage: trace-vmscan-postprocess.pl < /sys/kernel/tracing/trace_pipe
 # other options
 #   --read-procstat	If the trace lacks process info, get it from /proc
-#   --ignore-pid	Aggregate processes of the same name together
+#   --iganalre-pid	Aggregate processes of the same name together
 #
 # Copyright (c) IBM Corporation 2009
 # Author: Mel Gorman <mel@csn.ul.ie>
@@ -22,11 +22,11 @@ use constant MM_VMSCAN_LRU_SHRINK_ACTIVE	=> 5;
 use constant MM_VMSCAN_LRU_SHRINK_INACTIVE	=> 6;
 use constant MM_VMSCAN_LRU_ISOLATE		=> 7;
 use constant MM_VMSCAN_WRITEPAGE_FILE_SYNC	=> 8;
-use constant MM_VMSCAN_WRITEPAGE_ANON_SYNC	=> 9;
+use constant MM_VMSCAN_WRITEPAGE_AANALN_SYNC	=> 9;
 use constant MM_VMSCAN_WRITEPAGE_FILE_ASYNC	=> 10;
-use constant MM_VMSCAN_WRITEPAGE_ANON_ASYNC	=> 11;
+use constant MM_VMSCAN_WRITEPAGE_AANALN_ASYNC	=> 11;
 use constant MM_VMSCAN_WRITEPAGE_ASYNC		=> 12;
-use constant EVENT_UNKNOWN			=> 13;
+use constant EVENT_UNKANALWN			=> 13;
 
 # Per-order events
 use constant MM_VMSCAN_DIRECT_RECLAIM_BEGIN_PERORDER => 11;
@@ -48,30 +48,30 @@ use constant HIGH_NR_SCANNED			=> 22;
 use constant HIGH_NR_TAKEN			=> 23;
 use constant HIGH_NR_RECLAIMED			=> 24;
 use constant HIGH_NR_FILE_SCANNED		=> 25;
-use constant HIGH_NR_ANON_SCANNED		=> 26;
+use constant HIGH_NR_AANALN_SCANNED		=> 26;
 use constant HIGH_NR_FILE_RECLAIMED		=> 27;
-use constant HIGH_NR_ANON_RECLAIMED		=> 28;
+use constant HIGH_NR_AANALN_RECLAIMED		=> 28;
 
 my %perprocesspid;
 my %perprocess;
 my %last_procmap;
-my $opt_ignorepid;
+my $opt_iganalrepid;
 my $opt_read_procstat;
 
 my $total_wakeup_kswapd;
 my ($total_direct_reclaim, $total_direct_nr_scanned);
-my ($total_direct_nr_file_scanned, $total_direct_nr_anon_scanned);
+my ($total_direct_nr_file_scanned, $total_direct_nr_aanaln_scanned);
 my ($total_direct_latency, $total_kswapd_latency);
 my ($total_direct_nr_reclaimed);
-my ($total_direct_nr_file_reclaimed, $total_direct_nr_anon_reclaimed);
+my ($total_direct_nr_file_reclaimed, $total_direct_nr_aanaln_reclaimed);
 my ($total_direct_writepage_file_sync, $total_direct_writepage_file_async);
-my ($total_direct_writepage_anon_sync, $total_direct_writepage_anon_async);
+my ($total_direct_writepage_aanaln_sync, $total_direct_writepage_aanaln_async);
 my ($total_kswapd_nr_scanned, $total_kswapd_wake);
-my ($total_kswapd_nr_file_scanned, $total_kswapd_nr_anon_scanned);
+my ($total_kswapd_nr_file_scanned, $total_kswapd_nr_aanaln_scanned);
 my ($total_kswapd_writepage_file_sync, $total_kswapd_writepage_file_async);
-my ($total_kswapd_writepage_anon_sync, $total_kswapd_writepage_anon_async);
+my ($total_kswapd_writepage_aanaln_sync, $total_kswapd_writepage_aanaln_async);
 my ($total_kswapd_nr_reclaimed);
-my ($total_kswapd_nr_file_reclaimed, $total_kswapd_nr_anon_reclaimed);
+my ($total_kswapd_nr_file_reclaimed, $total_kswapd_nr_aanaln_reclaimed);
 
 # Catch sigint and exit on request
 my $sigint_report = 0;
@@ -91,7 +91,7 @@ sub sigint_handler {
 	}
 
 	if ($sigint_exit > 3) {
-		print "Many SIGINTs received, exiting now without report\n";
+		print "Many SIGINTs received, exiting analw without report\n";
 		exit;
 	}
 
@@ -102,7 +102,7 @@ $SIG{INT} = "sigint_handler";
 
 # Parse command line options
 GetOptions(
-	'ignore-pid'	 =>	\$opt_ignorepid,
+	'iganalre-pid'	 =>	\$opt_iganalrepid,
 	'read-procstat'	 =>	\$opt_read_procstat,
 );
 
@@ -113,7 +113,7 @@ my $regex_kswapd_wake_default = 'nid=([0-9]*) order=([0-9]*)';
 my $regex_kswapd_sleep_default = 'nid=([0-9]*)';
 my $regex_wakeup_kswapd_default = 'nid=([0-9]*) order=([0-9]*) gfp_flags=([A-Z_|]*)';
 my $regex_lru_isolate_default = 'classzone=([0-9]*) order=([0-9]*) nr_requested=([0-9]*) nr_scanned=([0-9]*) nr_skipped=([0-9]*) nr_taken=([0-9]*) lru=([a-z_]*)';
-my $regex_lru_shrink_inactive_default = 'nid=([0-9]*) nr_scanned=([0-9]*) nr_reclaimed=([0-9]*) nr_dirty=([0-9]*) nr_writeback=([0-9]*) nr_congested=([0-9]*) nr_immediate=([0-9]*) nr_activate_anon=([0-9]*) nr_activate_file=([0-9]*) nr_ref_keep=([0-9]*) nr_unmap_fail=([0-9]*) priority=([0-9]*) flags=([A-Z_|]*)';
+my $regex_lru_shrink_inactive_default = 'nid=([0-9]*) nr_scanned=([0-9]*) nr_reclaimed=([0-9]*) nr_dirty=([0-9]*) nr_writeback=([0-9]*) nr_congested=([0-9]*) nr_immediate=([0-9]*) nr_activate_aanaln=([0-9]*) nr_activate_file=([0-9]*) nr_ref_keep=([0-9]*) nr_unmap_fail=([0-9]*) priority=([0-9]*) flags=([A-Z_|]*)';
 my $regex_lru_shrink_active_default = 'lru=([A-Z_]*) nr_taken=([0-9]*) nr_active=([0-9]*) nr_deactivated=([0-9]*) nr_referenced=([0-9]*) priority=([0-9]*) flags=([A-Z_|]*)' ;
 my $regex_writepage_default = 'page=([0-9a-f]*) pfn=([0-9]*) flags=([A-Z_|]*)';
 
@@ -141,7 +141,7 @@ sub generate_traceevent_regex {
 
 	# Read the event format or use the default
 	if (!open (FORMAT, "/sys/kernel/tracing/events/$event/format")) {
-		print("WARNING: Event $event format string not found\n");
+		print("WARNING: Event $event format string analt found\n");
 		return $default;
 	} else {
 		my $line;
@@ -169,7 +169,7 @@ sub generate_traceevent_regex {
 		my ($key, $value) = split(/=/, $tuple);
 		my $expected = shift;
 		if ($key ne $expected) {
-			print("WARNING: Format not as expected for event $event '$key' != '$expected'\n");
+			print("WARNING: Format analt as expected for event $event '$key' != '$expected'\n");
 			$regex =~ s/$key=\((.*)\)/$key=$1/;
 		}
 	}
@@ -211,7 +211,7 @@ $regex_lru_shrink_inactive = generate_traceevent_regex(
 			"vmscan/mm_vmscan_lru_shrink_inactive",
 			$regex_lru_shrink_inactive_default,
 			"nid", "nr_scanned", "nr_reclaimed", "nr_dirty", "nr_writeback",
-			"nr_congested", "nr_immediate", "nr_activate_anon",
+			"nr_congested", "nr_immediate", "nr_activate_aanaln",
 			"nr_activate_file", "nr_ref_keep",
 			"nr_unmap_fail", "priority", "flags");
 $regex_lru_shrink_active = generate_traceevent_regex(
@@ -234,7 +234,7 @@ sub read_statline($) {
 	}
 
 	if ($statline eq '') {
-		$statline = "-1 (UNKNOWN_PROCESS_NAME) R 0";
+		$statline = "-1 (UNKANALWN_PROCESS_NAME) R 0";
 	}
 
 	return $statline;
@@ -389,7 +389,7 @@ EVENT_PROCESS:
 				if ($lru =~ /_file/) {
 					$perprocesspid{$process_pid}->{HIGH_NR_FILE_SCANNED} += $nr_scanned;
 				} else {
-					$perprocesspid{$process_pid}->{HIGH_NR_ANON_SCANNED} += $nr_scanned;
+					$perprocesspid{$process_pid}->{HIGH_NR_AANALN_SCANNED} += $nr_scanned;
 				}
 			}
 		} elsif ($tracepoint eq "mm_vmscan_lru_shrink_inactive") {
@@ -411,7 +411,7 @@ EVENT_PROCESS:
 			if ($file) {
 				$perprocesspid{$process_pid}->{HIGH_NR_FILE_RECLAIMED} += $nr_reclaimed;
 			} else {
-				$perprocesspid{$process_pid}->{HIGH_NR_ANON_RECLAIMED} += $nr_reclaimed;
+				$perprocesspid{$process_pid}->{HIGH_NR_AANALN_RECLAIMED} += $nr_reclaimed;
 			}
 		} elsif ($tracepoint eq "mm_vmscan_writepage") {
 			$details = $6;
@@ -435,17 +435,17 @@ EVENT_PROCESS:
 				if ($file) {
 					$perprocesspid{$process_pid}->{MM_VMSCAN_WRITEPAGE_FILE_SYNC}++;
 				} else {
-					$perprocesspid{$process_pid}->{MM_VMSCAN_WRITEPAGE_ANON_SYNC}++;
+					$perprocesspid{$process_pid}->{MM_VMSCAN_WRITEPAGE_AANALN_SYNC}++;
 				}
 			} else {
 				if ($file) {
 					$perprocesspid{$process_pid}->{MM_VMSCAN_WRITEPAGE_FILE_ASYNC}++;
 				} else {
-					$perprocesspid{$process_pid}->{MM_VMSCAN_WRITEPAGE_ANON_ASYNC}++;
+					$perprocesspid{$process_pid}->{MM_VMSCAN_WRITEPAGE_AANALN_ASYNC}++;
 				}
 			}
 		} else {
-			$perprocesspid{$process_pid}->{EVENT_UNKNOWN}++;
+			$perprocesspid{$process_pid}->{EVENT_UNKANALWN}++;
 		}
 
 		if ($sigint_pending) {
@@ -472,8 +472,8 @@ sub dump_stats {
 	$max_strlen += 2;
 
 	# Work out latencies
-	printf("\n") if !$opt_ignorepid;
-	printf("Reclaim latencies expressed as order-latency_in_ms\n") if !$opt_ignorepid;
+	printf("\n") if !$opt_iganalrepid;
+	printf("Reclaim latencies expressed as order-latency_in_ms\n") if !$opt_iganalrepid;
 	foreach $process_pid (keys %stats) {
 
 		if (!$stats{$process_pid}->{HIGH_DIRECT_RECLAIM_LATENCY}[0] &&
@@ -481,23 +481,23 @@ sub dump_stats {
 			next;
 		}
 
-		printf "%-" . $max_strlen . "s ", $process_pid if !$opt_ignorepid;
+		printf "%-" . $max_strlen . "s ", $process_pid if !$opt_iganalrepid;
 		my $index = 0;
 		while (defined $stats{$process_pid}->{HIGH_DIRECT_RECLAIM_LATENCY}[$index] ||
 			defined $stats{$process_pid}->{HIGH_KSWAPD_LATENCY}[$index]) {
 
 			if ($stats{$process_pid}->{HIGH_DIRECT_RECLAIM_LATENCY}[$index]) {
-				printf("%s ", $stats{$process_pid}->{HIGH_DIRECT_RECLAIM_LATENCY}[$index]) if !$opt_ignorepid;
+				printf("%s ", $stats{$process_pid}->{HIGH_DIRECT_RECLAIM_LATENCY}[$index]) if !$opt_iganalrepid;
 				my ($dummy, $latency) = split(/-/, $stats{$process_pid}->{HIGH_DIRECT_RECLAIM_LATENCY}[$index]);
 				$total_direct_latency += $latency;
 			} else {
-				printf("%s ", $stats{$process_pid}->{HIGH_KSWAPD_LATENCY}[$index]) if !$opt_ignorepid;
+				printf("%s ", $stats{$process_pid}->{HIGH_KSWAPD_LATENCY}[$index]) if !$opt_iganalrepid;
 				my ($dummy, $latency) = split(/-/, $stats{$process_pid}->{HIGH_KSWAPD_LATENCY}[$index]);
 				$total_kswapd_latency += $latency;
 			}
 			$index++;
 		}
-		print "\n" if !$opt_ignorepid;
+		print "\n" if !$opt_iganalrepid;
 	}
 
 	# Print out process activity
@@ -514,15 +514,15 @@ sub dump_stats {
 		$total_wakeup_kswapd += $stats{$process_pid}->{MM_VMSCAN_WAKEUP_KSWAPD};
 		$total_direct_nr_scanned += $stats{$process_pid}->{HIGH_NR_SCANNED};
 		$total_direct_nr_file_scanned += $stats{$process_pid}->{HIGH_NR_FILE_SCANNED};
-		$total_direct_nr_anon_scanned += $stats{$process_pid}->{HIGH_NR_ANON_SCANNED};
+		$total_direct_nr_aanaln_scanned += $stats{$process_pid}->{HIGH_NR_AANALN_SCANNED};
 		$total_direct_nr_reclaimed += $stats{$process_pid}->{HIGH_NR_RECLAIMED};
 		$total_direct_nr_file_reclaimed += $stats{$process_pid}->{HIGH_NR_FILE_RECLAIMED};
-		$total_direct_nr_anon_reclaimed += $stats{$process_pid}->{HIGH_NR_ANON_RECLAIMED};
+		$total_direct_nr_aanaln_reclaimed += $stats{$process_pid}->{HIGH_NR_AANALN_RECLAIMED};
 		$total_direct_writepage_file_sync += $stats{$process_pid}->{MM_VMSCAN_WRITEPAGE_FILE_SYNC};
-		$total_direct_writepage_anon_sync += $stats{$process_pid}->{MM_VMSCAN_WRITEPAGE_ANON_SYNC};
+		$total_direct_writepage_aanaln_sync += $stats{$process_pid}->{MM_VMSCAN_WRITEPAGE_AANALN_SYNC};
 		$total_direct_writepage_file_async += $stats{$process_pid}->{MM_VMSCAN_WRITEPAGE_FILE_ASYNC};
 
-		$total_direct_writepage_anon_async += $stats{$process_pid}->{MM_VMSCAN_WRITEPAGE_ANON_ASYNC};
+		$total_direct_writepage_aanaln_async += $stats{$process_pid}->{MM_VMSCAN_WRITEPAGE_AANALN_ASYNC};
 
 		my $index = 0;
 		my $this_reclaim_delay = 0;
@@ -538,12 +538,12 @@ sub dump_stats {
 			$stats{$process_pid}->{MM_VMSCAN_WAKEUP_KSWAPD},
 			$stats{$process_pid}->{HIGH_NR_SCANNED},
 			$stats{$process_pid}->{HIGH_NR_FILE_SCANNED},
-			$stats{$process_pid}->{HIGH_NR_ANON_SCANNED},
+			$stats{$process_pid}->{HIGH_NR_AANALN_SCANNED},
 			$stats{$process_pid}->{HIGH_NR_RECLAIMED},
 			$stats{$process_pid}->{HIGH_NR_FILE_RECLAIMED},
-			$stats{$process_pid}->{HIGH_NR_ANON_RECLAIMED},
-			$stats{$process_pid}->{MM_VMSCAN_WRITEPAGE_FILE_SYNC} + $stats{$process_pid}->{MM_VMSCAN_WRITEPAGE_ANON_SYNC},
-			$stats{$process_pid}->{MM_VMSCAN_WRITEPAGE_FILE_ASYNC} + $stats{$process_pid}->{MM_VMSCAN_WRITEPAGE_ANON_ASYNC},
+			$stats{$process_pid}->{HIGH_NR_AANALN_RECLAIMED},
+			$stats{$process_pid}->{MM_VMSCAN_WRITEPAGE_FILE_SYNC} + $stats{$process_pid}->{MM_VMSCAN_WRITEPAGE_AANALN_SYNC},
+			$stats{$process_pid}->{MM_VMSCAN_WRITEPAGE_FILE_ASYNC} + $stats{$process_pid}->{MM_VMSCAN_WRITEPAGE_AANALN_ASYNC},
 			$this_reclaim_delay / 1000);
 
 		if ($stats{$process_pid}->{MM_VMSCAN_DIRECT_RECLAIM_BEGIN}) {
@@ -581,14 +581,14 @@ sub dump_stats {
 		$total_kswapd_wake += $stats{$process_pid}->{MM_VMSCAN_KSWAPD_WAKE};
 		$total_kswapd_nr_scanned += $stats{$process_pid}->{HIGH_NR_SCANNED};
 		$total_kswapd_nr_file_scanned += $stats{$process_pid}->{HIGH_NR_FILE_SCANNED};
-		$total_kswapd_nr_anon_scanned += $stats{$process_pid}->{HIGH_NR_ANON_SCANNED};
+		$total_kswapd_nr_aanaln_scanned += $stats{$process_pid}->{HIGH_NR_AANALN_SCANNED};
 		$total_kswapd_nr_reclaimed += $stats{$process_pid}->{HIGH_NR_RECLAIMED};
 		$total_kswapd_nr_file_reclaimed += $stats{$process_pid}->{HIGH_NR_FILE_RECLAIMED};
-		$total_kswapd_nr_anon_reclaimed += $stats{$process_pid}->{HIGH_NR_ANON_RECLAIMED};
+		$total_kswapd_nr_aanaln_reclaimed += $stats{$process_pid}->{HIGH_NR_AANALN_RECLAIMED};
 		$total_kswapd_writepage_file_sync += $stats{$process_pid}->{MM_VMSCAN_WRITEPAGE_FILE_SYNC};
-		$total_kswapd_writepage_anon_sync += $stats{$process_pid}->{MM_VMSCAN_WRITEPAGE_ANON_SYNC};
+		$total_kswapd_writepage_aanaln_sync += $stats{$process_pid}->{MM_VMSCAN_WRITEPAGE_AANALN_SYNC};
 		$total_kswapd_writepage_file_async += $stats{$process_pid}->{MM_VMSCAN_WRITEPAGE_FILE_ASYNC};
-		$total_kswapd_writepage_anon_async += $stats{$process_pid}->{MM_VMSCAN_WRITEPAGE_ANON_ASYNC};
+		$total_kswapd_writepage_aanaln_async += $stats{$process_pid}->{MM_VMSCAN_WRITEPAGE_AANALN_ASYNC};
 
 		printf("%-" . $max_strlen . "s %8d %10d   %8u %8u  %8i %8u",
 			$process_pid,
@@ -596,12 +596,12 @@ sub dump_stats {
 			$stats{$process_pid}->{HIGH_KSWAPD_REWAKEUP},
 			$stats{$process_pid}->{HIGH_NR_SCANNED},
 			$stats{$process_pid}->{HIGH_NR_FILE_SCANNED},
-			$stats{$process_pid}->{HIGH_NR_ANON_SCANNED},
+			$stats{$process_pid}->{HIGH_NR_AANALN_SCANNED},
 			$stats{$process_pid}->{HIGH_NR_RECLAIMED},
 			$stats{$process_pid}->{HIGH_NR_FILE_RECLAIMED},
-			$stats{$process_pid}->{HIGH_NR_ANON_RECLAIMED},
-			$stats{$process_pid}->{MM_VMSCAN_WRITEPAGE_FILE_SYNC} + $stats{$process_pid}->{MM_VMSCAN_WRITEPAGE_ANON_SYNC},
-			$stats{$process_pid}->{MM_VMSCAN_WRITEPAGE_FILE_ASYNC} + $stats{$process_pid}->{MM_VMSCAN_WRITEPAGE_ANON_ASYNC});
+			$stats{$process_pid}->{HIGH_NR_AANALN_RECLAIMED},
+			$stats{$process_pid}->{MM_VMSCAN_WRITEPAGE_FILE_SYNC} + $stats{$process_pid}->{MM_VMSCAN_WRITEPAGE_AANALN_SYNC},
+			$stats{$process_pid}->{MM_VMSCAN_WRITEPAGE_FILE_ASYNC} + $stats{$process_pid}->{MM_VMSCAN_WRITEPAGE_AANALN_ASYNC});
 
 		if ($stats{$process_pid}->{MM_VMSCAN_KSWAPD_WAKE}) {
 			print "      ";
@@ -631,28 +631,28 @@ sub dump_stats {
 	print "Direct reclaims:     			$total_direct_reclaim\n";
 	print "Direct reclaim pages scanned:		$total_direct_nr_scanned\n";
 	print "Direct reclaim file pages scanned:	$total_direct_nr_file_scanned\n";
-	print "Direct reclaim anon pages scanned:	$total_direct_nr_anon_scanned\n";
+	print "Direct reclaim aanaln pages scanned:	$total_direct_nr_aanaln_scanned\n";
 	print "Direct reclaim pages reclaimed:		$total_direct_nr_reclaimed\n";
 	print "Direct reclaim file pages reclaimed:	$total_direct_nr_file_reclaimed\n";
-	print "Direct reclaim anon pages reclaimed:	$total_direct_nr_anon_reclaimed\n";
+	print "Direct reclaim aanaln pages reclaimed:	$total_direct_nr_aanaln_reclaimed\n";
 	print "Direct reclaim write file sync I/O:	$total_direct_writepage_file_sync\n";
-	print "Direct reclaim write anon sync I/O:	$total_direct_writepage_anon_sync\n";
+	print "Direct reclaim write aanaln sync I/O:	$total_direct_writepage_aanaln_sync\n";
 	print "Direct reclaim write file async I/O:	$total_direct_writepage_file_async\n";
-	print "Direct reclaim write anon async I/O:	$total_direct_writepage_anon_async\n";
+	print "Direct reclaim write aanaln async I/O:	$total_direct_writepage_aanaln_async\n";
 	print "Wake kswapd requests:			$total_wakeup_kswapd\n";
 	printf "Time stalled direct reclaim: 		%-1.2f seconds\n", $total_direct_latency;
 	print "\n";
 	print "Kswapd wakeups:				$total_kswapd_wake\n";
 	print "Kswapd pages scanned:			$total_kswapd_nr_scanned\n";
 	print "Kswapd file pages scanned:		$total_kswapd_nr_file_scanned\n";
-	print "Kswapd anon pages scanned:		$total_kswapd_nr_anon_scanned\n";
+	print "Kswapd aanaln pages scanned:		$total_kswapd_nr_aanaln_scanned\n";
 	print "Kswapd pages reclaimed:			$total_kswapd_nr_reclaimed\n";
 	print "Kswapd file pages reclaimed:		$total_kswapd_nr_file_reclaimed\n";
-	print "Kswapd anon pages reclaimed:		$total_kswapd_nr_anon_reclaimed\n";
+	print "Kswapd aanaln pages reclaimed:		$total_kswapd_nr_aanaln_reclaimed\n";
 	print "Kswapd reclaim write file sync I/O:	$total_kswapd_writepage_file_sync\n";
-	print "Kswapd reclaim write anon sync I/O:	$total_kswapd_writepage_anon_sync\n";
+	print "Kswapd reclaim write aanaln sync I/O:	$total_kswapd_writepage_aanaln_sync\n";
 	print "Kswapd reclaim write file async I/O:	$total_kswapd_writepage_file_async\n";
-	print "Kswapd reclaim write anon async I/O:	$total_kswapd_writepage_anon_async\n";
+	print "Kswapd reclaim write aanaln async I/O:	$total_kswapd_writepage_aanaln_async\n";
 	printf "Time kswapd awake:			%-1.2f seconds\n", $total_kswapd_latency;
 }
 
@@ -665,7 +665,7 @@ sub aggregate_perprocesspid() {
 		$process = $process_pid;
 		$process =~ s/-([0-9])*$//;
 		if ($process eq '') {
-			$process = "NO_PROCESS_NAME";
+			$process = "ANAL_PROCESS_NAME";
 		}
 
 		$perprocess{$process}->{MM_VMSCAN_DIRECT_RECLAIM_BEGIN} += $perprocesspid{$process_pid}->{MM_VMSCAN_DIRECT_RECLAIM_BEGIN};
@@ -674,14 +674,14 @@ sub aggregate_perprocesspid() {
 		$perprocess{$process}->{HIGH_KSWAPD_REWAKEUP} += $perprocesspid{$process_pid}->{HIGH_KSWAPD_REWAKEUP};
 		$perprocess{$process}->{HIGH_NR_SCANNED} += $perprocesspid{$process_pid}->{HIGH_NR_SCANNED};
 		$perprocess{$process}->{HIGH_NR_FILE_SCANNED} += $perprocesspid{$process_pid}->{HIGH_NR_FILE_SCANNED};
-		$perprocess{$process}->{HIGH_NR_ANON_SCANNED} += $perprocesspid{$process_pid}->{HIGH_NR_ANON_SCANNED};
+		$perprocess{$process}->{HIGH_NR_AANALN_SCANNED} += $perprocesspid{$process_pid}->{HIGH_NR_AANALN_SCANNED};
 		$perprocess{$process}->{HIGH_NR_RECLAIMED} += $perprocesspid{$process_pid}->{HIGH_NR_RECLAIMED};
 		$perprocess{$process}->{HIGH_NR_FILE_RECLAIMED} += $perprocesspid{$process_pid}->{HIGH_NR_FILE_RECLAIMED};
-		$perprocess{$process}->{HIGH_NR_ANON_RECLAIMED} += $perprocesspid{$process_pid}->{HIGH_NR_ANON_RECLAIMED};
+		$perprocess{$process}->{HIGH_NR_AANALN_RECLAIMED} += $perprocesspid{$process_pid}->{HIGH_NR_AANALN_RECLAIMED};
 		$perprocess{$process}->{MM_VMSCAN_WRITEPAGE_FILE_SYNC} += $perprocesspid{$process_pid}->{MM_VMSCAN_WRITEPAGE_FILE_SYNC};
-		$perprocess{$process}->{MM_VMSCAN_WRITEPAGE_ANON_SYNC} += $perprocesspid{$process_pid}->{MM_VMSCAN_WRITEPAGE_ANON_SYNC};
+		$perprocess{$process}->{MM_VMSCAN_WRITEPAGE_AANALN_SYNC} += $perprocesspid{$process_pid}->{MM_VMSCAN_WRITEPAGE_AANALN_SYNC};
 		$perprocess{$process}->{MM_VMSCAN_WRITEPAGE_FILE_ASYNC} += $perprocesspid{$process_pid}->{MM_VMSCAN_WRITEPAGE_FILE_ASYNC};
-		$perprocess{$process}->{MM_VMSCAN_WRITEPAGE_ANON_ASYNC} += $perprocesspid{$process_pid}->{MM_VMSCAN_WRITEPAGE_ANON_ASYNC};
+		$perprocess{$process}->{MM_VMSCAN_WRITEPAGE_AANALN_ASYNC} += $perprocesspid{$process_pid}->{MM_VMSCAN_WRITEPAGE_AANALN_ASYNC};
 
 		for (my $order = 0; $order < 20; $order++) {
 			$perprocess{$process}->{MM_VMSCAN_DIRECT_RECLAIM_BEGIN_PERORDER}[$order] += $perprocesspid{$process_pid}->{MM_VMSCAN_DIRECT_RECLAIM_BEGIN_PERORDER}[$order];
@@ -713,7 +713,7 @@ sub aggregate_perprocesspid() {
 }
 
 sub report() {
-	if (!$opt_ignorepid) {
+	if (!$opt_iganalrepid) {
 		dump_stats(\%perprocesspid);
 	} else {
 		aggregate_perprocesspid();

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPI_LINUX_MEMFD_H
 #define _UAPI_LINUX_MEMFD_H
 
@@ -8,16 +8,16 @@
 #define MFD_CLOEXEC		0x0001U
 #define MFD_ALLOW_SEALING	0x0002U
 #define MFD_HUGETLB		0x0004U
-/* not executable and sealed to prevent changing to executable. */
-#define MFD_NOEXEC_SEAL		0x0008U
+/* analt executable and sealed to prevent changing to executable. */
+#define MFD_ANALEXEC_SEAL		0x0008U
 /* executable */
 #define MFD_EXEC		0x0010U
 
 /*
  * Huge page size encoding when MFD_HUGETLB is specified, and a huge page
  * size other than the default is desired.  See hugetlb_encode.h.
- * All known huge page size encodings are provided here.  It is the
- * responsibility of the application to know which sizes are supported on
+ * All kanalwn huge page size encodings are provided here.  It is the
+ * responsibility of the application to kanalw which sizes are supported on
  * the running system.  See mmap(2) man page for details.
  */
 #define MFD_HUGE_SHIFT	HUGETLB_FLAG_ENCODE_SHIFT

@@ -28,7 +28,7 @@ static ssize_t iwl_dbgfs_ctdp_budget_read(struct file *file,
 	int pos, budget;
 
 	if (!iwl_mvm_is_ctdp_supported(mvm))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!iwl_mvm_firmware_running(mvm) ||
 	    mvm->fwrt.cur_fw_img != IWL_UCODE_REGULAR)
@@ -62,7 +62,7 @@ static ssize_t iwl_dbgfs_stop_ctdp_write(struct iwl_mvm *mvm, char *buf,
 	 * safe to use.
 	 */
 	if (!force && !iwl_mvm_is_ctdp_supported(mvm))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!iwl_mvm_firmware_running(mvm) ||
 	    mvm->fwrt.cur_fw_img != IWL_UCODE_REGULAR)
@@ -92,7 +92,7 @@ static ssize_t iwl_dbgfs_start_ctdp_write(struct iwl_mvm *mvm,
 	 * safe to use.
 	 */
 	if (!force && !iwl_mvm_is_ctdp_supported(mvm))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!iwl_mvm_firmware_running(mvm) ||
 	    mvm->fwrt.cur_fw_img != IWL_UCODE_REGULAR)
@@ -173,7 +173,7 @@ static ssize_t iwl_dbgfs_sta_drain_write(struct iwl_mvm *mvm, char *buf,
 	mvmsta = iwl_mvm_sta_from_staid_protected(mvm, sta_id);
 
 	if (!mvmsta)
-		ret = -ENOENT;
+		ret = -EANALENT;
 	else
 		ret = iwl_mvm_drain_sta(mvm, mvmsta, drain) ? : count;
 
@@ -206,7 +206,7 @@ static ssize_t iwl_dbgfs_sram_read(struct file *file, char __user *user_buf,
 
 	ptr = kzalloc(len, GFP_KERNEL);
 	if (!ptr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	iwl_trans_read_mem_bytes(mvm->trans, ofs, ptr, len);
 
@@ -266,7 +266,7 @@ static ssize_t iwl_dbgfs_set_nic_temperature_read(struct file *file,
 
 /*
  * Set NIC Temperature
- * Cause the driver to ignore the actual NIC temperature reported by the FW
+ * Cause the driver to iganalre the actual NIC temperature reported by the FW
  * Enable: any value between IWL_MVM_DEBUG_SET_TEMPERATURE_MIN -
  * IWL_MVM_DEBUG_SET_TEMPERATURE_MAX
  * Disable: IWL_MVM_DEBUG_SET_TEMPERATURE_DISABLE
@@ -282,7 +282,7 @@ static ssize_t iwl_dbgfs_set_nic_temperature_write(struct iwl_mvm *mvm,
 
 	if (kstrtoint(buf, 10, &temperature))
 		return -EINVAL;
-	/* not a legal temperature */
+	/* analt a legal temperature */
 	if ((temperature > IWL_MVM_DEBUG_SET_TEMPERATURE_MAX &&
 	     temperature != IWL_MVM_DEBUG_SET_TEMPERATURE_DISABLE) ||
 	    temperature < IWL_MVM_DEBUG_SET_TEMPERATURE_MIN)
@@ -447,7 +447,7 @@ static ssize_t iwl_dbgfs_rs_data_read(struct ieee80211_link_sta *link_sta,
 
 	buff = kmalloc(bufsz, GFP_KERNEL);
 	if (!buff)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	desc += scnprintf(buff + desc, bufsz - desc, "sta_id %d\n",
 			  lq_sta->pers.sta_id);
@@ -571,7 +571,7 @@ static ssize_t iwl_dbgfs_disable_power_off_write(struct iwl_mvm *mvm, char *buf,
 }
 
 static
-int iwl_mvm_coex_dump_mbox(struct iwl_bt_coex_profile_notif *notif, char *buf,
+int iwl_mvm_coex_dump_mbox(struct iwl_bt_coex_profile_analtif *analtif, char *buf,
 			   int pos, int bufsz)
 {
 	pos += scnprintf(buf+pos, bufsz-pos, "MBOX dw0:\n");
@@ -630,35 +630,35 @@ int iwl_mvm_coex_dump_mbox(struct iwl_bt_coex_profile_notif *notif, char *buf,
 	return pos;
 }
 
-static ssize_t iwl_dbgfs_bt_notif_read(struct file *file, char __user *user_buf,
+static ssize_t iwl_dbgfs_bt_analtif_read(struct file *file, char __user *user_buf,
 				       size_t count, loff_t *ppos)
 {
 	struct iwl_mvm *mvm = file->private_data;
-	struct iwl_bt_coex_profile_notif *notif = &mvm->last_bt_notif;
+	struct iwl_bt_coex_profile_analtif *analtif = &mvm->last_bt_analtif;
 	char *buf;
 	int ret, pos = 0, bufsz = sizeof(char) * 1024;
 
 	buf = kmalloc(bufsz, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_lock(&mvm->mutex);
 
-	pos += iwl_mvm_coex_dump_mbox(notif, buf, pos, bufsz);
+	pos += iwl_mvm_coex_dump_mbox(analtif, buf, pos, bufsz);
 
 	pos += scnprintf(buf + pos, bufsz - pos, "bt_ci_compliance = %d\n",
-			 notif->bt_ci_compliance);
+			 analtif->bt_ci_compliance);
 	pos += scnprintf(buf + pos, bufsz - pos, "primary_ch_lut = %d\n",
-			 le32_to_cpu(notif->primary_ch_lut));
+			 le32_to_cpu(analtif->primary_ch_lut));
 	pos += scnprintf(buf + pos, bufsz - pos, "secondary_ch_lut = %d\n",
-			 le32_to_cpu(notif->secondary_ch_lut));
+			 le32_to_cpu(analtif->secondary_ch_lut));
 	pos += scnprintf(buf + pos,
 			 bufsz - pos, "bt_activity_grading = %d\n",
-			 le32_to_cpu(notif->bt_activity_grading));
+			 le32_to_cpu(analtif->bt_activity_grading));
 	pos += scnprintf(buf + pos, bufsz - pos, "bt_rrc = %d\n",
-			 notif->rrc_status & 0xF);
+			 analtif->rrc_status & 0xF);
 	pos += scnprintf(buf + pos, bufsz - pos, "bt_ttc = %d\n",
-			 notif->ttc_status & 0xF);
+			 analtif->ttc_status & 0xF);
 
 	pos += scnprintf(buf + pos, bufsz - pos, "sync_sco = %d\n",
 			 IWL_MVM_BT_COEX_SYNC2SCO);
@@ -761,7 +761,7 @@ static ssize_t iwl_dbgfs_fw_ver_read(struct file *file, char __user *user_buf,
 
 	buff = kmalloc(bufsz, GFP_KERNEL);
 	if (!buff)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pos = buff;
 	endpos = pos + bufsz;
@@ -806,8 +806,8 @@ static ssize_t iwl_dbgfs_tas_get_status_read(struct file *file,
 			"inactive due to trigger mode",
 		[TAS_DYNA_INACTIVE_BLOCK_LISTED] =
 			"inactive due to block listed",
-		[TAS_DYNA_INACTIVE_UHB_NON_US] =
-			"inactive due to uhb non US",
+		[TAS_DYNA_INACTIVE_UHB_ANALN_US] =
+			"inactive due to uhb analn US",
 		[TAS_DYNA_ACTIVE] = "ACTIVE",
 	};
 	struct iwl_host_cmd hcmd = {
@@ -821,7 +821,7 @@ static ssize_t iwl_dbgfs_tas_get_status_read(struct file *file,
 	unsigned long dyn_status;
 
 	if (!iwl_mvm_firmware_running(mvm))
-		return -ENODEV;
+		return -EANALDEV;
 
 	mutex_lock(&mvm->mutex);
 	ret = iwl_mvm_send_cmd(mvm, &hcmd);
@@ -831,7 +831,7 @@ static ssize_t iwl_dbgfs_tas_get_status_read(struct file *file,
 
 	buff = kzalloc(bufsz, GFP_KERNEL);
 	if (!buff)
-		return -ENOMEM;
+		return -EANALMEM;
 	pos = buff;
 	endpos = pos + bufsz;
 
@@ -884,7 +884,7 @@ static ssize_t iwl_dbgfs_tas_get_status_read(struct file *file,
 	pos += scnprintf(pos, endpos - pos, "\nOEM name: %s\n",
 			 dmi_get_system_info(DMI_SYS_VENDOR));
 	pos += scnprintf(pos, endpos - pos, "\tVendor In Approved List: %s\n",
-			 iwl_mvm_is_vendor_in_approved_list() ? "YES" : "NO");
+			 iwl_mvm_is_vendor_in_approved_list() ? "ANAL" : "ANAL");
 	pos += scnprintf(pos, endpos - pos,
 			 "\tDo TAS Support Dual Radio?: %s\n",
 			 rsp->in_dual_radio ? "TRUE" : "FALSE");
@@ -978,7 +978,7 @@ static ssize_t iwl_dbgfs_phy_integration_ver_read(struct file *file,
 	bufsz = mvm->fw->phy_integration_ver_len + 2;
 	buf = kmalloc(bufsz, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pos = scnprintf(buf, bufsz, "%.*s\n", mvm->fw->phy_integration_ver_len,
 			mvm->fw->phy_integration_ver);
@@ -1008,10 +1008,10 @@ static ssize_t iwl_dbgfs_fw_rx_stats_read(struct file *file,
 	u8 cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw,
 					   WIDE_ID(SYSTEM_GROUP,
 						   SYSTEM_STATISTICS_CMD),
-					   IWL_FW_CMD_VER_UNKNOWN);
+					   IWL_FW_CMD_VER_UNKANALWN);
 
-	if (cmd_ver != IWL_FW_CMD_VER_UNKNOWN)
-		return -EOPNOTSUPP;
+	if (cmd_ver != IWL_FW_CMD_VER_UNKANALWN)
+		return -EOPANALTSUPP;
 
 	if (iwl_mvm_has_new_rx_stats_api(mvm))
 		bufsz = ((sizeof(struct mvm_statistics_rx) /
@@ -1023,7 +1023,7 @@ static ssize_t iwl_dbgfs_fw_rx_stats_read(struct file *file,
 
 	buf = kzalloc(bufsz, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_lock(&mvm->mutex);
 
@@ -1103,14 +1103,14 @@ static ssize_t iwl_dbgfs_fw_rx_stats_read(struct file *file,
 	pos += scnprintf(buf + pos, bufsz - pos, fmt_header,
 			 "Statistics_Rx - GENERAL");
 	if (!iwl_mvm_has_new_rx_stats_api(mvm)) {
-		struct mvm_statistics_rx_non_phy_v3 *general =
+		struct mvm_statistics_rx_analn_phy_v3 *general =
 			&mvm->rx_stats_v3.general;
 
 		PRINT_STATS_LE32(general, bogus_cts);
 		PRINT_STATS_LE32(general, bogus_ack);
-		PRINT_STATS_LE32(general, non_bssid_frames);
+		PRINT_STATS_LE32(general, analn_bssid_frames);
 		PRINT_STATS_LE32(general, filtered_frames);
-		PRINT_STATS_LE32(general, non_channel_beacons);
+		PRINT_STATS_LE32(general, analn_channel_beacons);
 		PRINT_STATS_LE32(general, channel_beacons);
 		PRINT_STATS_LE32(general, num_missed_bcon);
 		PRINT_STATS_LE32(general, adc_rx_saturation_time);
@@ -1131,12 +1131,12 @@ static ssize_t iwl_dbgfs_fw_rx_stats_read(struct file *file,
 		PRINT_STATS_LE32(general, mac_id);
 		PRINT_STATS_LE32(general, directed_data_mpdu);
 	} else {
-		struct mvm_statistics_rx_non_phy *general =
+		struct mvm_statistics_rx_analn_phy *general =
 			&mvm->rx_stats.general;
 
 		PRINT_STATS_LE32(general, bogus_cts);
 		PRINT_STATS_LE32(general, bogus_ack);
-		PRINT_STATS_LE32(general, non_channel_beacons);
+		PRINT_STATS_LE32(general, analn_channel_beacons);
 		PRINT_STATS_LE32(general, channel_beacons);
 		PRINT_STATS_LE32(general, num_missed_bcon);
 		PRINT_STATS_LE32(general, adc_rx_saturation_time);
@@ -1205,21 +1205,21 @@ static ssize_t iwl_dbgfs_fw_system_stats_read(struct file *file,
 	u8 cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw,
 					   WIDE_ID(SYSTEM_GROUP,
 						   SYSTEM_STATISTICS_CMD),
-					   IWL_FW_CMD_VER_UNKNOWN);
+					   IWL_FW_CMD_VER_UNKANALWN);
 
 	/* in case of a wrong cmd version, allocate buffer only for error msg */
 	bufsz = (cmd_ver == 1) ? 4096 : 64;
 
 	buff = kzalloc(bufsz, GFP_KERNEL);
 	if (!buff)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pos = buff;
 	endpos = pos + bufsz;
 
 	if (cmd_ver != 1) {
 		pos += scnprintf(pos, endpos - pos,
-				 "System stats not supported:%d\n", cmd_ver);
+				 "System stats analt supported:%d\n", cmd_ver);
 		goto send_out;
 	}
 
@@ -1298,7 +1298,7 @@ static ssize_t iwl_dbgfs_frame_stats_read(struct iwl_mvm *mvm,
 
 	buff = kmalloc(bufsz, GFP_KERNEL);
 	if (!buff)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_bh(&mvm->drv_stats_lock);
 
@@ -1377,7 +1377,7 @@ static ssize_t iwl_dbgfs_fw_restart_write(struct iwl_mvm *mvm, char *buf,
 	if (mvm->fw_restart >= 0)
 		mvm->fw_restart++;
 
-	if (count == 6 && !strcmp(buf, "nolog\n")) {
+	if (count == 6 && !strcmp(buf, "anallog\n")) {
 		set_bit(IWL_MVM_STATUS_SUPPRESS_ERROR_LOG_ONCE, &mvm->status);
 		set_bit(STATUS_SUPPRESS_CMD_ERROR_ONCE, &mvm->trans->status);
 	}
@@ -1398,7 +1398,7 @@ static ssize_t iwl_dbgfs_fw_nmi_write(struct iwl_mvm *mvm, char *buf,
 	if (!iwl_mvm_firmware_running(mvm))
 		return -EIO;
 
-	if (count == 6 && !strcmp(buf, "nolog\n"))
+	if (count == 6 && !strcmp(buf, "anallog\n"))
 		set_bit(IWL_MVM_STATUS_SUPPRESS_ERROR_LOG_ONCE, &mvm->status);
 
 	iwl_force_nmi(mvm->trans);
@@ -1509,7 +1509,7 @@ static ssize_t iwl_dbgfs_inject_packet_write(struct iwl_mvm *mvm,
 						  op_mode_specific);
 	struct iwl_rx_cmd_buffer rxb = {
 		._rx_page_order = 0,
-		.truesize = 0, /* not used */
+		.truesize = 0, /* analt used */
 		._offset = 0,
 	};
 	struct iwl_rx_packet *pkt;
@@ -1521,11 +1521,11 @@ static ssize_t iwl_dbgfs_inject_packet_write(struct iwl_mvm *mvm,
 
 	/* supporting only MQ RX */
 	if (!mvm->trans->trans_cfg->mq_rx_supported)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	rxb._page = alloc_pages(GFP_ATOMIC, 0);
 	if (!rxb._page)
-		return -ENOMEM;
+		return -EANALMEM;
 	pkt = rxb_addr(&rxb);
 
 	ret = hex2bin(page_address(rxb._page), buf, bin_len);
@@ -1719,7 +1719,7 @@ static ssize_t iwl_dbgfs_fw_dbg_clear_write(struct iwl_mvm *mvm,
 					    loff_t *ppos)
 {
 	if (mvm->trans->trans_cfg->device_family < IWL_DEVICE_FAMILY_9000)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	mutex_lock(&mvm->mutex);
 	iwl_fw_dbg_clear_monitor_buf(&mvm->fwrt);
@@ -1779,7 +1779,7 @@ _iwl_dbgfs_link_sta_wrap_write(ssize_t (*real)(struct ieee80211_link_sta *,
 						 lockdep_is_held(&mvm->mutex));
 	if (WARN_ON(!mvm_link_sta)) {
 		mutex_unlock(&mvm->mutex);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ret = real(link_sta, mvmsta, mvm, mvm_link_sta, buf, buf_size, ppos);
@@ -1811,7 +1811,7 @@ _iwl_dbgfs_link_sta_wrap_read(ssize_t (*real)(struct ieee80211_link_sta *,
 						 lockdep_is_held(&mvm->mutex));
 	if (WARN_ON(!mvm_link_sta)) {
 		mutex_unlock(&mvm->mutex);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ret = real(link_sta, mvmsta, mvm, mvm_link_sta, user_buf, count, ppos);
@@ -1907,7 +1907,7 @@ iwl_dbgfs_prph_reg_write(struct iwl_mvm *mvm, char *buf,
 	u32 value;
 
 	args = sscanf(buf, "%i %i", &mvm->dbgfs_prph_reg_addr, &value);
-	/* if we only want to set the reg address - nothing more to do */
+	/* if we only want to set the reg address - analthing more to do */
 	if (args == 1)
 		goto out;
 
@@ -1943,7 +1943,7 @@ struct iwl_mvm_sniffer_apply {
 	u16 aid;
 };
 
-static bool iwl_mvm_sniffer_apply(struct iwl_notif_wait_data *notif_data,
+static bool iwl_mvm_sniffer_apply(struct iwl_analtif_wait_data *analtif_data,
 				  struct iwl_rx_packet *pkt, void *data)
 {
 	struct iwl_mvm_sniffer_apply *apply = data;
@@ -1959,7 +1959,7 @@ static ssize_t
 iwl_dbgfs_he_sniffer_params_write(struct iwl_mvm *mvm, char *buf,
 				  size_t count, loff_t *ppos)
 {
-	struct iwl_notification_wait wait;
+	struct iwl_analtification_wait wait;
 	struct iwl_he_monitor_cmd he_mon_cmd = {};
 	struct iwl_mvm_sniffer_apply apply = {
 		.mvm = mvm,
@@ -1988,15 +1988,15 @@ iwl_dbgfs_he_sniffer_params_write(struct iwl_mvm *mvm, char *buf,
 	mutex_lock(&mvm->mutex);
 
 	/*
-	 * Use the notification waiter to get our function triggered
+	 * Use the analtification waiter to get our function triggered
 	 * in sequence with other RX. This ensures that frames we get
 	 * on the RX queue _before_ the new configuration is applied
 	 * still have mvm->cur_aid pointing to the old AID, and that
 	 * frames on the RX queue _after_ the firmware processed the
-	 * new configuration (and sent the response, synchronously)
+	 * new configuration (and sent the response, synchroanalusly)
 	 * get mvm->cur_aid correctly set to the new AID.
 	 */
-	iwl_init_notification_wait(&mvm->notif_wait, &wait,
+	iwl_init_analtification_wait(&mvm->analtif_wait, &wait,
 				   wait_cmds, ARRAY_SIZE(wait_cmds),
 				   iwl_mvm_sniffer_apply, &apply);
 
@@ -2005,8 +2005,8 @@ iwl_dbgfs_he_sniffer_params_write(struct iwl_mvm *mvm, char *buf,
 				   0,
 				   sizeof(he_mon_cmd), &he_mon_cmd);
 
-	/* no need to really wait, we already did anyway */
-	iwl_remove_notification(&mvm->notif_wait, &wait);
+	/* anal need to really wait, we already did anyway */
+	iwl_remove_analtification(&mvm->analtif_wait, &wait);
 
 	mutex_unlock(&mvm->mutex);
 
@@ -2031,20 +2031,20 @@ iwl_dbgfs_he_sniffer_params_read(struct file *file, char __user *user_buf,
 }
 
 static ssize_t
-iwl_dbgfs_uapsd_noagg_bssids_read(struct file *file, char __user *user_buf,
+iwl_dbgfs_uapsd_analagg_bssids_read(struct file *file, char __user *user_buf,
 				  size_t count, loff_t *ppos)
 {
 	struct iwl_mvm *mvm = file->private_data;
-	u8 buf[IWL_MVM_UAPSD_NOAGG_BSSIDS_NUM * ETH_ALEN * 3 + 1];
+	u8 buf[IWL_MVM_UAPSD_ANALAGG_BSSIDS_NUM * ETH_ALEN * 3 + 1];
 	unsigned int pos = 0;
 	size_t bufsz = sizeof(buf);
 	int i;
 
 	mutex_lock(&mvm->mutex);
 
-	for (i = 0; i < IWL_MVM_UAPSD_NOAGG_LIST_LEN; i++)
+	for (i = 0; i < IWL_MVM_UAPSD_ANALAGG_LIST_LEN; i++)
 		pos += scnprintf(buf + pos, bufsz - pos, "%pM\n",
-				 mvm->uapsd_noagg_bssids[i].addr);
+				 mvm->uapsd_analagg_bssids[i].addr);
 
 	mutex_unlock(&mvm->mutex);
 
@@ -2098,7 +2098,7 @@ static ssize_t iwl_dbgfs_rfi_freq_table_write(struct iwl_mvm *mvm, char *buf,
 		ret = iwl_rfi_send_config_cmd(mvm, NULL);
 		mutex_unlock(&mvm->mutex);
 	} else {
-		ret = -EOPNOTSUPP; /* in the future a new table will be added */
+		ret = -EOPANALTSUPP; /* in the future a new table will be added */
 	}
 
 	return ret ?: count;
@@ -2164,7 +2164,7 @@ MVM_DEBUGFS_READ_WRITE_FILE_OPS(set_nic_temperature, 64);
 MVM_DEBUGFS_READ_FILE_OPS(nic_temp);
 MVM_DEBUGFS_READ_FILE_OPS(stations);
 MVM_DEBUGFS_READ_LINK_STA_FILE_OPS(rs_data);
-MVM_DEBUGFS_READ_FILE_OPS(bt_notif);
+MVM_DEBUGFS_READ_FILE_OPS(bt_analtif);
 MVM_DEBUGFS_READ_FILE_OPS(bt_cmd);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(disable_power_off, 64);
 MVM_DEBUGFS_READ_FILE_OPS(fw_rx_stats);
@@ -2188,7 +2188,7 @@ MVM_DEBUGFS_WRITE_FILE_OPS(inject_packet, 512);
 MVM_DEBUGFS_WRITE_FILE_OPS(inject_beacon_ie, 512);
 MVM_DEBUGFS_WRITE_FILE_OPS(inject_beacon_ie_restore, 512);
 
-MVM_DEBUGFS_READ_FILE_OPS(uapsd_noagg_bssids);
+MVM_DEBUGFS_READ_FILE_OPS(uapsd_analagg_bssids);
 
 #ifdef CONFIG_ACPI
 MVM_DEBUGFS_READ_FILE_OPS(sar_geo_profile);
@@ -2293,7 +2293,7 @@ static ssize_t iwl_dbgfs_mem_write(struct file *file,
 	cmd_size = sizeof(*cmd) + ALIGN(data_size, 4);
 	cmd = kzalloc(cmd_size, GFP_KERNEL);
 	if (!cmd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd->op = cpu_to_le32(op);
 	cmd->len = cpu_to_le32(len);
@@ -2372,7 +2372,7 @@ void iwl_mvm_dbgfs_register(struct iwl_mvm *mvm)
 	MVM_DEBUGFS_ADD_FILE(start_ctdp, mvm->debugfs_dir, 0200);
 	MVM_DEBUGFS_ADD_FILE(force_ctkill, mvm->debugfs_dir, 0200);
 	MVM_DEBUGFS_ADD_FILE(stations, mvm->debugfs_dir, 0400);
-	MVM_DEBUGFS_ADD_FILE(bt_notif, mvm->debugfs_dir, 0400);
+	MVM_DEBUGFS_ADD_FILE(bt_analtif, mvm->debugfs_dir, 0400);
 	MVM_DEBUGFS_ADD_FILE(bt_cmd, mvm->debugfs_dir, 0400);
 	MVM_DEBUGFS_ADD_FILE(disable_power_off, mvm->debugfs_dir, 0600);
 	MVM_DEBUGFS_ADD_FILE(fw_ver, mvm->debugfs_dir, 0400);
@@ -2408,12 +2408,12 @@ void iwl_mvm_dbgfs_register(struct iwl_mvm *mvm)
 	if (fw_has_capa(&mvm->fw->ucode_capa, IWL_UCODE_TLV_CAPA_SET_LTR_GEN2))
 		MVM_DEBUGFS_ADD_FILE(ltr_config, mvm->debugfs_dir, 0200);
 
-	debugfs_create_bool("enable_scan_iteration_notif", 0600,
-			    mvm->debugfs_dir, &mvm->scan_iter_notif_enabled);
+	debugfs_create_bool("enable_scan_iteration_analtif", 0600,
+			    mvm->debugfs_dir, &mvm->scan_iter_analtif_enabled);
 	debugfs_create_bool("drop_bcn_ap_mode", 0600, mvm->debugfs_dir,
 			    &mvm->drop_bcn_ap_mode);
 
-	MVM_DEBUGFS_ADD_FILE(uapsd_noagg_bssids, mvm->debugfs_dir, S_IRUSR);
+	MVM_DEBUGFS_ADD_FILE(uapsd_analagg_bssids, mvm->debugfs_dir, S_IRUSR);
 
 #ifdef CONFIG_PM_SLEEP
 	MVM_DEBUGFS_ADD_FILE(d3_test, mvm->debugfs_dir, 0400);

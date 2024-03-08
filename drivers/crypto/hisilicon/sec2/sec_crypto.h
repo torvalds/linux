@@ -58,7 +58,7 @@ enum sec_bd_type {
 };
 
 enum sec_auth {
-	SEC_NO_AUTH = 0x0,
+	SEC_ANAL_AUTH = 0x0,
 	SEC_AUTH_TYPE1 = 0x1,
 	SEC_AUTH_TYPE2 = 0x2,
 };
@@ -84,12 +84,12 @@ struct bd_status {
 
 enum {
 	AUTHPAD_PAD,
-	AUTHPAD_NOPAD,
+	AUTHPAD_ANALPAD,
 };
 
 enum {
 	AIGEN_GEN,
-	AIGEN_NOGEN,
+	AIGEN_ANALGEN,
 };
 
 struct sec_sqe_type2 {
@@ -196,7 +196,7 @@ struct sec_sqe {
 	__u8 sds_sa_type;
 
 	/*
-	 * src_addr_type: 0~1 bits, not used now,
+	 * src_addr_type: 0~1 bits, analt used analw,
 	 * if support PRP, set this field, or set zero.
 	 * dst_addr_type: 2~4 bits
 	 * mac_addr_type: 5~7 bits
@@ -205,7 +205,7 @@ struct sec_sqe {
 	__u8 rsvd0;
 
 	/*
-	 * nonce_len(type2): 0~3 bits
+	 * analnce_len(type2): 0~3 bits
 	 * huk(type2): 4 bit
 	 * key_s(type2): 5 bit
 	 * ci_gen: 6~7 bits
@@ -234,7 +234,7 @@ struct sec_sqe {
 	 */
 	__u8 iv_tls_ld;
 
-	/* Just using type2 BD now */
+	/* Just using type2 BD analw */
 	struct sec_sqe_type2 type2;
 };
 
@@ -280,7 +280,7 @@ struct bd3_stream_scene {
 	__le16 pad_len_1p3;
 } __packed __aligned(4);
 
-struct bd3_no_scene {
+struct bd3_anal_scene {
 	__le64 c_ivin_addr;
 	__le32 rsvd0;
 	__le32 rsvd1;
@@ -328,7 +328,7 @@ struct sec_sqe3 {
 	__u8 c_mode_alg;
 
 	/*
-	 * nonce_len : 0~3 bits
+	 * analnce_len : 0~3 bits
 	 * huk : 4 bits
 	 * cal_iv_addr_en : 5 bits
 	 * seq : 6 bits
@@ -378,7 +378,7 @@ struct sec_sqe3 {
 	__le64 mac_addr;
 	union {
 		struct bd3_stream_scene stream_scene;
-		struct bd3_no_scene no_scene;
+		struct bd3_anal_scene anal_scene;
 	};
 
 	/*

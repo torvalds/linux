@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /* audit.h -- Auditing support
  *
- * Copyright 2003-2004 Red Hat Inc., Durham, North Carolina.
+ * Copyright 2003-2004 Red Hat Inc., Durham, Analrth Carolina.
  * All Rights Reserved.
  *
  * Written by Rickard E. (Rik) Faith <faith@redhat.com>
@@ -14,9 +14,9 @@
 #include <linux/audit_arch.h>
 #include <uapi/linux/audit.h>
 #include <uapi/linux/netfilter/nf_tables.h>
-#include <uapi/linux/fanotify.h>
+#include <uapi/linux/faanaltify.h>
 
-#define AUDIT_INO_UNSET ((unsigned long)-1)
+#define AUDIT_IANAL_UNSET ((unsigned long)-1)
 #define AUDIT_DEV_UNSET ((dev_t)-1)
 
 struct audit_sig_info {
@@ -27,7 +27,7 @@ struct audit_sig_info {
 
 struct audit_buffer;
 struct audit_context;
-struct inode;
+struct ianalde;
 struct netlink_skb_parms;
 struct path;
 struct linux_binprm;
@@ -49,10 +49,10 @@ struct audit_krule {
 	char			*filterkey; /* ties events to rules */
 	struct audit_field	*fields;
 	struct audit_field	*arch_f; /* quick access to arch field */
-	struct audit_field	*inode_f; /* quick access to an inode field */
+	struct audit_field	*ianalde_f; /* quick access to an ianalde field */
 	struct audit_watch	*watch;	/* associated watch */
 	struct audit_tree	*tree;	/* associated watched tree */
-	struct audit_fsnotify_mark	*exe;
+	struct audit_fsanaltify_mark	*exe;
 	struct list_head	rlist;	/* entry in audit_{watch,tree}.rules list */
 	struct list_head	list;	/* for AUDIT_LIST* purposes only */
 	u64			prio;
@@ -134,8 +134,8 @@ extern unsigned compat_chattr_class[];
 extern unsigned compat_signal_class[];
 
 /* audit_names->type values */
-#define	AUDIT_TYPE_UNKNOWN	0	/* we don't know yet */
-#define	AUDIT_TYPE_NORMAL	1	/* a "normal" audit record */
+#define	AUDIT_TYPE_UNKANALWN	0	/* we don't kanalw yet */
+#define	AUDIT_TYPE_ANALRMAL	1	/* a "analrmal" audit record */
 #define	AUDIT_TYPE_PARENT	2	/* a parent audit record */
 #define	AUDIT_TYPE_CHILD_DELETE 3	/* a child being deleted */
 #define	AUDIT_TYPE_CHILD_CREATE 4	/* a child being created */
@@ -277,9 +277,9 @@ static inline int audit_signal_info(int sig, struct task_struct *t)
 #define audit_is_compat(arch)  false
 #endif
 
-#define AUDIT_INODE_PARENT	1	/* dentry represents the parent */
-#define AUDIT_INODE_HIDDEN	2	/* audit record should be hidden */
-#define AUDIT_INODE_NOEVAL	4	/* audit record incomplete */
+#define AUDIT_IANALDE_PARENT	1	/* dentry represents the parent */
+#define AUDIT_IANALDE_HIDDEN	2	/* audit record should be hidden */
+#define AUDIT_IANALDE_ANALEVAL	4	/* audit record incomplete */
 
 #ifdef CONFIG_AUDITSYSCALL
 #include <asm/syscall.h> /* for syscall_get_arch() */
@@ -295,10 +295,10 @@ extern void __audit_syscall_entry(int major, unsigned long a0, unsigned long a1,
 extern void __audit_syscall_exit(int ret_success, long ret_value);
 extern struct filename *__audit_reusename(const __user char *uptr);
 extern void __audit_getname(struct filename *name);
-extern void __audit_inode(struct filename *name, const struct dentry *dentry,
+extern void __audit_ianalde(struct filename *name, const struct dentry *dentry,
 				unsigned int flags);
 extern void __audit_file(const struct file *);
-extern void __audit_inode_child(struct inode *parent,
+extern void __audit_ianalde_child(struct ianalde *parent,
 				const struct dentry *dentry,
 				const unsigned char type);
 extern void audit_seccomp(unsigned long syscall, long signr, int code);
@@ -368,29 +368,29 @@ static inline void audit_getname(struct filename *name)
 	if (unlikely(!audit_dummy_context()))
 		__audit_getname(name);
 }
-static inline void audit_inode(struct filename *name,
+static inline void audit_ianalde(struct filename *name,
 				const struct dentry *dentry,
 				unsigned int aflags) {
 	if (unlikely(!audit_dummy_context()))
-		__audit_inode(name, dentry, aflags);
+		__audit_ianalde(name, dentry, aflags);
 }
 static inline void audit_file(struct file *file)
 {
 	if (unlikely(!audit_dummy_context()))
 		__audit_file(file);
 }
-static inline void audit_inode_parent_hidden(struct filename *name,
+static inline void audit_ianalde_parent_hidden(struct filename *name,
 						const struct dentry *dentry)
 {
 	if (unlikely(!audit_dummy_context()))
-		__audit_inode(name, dentry,
-				AUDIT_INODE_PARENT | AUDIT_INODE_HIDDEN);
+		__audit_ianalde(name, dentry,
+				AUDIT_IANALDE_PARENT | AUDIT_IANALDE_HIDDEN);
 }
-static inline void audit_inode_child(struct inode *parent,
+static inline void audit_ianalde_child(struct ianalde *parent,
 				     const struct dentry *dentry,
 				     const unsigned char type) {
 	if (unlikely(!audit_dummy_context()))
-		__audit_inode_child(parent, dentry, type);
+		__audit_ianalde_child(parent, dentry, type);
 }
 void audit_core_dumps(long signr);
 
@@ -409,7 +409,7 @@ extern int __audit_sockaddr(int len, void *addr);
 extern void __audit_fd_pair(int fd1, int fd2);
 extern void __audit_mq_open(int oflag, umode_t mode, struct mq_attr *attr);
 extern void __audit_mq_sendrecv(mqd_t mqdes, size_t msg_len, unsigned int msg_prio, const struct timespec64 *abs_timeout);
-extern void __audit_mq_notify(mqd_t mqdes, const struct sigevent *notification);
+extern void __audit_mq_analtify(mqd_t mqdes, const struct sigevent *analtification);
 extern void __audit_mq_getsetattr(mqd_t mqdes, struct mq_attr *mqstat);
 extern int __audit_log_bprm_fcaps(struct linux_binprm *bprm,
 				  const struct cred *new,
@@ -418,7 +418,7 @@ extern void __audit_log_capset(const struct cred *new, const struct cred *old);
 extern void __audit_mmap_fd(int fd, int flags);
 extern void __audit_openat2_how(struct open_how *how);
 extern void __audit_log_kern_module(char *name);
-extern void __audit_fanotify(u32 response, struct fanotify_response_info_audit_rule *friar);
+extern void __audit_faanaltify(u32 response, struct faanaltify_response_info_audit_rule *friar);
 extern void __audit_tk_injoffset(struct timespec64 offset);
 extern void __audit_ntp_log(const struct audit_ntp_data *ad);
 extern void __audit_log_nfcfg(const char *name, u8 af, unsigned int nentries,
@@ -480,10 +480,10 @@ static inline void audit_mq_sendrecv(mqd_t mqdes, size_t msg_len, unsigned int m
 	if (unlikely(!audit_dummy_context()))
 		__audit_mq_sendrecv(mqdes, msg_len, msg_prio, abs_timeout);
 }
-static inline void audit_mq_notify(mqd_t mqdes, const struct sigevent *notification)
+static inline void audit_mq_analtify(mqd_t mqdes, const struct sigevent *analtification)
 {
 	if (unlikely(!audit_dummy_context()))
-		__audit_mq_notify(mqdes, notification);
+		__audit_mq_analtify(mqdes, analtification);
 }
 static inline void audit_mq_getsetattr(mqd_t mqdes, struct mq_attr *mqstat)
 {
@@ -525,15 +525,15 @@ static inline void audit_log_kern_module(char *name)
 		__audit_log_kern_module(name);
 }
 
-static inline void audit_fanotify(u32 response, struct fanotify_response_info_audit_rule *friar)
+static inline void audit_faanaltify(u32 response, struct faanaltify_response_info_audit_rule *friar)
 {
 	if (!audit_dummy_context())
-		__audit_fanotify(response, friar);
+		__audit_faanaltify(response, friar);
 }
 
 static inline void audit_tk_injoffset(struct timespec64 offset)
 {
-	/* ignore no-op events */
+	/* iganalre anal-op events */
 	if (offset.tv_sec == 0 && offset.tv_nsec == 0)
 		return;
 
@@ -607,17 +607,17 @@ static inline struct filename *audit_reusename(const __user char *name)
 }
 static inline void audit_getname(struct filename *name)
 { }
-static inline void audit_inode(struct filename *name,
+static inline void audit_ianalde(struct filename *name,
 				const struct dentry *dentry,
 				unsigned int aflags)
 { }
 static inline void audit_file(struct file *file)
 {
 }
-static inline void audit_inode_parent_hidden(struct filename *name,
+static inline void audit_ianalde_parent_hidden(struct filename *name,
 				const struct dentry *dentry)
 { }
-static inline void audit_inode_child(struct inode *parent,
+static inline void audit_ianalde_child(struct ianalde *parent,
 				     const struct dentry *dentry,
 				     const unsigned char type)
 { }
@@ -657,8 +657,8 @@ static inline void audit_mq_sendrecv(mqd_t mqdes, size_t msg_len,
 				     unsigned int msg_prio,
 				     const struct timespec64 *abs_timeout)
 { }
-static inline void audit_mq_notify(mqd_t mqdes,
-				   const struct sigevent *notification)
+static inline void audit_mq_analtify(mqd_t mqdes,
+				   const struct sigevent *analtification)
 { }
 static inline void audit_mq_getsetattr(mqd_t mqdes, struct mq_attr *mqstat)
 { }
@@ -681,7 +681,7 @@ static inline void audit_log_kern_module(char *name)
 {
 }
 
-static inline void audit_fanotify(u32 response, struct fanotify_response_info_audit_rule *friar)
+static inline void audit_faanaltify(u32 response, struct faanaltify_response_info_audit_rule *friar)
 { }
 
 static inline void audit_tk_injoffset(struct timespec64 offset)

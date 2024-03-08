@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -207,8 +207,8 @@ static struct _vcs_dpi_soc_bounding_box_st dcn201_soc = {
 	.pct_ideal_dram_sdp_bw_after_urgent_pixel_only = 80.0,
 	.pct_ideal_dram_sdp_bw_after_urgent_pixel_and_vm = 80.0,
 	.pct_ideal_dram_sdp_bw_after_urgent_vm_only = 80.0,
-	.max_avg_sdp_bw_use_normal_percent = 80.0,
-	.max_avg_dram_bw_use_normal_percent = 69.0,
+	.max_avg_sdp_bw_use_analrmal_percent = 80.0,
+	.max_avg_dram_bw_use_analrmal_percent = 69.0,
 	.writeback_latency_us = 12.0,
 	.ideal_dram_bw_after_urgent_percent = 80.0,
 	.max_request_size_bytes = 256,
@@ -1072,7 +1072,7 @@ static struct resource_funcs dcn201_res_pool_funcs = {
 	.acquire_free_pipe_as_secondary_dpp_pipe = dcn201_acquire_free_pipe_for_layer,
 	.release_pipe = dcn20_release_pipe,
 	.populate_dml_writeback_from_context = dcn201_populate_dml_writeback_from_context,
-	.patch_unknown_plane_state = dcn20_patch_unknown_plane_state,
+	.patch_unkanalwn_plane_state = dcn20_patch_unkanalwn_plane_state,
 	.set_mcif_arb_params = dcn20_set_mcif_arb_params,
 	.find_first_free_match_stream_enc_for_link = dcn10_find_first_free_match_stream_enc_for_link
 };
@@ -1093,7 +1093,7 @@ static bool dcn201_resource_construct(
 	/*************************************************
 	 *  Resource + asic cap harcoding                *
 	 *************************************************/
-	pool->base.underlay_pipe_index = NO_UNDERLAY_PIPE;
+	pool->base.underlay_pipe_index = ANAL_UNDERLAY_PIPE;
 
 	pool->base.pipe_count = 4;
 	pool->base.mpcc_count = 5;
@@ -1127,7 +1127,7 @@ static bool dcn201_resource_construct(
 
 	dc->caps.color.dpp.hw_3d_lut = 1;
 	dc->caps.color.dpp.ogam_ram = 1;
-	// no OGAM ROM on DCN2
+	// anal OGAM ROM on DCN2
 	dc->caps.color.dpp.ogam_rom_caps.srgb = 0;
 	dc->caps.color.dpp.ogam_rom_caps.bt2020 = 0;
 	dc->caps.color.dpp.ogam_rom_caps.gamma2_2 = 0;
@@ -1149,7 +1149,7 @@ static bool dcn201_resource_construct(
 	dc->debug = debug_defaults_drv;
 
 	/*a0 only, remove later*/
-	dc->work_arounds.no_connect_phy_config  = true;
+	dc->work_arounds.anal_connect_phy_config  = true;
 	dc->work_arounds.dedcn20_305_wa = true;
 	/*************************************************
 	 *  Create resources                             *
@@ -1166,7 +1166,7 @@ static bool dcn201_resource_construct(
 
 	pool->base.clk_src_count = DCN20_CLK_SRC_TOTAL_DCN201;
 
-	/* todo: not reuse phy_pll registers */
+	/* todo: analt reuse phy_pll registers */
 	pool->base.dp_clock_source =
 			dcn201_clock_source_create(ctx, ctx->dc_bios,
 				CLOCK_SOURCE_ID_DP_DTO,

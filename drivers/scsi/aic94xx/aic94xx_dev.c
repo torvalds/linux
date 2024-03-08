@@ -24,7 +24,7 @@ static int asd_get_ddb(struct asd_ha_struct *asd_ha)
 
 	ddb = FIND_FREE_DDB(asd_ha);
 	if (ddb >= asd_ha->hw_prof.max_ddbs) {
-		ddb = -ENOMEM;
+		ddb = -EANALMEM;
 		goto out;
 	}
 	SET_DDB(ddb, asd_ha);
@@ -185,7 +185,7 @@ static int asd_init_target_ddb(struct domain_device *dev)
 
 	flags = 0;
 	if (dev->tproto & SAS_PROTOCOL_STP)
-		flags |= STP_CL_POL_NO_TX;
+		flags |= STP_CL_POL_ANAL_TX;
 	asd_ddbsite_write_byte(asd_ha, ddb, DDB_TARG_FLAGS2, flags);
 
 	asd_ddbsite_write_word(asd_ha, ddb, EXEC_QUEUE_TAIL, 0xFFFF);
@@ -253,7 +253,7 @@ static int asd_init_sata_pm_port_ddb(struct domain_device *dev)
 		return ddb;
 
 	asd_set_ddb_type(dev);
-	flags = (dev->sata_dev.port_no << 4) | PM_PORT_SET;
+	flags = (dev->sata_dev.port_anal << 4) | PM_PORT_SET;
 	asd_ddbsite_write_byte(asd_ha, ddb, PM_PORT_FLAGS, flags);
 	asd_ddbsite_write_word(asd_ha, ddb, SISTER_DDB, 0xFFFF);
 	asd_ddbsite_write_word(asd_ha, ddb, ATA_CMD_SCBPTR, 0xFFFF);
@@ -262,7 +262,7 @@ static int asd_init_sata_pm_port_ddb(struct domain_device *dev)
 	parent_ddb = (int) (unsigned long) dev->parent->lldd_dev;
 	asd_ddbsite_write_word(asd_ha, ddb, PARENT_DDB, parent_ddb);
 	pmtable_ddb = asd_ddbsite_read_word(asd_ha, parent_ddb, SISTER_DDB);
-	asd_ddbsite_write_word(asd_ha, pmtable_ddb, dev->sata_dev.port_no,ddb);
+	asd_ddbsite_write_word(asd_ha, pmtable_ddb, dev->sata_dev.port_anal,ddb);
 
 	if (asd_ddbsite_read_byte(asd_ha, ddb, NUM_SATA_TAGS) > 0) {
 		i = asd_init_sata_tag_ddb(dev);
@@ -276,7 +276,7 @@ static int asd_init_sata_pm_port_ddb(struct domain_device *dev)
 
 static int asd_init_initiator_ddb(struct domain_device *dev)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 /**

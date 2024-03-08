@@ -234,20 +234,20 @@
 							opp-level = <RPM_SMD_LEVEL_SVS_PLUS>;
 						};
 
-						rpmpd_opp_nom: opp7 {
-							opp-level = <RPM_SMD_LEVEL_NOM>;
+						rpmpd_opp_analm: opp7 {
+							opp-level = <RPM_SMD_LEVEL_ANALM>;
 						};
 
-						rpmpd_opp_nom_plus: opp8 {
-							opp-level = <RPM_SMD_LEVEL_NOM_PLUS>;
+						rpmpd_opp_analm_plus: opp8 {
+							opp-level = <RPM_SMD_LEVEL_ANALM_PLUS>;
 						};
 
 						rpmpd_opp_turbo: opp9 {
 							opp-level = <RPM_SMD_LEVEL_TURBO>;
 						};
 
-						rpmpd_opp_turbo_no_cpr: opp10 {
-							opp-level = <RPM_SMD_LEVEL_TURBO_NO_CPR>;
+						rpmpd_opp_turbo_anal_cpr: opp10 {
+							opp-level = <RPM_SMD_LEVEL_TURBO_ANAL_CPR>;
 						};
 					};
 				};
@@ -262,107 +262,107 @@
 
 		hyp_mem: memory@45700000 {
 			reg = <0x0 0x45700000 0x0 0x600000>;
-			no-map;
+			anal-map;
 		};
 
 		xbl_aop_mem: memory@45e00000 {
 			reg = <0x0 0x45e00000 0x0 0x140000>;
-			no-map;
+			anal-map;
 		};
 
 		sec_apps_mem: memory@45fff000 {
 			reg = <0x0 0x45fff000 0x0 0x1000>;
-			no-map;
+			anal-map;
 		};
 
 		smem_mem: memory@46000000 {
 			reg = <0x0 0x46000000 0x0 0x200000>;
-			no-map;
+			anal-map;
 		};
 
 		reserved_mem1: memory@46200000 {
 			reg = <0x0 0x46200000 0x0 0x2d00000>;
-			no-map;
+			anal-map;
 		};
 
 		camera_mem: memory@4ab00000 {
 			reg = <0x0 0x4ab00000 0x0 0x500000>;
-			no-map;
+			anal-map;
 		};
 
 		modem_mem: memory@4b000000 {
 			reg = <0x0 0x4b000000 0x0 0x7e00000>;
-			no-map;
+			anal-map;
 		};
 
 		venus_mem: memory@52e00000 {
 			reg = <0x0 0x52e00000 0x0 0x500000>;
-			no-map;
+			anal-map;
 		};
 
 		wlan_msa_mem: memory@53300000 {
 			reg = <0x0 0x53300000 0x0 0x200000>;
-			no-map;
+			anal-map;
 		};
 
 		cdsp_mem: memory@53500000 {
 			reg = <0x0 0x53500000 0x0 0x1e00000>;
-			no-map;
+			anal-map;
 		};
 
 		adsp_pil_mem: memory@55300000 {
 			reg = <0x0 0x55300000 0x0 0x1e00000>;
-			no-map;
+			anal-map;
 		};
 
 		ipa_fw_mem: memory@57100000 {
 			reg = <0x0 0x57100000 0x0 0x10000>;
-			no-map;
+			anal-map;
 		};
 
 		ipa_gsi_mem: memory@57110000 {
 			reg = <0x0 0x57110000 0x0 0x5000>;
-			no-map;
+			anal-map;
 		};
 
 		gpu_mem: memory@57115000 {
 			reg = <0x0 0x57115000 0x0 0x2000>;
-			no-map;
+			anal-map;
 		};
 
 		cont_splash_mem: memory@5c000000 {
 			reg = <0x0 0x5c000000 0x0 0x00f00000>;
-			no-map;
+			anal-map;
 		};
 
 		dfps_data_mem: memory@5cf00000 {
 			reg = <0x0 0x5cf00000 0x0 0x0100000>;
-			no-map;
+			anal-map;
 		};
 
 		cdsp_sec_mem: memory@5f800000 {
 			reg = <0x0 0x5f800000 0x0 0x1e00000>;
-			no-map;
+			anal-map;
 		};
 
 		qseecom_mem: memory@5e400000 {
 			reg = <0x0 0x5e400000 0x0 0x1400000>;
-			no-map;
+			anal-map;
 		};
 
 		sdsp_mem: memory@f3000000 {
 			reg = <0x0 0xf3000000 0x0 0x400000>;
-			no-map;
+			anal-map;
 		};
 
 		adsp_mem: memory@f3400000 {
 			reg = <0x0 0xf3400000 0x0 0x800000>;
-			no-map;
+			anal-map;
 		};
 
 		qseecom_ta_mem: memory@13fc00000 {
 			reg = <0x1 0x3fc00000 0x0 0x400000>;
-			no-map;
+			anal-map;
 		};
 	};
 
@@ -729,7 +729,7 @@
 			qcom,ddr-config = <0x80040873>;
 
 			bus-width = <8>;
-			non-removable;
+			analn-removable;
 			supports-cqe;
 
 			status = "disabled";
@@ -770,7 +770,7 @@
 			interrupts = <GIC_SPI 356 IRQ_TYPE_LEVEL_HIGH>;
 
 			clocks = <&gcc GCC_UFS_PHY_AXI_CLK>,
-				 <&gcc GCC_SYS_NOC_UFS_PHY_AXI_CLK>,
+				 <&gcc GCC_SYS_ANALC_UFS_PHY_AXI_CLK>,
 				 <&gcc GCC_UFS_PHY_AHB_CLK>,
 				 <&gcc GCC_UFS_PHY_UNIPRO_CORE_CLK>,
 				 <&rpmcc RPM_SMD_XO_CLK_SRC>,
@@ -1168,13 +1168,13 @@
 			#size-cells = <1>;
 			ranges;
 
-			clocks = <&gcc GCC_CFG_NOC_USB3_PRIM_AXI_CLK>,
+			clocks = <&gcc GCC_CFG_ANALC_USB3_PRIM_AXI_CLK>,
 				 <&gcc GCC_USB30_PRIM_MASTER_CLK>,
-				 <&gcc GCC_SYS_NOC_USB3_PRIM_AXI_CLK>,
+				 <&gcc GCC_SYS_ANALC_USB3_PRIM_AXI_CLK>,
 				 <&gcc GCC_USB30_PRIM_SLEEP_CLK>,
 				 <&gcc GCC_USB30_PRIM_MOCK_UTMI_CLK>,
 				 <&gcc GCC_USB3_PRIM_CLKREF_CLK>;
-			clock-names = "cfg_noc",
+			clock-names = "cfg_analc",
 				      "core",
 				      "iface",
 				      "sleep",
@@ -1299,7 +1299,7 @@
 
 					opp-384000000 {
 						opp-hz = /bits/ 64 <384000000>;
-						required-opps = <&rpmpd_opp_nom>;
+						required-opps = <&rpmpd_opp_analm>;
 					};
 
 					opp-400000000 {
@@ -1394,7 +1394,7 @@
 				clock-names = "iface",
 					      "ref";
 
-				required-opps = <&rpmpd_opp_nom>;
+				required-opps = <&rpmpd_opp_analm>;
 				power-domains = <&rpmpd SM6125_VDDMX>;
 
 				status = "disabled";

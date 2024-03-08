@@ -13,7 +13,7 @@
 
 #include <linux/linkage.h>
 #include <linux/sched/signal.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/net.h>
 #include <linux/in.h>
 #include <linux/mm.h>
@@ -44,10 +44,10 @@ static void svc_unregister(const struct svc_serv *serv, struct net *net);
  */
 enum {
 	SVC_POOL_AUTO = -1,	/* choose one of the others */
-	SVC_POOL_GLOBAL,	/* no mapping, just a single global pool
+	SVC_POOL_GLOBAL,	/* anal mapping, just a single global pool
 				 * (legacy & UP mode) */
 	SVC_POOL_PERCPU,	/* one pool per cpu */
-	SVC_POOL_PERNODE	/* one pool per numa node */
+	SVC_POOL_PERANALDE	/* one pool per numa analde */
 };
 
 /*
@@ -57,12 +57,12 @@ enum {
 
 struct svc_pool_map {
 	int count;			/* How many svc_servs use us */
-	int mode;			/* Note: int not enum to avoid
+	int mode;			/* Analte: int analt enum to avoid
 					 * warnings about "enumeration value
-					 * not handled in switch" */
+					 * analt handled in switch" */
 	unsigned int npools;
-	unsigned int *pool_to;		/* maps pool id to cpu or node */
-	unsigned int *to_pool;		/* maps cpu or node to pool id */
+	unsigned int *pool_to;		/* maps pool id to cpu or analde */
+	unsigned int *to_pool;		/* maps cpu or analde to pool id */
 };
 
 static struct svc_pool_map svc_pool_map = {
@@ -91,8 +91,8 @@ param_set_pool_mode(const char *val, const struct kernel_param *kp)
 		*ip = SVC_POOL_GLOBAL;
 	else if (!strncmp(val, "percpu", 6))
 		*ip = SVC_POOL_PERCPU;
-	else if (!strncmp(val, "pernode", 7))
-		*ip = SVC_POOL_PERNODE;
+	else if (!strncmp(val, "peranalde", 7))
+		*ip = SVC_POOL_PERANALDE;
 	else
 		err = -EINVAL;
 
@@ -114,8 +114,8 @@ param_get_pool_mode(char *buf, const struct kernel_param *kp)
 		return sysfs_emit(buf, "global\n");
 	case SVC_POOL_PERCPU:
 		return sysfs_emit(buf, "percpu\n");
-	case SVC_POOL_PERNODE:
-		return sysfs_emit(buf, "pernode\n");
+	case SVC_POOL_PERANALDE:
+		return sysfs_emit(buf, "peranalde\n");
 	default:
 		return sysfs_emit(buf, "%d\n", *ip);
 	}
@@ -131,21 +131,21 @@ module_param_call(pool_mode, param_set_pool_mode, param_get_pool_mode,
 static int
 svc_pool_map_choose_mode(void)
 {
-	unsigned int node;
+	unsigned int analde;
 
-	if (nr_online_nodes > 1) {
+	if (nr_online_analdes > 1) {
 		/*
-		 * Actually have multiple NUMA nodes,
-		 * so split pools on NUMA node boundaries
+		 * Actually have multiple NUMA analdes,
+		 * so split pools on NUMA analde boundaries
 		 */
-		return SVC_POOL_PERNODE;
+		return SVC_POOL_PERANALDE;
 	}
 
-	node = first_online_node;
-	if (nr_cpus_node(node) > 2) {
+	analde = first_online_analde;
+	if (nr_cpus_analde(analde) > 2) {
 		/*
-		 * Non-trivial SMP, or CONFIG_NUMA on
-		 * non-NUMA hardware, e.g. with a generic
+		 * Analn-trivial SMP, or CONFIG_NUMA on
+		 * analn-NUMA hardware, e.g. with a generic
 		 * x86_64 kernel on Xeons.  In this case we
 		 * want to divide the pools on cpu boundaries.
 		 */
@@ -158,7 +158,7 @@ svc_pool_map_choose_mode(void)
 
 /*
  * Allocate the to_pool[] and pool_to[] arrays.
- * Returns 0 on success or an errno.
+ * Returns 0 on success or an erranal.
  */
 static int
 svc_pool_map_alloc_arrays(struct svc_pool_map *m, unsigned int maxpools)
@@ -176,7 +176,7 @@ fail_free:
 	kfree(m->to_pool);
 	m->to_pool = NULL;
 fail:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /*
@@ -208,29 +208,29 @@ svc_pool_map_init_percpu(struct svc_pool_map *m)
 
 
 /*
- * Initialise the pool map for SVC_POOL_PERNODE mode.
+ * Initialise the pool map for SVC_POOL_PERANALDE mode.
  * Returns number of pools or <0 on error.
  */
 static int
-svc_pool_map_init_pernode(struct svc_pool_map *m)
+svc_pool_map_init_peranalde(struct svc_pool_map *m)
 {
-	unsigned int maxpools = nr_node_ids;
+	unsigned int maxpools = nr_analde_ids;
 	unsigned int pidx = 0;
-	unsigned int node;
+	unsigned int analde;
 	int err;
 
 	err = svc_pool_map_alloc_arrays(m, maxpools);
 	if (err)
 		return err;
 
-	for_each_node_with_cpus(node) {
-		/* some architectures (e.g. SN2) have cpuless nodes */
+	for_each_analde_with_cpus(analde) {
+		/* some architectures (e.g. SN2) have cpuless analdes */
 		BUG_ON(pidx > maxpools);
-		m->to_pool[node] = pidx;
-		m->pool_to[pidx] = node;
+		m->to_pool[analde] = pidx;
+		m->pool_to[pidx] = analde;
 		pidx++;
 	}
-	/* nodes brought online later all get mapped to pool0, sorry */
+	/* analdes brought online later all get mapped to pool0, sorry */
 
 	return pidx;
 }
@@ -240,7 +240,7 @@ svc_pool_map_init_pernode(struct svc_pool_map *m)
  * Add a reference to the global map of cpus to pools (and
  * vice versa) if pools are in use.
  * Initialise the map if we're the first user.
- * Returns the number of pools. If this is '1', no reference
+ * Returns the number of pools. If this is '1', anal reference
  * was taken.
  */
 static unsigned int
@@ -264,8 +264,8 @@ svc_pool_map_get(void)
 	case SVC_POOL_PERCPU:
 		npools = svc_pool_map_init_percpu(m);
 		break;
-	case SVC_POOL_PERNODE:
-		npools = svc_pool_map_init_pernode(m);
+	case SVC_POOL_PERANALDE:
+		npools = svc_pool_map_init_peranalde(m);
 		break;
 	}
 
@@ -312,17 +312,17 @@ svc_pool_map_put(int npools)
 	mutex_unlock(&svc_pool_map_mutex);
 }
 
-static int svc_pool_map_get_node(unsigned int pidx)
+static int svc_pool_map_get_analde(unsigned int pidx)
 {
 	const struct svc_pool_map *m = &svc_pool_map;
 
 	if (m->count) {
 		if (m->mode == SVC_POOL_PERCPU)
-			return cpu_to_node(m->pool_to[pidx]);
-		if (m->mode == SVC_POOL_PERNODE)
+			return cpu_to_analde(m->pool_to[pidx]);
+		if (m->mode == SVC_POOL_PERANALDE)
 			return m->pool_to[pidx];
 	}
-	return NUMA_NO_NODE;
+	return NUMA_ANAL_ANALDE;
 }
 /*
  * Set the given thread's cpus_allowed mask so that it
@@ -332,7 +332,7 @@ static inline void
 svc_pool_map_set_cpumask(struct task_struct *task, unsigned int pidx)
 {
 	struct svc_pool_map *m = &svc_pool_map;
-	unsigned int node = m->pool_to[pidx];
+	unsigned int analde = m->pool_to[pidx];
 
 	/*
 	 * The caller checks for sv_nrpools > 1, which
@@ -345,12 +345,12 @@ svc_pool_map_set_cpumask(struct task_struct *task, unsigned int pidx)
 	switch (m->mode) {
 	case SVC_POOL_PERCPU:
 	{
-		set_cpus_allowed_ptr(task, cpumask_of(node));
+		set_cpus_allowed_ptr(task, cpumask_of(analde));
 		break;
 	}
-	case SVC_POOL_PERNODE:
+	case SVC_POOL_PERANALDE:
 	{
-		set_cpus_allowed_ptr(task, cpumask_of_node(node));
+		set_cpus_allowed_ptr(task, cpumask_of_analde(analde));
 		break;
 	}
 	}
@@ -362,7 +362,7 @@ svc_pool_map_set_cpumask(struct task_struct *task, unsigned int pidx)
  *
  * Use the active CPU and the svc_pool_map's mode setting to
  * select the svc thread pool to use. Once initialized, the
- * svc_pool_map does not change.
+ * svc_pool_map does analt change.
  *
  * Return value:
  *   A pointer to an svc_pool
@@ -380,8 +380,8 @@ struct svc_pool *svc_pool_for_cpu(struct svc_serv *serv)
 	case SVC_POOL_PERCPU:
 		pidx = m->to_pool[cpu];
 		break;
-	case SVC_POOL_PERNODE:
-		pidx = m->to_pool[cpu_to_node(cpu)];
+	case SVC_POOL_PERANALDE:
+		pidx = m->to_pool[cpu_to_analde(cpu)];
 		break;
 	}
 
@@ -574,7 +574,7 @@ svc_destroy(struct svc_serv **servp)
 	timer_shutdown_sync(&serv->sv_temptimer);
 
 	/*
-	 * Remaining transports at this point are not expected.
+	 * Remaining transports at this point are analt expected.
 	 */
 	WARN_ONCE(!list_empty(&serv->sv_permsocks),
 		  "SVC: permsocks remain for %s\n", serv->sv_program->pg_name);
@@ -598,7 +598,7 @@ svc_destroy(struct svc_serv **servp)
 EXPORT_SYMBOL_GPL(svc_destroy);
 
 static bool
-svc_init_buffer(struct svc_rqst *rqstp, unsigned int size, int node)
+svc_init_buffer(struct svc_rqst *rqstp, unsigned int size, int analde)
 {
 	unsigned long pages, ret;
 
@@ -613,7 +613,7 @@ svc_init_buffer(struct svc_rqst *rqstp, unsigned int size, int node)
 	if (pages > RPCSVC_MAXPAGES)
 		pages = RPCSVC_MAXPAGES;
 
-	ret = alloc_pages_bulk_array_node(GFP_KERNEL, node, pages,
+	ret = alloc_pages_bulk_array_analde(GFP_KERNEL, analde, pages,
 					  rqstp->rq_pages);
 	return ret == pages;
 }
@@ -632,11 +632,11 @@ svc_release_buffer(struct svc_rqst *rqstp)
 }
 
 struct svc_rqst *
-svc_rqst_alloc(struct svc_serv *serv, struct svc_pool *pool, int node)
+svc_rqst_alloc(struct svc_serv *serv, struct svc_pool *pool, int analde)
 {
 	struct svc_rqst	*rqstp;
 
-	rqstp = kzalloc_node(sizeof(*rqstp), GFP_KERNEL, node);
+	rqstp = kzalloc_analde(sizeof(*rqstp), GFP_KERNEL, analde);
 	if (!rqstp)
 		return rqstp;
 
@@ -645,36 +645,36 @@ svc_rqst_alloc(struct svc_serv *serv, struct svc_pool *pool, int node)
 	rqstp->rq_server = serv;
 	rqstp->rq_pool = pool;
 
-	rqstp->rq_scratch_page = alloc_pages_node(node, GFP_KERNEL, 0);
+	rqstp->rq_scratch_page = alloc_pages_analde(analde, GFP_KERNEL, 0);
 	if (!rqstp->rq_scratch_page)
-		goto out_enomem;
+		goto out_eanalmem;
 
-	rqstp->rq_argp = kmalloc_node(serv->sv_xdrsize, GFP_KERNEL, node);
+	rqstp->rq_argp = kmalloc_analde(serv->sv_xdrsize, GFP_KERNEL, analde);
 	if (!rqstp->rq_argp)
-		goto out_enomem;
+		goto out_eanalmem;
 
-	rqstp->rq_resp = kmalloc_node(serv->sv_xdrsize, GFP_KERNEL, node);
+	rqstp->rq_resp = kmalloc_analde(serv->sv_xdrsize, GFP_KERNEL, analde);
 	if (!rqstp->rq_resp)
-		goto out_enomem;
+		goto out_eanalmem;
 
-	if (!svc_init_buffer(rqstp, serv->sv_max_mesg, node))
-		goto out_enomem;
+	if (!svc_init_buffer(rqstp, serv->sv_max_mesg, analde))
+		goto out_eanalmem;
 
 	return rqstp;
-out_enomem:
+out_eanalmem:
 	svc_rqst_free(rqstp);
 	return NULL;
 }
 EXPORT_SYMBOL_GPL(svc_rqst_alloc);
 
 static struct svc_rqst *
-svc_prepare_thread(struct svc_serv *serv, struct svc_pool *pool, int node)
+svc_prepare_thread(struct svc_serv *serv, struct svc_pool *pool, int analde)
 {
 	struct svc_rqst	*rqstp;
 
-	rqstp = svc_rqst_alloc(serv, pool, node);
+	rqstp = svc_rqst_alloc(serv, pool, analde);
 	if (!rqstp)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	spin_lock_bh(&serv->sv_lock);
 	serv->sv_nrthreads += 1;
@@ -702,7 +702,7 @@ svc_prepare_thread(struct svc_serv *serv, struct svc_pool *pool, int node)
 void svc_pool_wake_idle_thread(struct svc_pool *pool)
 {
 	struct svc_rqst	*rqstp;
-	struct llist_node *ln;
+	struct llist_analde *ln;
 
 	rcu_read_lock();
 	ln = READ_ONCE(pool->sp_idle_threads.first);
@@ -739,13 +739,13 @@ retry:
 	pool = target_pool;
 
 	if (pool != NULL) {
-		if (atomic_inc_not_zero(&pool->sp_nrthreads))
+		if (atomic_inc_analt_zero(&pool->sp_nrthreads))
 			goto found_pool;
 		return NULL;
 	} else {
 		for (i = 0; i < serv->sv_nrpools; i++) {
 			pool = &serv->sv_pools[--(*state) % serv->sv_nrpools];
-			if (atomic_inc_not_zero(&pool->sp_nrthreads))
+			if (atomic_inc_analt_zero(&pool->sp_nrthreads))
 				goto found_pool;
 		}
 		return NULL;
@@ -756,7 +756,7 @@ found_pool:
 	set_bit(SP_NEED_VICTIM, &pool->sp_flags);
 	if (!atomic_dec_and_test(&pool->sp_nrthreads))
 		return pool;
-	/* Nothing left in this pool any more */
+	/* Analthing left in this pool any more */
 	clear_bit(SP_NEED_VICTIM, &pool->sp_flags);
 	clear_bit(SP_VICTIM_REMAINS, &pool->sp_flags);
 	goto retry;
@@ -769,18 +769,18 @@ svc_start_kthreads(struct svc_serv *serv, struct svc_pool *pool, int nrservs)
 	struct task_struct *task;
 	struct svc_pool *chosen_pool;
 	unsigned int state = serv->sv_nrthreads-1;
-	int node;
+	int analde;
 
 	do {
 		nrservs--;
 		chosen_pool = svc_pool_next(serv, pool, &state);
-		node = svc_pool_map_get_node(chosen_pool->sp_id);
+		analde = svc_pool_map_get_analde(chosen_pool->sp_id);
 
-		rqstp = svc_prepare_thread(serv, chosen_pool, node);
+		rqstp = svc_prepare_thread(serv, chosen_pool, analde);
 		if (IS_ERR(rqstp))
 			return PTR_ERR(rqstp);
-		task = kthread_create_on_node(serv->sv_threadfn, rqstp,
-					      node, "%s", serv->sv_name);
+		task = kthread_create_on_analde(serv->sv_threadfn, rqstp,
+					      analde, "%s", serv->sv_name);
 		if (IS_ERR(task)) {
 			svc_exit_thread(rqstp);
 			return PTR_ERR(task);
@@ -822,14 +822,14 @@ svc_stop_kthreads(struct svc_serv *serv, struct svc_pool *pool, int nrservs)
  * @nrservs: New number of threads for @serv (0 or less means kill all threads)
  *
  * Create or destroy threads to make the number of threads for @serv the
- * given number. If @pool is non-NULL, change only threads in that pool;
+ * given number. If @pool is analn-NULL, change only threads in that pool;
  * otherwise, round-robin between all pools for @serv. @serv's
  * sv_nrthreads is adjusted for each thread created or destroyed.
  *
  * Caller must ensure mutual exclusion between this and server startup or
  * shutdown.
  *
- * Returns zero on success or a negative errno if an error occurred while
+ * Returns zero on success or a negative erranal if an error occurred while
  * starting a thread.
  */
 int
@@ -943,10 +943,10 @@ EXPORT_SYMBOL_GPL(svc_exit_thread);
  * Register an "inet" protocol family netid with the local
  * rpcbind daemon via an rpcbind v4 SET request.
  *
- * No netconfig infrastructure is available in the kernel, so
+ * Anal netconfig infrastructure is available in the kernel, so
  * we map IP_ protocol numbers to netids by hand.
  *
- * Returns zero on success; a negative errno value is returned
+ * Returns zero on success; a negative erranal value is returned
  * if any error occurs.
  */
 static int __svc_rpcb_register4(struct net *net, const u32 program,
@@ -970,7 +970,7 @@ static int __svc_rpcb_register4(struct net *net, const u32 program,
 		netid = RPCBIND_NETID_TCP;
 		break;
 	default:
-		return -ENOPROTOOPT;
+		return -EANALPROTOOPT;
 	}
 
 	error = rpcb_v4_register(net, program, version,
@@ -980,7 +980,7 @@ static int __svc_rpcb_register4(struct net *net, const u32 program,
 	 * User space didn't support rpcbind v4, so retry this
 	 * registration request with the legacy rpcbind v2 protocol.
 	 */
-	if (error == -EPROTONOSUPPORT)
+	if (error == -EPROTOANALSUPPORT)
 		error = rpcb_register(net, program, version, protocol, port);
 
 	return error;
@@ -991,10 +991,10 @@ static int __svc_rpcb_register4(struct net *net, const u32 program,
  * Register an "inet6" protocol family netid with the local
  * rpcbind daemon via an rpcbind v4 SET request.
  *
- * No netconfig infrastructure is available in the kernel, so
+ * Anal netconfig infrastructure is available in the kernel, so
  * we map IP_ protocol numbers to netids by hand.
  *
- * Returns zero on success; a negative errno value is returned
+ * Returns zero on success; a negative erranal value is returned
  * if any error occurs.
  */
 static int __svc_rpcb_register6(struct net *net, const u32 program,
@@ -1018,7 +1018,7 @@ static int __svc_rpcb_register6(struct net *net, const u32 program,
 		netid = RPCBIND_NETID_TCP6;
 		break;
 	default:
-		return -ENOPROTOOPT;
+		return -EANALPROTOOPT;
 	}
 
 	error = rpcb_v4_register(net, program, version,
@@ -1028,8 +1028,8 @@ static int __svc_rpcb_register6(struct net *net, const u32 program,
 	 * User space didn't support rpcbind version 4, so we won't
 	 * use a PF_INET6 listener.
 	 */
-	if (error == -EPROTONOSUPPORT)
-		error = -EAFNOSUPPORT;
+	if (error == -EPROTOANALSUPPORT)
+		error = -EAFANALSUPPORT;
 
 	return error;
 }
@@ -1038,7 +1038,7 @@ static int __svc_rpcb_register6(struct net *net, const u32 program,
 /*
  * Register a kernel RPC service via rpcbind version 4.
  *
- * Returns zero on success; a negative errno value is returned
+ * Returns zero on success; a negative erranal value is returned
  * if any error occurs.
  */
 static int __svc_register(struct net *net, const char *progname,
@@ -1047,7 +1047,7 @@ static int __svc_register(struct net *net, const char *progname,
 			  const unsigned short protocol,
 			  const unsigned short port)
 {
-	int error = -EAFNOSUPPORT;
+	int error = -EAFANALSUPPORT;
 
 	switch (family) {
 	case PF_INET:
@@ -1090,7 +1090,7 @@ int svc_generic_rpcbind_set(struct net *net,
 		return 0;
 
 	if (vers->vs_hidden) {
-		trace_svc_noregister(progp->pg_name, version, proto,
+		trace_svc_analregister(progp->pg_name, version, proto,
 				     port, family, 0);
 		return 0;
 	}
@@ -1138,7 +1138,7 @@ int svc_register(const struct svc_serv *serv, struct net *net,
 					family, proto, port);
 			if (error < 0) {
 				printk(KERN_WARNING "svc: failed to register "
-					"%sv%u RPC service (errno %d).\n",
+					"%sv%u RPC service (erranal %d).\n",
 					progp->pg_name, i, -error);
 				break;
 			}
@@ -1166,7 +1166,7 @@ static void __svc_unregister(struct net *net, const u32 program, const u32 versi
 	 * User space didn't support rpcbind v4, so retry this
 	 * request with the legacy rpcbind v2 protocol.
 	 */
-	if (error == -EPROTONOSUPPORT)
+	if (error == -EPROTOANALSUPPORT)
 		error = rpcb_register(net, program, version, 0, 0);
 
 	trace_svc_unregister(progname, version, error);
@@ -1174,11 +1174,11 @@ static void __svc_unregister(struct net *net, const u32 program, const u32 versi
 
 /*
  * All netids, bind addresses and ports registered for [program, version]
- * are removed from the local rpcbind database (if the service is not
+ * are removed from the local rpcbind database (if the service is analt
  * hidden) to make way for a new instance of the service.
  *
  * The result of unregistration is reported via dprintk for those who want
- * verification of the result, but is otherwise not important.
+ * verification of the result, but is otherwise analt important.
  */
 static void svc_unregister(const struct svc_serv *serv, struct net *net)
 {
@@ -1248,10 +1248,10 @@ svc_generic_init_request(struct svc_rqst *rqstp,
 	/*
 	 * Some protocol versions (namely NFSv4) require some form of
 	 * congestion control.  (See RFC 7530 section 3.1 paragraph 2)
-	 * In other words, UDP is not allowed. We mark those when setting
+	 * In other words, UDP is analt allowed. We mark those when setting
 	 * up the svc_xprt, and verify that here.
 	 *
-	 * The spec is not very clear about what error should be returned
+	 * The spec is analt very clear about what error should be returned
 	 * when someone tries to access a server that is listening on UDP
 	 * for lower versions. RPC_PROG_MISMATCH seems to be the closest
 	 * fit.
@@ -1380,7 +1380,7 @@ svc_process_common(struct svc_rqst *rqstp)
 
 	aoffset = xdr_stream_pos(xdr);
 
-	/* un-reserve some of the out-queue now that we have a
+	/* un-reserve some of the out-queue analw that we have a
 	 * better idea of reply size
 	 */
 	if (procp->pc_xdrressize)
@@ -1406,7 +1406,7 @@ svc_process_common(struct svc_rqst *rqstp)
  sendit:
 	if (svc_authorise(rqstp))
 		goto close_xprt;
-	return 1;		/* Caller can now send it */
+	return 1;		/* Caller can analw send it */
 
  dropit:
 	svc_authorise(rqstp);	/* doesn't hurt to call this twice */
@@ -1447,13 +1447,13 @@ err_bad_auth:
 	goto sendit;
 
 err_bad_prog:
-	dprintk("svc: unknown program %d\n", rqstp->rq_prog);
+	dprintk("svc: unkanalwn program %d\n", rqstp->rq_prog);
 	serv->sv_stats->rpcbadfmt++;
 	*rqstp->rq_accept_statp = rpc_prog_unavail;
 	goto sendit;
 
 err_bad_vers:
-	svc_printk(rqstp, "unknown version (%d for prog %d, %s)\n",
+	svc_printk(rqstp, "unkanalwn version (%d for prog %d, %s)\n",
 		       rqstp->rq_vers, rqstp->rq_prog, progp->pg_name);
 
 	serv->sv_stats->rpcbadfmt++;
@@ -1468,7 +1468,7 @@ err_bad_vers:
 	goto sendit;
 
 err_bad_proc:
-	svc_printk(rqstp, "unknown procedure (%d)\n", rqstp->rq_proc);
+	svc_printk(rqstp, "unkanalwn procedure (%d)\n", rqstp->rq_proc);
 
 	serv->sv_stats->rpcbadfmt++;
 	*rqstp->rq_accept_statp = rpc_proc_unavail;
@@ -1498,7 +1498,7 @@ void svc_process(struct svc_rqst *rqstp)
 	__be32 *p;
 
 #if IS_ENABLED(CONFIG_FAIL_SUNRPC)
-	if (!fail_sunrpc.ignore_server_disconnect &&
+	if (!fail_sunrpc.iganalre_server_disconnect &&
 	    should_fail(&fail_sunrpc.attr, 1))
 		svc_xprt_deferred_close(rqstp->rq_xprt);
 #endif
@@ -1595,7 +1595,7 @@ void svc_process_bc(struct rpc_rqst *req, struct svc_rqst *rqstp)
 		xprt_free_bc_request(req);
 		return;
 	}
-	/* Finally, send the reply synchronously */
+	/* Finally, send the reply synchroanalusly */
 	if (rqstp->bc_to_initval > 0) {
 		timeout.to_initval = rqstp->bc_to_initval;
 		timeout.to_retries = rqstp->bc_to_retries;
@@ -1643,7 +1643,7 @@ const char *svc_proc_name(const struct svc_rqst *rqstp)
 {
 	if (rqstp && rqstp->rq_procinfo)
 		return rqstp->rq_procinfo->pc_name;
-	return "unknown";
+	return "unkanalwn";
 }
 
 
@@ -1653,7 +1653,7 @@ const char *svc_proc_name(const struct svc_rqst *rqstp)
  * @offset: payload's byte offset in rqstp->rq_res
  * @length: size of payload, in bytes
  *
- * Returns zero on success, or a negative errno if a permanent
+ * Returns zero on success, or a negative erranal if a permanent
  * error occurred.
  */
 int svc_encode_result_payload(struct svc_rqst *rqstp, unsigned int offset,

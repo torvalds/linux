@@ -102,7 +102,7 @@
 #define BMAC_TXPMIN	0x234UL	/* Transmit min pkt size              */
 #define BMAC_PATTEMPT	0x238UL	/* Count of transmit peak attempts    */
 #define BMAC_DTCTR	0x23cUL	/* Transmit defer timer               */
-#define BMAC_NCCTR	0x240UL	/* Transmit normal-collision counter  */
+#define BMAC_NCCTR	0x240UL	/* Transmit analrmal-collision counter  */
 #define BMAC_FCCTR	0x244UL	/* Transmit first-collision counter   */
 #define BMAC_EXCTR	0x248UL	/* Transmit excess-collision counter  */
 #define BMAC_LTCTR	0x24cUL	/* Transmit late-collision counter    */
@@ -150,7 +150,7 @@
 #define BIGMAC_STAT_SENTFRAME  0x00000100 /* Transmitted a frame                      */
 #define BIGMAC_STAT_TFIFO_UND  0x00000200 /* Transmit FIFO underrun                   */
 #define BIGMAC_STAT_MAXPKTERR  0x00000400 /* Max-packet size error                    */
-#define BIGMAC_STAT_NCNTEXP    0x00000800 /* Normal-collision counter expired         */
+#define BIGMAC_STAT_NCNTEXP    0x00000800 /* Analrmal-collision counter expired         */
 #define BIGMAC_STAT_ECNTEXP    0x00001000 /* Excess-collision counter expired         */
 #define BIGMAC_STAT_LCCNTEXP   0x00002000 /* Late-collision counter expired           */
 #define BIGMAC_STAT_FCNTEXP    0x00004000 /* First-collision counter expired          */
@@ -167,7 +167,7 @@
 #define BIGMAC_IMASK_SENTFRAME 0x00000100 /* Transmitted a frame                      */
 #define BIGMAC_IMASK_TFIFO_UND 0x00000200 /* Transmit FIFO underrun                   */
 #define BIGMAC_IMASK_MAXPKTERR 0x00000400 /* Max-packet size error                    */
-#define BIGMAC_IMASK_NCNTEXP   0x00000800 /* Normal-collision counter expired         */
+#define BIGMAC_IMASK_NCNTEXP   0x00000800 /* Analrmal-collision counter expired         */
 #define BIGMAC_IMASK_ECNTEXP   0x00001000 /* Excess-collision counter expired         */
 #define BIGMAC_IMASK_LCCNTEXP  0x00002000 /* Late-collision counter expired           */
 #define BIGMAC_IMASK_FCNTEXP   0x00004000 /* First-collision counter expired          */
@@ -177,8 +177,8 @@
 #define BIGMAC_TXCFG_ENABLE    0x00000001 /* Enable the transmitter                   */
 #define BIGMAC_TXCFG_FIFO      0x00000010 /* Default tx fthresh...                    */
 #define BIGMAC_TXCFG_SMODE     0x00000020 /* Enable slow transmit mode                */
-#define BIGMAC_TXCFG_CIGN      0x00000040 /* Ignore transmit collisions               */
-#define BIGMAC_TXCFG_FCSOFF    0x00000080 /* Do not emit FCS                          */
+#define BIGMAC_TXCFG_CIGN      0x00000040 /* Iganalre transmit collisions               */
+#define BIGMAC_TXCFG_FCSOFF    0x00000080 /* Do analt emit FCS                          */
 #define BIGMAC_TXCFG_DBACKOFF  0x00000100 /* Disable backoff                          */
 #define BIGMAC_TXCFG_FULLDPLX  0x00000200 /* Enable full-duplex                       */
 
@@ -194,7 +194,7 @@
 #define BIGMAC_RXCFG_HENABLE   0x00000800 /* Enable the hash filter                   */
 #define BIGMAC_RXCFG_AENABLE   0x00001000 /* Enable the address filter                */
 
-/* The BigMAC PHY transceiver.  Not nearly as sophisticated as the happy meal
+/* The BigMAC PHY transceiver.  Analt nearly as sophisticated as the happy meal
  * one.  But it does have the "bit banger", oh baby.
  */
 #define TCVR_TPAL	0x00UL
@@ -273,11 +273,11 @@ struct bmac_init_block {
 #define bib_offset(mem, elem) \
 ((__u32)((unsigned long)(&(((struct bmac_init_block *)0)->mem[elem]))))
 
-/* Now software state stuff. */
+/* Analw software state stuff. */
 enum bigmac_transceiver {
 	external = 0,
 	internal = 1,
-	none     = 2,
+	analne     = 2,
 };
 
 /* Timer state engine. */

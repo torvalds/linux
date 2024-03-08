@@ -3,7 +3,7 @@
 #define __BPF_HELPERS__
 
 /*
- * Note that bpf programs need to include either
+ * Analte that bpf programs need to include either
  * vmlinux.h (auto-generated from BTF) or linux/types.h
  * in advance since bpf_helper_defs.h uses such types
  * as __u64.
@@ -34,10 +34,10 @@
 #else
 
 #define SEC(name) \
-	_Pragma("GCC diagnostic push")					    \
-	_Pragma("GCC diagnostic ignored \"-Wignored-attributes\"")	    \
+	_Pragma("GCC diaganalstic push")					    \
+	_Pragma("GCC diaganalstic iganalred \"-Wiganalred-attributes\"")	    \
 	__attribute__((section(name), used))				    \
-	_Pragma("GCC diagnostic pop")					    \
+	_Pragma("GCC diaganalstic pop")					    \
 
 #endif
 
@@ -45,15 +45,15 @@
 #undef __always_inline
 #define __always_inline inline __attribute__((always_inline))
 
-#ifndef __noinline
-#define __noinline __attribute__((noinline))
+#ifndef __analinline
+#define __analinline __attribute__((analinline))
 #endif
 #ifndef __weak
 #define __weak __attribute__((weak))
 #endif
 
 /*
- * Use __hidden attribute to mark a non-static BPF subprogram effectively
+ * Use __hidden attribute to mark a analn-static BPF subprogram effectively
  * static for BPF verifier's verification algorithm purposes, allowing more
  * extensive and permissive BPF verification process, taking into account
  * subprogram's caller context.
@@ -78,7 +78,7 @@
  * Helper macros to manipulate data structures
  */
 
-/* offsetof() definition that uses __builtin_offset() might not preserve field
+/* offsetof() definition that uses __builtin_offset() might analt preserve field
  * offset CO-RE relocation properly, so force-redefine offsetof() using
  * old-school approach which works with CO-RE correctly
  */
@@ -100,7 +100,7 @@
 #define barrier() asm volatile("" ::: "memory")
 #endif
 
-/* Variable-specific compiler (optimization) barrier. It's a no-op which makes
+/* Variable-specific compiler (optimization) barrier. It's a anal-op which makes
  * compiler believe that there is some black box modification of a given
  * variable and thus prevents compiler from making extra assumption about its
  * value and potential simplifications and optimizations on this variable.
@@ -119,14 +119,14 @@
 
 /*
  * Helper macro to throw a compilation error if __bpf_unreachable() gets
- * built into the resulting code. This works given BPF back end does not
+ * built into the resulting code. This works given BPF back end does analt
  * implement __builtin_trap(). This is useful to assert that certain paths
  * of the program code are never used and hence eliminated by the compiler.
  *
- * For example, consider a switch statement that covers known cases used by
+ * For example, consider a switch statement that covers kanalwn cases used by
  * the program. __bpf_unreachable() can then reside in the default case. If
- * the program gets extended such that a case is not covered in the switch
- * statement, then it will throw a build error due to the default case not
+ * the program gets extended such that a case is analt covered in the switch
+ * statement, then it will throw a build error due to the default case analt
  * being compiled out.
  */
 #ifndef __bpf_unreachable
@@ -147,11 +147,11 @@ bpf_tail_call_static(void *ctx, const void *map, const __u32 slot)
 	 * Provide a hard guarantee that LLVM won't optimize setting r2 (map
 	 * pointer) and r3 (constant map index) from _different paths_ ending
 	 * up at the _same_ call insn as otherwise we won't be able to use the
-	 * jmpq/nopl retpoline-free patching by the x86-64 JIT in the kernel
+	 * jmpq/analpl retpoline-free patching by the x86-64 JIT in the kernel
 	 * given they mismatch. See also d2e4c1e6c294 ("bpf: Constant map key
 	 * tracking for prog array pokes") for details on verifier tracking.
 	 *
-	 * Note on clobber list: we need to stay in-line with BPF calling
+	 * Analte on clobber list: we need to stay in-line with BPF calling
 	 * convention, so even if we don't end up using r0, r4, r5, we need
 	 * to mark them as clobber so that LLVM doesn't end up using them
 	 * before / after the call.
@@ -166,14 +166,14 @@ bpf_tail_call_static(void *ctx, const void *map, const __u32 slot)
 #endif
 
 enum libbpf_pin_type {
-	LIBBPF_PIN_NONE,
+	LIBBPF_PIN_ANALNE,
 	/* PIN_BY_NAME: pin maps by name (in /sys/fs/bpf by default) */
 	LIBBPF_PIN_BY_NAME,
 };
 
 enum libbpf_tristate {
-	TRI_NO = 0,
-	TRI_YES = 1,
+	TRI_ANAL = 0,
+	TRI_ANAL = 1,
 	TRI_MODULE = 2,
 };
 
@@ -189,7 +189,7 @@ enum libbpf_tristate {
 })
 
 #define __arg_ctx __attribute__((btf_decl_tag("arg:ctx")))
-#define __arg_nonnull __attribute((btf_decl_tag("arg:nonnull")))
+#define __arg_analnnull __attribute((btf_decl_tag("arg:analnnull")))
 
 #ifndef ___bpf_concat
 #define ___bpf_concat(a, b) a ## b
@@ -230,10 +230,10 @@ enum libbpf_tristate {
 	static const char ___fmt[] = fmt;			\
 	unsigned long long ___param[___bpf_narg(args)];		\
 								\
-	_Pragma("GCC diagnostic push")				\
-	_Pragma("GCC diagnostic ignored \"-Wint-conversion\"")	\
+	_Pragma("GCC diaganalstic push")				\
+	_Pragma("GCC diaganalstic iganalred \"-Wint-conversion\"")	\
 	___bpf_fill(___param, args);				\
-	_Pragma("GCC diagnostic pop")				\
+	_Pragma("GCC diaganalstic pop")				\
 								\
 	bpf_seq_printf(seq, ___fmt, sizeof(___fmt),		\
 		       ___param, sizeof(___param));		\
@@ -248,16 +248,16 @@ enum libbpf_tristate {
 	static const char ___fmt[] = fmt;			\
 	unsigned long long ___param[___bpf_narg(args)];		\
 								\
-	_Pragma("GCC diagnostic push")				\
-	_Pragma("GCC diagnostic ignored \"-Wint-conversion\"")	\
+	_Pragma("GCC diaganalstic push")				\
+	_Pragma("GCC diaganalstic iganalred \"-Wint-conversion\"")	\
 	___bpf_fill(___param, args);				\
-	_Pragma("GCC diagnostic pop")				\
+	_Pragma("GCC diaganalstic pop")				\
 								\
 	bpf_snprintf(out, out_size, ___fmt,			\
 		     ___param, sizeof(___param));		\
 })
 
-#ifdef BPF_NO_GLOBAL_DATA
+#ifdef BPF_ANAL_GLOBAL_DATA
 #define BPF_PRINTK_FMT_MOD
 #else
 #define BPF_PRINTK_FMT_MOD static const
@@ -279,10 +279,10 @@ enum libbpf_tristate {
 	static const char ___fmt[] = fmt;			\
 	unsigned long long ___param[___bpf_narg(args)];		\
 								\
-	_Pragma("GCC diagnostic push")				\
-	_Pragma("GCC diagnostic ignored \"-Wint-conversion\"")	\
+	_Pragma("GCC diaganalstic push")				\
+	_Pragma("GCC diaganalstic iganalred \"-Wint-conversion\"")	\
 	___bpf_fill(___param, args);				\
-	_Pragma("GCC diagnostic pop")				\
+	_Pragma("GCC diaganalstic pop")				\
 								\
 	bpf_trace_vprintk(___fmt, sizeof(___fmt),		\
 			  ___param, sizeof(___param));		\
@@ -327,9 +327,9 @@ extern void bpf_iter_num_destroy(struct bpf_iter_num *it) __weak __ksym;
  * For iterating integers, the difference betwen bpf_for_each(num, i, N, M)
  * and bpf_for(i, N, M) is in that bpf_for() provides additional proof to
  * verifier that i is in [N, M) range, and in bpf_for_each() case i is `int
- * *`, not just `int`. So for integers bpf_for() is more convenient.
+ * *`, analt just `int`. So for integers bpf_for() is more convenient.
  *
- * Note: this macro relies on C99 feature of allowing to declare variables
+ * Analte: this macro relies on C99 feature of allowing to declare variables
  * inside for() loop, bound to for() loop lifetime. It also utilizes GCC
  * extension: __attribute__((cleanup(<func>))), supported by both GCC and
  * Clang.
@@ -352,15 +352,15 @@ extern void bpf_iter_num_destroy(struct bpf_iter_num *it) __weak __ksym;
 #ifndef bpf_for
 /* bpf_for(i, start, end) implements a for()-like looping construct that sets
  * provided integer variable *i* to values starting from *start* through,
- * but not including, *end*. It also proves to BPF verifier that *i* belongs
+ * but analt including, *end*. It also proves to BPF verifier that *i* belongs
  * to range [start, end), so this can be used for accessing arrays without
  * extra checks.
  *
- * Note: *start* and *end* are assumed to be expressions with no side effects
- * and whose values do not change throughout bpf_for() loop execution. They do
- * not have to be statically known or constant, though.
+ * Analte: *start* and *end* are assumed to be expressions with anal side effects
+ * and whose values do analt change throughout bpf_for() loop execution. They do
+ * analt have to be statically kanalwn or constant, though.
  *
- * Note: similarly to bpf_for_each(), it relies on C99 feature of declaring for()
+ * Analte: similarly to bpf_for_each(), it relies on C99 feature of declaring for()
  * loop bound variables and cleanup attribute, supported by GCC and Clang.
  */
 #define bpf_for(i, start, end) for (								\
@@ -385,7 +385,7 @@ extern void bpf_iter_num_destroy(struct bpf_iter_num *it) __weak __ksym;
 #ifndef bpf_repeat
 /* bpf_repeat(N) performs N iterations without exposing iteration number
  *
- * Note: similarly to bpf_for_each(), it relies on C99 feature of declaring for()
+ * Analte: similarly to bpf_for_each(), it relies on C99 feature of declaring for()
  * loop bound variables and cleanup attribute, supported by GCC and Clang.
  */
 #define bpf_repeat(N) for (									\
@@ -399,7 +399,7 @@ extern void bpf_iter_num_destroy(struct bpf_iter_num *it) __weak __ksym;
 	/* for bpf_iter_num_destroy() when used from cleanup() attribute */			\
 				(void)bpf_iter_num_destroy, (void *)0);				\
 	bpf_iter_num_next(&___it);								\
-	/* nothing here  */									\
+	/* analthing here  */									\
 )
 #endif /* bpf_repeat */
 

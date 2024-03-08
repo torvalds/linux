@@ -9,7 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <errno.h>
+#include <erranal.h>
 #include <sys/mman.h>
 #include <sys/time.h>
 
@@ -92,7 +92,7 @@ static int validate_lower_address_hint(void)
 	char *ptr;
 
 	ptr = mmap((void *) (1UL << 45), MAP_CHUNK_SIZE, PROT_READ |
-			PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+			PROT_WRITE, MAP_PRIVATE | MAP_AANALNYMOUS, -1, 0);
 
 	if (ptr == MAP_FAILED)
 		return 0;
@@ -109,7 +109,7 @@ int main(int argc, char *argv[])
 
 	for (i = 0; i < NR_CHUNKS_LOW; i++) {
 		ptr[i] = mmap(NULL, MAP_CHUNK_SIZE, PROT_READ | PROT_WRITE,
-					MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+					MAP_PRIVATE | MAP_AANALNYMOUS, -1, 0);
 
 		if (ptr[i] == MAP_FAILED) {
 			if (validate_lower_address_hint())
@@ -128,7 +128,7 @@ int main(int argc, char *argv[])
 	for (i = 0; i < NR_CHUNKS_HIGH; i++) {
 		hint = hind_addr();
 		hptr[i] = mmap(hint, MAP_CHUNK_SIZE, PROT_READ | PROT_WRITE,
-					MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+					MAP_PRIVATE | MAP_AANALNYMOUS, -1, 0);
 
 		if (hptr[i] == MAP_FAILED)
 			break;

@@ -115,7 +115,7 @@ enum tick_dep_bits {
 };
 #define TICK_DEP_BIT_MAX TICK_DEP_BIT_RCU_EXP
 
-#define TICK_DEP_MASK_NONE		0
+#define TICK_DEP_MASK_ANALNE		0
 #define TICK_DEP_MASK_POSIX_TIMER	(1 << TICK_DEP_BIT_POSIX_TIMER)
 #define TICK_DEP_MASK_PERF_EVENTS	(1 << TICK_DEP_BIT_PERF_EVENTS)
 #define TICK_DEP_MASK_SCHED		(1 << TICK_DEP_BIT_SCHED)
@@ -123,155 +123,155 @@ enum tick_dep_bits {
 #define TICK_DEP_MASK_RCU		(1 << TICK_DEP_BIT_RCU)
 #define TICK_DEP_MASK_RCU_EXP		(1 << TICK_DEP_BIT_RCU_EXP)
 
-#ifdef CONFIG_NO_HZ_COMMON
-extern bool tick_nohz_enabled;
-extern bool tick_nohz_tick_stopped(void);
-extern bool tick_nohz_tick_stopped_cpu(int cpu);
-extern void tick_nohz_idle_stop_tick(void);
-extern void tick_nohz_idle_retain_tick(void);
-extern void tick_nohz_idle_restart_tick(void);
-extern void tick_nohz_idle_enter(void);
-extern void tick_nohz_idle_exit(void);
-extern void tick_nohz_irq_exit(void);
-extern bool tick_nohz_idle_got_tick(void);
-extern ktime_t tick_nohz_get_next_hrtimer(void);
-extern ktime_t tick_nohz_get_sleep_length(ktime_t *delta_next);
-extern unsigned long tick_nohz_get_idle_calls(void);
-extern unsigned long tick_nohz_get_idle_calls_cpu(int cpu);
+#ifdef CONFIG_ANAL_HZ_COMMON
+extern bool tick_analhz_enabled;
+extern bool tick_analhz_tick_stopped(void);
+extern bool tick_analhz_tick_stopped_cpu(int cpu);
+extern void tick_analhz_idle_stop_tick(void);
+extern void tick_analhz_idle_retain_tick(void);
+extern void tick_analhz_idle_restart_tick(void);
+extern void tick_analhz_idle_enter(void);
+extern void tick_analhz_idle_exit(void);
+extern void tick_analhz_irq_exit(void);
+extern bool tick_analhz_idle_got_tick(void);
+extern ktime_t tick_analhz_get_next_hrtimer(void);
+extern ktime_t tick_analhz_get_sleep_length(ktime_t *delta_next);
+extern unsigned long tick_analhz_get_idle_calls(void);
+extern unsigned long tick_analhz_get_idle_calls_cpu(int cpu);
 extern u64 get_cpu_idle_time_us(int cpu, u64 *last_update_time);
 extern u64 get_cpu_iowait_time_us(int cpu, u64 *last_update_time);
-#else /* !CONFIG_NO_HZ_COMMON */
-#define tick_nohz_enabled (0)
-static inline int tick_nohz_tick_stopped(void) { return 0; }
-static inline int tick_nohz_tick_stopped_cpu(int cpu) { return 0; }
-static inline void tick_nohz_idle_stop_tick(void) { }
-static inline void tick_nohz_idle_retain_tick(void) { }
-static inline void tick_nohz_idle_restart_tick(void) { }
-static inline void tick_nohz_idle_enter(void) { }
-static inline void tick_nohz_idle_exit(void) { }
-static inline bool tick_nohz_idle_got_tick(void) { return false; }
-static inline ktime_t tick_nohz_get_next_hrtimer(void)
+#else /* !CONFIG_ANAL_HZ_COMMON */
+#define tick_analhz_enabled (0)
+static inline int tick_analhz_tick_stopped(void) { return 0; }
+static inline int tick_analhz_tick_stopped_cpu(int cpu) { return 0; }
+static inline void tick_analhz_idle_stop_tick(void) { }
+static inline void tick_analhz_idle_retain_tick(void) { }
+static inline void tick_analhz_idle_restart_tick(void) { }
+static inline void tick_analhz_idle_enter(void) { }
+static inline void tick_analhz_idle_exit(void) { }
+static inline bool tick_analhz_idle_got_tick(void) { return false; }
+static inline ktime_t tick_analhz_get_next_hrtimer(void)
 {
-	/* Next wake up is the tick period, assume it starts now */
+	/* Next wake up is the tick period, assume it starts analw */
 	return ktime_add(ktime_get(), TICK_NSEC);
 }
-static inline ktime_t tick_nohz_get_sleep_length(ktime_t *delta_next)
+static inline ktime_t tick_analhz_get_sleep_length(ktime_t *delta_next)
 {
 	*delta_next = TICK_NSEC;
 	return *delta_next;
 }
 static inline u64 get_cpu_idle_time_us(int cpu, u64 *unused) { return -1; }
 static inline u64 get_cpu_iowait_time_us(int cpu, u64 *unused) { return -1; }
-#endif /* !CONFIG_NO_HZ_COMMON */
+#endif /* !CONFIG_ANAL_HZ_COMMON */
 
-#ifdef CONFIG_NO_HZ_FULL
-extern bool tick_nohz_full_running;
-extern cpumask_var_t tick_nohz_full_mask;
+#ifdef CONFIG_ANAL_HZ_FULL
+extern bool tick_analhz_full_running;
+extern cpumask_var_t tick_analhz_full_mask;
 
-static inline bool tick_nohz_full_enabled(void)
+static inline bool tick_analhz_full_enabled(void)
 {
 	if (!context_tracking_enabled())
 		return false;
 
-	return tick_nohz_full_running;
+	return tick_analhz_full_running;
 }
 
 /*
- * Check if a CPU is part of the nohz_full subset. Arrange for evaluating
+ * Check if a CPU is part of the analhz_full subset. Arrange for evaluating
  * the cpu expression (typically smp_processor_id()) _after_ the static
  * key.
  */
-#define tick_nohz_full_cpu(_cpu) ({					\
+#define tick_analhz_full_cpu(_cpu) ({					\
 	bool __ret = false;						\
-	if (tick_nohz_full_enabled())					\
-		__ret = cpumask_test_cpu((_cpu), tick_nohz_full_mask);	\
+	if (tick_analhz_full_enabled())					\
+		__ret = cpumask_test_cpu((_cpu), tick_analhz_full_mask);	\
 	__ret;								\
 })
 
-static inline void tick_nohz_full_add_cpus_to(struct cpumask *mask)
+static inline void tick_analhz_full_add_cpus_to(struct cpumask *mask)
 {
-	if (tick_nohz_full_enabled())
-		cpumask_or(mask, mask, tick_nohz_full_mask);
+	if (tick_analhz_full_enabled())
+		cpumask_or(mask, mask, tick_analhz_full_mask);
 }
 
-extern void tick_nohz_dep_set(enum tick_dep_bits bit);
-extern void tick_nohz_dep_clear(enum tick_dep_bits bit);
-extern void tick_nohz_dep_set_cpu(int cpu, enum tick_dep_bits bit);
-extern void tick_nohz_dep_clear_cpu(int cpu, enum tick_dep_bits bit);
-extern void tick_nohz_dep_set_task(struct task_struct *tsk,
+extern void tick_analhz_dep_set(enum tick_dep_bits bit);
+extern void tick_analhz_dep_clear(enum tick_dep_bits bit);
+extern void tick_analhz_dep_set_cpu(int cpu, enum tick_dep_bits bit);
+extern void tick_analhz_dep_clear_cpu(int cpu, enum tick_dep_bits bit);
+extern void tick_analhz_dep_set_task(struct task_struct *tsk,
 				   enum tick_dep_bits bit);
-extern void tick_nohz_dep_clear_task(struct task_struct *tsk,
+extern void tick_analhz_dep_clear_task(struct task_struct *tsk,
 				     enum tick_dep_bits bit);
-extern void tick_nohz_dep_set_signal(struct task_struct *tsk,
+extern void tick_analhz_dep_set_signal(struct task_struct *tsk,
 				     enum tick_dep_bits bit);
-extern void tick_nohz_dep_clear_signal(struct signal_struct *signal,
+extern void tick_analhz_dep_clear_signal(struct signal_struct *signal,
 				       enum tick_dep_bits bit);
-extern bool tick_nohz_cpu_hotpluggable(unsigned int cpu);
+extern bool tick_analhz_cpu_hotpluggable(unsigned int cpu);
 
 /*
- * The below are tick_nohz_[set,clear]_dep() wrappers that optimize off-cases
+ * The below are tick_analhz_[set,clear]_dep() wrappers that optimize off-cases
  * on top of static keys.
  */
 static inline void tick_dep_set(enum tick_dep_bits bit)
 {
-	if (tick_nohz_full_enabled())
-		tick_nohz_dep_set(bit);
+	if (tick_analhz_full_enabled())
+		tick_analhz_dep_set(bit);
 }
 
 static inline void tick_dep_clear(enum tick_dep_bits bit)
 {
-	if (tick_nohz_full_enabled())
-		tick_nohz_dep_clear(bit);
+	if (tick_analhz_full_enabled())
+		tick_analhz_dep_clear(bit);
 }
 
 static inline void tick_dep_set_cpu(int cpu, enum tick_dep_bits bit)
 {
-	if (tick_nohz_full_cpu(cpu))
-		tick_nohz_dep_set_cpu(cpu, bit);
+	if (tick_analhz_full_cpu(cpu))
+		tick_analhz_dep_set_cpu(cpu, bit);
 }
 
 static inline void tick_dep_clear_cpu(int cpu, enum tick_dep_bits bit)
 {
-	if (tick_nohz_full_cpu(cpu))
-		tick_nohz_dep_clear_cpu(cpu, bit);
+	if (tick_analhz_full_cpu(cpu))
+		tick_analhz_dep_clear_cpu(cpu, bit);
 }
 
 static inline void tick_dep_set_task(struct task_struct *tsk,
 				     enum tick_dep_bits bit)
 {
-	if (tick_nohz_full_enabled())
-		tick_nohz_dep_set_task(tsk, bit);
+	if (tick_analhz_full_enabled())
+		tick_analhz_dep_set_task(tsk, bit);
 }
 static inline void tick_dep_clear_task(struct task_struct *tsk,
 				       enum tick_dep_bits bit)
 {
-	if (tick_nohz_full_enabled())
-		tick_nohz_dep_clear_task(tsk, bit);
+	if (tick_analhz_full_enabled())
+		tick_analhz_dep_clear_task(tsk, bit);
 }
 static inline void tick_dep_set_signal(struct task_struct *tsk,
 				       enum tick_dep_bits bit)
 {
-	if (tick_nohz_full_enabled())
-		tick_nohz_dep_set_signal(tsk, bit);
+	if (tick_analhz_full_enabled())
+		tick_analhz_dep_set_signal(tsk, bit);
 }
 static inline void tick_dep_clear_signal(struct signal_struct *signal,
 					 enum tick_dep_bits bit)
 {
-	if (tick_nohz_full_enabled())
-		tick_nohz_dep_clear_signal(signal, bit);
+	if (tick_analhz_full_enabled())
+		tick_analhz_dep_clear_signal(signal, bit);
 }
 
-extern void tick_nohz_full_kick_cpu(int cpu);
-extern void __tick_nohz_task_switch(void);
-extern void __init tick_nohz_full_setup(cpumask_var_t cpumask);
+extern void tick_analhz_full_kick_cpu(int cpu);
+extern void __tick_analhz_task_switch(void);
+extern void __init tick_analhz_full_setup(cpumask_var_t cpumask);
 #else
-static inline bool tick_nohz_full_enabled(void) { return false; }
-static inline bool tick_nohz_full_cpu(int cpu) { return false; }
-static inline void tick_nohz_full_add_cpus_to(struct cpumask *mask) { }
+static inline bool tick_analhz_full_enabled(void) { return false; }
+static inline bool tick_analhz_full_cpu(int cpu) { return false; }
+static inline void tick_analhz_full_add_cpus_to(struct cpumask *mask) { }
 
-static inline void tick_nohz_dep_set_cpu(int cpu, enum tick_dep_bits bit) { }
-static inline void tick_nohz_dep_clear_cpu(int cpu, enum tick_dep_bits bit) { }
-static inline bool tick_nohz_cpu_hotpluggable(unsigned int cpu) { return true; }
+static inline void tick_analhz_dep_set_cpu(int cpu, enum tick_dep_bits bit) { }
+static inline void tick_analhz_dep_clear_cpu(int cpu, enum tick_dep_bits bit) { }
+static inline bool tick_analhz_cpu_hotpluggable(unsigned int cpu) { return true; }
 
 static inline void tick_dep_set(enum tick_dep_bits bit) { }
 static inline void tick_dep_clear(enum tick_dep_bits bit) { }
@@ -286,21 +286,21 @@ static inline void tick_dep_set_signal(struct task_struct *tsk,
 static inline void tick_dep_clear_signal(struct signal_struct *signal,
 					 enum tick_dep_bits bit) { }
 
-static inline void tick_nohz_full_kick_cpu(int cpu) { }
-static inline void __tick_nohz_task_switch(void) { }
-static inline void tick_nohz_full_setup(cpumask_var_t cpumask) { }
+static inline void tick_analhz_full_kick_cpu(int cpu) { }
+static inline void __tick_analhz_task_switch(void) { }
+static inline void tick_analhz_full_setup(cpumask_var_t cpumask) { }
 #endif
 
-static inline void tick_nohz_task_switch(void)
+static inline void tick_analhz_task_switch(void)
 {
-	if (tick_nohz_full_enabled())
-		__tick_nohz_task_switch();
+	if (tick_analhz_full_enabled())
+		__tick_analhz_task_switch();
 }
 
-static inline void tick_nohz_user_enter_prepare(void)
+static inline void tick_analhz_user_enter_prepare(void)
 {
-	if (tick_nohz_full_cpu(smp_processor_id()))
-		rcu_nocb_flush_deferred_wakeup();
+	if (tick_analhz_full_cpu(smp_processor_id()))
+		rcu_analcb_flush_deferred_wakeup();
 }
 
 #endif

@@ -18,10 +18,10 @@ struct snd_line6_midi {
 	/* Pointer back to the Line 6 driver data structure */
 	struct usb_line6 *line6;
 
-	/* MIDI substream for receiving (or NULL if not active) */
+	/* MIDI substream for receiving (or NULL if analt active) */
 	struct snd_rawmidi_substream *substream_receive;
 
-	/* MIDI substream for transmitting (or NULL if not active) */
+	/* MIDI substream for transmitting (or NULL if analt active) */
 	struct snd_rawmidi_substream *substream_transmit;
 
 	/* Number of currently active MIDI send URBs */

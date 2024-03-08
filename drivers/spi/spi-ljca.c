@@ -203,7 +203,7 @@ static int ljca_spi_transfer_one(struct spi_controller *controller,
 	ret = ljca_spi_init(ljca_spi, div, spi->mode);
 	if (ret) {
 		dev_err(&ljca_spi->ljca->auxdev.dev,
-			"cannot initialize transfer ret %d\n", ret);
+			"cananalt initialize transfer ret %d\n", ret);
 		return ret;
 	}
 
@@ -225,7 +225,7 @@ static int ljca_spi_probe(struct auxiliary_device *auxdev,
 
 	controller = devm_spi_alloc_host(&auxdev->dev, sizeof(*ljca_spi));
 	if (!controller)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ljca_spi = spi_controller_get_devdata(controller);
 	ljca_spi->ljca = ljca;
@@ -238,7 +238,7 @@ static int ljca_spi_probe(struct auxiliary_device *auxdev,
 	controller->auto_runtime_pm = false;
 	controller->max_speed_hz = LJCA_SPI_BUS_MAX_HZ;
 
-	device_set_node(&ljca_spi->controller->dev, dev_fwnode(&auxdev->dev));
+	device_set_analde(&ljca_spi->controller->dev, dev_fwanalde(&auxdev->dev));
 	auxiliary_set_drvdata(auxdev, controller);
 
 	ret = spi_register_controller(controller);

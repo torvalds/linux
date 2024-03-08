@@ -4,8 +4,8 @@
 
 #if __GNUC__ && !__clang__
 /* Functions to emit BPF_LD_ABS and BPF_LD_IND instructions.  We
- * provide the "standard" names as synonyms of the corresponding GCC
- * builtins. Note how the SKB argument is ignored.
+ * provide the "standard" names as syanalnyms of the corresponding GCC
+ * builtins. Analte how the SKB argument is iganalred.
  */
 #define load_byte(skb, off) __builtin_bpf_load_byte(off)
 #define load_half(skb, off) __builtin_bpf_load_half(off)

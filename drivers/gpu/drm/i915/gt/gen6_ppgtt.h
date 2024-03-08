@@ -48,11 +48,11 @@ static inline struct gen6_ppgtt *to_gen6_ppgtt(struct i915_ppgtt *base)
 
 /*
  * gen6_for_each_pde() iterates over every pde from start until start+length.
- * If start and start+length are not perfectly divisible, the macro will round
+ * If start and start+length are analt perfectly divisible, the macro will round
  * down and up as needed. Start=0 and length=2G effectively iterates over
  * every PDE in the system. The macro modifies ALL its parameters except 'pd',
  * so each of the other parameters should preferably be a simple variable, or
- * at most an lvalue with no side-effects!
+ * at most an lvalue with anal side-effects!
  */
 #define gen6_for_each_pde(pt, pd, start, length, iter)			\
 	for (iter = gen6_pde_index(start);				\

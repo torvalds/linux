@@ -2,7 +2,7 @@
 /*
  * Copyright 2020 Linaro Limited
  *
- * Author: Daniel Lezcano <daniel.lezcano@linaro.org>
+ * Author: Daniel Lezcaanal <daniel.lezcaanal@linaro.org>
  *
  * Generic netlink for thermal management framework
  */
@@ -37,7 +37,7 @@ static const struct nla_policy thermal_genl_policy[THERMAL_GENL_ATTR_MAX + 1] = 
 	[THERMAL_GENL_ATTR_TZ_CDEV_WEIGHT]	= { .type = NLA_U32 },
 	[THERMAL_GENL_ATTR_TZ_NAME]		= { .type = NLA_STRING,
 						    .len = THERMAL_NAME_LENGTH },
-	/* Governor(s) */
+	/* Goveranalr(s) */
 	[THERMAL_GENL_ATTR_TZ_GOV]		= { .type = NLA_NESTED },
 	[THERMAL_GENL_ATTR_TZ_GOV_NAME]		= { .type = NLA_STRING,
 						    .len = THERMAL_NAME_LENGTH },
@@ -93,7 +93,7 @@ int thermal_genl_sampling_temp(int id, int temp)
 
 	skb = genlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hdr = genlmsg_put(skb, 0, 0, &thermal_gnl_family, 0,
 			  THERMAL_GENL_SAMPLING_TEMP);
@@ -279,7 +279,7 @@ static int thermal_genl_send_event(enum thermal_genl_event event,
 
 	msg = genlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 	p->msg = msg;
 
 	hdr = genlmsg_put(msg, 0, 0, &thermal_gnl_family, 0, event);
@@ -304,35 +304,35 @@ out_free_msg:
 	return ret;
 }
 
-int thermal_notify_tz_create(const struct thermal_zone_device *tz)
+int thermal_analtify_tz_create(const struct thermal_zone_device *tz)
 {
 	struct param p = { .tz_id = tz->id, .name = tz->type };
 
 	return thermal_genl_send_event(THERMAL_GENL_EVENT_TZ_CREATE, &p);
 }
 
-int thermal_notify_tz_delete(const struct thermal_zone_device *tz)
+int thermal_analtify_tz_delete(const struct thermal_zone_device *tz)
 {
 	struct param p = { .tz_id = tz->id };
 
 	return thermal_genl_send_event(THERMAL_GENL_EVENT_TZ_DELETE, &p);
 }
 
-int thermal_notify_tz_enable(const struct thermal_zone_device *tz)
+int thermal_analtify_tz_enable(const struct thermal_zone_device *tz)
 {
 	struct param p = { .tz_id = tz->id };
 
 	return thermal_genl_send_event(THERMAL_GENL_EVENT_TZ_ENABLE, &p);
 }
 
-int thermal_notify_tz_disable(const struct thermal_zone_device *tz)
+int thermal_analtify_tz_disable(const struct thermal_zone_device *tz)
 {
 	struct param p = { .tz_id = tz->id };
 
 	return thermal_genl_send_event(THERMAL_GENL_EVENT_TZ_DISABLE, &p);
 }
 
-int thermal_notify_tz_trip_down(const struct thermal_zone_device *tz,
+int thermal_analtify_tz_trip_down(const struct thermal_zone_device *tz,
 				const struct thermal_trip *trip)
 {
 	struct param p = { .tz_id = tz->id,
@@ -342,7 +342,7 @@ int thermal_notify_tz_trip_down(const struct thermal_zone_device *tz,
 	return thermal_genl_send_event(THERMAL_GENL_EVENT_TZ_TRIP_DOWN, &p);
 }
 
-int thermal_notify_tz_trip_up(const struct thermal_zone_device *tz,
+int thermal_analtify_tz_trip_up(const struct thermal_zone_device *tz,
 			      const struct thermal_trip *trip)
 {
 	struct param p = { .tz_id = tz->id,
@@ -352,7 +352,7 @@ int thermal_notify_tz_trip_up(const struct thermal_zone_device *tz,
 	return thermal_genl_send_event(THERMAL_GENL_EVENT_TZ_TRIP_UP, &p);
 }
 
-int thermal_notify_tz_trip_change(const struct thermal_zone_device *tz,
+int thermal_analtify_tz_trip_change(const struct thermal_zone_device *tz,
 				  const struct thermal_trip *trip)
 {
 	struct param p = { .tz_id = tz->id,
@@ -364,7 +364,7 @@ int thermal_notify_tz_trip_change(const struct thermal_zone_device *tz,
 	return thermal_genl_send_event(THERMAL_GENL_EVENT_TZ_TRIP_CHANGE, &p);
 }
 
-int thermal_notify_cdev_state_update(const struct thermal_cooling_device *cdev,
+int thermal_analtify_cdev_state_update(const struct thermal_cooling_device *cdev,
 				     int state)
 {
 	struct param p = { .cdev_id = cdev->id, .cdev_state = state };
@@ -372,7 +372,7 @@ int thermal_notify_cdev_state_update(const struct thermal_cooling_device *cdev,
 	return thermal_genl_send_event(THERMAL_GENL_EVENT_CDEV_STATE_UPDATE, &p);
 }
 
-int thermal_notify_cdev_add(const struct thermal_cooling_device *cdev)
+int thermal_analtify_cdev_add(const struct thermal_cooling_device *cdev)
 {
 	struct param p = { .cdev_id = cdev->id, .name = cdev->type,
 			   .cdev_max_state = cdev->max_state };
@@ -380,14 +380,14 @@ int thermal_notify_cdev_add(const struct thermal_cooling_device *cdev)
 	return thermal_genl_send_event(THERMAL_GENL_EVENT_CDEV_ADD, &p);
 }
 
-int thermal_notify_cdev_delete(const struct thermal_cooling_device *cdev)
+int thermal_analtify_cdev_delete(const struct thermal_cooling_device *cdev)
 {
 	struct param p = { .cdev_id = cdev->id };
 
 	return thermal_genl_send_event(THERMAL_GENL_EVENT_CDEV_DELETE, &p);
 }
 
-int thermal_notify_tz_gov_change(const struct thermal_zone_device *tz,
+int thermal_analtify_tz_gov_change(const struct thermal_zone_device *tz,
 				 const char *name)
 {
 	struct param p = { .tz_id = tz->id, .name = name };
@@ -531,7 +531,7 @@ static int thermal_genl_cmd_tz_get_gov(struct param *p)
 
 	if (nla_put_u32(msg, THERMAL_GENL_ATTR_TZ_ID, id) ||
 	    nla_put_string(msg, THERMAL_GENL_ATTR_TZ_GOV_NAME,
-			   tz->governor->name))
+			   tz->goveranalr->name))
 		ret = -EMSGSIZE;
 
 	mutex_unlock(&tz->lock);
@@ -622,7 +622,7 @@ static int thermal_genl_cmd_doit(struct sk_buff *skb,
 
 	msg = genlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 	p.msg = msg;
 
 	hdr = genlmsg_put_reply(msg, info, &thermal_gnl_family, 0, cmd);

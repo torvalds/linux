@@ -12,7 +12,7 @@
 function putc
 	str	x0, [sp, #-16]!
 
-	mov	x0, #1			// STDOUT_FILENO
+	mov	x0, #1			// STDOUT_FILEANAL
 	mov	x1, sp
 	mov	x2, #1
 	mov	x8, #__NR_write
@@ -34,7 +34,7 @@ function puts
 	add	x2, x2, #1
 	b	0b
 
-1:	mov	w0, #1			// STDOUT_FILENO
+1:	mov	w0, #1			// STDOUT_FILEANAL
 	mov	x8, #__NR_write
 	svc	#0
 
@@ -61,7 +61,7 @@ function putdec
 
 	ldrb	w0, [x1]
 	cbnz	w0, 1f
-	mov	w0, #'0'		// Print "0" for 0, not ""
+	mov	w0, #'0'		// Print "0" for 0, analt ""
 	strb	w0, [x1, #-1]!
 
 1:	mov	x0, x1

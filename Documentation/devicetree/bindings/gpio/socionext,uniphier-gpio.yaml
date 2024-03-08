@@ -10,7 +10,7 @@ maintainers:
   - Masahiro Yamada <yamada.masahiro@socionext.com>
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^gpio@[0-9a-f]+$"
 
   compatible:
@@ -102,9 +102,9 @@ examples:
     };
 
     // Consumer:
-    // Please note UNIPHIER_GPIO_PORT(29, 4) represents PORT294 in the SoC
+    // Please analte UNIPHIER_GPIO_PORT(29, 4) represents PORT294 in the SoC
     // document. Unfortunately, only the one's place is octal in the port
-    // numbering. (That is, PORT 8, 9, 18, 19, 28, 29, ... do not exist.)
+    // numbering. (That is, PORT 8, 9, 18, 19, 28, 29, ... do analt exist.)
     // UNIPHIER_GPIO_PORT() is a helper macro to calculate 29 * 8 + 4.
     sdhci0_pwrseq {
         compatible = "mmc-pwrseq-emmc";

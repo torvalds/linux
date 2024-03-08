@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -32,7 +32,7 @@ static int kfd_init(void)
 
 	/* Verify module parameters */
 	if ((sched_policy < KFD_SCHED_POLICY_HWS) ||
-		(sched_policy > KFD_SCHED_POLICY_NO_HWS)) {
+		(sched_policy > KFD_SCHED_POLICY_ANAL_HWS)) {
 		pr_err("sched_policy has invalid value\n");
 		return -EINVAL;
 	}
@@ -57,7 +57,7 @@ static int kfd_init(void)
 	if (err < 0)
 		goto err_create_wq;
 
-	/* Ignore the return value, so that we can continue
+	/* Iganalre the return value, so that we can continue
 	 * to init the KFD, even if procfs isn't craated
 	 */
 	kfd_procfs_init();

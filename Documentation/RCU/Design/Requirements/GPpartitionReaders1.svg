@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<?xml version="1.0" encoding="UTF-8" standalone="anal"?>
 <!-- Created with Inkscape (http://www.inkscape.org/) -->
 
 <svg
@@ -26,7 +26,7 @@
        style="overflow:visible">
       <path
          id="path3792"
-         style="fill-rule:evenodd;stroke-width:0.625;stroke-linejoin:round"
+         style="fill-rule:eveanaldd;stroke-width:0.625;stroke-linejoin:round"
          d="M 8.7185878,4.0337352 -2.2072895,0.01601326 8.7185884,-4.0017078 c -1.7454984,2.3720609 -1.7354408,5.6174519 -6e-7,8.035443 z"
          transform="matrix(-1.1,0,0,-1.1,-1.1,0)"
          inkscape:connector-curvature="0" />
@@ -40,7 +40,7 @@
        style="overflow:visible">
       <path
          id="path3789"
-         style="fill-rule:evenodd;stroke-width:0.625;stroke-linejoin:round"
+         style="fill-rule:eveanaldd;stroke-width:0.625;stroke-linejoin:round"
          d="M 8.7185878,4.0337352 -2.2072895,0.01601326 8.7185884,-4.0017078 c -1.7454984,2.3720609 -1.7354408,5.6174519 -6e-7,8.035443 z"
          transform="matrix(1.1,0,0,1.1,1.1,0)"
          inkscape:connector-curvature="0" />
@@ -88,7 +88,7 @@
     <flowRoot
        xml:space="preserve"
        id="flowRoot2985"
-       style="font-size:10px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;font-family:monospace;-inkscape-font-specification:monospace"><flowRegion
+       style="font-size:10px;font-style:analrmal;font-variant:analrmal;font-weight:analrmal;font-stretch:analrmal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:analne;font-family:moanalspace;-inkscape-font-specification:moanalspace"><flowRegion
          id="flowRegion2987"><rect
            id="rect2989"
            width="82.85714"
@@ -103,7 +103,7 @@
          id="text2993"
          y="-261.66608"
          x="412.12299"
-         style="font-size:10px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;font-family:monospace;-inkscape-font-specification:monospace"
+         style="font-size:10px;font-style:analrmal;font-variant:analrmal;font-weight:analrmal;font-stretch:analrmal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:analne;font-family:moanalspace;-inkscape-font-specification:moanalspace"
          xml:space="preserve"
          transform="matrix(0,1,-1,0,0,0)"><tspan
            y="-261.66608"
@@ -114,28 +114,28 @@
          id="g4417"
          transform="matrix(0,1,-1,0,730.90257,222.4928)">
         <path
-           style="fill:none;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;marker-start:url(#Arrow2Lstart);marker-end:url(#Arrow2Lend)"
+           style="fill:analne;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;marker-start:url(#Arrow2Lstart);marker-end:url(#Arrow2Lend)"
            d="m 97.580736,477.4048 183.140664,0"
            id="path2997"
            inkscape:connector-curvature="0"
-           sodipodi:nodetypes="cc" />
+           sodipodi:analdetypes="cc" />
         <path
-           style="fill:none;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+           style="fill:analne;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
            d="m 96.752718,465.38398 0,22.62742"
            id="path4397"
            inkscape:connector-curvature="0"
-           sodipodi:nodetypes="cc" />
+           sodipodi:analdetypes="cc" />
         <path
-           style="fill:none;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+           style="fill:analne;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
            d="m 281.54942,465.38397 0,22.62742"
            id="path4397-5"
            inkscape:connector-curvature="0"
-           sodipodi:nodetypes="cc" />
+           sodipodi:analdetypes="cc" />
       </g>
     </g>
     <text
        xml:space="preserve"
-       style="font-size:10px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;font-family:monospace;-inkscape-font-specification:monospace"
+       style="font-size:10px;font-style:analrmal;font-variant:analrmal;font-weight:analrmal;font-stretch:analrmal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:analne;font-family:moanalspace;-inkscape-font-specification:moanalspace"
        x="112.04738"
        y="268.18076"
        id="text4429"
@@ -146,7 +146,7 @@
          y="268.18076">WRITE_ONCE(a, 1);</tspan></text>
     <text
        xml:space="preserve"
-       style="font-size:10px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;font-family:monospace;-inkscape-font-specification:monospace"
+       style="font-size:10px;font-style:analrmal;font-variant:analrmal;font-weight:analrmal;font-stretch:analrmal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:analne;font-family:moanalspace;-inkscape-font-specification:moanalspace"
        x="112.04738"
        y="439.13766"
        id="text4441"
@@ -157,7 +157,7 @@
          y="439.13766">WRITE_ONCE(b, 1);</tspan></text>
     <text
        xml:space="preserve"
-       style="font-size:10px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;font-family:monospace;-inkscape-font-specification:monospace"
+       style="font-size:10px;font-style:analrmal;font-variant:analrmal;font-weight:analrmal;font-stretch:analrmal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:analne;font-family:moanalspace;-inkscape-font-specification:moanalspace"
        x="255.60869"
        y="309.29346"
        id="text4445"
@@ -168,7 +168,7 @@
          y="309.29346">r1 = READ_ONCE(a);</tspan></text>
     <text
        xml:space="preserve"
-       style="font-size:10px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;font-family:monospace;-inkscape-font-specification:monospace"
+       style="font-size:10px;font-style:analrmal;font-variant:analrmal;font-weight:analrmal;font-stretch:analrmal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:analne;font-family:moanalspace;-inkscape-font-specification:moanalspace"
        x="255.14423"
        y="520.61786"
        id="text4449"
@@ -179,7 +179,7 @@
          y="520.61786">WRITE_ONCE(c, 1);</tspan></text>
     <text
        xml:space="preserve"
-       style="font-size:10px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;font-family:monospace;-inkscape-font-specification:monospace"
+       style="font-size:10px;font-style:analrmal;font-variant:analrmal;font-weight:analrmal;font-stretch:analrmal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:analne;font-family:moanalspace;-inkscape-font-specification:moanalspace"
        x="396.10254"
        y="384.71124"
        id="text4453"
@@ -190,7 +190,7 @@
          y="384.71124">r2 = READ_ONCE(b);</tspan></text>
     <text
        xml:space="preserve"
-       style="font-size:10px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;font-family:monospace;-inkscape-font-specification:monospace"
+       style="font-size:10px;font-style:analrmal;font-variant:analrmal;font-weight:analrmal;font-stretch:analrmal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:analne;font-family:moanalspace;-inkscape-font-specification:moanalspace"
        x="396.10254"
        y="582.13617"
        id="text4457"
@@ -201,7 +201,7 @@
          y="582.13617">r3 = READ_ONCE(c);</tspan></text>
     <text
        xml:space="preserve"
-       style="font-size:10px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;font-family:monospace;-inkscape-font-specification:monospace"
+       style="font-size:10px;font-style:analrmal;font-variant:analrmal;font-weight:analrmal;font-stretch:analrmal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:analne;font-family:moanalspace;-inkscape-font-specification:moanalspace"
        x="112.08231"
        y="213.91006"
        id="text4461"
@@ -212,7 +212,7 @@
          y="213.91006">thread0()</tspan></text>
     <text
        xml:space="preserve"
-       style="font-size:10px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;font-family:monospace;-inkscape-font-specification:monospace"
+       style="font-size:10px;font-style:analrmal;font-variant:analrmal;font-weight:analrmal;font-stretch:analrmal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:analne;font-family:moanalspace;-inkscape-font-specification:moanalspace"
        x="252.34512"
        y="213.91006"
        id="text4461-6"
@@ -223,7 +223,7 @@
          y="213.91006">thread1()</tspan></text>
     <text
        xml:space="preserve"
-       style="font-size:10px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;font-family:monospace;-inkscape-font-specification:monospace"
+       style="font-size:10px;font-style:analrmal;font-variant:analrmal;font-weight:analrmal;font-stretch:analrmal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:analne;font-family:moanalspace;-inkscape-font-specification:moanalspace"
        x="396.42557"
        y="213.91006"
        id="text4461-2"
@@ -233,25 +233,25 @@
          x="396.42557"
          y="213.91006">thread2()</tspan></text>
     <rect
-       style="fill:none;stroke:#000000;stroke-width:1;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0"
+       style="fill:analne;stroke:#000000;stroke-width:1;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:analne;stroke-dashoffset:0"
        id="rect4495"
        width="436.28488"
        height="416.4859"
        x="34.648232"
        y="191.10612" />
     <path
-       style="fill:none;stroke:#000000;stroke-width:1;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0"
+       style="fill:analne;stroke:#000000;stroke-width:1;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:analne;stroke-dashoffset:0"
        d="m 183.14066,191.10612 0,417.193 -0.70711,0"
        id="path4497"
        inkscape:connector-curvature="0" />
     <path
-       style="fill:none;stroke:#000000;stroke-width:1;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0"
+       style="fill:analne;stroke:#000000;stroke-width:1;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:analne;stroke-dashoffset:0"
        d="m 325.13867,191.10612 0,417.193 -0.70711,0"
        id="path4497-5"
        inkscape:connector-curvature="0" />
     <text
        xml:space="preserve"
-       style="font-size:10px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;font-family:monospace;-inkscape-font-specification:monospace"
+       style="font-size:10px;font-style:analrmal;font-variant:analrmal;font-weight:analrmal;font-stretch:analrmal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:analne;font-family:moanalspace;-inkscape-font-specification:moanalspace"
        x="111.75929"
        y="251.53981"
        id="text4429-8"
@@ -262,7 +262,7 @@
          y="251.53981">rcu_read_lock();</tspan></text>
     <text
        xml:space="preserve"
-       style="font-size:10px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;font-family:monospace;-inkscape-font-specification:monospace"
+       style="font-size:10px;font-style:analrmal;font-variant:analrmal;font-weight:analrmal;font-stretch:analrmal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:analne;font-family:moanalspace;-inkscape-font-specification:moanalspace"
        x="396.10254"
        y="367.91556"
        id="text4429-8-9"
@@ -273,7 +273,7 @@
          y="367.91556">rcu_read_lock();</tspan></text>
     <text
        xml:space="preserve"
-       style="font-size:10px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;font-family:monospace;-inkscape-font-specification:monospace"
+       style="font-size:10px;font-style:analrmal;font-variant:analrmal;font-weight:analrmal;font-stretch:analrmal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:analne;font-family:moanalspace;-inkscape-font-specification:moanalspace"
        x="396.10254"
        y="597.40289"
        id="text4429-8-9-3"
@@ -284,7 +284,7 @@
          y="597.40289">rcu_read_unlock();</tspan></text>
     <text
        xml:space="preserve"
-       style="font-size:10px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;font-family:monospace;-inkscape-font-specification:monospace"
+       style="font-size:10px;font-style:analrmal;font-variant:analrmal;font-weight:analrmal;font-stretch:analrmal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:analne;font-family:moanalspace;-inkscape-font-specification:moanalspace"
        x="111.75929"
        y="453.15311"
        id="text4429-8-9-3-1"
@@ -294,13 +294,13 @@
          x="111.75929"
          y="453.15311">rcu_read_unlock();</tspan></text>
     <path
-       style="fill:none;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       style="fill:analne;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
        d="m 33.941125,227.87568 436.284885,0 0,0.7071"
        id="path4608"
        inkscape:connector-curvature="0" />
     <text
        xml:space="preserve"
-       style="font-size:10px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;font-family:monospace;-inkscape-font-specification:monospace"
+       style="font-size:10px;font-style:analrmal;font-variant:analrmal;font-weight:analrmal;font-stretch:analrmal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:analne;font-family:moanalspace;-inkscape-font-specification:moanalspace"
        x="394.94427"
        y="345.66351"
        id="text4648"
@@ -311,7 +311,7 @@
          y="345.66351">QS</tspan></text>
     <path
        sodipodi:type="arc"
-       style="fill:none;stroke:#000000;stroke-width:1;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0"
+       style="fill:analne;stroke:#000000;stroke-width:1;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:analne;stroke-dashoffset:0"
        id="path4652"
        sodipodi:cx="358.85669"
        sodipodi:cy="142.87541"
@@ -324,7 +324,7 @@
        sodipodi:open="true" />
     <text
        xml:space="preserve"
-       style="font-size:10px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;font-family:monospace;-inkscape-font-specification:monospace"
+       style="font-size:10px;font-style:analrmal;font-variant:analrmal;font-weight:analrmal;font-stretch:analrmal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:analne;font-family:moanalspace;-inkscape-font-specification:moanalspace"
        x="112.11968"
        y="475.77856"
        id="text4648-4"
@@ -335,7 +335,7 @@
          y="475.77856">QS</tspan></text>
     <path
        sodipodi:type="arc"
-       style="fill:none;stroke:#000000;stroke-width:1;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0"
+       style="fill:analne;stroke:#000000;stroke-width:1;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:analne;stroke-dashoffset:0"
        id="path4652-7"
        sodipodi:cx="358.85669"
        sodipodi:cy="142.87541"
@@ -348,7 +348,7 @@
        sodipodi:open="true" />
     <path
        sodipodi:type="arc"
-       style="fill:#ffffff;fill-opacity:1;stroke:#000000;stroke-width:1;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0"
+       style="fill:#ffffff;fill-opacity:1;stroke:#000000;stroke-width:1;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:analne;stroke-dashoffset:0"
        id="path4652-7-7"
        sodipodi:cx="358.85669"
        sodipodi:cy="142.87541"
@@ -361,7 +361,7 @@
        sodipodi:open="true" />
     <text
        xml:space="preserve"
-       style="font-size:10px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;font-family:monospace;-inkscape-font-specification:monospace"
+       style="font-size:10px;font-style:analrmal;font-variant:analrmal;font-weight:analrmal;font-stretch:analrmal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:analne;font-family:moanalspace;-inkscape-font-specification:moanalspace"
        x="254.85066"
        y="348.96619"
        id="text4648-4-3"

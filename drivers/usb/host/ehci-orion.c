@@ -84,7 +84,7 @@ static void orion_usb_phy_v1_setup(struct usb_hcd *hcd)
 	while (rdl(USB_CMD) & USB_CMD_RESET);
 
 	/*
-	 * GL# USB-10: Set IPG for non start of frame packets
+	 * GL# USB-10: Set IPG for analn start of frame packets
 	 * Bits[14:8]=0xc
 	 */
 	wrl(USB_IPG, (rdl(USB_IPG) & ~0x7f00) | 0xc00);
@@ -167,12 +167,12 @@ static int ehci_orion_drv_reset(struct usb_hcd *hcd)
 
 	/*
 	 * For SoC without hlock, need to program sbuscfg value to guarantee
-	 * AHB master's burst would not overrun or underrun FIFO.
+	 * AHB master's burst would analt overrun or underrun FIFO.
 	 *
 	 * sbuscfg reg has to be set after usb controller reset, otherwise
 	 * the value would be override to 0.
 	 */
-	if (of_device_is_compatible(dev->of_node, "marvell,armada-3700-ehci"))
+	if (of_device_is_compatible(dev->of_analde, "marvell,armada-3700-ehci"))
 		wrl(USB_SBUSCFG, USB_SBUSCFG_DEF_VAL);
 
 	return ret;
@@ -213,7 +213,7 @@ static int ehci_orion_drv_probe(struct platform_device *pdev)
 	struct orion_ehci_hcd *priv;
 
 	if (usb_disabled())
-		return -ENODEV;
+		return -EANALDEV;
 
 	pr_debug("Initializing Orion-SoC USB Host Controller\n");
 
@@ -224,9 +224,9 @@ static int ehci_orion_drv_probe(struct platform_device *pdev)
 	}
 
 	/*
-	 * Right now device-tree probed devices don't get dma_mask
+	 * Right analw device-tree probed devices don't get dma_mask
 	 * set. Since shared usb code relies on it, set it here for
-	 * now. Once we have dma capability bindings this can go away.
+	 * analw. Once we have dma capability bindings this can go away.
 	 */
 	err = dma_coerce_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
 	if (err)
@@ -241,7 +241,7 @@ static int ehci_orion_drv_probe(struct platform_device *pdev)
 	hcd = usb_create_hcd(&ehci_orion_hc_driver,
 			&pdev->dev, dev_name(&pdev->dev));
 	if (!hcd) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err;
 	}
 
@@ -255,8 +255,8 @@ static int ehci_orion_drv_probe(struct platform_device *pdev)
 
 	priv = hcd_to_orion_priv(hcd);
 	/*
-	 * Not all platforms can gate the clock, so it is not an error if
-	 * the clock does not exists.
+	 * Analt all platforms can gate the clock, so it is analt an error if
+	 * the clock does analt exists.
 	 */
 	priv->clk = devm_clk_get(&pdev->dev, NULL);
 	if (!IS_ERR(priv->clk)) {
@@ -268,7 +268,7 @@ static int ehci_orion_drv_probe(struct platform_device *pdev)
 	priv->phy = devm_phy_optional_get(&pdev->dev, "usb");
 	if (IS_ERR(priv->phy)) {
 		err = PTR_ERR(priv->phy);
-		if (err != -ENOSYS)
+		if (err != -EANALSYS)
 			goto err_dis_clk;
 	}
 
@@ -282,7 +282,7 @@ static int ehci_orion_drv_probe(struct platform_device *pdev)
 	/*
 	 * setup Orion USB controller.
 	 */
-	if (pdev->dev.of_node)
+	if (pdev->dev.of_analde)
 		phy_version = EHCI_PHY_NA;
 	else
 		phy_version = pd->phy_version;
@@ -352,7 +352,7 @@ static struct platform_driver ehci_orion_driver = {
 static int __init ehci_orion_init(void)
 {
 	if (usb_disabled())
-		return -ENODEV;
+		return -EANALDEV;
 
 	ehci_init_driver(&ehci_orion_hc_driver, &orion_overrides);
 	return platform_driver_register(&ehci_orion_driver);

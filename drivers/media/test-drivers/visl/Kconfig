@@ -13,8 +13,8 @@ config VIDEO_VISL
 	  A virtual stateless decoder device for uAPI development purposes.
 
 	  A userspace implementation can use visl to run a decoding loop even
-	  when no hardware is available or when the kernel uAPI for the codec
-	  has not been upstreamed yet. This can reveal bugs at an early stage.
+	  when anal hardware is available or when the kernel uAPI for the codec
+	  has analt been upstreamed yet. This can reveal bugs at an early stage.
 
 	  When in doubt, say N.
 

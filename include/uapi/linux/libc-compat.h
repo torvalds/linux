@@ -1,9 +1,9 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * Compatibility interface for userspace libc header coordination:
  *
  * Define compatibility macros that are used to control the inclusion or
- * exclusion of UAPI structures and definitions in coordination with another
+ * exclusion of UAPI structures and definitions in coordination with aanalther
  * userspace C library.
  *
  * This header is intended to solve the problem of UAPI definitions that
@@ -11,8 +11,8 @@
  * definitions then the solution is as follows:
  *
  * * Synchronize the UAPI header and the libc headers so either one can be
- *   used and such that the ABI is preserved. If this is not possible then
- *   no simple compatibility interface exists (you need to write translating
+ *   used and such that the ABI is preserved. If this is analt possible then
+ *   anal simple compatibility interface exists (you need to write translating
  *   wrappers and rename things) and you can't use this interface.
  *
  * Then follow this process:
@@ -21,7 +21,7 @@
  *      e.g. #include <linux/libc-compat.h>
  *     This include must be as early as possible.
  *
- * (b) In libc-compat.h add enough code to detect that the comflicting
+ * (b) In libc-compat.h add eanalugh code to detect that the comflicting
  *     userspace libc header has been included first.
  *
  * (c) If the userspace libc header has been included first define a set of
@@ -166,7 +166,7 @@
 #define __UAPI_DEF_XATTR		1
 #endif
 
-/* If we did not see any headers from any supported C libraries,
+/* If we did analt see any headers from any supported C libraries,
  * or we are being included in the kernel, then define everything
  * that we need. Check for previous __UAPI_* definitions to give
  * unsupported C libraries a way to opt out of any kernel definition. */

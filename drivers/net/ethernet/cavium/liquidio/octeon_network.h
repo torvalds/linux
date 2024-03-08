@@ -13,7 +13,7 @@
  * This file is distributed in the hope that it will be useful, but
  * AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
- * NONINFRINGEMENT.  See the GNU General Public License for more
+ * ANALNINFRINGEMENT.  See the GNU General Public License for more
  * details.
  **********************************************************************/
 
@@ -44,7 +44,7 @@ struct liquidio_if_cfg_resp {
 #define LIO_IFCFG_WAIT_TIME    3000 /* In milli seconds */
 #define LIQUIDIO_NDEV_STATS_POLL_TIME_MS 200
 
-/* Structure of a node in list of gather components maintained by
+/* Structure of a analde in list of gather components maintained by
  * NIC driver for each network device.
  */
 struct octnic_gather {
@@ -196,7 +196,7 @@ struct lio {
 /**
  * \brief Enable or disable feature
  * @param netdev    pointer to network device
- * @param cmd       Command that just requires acknowledgment
+ * @param cmd       Command that just requires ackanalwledgment
  * @param param1    Parameter to command
  */
 int liquidio_set_feature(struct net_device *netdev, int cmd, u16 param1);
@@ -335,18 +335,18 @@ recv_buffer_recycle(struct octeon_device *oct, void *buf)
 	if (!pg_info->page) {
 		dev_err(&oct->pci_dev->dev, "%s: pg_info->page NULL\n",
 			__func__);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	if (unlikely(page_count(pg_info->page) != 1) ||
-	    unlikely(page_to_nid(pg_info->page)	!= numa_node_id())) {
+	    unlikely(page_to_nid(pg_info->page)	!= numa_analde_id())) {
 		dma_unmap_page(&oct->pci_dev->dev,
 			       pg_info->dma, (PAGE_SIZE << 0),
 			       DMA_FROM_DEVICE);
 		pg_info->dma = 0;
 		pg_info->page = NULL;
 		pg_info->page_offset = 0;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Flip to other half of the buffer */
@@ -571,13 +571,13 @@ static inline void stop_txqs(struct net_device *netdev)
 static inline void wake_txqs(struct net_device *netdev)
 {
 	struct lio *lio = GET_LIO(netdev);
-	int i, qno;
+	int i, qanal;
 
 	for (i = 0; i < netdev->real_num_tx_queues; i++) {
-		qno = lio->linfo.txpciq[i % lio->oct_dev->num_iqs].s.q_no;
+		qanal = lio->linfo.txpciq[i % lio->oct_dev->num_iqs].s.q_anal;
 
 		if (__netif_subqueue_stopped(netdev, i)) {
-			INCR_INSTRQUEUE_PKT_COUNT(lio->oct_dev, qno,
+			INCR_INSTRQUEUE_PKT_COUNT(lio->oct_dev, qanal,
 						  tx_restart, 1);
 			netif_wake_subqueue(netdev, i);
 		}
@@ -605,22 +605,22 @@ static inline int skb_iq(struct octeon_device *oct, struct sk_buff *skb)
 }
 
 /**
- * Remove the node at the head of the list. The list would be empty at
- * the end of this call if there are no more nodes in the list.
+ * Remove the analde at the head of the list. The list would be empty at
+ * the end of this call if there are anal more analdes in the list.
  */
 static inline struct list_head *lio_list_delete_head(struct list_head *root)
 {
-	struct list_head *node;
+	struct list_head *analde;
 
 	if (list_empty_careful(root))
-		node = NULL;
+		analde = NULL;
 	else
-		node = root->next;
+		analde = root->next;
 
-	if (node)
-		list_del(node);
+	if (analde)
+		list_del(analde);
 
-	return node;
+	return analde;
 }
 
 #endif

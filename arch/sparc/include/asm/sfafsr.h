@@ -4,7 +4,7 @@
 
 #include <linux/const.h>
 
-/* Spitfire Asynchronous Fault Status register, ASI=0x4C VA<63:0>=0x0 */
+/* Spitfire Asynchroanalus Fault Status register, ASI=0x4C VA<63:0>=0x0 */
 
 #define SFAFSR_ME		(_AC(1,UL) << SFAFSR_ME_SHIFT)
 #define SFAFSR_ME_SHIFT		32
@@ -45,7 +45,7 @@
 #define UDBE_CE			(_AC(1,UL) << 8)
 #define UDBE_E_SYNDR		(_AC(0xff,UL) << 0)
 
-/* The trap handlers for asynchronous errors encode the AFSR and
+/* The trap handlers for asynchroanalus errors encode the AFSR and
  * other pieces of information into a 64-bit argument for C code
  * encoded as follows:
  *

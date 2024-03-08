@@ -4,7 +4,7 @@
 
 #include <linux/futex.h>
 #include <linux/uaccess.h>
-#include <asm/errno.h>
+#include <asm/erranal.h>
 
 #define __futex_cas_op(insn, ret, oldval, uaddr, oparg)	\
 	__asm__ __volatile__(				\
@@ -55,7 +55,7 @@ static inline int arch_futex_atomic_op_inuser(int op, int oparg, int *oval,
 		__futex_cas_op("xor\t%2, %4, %1", ret, oldval, uaddr, oparg);
 		break;
 	default:
-		ret = -ENOSYS;
+		ret = -EANALSYS;
 	}
 
 	if (!ret)

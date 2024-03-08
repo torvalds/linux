@@ -7,6 +7,6 @@ Description:	Shows system power on reason. The following strings/reasons can
 		"regular power-up", "RTC wakeup", "watchdog timeout",
 		"software reset", "reset button action", "CPU clock failure",
 		"crystal oscillator failure", "brown-out reset",
-		"unknown reason".
+		"unkanalwn reason".
 
 		The file is read only.

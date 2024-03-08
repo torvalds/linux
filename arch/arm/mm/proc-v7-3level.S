@@ -20,11 +20,11 @@
 #define TTB_S		(3 << 12)
 #define TTB_EAE		(1 << 31)
 
-/* PTWs cacheable, inner WB not shareable, outer WB not shareable */
+/* PTWs cacheable, inner WB analt shareable, outer WB analt shareable */
 #define TTB_FLAGS_UP	(TTB_IRGN_WB|TTB_RGN_OC_WB)
 #define PMD_FLAGS_UP	(PMD_SECT_WB)
 
-/* PTWs cacheable, inner WBWA shareable, outer WBWA not shareable */
+/* PTWs cacheable, inner WBWA shareable, outer WBWA analt shareable */
 #define TTB_FLAGS_SMP	(TTB_IRGN_WBWA|TTB_S|TTB_RGN_OC_WBWA)
 #define PMD_FLAGS_SMP	(PMD_SECT_WBWA|PMD_SECT_S)
 
@@ -72,7 +72,7 @@ ENTRY(cpu_v7_set_pte_ext)
 #ifdef CONFIG_MMU
 	tst	rl, #L_PTE_VALID
 	beq	1f
-	tst	rh, #1 << (57 - 32)		@ L_PTE_NONE
+	tst	rh, #1 << (57 - 32)		@ L_PTE_ANALNE
 	bicne	rl, #L_PTE_VALID
 	bne	1f
 
@@ -83,7 +83,7 @@ ENTRY(cpu_v7_set_pte_ext)
 	biceq	rl, #PTE_AP2
 
 1:	strd	r2, r3, [r0]
-	ALT_SMP(W(nop))
+	ALT_SMP(W(analp))
 	ALT_UP (mcr	p15, 0, r0, c7, c10, 1)		@ flush_pte
 #endif
 	ret	lr
@@ -102,7 +102,7 @@ ENDPROC(cpu_v7_set_pte_ext)
 	 *   WRITEBACK		011	11101110
 	 *   DEV_CACHED		011	11101110
 	 *   DEV_SHARED		100	00000100
-	 *   DEV_NONSHARED	100	00000100
+	 *   DEV_ANALNSHARED	100	00000100
 	 *   unused		101
 	 *   unused		110
 	 *   WRITEALLOC		111	11111111

@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
-/* Copyright (C) 2018 Microchip Technology Inc. */
+/* Copyright (C) 2018 Microchip Techanallogy Inc. */
 
 #include <linux/netdevice.h>
 #include <linux/net_tstamp.h>
@@ -67,7 +67,7 @@ static void lan743x_otp_read_go(struct lan743x_adapter *adapter)
 	lan743x_csr_write(adapter, OTP_CMD_GO, OTP_CMD_GO_GO_);
 }
 
-static int lan743x_otp_wait_till_not_busy(struct lan743x_adapter *adapter)
+static int lan743x_otp_wait_till_analt_busy(struct lan743x_adapter *adapter)
 {
 	unsigned long timeout;
 	u32 reg_val;
@@ -99,7 +99,7 @@ static int lan743x_otp_read(struct lan743x_adapter *adapter, u32 offset,
 	if (ret < 0)
 		return ret;
 
-	ret = lan743x_otp_wait_till_not_busy(adapter);
+	ret = lan743x_otp_wait_till_analt_busy(adapter);
 	if (ret < 0)
 		return ret;
 
@@ -107,7 +107,7 @@ static int lan743x_otp_read(struct lan743x_adapter *adapter, u32 offset,
 		lan743x_otp_set_address(adapter, offset + i);
 
 		lan743x_otp_read_go(adapter);
-		ret = lan743x_otp_wait_till_not_busy(adapter);
+		ret = lan743x_otp_wait_till_analt_busy(adapter);
 		if (ret < 0)
 			return ret;
 		data[i] = lan743x_csr_read(adapter, OTP_READ_DATA);
@@ -131,7 +131,7 @@ static int lan743x_otp_write(struct lan743x_adapter *adapter, u32 offset,
 	if (ret < 0)
 		return ret;
 
-	ret = lan743x_otp_wait_till_not_busy(adapter);
+	ret = lan743x_otp_wait_till_analt_busy(adapter);
 	if (ret < 0)
 		return ret;
 
@@ -145,7 +145,7 @@ static int lan743x_otp_write(struct lan743x_adapter *adapter, u32 offset,
 		lan743x_csr_write(adapter, OTP_TST_CMD, OTP_TST_CMD_PRGVRFY_);
 		lan743x_csr_write(adapter, OTP_CMD_GO, OTP_CMD_GO_GO_);
 
-		ret = lan743x_otp_wait_till_not_busy(adapter);
+		ret = lan743x_otp_wait_till_analt_busy(adapter);
 		if (ret < 0)
 			return ret;
 	}
@@ -389,7 +389,7 @@ static int lan743x_eeprom_wait(struct lan743x_adapter *adapter)
 	return 0;
 }
 
-static int lan743x_eeprom_confirm_not_busy(struct lan743x_adapter *adapter)
+static int lan743x_eeprom_confirm_analt_busy(struct lan743x_adapter *adapter)
 {
 	unsigned long start_time = jiffies;
 	u32 val;
@@ -417,7 +417,7 @@ static int lan743x_eeprom_read(struct lan743x_adapter *adapter,
 	if (offset + length > MAX_EEPROM_SIZE)
 		return -EINVAL;
 
-	retval = lan743x_eeprom_confirm_not_busy(adapter);
+	retval = lan743x_eeprom_confirm_analt_busy(adapter);
 	if (retval)
 		return retval;
 
@@ -448,7 +448,7 @@ static int lan743x_eeprom_write(struct lan743x_adapter *adapter,
 	if (offset + length > MAX_EEPROM_SIZE)
 		return -EINVAL;
 
-	retval = lan743x_eeprom_confirm_not_busy(adapter);
+	retval = lan743x_eeprom_confirm_analt_busy(adapter);
 	if (retval)
 		return retval;
 
@@ -895,7 +895,7 @@ static int lan743x_ethtool_get_sset_count(struct net_device *netdev, int sset)
 	case ETH_SS_PRIV_FLAGS:
 		return ARRAY_SIZE(lan743x_priv_flags_strings);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -920,7 +920,7 @@ static int lan743x_ethtool_get_rxnfc(struct net_device *netdev,
 		rxnfc->data = LAN743X_USED_RX_CHANNELS;
 		return 0;
 	}
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static u32 lan743x_ethtool_get_rxfh_key_size(struct net_device *netdev)
@@ -989,9 +989,9 @@ static int lan743x_ethtool_set_rxfh(struct net_device *netdev,
 	u32 *indir = rxfh->indir;
 	u8 *key = rxfh->key;
 
-	if (rxfh->hfunc != ETH_RSS_HASH_NO_CHANGE &&
+	if (rxfh->hfunc != ETH_RSS_HASH_ANAL_CHANGE &&
 	    rxfh->hfunc != ETH_RSS_HASH_TOP)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (indir) {
 		u32 indir_value = 0;
@@ -1048,7 +1048,7 @@ static int lan743x_ethtool_get_ts_info(struct net_device *netdev,
 	ts_info->tx_types = BIT(HWTSTAMP_TX_OFF) |
 			    BIT(HWTSTAMP_TX_ON) |
 			    BIT(HWTSTAMP_TX_ONESTEP_SYNC);
-	ts_info->rx_filters = BIT(HWTSTAMP_FILTER_NONE) |
+	ts_info->rx_filters = BIT(HWTSTAMP_FILTER_ANALNE) |
 			      BIT(HWTSTAMP_FILTER_ALL) |
 			      BIT(HWTSTAMP_FILTER_PTP_V2_EVENT);
 	return 0;
@@ -1357,7 +1357,7 @@ static int lan743x_set_pauseparam(struct net_device *dev,
 	struct lan743x_phy *phy = &adapter->phy;
 
 	if (!phydev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!phy_validate_pause(phydev, pause))
 		return -EINVAL;

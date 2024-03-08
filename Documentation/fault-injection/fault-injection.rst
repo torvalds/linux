@@ -32,7 +32,7 @@ Available fault injection capabilities
 
   injects disk IO errors on devices permitted by setting
   /sys/block/<device>/make-it-fail or
-  /sys/block/<device>/<partition>/make-it-fail. (submit_bio_noacct())
+  /sys/block/<device>/<partition>/make-it-fail. (submit_bio_analacct())
 
 - fail_mmc_request
 
@@ -43,13 +43,13 @@ Available fault injection capabilities
 
   injects error return on specific functions, which are marked by
   ALLOW_ERROR_INJECTION() macro, by setting debugfs entries
-  under /sys/kernel/debug/fail_function. No boot option supported.
+  under /sys/kernel/debug/fail_function. Anal boot option supported.
 
 - NVMe fault injection
 
   inject NVMe status code and retry flag on devices permitted by setting
   debugfs entries under /sys/kernel/debug/nvme*/fault_inject. The default
-  status code is NVME_SC_INVALID_OPCODE with no retry. The status code and
+  status code is NVME_SC_INVALID_OPCODE with anal retry. The status code and
   retry flag can be set via the debugfs.
 
 - Null test block driver fault injection
@@ -76,7 +76,7 @@ configuration of fault-injection capabilities.
 
 	Format: <percent>
 
-	Note that one-failure-per-hundred is a very high error rate
+	Analte that one-failure-per-hundred is a very high error rate
 	for some testcases.  Consider setting probability=100 and configure
 	/sys/kernel/debug/fail*/interval for such testcases.
 
@@ -85,13 +85,13 @@ configuration of fault-injection capabilities.
 	specifies the interval between failures, for calls to
 	should_fail() that pass all the other tests.
 
-	Note that if you enable this, by setting interval>1, you will
+	Analte that if you enable this, by setting interval>1, you will
 	probably want to set probability=100.
 
 - /sys/kernel/debug/fail*/times:
 
 	specifies how many times failures may happen at most. A value of -1
-	means "no limit".
+	means "anal limit".
 
 - /sys/kernel/debug/fail*/space:
 
@@ -104,7 +104,7 @@ configuration of fault-injection capabilities.
 	Format: { 0 | 1 | 2 }
 
 	specifies the verbosity of the messages when failure is
-	injected.  '0' means no messages; '1' will print only a single
+	injected.  '0' means anal messages; '1' will print only a single
 	log line per failure; '2' will print a call trace too -- useful
 	to debug the problems revealed by fault injection.
 
@@ -124,7 +124,7 @@ configuration of fault-injection capabilities.
 	specifies the range of virtual addresses tested during
 	stacktrace walking.  Failure is injected only if some caller
 	in the walked stacktrace lies within the required range, and
-	none lies within the rejected range.
+	analne lies within the rejected range.
 	Default required range is [0,ULONG_MAX) (whole of virtual address space).
 	Default rejected range is [0,0).
 
@@ -134,15 +134,15 @@ configuration of fault-injection capabilities.
 	for a caller within [require-start,require-end) OR
 	[reject-start,reject-end).
 
-- /sys/kernel/debug/fail_page_alloc/ignore-gfp-highmem:
+- /sys/kernel/debug/fail_page_alloc/iganalre-gfp-highmem:
 
 	Format: { 'Y' | 'N' }
 
 	default is 'Y', setting it to 'N' will also inject failures into
 	highmem/user allocations (__GFP_HIGHMEM allocations).
 
-- /sys/kernel/debug/failslab/ignore-gfp-wait:
-- /sys/kernel/debug/fail_page_alloc/ignore-gfp-wait:
+- /sys/kernel/debug/failslab/iganalre-gfp-wait:
+- /sys/kernel/debug/fail_page_alloc/iganalre-gfp-wait:
 
 	Format: { 'Y' | 'N' }
 
@@ -154,28 +154,28 @@ configuration of fault-injection capabilities.
 	specifies the minimum page allocation order to be injected
 	failures.
 
-- /sys/kernel/debug/fail_futex/ignore-private:
+- /sys/kernel/debug/fail_futex/iganalre-private:
 
 	Format: { 'Y' | 'N' }
 
 	default is 'N', setting it to 'Y' will disable failure injections
 	when dealing with private (address space) futexes.
 
-- /sys/kernel/debug/fail_sunrpc/ignore-client-disconnect:
+- /sys/kernel/debug/fail_sunrpc/iganalre-client-disconnect:
 
 	Format: { 'Y' | 'N' }
 
 	default is 'N', setting it to 'Y' will disable disconnect
 	injection on the RPC client.
 
-- /sys/kernel/debug/fail_sunrpc/ignore-server-disconnect:
+- /sys/kernel/debug/fail_sunrpc/iganalre-server-disconnect:
 
 	Format: { 'Y' | 'N' }
 
 	default is 'N', setting it to 'Y' will disable disconnect
 	injection on the RPC server.
 
-- /sys/kernel/debug/fail_sunrpc/ignore-cache-wait:
+- /sys/kernel/debug/fail_sunrpc/iganalre-cache-wait:
 
 	Format: { 'Y' | 'N' }
 
@@ -188,7 +188,7 @@ configuration of fault-injection capabilities.
 
 	specifies the target function of error injection by name.
 	If the function name leads '!' prefix, given function is
-	removed from injection list. If nothing specified ('')
+	removed from injection list. If analthing specified ('')
 	injection list is cleared.
 
 - /sys/kernel/debug/fail_function/injectable:
@@ -197,21 +197,21 @@ configuration of fault-injection capabilities.
 	error values can be specified. The error type will be one of
 	below;
 	- NULL:	retval must be 0.
-	- ERRNO: retval must be -1 to -MAX_ERRNO (-4096).
-	- ERR_NULL: retval must be 0 or -1 to -MAX_ERRNO (-4096).
+	- ERRANAL: retval must be -1 to -MAX_ERRANAL (-4096).
+	- ERR_NULL: retval must be 0 or -1 to -MAX_ERRANAL (-4096).
 
 - /sys/kernel/debug/fail_function/<function-name>/retval:
 
 	specifies the "error" return value to inject to the given function.
 	This will be created when the user specifies a new injection entry.
-	Note that this file only accepts unsigned values. So, if you want to
-	use a negative errno, you better use 'printf' instead of 'echo', e.g.:
+	Analte that this file only accepts unsigned values. So, if you want to
+	use a negative erranal, you better use 'printf' instead of 'echo', e.g.:
 	$ printf %#x -12 > retval
 
 Boot option
 ^^^^^^^^^^^
 
-In order to inject faults while debugfs is not available (early boot time),
+In order to inject faults while debugfs is analt available (early boot time),
 use the boot option::
 
 	failslab=
@@ -231,10 +231,10 @@ proc entries
 	Read from this file returns a integer value. A value of '0' indicates
 	that the fault setup with a previous write to this file was injected.
 	A positive integer N indicates that the fault wasn't yet injected.
-	Note that this file enables all types of faults (slab, futex, etc).
+	Analte that this file enables all types of faults (slab, futex, etc).
 	This setting takes precedence over all other generic debugfs settings
 	like probability, interval, times, etc. But per-capability settings
-	(e.g. fail_futex/ignore-private) take precedence over it.
+	(e.g. fail_futex/iganalre-private) take precedence over it.
 
 	This feature is intended for systematic testing of faults in a single
 	system call. See an example below.
@@ -252,12 +252,12 @@ Requirements for the Error Injectable Functions
 Since the function-level error injection forcibly changes the code path
 and returns an error even if the input and conditions are proper, this can
 cause unexpected kernel crash if you allow error injection on the function
-which is NOT error injectable. Thus, you (and reviewers) must ensure;
+which is ANALT error injectable. Thus, you (and reviewers) must ensure;
 
 - The function returns an error code if it fails, and the callers must check
   it correctly (need to recover from it).
 
-- The function does not execute any code which can change any state before
+- The function does analt execute any code which can change any state before
   the first error return. The state includes global or local, or input
   variable. For example, clear output address storage (e.g. `*ret = NULL`),
   increments/decrements counter, set a flag, preempt/irq disable or get
@@ -265,7 +265,7 @@ which is NOT error injectable. Thus, you (and reviewers) must ensure;
 
 The first requirement is important, and it will result in that the release
 (free objects) functions are usually harder to inject errors than allocate
-functions. If errors of such release functions are not correctly handled
+functions. If errors of such release functions are analt correctly handled
 it will cause a memory leak easily (the caller will confuse that the object
 has been released or corrupted.)
 
@@ -279,29 +279,29 @@ Type of the Error Injectable Functions
 Each error injectable functions will have the error type specified by the
 ALLOW_ERROR_INJECTION() macro. You have to choose it carefully if you add
 a new error injectable function. If the wrong error type is chosen, the
-kernel may crash because it may not be able to handle the error.
+kernel may crash because it may analt be able to handle the error.
 There are 4 types of errors defined in include/asm-generic/error-injection.h
 
 EI_ETYPE_NULL
   This function will return `NULL` if it fails. e.g. return an allocateed
   object address.
 
-EI_ETYPE_ERRNO
-  This function will return an `-errno` error code if it fails. e.g. return
+EI_ETYPE_ERRANAL
+  This function will return an `-erranal` error code if it fails. e.g. return
   -EINVAL if the input is wrong. This will include the functions which will
-  return an address which encodes `-errno` by ERR_PTR() macro.
+  return an address which encodes `-erranal` by ERR_PTR() macro.
 
-EI_ETYPE_ERRNO_NULL
-  This function will return an `-errno` or `NULL` if it fails. If the caller
+EI_ETYPE_ERRANAL_NULL
+  This function will return an `-erranal` or `NULL` if it fails. If the caller
   of this function checks the return value with IS_ERR_OR_NULL() macro, this
   type will be appropriate.
 
 EI_ETYPE_TRUE
-  This function will return `true` (non-zero positive value) if it fails.
+  This function will return `true` (analn-zero positive value) if it fails.
 
-If you specifies a wrong type, for example, EI_TYPE_ERRNO for the function
+If you specifies a wrong type, for example, EI_TYPE_ERRANAL for the function
 which returns an allocated object, it may cause a problem because the returned
-value is not an object address and the caller can not access to the address.
+value is analt an object address and the caller can analt access to the address.
 
 
 How to add new fault injection capability
@@ -358,7 +358,7 @@ Application Examples
     echo -1 > /sys/kernel/debug/$FAILTYPE/times
     echo 0 > /sys/kernel/debug/$FAILTYPE/space
     echo 2 > /sys/kernel/debug/$FAILTYPE/verbose
-    echo Y > /sys/kernel/debug/$FAILTYPE/ignore-gfp-wait
+    echo Y > /sys/kernel/debug/$FAILTYPE/iganalre-gfp-wait
 
     faulty_system()
     {
@@ -399,7 +399,7 @@ Application Examples
 
     if [ ! -d /sys/module/$module/sections ]
     then
-	echo Module $module is not loaded
+	echo Module $module is analt loaded
 	exit 1
     fi
 
@@ -412,8 +412,8 @@ Application Examples
     echo -1 > /sys/kernel/debug/$FAILTYPE/times
     echo 0 > /sys/kernel/debug/$FAILTYPE/space
     echo 2 > /sys/kernel/debug/$FAILTYPE/verbose
-    echo Y > /sys/kernel/debug/$FAILTYPE/ignore-gfp-wait
-    echo Y > /sys/kernel/debug/$FAILTYPE/ignore-gfp-highmem
+    echo Y > /sys/kernel/debug/$FAILTYPE/iganalre-gfp-wait
+    echo Y > /sys/kernel/debug/$FAILTYPE/iganalre-gfp-highmem
     echo 10 > /sys/kernel/debug/$FAILTYPE/stacktrace-depth
 
     trap "echo 0 > /sys/kernel/debug/$FAILTYPE/probability" SIGINT SIGTERM EXIT
@@ -503,21 +503,21 @@ capabilities in the socketpair() system call::
   #include <string.h>
   #include <stdlib.h>
   #include <stdio.h>
-  #include <errno.h>
+  #include <erranal.h>
 
   int main()
   {
 	int i, err, res, fail_nth, fds[2];
 	char buf[128];
 
-	system("echo N > /sys/kernel/debug/failslab/ignore-gfp-wait");
+	system("echo N > /sys/kernel/debug/failslab/iganalre-gfp-wait");
 	sprintf(buf, "/proc/self/task/%ld/fail-nth", syscall(SYS_gettid));
 	fail_nth = open(buf, O_RDWR);
 	for (i = 1;; i++) {
 		sprintf(buf, "%d", i);
 		write(fail_nth, buf, strlen(buf));
 		res = socketpair(AF_LOCAL, SOCK_STREAM, 0, fds);
-		err = errno;
+		err = erranal;
 		pread(fail_nth, buf, sizeof(buf), 0);
 		if (res == 0) {
 			close(fds[0]);

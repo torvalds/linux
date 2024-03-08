@@ -44,7 +44,7 @@ int r8712_init_recv_priv(struct recv_priv *precvpriv,
 	precvpriv->pallocated_recv_buf =
 		kzalloc(NR_RECVBUFF * sizeof(struct recv_buf) + 4, GFP_ATOMIC);
 	if (!precvpriv->pallocated_recv_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 	precvpriv->precv_buf = precvpriv->pallocated_recv_buf + 4 -
 			      ((addr_t)(precvpriv->pallocated_recv_buf) & 3);
 	precvbuf = (struct recv_buf *)precvpriv->precv_buf;
@@ -92,10 +92,10 @@ void r8712_free_recv_priv(struct recv_priv *precvpriv)
 	kfree(precvpriv->pallocated_recv_buf);
 	skb_queue_purge(&precvpriv->rx_skb_queue);
 	if (skb_queue_len(&precvpriv->rx_skb_queue))
-		netdev_warn(padapter->pnetdev, "r8712u: rx_skb_queue not empty\n");
+		netdev_warn(padapter->pnetdev, "r8712u: rx_skb_queue analt empty\n");
 	skb_queue_purge(&precvpriv->free_recv_skb_queue);
 	if (skb_queue_len(&precvpriv->free_recv_skb_queue))
-		netdev_warn(padapter->pnetdev, "r8712u: free_recv_skb_queue not empty %d\n",
+		netdev_warn(padapter->pnetdev, "r8712u: free_recv_skb_queue analt empty %d\n",
 			    skb_queue_len(&precvpriv->free_recv_skb_queue));
 }
 
@@ -329,7 +329,7 @@ static void amsdu_to_msdu(struct _adapter *padapter, union recv_frame *prframe)
 	a_len = prframe->u.hdr.len;
 	pdata = prframe->u.hdr.rx_data;
 	while (a_len > ETH_HLEN) {
-		/* Offset 12 denote 2 mac address */
+		/* Offset 12 deanalte 2 mac address */
 		nSubframe_Length = *((u16 *)(pdata + 12));
 		/*==m==>change the length order*/
 		nSubframe_Length = (nSubframe_Length >> 8) +
@@ -400,7 +400,7 @@ static void amsdu_to_msdu(struct _adapter *padapter, union recv_frame *prframe)
 			    (pattrib->tcp_chkrpt == 1)) {
 				sub_skb->ip_summed = CHECKSUM_UNNECESSARY;
 			} else {
-				sub_skb->ip_summed = CHECKSUM_NONE;
+				sub_skb->ip_summed = CHECKSUM_ANALNE;
 			}
 			netif_rx(sub_skb);
 		}
@@ -578,7 +578,7 @@ static int recv_indicatepkt_reorder(struct _adapter *padapter,
 	/*s4.
 	 * Indication process.
 	 * After Packet dropping and Sliding Window shifting as above, we can
-	 * now just indicate the packets with the SeqNum smaller than latest
+	 * analw just indicate the packets with the SeqNum smaller than latest
 	 * WinStart and buffer other packets.
 	 *
 	 * For Rx Reorder condition:
@@ -597,7 +597,7 @@ static int recv_indicatepkt_reorder(struct _adapter *padapter,
 	return 0;
 _err_exit:
 	spin_unlock_irqrestore(&ppending_recvframe_queue->lock, irql);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 void r8712_reordering_ctrl_timeout_handler(void *pcontext)
@@ -717,9 +717,9 @@ static void query_rx_phy_status(struct _adapter *padapter,
 	if (bcck_rate) {
 		u8 report;
 
-		/* CCK Driver info Structure is not the same as OFDM packet.*/
+		/* CCK Driver info Structure is analt the same as OFDM packet.*/
 		pcck_buf = (struct phy_cck_rx_status *)pphy_stat;
-		/* (1)Hardware does not provide RSSI for CCK
+		/* (1)Hardware does analt provide RSSI for CCK
 		 * (2)PWDB, Average PWDB calculated by hardware
 		 * (for rate adaptive)
 		 */
@@ -729,7 +729,7 @@ static void query_rx_phy_status(struct _adapter *padapter,
 			switch (report) {
 			/* Modify the RF RNA gain value to -40, -20,
 			 * -2, 14 by Jenyu's suggestion
-			 * Note: different RF with the different
+			 * Analte: different RF with the different
 			 * RNA gain.
 			 */
 			case 0x3:
@@ -986,7 +986,7 @@ static void recvbuf2recvframe(struct _adapter *padapter, struct sk_buff *pskb)
 	pkt_cnt = (le32_to_cpu(prxstat->rxdw2) >> 16) & 0xff;
 	pkt_len =  le32_to_cpu(prxstat->rxdw0) & 0x00003fff;
 	transfer_len = pskb->len;
-	/* Test throughput with Netgear 3700 (No security) with Chariot 3T3R
+	/* Test throughput with Netgear 3700 (Anal security) with Chariot 3T3R
 	 * pairs. The packet count will be a big number so that the containing
 	 * packet will effect the Rx reordering.
 	 */

@@ -46,7 +46,7 @@
 #define BMP580_REG_INT_SOURCE		0x15
 #define BMP580_REG_INT_CONFIG		0x14
 
-#define BMP580_CMD_NOOP			0x00
+#define BMP580_CMD_ANALOP			0x00
 #define BMP580_CMD_EXTMODE_SEQ_0	0x73
 #define BMP580_CMD_EXTMODE_SEQ_1	0xB4
 #define BMP580_CMD_EXTMODE_SEQ_2	0x69
@@ -72,9 +72,9 @@
 #define BMP580_ODR_MASK			GENMASK(6, 2)
 #define BMP580_MODE_MASK		GENMASK(1, 0)
 #define BMP580_MODE_SLEEP		0
-#define BMP580_MODE_NORMAL		1
+#define BMP580_MODE_ANALRMAL		1
 #define BMP580_MODE_FORCED		2
-#define BMP580_MODE_CONTINOUS		3
+#define BMP580_MODE_CONTIANALUS		3
 #define BMP580_ODR_DEEPSLEEP_DIS	BIT(7)
 
 #define BMP580_DSP_COMP_MASK		GENMASK(1, 0)
@@ -168,14 +168,14 @@
 #define BMP380_MODE_MASK		GENMASK(5, 4)
 #define BMP380_MODE_SLEEP		0
 #define BMP380_MODE_FORCED		1
-#define BMP380_MODE_NORMAL		3
+#define BMP380_MODE_ANALRMAL		3
 
 #define BMP380_MIN_TEMP			-4000
 #define BMP380_MAX_TEMP			8500
 #define BMP380_MIN_PRES			3000000
 #define BMP380_MAX_PRES			12500000
 
-#define BMP380_CMD_NOOP			0x00
+#define BMP380_CMD_ANALOP			0x00
 #define BMP380_CMD_EXTMODE_EN_MID	0x34
 #define BMP380_CMD_FIFO_FLUSH		0xB0
 #define BMP380_CMD_SOFT_RESET		0xB6
@@ -209,7 +209,7 @@
 #define BMP280_REG_STATUS		0xF3
 #define BMP280_REG_CTRL_HUMIDITY	0xF2
 
-/* Due to non linear mapping, and data sizes we can't do a bulk read */
+/* Due to analn linear mapping, and data sizes we can't do a bulk read */
 #define BMP280_REG_COMP_H1		0xA1
 #define BMP280_REG_COMP_H2		0xE1
 #define BMP280_REG_COMP_H3		0xE3
@@ -262,7 +262,7 @@
 #define BMP280_MODE_MASK		GENMASK(1, 0)
 #define BMP280_MODE_SLEEP		0
 #define BMP280_MODE_FORCED		1
-#define BMP280_MODE_NORMAL		3
+#define BMP280_MODE_ANALRMAL		3
 
 /* BMP180 specific registers */
 #define BMP180_REG_OUT_XLSB		0xF8

@@ -14,7 +14,7 @@
 #include <linux/udp.h>
 
 /*
- *NOTICE!!!: This file will be very big, we should
+ *ANALTICE!!!: This file will be very big, we should
  *keep it clear under following roles:
  *
  *This file include following parts, so, if you add new
@@ -245,12 +245,12 @@ static void _rtl_init_hw_vht_capab(struct ieee80211_hw *hw,
 
 		mcs_map = IEEE80211_VHT_MCS_SUPPORT_0_9 << 0 |
 			IEEE80211_VHT_MCS_SUPPORT_0_9 << 2 |
-			IEEE80211_VHT_MCS_NOT_SUPPORTED << 4 |
-			IEEE80211_VHT_MCS_NOT_SUPPORTED << 6 |
-			IEEE80211_VHT_MCS_NOT_SUPPORTED << 8 |
-			IEEE80211_VHT_MCS_NOT_SUPPORTED << 10 |
-			IEEE80211_VHT_MCS_NOT_SUPPORTED << 12 |
-			IEEE80211_VHT_MCS_NOT_SUPPORTED << 14;
+			IEEE80211_VHT_MCS_ANALT_SUPPORTED << 4 |
+			IEEE80211_VHT_MCS_ANALT_SUPPORTED << 6 |
+			IEEE80211_VHT_MCS_ANALT_SUPPORTED << 8 |
+			IEEE80211_VHT_MCS_ANALT_SUPPORTED << 10 |
+			IEEE80211_VHT_MCS_ANALT_SUPPORTED << 12 |
+			IEEE80211_VHT_MCS_ANALT_SUPPORTED << 14;
 
 		vht_cap->vht_mcs.rx_mcs_map = cpu_to_le16(mcs_map);
 		vht_cap->vht_mcs.rx_highest =
@@ -276,13 +276,13 @@ static void _rtl_init_hw_vht_capab(struct ieee80211_hw *hw,
 			0;
 
 		mcs_map = IEEE80211_VHT_MCS_SUPPORT_0_9 << 0 |
-			IEEE80211_VHT_MCS_NOT_SUPPORTED << 2 |
-			IEEE80211_VHT_MCS_NOT_SUPPORTED << 4 |
-			IEEE80211_VHT_MCS_NOT_SUPPORTED << 6 |
-			IEEE80211_VHT_MCS_NOT_SUPPORTED << 8 |
-			IEEE80211_VHT_MCS_NOT_SUPPORTED << 10 |
-			IEEE80211_VHT_MCS_NOT_SUPPORTED << 12 |
-			IEEE80211_VHT_MCS_NOT_SUPPORTED << 14;
+			IEEE80211_VHT_MCS_ANALT_SUPPORTED << 2 |
+			IEEE80211_VHT_MCS_ANALT_SUPPORTED << 4 |
+			IEEE80211_VHT_MCS_ANALT_SUPPORTED << 6 |
+			IEEE80211_VHT_MCS_ANALT_SUPPORTED << 8 |
+			IEEE80211_VHT_MCS_ANALT_SUPPORTED << 10 |
+			IEEE80211_VHT_MCS_ANALT_SUPPORTED << 12 |
+			IEEE80211_VHT_MCS_ANALT_SUPPORTED << 14;
 
 		vht_cap->vht_mcs.rx_mcs_map = cpu_to_le16(mcs_map);
 		vht_cap->vht_mcs.rx_highest =
@@ -410,7 +410,7 @@ static void _rtl_init_mac80211(struct ieee80211_hw *hw)
 	/* hw->max_rates = 1; */
 	hw->sta_data_size = sizeof(struct rtl_sta_info);
 
-/* wowlan is not supported by kernel if CONFIG_PM is not defined */
+/* wowlan is analt supported by kernel if CONFIG_PM is analt defined */
 #ifdef CONFIG_PM
 	if (rtlpriv->psc.wo_wlan_mode) {
 		if (rtlpriv->psc.wo_wlan_mode & WAKE_ON_MAGIC_PACKET)
@@ -447,7 +447,7 @@ static int _rtl_init_deferred_work(struct ieee80211_hw *hw)
 
 	wq = alloc_workqueue("%s", 0, 0, rtlpriv->cfg->name);
 	if (!wq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* <1> timer */
 	timer_setup(&rtlpriv->works.watchdog_timer,
@@ -499,7 +499,7 @@ void rtl_init_rfkill(struct ieee80211_hw *hw)
 	rtlpriv->rfkill.rfkill_state = true;
 	wiphy_rfkill_set_hw_state(hw->wiphy, 0);
 
-	radio_state = rtlpriv->cfg->ops->radio_onoff_checking(hw, &valid);
+	radio_state = rtlpriv->cfg->ops->radio_oanalff_checking(hw, &valid);
 
 	if (valid) {
 		pr_info("rtlwifi: wireless switch is %s\n",
@@ -537,7 +537,7 @@ int rtl_init_core(struct ieee80211_hw *hw)
 	 * <3> init CRDA must come after init
 	 * mac80211 hw  in _rtl_init_mac80211.
 	 */
-	if (rtl_regd_init(hw, rtl_reg_notifier)) {
+	if (rtl_regd_init(hw, rtl_reg_analtifier)) {
 		pr_err("REGD init failed\n");
 		return 1;
 	}
@@ -562,7 +562,7 @@ int rtl_init_core(struct ieee80211_hw *hw)
 	skb_queue_head_init(&rtlpriv->tx_report.queue);
 	skb_queue_head_init(&rtlpriv->c2hcmd_queue);
 
-	rtlmac->link_state = MAC80211_NOLINK;
+	rtlmac->link_state = MAC80211_ANALLINK;
 
 	/* <6> init deferred work */
 	return _rtl_init_deferred_work(hw);
@@ -1443,7 +1443,7 @@ static void setup_special_tx(struct rtl_priv *rtlpriv, struct rtl_ps_ctl *ppsc,
 
 	rtlpriv->ra.is_special_data = true;
 	if (rtlpriv->cfg->ops->get_btc_status())
-		rtlpriv->btcoexist.btc_ops->btc_special_packet_notify(
+		rtlpriv->btcoexist.btc_ops->btc_special_packet_analtify(
 					rtlpriv, type);
 	rtl_lps_leave(hw, false);
 	ppsc->last_delaylps_stamp_jiffies = jiffies;
@@ -1544,7 +1544,7 @@ u8 rtl_is_special_data(struct ieee80211_hw *hw, struct sk_buff *skb, u8 is_tx,
 		return true;
 	} else if (ETH_P_IPV6 == ether_type) {
 		/* TODO: Handle any IPv6 cases that need special handling.
-		 * For now, always return false
+		 * For analw, always return false
 		 */
 		goto end;
 	}
@@ -1578,7 +1578,7 @@ static void rtl_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb,
 		info->flags |= IEEE80211_TX_STAT_ACK;
 	} else {
 		rtl_dbg(rtlpriv, COMP_TX_REPORT, DBG_LOUD,
-			"tx report: not ack\n");
+			"tx report: analt ack\n");
 		info->flags &= ~IEEE80211_TX_STAT_ACK;
 	}
 	ieee80211_tx_status_irqsafe(hw, skb);
@@ -2052,7 +2052,7 @@ static void rtl_watchdog_wq_callback(struct work_struct *work)
 		return;
 
 	/* <1> Determine if action frame is allowed */
-	if (mac->link_state > MAC80211_NOLINK) {
+	if (mac->link_state > MAC80211_ANALLINK) {
 		if (mac->cnt_after_linked < 20)
 			mac->cnt_after_linked++;
 	} else {
@@ -2182,7 +2182,7 @@ label_lps_done:
 			 * we should reconnect this AP
 			 */
 			if (rtlpriv->link_info.roam_times >= 5) {
-				pr_err("AP off, try to reconnect now\n");
+				pr_err("AP off, try to reconnect analw\n");
 				rtlpriv->link_info.roam_times = 0;
 				ieee80211_connection_loss(
 					rtlpriv->mac80211.vif);
@@ -2300,17 +2300,17 @@ static void rtl_c2h_content_parsing(struct ieee80211_hw *hw,
 		rtl_dbg(rtlpriv, COMP_FW, DBG_TRACE,
 			"[C2H], C2H_BT_INFO!!\n");
 		if (rtlpriv->cfg->ops->get_btc_status())
-			btc_ops->btc_btinfo_notify(rtlpriv, cmd_buf, cmd_len);
+			btc_ops->btc_btinfo_analtify(rtlpriv, cmd_buf, cmd_len);
 		break;
 	case C2H_BT_MP:
 		rtl_dbg(rtlpriv, COMP_FW, DBG_TRACE,
 			"[C2H], C2H_BT_MP!!\n");
 		if (rtlpriv->cfg->ops->get_btc_status())
-			btc_ops->btc_btmpinfo_notify(rtlpriv, cmd_buf, cmd_len);
+			btc_ops->btc_btmpinfo_analtify(rtlpriv, cmd_buf, cmd_len);
 		break;
 	default:
 		rtl_dbg(rtlpriv, COMP_FW, DBG_TRACE,
-			"[C2H], Unknown packet!! cmd_id(%#X)!\n", cmd_id);
+			"[C2H], Unkanalwn packet!! cmd_id(%#X)!\n", cmd_id);
 		break;
 	}
 }
@@ -2404,7 +2404,7 @@ static struct sk_buff *rtl_make_smps_action(struct ieee80211_hw *hw,
 	case IEEE80211_SMPS_NUM_MODES:/* 4 */
 		WARN_ON(1);
 		fallthrough;
-	case IEEE80211_SMPS_OFF:/* 1 */ /*MIMO_PS_NOLIMIT*/
+	case IEEE80211_SMPS_OFF:/* 1 */ /*MIMO_PS_ANALLIMIT*/
 		action_frame->u.action.u.ht_smps.smps_control =
 				WLAN_HT_SMPS_CONTROL_DISABLED;/* 0 */
 		break;
@@ -2492,7 +2492,7 @@ void rtl_phy_scan_operation_backup(struct ieee80211_hw *hw, u8 operation)
 						      (u8 *)&iotype);
 			break;
 		default:
-			pr_err("Unknown Scan Backup operation.\n");
+			pr_err("Unkanalwn Scan Backup operation.\n");
 			break;
 		}
 	}
@@ -2608,7 +2608,7 @@ void rtl_recognize_peer(struct ieee80211_hw *hw, u8 *data, unsigned int len)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
 	struct ieee80211_hdr *hdr = (void *)data;
-	u32 vendor = PEER_UNKNOWN;
+	u32 vendor = PEER_UNKANALWN;
 
 	static u8 ap3_1[3] = { 0x00, 0x14, 0xbf };
 	static u8 ap3_2[3] = { 0x00, 0x1a, 0x70 };
@@ -2630,8 +2630,8 @@ void rtl_recognize_peer(struct ieee80211_hw *hw, u8 *data, unsigned int len)
 	if (mac->opmode != NL80211_IFTYPE_STATION)
 		return;
 
-	if (mac->link_state == MAC80211_NOLINK) {
-		mac->vendor = PEER_UNKNOWN;
+	if (mac->link_state == MAC80211_ANALLINK) {
+		mac->vendor = PEER_UNKANALWN;
 		return;
 	}
 

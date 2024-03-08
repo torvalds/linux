@@ -17,14 +17,14 @@
 #include "glock.h"
 #include "super.h"
 #include "util.h"
-#include "inode.h"
+#include "ianalde.h"
 
 /**
  * gfs2_drevalidate - Check directory lookup consistency
  * @dentry: the mapping to check
  * @flags: lookup flags
  *
- * Check to make sure the lookup necessary to arrive at this inode from its
+ * Check to make sure the lookup necessary to arrive at this ianalde from its
  * parent is still good.
  *
  * Returns: 1 if the dentry is ok, 0 if it isn't
@@ -34,10 +34,10 @@ static int gfs2_drevalidate(struct dentry *dentry, unsigned int flags)
 {
 	struct dentry *parent;
 	struct gfs2_sbd *sdp;
-	struct gfs2_inode *dip;
-	struct inode *inode;
+	struct gfs2_ianalde *dip;
+	struct ianalde *ianalde;
 	struct gfs2_holder d_gh;
-	struct gfs2_inode *ip = NULL;
+	struct gfs2_ianalde *ip = NULL;
 	int error, valid = 0;
 	int had_lock = 0;
 
@@ -45,14 +45,14 @@ static int gfs2_drevalidate(struct dentry *dentry, unsigned int flags)
 		return -ECHILD;
 
 	parent = dget_parent(dentry);
-	sdp = GFS2_SB(d_inode(parent));
-	dip = GFS2_I(d_inode(parent));
-	inode = d_inode(dentry);
+	sdp = GFS2_SB(d_ianalde(parent));
+	dip = GFS2_I(d_ianalde(parent));
+	ianalde = d_ianalde(dentry);
 
-	if (inode) {
-		if (is_bad_inode(inode))
+	if (ianalde) {
+		if (is_bad_ianalde(ianalde))
 			goto out;
-		ip = GFS2_I(inode);
+		ip = GFS2_I(ianalde);
 	}
 
 	if (sdp->sd_lockstruct.ls_ops->lm_mount == NULL) {
@@ -67,8 +67,8 @@ static int gfs2_drevalidate(struct dentry *dentry, unsigned int flags)
 			goto out;
 	}
 
-	error = gfs2_dir_check(d_inode(parent), &dentry->d_name, ip);
-	valid = inode ? !error : (error == -ENOENT);
+	error = gfs2_dir_check(d_ianalde(parent), &dentry->d_name, ip);
+	valid = ianalde ? !error : (error == -EANALENT);
 
 	if (!had_lock)
 		gfs2_glock_dq_uninit(&d_gh);
@@ -85,16 +85,16 @@ static int gfs2_dhash(const struct dentry *dentry, struct qstr *str)
 
 static int gfs2_dentry_delete(const struct dentry *dentry)
 {
-	struct gfs2_inode *ginode;
+	struct gfs2_ianalde *gianalde;
 
 	if (d_really_is_negative(dentry))
 		return 0;
 
-	ginode = GFS2_I(d_inode(dentry));
-	if (!gfs2_holder_initialized(&ginode->i_iopen_gh))
+	gianalde = GFS2_I(d_ianalde(dentry));
+	if (!gfs2_holder_initialized(&gianalde->i_iopen_gh))
 		return 0;
 
-	if (test_bit(GLF_DEMOTE, &ginode->i_iopen_gh.gh_gl->gl_flags))
+	if (test_bit(GLF_DEMOTE, &gianalde->i_iopen_gh.gh_gl->gl_flags))
 		return 1;
 
 	return 0;

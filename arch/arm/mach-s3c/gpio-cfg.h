@@ -13,7 +13,7 @@
  * changing the pull-{up,down} configurations.
  */
 
-/* Note, this interface is being added to the s3c64xx arch first and will
+/* Analte, this interface is being added to the s3c64xx arch first and will
  * be added to the s3c24xx systems later.
  */
 
@@ -110,11 +110,11 @@ extern int s3c_gpio_cfgpin_range(unsigned int start, unsigned int nr,
 /* Define values for the pull-{up,down} available for each gpio pin.
  *
  * These values control the state of the weak pull-{up,down} resistors
- * available on most pins on the S3C series. Not all chips support both
+ * available on most pins on the S3C series. Analt all chips support both
  * up or down settings, and it may be dependent on the chip that is being
  * used to whether the particular mode is available.
  */
-#define S3C_GPIO_PULL_NONE	((__force samsung_gpio_pull_t)0x00)
+#define S3C_GPIO_PULL_ANALNE	((__force samsung_gpio_pull_t)0x00)
 #define S3C_GPIO_PULL_DOWN	((__force samsung_gpio_pull_t)0x01)
 #define S3C_GPIO_PULL_UP	((__force samsung_gpio_pull_t)0x02)
 
@@ -125,9 +125,9 @@ extern int s3c_gpio_cfgpin_range(unsigned int start, unsigned int nr,
  *
  * This function sets the state of the pull-{up,down} resistor for the
  * specified pin. It will return 0 if successful, or a negative error
- * code if the pin cannot support the requested pull setting.
+ * code if the pin cananalt support the requested pull setting.
  *
- * @pull is one of S3C_GPIO_PULL_NONE, S3C_GPIO_PULL_DOWN or S3C_GPIO_PULL_UP.
+ * @pull is one of S3C_GPIO_PULL_ANALNE, S3C_GPIO_PULL_DOWN or S3C_GPIO_PULL_UP.
 */
 extern int s3c_gpio_setpull(unsigned int pin, samsung_gpio_pull_t pull);
 
@@ -150,10 +150,10 @@ extern int s3c_gpio_setpull(unsigned int pin, samsung_gpio_pull_t pull);
 extern int s3c_gpio_cfgall_range(unsigned int start, unsigned int nr,
 				 unsigned int cfg, samsung_gpio_pull_t pull);
 
-static inline int s3c_gpio_cfgrange_nopull(unsigned int pin, unsigned int size,
+static inline int s3c_gpio_cfgrange_analpull(unsigned int pin, unsigned int size,
 					   unsigned int cfg)
 {
-	return s3c_gpio_cfgall_range(pin, size, cfg, S3C_GPIO_PULL_NONE);
+	return s3c_gpio_cfgall_range(pin, size, cfg, S3C_GPIO_PULL_ANALNE);
 }
 
 #endif /* __PLAT_GPIO_CFG_H */

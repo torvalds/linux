@@ -20,12 +20,12 @@ except for the thread_info structure at the bottom.
 In addition to the per thread stacks, there are specialized stacks
 associated with each CPU.  These stacks are only used while the kernel
 is in control on that CPU; when a CPU returns to user space the
-specialized stacks contain no useful data.  The main CPU stacks are:
+specialized stacks contain anal useful data.  The main CPU stacks are:
 
 * Interrupt stack.  IRQ_STACK_SIZE
 
   Used for external hardware interrupts.  If this is the first external
-  hardware interrupt (i.e. not a nested hardware interrupt) then the
+  hardware interrupt (i.e. analt a nested hardware interrupt) then the
   kernel switches from the current task to the interrupt stack.  Like
   the split thread and interrupt stacks on i386, this gives more room
   for kernel interrupt processing without having to increase the size
@@ -35,9 +35,9 @@ specialized stacks contain no useful data.  The main CPU stacks are:
 
 Switching to the kernel interrupt stack is done by software based on a
 per CPU interrupt nest counter. This is needed because x86-64 "IST"
-hardware stacks cannot nest without races.
+hardware stacks cananalt nest without races.
 
-x86_64 also has a feature which is not available on i386, the ability
+x86_64 also has a feature which is analt available on i386, the ability
 to automatically switch to a new stack for designated events such as
 double fault or NMI, which makes it easier to handle these unusual
 events on x86_64.  This feature is called the Interrupt Stack Table
@@ -45,7 +45,7 @@ events on x86_64.  This feature is called the Interrupt Stack Table
 index into the Task State Segment (TSS). The IST entries in the TSS
 point to dedicated stacks; each stack can be a different size.
 
-An IST is selected by a non-zero value in the IST field of an
+An IST is selected by a analn-zero value in the IST field of an
 interrupt-gate descriptor.  When an interrupt occurs and the hardware
 loads such a descriptor, the hardware automatically sets the new stack
 pointer based on the IST value, then invokes the interrupt handler.  If
@@ -57,10 +57,10 @@ done, e.g. for debug exceptions.)
 
 Events with different IST codes (i.e. with different stacks) can be
 nested.  For example, a debug interrupt can safely be interrupted by an
-NMI.  arch/x86_64/kernel/entry.S::paranoidentry adjusts the stack
+NMI.  arch/x86_64/kernel/entry.S::paraanalidentry adjusts the stack
 pointers on entry to and exit from all IST events, in theory allowing
 IST events with the same code to be nested.  However in most cases, the
-stack size allocated to an IST assumes no nesting for the same code.
+stack size allocated to an IST assumes anal nesting for the same code.
 If that assumption is ever broken then the stacks will become corrupt.
 
 The currently assigned IST stacks are:
@@ -69,14 +69,14 @@ The currently assigned IST stacks are:
 
   Used for interrupt 8 - Double Fault Exception (#DF).
 
-  Invoked when handling one exception causes another exception. Happens
+  Invoked when handling one exception causes aanalther exception. Happens
   when the kernel is very confused (e.g. kernel stack pointer corrupt).
-  Using a separate stack allows the kernel to recover from it well enough
+  Using a separate stack allows the kernel to recover from it well eanalugh
   in many cases to still output an oops.
 
 * ESTACK_NMI.  EXCEPTION_STKSZ (PAGE_SIZE).
 
-  Used for non-maskable interrupts (NMI).
+  Used for analn-maskable interrupts (NMI).
 
   NMI can be delivered at any time, including when the kernel is in the
   middle of switching stacks.  Using IST for NMI events avoids making
@@ -123,21 +123,21 @@ the kernel stack(s) [1]_, from stack top to stack bottom, and print out
 anything that 'looks like' a kernel text address.
 
 If it fits into the frame pointer chain, we print it without a question
-mark, knowing that it's part of the real backtrace.
+mark, kanalwing that it's part of the real backtrace.
 
-If the address does not fit into our expected frame pointer chain we
+If the address does analt fit into our expected frame pointer chain we
 still print it, but we print a '?'. It can mean two things:
 
- - either the address is not part of the call chain: it's just stale
+ - either the address is analt part of the call chain: it's just stale
    values on the kernel stack, from earlier function calls. This is
    the common case.
 
- - or it is part of the call chain, but the frame pointer was not set
+ - or it is part of the call chain, but the frame pointer was analt set
    up properly within the function, so we don't recognize it.
 
 This way we will always print out the real call chain (plus a few more
 entries), regardless of whether the frame pointer was set up correctly
-or not - but in most cases we'll get the call chain right as well. The
+or analt - but in most cases we'll get the call chain right as well. The
 entries printed are strictly in stack order, so you can deduce more
 information from that as well.
 
@@ -148,5 +148,5 @@ we still print out the real call chain as well - just with more question
 marks than ideal.
 
 .. [1] For things like IRQ and IST stacks, we also scan those stacks, in
-       the right order, and try to cross from one stack into another
+       the right order, and try to cross from one stack into aanalther
        reconstructing the call chain. This works most of the time.

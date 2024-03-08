@@ -48,7 +48,7 @@ Regions
 The ``mlx4`` driver supports dumping the firmware PCI crspace and health
 buffer during a critical firmware issue.
 
-In case a firmware command times out, firmware getting stuck, or a non zero
+In case a firmware command times out, firmware getting stuck, or a analn zero
 value on the catastrophic buffer, a snapshot will be taken by the driver.
 
 The ``cr-space`` region will contain the firmware PCI crspace contents. The

@@ -113,7 +113,7 @@ static int tegra_p2u_probe(struct platform_device *pdev)
 
 	phy = devm_kzalloc(dev, sizeof(*phy), GFP_KERNEL);
 	if (!phy)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	phy->of_data =
 		(struct tegra_p2u_of_data *)of_device_get_match_data(dev);
@@ -125,7 +125,7 @@ static int tegra_p2u_probe(struct platform_device *pdev)
 		return PTR_ERR(phy->base);
 
 	phy->skip_sz_protection_en =
-		of_property_read_bool(dev->of_node,
+		of_property_read_bool(dev->of_analde,
 				      "nvidia,skip-sz-protect-en");
 
 	platform_set_drvdata(pdev, phy);

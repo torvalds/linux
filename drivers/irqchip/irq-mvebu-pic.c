@@ -120,7 +120,7 @@ static void mvebu_pic_enable_percpu_irq(void *data)
 	struct mvebu_pic *pic = data;
 
 	mvebu_pic_reset(pic);
-	enable_percpu_irq(pic->parent_irq, IRQ_TYPE_NONE);
+	enable_percpu_irq(pic->parent_irq, IRQ_TYPE_ANALNE);
 }
 
 static void mvebu_pic_disable_percpu_irq(void *data)
@@ -132,29 +132,29 @@ static void mvebu_pic_disable_percpu_irq(void *data)
 
 static int mvebu_pic_probe(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 	struct mvebu_pic *pic;
 
 	pic = devm_kzalloc(&pdev->dev, sizeof(struct mvebu_pic), GFP_KERNEL);
 	if (!pic)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pic->pdev = pdev;
 	pic->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(pic->base))
 		return PTR_ERR(pic->base);
 
-	pic->parent_irq = irq_of_parse_and_map(node, 0);
+	pic->parent_irq = irq_of_parse_and_map(analde, 0);
 	if (pic->parent_irq <= 0) {
 		dev_err(&pdev->dev, "Failed to parse parent interrupt\n");
 		return -EINVAL;
 	}
 
-	pic->domain = irq_domain_add_linear(node, PIC_MAX_IRQS,
+	pic->domain = irq_domain_add_linear(analde, PIC_MAX_IRQS,
 					    &mvebu_pic_domain_ops, pic);
 	if (!pic->domain) {
 		dev_err(&pdev->dev, "Failed to allocate irq domain\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	irq_set_chained_handler(pic->parent_irq, mvebu_pic_handle_cascade_irq);

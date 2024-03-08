@@ -2,11 +2,11 @@
 /*
  * Device Tree file for D-Link DNS-327L
  *
- * Copyright (C) 2015, Andrew Andrianov <andrew@ncrmnt.org>
+ * Copyright (C) 2015, Andrew Andriaanalv <andrew@ncrmnt.org>
  */
 
 /* Remaining unsolved:
- * There's still some unknown device on i2c address 0x13
+ * There's still some unkanalwn device on i2c address 0x13
  */
 
 /dts-v1/;

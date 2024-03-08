@@ -33,7 +33,7 @@ properties:
     maxItems: 1
     description:
       GPIO phandle and a specifier of the MOD-DEF0 (AKA Mod_ABS) module
-      presence input gpio signal, active (module absent) high. Must not be
+      presence input gpio signal, active (module absent) high. Must analt be
       present for SFF modules
 
   "los-gpios":
@@ -58,7 +58,7 @@ properties:
     maxItems: 1
     description:
       GPIO phandle and a specifier of the Rx Signaling Rate Select (AKA RS0)
-      output gpio signal, low - low Rx rate, high - high Rx rate Must not be
+      output gpio signal, low - low Rx rate, high - high Rx rate Must analt be
       present for SFF modules
 
   "rate-select1-gpios":
@@ -66,7 +66,7 @@ properties:
     description:
       GPIO phandle and a specifier of the Tx Signaling Rate Select (AKA RS1)
       output gpio signal (SFP+ only), low - low Tx rate, high - high Tx rate. Must
-      not be present for SFF modules
+      analt be present for SFF modules
 
 allOf:
   - if:

@@ -11,8 +11,8 @@
 #include <linux/acpi.h>
 #include "pmf.h"
 
-#define APMF_CQL_NOTIFICATION  2
-#define APMF_AMT_NOTIFICATION  3
+#define APMF_CQL_ANALTIFICATION  2
+#define APMF_AMT_ANALTIFICATION  3
 
 static union acpi_object *apmf_if_call(struct amd_pmf_dev *pdev, int fn, struct acpi_buffer *param)
 {
@@ -58,7 +58,7 @@ static int apmf_if_call_store_buffer(struct amd_pmf_dev *pdev, int fn, void *des
 		return -EIO;
 
 	if (info->type != ACPI_TYPE_BUFFER) {
-		dev_err(pdev->dev, "object is not a buffer\n");
+		dev_err(pdev->dev, "object is analt a buffer\n");
 		err = -EINVAL;
 		goto out;
 	}
@@ -126,7 +126,7 @@ int apmf_os_power_slider_update(struct amd_pmf_dev *pdev, u8 event)
 	return 0;
 }
 
-static void apmf_sbios_heartbeat_notify(struct work_struct *work)
+static void apmf_sbios_heartbeat_analtify(struct work_struct *work)
 {
 	struct amd_pmf_dev *dev = container_of(work, struct amd_pmf_dev, heart_beat.work);
 	union acpi_object *info;
@@ -185,8 +185,8 @@ static void apmf_event_handler(acpi_handle handle, u32 event, void *data)
 		goto out;
 	}
 
-	if (req.pending_req & BIT(APMF_AMT_NOTIFICATION)) {
-		dev_dbg(pmf_dev->dev, "AMT is supported and notifications %s\n",
+	if (req.pending_req & BIT(APMF_AMT_ANALTIFICATION)) {
+		dev_dbg(pmf_dev->dev, "AMT is supported and analtifications %s\n",
 			req.amt_event ? "Enabled" : "Disabled");
 		pmf_dev->amt_enabled = !!req.amt_event;
 
@@ -196,8 +196,8 @@ static void apmf_event_handler(acpi_handle handle, u32 event, void *data)
 			amd_pmf_reset_amt(pmf_dev);
 	}
 
-	if (req.pending_req & BIT(APMF_CQL_NOTIFICATION)) {
-		dev_dbg(pmf_dev->dev, "CQL is supported and notifications %s\n",
+	if (req.pending_req & BIT(APMF_CQL_ANALTIFICATION)) {
+		dev_dbg(pmf_dev->dev, "CQL is supported and analtifications %s\n",
 			req.cql_event ? "Enabled" : "Disabled");
 
 		/* update the target mode information */
@@ -218,8 +218,8 @@ static int apmf_if_verify_interface(struct amd_pmf_dev *pdev)
 		return err;
 
 	pdev->supported_func = output.supported_functions;
-	dev_dbg(pdev->dev, "supported functions:0x%x notifications:0x%x\n",
-		output.supported_functions, output.notification_mask);
+	dev_dbg(pdev->dev, "supported functions:0x%x analtifications:0x%x\n",
+		output.supported_functions, output.analtification_mask);
 
 	return 0;
 }
@@ -262,17 +262,17 @@ int apmf_install_handler(struct amd_pmf_dev *pmf_dev)
 	acpi_handle ahandle = ACPI_HANDLE(pmf_dev->dev);
 	acpi_status status;
 
-	/* Install the APMF Notify handler */
+	/* Install the APMF Analtify handler */
 	if (is_apmf_func_supported(pmf_dev, APMF_FUNC_AUTO_MODE) &&
 	    is_apmf_func_supported(pmf_dev, APMF_FUNC_SBIOS_REQUESTS)) {
-		status = acpi_install_notify_handler(ahandle, ACPI_ALL_NOTIFY,
+		status = acpi_install_analtify_handler(ahandle, ACPI_ALL_ANALTIFY,
 						     apmf_event_handler, pmf_dev);
 		if (ACPI_FAILURE(status)) {
-			dev_err(pmf_dev->dev, "failed to install notify handler\n");
-			return -ENODEV;
+			dev_err(pmf_dev->dev, "failed to install analtify handler\n");
+			return -EANALDEV;
 		}
 
-		/* Call the handler once manually to catch up with possibly missed notifies. */
+		/* Call the handler once manually to catch up with possibly missed analtifies. */
 		apmf_event_handler(ahandle, 0, pmf_dev);
 	}
 
@@ -325,7 +325,7 @@ void apmf_acpi_deinit(struct amd_pmf_dev *pmf_dev)
 
 	if (is_apmf_func_supported(pmf_dev, APMF_FUNC_AUTO_MODE) &&
 	    is_apmf_func_supported(pmf_dev, APMF_FUNC_SBIOS_REQUESTS))
-		acpi_remove_notify_handler(ahandle, ACPI_ALL_NOTIFY, apmf_event_handler);
+		acpi_remove_analtify_handler(ahandle, ACPI_ALL_ANALTIFY, apmf_event_handler);
 }
 
 int apmf_acpi_init(struct amd_pmf_dev *pmf_dev)
@@ -345,8 +345,8 @@ int apmf_acpi_init(struct amd_pmf_dev *pmf_dev)
 	}
 
 	if (pmf_dev->hb_interval) {
-		/* send heartbeats only if the interval is not zero */
-		INIT_DELAYED_WORK(&pmf_dev->heart_beat, apmf_sbios_heartbeat_notify);
+		/* send heartbeats only if the interval is analt zero */
+		INIT_DELAYED_WORK(&pmf_dev->heart_beat, apmf_sbios_heartbeat_analtify);
 		schedule_delayed_work(&pmf_dev->heart_beat, 0);
 	}
 

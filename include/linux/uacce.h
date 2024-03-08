@@ -65,7 +65,7 @@ struct uacce_interface {
 };
 
 enum uacce_dev_state {
-	UACCE_DEV_NORMAL,
+	UACCE_DEV_ANALRMAL,
 	UACCE_DEV_ISOLATE,
 };
 
@@ -146,7 +146,7 @@ static inline
 struct uacce_device *uacce_alloc(struct device *parent,
 				 struct uacce_interface *interface)
 {
-	return ERR_PTR(-ENODEV);
+	return ERR_PTR(-EANALDEV);
 }
 
 static inline int uacce_register(struct uacce_device *uacce)

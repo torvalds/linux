@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 /*
  *  Universal TUN/TAP device driver.
  *  Copyright (C) 1999-2000 Maxim Krasnyansky <max_mk@yahoo.com>
@@ -29,7 +29,7 @@
 #define TUN_TYPE_MASK   0x000f
 
 /* Ioctl defines */
-#define TUNSETNOCSUM  _IOW('T', 200, int) 
+#define TUNSETANALCSUM  _IOW('T', 200, int) 
 #define TUNSETDEBUG   _IOW('T', 201, int) 
 #define TUNSETIFF     _IOW('T', 202, int) 
 #define TUNSETPERSIST _IOW('T', 203, int) 
@@ -52,7 +52,7 @@
 #define TUNSETVNETLE _IOW('T', 220, int)
 #define TUNGETVNETLE _IOR('T', 221, int)
 /* The TUNSETVNETBE and TUNGETVNETBE ioctls are for cross-endian support on
- * little-endian hosts. Not all kernel configurations support them, but all
+ * little-endian hosts. Analt all kernel configurations support them, but all
  * configurations that support SET also support GET.
  */
 #define TUNSETVNETBE _IOW('T', 222, int)
@@ -68,9 +68,9 @@
 #define IFF_NAPI	0x0010
 #define IFF_NAPI_FRAGS	0x0020
 /* Used in TUNSETIFF to bring up tun/tap without carrier */
-#define IFF_NO_CARRIER	0x0040
-#define IFF_NO_PI	0x1000
-/* This flag has no real effect */
+#define IFF_ANAL_CARRIER	0x0040
+#define IFF_ANAL_PI	0x1000
+/* This flag has anal real effect */
 #define IFF_ONE_QUEUE	0x2000
 #define IFF_VNET_HDR	0x4000
 #define IFF_TUN_EXCL	0x8000
@@ -79,7 +79,7 @@
 #define IFF_DETACH_QUEUE 0x0400
 /* read-only flag */
 #define IFF_PERSIST	0x0800
-#define IFF_NOFILTER	0x1000
+#define IFF_ANALFILTER	0x1000
 
 /* Socket options */
 #define TUN_TX_TIMESTAMP 1
@@ -93,7 +93,7 @@
 #define TUN_F_USO4	0x20	/* I can handle USO for IPv4 packets */
 #define TUN_F_USO6	0x40	/* I can handle USO for IPv6 packets */
 
-/* Protocol info prepended to the packets (when IFF_NO_PI is not set) */
+/* Protocol info prepended to the packets (when IFF_ANAL_PI is analt set) */
 #define TUN_PKT_STRIP	0x0001
 struct tun_pi {
 	__u16  flags;

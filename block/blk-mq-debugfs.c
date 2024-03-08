@@ -81,14 +81,14 @@ static int queue_pm_only_show(void *data, struct seq_file *m)
 static const char *const blk_queue_flag_name[] = {
 	QUEUE_FLAG_NAME(STOPPED),
 	QUEUE_FLAG_NAME(DYING),
-	QUEUE_FLAG_NAME(NOMERGES),
+	QUEUE_FLAG_NAME(ANALMERGES),
 	QUEUE_FLAG_NAME(SAME_COMP),
 	QUEUE_FLAG_NAME(FAIL_IO),
-	QUEUE_FLAG_NAME(NONROT),
+	QUEUE_FLAG_NAME(ANALNROT),
 	QUEUE_FLAG_NAME(IO_STAT),
-	QUEUE_FLAG_NAME(NOXMERGES),
+	QUEUE_FLAG_NAME(ANALXMERGES),
 	QUEUE_FLAG_NAME(ADD_RANDOM),
-	QUEUE_FLAG_NAME(SYNCHRONOUS),
+	QUEUE_FLAG_NAME(SYNCHROANALUS),
 	QUEUE_FLAG_NAME(SAME_FORCE),
 	QUEUE_FLAG_NAME(INIT_DONE),
 	QUEUE_FLAG_NAME(STABLE_WRITES),
@@ -103,7 +103,7 @@ static const char *const blk_queue_flag_name[] = {
 	QUEUE_FLAG_NAME(ZONE_RESETALL),
 	QUEUE_FLAG_NAME(RQ_ALLOC_TIME),
 	QUEUE_FLAG_NAME(HCTX_ACTIVE),
-	QUEUE_FLAG_NAME(NOWAIT),
+	QUEUE_FLAG_NAME(ANALWAIT),
 	QUEUE_FLAG_NAME(SQ_SCHED),
 	QUEUE_FLAG_NAME(SKIP_TAGSET_QUIESCE),
 };
@@ -130,7 +130,7 @@ static ssize_t queue_state_write(void *data, const char __user *buf,
 	 * allow setting the state on a dying queue to avoid a use-after-free.
 	 */
 	if (blk_queue_dying(q))
-		return -ENOENT;
+		return -EANALENT;
 
 	if (count >= sizeof(opbuf)) {
 		pr_err("%s: operation too long\n", __func__);
@@ -195,7 +195,7 @@ static const char *const hctx_flag_name[] = {
 	HCTX_FLAG_NAME(SHOULD_MERGE),
 	HCTX_FLAG_NAME(TAG_QUEUE_SHARED),
 	HCTX_FLAG_NAME(BLOCKING),
-	HCTX_FLAG_NAME(NO_SCHED),
+	HCTX_FLAG_NAME(ANAL_SCHED),
 	HCTX_FLAG_NAME(STACKING),
 	HCTX_FLAG_NAME(TAG_HCTX_SHARED),
 };
@@ -228,15 +228,15 @@ static const char *const cmd_flag_name[] = {
 	CMD_FLAG_NAME(SYNC),
 	CMD_FLAG_NAME(META),
 	CMD_FLAG_NAME(PRIO),
-	CMD_FLAG_NAME(NOMERGE),
+	CMD_FLAG_NAME(ANALMERGE),
 	CMD_FLAG_NAME(IDLE),
 	CMD_FLAG_NAME(INTEGRITY),
 	CMD_FLAG_NAME(FUA),
 	CMD_FLAG_NAME(PREFLUSH),
 	CMD_FLAG_NAME(RAHEAD),
 	CMD_FLAG_NAME(BACKGROUND),
-	CMD_FLAG_NAME(NOWAIT),
-	CMD_FLAG_NAME(NOUNMAP),
+	CMD_FLAG_NAME(ANALWAIT),
+	CMD_FLAG_NAME(ANALUNMAP),
 	CMD_FLAG_NAME(POLLED),
 };
 #undef CMD_FLAG_NAME
@@ -283,7 +283,7 @@ int __blk_mq_debugfs_rq_show(struct seq_file *m, struct request *rq)
 	const char *op_str = blk_op_str(op);
 
 	seq_printf(m, "%p {.op=", rq);
-	if (strcmp(op_str, "UNKNOWN") == 0)
+	if (strcmp(op_str, "UNKANALWN") == 0)
 		seq_printf(m, "%u", op);
 	else
 		seq_printf(m, "%s", op_str);
@@ -346,7 +346,7 @@ struct show_busy_params {
 };
 
 /*
- * Note: the state of a request may change while this function is in progress,
+ * Analte: the state of a request may change while this function is in progress,
  * e.g. due to a concurrent blk_mq_finish_request() call. Returns true to
  * keep iterating requests.
  */
@@ -535,7 +535,7 @@ CTX_RQ_SEQ_OPS(poll, HCTX_TYPE_POLL);
 static int blk_mq_debugfs_show(struct seq_file *m, void *v)
 {
 	const struct blk_mq_debugfs_attr *attr = m->private;
-	void *data = d_inode(m->file->f_path.dentry->d_parent)->i_private;
+	void *data = d_ianalde(m->file->f_path.dentry->d_parent)->i_private;
 
 	return attr->show(data, m);
 }
@@ -545,7 +545,7 @@ static ssize_t blk_mq_debugfs_write(struct file *file, const char __user *buf,
 {
 	struct seq_file *m = file->private_data;
 	const struct blk_mq_debugfs_attr *attr = m->private;
-	void *data = d_inode(file->f_path.dentry->d_parent)->i_private;
+	void *data = d_ianalde(file->f_path.dentry->d_parent)->i_private;
 
 	/*
 	 * Attributes that only implement .seq_ops are read-only and 'attr' is
@@ -557,10 +557,10 @@ static ssize_t blk_mq_debugfs_write(struct file *file, const char __user *buf,
 	return attr->write(data, buf, count, ppos);
 }
 
-static int blk_mq_debugfs_open(struct inode *inode, struct file *file)
+static int blk_mq_debugfs_open(struct ianalde *ianalde, struct file *file)
 {
-	const struct blk_mq_debugfs_attr *attr = inode->i_private;
-	void *data = d_inode(file->f_path.dentry->d_parent)->i_private;
+	const struct blk_mq_debugfs_attr *attr = ianalde->i_private;
+	void *data = d_ianalde(file->f_path.dentry->d_parent)->i_private;
 	struct seq_file *m;
 	int ret;
 
@@ -576,17 +576,17 @@ static int blk_mq_debugfs_open(struct inode *inode, struct file *file)
 	if (WARN_ON_ONCE(!attr->show))
 		return -EPERM;
 
-	return single_open(file, blk_mq_debugfs_show, inode->i_private);
+	return single_open(file, blk_mq_debugfs_show, ianalde->i_private);
 }
 
-static int blk_mq_debugfs_release(struct inode *inode, struct file *file)
+static int blk_mq_debugfs_release(struct ianalde *ianalde, struct file *file)
 {
-	const struct blk_mq_debugfs_attr *attr = inode->i_private;
+	const struct blk_mq_debugfs_attr *attr = ianalde->i_private;
 
 	if (attr->show)
-		return single_release(inode, file);
+		return single_release(ianalde, file);
 
-	return seq_release(inode, file);
+	return seq_release(ianalde, file);
 }
 
 static const struct file_operations blk_mq_debugfs_fops = {
@@ -626,7 +626,7 @@ static void debugfs_create_files(struct dentry *parent, void *data,
 	if (IS_ERR_OR_NULL(parent))
 		return;
 
-	d_inode(parent)->i_private = data;
+	d_ianalde(parent)->i_private = data;
 
 	for (; attr->name; attr++)
 		debugfs_create_file(attr->name, attr->mode, parent,
@@ -642,7 +642,7 @@ void blk_mq_debugfs_register(struct request_queue *q)
 
 	/*
 	 * blk_mq_init_sched() attempted to do this already, but q->debugfs_dir
-	 * didn't exist yet (because we don't know what to name the directory
+	 * didn't exist yet (because we don't kanalw what to name the directory
 	 * until the queue is registered to a gendisk).
 	 */
 	if (q->elevator && !q->sched_debugfs_dir)
@@ -731,7 +731,7 @@ void blk_mq_debugfs_register_sched(struct request_queue *q)
 	lockdep_assert_held(&q->debugfs_mutex);
 
 	/*
-	 * If the parent directory has not been created yet, return, we will be
+	 * If the parent directory has analt been created yet, return, we will be
 	 * called again later on and the directory/files will be created then.
 	 */
 	if (!q->debugfs_dir)
@@ -763,7 +763,7 @@ static const char *rq_qos_id_to_name(enum rq_qos_id id)
 	case RQ_QOS_COST:
 		return "cost";
 	}
-	return "unknown";
+	return "unkanalwn";
 }
 
 void blk_mq_debugfs_unregister_rqos(struct rq_qos *rqos)
@@ -802,7 +802,7 @@ void blk_mq_debugfs_register_sched_hctx(struct request_queue *q,
 	lockdep_assert_held(&q->debugfs_mutex);
 
 	/*
-	 * If the parent debugfs directory has not been created yet, return;
+	 * If the parent debugfs directory has analt been created yet, return;
 	 * We will be called again later on with appropriate parent debugfs
 	 * directory from blk_register_queue()
 	 */

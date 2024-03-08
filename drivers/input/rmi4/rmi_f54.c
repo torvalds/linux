@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2012-2015 Synaptics Incorporated
- * Copyright (C) 2016 Zodiac Inflight Innovations
+ * Copyright (C) 2016 Zodiac Inflight Inanalvations
  */
 
 #include <linux/kernel.h>
@@ -42,12 +42,12 @@
 /**
  * enum rmi_f54_report_type - RMI4 F54 report types
  *
- * @F54_REPORT_NONE:	No Image Report.
+ * @F54_REPORT_ANALNE:	Anal Image Report.
  *
- * @F54_8BIT_IMAGE:	Normalized 8-Bit Image Report. The capacitance variance
+ * @F54_8BIT_IMAGE:	Analrmalized 8-Bit Image Report. The capacitance variance
  *			from baseline for each pixel.
  *
- * @F54_16BIT_IMAGE:	Normalized 16-Bit Image Report. The capacitance variance
+ * @F54_16BIT_IMAGE:	Analrmalized 16-Bit Image Report. The capacitance variance
  *			from baseline for each pixel.
  *
  * @F54_RAW_16BIT_IMAGE:
@@ -72,7 +72,7 @@
  *			checking.
  */
 enum rmi_f54_report_type {
-	F54_REPORT_NONE = 0,
+	F54_REPORT_ANALNE = 0,
 	F54_8BIT_IMAGE = 1,
 	F54_16BIT_IMAGE = 2,
 	F54_RAW_16BIT_IMAGE = 3,
@@ -83,9 +83,9 @@ enum rmi_f54_report_type {
 };
 
 static const char * const rmi_f54_report_type_names[] = {
-	[F54_REPORT_NONE]		= "Unknown",
-	[F54_8BIT_IMAGE]		= "Normalized 8-Bit Image",
-	[F54_16BIT_IMAGE]		= "Normalized 16-Bit Image",
+	[F54_REPORT_ANALNE]		= "Unkanalwn",
+	[F54_8BIT_IMAGE]		= "Analrmalized 8-Bit Image",
+	[F54_16BIT_IMAGE]		= "Analrmalized 16-Bit Image",
 	[F54_RAW_16BIT_IMAGE]		= "Raw 16-Bit Image",
 	[F54_TRUE_BASELINE]		= "True Baseline",
 	[F54_FULL_RAW_CAP]		= "Full Raw Capacitance",
@@ -154,7 +154,7 @@ static enum rmi_f54_report_type rmi_f54_get_reptype(struct f54_data *f54,
 						unsigned int i)
 {
 	if (i >= F54_MAX_REPORT_TYPE)
-		return F54_REPORT_NONE;
+		return F54_REPORT_ANALNE;
 
 	return f54->inputs[i];
 }
@@ -261,7 +261,7 @@ static int rmi_f54_get_pixel_fmt(enum rmi_f54_report_type reptype, u32 *pixfmt)
 		*pixfmt = V4L2_TCH_FMT_TU16;
 		break;
 
-	case F54_REPORT_NONE:
+	case F54_REPORT_ANALNE:
 	case F54_MAX_REPORT_TYPE:
 		ret = -EINVAL;
 		break;
@@ -308,7 +308,7 @@ static void rmi_f54_buffer_queue(struct vb2_buffer *vb)
 
 	vb2_set_plane_payload(vb, 0, 0);
 	reptype = rmi_f54_get_reptype(f54, f54->input);
-	if (reptype == F54_REPORT_NONE) {
+	if (reptype == F54_REPORT_ANALNE) {
 		state = VB2_BUF_STATE_ERROR;
 		goto done;
 	}
@@ -354,7 +354,7 @@ data_done:
 	mutex_unlock(&f54->data_mutex);
 done:
 	vb->timestamp = ktime_get_ns();
-	vbuf->field = V4L2_FIELD_NONE;
+	vbuf->field = V4L2_FIELD_ANALNE;
 	vbuf->sequence = f54->sequence++;
 	vb2_buffer_done(vb, state);
 	mutex_unlock(&f54->status_mutex);
@@ -382,7 +382,7 @@ static const struct vb2_queue rmi_f54_queue = {
 	.buf_struct_size = sizeof(struct vb2_v4l2_buffer),
 	.ops = &rmi_f54_queue_ops,
 	.mem_ops = &vb2_vmalloc_memops,
-	.timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC,
+	.timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MOANALTONIC,
 };
 
 static int rmi_f54_vidioc_querycap(struct file *file, void *priv,
@@ -405,7 +405,7 @@ static int rmi_f54_vidioc_enum_input(struct file *file, void *priv,
 	enum rmi_f54_report_type reptype;
 
 	reptype = rmi_f54_get_reptype(f54, i->index);
-	if (reptype == F54_REPORT_NONE)
+	if (reptype == F54_REPORT_ANALNE)
 		return -EINVAL;
 
 	i->type = V4L2_INPUT_TYPE_TOUCH;
@@ -425,7 +425,7 @@ static int rmi_f54_set_input(struct f54_data *f54, unsigned int i)
 	int ret;
 
 	reptype = rmi_f54_get_reptype(f54, i);
-	if (reptype == F54_REPORT_NONE)
+	if (reptype == F54_REPORT_ANALNE)
 		return -EINVAL;
 
 	ret = rmi_f54_get_pixel_fmt(reptype, &f->pixelformat);
@@ -436,7 +436,7 @@ static int rmi_f54_set_input(struct f54_data *f54, unsigned int i)
 
 	f->width = rx;
 	f->height = tx;
-	f->field = V4L2_FIELD_NONE;
+	f->field = V4L2_FIELD_ANALNE;
 	f->colorspace = V4L2_COLORSPACE_RAW;
 	f->bytesperline = f->width * sizeof(u16);
 	f->sizeimage = f->width * f->height * sizeof(u16);
@@ -493,7 +493,7 @@ static int rmi_f54_vidioc_g_parm(struct file *file, void *fh,
 
 	a->parm.capture.readbuffers = 1;
 	a->parm.capture.timeperframe.numerator = 1;
-	a->parm.capture.timeperframe.denominator = 10;
+	a->parm.capture.timeperframe.deanalminator = 10;
 	return 0;
 }
 
@@ -552,7 +552,7 @@ static void rmi_f54_work(struct work_struct *work)
 
 	/*
 	 * Need to check if command has completed.
-	 * If not try again later.
+	 * If analt try again later.
 	 */
 	error = rmi_read(fn->rmi_dev, f54->fn->fd.command_base_addr,
 			 &command);
@@ -666,7 +666,7 @@ static int rmi_f54_probe(struct rmi_function *fn)
 
 	f54 = devm_kzalloc(&fn->dev, sizeof(struct f54_data), GFP_KERNEL);
 	if (!f54)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	f54->fn = fn;
 	dev_set_drvdata(&fn->dev, f54);
@@ -684,13 +684,13 @@ static int rmi_f54_probe(struct rmi_function *fn)
 					array3_size(tx, rx, sizeof(u16)),
 					GFP_KERNEL);
 	if (f54->report_data == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_DELAYED_WORK(&f54->work, rmi_f54_work);
 
 	f54->workqueue = create_singlethread_workqueue("rmi4-poller");
 	if (!f54->workqueue)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rmi_f54_create_input_map(f54);
 	rmi_f54_set_input(f54, 0);

@@ -15,18 +15,18 @@
  * are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    analtice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    analtice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS''
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO,
  * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS
+ * PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE AUTHOR OR CONTRIBUTORS
  * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
  * BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
  * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
@@ -80,7 +80,7 @@ static DEFINE_MUTEX(bnxt_re_mutex);
 
 static void bnxt_re_stop_irq(void *handle);
 static void bnxt_re_dev_stop(struct bnxt_re_dev *rdev);
-static int bnxt_re_netdev_event(struct notifier_block *notifier,
+static int bnxt_re_netdev_event(struct analtifier_block *analtifier,
 				unsigned long event, void *ptr);
 static struct bnxt_re_dev *bnxt_re_from_netdev(struct net_device *netdev);
 static void bnxt_re_dev_uninit(struct bnxt_re_dev *rdev);
@@ -168,7 +168,7 @@ static int bnxt_re_setup_chip_ctx(struct bnxt_re_dev *rdev, u8 wqe_mode)
 
 	chip_ctx = kzalloc(sizeof(*chip_ctx), GFP_KERNEL);
 	if (!chip_ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 	chip_ctx->chip_num = en_dev->chip_num;
 	chip_ctx->hw_stats_size = en_dev->hw_ring_stats_size;
 
@@ -218,7 +218,7 @@ static void bnxt_re_limit_pf_res(struct bnxt_re_dev *rdev)
 	ctx->qpc_count = min_t(u32, BNXT_RE_MAX_QPC_COUNT,
 			       attr->max_qp);
 	ctx->mrw_count = BNXT_RE_MAX_MRW_COUNT_256K;
-	/* Use max_mr from fw since max_mrw does not get set */
+	/* Use max_mr from fw since max_mrw does analt get set */
 	ctx->mrw_count = min_t(u32, ctx->mrw_count, attr->max_mr);
 	ctx->srqc_count = min_t(u32, BNXT_RE_MAX_SRQC_COUNT,
 				attr->max_srq);
@@ -322,7 +322,7 @@ static void bnxt_re_start_irq(void *handle, struct bnxt_msix_entry *ent)
 	int indx, rc;
 
 	if (!ent) {
-		/* Not setting the f/w timeout bit in rcfw.
+		/* Analt setting the f/w timeout bit in rcfw.
 		 * During the driver unload the first command
 		 * to f/w will timeout and that will set the
 		 * timeout bit.
@@ -491,7 +491,7 @@ static void __wait_for_fifo_occupancy_below_th(struct bnxt_re_dev *rdev)
 		fifo_occup = BNXT_RE_MAX_FIFO_DEPTH -
 			((read_val & BNXT_RE_DB_FIFO_ROOM_MASK) >>
 			 BNXT_RE_DB_FIFO_ROOM_SHIFT);
-		/* Fifo occupancy cannot be greater the MAX FIFO depth */
+		/* Fifo occupancy cananalt be greater the MAX FIFO depth */
 		if (fifo_occup > BNXT_RE_MAX_FIFO_DEPTH)
 			break;
 
@@ -522,7 +522,7 @@ static void bnxt_re_db_fifo_check(struct work_struct *work)
 		 * by 8 times. And also increase the pacing_th by 4 times. The
 		 * reason to increase pacing_th is to give more space for the
 		 * queue to oscillate down without getting empty, but also more
-		 * room for the queue to increase without causing another alarm.
+		 * room for the queue to increase without causing aanalther alarm.
 		 */
 		pacing_save = pacing_save << 3;
 		pacing_data->pacing_th = rdev->pacing.pacing_algo_th * 4;
@@ -591,7 +591,7 @@ void bnxt_re_pacing_alert(struct bnxt_re_dev *rdev)
 	pacing_data = rdev->qplib_res.pacing_data;
 
 	/*
-	 * Increase the alarm_th to max so that other user lib instances do not
+	 * Increase the alarm_th to max so that other user lib instances do analt
 	 * keep alerting the driver.
 	 */
 	pacing_data->alarm_th = BNXT_RE_MAX_FIFO_DEPTH;
@@ -609,7 +609,7 @@ static int bnxt_re_initialize_dbr_pacing(struct bnxt_re_dev *rdev)
 	/* Allocate a page for app use */
 	rdev->pacing.dbr_page = (void *)__get_free_page(GFP_KERNEL);
 	if (!rdev->pacing.dbr_page)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memset((u8 *)rdev->pacing.dbr_page, 0, PAGE_SIZE);
 	rdev->qplib_res.pacing_data = (struct bnxt_qplib_db_pacing_data *)rdev->pacing.dbr_page;
@@ -625,7 +625,7 @@ static int bnxt_re_initialize_dbr_pacing(struct bnxt_re_dev *rdev)
 
 	rdev->pacing.pacing_algo_th = BNXT_RE_PACING_ALGO_THRESHOLD;
 	rdev->pacing.dbq_pacing_time = BNXT_RE_DBR_PACING_TIME;
-	rdev->pacing.dbr_def_do_pacing = BNXT_RE_DBR_DO_PACING_NO_CONGESTION;
+	rdev->pacing.dbr_def_do_pacing = BNXT_RE_DBR_DO_PACING_ANAL_CONGESTION;
 	rdev->pacing.do_pacing_save = rdev->pacing.dbr_def_do_pacing;
 	rdev->qplib_res.pacing_data->fifo_max_depth = BNXT_RE_MAX_FIFO_DEPTH;
 	rdev->qplib_res.pacing_data->fifo_room_mask = BNXT_RE_DB_FIFO_ROOM_MASK;
@@ -806,7 +806,7 @@ static ssize_t hca_type_show(struct device *device,
 	struct bnxt_re_dev *rdev =
 		rdma_device_to_drv_device(device, struct bnxt_re_dev, ibdev);
 
-	return sysfs_emit(buf, "%s\n", rdev->ibdev.node_desc);
+	return sysfs_emit(buf, "%s\n", rdev->ibdev.analde_desc);
 }
 static DEVICE_ATTR_RO(hca_type);
 
@@ -867,7 +867,7 @@ static const struct ib_device_ops bnxt_re_dev_ops = {
 	.query_srq = bnxt_re_query_srq,
 	.reg_user_mr = bnxt_re_reg_user_mr,
 	.reg_user_mr_dmabuf = bnxt_re_reg_user_mr_dmabuf,
-	.req_notify_cq = bnxt_re_req_notify_cq,
+	.req_analtify_cq = bnxt_re_req_analtify_cq,
 	.resize_cq = bnxt_re_resize_cq,
 	INIT_RDMA_OBJ_SIZE(ib_ah, bnxt_re_ah, ib_ah),
 	INIT_RDMA_OBJ_SIZE(ib_cq, bnxt_re_cq, ib_cq),
@@ -883,12 +883,12 @@ static int bnxt_re_register_ib(struct bnxt_re_dev *rdev)
 	int ret;
 
 	/* ib device init */
-	ibdev->node_type = RDMA_NODE_IB_CA;
-	strscpy(ibdev->node_desc, BNXT_RE_DESC " HCA",
+	ibdev->analde_type = RDMA_ANALDE_IB_CA;
+	strscpy(ibdev->analde_desc, BNXT_RE_DESC " HCA",
 		strlen(BNXT_RE_DESC) + 5);
 	ibdev->phys_port_cnt = 1;
 
-	addrconf_addr_eui48((u8 *)&ibdev->node_guid, rdev->netdev->dev_addr);
+	addrconf_addr_eui48((u8 *)&ibdev->analde_guid, rdev->netdev->dev_addr);
 
 	ibdev->num_comp_vectors	= rdev->num_msix - 1;
 	ibdev->dev.parent = &rdev->en_dev->pdev->dev;
@@ -920,7 +920,7 @@ static struct bnxt_re_dev *bnxt_re_dev_add(struct bnxt_aux_priv *aux_priv,
 		return NULL;
 	}
 	/* Default values */
-	rdev->nb.notifier_call = NULL;
+	rdev->nb.analtifier_call = NULL;
 	rdev->netdev = en_dev->net;
 	rdev->en_dev = en_dev;
 	rdev->id = rdev->en_dev->pdev->devfn;
@@ -977,7 +977,7 @@ static int bnxt_re_handle_qp_async_event(struct creq_qp_event *qp_event,
 {
 	struct bnxt_re_srq *srq = container_of(qp->qplib_qp.srq, struct bnxt_re_srq,
 					       qplib_srq);
-	struct creq_qp_error_notification *err_event;
+	struct creq_qp_error_analtification *err_event;
 	struct ib_event event = {};
 	unsigned int flags;
 
@@ -992,41 +992,41 @@ static int bnxt_re_handle_qp_async_event(struct creq_qp_event *qp_event,
 	event.element.qp = &qp->ib_qp;
 	event.event = IB_EVENT_QP_FATAL;
 
-	err_event = (struct creq_qp_error_notification *)qp_event;
+	err_event = (struct creq_qp_error_analtification *)qp_event;
 
 	switch (err_event->req_err_state_reason) {
-	case CREQ_QP_ERROR_NOTIFICATION_REQ_ERR_STATE_REASON_REQ_OPCODE_ERROR:
-	case CREQ_QP_ERROR_NOTIFICATION_REQ_ERR_STATE_REASON_REQ_TIMEOUT_RETRY_LIMIT:
-	case CREQ_QP_ERROR_NOTIFICATION_REQ_ERR_STATE_REASON_REQ_RNR_TIMEOUT_RETRY_LIMIT:
-	case CREQ_QP_ERROR_NOTIFICATION_REQ_ERR_STATE_REASON_REQ_NAK_ARRIVAL_2:
-	case CREQ_QP_ERROR_NOTIFICATION_REQ_ERR_STATE_REASON_REQ_NAK_ARRIVAL_3:
-	case CREQ_QP_ERROR_NOTIFICATION_REQ_ERR_STATE_REASON_REQ_INVALID_READ_RESP:
-	case CREQ_QP_ERROR_NOTIFICATION_REQ_ERR_STATE_REASON_REQ_ILLEGAL_BIND:
-	case CREQ_QP_ERROR_NOTIFICATION_REQ_ERR_STATE_REASON_REQ_ILLEGAL_FAST_REG:
-	case CREQ_QP_ERROR_NOTIFICATION_REQ_ERR_STATE_REASON_REQ_ILLEGAL_INVALIDATE:
-	case CREQ_QP_ERROR_NOTIFICATION_REQ_ERR_STATE_REASON_REQ_RETRAN_LOCAL_ERROR:
-	case CREQ_QP_ERROR_NOTIFICATION_REQ_ERR_STATE_REASON_REQ_AV_DOMAIN_ERROR:
-	case CREQ_QP_ERROR_NOTIFICATION_REQ_ERR_STATE_REASON_REQ_PROD_WQE_MSMTCH_ERROR:
-	case CREQ_QP_ERROR_NOTIFICATION_REQ_ERR_STATE_REASON_REQ_PSN_RANGE_CHECK_ERROR:
+	case CREQ_QP_ERROR_ANALTIFICATION_REQ_ERR_STATE_REASON_REQ_OPCODE_ERROR:
+	case CREQ_QP_ERROR_ANALTIFICATION_REQ_ERR_STATE_REASON_REQ_TIMEOUT_RETRY_LIMIT:
+	case CREQ_QP_ERROR_ANALTIFICATION_REQ_ERR_STATE_REASON_REQ_RNR_TIMEOUT_RETRY_LIMIT:
+	case CREQ_QP_ERROR_ANALTIFICATION_REQ_ERR_STATE_REASON_REQ_NAK_ARRIVAL_2:
+	case CREQ_QP_ERROR_ANALTIFICATION_REQ_ERR_STATE_REASON_REQ_NAK_ARRIVAL_3:
+	case CREQ_QP_ERROR_ANALTIFICATION_REQ_ERR_STATE_REASON_REQ_INVALID_READ_RESP:
+	case CREQ_QP_ERROR_ANALTIFICATION_REQ_ERR_STATE_REASON_REQ_ILLEGAL_BIND:
+	case CREQ_QP_ERROR_ANALTIFICATION_REQ_ERR_STATE_REASON_REQ_ILLEGAL_FAST_REG:
+	case CREQ_QP_ERROR_ANALTIFICATION_REQ_ERR_STATE_REASON_REQ_ILLEGAL_INVALIDATE:
+	case CREQ_QP_ERROR_ANALTIFICATION_REQ_ERR_STATE_REASON_REQ_RETRAN_LOCAL_ERROR:
+	case CREQ_QP_ERROR_ANALTIFICATION_REQ_ERR_STATE_REASON_REQ_AV_DOMAIN_ERROR:
+	case CREQ_QP_ERROR_ANALTIFICATION_REQ_ERR_STATE_REASON_REQ_PROD_WQE_MSMTCH_ERROR:
+	case CREQ_QP_ERROR_ANALTIFICATION_REQ_ERR_STATE_REASON_REQ_PSN_RANGE_CHECK_ERROR:
 		event.event = IB_EVENT_QP_ACCESS_ERR;
 		break;
-	case CREQ_QP_ERROR_NOTIFICATION_REQ_ERR_STATE_REASON_REQ_NAK_ARRIVAL_1:
-	case CREQ_QP_ERROR_NOTIFICATION_REQ_ERR_STATE_REASON_REQ_NAK_ARRIVAL_4:
-	case CREQ_QP_ERROR_NOTIFICATION_REQ_ERR_STATE_REASON_REQ_READ_RESP_LENGTH:
-	case CREQ_QP_ERROR_NOTIFICATION_REQ_ERR_STATE_REASON_REQ_WQE_FORMAT_ERROR:
-	case CREQ_QP_ERROR_NOTIFICATION_REQ_ERR_STATE_REASON_REQ_ORRQ_FORMAT_ERROR:
-	case CREQ_QP_ERROR_NOTIFICATION_REQ_ERR_STATE_REASON_REQ_INVALID_AVID_ERROR:
-	case CREQ_QP_ERROR_NOTIFICATION_REQ_ERR_STATE_REASON_REQ_SERV_TYPE_ERROR:
-	case CREQ_QP_ERROR_NOTIFICATION_REQ_ERR_STATE_REASON_REQ_INVALID_OP_ERROR:
+	case CREQ_QP_ERROR_ANALTIFICATION_REQ_ERR_STATE_REASON_REQ_NAK_ARRIVAL_1:
+	case CREQ_QP_ERROR_ANALTIFICATION_REQ_ERR_STATE_REASON_REQ_NAK_ARRIVAL_4:
+	case CREQ_QP_ERROR_ANALTIFICATION_REQ_ERR_STATE_REASON_REQ_READ_RESP_LENGTH:
+	case CREQ_QP_ERROR_ANALTIFICATION_REQ_ERR_STATE_REASON_REQ_WQE_FORMAT_ERROR:
+	case CREQ_QP_ERROR_ANALTIFICATION_REQ_ERR_STATE_REASON_REQ_ORRQ_FORMAT_ERROR:
+	case CREQ_QP_ERROR_ANALTIFICATION_REQ_ERR_STATE_REASON_REQ_INVALID_AVID_ERROR:
+	case CREQ_QP_ERROR_ANALTIFICATION_REQ_ERR_STATE_REASON_REQ_SERV_TYPE_ERROR:
+	case CREQ_QP_ERROR_ANALTIFICATION_REQ_ERR_STATE_REASON_REQ_INVALID_OP_ERROR:
 		event.event = IB_EVENT_QP_REQ_ERR;
 		break;
-	case CREQ_QP_ERROR_NOTIFICATION_REQ_ERR_STATE_REASON_REQ_RX_MEMORY_ERROR:
-	case CREQ_QP_ERROR_NOTIFICATION_REQ_ERR_STATE_REASON_REQ_TX_MEMORY_ERROR:
-	case CREQ_QP_ERROR_NOTIFICATION_REQ_ERR_STATE_REASON_REQ_CMP_ERROR:
-	case CREQ_QP_ERROR_NOTIFICATION_REQ_ERR_STATE_REASON_REQ_CQ_LOAD_ERROR:
-	case CREQ_QP_ERROR_NOTIFICATION_REQ_ERR_STATE_REASON_REQ_TX_PCI_ERROR:
-	case CREQ_QP_ERROR_NOTIFICATION_REQ_ERR_STATE_REASON_REQ_RX_PCI_ERROR:
-	case CREQ_QP_ERROR_NOTIFICATION_REQ_ERR_STATE_REASON_REQ_RETX_SETUP_ERROR:
+	case CREQ_QP_ERROR_ANALTIFICATION_REQ_ERR_STATE_REASON_REQ_RX_MEMORY_ERROR:
+	case CREQ_QP_ERROR_ANALTIFICATION_REQ_ERR_STATE_REASON_REQ_TX_MEMORY_ERROR:
+	case CREQ_QP_ERROR_ANALTIFICATION_REQ_ERR_STATE_REASON_REQ_CMP_ERROR:
+	case CREQ_QP_ERROR_ANALTIFICATION_REQ_ERR_STATE_REASON_REQ_CQ_LOAD_ERROR:
+	case CREQ_QP_ERROR_ANALTIFICATION_REQ_ERR_STATE_REASON_REQ_TX_PCI_ERROR:
+	case CREQ_QP_ERROR_ANALTIFICATION_REQ_ERR_STATE_REASON_REQ_RX_PCI_ERROR:
+	case CREQ_QP_ERROR_ANALTIFICATION_REQ_ERR_STATE_REASON_REQ_RETX_SETUP_ERROR:
 		event.event = IB_EVENT_QP_FATAL;
 		break;
 
@@ -1035,40 +1035,40 @@ static int bnxt_re_handle_qp_async_event(struct creq_qp_event *qp_event,
 	}
 
 	switch (err_event->res_err_state_reason) {
-	case CREQ_QP_ERROR_NOTIFICATION_RES_ERR_STATE_REASON_RES_EXCEED_MAX:
-	case CREQ_QP_ERROR_NOTIFICATION_RES_ERR_STATE_REASON_RES_PAYLOAD_LENGTH_MISMATCH:
-	case CREQ_QP_ERROR_NOTIFICATION_RES_ERR_STATE_REASON_RES_PSN_SEQ_ERROR_RETRY_LIMIT:
-	case CREQ_QP_ERROR_NOTIFICATION_RES_ERR_STATE_REASON_RES_RX_INVALID_R_KEY:
-	case CREQ_QP_ERROR_NOTIFICATION_RES_ERR_STATE_REASON_RES_RX_DOMAIN_ERROR:
-	case CREQ_QP_ERROR_NOTIFICATION_RES_ERR_STATE_REASON_RES_RX_NO_PERMISSION:
-	case CREQ_QP_ERROR_NOTIFICATION_RES_ERR_STATE_REASON_RES_RX_RANGE_ERROR:
-	case CREQ_QP_ERROR_NOTIFICATION_RES_ERR_STATE_REASON_RES_TX_INVALID_R_KEY:
-	case CREQ_QP_ERROR_NOTIFICATION_RES_ERR_STATE_REASON_RES_TX_DOMAIN_ERROR:
-	case CREQ_QP_ERROR_NOTIFICATION_RES_ERR_STATE_REASON_RES_TX_NO_PERMISSION:
-	case CREQ_QP_ERROR_NOTIFICATION_RES_ERR_STATE_REASON_RES_TX_RANGE_ERROR:
-	case CREQ_QP_ERROR_NOTIFICATION_RES_ERR_STATE_REASON_RES_UNALIGN_ATOMIC:
-	case CREQ_QP_ERROR_NOTIFICATION_RES_ERR_STATE_REASON_RES_PSN_NOT_FOUND:
-	case CREQ_QP_ERROR_NOTIFICATION_RES_ERR_STATE_REASON_RES_INVALID_DUP_RKEY:
-	case CREQ_QP_ERROR_NOTIFICATION_RES_ERR_STATE_REASON_RES_IRRQ_FORMAT_ERROR:
+	case CREQ_QP_ERROR_ANALTIFICATION_RES_ERR_STATE_REASON_RES_EXCEED_MAX:
+	case CREQ_QP_ERROR_ANALTIFICATION_RES_ERR_STATE_REASON_RES_PAYLOAD_LENGTH_MISMATCH:
+	case CREQ_QP_ERROR_ANALTIFICATION_RES_ERR_STATE_REASON_RES_PSN_SEQ_ERROR_RETRY_LIMIT:
+	case CREQ_QP_ERROR_ANALTIFICATION_RES_ERR_STATE_REASON_RES_RX_INVALID_R_KEY:
+	case CREQ_QP_ERROR_ANALTIFICATION_RES_ERR_STATE_REASON_RES_RX_DOMAIN_ERROR:
+	case CREQ_QP_ERROR_ANALTIFICATION_RES_ERR_STATE_REASON_RES_RX_ANAL_PERMISSION:
+	case CREQ_QP_ERROR_ANALTIFICATION_RES_ERR_STATE_REASON_RES_RX_RANGE_ERROR:
+	case CREQ_QP_ERROR_ANALTIFICATION_RES_ERR_STATE_REASON_RES_TX_INVALID_R_KEY:
+	case CREQ_QP_ERROR_ANALTIFICATION_RES_ERR_STATE_REASON_RES_TX_DOMAIN_ERROR:
+	case CREQ_QP_ERROR_ANALTIFICATION_RES_ERR_STATE_REASON_RES_TX_ANAL_PERMISSION:
+	case CREQ_QP_ERROR_ANALTIFICATION_RES_ERR_STATE_REASON_RES_TX_RANGE_ERROR:
+	case CREQ_QP_ERROR_ANALTIFICATION_RES_ERR_STATE_REASON_RES_UNALIGN_ATOMIC:
+	case CREQ_QP_ERROR_ANALTIFICATION_RES_ERR_STATE_REASON_RES_PSN_ANALT_FOUND:
+	case CREQ_QP_ERROR_ANALTIFICATION_RES_ERR_STATE_REASON_RES_INVALID_DUP_RKEY:
+	case CREQ_QP_ERROR_ANALTIFICATION_RES_ERR_STATE_REASON_RES_IRRQ_FORMAT_ERROR:
 		event.event = IB_EVENT_QP_ACCESS_ERR;
 		break;
-	case CREQ_QP_ERROR_NOTIFICATION_RES_ERR_STATE_REASON_RES_EXCEEDS_WQE:
-	case CREQ_QP_ERROR_NOTIFICATION_RES_ERR_STATE_REASON_RES_WQE_FORMAT_ERROR:
-	case CREQ_QP_ERROR_NOTIFICATION_RES_ERR_STATE_REASON_RES_UNSUPPORTED_OPCODE:
-	case CREQ_QP_ERROR_NOTIFICATION_RES_ERR_STATE_REASON_RES_REM_INVALIDATE:
-	case CREQ_QP_ERROR_NOTIFICATION_RES_ERR_STATE_REASON_RES_OPCODE_ERROR:
+	case CREQ_QP_ERROR_ANALTIFICATION_RES_ERR_STATE_REASON_RES_EXCEEDS_WQE:
+	case CREQ_QP_ERROR_ANALTIFICATION_RES_ERR_STATE_REASON_RES_WQE_FORMAT_ERROR:
+	case CREQ_QP_ERROR_ANALTIFICATION_RES_ERR_STATE_REASON_RES_UNSUPPORTED_OPCODE:
+	case CREQ_QP_ERROR_ANALTIFICATION_RES_ERR_STATE_REASON_RES_REM_INVALIDATE:
+	case CREQ_QP_ERROR_ANALTIFICATION_RES_ERR_STATE_REASON_RES_OPCODE_ERROR:
 		event.event = IB_EVENT_QP_REQ_ERR;
 		break;
-	case CREQ_QP_ERROR_NOTIFICATION_RES_ERR_STATE_REASON_RES_IRRQ_OFLOW:
-	case CREQ_QP_ERROR_NOTIFICATION_RES_ERR_STATE_REASON_RES_CMP_ERROR:
-	case CREQ_QP_ERROR_NOTIFICATION_RES_ERR_STATE_REASON_RES_CQ_LOAD_ERROR:
-	case CREQ_QP_ERROR_NOTIFICATION_RES_ERR_STATE_REASON_RES_TX_PCI_ERROR:
-	case CREQ_QP_ERROR_NOTIFICATION_RES_ERR_STATE_REASON_RES_RX_PCI_ERROR:
-	case CREQ_QP_ERROR_NOTIFICATION_RES_ERR_STATE_REASON_RES_MEMORY_ERROR:
+	case CREQ_QP_ERROR_ANALTIFICATION_RES_ERR_STATE_REASON_RES_IRRQ_OFLOW:
+	case CREQ_QP_ERROR_ANALTIFICATION_RES_ERR_STATE_REASON_RES_CMP_ERROR:
+	case CREQ_QP_ERROR_ANALTIFICATION_RES_ERR_STATE_REASON_RES_CQ_LOAD_ERROR:
+	case CREQ_QP_ERROR_ANALTIFICATION_RES_ERR_STATE_REASON_RES_TX_PCI_ERROR:
+	case CREQ_QP_ERROR_ANALTIFICATION_RES_ERR_STATE_REASON_RES_RX_PCI_ERROR:
+	case CREQ_QP_ERROR_ANALTIFICATION_RES_ERR_STATE_REASON_RES_MEMORY_ERROR:
 		event.event = IB_EVENT_QP_FATAL;
 		break;
-	case CREQ_QP_ERROR_NOTIFICATION_RES_ERR_STATE_REASON_RES_SRQ_LOAD_ERROR:
-	case CREQ_QP_ERROR_NOTIFICATION_RES_ERR_STATE_REASON_RES_SRQ_ERROR:
+	case CREQ_QP_ERROR_ANALTIFICATION_RES_ERR_STATE_REASON_RES_SRQ_LOAD_ERROR:
+	case CREQ_QP_ERROR_ANALTIFICATION_RES_ERR_STATE_REASON_RES_SRQ_ERROR:
 		if (srq)
 			event.event = IB_EVENT_SRQ_ERR;
 		break;
@@ -1104,17 +1104,17 @@ static int bnxt_re_handle_qp_async_event(struct creq_qp_event *qp_event,
 
 static int bnxt_re_handle_cq_async_error(void *event, struct bnxt_re_cq *cq)
 {
-	struct creq_cq_error_notification *cqerr;
+	struct creq_cq_error_analtification *cqerr;
 	struct ib_event ibevent = {};
 
 	cqerr = event;
 	switch (cqerr->cq_err_reason) {
-	case CREQ_CQ_ERROR_NOTIFICATION_CQ_ERR_REASON_REQ_CQ_INVALID_ERROR:
-	case CREQ_CQ_ERROR_NOTIFICATION_CQ_ERR_REASON_REQ_CQ_OVERFLOW_ERROR:
-	case CREQ_CQ_ERROR_NOTIFICATION_CQ_ERR_REASON_REQ_CQ_LOAD_ERROR:
-	case CREQ_CQ_ERROR_NOTIFICATION_CQ_ERR_REASON_RES_CQ_INVALID_ERROR:
-	case CREQ_CQ_ERROR_NOTIFICATION_CQ_ERR_REASON_RES_CQ_OVERFLOW_ERROR:
-	case CREQ_CQ_ERROR_NOTIFICATION_CQ_ERR_REASON_RES_CQ_LOAD_ERROR:
+	case CREQ_CQ_ERROR_ANALTIFICATION_CQ_ERR_REASON_REQ_CQ_INVALID_ERROR:
+	case CREQ_CQ_ERROR_ANALTIFICATION_CQ_ERR_REASON_REQ_CQ_OVERFLOW_ERROR:
+	case CREQ_CQ_ERROR_ANALTIFICATION_CQ_ERR_REASON_REQ_CQ_LOAD_ERROR:
+	case CREQ_CQ_ERROR_ANALTIFICATION_CQ_ERR_REASON_RES_CQ_INVALID_ERROR:
+	case CREQ_CQ_ERROR_ANALTIFICATION_CQ_ERR_REASON_RES_CQ_OVERFLOW_ERROR:
+	case CREQ_CQ_ERROR_ANALTIFICATION_CQ_ERR_REASON_RES_CQ_LOAD_ERROR:
 		ibevent.event = IB_EVENT_CQ_ERR;
 		break;
 	default:
@@ -1148,12 +1148,12 @@ static int bnxt_re_handle_affi_async_event(struct creq_qp_event *affi_async,
 
 	event = affi_async->event;
 	switch (event) {
-	case CREQ_QP_EVENT_EVENT_QP_ERROR_NOTIFICATION:
+	case CREQ_QP_EVENT_EVENT_QP_ERROR_ANALTIFICATION:
 		lib_qp = obj;
 		qp = container_of(lib_qp, struct bnxt_re_qp, qplib_qp);
 		rc = bnxt_re_handle_qp_async_event(affi_async, qp);
 		break;
-	case CREQ_QP_EVENT_EVENT_CQ_ERROR_NOTIFICATION:
+	case CREQ_QP_EVENT_EVENT_CQ_ERROR_ANALTIFICATION:
 		lib_cq = obj;
 		cq = container_of(lib_cq, struct bnxt_re_cq, qplib_cq);
 		rc = bnxt_re_handle_cq_async_error(affi_async, cq);
@@ -1423,7 +1423,7 @@ static int bnxt_re_update_gid(struct bnxt_re_dev *rdev)
 		if (!memcmp(&sgid_tbl->tbl[index], &bnxt_qplib_gid_zero,
 			    sizeof(bnxt_qplib_gid_zero)))
 			continue;
-		/* need to modify the VLAN enable setting of non VLAN GID only
+		/* need to modify the VLAN enable setting of analn VLAN GID only
 		 * as setting is done for VLAN GID while adding GID
 		 */
 		if (sgid_tbl->vlan[index])
@@ -1470,7 +1470,7 @@ static int bnxt_re_setup_qos(struct bnxt_re_dev *rdev)
 	if (prio_map == rdev->cur_prio_map)
 		return 0;
 	rdev->cur_prio_map = prio_map;
-	/* Actual priorities are not programmed as they are already
+	/* Actual priorities are analt programmed as they are already
 	 * done by L2 driver; just enable or disable priority vlan tagging
 	 */
 	if ((prio_map == 0 && rdev->qplib_res.prio) ||
@@ -1493,7 +1493,7 @@ static void bnxt_re_query_hwrm_intf_version(struct bnxt_re_dev *rdev)
 
 	bnxt_re_init_hwrm_hdr((void *)&req, HWRM_VER_GET);
 	req.hwrm_intf_maj = HWRM_VERSION_MAJOR;
-	req.hwrm_intf_min = HWRM_VERSION_MINOR;
+	req.hwrm_intf_min = HWRM_VERSION_MIANALR;
 	req.hwrm_intf_upd = HWRM_VERSION_UPDATE;
 	bnxt_re_fill_fw_msg(&fw_msg, (void *)&req, sizeof(req), (void *)&resp,
 			    sizeof(resp), DFLT_HWRM_CMD_TIMEOUT);
@@ -1507,7 +1507,7 @@ static void bnxt_re_query_hwrm_intf_version(struct bnxt_re_dev *rdev)
 	cctx = rdev->chip_ctx;
 	cctx->hwrm_intf_ver =
 		(u64)le16_to_cpu(resp.hwrm_intf_major) << 48 |
-		(u64)le16_to_cpu(resp.hwrm_intf_minor) << 32 |
+		(u64)le16_to_cpu(resp.hwrm_intf_mianalr) << 32 |
 		(u64)le16_to_cpu(resp.hwrm_intf_build) << 16 |
 		le16_to_cpu(resp.hwrm_intf_patch);
 
@@ -1576,7 +1576,7 @@ static void bnxt_re_dev_uninit(struct bnxt_re_dev *rdev)
 		bnxt_unregister_dev(rdev->en_dev);
 }
 
-/* worker thread for polling periodic events. Now used for QoS programming*/
+/* worker thread for polling periodic events. Analw used for QoS programming*/
 static void bnxt_re_worker(struct work_struct *work)
 {
 	struct bnxt_re_dev *rdev = container_of(work, struct bnxt_re_dev,
@@ -1725,13 +1725,13 @@ static int bnxt_re_dev_init(struct bnxt_re_dev *rdev, u8 wqe_mode)
 		rc = bnxt_re_setup_qos(rdev);
 		if (rc)
 			ibdev_info(&rdev->ibdev,
-				   "RoCE priority not yet configured\n");
+				   "RoCE priority analt yet configured\n");
 
 		INIT_DELAYED_WORK(&rdev->worker, bnxt_re_worker);
 		set_bit(BNXT_RE_FLAG_QOS_WORK_REG, &rdev->flags);
 		schedule_delayed_work(&rdev->worker, msecs_to_jiffies(30000));
 		/*
-		 * Use the total VF count since the actual VF count may not be
+		 * Use the total VF count since the actual VF count may analt be
 		 * available at this point.
 		 */
 		bnxt_re_vf_res_config(rdev);
@@ -1769,7 +1769,7 @@ static int bnxt_re_add_device(struct auxiliary_device *adev, u8 wqe_mode)
 
 	rdev = bnxt_re_dev_add(aux_priv, en_dev);
 	if (!rdev || !rdev_to_dev(rdev)) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto exit;
 	}
 
@@ -1799,7 +1799,7 @@ static void bnxt_re_setup_cc(struct bnxt_re_dev *rdev, bool enable)
 {
 	struct bnxt_qplib_cc_param cc_param = {};
 
-	/* Do not enable congestion control on VFs */
+	/* Do analt enable congestion control on VFs */
 	if (rdev->is_virtfn)
 		return;
 
@@ -1821,23 +1821,23 @@ static void bnxt_re_setup_cc(struct bnxt_re_dev *rdev, bool enable)
 }
 
 /*
- * "Notifier chain callback can be invoked for the same chain from
+ * "Analtifier chain callback can be invoked for the same chain from
  * different CPUs at the same time".
  *
  * For cases when the netdev is already present, our call to the
- * register_netdevice_notifier() will actually get the rtnl_lock()
+ * register_netdevice_analtifier() will actually get the rtnl_lock()
  * before sending NETDEV_REGISTER and (if up) NETDEV_UP
  * events.
  *
- * But for cases when the netdev is not already present, the notifier
+ * But for cases when the netdev is analt already present, the analtifier
  * chain is subjected to be invoked from different CPUs simultaneously.
  *
  * This is protected by the netdev_mutex.
  */
-static int bnxt_re_netdev_event(struct notifier_block *notifier,
+static int bnxt_re_netdev_event(struct analtifier_block *analtifier,
 				unsigned long event, void *ptr)
 {
-	struct net_device *real_dev, *netdev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *real_dev, *netdev = netdev_analtifier_info_to_dev(ptr);
 	struct bnxt_re_dev *rdev;
 
 	real_dev = rdma_vlan_dev_real_dev(netdev);
@@ -1849,7 +1849,7 @@ static int bnxt_re_netdev_event(struct notifier_block *notifier,
 
 	rdev = bnxt_re_from_netdev(real_dev);
 	if (!rdev)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 
 	switch (event) {
@@ -1866,7 +1866,7 @@ static int bnxt_re_netdev_event(struct notifier_block *notifier,
 	}
 	ib_device_put(&rdev->ibdev);
 exit:
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 #define BNXT_ADEV_NAME "bnxt_en"
@@ -1879,11 +1879,11 @@ static void bnxt_re_remove(struct auxiliary_device *adev)
 		return;
 
 	mutex_lock(&bnxt_re_mutex);
-	if (rdev->nb.notifier_call) {
-		unregister_netdevice_notifier(&rdev->nb);
-		rdev->nb.notifier_call = NULL;
+	if (rdev->nb.analtifier_call) {
+		unregister_netdevice_analtifier(&rdev->nb);
+		rdev->nb.analtifier_call = NULL;
 	} else {
-		/* If notifier is null, we should have already done a
+		/* If analtifier is null, we should have already done a
 		 * clean up before coming here.
 		 */
 		goto skip_remove;
@@ -1911,11 +1911,11 @@ static int bnxt_re_probe(struct auxiliary_device *adev,
 
 	rdev = auxiliary_get_drvdata(adev);
 
-	rdev->nb.notifier_call = bnxt_re_netdev_event;
-	rc = register_netdevice_notifier(&rdev->nb);
+	rdev->nb.analtifier_call = bnxt_re_netdev_event;
+	rc = register_netdevice_analtifier(&rdev->nb);
 	if (rc) {
-		rdev->nb.notifier_call = NULL;
-		pr_err("%s: Cannot register to netdevice_notifier",
+		rdev->nb.analtifier_call = NULL;
+		pr_err("%s: Cananalt register to netdevice_analtifier",
 		       ROCE_DRV_MODULE_NAME);
 		goto err;
 	}

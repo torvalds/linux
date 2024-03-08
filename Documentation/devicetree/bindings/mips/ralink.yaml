@@ -13,7 +13,7 @@ description: |
     Boards with a Ralink SoC shall have the following properties.
 
 properties:
-  $nodename:
+  $analdename:
     const: '/'
   compatible:
     oneOf:

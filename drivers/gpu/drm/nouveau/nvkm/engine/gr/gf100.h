@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -87,11 +87,11 @@ struct gf100_gr {
 	 * Used if the register packs are loaded from NVIDIA fw instead of
 	 * using hardcoded arrays. To be allocated with vzalloc().
 	 */
-	struct gf100_gr_pack *sw_nonctx;
-	struct gf100_gr_pack *sw_nonctx1;
-	struct gf100_gr_pack *sw_nonctx2;
-	struct gf100_gr_pack *sw_nonctx3;
-	struct gf100_gr_pack *sw_nonctx4;
+	struct gf100_gr_pack *sw_analnctx;
+	struct gf100_gr_pack *sw_analnctx1;
+	struct gf100_gr_pack *sw_analnctx2;
+	struct gf100_gr_pack *sw_analnctx3;
+	struct gf100_gr_pack *sw_analnctx4;
 	struct gf100_gr_pack *sw_ctx;
 	struct gf100_gr_pack *bundle;
 	struct gf100_gr_pack *bundle_veid;
@@ -118,7 +118,7 @@ struct gf100_gr {
 	struct nvkm_memory *pagepool;
 	struct nvkm_memory *bundle_cb;
 	struct nvkm_memory *attrib_cb;
-	struct nvkm_memory *unknown;
+	struct nvkm_memory *unkanalwn;
 
 	u8 screen_tile_row_offset;
 	u8 tile[TPC_MAX];
@@ -147,7 +147,7 @@ struct gf100_gr_func_zbc {
 };
 
 struct gf100_gr_func {
-	int (*nonstall)(struct gf100_gr *);
+	int (*analnstall)(struct gf100_gr *);
 	struct nvkm_intr *(*oneinit_intr)(struct gf100_gr *, enum nvkm_intr_type *);
 	void (*oneinit_tiles)(struct gf100_gr *);
 	int (*oneinit_sm_id)(struct gf100_gr *);
@@ -260,7 +260,7 @@ void gp102_gr_zbc_clear_stencil(struct gf100_gr *, int);
 extern const struct gf100_gr_func gp107_gr;
 
 int gv100_gr_oneinit_sm_id(struct gf100_gr *);
-u32 gv100_gr_nonpes_aware_tpc(struct gf100_gr *gr, u32 gpc, u32 tpc);
+u32 gv100_gr_analnpes_aware_tpc(struct gf100_gr *gr, u32 gpc, u32 tpc);
 void gv100_gr_init_419bd8(struct gf100_gr *);
 void gv100_gr_init_504430(struct gf100_gr *, int, int);
 void gv100_gr_init_shader_exceptions(struct gf100_gr *, int, int);
@@ -283,7 +283,7 @@ struct gf100_gr_chan {
 	struct nvkm_vma *pagepool;
 	struct nvkm_vma *bundle_cb;
 	struct nvkm_vma *attrib_cb;
-	struct nvkm_vma *unknown;
+	struct nvkm_vma *unkanalwn;
 
 	struct nvkm_memory *mmio;
 	struct nvkm_vma *mmio_vma;
@@ -422,14 +422,14 @@ struct gf100_gr_fwif {
 };
 
 int gf100_gr_load(struct gf100_gr *, int, const struct gf100_gr_fwif *);
-int gf100_gr_nofw(struct gf100_gr *, int, const struct gf100_gr_fwif *);
+int gf100_gr_analfw(struct gf100_gr *, int, const struct gf100_gr_fwif *);
 
 int gk20a_gr_load_sw(struct gf100_gr *, const char *path, int ver);
 int gk20a_gr_load_net(struct gf100_gr *, const char *, const char *, int,
 		      int (*)(struct nvkm_blob *, struct gf100_gr_pack **),
 		      struct gf100_gr_pack **);
 
-int gm200_gr_nofw(struct gf100_gr *, int, const struct gf100_gr_fwif *);
+int gm200_gr_analfw(struct gf100_gr *, int, const struct gf100_gr_fwif *);
 int gm200_gr_load(struct gf100_gr *, int, const struct gf100_gr_fwif *);
 extern const struct nvkm_acr_lsf_func gm200_gr_gpccs_acr;
 extern const struct nvkm_acr_lsf_func gm200_gr_fecs_acr;

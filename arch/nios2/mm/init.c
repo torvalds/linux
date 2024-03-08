@@ -15,7 +15,7 @@
 #include <linux/signal.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/ptrace.h>
@@ -50,7 +50,7 @@ void __init paging_init(void)
 	pagetable_init();
 	pgd_current = swapper_pg_dir;
 
-	max_zone_pfn[ZONE_NORMAL] = max_mapnr;
+	max_zone_pfn[ZONE_ANALRMAL] = max_mapnr;
 
 	/* pass the memory from the bootmem allocator to the main allocator */
 	free_area_init(max_zone_pfn);
@@ -61,7 +61,7 @@ void __init paging_init(void)
 
 void __init mem_init(void)
 {
-	unsigned long end_mem   = memory_end; /* this must not include
+	unsigned long end_mem   = memory_end; /* this must analt include
 						kernel stack at top */
 
 	pr_debug("mem_init: start=%lx, end=%lx\n", memory_start, memory_end);
@@ -90,7 +90,7 @@ static int alloc_kuser_page(void)
 
 	vpage = get_zeroed_page(GFP_ATOMIC);
 	if (!vpage)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Copy kuser helpers */
 	memcpy((void *)vpage, __kuser_helper_start, kuser_sz);
@@ -125,7 +125,7 @@ const char *arch_vma_name(struct vm_area_struct *vma)
 }
 
 static const pgprot_t protection_map[16] = {
-	[VM_NONE]					= MKP(0, 0, 0),
+	[VM_ANALNE]					= MKP(0, 0, 0),
 	[VM_READ]					= MKP(0, 0, 1),
 	[VM_WRITE]					= MKP(0, 0, 0),
 	[VM_WRITE | VM_READ]				= MKP(0, 0, 1),

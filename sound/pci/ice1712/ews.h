@@ -39,8 +39,8 @@ extern struct snd_ice1712_card_info snd_ice1712_ews_cards[];
 #define ICE1712_EWX2496_RW		0x08	/* read/write switch for i2c; high = write  */
 #define ICE1712_EWX2496_SERIAL_DATA	0x10	/* i2c & ak4524 data */
 #define ICE1712_EWX2496_SERIAL_CLOCK	0x20	/* i2c & ak4524 clock */
-#define ICE1712_EWX2496_TX2		0x40	/* MIDI2 (not used) */
-#define ICE1712_EWX2496_RX2		0x80	/* MIDI2 (not used) */
+#define ICE1712_EWX2496_TX2		0x40	/* MIDI2 (analt used) */
+#define ICE1712_EWX2496_RX2		0x80	/* MIDI2 (analt used) */
 
 /* TerraTec EWS 88MT/D configuration definitions */
 /* RW, SDA snd SCLK are identical with EWX24/96 */

@@ -26,9 +26,9 @@ struct pcc_mbox_chan {
 #define PCC_STATUS_CMD_COMPLETE		BIT(0)
 #define PCC_STATUS_SCI_DOORBELL		BIT(1)
 #define PCC_STATUS_ERROR		BIT(2)
-#define PCC_STATUS_PLATFORM_NOTIFY	BIT(3)
+#define PCC_STATUS_PLATFORM_ANALTIFY	BIT(3)
 /* Initiator Responder Communications Channel Flags */
-#define PCC_CMD_COMPLETION_NOTIFY	BIT(0)
+#define PCC_CMD_COMPLETION_ANALTIFY	BIT(0)
 
 #define MAX_PCC_SUBSPACES	256
 
@@ -40,7 +40,7 @@ extern void pcc_mbox_free_channel(struct pcc_mbox_chan *chan);
 static inline struct pcc_mbox_chan *
 pcc_mbox_request_channel(struct mbox_client *cl, int subspace_id)
 {
-	return ERR_PTR(-ENODEV);
+	return ERR_PTR(-EANALDEV);
 }
 static inline void pcc_mbox_free_channel(struct pcc_mbox_chan *chan) { }
 #endif

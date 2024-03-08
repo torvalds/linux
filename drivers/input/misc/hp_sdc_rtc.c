@@ -8,33 +8,33 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
+ *    analtice, this list of conditions, and the following disclaimer,
  *    without modification.
- * 2. The name of the author may not be used to endorse or promote products
+ * 2. The name of the author may analt be used to endorse or promote products
  *    derived from this software without specific prior written permission.
  *
  * Alternatively, this software may be distributed under the terms of the
  * GNU General Public License ("GPL").
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
+ * ARE DISCLAIMED. IN ANAL EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
  * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  *
  * References:
  * System Device Controller Microprocessor Firmware Theory of Operation
- *      for Part Number 1820-4784 Revision B.  Dwg No. A-1820-4784-2
+ *      for Part Number 1820-4784 Revision B.  Dwg Anal. A-1820-4784-2
  * efirtc.c by Stephane Eranian/Hewlett Packard
  *
  */
 
 #include <linux/hp_sdc.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/module.h>
@@ -93,7 +93,7 @@ static int hp_sdc_rtc_do_read_bbrtc (struct rtc_time *rtctm)
 	if (WARN_ON(down_interruptible(&tsem)))
 		return -1;
 	
-	/* Check for nonpresence of BBRTC */
+	/* Check for analnpresence of BBRTC */
 	if (!((tseq[83] | tseq[90] | tseq[69] | tseq[76] |
 	       tseq[55] | tseq[62] | tseq[34] | tseq[41] |
 	       tseq[20] | tseq[27] | tseq[6]  | tseq[13]) & 0x0f))
@@ -116,7 +116,7 @@ static int hp_sdc_rtc_read_bbrtc (struct rtc_time *rtctm)
 	struct rtc_time tm, tm_last;
 	int i = 0;
 
-	/* MSM-58321 has no read latch, so must read twice and compare. */
+	/* MSM-58321 has anal read latch, so must read twice and compare. */
 
 	if (hp_sdc_rtc_do_read_bbrtc(&tm_last)) return -1;
 	if (hp_sdc_rtc_do_read_bbrtc(&tm)) return -1;
@@ -267,8 +267,8 @@ static inline int hp_sdc_rtc_read_ct(struct timespec64 *res) {
 
 static int __maybe_unused hp_sdc_rtc_proc_show(struct seq_file *m, void *v)
 {
-#define YN(bit) ("no")
-#define NY(bit) ("yes")
+#define YN(bit) ("anal")
+#define NY(bit) ("anal")
         struct rtc_time tm;
 	struct timespec64 tv;
 
@@ -350,7 +350,7 @@ static int __init hp_sdc_rtc_init(void)
 
 #ifdef __mc68000__
 	if (!MACH_IS_HP300)
-		return -ENODEV;
+		return -EANALDEV;
 #endif
 
 	sema_init(&i8042tregs, 1);

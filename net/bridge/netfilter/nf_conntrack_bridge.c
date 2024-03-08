@@ -32,7 +32,7 @@ static int nf_br_ip_fragment(struct net *net, struct sock *sk,
 					   struct sk_buff *))
 {
 	int frag_max_size = BR_INPUT_SKB_CB(skb)->frag_max_size;
-	bool mono_delivery_time = skb->mono_delivery_time;
+	bool moanal_delivery_time = skb->moanal_delivery_time;
 	unsigned int hlen, ll_rs, mtu;
 	ktime_t tstamp = skb->tstamp;
 	struct ip_frag_state state;
@@ -82,7 +82,7 @@ static int nf_br_ip_fragment(struct net *net, struct sock *sk,
 			if (iter.frag)
 				ip_fraglist_prepare(skb, &iter);
 
-			skb_set_delivery_time(skb, tstamp, mono_delivery_time);
+			skb_set_delivery_time(skb, tstamp, moanal_delivery_time);
 			err = output(net, sk, data, skb);
 			if (err || !iter.frag)
 				break;
@@ -100,7 +100,7 @@ static int nf_br_ip_fragment(struct net *net, struct sock *sk,
 slow_path:
 	/* This is a linearized skbuff, the original geometry is lost for us.
 	 * This may also be a clone skbuff, we could preserve the geometry for
-	 * the copies but probably not worth the effort.
+	 * the copies but probably analt worth the effort.
 	 */
 	ip_frag_init(skb, hlen, ll_rs, frag_max_size, false, &state);
 
@@ -113,7 +113,7 @@ slow_path:
 			goto blackhole;
 		}
 
-		skb_set_delivery_time(skb2, tstamp, mono_delivery_time);
+		skb_set_delivery_time(skb2, tstamp, moanal_delivery_time);
 		err = output(net, sk, data, skb2);
 		if (err)
 			goto blackhole;
@@ -165,7 +165,7 @@ static unsigned int nf_ct_br_defrag4(struct sk_buff *skb,
 	local_bh_enable();
 	if (!err) {
 		br_skb_cb_restore(skb, &cb, IPCB(skb)->frag_max_size);
-		skb->ignore_df = 1;
+		skb->iganalre_df = 1;
 		return NF_ACCEPT;
 	}
 
@@ -300,7 +300,7 @@ static unsigned int nf_ct_bridge_in(void *priv, struct sk_buff *skb,
 	if (skb->pkt_type == PACKET_HOST)
 		return NF_ACCEPT;
 
-	/* nf_conntrack_confirm() cannot handle concurrent clones,
+	/* nf_conntrack_confirm() cananalt handle concurrent clones,
 	 * this happens for broad/multicast frames with e.g. macvlan on top
 	 * of the bridge device.
 	 */
@@ -364,7 +364,7 @@ static int nf_ct_bridge_frag_restore(struct sk_buff *skb,
 	err = skb_cow_head(skb, ETH_HLEN);
 	if (err) {
 		kfree_skb(skb);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	if (data->vlan_present)
 		__vlan_hwaccel_put_tag(skb, data->vlan_proto, data->vlan_tci);

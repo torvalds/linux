@@ -14,7 +14,7 @@
 		stdout-path = &uart3;
 	};
 
-	/* Do not allow frequencies above 800MHz */
+	/* Do analt allow frequencies above 800MHz */
 	cpus {
 		cpu@0 {
 			operating-points = <
@@ -83,7 +83,7 @@
 		gpio = <&tca6424a 16 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 		/*
-		 * This must be always-on for da7212, which has some not
+		 * This must be always-on for da7212, which has some analt
 		 * properly documented dependencies for it's speaker supply
 		 * pin. The issue manifests as speaker volume being very low.
 		 */
@@ -375,8 +375,8 @@
 
 	/*
 	 * TPS2051BDGN fault-gpio is connected to Q7[86] USB_0_1_OC_N.
-	 * On QMX6 this is not connceted to the i.MX6, but to the USB Hub
-	 * from &usbh1. This means, that we cannot easily detect and handle
+	 * On QMX6 this is analt connceted to the i.MX6, but to the USB Hub
+	 * from &usbh1. This means, that we cananalt easily detect and handle
 	 * over-current events. Fortunately the regulator limits the current
 	 * automatically, so the hardware is still protected.
 	 */
@@ -387,8 +387,8 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc4>;
 	bus-width = <4>;
-	no-1-8-v;
-	non-removable;
+	anal-1-8-v;
+	analn-removable;
 	wakeup-source;
 	keep-power-in-suspend;
 	cap-power-off-card;

@@ -1,11 +1,11 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /* atm.h - general ATM declarations */
  
 /* Written 1995-2000 by Werner Almesberger, EPFL LRC/ICA */
  
 
 /*
- * WARNING: User-space programs should not #include <linux/atm.h> directly.
+ * WARNING: User-space programs should analt #include <linux/atm.h> directly.
  *          Instead, #include <atm.h>
  */
 
@@ -14,7 +14,7 @@
 
 /*
  * BEGIN_xx and END_xx markers are used for automatic generation of
- * documentation. Do not change them.
+ * documentation. Do analt change them.
  */
 
 #include <linux/compiler.h>
@@ -32,7 +32,7 @@
 #define ATM_AAL5_TRAILER	     8	/* AAL5 trailer size */
 #define ATM_MAX_AAL5_PDU	 65535	/* maximum AAL5 PDU payload */
 #define ATM_MAX_CDV		  9999	/* maximum (default) CDV */
-#define ATM_NOT_RSV_VCI		    32	/* first non-reserved VCI value */
+#define ATM_ANALT_RSV_VCI		    32	/* first analn-reserved VCI value */
 
 #define ATM_MAX_VPI		   255	/* maximum VPI at the UNI */
 #define ATM_MAX_VPI_NNI		  4096	/* maximum VPI at the NNI */
@@ -40,7 +40,7 @@
 
 
 /* "protcol" values for the socket system call */
-#define ATM_NO_AAL	0		/* AAL not specified */
+#define ATM_ANAL_AAL	0		/* AAL analt specified */
 #define ATM_AAL0	13		/* "raw" ATM cells */
 #define ATM_AAL1	1		/* AAL1 (CBR) */
 #define ATM_AAL2	2		/* AAL2 (VBR) */
@@ -50,7 +50,7 @@
 /*
  * socket option name coding functions
  *
- * Note that __SO_ENCODE and __SO_LEVEL are somewhat a hack since the
+ * Analte that __SO_ENCODE and __SO_LEVEL are somewhat a hack since the
  * << 22 only reserves 9 bits for the level.  On some architectures
  * SOL_SOCKET is 0xFFFF, so that's a bit of a problem
  */
@@ -81,7 +81,7 @@
 
 
 /*
- * Note @@@: since the socket layers don't really distinguish the control and
+ * Analte @@@: since the socket layers don't really distinguish the control and
  * the data plane but generally seems to be data plane-centric, any layer is
  * about equally wrong for the SAP. If you have a better idea about this,
  * please speak up ...
@@ -106,8 +106,8 @@
 /* PTI codings */
 
 /* BEGIN_PTI */
-#define ATM_PTI_US0	0  /* user data cell, congestion not exp, SDU-type 0 */
-#define ATM_PTI_US1	1  /* user data cell, congestion not exp, SDU-type 1 */
+#define ATM_PTI_US0	0  /* user data cell, congestion analt exp, SDU-type 0 */
+#define ATM_PTI_US1	1  /* user data cell, congestion analt exp, SDU-type 1 */
 #define ATM_PTI_UCES0	2  /* user data cell, cong. experienced, SDU-type 0 */
 #define ATM_PTI_UCES1	3  /* user data cell, cong. experienced, SDU-type 1 */
 #define ATM_PTI_SEGF5	4  /* segment OAM F5 flow related cell */
@@ -124,7 +124,7 @@
 
 /* Traffic description */
 
-#define ATM_NONE	0		/* no traffic */
+#define ATM_ANALNE	0		/* anal traffic */
 #define ATM_UBR		1
 #define ATM_CBR		2
 #define ATM_VBR		3
@@ -197,7 +197,7 @@ struct sockaddr_atmpvc {
 #define ATM_AFI_E164_GROUP	0xC3	/* E.164 ATM Group Format */
 #define ATM_AFI_LOCAL_GROUP	0xC7	/* Local ATM Group Format */
 
-#define ATM_LIJ_NONE	0		/* no leaf-initiated join */
+#define ATM_LIJ_ANALNE	0		/* anal leaf-initiated join */
 #define ATM_LIJ		1		/* request joining */
 #define ATM_LIJ_RPJ	2		/* set to root-prompted join */
 #define ATM_LIJ_NJ	3		/* set to network join */

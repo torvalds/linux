@@ -31,7 +31,7 @@ enum _BT_INFO_SRC_8821A_2ANT {
 enum _BT_8821A_2ANT_BT_STATUS {
 	BT_8821A_2ANT_BT_STATUS_IDLE		= 0x0,
 	BT_8821A_2ANT_BT_STATUS_CON_IDLE	= 0x1,
-	BT_8821A_2ANT_BT_STATUS_NON_IDLE	= 0x2,
+	BT_8821A_2ANT_BT_STATUS_ANALN_IDLE	= 0x2,
 	BT_8821A_2ANT_BT_STATUS_ACL_BUSY	= 0x3,
 	BT_8821A_2ANT_BT_STATUS_SCO_BUSY	= 0x4,
 	BT_8821A_2ANT_BT_STATUS_ACL_SCO_BUSY	= 0x5,
@@ -59,8 +59,8 @@ struct coex_dm_8821a_2ant {
 	bool		cur_dec_bt_pwr_lvl;
 	u8		pre_fw_dac_swing_lvl;
 	u8		cur_fw_dac_swing_lvl;
-	bool		cur_ignore_wlan_act;
-	bool		pre_ignore_wlan_act;
+	bool		cur_iganalre_wlan_act;
+	bool		pre_iganalre_wlan_act;
 	u8		pre_ps_tdma;
 	u8		cur_ps_tdma;
 	u8		ps_tdma_para[5];
@@ -147,7 +147,7 @@ struct coex_sta_8821a_2ant {
 };
 
 /*===========================================
- *	The following is interface which will notify coex module.
+ *	The following is interface which will analtify coex module.
  *===========================================
  */
 void
@@ -159,43 +159,43 @@ ex_btc8821a2ant_init_coex_dm(
 	struct btc_coexist *btcoexist
 	);
 void
-ex_btc8821a2ant_ips_notify(
+ex_btc8821a2ant_ips_analtify(
 	struct btc_coexist *btcoexist,
 	u8 type
 	);
 void
-ex_btc8821a2ant_lps_notify(
+ex_btc8821a2ant_lps_analtify(
 	struct btc_coexist *btcoexist,
 	u8 type
 	);
 void
-ex_btc8821a2ant_scan_notify(
+ex_btc8821a2ant_scan_analtify(
 	struct btc_coexist *btcoexist,
 	u8 type
 	);
 void
-ex_btc8821a2ant_connect_notify(
+ex_btc8821a2ant_connect_analtify(
 	struct btc_coexist *btcoexist,
 	u8 type
 	);
 void
-ex_btc8821a2ant_media_status_notify(
+ex_btc8821a2ant_media_status_analtify(
 	struct btc_coexist *btcoexist,
 	u8 type
 	);
 void
-ex_btc8821a2ant_special_packet_notify(
+ex_btc8821a2ant_special_packet_analtify(
 	struct btc_coexist *btcoexist,
 	u8 type
 	);
 void
-ex_btc8821a2ant_bt_info_notify(
+ex_btc8821a2ant_bt_info_analtify(
 	struct btc_coexist *btcoexist,
 	u8 *tmp_buf,
 	u8 length
 	);
 void
-ex_btc8821a2ant_halt_notify(
+ex_btc8821a2ant_halt_analtify(
 	struct btc_coexist *btcoexist
 	);
 void
@@ -207,5 +207,5 @@ ex_btc8821a2ant_display_coex_info(
 	struct btc_coexist *btcoexist,
 	struct seq_file *m
 	);
-void ex_btc8821a2ant_pnp_notify(struct btc_coexist *btcoexist, u8 pnp_state);
+void ex_btc8821a2ant_pnp_analtify(struct btc_coexist *btcoexist, u8 pnp_state);
 void ex_btc8821a2ant_pre_load_firmware(struct btc_coexist *btcoexist);

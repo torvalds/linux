@@ -19,7 +19,7 @@ stores an integral number of compressed pages per page, but it can store
 up to 3 pages unlike zbud which can store at most 2. Therefore the
 compression ratio goes to around 2.7x while zbud's one is around 1.7x.
 
-Unlike zbud (but like zsmalloc for that matter) z3fold_alloc() does not
+Unlike zbud (but like zsmalloc for that matter) z3fold_alloc() does analt
 return a dereferenceable pointer. Instead, it returns an unsigned long
 handle which encodes actual location of the allocated object.
 

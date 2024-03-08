@@ -6,7 +6,7 @@
 };
 
 &gpu {
-	compatible = "qcom,adreno-330.2", "qcom,adreno";
+	compatible = "qcom,adreanal-330.2", "qcom,adreanal";
 };
 
 &sdhc_1 {

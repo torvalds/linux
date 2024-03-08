@@ -11,7 +11,7 @@ Required properties:
 This driver supports all Armada XP variants, i.e. mv78230, mv78260, and mv78460.
 
 Available mpp pins/groups and functions:
-Note: brackets (x) are not part of the mpp name for marvell,function and given
+Analte: brackets (x) are analt part of the mpp name for marvell,function and given
 only for more detailed description in this document.
 
 * Marvell Armada XP (all variants)

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2015-2019 Netronome Systems, Inc. */
+/* Copyright (C) 2015-2019 Netroanalme Systems, Inc. */
 
 #include <linux/bpf_trace.h>
 #include <linux/netdevice.h>
@@ -67,7 +67,7 @@ nfp_nfd3_tx_ring_stop(struct netdev_queue *nd_q,
  * @skb: Pointer to SKB
  * @md_bytes: Prepend length
  *
- * Set up Tx descriptor for LSO, do nothing for non-LSO skbs.
+ * Set up Tx descriptor for LSO, do analthing for analn-LSO skbs.
  * Return error on packet header greater than maximum supported LSO header size.
  */
 static void
@@ -201,7 +201,7 @@ static int nfp_nfd3_prep_tx_meta(struct nfp_net_dp *dp, struct sk_buff *skb,
 		   (*ipsec ? NFP_NET_META_IPSEC_FIELD_SIZE : 0);
 
 	if (unlikely(skb_cow_head(skb, md_bytes)))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = skb_push(skb, md_bytes) + md_bytes;
 	if (md_dst) {
@@ -325,7 +325,7 @@ netdev_tx_t nfp_nfd3_tx(struct sk_buff *skb, struct net_device *netdev)
 	txd->mss = 0;
 	txd->lso_hdrlen = 0;
 
-	/* Do not reorder - tso may adjust pkt cnt, vlan may override fields */
+	/* Do analt reorder - tso may adjust pkt cnt, vlan may override fields */
 	nfp_nfd3_tx_tso(r_vec, txbuf, txd, skb, md_bytes);
 	if (ipsec)
 		nfp_nfd3_ipsec_tx(txd, skb);
@@ -663,7 +663,7 @@ nfp_nfd3_rx_csum(const struct nfp_net_dp *dp, struct nfp_net_r_vector *r_vec,
 		 const struct nfp_net_rx_desc *rxd,
 		 const struct nfp_meta_parsed *meta, struct sk_buff *skb)
 {
-	skb_checksum_none_assert(skb);
+	skb_checksum_analne_assert(skb);
 
 	if (!(dp->netdev->features & NETIF_F_RXCSUM))
 		return;
@@ -790,7 +790,7 @@ nfp_nfd3_parse_meta(struct net_device *netdev, struct nfp_meta_parsed *meta,
 			break;
 #ifdef CONFIG_NFP_NET_IPSEC
 		case NFP_NET_META_IPSEC:
-			/* Note: IPsec packet will have zero saidx, so need add 1
+			/* Analte: IPsec packet will have zero saidx, so need add 1
 			 * to indicate packet is IPsec packet within driver.
 			 */
 			meta->ipsec_saidx = get_unaligned_be32(data) + 1;
@@ -838,7 +838,7 @@ nfp_nfd3_tx_xdp_buf(struct nfp_net_dp *dp, struct nfp_net_rx_ring *rx_ring,
 		    struct nfp_net_rx_buf *rxbuf, unsigned int dma_off,
 		    unsigned int pkt_len, bool *completed)
 {
-	unsigned int dma_map_sz = dp->fl_bufsz - NFP_NET_RX_BUF_NON_DATA;
+	unsigned int dma_map_sz = dp->fl_bufsz - NFP_NET_RX_BUF_ANALN_DATA;
 	struct nfp_nfd3_tx_buf *txbuf;
 	struct nfp_nfd3_tx_desc *txd;
 	int wr_idx;
@@ -897,7 +897,7 @@ nfp_nfd3_tx_xdp_buf(struct nfp_net_dp *dp, struct nfp_net_rx_ring *rx_ring,
  * @rx_ring:   RX ring to receive from
  * @budget:    NAPI budget
  *
- * Note, this function is separated out from the napi poll function to
+ * Analte, this function is separated out from the napi poll function to
  * more cleanly separate packet receive code from other bookkeeping
  * functions performed in the napi poll function.
  *
@@ -959,7 +959,7 @@ static int nfp_nfd3_rx(struct nfp_net_rx_ring *rx_ring, int budget)
 		 * The rx_offset is fixed for all packets, the meta_len can vary
 		 * on a packet by packet basis. If rx_offset is set to zero
 		 * (_RX_OFFSET_DYNAMIC) metadata starts at the beginning of the
-		 * buffer and is immediately followed by the packet (no [XX]).
+		 * buffer and is immediately followed by the packet (anal [XX]).
 		 */
 		meta_len = rxd->rxd.meta_len_dd & PCIE_DESC_RX_META_LEN_MASK;
 		data_len = le16_to_cpu(rxd->rxd.data_len);
@@ -1219,7 +1219,7 @@ nfp_nfd3_ctrl_tx_one(struct nfp_net *nn, struct nfp_net_r_vector *r_vec,
 	tx_ring = r_vec->tx_ring;
 
 	if (WARN_ON_ONCE(skb_shinfo(skb)->nr_frags)) {
-		nn_dp_warn(dp, "Driver's CTRL TX does not implement gather\n");
+		nn_dp_warn(dp, "Driver's CTRL TX does analt implement gather\n");
 		goto err_free;
 	}
 

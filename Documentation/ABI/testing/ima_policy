@@ -58,7 +58,7 @@ Description:
 				specifying "digest_type=verity" first.)
 
 			appraise_flag:= [check_blacklist] (deprecated)
-			Setting the check_blacklist flag is no longer necessary.
+			Setting the check_blacklist flag is anal longer necessary.
 			All appraisal functions set it by default.
 			digest_type:= verity
 			    Require fs-verity's file digest instead of the

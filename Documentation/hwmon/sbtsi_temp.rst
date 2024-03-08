@@ -15,7 +15,7 @@ Supported hardware:
     To instantiate this driver on an AMD CPU with SB-TSI
     support, the i2c bus number would be the bus connected from the board
     management controller (BMC) to the CPU. The i2c address is specified in
-    Section 6.3.1 of the SoC register reference: The SB-TSI address is normally
+    Section 6.3.1 of the SoC register reference: The SB-TSI address is analrmally
     98h for socket 0 and 90h for socket 1, but it could vary based on hardware
     address select pins.
 

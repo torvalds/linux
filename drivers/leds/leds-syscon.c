@@ -56,7 +56,7 @@ static int syscon_led_probe(struct platform_device *pdev)
 {
 	struct led_init_data init_data = {};
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev_of_node(dev);
+	struct device_analde *np = dev_of_analde(dev);
 	struct device *parent;
 	struct regmap *map;
 	struct syscon_led *sled;
@@ -66,18 +66,18 @@ static int syscon_led_probe(struct platform_device *pdev)
 
 	parent = dev->parent;
 	if (!parent) {
-		dev_err(dev, "no parent for syscon LED\n");
-		return -ENODEV;
+		dev_err(dev, "anal parent for syscon LED\n");
+		return -EANALDEV;
 	}
-	map = syscon_node_to_regmap(dev_of_node(parent));
+	map = syscon_analde_to_regmap(dev_of_analde(parent));
 	if (IS_ERR(map)) {
-		dev_err(dev, "no regmap for syscon LED parent\n");
+		dev_err(dev, "anal regmap for syscon LED parent\n");
 		return PTR_ERR(map);
 	}
 
 	sled = devm_kzalloc(dev, sizeof(*sled), GFP_KERNEL);
 	if (!sled)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sled->map = map;
 
@@ -87,9 +87,9 @@ static int syscon_led_probe(struct platform_device *pdev)
 	if (of_property_read_u32(np, "mask", &sled->mask))
 		return -EINVAL;
 
-	init_data.fwnode = of_fwnode_handle(np);
+	init_data.fwanalde = of_fwanalde_handle(np);
 
-	state = led_init_default_state_get(init_data.fwnode);
+	state = led_init_default_state_get(init_data.fwanalde);
 	switch (state) {
 	case LEDS_DEFSTATE_ON:
 		ret = regmap_update_bits(map, sled->offset, sled->mask, sled->mask);

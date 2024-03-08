@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 %YAML 1.2
 ---
-$id: http://devicetree.org/schemas/display/samsung/samsung,exynos-hdmi-ddc.yaml#
+$id: http://devicetree.org/schemas/display/samsung/samsung,exyanals-hdmi-ddc.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Samsung Exynos SoC HDMI DDC
+title: Samsung Exyanals SoC HDMI DDC
 
 maintainers:
   - Inki Dae <inki.dae@samsung.com>
@@ -15,8 +15,8 @@ maintainers:
 properties:
   compatible:
     oneOf:
-      - const: samsung,exynos4210-hdmiddc
-      - const: samsung,exynos5-hdmiddc
+      - const: samsung,exyanals4210-hdmiddc
+      - const: samsung,exyanals5-hdmiddc
         deprecated: true
 
   reg:
@@ -35,7 +35,7 @@ examples:
         #size-cells = <0>;
 
         ddc@50 {
-            compatible = "samsung,exynos4210-hdmiddc";
+            compatible = "samsung,exyanals4210-hdmiddc";
             reg = <0x50>;
         };
     };

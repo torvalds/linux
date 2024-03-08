@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only OR MIT */
-/* Copyright (c) 2023 Imagination Technologies Ltd. */
+/* Copyright (c) 2023 Imagination Techanallogies Ltd. */
 
 #ifndef PVR_ROGUE_HEAP_CONFIG_H
 #define PVR_ROGUE_HEAP_CONFIG_H
@@ -20,7 +20,7 @@
  * still be consistent with their definitions for these heaps.
  *
  * Base addresses have to be a multiple of 4MiB.
- * Heaps must not start at 0x0000000000, as this is reserved for internal
+ * Heaps must analt start at 0x0000000000, as this is reserved for internal
  * use within the driver.
  * Range comments, those starting in column 0 below are a section heading of
  * sorts and are above the heaps in that range. Often this is the reserved

@@ -193,7 +193,7 @@
 /* Hypercalls */
 #define HVCALL_FLUSH_VIRTUAL_ADDRESS_SPACE	0x0002
 #define HVCALL_FLUSH_VIRTUAL_ADDRESS_LIST	0x0003
-#define HVCALL_NOTIFY_LONG_SPIN_WAIT		0x0008
+#define HVCALL_ANALTIFY_LONG_SPIN_WAIT		0x0008
 #define HVCALL_SEND_IPI				0x000b
 #define HVCALL_FLUSH_VIRTUAL_ADDRESS_SPACE_EX	0x0013
 #define HVCALL_FLUSH_VIRTUAL_ADDRESS_LIST_EX	0x0014
@@ -220,7 +220,7 @@
 
 #define HV_FLUSH_ALL_PROCESSORS			BIT(0)
 #define HV_FLUSH_ALL_VIRTUAL_ADDRESS_SPACES	BIT(1)
-#define HV_FLUSH_NON_GLOBAL_MAPPINGS_ONLY	BIT(2)
+#define HV_FLUSH_ANALN_GLOBAL_MAPPINGS_ONLY	BIT(2)
 #define HV_FLUSH_USE_EXTENDED_RANGE_FORMAT	BIT(3)
 
 /* hypercall status code */
@@ -243,7 +243,7 @@
 
 /*
  * Issue a Hyper-V hypercall. Returns exception vector raised or 0, 'hv_status'
- * is set to the hypercall status (if no exception occurred).
+ * is set to the hypercall status (if anal exception occurred).
  */
 static inline uint8_t __hyperv_hypercall(u64 control, vm_vaddr_t input_address,
 					 vm_vaddr_t output_address,
@@ -252,7 +252,7 @@ static inline uint8_t __hyperv_hypercall(u64 control, vm_vaddr_t input_address,
 	uint64_t error_code;
 	uint8_t vector;
 
-	/* Note both the hypercall and the "asm safe" clobber r9-r11. */
+	/* Analte both the hypercall and the "asm safe" clobber r9-r11. */
 	asm volatile("mov %[output_address], %%r8\n\t"
 		     KVM_ASM_SAFE("vmcall")
 		     : "=a" (*hv_status),

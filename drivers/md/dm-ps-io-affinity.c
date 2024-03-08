@@ -56,7 +56,7 @@ static int ioa_add_path(struct path_selector *ps, struct dm_path *path,
 	pi = kzalloc(sizeof(*pi), GFP_KERNEL);
 	if (!pi) {
 		*error = "io-affinity ps: Error allocating path context";
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	pi->path = path;
@@ -65,7 +65,7 @@ static int ioa_add_path(struct path_selector *ps, struct dm_path *path,
 
 	if (!zalloc_cpumask_var(&pi->cpumask, GFP_KERNEL)) {
 		*error = "io-affinity ps: Error allocating cpumask context";
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_pi;
 	}
 
@@ -78,13 +78,13 @@ static int ioa_add_path(struct path_selector *ps, struct dm_path *path,
 
 	for_each_cpu(cpu, pi->cpumask) {
 		if (cpu >= nr_cpu_ids) {
-			DMWARN_LIMIT("Ignoring mapping for CPU %u. Max CPU is %u",
+			DMWARN_LIMIT("Iganalring mapping for CPU %u. Max CPU is %u",
 				     cpu, nr_cpu_ids);
 			break;
 		}
 
 		if (s->path_map[cpu]) {
-			DMWARN("CPU mapping for %u exists. Ignoring.", cpu);
+			DMWARN("CPU mapping for %u exists. Iganalring.", cpu);
 			continue;
 		}
 
@@ -94,7 +94,7 @@ static int ioa_add_path(struct path_selector *ps, struct dm_path *path,
 	}
 
 	if (refcount_dec_and_test(&pi->refcount)) {
-		*error = "io-affinity ps: No new/valid CPU mapping found";
+		*error = "io-affinity ps: Anal new/valid CPU mapping found";
 		ret = -EINVAL;
 		goto free_mask;
 	}
@@ -114,7 +114,7 @@ static int ioa_create(struct path_selector *ps, unsigned int argc, char **argv)
 
 	s = kmalloc(sizeof(*s), GFP_KERNEL);
 	if (!s)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	s->path_map = kzalloc(nr_cpu_ids * sizeof(struct path_info *),
 			      GFP_KERNEL);
@@ -132,7 +132,7 @@ free_map:
 	kfree(s->path_map);
 free_selector:
 	kfree(s);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void ioa_destroy(struct path_selector *ps)
@@ -196,7 +196,7 @@ static int ioa_reinstate_path(struct path_selector *ps, struct dm_path *p)
 static struct dm_path *ioa_select_path(struct path_selector *ps,
 				       size_t nr_bytes)
 {
-	unsigned int cpu, node;
+	unsigned int cpu, analde;
 	struct selector *s = ps->context;
 	const struct cpumask *cpumask;
 	struct path_info *pi;
@@ -209,14 +209,14 @@ static struct dm_path *ioa_select_path(struct path_selector *ps,
 		goto done;
 
 	/*
-	 * Perf is not optimal, but we at least try the local node then just
-	 * try not to fail.
+	 * Perf is analt optimal, but we at least try the local analde then just
+	 * try analt to fail.
 	 */
 	if (!pi)
 		atomic_inc(&s->map_misses);
 
-	node = cpu_to_node(cpu);
-	cpumask = cpumask_of_node(node);
+	analde = cpu_to_analde(cpu);
+	cpumask = cpumask_of_analde(analde);
 	for_each_cpu(i, cpumask) {
 		pi = s->path_map[i];
 		if (pi && !pi->failed)

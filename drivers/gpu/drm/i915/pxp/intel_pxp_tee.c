@@ -28,7 +28,7 @@ is_fw_err_platform_config(struct intel_pxp *pxp, u32 type)
 {
 	switch (type) {
 	case PXP_STATUS_ERROR_API_VERSION:
-	case PXP_STATUS_PLATFCONFIG_KF1_NOVERIF:
+	case PXP_STATUS_PLATFCONFIG_KF1_ANALVERIF:
 	case PXP_STATUS_PLATFCONFIG_KF1_BAD:
 		pxp->platform_cfg_is_bad = true;
 		return true;
@@ -44,9 +44,9 @@ fw_err_to_string(u32 type)
 	switch (type) {
 	case PXP_STATUS_ERROR_API_VERSION:
 		return "ERR_API_VERSION";
-	case PXP_STATUS_NOT_READY:
-		return "ERR_NOT_READY";
-	case PXP_STATUS_PLATFCONFIG_KF1_NOVERIF:
+	case PXP_STATUS_ANALT_READY:
+		return "ERR_ANALT_READY";
+	case PXP_STATUS_PLATFCONFIG_KF1_ANALVERIF:
 	case PXP_STATUS_PLATFCONFIG_KF1_BAD:
 		return "ERR_PLATFORM_CONFIG";
 	default:
@@ -67,11 +67,11 @@ static int intel_pxp_tee_io_message(struct intel_pxp *pxp,
 	mutex_lock(&pxp->tee_mutex);
 
 	/*
-	 * The binding of the component is asynchronous from i915 probe, so we
+	 * The binding of the component is asynchroanalus from i915 probe, so we
 	 * can't be sure it has happened.
 	 */
 	if (!pxp_component) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto unlock;
 	}
 
@@ -92,7 +92,7 @@ static int intel_pxp_tee_io_message(struct intel_pxp *pxp,
 	if (ret > msg_out_max_size) {
 		drm_err(&i915->drm,
 			"Failed to receive PXP TEE message due to unexpected output size\n");
-		ret = -ENOSPC;
+		ret = -EANALSPC;
 		goto unlock;
 	}
 
@@ -119,12 +119,12 @@ int intel_pxp_tee_stream_message(struct intel_pxp *pxp,
 	int ret;
 
 	if (msg_in_len > max_msg_size || msg_out_len > max_msg_size)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	mutex_lock(&pxp->tee_mutex);
 
 	if (unlikely(!pxp_component || !pxp_component->ops->gsc_command)) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto unlock;
 	}
 
@@ -169,7 +169,7 @@ static int i915_pxp_tee_component_bind(struct device *i915_kdev,
 	if (!HAS_HECI_PXP(i915)) {
 		pxp->dev_link = device_link_add(i915_kdev, tee_kdev, DL_FLAG_STATELESS);
 		if (drm_WARN_ON(&i915->drm, !pxp->dev_link))
-			return -ENODEV;
+			return -EANALDEV;
 	}
 
 	mutex_lock(&pxp->tee_mutex);

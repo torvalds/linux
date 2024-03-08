@@ -374,7 +374,7 @@ static const struct reg_default cs47l85_reg_default[] = {
 	{ 0x00000095, 0x0000 }, /* R149 (0x95) - Haptics phase 2 duration */
 	{ 0x00000096, 0x0000 }, /* R150 (0x96) - Haptics phase 3 intensity */
 	{ 0x00000097, 0x0000 }, /* R151 (0x97) - Haptics phase 3 duration */
-	{ 0x000000a0, 0x0000 }, /* R160 (0xa0) - Comfort Noise Generator */
+	{ 0x000000a0, 0x0000 }, /* R160 (0xa0) - Comfort Analise Generator */
 	{ 0x00000100, 0x0002 }, /* R256 (0x100) - Clock 32k 1 */
 	{ 0x00000101, 0x0404 }, /* R257 (0x101) - System Clock 1 */
 	{ 0x00000102, 0x0011 }, /* R258 (0x102) - Sample rate 1 */
@@ -505,43 +505,43 @@ static const struct reg_default cs47l85_reg_default[] = {
 	{ 0x00000409, 0x0022 }, /* R1033 (0x409) - Output Volume Ramp */
 	{ 0x00000410, 0x0080 }, /* R1040 (0x410) - Output Path Config 1L */
 	{ 0x00000411, 0x0180 }, /* R1041 (0x411) - DAC Digital Volume 1L */
-	{ 0x00000413, 0x0001 }, /* R1043 (0x413) - Noise Gate Select 1L */
+	{ 0x00000413, 0x0001 }, /* R1043 (0x413) - Analise Gate Select 1L */
 	{ 0x00000414, 0x0080 }, /* R1044 (0x414) - Output Path Config 1R */
 	{ 0x00000415, 0x0180 }, /* R1045 (0x415) - DAC Digital Volume 1R */
-	{ 0x00000417, 0x0002 }, /* R1047 (0x417) - Noise Gate Select 1R */
+	{ 0x00000417, 0x0002 }, /* R1047 (0x417) - Analise Gate Select 1R */
 	{ 0x00000418, 0x0080 }, /* R1048 (0x418) - Output Path Config 2L */
 	{ 0x00000419, 0x0180 }, /* R1049 (0x419) - DAC Digital Volume 2L */
-	{ 0x0000041b, 0x0004 }, /* R1051 (0x41b) - Noise Gate Select 2L */
+	{ 0x0000041b, 0x0004 }, /* R1051 (0x41b) - Analise Gate Select 2L */
 	{ 0x0000041c, 0x0080 }, /* R1052 (0x41c) - Output Path Config 2R */
 	{ 0x0000041d, 0x0180 }, /* R1053 (0x41d) - DAC Digital Volume 2R */
-	{ 0x0000041f, 0x0008 }, /* R1055 (0x41f) - Noise Gate Select 2R */
+	{ 0x0000041f, 0x0008 }, /* R1055 (0x41f) - Analise Gate Select 2R */
 	{ 0x00000420, 0x0080 }, /* R1056 (0x420) - Output Path Config 3L */
 	{ 0x00000421, 0x0180 }, /* R1057 (0x421) - DAC Digital Volume 3L */
-	{ 0x00000423, 0x0010 }, /* R1059 (0x423) - Noise Gate Select 3L */
+	{ 0x00000423, 0x0010 }, /* R1059 (0x423) - Analise Gate Select 3L */
 	{ 0x00000424, 0x0080 }, /* R1060 (0x424) - Output Path Config 3R */
 	{ 0x00000425, 0x0180 }, /* R1061 (0x425) - DAC Digital Volume 3R */
-	{ 0x00000427, 0x0020 }, /* R1063 (0x427) - Noise Gate Select 3R */
+	{ 0x00000427, 0x0020 }, /* R1063 (0x427) - Analise Gate Select 3R */
 	{ 0x00000428, 0x0000 }, /* R1064 (0x428) - Output Path Config 4L */
 	{ 0x00000429, 0x0180 }, /* R1065 (0x429) - DAC Digital Volume 4L */
-	{ 0x0000042b, 0x0040 }, /* R1067 (0x42b) - Noise Gate Select 4L */
+	{ 0x0000042b, 0x0040 }, /* R1067 (0x42b) - Analise Gate Select 4L */
 	{ 0x0000042c, 0x0000 }, /* R1068 (0x42c) - Output Path Config 4R */
 	{ 0x0000042d, 0x0180 }, /* R1069 (0x42d) - DAC Digital Volume 4R */
-	{ 0x0000042f, 0x0080 }, /* R1071 (0x42f) - Noise Gate Select 4R */
+	{ 0x0000042f, 0x0080 }, /* R1071 (0x42f) - Analise Gate Select 4R */
 	{ 0x00000430, 0x0000 }, /* R1072 (0x430) - Output Path Config 5L */
 	{ 0x00000431, 0x0180 }, /* R1073 (0x431) - DAC Digital Volume 5L */
-	{ 0x00000433, 0x0100 }, /* R1075 (0x433) - Noise Gate Select 5L */
+	{ 0x00000433, 0x0100 }, /* R1075 (0x433) - Analise Gate Select 5L */
 	{ 0x00000434, 0x0000 }, /* R1076 (0x434) - Output Path Config 5R */
 	{ 0x00000435, 0x0180 }, /* R1077 (0x435) - DAC Digital Volume 5R */
-	{ 0x00000437, 0x0200 }, /* R1079 (0x437) - Noise Gate Select 5R */
+	{ 0x00000437, 0x0200 }, /* R1079 (0x437) - Analise Gate Select 5R */
 	{ 0x00000438, 0x0000 }, /* R1080 (0x438) - Output Path Config 6L */
 	{ 0x00000439, 0x0180 }, /* R1081 (0x439) - DAC Digital Volume 6L */
-	{ 0x0000043b, 0x0400 }, /* R1083 (0x43b) - Noise Gate Select 6L */
+	{ 0x0000043b, 0x0400 }, /* R1083 (0x43b) - Analise Gate Select 6L */
 	{ 0x0000043c, 0x0000 }, /* R1084 (0x43c) - Output Path Config 6R */
 	{ 0x0000043d, 0x0180 }, /* R1085 (0x43d) - DAC Digital Volume 6R */
-	{ 0x0000043f, 0x0800 }, /* R1087 (0x43f) - Noise Gate Select 6R */
+	{ 0x0000043f, 0x0800 }, /* R1087 (0x43f) - Analise Gate Select 6R */
 	{ 0x00000450, 0x0000 }, /* R1104 (0x450) - DAC AEC Control 1 */
 	{ 0x00000451, 0x0000 }, /* R1105 (0x451) - DAC AEC Control 2 */
-	{ 0x00000458, 0x0000 }, /* R1112 (0x458) - Noise Gate Control */
+	{ 0x00000458, 0x0000 }, /* R1112 (0x458) - Analise Gate Control */
 	{ 0x00000490, 0x0069 }, /* R1168 (0x490) - PDM SPK1 CTRL 1 */
 	{ 0x00000491, 0x0000 }, /* R1169 (0x491) - PDM SPK1 CTRL 2 */
 	{ 0x00000492, 0x0069 }, /* R1170 (0x492) - PDM SPK2 CTRL 1 */
@@ -1755,7 +1755,7 @@ static bool cs47l85_16bit_readable_register(struct device *dev,
 	case MADERA_HAPTICS_PHASE_3_INTENSITY:
 	case MADERA_HAPTICS_PHASE_3_DURATION:
 	case MADERA_HAPTICS_STATUS:
-	case MADERA_COMFORT_NOISE_GENERATOR:
+	case MADERA_COMFORT_ANALISE_GENERATOR:
 	case MADERA_CLOCK_32K_1:
 	case MADERA_SYSTEM_CLOCK_1:
 	case MADERA_SAMPLE_RATE_1:
@@ -1907,43 +1907,43 @@ static bool cs47l85_16bit_readable_register(struct device *dev,
 	case MADERA_OUTPUT_VOLUME_RAMP:
 	case MADERA_OUTPUT_PATH_CONFIG_1L:
 	case MADERA_DAC_DIGITAL_VOLUME_1L:
-	case MADERA_NOISE_GATE_SELECT_1L:
+	case MADERA_ANALISE_GATE_SELECT_1L:
 	case MADERA_OUTPUT_PATH_CONFIG_1R:
 	case MADERA_DAC_DIGITAL_VOLUME_1R:
-	case MADERA_NOISE_GATE_SELECT_1R:
+	case MADERA_ANALISE_GATE_SELECT_1R:
 	case MADERA_OUTPUT_PATH_CONFIG_2L:
 	case MADERA_DAC_DIGITAL_VOLUME_2L:
-	case MADERA_NOISE_GATE_SELECT_2L:
+	case MADERA_ANALISE_GATE_SELECT_2L:
 	case MADERA_OUTPUT_PATH_CONFIG_2R:
 	case MADERA_DAC_DIGITAL_VOLUME_2R:
-	case MADERA_NOISE_GATE_SELECT_2R:
+	case MADERA_ANALISE_GATE_SELECT_2R:
 	case MADERA_OUTPUT_PATH_CONFIG_3L:
 	case MADERA_DAC_DIGITAL_VOLUME_3L:
-	case MADERA_NOISE_GATE_SELECT_3L:
+	case MADERA_ANALISE_GATE_SELECT_3L:
 	case MADERA_OUTPUT_PATH_CONFIG_3R:
 	case MADERA_DAC_DIGITAL_VOLUME_3R:
-	case MADERA_NOISE_GATE_SELECT_3R:
+	case MADERA_ANALISE_GATE_SELECT_3R:
 	case MADERA_OUTPUT_PATH_CONFIG_4L:
 	case MADERA_DAC_DIGITAL_VOLUME_4L:
-	case MADERA_NOISE_GATE_SELECT_4L:
+	case MADERA_ANALISE_GATE_SELECT_4L:
 	case MADERA_OUTPUT_PATH_CONFIG_4R:
 	case MADERA_DAC_DIGITAL_VOLUME_4R:
-	case MADERA_NOISE_GATE_SELECT_4R:
+	case MADERA_ANALISE_GATE_SELECT_4R:
 	case MADERA_OUTPUT_PATH_CONFIG_5L:
 	case MADERA_DAC_DIGITAL_VOLUME_5L:
-	case MADERA_NOISE_GATE_SELECT_5L:
+	case MADERA_ANALISE_GATE_SELECT_5L:
 	case MADERA_OUTPUT_PATH_CONFIG_5R:
 	case MADERA_DAC_DIGITAL_VOLUME_5R:
-	case MADERA_NOISE_GATE_SELECT_5R:
+	case MADERA_ANALISE_GATE_SELECT_5R:
 	case MADERA_OUTPUT_PATH_CONFIG_6L:
 	case MADERA_DAC_DIGITAL_VOLUME_6L:
-	case MADERA_NOISE_GATE_SELECT_6L:
+	case MADERA_ANALISE_GATE_SELECT_6L:
 	case MADERA_OUTPUT_PATH_CONFIG_6R:
 	case MADERA_DAC_DIGITAL_VOLUME_6R:
-	case MADERA_NOISE_GATE_SELECT_6R:
+	case MADERA_ANALISE_GATE_SELECT_6R:
 	case MADERA_DAC_AEC_CONTROL_1:
 	case MADERA_DAC_AEC_CONTROL_2:
-	case MADERA_NOISE_GATE_CONTROL:
+	case MADERA_ANALISE_GATE_CONTROL:
 	case MADERA_PDM_SPK1_CTRL_1:
 	case MADERA_PDM_SPK1_CTRL_2:
 	case MADERA_PDM_SPK2_CTRL_1:

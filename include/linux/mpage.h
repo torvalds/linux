@@ -7,7 +7,7 @@
  */
 
 /*
- * (And no, it doesn't do the #ifdef __MPAGE_H thing, and it doesn't do
+ * (And anal, it doesn't do the #ifdef __MPAGE_H thing, and it doesn't do
  * nested includes.  Get it right in the .c file).
  */
 #ifdef CONFIG_BLOCK

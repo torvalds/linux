@@ -9,7 +9,7 @@
 #include <linux/tracepoint.h>
 #include <linux/ftrace.h>
 
-#define NO_DEV "(no_device)"
+#define ANAL_DEV "(anal_device)"
 
 TRACE_EVENT(napi_poll,
 
@@ -19,14 +19,14 @@ TRACE_EVENT(napi_poll,
 
 	TP_STRUCT__entry(
 		__field(	struct napi_struct *,	napi)
-		__string(	dev_name, napi->dev ? napi->dev->name : NO_DEV)
+		__string(	dev_name, napi->dev ? napi->dev->name : ANAL_DEV)
 		__field(	int,			work)
 		__field(	int,			budget)
 	),
 
 	TP_fast_assign(
 		__entry->napi = napi;
-		__assign_str(dev_name, napi->dev ? napi->dev->name : NO_DEV);
+		__assign_str(dev_name, napi->dev ? napi->dev->name : ANAL_DEV);
 		__entry->work = work;
 		__entry->budget = budget;
 	),
@@ -36,7 +36,7 @@ TRACE_EVENT(napi_poll,
 		  __entry->work, __entry->budget)
 );
 
-#undef NO_DEV
+#undef ANAL_DEV
 
 #endif /* _TRACE_NAPI_H */
 

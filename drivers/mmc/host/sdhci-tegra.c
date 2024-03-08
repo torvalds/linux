@@ -309,7 +309,7 @@ static bool tegra_sdhci_is_pad_and_regulator_valid(struct sdhci_host *host)
 	 * The SoCs which have NVQUIRK_NEEDS_PAD_CONTROL require software pad
 	 * voltage configuration in order to perform voltage switching. This
 	 * means that valid pinctrl info is required on SDHCI instances capable
-	 * of performing voltage switching. Whether or not an SDHCI instance is
+	 * of performing voltage switching. Whether or analt an SDHCI instance is
 	 * capable of voltage switching is determined based on the regulator.
 	 */
 
@@ -328,7 +328,7 @@ static bool tegra_sdhci_is_pad_and_regulator_valid(struct sdhci_host *host)
 	if (has_1v8 == 1 && has_3v3 == 1)
 		return tegra_host->pad_control_available;
 
-	/* Fixed voltage, no pad control required. */
+	/* Fixed voltage, anal pad control required. */
 	return true;
 }
 
@@ -922,7 +922,7 @@ static void tegra_sdhci_tap_correction(struct sdhci_host *host, u8 thd_up,
 	}
 
 	if (!first_fail) {
-		WARN(1, "no edge detected, continue with hw tuned delay.\n");
+		WARN(1, "anal edge detected, continue with hw tuned delay.\n");
 	} else if (first_pass) {
 		/* set tap location at fixed tap relative to the first edge */
 		edge1 = first_fail_tap + (first_pass_tap - first_fail_tap) / 2;
@@ -944,7 +944,7 @@ static void tegra_sdhci_post_tuning(struct sdhci_host *host)
 	u8 num_iter;
 	u32 clk_rate_mhz, period_ps, bestcase, worstcase;
 
-	/* retain HW tuned tap to use incase if no correction is needed */
+	/* retain HW tuned tap to use incase if anal correction is needed */
 	val = sdhci_readl(host, SDHCI_TEGRA_VENDOR_CLOCK_CTRL);
 	tegra_host->tuned_tap_delay = (val & SDHCI_CLOCK_CTRL_TAP_MASK) >>
 				      SDHCI_CLOCK_CTRL_TAP_SHIFT;
@@ -1131,7 +1131,7 @@ static int tegra_sdhci_init_pinctrl_info(struct device *dev,
 {
 	tegra_host->pinctrl_sdmmc = devm_pinctrl_get(dev);
 	if (IS_ERR(tegra_host->pinctrl_sdmmc)) {
-		dev_dbg(dev, "No pinctrl info, err: %ld\n",
+		dev_dbg(dev, "Anal pinctrl info, err: %ld\n",
 			PTR_ERR(tegra_host->pinctrl_sdmmc));
 		return -1;
 	}
@@ -1139,14 +1139,14 @@ static int tegra_sdhci_init_pinctrl_info(struct device *dev,
 	tegra_host->pinctrl_state_1v8_drv = pinctrl_lookup_state(
 				tegra_host->pinctrl_sdmmc, "sdmmc-1v8-drv");
 	if (IS_ERR(tegra_host->pinctrl_state_1v8_drv)) {
-		if (PTR_ERR(tegra_host->pinctrl_state_1v8_drv) == -ENODEV)
+		if (PTR_ERR(tegra_host->pinctrl_state_1v8_drv) == -EANALDEV)
 			tegra_host->pinctrl_state_1v8_drv = NULL;
 	}
 
 	tegra_host->pinctrl_state_3v3_drv = pinctrl_lookup_state(
 				tegra_host->pinctrl_sdmmc, "sdmmc-3v3-drv");
 	if (IS_ERR(tegra_host->pinctrl_state_3v3_drv)) {
-		if (PTR_ERR(tegra_host->pinctrl_state_3v3_drv) == -ENODEV)
+		if (PTR_ERR(tegra_host->pinctrl_state_3v3_drv) == -EANALDEV)
 			tegra_host->pinctrl_state_3v3_drv = NULL;
 	}
 
@@ -1292,8 +1292,8 @@ static void tegra_sdhci_set_timeout(struct sdhci_host *host,
 
 	/*
 	 * HW busy detection timeout is based on programmed data timeout
-	 * counter and maximum supported timeout is 11s which may not be
-	 * enough for long operations like cache flush, sleep awake, erase.
+	 * counter and maximum supported timeout is 11s which may analt be
+	 * eanalugh for long operations like cache flush, sleep awake, erase.
 	 *
 	 * ERASE_TIMEOUT_LIMIT bit of VENDOR_MISC_CTRL register allows
 	 * host controller to wait for busy state until the card is busy
@@ -1375,7 +1375,7 @@ static const struct sdhci_ops tegra_sdhci_ops = {
 static const struct sdhci_pltfm_data sdhci_tegra20_pdata = {
 	.quirks = SDHCI_QUIRK_BROKEN_TIMEOUT_VAL |
 		  SDHCI_QUIRK_SINGLE_POWER_WRITE |
-		  SDHCI_QUIRK_NO_HISPD_BIT |
+		  SDHCI_QUIRK_ANAL_HISPD_BIT |
 		  SDHCI_QUIRK_BROKEN_ADMA_ZEROLEN_DESC |
 		  SDHCI_QUIRK_CAP_CLOCK_BASE_BROKEN,
 	.ops  = &tegra_sdhci_ops,
@@ -1393,16 +1393,16 @@ static const struct sdhci_pltfm_data sdhci_tegra30_pdata = {
 	.quirks = SDHCI_QUIRK_BROKEN_TIMEOUT_VAL |
 		  SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK |
 		  SDHCI_QUIRK_SINGLE_POWER_WRITE |
-		  SDHCI_QUIRK_NO_HISPD_BIT |
+		  SDHCI_QUIRK_ANAL_HISPD_BIT |
 		  SDHCI_QUIRK_BROKEN_ADMA_ZEROLEN_DESC |
 		  SDHCI_QUIRK_CAP_CLOCK_BASE_BROKEN,
 	.quirks2 = SDHCI_QUIRK2_PRESET_VALUE_BROKEN |
 		   SDHCI_QUIRK2_BROKEN_HS200 |
 		   /*
 		    * Auto-CMD23 leads to "Got command interrupt 0x00010000 even
-		    * though no command operation was in progress."
+		    * though anal command operation was in progress."
 		    *
-		    * The exact reason is unknown, as the same hardware seems
+		    * The exact reason is unkanalwn, as the same hardware seems
 		    * to support Auto CMD23 on a downstream 3.1 kernel.
 		    */
 		   SDHCI_QUIRK2_ACMD23_BROKEN,
@@ -1438,7 +1438,7 @@ static const struct sdhci_pltfm_data sdhci_tegra114_pdata = {
 	.quirks = SDHCI_QUIRK_BROKEN_TIMEOUT_VAL |
 		  SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK |
 		  SDHCI_QUIRK_SINGLE_POWER_WRITE |
-		  SDHCI_QUIRK_NO_HISPD_BIT |
+		  SDHCI_QUIRK_ANAL_HISPD_BIT |
 		  SDHCI_QUIRK_BROKEN_ADMA_ZEROLEN_DESC |
 		  SDHCI_QUIRK_CAP_CLOCK_BASE_BROKEN,
 	.quirks2 = SDHCI_QUIRK2_PRESET_VALUE_BROKEN,
@@ -1455,7 +1455,7 @@ static const struct sdhci_pltfm_data sdhci_tegra124_pdata = {
 	.quirks = SDHCI_QUIRK_BROKEN_TIMEOUT_VAL |
 		  SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK |
 		  SDHCI_QUIRK_SINGLE_POWER_WRITE |
-		  SDHCI_QUIRK_NO_HISPD_BIT |
+		  SDHCI_QUIRK_ANAL_HISPD_BIT |
 		  SDHCI_QUIRK_BROKEN_ADMA_ZEROLEN_DESC |
 		  SDHCI_QUIRK_CAP_CLOCK_BASE_BROKEN,
 	.quirks2 = SDHCI_QUIRK2_PRESET_VALUE_BROKEN,
@@ -1486,7 +1486,7 @@ static const struct sdhci_ops tegra210_sdhci_ops = {
 static const struct sdhci_pltfm_data sdhci_tegra210_pdata = {
 	.quirks = SDHCI_QUIRK_BROKEN_TIMEOUT_VAL |
 		  SDHCI_QUIRK_SINGLE_POWER_WRITE |
-		  SDHCI_QUIRK_NO_HISPD_BIT |
+		  SDHCI_QUIRK_ANAL_HISPD_BIT |
 		  SDHCI_QUIRK_BROKEN_ADMA_ZEROLEN_DESC |
 		  SDHCI_QUIRK_CAP_CLOCK_BASE_BROKEN,
 	.quirks2 = SDHCI_QUIRK2_PRESET_VALUE_BROKEN,
@@ -1524,7 +1524,7 @@ static const struct sdhci_ops tegra186_sdhci_ops = {
 static const struct sdhci_pltfm_data sdhci_tegra186_pdata = {
 	.quirks = SDHCI_QUIRK_BROKEN_TIMEOUT_VAL |
 		  SDHCI_QUIRK_SINGLE_POWER_WRITE |
-		  SDHCI_QUIRK_NO_HISPD_BIT |
+		  SDHCI_QUIRK_ANAL_HISPD_BIT |
 		  SDHCI_QUIRK_BROKEN_ADMA_ZEROLEN_DESC |
 		  SDHCI_QUIRK_CAP_CLOCK_BASE_BROKEN,
 	.quirks2 = SDHCI_QUIRK2_PRESET_VALUE_BROKEN |
@@ -1608,7 +1608,7 @@ static int sdhci_tegra_add_host(struct sdhci_host *host)
 	cq_host = devm_kzalloc(mmc_dev(host->mmc),
 				sizeof(*cq_host), GFP_KERNEL);
 	if (!cq_host) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto cleanup;
 	}
 
@@ -1925,7 +1925,7 @@ static const struct dev_pm_ops sdhci_tegra_dev_pm_ops = {
 static struct platform_driver sdhci_tegra_driver = {
 	.driver		= {
 		.name	= "sdhci-tegra",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = sdhci_tegra_dt_match,
 		.pm	= &sdhci_tegra_dev_pm_ops,
 	},

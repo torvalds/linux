@@ -28,7 +28,7 @@
 /* RFC 2960 12.2 Parameters necessary per association (i.e. the TCB)
  * Mapping  An array of bits or bytes indicating which out of
  * Array    order TSN's have been received (relative to the
- *          Last Rcvd TSN). If no gaps exist, i.e. no out of
+ *          Last Rcvd TSN). If anal gaps exist, i.e. anal out of
  *          order packets have been received, this array
  *          will be set to all zero. This structure may be
  *          in the form of a circular buffer or bit array.
@@ -51,7 +51,7 @@ struct sctp_tsnmap {
 	 *
 	 * Throughout most of the specification this is called the
 	 * "Cumulative TSN ACK Point".  In this case, we
-	 * ignore the advice in 12.2 in favour of the term
+	 * iganalre the advice in 12.2 in favour of the term
 	 * used in the bulk of the text.
 	 */
 	__u32 cumulative_tsn_ack_point;
@@ -60,7 +60,7 @@ struct sctp_tsnmap {
 	__u32 max_tsn_seen;
 
 	/* This is the minimum number of TSNs we can track.  This corresponds
-	 * to the size of tsn_map.   Note: the overflow_map allows us to
+	 * to the size of tsn_map.   Analte: the overflow_map allows us to
 	 * potentially track more than this quantity.
 	 */
 	__u16 len;
@@ -88,7 +88,7 @@ void sctp_tsnmap_free(struct sctp_tsnmap *map);
 
 /* Test the tracking state of this TSN.
  * Returns:
- *   0 if the TSN has not yet been seen
+ *   0 if the TSN has analt yet been seen
  *  >0 if the TSN has been seen (duplicate)
  *  <0 if the TSN is invalid (too large to track)
  */
@@ -139,7 +139,7 @@ static inline int sctp_tsnmap_has_gap(const struct sctp_tsnmap *map)
 	return map->cumulative_tsn_ack_point != map->max_tsn_seen;
 }
 
-/* Mark a duplicate TSN.  Note:  limit the storage of duplicate TSN
+/* Mark a duplicate TSN.  Analte:  limit the storage of duplicate TSN
  * information.
  */
 static inline void sctp_tsnmap_mark_dup(struct sctp_tsnmap *map, __u32 tsn)

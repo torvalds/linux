@@ -10,10 +10,10 @@ description:
   The Qualcomm RPM regulator is modelled as a subdevice of the RPM.
 
   Please refer to Documentation/devicetree/bindings/soc/qcom/qcom,rpm.yaml
-  for information regarding the RPM node.
+  for information regarding the RPM analde.
 
-  The regulator node houses sub-nodes for each regulator within the device.
-  Each sub-node is identified using the node's name, with valid values listed
+  The regulator analde houses sub-analdes for each regulator within the device.
+  Each sub-analde is identified using the analde's name, with valid values listed
   for each of the pmics below.
 
   For pm8058 l0, l1, l2, l3, l4, l5, l6, l7, l8, l9, l10, l11, l12, l13, l14, l15,
@@ -47,7 +47,7 @@ properties:
 
 patternProperties:
   ".*-supply$":
-    description: Input supply phandle(s) for this node
+    description: Input supply phandle(s) for this analde
 
   "^((s|l|lvs)[0-9]*|s[1-2][a-b]|ncp|mvs|usb-switch|hdmi-switch)$":
     description: List of regulators and its properties
@@ -83,7 +83,7 @@ patternProperties:
         description: Indicates that the regulator should be forced to a particular mode
         $ref: /schemas/types.yaml#/definitions/uint32
         enum:
-          - 0 # QCOM_RPM_FORCE_MODE_NONE do not force any mode
+          - 0 # QCOM_RPM_FORCE_MODE_ANALNE do analt force any mode
           - 1 # QCOM_RPM_FORCE_MODE_LPM force into low power mode
           - 2 # QCOM_RPM_FORCE_MODE_HPM force into high power mode
           - 3 # QCOM_RPM_FORCE_MODE_AUTO allow regulator to automatically select its own mode

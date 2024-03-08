@@ -34,7 +34,7 @@ Mailbox client
 "mboxes" and the optional "mbox-names" (please see
 Documentation/devicetree/bindings/mailbox/mailbox.txt for details). Each value
 of the mboxes property should contain a phandle to the mailbox controller
-device node and second argument is the channel index. It must be 0 (hardware
+device analde and second argument is the channel index. It must be 0 (hardware
 support only one channel).The equivalent "mbox-names" property value can be
 used to give a name to the communication channel to be used by the client user.
 

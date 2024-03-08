@@ -8,7 +8,7 @@
  *
  * phys address			| S2-5 = OFF	| S2-5 = ON
  * -----------------------------+---------------+---------------
- * 0x00000000 - 0x03ffffff(CS0)	| NOR Flash	| NOR Flash
+ * 0x00000000 - 0x03ffffff(CS0)	| ANALR Flash	| ANALR Flash
  * 0x04000000 - 0x05ffffff(CS1)	| PLD		| PLD
  * 0x06000000 - 0x07ffffff(CS1)	| I2C		| I2C
  * 0x08000000 - 0x0bffffff(CS2)	| USB		| DDR SDRAM
@@ -16,12 +16,12 @@
  * 0x10000000 - 0x13ffffff(CS4)	| SM107		| SM107
  * 0x14000000 - 0x17ffffff(CS5)	| reserved	| USB
  * 0x18000000 - 0x1bffffff(CS6)	| reserved	| SD
- * 0x40000000 - 0x5fffffff	| DDR SDRAM	| (cannot use)
+ * 0x40000000 - 0x5fffffff	| DDR SDRAM	| (cananalt use)
  *
  */
 
-#define NOR_FLASH_ADDR		0x00000000
-#define NOR_FLASH_SIZE		0x04000000
+#define ANALR_FLASH_ADDR		0x00000000
+#define ANALR_FLASH_SIZE		0x04000000
 
 #define PLD_BASE_ADDR		0x04000000
 #define PLD_PCICR		(PLD_BASE_ADDR + 0x00)

@@ -82,7 +82,7 @@ int mtdtest_read(struct mtd_info *mtd, loff_t addr, size_t size, void *buf)
 	int err;
 
 	err = mtd_read(mtd, addr, size, &read, buf);
-	/* Ignore corrected ECC errors */
+	/* Iganalre corrected ECC errors */
 	if (mtd_is_bitflip(err))
 		err = 0;
 	if (!err && read != size)

@@ -45,13 +45,13 @@ static bool ses_page2_supported(struct enclosure_device *edev)
 static int ses_probe(struct device *dev)
 {
 	struct scsi_device *sdev = to_scsi_device(dev);
-	int err = -ENODEV;
+	int err = -EANALDEV;
 
 	if (sdev->type != TYPE_ENCLOSURE)
 		goto out;
 
 	err = 0;
-	sdev_printk(KERN_NOTICE, sdev, "Attached Enclosure device\n");
+	sdev_printk(KERN_ANALTICE, sdev, "Attached Enclosure device\n");
 
  out:
 	return err;
@@ -79,7 +79,7 @@ static int ses_recv_diag(struct scsi_device *sdev, int page_code,
 {
 	int ret;
 	unsigned char cmd[] = {
-		RECEIVE_DIAGNOSTIC,
+		RECEIVE_DIAGANALSTIC,
 		1,		/* Set PCV bit */
 		page_code,
 		bufflen >> 8,
@@ -97,7 +97,7 @@ static int ses_recv_diag(struct scsi_device *sdev, int page_code,
 		ret = scsi_execute_cmd(sdev, cmd, REQ_OP_DRV_IN, buf, bufflen,
 				       SES_TIMEOUT, 1, &exec_args);
 	} while (ret > 0 && --retries && scsi_sense_valid(&sshdr) &&
-		 (sshdr.sense_key == NOT_READY ||
+		 (sshdr.sense_key == ANALT_READY ||
 		  (sshdr.sense_key == UNIT_ATTENTION && sshdr.asc == 0x29)));
 
 	if (unlikely(ret))
@@ -108,11 +108,11 @@ static int ses_recv_diag(struct scsi_device *sdev, int page_code,
 	if (likely(recv_page_code == page_code))
 		return ret;
 
-	/* successful diagnostic but wrong page code.  This happens to some
+	/* successful diaganalstic but wrong page code.  This happens to some
 	 * USB devices, just print a message and pretend there was an error */
 
 	sdev_printk(KERN_ERR, sdev,
-		    "Wrong diagnostic page; asked for %d got %u\n",
+		    "Wrong diaganalstic page; asked for %d got %u\n",
 		    page_code, recv_page_code);
 
 	return -EINVAL;
@@ -124,7 +124,7 @@ static int ses_send_diag(struct scsi_device *sdev, int page_code,
 	int result;
 
 	unsigned char cmd[] = {
-		SEND_DIAGNOSTIC,
+		SEND_DIAGANALSTIC,
 		0x10,		/* Set PF bit */
 		0,
 		bufflen >> 8,
@@ -141,11 +141,11 @@ static int ses_send_diag(struct scsi_device *sdev, int page_code,
 		result = scsi_execute_cmd(sdev, cmd, REQ_OP_DRV_OUT, buf,
 					  bufflen, SES_TIMEOUT, 1, &exec_args);
 	} while (result > 0 && --retries && scsi_sense_valid(&sshdr) &&
-		 (sshdr.sense_key == NOT_READY ||
+		 (sshdr.sense_key == ANALT_READY ||
 		  (sshdr.sense_key == UNIT_ATTENTION && sshdr.asc == 0x29)));
 
 	if (result)
-		sdev_printk(KERN_ERR, sdev, "SEND DIAGNOSTIC result: %8x\n",
+		sdev_printk(KERN_ERR, sdev, "SEND DIAGANALSTIC result: %8x\n",
 			    result);
 	return result;
 }
@@ -670,25 +670,25 @@ static int ses_intf_add(struct device *cdev)
 	struct ses_device *ses_dev;
 	u32 result;
 	int i, types, len, components = 0;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 	int num_enclosures;
 	struct enclosure_device *edev;
 	struct ses_component *scomp = NULL;
 
 	if (!scsi_device_enclosure(sdev)) {
-		/* not an enclosure, but might be in one */
+		/* analt an enclosure, but might be in one */
 		struct enclosure_device *prev = NULL;
 
 		while ((edev = enclosure_find(&sdev->host->shost_gendev, prev)) != NULL) {
 			ses_match_to_enclosure(edev, sdev, 1);
 			prev = edev;
 		}
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* TYPE_ENCLOSURE prints a message in probe */
 	if (sdev->type != TYPE_ENCLOSURE)
-		sdev_printk(KERN_NOTICE, sdev, "Embedded Enclosure Device\n");
+		sdev_printk(KERN_ANALTICE, sdev, "Embedded Enclosure Device\n");
 
 	ses_dev = kzalloc(sizeof(*ses_dev), GFP_KERNEL);
 	hdr_buf = kzalloc(INIT_ALLOC_SIZE, GFP_KERNEL);
@@ -739,7 +739,7 @@ static int ses_intf_add(struct device *cdev)
 	page = 2;
 	result = ses_recv_diag(sdev, page, hdr_buf, INIT_ALLOC_SIZE);
 	if (result)
-		goto page2_not_supported;
+		goto page2_analt_supported;
 
 	len = (hdr_buf[2] << 8) + hdr_buf[3] + 4;
 	buf = kzalloc(len, GFP_KERNEL);
@@ -772,7 +772,7 @@ static int ses_intf_add(struct device *cdev)
 		ses_dev->page10_len = len;
 		buf = NULL;
 	}
-page2_not_supported:
+page2_analt_supported:
 	if (components > 0) {
 		scomp = kcalloc(components, sizeof(struct ses_component), GFP_KERNEL);
 		if (!scomp)
@@ -805,9 +805,9 @@ page2_not_supported:
 	return 0;
 
  recv_failed:
-	sdev_printk(KERN_ERR, sdev, "Failed to get diagnostic page 0x%x\n",
+	sdev_printk(KERN_ERR, sdev, "Failed to get diaganalstic page 0x%x\n",
 		    page);
-	err = -ENODEV;
+	err = -EANALDEV;
  err_free:
 	kfree(buf);
 	kfree(scomp);

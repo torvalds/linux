@@ -41,7 +41,7 @@ void rtl92d_phy_rf6052_set_bandwidth(struct ieee80211_hw *hw, u8 bandwidth)
 		}
 		break;
 	default:
-		pr_err("unknown bandwidth: %#X\n", bandwidth);
+		pr_err("unkanalwn bandwidth: %#X\n", bandwidth);
 		break;
 	}
 }
@@ -54,16 +54,16 @@ void rtl92d_phy_rf6052_set_cck_txpower(struct ieee80211_hw *hw,
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
 	struct rtl_efuse *rtlefuse = rtl_efuse(rtl_priv(hw));
 	u32 tx_agc[2] = {0, 0}, tmpval;
-	bool turbo_scanoff = false;
+	bool turbo_scaanalff = false;
 	u8 idx1, idx2;
 	u8 *ptr;
 
 	if (rtlefuse->eeprom_regulatory != 0)
-		turbo_scanoff = true;
+		turbo_scaanalff = true;
 	if (mac->act_scanning) {
 		tx_agc[RF90_PATH_A] = 0x3f3f3f3f;
 		tx_agc[RF90_PATH_B] = 0x3f3f3f3f;
-		if (turbo_scanoff) {
+		if (turbo_scaanalff) {
 			for (idx1 = RF90_PATH_A; idx1 <= RF90_PATH_B; idx1++) {
 				tx_agc[idx1] = ppowerlevel[idx1] |
 				    (ppowerlevel[idx1] << 8) |
@@ -379,7 +379,7 @@ void rtl92d_phy_rf6052_set_ofdm_txpower(struct ieee80211_hw *hw,
 	}
 }
 
-bool rtl92d_phy_enable_anotherphy(struct ieee80211_hw *hw, bool bmac0)
+bool rtl92d_phy_enable_aanaltherphy(struct ieee80211_hw *hw, bool bmac0)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_hal *rtlhal = &(rtlpriv->rtlhal);
@@ -410,7 +410,7 @@ bool rtl92d_phy_enable_anotherphy(struct ieee80211_hw *hw, bool bmac0)
 
 }
 
-void rtl92d_phy_powerdown_anotherphy(struct ieee80211_hw *hw, bool bmac0)
+void rtl92d_phy_powerdown_aanaltherphy(struct ieee80211_hw *hw, bool bmac0)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_hal *rtlhal = &(rtlpriv->rtlhal);
@@ -422,8 +422,8 @@ void rtl92d_phy_powerdown_anotherphy(struct ieee80211_hw *hw, bool bmac0)
 	rtlhal->during_mac0init_radiob = false;
 	rtlhal->during_mac1init_radioa = false;
 	rtl_dbg(rtlpriv, COMP_RF, DBG_LOUD, "====>\n");
-	/* check MAC0 enable or not again now, if
-	 * enabled, not power down radio A. */
+	/* check MAC0 enable or analt again analw, if
+	 * enabled, analt power down radio A. */
 	u1btmp = rtl_read_byte(rtlpriv, mac_reg);
 	if (!(u1btmp & mac_on_bit)) {
 		rtl_dbg(rtlpriv, COMP_INIT, DBG_LOUD, "power down\n");
@@ -462,7 +462,7 @@ bool rtl92d_phy_rf6052_config(struct ieee80211_hw *hw)
 		    rtlhal->interfaceindex == 0) {
 			/* MAC0 needs PHY1 load radio_b.txt.
 			 * Driver use DBI to write. */
-			if (rtl92d_phy_enable_anotherphy(hw, true)) {
+			if (rtl92d_phy_enable_aanaltherphy(hw, true)) {
 				rtlphy->num_total_rfpath = 2;
 				mac0_initradiob_first = true;
 			} else {
@@ -474,7 +474,7 @@ bool rtl92d_phy_rf6052_config(struct ieee80211_hw *hw)
 			   rtlhal->interfaceindex == 1) {
 			/* MAC1 needs PHY0 load radio_a.txt.
 			 * Driver use DBI to write. */
-			if (rtl92d_phy_enable_anotherphy(hw, false)) {
+			if (rtl92d_phy_enable_aanaltherphy(hw, false)) {
 				rtlphy->num_total_rfpath = 2;
 				mac1_initradioa_first = true;
 			} else {
@@ -580,14 +580,14 @@ bool rtl92d_phy_rf6052_config(struct ieee80211_hw *hw)
 
 	}
 
-	/* check MAC0 enable or not again, if enabled,
-	 * not power down radio A. */
-	/* check MAC1 enable or not again, if enabled,
-	 * not power down radio B. */
+	/* check MAC0 enable or analt again, if enabled,
+	 * analt power down radio A. */
+	/* check MAC1 enable or analt again, if enabled,
+	 * analt power down radio B. */
 	if (need_pwrdown_radioa)
-		rtl92d_phy_powerdown_anotherphy(hw, false);
+		rtl92d_phy_powerdown_aanaltherphy(hw, false);
 	else if (need_pwrdown_radiob)
-		rtl92d_phy_powerdown_anotherphy(hw, true);
+		rtl92d_phy_powerdown_aanaltherphy(hw, true);
 	rtl_dbg(rtlpriv, COMP_INIT, DBG_TRACE, "<---\n");
 	return rtstatus;
 

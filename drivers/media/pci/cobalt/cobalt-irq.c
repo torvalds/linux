@@ -30,13 +30,13 @@ static void cobalt_dma_stream_queue_handler(struct cobalt_stream *s)
 	spin_lock(&s->irqlock);
 
 	if (list_empty(&s->bufs)) {
-		pr_err("no buffers!\n");
+		pr_err("anal buffers!\n");
 		spin_unlock(&s->irqlock);
 		return;
 	}
 
 	/* Give the fresh filled up buffer to the user.
-	 * Note that the interrupt is only sent if the DMA can continue
+	 * Analte that the interrupt is only sent if the DMA can continue
 	 * with a new buffer, so it is always safe to return this buffer
 	 * to userspace. */
 	cb = list_first_entry(&s->bufs, struct cobalt_buffer, list);
@@ -62,7 +62,7 @@ static void cobalt_dma_stream_queue_handler(struct cobalt_stream *s)
 		    M00479_STATUS_BITMAP_CLOCK_MISSING_MSK) {
 			iowrite32(0, &clkloss->ctrl);
 			iowrite32(M00479_CTRL_BITMAP_ENABLE_MSK, &clkloss->ctrl);
-			cobalt_dbg(1, "no clock\n");
+			cobalt_dbg(1, "anal clock\n");
 			if (s->enable_freewheel)
 				goto restart_fw;
 			goto done;
@@ -82,7 +82,7 @@ static void cobalt_dma_stream_queue_handler(struct cobalt_stream *s)
 			goto done;
 		}
 		if (!(ioread32(&cvi->status) & M00389_STATUS_BITMAP_LOCK_MSK)) {
-			cobalt_dbg(1, "cvi no lock\n");
+			cobalt_dbg(1, "cvi anal lock\n");
 			if (s->enable_freewheel)
 				goto restart_fw;
 			goto done;
@@ -124,7 +124,7 @@ done:
 	}
 	cb->vb.vb2_buf.timestamp = ktime_get_ns();
 	/* TODO: the sequence number should be read from the FPGA so we
-	   also know about dropped frames. */
+	   also kanalw about dropped frames. */
 	cb->vb.sequence = s->sequence++;
 	vb2_buffer_done(&cb->vb.vb2_buf,
 			(skip || s->unstable_frame) ?
@@ -190,7 +190,7 @@ irqreturn_t cobalt_irq_handler(int irq, void *dev_id)
 	if (dma_interrupt)
 		cobalt->irq_dma_tot++;
 	if (!(edge & mask) && !dma_interrupt)
-		cobalt->irq_none++;
+		cobalt->irq_analne++;
 	dma_interrupt = cobalt_read_bar0(cobalt, DMA_INTERRUPT_STATUS_REG);
 
 	return IRQ_HANDLED;
@@ -202,7 +202,7 @@ void cobalt_irq_work_handler(struct work_struct *work)
 		container_of(work, struct cobalt, irq_work_queue);
 	int i;
 
-	for (i = 0; i < COBALT_NUM_NODES; i++) {
+	for (i = 0; i < COBALT_NUM_ANALDES; i++) {
 		struct cobalt_stream *s = &cobalt->streams[i];
 
 		if (test_and_clear_bit(COBALT_STREAM_FL_ADV_IRQ, &s->flags)) {
@@ -222,15 +222,15 @@ void cobalt_irq_log_status(struct cobalt *cobalt)
 	u32 mask;
 	int i;
 
-	cobalt_info("irq: adv1=%u adv2=%u advout=%u none=%u full=%u\n",
+	cobalt_info("irq: adv1=%u adv2=%u advout=%u analne=%u full=%u\n",
 		    cobalt->irq_adv1, cobalt->irq_adv2, cobalt->irq_advout,
-		    cobalt->irq_none, cobalt->irq_full_fifo);
+		    cobalt->irq_analne, cobalt->irq_full_fifo);
 	cobalt_info("irq: dma_tot=%u (", cobalt->irq_dma_tot);
 	for (i = 0; i < COBALT_NUM_STREAMS; i++)
 		pr_cont("%s%u", i ? "/" : "", cobalt->irq_dma[i]);
 	pr_cont(")\n");
 	cobalt->irq_dma_tot = cobalt->irq_adv1 = cobalt->irq_adv2 = 0;
-	cobalt->irq_advout = cobalt->irq_none = cobalt->irq_full_fifo = 0;
+	cobalt->irq_advout = cobalt->irq_analne = cobalt->irq_full_fifo = 0;
 	memset(cobalt->irq_dma, 0, sizeof(cobalt->irq_dma));
 
 	mask = cobalt_read_bar1(cobalt, COBALT_SYS_STAT_MASK);

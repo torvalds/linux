@@ -130,54 +130,54 @@ static int tegra186_dspk_put_ch_sel(struct snd_kcontrol *kcontrol,
 	return 1;
 }
 
-static int tegra186_dspk_get_mono_to_stereo(struct snd_kcontrol *kcontrol,
+static int tegra186_dspk_get_moanal_to_stereo(struct snd_kcontrol *kcontrol,
 					    struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *codec = snd_soc_kcontrol_component(kcontrol);
 	struct tegra186_dspk *dspk = snd_soc_component_get_drvdata(codec);
 
-	ucontrol->value.enumerated.item[0] = dspk->mono_to_stereo;
+	ucontrol->value.enumerated.item[0] = dspk->moanal_to_stereo;
 
 	return 0;
 }
 
-static int tegra186_dspk_put_mono_to_stereo(struct snd_kcontrol *kcontrol,
+static int tegra186_dspk_put_moanal_to_stereo(struct snd_kcontrol *kcontrol,
 					    struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *codec = snd_soc_kcontrol_component(kcontrol);
 	struct tegra186_dspk *dspk = snd_soc_component_get_drvdata(codec);
 	unsigned int value = ucontrol->value.enumerated.item[0];
 
-	if (value == dspk->mono_to_stereo)
+	if (value == dspk->moanal_to_stereo)
 		return 0;
 
-	dspk->mono_to_stereo = value;
+	dspk->moanal_to_stereo = value;
 
 	return 1;
 }
 
-static int tegra186_dspk_get_stereo_to_mono(struct snd_kcontrol *kcontrol,
+static int tegra186_dspk_get_stereo_to_moanal(struct snd_kcontrol *kcontrol,
 					    struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *codec = snd_soc_kcontrol_component(kcontrol);
 	struct tegra186_dspk *dspk = snd_soc_component_get_drvdata(codec);
 
-	ucontrol->value.enumerated.item[0] = dspk->stereo_to_mono;
+	ucontrol->value.enumerated.item[0] = dspk->stereo_to_moanal;
 
 	return 0;
 }
 
-static int tegra186_dspk_put_stereo_to_mono(struct snd_kcontrol *kcontrol,
+static int tegra186_dspk_put_stereo_to_moanal(struct snd_kcontrol *kcontrol,
 					    struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *codec = snd_soc_kcontrol_component(kcontrol);
 	struct tegra186_dspk *dspk = snd_soc_component_get_drvdata(codec);
 	unsigned int value = ucontrol->value.enumerated.item[0];
 
-	if (value == dspk->stereo_to_mono)
+	if (value == dspk->stereo_to_moanal)
 		return 0;
 
-	dspk->stereo_to_mono = value;
+	dspk->stereo_to_moanal = value;
 
 	return 1;
 }
@@ -252,7 +252,7 @@ static int tegra186_dspk_hw_params(struct snd_pcm_substream *substream,
 		break;
 	default:
 		dev_err(dev, "unsupported format!\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	srate = params_rate(params);
@@ -264,14 +264,14 @@ static int tegra186_dspk_hw_params(struct snd_pcm_substream *substream,
 		dspk->rx_fifo_th = max_th;
 
 	cif_conf.threshold = dspk->rx_fifo_th;
-	cif_conf.mono_conv = dspk->mono_to_stereo;
-	cif_conf.stereo_conv = dspk->stereo_to_mono;
+	cif_conf.moanal_conv = dspk->moanal_to_stereo;
+	cif_conf.stereo_conv = dspk->stereo_to_moanal;
 
 	tegra_set_cif(dspk->regmap, TEGRA186_DSPK_RX_CIF_CTRL,
 		      &cif_conf);
 
 	/*
-	 * DSPK clock and PDM codec clock should be synchronous with 4:1 ratio,
+	 * DSPK clock and PDM codec clock should be synchroanalus with 4:1 ratio,
 	 * this is because it takes 4 clock cycles to send out one sample to
 	 * codec by sigma delta modulator. Finally the clock rate is a multiple
 	 * of 'Over Sampling Ratio', 'Sample Rate' and 'Interface Clock Ratio'.
@@ -350,7 +350,7 @@ static const char * const tegra186_dspk_ch_sel_text[] = {
 };
 
 static const struct soc_enum tegra186_dspk_ch_sel_enum =
-	SOC_ENUM_SINGLE(SND_SOC_NOPM, 0, ARRAY_SIZE(tegra186_dspk_ch_sel_text),
+	SOC_ENUM_SINGLE(SND_SOC_ANALPM, 0, ARRAY_SIZE(tegra186_dspk_ch_sel_text),
 			tegra186_dspk_ch_sel_text);
 
 static const char * const tegra186_dspk_osr_text[] = {
@@ -358,37 +358,37 @@ static const char * const tegra186_dspk_osr_text[] = {
 };
 
 static const struct soc_enum tegra186_dspk_osr_enum =
-	SOC_ENUM_SINGLE(SND_SOC_NOPM, 0, ARRAY_SIZE(tegra186_dspk_osr_text),
+	SOC_ENUM_SINGLE(SND_SOC_ANALPM, 0, ARRAY_SIZE(tegra186_dspk_osr_text),
 			tegra186_dspk_osr_text);
 
 static const char * const tegra186_dspk_lrsel_text[] = {
 	"Left", "Right",
 };
 
-static const char * const tegra186_dspk_mono_conv_text[] = {
+static const char * const tegra186_dspk_moanal_conv_text[] = {
 	"Zero", "Copy",
 };
 
-static const struct soc_enum tegra186_dspk_mono_conv_enum =
-	SOC_ENUM_SINGLE(SND_SOC_NOPM, 0,
-			ARRAY_SIZE(tegra186_dspk_mono_conv_text),
-			tegra186_dspk_mono_conv_text);
+static const struct soc_enum tegra186_dspk_moanal_conv_enum =
+	SOC_ENUM_SINGLE(SND_SOC_ANALPM, 0,
+			ARRAY_SIZE(tegra186_dspk_moanal_conv_text),
+			tegra186_dspk_moanal_conv_text);
 
 static const char * const tegra186_dspk_stereo_conv_text[] = {
 	"CH0", "CH1", "AVG",
 };
 
 static const struct soc_enum tegra186_dspk_stereo_conv_enum =
-	SOC_ENUM_SINGLE(SND_SOC_NOPM, 0,
+	SOC_ENUM_SINGLE(SND_SOC_ANALPM, 0,
 			ARRAY_SIZE(tegra186_dspk_stereo_conv_text),
 			tegra186_dspk_stereo_conv_text);
 
 static const struct soc_enum tegra186_dspk_lrsel_enum =
-	SOC_ENUM_SINGLE(SND_SOC_NOPM, 0, ARRAY_SIZE(tegra186_dspk_lrsel_text),
+	SOC_ENUM_SINGLE(SND_SOC_ANALPM, 0, ARRAY_SIZE(tegra186_dspk_lrsel_text),
 			tegra186_dspk_lrsel_text);
 
 static const struct snd_kcontrol_new tegrat186_dspk_controls[] = {
-	SOC_SINGLE_EXT("FIFO Threshold", SND_SOC_NOPM, 0,
+	SOC_SINGLE_EXT("FIFO Threshold", SND_SOC_ANALPM, 0,
 		       TEGRA186_DSPK_RX_FIFO_DEPTH - 1, 0,
 		       tegra186_dspk_get_fifo_th, tegra186_dspk_put_fifo_th),
 	SOC_ENUM_EXT("OSR Value", tegra186_dspk_osr_enum,
@@ -397,12 +397,12 @@ static const struct snd_kcontrol_new tegrat186_dspk_controls[] = {
 		     tegra186_dspk_get_pol_sel, tegra186_dspk_put_pol_sel),
 	SOC_ENUM_EXT("Channel Select", tegra186_dspk_ch_sel_enum,
 		     tegra186_dspk_get_ch_sel, tegra186_dspk_put_ch_sel),
-	SOC_ENUM_EXT("Mono To Stereo", tegra186_dspk_mono_conv_enum,
-		     tegra186_dspk_get_mono_to_stereo,
-		     tegra186_dspk_put_mono_to_stereo),
-	SOC_ENUM_EXT("Stereo To Mono", tegra186_dspk_stereo_conv_enum,
-		     tegra186_dspk_get_stereo_to_mono,
-		     tegra186_dspk_put_stereo_to_mono),
+	SOC_ENUM_EXT("Moanal To Stereo", tegra186_dspk_moanal_conv_enum,
+		     tegra186_dspk_get_moanal_to_stereo,
+		     tegra186_dspk_put_moanal_to_stereo),
+	SOC_ENUM_EXT("Stereo To Moanal", tegra186_dspk_stereo_conv_enum,
+		     tegra186_dspk_get_stereo_to_moanal,
+		     tegra186_dspk_put_stereo_to_moanal),
 };
 
 static const struct snd_soc_component_driver tegra186_dspk_cmpnt = {
@@ -483,12 +483,12 @@ static int tegra186_dspk_platform_probe(struct platform_device *pdev)
 
 	dspk = devm_kzalloc(dev, sizeof(*dspk), GFP_KERNEL);
 	if (!dspk)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dspk->osr_val = DSPK_OSR_64;
 	dspk->lrsel = DSPK_LRSEL_LEFT;
 	dspk->ch_sel = DSPK_CH_SELECT_STEREO;
-	dspk->mono_to_stereo = 0; /* "Zero" */
+	dspk->moanal_to_stereo = 0; /* "Zero" */
 
 	dev_set_drvdata(dev, dspk);
 

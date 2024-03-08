@@ -17,13 +17,13 @@
 #	(see scripts/Makefile.lib size_append)
 #	compressed vmlinux.bin.all + u32 size of vmlinux.bin.all
 
-# Sanitizer runtimes are unavailable and cannot be linked for early boot code.
+# Sanitizer runtimes are unavailable and cananalt be linked for early boot code.
 KASAN_SANITIZE			:= n
 KCSAN_SANITIZE			:= n
 KMSAN_SANITIZE			:= n
-OBJECT_FILES_NON_STANDARD	:= y
+OBJECT_FILES_ANALN_STANDARD	:= y
 
-# Prevents link failures: __sanitizer_cov_trace_pc() is not linked in.
+# Prevents link failures: __sanitizer_cov_trace_pc() is analt linked in.
 KCOV_INSTRUMENT		:= n
 
 targets := vmlinux vmlinux.bin vmlinux.bin.gz vmlinux.bin.bz2 vmlinux.bin.lzma \
@@ -34,23 +34,23 @@ targets := vmlinux vmlinux.bin vmlinux.bin.gz vmlinux.bin.bz2 vmlinux.bin.lzma \
 # avoid errors with '-march=i386', and future flags may depend on the target to
 # be valid.
 KBUILD_CFLAGS := -m$(BITS) -O2 $(CLANG_FLAGS)
-KBUILD_CFLAGS += -fno-strict-aliasing -fPIE
+KBUILD_CFLAGS += -fanal-strict-aliasing -fPIE
 KBUILD_CFLAGS += -Wundef
 KBUILD_CFLAGS += -DDISABLE_BRANCH_PROFILING
 cflags-$(CONFIG_X86_32) := -march=i386
-cflags-$(CONFIG_X86_64) := -mcmodel=small -mno-red-zone
+cflags-$(CONFIG_X86_64) := -mcmodel=small -manal-red-zone
 KBUILD_CFLAGS += $(cflags-y)
-KBUILD_CFLAGS += -mno-mmx -mno-sse
+KBUILD_CFLAGS += -manal-mmx -manal-sse
 KBUILD_CFLAGS += -ffreestanding -fshort-wchar
-KBUILD_CFLAGS += -fno-stack-protector
+KBUILD_CFLAGS += -fanal-stack-protector
 KBUILD_CFLAGS += $(call cc-disable-warning, address-of-packed-member)
 KBUILD_CFLAGS += $(call cc-disable-warning, gnu)
-KBUILD_CFLAGS += -Wno-pointer-sign
+KBUILD_CFLAGS += -Wanal-pointer-sign
 KBUILD_CFLAGS += $(call cc-option,-fmacro-prefix-map=$(srctree)/=)
-KBUILD_CFLAGS += -fno-asynchronous-unwind-tables
+KBUILD_CFLAGS += -fanal-asynchroanalus-unwind-tables
 KBUILD_CFLAGS += -D__DISABLE_EXPORTS
-# Disable relocation relaxation in case the link is not PIE.
-KBUILD_CFLAGS += $(call cc-option,-Wa$(comma)-mrelax-relocations=no)
+# Disable relocation relaxation in case the link is analt PIE.
+KBUILD_CFLAGS += $(call cc-option,-Wa$(comma)-mrelax-relocations=anal)
 KBUILD_CFLAGS += -include $(srctree)/include/linux/hidden.h
 
 # sev.c indirectly includes inat-table.h which is generated during
@@ -63,16 +63,16 @@ GCOV_PROFILE := n
 UBSAN_SANITIZE :=n
 
 KBUILD_LDFLAGS := -m elf_$(UTS_MACHINE)
-KBUILD_LDFLAGS += $(call ld-option,--no-ld-generated-unwind-info)
+KBUILD_LDFLAGS += $(call ld-option,--anal-ld-generated-unwind-info)
 # Compressed kernel should be built as PIE since it may be loaded at any
 # address by the bootloader.
-LDFLAGS_vmlinux := -pie $(call ld-option, --no-dynamic-linker)
+LDFLAGS_vmlinux := -pie $(call ld-option, --anal-dynamic-linker)
 ifdef CONFIG_LD_ORPHAN_WARN
 LDFLAGS_vmlinux += --orphan-handling=$(CONFIG_LD_ORPHAN_WARN_LEVEL)
 endif
-LDFLAGS_vmlinux += -z noexecstack
+LDFLAGS_vmlinux += -z analexecstack
 ifeq ($(CONFIG_LD_IS_BFD),y)
-LDFLAGS_vmlinux += $(call ld-option,--no-warn-rwx-segments)
+LDFLAGS_vmlinux += $(call ld-option,--anal-warn-rwx-segments)
 endif
 ifeq ($(CONFIG_EFI_STUB),y)
 # ensure that the static EFI stub library will be pulled in, even if it is

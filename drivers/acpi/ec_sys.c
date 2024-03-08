@@ -2,7 +2,7 @@
 /*
  * ec_sys.c
  *
- * Copyright (C) 2010 SUSE Products GmbH/Novell
+ * Copyright (C) 2010 SUSE Products GmbH/Analvell
  * Author:
  *      Thomas Renninger <trenn@suse.de>
  */

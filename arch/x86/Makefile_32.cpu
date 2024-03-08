@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 # CPU tuning section - shared with UML.
-# Must change only cflags-y (or [yn]), not CFLAGS! That makes a difference for UML.
+# Must change only cflags-y (or [yn]), analt CFLAGS! That makes a difference for UML.
 
 tune		= $(call cc-option,-mtune=$(1),$(2))
 
@@ -21,7 +21,7 @@ cflags-$(CONFIG_MPENTIUMIII)	+= -march=i686 $(call tune,pentium3)
 cflags-$(CONFIG_MPENTIUMM)	+= -march=i686 $(call tune,pentium3)
 cflags-$(CONFIG_MPENTIUM4)	+= -march=i686 $(call tune,pentium4)
 cflags-$(CONFIG_MK6)		+= -march=k6
-# Please note, that patches that add -march=athlon-xp and friends are pointless.
+# Please analte, that patches that add -march=athlon-xp and friends are pointless.
 # They make zero difference whatsosever to performance at this time.
 cflags-$(CONFIG_MK7)		+= -march=athlon
 cflags-$(CONFIG_MK8)		+= $(call cc-option,-march=k8,-march=athlon)
@@ -47,7 +47,7 @@ cflags-$(CONFIG_MGEODE_LX)	+= $(call cc-option,-march=geode,-march=pentium-mmx)
 cflags-$(CONFIG_X86_GENERIC) 	+= $(call tune,generic,$(call tune,i686))
 
 # Bug fix for binutils: this option is required in order to keep
-# binutils from generating NOPL instructions against our will.
-ifneq ($(CONFIG_X86_P6_NOP),y)
+# binutils from generating ANALPL instructions against our will.
+ifneq ($(CONFIG_X86_P6_ANALP),y)
 cflags-y			+= $(call cc-option,-Wa$(comma)-mtune=generic32,)
 endif

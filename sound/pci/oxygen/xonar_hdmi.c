@@ -80,7 +80,7 @@ void xonar_hdmi_pcm_hardware_filter(unsigned int channel,
 void xonar_set_hdmi_params(struct oxygen *chip, struct xonar_hdmi *hdmi,
 			   struct snd_pcm_hw_params *params)
 {
-	hdmi->params[0] = 0; /* 1 = non-audio */
+	hdmi->params[0] = 0; /* 1 = analn-audio */
 	switch (params_rate(params)) {
 	case 44100:
 		hdmi->params[1] = IEC958_AES3_CON_FS_44100;

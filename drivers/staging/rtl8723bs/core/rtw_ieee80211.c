@@ -12,10 +12,10 @@
 
 u8 RTW_WPA_OUI_TYPE[] = { 0x00, 0x50, 0xf2, 1 };
 u16 RTW_WPA_VERSION = 1;
-u8 WPA_AUTH_KEY_MGMT_NONE[] = { 0x00, 0x50, 0xf2, 0 };
+u8 WPA_AUTH_KEY_MGMT_ANALNE[] = { 0x00, 0x50, 0xf2, 0 };
 u8 WPA_AUTH_KEY_MGMT_UNSPEC_802_1X[] = { 0x00, 0x50, 0xf2, 1 };
 u8 WPA_AUTH_KEY_MGMT_PSK_OVER_802_1X[] = { 0x00, 0x50, 0xf2, 2 };
-u8 WPA_CIPHER_SUITE_NONE[] = { 0x00, 0x50, 0xf2, 0 };
+u8 WPA_CIPHER_SUITE_ANALNE[] = { 0x00, 0x50, 0xf2, 0 };
 u8 WPA_CIPHER_SUITE_WEP40[] = { 0x00, 0x50, 0xf2, 1 };
 u8 WPA_CIPHER_SUITE_TKIP[] = { 0x00, 0x50, 0xf2, 2 };
 u8 WPA_CIPHER_SUITE_WRAP[] = { 0x00, 0x50, 0xf2, 3 };
@@ -25,7 +25,7 @@ u8 WPA_CIPHER_SUITE_WEP104[] = { 0x00, 0x50, 0xf2, 5 };
 u16 RSN_VERSION_BSD = 1;
 u8 RSN_AUTH_KEY_MGMT_UNSPEC_802_1X[] = { 0x00, 0x0f, 0xac, 1 };
 u8 RSN_AUTH_KEY_MGMT_PSK_OVER_802_1X[] = { 0x00, 0x0f, 0xac, 2 };
-u8 RSN_CIPHER_SUITE_NONE[] = { 0x00, 0x0f, 0xac, 0 };
+u8 RSN_CIPHER_SUITE_ANALNE[] = { 0x00, 0x0f, 0xac, 0 };
 u8 RSN_CIPHER_SUITE_WEP40[] = { 0x00, 0x0f, 0xac, 1 };
 u8 RSN_CIPHER_SUITE_TKIP[] = { 0x00, 0x0f, 0xac, 2 };
 u8 RSN_CIPHER_SUITE_WRAP[] = { 0x00, 0x0f, 0xac, 3 };
@@ -166,8 +166,8 @@ u8 *rtw_get_ie(u8 *pbuf, signed int index, signed int *len, signed int limit)
  * @eid: Element ID to match
  * @oui: OUI to match
  * @oui_len: OUI length
- * @ie: If not NULL and the specific IE is found, the IE will be copied to the buf starting from the specific IE
- * @ielen: If not NULL and the specific IE is found, will set to the length of the entire IE
+ * @ie: If analt NULL and the specific IE is found, the IE will be copied to the buf starting from the specific IE
+ * @ielen: If analt NULL and the specific IE is found, will set to the length of the entire IE
  *
  * Returns: The address of the specific IE found, or NULL
  */
@@ -212,7 +212,7 @@ u8 *rtw_get_ie_ex(u8 *in_ie, uint in_len, u8 eid, u8 *oui, u8 oui_len, u8 *ie, u
  * @oui: OUI to match
  * @oui_len: OUI length
  *
- * Returns: _SUCCESS: ies is updated, _FAIL: not updated
+ * Returns: _SUCCESS: ies is updated, _FAIL: analt updated
  */
 int rtw_ies_remove_ie(u8 *ies, uint *ies_len, uint offset, u8 eid, u8 *oui, u8 oui_len)
 {
@@ -406,8 +406,8 @@ unsigned char *rtw_get_wpa2_ie(unsigned char *pie, int *rsn_ie_len, int limit)
 
 int rtw_get_wpa_cipher_suite(u8 *s)
 {
-	if (!memcmp(s, WPA_CIPHER_SUITE_NONE, WPA_SELECTOR_LEN))
-		return WPA_CIPHER_NONE;
+	if (!memcmp(s, WPA_CIPHER_SUITE_ANALNE, WPA_SELECTOR_LEN))
+		return WPA_CIPHER_ANALNE;
 	if (!memcmp(s, WPA_CIPHER_SUITE_WEP40, WPA_SELECTOR_LEN))
 		return WPA_CIPHER_WEP40;
 	if (!memcmp(s, WPA_CIPHER_SUITE_TKIP, WPA_SELECTOR_LEN))
@@ -422,8 +422,8 @@ int rtw_get_wpa_cipher_suite(u8 *s)
 
 int rtw_get_wpa2_cipher_suite(u8 *s)
 {
-	if (!memcmp(s, RSN_CIPHER_SUITE_NONE, RSN_SELECTOR_LEN))
-		return WPA_CIPHER_NONE;
+	if (!memcmp(s, RSN_CIPHER_SUITE_ANALNE, RSN_SELECTOR_LEN))
+		return WPA_CIPHER_ANALNE;
 	if (!memcmp(s, RSN_CIPHER_SUITE_WEP40, RSN_SELECTOR_LEN))
 		return WPA_CIPHER_WEP40;
 	if (!memcmp(s, RSN_CIPHER_SUITE_TKIP, RSN_SELECTOR_LEN))
@@ -444,7 +444,7 @@ int rtw_parse_wpa_ie(u8 *wpa_ie, int wpa_ie_len, int *group_cipher, int *pairwis
 	u8 SUITE_1X[4] = {0x00, 0x50, 0xf2, 1};
 
 	if (wpa_ie_len <= 0) {
-		/* No WPA IE - fail silently */
+		/* Anal WPA IE - fail silently */
 		return _FAIL;
 	}
 
@@ -507,7 +507,7 @@ int rtw_parse_wpa2_ie(u8 *rsn_ie, int rsn_ie_len, int *group_cipher, int *pairwi
 	u8 SUITE_1X[4] = {0x00, 0x0f, 0xac, 0x01};
 
 	if (rsn_ie_len <= 0) {
-		/* No RSN IE - fail silently */
+		/* Anal RSN IE - fail silently */
 		return _FAIL;
 	}
 
@@ -638,8 +638,8 @@ void rtw_get_sec_ie(u8 *in_ie, uint in_len, u8 *rsn_ie, u16 *rsn_len, u8 *wpa_ie
  * rtw_get_wps_ie - Search WPS IE from a series of IEs
  * @in_ie: Address of IEs to search
  * @in_len: Length limit from in_ie
- * @wps_ie: If not NULL and WPS IE is found, WPS IE will be copied to the buf starting from wps_ie
- * @wps_ielen: If not NULL and WPS IE is found, will set to the length of the entire WPS IE
+ * @wps_ie: If analt NULL and WPS IE is found, WPS IE will be copied to the buf starting from wps_ie
+ * @wps_ielen: If analt NULL and WPS IE is found, will set to the length of the entire WPS IE
  *
  * Returns: The address of the WPS IE found, or NULL
  */
@@ -684,8 +684,8 @@ u8 *rtw_get_wps_ie(u8 *in_ie, uint in_len, u8 *wps_ie, uint *wps_ielen)
  * @wps_ie: Address of WPS IE to search
  * @wps_ielen: Length limit from wps_ie
  * @target_attr_id: The attribute ID of WPS attribute to search
- * @buf_attr: If not NULL and the WPS attribute is found, WPS attribute will be copied to the buf starting from buf_attr
- * @len_attr: If not NULL and the WPS attribute is found, will set to the length of the entire WPS attribute
+ * @buf_attr: If analt NULL and the WPS attribute is found, WPS attribute will be copied to the buf starting from buf_attr
+ * @len_attr: If analt NULL and the WPS attribute is found, will set to the length of the entire WPS attribute
  *
  * Returns: the address of the specific WPS attribute found, or NULL
  */
@@ -734,8 +734,8 @@ u8 *rtw_get_wps_attr(u8 *wps_ie, uint wps_ielen, u16 target_attr_id, u8 *buf_att
  * @wps_ie: Address of WPS IE to search
  * @wps_ielen: Length limit from wps_ie
  * @target_attr_id: The attribute ID of WPS attribute to search
- * @buf_content: If not NULL and the WPS attribute is found, WPS attribute content will be copied to the buf starting from buf_content
- * @len_content: If not NULL and the WPS attribute is found, will set to the length of the WPS attribute content
+ * @buf_content: If analt NULL and the WPS attribute is found, WPS attribute content will be copied to the buf starting from buf_content
+ * @len_content: If analt NULL and the WPS attribute is found, will set to the length of the WPS attribute content
  *
  * Returns: the address of the specific WPS attribute content found, or NULL
  */
@@ -846,7 +846,7 @@ enum ParseRes rtw_ieee802_11_parse_elems(u8 *start, uint len,
 {
 	uint left = len;
 	u8 *pos = start;
-	int unknown = 0;
+	int unkanalwn = 0;
 
 	memset(elems, 0, sizeof(*elems));
 
@@ -905,7 +905,7 @@ enum ParseRes rtw_ieee802_11_parse_elems(u8 *start, uint len,
 			if (rtw_ieee802_11_parse_vendor_specific(pos, elen,
 							     elems,
 							     show_errors))
-				unknown++;
+				unkanalwn++;
 			break;
 		case WLAN_EID_RSN:
 			elems->rsn_ie = pos;
@@ -947,12 +947,12 @@ enum ParseRes rtw_ieee802_11_parse_elems(u8 *start, uint len,
 			elems->vht_operation = pos;
 			elems->vht_operation_len = elen;
 			break;
-		case WLAN_EID_OPMODE_NOTIF:
-			elems->vht_op_mode_notify = pos;
-			elems->vht_op_mode_notify_len = elen;
+		case WLAN_EID_OPMODE_ANALTIF:
+			elems->vht_op_mode_analtify = pos;
+			elems->vht_op_mode_analtify_len = elen;
 			break;
 		default:
-			unknown++;
+			unkanalwn++;
 			break;
 		}
 
@@ -963,13 +963,13 @@ enum ParseRes rtw_ieee802_11_parse_elems(u8 *start, uint len,
 	if (left)
 		return ParseFailed;
 
-	return unknown ? ParseUnknown : ParseOK;
+	return unkanalwn ? ParseUnkanalwn : ParseOK;
 }
 
 void rtw_macaddr_cfg(struct device *dev, u8 *mac_addr)
 {
 	u8 mac[ETH_ALEN];
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	const unsigned char *addr;
 	int len;
 

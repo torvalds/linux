@@ -162,7 +162,7 @@ static struct netlbl_dom_map *netlbl_domhsh_search(const char *domain,
  *
  * Description:
  * Searches the domain hash table and returns a pointer to the hash table
- * entry if an exact match is found, if an exact match is not present in the
+ * entry if an exact match is found, if an exact match is analt present in the
  * hash table then the default entry is returned if valid otherwise NULL is
  * returned.  @family may be %AF_UNSPEC which matches any address family
  * entries.  The caller is responsible ensuring that the hash table is
@@ -355,7 +355,7 @@ static int netlbl_domhsh_validate(const struct netlbl_dom_map *entry)
  *
  * Description:
  * Initializes the domain hash table, should be called only by
- * netlbl_user_init() during initialization.  Returns zero on success, non-zero
+ * netlbl_user_init() during initialization.  Returns zero on success, analn-zero
  * values on error.
  *
  */
@@ -369,14 +369,14 @@ int __init netlbl_domhsh_init(u32 size)
 
 	hsh_tbl = kmalloc(sizeof(*hsh_tbl), GFP_KERNEL);
 	if (hsh_tbl == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	hsh_tbl->size = 1 << size;
 	hsh_tbl->tbl = kcalloc(hsh_tbl->size,
 			       sizeof(struct list_head),
 			       GFP_KERNEL);
 	if (hsh_tbl->tbl == NULL) {
 		kfree(hsh_tbl);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	for (iter = 0; iter < hsh_tbl->size; iter++)
 		INIT_LIST_HEAD(&hsh_tbl->tbl[iter]);
@@ -397,7 +397,7 @@ int __init netlbl_domhsh_init(u32 size)
  * Adds a new entry to the domain hash table and handles any updates to the
  * lower level protocol handler (i.e. CIPSO).  @entry->family may be set to
  * %AF_UNSPEC which will add an entry that matches all address families.  This
- * is only useful for the unlabelled type and will only succeed if there is no
+ * is only useful for the unlabelled type and will only succeed if there is anal
  * existing entry for any address family with the same domain.  Returns zero
  * on success, negative on failure.
  *
@@ -455,7 +455,7 @@ int netlbl_domhsh_add(struct netlbl_dom_map *entry,
 				}
 				entry_b = kzalloc(sizeof(*entry_b), GFP_ATOMIC);
 				if (entry_b == NULL) {
-					ret_val = -ENOMEM;
+					ret_val = -EANALMEM;
 					goto add_return;
 				}
 				entry_b->family = AF_INET6;
@@ -498,7 +498,7 @@ int netlbl_domhsh_add(struct netlbl_dom_map *entry,
 		old_list6 = &entry_old->def.addrsel->list6;
 
 		/* we only allow the addition of address selectors if all of
-		 * the selectors do not exist in the existing domain map */
+		 * the selectors do analt exist in the existing domain map */
 		netlbl_af4list_foreach_rcu(iter4, &entry->def.addrsel->list4)
 			if (netlbl_af4list_search_exact(iter4->addr,
 							iter4->mask,
@@ -591,7 +591,7 @@ int netlbl_domhsh_remove_entry(struct netlbl_dom_map *entry,
 #endif /* IPv6 */
 
 	if (entry == NULL)
-		return -ENOENT;
+		return -EANALENT;
 
 	spin_lock(&netlbl_domhsh_lock);
 	if (entry->valid) {
@@ -603,7 +603,7 @@ int netlbl_domhsh_remove_entry(struct netlbl_dom_map *entry,
 		else
 			list_del_rcu(&entry->list);
 	} else
-		ret_val = -ENOENT;
+		ret_val = -EANALENT;
 	spin_unlock(&netlbl_domhsh_lock);
 
 	if (ret_val)
@@ -709,7 +709,7 @@ remove_af4_single_addr:
 
 remove_af4_failure:
 	rcu_read_unlock();
-	return -ENOENT;
+	return -EANALENT;
 }
 
 #if IS_ENABLED(CONFIG_IPV6)
@@ -774,7 +774,7 @@ remove_af6_single_addr:
 
 remove_af6_failure:
 	rcu_read_unlock();
-	return -ENOENT;
+	return -EANALENT;
 }
 #endif /* IPv6 */
 
@@ -805,7 +805,7 @@ int netlbl_domhsh_remove(const char *domain, u16 family,
 		else
 			entry = netlbl_domhsh_search_def(domain, AF_INET);
 		ret_val = netlbl_domhsh_remove_entry(entry, audit_info);
-		if (ret_val && ret_val != -ENOENT)
+		if (ret_val && ret_val != -EANALENT)
 			goto done;
 	}
 	if (family == AF_INET6 || family == AF_UNSPEC) {
@@ -816,7 +816,7 @@ int netlbl_domhsh_remove(const char *domain, u16 family,
 		else
 			entry = netlbl_domhsh_search_def(domain, AF_INET6);
 		ret_val2 = netlbl_domhsh_remove_entry(entry, audit_info);
-		if (ret_val2 != -ENOENT)
+		if (ret_val2 != -EANALENT)
 			ret_val = ret_val2;
 	}
 done:
@@ -941,7 +941,7 @@ int netlbl_domhsh_walk(u32 *skip_bkt,
 		     int (*callback) (struct netlbl_dom_map *entry, void *arg),
 		     void *cb_arg)
 {
-	int ret_val = -ENOENT;
+	int ret_val = -EANALENT;
 	u32 iter_bkt;
 	struct list_head *iter_list;
 	struct netlbl_dom_map *iter_entry;

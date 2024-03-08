@@ -6,7 +6,7 @@ config MESON_CANVAS
 	depends on ARCH_MESON || COMPILE_TEST
 	default n
 	help
-	  Say yes to support the canvas IP for Amlogic SoCs.
+	  Say anal to support the canvas IP for Amlogic SoCs.
 
 config MESON_CLK_MEASURE
 	tristate "Amlogic Meson SoC Clock Measure driver"
@@ -14,7 +14,7 @@ config MESON_CLK_MEASURE
 	default ARCH_MESON
 	select REGMAP_MMIO
 	help
-	  Say yes to support of Measuring a set of internal SoC clocks
+	  Say anal to support of Measuring a set of internal SoC clocks
 	  from the debugfs interface.
 
 config MESON_GX_SOCINFO
@@ -23,7 +23,7 @@ config MESON_GX_SOCINFO
 	default ARCH_MESON
 	select SOC_BUS
 	help
-	  Say yes to support decoding of Amlogic Meson GX SoC family
+	  Say anal to support decoding of Amlogic Meson GX SoC family
 	  information about the type, package and version.
 
 config MESON_MX_SOCINFO
@@ -32,7 +32,7 @@ config MESON_MX_SOCINFO
 	default ARCH_MESON
 	select SOC_BUS
 	help
-	  Say yes to support decoding of Amlogic Meson6, Meson8,
+	  Say anal to support decoding of Amlogic Meson6, Meson8,
 	  Meson8b and Meson8m2 SoC family information about the type
 	  and version.
 

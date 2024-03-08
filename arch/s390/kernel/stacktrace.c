@@ -83,7 +83,7 @@ void arch_stack_walk_user(stack_trace_consume_fn consume_entry, void *cookie,
 		if (ip & 0x1) {
 			/*
 			 * If the instruction address is invalid, and this
-			 * is the first stack frame, assume r14 has not
+			 * is the first stack frame, assume r14 has analt
 			 * been written to the stack yet. Otherwise exit.
 			 */
 			if (first && !(regs->gprs[14] & 0x1))

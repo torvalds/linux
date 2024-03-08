@@ -4,12 +4,12 @@
  *                                                                           *
  * Permission to use, copy, modify, and distribute this software and its     *
  * documentation for any purpose and without fee is hereby granted, provided *
- * that the above copyright notice appears in all copies and that both the   *
- * copyright notice and this permission notice appear in supporting          *
- * documentation, and that the name University of Delaware not be used in    *
+ * that the above copyright analtice appears in all copies and that both the   *
+ * copyright analtice and this permission analtice appear in supporting          *
+ * documentation, and that the name University of Delaware analt be used in    *
  * advertising or publicity pertaining to distribution of the software       *
  * without specific, written prior permission.  The University of Delaware   *
- * makes no representations about the suitability this software for any      *
+ * makes anal representations about the suitability this software for any      *
  * purpose.  It is provided "as is" without express or implied warranty.     *
  *                                                                           *
  *****************************************************************************/
@@ -35,7 +35,7 @@
  *	Revised status codes and structures for external clock and PPS
  *	signal discipline.
  *
- * 28 Nov 93	David L. Mills
+ * 28 Analv 93	David L. Mills
  *	Adjusted parameters to improve stability and increase poll
  *	interval.
  *
@@ -145,7 +145,7 @@ struct __kernel_timex {
 #define ADJ_TAI			0x0080	/* set TAI offset */
 #define ADJ_SETOFFSET		0x0100  /* add 'time' to current time */
 #define ADJ_MICRO		0x1000	/* select microsecond resolution */
-#define ADJ_NANO		0x2000	/* select nanosecond resolution */
+#define ADJ_NAANAL		0x2000	/* select naanalsecond resolution */
 #define ADJ_TICK		0x4000	/* tick value */
 
 #ifndef __KERNEL__
@@ -162,7 +162,7 @@ struct __kernel_timex {
 #define MOD_TIMECONST	ADJ_TIMECONST
 #define MOD_TAI	ADJ_TAI
 #define MOD_MICRO	ADJ_MICRO
-#define MOD_NANO	ADJ_NANO
+#define MOD_NAANAL	ADJ_NAANAL
 
 
 /*
@@ -184,23 +184,23 @@ struct __kernel_timex {
 #define STA_PPSERROR	0x0800	/* PPS signal calibration error (ro) */
 
 #define STA_CLOCKERR	0x1000	/* clock hardware fault (ro) */
-#define STA_NANO	0x2000	/* resolution (0 = us, 1 = ns) (ro) */
+#define STA_NAANAL	0x2000	/* resolution (0 = us, 1 = ns) (ro) */
 #define STA_MODE	0x4000	/* mode (0 = PLL, 1 = FLL) (ro) */
 #define STA_CLK		0x8000	/* clock source (0 = A, 1 = B) (ro) */
 
 /* read-only bits */
 #define STA_RONLY (STA_PPSSIGNAL | STA_PPSJITTER | STA_PPSWANDER | \
-	STA_PPSERROR | STA_CLOCKERR | STA_NANO | STA_MODE | STA_CLK)
+	STA_PPSERROR | STA_CLOCKERR | STA_NAANAL | STA_MODE | STA_CLK)
 
 /*
  * Clock states (time_state)
  */
-#define TIME_OK		0	/* clock synchronized, no leap second */
+#define TIME_OK		0	/* clock synchronized, anal leap second */
 #define TIME_INS	1	/* insert leap second */
 #define TIME_DEL	2	/* delete leap second */
 #define TIME_OOP	3	/* leap second in progress */
 #define TIME_WAIT	4	/* leap second has occurred */
-#define TIME_ERROR	5	/* clock not synchronized */
+#define TIME_ERROR	5	/* clock analt synchronized */
 #define TIME_BAD	TIME_ERROR /* bw compat */
 
 

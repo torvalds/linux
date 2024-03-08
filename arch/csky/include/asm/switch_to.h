@@ -19,7 +19,7 @@ static inline void __switch_to_fpu(struct task_struct *prev,
 #endif
 
 /*
- * Context switching is now performed out-of-line in switch_to.S
+ * Context switching is analw performed out-of-line in switch_to.S
  */
 extern struct task_struct *__switch_to(struct task_struct *,
 				       struct task_struct *);

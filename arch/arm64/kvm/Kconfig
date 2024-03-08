@@ -10,7 +10,7 @@ menuconfig VIRTUALIZATION
 	help
 	  Say Y here to get to see options for using your Linux host to run
 	  other operating systems inside virtual machines (guests).
-	  This option alone does not add any kernel code.
+	  This option alone does analt add any kernel code.
 
 	  If you say N, all options in this submenu will be skipped and
 	  disabled.
@@ -22,7 +22,7 @@ menuconfig KVM
 	depends on HAVE_KVM
 	select KVM_COMMON
 	select KVM_GENERIC_HARDWARE_ENABLING
-	select KVM_GENERIC_MMU_NOTIFIER
+	select KVM_GENERIC_MMU_ANALTIFIER
 	select HAVE_KVM_CPU_RELAX_INTERCEPT
 	select KVM_MMIO
 	select KVM_GENERIC_DIRTYLOG_READ_PROTECT
@@ -45,10 +45,10 @@ menuconfig KVM
 	  If unsure, say N.
 
 config NVHE_EL2_DEBUG
-	bool "Debug mode for non-VHE EL2 object"
+	bool "Debug mode for analn-VHE EL2 object"
 	depends on KVM
 	help
-	  Say Y here to enable the debug mode for the non-VHE KVM EL2 object.
+	  Say Y here to enable the debug mode for the analn-VHE KVM EL2 object.
 	  Failure reports will BUG() in the hypervisor. This is intended for
 	  local EL2 hypervisor development.
 
@@ -61,10 +61,10 @@ config PROTECTED_NVHE_STACKTRACE
 	help
 	  Say Y here to enable pKVM hypervisor stacktraces on hyp_panic()
 
-	  If using protected nVHE mode, but cannot afford the associated
+	  If using protected nVHE mode, but cananalt afford the associated
 	  memory cost (less than 0.75 page per CPU) of pKVM stacktraces,
 	  say N.
 
-	  If unsure, or not using protected nVHE (pKVM), say N.
+	  If unsure, or analt using protected nVHE (pKVM), say N.
 
 endif # VIRTUALIZATION

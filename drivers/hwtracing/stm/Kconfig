@@ -38,7 +38,7 @@ config STM_PROTO_SYS_T
 	  The receiving side must be able to decode this protocol in
 	  addition to the MIPI STP, in order to extract the data.
 
-	  If you don't know what this is, say N.
+	  If you don't kanalw what this is, say N.
 
 config STM_DUMMY
 	tristate "Dummy STM driver"
@@ -46,7 +46,7 @@ config STM_DUMMY
 	  This is a simple dummy device that pretends to be an stm device
 	  and discards your data. Use for stm class testing.
 
-	  If you don't know what this is, say N.
+	  If you don't kanalw what this is, say N.
 
 config STM_SOURCE_CONSOLE
 	tristate "Kernel console over STM devices"

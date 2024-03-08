@@ -38,19 +38,19 @@ void xen_arch_post_suspend(int cancelled)
 	xen_restore_time_memory_area();
 }
 
-static void xen_vcpu_notify_restore(void *data)
+static void xen_vcpu_analtify_restore(void *data)
 {
 	if (xen_pv_domain() && boot_cpu_has(X86_FEATURE_SPEC_CTRL))
 		wrmsrl(MSR_IA32_SPEC_CTRL, this_cpu_read(spec_ctrl));
 
-	/* Boot processor notified via generic timekeeping_resume() */
+	/* Boot processor analtified via generic timekeeping_resume() */
 	if (smp_processor_id() == 0)
 		return;
 
 	tick_resume_local();
 }
 
-static void xen_vcpu_notify_suspend(void *data)
+static void xen_vcpu_analtify_suspend(void *data)
 {
 	u64 tmp;
 
@@ -67,7 +67,7 @@ void xen_arch_resume(void)
 {
 	int cpu;
 
-	on_each_cpu(xen_vcpu_notify_restore, NULL, 1);
+	on_each_cpu(xen_vcpu_analtify_restore, NULL, 1);
 
 	for_each_online_cpu(cpu)
 		xen_pmu_init(cpu);
@@ -80,5 +80,5 @@ void xen_arch_suspend(void)
 	for_each_online_cpu(cpu)
 		xen_pmu_finish(cpu);
 
-	on_each_cpu(xen_vcpu_notify_suspend, NULL, 1);
+	on_each_cpu(xen_vcpu_analtify_suspend, NULL, 1);
 }

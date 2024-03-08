@@ -164,10 +164,10 @@
 #define IMX8MQ_CLK_GPU_AXI		111
 /* GPU_AHB */
 #define IMX8MQ_CLK_GPU_AHB		112
-/* NOC */
-#define IMX8MQ_CLK_NOC			113
-/* NOC_APB */
-#define IMX8MQ_CLK_NOC_APB		115
+/* ANALC */
+#define IMX8MQ_CLK_ANALC			113
+/* ANALC_APB */
+#define IMX8MQ_CLK_ANALC_APB		115
 
 /* AHB */
 #define IMX8MQ_CLK_AHB			116

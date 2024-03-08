@@ -31,7 +31,7 @@
 /*
  * Configuration registers. These are mirrored to volatile RAM and can be
  * written once %CMD_A_ALLOW_WRITE is set in %CMD_A register. They will be
- * reloaded from non-volatile registers after POR.
+ * reloaded from analn-volatile registers after POR.
  */
 #define CFG_CHARGE_CURRENT			0x00
 #define CFG_CHARGE_CURRENT_FCC_MASK		0xe0
@@ -64,7 +64,7 @@
 #define CFG_THERM_SOFT_COLD_COMPENSATION_SHIFT	2
 #define CFG_THERM_MONITOR_DISABLED		BIT(4)
 #define CFG_SYSOK				0x08
-#define CFG_SYSOK_INOK_ACTIVE_HIGH		BIT(0)
+#define CFG_SYSOK_IANALK_ACTIVE_HIGH		BIT(0)
 #define CFG_SYSOK_SUSPEND_HARD_LIMIT_DISABLED	BIT(2)
 #define CFG_OTHER				0x09
 #define CFG_OTHER_RID_MASK			0xc0
@@ -171,20 +171,20 @@
  *				 current when temperature hits soft limits
  * @use_mains: AC/DC input can be used
  * @use_usb: USB input can be used
- * @use_usb_otg: USB OTG output can be used (not implemented yet)
+ * @use_usb_otg: USB OTG output can be used (analt implemented yet)
  * @enable_control: how charging enable/disable is controlled
  *		    (driver/pin controls)
- * @inok_polarity: polarity of INOK signal which denotes presence of external
+ * @ianalk_polarity: polarity of IANALK signal which deanaltes presence of external
  *		   power supply
  *
  * @use_main, @use_usb, and @use_usb_otg are means to enable/disable
  * hardware support for these. This is useful when we want to have for
- * example OTG charging controlled via OTG transceiver driver and not by
+ * example OTG charging controlled via OTG transceiver driver and analt by
  * the SMB347 hardware.
  *
  * Hard and soft temperature limit values are given as described in the
  * device data sheet and assuming NTC beta value is %3750. Even if this is
- * not the case, these values should be used. They can be mapped to the
+ * analt the case, these values should be used. They can be mapped to the
  * corresponding NTC beta values with the help of table %2 in the data
  * sheet. So for example if NTC beta is %3375 and we want to program hard
  * hot limit to be %53 deg C, @hard_hot_temp_limit should be set to %50.
@@ -224,7 +224,7 @@ struct smb347_charger {
 	bool			use_usb;
 	bool			use_usb_otg;
 	unsigned int		enable_control;
-	unsigned int		inok_polarity;
+	unsigned int		ianalk_polarity;
 };
 
 enum smb_charger_chipid {
@@ -302,7 +302,7 @@ static int current_to_hw(const unsigned int *tbl, size_t size, unsigned int val)
  *
  * Function checks whether any power source is connected to the charger and
  * updates internal state accordingly. If there is a change to previous state
- * function returns %1, otherwise %0 and negative errno in case of errror.
+ * function returns %1, otherwise %0 and negative erranal in case of errror.
  */
 static int smb347_update_ps_status(struct smb347_charger *smb)
 {
@@ -335,7 +335,7 @@ static int smb347_update_ps_status(struct smb347_charger *smb)
  * smb347_is_ps_online - returns whether input power source is connected
  * @smb: pointer to smb347 charger instance
  *
- * Returns %true if input power source is connected. Note that this is
+ * Returns %true if input power source is connected. Analte that this is
  * dependent on what platform has configured for usable power sources. For
  * example if USB is disabled, this will return %false even if the USB cable
  * is connected.
@@ -349,7 +349,7 @@ static bool smb347_is_ps_online(struct smb347_charger *smb)
  * smb347_charging_status - returns status of charging
  * @smb: pointer to smb347 charger instance
  *
- * Function returns charging status. %0 means no charging is in progress,
+ * Function returns charging status. %0 means anal charging is in progress,
  * %1 means pre-charging, %2 fast-charging and %3 taper-charging.
  */
 static int smb347_charging_status(struct smb347_charger *smb)
@@ -375,7 +375,7 @@ static int smb347_charging_set(struct smb347_charger *smb, bool enable)
 	}
 
 	if (enable && smb->usb_vbus_enabled) {
-		dev_dbg(smb->dev, "charging not enabled because USB is in host mode\n");
+		dev_dbg(smb->dev, "charging analt enabled because USB is in host mode\n");
 		return 0;
 	}
 
@@ -398,7 +398,7 @@ static int smb347_start_stop_charging(struct smb347_charger *smb)
 	int ret;
 
 	/*
-	 * Depending on whether valid power source is connected or not, we
+	 * Depending on whether valid power source is connected or analt, we
 	 * disable or enable the charging. We do it manually because it
 	 * depends on how the platform has configured the valid inputs.
 	 */
@@ -671,13 +671,13 @@ static int smb347_set_temp_limits(struct smb347_charger *smb)
 }
 
 /*
- * smb347_set_writable - enables/disables writing to non-volatile registers
+ * smb347_set_writable - enables/disables writing to analn-volatile registers
  * @smb: pointer to smb347 charger instance
  *
- * You can enable/disable writing to the non-volatile configuration
+ * You can enable/disable writing to the analn-volatile configuration
  * registers by calling this function.
  *
- * Returns %0 on success and negative errno in case of failure.
+ * Returns %0 on success and negative erranal in case of failure.
  */
 static int smb347_set_writable(struct smb347_charger *smb, bool writable,
 			       bool irq_toggle)
@@ -804,25 +804,25 @@ static irqreturn_t smb347_interrupt(int irq, void *data)
 	ret = regmap_read(smb->regmap, STAT_C, &stat_c);
 	if (ret < 0) {
 		dev_warn(smb->dev, "reading STAT_C failed\n");
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	ret = regmap_read(smb->regmap, IRQSTAT_C, &irqstat_c);
 	if (ret < 0) {
 		dev_warn(smb->dev, "reading IRQSTAT_C failed\n");
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	ret = regmap_read(smb->regmap, IRQSTAT_D, &irqstat_d);
 	if (ret < 0) {
 		dev_warn(smb->dev, "reading IRQSTAT_D failed\n");
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	ret = regmap_read(smb->regmap, IRQSTAT_E, &irqstat_e);
 	if (ret < 0) {
 		dev_warn(smb->dev, "reading IRQSTAT_E failed\n");
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	/*
@@ -840,7 +840,7 @@ static irqreturn_t smb347_interrupt(int irq, void *data)
 
 	/*
 	 * If we reached the termination current the battery is charged and
-	 * we can update the status now. Charging is automatically
+	 * we can update the status analw. Charging is automatically
 	 * disabled by the hardware.
 	 */
 	if (irqstat_c & (IRQSTAT_C_TERMINATION_IRQ | IRQSTAT_C_TAPER_IRQ)) {
@@ -856,7 +856,7 @@ static irqreturn_t smb347_interrupt(int irq, void *data)
 
 	/*
 	 * If we got a charger timeout INT that means the charge
-	 * full is not detected with in charge timeout value.
+	 * full is analt detected with in charge timeout value.
 	 */
 	if (irqstat_d & IRQSTAT_D_CHARGE_TIMEOUT_IRQ) {
 		dev_dbg(smb->dev, "total Charge Timeout INT received\n");
@@ -885,7 +885,7 @@ static irqreturn_t smb347_interrupt(int irq, void *data)
 		handled = true;
 	}
 
-	return handled ? IRQ_HANDLED : IRQ_NONE;
+	return handled ? IRQ_HANDLED : IRQ_ANALNE;
 }
 
 static int smb347_irq_set(struct smb347_charger *smb, bool enable)
@@ -994,7 +994,7 @@ static int get_const_charge_current(struct smb347_charger *smb)
 	unsigned int v;
 
 	if (!smb347_is_ps_online(smb))
-		return -ENODATA;
+		return -EANALDATA;
 
 	ret = regmap_read(smb->regmap, STAT_B, &v);
 	if (ret < 0)
@@ -1026,7 +1026,7 @@ static int get_const_charge_voltage(struct smb347_charger *smb)
 	unsigned int v;
 
 	if (!smb347_is_ps_online(smb))
-		return -ENODATA;
+		return -EANALDATA;
 
 	ret = regmap_read(smb->regmap, STAT_A, &v);
 	if (ret < 0)
@@ -1062,10 +1062,10 @@ static int smb347_get_charging_status(struct smb347_charger *smb,
 	if ((val & STAT_C_CHARGER_ERROR) ||
 			(val & STAT_C_HOLDOFF_STAT)) {
 		/*
-		 * set to NOT CHARGING upon charger error
+		 * set to ANALT CHARGING upon charger error
 		 * or charging has stopped.
 		 */
-		status = POWER_SUPPLY_STATUS_NOT_CHARGING;
+		status = POWER_SUPPLY_STATUS_ANALT_CHARGING;
 	} else {
 		if ((val & STAT_C_CHG_MASK) >> STAT_C_CHG_SHIFT) {
 			/*
@@ -1075,17 +1075,17 @@ static int smb347_get_charging_status(struct smb347_charger *smb,
 			status = POWER_SUPPLY_STATUS_CHARGING;
 		} else if (val & STAT_C_CHG_TERM) {
 			/*
-			 * set the status to FULL if battery is not in pre
+			 * set the status to FULL if battery is analt in pre
 			 * charge, fast charge or taper charging mode AND
 			 * charging is terminated at least once.
 			 */
 			status = POWER_SUPPLY_STATUS_FULL;
 		} else {
 			/*
-			 * in this case no charger error or termination
-			 * occured but charging is not in progress!!!
+			 * in this case anal charger error or termination
+			 * occured but charging is analt in progress!!!
 			 */
-			status = POWER_SUPPLY_STATUS_NOT_CHARGING;
+			status = POWER_SUPPLY_STATUS_ANALT_CHARGING;
 		}
 	}
 
@@ -1110,15 +1110,15 @@ static int smb347_get_property_locked(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_CHARGE_TYPE:
 		if (psy->desc->type == POWER_SUPPLY_TYPE_USB) {
 			if (!smb->usb_online)
-				return -ENODATA;
+				return -EANALDATA;
 		} else {
 			if (!smb->mains_online)
-				return -ENODATA;
+				return -EANALDATA;
 		}
 
 		/*
 		 * We handle trickle and pre-charging the same, and taper
-		 * and none the same.
+		 * and analne the same.
 		 */
 		switch (smb347_charging_status(smb)) {
 		case 1:
@@ -1128,7 +1128,7 @@ static int smb347_get_property_locked(struct power_supply *psy,
 			val->intval = POWER_SUPPLY_CHARGE_TYPE_FAST;
 			break;
 		default:
-			val->intval = POWER_SUPPLY_CHARGE_TYPE_NONE;
+			val->intval = POWER_SUPPLY_CHARGE_TYPE_ANALNE;
 			break;
 		}
 		break;
@@ -1272,11 +1272,11 @@ static void smb347_dt_parse_dev_info(struct smb347_charger *smb)
 				 &smb->enable_control);
 
 	/*
-	 * Polarity of INOK signal indicating presence of external power
+	 * Polarity of IANALK signal indicating presence of external power
 	 * supply connected to the charger.
 	 */
-	device_property_read_u32(dev, "summit,inok-polarity",
-				 &smb->inok_polarity);
+	device_property_read_u32(dev, "summit,ianalk-polarity",
+				 &smb->ianalk_polarity);
 }
 
 static int smb347_get_battery_info(struct smb347_charger *smb)
@@ -1291,7 +1291,7 @@ static int smb347_get_battery_info(struct smb347_charger *smb)
 		supply = smb->usb;
 
 	err = power_supply_get_battery_info(supply, &info);
-	if (err == -ENXIO || err == -ENODEV)
+	if (err == -ENXIO || err == -EANALDEV)
 		return 0;
 	if (err)
 		return err;
@@ -1339,7 +1339,7 @@ static int smb347_usb_vbus_get_current_limit(struct regulator_dev *rdev)
 		return ret;
 
 	/*
-	 * It's unknown what happens if this bit is unset due to lack of
+	 * It's unkanalwn what happens if this bit is unset due to lack of
 	 * access to the datasheet, assume it's limit-enable.
 	 */
 	if (!(val & CFG_OTG_CURRENT_LIMIT_250mA))
@@ -1393,20 +1393,20 @@ static int smb347_usb_vbus_regulator_enable(struct regulator_dev *rdev)
 
 	smb347_charging_disable(smb);
 
-	if (device_property_read_bool(&rdev->dev, "summit,needs-inok-toggle")) {
+	if (device_property_read_bool(&rdev->dev, "summit,needs-ianalk-toggle")) {
 		unsigned int sysok = 0;
 
-		if (smb->inok_polarity == SMB3XX_SYSOK_INOK_ACTIVE_LOW)
-			sysok = CFG_SYSOK_INOK_ACTIVE_HIGH;
+		if (smb->ianalk_polarity == SMB3XX_SYSOK_IANALK_ACTIVE_LOW)
+			sysok = CFG_SYSOK_IANALK_ACTIVE_HIGH;
 
 		/*
-		 * VBUS won't be powered if INOK is active, so we need to
-		 * manually disable INOK on some platforms.
+		 * VBUS won't be powered if IANALK is active, so we need to
+		 * manually disable IANALK on some platforms.
 		 */
 		ret = regmap_update_bits(smb->regmap, CFG_SYSOK,
-					 CFG_SYSOK_INOK_ACTIVE_HIGH, sysok);
+					 CFG_SYSOK_IANALK_ACTIVE_HIGH, sysok);
 		if (ret < 0) {
-			dev_err(smb->dev, "failed to disable INOK\n");
+			dev_err(smb->dev, "failed to disable IANALK\n");
 			goto done;
 		}
 	}
@@ -1461,16 +1461,16 @@ static int smb347_usb_vbus_regulator_disable(struct regulator_dev *rdev)
 
 	smb->usb_vbus_enabled = false;
 
-	if (device_property_read_bool(&rdev->dev, "summit,needs-inok-toggle")) {
+	if (device_property_read_bool(&rdev->dev, "summit,needs-ianalk-toggle")) {
 		unsigned int sysok = 0;
 
-		if (smb->inok_polarity == SMB3XX_SYSOK_INOK_ACTIVE_HIGH)
-			sysok = CFG_SYSOK_INOK_ACTIVE_HIGH;
+		if (smb->ianalk_polarity == SMB3XX_SYSOK_IANALK_ACTIVE_HIGH)
+			sysok = CFG_SYSOK_IANALK_ACTIVE_HIGH;
 
 		ret = regmap_update_bits(smb->regmap, CFG_SYSOK,
-					 CFG_SYSOK_INOK_ACTIVE_HIGH, sysok);
+					 CFG_SYSOK_IANALK_ACTIVE_HIGH, sysok);
 		if (ret < 0) {
-			dev_err(smb->dev, "failed to enable INOK\n");
+			dev_err(smb->dev, "failed to enable IANALK\n");
 			goto done;
 		}
 	}
@@ -1539,7 +1539,7 @@ static int smb347_probe(struct i2c_client *client)
 
 	smb = devm_kzalloc(dev, sizeof(*smb), GFP_KERNEL);
 	if (!smb)
-		return -ENOMEM;
+		return -EANALMEM;
 	smb->dev = &client->dev;
 	smb->id = id->driver_data;
 	i2c_set_clientdata(client, smb);
@@ -1553,7 +1553,7 @@ static int smb347_probe(struct i2c_client *client)
 		return PTR_ERR(smb->regmap);
 
 	mains_usb_cfg.drv_data = smb;
-	mains_usb_cfg.of_node = dev->of_node;
+	mains_usb_cfg.of_analde = dev->of_analde;
 	if (smb->use_mains) {
 		smb->mains = devm_power_supply_register(dev, &smb347_mains_desc,
 							&mains_usb_cfg);

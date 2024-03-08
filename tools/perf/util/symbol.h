@@ -27,7 +27,7 @@ struct option;
 struct build_id;
 
 /*
- * libelf 0.8.x and earlier do not support ELF_C_READ_MMAP;
+ * libelf 0.8.x and earlier do analt support ELF_C_READ_MMAP;
  * for newer versions we can use mmap to reduce memory usage:
  */
 #ifdef ELF_C_READ_MMAP
@@ -42,11 +42,11 @@ Elf_Scn *elf_section_by_name(Elf *elf, GElf_Ehdr *ep,
 #endif
 
 /**
- * A symtab entry. When allocated this may be preceded by an annotation (see
- * symbol__annotation) and/or a browser_index (see symbol__browser_index).
+ * A symtab entry. When allocated this may be preceded by an ananaltation (see
+ * symbol__ananaltation) and/or a browser_index (see symbol__browser_index).
  */
 struct symbol {
-	struct rb_node	rb_node;
+	struct rb_analde	rb_analde;
 	/** Range of symbol [start, end). */
 	u64		start;
 	u64		end;
@@ -58,12 +58,12 @@ struct symbol {
 	u8		binding:4;
 	/** Set true for kernel symbols of idle routines. */
 	u8		idle:1;
-	/** Resolvable but tools ignore it (e.g. idle routines). */
-	u8		ignore:1;
+	/** Resolvable but tools iganalre it (e.g. idle routines). */
+	u8		iganalre:1;
 	/** Symbol for an inlined function. */
 	u8		inlined:1;
-	/** Has symbol__annotate2 been performed. */
-	u8		annotate2:1;
+	/** Has symbol__ananaltate2 been performed. */
+	u8		ananaltate2:1;
 	/** Symbol is an alias of an STT_GNU_IFUNC */
 	u8		ifunc_alias:1;
 	/** Architecture specific. Unused except on PPC where it holds st_other. */
@@ -79,11 +79,11 @@ void symbols__delete(struct rb_root_cached *symbols);
  *
  * @symbols: the rb_root of symbols
  * @pos: the 'struct symbol *' to use as a loop cursor
- * @nd: the 'struct rb_node *' to use as a temporary storage
+ * @nd: the 'struct rb_analde *' to use as a temporary storage
  */
 #define symbols__for_each_entry(symbols, pos, nd)			\
 	for (nd = rb_first_cached(symbols);					\
-	     nd && (pos = rb_entry(nd, struct symbol, rb_node));	\
+	     nd && (pos = rb_entry(nd, struct symbol, rb_analde));	\
 	     nd = rb_next(nd))
 
 static inline size_t symbol__size(const struct symbol *sym)
@@ -120,7 +120,7 @@ int dso__load_vmlinux(struct dso *dso, struct map *map,
 		      const char *vmlinux, bool vmlinux_allocated);
 int dso__load_vmlinux_path(struct dso *dso, struct map *map);
 int __dso__load_kallsyms(struct dso *dso, const char *filename, struct map *map,
-			 bool no_kcore);
+			 bool anal_kcore);
 int dso__load_kallsyms(struct dso *dso, const char *filename, struct map *map);
 
 void dso__insert_symbol(struct dso *dso,
@@ -129,7 +129,7 @@ void dso__delete_symbol(struct dso *dso,
 			struct symbol *sym);
 
 struct symbol *dso__find_symbol(struct dso *dso, u64 addr);
-struct symbol *dso__find_symbol_nocache(struct dso *dso, u64 addr);
+struct symbol *dso__find_symbol_analcache(struct dso *dso, u64 addr);
 
 struct symbol *dso__next_symbol_by_name(struct dso *dso, size_t *idx);
 struct symbol *dso__find_symbol_by_name(struct dso *dso, const char *name, size_t *idx);
@@ -153,18 +153,18 @@ struct perf_env;
 int symbol__init(struct perf_env *env);
 void symbol__exit(void);
 void symbol__elf_init(void);
-int symbol__annotation_init(void);
+int symbol__ananaltation_init(void);
 
 struct symbol *symbol__new(u64 start, u64 len, u8 binding, u8 type, const char *name);
 size_t __symbol__fprintf_symname_offs(const struct symbol *sym,
 				      const struct addr_location *al,
-				      bool unknown_as_addr,
+				      bool unkanalwn_as_addr,
 				      bool print_offsets, FILE *fp);
 size_t symbol__fprintf_symname_offs(const struct symbol *sym,
 				    const struct addr_location *al, FILE *fp);
 size_t __symbol__fprintf_symname(const struct symbol *sym,
 				 const struct addr_location *al,
-				 bool unknown_as_addr, FILE *fp);
+				 bool unkanalwn_as_addr, FILE *fp);
 size_t symbol__fprintf_symname(const struct symbol *sym, FILE *fp);
 size_t symbol__fprintf(struct symbol *sym, FILE *fp);
 bool symbol__restricted_filename(const char *filename,
@@ -221,7 +221,7 @@ bool elf__needs_adjust_symbols(GElf_Ehdr ehdr);
 void arch__sym_update(struct symbol *s, GElf_Sym *sym);
 #endif
 
-const char *arch__normalize_symbol_name(const char *name);
+const char *arch__analrmalize_symbol_name(const char *name);
 #define SYMBOL_A 0
 #define SYMBOL_B 1
 
@@ -231,16 +231,16 @@ int arch__compare_symbol_names_n(const char *namea, const char *nameb,
 int arch__choose_best_symbol(struct symbol *syma, struct symbol *symb);
 
 enum symbol_tag_include {
-	SYMBOL_TAG_INCLUDE__NONE = 0,
+	SYMBOL_TAG_INCLUDE__ANALNE = 0,
 	SYMBOL_TAG_INCLUDE__DEFAULT_ONLY
 };
 
 int symbol__match_symbol_name(const char *namea, const char *nameb,
 			      enum symbol_tag_include includes);
 
-/* structure containing an SDT note's info */
-struct sdt_note {
-	char *name;			/* name of the note*/
+/* structure containing an SDT analte's info */
+struct sdt_analte {
+	char *name;			/* name of the analte*/
 	char *provider;			/* provider name */
 	char *args;
 	bool bit32;			/* whether the location is 32 bits? */
@@ -248,24 +248,24 @@ struct sdt_note {
 		Elf64_Addr a64[3];
 		Elf32_Addr a32[3];
 	} addr;
-	struct list_head note_list;	/* SDT notes' list */
+	struct list_head analte_list;	/* SDT analtes' list */
 };
 
-int get_sdt_note_list(struct list_head *head, const char *target);
-int cleanup_sdt_note_list(struct list_head *sdt_notes);
-int sdt_notes__get_count(struct list_head *start);
+int get_sdt_analte_list(struct list_head *head, const char *target);
+int cleanup_sdt_analte_list(struct list_head *sdt_analtes);
+int sdt_analtes__get_count(struct list_head *start);
 
 #define SDT_PROBES_SCN ".probes"
 #define SDT_BASE_SCN ".stapsdt.base"
-#define SDT_NOTE_SCN  ".note.stapsdt"
-#define SDT_NOTE_TYPE 3
-#define SDT_NOTE_NAME "stapsdt"
+#define SDT_ANALTE_SCN  ".analte.stapsdt"
+#define SDT_ANALTE_TYPE 3
+#define SDT_ANALTE_NAME "stapsdt"
 #define NR_ADDR 3
 
 enum {
-	SDT_NOTE_IDX_LOC = 0,
-	SDT_NOTE_IDX_BASE,
-	SDT_NOTE_IDX_REFCTR,
+	SDT_ANALTE_IDX_LOC = 0,
+	SDT_ANALTE_IDX_BASE,
+	SDT_ANALTE_IDX_REFCTR,
 };
 
 struct mem_info *mem_info__new(void);

@@ -28,7 +28,7 @@
 #define B43legacy_PIO_MAXTXDEVQPACKETS	31
 #define B43legacy_PIO_TXQADJUST		80
 
-/* PIO tuning knobs */
+/* PIO tuning kanalbs */
 #define B43legacy_PIO_MAXTXPACKETS	256
 
 
@@ -68,7 +68,7 @@ struct b43legacy_pioqueue {
 	struct list_head txfree;
 	unsigned int nr_txfree;
 	/* Packets on the txqueue are queued,
-	 * but not completely written to the chip, yet.
+	 * but analt completely written to the chip, yet.
 	 */
 	struct list_head txqueue;
 	/* Packets on the txrunning queue are completely

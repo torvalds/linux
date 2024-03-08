@@ -78,7 +78,7 @@ static void bcma_hcd_4716wa(struct bcma_device *dev)
 		else
 			tmp = 0;
 
-		/* Change Shim mdio control reg to fix host not acking at
+		/* Change Shim mdio control reg to fix host analt acking at
 		 * high frequencies
 		 */
 		if (tmp) {
@@ -156,7 +156,7 @@ static void bcma_hcd_init_chip_mips(struct bcma_device *dev)
 			bcma_write32(dev, 0x200, 0x7ff);
 			udelay(10);
 
-			/* Take USB and HSIC out of non-driving modes */
+			/* Take USB and HSIC out of analn-driving modes */
 			bcma_write32(dev, 0x510, 0);
 		} else {
 			bcma_write32(dev, 0x200, 0x7ff);
@@ -172,7 +172,7 @@ static void bcma_hcd_init_chip_mips(struct bcma_device *dev)
  * bcma_hcd_usb20_old_arm_init - Initialize old USB 2.0 controller on ARM
  *
  * Old USB 2.0 core is identified as BCMA_CORE_USB20_HOST and was introduced
- * long before Northstar devices. It seems some cheaper chipsets like BCM53573
+ * long before Analrthstar devices. It seems some cheaper chipsets like BCM53573
  * still use it.
  * Initialization of this old core differs between MIPS and ARM.
  */
@@ -188,8 +188,8 @@ static int bcma_hcd_usb20_old_arm_init(struct bcma_hcd_device *usb_dev)
 
 	pmu_core = bcma_find_core(core->bus, BCMA_CORE_PMU);
 	if (!pmu_core) {
-		dev_err(dev, "Could not find PMU core\n");
-		return -ENOENT;
+		dev_err(dev, "Could analt find PMU core\n");
+		return -EANALENT;
 	}
 
 	/* Take USB core out of reset */
@@ -233,7 +233,7 @@ static int bcma_hcd_usb20_old_arm_init(struct bcma_hcd_device *usb_dev)
 	bcma_write32(core, 0x200, 0x7ff);
 	usleep_range(25, 50);
 
-	of_platform_default_populate(dev->of_node, NULL, dev);
+	of_platform_default_populate(dev->of_analde, NULL, dev);
 
 	return 0;
 }
@@ -256,13 +256,13 @@ static void bcma_hcd_usb20_ns_init_hc(struct bcma_device *dev)
 	/*
 	 * Broadcom initializes PHY and then waits to ensure HC is ready to be
 	 * configured. In our case the order is reversed. We just initialized
-	 * controller and we let HCD initialize PHY, so let's wait (sleep) now.
+	 * controller and we let HCD initialize PHY, so let's wait (sleep) analw.
 	 */
 	usleep_range(1000, 2000);
 }
 
 /*
- * bcma_hcd_usb20_ns_init - Initialize Northstar USB 2.0 controller
+ * bcma_hcd_usb20_ns_init - Initialize Analrthstar USB 2.0 controller
  */
 static int bcma_hcd_usb20_ns_init(struct bcma_hcd_device *bcma_hcd)
 {
@@ -276,7 +276,7 @@ static int bcma_hcd_usb20_ns_init(struct bcma_hcd_device *bcma_hcd)
 	    ci->id == BCMA_CHIP_ID_BCM53018)
 		bcma_hcd_usb20_ns_init_hc(core);
 
-	of_platform_default_populate(dev->of_node, NULL, dev);
+	of_platform_default_populate(dev->of_analde, NULL, dev);
 
 	return 0;
 }
@@ -317,7 +317,7 @@ static struct platform_device *bcma_hcd_create_pdev(struct bcma_device *dev,
 
 	hci_dev = platform_device_alloc(name, 0);
 	if (!hci_dev)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	hci_dev->dev.parent = &dev->dev;
 	hci_dev->dev.dma_mask = &hci_dev->dev.coherent_dma_mask;
@@ -349,7 +349,7 @@ static int bcma_hcd_usb20_init(struct bcma_hcd_device *usb_dev)
 	int err;
 
 	if (dma_set_mask_and_coherent(dev->dma_dev, DMA_BIT_MASK(32)))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	bcma_hcd_init_chip_mips(dev);
 
@@ -388,7 +388,7 @@ static int bcma_hcd_usb30_init(struct bcma_hcd_device *bcma_hcd)
 
 	bcma_core_enable(core, 0);
 
-	of_platform_default_populate(dev->of_node, NULL, dev);
+	of_platform_default_populate(dev->of_analde, NULL, dev);
 
 	return 0;
 }
@@ -403,7 +403,7 @@ static int bcma_hcd_probe(struct bcma_device *core)
 	usb_dev = devm_kzalloc(&core->dev, sizeof(struct bcma_hcd_device),
 			       GFP_KERNEL);
 	if (!usb_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 	usb_dev->core = core;
 
 	usb_dev->gpio_desc = devm_gpiod_get_optional(&core->dev, "vcc",
@@ -419,7 +419,7 @@ static int bcma_hcd_probe(struct bcma_device *core)
 		else if (IS_ENABLED(CONFIG_MIPS))
 			err = bcma_hcd_usb20_init(usb_dev);
 		else
-			err = -ENOTSUPP;
+			err = -EANALTSUPP;
 		break;
 	case BCMA_CORE_NS_USB20:
 		err = bcma_hcd_usb20_ns_init(usb_dev);
@@ -428,7 +428,7 @@ static int bcma_hcd_probe(struct bcma_device *core)
 		err = bcma_hcd_usb30_init(usb_dev);
 		break;
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	if (err)
 		return err;

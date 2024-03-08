@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2018 Netronome Systems, Inc. */
+/* Copyright (C) 2018 Netroanalme Systems, Inc. */
 
 #include <linux/kernel.h>
 #include <net/devlink.h>
@@ -102,7 +102,7 @@ int nfp_shared_buf_register(struct nfp_pf *pf)
 	pf->shared_bufs = kmalloc_array(num_entries, sizeof(pf->shared_bufs[0]),
 					GFP_KERNEL);
 	if (!pf->shared_bufs) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_release_area;
 	}
 

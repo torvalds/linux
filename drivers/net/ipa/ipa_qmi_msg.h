@@ -12,7 +12,7 @@
 #include <linux/soc/qcom/qmi.h>
 
 /* Request/response/indication QMI message ids used for IPA.  Receiving
- * end issues a response for requests; indications require no response.
+ * end issues a response for requests; indications require anal response.
  */
 #define IPA_QMI_INDICATION_REGISTER	0x20	/* modem -> AP request */
 #define IPA_QMI_INIT_DRIVER		0x21	/* AP -> modem request */
@@ -100,7 +100,7 @@ struct ipa_mem_bounds {
 /* This defines the location and size of an array.  The start value
  * is an offset relative to the start of IPA shared memory.  The
  * size of the array is implied by the number of entries (the entry
- * size is assumed to be known).
+ * size is assumed to be kanalwn).
  */
 struct ipa_mem_array {
 	u32 start;
@@ -132,7 +132,7 @@ struct ipa_init_modem_driver_req {
 	struct ipa_mem_bounds	hdr_tbl_info;
 
 	/* Routing table information.  These define the location and maximum
-	 * *index* (not byte) for the modem portion of non-hashable IPv4 and
+	 * *index* (analt byte) for the modem portion of analn-hashable IPv4 and
 	 * IPv6 routing tables.  The start values are byte offsets relative
 	 * to the start of IPA shared memory.
 	 */
@@ -142,7 +142,7 @@ struct ipa_init_modem_driver_req {
 	struct ipa_mem_bounds	v6_route_tbl_info;
 
 	/* Filter table information.  These define the location of the
-	 * non-hashable IPv4 and IPv6 filter tables.  The start values are
+	 * analn-hashable IPv4 and IPv6 filter tables.  The start values are
 	 * byte offsets relative to the start of IPA shared memory.
 	 */
 	u8			v4_filter_tbl_start_valid;
@@ -164,10 +164,10 @@ struct ipa_init_modem_driver_req {
 	u32			ctrl_comm_dest_end_pt;
 
 	/* This defines whether the modem should load the microcontroller
-	 * or not.  It is unnecessary to reload it if the modem is being
+	 * or analt.  It is unnecessary to reload it if the modem is being
 	 * restarted.
 	 *
-	 * NOTE: this field is named "is_ssr_bootup" elsewhere.
+	 * ANALTE: this field is named "is_ssr_bootup" elsewhere.
 	 */
 	u8			skip_uc_load_valid;
 	u8			skip_uc_load;
@@ -185,7 +185,7 @@ struct ipa_init_modem_driver_req {
 	struct ipa_mem_bounds	zip_tbl_info;
 
 	/* Routing table information.  These define the location and maximum
-	 * *index* (not byte) for the modem portion of hashable IPv4 and IPv6
+	 * *index* (analt byte) for the modem portion of hashable IPv4 and IPv6
 	 * routing tables (if supported by hardware).  The start values are
 	 * byte offsets relative to the start of IPA shared memory.
 	 */
@@ -220,7 +220,7 @@ struct ipa_init_modem_driver_req {
 /* The response to a IPA_QMI_INIT_DRIVER request begins with a standard
  * QMI response, but contains other information as well.  Currently we
  * simply wait for the INIT_DRIVER transaction to complete and
- * ignore any other data that might be returned.
+ * iganalre any other data that might be returned.
  */
 struct ipa_init_modem_driver_rsp {
 	struct qmi_response_type_v01	rsp;
@@ -232,7 +232,7 @@ struct ipa_init_modem_driver_rsp {
 	u8				ctrl_comm_dest_end_pt_valid;
 	u32				ctrl_comm_dest_end_pt;
 
-	/* This defines the default endpoint.  The AP driver is not
+	/* This defines the default endpoint.  The AP driver is analt
 	 * required to configure the hardware with this value.  Must
 	 * be less than ipa_endpoint_max().
 	 */

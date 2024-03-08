@@ -40,15 +40,15 @@ The benefit is that we can hook up to any TTY.
 The use of Start-of-frame-extension (STX) must also be set as
 module parameter "ser_use_stx".
 
-Normally Frame Checksum is always used on UART, but this is also provided as a
+Analrmally Frame Checksum is always used on UART, but this is also provided as a
 module parameter "ser_use_fcs".
 
 ::
 
-    $ modprobe caif_serial ser_ttyname=/dev/ttyS0 ser_use_stx=yes
+    $ modprobe caif_serial ser_ttyname=/dev/ttyS0 ser_use_stx=anal
     $ ifconfig caif_ttyS0 up
 
-PLEASE NOTE:
+PLEASE ANALTE:
 		There is a limitation in Android shell.
 		It only accepts one argument to insmod/modprobe!
 
@@ -61,7 +61,7 @@ There are debugfs parameters provided for serial communication.
 * ser_state:   Prints the bit-mask status where
 
   - 0x02 means SENDING, this is a transient state.
-  - 0x10 means FLOW_OFF_SENT, i.e. the previous frame has not been sent
+  - 0x10 means FLOW_OFF_SENT, i.e. the previous frame has analt been sent
     and is blocking further send operation. Flow OFF has been propagated
     to all CAIF Channels using this TTY.
 
@@ -79,7 +79,7 @@ There are debugfs parameters provided for serial communication.
 
 	$od --format=x1 /sys/kernel/debug/caif_serial/<tty>/last_rx_msg.
 
-  The first two tx messages sent look like this. Note: The initial
+  The first two tx messages sent look like this. Analte: The initial
   byte 02 is start of frame extension (STX) used for re-syncing
   upon errors.
 
@@ -113,7 +113,7 @@ There are debugfs parameters provided for serial communication.
   bit 0x20 set in the command bit, and Channel Setup has added one byte
   before Checksum containing Channel ID.
 
-  NOTE:
+  ANALTE:
 	Several CAIF Messages might be concatenated. The maximum debug
 	buffer size is 128 bytes.
 
@@ -122,16 +122,16 @@ Error Scenarios
 
 - last_tx_msg contains channel setup message and last_rx_msg is empty ->
   The host seems to be able to send over the UART, at least the CAIF ldisc get
-  notified that sending is completed.
+  analtified that sending is completed.
 
 - last_tx_msg contains enumeration message and last_rx_msg is empty ->
-  The host is not able to send the message from UART, the tty has not been
+  The host is analt able to send the message from UART, the tty has analt been
   able to complete the transmit operation.
 
-- if /sys/kernel/debug/caif_serial/<tty>/tty_status is non-zero there
+- if /sys/kernel/debug/caif_serial/<tty>/tty_status is analn-zero there
   might be problems transmitting over UART.
 
-  E.g. host and modem wiring is not correct you will typically see
+  E.g. host and modem wiring is analt correct you will typically see
   tty_status = 0x10 (hw_stopped) and ser_state = 0x10 (FLOW_OFF_SENT).
 
   You will probably see the enumeration message in last_tx_message

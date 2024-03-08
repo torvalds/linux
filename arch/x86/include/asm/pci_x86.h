@@ -5,7 +5,7 @@
  *	(c) 1999 Martin Mares <mj@ucw.cz>
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/spinlock.h>
@@ -27,9 +27,9 @@ do {						\
 #define PCI_PROBE_CONF2		0x0004
 #define PCI_PROBE_MMCONF	0x0008
 #define PCI_PROBE_MASK		0x000f
-#define PCI_PROBE_NOEARLY	0x0010
+#define PCI_PROBE_ANALEARLY	0x0010
 
-#define PCI_NO_CHECKS		0x0400
+#define PCI_ANAL_CHECKS		0x0400
 #define PCI_USE_PIRQ_MASK	0x0800
 #define PCI_ASSIGN_ROMS		0x1000
 #define PCI_BIOS_IRQ_SCAN	0x2000
@@ -38,19 +38,19 @@ do {						\
 #define PCI_USE__CRS		0x10000
 #define PCI_CHECK_ENABLE_AMD_MMCONF	0x20000
 #define PCI_HAS_IO_ECS		0x40000
-#define PCI_NOASSIGN_ROMS	0x80000
-#define PCI_ROOT_NO_CRS		0x100000
-#define PCI_NOASSIGN_BARS	0x200000
+#define PCI_ANALASSIGN_ROMS	0x80000
+#define PCI_ROOT_ANAL_CRS		0x100000
+#define PCI_ANALASSIGN_BARS	0x200000
 #define PCI_BIG_ROOT_WINDOW	0x400000
 #define PCI_USE_E820		0x800000
-#define PCI_NO_E820		0x1000000
+#define PCI_ANAL_E820		0x1000000
 
 extern unsigned int pci_probe;
 extern unsigned long pirq_table_addr;
 
 enum pci_bf_sort_state {
 	pci_bf_sort_default,
-	pci_force_nobf,
+	pci_force_analbf,
 	pci_force_bf,
 	pci_dmi_bf,
 };
@@ -75,7 +75,7 @@ struct irq_info {
 	u8 bus, devfn;			/* Bus, device and function */
 	struct {
 		u8 link;		/* IRQ line ID, chipset dependent,
-					   0 = not routed */
+					   0 = analt routed */
 		u16 bitmap;		/* Available IRQs */
 	} __attribute__((packed)) irq[4];
 	u8 slot;			/* Slot number, 0=onboard */
@@ -194,7 +194,7 @@ extern struct list_head pci_mmcfg_list;
 
 /*
  * On AMD Fam10h CPUs, all PCI MMIO configuration space accesses must use
- * %eax.  No other source or target registers may be used.  The following
+ * %eax.  Anal other source or target registers may be used.  The following
  * mmio_config_* accessors enforce this.  See "BIOS and Kernel Developer's
  * Guide (BKDG) For AMD Family 10h Processors", rev. 3.48, sec 2.11.1,
  * "MMIO Configuration Coding Requirements".

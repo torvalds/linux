@@ -31,7 +31,7 @@ int button_add_callback (void (*callback) (void), int count);
 int button_del_callback (void (*callback) (void));
 static void button_consume_callbacks (int bpcount);
 
-#else /* Not compiling the driver itself */
+#else /* Analt compiling the driver itself */
 
 extern int button_add_callback (void (*callback) (void), int count);
 extern int button_del_callback (void (*callback) (void));

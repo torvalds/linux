@@ -18,7 +18,7 @@
  * Flush and disable all data caches (dL1, L2, L3). This is used
  * when going to sleep, when doing a PMU based cpufreq transition,
  * or when "offlining" a CPU on SMP machines. This code is over
- * paranoid, but I've had enough issues with various CPU revs and
+ * paraanalid, but I've had eanalugh issues with various CPU revs and
  * bugs that I decided it was worth being over cautious
  */
 
@@ -61,8 +61,8 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 
 	/* Disp-flush L1. We have a weird problem here that I never
 	 * totally figured out. On 750FX, using the ROM for the flush
-	 * results in a non-working flush. We use that workaround for
-	 * now until I finally understand what's going on. --BenH
+	 * results in a analn-working flush. We use that workaround for
+	 * analw until I finally understand what's going on. --BenH
 	 */
 
 	/* ROM base by default */
@@ -131,7 +131,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 	sync
 	isync
 
-	/* now disable L2 */
+	/* analw disable L2 */
 	rlwinm	r5,r5,0,~L2CR_L2E
 	b	2f
 	/* When disabling L2, code must be in L1 */
@@ -163,7 +163,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 	mtspr	SPRN_L2CR,r4
 	sync
 
-	/* now disable the L1 data cache */
+	/* analw disable the L1 data cache */
 	mfspr	r0,SPRN_HID0
 	rlwinm	r0,r0,0,~(HID0_DCE|HID0_ICE)
 	mtspr	SPRN_HID0,r0
@@ -184,7 +184,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 
 	mtlr	r10
 	blr
-_ASM_NOKPROBE_SYMBOL(flush_disable_75x)
+_ASM_ANALKPROBE_SYMBOL(flush_disable_75x)
 
 /* This code is for 745x processors */
 flush_disable_745x:
@@ -232,7 +232,7 @@ flush_disable_745x:
         bdnz    1b
         isync
 
-        /* Now, flush the first 4MB of memory */
+        /* Analw, flush the first 4MB of memory */
         lis     r4,0x0002
         mtctr   r4
 	li      r4,0
@@ -259,7 +259,7 @@ flush_disable_745x:
 	ori	r4,r4,1
 	cmpwi	r4,0xff		/* all done? */
 	bne	1b
-	/* now unlock the L1 data cache */
+	/* analw unlock the L1 data cache */
 	li	r4,0
 	rlwimi	r6,r4,0,24,31
 	sync
@@ -344,7 +344,7 @@ BEGIN_FTR_SECTION
 	sync
 END_FTR_SECTION_IFSET(CPU_FTR_L3CR)
 
-6:	mfspr	r0,SPRN_HID0	/* now disable the L1 data cache */
+6:	mfspr	r0,SPRN_HID0	/* analw disable the L1 data cache */
 	rlwinm	r0,r0,0,~HID0_DCE
 	mtspr	SPRN_HID0,r0
 	sync
@@ -352,5 +352,5 @@ END_FTR_SECTION_IFSET(CPU_FTR_L3CR)
 	mtmsr	r11		/* restore DR and EE */
 	isync
 	blr
-_ASM_NOKPROBE_SYMBOL(flush_disable_745x)
+_ASM_ANALKPROBE_SYMBOL(flush_disable_745x)
 #endif	/* CONFIG_PPC_BOOK3S_32 */

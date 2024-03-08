@@ -17,24 +17,24 @@ ACPI_MODULE_NAME("nsobject")
  *
  * FUNCTION:    acpi_ns_attach_object
  *
- * PARAMETERS:  node                - Parent Node
+ * PARAMETERS:  analde                - Parent Analde
  *              object              - Object to be attached
- *              type                - Type of object, or ACPI_TYPE_ANY if not
- *                                    known
+ *              type                - Type of object, or ACPI_TYPE_ANY if analt
+ *                                    kanalwn
  *
  * RETURN:      Status
  *
  * DESCRIPTION: Record the given object as the value associated with the
  *              name whose acpi_handle is passed. If Object is NULL
- *              and Type is ACPI_TYPE_ANY, set the name as having no value.
- *              Note: Future may require that the Node->Flags field be passed
+ *              and Type is ACPI_TYPE_ANY, set the name as having anal value.
+ *              Analte: Future may require that the Analde->Flags field be passed
  *              as a parameter.
  *
  * MUTEX:       Assumes namespace is locked
  *
  ******************************************************************************/
 acpi_status
-acpi_ns_attach_object(struct acpi_namespace_node *node,
+acpi_ns_attach_object(struct acpi_namespace_analde *analde,
 		      union acpi_operand_object *object, acpi_object_type type)
 {
 	union acpi_operand_object *obj_desc;
@@ -46,7 +46,7 @@ acpi_ns_attach_object(struct acpi_namespace_node *node,
 	/*
 	 * Parameter validation
 	 */
-	if (!node) {
+	if (!analde) {
 
 		/* Invalid handle */
 
@@ -59,25 +59,25 @@ acpi_ns_attach_object(struct acpi_namespace_node *node,
 		/* Null object */
 
 		ACPI_ERROR((AE_INFO,
-			    "Null object, but type not ACPI_TYPE_ANY"));
+			    "Null object, but type analt ACPI_TYPE_ANY"));
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
-	if (ACPI_GET_DESCRIPTOR_TYPE(node) != ACPI_DESC_TYPE_NAMED) {
+	if (ACPI_GET_DESCRIPTOR_TYPE(analde) != ACPI_DESC_TYPE_NAMED) {
 
-		/* Not a name handle */
+		/* Analt a name handle */
 
 		ACPI_ERROR((AE_INFO, "Invalid handle %p [%s]",
-			    node, acpi_ut_get_descriptor_name(node)));
+			    analde, acpi_ut_get_descriptor_name(analde)));
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
 	/* Check if this object is already attached */
 
-	if (node->object == object) {
+	if (analde->object == object) {
 		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
 				  "Obj %p already installed in NameObj %p\n",
-				  object, node));
+				  object, analde));
 
 		return_ACPI_STATUS(AE_OK);
 	}
@@ -90,17 +90,17 @@ acpi_ns_attach_object(struct acpi_namespace_node *node,
 	}
 
 	/*
-	 * If the source object is a namespace Node with an attached object,
+	 * If the source object is a namespace Analde with an attached object,
 	 * we will use that (attached) object
 	 */
 	else if ((ACPI_GET_DESCRIPTOR_TYPE(object) == ACPI_DESC_TYPE_NAMED) &&
-		 ((struct acpi_namespace_node *)object)->object) {
+		 ((struct acpi_namespace_analde *)object)->object) {
 		/*
 		 * Value passed is a name handle and that name has a
-		 * non-null value. Use that name's value and type.
+		 * analn-null value. Use that name's value and type.
 		 */
-		obj_desc = ((struct acpi_namespace_node *)object)->object;
-		object_type = ((struct acpi_namespace_node *)object)->type;
+		obj_desc = ((struct acpi_namespace_analde *)object)->object;
+		object_type = ((struct acpi_namespace_analde *)object)->type;
 	}
 
 	/*
@@ -115,13 +115,13 @@ acpi_ns_attach_object(struct acpi_namespace_node *node,
 		object_type = type;
 	}
 
-	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "Installing %p into Node %p [%4.4s]\n",
-			  obj_desc, node, acpi_ut_get_node_name(node)));
+	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "Installing %p into Analde %p [%4.4s]\n",
+			  obj_desc, analde, acpi_ut_get_analde_name(analde)));
 
 	/* Detach an existing attached object if present */
 
-	if (node->object) {
-		acpi_ns_detach_object(node);
+	if (analde->object) {
+		acpi_ns_detach_object(analde);
 	}
 
 	if (obj_desc) {
@@ -142,11 +142,11 @@ acpi_ns_attach_object(struct acpi_namespace_node *node,
 
 		/* Install the object at the front of the object list */
 
-		last_obj_desc->common.next_object = node->object;
+		last_obj_desc->common.next_object = analde->object;
 	}
 
-	node->type = (u8) object_type;
-	node->object = obj_desc;
+	analde->type = (u8) object_type;
+	analde->object = obj_desc;
 
 	return_ACPI_STATUS(AE_OK);
 }
@@ -155,29 +155,29 @@ acpi_ns_attach_object(struct acpi_namespace_node *node,
  *
  * FUNCTION:    acpi_ns_detach_object
  *
- * PARAMETERS:  node           - A Namespace node whose object will be detached
+ * PARAMETERS:  analde           - A Namespace analde whose object will be detached
  *
- * RETURN:      None.
+ * RETURN:      Analne.
  *
- * DESCRIPTION: Detach/delete an object associated with a namespace node.
+ * DESCRIPTION: Detach/delete an object associated with a namespace analde.
  *              if the object is an allocated object, it is freed.
  *              Otherwise, the field is simply cleared.
  *
  ******************************************************************************/
 
-void acpi_ns_detach_object(struct acpi_namespace_node *node)
+void acpi_ns_detach_object(struct acpi_namespace_analde *analde)
 {
 	union acpi_operand_object *obj_desc;
 
 	ACPI_FUNCTION_TRACE(ns_detach_object);
 
-	obj_desc = node->object;
+	obj_desc = analde->object;
 
 	if (!obj_desc || (obj_desc->common.type == ACPI_TYPE_LOCAL_DATA)) {
 		return_VOID;
 	}
 
-	if (node->flags & ANOBJ_ALLOCATED_BUFFER) {
+	if (analde->flags & AANALBJ_ALLOCATED_BUFFER) {
 
 		/* Free the dynamic aml buffer */
 
@@ -187,28 +187,28 @@ void acpi_ns_detach_object(struct acpi_namespace_node *node)
 	}
 
 	if (obj_desc->common.type == ACPI_TYPE_REGION) {
-		acpi_ut_remove_address_range(obj_desc->region.space_id, node);
+		acpi_ut_remove_address_range(obj_desc->region.space_id, analde);
 	}
 
-	/* Clear the Node entry in all cases */
+	/* Clear the Analde entry in all cases */
 
-	node->object = NULL;
+	analde->object = NULL;
 	if (ACPI_GET_DESCRIPTOR_TYPE(obj_desc) == ACPI_DESC_TYPE_OPERAND) {
 
 		/* Unlink object from front of possible object list */
 
-		node->object = obj_desc->common.next_object;
+		analde->object = obj_desc->common.next_object;
 
 		/* Handle possible 2-descriptor object */
 
-		if (node->object &&
-		    (node->object->common.type != ACPI_TYPE_LOCAL_DATA)) {
-			node->object = node->object->common.next_object;
+		if (analde->object &&
+		    (analde->object->common.type != ACPI_TYPE_LOCAL_DATA)) {
+			analde->object = analde->object->common.next_object;
 		}
 
 		/*
 		 * Detach the object from any data objects (which are still held by
-		 * the namespace node)
+		 * the namespace analde)
 		 */
 		if (obj_desc->common.next_object &&
 		    ((obj_desc->common.next_object)->common.type ==
@@ -217,12 +217,12 @@ void acpi_ns_detach_object(struct acpi_namespace_node *node)
 		}
 	}
 
-	/* Reset the node type to untyped */
+	/* Reset the analde type to untyped */
 
-	node->type = ACPI_TYPE_ANY;
+	analde->type = ACPI_TYPE_ANY;
 
-	ACPI_DEBUG_PRINT((ACPI_DB_NAMES, "Node %p [%4.4s] Object %p\n",
-			  node, acpi_ut_get_node_name(node), obj_desc));
+	ACPI_DEBUG_PRINT((ACPI_DB_NAMES, "Analde %p [%4.4s] Object %p\n",
+			  analde, acpi_ut_get_analde_name(analde), obj_desc));
 
 	/* Remove one reference on the object (and all subobjects) */
 
@@ -234,47 +234,47 @@ void acpi_ns_detach_object(struct acpi_namespace_node *node)
  *
  * FUNCTION:    acpi_ns_get_attached_object
  *
- * PARAMETERS:  node             - Namespace node
+ * PARAMETERS:  analde             - Namespace analde
  *
- * RETURN:      Current value of the object field from the Node whose
+ * RETURN:      Current value of the object field from the Analde whose
  *              handle is passed
  *
- * DESCRIPTION: Obtain the object attached to a namespace node.
+ * DESCRIPTION: Obtain the object attached to a namespace analde.
  *
  ******************************************************************************/
 
 union acpi_operand_object *acpi_ns_get_attached_object(struct
-						       acpi_namespace_node
-						       *node)
+						       acpi_namespace_analde
+						       *analde)
 {
-	ACPI_FUNCTION_TRACE_PTR(ns_get_attached_object, node);
+	ACPI_FUNCTION_TRACE_PTR(ns_get_attached_object, analde);
 
-	if (!node) {
-		ACPI_WARNING((AE_INFO, "Null Node ptr"));
+	if (!analde) {
+		ACPI_WARNING((AE_INFO, "Null Analde ptr"));
 		return_PTR(NULL);
 	}
 
-	if (!node->object ||
-	    ((ACPI_GET_DESCRIPTOR_TYPE(node->object) != ACPI_DESC_TYPE_OPERAND)
-	     && (ACPI_GET_DESCRIPTOR_TYPE(node->object) !=
+	if (!analde->object ||
+	    ((ACPI_GET_DESCRIPTOR_TYPE(analde->object) != ACPI_DESC_TYPE_OPERAND)
+	     && (ACPI_GET_DESCRIPTOR_TYPE(analde->object) !=
 		 ACPI_DESC_TYPE_NAMED))
-	    || ((node->object)->common.type == ACPI_TYPE_LOCAL_DATA)) {
+	    || ((analde->object)->common.type == ACPI_TYPE_LOCAL_DATA)) {
 		return_PTR(NULL);
 	}
 
-	return_PTR(node->object);
+	return_PTR(analde->object);
 }
 
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ns_get_secondary_object
  *
- * PARAMETERS:  node             - Namespace node
+ * PARAMETERS:  analde             - Namespace analde
  *
- * RETURN:      Current value of the object field from the Node whose
+ * RETURN:      Current value of the object field from the Analde whose
  *              handle is passed.
  *
- * DESCRIPTION: Obtain a secondary object associated with a namespace node.
+ * DESCRIPTION: Obtain a secondary object associated with a namespace analde.
  *
  ******************************************************************************/
 
@@ -299,7 +299,7 @@ union acpi_operand_object *acpi_ns_get_secondary_object(union
  *
  * FUNCTION:    acpi_ns_attach_data
  *
- * PARAMETERS:  node            - Namespace node
+ * PARAMETERS:  analde            - Namespace analde
  *              handler         - Handler to be associated with the data
  *              data            - Data to be attached
  *
@@ -310,7 +310,7 @@ union acpi_operand_object *acpi_ns_get_secondary_object(union
  ******************************************************************************/
 
 acpi_status
-acpi_ns_attach_data(struct acpi_namespace_node *node,
+acpi_ns_attach_data(struct acpi_namespace_analde *analde,
 		    acpi_object_handler handler, void *data)
 {
 	union acpi_operand_object *prev_obj_desc;
@@ -320,7 +320,7 @@ acpi_ns_attach_data(struct acpi_namespace_node *node,
 	/* We only allow one attachment per handler */
 
 	prev_obj_desc = NULL;
-	obj_desc = node->object;
+	obj_desc = analde->object;
 	while (obj_desc) {
 		if ((obj_desc->common.type == ACPI_TYPE_LOCAL_DATA) &&
 		    (obj_desc->data.handler == handler)) {
@@ -335,7 +335,7 @@ acpi_ns_attach_data(struct acpi_namespace_node *node,
 
 	data_desc = acpi_ut_create_internal_object(ACPI_TYPE_LOCAL_DATA);
 	if (!data_desc) {
-		return (AE_NO_MEMORY);
+		return (AE_ANAL_MEMORY);
 	}
 
 	data_desc->data.handler = handler;
@@ -346,7 +346,7 @@ acpi_ns_attach_data(struct acpi_namespace_node *node,
 	if (prev_obj_desc) {
 		prev_obj_desc->common.next_object = data_desc;
 	} else {
-		node->object = data_desc;
+		analde->object = data_desc;
 	}
 
 	return (AE_OK);
@@ -356,25 +356,25 @@ acpi_ns_attach_data(struct acpi_namespace_node *node,
  *
  * FUNCTION:    acpi_ns_detach_data
  *
- * PARAMETERS:  node            - Namespace node
+ * PARAMETERS:  analde            - Namespace analde
  *              handler         - Handler associated with the data
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Low-level detach data. Delete the data node, but the caller
+ * DESCRIPTION: Low-level detach data. Delete the data analde, but the caller
  *              is responsible for the actual data.
  *
  ******************************************************************************/
 
 acpi_status
-acpi_ns_detach_data(struct acpi_namespace_node *node,
+acpi_ns_detach_data(struct acpi_namespace_analde *analde,
 		    acpi_object_handler handler)
 {
 	union acpi_operand_object *obj_desc;
 	union acpi_operand_object *prev_obj_desc;
 
 	prev_obj_desc = NULL;
-	obj_desc = node->object;
+	obj_desc = analde->object;
 	while (obj_desc) {
 		if ((obj_desc->common.type == ACPI_TYPE_LOCAL_DATA) &&
 		    (obj_desc->data.handler == handler)) {
@@ -382,7 +382,7 @@ acpi_ns_detach_data(struct acpi_namespace_node *node,
 				prev_obj_desc->common.next_object =
 				    obj_desc->common.next_object;
 			} else {
-				node->object = obj_desc->common.next_object;
+				analde->object = obj_desc->common.next_object;
 			}
 
 			acpi_ut_remove_reference(obj_desc);
@@ -393,31 +393,31 @@ acpi_ns_detach_data(struct acpi_namespace_node *node,
 		obj_desc = obj_desc->common.next_object;
 	}
 
-	return (AE_NOT_FOUND);
+	return (AE_ANALT_FOUND);
 }
 
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ns_get_attached_data
  *
- * PARAMETERS:  node            - Namespace node
+ * PARAMETERS:  analde            - Namespace analde
  *              handler         - Handler associated with the data
  *              data            - Where the data is returned
  *
  * RETURN:      Status
  *
  * DESCRIPTION: Low level interface to obtain data previously associated with
- *              a namespace node.
+ *              a namespace analde.
  *
  ******************************************************************************/
 
 acpi_status
-acpi_ns_get_attached_data(struct acpi_namespace_node *node,
+acpi_ns_get_attached_data(struct acpi_namespace_analde *analde,
 			  acpi_object_handler handler, void **data)
 {
 	union acpi_operand_object *obj_desc;
 
-	obj_desc = node->object;
+	obj_desc = analde->object;
 	while (obj_desc) {
 		if ((obj_desc->common.type == ACPI_TYPE_LOCAL_DATA) &&
 		    (obj_desc->data.handler == handler)) {
@@ -428,5 +428,5 @@ acpi_ns_get_attached_data(struct acpi_namespace_node *node,
 		obj_desc = obj_desc->common.next_object;
 	}
 
-	return (AE_NOT_FOUND);
+	return (AE_ANALT_FOUND);
 }

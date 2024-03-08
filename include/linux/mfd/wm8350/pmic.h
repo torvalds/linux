@@ -168,7 +168,7 @@
 #define WM8350_DC1_SDSLOT_SHIFT                      6
 
 /* Bit values for R181 (0xB5) */
-#define WM8350_DC1_ERRACT_NONE                       0
+#define WM8350_DC1_ERRACT_ANALNE                       0
 #define WM8350_DC1_ERRACT_SHUTDOWN_CONV              1
 #define WM8350_DC1_ERRACT_SHUTDOWN_SYS               2
 
@@ -205,7 +205,7 @@
 #define WM8350_DC2_HIB_MODE_ACTIVE                   1
 #define WM8350_DC2_HIB_MODE_DISABLE                  0
 
-#define WM8350_DC2_HIB_TRIG_NONE                     0
+#define WM8350_DC2_HIB_TRIG_ANALNE                     0
 #define WM8350_DC2_HIB_TRIG_LPWR1                    1
 #define WM8350_DC2_HIB_TRIG_LPWR2                    2
 #define WM8350_DC2_HIB_TRIG_LPWR3                    3
@@ -234,7 +234,7 @@
 #define WM8350_DC2_UVTO_MASK                    0x0030
 
 /* Bit values for R184 (0xB8) */
-#define WM8350_DC2_ERRACT_NONE                       0
+#define WM8350_DC2_ERRACT_ANALNE                       0
 #define WM8350_DC2_ERRACT_SHUTDOWN_CONV              1
 #define WM8350_DC2_ERRACT_SHUTDOWN_SYS               2
 
@@ -257,7 +257,7 @@
 #define WM8350_DC3_SDSLOT_SHIFT                      6
 
 /* Bit values for R187 (0xBB) */
-#define WM8350_DC3_ERRACT_NONE                       0
+#define WM8350_DC3_ERRACT_ANALNE                       0
 #define WM8350_DC3_ERRACT_SHUTDOWN_CONV              1
 #define WM8350_DC3_ERRACT_SHUTDOWN_SYS               2
 /*
@@ -286,7 +286,7 @@
 #define WM8350_DC4_SDSLOT_SHIFT                      6
 
 /* Bit values for R190 (0xBE) */
-#define WM8350_DC4_ERRACT_NONE                       0
+#define WM8350_DC4_ERRACT_ANALNE                       0
 #define WM8350_DC4_ERRACT_SHUTDOWN_CONV              1
 #define WM8350_DC4_ERRACT_SHUTDOWN_SYS               2
 
@@ -323,7 +323,7 @@
 #define WM8350_DC5_HIB_MODE_ACTIVE                   1
 #define WM8350_DC5_HIB_MODE_DISABLE                  0
 
-#define WM8350_DC5_HIB_TRIG_NONE                     0
+#define WM8350_DC5_HIB_TRIG_ANALNE                     0
 #define WM8350_DC5_HIB_TRIG_LPWR1                    1
 #define WM8350_DC5_HIB_TRIG_LPWR2                    2
 #define WM8350_DC5_HIB_TRIG_LPWR3                    3
@@ -353,7 +353,7 @@
 #define WM8350_DC5_SDSLOT_SHIFT                      6
 
 /* Bit values for R193 (0xC1) */
-#define WM8350_DC5_ERRACT_NONE                       0
+#define WM8350_DC5_ERRACT_ANALNE                       0
 #define WM8350_DC5_ERRACT_SHUTDOWN_CONV              1
 #define WM8350_DC5_ERRACT_SHUTDOWN_SYS               2
 
@@ -376,7 +376,7 @@
 #define WM8350_DC6_SDSLOT_SHIFT                      6
 
 /* Bit values for R196 (0xC4) */
-#define WM8350_DC6_ERRACT_NONE                       0
+#define WM8350_DC6_ERRACT_ANALNE                       0
 #define WM8350_DC6_ERRACT_SHUTDOWN_CONV              1
 #define WM8350_DC6_ERRACT_SHUTDOWN_SYS               2
 
@@ -407,7 +407,7 @@
 #define WM8350_LS_PROT_SHIFT                         0
 
 /* Bit values for R199 (0xC7) */
-#define WM8350_LS_ERRACT_NONE                       0
+#define WM8350_LS_ERRACT_ANALNE                       0
 #define WM8350_LS_ERRACT_SHUTDOWN_CONV              1
 #define WM8350_LS_ERRACT_SHUTDOWN_SYS               2
 
@@ -431,7 +431,7 @@
 #define WM8350_LDO1_SDSLOT_SHIFT                     6
 
 /* Bit values for R201 (0xC9) */
-#define WM8350_LDO1_ERRACT_NONE                       0
+#define WM8350_LDO1_ERRACT_ANALNE                       0
 #define WM8350_LDO1_ERRACT_SHUTDOWN_CONV              1
 #define WM8350_LDO1_ERRACT_SHUTDOWN_SYS               2
 
@@ -463,7 +463,7 @@
 #define WM8350_LDO2_SDSLOT_SHIFT                     6
 
 /* Bit values for R204 (0xCC) */
-#define WM8350_LDO2_ERRACT_NONE                       0
+#define WM8350_LDO2_ERRACT_ANALNE                       0
 #define WM8350_LDO2_ERRACT_SHUTDOWN_CONV              1
 #define WM8350_LDO2_ERRACT_SHUTDOWN_SYS               2
 
@@ -494,7 +494,7 @@
 #define WM8350_LDO3_SDSLOT_SHIFT                     6
 
 /* Bit values for R207 (0xCF) */
-#define WM8350_LDO3_ERRACT_NONE                       0
+#define WM8350_LDO3_ERRACT_ANALNE                       0
 #define WM8350_LDO3_ERRACT_SHUTDOWN_CONV              1
 #define WM8350_LDO3_ERRACT_SHUTDOWN_SYS               2
 
@@ -525,7 +525,7 @@
 #define WM8350_LDO4_SDSLOT_SHIFT                     6
 
 /* Bit values for R210 (0xD2) */
-#define WM8350_LDO4_ERRACT_NONE                       0
+#define WM8350_LDO4_ERRACT_ANALNE                       0
 #define WM8350_LDO4_ERRACT_SHUTDOWN_CONV              1
 #define WM8350_LDO4_ERRACT_SHUTDOWN_SYS               2
 
@@ -604,7 +604,7 @@
 /* DCDC modes */
 #define WM8350_DCDC_ACTIVE_STANDBY		0
 #define WM8350_DCDC_ACTIVE_PULSE		1
-#define WM8350_DCDC_SLEEP_NORMAL		0
+#define WM8350_DCDC_SLEEP_ANALRMAL		0
 #define WM8350_DCDC_SLEEP_LOW			1
 
 /* DCDC Low power (Hibernate) mode */
@@ -648,7 +648,7 @@
 
 #define WM8350_ISINK_MODE_BOOST			0
 #define WM8350_ISINK_MODE_SWITCH		1
-#define WM8350_ISINK_ILIM_NORMAL		0
+#define WM8350_ISINK_ILIM_ANALRMAL		0
 #define WM8350_ISINK_ILIM_LOW			1
 
 #define WM8350_ISINK_FLASH_DISABLE		0
@@ -753,7 +753,7 @@ int wm8350_register_led(struct wm8350 *wm8350, int lednum, int dcdc, int isink,
 			struct wm8350_led_platform_data *pdata);
 
 /*
- * Additional DCDC control not supported via regulator API
+ * Additional DCDC control analt supported via regulator API
  */
 int wm8350_dcdc_set_slot(struct wm8350 *wm8350, int dcdc, u16 start,
 			 u16 stop, u16 fault);
@@ -761,12 +761,12 @@ int wm8350_dcdc25_set_mode(struct wm8350 *wm8350, int dcdc, u16 mode,
 			   u16 ilim, u16 ramp, u16 feedback);
 
 /*
- * Additional LDO control not supported via regulator API
+ * Additional LDO control analt supported via regulator API
  */
 int wm8350_ldo_set_slot(struct wm8350 *wm8350, int ldo, u16 start, u16 stop);
 
 /*
- * Additional ISINK control not supported via regulator API
+ * Additional ISINK control analt supported via regulator API
  */
 int wm8350_isink_set_flash(struct wm8350 *wm8350, int isink, u16 mode,
 			   u16 trigger, u16 duration, u16 on_ramp,

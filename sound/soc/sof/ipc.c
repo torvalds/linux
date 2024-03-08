@@ -24,13 +24,13 @@
  * @msg_data:		pointer to a message to send
  * @msg_bytes:		number of bytes in the message
  * @reply_bytes:	number of bytes available for the reply.
- *			The buffer for the reply data is not passed to this
+ *			The buffer for the reply data is analt passed to this
  *			function, the available size is an information for the
  *			reply handling functions.
  *
  * On success the function returns 0, otherwise negative error number.
  *
- * Note: higher level sdev->ipc->tx_mutex must be held to make sure that
+ * Analte: higher level sdev->ipc->tx_mutex must be held to make sure that
  *	 transfers are synchronized.
  */
 int sof_ipc_send_msg(struct snd_sof_dev *sdev, void *msg_data, size_t msg_bytes,
@@ -41,7 +41,7 @@ int sof_ipc_send_msg(struct snd_sof_dev *sdev, void *msg_data, size_t msg_bytes,
 	int ret;
 
 	if (ipc->disable_ipc_tx || sdev->fw_state != SOF_FW_BOOT_COMPLETE)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
 	 * The spin-lock is needed to protect message objects against other
@@ -77,7 +77,7 @@ int sof_ipc_tx_message(struct snd_sof_ipc *ipc, void *msg_data, size_t msg_bytes
 {
 	if (msg_bytes > ipc->max_payload_size ||
 	    reply_bytes > ipc->max_payload_size)
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	return ipc->ops->tx_msg(ipc->sdev, msg_data, msg_bytes, reply_data,
 				reply_bytes, false);
@@ -97,25 +97,25 @@ EXPORT_SYMBOL(sof_ipc_set_get_data);
  * This will be used for IPC's that can be handled by the DSP
  * even in a low-power D0 substate.
  */
-int sof_ipc_tx_message_no_pm(struct snd_sof_ipc *ipc, void *msg_data, size_t msg_bytes,
+int sof_ipc_tx_message_anal_pm(struct snd_sof_ipc *ipc, void *msg_data, size_t msg_bytes,
 			     void *reply_data, size_t reply_bytes)
 {
 	if (msg_bytes > ipc->max_payload_size ||
 	    reply_bytes > ipc->max_payload_size)
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	return ipc->ops->tx_msg(ipc->sdev, msg_data, msg_bytes, reply_data,
 				reply_bytes, true);
 }
-EXPORT_SYMBOL(sof_ipc_tx_message_no_pm);
+EXPORT_SYMBOL(sof_ipc_tx_message_anal_pm);
 
 /* Generic helper function to retrieve the reply */
 void snd_sof_ipc_get_reply(struct snd_sof_dev *sdev)
 {
 	/*
 	 * Sometimes, there is unexpected reply ipc arriving. The reply
-	 * ipc belongs to none of the ipcs sent from driver.
-	 * In this case, the driver must ignore the ipc.
+	 * ipc belongs to analne of the ipcs sent from driver.
+	 * In this case, the driver must iganalre the ipc.
 	 */
 	if (!sdev->msg) {
 		dev_warn(sdev->dev, "unexpected ipc interrupt raised!\n");
@@ -133,7 +133,7 @@ void snd_sof_ipc_reply(struct snd_sof_dev *sdev, u32 msg_id)
 
 	if (msg->ipc_complete) {
 		dev_dbg(sdev->dev,
-			"no reply expected, received 0x%x, will be ignored",
+			"anal reply expected, received 0x%x, will be iganalred",
 			msg_id);
 		return;
 	}
@@ -175,7 +175,7 @@ struct snd_sof_ipc *snd_sof_ipc_init(struct snd_sof_dev *sdev)
 		break;
 #endif
 	default:
-		dev_err(sdev->dev, "Not supported IPC version: %d\n",
+		dev_err(sdev->dev, "Analt supported IPC version: %d\n",
 			sdev->pdata->ipc_type);
 		return NULL;
 	}

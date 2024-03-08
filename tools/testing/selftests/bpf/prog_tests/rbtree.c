@@ -6,10 +6,10 @@
 
 #include "rbtree.skel.h"
 #include "rbtree_fail.skel.h"
-#include "rbtree_btf_fail__wrong_node_type.skel.h"
+#include "rbtree_btf_fail__wrong_analde_type.skel.h"
 #include "rbtree_btf_fail__add_wrong_type.skel.h"
 
-static void test_rbtree_add_nodes(void)
+static void test_rbtree_add_analdes(void)
 {
 	LIBBPF_OPTS(bpf_test_run_opts, opts,
 		    .data_in = &pkt_v4,
@@ -23,10 +23,10 @@ static void test_rbtree_add_nodes(void)
 	if (!ASSERT_OK_PTR(skel, "rbtree__open_and_load"))
 		return;
 
-	ret = bpf_prog_test_run_opts(bpf_program__fd(skel->progs.rbtree_add_nodes), &opts);
-	ASSERT_OK(ret, "rbtree_add_nodes run");
-	ASSERT_OK(opts.retval, "rbtree_add_nodes retval");
-	ASSERT_EQ(skel->data->less_callback_ran, 1, "rbtree_add_nodes less_callback_ran");
+	ret = bpf_prog_test_run_opts(bpf_program__fd(skel->progs.rbtree_add_analdes), &opts);
+	ASSERT_OK(ret, "rbtree_add_analdes run");
+	ASSERT_OK(opts.retval, "rbtree_add_analdes retval");
+	ASSERT_EQ(skel->data->less_callback_ran, 1, "rbtree_add_analdes less_callback_ran");
 
 	rbtree__destroy(skel);
 }
@@ -102,8 +102,8 @@ static void test_rbtree_api_release_aliasing(void)
 
 void test_rbtree_success(void)
 {
-	if (test__start_subtest("rbtree_add_nodes"))
-		test_rbtree_add_nodes();
+	if (test__start_subtest("rbtree_add_analdes"))
+		test_rbtree_add_analdes();
 	if (test__start_subtest("rbtree_add_and_remove"))
 		test_rbtree_add_and_remove();
 	if (test__start_subtest("rbtree_first_and_remove"))
@@ -127,12 +127,12 @@ void test_rbtree_btf_fail__##suffix(void)							\
 	if (test__start_subtest("rbtree_btf_fail__" #suffix))	\
 		test_rbtree_btf_fail__##suffix();
 
-BTF_FAIL_TEST(wrong_node_type);
+BTF_FAIL_TEST(wrong_analde_type);
 BTF_FAIL_TEST(add_wrong_type);
 
 void test_rbtree_btf_fail(void)
 {
-	RUN_BTF_FAIL_TEST(wrong_node_type);
+	RUN_BTF_FAIL_TEST(wrong_analde_type);
 	RUN_BTF_FAIL_TEST(add_wrong_type);
 }
 

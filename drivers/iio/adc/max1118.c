@@ -2,7 +2,7 @@
 /*
  * MAX1117/MAX1118/MAX1119 8-bit, dual-channel ADCs driver
  *
- * Copyright (c) 2017 Akinobu Mita <akinobu.mita@gmail.com>
+ * Copyright (c) 2017 Akianalbu Mita <akianalbu.mita@gmail.com>
  *
  * Datasheet: https://datasheets.maximintegrated.com/en/ds/MAX1117-MAX1119.pdf
  *
@@ -130,7 +130,7 @@ static int max1118_get_vref_mV(struct iio_dev *indio_dev)
 		return vref_uV / 1000;
 	}
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static int max1118_read_raw(struct iio_dev *indio_dev,
@@ -194,7 +194,7 @@ static irqreturn_t max1118_trigger_handler(int irq, void *p)
 out:
 	mutex_unlock(&adc->lock);
 
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -213,7 +213,7 @@ static int max1118_probe(struct spi_device *spi)
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*adc));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	adc = iio_priv(indio_dev);
 	adc->spi = spi;
@@ -283,6 +283,6 @@ static struct spi_driver max1118_spi_driver = {
 };
 module_spi_driver(max1118_spi_driver);
 
-MODULE_AUTHOR("Akinobu Mita <akinobu.mita@gmail.com>");
+MODULE_AUTHOR("Akianalbu Mita <akianalbu.mita@gmail.com>");
 MODULE_DESCRIPTION("MAXIM MAX1117/MAX1118/MAX1119 ADCs driver");
 MODULE_LICENSE("GPL v2");

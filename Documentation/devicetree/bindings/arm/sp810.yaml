@@ -12,7 +12,7 @@ maintainers:
 description:
   The Arm SP810 system controller provides clocks, timers and a watchdog.
 
-# We need a select here so we don't match all nodes with 'arm,primecell'
+# We need a select here so we don't match all analdes with 'arm,primecell'
 select:
   properties:
     compatible:

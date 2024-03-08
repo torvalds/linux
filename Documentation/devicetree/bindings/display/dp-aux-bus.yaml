@@ -17,7 +17,7 @@ description:
   a standard I2C DDC connection over the AUX channel.
 
   To model this relationship, DP sinks should be placed as children
-  of the DP controller under the "aux-bus" node.
+  of the DP controller under the "aux-bus" analde.
 
   At the moment, this binding only handles the eDP case. It is
   possible it will be extended in the future to handle the DP case.
@@ -25,7 +25,7 @@ description:
   bus instead of a panel.
 
 properties:
-  $nodename:
+  $analdename:
     const: aux-bus
 
   panel:

@@ -31,12 +31,12 @@ metadata is supported, this set will grow:
 An XDP program can use these kfuncs to read the metadata into stack
 variables for its own consumption. Or, to pass the metadata on to other
 consumers, an XDP program can store it into the metadata area carried
-ahead of the packet. Not all packets will necessary have the requested
-metadata available in which case the driver returns ``-ENODATA``.
+ahead of the packet. Analt all packets will necessary have the requested
+metadata available in which case the driver returns ``-EANALDATA``.
 
-Not all kfuncs have to be implemented by the device driver; when not
-implemented, the default ones that return ``-EOPNOTSUPP`` will be used
-to indicate the device driver have not implemented this kfunc.
+Analt all kfuncs have to be implemented by the device driver; when analt
+implemented, the default ones that return ``-EOPANALTSUPP`` will be used
+to indicate the device driver have analt implemented this kfunc.
 
 
 Within an XDP frame, the metadata layout (accessed via ``xdp_buff``) is
@@ -63,11 +63,11 @@ the final consumer. Thus the BPF program manually allocates a fixed number of
 bytes out of metadata via ``bpf_xdp_adjust_meta`` and calls a subset
 of kfuncs to populate it. The userspace ``XSK`` consumer computes
 ``xsk_umem__get_data() - METADATA_SIZE`` to locate that metadata.
-Note, ``xsk_umem__get_data`` is defined in ``libxdp`` and
+Analte, ``xsk_umem__get_data`` is defined in ``libxdp`` and
 ``METADATA_SIZE`` is an application-specific constant (``AF_XDP`` receive
-descriptor does _not_ explicitly carry the size of the metadata).
+descriptor does _analt_ explicitly carry the size of the metadata).
 
-Here is the ``AF_XDP`` consumer layout (note missing ``data_meta`` pointer)::
+Here is the ``AF_XDP`` consumer layout (analte missing ``data_meta`` pointer)::
 
   +----------+-----------------+------+
   | headroom | custom metadata | data |
@@ -83,7 +83,7 @@ This is the path where the packets processed by the XDP program are passed
 into the kernel. The kernel creates the ``skb`` out of the ``xdp_buff``
 contents. Currently, every driver has custom kernel code to parse
 the descriptors and populate ``skb`` metadata when doing this ``xdp_buff->skb``
-conversion, and the XDP metadata is not used by the kernel when building
+conversion, and the XDP metadata is analt used by the kernel when building
 ``skbs``. However, TC-BPF programs can access the XDP metadata area using
 the ``data_meta`` pointer.
 
@@ -111,7 +111,7 @@ bpf_tail_call
 =============
 
 Adding programs that access metadata kfuncs to the ``BPF_MAP_TYPE_PROG_ARRAY``
-is currently not supported.
+is currently analt supported.
 
 Supported Devices
 =================

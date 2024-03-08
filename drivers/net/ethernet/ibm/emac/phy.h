@@ -12,7 +12,7 @@
  * Benjamin Herrenschmidt <benh@kernel.crashing.org>
  * February 2003
  *
- * Minor additions by Eugene Surovegin <ebs@ebshome.net>, 2004
+ * Mianalr additions by Eugene Surovegin <ebs@ebshome.net>, 2004
  *
  * This file basically duplicates sungem_phy.{c,h} with different PHYs
  * supported. I'm looking into merging that in a single mii layer more
@@ -58,7 +58,7 @@ struct mii_phy {
 	/* 1: autoneg enabled, 0: disabled */
 	int autoneg;
 
-	/* forced speed & duplex (no autoneg)
+	/* forced speed & duplex (anal autoneg)
 	 * partner speed & duplex & pause (autoneg)
 	 */
 	int speed;

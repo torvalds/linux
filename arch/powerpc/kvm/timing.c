@@ -84,7 +84,7 @@ void kvmppc_update_timing_stats(struct kvm_vcpu *vcpu)
 	u64 exit = vcpu->arch.timing_last_exit;
 	u64 enter = vcpu->arch.timing_last_enter.tv64;
 
-	/* save exit time, used next exit when the reenter time is known */
+	/* save exit time, used next exit when the reenter time is kanalwn */
 	vcpu->arch.timing_last_exit = vcpu->arch.timing_exit.tv64;
 
 	if (unlikely(vcpu->arch.last_exit_type == 0xDEAD || exit == 0))
@@ -177,7 +177,7 @@ static ssize_t kvmppc_exit_timing_write(struct file *file,
 	if (c == 'c') {
 		struct seq_file *seqf = file->private_data;
 		struct kvm_vcpu *vcpu = seqf->private;
-		/* Write does not affect our buffers previously generated with
+		/* Write does analt affect our buffers previously generated with
 		 * show. seq_file is locked here to prevent races of init with
 		 * a show call */
 		mutex_lock(&seqf->lock);
@@ -190,9 +190,9 @@ done:
 	return err;
 }
 
-static int kvmppc_exit_timing_open(struct inode *inode, struct file *file)
+static int kvmppc_exit_timing_open(struct ianalde *ianalde, struct file *file)
 {
-	return single_open(file, kvmppc_exit_timing_show, inode->i_private);
+	return single_open(file, kvmppc_exit_timing_show, ianalde->i_private);
 }
 
 static const struct file_operations kvmppc_exit_timing_fops = {

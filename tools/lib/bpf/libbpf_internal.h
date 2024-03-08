@@ -11,7 +11,7 @@
 
 #include <stdlib.h>
 #include <limits.h>
-#include <errno.h>
+#include <erranal.h>
 #include <linux/err.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -97,7 +97,7 @@
 #endif
 
 /* Check whether a string `str` has prefix `pfx`, regardless if `pfx` is
- * a string literal known at compilation time or char * pointer known only at
+ * a string literal kanalwn at compilation time or char * pointer kanalwn only at
  * runtime.
  */
 #define str_has_pfx(str, pfx) \
@@ -163,14 +163,14 @@ do {				\
 struct bpf_link {
 	int (*detach)(struct bpf_link *link);
 	void (*dealloc)(struct bpf_link *link);
-	char *pin_path;		/* NULL, if not pinned */
-	int fd;			/* hook FD, -1 if not applicable */
+	char *pin_path;		/* NULL, if analt pinned */
+	int fd;			/* hook FD, -1 if analt applicable */
 	bool disconnected;
 };
 
 /*
  * Re-implement glibc's reallocarray() for libbpf internal-only use.
- * reallocarray(), unfortunately, is not available in all versions of glibc,
+ * reallocarray(), unfortunately, is analt available in all versions of glibc,
  * so requires extra feature detection and using reallocarray() stub from
  * <tools/libc_compat.h> and COMPAT_NEED_REALLOCARRAY. All this complicates
  * build of libbpf unnecessarily and is just a maintenance burden. Instead,
@@ -193,8 +193,8 @@ static inline void *libbpf_reallocarray(void *ptr, size_t nmemb, size_t size)
 }
 
 /* Copy up to sz - 1 bytes from zero-terminated src string and ensure that dst
- * is zero-terminated string no matter what (unless sz == 0, in which case
- * it's a no-op). It's conceptually close to FreeBSD's strlcpy(), but differs
+ * is zero-terminated string anal matter what (unless sz == 0, in which case
+ * it's a anal-op). It's conceptually close to FreeBSD's strlcpy(), but differs
  * in what is returned. Given this is internal helper, it's trivial to extend
  * this, when necessary. Use this instead of strncpy inside libbpf source code.
  */
@@ -238,7 +238,7 @@ enum map_def_parts {
 	MAP_DEF_VALUE_SIZE	= 0x010,
 	MAP_DEF_MAX_ENTRIES	= 0x020,
 	MAP_DEF_MAP_FLAGS	= 0x040,
-	MAP_DEF_NUMA_NODE	= 0x080,
+	MAP_DEF_NUMA_ANALDE	= 0x080,
 	MAP_DEF_PINNING		= 0x100,
 	MAP_DEF_INNER_MAP	= 0x200,
 	MAP_DEF_MAP_EXTRA	= 0x400,
@@ -255,7 +255,7 @@ struct btf_map_def {
 	__u32 value_size;
 	__u32 max_entries;
 	__u32 map_flags;
-	__u32 numa_node;
+	__u32 numa_analde;
 	__u32 pinning;
 	__u64 map_extra;
 };
@@ -288,7 +288,7 @@ static inline bool libbpf_validate_opts(const char *opts,
 		return false;
 	}
 	if (!libbpf_is_mem_zeroed(opts + opts_sz, (ssize_t)user_sz - opts_sz)) {
-		pr_warn("%s has non-zero extra bytes\n", type_name);
+		pr_warn("%s has analn-zero extra bytes\n", type_name);
 		return false;
 	}
 	return true;
@@ -309,9 +309,9 @@ static inline bool libbpf_validate_opts(const char *opts,
 			(opts)->field = value;	\
 	} while (0)
 
-#define OPTS_ZEROED(opts, last_nonzero_field)				      \
+#define OPTS_ZEROED(opts, last_analnzero_field)				      \
 ({									      \
-	ssize_t __off = offsetofend(typeof(*(opts)), last_nonzero_field);     \
+	ssize_t __off = offsetofend(typeof(*(opts)), last_analnzero_field);     \
 	!(opts) || libbpf_is_mem_zeroed((const void *)opts + __off,	      \
 					(opts)->sz - __off);		      \
 })
@@ -377,7 +377,7 @@ void btf_get_kernel_prefix_kind(enum bpf_attach_type attach_type,
 struct btf_ext_info {
 	/*
 	 * info points to the individual info section (e.g. func_info and
-	 * line_info) from the .BTF.ext. It does not include the __u32 rec_size.
+	 * line_info) from the .BTF.ext. It does analt include the __u32 rec_size.
 	 */
 	void *info;
 	__u32 rec_size;
@@ -412,12 +412,12 @@ struct btf_ext_info {
  *   struct btf_sec_func_info for section #1
  *   a list of bpf_func_info records for section #1
  *     where struct bpf_func_info mimics one in include/uapi/linux/bpf.h
- *     but may not be identical
+ *     but may analt be identical
  *   struct btf_sec_func_info for section #2
  *   a list of bpf_func_info records for section #2
  *   ......
  *
- * Note that the bpf_func_info record size in .BTF.ext may not
+ * Analte that the bpf_func_info record size in .BTF.ext may analt
  * be the same as the one defined in include/uapi/linux/bpf.h.
  * The loader should ensure that record_size meets minimum
  * requirement and pass the record as is to the kernel. The
@@ -491,33 +491,33 @@ int libbpf_kallsyms_parse(kallsyms_cb_t cb, void *arg);
 static inline int libbpf_err(int ret)
 {
 	if (ret < 0)
-		errno = -ret;
+		erranal = -ret;
 	return ret;
 }
 
-/* handle errno-based (e.g., syscall or libc) errors according to libbpf's
+/* handle erranal-based (e.g., syscall or libc) errors according to libbpf's
  * strict mode settings
  */
-static inline int libbpf_err_errno(int ret)
+static inline int libbpf_err_erranal(int ret)
 {
-	/* errno is already assumed to be set on error */
-	return ret < 0 ? -errno : ret;
+	/* erranal is already assumed to be set on error */
+	return ret < 0 ? -erranal : ret;
 }
 
 /* handle error for pointer-returning APIs, err is assumed to be < 0 always */
 static inline void *libbpf_err_ptr(int err)
 {
-	/* set errno on error, this doesn't break anything */
-	errno = -err;
+	/* set erranal on error, this doesn't break anything */
+	erranal = -err;
 	return NULL;
 }
 
 /* handle pointer-returning APIs' error handling */
 static inline void *libbpf_ptr(void *ret)
 {
-	/* set errno on error, this doesn't break anything */
+	/* set erranal on error, this doesn't break anything */
 	if (IS_ERR(ret))
-		errno = -PTR_ERR(ret);
+		erranal = -PTR_ERR(ret);
 
 	return IS_ERR(ret) ? NULL : ret;
 }
@@ -538,18 +538,18 @@ static inline bool is_ldimm64_insn(struct bpf_insn *insn)
  */
 static inline int ensure_good_fd(int fd)
 {
-	int old_fd = fd, saved_errno;
+	int old_fd = fd, saved_erranal;
 
 	if (fd < 0)
 		return fd;
 	if (fd < 3) {
 		fd = fcntl(fd, F_DUPFD_CLOEXEC, 3);
-		saved_errno = errno;
+		saved_erranal = erranal;
 		close(old_fd);
-		errno = saved_errno;
+		erranal = saved_erranal;
 		if (fd < 0) {
-			pr_warn("failed to dup FD %d to FD > 2: %d\n", old_fd, -saved_errno);
-			errno = saved_errno;
+			pr_warn("failed to dup FD %d to FD > 2: %d\n", old_fd, -saved_erranal);
+			erranal = saved_erranal;
 		}
 	}
 	return fd;
@@ -564,7 +564,7 @@ static inline int reuse_fd(int fixed_fd, int tmp_fd)
 	int err;
 
 	err = dup2(tmp_fd, fixed_fd);
-	err = err < 0 ? -errno : 0;
+	err = err < 0 ? -erranal : 0;
 	close(tmp_fd); /* clean up temporary FD */
 	return err;
 }

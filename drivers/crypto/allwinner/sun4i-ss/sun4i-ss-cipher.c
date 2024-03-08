@@ -12,7 +12,7 @@
  */
 #include "sun4i-ss.h"
 
-static int noinline_for_stack sun4i_ss_opti_poll(struct skcipher_request *areq)
+static int analinline_for_stack sun4i_ss_opti_poll(struct skcipher_request *areq)
 {
 	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(areq);
 	struct sun4i_tfm_ctx *op = crypto_skcipher_ctx(tfm);
@@ -145,7 +145,7 @@ release_ss:
 	return err;
 }
 
-static int noinline_for_stack sun4i_ss_cipher_poll_fallback(struct skcipher_request *areq)
+static int analinline_for_stack sun4i_ss_cipher_poll_fallback(struct skcipher_request *areq)
 {
 	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(areq);
 	struct sun4i_tfm_ctx *op = crypto_skcipher_ctx(tfm);
@@ -172,13 +172,13 @@ static int noinline_for_stack sun4i_ss_cipher_poll_fallback(struct skcipher_requ
 	return err;
 }
 
-/* Generic function that support SG with size not multiple of 4 */
+/* Generic function that support SG with size analt multiple of 4 */
 static int sun4i_ss_cipher_poll(struct skcipher_request *areq)
 {
 	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(areq);
 	struct sun4i_tfm_ctx *op = crypto_skcipher_ctx(tfm);
 	struct sun4i_ss_ctx *ss = op->ss;
-	int no_chunk = 1;
+	int anal_chunk = 1;
 	struct scatterlist *in_sg = areq->src;
 	struct scatterlist *out_sg = areq->dst;
 	unsigned int ivsize = crypto_skcipher_ivsize(tfm);
@@ -222,18 +222,18 @@ static int sun4i_ss_cipher_poll(struct skcipher_request *areq)
 	 * if we have only SGs with size multiple of 4,
 	 * we can use the SS optimized function
 	 */
-	while (in_sg && no_chunk == 1) {
+	while (in_sg && anal_chunk == 1) {
 		if ((in_sg->length | in_sg->offset) & 3u)
-			no_chunk = 0;
+			anal_chunk = 0;
 		in_sg = sg_next(in_sg);
 	}
-	while (out_sg && no_chunk == 1) {
+	while (out_sg && anal_chunk == 1) {
 		if ((out_sg->length | out_sg->offset) & 3u)
-			no_chunk = 0;
+			anal_chunk = 0;
 		out_sg = sg_next(out_sg);
 	}
 
-	if (no_chunk == 1 && !need_fallback)
+	if (anal_chunk == 1 && !need_fallback)
 		return sun4i_ss_opti_poll(areq);
 
 	if (need_fallback)
@@ -292,7 +292,7 @@ static int sun4i_ss_cipher_poll(struct skcipher_request *areq)
 				oi += todo * 4;
 			} else {
 				/*
-				 * not enough consecutive bytes, so we need to
+				 * analt eanalugh consecutive bytes, so we need to
 				 * linearize in buf. todo is in bytes
 				 * After that copy, if we have a multiple of 4
 				 * we need to be able to write all buf in one
@@ -356,9 +356,9 @@ static int sun4i_ss_cipher_poll(struct skcipher_request *areq)
 			do {
 				/*
 				 * how many bytes we can copy ?
-				 * no more than remaining SG size
-				 * no more than remaining buffer
-				 * no need to test against oleft
+				 * anal more than remaining SG size
+				 * anal more than remaining buffer
+				 * anal need to test against oleft
 				 */
 				todo = min_t(size_t,
 					     mo.length - oo, obl - obo);
@@ -546,7 +546,7 @@ int sun4i_ss_cipher_init(struct crypto_tfm *tfm)
 
 	op->fallback_tfm = crypto_alloc_skcipher(name, 0, CRYPTO_ALG_NEED_FALLBACK);
 	if (IS_ERR(op->fallback_tfm)) {
-		dev_err(op->ss->dev, "ERROR: Cannot allocate fallback for %s %ld\n",
+		dev_err(op->ss->dev, "ERROR: Cananalt allocate fallback for %s %ld\n",
 			name, PTR_ERR(op->fallback_tfm));
 		return PTR_ERR(op->fallback_tfm);
 	}

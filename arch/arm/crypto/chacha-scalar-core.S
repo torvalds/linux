@@ -7,10 +7,10 @@
 #include <asm/assembler.h>
 
 /*
- * Design notes:
+ * Design analtes:
  *
  * 16 registers would be needed to hold the state matrix, but only 14 are
- * available because 'sp' and 'pc' cannot be used.  So we spill the elements
+ * available because 'sp' and 'pc' cananalt be used.  So we spill the elements
  * (x8, x9) to the stack and swap them out with (x10, x11).  This adds one
  * 'ldrd' and one 'strd' instruction per round.
  *

@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Renesas JPEG Processing Unit
 
 maintainers:
-  - Mikhail Ulyanov <mikhail.ulyanov@cogentembedded.com>
+  - Mikhail Ulyaanalv <mikhail.ulyaanalv@cogentembedded.com>
 
 description:
   The JPEG processing unit (JPU) incorporates the JPEG codec with an encoding

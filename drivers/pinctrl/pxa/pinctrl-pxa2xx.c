@@ -53,7 +53,7 @@ static int pxa2xx_pctrl_get_group_pins(struct pinctrl_dev *pctldev,
 
 static const struct pinctrl_ops pxa2xx_pctl_ops = {
 #ifdef CONFIG_OF
-	.dt_node_to_map		= pinconf_generic_dt_node_to_map_all,
+	.dt_analde_to_map		= pinconf_generic_dt_analde_to_map_all,
 	.dt_free_map		= pinctrl_utils_free_map,
 #endif
 	.get_groups_count	= pxa2xx_pctrl_get_groups_count,
@@ -277,7 +277,7 @@ static int pxa2xx_build_functions(struct pxa_pinctrl *pctl)
 	functions = devm_kcalloc(pctl->dev, pctl->npins * 6,
 				 sizeof(*functions), GFP_KERNEL);
 	if (!functions)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < pctl->npins; i++)
 		for (df = pctl->ppins[i].functions; df->name; df++)
@@ -287,7 +287,7 @@ static int pxa2xx_build_functions(struct pxa_pinctrl *pctl)
 				       pctl->nfuncs * sizeof(*functions),
 				       GFP_KERNEL);
 	if (!pctl->functions)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	devm_kfree(pctl->dev, functions);
 	return 0;
@@ -303,7 +303,7 @@ static int pxa2xx_build_groups(struct pxa_pinctrl *pctl)
 	gtmp = devm_kmalloc_array(pctl->dev, pctl->npins, sizeof(*gtmp),
 				  GFP_KERNEL);
 	if (!gtmp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < pctl->nfuncs; i++) {
 		ngroups = 0;
@@ -320,7 +320,7 @@ static int pxa2xx_build_groups(struct pxa_pinctrl *pctl)
 			devm_kmalloc_array(pctl->dev, ngroups,
 					   sizeof(char *), GFP_KERNEL);
 		if (!func->groups)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		memcpy(func->groups, gtmp, ngroups * sizeof(*gtmp));
 	}
@@ -343,7 +343,7 @@ static int pxa2xx_build_state(struct pxa_pinctrl *pctl,
 	pctl->desc.npins = npins;
 	pins = devm_kcalloc(pctl->dev, npins, sizeof(*pins), GFP_KERNEL);
 	if (!pins)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pctl->desc.pins = pins;
 	for (i = 0; i < npins; i++)
@@ -352,7 +352,7 @@ static int pxa2xx_build_state(struct pxa_pinctrl *pctl,
 	pctl->groups = devm_kmalloc_array(pctl->dev, pctl->ngroups,
 					  sizeof(*pctl->groups), GFP_KERNEL);
 	if (!pctl->groups)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < npins; i++) {
 		group = pctl->groups + i;
@@ -384,7 +384,7 @@ int pxa2xx_pinctrl_init(struct platform_device *pdev,
 
 	pctl = devm_kzalloc(&pdev->dev, sizeof(*pctl), GFP_KERNEL);
 	if (!pctl)
-		return -ENOMEM;
+		return -EANALMEM;
 	pctl->base_gafr = devm_kcalloc(&pdev->dev, roundup(maxpin, 16),
 				       sizeof(*pctl->base_gafr), GFP_KERNEL);
 	pctl->base_gpdr = devm_kcalloc(&pdev->dev, roundup(maxpin, 32),
@@ -392,7 +392,7 @@ int pxa2xx_pinctrl_init(struct platform_device *pdev,
 	pctl->base_pgsr = devm_kcalloc(&pdev->dev, roundup(maxpin, 32),
 				       sizeof(*pctl->base_pgsr), GFP_KERNEL);
 	if (!pctl->base_gafr || !pctl->base_gpdr || !pctl->base_pgsr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, pctl);
 	spin_lock_init(&pctl->lock);

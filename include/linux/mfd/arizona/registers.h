@@ -49,7 +49,7 @@
 #define ARIZONA_ALWAYS_ON_TRIGGERS_SEQUENCE_SELECT_6 0x6B
 #define ARIZONA_ALWAYS_ON_TRIGGERS_SEQUENCE_SELECT_7 0x6C
 #define ARIZONA_ALWAYS_ON_TRIGGERS_SEQUENCE_SELECT_8 0x6D
-#define ARIZONA_COMFORT_NOISE_GENERATOR          0x70
+#define ARIZONA_COMFORT_ANALISE_GENERATOR          0x70
 #define ARIZONA_HAPTICS_CONTROL_1                0x90
 #define ARIZONA_HAPTICS_CONTROL_2                0x91
 #define ARIZONA_HAPTICS_PHASE_1_INTENSITY        0x92
@@ -138,7 +138,7 @@
 #define ARIZONA_MIC_DETECT_LEVEL_3		 0x2A8
 #define ARIZONA_MIC_DETECT_LEVEL_4		 0x2A9
 #define ARIZONA_MIC_DETECT_4                     0x2AB
-#define ARIZONA_MIC_NOISE_MIX_CONTROL_1          0x2C3
+#define ARIZONA_MIC_ANALISE_MIX_CONTROL_1          0x2C3
 #define ARIZONA_ISOLATION_CONTROL                0x2CB
 #define ARIZONA_JACK_DETECT_ANALOGUE             0x2D3
 #define ARIZONA_INPUT_ENABLES                    0x300
@@ -178,51 +178,51 @@
 #define ARIZONA_OUTPUT_PATH_CONFIG_1L            0x410
 #define ARIZONA_DAC_DIGITAL_VOLUME_1L            0x411
 #define ARIZONA_DAC_VOLUME_LIMIT_1L              0x412
-#define ARIZONA_NOISE_GATE_SELECT_1L             0x413
+#define ARIZONA_ANALISE_GATE_SELECT_1L             0x413
 #define ARIZONA_OUTPUT_PATH_CONFIG_1R            0x414
 #define ARIZONA_DAC_DIGITAL_VOLUME_1R            0x415
 #define ARIZONA_DAC_VOLUME_LIMIT_1R              0x416
-#define ARIZONA_NOISE_GATE_SELECT_1R             0x417
+#define ARIZONA_ANALISE_GATE_SELECT_1R             0x417
 #define ARIZONA_OUTPUT_PATH_CONFIG_2L            0x418
 #define ARIZONA_DAC_DIGITAL_VOLUME_2L            0x419
 #define ARIZONA_DAC_VOLUME_LIMIT_2L              0x41A
-#define ARIZONA_NOISE_GATE_SELECT_2L             0x41B
+#define ARIZONA_ANALISE_GATE_SELECT_2L             0x41B
 #define ARIZONA_OUTPUT_PATH_CONFIG_2R            0x41C
 #define ARIZONA_DAC_DIGITAL_VOLUME_2R            0x41D
 #define ARIZONA_DAC_VOLUME_LIMIT_2R              0x41E
-#define ARIZONA_NOISE_GATE_SELECT_2R             0x41F
+#define ARIZONA_ANALISE_GATE_SELECT_2R             0x41F
 #define ARIZONA_OUTPUT_PATH_CONFIG_3L            0x420
 #define ARIZONA_DAC_DIGITAL_VOLUME_3L            0x421
 #define ARIZONA_DAC_VOLUME_LIMIT_3L              0x422
-#define ARIZONA_NOISE_GATE_SELECT_3L             0x423
+#define ARIZONA_ANALISE_GATE_SELECT_3L             0x423
 #define ARIZONA_OUTPUT_PATH_CONFIG_3R            0x424
 #define ARIZONA_DAC_DIGITAL_VOLUME_3R            0x425
 #define ARIZONA_DAC_VOLUME_LIMIT_3R              0x426
-#define ARIZONA_NOISE_GATE_SELECT_3R             0x427
+#define ARIZONA_ANALISE_GATE_SELECT_3R             0x427
 #define ARIZONA_OUTPUT_PATH_CONFIG_4L            0x428
 #define ARIZONA_DAC_DIGITAL_VOLUME_4L            0x429
 #define ARIZONA_OUT_VOLUME_4L                    0x42A
-#define ARIZONA_NOISE_GATE_SELECT_4L             0x42B
+#define ARIZONA_ANALISE_GATE_SELECT_4L             0x42B
 #define ARIZONA_OUTPUT_PATH_CONFIG_4R            0x42C
 #define ARIZONA_DAC_DIGITAL_VOLUME_4R            0x42D
 #define ARIZONA_OUT_VOLUME_4R                    0x42E
-#define ARIZONA_NOISE_GATE_SELECT_4R             0x42F
+#define ARIZONA_ANALISE_GATE_SELECT_4R             0x42F
 #define ARIZONA_OUTPUT_PATH_CONFIG_5L            0x430
 #define ARIZONA_DAC_DIGITAL_VOLUME_5L            0x431
 #define ARIZONA_DAC_VOLUME_LIMIT_5L              0x432
-#define ARIZONA_NOISE_GATE_SELECT_5L             0x433
+#define ARIZONA_ANALISE_GATE_SELECT_5L             0x433
 #define ARIZONA_OUTPUT_PATH_CONFIG_5R            0x434
 #define ARIZONA_DAC_DIGITAL_VOLUME_5R            0x435
 #define ARIZONA_DAC_VOLUME_LIMIT_5R              0x436
-#define ARIZONA_NOISE_GATE_SELECT_5R             0x437
+#define ARIZONA_ANALISE_GATE_SELECT_5R             0x437
 #define ARIZONA_OUTPUT_PATH_CONFIG_6L            0x438
 #define ARIZONA_DAC_DIGITAL_VOLUME_6L            0x439
 #define ARIZONA_DAC_VOLUME_LIMIT_6L              0x43A
-#define ARIZONA_NOISE_GATE_SELECT_6L             0x43B
+#define ARIZONA_ANALISE_GATE_SELECT_6L             0x43B
 #define ARIZONA_OUTPUT_PATH_CONFIG_6R            0x43C
 #define ARIZONA_DAC_DIGITAL_VOLUME_6R            0x43D
 #define ARIZONA_DAC_VOLUME_LIMIT_6R              0x43E
-#define ARIZONA_NOISE_GATE_SELECT_6R             0x43F
+#define ARIZONA_ANALISE_GATE_SELECT_6R             0x43F
 #define ARIZONA_DRE_ENABLE                       0x440
 #define ARIZONA_DRE_CONTROL_1                    0x441
 #define ARIZONA_DRE_CONTROL_2                    0x442
@@ -230,7 +230,7 @@
 #define ARIZONA_EDRE_ENABLE                      0x448
 #define ARIZONA_DAC_AEC_CONTROL_1                0x450
 #define ARIZONA_DAC_AEC_CONTROL_2                0x451
-#define ARIZONA_NOISE_GATE_CONTROL               0x458
+#define ARIZONA_ANALISE_GATE_CONTROL               0x458
 #define ARIZONA_PDM_SPK1_CTRL_1                  0x490
 #define ARIZONA_PDM_SPK1_CTRL_2                  0x491
 #define ARIZONA_PDM_SPK2_CTRL_1                  0x492
@@ -355,14 +355,14 @@
 #define ARIZONA_MICMIX_INPUT_3_VOLUME            0x665
 #define ARIZONA_MICMIX_INPUT_4_SOURCE            0x666
 #define ARIZONA_MICMIX_INPUT_4_VOLUME            0x667
-#define ARIZONA_NOISEMIX_INPUT_1_SOURCE          0x668
-#define ARIZONA_NOISEMIX_INPUT_1_VOLUME          0x669
-#define ARIZONA_NOISEMIX_INPUT_2_SOURCE          0x66A
-#define ARIZONA_NOISEMIX_INPUT_2_VOLUME          0x66B
-#define ARIZONA_NOISEMIX_INPUT_3_SOURCE          0x66C
-#define ARIZONA_NOISEMIX_INPUT_3_VOLUME          0x66D
-#define ARIZONA_NOISEMIX_INPUT_4_SOURCE          0x66E
-#define ARIZONA_NOISEMIX_INPUT_4_VOLUME          0x66F
+#define ARIZONA_ANALISEMIX_INPUT_1_SOURCE          0x668
+#define ARIZONA_ANALISEMIX_INPUT_1_VOLUME          0x669
+#define ARIZONA_ANALISEMIX_INPUT_2_SOURCE          0x66A
+#define ARIZONA_ANALISEMIX_INPUT_2_VOLUME          0x66B
+#define ARIZONA_ANALISEMIX_INPUT_3_SOURCE          0x66C
+#define ARIZONA_ANALISEMIX_INPUT_3_VOLUME          0x66D
+#define ARIZONA_ANALISEMIX_INPUT_4_SOURCE          0x66E
+#define ARIZONA_ANALISEMIX_INPUT_4_VOLUME          0x66F
 #define ARIZONA_OUT1LMIX_INPUT_1_SOURCE          0x680
 #define ARIZONA_OUT1LMIX_INPUT_1_VOLUME          0x681
 #define ARIZONA_OUT1LMIX_INPUT_2_SOURCE          0x682
@@ -1554,18 +1554,18 @@
 #define ARIZONA_WSEQ_JD2_FALL_SEQ_ADDR_WIDTH          9  /* WSEQ_JD2_FALL_SEQ_ADDR - [8:0] */
 
 /*
- * R112 (0x70) - Comfort Noise Generator
+ * R112 (0x70) - Comfort Analise Generator
  */
-#define ARIZONA_NOISE_GEN_RATE_MASK              0x7800  /* NOISE_GEN_RATE - [14:11] */
-#define ARIZONA_NOISE_GEN_RATE_SHIFT                 11  /* NOISE_GEN_RATE - [14:11] */
-#define ARIZONA_NOISE_GEN_RATE_WIDTH                  4  /* NOISE_GEN_RATE - [14:11] */
-#define ARIZONA_NOISE_GEN_ENA                    0x0020  /* NOISE_GEN_ENA */
-#define ARIZONA_NOISE_GEN_ENA_MASK               0x0020  /* NOISE_GEN_ENA */
-#define ARIZONA_NOISE_GEN_ENA_SHIFT                   5  /* NOISE_GEN_ENA */
-#define ARIZONA_NOISE_GEN_ENA_WIDTH                   1  /* NOISE_GEN_ENA */
-#define ARIZONA_NOISE_GEN_GAIN_MASK              0x001F  /* NOISE_GEN_GAIN - [4:0] */
-#define ARIZONA_NOISE_GEN_GAIN_SHIFT                  0  /* NOISE_GEN_GAIN - [4:0] */
-#define ARIZONA_NOISE_GEN_GAIN_WIDTH                  5  /* NOISE_GEN_GAIN - [4:0] */
+#define ARIZONA_ANALISE_GEN_RATE_MASK              0x7800  /* ANALISE_GEN_RATE - [14:11] */
+#define ARIZONA_ANALISE_GEN_RATE_SHIFT                 11  /* ANALISE_GEN_RATE - [14:11] */
+#define ARIZONA_ANALISE_GEN_RATE_WIDTH                  4  /* ANALISE_GEN_RATE - [14:11] */
+#define ARIZONA_ANALISE_GEN_ENA                    0x0020  /* ANALISE_GEN_ENA */
+#define ARIZONA_ANALISE_GEN_ENA_MASK               0x0020  /* ANALISE_GEN_ENA */
+#define ARIZONA_ANALISE_GEN_ENA_SHIFT                   5  /* ANALISE_GEN_ENA */
+#define ARIZONA_ANALISE_GEN_ENA_WIDTH                   1  /* ANALISE_GEN_ENA */
+#define ARIZONA_ANALISE_GEN_GAIN_MASK              0x001F  /* ANALISE_GEN_GAIN - [4:0] */
+#define ARIZONA_ANALISE_GEN_GAIN_SHIFT                  0  /* ANALISE_GEN_GAIN - [4:0] */
+#define ARIZONA_ANALISE_GEN_GAIN_WIDTH                  5  /* ANALISE_GEN_GAIN - [4:0] */
 
 /*
  * R144 (0x90) - Haptics Control 1
@@ -2479,7 +2479,7 @@
 #define ARIZONA_MICDET_ADCVAL_WIDTH                   7  /* MICDET_ADCVAL - [15:8] */
 
 /*
- * R707 (0x2C3) - Mic noise mix control 1
+ * R707 (0x2C3) - Mic analise mix control 1
  */
 #define ARIZONA_MICMUTE_RATE_MASK                0x7800  /* MICMUTE_RATE - [14:11] */
 #define ARIZONA_MICMUTE_RATE_SHIFT                   11  /* MICMUTE_RATE - [14:11] */
@@ -2987,10 +2987,10 @@
 #define ARIZONA_OUT1_OSR_MASK                    0x2000  /* OUT1_OSR */
 #define ARIZONA_OUT1_OSR_SHIFT                       13  /* OUT1_OSR */
 #define ARIZONA_OUT1_OSR_WIDTH                        1  /* OUT1_OSR */
-#define ARIZONA_OUT1_MONO                        0x1000  /* OUT1_MONO */
-#define ARIZONA_OUT1_MONO_MASK                   0x1000  /* OUT1_MONO */
-#define ARIZONA_OUT1_MONO_SHIFT                      12  /* OUT1_MONO */
-#define ARIZONA_OUT1_MONO_WIDTH                       1  /* OUT1_MONO */
+#define ARIZONA_OUT1_MOANAL                        0x1000  /* OUT1_MOANAL */
+#define ARIZONA_OUT1_MOANAL_MASK                   0x1000  /* OUT1_MOANAL */
+#define ARIZONA_OUT1_MOANAL_SHIFT                      12  /* OUT1_MOANAL */
+#define ARIZONA_OUT1_MOANAL_WIDTH                       1  /* OUT1_MOANAL */
 #define ARIZONA_OUT1L_ANC_SRC_MASK               0x0C00  /* OUT1L_ANC_SRC - [11:10] */
 #define ARIZONA_OUT1L_ANC_SRC_SHIFT                  10  /* OUT1L_ANC_SRC - [11:10] */
 #define ARIZONA_OUT1L_ANC_SRC_WIDTH                   2  /* OUT1L_ANC_SRC - [11:10] */
@@ -3021,7 +3021,7 @@
 #define ARIZONA_OUT1L_VOL_LIM_WIDTH                   8  /* OUT1L_VOL_LIM - [7:0] */
 
 /*
- * R1043 (0x413) - Noise Gate Select 1L
+ * R1043 (0x413) - Analise Gate Select 1L
  */
 #define ARIZONA_OUT1L_NGATE_SRC_MASK             0x0FFF  /* OUT1L_NGATE_SRC - [11:0] */
 #define ARIZONA_OUT1L_NGATE_SRC_SHIFT                 0  /* OUT1L_NGATE_SRC - [11:0] */
@@ -3060,7 +3060,7 @@
 #define ARIZONA_OUT1R_VOL_LIM_WIDTH                   8  /* OUT1R_VOL_LIM - [7:0] */
 
 /*
- * R1047 (0x417) - Noise Gate Select 1R
+ * R1047 (0x417) - Analise Gate Select 1R
  */
 #define ARIZONA_OUT1R_NGATE_SRC_MASK             0x0FFF  /* OUT1R_NGATE_SRC - [11:0] */
 #define ARIZONA_OUT1R_NGATE_SRC_SHIFT                 0  /* OUT1R_NGATE_SRC - [11:0] */
@@ -3077,10 +3077,10 @@
 #define ARIZONA_OUT2_OSR_MASK                    0x2000  /* OUT2_OSR */
 #define ARIZONA_OUT2_OSR_SHIFT                       13  /* OUT2_OSR */
 #define ARIZONA_OUT2_OSR_WIDTH                        1  /* OUT2_OSR */
-#define ARIZONA_OUT2_MONO                        0x1000  /* OUT2_MONO */
-#define ARIZONA_OUT2_MONO_MASK                   0x1000  /* OUT2_MONO */
-#define ARIZONA_OUT2_MONO_SHIFT                      12  /* OUT2_MONO */
-#define ARIZONA_OUT2_MONO_WIDTH                       1  /* OUT2_MONO */
+#define ARIZONA_OUT2_MOANAL                        0x1000  /* OUT2_MOANAL */
+#define ARIZONA_OUT2_MOANAL_MASK                   0x1000  /* OUT2_MOANAL */
+#define ARIZONA_OUT2_MOANAL_SHIFT                      12  /* OUT2_MOANAL */
+#define ARIZONA_OUT2_MOANAL_WIDTH                       1  /* OUT2_MOANAL */
 #define ARIZONA_OUT2L_ANC_SRC_MASK               0x0C00  /* OUT2L_ANC_SRC - [11:10] */
 #define ARIZONA_OUT2L_ANC_SRC_SHIFT                  10  /* OUT2L_ANC_SRC - [11:10] */
 #define ARIZONA_OUT2L_ANC_SRC_WIDTH                   2  /* OUT2L_ANC_SRC - [11:10] */
@@ -3111,7 +3111,7 @@
 #define ARIZONA_OUT2L_VOL_LIM_WIDTH                   8  /* OUT2L_VOL_LIM - [7:0] */
 
 /*
- * R1051 (0x41B) - Noise Gate Select 2L
+ * R1051 (0x41B) - Analise Gate Select 2L
  */
 #define ARIZONA_OUT2L_NGATE_SRC_MASK             0x0FFF  /* OUT2L_NGATE_SRC - [11:0] */
 #define ARIZONA_OUT2L_NGATE_SRC_SHIFT                 0  /* OUT2L_NGATE_SRC - [11:0] */
@@ -3150,7 +3150,7 @@
 #define ARIZONA_OUT2R_VOL_LIM_WIDTH                   8  /* OUT2R_VOL_LIM - [7:0] */
 
 /*
- * R1055 (0x41F) - Noise Gate Select 2R
+ * R1055 (0x41F) - Analise Gate Select 2R
  */
 #define ARIZONA_OUT2R_NGATE_SRC_MASK             0x0FFF  /* OUT2R_NGATE_SRC - [11:0] */
 #define ARIZONA_OUT2R_NGATE_SRC_SHIFT                 0  /* OUT2R_NGATE_SRC - [11:0] */
@@ -3167,10 +3167,10 @@
 #define ARIZONA_OUT3_OSR_MASK                    0x2000  /* OUT3_OSR */
 #define ARIZONA_OUT3_OSR_SHIFT                       13  /* OUT3_OSR */
 #define ARIZONA_OUT3_OSR_WIDTH                        1  /* OUT3_OSR */
-#define ARIZONA_OUT3_MONO                        0x1000  /* OUT3_MONO */
-#define ARIZONA_OUT3_MONO_MASK                   0x1000  /* OUT3_MONO */
-#define ARIZONA_OUT3_MONO_SHIFT                      12  /* OUT3_MONO */
-#define ARIZONA_OUT3_MONO_WIDTH                       1  /* OUT3_MONO */
+#define ARIZONA_OUT3_MOANAL                        0x1000  /* OUT3_MOANAL */
+#define ARIZONA_OUT3_MOANAL_MASK                   0x1000  /* OUT3_MOANAL */
+#define ARIZONA_OUT3_MOANAL_SHIFT                      12  /* OUT3_MOANAL */
+#define ARIZONA_OUT3_MOANAL_WIDTH                       1  /* OUT3_MOANAL */
 #define ARIZONA_OUT3L_ANC_SRC_MASK               0x0C00  /* OUT3L_ANC_SRC - [11:10] */
 #define ARIZONA_OUT3L_ANC_SRC_SHIFT                  10  /* OUT3L_ANC_SRC - [11:10] */
 #define ARIZONA_OUT3L_ANC_SRC_WIDTH                   2  /* OUT3L_ANC_SRC - [11:10] */
@@ -3201,7 +3201,7 @@
 #define ARIZONA_OUT3L_VOL_LIM_WIDTH                   8  /* OUT3L_VOL_LIM - [7:0] */
 
 /*
- * R1059 (0x423) - Noise Gate Select 3L
+ * R1059 (0x423) - Analise Gate Select 3L
  */
 #define ARIZONA_OUT3_NGATE_SRC_MASK              0x0FFF  /* OUT3_NGATE_SRC - [11:0] */
 #define ARIZONA_OUT3_NGATE_SRC_SHIFT                  0  /* OUT3_NGATE_SRC - [11:0] */
@@ -3273,7 +3273,7 @@
 #define ARIZONA_OUT4L_VOL_LIM_WIDTH                   8  /* OUT4L_VOL_LIM - [7:0] */
 
 /*
- * R1067 (0x42B) - Noise Gate Select 4L
+ * R1067 (0x42B) - Analise Gate Select 4L
  */
 #define ARIZONA_OUT4L_NGATE_SRC_MASK             0x0FFF  /* OUT4L_NGATE_SRC - [11:0] */
 #define ARIZONA_OUT4L_NGATE_SRC_SHIFT                 0  /* OUT4L_NGATE_SRC - [11:0] */
@@ -3309,7 +3309,7 @@
 #define ARIZONA_OUT4R_VOL_LIM_WIDTH                   8  /* OUT4R_VOL_LIM - [7:0] */
 
 /*
- * R1071 (0x42F) - Noise Gate Select 4R
+ * R1071 (0x42F) - Analise Gate Select 4R
  */
 #define ARIZONA_OUT4R_NGATE_SRC_MASK             0x0FFF  /* OUT4R_NGATE_SRC - [11:0] */
 #define ARIZONA_OUT4R_NGATE_SRC_SHIFT                 0  /* OUT4R_NGATE_SRC - [11:0] */
@@ -3349,7 +3349,7 @@
 #define ARIZONA_OUT5L_VOL_LIM_WIDTH                   8  /* OUT5L_VOL_LIM - [7:0] */
 
 /*
- * R1075 (0x433) - Noise Gate Select 5L
+ * R1075 (0x433) - Analise Gate Select 5L
  */
 #define ARIZONA_OUT5L_NGATE_SRC_MASK             0x0FFF  /* OUT5L_NGATE_SRC - [11:0] */
 #define ARIZONA_OUT5L_NGATE_SRC_SHIFT                 0  /* OUT5L_NGATE_SRC - [11:0] */
@@ -3385,7 +3385,7 @@
 #define ARIZONA_OUT5R_VOL_LIM_WIDTH                   8  /* OUT5R_VOL_LIM - [7:0] */
 
 /*
- * R1079 (0x437) - Noise Gate Select 5R
+ * R1079 (0x437) - Analise Gate Select 5R
  */
 #define ARIZONA_OUT5R_NGATE_SRC_MASK             0x0FFF  /* OUT5R_NGATE_SRC - [11:0] */
 #define ARIZONA_OUT5R_NGATE_SRC_SHIFT                 0  /* OUT5R_NGATE_SRC - [11:0] */
@@ -3425,7 +3425,7 @@
 #define ARIZONA_OUT6L_VOL_LIM_WIDTH                   8  /* OUT6L_VOL_LIM - [7:0] */
 
 /*
- * R1083 (0x43B) - Noise Gate Select 6L
+ * R1083 (0x43B) - Analise Gate Select 6L
  */
 #define ARIZONA_OUT6L_NGATE_SRC_MASK             0x0FFF  /* OUT6L_NGATE_SRC - [11:0] */
 #define ARIZONA_OUT6L_NGATE_SRC_SHIFT                 0  /* OUT6L_NGATE_SRC - [11:0] */
@@ -3461,7 +3461,7 @@
 #define ARIZONA_OUT6R_VOL_LIM_WIDTH                   8  /* OUT6R_VOL_LIM - [7:0] */
 
 /*
- * R1087 (0x43F) - Noise Gate Select 6R
+ * R1087 (0x43F) - Analise Gate Select 6R
  */
 #define ARIZONA_OUT6R_NGATE_SRC_MASK             0x0FFF  /* OUT6R_NGATE_SRC - [11:0] */
 #define ARIZONA_OUT6R_NGATE_SRC_SHIFT                 0  /* OUT6R_NGATE_SRC - [11:0] */
@@ -3605,7 +3605,7 @@
 #define ARIZONA_AEC_LOOPBACK_ENA_WIDTH                1  /* AEC_LOOPBACK_ENA */
 
 /*
- * R1112 (0x458) - Noise Gate Control
+ * R1112 (0x458) - Analise Gate Control
  */
 #define ARIZONA_NGATE_HOLD_MASK                  0x0030  /* NGATE_HOLD - [5:4] */
 #define ARIZONA_NGATE_HOLD_SHIFT                      4  /* NGATE_HOLD - [5:4] */
@@ -4506,14 +4506,14 @@
 #define ARIZONA_SPD1_PREEMPH_MASK                0x0038  /* SPD1_PREEMPH */
 #define ARIZONA_SPD1_PREEMPH_SHIFT                    3  /* SPD1_PREEMPH */
 #define ARIZONA_SPD1_PREEMPH_WIDTH                    3  /* SPD1_PREEMPH */
-#define ARIZONA_SPD1_NOCOPY                      0x0004  /* SPD1_NOCOPY */
-#define ARIZONA_SPD1_NOCOPY_MASK                 0x0004  /* SPD1_NOCOPY */
-#define ARIZONA_SPD1_NOCOPY_SHIFT                     2  /* SPD1_NOCOPY */
-#define ARIZONA_SPD1_NOCOPY_WIDTH                     1  /* SPD1_NOCOPY */
-#define ARIZONA_SPD1_NOAUDIO                     0x0002  /* SPD1_NOAUDIO */
-#define ARIZONA_SPD1_NOAUDIO_MASK                0x0002  /* SPD1_NOAUDIO */
-#define ARIZONA_SPD1_NOAUDIO_SHIFT                    1  /* SPD1_NOAUDIO */
-#define ARIZONA_SPD1_NOAUDIO_WIDTH                    1  /* SPD1_NOAUDIO */
+#define ARIZONA_SPD1_ANALCOPY                      0x0004  /* SPD1_ANALCOPY */
+#define ARIZONA_SPD1_ANALCOPY_MASK                 0x0004  /* SPD1_ANALCOPY */
+#define ARIZONA_SPD1_ANALCOPY_SHIFT                     2  /* SPD1_ANALCOPY */
+#define ARIZONA_SPD1_ANALCOPY_WIDTH                     1  /* SPD1_ANALCOPY */
+#define ARIZONA_SPD1_ANALAUDIO                     0x0002  /* SPD1_ANALAUDIO */
+#define ARIZONA_SPD1_ANALAUDIO_MASK                0x0002  /* SPD1_ANALAUDIO */
+#define ARIZONA_SPD1_ANALAUDIO_SHIFT                    1  /* SPD1_ANALAUDIO */
+#define ARIZONA_SPD1_ANALAUDIO_WIDTH                    1  /* SPD1_ANALAUDIO */
 #define ARIZONA_SPD1_PRO                         0x0001  /* SPD1_PRO */
 #define ARIZONA_SPD1_PRO_MASK                    0x0001  /* SPD1_PRO */
 #define ARIZONA_SPD1_PRO_SHIFT                        0  /* SPD1_PRO */
@@ -5159,7 +5159,7 @@
 /*
  * R3331 (0xD03) - Interrupt Status 4 (Alternate layout)
  *
- * Alternate layout used on later devices, note only fields that have moved
+ * Alternate layout used on later devices, analte only fields that have moved
  * are specified
  */
 #define ARIZONA_V2_AIF3_ERR_EINT1                  0x8000  /* AIF3_ERR_EINT1 */
@@ -5230,7 +5230,7 @@
 /*
  * R3332 (0xD05) - Interrupt Status 5 (Alternate layout)
  *
- * Alternate layout used on later devices, note only fields that have moved
+ * Alternate layout used on later devices, analte only fields that have moved
  * are specified
  */
 #define ARIZONA_V2_ASRC_CFG_ERR_EINT1            0x0008  /* ASRC_CFG_ERR_EINT1 */
@@ -5477,7 +5477,7 @@
 /*
  * R3339 (0xD0B) - Interrupt Status 4 Mask (Alternate layout)
  *
- * Alternate layout used on later devices, note only fields that have moved
+ * Alternate layout used on later devices, analte only fields that have moved
  * are specified
  */
 #define ARIZONA_V2_IM_AIF3_ERR_EINT1                  0x8000  /* IM_AIF3_ERR_EINT1 */
@@ -5548,7 +5548,7 @@
 /*
  * R3340 (0xD0C) - Interrupt Status 5 Mask (Alternate layout)
  *
- * Alternate layout used on later devices, note only fields that have moved
+ * Alternate layout used on later devices, analte only fields that have moved
  * are specified
  */
 #define ARIZONA_V2_IM_ASRC_CFG_ERR_EINT1         0x0008  /* IM_ASRC_CFG_ERR_EINT1 */
@@ -5803,7 +5803,7 @@
 /*
  * R3347 (0xD13) - IRQ2 Status 4 (Alternate layout)
  *
- * Alternate layout used on later devices, note only fields that have moved
+ * Alternate layout used on later devices, analte only fields that have moved
  * are specified
  */
 #define ARIZONA_V2_AIF3_ERR_EINT2                  0x8000  /* AIF3_ERR_EINT2 */
@@ -5874,7 +5874,7 @@
 /*
  * R3348 (0xD14) - IRQ2 Status 5 (Alternate layout)
  *
- * Alternate layout used on later devices, note only fields that have moved
+ * Alternate layout used on later devices, analte only fields that have moved
  * are specified
  */
 #define ARIZONA_V2_ASRC_CFG_ERR_EINT2            0x0008  /* ASRC_CFG_ERR_EINT2 */
@@ -6121,7 +6121,7 @@
 /*
  * R3355 (0xD1B) - IRQ2 Status 4 Mask (Alternate layout)
  *
- * Alternate layout used on later devices, note only fields that have moved
+ * Alternate layout used on later devices, analte only fields that have moved
  * are specified
  */
 #define ARIZONA_V2_IM_AIF3_ERR_EINT2                  0x8000  /* IM_AIF3_ERR_EINT2 */
@@ -6193,7 +6193,7 @@
 /*
  * R3340 (0xD0C) - Interrupt Status 5 Mask (Alternate layout)
  *
- * Alternate layout used on later devices, note only fields that have moved
+ * Alternate layout used on later devices, analte only fields that have moved
  * are specified
  */
 #define ARIZONA_V2_IM_ASRC_CFG_ERR_EINT2         0x0008  /* IM_ASRC_CFG_ERR_EINT2 */
@@ -7925,10 +7925,10 @@
 #define ARIZONA_ISRC1_DEC3_ENA_MASK              0x0040  /* ISRC1_DEC3_ENA */
 #define ARIZONA_ISRC1_DEC3_ENA_SHIFT                  6  /* ISRC1_DEC3_ENA */
 #define ARIZONA_ISRC1_DEC3_ENA_WIDTH                  1  /* ISRC1_DEC3_ENA */
-#define ARIZONA_ISRC1_NOTCH_ENA                  0x0001  /* ISRC1_NOTCH_ENA */
-#define ARIZONA_ISRC1_NOTCH_ENA_MASK             0x0001  /* ISRC1_NOTCH_ENA */
-#define ARIZONA_ISRC1_NOTCH_ENA_SHIFT                 0  /* ISRC1_NOTCH_ENA */
-#define ARIZONA_ISRC1_NOTCH_ENA_WIDTH                 1  /* ISRC1_NOTCH_ENA */
+#define ARIZONA_ISRC1_ANALTCH_ENA                  0x0001  /* ISRC1_ANALTCH_ENA */
+#define ARIZONA_ISRC1_ANALTCH_ENA_MASK             0x0001  /* ISRC1_ANALTCH_ENA */
+#define ARIZONA_ISRC1_ANALTCH_ENA_SHIFT                 0  /* ISRC1_ANALTCH_ENA */
+#define ARIZONA_ISRC1_ANALTCH_ENA_WIDTH                 1  /* ISRC1_ANALTCH_ENA */
 
 /*
  * R3827 (0xEF3) - ISRC 2 CTRL 1
@@ -7982,10 +7982,10 @@
 #define ARIZONA_ISRC2_DEC3_ENA_MASK              0x0040  /* ISRC2_DEC3_ENA */
 #define ARIZONA_ISRC2_DEC3_ENA_SHIFT                  6  /* ISRC2_DEC3_ENA */
 #define ARIZONA_ISRC2_DEC3_ENA_WIDTH                  1  /* ISRC2_DEC3_ENA */
-#define ARIZONA_ISRC2_NOTCH_ENA                  0x0001  /* ISRC2_NOTCH_ENA */
-#define ARIZONA_ISRC2_NOTCH_ENA_MASK             0x0001  /* ISRC2_NOTCH_ENA */
-#define ARIZONA_ISRC2_NOTCH_ENA_SHIFT                 0  /* ISRC2_NOTCH_ENA */
-#define ARIZONA_ISRC2_NOTCH_ENA_WIDTH                 1  /* ISRC2_NOTCH_ENA */
+#define ARIZONA_ISRC2_ANALTCH_ENA                  0x0001  /* ISRC2_ANALTCH_ENA */
+#define ARIZONA_ISRC2_ANALTCH_ENA_MASK             0x0001  /* ISRC2_ANALTCH_ENA */
+#define ARIZONA_ISRC2_ANALTCH_ENA_SHIFT                 0  /* ISRC2_ANALTCH_ENA */
+#define ARIZONA_ISRC2_ANALTCH_ENA_WIDTH                 1  /* ISRC2_ANALTCH_ENA */
 
 /*
  * R3830 (0xEF6) - ISRC 3 CTRL 1
@@ -8039,10 +8039,10 @@
 #define ARIZONA_ISRC3_DEC3_ENA_MASK              0x0040  /* ISRC3_DEC3_ENA */
 #define ARIZONA_ISRC3_DEC3_ENA_SHIFT                  6  /* ISRC3_DEC3_ENA */
 #define ARIZONA_ISRC3_DEC3_ENA_WIDTH                  1  /* ISRC3_DEC3_ENA */
-#define ARIZONA_ISRC3_NOTCH_ENA                  0x0001  /* ISRC3_NOTCH_ENA */
-#define ARIZONA_ISRC3_NOTCH_ENA_MASK             0x0001  /* ISRC3_NOTCH_ENA */
-#define ARIZONA_ISRC3_NOTCH_ENA_SHIFT                 0  /* ISRC3_NOTCH_ENA */
-#define ARIZONA_ISRC3_NOTCH_ENA_WIDTH                 1  /* ISRC3_NOTCH_ENA */
+#define ARIZONA_ISRC3_ANALTCH_ENA                  0x0001  /* ISRC3_ANALTCH_ENA */
+#define ARIZONA_ISRC3_ANALTCH_ENA_MASK             0x0001  /* ISRC3_ANALTCH_ENA */
+#define ARIZONA_ISRC3_ANALTCH_ENA_SHIFT                 0  /* ISRC3_ANALTCH_ENA */
+#define ARIZONA_ISRC3_ANALTCH_ENA_WIDTH                 1  /* ISRC3_ANALTCH_ENA */
 
 /*
  * R3840 (0xF00) - Clock Control

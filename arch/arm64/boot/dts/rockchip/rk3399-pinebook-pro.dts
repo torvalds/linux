@@ -58,7 +58,7 @@
 	};
 
 	/*
-	 * Use separate nodes for gpio-keys to allow for selective deactivation
+	 * Use separate analdes for gpio-keys to allow for selective deactivation
 	 * of wakeup sources via sysfs without disabling the whole key
 	 */
 	gpio-key-lid {
@@ -514,11 +514,11 @@
 				};
 			};
 
-			/* not used */
+			/* analt used */
 			LDO_REG1 {
 			};
 
-			/* not used */
+			/* analt used */
 			LDO_REG2 {
 			};
 
@@ -821,17 +821,17 @@
 
 	i2s1 {
 		i2s_8ch_mclk_pin: i2s-8ch-mclk-pin {
-			rockchip,pins = <4 RK_PA0 1 &pcfg_pull_none>;
+			rockchip,pins = <4 RK_PA0 1 &pcfg_pull_analne>;
 		};
 	};
 
 	lcd-panel {
 		lcdvcc_en_pin: lcdvcc-en-pin {
-			rockchip,pins = <1 RK_PC6 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <1 RK_PC6 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		panel_en_pin: panel-en-pin {
-			rockchip,pins = <1 RK_PA0 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <1 RK_PA0 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		lcd_panel_reset_pin: lcd-panel-reset-pin {
@@ -841,11 +841,11 @@
 
 	leds {
 		pwr_led_pin: pwr-led-pin {
-			rockchip,pins = <0 RK_PB3 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PB3 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		slp_led_pin: slp-led-pin {
-			rockchip,pins = <0 RK_PA2 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PA2 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
@@ -865,14 +865,14 @@
 
 	sdcard {
 		sdmmc0_pwr_h_pin: sdmmc0-pwr-h-pin {
-			rockchip,pins = <0 RK_PA1 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PA1 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 	};
 
 	sdio-pwrseq {
 		wifi_enable_h_pin: wifi-enable-h-pin {
-			rockchip,pins = <0 RK_PB2 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PB2 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
@@ -884,25 +884,25 @@
 
 	usb2 {
 		pwr_5v_pin: pwr-5v-pin {
-			rockchip,pins = <1 RK_PB5 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <1 RK_PB5 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		vcc5v0_host_en_pin: vcc5v0-host-en-pin {
-			rockchip,pins = <4 RK_PD2 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <4 RK_PD2 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	wireless-bluetooth {
 		bt_wake_pin: bt-wake-pin {
-			rockchip,pins = <2 RK_PD3 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <2 RK_PD3 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		bt_host_wake_pin: bt-host-wake-pin {
-			rockchip,pins = <0 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PA4 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		bt_reset_pin: bt-reset-pin {
-			rockchip,pins = <0 RK_PB1 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PB1 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 };
@@ -945,7 +945,7 @@
 	cap-sdio-irq;
 	keep-power-in-suspend;
 	mmc-pwrseq = <&sdio_pwrseq>;
-	non-removable;
+	analn-removable;
 	pinctrl-names = "default";
 	pinctrl-0 = <&sdio0_bus4 &sdio0_cmd &sdio0_clk>;
 	sd-uhs-sdr104;
@@ -955,7 +955,7 @@
 &sdhci {
 	bus-width = <8>;
 	mmc-hs200-1_8v;
-	non-removable;
+	analn-removable;
 	status = "okay";
 };
 
@@ -964,7 +964,7 @@
 	status = "okay";
 
 	spiflash: flash@0 {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		reg = <0>;
 		m25p,fast-read;
 		spi-max-frequency = <10000000>;

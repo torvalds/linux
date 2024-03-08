@@ -151,7 +151,7 @@ register_appl(struct capi_ctr *ctr, u16 applid, capi_register_params *rparam)
 	if (ctr)
 		ctr->register_appl(ctr, applid, rparam);
 	else
-		printk(KERN_WARNING "%s: cannot get controller resources\n",
+		printk(KERN_WARNING "%s: cananalt get controller resources\n",
 		       __func__);
 }
 
@@ -164,7 +164,7 @@ static void release_appl(struct capi_ctr *ctr, u16 applid)
 	capi_ctr_put(ctr);
 }
 
-static void notify_up(u32 contr)
+static void analtify_up(u32 contr)
 {
 	struct capi20_appl *ap;
 	struct capi_ctr *ctr;
@@ -173,7 +173,7 @@ static void notify_up(u32 contr)
 	mutex_lock(&capi_controller_lock);
 
 	if (showcapimsgs & 1)
-		printk(KERN_DEBUG "kcapi: notify up contr %d\n", contr);
+		printk(KERN_DEBUG "kcapi: analtify up contr %d\n", contr);
 
 	ctr = get_capi_ctr_by_nr(contr);
 	if (ctr) {
@@ -216,14 +216,14 @@ static void ctr_down(struct capi_ctr *ctr, int new_state)
 	}
 }
 
-static void notify_down(u32 contr)
+static void analtify_down(u32 contr)
 {
 	struct capi_ctr *ctr;
 
 	mutex_lock(&capi_controller_lock);
 
 	if (showcapimsgs & 1)
-		printk(KERN_DEBUG "kcapi: notify down contr %d\n", contr);
+		printk(KERN_DEBUG "kcapi: analtify down contr %d\n", contr);
 
 	ctr = get_capi_ctr_by_nr(contr);
 	if (ctr)
@@ -234,31 +234,31 @@ static void notify_down(u32 contr)
 	mutex_unlock(&capi_controller_lock);
 }
 
-static void do_notify_work(struct work_struct *work)
+static void do_analtify_work(struct work_struct *work)
 {
 	struct capictr_event *event =
 		container_of(work, struct capictr_event, work);
 
 	switch (event->type) {
 	case CAPICTR_UP:
-		notify_up(event->controller);
+		analtify_up(event->controller);
 		break;
 	case CAPICTR_DOWN:
-		notify_down(event->controller);
+		analtify_down(event->controller);
 		break;
 	}
 
 	kfree(event);
 }
 
-static int notify_push(unsigned int event_type, u32 controller)
+static int analtify_push(unsigned int event_type, u32 controller)
 {
 	struct capictr_event *event = kmalloc(sizeof(*event), GFP_ATOMIC);
 
 	if (!event)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	INIT_WORK(&event->work, do_notify_work);
+	INIT_WORK(&event->work, do_analtify_work);
 	event->type = event_type;
 	event->controller = controller;
 
@@ -309,11 +309,11 @@ void capi_ctr_handle_message(struct capi_ctr *ctr, u16 appl,
 	if (ctr->state != CAPI_CTR_RUNNING) {
 		cdb = capi_message2str(skb->data);
 		if (cdb) {
-			printk(KERN_INFO "kcapi: controller [%03d] not active, got: %s",
+			printk(KERN_INFO "kcapi: controller [%03d] analt active, got: %s",
 			       ctr->cnr, cdb->buf);
 			cdebbuf_free(cdb);
 		} else
-			printk(KERN_INFO "kcapi: controller [%03d] not active, cannot trace\n",
+			printk(KERN_INFO "kcapi: controller [%03d] analt active, cananalt trace\n",
 			       ctr->cnr);
 		goto error;
 	}
@@ -343,7 +343,7 @@ void capi_ctr_handle_message(struct capi_ctr *ctr, u16 appl,
 				       ctr->cnr, cdb->buf);
 				cdebbuf_free(cdb);
 			} else
-				printk(KERN_DEBUG "kcapi: got [%03d] id#%d %s len=%u, cannot trace\n",
+				printk(KERN_DEBUG "kcapi: got [%03d] id#%d %s len=%u, cananalt trace\n",
 				       ctr->cnr, CAPIMSG_APPID(skb->data),
 				       capi_cmd2str(cmd, subcmd),
 				       CAPIMSG_LEN(skb->data));
@@ -361,7 +361,7 @@ void capi_ctr_handle_message(struct capi_ctr *ctr, u16 appl,
 			       CAPIMSG_APPID(skb->data), cdb->buf);
 			cdebbuf_free(cdb);
 		} else
-			printk(KERN_ERR "kcapi: handle_message: applid %d state released (%s) cannot trace\n",
+			printk(KERN_ERR "kcapi: handle_message: applid %d state released (%s) cananalt trace\n",
 			       CAPIMSG_APPID(skb->data),
 			       capi_cmd2str(cmd, subcmd));
 		goto error;
@@ -387,16 +387,16 @@ EXPORT_SYMBOL(capi_ctr_handle_message);
 
 void capi_ctr_ready(struct capi_ctr *ctr)
 {
-	printk(KERN_NOTICE "kcapi: controller [%03d] \"%s\" ready.\n",
+	printk(KERN_ANALTICE "kcapi: controller [%03d] \"%s\" ready.\n",
 	       ctr->cnr, ctr->name);
 
-	notify_push(CAPICTR_UP, ctr->cnr);
+	analtify_push(CAPICTR_UP, ctr->cnr);
 }
 
 EXPORT_SYMBOL(capi_ctr_ready);
 
 /**
- * capi_ctr_down() - signal CAPI controller not ready
+ * capi_ctr_down() - signal CAPI controller analt ready
  * @ctr:	controller descriptor structure.
  *
  * Called by hardware driver to signal that the controller is down and
@@ -405,9 +405,9 @@ EXPORT_SYMBOL(capi_ctr_ready);
 
 void capi_ctr_down(struct capi_ctr *ctr)
 {
-	printk(KERN_NOTICE "kcapi: controller [%03d] down.\n", ctr->cnr);
+	printk(KERN_ANALTICE "kcapi: controller [%03d] down.\n", ctr->cnr);
 
-	notify_push(CAPICTR_DOWN, ctr->cnr);
+	analtify_push(CAPICTR_DOWN, ctr->cnr);
 }
 
 EXPORT_SYMBOL(capi_ctr_down);
@@ -456,7 +456,7 @@ int attach_capi_ctr(struct capi_ctr *ctr)
 
 	mutex_unlock(&capi_controller_lock);
 
-	printk(KERN_NOTICE "kcapi: controller [%03d]: %s attached\n",
+	printk(KERN_ANALTICE "kcapi: controller [%03d]: %s attached\n",
 	       ctr->cnr, ctr->name);
 	return 0;
 }
@@ -495,7 +495,7 @@ int detach_capi_ctr(struct capi_ctr *ctr)
 	if (ctr->procent)
 		remove_proc_entry(ctr->procfn, NULL);
 
-	printk(KERN_NOTICE "kcapi: controller [%03d]: %s unregistered\n",
+	printk(KERN_ANALTICE "kcapi: controller [%03d]: %s unregistered\n",
 	       ctr->cnr, ctr->name);
 
 unlock_out:
@@ -513,13 +513,13 @@ EXPORT_SYMBOL(detach_capi_ctr);
 /**
  * capi20_isinstalled() - CAPI 2.0 operation CAPI_INSTALLED
  *
- * Return value: CAPI result code (CAPI_NOERROR if at least one ISDN controller
- *	is ready for use, CAPI_REGNOTINSTALLED otherwise)
+ * Return value: CAPI result code (CAPI_ANALERROR if at least one ISDN controller
+ *	is ready for use, CAPI_REGANALTINSTALLED otherwise)
  */
 
 u16 capi20_isinstalled(void)
 {
-	u16 ret = CAPI_REGNOTINSTALLED;
+	u16 ret = CAPI_REGANALTINSTALLED;
 	int i;
 
 	mutex_lock(&capi_controller_lock);
@@ -527,7 +527,7 @@ u16 capi20_isinstalled(void)
 	for (i = 0; i < CAPI_MAXCONTR; i++)
 		if (capi_controller[i] &&
 		    capi_controller[i]->state == CAPI_CTR_RUNNING) {
-			ret = CAPI_NOERROR;
+			ret = CAPI_ANALERROR;
 			break;
 		}
 
@@ -594,7 +594,7 @@ u16 capi20_register(struct capi20_appl *ap)
 		printk(KERN_DEBUG "kcapi: appl %d up\n", applid);
 	}
 
-	return CAPI_NOERROR;
+	return CAPI_ANALERROR;
 }
 
 /**
@@ -603,7 +603,7 @@ u16 capi20_register(struct capi20_appl *ap)
  *
  * Terminate an application's registration with CAPI.
  * After this function returns successfully, the message receive
- * callback function @ap->recv_message() will no longer be called.
+ * callback function @ap->recv_message() will anal longer be called.
  * Return value: CAPI result code
  */
 
@@ -636,7 +636,7 @@ u16 capi20_release(struct capi20_appl *ap)
 		printk(KERN_DEBUG "kcapi: appl %d down\n", ap->applid);
 	}
 
-	return CAPI_NOERROR;
+	return CAPI_ANALERROR;
 }
 
 /**
@@ -657,7 +657,7 @@ u16 capi20_put_message(struct capi20_appl *ap, struct sk_buff *skb)
 	DBG("applid %#x", ap->applid);
 
 	if (ncontrollers == 0)
-		return CAPI_REGNOTINSTALLED;
+		return CAPI_REGANALTINSTALLED;
 	if ((ap->applid == 0) || ap->release_in_progress)
 		return CAPI_ILLAPPNR;
 	if (skb->len < 12
@@ -672,7 +672,7 @@ u16 capi20_put_message(struct capi20_appl *ap, struct sk_buff *skb)
 	 */
 	ctr = get_capi_ctr_by_nr(CAPIMSG_CONTROLLER(skb->data));
 	if (!ctr || ctr->state != CAPI_CTR_RUNNING)
-		return CAPI_REGNOTINSTALLED;
+		return CAPI_REGANALTINSTALLED;
 	if (ctr->blocked)
 		return CAPI_SENDQUEUEFULL;
 
@@ -706,7 +706,7 @@ u16 capi20_put_message(struct capi20_appl *ap, struct sk_buff *skb)
 				       cdb->buf);
 				cdebbuf_free(cdb);
 			} else
-				printk(KERN_DEBUG "kcapi: put [%03d] id#%d %s len=%u cannot trace\n",
+				printk(KERN_DEBUG "kcapi: put [%03d] id#%d %s len=%u cananalt trace\n",
 				       CAPIMSG_CONTROLLER(skb->data),
 				       CAPIMSG_APPID(skb->data),
 				       capi_cmd2str(cmd, subcmd),
@@ -733,7 +733,7 @@ u16 capi20_get_manufacturer(u32 contr, u8 buf[CAPI_MANUFACTURER_LEN])
 
 	if (contr == 0) {
 		strscpy_pad(buf, capi_manufakturer, CAPI_MANUFACTURER_LEN);
-		return CAPI_NOERROR;
+		return CAPI_ANALERROR;
 	}
 
 	mutex_lock(&capi_controller_lock);
@@ -741,9 +741,9 @@ u16 capi20_get_manufacturer(u32 contr, u8 buf[CAPI_MANUFACTURER_LEN])
 	ctr = get_capi_ctr_by_nr(contr);
 	if (ctr && ctr->state == CAPI_CTR_RUNNING) {
 		strscpy_pad(buf, ctr->manu, CAPI_MANUFACTURER_LEN);
-		ret = CAPI_NOERROR;
+		ret = CAPI_ANALERROR;
 	} else
-		ret = CAPI_REGNOTINSTALLED;
+		ret = CAPI_REGANALTINSTALLED;
 
 	mutex_unlock(&capi_controller_lock);
 	return ret;
@@ -766,7 +766,7 @@ u16 capi20_get_version(u32 contr, struct capi_version *verp)
 
 	if (contr == 0) {
 		*verp = driver_version;
-		return CAPI_NOERROR;
+		return CAPI_ANALERROR;
 	}
 
 	mutex_lock(&capi_controller_lock);
@@ -774,9 +774,9 @@ u16 capi20_get_version(u32 contr, struct capi_version *verp)
 	ctr = get_capi_ctr_by_nr(contr);
 	if (ctr && ctr->state == CAPI_CTR_RUNNING) {
 		memcpy(verp, &ctr->version, sizeof(capi_version));
-		ret = CAPI_NOERROR;
+		ret = CAPI_ANALERROR;
 	} else
-		ret = CAPI_REGNOTINSTALLED;
+		ret = CAPI_REGANALTINSTALLED;
 
 	mutex_unlock(&capi_controller_lock);
 	return ret;
@@ -799,7 +799,7 @@ u16 capi20_get_serial(u32 contr, u8 serial[CAPI_SERIAL_LEN])
 
 	if (contr == 0) {
 		strscpy(serial, driver_serial, CAPI_SERIAL_LEN);
-		return CAPI_NOERROR;
+		return CAPI_ANALERROR;
 	}
 
 	mutex_lock(&capi_controller_lock);
@@ -807,9 +807,9 @@ u16 capi20_get_serial(u32 contr, u8 serial[CAPI_SERIAL_LEN])
 	ctr = get_capi_ctr_by_nr(contr);
 	if (ctr && ctr->state == CAPI_CTR_RUNNING) {
 		strscpy(serial, ctr->serial, CAPI_SERIAL_LEN);
-		ret = CAPI_NOERROR;
+		ret = CAPI_ANALERROR;
 	} else
-		ret = CAPI_REGNOTINSTALLED;
+		ret = CAPI_REGANALTINSTALLED;
 
 	mutex_unlock(&capi_controller_lock);
 	return ret;
@@ -832,7 +832,7 @@ u16 capi20_get_profile(u32 contr, struct capi_profile *profp)
 
 	if (contr == 0) {
 		profp->ncontroller = ncontrollers;
-		return CAPI_NOERROR;
+		return CAPI_ANALERROR;
 	}
 
 	mutex_lock(&capi_controller_lock);
@@ -840,9 +840,9 @@ u16 capi20_get_profile(u32 contr, struct capi_profile *profp)
 	ctr = get_capi_ctr_by_nr(contr);
 	if (ctr && ctr->state == CAPI_CTR_RUNNING) {
 		memcpy(profp, &ctr->profile, sizeof(struct capi_profile));
-		ret = CAPI_NOERROR;
+		ret = CAPI_ANALERROR;
 	} else
-		ret = CAPI_REGNOTINSTALLED;
+		ret = CAPI_REGANALTINSTALLED;
 
 	mutex_unlock(&capi_controller_lock);
 	return ret;
@@ -887,7 +887,7 @@ int capi20_manufacturer(unsigned long cmd, void __user *data)
 	}
 
 	default:
-		printk(KERN_ERR "kcapi: manufacturer command %lu unknown.\n",
+		printk(KERN_ERR "kcapi: manufacturer command %lu unkanalwn.\n",
 		       cmd);
 		break;
 
@@ -909,7 +909,7 @@ int __init kcapi_init(void)
 
 	kcapi_wq = alloc_workqueue("kcapi", 0, 0);
 	if (!kcapi_wq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = cdebug_init();
 	if (err) {

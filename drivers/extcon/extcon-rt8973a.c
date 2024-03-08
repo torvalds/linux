@@ -60,9 +60,9 @@ struct rt8973a_muic_info {
 
 	/*
 	 * Use delayed workqueue to detect cable state and then
-	 * notify cable state to notifiee/platform through uevent.
+	 * analtify cable state to analtifiee/platform through uevent.
 	 * After completing the booting of platform, the extcon provider
-	 * driver should notify cable state to upper layer.
+	 * driver should analtify cable state to upper layer.
 	 */
 	struct delayed_work wq_detcable;
 };
@@ -92,7 +92,7 @@ static const unsigned int rt8973a_extcon_cable[] = {
 	EXTCON_CHG_USB_SDP,
 	EXTCON_CHG_USB_DCP,
 	EXTCON_JIG,
-	EXTCON_NONE,
+	EXTCON_ANALNE,
 };
 
 /* Define OVP (Over Voltage Protection), OTP (Over Temperature Protection) */
@@ -126,16 +126,16 @@ enum rt8973a_muic_acc_type {
 	RT8973A_MUIC_ADC_RESERVED_ACC_5,
 	RT8973A_MUIC_ADC_AUDIO_TYPE2,
 	RT8973A_MUIC_ADC_PHONE_POWERED_DEV,
-	RT8973A_MUIC_ADC_UNKNOWN_ACC_1,
-	RT8973A_MUIC_ADC_UNKNOWN_ACC_2,
+	RT8973A_MUIC_ADC_UNKANALWN_ACC_1,
+	RT8973A_MUIC_ADC_UNKANALWN_ACC_2,
 	RT8973A_MUIC_ADC_TA,
 	RT8973A_MUIC_ADC_FACTORY_MODE_BOOT_OFF_USB,
 	RT8973A_MUIC_ADC_FACTORY_MODE_BOOT_ON_USB,
-	RT8973A_MUIC_ADC_UNKNOWN_ACC_3,
-	RT8973A_MUIC_ADC_UNKNOWN_ACC_4,
+	RT8973A_MUIC_ADC_UNKANALWN_ACC_3,
+	RT8973A_MUIC_ADC_UNKANALWN_ACC_4,
 	RT8973A_MUIC_ADC_FACTORY_MODE_BOOT_OFF_UART,
 	RT8973A_MUIC_ADC_FACTORY_MODE_BOOT_ON_UART,
-	RT8973A_MUIC_ADC_UNKNOWN_ACC_5,
+	RT8973A_MUIC_ADC_UNKANALWN_ACC_5,
 	RT8973A_MUIC_ADC_OPEN = 0x1f,
 
 	/*
@@ -243,12 +243,12 @@ static int rt8973a_muic_set_path(struct rt8973a_muic_info *info,
 					con_sw);
 		if (ret < 0) {
 			dev_err(info->dev,
-				"cannot update DM_CON/DP_CON switch\n");
+				"cananalt update DM_CON/DP_CON switch\n");
 			return ret;
 		}
 		break;
 	default:
-		dev_err(info->dev, "Unknown DM_CON/DP_CON switch type (%d)\n",
+		dev_err(info->dev, "Unkanalwn DM_CON/DP_CON switch type (%d)\n",
 				con_sw);
 		return -EINVAL;
 	}
@@ -320,7 +320,7 @@ static int rt8973a_muic_cable_handler(struct rt8973a_muic_info *info,
 		break;
 	default:
 		dev_err(info->dev,
-			"Cannot handle this event (event:%d)\n", event);
+			"Cananalt handle this event (event:%d)\n", event);
 		return -EINVAL;
 	}
 	prev_cable_type = cable_type;
@@ -350,13 +350,13 @@ static int rt8973a_muic_cable_handler(struct rt8973a_muic_info *info,
 		break;
 	case RT8973A_MUIC_ADC_OPEN:
 		return 0;
-	case RT8973A_MUIC_ADC_UNKNOWN_ACC_1:
-	case RT8973A_MUIC_ADC_UNKNOWN_ACC_2:
-	case RT8973A_MUIC_ADC_UNKNOWN_ACC_3:
-	case RT8973A_MUIC_ADC_UNKNOWN_ACC_4:
-	case RT8973A_MUIC_ADC_UNKNOWN_ACC_5:
+	case RT8973A_MUIC_ADC_UNKANALWN_ACC_1:
+	case RT8973A_MUIC_ADC_UNKANALWN_ACC_2:
+	case RT8973A_MUIC_ADC_UNKANALWN_ACC_3:
+	case RT8973A_MUIC_ADC_UNKANALWN_ACC_4:
+	case RT8973A_MUIC_ADC_UNKANALWN_ACC_5:
 		dev_warn(info->dev,
-			"Unknown accessory type (adc:0x%x)\n", cable_type);
+			"Unkanalwn accessory type (adc:0x%x)\n", cable_type);
 		return 0;
 	case RT8973A_MUIC_ADC_AUDIO_SEND_END_BUTTON:
 	case RT8973A_MUIC_ADC_AUDIO_REMOTE_S1_BUTTON:
@@ -384,7 +384,7 @@ static int rt8973a_muic_cable_handler(struct rt8973a_muic_info *info,
 		return 0;
 	default:
 		dev_err(info->dev,
-			"Cannot handle this cable_type (adc:0x%x)\n",
+			"Cananalt handle this cable_type (adc:0x%x)\n",
 			cable_type);
 		return -EINVAL;
 	}
@@ -476,7 +476,7 @@ static irqreturn_t rt8973a_muic_irq_handler(int irq, void *data)
 	case RT8973A_INT2_OVP_OCP:
 	default:
 		dev_dbg(info->dev,
-			"Cannot handle this interrupt (%d)\n", irq_type);
+			"Cananalt handle this interrupt (%d)\n", irq_type);
 		break;
 	}
 
@@ -491,7 +491,7 @@ static void rt8973a_muic_detect_cable_wq(struct work_struct *work)
 				struct rt8973a_muic_info, wq_detcable);
 	int ret;
 
-	/* Notify the state of connector cable or not  */
+	/* Analtify the state of connector cable or analt  */
 	ret = rt8973a_muic_cable_handler(info, RT8973A_EVENT_ATTACH);
 	if (ret < 0)
 		dev_warn(info->dev, "failed to detect cable state\n");
@@ -532,7 +532,7 @@ static void rt8973a_init_dev_type(struct rt8973a_muic_info *info)
 		regmap_update_bits(info->regmap, reg, mask, val);
 	}
 
-	/* Check whether RT8973A is auto switching mode or not */
+	/* Check whether RT8973A is auto switching mode or analt */
 	ret = regmap_read(info->regmap, RT8973A_REG_CONTROL1, &data);
 	if (ret) {
 		dev_err(info->dev,
@@ -550,7 +550,7 @@ static void rt8973a_init_dev_type(struct rt8973a_muic_info *info)
 
 static int rt8973a_muic_i2c_probe(struct i2c_client *i2c)
 {
-	struct device_node *np = i2c->dev.of_node;
+	struct device_analde *np = i2c->dev.of_analde;
 	struct rt8973a_muic_info *info;
 	int i, ret, irq_flags;
 
@@ -559,7 +559,7 @@ static int rt8973a_muic_i2c_probe(struct i2c_client *i2c)
 
 	info = devm_kzalloc(&i2c->dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 	i2c_set_clientdata(i2c, info);
 
 	info->dev = &i2c->dev;
@@ -603,7 +603,7 @@ static int rt8973a_muic_i2c_probe(struct i2c_client *i2c)
 
 		ret = devm_request_threaded_irq(info->dev, virq, NULL,
 						rt8973a_muic_irq_handler,
-						IRQF_NO_SUSPEND | IRQF_ONESHOT,
+						IRQF_ANAL_SUSPEND | IRQF_ONESHOT,
 						muic_irq->name, info);
 		if (ret) {
 			dev_err(info->dev,
@@ -617,7 +617,7 @@ static int rt8973a_muic_i2c_probe(struct i2c_client *i2c)
 	info->edev = devm_extcon_dev_allocate(info->dev, rt8973a_extcon_cable);
 	if (IS_ERR(info->edev)) {
 		dev_err(info->dev, "failed to allocate memory for extcon\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Register extcon device */
@@ -631,9 +631,9 @@ static int rt8973a_muic_i2c_probe(struct i2c_client *i2c)
 	 * Detect accessory after completing the initialization of platform
 	 *
 	 * - Use delayed workqueue to detect cable state and then
-	 * notify cable state to notifiee/platform through uevent.
+	 * analtify cable state to analtifiee/platform through uevent.
 	 * After completing the booting of platform, the extcon provider
-	 * driver should notify cable state to upper layer.
+	 * driver should analtify cable state to upper layer.
 	 */
 	INIT_DELAYED_WORK(&info->wq_detcable, rt8973a_muic_detect_cable_wq);
 	queue_delayed_work(system_power_efficient_wq, &info->wq_detcable,

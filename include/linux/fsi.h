@@ -78,8 +78,8 @@ enum fsi_dev_type {
 	fsi_dev_occ
 };
 
-extern int fsi_get_new_minor(struct fsi_device *fdev, enum fsi_dev_type type,
+extern int fsi_get_new_mianalr(struct fsi_device *fdev, enum fsi_dev_type type,
 			     dev_t *out_dev, int *out_index);
-extern void fsi_free_minor(dev_t dev);
+extern void fsi_free_mianalr(dev_t dev);
 
 #endif /* LINUX_FSI_H */

@@ -12,7 +12,7 @@ DMA_ATTR_WEAK_ORDERING specifies that reads and writes to the mapping
 may be weakly ordered, that is that reads and writes may pass each other.
 
 Since it is optional for platforms to implement DMA_ATTR_WEAK_ORDERING,
-those that do not will simply ignore the attribute and exhibit default
+those that do analt will simply iganalre the attribute and exhibit default
 behavior.
 
 DMA_ATTR_WRITE_COMBINE
@@ -22,15 +22,15 @@ DMA_ATTR_WRITE_COMBINE specifies that writes to the mapping may be
 buffered to improve performance.
 
 Since it is optional for platforms to implement DMA_ATTR_WRITE_COMBINE,
-those that do not will simply ignore the attribute and exhibit default
+those that do analt will simply iganalre the attribute and exhibit default
 behavior.
 
-DMA_ATTR_NO_KERNEL_MAPPING
+DMA_ATTR_ANAL_KERNEL_MAPPING
 --------------------------
 
-DMA_ATTR_NO_KERNEL_MAPPING lets the platform to avoid creating a kernel
+DMA_ATTR_ANAL_KERNEL_MAPPING lets the platform to avoid creating a kernel
 virtual mapping for the allocated buffer. On some architectures creating
-such mapping is non-trivial task and consumes very limited resources
+such mapping is analn-trivial task and consumes very limited resources
 (like kernel virtual address space or dma consistent address space).
 Buffers allocated with this attribute can be only passed to user space
 by calling dma_mmap_attrs(). By using this API, you are guaranteeing
@@ -40,7 +40,7 @@ dma_free_attrs(). Make sure that both of these also get this attribute
 set on each call.
 
 Since it is optional for platforms to implement
-DMA_ATTR_NO_KERNEL_MAPPING, those that do not will simply ignore the
+DMA_ATTR_ANAL_KERNEL_MAPPING, those that do analt will simply iganalre the
 attribute and exhibit default behavior.
 
 DMA_ATTR_SKIP_CPU_SYNC
@@ -79,21 +79,21 @@ also in physical memory.
 DMA_ATTR_ALLOC_SINGLE_PAGES
 ---------------------------
 
-This is a hint to the DMA-mapping subsystem that it's probably not worth
+This is a hint to the DMA-mapping subsystem that it's probably analt worth
 the time to try to allocate memory to in a way that gives better TLB
-efficiency (AKA it's not worth trying to build the mapping out of larger
+efficiency (AKA it's analt worth trying to build the mapping out of larger
 pages).  You might want to specify this if:
 
-- You know that the accesses to this memory won't thrash the TLB.
-  You might know that the accesses are likely to be sequential or
+- You kanalw that the accesses to this memory won't thrash the TLB.
+  You might kanalw that the accesses are likely to be sequential or
   that they aren't sequential but it's unlikely you'll ping-pong
   between many addresses that are likely to be in different physical
   pages.
-- You know that the penalty of TLB misses while accessing the
-  memory will be small enough to be inconsequential.  If you are
+- You kanalw that the penalty of TLB misses while accessing the
+  memory will be small eanalugh to be inconsequential.  If you are
   doing a heavy operation like decryption or decompression this
   might be the case.
-- You know that the DMA mapping is fairly transitory.  If you expect
+- You kanalw that the DMA mapping is fairly transitory.  If you expect
   the mapping to have a short lifetime then it may be worth it to
   optimize allocation (avoid coming up with large pages) instead of
   getting the slight performance win of larger pages.
@@ -101,25 +101,25 @@ pages).  You might want to specify this if:
 Setting this hint doesn't guarantee that you won't get huge pages, but it
 means that we won't try quite as hard to get them.
 
-.. note:: At the moment DMA_ATTR_ALLOC_SINGLE_PAGES is only implemented on ARM,
+.. analte:: At the moment DMA_ATTR_ALLOC_SINGLE_PAGES is only implemented on ARM,
 	  though ARM64 patches will likely be posted soon.
 
-DMA_ATTR_NO_WARN
+DMA_ATTR_ANAL_WARN
 ----------------
 
 This tells the DMA-mapping subsystem to suppress allocation failure reports
-(similarly to __GFP_NOWARN).
+(similarly to __GFP_ANALWARN).
 
 On some architectures allocation failures are reported with error messages
 to the system logs.  Although this can help to identify and debug problems,
-drivers which handle failures (eg, retry later) have no problems with them,
+drivers which handle failures (eg, retry later) have anal problems with them,
 and can actually flood the system logs with error messages that aren't any
 problem at all, depending on the implementation of the retry mechanism.
 
 So, this provides a way for drivers to avoid those error messages on calls
-where allocation failures are not a problem, and shouldn't bother the logs.
+where allocation failures are analt a problem, and shouldn't bother the logs.
 
-.. note:: At the moment DMA_ATTR_NO_WARN is only implemented on PowerPC.
+.. analte:: At the moment DMA_ATTR_ANAL_WARN is only implemented on PowerPC.
 
 DMA_ATTR_PRIVILEGED
 -------------------

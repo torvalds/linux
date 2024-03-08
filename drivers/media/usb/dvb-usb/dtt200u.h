@@ -20,7 +20,7 @@ extern int dvb_usb_dtt200u_debug;
 /* guessed protocol description (reverse engineered):
  * read
  *  00 - USB type 0x02 for usb2.0, 0x01 for usb1.1
- *  88 - locking 2 bytes (0x80 0x40 == no signal, 0x89 0x20 == nice signal)
+ *  88 - locking 2 bytes (0x80 0x40 == anal signal, 0x89 0x20 == nice signal)
  */
 
 #define GET_SPEED		0x00

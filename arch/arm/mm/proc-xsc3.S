@@ -77,7 +77,7 @@
 /*
  * cpu_xsc3_proc_init()
  *
- * Nothing too exciting at the moment
+ * Analthing too exciting at the moment
  */
 ENTRY(cpu_xsc3_proc_init)
 	ret	lr
@@ -125,7 +125,7 @@ ENDPROC(cpu_xsc3_reset)
  *
  * Cause the processor to idle
  *
- * For now we do nothing but go to idle mode for every case
+ * For analw we do analthing but go to idle mode for every case
  *
  * XScale supports clock switching, but using idle mode support
  * allows external hardware to react to system state changes.
@@ -181,8 +181,8 @@ __flush_whole_cache:
  *	Invalidate a range of cache entries in the specified
  *	address space.
  *
- *	- start - start address (may not be aligned)
- *	- end	- end address (exclusive, may not be aligned)
+ *	- start - start address (may analt be aligned)
+ *	- end	- end address (exclusive, may analt be aligned)
  *	- vma	- vma_area_struct describing address space
  */
 	.align	5
@@ -208,13 +208,13 @@ ENTRY(xsc3_flush_user_cache_range)
  *	coherent_kern_range(start, end)
  *
  *	Ensure coherency between the I cache and the D cache in the
- *	region described by start.  If you have non-snooping
+ *	region described by start.  If you have analn-sanaloping
  *	Harvard caches, you need to implement this function.
  *
  *	- start  - virtual start address
  *	- end	 - virtual end address
  *
- *	Note: single I-cache line invalidation isn't used here since
+ *	Analte: single I-cache line invalidation isn't used here since
  *	it also trashes the mini I-cache used by JTAG debuggers.
  */
 ENTRY(xsc3_coherent_kern_range)
@@ -234,7 +234,7 @@ ENTRY(xsc3_coherent_user_range)
 /*
  *	flush_kern_dcache_area(void *addr, size_t size)
  *
- *	Ensure no D cache aliasing occurs, either with itself or
+ *	Ensure anal D cache aliasing occurs, either with itself or
  *	the I cache.
  *
  *	- addr	- kernel address
@@ -256,8 +256,8 @@ ENTRY(xsc3_flush_kern_dcache_area)
  *	dma_inv_range(start, end)
  *
  *	Invalidate (discard) the specified virtual address range.
- *	May not write back any entries.  If 'start' or 'end'
- *	are not cache line aligned, those lines must be written
+ *	May analt write back any entries.  If 'start' or 'end'
+ *	are analt cache line aligned, those lines must be written
  *	back.
  *
  *	- start  - virtual start address
@@ -379,13 +379,13 @@ cpu_xsc3_mt_table:
 	.long	PTE_CACHEABLE | PTE_BUFFERABLE			@ L_PTE_MT_WRITEBACK
 	.long	PTE_EXT_TEX(1) | PTE_BUFFERABLE			@ L_PTE_MT_DEV_SHARED
 	.long	0x00						@ unused
-	.long	0x00						@ L_PTE_MT_MINICACHE (not present)
-	.long	PTE_EXT_TEX(5) | PTE_CACHEABLE | PTE_BUFFERABLE	@ L_PTE_MT_WRITEALLOC (not present?)
+	.long	0x00						@ L_PTE_MT_MINICACHE (analt present)
+	.long	PTE_EXT_TEX(5) | PTE_CACHEABLE | PTE_BUFFERABLE	@ L_PTE_MT_WRITEALLOC (analt present?)
 	.long	0x00						@ unused
 	.long	PTE_EXT_TEX(1)					@ L_PTE_MT_DEV_WC
 	.long	0x00						@ unused
 	.long	PTE_CACHEABLE | PTE_BUFFERABLE			@ L_PTE_MT_DEV_CACHED
-	.long	PTE_EXT_TEX(2)					@ L_PTE_MT_DEV_NONSHARED
+	.long	PTE_EXT_TEX(2)					@ L_PTE_MT_DEV_ANALNSHARED
 	.long	0x00						@ unused
 	.long	0x00						@ unused
 	.long	0x00						@ unused
@@ -525,5 +525,5 @@ __\name\()_proc_info:
 
 	xsc3_proc_info xsc3, 0x69056000, 0xffffe000
 
-/* Note: PXA935 changed its implementor ID from Intel to Marvell */
+/* Analte: PXA935 changed its implementor ID from Intel to Marvell */
 	xsc3_proc_info xsc3_pxa935, 0x56056000, 0xffffe000

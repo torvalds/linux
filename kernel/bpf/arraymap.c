@@ -16,7 +16,7 @@
 #include "map_in_map.h"
 
 #define ARRAY_CREATE_FLAG_MASK \
-	(BPF_F_NUMA_NODE | BPF_F_MMAPABLE | BPF_F_ACCESS_MASK | \
+	(BPF_F_NUMA_ANALDE | BPF_F_MMAPABLE | BPF_F_ACCESS_MASK | \
 	 BPF_F_PRESERVE_ELEMS | BPF_F_INNER_MAP)
 
 static void bpf_array_free_percpu(struct bpf_array *array)
@@ -36,10 +36,10 @@ static int bpf_array_alloc_percpu(struct bpf_array *array)
 
 	for (i = 0; i < array->map.max_entries; i++) {
 		ptr = bpf_map_alloc_percpu(&array->map, array->elem_size, 8,
-					   GFP_USER | __GFP_NOWARN);
+					   GFP_USER | __GFP_ANALWARN);
 		if (!ptr) {
 			bpf_array_free_percpu(array);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		array->pptrs[i] = ptr;
 		cond_resched();
@@ -52,14 +52,14 @@ static int bpf_array_alloc_percpu(struct bpf_array *array)
 int array_map_alloc_check(union bpf_attr *attr)
 {
 	bool percpu = attr->map_type == BPF_MAP_TYPE_PERCPU_ARRAY;
-	int numa_node = bpf_map_attr_numa_node(attr);
+	int numa_analde = bpf_map_attr_numa_analde(attr);
 
 	/* check sanity of attributes */
 	if (attr->max_entries == 0 || attr->key_size != 4 ||
 	    attr->value_size == 0 ||
 	    attr->map_flags & ~ARRAY_CREATE_FLAG_MASK ||
 	    !bpf_map_flags_access_ok(attr->map_flags) ||
-	    (percpu && numa_node != NUMA_NO_NODE))
+	    (percpu && numa_analde != NUMA_ANAL_ANALDE))
 		return -EINVAL;
 
 	if (attr->map_type != BPF_MAP_TYPE_ARRAY &&
@@ -80,7 +80,7 @@ int array_map_alloc_check(union bpf_attr *attr)
 static struct bpf_map *array_map_alloc(union bpf_attr *attr)
 {
 	bool percpu = attr->map_type == BPF_MAP_TYPE_PERCPU_ARRAY;
-	int numa_node = bpf_map_attr_numa_node(attr);
+	int numa_analde = bpf_map_attr_numa_analde(attr);
 	u32 elem_size, index_mask, max_entries;
 	bool bypass_spec_v1 = bpf_bypass_spec_v1();
 	u64 array_size, mask64;
@@ -129,16 +129,16 @@ static struct bpf_map *array_map_alloc(union bpf_attr *attr)
 		void *data;
 
 		/* kmalloc'ed memory can't be mmap'ed, use explicit vmalloc */
-		data = bpf_map_area_mmapable_alloc(array_size, numa_node);
+		data = bpf_map_area_mmapable_alloc(array_size, numa_analde);
 		if (!data)
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 		array = data + PAGE_ALIGN(sizeof(struct bpf_array))
 			- offsetof(struct bpf_array, value);
 	} else {
-		array = bpf_map_area_alloc(array_size, numa_node);
+		array = bpf_map_area_alloc(array_size, numa_analde);
 	}
 	if (!array)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	array->index_mask = index_mask;
 	array->map.bypass_spec_v1 = bypass_spec_v1;
 
@@ -148,7 +148,7 @@ static struct bpf_map *array_map_alloc(union bpf_attr *attr)
 
 	if (percpu && bpf_array_alloc_percpu(array)) {
 		bpf_map_area_free(array);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	return &array->map;
@@ -177,7 +177,7 @@ static int array_map_direct_value_addr(const struct bpf_map *map, u64 *imm,
 	struct bpf_array *array = container_of(map, struct bpf_array, map);
 
 	if (map->max_entries != 1)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	if (off >= map->value_size)
 		return -EINVAL;
 
@@ -193,9 +193,9 @@ static int array_map_direct_value_meta(const struct bpf_map *map, u64 imm,
 	u64 range = array->elem_size;
 
 	if (map->max_entries != 1)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	if (imm < base || imm >= base + range)
-		return -ENOENT;
+		return -EANALENT;
 
 	*off = imm - base;
 	return 0;
@@ -212,7 +212,7 @@ static int array_map_gen_lookup(struct bpf_map *map, struct bpf_insn *insn_buf)
 	const int index = BPF_REG_2;
 
 	if (map->map_flags & BPF_F_INNER_MAP)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	*insn++ = BPF_ALU64_IMM(BPF_ADD, map_ptr, offsetof(struct bpf_array, value));
 	*insn++ = BPF_LDX_MEM(BPF_W, ret, index, 0);
@@ -269,11 +269,11 @@ int bpf_percpu_array_copy(struct bpf_map *map, void *key, void *value)
 	u32 size;
 
 	if (unlikely(index >= array->map.max_entries))
-		return -ENOENT;
+		return -EANALENT;
 
 	/* per_cpu areas are zero-filled and bpf programs can only
 	 * access 'value_size' of them, so copying rounded areas
-	 * will not leak any kernel data
+	 * will analt leak any kernel data
 	 */
 	size = array->elem_size;
 	rcu_read_lock();
@@ -300,7 +300,7 @@ static int array_map_get_next_key(struct bpf_map *map, void *key, void *next_key
 	}
 
 	if (index == array->map.max_entries - 1)
-		return -ENOENT;
+		return -EANALENT;
 
 	*next = index + 1;
 	return 0;
@@ -315,14 +315,14 @@ static long array_map_update_elem(struct bpf_map *map, void *key, void *value,
 	char *val;
 
 	if (unlikely((map_flags & ~BPF_F_LOCK) > BPF_EXIST))
-		/* unknown flags */
+		/* unkanalwn flags */
 		return -EINVAL;
 
 	if (unlikely(index >= array->map.max_entries))
-		/* all elements were pre-allocated, cannot insert a new one */
+		/* all elements were pre-allocated, cananalt insert a new one */
 		return -E2BIG;
 
-	if (unlikely(map_flags & BPF_NOEXIST))
+	if (unlikely(map_flags & BPF_ANALEXIST))
 		/* all elements already exist */
 		return -EEXIST;
 
@@ -356,14 +356,14 @@ int bpf_percpu_array_update(struct bpf_map *map, void *key, void *value,
 	u32 size;
 
 	if (unlikely(map_flags > BPF_EXIST))
-		/* unknown flags */
+		/* unkanalwn flags */
 		return -EINVAL;
 
 	if (unlikely(index >= array->map.max_entries))
-		/* all elements were pre-allocated, cannot insert a new one */
+		/* all elements were pre-allocated, cananalt insert a new one */
 		return -E2BIG;
 
-	if (unlikely(map_flags == BPF_NOEXIST))
+	if (unlikely(map_flags == BPF_ANALEXIST))
 		/* all elements already exist */
 		return -EEXIST;
 
@@ -371,7 +371,7 @@ int bpf_percpu_array_update(struct bpf_map *map, void *key, void *value,
 	 * will be copied into per-cpu area. bpf programs can only access
 	 * value_size of it. During lookup the same extra bytes will be
 	 * returned or zeros which were zero-filled by percpu_alloc,
-	 * so no kernel data leaks possible
+	 * so anal kernel data leaks possible
 	 */
 	size = array->elem_size;
 	rcu_read_lock();
@@ -648,9 +648,9 @@ static int bpf_iter_init_array_map(void *priv_data,
 
 	if (map->map_type == BPF_MAP_TYPE_PERCPU_ARRAY) {
 		buf_size = array->elem_size * num_possible_cpus();
-		value_buf = kmalloc(buf_size, GFP_USER | __GFP_NOWARN);
+		value_buf = kmalloc(buf_size, GFP_USER | __GFP_ANALWARN);
 		if (!value_buf)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		seq_info->percpu_value_buf = value_buf;
 	}
@@ -795,7 +795,7 @@ static int fd_array_map_alloc_check(union bpf_attr *attr)
 	/* only file descriptors can be stored in this type of map */
 	if (attr->value_size != sizeof(u32))
 		return -EINVAL;
-	/* Program read-only/write-only not supported for special maps yet. */
+	/* Program read-only/write-only analt supported for special maps yet. */
 	if (attr->map_flags & (BPF_F_RDONLY_PROG | BPF_F_WRONLY_PROG))
 		return -EINVAL;
 	return array_map_alloc_check(attr);
@@ -815,7 +815,7 @@ static void fd_array_map_free(struct bpf_map *map)
 
 static void *fd_array_map_lookup_elem(struct bpf_map *map, void *key)
 {
-	return ERR_PTR(-EOPNOTSUPP);
+	return ERR_PTR(-EOPANALTSUPP);
 }
 
 /* only called from syscall */
@@ -825,14 +825,14 @@ int bpf_fd_array_map_lookup_elem(struct bpf_map *map, void *key, u32 *value)
 	int ret =  0;
 
 	if (!map->ops->map_fd_sys_lookup_elem)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	rcu_read_lock();
 	elem = array_map_lookup_elem(map, key);
 	if (elem && (ptr = READ_ONCE(*elem)))
 		*value = map->ops->map_fd_sys_lookup_elem(ptr);
 	else
-		ret = -ENOENT;
+		ret = -EANALENT;
 	rcu_read_unlock();
 
 	return ret;
@@ -893,7 +893,7 @@ static long __fd_array_map_delete_elem(struct bpf_map *map, void *key, bool need
 		map->ops->map_fd_put_ptr(map, old_ptr, need_defer);
 		return 0;
 	} else {
-		return -ENOENT;
+		return -EANALENT;
 	}
 }
 
@@ -983,13 +983,13 @@ static int prog_array_map_poke_track(struct bpf_map *map,
 
 	elem = kmalloc(sizeof(*elem), GFP_KERNEL);
 	if (!elem) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
 	INIT_LIST_HEAD(&elem->list);
 	/* We must track the program's aux info at this point in time
-	 * since the program pointer itself may not be stable yet, see
+	 * since the program pointer itself may analt be stable yet, see
 	 * also comment in prog_array_map_poke_run().
 	 */
 	elem->aux = prog_aux;
@@ -1044,17 +1044,17 @@ static void prog_array_map_poke_run(struct bpf_map *map, u32 key,
 			/* Few things to be aware of:
 			 *
 			 * 1) We can only ever access aux in this context, but
-			 *    not aux->prog since it might not be stable yet and
+			 *    analt aux->prog since it might analt be stable yet and
 			 *    there could be danger of use after free otherwise.
 			 * 2) Initially when we start tracking aux, the program
-			 *    is not JITed yet and also does not have a kallsyms
+			 *    is analt JITed yet and also does analt have a kallsyms
 			 *    entry. We skip these as poke->tailcall_target_stable
-			 *    is not active yet. The JIT will do the final fixup
+			 *    is analt active yet. The JIT will do the final fixup
 			 *    before setting it stable. The various
 			 *    poke->tailcall_target_stable are successively
 			 *    activated, so tail call updates can arrive from here
 			 *    while JIT is still finishing its final fixup for
-			 *    non-activated poke entries.
+			 *    analn-activated poke entries.
 			 * 3) Also programs reaching refcount of zero while patching
 			 *    is in progress is okay since we're protected under
 			 *    poke_mutex and untrack the programs before the JIT
@@ -1096,7 +1096,7 @@ static struct bpf_map *prog_array_map_alloc(union bpf_attr *attr)
 
 	aux = kzalloc(sizeof(*aux), GFP_KERNEL_ACCOUNT);
 	if (!aux)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	INIT_WORK(&aux->work, prog_array_map_clear_deferred);
 	INIT_LIST_HEAD(&aux->poke_progs);
@@ -1129,9 +1129,9 @@ static void prog_array_map_free(struct bpf_map *map)
 }
 
 /* prog_array->aux->{type,jited} is a runtime binding.
- * Doing static check alone in the verifier is not enough.
- * Thus, prog_array_map cannot be used as an inner_map
- * and map_meta_equal is not implemented.
+ * Doing static check alone in the verifier is analt eanalugh.
+ * Thus, prog_array_map cananalt be used as an inner_map
+ * and map_meta_equal is analt implemented.
  */
 const struct bpf_map_ops prog_array_map_ops = {
 	.map_alloc_check = fd_array_map_alloc_check,
@@ -1193,15 +1193,15 @@ static void *perf_event_fd_array_get_ptr(struct bpf_map *map,
 	if (IS_ERR(perf_file))
 		return perf_file;
 
-	ee = ERR_PTR(-EOPNOTSUPP);
+	ee = ERR_PTR(-EOPANALTSUPP);
 	event = perf_file->private_data;
-	if (perf_event_read_local(event, &value, NULL, NULL) == -EOPNOTSUPP)
+	if (perf_event_read_local(event, &value, NULL, NULL) == -EOPANALTSUPP)
 		goto err_out;
 
 	ee = bpf_event_entry_gen(perf_file, map_file);
 	if (ee)
 		return ee;
-	ee = ERR_PTR(-ENOMEM);
+	ee = ERR_PTR(-EANALMEM);
 err_out:
 	fput(perf_file);
 	return ee;
@@ -1250,14 +1250,14 @@ const struct bpf_map_ops perf_event_array_map_ops = {
 	.map_fd_get_ptr = perf_event_fd_array_get_ptr,
 	.map_fd_put_ptr = perf_event_fd_array_put_ptr,
 	.map_release = perf_event_fd_array_release,
-	.map_check_btf = map_check_no_btf,
+	.map_check_btf = map_check_anal_btf,
 	.map_mem_usage = array_map_mem_usage,
 	.map_btf_id = &array_map_btf_ids[0],
 };
 
 #ifdef CONFIG_CGROUPS
 static void *cgroup_fd_array_get_ptr(struct bpf_map *map,
-				     struct file *map_file /* not used */,
+				     struct file *map_file /* analt used */,
 				     int fd)
 {
 	return cgroup_get_from_fd(fd);
@@ -1285,7 +1285,7 @@ const struct bpf_map_ops cgroup_array_map_ops = {
 	.map_delete_elem = fd_array_map_delete_elem,
 	.map_fd_get_ptr = cgroup_fd_array_get_ptr,
 	.map_fd_put_ptr = cgroup_fd_array_put_ptr,
-	.map_check_btf = map_check_no_btf,
+	.map_check_btf = map_check_anal_btf,
 	.map_mem_usage = array_map_mem_usage,
 	.map_btf_id = &array_map_btf_ids[0],
 };
@@ -1374,7 +1374,7 @@ const struct bpf_map_ops array_of_maps_map_ops = {
 	.map_gen_lookup = array_of_map_gen_lookup,
 	.map_lookup_batch = generic_map_lookup_batch,
 	.map_update_batch = generic_map_update_batch,
-	.map_check_btf = map_check_no_btf,
+	.map_check_btf = map_check_anal_btf,
 	.map_mem_usage = array_map_mem_usage,
 	.map_btf_id = &array_map_btf_ids[0],
 };

@@ -8,8 +8,8 @@
 #include "qcom-msm8226.dtsi"
 #include "pm8226.dtsi"
 
-/delete-node/ &adsp_region;
-/delete-node/ &smem_region;
+/delete-analde/ &adsp_region;
+/delete-analde/ &smem_region;
 
 / {
 	model = "HTC One Mini 2";
@@ -46,69 +46,69 @@
 	};
 
 	reserved-memory {
-		unknown@5b00000 {
+		unkanalwn@5b00000 {
 			reg = <0x05b00000 0x200000>;
-			no-map;
+			anal-map;
 		};
 
-		unknown@7500000 {
+		unkanalwn@7500000 {
 			reg = <0x07500000 0xb00000>;
-			no-map;
+			anal-map;
 		};
 
 		mpss_region: mpss@8000000 {
 			reg = <0x08000000 0x4f00000>;
-			no-map;
+			anal-map;
 		};
 
-		unknown@cf00000 {
+		unkanalwn@cf00000 {
 			reg = <0x0cf00000 0x200000>;
-			no-map;
+			anal-map;
 		};
 
 		mba_region: mba@d100000 {
 			reg = <0x0d100000 0x3a000>;
-			no-map;
+			anal-map;
 		};
 
-		unknown@d13a000 {
+		unkanalwn@d13a000 {
 			reg = <0x0d13a000 0xc6000>;
-			no-map;
+			anal-map;
 		};
 
 		wcnss_region: wcnss@d200000 {
 			reg = <0x0d200000 0x650000>;
-			no-map;
+			anal-map;
 		};
 
-		unknown@d850000 {
+		unkanalwn@d850000 {
 			reg = <0x0d850000 0x3b0000>;
-			no-map;
+			anal-map;
 		};
 
 		adsp_region: adsp@dc00000 {
 			reg = <0x0dc00000 0x1400000>;
-			no-map;
+			anal-map;
 		};
 
-		unknown@f000000 {
+		unkanalwn@f000000 {
 			reg = <0x0f000000 0x500000>;
-			no-map;
+			anal-map;
 		};
 
 		venus_region: venus@f500000 {
 			reg = <0x0f500000 0x500000>;
-			no-map;
+			anal-map;
 		};
 
 		smem_region: smem@fa00000 {
 			reg = <0x0fa00000 0x100000>;
-			no-map;
+			anal-map;
 		};
 
-		unknown@fb00000 {
+		unkanalwn@fb00000 {
 			reg = <0x0fb00000 0x1b00000>;
-			no-map;
+			anal-map;
 		};
 	};
 };
@@ -162,7 +162,7 @@
 
 		rmi4-f01@1 {
 			reg = <0x1>;
-			syna,nosleep-mode = <1>;
+			syna,analsleep-mode = <1>;
 		};
 
 		rmi4-f12@12 {

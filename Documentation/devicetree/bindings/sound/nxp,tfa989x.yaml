@@ -34,7 +34,7 @@ properties:
     description: regulator phandle for the VDDD power supply.
 
 if:
-  not:
+  analt:
     properties:
       compatible:
         const: nxp,tfa9897

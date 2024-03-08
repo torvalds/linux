@@ -34,7 +34,7 @@ static atomic_long_t erofs_global_shrink_cnt;
 
 static bool erofs_workgroup_get(struct erofs_workgroup *grp)
 {
-	if (lockref_get_not_zero(&grp->lockref))
+	if (lockref_get_analt_zero(&grp->lockref))
 		return true;
 
 	spin_lock(&grp->lockref.lock);
@@ -125,7 +125,7 @@ static bool erofs_try_to_release_workgroup(struct erofs_sb_info *sbi,
 		goto out;
 
 	/*
-	 * Note that all cached pages should be detached before deleted from
+	 * Analte that all cached pages should be detached before deleted from
 	 * the XArray. Otherwise some cached pages could be still attached to
 	 * the orphan old workgroup when the new one is available in the tree.
 	 */
@@ -172,7 +172,7 @@ static unsigned long erofs_shrink_workstation(struct erofs_sb_info *sbi,
 }
 
 /* protected by 'erofs_sb_list_lock' */
-static unsigned int shrinker_run_no;
+static unsigned int shrinker_run_anal;
 
 /* protects the mounted 'erofs_sb_list' */
 static DEFINE_SPINLOCK(erofs_sb_list_lock);
@@ -216,13 +216,13 @@ static unsigned long erofs_shrink_scan(struct shrinker *shrink,
 	struct list_head *p;
 
 	unsigned long nr = sc->nr_to_scan;
-	unsigned int run_no;
+	unsigned int run_anal;
 	unsigned long freed = 0;
 
 	spin_lock(&erofs_sb_list_lock);
 	do {
-		run_no = ++shrinker_run_no;
-	} while (run_no == 0);
+		run_anal = ++shrinker_run_anal;
+	} while (run_anal == 0);
 
 	/* Iterate over all mounted superblocks and try to shrink them */
 	p = erofs_sb_list.next;
@@ -233,7 +233,7 @@ static unsigned long erofs_shrink_scan(struct shrinker *shrink,
 		 * We move the ones we do to the end of the list, so we stop
 		 * when we see one we have already done.
 		 */
-		if (sbi->shrinker_run_no == run_no)
+		if (sbi->shrinker_run_anal == run_anal)
 			break;
 
 		if (!mutex_trylock(&sbi->umount_mutex)) {
@@ -242,7 +242,7 @@ static unsigned long erofs_shrink_scan(struct shrinker *shrink,
 		}
 
 		spin_unlock(&erofs_sb_list_lock);
-		sbi->shrinker_run_no = run_no;
+		sbi->shrinker_run_anal = run_anal;
 
 		freed += erofs_shrink_workstation(sbi, nr - freed);
 
@@ -270,7 +270,7 @@ int __init erofs_init_shrinker(void)
 {
 	erofs_shrinker_info = shrinker_alloc(0, "erofs-shrinker");
 	if (!erofs_shrinker_info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	erofs_shrinker_info->count_objects = erofs_shrink_count;
 	erofs_shrinker_info->scan_objects = erofs_shrink_scan;

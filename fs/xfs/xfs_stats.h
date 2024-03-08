@@ -76,7 +76,7 @@ struct __xfsstats {
 	uint32_t		xs_ig_attrchg;
 	uint32_t		xs_log_writes;
 	uint32_t		xs_log_blocks;
-	uint32_t		xs_log_noiclogs;
+	uint32_t		xs_log_analiclogs;
 	uint32_t		xs_log_force;
 	uint32_t		xs_log_force_sleep;
 	uint32_t		xs_try_logspace;
@@ -99,8 +99,8 @@ struct __xfsstats {
 	uint32_t		xs_attr_list;
 	uint32_t		xs_iflush_count;
 	uint32_t		xs_icluster_flushcnt;
-	uint32_t		xs_icluster_flushinode;
-	uint32_t		vn_active;	/* # vnodes not on free lists */
+	uint32_t		xs_icluster_flushianalde;
+	uint32_t		vn_active;	/* # vanaldes analt on free lists */
 	uint32_t		vn_alloc;	/* # times vn_alloc called */
 	uint32_t		vn_get;		/* # times vn_get called */
 	uint32_t		vn_hold;	/* # times vn_hold called */

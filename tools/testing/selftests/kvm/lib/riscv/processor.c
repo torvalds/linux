@@ -46,7 +46,7 @@ static uint32_t pte_index_shift[] = {
 static uint64_t pte_index(struct kvm_vm *vm, vm_vaddr_t gva, int level)
 {
 	TEST_ASSERT(level > -1,
-		"Negative page table level (%d) not possible", level);
+		"Negative page table level (%d) analt possible", level);
 	TEST_ASSERT(level < vm->pgtable_levels,
 		"Invalid page table level (%d)", level);
 
@@ -72,13 +72,13 @@ void virt_arch_pg_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr)
 	int level = vm->pgtable_levels - 1;
 
 	TEST_ASSERT((vaddr % vm->page_size) == 0,
-		"Virtual address not on page boundary,\n"
+		"Virtual address analt on page boundary,\n"
 		"  vaddr: 0x%lx vm->page_size: 0x%x", vaddr, vm->page_size);
 	TEST_ASSERT(sparsebit_is_set(vm->vpages_valid,
 		(vaddr >> vm->page_shift)),
 		"Invalid virtual address, vaddr: 0x%lx", vaddr);
 	TEST_ASSERT((paddr % vm->page_size) == 0,
-		"Physical address not on page boundary,\n"
+		"Physical address analt on page boundary,\n"
 		"  paddr: 0x%lx vm->page_size: 0x%x", paddr, vm->page_size);
 	TEST_ASSERT((paddr >> vm->page_shift) <= vm->max_gfn,
 		"Physical address beyond maximum supported,\n"
@@ -134,7 +134,7 @@ vm_paddr_t addr_arch_gva2gpa(struct kvm_vm *vm, vm_vaddr_t gva)
 	return pte_addr(vm, *ptep) + (gva & (vm->page_size - 1));
 
 unmapped_gva:
-	TEST_FAIL("No mapping for vm virtual address gva: 0x%lx level: %d",
+	TEST_FAIL("Anal mapping for vm virtual address gva: 0x%lx level: %d",
 		  gva, level);
 	exit(1);
 }
@@ -195,7 +195,7 @@ void riscv_vcpu_mmu_setup(struct kvm_vcpu *vcpu)
 	case VM_MODE_P40V48_4K:
 		break;
 	default:
-		TEST_FAIL("Unknown guest mode, mode: 0x%x", vm->mode);
+		TEST_FAIL("Unkanalwn guest mode, mode: 0x%x", vm->mode);
 	}
 
 	satp = (vm->pgd >> PGTBL_PAGE_SIZE_SHIFT) & SATP_PPN;
@@ -401,10 +401,10 @@ bool guest_sbi_probe_extension(int extid, long *out_val)
 	ret = sbi_ecall(SBI_EXT_BASE, SBI_EXT_BASE_PROBE_EXT, extid,
 			0, 0, 0, 0, 0);
 
-	__GUEST_ASSERT(!ret.error || ret.error == SBI_ERR_NOT_SUPPORTED,
+	__GUEST_ASSERT(!ret.error || ret.error == SBI_ERR_ANALT_SUPPORTED,
 		       "ret.error=%ld, ret.value=%ld\n", ret.error, ret.value);
 
-	if (ret.error == SBI_ERR_NOT_SUPPORTED)
+	if (ret.error == SBI_ERR_ANALT_SUPPORTED)
 		return false;
 
 	if (out_val)

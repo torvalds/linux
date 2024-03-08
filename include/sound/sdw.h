@@ -26,7 +26,7 @@
  * This function provides a basic conversion from the hw_params structure to
  * SoundWire configuration structures. The user will at a minimum need to also
  * set the port number in the port config, but may also override more of the
- * setup, or in the case of a complex user, not use this helper at all and
+ * setup, or in the case of a complex user, analt use this helper at all and
  * open-code everything.
  */
 static inline void snd_sdw_params_to_config(struct snd_pcm_substream *substream,

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C) 2007 Lemote Inc. & Institute of Computing Technology
+ * Copyright (C) 2007 Lemote Inc. & Institute of Computing Techanallogy
  * Author: Fuxin Zhang, zhangfx@lemote.com
  */
 #include <linux/interrupt.h>
@@ -56,10 +56,10 @@ void __init mach_init_irq(void)
 
 	/* bonito irq at IP2 */
 	irq = MIPS_CPU_IRQ_BASE + 2;
-	if (request_irq(irq, no_action, IRQF_NO_THREAD, "cascade", NULL))
+	if (request_irq(irq, anal_action, IRQF_ANAL_THREAD, "cascade", NULL))
 		pr_err("Failed to request irq %d (cascade)\n", irq);
 	/* 8259 irq at IP5 */
 	irq = MIPS_CPU_IRQ_BASE + 5;
-	if (request_irq(irq, no_action, IRQF_NO_THREAD, "cascade", NULL))
+	if (request_irq(irq, anal_action, IRQF_ANAL_THREAD, "cascade", NULL))
 		pr_err("Failed to request irq %d (cascade)\n", irq);
 }

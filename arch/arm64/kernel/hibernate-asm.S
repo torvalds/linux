@@ -6,7 +6,7 @@
  * Author:	James Morse <james.morse@arm.com>
  */
 #include <linux/linkage.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 
 #include <asm/asm-offsets.h>
 #include <asm/assembler.h>

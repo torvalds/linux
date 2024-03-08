@@ -21,8 +21,8 @@
 |			inex2
 |	Lowest:		inex1
 |
-|	Note: The IEEE standard specifies that inex2 is to be
-|	reported if ovfl occurs and the ovfl enable bit is not
+|	Analte: The IEEE standard specifies that inex2 is to be
+|	reported if ovfl occurs and the ovfl enable bit is analt
 |	set but the inex2 enable bit is.
 |
 |
@@ -51,7 +51,7 @@ exc_tbl:
 	.long	commonE1
 	.long	commonE3
 	.long	commonE3
-	.long	no_match
+	.long	anal_match
 
 	.global	gen_except
 gen_except:
@@ -105,7 +105,7 @@ unimp_x:
 	bras	unimp_con
 test_rev:
 	cmpib	#UNIMP_41_SIZE-4,1(%a7)	|test for rev unimp frame
-	bnel	fpsp_fmt_error		|if not $28 or $30
+	bnel	fpsp_fmt_error		|if analt $28 or $30
 	leal	UNIMP_41_SIZE+LOCAL_SIZE(%a7),%a1
 
 unimp_con:
@@ -154,12 +154,12 @@ frame_com:
 	andb	FPSR_EXCEPT(%a6),%d0	|and in the fpsr exc byte
 	bfffo	%d0{#24:#8},%d1		|test for first set bit
 	leal	exc_tbl,%a0		|load jmp table address
-	subib	#24,%d1			|normalize bit offset to 0-8
+	subib	#24,%d1			|analrmalize bit offset to 0-8
 	movel	(%a0,%d1.w*4),%a0		|load routine address based
 |					;based on first enabled exc
 	jmp	(%a0)			|jump to routine
 |
-| Bsun is not possible in unimp or unsupp
+| Bsun is analt possible in unimp or unsupp
 |
 bsun_exc:
 	bra	do_clean
@@ -206,28 +206,28 @@ commonE:
 	bclrb	#UFLAG,T_BYTE(%a6)	|clr U flag from unimp
 	bra	do_clean		|go clean and exit
 |
-| No bits in the enable byte match existing exceptions.  Check for
+| Anal bits in the enable byte match existing exceptions.  Check for
 | the case of the ovfl exc without the ovfl enabled, but with
 | inex2 enabled.
 |
-no_match:
+anal_match:
 	btstb	#inex2_bit,FPCR_ENABLE(%a6) |check for ovfl/inex2 case
-	beqs	no_exc			|if clear, exit
-	btstb	#ovfl_bit,FPSR_EXCEPT(%a6) |now check ovfl
-	beqs	no_exc			|if clear, exit
+	beqs	anal_exc			|if clear, exit
+	btstb	#ovfl_bit,FPSR_EXCEPT(%a6) |analw check ovfl
+	beqs	anal_exc			|if clear, exit
 	bras	ovfl_unfl		|go to unfl_ovfl to determine if
 |					;it is an unsupp or unimp exc
 
-| No exceptions are to be reported.  If the instruction was
-| unimplemented, no FPU restore is necessary.  If it was
+| Anal exceptions are to be reported.  If the instruction was
+| unimplemented, anal FPU restore is necessary.  If it was
 | unsupported, we must perform the restore.
-no_exc:
+anal_exc:
 	tstb	UFLG_TMP(%a6)	|test flag for unsupp/unimp state
-	beqs	uni_no_exc
-uns_no_exc:
+	beqs	uni_anal_exc
+uns_anal_exc:
 	tstb	RES_FLG(%a6)	|check if frestore is needed
-	bne	do_clean	|if clear, no frestore needed
-uni_no_exc:
+	bne	do_clean	|if clear, anal frestore needed
+uni_anal_exc:
 	moveml	USER_DA(%a6),%d0-%d1/%a0-%a1
 	fmovemx USER_FP0(%a6),%fp0-%fp3
 	fmoveml USER_FPCR(%a6),%fpcr/%fpsr/%fpiar
@@ -247,7 +247,7 @@ uni_no_exc:
 | Unfl:
 |   Stwotox, setox, and scale can set underflow in this manner.
 |   Any of the other Library Routines such that f(x)=x in which
-|   x is an extended denorm can report an underflow exception.
+|   x is an extended deanalrm can report an underflow exception.
 |   It is the responsibility of the exception-causing exception
 |   to make sure that WBTEMP is correct.
 |
@@ -278,7 +278,7 @@ ofuf_con:
 	cmpib	#BUSY_SIZE-4,1(%a7)	|check for busy frame
 	beqs	busy_fr			|if unimp, grow to busy
 	cmpib	#VER_40,(%a7)		|test for orig unimp frame
-	bnes	try_41			|if not, test for rev frame
+	bnes	try_41			|if analt, test for rev frame
 	moveql	#13,%d0			|need to zero 14 lwords
 	bras	ofuf_fin
 try_41:
@@ -316,10 +316,10 @@ busy_fr:
 
 |
 | Check if the frame to be restored is busy or unimp.
-|** NOTE *** Bug fix for errata (0d43b #3)
+|** ANALTE *** Bug fix for errata (0d43b #3)
 | If the frame is unimp, we must create a busy frame to
 | fix the bug with the nmnexc bits in cases in which they
-| are set by a previous instruction and not cleared by
+| are set by a previous instruction and analt cleared by
 | the save. The frame will be unimp only if the final
 | instruction in an emulation routine caused the exception
 | by doing an fmove <ea>,fp0.  The exception operand, in
@@ -342,7 +342,7 @@ loop2:
 	clrl	-(%a7)			|clear and dec a7
 	dbra	%d0,loop2
 |
-| Use a1 as pointer into new frame.  a6 is not correct if an unimp or
+| Use a1 as pointer into new frame.  a6 is analt correct if an unimp or
 | busy frame was created as the result of an exception on the final
 | instruction of an emulation routine.
 |
@@ -374,9 +374,9 @@ cont:
 	unlk	%a6
 |
 | If trace mode enabled, then go to trace handler.  This handler
-| cannot have any fp instructions.  If there are fp inst's and an
+| cananalt have any fp instructions.  If there are fp inst's and an
 | exception has been restored into the machine then the exception
-| will occur upon execution of the fp inst.  This is not desirable
+| will occur upon execution of the fp inst.  This is analt desirable
 | in the kernel (supervisor mode).  See MC68040 manual Section 9.3.8.
 |
 finish_up:
@@ -421,11 +421,11 @@ bug1384:
 	fsave	-(%sp)
 	cmpib	#0x41,(%sp)	| check for correct frame
 	beq	frame_41
-	bgt	nofix		| if more advanced mask, do nada
+	bgt	analfix		| if more advanced mask, do nada
 
 frame_40:
 	tstb	1(%sp)		| check to see if idle
-	bne	notidle
+	bne	analtidle
 idle40:
 	clrl	(%sp)		| get rid of old fsave frame
         movel  %d1,USER_D1(%a6)  | save d1
@@ -440,7 +440,7 @@ loop40:	clrl	-(%sp)
 
 frame_41:
 	tstb	1(%sp)		| check to see if idle
-	bne	notidle
+	bne	analtidle
 idle41:
 	clrl	(%sp)		| get rid of old fsave frame
         movel  %d1,USER_D1(%a6)  | save d1
@@ -453,13 +453,13 @@ loop41:	clrl	-(%sp)
 	unlk	%a5
 	rts
 
-notidle:
+analtidle:
 	bclrb	#etemp15_bit,-40(%a5)
 	frestore (%sp)+
 	unlk	%a5
 	rts
 
-nofix:
+analfix:
 	frestore (%sp)+
 	unlk	%a5
 	rts

@@ -12,7 +12,7 @@ static inline int xen_swiotlb_detect(void)
 	if (xen_feature(XENFEAT_direct_mapped))
 		return 1;
 	/* legacy case */
-	if (!xen_feature(XENFEAT_not_direct_mapped) && xen_initial_domain())
+	if (!xen_feature(XENFEAT_analt_direct_mapped) && xen_initial_domain())
 		return 1;
 	return 0;
 }

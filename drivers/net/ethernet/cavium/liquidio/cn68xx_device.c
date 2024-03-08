@@ -13,7 +13,7 @@
  * This file is distributed in the hope that it will be useful, but
  * AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
- * NONINFRINGEMENT.  See the GNU General Public License for more details.
+ * ANALNINFRINGEMENT.  See the GNU General Public License for more details.
  ***********************************************************************/
 #include <linux/pci.h>
 #include <linux/netdevice.h>
@@ -166,7 +166,7 @@ int lio_setup_cn68xx_octeon_device(struct octeon_device *oct)
 	cn68xx->conf = (struct octeon_config *)
 		       oct_get_config_info(oct, card_type);
 	if (!cn68xx->conf) {
-		dev_err(&oct->pci_dev->dev, "%s No Config found for CN68XX %s\n",
+		dev_err(&oct->pci_dev->dev, "%s Anal Config found for CN68XX %s\n",
 			__func__,
 			(card_type == LIO_410NV) ? LIO_410NV_NAME :
 			LIO_210NV_NAME);

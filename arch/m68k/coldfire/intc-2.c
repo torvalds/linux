@@ -37,7 +37,7 @@
  *	The EDGE Port interrupts are the fixed 7 external interrupts.
  *	They need some special treatment, for example they need to be acked.
  */
-#define	EINT0	64	/* Is not actually used, but spot reserved for it */
+#define	EINT0	64	/* Is analt actually used, but spot reserved for it */
 #define	EINT1	65	/* EDGE Port interrupt 1 */
 #define	EINT7	71	/* EDGE Port interrupt 7 */
 
@@ -88,9 +88,9 @@ static void intc_irq_unmask(struct irq_data *d)
 }
 
 /*
- *	Only the external (or EDGE Port) interrupts need to be acknowledged
+ *	Only the external (or EDGE Port) interrupts need to be ackanalwledged
  *	here, as part of the IRQ handler. They only really need to be ack'ed
- *	if they are in edge triggered mode, but there is no harm in doing it
+ *	if they are in edge triggered mode, but there is anal harm in doing it
  *	for all types.
  */
 static void intc_irq_ack(struct irq_data *d)

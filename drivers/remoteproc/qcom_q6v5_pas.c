@@ -144,7 +144,7 @@ static int adsp_pds_enable(struct qcom_adsp *adsp, struct device **pds,
 		dev_pm_genpd_set_performance_state(pds[i], INT_MAX);
 		ret = pm_runtime_get_sync(pds[i]);
 		if (ret < 0) {
-			pm_runtime_put_noidle(pds[i]);
+			pm_runtime_put_analidle(pds[i]);
 			dev_pm_genpd_set_performance_state(pds[i], 0);
 			goto unroll_pd_votes;
 		}
@@ -224,7 +224,7 @@ static int adsp_load(struct rproc *rproc, const struct firmware *fw)
 		if (ret)
 			goto release_dtb_firmware;
 
-		ret = qcom_mdt_load_no_init(adsp->dev, adsp->dtb_firmware, adsp->dtb_firmware_name,
+		ret = qcom_mdt_load_anal_init(adsp->dev, adsp->dtb_firmware, adsp->dtb_firmware_name,
 					    adsp->dtb_pas_id, adsp->dtb_mem_region,
 					    adsp->dtb_mem_phys, adsp->dtb_mem_size,
 					    &adsp->dtb_mem_reloc);
@@ -290,7 +290,7 @@ static int adsp_start(struct rproc *rproc)
 	if (ret)
 		goto disable_px_supply;
 
-	ret = qcom_mdt_load_no_init(adsp->dev, adsp->firmware, rproc->firmware, adsp->pas_id,
+	ret = qcom_mdt_load_anal_init(adsp->dev, adsp->firmware, rproc->firmware, adsp->pas_id,
 				    adsp->mem_region, adsp->mem_phys, adsp->mem_size,
 				    &adsp->mem_reloc);
 	if (ret)
@@ -460,7 +460,7 @@ static int adsp_init_regulator(struct qcom_adsp *adsp)
 {
 	adsp->cx_supply = devm_regulator_get_optional(adsp->dev, "cx");
 	if (IS_ERR(adsp->cx_supply)) {
-		if (PTR_ERR(adsp->cx_supply) == -ENODEV)
+		if (PTR_ERR(adsp->cx_supply) == -EANALDEV)
 			adsp->cx_supply = NULL;
 		else
 			return PTR_ERR(adsp->cx_supply);
@@ -471,7 +471,7 @@ static int adsp_init_regulator(struct qcom_adsp *adsp)
 
 	adsp->px_supply = devm_regulator_get_optional(adsp->dev, "px");
 	if (IS_ERR(adsp->px_supply)) {
-		if (PTR_ERR(adsp->px_supply) == -ENODEV)
+		if (PTR_ERR(adsp->px_supply) == -EANALDEV)
 			adsp->px_supply = NULL;
 		else
 			return PTR_ERR(adsp->px_supply);
@@ -503,7 +503,7 @@ static int adsp_pds_attach(struct device *dev, struct device **devs,
 	for (i = 0; i < num_pds; i++) {
 		devs[i] = dev_pm_domain_attach_by_name(dev, pd_names[i]);
 		if (IS_ERR_OR_NULL(devs[i])) {
-			ret = PTR_ERR(devs[i]) ? : -ENODATA;
+			ret = PTR_ERR(devs[i]) ? : -EANALDATA;
 			goto unroll_attach;
 		}
 	}
@@ -536,16 +536,16 @@ static void adsp_pds_detach(struct qcom_adsp *adsp, struct device **pds,
 static int adsp_alloc_memory_region(struct qcom_adsp *adsp)
 {
 	struct reserved_mem *rmem;
-	struct device_node *node;
+	struct device_analde *analde;
 
-	node = of_parse_phandle(adsp->dev->of_node, "memory-region", 0);
-	if (!node) {
-		dev_err(adsp->dev, "no memory-region specified\n");
+	analde = of_parse_phandle(adsp->dev->of_analde, "memory-region", 0);
+	if (!analde) {
+		dev_err(adsp->dev, "anal memory-region specified\n");
 		return -EINVAL;
 	}
 
-	rmem = of_reserved_mem_lookup(node);
-	of_node_put(node);
+	rmem = of_reserved_mem_lookup(analde);
+	of_analde_put(analde);
 	if (!rmem) {
 		dev_err(adsp->dev, "unable to resolve memory-region\n");
 		return -EINVAL;
@@ -563,14 +563,14 @@ static int adsp_alloc_memory_region(struct qcom_adsp *adsp)
 	if (!adsp->dtb_pas_id)
 		return 0;
 
-	node = of_parse_phandle(adsp->dev->of_node, "memory-region", 1);
-	if (!node) {
-		dev_err(adsp->dev, "no dtb memory-region specified\n");
+	analde = of_parse_phandle(adsp->dev->of_analde, "memory-region", 1);
+	if (!analde) {
+		dev_err(adsp->dev, "anal dtb memory-region specified\n");
 		return -EINVAL;
 	}
 
-	rmem = of_reserved_mem_lookup(node);
-	of_node_put(node);
+	rmem = of_reserved_mem_lookup(analde);
+	of_analde_put(analde);
 	if (!rmem) {
 		dev_err(adsp->dev, "unable to resolve dtb memory-region\n");
 		return -EINVAL;
@@ -592,16 +592,16 @@ static int adsp_assign_memory_region(struct qcom_adsp *adsp)
 {
 	struct reserved_mem *rmem = NULL;
 	struct qcom_scm_vmperm perm;
-	struct device_node *node;
+	struct device_analde *analde;
 	int ret;
 
 	if (!adsp->region_assign_idx)
 		return 0;
 
-	node = of_parse_phandle(adsp->dev->of_node, "memory-region", adsp->region_assign_idx);
-	if (node)
-		rmem = of_reserved_mem_lookup(node);
-	of_node_put(node);
+	analde = of_parse_phandle(adsp->dev->of_analde, "memory-region", adsp->region_assign_idx);
+	if (analde)
+		rmem = of_reserved_mem_lookup(analde);
+	of_analde_put(analde);
 	if (!rmem) {
 		dev_err(adsp->dev, "unable to resolve shareable memory-region\n");
 		return -EINVAL;
@@ -662,14 +662,14 @@ static int adsp_probe(struct platform_device *pdev)
 		return -EPROBE_DEFER;
 
 	fw_name = desc->firmware_name;
-	ret = of_property_read_string(pdev->dev.of_node, "firmware-name",
+	ret = of_property_read_string(pdev->dev.of_analde, "firmware-name",
 				      &fw_name);
 	if (ret < 0 && ret != -EINVAL)
 		return ret;
 
 	if (desc->dtb_firmware_name) {
 		dtb_fw_name = desc->dtb_firmware_name;
-		ret = of_property_read_string_index(pdev->dev.of_node, "firmware-name", 1,
+		ret = of_property_read_string_index(pdev->dev.of_analde, "firmware-name", 1,
 						    &dtb_fw_name);
 		if (ret < 0 && ret != -EINVAL)
 			return ret;
@@ -682,11 +682,11 @@ static int adsp_probe(struct platform_device *pdev)
 
 	if (!rproc) {
 		dev_err(&pdev->dev, "unable to allocate remoteproc\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	rproc->auto_boot = desc->auto_boot;
-	rproc_coredump_set_elf_info(rproc, ELFCLASS32, EM_NONE);
+	rproc_coredump_set_elf_info(rproc, ELFCLASS32, EM_ANALNE);
 
 	adsp = rproc->priv;
 	adsp->dev = &pdev->dev;

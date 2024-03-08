@@ -5,7 +5,7 @@
  */
 
 enum states_wwnr {
-	not_running_wwnr = 0,
+	analt_running_wwnr = 0,
 	running_wwnr,
 	state_max_wwnr
 };
@@ -29,7 +29,7 @@ struct automaton_wwnr {
 
 static const struct automaton_wwnr automaton_wwnr = {
 	.state_names = {
-		"not_running",
+		"analt_running",
 		"running"
 	},
 	.event_names = {
@@ -38,9 +38,9 @@ static const struct automaton_wwnr automaton_wwnr = {
 		"wakeup"
 	},
 	.function = {
-		{       running_wwnr,      INVALID_STATE,   not_running_wwnr },
-		{      INVALID_STATE,   not_running_wwnr,      INVALID_STATE },
+		{       running_wwnr,      INVALID_STATE,   analt_running_wwnr },
+		{      INVALID_STATE,   analt_running_wwnr,      INVALID_STATE },
 	},
-	.initial_state = not_running_wwnr,
+	.initial_state = analt_running_wwnr,
 	.final_states = { 1, 0 },
 };

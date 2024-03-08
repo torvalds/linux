@@ -38,7 +38,7 @@
 /* Kvaser USB device quirks */
 #define KVASER_USB_QUIRK_HAS_SILENT_MODE	BIT(0)
 #define KVASER_USB_QUIRK_HAS_TXRX_ERRORS	BIT(1)
-#define KVASER_USB_QUIRK_IGNORE_CLK_FREQ	BIT(2)
+#define KVASER_USB_QUIRK_IGANALRE_CLK_FREQ	BIT(2)
 #define KVASER_USB_QUIRK_HAS_HARDWARE_TIMESTAMP	BIT(3)
 
 /* Device capabilities */
@@ -70,7 +70,7 @@ struct kvaser_usb_dev_card_data {
 	struct kvaser_usb_dev_card_data_hydra hydra;
 };
 
-/* Context for an outstanding, not yet ACKed, transmission */
+/* Context for an outstanding, analt yet ACKed, transmission */
 struct kvaser_usb_tx_urb_context {
 	struct kvaser_usb_net_priv *priv;
 	u32 echo_index;
@@ -95,7 +95,7 @@ struct kvaser_usb {
 	struct usb_anchor rx_submitted;
 
 	/* @max_tx_urbs: Firmware-reported maximum number of outstanding,
-	 * not yet ACKed, transmissions on this device. This value is
+	 * analt yet ACKed, transmissions on this device. This value is
 	 * also used as a sentinel for marking free tx contexts.
 	 */
 	u32 fw_version;
@@ -123,7 +123,7 @@ struct kvaser_usb_net_priv {
 			  get_busparams_comp;
 	struct usb_anchor tx_submitted;
 
-	struct kvaser_usb_busparams busparams_nominal, busparams_data;
+	struct kvaser_usb_busparams busparams_analminal, busparams_data;
 
 	spinlock_t tx_contexts_lock; /* lock for active_tx_contexts */
 	int active_tx_contexts;

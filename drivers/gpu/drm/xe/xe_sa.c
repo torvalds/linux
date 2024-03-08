@@ -19,7 +19,7 @@ static void xe_sa_bo_manager_fini(struct drm_device *drm, void *arg)
 	struct xe_bo *bo = sa_manager->bo;
 
 	if (!bo) {
-		drm_err(drm, "no bo for sa manager\n");
+		drm_err(drm, "anal bo for sa manager\n");
 		return;
 	}
 
@@ -28,7 +28,7 @@ static void xe_sa_bo_manager_fini(struct drm_device *drm, void *arg)
 	if (bo->vmap.is_iomem)
 		kvfree(sa_manager->cpu_ptr);
 
-	xe_bo_unpin_map_no_vm(bo);
+	xe_bo_unpin_map_anal_vm(bo);
 	sa_manager->bo = NULL;
 }
 
@@ -43,7 +43,7 @@ struct xe_sa_manager *xe_sa_bo_manager_init(struct xe_tile *tile, u32 size, u32 
 							sizeof(*sa_manager),
 							GFP_KERNEL);
 	if (!sa_manager)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	sa_manager->bo = NULL;
 
@@ -63,9 +63,9 @@ struct xe_sa_manager *xe_sa_bo_manager_init(struct xe_tile *tile, u32 size, u32 
 	if (bo->vmap.is_iomem) {
 		sa_manager->cpu_ptr = kvzalloc(managed_size, GFP_KERNEL);
 		if (!sa_manager->cpu_ptr) {
-			xe_bo_unpin_map_no_vm(sa_manager->bo);
+			xe_bo_unpin_map_anal_vm(sa_manager->bo);
 			sa_manager->bo = NULL;
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 		}
 	} else {
 		sa_manager->cpu_ptr = bo->vmap.vaddr;

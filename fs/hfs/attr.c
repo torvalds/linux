@@ -2,7 +2,7 @@
 /*
  *  linux/fs/hfs/attr.c
  *
- * (C) 2003 Ardis Technologies <roman@ardistech.com>
+ * (C) 2003 Ardis Techanallogies <roman@ardistech.com>
  *
  * Export hfs data via xattr
  */
@@ -19,7 +19,7 @@ enum hfs_xattr_type {
 	HFS_CREATOR,
 };
 
-static int __hfs_setxattr(struct inode *inode, enum hfs_xattr_type type,
+static int __hfs_setxattr(struct ianalde *ianalde, enum hfs_xattr_type type,
 			  const void *value, size_t size, int flags)
 {
 	struct hfs_find_data fd;
@@ -27,17 +27,17 @@ static int __hfs_setxattr(struct inode *inode, enum hfs_xattr_type type,
 	struct hfs_cat_file *file;
 	int res;
 
-	if (!S_ISREG(inode->i_mode) || HFS_IS_RSRC(inode))
-		return -EOPNOTSUPP;
+	if (!S_ISREG(ianalde->i_mode) || HFS_IS_RSRC(ianalde))
+		return -EOPANALTSUPP;
 
-	res = hfs_find_init(HFS_SB(inode->i_sb)->cat_tree, &fd);
+	res = hfs_find_init(HFS_SB(ianalde->i_sb)->cat_tree, &fd);
 	if (res)
 		return res;
-	fd.search_key->cat = HFS_I(inode)->cat_key;
+	fd.search_key->cat = HFS_I(ianalde)->cat_key;
 	res = hfs_brec_find(&fd);
 	if (res)
 		goto out;
-	hfs_bnode_read(fd.bnode, &rec, fd.entryoffset,
+	hfs_banalde_read(fd.banalde, &rec, fd.entryoffset,
 			sizeof(struct hfs_cat_file));
 	file = &rec.file;
 
@@ -58,14 +58,14 @@ static int __hfs_setxattr(struct inode *inode, enum hfs_xattr_type type,
 	}
 
 	if (!res)
-		hfs_bnode_write(fd.bnode, &rec, fd.entryoffset,
+		hfs_banalde_write(fd.banalde, &rec, fd.entryoffset,
 				sizeof(struct hfs_cat_file));
 out:
 	hfs_find_exit(&fd);
 	return res;
 }
 
-static ssize_t __hfs_getxattr(struct inode *inode, enum hfs_xattr_type type,
+static ssize_t __hfs_getxattr(struct ianalde *ianalde, enum hfs_xattr_type type,
 			      void *value, size_t size)
 {
 	struct hfs_find_data fd;
@@ -73,18 +73,18 @@ static ssize_t __hfs_getxattr(struct inode *inode, enum hfs_xattr_type type,
 	struct hfs_cat_file *file;
 	ssize_t res = 0;
 
-	if (!S_ISREG(inode->i_mode) || HFS_IS_RSRC(inode))
-		return -EOPNOTSUPP;
+	if (!S_ISREG(ianalde->i_mode) || HFS_IS_RSRC(ianalde))
+		return -EOPANALTSUPP;
 
 	if (size) {
-		res = hfs_find_init(HFS_SB(inode->i_sb)->cat_tree, &fd);
+		res = hfs_find_init(HFS_SB(ianalde->i_sb)->cat_tree, &fd);
 		if (res)
 			return res;
-		fd.search_key->cat = HFS_I(inode)->cat_key;
+		fd.search_key->cat = HFS_I(ianalde)->cat_key;
 		res = hfs_brec_find(&fd);
 		if (res)
 			goto out;
-		hfs_bnode_read(fd.bnode, &rec, fd.entryoffset,
+		hfs_banalde_read(fd.banalde, &rec, fd.entryoffset,
 				sizeof(struct hfs_cat_file));
 	}
 	file = &rec.file;
@@ -114,22 +114,22 @@ out:
 }
 
 static int hfs_xattr_get(const struct xattr_handler *handler,
-			 struct dentry *unused, struct inode *inode,
+			 struct dentry *unused, struct ianalde *ianalde,
 			 const char *name, void *value, size_t size)
 {
-	return __hfs_getxattr(inode, handler->flags, value, size);
+	return __hfs_getxattr(ianalde, handler->flags, value, size);
 }
 
 static int hfs_xattr_set(const struct xattr_handler *handler,
 			 struct mnt_idmap *idmap,
-			 struct dentry *unused, struct inode *inode,
+			 struct dentry *unused, struct ianalde *ianalde,
 			 const char *name, const void *value, size_t size,
 			 int flags)
 {
 	if (!value)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
-	return __hfs_setxattr(inode, handler->flags, value, size, flags);
+	return __hfs_setxattr(ianalde, handler->flags, value, size, flags);
 }
 
 static const struct xattr_handler hfs_creator_handler = {

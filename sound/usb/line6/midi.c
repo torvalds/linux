@@ -68,7 +68,7 @@ static void line6_midi_transmit(struct snd_rawmidi_substream *substream)
 }
 
 /*
-	Notification of completion of MIDI transmission.
+	Analtification of completion of MIDI transmission.
 */
 static void midi_sent(struct urb *urb)
 {
@@ -99,7 +99,7 @@ static void midi_sent(struct urb *urb)
 }
 
 /*
-	Send an asynchronous MIDI message.
+	Send an asynchroanalus MIDI message.
 	Assumes that line6->line6midi->lock is held
 	(i.e., this function is serialized).
 */
@@ -113,13 +113,13 @@ static int send_midi_async(struct usb_line6 *line6, unsigned char *data,
 	urb = usb_alloc_urb(0, GFP_ATOMIC);
 
 	if (urb == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	transfer_buffer = kmemdup(data, length, GFP_ATOMIC);
 
 	if (transfer_buffer == NULL) {
 		usb_free_urb(urb);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	usb_fill_int_urb(urb, line6->usbdev,
@@ -272,7 +272,7 @@ int line6_init_midi(struct usb_line6 *line6)
 
 	line6midi = kzalloc(sizeof(struct snd_line6_midi), GFP_KERNEL);
 	if (!line6midi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rmidi->private_data = line6midi;
 	rmidi->private_free = snd_line6_midi_free;

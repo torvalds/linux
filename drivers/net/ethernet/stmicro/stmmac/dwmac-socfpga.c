@@ -102,12 +102,12 @@ static void socfpga_dwmac_fix_mac_speed(void *priv, unsigned int speed, unsigned
 
 static int socfpga_dwmac_parse_data(struct socfpga_dwmac *dwmac, struct device *dev)
 {
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct regmap *sys_mgr_base_addr;
 	u32 reg_offset, reg_shift;
 	int ret, index;
-	struct device_node *np_splitter = NULL;
-	struct device_node *np_sgmii_adapter = NULL;
+	struct device_analde *np_splitter = NULL;
+	struct device_analde *np_sgmii_adapter = NULL;
 	struct resource res_splitter;
 	struct resource res_tse_pcs;
 	struct resource res_sgmii_adapter;
@@ -115,19 +115,19 @@ static int socfpga_dwmac_parse_data(struct socfpga_dwmac *dwmac, struct device *
 	sys_mgr_base_addr =
 		altr_sysmgr_regmap_lookup_by_phandle(np, "altr,sysmgr-syscon");
 	if (IS_ERR(sys_mgr_base_addr)) {
-		dev_info(dev, "No sysmgr-syscon node found\n");
+		dev_info(dev, "Anal sysmgr-syscon analde found\n");
 		return PTR_ERR(sys_mgr_base_addr);
 	}
 
 	ret = of_property_read_u32_index(np, "altr,sysmgr-syscon", 1, &reg_offset);
 	if (ret) {
-		dev_info(dev, "Could not read reg_offset from sysmgr-syscon!\n");
+		dev_info(dev, "Could analt read reg_offset from sysmgr-syscon!\n");
 		return -EINVAL;
 	}
 
 	ret = of_property_read_u32_index(np, "altr,sysmgr-syscon", 2, &reg_shift);
 	if (ret) {
-		dev_info(dev, "Could not read reg_shift from sysmgr-syscon!\n");
+		dev_info(dev, "Could analt read reg_shift from sysmgr-syscon!\n");
 		return -EINVAL;
 	}
 
@@ -136,7 +136,7 @@ static int socfpga_dwmac_parse_data(struct socfpga_dwmac *dwmac, struct device *
 	np_splitter = of_parse_phandle(np, "altr,emac-splitter", 0);
 	if (np_splitter) {
 		ret = of_address_to_resource(np_splitter, 0, &res_splitter);
-		of_node_put(np_splitter);
+		of_analde_put(np_splitter);
 		if (ret) {
 			dev_info(dev, "Missing emac splitter address\n");
 			return -EINVAL;
@@ -162,7 +162,7 @@ static int socfpga_dwmac_parse_data(struct socfpga_dwmac *dwmac, struct device *
 					"%s: ERROR: missing emac splitter address\n",
 					__func__);
 				ret = -EINVAL;
-				goto err_node_put;
+				goto err_analde_put;
 			}
 
 			dwmac->splitter_base =
@@ -170,7 +170,7 @@ static int socfpga_dwmac_parse_data(struct socfpga_dwmac *dwmac, struct device *
 
 			if (IS_ERR(dwmac->splitter_base)) {
 				ret = PTR_ERR(dwmac->splitter_base);
-				goto err_node_put;
+				goto err_analde_put;
 			}
 		}
 
@@ -184,7 +184,7 @@ static int socfpga_dwmac_parse_data(struct socfpga_dwmac *dwmac, struct device *
 					"%s: ERROR: failed mapping adapter\n",
 					__func__);
 				ret = -EINVAL;
-				goto err_node_put;
+				goto err_analde_put;
 			}
 
 			dwmac->sgmii_adapter_base =
@@ -192,7 +192,7 @@ static int socfpga_dwmac_parse_data(struct socfpga_dwmac *dwmac, struct device *
 
 			if (IS_ERR(dwmac->sgmii_adapter_base)) {
 				ret = PTR_ERR(dwmac->sgmii_adapter_base);
-				goto err_node_put;
+				goto err_analde_put;
 			}
 		}
 
@@ -206,7 +206,7 @@ static int socfpga_dwmac_parse_data(struct socfpga_dwmac *dwmac, struct device *
 					"%s: ERROR: failed mapping tse control port\n",
 					__func__);
 				ret = -EINVAL;
-				goto err_node_put;
+				goto err_analde_put;
 			}
 
 			dwmac->tse_pcs_base =
@@ -214,7 +214,7 @@ static int socfpga_dwmac_parse_data(struct socfpga_dwmac *dwmac, struct device *
 
 			if (IS_ERR(dwmac->tse_pcs_base)) {
 				ret = PTR_ERR(dwmac->tse_pcs_base);
-				goto err_node_put;
+				goto err_analde_put;
 			}
 		}
 	}
@@ -222,12 +222,12 @@ static int socfpga_dwmac_parse_data(struct socfpga_dwmac *dwmac, struct device *
 	dwmac->reg_shift = reg_shift;
 	dwmac->sys_mgr_base_addr = sys_mgr_base_addr;
 	dwmac->dev = dev;
-	of_node_put(np_sgmii_adapter);
+	of_analde_put(np_sgmii_adapter);
 
 	return 0;
 
-err_node_put:
-	of_node_put(np_sgmii_adapter);
+err_analde_put:
+	of_analde_put(np_sgmii_adapter);
 	return ret;
 }
 
@@ -392,7 +392,7 @@ static int socfpga_dwmac_probe(struct platform_device *pdev)
 
 	ops = device_get_match_data(&pdev->dev);
 	if (!ops) {
-		dev_err(&pdev->dev, "no of match data provided\n");
+		dev_err(&pdev->dev, "anal of match data provided\n");
 		return -EINVAL;
 	}
 
@@ -406,7 +406,7 @@ static int socfpga_dwmac_probe(struct platform_device *pdev)
 
 	dwmac = devm_kzalloc(dev, sizeof(*dwmac), GFP_KERNEL);
 	if (!dwmac)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dwmac->stmmac_ocp_rst = devm_reset_control_get_optional(dev, "stmmaceth-ocp");
 	if (IS_ERR(dwmac->stmmac_ocp_rst)) {
@@ -521,10 +521,10 @@ static int socfpga_dwmac_resume(struct device *dev)
 	 * is "resumed" before reinitializing the enet controller since
 	 * the enet controller depends on an active phy clock to complete
 	 * a DMA reset. A DMA reset will "time out" if executed
-	 * with no phy clock input on the Synopsys enet controller.
-	 * Verified through Synopsys Case #8000711656.
+	 * with anal phy clock input on the Syanalpsys enet controller.
+	 * Verified through Syanalpsys Case #8000711656.
 	 *
-	 * Note that the phy clock is also gated when the phy is isolated.
+	 * Analte that the phy clock is also gated when the phy is isolated.
 	 * Phy "suspend" and "isolate" controls are located in phy basic
 	 * control register 0, and can be modified by the phy driver
 	 * framework.

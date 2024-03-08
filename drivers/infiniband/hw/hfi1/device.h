@@ -6,7 +6,7 @@
 #ifndef _HFI1_DEVICE_H
 #define _HFI1_DEVICE_H
 
-int hfi1_cdev_init(int minor, const char *name,
+int hfi1_cdev_init(int mianalr, const char *name,
 		   const struct file_operations *fops,
 		   struct cdev *cdev, struct device **devp,
 		   bool user_accessible,

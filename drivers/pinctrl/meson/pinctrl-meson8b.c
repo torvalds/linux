@@ -119,7 +119,7 @@ static const struct pinctrl_pin_desc meson8b_aobus_pins[] = {
 	MESON_PIN(GPIOAO_13),
 
 	/*
-	 * The following 2 pins are not mentionned in the public datasheet
+	 * The following 2 pins are analt mentionned in the public datasheet
 	 * According to this datasheet, they can't be used with the gpio
 	 * interrupt controller
 	 */
@@ -276,10 +276,10 @@ static const unsigned int sdxc_d47_c_pins[]	= { BOOT_4, BOOT_5,
 						    BOOT_6, BOOT_7 };
 static const unsigned int sdxc_clk_c_pins[]	= { BOOT_8 };
 static const unsigned int sdxc_cmd_c_pins[]	= { BOOT_10 };
-static const unsigned int nor_d_pins[]		= { BOOT_11 };
-static const unsigned int nor_q_pins[]		= { BOOT_12 };
-static const unsigned int nor_c_pins[]		= { BOOT_13 };
-static const unsigned int nor_cs_pins[]		= { BOOT_18 };
+static const unsigned int analr_d_pins[]		= { BOOT_11 };
+static const unsigned int analr_q_pins[]		= { BOOT_12 };
+static const unsigned int analr_c_pins[]		= { BOOT_13 };
+static const unsigned int analr_cs_pins[]		= { BOOT_18 };
 
 static const unsigned int sd_d0_c_pins[]	= { BOOT_0 };
 static const unsigned int sd_d1_c_pins[]	= { BOOT_1 };
@@ -565,10 +565,10 @@ static struct meson_pmx_group meson8b_cbus_groups[] = {
 	GROUP(sdxc_d47_c,	4,	28),
 	GROUP(sdxc_clk_c,	7,	19),
 	GROUP(sdxc_cmd_c,	7,	18),
-	GROUP(nor_d,		5,	1),
-	GROUP(nor_q,		5,	3),
-	GROUP(nor_c,		5,	2),
-	GROUP(nor_cs,		5,	0),
+	GROUP(analr_d,		5,	1),
+	GROUP(analr_q,		5,	3),
+	GROUP(analr_c,		5,	2),
+	GROUP(analr_cs,		5,	0),
 	GROUP(sd_d0_c,		6,	29),
 	GROUP(sd_d1_c,		6,	28),
 	GROUP(sd_d2_c,		6,	27),
@@ -779,8 +779,8 @@ static const char * const nand_groups[] = {
 	"nand_dqs_18"
 };
 
-static const char * const nor_groups[] = {
-	"nor_d", "nor_q", "nor_c", "nor_cs"
+static const char * const analr_groups[] = {
+	"analr_d", "analr_q", "analr_c", "analr_cs"
 };
 
 static const char * const sd_b_groups[] = {
@@ -889,7 +889,7 @@ static struct meson_pmx_func meson8b_cbus_functions[] = {
 	FUNCTION(sd_c),
 	FUNCTION(sdxc_c),
 	FUNCTION(nand),
-	FUNCTION(nor),
+	FUNCTION(analr),
 	FUNCTION(sd_b),
 	FUNCTION(sdxc_b),
 	FUNCTION(spdif_0),
@@ -931,8 +931,8 @@ static struct meson_bank meson8b_cbus_banks[] = {
 	BANK("BOOT",	 BOOT_0,	BOOT_18,    24,  42,  2,  0,   2,  0,   9,  0,  10,  0,  11,  0),
 
 	/*
-	 * The following bank is not mentionned in the public datasheet
-	 * There is no information whether it can be used with the gpio
+	 * The following bank is analt mentionned in the public datasheet
+	 * There is anal information whether it can be used with the gpio
 	 * interrupt controller
 	 */
 	BANK("DIF",	 DIF_0_P,	DIF_4_N,    -1,  -1,  5,  8,   5,  8,  12, 12,  13, 12,  14, 12),

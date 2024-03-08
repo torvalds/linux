@@ -12,9 +12,9 @@
 /********************/
 
 #define ETH_HSI_VER_MAJOR		3
-#define ETH_HSI_VER_MINOR		11
+#define ETH_HSI_VER_MIANALR		11
 
-#define ETH_HSI_VER_NO_PKT_LEN_TUNN         5
+#define ETH_HSI_VER_ANAL_PKT_LEN_TUNN         5
 /* Maximum number of pinned L2 connections (CIDs) */
 #define ETH_PINNED_CONN_MAX_NUM             32
 
@@ -29,8 +29,8 @@
 #define ETH_MAX_TUNN_LSO_INNER_IPV4_OFFSET	253
 #define ETH_MAX_TUNN_LSO_INNER_IPV6_OFFSET	251
 
-#define ETH_TX_MIN_BDS_PER_NON_LSO_PKT			1
-#define ETH_TX_MAX_BDS_PER_NON_LSO_PACKET		18
+#define ETH_TX_MIN_BDS_PER_ANALN_LSO_PKT			1
+#define ETH_TX_MAX_BDS_PER_ANALN_LSO_PACKET		18
 #define ETH_TX_MAX_BDS_PER_LSO_PACKET			255
 #define ETH_TX_MAX_LSO_HDR_NBD				4
 #define ETH_TX_MIN_BDS_PER_LSO_PKT			3
@@ -38,7 +38,7 @@
 #define ETH_TX_MIN_BDS_PER_IPV6_WITH_EXT_PKT		2
 #define ETH_TX_MIN_BDS_PER_PKT_W_LOOPBACK_MODE		2
 #define ETH_TX_MIN_BDS_PER_PKT_W_VPORT_FORWARDING	4
-#define ETH_TX_MAX_NON_LSO_PKT_LEN		(9700 - (4 + 4 + 12 + 8))
+#define ETH_TX_MAX_ANALN_LSO_PKT_LEN		(9700 - (4 + 4 + 12 + 8))
 #define ETH_TX_MAX_LSO_HDR_BYTES			510
 #define ETH_TX_LSO_WINDOW_BDS_NUM			(18 - 1)
 #define ETH_TX_LSO_WINDOW_MIN_LEN			9700
@@ -98,7 +98,7 @@ enum eth_addr_type {
 	BROADCAST_ADDRESS,
 	MULTICAST_ADDRESS,
 	UNICAST_ADDRESS,
-	UNKNOWN_ADDRESS,
+	UNKANALWN_ADDRESS,
 	MAX_ETH_ADDR_TYPE
 };
 
@@ -329,7 +329,7 @@ struct eth_rx_pmd_cqe {
 };
 
 enum eth_rx_tunn_type {
-	ETH_RX_NO_TUNN,
+	ETH_RX_ANAL_TUNN,
 	ETH_RX_TUNN_GENEVE,
 	ETH_RX_TUNN_GRE,
 	ETH_RX_TUNN_VXLAN,
@@ -343,9 +343,9 @@ enum eth_tpa_end_reason {
 	ETH_AGG_END_MAX_LEN,
 	ETH_AGG_END_LAST_SEG,
 	ETH_AGG_END_TIMEOUT,
-	ETH_AGG_END_NOT_CONSISTENT,
+	ETH_AGG_END_ANALT_CONSISTENT,
 	ETH_AGG_END_OUT_OF_ORDER,
-	ETH_AGG_END_NON_TPA_SEG,
+	ETH_AGG_END_ANALN_TPA_SEG,
 	MAX_ETH_TPA_END_REASON
 };
 
@@ -422,7 +422,7 @@ struct eth_tx_data_bd {
 	__le16 reserved3;
 };
 
-/* The common non-special TX BD ring element */
+/* The common analn-special TX BD ring element */
 struct eth_tx_bd {
 	struct regpair addr;
 	__le16 nbytes;

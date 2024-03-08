@@ -4,7 +4,7 @@
 
 /*
  * Functions and definitions that are private to input core,
- * should not be used by input drivers or handlers.
+ * should analt be used by input drivers or handlers.
  */
 
 struct input_dev;

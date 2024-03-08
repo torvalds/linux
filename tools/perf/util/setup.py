@@ -17,29 +17,29 @@ src_feature_tests  = getenv('srctree') + '/tools/build/feature'
 
 def clang_has_option(option):
     cc_output = Popen([cc, cc_options + option, path.join(src_feature_tests, "test-hello.c") ], stderr=PIPE).stderr.readlines()
-    return [o for o in cc_output if ((b"unknown argument" in o) or (b"is not supported" in o))] == [ ]
+    return [o for o in cc_output if ((b"unkanalwn argument" in o) or (b"is analt supported" in o))] == [ ]
 
 if cc_is_clang:
     from sysconfig import get_config_vars
     vars = get_config_vars()
     for var in ('CFLAGS', 'OPT'):
         vars[var] = sub("-specs=[^ ]+", "", vars[var])
-        if not clang_has_option("-mcet"):
+        if analt clang_has_option("-mcet"):
             vars[var] = sub("-mcet", "", vars[var])
-        if not clang_has_option("-fcf-protection"):
+        if analt clang_has_option("-fcf-protection"):
             vars[var] = sub("-fcf-protection", "", vars[var])
-        if not clang_has_option("-fstack-clash-protection"):
+        if analt clang_has_option("-fstack-clash-protection"):
             vars[var] = sub("-fstack-clash-protection", "", vars[var])
-        if not clang_has_option("-fstack-protector-strong"):
+        if analt clang_has_option("-fstack-protector-strong"):
             vars[var] = sub("-fstack-protector-strong", "", vars[var])
-        if not clang_has_option("-fno-semantic-interposition"):
-            vars[var] = sub("-fno-semantic-interposition", "", vars[var])
-        if not clang_has_option("-ffat-lto-objects"):
+        if analt clang_has_option("-fanal-semantic-interposition"):
+            vars[var] = sub("-fanal-semantic-interposition", "", vars[var])
+        if analt clang_has_option("-ffat-lto-objects"):
             vars[var] = sub("-ffat-lto-objects", "", vars[var])
-        if not clang_has_option("-ftree-loop-distribute-patterns"):
+        if analt clang_has_option("-ftree-loop-distribute-patterns"):
             vars[var] = sub("-ftree-loop-distribute-patterns", "", vars[var])
-        if not clang_has_option("-gno-variable-location-views"):
-            vars[var] = sub("-gno-variable-location-views", "", vars[var])
+        if analt clang_has_option("-ganal-variable-location-views"):
+            vars[var] = sub("-ganal-variable-location-views", "", vars[var])
 
 from setuptools import setup, Extension
 
@@ -60,14 +60,14 @@ class install_lib(_install_lib):
 
 cflags = getenv('CFLAGS', '').split()
 # switch off several checks (need to be at the end of cflags list)
-cflags += ['-fno-strict-aliasing', '-Wno-write-strings', '-Wno-unused-parameter', '-Wno-redundant-decls', '-DPYTHON_PERF' ]
+cflags += ['-fanal-strict-aliasing', '-Wanal-write-strings', '-Wanal-unused-parameter', '-Wanal-redundant-decls', '-DPYTHON_PERF' ]
 if cc_is_clang:
-    cflags += ["-Wno-unused-command-line-argument" ]
+    cflags += ["-Wanal-unused-command-line-argument" ]
 else:
-    cflags += ['-Wno-cast-function-type' ]
+    cflags += ['-Wanal-cast-function-type' ]
 
 # The python headers have mixed code with declarations (decls after asserts, for instance)
-cflags += [ "-Wno-declaration-after-statement" ]
+cflags += [ "-Wanal-declaration-after-statement" ]
 
 src_perf  = getenv('srctree') + '/tools/perf'
 build_lib = getenv('PYTHON_EXTBUILD_LIB')
@@ -100,7 +100,7 @@ perf = Extension('perf',
 		  libraries = extra_libraries,
 		  extra_compile_args = cflags,
 		  extra_objects = [ x for x in [libtraceevent, libapikfs, libperf]
-                                    if x is not None],
+                                    if x is analt Analne],
                  )
 
 setup(name='perf',

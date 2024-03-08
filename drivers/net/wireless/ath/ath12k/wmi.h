@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-3-Clause-Clear */
 /*
  * Copyright (c) 2018-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #ifndef ATH12K_WMI_H
@@ -17,15 +17,15 @@
  * _event means that this is a firmware event sent from firmware to host
  *
  * _params is a structure which is embedded either into _cmd or _event (or
- * both), it is not sent individually.
+ * both), it is analt sent individually.
  *
- * _arg is used inside the host, the firmware does not see that at all.
+ * _arg is used inside the host, the firmware does analt see that at all.
  */
 
 struct ath12k_base;
 struct ath12k;
 
-/* There is no signed version of __le32, so for a temporary solution come
+/* There is anal signed version of __le32, so for a temporary solution come
  * up with our own version. The idea is from fs/ntfs/endian.h.
  *
  * Use a_ prefix so that it doesn't conflict if we get proper support to
@@ -47,7 +47,7 @@ static inline s32 a_sle32_to_cpu(a_sle32 val)
 #define MAX_HE_NSS               8
 #define MAX_HE_MODULATION        8
 #define MAX_HE_RU                4
-#define HE_MODULATION_NONE       7
+#define HE_MODULATION_ANALNE       7
 #define HE_PET_0_USEC            0
 #define HE_PET_8_USEC            1
 #define HE_PET_16_USEC           2
@@ -179,9 +179,9 @@ struct wmi_tlv {
 /* HW mode config type replicated from FW header
  * @WMI_HOST_HW_MODE_SINGLE: Only one PHY is active.
  * @WMI_HOST_HW_MODE_DBS: Both PHYs are active in different bands,
- *                        one in 2G and another in 5G.
+ *                        one in 2G and aanalther in 5G.
  * @WMI_HOST_HW_MODE_SBS_PASSIVE: Both PHYs are in passive mode (only rx) in
- *                        same band; no tx allowed.
+ *                        same band; anal tx allowed.
  * @WMI_HOST_HW_MODE_SBS: Both PHYs are active in the same band.
  *                        Support for both PHYs within one band is planned
  *                        for 5G only(as indicated in WMI_MAC_PHY_CAPABILITIES),
@@ -403,7 +403,7 @@ enum wmi_tlv_cmd_id {
 	WMI_PEER_ADD_PROXY_STA_ENTRY_CMDID,
 	WMI_PEER_SMART_ANT_SET_TX_ANTENNA_CMDID,
 	WMI_PEER_SMART_ANT_SET_TRAIN_INFO_CMDID,
-	WMI_PEER_SMART_ANT_SET_NODE_CONFIG_OPS_CMDID,
+	WMI_PEER_SMART_ANT_SET_ANALDE_CONFIG_OPS_CMDID,
 	WMI_PEER_ATF_REQUEST_CMDID,
 	WMI_PEER_BWF_REQUEST_CMDID,
 	WMI_PEER_REORDER_QUEUE_SETUP_CMDID,
@@ -569,7 +569,7 @@ enum wmi_tlv_cmd_id {
 	WMI_GPIO_OUTPUT_CMDID,
 	WMI_TXBF_CMDID,
 	WMI_FWTEST_VDEV_MCC_SET_TBTT_MODE_CMDID = WMI_TLV_CMD(WMI_GRP_FWTEST),
-	WMI_FWTEST_P2P_SET_NOA_PARAM_CMDID,
+	WMI_FWTEST_P2P_SET_ANALA_PARAM_CMDID,
 	WMI_UNIT_TEST_CMDID,
 	WMI_FWTEST_CMDID,
 	WMI_QBOOST_CFG_CMDID,
@@ -608,7 +608,7 @@ enum wmi_tlv_cmd_id {
 	WMI_OBSS_SCAN_ENABLE_CMDID = WMI_TLV_CMD(WMI_GRP_OBSS_OFL),
 	WMI_OBSS_SCAN_DISABLE_CMDID,
 	WMI_OBSS_COLOR_COLLISION_DET_CONFIG_CMDID,
-	WMI_LPI_MGMT_SNOOPING_CONFIG_CMDID = WMI_TLV_CMD(WMI_GRP_LPI),
+	WMI_LPI_MGMT_SANALOPING_CONFIG_CMDID = WMI_TLV_CMD(WMI_GRP_LPI),
 	WMI_LPI_START_SCAN_CMDID,
 	WMI_LPI_STOP_SCAN_CMDID,
 	WMI_EXTSCAN_START_CMDID = WMI_TLV_CMD(WMI_GRP_EXTSCAN),
@@ -759,7 +759,7 @@ enum wmi_tlv_event_id {
 	WMI_PROFILE_MATCH,
 	WMI_ROAM_SYNCH_EVENTID,
 	WMI_P2P_DISC_EVENTID = WMI_TLV_CMD(WMI_GRP_P2P),
-	WMI_P2P_NOA_EVENTID,
+	WMI_P2P_ANALA_EVENTID,
 	WMI_P2P_LISTEN_OFFLOAD_STOPPED_EVENTID,
 	WMI_AP_PS_EGAP_INFO_EVENTID = WMI_TLV_CMD(WMI_GRP_AP_PS),
 	WMI_PDEV_RESUME_EVENTID = WMI_TLV_CMD(WMI_GRP_SUSPEND),
@@ -891,7 +891,7 @@ enum wmi_tlv_pdev_param {
 	WMI_PDEV_PARAM_RESMGR_OFFCHAN_MODE,
 	WMI_PDEV_PARAM_PROTECTION_MODE,
 	WMI_PDEV_PARAM_DYNAMIC_BW,
-	WMI_PDEV_PARAM_NON_AGG_SW_RETRY_TH,
+	WMI_PDEV_PARAM_ANALN_AGG_SW_RETRY_TH,
 	WMI_PDEV_PARAM_AGG_SW_RETRY_TH,
 	WMI_PDEV_PARAM_STA_KICKOUT_TH,
 	WMI_PDEV_PARAM_AC_AGGRSIZE_SCALING,
@@ -982,8 +982,8 @@ enum wmi_tlv_pdev_param {
 	WMI_PDEV_PARAM_SET_BURST_MODE_CMDID,
 	WMI_PDEV_PARAM_EN_STATS,
 	WMI_PDEV_PARAM_MU_GROUP_POLICY,
-	WMI_PDEV_PARAM_NOISE_DETECTION,
-	WMI_PDEV_PARAM_NOISE_THRESHOLD,
+	WMI_PDEV_PARAM_ANALISE_DETECTION,
+	WMI_PDEV_PARAM_ANALISE_THRESHOLD,
 	WMI_PDEV_PARAM_DPD_ENABLE,
 	WMI_PDEV_PARAM_SET_MCAST_BCAST_ECHO,
 	WMI_PDEV_PARAM_ATF_STRICT_SCH,
@@ -1001,8 +1001,8 @@ enum wmi_tlv_pdev_param {
 	WMI_PDEV_PARAM_WAPI_MBSSID_OFFSET,
 	WMI_PDEV_PARAM_ARP_DBG_SRCADDR,
 	WMI_PDEV_PARAM_ARP_DBG_DSTADDR,
-	WMI_PDEV_PARAM_ATF_OBSS_NOISE_SCH,
-	WMI_PDEV_PARAM_ATF_OBSS_NOISE_SCALING_FACTOR,
+	WMI_PDEV_PARAM_ATF_OBSS_ANALISE_SCH,
+	WMI_PDEV_PARAM_ATF_OBSS_ANALISE_SCALING_FACTOR,
 	WMI_PDEV_PARAM_CUST_TXPOWER_SCALE,
 	WMI_PDEV_PARAM_ATF_DYNAMIC_ENABLE,
 	WMI_PDEV_PARAM_CTRL_RETRY_LIMIT,
@@ -1022,7 +1022,7 @@ enum wmi_tlv_pdev_param {
 	WMI_PDEV_PARAM_PEER_STATS_INFO_ENABLE,
 	WMI_PDEV_PARAM_FAST_PWR_TRANSITION,
 	WMI_PDEV_PARAM_RADIO_CHAN_STATS_ENABLE,
-	WMI_PDEV_PARAM_RADIO_DIAGNOSIS_ENABLE,
+	WMI_PDEV_PARAM_RADIO_DIAGANALSIS_ENABLE,
 	WMI_PDEV_PARAM_MESH_MCAST_ENABLE,
 };
 
@@ -1065,7 +1065,7 @@ enum wmi_tlv_vdev_param {
 	WMI_VDEV_PARAM_MCAST_DATA_RATE,
 	WMI_VDEV_PARAM_MCAST_INDICATE,
 	WMI_VDEV_PARAM_DHCP_INDICATE,
-	WMI_VDEV_PARAM_UNKNOWN_DEST_INDICATE,
+	WMI_VDEV_PARAM_UNKANALWN_DEST_INDICATE,
 	WMI_VDEV_PARAM_AP_KEEPALIVE_MIN_IDLE_INACTIVE_TIME_SECS,
 	WMI_VDEV_PARAM_AP_KEEPALIVE_MAX_IDLE_INACTIVE_TIME_SECS,
 	WMI_VDEV_PARAM_AP_KEEPALIVE_MAX_UNRESPONSIVE_TIME_SECS,
@@ -1128,7 +1128,7 @@ enum wmi_tlv_vdev_param {
 	WMI_VDEV_PARAM_AMPDU_PER_AC,
 	WMI_VDEV_PARAM_RX_FILTER,
 	WMI_VDEV_PARAM_MGMT_TX_POWER,
-	WMI_VDEV_PARAM_NON_AGG_SW_RETRY_TH,
+	WMI_VDEV_PARAM_ANALN_AGG_SW_RETRY_TH,
 	WMI_VDEV_PARAM_AGG_SW_RETRY_TH,
 	WMI_VDEV_PARAM_DISABLE_DYN_BW_RTS,
 	WMI_VDEV_PARAM_ATF_SSID_SCHED_POLICY,
@@ -1224,7 +1224,7 @@ enum wmi_tlv_tag {
 	WMI_TAG_PDEV_QVIT_EVENT,
 	WMI_TAG_HOST_SWBA_EVENT,
 	WMI_TAG_TIM_INFO,
-	WMI_TAG_P2P_NOA_INFO,
+	WMI_TAG_P2P_ANALA_INFO,
 	WMI_TAG_STATS_EVENT,
 	WMI_TAG_AVOID_FREQ_RANGES_EVENT,
 	WMI_TAG_AVOID_FREQ_RANGE_DESC,
@@ -1244,7 +1244,7 @@ enum wmi_tlv_tag {
 	WMI_TAG_VDEV_CREATE_CMD,
 	WMI_TAG_VDEV_DELETE_CMD,
 	WMI_TAG_VDEV_START_REQUEST_CMD,
-	WMI_TAG_P2P_NOA_DESCRIPTOR,
+	WMI_TAG_P2P_ANALA_DESCRIPTOR,
 	WMI_TAG_P2P_GO_SET_BEACON_IE,
 	WMI_TAG_GTK_OFFLOAD_CMD,
 	WMI_TAG_VDEV_UP_CMD,
@@ -1370,7 +1370,7 @@ enum wmi_tlv_tag {
 	WMI_TAG_STA_SMPS_FORCE_MODE_CMD,
 	WMI_TAG_SET_MCASTBCAST_FILTER_CMD,
 	WMI_TAG_P2P_SET_OPPPS_CMD,
-	WMI_TAG_P2P_SET_NOA_CMD,
+	WMI_TAG_P2P_SET_ANALA_CMD,
 	WMI_TAG_BA_REQ_SSN_CMD_SUB_STRUCT_PARAM,
 	WMI_TAG_BA_REQ_SSN_EVENT_SUB_STRUCT_PARAM,
 	WMI_TAG_STA_SMPS_PARAM_CMD,
@@ -1378,7 +1378,7 @@ enum wmi_tlv_tag {
 	WMI_TAG_MCC_SCHED_TRAFFIC_STATS_CMD,
 	WMI_TAG_MCC_SCHED_STA_TRAFFIC_STATS,
 	WMI_TAG_OFFLOAD_BCN_TX_STATUS_EVENT,
-	WMI_TAG_P2P_NOA_EVENT,
+	WMI_TAG_P2P_ANALA_EVENT,
 	WMI_TAG_HB_SET_ENABLE_CMD,
 	WMI_TAG_HB_SET_TCP_PARAMS_CMD,
 	WMI_TAG_HB_SET_TCP_PKT_FILTER_CMD,
@@ -1451,7 +1451,7 @@ enum wmi_tlv_tag {
 	WMI_TAG_PEER_LINK_STATS,
 	WMI_TAG_WMM_AC_STATS,
 	WMI_TAG_IFACE_LINK_STATS,
-	WMI_TAG_LPI_MGMT_SNOOPING_CONFIG_CMD,
+	WMI_TAG_LPI_MGMT_SANALOPING_CONFIG_CMD,
 	WMI_TAG_LPI_START_SCAN_CMD,
 	WMI_TAG_LPI_STOP_SCAN_CMD,
 	WMI_TAG_LPI_RESULT_EVENT,
@@ -1616,7 +1616,7 @@ enum wmi_tlv_tag {
 	WMI_TAG_PDEV_SMART_ANT_SET_RX_ANTENNA_CMD,
 	WMI_TAG_PEER_SMART_ANT_SET_TX_ANTENNA_CMD,
 	WMI_TAG_PEER_SMART_ANT_SET_TRAIN_ANTENNA_CMD,
-	WMI_TAG_PEER_SMART_ANT_SET_NODE_CONFIG_OPS_CMD,
+	WMI_TAG_PEER_SMART_ANT_SET_ANALDE_CONFIG_OPS_CMD,
 	WMI_TAG_PDEV_SET_ANT_SWITCH_TBL_CMD,
 	WMI_TAG_PDEV_SET_CTL_TABLE_CMD,
 	WMI_TAG_PDEV_SET_MIMOGAIN_TABLE_CMD,
@@ -2116,7 +2116,7 @@ enum wmi_tlv_service {
 	WMI_TLV_SERVICE_PER_VDEV_CHAINMASK_CONFIG_SUPPORT = 173,
 	WMI_TLV_SERVICE_TX_DATA_MGMT_ACK_RSSI = 174,
 	WMI_TLV_SERVICE_NAN_DISABLE_SUPPORT = 175,
-	WMI_TLV_SERVICE_HTT_H2T_NO_HTC_HDR_LEN_IN_MSG_LEN = 176,
+	WMI_TLV_SERVICE_HTT_H2T_ANAL_HTC_HDR_LEN_IN_MSG_LEN = 176,
 	WMI_TLV_SERVICE_COEX_SUPPORT_UNEQUAL_ISOLATION = 177,
 	WMI_TLV_SERVICE_HW_DB2DBM_CONVERSION_SUPPORT = 178,
 	WMI_TLV_SERVICE_SUPPORT_EXTEND_ADDRESS = 179,
@@ -2167,7 +2167,7 @@ enum wmi_tlv_service {
 };
 
 enum {
-	WMI_SMPS_FORCED_MODE_NONE = 0,
+	WMI_SMPS_FORCED_MODE_ANALNE = 0,
 	WMI_SMPS_FORCED_MODE_DISABLED,
 	WMI_SMPS_FORCED_MODE_STATIC,
 	WMI_SMPS_FORCED_MODE_DYNAMIC
@@ -2212,7 +2212,7 @@ enum wmi_preamble {
 };
 
 enum wmi_peer_smps_state {
-	WMI_PEER_SMPS_PS_NONE =	0,
+	WMI_PEER_SMPS_PS_ANALNE =	0,
 	WMI_PEER_SMPS_STATIC  = 1,
 	WMI_PEER_SMPS_DYNAMIC = 2
 };
@@ -2774,7 +2774,7 @@ struct wmi_vdev_start_request_cmd {
 	struct ath12k_wmi_ssid_params ssid;
 	__le32 bcn_tx_rate;
 	__le32 bcn_txpower;
-	__le32 num_noa_descriptors;
+	__le32 num_anala_descriptors;
 	__le32 disable_hw_ack;
 	__le32 preferred_tx_streams;
 	__le32 preferred_rx_streams;
@@ -2848,7 +2848,7 @@ enum wmi_phy_mode {
 	MODE_11BE_EHT320 = 30,
 	MODE_11BE_EHT20_2G = 31,
 	MODE_11BE_EHT40_2G = 32,
-	MODE_UNKNOWN = 33,
+	MODE_UNKANALWN = 33,
 	MODE_MAX = 33,
 };
 
@@ -2884,7 +2884,7 @@ struct wmi_vdev_start_req_arg {
 	u32 regdomain;
 	u32 pref_rx_streams;
 	u32 pref_tx_streams;
-	u32 num_noa_descriptors;
+	u32 num_anala_descriptors;
 	u32 min_data_rate;
 	u32 mbssid_flags;
 	u32 mbssid_tx_vdev_id;
@@ -2979,14 +2979,14 @@ struct ath12k_wmi_rx_reorder_queue_remove_arg {
 
 #define HE_VHT_SOUNDING_MODE_ENABLE		1
 #define HE_SU_MU_SOUNDING_MODE_ENABLE		1
-#define HE_TRIG_NONTRIG_SOUNDING_MODE_ENABLE	1
+#define HE_TRIG_ANALNTRIG_SOUNDING_MODE_ENABLE	1
 
 /* HE or VHT Sounding */
 #define HE_VHT_SOUNDING_MODE		BIT(0)
 /* SU or MU Sounding */
 #define HE_SU_MU_SOUNDING_MODE		BIT(2)
-/* Trig or Non-Trig Sounding */
-#define HE_TRIG_NONTRIG_SOUNDING_MODE	BIT(3)
+/* Trig or Analn-Trig Sounding */
+#define HE_TRIG_ANALNTRIG_SOUNDING_MODE	BIT(3)
 
 #define WMI_TXBF_STS_CAP_OFFSET_LSB	4
 #define WMI_TXBF_STS_CAP_OFFSET_MASK	0x70
@@ -3019,7 +3019,7 @@ struct wmi_peer_reorder_queue_setup_cmd {
 	__le32 tid;
 	__le32 queue_ptr_lo;
 	__le32 queue_ptr_hi;
-	__le32 queue_no;
+	__le32 queue_anal;
 	__le32 ba_window_size_valid;
 	__le32 ba_window_size;
 } __packed;
@@ -3194,7 +3194,7 @@ struct  wmi_start_scan_cmd {
 	__le32 scan_req_id;
 	__le32 vdev_id;
 	__le32 scan_priority;
-	__le32 notify_scan_events;
+	__le32 analtify_scan_events;
 	__le32 dwell_time_active;
 	__le32 dwell_time_passive;
 	__le32 min_rest_time;
@@ -3241,7 +3241,7 @@ struct  wmi_start_scan_cmd {
 #define WMI_SCAN_FLAG_STRICT_PASSIVE_ON_PCHN 0x10000
 #define WMI_SCAN_FLAG_HALF_RATE_SUPPORT      0x20000
 #define WMI_SCAN_FLAG_QUARTER_RATE_SUPPORT   0x40000
-#define WMI_SCAN_RANDOM_SEQ_NO_IN_PROBE_REQ 0x80000
+#define WMI_SCAN_RANDOM_SEQ_ANAL_IN_PROBE_REQ 0x80000
 #define WMI_SCAN_ENABLE_IE_WHTELIST_IN_PROBE_REQ 0x100000
 
 #define WMI_SCAN_DWELL_MODE_MASK GENMASK(23, 21)
@@ -3337,7 +3337,7 @@ struct ath12k_wmi_scan_req_arg {
 	u32 num_ssids;
 	u32 n_probes;
 	u32 *chan_list;
-	u32 notify_scan_events;
+	u32 analtify_scan_events;
 	struct cfg80211_ssid ssid[WLAN_SCAN_MAX_NUM_SSID];
 	struct ath12k_wmi_mac_addr_params bssid_list[WLAN_SCAN_MAX_NUM_BSSID];
 	struct ath12k_wmi_element_info_arg extraie;
@@ -3361,7 +3361,7 @@ struct wmi_start_scan_arg {
 	u32 scan_req_id;
 	u32 vdev_id;
 	u32 scan_priority;
-	u32 notify_scan_events;
+	u32 analtify_scan_events;
 	u32 dwell_time_active;
 	u32 dwell_time_passive;
 	u32 min_rest_time;
@@ -3466,7 +3466,7 @@ enum wmi_sta_ps_mode {
 #define ATH12K_WMI_FW_HANG_ASSERT_TYPE 1
 #define ATH12K_WMI_FW_HANG_DELAY 0
 
-/* type, 0:unused 1: ASSERT 2: not respond detect command
+/* type, 0:unused 1: ASSERT 2: analt respond detect command
  * delay_time_ms, the simulate will delay time
  */
 
@@ -3898,7 +3898,7 @@ struct wmi_vdev_start_resp_event {
 enum wmi_vdev_start_resp_status_code {
 	WMI_VDEV_START_RESPONSE_STATUS_SUCCESS = 0,
 	WMI_VDEV_START_RESPONSE_INVALID_VDEVID = 1,
-	WMI_VDEV_START_RESPONSE_NOT_SUPPORTED = 2,
+	WMI_VDEV_START_RESPONSE_ANALT_SUPPORTED = 2,
 	WMI_VDEV_START_RESPONSE_DFS_VIOLATION = 3,
 	WMI_VDEV_START_RESPONSE_INVALID_REGDOMAIN = 4,
 };
@@ -3920,23 +3920,23 @@ enum wmi_reg_6g_client_type {
 
 /* Regulatory Rule Flags Passed by FW */
 #define REGULATORY_CHAN_DISABLED     BIT(0)
-#define REGULATORY_CHAN_NO_IR        BIT(1)
+#define REGULATORY_CHAN_ANAL_IR        BIT(1)
 #define REGULATORY_CHAN_RADAR        BIT(3)
-#define REGULATORY_CHAN_NO_OFDM      BIT(6)
+#define REGULATORY_CHAN_ANAL_OFDM      BIT(6)
 #define REGULATORY_CHAN_INDOOR_ONLY  BIT(9)
 
-#define REGULATORY_CHAN_NO_HT40      BIT(4)
-#define REGULATORY_CHAN_NO_80MHZ     BIT(7)
-#define REGULATORY_CHAN_NO_160MHZ    BIT(8)
-#define REGULATORY_CHAN_NO_20MHZ     BIT(11)
-#define REGULATORY_CHAN_NO_10MHZ     BIT(12)
+#define REGULATORY_CHAN_ANAL_HT40      BIT(4)
+#define REGULATORY_CHAN_ANAL_80MHZ     BIT(7)
+#define REGULATORY_CHAN_ANAL_160MHZ    BIT(8)
+#define REGULATORY_CHAN_ANAL_20MHZ     BIT(11)
+#define REGULATORY_CHAN_ANAL_10MHZ     BIT(12)
 
 enum {
 	WMI_REG_SET_CC_STATUS_PASS = 0,
-	WMI_REG_CURRENT_ALPHA2_NOT_FOUND = 1,
-	WMI_REG_INIT_ALPHA2_NOT_FOUND = 2,
-	WMI_REG_SET_CC_CHANGE_NOT_ALLOWED = 3,
-	WMI_REG_SET_CC_STATUS_NO_MEMORY = 4,
+	WMI_REG_CURRENT_ALPHA2_ANALT_FOUND = 1,
+	WMI_REG_INIT_ALPHA2_ANALT_FOUND = 2,
+	WMI_REG_SET_CC_CHANGE_ANALT_ALLOWED = 3,
+	WMI_REG_SET_CC_STATUS_ANAL_MEMORY = 4,
 	WMI_REG_SET_CC_STATUS_FAIL = 5,
 };
 
@@ -4016,7 +4016,7 @@ struct wmi_vdev_stopped_event {
 struct wmi_pdev_bss_chan_info_event {
 	__le32 pdev_id;
 	__le32 freq;	/* Units in MHz */
-	__le32 noise_floor;	/* units are dBm */
+	__le32 analise_floor;	/* units are dBm */
 	/* rx clear - how often the channel was unused */
 	__le32 rx_clear_count_low;
 	__le32 rx_clear_count_high;
@@ -4163,7 +4163,7 @@ struct wmi_scan_event {
 	/* TSF Timestamp when the scan event (%WMI_SCAN_EVENT_) is completed
 	 * In case of AP it is TSF of the AP vdev
 	 * In case of STA connected state, this is the TSF of the AP
-	 * In case of STA not connected, it will be the free running HW timer
+	 * In case of STA analt connected, it will be the free running HW timer
 	 */
 	__le32 tsf_timestamp;
 } __packed;
@@ -4200,7 +4200,7 @@ struct wmi_chan_info_event {
 	__le32 err_code;
 	__le32 freq;
 	__le32 cmd_flags;
-	__le32 noise_floor;
+	__le32 analise_floor;
 	__le32 rx_clear_count;
 	__le32 cycle_count;
 	__le32 chan_tx_pwr_range;
@@ -4241,12 +4241,12 @@ enum wmi_vdev_type {
 };
 
 enum wmi_vdev_subtype {
-	WMI_VDEV_SUBTYPE_NONE,
+	WMI_VDEV_SUBTYPE_ANALNE,
 	WMI_VDEV_SUBTYPE_P2P_DEVICE,
 	WMI_VDEV_SUBTYPE_P2P_CLIENT,
 	WMI_VDEV_SUBTYPE_P2P_GO,
 	WMI_VDEV_SUBTYPE_PROXY_STA,
-	WMI_VDEV_SUBTYPE_MESH_NON_11S,
+	WMI_VDEV_SUBTYPE_MESH_ANALN_11S,
 	WMI_VDEV_SUBTYPE_MESH_11S,
 };
 
@@ -4280,14 +4280,14 @@ enum wmi_sta_ps_param_tx_wake_threshold {
 
 /* The maximum number of PS-Poll frames the FW will send in response to
  * traffic advertised in TIM before waking up (by sending a null frame with PS
- * = 0). Value 0 has a special meaning: there is no maximum count and the FW
+ * = 0). Value 0 has a special meaning: there is anal maximum count and the FW
  * will send as many PS-Poll as are necessary to retrieve buffered BU. This
  * parameter is used when the RX wake policy is
- * WMI_STA_PS_RX_WAKE_POLICY_POLL_UAPSD and ignored when the RX wake
+ * WMI_STA_PS_RX_WAKE_POLICY_POLL_UAPSD and iganalred when the RX wake
  * policy is WMI_STA_PS_RX_WAKE_POLICY_WAKE.
  */
 enum wmi_sta_ps_param_pspoll_count {
-	WMI_STA_PS_PSPOLL_COUNT_NO_MAX = 0,
+	WMI_STA_PS_PSPOLL_COUNT_ANAL_MAX = 0,
 	/* Values greater than 0 indicate the maximum number of PS-Poll frames
 	 * FW will send before waking up.
 	 */
@@ -4367,7 +4367,7 @@ enum wmi_key_type {
 };
 
 enum wmi_cipher_type {
-	WMI_CIPHER_NONE = 0, /* clear key */
+	WMI_CIPHER_ANALNE = 0, /* clear key */
 	WMI_CIPHER_WEP = 1,
 	WMI_CIPHER_TKIP = 2,
 	WMI_CIPHER_AES_OCB = 3,
@@ -4381,7 +4381,7 @@ enum wmi_cipher_type {
 };
 
 /* Value to disable fixed rate setting */
-#define WMI_FIXED_RATE_NONE	(0xffff)
+#define WMI_FIXED_RATE_ANALNE	(0xffff)
 
 #define ATH12K_RC_VERSION_OFFSET	28
 #define ATH12K_RC_PREAMBLE_OFFSET	8
@@ -4417,7 +4417,7 @@ enum wmi_rtscts_prot_mode {
 /**
  * enum wmi_rtscts_profile - Selection of RTS CTS profile along with enabling
  *                           protection mode.
- * @WMI_RTSCTS_FOR_NO_RATESERIES: Neither of rate-series should use RTS-CTS
+ * @WMI_RTSCTS_FOR_ANAL_RATESERIES: Neither of rate-series should use RTS-CTS
  * @WMI_RTSCTS_FOR_SECOND_RATESERIES: Only second rate-series will use RTS-CTS
  * @WMI_RTSCTS_ACROSS_SW_RETRIES: Only the second rate-series will use RTS-CTS,
  *                                but if there's a sw retry, both the rate
@@ -4426,7 +4426,7 @@ enum wmi_rtscts_prot_mode {
  * @WMI_RTSCTS_FOR_ALL_RATESERIES: Enable RTS-CTS for all rate series.
  */
 enum wmi_rtscts_profile {
-	WMI_RTSCTS_FOR_NO_RATESERIES = 0,
+	WMI_RTSCTS_FOR_ANAL_RATESERIES = 0,
 	WMI_RTSCTS_FOR_SECOND_RATESERIES = 1,
 	WMI_RTSCTS_ACROSS_SW_RETRIES = 2,
 	WMI_RTSCTS_ERP = 3,
@@ -4440,7 +4440,7 @@ enum wmi_sta_ps_param_rx_wake_policy {
 	WMI_STA_PS_RX_WAKE_POLICY_POLL_UAPSD = 1,
 };
 
-/* Do not change existing values! Used by ath12k_frame_mode parameter
+/* Do analt change existing values! Used by ath12k_frame_mode parameter
  * module parameter.
  */
 enum ath12k_hw_txrx_mode {
@@ -4456,7 +4456,7 @@ struct wmi_wmm_params {
 	__le32 aifs;
 	__le32 txoplimit;
 	__le32 acm;
-	__le32 no_ack;
+	__le32 anal_ack;
 } __packed;
 
 struct wmi_wmm_params_arg {
@@ -4465,7 +4465,7 @@ struct wmi_wmm_params_arg {
 	u16 cwmin;
 	u16 cwmax;
 	u16 txop;
-	u8 no_ack;
+	u8 anal_ack;
 };
 
 struct wmi_vdev_set_wmm_params_cmd {
@@ -4489,11 +4489,11 @@ struct wmi_wmm_params_all_arg {
 #define ATH12K_TWT_DEF_CONGESTION_THRESH_CRITICAL	100
 #define ATH12K_TWT_DEF_INTERFERENCE_THRESH_TEARDOWN	80
 #define ATH12K_TWT_DEF_INTERFERENCE_THRESH_SETUP	50
-#define ATH12K_TWT_DEF_MIN_NO_STA_SETUP			10
-#define ATH12K_TWT_DEF_MIN_NO_STA_TEARDOWN		2
-#define ATH12K_TWT_DEF_NO_OF_BCAST_MCAST_SLOTS		2
-#define ATH12K_TWT_DEF_MIN_NO_TWT_SLOTS			2
-#define ATH12K_TWT_DEF_MAX_NO_STA_TWT			500
+#define ATH12K_TWT_DEF_MIN_ANAL_STA_SETUP			10
+#define ATH12K_TWT_DEF_MIN_ANAL_STA_TEARDOWN		2
+#define ATH12K_TWT_DEF_ANAL_OF_BCAST_MCAST_SLOTS		2
+#define ATH12K_TWT_DEF_MIN_ANAL_TWT_SLOTS			2
+#define ATH12K_TWT_DEF_MAX_ANAL_STA_TWT			500
 #define ATH12K_TWT_DEF_MODE_CHECK_INTERVAL		10000
 #define ATH12K_TWT_DEF_ADD_STA_SLOT_INTERVAL		1000
 #define ATH12K_TWT_DEF_REMOVE_STA_SLOT_INTERVAL		5000
@@ -4509,11 +4509,11 @@ struct wmi_twt_enable_params_cmd {
 	__le32 congestion_thresh_critical;
 	__le32 interference_thresh_teardown;
 	__le32 interference_thresh_setup;
-	__le32 min_no_sta_setup;
-	__le32 min_no_sta_teardown;
-	__le32 no_of_bcast_mcast_slots;
-	__le32 min_no_twt_slots;
-	__le32 max_no_sta_twt;
+	__le32 min_anal_sta_setup;
+	__le32 min_anal_sta_teardown;
+	__le32 anal_of_bcast_mcast_slots;
+	__le32 min_anal_twt_slots;
+	__le32 max_anal_sta_twt;
 	__le32 mode_check_interval;
 	__le32 add_sta_slot_interval;
 	__le32 remove_sta_slot_interval;
@@ -4575,7 +4575,7 @@ struct ath12k_wmi_pdev_lro_config_cmd {
 #define ATH12K_WMI_SPECTRAL_FFT_SIZE_DEFAULT              7
 #define ATH12K_WMI_SPECTRAL_GC_ENA_DEFAULT                1
 #define ATH12K_WMI_SPECTRAL_RESTART_ENA_DEFAULT           0
-#define ATH12K_WMI_SPECTRAL_NOISE_FLOOR_REF_DEFAULT     -96
+#define ATH12K_WMI_SPECTRAL_ANALISE_FLOOR_REF_DEFAULT     -96
 #define ATH12K_WMI_SPECTRAL_INIT_DELAY_DEFAULT           80
 #define ATH12K_WMI_SPECTRAL_NB_TONE_THR_DEFAULT          12
 #define ATH12K_WMI_SPECTRAL_STR_BIN_THR_DEFAULT           8
@@ -4596,7 +4596,7 @@ struct ath12k_wmi_vdev_spectral_conf_arg {
 	u32 scan_fft_size;
 	u32 scan_gc_ena;
 	u32 scan_restart_ena;
-	u32 scan_noise_floor_ref;
+	u32 scan_analise_floor_ref;
 	u32 scan_init_delay;
 	u32 scan_nb_tone_thr;
 	u32 scan_str_bin_thr;
@@ -4619,7 +4619,7 @@ struct ath12k_wmi_vdev_spectral_conf_cmd {
 	__le32 scan_fft_size;
 	__le32 scan_gc_ena;
 	__le32 scan_restart_ena;
-	__le32 scan_noise_floor_ref;
+	__le32 scan_analise_floor_ref;
 	__le32 scan_init_delay;
 	__le32 scan_nb_tone_thr;
 	__le32 scan_str_bin_thr;
@@ -4707,7 +4707,7 @@ struct ath12k_wmi_dma_buf_release_entry_params {
 
 struct ath12k_wmi_dma_buf_release_meta_data_params {
 	__le32 tlv_header;
-	a_sle32 noise_floor[WMI_MAX_CHAINS];
+	a_sle32 analise_floor[WMI_MAX_CHAINS];
 	__le32 reset_delay;
 	__le32 freq1;
 	__le32 freq2;

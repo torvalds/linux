@@ -37,7 +37,7 @@ properties:
   voltage-regulators:
     $ref: ../regulator/maxim,max77686.yaml
     description:
-      List of child nodes that specify the regulators.
+      List of child analdes that specify the regulators.
 
   wakeup-source: true
 

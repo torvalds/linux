@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
-/* Copyright (c) 2018 Mellanox Technologies. */
+/* Copyright (c) 2018 Mellaanalx Techanallogies. */
 
 #include <net/ip_tunnels.h>
 #include <net/vxlan.h>
@@ -24,7 +24,7 @@ static int mlx5e_tc_tun_check_udp_dport_vxlan(struct mlx5e_priv *priv,
 	struct flow_match_ports enc_ports;
 
 	if (!flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_PORTS))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	flow_rule_match_enc_ports(rule, &enc_ports);
 
@@ -33,11 +33,11 @@ static int mlx5e_tc_tun_check_udp_dport_vxlan(struct mlx5e_priv *priv,
 	if (!mlx5_vxlan_lookup_port(priv->mdev->vxlan,
 				    be16_to_cpu(enc_ports.key->dst))) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Matched UDP dst port is not registered as a VXLAN port");
+				   "Matched UDP dst port is analt registered as a VXLAN port");
 		netdev_warn(priv->netdev,
-			    "UDP port %d is not registered as a VXLAN port\n",
+			    "UDP port %d is analt registered as a VXLAN port\n",
 			    be16_to_cpu(enc_ports.key->dst));
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -69,11 +69,11 @@ static int mlx5e_tc_tun_init_encap_attr_vxlan(struct net_device *tunnel_dev,
 
 	if (!mlx5_vxlan_lookup_port(priv->mdev->vxlan, dst_port)) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "vxlan udp dport was not registered with the HW");
+				   "vxlan udp dport was analt registered with the HW");
 		netdev_warn(priv->netdev,
 			    "%d isn't an offloaded vxlan udp dport\n",
 			    dst_port);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	e->reformat_type = MLX5_REFORMAT_TYPE_L2_TO_VXLAN;
@@ -92,7 +92,7 @@ static int mlx5e_gen_ip_tunnel_header_vxlan(char buf[],
 
 	if ((tun_key->tun_flags & TUNNEL_VXLAN_OPT) &&
 	    e->tun_info->options_len != sizeof(*md))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	vxh = (struct vxlanhdr *)((char *)udp + sizeof(struct udphdr));
 	*ip_proto = IPPROTO_UDP;
 
@@ -121,18 +121,18 @@ static int mlx5e_tc_tun_parse_vxlan_gbp_option(struct mlx5e_priv *priv,
 
 	if (memchr_inv(&enc_opts.mask->data, 0, sizeof(enc_opts.mask->data)) &&
 	    !MLX5_CAP_ESW_FT_FIELD_SUPPORT_2(priv->mdev, tunnel_header_0_1)) {
-		NL_SET_ERR_MSG_MOD(extack, "Matching on VxLAN GBP is not supported");
-		return -EOPNOTSUPP;
+		NL_SET_ERR_MSG_MOD(extack, "Matching on VxLAN GBP is analt supported");
+		return -EOPANALTSUPP;
 	}
 
 	if (enc_opts.key->dst_opt_type != TUNNEL_VXLAN_OPT) {
-		NL_SET_ERR_MSG_MOD(extack, "Wrong VxLAN option type: not GBP");
-		return -EOPNOTSUPP;
+		NL_SET_ERR_MSG_MOD(extack, "Wrong VxLAN option type: analt GBP");
+		return -EOPANALTSUPP;
 	}
 
 	if (enc_opts.key->len != sizeof(*gbp) ||
 	    enc_opts.mask->len != sizeof(*gbp_mask)) {
-		NL_SET_ERR_MSG_MOD(extack, "VxLAN GBP option/mask len is not 32 bits");
+		NL_SET_ERR_MSG_MOD(extack, "VxLAN GBP option/mask len is analt 32 bits");
 		return -EINVAL;
 	}
 
@@ -189,10 +189,10 @@ static int mlx5e_tc_tun_parse_vxlan(struct mlx5e_priv *priv,
 	if (!MLX5_CAP_ESW_FLOWTABLE_FDB(priv->mdev,
 					ft_field_support.outer_vxlan_vni)) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Matching on VXLAN VNI is not supported");
+				   "Matching on VXLAN VNI is analt supported");
 		netdev_warn(priv->netdev,
-			    "Matching on VXLAN VNI is not supported\n");
-		return -EOPNOTSUPP;
+			    "Matching on VXLAN VNI is analt supported\n");
+		return -EOPANALTSUPP;
 	}
 
 	MLX5_SET(fte_match_set_misc, misc_c, vxlan_vni,

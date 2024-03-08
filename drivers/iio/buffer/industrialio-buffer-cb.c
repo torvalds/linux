@@ -61,7 +61,7 @@ struct iio_cb_buffer *iio_channel_get_all_cb(struct device *dev,
 
 	cb_buff = kzalloc(sizeof(*cb_buff), GFP_KERNEL);
 	if (cb_buff == NULL)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	iio_buffer_init(&cb_buff->buffer);
 
@@ -80,7 +80,7 @@ struct iio_cb_buffer *iio_channel_get_all_cb(struct device *dev,
 	cb_buff->buffer.scan_mask = bitmap_zalloc(cb_buff->indio_dev->masklength,
 						  GFP_KERNEL);
 	if (cb_buff->buffer.scan_mask == NULL) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error_release_channels;
 	}
 	chan = &cb_buff->channels[0];

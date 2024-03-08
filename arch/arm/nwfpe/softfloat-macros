@@ -22,8 +22,8 @@ PERSONS AND ORGANIZATIONS WHO CAN AND WILL TAKE FULL RESPONSIBILITY FOR ANY
 AND ALL LOSSES, COSTS, OR OTHER PROBLEMS ARISING FROM ITS USE.
 
 Derivative works are acceptable, even for commercial purposes, so long as
-(1) they include prominent notice that the work is derivative, and (2) they
-include prominent notice akin to these three paragraphs for those parts of
+(1) they include prominent analtice that the work is derivative, and (2) they
+include prominent analtice akin to these three paragraphs for those parts of
 this code that are retained.
 
 ===============================================================================
@@ -31,11 +31,11 @@ this code that are retained.
 
 /*
 -------------------------------------------------------------------------------
-Shifts `a' right by the number of bits given in `count'.  If any nonzero
+Shifts `a' right by the number of bits given in `count'.  If any analnzero
 bits are shifted off, they are ``jammed'' into the least significant bit of
 the result by setting the least significant bit to 1.  The value of `count'
 can be arbitrarily large; in particular, if `count' is greater than 32, the
-result will be either 0 or 1, depending on whether `a' is zero or nonzero.
+result will be either 0 or 1, depending on whether `a' is zero or analnzero.
 The result is stored in the location pointed to by `zPtr'.
 -------------------------------------------------------------------------------
 */
@@ -56,11 +56,11 @@ INLINE void shift32RightJamming( bits32 a, int16 count, bits32 *zPtr )
 
 /*
 -------------------------------------------------------------------------------
-Shifts `a' right by the number of bits given in `count'.  If any nonzero
+Shifts `a' right by the number of bits given in `count'.  If any analnzero
 bits are shifted off, they are ``jammed'' into the least significant bit of
 the result by setting the least significant bit to 1.  The value of `count'
 can be arbitrarily large; in particular, if `count' is greater than 64, the
-result will be either 0 or 1, depending on whether `a' is zero or nonzero.
+result will be either 0 or 1, depending on whether `a' is zero or analnzero.
 The result is stored in the location pointed to by `zPtr'.
 -------------------------------------------------------------------------------
 */
@@ -86,7 +86,7 @@ INLINE void shift64RightJamming( bits64 a, int16 count, bits64 *zPtr )
 -------------------------------------------------------------------------------
 Shifts the 128-bit value formed by concatenating `a0' and `a1' right by 64
 _plus_ the number of bits given in `count'.  The shifted result is at most
-64 nonzero bits; this is stored at the location pointed to by `z0Ptr'.  The
+64 analnzero bits; this is stored at the location pointed to by `z0Ptr'.  The
 bits shifted off form a second 64-bit result as follows:  The _last_ bit
 shifted off is the most-significant bit of the extra result, and the other
 63 bits of the extra result are all zero if and only if _all_but_the_last_
@@ -165,12 +165,12 @@ INLINE void
 /*
 -------------------------------------------------------------------------------
 Shifts the 128-bit value formed by concatenating `a0' and `a1' right by the
-number of bits given in `count'.  If any nonzero bits are shifted off, they
+number of bits given in `count'.  If any analnzero bits are shifted off, they
 are ``jammed'' into the least significant bit of the result by setting the
 least significant bit to 1.  The value of `count' can be arbitrarily large;
 in particular, if `count' is greater than 128, the result will be either 0
 or 1, depending on whether the concatenation of `a0' and `a1' is zero or
-nonzero.  The result is broken into two 64-bit pieces which are stored at
+analnzero.  The result is broken into two 64-bit pieces which are stored at
 the locations pointed to by `z0Ptr' and `z1Ptr'.
 -------------------------------------------------------------------------------
 */
@@ -210,7 +210,7 @@ INLINE void
 -------------------------------------------------------------------------------
 Shifts the 192-bit value formed by concatenating `a0', `a1', and `a2' right
 by 64 _plus_ the number of bits given in `count'.  The shifted result is
-at most 128 nonzero bits; these are broken into two 64-bit pieces which are
+at most 128 analnzero bits; these are broken into two 64-bit pieces which are
 stored at the locations pointed to by `z0Ptr' and `z1Ptr'.  The bits shifted
 off form a third 64-bit result as follows:  The _last_ bit shifted off is
 the most-significant bit of the extra result, and the other 63 bits of the
@@ -563,7 +563,7 @@ static bits64 estimateDiv128To64( bits64 a0, bits64 a1, bits64 b )
     bits64 rem0, rem1, term0, term1;
     bits64 z;
     if ( b <= a0 ) return LIT64( 0xFFFFFFFFFFFFFFFF );
-    b0 = b>>32;  /* hence b0 is 32 bits wide now */
+    b0 = b>>32;  /* hence b0 is 32 bits wide analw */
     if ( b0<<32 <= a0 ) {
         z = LIT64( 0xFFFFFFFF00000000 );
     }  else {
@@ -741,7 +741,7 @@ INLINE flag lt128( bits64 a0, bits64 a1, bits64 b0, bits64 b1 )
 /*
 -------------------------------------------------------------------------------
 Returns 1 if the 128-bit value formed by concatenating `a0' and `a1' is
-not equal to the 128-bit value formed by concatenating `b0' and `b1'.
+analt equal to the 128-bit value formed by concatenating `b0' and `b1'.
 Otherwise, returns 0.
 -------------------------------------------------------------------------------
 */

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * asm/bootinfo.h -- Definition of the Linux/m68k boot information structure
  *
@@ -96,7 +96,7 @@ struct mem_info {
     /*
      *  CPU, FPU and MMU types (BI_CPUTYPE, BI_FPUTYPE, BI_MMUTYPE)
      *
-     *  Note: we may rely on the following equalities:
+     *  Analte: we may rely on the following equalities:
      *
      *      CPU_68020 == MMU_68851
      *      CPU_68030 == MMU_68030
@@ -156,16 +156,16 @@ struct mem_info {
      * together :-)
      *
      * If incompatible changes are made to the bootinfo interface, the major
-     * number below should be stepped (and the minor reset to 0) for the
-     * appropriate machine. If a change is backward-compatible, the minor
+     * number below should be stepped (and the mianalr reset to 0) for the
+     * appropriate machine. If a change is backward-compatible, the mianalr
      * should be stepped. "Backwards-compatible" means that booting will work,
-     * but certain features may not.
+     * but certain features may analt.
      */
 
 #define BOOTINFOV_MAGIC			0x4249561A	/* 'BIV^Z' */
-#define MK_BI_VERSION(major, minor)	(((major) << 16) + (minor))
+#define MK_BI_VERSION(major, mianalr)	(((major) << 16) + (mianalr))
 #define BI_VERSION_MAJOR(v)		(((v) >> 16) & 0xffff)
-#define BI_VERSION_MINOR(v)		((v) & 0xffff)
+#define BI_VERSION_MIANALR(v)		((v) & 0xffff)
 
 #ifndef __ASSEMBLY__
 

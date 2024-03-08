@@ -34,7 +34,7 @@
 #define PARF_MHI_BASE_ADDR_LOWER		0x178
 #define PARF_MHI_BASE_ADDR_UPPER		0x17c
 #define PARF_DEBUG_INT_EN			0x190
-#define PARF_AXI_MSTR_RD_HALT_NO_WRITES		0x1a4
+#define PARF_AXI_MSTR_RD_HALT_ANAL_WRITES		0x1a4
 #define PARF_AXI_MSTR_WR_ADDR_HALT		0x1a8
 #define PARF_Q2A_FLUSH				0x1ac
 #define PARF_LTSSM				0x1b0
@@ -61,7 +61,7 @@
 /* PARF_INT_ALL_{STATUS/CLEAR/MASK} register fields */
 #define PARF_INT_ALL_LINK_DOWN			BIT(1)
 #define PARF_INT_ALL_BME			BIT(2)
-#define PARF_INT_ALL_PM_TURNOFF			BIT(3)
+#define PARF_INT_ALL_PM_TURANALFF			BIT(3)
 #define PARF_INT_ALL_DEBUG			BIT(4)
 #define PARF_INT_ALL_LTR			BIT(5)
 #define PARF_INT_ALL_MHI_Q6			BIT(6)
@@ -84,7 +84,7 @@
 /* PARF_DEBUG_INT_EN register fields */
 #define PARF_DEBUG_INT_PM_DSTATE_CHANGE		BIT(1)
 #define PARF_DEBUG_INT_CFG_BUS_MASTER_EN	BIT(2)
-#define PARF_DEBUG_INT_RADM_PM_TURNOFF		BIT(3)
+#define PARF_DEBUG_INT_RADM_PM_TURANALFF		BIT(3)
 
 /* PARF_DEVICE_TYPE register fields */
 #define PARF_DEVICE_TYPE_EP			0x0
@@ -92,13 +92,13 @@
 /* PARF_PM_CTRL register fields */
 #define PARF_PM_CTRL_REQ_EXIT_L1		BIT(1)
 #define PARF_PM_CTRL_READY_ENTR_L23		BIT(2)
-#define PARF_PM_CTRL_REQ_NOT_ENTR_L1		BIT(5)
+#define PARF_PM_CTRL_REQ_ANALT_ENTR_L1		BIT(5)
 
 /* PARF_MHI_CLOCK_RESET_CTRL fields */
 #define PARF_MSTR_AXI_CLK_EN			BIT(1)
 
-/* PARF_AXI_MSTR_RD_HALT_NO_WRITES register fields */
-#define PARF_AXI_MSTR_RD_HALT_NO_WRITE_EN	BIT(0)
+/* PARF_AXI_MSTR_RD_HALT_ANAL_WRITES register fields */
+#define PARF_AXI_MSTR_RD_HALT_ANAL_WRITE_EN	BIT(0)
 
 /* PARF_AXI_MSTR_WR_ADDR_HALT register fields */
 #define PARF_AXI_MSTR_WR_ADDR_HALT_EN		BIT(31)
@@ -207,7 +207,7 @@ static int qcom_pcie_ep_core_reset(struct qcom_pcie_ep *pcie_ep)
 
 	ret = reset_control_assert(pcie_ep->core_reset);
 	if (ret) {
-		dev_err(dev, "Cannot assert core reset\n");
+		dev_err(dev, "Cananalt assert core reset\n");
 		return ret;
 	}
 
@@ -215,7 +215,7 @@ static int qcom_pcie_ep_core_reset(struct qcom_pcie_ep *pcie_ep)
 
 	ret = reset_control_deassert(pcie_ep->core_reset);
 	if (ret) {
-		dev_err(dev, "Cannot de-assert core reset\n");
+		dev_err(dev, "Cananalt de-assert core reset\n");
 		return ret;
 	}
 
@@ -386,7 +386,7 @@ static int qcom_pcie_perst_deassert(struct dw_pcie *pci)
 
 	/* Enable debug IRQ */
 	val = readl_relaxed(pcie_ep->parf + PARF_DEBUG_INT_EN);
-	val |= PARF_DEBUG_INT_RADM_PM_TURNOFF |
+	val |= PARF_DEBUG_INT_RADM_PM_TURANALFF |
 	       PARF_DEBUG_INT_CFG_BUS_MASTER_EN |
 	       PARF_DEBUG_INT_PM_DSTATE_CHANGE;
 	writel_relaxed(val, pcie_ep->parf + PARF_DEBUG_INT_EN);
@@ -396,13 +396,13 @@ static int qcom_pcie_perst_deassert(struct dw_pcie *pci)
 
 	/* Allow entering L1 state */
 	val = readl_relaxed(pcie_ep->parf + PARF_PM_CTRL);
-	val &= ~PARF_PM_CTRL_REQ_NOT_ENTR_L1;
+	val &= ~PARF_PM_CTRL_REQ_ANALT_ENTR_L1;
 	writel_relaxed(val, pcie_ep->parf + PARF_PM_CTRL);
 
 	/* Read halts write */
-	val = readl_relaxed(pcie_ep->parf + PARF_AXI_MSTR_RD_HALT_NO_WRITES);
-	val &= ~PARF_AXI_MSTR_RD_HALT_NO_WRITE_EN;
-	writel_relaxed(val, pcie_ep->parf + PARF_AXI_MSTR_RD_HALT_NO_WRITES);
+	val = readl_relaxed(pcie_ep->parf + PARF_AXI_MSTR_RD_HALT_ANAL_WRITES);
+	val &= ~PARF_AXI_MSTR_RD_HALT_ANAL_WRITE_EN;
+	writel_relaxed(val, pcie_ep->parf + PARF_AXI_MSTR_RD_HALT_ANAL_WRITES);
 
 	/* Write after write halt */
 	val = readl_relaxed(pcie_ep->parf + PARF_AXI_MSTR_WR_ADDR_HALT);
@@ -415,7 +415,7 @@ static int qcom_pcie_perst_deassert(struct dw_pcie *pci)
 	writel_relaxed(val, pcie_ep->parf + PARF_Q2A_FLUSH);
 
 	/*
-	 * Disable Master AXI clock during idle.  Do not allow DBI access
+	 * Disable Master AXI clock during idle.  Do analt allow DBI access
 	 * to take the core out of L1.  Disable core clock gating that
 	 * gates PIPE clock from propagating to core clock.  Report to the
 	 * host that Vaux is present.
@@ -459,7 +459,7 @@ static int qcom_pcie_perst_deassert(struct dw_pcie *pci)
 
 	writel_relaxed(0, pcie_ep->parf + PARF_INT_ALL_MASK);
 	val = PARF_INT_ALL_LINK_DOWN | PARF_INT_ALL_BME |
-	      PARF_INT_ALL_PM_TURNOFF | PARF_INT_ALL_DSTATE_CHANGE |
+	      PARF_INT_ALL_PM_TURANALFF | PARF_INT_ALL_DSTATE_CHANGE |
 	      PARF_INT_ALL_LINK_UP | PARF_INT_ALL_EDMA;
 	writel_relaxed(val, pcie_ep->parf + PARF_INT_ALL_MASK);
 
@@ -482,7 +482,7 @@ static int qcom_pcie_perst_deassert(struct dw_pcie *pci)
 	val &= ~PARF_MSTR_AXI_CLK_EN;
 	writel_relaxed(val, pcie_ep->parf + PARF_MHI_CLOCK_RESET_CTRL);
 
-	dw_pcie_ep_init_notify(&pcie_ep->pci.ep);
+	dw_pcie_ep_init_analtify(&pcie_ep->pci.ep);
 
 	/* Enable LTSSM */
 	val = readl_relaxed(pcie_ep->parf + PARF_LTSSM);
@@ -524,7 +524,7 @@ static int qcom_pcie_ep_get_io_resources(struct platform_device *pdev,
 {
 	struct device *dev = &pdev->dev;
 	struct dw_pcie *pci = &pcie_ep->pci;
-	struct device_node *syscon;
+	struct device_analde *syscon;
 	struct resource *res;
 	int ret;
 
@@ -554,28 +554,28 @@ static int qcom_pcie_ep_get_io_resources(struct platform_device *pdev,
 	if (IS_ERR(pcie_ep->mmio))
 		return PTR_ERR(pcie_ep->mmio);
 
-	syscon = of_parse_phandle(dev->of_node, "qcom,perst-regs", 0);
+	syscon = of_parse_phandle(dev->of_analde, "qcom,perst-regs", 0);
 	if (!syscon) {
-		dev_dbg(dev, "PERST separation not available\n");
+		dev_dbg(dev, "PERST separation analt available\n");
 		return 0;
 	}
 
-	pcie_ep->perst_map = syscon_node_to_regmap(syscon);
-	of_node_put(syscon);
+	pcie_ep->perst_map = syscon_analde_to_regmap(syscon);
+	of_analde_put(syscon);
 	if (IS_ERR(pcie_ep->perst_map))
 		return PTR_ERR(pcie_ep->perst_map);
 
-	ret = of_property_read_u32_index(dev->of_node, "qcom,perst-regs",
+	ret = of_property_read_u32_index(dev->of_analde, "qcom,perst-regs",
 					 1, &pcie_ep->perst_en);
 	if (ret < 0) {
-		dev_err(dev, "No Perst Enable offset in syscon\n");
+		dev_err(dev, "Anal Perst Enable offset in syscon\n");
 		return ret;
 	}
 
-	ret = of_property_read_u32_index(dev->of_node, "qcom,perst-regs",
+	ret = of_property_read_u32_index(dev->of_analde, "qcom,perst-regs",
 					 2, &pcie_ep->perst_sep_en);
 	if (ret < 0) {
-		dev_err(dev, "No Perst Separation Enable offset in syscon\n");
+		dev_err(dev, "Anal Perst Separation Enable offset in syscon\n");
 		return ret;
 	}
 
@@ -623,7 +623,7 @@ static int qcom_pcie_ep_get_resources(struct platform_device *pdev,
 	return ret;
 }
 
-/* TODO: Notify clients about PCIe state change */
+/* TODO: Analtify clients about PCIe state change */
 static irqreturn_t qcom_pcie_ep_global_irq_thread(int irq, void *data)
 {
 	struct qcom_pcie_ep *pcie_ep = data;
@@ -644,8 +644,8 @@ static irqreturn_t qcom_pcie_ep_global_irq_thread(int irq, void *data)
 		dev_dbg(dev, "Received BME event. Link is enabled!\n");
 		pcie_ep->link_status = QCOM_PCIE_EP_LINK_ENABLED;
 		qcom_pcie_ep_icc_update(pcie_ep);
-		pci_epc_bme_notify(pci->ep.epc);
-	} else if (FIELD_GET(PARF_INT_ALL_PM_TURNOFF, status)) {
+		pci_epc_bme_analtify(pci->ep.epc);
+	} else if (FIELD_GET(PARF_INT_ALL_PM_TURANALFF, status)) {
 		dev_dbg(dev, "Received PM Turn-off event! Entering L23\n");
 		val = readl_relaxed(pcie_ep->parf + PARF_PM_CTRL);
 		val |= PARF_PM_CTRL_READY_ENTR_L23;
@@ -664,7 +664,7 @@ static irqreturn_t qcom_pcie_ep_global_irq_thread(int irq, void *data)
 		dw_pcie_ep_linkup(&pci->ep);
 		pcie_ep->link_status = QCOM_PCIE_EP_LINK_UP;
 	} else {
-		dev_err(dev, "Received unknown event: %d\n", status);
+		dev_err(dev, "Received unkanalwn event: %d\n", status);
 	}
 
 	return IRQ_HANDLED;
@@ -711,7 +711,7 @@ static int qcom_pcie_ep_enable_irq_resources(struct platform_device *pdev,
 	}
 
 	pcie_ep->perst_irq = gpiod_to_irq(pcie_ep->reset);
-	irq_set_status_flags(pcie_ep->perst_irq, IRQ_NOAUTOEN);
+	irq_set_status_flags(pcie_ep->perst_irq, IRQ_ANALAUTOEN);
 	ret = devm_request_threaded_irq(&pdev->dev, pcie_ep->perst_irq, NULL,
 					qcom_pcie_ep_perst_irq_thread,
 					IRQF_TRIGGER_HIGH | IRQF_ONESHOT,
@@ -725,18 +725,18 @@ static int qcom_pcie_ep_enable_irq_resources(struct platform_device *pdev,
 	return 0;
 }
 
-static int qcom_pcie_ep_raise_irq(struct dw_pcie_ep *ep, u8 func_no,
+static int qcom_pcie_ep_raise_irq(struct dw_pcie_ep *ep, u8 func_anal,
 				  unsigned int type, u16 interrupt_num)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_ep(ep);
 
 	switch (type) {
 	case PCI_IRQ_INTX:
-		return dw_pcie_ep_raise_intx_irq(ep, func_no);
+		return dw_pcie_ep_raise_intx_irq(ep, func_anal);
 	case PCI_IRQ_MSI:
-		return dw_pcie_ep_raise_msi_irq(ep, func_no, interrupt_num);
+		return dw_pcie_ep_raise_msi_irq(ep, func_anal, interrupt_num);
 	default:
-		dev_err(pci->dev, "Unknown IRQ type\n");
+		dev_err(pci->dev, "Unkanalwn IRQ type\n");
 		return -EINVAL;
 	}
 }
@@ -773,8 +773,8 @@ static void qcom_pcie_ep_init_debugfs(struct qcom_pcie_ep *pcie_ep)
 }
 
 static const struct pci_epc_features qcom_pcie_epc_features = {
-	.linkup_notifier = true,
-	.core_init_notifier = true,
+	.linkup_analtifier = true,
+	.core_init_analtifier = true,
 	.msi_capable = true,
 	.msix_capable = false,
 	.align = SZ_4K,
@@ -789,7 +789,7 @@ qcom_pcie_epc_get_features(struct dw_pcie_ep *pci_ep)
 static void qcom_pcie_ep_init(struct dw_pcie_ep *ep)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_ep(ep);
-	enum pci_barno bar;
+	enum pci_baranal bar;
 
 	for (bar = BAR_0; bar <= BAR_5; bar++)
 		dw_pcie_ep_reset_bar(pci, bar);
@@ -810,7 +810,7 @@ static int qcom_pcie_ep_probe(struct platform_device *pdev)
 
 	pcie_ep = devm_kzalloc(dev, sizeof(*pcie_ep), GFP_KERNEL);
 	if (!pcie_ep)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pcie_ep->pci.dev = dev;
 	pcie_ep->pci.ops = &pci_ops;
@@ -838,9 +838,9 @@ static int qcom_pcie_ep_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_disable_resources;
 
-	name = devm_kasprintf(dev, GFP_KERNEL, "%pOFP", dev->of_node);
+	name = devm_kasprintf(dev, GFP_KERNEL, "%pOFP", dev->of_analde);
 	if (!name) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_disable_irqs;
 	}
 

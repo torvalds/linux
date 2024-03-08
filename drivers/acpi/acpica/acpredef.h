@@ -14,7 +14,7 @@
  *
  * Return Package types
  *
- * 1) PTYPE1 packages do not contain subpackages.
+ * 1) PTYPE1 packages do analt contain subpackages.
  *
  * ACPI_PTYPE1_FIXED: Fixed-length length, 1 or 2 object types:
  *      object type
@@ -120,7 +120,7 @@ enum acpi_return_package_types {
 #define METHOD_5ARGS(a1,a2,a3,a4,a5)    (5 | (a1 << 3) | (a2 << 6) | (a3 << 9) | (a4 << 12) | (a5 << 15))
 
 #define METHOD_RETURNS(type)            (type)
-#define METHOD_NO_RETURN_VALUE          0
+#define METHOD_ANAL_RETURN_VALUE          0
 
 #define PACKAGE_INFO(a,b,c,d,e,f)       {{{(a),(b),(c),(d)}, ((((u16)(f)) << 8) | (e)), 0}}
 
@@ -144,9 +144,9 @@ enum acpi_return_package_types {
  * Predefined method/object information table.
  *
  * These are the names that can actually be evaluated via acpi_evaluate_object.
- * Not present in this table are the following:
+ * Analt present in this table are the following:
  *
- *      1) Predefined/Reserved names that are not usually evaluated via
+ *      1) Predefined/Reserved names that are analt usually evaluated via
  *         acpi_evaluate_object:
  *              _Lxx and _Exx GPE methods
  *              _Qxx EC methods
@@ -167,19 +167,19 @@ enum acpi_return_package_types {
  *                        field for each argument (up to 4 arguments). The
  *                        METHOD_?ARGS macros generate the correct packed data.
  * expected_btypes      - Allowed type(s) for the return value.
- *                        0 means that no return value is expected.
+ *                        0 means that anal return value is expected.
  *
  * For methods that return packages, the next entry in the table contains
  * information about the expected structure of the package. This information
  * is saved here (rather than in a separate table) in order to minimize the
  * overall size of the stored data.
  *
- * Note: The additional braces are intended to promote portability.
+ * Analte: The additional braces are intended to promote portability.
  *
- * Note2: Table is used by the kernel-resident subsystem, the iASL compiler,
+ * Analte2: Table is used by the kernel-resident subsystem, the iASL compiler,
  * and the acpi_help utility.
  *
- * TBD: _PRT - currently ignore reversed entries. Attempt to fix in nsrepair.
+ * TBD: _PRT - currently iganalre reversed entries. Attempt to fix in nsrepair.
  * Possibly fixing package elements like _BIF, etc.
  *
  *****************************************************************************/
@@ -290,7 +290,7 @@ const union acpi_predefined_info acpi_gbl_predefined_methods[] = {
 	PACKAGE_INFO(ACPI_PTYPE1_VAR, ACPI_RTYPE_INTEGER, 0, 0, 0, 0),
 
 	{{"_BCM", METHOD_1ARGS(ACPI_TYPE_INTEGER),
-	  METHOD_NO_RETURN_VALUE}},
+	  METHOD_ANAL_RETURN_VALUE}},
 
 	{{"_BCT", METHOD_1ARGS(ACPI_TYPE_INTEGER),
 	  METHOD_RETURNS(ACPI_RTYPE_INTEGER)}},
@@ -299,7 +299,7 @@ const union acpi_predefined_info acpi_gbl_predefined_methods[] = {
 	  METHOD_RETURNS(ACPI_RTYPE_INTEGER)}},
 
 	{{"_BFS", METHOD_1ARGS(ACPI_TYPE_INTEGER),
-	  METHOD_NO_RETURN_VALUE}},
+	  METHOD_ANAL_RETURN_VALUE}},
 
 	{{"_BIF", METHOD_0ARGS,
 	  METHOD_RETURNS(ACPI_RTYPE_PACKAGE)}},	/* Fixed-length (9 Int),(4 Str) */
@@ -313,13 +313,13 @@ const union acpi_predefined_info acpi_gbl_predefined_methods[] = {
 
 	{{"_BLT",
 	  METHOD_3ARGS(ACPI_TYPE_INTEGER, ACPI_TYPE_INTEGER, ACPI_TYPE_INTEGER),
-	  METHOD_NO_RETURN_VALUE}},
+	  METHOD_ANAL_RETURN_VALUE}},
 
 	{{"_BMA", METHOD_1ARGS(ACPI_TYPE_INTEGER),
 	  METHOD_RETURNS(ACPI_RTYPE_INTEGER)}},
 
 	{{"_BMC", METHOD_1ARGS(ACPI_TYPE_INTEGER),
-	  METHOD_NO_RETURN_VALUE}},
+	  METHOD_ANAL_RETURN_VALUE}},
 
 	{{"_BMD", METHOD_0ARGS,
 	  METHOD_RETURNS(ACPI_RTYPE_PACKAGE)}},	/* Fixed-length (5 Int) */
@@ -347,13 +347,13 @@ const union acpi_predefined_info acpi_gbl_predefined_methods[] = {
 	PACKAGE_INFO(ACPI_PTYPE1_FIXED, ACPI_RTYPE_INTEGER, 4, 0, 0, 0),
 
 	{{"_BTH", METHOD_1ARGS(ACPI_TYPE_INTEGER),	/* ACPI 6.0 */
-	  METHOD_NO_RETURN_VALUE}},
+	  METHOD_ANAL_RETURN_VALUE}},
 
 	{{"_BTM", METHOD_1ARGS(ACPI_TYPE_INTEGER),
 	  METHOD_RETURNS(ACPI_RTYPE_INTEGER)}},
 
 	{{"_BTP", METHOD_1ARGS(ACPI_TYPE_INTEGER),
-	  METHOD_NO_RETURN_VALUE}},
+	  METHOD_ANAL_RETURN_VALUE}},
 
 	{{"_CBA", METHOD_0ARGS,
 	  METHOD_RETURNS(ACPI_RTYPE_INTEGER)}},	/* See PCI firmware spec 3.0 */
@@ -423,7 +423,7 @@ const union acpi_predefined_info acpi_gbl_predefined_methods[] = {
 	  METHOD_RETURNS(ACPI_RTYPE_INTEGER)}},
 
 	{{"_DIS", METHOD_0ARGS,
-	  METHOD_NO_RETURN_VALUE}},
+	  METHOD_ANAL_RETURN_VALUE}},
 
 	{{"_DLM", METHOD_0ARGS,
 	  METHOD_RETURNS(ACPI_RTYPE_PACKAGE)}},	/* Variable-length (Pkgs) each (1 Ref, 0/1 Optional Buf/Ref) */
@@ -438,7 +438,7 @@ const union acpi_predefined_info acpi_gbl_predefined_methods[] = {
 	PACKAGE_INFO(ACPI_PTYPE1_VAR, ACPI_RTYPE_INTEGER, 0, 0, 0, 0),
 
 	{{"_DOS", METHOD_1ARGS(ACPI_TYPE_INTEGER),
-	  METHOD_NO_RETURN_VALUE}},
+	  METHOD_ANAL_RETURN_VALUE}},
 
 	{{"_DSC", METHOD_0ARGS,
 	  METHOD_RETURNS(ACPI_RTYPE_INTEGER)}},
@@ -454,14 +454,14 @@ const union acpi_predefined_info acpi_gbl_predefined_methods[] = {
 	  METHOD_RETURNS(ACPI_RTYPE_ALL)}},	/* Must return a value, but it can be of any type */
 
 	{{"_DSS", METHOD_1ARGS(ACPI_TYPE_INTEGER),
-	  METHOD_NO_RETURN_VALUE}},
+	  METHOD_ANAL_RETURN_VALUE}},
 
 	{{"_DSW",
 	  METHOD_3ARGS(ACPI_TYPE_INTEGER, ACPI_TYPE_INTEGER, ACPI_TYPE_INTEGER),
-	  METHOD_NO_RETURN_VALUE}},
+	  METHOD_ANAL_RETURN_VALUE}},
 
 	{{"_DTI", METHOD_1ARGS(ACPI_TYPE_INTEGER),
-	  METHOD_NO_RETURN_VALUE}},
+	  METHOD_ANAL_RETURN_VALUE}},
 
 	{{"_EC_", METHOD_0ARGS,
 	  METHOD_RETURNS(ACPI_RTYPE_INTEGER)}},
@@ -471,19 +471,19 @@ const union acpi_predefined_info acpi_gbl_predefined_methods[] = {
 	PACKAGE_INFO(ACPI_PTYPE1_VAR, ACPI_RTYPE_REFERENCE, 0, 0, 0, 0),
 
 	{{"_EJ0", METHOD_1ARGS(ACPI_TYPE_INTEGER),
-	  METHOD_NO_RETURN_VALUE}},
+	  METHOD_ANAL_RETURN_VALUE}},
 
 	{{"_EJ1", METHOD_1ARGS(ACPI_TYPE_INTEGER),
-	  METHOD_NO_RETURN_VALUE}},
+	  METHOD_ANAL_RETURN_VALUE}},
 
 	{{"_EJ2", METHOD_1ARGS(ACPI_TYPE_INTEGER),
-	  METHOD_NO_RETURN_VALUE}},
+	  METHOD_ANAL_RETURN_VALUE}},
 
 	{{"_EJ3", METHOD_1ARGS(ACPI_TYPE_INTEGER),
-	  METHOD_NO_RETURN_VALUE}},
+	  METHOD_ANAL_RETURN_VALUE}},
 
 	{{"_EJ4", METHOD_1ARGS(ACPI_TYPE_INTEGER),
-	  METHOD_NO_RETURN_VALUE}},
+	  METHOD_ANAL_RETURN_VALUE}},
 
 	{{"_EJD", METHOD_0ARGS,
 	  METHOD_RETURNS(ACPI_RTYPE_STRING)}},
@@ -493,7 +493,7 @@ const union acpi_predefined_info acpi_gbl_predefined_methods[] = {
 	  METHOD_RETURNS(ACPI_RTYPE_INTEGER)}},	/* Internal use only, used by ACPICA test suites */
 
 	{{"_EVT", METHOD_1ARGS(ACPI_TYPE_INTEGER),
-	  METHOD_NO_RETURN_VALUE}},
+	  METHOD_ANAL_RETURN_VALUE}},
 
 	{{"_FDE", METHOD_0ARGS,
 	  METHOD_RETURNS(ACPI_RTYPE_BUFFER)}},
@@ -503,7 +503,7 @@ const union acpi_predefined_info acpi_gbl_predefined_methods[] = {
 	PACKAGE_INFO(ACPI_PTYPE1_FIXED, ACPI_RTYPE_INTEGER, 16, 0, 0, 0),
 
 	{{"_FDM", METHOD_1ARGS(ACPI_TYPE_INTEGER),
-	  METHOD_NO_RETURN_VALUE}},
+	  METHOD_ANAL_RETURN_VALUE}},
 
 	{{"_FIF", METHOD_0ARGS,
 	  METHOD_RETURNS(ACPI_RTYPE_PACKAGE)}},	/* Fixed-length (4 Int) */
@@ -521,7 +521,7 @@ const union acpi_predefined_info acpi_gbl_predefined_methods[] = {
 	PACKAGE_INFO(ACPI_PTYPE2_REV_FIXED, ACPI_RTYPE_INTEGER, 5, 0, 0, 0),
 
 	{{"_FSL", METHOD_1ARGS(ACPI_TYPE_INTEGER),
-	  METHOD_NO_RETURN_VALUE}},
+	  METHOD_ANAL_RETURN_VALUE}},
 
 	{{"_FST", METHOD_0ARGS,
 	  METHOD_RETURNS(ACPI_RTYPE_PACKAGE)}},	/* Fixed-length (3 Int) */
@@ -543,7 +543,7 @@ const union acpi_predefined_info acpi_gbl_predefined_methods[] = {
 	  METHOD_RETURNS(ACPI_RTYPE_INTEGER)}},
 
 	{{"_GPE", METHOD_0ARGS,
-	  METHOD_RETURNS(ACPI_RTYPE_INTEGER)}},	/* _GPE method, not _GPE scope */
+	  METHOD_RETURNS(ACPI_RTYPE_INTEGER)}},	/* _GPE method, analt _GPE scope */
 
 	{{"_GRT", METHOD_0ARGS,
 	  METHOD_RETURNS(ACPI_RTYPE_BUFFER)}},
@@ -558,7 +558,7 @@ const union acpi_predefined_info acpi_gbl_predefined_methods[] = {
 	  METHOD_RETURNS(ACPI_RTYPE_BUFFER)}},
 
 	{{"_GTS", METHOD_1ARGS(ACPI_TYPE_INTEGER),
-	  METHOD_NO_RETURN_VALUE}},
+	  METHOD_ANAL_RETURN_VALUE}},
 
 	{{"_GWS", METHOD_1ARGS(ACPI_TYPE_INTEGER),
 	  METHOD_RETURNS(ACPI_RTYPE_INTEGER)}},
@@ -593,13 +593,13 @@ const union acpi_predefined_info acpi_gbl_predefined_methods[] = {
 	  METHOD_RETURNS(ACPI_RTYPE_INTEGER)}},	/* See IPMI spec */
 
 	{{"_INI", METHOD_0ARGS,
-	  METHOD_NO_RETURN_VALUE}},
+	  METHOD_ANAL_RETURN_VALUE}},
 
 	{{"_IRC", METHOD_0ARGS,
-	  METHOD_NO_RETURN_VALUE}},
+	  METHOD_ANAL_RETURN_VALUE}},
 
 	{{"_LCK", METHOD_1ARGS(ACPI_TYPE_INTEGER),
-	  METHOD_NO_RETURN_VALUE}},
+	  METHOD_ANAL_RETURN_VALUE}},
 
 	{{"_LID", METHOD_0ARGS,
 	  METHOD_RETURNS(ACPI_RTYPE_INTEGER)}},
@@ -640,7 +640,7 @@ const union acpi_predefined_info acpi_gbl_predefined_methods[] = {
 		     0),
 
 	{{"_MSG", METHOD_1ARGS(ACPI_TYPE_INTEGER),
-	  METHOD_NO_RETURN_VALUE}},
+	  METHOD_ANAL_RETURN_VALUE}},
 
 	{{"_MSM",
 	  METHOD_4ARGS(ACPI_TYPE_INTEGER, ACPI_TYPE_INTEGER, ACPI_TYPE_INTEGER,
@@ -669,10 +669,10 @@ const union acpi_predefined_info acpi_gbl_predefined_methods[] = {
 	  METHOD_RETURNS(ACPI_RTYPE_INTEGER)}},
 
 	{{"_OFF", METHOD_0ARGS,
-	  METHOD_NO_RETURN_VALUE}},
+	  METHOD_ANAL_RETURN_VALUE}},
 
 	{{"_ON_", METHOD_0ARGS,
-	  METHOD_NO_RETURN_VALUE}},
+	  METHOD_ANAL_RETURN_VALUE}},
 
 	{{"_OS_", METHOD_0ARGS,
 	  METHOD_RETURNS(ACPI_RTYPE_STRING)}},
@@ -684,7 +684,7 @@ const union acpi_predefined_info acpi_gbl_predefined_methods[] = {
 
 	{{"_OST",
 	  METHOD_3ARGS(ACPI_TYPE_INTEGER, ACPI_TYPE_INTEGER, ACPI_TYPE_BUFFER),
-	  METHOD_NO_RETURN_VALUE}},
+	  METHOD_ANAL_RETURN_VALUE}},
 
 	{{"_PAI", METHOD_1ARGS(ACPI_TYPE_INTEGER),
 	  METHOD_RETURNS(ACPI_RTYPE_INTEGER)}},
@@ -698,13 +698,13 @@ const union acpi_predefined_info acpi_gbl_predefined_methods[] = {
 	PACKAGE_INFO(ACPI_PTYPE1_FIXED, ACPI_RTYPE_BUFFER, 2, 0, 0, 0),
 
 	{{"_PDC", METHOD_1ARGS(ACPI_TYPE_BUFFER),
-	  METHOD_NO_RETURN_VALUE}},
+	  METHOD_ANAL_RETURN_VALUE}},
 
 	{{"_PDL", METHOD_0ARGS,
 	  METHOD_RETURNS(ACPI_RTYPE_INTEGER)}},
 
 	{{"_PIC", METHOD_1ARGS(ACPI_TYPE_INTEGER),
-	  METHOD_NO_RETURN_VALUE}},
+	  METHOD_ANAL_RETURN_VALUE}},
 
 	{{"_PIF", METHOD_0ARGS,
 	  METHOD_RETURNS(ACPI_RTYPE_PACKAGE)}},	/* Fixed-length (3 Int),(3 Str) */
@@ -767,8 +767,8 @@ const union acpi_predefined_info acpi_gbl_predefined_methods[] = {
 	/*
 	 * For _PRT, many BIOSs reverse the 3rd and 4th Package elements (Source
 	 * and source_index). This bug is so prevalent that there is code in the
-	 * ACPICA Resource Manager to detect this and switch them back. For now,
-	 * do not allow and issue a warning. To allow this and eliminate the
+	 * ACPICA Resource Manager to detect this and switch them back. For analw,
+	 * do analt allow and issue a warning. To allow this and eliminate the
 	 * warning, add the ACPI_RTYPE_REFERENCE type to the 4th element (index 3)
 	 * in the statement below.
 	 */
@@ -786,16 +786,16 @@ const union acpi_predefined_info acpi_gbl_predefined_methods[] = {
 		     ACPI_RTYPE_INTEGER, ACPI_RTYPE_REFERENCE, 0),
 
 	{{"_PS0", METHOD_0ARGS,
-	  METHOD_NO_RETURN_VALUE}},
+	  METHOD_ANAL_RETURN_VALUE}},
 
 	{{"_PS1", METHOD_0ARGS,
-	  METHOD_NO_RETURN_VALUE}},
+	  METHOD_ANAL_RETURN_VALUE}},
 
 	{{"_PS2", METHOD_0ARGS,
-	  METHOD_NO_RETURN_VALUE}},
+	  METHOD_ANAL_RETURN_VALUE}},
 
 	{{"_PS3", METHOD_0ARGS,
-	  METHOD_NO_RETURN_VALUE}},
+	  METHOD_ANAL_RETURN_VALUE}},
 
 	{{"_PSC", METHOD_0ARGS,
 	  METHOD_RETURNS(ACPI_RTYPE_INTEGER)}},
@@ -805,7 +805,7 @@ const union acpi_predefined_info acpi_gbl_predefined_methods[] = {
 	PACKAGE_INFO(ACPI_PTYPE2_COUNT, ACPI_RTYPE_INTEGER, 0, 0, 0, 0),
 
 	{{"_PSE", METHOD_1ARGS(ACPI_TYPE_INTEGER),
-	  METHOD_NO_RETURN_VALUE}},
+	  METHOD_ANAL_RETURN_VALUE}},
 
 	{{"_PSL", METHOD_0ARGS,
 	  METHOD_RETURNS(ACPI_RTYPE_PACKAGE)}},	/* Variable-length (Refs) */
@@ -822,7 +822,7 @@ const union acpi_predefined_info acpi_gbl_predefined_methods[] = {
 	  METHOD_RETURNS(ACPI_RTYPE_INTEGER)}},
 
 	{{"_PSW", METHOD_1ARGS(ACPI_TYPE_INTEGER),
-	  METHOD_NO_RETURN_VALUE}},
+	  METHOD_ANAL_RETURN_VALUE}},
 
 	{{"_PTC", METHOD_0ARGS,
 	  METHOD_RETURNS(ACPI_RTYPE_PACKAGE)}},	/* Fixed-length (2 Buf) */
@@ -832,7 +832,7 @@ const union acpi_predefined_info acpi_gbl_predefined_methods[] = {
 	  METHOD_RETURNS(ACPI_RTYPE_INTEGER)}},
 
 	{{"_PTS", METHOD_1ARGS(ACPI_TYPE_INTEGER),
-	  METHOD_NO_RETURN_VALUE}},
+	  METHOD_ANAL_RETURN_VALUE}},
 
 	{{"_PUR", METHOD_0ARGS,
 	  METHOD_RETURNS(ACPI_RTYPE_PACKAGE)}},	/* Fixed-length (2 Int) */
@@ -847,7 +847,7 @@ const union acpi_predefined_info acpi_gbl_predefined_methods[] = {
 		     ACPI_RTYPE_REFERENCE, 0, 0),
 
 	{{"_REG", METHOD_2ARGS(ACPI_TYPE_INTEGER, ACPI_TYPE_INTEGER),
-	  METHOD_NO_RETURN_VALUE}},
+	  METHOD_ANAL_RETURN_VALUE}},
 
 	{{"_REV", METHOD_0ARGS,
 	  METHOD_RETURNS(ACPI_RTYPE_INTEGER)}},
@@ -859,7 +859,7 @@ const union acpi_predefined_info acpi_gbl_predefined_methods[] = {
 	  METHOD_RETURNS(ACPI_RTYPE_BUFFER)}},
 
 	{{"_RST", METHOD_0ARGS,	/* ACPI 6.0 */
-	  METHOD_NO_RETURN_VALUE}},
+	  METHOD_ANAL_RETURN_VALUE}},
 
 	{{"_RTV", METHOD_0ARGS,
 	  METHOD_RETURNS(ACPI_RTYPE_INTEGER)}},
@@ -955,10 +955,10 @@ const union acpi_predefined_info acpi_gbl_predefined_methods[] = {
 		     1, 0, 0, 0),
 
 	{{"_SCP", METHOD_1ARGS(ACPI_TYPE_INTEGER) | ARG_COUNT_IS_MINIMUM,
-	  METHOD_NO_RETURN_VALUE}},	/* Acpi 1.0 allowed 1 integer arg. Acpi 3.0 expanded to 3 args. Allow both. */
+	  METHOD_ANAL_RETURN_VALUE}},	/* Acpi 1.0 allowed 1 integer arg. Acpi 3.0 expanded to 3 args. Allow both. */
 
 	{{"_SDD", METHOD_1ARGS(ACPI_TYPE_BUFFER),
-	  METHOD_NO_RETURN_VALUE}},
+	  METHOD_ANAL_RETURN_VALUE}},
 
 	{{"_SEG", METHOD_0ARGS,
 	  METHOD_RETURNS(ACPI_RTYPE_INTEGER)}},
@@ -973,7 +973,7 @@ const union acpi_predefined_info acpi_gbl_predefined_methods[] = {
 	  METHOD_RETURNS(ACPI_RTYPE_INTEGER)}},
 
 	{{"_SRS", METHOD_1ARGS(ACPI_TYPE_BUFFER),
-	  METHOD_NO_RETURN_VALUE}},
+	  METHOD_ANAL_RETURN_VALUE}},
 
 	{{"_SRT", METHOD_1ARGS(ACPI_TYPE_BUFFER),
 	  METHOD_RETURNS(ACPI_RTYPE_INTEGER)}},
@@ -982,14 +982,14 @@ const union acpi_predefined_info acpi_gbl_predefined_methods[] = {
 	  METHOD_RETURNS(ACPI_RTYPE_INTEGER)}},	/* See IPMI spec */
 
 	{{"_SST", METHOD_1ARGS(ACPI_TYPE_INTEGER),
-	  METHOD_NO_RETURN_VALUE}},
+	  METHOD_ANAL_RETURN_VALUE}},
 
 	{{"_STA", METHOD_0ARGS,
 	  METHOD_RETURNS(ACPI_RTYPE_INTEGER)}},
 
 	{{"_STM",
 	  METHOD_3ARGS(ACPI_TYPE_BUFFER, ACPI_TYPE_BUFFER, ACPI_TYPE_BUFFER),
-	  METHOD_NO_RETURN_VALUE}},
+	  METHOD_ANAL_RETURN_VALUE}},
 
 	{{"_STP", METHOD_2ARGS(ACPI_TYPE_INTEGER, ACPI_TYPE_INTEGER),
 	  METHOD_RETURNS(ACPI_RTYPE_INTEGER)}},
@@ -1034,7 +1034,7 @@ const union acpi_predefined_info acpi_gbl_predefined_methods[] = {
 	  METHOD_RETURNS(ACPI_RTYPE_INTEGER)}},
 
 	{{"_TPT", METHOD_1ARGS(ACPI_TYPE_INTEGER),
-	  METHOD_NO_RETURN_VALUE}},
+	  METHOD_ANAL_RETURN_VALUE}},
 
 	{{"_TRT", METHOD_0ARGS,
 	  METHOD_RETURNS(ACPI_RTYPE_PACKAGE)}},	/* Variable-length (Pkgs) each 2 Ref/6 Int */
@@ -1059,7 +1059,7 @@ const union acpi_predefined_info acpi_gbl_predefined_methods[] = {
 	  METHOD_RETURNS(ACPI_RTYPE_INTEGER)}},
 
 	{{"_TTS", METHOD_1ARGS(ACPI_TYPE_INTEGER),
-	  METHOD_NO_RETURN_VALUE}},
+	  METHOD_ANAL_RETURN_VALUE}},
 
 	{{"_TZD", METHOD_0ARGS,
 	  METHOD_RETURNS(ACPI_RTYPE_PACKAGE)}},	/* Variable-length (Refs) */
@@ -1087,10 +1087,10 @@ const union acpi_predefined_info acpi_gbl_predefined_methods[] = {
 	{{"_VPO", METHOD_0ARGS,
 	  METHOD_RETURNS(ACPI_RTYPE_INTEGER)}},
 
-	/* Acpi 1.0 defined _WAK with no return value. Later, it was changed to return a package */
+	/* Acpi 1.0 defined _WAK with anal return value. Later, it was changed to return a package */
 
 	{{"_WAK", METHOD_1ARGS(ACPI_TYPE_INTEGER),
-	  METHOD_RETURNS(ACPI_RTYPE_NONE | ACPI_RTYPE_INTEGER |
+	  METHOD_RETURNS(ACPI_RTYPE_ANALNE | ACPI_RTYPE_INTEGER |
 			 ACPI_RTYPE_PACKAGE)}},
 	PACKAGE_INFO(ACPI_PTYPE1_FIXED, ACPI_RTYPE_INTEGER, 2, 0, 0, 0),	/* Fixed-length (2 Int), but is optional */
 
@@ -1118,11 +1118,11 @@ extern const union acpi_predefined_info acpi_gbl_predefined_methods[];
 #if (defined ACPI_CREATE_RESOURCE_TABLE && defined ACPI_APPLICATION)
 /******************************************************************************
  *
- * Predefined names for use in Resource Descriptors. These names do not
+ * Predefined names for use in Resource Descriptors. These names do analt
  * appear in the global Predefined Name table (since these names never
  * appear in actual AML byte code, only in the original ASL)
  *
- * Note: Used by iASL compiler and acpi_help utility only.
+ * Analte: Used by iASL compiler and acpi_help utility only.
  *
  *****************************************************************************/
 

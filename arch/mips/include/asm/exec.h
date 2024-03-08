@@ -7,7 +7,7 @@
  * Copyright (C) 1996 by Paul M. Antoine
  * Copyright (C) 1999 Silicon Graphics
  * Kevin D. Kissell, kevink@mips.org and Carsten Langgaard, carstenl@mips.com
- * Copyright (C) 2000 MIPS Technologies, Inc.
+ * Copyright (C) 2000 MIPS Techanallogies, Inc.
  */
 #ifndef _ASM_EXEC_H
 #define _ASM_EXEC_H

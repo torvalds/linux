@@ -28,7 +28,7 @@ HPI Operating System Specific macros for Linux Kernel driver
 #include <linux/pci.h>
 #include <linux/mutex.h>
 
-#define HPI_NO_OS_FILE_OPS
+#define HPI_ANAL_OS_FILE_OPS
 
 /** Details of a memory area allocated with  pci_alloc_consistent
 Need all info for parameters to pci_free_consistent
@@ -73,10 +73,10 @@ struct hpi_ioctl_linux {
 
 #define HPI_DEBUG_FLAG_ERROR   KERN_ERR
 #define HPI_DEBUG_FLAG_WARNING KERN_WARNING
-#define HPI_DEBUG_FLAG_NOTICE  KERN_NOTICE
+#define HPI_DEBUG_FLAG_ANALTICE  KERN_ANALTICE
 #define HPI_DEBUG_FLAG_INFO    KERN_INFO
 #define HPI_DEBUG_FLAG_DEBUG   KERN_DEBUG
-#define HPI_DEBUG_FLAG_VERBOSE KERN_DEBUG	/* kernel has no verbose */
+#define HPI_DEBUG_FLAG_VERBOSE KERN_DEBUG	/* kernel has anal verbose */
 
 #include <linux/spinlock.h>
 
@@ -88,7 +88,7 @@ struct hpios_spinlock {
 };
 
 /* The reason for all this evilness is that ALSA calls some of a drivers
- * operators in atomic context, and some not.  But all our functions channel
+ * operators in atomic context, and some analt.  But all our functions channel
  * through the HPI_Message conduit, so we can't handle the different context
  * per function
  */
@@ -97,7 +97,7 @@ struct hpios_spinlock {
 static inline void cond_lock(struct hpios_spinlock *l)
 {
 	if (irqs_disabled()) {
-		/* NO bh or isr can execute on this processor,
+		/* ANAL bh or isr can execute on this processor,
 		   so ordinary lock will do
 		 */
 		spin_lock(&((l)->lock));

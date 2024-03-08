@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
-/* Copyright (c) 2018 Mellanox Technologies. */
+/* Copyright (c) 2018 Mellaanalx Techanallogies. */
 
 #ifndef __MLX5_EN_TC_TUNNEL_H__
 #define __MLX5_EN_TC_TUNNEL_H__
@@ -14,7 +14,7 @@
 #ifdef CONFIG_MLX5_ESWITCH
 
 enum {
-	MLX5E_TC_TUNNEL_TYPE_UNKNOWN,
+	MLX5E_TC_TUNNEL_TYPE_UNKANALWN,
 	MLX5E_TC_TUNNEL_TYPE_VXLAN,
 	MLX5E_TC_TUNNEL_TYPE_GENEVE,
 	MLX5E_TC_TUNNEL_TYPE_GRETAP,
@@ -85,12 +85,12 @@ static inline int
 mlx5e_tc_tun_create_header_ipv6(struct mlx5e_priv *priv,
 				struct net_device *mirred_dev,
 				struct mlx5e_encap_entry *e)
-{ return -EOPNOTSUPP; }
+{ return -EOPANALTSUPP; }
 static inline int
 mlx5e_tc_tun_update_header_ipv6(struct mlx5e_priv *priv,
 				struct net_device *mirred_dev,
 				struct mlx5e_encap_entry *e)
-{ return -EOPNOTSUPP; }
+{ return -EOPANALTSUPP; }
 #endif
 int mlx5e_tc_tun_route_lookup(struct mlx5e_priv *priv,
 			      struct mlx5_flow_spec *spec,

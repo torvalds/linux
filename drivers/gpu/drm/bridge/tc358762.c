@@ -45,7 +45,7 @@
 #define LCDCTRL			0x0420 /* Video Path Control */
 #define LCDCTRL_MSF		BIT(0) /* Magic square in RGB666 */
 #define LCDCTRL_VTGEN		BIT(4)/* Use chip clock for timing */
-#define LCDCTRL_UNK6		BIT(6) /* Unknown */
+#define LCDCTRL_UNK6		BIT(6) /* Unkanalwn */
 #define LCDCTRL_EVTMODE		BIT(5) /* Event mode */
 #define LCDCTRL_RGB888		BIT(8) /* RGB888 mode */
 #define LCDCTRL_HSPOL		BIT(17) /* Polarity of HSYNC signal */
@@ -232,7 +232,7 @@ static int tc358762_parse_dt(struct tc358762 *ctx)
 	struct drm_bridge *panel_bridge;
 	struct device *dev = ctx->dev;
 
-	panel_bridge = devm_drm_of_get_bridge(dev, dev->of_node, 1, 0);
+	panel_bridge = devm_drm_of_get_bridge(dev, dev->of_analde, 1, 0);
 	if (IS_ERR(panel_bridge))
 		return PTR_ERR(panel_bridge);
 
@@ -263,7 +263,7 @@ static int tc358762_probe(struct mipi_dsi_device *dsi)
 
 	ctx = devm_kzalloc(dev, sizeof(struct tc358762), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mipi_dsi_set_drvdata(dsi, ctx);
 
@@ -286,7 +286,7 @@ static int tc358762_probe(struct mipi_dsi_device *dsi)
 
 	ctx->bridge.funcs = &tc358762_bridge_funcs;
 	ctx->bridge.type = DRM_MODE_CONNECTOR_DPI;
-	ctx->bridge.of_node = dev->of_node;
+	ctx->bridge.of_analde = dev->of_analde;
 	ctx->bridge.pre_enable_prev_first = true;
 
 	drm_bridge_add(&ctx->bridge);

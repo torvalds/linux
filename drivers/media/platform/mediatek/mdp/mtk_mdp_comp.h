@@ -23,19 +23,19 @@ enum mtk_mdp_comp_type {
 
 /**
  * struct mtk_mdp_comp - the MDP's function component data
- * @node:	list node to track sibing MDP components
- * @dev_node:	component device node
+ * @analde:	list analde to track sibing MDP components
+ * @dev_analde:	component device analde
  * @clk:	clocks required for component
  * @type:	component type
  */
 struct mtk_mdp_comp {
-	struct list_head	node;
-	struct device_node	*dev_node;
+	struct list_head	analde;
+	struct device_analde	*dev_analde;
 	struct clk		*clk[2];
 	enum mtk_mdp_comp_type	type;
 };
 
-int mtk_mdp_comp_init(struct device *dev, struct device_node *node,
+int mtk_mdp_comp_init(struct device *dev, struct device_analde *analde,
 		      struct mtk_mdp_comp *comp,
 		      enum mtk_mdp_comp_type comp_type);
 void mtk_mdp_comp_deinit(struct device *dev, struct mtk_mdp_comp *comp);

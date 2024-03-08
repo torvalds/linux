@@ -3,7 +3,7 @@
  * f_sourcesink.c - USB peripheral source/sink configuration driver
  *
  * Copyright (C) 2003-2008 David Brownell
- * Copyright (C) 2008 by Nokia Corporation
+ * Copyright (C) 2008 by Analkia Corporation
  */
 
 /* #define VERBOSE_DEBUG */
@@ -334,7 +334,7 @@ sourcesink_bind(struct usb_configuration *c, struct usb_function *f)
 autoconf_fail:
 		ERROR(cdev, "%s: can't autoconfigure on %s\n",
 			f->name, cdev->gadget->name);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ss->out_ep = usb_ep_autoconfig(cdev->gadget, &fs_sink_desc);
@@ -362,13 +362,13 @@ autoconf_fail:
 	/* allocate iso endpoints */
 	ss->iso_in_ep = usb_ep_autoconfig(cdev->gadget, &fs_iso_source_desc);
 	if (!ss->iso_in_ep)
-		goto no_iso;
+		goto anal_iso;
 
 	ss->iso_out_ep = usb_ep_autoconfig(cdev->gadget, &fs_iso_sink_desc);
 	if (!ss->iso_out_ep) {
 		usb_ep_autoconfig_release(ss->iso_in_ep);
 		ss->iso_in_ep = NULL;
-no_iso:
+anal_iso:
 		/*
 		 * We still want to work even if the UDC doesn't have isoc
 		 * endpoints, so null out the alt interface that contains
@@ -388,7 +388,7 @@ no_iso:
 
 	/*
 	 * Fill in the HS isoc descriptors from the module parameters.
-	 * We assume that the user knows what they are doing and won't
+	 * We assume that the user kanalws what they are doing and won't
 	 * give parameters that their UDC doesn't support.
 	 */
 	hs_iso_source_desc.wMaxPacketSize = ss->isoc_maxpacket;
@@ -410,7 +410,7 @@ no_iso:
 
 	/*
 	 * Fill in the SS isoc descriptors from the module parameters.
-	 * We assume that the user knows what they are doing and won't
+	 * We assume that the user kanalws what they are doing and won't
 	 * give parameters that their UDC doesn't support.
 	 */
 	ss_iso_source_desc.wMaxPacketSize = ss->isoc_maxpacket;
@@ -438,8 +438,8 @@ no_iso:
 
 	DBG(cdev, "%s: IN/%s, OUT/%s, ISO-IN/%s, ISO-OUT/%s\n",
 			f->name, ss->in_ep->name, ss->out_ep->name,
-			ss->iso_in_ep ? ss->iso_in_ep->name : "<none>",
-			ss->iso_out_ep ? ss->iso_out_ep->name : "<none>");
+			ss->iso_in_ep ? ss->iso_in_ep->name : "<analne>",
+			ss->iso_out_ep ? ss->iso_out_ep->name : "<analne>");
 	return 0;
 }
 
@@ -472,7 +472,7 @@ static int check_read_data(struct f_sourcesink *ss, struct usb_request *req)
 	for (i = 0; i < req->actual; i++, buf++) {
 		switch (ss->pattern) {
 
-		/* all-zeroes has no synchronization issues */
+		/* all-zeroes has anal synchronization issues */
 		case 0:
 			if (*buf == 0)
 				continue;
@@ -531,7 +531,7 @@ static void source_sink_complete(struct usb_ep *ep, struct usb_request *req)
 
 	switch (status) {
 
-	case 0:				/* normal completion? */
+	case 0:				/* analrmal completion? */
 		if (ep == ss->out_ep) {
 			check_read_data(ss, req);
 			if (ss->pattern != 2)
@@ -539,7 +539,7 @@ static void source_sink_complete(struct usb_ep *ep, struct usb_request *req)
 		}
 		break;
 
-	/* this endpoint is normally active while we're configured */
+	/* this endpoint is analrmally active while we're configured */
 	case -ECONNABORTED:		/* hardware forced ep reset */
 	case -ECONNRESET:		/* request dequeued */
 	case -ESHUTDOWN:		/* disconnect from host */
@@ -551,7 +551,7 @@ static void source_sink_complete(struct usb_ep *ep, struct usb_request *req)
 		return;
 
 	case -EOVERFLOW:		/* buffer overrun on read means that
-					 * we didn't provide a big enough
+					 * we didn't provide a big eanalugh
 					 * buffer.
 					 */
 	default:
@@ -607,7 +607,7 @@ static int source_sink_start_ep(struct f_sourcesink *ss, bool is_in,
 	for (i = 0; i < qlen; i++) {
 		req = ss_alloc_ep_req(ep, size);
 		if (!req)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		req->complete = source_sink_complete;
 		if (is_in)
@@ -764,7 +764,7 @@ static int sourcesink_setup(struct usb_function *f,
 {
 	struct usb_configuration        *c = f->config;
 	struct usb_request	*req = c->cdev->req;
-	int			value = -EOPNOTSUPP;
+	int			value = -EOPANALTSUPP;
 	u16			w_index = le16_to_cpu(ctrl->wIndex);
 	u16			w_value = le16_to_cpu(ctrl->wValue);
 	u16			w_length = le16_to_cpu(ctrl->wLength);
@@ -781,13 +781,13 @@ static int sourcesink_setup(struct usb_function *f,
 	 * Intel's USB 2.0 compliance test devices.  We exceed that
 	 * device spec by allowing multiple-packet requests.
 	 *
-	 * NOTE:  the Control-OUT data stays in req->buf ... better
+	 * ANALTE:  the Control-OUT data stays in req->buf ... better
 	 * would be copying it into a scratch buffer, so that other
 	 * requests may safely intervene.
 	 */
 	case 0x5b:	/* control WRITE test -- fill the buffer */
 		if (ctrl->bRequestType != (USB_DIR_OUT|USB_TYPE_VENDOR))
-			goto unknown;
+			goto unkanalwn;
 		if (w_value || w_index)
 			break;
 		/* just read that many bytes into the buffer */
@@ -797,7 +797,7 @@ static int sourcesink_setup(struct usb_function *f,
 		break;
 	case 0x5c:	/* control READ test -- return the buffer */
 		if (ctrl->bRequestType != (USB_DIR_IN|USB_TYPE_VENDOR))
-			goto unknown;
+			goto unkanalwn;
 		if (w_value || w_index)
 			break;
 		/* expect those bytes are still in the buffer; send back */
@@ -807,9 +807,9 @@ static int sourcesink_setup(struct usb_function *f,
 		break;
 
 	default:
-unknown:
+unkanalwn:
 		VDBG(c->cdev,
-			"unknown control req%02x.%02x v%04x i%04x l%d\n",
+			"unkanalwn control req%02x.%02x v%04x i%04x l%d\n",
 			ctrl->bRequestType, ctrl->bRequest,
 			w_value, w_index, w_length);
 	}
@@ -839,7 +839,7 @@ static struct usb_function *source_sink_alloc_func(
 
 	ss = kzalloc(sizeof(*ss), GFP_KERNEL);
 	if (!ss)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ss_opts =  container_of(fi, struct f_ss_opts, func_inst);
 
@@ -1247,7 +1247,7 @@ static struct usb_function_instance *source_sink_alloc_inst(void)
 
 	ss_opts = kzalloc(sizeof(*ss_opts), GFP_KERNEL);
 	if (!ss_opts)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	mutex_init(&ss_opts->lock);
 	ss_opts->func_inst.free_func_inst = source_sink_free_instance;
 	ss_opts->isoc_interval = GZERO_ISOC_INTERVAL;

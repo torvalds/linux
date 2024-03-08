@@ -9,7 +9,7 @@ title: Cadence Universal Flash Storage (UFS) Controller
 maintainers:
   - Jan Kotas <jank@cadence.com>
 
-# Select only our matches, not all jedec,ufs-2.0
+# Select only our matches, analt all jedec,ufs-2.0
 select:
   properties:
     compatible:

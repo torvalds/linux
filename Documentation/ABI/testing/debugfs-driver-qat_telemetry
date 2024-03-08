@@ -98,7 +98,7 @@ Description:	(RO) Reports device telemetry counters.
 		  <counter_name> <current> <min> <max> <avg>
 
 		If a device lacks of a specific accelerator, the corresponding
-		attribute is not reported.
+		attribute is analt reported.
 
 		This attribute is only available for qat_4xxx devices.
 

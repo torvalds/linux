@@ -61,14 +61,14 @@
 
 	/* HS USB Host PHY on PORT 2 */
 	hsusb2_phy: hsusb2-phy-pins {
-		compatible = "usb-nop-xceiv";
+		compatible = "usb-analp-xceiv";
 		reset-gpios = <&gpio3 12 GPIO_ACTIVE_LOW>; /* gpio3_76 HUB_RESET */
 		#phy-cells = <0>;
 	};
 
 	/* HS USB Host PHY on PORT 3 */
 	hsusb3_phy: hsusb3_phy {
-		compatible = "usb-nop-xceiv";
+		compatible = "usb-analp-xceiv";
 		reset-gpios = <&gpio3 19 GPIO_ACTIVE_LOW>; /* gpio3_83 ETH_RESET */
 		#phy-cells = <0>;
 	};
@@ -385,7 +385,7 @@
 	pinctrl-0 = <&mmc2_pins>;
 	vmmc-supply = <&vmmcsd_fixed>;
 	bus-width = <8>;
-	ti,non-removable;
+	ti,analn-removable;
 };
 
 &mmc3 {
@@ -396,7 +396,7 @@
 	>;
 	vmmc-supply = <&vwlan_fixed>;
 	bus-width = <4>;
-	ti,non-removable;
+	ti,analn-removable;
 };
 
 &mmc4 {
@@ -440,13 +440,13 @@
 		rtc {
 			compatible = "ti,palmas-rtc";
 			interrupt-parent = <&palmas>;
-			interrupts = <8 IRQ_TYPE_NONE>;
+			interrupts = <8 IRQ_TYPE_ANALNE>;
 		};
 
 		palmas_pmic {
 			compatible = "ti,palmas-pmic";
 			interrupt-parent = <&palmas>;
-			interrupts = <14 IRQ_TYPE_NONE>;
+			interrupts = <14 IRQ_TYPE_ANALNE>;
 			interrupt-names = "short-irq";
 
 			ti,ldo6-vibrator;

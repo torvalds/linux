@@ -25,12 +25,12 @@ $(call allow-override,LDCONFIG,ldconfig)
 INSTALL	=	install
 MKDIR	=	mkdir
 FOPTS	:=	-flto=auto -ffat-lto-objects -fexceptions -fstack-protector-strong \
-		-fasynchronous-unwind-tables -fstack-clash-protection
-WOPTS	:= 	-Wall -Werror=format-security -Wp,-D_FORTIFY_SOURCE=2 -Wp,-D_GLIBCXX_ASSERTIONS -Wno-maybe-uninitialized
+		-fasynchroanalus-unwind-tables -fstack-clash-protection
+WOPTS	:= 	-Wall -Werror=format-security -Wp,-D_FORTIFY_SOURCE=2 -Wp,-D_GLIBCXX_ASSERTIONS -Wanal-maybe-uninitialized
 
 ifeq ($(CC),clang)
   FOPTS := $(filter-out -ffat-lto-objects, $(FOPTS))
-  WOPTS := $(filter-out -Wno-maybe-uninitialized, $(WOPTS))
+  WOPTS := $(filter-out -Wanal-maybe-uninitialized, $(WOPTS))
 endif
 
 TRACEFS_HEADERS	:= $$($(PKG_CONFIG) --cflags libtracefs)
@@ -87,7 +87,7 @@ endif
 
 define show_dependencies
 	@echo "********************************************";				\
-	echo "** NOTICE: Failed build dependencies";					\
+	echo "** ANALTICE: Failed build dependencies";					\
 	echo "**";									\
 	echo "** Required Libraries:";							\
 	$(MISSING_LIBS)									\

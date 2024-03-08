@@ -160,7 +160,7 @@
 #define PCK_STUFF_STATUS_0		0x22a0
 #define PCK_STUFF_STATUS_1		0x22a4
 #define INFO_PACK_STATUS		0x22a8
-#define RATE_GOVERNOR_STATUS		0x22ac
+#define RATE_GOVERANALR_STATUS		0x22ac
 #define DP_HORIZONTAL			0x22b0
 #define DP_VERTICAL_0			0x22b4
 #define DP_VERTICAL_1			0x22b8
@@ -345,7 +345,7 @@
 #define DPTX_EVENT_ENABLE_HPD			BIT(0)
 #define DPTX_EVENT_ENABLE_TRAINING		BIT(1)
 
-#define LINK_TRAINING_NOT_ACTIVE		0
+#define LINK_TRAINING_ANALT_ACTIVE		0
 #define LINK_TRAINING_RUN			1
 #define LINK_TRAINING_RESTART			2
 
@@ -364,8 +364,8 @@
 /* capability */
 #define AUX_HOST_INVERT				3
 #define	FAST_LT_SUPPORT				1
-#define FAST_LT_NOT_SUPPORT			0
-#define LANE_MAPPING_NORMAL			0x1b
+#define FAST_LT_ANALT_SUPPORT			0
+#define LANE_MAPPING_ANALRMAL			0x1b
 #define LANE_MAPPING_FLIPPED			0xe4
 #define ENHANCED				1
 #define SCRAMBLER_EN				BIT(4)
@@ -435,7 +435,7 @@ enum pattern_set {
 	PTS2		= BIT(1),
 	PTS3		= BIT(2),
 	PTS4		= BIT(3),
-	DP_NONE		= BIT(4)
+	DP_ANALNE		= BIT(4)
 };
 
 enum vic_color_depth {

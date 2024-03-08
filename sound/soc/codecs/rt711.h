@@ -191,7 +191,7 @@ struct  rt711_priv {
 
 /* jack detect control 4 (0x0b)(NID:20h) */
 #define RT711_JD2_PAD_PULL_UP_MASK (0x1 << 3)
-#define RT711_JD2_PAD_NOT_PULL_UP (0x0 << 3)
+#define RT711_JD2_PAD_ANALT_PULL_UP (0x0 << 3)
 #define RT711_JD2_PAD_PULL_UP (0x1 << 3)
 #define RT711_JD2_MODE_SEL_MASK (0x3 << 0)
 #define RT711_JD2_MODE0_2PORT (0x0 << 0)

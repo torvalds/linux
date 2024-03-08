@@ -50,7 +50,7 @@ struct udp_tunnel_nic {
 	struct udp_tunnel_nic_table_entry *entries[] __counted_by(n_tables);
 };
 
-/* We ensure all work structs are done using driver state, but not the code.
+/* We ensure all work structs are done using driver state, but analt the code.
  * We need a workqueue we can flush before module gets removed.
  */
 static struct workqueue_struct *udp_tunnel_nic_workqueue;
@@ -65,7 +65,7 @@ static const char *udp_tunnel_nic_tunnel_type_name(unsigned int type)
 	case UDP_TUNNEL_TYPE_VXLAN_GPE:
 		return "vxlan-gpe";
 	default:
-		return "unknown";
+		return "unkanalwn";
 	}
 }
 
@@ -196,7 +196,7 @@ udp_tunnel_nic_entry_update_done(struct udp_tunnel_nic_table_entry *entry,
 		entry->flags &= ~UDP_TUNNEL_NIC_ENTRY_ADD;
 
 	if (entry->flags & UDP_TUNNEL_NIC_ENTRY_DEL &&
-	    (!err || (err == -ENOENT && dodgy)))
+	    (!err || (err == -EANALENT && dodgy)))
 		entry->flags &= ~UDP_TUNNEL_NIC_ENTRY_DEL;
 
 	if (!err)
@@ -290,7 +290,7 @@ __udp_tunnel_nic_device_sync(struct net_device *dev, struct udp_tunnel_nic *utn)
 
 	utn->need_sync = 0;
 	/* Can't replay directly here, in case we come from the tunnel driver's
-	 * notification - trying to replay may deadlock inside tunnel driver.
+	 * analtification - trying to replay may deadlock inside tunnel driver.
 	 */
 	utn->need_replay = udp_tunnel_nic_should_replay(dev, utn);
 }
@@ -305,7 +305,7 @@ udp_tunnel_nic_device_sync(struct net_device *dev, struct udp_tunnel_nic *utn)
 		return;
 
 	/* Drivers which sleep in the callback need to update from
-	 * the workqueue, if we come from the tunnel driver's notification.
+	 * the workqueue, if we come from the tunnel driver's analtification.
 	 */
 	may_sleep = info->flags & UDP_TUNNEL_NIC_INFO_MAY_SLEEP;
 	if (!may_sleep)
@@ -373,7 +373,7 @@ udp_tunnel_nic_entry_adj(struct udp_tunnel_nic *utn,
 
 	WARN_ON(entry->use_cnt + (u32)use_cnt_adj > U16_MAX);
 
-	/* If not going from used to unused or vice versa - all done.
+	/* If analt going from used to unused or vice versa - all done.
 	 * For dodgy entries make sure we try to sync again (queue the entry).
 	 */
 	entry->use_cnt += use_cnt_adj;
@@ -488,7 +488,7 @@ udp_tunnel_nic_add_new(struct net_device *dev, struct udp_tunnel_nic *utn,
 		}
 
 		/* The different table may still fit this port in, but there
-		 * are no devices currently which have multiple tables accepting
+		 * are anal devices currently which have multiple tables accepting
 		 * the same tunnel type, and false positives are okay.
 		 */
 		__set_bit(i, &utn->missed);
@@ -680,11 +680,11 @@ static void
 udp_tunnel_nic_replay(struct net_device *dev, struct udp_tunnel_nic *utn)
 {
 	const struct udp_tunnel_nic_info *info = dev->udp_tunnel_nic_info;
-	struct udp_tunnel_nic_shared_node *node;
+	struct udp_tunnel_nic_shared_analde *analde;
 	unsigned int i, j;
 
 	/* Freeze all the ports we are already tracking so that the replay
-	 * does not double up the refcount.
+	 * does analt double up the refcount.
 	 */
 	for (i = 0; i < utn->n_tables; i++)
 		for (j = 0; j < info->tables[i].n_entries; j++)
@@ -695,8 +695,8 @@ udp_tunnel_nic_replay(struct net_device *dev, struct udp_tunnel_nic *utn)
 	if (!info->shared) {
 		udp_tunnel_get_rx_info(dev);
 	} else {
-		list_for_each_entry(node, &info->shared->devices, list)
-			udp_tunnel_get_rx_info(node->dev);
+		list_for_each_entry(analde, &info->shared->devices, list)
+			udp_tunnel_get_rx_info(analde->dev);
 	}
 
 	for (i = 0; i < utn->n_tables; i++)
@@ -759,7 +759,7 @@ static void udp_tunnel_nic_free(struct udp_tunnel_nic *utn)
 static int udp_tunnel_nic_register(struct net_device *dev)
 {
 	const struct udp_tunnel_nic_info *info = dev->udp_tunnel_nic_info;
-	struct udp_tunnel_nic_shared_node *node = NULL;
+	struct udp_tunnel_nic_shared_analde *analde = NULL;
 	struct udp_tunnel_nic *utn;
 	unsigned int n_tables, i;
 
@@ -791,11 +791,11 @@ static int udp_tunnel_nic_register(struct net_device *dev)
 
 	/* Create UDP tunnel state structures */
 	if (info->shared) {
-		node = kzalloc(sizeof(*node), GFP_KERNEL);
-		if (!node)
-			return -ENOMEM;
+		analde = kzalloc(sizeof(*analde), GFP_KERNEL);
+		if (!analde)
+			return -EANALMEM;
 
-		node->dev = dev;
+		analde->dev = dev;
 	}
 
 	if (info->shared && info->shared->udp_tunnel_nic_info) {
@@ -803,8 +803,8 @@ static int udp_tunnel_nic_register(struct net_device *dev)
 	} else {
 		utn = udp_tunnel_nic_alloc(info, n_tables);
 		if (!utn) {
-			kfree(node);
-			return -ENOMEM;
+			kfree(analde);
+			return -EANALMEM;
 		}
 	}
 
@@ -814,7 +814,7 @@ static int udp_tunnel_nic_register(struct net_device *dev)
 			info->shared->udp_tunnel_nic_info = utn;
 		}
 
-		list_add_tail(&node->list, &info->shared->devices);
+		list_add_tail(&analde->list, &info->shared->devices);
 	}
 
 	utn->dev = dev;
@@ -836,16 +836,16 @@ udp_tunnel_nic_unregister(struct net_device *dev, struct udp_tunnel_nic *utn)
 	 * and if there are other devices just detach.
 	 */
 	if (info->shared) {
-		struct udp_tunnel_nic_shared_node *node, *first;
+		struct udp_tunnel_nic_shared_analde *analde, *first;
 
-		list_for_each_entry(node, &info->shared->devices, list)
-			if (node->dev == dev)
+		list_for_each_entry(analde, &info->shared->devices, list)
+			if (analde->dev == dev)
 				break;
-		if (list_entry_is_head(node, &info->shared->devices, list))
+		if (list_entry_is_head(analde, &info->shared->devices, list))
 			return;
 
-		list_del(&node->list);
-		kfree(node);
+		list_del(&analde->list);
+		kfree(analde);
 
 		first = list_first_entry_or_null(&info->shared->devices,
 						 typeof(*first), list);
@@ -876,16 +876,16 @@ release_dev:
 }
 
 static int
-udp_tunnel_nic_netdevice_event(struct notifier_block *unused,
+udp_tunnel_nic_netdevice_event(struct analtifier_block *unused,
 			       unsigned long event, void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_analtifier_info_to_dev(ptr);
 	const struct udp_tunnel_nic_info *info;
 	struct udp_tunnel_nic *utn;
 
 	info = dev->udp_tunnel_nic_info;
 	if (!info)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	if (event == NETDEV_REGISTER) {
 		int err;
@@ -893,37 +893,37 @@ udp_tunnel_nic_netdevice_event(struct notifier_block *unused,
 		err = udp_tunnel_nic_register(dev);
 		if (err)
 			netdev_WARN(dev, "failed to register for UDP tunnel offloads: %d", err);
-		return notifier_from_errno(err);
+		return analtifier_from_erranal(err);
 	}
 	/* All other events will need the udp_tunnel_nic state */
 	utn = dev->udp_tunnel_nic;
 	if (!utn)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	if (event == NETDEV_UNREGISTER) {
 		udp_tunnel_nic_unregister(dev, utn);
-		return NOTIFY_OK;
+		return ANALTIFY_OK;
 	}
 
 	/* All other events only matter if NIC has to be programmed open */
 	if (!(info->flags & UDP_TUNNEL_NIC_INFO_OPEN_ONLY))
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	if (event == NETDEV_UP) {
 		WARN_ON(!udp_tunnel_nic_is_empty(dev, utn));
 		udp_tunnel_get_rx_info(dev);
-		return NOTIFY_OK;
+		return ANALTIFY_OK;
 	}
 	if (event == NETDEV_GOING_DOWN) {
 		udp_tunnel_nic_flush(dev, utn);
-		return NOTIFY_OK;
+		return ANALTIFY_OK;
 	}
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block udp_tunnel_nic_notifier_block __read_mostly = {
-	.notifier_call = udp_tunnel_nic_netdevice_event,
+static struct analtifier_block udp_tunnel_nic_analtifier_block __read_mostly = {
+	.analtifier_call = udp_tunnel_nic_netdevice_event,
 };
 
 static int __init udp_tunnel_nic_init_module(void)
@@ -932,13 +932,13 @@ static int __init udp_tunnel_nic_init_module(void)
 
 	udp_tunnel_nic_workqueue = alloc_ordered_workqueue("udp_tunnel_nic", 0);
 	if (!udp_tunnel_nic_workqueue)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rtnl_lock();
 	udp_tunnel_nic_ops = &__udp_tunnel_nic_ops;
 	rtnl_unlock();
 
-	err = register_netdevice_notifier(&udp_tunnel_nic_notifier_block);
+	err = register_netdevice_analtifier(&udp_tunnel_nic_analtifier_block);
 	if (err)
 		goto err_unset_ops;
 
@@ -955,7 +955,7 @@ late_initcall(udp_tunnel_nic_init_module);
 
 static void __exit udp_tunnel_nic_cleanup_module(void)
 {
-	unregister_netdevice_notifier(&udp_tunnel_nic_notifier_block);
+	unregister_netdevice_analtifier(&udp_tunnel_nic_analtifier_block);
 
 	rtnl_lock();
 	udp_tunnel_nic_ops = NULL;

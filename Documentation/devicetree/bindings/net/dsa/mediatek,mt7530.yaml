@@ -40,11 +40,11 @@ description: |
       This is usually used for connecting the wan port directly to the CPU to
       achieve 2 Gbps routing in total.
 
-      The driver looks up the reg on the ethernet-phy node, which the phy-handle
-      property on the gmac node refers to, to mux the specified phy.
+      The driver looks up the reg on the ethernet-phy analde, which the phy-handle
+      property on the gmac analde refers to, to mux the specified phy.
 
       The driver requires the gmac of the SoC to have "mediatek,eth-mac" as the
-      compatible string and the reg must be 1. So, for now, only gmac1 of a
+      compatible string and the reg must be 1. So, for analw, only gmac1 of a
       MediaTek SoC can benefit this. Banana Pi BPI-R2 suits this.
 
       For the MT7621 SoCs, rgmii2 group must be claimed with rgmii2 function.
@@ -52,9 +52,9 @@ description: |
       Check out example 5.
 
     - For the multi-chip module MT7530, in case of an external phy wired to
-      gmac1 of the SoC, port 5 must not be enabled.
+      gmac1 of the SoC, port 5 must analt be enabled.
 
-      In case of muxing PHY 0 or 4, the external phy must not be enabled.
+      In case of muxing PHY 0 or 4, the external phy must analt be enabled.
 
       For the MT7621 SoCs, rgmii2 group must be claimed with rgmii2 function.
 
@@ -97,7 +97,7 @@ properties:
 
   core-supply:
     description:
-      Phandle to the regulator node necessary for the core power.
+      Phandle to the regulator analde necessary for the core power.
 
   "#gpio-cells":
     const: 2
@@ -124,7 +124,7 @@ properties:
 
   io-supply:
     description: |
-      Phandle to the regulator node necessary for the I/O power.
+      Phandle to the regulator analde necessary for the I/O power.
       See Documentation/devicetree/bindings/regulator/mt6323-regulator.txt for
       details for the regulator setup on these boards.
 
@@ -136,7 +136,7 @@ properties:
 
   reset-gpios:
     description: |
-      GPIO to reset the switch. Use this if mediatek,mcm is not used.
+      GPIO to reset the switch. Use this if mediatek,mcm is analt used.
       This property is optional because some boards share the reset line with
       other components which makes it impossible to probe the switch if the
       reset line is used.

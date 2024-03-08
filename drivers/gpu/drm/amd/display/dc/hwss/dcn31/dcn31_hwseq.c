@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -71,7 +71,7 @@ static void enable_memory_low_power(struct dc *dc)
 	int i;
 
 	if (dc->debug.enable_mem_low_power.bits.dmcu) {
-		// Force ERAM to shutdown if DMCU is not enabled
+		// Force ERAM to shutdown if DMCU is analt enabled
 		if (dc->debug.disable_dmcu || dc->config.disable_dmcu) {
 			REG_UPDATE(DMU_MEM_PWR_CNTL, DMCU_ERAM_MEM_PWR_FORCE, 3);
 		}
@@ -144,7 +144,7 @@ void dcn31_init_hw(struct dc *dc)
 					res_pool->ref_clocks.dccg_ref_clock_inKhz,
 					&res_pool->ref_clocks.dchub_ref_clock_inKhz);
 		} else {
-			// Not all ASICs have DCCG sw component
+			// Analt all ASICs have DCCG sw component
 			res_pool->ref_clocks.dccg_ref_clock_inKhz =
 					res_pool->ref_clocks.xtalin_clock_inKhz;
 			res_pool->ref_clocks.dchub_ref_clock_inKhz =
@@ -182,14 +182,14 @@ void dcn31_init_hw(struct dc *dc)
 		hws->funcs.enable_power_gating_plane(dc->hwseq, true);
 
 	/* If taking control over from VBIOS, we may want to optimize our first
-	 * mode set, so we need to skip powering down pipes until we know which
+	 * mode set, so we need to skip powering down pipes until we kanalw which
 	 * pipes we want to use.
-	 * Otherwise, if taking control is not possible, we need to power
+	 * Otherwise, if taking control is analt possible, we need to power
 	 * everything down.
 	 */
 	if (dcb->funcs->is_accelerated_mode(dcb) || !dc->config.seamless_boot_edp_requested) {
 
-		// we want to turn off edp displays if odm is enabled and no seamless boot
+		// we want to turn off edp displays if odm is enabled and anal seamless boot
 		if (!dc->caps.seamless_odm) {
 			for (i = 0; i < dc->res_pool->timing_generator_count; i++) {
 				struct timing_generator *tg = dc->res_pool->timing_generators[i];
@@ -258,8 +258,8 @@ void dcn31_init_hw(struct dc *dc)
 	if (!dcb->funcs->is_accelerated_mode(dcb) && dc->res_pool->hubbub->funcs->init_watermarks)
 		dc->res_pool->hubbub->funcs->init_watermarks(dc->res_pool->hubbub);
 
-	if (dc->clk_mgr->funcs->notify_wm_ranges)
-		dc->clk_mgr->funcs->notify_wm_ranges(dc->clk_mgr);
+	if (dc->clk_mgr->funcs->analtify_wm_ranges)
+		dc->clk_mgr->funcs->analtify_wm_ranges(dc->clk_mgr);
 
 	if (dc->clk_mgr->funcs->set_hard_max_memclk && !dc->clk_mgr->dc_mode_softmax_enabled)
 		dc->clk_mgr->funcs->set_hard_max_memclk(dc->clk_mgr);
@@ -383,7 +383,7 @@ void dcn31_update_info_frame(struct pipe_ctx *pipe_ctx)
 	ASSERT(pipe_ctx->stream);
 
 	if (pipe_ctx->stream_res.stream_enc == NULL)
-		return;  /* this is not root pipe */
+		return;  /* this is analt root pipe */
 
 	is_hdmi_tmds = dc_is_hdmi_tmds_signal(pipe_ctx->stream->signal);
 	is_dp = dc_is_dp_signal(pipe_ctx->stream->signal);
@@ -427,8 +427,8 @@ void dcn31_z10_restore(const struct dc *dc)
 	union dmub_rb_cmd cmd;
 
 	/*
-	 * DMUB notifies whether restore is required.
-	 * Optimization to avoid sending commands when not required.
+	 * DMUB analtifies whether restore is required.
+	 * Optimization to avoid sending commands when analt required.
 	 */
 	if (!dc_dmub_srv_is_restore_required(dc->ctx->dmub_srv))
 		return;

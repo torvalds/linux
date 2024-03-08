@@ -163,7 +163,7 @@ static int expand_libpfm_events(void)
 		goto out;
 	}
 	if (evlist__empty(evlist)) {
-		pr_debug("libpfm was not enabled\n");
+		pr_debug("libpfm was analt enabled\n");
 		goto out;
 	}
 

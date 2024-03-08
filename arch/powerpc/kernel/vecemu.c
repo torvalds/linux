@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * Routines to emulate some Altivec/VMX instructions, specifically
- * those that can trap when given denormalized operands in Java mode.
+ * those that can trap when given deanalrmalized operands in Java mode.
  */
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/sched.h>
 #include <asm/ptrace.h>
 #include <asm/processor.h>
@@ -81,7 +81,7 @@ static unsigned int eexp2(unsigned int s)
 	if (exp >= 0)
 		return mant + (exp << 23);
 
-	/* denormalized result */
+	/* deanalrmalized result */
 	exp = -exp;
 	mant += 1 << (exp - 1);
 	return mant >> exp;
@@ -106,7 +106,7 @@ static unsigned int elog2(unsigned int s)
 		return 0xff800000;	/* return -Inf */
 
 	if (exp == 0) {
-		/* denormalized */
+		/* deanalrmalized */
 		asm("cntlzw %0,%1" : "=r" (lz) : "r" (mant));
 		mant <<= lz - 8;
 		exp = (-118 - lz) << 23;
@@ -271,7 +271,7 @@ int emulate_altivec(struct pt_regs *regs)
 
 	word = ppc_inst_val(instr);
 	if (ppc_inst_primary_opcode(instr) != 4)
-		return -EINVAL;		/* not an altivec instruction */
+		return -EINVAL;		/* analt an altivec instruction */
 	vd = (word >> 21) & 0x1f;
 	va = (word >> 16) & 0x1f;
 	vb = (word >> 11) & 0x1f;

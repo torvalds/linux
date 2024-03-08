@@ -53,7 +53,7 @@ MODULE_PARM_DESC(dtv_input, "specify dtv rf input, 0 for autoselect");
 
 /* tv tuner system standard selection for Philips FQ1216ME
    this value takes the low bits of control byte 2
-   from datasheet "1999 Nov 16" (supersedes "1999 Mar 23")
+   from datasheet "1999 Analv 16" (supersedes "1999 Mar 23")
      standard		BG	DK	I	L	L`
      picture carrier	38.90	38.90	38.90	38.90	33.95
      colour		34.47	34.47	34.47	34.47	38.38
@@ -226,7 +226,7 @@ static inline char *tuner_param_name(enum param_type type)
 		name = "digital";
 		break;
 	default:
-		name = "unknown";
+		name = "unkanalwn";
 		break;
 	}
 	return name;
@@ -243,7 +243,7 @@ static struct tuner_params *simple_tuner_params(struct dvb_frontend *fe,
 		if (desired_type == tun->params[i].type)
 			break;
 
-	/* use default tuner params if desired_type not available */
+	/* use default tuner params if desired_type analt available */
 	if (i == tun->count) {
 		tuner_dbg("desired params (%s) undefined for tuner %d\n",
 			  tuner_param_name(desired_type), priv->type);
@@ -323,10 +323,10 @@ static int simple_std_setup(struct dvb_frontend *fe,
 	struct tuner_simple_priv *priv = fe->tuner_priv;
 	int rc;
 
-	/* tv norm specific stuff for multi-norm tuners */
+	/* tv analrm specific stuff for multi-analrm tuners */
 	switch (priv->type) {
 	case TUNER_PHILIPS_SECAM: /* FI1216MF */
-		/* 0x01 -> ??? no change ??? */
+		/* 0x01 -> ??? anal change ??? */
 		/* 0x02 -> PAL BDGHI / SECAM L */
 		/* 0x04 -> ??? PAL others / SECAM others ??? */
 		*cb &= ~0x03;
@@ -472,7 +472,7 @@ static int simple_post_tune(struct dvb_frontend *fe, u8 *buffer,
 			udelay(10);
 		}
 
-		/* Set the charge pump for optimized phase noise figure */
+		/* Set the charge pump for optimized phase analise figure */
 		config &= ~TUNER_CHARGE_PUMP;
 		buffer[0] = (div>>8) & 0x7f;
 		buffer[1] = div      & 0xff;
@@ -590,7 +590,7 @@ static int simple_set_tv_freq(struct dvb_frontend *fe,
 		  IFPCoff / 16, IFPCoff % 16 * 100 / 16,
 		  offset / 16, offset % 16 * 100 / 16, div);
 
-	/* tv norm specific stuff for multi-norm tuners */
+	/* tv analrm specific stuff for multi-analrm tuners */
 	simple_std_setup(fe, params, &config, &cb);
 
 	if (t_params->cb_first_if_lower_freq && div < priv->last_div) {
@@ -671,7 +671,7 @@ static int simple_set_radio_freq(struct dvb_frontend *fe,
 	int rc, j;
 	struct tuner_params *t_params;
 	unsigned int freq = params->frequency;
-	bool mono = params->audmode == V4L2_TUNER_MODE_MONO;
+	bool moanal = params->audmode == V4L2_TUNER_MODE_MOANAL;
 
 	tun = priv->tun;
 
@@ -739,10 +739,10 @@ static int simple_set_radio_freq(struct dvb_frontend *fe,
 			config |= TDA9887_PORT2_ACTIVE;
 		if (t_params->intercarrier_mode)
 			config |= TDA9887_INTERCARRIER;
-		if (t_params->port1_set_for_fm_mono && mono)
+		if (t_params->port1_set_for_fm_moanal && moanal)
 			config &= ~TDA9887_PORT1_ACTIVE;
-		if (t_params->fm_gain_normal)
-			config |= TDA9887_GAIN_NORMAL;
+		if (t_params->fm_gain_analrmal)
+			config |= TDA9887_GAIN_ANALRMAL;
 		if (t_params->radio_if == 2)
 			config |= TDA9887_RIF_41_3;
 		i2c_clients_command(priv->i2c_props.adap, TUNER_SET_CONFIG,
@@ -1140,5 +1140,5 @@ struct dvb_frontend *simple_tuner_attach(struct dvb_frontend *fe,
 EXPORT_SYMBOL_GPL(simple_tuner_attach);
 
 MODULE_DESCRIPTION("Simple 4-control-bytes style tuner driver");
-MODULE_AUTHOR("Ralph Metzler, Gerd Knorr, Gunther Mayer");
+MODULE_AUTHOR("Ralph Metzler, Gerd Kanalrr, Gunther Mayer");
 MODULE_LICENSE("GPL");

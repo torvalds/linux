@@ -36,7 +36,7 @@ properties:
 
   power-domains:
     maxItems: 1
-    description: Should contain a phandle to a PM domain provider node
+    description: Should contain a phandle to a PM domain provider analde
       and an args specifier containing the USB device id
       value. This property is as per the binding,
       Documentation/devicetree/bindings/soc/ti/sci-pm-domain.yaml

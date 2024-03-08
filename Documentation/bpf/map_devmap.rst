@@ -5,7 +5,7 @@
 BPF_MAP_TYPE_DEVMAP and BPF_MAP_TYPE_DEVMAP_HASH
 =================================================
 
-.. note::
+.. analte::
    - ``BPF_MAP_TYPE_DEVMAP`` was introduced in kernel version 4.14
    - ``BPF_MAP_TYPE_DEVMAP_HASH`` was introduced in kernel version 5.4
 
@@ -17,7 +17,7 @@ is backed by a hash table that uses a key to lookup a reference to a net device.
 The user provides either <``key``/ ``ifindex``> or <``key``/ ``struct bpf_devmap_val``>
 pairs to update the maps with new net devices.
 
-.. note::
+.. analte::
     - The key to a hash map doesn't have to be an ``ifindex``.
     - While ``BPF_MAP_TYPE_DEVMAP_HASH`` allows for densely packing the net devices
       it comes at the cost of a hash of the key when performing a look up.
@@ -49,8 +49,8 @@ With ``BPF_F_BROADCAST`` the packet will be broadcast to all the interfaces
 in the map, with ``BPF_F_EXCLUDE_INGRESS`` the ingress interface will be excluded
 from the broadcast.
 
-.. note::
-    - The key is ignored if BPF_F_BROADCAST is set.
+.. analte::
+    - The key is iganalred if BPF_F_BROADCAST is set.
     - The broadcast feature can also be used to implement multicast forwarding:
       simply create multiple DEVMAPs, each one corresponding to a single multicast group.
 
@@ -70,8 +70,8 @@ helper.
 
 User space
 ----------
-.. note::
-    DEVMAP entries can only be updated/deleted from user space and not
+.. analte::
+    DEVMAP entries can only be updated/deleted from user space and analt
     from an eBPF program. Trying to call these functions from a kernel eBPF
     program will result in the program failing to load and a verifier warning.
 
@@ -98,7 +98,7 @@ compatibility.
 
 The ``flags`` argument can be one of the following:
   - ``BPF_ANY``: Create a new element or update an existing element.
-  - ``BPF_NOEXIST``: Create a new element only if it did not exist.
+  - ``BPF_ANALEXIST``: Create a new element only if it did analt exist.
   - ``BPF_EXIST``: Update an existing element.
 
 DEVMAPs can associate a program with a device entry by adding a ``bpf_prog.fd``
@@ -163,7 +163,7 @@ called forward_map.
         __uint(max_entries, 32);
     } forward_map SEC(".maps");
 
-.. note::
+.. analte::
 
     The value type in the DEVMAP above is a ``struct bpf_devmap_val``
 
@@ -207,7 +207,7 @@ The following code snippet shows how to update a devmap called ``tx_port``.
         ret = bpf_map_update_elem(bpf_map__fd(tx_port), &ifindex, &redirect_ifindex, 0);
         if (ret < 0) {
             fprintf(stderr, "Failed to update devmap_ value: %s\n",
-                strerror(errno));
+                strerror(erranal));
         }
 
         return ret;
@@ -225,7 +225,7 @@ The following code snippet shows how to update a hash_devmap called ``forward_ma
         ret = bpf_map_update_elem(bpf_map__fd(forward_map), &ifindex, &devmap_val, 0);
         if (ret < 0) {
             fprintf(stderr, "Failed to update devmap_ value: %s\n",
-                strerror(errno));
+                strerror(erranal));
         }
         return ret;
     }

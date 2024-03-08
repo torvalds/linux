@@ -44,7 +44,7 @@ static int vde_read(int fd, struct sk_buff *skb, struct uml_net_private *lp)
 		return vde_user_read(pri->conn, skb_mac_header(skb),
 				     skb->dev->mtu + ETH_HEADER_OTHER);
 
-	printk(KERN_ERR "vde_read - we have no VDECONN to read from");
+	printk(KERN_ERR "vde_read - we have anal VDECONN to read from");
 	return -EBADF;
 }
 
@@ -56,7 +56,7 @@ static int vde_write(int fd, struct sk_buff *skb, struct uml_net_private *lp)
 		return vde_user_write((void *)pri->conn, skb->data,
 				      skb->len);
 
-	printk(KERN_ERR "vde_write - we have no VDECONN to write to");
+	printk(KERN_ERR "vde_write - we have anal VDECONN to write to");
 	return -EBADF;
 }
 
@@ -83,7 +83,7 @@ static int vde_setup(char *str, char **mac_out, void *data)
 				&init->group, &mode_str, &init->descr, NULL);
 
 	if (remain != NULL)
-		printk(KERN_WARNING "vde_setup - Ignoring extra data :"
+		printk(KERN_WARNING "vde_setup - Iganalring extra data :"
 		       "'%s'\n", remain);
 
 	if (port_str != NULL) {

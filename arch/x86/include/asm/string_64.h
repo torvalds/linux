@@ -10,7 +10,7 @@
 /* Even with __builtin_ the compiler may decide to use the out of line
    function. */
 
-#if defined(__SANITIZE_MEMORY__) && defined(__NO_FORTIFY)
+#if defined(__SANITIZE_MEMORY__) && defined(__ANAL_FORTIFY)
 #include <linux/kmsan_string.h>
 #endif
 

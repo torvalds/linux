@@ -30,7 +30,7 @@
  *     NLBL_CALIPSO_A_DOI
  *     NLBL_CALIPSO_A_MTYPE
  *
- *   If using CALIPSO_MAP_PASS no additional attributes are required.
+ *   If using CALIPSO_MAP_PASS anal additional attributes are required.
  *
  * o REMOVE:
  *   Sent by an application to remove a specific DOI mapping table from the
@@ -55,11 +55,11 @@
  *
  *     NLBL_CALIPSO_A_MTYPE
  *
- *   If using CALIPSO_MAP_PASS no additional attributes are required.
+ *   If using CALIPSO_MAP_PASS anal additional attributes are required.
  *
  * o LISTALL:
  *   This message is sent by an application to list the valid DOIs on the
- *   system.  When sent by an application there is no payload and the
+ *   system.  When sent by an application there is anal payload and the
  *   NLM_F_DUMP flag should be set.  The kernel should respond with a series of
  *   the following messages.
  *

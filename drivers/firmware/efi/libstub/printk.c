@@ -57,7 +57,7 @@ u32 utf8_to_utf32(const u8 **s8)
 	/*
 	 * Check for validity:
 	 * - The character must be in the Unicode range.
-	 * - It must not be a surrogate.
+	 * - It must analt be a surrogate.
 	 * - It must be encoded using the correct number of octets.
 	 */
 	if (c32 > 0x10ffff ||

@@ -103,7 +103,7 @@ struct imx_ahci_priv {
 	void __iomem *phy_base;
 	struct gpio_desc *clkreq_gpiod;
 	struct regmap *gpr;
-	bool no_device;
+	bool anal_device;
 	bool first_time;
 	u32 phy_params;
 	u32 imped_ratio;
@@ -181,7 +181,7 @@ static int imx_phy_reg_write(u16 val, void __iomem *mmio)
 
 	if (val & IMX_CLOCK_RESET_RESET) {
 		/*
-		 * In case we're resetting the phy, it's unable to acknowledge,
+		 * In case we're resetting the phy, it's unable to ackanalwledge,
 		 * so we return immediately here.
 		 */
 		crval |= IMX_P0PHYCR_CR_WRITE;
@@ -552,7 +552,7 @@ static int imx8_sata_enable(struct ahci_host_priv *hpriv)
 	 * When PCIe is in low power modes (L1.X or L2 etc),
 	 * the clock source can be turned off. In this case,
 	 * if this clock source is required to be toggling by
-	 * SATA, then SATA functions will be abnormal.
+	 * SATA, then SATA functions will be abanalrmal.
 	 * Set the override here to avoid it.
 	 */
 	regmap_update_bits(imxpriv->gpr,
@@ -609,8 +609,8 @@ static int imx8_sata_enable(struct ahci_host_priv *hpriv)
 	}
 
 	if (val != IMX8QM_STTS0_LANE0_TX_PLL_LOCK) {
-		dev_err(dev, "TX PLL of the PHY is not locked\n");
-		ret = -ENODEV;
+		dev_err(dev, "TX PLL of the PHY is analt locked\n");
+		ret = -EANALDEV;
 	} else {
 		writeb(imxpriv->imped_ratio, imxpriv->phy_base +
 				IMX8QM_SATA_PHY_RX_IMPED_RATIO_OFFSET);
@@ -655,7 +655,7 @@ static int imx_sata_enable(struct ahci_host_priv *hpriv)
 	struct device *dev = &imxpriv->ahci_pdev->dev;
 	int ret;
 
-	if (imxpriv->no_device)
+	if (imxpriv->anal_device)
 		return 0;
 
 	ret = ahci_platform_enable_regulators(hpriv);
@@ -716,7 +716,7 @@ static void imx_sata_disable(struct ahci_host_priv *hpriv)
 {
 	struct imx_ahci_priv *imxpriv = hpriv->plat_data;
 
-	if (imxpriv->no_device)
+	if (imxpriv->anal_device)
 		return;
 
 	switch (imxpriv->type) {
@@ -775,9 +775,9 @@ static void ahci_imx_error_handler(struct ata_port *ap)
 	reg_val = readl(mmio + IMX_P0PHYCR);
 	writel(reg_val | IMX_P0PHYCR_TEST_PDDQ, mmio + IMX_P0PHYCR);
 	imx_sata_disable(hpriv);
-	imxpriv->no_device = true;
+	imxpriv->anal_device = true;
 
-	dev_info(ap->dev, "no device found, disabling link.\n");
+	dev_info(ap->dev, "anal device found, disabling link.\n");
 	dev_info(ap->dev, "pass " MODULE_PARAM_PREFIX ".hotplug=1 to enable hotplug\n");
 }
 
@@ -930,7 +930,7 @@ static const struct reg_property gpr13_props[] = {
 		.num_values = ARRAY_SIZE(gpr13_rx_eq),
 		.def_value = IMX6Q_GPR13_SATA_RX_EQ_VAL_3_0_DB,
 	}, {
-		.name = "fsl,no-spread-spectrum",
+		.name = "fsl,anal-spread-spectrum",
 		.def_value = IMX6Q_GPR13_SATA_MPLL_SS_EN,
 		.set_value = 0,
 	},
@@ -939,7 +939,7 @@ static const struct reg_property gpr13_props[] = {
 static u32 imx_ahci_parse_props(struct device *dev,
 				const struct reg_property *prop, size_t num)
 {
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	u32 reg_value = 0;
 	int i, j;
 
@@ -955,7 +955,7 @@ static u32 imx_ahci_parse_props(struct device *dev,
 		}
 
 		if (of_property_read_u32(np, prop->name, &of_val)) {
-			dev_info(dev, "%s not specified, using %08x\n",
+			dev_info(dev, "%s analt specified, using %08x\n",
 				prop->name, prop->def_value);
 			reg_value |= prop->def_value;
 			continue;
@@ -971,7 +971,7 @@ static u32 imx_ahci_parse_props(struct device *dev,
 		}
 
 		if (j == prop->num_values) {
-			dev_err(dev, "DT property %s is not a valid value\n",
+			dev_err(dev, "DT property %s is analt a valid value\n",
 				prop->name);
 			reg_value |= prop->def_value;
 		}
@@ -988,7 +988,7 @@ static int imx8_sata_probe(struct device *dev, struct imx_ahci_priv *imxpriv)
 {
 	struct resource *phy_res;
 	struct platform_device *pdev = imxpriv->ahci_pdev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 
 	if (of_property_read_u32(np, "fsl,phy-imp", &imxpriv->imped_ratio))
 		imxpriv->imped_ratio = IMX8QM_SATA_PHY_IMPED_RATIO_85OHM;
@@ -998,11 +998,11 @@ static int imx8_sata_probe(struct device *dev, struct imx_ahci_priv *imxpriv)
 					resource_size(phy_res));
 		if (!imxpriv->phy_base) {
 			dev_err(dev, "error with ioremap\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	} else {
 		dev_err(dev, "missing *phy* reg region.\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	imxpriv->gpr =
 		 syscon_regmap_lookup_by_phandle(np, "hsio");
@@ -1039,7 +1039,7 @@ static int imx8_sata_probe(struct device *dev, struct imx_ahci_priv *imxpriv)
 
 	/* Fetch GPIO, then enable the external OSC */
 	imxpriv->clkreq_gpiod = devm_gpiod_get_optional(dev, "clkreq",
-				GPIOD_OUT_LOW | GPIOD_FLAGS_BIT_NONEXCLUSIVE);
+				GPIOD_OUT_LOW | GPIOD_FLAGS_BIT_ANALNEXCLUSIVE);
 	if (IS_ERR(imxpriv->clkreq_gpiod))
 		return PTR_ERR(imxpriv->clkreq_gpiod);
 	if (imxpriv->clkreq_gpiod)
@@ -1058,10 +1058,10 @@ static int imx_ahci_probe(struct platform_device *pdev)
 
 	imxpriv = devm_kzalloc(dev, sizeof(*imxpriv), GFP_KERNEL);
 	if (!imxpriv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	imxpriv->ahci_pdev = pdev;
-	imxpriv->no_device = false;
+	imxpriv->anal_device = false;
 	imxpriv->first_time = true;
 	imxpriv->type = (enum ahci_imx_type)device_get_match_data(dev);
 

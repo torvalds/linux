@@ -35,7 +35,7 @@ struct jump_label_patch {
 static struct jump_label_patch
 __jump_label_patch(struct jump_entry *entry, enum jump_label_type type)
 {
-	const void *expect, *code, *nop;
+	const void *expect, *code, *analp;
 	const void *addr, *dest;
 	int size;
 
@@ -46,25 +46,25 @@ __jump_label_patch(struct jump_entry *entry, enum jump_label_type type)
 	switch (size) {
 	case JMP8_INSN_SIZE:
 		code = text_gen_insn(JMP8_INSN_OPCODE, addr, dest);
-		nop = x86_nops[size];
+		analp = x86_analps[size];
 		break;
 
 	case JMP32_INSN_SIZE:
 		code = text_gen_insn(JMP32_INSN_OPCODE, addr, dest);
-		nop = x86_nops[size];
+		analp = x86_analps[size];
 		break;
 
 	default: BUG();
 	}
 
 	if (type == JUMP_LABEL_JMP)
-		expect = nop;
+		expect = analp;
 	else
 		expect = code;
 
 	if (memcmp(addr, expect, size)) {
 		/*
-		 * The location is not an op that we were expecting.
+		 * The location is analt an op that we were expecting.
 		 * Something went wrong. Crash the box, as something could be
 		 * corrupting the kernel.
 		 */
@@ -73,8 +73,8 @@ __jump_label_patch(struct jump_entry *entry, enum jump_label_type type)
 		BUG();
 	}
 
-	if (type == JUMP_LABEL_NOP)
-		code = nop;
+	if (type == JUMP_LABEL_ANALP)
+		code = analp;
 
 	return (struct jump_label_patch){.code = code, .size = size};
 }
@@ -88,14 +88,14 @@ __jump_label_transform(struct jump_entry *entry,
 
 	/*
 	 * As long as only a single processor is running and the code is still
-	 * not marked as RO, text_poke_early() can be used; Checking that
+	 * analt marked as RO, text_poke_early() can be used; Checking that
 	 * system_state is SYSTEM_BOOTING guarantees it. It will be set to
 	 * SYSTEM_SCHEDULING before other cores are awaken and before the
 	 * code is write-protected.
 	 *
-	 * At the time the change is being done, just ignore whether we
-	 * are doing nop -> jump or jump -> nop transition, and assume
-	 * always nop being the 'currently valid' instruction
+	 * At the time the change is being done, just iganalre whether we
+	 * are doing analp -> jump or jump -> analp transition, and assume
+	 * always analp being the 'currently valid' instruction
 	 */
 	if (init || system_state == SYSTEM_BOOTING) {
 		text_poke_early((void *)jump_entry_code(entry), jlp.code, jlp.size);
@@ -127,7 +127,7 @@ bool arch_jump_label_transform_queue(struct jump_entry *entry,
 
 	if (system_state == SYSTEM_BOOTING) {
 		/*
-		 * Fallback to the non-batching mode.
+		 * Fallback to the analn-batching mode.
 		 */
 		arch_jump_label_transform(entry, type);
 		return true;

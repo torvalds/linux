@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -29,7 +29,7 @@
 #include "core_types.h"
 #include "dmub_replay.h"
 
-#define DC_TRACE_LEVEL_MESSAGE(...) /* do nothing */
+#define DC_TRACE_LEVEL_MESSAGE(...) /* do analthing */
 
 #define MAX_PIPES 6
 
@@ -295,7 +295,7 @@ static void dmub_replay_send_cmd(struct dmub_replay *dmub,
 	ctx = dmub->ctx;
 	if (ctx != NULL) {
 
-		if (msg != Replay_Msg_Not_Support) {
+		if (msg != Replay_Msg_Analt_Support) {
 			memset(&cmd, 0, sizeof(cmd));
 			//Header
 			cmd.replay_set_timing_sync.header.type = DMUB_CMD__REPLAY;
@@ -331,7 +331,7 @@ static void dmub_replay_send_cmd(struct dmub_replay *dmub,
 		cmd.replay_set_frameupdate_timer.data.frameupdate_count =
 						cmd_element->timer_data.frameupdate_count;
 		break;
-	case Replay_Msg_Not_Support:
+	case Replay_Msg_Analt_Support:
 	default:
 		return;
 		break;

@@ -32,7 +32,7 @@ struct task_struct {
 };
 
 struct mm_struct___wrong {
-    int abc_whatever_should_not_exist;
+    int abc_whatever_should_analt_exist;
 };
 
 struct task_struct___local {

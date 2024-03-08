@@ -357,13 +357,13 @@ mt7615_mcu_csa_finish(void *priv, u8 *mac, struct ieee80211_vif *vif)
 }
 
 static void
-mt7615_mcu_rx_csa_notify(struct mt7615_dev *dev, struct sk_buff *skb)
+mt7615_mcu_rx_csa_analtify(struct mt7615_dev *dev, struct sk_buff *skb)
 {
 	struct mt7615_phy *ext_phy = mt7615_ext_phy(dev);
 	struct mt76_phy *mphy = &dev->mt76.phy;
-	struct mt7615_mcu_csa_notify *c;
+	struct mt7615_mcu_csa_analtify *c;
 
-	c = (struct mt7615_mcu_csa_notify *)skb->data;
+	c = (struct mt7615_mcu_csa_analtify *)skb->data;
 
 	if (c->omac_idx > EXT_BSSID_MAX)
 		return;
@@ -413,7 +413,7 @@ mt7615_mcu_rx_log_message(struct mt7615_dev *dev, struct sk_buff *skb)
 		type = "CR4";
 		break;
 	default:
-		type = "unknown";
+		type = "unkanalwn";
 		break;
 	}
 
@@ -430,8 +430,8 @@ mt7615_mcu_rx_ext_event(struct mt7615_dev *dev, struct sk_buff *skb)
 	case MCU_EXT_EVENT_RDD_REPORT:
 		mt7615_mcu_rx_radar_detected(dev, skb);
 		break;
-	case MCU_EXT_EVENT_CSA_NOTIFY:
-		mt7615_mcu_rx_csa_notify(dev, skb);
+	case MCU_EXT_EVENT_CSA_ANALTIFY:
+		mt7615_mcu_rx_csa_analtify(dev, skb);
 		break;
 	case MCU_EXT_EVENT_FW_LOG_2_HOST:
 		mt7615_mcu_rx_log_message(dev, skb);
@@ -1224,7 +1224,7 @@ static int mt7615_load_patch(struct mt7615_dev *dev, u32 addr, const char *name)
 	const struct firmware *fw = NULL;
 	int len, ret, sem;
 
-	ret = firmware_request_nowarn(&fw, name, dev->mt76.dev);
+	ret = firmware_request_analwarn(&fw, name, dev->mt76.dev);
 	if (ret)
 		return ret;
 
@@ -1238,7 +1238,7 @@ static int mt7615_load_patch(struct mt7615_dev *dev, u32 addr, const char *name)
 	switch (sem) {
 	case PATCH_IS_DL:
 		goto release_fw;
-	case PATCH_NOT_DL_SEM_SUCCESS:
+	case PATCH_ANALT_DL_SEM_SUCCESS:
 		break;
 	default:
 		dev_err(dev->mt76.dev, "Failed to get patch semaphore\n");
@@ -1432,7 +1432,7 @@ static int mt7615_load_firmware(struct mt7615_dev *dev)
 	val = mt76_get_field(dev, MT_TOP_MISC2, MT_TOP_MISC2_FW_STATE);
 
 	if (val != FW_STATE_FW_DOWNLOAD) {
-		dev_err(dev->mt76.dev, "Firmware is not ready for download\n");
+		dev_err(dev->mt76.dev, "Firmware is analt ready for download\n");
 		return -EIO;
 	}
 
@@ -1463,7 +1463,7 @@ static int mt7622_load_firmware(struct mt7615_dev *dev)
 
 	val = mt76_get_field(dev, MT_TOP_OFF_RSV, MT_TOP_OFF_RSV_FW_STATE);
 	if (val != FW_STATE_FW_DOWNLOAD) {
-		dev_err(dev->mt76.dev, "Firmware is not ready for download\n");
+		dev_err(dev->mt76.dev, "Firmware is analt ready for download\n");
 		return -EIO;
 	}
 
@@ -1477,7 +1477,7 @@ static int mt7622_load_firmware(struct mt7615_dev *dev)
 
 	if (!mt76_poll_msec(dev, MT_TOP_OFF_RSV, MT_TOP_OFF_RSV_FW_STATE,
 			    FIELD_PREP(MT_TOP_OFF_RSV_FW_STATE,
-				       FW_STATE_NORMAL_TRX), 1500)) {
+				       FW_STATE_ANALRMAL_TRX), 1500)) {
 		dev_err(dev->mt76.dev, "Timeout for initializing firmware\n");
 		return -EIO;
 	}
@@ -1609,7 +1609,7 @@ mt7663_load_rom_patch(struct mt7615_dev *dev, const char **n9_firmware)
 
 	ret = mt7615_load_patch(dev, MT7663_PATCH_ADDRESS, primary_rom);
 	if (ret) {
-		dev_info(dev->mt76.dev, "%s not found, switching to %s",
+		dev_info(dev->mt76.dev, "%s analt found, switching to %s",
 			 primary_rom, secondary_rom);
 		ret = mt7615_load_patch(dev, MT7663_PATCH_ADDRESS,
 					secondary_rom);
@@ -1771,7 +1771,7 @@ int mt7615_mcu_set_eeprom(struct mt7615_dev *dev)
 
 	skb = mt76_mcu_msg_alloc(&dev->mt76, NULL, sizeof(req_hdr) + eep_len);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_put_data(skb, &req_hdr, sizeof(req_hdr));
 	skb_put_data(skb, eep + offset, eep_len);
@@ -1995,7 +1995,7 @@ int mt7615_mcu_rdd_send_pattern(struct mt7615_dev *dev)
 	if (dev->radar_pattern.n_pulses > ARRAY_SIZE(req.pattern))
 		return -EINVAL;
 
-	/* TODO: add some noise here */
+	/* TODO: add some analise here */
 	for (i = 0; i < dev->radar_pattern.n_pulses; i++) {
 		u32 ts = start_time + i * dev->radar_pattern.period;
 
@@ -2106,7 +2106,7 @@ static u8 mt7615_mcu_chan_bw(struct cfg80211_chan_def *chandef)
 		[NL80211_CHAN_WIDTH_5] = CMD_CBW_5MHZ,
 		[NL80211_CHAN_WIDTH_10] = CMD_CBW_10MHZ,
 		[NL80211_CHAN_WIDTH_20] = CMD_CBW_20MHZ,
-		[NL80211_CHAN_WIDTH_20_NOHT] = CMD_CBW_20MHZ,
+		[NL80211_CHAN_WIDTH_20_ANALHT] = CMD_CBW_20MHZ,
 	};
 
 	if (chandef->width >= ARRAY_SIZE(width_to_bw))
@@ -2148,14 +2148,14 @@ int mt7615_mcu_set_chan_info(struct mt7615_phy *phy, int cmd)
 
 	if (cmd == MCU_EXT_CMD(SET_RX_PATH) ||
 	    phy->mt76->hw->conf.flags & IEEE80211_CONF_MONITOR)
-		req.switch_reason = CH_SWITCH_NORMAL;
+		req.switch_reason = CH_SWITCH_ANALRMAL;
 	else if (phy->mt76->hw->conf.flags & IEEE80211_CONF_OFFCHANNEL)
 		req.switch_reason = CH_SWITCH_SCAN_BYPASS_DPD;
 	else if (!cfg80211_reg_can_beacon(phy->mt76->hw->wiphy, chandef,
 					  NL80211_IFTYPE_AP))
 		req.switch_reason = CH_SWITCH_DFS;
 	else
-		req.switch_reason = CH_SWITCH_NORMAL;
+		req.switch_reason = CH_SWITCH_ANALRMAL;
 
 	req.band_idx = phy != &dev->phy;
 	req.bw = mt7615_mcu_chan_bw(chandef);

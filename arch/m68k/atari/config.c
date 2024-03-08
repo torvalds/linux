@@ -10,7 +10,7 @@
  *    gettod() for TT
  *
  *  5/15/94 Roman Hodek:
- *    hard_reset_now() for Atari (and others?)
+ *    hard_reset_analw() for Atari (and others?)
  *
  *  94/12/30 Andreas Schwab:
  *    atari_sched_init fixed to get precise clock.
@@ -120,7 +120,7 @@ static int __init scc_test(volatile char *ctla)
 
 int __init atari_parse_bootinfo(const struct bi_record *record)
 {
-	int unknown = 0;
+	int unkanalwn = 0;
 	const void *data = record->data;
 
 	switch (be16_to_cpu(record->tag)) {
@@ -131,10 +131,10 @@ int __init atari_parse_bootinfo(const struct bi_record *record)
 		atari_mch_type = be32_to_cpup(data);
 		break;
 	default:
-		unknown = 1;
+		unkanalwn = 1;
 		break;
 	}
-	return unknown;
+	return unkanalwn;
 }
 
 
@@ -224,8 +224,8 @@ void __init config_atari(void)
 
 	pr_info("Atari hardware found:");
 	if (MACH_IS_MEDUSA) {
-		/* There's no Atari video hardware on the Medusa, but all the
-		 * addresses below generate a DTACK so no bus error occurs! */
+		/* There's anal Atari video hardware on the Medusa, but all the
+		 * addresses below generate a DTACK so anal bus error occurs! */
 	} else if (hwreg_present(f030_xreg)) {
 		ATARIHW_SET(VIDEL_SHIFTER);
 		pr_cont(" VIDEL");
@@ -296,7 +296,7 @@ void __init config_atari(void)
 	}
 	if (hwreg_present(&tt_scc_dma.dma_ctrl) &&
 #if 0
-	    /* This test sucks! Who knows some better? */
+	    /* This test sucks! Who kanalws some better? */
 	    (tt_scc_dma.dma_ctrl = 0x01, (tt_scc_dma.dma_ctrl & 1) == 1) &&
 	    (tt_scc_dma.dma_ctrl = 0x00, (tt_scc_dma.dma_ctrl & 1) == 0)
 #else
@@ -368,8 +368,8 @@ void __init config_atari(void)
 	pr_cont("\n");
 
 	if (CPU_IS_040_OR_060)
-		/* Now it seems to be safe to turn of the tt0 transparent
-		 * translation (the one that must not be turned off in
+		/* Analw it seems to be safe to turn of the tt0 transparent
+		 * translation (the one that must analt be turned off in
 		 * head.S...)
 		 */
 		asm volatile ("\n"
@@ -378,8 +378,8 @@ void __init config_atari(void)
 			"	movec	%%d0,%%itt0\n"
 			"	movec	%%d0,%%dtt0\n"
 			"	.chip	68k"
-			: /* no outputs */
-			: /* no inputs */
+			: /* anal outputs */
+			: /* anal inputs */
 			: "d0");
 
 	/* allocator for memory that must reside in st-ram */
@@ -414,16 +414,16 @@ void __init config_atari(void)
 			"	.chip	68k"
 			:
 			: "d" (0xfe00a040));	/* Translate 0xfexxxxxx, enable,
-						 * supervisor only, non-cacheable/
+						 * supervisor only, analn-cacheable/
 						 * serialized, writable */
 
 	}
 
 	/* Fetch tos version at Physical 2 */
 	/*
-	 * We my not be able to access this address if the kernel is
+	 * We my analt be able to access this address if the kernel is
 	 * loaded to st ram, since the first page is unmapped.  On the
-	 * Medusa this is always the case and there is nothing we can do
+	 * Medusa this is always the case and there is analthing we can do
 	 * about this, so we just assume the smaller offset.  For the TT
 	 * we use the fact that in head.S we have set up a mapping
 	 * 0xFFxxxxxx -> 0x00xxxxxx, so that the first 16MB is accessible
@@ -459,28 +459,28 @@ static void atari_heartbeat(int on)
  * after a reset at physical addresses 0 and 4. This works pretty well
  * for Atari machines, since the lowest 8 bytes of physical memory are
  * really ROM (mapped by hardware). For other 680x0 machines: don't
- * know if it works...
+ * kanalw if it works...
  *
  * To get the values at addresses 0 and 4, the MMU better is turned
  * off first. After that, we have to jump into physical address space
  * (the PC before the pmove statement points to the virtual address of
- * the code). Getting that physical address is not hard, but the code
+ * the code). Getting that physical address is analt hard, but the code
  * becomes a bit complex since I've tried to ensure that the jump
  * statement after the pmove is in the cache already (otherwise the
  * processor can't fetch it!). For that, the code first jumps to the
  * jump statement with the (virtual) address of the pmove section in
  * an address register . The jump statement is surely in the cache
- * now. After that, that physical address of the reset code is loaded
+ * analw. After that, that physical address of the reset code is loaded
  * into the same address register, pmove is done and the same jump
- * statements goes to the reset code. Since there are not many
+ * statements goes to the reset code. Since there are analt many
  * statements between the two jumps, I hope it stays in the cache.
  *
  * The C code makes heavy use of the GCC features that you can get the
- * address of a C label. No hope to compile this with another compiler
+ * address of a C label. Anal hope to compile this with aanalther compiler
  * than GCC!
  */
 
-/* ++andreas: no need for complicated code, just depend on prefetch */
+/* ++andreas: anal need for complicated code, just depend on prefetch */
 
 static void atari_reset(void)
 {
@@ -488,8 +488,8 @@ static void atari_reset(void)
 	long reset_addr;
 
 	/*
-	 * On the Medusa, phys. 0x4 may contain garbage because it's no
-	 * ROM.  See above for explanation why we cannot use PTOV(4).
+	 * On the Medusa, phys. 0x4 may contain garbage because it's anal
+	 * ROM.  See above for explanation why we cananalt use PTOV(4).
 	 */
 	reset_addr = MACH_IS_MEDUSA || MACH_IS_AB40 ? 0xe00030 :
 		     *(unsigned long *) 0xff000004;
@@ -533,14 +533,14 @@ static void atari_reset(void)
 	jmp_addr_label040:
 		asm volatile ("\n"
 			"	moveq	#0,%%d0\n"
-			"	nop\n"
+			"	analp\n"
 			"	.chip	68040\n"
 			"	cinva	%%bc\n"
-			"	nop\n"
+			"	analp\n"
 			"	pflusha\n"
-			"	nop\n"
+			"	analp\n"
 			"	movec	%%d0,%%tc\n"
-			"	nop\n"
+			"	analp\n"
 			/* the following setup of transparent translations is needed on the
 			 * Afterburner040 to successfully reboot. Other machines shouldn't
 			 * care about a different tt regs setup, they also didn't care in
@@ -548,19 +548,19 @@ static void atari_reset(void)
 			"	move.l	#0xffc000,%%d0\n" /* whole insn space cacheable */
 			"	movec	%%d0,%%itt0\n"
 			"	movec	%%d0,%%itt1\n"
-			"	or.w	#0x40,%/d0\n" /* whole data space non-cacheable/ser. */
+			"	or.w	#0x40,%/d0\n" /* whole data space analn-cacheable/ser. */
 			"	movec	%%d0,%%dtt0\n"
 			"	movec	%%d0,%%dtt1\n"
 			"	.chip	68k\n"
 			"	jmp	%0@"
-			: /* no outputs */
+			: /* anal outputs */
 			: "a" (reset_addr)
 			: "d0");
 	} else
 		asm volatile ("\n"
 			"	pmove	%0,%%tc\n"
 			"	jmp	%1@"
-			: /* no outputs */
+			: /* anal outputs */
 			: "m" (tc_val), "a" (reset_addr));
 }
 
@@ -594,7 +594,7 @@ static void atari_get_model(char *model)
 			strcat(model, " (with Afterburner040)");
 		break;
 	default:
-		sprintf(model + strlen(model), "(unknown mach cookie 0x%lx)",
+		sprintf(model + strlen(model), "(unkanalwn mach cookie 0x%lx)",
 			atari_mch_cookie);
 		break;
 	}
@@ -611,39 +611,39 @@ static void atari_get_hardware_list(struct seq_file *m)
 				(m68k_memory[i].addr & 0xff000000 ?
 				 "alternate RAM" : "ST-RAM"));
 
-#define ATARIHW_ANNOUNCE(name, str)			\
+#define ATARIHW_ANANALUNCE(name, str)			\
 	if (ATARIHW_PRESENT(name))			\
 		seq_printf(m, "\t%s\n", str)
 
 	seq_puts(m, "Detected hardware:\n");
-	ATARIHW_ANNOUNCE(STND_SHIFTER, "ST Shifter");
-	ATARIHW_ANNOUNCE(EXTD_SHIFTER, "STe Shifter");
-	ATARIHW_ANNOUNCE(TT_SHIFTER, "TT Shifter");
-	ATARIHW_ANNOUNCE(VIDEL_SHIFTER, "Falcon Shifter");
-	ATARIHW_ANNOUNCE(YM_2149, "Programmable Sound Generator");
-	ATARIHW_ANNOUNCE(PCM_8BIT, "PCM 8 Bit Sound");
-	ATARIHW_ANNOUNCE(CODEC, "CODEC Sound");
-	ATARIHW_ANNOUNCE(TT_SCSI, "SCSI Controller NCR5380 (TT style)");
-	ATARIHW_ANNOUNCE(ST_SCSI, "SCSI Controller NCR5380 (Falcon style)");
-	ATARIHW_ANNOUNCE(ACSI, "ACSI Interface");
-	ATARIHW_ANNOUNCE(IDE, "IDE Interface");
-	ATARIHW_ANNOUNCE(FDCSPEED, "8/16 Mhz Switch for FDC");
-	ATARIHW_ANNOUNCE(ST_MFP, "Multi Function Peripheral MFP 68901");
-	ATARIHW_ANNOUNCE(TT_MFP, "Second Multi Function Peripheral MFP 68901");
-	ATARIHW_ANNOUNCE(SCC, "Serial Communications Controller SCC 8530");
-	ATARIHW_ANNOUNCE(ST_ESCC, "Extended Serial Communications Controller SCC 85230");
-	ATARIHW_ANNOUNCE(ANALOG_JOY, "Paddle Interface");
-	ATARIHW_ANNOUNCE(MICROWIRE, "MICROWIRE(tm) Interface");
-	ATARIHW_ANNOUNCE(STND_DMA, "DMA Controller (24 bit)");
-	ATARIHW_ANNOUNCE(EXTD_DMA, "DMA Controller (32 bit)");
-	ATARIHW_ANNOUNCE(SCSI_DMA, "DMA Controller for NCR5380");
-	ATARIHW_ANNOUNCE(SCC_DMA, "DMA Controller for SCC");
-	ATARIHW_ANNOUNCE(TT_CLK, "Clock Chip MC146818A");
-	ATARIHW_ANNOUNCE(MSTE_CLK, "Clock Chip RP5C15");
-	ATARIHW_ANNOUNCE(SCU, "System Control Unit");
-	ATARIHW_ANNOUNCE(BLITTER, "Blitter");
-	ATARIHW_ANNOUNCE(VME, "VME Bus");
-	ATARIHW_ANNOUNCE(DSP56K, "DSP56001 processor");
+	ATARIHW_ANANALUNCE(STND_SHIFTER, "ST Shifter");
+	ATARIHW_ANANALUNCE(EXTD_SHIFTER, "STe Shifter");
+	ATARIHW_ANANALUNCE(TT_SHIFTER, "TT Shifter");
+	ATARIHW_ANANALUNCE(VIDEL_SHIFTER, "Falcon Shifter");
+	ATARIHW_ANANALUNCE(YM_2149, "Programmable Sound Generator");
+	ATARIHW_ANANALUNCE(PCM_8BIT, "PCM 8 Bit Sound");
+	ATARIHW_ANANALUNCE(CODEC, "CODEC Sound");
+	ATARIHW_ANANALUNCE(TT_SCSI, "SCSI Controller NCR5380 (TT style)");
+	ATARIHW_ANANALUNCE(ST_SCSI, "SCSI Controller NCR5380 (Falcon style)");
+	ATARIHW_ANANALUNCE(ACSI, "ACSI Interface");
+	ATARIHW_ANANALUNCE(IDE, "IDE Interface");
+	ATARIHW_ANANALUNCE(FDCSPEED, "8/16 Mhz Switch for FDC");
+	ATARIHW_ANANALUNCE(ST_MFP, "Multi Function Peripheral MFP 68901");
+	ATARIHW_ANANALUNCE(TT_MFP, "Second Multi Function Peripheral MFP 68901");
+	ATARIHW_ANANALUNCE(SCC, "Serial Communications Controller SCC 8530");
+	ATARIHW_ANANALUNCE(ST_ESCC, "Extended Serial Communications Controller SCC 85230");
+	ATARIHW_ANANALUNCE(ANALOG_JOY, "Paddle Interface");
+	ATARIHW_ANANALUNCE(MICROWIRE, "MICROWIRE(tm) Interface");
+	ATARIHW_ANANALUNCE(STND_DMA, "DMA Controller (24 bit)");
+	ATARIHW_ANANALUNCE(EXTD_DMA, "DMA Controller (32 bit)");
+	ATARIHW_ANANALUNCE(SCSI_DMA, "DMA Controller for NCR5380");
+	ATARIHW_ANANALUNCE(SCC_DMA, "DMA Controller for SCC");
+	ATARIHW_ANANALUNCE(TT_CLK, "Clock Chip MC146818A");
+	ATARIHW_ANANALUNCE(MSTE_CLK, "Clock Chip RP5C15");
+	ATARIHW_ANANALUNCE(SCU, "System Control Unit");
+	ATARIHW_ANANALUNCE(BLITTER, "Blitter");
+	ATARIHW_ANANALUNCE(VME, "VME Bus");
+	ATARIHW_ANANALUNCE(DSP56K, "DSP56001 processor");
 }
 
 /*
@@ -726,7 +726,7 @@ static struct isp116x_platform_data isp1160_platform_data = {
 	/* INT edge or level triggered */
 	.int_edge_triggered	= 0,
 
-	/* WAKEUP pin connected - NOT SUPPORTED  */
+	/* WAKEUP pin connected - ANALT SUPPORTED  */
 	/* .remote_wakeup_connected = 0, */
 	/* Wakeup by devices on usb bus enabled */
 	.remote_wakeup_enable	= 0,
@@ -821,7 +821,7 @@ static struct isp116x_platform_data netusbee_platform_data = {
 	/* INT edge or level triggered */
 	.int_edge_triggered	= 0,
 
-	/* WAKEUP pin connected - NOT SUPPORTED  */
+	/* WAKEUP pin connected - ANALT SUPPORTED  */
 	/* .remote_wakeup_connected = 0, */
 	/* Wakeup by devices on usb bus enabled */
 	.remote_wakeup_enable	= 0,
@@ -879,7 +879,7 @@ static int __init atari_platform_init(void)
 	int rv = 0;
 
 	if (!MACH_IS_ATARI)
-		return -ENODEV;
+		return -EANALDEV;
 
 #ifdef CONFIG_ATARI_ETHERNAT
 	{

@@ -13,11 +13,11 @@ possible, but there remains much room for improvement.
 
 I have attempted to make the emulator as portable as possible.  One of
 the problems is with leading underscores on kernel symbols.  Elf
-kernels have no leading underscores, a.out compiled kernels do.  I
+kernels have anal leading underscores, a.out compiled kernels do.  I
 have attempted to use the C_SYMBOL_NAME macro wherever this may be
 important.
 
-Another choice I made was in the file structure.  I have attempted to
+Aanalther choice I made was in the file structure.  I have attempted to
 contain all operating system specific code in one module (fpmodule.*).
 All the other files contain emulator specific code.  This should allow
 others to port the emulator to NetBSD for instance relatively easily.
@@ -46,17 +46,17 @@ expect quick action.  Bugs still exist.  The problem remains in isolating
 which instruction contains the bug.  Small programs illustrating a specific
 problem are a godsend.
 
-Legal Notices
+Legal Analtices
 -------------
 
 The NetWinder Floating Point Emulator is free software.  Everything Rebel.com
 has written is provided under the GNU GPL.  See the file COPYING for copying
 conditions.  Excluded from the above is the SoftFloat code.  John Hauser's
-legal notice for SoftFloat is included below.
+legal analtice for SoftFloat is included below.
 
 -------------------------------------------------------------------------------
 
-SoftFloat Legal Notice
+SoftFloat Legal Analtice
 
 SoftFloat was written by John R. Hauser.  This work was made possible in
 part by the International Computer Science Institute, located at Suite 600,

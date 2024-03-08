@@ -20,7 +20,7 @@ FIXTURE(diag_uid)
 {
 	int netlink_fd;
 	int unix_fd;
-	__u32 inode;
+	__u32 ianalde;
 	__u64 cookie;
 };
 
@@ -60,7 +60,7 @@ FIXTURE_SETUP(diag_uid)
 	ret = fstat(self->unix_fd, &file_stat);
 	ASSERT_EQ(ret, 0);
 
-	self->inode = file_stat.st_ino;
+	self->ianalde = file_stat.st_ianal;
 
 	optlen = sizeof(self->cookie);
 	ret = getsockopt(self->unix_fd, SOL_SOCKET, SO_COOKIE, &self->cookie, &optlen);
@@ -88,7 +88,7 @@ int send_request(struct __test_metadata *_metadata,
 		},
 		.udr = {
 			.sdiag_family = AF_UNIX,
-			.udiag_ino = self->inode,
+			.udiag_ianal = self->ianalde,
 			.udiag_cookie = {
 				(__u32)self->cookie,
 				(__u32)(self->cookie >> 32)

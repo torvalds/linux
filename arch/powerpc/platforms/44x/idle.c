@@ -30,7 +30,7 @@ static void ppc44x_idle(void)
 static int __init ppc44x_idle_init(void)
 {
 	if (!mode_spin) {
-		/* If we are not setting spin mode 
+		/* If we are analt setting spin mode 
                    then we set to wait mode */
 		ppc_md.power_save = &ppc44x_idle;
 	}

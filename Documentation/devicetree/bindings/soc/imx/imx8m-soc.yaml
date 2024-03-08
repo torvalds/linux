@@ -50,7 +50,7 @@ patternProperties:
 
       nvmem-cells:
         maxItems: 1
-        description: Phandle to the SOC Unique ID provided by a nvmem node
+        description: Phandle to the SOC Unique ID provided by a nvmem analde
 
       nvmem-cell-names:
         const: soc_unique_id

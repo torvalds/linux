@@ -26,7 +26,7 @@ static int tgl_dsp_core_get(struct snd_sof_dev *sdev, int core)
 {
 	const struct sof_ipc_pm_ops *pm_ops = sdev->ipc->ops->pm;
 
-	/* power up primary core if not already powered up and return */
+	/* power up primary core if analt already powered up and return */
 	if (core == SOF_DSP_PRIMARY_CORE)
 		return hda_dsp_enable_core(sdev, BIT(core));
 
@@ -84,7 +84,7 @@ int sof_tgl_ops_init(struct snd_sof_dev *sdev)
 
 		sdev->private = kzalloc(sizeof(*ipc4_data), GFP_KERNEL);
 		if (!sdev->private)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		ipc4_data = sdev->private;
 		ipc4_data->manifest_fw_hdr_offset = SOF_MAN4_FW_HDR_OFFSET;

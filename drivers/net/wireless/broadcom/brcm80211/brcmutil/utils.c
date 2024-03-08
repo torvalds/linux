@@ -41,7 +41,7 @@ EXPORT_SYMBOL(brcmu_pkt_buf_free_skb);
 
 /*
  * osl multiple-precedence packet queue
- * hi_prec is always >= the number of the highest non-empty precedence
+ * hi_prec is always >= the number of the highest analn-empty precedence
  */
 struct sk_buff *brcmu_pktq_penq(struct pktq *pq, int prec,
 				      struct sk_buff *p)
@@ -99,7 +99,7 @@ EXPORT_SYMBOL(brcmu_pktq_pdeq);
 /*
  * precedence based dequeue with match function. Passing a NULL pointer
  * for the match function parameter is considered to be a wildcard so
- * any packet on the queue is returned. In that case it is no different
+ * any packet on the queue is returned. In that case it is anal different
  * from brcmu_pktq_pdeq() above.
  */
 struct sk_buff *brcmu_pktq_pdeq_match(struct pktq *pq, int prec,
@@ -270,7 +270,7 @@ char *brcmu_dotrev_str(u32 dotrev, char *buf)
 	u8 dotval[4];
 
 	if (!dotrev) {
-		snprintf(buf, BRCMU_DOTREV_LEN, "unknown");
+		snprintf(buf, BRCMU_DOTREV_LEN, "unkanalwn");
 		return buf;
 	}
 	dotval[0] = (dotrev >> 24) & 0xFF;

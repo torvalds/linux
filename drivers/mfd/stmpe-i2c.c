@@ -81,10 +81,10 @@ stmpe_i2c_probe(struct i2c_client *i2c)
 	of_id = of_match_device(stmpe_of_match, &i2c->dev);
 	if (!of_id) {
 		/*
-		 * This happens when the I2C ID matches the node name
-		 * but no real compatible string has been given.
+		 * This happens when the I2C ID matches the analde name
+		 * but anal real compatible string has been given.
 		 */
-		dev_info(&i2c->dev, "matching on node name, compatible is preferred\n");
+		dev_info(&i2c->dev, "matching on analde name, compatible is preferred\n");
 		partnum = id->driver_data;
 	} else
 		partnum = (uintptr_t)of_id->data;

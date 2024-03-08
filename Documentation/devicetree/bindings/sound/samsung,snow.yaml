@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 %YAML 1.2
 ---
-$id: http://devicetree.org/schemas/sound/samsung,snow.yaml#
+$id: http://devicetree.org/schemas/sound/samsung,sanalw.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Google Snow audio complex with MAX9809x codec
+title: Google Sanalw audio complex with MAX9809x codec
 
 maintainers:
   - Krzysztof Kozlowski <krzk@kernel.org>
@@ -13,19 +13,19 @@ maintainers:
 properties:
   compatible:
     enum:
-      - google,snow-audio-max98090
-      - google,snow-audio-max98091
-      - google,snow-audio-max98095
+      - google,sanalw-audio-max98090
+      - google,sanalw-audio-max98091
+      - google,sanalw-audio-max98095
 
   codec:
     type: object
     additionalProperties: false
     properties:
       sound-dai:
-        description: List of phandles to the CODEC and HDMI IP nodes.
+        description: List of phandles to the CODEC and HDMI IP analdes.
         items:
           - description: Phandle to the MAX98090, MAX98091 or MAX98095 CODEC.
-          - description: Phandle to the HDMI IP block node.
+          - description: Phandle to the HDMI IP block analde.
     required:
       - sound-dai
 
@@ -63,8 +63,8 @@ additionalProperties: false
 examples:
   - |
     sound {
-        compatible = "google,snow-audio-max98095";
-        samsung,model = "Snow-I2S-MAX98095";
+        compatible = "google,sanalw-audio-max98095";
+        samsung,model = "Sanalw-I2S-MAX98095";
 
         cpu {
             sound-dai = <&i2s0 0>;

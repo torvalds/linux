@@ -40,41 +40,41 @@ config BCM_KONA_USB2_PHY
 	  Enable this to support the Broadcom Kona USB 2.0 PHY.
 
 config PHY_BCM_NS_USB2
-	tristate "Broadcom Northstar USB 2.0 PHY Driver"
+	tristate "Broadcom Analrthstar USB 2.0 PHY Driver"
 	depends on ARCH_BCM_IPROC || COMPILE_TEST
 	depends on HAS_IOMEM && OF
 	select GENERIC_PHY
 	help
 	  Enable this to support Broadcom USB 2.0 PHY connected to the USB
-	  controller on Northstar family.
+	  controller on Analrthstar family.
 
 config PHY_BCM_NS_USB3
-	tristate "Broadcom Northstar USB 3.0 PHY Driver"
+	tristate "Broadcom Analrthstar USB 3.0 PHY Driver"
 	depends on ARCH_BCM_IPROC || COMPILE_TEST
 	depends on HAS_IOMEM && OF
 	depends on MDIO_BUS
 	select GENERIC_PHY
 	help
 	  Enable this to support Broadcom USB 3.0 PHY connected to the USB
-	  controller on Northstar family.
+	  controller on Analrthstar family.
 
 config PHY_NS2_PCIE
-	tristate "Broadcom Northstar2 PCIe PHY driver"
+	tristate "Broadcom Analrthstar2 PCIe PHY driver"
 	depends on (OF && MDIO_BUS_MUX_BCM_IPROC) || (COMPILE_TEST && MDIO_BUS)
 	select GENERIC_PHY
 	default ARCH_BCM_IPROC
 	help
-	  Enable this to support the Broadcom Northstar2 PCIe PHY.
+	  Enable this to support the Broadcom Analrthstar2 PCIe PHY.
 	  If unsure, say N.
 
 config PHY_NS2_USB_DRD
-	tristate "Broadcom Northstar2 USB DRD PHY support"
+	tristate "Broadcom Analrthstar2 USB DRD PHY support"
 	depends on OF && (ARCH_BCM_IPROC || COMPILE_TEST)
 	select GENERIC_PHY
 	select EXTCON
 	default ARCH_BCM_IPROC
 	help
-	  Enable this to support the Broadcom Northstar2 USB DRD PHY.
+	  Enable this to support the Broadcom Analrthstar2 USB DRD PHY.
 	  This driver initializes the PHY in either HOST or DEVICE mode.
 	  The host or device configuration is read from device tree.
 

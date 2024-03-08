@@ -90,7 +90,7 @@ enum {
 struct vhost_net_ubuf_ref {
 	/* refcount follows semantics similar to kref:
 	 *  0: object is released
-	 *  1: no outstanding ubufs
+	 *  1: anal outstanding ubufs
 	 * >1: outstanding ubufs
 	 */
 	atomic_t refcount;
@@ -235,12 +235,12 @@ static struct vhost_net_ubuf_ref *
 vhost_net_ubuf_alloc(struct vhost_virtqueue *vq, bool zcopy)
 {
 	struct vhost_net_ubuf_ref *ubufs;
-	/* No zero copy backend? Nothing to count. */
+	/* Anal zero copy backend? Analthing to count. */
 	if (!zcopy)
 		return NULL;
 	ubufs = kmalloc(sizeof(*ubufs), GFP_KERNEL);
 	if (!ubufs)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	atomic_set(&ubufs->refcount, 1);
 	init_waitqueue_head(&ubufs->wait);
 	ubufs->vq = vq;
@@ -297,7 +297,7 @@ static int vhost_net_set_ubuf_info(struct vhost_net *n)
 
 err:
 	vhost_net_clear_ubuf_info(n);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void vhost_net_vq_reset(struct vhost_net *n)
@@ -351,7 +351,7 @@ static bool vhost_sock_xdp(struct socket *sock)
 	return sock_flag(sock->sk, SOCK_XDP);
 }
 
-/* In case of DMA done not in order in lower device driver for some reason.
+/* In case of DMA done analt in order in lower device driver for some reason.
  * upend_idx is used to track end of used idx, done_idx is used to track head
  * of used idx. Once lower device DMA done contiguously, we will signal KVM
  * guest used idx.
@@ -512,8 +512,8 @@ static void vhost_net_busy_poll_try_queue(struct vhost_net *net,
 {
 	if (!vhost_vq_avail_empty(&net->dev, vq)) {
 		vhost_poll_queue(&vq->poll);
-	} else if (unlikely(vhost_enable_notify(&net->dev, vq))) {
-		vhost_disable_notify(&net->dev, vq);
+	} else if (unlikely(vhost_enable_analtify(&net->dev, vq))) {
+		vhost_disable_analtify(&net->dev, vq);
 		vhost_poll_queue(&vq->poll);
 	}
 }
@@ -530,13 +530,13 @@ static void vhost_net_busy_poll(struct vhost_net *net,
 	struct vhost_virtqueue *vq = poll_rx ? tvq : rvq;
 
 	/* Try to hold the vq mutex of the paired virtqueue. We can't
-	 * use mutex_lock() here since we could not guarantee a
+	 * use mutex_lock() here since we could analt guarantee a
 	 * consistenet lock ordering.
 	 */
 	if (!mutex_trylock(&vq->mutex))
 		return;
 
-	vhost_disable_notify(&net->dev, vq);
+	vhost_disable_analtify(&net->dev, vq);
 	sock = vhost_vq_get_backend(rvq);
 
 	busyloop_timeout = poll_rx ? rvq->busyloop_timeout:
@@ -563,8 +563,8 @@ static void vhost_net_busy_poll(struct vhost_net *net,
 
 	if (poll_rx || sock_has_rx_data(sock))
 		vhost_net_busy_poll_try_queue(net, vq);
-	else if (!poll_rx) /* On tx here, sock has no rx data. */
-		vhost_enable_notify(&net->dev, rvq);
+	else if (!poll_rx) /* On tx here, sock has anal rx data. */
+		vhost_enable_analtify(&net->dev, rvq);
 
 	mutex_unlock(&vq->mutex);
 }
@@ -669,8 +669,8 @@ static bool vhost_net_page_frag_refill(struct vhost_net *net, unsigned int sz,
 	if (SKB_FRAG_PAGE_ORDER) {
 		/* Avoid direct reclaim but allow kswapd to wake */
 		pfrag->page = alloc_pages((gfp & ~__GFP_DIRECT_RECLAIM) |
-					  __GFP_COMP | __GFP_NOWARN |
-					  __GFP_NORETRY,
+					  __GFP_COMP | __GFP_ANALWARN |
+					  __GFP_ANALRETRY,
 					  SKB_FRAG_PAGE_ORDER);
 		if (likely(pfrag->page)) {
 			pfrag->size = PAGE_SIZE << SKB_FRAG_PAGE_ORDER;
@@ -716,13 +716,13 @@ static int vhost_net_build_xdp(struct vhost_net_virtqueue *nvq,
 
 	if (SKB_DATA_ALIGN(len + pad) +
 	    SKB_DATA_ALIGN(sizeof(struct skb_shared_info)) > PAGE_SIZE)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	buflen += SKB_DATA_ALIGN(len + pad);
 	alloc_frag->offset = ALIGN((u64)alloc_frag->offset, SMP_CACHE_BYTES);
 	if (unlikely(!vhost_net_page_frag_refill(net, buflen,
 						 alloc_frag, GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	buf = (char *)page_address(alloc_frag->page) + alloc_frag->offset;
 	copied = copy_page_from_iter(alloc_frag->page,
@@ -795,13 +795,13 @@ static void handle_tx_copy(struct vhost_net *net, struct socket *sock)
 		/* On error, stop handling until the next kick. */
 		if (unlikely(head < 0))
 			break;
-		/* Nothing new?  Wait for eventfd to tell us they refilled. */
+		/* Analthing new?  Wait for eventfd to tell us they refilled. */
 		if (head == vq->num) {
 			if (unlikely(busyloop_intr)) {
 				vhost_poll_queue(&vq->poll);
-			} else if (unlikely(vhost_enable_notify(&net->dev,
+			} else if (unlikely(vhost_enable_analtify(&net->dev,
 								vq))) {
-				vhost_disable_notify(&net->dev, vq);
+				vhost_disable_analtify(&net->dev, vq);
 				continue;
 			}
 			break;
@@ -816,7 +816,7 @@ static void handle_tx_copy(struct vhost_net *net, struct socket *sock)
 			err = vhost_net_build_xdp(nvq, &msg.msg_iter);
 			if (!err) {
 				goto done;
-			} else if (unlikely(err != -ENOSPC)) {
+			} else if (unlikely(err != -EANALSPC)) {
 				vhost_tx_batch(net, nvq, sock, &msg);
 				vhost_discard_vq_desc(vq, 1);
 				vhost_net_enable_vq(net, vq);
@@ -838,7 +838,7 @@ static void handle_tx_copy(struct vhost_net *net, struct socket *sock)
 
 		err = sock->ops->sendmsg(sock, &msg, len);
 		if (unlikely(err < 0)) {
-			if (err == -EAGAIN || err == -ENOMEM || err == -ENOBUFS) {
+			if (err == -EAGAIN || err == -EANALMEM || err == -EANALBUFS) {
 				vhost_discard_vq_desc(vq, 1);
 				vhost_net_enable_vq(net, vq);
 				break;
@@ -889,12 +889,12 @@ static void handle_tx_zerocopy(struct vhost_net *net, struct socket *sock)
 		/* On error, stop handling until the next kick. */
 		if (unlikely(head < 0))
 			break;
-		/* Nothing new?  Wait for eventfd to tell us they refilled. */
+		/* Analthing new?  Wait for eventfd to tell us they refilled. */
 		if (head == vq->num) {
 			if (unlikely(busyloop_intr)) {
 				vhost_poll_queue(&vq->poll);
-			} else if (unlikely(vhost_enable_notify(&net->dev, vq))) {
-				vhost_disable_notify(&net->dev, vq);
+			} else if (unlikely(vhost_enable_analtify(&net->dev, vq))) {
+				vhost_disable_analtify(&net->dev, vq);
 				continue;
 			}
 			break;
@@ -935,7 +935,7 @@ static void handle_tx_zerocopy(struct vhost_net *net, struct socket *sock)
 
 		err = sock->ops->sendmsg(sock, &msg, len);
 		if (unlikely(err < 0)) {
-			bool retry = err == -EAGAIN || err == -ENOMEM || err == -ENOBUFS;
+			bool retry = err == -EAGAIN || err == -EANALMEM || err == -EANALBUFS;
 
 			if (zcopy_used) {
 				if (vq->heads[ubuf->desc].len == VHOST_DMA_IN_PROGRESS)
@@ -979,7 +979,7 @@ static void handle_tx(struct vhost_net *net)
 	if (!vq_meta_prefetch(vq))
 		goto out;
 
-	vhost_disable_notify(&net->dev, vq);
+	vhost_disable_analtify(&net->dev, vq);
 	vhost_net_disable_vq(net, vq);
 
 	if (vhost_sock_zcopy(sock))
@@ -1063,7 +1063,7 @@ static int get_rx_bufs(struct vhost_virtqueue *vq,
 
 	while (datalen > 0 && headcount < quota) {
 		if (unlikely(seg >= UIO_MAXIOV)) {
-			r = -ENOBUFS;
+			r = -EANALBUFS;
 			goto err;
 		}
 		r = vhost_get_vq_desc(vq, vq->iov + seg,
@@ -1127,7 +1127,7 @@ static void handle_rx(struct vhost_net *net)
 	};
 	struct virtio_net_hdr hdr = {
 		.flags = 0,
-		.gso_type = VIRTIO_NET_HDR_GSO_NONE
+		.gso_type = VIRTIO_NET_HDR_GSO_ANALNE
 	};
 	size_t total_len = 0;
 	int err, mergeable;
@@ -1148,7 +1148,7 @@ static void handle_rx(struct vhost_net *net)
 	if (!vq_meta_prefetch(vq))
 		goto out;
 
-	vhost_disable_notify(&net->dev, vq);
+	vhost_disable_analtify(&net->dev, vq);
 	vhost_net_disable_vq(net, vq);
 
 	vhost_hlen = nvq->vhost_hlen;
@@ -1171,17 +1171,17 @@ static void handle_rx(struct vhost_net *net)
 		/* On error, stop handling until the next kick. */
 		if (unlikely(headcount < 0))
 			goto out;
-		/* OK, now we need to know about added descriptors. */
+		/* OK, analw we need to kanalw about added descriptors. */
 		if (!headcount) {
 			if (unlikely(busyloop_intr)) {
 				vhost_poll_queue(&vq->poll);
-			} else if (unlikely(vhost_enable_notify(&net->dev, vq))) {
+			} else if (unlikely(vhost_enable_analtify(&net->dev, vq))) {
 				/* They have slipped one in as we were
 				 * doing that: check again. */
-				vhost_disable_notify(&net->dev, vq);
+				vhost_disable_analtify(&net->dev, vq);
 				continue;
 			}
-			/* Nothing new?  Wait for eventfd to tell us
+			/* Analthing new?  Wait for eventfd to tell us
 			 * they refilled. */
 			goto out;
 		}
@@ -1196,7 +1196,7 @@ static void handle_rx(struct vhost_net *net)
 			pr_debug("Discarded rx packet: len %zd\n", sock_len);
 			continue;
 		}
-		/* We don't need to be notified again. */
+		/* We don't need to be analtified again. */
 		iov_iter_init(&msg.msg_iter, ITER_DEST, vq->iov, in, vhost_len);
 		fixup = msg.msg_iter;
 		if (unlikely((vhost_hlen))) {
@@ -1208,7 +1208,7 @@ static void handle_rx(struct vhost_net *net)
 		err = sock->ops->recvmsg(sock, &msg,
 					 sock_len, MSG_DONTWAIT | MSG_TRUNC);
 		/* Userspace might have consumed the packet meanwhile:
-		 * it's not supposed to do this usually, but might be hard
+		 * it's analt supposed to do this usually, but might be hard
 		 * to prevent. Discard data we got (if any) and keep going. */
 		if (unlikely(err != sock_len)) {
 			pr_debug("Discarded rx packet: "
@@ -1290,7 +1290,7 @@ static void handle_rx_net(struct vhost_work *work)
 	handle_rx(net);
 }
 
-static int vhost_net_open(struct inode *inode, struct file *f)
+static int vhost_net_open(struct ianalde *ianalde, struct file *f)
 {
 	struct vhost_net *n;
 	struct vhost_dev *dev;
@@ -1301,11 +1301,11 @@ static int vhost_net_open(struct inode *inode, struct file *f)
 
 	n = kvmalloc(sizeof *n, GFP_KERNEL | __GFP_RETRY_MAYFAIL);
 	if (!n)
-		return -ENOMEM;
+		return -EANALMEM;
 	vqs = kmalloc_array(VHOST_NET_VQ_MAX, sizeof(*vqs), GFP_KERNEL);
 	if (!vqs) {
 		kvfree(n);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	queue = kmalloc_array(VHOST_NET_BATCH, sizeof(void *),
@@ -1313,7 +1313,7 @@ static int vhost_net_open(struct inode *inode, struct file *f)
 	if (!queue) {
 		kfree(vqs);
 		kvfree(n);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	n->vqs[VHOST_NET_VQ_RX].rxq.queue = queue;
 
@@ -1322,7 +1322,7 @@ static int vhost_net_open(struct inode *inode, struct file *f)
 		kfree(vqs);
 		kvfree(n);
 		kfree(queue);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	n->vqs[VHOST_NET_VQ_TX].xdp = xdp;
 
@@ -1399,7 +1399,7 @@ static void vhost_net_flush(struct vhost_net *n)
 	}
 }
 
-static int vhost_net_release(struct inode *inode, struct file *f)
+static int vhost_net_release(struct ianalde *ianalde, struct file *f)
 {
 	struct vhost_net *n = f->private_data;
 	struct socket *tx_sock;
@@ -1414,7 +1414,7 @@ static int vhost_net_release(struct inode *inode, struct file *f)
 		sockfd_put(tx_sock);
 	if (rx_sock)
 		sockfd_put(rx_sock);
-	/* Make sure no callbacks are outstanding */
+	/* Make sure anal callbacks are outstanding */
 	synchronize_rcu();
 	/* We do an extra flush before freeing memory,
 	 * since jobs can re-queue themselves. */
@@ -1434,16 +1434,16 @@ static struct socket *get_raw_socket(int fd)
 	struct socket *sock = sockfd_lookup(fd, &r);
 
 	if (!sock)
-		return ERR_PTR(-ENOTSOCK);
+		return ERR_PTR(-EANALTSOCK);
 
 	/* Parameter checking */
 	if (sock->sk->sk_type != SOCK_RAW) {
-		r = -ESOCKTNOSUPPORT;
+		r = -ESOCKTANALSUPPORT;
 		goto err;
 	}
 
 	if (sock->sk->sk_family != AF_PACKET) {
-		r = -EPFNOSUPPORT;
+		r = -EPFANALSUPPORT;
 		goto err;
 	}
 	return sock;
@@ -1495,7 +1495,7 @@ static struct socket *get_socket(int fd)
 	sock = get_tap_socket(fd);
 	if (!IS_ERR(sock))
 		return sock;
-	return ERR_PTR(-ENOTSOCK);
+	return ERR_PTR(-EANALTSOCK);
 }
 
 static long vhost_net_set_backend(struct vhost_net *n, unsigned index, int fd)
@@ -1512,7 +1512,7 @@ static long vhost_net_set_backend(struct vhost_net *n, unsigned index, int fd)
 		goto err;
 
 	if (index >= VHOST_NET_VQ_MAX) {
-		r = -ENOBUFS;
+		r = -EANALBUFS;
 		goto err;
 	}
 	vq = &n->vqs[index].vq;
@@ -1612,7 +1612,7 @@ static long vhost_net_reset_owner(struct vhost_net *n)
 		goto done;
 	umem = vhost_dev_reset_owner_prepare();
 	if (!umem) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto done;
 	}
 	vhost_net_stop(n, &tx_sock, &rx_sock);
@@ -1717,7 +1717,7 @@ static long vhost_net_ioctl(struct file *f, unsigned int ioctl,
 		if (copy_from_user(&features, featurep, sizeof features))
 			return -EFAULT;
 		if (features & ~VHOST_NET_FEATURES)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		return vhost_net_set_features(n, features);
 	case VHOST_GET_BACKEND_FEATURES:
 		features = VHOST_NET_BACKEND_FEATURES;
@@ -1728,7 +1728,7 @@ static long vhost_net_ioctl(struct file *f, unsigned int ioctl,
 		if (copy_from_user(&features, featurep, sizeof(features)))
 			return -EFAULT;
 		if (features & ~VHOST_NET_BACKEND_FEATURES)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		vhost_set_backend_features(&n->dev, features);
 		return 0;
 	case VHOST_RESET_OWNER:
@@ -1738,7 +1738,7 @@ static long vhost_net_ioctl(struct file *f, unsigned int ioctl,
 	default:
 		mutex_lock(&n->dev.mutex);
 		r = vhost_dev_ioctl(&n->dev, ioctl, argp);
-		if (r == -ENOIOCTLCMD)
+		if (r == -EANALIOCTLCMD)
 			r = vhost_vring_ioctl(&n->dev, ioctl, argp);
 		else
 			vhost_net_flush(n);
@@ -1752,9 +1752,9 @@ static ssize_t vhost_net_chr_read_iter(struct kiocb *iocb, struct iov_iter *to)
 	struct file *file = iocb->ki_filp;
 	struct vhost_net *n = file->private_data;
 	struct vhost_dev *dev = &n->dev;
-	int noblock = file->f_flags & O_NONBLOCK;
+	int analblock = file->f_flags & O_ANALNBLOCK;
 
-	return vhost_chr_read_iter(dev, to, noblock);
+	return vhost_chr_read_iter(dev, to, analblock);
 }
 
 static ssize_t vhost_net_chr_write_iter(struct kiocb *iocb,
@@ -1784,11 +1784,11 @@ static const struct file_operations vhost_net_fops = {
 	.unlocked_ioctl = vhost_net_ioctl,
 	.compat_ioctl   = compat_ptr_ioctl,
 	.open           = vhost_net_open,
-	.llseek		= noop_llseek,
+	.llseek		= analop_llseek,
 };
 
 static struct miscdevice vhost_net_misc = {
-	.minor = VHOST_NET_MINOR,
+	.mianalr = VHOST_NET_MIANALR,
 	.name = "vhost-net",
 	.fops = &vhost_net_fops,
 };
@@ -1811,5 +1811,5 @@ MODULE_VERSION("0.0.1");
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Michael S. Tsirkin");
 MODULE_DESCRIPTION("Host kernel accelerator for virtio net");
-MODULE_ALIAS_MISCDEV(VHOST_NET_MINOR);
+MODULE_ALIAS_MISCDEV(VHOST_NET_MIANALR);
 MODULE_ALIAS("devname:vhost-net");

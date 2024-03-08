@@ -143,14 +143,14 @@ static void _InitQueueReservedPage(struct adapter *padapter)
 	bool bWiFiConfig	= pregistrypriv->wifi_spec;
 
 	if (pHalData->OutEpQueueSel & TX_SELE_HQ)
-		numHQ = bWiFiConfig ? WMM_NORMAL_PAGE_NUM_HPQ_8723B : NORMAL_PAGE_NUM_HPQ_8723B;
+		numHQ = bWiFiConfig ? WMM_ANALRMAL_PAGE_NUM_HPQ_8723B : ANALRMAL_PAGE_NUM_HPQ_8723B;
 
 	if (pHalData->OutEpQueueSel & TX_SELE_LQ)
-		numLQ = bWiFiConfig ? WMM_NORMAL_PAGE_NUM_LPQ_8723B : NORMAL_PAGE_NUM_LPQ_8723B;
+		numLQ = bWiFiConfig ? WMM_ANALRMAL_PAGE_NUM_LPQ_8723B : ANALRMAL_PAGE_NUM_LPQ_8723B;
 
-	/*  NOTE: This step shall be proceed before writing REG_RQPN. */
+	/*  ANALTE: This step shall be proceed before writing REG_RQPN. */
 	if (pHalData->OutEpQueueSel & TX_SELE_NQ)
-		numNQ = bWiFiConfig ? WMM_NORMAL_PAGE_NUM_NPQ_8723B : NORMAL_PAGE_NUM_NPQ_8723B;
+		numNQ = bWiFiConfig ? WMM_ANALRMAL_PAGE_NUM_NPQ_8723B : ANALRMAL_PAGE_NUM_NPQ_8723B;
 
 	numPubQ = TX_TOTAL_PAGE_NUMBER_8723B - numHQ - numLQ - numNQ;
 
@@ -177,7 +177,7 @@ static void _InitTxBufferBoundary(struct adapter *padapter)
 		txpktbuf_bndy = TX_PAGE_BOUNDARY_8723B;
 	} else {
 		/* for WMM */
-		txpktbuf_bndy = WMM_NORMAL_TX_PAGE_BOUNDARY_8723B;
+		txpktbuf_bndy = WMM_ANALRMAL_TX_PAGE_BOUNDARY_8723B;
 	}
 
 	rtw_write8(padapter, REG_TXPKTBUF_BCNQ_BDNY_8723B, txpktbuf_bndy);
@@ -187,7 +187,7 @@ static void _InitTxBufferBoundary(struct adapter *padapter)
 	rtw_write8(padapter, REG_TDECTRL + 1, txpktbuf_bndy);
 }
 
-static void _InitNormalChipRegPriority(
+static void _InitAnalrmalChipRegPriority(
 	struct adapter *Adapter,
 	u16 beQ,
 	u16 bkQ,
@@ -210,7 +210,7 @@ static void _InitNormalChipRegPriority(
 	rtw_write16(Adapter, REG_TRXDMA_CTRL, value16);
 }
 
-static void _InitNormalChipOneOutEpPriority(struct adapter *Adapter)
+static void _InitAnalrmalChipOneOutEpPriority(struct adapter *Adapter)
 {
 	struct hal_com_data *pHalData = GET_HAL_DATA(Adapter);
 
@@ -223,19 +223,19 @@ static void _InitNormalChipOneOutEpPriority(struct adapter *Adapter)
 		value = QUEUE_LOW;
 		break;
 	case TX_SELE_NQ:
-		value = QUEUE_NORMAL;
+		value = QUEUE_ANALRMAL;
 		break;
 	default:
 		break;
 	}
 
-	_InitNormalChipRegPriority(
+	_InitAnalrmalChipRegPriority(
 		Adapter, value, value, value, value, value, value
 	);
 
 }
 
-static void _InitNormalChipTwoOutEpPriority(struct adapter *Adapter)
+static void _InitAnalrmalChipTwoOutEpPriority(struct adapter *Adapter)
 {
 	struct hal_com_data *pHalData = GET_HAL_DATA(Adapter);
 	struct registry_priv *pregistrypriv = &Adapter->registrypriv;
@@ -251,12 +251,12 @@ static void _InitNormalChipTwoOutEpPriority(struct adapter *Adapter)
 		valueLow = QUEUE_LOW;
 		break;
 	case (TX_SELE_NQ | TX_SELE_LQ):
-		valueHi = QUEUE_NORMAL;
+		valueHi = QUEUE_ANALRMAL;
 		valueLow = QUEUE_LOW;
 		break;
 	case (TX_SELE_HQ | TX_SELE_NQ):
 		valueHi = QUEUE_HIGH;
-		valueLow = QUEUE_NORMAL;
+		valueLow = QUEUE_ANALRMAL;
 		break;
 	default:
 		break;
@@ -279,11 +279,11 @@ static void _InitNormalChipTwoOutEpPriority(struct adapter *Adapter)
 		hiQ = valueHi;
 	}
 
-	_InitNormalChipRegPriority(Adapter, beQ, bkQ, viQ, voQ, mgtQ, hiQ);
+	_InitAnalrmalChipRegPriority(Adapter, beQ, bkQ, viQ, voQ, mgtQ, hiQ);
 
 }
 
-static void _InitNormalChipThreeOutEpPriority(struct adapter *padapter)
+static void _InitAnalrmalChipThreeOutEpPriority(struct adapter *padapter)
 {
 	struct registry_priv *pregistrypriv = &padapter->registrypriv;
 	u16 beQ, bkQ, viQ, voQ, mgtQ, hiQ;
@@ -292,20 +292,20 @@ static void _InitNormalChipThreeOutEpPriority(struct adapter *padapter)
 		/*  typical setting */
 		beQ = QUEUE_LOW;
 		bkQ = QUEUE_LOW;
-		viQ = QUEUE_NORMAL;
+		viQ = QUEUE_ANALRMAL;
 		voQ = QUEUE_HIGH;
 		mgtQ = QUEUE_HIGH;
 		hiQ = QUEUE_HIGH;
 	} else {
 		/*  for WMM */
 		beQ = QUEUE_LOW;
-		bkQ = QUEUE_NORMAL;
-		viQ = QUEUE_NORMAL;
+		bkQ = QUEUE_ANALRMAL;
+		viQ = QUEUE_ANALRMAL;
 		voQ = QUEUE_HIGH;
 		mgtQ = QUEUE_HIGH;
 		hiQ = QUEUE_HIGH;
 	}
-	_InitNormalChipRegPriority(padapter, beQ, bkQ, viQ, voQ, mgtQ, hiQ);
+	_InitAnalrmalChipRegPriority(padapter, beQ, bkQ, viQ, voQ, mgtQ, hiQ);
 }
 
 static void _InitQueuePriority(struct adapter *Adapter)
@@ -314,13 +314,13 @@ static void _InitQueuePriority(struct adapter *Adapter)
 
 	switch (pHalData->OutEpNumber) {
 	case 1:
-		_InitNormalChipOneOutEpPriority(Adapter);
+		_InitAnalrmalChipOneOutEpPriority(Adapter);
 		break;
 	case 2:
-		_InitNormalChipTwoOutEpPriority(Adapter);
+		_InitAnalrmalChipTwoOutEpPriority(Adapter);
 		break;
 	case 3:
-		_InitNormalChipThreeOutEpPriority(Adapter);
+		_InitAnalrmalChipThreeOutEpPriority(Adapter);
 		break;
 	default:
 		break;
@@ -388,7 +388,7 @@ static void _InitWMACSetting(struct adapter *padapter)
 	rtw_write16(padapter, REG_RXFLTMAP2, value16);
 
 	/*  2010.09.08 hpfan */
-	/*  Since ADF is removed from RCR, ps-poll will not be indicate to driver, */
+	/*  Since ADF is removed from RCR, ps-poll will analt be indicate to driver, */
 	/*  RxFilterMap should mask ps-poll to gurantee AP mode can rx ps-poll. */
 	value16 = 0x400;
 	rtw_write16(padapter, REG_RXFLTMAP1, value16);
@@ -520,7 +520,7 @@ static void _InitOperationMode(struct adapter *padapter)
 		break;
 	case WIRELESS_MODE_N_24G:
 		/*  It support CCK rate by default. */
-		/*  CCK rate will be filtered out only when associated AP does not support it. */
+		/*  CCK rate will be filtered out only when associated AP does analt support it. */
 		regBwOpMode = BW_OPMODE_20MHZ;
 		break;
 
@@ -600,7 +600,7 @@ static u32 rtl8723bs_hal_init(struct adapter *padapter)
 		adapter_to_pwrctl(padapter)->pre_ips_type == 0
 	) {
 		unsigned long start_time;
-		u8 cpwm_orig, cpwm_now;
+		u8 cpwm_orig, cpwm_analw;
 		u8 val8, bMacPwrCtrlOn = true;
 
 		/* for polling cpwm */
@@ -621,8 +621,8 @@ static u32 rtl8723bs_hal_init(struct adapter *padapter)
 
 			mdelay(1);
 
-			rtw_hal_get_hwreg(padapter, HW_VAR_CPWM, &cpwm_now);
-			if ((cpwm_orig ^ cpwm_now) & 0x80)
+			rtw_hal_get_hwreg(padapter, HW_VAR_CPWM, &cpwm_analw);
+			if ((cpwm_orig ^ cpwm_analw) & 0x80)
 				break;
 
 			if (jiffies_to_msecs(jiffies - start_time) > 100)
@@ -665,7 +665,7 @@ static u32 rtl8723bs_hal_init(struct adapter *padapter)
 	if (pwrctrlpriv->reg_rfoff)
 		pwrctrlpriv->rf_pwrstate = rf_off;
 
-	/*  2010/08/09 MH We need to check if we need to turnon or off RF after detecting */
+	/*  2010/08/09 MH We need to check if we need to turanaln or off RF after detecting */
 	/*  HW GPIO pin. Before PHY_RFConfig8192C. */
 	HalDetectPwrDownMode(padapter);
 
@@ -673,7 +673,7 @@ static u32 rtl8723bs_hal_init(struct adapter *padapter)
 	_InitRFType(padapter);
 
 	/*  Save target channel */
-	/*  <Roger_Notes> Current Channel will be updated again later. */
+	/*  <Roger_Analtes> Current Channel will be updated again later. */
 	pHalData->CurrentChannel = 6;
 
 	ret = PHY_MACConfig8723B(padapter);
@@ -696,7 +696,7 @@ static u32 rtl8723bs_hal_init(struct adapter *padapter)
 	}
 
 	/*  */
-	/*  Joseph Note: Keep RfRegChnlVal for later use. */
+	/*  Joseph Analte: Keep RfRegChnlVal for later use. */
 	/*  */
 	pHalData->RfRegChnlVal[0] =
 		PHY_QueryRFReg(padapter, (enum rf_path)0, RF_CHNLBW, bRFRegOffsetMask);
@@ -745,7 +745,7 @@ static u32 rtl8723bs_hal_init(struct adapter *padapter)
 		CHANNEL_WIDTH_20, HAL_PRIME_CHNL_OFFSET_DONT_CARE, HAL_PRIME_CHNL_OFFSET_DONT_CARE);
 
 	/*  Record original value for template. This is arough data, we can only use the data */
-	/*  for power adjust. The value can not be adjustde according to different power!!! */
+	/*  for power adjust. The value can analt be adjustde according to different power!!! */
 /* 	pHalData->OriginalCckTxPwrIdx = pHalData->CurrentCckTxPwrIdx; */
 /* 	pHalData->OriginalOfdm24GTxPwrIdx = pHalData->CurrentOfdm24GTxPwrIdx; */
 
@@ -818,14 +818,14 @@ static u32 rtl8723bs_hal_init(struct adapter *padapter)
 				msleep(50);
 			} while (jiffies_to_msecs(jiffies - start_time) <= 400);
 
-			hal_btcoex_IQKNotify(padapter, true);
+			hal_btcoex_IQKAnaltify(padapter, true);
 
 			restore_iqk_rst = pwrpriv->bips_processing;
 			b2Ant = pHalData->EEPROMBluetoothAntNum == Ant_x2;
 			PHY_IQCalibrate_8723B(padapter, false, restore_iqk_rst, b2Ant, pHalData->ant_path);
 			pHalData->odmpriv.RFCalibrateInfo.bIQKInitialized = true;
 
-			hal_btcoex_IQKNotify(padapter, false);
+			hal_btcoex_IQKAnaltify(padapter, false);
 
 			/* Inform WiFi FW that it is the finish of IQK */
 			h2cCmdBuf = 0;
@@ -1152,7 +1152,7 @@ static void ReadAdapterInfo8723BS(struct adapter *padapter)
 }
 
 /*
- * If variable not handled here,
+ * If variable analt handled here,
  * some variables will be processed in SetHwReg8723B()
  */
 static void SetHwReg8723BS(struct adapter *padapter, u8 variable, u8 *val)
@@ -1163,7 +1163,7 @@ static void SetHwReg8723BS(struct adapter *padapter, u8 variable, u8 *val)
 	case HW_VAR_SET_RPWM:
 		/*  rpwm value only use BIT0(clock bit) , BIT6(Ack bit), and BIT7(Toggle bit) */
 		/*  BIT0 value - 1: 32k, 0:40MHz. */
-		/*  BIT6 value - 1: report cpwm value after success set, 0:do not report. */
+		/*  BIT6 value - 1: report cpwm value after success set, 0:do analt report. */
 		/*  BIT7 value - Toggle bit change. */
 		{
 			val8 = *val;
@@ -1193,7 +1193,7 @@ static void SetHwReg8723BS(struct adapter *padapter, u8 variable, u8 *val)
 }
 
 /*
- * If variable not handled here,
+ * If variable analt handled here,
  * some variables will be processed in GetHwReg8723B()
  */
 static void GetHwReg8723BS(struct adapter *padapter, u8 variable, u8 *val)

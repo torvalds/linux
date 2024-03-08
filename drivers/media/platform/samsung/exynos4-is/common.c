@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Samsung S5P/EXYNOS4 SoC Camera Subsystem driver
+ * Samsung S5P/EXYANALS4 SoC Camera Subsystem driver
  *
  * Copyright (C) 2013 Samsung Electronics Co., Ltd.
  * Author: Sylwester Nawrocki <s.nawrocki@samsung.com>
  */
 
 #include <linux/module.h>
-#include <media/drv-intf/exynos-fimc.h>
+#include <media/drv-intf/exyanals-fimc.h>
 #include "common.h"
 
 /*

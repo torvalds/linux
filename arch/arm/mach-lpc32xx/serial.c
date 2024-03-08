@@ -77,7 +77,7 @@ void lpc32xx_loopback_set(resource_size_t mapbase, int state)
 		bit = 6;
 		break;
 	default:
-		WARN(1, "lpc32xx_hs: Warning: Unknown port at %08x\n", mapbase);
+		WARN(1, "lpc32xx_hs: Warning: Unkanalwn port at %08x\n", mapbase);
 		return;
 	}
 

@@ -55,7 +55,7 @@
 #define BMC150_MAGN_REG_OPMODE_ODR		0x4C
 #define BMC150_MAGN_MASK_OPMODE			GENMASK(2, 1)
 #define BMC150_MAGN_SHIFT_OPMODE		1
-#define BMC150_MAGN_MODE_NORMAL			0x00
+#define BMC150_MAGN_MODE_ANALRMAL			0x00
 #define BMC150_MAGN_MODE_FORCED			0x01
 #define BMC150_MAGN_MODE_SLEEP			0x03
 #define BMC150_MAGN_MASK_ODR			GENMASK(5, 3)
@@ -108,7 +108,7 @@ enum bmc150_magn_axis {
 enum bmc150_magn_power_modes {
 	BMC150_MAGN_POWER_MODE_SUSPEND,
 	BMC150_MAGN_POWER_MODE_SLEEP,
-	BMC150_MAGN_POWER_MODE_NORMAL,
+	BMC150_MAGN_POWER_MODE_ANALRMAL,
 };
 
 struct bmc150_magn_trim_regs {
@@ -248,11 +248,11 @@ static int bmc150_magn_set_power_mode(struct bmc150_magn_data *data,
 					  BMC150_MAGN_MASK_OPMODE,
 					  BMC150_MAGN_MODE_SLEEP <<
 					  BMC150_MAGN_SHIFT_OPMODE);
-	case BMC150_MAGN_POWER_MODE_NORMAL:
+	case BMC150_MAGN_POWER_MODE_ANALRMAL:
 		return regmap_update_bits(data->regmap,
 					  BMC150_MAGN_REG_OPMODE_ODR,
 					  BMC150_MAGN_MASK_OPMODE,
-					  BMC150_MAGN_MODE_NORMAL <<
+					  BMC150_MAGN_MODE_ANALRMAL <<
 					  BMC150_MAGN_SHIFT_OPMODE);
 	}
 
@@ -684,7 +684,7 @@ static irqreturn_t bmc150_magn_trigger_handler(int irq, void *p)
 
 err:
 	mutex_unlock(&data->mutex);
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -721,7 +721,7 @@ static int bmc150_magn_init(struct bmc150_magn_data *data)
 	}
 	if (chip_id != BMC150_MAGN_CHIP_ID_VAL) {
 		dev_err(data->dev, "Invalid chip id 0x%x\n", chip_id);
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_poweroff;
 	}
 	dev_dbg(data->dev, "Chip id %x\n", chip_id);
@@ -755,7 +755,7 @@ static int bmc150_magn_init(struct bmc150_magn_data *data)
 	if (ret < 0)
 		goto err_poweroff;
 
-	ret = bmc150_magn_set_power_mode(data, BMC150_MAGN_POWER_MODE_NORMAL,
+	ret = bmc150_magn_set_power_mode(data, BMC150_MAGN_POWER_MODE_ANALRMAL,
 					 true);
 	if (ret < 0) {
 		dev_err(data->dev, "Failed to power on device\n");
@@ -875,7 +875,7 @@ int bmc150_magn_probe(struct device *dev, struct regmap *regmap,
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = iio_priv(indio_dev);
 	dev_set_drvdata(dev, indio_dev);
@@ -916,7 +916,7 @@ int bmc150_magn_probe(struct device *dev, struct regmap *regmap,
 							   indio_dev->name,
 							   iio_device_id(indio_dev));
 		if (!data->dready_trig) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			dev_err(dev, "iio trigger alloc failed\n");
 			goto err_poweroff;
 		}
@@ -1037,7 +1037,7 @@ static int bmc150_magn_runtime_resume(struct device *dev)
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct bmc150_magn_data *data = iio_priv(indio_dev);
 
-	return bmc150_magn_set_power_mode(data, BMC150_MAGN_POWER_MODE_NORMAL,
+	return bmc150_magn_set_power_mode(data, BMC150_MAGN_POWER_MODE_ANALRMAL,
 					  true);
 }
 #endif
@@ -1064,7 +1064,7 @@ static int bmc150_magn_resume(struct device *dev)
 	int ret;
 
 	mutex_lock(&data->mutex);
-	ret = bmc150_magn_set_power_mode(data, BMC150_MAGN_POWER_MODE_NORMAL,
+	ret = bmc150_magn_set_power_mode(data, BMC150_MAGN_POWER_MODE_ANALRMAL,
 					 true);
 	mutex_unlock(&data->mutex);
 

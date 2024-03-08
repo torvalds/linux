@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: GPL-2.0
 # ==========================================================================
 # Building binaries on the host system
-# Binaries are not used during the compilation of the kernel, and intended
+# Binaries are analt used during the compilation of the kernel, and intended
 # to be build for target board, target board can be host of course. Added to
-# build binaries to run not on host system.
+# build binaries to run analt on host system.
 #
 # Sample syntax
 # tprogs-y := xsk_example

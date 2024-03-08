@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: BCM63xx power domain driver
 
 maintainers:
-  - Álvaro Fernández Rojas <noltari@gmail.com>
+  - Álvaro Fernández Rojas <analltari@gmail.com>
 
 description: |
   BCM6318, BCM6328, BCM6362 and BCM63268 SoCs have a power domain controller

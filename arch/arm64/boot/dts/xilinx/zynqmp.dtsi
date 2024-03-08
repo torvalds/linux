@@ -119,12 +119,12 @@
 		ranges;
 
 		rproc_0_fw_image: memory@3ed00000 {
-			no-map;
+			anal-map;
 			reg = <0x0 0x3ed00000 0x0 0x40000>;
 		};
 
 		rproc_1_fw_image: memory@3ef00000 {
-			no-map;
+			anal-map;
 			reg = <0x0 0x3ef00000 0x0 0x40000>;
 		};
 	};
@@ -449,9 +449,9 @@
 			power-domains = <&zynqmp_firmware PD_GPU>;
 		};
 
-		/* LPDDMA default allows only secured access. inorder to enable
+		/* LPDDMA default allows only secured access. ianalrder to enable
 		 * These dma channels, Users should ensure that these dma
-		 * Channels are allowed for non secure access.
+		 * Channels are allowed for analn secure access.
 		 */
 		lpd_dma_chan1: dma-controller@ffa80000 {
 			status = "disabled";
@@ -691,7 +691,7 @@
 			      <0x0 0xfd480000 0x0 0x1000>,
 			      <0x80 0x00000000 0x0 0x1000000>;
 			reg-names = "breg", "pcireg", "cfg";
-			ranges = <0x02000000 0x00000000 0xe0000000 0x00000000 0xe0000000 0x00000000 0x10000000>,/* non-prefetchable memory */
+			ranges = <0x02000000 0x00000000 0xe0000000 0x00000000 0xe0000000 0x00000000 0x10000000>,/* analn-prefetchable memory */
 				 <0x43000000 0x00000006 0x00000000 0x00000006 0x00000000 0x00000002 0x00000000>;/* prefetchable memory */
 			bus-range = <0x00 0xff>;
 			interrupt-map-mask = <0x0 0x0 0x0 0x7>;

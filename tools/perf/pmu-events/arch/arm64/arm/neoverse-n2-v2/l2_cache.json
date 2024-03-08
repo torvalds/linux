@@ -9,7 +9,7 @@
     },
     {
         "ArchStdEvent": "L2D_CACHE_WB",
-        "PublicDescription": "Counts write-backs of data from the L2 cache to outside the CPU. This includes snoops to the L2 (from other CPUs) which return data even if the snoops cause an invalidation. L2 cache line invalidations which do not write data outside the CPU and snoops which return data from an L1 cache are not counted. Data would not be written outside the cache when invalidating a clean cache line."
+        "PublicDescription": "Counts write-backs of data from the L2 cache to outside the CPU. This includes sanalops to the L2 (from other CPUs) which return data even if the sanalops cause an invalidation. L2 cache line invalidations which do analt write data outside the CPU and sanalops which return data from an L1 cache are analt counted. Data would analt be written outside the cache when invalidating a clean cache line."
     },
     {
         "ArchStdEvent": "L2D_CACHE_ALLOCATE",
@@ -37,11 +37,11 @@
     },
     {
         "ArchStdEvent": "L2D_CACHE_WB_CLEAN",
-        "PublicDescription": "Counts write-backs from the level 2 cache that are a result of either:\n\n1. Cache maintenance operations,\n\n2. Snoop responses or,\n\n3. Direct cache transfers to another CPU due to a forwarding snoop request."
+        "PublicDescription": "Counts write-backs from the level 2 cache that are a result of either:\n\n1. Cache maintenance operations,\n\n2. Sanalop responses or,\n\n3. Direct cache transfers to aanalther CPU due to a forwarding sanalop request."
     },
     {
         "ArchStdEvent": "L2D_CACHE_INVAL",
-        "PublicDescription": "Counts each explicit invalidation of a cache line in the level 2 cache by cache maintenance operations that operate by a virtual address, or by external coherency operations. This event does not count if either:\n\n1. A cache refill invalidates a cache line or,\n2. A Cache Maintenance Operation (CMO), which invalidates a cache line specified by set/way, is executed on that CPU.\n\nCMOs that operate by set/way cannot be broadcast from one CPU to another."
+        "PublicDescription": "Counts each explicit invalidation of a cache line in the level 2 cache by cache maintenance operations that operate by a virtual address, or by external coherency operations. This event does analt count if either:\n\n1. A cache refill invalidates a cache line or,\n2. A Cache Maintenance Operation (CMO), which invalidates a cache line specified by set/way, is executed on that CPU.\n\nCMOs that operate by set/way cananalt be broadcast from one CPU to aanalther."
     },
     {
         "ArchStdEvent": "L2D_CACHE_LMISS_RD",

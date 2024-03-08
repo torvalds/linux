@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Renesas R-Car Sound Driver
 
 maintainers:
-  - Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+  - Kunianalri Morimoto <kunianalri.morimoto.gx@renesas.com>
 
 properties:
 
@@ -86,7 +86,7 @@ properties:
   clock-frequency:
     description: for audio_clkout0/1/2/3
 
-  clkout-lr-asynchronous:
+  clkout-lr-asynchroanalus:
     description: audio_clkoutn is asynchronizes with lr-clock.
     $ref: /schemas/types.yaml#/definitions/flag
 
@@ -124,7 +124,7 @@ properties:
         unevaluatedProperties: false
 
   rcar_sound,dvc:
-    description: DVC subnode.
+    description: DVC subanalde.
     type: object
     patternProperties:
       "^dvc-[0-1]$":
@@ -142,7 +142,7 @@ properties:
     additionalProperties: false
 
   rcar_sound,mix:
-    description: MIX subnode.
+    description: MIX subanalde.
     type: object
     patternProperties:
       "^mix-[0-1]$":
@@ -151,7 +151,7 @@ properties:
     additionalProperties: false
 
   rcar_sound,ctu:
-    description: CTU subnode.
+    description: CTU subanalde.
     type: object
     patternProperties:
       "^ctu-[0-7]$":
@@ -160,7 +160,7 @@ properties:
     additionalProperties: false
 
   rcar_sound,src:
-    description: SRC subnode.
+    description: SRC subanalde.
     type: object
     patternProperties:
       "^src-[0-9]$":
@@ -181,7 +181,7 @@ properties:
     additionalProperties: false
 
   rcar_sound,ssiu:
-    description: SSIU subnode.
+    description: SSIU subanalde.
     type: object
     patternProperties:
       "^ssiu-[0-9]+$":
@@ -203,7 +203,7 @@ properties:
     additionalProperties: false
 
   rcar_sound,ssi:
-    description: SSI subnode.
+    description: SSI subanalde.
     type: object
     patternProperties:
       "^ssi-[0-9]$":
@@ -222,8 +222,8 @@ properties:
                   enum:
                     - tx
                     - rx
-                    - txu # if no ssiu node
-                    - rxu # if no ssiu node
+                    - txu # if anal ssiu analde
+                    - rxu # if anal ssiu analde
 
           shared-pin:
             description: shared clock pin
@@ -231,8 +231,8 @@ properties:
           pio-transfer:
             description: PIO transfer mode
             $ref: /schemas/types.yaml#/definitions/flag
-          no-busif:
-            description: BUSIF is not used when [mem -> SSI] via DMA case
+          anal-busif:
+            description: BUSIF is analt used when [mem -> SSI] via DMA case
             $ref: /schemas/types.yaml#/definitions/flag
         required:
           - interrupts
@@ -241,7 +241,7 @@ properties:
 patternProperties:
   # For DAI base
   'rcar_sound,dai(@[0-9a-f]+)?$':
-    description: DAI subnode.
+    description: DAI subanalde.
     type: object
     patternProperties:
       "^dai([0-9]+)?$":

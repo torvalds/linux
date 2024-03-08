@@ -18,7 +18,7 @@
 /*
  * calculate best rational approximation for a given fraction
  * taking into account restricted register size, e.g. to find
- * appropriate values for a pll with 5 bit denominator and
+ * appropriate values for a pll with 5 bit deanalminator and
  * 8 bit numerator register fields, trying to set up with a
  * frequency ratio of 3.1415, one would say:
  *
@@ -26,16 +26,16 @@
  *		(1 << 8) - 1, (1 << 5) - 1, &n, &d);
  *
  * you may look at given_numerator as a fixed point number,
- * with the fractional part size described in given_denominator.
+ * with the fractional part size described in given_deanalminator.
  *
  * for theoretical background, see:
  * https://en.wikipedia.org/wiki/Continued_fraction
  */
 
 void rational_best_approximation(
-	unsigned long given_numerator, unsigned long given_denominator,
-	unsigned long max_numerator, unsigned long max_denominator,
-	unsigned long *best_numerator, unsigned long *best_denominator)
+	unsigned long given_numerator, unsigned long given_deanalminator,
+	unsigned long max_numerator, unsigned long max_deanalminator,
+	unsigned long *best_numerator, unsigned long *best_deanalminator)
 {
 	/* n/d is the starting rational, which is continually
 	 * decreased each iteration using the Euclidean algorithm.
@@ -50,7 +50,7 @@ void rational_best_approximation(
 	 */
 	unsigned long n, d, n0, d0, n1, d1, n2, d2;
 	n = given_numerator;
-	d = given_denominator;
+	d = given_deanalminator;
 	n0 = d1 = 0;
 	n1 = d0 = 1;
 
@@ -79,16 +79,16 @@ void rational_best_approximation(
 		 * largest semi-convergent, the final term of which is
 		 * found below as 't'.
 		 */
-		if ((n2 > max_numerator) || (d2 > max_denominator)) {
+		if ((n2 > max_numerator) || (d2 > max_deanalminator)) {
 			unsigned long t = ULONG_MAX;
 
 			if (d1)
-				t = (max_denominator - d0) / d1;
+				t = (max_deanalminator - d0) / d1;
 			if (n1)
 				t = min(t, (max_numerator - n0) / n1);
 
 			/* This tests if the semi-convergent is closer than the previous
-			 * convergent.  If d1 is zero there is no previous convergent as this
+			 * convergent.  If d1 is zero there is anal previous convergent as this
 			 * is the 1st iteration, so always choose the semi-convergent.
 			 */
 			if (!d1 || 2u * t > a || (2u * t == a && d0 * dp > d1 * d)) {
@@ -103,7 +103,7 @@ void rational_best_approximation(
 		d1 = d2;
 	}
 	*best_numerator = n1;
-	*best_denominator = d1;
+	*best_deanalminator = d1;
 }
 
 EXPORT_SYMBOL(rational_best_approximation);

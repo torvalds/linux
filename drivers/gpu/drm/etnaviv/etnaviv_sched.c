@@ -46,7 +46,7 @@ static enum drm_gpu_sched_stat etnaviv_sched_timedout_job(struct drm_sched_job
 	 * spurious. Bail out.
 	 */
 	if (dma_fence_is_signaled(submit->out_fence))
-		goto out_no_timeout;
+		goto out_anal_timeout;
 
 	/*
 	 * If the GPU is still making forward progress on the front-end (which
@@ -60,7 +60,7 @@ static enum drm_gpu_sched_stat etnaviv_sched_timedout_job(struct drm_sched_job
 	     change < 0 || change > 16)) {
 		gpu->hangcheck_dma_addr = dma_addr;
 		gpu->hangcheck_fence = gpu->completed_fence;
-		goto out_no_timeout;
+		goto out_anal_timeout;
 	}
 
 	if(sched_job)
@@ -73,12 +73,12 @@ static enum drm_gpu_sched_stat etnaviv_sched_timedout_job(struct drm_sched_job
 	drm_sched_resubmit_jobs(&gpu->sched);
 
 	drm_sched_start(&gpu->sched, true);
-	return DRM_GPU_SCHED_STAT_NOMINAL;
+	return DRM_GPU_SCHED_STAT_ANALMINAL;
 
-out_no_timeout:
+out_anal_timeout:
 	/* restart scheduler after GPU is usable again */
 	drm_sched_start(&gpu->sched, true);
-	return DRM_GPU_SCHED_STAT_NOMINAL;
+	return DRM_GPU_SCHED_STAT_ANALMINAL;
 }
 
 static void etnaviv_sched_free_job(struct drm_sched_job *sched_job)
@@ -103,7 +103,7 @@ int etnaviv_sched_push_job(struct etnaviv_gem_submit *submit)
 
 	/*
 	 * Hold the sched lock across the whole operation to avoid jobs being
-	 * pushed out of order with regard to their sched fence seqnos as
+	 * pushed out of order with regard to their sched fence seqanals as
 	 * allocated in drm_sched_job_arm.
 	 */
 	mutex_lock(&gpu->sched_lock);
@@ -119,7 +119,7 @@ int etnaviv_sched_push_job(struct etnaviv_gem_submit *submit)
 		goto out_unlock;
 	}
 
-	/* the scheduler holds on to the job now */
+	/* the scheduler holds on to the job analw */
 	kref_get(&submit->refcount);
 
 	drm_sched_entity_push_job(&submit->sched_job);

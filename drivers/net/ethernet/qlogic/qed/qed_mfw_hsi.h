@@ -18,7 +18,7 @@ struct mcp_trace {
 	u32 signature;		/* Help to identify that the trace is valid */
 	u32 size;		/* the size of the trace buffer in bytes */
 	u32 curr_level;		/* 2 - all will be written to the buffer
-				 * 1 - debug trace will not be written
+				 * 1 - debug trace will analt be written
 				 * 0 - just errors will be written to the buffer
 				 */
 	u32 modules_mask[2];	/* a bit per module, 1 means write it, 0 means
@@ -52,7 +52,7 @@ typedef u32 offsize_t;		/* In DWORDS !!! */
 /* Offset from the beginning of the MCP scratchpad */
 #define OFFSIZE_OFFSET_SHIFT	0
 #define OFFSIZE_OFFSET_MASK	0x0000ffff
-/* Size of specific element (not the whole array if any) */
+/* Size of specific element (analt the whole array if any) */
 #define OFFSIZE_SIZE_SHIFT	16
 #define OFFSIZE_SIZE_MASK	0xffff0000
 
@@ -78,7 +78,7 @@ struct eth_phy_cfg {
 #define ETH_SPEED_SMARTLINQ			0x8
 
 	u32					pause;
-#define ETH_PAUSE_NONE				0x0
+#define ETH_PAUSE_ANALNE				0x0
 #define ETH_PAUSE_AUTONEG			0x1
 #define ETH_PAUSE_RX				0x2
 #define ETH_PAUSE_TX				0x4
@@ -86,7 +86,7 @@ struct eth_phy_cfg {
 	u32					adv_speed;
 
 	u32					loopback_mode;
-#define ETH_LOOPBACK_NONE			0x0
+#define ETH_LOOPBACK_ANALNE			0x0
 #define ETH_LOOPBACK_INT_PHY			0x1
 #define ETH_LOOPBACK_EXT_PHY			0x2
 #define ETH_LOOPBACK_EXT			0x3
@@ -113,25 +113,25 @@ struct eth_phy_cfg {
 	u32					fec_mode;
 #define FEC_FORCE_MODE_MASK			0x000000ff
 #define FEC_FORCE_MODE_OFFSET			0
-#define FEC_FORCE_MODE_NONE			0x00
+#define FEC_FORCE_MODE_ANALNE			0x00
 #define FEC_FORCE_MODE_FIRECODE			0x01
 #define FEC_FORCE_MODE_RS			0x02
 #define FEC_FORCE_MODE_AUTO			0x07
 #define FEC_EXTENDED_MODE_MASK			0xffffff00
 #define FEC_EXTENDED_MODE_OFFSET		8
-#define ETH_EXT_FEC_NONE			0x00000000
-#define ETH_EXT_FEC_10G_NONE			0x00000100
+#define ETH_EXT_FEC_ANALNE			0x00000000
+#define ETH_EXT_FEC_10G_ANALNE			0x00000100
 #define ETH_EXT_FEC_10G_BASE_R			0x00000200
-#define ETH_EXT_FEC_25G_NONE			0x00000400
+#define ETH_EXT_FEC_25G_ANALNE			0x00000400
 #define ETH_EXT_FEC_25G_BASE_R			0x00000800
 #define ETH_EXT_FEC_25G_RS528			0x00001000
-#define ETH_EXT_FEC_40G_NONE			0x00002000
+#define ETH_EXT_FEC_40G_ANALNE			0x00002000
 #define ETH_EXT_FEC_40G_BASE_R			0x00004000
-#define ETH_EXT_FEC_50G_NONE			0x00008000
+#define ETH_EXT_FEC_50G_ANALNE			0x00008000
 #define ETH_EXT_FEC_50G_BASE_R			0x00010000
 #define ETH_EXT_FEC_50G_RS528			0x00020000
 #define ETH_EXT_FEC_50G_RS544			0x00040000
-#define ETH_EXT_FEC_100G_NONE			0x00080000
+#define ETH_EXT_FEC_100G_ANALNE			0x00080000
 #define ETH_EXT_FEC_100G_BASE_R			0x00100000
 #define ETH_EXT_FEC_100G_RS528			0x00200000
 #define ETH_EXT_FEC_100G_RS544			0x00400000
@@ -139,7 +139,7 @@ struct eth_phy_cfg {
 	u32					extended_speed;
 #define ETH_EXT_SPEED_MASK			0x0000ffff
 #define ETH_EXT_SPEED_OFFSET			0
-#define ETH_EXT_SPEED_NONE			0x00000001
+#define ETH_EXT_SPEED_ANALNE			0x00000001
 #define ETH_EXT_SPEED_1G			0x00000002
 #define ETH_EXT_SPEED_10G			0x00000004
 #define ETH_EXT_SPEED_25G			0x00000008
@@ -292,7 +292,7 @@ struct couple_mode_teaming {
 
 enum _lldp_agent {
 	LLDP_NEAREST_BRIDGE = 0,
-	LLDP_NEAREST_NON_TPMR_BRIDGE,
+	LLDP_NEAREST_ANALN_TPMR_BRIDGE,
 	LLDP_NEAREST_CUSTOMER_BRIDGE,
 	LLDP_MAX_LLDP_AGENTS
 };
@@ -602,7 +602,7 @@ struct public_port {
 #define LINK_STATUS_LINK_PARTNER_100G_CAPABLE		0x00008000
 #define LINK_STATUS_LINK_PARTNER_25G_CAPABLE		0x00010000
 #define LINK_STATUS_LINK_PARTNER_FLOW_CONTROL_MASK	0x000c0000
-#define LINK_STATUS_LINK_PARTNER_NOT_PAUSE_CAPABLE	(0 << 18)
+#define LINK_STATUS_LINK_PARTNER_ANALT_PAUSE_CAPABLE	(0 << 18)
 #define LINK_STATUS_LINK_PARTNER_SYMMETRIC_PAUSE	BIT(18)
 #define LINK_STATUS_LINK_PARTNER_ASYMMETRIC_PAUSE	(2 << 18)
 #define LINK_STATUS_LINK_PARTNER_BOTH_PAUSE		(3 << 18)
@@ -615,7 +615,7 @@ struct public_port {
 #define LINK_STATUS_UNSUPPORTED_SPD_REQ			0x04000000
 
 #define LINK_STATUS_FEC_MODE_MASK			0x38000000
-#define LINK_STATUS_FEC_MODE_NONE			(0 << 27)
+#define LINK_STATUS_FEC_MODE_ANALNE			(0 << 27)
 #define LINK_STATUS_FEC_MODE_FIRECODE_CL74		BIT(27)
 #define LINK_STATUS_FEC_MODE_RS_CL91			(2 << 27)
 #define LINK_STATUS_EXT_PHY_LINK_UP			BIT(30)
@@ -640,7 +640,7 @@ struct public_port {
 #define MEDIA_SFP_1G_FIBER	0x5
 #define MEDIA_MODULE_FIBER	0x6
 #define MEDIA_KR		0xf0
-#define MEDIA_NOT_PRESENT	0xff
+#define MEDIA_ANALT_PRESENT	0xff
 
 	u32 lfa_status;
 	u32 link_change_count;
@@ -668,8 +668,8 @@ struct public_port {
 #define ETH_TRANSCEIVER_STATE_IN_SETUP			0x10
 #define ETH_TRANSCEIVER_TYPE_MASK			0x0000ff00
 #define ETH_TRANSCEIVER_TYPE_OFFSET			0x8
-#define ETH_TRANSCEIVER_TYPE_NONE			0x00
-#define ETH_TRANSCEIVER_TYPE_UNKNOWN			0xff
+#define ETH_TRANSCEIVER_TYPE_ANALNE			0x00
+#define ETH_TRANSCEIVER_TYPE_UNKANALWN			0xff
 #define ETH_TRANSCEIVER_TYPE_1G_PCC			0x01
 #define ETH_TRANSCEIVER_TYPE_1G_ACC			0x02
 #define ETH_TRANSCEIVER_TYPE_1G_LX			0x03
@@ -818,8 +818,8 @@ struct public_func {
 	u32 fcoe_wwn_port_name_upper;
 	u32 fcoe_wwn_port_name_lower;
 
-	u32 fcoe_wwn_node_name_upper;
-	u32 fcoe_wwn_node_name_lower;
+	u32 fcoe_wwn_analde_name_upper;
+	u32 fcoe_wwn_analde_name_lower;
 
 	u32 ovlan_stag;
 #define FUNC_MF_CFG_OV_STAG_MASK	0x0000ffff
@@ -846,7 +846,7 @@ struct public_func {
 
 #define DRV_ID_DRV_TYPE_MASK		0x7f000000
 #define DRV_ID_DRV_TYPE_SHIFT		24
-#define DRV_ID_DRV_TYPE_UNKNOWN		(0 << DRV_ID_DRV_TYPE_SHIFT)
+#define DRV_ID_DRV_TYPE_UNKANALWN		(0 << DRV_ID_DRV_TYPE_SHIFT)
 #define DRV_ID_DRV_TYPE_LINUX		BIT(DRV_ID_DRV_TYPE_SHIFT)
 
 #define DRV_ID_DRV_INIT_HW_MASK		0x80000000
@@ -994,7 +994,7 @@ struct mcp_wwn {
 	u32 wwn_lower;
 };
 
-#define DRV_ROLE_NONE           0
+#define DRV_ROLE_ANALNE           0
 #define DRV_ROLE_PREBOOT        1
 #define DRV_ROLE_OS             2
 #define DRV_ROLE_KDUMP          3
@@ -1009,10 +1009,10 @@ struct load_req_stc {
 #define LOAD_REQ_LOCK_TO_MASK           0x0000FF00
 #define LOAD_REQ_LOCK_TO_SHIFT          8
 #define LOAD_REQ_LOCK_TO_DEFAULT        0
-#define LOAD_REQ_LOCK_TO_NONE           255
+#define LOAD_REQ_LOCK_TO_ANALNE           255
 #define LOAD_REQ_FORCE_MASK             0x000F0000
 #define LOAD_REQ_FORCE_SHIFT            16
-#define LOAD_REQ_FORCE_NONE             0
+#define LOAD_REQ_FORCE_ANALNE             0
 #define LOAD_REQ_FORCE_PF               1
 #define LOAD_REQ_FORCE_ALL              2
 #define LOAD_REQ_FLAGS0_MASK            0x00F00000
@@ -1248,7 +1248,7 @@ enum drv_msg_code_enum {
 #define RESOURCE_OPCODE_RELEASED		3
 #define RESOURCE_OPCODE_RELEASED_PREVIOUS	4
 #define RESOURCE_OPCODE_WRONG_OWNER		5
-#define RESOURCE_OPCODE_UNKNOWN_CMD		255
+#define RESOURCE_OPCODE_UNKANALWN_CMD		255
 
 #define RESOURCE_DUMP				0
 
@@ -1291,13 +1291,13 @@ enum drv_msg_code_enum {
 #define DRV_MB_PARAM_PMBUS_DATA_MASK 0xFFFF0000
 
 /* UNLOAD_REQ params */
-#define DRV_MB_PARAM_UNLOAD_WOL_UNKNOWN 0x00000000
+#define DRV_MB_PARAM_UNLOAD_WOL_UNKANALWN 0x00000000
 #define DRV_MB_PARAM_UNLOAD_WOL_MCP 0x00000001
 #define DRV_MB_PARAM_UNLOAD_WOL_DISABLED 0x00000002
 #define DRV_MB_PARAM_UNLOAD_WOL_ENABLED 0x00000003
 
 /* UNLOAD_DONE_params */
-#define DRV_MB_PARAM_UNLOAD_NON_D3_POWER 0x00000001
+#define DRV_MB_PARAM_UNLOAD_ANALN_D3_POWER 0x00000001
 
 /* INIT_PHY params */
 #define DRV_MB_PARAM_INIT_PHY_FORCE 0x00000001
@@ -1312,10 +1312,10 @@ enum drv_msg_code_enum {
 #define DRV_MB_PARAM_LLDP_TLV_RX_VALID_SHIFT 0
 #define DRV_MB_PARAM_LLDP_TLV_RX_TYPE_MASK 0x000007f0
 #define DRV_MB_PARAM_LLDP_TLV_RX_TYPE_SHIFT 4
-#define DRV_MB_PARAM_DCBX_NOTIFY_MASK 0x00000008
-#define DRV_MB_PARAM_DCBX_NOTIFY_SHIFT 3
-#define DRV_MB_PARAM_DCBX_ADMIN_CFG_NOTIFY_MASK 0x00000010
-#define DRV_MB_PARAM_DCBX_ADMIN_CFG_NOTIFY_SHIFT 4
+#define DRV_MB_PARAM_DCBX_ANALTIFY_MASK 0x00000008
+#define DRV_MB_PARAM_DCBX_ANALTIFY_SHIFT 3
+#define DRV_MB_PARAM_DCBX_ADMIN_CFG_ANALTIFY_MASK 0x00000010
+#define DRV_MB_PARAM_DCBX_ADMIN_CFG_ANALTIFY_SHIFT 4
 
 #define DRV_MB_PARAM_NIG_DRAIN_PERIOD_MS_MASK 0x000000FF
 #define DRV_MB_PARAM_NIG_DRAIN_PERIOD_MS_SHIFT 0
@@ -1338,7 +1338,7 @@ enum drv_msg_code_enum {
 
 #define DRV_MB_PARAM_OV_CURR_CFG_SHIFT		0
 #define DRV_MB_PARAM_OV_CURR_CFG_MASK		0x0000000F
-#define DRV_MB_PARAM_OV_CURR_CFG_NONE		0
+#define DRV_MB_PARAM_OV_CURR_CFG_ANALNE		0
 #define DRV_MB_PARAM_OV_CURR_CFG_OS		1
 #define DRV_MB_PARAM_OV_CURR_CFG_VENDOR_SPEC	2
 #define DRV_MB_PARAM_OV_CURR_CFG_OTHER		3
@@ -1346,14 +1346,14 @@ enum drv_msg_code_enum {
 #define DRV_MB_PARAM_OV_STORM_FW_VER_SHIFT	0
 #define DRV_MB_PARAM_OV_STORM_FW_VER_MASK	0xFFFFFFFF
 #define DRV_MB_PARAM_OV_STORM_FW_VER_MAJOR_MASK	0xFF000000
-#define DRV_MB_PARAM_OV_STORM_FW_VER_MINOR_MASK	0x00FF0000
+#define DRV_MB_PARAM_OV_STORM_FW_VER_MIANALR_MASK	0x00FF0000
 #define DRV_MB_PARAM_OV_STORM_FW_VER_BUILD_MASK	0x0000FF00
 #define DRV_MB_PARAM_OV_STORM_FW_VER_DROP_MASK	0x000000FF
 
 #define DRV_MSG_CODE_OV_UPDATE_DRIVER_STATE_SHIFT	0
 #define DRV_MSG_CODE_OV_UPDATE_DRIVER_STATE_MASK	0xF
-#define DRV_MSG_CODE_OV_UPDATE_DRIVER_STATE_UNKNOWN	0x1
-#define DRV_MSG_CODE_OV_UPDATE_DRIVER_STATE_NOT_LOADED	0x2
+#define DRV_MSG_CODE_OV_UPDATE_DRIVER_STATE_UNKANALWN	0x1
+#define DRV_MSG_CODE_OV_UPDATE_DRIVER_STATE_ANALT_LOADED	0x2
 #define DRV_MSG_CODE_OV_UPDATE_DRIVER_STATE_LOADING	0x3
 #define DRV_MSG_CODE_OV_UPDATE_DRIVER_STATE_DISABLED	0x4
 #define DRV_MSG_CODE_OV_UPDATE_DRIVER_STATE_ACTIVE	0x5
@@ -1368,10 +1368,10 @@ enum drv_msg_code_enum {
 #define DRV_MB_PARAM_WOL_DISABLED	DRV_MB_PARAM_UNLOAD_WOL_DISABLED
 #define DRV_MB_PARAM_WOL_ENABLED	DRV_MB_PARAM_UNLOAD_WOL_ENABLED
 
-#define DRV_MB_PARAM_ESWITCH_MODE_MASK	(DRV_MB_PARAM_ESWITCH_MODE_NONE | \
+#define DRV_MB_PARAM_ESWITCH_MODE_MASK	(DRV_MB_PARAM_ESWITCH_MODE_ANALNE | \
 					 DRV_MB_PARAM_ESWITCH_MODE_VEB | \
 					 DRV_MB_PARAM_ESWITCH_MODE_VEPA)
-#define DRV_MB_PARAM_ESWITCH_MODE_NONE	0x0
+#define DRV_MB_PARAM_ESWITCH_MODE_ANALNE	0x0
 #define DRV_MB_PARAM_ESWITCH_MODE_VEB	0x1
 #define DRV_MB_PARAM_ESWITCH_MODE_VEPA	0x2
 
@@ -1394,16 +1394,16 @@ enum drv_msg_code_enum {
 	/* Resource Allocation params - Driver version support */
 #define DRV_MB_PARAM_RESOURCE_ALLOC_VERSION_MAJOR_MASK		0xffff0000
 #define DRV_MB_PARAM_RESOURCE_ALLOC_VERSION_MAJOR_SHIFT		16
-#define DRV_MB_PARAM_RESOURCE_ALLOC_VERSION_MINOR_MASK		0x0000ffff
-#define DRV_MB_PARAM_RESOURCE_ALLOC_VERSION_MINOR_SHIFT		0
+#define DRV_MB_PARAM_RESOURCE_ALLOC_VERSION_MIANALR_MASK		0x0000ffff
+#define DRV_MB_PARAM_RESOURCE_ALLOC_VERSION_MIANALR_SHIFT		0
 
-#define DRV_MB_PARAM_BIST_UNKNOWN_TEST				0
+#define DRV_MB_PARAM_BIST_UNKANALWN_TEST				0
 #define DRV_MB_PARAM_BIST_REGISTER_TEST				1
 #define DRV_MB_PARAM_BIST_CLOCK_TEST				2
 #define DRV_MB_PARAM_BIST_NVM_TEST_NUM_IMAGES			3
 #define DRV_MB_PARAM_BIST_NVM_TEST_IMAGE_BY_INDEX		4
 
-#define DRV_MB_PARAM_BIST_RC_UNKNOWN				0
+#define DRV_MB_PARAM_BIST_RC_UNKANALWN				0
 #define DRV_MB_PARAM_BIST_RC_PASSED				1
 #define DRV_MB_PARAM_BIST_RC_FAILED				2
 #define DRV_MB_PARAM_BIST_RC_INVALID_PARAMETER			3
@@ -1433,7 +1433,7 @@ enum drv_msg_code_enum {
 
 #define DRV_MB_PARAM_NVM_CFG_OPTION_ID_OFFSET			0
 #define DRV_MB_PARAM_NVM_CFG_OPTION_ID_MASK			0x0000ffff
-#define DRV_MB_PARAM_NVM_CFG_OPTION_ID_IGNORE			0x0000ffff
+#define DRV_MB_PARAM_NVM_CFG_OPTION_ID_IGANALRE			0x0000ffff
 #define DRV_MB_PARAM_NVM_CFG_OPTION_ID_SHIFT			0
 #define DRV_MB_PARAM_NVM_CFG_OPTION_ALL_SHIFT			16
 #define DRV_MB_PARAM_NVM_CFG_OPTION_ALL_MASK			0x00010000
@@ -1470,7 +1470,7 @@ enum fw_msg_code_enum {
 	FW_MSG_CODE_OK = FW_MSG_CODE(0x0016),
 	FW_MSG_CODE_ERROR = FW_MSG_CODE(0x0017),
 	FW_MSG_CODE_TRANSCEIVER_DIAG_OK = FW_MSG_CODE(0x0016),
-	FW_MSG_CODE_TRANSCEIVER_NOT_PRESENT = FW_MSG_CODE(0x0002),
+	FW_MSG_CODE_TRANSCEIVER_ANALT_PRESENT = FW_MSG_CODE(0x0002),
 	FW_MSG_CODE_MDUMP_INVALID_CMD = FW_MSG_CODE(0x0003),
 	FW_MSG_CODE_OS_WOL_SUPPORTED = FW_MSG_CODE(0x0080),
 	FW_MSG_CODE_DRV_CFG_PF_VFS_MSIX_DONE = FW_MSG_CODE(0x0087),
@@ -1489,20 +1489,20 @@ enum fw_msg_code_enum {
 	FW_MSG_CODE_DRV_UNLOAD_FUNCTION = FW_MSG_CODE(0x2013),
 	FW_MSG_CODE_DRV_UNLOAD_DONE = FW_MSG_CODE(0x2110),
 	FW_MSG_CODE_RESOURCE_ALLOC_OK = FW_MSG_CODE(0x3400),
-	FW_MSG_CODE_RESOURCE_ALLOC_UNKNOWN = FW_MSG_CODE(0x3500),
+	FW_MSG_CODE_RESOURCE_ALLOC_UNKANALWN = FW_MSG_CODE(0x3500),
 	FW_MSG_CODE_S_TAG_UPDATE_ACK_DONE = FW_MSG_CODE(0x3b00),
 	FW_MSG_CODE_DRV_CFG_VF_MSIX_DONE = FW_MSG_CODE(0xb001),
-	FW_MSG_CODE_DEBUG_NOT_ENABLED = FW_MSG_CODE(0xb00a),
+	FW_MSG_CODE_DEBUG_ANALT_ENABLED = FW_MSG_CODE(0xb00a),
 	FW_MSG_CODE_DEBUG_DATA_SEND_OK = FW_MSG_CODE(0xb00b),
 };
 
 #define FW_MB_PARAM_RESOURCE_ALLOC_VERSION_MAJOR_MASK		0xffff0000
 #define FW_MB_PARAM_RESOURCE_ALLOC_VERSION_MAJOR_SHIFT		16
-#define FW_MB_PARAM_RESOURCE_ALLOC_VERSION_MINOR_MASK		0x0000ffff
-#define FW_MB_PARAM_RESOURCE_ALLOC_VERSION_MINOR_SHIFT		0
+#define FW_MB_PARAM_RESOURCE_ALLOC_VERSION_MIANALR_MASK		0x0000ffff
+#define FW_MB_PARAM_RESOURCE_ALLOC_VERSION_MIANALR_SHIFT		0
 
 /* Get PF RDMA protocol command response */
-#define FW_MB_PARAM_GET_PF_RDMA_NONE				0x0
+#define FW_MB_PARAM_GET_PF_RDMA_ANALNE				0x0
 #define FW_MB_PARAM_GET_PF_RDMA_ROCE				0x1
 #define FW_MB_PARAM_GET_PF_RDMA_IWARP				0x2
 #define FW_MB_PARAM_GET_PF_RDMA_BOTH				0x3
@@ -1602,7 +1602,7 @@ struct drv_ver_info_stc {
 };
 
 /* Runtime data needs about 1/2K. We use 2K to be on the safe side.
- * Please make sure data does not exceed this size.
+ * Please make sure data does analt exceed this size.
  */
 #define NUM_RUNTIME_DWORDS    16
 struct drv_init_hw_stc {
@@ -1815,8 +1815,8 @@ enum tlvs {
 	DRV_TLV_LUN_RESETS_ISSUED,
 	DRV_TLV_ABORT_TASK_SETS_ISSUED,
 	DRV_TLV_TPRLOS_SENT,
-	DRV_TLV_NOS_SENT_COUNT,
-	DRV_TLV_NOS_RECEIVED_COUNT,
+	DRV_TLV_ANALS_SENT_COUNT,
+	DRV_TLV_ANALS_RECEIVED_COUNT,
 	DRV_TLV_OLS_COUNT,
 	DRV_TLV_LR_COUNT,
 	DRV_TLV_LRR_COUNT,
@@ -2000,7 +2000,7 @@ struct nvm_cfg1_glob {
 	u32 trace_modules;
 	u32 pcie_class_code_fcoe;
 	u32 pcie_class_code_iscsi;
-	u32 no_provisioned_mac;
+	u32 anal_provisioned_mac;
 	u32 lowest_mbi_version;
 	u32 generic_cont5;
 	u32 pre2_generic_cont_4;
@@ -2061,7 +2061,7 @@ struct nvm_cfg1_port {
 #define NVM_CFG1_PORT_DRV_FLOW_CONTROL_TX 0x4
 #define NVM_CFG1_PORT_FEC_FORCE_MODE_MASK 0x000e0000
 #define NVM_CFG1_PORT_FEC_FORCE_MODE_OFFSET 17
-#define NVM_CFG1_PORT_FEC_FORCE_MODE_NONE 0x0
+#define NVM_CFG1_PORT_FEC_FORCE_MODE_ANALNE 0x0
 #define NVM_CFG1_PORT_FEC_FORCE_MODE_FIRECODE 0x1
 #define NVM_CFG1_PORT_FEC_FORCE_MODE_RS 0x2
 #define NVM_CFG1_PORT_FEC_FORCE_MODE_AUTO 0x7
@@ -2156,7 +2156,7 @@ struct nvm_cfg1_func {
 	u32 device_id;
 	u32 cmn_cfg;
 	u32 pci_cfg;
-	struct nvm_cfg_mac_address fcoe_node_wwn_mac_addr;
+	struct nvm_cfg_mac_address fcoe_analde_wwn_mac_addr;
 	struct nvm_cfg_mac_address fcoe_port_wwn_mac_addr;
 	u32 preboot_generic_cfg;
 	u32 features;
@@ -2228,7 +2228,7 @@ enum spad_sections {
 			     __builtin_offsetof(struct static_init, f))
 
 /* This section is located at a fixed location in the beginning of the
- * scratchpad, to ensure that the MCP trace is not run over during MFW upgrade.
+ * scratchpad, to ensure that the MCP trace is analt run over during MFW upgrade.
  * All the rest of data has a floating location which differs from version to
  * version, and is pointed by the mcp_meta_data below.
  * Moreover, the spad_layout section is part of the MFW firmware, and is loaded
@@ -2251,7 +2251,7 @@ struct static_init {
 };
 
 #define CRC_MAGIC_VALUE		0xDEBB20E3
-#define CRC32_POLYNOMIAL	0xEDB88320
+#define CRC32_POLYANALMIAL	0xEDB88320
 #define _KB(x)			((x) * 1024)
 #define _MB(x)			(_KB(x) * 1024)
 #define NVM_CRC_SIZE		(sizeof(u32))
@@ -2443,7 +2443,7 @@ struct hw_set_info {
 struct hw_set_image {
 	u32 format_version;
 #define HW_SET_IMAGE_VERSION 1
-	u32 no_hw_sets;
+	u32 anal_hw_sets;
 	struct hw_set_info hw_sets[1];
 };
 

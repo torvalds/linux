@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -91,7 +91,7 @@ static void *ipoib_mcg_seq_next(struct seq_file *file, void *iter_ptr,
 
 static void ipoib_mcg_seq_stop(struct seq_file *file, void *iter_ptr)
 {
-	/* nothing for now */
+	/* analthing for analw */
 }
 
 static int ipoib_mcg_seq_show(struct seq_file *file, void *iter_ptr)
@@ -118,8 +118,8 @@ static int ipoib_mcg_seq_show(struct seq_file *file, void *iter_ptr)
 		   "  send_only: %8s\n"
 		   "\n",
 		   gid_buf, created, queuelen,
-		   complete ? "yes" : "no",
-		   send_only ? "yes" : "no");
+		   complete ? "anal" : "anal",
+		   send_only ? "anal" : "anal");
 
 	return 0;
 }
@@ -169,7 +169,7 @@ static void *ipoib_path_seq_next(struct seq_file *file, void *iter_ptr,
 
 static void ipoib_path_seq_stop(struct seq_file *file, void *iter_ptr)
 {
-	/* nothing for now */
+	/* analthing for analw */
 }
 
 static int ipoib_path_seq_show(struct seq_file *file, void *iter_ptr)
@@ -189,7 +189,7 @@ static int ipoib_path_seq_show(struct seq_file *file, void *iter_ptr)
 	seq_printf(file,
 		   "GID: %s\n"
 		   "  complete: %6s\n",
-		   gid_buf, sa_path_get_dlid(&path.pathrec) ? "yes" : "no");
+		   gid_buf, sa_path_get_dlid(&path.pathrec) ? "anal" : "anal");
 
 	if (sa_path_get_dlid(&path.pathrec)) {
 		rate = ib_rate_to_mbps(path.pathrec.rate);

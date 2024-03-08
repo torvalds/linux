@@ -93,7 +93,7 @@ struct mtk_mmsys_routes {
  * @clk_driver: Clock driver name that the mmsys is using
  *              (defined in drivers/clk/mediatek/clk-*.c).
  * @routes: Routing table of the mmsys.
- *          It provides mux settings from one module to another.
+ *          It provides mux settings from one module to aanalther.
  * @num_routes: Array size of the routes.
  * @sw0_rst_offset: Register offset for the reset control.
  * @num_resets: Number of reset bits that are defined
@@ -104,11 +104,11 @@ struct mtk_mmsys_routes {
  *             fixed value when the frame rate is decided, but ETHDR and
  *             MIXER generate their own VSYNC due to hardware design, therefore
  *             MIXER has to sync with ETHDR by adjusting VSYNC length.
- *             On MT8195, there is no such setting so we use the gap between
+ *             On MT8195, there is anal such setting so we use the gap between
  *             falling edge and rising edge of SOF (Start of Frame) signal to
  *             do the job, but since MT8188, VSYNC_LEN setting is introduced to
  *             solve the problem and is given 0x40 (ticks) as the default value.
- *             Please notice that this value has to be set to 1 (minimum) if
+ *             Please analtice that this value has to be set to 1 (minimum) if
  *             ETHDR is bypassed, otherwise MIXER could wait too long and causing
  *             underflow.
  *
@@ -130,7 +130,7 @@ struct mtk_mmsys_driver_data {
 /*
  * Routes in mt2701 and mt2712 are different. That means
  * in the same register address, it controls different input/output
- * selection for each SoC. But, right now, they use the same table as
+ * selection for each SoC. But, right analw, they use the same table as
  * default routes meet their requirements. But we don't have the complete
  * route information for these three SoC, so just keep them in the same
  * table. After we've more information, we could separate mt2701, mt2712

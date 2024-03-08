@@ -30,9 +30,9 @@ static_assert(sizeof(struct btrfs_super_block) == BTRFS_SUPER_INFO_SIZE);
  * 1 for the possible orphan item
  * 1 for the dir item
  * 1 for the dir index
- * 1 for the inode ref
- * 1 for the inode
- * 1 for the parent inode
+ * 1 for the ianalde ref
+ * 1 for the ianalde
+ * 1 for the parent ianalde
  */
 #define BTRFS_UNLINK_METADATA_UNITS		6
 
@@ -63,7 +63,7 @@ enum {
 	/* The btrfs_fs_info created for self-tests */
 	BTRFS_FS_STATE_DUMMY_FS_INFO,
 
-	BTRFS_FS_STATE_NO_CSUMS,
+	BTRFS_FS_STATE_ANAL_CSUMS,
 
 	/* Indicates there was an error cleaning up a log tree. */
 	BTRFS_FS_STATE_LOG_CLEANUP_ERROR,
@@ -118,7 +118,7 @@ enum {
 	/* Indicate whether there are any tree modification log users */
 	BTRFS_FS_TREE_MOD_LOG_USERS,
 
-	/* Indicate that we want the transaction kthread to commit right now. */
+	/* Indicate that we want the transaction kthread to commit right analw. */
 	BTRFS_FS_COMMIT_TRANS,
 
 	/* Indicate we have half completed snapshot deletions pending. */
@@ -141,7 +141,7 @@ enum {
 
 	/*
 	 * Indicate that we have found a tree block which is only aligned to
-	 * sectorsize, but not to nodesize.  This should be rare nowadays.
+	 * sectorsize, but analt to analdesize.  This should be rare analwadays.
 	 */
 	BTRFS_FS_UNALIGNED_TREE_BLOCK,
 
@@ -155,25 +155,25 @@ enum {
 /*
  * Flags for mount options.
  *
- * Note: don't forget to add new options to btrfs_show_options()
+ * Analte: don't forget to add new options to btrfs_show_options()
  */
 enum {
-	BTRFS_MOUNT_NODATASUM			= (1UL << 0),
-	BTRFS_MOUNT_NODATACOW			= (1UL << 1),
-	BTRFS_MOUNT_NOBARRIER			= (1UL << 2),
+	BTRFS_MOUNT_ANALDATASUM			= (1UL << 0),
+	BTRFS_MOUNT_ANALDATACOW			= (1UL << 1),
+	BTRFS_MOUNT_ANALBARRIER			= (1UL << 2),
 	BTRFS_MOUNT_SSD				= (1UL << 3),
 	BTRFS_MOUNT_DEGRADED			= (1UL << 4),
 	BTRFS_MOUNT_COMPRESS			= (1UL << 5),
-	BTRFS_MOUNT_NOTREELOG   		= (1UL << 6),
+	BTRFS_MOUNT_ANALTREELOG   		= (1UL << 6),
 	BTRFS_MOUNT_FLUSHONCOMMIT		= (1UL << 7),
 	BTRFS_MOUNT_SSD_SPREAD			= (1UL << 8),
-	BTRFS_MOUNT_NOSSD			= (1UL << 9),
+	BTRFS_MOUNT_ANALSSD			= (1UL << 9),
 	BTRFS_MOUNT_DISCARD_SYNC		= (1UL << 10),
 	BTRFS_MOUNT_FORCE_COMPRESS      	= (1UL << 11),
 	BTRFS_MOUNT_SPACE_CACHE			= (1UL << 12),
 	BTRFS_MOUNT_CLEAR_CACHE			= (1UL << 13),
 	BTRFS_MOUNT_USER_SUBVOL_RM_ALLOWED	= (1UL << 14),
-	BTRFS_MOUNT_ENOSPC_DEBUG		= (1UL << 15),
+	BTRFS_MOUNT_EANALSPC_DEBUG		= (1UL << 15),
 	BTRFS_MOUNT_AUTO_DEFRAG			= (1UL << 16),
 	BTRFS_MOUNT_USEBACKUPROOT		= (1UL << 17),
 	BTRFS_MOUNT_SKIP_BALANCE		= (1UL << 18),
@@ -182,13 +182,13 @@ enum {
 	BTRFS_MOUNT_FRAGMENT_DATA		= (1UL << 21),
 	BTRFS_MOUNT_FRAGMENT_METADATA		= (1UL << 22),
 	BTRFS_MOUNT_FREE_SPACE_TREE		= (1UL << 23),
-	BTRFS_MOUNT_NOLOGREPLAY			= (1UL << 24),
+	BTRFS_MOUNT_ANALLOGREPLAY			= (1UL << 24),
 	BTRFS_MOUNT_REF_VERIFY			= (1UL << 25),
 	BTRFS_MOUNT_DISCARD_ASYNC		= (1UL << 26),
-	BTRFS_MOUNT_IGNOREBADROOTS		= (1UL << 27),
-	BTRFS_MOUNT_IGNOREDATACSUMS		= (1UL << 28),
-	BTRFS_MOUNT_NODISCARD			= (1UL << 29),
-	BTRFS_MOUNT_NOSPACECACHE		= (1UL << 30),
+	BTRFS_MOUNT_IGANALREBADROOTS		= (1UL << 27),
+	BTRFS_MOUNT_IGANALREDATACSUMS		= (1UL << 28),
+	BTRFS_MOUNT_ANALDISCARD			= (1UL << 29),
+	BTRFS_MOUNT_ANALSPACECACHE		= (1UL << 30),
 };
 
 /*
@@ -218,7 +218,7 @@ enum {
 	 BTRFS_FEATURE_INCOMPAT_RAID56 |		\
 	 BTRFS_FEATURE_INCOMPAT_EXTENDED_IREF |		\
 	 BTRFS_FEATURE_INCOMPAT_SKINNY_METADATA |	\
-	 BTRFS_FEATURE_INCOMPAT_NO_HOLES	|	\
+	 BTRFS_FEATURE_INCOMPAT_ANAL_HOLES	|	\
 	 BTRFS_FEATURE_INCOMPAT_METADATA_UUID	|	\
 	 BTRFS_FEATURE_INCOMPAT_RAID1C34	|	\
 	 BTRFS_FEATURE_INCOMPAT_ZONED		|	\
@@ -313,7 +313,7 @@ struct btrfs_free_cluster {
  * Async discard uses multiple lists to differentiate the discard filter
  * parameters.  Index 0 is for completely free block groups where we need to
  * ensure the entire block group is trimmed without being lossy.  Indices
- * afterwards represent monotonically decreasing discard filter sizes to
+ * afterwards represent moanaltonically decreasing discard filter sizes to
  * prioritize what should be discarded next.
  */
 #define BTRFS_NR_DISCARD_LISTS		3
@@ -343,7 +343,7 @@ struct btrfs_discard_ctl {
  * Exclusive operations (device replace, resize, device add/remove, balance)
  */
 enum btrfs_exclusive_operation {
-	BTRFS_EXCLOP_NONE,
+	BTRFS_EXCLOP_ANALNE,
 	BTRFS_EXCLOP_BALANCE_PAUSED,
 	BTRFS_EXCLOP_BALANCE,
 	BTRFS_EXCLOP_DEV_ADD,
@@ -432,7 +432,7 @@ struct btrfs_fs_info {
 	u64 last_trans_committed;
 	/*
 	 * Generation of the last transaction used for block group relocation
-	 * since the filesystem was last mounted (or 0 if none happened yet).
+	 * since the filesystem was last mounted (or 0 if analne happened yet).
 	 * Must be written and read while holding btrfs_fs_info::commit_root_sem.
 	 */
 	u64 last_reloc_trans;
@@ -465,17 +465,17 @@ struct btrfs_fs_info {
 	 * Used to protect the incompat_flags, compat_flags, compat_ro_flags
 	 * when they are updated.
 	 *
-	 * Because we do not clear the flags for ever, so we needn't use
+	 * Because we do analt clear the flags for ever, so we needn't use
 	 * the lock on the read side.
 	 *
 	 * We also needn't use the lock when we mount the fs, because
-	 * there is no other task which will update the flag.
+	 * there is anal other task which will update the flag.
 	 */
 	spinlock_t super_lock;
 	struct btrfs_super_block *super_copy;
 	struct btrfs_super_block *super_for_commit;
 	struct super_block *sb;
-	struct inode *btree_inode;
+	struct ianalde *btree_ianalde;
 	struct mutex tree_log_mutex;
 	struct mutex transaction_kthread_mutex;
 	struct mutex cleaner_mutex;
@@ -488,7 +488,7 @@ struct btrfs_fs_info {
 	struct mutex ro_block_group_mutex;
 
 	/*
-	 * This is used during read/modify/write to make sure no two ios are
+	 * This is used during read/modify/write to make sure anal two ios are
 	 * trying to mod the same stripe at the same time.
 	 */
 	struct btrfs_stripe_hash_table *stripe_hash_table;
@@ -496,8 +496,8 @@ struct btrfs_fs_info {
 	/*
 	 * This protects the ordered operations list only while we are
 	 * processing all of the entries on it.  This way we make sure the
-	 * commit code doesn't find the list temporarily empty because another
-	 * function happens to be doing non-waiting preflush before jumping
+	 * commit code doesn't find the list temporarily empty because aanalther
+	 * function happens to be doing analn-waiting preflush before jumping
 	 * into the main commit.
 	 */
 	struct mutex ordered_operations_mutex;
@@ -541,13 +541,13 @@ struct btrfs_fs_info {
 	 * pending writeback are added into this list.
 	 *
 	 * These can span multiple transactions and basically include every
-	 * dirty data page that isn't from nodatacow.
+	 * dirty data page that isn't from analdatacow.
 	 */
 	struct list_head ordered_roots;
 
 	struct mutex delalloc_root_mutex;
 	spinlock_t delalloc_root_lock;
-	/* All fs/file tree roots that have delalloc inodes. */
+	/* All fs/file tree roots that have delalloc ianaldes. */
 	struct list_head delalloc_roots;
 
 	/*
@@ -615,16 +615,16 @@ struct btrfs_fs_info {
 	/* All metadata allocations go through this cluster. */
 	struct btrfs_free_cluster meta_alloc_cluster;
 
-	/* Auto defrag inodes go here. */
-	spinlock_t defrag_inodes_lock;
-	struct rb_root defrag_inodes;
+	/* Auto defrag ianaldes go here. */
+	spinlock_t defrag_ianaldes_lock;
+	struct rb_root defrag_ianaldes;
 	atomic_t defrag_running;
 
 	/* Used to protect avail_{data, metadata, system}_alloc_bits */
 	seqlock_t profiles_lock;
 	/*
 	 * These three are in extended format (availability of single chunks is
-	 * denoted by BTRFS_AVAIL_ALLOC_BIT_SINGLE bit, other types are denoted
+	 * deanalted by BTRFS_AVAIL_ALLOC_BIT_SINGLE bit, other types are deanalted
 	 * by corresponding BTRFS_BLOCK_GROUP_* bits)
 	 */
 	u64 avail_data_alloc_bits;
@@ -655,7 +655,7 @@ struct btrfs_fs_info {
 	atomic_t scrub_cancel_req;
 	wait_queue_head_t scrub_pause_wait;
 	/*
-	 * The worker pointers are NULL iff the refcount is 0, ie. scrub is not
+	 * The worker pointers are NULL iff the refcount is 0, ie. scrub is analt
 	 * running.
 	 */
 	refcount_t scrub_workers_refcnt;
@@ -702,8 +702,8 @@ struct btrfs_fs_info {
 	u64 qgroup_enable_gen;
 
 	/*
-	 * If this is not 0, then it indicates a serious filesystem error has
-	 * happened and it contains that error (negative errno value).
+	 * If this is analt 0, then it indicates a serious filesystem error has
+	 * happened and it contains that error (negative erranal value).
 	 */
 	int fs_error;
 
@@ -742,7 +742,7 @@ struct btrfs_fs_info {
 	struct mutex reclaim_bgs_lock;
 
 	/* Cached block sizes */
-	u32 nodesize;
+	u32 analdesize;
 	u32 sectorsize;
 	/* ilog2 of sectorsize, use to avoid 64bit division */
 	u32 sectorsize_bits;
@@ -795,18 +795,18 @@ struct btrfs_fs_info {
 	spinlock_t zone_active_bgs_lock;
 	struct list_head zone_active_bgs;
 
-	/* Updates are not protected by any lock */
+	/* Updates are analt protected by any lock */
 	struct btrfs_commit_stats commit_stats;
 
 	/*
-	 * Last generation where we dropped a non-relocation root.
+	 * Last generation where we dropped a analn-relocation root.
 	 * Use btrfs_set_last_root_drop_gen() and btrfs_get_last_root_drop_gen()
 	 * to change it and to read it, respectively.
 	 */
 	u64 last_root_drop_gen;
 
 	/*
-	 * Annotations for transaction events (structures are empty when
+	 * Ananaltations for transaction events (structures are empty when
 	 * compiled without lockdep).
 	 */
 	struct lockdep_map btrfs_trans_num_writers_map;
@@ -873,23 +873,23 @@ static inline u64 btrfs_csum_bytes_to_leaves(
 }
 
 /*
- * Use this if we would be adding new items, as we could split nodes as we cow
+ * Use this if we would be adding new items, as we could split analdes as we cow
  * down the tree.
  */
 static inline u64 btrfs_calc_insert_metadata_size(const struct btrfs_fs_info *fs_info,
 						  unsigned num_items)
 {
-	return (u64)fs_info->nodesize * BTRFS_MAX_LEVEL * 2 * num_items;
+	return (u64)fs_info->analdesize * BTRFS_MAX_LEVEL * 2 * num_items;
 }
 
 /*
- * Doing a truncate or a modification won't result in new nodes or leaves, just
+ * Doing a truncate or a modification won't result in new analdes or leaves, just
  * what we need for COW.
  */
 static inline u64 btrfs_calc_metadata_size(const struct btrfs_fs_info *fs_info,
 						 unsigned num_items)
 {
-	return (u64)fs_info->nodesize * BTRFS_MAX_LEVEL * num_items;
+	return (u64)fs_info->analdesize * BTRFS_MAX_LEVEL * num_items;
 }
 
 #define BTRFS_MAX_EXTENT_ITEM_SIZE(r) ((BTRFS_LEAF_DATA_SIZE(r->fs_info) >> 4) - \
@@ -964,7 +964,7 @@ void __btrfs_clear_fs_compat_ro(struct btrfs_fs_info *fs_info, u64 flag,
 
 static inline int btrfs_fs_closing(struct btrfs_fs_info *fs_info)
 {
-	/* Do it this way so we only ever do one test_bit in the normal case. */
+	/* Do it this way so we only ever do one test_bit in the analrmal case. */
 	if (test_bit(BTRFS_FS_CLOSING_START, &fs_info->flags)) {
 		if (test_bit(BTRFS_FS_CLOSING_DONE, &fs_info->flags))
 			return 2;
@@ -978,7 +978,7 @@ static inline int btrfs_fs_closing(struct btrfs_fs_info *fs_info)
  * anything except sleeping. This function is used to check the status of
  * the fs.
  * We check for BTRFS_FS_STATE_RO to avoid races with a concurrent remount,
- * since setting and checking for SB_RDONLY in the superblock's flags is not
+ * since setting and checking for SB_RDONLY in the superblock's flags is analt
  * atomic.
  */
 static inline int btrfs_need_cleaner_sleep(struct btrfs_fs_info *fs_info)
@@ -1007,7 +1007,7 @@ static inline int btrfs_is_testing(struct btrfs_fs_info *fs_info)
 	return test_bit(BTRFS_FS_STATE_DUMMY_FS_INFO, &fs_info->fs_state);
 }
 
-void btrfs_test_destroy_inode(struct inode *inode);
+void btrfs_test_destroy_ianalde(struct ianalde *ianalde);
 
 #else
 

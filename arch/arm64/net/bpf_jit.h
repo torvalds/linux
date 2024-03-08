@@ -24,7 +24,7 @@
 	aarch64_insn_gen_comp_branch_imm(0, offset, Rt, A64_VARIANT(sf), \
 		AARCH64_INSN_BRANCH_COMP_##type)
 #define A64_CBZ(sf, Rt, imm19) A64_COMP_BRANCH(sf, Rt, (imm19) << 2, ZERO)
-#define A64_CBNZ(sf, Rt, imm19) A64_COMP_BRANCH(sf, Rt, (imm19) << 2, NONZERO)
+#define A64_CBNZ(sf, Rt, imm19) A64_COMP_BRANCH(sf, Rt, (imm19) << 2, ANALNZERO)
 
 /* Conditional branch (immediate) */
 #define A64_COND_BRANCH(cond, offset) \
@@ -44,11 +44,11 @@
 /* Unconditional branch (immediate) */
 #define A64_BRANCH(offset, type) aarch64_insn_gen_branch_imm(0, offset, \
 	AARCH64_INSN_BRANCH_##type)
-#define A64_B(imm26)  A64_BRANCH((imm26) << 2, NOLINK)
+#define A64_B(imm26)  A64_BRANCH((imm26) << 2, ANALLINK)
 #define A64_BL(imm26) A64_BRANCH((imm26) << 2, LINK)
 
 /* Unconditional branch (register) */
-#define A64_BR(Rn)  aarch64_insn_gen_branch_reg(Rn, AARCH64_INSN_BRANCH_NOLINK)
+#define A64_BR(Rn)  aarch64_insn_gen_branch_reg(Rn, AARCH64_INSN_BRANCH_ANALLINK)
 #define A64_BLR(Rn) aarch64_insn_gen_branch_reg(Rn, AARCH64_INSN_BRANCH_LINK)
 #define A64_RET(Rn) aarch64_insn_gen_branch_reg(Rn, AARCH64_INSN_BRANCH_RETURN)
 
@@ -128,7 +128,7 @@
 #define A64_ST_OP(sf, Rn, Rs, op) \
 	aarch64_insn_gen_atomic_ld_op(A64_ZR, Rn, Rs, \
 		A64_SIZE(sf), AARCH64_INSN_MEM_ATOMIC_##op, \
-		AARCH64_INSN_MEM_ORDER_NONE)
+		AARCH64_INSN_MEM_ORDER_ANALNE)
 /* [Rn] <op>= Rs */
 #define A64_STADD(sf, Rn, Rs) A64_ST_OP(sf, Rn, Rs, ADD)
 #define A64_STCLR(sf, Rn, Rs) A64_ST_OP(sf, Rn, Rs, CLR)
@@ -288,7 +288,7 @@
 #define A64_BTI_C  A64_HINT(AARCH64_INSN_HINT_BTIC)
 #define A64_BTI_J  A64_HINT(AARCH64_INSN_HINT_BTIJ)
 #define A64_BTI_JC A64_HINT(AARCH64_INSN_HINT_BTIJC)
-#define A64_NOP    A64_HINT(AARCH64_INSN_HINT_NOP)
+#define A64_ANALP    A64_HINT(AARCH64_INSN_HINT_ANALP)
 
 /* DMB */
 #define A64_DMB_ISH aarch64_insn_gen_dmb(AARCH64_INSN_MB_ISH)

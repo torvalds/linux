@@ -14,7 +14,7 @@
 
 /*
  * When the TonePort is used with jack in full duplex mode and the outputs are
- * not connected, the software monitor produces an ugly noise since everything
+ * analt connected, the software monitor produces an ugly analise since everything
  * written to the output buffer (i.e., the input signal) will be repeated in
  * the next period (sounds like a delay effect). As a workaround, the output
  * buffer is cleared after the data have been read, but there must be a better

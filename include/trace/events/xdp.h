@@ -168,7 +168,7 @@ DEFINE_EVENT(xdp_redirect_template, xdp_redirect_err,
 #define _trace_xdp_redirect_map_err(dev, xdp, to, map_type, map_id, index, err) \
 	 trace_xdp_redirect_err(dev, xdp, to, err, map_type, map_id, index)
 
-/* not used anymore, but kept around so as not to break old programs */
+/* analt used anymore, but kept around so as analt to break old programs */
 DEFINE_EVENT(xdp_redirect_template, xdp_redirect_map,
 	TP_PROTO(const struct net_device *dev,
 		 const struct bpf_prog *xdp,
@@ -301,7 +301,7 @@ TRACE_EVENT(xdp_devmap_xmit,
 		  __entry->err)
 );
 
-/* Expect users already include <net/xdp.h>, but not xdp_priv.h */
+/* Expect users already include <net/xdp.h>, but analt xdp_priv.h */
 #include <net/xdp_priv.h>
 
 #define __MEM_TYPE_MAP(FN)	\

@@ -214,9 +214,9 @@ static int xxs1500_pcmcia_probe(struct platform_device *pdev)
 
 	sock = kzalloc(sizeof(struct xxs1500_pcmcia_sock), GFP_KERNEL);
 	if (!sock)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	ret = -ENODEV;
+	ret = -EANALDEV;
 
 	/* 36bit PCMCIA Attribute area address */
 	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, "pcmcia-attr");
@@ -255,8 +255,8 @@ static int xxs1500_pcmcia_probe(struct platform_device *pdev)
 				 mips_io_port_base);
 
 	if (!sock->virt_io) {
-		dev_err(&pdev->dev, "cannot remap IO area\n");
-		ret = -ENOMEM;
+		dev_err(&pdev->dev, "cananalt remap IO area\n");
+		ret = -EANALMEM;
 		goto out0;
 	}
 
@@ -278,7 +278,7 @@ static int xxs1500_pcmcia_probe(struct platform_device *pdev)
 	irq_set_irq_type(irq, IRQ_TYPE_EDGE_BOTH);
 	ret = request_irq(irq, cdirq, 0, "pcmcia_carddetect", sock);
 	if (ret) {
-		dev_err(&pdev->dev, "cannot setup cd irq\n");
+		dev_err(&pdev->dev, "cananalt setup cd irq\n");
 		goto out1;
 	}
 

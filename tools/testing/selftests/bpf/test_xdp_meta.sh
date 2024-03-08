@@ -22,7 +22,7 @@ cleanup()
 
 ip link set dev lo xdp off 2>/dev/null > /dev/null
 if [ $? -ne 0 ];then
-	echo "selftests: [SKIP] Could not run test without the ip xdp support"
+	echo "selftests: [SKIP] Could analt run test without the ip xdp support"
 	exit $KSFT_SKIP
 fi
 set -e

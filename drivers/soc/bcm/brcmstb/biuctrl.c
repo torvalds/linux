@@ -87,7 +87,7 @@ static const int b15_cpubiuctrl_regs[] = {
 };
 
 /* Odd cases, e.g: 7260A0 */
-static const int b53_cpubiuctrl_no_wb_regs[] = {
+static const int b53_cpubiuctrl_anal_wb_regs[] = {
 	[CPU_CREDIT_REG] = 0x0b0,
 	[CPU_MCP_FLOW_REG] = 0x0b4,
 	[CPU_WRITEBACK_CTRL_REG] = -1,
@@ -157,23 +157,23 @@ static const u32 a72_b53_mach_compat[] = {
  * for a memcpy benchmark application).
  *
  * The read-ahead cache is transparent for Virtual Address cache maintenance
- * operations: IC IVAU, DC IVAC, DC CVAC, DC CVAU and DC CIVAC.  So no special
+ * operations: IC IVAU, DC IVAC, DC CVAC, DC CVAU and DC CIVAC.  So anal special
  * handling is needed for the DMA API above and beyond what is included in the
  * arm64 implementation.
  *
  * In addition, since the Point of Unification is typically between L1 and L2
- * for the Brahma-B53 processor no special read-ahead cache handling is needed
+ * for the Brahma-B53 processor anal special read-ahead cache handling is needed
  * for the IC IALLU and IC IALLUIS cache maintenance operations.
  *
- * However, it is not possible to specify the cache level (L3) for the cache
+ * However, it is analt possible to specify the cache level (L3) for the cache
  * maintenance instructions operating by set/way to operate on the read-ahead
  * cache.  The read-ahead cache will maintain coherency when inner cache lines
  * are cleaned by set/way, but if it is necessary to invalidate inner cache
  * lines by set/way to maintain coherency with system masters operating on
- * shared memory that does not have hardware support for coherency, then it
+ * shared memory that does analt have hardware support for coherency, then it
  * will also be necessary to explicitly invalidate the read-ahead cache.
  */
-static void __init a72_b53_rac_enable_all(struct device_node *np)
+static void __init a72_b53_rac_enable_all(struct device_analde *np)
 {
 	unsigned int cpu;
 	u32 enable = 0, pref_dist, shift;
@@ -250,25 +250,25 @@ static void __init mcp_a72_b53_set(void)
 	cbc_writel(reg, CPU_WRITEBACK_CTRL_REG);
 }
 
-static int __init setup_hifcpubiuctrl_regs(struct device_node *np)
+static int __init setup_hifcpubiuctrl_regs(struct device_analde *np)
 {
-	struct device_node *cpu_dn;
+	struct device_analde *cpu_dn;
 	u32 family_id;
 	int ret = 0;
 
 	cpubiuctrl_base = of_iomap(np, 0);
 	if (!cpubiuctrl_base) {
 		pr_err("failed to remap BIU control base\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
 	mcp_wr_pairing_en = of_property_read_bool(np, "brcm,write-pairing");
 
-	cpu_dn = of_get_cpu_node(0, NULL);
+	cpu_dn = of_get_cpu_analde(0, NULL);
 	if (!cpu_dn) {
-		pr_err("failed to obtain CPU device node\n");
-		ret = -ENODEV;
+		pr_err("failed to obtain CPU device analde\n");
+		ret = -EANALDEV;
 		goto out;
 	}
 
@@ -282,11 +282,11 @@ static int __init setup_hifcpubiuctrl_regs(struct device_node *np)
 		pr_err("unsupported CPU\n");
 		ret = -EINVAL;
 	}
-	of_node_put(cpu_dn);
+	of_analde_put(cpu_dn);
 
 	family_id = brcmstb_get_family_id();
 	if (BRCM_ID(family_id) == 0x7260 && BRCM_REV(family_id) == 0)
-		cpubiuctrl_regs = b53_cpubiuctrl_no_wb_regs;
+		cpubiuctrl_regs = b53_cpubiuctrl_anal_wb_regs;
 out:
 	if (ret && cpubiuctrl_base) {
 		iounmap(cpubiuctrl_base);
@@ -331,13 +331,13 @@ static struct syscore_ops brcmstb_cpu_credit_syscore_ops = {
 
 static int __init brcmstb_biuctrl_init(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	int ret;
 
 	/* We might be running on a multi-platform kernel, don't make this a
 	 * fatal error, just bail out early
 	 */
-	np = of_find_compatible_node(NULL, NULL, "brcm,brcmstb-cpu-biu-ctrl");
+	np = of_find_compatible_analde(NULL, NULL, "brcm,brcmstb-cpu-biu-ctrl");
 	if (!np)
 		return 0;
 
@@ -358,7 +358,7 @@ static int __init brcmstb_biuctrl_init(void)
 #endif
 	ret = 0;
 out_put:
-	of_node_put(np);
+	of_analde_put(np);
 	return ret;
 }
 early_initcall(brcmstb_biuctrl_init);

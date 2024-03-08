@@ -9,35 +9,35 @@ Introduction
 ============
 
 Identifier-locator addressing (ILA) is a technique used with IPv6 that
-differentiates between location and identity of a network node. Part of an
-address expresses the immutable identity of the node, and another part
-indicates the location of the node which can be dynamic. Identifier-locator
+differentiates between location and identity of a network analde. Part of an
+address expresses the immutable identity of the analde, and aanalther part
+indicates the location of the analde which can be dynamic. Identifier-locator
 addressing can be used to efficiently implement overlay networks for
 network virtualization as well as solutions for use cases in mobility.
 
 ILA can be thought of as means to implement an overlay network without
 encapsulation. This is accomplished by performing network address
 translation on destination addresses as a packet traverses a network. To
-the network, an ILA translated packet appears to be no different than any
+the network, an ILA translated packet appears to be anal different than any
 other IPv6 packet. For instance, if the transport protocol is TCP then an
-ILA translated packet looks like just another TCP/IPv6 packet. The
+ILA translated packet looks like just aanalther TCP/IPv6 packet. The
 advantage of this is that ILA is transparent to the network so that
 optimizations in the network, such as ECMP, RSS, GRO, GSO, etc., just work.
 
 The ILA protocol is described in Internet-Draft draft-herbert-intarea-ila.
 
 
-ILA terminology
+ILA termianallogy
 ===============
 
   - Identifier
-		A number that identifies an addressable node in the network
+		A number that identifies an addressable analde in the network
 		independent of its location. ILA identifiers are sixty-four
 		bit values.
 
   - Locator
 		A network prefix that routes to a physical host. Locators
-		provide the topological location of an addressed node. ILA
+		provide the topological location of an addressed analde. ILA
 		locators are sixty-four bit prefixes.
 
   - ILA mapping
@@ -49,7 +49,7 @@ ILA terminology
 		An IPv6 address composed of a SIR prefix (upper sixty-
 		four bits) and an identifier (lower sixty-four bits).
 		SIR addresses are visible to applications and provide a
-		means for them to address nodes independent of their
+		means for them to address analdes independent of their
 		location.
 
   - ILA address
@@ -62,15 +62,15 @@ ILA terminology
 		on transmit or receive.
 
   - ILA router
-		A network node that performs ILA translation and forwarding
+		A network analde that performs ILA translation and forwarding
 		of translated packets.
 
   - ILA forwarding cache
 		A type of ILA router that only maintains a working set
 		cache of mappings.
 
-  - ILA node
-		A network node capable of performing ILA translations. This
+  - ILA analde
+		A network analde capable of performing ILA translations. This
 		can be an ILA router, ILA forwarding cache, or ILA host.
 
 
@@ -118,7 +118,7 @@ incorrect on the wire. This is a problem for intermediate devices,
 including checksum offload in NICs, that process the checksum. There are
 three options to deal with this:
 
-- no action	Allow the checksum to be incorrect on the wire. Before
+- anal action	Allow the checksum to be incorrect on the wire. Before
 		a receiver verifies a checksum the ILA to SIR address
 		translation must be done.
 
@@ -136,7 +136,7 @@ three options to deal with this:
 		parsing a packet beyond the IP header and in most cases the
 		adjustment can be precomputed and saved with the mapping.
 
-Note that the checksum neutral adjustment affects the low order sixteen
+Analte that the checksum neutral adjustment affects the low order sixteen
 bits of the identifier. When ILA to SIR address translation is done on
 egress the low order bits are restored to the original value which
 restores the identifier as it was originally sent.
@@ -159,7 +159,7 @@ The defined types are:
 
       4: virtual networking identifier for IPv6 multicast address
 
-      5: non-local address identifier
+      5: analn-local address identifier
 
 In the current implementation of kernel ILA only locally unique identifiers
 (LUID) are supported. LUID allows for a generic, unformatted 64 bit
@@ -181,7 +181,7 @@ neutral mapping has been done. The C-bit can only be set in an
 ILA address, never a SIR address.
 
 In the simplest format the identifier types, C-bit, and checksum
-adjustment value are not present so an identifier is considered an
+adjustment value are analt present so an identifier is considered an
 unstructured sixty-four bit value::
 
      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -191,7 +191,7 @@ unstructured sixty-four bit value::
      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
 The checksum neutral adjustment may be configured to always be
-present using neutral-map-auto. In this case there is no C-bit, but the
+present using neutral-map-auto. In this case there is anal C-bit, but the
 checksum adjustment is in the low order 16 bits. The identifier is
 still sixty-four bits::
 
@@ -211,7 +211,7 @@ mapping has been applied to an ILA address. The format is::
      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
 The identifier type field may be present to indicate the identifier
-type. If it is not present then the type is inferred based on mapping
+type. If it is analt present then the type is inferred based on mapping
 configuration. The checksum neutral adjustment may automatically
 used with the identifier type as illustrated below::
 
@@ -248,7 +248,7 @@ ip route add DEST/128 encap ila LOC csum-mode MODE ident-type TYPE via ADDR
 Destination (DEST) can either be a SIR address (for an ILA host or ingress
 ILA router) or an ILA address (egress ILA router). LOC is the sixty-four
 bit locator (with format W:X:Y:Z) that overwrites the upper sixty-four
-bits of the destination address.  Checksum MODE is one of "no-action",
+bits of the destination address.  Checksum MODE is one of "anal-action",
 "adj-transport", "neutral-map", and "neutral-map-auto". If neutral-map is
 set then the C-bit will be present. Identifier TYPE one of "luid" or
 "use-format." In the case of use-format, the identifier type field is
@@ -270,14 +270,14 @@ Some examples
 ::
 
      # Configure an ILA route that uses checksum neutral mapping as well
-     # as type field. Note that the type field is set in the SIR address
+     # as type field. Analte that the type field is set in the SIR address
      # (the 2000 implies type is 1 which is LUID).
      ip route add 3333:0:0:1:2000:0:1:87/128 encap ila 2001:0:87:0 \
 	  csum-mode neutral-map ident-type use-format
 
      # Configure an ILA LWT route that uses auto checksum neutral mapping
-     # (no C-bit) and configure identifier type to be LUID so that the
-     # identifier type field will not be present.
+     # (anal C-bit) and configure identifier type to be LUID so that the
+     # identifier type field will analt be present.
      ip route add 3333:0:0:1:2000:0:2:87/128 encap ila 2001:0:87:1 \
 	  csum-mode neutral-map-auto ident-type luid
 
@@ -291,6 +291,6 @@ Some examples
 
      # Configure an ILA to SIR mapping where checksum neutral is automatically
      # set without the C-bit and the identifier type is configured to be LUID
-     # so that the identifier type field is not present.
+     # so that the identifier type field is analt present.
      ip ila add loc_match 2001:0:119:0 loc 3333:0:0:1 \
 	 csum-mode neutral-map-auto ident-type use-format

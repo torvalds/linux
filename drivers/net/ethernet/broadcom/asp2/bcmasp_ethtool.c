@@ -94,7 +94,7 @@ static int bcmasp_get_sset_count(struct net_device *dev, int string_set)
 	case ETH_SS_STATS:
 		return BCMASP_STATS_LEN;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -207,7 +207,7 @@ static int bcmasp_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 	struct device *kdev = &priv->pdev->dev;
 
 	if (!device_can_wakeup(kdev))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* Interface Specific */
 	intf->wolopts = wol->wolopts;
@@ -233,7 +233,7 @@ static int bcmasp_flow_insert(struct net_device *dev, struct ethtool_rxnfc *cmd)
 
 	/* Currently only supports WAKE filters */
 	if (!wake)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (cmd->fs.flow_type & ~(FLOW_EXT | FLOW_MAC_EXT)) {
 	case ETHER_FLOW:
@@ -244,7 +244,7 @@ static int bcmasp_flow_insert(struct net_device *dev, struct ethtool_rxnfc *cmd)
 	case UDP_V6_FLOW:
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	/* Check if filter already exists */
@@ -297,7 +297,7 @@ static int bcmasp_flow_get(struct bcmasp_intf *intf, struct ethtool_rxnfc *cmd)
 static int bcmasp_set_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd)
 {
 	struct bcmasp_intf *intf = netdev_priv(dev);
-	int ret = -EOPNOTSUPP;
+	int ret = -EOPANALTSUPP;
 
 	mutex_lock(&intf->parent->net_lock);
 
@@ -339,7 +339,7 @@ static int bcmasp_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd,
 		cmd->data = NUM_NET_FILTERS;
 		break;
 	default:
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		break;
 	}
 
@@ -369,7 +369,7 @@ static int bcmasp_get_eee(struct net_device *dev, struct ethtool_eee *e)
 	struct ethtool_eee *p = &intf->eee;
 
 	if (!dev->phydev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	e->eee_enabled = p->eee_enabled;
 	e->eee_active = p->eee_active;
@@ -386,7 +386,7 @@ static int bcmasp_set_eee(struct net_device *dev, struct ethtool_eee *e)
 	int ret;
 
 	if (!dev->phydev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!p->eee_enabled) {
 		bcmasp_eee_enable_set(intf, false);

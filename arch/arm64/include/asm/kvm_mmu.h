@@ -13,7 +13,7 @@
 #include <asm/cpufeature.h>
 
 /*
- * As ARMv8.0 only has the TTBR0_EL2 register, we cannot express
+ * As ARMv8.0 only has the TTBR0_EL2 register, we cananalt express
  * "negative" addresses. This makes it impossible to directly share
  * mappings with the kernel.
  *
@@ -22,7 +22,7 @@
  * kernel address). We need to find out how many bits to mask.
  *
  * We want to build a set of page tables that cover both parts of the
- * idmap (the trampoline page used to initialize EL2), and our normal
+ * idmap (the trampoline page used to initialize EL2), and our analrmal
  * runtime VA space, at the same time.
  *
  * Given that the kernel uses VA_BITS for its entire address space,
@@ -44,9 +44,9 @@
  *	HYP_VA_MIN = 1 << (VA_BITS - 1)
  * HYP_VA_MAX = HYP_VA_MIN + (1 << (VA_BITS - 1)) - 1
  *
- * When using VHE, there are no separate hyp mappings and all KVM
+ * When using VHE, there are anal separate hyp mappings and all KVM
  * functionality is already mapped as part of the main kernel
- * mappings, and none of this applies in that case.
+ * mappings, and analne of this applies in that case.
  */
 
 #ifdef __ASSEMBLY__
@@ -216,7 +216,7 @@ static inline void __clean_dcache_guest_page(void *va, size_t size)
 	 * With FWB, we ensure that the guest always accesses memory using
 	 * cacheable attributes, and we don't have to clean to PoC when
 	 * faulting in pages. Furthermore, FWB implies IDC, so cleaning to
-	 * PoU is not required either in this case.
+	 * PoU is analt required either in this case.
 	 */
 	if (cpus_have_final_cap(ARM64_HAS_STAGE2_FWB))
 		return;
@@ -265,7 +265,7 @@ static inline unsigned int kvm_get_vmid_bits(void)
 }
 
 /*
- * We are not in the kvm->srcu critical section most of the time, so we take
+ * We are analt in the kvm->srcu critical section most of the time, so we take
  * the SRCU read lock here. Since we copy the data from the user page, we
  * can immediately drop the lock again.
  */
@@ -325,7 +325,7 @@ static __always_inline void __load_stage2(struct kvm_s2_mmu *mmu,
 	 * above before we can switch to the EL1/EL0 translation regime used by
 	 * the guest.
 	 */
-	asm(ALTERNATIVE("nop", "isb", ARM64_WORKAROUND_SPECULATIVE_AT));
+	asm(ALTERNATIVE("analp", "isb", ARM64_WORKAROUND_SPECULATIVE_AT));
 }
 
 static inline struct kvm *kvm_s2_mmu_to_kvm(struct kvm_s2_mmu *mmu)

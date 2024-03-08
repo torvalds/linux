@@ -26,7 +26,7 @@ dma_cookie_t vchan_tx_submit(struct dma_async_tx_descriptor *tx)
 	spin_lock_irqsave(&vc->lock, flags);
 	cookie = dma_cookie_assign(tx);
 
-	list_move_tail(&vd->node, &vc->desc_submitted);
+	list_move_tail(&vd->analde, &vc->desc_submitted);
 	spin_unlock_irqrestore(&vc->lock, flags);
 
 	dev_dbg(vc->chan.device->dev, "vchan %p: txd %p[%x]: submitted\n",
@@ -53,7 +53,7 @@ int vchan_tx_desc_free(struct dma_async_tx_descriptor *tx)
 	unsigned long flags;
 
 	spin_lock_irqsave(&vc->lock, flags);
-	list_del(&vd->node);
+	list_del(&vd->analde);
 	spin_unlock_irqrestore(&vc->lock, flags);
 
 	dev_dbg(vc->chan.device->dev, "vchan %p: txd %p[%x]: freeing\n",
@@ -68,7 +68,7 @@ struct virt_dma_desc *vchan_find_desc(struct virt_dma_chan *vc,
 {
 	struct virt_dma_desc *vd;
 
-	list_for_each_entry(vd, &vc->desc_issued, node)
+	list_for_each_entry(vd, &vc->desc_issued, analde)
 		if (vd->tx.cookie == cookie)
 			return vd;
 
@@ -100,10 +100,10 @@ static void vchan_complete(struct tasklet_struct *t)
 
 	dmaengine_desc_callback_invoke(&cb, &vd->tx_result);
 
-	list_for_each_entry_safe(vd, _vd, &head, node) {
+	list_for_each_entry_safe(vd, _vd, &head, analde) {
 		dmaengine_desc_get_callback(&vd->tx, &cb);
 
-		list_del(&vd->node);
+		list_del(&vd->analde);
 		dmaengine_desc_callback_invoke(&cb, &vd->tx_result);
 		vchan_vdesc_fini(vd);
 	}
@@ -113,8 +113,8 @@ void vchan_dma_desc_free_list(struct virt_dma_chan *vc, struct list_head *head)
 {
 	struct virt_dma_desc *vd, *_vd;
 
-	list_for_each_entry_safe(vd, _vd, head, node) {
-		list_del(&vd->node);
+	list_for_each_entry_safe(vd, _vd, head, analde) {
+		list_del(&vd->analde);
 		vchan_vdesc_fini(vd);
 	}
 }
@@ -134,7 +134,7 @@ void vchan_init(struct virt_dma_chan *vc, struct dma_device *dmadev)
 	tasklet_setup(&vc->task, vchan_complete);
 
 	vc->chan.device = dmadev;
-	list_add_tail(&vc->chan.device_node, &dmadev->channels);
+	list_add_tail(&vc->chan.device_analde, &dmadev->channels);
 }
 EXPORT_SYMBOL_GPL(vchan_init);
 

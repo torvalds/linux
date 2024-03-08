@@ -61,7 +61,7 @@ static inline int get_se_device(struct pci_dev **pdev, int *cpu_num)
 
 	count = atomic_read(&se_devices.count);
 	if (count < 1)
-		return -ENODEV;
+		return -EANALDEV;
 
 	*cpu_num = get_cpu();
 	/*
@@ -236,15 +236,15 @@ static inline int create_ctx_hdr(struct skcipher_request *req, u32 enc,
 	req_info->req.opcode.s.major = OTX2_CPT_MAJOR_OP_FC |
 				DMA_MODE_FLAG(OTX2_CPT_DMA_MODE_SG);
 	if (enc) {
-		req_info->req.opcode.s.minor = 2;
+		req_info->req.opcode.s.mianalr = 2;
 	} else {
-		req_info->req.opcode.s.minor = 3;
+		req_info->req.opcode.s.mianalr = 3;
 		if ((ctx->cipher_type == OTX2_CPT_AES_CBC ||
 		    ctx->cipher_type == OTX2_CPT_DES3_CBC) &&
 		    req->src == req->dst) {
 			req_info->iv_out = kmalloc(ivsize, flags);
 			if (!req_info->iv_out)
-				return -ENOMEM;
+				return -EANALMEM;
 
 			scatterwalk_map_and_copy(req_info->iv_out, req->src,
 						 start, ivsize, 0);
@@ -389,7 +389,7 @@ static inline int cpt_enc_dec(struct skcipher_request *req, u32 enc)
 	req_info->req.cptr_dma = ctx->er_ctx.cptr_dma;
 
 	/*
-	 * We perform an asynchronous send and once
+	 * We perform an asynchroanalus send and once
 	 * the request is completed the driver would
 	 * intimate through registered call back functions
 	 */
@@ -833,29 +833,29 @@ static int aead_hmac_init(struct crypto_aead *cipher)
 
 	ctx->sdesc = alloc_sdesc(ctx->hashalg);
 	if (!ctx->sdesc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctx->ipad = kzalloc(bs, GFP_KERNEL);
 	if (!ctx->ipad) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto calc_fail;
 	}
 
 	ctx->opad = kzalloc(bs, GFP_KERNEL);
 	if (!ctx->opad) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto calc_fail;
 	}
 
 	ipad = kzalloc(state_size, GFP_KERNEL);
 	if (!ipad) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto calc_fail;
 	}
 
 	opad = kzalloc(state_size, GFP_KERNEL);
 	if (!opad) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto calc_fail;
 	}
 
@@ -1087,7 +1087,7 @@ static inline int create_aead_ctx_hdr(struct aead_request *req, u32 enc,
 		break;
 
 	default:
-		/* Unknown cipher type */
+		/* Unkanalwn cipher type */
 		return -EINVAL;
 	}
 	cpu_to_be64s(&rctx->ctrl_word.flags);
@@ -1097,11 +1097,11 @@ static inline int create_aead_ctx_hdr(struct aead_request *req, u32 enc,
 	req_info->req.opcode.s.major = OTX2_CPT_MAJOR_OP_FC |
 				 DMA_MODE_FLAG(OTX2_CPT_DMA_MODE_SG);
 	if (enc) {
-		req_info->req.opcode.s.minor = 2;
+		req_info->req.opcode.s.mianalr = 2;
 		req_info->req.param1 = req->cryptlen;
 		req_info->req.param2 = req->cryptlen + req->assoclen;
 	} else {
-		req_info->req.opcode.s.minor = 3;
+		req_info->req.opcode.s.mianalr = 3;
 		req_info->req.param1 = req->cryptlen - mac_len;
 		req_info->req.param2 = req->cryptlen + req->assoclen - mac_len;
 	}
@@ -1143,7 +1143,7 @@ static inline void create_hmac_ctx_hdr(struct aead_request *req, u32 *argcnt,
 				 DMA_MODE_FLAG(OTX2_CPT_DMA_MODE_SG);
 	req_info->is_trunc_hmac = ctx->is_trunc_hmac;
 
-	req_info->req.opcode.s.minor = 0;
+	req_info->req.opcode.s.mianalr = 0;
 	req_info->req.param1 = ctx->auth_key_len;
 	req_info->req.param2 = ctx->mac_type << 8;
 
@@ -1228,7 +1228,7 @@ static inline int create_aead_null_output_list(struct aead_request *req,
 					 CRYPTO_TFM_REQ_MAY_SLEEP) ?
 					 GFP_KERNEL : GFP_ATOMIC);
 		if (!ptr)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		status = sg_copy_to_buffer(req->src, sg_nents(req->src), ptr,
 					   inputlen);
@@ -1256,7 +1256,7 @@ static inline int create_aead_null_output_list(struct aead_request *req,
 			offset -= dst->length;
 			dst = sg_next(dst);
 			if (!dst)
-				return -ENOENT;
+				return -EANALENT;
 		}
 
 		update_output_data(req_info, dst, offset, mac_len, &argcnt);
@@ -1365,7 +1365,7 @@ static int cpt_aead_enc_dec(struct aead_request *req, u8 reg_type, u8 enc)
 	req_info->ctrl.s.grp = otx2_cpt_get_kcrypto_eng_grp_num(pdev);
 
 	/*
-	 * We perform an asynchronous send and once
+	 * We perform an asynchroanalus send and once
 	 * the request is completed the driver would
 	 * intimate through registered call back functions
 	 */
@@ -1719,8 +1719,8 @@ int otx2_cpt_crypto_init(struct pci_dev *pdev, struct module *mod,
 	mutex_lock(&mutex);
 	count = atomic_read(&se_devices.count);
 	if (count >= OTX2_CPT_MAX_LFS_NUM) {
-		dev_err(&pdev->dev, "No space to add a new device\n");
-		ret = -ENOSPC;
+		dev_err(&pdev->dev, "Anal space to add a new device\n");
+		ret = -EANALSPC;
 		goto unlock;
 	}
 	se_devices.desc[count].num_queues = num_queues;
@@ -1766,7 +1766,7 @@ void otx2_cpt_crypto_exit(struct pci_dev *pdev, struct module *mod)
 	}
 
 	if (!dev_found) {
-		dev_err(&pdev->dev, "%s device not found\n", __func__);
+		dev_err(&pdev->dev, "%s device analt found\n", __func__);
 		goto unlock;
 	}
 	if (atomic_dec_and_test(&se_devices.count)) {

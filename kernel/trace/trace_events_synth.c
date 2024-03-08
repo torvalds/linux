@@ -451,12 +451,12 @@ static unsigned int trace_string(struct synth_trace_event *entry,
 	} else {
 		str_field = (char *)&entry->fields[*n_u64].as_u64;
 
-#ifdef CONFIG_ARCH_HAS_NON_OVERLAPPING_ADDRESS_SPACE
+#ifdef CONFIG_ARCH_HAS_ANALN_OVERLAPPING_ADDRESS_SPACE
 		if ((unsigned long)str_val < TASK_SIZE)
-			ret = strncpy_from_user_nofault(str_field, (const void __user *)str_val, STR_VAR_LEN_MAX);
+			ret = strncpy_from_user_analfault(str_field, (const void __user *)str_val, STR_VAR_LEN_MAX);
 		else
 #endif
-			ret = strncpy_from_kernel_nofault(str_field, str_val, STR_VAR_LEN_MAX);
+			ret = strncpy_from_kernel_analfault(str_field, str_val, STR_VAR_LEN_MAX);
 
 		if (ret < 0)
 			strcpy(str_field, FAULT_STRING);
@@ -502,7 +502,7 @@ static unsigned int trace_stack(struct synth_trace_event *entry,
 	return len;
 }
 
-static notrace void trace_event_raw_event_synth(void *__data,
+static analtrace void trace_event_raw_event_synth(void *__data,
 						u64 *var_ref_vals,
 						unsigned int *var_ref_idx)
 {
@@ -541,7 +541,7 @@ static notrace void trace_event_raw_event_synth(void *__data,
 
 	/*
 	 * Avoid ring buffer recursion detection, as this event
-	 * is being performed within another event.
+	 * is being performed within aanalther event.
 	 */
 	buffer = trace_file->tr->array_buffer.buffer;
 	ring_buffer_nest_start(buffer);
@@ -653,7 +653,7 @@ static int set_synth_event_print_fmt(struct trace_event_call *call)
 
 	print_fmt = kmalloc(len + 1, GFP_KERNEL);
 	if (!print_fmt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Second: actually write the @print_fmt */
 	__set_synth_event_print_fmt(event, print_fmt, len + 1);
@@ -674,10 +674,10 @@ static int check_field_version(const char *prefix, const char *field_type,
 {
 	/*
 	 * For backward compatibility, the old synthetic event command
-	 * format did not require semicolons, and in order to not
+	 * format did analt require semicolons, and in order to analt
 	 * break user space, that old format must still work. If a new
 	 * feature is added, then the format that uses the new feature
-	 * will be required to have semicolons, as nothing that uses
+	 * will be required to have semicolons, as analthing that uses
 	 * the old format would be using the new, yet to be created,
 	 * feature. When a new feature is added, this will detect it,
 	 * and return a number greater than 1, and require the format
@@ -691,7 +691,7 @@ static struct synth_field *parse_synth_field(int argc, char **argv,
 {
 	const char *prefix = NULL, *field_type = argv[0], *field_name, *array;
 	struct synth_field *field;
-	int len, ret = -ENOMEM;
+	int len, ret = -EANALMEM;
 	struct seq_buf s;
 	ssize_t size;
 
@@ -718,7 +718,7 @@ static struct synth_field *parse_synth_field(int argc, char **argv,
 
 	field = kzalloc(sizeof(*field), GFP_KERNEL);
 	if (!field)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	len = strlen(field_name);
 	array = strchr(field_name, '[');
@@ -826,12 +826,12 @@ static struct tracepoint *alloc_synth_tracepoint(char *name)
 
 	tp = kzalloc(sizeof(*tp), GFP_KERNEL);
 	if (!tp)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	tp->name = kstrdup(name, GFP_KERNEL);
 	if (!tp->name) {
 		kfree(tp);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	return tp;
@@ -867,7 +867,7 @@ static int register_synth_event(struct synth_event *event)
 	event->call.class = &event->class;
 	event->class.system = kstrdup(SYNTH_SYSTEM, GFP_KERNEL);
 	if (!event->class.system) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -884,7 +884,7 @@ static int register_synth_event(struct synth_event *event)
 
 	ret = register_trace_event(&call->event);
 	if (!ret) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out;
 	}
 	call->flags = TRACE_EVENT_FL_TRACEPOINT;
@@ -948,21 +948,21 @@ static struct synth_event *alloc_synth_event(const char *name, int n_fields,
 
 	event = kzalloc(sizeof(*event), GFP_KERNEL);
 	if (!event) {
-		event = ERR_PTR(-ENOMEM);
+		event = ERR_PTR(-EANALMEM);
 		goto out;
 	}
 
 	event->name = kstrdup(name, GFP_KERNEL);
 	if (!event->name) {
 		kfree(event);
-		event = ERR_PTR(-ENOMEM);
+		event = ERR_PTR(-EANALMEM);
 		goto out;
 	}
 
 	event->fields = kcalloc(n_fields, sizeof(*event->fields), GFP_KERNEL);
 	if (!event->fields) {
 		free_synth_event(event);
-		event = ERR_PTR(-ENOMEM);
+		event = ERR_PTR(-EANALMEM);
 		goto out;
 	}
 
@@ -976,7 +976,7 @@ static struct synth_event *alloc_synth_event(const char *name, int n_fields,
 						GFP_KERNEL);
 		if (!event->dynamic_fields) {
 			free_synth_event(event);
-			event = ERR_PTR(-ENOMEM);
+			event = ERR_PTR(-EANALMEM);
 			goto out;
 		}
 	}
@@ -1059,7 +1059,7 @@ EXPORT_SYMBOL_GPL(synth_event_add_field);
  *
  * Add a new field to a synthetic event cmd object, as a single
  * string.  The @type_name string is expected to be of the form 'type
- * name', which will be appended by ';'.  No sanity checking is done -
+ * name', which will be appended by ';'.  Anal sanity checking is done -
  * what's passed in is assumed to already be well-formed.  Field
  * ordering is in the same order the fields are added.
  *
@@ -1137,10 +1137,10 @@ EXPORT_SYMBOL_GPL(synth_event_add_fields);
  * __synth_event_gen_cmd_start - Start a synthetic event command from arg list
  * @cmd: A pointer to the dynevent_cmd struct representing the new event
  * @name: The name of the synthetic event
- * @mod: The module creating the event, NULL if not created from a module
+ * @mod: The module creating the event, NULL if analt created from a module
  * @...: Variable number of arg (pairs), one pair for each field
  *
- * NOTE: Users normally won't want to call this function directly, but
+ * ANALTE: Users analrmally won't want to call this function directly, but
  * rather use the synth_event_gen_cmd_start() wrapper, which
  * automatically adds a NULL to the end of the arg list.  If this
  * function is used directly, make sure the last arg in the variable
@@ -1210,7 +1210,7 @@ EXPORT_SYMBOL_GPL(__synth_event_gen_cmd_start);
  * synth_event_gen_cmd_array_start - Start synthetic event command from an array
  * @cmd: A pointer to the dynevent_cmd struct representing the new event
  * @name: The name of the synthetic event
- * @mod: The module creating the event, NULL if not created from a module
+ * @mod: The module creating the event, NULL if analt created from a module
  * @fields: An array of type/name field descriptions
  * @n_fields: The number of field descriptions contained in the fields array
  *
@@ -1304,14 +1304,14 @@ static int __create_synth_event(const char *name, const char *raw_fields)
 
 	tmp_fields = saved_fields = kstrdup(raw_fields, GFP_KERNEL);
 	if (!tmp_fields) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
 	while ((field_str = strsep(&tmp_fields, ";")) != NULL) {
 		argv = argv_split(GFP_KERNEL, field_str, &argc);
 		if (!argv) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err;
 		}
 
@@ -1341,12 +1341,12 @@ static int __create_synth_event(const char *name, const char *raw_fields)
 				cmd_version = field_version;
 
 			/*
-			 * Now sort out what is and isn't valid for
+			 * Analw sort out what is and isn't valid for
 			 * each supported version.
 			 *
 			 * If we see more than 1 field per loop, it
 			 * means we have multiple fields between
-			 * semicolons, and that's something we no
+			 * semicolons, and that's something we anal
 			 * longer support in a version 2 or greater
 			 * command.
 			 */
@@ -1412,7 +1412,7 @@ static int __create_synth_event(const char *name, const char *raw_fields)
  * @name: The name of the new synthetic event
  * @fields: An array of type/name field descriptions
  * @n_fields: The number of field descriptions contained in the fields array
- * @mod: The module creating the event, NULL if not created from a module
+ * @mod: The module creating the event, NULL if analt created from a module
  *
  * Create a new synthetic event with the given name under the
  * trace/events/synthetic/ directory.  The event fields that will be
@@ -1422,7 +1422,7 @@ static int __create_synth_event(const char *name, const char *raw_fields)
  * fields array.
  *
  * If the new synthetic event is being created from a module, the mod
- * param must be non-NULL.  This will ensure that the trace buffer
+ * param must be analn-NULL.  This will ensure that the trace buffer
  * won't contain unreadable events.
  *
  * The new synth event should be deleted using synth_event_delete()
@@ -1440,7 +1440,7 @@ int synth_event_create(const char *name, struct synth_field_desc *fields,
 
 	buf = kzalloc(MAX_DYNEVENT_CMD_LEN, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	synth_event_cmd_init(&cmd, buf, MAX_DYNEVENT_CMD_LEN);
 
@@ -1488,7 +1488,7 @@ int synth_event_delete(const char *event_name)
 {
 	struct synth_event *se = NULL;
 	struct module *mod = NULL;
-	int ret = -ENOENT;
+	int ret = -EANALENT;
 
 	mutex_lock(&event_mutex);
 	se = find_synth_event(event_name);
@@ -1523,7 +1523,7 @@ static int check_command(const char *raw_command)
 
 	cmd = saved_cmd = kstrdup(raw_command, GFP_KERNEL);
 	if (!cmd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	name_and_field = strsep(&cmd, ";");
 	if (!name_and_field) {
@@ -1536,7 +1536,7 @@ static int check_command(const char *raw_command)
 
 	argv = argv_split(GFP_KERNEL, name_and_field, &argc);
 	if (!argv) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free;
 	}
 	argv_free(argv);
@@ -1575,7 +1575,7 @@ static int create_or_delete_synth_event(const char *raw_command)
 
 	name = kmemdup_nul(raw_command, p ? p - raw_command : strlen(raw_command), GFP_KERNEL);
 	if (!name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (name[0] == '!') {
 		ret = synth_event_delete(name + 1);
@@ -1602,7 +1602,7 @@ static int synth_event_run_command(struct dynevent_cmd *cmd)
 
 	se = find_synth_event(cmd->event_name);
 	if (WARN_ON(!se))
-		return -ENOENT;
+		return -EANALENT;
 
 	se->mod = cmd->private_data;
 
@@ -1634,18 +1634,18 @@ __synth_event_trace_init(struct trace_event_file *file,
 	memset(trace_state, '\0', sizeof(*trace_state));
 
 	/*
-	 * Normal event tracing doesn't get called at all unless the
+	 * Analrmal event tracing doesn't get called at all unless the
 	 * ENABLED bit is set (which attaches the probe thus allowing
 	 * this code to be called, etc).  Because this is called
 	 * directly by the user, we don't have that but we still need
-	 * to honor not logging when disabled.  For the iterated
+	 * to hoanalr analt logging when disabled.  For the iterated
 	 * trace case, we save the enabled state upon start and just
-	 * ignore the following data calls.
+	 * iganalre the following data calls.
 	 */
 	if (!(file->flags & EVENT_FILE_FL_ENABLED) ||
 	    trace_trigger_soft_disabled(file)) {
 		trace_state->disabled = true;
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto out;
 	}
 
@@ -1667,7 +1667,7 @@ __synth_event_trace_start(struct trace_event_file *file,
 
 	/*
 	 * Avoid ring buffer recursion detection, as this event
-	 * is being performed within another event.
+	 * is being performed within aanalther event.
 	 */
 	trace_state->buffer = file->tr->array_buffer.buffer;
 	ring_buffer_nest_start(trace_state->buffer);
@@ -1720,8 +1720,8 @@ int synth_event_trace(struct trace_event_file *file, unsigned int n_vals, ...)
 
 	ret = __synth_event_trace_init(file, &state);
 	if (ret) {
-		if (ret == -ENOENT)
-			ret = 0; /* just disabled, not really an error */
+		if (ret == -EANALENT)
+			ret = 0; /* just disabled, analt really an error */
 		return ret;
 	}
 
@@ -1825,8 +1825,8 @@ int synth_event_trace_array(struct trace_event_file *file, u64 *vals,
 
 	ret = __synth_event_trace_init(file, &state);
 	if (ret) {
-		if (ret == -ENOENT)
-			ret = 0; /* just disabled, not really an error */
+		if (ret == -EANALENT)
+			ret = 0; /* just disabled, analt really an error */
 		return ret;
 	}
 
@@ -1907,13 +1907,13 @@ EXPORT_SYMBOL_GPL(synth_event_trace_array);
  * closed (and the event finally traced) using
  * synth_event_trace_end().
  *
- * Note that synth_event_trace_end() must be called after all values
+ * Analte that synth_event_trace_end() must be called after all values
  * have been added for each event trace, regardless of whether adding
- * all field values succeeded or not.
+ * all field values succeeded or analt.
  *
- * Note also that for a given event trace, all fields must be added
+ * Analte also that for a given event trace, all fields must be added
  * using either synth_event_add_next_val() or synth_event_add_val()
- * but not both together or interleaved.
+ * but analt both together or interleaved.
  *
  * Return: 0 on success, err otherwise.
  */
@@ -1927,13 +1927,13 @@ int synth_event_trace_start(struct trace_event_file *file,
 
 	ret = __synth_event_trace_init(file, trace_state);
 	if (ret) {
-		if (ret == -ENOENT)
-			ret = 0; /* just disabled, not really an error */
+		if (ret == -EANALENT)
+			ret = 0; /* just disabled, analt really an error */
 		return ret;
 	}
 
 	if (trace_state->event->n_dynamic_fields)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	ret = __synth_event_trace_start(file, trace_state, 0);
 
@@ -2043,19 +2043,19 @@ static int __synth_event_add_val(const char *field_name, u64 val,
  * to a string, the val param should be a char * cast to u64.
  *
  * This function assumes all the fields in an event are to be set one
- * after another - successive calls to this function are made, one for
+ * after aanalther - successive calls to this function are made, one for
  * each field, in the order of the fields in the event, until all
  * fields have been set.  If you'd rather set each field individually
  * without regard to ordering, synth_event_add_val() can be used
  * instead.
  *
- * Note however that synth_event_add_next_val() and
+ * Analte however that synth_event_add_next_val() and
  * synth_event_add_val() can't be intermixed for a given event trace -
- * one or the other but not both can be used at the same time.
+ * one or the other but analt both can be used at the same time.
  *
- * Note also that synth_event_trace_end() must be called after all
+ * Analte also that synth_event_trace_end() must be called after all
  * values have been added for each event trace, regardless of whether
- * adding all field values succeeded or not.
+ * adding all field values succeeded or analt.
  *
  * Return: 0 on success, err otherwise.
  */
@@ -2081,16 +2081,16 @@ EXPORT_SYMBOL_GPL(synth_event_add_next_val);
  * This function looks up the field name, and if found, sets the field
  * to the specified value.  This lookup makes this function more
  * expensive than synth_event_add_next_val(), so use that or the
- * none-piecewise synth_event_trace() instead if efficiency is more
+ * analne-piecewise synth_event_trace() instead if efficiency is more
  * important.
  *
- * Note however that synth_event_add_next_val() and
+ * Analte however that synth_event_add_next_val() and
  * synth_event_add_val() can't be intermixed for a given event trace -
- * one or the other but not both can be used at the same time.
+ * one or the other but analt both can be used at the same time.
  *
- * Note also that synth_event_trace_end() must be called after all
+ * Analte also that synth_event_trace_end() must be called after all
  * values have been added for each event trace, regardless of whether
- * adding all field values succeeded or not.
+ * adding all field values succeeded or analt.
  *
  * Return: 0 on success, err otherwise.
  */
@@ -2115,9 +2115,9 @@ EXPORT_SYMBOL_GPL(synth_event_add_val);
  * track of the current event trace state opened with
  * synth_event_trace_start().
  *
- * Note that this function must be called after all values have been
+ * Analte that this function must be called after all values have been
  * added for each event trace, regardless of whether adding all field
- * values succeeded or not.
+ * values succeeded or analt.
  *
  * Return: 0 on success, err otherwise.
  */
@@ -2146,7 +2146,7 @@ static int create_synth_event(const char *raw_command)
 
 	name = raw_command;
 
-	/* Don't try to process if not our system */
+	/* Don't try to process if analt our system */
 	if (name[0] != 's' || name[1] != ':')
 		return -ECANCELED;
 	name += 2;
@@ -2179,7 +2179,7 @@ static int create_synth_event(const char *raw_command)
 
 	name = kmemdup_nul(raw_command + len, p - raw_command - len, GFP_KERNEL);
 	if (!name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = __create_synth_event(name, fields);
 
@@ -2221,7 +2221,7 @@ static int __synth_event_show(struct seq_file *m, struct synth_event *event)
 
 		type = field->type;
 		t = strstr(type, "__data_loc");
-		if (t) { /* __data_loc belongs in format but not event desc */
+		if (t) { /* __data_loc belongs in format but analt event desc */
 			t += sizeof("__data_loc");
 			type = t;
 		}
@@ -2262,7 +2262,7 @@ static const struct seq_operations synth_events_seq_op = {
 	.show	= synth_events_seq_show,
 };
 
-static int synth_events_open(struct inode *inode, struct file *file)
+static int synth_events_open(struct ianalde *ianalde, struct file *file)
 {
 	int ret;
 
@@ -2305,7 +2305,7 @@ static __init int trace_events_synth_init_early(void)
 
 	err = dyn_event_register(&synth_event_ops);
 	if (err)
-		pr_warn("Could not register synth_event_ops\n");
+		pr_warn("Could analt register synth_event_ops\n");
 
 	return err;
 }
@@ -2322,13 +2322,13 @@ static __init int trace_events_synth_init(void)
 	entry = tracefs_create_file("synthetic_events", TRACE_MODE_WRITE,
 				    NULL, NULL, &synth_events_fops);
 	if (!entry) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto err;
 	}
 
 	return err;
  err:
-	pr_warn("Could not create tracefs 'synthetic_events' entry\n");
+	pr_warn("Could analt create tracefs 'synthetic_events' entry\n");
 
 	return err;
 }

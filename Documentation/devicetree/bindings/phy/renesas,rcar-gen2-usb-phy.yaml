@@ -48,7 +48,7 @@ properties:
 patternProperties:
   "^usb-phy@[02]$":
     type: object
-    description: Subnode corresponding to a USB channel.
+    description: Subanalde corresponding to a USB channel.
 
     properties:
       reg:

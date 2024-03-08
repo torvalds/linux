@@ -17,11 +17,11 @@
  * fill random cachelines with stale data at any time, requiring an extra
  * flush post-DMA.
  *
- * Warning on the terminology - Linux calls an uncached area coherent;  MIPS
- * terminology calls memory areas with hardware maintained coherency coherent.
+ * Warning on the termianallogy - Linux calls an uncached area coherent;  MIPS
+ * termianallogy calls memory areas with hardware maintained coherency coherent.
  *
- * Note that the R14000 and R16000 should also be checked for in this condition.
- * However this function is only called on non-I/O-coherent systems and only the
+ * Analte that the R14000 and R16000 should also be checked for in this condition.
+ * However this function is only called on analn-I/O-coherent systems and only the
  * R10000 and R12000 are used in such systems, the SGI IP28 Indigo² rsp.
  * SGI IP32 aka O2.
  */
@@ -89,7 +89,7 @@ static inline void dma_sync_virt_for_cpu(void *addr, size_t size,
 
 /*
  * A single sg entry may refer to multiple physically contiguous pages.  But
- * we still need to process highmem pages individually.  If highmem is not
+ * we still need to process highmem pages individually.  If highmem is analt
  * configured then the bulk of this loop gets optimized out.
  */
 static inline void dma_sync_phys(phys_addr_t paddr, size_t size,

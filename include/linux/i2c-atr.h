@@ -15,15 +15,15 @@
 #include <linux/types.h>
 
 struct device;
-struct fwnode_handle;
+struct fwanalde_handle;
 struct i2c_atr;
 
 /**
  * struct i2c_atr_ops - Callbacks from ATR to the device driver.
- * @attach_client: Notify the driver of a new device connected on a child
+ * @attach_client: Analtify the driver of a new device connected on a child
  *                 bus, with the alias assigned to it. The driver must
  *                 configure the hardware to use the alias.
- * @detach_client: Notify the driver of a device getting disconnected. The
+ * @detach_client: Analtify the driver of a device getting disconnected. The
  *                 driver must configure the hardware to stop using the
  *                 alias.
  *
@@ -43,7 +43,7 @@ struct i2c_atr_ops {
  * @ops:          Driver-specific callbacks
  * @max_adapters: Maximum number of child adapters
  *
- * The new ATR helper is connected to the parent adapter but has no child
+ * The new ATR helper is connected to the parent adapter but has anal child
  * adapters. Call i2c_atr_add_adapter() to add some.
  *
  * Call i2c_atr_delete() to remove.
@@ -69,7 +69,7 @@ void i2c_atr_delete(struct i2c_atr *atr);
  *              passed to the callbacks in `struct i2c_atr_ops`.
  * @adapter_parent: The device used as the parent of the new i2c adapter, or NULL
  *                  to use the i2c-atr device as the parent.
- * @bus_handle: The fwnode handle that points to the adapter's i2c
+ * @bus_handle: The fwanalde handle that points to the adapter's i2c
  *              peripherals, or NULL.
  *
  * After calling this function a new i2c bus will appear. Adding and removing
@@ -77,9 +77,9 @@ void i2c_atr_delete(struct i2c_atr *atr);
  * &i2c_atr_ops->attach_client and &i2c_atr_ops->detach_client callbacks for the
  * driver to assign an alias to the device.
  *
- * The adapter's fwnode is set to @bus_handle, or if @bus_handle is NULL the
- * function looks for a child node whose 'reg' property matches the chan_id
- * under the i2c-atr device's 'i2c-atr' node.
+ * The adapter's fwanalde is set to @bus_handle, or if @bus_handle is NULL the
+ * function looks for a child analde whose 'reg' property matches the chan_id
+ * under the i2c-atr device's 'i2c-atr' analde.
  *
  * Call i2c_atr_del_adapter() to remove the adapter.
  *
@@ -87,12 +87,12 @@ void i2c_atr_delete(struct i2c_atr *atr);
  */
 int i2c_atr_add_adapter(struct i2c_atr *atr, u32 chan_id,
 			struct device *adapter_parent,
-			struct fwnode_handle *bus_handle);
+			struct fwanalde_handle *bus_handle);
 
 /**
  * i2c_atr_del_adapter - Remove a child ("downstream") I2C bus added by
- *                       i2c_atr_add_adapter(). If no I2C bus has been added
- *                       this function is a no-op.
+ *                       i2c_atr_add_adapter(). If anal I2C bus has been added
+ *                       this function is a anal-op.
  * @atr:     The I2C ATR
  * @chan_id: Index of the adapter to be removed (0 .. max_adapters-1)
  */

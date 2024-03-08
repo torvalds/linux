@@ -10,10 +10,10 @@
  * Author: Linus Walleij <linus.walleij@linaro.org>
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 
 struct dentry;
-struct device_node;
+struct device_analde;
 struct seq_file;
 
 struct pinctrl_dev;
@@ -71,7 +71,7 @@ static inline int pinconf_apply_setting(const struct pinctrl_setting *setting)
 static inline int pinconf_set_config(struct pinctrl_dev *pctldev, unsigned int pin,
 				     unsigned long *configs, size_t nconfigs)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 #endif
@@ -134,7 +134,7 @@ static inline void pinconf_generic_dump_config(struct pinctrl_dev *pctldev,
 #endif
 
 #if defined(CONFIG_GENERIC_PINCONF) && defined(CONFIG_OF)
-int pinconf_generic_parse_dt_config(struct device_node *np,
+int pinconf_generic_parse_dt_config(struct device_analde *np,
 				    struct pinctrl_dev *pctldev,
 				    unsigned long **configs,
 				    unsigned int *nconfigs);

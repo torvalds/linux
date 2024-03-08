@@ -152,11 +152,11 @@ int ef100_get_mac_address(struct efx_nic *efx, u8 *mac_address,
 				MCDI_PTR(outbuf, GET_CLIENT_MAC_ADDRESSES_OUT_MAC_ADDRS));
 	} else if (empty_ok) {
 		pci_warn(efx->pci_dev,
-			 "No MAC address provisioned for client ID %#x.\n",
+			 "Anal MAC address provisioned for client ID %#x.\n",
 			 client_handle);
 		eth_zero_addr(mac_address);
 	} else {
-		return -ENOENT;
+		return -EANALENT;
 	}
 	return 0;
 }
@@ -334,7 +334,7 @@ static irqreturn_t ef100_msi_interrupt(int irq, void *dev_id)
 		   "IRQ %d on CPU %d\n", irq, raw_smp_processor_id());
 
 	if (likely(READ_ONCE(efx->irq_soft_enabled))) {
-		/* Note test interrupts */
+		/* Analte test interrupts */
 		if (context->index == efx->irq_level)
 			efx->last_irq_cpu = raw_smp_processor_id();
 
@@ -353,7 +353,7 @@ int ef100_phy_probe(struct efx_nic *efx)
 	/* Probe for the PHY */
 	efx->phy_data = kzalloc(sizeof(struct efx_mcdi_phy_data), GFP_KERNEL);
 	if (!efx->phy_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = efx_mcdi_get_phy_cfg(efx, efx->phy_data);
 	if (rc)
@@ -372,13 +372,13 @@ int ef100_phy_probe(struct efx_nic *efx)
 		efx->wanted_fc |= EFX_FC_AUTO;
 	efx_link_set_wanted_fc(efx, efx->wanted_fc);
 
-	/* Push settings to the PHY. Failure is not fatal, the user can try to
+	/* Push settings to the PHY. Failure is analt fatal, the user can try to
 	 * fix it using ethtool.
 	 */
 	rc = efx_mcdi_port_reconfigure(efx);
 	if (rc && rc != -EPERM)
 		netif_warn(efx, drv, efx->net_dev,
-			   "could not initialise PHY settings\n");
+			   "could analt initialise PHY settings\n");
 
 	return 0;
 }
@@ -407,7 +407,7 @@ static int ef100_filter_table_up(struct efx_nic *efx)
 	if (IS_ENABLED(CONFIG_SFC_SRIOV))
 		rc = efx_tc_insert_rep_filters(efx);
 
-	/* Rep filter failure is nonfatal */
+	/* Rep filter failure is analnfatal */
 	if (rc)
 		netif_warn(efx, drv, efx->net_dev,
 			   "Failed to insert representor filters, rc %d\n",
@@ -533,9 +533,9 @@ static void ef100_ethtool_stat_mask(unsigned long *mask)
 	__set_bit(EF100_STAT_port_rx_gtjumbo, mask);
 	__set_bit(EF100_STAT_port_rx_bad_gtjumbo, mask);
 	__set_bit(EF100_STAT_port_rx_length_error, mask);
-	__set_bit(EF100_STAT_port_rx_nodesc_drops, mask);
-	__set_bit(GENERIC_STAT_rx_nodesc_trunc, mask);
-	__set_bit(GENERIC_STAT_rx_noskb_drops, mask);
+	__set_bit(EF100_STAT_port_rx_analdesc_drops, mask);
+	__set_bit(GENERIC_STAT_rx_analdesc_trunc, mask);
+	__set_bit(GENERIC_STAT_rx_analskb_drops, mask);
 }
 
 #define EF100_DMA_STAT(ext_name, mcdi_name)			\
@@ -578,9 +578,9 @@ static const struct efx_hw_stat_desc ef100_stat_desc[EF100_STAT_COUNT] = {
 	EF100_DMA_STAT(port_rx_align_error, RX_ALIGN_ERROR_PKTS),
 	EF100_DMA_STAT(port_rx_length_error, RX_LENGTH_ERROR_PKTS),
 	EF100_DMA_STAT(port_rx_overflow, RX_OVERFLOW_PKTS),
-	EF100_DMA_STAT(port_rx_nodesc_drops, RX_NODESC_DROPS),
-	EFX_GENERIC_SW_STAT(rx_nodesc_trunc),
-	EFX_GENERIC_SW_STAT(rx_noskb_drops),
+	EF100_DMA_STAT(port_rx_analdesc_drops, RX_ANALDESC_DROPS),
+	EFX_GENERIC_SW_STAT(rx_analdesc_trunc),
+	EFX_GENERIC_SW_STAT(rx_analskb_drops),
 };
 
 static size_t ef100_describe_stats(struct efx_nic *efx, u8 *names)
@@ -618,9 +618,9 @@ static size_t ef100_update_stats_common(struct efx_nic *efx, u64 *full_stats,
 	core_stats->tx_packets = stats[EF100_STAT_port_tx_packets];
 	core_stats->rx_bytes = stats[EF100_STAT_port_rx_bytes];
 	core_stats->tx_bytes = stats[EF100_STAT_port_tx_bytes];
-	core_stats->rx_dropped = stats[EF100_STAT_port_rx_nodesc_drops] +
-				 stats[GENERIC_STAT_rx_nodesc_trunc] +
-				 stats[GENERIC_STAT_rx_noskb_drops];
+	core_stats->rx_dropped = stats[EF100_STAT_port_rx_analdesc_drops] +
+				 stats[GENERIC_STAT_rx_analdesc_trunc] +
+				 stats[GENERIC_STAT_rx_analskb_drops];
 	core_stats->multicast = stats[EF100_STAT_port_rx_multicast];
 	core_stats->rx_length_errors =
 			stats[EF100_STAT_port_rx_gtjumbo] +
@@ -666,7 +666,7 @@ static int efx_ef100_get_phys_port_id(struct efx_nic *efx,
 	struct ef100_nic_data *nic_data = efx->nic_data;
 
 	if (!is_valid_ether_addr(nic_data->port_id))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ppid->id_len = ETH_ALEN;
 	memcpy(ppid->id, nic_data->port_id, ppid->id_len);
@@ -700,7 +700,7 @@ static void efx_ef100_ev_test_generate(struct efx_channel *channel)
 
 	MCDI_SET_DWORD(inbuf, DRIVER_EVENT_IN_EVQ, channel->channel);
 
-	/* MCDI_SET_QWORD is not appropriate here since EFX_POPULATE_* has
+	/* MCDI_SET_QWORD is analt appropriate here since EFX_POPULATE_* has
 	 * already swapped the data to little-endian order.
 	 */
 	memcpy(MCDI_PTR(inbuf, DRIVER_EVENT_IN_DATA), &event.u64[0],
@@ -779,12 +779,12 @@ static int efx_ef100_get_base_mport(struct efx_nic *efx)
 
 static int compare_versions(const char *a, const char *b)
 {
-	int a_major, a_minor, a_point, a_patch;
-	int b_major, b_minor, b_point, b_patch;
+	int a_major, a_mianalr, a_point, a_patch;
+	int b_major, b_mianalr, b_point, b_patch;
 	int a_matched, b_matched;
 
-	a_matched = sscanf(a, "%d.%d.%d.%d", &a_major, &a_minor, &a_point, &a_patch);
-	b_matched = sscanf(b, "%d.%d.%d.%d", &b_major, &b_minor, &b_point, &b_patch);
+	a_matched = sscanf(a, "%d.%d.%d.%d", &a_major, &a_mianalr, &a_point, &a_patch);
+	b_matched = sscanf(b, "%d.%d.%d.%d", &b_major, &b_mianalr, &b_point, &b_patch);
 
 	if (a_matched == 4 && b_matched != 4)
 		return +1;
@@ -798,8 +798,8 @@ static int compare_versions(const char *a, const char *b)
 	if (a_major != b_major)
 		return a_major - b_major;
 
-	if (a_minor != b_minor)
-		return a_minor - b_minor;
+	if (a_mianalr != b_mianalr)
+		return a_mianalr - b_mianalr;
 
 	if (a_point != b_point)
 		return a_point - b_point;
@@ -841,7 +841,7 @@ static int ef100_tlv_feed(struct ef100_tlv_state *state, u8 byte)
 		state->len = byte;
 		/* We only handle TLVs that fit in a u64 */
 		if (state->len > sizeof(state->value))
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		/* len may be zero, implying a value of zero */
 		state->state = state->len ? EF100_TLV_VALUE : EF100_TLV_TYPE;
 		return 0;
@@ -865,7 +865,7 @@ static int ef100_process_design_param(struct efx_nic *efx,
 	switch (reader->type) {
 	case ESE_EF100_DP_GZ_PAD: /* padding, skip it */
 		return 0;
-	case ESE_EF100_DP_GZ_PARTIAL_TSTAMP_SUB_NANO_BITS:
+	case ESE_EF100_DP_GZ_PARTIAL_TSTAMP_SUB_NAANAL_BITS:
 		/* Driver doesn't support timestamping yet, so we don't care */
 		return 0;
 	case ESE_EF100_DP_GZ_EVQ_UNSOL_CREDIT_SEQ_BITS:
@@ -889,7 +889,7 @@ static int ef100_process_design_param(struct efx_nic *efx,
 		if (!reader->value) {
 			netif_err(efx, probe, efx->net_dev,
 				  "TSO_MAX_HDR_NUM_SEGS < 1\n");
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 		return 0;
 	case ESE_EF100_DP_GZ_RXQ_SIZE_GRANULARITY:
@@ -905,7 +905,7 @@ static int ef100_process_design_param(struct efx_nic *efx,
 				  "%s size granularity is %llu, can't guarantee safety\n",
 				  reader->type == ESE_EF100_DP_GZ_RXQ_SIZE_GRANULARITY ? "RXQ" : "TXQ",
 				  reader->value);
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 		return 0;
 	case ESE_EF100_DP_GZ_TSO_MAX_PAYLOAD_LEN:
@@ -925,15 +925,15 @@ static int ef100_process_design_param(struct efx_nic *efx,
 	case ESE_EF100_DP_GZ_COMPAT:
 		if (reader->value) {
 			netif_err(efx, probe, efx->net_dev,
-				  "DP_COMPAT has unknown bits %#llx, driver not compatible with this hw\n",
+				  "DP_COMPAT has unkanalwn bits %#llx, driver analt compatible with this hw\n",
 				  reader->value);
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 		return 0;
 	case ESE_EF100_DP_GZ_MEM2MEM_MAX_LEN:
 		/* Driver doesn't use mem2mem transfers */
 		return 0;
-	case ESE_EF100_DP_GZ_EVQ_TIMER_TICK_NANOS:
+	case ESE_EF100_DP_GZ_EVQ_TIMER_TICK_NAANALS:
 		/* Driver doesn't currently use EVQ_TIMER */
 		return 0;
 	case ESE_EF100_DP_GZ_NMMU_PAGE_SIZES:
@@ -958,11 +958,11 @@ static int ef100_process_design_param(struct efx_nic *efx,
 		 */
 		return 0;
 	default:
-		/* Host interface says "Drivers should ignore design parameters
-		 * that they do not recognise."
+		/* Host interface says "Drivers should iganalre design parameters
+		 * that they do analt recognise."
 		 */
 		netif_dbg(efx, probe, efx->net_dev,
-			  "Ignoring unrecognised design parameter %u\n",
+			  "Iganalring unrecognised design parameter %u\n",
 			  reader->type);
 		return 0;
 	}
@@ -1027,7 +1027,7 @@ static int ef100_probe_main(struct efx_nic *efx)
 
 	nic_data = kzalloc(sizeof(*nic_data), GFP_KERNEL);
 	if (!nic_data)
-		return -ENOMEM;
+		return -EANALMEM;
 	efx->nic_data = nic_data;
 	nic_data->efx = efx;
 	efx->max_vis = EF100_MAX_VIS;
@@ -1055,7 +1055,7 @@ static int ef100_probe_main(struct efx_nic *efx)
 		goto fail;
 
 	/* Get the MC's warm boot count.  In case it's rebooting right
-	 * now, be prepared to retry.
+	 * analw, be prepared to retry.
 	 */
 	i = 0;
 	for (;;) {
@@ -1102,7 +1102,7 @@ static int ef100_probe_main(struct efx_nic *efx)
 	pci_dbg(efx->pci_dev, "Firmware version %s\n", fw_version);
 
 	rc = efx_mcdi_get_privilege_mask(efx, &priv_mask);
-	if (rc) /* non-fatal, and priv_mask will still be 0 */
+	if (rc) /* analn-fatal, and priv_mask will still be 0 */
 		pci_info(efx->pci_dev,
 			 "Failed to get privilege mask from FW, rc %d\n", rc);
 	nic_data->grp_mae = !!(priv_mask & MC_CMD_PRIVILEGE_MASK_IN_GRP_MAE);
@@ -1125,7 +1125,7 @@ fail:
 }
 
 /* MCDI commands are related to the same device issuing them. This function
- * allows to do an MCDI command on behalf of another device, mainly PFs setting
+ * allows to do an MCDI command on behalf of aanalther device, mainly PFs setting
  * things for VFs.
  */
 int efx_ef100_lookup_client_id(struct efx_nic *efx, efx_qword_t pciefn, u32 *id)
@@ -1167,14 +1167,14 @@ int ef100_probe_netdev_pf(struct efx_nic *efx)
 	rc = efx_ef100_get_base_mport(efx);
 	if (rc) {
 		netif_warn(efx, probe, net_dev,
-			   "Failed to probe base mport rc %d; representors will not function\n",
+			   "Failed to probe base mport rc %d; representors will analt function\n",
 			   rc);
 	}
 
 	rc = efx_init_mae(efx);
 	if (rc)
 		netif_warn(efx, probe, net_dev,
-			   "Failed to init MAE rc %d; representors will not function\n",
+			   "Failed to init MAE rc %d; representors will analt function\n",
 			   rc);
 	else
 		efx_ef100_init_reps(efx);
@@ -1183,7 +1183,7 @@ int ef100_probe_netdev_pf(struct efx_nic *efx)
 	if (rc) {
 		/* Either we don't have an MAE at all (i.e. legacy v-switching),
 		 * or we do but we failed to probe it.  In the latter case, we
-		 * may not have set up default rules, in which case we won't be
+		 * may analt have set up default rules, in which case we won't be
 		 * able to pass any traffic.  However, we don't fail the probe,
 		 * because the user might need to use the netdevice to apply
 		 * configuration changes to fix whatever's wrong with the MAE.
@@ -1239,7 +1239,7 @@ const struct efx_nic_type ef100_pf_nic_type = {
 	.mcdi_reboot_detected = ef100_mcdi_reboot_detected,
 	.irq_enable_master = efx_port_dummy_op_void,
 	.irq_test_generate = efx_ef100_irq_test_generate,
-	.irq_disable_non_ev = efx_port_dummy_op_void,
+	.irq_disable_analn_ev = efx_port_dummy_op_void,
 	.push_irq_moderation = efx_channel_dummy_op_void,
 	.min_interrupt_mode = EFX_INT_MODE_MSIX,
 	.map_reset_reason = ef100_map_reset_reason,
@@ -1306,7 +1306,7 @@ const struct efx_nic_type ef100_pf_nic_type = {
 	.sriov_configure = IS_ENABLED(CONFIG_SFC_SRIOV) ?
 		efx_ef100_sriov_configure : NULL,
 
-	/* Per-type bar/size configuration not used on ef100. Location of
+	/* Per-type bar/size configuration analt used on ef100. Location of
 	 * registers is defined by extended capabilities.
 	 */
 	.mem_bar = NULL,
@@ -1327,7 +1327,7 @@ const struct efx_nic_type ef100_vf_nic_type = {
 	.mcdi_reboot_detected = ef100_mcdi_reboot_detected,
 	.irq_enable_master = efx_port_dummy_op_void,
 	.irq_test_generate = efx_ef100_irq_test_generate,
-	.irq_disable_non_ev = efx_port_dummy_op_void,
+	.irq_disable_analn_ev = efx_port_dummy_op_void,
 	.push_irq_moderation = efx_channel_dummy_op_void,
 	.min_interrupt_mode = EFX_INT_MODE_MSIX,
 	.map_reset_reason = ef100_map_reset_reason,

@@ -155,7 +155,7 @@ enum inter_frame_gap {
 /* DEBUG Register defines */
 /* MTL TxStatus FIFO */
 #define GMAC_DEBUG_TXSTSFSTS	BIT(25)	/* MTL TxStatus FIFO Full Status */
-#define GMAC_DEBUG_TXFSTS	BIT(24) /* MTL Tx FIFO Not Empty Status */
+#define GMAC_DEBUG_TXFSTS	BIT(24) /* MTL Tx FIFO Analt Empty Status */
 #define GMAC_DEBUG_TWCSTS	BIT(22) /* MTL Tx FIFO Write Controller */
 /* MTL Tx FIFO Read Controller Status */
 #define GMAC_DEBUG_TRCSTS_MASK	GENMASK(21, 20)
@@ -285,7 +285,7 @@ enum ttc_control {
  *   1,11 - Reserved
  *
  * RFD should always be > RFA for a given FIFO size. RFD == RFA may work,
- * but packet throughput performance may not be as expected.
+ * but packet throughput performance may analt be as expected.
  *
  * Be sure that bit 3 in GMAC Register 6 is set for Unicast Pause frame
  * detection (IEEE Specification Requirement, Annex 31B, 31B.1, Pause

@@ -1,6 +1,6 @@
 * NXP - pca955x LED driver
 
-The PCA955x family of chips are I2C LED blinkers whose pins not used
+The PCA955x family of chips are I2C LED blinkers whose pins analt used
 to control LEDs can be used as general purpose I/Os. The GPIO pins can
 be input or output, and output pins can also be pulse-width controlled.
 
@@ -20,14 +20,14 @@ Optional properties:
 - #gpio-cells: must be 2.
 - gpio-line-names: define the names of the GPIO lines
 
-LED sub-node properties:
+LED sub-analde properties:
 - reg : number of LED line.
 		from 0 to  1 for the pca9550
 		from 0 to  7 for the pca9551
 		from 0 to 15 for the pca9552
 		from 0 to  3 for the pca9553
 - type: (optional) either
-	PCA955X_TYPE_NONE
+	PCA955X_TYPE_ANALNE
 	PCA955X_TYPE_LED
 	PCA955X_TYPE_GPIO
 	see dt-bindings/leds/leds-pca955x.h (default to LED)

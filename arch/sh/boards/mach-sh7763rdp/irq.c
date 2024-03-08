@@ -5,7 +5,7 @@
  * Renesas Solutions SH7763RDP Support.
  *
  * Copyright (C) 2008 Renesas Solutions Corp.
- * Copyright (C) 2008  Nobuhiro Iwamatsu <iwamatsu.nobuhiro@renesas.com>
+ * Copyright (C) 2008  Analbuhiro Iwamatsu <iwamatsu.analbuhiro@renesas.com>
  */
 
 #include <linux/init.h>

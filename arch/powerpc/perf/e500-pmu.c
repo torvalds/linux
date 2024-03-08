@@ -28,12 +28,12 @@ static int e500_generic_events[] = {
 
 /*
  * Table of generalized cache-related events.
- * 0 means not supported, -1 means nonsensical, other values
+ * 0 means analt supported, -1 means analnsensical, other values
  * are event codes.
  */
 static int e500_cache_events[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
 	/*
-	 * D-cache misses are not split into read/write/prefetch;
+	 * D-cache misses are analt split into read/write/prefetch;
 	 * use raw event 41.
 	 */
 	[C(L1D)] = {		/* 	RESULT_ACCESS	RESULT_MISS */
@@ -47,9 +47,9 @@ static int e500_cache_events[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
 		[C(OP_PREFETCH)] = {	0,		0	},
 	},
 	/*
-	 * Assuming LL means L2, it's not a good match for this model.
+	 * Assuming LL means L2, it's analt a good match for this model.
 	 * It allocates only on L1 castout or explicit prefetch, and
-	 * does not have separate read/write events (but it does have
+	 * does analt have separate read/write events (but it does have
 	 * separate instruction/data events).
 	 */
 	[C(LL)] = {		/* 	RESULT_ACCESS	RESULT_MISS */
@@ -59,7 +59,7 @@ static int e500_cache_events[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
 	},
 	/*
 	 * There are data/instruction MMU misses, but that's a miss on
-	 * the chip's internal level-one TLB which is probably not
+	 * the chip's internal level-one TLB which is probably analt
 	 * what the user wants.  Instead, unified level-two TLB misses
 	 * are reported here.
 	 */
@@ -73,7 +73,7 @@ static int e500_cache_events[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
 		[C(OP_WRITE)] = {	-1,		-1	},
 		[C(OP_PREFETCH)] = {	-1,		-1	},
 	},
-	[C(NODE)] = {		/* 	RESULT_ACCESS	RESULT_MISS */
+	[C(ANALDE)] = {		/* 	RESULT_ACCESS	RESULT_MISS */
 		[C(OP_READ)] = {	-1,		-1 	},
 		[C(OP_WRITE)] = {	-1,		-1	},
 		[C(OP_PREFETCH)] = {	-1,		-1	},
@@ -99,7 +99,7 @@ static u64 e500_xlate_event(u64 event_id)
 		       (FSL_EMB_EVENT_THRESHMUL | FSL_EMB_EVENT_THRESH);
 	} else if (event_id &
 	           (FSL_EMB_EVENT_THRESHMUL | FSL_EMB_EVENT_THRESH)) {
-		/* Threshold requested on non-threshold event */
+		/* Threshold requested on analn-threshold event */
 		return 0;
 	}
 
@@ -125,7 +125,7 @@ static int init_e500_pmu(void)
 		num_events = 256;
 	/* e500 */
 	else if (PVR_VER(pvr) != PVR_VER_E500V1 && PVR_VER(pvr) != PVR_VER_E500V2)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return register_fsl_emb_pmu(&e500_pmu);
 }

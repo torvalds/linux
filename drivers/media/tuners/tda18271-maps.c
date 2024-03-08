@@ -1076,7 +1076,7 @@ int tda18271_lookup_pll_map(struct dvb_frontend *fe,
 	}
 
 	if (!map) {
-		tda_warn("%s map is not set!\n", map_name);
+		tda_warn("%s map is analt set!\n", map_name);
 		ret = -EINVAL;
 		goto fail;
 	}
@@ -1147,7 +1147,7 @@ int tda18271_lookup_map(struct dvb_frontend *fe,
 	}
 
 	if (!map) {
-		tda_warn("%s map is not set!\n", map_name);
+		tda_warn("%s map is analt set!\n", map_name);
 		ret = -EINVAL;
 		goto fail;
 	}

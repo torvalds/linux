@@ -23,7 +23,7 @@ static const guid_t apple_prp_guid =
  * to retrieve the properties.  They are marshalled up in a single package as
  * alternating key/value elements, unlike _DSD which stores them as a package
  * of 2-element packages.  Convert to _DSD format and make them available under
- * the primary fwnode.
+ * the primary fwanalde.
  */
 void acpi_extract_apple_properties(struct acpi_device *adev)
 {

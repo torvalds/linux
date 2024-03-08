@@ -16,7 +16,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/ioport.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
@@ -78,7 +78,7 @@ struct locomo_dev_info {
 	const char *	name;
 };
 
-/* All the locomo devices.  If offset is non-zero, the mapbase for the
+/* All the locomo devices.  If offset is analn-zero, the mapbase for the
  * locomo_dev will be set to the chip base plus offset.  If offset is
  * zero, then the mapbase for the locomo_dev will be set to zero.  An
  * offset of zero means the device only uses GPIOs or other helper
@@ -141,7 +141,7 @@ static void locomo_handler(struct irq_desc *desc)
 	struct locomo *lchip = irq_desc_get_handler_data(desc);
 	int req, i;
 
-	/* Acknowledge the parent IRQ */
+	/* Ackanalwledge the parent IRQ */
 	desc->irq_data.chip->irq_ack(&desc->irq_data);
 
 	/* check why this interrupt was generated */
@@ -204,7 +204,7 @@ static void locomo_setup_irq(struct locomo *lchip)
 	for ( ; irq <= lchip->irq_base + 3; irq++) {
 		irq_set_chip_and_handler(irq, &locomo_chip, handle_level_irq);
 		irq_set_chip_data(irq, lchip);
-		irq_clear_status_flags(irq, IRQ_NOREQUEST | IRQ_NOPROBE);
+		irq_clear_status_flags(irq, IRQ_ANALREQUEST | IRQ_ANALPROBE);
 	}
 }
 
@@ -224,7 +224,7 @@ locomo_init_one_child(struct locomo *lchip, struct locomo_dev_info *info)
 
 	dev = kzalloc(sizeof(struct locomo_dev), GFP_KERNEL);
 	if (!dev) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -250,8 +250,8 @@ locomo_init_one_child(struct locomo *lchip, struct locomo_dev_info *info)
 		dev->mapbase = 0;
 	dev->length = info->length;
 
-	dev->irq[0] = (lchip->irq_base == NO_IRQ) ?
-			NO_IRQ : lchip->irq_base + info->irq[0];
+	dev->irq[0] = (lchip->irq_base == ANAL_IRQ) ?
+			ANAL_IRQ : lchip->irq_base + info->irq[0];
 
 	ret = device_register(&dev->dev);
 	if (ret) {
@@ -279,7 +279,7 @@ static int locomo_suspend(struct platform_device *dev, pm_message_t state)
 
 	save = kmalloc(sizeof(struct locomo_save_data), GFP_KERNEL);
 	if (!save)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	lchip->saved_state = save;
 
@@ -303,7 +303,7 @@ static int locomo_suspend(struct platform_device *dev, pm_message_t state)
 	if ((locomo_readl(lchip->base + LOCOMO_LED + LOCOMO_LPT0) & 0x88) && (locomo_readl(lchip->base + LOCOMO_LED + LOCOMO_LPT1) & 0x88))
 		locomo_writel(0x00, lchip->base + LOCOMO_C32K); 	/* CLK32 off */
 	else
-		/* 18MHz already enabled, so no wait */
+		/* 18MHz already enabled, so anal wait */
 		locomo_writel(0xc1, lchip->base + LOCOMO_C32K); 	/* CLK32 on */
 
 	locomo_writel(0x00, lchip->base + LOCOMO_TADC);		/* 18MHz clock off*/
@@ -358,11 +358,11 @@ __locomo_probe(struct device *me, struct resource *mem, int irq)
 	struct locomo_platform_data *pdata = me->platform_data;
 	struct locomo *lchip;
 	unsigned long r;
-	int i, ret = -ENODEV;
+	int i, ret = -EANALDEV;
 
 	lchip = kzalloc(sizeof(struct locomo), GFP_KERNEL);
 	if (!lchip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&lchip->lock);
 
@@ -371,7 +371,7 @@ __locomo_probe(struct device *me, struct resource *mem, int irq)
 
 	lchip->phys = mem->start;
 	lchip->irq = irq;
-	lchip->irq_base = (pdata) ? pdata->irq_base : NO_IRQ;
+	lchip->irq_base = (pdata) ? pdata->irq_base : ANAL_IRQ;
 
 	/*
 	 * Map the whole region.  This also maps the
@@ -379,7 +379,7 @@ __locomo_probe(struct device *me, struct resource *mem, int irq)
 	 */
 	lchip->base = ioremap(mem->start, PAGE_SIZE);
 	if (!lchip->base) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -438,7 +438,7 @@ __locomo_probe(struct device *me, struct resource *mem, int irq)
 	 * The interrupt controller must be initialised before any
 	 * other device to ensure that the interrupts are available.
 	 */
-	if (lchip->irq != NO_IRQ && lchip->irq_base != NO_IRQ)
+	if (lchip->irq != ANAL_IRQ && lchip->irq_base != ANAL_IRQ)
 		locomo_setup_irq(lchip);
 
 	for (i = 0; i < ARRAY_SIZE(locomo_devices); i++)
@@ -460,7 +460,7 @@ static void __locomo_remove(struct locomo *lchip)
 {
 	device_for_each_child(lchip->dev, NULL, locomo_remove_child);
 
-	if (lchip->irq != NO_IRQ) {
+	if (lchip->irq != ANAL_IRQ) {
 		irq_set_chained_handler_and_data(lchip->irq, NULL, NULL);
 	}
 
@@ -476,11 +476,11 @@ static void __locomo_remove(struct locomo *lchip)
  *	before any other locomo-specific code.
  *
  *	Returns:
- *	* %-EINVAL	- device's IORESOURCE_MEM not found
- *	* %-ENXIO	- could not allocate an IRQ for the device
- *	* %-ENODEV	- device not found.
+ *	* %-EINVAL	- device's IORESOURCE_MEM analt found
+ *	* %-ENXIO	- could analt allocate an IRQ for the device
+ *	* %-EANALDEV	- device analt found.
  *	* %-EBUSY	- physical address already marked in-use.
- *	* %-ENOMEM	- could not allocate or iomap memory.
+ *	* %-EANALMEM	- could analt allocate or iomap memory.
  *	* %0		- successful.
  */
 static int locomo_probe(struct platform_device *dev)
@@ -509,7 +509,7 @@ static void locomo_remove(struct platform_device *dev)
 }
 
 /*
- *	Not sure if this should be on the system bus or not yet.
+ *	Analt sure if this should be on the system bus or analt yet.
  *	We really want some way to register a system device at
  *	the per-machine level, and then have this driver pick
  *	up the registered devices.
@@ -571,7 +571,7 @@ int locomo_gpio_read_level(struct device *dev, unsigned int bits)
 	unsigned int ret;
 
 	if (!lchip)
-		return -ENODEV;
+		return -EANALDEV;
 
 	spin_lock_irqsave(&lchip->lock, flags);
 	ret = locomo_readl(lchip->base + LOCOMO_GPL);
@@ -589,7 +589,7 @@ int locomo_gpio_read_output(struct device *dev, unsigned int bits)
 	unsigned int ret;
 
 	if (!lchip)
-		return -ENODEV;
+		return -EANALDEV;
 
 	spin_lock_irqsave(&lchip->lock, flags);
 	ret = locomo_readl(lchip->base + LOCOMO_GPO);
@@ -828,7 +828,7 @@ static int locomo_bus_probe(struct device *dev)
 {
 	struct locomo_dev *ldev = LOCOMO_DEV(dev);
 	struct locomo_driver *drv = LOCOMO_DRV(dev->driver);
-	int ret = -ENODEV;
+	int ret = -EANALDEV;
 
 	if (drv->probe)
 		ret = drv->probe(ldev);

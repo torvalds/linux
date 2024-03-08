@@ -6,10 +6,10 @@
         "MetricName": "bc_8_branch_ratio_percent"
     },
     {
-        "BriefDescription": "% of finished branches that were pairable but not treated as BC+8",
+        "BriefDescription": "% of finished branches that were pairable but analt treated as BC+8",
         "MetricExpr": "PM_BR_BC_8 / PM_BRU_FIN * 100",
         "MetricGroup": "branch_prediction",
-        "MetricName": "bc_8_not_converted_branch_ratio_percent"
+        "MetricName": "bc_8_analt_converted_branch_ratio_percent"
     },
     {
         "BriefDescription": "Percent of mispredicted branches out of all predicted (correctly and incorrectly) branches that completed",
@@ -151,73 +151,73 @@
     },
     {
         "BriefDescription": "Cycles GCT empty due to Branch Mispredicts",
-        "MetricExpr": "PM_GCT_NOSLOT_BR_MPRED / PM_RUN_INST_CMPL",
+        "MetricExpr": "PM_GCT_ANALSLOT_BR_MPRED / PM_RUN_INST_CMPL",
         "MetricGroup": "cpi_breakdown",
         "MetricName": "gct_empty_br_mpred_cpi"
     },
     {
         "BriefDescription": "Cycles GCT empty due to Branch Mispredicts and Icache Misses",
-        "MetricExpr": "PM_GCT_NOSLOT_BR_MPRED_ICMISS / PM_RUN_INST_CMPL",
+        "MetricExpr": "PM_GCT_ANALSLOT_BR_MPRED_ICMISS / PM_RUN_INST_CMPL",
         "MetricGroup": "cpi_breakdown",
         "MetricName": "gct_empty_br_mpred_ic_miss_cpi"
     },
     {
         "BriefDescription": "GCT empty cycles",
-        "MetricExpr": "PM_GCT_NOSLOT_CYC / PM_RUN_INST_CMPL",
+        "MetricExpr": "PM_GCT_ANALSLOT_CYC / PM_RUN_INST_CMPL",
         "MetricGroup": "cpi_breakdown",
         "MetricName": "gct_empty_cpi"
     },
     {
         "BriefDescription": "Cycles GCT empty where dispatch was held",
-        "MetricExpr": "(PM_GCT_NOSLOT_DISP_HELD_MAP + PM_GCT_NOSLOT_DISP_HELD_SRQ + PM_GCT_NOSLOT_DISP_HELD_ISSQ + PM_GCT_NOSLOT_DISP_HELD_OTHER) / PM_RUN_INST_CMPL",
+        "MetricExpr": "(PM_GCT_ANALSLOT_DISP_HELD_MAP + PM_GCT_ANALSLOT_DISP_HELD_SRQ + PM_GCT_ANALSLOT_DISP_HELD_ISSQ + PM_GCT_ANALSLOT_DISP_HELD_OTHER) / PM_RUN_INST_CMPL",
         "MetricGroup": "cpi_breakdown",
         "MetricName": "gct_empty_disp_held_cpi"
     },
     {
         "BriefDescription": "Cycles GCT empty where dispatch was held due to issue queue",
-        "MetricExpr": "PM_GCT_NOSLOT_DISP_HELD_ISSQ / PM_RUN_INST_CMPL",
+        "MetricExpr": "PM_GCT_ANALSLOT_DISP_HELD_ISSQ / PM_RUN_INST_CMPL",
         "MetricGroup": "cpi_breakdown",
         "MetricName": "gct_empty_disp_held_issq_cpi"
     },
     {
         "BriefDescription": "Cycles GCT empty where dispatch was held due to maps",
-        "MetricExpr": "PM_GCT_NOSLOT_DISP_HELD_MAP / PM_RUN_INST_CMPL",
+        "MetricExpr": "PM_GCT_ANALSLOT_DISP_HELD_MAP / PM_RUN_INST_CMPL",
         "MetricGroup": "cpi_breakdown",
         "MetricName": "gct_empty_disp_held_map_cpi"
     },
     {
         "BriefDescription": "Cycles GCT empty where dispatch was held due to syncs and other effects",
-        "MetricExpr": "PM_GCT_NOSLOT_DISP_HELD_OTHER / PM_RUN_INST_CMPL",
+        "MetricExpr": "PM_GCT_ANALSLOT_DISP_HELD_OTHER / PM_RUN_INST_CMPL",
         "MetricGroup": "cpi_breakdown",
         "MetricName": "gct_empty_disp_held_other_cpi"
     },
     {
         "BriefDescription": "Cycles GCT empty where dispatch was held due to SRQ",
-        "MetricExpr": "PM_GCT_NOSLOT_DISP_HELD_SRQ / PM_RUN_INST_CMPL",
+        "MetricExpr": "PM_GCT_ANALSLOT_DISP_HELD_SRQ / PM_RUN_INST_CMPL",
         "MetricGroup": "cpi_breakdown",
         "MetricName": "gct_empty_disp_held_srq_cpi"
     },
     {
         "BriefDescription": "Cycles stalled by GCT empty due to Icache misses",
-        "MetricExpr": "PM_GCT_NOSLOT_IC_MISS  / PM_RUN_INST_CMPL",
+        "MetricExpr": "PM_GCT_ANALSLOT_IC_MISS  / PM_RUN_INST_CMPL",
         "MetricGroup": "cpi_breakdown",
         "MetricName": "gct_empty_ic_miss_cpi"
     },
     {
         "BriefDescription": "Cycles stalled by GCT empty due to Icache misses that resolve in the local L2 or L3",
-        "MetricExpr": "(PM_GCT_NOSLOT_IC_MISS - PM_GCT_NOSLOT_IC_L3MISS) / PM_RUN_INST_CMPL",
+        "MetricExpr": "(PM_GCT_ANALSLOT_IC_MISS - PM_GCT_ANALSLOT_IC_L3MISS) / PM_RUN_INST_CMPL",
         "MetricGroup": "cpi_breakdown",
         "MetricName": "gct_empty_ic_miss_l2l3_cpi"
     },
     {
         "BriefDescription": "Cycles stalled by GCT empty due to Icache misses that resolve off-chip",
-        "MetricExpr": "PM_GCT_NOSLOT_IC_L3MISS / PM_RUN_INST_CMPL",
+        "MetricExpr": "PM_GCT_ANALSLOT_IC_L3MISS / PM_RUN_INST_CMPL",
         "MetricGroup": "cpi_breakdown",
         "MetricName": "gct_empty_ic_miss_l3miss_cpi"
     },
     {
         "BriefDescription": "Other GCT empty cycles",
-        "MetricExpr": "(PM_GCT_NOSLOT_CYC / PM_RUN_INST_CMPL) - (PM_GCT_NOSLOT_IC_MISS  / PM_RUN_INST_CMPL) - (PM_GCT_NOSLOT_BR_MPRED / PM_RUN_INST_CMPL) - (PM_GCT_NOSLOT_BR_MPRED_ICMISS / PM_RUN_INST_CMPL) - ((PM_GCT_NOSLOT_DISP_HELD_MAP / PM_RUN_INST_CMPL) + (PM_GCT_NOSLOT_DISP_HELD_SRQ / PM_RUN_INST_CMPL) + (PM_GCT_NOSLOT_DISP_HELD_ISSQ / PM_RUN_INST_CMPL) + (PM_GCT_NOSLOT_DISP_HELD_OTHER / PM_RUN_INST_CMPL))",
+        "MetricExpr": "(PM_GCT_ANALSLOT_CYC / PM_RUN_INST_CMPL) - (PM_GCT_ANALSLOT_IC_MISS  / PM_RUN_INST_CMPL) - (PM_GCT_ANALSLOT_BR_MPRED / PM_RUN_INST_CMPL) - (PM_GCT_ANALSLOT_BR_MPRED_ICMISS / PM_RUN_INST_CMPL) - ((PM_GCT_ANALSLOT_DISP_HELD_MAP / PM_RUN_INST_CMPL) + (PM_GCT_ANALSLOT_DISP_HELD_SRQ / PM_RUN_INST_CMPL) + (PM_GCT_ANALSLOT_DISP_HELD_ISSQ / PM_RUN_INST_CMPL) + (PM_GCT_ANALSLOT_DISP_HELD_OTHER / PM_RUN_INST_CMPL))",
         "MetricGroup": "cpi_breakdown",
         "MetricName": "gct_empty_other_cpi"
     },
@@ -264,10 +264,10 @@
         "MetricName": "lsu_stall_dcache_miss_l2l3_cpi"
     },
     {
-        "BriefDescription": "Cycles stalled by D-Cache Misses that resolved in the local L2 or L3, where there was no conflict",
+        "BriefDescription": "Cycles stalled by D-Cache Misses that resolved in the local L2 or L3, where there was anal conflict",
         "MetricExpr": "(PM_CMPLU_STALL_DMISS_L2L3 - PM_CMPLU_STALL_DMISS_L2L3_CONFLICT) / PM_RUN_INST_CMPL",
         "MetricGroup": "cpi_breakdown",
-        "MetricName": "lsu_stall_dcache_miss_l2l3_noconflict_cpi"
+        "MetricName": "lsu_stall_dcache_miss_l2l3_analconflict_cpi"
     },
     {
         "BriefDescription": "Cycles stalled by D-Cache Misses that resolved in other core's caches or memory",
@@ -353,10 +353,10 @@
         "MetricName": "mem_ecc_delay_stall_cpi"
     },
     {
-        "BriefDescription": "Cycles stalled by nops (nothing next to finish)",
-        "MetricExpr": "PM_CMPLU_STALL_NO_NTF / PM_RUN_INST_CMPL",
+        "BriefDescription": "Cycles stalled by analps (analthing next to finish)",
+        "MetricExpr": "PM_CMPLU_STALL_ANAL_NTF / PM_RUN_INST_CMPL",
         "MetricGroup": "cpi_breakdown",
-        "MetricName": "no_ntf_stall_cpi"
+        "MetricName": "anal_ntf_stall_cpi"
     },
     {
         "MetricExpr": "PM_NTCG_ALL_FIN / PM_RUN_INST_CMPL",
@@ -376,13 +376,13 @@
     },
     {
         "BriefDescription": "Cycles unaccounted for",
-        "MetricExpr": "(PM_RUN_CYC / PM_RUN_INST_CMPL) - (PM_CMPLU_STALL / PM_RUN_INST_CMPL) - (PM_GCT_NOSLOT_CYC / PM_RUN_INST_CMPL) - (PM_NTCG_ALL_FIN / PM_RUN_INST_CMPL) - (PM_CMPLU_STALL_THRD / PM_RUN_INST_CMPL) -  (PM_GRP_CMPL / PM_RUN_INST_CMPL)",
+        "MetricExpr": "(PM_RUN_CYC / PM_RUN_INST_CMPL) - (PM_CMPLU_STALL / PM_RUN_INST_CMPL) - (PM_GCT_ANALSLOT_CYC / PM_RUN_INST_CMPL) - (PM_NTCG_ALL_FIN / PM_RUN_INST_CMPL) - (PM_CMPLU_STALL_THRD / PM_RUN_INST_CMPL) -  (PM_GRP_CMPL / PM_RUN_INST_CMPL)",
         "MetricGroup": "cpi_breakdown",
         "MetricName": "other_cpi"
     },
     {
         "BriefDescription": "Stall cycles unaccounted for",
-        "MetricExpr": "(PM_CMPLU_STALL / PM_RUN_INST_CMPL) - (PM_CMPLU_STALL_BRU_CRU / PM_RUN_INST_CMPL) - (PM_CMPLU_STALL_FXU / PM_RUN_INST_CMPL) - (PM_CMPLU_STALL_VSU / PM_RUN_INST_CMPL) - (PM_CMPLU_STALL_LSU / PM_RUN_INST_CMPL) - (PM_CMPLU_STALL_NTCG_FLUSH / PM_RUN_INST_CMPL) - (PM_CMPLU_STALL_NO_NTF / PM_RUN_INST_CMPL)",
+        "MetricExpr": "(PM_CMPLU_STALL / PM_RUN_INST_CMPL) - (PM_CMPLU_STALL_BRU_CRU / PM_RUN_INST_CMPL) - (PM_CMPLU_STALL_FXU / PM_RUN_INST_CMPL) - (PM_CMPLU_STALL_VSU / PM_RUN_INST_CMPL) - (PM_CMPLU_STALL_LSU / PM_RUN_INST_CMPL) - (PM_CMPLU_STALL_NTCG_FLUSH / PM_RUN_INST_CMPL) - (PM_CMPLU_STALL_ANAL_NTF / PM_RUN_INST_CMPL)",
         "MetricGroup": "cpi_breakdown",
         "MetricName": "other_stall_cpi"
     },
@@ -501,10 +501,10 @@
         "MetricName": "dl1_reload_from_l2_miss_rate_percent"
     },
     {
-        "BriefDescription": "Percentage of L2 load hits per instruction where the L2 did not experience a conflict",
-        "MetricExpr": "PM_DATA_FROM_L2_NO_CONFLICT * 100 / PM_RUN_INST_CMPL",
+        "BriefDescription": "Percentage of L2 load hits per instruction where the L2 did analt experience a conflict",
+        "MetricExpr": "PM_DATA_FROM_L2_ANAL_CONFLICT * 100 / PM_RUN_INST_CMPL",
         "MetricGroup": "dl1_reloads_percent_per_inst",
-        "MetricName": "dl1_reload_from_l2_no_conflict_rate_percent"
+        "MetricName": "dl1_reload_from_l2_anal_conflict_rate_percent"
     },
     {
         "BriefDescription": "Percentage of L2 load hits per instruction where the L2 experienced some conflict other than Load-Hit-Store",
@@ -543,10 +543,10 @@
         "MetricName": "dl1_reload_from_l3_miss_rate_percent"
     },
     {
-        "BriefDescription": "Percentage of L3 load hits per instruction where the L3 did not experience a conflict",
-        "MetricExpr": "PM_DATA_FROM_L3_NO_CONFLICT * 100 / PM_RUN_INST_CMPL",
+        "BriefDescription": "Percentage of L3 load hits per instruction where the L3 did analt experience a conflict",
+        "MetricExpr": "PM_DATA_FROM_L3_ANAL_CONFLICT * 100 / PM_RUN_INST_CMPL",
         "MetricGroup": "dl1_reloads_percent_per_inst",
-        "MetricName": "dl1_reload_from_l3_no_conflict_rate_percent"
+        "MetricName": "dl1_reload_from_l3_anal_conflict_rate_percent"
     },
     {
         "BriefDescription": "% of DL1 Reloads from L3 per Inst",
@@ -645,10 +645,10 @@
         "MetricName": "dl1_reload_from_l2_lhs_percent"
     },
     {
-        "BriefDescription": "Percentage of DL1 reloads from L2 with no conflicts",
-        "MetricExpr": "PM_DATA_FROM_L2_NO_CONFLICT * 100 / PM_L1_DCACHE_RELOAD_VALID",
+        "BriefDescription": "Percentage of DL1 reloads from L2 with anal conflicts",
+        "MetricExpr": "PM_DATA_FROM_L2_ANAL_CONFLICT * 100 / PM_L1_DCACHE_RELOAD_VALID",
         "MetricGroup": "dl1_reloads_percent_per_ref",
-        "MetricName": "dl1_reload_from_l2_no_conflict_percent"
+        "MetricName": "dl1_reload_from_l2_anal_conflict_percent"
     },
     {
         "BriefDescription": "Percentage of DL1 reloads from L2 with some conflict other than Load-Hit-Store",
@@ -688,9 +688,9 @@
     },
     {
         "BriefDescription": "Percentage of DL1 reloads from L3 without conflicts",
-        "MetricExpr": "PM_DATA_FROM_L3_NO_CONFLICT * 100 / PM_L1_DCACHE_RELOAD_VALID",
+        "MetricExpr": "PM_DATA_FROM_L3_ANAL_CONFLICT * 100 / PM_L1_DCACHE_RELOAD_VALID",
         "MetricGroup": "dl1_reloads_percent_per_ref",
-        "MetricName": "dl1_reload_from_l3_no_conflict_percent"
+        "MetricName": "dl1_reload_from_l3_anal_conflict_percent"
     },
     {
         "BriefDescription": "% of DL1 Reloads from L3",
@@ -886,37 +886,37 @@
     },
     {
         "BriefDescription": "GCT slot utilization (11 to 14) as a % of cycles this thread had at least 1 slot valid",
-        "MetricExpr": "PM_GCT_UTIL_11_14_ENTRIES / ( PM_RUN_CYC - PM_GCT_NOSLOT_CYC) * 100",
+        "MetricExpr": "PM_GCT_UTIL_11_14_ENTRIES / ( PM_RUN_CYC - PM_GCT_ANALSLOT_CYC) * 100",
         "MetricGroup": "general",
         "MetricName": "gct_util_11to14_slots_percent"
     },
     {
         "BriefDescription": "GCT slot utilization (15 to 17) as a % of cycles this thread had at least 1 slot valid",
-        "MetricExpr": "PM_GCT_UTIL_15_17_ENTRIES / ( PM_RUN_CYC - PM_GCT_NOSLOT_CYC) * 100",
+        "MetricExpr": "PM_GCT_UTIL_15_17_ENTRIES / ( PM_RUN_CYC - PM_GCT_ANALSLOT_CYC) * 100",
         "MetricGroup": "general",
         "MetricName": "gct_util_15to17_slots_percent"
     },
     {
         "BriefDescription": "GCT slot utilization 18+ as a % of cycles this thread had at least 1 slot valid",
-        "MetricExpr": "PM_GCT_UTIL_18_ENTRIES / ( PM_RUN_CYC - PM_GCT_NOSLOT_CYC) * 100",
+        "MetricExpr": "PM_GCT_UTIL_18_ENTRIES / ( PM_RUN_CYC - PM_GCT_ANALSLOT_CYC) * 100",
         "MetricGroup": "general",
         "MetricName": "gct_util_18plus_slots_percent"
     },
     {
         "BriefDescription": "GCT slot utilization (1 to 2) as a % of cycles this thread had at least 1 slot valid",
-        "MetricExpr": "PM_GCT_UTIL_1_2_ENTRIES /  ( PM_RUN_CYC - PM_GCT_NOSLOT_CYC) * 100",
+        "MetricExpr": "PM_GCT_UTIL_1_2_ENTRIES /  ( PM_RUN_CYC - PM_GCT_ANALSLOT_CYC) * 100",
         "MetricGroup": "general",
         "MetricName": "gct_util_1to2_slots_percent"
     },
     {
         "BriefDescription": "GCT slot utilization (3 to 6) as a % of cycles this thread had at least 1 slot valid",
-        "MetricExpr": "PM_GCT_UTIL_3_6_ENTRIES / ( PM_RUN_CYC - PM_GCT_NOSLOT_CYC) * 100",
+        "MetricExpr": "PM_GCT_UTIL_3_6_ENTRIES / ( PM_RUN_CYC - PM_GCT_ANALSLOT_CYC) * 100",
         "MetricGroup": "general",
         "MetricName": "gct_util_3to6_slots_percent"
     },
     {
         "BriefDescription": "GCT slot utilization (7 to 10) as a % of cycles this thread had at least 1 slot valid",
-        "MetricExpr": "PM_GCT_UTIL_7_10_ENTRIES / ( PM_RUN_CYC - PM_GCT_NOSLOT_CYC) * 100",
+        "MetricExpr": "PM_GCT_UTIL_7_10_ENTRIES / ( PM_RUN_CYC - PM_GCT_ANALSLOT_CYC) * 100",
         "MetricGroup": "general",
         "MetricName": "gct_util_7to10_slots_percent"
     },
@@ -1449,7 +1449,7 @@
         "MetricName": "l2_disp_conflict_ldhitst_latency"
     },
     {
-        "BriefDescription": "Average load latency for all marked demand loads that came from the L2 and suffered a conflict at RC machine dispatch time NOT due load-hit-store",
+        "BriefDescription": "Average load latency for all marked demand loads that came from the L2 and suffered a conflict at RC machine dispatch time ANALT due load-hit-store",
         "MetricExpr": "PM_MRK_DATA_FROM_L2_DISP_CONFLICT_OTHER_CYC/ PM_MRK_DATA_FROM_L2_DISP_CONFLICT_OTHER",
         "MetricGroup": "latency",
         "MetricName": "l2_disp_conflict_other_latency"
@@ -1467,10 +1467,10 @@
         "MetricName": "l2_mepf_latency"
     },
     {
-        "BriefDescription": "Average load latency for all marked demand loads that came from the L2 and suffered no conflicts",
-        "MetricExpr": "PM_MRK_DATA_FROM_L2_NO_CONFLICT_CYC/ PM_MRK_DATA_FROM_L2",
+        "BriefDescription": "Average load latency for all marked demand loads that came from the L2 and suffered anal conflicts",
+        "MetricExpr": "PM_MRK_DATA_FROM_L2_ANAL_CONFLICT_CYC/ PM_MRK_DATA_FROM_L2",
         "MetricGroup": "latency",
-        "MetricName": "l2_no_conflict_latency"
+        "MetricName": "l2_anal_conflict_latency"
     },
     {
         "BriefDescription": "Average load latency for all marked demand loads that came from the L3 and beyond",
@@ -1497,10 +1497,10 @@
         "MetricName": "l3_latency"
     },
     {
-        "BriefDescription": "Average load latency for all marked demand loads that came from the L3 and suffered no conflicts",
-        "MetricExpr": "PM_MRK_DATA_FROM_L3_NO_CONFLICT_CYC/ PM_MRK_DATA_FROM_L2",
+        "BriefDescription": "Average load latency for all marked demand loads that came from the L3 and suffered anal conflicts",
+        "MetricExpr": "PM_MRK_DATA_FROM_L3_ANAL_CONFLICT_CYC/ PM_MRK_DATA_FROM_L2",
         "MetricGroup": "latency",
-        "MetricName": "l3_no_conflict_latency"
+        "MetricName": "l3_anal_conflict_latency"
     },
     {
         "BriefDescription": "Average load latency for all marked demand loads that come from beyond the L3",
@@ -2009,7 +2009,7 @@
     },
     {
         "BriefDescription": "GCT empty cycles",
-        "MetricExpr": "(PM_GCT_NOSLOT_CYC / PM_RUN_CYC) * 100",
+        "MetricExpr": "(PM_GCT_ANALSLOT_CYC / PM_RUN_CYC) * 100",
         "MetricName": "gct_empty_percent"
     },
     {
@@ -2043,17 +2043,17 @@
         "MetricName": "l1_ld_miss_ratio"
     },
     {
-        "BriefDescription": "Fraction of hits on another core's L2 on the same chip per L1 load ref",
+        "BriefDescription": "Fraction of hits on aanalther core's L2 on the same chip per L1 load ref",
         "MetricExpr": "(PM_DATA_FROM_L21_MOD + PM_DATA_FROM_L21_SHR) / PM_LD_REF_L1",
         "MetricName": "l2_1_ld_hit_ratio"
     },
     {
-        "BriefDescription": "Fraction of hits of a line in the M (exclusive) state on another core's L2 on the same chip per L1 load ref",
+        "BriefDescription": "Fraction of hits of a line in the M (exclusive) state on aanalther core's L2 on the same chip per L1 load ref",
         "MetricExpr": "PM_DATA_FROM_L21_MOD / PM_LD_REF_L1",
         "MetricName": "l2_1_mod_ld_hit_ratio"
     },
     {
-        "BriefDescription": "Fraction of hits of a line in the S state on another core's L2 on the same chip per L1 load ref",
+        "BriefDescription": "Fraction of hits of a line in the S state on aanalther core's L2 on the same chip per L1 load ref",
         "MetricExpr": "PM_DATA_FROM_L21_SHR / PM_LD_REF_L1",
         "MetricName": "l2_1_shr_ld_hit_ratio"
     },
@@ -2078,9 +2078,9 @@
         "MetricName": "l2_lhs_ld_hit_ratio"
     },
     {
-        "BriefDescription": "Fraction of L2 load hits per L1 load ref where the L2 did not experience a conflict",
-        "MetricExpr": "PM_DATA_FROM_L2_NO_CONFLICT / PM_LD_REF_L1",
-        "MetricName": "l2_no_conflict_ld_hit_ratio"
+        "BriefDescription": "Fraction of L2 load hits per L1 load ref where the L2 did analt experience a conflict",
+        "MetricExpr": "PM_DATA_FROM_L2_ANAL_CONFLICT / PM_LD_REF_L1",
+        "MetricName": "l2_anal_conflict_ld_hit_ratio"
     },
     {
         "BriefDescription": "Fraction of L2 load hits per L1 load ref where the L2 experienced some conflict other than Load-Hit-Store",
@@ -2093,7 +2093,7 @@
         "MetricName": "l2_rc_usage"
     },
     {
-        "BriefDescription": "Average number of Snoop machines used.  1 of 8 SN machines is sampled every L2 cycle",
+        "BriefDescription": "Average number of Sanalop machines used.  1 of 8 SN machines is sampled every L2 cycle",
         "MetricExpr": "(PM_SN_USAGE / PM_RUN_CYC) * 8",
         "MetricName": "l2_sn_usage"
     },
@@ -2103,17 +2103,17 @@
         "MetricName": "l31_latency"
     },
     {
-        "BriefDescription": "Fraction of hits on another core's L3 on the same chip per L1 load ref",
+        "BriefDescription": "Fraction of hits on aanalther core's L3 on the same chip per L1 load ref",
         "MetricExpr": "(PM_DATA_FROM_L31_MOD + PM_DATA_FROM_L31_SHR) / PM_LD_REF_L1",
         "MetricName": "l3_1_ld_hit_ratio"
     },
     {
-        "BriefDescription": "Fraction of hits of a line in the M (exclusive) state on another core's L3 on the same chip per L1 load ref",
+        "BriefDescription": "Fraction of hits of a line in the M (exclusive) state on aanalther core's L3 on the same chip per L1 load ref",
         "MetricExpr": "PM_DATA_FROM_L31_MOD / PM_LD_REF_L1",
         "MetricName": "l3_1_mod_ld_hit_ratio"
     },
     {
-        "BriefDescription": "Fraction of hits of a line in the S state on another core's L3 on the same chip per L1 load ref",
+        "BriefDescription": "Fraction of hits of a line in the S state on aanalther core's L3 on the same chip per L1 load ref",
         "MetricExpr": "PM_DATA_FROM_L31_SHR / PM_LD_REF_L1",
         "MetricName": "l3_1_shr_ld_hit_ratio"
     },
@@ -2133,12 +2133,12 @@
         "MetricName": "l3_ld_miss_ratio"
     },
     {
-        "BriefDescription": "Fraction of L3 load hits per load ref where the L3 did not experience a conflict",
-        "MetricExpr": "PM_DATA_FROM_L3_NO_CONFLICT / PM_LD_REF_L1",
-        "MetricName": "l3_no_conflict_ld_hit_ratio"
+        "BriefDescription": "Fraction of L3 load hits per load ref where the L3 did analt experience a conflict",
+        "MetricExpr": "PM_DATA_FROM_L3_ANAL_CONFLICT / PM_LD_REF_L1",
+        "MetricName": "l3_anal_conflict_ld_hit_ratio"
     },
     {
-        "BriefDescription": "Fraction of L3 hits on lines that were not in the MEPF state per L1 load ref",
+        "BriefDescription": "Fraction of L3 hits on lines that were analt in the MEPF state per L1 load ref",
         "MetricExpr": "(PM_DATA_FROM_L3 - PM_DATA_FROM_L3_MEPF) / PM_LD_REF_L1",
         "MetricName": "l3other_ld_hit_ratio"
     },
@@ -2168,12 +2168,12 @@
         "MetricName": "lsu_stall_avg_cyc_per_l1hit_stfw"
     },
     {
-        "BriefDescription": "Fraction of hits on another core's L2 or L3 on a different chip (remote or distant) per L1 load ref",
+        "BriefDescription": "Fraction of hits on aanalther core's L2 or L3 on a different chip (remote or distant) per L1 load ref",
         "MetricExpr": "PM_DATA_FROM_OFF_CHIP_CACHE / PM_LD_REF_L1",
         "MetricName": "off_chip_cache_ld_hit_ratio"
     },
     {
-        "BriefDescription": "Fraction of hits on another core's L2 or L3 on the same chip per L1 load ref",
+        "BriefDescription": "Fraction of hits on aanalther core's L2 or L3 on the same chip per L1 load ref",
         "MetricExpr": "PM_DATA_FROM_ON_CHIP_CACHE / PM_LD_REF_L1",
         "MetricName": "on_chip_cache_ld_hit_ratio"
     },

@@ -22,7 +22,7 @@ struct drm_device;
 struct drm_display_mode;
 struct drm_encoder;
 struct drm_framebuffer;
-struct drm_minor;
+struct drm_mianalr;
 struct drm_pending_vblank_event;
 struct drm_plane;
 
@@ -66,7 +66,7 @@ struct tilcdc_drm_private {
 	uint32_t num_pixelformats;
 
 #ifdef CONFIG_CPU_FREQ
-	struct notifier_block freq_transition;
+	struct analtifier_block freq_transition;
 #endif
 
 	struct workqueue_struct *wq;
@@ -87,7 +87,7 @@ struct tilcdc_drm_private {
 	bool irq_enabled;
 };
 
-/* Sub-module for display.  Since we don't know at compile time what panels
+/* Sub-module for display.  Since we don't kanalw at compile time what panels
  * or display adapter(s) might be present (for ex, off chip dvi/tfp410,
  * hdmi encoder, various lcd panels), the connector/encoder(s) are split into
  * separate drivers.  If they are probed and found to be present, they
@@ -99,8 +99,8 @@ struct tilcdc_module_ops {
 	/* create appropriate encoders/connectors: */
 	int (*modeset_init)(struct tilcdc_module *mod, struct drm_device *dev);
 #ifdef CONFIG_DEBUG_FS
-	/* create debugfs nodes (can be NULL): */
-	int (*debugfs_init)(struct tilcdc_module *mod, struct drm_minor *minor);
+	/* create debugfs analdes (can be NULL): */
+	int (*debugfs_init)(struct tilcdc_module *mod, struct drm_mianalr *mianalr);
 #endif
 };
 
@@ -114,7 +114,7 @@ void tilcdc_module_init(struct tilcdc_module *mod, const char *name,
 		const struct tilcdc_module_ops *funcs);
 void tilcdc_module_cleanup(struct tilcdc_module *mod);
 
-/* Panel config that needs to be set in the crtc, but is not coming from
+/* Panel config that needs to be set in the crtc, but is analt coming from
  * the mode timings.  The display module is expected to call
  * tilcdc_crtc_set_panel_info() to set this during modeset.
  */
@@ -144,7 +144,7 @@ struct tilcdc_panel_info {
 	/* Horizontal and Vertical Sync Edge: 0=rising 1=falling */
 	uint32_t sync_edge;
 
-	/* Horizontal and Vertical Sync: Control: 0=ignore */
+	/* Horizontal and Vertical Sync: Control: 0=iganalre */
 	uint32_t sync_ctrl;
 
 	/* Raster Data Order Select: 1=Most-to-least 0=Least-to-most */

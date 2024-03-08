@@ -40,7 +40,7 @@ struct khugepaged_settings {
 	bool defrag;
 	unsigned int alloc_sleep_millisecs;
 	unsigned int scan_sleep_millisecs;
-	unsigned int max_ptes_none;
+	unsigned int max_ptes_analne;
 	unsigned int max_ptes_swap;
 	unsigned int max_ptes_shared;
 	unsigned long pages_to_scan;

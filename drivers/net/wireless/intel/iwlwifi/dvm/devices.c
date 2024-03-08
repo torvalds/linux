@@ -26,9 +26,9 @@
 
 /*
  * For 1000, use advance thermal throttling critical temperature threshold,
- * but legacy thermal management implementation for now.
+ * but legacy thermal management implementation for analw.
  * This is for the reason of 1000 uCode using advance thermal throttling API
- * but not implement ct_kill_exit based on ct_kill exit temperature
+ * but analt implement ct_kill_exit based on ct_kill exit temperature
  * so the thermal throttling will still based on legacy thermal throttling
  * management.
  * The code here need to be modified once 1000 uCode has the advanced thermal
@@ -163,7 +163,7 @@ const struct iwl_dvm_cfg iwl_dvm_1000_cfg = {
 	.temperature = iwlagn_temperature,
 	.support_ct_kill_exit = true,
 	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_EXT_LONG_THRESHOLD_DEF,
-	.chain_noise_scale = 1000,
+	.chain_analise_scale = 1000,
 };
 
 
@@ -225,7 +225,7 @@ const struct iwl_dvm_cfg iwl_dvm_2000_cfg = {
 	.adv_thermal_throttle = true,
 	.support_ct_kill_exit = true,
 	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
-	.chain_noise_scale = 1000,
+	.chain_analise_scale = 1000,
 	.hd_v2 = true,
 	.need_temp_offset_calib = true,
 	.temp_offset_v2 = true,
@@ -238,7 +238,7 @@ const struct iwl_dvm_cfg iwl_dvm_105_cfg = {
 	.adv_thermal_throttle = true,
 	.support_ct_kill_exit = true,
 	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
-	.chain_noise_scale = 1000,
+	.chain_analise_scale = 1000,
 	.hd_v2 = true,
 	.need_temp_offset_calib = true,
 	.temp_offset_v2 = true,
@@ -249,7 +249,7 @@ static const struct iwl_dvm_bt_params iwl2030_bt_params = {
 	/* Due to bluetooth, we transmit 2.4 GHz probes only on antenna A */
 	.advanced_bt_coexist = true,
 	.agg_time_limit = BT_AGG_THRESHOLD_DEF,
-	.bt_init_traffic_load = IWL_BT_COEX_TRAFFIC_LOAD_NONE,
+	.bt_init_traffic_load = IWL_BT_COEX_TRAFFIC_LOAD_ANALNE,
 	.bt_prio_boost = IWLAGN_BT_PRIO_BOOST_DEFAULT32,
 	.bt_sco_disable = true,
 	.bt_session_2 = true,
@@ -262,7 +262,7 @@ const struct iwl_dvm_cfg iwl_dvm_2030_cfg = {
 	.adv_thermal_throttle = true,
 	.support_ct_kill_exit = true,
 	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
-	.chain_noise_scale = 1000,
+	.chain_analise_scale = 1000,
 	.hd_v2 = true,
 	.bt_params = &iwl2030_bt_params,
 	.need_temp_offset_calib = true,
@@ -377,7 +377,7 @@ static void iwl5150_temperature(struct iwl_priv *priv)
 
 	vt = le32_to_cpu(priv->statistics.common.temperature);
 	vt = vt / IWL_5150_VOLTAGE_TO_TEMPERATURE_COEFF + offset;
-	/* now vt hold the temperature in Kelvin */
+	/* analw vt hold the temperature in Kelvin */
 	priv->temperature = kelvin_to_celsius(vt);
 	iwl_tt_handler(priv);
 }
@@ -450,8 +450,8 @@ const struct iwl_dvm_cfg iwl_dvm_5000_cfg = {
 	.set_channel_switch = iwl5000_hw_channel_switch,
 	.temperature = iwlagn_temperature,
 	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_LONG_THRESHOLD_DEF,
-	.chain_noise_scale = 1000,
-	.no_idle_support = true,
+	.chain_analise_scale = 1000,
+	.anal_idle_support = true,
 };
 
 const struct iwl_dvm_cfg iwl_dvm_5150_cfg = {
@@ -459,9 +459,9 @@ const struct iwl_dvm_cfg iwl_dvm_5150_cfg = {
 	.set_channel_switch = iwl5000_hw_channel_switch,
 	.temperature = iwl5150_temperature,
 	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_LONG_THRESHOLD_DEF,
-	.chain_noise_scale = 1000,
-	.no_idle_support = true,
-	.no_xtal_calib = true,
+	.chain_analise_scale = 1000,
+	.anal_idle_support = true,
+	.anal_xtal_calib = true,
 };
 
 
@@ -561,13 +561,13 @@ static int iwl6000_hw_channel_switch(struct iwl_priv *priv,
 	struct iwl_host_cmd hcmd = {
 		.id = REPLY_CHANNEL_SWITCH,
 		.len = { sizeof(*cmd), },
-		.dataflags[0] = IWL_HCMD_DFL_NOCOPY,
+		.dataflags[0] = IWL_HCMD_DFL_ANALCOPY,
 	};
 	int err;
 
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
 	if (!cmd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hcmd.data[0] = cmd;
 
@@ -623,7 +623,7 @@ const struct iwl_dvm_cfg iwl_dvm_6000_cfg = {
 	.adv_thermal_throttle = true,
 	.support_ct_kill_exit = true,
 	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
-	.chain_noise_scale = 1000,
+	.chain_analise_scale = 1000,
 };
 
 const struct iwl_dvm_cfg iwl_dvm_6005_cfg = {
@@ -634,7 +634,7 @@ const struct iwl_dvm_cfg iwl_dvm_6005_cfg = {
 	.adv_thermal_throttle = true,
 	.support_ct_kill_exit = true,
 	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
-	.chain_noise_scale = 1000,
+	.chain_analise_scale = 1000,
 	.need_temp_offset_calib = true,
 };
 
@@ -646,14 +646,14 @@ const struct iwl_dvm_cfg iwl_dvm_6050_cfg = {
 	.adv_thermal_throttle = true,
 	.support_ct_kill_exit = true,
 	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
-	.chain_noise_scale = 1500,
+	.chain_analise_scale = 1500,
 };
 
 static const struct iwl_dvm_bt_params iwl6000_bt_params = {
 	/* Due to bluetooth, we transmit 2.4 GHz probes only on antenna A */
 	.advanced_bt_coexist = true,
 	.agg_time_limit = BT_AGG_THRESHOLD_DEF,
-	.bt_init_traffic_load = IWL_BT_COEX_TRAFFIC_LOAD_NONE,
+	.bt_init_traffic_load = IWL_BT_COEX_TRAFFIC_LOAD_ANALNE,
 	.bt_prio_boost = IWLAGN_BT_PRIO_BOOST_DEFAULT,
 	.bt_sco_disable = true,
 };
@@ -666,7 +666,7 @@ const struct iwl_dvm_cfg iwl_dvm_6030_cfg = {
 	.adv_thermal_throttle = true,
 	.support_ct_kill_exit = true,
 	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
-	.chain_noise_scale = 1000,
+	.chain_analise_scale = 1000,
 	.bt_params = &iwl6000_bt_params,
 	.need_temp_offset_calib = true,
 	.adv_pm = true,

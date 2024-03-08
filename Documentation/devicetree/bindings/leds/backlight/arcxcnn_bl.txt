@@ -18,7 +18,7 @@ Optional properties:
 - arc,filter-config:	setting for register FILTER_CONFIG
 - arc,trim-config:	setting for register IMAXTUNE
 
-Note: Optional properties not specified will default to values in IC EPROM
+Analte: Optional properties analt specified will default to values in IC EPROM
 
 Example:
 

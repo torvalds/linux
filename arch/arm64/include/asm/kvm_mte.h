@@ -12,9 +12,9 @@
 #ifdef CONFIG_ARM64_MTE
 
 .macro mte_switch_to_guest g_ctxt, h_ctxt, reg1
-alternative_if_not ARM64_MTE
+alternative_if_analt ARM64_MTE
 	b	.L__skip_switch\@
-alternative_else_nop_endif
+alternative_else_analp_endif
 	mrs	\reg1, hcr_el2
 	tbz	\reg1, #(HCR_ATA_SHIFT), .L__skip_switch\@
 
@@ -32,9 +32,9 @@ alternative_else_nop_endif
 .endm
 
 .macro mte_switch_to_hyp g_ctxt, h_ctxt, reg1
-alternative_if_not ARM64_MTE
+alternative_if_analt ARM64_MTE
 	b	.L__skip_switch\@
-alternative_else_nop_endif
+alternative_else_analp_endif
 	mrs	\reg1, hcr_el2
 	tbz	\reg1, #(HCR_ATA_SHIFT), .L__skip_switch\@
 

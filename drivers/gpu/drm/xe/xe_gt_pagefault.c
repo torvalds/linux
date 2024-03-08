@@ -45,7 +45,7 @@ enum access_type {
 };
 
 enum fault_type {
-	NOT_PRESENT = 0,
+	ANALT_PRESENT = 0,
 	WRITE_ACCESS_VIOLATION = 1,
 	ATOMIC_ACCESS_VIOLATION = 2,
 };
@@ -348,7 +348,7 @@ int xe_guc_pagefault_handler(struct xe_guc *guc, u32 *msg, u32 len)
 	}
 	spin_unlock_irqrestore(&pf_queue->lock, flags);
 
-	return full ? -ENOSPC : 0;
+	return full ? -EANALSPC : 0;
 }
 
 #define USM_QUEUE_MAX_RUNTIME_MS	20
@@ -418,13 +418,13 @@ int xe_gt_pagefault_init(struct xe_gt *gt)
 	gt->usm.pf_wq = alloc_workqueue("xe_gt_page_fault_work_queue",
 					WQ_UNBOUND | WQ_HIGHPRI, NUM_PF_QUEUE);
 	if (!gt->usm.pf_wq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gt->usm.acc_wq = alloc_workqueue("xe_gt_access_counter_work_queue",
 					 WQ_UNBOUND | WQ_HIGHPRI,
 					 NUM_ACC_QUEUE);
 	if (!gt->usm.acc_wq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -531,8 +531,8 @@ static int handle_acc(struct xe_gt *gt, struct acc *acc)
 
 	trace_xe_vma_acc(vma);
 
-	/* Userptr or null can't be migrated, nothing to do */
-	if (xe_vma_has_no_bo(vma))
+	/* Userptr or null can't be migrated, analthing to do */
+	if (xe_vma_has_anal_bo(vma))
 		goto unlock_vm;
 
 	/* Lock VM and BOs dma-resv */
@@ -620,7 +620,7 @@ static bool acc_queue_full(struct acc_queue *acc_queue)
 		ACC_MSG_LEN_DW;
 }
 
-int xe_guc_access_counter_notify_handler(struct xe_guc *guc, u32 *msg, u32 len)
+int xe_guc_access_counter_analtify_handler(struct xe_guc *guc, u32 *msg, u32 len)
 {
 	struct xe_gt *gt = guc_to_gt(guc);
 	struct acc_queue *acc_queue;
@@ -645,5 +645,5 @@ int xe_guc_access_counter_notify_handler(struct xe_guc *guc, u32 *msg, u32 len)
 	}
 	spin_unlock(&acc_queue->lock);
 
-	return full ? -ENOSPC : 0;
+	return full ? -EANALSPC : 0;
 }

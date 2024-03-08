@@ -88,7 +88,7 @@ struct l2tp_session {
 	u32			nr_oos;		/* NR of last OOS packet */
 	int			nr_oos_count;	/* for OOS recovery */
 	int			nr_oos_count_max;
-	struct hlist_node	hlist;		/* hash list node */
+	struct hlist_analde	hlist;		/* hash list analde */
 	refcount_t		ref_count;
 
 	char			name[L2TP_SESSION_NAME_MAX]; /* for logging */
@@ -102,7 +102,7 @@ struct l2tp_session {
 	int			reorder_skip;	/* set if skip to next nr */
 	enum l2tp_pwtype	pwtype;
 	struct l2tp_stats	stats;
-	struct hlist_node	global_hlist;	/* global hash list node */
+	struct hlist_analde	global_hlist;	/* global hash list analde */
 
 	/* Session receive handler for data packets.
 	 * Each pseudowire implementation should implement this callback in order to
@@ -174,7 +174,7 @@ struct l2tp_tunnel {
 	enum l2tp_encap_type	encap;
 	struct l2tp_stats	stats;
 
-	struct list_head	list;		/* list node on per-namespace list of tunnels */
+	struct list_head	list;		/* list analde on per-namespace list of tunnels */
 	struct net		*l2tp_net;	/* the net we belong to */
 
 	refcount_t		ref_count;
@@ -193,7 +193,7 @@ struct l2tp_nl_cmd_ops {
 	 * instance for a specific pseudowire type.
 	 * It must call l2tp_session_create and l2tp_session_register to register the
 	 * session instance, as well as carry out any pseudowire-specific initialisation.
-	 * It must return >= 0 on success, or an appropriate negative errno value on failure.
+	 * It must return >= 0 on success, or an appropriate negative erranal value on failure.
 	 */
 	int (*session_create)(struct net *net, struct l2tp_tunnel *tunnel,
 			      u32 session_id, u32 peer_session_id,
@@ -234,7 +234,7 @@ struct l2tp_session *l2tp_session_get_by_ifname(const struct net *net,
 
 /* Tunnel and session lifetime management.
  * Creation of a new instance is a two-step process: create, then register.
- * Destruction is triggered using the *_delete functions, and completes asynchronously.
+ * Destruction is triggered using the *_delete functions, and completes asynchroanalusly.
  */
 int l2tp_tunnel_create(int fd, int version, u32 tunnel_id,
 		       u32 peer_tunnel_id, struct l2tp_tunnel_cfg *cfg,
@@ -284,7 +284,7 @@ static inline int l2tp_get_l2specific_len(struct l2tp_session *session)
 	switch (session->l2specific_type) {
 	case L2TP_L2SPECTYPE_DEFAULT:
 		return 4;
-	case L2TP_L2SPECTYPE_NONE:
+	case L2TP_L2SPECTYPE_ANALNE:
 	default:
 		return 0;
 	}

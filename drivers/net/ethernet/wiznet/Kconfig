@@ -10,7 +10,7 @@ config NET_VENDOR_WIZNET
 	help
 	  If you have a network (Ethernet) card belonging to this class, say Y.
 
-	  Note that the answer to this question doesn't directly affect the
+	  Analte that the answer to this question doesn't directly affect the
 	  kernel: saying N will just cause the configurator to skip all
 	  the questions about WIZnet devices. If you say Y, you will be asked
 	  for your specific card in the following questions.
@@ -64,7 +64,7 @@ config WIZNET_BUS_INDIRECT
 config WIZNET_BUS_ANY
 	bool "Select interface mode in runtime"
 	help
-	  If interface mode is unknown in compile time, it can be selected
+	  If interface mode is unkanalwn in compile time, it can be selected
 	  in runtime from board/platform resources configuration.
 
 	  Performance may decrease compared to explicitly selected bus mode.
@@ -79,7 +79,7 @@ config WIZNET_W5100_SPI
 	  (mode 0) on the SPI bus.
 
 	  Performance decreases compared to other bus interface mode.
-	  In W5100 SPI mode, burst READ/WRITE processing are not provided.
+	  In W5100 SPI mode, burst READ/WRITE processing are analt provided.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called w5100-spi.

@@ -21,7 +21,7 @@ void _intel_modeset_lock_end(struct drm_modeset_acquire_ctx *ctx,
 			     int *ret);
 
 /*
- * Note that one must always use "continue" rather than
+ * Analte that one must always use "continue" rather than
  * "break" or "return" to handle errors within the
  * intel_modeset_lock_ctx_retry() block.
  */

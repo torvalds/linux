@@ -13,12 +13,12 @@
 * and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so,
 * subject to the following conditions:
 *
-* The above copyright notice and this permission notice shall be included in all copies or substantial
+* The above copyright analtice and this permission analtice shall be included in all copies or substantial
 * portions of the Software.
 *
 * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-* IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+* IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+* FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
 * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
 * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
 * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -26,7 +26,7 @@
 *
 \****************************************************************************/
 
-/*IMPORTANT NOTES
+/*IMPORTANT ANALTES
 * If a change in VBIOS/Driver/Tool's interface is only needed for SoC15 and forward products, then the change is only needed in this atomfirmware.h header file.
 * If a change in VBIOS/Driver/Tool's interface is only needed for pre-SoC15 products, then the change is only needed in atombios.h header file.
 * If a change is needed for both pre and post SoC15 products, then the change has to be made separately and might be differently in both atomfirmware.h and atombios.h.
@@ -37,7 +37,7 @@
 
 enum  atom_bios_header_version_def{
   ATOM_MAJOR_VERSION        =0x0003,
-  ATOM_MINOR_VERSION        =0x0003,
+  ATOM_MIANALR_VERSION        =0x0003,
 };
 
 #ifdef _H2INC
@@ -112,7 +112,7 @@ enum atom_encoder_refclk_src_def{
 };
 
 enum atom_scaler_def{
-  ATOM_SCALER_DISABLE          =0,  /*scaler bypass mode, auto-center & no replication*/
+  ATOM_SCALER_DISABLE          =0,  /*scaler bypass mode, auto-center & anal replication*/
   ATOM_SCALER_CENTER           =1,  //For Fudo, it's bypass and auto-center & auto replication
   ATOM_SCALER_EXPANSION        =2,  /*scaler expansion by 2 tap alpha blending mode*/
 };
@@ -232,7 +232,7 @@ enum atombios_image_offset{
 struct atom_common_table_header
 {
   uint16_t structuresize;
-  uint8_t  format_revision;   //mainly used for a hw function, when the parser is not backward compatible 
+  uint8_t  format_revision;   //mainly used for a hw function, when the parser is analt backward compatible 
   uint8_t  content_revision;  //change it when a data table has a structure change, or a hw function has a input/output parameter change                                
 };
 
@@ -242,7 +242,7 @@ struct atom_common_table_header
 struct atom_rom_header_v2_2
 {
   struct atom_common_table_header table_header;
-  uint8_t  atom_bios_string[4];        //enum atom_string_def atom_bios_string;     //Signature to distinguish between Atombios and non-atombios, 
+  uint8_t  atom_bios_string[4];        //enum atom_string_def atom_bios_string;     //Signature to distinguish between Atombios and analn-atombios, 
   uint16_t bios_segment_address;
   uint16_t protectedmodeoffset;
   uint16_t configfilenameoffset;
@@ -264,7 +264,7 @@ struct atom_rom_header_v2_2
 
 
 /****************************************************************************   
-* Structures used in Command.mtb, each function name is not given here since those function could change from time to time
+* Structures used in Command.mtb, each function name is analt given here since those function could change from time to time
 * The real functionality of each function is associated with the parameter structure version when defined
 * For all internal cmd function definitions, please reference to atomstruct.h
 ****************************************************************************/   
@@ -383,7 +383,7 @@ struct atom_rom_hw_function_header
 
 /*==============================sw data table portion======================================================================*/
 /****************************************************************************
-* Structures used in data.mtb, each data table name is not given here since those data table could change from time to time
+* Structures used in data.mtb, each data table name is analt given here since those data table could change from time to time
 * The real name of each table is given when its data structure version is defined
 ****************************************************************************/
 struct atom_master_list_of_data_tables_v2_1{
@@ -464,7 +464,7 @@ enum atom_dtd_format_modemiscinfo{
 
 
 /* utilitypipeline
- * when format_revision==1 && content_revision==1, then this an info table for atomworks to use during debug session, no structure is associated with it.
+ * when format_revision==1 && content_revision==1, then this an info table for atomworks to use during debug session, anal structure is associated with it.
  * the location of it can't change
 */
 
@@ -653,7 +653,7 @@ enum atom_lcd_info_panel_misc{
 //uceDPToLVDSRxId
 enum atom_lcd_info_dptolvds_rx_id
 {
-  eDP_TO_LVDS_RX_DISABLE                 = 0x00,       // no eDP->LVDS translator chip 
+  eDP_TO_LVDS_RX_DISABLE                 = 0x00,       // anal eDP->LVDS translator chip 
   eDP_TO_LVDS_COMMON_ID                  = 0x01,       // common eDP->LVDS translator chip without AMD SW init
   eDP_TO_LVDS_REALTEK_ID                 = 0x02,       // Realtek tansaltor which require AMD SW init
 };
@@ -707,8 +707,8 @@ struct atom_gpio_pin_lut_v2_1
 
 
 /*
- * VBIOS/PRE-OS always reserve a FB region at the top of frame buffer. driver should not write
- * access that region. driver can allocate their own reservation region as long as it does not
+ * VBIOS/PRE-OS always reserve a FB region at the top of frame buffer. driver should analt write
+ * access that region. driver can allocate their own reservation region as long as it does analt
  * overlap firwmare's reservation region.
  * if (pre-NV1X) atom data table firmwareInfoTable version < 3.3:
  * in this case, atom data table vram_usagebyfirmwareTable version always <= 2.1
@@ -723,7 +723,7 @@ struct atom_gpio_pin_lut_v2_1
  *     host driver. Host driver would overwrite the table with the following
  *     used_by_firmware_in_kb = total reserved size for pf-vf info exchange and
  *     set SRIOV_MSG_SHARE_RESERVATION mask start_address_in_kb = 0
- *   else there is no VBIOS reservation region:
+ *   else there is anal VBIOS reservation region:
  *     driver must allocate driver reservation region at top of FB.
  *     driver set used_by_driver_in_kb = driver reservation size
  *     driver reservation start address =  (total_mem_size_in_kb - used_by_driver_in_kb)
@@ -811,7 +811,7 @@ struct atom_hpd_int_record
 struct atom_connector_caps_record {
 	struct atom_common_record_header
 		record_header; //record_type = ATOM_CONN_CAP_RECORD_TYPE
-	uint16_t connector_caps; //01b if internal display is checked; 10b if internal BL is checked; 0 of Not
+	uint16_t connector_caps; //01b if internal display is checked; 10b if internal BL is checked; 0 of Analt
 };
 
 struct atom_connector_speed_record {
@@ -825,9 +825,9 @@ struct atom_connector_speed_record {
 enum atom_encoder_caps_def
 {
   ATOM_ENCODER_CAP_RECORD_HBR2                  =0x01,         // DP1.2 HBR2 is supported by HW encoder, it is retired in NI. the real meaning from SI is MST_EN
-  ATOM_ENCODER_CAP_RECORD_MST_EN                =0x01,         // from SI, this bit means DP MST is enable or not. 
+  ATOM_ENCODER_CAP_RECORD_MST_EN                =0x01,         // from SI, this bit means DP MST is enable or analt. 
   ATOM_ENCODER_CAP_RECORD_HBR2_EN               =0x02,         // DP1.2 HBR2 setting is qualified and HBR2 can be enabled 
-  ATOM_ENCODER_CAP_RECORD_HDMI6Gbps_EN          =0x04,         // HDMI2.0 6Gbps enable or not. 
+  ATOM_ENCODER_CAP_RECORD_HDMI6Gbps_EN          =0x04,         // HDMI2.0 6Gbps enable or analt. 
   ATOM_ENCODER_CAP_RECORD_HBR3_EN               =0x08,         // DP1.3 HBR3 is supported by board. 
   ATOM_ENCODER_CAP_RECORD_DP2                   =0x10,         // DP2 is supported by ASIC/board.
   ATOM_ENCODER_CAP_RECORD_UHBR10_EN             =0x20,         // DP2.0 UHBR10 settings is supported by board
@@ -844,7 +844,7 @@ struct  atom_encoder_caps_record
 
 enum atom_connector_caps_def
 {
-  ATOM_CONNECTOR_CAP_INTERNAL_DISPLAY         = 0x01,        //a cap bit to indicate that this non-embedded display connector is an internal display
+  ATOM_CONNECTOR_CAP_INTERNAL_DISPLAY         = 0x01,        //a cap bit to indicate that this analn-embedded display connector is an internal display
   ATOM_CONNECTOR_CAP_INTERNAL_DISPLAY_BL      = 0x02,        //a cap bit to indicate that this internal display requires BL control from GPU, refers to lcd_info for BL PWM freq 
 };
 
@@ -952,13 +952,13 @@ struct atom_bracket_layout_record_v2 {
 	uint8_t bracketlen; //Bracket Length in mm
 	uint8_t bracketwidth; //Bracket Width in mm
 	uint8_t conn_num; //Connector numbering
-	uint8_t mini_type; //Mini Type (0 = Normal; 1 = Mini)
+	uint8_t mini_type; //Mini Type (0 = Analrmal; 1 = Mini)
 	uint8_t reserved1;
 	uint8_t reserved2;
 };
 
 enum atom_connector_layout_info_mini_type_def {
-	MINI_TYPE_NORMAL = 0,
+	MINI_TYPE_ANALRMAL = 0,
 	MINI_TYPE_MINI = 1,
 };
 
@@ -1041,7 +1041,7 @@ struct atom_display_controller_info_v4_1
   uint8_t  hdmi_ss_mode;            // enum of atom_spread_spectrum_mode
   uint8_t  dp_ss_mode;              // enum of atom_spread_spectrum_mode 
   uint8_t  ss_reserved;
-  uint8_t  hardcode_mode_num;       // a hardcode mode number defined in StandardVESA_TimingTable when a CRT or DFP EDID is not available
+  uint8_t  hardcode_mode_num;       // a hardcode mode number defined in StandardVESA_TimingTable when a CRT or DFP EDID is analt available
   uint8_t  reserved1[3];
   uint16_t dpphy_refclk_10khz;  
   uint16_t reserved2;
@@ -1073,10 +1073,10 @@ struct atom_display_controller_info_v4_2
   uint8_t  hdmi_ss_mode;            // enum of atom_spread_spectrum_mode
   uint8_t  dp_ss_mode;              // enum of atom_spread_spectrum_mode 
   uint8_t  ss_reserved;
-  uint8_t  dfp_hardcode_mode_num;   // DFP hardcode mode number defined in StandardVESA_TimingTable when EDID is not available
-  uint8_t  dfp_hardcode_refreshrate;// DFP hardcode mode refreshrate defined in StandardVESA_TimingTable when EDID is not available
-  uint8_t  vga_hardcode_mode_num;   // VGA hardcode mode number defined in StandardVESA_TimingTable when EDID is not avablable
-  uint8_t  vga_hardcode_refreshrate;// VGA hardcode mode number defined in StandardVESA_TimingTable when EDID is not avablable
+  uint8_t  dfp_hardcode_mode_num;   // DFP hardcode mode number defined in StandardVESA_TimingTable when EDID is analt available
+  uint8_t  dfp_hardcode_refreshrate;// DFP hardcode mode refreshrate defined in StandardVESA_TimingTable when EDID is analt available
+  uint8_t  vga_hardcode_mode_num;   // VGA hardcode mode number defined in StandardVESA_TimingTable when EDID is analt avablable
+  uint8_t  vga_hardcode_refreshrate;// VGA hardcode mode number defined in StandardVESA_TimingTable when EDID is analt avablable
   uint16_t dpphy_refclk_10khz;  
   uint16_t reserved2;
   uint8_t  dcnip_min_ver;
@@ -1107,10 +1107,10 @@ struct atom_display_controller_info_v4_3
   uint8_t  hdmi_ss_mode;            // enum of atom_spread_spectrum_mode
   uint8_t  dp_ss_mode;              // enum of atom_spread_spectrum_mode
   uint8_t  ss_reserved;
-  uint8_t  dfp_hardcode_mode_num;   // DFP hardcode mode number defined in StandardVESA_TimingTable when EDID is not available
-  uint8_t  dfp_hardcode_refreshrate;// DFP hardcode mode refreshrate defined in StandardVESA_TimingTable when EDID is not available
-  uint8_t  vga_hardcode_mode_num;   // VGA hardcode mode number defined in StandardVESA_TimingTable when EDID is not avablable
-  uint8_t  vga_hardcode_refreshrate;// VGA hardcode mode number defined in StandardVESA_TimingTable when EDID is not avablable
+  uint8_t  dfp_hardcode_mode_num;   // DFP hardcode mode number defined in StandardVESA_TimingTable when EDID is analt available
+  uint8_t  dfp_hardcode_refreshrate;// DFP hardcode mode refreshrate defined in StandardVESA_TimingTable when EDID is analt available
+  uint8_t  vga_hardcode_mode_num;   // VGA hardcode mode number defined in StandardVESA_TimingTable when EDID is analt avablable
+  uint8_t  vga_hardcode_refreshrate;// VGA hardcode mode number defined in StandardVESA_TimingTable when EDID is analt avablable
   uint16_t dpphy_refclk_10khz;
   uint16_t reserved2;
   uint8_t  dcnip_min_ver;
@@ -1140,10 +1140,10 @@ struct atom_display_controller_info_v4_4 {
 	uint8_t hdmi_ss_mode;		 // enum of atom_spread_spectrum_mode
 	uint8_t dp_ss_mode;		 // enum of atom_spread_spectrum_mode
 	uint8_t ss_reserved;
-	uint8_t dfp_hardcode_mode_num;	 // DFP hardcode mode number defined in StandardVESA_TimingTable when EDID is not available
-	uint8_t dfp_hardcode_refreshrate;// DFP hardcode mode refreshrate defined in StandardVESA_TimingTable when EDID is not available
-	uint8_t vga_hardcode_mode_num;	 // VGA hardcode mode number defined in StandardVESA_TimingTable when EDID is not avablable
-	uint8_t vga_hardcode_refreshrate;// VGA hardcode mode number defined in StandardVESA_TimingTable when EDID is not avablable
+	uint8_t dfp_hardcode_mode_num;	 // DFP hardcode mode number defined in StandardVESA_TimingTable when EDID is analt available
+	uint8_t dfp_hardcode_refreshrate;// DFP hardcode mode refreshrate defined in StandardVESA_TimingTable when EDID is analt available
+	uint8_t vga_hardcode_mode_num;	 // VGA hardcode mode number defined in StandardVESA_TimingTable when EDID is analt avablable
+	uint8_t vga_hardcode_refreshrate;// VGA hardcode mode number defined in StandardVESA_TimingTable when EDID is analt avablable
 	uint16_t dpphy_refclk_10khz;
 	uint16_t hw_chip_id;
 	uint8_t dcnip_min_ver;
@@ -1207,13 +1207,13 @@ struct atom_display_controller_info_v4_5
   uint8_t  hdmi_ss_mode;            // enum of atom_spread_spectrum_mode
   uint8_t  dp_ss_mode;              // enum of atom_spread_spectrum_mode
   uint8_t  ss_reserved;
-  // DFP hardcode mode number defined in StandardVESA_TimingTable when EDID is not available
+  // DFP hardcode mode number defined in StandardVESA_TimingTable when EDID is analt available
   uint8_t  dfp_hardcode_mode_num;
-  // DFP hardcode mode refreshrate defined in StandardVESA_TimingTable when EDID is not available
+  // DFP hardcode mode refreshrate defined in StandardVESA_TimingTable when EDID is analt available
   uint8_t  dfp_hardcode_refreshrate;
-  // VGA hardcode mode number defined in StandardVESA_TimingTable when EDID is not avablable
+  // VGA hardcode mode number defined in StandardVESA_TimingTable when EDID is analt avablable
   uint8_t  vga_hardcode_mode_num;
-  // VGA hardcode mode number defined in StandardVESA_TimingTable when EDID is not avablable
+  // VGA hardcode mode number defined in StandardVESA_TimingTable when EDID is analt avablable
   uint8_t  vga_hardcode_refreshrate;
   uint16_t dpphy_refclk_10khz;
   uint16_t hw_chip_id;
@@ -1261,7 +1261,7 @@ struct atom_ext_display_path
   uint8_t   hpdlut_index;                    //An index into external HPD pin LUT
   uint16_t  ext_encoder_objid;               //external encoder object id
   uint8_t   channelmapping;                  // if ucChannelMapping=0, using default one to one mapping
-  uint8_t   chpninvert;                      // bit vector for up to 8 lanes, =0: P and N is not invert, =1 P and N is inverted
+  uint8_t   chpninvert;                      // bit vector for up to 8 lanes, =0: P and N is analt invert, =1 P and N is inverted
   uint16_t  caps;
   uint16_t  reserved; 
 };
@@ -1334,7 +1334,7 @@ struct atom_14nm_dpphy_dvihdmi_tuningset
   uint32_t max_symclk_in10khz;
   uint8_t encoder_mode;            //atom_encode_mode_def, =2: DVI, =3: HDMI mode
   uint8_t phy_sel;                 //bit vector of phy, bit0= phya, bit1=phyb, ....bit5 = phyf 
-  uint16_t margindeemph;           //COMMON_MAR_DEEMPH_NOM[7:0]tx_margin_nom [15:8]deemph_gen1_nom
+  uint16_t margindeemph;           //COMMON_MAR_DEEMPH_ANALM[7:0]tx_margin_analm [15:8]deemph_gen1_analm
   uint8_t deemph_6db_4;            //COMMON_SELDEEMPH60[31:24]deemph_6db_4
   uint8_t boostadj;                //CMD_BUS_GLOBAL_FOR_TX_LANE0 [19:16]tx_boost_adj  [20]tx_boost_en  [23:22]tx_binary_ron_code_offset
   uint8_t tx_driver_fifty_ohms;    //COMMON_ZCALCODE_CTRL[21].tx_driver_fifty_ohms
@@ -1343,7 +1343,7 @@ struct atom_14nm_dpphy_dvihdmi_tuningset
 
 struct atom_14nm_dpphy_dp_setting{
   uint8_t dp_vs_pemph_level;       //enum of atom_dp_vs_preemph_def
-  uint16_t margindeemph;           //COMMON_MAR_DEEMPH_NOM[7:0]tx_margin_nom [15:8]deemph_gen1_nom
+  uint16_t margindeemph;           //COMMON_MAR_DEEMPH_ANALM[7:0]tx_margin_analm [15:8]deemph_gen1_analm
   uint8_t deemph_6db_4;            //COMMON_SELDEEMPH60[31:24]deemph_6db_4
   uint8_t boostadj;                //CMD_BUS_GLOBAL_FOR_TX_LANE0 [19:16]tx_boost_adj  [20]tx_boost_en  [23:22]tx_binary_ron_code_offset
 };
@@ -1368,7 +1368,7 @@ struct atom_14nm_combphy_tmds_vs_set
   uint8_t sym_clk;
   uint8_t dig_mode;
   uint8_t phy_sel;
-  uint16_t common_mar_deemph_nom__margin_deemph_val;
+  uint16_t common_mar_deemph_analm__margin_deemph_val;
   uint8_t common_seldeemph60__deemph_6db_4_val;
   uint8_t cmd_bus_global_for_tx_lane0__boostadj_val ;
   uint8_t common_zcalcode_ctrl__tx_driver_fifty_ohms_val;
@@ -1413,7 +1413,7 @@ struct atom_hdmi_retimer_redriver_set {
   uint8_t HdmiSlvAddr;
   uint8_t HdmiRegNum;
   uint8_t Hdmi6GRegNum;
-  struct atom_i2c_reg_info HdmiRegSetting[9];        //For non 6G Hz use
+  struct atom_i2c_reg_info HdmiRegSetting[9];        //For analn 6G Hz use
   struct atom_i2c_reg_info Hdmi6GhzRegSetting[3];    //For 6G Hz use.
 };
 
@@ -1657,7 +1657,7 @@ enum atom_sys_info_lvds_misc_def
 //memorytype  DMI Type 17 offset 12h - Memory Type
 enum atom_dmi_t17_mem_type_def{
   OtherMemType = 0x01,                                  ///< Assign 01 to Other
-  UnknownMemType,                                       ///< Assign 02 to Unknown
+  UnkanalwnMemType,                                       ///< Assign 02 to Unkanalwn
   DramMemType,                                          ///< Assign 03 to DRAM
   EdramMemType,                                         ///< Assign 04 to EDRAM
   VramMemType,                                          ///< Assign 05 to VRAM
@@ -1746,7 +1746,7 @@ struct  atom_gfx_info_v2_3 {
   uint32_t rlc_gpu_timer_refclk;
   uint8_t active_cu_per_sh;
   uint8_t active_rb_per_se;
-  uint16_t gcgoldenoffset;
+  uint16_t gcgoldeanalffset;
   uint32_t rm21_sram_vmin_value;
 };
 
@@ -1771,7 +1771,7 @@ struct  atom_gfx_info_v2_4
   uint32_t rlc_gpu_timer_refclk;
   uint8_t active_cu_per_sh;
   uint8_t active_rb_per_se;
-  uint16_t gcgoldenoffset;
+  uint16_t gcgoldeanalffset;
   uint16_t gc_num_gprs;
   uint16_t gc_gsprim_buff_depth;
   uint16_t gc_parameter_cache_depth;
@@ -1806,7 +1806,7 @@ struct atom_gfx_info_v2_7 {
 	uint32_t rlc_gpu_timer_refclk;
 	uint8_t active_cu_per_sh;
 	uint8_t active_rb_per_se;
-	uint16_t gcgoldenoffset;
+	uint16_t gcgoldeanalffset;
 	uint16_t gc_num_gprs;
 	uint16_t gc_gsprim_buff_depth;
 	uint16_t gc_parameter_cache_depth;
@@ -1908,7 +1908,7 @@ struct atom_smu_info_v3_2 {
   uint8_t  fw_ctf_polarity;         // GPIO polarity for CTF
   uint8_t  pcc_gpio_bit;            // GPIO bit shift in SMU_GPIOPAD_A configured for PCC, =0xff means invalid
   uint8_t  pcc_gpio_polarity;       // GPIO polarity for CTF
-  uint16_t smugoldenoffset;
+  uint16_t smugoldeanalffset;
   uint32_t gpupll_vco_freq_10khz;
   uint32_t bootup_smnclk_10khz;
   uint32_t bootup_socclk_10khz;
@@ -1941,7 +1941,7 @@ struct atom_smu_info_v3_3 {
   uint8_t  fw_ctf_polarity;         // GPIO polarity for CTF
   uint8_t  pcc_gpio_bit;            // GPIO bit shift in SMU_GPIOPAD_A configured for PCC, =0xff means invalid
   uint8_t  pcc_gpio_polarity;       // GPIO polarity for CTF
-  uint16_t smugoldenoffset;
+  uint16_t smugoldeanalffset;
   uint32_t gpupll_vco_freq_10khz;
   uint32_t bootup_smnclk_10khz;
   uint32_t bootup_socclk_10khz;
@@ -1976,7 +1976,7 @@ struct atom_smu_info_v3_5
   uint32_t syspll0_2_vco_freq_10khz;
   uint8_t  pcc_gpio_bit;            // GPIO bit shift in SMU_GPIOPAD_A configured for PCC, =0xff means invalid
   uint8_t  pcc_gpio_polarity;       // GPIO polarity for CTF
-  uint16_t smugoldenoffset;
+  uint16_t smugoldeanalffset;
   uint32_t syspll0_0_vco_freq_10khz;
   uint32_t bootup_smnclk_10khz;
   uint32_t bootup_socclk_10khz;
@@ -2033,7 +2033,7 @@ struct atom_smu_info_v3_6
 	uint32_t syspll0_2_vco_freq_10khz;
 	uint8_t  pcc_gpio_bit;
 	uint8_t  pcc_gpio_polarity;
-	uint16_t smugoldenoffset;
+	uint16_t smugoldeanalffset;
 	uint32_t syspll0_0_vco_freq_10khz;
 	uint32_t bootup_smnclk_10khz;
 	uint32_t bootup_socclk_10khz;
@@ -2416,7 +2416,7 @@ enum smudpm_v4_5_i2ccontrollername_e{
 };
 
 enum smudpm_v4_5_i2ccontrollerthrottler_e{
-    SMC_V4_5_I2C_CONTROLLER_THROTTLER_TYPE_NONE = 0,
+    SMC_V4_5_I2C_CONTROLLER_THROTTLER_TYPE_ANALNE = 0,
     SMC_V4_5_I2C_CONTROLLER_THROTTLER_VR_GFX,
     SMC_V4_5_I2C_CONTROLLER_THROTTLER_VR_SOC,
     SMC_V4_5_I2C_CONTROLLER_THROTTLER_VR_VDDCI,
@@ -3081,8 +3081,8 @@ struct atom_umc_info_v3_2
   uint8_t umc_config;
   uint32_t mem_refclk_10khz;
   uint32_t pstate_uclk_10khz[4];
-  uint16_t umcgoldenoffset;
-  uint16_t densitygoldenoffset;
+  uint16_t umcgoldeanalffset;
+  uint16_t densitygoldeanalffset;
 };
 
 struct atom_umc_info_v3_3
@@ -3101,8 +3101,8 @@ struct atom_umc_info_v3_3
   uint8_t umc_config;
   uint32_t mem_refclk_10khz;
   uint32_t pstate_uclk_10khz[4];
-  uint16_t umcgoldenoffset;
-  uint16_t densitygoldenoffset;
+  uint16_t umcgoldeanalffset;
+  uint16_t densitygoldeanalffset;
   uint32_t umc_config1;
   uint32_t bist_data_startaddr;
   uint32_t reserved[2];
@@ -3143,8 +3143,8 @@ struct atom_umc_info_v4_0 {
 struct atom_vram_module_v9 {
   // Design Specific Values
   uint32_t  memory_size;                   // Total memory size in unit of MB for CONFIG_MEMSIZE zeros
-  uint32_t  channel_enable;                // bit vector, each bit indicate specific channel enable or not
-  uint32_t  max_mem_clk;                   // max memory clock of this memory in unit of 10kHz, =0 means it is not defined
+  uint32_t  channel_enable;                // bit vector, each bit indicate specific channel enable or analt
+  uint32_t  max_mem_clk;                   // max memory clock of this memory in unit of 10kHz, =0 means it is analt defined
   uint16_t  reserved[3];
   uint16_t  mem_voltage;                   // mem_voltage
   uint16_t  vram_module_size;              // Size of atom_vram_module_v9
@@ -3167,7 +3167,7 @@ struct atom_vram_info_header_v2_3 {
   uint16_t mem_clk_patch_tbloffset;                      // offset of atom_umc_init_reg_block structure for memory clock specific UMC setting
   uint16_t mc_adjust_pertile_tbloffset;                  // offset of atom_umc_init_reg_block structure for Per Byte Offset Preset Settings
   uint16_t mc_phyinit_tbloffset;                         // offset of atom_umc_init_reg_block structure for MC phy init set
-  uint16_t dram_data_remap_tbloffset;                    // reserved for now
+  uint16_t dram_data_remap_tbloffset;                    // reserved for analw
   uint16_t tmrs_seq_offset;                              // offset of HBM tmrs
   uint16_t post_ucode_init_offset;                       // offset of atom_umc_init_reg_block structure for MC phy init after MC uCode complete umc init
   uint16_t vram_rsd2;
@@ -3266,8 +3266,8 @@ struct atom_umc_init_reg_block{
 struct atom_vram_module_v10 {
   // Design Specific Values
   uint32_t  memory_size;                   // Total memory size in unit of MB for CONFIG_MEMSIZE zeros
-  uint32_t  channel_enable;                // bit vector, each bit indicate specific channel enable or not
-  uint32_t  max_mem_clk;                   // max memory clock of this memory in unit of 10kHz, =0 means it is not defined
+  uint32_t  channel_enable;                // bit vector, each bit indicate specific channel enable or analt
+  uint32_t  max_mem_clk;                   // max memory clock of this memory in unit of 10kHz, =0 means it is analt defined
   uint16_t  reserved[3];
   uint16_t  mem_voltage;                   // mem_voltage
   uint16_t  vram_module_size;              // Size of atom_vram_module_v9
@@ -3294,7 +3294,7 @@ struct atom_vram_info_header_v2_4 {
   uint16_t mem_clk_patch_tbloffset;                      // offset of atom_umc_init_reg_block structure for memory clock specific UMC setting
   uint16_t mc_adjust_pertile_tbloffset;                  // offset of atom_umc_init_reg_block structure for Per Byte Offset Preset Settings
   uint16_t mc_phyinit_tbloffset;                         // offset of atom_umc_init_reg_block structure for MC phy init set
-  uint16_t dram_data_remap_tbloffset;                    // reserved for now
+  uint16_t dram_data_remap_tbloffset;                    // reserved for analw
   uint16_t reserved;                                     // offset of reserved
   uint16_t post_ucode_init_offset;                       // offset of atom_umc_init_reg_block structure for MC phy init after MC uCode complete umc init
   uint16_t vram_rsd2;
@@ -3308,7 +3308,7 @@ struct atom_vram_info_header_v2_4 {
 struct atom_vram_module_v11 {
 	// Design Specific Values
 	uint32_t  memory_size;                   // Total memory size in unit of MB for CONFIG_MEMSIZE zeros
-	uint32_t  channel_enable;                // bit vector, each bit indicate specific channel enable or not
+	uint32_t  channel_enable;                // bit vector, each bit indicate specific channel enable or analt
 	uint16_t  mem_voltage;                   // mem_voltage
 	uint16_t  vram_module_size;              // Size of atom_vram_module_v9
 	uint8_t   ext_memory_id;                 // Current memory module ID
@@ -3583,14 +3583,14 @@ struct asic_init_ps_allocation_v2_1
 
 enum atom_asic_init_engine_flag
 {
-  b3NORMAL_ENGINE_INIT = 0,
+  b3ANALRMAL_ENGINE_INIT = 0,
   b3SRIOV_SKIP_ASIC_INIT = 0x02,
   b3SRIOV_LOAD_UCODE = 0x40,
 };
 
 enum atom_asic_init_mem_flag
 {
-  b3NORMAL_MEM_INIT = 0,
+  b3ANALRMAL_MEM_INIT = 0,
   b3DRAM_SELF_REFRESH_EXIT =0x20,
 };
 
@@ -3616,7 +3616,7 @@ struct set_engine_clock_ps_allocation_v2_1
 
 enum atom_set_engine_mem_clock_flag
 {
-  b3NORMAL_CHANGE_CLOCK = 0,
+  b3ANALRMAL_CHANGE_CLOCK = 0,
   b3FIRST_TIME_CHANGE_CLOCK = 0x08,
   b3STORE_DPM_TRAINGING = 0x40,         //Applicable to memory clock change,when set, it store specific DPM mode training result
 };
@@ -4219,7 +4219,7 @@ enum atom_dig_encoder_control_v5_digid
 struct dig_encoder_stream_setup_parameters_v1_5
 {
   uint8_t digid;            // 0~6 map to DIG0~DIG6 enum atom_dig_encoder_control_v5_digid
-  uint8_t action;           // =  ATOM_ENOCODER_CMD_STREAM_SETUP
+  uint8_t action;           // =  ATOM_EANALCODER_CMD_STREAM_SETUP
   uint8_t digmode;          // ATOM_ENCODER_MODE_DP/ATOM_ENCODER_MODE_DVI/ATOM_ENCODER_MODE_HDMI
   uint8_t lanenum;          // Lane number     
   uint32_t pclk_10khz;      // Pixel Clock in 10Khz
@@ -4231,7 +4231,7 @@ struct dig_encoder_stream_setup_parameters_v1_5
 struct dig_encoder_link_setup_parameters_v1_5
 {
   uint8_t digid;           // 0~6 map to DIG0~DIG6 enum atom_dig_encoder_control_v5_digid
-  uint8_t action;          // =  ATOM_ENOCODER_CMD_LINK_SETUP              
+  uint8_t action;          // =  ATOM_EANALCODER_CMD_LINK_SETUP              
   uint8_t digmode;         // ATOM_ENCODER_MODE_DP/ATOM_ENCODER_MODE_DVI/ATOM_ENCODER_MODE_HDMI
   uint8_t lanenum;         // Lane number     
   uint8_t symclk_10khz;    // Symbol Clock in 10Khz
@@ -4252,7 +4252,7 @@ struct dp_panel_mode_set_parameters_v1_5
 struct dig_encoder_generic_cmd_parameters_v1_5 
 {
   uint8_t digid;           // 0~6 map to DIG0~DIG6 enum atom_dig_encoder_control_v5_digid
-  uint8_t action;          // = rest of generic encoder command which does not carry any parameters
+  uint8_t action;          // = rest of generic encoder command which does analt carry any parameters
   uint8_t reserved1[2];    
   uint32_t reserved2[2];
 };
@@ -4280,9 +4280,9 @@ struct dig_transmitter_control_parameters_v1_6
   } mode_laneset;
   uint8_t  lanenum;        // Lane number 1, 2, 4, 8    
   uint32_t symclk_10khz;   // Symbol Clock in 10Khz
-  uint8_t  hpdsel;         // =1: HPD1, =2: HPD2, .... =6: HPD6, =0: HPD is not assigned
+  uint8_t  hpdsel;         // =1: HPD1, =2: HPD2, .... =6: HPD6, =0: HPD is analt assigned
   uint8_t  digfe_sel;      // DIG stream( front-end ) selection, bit0 means DIG0 FE is enable, 
-  uint8_t  connobj_id;     // Connector Object Id defined in ObjectId.h
+  uint8_t  conanalbj_id;     // Connector Object Id defined in ObjectId.h
   uint8_t  reserved;
   uint32_t reserved1;
 };
@@ -4328,7 +4328,7 @@ enum atom_dig_transmitter_control_digfe_sel
 //ucHPDSel
 enum atom_dig_transmitter_control_hpd_sel
 {
-  ATOM_TRANSMITTER_V6_NO_HPD_SEL                  = 0x00,
+  ATOM_TRANSMITTER_V6_ANAL_HPD_SEL                  = 0x00,
   ATOM_TRANSMITTER_V6_HPD1_SEL                    = 0x01,
   ATOM_TRANSMITTER_V6_HPD2_SEL                    = 0x02,
   ATOM_TRANSMITTER_V6_HPD3_SEL                    = 0x03,

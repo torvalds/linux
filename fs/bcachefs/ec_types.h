@@ -15,7 +15,7 @@ struct stripe {
 	u8			algorithm;
 	u8			nr_blocks;
 	u8			nr_redundant;
-	u8			blocks_nonempty;
+	u8			blocks_analnempty;
 };
 
 struct gc_stripe {
@@ -33,7 +33,7 @@ struct gc_stripe {
 
 struct ec_stripe_heap_entry {
 	size_t			idx;
-	unsigned		blocks_nonempty;
+	unsigned		blocks_analnempty;
 };
 
 typedef HEAP(struct ec_stripe_heap_entry) ec_stripes_heap;

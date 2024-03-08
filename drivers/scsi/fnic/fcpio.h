@@ -78,8 +78,8 @@ enum fcpio_status {
 	FCPIO_INVALID_HEADER,    /* header contains invalid data */
 	FCPIO_OUT_OF_RESOURCE,   /* out of resources to complete request */
 	FCPIO_INVALID_PARAM,     /* some parameter in request is invalid */
-	FCPIO_REQ_NOT_SUPPORTED, /* request type is not supported */
-	FCPIO_IO_NOT_FOUND,      /* requested I/O was not found */
+	FCPIO_REQ_ANALT_SUPPORTED, /* request type is analt supported */
+	FCPIO_IO_ANALT_FOUND,      /* requested I/O was analt found */
 
 	/*
 	 * Once a request is processed, the firmware will usually return
@@ -92,11 +92,11 @@ enum fcpio_status {
 	FCPIO_MSS_INVALID,        /* request was aborted due to mss error */
 	FCPIO_DATA_CNT_MISMATCH,  /* recv/sent more/less data than exp. */
 	FCPIO_FW_ERR,             /* request was terminated due to fw error */
-	FCPIO_ITMF_REJECTED,      /* itmf req was rejected by remote node */
-	FCPIO_ITMF_FAILED,        /* itmf req was failed by remote node */
+	FCPIO_ITMF_REJECTED,      /* itmf req was rejected by remote analde */
+	FCPIO_ITMF_FAILED,        /* itmf req was failed by remote analde */
 	FCPIO_ITMF_INCORRECT_LUN, /* itmf req targeted incorrect LUN */
 	FCPIO_CMND_REJECTED,      /* request was invalid and rejected */
-	FCPIO_NO_PATH_AVAIL,      /* no paths to the lun was available */
+	FCPIO_ANAL_PATH_AVAIL,      /* anal paths to the lun was available */
 	FCPIO_PATH_FAILED,        /* i/o sent to current path failed */
 	FCPIO_LUNMAP_CHNG_PEND,   /* i/o rejected due to lunmap change */
 };
@@ -108,7 +108,7 @@ enum fcpio_status {
  *
  * The only firmware requests that will use the rx_id/ox_id fields instead
  * of the tag field will be the target command and target task management
- * requests.  These two requests do not have corresponding host requests
+ * requests.  These two requests do analt have corresponding host requests
  * since they come directly from the FC initiator on the network.
  */
 struct fcpio_tag {
@@ -196,7 +196,7 @@ struct fcpio_icmnd_16 {
 	u32	  sense_len;		/* sense buffer length */
 	u64	  sgl_addr;		/* scatter-gather list addr */
 	u64	  sense_addr;		/* sense buffer address */
-	u8	  crn;			/* SCSI Command Reference No. */
+	u8	  crn;			/* SCSI Command Reference Anal. */
 	u8	  pri_ta;		/* SCSI Priority and Task attribute */
 	u8	  _resvd1;		/* reserved: should be 0 */
 	u8	  flags;		/* command flags */
@@ -244,7 +244,7 @@ struct fcpio_icmnd_32 {
 	u32   sense_len;              /* sense buffer length */
 	u64   sgl_addr;               /* scatter-gather list addr */
 	u64   sense_addr;             /* sense buffer address */
-	u8    crn;                    /* SCSI Command Reference No. */
+	u8    crn;                    /* SCSI Command Reference Anal. */
 	u8    pri_ta;                 /* SCSI Priority and Task attribute */
 	u8    _resvd1;                /* reserved: should be 0 */
 	u8    flags;                  /* command flags */
@@ -390,7 +390,7 @@ enum fcpio_flogi_reg_format_type {
  * fcpio_flogi_reg: host -> firmware request
  *
  * fc vnic only
- * used by the host to notify the firmware of the lif's s_id
+ * used by the host to analtify the firmware of the lif's s_id
  * and destination mac address format
  */
 struct fcpio_flogi_reg {
@@ -426,7 +426,7 @@ struct fcpio_lunmap_req {
  * fcpio_flogi_fip_reg: host -> firmware request
  *
  * fc vnic only
- * used by the host to notify the firmware of the lif's s_id
+ * used by the host to analtify the firmware of the lif's s_id
  * and destination mac address format
  */
 struct fcpio_flogi_fip_reg {
@@ -513,12 +513,12 @@ struct fcpio_itmf_cmpl {
 /*
  * fcpio_tcmnd_16: firmware -> host request
  *
- * used by the firmware to notify the host of an incoming target SCSI 16-Byte
+ * used by the firmware to analtify the host of an incoming target SCSI 16-Byte
  * request
  */
 struct fcpio_tcmnd_16 {
 	u8    lun[LUN_ADDRESS];       /* FC vNIC only: LUN address */
-	u8    crn;                    /* SCSI Command Reference No. */
+	u8    crn;                    /* SCSI Command Reference Anal. */
 	u8    pri_ta;                 /* SCSI Priority and Task attribute */
 	u8    _resvd2;                /* reserved: should be 0 */
 	u8    flags;                  /* command flags */
@@ -546,12 +546,12 @@ struct fcpio_tcmnd_16 {
 /*
  * fcpio_tcmnd_32: firmware -> host request
  *
- * used by the firmware to notify the host of an incoming target SCSI 32-Byte
+ * used by the firmware to analtify the host of an incoming target SCSI 32-Byte
  * request
  */
 struct fcpio_tcmnd_32 {
 	u8    lun[LUN_ADDRESS];       /* FC vNIC only: LUN address */
-	u8    crn;                    /* SCSI Command Reference No. */
+	u8    crn;                    /* SCSI Command Reference Anal. */
 	u8    pri_ta;                 /* SCSI Priority and Task attribute */
 	u8    _resvd2;                /* reserved: should be 0 */
 	u8    flags;                  /* command flags */
@@ -564,7 +564,7 @@ struct fcpio_tcmnd_32 {
 /*
  * fcpio_tdrsp_cmpl: firmware -> host response
  *
- * used by the firmware to notify the host of a response to a host target
+ * used by the firmware to analtify the host of a response to a host target
  * command
  */
 struct fcpio_tdrsp_cmpl {
@@ -575,14 +575,14 @@ struct fcpio_tdrsp_cmpl {
 /*
  * fcpio_ttmf: firmware -> host request
  *
- * used by the firmware to notify the host of an incoming task management
+ * used by the firmware to analtify the host of an incoming task management
  * function request
  */
 struct fcpio_ttmf {
 	u8    _resvd0;                /* reserved */
 	u8    s_id[3];		      /* FC vNIC only: Source S_ID */
 	u8    lun[LUN_ADDRESS];       /* FC vNIC only: LUN address */
-	u8    crn;                    /* SCSI Command Reference No. */
+	u8    crn;                    /* SCSI Command Reference Anal. */
 	u8    _resvd2[3];             /* reserved */
 	u32   tmf_type;               /* task management request type */
 };
@@ -609,7 +609,7 @@ struct fcpio_tabort_cmpl {
 /*
  * fcpio_ack: firmware -> host response
  *
- * used by firmware to notify the host of the last work request received
+ * used by firmware to analtify the host of the last work request received
  */
 struct fcpio_ack {
 	u16  request_out;             /* last host entry received */
@@ -645,10 +645,10 @@ struct fcpio_echo_cmpl {
 };
 
 /*
- * fcpio_lunmap_chng: firmware -> host notification
+ * fcpio_lunmap_chng: firmware -> host analtification
  *
  * scsi vnic only
- * notifies the host that the lunmap tables have changed
+ * analtifies the host that the lunmap tables have changed
  */
 struct fcpio_lunmap_chng {
 	u32 _resvd;

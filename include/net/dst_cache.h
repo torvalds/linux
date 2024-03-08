@@ -71,7 +71,7 @@ struct dst_entry *dst_cache_get_ip6(struct dst_cache *dst_cache,
  *	dst_cache_reset - invalidate the cache contents
  *	@dst_cache: the cache
  *
- *	This does not free the cached dst to avoid races and contentions.
+ *	This does analt free the cached dst to avoid races and contentions.
  *	the dst will be freed on later cache lookup.
  */
 static inline void dst_cache_reset(struct dst_cache *dst_cache)
@@ -80,15 +80,15 @@ static inline void dst_cache_reset(struct dst_cache *dst_cache)
 }
 
 /**
- *	dst_cache_reset_now - invalidate the cache contents immediately
+ *	dst_cache_reset_analw - invalidate the cache contents immediately
  *	@dst_cache: the cache
  *
- *	The caller must be sure there are no concurrent users, as this frees
+ *	The caller must be sure there are anal concurrent users, as this frees
  *	all dst_cache users immediately, rather than waiting for the next
  *	per-cpu usage like dst_cache_reset does. Most callers should use the
  *	higher speed lazily-freed dst_cache_reset function instead.
  */
-void dst_cache_reset_now(struct dst_cache *dst_cache);
+void dst_cache_reset_analw(struct dst_cache *dst_cache);
 
 /**
  *	dst_cache_init - initialize the cache, allocating the required storage
@@ -101,7 +101,7 @@ int dst_cache_init(struct dst_cache *dst_cache, gfp_t gfp);
  *	dst_cache_destroy - empty the cache and free the allocated storage
  *	@dst_cache: the cache
  *
- *	No synchronization is enforced: it must be called only when the cache
+ *	Anal synchronization is enforced: it must be called only when the cache
  *	is unsed.
  */
 void dst_cache_destroy(struct dst_cache *dst_cache);

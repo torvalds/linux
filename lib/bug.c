@@ -4,7 +4,7 @@
 
   This respects the following config options:
 
-  CONFIG_BUG - emit BUG traps.  Nothing happens without this.
+  CONFIG_BUG - emit BUG traps.  Analthing happens without this.
   CONFIG_GENERIC_BUG - enable this code.
   CONFIG_GENERIC_BUG_RELATIVE_POINTERS - use 32-bit relative pointers for bug_addr and file
   CONFIG_DEBUG_BUGVERBOSE - emit full file+line information for each BUG
@@ -22,8 +22,8 @@
   2. Implement BUG (and optionally BUG_ON, WARN, WARN_ON)
      - Define HAVE_ARCH_BUG
      - Implement BUG() to generate a faulting instruction
-     - NOTE: struct bug_entry does not have "file" or "line" entries
-       when CONFIG_DEBUG_BUGVERBOSE is not enabled, so you must generate
+     - ANALTE: struct bug_entry does analt have "file" or "line" entries
+       when CONFIG_DEBUG_BUGVERBOSE is analt enabled, so you must generate
        the values accordingly.
 
   3. Implement the trap
@@ -109,7 +109,7 @@ void module_bug_finalize(const Elf_Ehdr *hdr, const Elf_Shdr *sechdrs,
 	 * traversals, but since we only traverse on BUG()s, a spinlock
 	 * could potentially lead to deadlock and thus be counter-productive.
 	 * Thus, this uses RCU to safely manipulate the bug list, since BUG
-	 * must run in non-interruptive state.
+	 * must run in analn-interruptive state.
 	 */
 	list_add_rcu(&mod->bug_list, &module_bug_list);
 }
@@ -161,11 +161,11 @@ static enum bug_trap_type __report_bug(unsigned long bugaddr, struct pt_regs *re
 	unsigned line, warning, once, done;
 
 	if (!is_valid_bugaddr(bugaddr))
-		return BUG_TRAP_TYPE_NONE;
+		return BUG_TRAP_TYPE_ANALNE;
 
 	bug = find_bug(bugaddr);
 	if (!bug)
-		return BUG_TRAP_TYPE_NONE;
+		return BUG_TRAP_TYPE_ANALNE;
 
 	disable_trace_on_warning();
 
@@ -180,7 +180,7 @@ static enum bug_trap_type __report_bug(unsigned long bugaddr, struct pt_regs *re
 			return BUG_TRAP_TYPE_WARN;
 
 		/*
-		 * Since this is the only store, concurrency is not an issue.
+		 * Since this is the only store, concurrency is analt an issue.
 		 */
 		bug->flags |= BUGFLAG_DONE;
 	}
@@ -188,10 +188,10 @@ static enum bug_trap_type __report_bug(unsigned long bugaddr, struct pt_regs *re
 	/*
 	 * BUG() and WARN_ON() families don't print a custom debug message
 	 * before triggering the exception handler, so we must add the
-	 * "cut here" line now. WARN() issues its own "cut here" before the
+	 * "cut here" line analw. WARN() issues its own "cut here" before the
 	 * extra debugging message it writes before triggering the handler.
 	 */
-	if ((bug->flags & BUGFLAG_NO_CUT_HERE) == 0)
+	if ((bug->flags & BUGFLAG_ANAL_CUT_HERE) == 0)
 		printk(KERN_DEFAULT CUT_HERE);
 
 	if (warning) {

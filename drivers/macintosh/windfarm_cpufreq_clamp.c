@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/pm_qos.h>
@@ -69,7 +69,7 @@ static int __init wf_cpufreq_clamp_init(void)
 
 	policy = cpufreq_cpu_get(0);
 	if (!policy) {
-		pr_warn("%s: cpufreq policy not found cpu0\n", __func__);
+		pr_warn("%s: cpufreq policy analt found cpu0\n", __func__);
 		return -EPROBE_DEFER;
 	}
 
@@ -89,14 +89,14 @@ static int __init wf_cpufreq_clamp_init(void)
 
 	dev = get_cpu_device(0);
 	if (unlikely(!dev)) {
-		pr_warn("%s: No cpu device for cpu0\n", __func__);
-		ret = -ENODEV;
+		pr_warn("%s: Anal cpu device for cpu0\n", __func__);
+		ret = -EANALDEV;
 		goto fail;
 	}
 
 	clamp = kmalloc(sizeof(struct wf_control), GFP_KERNEL);
 	if (clamp == NULL) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail;
 	}
 

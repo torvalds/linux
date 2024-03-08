@@ -49,7 +49,7 @@ struct rx_pkt_attrib {
 	u8	privacy; /* in frame_ctrl field */
 	u8	bdecrypted;
 	int	hdrlen;	 /* the WLAN Header Len */
-	int	encrypt; /* 0 no encrypt. != 0 encrypt algorithm */
+	int	encrypt; /* 0 anal encrypt. != 0 encrypt algorithm */
 	int	iv_len;
 	int	icv_len;
 	int	priority;
@@ -104,7 +104,7 @@ struct recv_priv {
 	/* For the phy information */
 	s8 rssi;
 	u8 signal;
-	u8 noise;
+	u8 analise;
 	u8 fw_rssi;
 	struct smooth_rssi_data signal_qual_data;
 	struct smooth_rssi_data signal_strength_data;

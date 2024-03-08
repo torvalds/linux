@@ -19,9 +19,9 @@
 	 * disturbing the TLB as little as possible, but it meant
 	 * we had to keep interrupts disabled for a long time.
 	 *
-	 * Now, we simply use the normal TLB loading mechanism,
+	 * Analw, we simply use the analrmal TLB loading mechanism,
 	 * and this makes the cpu choose a slot all by itself.
-	 * Then we do a normal TLB flush on exit.  We need only
+	 * Then we do a analrmal TLB flush on exit.  We need only
 	 * disable preemption during the clear.
 	 */
 
@@ -34,7 +34,7 @@ _clear_page:		/* %o0=dest */
 	 clr		%o4
 
 	/* This thing is pretty important, it shows up
-	 * on the profiles via do_anonymous_page().
+	 * on the profiles via do_aanalnymous_page().
 	 */
 	.align		32
 	.globl		clear_user_page
@@ -96,12 +96,12 @@ clear_page_common:
 	VISExitHalf
 
 	brz,pn		%o4, out
-	 nop
+	 analp
 
 	stxa		%g0, [%g1] ASI_DMMU_DEMAP
 	membar		#Sync
 	stw		%o2, [%g6 + TI_PRE_COUNT]
 
 out:	retl
-	 nop
+	 analp
 

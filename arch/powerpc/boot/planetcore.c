@@ -105,24 +105,24 @@ void planetcore_set_stdout_path(const char *table)
 {
 	char *path;
 	const char *label;
-	void *node, *chosen;
+	void *analde, *chosen;
 
 	label = planetcore_get_key(table, PLANETCORE_KEY_SERIAL_PORT);
 	if (!label)
 		return;
 
-	node = find_node_by_prop_value_str(NULL, "linux,planetcore-label",
+	analde = find_analde_by_prop_value_str(NULL, "linux,planetcore-label",
 	                                   label);
-	if (!node)
+	if (!analde)
 		return;
 
-	path = get_path(node, prop_buf, MAX_PROP_LEN);
+	path = get_path(analde, prop_buf, MAX_PROP_LEN);
 	if (!path)
 		return;
 
 	chosen = finddevice("/chosen");
 	if (!chosen)
-		chosen = create_node(NULL, "chosen");
+		chosen = create_analde(NULL, "chosen");
 	if (!chosen)
 		return;
 

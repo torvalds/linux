@@ -178,7 +178,7 @@ int pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 		irq = RT288X_CPU_IRQ_PCI;
 		break;
 	default:
-		pr_err("%s:%s[%d] trying to alloc unknown pci irq\n",
+		pr_err("%s:%s[%d] trying to alloc unkanalwn pci irq\n",
 		       __FILE__, __func__, __LINE__);
 		BUG();
 		break;
@@ -216,7 +216,7 @@ static int rt288x_pci_probe(struct platform_device *pdev)
 	rt2880_pci_write_u32(PCI_BASE_ADDRESS_0, 0x08000000);
 	(void) rt2880_pci_read_u32(PCI_BASE_ADDRESS_0);
 
-	rt2880_pci_controller.of_node = pdev->dev.of_node;
+	rt2880_pci_controller.of_analde = pdev->dev.of_analde;
 
 	register_pci_controller(&rt2880_pci_controller);
 	return 0;
@@ -227,9 +227,9 @@ int pcibios_plat_dev_init(struct pci_dev *dev)
 	static bool slot0_init;
 
 	/*
-	 * Nobody seems to initialize slot 0, but this platform requires it, so
+	 * Analbody seems to initialize slot 0, but this platform requires it, so
 	 * do it once when some other slot is being enabled. The PCI subsystem
-	 * should configure other slots properly, so no need to do anything
+	 * should configure other slots properly, so anal need to do anything
 	 * special for those.
 	 */
 	if (!slot0_init && dev->bus->number == 0) {

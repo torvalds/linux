@@ -55,7 +55,7 @@ static inline int qmem_alloc(struct device *dev, struct qmem **q,
 
 	*q = devm_kzalloc(dev, sizeof(*qmem), GFP_KERNEL);
 	if (!*q)
-		return -ENOMEM;
+		return -EANALMEM;
 	qmem = *q;
 
 	qmem->entry_sz = entry_sz;
@@ -63,7 +63,7 @@ static inline int qmem_alloc(struct device *dev, struct qmem **q,
 	qmem->base = dma_alloc_attrs(dev, qmem->alloc_sz, &qmem->iova,
 				     GFP_KERNEL, DMA_ATTR_FORCE_CONTIGUOUS);
 	if (!qmem->base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	qmem->qsize = qsize;
 
@@ -160,20 +160,20 @@ enum nix_scheduler {
 #define CN10K_LBK_LINK_MAX_FRS		65535 /* 64k */
 
 /* NIX RX action operation*/
-#define NIX_RX_ACTIONOP_DROP		(0x0ull)
-#define NIX_RX_ACTIONOP_UCAST		(0x1ull)
-#define NIX_RX_ACTIONOP_UCAST_IPSEC	(0x2ull)
-#define NIX_RX_ACTIONOP_MCAST		(0x3ull)
-#define NIX_RX_ACTIONOP_RSS		(0x4ull)
+#define NIX_RX_ACTIOANALP_DROP		(0x0ull)
+#define NIX_RX_ACTIOANALP_UCAST		(0x1ull)
+#define NIX_RX_ACTIOANALP_UCAST_IPSEC	(0x2ull)
+#define NIX_RX_ACTIOANALP_MCAST		(0x3ull)
+#define NIX_RX_ACTIOANALP_RSS		(0x4ull)
 /* Use the RX action set in the default unicast entry */
 #define NIX_RX_ACTION_DEFAULT		(0xfull)
 
 /* NIX TX action operation*/
-#define NIX_TX_ACTIONOP_DROP		(0x0ull)
-#define NIX_TX_ACTIONOP_UCAST_DEFAULT	(0x1ull)
-#define NIX_TX_ACTIONOP_UCAST_CHAN	(0x2ull)
-#define NIX_TX_ACTIONOP_MCAST		(0x3ull)
-#define NIX_TX_ACTIONOP_DROP_VIOL	(0x5ull)
+#define NIX_TX_ACTIOANALP_DROP		(0x0ull)
+#define NIX_TX_ACTIOANALP_UCAST_DEFAULT	(0x1ull)
+#define NIX_TX_ACTIOANALP_UCAST_CHAN	(0x2ull)
+#define NIX_TX_ACTIOANALP_MCAST		(0x3ull)
+#define NIX_TX_ACTIOANALP_DROP_VIOL	(0x5ull)
 
 #define NPC_MCAM_KEY_X1			0
 #define NPC_MCAM_KEY_X2			1
@@ -206,7 +206,7 @@ enum nix_scheduler {
 #define NIX_CHAN_CPT_X2P_MASK          (0x3ffull)
 
 /* NIX LSO format indices.
- * As of now TSO is the only one using, so statically assigning indices.
+ * As of analw TSO is the only one using, so statically assigning indices.
  */
 #define NIX_LSO_FORMAT_IDX_TSOV4	0
 #define NIX_LSO_FORMAT_IDX_TSOV6	1

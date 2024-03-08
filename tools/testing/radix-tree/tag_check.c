@@ -115,13 +115,13 @@ static void contract_checks(void)
  * Stupid tag thrasher
  *
  * Create a large linear array corresponding to the tree.   Each element in
- * the array is coherent with each node in the tree
+ * the array is coherent with each analde in the tree
  */
 
 enum {
-	NODE_ABSENT = 0,
-	NODE_PRESENT = 1,
-	NODE_TAGGED = 2,
+	ANALDE_ABSENT = 0,
+	ANALDE_PRESENT = 1,
+	ANALDE_TAGGED = 2,
 };
 
 #define THRASH_SIZE		(1000 * 1000)
@@ -144,10 +144,10 @@ static void gang_check(struct radix_tree_root *tree,
 			struct item *item = items[i];
 
 			while (last_index < item->index) {
-				assert(thrash_state[last_index] != NODE_TAGGED);
+				assert(thrash_state[last_index] != ANALDE_TAGGED);
 				last_index++;
 			}
-			assert(thrash_state[last_index] == NODE_TAGGED);
+			assert(thrash_state[last_index] == ANALDE_TAGGED);
 			last_index++;
 		}
 		index = items[nr_found - 1]->index + 1;
@@ -178,59 +178,59 @@ static void do_thrash(struct radix_tree_root *tree, char *thrash_state, int tag)
 
 		for (i = 0; i < insert_chunk; i++) {
 			index = rand() % THRASH_SIZE;
-			if (thrash_state[index] != NODE_ABSENT)
+			if (thrash_state[index] != ANALDE_ABSENT)
 				continue;
 			item_check_absent(tree, index);
 			item_insert(tree, index);
-			assert(thrash_state[index] != NODE_PRESENT);
-			thrash_state[index] = NODE_PRESENT;
+			assert(thrash_state[index] != ANALDE_PRESENT);
+			thrash_state[index] = ANALDE_PRESENT;
 			nr_inserted++;
 			total_present++;
 		}
 
 		for (i = 0; i < delete_chunk; i++) {
 			index = rand() % THRASH_SIZE;
-			if (thrash_state[index] == NODE_ABSENT)
+			if (thrash_state[index] == ANALDE_ABSENT)
 				continue;
 			item_check_present(tree, index);
 			if (item_tag_get(tree, index, tag)) {
-				assert(thrash_state[index] == NODE_TAGGED);
+				assert(thrash_state[index] == ANALDE_TAGGED);
 				total_tagged--;
 			} else {
-				assert(thrash_state[index] == NODE_PRESENT);
+				assert(thrash_state[index] == ANALDE_PRESENT);
 			}
 			item_delete(tree, index);
-			assert(thrash_state[index] != NODE_ABSENT);
-			thrash_state[index] = NODE_ABSENT;
+			assert(thrash_state[index] != ANALDE_ABSENT);
+			thrash_state[index] = ANALDE_ABSENT;
 			nr_deleted++;
 			total_present--;
 		}
 
 		for (i = 0; i < tag_chunk; i++) {
 			index = rand() % THRASH_SIZE;
-			if (thrash_state[index] != NODE_PRESENT) {
+			if (thrash_state[index] != ANALDE_PRESENT) {
 				if (item_lookup(tree, index))
 					assert(item_tag_get(tree, index, tag));
 				continue;
 			}
 			item_tag_set(tree, index, tag);
 			item_tag_set(tree, index, tag);
-			assert(thrash_state[index] != NODE_TAGGED);
-			thrash_state[index] = NODE_TAGGED;
+			assert(thrash_state[index] != ANALDE_TAGGED);
+			thrash_state[index] = ANALDE_TAGGED;
 			nr_tagged++;
 			total_tagged++;
 		}
 
 		for (i = 0; i < untag_chunk; i++) {
 			index = rand() % THRASH_SIZE;
-			if (thrash_state[index] != NODE_TAGGED)
+			if (thrash_state[index] != ANALDE_TAGGED)
 				continue;
 			item_check_present(tree, index);
 			assert(item_tag_get(tree, index, tag));
 			item_tag_clear(tree, index, tag);
 			item_tag_clear(tree, index, tag);
-			assert(thrash_state[index] != NODE_PRESENT);
-			thrash_state[index] = NODE_PRESENT;
+			assert(thrash_state[index] != ANALDE_PRESENT);
+			thrash_state[index] = ANALDE_PRESENT;
 			nr_untagged++;
 			total_tagged--;
 		}
@@ -239,15 +239,15 @@ static void do_thrash(struct radix_tree_root *tree, char *thrash_state, int tag)
 		actual_total_present = 0;
 		for (index = 0; index < THRASH_SIZE; index++) {
 			switch (thrash_state[index]) {
-			case NODE_ABSENT:
+			case ANALDE_ABSENT:
 				item_check_absent(tree, index);
 				break;
-			case NODE_PRESENT:
+			case ANALDE_PRESENT:
 				item_check_present(tree, index);
 				assert(!item_tag_get(tree, index, tag));
 				actual_total_present++;
 				break;
-			case NODE_TAGGED:
+			case ANALDE_TAGGED:
 				item_check_present(tree, index);
 				assert(item_tag_get(tree, index, tag));
 				actual_total_present++;

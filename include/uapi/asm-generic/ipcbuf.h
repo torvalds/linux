@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef __ASM_GENERIC_IPCBUF_H
 #define __ASM_GENERIC_IPCBUF_H
 
@@ -6,7 +6,7 @@
 
 /*
  * The generic ipc64_perm structure:
- * Note extra padding because this structure is passed back and forth
+ * Analte extra padding because this structure is passed back and forth
  * between kernel and user space.
  *
  * ipc64_perm was originally meant to be architecture specific, but

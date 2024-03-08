@@ -22,7 +22,7 @@ static void nfs3_prepare_get_acl(struct posix_acl **p)
 	struct posix_acl *sentinel = uncached_acl_sentinel(current);
 
 	/* If the ACL isn't being read yet, set our sentinel. */
-	cmpxchg(p, ACL_NOT_CACHED, sentinel);
+	cmpxchg(p, ACL_ANALT_CACHED, sentinel);
 }
 
 static void nfs3_complete_get_acl(struct posix_acl **p, struct posix_acl *acl)
@@ -40,15 +40,15 @@ static void nfs3_abort_get_acl(struct posix_acl **p)
 	struct posix_acl *sentinel = uncached_acl_sentinel(current);
 
 	/* Remove our sentinel upon failure. */
-	cmpxchg(p, sentinel, ACL_NOT_CACHED);
+	cmpxchg(p, sentinel, ACL_ANALT_CACHED);
 }
 
-struct posix_acl *nfs3_get_acl(struct inode *inode, int type, bool rcu)
+struct posix_acl *nfs3_get_acl(struct ianalde *ianalde, int type, bool rcu)
 {
-	struct nfs_server *server = NFS_SERVER(inode);
+	struct nfs_server *server = NFS_SERVER(ianalde);
 	struct page *pages[NFSACL_MAXPAGES] = { };
 	struct nfs3_getaclargs args = {
-		.fh = NFS_FH(inode),
+		.fh = NFS_FH(ianalde),
 		/* The xdr layer may allocate pages here. */
 		.pages = pages,
 	};
@@ -64,22 +64,22 @@ struct posix_acl *nfs3_get_acl(struct inode *inode, int type, bool rcu)
 	if (rcu)
 		return ERR_PTR(-ECHILD);
 
-	if (!nfs_server_capable(inode, NFS_CAP_ACLS))
-		return ERR_PTR(-EOPNOTSUPP);
+	if (!nfs_server_capable(ianalde, NFS_CAP_ACLS))
+		return ERR_PTR(-EOPANALTSUPP);
 
-	status = nfs_revalidate_inode(inode, NFS_INO_INVALID_CHANGE);
+	status = nfs_revalidate_ianalde(ianalde, NFS_IANAL_INVALID_CHANGE);
 	if (status < 0)
 		return ERR_PTR(status);
 
 	/*
 	 * Only get the access acl when explicitly requested: We don't
 	 * need it for access decisions, and only some applications use
-	 * it. Applications which request the access acl first are not
+	 * it. Applications which request the access acl first are analt
 	 * penalized from this optimization.
 	 */
 	if (type == ACL_TYPE_ACCESS)
 		args.mask |= NFS_ACLCNT|NFS_ACL;
-	if (S_ISDIR(inode->i_mode))
+	if (S_ISDIR(ianalde->i_mode))
 		args.mask |= NFS_DFACLCNT|NFS_DFACL;
 	if (args.mask == 0)
 		return NULL;
@@ -88,12 +88,12 @@ struct posix_acl *nfs3_get_acl(struct inode *inode, int type, bool rcu)
 	msg.rpc_proc = &server->client_acl->cl_procinfo[ACLPROC3_GETACL];
 	res.fattr = nfs_alloc_fattr();
 	if (res.fattr == NULL)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	if (args.mask & NFS_ACL)
-		nfs3_prepare_get_acl(&inode->i_acl);
+		nfs3_prepare_get_acl(&ianalde->i_acl);
 	if (args.mask & NFS_DFACL)
-		nfs3_prepare_get_acl(&inode->i_default_acl);
+		nfs3_prepare_get_acl(&ianalde->i_default_acl);
 
 	status = rpc_call_sync(server->client_acl, &msg, 0);
 	dprintk("NFS reply getacl: %d\n", status);
@@ -104,15 +104,15 @@ struct posix_acl *nfs3_get_acl(struct inode *inode, int type, bool rcu)
 
 	switch (status) {
 		case 0:
-			status = nfs_refresh_inode(inode, res.fattr);
+			status = nfs_refresh_ianalde(ianalde, res.fattr);
 			break;
-		case -EPFNOSUPPORT:
-		case -EPROTONOSUPPORT:
-			dprintk("NFS_V3_ACL extension not supported; disabling\n");
+		case -EPFANALSUPPORT:
+		case -EPROTOANALSUPPORT:
+			dprintk("NFS_V3_ACL extension analt supported; disabling\n");
 			server->caps &= ~NFS_CAP_ACLS;
 			fallthrough;
-		case -ENOTSUPP:
-			status = -EOPNOTSUPP;
+		case -EANALTSUPP:
+			status = -EOPANALTSUPP;
 			goto getout;
 		default:
 			goto getout;
@@ -131,14 +131,14 @@ struct posix_acl *nfs3_get_acl(struct inode *inode, int type, bool rcu)
 	}
 
 	if (res.mask & NFS_ACL)
-		nfs3_complete_get_acl(&inode->i_acl, res.acl_access);
+		nfs3_complete_get_acl(&ianalde->i_acl, res.acl_access);
 	else
-		forget_cached_acl(inode, ACL_TYPE_ACCESS);
+		forget_cached_acl(ianalde, ACL_TYPE_ACCESS);
 
 	if (res.mask & NFS_DFACL)
-		nfs3_complete_get_acl(&inode->i_default_acl, res.acl_default);
+		nfs3_complete_get_acl(&ianalde->i_default_acl, res.acl_default);
 	else
-		forget_cached_acl(inode, ACL_TYPE_DEFAULT);
+		forget_cached_acl(ianalde, ACL_TYPE_DEFAULT);
 
 	nfs_free_fattr(res.fattr);
 	if (type == ACL_TYPE_ACCESS) {
@@ -150,22 +150,22 @@ struct posix_acl *nfs3_get_acl(struct inode *inode, int type, bool rcu)
 	}
 
 getout:
-	nfs3_abort_get_acl(&inode->i_acl);
-	nfs3_abort_get_acl(&inode->i_default_acl);
+	nfs3_abort_get_acl(&ianalde->i_acl);
+	nfs3_abort_get_acl(&ianalde->i_default_acl);
 	posix_acl_release(res.acl_access);
 	posix_acl_release(res.acl_default);
 	nfs_free_fattr(res.fattr);
 	return ERR_PTR(status);
 }
 
-static int __nfs3_proc_setacls(struct inode *inode, struct posix_acl *acl,
+static int __nfs3_proc_setacls(struct ianalde *ianalde, struct posix_acl *acl,
 		struct posix_acl *dfacl)
 {
-	struct nfs_server *server = NFS_SERVER(inode);
+	struct nfs_server *server = NFS_SERVER(ianalde);
 	struct nfs_fattr *fattr;
 	struct page *pages[NFSACL_MAXPAGES];
 	struct nfs3_setaclargs args = {
-		.inode = inode,
+		.ianalde = ianalde,
 		.mask = NFS_ACL,
 		.acl_access = acl,
 		.pages = pages,
@@ -176,21 +176,21 @@ static int __nfs3_proc_setacls(struct inode *inode, struct posix_acl *acl,
 	};
 	int status = 0;
 
-	if (acl == NULL && (!S_ISDIR(inode->i_mode) || dfacl == NULL))
+	if (acl == NULL && (!S_ISDIR(ianalde->i_mode) || dfacl == NULL))
 		goto out;
 
-	status = -EOPNOTSUPP;
-	if (!nfs_server_capable(inode, NFS_CAP_ACLS))
+	status = -EOPANALTSUPP;
+	if (!nfs_server_capable(ianalde, NFS_CAP_ACLS))
 		goto out;
 
-	/* We are doing this here because XDR marshalling does not
+	/* We are doing this here because XDR marshalling does analt
 	 * return any results, it BUGs. */
-	status = -ENOSPC;
+	status = -EANALSPC;
 	if (acl != NULL && acl->a_count > NFS_ACL_MAX_ENTRIES)
 		goto out;
 	if (dfacl != NULL && dfacl->a_count > NFS_ACL_MAX_ENTRIES)
 		goto out;
-	if (S_ISDIR(inode->i_mode)) {
+	if (S_ISDIR(ianalde->i_mode)) {
 		args.mask |= NFS_DFACL;
 		args.acl_default = dfacl;
 		args.len = nfsacl_size(acl, dfacl);
@@ -200,7 +200,7 @@ static int __nfs3_proc_setacls(struct inode *inode, struct posix_acl *acl,
 	if (args.len > NFS_ACL_INLINE_BUFSIZE) {
 		unsigned int npages = 1 + ((args.len - 1) >> PAGE_SHIFT);
 
-		status = -ENOMEM;
+		status = -EANALMEM;
 		do {
 			args.pages[args.npages] = alloc_page(GFP_KERNEL);
 			if (args.pages[args.npages] == NULL)
@@ -210,7 +210,7 @@ static int __nfs3_proc_setacls(struct inode *inode, struct posix_acl *acl,
 	}
 
 	dprintk("NFS call setacl\n");
-	status = -ENOMEM;
+	status = -EANALMEM;
 	fattr = nfs_alloc_fattr();
 	if (fattr == NULL)
 		goto out_freepages;
@@ -218,22 +218,22 @@ static int __nfs3_proc_setacls(struct inode *inode, struct posix_acl *acl,
 	msg.rpc_proc = &server->client_acl->cl_procinfo[ACLPROC3_SETACL];
 	msg.rpc_resp = fattr;
 	status = rpc_call_sync(server->client_acl, &msg, 0);
-	nfs_access_zap_cache(inode);
-	nfs_zap_acl_cache(inode);
+	nfs_access_zap_cache(ianalde);
+	nfs_zap_acl_cache(ianalde);
 	dprintk("NFS reply setacl: %d\n", status);
 
 	switch (status) {
 		case 0:
-			status = nfs_refresh_inode(inode, fattr);
+			status = nfs_refresh_ianalde(ianalde, fattr);
 			break;
-		case -EPFNOSUPPORT:
-		case -EPROTONOSUPPORT:
-			dprintk("NFS_V3_ACL SETACL RPC not supported"
-					"(will not retry)\n");
+		case -EPFANALSUPPORT:
+		case -EPROTOANALSUPPORT:
+			dprintk("NFS_V3_ACL SETACL RPC analt supported"
+					"(will analt retry)\n");
 			server->caps &= ~NFS_CAP_ACLS;
 			fallthrough;
-		case -ENOTSUPP:
-			status = -EOPNOTSUPP;
+		case -EANALTSUPP:
+			status = -EOPANALTSUPP;
 	}
 	nfs_free_fattr(fattr);
 out_freepages:
@@ -245,12 +245,12 @@ out:
 	return status;
 }
 
-int nfs3_proc_setacls(struct inode *inode, struct posix_acl *acl,
+int nfs3_proc_setacls(struct ianalde *ianalde, struct posix_acl *acl,
 		struct posix_acl *dfacl)
 {
 	int ret;
-	ret = __nfs3_proc_setacls(inode, acl, dfacl);
-	return (ret == -EOPNOTSUPP) ? 0 : ret;
+	ret = __nfs3_proc_setacls(ianalde, acl, dfacl);
+	return (ret == -EOPANALTSUPP) ? 0 : ret;
 
 }
 
@@ -258,20 +258,20 @@ int nfs3_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
 		 struct posix_acl *acl, int type)
 {
 	struct posix_acl *orig = acl, *dfacl = NULL, *alloc;
-	struct inode *inode = d_inode(dentry);
+	struct ianalde *ianalde = d_ianalde(dentry);
 	int status;
 
-	if (S_ISDIR(inode->i_mode)) {
+	if (S_ISDIR(ianalde->i_mode)) {
 		switch(type) {
 		case ACL_TYPE_ACCESS:
-			alloc = get_inode_acl(inode, ACL_TYPE_DEFAULT);
+			alloc = get_ianalde_acl(ianalde, ACL_TYPE_DEFAULT);
 			if (IS_ERR(alloc))
 				goto fail;
 			dfacl = alloc;
 			break;
 
 		case ACL_TYPE_DEFAULT:
-			alloc = get_inode_acl(inode, ACL_TYPE_ACCESS);
+			alloc = get_ianalde_acl(ianalde, ACL_TYPE_ACCESS);
 			if (IS_ERR(alloc))
 				goto fail;
 			dfacl = acl;
@@ -281,12 +281,12 @@ int nfs3_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
 	}
 
 	if (acl == NULL) {
-		alloc = posix_acl_from_mode(inode->i_mode, GFP_KERNEL);
+		alloc = posix_acl_from_mode(ianalde->i_mode, GFP_KERNEL);
 		if (IS_ERR(alloc))
 			goto fail;
 		acl = alloc;
 	}
-	status = __nfs3_proc_setacls(inode, acl, dfacl);
+	status = __nfs3_proc_setacls(ianalde, acl, dfacl);
 out:
 	if (acl != orig)
 		posix_acl_release(acl);
@@ -300,13 +300,13 @@ fail:
 }
 
 static int
-nfs3_list_one_acl(struct inode *inode, int type, const char *name, void *data,
+nfs3_list_one_acl(struct ianalde *ianalde, int type, const char *name, void *data,
 		size_t size, ssize_t *result)
 {
 	struct posix_acl *acl;
 	char *p = data + *result;
 
-	acl = get_inode_acl(inode, type);
+	acl = get_ianalde_acl(ianalde, type);
 	if (IS_ERR_OR_NULL(acl))
 		return 0;
 
@@ -326,16 +326,16 @@ nfs3_list_one_acl(struct inode *inode, int type, const char *name, void *data,
 ssize_t
 nfs3_listxattr(struct dentry *dentry, char *data, size_t size)
 {
-	struct inode *inode = d_inode(dentry);
+	struct ianalde *ianalde = d_ianalde(dentry);
 	ssize_t result = 0;
 	int error;
 
-	error = nfs3_list_one_acl(inode, ACL_TYPE_ACCESS,
+	error = nfs3_list_one_acl(ianalde, ACL_TYPE_ACCESS,
 			XATTR_NAME_POSIX_ACL_ACCESS, data, size, &result);
 	if (error)
 		return error;
 
-	error = nfs3_list_one_acl(inode, ACL_TYPE_DEFAULT,
+	error = nfs3_list_one_acl(ianalde, ACL_TYPE_DEFAULT,
 			XATTR_NAME_POSIX_ACL_DEFAULT, data, size, &result);
 	if (error)
 		return error;

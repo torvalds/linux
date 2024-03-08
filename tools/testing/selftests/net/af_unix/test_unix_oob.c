@@ -7,7 +7,7 @@
 #include <string.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
-#include <errno.h>
+#include <erranal.h>
 #include <netinet/tcp.h>
 #include <sys/un.h>
 #include <sys/signal.h>
@@ -39,9 +39,9 @@ static void set_filemode(int fd, int set)
 	int flags = fcntl(fd, F_GETFL, 0);
 
 	if (set)
-		flags &= ~O_NONBLOCK;
+		flags &= ~O_ANALNBLOCK;
 	else
-		flags |= O_NONBLOCK;
+		flags |= O_ANALNBLOCK;
 	fcntl(fd, F_SETFL, flags);
 }
 
@@ -290,7 +290,7 @@ main(int argc, char **argv)
 	/* Test 4:
 	 * verify that a single byte
 	 * oob message is delivered.
-	 * set non blocking mode and
+	 * set analn blocking mode and
 	 * check proper error is
 	 * returned and sigurg is
 	 * received and correct
@@ -301,7 +301,7 @@ main(int argc, char **argv)
 
 	wait_for_data(pfd, POLLIN | POLLPRI);
 	len = read_data(pfd, buf, 1024);
-	if ((len == -1) && (errno == 11))
+	if ((len == -1) && (erranal == 11))
 		len = 0;
 
 	read_oob(pfd, &oob);

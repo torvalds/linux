@@ -119,8 +119,8 @@ static int int340x_thermal_read_trips(struct acpi_device *zone_adev,
 }
 
 static struct thermal_zone_params int340x_thermal_params = {
-	.governor_name = "user_space",
-	.no_hwmon = true,
+	.goveranalr_name = "user_space",
+	.anal_hwmon = true,
 };
 
 struct int34x_thermal_zone *int340x_thermal_zone_add(struct acpi_device *adev,
@@ -136,14 +136,14 @@ struct int34x_thermal_zone *int340x_thermal_zone_add(struct acpi_device *adev,
 
 	int34x_zone = kzalloc(sizeof(*int34x_zone), GFP_KERNEL);
 	if (!int34x_zone)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	int34x_zone->adev = adev;
 
 	int34x_zone->ops = kmemdup(&int340x_thermal_zone_ops,
 				   sizeof(int340x_thermal_zone_ops), GFP_KERNEL);
 	if (!int34x_zone->ops) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_ops_alloc;
 	}
 
@@ -159,7 +159,7 @@ struct int34x_thermal_zone *int340x_thermal_zone_add(struct acpi_device *adev,
 	zone_trips = kzalloc(sizeof(*zone_trips) * (trip_cnt + INT340X_THERMAL_MAX_TRIP_COUNT),
 			     GFP_KERNEL);
 	if (!zone_trips) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_trips_alloc;
 	}
 
@@ -245,7 +245,7 @@ static int int340x_update_one_trip(struct thermal_trip *trip, void *arg)
 						    &temp);
 		break;
 	default:
-		err = -ENODEV;
+		err = -EANALDEV;
 	}
 	if (err)
 		temp = THERMAL_TEMP_INVALID;

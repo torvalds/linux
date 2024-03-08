@@ -164,7 +164,7 @@ static int nft_synproxy_do_init(const struct nft_ctx *ctx,
 	if (tb[NFTA_SYNPROXY_FLAGS]) {
 		flags = ntohl(nla_get_be32(tb[NFTA_SYNPROXY_FLAGS]));
 		if (flags & ~NF_SYNPROXY_OPT_MASK)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		priv->info.options = flags;
 	}
 
@@ -254,7 +254,7 @@ static int nft_synproxy_validate(const struct nft_ctx *ctx,
 	if (ctx->family != NFPROTO_IPV4 &&
 	    ctx->family != NFPROTO_IPV6 &&
 	    ctx->family != NFPROTO_INET)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return nft_chain_validate_hooks(ctx->chain, (1 << NF_INET_LOCAL_IN) |
 						    (1 << NF_INET_FORWARD));

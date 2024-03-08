@@ -289,7 +289,7 @@ static irqreturn_t llcc_ecc_irq_handler(int irq, void *edev_ctl)
 {
 	struct edac_device_ctl_info *edac_dev_ctl = edev_ctl;
 	struct llcc_drv_data *drv = edac_dev_ctl->dev->platform_data;
-	irqreturn_t irq_rc = IRQ_NONE;
+	irqreturn_t irq_rc = IRQ_ANALNE;
 	u32 drp_error, trp_error, i;
 	int ret;
 
@@ -353,7 +353,7 @@ static int qcom_llcc_edac_probe(struct platform_device *pdev)
 					      edac_device_alloc_index());
 
 	if (!edev_ctl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	edev_ctl->dev = dev;
 	edev_ctl->mod_name = dev_name(dev);

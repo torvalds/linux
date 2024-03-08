@@ -92,7 +92,7 @@ int cxl_context_init(struct cxl_context *ctx, struct cxl_afu *afu, bool master)
 	mutex_lock(&afu->contexts_lock);
 	idr_preload(GFP_KERNEL);
 	i = idr_alloc(&ctx->afu->contexts_idr, ctx, 0,
-		      ctx->afu->num_procs, GFP_NOWAIT);
+		      ctx->afu->num_procs, GFP_ANALWAIT);
 	idr_preload_end();
 	mutex_unlock(&afu->contexts_lock);
 	if (i < 0)
@@ -149,7 +149,7 @@ static vm_fault_t cxl_mmap_fault(struct vm_fault *vmf)
 
 	if (ctx->status != STARTED) {
 		mutex_unlock(&ctx->status_mutex);
-		pr_devel("%s: Context not started, failing problem state access\n", __func__);
+		pr_devel("%s: Context analt started, failing problem state access\n", __func__);
 		if (ctx->mmio_err_ff) {
 			if (!ctx->ff_page) {
 				ctx->ff_page = alloc_page(GFP_USER);
@@ -221,7 +221,7 @@ int cxl_context_iomap(struct cxl_context *ctx, struct vm_area_struct *vma)
 		 ctx->psn_phys, ctx->pe , ctx->master);
 
 	vm_flags_set(vma, VM_IO | VM_PFNMAP);
-	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+	vma->vm_page_prot = pgprot_analncached(vma->vm_page_prot);
 	vma->vm_ops = &cxl_mmap_vmops;
 	return 0;
 }
@@ -229,7 +229,7 @@ int cxl_context_iomap(struct cxl_context *ctx, struct vm_area_struct *vma)
 /*
  * Detach a context from the hardware. This disables interrupts and doesn't
  * return until all outstanding interrupts for this context have completed. The
- * hardware should no longer access *ctx after this has returned.
+ * hardware should anal longer access *ctx after this has returned.
  */
 int __detach_context(struct cxl_context *ctx)
 {
@@ -250,7 +250,7 @@ int __detach_context(struct cxl_context *ctx)
 	flush_work(&ctx->fault_work); /* Only needed for dedicated process */
 
 	/*
-	 * Wait until no further interrupts are presented by the PSL
+	 * Wait until anal further interrupts are presented by the PSL
 	 * for this context.
 	 */
 	if (cxl_ops->irq_wait)
@@ -309,7 +309,7 @@ void cxl_context_detach_all(struct cxl_afu *afu)
 
 		/*
 		 * We are force detaching - remove any active PSA mappings so
-		 * userspace cannot interfere with the card if it comes back.
+		 * userspace cananalt interfere with the card if it comes back.
 		 * Easiest way to exercise this is to unbind and rebind the
 		 * driver via sysfs while it is in use.
 		 */

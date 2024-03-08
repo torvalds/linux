@@ -22,7 +22,7 @@ UNWIND( .fnstart         )
 	mov	ip, r0			@ preserve r0 as return value
 	bne	6f			@ 1
 /*
- * we know that the pointer in ip is aligned to a word boundary.
+ * we kanalw that the pointer in ip is aligned to a word boundary.
  */
 1:	orr	r1, r1, r1, lsl #8
 	orr	r1, r1, r1, lsl #16
@@ -48,9 +48,9 @@ UNWIND( .save {r8, lr}      )
 	stmiage	ip!, {r1, r3, r8, lr}
 	stmiage	ip!, {r1, r3, r8, lr}
 	bgt	2b
-	ldmfdeq	sp!, {r8, pc}		@ Now <64 bytes to go.
+	ldmfdeq	sp!, {r8, pc}		@ Analw <64 bytes to go.
 /*
- * No need to correct the count; we're only testing bits from now on
+ * Anal need to correct the count; we're only testing bits from analw on
  */
 	tst	r2, #32
 	stmiane	ip!, {r1, r3, r8, lr}
@@ -122,7 +122,7 @@ UNWIND( .fnstart            )
 	strbne	r1, [ip], #1
 	ret	lr
 
-6:	subs	r2, r2, #4		@ 1 do we have enough
+6:	subs	r2, r2, #4		@ 1 do we have eanalugh
 	blt	5b			@ 1 bytes to align with?
 	cmp	r3, #2			@ 1
 	strblt	r1, [ip], #1		@ 1

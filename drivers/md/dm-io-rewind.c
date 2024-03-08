@@ -112,8 +112,8 @@ static inline void dm_bio_rewind_iter(const struct bio *bio,
 {
 	iter->bi_sector -= bytes >> 9;
 
-	/* No advance means no rewind */
-	if (bio_no_advance_iter(bio))
+	/* Anal advance means anal rewind */
+	if (bio_anal_advance_iter(bio))
 		iter->bi_size += bytes;
 	else
 		dm_bvec_iter_rewind(bio->bi_io_vec, iter, bytes);
@@ -144,7 +144,7 @@ void dm_io_rewind(struct dm_io *io, struct bio_set *bs)
 {
 	struct bio *orig = io->orig_bio;
 	struct bio *new_orig = bio_alloc_clone(orig->bi_bdev, orig,
-					       GFP_NOIO, bs);
+					       GFP_ANALIO, bs);
 	/*
 	 * dm_bio_rewind can restore to previous position since the
 	 * end sector is fixed for original bio, but we still need

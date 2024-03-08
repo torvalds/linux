@@ -13,7 +13,7 @@
  *
  * TODO: - handle dual screen display (CRT and LCD at the same time).
  *	 - check_var(), mode change, etc.
- *	 - probably not SMP safe :)
+ *	 - probably analt SMP safe :)
  *       - support all bitblt operations on all cards
  *
  * This file is subject to the terms and conditions of the GNU General Public
@@ -25,7 +25,7 @@
 #include <linux/platform_device.h>
 #include <linux/delay.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/mm.h>
 #include <linux/mman.h>
 #include <linux/fb.h>
@@ -45,7 +45,7 @@
 #if 0
 #define dbg(fmt, args...) do { printk(KERN_INFO fmt, ## args); } while(0)
 #else
-#define dbg(fmt, args...) do { no_printk(KERN_INFO fmt, ## args); } while (0)
+#define dbg(fmt, args...) do { anal_printk(KERN_INFO fmt, ## args); } while (0)
 #endif
 
 /*
@@ -90,19 +90,19 @@ static const struct fb_fix_screeninfo s1d13xxxfb_fix = {
 	.xpanstep	= 0,
 	.ypanstep	= 1,
 	.ywrapstep	= 0,
-	.accel		= FB_ACCEL_NONE,
+	.accel		= FB_ACCEL_ANALNE,
 };
 
 static inline u8
-s1d13xxxfb_readreg(struct s1d13xxxfb_par *par, u16 regno)
+s1d13xxxfb_readreg(struct s1d13xxxfb_par *par, u16 reganal)
 {
-	return readb(par->regs + regno);
+	return readb(par->regs + reganal);
 }
 
 static inline void
-s1d13xxxfb_writereg(struct s1d13xxxfb_par *par, u16 regno, u8 value)
+s1d13xxxfb_writereg(struct s1d13xxxfb_par *par, u16 reganal, u8 value)
 {
-	writeb(value, par->regs + regno);
+	writeb(value, par->regs + reganal);
 }
 
 static inline void
@@ -187,7 +187,7 @@ s1d13xxxfb_setup_truecolour(struct fb_info *info)
  *
  *	Using the fb_var_screeninfo in fb_info we set the depth of the
  *	framebuffer. This function alters the par AND the
- *	fb_fix_screeninfo stored in fb_info. It doesn't not alter var in
+ *	fb_fix_screeninfo stored in fb_info. It doesn't analt alter var in
  *	fb_info since we are using that data. This means we depend on the
  *	data in var inside fb_info to be supported by the hardware.
  *	xxxfb_check_var is always called before xxxfb_set_par to ensure this.
@@ -228,7 +228,7 @@ s1d13xxxfb_set_par(struct fb_info *info)
 			break;
 
 		default:
-			dbg("bpp not supported!\n");
+			dbg("bpp analt supported!\n");
 			return -EINVAL;
 	}
 
@@ -251,34 +251,34 @@ s1d13xxxfb_set_par(struct fb_info *info)
 
 /**
  *	s1d13xxxfb_setcolreg - sets a color register.
- *	@regno: Which register in the CLUT we are programming
+ *	@reganal: Which register in the CLUT we are programming
  *	@red: The red value which can be up to 16 bits wide
  *	@green: The green value which can be up to 16 bits wide
  *	@blue:  The blue value which can be up to 16 bits wide.
  *	@transp: If supported the alpha value which can be up to 16 bits wide.
  *	@info: frame buffer info structure
  *
- *	Returns negative errno on error, or zero on success.
+ *	Returns negative erranal on error, or zero on success.
  */
 static int
-s1d13xxxfb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
+s1d13xxxfb_setcolreg(u_int reganal, u_int red, u_int green, u_int blue,
 			u_int transp, struct fb_info *info)
 {
 	struct s1d13xxxfb_par *s1dfb = info->par;
 	unsigned int pseudo_val;
 
-	if (regno >= S1D_PALETTE_SIZE)
+	if (reganal >= S1D_PALETTE_SIZE)
 		return -EINVAL;
 
 	dbg("s1d13xxxfb_setcolreg: %d: rgb=%d,%d,%d, tr=%d\n",
-		    regno, red, green, blue, transp);
+		    reganal, red, green, blue, transp);
 
 	if (info->var.grayscale)
 		red = green = blue = (19595*red + 38470*green + 7471*blue) >> 16;
 
 	switch (info->fix.visual) {
 		case FB_VISUAL_TRUECOLOR:
-			if (regno >= 16)
+			if (reganal >= 16)
 				return -EINVAL;
 
 			/* deal with creating pseudo-palette entries */
@@ -288,20 +288,20 @@ s1d13xxxfb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 			pseudo_val |= (blue  >> 11) << info->var.blue.offset;
 
 			dbg("s1d13xxxfb_setcolreg: pseudo %d, val %08x\n",
-				    regno, pseudo_val);
+				    reganal, pseudo_val);
 
-			((u32 *)info->pseudo_palette)[regno] = pseudo_val;
+			((u32 *)info->pseudo_palette)[reganal] = pseudo_val;
 
 			break;
 		case FB_VISUAL_PSEUDOCOLOR:
-			s1d13xxxfb_writereg(s1dfb, S1DREG_LKUP_ADDR, regno);
+			s1d13xxxfb_writereg(s1dfb, S1DREG_LKUP_ADDR, reganal);
 			s1d13xxxfb_writereg(s1dfb, S1DREG_LKUP_DATA, red);
 			s1d13xxxfb_writereg(s1dfb, S1DREG_LKUP_DATA, green);
 			s1d13xxxfb_writereg(s1dfb, S1DREG_LKUP_DATA, blue);
 
 			break;
 		default:
-			return -ENOSYS;
+			return -EANALSYS;
 	}
 
 	dbg("s1d13xxxfb_setcolreg: done\n");
@@ -322,7 +322,7 @@ s1d13xxxfb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
  *      blank_mode == 3: suspend hsync
  *      blank_mode == 4: powerdown
  *
- *      Returns negative errno on error, or zero on success.
+ *      Returns negative erranal on error, or zero on success.
  */
 static int
 s1d13xxxfb_blank(int blank_mode, struct fb_info *info)
@@ -333,7 +333,7 @@ s1d13xxxfb_blank(int blank_mode, struct fb_info *info)
 
 	switch (blank_mode) {
 		case FB_BLANK_UNBLANK:
-		case FB_BLANK_NORMAL:
+		case FB_BLANK_ANALRMAL:
 			if ((par->display & 0x01) != 0)
 				lcd_enable(par, 1);
 			if ((par->display & 0x02) != 0)
@@ -351,7 +351,7 @@ s1d13xxxfb_blank(int blank_mode, struct fb_info *info)
 	}
 
 	/* let fbcon do a soft blank for us */
-	return ((blank_mode == FB_BLANK_NORMAL) ? 1 : 0);
+	return ((blank_mode == FB_BLANK_ANALRMAL) ? 1 : 0);
 }
 
 /**
@@ -360,10 +360,10 @@ s1d13xxxfb_blank(int blank_mode, struct fb_info *info)
  *	@info: frame buffer structure that represents a single frame buffer
  *
  *	Pan (or wrap, depending on the `vmode' field) the display using the
- *	`yoffset' field of the `var' structure (`xoffset'  not yet supported).
+ *	`yoffset' field of the `var' structure (`xoffset'  analt yet supported).
  *	If the values don't fit, return -EINVAL.
  *
- *	Returns negative errno on error, or zero on success.
+ *	Returns negative erranal on error, or zero on success.
  */
 static int
 s1d13xxxfb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
@@ -371,7 +371,7 @@ s1d13xxxfb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 	struct s1d13xxxfb_par *par = info->par;
 	u32 start;
 
-	if (var->xoffset != 0)	/* not yet ... */
+	if (var->xoffset != 0)	/* analt yet ... */
 		return -EINVAL;
 
 	if (var->yoffset + info->var.yres > info->var.yres_virtual)
@@ -451,7 +451,7 @@ s1d13xxxfb_bitblt_copyarea(struct fb_info *info, const struct fb_copyarea *area)
 		dst = (((dy + height - 1) * stride) + (bpp * (dx + width - 1)));
 		src = (((sy + height - 1) * stride) + (bpp * (sx + width - 1)));
 		reverse = 1;
-	/* not reverse, calculate the first pixel in rectangle */
+	/* analt reverse, calculate the first pixel in rectangle */
 	} else { /* (y * xres) + (bpp * x) */
 		dst = (dy * stride) + (bpp * dx);
 		src = (sy * stride) + (bpp * sx);
@@ -483,7 +483,7 @@ s1d13xxxfb_bitblt_copyarea(struct fb_info *info, const struct fb_copyarea *area)
 		dbg_blit("(copyarea) positive rop\n");
 	}
 
-	/* set for rectangel mode and not linear */
+	/* set for rectangel mode and analt linear */
 	s1d13xxxfb_writereg(info->par, S1DREG_BBLT_CTL0, 0x0);
 
 	/* setup the bpp 1 = 16bpp, 0 = 8bpp*/
@@ -572,7 +572,7 @@ s1d13xxxfb_bitblt_solidfill(struct fb_info *info, const struct fb_fillrect *rect
 	s1d13xxxfb_writereg(info->par, S1DREG_BBLT_FGC0, (fg & 0xff));
 	s1d13xxxfb_writereg(info->par, S1DREG_BBLT_FGC1, (fg >> 8) & 0xff);
 
-	/* set rectangual region of memory (rectangle and not linear) */
+	/* set rectangual region of memory (rectangle and analt linear) */
 	s1d13xxxfb_writereg(info->par, S1DREG_BBLT_CTL0, 0x0);
 
 	/* set operation mode SOLID_FILL */
@@ -635,8 +635,8 @@ static int s1d13xxxfb_width_tab[2][4] = {
  *	software values needs to match the hardware ones. This is what
  *	this function ensures.
  *
- *	Note: some of the hardcoded values here might need some love to
- *	work on various chips, and might need to no longer be hardcoded.
+ *	Analte: some of the hardcoded values here might need some love to
+ *	work on various chips, and might need to anal longer be hardcoded.
  */
 static void s1d13xxxfb_fetch_hw_state(struct fb_info *info)
 {
@@ -718,7 +718,7 @@ static void s1d13xxxfb_fetch_hw_state(struct fb_info *info)
 
 	var->grayscale		= !is_color;
 
-	var->activate		= FB_ACTIVATE_NOW;
+	var->activate		= FB_ACTIVATE_ANALW;
 
 	dbg(PFX "bpp=%d, lcd_bpp=%d, "
 		"crt_enabled=%d, lcd_enabled=%d\n",
@@ -787,7 +787,7 @@ static int s1d13xxxfb_probe(struct platform_device *pdev)
 	if (pdev->num_resources != 2) {
 		dev_err(&pdev->dev, "invalid num_resources: %i\n",
 		       pdev->num_resources);
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto bail;
 	}
 
@@ -795,7 +795,7 @@ static int s1d13xxxfb_probe(struct platform_device *pdev)
 	if (pdev->resource[0].flags != IORESOURCE_MEM
 			|| pdev->resource[1].flags != IORESOURCE_MEM) {
 		dev_err(&pdev->dev, "invalid resource type\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto bail;
 	}
 
@@ -815,7 +815,7 @@ static int s1d13xxxfb_probe(struct platform_device *pdev)
 
 	info = framebuffer_alloc(sizeof(struct s1d13xxxfb_par) + sizeof(u32) * 256, &pdev->dev);
 	if (!info) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto bail;
 	}
 
@@ -825,7 +825,7 @@ static int s1d13xxxfb_probe(struct platform_device *pdev)
 				    resource_size(&pdev->resource[1]));
 	if (!default_par->regs) {
 		printk(KERN_ERR PFX "unable to map registers\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto bail;
 	}
 	info->pseudo_palette = default_par->pseudo_palette;
@@ -835,7 +835,7 @@ static int s1d13xxxfb_probe(struct platform_device *pdev)
 
 	if (!info->screen_base) {
 		printk(KERN_ERR PFX "unable to map framebuffer\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto bail;
 	}
 
@@ -843,7 +843,7 @@ static int s1d13xxxfb_probe(struct platform_device *pdev)
 	prod_id = s1d13xxxfb_readreg(default_par, S1DREG_REV_CODE) >> 2;
 	/* revision id is lower 2 bits */
 	revision = s1d13xxxfb_readreg(default_par, S1DREG_REV_CODE) & 0x3;
-	ret = -ENODEV;
+	ret = -EANALDEV;
 
 	for (i = 0; i < ARRAY_SIZE(s1d13xxxfb_prod_ids); i++) {
 		if (prod_id == s1d13xxxfb_prod_ids[i]) {
@@ -861,7 +861,7 @@ static int s1d13xxxfb_probe(struct platform_device *pdev)
 		printk(KERN_INFO PFX "chip revision %i\n", revision);
 	} else {
 		printk(KERN_INFO PFX
-			"unknown chip production id %i, revision %i\n",
+			"unkanalwn chip production id %i, revision %i\n",
 			prod_id, revision);
 		printk(KERN_INFO PFX "please contact maintainer\n");
 		goto bail;
@@ -930,8 +930,8 @@ static int s1d13xxxfb_suspend(struct platform_device *dev, pm_message_t state)
 		s1dfb->disp_save = kmalloc(info->fix.smem_len, GFP_KERNEL);
 
 	if (!s1dfb->disp_save) {
-		printk(KERN_ERR PFX "no memory to save screen\n");
-		return -ENOMEM;
+		printk(KERN_ERR PFX "anal memory to save screen\n");
+		return -EANALMEM;
 	}
 
 	memcpy_fromio(s1dfb->disp_save, info->screen_base, info->fix.smem_len);
@@ -943,14 +943,14 @@ static int s1d13xxxfb_suspend(struct platform_device *dev, pm_message_t state)
 		s1dfb->regs_save = kmalloc(info->fix.mmio_len, GFP_KERNEL);
 
 	if (!s1dfb->regs_save) {
-		printk(KERN_ERR PFX "no memory to save registers");
-		return -ENOMEM;
+		printk(KERN_ERR PFX "anal memory to save registers");
+		return -EANALMEM;
 	}
 
 	/* backup all registers */
 	memcpy_fromio(s1dfb->regs_save, s1dfb->regs, info->fix.mmio_len);
 
-	/* now activate power save mode */
+	/* analw activate power save mode */
 	s1d13xxxfb_writereg(s1dfb, S1DREG_PS_CNF, 0x11);
 
 	if (pdata && pdata->platform_suspend_video)
@@ -968,7 +968,7 @@ static int s1d13xxxfb_resume(struct platform_device *dev)
 	/* awaken the chip */
 	s1d13xxxfb_writereg(s1dfb, S1DREG_PS_CNF, 0x10);
 
-	/* do not let go until SDRAM "wakes up" */
+	/* do analt let go until SDRAM "wakes up" */
 	while ((s1d13xxxfb_readreg(s1dfb, S1DREG_PS_STATUS) & 0x01))
 		udelay(10);
 
@@ -1018,7 +1018,7 @@ s1d13xxxfb_init(void)
 
 #ifndef MODULE
 	if (fb_get_options("s1d13xxxfb", NULL))
-		return -ENODEV;
+		return -EANALDEV;
 #endif
 
 	return platform_driver_register(&s1d13xxxfb_driver);

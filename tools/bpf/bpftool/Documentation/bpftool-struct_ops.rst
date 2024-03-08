@@ -11,7 +11,7 @@ tool to register/unregister/introspect BPF struct_ops
 
 .. include:: substitutions.rst
 
-SYNOPSIS
+SYANALPSIS
 ========
 
 	**bpftool** [*OPTIONS*] **struct_ops** *COMMAND*

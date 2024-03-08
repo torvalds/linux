@@ -38,13 +38,13 @@
 
 /* tx limits */
 #define FWNET_MAX_QUEUED_DATAGRAMS	20 /* < 64 = number of tlabels */
-#define FWNET_MIN_QUEUED_DATAGRAMS	10 /* should keep AT DMA busy enough */
+#define FWNET_MIN_QUEUED_DATAGRAMS	10 /* should keep AT DMA busy eanalugh */
 #define FWNET_TX_QUEUE_LEN		FWNET_MAX_QUEUED_DATAGRAMS /* ? */
 
 #define IEEE1394_BROADCAST_CHANNEL	31
-#define IEEE1394_ALL_NODES		(0xffc0 | 0x003f)
+#define IEEE1394_ALL_ANALDES		(0xffc0 | 0x003f)
 #define IEEE1394_MAX_PAYLOAD_S100	512
-#define FWNET_NO_FIFO_ADDR		(~0ULL)
+#define FWNET_ANAL_FIFO_ADDR		(~0ULL)
 
 #define IANA_SPECIFIER_ID		0x00005eU
 #define RFC2734_SW_VERSION		0x000001U
@@ -121,7 +121,7 @@ struct fwnet_partial_datagram {
 	struct list_head pd_link;
 	struct list_head fi_list;
 	struct sk_buff *skb;
-	/* FIXME Why not use skb->data? */
+	/* FIXME Why analt use skb->data? */
 	char *pbuf;
 	u16 datagram_label;
 	u16 ether_type;
@@ -154,13 +154,13 @@ struct fwnet_device {
 	u16 broadcast_xmt_datagramlabel;
 
 	/*
-	 * The CSR address that remote nodes must send datagrams to for us to
+	 * The CSR address that remote analdes must send datagrams to for us to
 	 * receive them.
 	 */
 	struct fw_address_handler handler;
 	u64 local_fifo;
 
-	/* Number of tx datagrams that have been queued but not yet acked */
+	/* Number of tx datagrams that have been queued but analt yet acked */
 	int queued_datagrams;
 
 	int peer_count;
@@ -180,7 +180,7 @@ struct fwnet_peer {
 
 	u16 datagram_label;       /* outgoing datagram label */
 	u16 max_payload;          /* includes RFC2374_FRAG_HDR_SIZE overhead */
-	int node_id;
+	int analde_id;
 	int generation;
 	unsigned speed;
 };
@@ -194,7 +194,7 @@ struct fwnet_packet_task {
 
 	int outstanding_pkts;
 	u64 fifo_addr;
-	u16 dest_node;
+	u16 dest_analde;
 	u16 max_payload;
 	u8 generation;
 	u8 speed;
@@ -214,7 +214,7 @@ static int fwnet_header_create(struct sk_buff *skb, struct net_device *net,
 	h = skb_push(skb, sizeof(*h));
 	put_unaligned_be16(type, &h->h_proto);
 
-	if (net->flags & (IFF_LOOPBACK | IFF_NOARP)) {
+	if (net->flags & (IFF_LOOPBACK | IFF_ANALARP)) {
 		memset(h->h_dest, 0, net->addr_len);
 
 		return net->hard_header_len;
@@ -250,7 +250,7 @@ static int fwnet_header_cache(const struct neighbour *neigh,
 	return 0;
 }
 
-/* Called by Address Resolution module to notify changes in address. */
+/* Called by Address Resolution module to analtify changes in address. */
 static void fwnet_header_cache_update(struct hh_cache *hh,
 		const struct net_device *net, const unsigned char *haddr)
 {
@@ -285,7 +285,7 @@ static bool fwnet_frag_overlap(struct fwnet_partial_datagram *pd,
 	return false;
 }
 
-/* Assumes that new fragment does not overlap any existing fragments */
+/* Assumes that new fragment does analt overlap any existing fragments */
 static struct fwnet_fragment_info *fwnet_frag_new(
 	struct fwnet_partial_datagram *pd, unsigned offset, unsigned len)
 {
@@ -452,13 +452,13 @@ static struct fwnet_peer *fwnet_peer_find_by_guid(struct fwnet_device *dev,
 }
 
 /* caller must hold dev->lock */
-static struct fwnet_peer *fwnet_peer_find_by_node_id(struct fwnet_device *dev,
-						int node_id, int generation)
+static struct fwnet_peer *fwnet_peer_find_by_analde_id(struct fwnet_device *dev,
+						int analde_id, int generation)
 {
 	struct fwnet_peer *peer;
 
 	list_for_each_entry(peer, &dev->peer_list, peer_link)
-		if (peer->node_id    == node_id &&
+		if (peer->analde_id    == analde_id &&
 		    peer->generation == generation)
 			return peer;
 
@@ -476,7 +476,7 @@ static unsigned fwnet_max_payload(unsigned max_rec, unsigned speed)
 
 
 static int fwnet_finish_incoming_packet(struct net_device *net,
-					struct sk_buff *skb, u16 source_node_id,
+					struct sk_buff *skb, u16 source_analde_id,
 					bool is_broadcast, u16 ether_type)
 {
 	int status, len;
@@ -494,7 +494,7 @@ static int fwnet_finish_incoming_packet(struct net_device *net,
 
 	/* Write metadata, and then pass to the receive level */
 	skb->dev = net;
-	skb->ip_summed = CHECKSUM_NONE;
+	skb->ip_summed = CHECKSUM_ANALNE;
 
 	/*
 	 * Parse the encapsulation header. This actually does the job of
@@ -552,11 +552,11 @@ static int fwnet_finish_incoming_packet(struct net_device *net,
 
 	dev_kfree_skb_any(skb);
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static int fwnet_incoming_packet(struct fwnet_device *dev, __be32 *buf, int len,
-				 int source_node_id, int generation,
+				 int source_analde_id, int generation,
 				 bool is_broadcast)
 {
 	struct sk_buff *skb;
@@ -591,16 +591,16 @@ static int fwnet_incoming_packet(struct fwnet_device *dev, __be32 *buf, int len,
 		if (unlikely(!skb)) {
 			net->stats.rx_dropped++;
 
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		skb_reserve(skb, LL_RESERVED_SPACE(net));
 		skb_put_data(skb, buf, len);
 
-		return fwnet_finish_incoming_packet(net, skb, source_node_id,
+		return fwnet_finish_incoming_packet(net, skb, source_analde_id,
 						    is_broadcast, ether_type);
 	}
 
-	/* A datagram fragment has been received, now the fun begins. */
+	/* A datagram fragment has been received, analw the fun begins. */
 
 	if (len <= RFC2374_FRAG_HDR_SIZE)
 		return 0;
@@ -623,9 +623,9 @@ static int fwnet_incoming_packet(struct fwnet_device *dev, __be32 *buf, int len,
 
 	spin_lock_irqsave(&dev->lock, flags);
 
-	peer = fwnet_peer_find_by_node_id(dev, source_node_id, generation);
+	peer = fwnet_peer_find_by_analde_id(dev, source_analde_id, generation);
 	if (!peer) {
-		retval = -ENOENT;
+		retval = -EANALENT;
 		goto fail;
 	}
 
@@ -640,7 +640,7 @@ static int fwnet_incoming_packet(struct fwnet_device *dev, __be32 *buf, int len,
 		pd = fwnet_pd_new(net, peer, datagram_label,
 				  dg_size, buf, fg_off, len);
 		if (pd == NULL) {
-			retval = -ENOMEM;
+			retval = -EANALMEM;
 			goto fail;
 		}
 		peer->pdg_size++;
@@ -656,7 +656,7 @@ static int fwnet_incoming_packet(struct fwnet_device *dev, __be32 *buf, int len,
 					  dg_size, buf, fg_off, len);
 			if (pd == NULL) {
 				peer->pdg_size--;
-				retval = -ENOMEM;
+				retval = -EANALMEM;
 				goto fail;
 			}
 		} else {
@@ -664,11 +664,11 @@ static int fwnet_incoming_packet(struct fwnet_device *dev, __be32 *buf, int len,
 				/*
 				 * Couldn't save off fragment anyway
 				 * so might as well obliterate the
-				 * datagram now.
+				 * datagram analw.
 				 */
 				fwnet_pd_delete(pd);
 				peer->pdg_size--;
-				retval = -ENOMEM;
+				retval = -EANALMEM;
 				goto fail;
 			}
 		}
@@ -685,11 +685,11 @@ static int fwnet_incoming_packet(struct fwnet_device *dev, __be32 *buf, int len,
 
 		spin_unlock_irqrestore(&dev->lock, flags);
 
-		return fwnet_finish_incoming_packet(net, skb, source_node_id,
+		return fwnet_finish_incoming_packet(net, skb, source_analde_id,
 						    false, ether_type);
 	}
 	/*
-	 * Datagram is not complete, we're done for the
+	 * Datagram is analt complete, we're done for the
 	 * moment.
 	 */
 	retval = 0;
@@ -707,8 +707,8 @@ static void fwnet_receive_packet(struct fw_card *card, struct fw_request *r,
 	struct fwnet_device *dev = callback_data;
 	int rcode;
 
-	if (destination == IEEE1394_ALL_NODES) {
-		// Although the response to the broadcast packet is not necessarily required, the
+	if (destination == IEEE1394_ALL_ANALDES) {
+		// Although the response to the broadcast packet is analt necessarily required, the
 		// fw_send_response() function should still be called to maintain the reference
 		// counting of the object. In the case, the call of function just releases the
 		// object as a result to decrease the reference counting.
@@ -874,7 +874,7 @@ static void fwnet_transmit_packet_done(struct fwnet_packet_task *ptask)
 			break;
 		}
 
-		if (ptask->dest_node == IEEE1394_ALL_NODES) {
+		if (ptask->dest_analde == IEEE1394_ALL_ANALDES) {
 			skb_pull(skb,
 				 ptask->max_payload + IEEE1394_GASP_HDR_SIZE);
 		} else {
@@ -971,16 +971,16 @@ static int fwnet_send_packet(struct fwnet_packet_task *ptask)
 	default:
 		BUG();
 	}
-	if (ptask->dest_node == IEEE1394_ALL_NODES) {
+	if (ptask->dest_analde == IEEE1394_ALL_ANALDES) {
 		u8 *p;
 		int generation;
-		int node_id;
+		int analde_id;
 		unsigned int sw_version;
 
-		/* ptask->generation may not have been set yet */
+		/* ptask->generation may analt have been set yet */
 		generation = dev->card->generation;
 		smp_rmb();
-		node_id = dev->card->node_id;
+		analde_id = dev->card->analde_id;
 
 		switch (ptask->skb->protocol) {
 		default:
@@ -993,11 +993,11 @@ static int fwnet_send_packet(struct fwnet_packet_task *ptask)
 		}
 
 		p = skb_push(ptask->skb, IEEE1394_GASP_HDR_SIZE);
-		put_unaligned_be32(node_id << 16 | IANA_SPECIFIER_ID >> 8, p);
+		put_unaligned_be32(analde_id << 16 | IANA_SPECIFIER_ID >> 8, p);
 		put_unaligned_be32((IANA_SPECIFIER_ID & 0xff) << 24
 						| sw_version, &p[4]);
 
-		/* We should not transmit if broadcast_channel.valid == 0. */
+		/* We should analt transmit if broadcast_channel.valid == 0. */
 		fw_send_request(dev->card, &ptask->transaction,
 				TCODE_STREAM_DATA,
 				fw_stream_packet_destination_id(3,
@@ -1020,7 +1020,7 @@ static int fwnet_send_packet(struct fwnet_packet_task *ptask)
 	}
 
 	fw_send_request(dev->card, &ptask->transaction,
-			TCODE_WRITE_BLOCK_REQUEST, ptask->dest_node,
+			TCODE_WRITE_BLOCK_REQUEST, ptask->dest_analde,
 			ptask->generation, ptask->speed, ptask->fifo_addr,
 			ptask->skb->data, tx_len, fwnet_write_complete, ptask);
 
@@ -1045,18 +1045,18 @@ static int fwnet_send_packet(struct fwnet_packet_task *ptask)
 
 static void fwnet_fifo_stop(struct fwnet_device *dev)
 {
-	if (dev->local_fifo == FWNET_NO_FIFO_ADDR)
+	if (dev->local_fifo == FWNET_ANAL_FIFO_ADDR)
 		return;
 
 	fw_core_remove_address_handler(&dev->handler);
-	dev->local_fifo = FWNET_NO_FIFO_ADDR;
+	dev->local_fifo = FWNET_ANAL_FIFO_ADDR;
 }
 
 static int fwnet_fifo_start(struct fwnet_device *dev)
 {
 	int retval;
 
-	if (dev->local_fifo != FWNET_NO_FIFO_ADDR)
+	if (dev->local_fifo != FWNET_ANAL_FIFO_ADDR)
 		return 0;
 
 	dev->handler.length = 4096;
@@ -1118,7 +1118,7 @@ static int fwnet_broadcast_start(struct fwnet_device *dev)
 
 	ptrptr = kmalloc_array(num_packets, sizeof(void *), GFP_KERNEL);
 	if (!ptrptr) {
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto failed;
 	}
 	dev->broadcast_rcv_buffer_ptrs = ptrptr;
@@ -1173,7 +1173,7 @@ static int fwnet_broadcast_start(struct fwnet_device *dev)
 	if (retval < 0)
 		goto failed;
 
-	/* FIXME: adjust it according to the min. speed of all known peers? */
+	/* FIXME: adjust it according to the min. speed of all kanalwn peers? */
 	dev->broadcast_xmt_max_payload = IEEE1394_MAX_PAYLOAD_S100
 			- IEEE1394_GASP_HDR_SIZE - RFC2374_UNFRAG_HDR_SIZE;
 	dev->broadcast_state = FWNET_BROADCAST_RUNNING;
@@ -1228,7 +1228,7 @@ static netdev_tx_t fwnet_tx(struct sk_buff *skb, struct net_device *net)
 	struct fwnet_header hdr_buf;
 	struct fwnet_device *dev = netdev_priv(net);
 	__be16 proto;
-	u16 dest_node;
+	u16 dest_analde;
 	unsigned max_payload;
 	u16 dg_size;
 	u16 *datagram_label_ptr;
@@ -1282,9 +1282,9 @@ static netdev_tx_t fwnet_tx(struct sk_buff *skb, struct net_device *net)
 		max_payload        = dev->broadcast_xmt_max_payload;
 		datagram_label_ptr = &dev->broadcast_xmt_datagramlabel;
 
-		ptask->fifo_addr   = FWNET_NO_FIFO_ADDR;
+		ptask->fifo_addr   = FWNET_ANAL_FIFO_ADDR;
 		ptask->generation  = 0;
-		ptask->dest_node   = IEEE1394_ALL_NODES;
+		ptask->dest_analde   = IEEE1394_ALL_ANALDES;
 		ptask->speed       = SCODE_100;
 	} else {
 		union fwnet_hwaddr *ha = (union fwnet_hwaddr *)hdr_buf.h_dest;
@@ -1296,13 +1296,13 @@ static netdev_tx_t fwnet_tx(struct sk_buff *skb, struct net_device *net)
 			goto fail;
 
 		generation         = peer->generation;
-		dest_node          = peer->node_id;
+		dest_analde          = peer->analde_id;
 		max_payload        = peer->max_payload;
 		datagram_label_ptr = &peer->datagram_label;
 
 		ptask->fifo_addr   = get_unaligned_be48(ha->uc.fifo);
 		ptask->generation  = generation;
-		ptask->dest_node   = dest_node;
+		ptask->dest_analde   = dest_analde;
 		ptask->speed       = peer->speed;
 	}
 
@@ -1352,9 +1352,9 @@ static netdev_tx_t fwnet_tx(struct sk_buff *skb, struct net_device *net)
 	net->stats.tx_errors++;
 
 	/*
-	 * FIXME: According to a patch from 2003-02-26, "returning non-zero
+	 * FIXME: According to a patch from 2003-02-26, "returning analn-zero
 	 * causes serious problems" here, allegedly.  Before that patch,
-	 * -ERRNO was returned which is not appropriate under Linux 2.6.
+	 * -ERRANAL was returned which is analt appropriate under Linux 2.6.
 	 * Perhaps more needs to be done?  Stop the queue in serious
 	 * conditions and restart it elsewhere?
 	 */
@@ -1404,7 +1404,7 @@ static int fwnet_add_peer(struct fwnet_device *dev,
 
 	peer = kmalloc(sizeof(*peer), GFP_KERNEL);
 	if (!peer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(&unit->device, peer);
 
@@ -1418,7 +1418,7 @@ static int fwnet_add_peer(struct fwnet_device *dev,
 
 	peer->generation = device->generation;
 	smp_rmb();
-	peer->node_id = device->node_id;
+	peer->analde_id = device->analde_id;
 
 	spin_lock_irq(&dev->lock);
 	list_add_tail(&peer->peer_link, &dev->peer_list);
@@ -1448,11 +1448,11 @@ static int fwnet_probe(struct fw_unit *unit,
 		goto have_dev;
 	}
 
-	net = alloc_netdev(sizeof(*dev), "firewire%d", NET_NAME_UNKNOWN,
+	net = alloc_netdev(sizeof(*dev), "firewire%d", NET_NAME_UNKANALWN,
 			   fwnet_init_dev);
 	if (net == NULL) {
 		mutex_unlock(&fwnet_device_mutex);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	allocated_netdev = true;
@@ -1464,7 +1464,7 @@ static int fwnet_probe(struct fw_unit *unit,
 	dev->broadcast_rcv_context = NULL;
 	dev->broadcast_xmt_max_payload = 0;
 	dev->broadcast_xmt_datagramlabel = 0;
-	dev->local_fifo = FWNET_NO_FIFO_ADDR;
+	dev->local_fifo = FWNET_ANAL_FIFO_ADDR;
 	dev->queued_datagrams = 0;
 	INIT_LIST_HEAD(&dev->peer_list);
 	dev->card = card;
@@ -1498,7 +1498,7 @@ static int fwnet_probe(struct fw_unit *unit,
 		goto out;
 
 	list_add_tail(&dev->dev_link, &fwnet_device_list);
-	dev_notice(&net->dev, "IP over IEEE 1394 on card %s\n",
+	dev_analtice(&net->dev, "IP over IEEE 1394 on card %s\n",
 		   dev_name(card->device));
  have_dev:
 	ret = fwnet_add_peer(dev, unit, device);
@@ -1528,7 +1528,7 @@ static void fwnet_update(struct fw_unit *unit)
 	generation = device->generation;
 
 	spin_lock_irq(&peer->dev->lock);
-	peer->node_id    = device->node_id;
+	peer->analde_id    = device->analde_id;
 	peer->generation = generation;
 	spin_unlock_irq(&peer->dev->lock);
 }
@@ -1671,7 +1671,7 @@ static int __init fwnet_init(void)
 	fwnet_packet_task_cache = kmem_cache_create("packet_task",
 			sizeof(struct fwnet_packet_task), 0, 0, NULL);
 	if (!fwnet_packet_task_cache) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out2;
 	}
 

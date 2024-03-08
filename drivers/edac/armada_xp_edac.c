@@ -299,7 +299,7 @@ static int axp_mc_probe(struct platform_device *pdev)
 
 	config = readl(base + SDRAM_CONFIG_REG);
 	if (!(config & SDRAM_CONFIG_ECC_MASK)) {
-		dev_warn(&pdev->dev, "SDRAM ECC is not enabled\n");
+		dev_warn(&pdev->dev, "SDRAM ECC is analt enabled\n");
 		return -EINVAL;
 	}
 
@@ -309,7 +309,7 @@ static int axp_mc_probe(struct platform_device *pdev)
 
 	mci = edac_mc_alloc(0, ARRAY_SIZE(layers), layers, sizeof(*drvdata));
 	if (!mci)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drvdata = mci->pvt_info;
 	drvdata->base = base;
@@ -321,9 +321,9 @@ static int axp_mc_probe(struct platform_device *pdev)
 	mci->mtype_cap = MEM_FLAG_DDR3;
 	mci->edac_cap = EDAC_FLAG_SECDED;
 	mci->mod_name = pdev->dev.driver->name;
-	mci->ctl_name = id ? id->compatible : "unknown";
+	mci->ctl_name = id ? id->compatible : "unkanalwn";
 	mci->dev_name = dev_name(&pdev->dev);
-	mci->scrub_mode = SCRUB_NONE;
+	mci->scrub_mode = SCRUB_ANALNE;
 
 	axp_mc_read_config(mci);
 
@@ -333,7 +333,7 @@ static int axp_mc_probe(struct platform_device *pdev)
 		drvdata->width /= 2;
 
 	/* configure SBE threshold */
-	/* it seems that SBEs are not captured otherwise */
+	/* it seems that SBEs are analt captured otherwise */
 	writel(1 << SDRAM_ERR_CTRL_THR_OFFSET, drvdata->base + SDRAM_ERR_CTRL_REG);
 
 	/* clear cause registers */
@@ -518,14 +518,14 @@ static int aurora_l2_probe(struct platform_device *pdev)
 
 	l2x0_aux_ctrl = readl(base + L2X0_AUX_CTRL);
 	if (!(l2x0_aux_ctrl & AURORA_ACR_PARITY_EN))
-		dev_warn(&pdev->dev, "tag parity is not enabled\n");
+		dev_warn(&pdev->dev, "tag parity is analt enabled\n");
 	if (!(l2x0_aux_ctrl & AURORA_ACR_ECC_EN))
-		dev_warn(&pdev->dev, "data ECC is not enabled\n");
+		dev_warn(&pdev->dev, "data ECC is analt enabled\n");
 
 	dci = edac_device_alloc_ctl_info(sizeof(*drvdata),
 					 "cpu", 1, "L", 1, 2, NULL, 0, 0);
 	if (!dci)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drvdata = dci->pvt_info;
 	drvdata->base = base;
@@ -535,7 +535,7 @@ static int aurora_l2_probe(struct platform_device *pdev)
 	id = of_match_device(aurora_l2_of_match, &pdev->dev);
 	dci->edac_check = aurora_l2_poll;
 	dci->mod_name = pdev->dev.driver->name;
-	dci->ctl_name = id ? id->compatible : "unknown";
+	dci->ctl_name = id ? id->compatible : "unkanalwn";
 	dci->dev_name = dev_name(&pdev->dev);
 
 	/* clear registers */

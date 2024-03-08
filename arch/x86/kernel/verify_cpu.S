@@ -8,10 +8,10 @@
  *	Copyright (c) 2007  Andi Kleen (ak@suse.de)
  *	Copyright (c) 2007  Eric Biederman (ebiederm@xmission.com)
  *	Copyright (c) 2007  Vivek Goyal (vgoyal@in.ibm.com)
- *	Copyright (c) 2010  Kees Cook (kees.cook@canonical.com)
+ *	Copyright (c) 2010  Kees Cook (kees.cook@caanalnical.com)
  *
  *	This is a common code for verification whether CPU supports
- * 	long mode and SSE or not. It is not called directly instead this
+ * 	long mode and SSE or analt. It is analt called directly instead this
  *	file is included at various places and compiled in that context.
  *	This file is expected to run in 32bit code.  Currently:
  *
@@ -46,25 +46,25 @@ SYM_FUNC_START_LOCAL(verify_cpu)
 	pushfl
 	popl	%eax
 	cmpl	%eax,%ebx
-	jz	.Lverify_cpu_no_longmode	# cpu has no cpuid
+	jz	.Lverify_cpu_anal_longmode	# cpu has anal cpuid
 #endif
 
 	movl	$0x0,%eax		# See if cpuid 1 is implemented
 	cpuid
 	cmpl	$0x1,%eax
-	jb	.Lverify_cpu_no_longmode	# no cpuid 1
+	jb	.Lverify_cpu_anal_longmode	# anal cpuid 1
 
 	xor	%di,%di
 	cmpl	$0x68747541,%ebx	# AuthenticAMD
-	jnz	.Lverify_cpu_noamd
+	jnz	.Lverify_cpu_analamd
 	cmpl	$0x69746e65,%edx
-	jnz	.Lverify_cpu_noamd
+	jnz	.Lverify_cpu_analamd
 	cmpl	$0x444d4163,%ecx
-	jnz	.Lverify_cpu_noamd
+	jnz	.Lverify_cpu_analamd
 	mov	$1,%di			# cpu is from AMD
 	jmp	.Lverify_cpu_check
 
-.Lverify_cpu_noamd:
+.Lverify_cpu_analamd:
 	cmpl	$0x756e6547,%ebx        # GenuineIntel?
 	jnz	.Lverify_cpu_check
 	cmpl	$0x49656e69,%edx
@@ -101,18 +101,18 @@ SYM_FUNC_START_LOCAL(verify_cpu)
 	cpuid
 	andl	$REQUIRED_MASK0,%edx
 	xorl	$REQUIRED_MASK0,%edx
-	jnz	.Lverify_cpu_no_longmode
+	jnz	.Lverify_cpu_anal_longmode
 
 	movl    $0x80000000,%eax	# See if extended cpuid is implemented
 	cpuid
 	cmpl    $0x80000001,%eax
-	jb      .Lverify_cpu_no_longmode	# no extended cpuid
+	jb      .Lverify_cpu_anal_longmode	# anal extended cpuid
 
 	movl    $0x80000001,%eax	# Does the cpu have what it takes
 	cpuid
 	andl    $REQUIRED_MASK1,%edx
 	xorl    $REQUIRED_MASK1,%edx
-	jnz     .Lverify_cpu_no_longmode
+	jnz     .Lverify_cpu_anal_longmode
 
 .Lverify_cpu_sse_test:
 	movl	$1,%eax
@@ -121,7 +121,7 @@ SYM_FUNC_START_LOCAL(verify_cpu)
 	cmpl	$SSE_MASK,%edx
 	je	.Lverify_cpu_sse_ok
 	test	%di,%di
-	jz	.Lverify_cpu_no_longmode	# only try to force SSE on AMD
+	jz	.Lverify_cpu_anal_longmode	# only try to force SSE on AMD
 	movl	$MSR_K7_HWCR,%ecx
 	rdmsr
 	btr	$15,%eax		# enable SSE
@@ -129,7 +129,7 @@ SYM_FUNC_START_LOCAL(verify_cpu)
 	xor	%di,%di			# don't loop
 	jmp	.Lverify_cpu_sse_test	# try again
 
-.Lverify_cpu_no_longmode:
+.Lverify_cpu_anal_longmode:
 	popf				# Restore caller passed flags
 	movl $1,%eax
 	RET

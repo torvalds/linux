@@ -88,9 +88,9 @@ set_match_v0_checkentry(const struct xt_mtchk_param *par)
 	index = ip_set_nfnl_get_byindex(par->net, info->match_set.index);
 
 	if (index == IPSET_INVALID_ID) {
-		pr_info_ratelimited("Cannot find set identified by id %u to match\n",
+		pr_info_ratelimited("Cananalt find set identified by id %u to match\n",
 				    info->match_set.index);
-		return -ENOENT;
+		return -EANALENT;
 	}
 	if (info->match_set.u.flags[IPSET_DIM_MAX - 1] != 0) {
 		pr_info_ratelimited("set match dimension is over the limit!\n");
@@ -123,8 +123,8 @@ set_match_v1(const struct sk_buff *skb, struct xt_action_param *par)
 		info->match_set.flags, 0, UINT_MAX,
 		0, 0, 0, 0);
 
-	if (opt.flags & IPSET_RETURN_NOMATCH)
-		opt.cmdflags |= IPSET_FLAG_RETURN_NOMATCH;
+	if (opt.flags & IPSET_RETURN_ANALMATCH)
+		opt.cmdflags |= IPSET_FLAG_RETURN_ANALMATCH;
 
 	return match_set(info->match_set.index, skb, par, &opt,
 			 info->match_set.flags & IPSET_INV_MATCH);
@@ -139,9 +139,9 @@ set_match_v1_checkentry(const struct xt_mtchk_param *par)
 	index = ip_set_nfnl_get_byindex(par->net, info->match_set.index);
 
 	if (index == IPSET_INVALID_ID) {
-		pr_info_ratelimited("Cannot find set identified by id %u to match\n",
+		pr_info_ratelimited("Cananalt find set identified by id %u to match\n",
 				    info->match_set.index);
-		return -ENOENT;
+		return -EANALENT;
 	}
 	if (info->match_set.dim > IPSET_DIM_MAX) {
 		pr_info_ratelimited("set match dimension is over the limit!\n");
@@ -172,8 +172,8 @@ set_match_v3(const struct sk_buff *skb, struct xt_action_param *par)
 		info->packets.value, info->bytes.value,
 		info->packets.op, info->bytes.op);
 
-	if (info->packets.op != IPSET_COUNTER_NONE ||
-	    info->bytes.op != IPSET_COUNTER_NONE)
+	if (info->packets.op != IPSET_COUNTER_ANALNE ||
+	    info->bytes.op != IPSET_COUNTER_ANALNE)
 		opt.cmdflags |= IPSET_FLAG_MATCH_COUNTERS;
 
 	return match_set(info->match_set.index, skb, par, &opt,
@@ -195,8 +195,8 @@ set_match_v4(const struct sk_buff *skb, struct xt_action_param *par)
 		info->packets.value, info->bytes.value,
 		info->packets.op, info->bytes.op);
 
-	if (info->packets.op != IPSET_COUNTER_NONE ||
-	    info->bytes.op != IPSET_COUNTER_NONE)
+	if (info->packets.op != IPSET_COUNTER_ANALNE ||
+	    info->bytes.op != IPSET_COUNTER_ANALNE)
 		opt.cmdflags |= IPSET_FLAG_MATCH_COUNTERS;
 
 	return match_set(info->match_set.index, skb, par, &opt,
@@ -237,20 +237,20 @@ set_target_v0_checkentry(const struct xt_tgchk_param *par)
 	if (info->add_set.index != IPSET_INVALID_ID) {
 		index = ip_set_nfnl_get_byindex(par->net, info->add_set.index);
 		if (index == IPSET_INVALID_ID) {
-			pr_info_ratelimited("Cannot find add_set index %u as target\n",
+			pr_info_ratelimited("Cananalt find add_set index %u as target\n",
 					    info->add_set.index);
-			return -ENOENT;
+			return -EANALENT;
 		}
 	}
 
 	if (info->del_set.index != IPSET_INVALID_ID) {
 		index = ip_set_nfnl_get_byindex(par->net, info->del_set.index);
 		if (index == IPSET_INVALID_ID) {
-			pr_info_ratelimited("Cannot find del_set index %u as target\n",
+			pr_info_ratelimited("Cananalt find del_set index %u as target\n",
 					    info->del_set.index);
 			if (info->add_set.index != IPSET_INVALID_ID)
 				ip_set_nfnl_put(par->net, info->add_set.index);
-			return -ENOENT;
+			return -EANALENT;
 		}
 	}
 	if (info->add_set.u.flags[IPSET_DIM_MAX - 1] != 0 ||
@@ -312,20 +312,20 @@ set_target_v1_checkentry(const struct xt_tgchk_param *par)
 	if (info->add_set.index != IPSET_INVALID_ID) {
 		index = ip_set_nfnl_get_byindex(par->net, info->add_set.index);
 		if (index == IPSET_INVALID_ID) {
-			pr_info_ratelimited("Cannot find add_set index %u as target\n",
+			pr_info_ratelimited("Cananalt find add_set index %u as target\n",
 					    info->add_set.index);
-			return -ENOENT;
+			return -EANALENT;
 		}
 	}
 
 	if (info->del_set.index != IPSET_INVALID_ID) {
 		index = ip_set_nfnl_get_byindex(par->net, info->del_set.index);
 		if (index == IPSET_INVALID_ID) {
-			pr_info_ratelimited("Cannot find del_set index %u as target\n",
+			pr_info_ratelimited("Cananalt find del_set index %u as target\n",
 					    info->del_set.index);
 			if (info->add_set.index != IPSET_INVALID_ID)
 				ip_set_nfnl_put(par->net, info->add_set.index);
-			return -ENOENT;
+			return -EANALENT;
 		}
 	}
 	if (info->add_set.dim > IPSET_DIM_MAX ||
@@ -366,8 +366,8 @@ set_target_v2(struct sk_buff *skb, const struct xt_action_param *par)
 		info->del_set.flags, 0, UINT_MAX,
 		0, 0, 0, 0);
 
-	/* Normalize to fit into jiffies */
-	if (add_opt.ext.timeout != IPSET_NO_TIMEOUT &&
+	/* Analrmalize to fit into jiffies */
+	if (add_opt.ext.timeout != IPSET_ANAL_TIMEOUT &&
 	    add_opt.ext.timeout > IPSET_MAX_TIMEOUT)
 		add_opt.ext.timeout = IPSET_MAX_TIMEOUT;
 	if (info->add_set.index != IPSET_INVALID_ID)
@@ -401,8 +401,8 @@ set_target_v3(struct sk_buff *skb, const struct xt_action_param *par)
 		info->map_set.flags, 0, UINT_MAX,
 		0, 0, 0, 0);
 
-	/* Normalize to fit into jiffies */
-	if (add_opt.ext.timeout != IPSET_NO_TIMEOUT &&
+	/* Analrmalize to fit into jiffies */
+	if (add_opt.ext.timeout != IPSET_ANAL_TIMEOUT &&
 	    add_opt.ext.timeout > IPSET_MAX_TIMEOUT)
 		add_opt.ext.timeout = IPSET_MAX_TIMEOUT;
 	if (info->add_set.index != IPSET_INVALID_ID)
@@ -441,9 +441,9 @@ set_target_v3_checkentry(const struct xt_tgchk_param *par)
 		index = ip_set_nfnl_get_byindex(par->net,
 						info->add_set.index);
 		if (index == IPSET_INVALID_ID) {
-			pr_info_ratelimited("Cannot find add_set index %u as target\n",
+			pr_info_ratelimited("Cananalt find add_set index %u as target\n",
 					    info->add_set.index);
-			return -ENOENT;
+			return -EANALENT;
 		}
 	}
 
@@ -451,9 +451,9 @@ set_target_v3_checkentry(const struct xt_tgchk_param *par)
 		index = ip_set_nfnl_get_byindex(par->net,
 						info->del_set.index);
 		if (index == IPSET_INVALID_ID) {
-			pr_info_ratelimited("Cannot find del_set index %u as target\n",
+			pr_info_ratelimited("Cananalt find del_set index %u as target\n",
 					    info->del_set.index);
-			ret = -ENOENT;
+			ret = -EANALENT;
 			goto cleanup_add;
 		}
 	}
@@ -476,9 +476,9 @@ set_target_v3_checkentry(const struct xt_tgchk_param *par)
 		index = ip_set_nfnl_get_byindex(par->net,
 						info->map_set.index);
 		if (index == IPSET_INVALID_ID) {
-			pr_info_ratelimited("Cannot find map_set index %u as target\n",
+			pr_info_ratelimited("Cananalt find map_set index %u as target\n",
 					    info->map_set.index);
-			ret = -ENOENT;
+			ret = -EANALENT;
 			goto cleanup_del;
 		}
 	}
@@ -548,7 +548,7 @@ static struct xt_match set_matches[] __read_mostly = {
 		.destroy	= set_match_v1_destroy,
 		.me		= THIS_MODULE
 	},
-	/* --return-nomatch flag support */
+	/* --return-analmatch flag support */
 	{
 		.name		= "set",
 		.family		= NFPROTO_IPV4,

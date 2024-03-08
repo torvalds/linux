@@ -17,7 +17,7 @@
 void kvm_hyp_cpu_entry(unsigned long r0);
 void kvm_hyp_cpu_resume(unsigned long r0);
 
-void __noreturn __host_enter(struct kvm_cpu_context *host_ctxt);
+void __analreturn __host_enter(struct kvm_cpu_context *host_ctxt);
 
 /* Config options set by the host. */
 struct kvm_host_psci_config __ro_after_init kvm_host_psci_config;
@@ -118,7 +118,7 @@ static int psci_cpu_on(u64 func_id, struct kvm_cpu_context *host_ctxt)
 	/*
 	 * Find the logical CPU ID for the given MPIDR. The search set is
 	 * the set of CPUs that were online at the point of KVM initialization.
-	 * Booting other CPUs is rejected because their cpufeatures were not
+	 * Booting other CPUs is rejected because their cpufeatures were analt
 	 * checked against the finalized capabilities. This could be relaxed
 	 * by doing the feature checks in hyp.
 	 */
@@ -161,7 +161,7 @@ static int psci_cpu_suspend(u64 func_id, struct kvm_cpu_context *host_ctxt)
 	init_params = this_cpu_ptr(&kvm_init_params);
 
 	/*
-	 * No need to acquire a lock before writing to boot_args because a core
+	 * Anal need to acquire a lock before writing to boot_args because a core
 	 * can only suspend itself. Racy CPU_ON calls use a separate struct.
 	 */
 	boot_args->pc = pc;
@@ -188,7 +188,7 @@ static int psci_system_suspend(u64 func_id, struct kvm_cpu_context *host_ctxt)
 	init_params = this_cpu_ptr(&kvm_init_params);
 
 	/*
-	 * No need to acquire a lock before writing to boot_args because a core
+	 * Anal need to acquire a lock before writing to boot_args because a core
 	 * can only suspend itself. Racy CPU_ON calls use a separate struct.
 	 */
 	boot_args->pc = pc;
@@ -200,7 +200,7 @@ static int psci_system_suspend(u64 func_id, struct kvm_cpu_context *host_ctxt)
 			 __hyp_pa(init_params), 0);
 }
 
-asmlinkage void __noreturn __kvm_host_psci_cpu_entry(bool is_cpu_on)
+asmlinkage void __analreturn __kvm_host_psci_cpu_entry(bool is_cpu_on)
 {
 	struct psci_boot_args *boot_args;
 	struct kvm_cpu_context *host_ctxt;
@@ -230,7 +230,7 @@ static unsigned long psci_0_1_handler(u64 func_id, struct kvm_cpu_context *host_
 	if (is_psci_0_1(cpu_suspend, func_id))
 		return psci_cpu_suspend(func_id, host_ctxt);
 
-	return PSCI_RET_NOT_SUPPORTED;
+	return PSCI_RET_ANALT_SUPPORTED;
 }
 
 static unsigned long psci_0_2_handler(u64 func_id, struct kvm_cpu_context *host_ctxt)
@@ -244,7 +244,7 @@ static unsigned long psci_0_2_handler(u64 func_id, struct kvm_cpu_context *host_
 	case PSCI_0_2_FN64_MIGRATE_INFO_UP_CPU:
 		return psci_forward(host_ctxt);
 	/*
-	 * SYSTEM_OFF/RESET should not return according to the spec.
+	 * SYSTEM_OFF/RESET should analt return according to the spec.
 	 * Allow it so as to stay robust to broken firmware.
 	 */
 	case PSCI_0_2_FN_SYSTEM_OFF:
@@ -255,7 +255,7 @@ static unsigned long psci_0_2_handler(u64 func_id, struct kvm_cpu_context *host_
 	case PSCI_0_2_FN64_CPU_ON:
 		return psci_cpu_on(func_id, host_ctxt);
 	default:
-		return PSCI_RET_NOT_SUPPORTED;
+		return PSCI_RET_ANALT_SUPPORTED;
 	}
 }
 

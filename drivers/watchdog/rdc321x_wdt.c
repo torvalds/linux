@@ -10,7 +10,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/miscdevice.h>
 #include <linux/fs.h>
 #include <linux/ioport.h>
@@ -108,7 +108,7 @@ static void rdc321x_wdt_start(void)
 				jiffies + RDC_WDT_INTERVAL);
 	}
 
-	/* if process dies, counter is not decremented */
+	/* if process dies, counter is analt decremented */
 	rdc321x_wdt_device.running++;
 }
 
@@ -123,15 +123,15 @@ static int rdc321x_wdt_stop(void)
 }
 
 /* filesystem operations */
-static int rdc321x_wdt_open(struct inode *inode, struct file *file)
+static int rdc321x_wdt_open(struct ianalde *ianalde, struct file *file)
 {
 	if (test_and_set_bit(0, &rdc321x_wdt_device.inuse))
 		return -EBUSY;
 
-	return stream_open(inode, file);
+	return stream_open(ianalde, file);
 }
 
-static int rdc321x_wdt_release(struct inode *inode, struct file *file)
+static int rdc321x_wdt_release(struct ianalde *ianalde, struct file *file)
 {
 	clear_bit(0, &rdc321x_wdt_device.inuse);
 	return 0;
@@ -179,7 +179,7 @@ static long rdc321x_wdt_ioctl(struct file *file, unsigned int cmd,
 		}
 		break;
 	default:
-		return -ENOTTY;
+		return -EANALTTY;
 	}
 	return 0;
 }
@@ -197,7 +197,7 @@ static ssize_t rdc321x_wdt_write(struct file *file, const char __user *buf,
 
 static const struct file_operations rdc321x_wdt_fops = {
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
+	.llseek		= anal_llseek,
 	.unlocked_ioctl	= rdc321x_wdt_ioctl,
 	.compat_ioctl	= compat_ptr_ioctl,
 	.open		= rdc321x_wdt_open,
@@ -206,7 +206,7 @@ static const struct file_operations rdc321x_wdt_fops = {
 };
 
 static struct miscdevice rdc321x_wdt_misc = {
-	.minor	= WATCHDOG_MINOR,
+	.mianalr	= WATCHDOG_MIANALR,
 	.name	= "watchdog",
 	.fops	= &rdc321x_wdt_fops,
 };
@@ -219,14 +219,14 @@ static int rdc321x_wdt_probe(struct platform_device *pdev)
 
 	pdata = dev_get_platdata(&pdev->dev);
 	if (!pdata) {
-		dev_err(&pdev->dev, "no platform data supplied\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "anal platform data supplied\n");
+		return -EANALDEV;
 	}
 
 	r = platform_get_resource_byname(pdev, IORESOURCE_IO, "wdt-reg");
 	if (!r) {
 		dev_err(&pdev->dev, "failed to get wdt-reg resource\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	rdc321x_wdt_device.sb_pdev = pdata->sb_pdev;

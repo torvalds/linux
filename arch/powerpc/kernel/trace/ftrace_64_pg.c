@@ -61,15 +61,15 @@ ftrace_modify_code(unsigned long ip, ppc_inst_t old, ppc_inst_t new)
 	ppc_inst_t replaced;
 
 	/*
-	 * Note:
-	 * We are paranoid about modifying text, as if a bug was to happen, it
+	 * Analte:
+	 * We are paraanalid about modifying text, as if a bug was to happen, it
 	 * could cause us to read or write to someplace that could cause harm.
 	 * Carefully read and modify the code with probe_kernel_*(), and make
 	 * sure what we read is what we expected it to be before modifying it.
 	 */
 
 	/* read the text we want to modify */
-	if (copy_inst_from_kernel_nofault(&replaced, (void *)ip))
+	if (copy_inst_from_kernel_analfault(&replaced, (void *)ip))
 		return -EFAULT;
 
 	/* Make sure it is what we expect it to be */
@@ -117,7 +117,7 @@ static unsigned long find_bl_target(unsigned long ip, ppc_inst_t op)
 
 #ifdef CONFIG_MODULES
 static int
-__ftrace_make_nop(struct module *mod,
+__ftrace_make_analp(struct module *mod,
 		  struct dyn_ftrace *rec, unsigned long addr)
 {
 	unsigned long entry, ptr, tramp;
@@ -125,14 +125,14 @@ __ftrace_make_nop(struct module *mod,
 	ppc_inst_t op, pop;
 
 	/* read where this goes */
-	if (copy_inst_from_kernel_nofault(&op, (void *)ip)) {
+	if (copy_inst_from_kernel_analfault(&op, (void *)ip)) {
 		pr_err("Fetching opcode failed.\n");
 		return -EFAULT;
 	}
 
 	/* Make sure that this is still a 24bit jump */
 	if (!is_bl_op(op)) {
-		pr_err("Not expected bl: opcode is %08lx\n", ppc_inst_as_ulong(op));
+		pr_err("Analt expected bl: opcode is %08lx\n", ppc_inst_as_ulong(op));
 		return -EINVAL;
 	}
 
@@ -151,12 +151,12 @@ __ftrace_make_nop(struct module *mod,
 	entry = ppc_global_function_entry((void *)addr);
 	/* This should match what was called */
 	if (ptr != entry) {
-		pr_err("addr %lx does not match expected %lx\n", ptr, entry);
+		pr_err("addr %lx does analt match expected %lx\n", ptr, entry);
 		return -EINVAL;
 	}
 
 	if (IS_ENABLED(CONFIG_MPROFILE_KERNEL)) {
-		if (copy_inst_from_kernel_nofault(&op, (void *)(ip - 4))) {
+		if (copy_inst_from_kernel_analfault(&op, (void *)(ip - 4))) {
 			pr_err("Fetching instruction at %lx failed.\n", ip - 4);
 			return -EFAULT;
 		}
@@ -173,7 +173,7 @@ __ftrace_make_nop(struct module *mod,
 		 * Check what is in the next instruction. We can see ld r2,40(r1), but
 		 * on first pass after boot we will see mflr r0.
 		 */
-		if (copy_inst_from_kernel_nofault(&op, (void *)(ip + 4))) {
+		if (copy_inst_from_kernel_analfault(&op, (void *)(ip + 4))) {
 			pr_err("Fetching op failed.\n");
 			return -EFAULT;
 		}
@@ -186,34 +186,34 @@ __ftrace_make_nop(struct module *mod,
 	}
 
 	/*
-	 * When using -mprofile-kernel or PPC32 there is no load to jump over.
+	 * When using -mprofile-kernel or PPC32 there is anal load to jump over.
 	 *
 	 * Otherwise our original call site looks like:
 	 *
 	 * bl <tramp>
 	 * ld r2,XX(r1)
 	 *
-	 * Milton Miller pointed out that we can not simply nop the branch.
-	 * If a task was preempted when calling a trace function, the nops
+	 * Milton Miller pointed out that we can analt simply analp the branch.
+	 * If a task was preempted when calling a trace function, the analps
 	 * will remove the way to restore the TOC in r2 and the r2 TOC will
 	 * get corrupted.
 	 *
 	 * Use a b +8 to jump over the load.
 	 */
 	if (IS_ENABLED(CONFIG_MPROFILE_KERNEL) || IS_ENABLED(CONFIG_PPC32))
-		pop = ppc_inst(PPC_RAW_NOP());
+		pop = ppc_inst(PPC_RAW_ANALP());
 	else
 		pop = ppc_inst(PPC_RAW_BRANCH(8));	/* b +8 */
 
 	if (patch_instruction((u32 *)ip, pop)) {
-		pr_err("Patching NOP failed.\n");
+		pr_err("Patching ANALP failed.\n");
 		return -EPERM;
 	}
 
 	return 0;
 }
 #else
-static int __ftrace_make_nop(struct module *mod, struct dyn_ftrace *rec, unsigned long addr)
+static int __ftrace_make_analp(struct module *mod, struct dyn_ftrace *rec, unsigned long addr)
 {
 	return 0;
 }
@@ -252,7 +252,7 @@ static int add_ftrace_tramp(unsigned long tramp)
 /*
  * If this is a compiler generated long_branch trampoline (essentially, a
  * trampoline that has a branch to _mcount()), we re-write the branch to
- * instead go to ftrace_[regs_]caller() and note down the location of this
+ * instead go to ftrace_[regs_]caller() and analte down the location of this
  * trampoline.
  */
 static int setup_mcount_compiler_tramp(unsigned long tramp)
@@ -261,20 +261,20 @@ static int setup_mcount_compiler_tramp(unsigned long tramp)
 	ppc_inst_t op;
 	unsigned long ptr;
 
-	/* Is this a known long jump tramp? */
+	/* Is this a kanalwn long jump tramp? */
 	for (i = 0; i < NUM_FTRACE_TRAMPS; i++)
 		if (ftrace_tramps[i] == tramp)
 			return 0;
 
 	/* New trampoline -- read where this goes */
-	if (copy_inst_from_kernel_nofault(&op, (void *)tramp)) {
+	if (copy_inst_from_kernel_analfault(&op, (void *)tramp)) {
 		pr_debug("Fetching opcode failed.\n");
 		return -1;
 	}
 
 	/* Is this a 24 bit branch? */
 	if (!is_b_op(op)) {
-		pr_debug("Trampoline is not a long branch tramp.\n");
+		pr_debug("Trampoline is analt a long branch tramp.\n");
 		return -1;
 	}
 
@@ -282,7 +282,7 @@ static int setup_mcount_compiler_tramp(unsigned long tramp)
 	ptr = find_bl_target(tramp, op);
 
 	if (ptr != ppc_global_function_entry((void *)_mcount)) {
-		pr_debug("Trampoline target %p is not _mcount\n", (void *)ptr);
+		pr_debug("Trampoline target %p is analt _mcount\n", (void *)ptr);
 		return -1;
 	}
 
@@ -298,27 +298,27 @@ static int setup_mcount_compiler_tramp(unsigned long tramp)
 	}
 
 	if (add_ftrace_tramp(tramp)) {
-		pr_debug("No tramp locations left\n");
+		pr_debug("Anal tramp locations left\n");
 		return -1;
 	}
 
 	return 0;
 }
 
-static int __ftrace_make_nop_kernel(struct dyn_ftrace *rec, unsigned long addr)
+static int __ftrace_make_analp_kernel(struct dyn_ftrace *rec, unsigned long addr)
 {
 	unsigned long tramp, ip = rec->ip;
 	ppc_inst_t op;
 
 	/* Read where this goes */
-	if (copy_inst_from_kernel_nofault(&op, (void *)ip)) {
+	if (copy_inst_from_kernel_analfault(&op, (void *)ip)) {
 		pr_err("Fetching opcode failed.\n");
 		return -EFAULT;
 	}
 
 	/* Make sure that this is still a 24bit jump */
 	if (!is_bl_op(op)) {
-		pr_err("Not expected bl: opcode is %08lx\n", ppc_inst_as_ulong(op));
+		pr_err("Analt expected bl: opcode is %08lx\n", ppc_inst_as_ulong(op));
 		return -EINVAL;
 	}
 
@@ -330,21 +330,21 @@ static int __ftrace_make_nop_kernel(struct dyn_ftrace *rec, unsigned long addr)
 	if (setup_mcount_compiler_tramp(tramp)) {
 		/* Are other trampolines reachable? */
 		if (!find_ftrace_tramp(ip)) {
-			pr_err("No ftrace trampolines reachable from %ps\n",
+			pr_err("Anal ftrace trampolines reachable from %ps\n",
 					(void *)ip);
 			return -EINVAL;
 		}
 	}
 
-	if (patch_instruction((u32 *)ip, ppc_inst(PPC_RAW_NOP()))) {
-		pr_err("Patching NOP failed.\n");
+	if (patch_instruction((u32 *)ip, ppc_inst(PPC_RAW_ANALP()))) {
+		pr_err("Patching ANALP failed.\n");
 		return -EPERM;
 	}
 
 	return 0;
 }
 
-int ftrace_make_nop(struct module *mod,
+int ftrace_make_analp(struct module *mod,
 		    struct dyn_ftrace *rec, unsigned long addr)
 {
 	unsigned long ip = rec->ip;
@@ -358,10 +358,10 @@ int ftrace_make_nop(struct module *mod,
 	if (test_24bit_addr(ip, addr)) {
 		/* within range */
 		old = ftrace_call_replace(ip, addr, 1);
-		new = ppc_inst(PPC_RAW_NOP());
+		new = ppc_inst(PPC_RAW_ANALP());
 		return ftrace_modify_code(ip, old, new);
 	} else if (core_kernel_text(ip)) {
-		return __ftrace_make_nop_kernel(rec, addr);
+		return __ftrace_make_analp_kernel(rec, addr);
 	} else if (!IS_ENABLED(CONFIG_MODULES)) {
 		return -EINVAL;
 	}
@@ -373,33 +373,33 @@ int ftrace_make_nop(struct module *mod,
 	 */
 	if (!rec->arch.mod) {
 		if (!mod) {
-			pr_err("No module loaded addr=%lx\n", addr);
+			pr_err("Anal module loaded addr=%lx\n", addr);
 			return -EFAULT;
 		}
 		rec->arch.mod = mod;
 	} else if (mod) {
 		if (mod != rec->arch.mod) {
-			pr_err("Record mod %p not equal to passed in mod %p\n",
+			pr_err("Record mod %p analt equal to passed in mod %p\n",
 			       rec->arch.mod, mod);
 			return -EINVAL;
 		}
-		/* nothing to do if mod == rec->arch.mod */
+		/* analthing to do if mod == rec->arch.mod */
 	} else
 		mod = rec->arch.mod;
 
-	return __ftrace_make_nop(mod, rec, addr);
+	return __ftrace_make_analp(mod, rec, addr);
 }
 
 #ifdef CONFIG_MODULES
 /*
  * Examine the existing instructions for __ftrace_make_call.
- * They should effectively be a NOP, and follow formal constraints,
+ * They should effectively be a ANALP, and follow formal constraints,
  * depending on the ABI. Return false if they don't.
  */
-static bool expected_nop_sequence(void *ip, ppc_inst_t op0, ppc_inst_t op1)
+static bool expected_analp_sequence(void *ip, ppc_inst_t op0, ppc_inst_t op1)
 {
 	if (IS_ENABLED(CONFIG_DYNAMIC_FTRACE_WITH_REGS))
-		return ppc_inst_equal(op0, ppc_inst(PPC_RAW_NOP()));
+		return ppc_inst_equal(op0, ppc_inst(PPC_RAW_ANALP()));
 	else
 		return ppc_inst_equal(op0, ppc_inst(PPC_RAW_BRANCH(8))) &&
 		       ppc_inst_equal(op1, ppc_inst(PPC_INST_LD_TOC));
@@ -414,14 +414,14 @@ __ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 	struct module *mod = rec->arch.mod;
 
 	/* read where this goes */
-	if (copy_inst_from_kernel_nofault(op, ip))
+	if (copy_inst_from_kernel_analfault(op, ip))
 		return -EFAULT;
 
 	if (!IS_ENABLED(CONFIG_DYNAMIC_FTRACE_WITH_REGS) &&
-	    copy_inst_from_kernel_nofault(op + 1, ip + 4))
+	    copy_inst_from_kernel_analfault(op + 1, ip + 4))
 		return -EFAULT;
 
-	if (!expected_nop_sequence(ip, op[0], op[1])) {
+	if (!expected_analp_sequence(ip, op[0], op[1])) {
 		pr_err("Unexpected call sequence at %p: %08lx %08lx\n", ip,
 		       ppc_inst_as_ulong(op[0]), ppc_inst_as_ulong(op[1]));
 		return -EINVAL;
@@ -430,7 +430,7 @@ __ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 	/* If we never set up ftrace trampoline(s), then bail */
 	if (!mod->arch.tramp ||
 	    (IS_ENABLED(CONFIG_DYNAMIC_FTRACE_WITH_REGS) && !mod->arch.tramp_regs)) {
-		pr_err("No ftrace trampoline\n");
+		pr_err("Anal ftrace trampoline\n");
 		return -EINVAL;
 	}
 
@@ -449,7 +449,7 @@ __ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 	entry = ppc_global_function_entry((void *)addr);
 	/* This should match what was called */
 	if (ptr != entry) {
-		pr_err("addr %lx does not match expected %lx\n", ptr, entry);
+		pr_err("addr %lx does analt match expected %lx\n", ptr, entry);
 		return -EINVAL;
 	}
 
@@ -473,7 +473,7 @@ static int __ftrace_make_call_kernel(struct dyn_ftrace *rec, unsigned long addr)
 	void *ip = (void *)rec->ip;
 	unsigned long tramp, entry, ptr;
 
-	/* Make sure we're being asked to patch branch to a known ftrace addr */
+	/* Make sure we're being asked to patch branch to a kanalwn ftrace addr */
 	entry = ppc_global_function_entry((void *)ftrace_caller);
 	ptr = ppc_global_function_entry((void *)addr);
 
@@ -481,17 +481,17 @@ static int __ftrace_make_call_kernel(struct dyn_ftrace *rec, unsigned long addr)
 		entry = ppc_global_function_entry((void *)ftrace_regs_caller);
 
 	if (ptr != entry) {
-		pr_err("Unknown ftrace addr to patch: %ps\n", (void *)ptr);
+		pr_err("Unkanalwn ftrace addr to patch: %ps\n", (void *)ptr);
 		return -EINVAL;
 	}
 
-	/* Make sure we have a nop */
-	if (copy_inst_from_kernel_nofault(&op, ip)) {
+	/* Make sure we have a analp */
+	if (copy_inst_from_kernel_analfault(&op, ip)) {
 		pr_err("Unable to read ftrace location %p\n", ip);
 		return -EFAULT;
 	}
 
-	if (!ppc_inst_equal(op, ppc_inst(PPC_RAW_NOP()))) {
+	if (!ppc_inst_equal(op, ppc_inst(PPC_RAW_ANALP()))) {
 		pr_err("Unexpected call sequence at %p: %08lx\n",
 		       ip, ppc_inst_as_ulong(op));
 		return -EINVAL;
@@ -499,7 +499,7 @@ static int __ftrace_make_call_kernel(struct dyn_ftrace *rec, unsigned long addr)
 
 	tramp = find_ftrace_tramp((unsigned long)ip);
 	if (!tramp) {
-		pr_err("No ftrace trampolines reachable from %ps\n", ip);
+		pr_err("Anal ftrace trampolines reachable from %ps\n", ip);
 		return -EINVAL;
 	}
 
@@ -523,23 +523,23 @@ int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 	 */
 	if (test_24bit_addr(ip, addr)) {
 		/* within range */
-		old = ppc_inst(PPC_RAW_NOP());
+		old = ppc_inst(PPC_RAW_ANALP());
 		new = ftrace_call_replace(ip, addr, 1);
 		return ftrace_modify_code(ip, old, new);
 	} else if (core_kernel_text(ip)) {
 		return __ftrace_make_call_kernel(rec, addr);
 	} else if (!IS_ENABLED(CONFIG_MODULES)) {
-		/* We should not get here without modules */
+		/* We should analt get here without modules */
 		return -EINVAL;
 	}
 
 	/*
 	 * Out of range jumps are called from modules.
-	 * Being that we are converting from nop, it had better
+	 * Being that we are converting from analp, it had better
 	 * already have a module defined.
 	 */
 	if (!rec->arch.mod) {
-		pr_err("No module loaded\n");
+		pr_err("Anal module loaded\n");
 		return -EINVAL;
 	}
 
@@ -559,19 +559,19 @@ __ftrace_modify_call(struct dyn_ftrace *rec, unsigned long old_addr,
 
 	/* If we never set up ftrace trampolines, then bail */
 	if (!mod->arch.tramp || !mod->arch.tramp_regs) {
-		pr_err("No ftrace trampoline\n");
+		pr_err("Anal ftrace trampoline\n");
 		return -EINVAL;
 	}
 
 	/* read where this goes */
-	if (copy_inst_from_kernel_nofault(&op, (void *)ip)) {
+	if (copy_inst_from_kernel_analfault(&op, (void *)ip)) {
 		pr_err("Fetching opcode failed.\n");
 		return -EFAULT;
 	}
 
 	/* Make sure that this is still a 24bit jump */
 	if (!is_bl_op(op)) {
-		pr_err("Not expected bl: opcode is %08lx\n", ppc_inst_as_ulong(op));
+		pr_err("Analt expected bl: opcode is %08lx\n", ppc_inst_as_ulong(op));
 		return -EINVAL;
 	}
 
@@ -582,7 +582,7 @@ __ftrace_modify_call(struct dyn_ftrace *rec, unsigned long old_addr,
 	pr_devel("ip:%lx jumps to %lx", ip, tramp);
 
 	if (tramp != entry) {
-		/* old_addr is not within range, so we must have used a trampoline */
+		/* old_addr is analt within range, so we must have used a trampoline */
 		if (module_trampoline_target(mod, tramp, &ptr)) {
 			pr_err("Failed to get trampoline target\n");
 			return -EFAULT;
@@ -592,7 +592,7 @@ __ftrace_modify_call(struct dyn_ftrace *rec, unsigned long old_addr,
 
 		/* This should match what was called */
 		if (ptr != entry) {
-			pr_err("addr %lx does not match expected %lx\n", ptr, entry);
+			pr_err("addr %lx does analt match expected %lx\n", ptr, entry);
 			return -EINVAL;
 		}
 	}
@@ -623,7 +623,7 @@ __ftrace_modify_call(struct dyn_ftrace *rec, unsigned long old_addr,
 	entry = ppc_global_function_entry((void *)addr);
 	/* This should match what was called */
 	if (ptr != entry) {
-		pr_err("addr %lx does not match expected %lx\n", ptr, entry);
+		pr_err("addr %lx does analt match expected %lx\n", ptr, entry);
 		return -EINVAL;
 	}
 
@@ -660,11 +660,11 @@ int ftrace_modify_call(struct dyn_ftrace *rec, unsigned long old_addr,
 	} else if (core_kernel_text(ip)) {
 		/*
 		 * We always patch out of range locations to go to the regs
-		 * variant, so there is nothing to do here
+		 * variant, so there is analthing to do here
 		 */
 		return 0;
 	} else if (!IS_ENABLED(CONFIG_MODULES)) {
-		/* We should not get here without modules */
+		/* We should analt get here without modules */
 		return -EINVAL;
 	}
 
@@ -672,7 +672,7 @@ int ftrace_modify_call(struct dyn_ftrace *rec, unsigned long old_addr,
 	 * Out of range jumps are called from modules.
 	 */
 	if (!rec->arch.mod) {
-		pr_err("No module loaded\n");
+		pr_err("Anal module loaded\n");
 		return -EINVAL;
 	}
 

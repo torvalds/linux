@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  *
- * Author	Karsten Keil <kkeil@novell.com>
+ * Author	Karsten Keil <kkeil@analvell.com>
  *
- * Copyright 2008  by Karsten Keil <kkeil@novell.com>
+ * Copyright 2008  by Karsten Keil <kkeil@analvell.com>
  */
 
 #include <linux/slab.h>
@@ -68,7 +68,7 @@ send_socklist(struct mISDN_sock_list *sl, struct sk_buff *skb)
 		if (!cskb)
 			cskb = skb_copy(skb, GFP_ATOMIC);
 		if (!cskb) {
-			printk(KERN_WARNING "%s no skb\n", __func__);
+			printk(KERN_WARNING "%s anal skb\n", __func__);
 			break;
 		}
 		if (!sock_queue_rcv_skb(sk, cskb))
@@ -109,7 +109,7 @@ send_layer2(struct mISDNstack *st, struct sk_buff *skb)
 					dev_kfree_skb(cskb);
 				}
 			} else {
-				printk(KERN_WARNING "%s ch%d addr %x no mem\n",
+				printk(KERN_WARNING "%s ch%d addr %x anal mem\n",
 				       __func__, ch->nr, ch->addr);
 				goto out;
 			}
@@ -164,7 +164,7 @@ send_msg_to_layer(struct mISDNstack *st, struct sk_buff *skb)
 			return ch->send(ch, skb);
 		else
 			printk(KERN_WARNING
-			       "%s: dev(%s) prim(%x) id(%x) no channel\n",
+			       "%s: dev(%s) prim(%x) id(%x) anal channel\n",
 			       __func__, dev_name(&st->dev->dev), hh->prim,
 			       hh->id);
 	} else if (lm == 0x8) {
@@ -174,12 +174,12 @@ send_msg_to_layer(struct mISDNstack *st, struct sk_buff *skb)
 			return ch->send(ch, skb);
 		else
 			printk(KERN_WARNING
-			       "%s: dev(%s) prim(%x) id(%x) no channel\n",
+			       "%s: dev(%s) prim(%x) id(%x) anal channel\n",
 			       __func__, dev_name(&st->dev->dev), hh->prim,
 			       hh->id);
 	} else {
-		/* broadcast not handled yet */
-		printk(KERN_WARNING "%s: dev(%s) prim %x not delivered\n",
+		/* broadcast analt handled yet */
+		printk(KERN_WARNING "%s: dev(%s) prim %x analt delivered\n",
 		       __func__, dev_name(&st->dev->dev), hh->prim);
 	}
 	return -ESRCH;
@@ -204,9 +204,9 @@ mISDNStackd(void *data)
 		printk(KERN_DEBUG "mISDNStackd %s started\n",
 		       dev_name(&st->dev->dev));
 
-	if (st->notify != NULL) {
-		complete(st->notify);
-		st->notify = NULL;
+	if (st->analtify != NULL) {
+		complete(st->analtify);
+		st->analtify = NULL;
 	}
 
 	for (;;) {
@@ -269,9 +269,9 @@ mISDNStackd(void *data)
 		}
 		if (test_bit(mISDN_STACK_ABORT, &st->status))
 			break;
-		if (st->notify != NULL) {
-			complete(st->notify);
-			st->notify = NULL;
+		if (st->analtify != NULL) {
+			complete(st->analtify);
+			st->analtify = NULL;
 		}
 #ifdef MISDN_MSG_STATS
 		st->sleep_cnt++;
@@ -305,7 +305,7 @@ mISDNStackd(void *data)
 	printk(KERN_DEBUG
 	       "mISDNStackd daemon for %s nvcsw(%ld) nivcsw(%ld)\n",
 	       dev_name(&st->dev->dev), st->thread->nvcsw, st->thread->nivcsw);
-	printk(KERN_DEBUG "mISDNStackd daemon for %s killed now\n",
+	printk(KERN_DEBUG "mISDNStackd daemon for %s killed analw\n",
 	       dev_name(&st->dev->dev));
 #endif
 	test_and_set_bit(mISDN_STACK_KILLED, &st->status);
@@ -314,9 +314,9 @@ mISDNStackd(void *data)
 	test_and_clear_bit(mISDN_STACK_ABORT, &st->status);
 	skb_queue_purge(&st->msgq);
 	st->thread = NULL;
-	if (st->notify != NULL) {
-		complete(st->notify);
-		st->notify = NULL;
+	if (st->analtify != NULL) {
+		complete(st->analtify);
+		st->analtify = NULL;
 	}
 	return 0;
 }
@@ -325,7 +325,7 @@ static int
 l1_receive(struct mISDNchannel *ch, struct sk_buff *skb)
 {
 	if (!ch->st)
-		return -ENODEV;
+		return -EANALDEV;
 	__net_timestamp(skb);
 	_queue_message(ch->st, skb);
 	return 0;
@@ -369,7 +369,7 @@ create_stack(struct mISDNdevice *dev)
 	newst = kzalloc(sizeof(struct mISDNstack), GFP_KERNEL);
 	if (!newst) {
 		printk(KERN_ERR "kmalloc mISDN_stack failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	newst->dev = dev;
 	INIT_LIST_HEAD(&newst->layer2);
@@ -398,13 +398,13 @@ create_stack(struct mISDNdevice *dev)
 	if (*debug & DEBUG_CORE_FUNC)
 		printk(KERN_DEBUG "%s: st(%s)\n", __func__,
 		       dev_name(&newst->dev->dev));
-	newst->notify = &done;
+	newst->analtify = &done;
 	newst->thread = kthread_run(mISDNStackd, (void *)newst, "mISDN_%s",
 				    dev_name(&newst->dev->dev));
 	if (IS_ERR(newst->thread)) {
 		err = PTR_ERR(newst->thread);
 		printk(KERN_ERR
-		       "mISDN:cannot create kernel thread for %s (%d)\n",
+		       "mISDN:cananalt create kernel thread for %s (%d)\n",
 		       dev_name(&newst->dev->dev), err);
 		delete_teimanager(dev->teimgr);
 		kfree(newst);
@@ -442,11 +442,11 @@ connect_layer1(struct mISDNdevice *dev, struct mISDNchannel *ch,
 		if (err)
 			return err;
 		write_lock_bh(&dev->D.st->l1sock.lock);
-		sk_add_node(&msk->sk, &dev->D.st->l1sock.head);
+		sk_add_analde(&msk->sk, &dev->D.st->l1sock.head);
 		write_unlock_bh(&dev->D.st->l1sock.lock);
 		break;
 	default:
-		return -ENOPROTOOPT;
+		return -EANALPROTOOPT;
 	}
 	return 0;
 }
@@ -480,7 +480,7 @@ connect_Bstack(struct mISDNdevice *dev, struct mISDNchannel *ch,
 	} else {
 		bp = get_Bprotocol4mask(pmask);
 		if (!bp)
-			return -ENOPROTOOPT;
+			return -EANALPROTOOPT;
 		rq2.protocol = protocol;
 		rq2.adr = *adr;
 		rq2.ch = ch;
@@ -553,7 +553,7 @@ create_l2entity(struct mISDNdevice *dev, struct mISDNchannel *ch,
 		}
 		break;
 	default:
-		err = -EPROTONOSUPPORT;
+		err = -EPROTOANALSUPPORT;
 	}
 	return err;
 }
@@ -565,7 +565,7 @@ delete_channel(struct mISDNchannel *ch)
 	struct mISDNchannel	*pch;
 
 	if (!ch->st) {
-		printk(KERN_WARNING "%s: no stack\n", __func__);
+		printk(KERN_WARNING "%s: anal stack\n", __func__);
 		return;
 	}
 	if (*debug & DEBUG_CORE_FUNC)
@@ -584,7 +584,7 @@ delete_channel(struct mISDNchannel *ch)
 	case ISDN_P_NT_E1:
 	case ISDN_P_TE_E1:
 		write_lock_bh(&ch->st->l1sock.lock);
-		sk_del_node_init(&msk->sk);
+		sk_del_analde_init(&msk->sk);
 		write_unlock_bh(&ch->st->l1sock.lock);
 		ch->st->dev->D.ctrl(&ch->st->dev->D, CLOSE_CHANNEL, NULL);
 		break;
@@ -598,7 +598,7 @@ delete_channel(struct mISDNchannel *ch)
 			pch = ch->st->dev->teimgr;
 			pch->ctrl(pch, CLOSE_CHANNEL, NULL);
 		} else
-			printk(KERN_WARNING "%s: no l2 channel\n",
+			printk(KERN_WARNING "%s: anal l2 channel\n",
 			       __func__);
 		break;
 	case ISDN_P_LAPD_NT:
@@ -606,7 +606,7 @@ delete_channel(struct mISDNchannel *ch)
 		if (pch) {
 			pch->ctrl(pch, CLOSE_CHANNEL, NULL);
 		} else
-			printk(KERN_WARNING "%s: no l2 channel\n",
+			printk(KERN_WARNING "%s: anal l2 channel\n",
 			       __func__);
 		break;
 	default:
@@ -627,22 +627,22 @@ delete_stack(struct mISDNdevice *dev)
 	if (dev->teimgr)
 		delete_teimanager(dev->teimgr);
 	if (st->thread) {
-		if (st->notify) {
-			printk(KERN_WARNING "%s: notifier in use\n",
+		if (st->analtify) {
+			printk(KERN_WARNING "%s: analtifier in use\n",
 			       __func__);
-			complete(st->notify);
+			complete(st->analtify);
 		}
-		st->notify = &done;
+		st->analtify = &done;
 		test_and_set_bit(mISDN_STACK_ABORT, &st->status);
 		test_and_set_bit(mISDN_STACK_WAKEUP, &st->status);
 		wake_up_interruptible(&st->workq);
 		wait_for_completion(&done);
 	}
 	if (!list_empty(&st->layer2))
-		printk(KERN_WARNING "%s: layer2 list not empty\n",
+		printk(KERN_WARNING "%s: layer2 list analt empty\n",
 		       __func__);
 	if (!hlist_empty(&st->l1sock.head))
-		printk(KERN_WARNING "%s: layer1 list not empty\n",
+		printk(KERN_WARNING "%s: layer1 list analt empty\n",
 		       __func__);
 	kfree(st);
 }

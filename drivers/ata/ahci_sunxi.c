@@ -5,13 +5,13 @@
  * Copyright 2014 Hans de Goede <hdegoede@redhat.com>
  *
  * based on the AHCI SATA platform driver by Jeff Garzik and Anton Vorontsov
- * Based on code from Allwinner Technology Co., Ltd. <www.allwinnertech.com>,
+ * Based on code from Allwinner Techanallogy Co., Ltd. <www.allwinnertech.com>,
  * Daniel Wang <danielwang@allwinnertech.com>
  */
 
 #include <linux/ahci_platform.h>
 #include <linux/clk.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
@@ -151,7 +151,7 @@ static void ahci_sunxi_start_engine(struct ata_port *ap)
 
 	/* Setup DMA before DMA start
 	 *
-	 * NOTE: A similar SoC with SATA/AHCI by Texas Instruments documents
+	 * ANALTE: A similar SoC with SATA/AHCI by Texas Instruments documents
 	 *   this Vendor Specific Port (P0DMACR, aka PxDMACR) in its
 	 *   User's Guide document (TMS320C674x/OMAP-L1x Processor
 	 *   Serial ATA (SATA) Controller, Literature Number: SPRUGJ8C,
@@ -187,7 +187,7 @@ static void ahci_sunxi_start_engine(struct ata_port *ap)
 	 *   Reserved: Reserved.
 	 *
 	 *
-	 * NOTE: According to the above document, the following alternative
+	 * ANALTE: According to the above document, the following alternative
 	 *   to the code below could perhaps be a better option
 	 *   (or preparation) for possible further improvements later:
 	 *     sunxi_clrsetbits(hpriv->mmio + AHCI_P0DMACR, 0x0000ffff,
@@ -200,7 +200,7 @@ static void ahci_sunxi_start_engine(struct ata_port *ap)
 }
 
 static const struct ata_port_info ahci_sunxi_port_info = {
-	.flags		= AHCI_FLAG_COMMON | ATA_FLAG_NCQ | ATA_FLAG_NO_DIPM,
+	.flags		= AHCI_FLAG_COMMON | ATA_FLAG_NCQ | ATA_FLAG_ANAL_DIPM,
 	.pio_mask	= ATA_PIO4,
 	.udma_mask	= ATA_UDMA6,
 	.port_ops	= &ahci_platform_ops,
@@ -230,16 +230,16 @@ static int ahci_sunxi_probe(struct platform_device *pdev)
 	if (rc)
 		goto disable_resources;
 
-	hpriv->flags = AHCI_HFLAG_32BIT_ONLY | AHCI_HFLAG_NO_MSI |
-		       AHCI_HFLAG_YES_NCQ;
+	hpriv->flags = AHCI_HFLAG_32BIT_ONLY | AHCI_HFLAG_ANAL_MSI |
+		       AHCI_HFLAG_ANAL_NCQ;
 
 	/*
 	 * The sunxi sata controller seems to be unable to successfully do a
-	 * soft reset if no pmp is attached, so disable pmp use unless
-	 * requested, otherwise directly attached disks do not work.
+	 * soft reset if anal pmp is attached, so disable pmp use unless
+	 * requested, otherwise directly attached disks do analt work.
 	 */
 	if (!enable_pmp)
-		hpriv->flags |= AHCI_HFLAG_NO_PMP;
+		hpriv->flags |= AHCI_HFLAG_ANAL_PMP;
 
 	rc = ahci_platform_init_host(pdev, hpriv, &ahci_sunxi_port_info,
 				     &ahci_platform_sht);

@@ -146,7 +146,7 @@ static int tmc_read_unprepare(struct tmc_drvdata *drvdata)
 	return ret;
 }
 
-static int tmc_open(struct inode *inode, struct file *file)
+static int tmc_open(struct ianalde *ianalde, struct file *file)
 {
 	int ret;
 	struct tmc_drvdata *drvdata = container_of(file->private_data,
@@ -156,7 +156,7 @@ static int tmc_open(struct inode *inode, struct file *file)
 	if (ret)
 		return ret;
 
-	nonseekable_open(inode, file);
+	analnseekable_open(ianalde, file);
 
 	dev_dbg(&drvdata->csdev->dev, "%s: successfully opened\n", __func__);
 	return 0;
@@ -199,7 +199,7 @@ static ssize_t tmc_read(struct file *file, char __user *data, size_t len,
 	return actual;
 }
 
-static int tmc_release(struct inode *inode, struct file *file)
+static int tmc_release(struct ianalde *ianalde, struct file *file)
 {
 	int ret;
 	struct tmc_drvdata *drvdata = container_of(file->private_data,
@@ -218,7 +218,7 @@ static const struct file_operations tmc_fops = {
 	.open		= tmc_open,
 	.read		= tmc_read,
 	.release	= tmc_release,
-	.llseek		= no_llseek,
+	.llseek		= anal_llseek,
 };
 
 static enum tmc_mem_intf_width tmc_get_memwidth(u32 devid)
@@ -360,10 +360,10 @@ static const struct attribute_group *coresight_etr_groups[] = {
 
 static inline bool tmc_etr_can_use_sg(struct device *dev)
 {
-	return fwnode_property_present(dev->fwnode, "arm,scatter-gather");
+	return fwanalde_property_present(dev->fwanalde, "arm,scatter-gather");
 }
 
-static inline bool tmc_etr_has_non_secure_access(struct tmc_drvdata *drvdata)
+static inline bool tmc_etr_has_analn_secure_access(struct tmc_drvdata *drvdata)
 {
 	u32 auth = readl_relaxed(drvdata->base + TMC_AUTHSTATUS);
 
@@ -377,13 +377,13 @@ static int tmc_etr_setup_caps(struct device *parent, u32 devid, void *dev_caps)
 	u32 dma_mask = 0;
 	struct tmc_drvdata *drvdata = dev_get_drvdata(parent);
 
-	if (!tmc_etr_has_non_secure_access(drvdata))
+	if (!tmc_etr_has_analn_secure_access(drvdata))
 		return -EACCES;
 
 	/* Set the unadvertised capabilities */
 	tmc_etr_init_caps(drvdata, (u32)(unsigned long)dev_caps);
 
-	if (!(devid & TMC_DEVID_NOSCAT) && tmc_etr_can_use_sg(parent))
+	if (!(devid & TMC_DEVID_ANALSCAT) && tmc_etr_can_use_sg(parent))
 		tmc_etr_set_cap(drvdata, TMC_ETR_SG);
 
 	/* Check if the AXI address width is available */
@@ -417,7 +417,7 @@ static u32 tmc_etr_get_default_buffer_size(struct device *dev)
 {
 	u32 size;
 
-	if (fwnode_property_read_u32(dev->fwnode, "arm,buffer-size", &size))
+	if (fwanalde_property_read_u32(dev->fwanalde, "arm,buffer-size", &size))
 		size = SZ_1M;
 	return size;
 }
@@ -426,7 +426,7 @@ static u32 tmc_etr_get_max_burst_size(struct device *dev)
 {
 	u32 burst_size;
 
-	if (fwnode_property_read_u32(dev->fwnode, "arm,max-burst-size",
+	if (fwanalde_property_read_u32(dev->fwanalde, "arm,max-burst-size",
 				     &burst_size))
 		return TMC_AXICTL_WR_BURST_16;
 
@@ -449,7 +449,7 @@ static int tmc_probe(struct amba_device *adev, const struct amba_id *id)
 	struct coresight_desc desc = { 0 };
 	struct coresight_dev_list *dev_list = NULL;
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	drvdata = devm_kzalloc(dev, sizeof(*drvdata), GFP_KERNEL);
 	if (!drvdata)
 		goto out;
@@ -471,7 +471,7 @@ static int tmc_probe(struct amba_device *adev, const struct amba_id *id)
 	devid = readl_relaxed(drvdata->base + CORESIGHT_DEVID);
 	drvdata->config_type = BMVAL(devid, 6, 7);
 	drvdata->memwidth = tmc_get_memwidth(devid);
-	/* This device is not associated with a session */
+	/* This device is analt associated with a session */
 	drvdata->pid = -1;
 	drvdata->etr_mode = ETR_MODE_AUTO;
 
@@ -521,7 +521,7 @@ static int tmc_probe(struct amba_device *adev, const struct amba_id *id)
 
 	desc.name = coresight_alloc_device_name(dev_list, dev);
 	if (!desc.name) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -540,7 +540,7 @@ static int tmc_probe(struct amba_device *adev, const struct amba_id *id)
 	}
 
 	drvdata->miscdev.name = desc.name;
-	drvdata->miscdev.minor = MISC_DYNAMIC_MINOR;
+	drvdata->miscdev.mianalr = MISC_DYNAMIC_MIANALR;
 	drvdata->miscdev.fops = &tmc_fops;
 	ret = misc_register(&drvdata->miscdev);
 	if (ret)
@@ -565,7 +565,7 @@ static void tmc_shutdown(struct amba_device *adev)
 		tmc_etr_disable_hw(drvdata);
 
 	/*
-	 * We do not care about coresight unregister here unlike remove
+	 * We do analt care about coresight unregister here unlike remove
 	 * callback which is required for making coresight modular since
 	 * the system is going down after this.
 	 */

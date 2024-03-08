@@ -9,11 +9,11 @@ Barreras de Memoria del kernel Linux
 
 .. raw:: latex
 
-    \footnotesize
+    \footanaltesize
 
 .. include:: ../memory-barriers.txt
    :literal:
 
 .. raw:: latex
 
-    \normalsize
+    \analrmalsize

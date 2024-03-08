@@ -55,13 +55,13 @@ static const struct syscfg_reset_channel_data stih407_powerdowns[] = {
 #define LPM_SYSCFG_1	0x4	/* Softreset IRB & SBC UART */
 
 #define STIH407_SRST_CORE(_reg, _bit) \
-	_SYSCFG_RST_CH_NO_ACK(stih407_core, _reg, _bit)
+	_SYSCFG_RST_CH_ANAL_ACK(stih407_core, _reg, _bit)
 
 #define STIH407_SRST_SBC(_reg, _bit) \
-	_SYSCFG_RST_CH_NO_ACK(stih407_sbc_reg, _reg, _bit)
+	_SYSCFG_RST_CH_ANAL_ACK(stih407_sbc_reg, _reg, _bit)
 
 #define STIH407_SRST_LPM(_reg, _bit) \
-	_SYSCFG_RST_CH_NO_ACK(stih407_lpm, _reg, _bit)
+	_SYSCFG_RST_CH_ANAL_ACK(stih407_lpm, _reg, _bit)
 
 static const struct syscfg_reset_channel_data stih407_softresets[] = {
 	[STIH407_ETH1_SOFTRESET] = STIH407_SRST_SBC(SYSCFG_4002, 4),

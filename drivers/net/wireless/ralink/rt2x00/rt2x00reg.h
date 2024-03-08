@@ -48,10 +48,10 @@ enum led_mode {
  * TSF sync values
  */
 enum tsf_sync {
-	TSF_SYNC_NONE = 0,
+	TSF_SYNC_ANALNE = 0,
 	TSF_SYNC_INFRA = 1,
 	TSF_SYNC_ADHOC = 2,
-	TSF_SYNC_AP_NONE = 3,
+	TSF_SYNC_AP_ANALNE = 3,
 };
 
 /*
@@ -65,7 +65,7 @@ enum dev_state {
 
 /*
  * Additional device states, these values are
- * not strict since they are not directly passed
+ * analt strict since they are analt directly passed
  * into the device.
  */
 	STATE_RADIO_ON,
@@ -81,7 +81,7 @@ enum ifs {
 	IFS_BACKOFF = 0,
 	IFS_SIFS = 1,
 	IFS_NEW_BACKOFF = 2,
-	IFS_NONE = 3,
+	IFS_ANALNE = 3,
 };
 
 /*
@@ -98,7 +98,7 @@ enum txop {
  * Cipher types for hardware encryption
  */
 enum cipher {
-	CIPHER_NONE = 0,
+	CIPHER_ANALNE = 0,
 	CIPHER_WEP64 = 1,
 	CIPHER_WEP128 = 2,
 	CIPHER_TKIP = 3,
@@ -108,11 +108,11 @@ enum cipher {
  */
 	CIPHER_CKIP64 = 5,
 	CIPHER_CKIP128 = 6,
-	CIPHER_TKIP_NO_MIC = 7, /* Don't send to device */
+	CIPHER_TKIP_ANAL_MIC = 7, /* Don't send to device */
 
 /*
  * Max cipher type.
- * Note that CIPHER_NONE isn't counted, and CKIP64 and CKIP128
+ * Analte that CIPHER_ANALNE isn't counted, and CKIP64 and CKIP128
  * are excluded due to limitations in mac80211.
  */
 	CIPHER_MAX = 4,
@@ -162,7 +162,7 @@ struct rt2x00_field32 {
 /*
  * Power of two check, this will check
  * if the mask that has been given contains and contiguous set of bits.
- * Note that we cannot use the is_power_of_2() function since this
+ * Analte that we cananalt use the is_power_of_2() function since this
  * check must be done at compile-time.
  */
 #define is_power_of_two(x)	( !((x) & ((x)-1)) )
@@ -200,8 +200,8 @@ struct rt2x00_field32 {
 
 /*
  * This macro will check the requirements for the FIELD{8,16,32} macros
- * The mask should be a constant non-zero contiguous set of bits which
- * does not exceed the given typelimit.
+ * The mask should be a constant analn-zero contiguous set of bits which
+ * does analt exceed the given typelimit.
  */
 #define FIELD_CHECK(__mask, __type)			\
 	BUILD_BUG_ON(!(__mask) ||			\

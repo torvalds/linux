@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -65,13 +65,13 @@ static const struct clk_mgr_mask disp_clk_mask = {
 
 /* Max clock values for each state indexed by "enum clocks_state": */
 static const struct state_dependent_clocks dce80_max_clks_by_state[] = {
-/* ClocksStateInvalid - should not be used */
+/* ClocksStateInvalid - should analt be used */
 { .display_clk_khz = 0, .pixel_clk_khz = 0 },
-/* ClocksStateUltraLow - not expected to be used for DCE 8.0 */
+/* ClocksStateUltraLow - analt expected to be used for DCE 8.0 */
 { .display_clk_khz = 0, .pixel_clk_khz = 0 },
 /* ClocksStateLow */
 { .display_clk_khz = 352000, .pixel_clk_khz = 330000},
-/* ClocksStateNominal */
+/* ClocksStateAnalminal */
 { .display_clk_khz = 600000, .pixel_clk_khz = 400000 },
 /* ClocksStatePerformance */
 { .display_clk_khz = 600000, .pixel_clk_khz = 400000 } };
@@ -104,10 +104,10 @@ int dentist_get_divider_from_did(int did)
  -if SS enabled on DP Ref clock and HW de-spreading enabled with SW
  calculations for DS_INCR/DS_MODULO (this is planned to be default case)
  -if SS enabled on DP Ref clock and HW de-spreading enabled with HW
- calculations (not planned to be used, but average clock should still
+ calculations (analt planned to be used, but average clock should still
  be valid)
  -if SS enabled on DP Ref clock and HW de-spreading disabled
- (should not be case with CIK) then SW should program all rates
+ (should analt be case with CIK) then SW should program all rates
  generated according to average value (case as with previous ASICs)
   */
 
@@ -160,7 +160,7 @@ int dce12_get_dp_ref_freq_khz(struct clk_mgr *clk_mgr_base)
 }
 
 /* unit: in_khz before mode set, get pixel clock from context. ASIC register
- * may not be programmed yet
+ * may analt be programmed yet
  */
 uint32_t dce_get_max_pixel_clock_for_all_paths(struct dc_state *context)
 {
@@ -173,7 +173,7 @@ uint32_t dce_get_max_pixel_clock_for_all_paths(struct dc_state *context)
 		if (pipe_ctx->stream == NULL)
 			continue;
 
-		/* do not check under lay */
+		/* do analt check under lay */
 		if (pipe_ctx->top_pipe)
 			continue;
 
@@ -181,7 +181,7 @@ uint32_t dce_get_max_pixel_clock_for_all_paths(struct dc_state *context)
 			max_pix_clk = pipe_ctx->stream_res.pix_clk_params.requested_pix_clk_100hz / 10;
 
 		/* raise clock state for HBR3/2 if required. Confirmed with HW DCE/DPCS
-		 * logic for HBR3 still needs Nominal (0.8V) on VDDC rail
+		 * logic for HBR3 still needs Analminal (0.8V) on VDDC rail
 		 */
 		if (dc_is_dp_signal(pipe_ctx->stream->signal) &&
 				pipe_ctx->stream_res.pix_clk_params.requested_sym_clk > max_pix_clk)
@@ -257,10 +257,10 @@ int dce_set_clock(
 		actual_clock = pxl_clk_params.dfs_bypass_display_clock;
 	}
 
-	/* from power down, we need mark the clock state as ClocksStateNominal
+	/* from power down, we need mark the clock state as ClocksStateAnalminal
 	 * from HWReset, so when resume we will call pplib voltage regulator.*/
 	if (requested_clk_khz == 0)
-		clk_mgr_dce->cur_min_clks_state = DM_PP_CLOCKS_STATE_NOMINAL;
+		clk_mgr_dce->cur_min_clks_state = DM_PP_CLOCKS_STATE_ANALMINAL;
 
 	if (dmcu && dmcu->funcs->is_dmcu_initialized(dmcu))
 		dmcu->funcs->set_psr_wait_loop(dmcu, actual_clock / 1000 / 7);
@@ -297,7 +297,7 @@ static void dce_clock_read_integrated_info(struct clk_mgr_internal *clk_mgr_dce)
 			break;
 
 		case 2:
-			clk_state = DM_PP_CLOCKS_STATE_NOMINAL;
+			clk_state = DM_PP_CLOCKS_STATE_ANALMINAL;
 			break;
 
 		case 3:
@@ -309,7 +309,7 @@ static void dce_clock_read_integrated_info(struct clk_mgr_internal *clk_mgr_dce)
 			break;
 		}
 
-		/*Do not allow bad VBIOS/SBIOS to override with invalid values,
+		/*Do analt allow bad VBIOS/SBIOS to override with invalid values,
 		 * check for > 100MHz*/
 		if (bp->integrated_info)
 			if (bp->integrated_info->disp_clk_voltage[i].max_supported_clk >= 100000)
@@ -334,7 +334,7 @@ void dce_clock_read_ss_info(struct clk_mgr_internal *clk_mgr_dce)
 				bp, AS_SIGNAL_TYPE_GPU_PLL, 0, &info);
 
 		/* Based on VBIOS, VBIOS will keep entry for GPU PLL SS
-		 * even if SS not enabled and in that case
+		 * even if SS analt enabled and in that case
 		 * SSInfo.spreadSpectrumPercentage !=0 would be sign
 		 * that SS is enabled
 		 */
@@ -358,7 +358,7 @@ void dce_clock_read_ss_info(struct clk_mgr_internal *clk_mgr_dce)
 				bp, AS_SIGNAL_TYPE_DISPLAY_PORT, 0, &info);
 
 		/* Based on VBIOS, VBIOS will keep entry for DPREFCLK SS
-		 * even if SS not enabled and in that case
+		 * even if SS analt enabled and in that case
 		 * SSInfo.spreadSpectrumPercentage !=0 would be sign
 		 * that SS is enabled
 		 */
@@ -374,7 +374,7 @@ void dce_clock_read_ss_info(struct clk_mgr_internal *clk_mgr_dce)
 				clk_mgr_dce->dprefclk_ss_percentage =
 						info.spread_spectrum_percentage;
 			}
-			if (clk_mgr_dce->base.ctx->dc->config.ignore_dpref_ss)
+			if (clk_mgr_dce->base.ctx->dc->config.iganalre_dpref_ss)
 				clk_mgr_dce->dprefclk_ss_percentage = 0;
 		}
 	}
@@ -459,7 +459,7 @@ void dce_clk_mgr_construct(
 	if (dm_pp_get_static_clocks(ctx, &static_clk_info))
 		clk_mgr->max_clks_state = static_clk_info.max_clocks_state;
 	else
-		clk_mgr->max_clks_state = DM_PP_CLOCKS_STATE_NOMINAL;
+		clk_mgr->max_clks_state = DM_PP_CLOCKS_STATE_ANALMINAL;
 	clk_mgr->cur_min_clks_state = DM_PP_CLOCKS_STATE_INVALID;
 
 	dce_clock_read_integrated_info(clk_mgr);

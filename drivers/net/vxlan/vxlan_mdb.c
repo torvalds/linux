@@ -22,10 +22,10 @@ struct vxlan_mdb_entry_key {
 };
 
 struct vxlan_mdb_entry {
-	struct rhash_head rhnode;
+	struct rhash_head rhanalde;
 	struct list_head remotes;
 	struct vxlan_mdb_entry_key key;
-	struct hlist_node mdb_node;
+	struct hlist_analde mdb_analde;
 	struct rcu_head rcu;
 };
 
@@ -44,7 +44,7 @@ struct vxlan_mdb_remote {
 #define VXLAN_SGRP_F_DELETE	BIT(0)
 
 struct vxlan_mdb_src_entry {
-	struct hlist_node node;
+	struct hlist_analde analde;
 	union vxlan_addr addr;
 	u8 flags;
 };
@@ -57,7 +57,7 @@ struct vxlan_mdb_dump_ctx {
 
 struct vxlan_mdb_config_src_entry {
 	union vxlan_addr addr;
-	struct list_head node;
+	struct list_head analde;
 };
 
 struct vxlan_mdb_config {
@@ -83,7 +83,7 @@ struct vxlan_mdb_flush_desc {
 };
 
 static const struct rhashtable_params vxlan_mdb_rht_params = {
-	.head_offset = offsetof(struct vxlan_mdb_entry, rhnode),
+	.head_offset = offsetof(struct vxlan_mdb_entry, rhanalde),
 	.key_offset = offsetof(struct vxlan_mdb_entry, key),
 	.key_len = sizeof(struct vxlan_mdb_entry_key),
 	.automatic_shrinking = true,
@@ -135,7 +135,7 @@ static int vxlan_mdb_entry_info_fill_srcs(struct sk_buff *skb,
 	if (!nest)
 		return -EMSGSIZE;
 
-	hlist_for_each_entry(ent, &remote->src_list, node) {
+	hlist_for_each_entry(ent, &remote->src_list, analde) {
 		struct nlattr *nest_ent;
 
 		nest_ent = nla_nest_start(skb, MDBA_MDB_SRCLIST_ENTRY);
@@ -168,13 +168,13 @@ static int vxlan_mdb_entry_info_fill(const struct vxlan_dev *vxlan,
 	struct br_mdb_entry e;
 	struct nlattr *nest;
 
-	nest = nla_nest_start_noflag(skb, MDBA_MDB_ENTRY_INFO);
+	nest = nla_nest_start_analflag(skb, MDBA_MDB_ENTRY_INFO);
 	if (!nest)
 		return -EMSGSIZE;
 
 	vxlan_br_mdb_entry_fill(vxlan, mdb_entry, remote, &e);
 
-	if (nla_put_nohdr(skb, sizeof(e), &e) ||
+	if (nla_put_analhdr(skb, sizeof(e), &e) ||
 	    nla_put_u32(skb, MDBA_MDB_EATTR_TIMER, 0))
 		goto nest_err;
 
@@ -225,7 +225,7 @@ static int vxlan_mdb_entry_fill(const struct vxlan_dev *vxlan,
 	struct nlattr *nest;
 	int err = 0;
 
-	nest = nla_nest_start_noflag(skb, MDBA_MDB_ENTRY);
+	nest = nla_nest_start_analflag(skb, MDBA_MDB_ENTRY);
 	if (!nest)
 		return -EMSGSIZE;
 
@@ -253,11 +253,11 @@ static int vxlan_mdb_fill(const struct vxlan_dev *vxlan, struct sk_buff *skb,
 	struct nlattr *nest;
 	int err = 0;
 
-	nest = nla_nest_start_noflag(skb, MDBA_MDB);
+	nest = nla_nest_start_analflag(skb, MDBA_MDB);
 	if (!nest)
 		return -EMSGSIZE;
 
-	hlist_for_each_entry(mdb_entry, &vxlan->mdb_list, mdb_node) {
+	hlist_for_each_entry(mdb_entry, &vxlan->mdb_list, mdb_analde) {
 		if (entry_idx < s_entry_idx)
 			goto skip;
 
@@ -350,7 +350,7 @@ static bool vxlan_mdb_is_valid_source(const struct nlattr *attr, __be16 proto,
 			return false;
 		}
 		if (ipv4_is_multicast(nla_get_in_addr(attr))) {
-			NL_SET_ERR_MSG_MOD(extack, "IPv4 multicast source address is not allowed");
+			NL_SET_ERR_MSG_MOD(extack, "IPv4 multicast source address is analt allowed");
 			return false;
 		}
 		break;
@@ -364,7 +364,7 @@ static bool vxlan_mdb_is_valid_source(const struct nlattr *attr, __be16 proto,
 		}
 		src = nla_get_in6_addr(attr);
 		if (ipv6_addr_is_multicast(&src)) {
-			NL_SET_ERR_MSG_MOD(extack, "IPv6 multicast source address is not allowed");
+			NL_SET_ERR_MSG_MOD(extack, "IPv6 multicast source address is analt allowed");
 			return false;
 		}
 		break;
@@ -432,13 +432,13 @@ static int vxlan_mdb_config_src_entry_init(struct vxlan_mdb_config *cfg,
 
 	src = kzalloc(sizeof(*src), GFP_KERNEL);
 	if (!src)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = vxlan_nla_get_addr(&src->addr, tb[MDBE_SRCATTR_ADDRESS]);
 	if (err)
 		goto err_free_src;
 
-	list_add_tail(&src->node, &cfg->src_list);
+	list_add_tail(&src->analde, &cfg->src_list);
 
 	return 0;
 
@@ -450,7 +450,7 @@ err_free_src:
 static void
 vxlan_mdb_config_src_entry_fini(struct vxlan_mdb_config_src_entry *src)
 {
-	list_del(&src->node);
+	list_del(&src->analde);
 	kfree(src);
 }
 
@@ -473,7 +473,7 @@ static int vxlan_mdb_config_src_list_init(struct vxlan_mdb_config *cfg,
 	return 0;
 
 err_src_entry_init:
-	list_for_each_entry_safe_reverse(src, tmp, &cfg->src_list, node)
+	list_for_each_entry_safe_reverse(src, tmp, &cfg->src_list, analde)
 		vxlan_mdb_config_src_entry_fini(src);
 	return err;
 }
@@ -482,7 +482,7 @@ static void vxlan_mdb_config_src_list_fini(struct vxlan_mdb_config *cfg)
 {
 	struct vxlan_mdb_config_src_entry *src, *tmp;
 
-	list_for_each_entry_safe_reverse(src, tmp, &cfg->src_list, node)
+	list_for_each_entry_safe_reverse(src, tmp, &cfg->src_list, analde)
 		vxlan_mdb_config_src_entry_fini(src);
 }
 
@@ -516,13 +516,13 @@ static int vxlan_mdb_config_attrs_init(struct vxlan_mdb_config *cfg,
 	 */
 	if (!vxlan_addr_is_multicast(&cfg->group.dst) &&
 	    !vxlan_addr_any(&cfg->group.dst)) {
-		NL_SET_ERR_MSG_MOD(extack, "Group address is not multicast");
+		NL_SET_ERR_MSG_MOD(extack, "Group address is analt multicast");
 		return -EINVAL;
 	}
 
 	if (vxlan_addr_any(&cfg->group.dst) &&
 	    mdbe_attrs[MDBE_ATTR_SOURCE]) {
-		NL_SET_ERR_MSG_MOD(extack, "Source cannot be specified for the all-zeros entry");
+		NL_SET_ERR_MSG_MOD(extack, "Source cananalt be specified for the all-zeros entry");
 		return -EINVAL;
 	}
 
@@ -543,7 +543,7 @@ static int vxlan_mdb_config_attrs_init(struct vxlan_mdb_config *cfg,
 			return -EINVAL;
 		}
 		if (!mdbe_attrs[MDBE_ATTR_GROUP_MODE]) {
-			NL_SET_ERR_MSG_MOD(extack, "Source list cannot be set without filter mode");
+			NL_SET_ERR_MSG_MOD(extack, "Source list cananalt be set without filter mode");
 			return -EINVAL;
 		}
 		err = vxlan_mdb_config_src_list_init(cfg, entry->addr.proto,
@@ -555,7 +555,7 @@ static int vxlan_mdb_config_attrs_init(struct vxlan_mdb_config *cfg,
 
 	if (vxlan_mdb_is_star_g(&cfg->group) && list_empty(&cfg->src_list) &&
 	    cfg->filter_mode == MCAST_INCLUDE) {
-		NL_SET_ERR_MSG_MOD(extack, "Cannot add (*, G) INCLUDE with an empty source list");
+		NL_SET_ERR_MSG_MOD(extack, "Cananalt add (*, G) INCLUDE with an empty source list");
 		return -EINVAL;
 	}
 
@@ -580,7 +580,7 @@ static int vxlan_mdb_config_attrs_init(struct vxlan_mdb_config *cfg,
 		cfg->remote_ifindex =
 			nla_get_s32(mdbe_attrs[MDBE_ATTR_IFINDEX]);
 		if (!__dev_get_by_index(cfg->vxlan->net, cfg->remote_ifindex)) {
-			NL_SET_ERR_MSG_MOD(extack, "Outgoing interface not found");
+			NL_SET_ERR_MSG_MOD(extack, "Outgoing interface analt found");
 			err = -EINVAL;
 			goto err_src_list_fini;
 		}
@@ -620,7 +620,7 @@ static int vxlan_mdb_config_init(struct vxlan_mdb_config *cfg,
 		return -EINVAL;
 	}
 
-	/* State is not part of the entry key and can be ignored on deletion
+	/* State is analt part of the entry key and can be iganalred on deletion
 	 * requests.
 	 */
 	if ((nlmsg_flags & (NLM_F_CREATE | NLM_F_REPLACE)) &&
@@ -635,7 +635,7 @@ static int vxlan_mdb_config_init(struct vxlan_mdb_config *cfg,
 	}
 
 	if (entry->vid) {
-		NL_SET_ERR_MSG_MOD(extack, "VID must not be specified");
+		NL_SET_ERR_MSG_MOD(extack, "VID must analt be specified");
 		return -EINVAL;
 	}
 
@@ -699,7 +699,7 @@ static int vxlan_mdb_remote_rdst_init(const struct vxlan_mdb_config *cfg,
 
 	rd = kzalloc(sizeof(*rd), GFP_KERNEL);
 	if (!rd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = dst_cache_init(&rd->dst_cache, GFP_KERNEL);
 	if (err)
@@ -753,7 +753,7 @@ vxlan_mdb_remote_src_entry_lookup(const struct vxlan_mdb_remote *remote,
 {
 	struct vxlan_mdb_src_entry *ent;
 
-	hlist_for_each_entry(ent, &remote->src_list, node) {
+	hlist_for_each_entry(ent, &remote->src_list, analde) {
 		if (vxlan_addr_equal(&ent->addr, addr))
 			return ent;
 	}
@@ -772,7 +772,7 @@ vxlan_mdb_remote_src_entry_add(struct vxlan_mdb_remote *remote,
 		return NULL;
 
 	ent->addr = *addr;
-	hlist_add_head(&ent->node, &remote->src_list);
+	hlist_add_head(&ent->analde, &remote->src_list);
 
 	return ent;
 }
@@ -780,7 +780,7 @@ vxlan_mdb_remote_src_entry_add(struct vxlan_mdb_remote *remote,
 static void
 vxlan_mdb_remote_src_entry_del(struct vxlan_mdb_src_entry *ent)
 {
-	hlist_del(&ent->node);
+	hlist_del(&ent->analde);
 	kfree(ent);
 }
 
@@ -843,7 +843,7 @@ vxlan_mdb_remote_src_add(const struct vxlan_mdb_config *cfg,
 	if (!ent) {
 		ent = vxlan_mdb_remote_src_entry_add(remote, &src->addr);
 		if (!ent)
-			return -ENOMEM;
+			return -EANALMEM;
 	} else if (!(cfg->nlflags & NLM_F_REPLACE)) {
 		NL_SET_ERR_MSG_MOD(extack, "Source entry already exists");
 		return -EEXIST;
@@ -880,10 +880,10 @@ static int vxlan_mdb_remote_srcs_add(const struct vxlan_mdb_config *cfg,
 {
 	struct vxlan_mdb_config_src_entry *src;
 	struct vxlan_mdb_src_entry *ent;
-	struct hlist_node *tmp;
+	struct hlist_analde *tmp;
 	int err;
 
-	list_for_each_entry(src, &cfg->src_list, node) {
+	list_for_each_entry(src, &cfg->src_list, analde) {
 		err = vxlan_mdb_remote_src_add(cfg, remote, src, extack);
 		if (err)
 			goto err_src_del;
@@ -892,7 +892,7 @@ static int vxlan_mdb_remote_srcs_add(const struct vxlan_mdb_config *cfg,
 	return 0;
 
 err_src_del:
-	hlist_for_each_entry_safe(ent, tmp, &remote->src_list, node)
+	hlist_for_each_entry_safe(ent, tmp, &remote->src_list, analde)
 		vxlan_mdb_remote_src_del(cfg->vxlan, &cfg->group, remote, ent);
 	return err;
 }
@@ -902,9 +902,9 @@ static void vxlan_mdb_remote_srcs_del(struct vxlan_dev *vxlan,
 				      struct vxlan_mdb_remote *remote)
 {
 	struct vxlan_mdb_src_entry *ent;
-	struct hlist_node *tmp;
+	struct hlist_analde *tmp;
 
-	hlist_for_each_entry_safe(ent, tmp, &remote->src_list, node)
+	hlist_for_each_entry_safe(ent, tmp, &remote->src_list, analde)
 		vxlan_mdb_remote_src_del(vxlan, group, remote, ent);
 }
 
@@ -921,7 +921,7 @@ vxlan_mdb_nlmsg_src_list_size(const struct vxlan_mdb_entry_key *group,
 	/* MDBA_MDB_EATTR_SRC_LIST */
 	nlmsg_size = nla_total_size(0);
 
-	hlist_for_each_entry(ent, &remote->src_list, node) {
+	hlist_for_each_entry(ent, &remote->src_list, analde) {
 			      /* MDBA_MDB_SRCLIST_ENTRY */
 		nlmsg_size += nla_total_size(0) +
 			      /* MDBA_MDB_SRCATTR_ADDRESS */
@@ -1006,10 +1006,10 @@ static int vxlan_mdb_nlmsg_fill(const struct vxlan_dev *vxlan,
 	bpm->family  = AF_BRIDGE;
 	bpm->ifindex = vxlan->dev->ifindex;
 
-	mdb_nest = nla_nest_start_noflag(skb, MDBA_MDB);
+	mdb_nest = nla_nest_start_analflag(skb, MDBA_MDB);
 	if (!mdb_nest)
 		goto cancel;
-	mdb_entry_nest = nla_nest_start_noflag(skb, MDBA_MDB_ENTRY);
+	mdb_entry_nest = nla_nest_start_analflag(skb, MDBA_MDB_ENTRY);
 	if (!mdb_entry_nest)
 		goto cancel;
 
@@ -1027,14 +1027,14 @@ cancel:
 	return -EMSGSIZE;
 }
 
-static void vxlan_mdb_remote_notify(const struct vxlan_dev *vxlan,
+static void vxlan_mdb_remote_analtify(const struct vxlan_dev *vxlan,
 				    const struct vxlan_mdb_entry *mdb_entry,
 				    const struct vxlan_mdb_remote *remote,
 				    int type)
 {
 	struct net *net = dev_net(vxlan->dev);
 	struct sk_buff *skb;
-	int err = -ENOBUFS;
+	int err = -EANALBUFS;
 
 	skb = nlmsg_new(vxlan_mdb_nlmsg_size(vxlan, mdb_entry, remote),
 			GFP_KERNEL);
@@ -1047,7 +1047,7 @@ static void vxlan_mdb_remote_notify(const struct vxlan_dev *vxlan,
 		goto errout;
 	}
 
-	rtnl_notify(skb, net, 0, RTNLGRP_MDB, NULL, GFP_KERNEL);
+	rtnl_analtify(skb, net, 0, RTNLGRP_MDB, NULL, GFP_KERNEL);
 	return;
 errout:
 	rtnl_set_sk_err(net, RTNLGRP_MDB, err);
@@ -1061,17 +1061,17 @@ vxlan_mdb_remote_srcs_replace(const struct vxlan_mdb_config *cfg,
 {
 	struct vxlan_dev *vxlan = cfg->vxlan;
 	struct vxlan_mdb_src_entry *ent;
-	struct hlist_node *tmp;
+	struct hlist_analde *tmp;
 	int err;
 
-	hlist_for_each_entry(ent, &remote->src_list, node)
+	hlist_for_each_entry(ent, &remote->src_list, analde)
 		ent->flags |= VXLAN_SGRP_F_DELETE;
 
 	err = vxlan_mdb_remote_srcs_add(cfg, remote, extack);
 	if (err)
 		goto err_clear_delete;
 
-	hlist_for_each_entry_safe(ent, tmp, &remote->src_list, node) {
+	hlist_for_each_entry_safe(ent, tmp, &remote->src_list, analde) {
 		if (ent->flags & VXLAN_SGRP_F_DELETE)
 			vxlan_mdb_remote_src_del(vxlan, &mdb_entry->key, remote,
 						 ent);
@@ -1080,7 +1080,7 @@ vxlan_mdb_remote_srcs_replace(const struct vxlan_mdb_config *cfg,
 	return 0;
 
 err_clear_delete:
-	hlist_for_each_entry(ent, &remote->src_list, node)
+	hlist_for_each_entry(ent, &remote->src_list, analde)
 		ent->flags &= ~VXLAN_SGRP_F_DELETE;
 	return err;
 }
@@ -1106,7 +1106,7 @@ static int vxlan_mdb_remote_replace(const struct vxlan_mdb_config *cfg,
 	WRITE_ONCE(remote->flags, cfg->flags);
 	WRITE_ONCE(remote->filter_mode, cfg->filter_mode);
 	remote->rt_protocol = cfg->rt_protocol;
-	vxlan_mdb_remote_notify(vxlan, mdb_entry, remote, RTM_NEWMDB);
+	vxlan_mdb_remote_analtify(vxlan, mdb_entry, remote, RTM_NEWMDB);
 
 	vxlan_mdb_remote_rdst_fini(old_rd);
 
@@ -1128,20 +1128,20 @@ static int vxlan_mdb_remote_add(const struct vxlan_mdb_config *cfg,
 	remote = vxlan_mdb_remote_lookup(mdb_entry, &cfg->remote_ip);
 	if (remote) {
 		if (!(cfg->nlflags & NLM_F_REPLACE)) {
-			NL_SET_ERR_MSG_MOD(extack, "Replace not specified and MDB remote entry already exists");
+			NL_SET_ERR_MSG_MOD(extack, "Replace analt specified and MDB remote entry already exists");
 			return -EEXIST;
 		}
 		return vxlan_mdb_remote_replace(cfg, mdb_entry, remote, extack);
 	}
 
 	if (!(cfg->nlflags & NLM_F_CREATE)) {
-		NL_SET_ERR_MSG_MOD(extack, "Create not specified and entry does not exist");
-		return -ENOENT;
+		NL_SET_ERR_MSG_MOD(extack, "Create analt specified and entry does analt exist");
+		return -EANALENT;
 	}
 
 	remote = kzalloc(sizeof(*remote), GFP_KERNEL);
 	if (!remote)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = vxlan_mdb_remote_init(cfg, remote);
 	if (err) {
@@ -1154,7 +1154,7 @@ static int vxlan_mdb_remote_add(const struct vxlan_mdb_config *cfg,
 		goto err_remote_fini;
 
 	list_add_rcu(&remote->list, &mdb_entry->remotes);
-	vxlan_mdb_remote_notify(cfg->vxlan, mdb_entry, remote, RTM_NEWMDB);
+	vxlan_mdb_remote_analtify(cfg->vxlan, mdb_entry, remote, RTM_NEWMDB);
 
 	return 0;
 
@@ -1169,7 +1169,7 @@ static void vxlan_mdb_remote_del(struct vxlan_dev *vxlan,
 				 struct vxlan_mdb_entry *mdb_entry,
 				 struct vxlan_mdb_remote *remote)
 {
-	vxlan_mdb_remote_notify(vxlan, mdb_entry, remote, RTM_DELMDB);
+	vxlan_mdb_remote_analtify(vxlan, mdb_entry, remote, RTM_DELMDB);
 	list_del_rcu(&remote->list);
 	vxlan_mdb_remote_srcs_del(vxlan, &mdb_entry->key, remote);
 	vxlan_mdb_remote_fini(vxlan, remote);
@@ -1189,25 +1189,25 @@ vxlan_mdb_entry_get(struct vxlan_dev *vxlan,
 
 	mdb_entry = kzalloc(sizeof(*mdb_entry), GFP_KERNEL);
 	if (!mdb_entry)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	INIT_LIST_HEAD(&mdb_entry->remotes);
 	memcpy(&mdb_entry->key, group, sizeof(mdb_entry->key));
-	hlist_add_head(&mdb_entry->mdb_node, &vxlan->mdb_list);
+	hlist_add_head(&mdb_entry->mdb_analde, &vxlan->mdb_list);
 
 	err = rhashtable_lookup_insert_fast(&vxlan->mdb_tbl,
-					    &mdb_entry->rhnode,
+					    &mdb_entry->rhanalde,
 					    vxlan_mdb_rht_params);
 	if (err)
 		goto err_free_entry;
 
-	if (hlist_is_singular_node(&mdb_entry->mdb_node, &vxlan->mdb_list))
+	if (hlist_is_singular_analde(&mdb_entry->mdb_analde, &vxlan->mdb_list))
 		vxlan->cfg.flags |= VXLAN_F_MDB;
 
 	return mdb_entry;
 
 err_free_entry:
-	hlist_del(&mdb_entry->mdb_node);
+	hlist_del(&mdb_entry->mdb_analde);
 	kfree(mdb_entry);
 	return ERR_PTR(err);
 }
@@ -1218,12 +1218,12 @@ static void vxlan_mdb_entry_put(struct vxlan_dev *vxlan,
 	if (!list_empty(&mdb_entry->remotes))
 		return;
 
-	if (hlist_is_singular_node(&mdb_entry->mdb_node, &vxlan->mdb_list))
+	if (hlist_is_singular_analde(&mdb_entry->mdb_analde, &vxlan->mdb_list))
 		vxlan->cfg.flags &= ~VXLAN_F_MDB;
 
-	rhashtable_remove_fast(&vxlan->mdb_tbl, &mdb_entry->rhnode,
+	rhashtable_remove_fast(&vxlan->mdb_tbl, &mdb_entry->rhanalde,
 			       vxlan_mdb_rht_params);
-	hlist_del(&mdb_entry->mdb_node);
+	hlist_del(&mdb_entry->mdb_analde);
 	kfree_rcu(mdb_entry, rcu);
 }
 
@@ -1260,14 +1260,14 @@ static int __vxlan_mdb_del(const struct vxlan_mdb_config *cfg,
 
 	mdb_entry = vxlan_mdb_entry_lookup(vxlan, &cfg->group);
 	if (!mdb_entry) {
-		NL_SET_ERR_MSG_MOD(extack, "Did not find MDB entry");
-		return -ENOENT;
+		NL_SET_ERR_MSG_MOD(extack, "Did analt find MDB entry");
+		return -EANALENT;
 	}
 
 	remote = vxlan_mdb_remote_lookup(mdb_entry, &cfg->remote_ip);
 	if (!remote) {
-		NL_SET_ERR_MSG_MOD(extack, "Did not find MDB remote entry");
-		return -ENOENT;
+		NL_SET_ERR_MSG_MOD(extack, "Did analt find MDB remote entry");
+		return -EANALENT;
 	}
 
 	vxlan_mdb_remote_del(vxlan, mdb_entry, remote);
@@ -1341,7 +1341,7 @@ static int vxlan_mdb_flush_desc_init(struct vxlan_dev *vxlan,
 	}
 
 	if (entry->vid) {
-		NL_SET_ERR_MSG_MOD(extack, "VID must not be specified");
+		NL_SET_ERR_MSG_MOD(extack, "VID must analt be specified");
 		return -EINVAL;
 	}
 
@@ -1399,7 +1399,7 @@ static void vxlan_mdb_remotes_flush(struct vxlan_dev *vxlan,
 			continue;
 
 		/* Encapsulation is performed with source VNI if remote VNI
-		 * is not set.
+		 * is analt set.
 		 */
 		remote_vni = rd->remote_vni ? : mdb_entry->key.vni;
 		if (desc->remote_vni && desc->remote_vni != remote_vni)
@@ -1420,12 +1420,12 @@ static void vxlan_mdb_flush(struct vxlan_dev *vxlan,
 			    const struct vxlan_mdb_flush_desc *desc)
 {
 	struct vxlan_mdb_entry *mdb_entry;
-	struct hlist_node *tmp;
+	struct hlist_analde *tmp;
 
-	/* The removal of an entry cannot trigger the removal of another entry
+	/* The removal of an entry cananalt trigger the removal of aanalther entry
 	 * since entries are always added to the head of the list.
 	 */
-	hlist_for_each_entry_safe(mdb_entry, tmp, &vxlan->mdb_list, mdb_node) {
+	hlist_for_each_entry_safe(mdb_entry, tmp, &vxlan->mdb_list, mdb_analde) {
 		if (desc->src_vni && desc->src_vni != mdb_entry->key.vni)
 			continue;
 
@@ -1537,12 +1537,12 @@ vxlan_mdb_get_reply_fill(const struct vxlan_dev *vxlan,
 	memset(bpm, 0, sizeof(*bpm));
 	bpm->family  = AF_BRIDGE;
 	bpm->ifindex = vxlan->dev->ifindex;
-	mdb_nest = nla_nest_start_noflag(skb, MDBA_MDB);
+	mdb_nest = nla_nest_start_analflag(skb, MDBA_MDB);
 	if (!mdb_nest) {
 		err = -EMSGSIZE;
 		goto cancel;
 	}
-	mdb_entry_nest = nla_nest_start_noflag(skb, MDBA_MDB_ENTRY);
+	mdb_entry_nest = nla_nest_start_analflag(skb, MDBA_MDB_ENTRY);
 	if (!mdb_entry_nest) {
 		err = -EMSGSIZE;
 		goto cancel;
@@ -1582,13 +1582,13 @@ int vxlan_mdb_get(struct net_device *dev, struct nlattr *tb[], u32 portid,
 
 	mdb_entry = vxlan_mdb_entry_lookup(vxlan, &group);
 	if (!mdb_entry) {
-		NL_SET_ERR_MSG_MOD(extack, "MDB entry not found");
-		return -ENOENT;
+		NL_SET_ERR_MSG_MOD(extack, "MDB entry analt found");
+		return -EANALENT;
 	}
 
 	skb = vxlan_mdb_get_reply_alloc(vxlan, mdb_entry);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = vxlan_mdb_get_reply_fill(vxlan, skb, mdb_entry, portid, seq);
 	if (err) {
@@ -1614,7 +1614,7 @@ struct vxlan_mdb_entry *vxlan_mdb_entry_skb_get(struct vxlan_dev *vxlan,
 	    is_broadcast_ether_addr(eth_hdr(skb)->h_dest))
 		return NULL;
 
-	/* When not in collect metadata mode, 'src_vni' is zero, but MDB
+	/* When analt in collect metadata mode, 'src_vni' is zero, but MDB
 	 * entries are stored with the VNI of the VXLAN device.
 	 */
 	if (!(vxlan->cfg.flags & VXLAN_F_COLLECT_METADATA))
@@ -1655,9 +1655,9 @@ struct vxlan_mdb_entry *vxlan_mdb_entry_skb_get(struct vxlan_dev *vxlan,
 	if (mdb_entry)
 		return mdb_entry;
 
-	/* No (S, G) or (*, G) found. Look up the all-zeros entry, but only if
-	 * the destination IP address is not link-local multicast since we want
-	 * to transmit such traffic together with broadcast and unknown unicast
+	/* Anal (S, G) or (*, G) found. Look up the all-zeros entry, but only if
+	 * the destination IP address is analt link-local multicast since we want
+	 * to transmit such traffic together with broadcast and unkanalwn unicast
 	 * traffic.
 	 */
 	switch (skb->protocol) {

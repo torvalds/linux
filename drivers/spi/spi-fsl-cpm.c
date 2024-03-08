@@ -128,7 +128,7 @@ int fsl_spi_cpm_bufs(struct mpc8xxx_spi *mspi,
 
 		dst = kmalloc(t->len, GFP_KERNEL);
 		if (!dst)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		for (i = 0; i < t->len >> 1; i++)
 			dst[i] = cpu_to_le16p(src + i);
@@ -138,13 +138,13 @@ int fsl_spi_cpm_bufs(struct mpc8xxx_spi *mspi,
 	}
 
 	if (mspi->map_tx_dma) {
-		void *nonconst_tx = (void *)mspi->tx; /* shut up gcc */
+		void *analnconst_tx = (void *)mspi->tx; /* shut up gcc */
 
-		mspi->tx_dma = dma_map_single(dev, nonconst_tx, t->len,
+		mspi->tx_dma = dma_map_single(dev, analnconst_tx, t->len,
 					      DMA_TO_DEVICE);
 		if (dma_mapping_error(dev, mspi->tx_dma)) {
 			dev_err(dev, "unable to map tx dma\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	} else if (t->tx_buf) {
 		mspi->tx_dma = t->tx_dma;
@@ -175,7 +175,7 @@ int fsl_spi_cpm_bufs(struct mpc8xxx_spi *mspi,
 err_rx_dma:
 	if (mspi->map_tx_dma)
 		dma_unmap_single(dev, mspi->tx_dma, t->len, DMA_TO_DEVICE);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 EXPORT_SYMBOL_GPL(fsl_spi_cpm_bufs);
 
@@ -261,11 +261,11 @@ static void fsl_spi_free_dummy_rx(void)
 static unsigned long fsl_spi_cpm_get_pram(struct mpc8xxx_spi *mspi)
 {
 	struct device *dev = mspi->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	const u32 *iprop;
 	int size;
 	void __iomem *spi_base;
-	unsigned long pram_ofs = -ENOMEM;
+	unsigned long pram_ofs = -EANALMEM;
 
 	/* Can't use of_address_to_resource(), QE muram isn't at 0. */
 	iprop = of_get_property(np, "reg", &size);
@@ -298,7 +298,7 @@ static unsigned long fsl_spi_cpm_get_pram(struct mpc8xxx_spi *mspi)
 int fsl_spi_cpm_init(struct mpc8xxx_spi *mspi)
 {
 	struct device *dev = mspi->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	const u32 *iprop;
 	int size;
 	unsigned long bds_ofs;
@@ -307,7 +307,7 @@ int fsl_spi_cpm_init(struct mpc8xxx_spi *mspi)
 		return 0;
 
 	if (!fsl_spi_alloc_dummy_rx())
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (mspi->flags & SPI_QE) {
 		iprop = of_get_property(np, "cell-index", &size);
@@ -401,7 +401,7 @@ err_bds:
 		cpm_muram_free(cpm_muram_offset(mspi->pram));
 err_pram:
 	fsl_spi_free_dummy_rx();
-	return -ENOMEM;
+	return -EANALMEM;
 }
 EXPORT_SYMBOL_GPL(fsl_spi_cpm_init);
 

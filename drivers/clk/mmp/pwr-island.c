@@ -70,7 +70,7 @@ static int mmp_pm_domain_power_off(struct generic_pm_domain *genpd)
 	unsigned long flags = 0;
 	u32 val;
 
-	if (pm_domain->flags & MMP_PM_DOMAIN_NO_DISABLE)
+	if (pm_domain->flags & MMP_PM_DOMAIN_ANAL_DISABLE)
 		return 0;
 
 	if (pm_domain->lock)
@@ -97,7 +97,7 @@ struct generic_pm_domain *mmp_pm_domain_register(const char *name,
 
 	pm_domain = kzalloc(sizeof(*pm_domain), GFP_KERNEL);
 	if (!pm_domain)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	pm_domain->reg = reg;
 	pm_domain->power_on = power_on;

@@ -5,14 +5,14 @@ config VFIO_PLATFORM_CALXEDAXGMAC_RESET
 	help
 	  Enables the VFIO platform driver to handle reset for Calxeda xgmac
 
-	  If you don't know what to do here, say N.
+	  If you don't kanalw what to do here, say N.
 
 config VFIO_PLATFORM_AMDXGBE_RESET
 	tristate "VFIO support for AMD XGBE reset"
 	help
 	  Enables the VFIO platform driver to handle reset for AMD XGBE
 
-	  If you don't know what to do here, say N.
+	  If you don't kanalw what to do here, say N.
 
 config VFIO_PLATFORM_BCMFLEXRM_RESET
 	tristate "VFIO support for Broadcom FlexRM reset"
@@ -21,5 +21,5 @@ config VFIO_PLATFORM_BCMFLEXRM_RESET
 	help
 	  Enables the VFIO platform driver to handle reset for Broadcom FlexRM
 
-	  If you don't know what to do here, say N.
+	  If you don't kanalw what to do here, say N.
 endif

@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: V4L
 
 .. _VIDIOC_SUBDEV_ENUM_MBUS_CODE:
@@ -12,7 +12,7 @@ Name
 
 VIDIOC_SUBDEV_ENUM_MBUS_CODE - Enumerate media bus formats
 
-Synopsis
+Syanalpsis
 ========
 
 .. c:macro:: VIDIOC_SUBDEV_ENUM_MBUS_CODE
@@ -49,9 +49,9 @@ A successful call will return with the ``code`` field filled in
 with a mbus code value.
 Repeat with increasing ``index`` until ``EINVAL`` is received.
 ``EINVAL`` means that either ``pad`` is invalid,
-or that there are no more codes available at this pad.
+or that there are anal more codes available at this pad.
 
-The driver must not return the same value of ``code`` for different indices
+The driver must analt return the same value of ``code`` for different indices
 at the same pad.
 
 Available media bus formats may depend on the current 'try' formats at
@@ -99,7 +99,7 @@ information about the try formats.
 
 .. raw:: latex
 
-   \footnotesize
+   \footanaltesize
 
 .. tabularcolumns:: |p{8.8cm}|p{2.2cm}|p{6.3cm}|
 
@@ -148,16 +148,16 @@ information about the try formats.
 
 .. raw:: latex
 
-   \normalsize
+   \analrmalsize
 
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erranal`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 
 EINVAL
     The struct :c:type:`v4l2_subdev_mbus_code_enum` ``pad`` references a
-    non-existing pad, the ``which`` field has an unsupported value, or the
+    analn-existing pad, the ``which`` field has an unsupported value, or the
     ``index`` field is out of bounds.

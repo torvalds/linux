@@ -44,7 +44,7 @@ static int xo1_rfkill_probe(struct platform_device *pdev)
 	rfk = rfkill_alloc(pdev->name, &pdev->dev, RFKILL_TYPE_WLAN,
 			   &rfkill_ops, NULL);
 	if (!rfk)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	r = rfkill_register(rfk);
 	if (r) {

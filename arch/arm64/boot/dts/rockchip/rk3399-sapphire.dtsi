@@ -179,7 +179,7 @@
 	cooling-maps {
 		map2 {
 			cooling-device =
-				<&fan0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+				<&fan0 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 			trip = <&cpu_hot>;
 		};
 	};
@@ -477,7 +477,7 @@
 	fan {
 		motor_pwr: motor-pwr {
 			rockchip,pins =
-				<1 RK_PC2 RK_FUNC_GPIO &pcfg_pull_none>;
+				<1 RK_PC2 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
@@ -499,18 +499,18 @@
 	sd {
 		sdmmc0_pwr_h: sdmmc0-pwr-h {
 			rockchip,pins =
-				<0 RK_PA1 RK_FUNC_GPIO &pcfg_pull_none>;
+				<0 RK_PA1 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	usb2 {
 		vcc5v0_host_en: vcc5v0-host-en {
 			rockchip,pins =
-				<4 RK_PD1 RK_FUNC_GPIO &pcfg_pull_none>;
+				<4 RK_PD1 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 		vcc5v0_typec0_en: vcc5v0-typec0-en {
 			rockchip,pins =
-				<2 RK_PA0 RK_FUNC_GPIO &pcfg_pull_none>;
+				<2 RK_PA0 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 };
@@ -532,7 +532,7 @@
 	bus-width = <8>;
 	mmc-hs400-1_8v;
 	mmc-hs400-enhanced-strobe;
-	non-removable;
+	analn-removable;
 	status = "okay";
 };
 

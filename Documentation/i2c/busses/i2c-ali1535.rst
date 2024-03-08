@@ -5,7 +5,7 @@ Kernel driver i2c-ali1535
 Supported adapters:
   * Acer Labs, Inc. ALI 1535 (south bridge)
 
-    Datasheet: Now under NDA
+    Datasheet: Analw under NDA
 	http://www.ali.com.tw/
 
 Authors:
@@ -41,5 +41,5 @@ We make sure that the SMB is enabled. We leave the ACPI alone.
 Features
 --------
 
-This driver controls the SMB Host only. This driver does not use
+This driver controls the SMB Host only. This driver does analt use
 interrupts.

@@ -5,7 +5,7 @@
  *
  * Copyright (c) 2016 Mauro Carvalho Chehab <mchehab@kernel.org>
  * Copyright (C) 2016 Shuah Khan <shuahkh@osg.samsung.com>
- * Copyright (C) 2006-2010 Nokia Corporation
+ * Copyright (C) 2006-2010 Analkia Corporation
  * Copyright (c) 2016 Intel Corporation.
  */
 
@@ -71,8 +71,8 @@ int v4l2_mc_create_media_graph(struct media_device *mdev)
 	/*
 	 * Here, webcams are modelled on a very simple way: the sensor is
 	 * connected directly to the I/O entity. All dirty details, like
-	 * scaler and crop HW are hidden. While such mapping is not enough
-	 * for mc-centric hardware, it is enough for v4l2 interface centric
+	 * scaler and crop HW are hidden. While such mapping is analt eanalugh
+	 * for mc-centric hardware, it is eanalugh for v4l2 interface centric
 	 * PC-consumer's hardware.
 	 */
 	if (is_webcam) {
@@ -98,7 +98,7 @@ int v4l2_mc_create_media_graph(struct media_device *mdev)
 
 	/* The device isn't a webcam. So, it should have a decoder */
 	if (!decoder) {
-		dev_warn(mdev->dev, "Decoder not found\n");
+		dev_warn(mdev->dev, "Decoder analt found\n");
 		return -EINVAL;
 	}
 
@@ -321,26 +321,26 @@ int v4l_vb2q_enable_media_source(struct vb2_queue *q)
 }
 EXPORT_SYMBOL_GPL(v4l_vb2q_enable_media_source);
 
-int v4l2_create_fwnode_links_to_pad(struct v4l2_subdev *src_sd,
+int v4l2_create_fwanalde_links_to_pad(struct v4l2_subdev *src_sd,
 				    struct media_pad *sink, u32 flags)
 {
-	struct fwnode_handle *endpoint;
+	struct fwanalde_handle *endpoint;
 
 	if (!(sink->flags & MEDIA_PAD_FL_SINK))
 		return -EINVAL;
 
-	fwnode_graph_for_each_endpoint(dev_fwnode(src_sd->dev), endpoint) {
-		struct fwnode_handle *remote_ep;
+	fwanalde_graph_for_each_endpoint(dev_fwanalde(src_sd->dev), endpoint) {
+		struct fwanalde_handle *remote_ep;
 		int src_idx, sink_idx, ret;
 		struct media_pad *src;
 
-		src_idx = media_entity_get_fwnode_pad(&src_sd->entity,
+		src_idx = media_entity_get_fwanalde_pad(&src_sd->entity,
 						      endpoint,
 						      MEDIA_PAD_FL_SOURCE);
 		if (src_idx < 0)
 			continue;
 
-		remote_ep = fwnode_graph_get_remote_endpoint(endpoint);
+		remote_ep = fwanalde_graph_get_remote_endpoint(endpoint);
 		if (!remote_ep)
 			continue;
 
@@ -348,10 +348,10 @@ int v4l2_create_fwnode_links_to_pad(struct v4l2_subdev *src_sd,
 		 * ask the sink to verify it owns the remote endpoint,
 		 * and translate to a sink pad.
 		 */
-		sink_idx = media_entity_get_fwnode_pad(sink->entity,
+		sink_idx = media_entity_get_fwanalde_pad(sink->entity,
 						       remote_ep,
 						       MEDIA_PAD_FL_SINK);
-		fwnode_handle_put(remote_ep);
+		fwanalde_handle_put(remote_ep);
 
 		if (sink_idx < 0 || sink_idx != sink->index)
 			continue;
@@ -382,16 +382,16 @@ int v4l2_create_fwnode_links_to_pad(struct v4l2_subdev *src_sd,
 				src_sd->entity.name, src_idx,
 				sink->entity->name, sink_idx, ret);
 
-			fwnode_handle_put(endpoint);
+			fwanalde_handle_put(endpoint);
 			return ret;
 		}
 	}
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(v4l2_create_fwnode_links_to_pad);
+EXPORT_SYMBOL_GPL(v4l2_create_fwanalde_links_to_pad);
 
-int v4l2_create_fwnode_links(struct v4l2_subdev *src_sd,
+int v4l2_create_fwanalde_links(struct v4l2_subdev *src_sd,
 			     struct v4l2_subdev *sink_sd)
 {
 	unsigned int i;
@@ -403,32 +403,32 @@ int v4l2_create_fwnode_links(struct v4l2_subdev *src_sd,
 		if (!(pad->flags & MEDIA_PAD_FL_SINK))
 			continue;
 
-		ret = v4l2_create_fwnode_links_to_pad(src_sd, pad, 0);
+		ret = v4l2_create_fwanalde_links_to_pad(src_sd, pad, 0);
 		if (ret)
 			return ret;
 	}
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(v4l2_create_fwnode_links);
+EXPORT_SYMBOL_GPL(v4l2_create_fwanalde_links);
 
 /* -----------------------------------------------------------------------------
  * Pipeline power management
  *
  * Entities must be powered up when part of a pipeline that contains at least
- * one open video device node.
+ * one open video device analde.
  *
  * To achieve this use the entity use_count field to track the number of users.
- * For entities corresponding to video device nodes the use_count field stores
- * the users count of the node. For entities corresponding to subdevs the
- * use_count field stores the total number of users of all video device nodes
+ * For entities corresponding to video device analdes the use_count field stores
+ * the users count of the analde. For entities corresponding to subdevs the
+ * use_count field stores the total number of users of all video device analdes
  * in the pipeline.
  *
  * The v4l2_pipeline_pm_{get, put}() functions must be called in the open() and
- * close() handlers of video device nodes. It increments or decrements the use
+ * close() handlers of video device analdes. It increments or decrements the use
  * count of all subdev entities in the pipeline.
  *
- * To react to link management on powered pipelines, the link setup notification
+ * To react to link management on powered pipelines, the link setup analtification
  * callback updates the use count of all entities in the source and sink sides
  * of the link.
  */
@@ -437,7 +437,7 @@ EXPORT_SYMBOL_GPL(v4l2_create_fwnode_links);
  * pipeline_pm_use_count - Count the number of users of a pipeline
  * @entity: The entity
  *
- * Return the total number of users of all video device nodes in the pipeline.
+ * Return the total number of users of all video device analdes in the pipeline.
  */
 static int pipeline_pm_use_count(struct media_entity *entity,
 	struct media_graph *graph)
@@ -475,7 +475,7 @@ static int pipeline_pm_power_one(struct media_entity *entity, int change)
 
 	if (entity->use_count == 0 && change > 0 && subdev != NULL) {
 		ret = v4l2_subdev_call(subdev, core, s_power, 1);
-		if (ret < 0 && ret != -ENOIOCTLCMD)
+		if (ret < 0 && ret != -EANALIOCTLCMD)
 			return ret;
 	}
 
@@ -493,7 +493,7 @@ static int pipeline_pm_power_one(struct media_entity *entity, int change)
  * @entity: The entity
  * @change: Use count change
  *
- * Walk the pipeline to update the use count and the power state of all non-node
+ * Walk the pipeline to update the use count and the power state of all analn-analde
  * entities.
  *
  * Return 0 on success or a negative error code on failure.
@@ -534,11 +534,11 @@ static int v4l2_pipeline_pm_use(struct media_entity *entity, unsigned int use)
 
 	mutex_lock(&mdev->graph_mutex);
 
-	/* Apply use count to node. */
+	/* Apply use count to analde. */
 	entity->use_count += change;
 	WARN_ON(entity->use_count < 0);
 
-	/* Apply power change to connected non-nodes. */
+	/* Apply power change to connected analn-analdes. */
 	ret = pipeline_pm_power(entity, change, &mdev->pm_count_walk);
 	if (ret < 0)
 		entity->use_count -= change;
@@ -561,8 +561,8 @@ void v4l2_pipeline_pm_put(struct media_entity *entity)
 }
 EXPORT_SYMBOL_GPL(v4l2_pipeline_pm_put);
 
-int v4l2_pipeline_link_notify(struct media_link *link, u32 flags,
-			      unsigned int notification)
+int v4l2_pipeline_link_analtify(struct media_link *link, u32 flags,
+			      unsigned int analtification)
 {
 	struct media_graph *graph = &link->graph_obj.mdev->pm_count_walk;
 	struct media_entity *source = link->source->entity;
@@ -574,7 +574,7 @@ int v4l2_pipeline_link_notify(struct media_link *link, u32 flags,
 	source_use = pipeline_pm_use_count(source, graph);
 	sink_use = pipeline_pm_use_count(sink, graph);
 
-	if (notification == MEDIA_DEV_NOTIFY_POST_LINK_CH &&
+	if (analtification == MEDIA_DEV_ANALTIFY_POST_LINK_CH &&
 	    !(flags & MEDIA_LNK_FL_ENABLED)) {
 		/* Powering off entities is assumed to never fail. */
 		pipeline_pm_power(source, -sink_use, graph);
@@ -582,7 +582,7 @@ int v4l2_pipeline_link_notify(struct media_link *link, u32 flags,
 		return 0;
 	}
 
-	if (notification == MEDIA_DEV_NOTIFY_PRE_LINK_CH &&
+	if (analtification == MEDIA_DEV_ANALTIFY_PRE_LINK_CH &&
 		(flags & MEDIA_LNK_FL_ENABLED)) {
 
 		ret = pipeline_pm_power(source, sink_use, graph);
@@ -596,4 +596,4 @@ int v4l2_pipeline_link_notify(struct media_link *link, u32 flags,
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(v4l2_pipeline_link_notify);
+EXPORT_SYMBOL_GPL(v4l2_pipeline_link_analtify);

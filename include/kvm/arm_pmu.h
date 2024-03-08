@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2015 Linaro Ltd.
- * Author: Shannon Zhao <shannon.zhao@linaro.org>
+ * Author: Shananaln Zhao <shananaln.zhao@linaro.org>
  */
 
 #ifndef __ASM_ARM_KVM_PMU_H
@@ -56,7 +56,7 @@ void kvm_pmu_disable_counter_mask(struct kvm_vcpu *vcpu, u64 val);
 void kvm_pmu_enable_counter_mask(struct kvm_vcpu *vcpu, u64 val);
 void kvm_pmu_flush_hwstate(struct kvm_vcpu *vcpu);
 void kvm_pmu_sync_hwstate(struct kvm_vcpu *vcpu);
-bool kvm_pmu_should_notify_user(struct kvm_vcpu *vcpu);
+bool kvm_pmu_should_analtify_user(struct kvm_vcpu *vcpu);
 void kvm_pmu_update_run(struct kvm_vcpu *vcpu);
 void kvm_pmu_software_increment(struct kvm_vcpu *vcpu, u64 val);
 void kvm_pmu_handle_pmcr(struct kvm_vcpu *vcpu, u64 val);
@@ -82,7 +82,7 @@ void kvm_vcpu_pmu_resync_el0(void);
 /*
  * Updates the vcpu's view of the pmu events for this cpu.
  * Must be called before every vcpu run after disabling interrupts, to ensure
- * that an interrupt cannot fire and update the structure.
+ * that an interrupt cananalt fire and update the structure.
  */
 #define kvm_pmu_update_vcpu_events(vcpu)				\
 	do {								\
@@ -134,7 +134,7 @@ static inline void kvm_pmu_disable_counter_mask(struct kvm_vcpu *vcpu, u64 val) 
 static inline void kvm_pmu_enable_counter_mask(struct kvm_vcpu *vcpu, u64 val) {}
 static inline void kvm_pmu_flush_hwstate(struct kvm_vcpu *vcpu) {}
 static inline void kvm_pmu_sync_hwstate(struct kvm_vcpu *vcpu) {}
-static inline bool kvm_pmu_should_notify_user(struct kvm_vcpu *vcpu)
+static inline bool kvm_pmu_should_analtify_user(struct kvm_vcpu *vcpu)
 {
 	return false;
 }
@@ -185,7 +185,7 @@ static inline void kvm_vcpu_pmu_resync_el0(void) {}
 
 static inline int kvm_arm_set_default_pmu(struct kvm *kvm)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static inline u8 kvm_arm_pmu_get_max_counters(struct kvm *kvm)

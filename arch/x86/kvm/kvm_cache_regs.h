@@ -76,9 +76,9 @@ static inline void kvm_register_mark_dirty(struct kvm_vcpu *vcpu,
 }
 
 /*
- * kvm_register_test_and_mark_available() is a special snowflake that uses an
+ * kvm_register_test_and_mark_available() is a special sanalwflake that uses an
  * arch bitop directly to avoid the explicit instrumentation that comes with
- * the generic bitops.  This allows code that cannot be instrumented (noinstr
+ * the generic bitops.  This allows code that cananalt be instrumented (analinstr
  * functions), e.g. the low level VM-Enter/VM-Exit paths, to cache registers.
  */
 static __always_inline bool kvm_register_test_and_mark_available(struct kvm_vcpu *vcpu,

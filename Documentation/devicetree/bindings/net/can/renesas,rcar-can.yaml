@@ -100,7 +100,7 @@ allOf:
   - $ref: can-controller.yaml#
 
   - if:
-      not:
+      analt:
         properties:
           compatible:
             contains:

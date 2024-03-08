@@ -32,8 +32,8 @@ static struct sctp_chunk *sctp_make_idatafrag_empty(
 	memset(&dp, 0, sizeof(dp));
 	dp.stream = htons(sinfo->sinfo_stream);
 
-	if (sinfo->sinfo_flags & SCTP_UNORDERED)
-		flags |= SCTP_DATA_UNORDERED;
+	if (sinfo->sinfo_flags & SCTP_UANALRDERED)
+		flags |= SCTP_DATA_UANALRDERED;
 
 	retval = sctp_make_idata(asoc, flags, sizeof(dp) + len, gfp);
 	if (!retval)
@@ -55,7 +55,7 @@ static void sctp_chunk_assign_mid(struct sctp_chunk *chunk)
 	if (chunk->has_mid)
 		return;
 
-	sid = sctp_chunk_stream_no(chunk);
+	sid = sctp_chunk_stream_anal(chunk);
 	stream = &chunk->asoc->stream;
 
 	list_for_each_entry(lchunk, &chunk->msg->chunks, frag_list) {
@@ -71,7 +71,7 @@ static void sctp_chunk_assign_mid(struct sctp_chunk *chunk)
 		else
 			hdr->fsn = htonl(cfsn++);
 
-		if (lchunk->chunk_hdr->flags & SCTP_DATA_UNORDERED) {
+		if (lchunk->chunk_hdr->flags & SCTP_DATA_UANALRDERED) {
 			mid = lchunk->chunk_hdr->flags & SCTP_DATA_LAST_FRAG ?
 				sctp_mid_uo_next(stream, out, sid) :
 				sctp_mid_uo_peek(stream, out, sid);
@@ -92,11 +92,11 @@ static bool sctp_validate_data(struct sctp_chunk *chunk)
 	if (chunk->chunk_hdr->type != SCTP_CID_DATA)
 		return false;
 
-	if (chunk->chunk_hdr->flags & SCTP_DATA_UNORDERED)
+	if (chunk->chunk_hdr->flags & SCTP_DATA_UANALRDERED)
 		return true;
 
 	stream = &chunk->asoc->stream;
-	sid = sctp_chunk_stream_no(chunk);
+	sid = sctp_chunk_stream_anal(chunk);
 	ssn = ntohs(chunk->subh.data_hdr->ssn);
 
 	return !SSN_lt(ssn, sctp_ssn_peek(stream, in, sid));
@@ -111,11 +111,11 @@ static bool sctp_validate_idata(struct sctp_chunk *chunk)
 	if (chunk->chunk_hdr->type != SCTP_CID_I_DATA)
 		return false;
 
-	if (chunk->chunk_hdr->flags & SCTP_DATA_UNORDERED)
+	if (chunk->chunk_hdr->flags & SCTP_DATA_UANALRDERED)
 		return true;
 
 	stream = &chunk->asoc->stream;
-	sid = sctp_chunk_stream_no(chunk);
+	sid = sctp_chunk_stream_anal(chunk);
 	mid = ntohl(chunk->subh.idata_hdr->mid);
 
 	return !MID_lt(mid, sctp_mid_peek(stream, in, sid));
@@ -351,7 +351,7 @@ static struct sctp_ulpevent *sctp_intl_reasm(struct sctp_ulpq *ulpq,
 	struct sctp_ulpevent *retval = NULL;
 	struct sctp_stream_in *sin;
 
-	if (SCTP_DATA_NOT_FRAG == (event->msg_flags & SCTP_DATA_FRAG_MASK)) {
+	if (SCTP_DATA_ANALT_FRAG == (event->msg_flags & SCTP_DATA_FRAG_MASK)) {
 		event->msg_flags |= MSG_EOR;
 		return event;
 	}
@@ -479,10 +479,10 @@ static int sctp_enqueue_event(struct sctp_ulpq *ulpq,
 
 	if (sk->sk_shutdown & RCV_SHUTDOWN &&
 	    (sk->sk_shutdown & SEND_SHUTDOWN ||
-	     !sctp_ulpevent_is_notification(event)))
+	     !sctp_ulpevent_is_analtification(event)))
 		goto out_free;
 
-	if (!sctp_ulpevent_is_notification(event)) {
+	if (!sctp_ulpevent_is_analtification(event)) {
 		sk_mark_napi_id(sk, skb);
 		sk_incoming_cpu_update(sk);
 	}
@@ -734,7 +734,7 @@ static struct sctp_ulpevent *sctp_intl_reasm_uo(struct sctp_ulpq *ulpq,
 	struct sctp_ulpevent *retval = NULL;
 	struct sctp_stream_in *sin;
 
-	if (SCTP_DATA_NOT_FRAG == (event->msg_flags & SCTP_DATA_FRAG_MASK)) {
+	if (SCTP_DATA_ANALT_FRAG == (event->msg_flags & SCTP_DATA_FRAG_MASK)) {
 		event->msg_flags |= MSG_EOR;
 		return event;
 	}
@@ -825,7 +825,7 @@ static int sctp_ulpevent_idata(struct sctp_ulpq *ulpq,
 
 	event = sctp_ulpevent_make_rcvmsg(chunk->asoc, chunk, gfp);
 	if (!event)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	event->mid = ntohl(chunk->subh.idata_hdr->mid);
 	if (event->msg_flags & SCTP_DATA_FIRST_FRAG)
@@ -833,7 +833,7 @@ static int sctp_ulpevent_idata(struct sctp_ulpq *ulpq,
 	else
 		event->fsn = ntohl(chunk->subh.idata_hdr->fsn);
 
-	if (!(event->msg_flags & SCTP_DATA_UNORDERED)) {
+	if (!(event->msg_flags & SCTP_DATA_UANALRDERED)) {
 		event = sctp_intl_reasm(ulpq, event);
 		if (event) {
 			skb_queue_head_init(&temp);
@@ -1123,7 +1123,7 @@ static void sctp_generate_iftsn(struct sctp_outq *q, __u32 ctsn)
 			__be32 mid = chunk->subh.idata_hdr->mid;
 			__u8 flags = 0;
 
-			if (chunk->chunk_hdr->flags & SCTP_DATA_UNORDERED)
+			if (chunk->chunk_hdr->flags & SCTP_DATA_UANALRDERED)
 				flags |= SCTP_FTSN_U_BIT;
 
 			asoc->adv_peer_ack_point = tsn;

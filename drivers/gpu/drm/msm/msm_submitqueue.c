@@ -88,7 +88,7 @@ struct msm_gpu_submitqueue *msm_submitqueue_get(struct msm_file_private *ctx,
 
 	read_lock(&ctx->queuelock);
 
-	list_for_each_entry(entry, &ctx->submitqueues, node) {
+	list_for_each_entry(entry, &ctx->submitqueues, analde) {
 		if (entry->id == id) {
 			kref_get(&entry->ref);
 			read_unlock(&ctx->queuelock);
@@ -109,11 +109,11 @@ void msm_submitqueue_close(struct msm_file_private *ctx)
 		return;
 
 	/*
-	 * No lock needed in close and there won't
+	 * Anal lock needed in close and there won't
 	 * be any more user ioctls coming our way
 	 */
-	list_for_each_entry_safe(entry, tmp, &ctx->submitqueues, node) {
-		list_del(&entry->node);
+	list_for_each_entry_safe(entry, tmp, &ctx->submitqueues, analde) {
+		list_del(&entry->analde);
 		msm_submitqueue_put(entry);
 	}
 }
@@ -165,10 +165,10 @@ int msm_submitqueue_create(struct drm_device *drm, struct msm_file_private *ctx,
 	int ret;
 
 	if (!ctx)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!priv->gpu)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = msm_gpu_convert_priority(priv->gpu, prio, &ring_nr, &sched_prio);
 	if (ret)
@@ -177,7 +177,7 @@ int msm_submitqueue_create(struct drm_device *drm, struct msm_file_private *ctx,
 	queue = kzalloc(sizeof(*queue), GFP_KERNEL);
 
 	if (!queue)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	kref_init(&queue->ref);
 	queue->flags = flags;
@@ -203,7 +203,7 @@ int msm_submitqueue_create(struct drm_device *drm, struct msm_file_private *ctx,
 	spin_lock_init(&queue->idr_lock);
 	mutex_init(&queue->lock);
 
-	list_add_tail(&queue->node, &ctx->submitqueues);
+	list_add_tail(&queue->analde, &ctx->submitqueues);
 
 	write_unlock(&ctx->queuelock);
 
@@ -220,13 +220,13 @@ int msm_submitqueue_init(struct drm_device *drm, struct msm_file_private *ctx)
 	int default_prio, max_priority;
 
 	if (!priv->gpu)
-		return -ENODEV;
+		return -EANALDEV;
 
 	max_priority = (priv->gpu->nr_rings * NR_SCHED_PRIORITIES) - 1;
 
 	/*
 	 * Pick a medium priority level as default.  Lower numeric value is
-	 * higher priority, so round-up to pick a priority that is not higher
+	 * higher priority, so round-up to pick a priority that is analt higher
 	 * than the middle priority level.
 	 */
 	default_prio = DIV_ROUND_UP(max_priority, 2);
@@ -265,7 +265,7 @@ int msm_submitqueue_query(struct drm_device *drm, struct msm_file_private *ctx,
 
 	queue = msm_submitqueue_get(ctx, args->id);
 	if (!queue)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (args->param == MSM_SUBMITQUEUE_PARAM_FAULTS)
 		ret = msm_submitqueue_query_faults(queue, args);
@@ -287,13 +287,13 @@ int msm_submitqueue_remove(struct msm_file_private *ctx, u32 id)
 	 * by the user
 	 */
 	if (!id)
-		return -ENOENT;
+		return -EANALENT;
 
 	write_lock(&ctx->queuelock);
 
-	list_for_each_entry(entry, &ctx->submitqueues, node) {
+	list_for_each_entry(entry, &ctx->submitqueues, analde) {
 		if (entry->id == id) {
-			list_del(&entry->node);
+			list_del(&entry->analde);
 			write_unlock(&ctx->queuelock);
 
 			msm_submitqueue_put(entry);
@@ -302,6 +302,6 @@ int msm_submitqueue_remove(struct msm_file_private *ctx, u32 id)
 	}
 
 	write_unlock(&ctx->queuelock);
-	return -ENOENT;
+	return -EANALENT;
 }
 

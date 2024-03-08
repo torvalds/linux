@@ -151,7 +151,7 @@ static int max517_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 	data = iio_priv(indio_dev);
 	data->client = client;
 

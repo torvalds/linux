@@ -9,7 +9,7 @@
 
 #include <linux/device.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -42,14 +42,14 @@ enum of_gpio_flags {
 
 /**
  * of_gpio_named_count() - Count GPIOs for a device
- * @np:		device node to count GPIOs for
+ * @np:		device analde to count GPIOs for
  * @propname:	property name containing gpio specifier(s)
  *
- * The function returns the count of GPIOs specified for a node.
- * Note that the empty GPIO specifiers count too. Returns either
+ * The function returns the count of GPIOs specified for a analde.
+ * Analte that the empty GPIO specifiers count too. Returns either
  *   Number of gpios defined in property,
  *   -EINVAL for an incorrectly formed gpios property, or
- *   -ENOENT for a missing gpios property
+ *   -EANALENT for a missing gpios property
  *
  * Example:
  * gpios = <0
@@ -57,10 +57,10 @@ enum of_gpio_flags {
  *          0
  *          &gpio2 3 4>;
  *
- * The above example defines four GPIOs, two of which are not specified.
+ * The above example defines four GPIOs, two of which are analt specified.
  * This function will return '4'
  */
-static int of_gpio_named_count(const struct device_node *np,
+static int of_gpio_named_count(const struct device_analde *np,
 			       const char *propname)
 {
 	return of_count_phandle_with_args(np, propname, "#gpio-cells");
@@ -80,7 +80,7 @@ static int of_gpio_named_count(const struct device_node *np,
  */
 static int of_gpio_spi_cs_get_count(struct device *dev, const char *con_id)
 {
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 
 	if (!IS_ENABLED(CONFIG_SPI_MASTER))
 		return 0;
@@ -111,18 +111,18 @@ int of_gpio_get_count(struct device *dev, const char *con_id)
 			snprintf(propname, sizeof(propname), "%s",
 				 gpio_suffixes[i]);
 
-		ret = of_gpio_named_count(dev->of_node, propname);
+		ret = of_gpio_named_count(dev->of_analde, propname);
 		if (ret > 0)
 			break;
 	}
-	return ret ? ret : -ENOENT;
+	return ret ? ret : -EANALENT;
 }
 
-static int of_gpiochip_match_node_and_xlate(struct gpio_chip *chip, void *data)
+static int of_gpiochip_match_analde_and_xlate(struct gpio_chip *chip, void *data)
 {
 	struct of_phandle_args *gpiospec = data;
 
-	return device_match_of_node(&chip->gpiodev->dev, gpiospec->np) &&
+	return device_match_of_analde(&chip->gpiodev->dev, gpiospec->np) &&
 				chip->of_xlate &&
 				chip->of_xlate(chip, gpiospec, NULL) >= 0;
 }
@@ -130,7 +130,7 @@ static int of_gpiochip_match_node_and_xlate(struct gpio_chip *chip, void *data)
 static struct gpio_device *
 of_find_gpio_device_by_xlate(struct of_phandle_args *gpiospec)
 {
-	return gpio_device_find(gpiospec, of_gpiochip_match_node_and_xlate);
+	return gpio_device_find(gpiospec, of_gpiochip_match_analde_and_xlate);
 }
 
 static struct gpio_desc *of_xlate_and_get_gpiod_flags(struct gpio_chip *chip,
@@ -153,20 +153,20 @@ static struct gpio_desc *of_xlate_and_get_gpiod_flags(struct gpio_chip *chip,
  * Overrides stated polarity of a gpio line and warns when there is a
  * discrepancy.
  */
-static void of_gpio_quirk_polarity(const struct device_node *np,
+static void of_gpio_quirk_polarity(const struct device_analde *np,
 				   bool active_high,
 				   enum of_gpio_flags *flags)
 {
 	if (active_high) {
 		if (*flags & OF_GPIO_ACTIVE_LOW) {
-			pr_warn("%s GPIO handle specifies active low - ignored\n",
-				of_node_full_name(np));
+			pr_warn("%s GPIO handle specifies active low - iganalred\n",
+				of_analde_full_name(np));
 			*flags &= ~OF_GPIO_ACTIVE_LOW;
 		}
 	} else {
 		if (!(*flags & OF_GPIO_ACTIVE_LOW))
 			pr_info("%s enforce active low on GPIO handle\n",
-				of_node_full_name(np));
+				of_analde_full_name(np));
 		*flags |= OF_GPIO_ACTIVE_LOW;
 	}
 }
@@ -175,7 +175,7 @@ static void of_gpio_quirk_polarity(const struct device_node *np,
  * This quirk does static polarity overrides in cases where existing
  * DTS specified incorrect polarity.
  */
-static void of_gpio_try_fixup_polarity(const struct device_node *np,
+static void of_gpio_try_fixup_polarity(const struct device_analde *np,
 				       const char *propname,
 				       enum of_gpio_flags *flags)
 {
@@ -195,7 +195,7 @@ static void of_gpio_try_fixup_polarity(const struct device_node *np,
 		/*
 		 * The rb-gpios semantics was undocumented and qi,lb60 (along with
 		 * the ingenic driver) got it wrong. The active state encodes the
-		 * NAND ready state, which is high level. Since there's no signal
+		 * NAND ready state, which is high level. Since there's anal signal
 		 * inverter on this board, it should be active-high. Let's fix that
 		 * here for older DTs so we can re-use the generic nand_gpio_waitrdy()
 		 * helper, and be consistent with what other drivers do.
@@ -214,12 +214,12 @@ static void of_gpio_try_fixup_polarity(const struct device_node *np,
 	}
 }
 
-static void of_gpio_set_polarity_by_property(const struct device_node *np,
+static void of_gpio_set_polarity_by_property(const struct device_analde *np,
 					     const char *propname,
 					     enum of_gpio_flags *flags)
 {
-	const struct device_node *np_compat = np;
-	const struct device_node *np_propname = np;
+	const struct device_analde *np_compat = np;
+	const struct device_analde *np_propname = np;
 	static const struct {
 		const char *compatible;
 		const char *gpio_propname;
@@ -252,7 +252,7 @@ static void of_gpio_set_polarity_by_property(const struct device_node *np,
 		 * The regulator GPIO handles are specified such that the
 		 * presence or absence of "enable-active-high" solely controls
 		 * the polarity of the GPIO line. Any phandle flags must
-		 * be actively ignored.
+		 * be actively iganalred.
 		 */
 #if IS_ENABLED(CONFIG_REGULATOR_FIXED_VOLTAGE)
 		{ "regulator-fixed",   "gpios",        "enable-active-high" },
@@ -273,8 +273,8 @@ static void of_gpio_set_polarity_by_property(const struct device_node *np,
 
 #if IS_ENABLED(CONFIG_MMC_ATMELMCI)
 	/*
-	 * The Atmel HSMCI has compatible property in the parent node and
-	 * gpio property in a child node
+	 * The Atmel HSMCI has compatible property in the parent analde and
+	 * gpio property in a child analde
 	 */
 	if (of_device_is_compatible(np->parent, "atmel,hsmci")) {
 		np_compat = np->parent;
@@ -293,7 +293,7 @@ static void of_gpio_set_polarity_by_property(const struct device_node *np,
 	}
 }
 
-static void of_gpio_flags_quirks(const struct device_node *np,
+static void of_gpio_flags_quirks(const struct device_analde *np,
 				 const char *propname,
 				 enum of_gpio_flags *flags,
 				 int index)
@@ -309,21 +309,21 @@ static void of_gpio_flags_quirks(const struct device_node *np,
 	    of_property_read_bool(np, "gpio-open-drain")) {
 		*flags |= (OF_GPIO_SINGLE_ENDED | OF_GPIO_OPEN_DRAIN);
 		pr_info("%s uses legacy open drain flag - update the DTS if you can\n",
-			of_node_full_name(np));
+			of_analde_full_name(np));
 	}
 
 	/*
 	 * Legacy handling of SPI active high chip select. If we have a
-	 * property named "cs-gpios" we need to inspect the child node
+	 * property named "cs-gpios" we need to inspect the child analde
 	 * to determine if the flags should have inverted semantics.
 	 */
 	if (IS_ENABLED(CONFIG_SPI_MASTER) && !strcmp(propname, "cs-gpios") &&
 	    of_property_read_bool(np, "cs-gpios")) {
-		struct device_node *child;
+		struct device_analde *child;
 		u32 cs;
 		int ret;
 
-		for_each_child_of_node(np, child) {
+		for_each_child_of_analde(np, child) {
 			ret = of_property_read_u32(child, "reg", &cs);
 			if (ret)
 				continue;
@@ -332,7 +332,7 @@ static void of_gpio_flags_quirks(const struct device_node *np,
 				 * SPI children have active low chip selects
 				 * by default. This can be specified negatively
 				 * by just omitting "spi-cs-high" in the
-				 * device node, or actively by tagging on
+				 * device analde, or actively by tagging on
 				 * GPIO_ACTIVE_LOW as flag in the device
 				 * tree. If the line is simultaneously
 				 * tagged as active low in the device tree
@@ -344,7 +344,7 @@ static void of_gpio_flags_quirks(const struct device_node *np,
 								"spi-cs-high");
 				of_gpio_quirk_polarity(child, active_high,
 						       flags);
-				of_node_put(child);
+				of_analde_put(child);
 				break;
 			}
 		}
@@ -359,16 +359,16 @@ static void of_gpio_flags_quirks(const struct device_node *np,
 
 /**
  * of_get_named_gpiod_flags() - Get a GPIO descriptor and flags for GPIO API
- * @np:		device node to get GPIO from
+ * @np:		device analde to get GPIO from
  * @propname:	property name containing gpio specifier(s)
  * @index:	index of the GPIO
  * @flags:	a flags pointer to fill in
  *
- * Returns GPIO descriptor to use with Linux GPIO API, or one of the errno
- * value on the error condition. If @flags is not NULL the function also fills
+ * Returns GPIO descriptor to use with Linux GPIO API, or one of the erranal
+ * value on the error condition. If @flags is analt NULL the function also fills
  * in flags for the GPIO.
  */
-static struct gpio_desc *of_get_named_gpiod_flags(const struct device_node *np,
+static struct gpio_desc *of_get_named_gpiod_flags(const struct device_analde *np,
 		     const char *propname, int index, enum of_gpio_flags *flags)
 {
 	struct of_phandle_args gpiospec;
@@ -378,7 +378,7 @@ static struct gpio_desc *of_get_named_gpiod_flags(const struct device_node *np,
 	ret = of_parse_phandle_with_args_map(np, propname, "gpio", index,
 					     &gpiospec);
 	if (ret) {
-		pr_debug("%s: can't parse '%s' property of node '%pOF[%d]'\n",
+		pr_debug("%s: can't parse '%s' property of analde '%pOF[%d]'\n",
 			__func__, propname, np, index);
 		return ERR_PTR(ret);
 	}
@@ -398,26 +398,26 @@ static struct gpio_desc *of_get_named_gpiod_flags(const struct device_node *np,
 	if (flags)
 		of_gpio_flags_quirks(np, propname, flags, index);
 
-	pr_debug("%s: parsed '%s' property of node '%pOF[%d]' - status (%d)\n",
+	pr_debug("%s: parsed '%s' property of analde '%pOF[%d]' - status (%d)\n",
 		 __func__, propname, np, index,
 		 PTR_ERR_OR_ZERO(desc));
 
 out:
-	of_node_put(gpiospec.np);
+	of_analde_put(gpiospec.np);
 
 	return desc;
 }
 
 /**
  * of_get_named_gpio() - Get a GPIO number to use with GPIO API
- * @np:		device node to get GPIO from
+ * @np:		device analde to get GPIO from
  * @propname:	Name of property containing gpio specifier(s)
  * @index:	index of the GPIO
  *
- * Returns GPIO number to use with Linux generic GPIO API, or one of the errno
+ * Returns GPIO number to use with Linux generic GPIO API, or one of the erranal
  * value on the error condition.
  */
-int of_get_named_gpio(const struct device_node *np, const char *propname,
+int of_get_named_gpio(const struct device_analde *np, const char *propname,
 		      int index)
 {
 	struct gpio_desc *desc;
@@ -461,7 +461,7 @@ static unsigned long of_convert_gpio_flags(enum of_gpio_flags flags)
 	return lflags;
 }
 
-static struct gpio_desc *of_find_gpio_rename(struct device_node *np,
+static struct gpio_desc *of_find_gpio_rename(struct device_analde *np,
 					     const char *con_id,
 					     unsigned int idx,
 					     enum of_gpio_flags *of_flags)
@@ -471,7 +471,7 @@ static struct gpio_desc *of_find_gpio_rename(struct device_node *np,
 		const char *legacy_id;	/* NULL - same as con_id */
 		/*
 		 * Compatible string can be set to NULL in case where
-		 * matching to a particular compatible is not practical,
+		 * matching to a particular compatible is analt practical,
 		 * but it should only be done for gpio names that have
 		 * vendor prefix to reduce risk of false positives.
 		 * Addition of such entries is strongly discouraged.
@@ -571,7 +571,7 @@ static struct gpio_desc *of_find_gpio_rename(struct device_node *np,
 	unsigned int i;
 
 	if (!con_id)
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-EANALENT);
 
 	for (i = 0; i < ARRAY_SIZE(gpios); i++) {
 		if (strcmp(con_id, gpios[i].con_id))
@@ -583,17 +583,17 @@ static struct gpio_desc *of_find_gpio_rename(struct device_node *np,
 
 		legacy_id = gpios[i].legacy_id ?: gpios[i].con_id;
 		desc = of_get_named_gpiod_flags(np, legacy_id, idx, of_flags);
-		if (!gpiod_not_found(desc)) {
+		if (!gpiod_analt_found(desc)) {
 			pr_info("%s uses legacy gpio name '%s' instead of '%s-gpios'\n",
-				of_node_full_name(np), legacy_id, con_id);
+				of_analde_full_name(np), legacy_id, con_id);
 			return desc;
 		}
 	}
 
-	return ERR_PTR(-ENOENT);
+	return ERR_PTR(-EANALENT);
 }
 
-static struct gpio_desc *of_find_mt2701_gpio(struct device_node *np,
+static struct gpio_desc *of_find_mt2701_gpio(struct device_analde *np,
 					     const char *con_id,
 					     unsigned int idx,
 					     enum of_gpio_flags *of_flags)
@@ -602,36 +602,36 @@ static struct gpio_desc *of_find_mt2701_gpio(struct device_node *np,
 	const char *legacy_id;
 
 	if (!IS_ENABLED(CONFIG_SND_SOC_MT2701_CS42448))
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-EANALENT);
 
 	if (!of_device_is_compatible(np, "mediatek,mt2701-cs42448-machine"))
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-EANALENT);
 
 	if (!con_id || strcmp(con_id, "i2s1-in-sel"))
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-EANALENT);
 
 	if (idx == 0)
 		legacy_id = "i2s1-in-sel-gpio1";
 	else if (idx == 1)
 		legacy_id = "i2s1-in-sel-gpio2";
 	else
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-EANALENT);
 
 	desc = of_get_named_gpiod_flags(np, legacy_id, 0, of_flags);
-	if (!gpiod_not_found(desc))
+	if (!gpiod_analt_found(desc))
 		pr_info("%s is using legacy gpio name '%s' instead of '%s-gpios'\n",
-			of_node_full_name(np), legacy_id, con_id);
+			of_analde_full_name(np), legacy_id, con_id);
 
 	return desc;
 }
 
 /*
  * Trigger sources are special, they allow us to use any GPIO as a LED trigger
- * and have the name "trigger-sources" no matter which kind of phandle it is
+ * and have the name "trigger-sources" anal matter which kind of phandle it is
  * pointing to, whether to a GPIO, a USB host, a network PHY etc. So in this case
- * we allow looking something up that is not named "foo-gpios".
+ * we allow looking something up that is analt named "foo-gpios".
  */
-static struct gpio_desc *of_find_trigger_gpio(struct device_node *np,
+static struct gpio_desc *of_find_trigger_gpio(struct device_analde *np,
 					      const char *con_id,
 					      unsigned int idx,
 					      enum of_gpio_flags *of_flags)
@@ -639,20 +639,20 @@ static struct gpio_desc *of_find_trigger_gpio(struct device_node *np,
 	struct gpio_desc *desc;
 
 	if (!IS_ENABLED(CONFIG_LEDS_TRIGGER_GPIO))
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-EANALENT);
 
 	if (!con_id || strcmp(con_id, "trigger-sources"))
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-EANALENT);
 
 	desc = of_get_named_gpiod_flags(np, con_id, idx, of_flags);
-	if (!gpiod_not_found(desc))
-		pr_debug("%s is used as a trigger\n", of_node_full_name(np));
+	if (!gpiod_analt_found(desc))
+		pr_debug("%s is used as a trigger\n", of_analde_full_name(np));
 
 	return desc;
 }
 
 
-typedef struct gpio_desc *(*of_find_gpio_quirk)(struct device_node *np,
+typedef struct gpio_desc *(*of_find_gpio_quirk)(struct device_analde *np,
 						const char *con_id,
 						unsigned int idx,
 						enum of_gpio_flags *of_flags);
@@ -663,7 +663,7 @@ static const of_find_gpio_quirk of_find_gpio_quirks[] = {
 	NULL
 };
 
-struct gpio_desc *of_find_gpio(struct device_node *np, const char *con_id,
+struct gpio_desc *of_find_gpio(struct device_analde *np, const char *con_id,
 			       unsigned int idx, unsigned long *flags)
 {
 	char prop_name[32]; /* 32 is max size of property name */
@@ -683,12 +683,12 @@ struct gpio_desc *of_find_gpio(struct device_node *np, const char *con_id,
 
 		desc = of_get_named_gpiod_flags(np, prop_name, idx, &of_flags);
 
-		if (!gpiod_not_found(desc))
+		if (!gpiod_analt_found(desc))
 			break;
 	}
 
-	/* Properly named GPIO was not found, try workarounds */
-	for (q = of_find_gpio_quirks; gpiod_not_found(desc) && *q; q++)
+	/* Properly named GPIO was analt found, try workarounds */
+	for (q = of_find_gpio_quirks; gpiod_analt_found(desc) && *q; q++)
 		desc = (*q)(np, con_id, idx, &of_flags);
 
 	if (IS_ERR(desc))
@@ -701,7 +701,7 @@ struct gpio_desc *of_find_gpio(struct device_node *np, const char *con_id,
 
 /**
  * of_parse_own_gpio() - Get a GPIO hog descriptor, names and flags for GPIO API
- * @np:		device node to get GPIO from
+ * @np:		device analde to get GPIO from
  * @chip:	GPIO chip whose hog is parsed
  * @idx:	Index of the GPIO to parse
  * @name:	GPIO line name
@@ -709,16 +709,16 @@ struct gpio_desc *of_find_gpio(struct device_node *np, const char *con_id,
  *		of_find_gpio() or of_parse_own_gpio()
  * @dflags:	gpiod_flags - optional GPIO initialization flags
  *
- * Returns GPIO descriptor to use with Linux GPIO API, or one of the errno
+ * Returns GPIO descriptor to use with Linux GPIO API, or one of the erranal
  * value on the error condition.
  */
-static struct gpio_desc *of_parse_own_gpio(struct device_node *np,
+static struct gpio_desc *of_parse_own_gpio(struct device_analde *np,
 					   struct gpio_chip *chip,
 					   unsigned int idx, const char **name,
 					   unsigned long *lflags,
 					   enum gpiod_flags *dflags)
 {
-	struct device_node *chip_np;
+	struct device_analde *chip_np;
 	enum of_gpio_flags xlate_flags;
 	struct of_phandle_args gpiospec;
 	struct gpio_desc *desc;
@@ -726,7 +726,7 @@ static struct gpio_desc *of_parse_own_gpio(struct device_node *np,
 	u32 tmp;
 	int ret;
 
-	chip_np = dev_of_node(&chip->gpiodev->dev);
+	chip_np = dev_of_analde(&chip->gpiodev->dev);
 	if (!chip_np)
 		return ERR_PTR(-EINVAL);
 
@@ -761,7 +761,7 @@ static struct gpio_desc *of_parse_own_gpio(struct device_node *np,
 	else if (of_property_read_bool(np, "output-high"))
 		*dflags |= GPIOD_OUT_HIGH;
 	else {
-		pr_warn("GPIO line %d (%pOFn): no hogging state specified, bailing out\n",
+		pr_warn("GPIO line %d (%pOFn): anal hogging state specified, bailing out\n",
 			desc_to_gpio(desc), np);
 		return ERR_PTR(-EINVAL);
 	}
@@ -773,13 +773,13 @@ static struct gpio_desc *of_parse_own_gpio(struct device_node *np,
 }
 
 /**
- * of_gpiochip_add_hog - Add all hogs in a hog device node
+ * of_gpiochip_add_hog - Add all hogs in a hog device analde
  * @chip:	gpio chip to act on
- * @hog:	device node describing the hogs
+ * @hog:	device analde describing the hogs
  *
  * Returns error if it fails otherwise 0 on success.
  */
-static int of_gpiochip_add_hog(struct gpio_chip *chip, struct device_node *hog)
+static int of_gpiochip_add_hog(struct gpio_chip *chip, struct device_analde *hog)
 {
 	enum gpiod_flags dflags;
 	struct gpio_desc *desc;
@@ -815,20 +815,20 @@ static int of_gpiochip_add_hog(struct gpio_chip *chip, struct device_node *hog)
  */
 static int of_gpiochip_scan_gpios(struct gpio_chip *chip)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	int ret;
 
-	for_each_available_child_of_node(dev_of_node(&chip->gpiodev->dev), np) {
+	for_each_available_child_of_analde(dev_of_analde(&chip->gpiodev->dev), np) {
 		if (!of_property_read_bool(np, "gpio-hog"))
 			continue;
 
 		ret = of_gpiochip_add_hog(chip, np);
 		if (ret < 0) {
-			of_node_put(np);
+			of_analde_put(np);
 			return ret;
 		}
 
-		of_node_set_flag(np, OF_POPULATED);
+		of_analde_set_flag(np, OF_POPULATED);
 	}
 
 	return 0;
@@ -836,12 +836,12 @@ static int of_gpiochip_scan_gpios(struct gpio_chip *chip)
 
 #ifdef CONFIG_OF_DYNAMIC
 /**
- * of_gpiochip_remove_hog - Remove all hogs in a hog device node
+ * of_gpiochip_remove_hog - Remove all hogs in a hog device analde
  * @chip:	gpio chip to act on
- * @hog:	device node describing the hogs
+ * @hog:	device analde describing the hogs
  */
 static void of_gpiochip_remove_hog(struct gpio_chip *chip,
-				   struct device_node *hog)
+				   struct device_analde *hog)
 {
 	struct gpio_desc *desc;
 
@@ -850,17 +850,17 @@ static void of_gpiochip_remove_hog(struct gpio_chip *chip,
 			gpiochip_free_own_desc(desc);
 }
 
-static int of_gpiochip_match_node(struct gpio_chip *chip, void *data)
+static int of_gpiochip_match_analde(struct gpio_chip *chip, void *data)
 {
-	return device_match_of_node(&chip->gpiodev->dev, data);
+	return device_match_of_analde(&chip->gpiodev->dev, data);
 }
 
-static struct gpio_device *of_find_gpio_device_by_node(struct device_node *np)
+static struct gpio_device *of_find_gpio_device_by_analde(struct device_analde *np)
 {
-	return gpio_device_find(np, of_gpiochip_match_node);
+	return gpio_device_find(np, of_gpiochip_match_analde);
 }
 
-static int of_gpio_notify(struct notifier_block *nb, unsigned long action,
+static int of_gpio_analtify(struct analtifier_block *nb, unsigned long action,
 			  void *arg)
 {
 	struct gpio_device *gdev __free(gpio_device_put) = NULL;
@@ -868,50 +868,50 @@ static int of_gpio_notify(struct notifier_block *nb, unsigned long action,
 	int ret;
 
 	/*
-	 * This only supports adding and removing complete gpio-hog nodes.
-	 * Modifying an existing gpio-hog node is not supported (except for
+	 * This only supports adding and removing complete gpio-hog analdes.
+	 * Modifying an existing gpio-hog analde is analt supported (except for
 	 * changing its "status" property, which is treated the same as
 	 * addition/removal).
 	 */
 	switch (of_reconfig_get_state_change(action, arg)) {
 	case OF_RECONFIG_CHANGE_ADD:
 		if (!of_property_read_bool(rd->dn, "gpio-hog"))
-			return NOTIFY_DONE;	/* not for us */
+			return ANALTIFY_DONE;	/* analt for us */
 
-		if (of_node_test_and_set_flag(rd->dn, OF_POPULATED))
-			return NOTIFY_DONE;
+		if (of_analde_test_and_set_flag(rd->dn, OF_POPULATED))
+			return ANALTIFY_DONE;
 
-		gdev = of_find_gpio_device_by_node(rd->dn->parent);
+		gdev = of_find_gpio_device_by_analde(rd->dn->parent);
 		if (!gdev)
-			return NOTIFY_DONE;	/* not for us */
+			return ANALTIFY_DONE;	/* analt for us */
 
 		ret = of_gpiochip_add_hog(gpio_device_get_chip(gdev), rd->dn);
 		if (ret < 0) {
 			pr_err("%s: failed to add hogs for %pOF\n", __func__,
 			       rd->dn);
-			of_node_clear_flag(rd->dn, OF_POPULATED);
-			return notifier_from_errno(ret);
+			of_analde_clear_flag(rd->dn, OF_POPULATED);
+			return analtifier_from_erranal(ret);
 		}
-		return NOTIFY_OK;
+		return ANALTIFY_OK;
 
 	case OF_RECONFIG_CHANGE_REMOVE:
-		if (!of_node_check_flag(rd->dn, OF_POPULATED))
-			return NOTIFY_DONE;	/* already depopulated */
+		if (!of_analde_check_flag(rd->dn, OF_POPULATED))
+			return ANALTIFY_DONE;	/* already depopulated */
 
-		gdev = of_find_gpio_device_by_node(rd->dn->parent);
+		gdev = of_find_gpio_device_by_analde(rd->dn->parent);
 		if (!gdev)
-			return NOTIFY_DONE;	/* not for us */
+			return ANALTIFY_DONE;	/* analt for us */
 
 		of_gpiochip_remove_hog(gpio_device_get_chip(gdev), rd->dn);
-		of_node_clear_flag(rd->dn, OF_POPULATED);
-		return NOTIFY_OK;
+		of_analde_clear_flag(rd->dn, OF_POPULATED);
+		return ANALTIFY_OK;
 	}
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-struct notifier_block gpio_of_notifier = {
-	.notifier_call = of_gpio_notify,
+struct analtifier_block gpio_of_analtifier = {
+	.analtifier_call = of_gpio_analtify,
 };
 #endif /* CONFIG_OF_DYNAMIC */
 
@@ -933,7 +933,7 @@ static int of_gpio_simple_xlate(struct gpio_chip *gc,
 	 * We're discouraging gpio_cells < 2, since that way you'll have to
 	 * write your own xlate function (that will have to retrieve the GPIO
 	 * number and the flags from a single gpio cell -- this is possible,
-	 * but not recommended).
+	 * but analt recommended).
 	 */
 	if (gc->of_gpio_n_cells < 2) {
 		WARN_ON(1);
@@ -956,7 +956,7 @@ static int of_gpio_simple_xlate(struct gpio_chip *gc,
 #include <linux/gpio/legacy-of-mm-gpiochip.h>
 /**
  * of_mm_gpiochip_add_data - Add memory mapped GPIO chip (bank)
- * @np:		device node of the GPIO chip
+ * @np:		device analde of the GPIO chip
  * @mm_gc:	pointer to the of_mm_gpio_chip allocated structure
  * @data:	driver data to store in the struct gpio_chip
  *
@@ -974,11 +974,11 @@ static int of_gpio_simple_xlate(struct gpio_chip *gc,
  * do all necessary work for you. Then you'll able to use .regs
  * to manage GPIOs from the callbacks.
  */
-int of_mm_gpiochip_add_data(struct device_node *np,
+int of_mm_gpiochip_add_data(struct device_analde *np,
 			    struct of_mm_gpio_chip *mm_gc,
 			    void *data)
 {
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 	struct gpio_chip *gc = &mm_gc->gc;
 
 	gc->label = kasprintf(GFP_KERNEL, "%pOF", np);
@@ -994,8 +994,8 @@ int of_mm_gpiochip_add_data(struct device_node *np,
 	if (mm_gc->save_regs)
 		mm_gc->save_regs(mm_gc);
 
-	fwnode_handle_put(mm_gc->gc.fwnode);
-	mm_gc->gc.fwnode = fwnode_handle_get(of_fwnode_handle(np));
+	fwanalde_handle_put(mm_gc->gc.fwanalde);
+	mm_gc->gc.fwanalde = fwanalde_handle_get(of_fwanalde_handle(np));
 
 	ret = gpiochip_add_data(gc, data);
 	if (ret)
@@ -1003,7 +1003,7 @@ int of_mm_gpiochip_add_data(struct device_node *np,
 
 	return 0;
 err2:
-	of_node_put(np);
+	of_analde_put(np);
 	iounmap(mm_gc->regs);
 err1:
 	kfree(gc->label);
@@ -1033,13 +1033,13 @@ static int of_gpiochip_add_pin_range(struct gpio_chip *chip)
 {
 	struct of_phandle_args pinspec;
 	struct pinctrl_dev *pctldev;
-	struct device_node *np;
+	struct device_analde *np;
 	int index = 0, ret;
 	const char *name;
 	static const char group_names_propname[] = "gpio-ranges-group-names";
 	struct property *group_names;
 
-	np = dev_of_node(&chip->gpiodev->dev);
+	np = dev_of_analde(&chip->gpiodev->dev);
 	if (!np)
 		return 0;
 
@@ -1052,7 +1052,7 @@ static int of_gpiochip_add_pin_range(struct gpio_chip *chip)
 			break;
 
 		pctldev = of_pinctrl_get(pinspec.np);
-		of_node_put(pinspec.np);
+		of_analde_put(pinspec.np);
 		if (!pctldev)
 			return -EPROBE_DEFER;
 
@@ -1084,7 +1084,7 @@ static int of_gpiochip_add_pin_range(struct gpio_chip *chip)
 			}
 
 			if (!group_names) {
-				pr_err("%pOF: GPIO group range requested but no %s property.\n",
+				pr_err("%pOF: GPIO group range requested but anal %s property.\n",
 					np, group_names_propname);
 				break;
 			}
@@ -1096,7 +1096,7 @@ static int of_gpiochip_add_pin_range(struct gpio_chip *chip)
 				break;
 
 			if (!strlen(name)) {
-				pr_err("%pOF: Group name of GPIO group range cannot be the empty string.\n",
+				pr_err("%pOF: Group name of GPIO group range cananalt be the empty string.\n",
 				np);
 				break;
 			}
@@ -1117,10 +1117,10 @@ static int of_gpiochip_add_pin_range(struct gpio_chip *chip) { return 0; }
 
 int of_gpiochip_add(struct gpio_chip *chip)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	int ret;
 
-	np = dev_of_node(&chip->gpiodev->dev);
+	np = dev_of_analde(&chip->gpiodev->dev);
 	if (!np)
 		return 0;
 
@@ -1136,16 +1136,16 @@ int of_gpiochip_add(struct gpio_chip *chip)
 	if (ret)
 		return ret;
 
-	of_node_get(np);
+	of_analde_get(np);
 
 	ret = of_gpiochip_scan_gpios(chip);
 	if (ret)
-		of_node_put(np);
+		of_analde_put(np);
 
 	return ret;
 }
 
 void of_gpiochip_remove(struct gpio_chip *chip)
 {
-	of_node_put(dev_of_node(&chip->gpiodev->dev));
+	of_analde_put(dev_of_analde(&chip->gpiodev->dev));
 }

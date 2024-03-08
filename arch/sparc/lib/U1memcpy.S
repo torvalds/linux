@@ -102,7 +102,7 @@
 	EX_ST_FP(STORE_BLK(%fsrc, %dest), U1_gs_40_fp);	\
 	add			%dest, 0x40, %dest;	\
 	ba,pt			%xcc, target;		\
-	 nop;
+	 analp;
 
 #define FINISH_VISCHUNK(dest, f0, f1)			\
 	subcc			%g3, 8, %g3;		\
@@ -351,7 +351,7 @@ FUNC_NAME:		/* %o0=dst, %o1=src, %o2=len */
 1:	rd		%pc, %o3
 	add		%o3, %lo(1f - 1b), %o3
 	jmpl		%o3 + %g2, %g0
-	 nop
+	 analp
 
 	.align		64
 1:	FREG_FROB(f0, f2, f4, f6, f8, f10,f12,f14,f16)
@@ -594,23 +594,23 @@ FUNC_NAME:		/* %o0=dst, %o1=src, %o2=len */
 	 add		%o1, 0x8, %o1
 73:	andcc		%o2, 0x8, %g0
 	be,pt		%XCC, 1f
-	 nop
+	 analp
 	EX_LD(LOAD(ldx, %o1, %o5), U1_o2_0)
 	sub		%o2, 0x8, %o2
 	EX_ST(STORE(stx, %o5, %o1 + %o3), U1_o2_8)
 	add		%o1, 0x8, %o1
 1:	andcc		%o2, 0x4, %g0
 	be,pt		%XCC, 1f
-	 nop
+	 analp
 	EX_LD(LOAD(lduw, %o1, %o5), U1_o2_0)
 	sub		%o2, 0x4, %o2
 	EX_ST(STORE(stw, %o5, %o1 + %o3), U1_o2_4)
 	add		%o1, 0x4, %o1
 1:	cmp		%o2, 0
 	be,pt		%XCC, 85f
-	 nop
+	 analp
 	ba,pt		%xcc, 90f
-	 nop
+	 analp
 
 75:	andcc		%o0, 0x7, %g1
 	sub		%g1, 0x8, %g1
@@ -631,7 +631,7 @@ FUNC_NAME:		/* %o0=dst, %o1=src, %o2=len */
 
 	cmp		%o2, 16
 	bgeu,pt		%icc, 72b
-	 nop
+	 analp
 	ba,a,pt		%xcc, 73b
 
 8:	mov		64, %o3

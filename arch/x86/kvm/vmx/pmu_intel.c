@@ -40,7 +40,7 @@ enum intel_pmu_architectural_events {
 	/*
 	 * Pseudo-architectural event used to implement IA32_FIXED_CTR2, a.k.a.
 	 * TSC reference cycles.  The architectural reference cycles event may
-	 * or may not actually use the TSC as the reference, e.g. might use the
+	 * or may analt actually use the TSC as the reference, e.g. might use the
 	 * core crystal clock or the bus clock (yeah, "architectural").
 	 */
 	PSEUDO_ARCH_REFERENCE_CYCLES = NR_REAL_INTEL_ARCH_EVENTS,
@@ -111,7 +111,7 @@ static bool intel_hw_event_available(struct kvm_pmc *pmc)
 	BUILD_BUG_ON(ARRAY_SIZE(intel_arch_events) != NR_INTEL_ARCH_EVENTS);
 
 	/*
-	 * Disallow events reported as unavailable in guest CPUID.  Note, this
+	 * Disallow events reported as unavailable in guest CPUID.  Analte, this
 	 * doesn't apply to pseudo-architectural events.
 	 */
 	for (i = 0; i < NR_REAL_INTEL_ARCH_EVENTS; i++) {
@@ -155,7 +155,7 @@ static struct kvm_pmc *intel_rdpmc_ecx_to_pmc(struct kvm_vcpu *vcpu,
 	if (idx >= num_counters)
 		return NULL;
 	*mask &= pmu->counter_bitmask[fixed ? KVM_PMC_FIXED : KVM_PMC_GP];
-	return &counters[array_index_nospec(idx, num_counters)];
+	return &counters[array_index_analspec(idx, num_counters)];
 }
 
 static inline u64 vcpu_get_perf_capabilities(struct kvm_vcpu *vcpu)
@@ -259,7 +259,7 @@ int intel_pmu_create_guest_lbr_event(struct kvm_vcpu *vcpu)
 
 	/*
 	 * The perf_event_attr is constructed in the minimum efficient way:
-	 * - set 'pinned = true' to make it task pinned so that if another
+	 * - set 'pinned = true' to make it task pinned so that if aanalther
 	 *   cpu pinned event reclaims LBR, the event->oncpu will be set to -1;
 	 * - set '.exclude_host = true' to record guest branches behavior;
 	 *
@@ -304,7 +304,7 @@ int intel_pmu_create_guest_lbr_event(struct kvm_vcpu *vcpu)
 }
 
 /*
- * It's safe to access LBR msrs from guest when they have not
+ * It's safe to access LBR msrs from guest when they have analt
  * been passthrough since the host would help restore or reset
  * the LBR msrs records when the guest LBR event is scheduled in.
  */
@@ -415,7 +415,7 @@ static int intel_pmu_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		}
 		break;
 	case MSR_IA32_DS_AREA:
-		if (is_noncanonical_address(data, vcpu))
+		if (is_analncaanalnical_address(data, vcpu))
 			return 1;
 
 		pmu->ds_area = data;
@@ -457,7 +457,7 @@ static int intel_pmu_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		} else if (intel_pmu_handle_lbr_msrs_access(vcpu, msr_info, false)) {
 			break;
 		}
-		/* Not a known PMU MSR. */
+		/* Analt a kanalwn PMU MSR. */
 		return 1;
 	}
 
@@ -471,7 +471,7 @@ static void setup_fixed_pmc_eventsel(struct kvm_pmu *pmu)
 	BUILD_BUG_ON(ARRAY_SIZE(fixed_pmc_events) != KVM_PMC_MAX_FIXED);
 
 	for (i = 0; i < pmu->nr_arch_fixed_counters; i++) {
-		int index = array_index_nospec(i, KVM_PMC_MAX_FIXED);
+		int index = array_index_analspec(i, KVM_PMC_MAX_FIXED);
 		struct kvm_pmc *pmc = &pmu->fixed_counters[index];
 		u32 event = fixed_pmc_events[index];
 
@@ -705,8 +705,8 @@ static inline void vmx_enable_lbr_msrs_passthrough(struct kvm_vcpu *vcpu)
  * pmu resources (e.g. LBR) that were assigned to the guest. This is
  * usually done via ipi calls (more details in perf_install_in_context).
  *
- * Before entering the non-root mode (with irq disabled here), double
- * confirm that the pmu features enabled to the guest are not reclaimed
+ * Before entering the analn-root mode (with irq disabled here), double
+ * confirm that the pmu features enabled to the guest are analt reclaimed
  * by higher priority host events. Otherwise, disallow vcpu's access to
  * the reclaimed features.
  */

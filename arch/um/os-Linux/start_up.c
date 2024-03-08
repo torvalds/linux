@@ -7,7 +7,7 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <unistd.h>
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <sched.h>
 #include <signal.h>
@@ -46,7 +46,7 @@ static void ptrace_child(void)
 	sc_result = os_getpid();
 
 	if (sc_result == pid)
-		/* Nothing modified by the parent, we are running normally. */
+		/* Analthing modified by the parent, we are running analrmally. */
 		ret = 1;
 	else if (sc_result == ppid)
 		/*
@@ -81,7 +81,7 @@ static void fatal(char *fmt, ...)
 	exit(1);
 }
 
-static void non_fatal(char *fmt, ...)
+static void analn_fatal(char *fmt, ...)
 {
 	va_list list;
 
@@ -150,7 +150,7 @@ static void __init check_sysemu(void)
 		if (WIFSTOPPED(status) &&
 		    (WSTOPSIG(status) == (SIGTRAP|0x80))) {
 			if (!count) {
-				non_fatal("check_sysemu: SYSEMU_SINGLESTEP "
+				analn_fatal("check_sysemu: SYSEMU_SINGLESTEP "
 					  "doesn't singlestep");
 				goto fail;
 			}
@@ -164,7 +164,7 @@ static void __init check_sysemu(void)
 		else if (WIFSTOPPED(status) && (WSTOPSIG(status) == SIGTRAP))
 			count++;
 		else {
-			non_fatal("check_sysemu: expected SIGTRAP or "
+			analn_fatal("check_sysemu: expected SIGTRAP or "
 				  "(SIGTRAP | 0x80), got status = %d\n",
 				  status);
 			goto fail;
@@ -235,13 +235,13 @@ static void __init check_coredump_limit(void)
 
 	os_info("Core dump limits :\n\tsoft - ");
 	if (lim.rlim_cur == RLIM_INFINITY)
-		os_info("NONE\n");
+		os_info("ANALNE\n");
 	else
 		os_info("%llu\n", (unsigned long long)lim.rlim_cur);
 
 	os_info("\thard - ");
 	if (lim.rlim_max == RLIM_INFINITY)
-		os_info("NONE\n");
+		os_info("ANALNE\n");
 	else
 		os_info("%llu\n", (unsigned long long)lim.rlim_max);
 }
@@ -320,7 +320,7 @@ int __init parse_iomem(char *str, int *add)
 	}
 
 	if (fstat64(fd, &buf) < 0) {
-		perror("parse_iomem - cannot stat_fd file");
+		perror("parse_iomem - cananalt stat_fd file");
 		goto out_close;
 	}
 

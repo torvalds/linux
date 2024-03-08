@@ -30,7 +30,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 #include <linux/interrupt.h>
 #include <linux/timer.h>
@@ -344,7 +344,7 @@ enum conn_events {
 
 static const char *conn_event_names[] = {
 	"Remote connection request",
-	"Remote connection acknowledge",
+	"Remote connection ackanalwledge",
 	"Remote connection reject",
 	"Connection suspended",
 	"Connection resumed",
@@ -362,26 +362,26 @@ static const char *conn_event_names[] = {
  */
 enum conn_states {
 	/*
-	 * Connection not assigned to any device,
+	 * Connection analt assigned to any device,
 	 * initial state, invalid
 	 */
 	CONN_STATE_INVALID,
 
 	/*
-	 * Userid assigned but not operating
+	 * Userid assigned but analt operating
 	 */
 	CONN_STATE_STOPPED,
 
 	/*
 	 * Connection registered,
-	 * no connection request sent yet,
-	 * no connection request received
+	 * anal connection request sent yet,
+	 * anal connection request received
 	 */
 	CONN_STATE_STARTWAIT,
 
 	/*
 	 * Connection registered and connection request sent,
-	 * no acknowledge and no connection request received yet.
+	 * anal ackanalwledge and anal connection request received yet.
 	 */
 	CONN_STATE_SETUPWAIT,
 
@@ -457,7 +457,7 @@ static int iucv_register_dbf_views(void)
 	if ((iucv_dbf_setup == NULL) || (iucv_dbf_data == NULL) ||
 	    (iucv_dbf_trace == NULL)) {
 		iucv_unregister_dbf_views();
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	debug_register_view(iucv_dbf_setup, &debug_hex_ascii_view);
 	debug_set_level(iucv_dbf_setup, IUCV_DBF_SETUP_LEVEL);
@@ -557,9 +557,9 @@ static void netiucv_callback_connres(struct iucv_path *path, u8 *ipuser)
 }
 
 /*
- * NOP action for statemachines
+ * ANALP action for statemachines
  */
-static void netiucv_action_nop(fsm_instance *fi, int event, void *arg)
+static void netiucv_action_analp(fsm_instance *fi, int event, void *arg)
 {
 }
 
@@ -584,7 +584,7 @@ static void netiucv_unpack_skb(struct iucv_connection *conn,
 
 	skb_put(pskb, NETIUCV_HDRLEN);
 	pskb->dev = dev;
-	pskb->ip_summed = CHECKSUM_NONE;
+	pskb->ip_summed = CHECKSUM_ANALNE;
 	pskb->protocol = cpu_to_be16(ETH_P_IP);
 
 	while (1) {
@@ -893,7 +893,7 @@ static void conn_action_start(fsm_instance *fi, int event, void *arg)
 		break;
 	case 15:
 		dev_err(privptr->dev,
-			"The IUCV device cannot connect to a z/VM guest with no"
+			"The IUCV device cananalt connect to a z/VM guest with anal"
 			" IUCV authorization\n");
 		fsm_newstate(fi, CONN_STATE_CONNERR);
 		break;
@@ -950,7 +950,7 @@ static void conn_action_inval(fsm_instance *fi, int event, void *arg)
 		netdev->name, conn->userid);
 }
 
-static const fsm_node conn_fsm[] = {
+static const fsm_analde conn_fsm[] = {
 	{ CONN_STATE_INVALID,   CONN_EVENT_START,    conn_action_inval      },
 	{ CONN_STATE_STOPPED,   CONN_EVENT_START,    conn_action_start      },
 
@@ -982,7 +982,7 @@ static const fsm_node conn_fsm[] = {
 	{ CONN_STATE_IDLE,      CONN_EVENT_TXDONE,   conn_action_txdone     },
 };
 
-static const int CONN_FSM_LEN = sizeof(conn_fsm) / sizeof(fsm_node);
+static const int CONN_FSM_LEN = sizeof(conn_fsm) / sizeof(fsm_analde);
 
 
 /*
@@ -1087,7 +1087,7 @@ dev_action_conndown(fsm_instance *fi, int event, void *arg)
 	}
 }
 
-static const fsm_node dev_fsm[] = {
+static const fsm_analde dev_fsm[] = {
 	{ DEV_STATE_STOPPED,    DEV_EVENT_START,   dev_action_start    },
 
 	{ DEV_STATE_STOPWAIT,   DEV_EVENT_START,   dev_action_start    },
@@ -1098,10 +1098,10 @@ static const fsm_node dev_fsm[] = {
 
 	{ DEV_STATE_RUNNING,    DEV_EVENT_STOP,    dev_action_stop     },
 	{ DEV_STATE_RUNNING,    DEV_EVENT_CONDOWN, dev_action_conndown },
-	{ DEV_STATE_RUNNING,    DEV_EVENT_CONUP,   netiucv_action_nop  },
+	{ DEV_STATE_RUNNING,    DEV_EVENT_CONUP,   netiucv_action_analp  },
 };
 
-static const int DEV_FSM_LEN = sizeof(dev_fsm) / sizeof(fsm_node);
+static const int DEV_FSM_LEN = sizeof(dev_fsm) / sizeof(fsm_analde);
 
 /*
  * Transmit a packet.
@@ -1112,7 +1112,7 @@ static const int DEV_FSM_LEN = sizeof(dev_fsm) / sizeof(fsm_node);
  *            The linklevel header has already been set up
  *            by netiucv_tx().
  *
- * @return 0 on success, -ERRNO on failure. (Never fails.)
+ * @return 0 on success, -ERRANAL on failure. (Never fails.)
  */
 static int netiucv_transmit_skb(struct iucv_connection *conn,
 				struct sk_buff *skb)
@@ -1152,7 +1152,7 @@ static int netiucv_transmit_skb(struct iucv_connection *conn,
 					 NETIUCV_HDRLEN, GFP_ATOMIC | GFP_DMA);
 			if (!nskb) {
 				IUCV_DBF_TEXT(data, 2, "alloc_skb failed\n");
-				rc = -ENOMEM;
+				rc = -EANALMEM;
 				return rc;
 			} else {
 				skb_reserve(nskb, NETIUCV_HDRLEN);
@@ -1161,7 +1161,7 @@ static int netiucv_transmit_skb(struct iucv_connection *conn,
 			copied = 1;
 		}
 		/*
-		 * skb now is below 2G and has enough room. Add headers.
+		 * skb analw is below 2G and has eanalugh room. Add headers.
 		 */
 		header.next = nskb->len + NETIUCV_HDRLEN;
 		memcpy(skb_push(nskb, NETIUCV_HDRLEN), &header, NETIUCV_HDRLEN);
@@ -1219,7 +1219,7 @@ static int netiucv_transmit_skb(struct iucv_connection *conn,
  *
  * @param dev Pointer to interface struct.
  *
- * @return 0 on success, -ERRNO on failure. (Never fails.)
+ * @return 0 on success, -ERRANAL on failure. (Never fails.)
  */
 static int netiucv_open(struct net_device *dev)
 {
@@ -1235,7 +1235,7 @@ static int netiucv_open(struct net_device *dev)
  *
  * @param dev Pointer to interface struct.
  *
- * @return 0 on success, -ERRNO on failure. (Never fails.)
+ * @return 0 on success, -ERRANAL on failure. (Never fails.)
  */
 static int netiucv_close(struct net_device *dev)
 {
@@ -1272,7 +1272,7 @@ static netdev_tx_t netiucv_tx(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	/*
-	 * If connection is not running, try to restart it
+	 * If connection is analt running, try to restart it
 	 * and throw away packet.
 	 */
 	if (fsm_getstate(privptr->fsm) != DEV_STATE_RUNNING) {
@@ -1716,7 +1716,7 @@ static int netiucv_register_device(struct net_device *ndev)
 		dev->release = (void (*)(struct device *))kfree;
 		dev->driver = &netiucv_driver;
 	} else
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = device_register(dev);
 	if (ret) {
@@ -1858,7 +1858,7 @@ static void netiucv_setup_netdevice(struct net_device *dev)
 	dev->addr_len            = 0;
 	dev->type                = ARPHRD_SLIP;
 	dev->tx_queue_len        = NETIUCV_QUEUELEN_DEFAULT;
-	dev->flags	         = IFF_POINTOPOINT | IFF_NOARP;
+	dev->flags	         = IFF_POINTOPOINT | IFF_ANALARP;
 	dev->netdev_ops		 = &netiucv_netdev_ops;
 }
 
@@ -1871,7 +1871,7 @@ static struct net_device *netiucv_init_netdevice(char *username, char *userdata)
 	struct net_device *dev;
 
 	dev = alloc_netdev(sizeof(struct netiucv_priv), "iucv%d",
-			   NET_NAME_UNKNOWN, netiucv_setup_netdevice);
+			   NET_NAME_UNKANALWN, netiucv_setup_netdevice);
 	if (!dev)
 		return NULL;
 	rtnl_lock();
@@ -1931,7 +1931,7 @@ static ssize_t connection_store(struct device_driver *drv, const char *buf,
 	dev = netiucv_init_netdevice(username, userdata);
 	if (!dev) {
 		IUCV_DBF_TEXT(setup, 2, "NULL from netiucv_init_netdevice\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	rc = netiucv_register_device(dev);
@@ -1999,7 +1999,7 @@ static ssize_t remove_store(struct device_driver *drv, const char *buf,
 		read_unlock_bh(&iucv_connection_rwlock);
                 if (ndev->flags & (IFF_UP | IFF_RUNNING)) {
 			dev_warn(dev, "The IUCV device is connected"
-				" to %s and cannot be removed\n",
+				" to %s and cananalt be removed\n",
 				priv->conn->userid);
 			IUCV_DBF_TEXT(data, 2, "remove_write: still active\n");
 			return -EPERM;
@@ -2009,7 +2009,7 @@ static ssize_t remove_store(struct device_driver *drv, const char *buf,
                 return count;
         }
 	read_unlock_bh(&iucv_connection_rwlock);
-	IUCV_DBF_TEXT(data, 2, "remove_write: unknown device\n");
+	IUCV_DBF_TEXT(data, 2, "remove_write: unkanalwn device\n");
         return -EINVAL;
 }
 static DRIVER_ATTR_WO(remove);

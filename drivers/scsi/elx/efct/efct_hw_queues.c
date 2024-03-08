@@ -34,7 +34,7 @@ efct_hw_init_queues(struct efct_hw *hw)
 		eq = efct_hw_new_eq(hw, EFCT_HW_EQ_DEPTH);
 		if (!eq) {
 			efct_hw_queue_teardown(hw);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		eqs[i] = eq;
@@ -45,13 +45,13 @@ efct_hw_init_queues(struct efct_hw *hw)
 					    hw->num_qentries[SLI4_QTYPE_CQ]);
 			if (!cq) {
 				efct_hw_queue_teardown(hw);
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 
 			mq = efct_hw_new_mq(cq, EFCT_HW_MQ_DEPTH);
 			if (!mq) {
 				efct_hw_queue_teardown(hw);
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 		}
 
@@ -59,13 +59,13 @@ efct_hw_init_queues(struct efct_hw *hw)
 		cq = efct_hw_new_cq(eq, hw->num_qentries[SLI4_QTYPE_CQ]);
 		if (!cq) {
 			efct_hw_queue_teardown(hw);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		wq = efct_hw_new_wq(cq, hw->num_qentries[SLI4_QTYPE_WQ]);
 		if (!wq) {
 			efct_hw_queue_teardown(hw);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 
@@ -102,7 +102,7 @@ efct_hw_map_wq_cpu(struct efct_hw *hw)
 	hw->wq_cpu_array = kcalloc(num_possible_cpus(), sizeof(void *),
 				   GFP_KERNEL);
 	if (!hw->wq_cpu_array)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < hw->config.n_eq; i++) {
 		const struct cpumask *maskp;
@@ -559,7 +559,7 @@ efct_hw_rqpair_process_rq(struct efct_hw *hw, struct hw_cq *cq,
 		case SLI4_FC_ASYNC_RQ_INSUFF_BUF_NEEDED:
 		case SLI4_FC_ASYNC_RQ_INSUFF_BUF_FRM_DISC:
 			/*
-			 * since RQ buffers were not consumed, cannot return
+			 * since RQ buffers were analt consumed, cananalt return
 			 * them to chip
 			 */
 			efc_log_debug(hw->os, "Warning: RCQE status=%#x,\n",
@@ -621,9 +621,9 @@ efct_hw_rqpair_put(struct efct_hw *hw, struct efc_hw_sequence *seq)
 	spin_lock_irqsave(&rq_hdr->lock, flags);
 
 	/*
-	 * Note: The header must be posted last for buffer pair mode because
+	 * Analte: The header must be posted last for buffer pair mode because
 	 *       posting on the header queue posts the payload queue as well.
-	 *       We do not ring the payload queue independently in RQ pair mode.
+	 *       We do analt ring the payload queue independently in RQ pair mode.
 	 */
 	qindex_payload = sli_rq_write(&hw->sli, rq_payload,
 				      (void *)phys_payload);

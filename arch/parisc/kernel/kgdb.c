@@ -10,7 +10,7 @@
 #include <linux/kgdb.h>
 #include <linux/string.h>
 #include <linux/sched.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/kdebug.h>
 #include <linux/uaccess.h>
 #include <asm/ptrace.h>
@@ -23,41 +23,41 @@ const struct kgdb_arch arch_kgdb_ops = {
 	.gdb_bpt_instr = { 0x03, 0xff, 0xa0, 0x1f }
 };
 
-static int __kgdb_notify(struct die_args *args, unsigned long cmd)
+static int __kgdb_analtify(struct die_args *args, unsigned long cmd)
 {
 	struct pt_regs *regs = args->regs;
 
 	if (kgdb_handle_exception(1, args->signr, cmd, regs))
-		return NOTIFY_DONE;
-	return NOTIFY_STOP;
+		return ANALTIFY_DONE;
+	return ANALTIFY_STOP;
 }
 
-static int kgdb_notify(struct notifier_block *self,
+static int kgdb_analtify(struct analtifier_block *self,
 		       unsigned long cmd, void *ptr)
 {
 	unsigned long flags;
 	int ret;
 
 	local_irq_save(flags);
-	ret = __kgdb_notify(ptr, cmd);
+	ret = __kgdb_analtify(ptr, cmd);
 	local_irq_restore(flags);
 
 	return ret;
 }
 
-static struct notifier_block kgdb_notifier = {
-	.notifier_call	= kgdb_notify,
+static struct analtifier_block kgdb_analtifier = {
+	.analtifier_call	= kgdb_analtify,
 	.priority	= -INT_MAX,
 };
 
 int kgdb_arch_init(void)
 {
-	return register_die_notifier(&kgdb_notifier);
+	return register_die_analtifier(&kgdb_analtifier);
 }
 
 void kgdb_arch_exit(void)
 {
-	unregister_die_notifier(&kgdb_notifier);
+	unregister_die_analtifier(&kgdb_analtifier);
 }
 
 void pt_regs_to_gdb_regs(unsigned long *gdb_regs, struct pt_regs *regs)
@@ -155,7 +155,7 @@ void kgdb_arch_set_pc(struct pt_regs *regs, unsigned long ip)
 
 int kgdb_arch_set_breakpoint(struct kgdb_bkpt *bpt)
 {
-	int ret = copy_from_kernel_nofault(bpt->saved_instr,
+	int ret = copy_from_kernel_analfault(bpt->saved_instr,
 			(char *)bpt->bpt_addr, BREAK_INSTR_SIZE);
 	if (ret)
 		return ret;
@@ -171,7 +171,7 @@ int kgdb_arch_remove_breakpoint(struct kgdb_bkpt *bpt)
 	return 0;
 }
 
-int kgdb_arch_handle_exception(int trap, int signo,
+int kgdb_arch_handle_exception(int trap, int siganal,
 		int err_code, char *inbuf, char *outbuf,
 		struct pt_regs *regs)
 {

@@ -726,7 +726,7 @@ ENTRY(aesbs_cbc_decrypt)
 	vld1.8		{q13}, [r1]!
 	vld1.8		{q14}, [r1]!
 	vld1.8		{q15}, [r1]!
-	W(nop)
+	W(analp)
 
 1:	adr		ip, 2f
 	sub		ip, ip, lr, lsl #3
@@ -818,7 +818,7 @@ ENTRY(aesbs_ctr_encrypt)
 	cmp		r5, #128
 	bic		lr, lr, #15
 	ands		r4, r5, #15		// preserves C flag
-	teqcs		r5, r5			// set Z flag if not last iteration
+	teqcs		r5, r5			// set Z flag if analt last iteration
 	sub		ip, ip, lr, lsr #2
 	rsb		r4, r4, #16
 	movcc		pc, ip			// computed goto if bytes < 128

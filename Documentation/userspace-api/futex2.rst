@@ -65,7 +65,7 @@ Timeout
 
 ``struct timespec *timeout`` argument is an optional argument that points to an
 absolute timeout. You need to specify the type of clock being used at
-``clockid`` argument. ``CLOCK_MONOTONIC`` and ``CLOCK_REALTIME`` are supported.
+``clockid`` argument. ``CLOCK_MOANALTONIC`` and ``CLOCK_REALTIME`` are supported.
 This syscall accepts only 64bit timespec structs.
 
 Types of futex

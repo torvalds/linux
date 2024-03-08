@@ -24,7 +24,7 @@ struct sgx_vepc {
 };
 
 /*
- * Temporary SECS pages that cannot be EREMOVE'd due to having child in other
+ * Temporary SECS pages that cananalt be EREMOVE'd due to having child in other
  * virtual EPC instances, and the lock to protect it.
  */
 static struct mutex zombie_secs_pages_lock;
@@ -57,7 +57,7 @@ static int __sgx_vepc_fault(struct sgx_vepc *vepc,
 	pfn = PFN_DOWN(sgx_get_epc_phys_addr(epc_page));
 
 	ret = vmf_insert_pfn(vma, addr, pfn);
-	if (ret != VM_FAULT_NOPAGE) {
+	if (ret != VM_FAULT_ANALPAGE) {
 		ret = -EFAULT;
 		goto err_delete;
 	}
@@ -82,7 +82,7 @@ static vm_fault_t sgx_vepc_fault(struct vm_fault *vmf)
 	mutex_unlock(&vepc->lock);
 
 	if (!ret)
-		return VM_FAULT_NOPAGE;
+		return VM_FAULT_ANALPAGE;
 
 	if (ret == -EBUSY && (vmf->flags & FAULT_FLAG_ALLOW_RETRY)) {
 		mmap_read_unlock(vma->vm_mm);
@@ -117,7 +117,7 @@ static int sgx_vepc_remove_page(struct sgx_epc_page *epc_page)
 	 * Take a previously guest-owned EPC page and return it to the
 	 * general EPC page pool.
 	 *
-	 * Guests can not be trusted to have left this page in a good
+	 * Guests can analt be trusted to have left this page in a good
 	 * state, so run EREMOVE on the page unconditionally.  In the
 	 * case that a guest properly EREMOVE'd this page, a superfluous
 	 * EREMOVE is harmless.
@@ -136,9 +136,9 @@ static int sgx_vepc_free_page(struct sgx_epc_page *epc_page)
 		 * virtual EPC have been EREMOVE'd. See comments in below in
 		 * sgx_vepc_release().
 		 *
-		 * The user of virtual EPC (KVM) needs to guarantee there's no
+		 * The user of virtual EPC (KVM) needs to guarantee there's anal
 		 * logical processor is still running in the enclave in guest,
-		 * otherwise EREMOVE will get SGX_ENCLAVE_ACT which cannot be
+		 * otherwise EREMOVE will get SGX_ENCLAVE_ACT which cananalt be
 		 * handled here.
 		 */
 		WARN_ONCE(ret != SGX_CHILD_PRESENT, EREMOVE_ERROR_MESSAGE,
@@ -164,7 +164,7 @@ static long sgx_vepc_remove_all(struct sgx_vepc *vepc)
 				failures++;
 			} else {
 				/*
-				 * Report errors due to #GP or SGX_ENCLAVE_ACT; do not
+				 * Report errors due to #GP or SGX_ENCLAVE_ACT; do analt
 				 * WARN, as userspace can induce said failures by
 				 * calling the ioctl concurrently on multiple vEPCs or
 				 * while one or more CPUs is running the enclave.  Only
@@ -180,12 +180,12 @@ static long sgx_vepc_remove_all(struct sgx_vepc *vepc)
 
 	/*
 	 * Return the number of SECS pages that failed to be removed, so
-	 * userspace knows that it has to retry.
+	 * userspace kanalws that it has to retry.
 	 */
 	return failures;
 }
 
-static int sgx_vepc_release(struct inode *inode, struct file *file)
+static int sgx_vepc_release(struct ianalde *ianalde, struct file *file)
 {
 	struct sgx_vepc *vepc = file->private_data;
 	struct sgx_epc_page *epc_page, *tmp, *entry;
@@ -195,7 +195,7 @@ static int sgx_vepc_release(struct inode *inode, struct file *file)
 
 	xa_for_each(&vepc->page_array, index, entry) {
 		/*
-		 * Remove all normal, child pages.  sgx_vepc_free_page()
+		 * Remove all analrmal, child pages.  sgx_vepc_free_page()
 		 * will fail if EREMOVE fails, but this is OK and expected on
 		 * SECS pages.  Those can only be EREMOVE'd *after* all their
 		 * child pages. Retries below will clean them up.
@@ -217,7 +217,7 @@ static int sgx_vepc_release(struct inode *inode, struct file *file)
 		 * An EREMOVE failure here means that the SECS page still
 		 * has children.  But, since all children in this 'sgx_vepc'
 		 * have been removed, the SECS page must have a child on
-		 * another instance.
+		 * aanalther instance.
 		 */
 		if (sgx_vepc_free_page(epc_page))
 			list_add_tail(&epc_page->list, &secs_pages);
@@ -258,13 +258,13 @@ static int sgx_vepc_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int sgx_vepc_open(struct inode *inode, struct file *file)
+static int sgx_vepc_open(struct ianalde *ianalde, struct file *file)
 {
 	struct sgx_vepc *vepc;
 
 	vepc = kzalloc(sizeof(struct sgx_vepc), GFP_KERNEL);
 	if (!vepc)
-		return -ENOMEM;
+		return -EANALMEM;
 	mutex_init(&vepc->lock);
 	xa_init(&vepc->page_array);
 
@@ -285,7 +285,7 @@ static long sgx_vepc_ioctl(struct file *file,
 		return sgx_vepc_remove_all(vepc);
 
 	default:
-		return -ENOTTY;
+		return -EANALTTY;
 	}
 }
 
@@ -299,9 +299,9 @@ static const struct file_operations sgx_vepc_fops = {
 };
 
 static struct miscdevice sgx_vepc_dev = {
-	.minor		= MISC_DYNAMIC_MINOR,
+	.mianalr		= MISC_DYNAMIC_MIANALR,
 	.name		= "sgx_vepc",
-	.nodename	= "sgx_vepc",
+	.analdename	= "sgx_vepc",
 	.fops		= &sgx_vepc_fops,
 };
 
@@ -309,7 +309,7 @@ int __init sgx_vepc_init(void)
 {
 	/* SGX virtualization requires KVM to work */
 	if (!cpu_feature_enabled(X86_FEATURE_VMX))
-		return -ENODEV;
+		return -EANALDEV;
 
 	INIT_LIST_HEAD(&zombie_secs_pages);
 	mutex_init(&zombie_secs_pages_lock);

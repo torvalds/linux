@@ -2,7 +2,7 @@
 //
 // aw87390.h  --  aw87390 ALSA SoC Audio driver
 //
-// Copyright (c) 2023 awinic Technology CO., LTD
+// Copyright (c) 2023 awinic Techanallogy CO., LTD
 //
 // Author: Weidong Wang <wangweidong.a@awinic.com>
 //

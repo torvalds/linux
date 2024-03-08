@@ -1,14 +1,14 @@
 PPC440SPe DMA/XOR (DMA Controller and XOR Accelerator)
 
-Device nodes needed for operation of the ppc440spe-adma driver
-are specified hereby. These are I2O/DMA, DMA and XOR nodes
-for DMA engines and Memory Queue Module node. The latter is used
+Device analdes needed for operation of the ppc440spe-adma driver
+are specified hereby. These are I2O/DMA, DMA and XOR analdes
+for DMA engines and Memory Queue Module analde. The latter is used
 by ADMA driver for configuration of RAID-6 H/W capabilities of
-the PPC440SPe. In addition to the nodes and properties described
-below, the ranges property of PLB node must specify ranges for
+the PPC440SPe. In addition to the analdes and properties described
+below, the ranges property of PLB analde must specify ranges for
 DMA devices.
 
- i) The I2O node
+ i) The I2O analde
 
  Required properties:
 
@@ -25,7 +25,7 @@ DMA devices.
 	};
 
 
- ii) The DMA node
+ ii) The DMA analde
 
  Required properties:
 
@@ -57,7 +57,7 @@ DMA devices.
 	};
 
 
- iii) XOR Accelerator node
+ iii) XOR Accelerator analde
 
  Required properties:
 
@@ -75,7 +75,7 @@ DMA devices.
 	};
 
 
- iv) Memory Queue Module node
+ iv) Memory Queue Module analde
 
  Required properties:
 

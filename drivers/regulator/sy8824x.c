@@ -45,7 +45,7 @@ static int sy8824_set_mode(struct regulator_dev *rdev, unsigned int mode)
 		regmap_update_bits(rdev->regmap, cfg->mode_reg,
 				   SY8824C_MODE, SY8824C_MODE);
 		break;
-	case REGULATOR_MODE_NORMAL:
+	case REGULATOR_MODE_ANALRMAL:
 		regmap_update_bits(rdev->regmap, cfg->mode_reg,
 				   SY8824C_MODE, 0);
 		break;
@@ -68,7 +68,7 @@ static unsigned int sy8824_get_mode(struct regulator_dev *rdev)
 	if (val & SY8824C_MODE)
 		return REGULATOR_MODE_FAST;
 	else
-		return REGULATOR_MODE_NORMAL;
+		return REGULATOR_MODE_ANALRMAL;
 }
 
 static const struct regulator_ops sy8824_regulator_ops = {
@@ -125,7 +125,7 @@ static const struct regmap_config sy20276_regmap_config = {
 static int sy8824_i2c_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct sy8824_device_info *di;
 	struct regulator_config config = { };
 	struct regmap *regmap;
@@ -133,11 +133,11 @@ static int sy8824_i2c_probe(struct i2c_client *client)
 
 	di = devm_kzalloc(dev, sizeof(struct sy8824_device_info), GFP_KERNEL);
 	if (!di)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	di->regulator = of_get_regulator_init_data(dev, np, &di->desc);
 	if (!di->regulator) {
-		dev_err(dev, "Platform data not found!\n");
+		dev_err(dev, "Platform data analt found!\n");
 		return -EINVAL;
 	}
 
@@ -155,7 +155,7 @@ static int sy8824_i2c_probe(struct i2c_client *client)
 	config.init_data = di->regulator;
 	config.regmap = regmap;
 	config.driver_data = di;
-	config.of_node = np;
+	config.of_analde = np;
 
 	ret = sy8824_regulator_register(di, &config);
 	if (ret < 0)
@@ -221,7 +221,7 @@ MODULE_DEVICE_TABLE(i2c, sy8824_id);
 static struct i2c_driver sy8824_regulator_driver = {
 	.driver = {
 		.name = "sy8824-regulator",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = sy8824_dt_ids,
 	},
 	.probe = sy8824_i2c_probe,

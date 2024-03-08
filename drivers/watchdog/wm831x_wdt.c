@@ -18,11 +18,11 @@
 #include <linux/mfd/wm831x/pdata.h>
 #include <linux/mfd/wm831x/watchdog.h>
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout,
-		 "Watchdog cannot be stopped once started (default="
-		 __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+static bool analwayout = WATCHDOG_ANALWAYOUT;
+module_param(analwayout, bool, 0);
+MODULE_PARM_DESC(analwayout,
+		 "Watchdog cananalt be stopped once started (default="
+		 __MODULE_STRING(WATCHDOG_ANALWAYOUT) ")");
 
 struct wm831x_wdt_drvdata {
 	struct watchdog_device wdt;
@@ -191,7 +191,7 @@ static int wm831x_wdt_probe(struct platform_device *pdev)
 
 	driver_data = devm_kzalloc(dev, sizeof(*driver_data), GFP_KERNEL);
 	if (!driver_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&driver_data->lock);
 	driver_data->wm831x = wm831x;
@@ -201,7 +201,7 @@ static int wm831x_wdt_probe(struct platform_device *pdev)
 	wm831x_wdt->info = &wm831x_wdt_info;
 	wm831x_wdt->ops = &wm831x_wdt_ops;
 	wm831x_wdt->parent = dev;
-	watchdog_set_nowayout(wm831x_wdt, nowayout);
+	watchdog_set_analwayout(wm831x_wdt, analwayout);
 	watchdog_set_drvdata(wm831x_wdt, driver_data);
 
 	reg = wm831x_reg_read(wm831x, WM831X_WATCHDOG);
@@ -211,7 +211,7 @@ static int wm831x_wdt_probe(struct platform_device *pdev)
 			break;
 	if (i == ARRAY_SIZE(wm831x_wdt_cfgs))
 		dev_warn(wm831x->dev,
-			 "Unknown watchdog timeout: %x\n", reg);
+			 "Unkanalwn watchdog timeout: %x\n", reg);
 	else
 		wm831x_wdt->timeout = wm831x_wdt_cfgs[i].time;
 

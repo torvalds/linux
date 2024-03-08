@@ -5,7 +5,7 @@ NAME
 ----
 perf-timechart - Tool to visualize total system behavior during a workload
 
-SYNOPSIS
+SYANALPSIS
 --------
 [verse]
 'perf timechart' [<timechart options>] {record} [<record options>]
@@ -64,7 +64,7 @@ TIMECHART OPTIONS
 --highlight=<duration_nsecs|task_name>::
 	Highlight tasks (using different color) that run more than given
 	duration or tasks with given name. If number is given it's interpreted
-	as number of nanoseconds. If non-numeric string is given it's
+	as number of naanalseconds. If analn-numeric string is given it's
 	interpreted as task name.
 --io-skip-eagain::
 	Don't draw EAGAIN IO events.
@@ -74,7 +74,7 @@ TIMECHART OPTIONS
 	suffix to specify time in milliseconds or microseconds.
 	Default value is 1ms.
 --io-merge-dist=<nsecs>::
-	Merge events that are merge-dist nanoseconds apart.
+	Merge events that are merge-dist naanalseconds apart.
 	Reduces number of figures on the SVG and makes it more render-friendly.
 	It's possible to specify ms or us suffix to specify time in
 	milliseconds or microseconds.

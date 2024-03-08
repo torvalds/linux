@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0 */
-/* Copyright (c) 2016-2018 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2016-2018 Mellaanalx Techanallogies. All rights reserved */
 
 #ifndef _MLXSW_RESOURCES_H
 #define _MLXSW_RESOURCES_H
@@ -60,7 +60,7 @@ enum mlxsw_res_id {
 	MLXSW_RES_ID_MAX_NVE_MC_ENTRIES_IPV6,
 
 	/* Internal resources.
-	 * Determined by the SW, not queried from the HW.
+	 * Determined by the SW, analt queried from the HW.
 	 */
 	MLXSW_RES_ID_KVD_SINGLE_SIZE,
 	MLXSW_RES_ID_KVD_DOUBLE_SIZE,

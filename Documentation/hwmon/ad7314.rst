@@ -28,7 +28,7 @@ Driver supports the above parts.  The ad7314 has a 10 bit
 sensor with 1lsb = 0.25 degrees centigrade. The adt7301 and
 adt7302 have 14 bit sensors with 1lsb = 0.03125 degrees centigrade.
 
-Notes
+Analtes
 -----
 
-Currently power down mode is not supported.
+Currently power down mode is analt supported.

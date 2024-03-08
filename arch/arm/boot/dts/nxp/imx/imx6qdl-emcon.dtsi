@@ -174,7 +174,7 @@
 
 &ecspi4 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_nor_flash>;
+	pinctrl-0 = <&pinctrl_analr_flash>;
 };
 
 &fec {
@@ -529,7 +529,7 @@
 	};
 
 
-	pinctrl_nor_flash: norflashgrp {
+	pinctrl_analr_flash: analrflashgrp {
 		fsl,pins = <
 			MX6QDL_PAD_NANDF_CS0__GPIO6_IO11		0x1b0b1
 			MX6QDL_PAD_EIM_D21__ECSPI4_SCLK			0x100b1
@@ -803,7 +803,7 @@
 &usdhc3 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc3>;
-	non-removable;
+	analn-removable;
 	bus-width = <8>;
 	status = "okay";
 };

@@ -219,7 +219,7 @@ void __init orion5x_init_early(void)
 void orion5x_setup_wins(void)
 {
 	/*
-	 * The PCIe windows will no longer be statically allocated
+	 * The PCIe windows will anal longer be statically allocated
 	 * here once Orion5x is migrated to the pci-mvebu driver.
 	 */
 	mvebu_mbus_add_window_remap_by_id(ORION_MBUS_PCIE_IO_TARGET,
@@ -306,7 +306,7 @@ void __init orion5x_id(u32 *dev, u32 *rev, char **dev_name)
 			*dev_name = "MV88F6183-Rev-Unsupported";
 		}
 	} else {
-		*dev_name = "Device-Unknown";
+		*dev_name = "Device-Unkanalwn";
 	}
 }
 

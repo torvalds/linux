@@ -3,7 +3,7 @@
  * Copyright (C) 2022 ARM Limited.
  */
 
-#include <errno.h>
+#include <erranal.h>
 #include <signal.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -22,14 +22,14 @@
 #define TESTS_PER_HWCAP 3
 
 /*
- * Function expected to generate exception when the feature is not
+ * Function expected to generate exception when the feature is analt
  * supported and return when it is supported. If the specific exception
  * is generated then the handler must be able to skip over the
  * instruction safely.
  *
- * Note that it is expected that for many architecture extensions
- * there are no specific traps due to no architecture state being
- * added so we may not fault if running on a kernel which doesn't know
+ * Analte that it is expected that for many architecture extensions
+ * there are anal specific traps due to anal architecture state being
+ * added so we may analt fault if running on a kernel which doesn't kanalw
  * to add the hwcap.
  */
 typedef void (*sig_fn)(void);
@@ -689,7 +689,7 @@ static int install_sigaction(int signum, sighandler_fn handler)
 	ret = sigaction(signum, &sa, NULL);
 	if (ret < 0)
 		ksft_exit_fail_msg("Failed to install SIGNAL handler: %s (%d)\n",
-				   strerror(errno), errno);
+				   strerror(erranal), erranal);
 
 	return ret;
 }
@@ -698,7 +698,7 @@ static void uninstall_sigaction(int signum)
 {
 	if (sigaction(signum, NULL, NULL) < 0)
 		ksft_exit_fail_msg("Failed to uninstall SIGNAL handler: %s (%d)\n",
-				   strerror(errno), errno);
+				   strerror(erranal), erranal);
 }
 
 #define DEF_INST_RAISE_SIG(SIG, NUM)					\
@@ -727,7 +727,7 @@ static bool inst_raise_##SIG(const struct hwcap_data *hwcap,		\
 	} else {							\
 		/* Missing SIGNAL might be fine */			\
 		ksft_print_msg(#SIG"_%sreported for %s\n",		\
-				seen_##SIG ? "" : "not ",		\
+				seen_##SIG ? "" : "analt ",		\
 				hwcap->name);				\
 		ksft_test_result_skip(#SIG"_%s\n",			\
 					hwcap->name);			\
@@ -763,7 +763,7 @@ int main(void)
 
 		/*
 		 * Testing for SIGBUS only makes sense after make sure
-		 * that the instruction does not cause a SIGILL signal.
+		 * that the instruction does analt cause a SIGILL signal.
 		 */
 		raise_sigill = inst_raise_sigill(hwcap, have_hwcap);
 		if (!raise_sigill)

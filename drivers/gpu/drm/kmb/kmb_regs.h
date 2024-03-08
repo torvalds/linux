@@ -153,7 +153,7 @@
 #define LCD_LAYER_LUT_2ENT			(0 << 20)
 #define LCD_LAYER_LUT_4ENT			BIT(20)
 #define LCD_LAYER_LUT_16ENT			(2 << 20)
-#define LCD_LAYER_NO_FLIP			(0 << 22)
+#define LCD_LAYER_ANAL_FLIP			(0 << 22)
 #define LCD_LAYER_FLIP_V			BIT(22)
 #define LCD_LAYER_FLIP_H			(2 << 22)
 #define LCD_LAYER_ROT_R90			(3 << 22)

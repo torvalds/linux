@@ -6,7 +6,7 @@ Digital TV Common functions
 DVB devices
 ~~~~~~~~~~~
 
-Those functions are responsible for handling the DVB device nodes.
+Those functions are responsible for handling the DVB device analdes.
 
 .. kernel-doc:: include/media/dvbdev.h
 
@@ -16,7 +16,7 @@ Digital TV Ring buffer
 Those routines implement ring buffers used to handle digital TV data and
 copy it from/to userspace.
 
-.. note::
+.. analte::
 
   1) For performance reasons read and write routines don't check buffer sizes
      and/or number of bytes free/available. This has to be done before these
@@ -38,7 +38,7 @@ copy it from/to userspace.
         else
                 /* do something */
 
-  2) If there is exactly one reader and one writer, there is no need
+  2) If there is exactly one reader and one writer, there is anal need
      to lock read or write operations.
      Two or more readers must be locked against each other.
      Flushing the buffer counts as a read operation.

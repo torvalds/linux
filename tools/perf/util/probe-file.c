@@ -4,7 +4,7 @@
  *
  * Written by Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>
  */
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -35,7 +35,7 @@
 static bool print_common_warning(int err, bool readwrite)
 {
 	if (err == -EACCES)
-		pr_warning("No permission to %s tracefs.\nPlease %s\n",
+		pr_warning("Anal permission to %s tracefs.\nPlease %s\n",
 			   readwrite ? "write" : "read",
 			   readwrite ? "run this command again with sudo." :
 				       "try 'sudo mount -o remount,mode=755 /sys/kernel/tracing/'");
@@ -49,23 +49,23 @@ static bool print_configure_probe_event(int kerr, int uerr)
 {
 	const char *config, *file;
 
-	if (kerr == -ENOENT && uerr == -ENOENT) {
+	if (kerr == -EANALENT && uerr == -EANALENT) {
 		file = "{k,u}probe_events";
 		config = "CONFIG_KPROBE_EVENTS=y and CONFIG_UPROBE_EVENTS=y";
-	} else if (kerr == -ENOENT) {
+	} else if (kerr == -EANALENT) {
 		file = "kprobe_events";
 		config = "CONFIG_KPROBE_EVENTS=y";
-	} else if (uerr == -ENOENT) {
+	} else if (uerr == -EANALENT) {
 		file = "uprobe_events";
 		config = "CONFIG_UPROBE_EVENTS=y";
 	} else
 		return false;
 
 	if (!debugfs__configured() && !tracefs__configured())
-		pr_warning("Debugfs or tracefs is not mounted\n"
-			   "Please try 'sudo mount -t tracefs nodev /sys/kernel/tracing/'\n");
+		pr_warning("Debugfs or tracefs is analt mounted\n"
+			   "Please try 'sudo mount -t tracefs analdev /sys/kernel/tracing/'\n");
 	else
-		pr_warning("%s/%s does not exist.\nPlease rebuild kernel with %s.\n",
+		pr_warning("%s/%s does analt exist.\nPlease rebuild kernel with %s.\n",
 			   tracing_path_mount(), file, config);
 
 	return true;
@@ -120,7 +120,7 @@ int open_trace_file(const char *trace_file, bool readwrite)
 			ret = open(buf, O_RDONLY, 0);
 
 		if (ret < 0)
-			ret = -errno;
+			ret = -erranal;
 	}
 	return ret;
 }
@@ -220,7 +220,7 @@ static struct strlist *__probe_file__get_namelist(int fd, bool include_group)
 {
 	char buf[128];
 	struct strlist *sl, *rawlist;
-	struct str_node *ent;
+	struct str_analde *ent;
 	struct probe_trace_event tev;
 	int ret = 0;
 
@@ -276,9 +276,9 @@ int probe_file__add_event(int fd, struct probe_trace_event *tev)
 	pr_debug("Writing event: %s\n", buf);
 	if (!probe_event_dry_run) {
 		if (write(fd, buf, strlen(buf)) < (int)strlen(buf)) {
-			ret = -errno;
+			ret = -erranal;
 			pr_warning("Failed to write event: %s\n",
-				   str_error_r(errno, sbuf, sizeof(sbuf)));
+				   str_error_r(erranal, sbuf, sizeof(sbuf)));
 		}
 	}
 	free(buf);
@@ -286,7 +286,7 @@ int probe_file__add_event(int fd, struct probe_trace_event *tev)
 	return ret;
 }
 
-static int __del_trace_probe_event(int fd, struct str_node *ent)
+static int __del_trace_probe_event(int fd, struct str_analde *ent)
 {
 	char *p;
 	char buf[128];
@@ -299,9 +299,9 @@ static int __del_trace_probe_event(int fd, struct str_node *ent)
 
 	p = strchr(buf + 2, ':');
 	if (!p) {
-		pr_debug("Internal error: %s should have ':' but not.\n",
+		pr_debug("Internal error: %s should have ':' but analt.\n",
 			 ent->s);
-		ret = -ENOTSUP;
+		ret = -EANALTSUP;
 		goto error;
 	}
 	*p = '/';
@@ -309,7 +309,7 @@ static int __del_trace_probe_event(int fd, struct str_node *ent)
 	pr_debug("Writing event: %s\n", buf);
 	ret = write(fd, buf, strlen(buf));
 	if (ret < 0) {
-		ret = -errno;
+		ret = -erranal;
 		goto error;
 	}
 
@@ -324,24 +324,24 @@ int probe_file__get_events(int fd, struct strfilter *filter,
 			   struct strlist *plist)
 {
 	struct strlist *namelist;
-	struct str_node *ent;
+	struct str_analde *ent;
 	const char *p;
-	int ret = -ENOENT;
+	int ret = -EANALENT;
 
 	if (!plist)
 		return -EINVAL;
 
 	namelist = __probe_file__get_namelist(fd, true);
 	if (!namelist)
-		return -ENOENT;
+		return -EANALENT;
 
 	strlist__for_each_entry(ent, namelist) {
 		p = strchr(ent->s, ':');
 		if ((p && strfilter__compare(filter, p + 1)) ||
 		    strfilter__compare(filter, ent->s)) {
 			ret = strlist__add(plist, ent->s);
-			if (ret == -ENOMEM) {
-				pr_err("strlist__add failed with -ENOMEM\n");
+			if (ret == -EANALMEM) {
+				pr_err("strlist__add failed with -EANALMEM\n");
 				goto out;
 			}
 			ret = 0;
@@ -356,7 +356,7 @@ out:
 int probe_file__del_strlist(int fd, struct strlist *namelist)
 {
 	int ret = 0;
-	struct str_node *ent;
+	struct str_analde *ent;
 
 	strlist__for_each_entry(ent, namelist) {
 		ret = __del_trace_probe_event(fd, ent);
@@ -373,7 +373,7 @@ int probe_file__del_events(int fd, struct strfilter *filter)
 
 	namelist = strlist__new(NULL, NULL);
 	if (!namelist)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = probe_file__get_events(fd, filter, namelist);
 	if (ret < 0)
@@ -389,7 +389,7 @@ out:
 static void probe_cache_entry__delete(struct probe_cache_entry *entry)
 {
 	if (entry) {
-		BUG_ON(!list_empty(&entry->node));
+		BUG_ON(!list_empty(&entry->analde));
 
 		strlist__delete(entry->tevlist);
 		clear_perf_probe_event(&entry->pev);
@@ -404,7 +404,7 @@ probe_cache_entry__new(struct perf_probe_event *pev)
 	struct probe_cache_entry *entry = zalloc(sizeof(*entry));
 
 	if (entry) {
-		INIT_LIST_HEAD(&entry->node);
+		INIT_LIST_HEAD(&entry->analde);
 		entry->tevlist = strlist__new(NULL, NULL);
 		if (!entry->tevlist)
 			zfree(&entry);
@@ -425,7 +425,7 @@ int probe_cache_entry__get_event(struct probe_cache_entry *entry,
 				 struct probe_trace_event **tevs)
 {
 	struct probe_trace_event *tev;
-	struct str_node *node;
+	struct str_analde *analde;
 	int ret, i;
 
 	ret = strlist__nr_entries(entry->tevlist);
@@ -434,12 +434,12 @@ int probe_cache_entry__get_event(struct probe_cache_entry *entry,
 
 	*tevs = zalloc(ret * sizeof(*tev));
 	if (!*tevs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i = 0;
-	strlist__for_each_entry(node, entry->tevlist) {
+	strlist__for_each_entry(analde, entry->tevlist) {
 		tev = &(*tevs)[i++];
-		ret = parse_probe_trace_command(node->s, tev);
+		ret = parse_probe_trace_command(analde->s, tev);
 		if (ret < 0)
 			break;
 	}
@@ -479,7 +479,7 @@ static int probe_cache__open(struct probe_cache *pcache, const char *target,
 		return ret;
 	}
 
-	/* If we have no buildid cache, make it */
+	/* If we have anal buildid cache, make it */
 	if (!build_id_cache__cached(sbuildid)) {
 		ret = build_id_cache__add_s(sbuildid, target, nsi,
 					    is_kallsyms, NULL);
@@ -494,7 +494,7 @@ static int probe_cache__open(struct probe_cache *pcache, const char *target,
 found:
 	if (!dir_name) {
 		pr_debug("Failed to get cache from %s\n", target);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	snprintf(cpath, PATH_MAX, "%s/probes", dir_name);
@@ -516,7 +516,7 @@ static int probe_cache__load(struct probe_cache *pcache)
 
 	fddup = dup(pcache->fd);
 	if (fddup < 0)
-		return -errno;
+		return -erranal;
 	fp = fdopen(fddup, "r");
 	if (!fp) {
 		close(fddup);
@@ -533,7 +533,7 @@ static int probe_cache__load(struct probe_cache *pcache)
 		if (buf[0] == '#' || buf[0] == '%') {
 			entry = probe_cache_entry__new(NULL);
 			if (!entry) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto out;
 			}
 			if (buf[0] == '%')
@@ -543,20 +543,20 @@ static int probe_cache__load(struct probe_cache *pcache)
 				ret = parse_perf_probe_command(buf + 1,
 								&entry->pev);
 			else
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 			if (ret < 0) {
 				probe_cache_entry__delete(entry);
 				goto out;
 			}
-			list_add_tail(&entry->node, &pcache->entries);
+			list_add_tail(&entry->analde, &pcache->entries);
 		} else {	/* trace_probe_event */
 			if (!entry) {
 				ret = -EINVAL;
 				goto out;
 			}
 			ret = strlist__add(entry->tevlist, buf);
-			if (ret == -ENOMEM) {
-				pr_err("strlist__add failed with -ENOMEM\n");
+			if (ret == -EANALMEM) {
+				pr_err("strlist__add failed with -EANALMEM\n");
 				goto out;
 			}
 		}
@@ -581,8 +581,8 @@ void probe_cache__purge(struct probe_cache *pcache)
 {
 	struct probe_cache_entry *entry, *n;
 
-	list_for_each_entry_safe(entry, n, &pcache->entries, node) {
-		list_del_init(&entry->node);
+	list_for_each_entry_safe(entry, n, &pcache->entries, analde) {
+		list_del_init(&entry->analde);
 		probe_cache_entry__delete(entry);
 	}
 }
@@ -703,11 +703,11 @@ int probe_cache__add_entry(struct probe_cache *pcache,
 	/* Remove old cache entry */
 	entry = probe_cache__find(pcache, pev);
 	if (entry) {
-		list_del_init(&entry->node);
+		list_del_init(&entry->analde);
 		probe_cache_entry__delete(entry);
 	}
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	entry = probe_cache_entry__new(pev);
 	if (!entry)
 		goto out_err;
@@ -720,14 +720,14 @@ int probe_cache__add_entry(struct probe_cache *pcache,
 		if (!command)
 			goto out_err;
 		ret = strlist__add(entry->tevlist, command);
-		if (ret == -ENOMEM) {
-			pr_err("strlist__add failed with -ENOMEM\n");
+		if (ret == -EANALMEM) {
+			pr_err("strlist__add failed with -EANALMEM\n");
 			goto out_err;
 		}
 
 		free(command);
 	}
-	list_add_tail(&entry->node, &pcache->entries);
+	list_add_tail(&entry->analde, &pcache->entries);
 	pr_debug("Added probe cache: %d\n", ntevs);
 	return 0;
 
@@ -737,19 +737,19 @@ out_err:
 	return ret;
 }
 
-#ifdef HAVE_GELF_GETNOTE_SUPPORT
-static unsigned long long sdt_note__get_addr(struct sdt_note *note)
+#ifdef HAVE_GELF_GETANALTE_SUPPORT
+static unsigned long long sdt_analte__get_addr(struct sdt_analte *analte)
 {
-	return note->bit32 ?
-		(unsigned long long)note->addr.a32[SDT_NOTE_IDX_LOC] :
-		(unsigned long long)note->addr.a64[SDT_NOTE_IDX_LOC];
+	return analte->bit32 ?
+		(unsigned long long)analte->addr.a32[SDT_ANALTE_IDX_LOC] :
+		(unsigned long long)analte->addr.a64[SDT_ANALTE_IDX_LOC];
 }
 
-static unsigned long long sdt_note__get_ref_ctr_offset(struct sdt_note *note)
+static unsigned long long sdt_analte__get_ref_ctr_offset(struct sdt_analte *analte)
 {
-	return note->bit32 ?
-		(unsigned long long)note->addr.a32[SDT_NOTE_IDX_REFCTR] :
-		(unsigned long long)note->addr.a64[SDT_NOTE_IDX_REFCTR];
+	return analte->bit32 ?
+		(unsigned long long)analte->addr.a32[SDT_ANALTE_IDX_REFCTR] :
+		(unsigned long long)analte->addr.a64[SDT_ANALTE_IDX_REFCTR];
 }
 
 static const char * const type_to_suffix[] = {
@@ -821,7 +821,7 @@ error:
 	return ret;
 }
 
-static char *synthesize_sdt_probe_command(struct sdt_note *note,
+static char *synthesize_sdt_probe_command(struct sdt_analte *analte,
 					const char *pathname,
 					const char *sdtgrp)
 {
@@ -836,28 +836,28 @@ static char *synthesize_sdt_probe_command(struct sdt_note *note,
 		return NULL;
 
 	err = strbuf_addf(&buf, "p:%s/%s %s:0x%llx",
-			sdtgrp, note->name, pathname,
-			sdt_note__get_addr(note));
+			sdtgrp, analte->name, pathname,
+			sdt_analte__get_addr(analte));
 
-	ref_ctr_offset = sdt_note__get_ref_ctr_offset(note);
+	ref_ctr_offset = sdt_analte__get_ref_ctr_offset(analte);
 	if (ref_ctr_offset && err >= 0)
 		err = strbuf_addf(&buf, "(0x%llx)", ref_ctr_offset);
 
 	if (err < 0)
 		goto error;
 
-	if (!note->args)
+	if (!analte->args)
 		goto out;
 
-	if (note->args) {
-		char **args = argv_split(note->args, &args_count);
+	if (analte->args) {
+		char **args = argv_split(analte->args, &args_count);
 
 		if (args == NULL)
 			goto error;
 
 		for (i = 0; i < args_count; ) {
 			/*
-			 * FIXUP: Arm64 ELF section '.note.stapsdt' uses string
+			 * FIXUP: Arm64 ELF section '.analte.stapsdt' uses string
 			 * format "-4@[sp, NUM]" if a probe is to access data in
 			 * the stack, e.g. below is an example for the SDT
 			 * Arguments:
@@ -908,41 +908,41 @@ int probe_cache__scan_sdt(struct probe_cache *pcache, const char *pathname)
 {
 	struct probe_cache_entry *entry = NULL;
 	struct list_head sdtlist;
-	struct sdt_note *note;
+	struct sdt_analte *analte;
 	char *buf;
 	char sdtgrp[64];
 	int ret;
 
 	INIT_LIST_HEAD(&sdtlist);
-	ret = get_sdt_note_list(&sdtlist, pathname);
+	ret = get_sdt_analte_list(&sdtlist, pathname);
 	if (ret < 0) {
-		pr_debug4("Failed to get sdt note: %d\n", ret);
+		pr_debug4("Failed to get sdt analte: %d\n", ret);
 		return ret;
 	}
-	list_for_each_entry(note, &sdtlist, note_list) {
-		ret = snprintf(sdtgrp, 64, "sdt_%s", note->provider);
+	list_for_each_entry(analte, &sdtlist, analte_list) {
+		ret = snprintf(sdtgrp, 64, "sdt_%s", analte->provider);
 		if (ret < 0)
 			break;
 		/* Try to find same-name entry */
-		entry = probe_cache__find_by_name(pcache, sdtgrp, note->name);
+		entry = probe_cache__find_by_name(pcache, sdtgrp, analte->name);
 		if (!entry) {
 			entry = probe_cache_entry__new(NULL);
 			if (!entry) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				break;
 			}
 			entry->sdt = true;
 			ret = asprintf(&entry->spev, "%s:%s=%s", sdtgrp,
-					note->name, note->name);
+					analte->name, analte->name);
 			if (ret < 0)
 				break;
-			entry->pev.event = strdup(note->name);
+			entry->pev.event = strdup(analte->name);
 			entry->pev.group = strdup(sdtgrp);
-			list_add_tail(&entry->node, &pcache->entries);
+			list_add_tail(&entry->analde, &pcache->entries);
 		}
-		buf = synthesize_sdt_probe_command(note, pathname, sdtgrp);
+		buf = synthesize_sdt_probe_command(analte, pathname, sdtgrp);
 		if (!buf) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			break;
 		}
 
@@ -951,23 +951,23 @@ int probe_cache__scan_sdt(struct probe_cache *pcache, const char *pathname)
 		free(buf);
 		entry = NULL;
 
-		if (ret == -ENOMEM) {
-			pr_err("strlist__add failed with -ENOMEM\n");
+		if (ret == -EANALMEM) {
+			pr_err("strlist__add failed with -EANALMEM\n");
 			break;
 		}
 	}
 	if (entry) {
-		list_del_init(&entry->node);
+		list_del_init(&entry->analde);
 		probe_cache_entry__delete(entry);
 	}
-	cleanup_sdt_note_list(&sdtlist);
+	cleanup_sdt_analte_list(&sdtlist);
 	return ret;
 }
 #endif
 
 static int probe_cache_entry__write(struct probe_cache_entry *entry, int fd)
 {
-	struct str_node *snode;
+	struct str_analde *sanalde;
 	struct stat st;
 	struct iovec iov[3];
 	const char *prefix = entry->sdt ? "%" : "#";
@@ -985,9 +985,9 @@ static int probe_cache_entry__write(struct probe_cache_entry *entry, int fd)
 	if (ret < (int)iov[1].iov_len + 2)
 		goto rollback;
 
-	strlist__for_each_entry(snode, entry->tevlist) {
-		iov[0].iov_base = (void *)snode->s;
-		iov[0].iov_len = strlen(snode->s);
+	strlist__for_each_entry(sanalde, entry->tevlist) {
+		iov[0].iov_base = (void *)sanalde->s;
+		iov[0].iov_len = strlen(sanalde->s);
 		iov[1].iov_base = (void *)"\n"; iov[1].iov_len = 1;
 		ret = writev(fd, iov, 2);
 		if (ret < (int)iov[0].iov_len + 1)
@@ -1010,7 +1010,7 @@ int probe_cache__commit(struct probe_cache *pcache)
 	struct probe_cache_entry *entry;
 	int ret = 0;
 
-	/* TBD: if we do not update existing entries, skip it */
+	/* TBD: if we do analt update existing entries, skip it */
 	ret = lseek(pcache->fd, 0, SEEK_SET);
 	if (ret < 0)
 		goto out;
@@ -1046,10 +1046,10 @@ int probe_cache__filter_purge(struct probe_cache *pcache,
 {
 	struct probe_cache_entry *entry, *tmp;
 
-	list_for_each_entry_safe(entry, tmp, &pcache->entries, node) {
+	list_for_each_entry_safe(entry, tmp, &pcache->entries, analde) {
 		if (probe_cache_entry__compare(entry, filter)) {
 			pr_info("Removed cached event: %s\n", entry->spev);
-			list_del_init(&entry->node);
+			list_del_init(&entry->analde);
 			probe_cache_entry__delete(entry);
 		}
 	}
@@ -1073,7 +1073,7 @@ int probe_cache__show_all_caches(struct strfilter *filter)
 {
 	struct probe_cache *pcache;
 	struct strlist *bidlist;
-	struct str_node *nd;
+	struct str_analde *nd;
 	char *buf = strfilter__string(filter);
 
 	pr_debug("list cache with filter: %s\n", buf);
@@ -1081,7 +1081,7 @@ int probe_cache__show_all_caches(struct strfilter *filter)
 
 	bidlist = build_id_cache__list_all(true);
 	if (!bidlist) {
-		pr_debug("Failed to get buildids: %d\n", errno);
+		pr_debug("Failed to get buildids: %d\n", erranal);
 		return -EINVAL;
 	}
 	strlist__for_each_entry(nd, bidlist) {

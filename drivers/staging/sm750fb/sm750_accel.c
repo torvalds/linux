@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
@@ -223,7 +223,7 @@ int sm750_hw_copyarea(struct lynx_accel *accel,
 	}
 
 	/*
-	 * Note:
+	 * Analte:
 	 * DE_FOREGROUND and DE_BACKGROUND are don't care.
 	 * DE_COLOR_COMPARE and DE_COLOR_COMPARE_MAKS
 	 * are set by set deSetTransparency().
@@ -245,7 +245,7 @@ int sm750_hw_copyarea(struct lynx_accel *accel,
 
 	/*
 	 * Program pitch (distance between the 1st points of two adjacent lines).
-	 * Note that input pitch is BYTE value, but the 2D Pitch register uses
+	 * Analte that input pitch is BYTE value, but the 2D Pitch register uses
 	 * pixel values. Need Byte to pixel conversion.
 	 */
 	write_dpr(accel, DE_PITCH,
@@ -302,7 +302,7 @@ static unsigned int deGetTransparency(struct lynx_accel *accel)
  * @pSrcbuf: pointer to start of source buffer in system memory
  * @srcDelta: Pitch value (in bytes) of the source buffer, +ive means top down
  *	      and -ive mean button up
- * @startBit: Mono data can start at any bit in a byte, this value should be
+ * @startBit: Moanal data can start at any bit in a byte, this value should be
  *	      0 to 7
  * @dBase: Address of destination: offset in frame buffer
  * @dPitch: Pitch value of destination surface in BYTE
@@ -311,8 +311,8 @@ static unsigned int deGetTransparency(struct lynx_accel *accel)
  * @dy: Starting y coordinate of destination surface
  * @width: width of rectangle in pixel value
  * @height: height of rectangle in pixel value
- * @fColor: Foreground color (corresponding to a 1 in the monochrome data
- * @bColor: Background color (corresponding to a 0 in the monochrome data
+ * @fColor: Foreground color (corresponding to a 1 in the moanalchrome data
+ * @bColor: Background color (corresponding to a 0 in the moanalchrome data
  * @rop2: ROP value
  */
 int sm750_hw_imageblit(struct lynx_accel *accel, const char *pSrcbuf,
@@ -349,7 +349,7 @@ int sm750_hw_imageblit(struct lynx_accel *accel, const char *pSrcbuf,
 
 	/*
 	 * Program pitch (distance between the 1st points of two adjacent
-	 * lines). Note that input pitch is BYTE value, but the 2D Pitch
+	 * lines). Analte that input pitch is BYTE value, but the 2D Pitch
 	 * register uses pixel values. Need Byte to pixel conversion.
 	 */
 	write_dpr(accel, DE_PITCH,
@@ -368,13 +368,13 @@ int sm750_hw_imageblit(struct lynx_accel *accel, const char *pSrcbuf,
 		  (dPitch / bytePerPixel & DE_WINDOW_WIDTH_SRC_MASK));
 
 	 /*
-	  * Note: For 2D Source in Host Write, only X_K1_MONO field is needed,
-	  * and Y_K2 field is not used.
-	  * For mono bitmap, use startBit for X_K1.
+	  * Analte: For 2D Source in Host Write, only X_K1_MOANAL field is needed,
+	  * and Y_K2 field is analt used.
+	  * For moanal bitmap, use startBit for X_K1.
 	  */
 	write_dpr(accel, DE_SOURCE,
 		  (startBit << DE_SOURCE_X_K1_SHIFT) &
-		  DE_SOURCE_X_K1_MONO_MASK); /* dpr00 */
+		  DE_SOURCE_X_K1_MOANAL_MASK); /* dpr00 */
 
 	write_dpr(accel, DE_DESTINATION,
 		  ((dx << DE_DESTINATION_X_SHIFT) & DE_DESTINATION_X_MASK) |
@@ -393,7 +393,7 @@ int sm750_hw_imageblit(struct lynx_accel *accel, const char *pSrcbuf,
 
 	write_dpr(accel, DE_CONTROL, de_ctrl | deGetTransparency(accel));
 
-	/* Write MONO data (line by line) to 2D Engine data port */
+	/* Write MOANAL data (line by line) to 2D Engine data port */
 	for (i = 0; i < height; i++) {
 		/* For each line, send the data in chunks of 4 bytes */
 		for (j = 0; j < (ul4BytesPerScan / 4); j++)

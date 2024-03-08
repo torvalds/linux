@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause) */
-/* Copyright (C) 2018 Netronome Systems, Inc. */
+/* Copyright (C) 2018 Netroanalme Systems, Inc. */
 
 #ifndef __NFP_ABI__
 #define __NFP_ABI__ 1
@@ -7,7 +7,7 @@
 #include <linux/types.h>
 
 #define NFP_MBOX_SYM_NAME		"_abi_nfd_pf%u_mbox"
-#define NFP_MBOX_SYM_MIN_SIZE		16 /* When no data needed */
+#define NFP_MBOX_SYM_MIN_SIZE		16 /* When anal data needed */
 
 #define NFP_MBOX_CMD		0x00
 #define NFP_MBOX_RET		0x04
@@ -18,7 +18,7 @@
 /**
  * enum nfp_mbox_cmd - PF mailbox commands
  *
- * @NFP_MBOX_NO_CMD:	null command
+ * @NFP_MBOX_ANAL_CMD:	null command
  * Used to indicate previous command has finished.
  *
  * @NFP_MBOX_POOL_GET:	get shared buffer pool info/config
@@ -27,21 +27,21 @@
  *
  * @NFP_MBOX_POOL_SET:	set shared buffer pool info/config
  * Input  - struct nfp_shared_buf_pool_info_set
- * Output - None
+ * Output - Analne
  *
  * @NFP_MBOX_PCIE_ABM_ENABLE:	enable PCIe-side advanced buffer management
  * Enable advanced buffer management of the PCIe block.  If ABM is disabled
  * PCIe block maintains a very short queue of buffers and does tail drop.
  * ABM allows more advanced buffering and priority control.
- * Input  - None
- * Output - None
+ * Input  - Analne
+ * Output - Analne
  *
  * @NFP_MBOX_PCIE_ABM_DISABLE:	disable PCIe-side advanced buffer management
- * Input  - None
- * Output - None
+ * Input  - Analne
+ * Output - Analne
  */
 enum nfp_mbox_cmd {
-	NFP_MBOX_NO_CMD			= 0x00,
+	NFP_MBOX_ANAL_CMD			= 0x00,
 
 	NFP_MBOX_POOL_GET		= 0x01,
 	NFP_MBOX_POOL_SET		= 0x02,

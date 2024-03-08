@@ -26,7 +26,7 @@ MODULE_PARM_DESC(verbose, "verbosity level (0 to 3)");
 
 static unsigned int dst_addons;
 module_param(dst_addons, int, 0644);
-MODULE_PARM_DESC(dst_addons, "CA daughterboard, default is 0 (No addons)");
+MODULE_PARM_DESC(dst_addons, "CA daughterboard, default is 0 (Anal addons)");
 
 static unsigned int dst_algo;
 module_param(dst_algo, int, 0644);
@@ -70,7 +70,7 @@ static int dst_gpio_outb(struct dst_state *state, u32 mask, u32 enbb,
 		return -EREMOTEIO;
 	}
 	udelay(1000);
-	/* because complete disabling means no output, no need to do output packet */
+	/* because complete disabling means anal output, anal need to do output packet */
 	if (enbb == 0)
 		return 0;
 	if (delay)
@@ -104,12 +104,12 @@ static int dst_gpio_inb(struct dst_state *state, u8 *result)
 int rdc_reset_state(struct dst_state *state)
 {
 	dprintk(2, "Resetting state machine\n");
-	if (dst_gpio_outb(state, RDC_8820_INT, RDC_8820_INT, 0, NO_DELAY) < 0) {
+	if (dst_gpio_outb(state, RDC_8820_INT, RDC_8820_INT, 0, ANAL_DELAY) < 0) {
 		pr_err("dst_gpio_outb ERROR !\n");
 		return -1;
 	}
 	msleep(10);
-	if (dst_gpio_outb(state, RDC_8820_INT, RDC_8820_INT, RDC_8820_INT, NO_DELAY) < 0) {
+	if (dst_gpio_outb(state, RDC_8820_INT, RDC_8820_INT, RDC_8820_INT, ANAL_DELAY) < 0) {
 		pr_err("dst_gpio_outb ERROR !\n");
 		msleep(10);
 		return -1;
@@ -122,7 +122,7 @@ EXPORT_SYMBOL(rdc_reset_state);
 static int rdc_8820_reset(struct dst_state *state)
 {
 	dprintk(3, "Resetting DST\n");
-	if (dst_gpio_outb(state, RDC_8820_RESET, RDC_8820_RESET, 0, NO_DELAY) < 0) {
+	if (dst_gpio_outb(state, RDC_8820_RESET, RDC_8820_RESET, 0, ANAL_DELAY) < 0) {
 		pr_err("dst_gpio_outb ERROR !\n");
 		return -1;
 	}
@@ -137,7 +137,7 @@ static int rdc_8820_reset(struct dst_state *state)
 
 static int dst_pio_enable(struct dst_state *state)
 {
-	if (dst_gpio_outb(state, ~0, RDC_8820_PIO_0_ENABLE, 0, NO_DELAY) < 0) {
+	if (dst_gpio_outb(state, ~0, RDC_8820_PIO_0_ENABLE, 0, ANAL_DELAY) < 0) {
 		pr_err("dst_gpio_outb ERROR !\n");
 		return -1;
 	}
@@ -148,7 +148,7 @@ static int dst_pio_enable(struct dst_state *state)
 
 int dst_pio_disable(struct dst_state *state)
 {
-	if (dst_gpio_outb(state, ~0, RDC_8820_PIO_0_DISABLE, RDC_8820_PIO_0_DISABLE, NO_DELAY) < 0) {
+	if (dst_gpio_outb(state, ~0, RDC_8820_PIO_0_DISABLE, RDC_8820_PIO_0_DISABLE, ANAL_DELAY) < 0) {
 		pr_err("dst_gpio_outb ERROR !\n");
 		return -1;
 	}
@@ -175,7 +175,7 @@ int dst_wait_dst_ready(struct dst_state *state, u8 delay_mode)
 		}
 		msleep(10);
 	}
-	dprintk(1, "dst wait NOT ready after %d\n", i);
+	dprintk(1, "dst wait ANALT ready after %d\n", i);
 
 	return 0;
 }
@@ -360,7 +360,7 @@ static int dst_set_bandwidth(struct dst_state *state, u32 bandwidth)
 	state->bandwidth = bandwidth;
 
 	if (state->dst_type != DST_TYPE_IS_TERR)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (bandwidth) {
 	case 6000000:
@@ -399,7 +399,7 @@ static int dst_set_inversion(struct dst_state *state,
 {
 	state->inversion = inversion;
 	switch (inversion) {
-	case INVERSION_OFF:	/*	Inversion = Normal	*/
+	case INVERSION_OFF:	/*	Inversion = Analrmal	*/
 		state->tx_tuna[8] &= ~0x80;
 		break;
 	case INVERSION_ON:
@@ -430,7 +430,7 @@ static int dst_set_symbolrate(struct dst_state *state, u32 srate)
 
 	state->symbol_rate = srate;
 	if (state->dst_type == DST_TYPE_IS_TERR) {
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	dprintk(2, "set symrate %u\n", srate);
 	srate /= 1000;
@@ -473,7 +473,7 @@ static int dst_set_modulation(struct dst_state *state,
 			      enum fe_modulation modulation)
 {
 	if (state->dst_type != DST_TYPE_IS_CABLE)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	state->modulation = modulation;
 	switch (modulation) {
@@ -584,8 +584,8 @@ static struct tuner_types tuner_list[] = {
 	{
 		.tuner_type = TUNER_TYPE_L64724,
 		.tuner_name = "L 64724",
-		.board_name = "UNKNOWN",
-		.fw_name    = "UNKNOWN"
+		.board_name = "UNKANALWN",
+		.fw_name    = "UNKANALWN"
 	},
 
 	{
@@ -631,43 +631,43 @@ static struct tuner_types tuner_list[] = {
 	},
 
 	{
-		.tuner_type = TUNER_TYPE_UNKNOWN,
-		.tuner_name = "UNKNOWN",
+		.tuner_type = TUNER_TYPE_UNKANALWN,
+		.tuner_name = "UNKANALWN",
 		.board_name = "VP2021",
 		.fw_name    = "DCTNEW"
 	},
 
 	{
-		.tuner_type = TUNER_TYPE_UNKNOWN,
-		.tuner_name = "UNKNOWN",
+		.tuner_type = TUNER_TYPE_UNKANALWN,
+		.tuner_name = "UNKANALWN",
 		.board_name = "VP2030",
 		.fw_name    = "DCT-CI"
 	},
 
 	{
-		.tuner_type = TUNER_TYPE_UNKNOWN,
-		.tuner_name = "UNKNOWN",
+		.tuner_type = TUNER_TYPE_UNKANALWN,
+		.tuner_name = "UNKANALWN",
 		.board_name = "VP2031",
 		.fw_name    = "DCT-CI"
 	},
 
 	{
-		.tuner_type = TUNER_TYPE_UNKNOWN,
-		.tuner_name = "UNKNOWN",
+		.tuner_type = TUNER_TYPE_UNKANALWN,
+		.tuner_name = "UNKANALWN",
 		.board_name = "VP2040",
 		.fw_name    = "DCT-CI"
 	},
 
 	{
-		.tuner_type = TUNER_TYPE_UNKNOWN,
-		.tuner_name = "UNKNOWN",
+		.tuner_type = TUNER_TYPE_UNKANALWN,
+		.tuner_name = "UNKANALWN",
 		.board_name = "VP3020",
 		.fw_name    = "DTTFTA"
 	},
 
 	{
-		.tuner_type = TUNER_TYPE_UNKNOWN,
-		.tuner_name = "UNKNOWN",
+		.tuner_type = TUNER_TYPE_UNKANALWN,
+		.tuner_name = "UNKANALWN",
 		.board_name = "VP3021",
 		.fw_name    = "DTTFTA"
 	},
@@ -680,8 +680,8 @@ static struct tuner_types tuner_list[] = {
 	},
 
 	{
-		.tuner_type = TUNER_TYPE_UNKNOWN,
-		.tuner_name = "UNKNOWN",
+		.tuner_type = TUNER_TYPE_UNKANALWN,
+		.tuner_name = "UNKANALWN",
 		.board_name = "VP3051",
 		.fw_name    = "DTTNXT"
 	},
@@ -702,7 +702,7 @@ static struct tuner_types tuner_list[] = {
 };
 
 /*
-	Known cards list
+	Kanalwn cards list
 	Satellite
 	-------------------
 		  200103A
@@ -718,7 +718,7 @@ static struct tuner_types tuner_list[] = {
 	Cable
 	-------------------
 	VP-2030   DCT-CI,	Samsung, TS=204
-	VP-2021   DCT-CI,	Unknown, TS=204
+	VP-2021   DCT-CI,	Unkanalwn, TS=204
 	VP-2031   DCT-CI,	Philips, TS=188
 	VP-2040   DCT-CI,	Philips, TS=188, with CA daughter board
 	VP-2040   DCT-CI,	Philips, TS=204, without CA daughter board
@@ -809,7 +809,7 @@ static struct dst_types dst_tlist[] = {
 		.type_flags = DST_TYPE_HAS_TS188 | DST_TYPE_HAS_FW_1,
 		.dst_feature = 0,
 		.tuner_type = 0
-	},	/* unknown to vendor	*/
+	},	/* unkanalwn to vendor	*/
 
 	{
 		.device_id = "DCT-CI",
@@ -1065,11 +1065,11 @@ static int dst_get_device_id(struct dst_state *state)
 	if (read_dst(state, &reply, GET_ACK))
 		return -1;		/*	Read failure		*/
 	if (reply != ACK) {
-		dprintk(2, "Write not Acknowledged! [Reply=0x%02x]\n", reply);
+		dprintk(2, "Write analt Ackanalwledged! [Reply=0x%02x]\n", reply);
 		return -1;		/*	Unack'd write		*/
 	}
 	if (!dst_wait_dst_ready(state, DEVICE_INIT))
-		return -1;		/*	DST not ready yet	*/
+		return -1;		/*	DST analt ready yet	*/
 	if (read_dst(state, state->rxbuffer, FIXED_COMM))
 		return -1;
 
@@ -1152,7 +1152,7 @@ static int dst_probe(struct dst_state *state)
 	}
 	msleep(100);
 	if (dst_get_device_id(state) < 0) {
-		pr_err("unknown device.\n");
+		pr_err("unkanalwn device.\n");
 		return -1;
 	}
 	if (dst_get_mac(state) < 0) {
@@ -1215,7 +1215,7 @@ static int dst_command(struct dst_state *state, u8 *data, u8 len)
 		goto error;
 	}
 	if (reply != ACK) {
-		dprintk(2, "write not acknowledged 0x%02x\n", reply);
+		dprintk(2, "write analt ackanalwledged 0x%02x\n", reply);
 		goto error;
 	}
 	if (len >= 2 && data[0] == 0 && (data[1] == 1 || data[1] == 3))
@@ -1224,7 +1224,7 @@ static int dst_command(struct dst_state *state, u8 *data, u8 len)
 		mdelay(3);
 	else
 		udelay(2000);
-	if (!dst_wait_dst_ready(state, NO_DELAY))
+	if (!dst_wait_dst_ready(state, ANAL_DELAY))
 		goto error;
 	if (read_dst(state, state->rxbuffer, FIXED_COMM)) {
 		dprintk(3, "Trying to recover..\n");
@@ -1287,7 +1287,7 @@ static int dst_tone_power_cmd(struct dst_state *state)
 	u8 packet[8] = { 0x00, 0x09, 0xff, 0xff, 0x01, 0x00, 0x00, 0x00 };
 
 	if (state->dst_type != DST_TYPE_IS_SAT)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	packet[4] = state->tx_tuna[4];
 	packet[2] = state->tx_tuna[2];
 	packet[3] = state->tx_tuna[3];
@@ -1302,7 +1302,7 @@ static int dst_get_tuna(struct dst_state *state)
 	if ((state->diseq_flags & ATTEMPT_TUNE) == 0)
 		return 0;
 	state->diseq_flags &= ~(HAS_LOCK);
-	if (!dst_wait_dst_ready(state, NO_DELAY))
+	if (!dst_wait_dst_ready(state, ANAL_DELAY))
 		return -EIO;
 	if ((state->type_flags & DST_TYPE_HAS_VLF) &&
 		!(state->dst_type == DST_TYPE_IS_ATSC))
@@ -1311,7 +1311,7 @@ static int dst_get_tuna(struct dst_state *state)
 	else
 		retval = read_dst(state, &state->rx_tuna[2], FIXED_COMM);
 	if (retval < 0) {
-		dprintk(3, "read not successful\n");
+		dprintk(3, "read analt successful\n");
 		return retval;
 	}
 	if ((state->type_flags & DST_TYPE_HAS_VLF) &&
@@ -1375,7 +1375,7 @@ static int dst_write_tuna(struct dvb_frontend *fe)
 	}
 	if (retval < 0) {
 		dst_pio_disable(state);
-		dprintk(3, "write not successful\n");
+		dprintk(3, "write analt successful\n");
 		goto werr;
 	}
 	if ((dst_pio_disable(state)) < 0) {
@@ -1383,11 +1383,11 @@ static int dst_write_tuna(struct dvb_frontend *fe)
 		goto error;
 	}
 	if ((read_dst(state, &reply, GET_ACK) < 0)) {
-		dprintk(3, "read verify not successful.\n");
+		dprintk(3, "read verify analt successful.\n");
 		goto error;
 	}
 	if (reply != ACK) {
-		dprintk(3, "write not acknowledged 0x%02x\n", reply);
+		dprintk(3, "write analt ackanalwledged 0x%02x\n", reply);
 		goto error;
 	}
 	state->diseq_flags |= ATTEMPT_TUNE;
@@ -1421,7 +1421,7 @@ static int dst_set_diseqc(struct dvb_frontend *fe, struct dvb_diseqc_master_cmd 
 	u8 packet[8] = { 0x00, 0x08, 0x04, 0xe0, 0x10, 0x38, 0xf0, 0xec };
 
 	if (state->dst_type != DST_TYPE_IS_SAT)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if (cmd->msg_len > 0 && cmd->msg_len < 5)
 		memcpy(&packet[3], cmd->msg, cmd->msg_len);
 	else if (cmd->msg_len == 5 && state->dst_hw_cap & DST_TYPE_HAS_DISEQC5)
@@ -1439,7 +1439,7 @@ static int dst_set_voltage(struct dvb_frontend *fe, enum fe_sec_voltage voltage)
 
 	state->voltage = voltage;
 	if (state->dst_type != DST_TYPE_IS_SAT)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	need_cmd = 0;
 
@@ -1472,7 +1472,7 @@ static int dst_set_tone(struct dvb_frontend *fe, enum fe_sec_tone_mode tone)
 
 	state->tone = tone;
 	if (state->dst_type != DST_TYPE_IS_SAT)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (tone) {
 	case SEC_TONE_OFF:
@@ -1496,7 +1496,7 @@ static int dst_send_burst(struct dvb_frontend *fe, enum fe_sec_mini_cmd minicmd)
 	struct dst_state *state = fe->demodulator_priv;
 
 	if (state->dst_type != DST_TYPE_IS_SAT)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	state->minicmd = minicmd;
 	switch (minicmd) {
 	case SEC_MINI_A:
@@ -1713,13 +1713,13 @@ struct dst_state *dst_attach(struct dst_state *state, struct dvb_adapter *dvb_ad
 		memcpy(&state->frontend.ops, &dst_atsc_ops, sizeof(struct dvb_frontend_ops));
 		break;
 	default:
-		pr_err("unknown DST type. please report to the LinuxTV.org DVB mailinglist.\n");
+		pr_err("unkanalwn DST type. please report to the LinuxTV.org DVB mailinglist.\n");
 		kfree(state);
 		return NULL;
 	}
 	state->frontend.demodulator_priv = state;
 
-	return state;				/*	Manu (DST is a card not a frontend)	*/
+	return state;				/*	Manu (DST is a card analt a frontend)	*/
 }
 
 EXPORT_SYMBOL_GPL(dst_attach);

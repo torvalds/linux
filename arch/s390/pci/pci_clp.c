@@ -72,7 +72,7 @@ static inline int clp_get_ilp(unsigned long *ilp)
 static __always_inline int clp_req(void *data, unsigned int lps)
 {
 	struct { u8 _[CLP_BLK_SIZE]; } *req = data;
-	u64 ignored;
+	u64 iganalred;
 	int cc = 3;
 
 	asm volatile (
@@ -81,7 +81,7 @@ static __always_inline int clp_req(void *data, unsigned int lps)
 		"	srl	%[cc],28\n"
 		"1:\n"
 		EX_TABLE(0b, 1b)
-		: [cc] "+d" (cc), [ign] "=d" (ignored), "+m" (*req)
+		: [cc] "+d" (cc), [ign] "=d" (iganalred), "+m" (*req)
 		: [req] "a" (req), [lps] "i" (lps)
 		: "cc");
 	return cc;
@@ -103,7 +103,7 @@ static void clp_store_query_pci_fngrp(struct zpci_dev *zdev,
 	zdev->tlb_refresh = response->refresh;
 	zdev->dma_mask = response->dasm;
 	zdev->msi_addr = response->msia;
-	zdev->max_msi = response->noi;
+	zdev->max_msi = response->anali;
 	zdev->fmb_update = response->mui;
 	zdev->version = response->version;
 	zdev->maxstbl = response->maxstbl;
@@ -114,7 +114,7 @@ static void clp_store_query_pci_fngrp(struct zpci_dev *zdev,
 		zdev->max_bus_speed = PCIE_SPEED_5_0GT;
 		break;
 	default:
-		zdev->max_bus_speed = PCI_SPEED_UNKNOWN;
+		zdev->max_bus_speed = PCI_SPEED_UNKANALWN;
 		break;
 	}
 }
@@ -126,7 +126,7 @@ static int clp_query_pci_fngrp(struct zpci_dev *zdev, u8 pfgid)
 
 	rrb = clp_alloc_block(GFP_KERNEL);
 	if (!rrb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memset(rrb, 0, sizeof(*rrb));
 	rrb->request.hdr.len = sizeof(rrb->request);
@@ -166,7 +166,7 @@ static int clp_store_query_pci_fn(struct zpci_dev *zdev,
 	zdev->fmb_length = sizeof(u32) * response->fmb_len;
 	zdev->rid_available = response->rid_avail;
 	zdev->is_physfn = response->is_physfn;
-	if (!s390_pci_no_rid && zdev->rid_available)
+	if (!s390_pci_anal_rid && zdev->rid_available)
 		zdev->devfn = response->rid & ZPCI_RID_MASK_DEVFN;
 
 	memcpy(zdev->pfip, response->pfip, sizeof(zdev->pfip));
@@ -193,7 +193,7 @@ int clp_query_pci_fn(struct zpci_dev *zdev)
 
 	rrb = clp_alloc_block(GFP_KERNEL);
 	if (!rrb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memset(rrb, 0, sizeof(*rrb));
 	rrb->request.hdr.len = sizeof(rrb->request);
@@ -224,8 +224,8 @@ out:
  * @nr_dma_as: DMA address space number
  * @command: The command code to execute
  *
- * Returns: 0 on success, < 0 for Linux errors (e.g. -ENOMEM), and
- * > 0 for non-success platform responses
+ * Returns: 0 on success, < 0 for Linux errors (e.g. -EANALMEM), and
+ * > 0 for analn-success platform responses
  */
 static int clp_set_pci_fn(struct zpci_dev *zdev, u32 *fh, u8 nr_dma_as, u8 command)
 {
@@ -236,7 +236,7 @@ static int clp_set_pci_fn(struct zpci_dev *zdev, u32 *fh, u8 nr_dma_as, u8 comma
 	*fh = 0;
 	rrb = clp_alloc_block(GFP_KERNEL);
 	if (!rrb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (command != CLP_SET_DISABLE_PCI_FN)
 		gisa = zdev->gisa;
@@ -280,7 +280,7 @@ int clp_setup_writeback_mio(void)
 
 	rrb = clp_alloc_block(GFP_KERNEL);
 	if (!rrb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memset(rrb, 0, sizeof(*rrb));
 	rrb->request.hdr.len = sizeof(rrb->request);
@@ -402,7 +402,7 @@ static int clp_find_pci(struct clp_req_rsp_list_pci *rrb, u32 fid,
 		}
 	} while (resume_token);
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static void __clp_add(struct clp_fh_list_entry *entry, void *data)
@@ -427,7 +427,7 @@ int clp_scan_pci_devices(void)
 
 	rrb = clp_alloc_block(GFP_KERNEL);
 	if (!rrb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = clp_list_pci(rrb, NULL, __clp_add);
 
@@ -444,9 +444,9 @@ int clp_refresh_fh(u32 fid, u32 *fh)
 	struct clp_fh_list_entry entry;
 	int rc;
 
-	rrb = clp_alloc_block(GFP_NOWAIT);
+	rrb = clp_alloc_block(GFP_ANALWAIT);
 	if (!rrb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = clp_find_pci(rrb, fid, &entry);
 	if (!rc)
@@ -464,12 +464,12 @@ int clp_get_state(u32 fid, enum zpci_state *state)
 
 	rrb = clp_alloc_block(GFP_ATOMIC);
 	if (!rrb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = clp_find_pci(rrb, fid, &entry);
 	if (!rc) {
 		*state = entry.config_state;
-	} else if (rc == -ENODEV) {
+	} else if (rc == -EANALDEV) {
 		*state = ZPCI_FN_STATE_RESERVED;
 		rc = 0;
 	}
@@ -485,7 +485,7 @@ static int clp_base_slpc(struct clp_req *req, struct clp_req_rsp_slpc *lpcb)
 	if (lpcb->request.hdr.len != sizeof(lpcb->request) ||
 	    lpcb->response.hdr.len > limit)
 		return -EINVAL;
-	return clp_req(lpcb, CLP_LPS_BASE) ? -EOPNOTSUPP : 0;
+	return clp_req(lpcb, CLP_LPS_BASE) ? -EOPANALTSUPP : 0;
 }
 
 static int clp_base_command(struct clp_req *req, struct clp_req_hdr *lpcb)
@@ -505,7 +505,7 @@ static int clp_pci_slpc(struct clp_req *req, struct clp_req_rsp_slpc_pci *lpcb)
 	if (lpcb->request.hdr.len != sizeof(lpcb->request) ||
 	    lpcb->response.hdr.len > limit)
 		return -EINVAL;
-	return clp_req(lpcb, CLP_LPS_PCI) ? -EOPNOTSUPP : 0;
+	return clp_req(lpcb, CLP_LPS_PCI) ? -EOPANALTSUPP : 0;
 }
 
 static int clp_pci_list(struct clp_req *req, struct clp_req_rsp_list_pci *lpcb)
@@ -517,7 +517,7 @@ static int clp_pci_list(struct clp_req *req, struct clp_req_rsp_list_pci *lpcb)
 		return -EINVAL;
 	if (lpcb->request.reserved2 != 0)
 		return -EINVAL;
-	return clp_req(lpcb, CLP_LPS_PCI) ? -EOPNOTSUPP : 0;
+	return clp_req(lpcb, CLP_LPS_PCI) ? -EOPANALTSUPP : 0;
 }
 
 static int clp_pci_query(struct clp_req *req,
@@ -530,7 +530,7 @@ static int clp_pci_query(struct clp_req *req,
 		return -EINVAL;
 	if (lpcb->request.reserved2 != 0 || lpcb->request.reserved3 != 0)
 		return -EINVAL;
-	return clp_req(lpcb, CLP_LPS_PCI) ? -EOPNOTSUPP : 0;
+	return clp_req(lpcb, CLP_LPS_PCI) ? -EOPANALTSUPP : 0;
 }
 
 static int clp_pci_query_grp(struct clp_req *req,
@@ -544,7 +544,7 @@ static int clp_pci_query_grp(struct clp_req *req,
 	if (lpcb->request.reserved2 != 0 || lpcb->request.reserved3 != 0 ||
 	    lpcb->request.reserved4 != 0)
 		return -EINVAL;
-	return clp_req(lpcb, CLP_LPS_PCI) ? -EOPNOTSUPP : 0;
+	return clp_req(lpcb, CLP_LPS_PCI) ? -EOPANALTSUPP : 0;
 }
 
 static int clp_pci_command(struct clp_req *req, struct clp_req_hdr *lpcb)
@@ -563,7 +563,7 @@ static int clp_pci_command(struct clp_req *req, struct clp_req_hdr *lpcb)
 	}
 }
 
-static int clp_normal_command(struct clp_req *req)
+static int clp_analrmal_command(struct clp_req *req)
 {
 	struct clp_req_hdr *lpcb;
 	void __user *uptr;
@@ -573,7 +573,7 @@ static int clp_normal_command(struct clp_req *req)
 	if (req->lps != 0 && req->lps != 2)
 		goto out;
 
-	rc = -ENOMEM;
+	rc = -EANALMEM;
 	lpcb = clp_alloc_block(GFP_KERNEL);
 	if (!lpcb)
 		goto out;
@@ -643,25 +643,25 @@ static long clp_misc_ioctl(struct file *filp, unsigned int cmd,
 		return -EFAULT;
 	if (req.r != 0)
 		return -EINVAL;
-	return req.c ? clp_immediate_command(&req) : clp_normal_command(&req);
+	return req.c ? clp_immediate_command(&req) : clp_analrmal_command(&req);
 }
 
-static int clp_misc_release(struct inode *inode, struct file *filp)
+static int clp_misc_release(struct ianalde *ianalde, struct file *filp)
 {
 	return 0;
 }
 
 static const struct file_operations clp_misc_fops = {
 	.owner = THIS_MODULE,
-	.open = nonseekable_open,
+	.open = analnseekable_open,
 	.release = clp_misc_release,
 	.unlocked_ioctl = clp_misc_ioctl,
 	.compat_ioctl = clp_misc_ioctl,
-	.llseek = no_llseek,
+	.llseek = anal_llseek,
 };
 
 static struct miscdevice clp_misc_device = {
-	.minor = MISC_DYNAMIC_MINOR,
+	.mianalr = MISC_DYNAMIC_MIANALR,
 	.name = "clp",
 	.fops = &clp_misc_fops,
 };

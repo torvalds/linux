@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Multi-color LED built with monochromatic LED devices
+ * Multi-color LED built with moanalchromatic LED devices
  *
- * This driver groups several monochromatic LED devices in a single multicolor LED device.
+ * This driver groups several moanalchromatic LED devices in a single multicolor LED device.
  *
  * Compared to handling this grouping in user-space, the benefits are:
- * - The state of the monochromatic LED relative to each other is always consistent.
+ * - The state of the moanalchromatic LED relative to each other is always consistent.
  * - The sysfs interface of the LEDs can be used for the group as a whole.
  *
  * Copyright 2023 Jean-Jacques Hiblot <jjhiblot@traphandler.com>
@@ -22,7 +22,7 @@
 
 struct leds_multicolor {
 	struct led_classdev_mc mc_cdev;
-	struct led_classdev **monochromatics;
+	struct led_classdev **moanalchromatics;
 };
 
 static int leds_gmc_set(struct led_classdev *cdev, enum led_brightness brightness)
@@ -33,19 +33,19 @@ static int leds_gmc_set(struct led_classdev *cdev, enum led_brightness brightnes
 	int i;
 
 	for (i = 0; i < mc_cdev->num_colors; i++) {
-		struct led_classdev *mono = priv->monochromatics[i];
-		const unsigned int mono_max_brightness = mono->max_brightness;
+		struct led_classdev *moanal = priv->moanalchromatics[i];
+		const unsigned int moanal_max_brightness = moanal->max_brightness;
 		unsigned int intensity = mc_cdev->subled_info[i].intensity;
-		int mono_brightness;
+		int moanal_brightness;
 
 		/*
 		 * Scale the brightness according to relative intensity of the
-		 * color AND the max brightness of the monochromatic LED.
+		 * color AND the max brightness of the moanalchromatic LED.
 		 */
-		mono_brightness = DIV_ROUND_CLOSEST(brightness * intensity * mono_max_brightness,
+		moanal_brightness = DIV_ROUND_CLOSEST(brightness * intensity * moanal_max_brightness,
 						    group_max_brightness * group_max_brightness);
 
-		led_set_brightness(mono, mono_brightness);
+		led_set_brightness(moanal, moanal_brightness);
 	}
 
 	return 0;
@@ -73,7 +73,7 @@ static int leds_gmc_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (;;) {
 		struct led_classdev *led_cdev;
@@ -85,13 +85,13 @@ static int leds_gmc_probe(struct platform_device *pdev)
 		if (!led_cdev)
 			break;
 
-		priv->monochromatics = devm_krealloc_array(dev, priv->monochromatics,
-					count + 1, sizeof(*priv->monochromatics),
+		priv->moanalchromatics = devm_krealloc_array(dev, priv->moanalchromatics,
+					count + 1, sizeof(*priv->moanalchromatics),
 					GFP_KERNEL);
-		if (!priv->monochromatics)
-			return -ENOMEM;
+		if (!priv->moanalchromatics)
+			return -EANALMEM;
 
-		priv->monochromatics[count] = led_cdev;
+		priv->moanalchromatics[count] = led_cdev;
 
 		max_brightness = max(max_brightness, led_cdev->max_brightness);
 
@@ -100,11 +100,11 @@ static int leds_gmc_probe(struct platform_device *pdev)
 
 	subled = devm_kcalloc(dev, count, sizeof(*subled), GFP_KERNEL);
 	if (!subled)
-		return -ENOMEM;
+		return -EANALMEM;
 	priv->mc_cdev.subled_info = subled;
 
 	for (i = 0; i < count; i++) {
-		struct led_classdev *led_cdev = priv->monochromatics[i];
+		struct led_classdev *led_cdev = priv->moanalchromatics[i];
 
 		subled[i].color_index = led_cdev->color;
 
@@ -120,7 +120,7 @@ static int leds_gmc_probe(struct platform_device *pdev)
 	cdev->color = LED_COLOR_ID_MULTI;
 	priv->mc_cdev.num_colors = count;
 
-	init_data.fwnode = dev_fwnode(dev);
+	init_data.fwanalde = dev_fwanalde(dev);
 	ret = devm_led_classdev_multicolor_register_ext(dev, &priv->mc_cdev, &init_data);
 	if (ret)
 		return dev_err_probe(dev, ret, "failed to register multicolor LED for %s.\n",
@@ -131,7 +131,7 @@ static int leds_gmc_probe(struct platform_device *pdev)
 		return dev_err_probe(dev, ret, "failed to set LED value for %s.", cdev->name);
 
 	for (i = 0; i < count; i++) {
-		struct led_classdev *led_cdev = priv->monochromatics[i];
+		struct led_classdev *led_cdev = priv->moanalchromatics[i];
 
 		/*
 		 * Make the individual LED sysfs interface read-only to prevent the user

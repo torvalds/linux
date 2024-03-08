@@ -9,14 +9,14 @@
  * Module:	__INC_HAL8192CPHYREG_H
  *
  *
- * Note:	1. Define PMAC/BB register map
+ * Analte:	1. Define PMAC/BB register map
  *		2. Define RF register map
  *		3. PMAC/BB register bit mask.
  *		4. RF reg bit mask.
  *		5. Other BB/RF relative definition.
  *
  *
- * Export:	Constants, macro, functions(API), global variables(None).
+ * Export:	Constants, macro, functions(API), global variables(Analne).
  *
  * Abbrev:
  *
@@ -96,7 +96,7 @@
 
 #define		rFPGA0_TxGainStage			0x80c	/*  Set TX PWR init gain? */
 
-#define		rFPGA0_RFTiming1			0x810	/*  Useless now */
+#define		rFPGA0_RFTiming1			0x810	/*  Useless analw */
 #define		rFPGA0_RFTiming2			0x814
 
 #define		rFPGA0_XA_HSSIParameter1		0x820	/*  RF 3 wire register */
@@ -113,7 +113,7 @@
 #define		rFPGA0_XA_LSSIParameter		0x840
 #define		rFPGA0_XB_LSSIParameter		0x844
 
-#define		rFPGA0_RFWakeUpParameter		0x850	/*  Useless now */
+#define		rFPGA0_RFWakeUpParameter		0x850	/*  Useless analw */
 #define		rFPGA0_RFSleepUpParameter		0x854
 
 #define		rFPGA0_XAB_SwitchControl		0x858	/*  RF Channel switch */
@@ -132,7 +132,7 @@
 
 #define		rFPGA0_AnalogParameter1		0x880	/*  Crystal cap setting RF-R/W protection for parameter4?? */
 #define		rFPGA0_AnalogParameter2		0x884
-#define		rFPGA0_AnalogParameter3		0x888	/*  Useless now */
+#define		rFPGA0_AnalogParameter3		0x888	/*  Useless analw */
 #define		rFPGA0_AnalogParameter4		0x88c
 
 #define		rFPGA0_XA_LSSIReadBack		0x8a0	/*  Transceiver LSSI Readback */
@@ -140,20 +140,20 @@
 #define		rFPGA0_XC_LSSIReadBack		0x8a8
 #define		rFPGA0_XD_LSSIReadBack		0x8ac
 
-#define		rFPGA0_PSDReport				0x8b4	/*  Useless now */
+#define		rFPGA0_PSDReport				0x8b4	/*  Useless analw */
 #define		TransceiverA_HSPI_Readback	0x8b8	/*  Transceiver A HSPI Readback */
 #define		TransceiverB_HSPI_Readback	0x8bc	/*  Transceiver B HSPI Readback */
-#define		rFPGA0_XAB_RFInterfaceRB		0x8e0	/*  Useless now  RF Interface Readback Value */
-#define		rFPGA0_XCD_RFInterfaceRB		0x8e4	/*  Useless now */
+#define		rFPGA0_XAB_RFInterfaceRB		0x8e0	/*  Useless analw  RF Interface Readback Value */
+#define		rFPGA0_XCD_RFInterfaceRB		0x8e4	/*  Useless analw */
 
 /*  */
 /*  4. Page9(0x900) */
 /*  */
 #define		rFPGA1_RFMOD				0x900	/* RF mode & OFDM TxSC  RF BW Setting?? */
 
-#define		rFPGA1_TxBlock				0x904	/*  Useless now */
-#define		rFPGA1_DebugSelect			0x908	/*  Useless now */
-#define		rFPGA1_TxInfo				0x90c	/*  Useless now  Status report?? */
+#define		rFPGA1_TxBlock				0x904	/*  Useless analw */
+#define		rFPGA1_DebugSelect			0x908	/*  Useless analw */
+#define		rFPGA1_TxInfo				0x90c	/*  Useless analw  Status report?? */
 #define		rS0S1_PathSwitch			0x948
 
 /*  */
@@ -162,10 +162,10 @@
 /*  Set Control channel to upper or lower. These settings are required only for 40MHz */
 #define		rCCK0_System				0xa00
 
-#define		rCCK0_AFESetting			0xa04	/*  Disable init gain now Select RX path by RSSI */
-#define		rCCK0_CCA					0xa08	/*  Disable init gain now Init gain */
+#define		rCCK0_AFESetting			0xa04	/*  Disable init gain analw Select RX path by RSSI */
+#define		rCCK0_CCA					0xa08	/*  Disable init gain analw Init gain */
 
-#define		rCCK0_RxAGC1				0xa0c	/* AGC default value, saturation level Antenna Diversity, RX AGC, LNA Threshold, RX LNA Threshold useless now. Not the same as 90 series */
+#define		rCCK0_RxAGC1				0xa0c	/* AGC default value, saturation level Antenna Diversity, RX AGC, LNA Threshold, RX LNA Threshold useless analw. Analt the same as 90 series */
 #define		rCCK0_RxAGC2				0xa10	/* AGC & DAGC */
 
 #define		rCCK0_RxHP					0xa14
@@ -176,7 +176,7 @@
 #define		rCCK0_TxFilter1				0xa20
 #define		rCCK0_TxFilter2				0xa24
 #define		rCCK0_DebugPort			0xa28	/* debug port and Tx filter3 */
-#define		rCCK0_FalseAlarmReport		0xa2c	/* 0xa2d	useless now 0xa30-a4f channel report */
+#define		rCCK0_FalseAlarmReport		0xa2c	/* 0xa2d	useless analw 0xa30-a4f channel report */
 #define		rCCK0_TRSSIReport			0xa50
 #define		rCCK0_RxReport				0xa54  /* 0xa57 */
 #define		rCCK0_FACounterLower		0xa5c  /* 0xa5b */
@@ -203,7 +203,7 @@
 #define		rOFDM0_TRMuxPar			0xc08
 #define		rOFDM0_TRSWIsolation		0xc0c
 
-#define		rOFDM0_XARxAFE			0xc10  /* RxIQ DC offset, Rx digital filter, DC notch filter */
+#define		rOFDM0_XARxAFE			0xc10  /* RxIQ DC offset, Rx digital filter, DC analtch filter */
 #define		rOFDM0_XARxIQImbalance		0xc14  /* RxIQ imbalance matrix */
 #define		rOFDM0_XBRxAFE				0xc18
 #define		rOFDM0_XBRxIQImbalance		0xc1c
@@ -253,7 +253,7 @@
 #define		rOFDM0_TxCoeff5				0xcb4
 #define		rOFDM0_TxCoeff6				0xcb8
 #define		rOFDM0_RxHPParameter			0xce0
-#define		rOFDM0_TxPseudoNoiseWgt		0xce4
+#define		rOFDM0_TxPseudoAnaliseWgt		0xce4
 #define		rOFDM0_FrameSync				0xcf0
 #define		rOFDM0_DFSReport				0xcf4
 
@@ -263,22 +263,22 @@
 #define		rOFDM1_LSTF					0xd00
 #define		rOFDM1_TRxPathEnable			0xd04
 
-#define		rOFDM1_CFO						0xd08	/*  No setting now */
+#define		rOFDM1_CFO						0xd08	/*  Anal setting analw */
 #define		rOFDM1_CSI1					0xd10
 #define		rOFDM1_SBD						0xd14
 #define		rOFDM1_CSI2					0xd18
 #define		rOFDM1_CFOTracking			0xd2c
 #define		rOFDM1_TRxMesaure1			0xd34
 #define		rOFDM1_IntfDet					0xd3c
-#define		rOFDM1_PseudoNoiseStateAB		0xd50
-#define		rOFDM1_PseudoNoiseStateCD		0xd54
-#define		rOFDM1_RxPseudoNoiseWgt		0xd58
+#define		rOFDM1_PseudoAnaliseStateAB		0xd50
+#define		rOFDM1_PseudoAnaliseStateCD		0xd54
+#define		rOFDM1_RxPseudoAnaliseWgt		0xd58
 
 #define		rOFDM_PHYCounter1				0xda0  /* cca, parity fail */
 #define		rOFDM_PHYCounter2				0xda4  /* rate illegal, crc8 fail */
-#define		rOFDM_PHYCounter3				0xda8  /* MCS not support */
+#define		rOFDM_PHYCounter3				0xda8  /* MCS analt support */
 
-#define		rOFDM_ShortCFOAB				0xdac	/*  No setting now */
+#define		rOFDM_ShortCFOAB				0xdac	/*  Anal setting analw */
 #define		rOFDM_ShortCFOCD				0xdb0
 #define		rOFDM_LongCFOAB				0xdb4
 #define		rOFDM_LongCFOCD				0xdb8
@@ -356,7 +356,7 @@
 /*     RF-0222D 0x00-3F */
 /*  */
 /* Zebra1 */
-#define		rZebra1_HSSIEnable				0x0	/*  Useless now */
+#define		rZebra1_HSSIEnable				0x0	/*  Useless analw */
 #define		rZebra1_TRxEnable1				0x1
 #define		rZebra1_TRxEnable2				0x2
 #define		rZebra1_AGC					0x4
@@ -364,18 +364,18 @@
 #define		rZebra1_Channel				0x7	/*  RF channel switch */
 
 /* endif */
-#define		rZebra1_TxGain					0x8	/*  Useless now */
+#define		rZebra1_TxGain					0x8	/*  Useless analw */
 #define		rZebra1_TxLPF					0x9
 #define		rZebra1_RxLPF					0xb
 #define		rZebra1_RxHPFCorner			0xc
 
 /* Zebra4 */
-#define		rGlobalCtrl						0	/*  Useless now */
+#define		rGlobalCtrl						0	/*  Useless analw */
 #define		rRTL8256_TxLPF					19
 #define		rRTL8256_RxLPF					11
 
 /* RTL8258 */
-#define		rRTL8258_TxLPF					0x11	/*  Useless now */
+#define		rRTL8258_TxLPF					0x11	/*  Useless analw */
 #define		rRTL8258_RxLPF					0x13
 #define		rRTL8258_RSSILPF				0xa
 
@@ -464,7 +464,7 @@
 /* Bit Mask */
 /*  */
 /*  1. Page1(0x100) */
-#define		bBBResetB						0x100	/*  Useless now? */
+#define		bBBResetB						0x100	/*  Useless analw? */
 #define		bGlobalResetB					0x200
 #define		bOFDMTxStart					0x4
 #define		bCCKTxStart						0x8
@@ -518,7 +518,7 @@
 #define		bCCKEn							0x1000000
 #define		bOFDMEn						0x2000000
 
-#define		bOFDMRxADCPhase				0x10000	/*  Useless now */
+#define		bOFDMRxADCPhase				0x10000	/*  Useless analw */
 #define		bOFDMTxDACPhase				0x40000
 #define		bXATxAGC					0x3f
 
@@ -528,7 +528,7 @@
 #define		bXCTxAGC					0xf000
 #define		bXDTxAGC					0xf0000
 
-#define		bPAStart					0xf0000000	/*  Useless now */
+#define		bPAStart					0xf0000000	/*  Useless analw */
 #define		bTRStart					0x00f00000
 #define		bRFStart					0x0000f000
 #define		bBBStart					0x000000f0
@@ -552,7 +552,7 @@
 #define		b3WireDataLength			0x800	/*  Reg 0x820~84f rFPGA0_XA_HSSIParameter1 */
 #define		b3WireAddressLength			0x400
 
-#define		b3WireRFPowerDown			0x1	/*  Useless now */
+#define		b3WireRFPowerDown			0x1	/*  Useless analw */
 /* define bHWSISelect				0x8 */
 #define		b2GPAPEPolarity				0x80000000
 #define		bRFSW_TxDefaultAnt			0x3
@@ -567,7 +567,7 @@
 
 #define		bRFSI_RFENV				0x10	/*  Reg 0x870 rFPGA0_XAB_RFInterfaceSW */
 
-#define		bRFSI_TRSW				0x20	/*  Useless now */
+#define		bRFSI_TRSW				0x20	/*  Useless analw */
 #define		bRFSI_TRSWB				0x40
 #define		bRFSI_ANTSW				0x100
 #define		bRFSI_ANTSWB				0x200
@@ -596,7 +596,7 @@
 
 #define		bLSSIReadBackData			0xfffff		/*  T65 RF */
 
-#define		bLSSIReadOKFlag				0x1000	/*  Useless now */
+#define		bLSSIReadOKFlag				0x1000	/*  Useless analw */
 #define		bCCKSampleRate				0x8       /* 0: 44MHz, 1:88MHz */
 #define		bRegulator0Standby			0x1
 #define		bRegulatorPLLStandby			0x2
@@ -662,11 +662,11 @@
 #define		bDebugPage				0xfff  /* reset debug page and also HWord, LWord */
 #define		bDebugItem				0xff   /* reset debug page and LWord */
 #define		bAntL					0x10
-#define		bAntNonHT					0x100
+#define		bAntAnalnHT					0x100
 #define		bAntHT1					0x1000
 #define		bAntHT2						0x10000
 #define		bAntHT1S1					0x100000
-#define		bAntNonHTS1				0x1000000
+#define		bAntAnalnHTS1				0x1000000
 
 /*  4. PageA(0xA00) */
 #define		bCCKBBMode				0x3	/*  Useless */
@@ -772,8 +772,8 @@
 #define		bRXIQImb_B				0xfc00
 #define		bRXIQImb_C				0x3f0000
 #define		bRXIQImb_D				0xffc00000
-#define		bDC_dc_Notch			0x60000
-#define		bRxNBINotch			0x1f000000
+#define		bDC_dc_Analtch			0x60000
+#define		bRxNBIAnaltch			0x1f000000
 #define		bPD_TH					0xf
 #define		bPD_TH_Opt2			0xc000
 #define		bPWED_TH				0x700
@@ -815,11 +815,11 @@
 #define		bTxIDCOffset			0xff
 #define		bTxQDCOffset			0xff00
 #define		bTxDFIRMode			0x10000
-#define		bTxPesudoNoiseOn		0x4000000
-#define		bTxPesudoNoise_A		0xff
-#define		bTxPesudoNoise_B		0xff00
-#define		bTxPesudoNoise_C		0xff0000
-#define		bTxPesudoNoise_D		0xff000000
+#define		bTxPesudoAnaliseOn		0x4000000
+#define		bTxPesudoAnalise_A		0xff
+#define		bTxPesudoAnalise_B		0xff00
+#define		bTxPesudoAnalise_C		0xff0000
+#define		bTxPesudoAnalise_D		0xff000000
 #define		bCCADropOption			0x20000
 #define		bCCADropThres			0xfff00000
 #define		bEDCCA_H				0xf
@@ -931,7 +931,7 @@
 #define		bCounter_ParityFail	0xffff0000
 #define		bCounter_RateIllegal		0xffff
 #define		bCounter_CRC8Fail	0xffff0000
-#define		bCounter_MCSNoSupport	0xffff
+#define		bCounter_MCSAnalSupport	0xffff
 #define		bCounter_FastSync	0xffff
 #define		bShortCFO			0xfff
 #define		bShortCFOTLength	12   /* total */
@@ -944,7 +944,7 @@
 #define		bTailCFOFLength		12
 #define		bmax_en_pwdB		0xffff
 #define		bCC_power_dB		0xffff0000
-#define		bnoise_pwdB		0xffff
+#define		banalise_pwdB		0xffff
 #define		bPowerMeasTLength	10
 #define		bPowerMeasFLength	3
 #define		bRx_HT_BW			0x1
@@ -981,7 +981,7 @@
 #define		bSFactorQAM9		0xf0000000
 #define		bCSIScheme			0x100000
 
-#define		bNoiseLvlTopSet		0x3	/*  Useless */
+#define		bAnaliseLvlTopSet		0x3	/*  Useless */
 #define		bChSmooth			0x4
 #define		bChSmoothCfg1		0x38
 #define		bChSmoothCfg2		0x1c0
@@ -1006,16 +1006,16 @@
 #define		bUChCfg				0x7000000
 #define		bUpdEqz			0x8000000
 
-/* Rx Pseduo noise */
-#define		bRxPesudoNoiseOn		0x20000000	/*  Useless */
-#define		bRxPesudoNoise_A		0xff
-#define		bRxPesudoNoise_B		0xff00
-#define		bRxPesudoNoise_C		0xff0000
-#define		bRxPesudoNoise_D		0xff000000
-#define		bPesudoNoiseState_A	0xffff
-#define		bPesudoNoiseState_B	0xffff0000
-#define		bPesudoNoiseState_C	0xffff
-#define		bPesudoNoiseState_D	0xffff0000
+/* Rx Pseduo analise */
+#define		bRxPesudoAnaliseOn		0x20000000	/*  Useless */
+#define		bRxPesudoAnalise_A		0xff
+#define		bRxPesudoAnalise_B		0xff00
+#define		bRxPesudoAnalise_C		0xff0000
+#define		bRxPesudoAnalise_D		0xff000000
+#define		bPesudoAnaliseState_A	0xffff
+#define		bPesudoAnaliseState_B	0xffff0000
+#define		bPesudoAnaliseState_C	0xffff
+#define		bPesudoAnaliseState_D	0xffff0000
 
 /* 7. RF Register */
 /* Zebra1 */

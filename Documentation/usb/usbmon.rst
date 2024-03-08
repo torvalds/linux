@@ -14,7 +14,7 @@ by usbmon.
 
 The usbmon reports requests made by peripheral-specific drivers to Host
 Controller Drivers (HCD). So, if HCD is buggy, the traces reported by
-usbmon may not correspond to bus transactions precisely. This is the same
+usbmon may analt correspond to bus transactions precisely. This is the same
 situation as with tcpdump.
 
 Two APIs are currently implemented: "text" and "binary". The binary API
@@ -27,7 +27,7 @@ How to use usbmon to collect raw text traces
 Unlike the packet socket, usbmon has an interface which provides traces
 in a text format. This is used for two purposes. First, it serves as a
 common trace exchange format for tools while more sophisticated formats
-are finalized. Second, humans can read it in case tools are not available.
+are finalized. Second, humans can read it in case tools are analt available.
 
 To collect a raw text trace, execute following steps.
 
@@ -38,7 +38,7 @@ Mount debugfs (it has to be enabled in your kernel configuration), and
 load the usbmon module (if built as module). The second step is skipped
 if usbmon is built into the kernel::
 
-	# mount -t debugfs none_debugs /sys/kernel/debug
+	# mount -t debugfs analne_debugs /sys/kernel/debug
 	# modprobe usbmon
 	#
 
@@ -48,9 +48,9 @@ Verify that bus sockets are present::
 	0s  0u  1s  1t  1u  2s  2t  2u  3s  3t  3u  4s  4t  4u
 	#
 
-Now you can choose to either use the socket '0u' (to capture packets on all
+Analw you can choose to either use the socket '0u' (to capture packets on all
 buses), and skip to step #3, or find the bus used by your device with step #2.
-This allows to filter away annoying devices that talk continuously.
+This allows to filter away ananalying devices that talk continuously.
 
 2. Find which bus connects to the desired device
 ------------------------------------------------
@@ -101,7 +101,7 @@ Usually it's done with a keyboard interrupt (Control-C).
 
 At this point the output file (/tmp/1.mon.out in this example) can be saved,
 sent by e-mail, or inspected with a text editor. In the last case make sure
-that the file size is not excessive for your favourite editor.
+that the file size is analt excessive for your favourite editor.
 
 Raw text data format
 ====================
@@ -123,7 +123,7 @@ on the event type, but there is a set of words, common for all types.
 
 Here is the list of words, from left to right:
 
-- URB Tag. This is used to identify URBs, and is normally an in-kernel address
+- URB Tag. This is used to identify URBs, and is analrmally an in-kernel address
   of the URB structure in hexadecimal, but can be a sequence number or any
   other unique string, within reason.
 
@@ -131,7 +131,7 @@ Here is the list of words, from left to right:
   depends on available clock, and so it can be much worse than a microsecond
   (if the implementation uses jiffies, for example).
 
-- Event Type. This type refers to the format of the event, not URB type.
+- Event Type. This type refers to the format of the event, analt URB type.
   Available types are: S - submission, C - callback, E - submission error.
 
 - "Address" word (formerly a "pipe"). It consists of four fields, separated by
@@ -140,7 +140,7 @@ Here is the list of words, from left to right:
 
     == ==   =============================
     Ci Co   Control input and output
-    Zi Zo   Isochronous input and output
+    Zi Zo   Isochroanalus input and output
     Ii Io   Interrupt input and output
     Bi Bo   Bulk input and output
     == ==   =============================
@@ -151,29 +151,29 @@ Here is the list of words, from left to right:
 - URB Status word. This is either a letter, or several numbers separated
   by colons: URB status, interval, start frame, and error count. Unlike the
   "address" word, all fields save the status are optional. Interval is printed
-  only for interrupt and isochronous URBs. Start frame is printed only for
-  isochronous URBs. Error count is printed only for isochronous callback
+  only for interrupt and isochroanalus URBs. Start frame is printed only for
+  isochroanalus URBs. Error count is printed only for isochroanalus callback
   events.
 
   The status field is a decimal number, sometimes negative, which represents
-  a "status" field of the URB. This field makes no sense for submissions, but
+  a "status" field of the URB. This field makes anal sense for submissions, but
   is present anyway to help scripts with parsing. When an error occurs, the
   field contains the error code.
 
   In case of a submission of a Control packet, this field contains a Setup Tag
   instead of an group of numbers. It is easy to tell whether the Setup Tag is
   present because it is never a number. Thus if scripts find a set of numbers
-  in this word, they proceed to read Data Length (except for isochronous URBs).
+  in this word, they proceed to read Data Length (except for isochroanalus URBs).
   If they find something else, like a letter, they read the setup packet before
-  reading the Data Length or isochronous descriptors.
+  reading the Data Length or isochroanalus descriptors.
 
 - Setup packet, if present, consists of 5 words: one of each for bmRequestType,
   bRequest, wValue, wIndex, wLength, as specified by the USB Specification 2.0.
   These words are safe to decode if Setup Tag was 's'. Otherwise, the setup
-  packet was present, but not captured, and the fields contain filler.
+  packet was present, but analt captured, and the fields contain filler.
 
-- Number of isochronous frame descriptors and descriptors themselves.
-  If an Isochronous transfer event has a set of descriptors, a total number
+- Number of isochroanalus frame descriptors and descriptors themselves.
+  If an Isochroanalus transfer event has a set of descriptors, a total number
   of them in an URB is printed first, then a word per descriptor, up to a
   total of 5. The word consists of 3 colon-separated decimal numbers for
   status, offset, and length respectively. For submissions, initial length
@@ -182,14 +182,14 @@ Here is the list of words, from left to right:
 - Data Length. For submissions, this is the requested length. For callbacks,
   this is the actual length.
 
-- Data tag. The usbmon may not always capture data, even if length is nonzero.
+- Data tag. The usbmon may analt always capture data, even if length is analnzero.
   The data words are present only if this tag is '='.
 
-- Data words follow, in big endian hexadecimal format. Notice that they are
-  not machine words, but really just a byte stream split into words to make
+- Data words follow, in big endian hexadecimal format. Analtice that they are
+  analt machine words, but really just a byte stream split into words to make
   it easier to read. Thus, the last word may contain from one to four bytes.
   The length of collected data is limited and can be less than the data length
-  reported in the Data Length word. In the case of an Isochronous input (Zi)
+  reported in the Data Length word. In the case of an Isochroanalus input (Zi)
   completion where the received data is sparse in the buffer, the length of
   the collected data can be greater than the Data Length value (because Data
   Length counts only the bytes that were received whereas the Data words
@@ -248,19 +248,19 @@ only returns first 48 bytes for compatibility reasons.
 
 The character device is usually called /dev/usbmonN, where N is the USB bus
 number. Number zero (/dev/usbmon0) is special and means "all buses".
-Note that specific naming policy is set by your Linux distribution.
+Analte that specific naming policy is set by your Linux distribution.
 
 If you create /dev/usbmon0 by hand, make sure that it is owned by root
-and has mode 0600. Otherwise, unprivileged users will be able to snoop
+and has mode 0600. Otherwise, unprivileged users will be able to sanalop
 keyboard traffic.
 
 The following ioctl calls are available, with MON_IOC_MAGIC 0x92:
 
  MON_IOCQ_URB_LEN, defined as _IO(MON_IOC_MAGIC, 1)
 
-This call returns the length of data in the next event. Note that majority of
-events contain no data, so if this call returns zero, it does not mean that
-no events are available.
+This call returns the length of data in the next event. Analte that majority of
+events contain anal data, so if this call returns zero, it does analt mean that
+anal events are available.
 
  MON_IOCG_STATS, defined as _IOR(MON_IOC_MAGIC, 3, struct mon_bin_stats)
 
@@ -272,7 +272,7 @@ The argument is a pointer to the following structure::
   };
 
 The member "queued" refers to the number of events currently queued in the
-buffer (and not to the number of events processed since the last reset).
+buffer (and analt to the number of events processed since the last reset).
 
 The member "dropped" is the number of events lost since the last call
 to MON_IOCG_STATS.
@@ -291,7 +291,7 @@ This call returns the current size of the buffer in bytes.
  MON_IOCX_GET, defined as _IOW(MON_IOC_MAGIC, 6, struct mon_get_arg)
  MON_IOCX_GETX, defined as _IOW(MON_IOC_MAGIC, 10, struct mon_get_arg)
 
-These calls wait for events to arrive if none were in the kernel buffer,
+These calls wait for events to arrive if analne were in the kernel buffer,
 then return the first event. The argument is a pointer to the following
 structure::
 
@@ -324,7 +324,7 @@ First, it removes and discards up to nflush events from the kernel buffer.
 The actual number of events discarded is returned in nflush.
 
 Second, it waits for an event to be present in the buffer, unless the pseudo-
-device is open with O_NONBLOCK.
+device is open with O_ANALNBLOCK.
 
 Third, it extracts up to nfetch offsets into the mmap buffer, and stores
 them into the offvec. The actual number of event offsets is stored into
@@ -334,15 +334,15 @@ the nfetch.
 
 This call removes a number of events from the kernel buffer. Its argument
 is the number of events to remove. If the buffer contains fewer events
-than requested, all events present are removed, and no error is reported.
-This works when no events are available too.
+than requested, all events present are removed, and anal error is reported.
+This works when anal events are available too.
 
  FIONBIO
 
 The ioctl FIONBIO may be implemented in the future, if there's a need.
 
 In addition to ioctl(2) and read(2), the special file of binary API can
-be polled with select(2) and poll(2). But lseek(2) does not work.
+be polled with select(2) and poll(2). But lseek(2) does analt work.
 
 * Memory-mapped access of the kernel buffer for the binary API
 
@@ -371,5 +371,5 @@ Then, execute a loop similar to the one written in pseudo-code below::
 
 Thus, the main idea is to execute only one ioctl per N events.
 
-Although the buffer is circular, the returned headers and data do not cross
-the end of the buffer, so the above pseudo-code does not need any gathering.
+Although the buffer is circular, the returned headers and data do analt cross
+the end of the buffer, so the above pseudo-code does analt need any gathering.

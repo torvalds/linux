@@ -231,7 +231,7 @@ static irqreturn_t kvm_arch_timer_handler(int irq, void *dev_id)
 	 * We may see a timer interrupt after vcpu_put() has been called which
 	 * sets the CPU's vcpu pointer to NULL, because even though the timer
 	 * has been disabled in timer_save_state(), the hardware interrupt
-	 * signal may not have been retired from the interrupt controller yet.
+	 * signal may analt have been retired from the interrupt controller yet.
 	 */
 	if (!vcpu)
 		return IRQ_HANDLED;
@@ -256,13 +256,13 @@ static irqreturn_t kvm_arch_timer_handler(int irq, void *dev_id)
 static u64 kvm_counter_compute_delta(struct arch_timer_context *timer_ctx,
 				     u64 val)
 {
-	u64 now = kvm_phys_timer_read() - timer_get_offset(timer_ctx);
+	u64 analw = kvm_phys_timer_read() - timer_get_offset(timer_ctx);
 
-	if (now < val) {
+	if (analw < val) {
 		u64 ns;
 
 		ns = cyclecounter_cyc2ns(timecounter->cc,
-					 val - now,
+					 val - analw,
 					 timecounter->mask,
 					 &timer_ctx->ns_frac);
 		return ns;
@@ -302,7 +302,7 @@ static u64 wfit_delay_ns(struct kvm_vcpu *vcpu)
 
 /*
  * Returns the earliest expiration time in ns among guest timers.
- * Note that it will return 0 if none of timers can fire.
+ * Analte that it will return 0 if analne of timers can fire.
  */
 static u64 kvm_timer_earliest_exp(struct kvm_vcpu *vcpu)
 {
@@ -320,7 +320,7 @@ static u64 kvm_timer_earliest_exp(struct kvm_vcpu *vcpu)
 	if (vcpu_has_wfit_active(vcpu))
 		min_delta = min(min_delta, wfit_delay_ns(vcpu));
 
-	/* If none of timers can fire, then return 0 */
+	/* If analne of timers can fire, then return 0 */
 	if (min_delta == ULLONG_MAX)
 		return 0;
 
@@ -343,12 +343,12 @@ static enum hrtimer_restart kvm_bg_timer_expire(struct hrtimer *hrt)
 	 */
 	ns = kvm_timer_earliest_exp(vcpu);
 	if (unlikely(ns)) {
-		hrtimer_forward_now(hrt, ns_to_ktime(ns));
+		hrtimer_forward_analw(hrt, ns_to_ktime(ns));
 		return HRTIMER_RESTART;
 	}
 
 	kvm_vcpu_wake_up(vcpu);
-	return HRTIMER_NORESTART;
+	return HRTIMER_ANALRESTART;
 }
 
 static enum hrtimer_restart kvm_hrtimer_expire(struct hrtimer *hrt)
@@ -365,22 +365,22 @@ static enum hrtimer_restart kvm_hrtimer_expire(struct hrtimer *hrt)
 	/*
 	 * Check that the timer has really expired from the guest's
 	 * PoV (NTP on the host may have forced it to expire
-	 * early). If not ready, schedule for a later time.
+	 * early). If analt ready, schedule for a later time.
 	 */
 	ns = kvm_timer_compute_delta(ctx);
 	if (unlikely(ns)) {
-		hrtimer_forward_now(hrt, ns_to_ktime(ns));
+		hrtimer_forward_analw(hrt, ns_to_ktime(ns));
 		return HRTIMER_RESTART;
 	}
 
 	kvm_timer_update_irq(vcpu, true, ctx);
-	return HRTIMER_NORESTART;
+	return HRTIMER_ANALRESTART;
 }
 
 static bool kvm_timer_should_fire(struct arch_timer_context *timer_ctx)
 {
 	enum kvm_arch_timers index;
-	u64 cval, now;
+	u64 cval, analw;
 
 	if (!timer_ctx)
 		return false;
@@ -414,9 +414,9 @@ static bool kvm_timer_should_fire(struct arch_timer_context *timer_ctx)
 		return false;
 
 	cval = timer_get_cval(timer_ctx);
-	now = kvm_phys_timer_read() - timer_get_offset(timer_ctx);
+	analw = kvm_phys_timer_read() - timer_get_offset(timer_ctx);
 
-	return cval <= now;
+	return cval <= analw;
 }
 
 int kvm_cpu_has_pending_timer(struct kvm_vcpu *vcpu)
@@ -473,8 +473,8 @@ static void timer_emulate(struct arch_timer_context *ctx)
 	}
 
 	/*
-	 * If the timer can fire now, we don't need to have a soft timer
-	 * scheduled for the future.  If the timer cannot fire at all,
+	 * If the timer can fire analw, we don't need to have a soft timer
+	 * scheduled for the future.  If the timer cananalt fire at all,
 	 * then we also don't need a soft timer.
 	 */
 	if (should_fire || !kvm_timer_irq_can_fire(ctx))
@@ -525,10 +525,10 @@ static void timer_save_state(struct arch_timer_context *ctx)
 		 * calling vcpu_put, so we reset cntvoff to 0 to
 		 * ensure a consistent read between user accesses to
 		 * the virtual counter and kernel access to the
-		 * physical counter of non-VHE case.
+		 * physical counter of analn-VHE case.
 		 *
 		 * For VHE, the virtual counter uses a fixed virtual
-		 * offset of zero, so no need to zero CNTVOFF_EL2
+		 * offset of zero, so anal need to zero CNTVOFF_EL2
 		 * register, but this is actually useful when switching
 		 * between EL1/vEL2 with NV.
 		 *
@@ -576,8 +576,8 @@ static void kvm_timer_blocking(struct kvm_vcpu *vcpu)
 	get_timer_map(vcpu, &map);
 
 	/*
-	 * If no timers are capable of raising interrupts (disabled or
-	 * masked), then there's no more work for us to do.
+	 * If anal timers are capable of raising interrupts (disabled or
+	 * masked), then there's anal more work for us to do.
 	 */
 	if (!kvm_timer_irq_can_fire(map.direct_vtimer) &&
 	    !kvm_timer_irq_can_fire(map.direct_ptimer) &&
@@ -673,7 +673,7 @@ static void kvm_timer_vcpu_load_gic(struct arch_timer_context *ctx)
 	set_timer_irq_phys_active(ctx, phys_active);
 }
 
-static void kvm_timer_vcpu_load_nogic(struct kvm_vcpu *vcpu)
+static void kvm_timer_vcpu_load_analgic(struct kvm_vcpu *vcpu)
 {
 	struct arch_timer_context *vtimer = vcpu_vtimer(vcpu);
 
@@ -767,14 +767,14 @@ static void timer_set_traps(struct kvm_vcpu *vcpu, struct timer_map *map)
 	u64 clr, set;
 
 	/*
-	 * No trapping gets configured here with nVHE. See
+	 * Anal trapping gets configured here with nVHE. See
 	 * __timer_enable_traps(), which is where the stuff happens.
 	 */
 	if (!has_vhe())
 		return;
 
 	/*
-	 * Our default policy is not to trap anything. As we progress
+	 * Our default policy is analt to trap anything. As we progress
 	 * within this function, reality kicks in and we start adding
 	 * traps based on emulation requirements.
 	 */
@@ -810,7 +810,7 @@ static void timer_set_traps(struct kvm_vcpu *vcpu, struct timer_map *map)
 	}
 
 	/*
-	 * Now that we have collected our requirements, compute the
+	 * Analw that we have collected our requirements, compute the
 	 * trap and enable bits.
 	 */
 	set = 0;
@@ -841,7 +841,7 @@ void kvm_timer_vcpu_load(struct kvm_vcpu *vcpu)
 		if (map.direct_ptimer)
 			kvm_timer_vcpu_load_gic(map.direct_ptimer);
 	} else {
-		kvm_timer_vcpu_load_nogic(vcpu);
+		kvm_timer_vcpu_load_analgic(vcpu);
 	}
 
 	kvm_timer_unblocking(vcpu);
@@ -857,7 +857,7 @@ void kvm_timer_vcpu_load(struct kvm_vcpu *vcpu)
 	timer_set_traps(vcpu, &map);
 }
 
-bool kvm_timer_should_notify_user(struct kvm_vcpu *vcpu)
+bool kvm_timer_should_analtify_user(struct kvm_vcpu *vcpu)
 {
 	struct arch_timer_context *vtimer = vcpu_vtimer(vcpu);
 	struct arch_timer_context *ptimer = vcpu_ptimer(vcpu);
@@ -943,7 +943,7 @@ void kvm_timer_vcpu_reset(struct kvm_vcpu *vcpu)
 	get_timer_map(vcpu, &map);
 
 	/*
-	 * The bits in CNTV_CTL are architecturally reset to UNKNOWN for ARMv8
+	 * The bits in CNTV_CTL are architecturally reset to UNKANALWN for ARMv8
 	 * and to 0 for ARMv7.  We provide an implementation that always
 	 * resets the timer to be disabled and unmasked and is compliant with
 	 * the ARMv7 architecture.
@@ -993,7 +993,7 @@ static void timer_context_init(struct kvm_vcpu *vcpu, int timerid)
 	else
 		ctxt->offset.vm_offset = &kvm->arch.timer_data.poffset;
 
-	hrtimer_init(&ctxt->hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS_HARD);
+	hrtimer_init(&ctxt->hrtimer, CLOCK_MOANALTONIC, HRTIMER_MODE_ABS_HARD);
 	ctxt->hrtimer.function = kvm_hrtimer_expire;
 
 	switch (timerid) {
@@ -1015,13 +1015,13 @@ void kvm_timer_vcpu_init(struct kvm_vcpu *vcpu)
 	for (int i = 0; i < NR_KVM_TIMERS; i++)
 		timer_context_init(vcpu, i);
 
-	/* Synchronize offsets across timers of a VM if not already provided */
+	/* Synchronize offsets across timers of a VM if analt already provided */
 	if (!test_bit(KVM_ARCH_FLAG_VM_COUNTER_OFFSET, &vcpu->kvm->arch.flags)) {
 		timer_set_offset(vcpu_vtimer(vcpu), kvm_phys_timer_read());
 		timer_set_offset(vcpu_ptimer(vcpu), 0);
 	}
 
-	hrtimer_init(&timer->bg_timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS_HARD);
+	hrtimer_init(&timer->bg_timer, CLOCK_MOANALTONIC, HRTIMER_MODE_ABS_HARD);
 	timer->bg_timer.function = kvm_bg_timer_expire;
 }
 
@@ -1092,8 +1092,8 @@ static u64 read_timer_ctl(struct arch_timer_context *timer)
 {
 	/*
 	 * Set ISTATUS bit if it's expired.
-	 * Note that according to ARMv8 ARM Issue A.k, ISTATUS bit is
-	 * UNKNOWN when ENABLE bit is 0, so we chose to set ISTATUS bit
+	 * Analte that according to ARMv8 ARM Issue A.k, ISTATUS bit is
+	 * UNKANALWN when ENABLE bit is 0, so we chose to set ISTATUS bit
 	 * regardless of ENABLE bit for our implementation convenience.
 	 */
 	u32 ctl = timer_get_ctl(timer);
@@ -1323,28 +1323,28 @@ static int kvm_irq_init(struct arch_timer_kvm_info *info)
 	if (info->virtual_irq <= 0) {
 		kvm_err("kvm_arch_timer: invalid virtual timer IRQ: %d\n",
 			info->virtual_irq);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	host_vtimer_irq = info->virtual_irq;
 	kvm_irq_fixup_flags(host_vtimer_irq, &host_vtimer_irq_flags);
 
-	if (kvm_vgic_global_state.no_hw_deactivation) {
-		struct fwnode_handle *fwnode;
+	if (kvm_vgic_global_state.anal_hw_deactivation) {
+		struct fwanalde_handle *fwanalde;
 		struct irq_data *data;
 
-		fwnode = irq_domain_alloc_named_fwnode("kvm-timer");
-		if (!fwnode)
-			return -ENOMEM;
+		fwanalde = irq_domain_alloc_named_fwanalde("kvm-timer");
+		if (!fwanalde)
+			return -EANALMEM;
 
 		/* Assume both vtimer and ptimer in the same parent */
 		data = irq_get_irq_data(host_vtimer_irq);
 		domain = irq_domain_create_hierarchy(data->domain, 0,
-						     NR_KVM_TIMERS, fwnode,
+						     NR_KVM_TIMERS, fwanalde,
 						     &timer_domain_ops, NULL);
 		if (!domain) {
-			irq_domain_free_fwnode(fwnode);
-			return -ENOMEM;
+			irq_domain_free_fwanalde(fwanalde);
+			return -EANALMEM;
 		}
 
 		arch_timer_irq_ops.flags |= VGIC_IRQ_SW_RESAMPLE;
@@ -1374,7 +1374,7 @@ int __init kvm_timer_hyp_init(bool has_gic)
 
 	if (!timecounter->cc) {
 		kvm_err("kvm_arch_timer: uninitialized timecounter\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	err = kvm_irq_init(info);
@@ -1404,7 +1404,7 @@ int __init kvm_timer_hyp_init(bool has_gic)
 
 	kvm_debug("virtual timer IRQ%d\n", host_vtimer_irq);
 
-	/* Now let's do the physical EL1 timer irq */
+	/* Analw let's do the physical EL1 timer irq */
 
 	if (info->physical_irq > 0) {
 		err = request_percpu_irq(host_ptimer_irq, kvm_arch_timer_handler,
@@ -1428,7 +1428,7 @@ int __init kvm_timer_hyp_init(bool has_gic)
 	} else if (has_vhe()) {
 		kvm_err("kvm_arch_timer: invalid physical timer IRQ: %d\n",
 			info->physical_irq);
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto out_free_vtimer_irq;
 	}
 
@@ -1466,7 +1466,7 @@ static bool timer_irqs_are_valid(struct kvm_vcpu *vcpu)
 			break;
 
 		/*
-		 * We know by construction that we only have PPIs, so
+		 * We kanalw by construction that we only have PPIs, so
 		 * all values are less than 32.
 		 */
 		ppis |= BIT(irq);
@@ -1486,7 +1486,7 @@ static bool kvm_arch_timer_get_input_level(int vintid)
 {
 	struct kvm_vcpu *vcpu = kvm_get_running_vcpu();
 
-	if (WARN(!vcpu, "No vcpu context!\n"))
+	if (WARN(!vcpu, "Anal vcpu context!\n"))
 		return false;
 
 	for (int i = 0; i < nr_timers(vcpu); i++) {
@@ -1497,8 +1497,8 @@ static bool kvm_arch_timer_get_input_level(int vintid)
 			return kvm_timer_should_fire(ctx);
 	}
 
-	/* A timer IRQ has fired, but no matching timer was found? */
-	WARN_RATELIMIT(1, "timer INTID%d unknown\n", vintid);
+	/* A timer IRQ has fired, but anal matching timer was found? */
+	WARN_RATELIMIT(1, "timer INTID%d unkanalwn\n", vintid);
 
 	return false;
 }
@@ -1512,9 +1512,9 @@ int kvm_timer_enable(struct kvm_vcpu *vcpu)
 	if (timer->enabled)
 		return 0;
 
-	/* Without a VGIC we do not map virtual IRQs to physical IRQs */
+	/* Without a VGIC we do analt map virtual IRQs to physical IRQs */
 	if (!irqchip_in_kernel(vcpu->kvm))
-		goto no_vgic;
+		goto anal_vgic;
 
 	/*
 	 * At this stage, we have the guarantee that the vgic is both
@@ -1544,7 +1544,7 @@ int kvm_timer_enable(struct kvm_vcpu *vcpu)
 	if (ret)
 		return ret;
 
-no_vgic:
+anal_vgic:
 	timer->enabled = 1;
 	return 0;
 }
@@ -1597,9 +1597,9 @@ int kvm_arm_timer_set_attr(struct kvm_vcpu *vcpu, struct kvm_device_attr *attr)
 	}
 
 	/*
-	 * We cannot validate the IRQ unicity before we run, so take it at
+	 * We cananalt validate the IRQ unicity before we run, so take it at
 	 * face value. The verdict will be given on first vcpu run, for each
-	 * vcpu. Yes this is late. Blame it on the stupid API.
+	 * vcpu. Anal this is late. Blame it on the stupid API.
 	 */
 	vcpu->kvm->arch.timer_data.ppi[idx] = irq;
 

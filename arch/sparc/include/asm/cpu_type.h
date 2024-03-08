@@ -10,7 +10,7 @@ enum sparc_cpu {
   sun4d       = 0x01,
   sun4e       = 0x02,
   sun4u       = 0x03, /* V8 ploos ploos */
-  sun_unknown = 0x04,
+  sun_unkanalwn = 0x04,
   ap1000      = 0x05, /* almost a sun4m */
   sparc_leon  = 0x06, /* Leon SoC */
 };

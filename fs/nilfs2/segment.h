@@ -22,7 +22,7 @@ struct nilfs_root;
  * struct nilfs_recovery_info - Recovery information
  * @ri_need_recovery: Recovery status
  * @ri_super_root: Block number of the last super root
- * @ri_ri_cno: Number of the last checkpoint
+ * @ri_ri_canal: Number of the last checkpoint
  * @ri_lsegs_start: Region for roll-forwarding (start block number)
  * @ri_lsegs_end: Region for roll-forwarding (end block number)
  * @ri_lseg_start_seq: Sequence value of the segment at ri_lsegs_start
@@ -35,7 +35,7 @@ struct nilfs_root;
 struct nilfs_recovery_info {
 	int			ri_need_recovery;
 	sector_t		ri_super_root;
-	__u64			ri_cno;
+	__u64			ri_canal;
 
 	sector_t		ri_lsegs_start;
 	sector_t		ri_lsegs_end;
@@ -56,14 +56,14 @@ struct nilfs_recovery_info {
  * @scnt: Stage count, must be accessed via wrappers:
  *        nilfs_sc_cstage_inc(), nilfs_sc_cstage_set(), nilfs_sc_cstage_get()
  * @flags: State flags
- * @dirty_file_ptr: Pointer on dirty_files list, or inode of a target file
- * @gc_inode_ptr: Pointer on the list of gc-inodes
+ * @dirty_file_ptr: Pointer on dirty_files list, or ianalde of a target file
+ * @gc_ianalde_ptr: Pointer on the list of gc-ianaldes
  */
 struct nilfs_cstage {
 	int			scnt;
 	unsigned int		flags;
-	struct nilfs_inode_info *dirty_file_ptr;
-	struct nilfs_inode_info *gc_inode_ptr;
+	struct nilfs_ianalde_info *dirty_file_ptr;
+	struct nilfs_ianalde_info *gc_ianalde_ptr;
 };
 
 struct nilfs_segment_buffer;
@@ -79,12 +79,12 @@ struct nilfs_segsum_pointer {
  * @sc_root: root object of the current filesystem tree
  * @sc_nblk_inc: Block count of current generation
  * @sc_dirty_files: List of files to be written
- * @sc_gc_inodes: List of GC inodes having blocks to be written
- * @sc_iput_queue: list of inodes for which iput should be done
+ * @sc_gc_ianaldes: List of GC ianaldes having blocks to be written
+ * @sc_iput_queue: list of ianaldes for which iput should be done
  * @sc_iput_work: work struct to defer iput call
  * @sc_freesegs: array of segment numbers to be freed
  * @sc_nfreesegs: number of segments on @sc_freesegs
- * @sc_dsync_inode: inode whose data pages are written for a sync operation
+ * @sc_dsync_ianalde: ianalde whose data pages are written for a sync operation
  * @sc_dsync_start: start byte offset of data pages
  * @sc_dsync_end: end byte offset of data pages (inclusive)
  * @sc_segbufs: List of segment buffers
@@ -98,11 +98,11 @@ struct nilfs_segsum_pointer {
  * @sc_datablk_cnt: Data block count of a file
  * @sc_nblk_this_inc: Number of blocks included in the current logical segment
  * @sc_seg_ctime: Creation time
- * @sc_cno: checkpoint number of current log
+ * @sc_canal: checkpoint number of current log
  * @sc_flags: Internal flags
  * @sc_state_lock: spinlock for sc_state and so on
  * @sc_state: Segctord state flags
- * @sc_flush_request: inode bitmap of metadata files to be flushed
+ * @sc_flush_request: ianalde bitmap of metadata files to be flushed
  * @sc_wait_request: Client request queue
  * @sc_wait_daemon: Daemon wait queue
  * @sc_wait_task: Start/end wait queue to control segctord task
@@ -124,14 +124,14 @@ struct nilfs_sc_info {
 	unsigned long		sc_nblk_inc;
 
 	struct list_head	sc_dirty_files;
-	struct list_head	sc_gc_inodes;
+	struct list_head	sc_gc_ianaldes;
 	struct list_head	sc_iput_queue;
 	struct work_struct	sc_iput_work;
 
 	__u64		       *sc_freesegs;
 	size_t			sc_nfreesegs;
 
-	struct nilfs_inode_info *sc_dsync_inode;
+	struct nilfs_ianalde_info *sc_dsync_ianalde;
 	loff_t			sc_dsync_start;
 	loff_t			sc_dsync_end;
 
@@ -149,7 +149,7 @@ struct nilfs_sc_info {
 	unsigned long		sc_datablk_cnt;
 	unsigned long		sc_nblk_this_inc;
 	time64_t		sc_seg_ctime;
-	__u64			sc_cno;
+	__u64			sc_canal;
 	unsigned long		sc_flags;
 
 	spinlock_t		sc_state_lock;
@@ -178,7 +178,7 @@ struct nilfs_sc_info {
 /* sc_flags */
 enum {
 	NILFS_SC_DIRTY,		/* One or more dirty meta-data blocks exist */
-	NILFS_SC_UNCLOSED,	/* Logical segment is not closed */
+	NILFS_SC_UNCLOSED,	/* Logical segment is analt closed */
 	NILFS_SC_SUPER_ROOT,	/* The latest segment has a super root */
 	NILFS_SC_PRIOR_FLUSH,	/*
 				 * Requesting immediate flush without making a
@@ -228,9 +228,9 @@ extern struct kmem_cache *nilfs_transaction_cachep;
 extern void nilfs_relax_pressure_in_lock(struct super_block *);
 
 extern int nilfs_construct_segment(struct super_block *);
-extern int nilfs_construct_dsync_segment(struct super_block *, struct inode *,
+extern int nilfs_construct_dsync_segment(struct super_block *, struct ianalde *,
 					 loff_t, loff_t);
-extern void nilfs_flush_segment(struct super_block *, ino_t);
+extern void nilfs_flush_segment(struct super_block *, ianal_t);
 extern int nilfs_clean_segments(struct super_block *, struct nilfs_argv *,
 				void **);
 

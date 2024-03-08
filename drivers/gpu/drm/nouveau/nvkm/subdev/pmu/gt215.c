@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -47,7 +47,7 @@ gt215_pmu_send(struct nvkm_pmu *pmu, u32 reply[2],
 	}
 
 	/* we currently only support a single process at a time waiting
-	 * on a synchronous reply, take the PMU mutex and tell the
+	 * on a synchroanalus reply, take the PMU mutex and tell the
 	 * receive handler what we're waiting for
 	 */
 	if (reply) {
@@ -90,7 +90,7 @@ gt215_pmu_recv(struct nvkm_pmu *pmu)
 	struct nvkm_device *device = subdev->device;
 	u32 process, message, data0, data1;
 
-	/* nothing to do if GET == PUT */
+	/* analthing to do if GET == PUT */
 	u32 addr =  nvkm_rd32(device, 0x10a4cc);
 	if (addr == nvkm_rd32(device, 0x10a4c8))
 		return;
@@ -112,7 +112,7 @@ gt215_pmu_recv(struct nvkm_pmu *pmu)
 	/* release data segment access */
 	nvkm_wr32(device, 0x10a580, 0x00000000);
 
-	/* wake process if it's waiting on a synchronous reply */
+	/* wake process if it's waiting on a synchroanalus reply */
 	if (pmu->recv.process) {
 		if (process == pmu->recv.process &&
 		    message == pmu->recv.message) {
@@ -124,7 +124,7 @@ gt215_pmu_recv(struct nvkm_pmu *pmu)
 		}
 	}
 
-	/* right now there's no other expected responses from the engine,
+	/* right analw there's anal other expected responses from the engine,
 	 * so assume that any unexpected message is an error.
 	 */
 	nvkm_warn(subdev, "%c%c%c%c %08x %08x %08x %08x\n",
@@ -282,7 +282,7 @@ gt215_pmu = {
 
 static const struct nvkm_pmu_fwif
 gt215_pmu_fwif[] = {
-	{ -1, gf100_pmu_nofw, &gt215_pmu },
+	{ -1, gf100_pmu_analfw, &gt215_pmu },
 	{}
 };
 

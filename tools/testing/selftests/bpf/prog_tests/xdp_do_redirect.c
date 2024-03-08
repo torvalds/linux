@@ -243,6 +243,6 @@ out_tc:
 out:
 	if (nstoken)
 		close_netns(nstoken);
-	SYS_NOFAIL("ip netns del testns");
+	SYS_ANALFAIL("ip netns del testns");
 	test_xdp_do_redirect__destroy(skel);
 }

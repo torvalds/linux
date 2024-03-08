@@ -50,7 +50,7 @@ struct ibuf_ctrl_cfg_s {
 	struct {
 		/* DMA configuration */
 		u32 channel;
-		u32 cmd; /* must be _DMA_V2_MOVE_A2B_NO_SYNC_CHK_COMMAND */
+		u32 cmd; /* must be _DMA_V2_MOVE_A2B_ANAL_SYNC_CHK_COMMAND */
 
 		/* DMA reconfiguration */
 		u32 shift_returned_items;

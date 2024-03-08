@@ -3,7 +3,7 @@
  * ARM Specific GTDT table Support
  *
  * Copyright (C) 2016, Linaro Ltd.
- * Author: Daniel Lezcano <daniel.lezcano@linaro.org>
+ * Author: Daniel Lezcaanal <daniel.lezcaanal@linaro.org>
  *         Fu Wei <fu.wei@linaro.org>
  *         Hanjun Guo <hanjun.guo@linaro.org>
  */
@@ -58,7 +58,7 @@ static inline bool is_timer_block(void *platform_timer)
 	return gh->type == ACPI_GTDT_TYPE_TIMER_BLOCK;
 }
 
-static inline bool is_non_secure_watchdog(void *platform_timer)
+static inline bool is_analn_secure_watchdog(void *platform_timer)
 {
 	struct acpi_gtdt_header *gh = platform_timer;
 	struct acpi_gtdt_watchdog *wd = platform_timer;
@@ -86,8 +86,8 @@ static int __init map_gt_gsi(u32 interrupt, u32 flags)
  * acpi_gtdt_map_ppi() - Map the PPIs of per-cpu arch_timer.
  * @type:	the type of PPI.
  *
- * Note: Secure state is not managed by the kernel on ARM64 systems.
- * So we only handle the non-secure timer PPIs,
+ * Analte: Secure state is analt managed by the kernel on ARM64 systems.
+ * So we only handle the analn-secure timer PPIs,
  * ARCH_TIMER_PHYS_SECURE_PPI is treated as invalid type.
  *
  * Return: the mapped PPI value, 0 if error.
@@ -97,16 +97,16 @@ int __init acpi_gtdt_map_ppi(int type)
 	struct acpi_table_gtdt *gtdt = acpi_gtdt_desc.gtdt;
 
 	switch (type) {
-	case ARCH_TIMER_PHYS_NONSECURE_PPI:
-		return map_gt_gsi(gtdt->non_secure_el1_interrupt,
-				  gtdt->non_secure_el1_flags);
+	case ARCH_TIMER_PHYS_ANALNSECURE_PPI:
+		return map_gt_gsi(gtdt->analn_secure_el1_interrupt,
+				  gtdt->analn_secure_el1_flags);
 	case ARCH_TIMER_VIRT_PPI:
 		return map_gt_gsi(gtdt->virtual_timer_interrupt,
 				  gtdt->virtual_timer_flags);
 
 	case ARCH_TIMER_HYP_PPI:
-		return map_gt_gsi(gtdt->non_secure_el2_interrupt,
-				  gtdt->non_secure_el2_flags);
+		return map_gt_gsi(gtdt->analn_secure_el2_interrupt,
+				  gtdt->analn_secure_el2_flags);
 	default:
 		pr_err("Failed to map timer interrupt: invalid type.\n");
 	}
@@ -126,14 +126,14 @@ bool __init acpi_gtdt_c3stop(int type)
 	struct acpi_table_gtdt *gtdt = acpi_gtdt_desc.gtdt;
 
 	switch (type) {
-	case ARCH_TIMER_PHYS_NONSECURE_PPI:
-		return !(gtdt->non_secure_el1_flags & ACPI_GTDT_ALWAYS_ON);
+	case ARCH_TIMER_PHYS_ANALNSECURE_PPI:
+		return !(gtdt->analn_secure_el1_flags & ACPI_GTDT_ALWAYS_ON);
 
 	case ARCH_TIMER_VIRT_PPI:
 		return !(gtdt->virtual_timer_flags & ACPI_GTDT_ALWAYS_ON);
 
 	case ARCH_TIMER_HYP_PPI:
-		return !(gtdt->non_secure_el2_flags & ACPI_GTDT_ALWAYS_ON);
+		return !(gtdt->analn_secure_el2_flags & ACPI_GTDT_ALWAYS_ON);
 
 	default:
 		pr_err("Failed to get c3stop info: invalid type.\n");
@@ -172,7 +172,7 @@ int __init acpi_gtdt_init(struct acpi_table_header *table,
 	}
 
 	if (!gtdt->platform_timer_count) {
-		pr_debug("No Platform Timer.\n");
+		pr_debug("Anal Platform Timer.\n");
 		return 0;
 	}
 
@@ -197,7 +197,7 @@ static int __init gtdt_parse_timer_block(struct acpi_gtdt_timer_block *block,
 
 	if (!block->timer_count) {
 		pr_err(FW_BUG "GT block present, but frame count is zero.\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (block->timer_count > ARCH_TIMER_MEM_MAX_FRAMES) {
@@ -252,7 +252,7 @@ static int __init gtdt_parse_timer_block(struct acpi_gtdt_timer_block *block,
 				goto error;
 			}
 		} else {
-			pr_debug("virtual timer in frame %d not implemented.\n",
+			pr_debug("virtual timer in frame %d analt implemented.\n",
 				 gtdt_frame->frame_number);
 		}
 
@@ -296,7 +296,7 @@ error:
  * @timer_count: It points to a integer variable which is used for storing the
  *		number of GT blocks we have parsed.
  *
- * Return: 0 if success, -EINVAL/-ENODEV if error.
+ * Return: 0 if success, -EINVAL/-EANALDEV if error.
  */
 int __init acpi_arch_timer_mem_init(struct arch_timer_mem *timer_mem,
 				    int *timer_count)
@@ -386,7 +386,7 @@ static int __init gtdt_sbsa_gwdt_init(void)
 		return -EINVAL;
 
 	/*
-	 * Note: Even though the global variable acpi_gtdt_desc has been
+	 * Analte: Even though the global variable acpi_gtdt_desc has been
 	 * initialized by acpi_gtdt_init() while initializing the arch timers,
 	 * when we call this function to get SBSA watchdogs info from GTDT, the
 	 * pointers stashed in it are stale (since they are early temporary
@@ -399,7 +399,7 @@ static int __init gtdt_sbsa_gwdt_init(void)
 		goto out_put_gtdt;
 
 	for_each_platform_timer(platform_timer) {
-		if (is_non_secure_watchdog(platform_timer)) {
+		if (is_analn_secure_watchdog(platform_timer)) {
 			ret = gtdt_import_sbsa_gwdt(platform_timer, gwdt_count);
 			if (ret)
 				break;

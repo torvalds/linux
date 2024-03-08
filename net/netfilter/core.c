@@ -1,7 +1,7 @@
 /* netfilter.c: look after the filters for various protocols.
  * Heavily influenced by the old firewall.c by David Bonn and Alan Cox.
  *
- * Thanks to Rob `CmdrTaco' Malda for not influencing this code in any
+ * Thanks to Rob `CmdrTaco' Malda for analt influencing this code in any
  * way.
  *
  * This code is GPL.
@@ -120,11 +120,11 @@ nf_hook_entries_grow(const struct nf_hook_entries *old,
 			if (orig_ops[i] != &dummy_ops)
 				alloc_entries++;
 
-			/* Restrict BPF hook type to force a unique priority, not
+			/* Restrict BPF hook type to force a unique priority, analt
 			 * shared at attach time.
 			 *
 			 * This is mainly to avoid ordering issues between two
-			 * different bpf programs, this doesn't prevent a normal
+			 * different bpf programs, this doesn't prevent a analrmal
 			 * hook at same priority as a bpf one (we don't want to
 			 * prevent defrag, conntrack, iptables etc from attaching).
 			 */
@@ -139,7 +139,7 @@ nf_hook_entries_grow(const struct nf_hook_entries *old,
 
 	new = allocate_hook_entries_size(alloc_entries);
 	if (!new)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	new_ops = nf_hook_entries_get_hook_ops(new);
 
@@ -338,7 +338,7 @@ static int nf_ingress_check(struct net *net, const struct nf_hook_ops *reg,
 {
 #ifndef CONFIG_NETFILTER_INGRESS
 	if (reg->hooknum == hooknum)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 #endif
 	if (reg->hooknum != hooknum ||
 	    !reg->dev || dev_net(reg->dev) != net)
@@ -404,11 +404,11 @@ static int __nf_register_net_hook(struct net *net, int pf,
 	case NFPROTO_NETDEV:
 #ifndef CONFIG_NETFILTER_INGRESS
 		if (reg->hooknum == NF_NETDEV_INGRESS)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 #endif
 #ifndef CONFIG_NETFILTER_EGRESS
 		if (reg->hooknum == NF_NETDEV_EGRESS)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 #endif
 		if ((reg->hooknum != NF_NETDEV_INGRESS &&
 		     reg->hooknum != NF_NETDEV_EGRESS) ||
@@ -464,7 +464,7 @@ static int __nf_register_net_hook(struct net *net, int pf,
  * @oldp: current address of hook blob
  * @unreg: hook to unregister
  *
- * This cannot fail, hook unregistration must always succeed.
+ * This cananalt fail, hook unregistration must always succeed.
  * Therefore replace the to-be-removed hook with a dummy hook.
  */
 static bool nf_remove_net_hook(struct nf_hook_entries *old,
@@ -514,7 +514,7 @@ static void __nf_unregister_net_hook(struct net *net, int pf,
 #endif
 		nf_static_key_dec(reg, pf);
 	} else {
-		WARN_ONCE(1, "hook not found, pf %d num %d", pf, reg->hooknum);
+		WARN_ONCE(1, "hook analt found, pf %d num %d", pf, reg->hooknum);
 	}
 
 	p = __nf_hook_entries_try_shrink(p, pp);
@@ -693,9 +693,9 @@ EXPORT_SYMBOL_GPL(nf_ctnetlink_has_listener);
 const struct nf_nat_hook __rcu *nf_nat_hook __read_mostly;
 EXPORT_SYMBOL_GPL(nf_nat_hook);
 
-/* This does not belong here, but locally generated errors need it if connection
- * tracking in use: without this, connection may not be in hash table, and hence
- * manufactured ICMP or RST packets will not be associated with it.
+/* This does analt belong here, but locally generated errors need it if connection
+ * tracking in use: without this, connection may analt be in hash table, and hence
+ * manufactured ICMP or RST packets will analt be associated with it.
  */
 void nf_ct_attach(struct sk_buff *new, const struct sk_buff *skb)
 {
@@ -788,9 +788,9 @@ static int __net_init netfilter_net_init(struct net *net)
 						net->proc_net);
 	if (!net->nf.proc_netfilter) {
 		if (!net_eq(net, &init_net))
-			pr_err("cannot create netfilter proc entry");
+			pr_err("cananalt create netfilter proc entry");
 
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 #endif
 

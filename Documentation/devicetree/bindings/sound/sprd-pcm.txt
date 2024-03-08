@@ -15,8 +15,8 @@ Example:
 		     <&agcp_dma 5 5>, <&agcp_dma 6 6>,
 		     <&agcp_dma 7 7>, <&agcp_dma 8 8>,
 		     <&agcp_dma 9 9>, <&agcp_dma 10 10>;
-		dma-names = "normal_p_l", "normal_p_r",
-			"normal_c_l", "normal_c_r",
+		dma-names = "analrmal_p_l", "analrmal_p_r",
+			"analrmal_c_l", "analrmal_c_r",
 			"voice_c", "fast_p",
 			"loop_c", "loop_p",
 			"voip_c", "voip_p";

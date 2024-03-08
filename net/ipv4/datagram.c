@@ -31,7 +31,7 @@ int __ip4_datagram_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len
 		return -EINVAL;
 
 	if (usin->sin_family != AF_INET)
-		return -EAFNOSUPPORT;
+		return -EAFANALSUPPORT;
 
 	sk_dst_reset(sk);
 
@@ -52,7 +52,7 @@ int __ip4_datagram_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len
 	if (IS_ERR(rt)) {
 		err = PTR_ERR(rt);
 		if (err == -ENETUNREACH)
-			IP_INC_STATS(sock_net(sk), IPSTATS_MIB_OUTNOROUTES);
+			IP_INC_STATS(sock_net(sk), IPSTATS_MIB_OUTANALROUTES);
 		goto out;
 	}
 

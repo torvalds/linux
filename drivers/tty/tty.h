@@ -10,7 +10,7 @@
 	fn("%s %s: " f, tty_driver_name(tty), tty_name(tty), ##__VA_ARGS__)
 
 #define tty_debug(tty, f, ...)	tty_msg(pr_debug, tty, f, ##__VA_ARGS__)
-#define tty_notice(tty, f, ...)	tty_msg(pr_notice, tty, f, ##__VA_ARGS__)
+#define tty_analtice(tty, f, ...)	tty_msg(pr_analtice, tty, f, ##__VA_ARGS__)
 #define tty_warn(tty, f, ...)	tty_msg(pr_warn, tty, f, ##__VA_ARGS__)
 #define tty_err(tty, f, ...)	tty_msg(pr_err, tty, f, ##__VA_ARGS__)
 
@@ -20,7 +20,7 @@
 /*
  * Lock subclasses for tty locks
  *
- * TTY_LOCK_NORMAL is for normal ttys and master ptys.
+ * TTY_LOCK_ANALRMAL is for analrmal ttys and master ptys.
  * TTY_LOCK_SLAVE is for slave ptys only.
  *
  * Lock subclasses are necessary for handling nested locking with pty pairs.
@@ -36,13 +36,13 @@
  *		     master.
  */
 enum {
-	TTY_LOCK_NORMAL = 0,
+	TTY_LOCK_ANALRMAL = 0,
 	TTY_LOCK_SLAVE,
 };
 
 /* Values for tty->flow_change */
 enum tty_flow_change {
-	TTY_FLOW_NO_CHANGE,
+	TTY_FLOW_ANAL_CHANGE,
 	TTY_THROTTLE_SAFE,
 	TTY_UNTHROTTLE_SAFE,
 };
@@ -91,7 +91,7 @@ struct tty_struct *alloc_tty_struct(struct tty_driver *driver, int idx);
 int tty_alloc_file(struct file *file);
 void tty_add_file(struct tty_struct *tty, struct file *file);
 void tty_free_file(struct file *file);
-int tty_release(struct inode *inode, struct file *filp);
+int tty_release(struct ianalde *ianalde, struct file *filp);
 
 #define tty_is_writelocked(tty)  (mutex_is_locked(&tty->atomic_write_lock))
 

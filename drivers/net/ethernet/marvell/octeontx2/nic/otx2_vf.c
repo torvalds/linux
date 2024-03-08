@@ -39,7 +39,7 @@ static void otx2vf_process_vfaf_mbox_msg(struct otx2_nic *vf,
 {
 	if (msg->id >= MBOX_MSG_MAX) {
 		dev_err(vf->dev,
-			"Mbox msg with unknown ID %d\n", msg->id);
+			"Mbox msg with unkanalwn ID %d\n", msg->id);
 		return;
 	}
 
@@ -114,10 +114,10 @@ static int otx2vf_process_mbox_msg_up(struct otx2_nic *vf,
 	struct msg_rsp *rsp;
 	int err;
 
-	/* Check if valid, if not reply with a invalid msg */
+	/* Check if valid, if analt reply with a invalid msg */
 	if (req->sig != OTX2_MBOX_REQ_SIG) {
 		otx2_reply_invalid_msg(&vf->mbox.mbox_up, 0, 0, req->id);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	switch (req->id) {
@@ -126,7 +126,7 @@ static int otx2vf_process_mbox_msg_up(struct otx2_nic *vf,
 						&vf->mbox.mbox_up, 0,
 						sizeof(struct msg_rsp));
 		if (!rsp)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		rsp->hdr.id = MBOX_MSG_CGX_LINK_EVENT;
 		rsp->hdr.sig = OTX2_MBOX_RSP_SIG;
@@ -137,7 +137,7 @@ static int otx2vf_process_mbox_msg_up(struct otx2_nic *vf,
 		return err;
 	default:
 		otx2_reply_invalid_msg(&vf->mbox.mbox_up, 0, 0, req->id);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	return 0;
 }
@@ -200,7 +200,7 @@ static irqreturn_t otx2vf_vfaf_mbox_intr_handler(int irq, void *vf_irq)
 		       ALIGN(sizeof(struct mbox_hdr), sizeof(u64)));
 		queue_work(vf->mbox_wq, &vf->mbox.mbox_wrk);
 	}
-	/* Check for PF => VF notification messages */
+	/* Check for PF => VF analtification messages */
 	mbox = &vf->mbox.mbox_up;
 	mdev = &mbox->dev[0];
 	otx2_sync_mbox_bbuf(mbox, 0);
@@ -257,13 +257,13 @@ static int otx2vf_register_mbox_intr(struct otx2_nic *vf, bool probe_pf)
 	req = otx2_mbox_alloc_msg_ready(&vf->mbox);
 	if (!req) {
 		otx2vf_disable_mbox_intr(vf);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	err = otx2_sync_mbox_msg(&vf->mbox);
 	if (err) {
 		dev_warn(vf->dev,
-			 "AF not responding to mailbox, deferring probe\n");
+			 "AF analt responding to mailbox, deferring probe\n");
 		otx2vf_disable_mbox_intr(vf);
 		return -EPROBE_DEFER;
 	}
@@ -296,7 +296,7 @@ static int otx2vf_vfaf_mbox_init(struct otx2_nic *vf)
 	vf->mbox_wq = alloc_ordered_workqueue("otx2_vfaf_mailbox",
 					      WQ_HIGHPRI | WQ_MEM_RECLAIM);
 	if (!vf->mbox_wq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (test_bit(CN10K_MBOX, &vf->hw.cap_flag)) {
 		/* For cn10k platform, VF mailbox region is in its BAR2
@@ -314,7 +314,7 @@ static int otx2vf_vfaf_mbox_init(struct otx2_nic *vf)
 						     PCI_MBOX_BAR_NUM));
 		if (!hwbase) {
 			dev_err(vf->dev, "Unable to map VFAF mailbox region\n");
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto exit;
 		}
 	}
@@ -354,7 +354,7 @@ static int otx2vf_open(struct net_device *netdev)
 	if (err)
 		return err;
 
-	/* LBKs do not receive link events so tell everyone we are up here */
+	/* LBKs do analt receive link events so tell everyone we are up here */
 	vf = netdev_priv(netdev);
 	if (is_otx2_lbkvf(vf->pdev)) {
 		pr_info("%s NIC Link is UP\n", netdev->name);
@@ -489,7 +489,7 @@ static int otx2_wq_init(struct otx2_nic *vf)
 {
 	vf->otx2_wq = create_singlethread_workqueue("otx2vf_wq");
 	if (!vf->otx2_wq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_WORK(&vf->rx_mode_work, otx2vf_do_set_rx_mode);
 	INIT_WORK(&vf->reset_task, otx2vf_reset_task);
@@ -546,10 +546,10 @@ static int otx2vf_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	pci_set_master(pdev);
 
 	qcount = num_online_cpus();
-	qos_txqs = min_t(int, qcount, OTX2_QOS_MAX_LEAF_NODES);
+	qos_txqs = min_t(int, qcount, OTX2_QOS_MAX_LEAF_ANALDES);
 	netdev = alloc_etherdev_mqs(sizeof(*vf), qcount + qos_txqs, qcount);
 	if (!netdev) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_release_regions;
 	}
 
@@ -567,7 +567,7 @@ static int otx2vf_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	hw->rx_queues = qcount;
 	hw->tx_queues = qcount;
 	hw->max_queues = qcount;
-	hw->non_qos_queues = qcount;
+	hw->analn_qos_queues = qcount;
 	hw->rbuf_len = OTX2_DEFAULT_RBUF_LEN;
 	/* Use CQE of 128 byte descriptor size by default */
 	hw->xqe_size = 128;
@@ -575,14 +575,14 @@ static int otx2vf_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	hw->irq_name = devm_kmalloc_array(&hw->pdev->dev, num_vec, NAME_SIZE,
 					  GFP_KERNEL);
 	if (!hw->irq_name) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_free_netdev;
 	}
 
 	hw->affinity_mask = devm_kcalloc(&hw->pdev->dev, num_vec,
 					 sizeof(cpumask_var_t), GFP_KERNEL);
 	if (!hw->affinity_mask) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_free_netdev;
 	}
 
@@ -596,7 +596,7 @@ static int otx2vf_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	vf->reg_base = pcim_iomap(pdev, PCI_CFG_REG_BAR_NUM, 0);
 	if (!vf->reg_base) {
 		dev_err(dev, "Unable to map physical function CSRs, aborting\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_free_irq_vectors;
 	}
 

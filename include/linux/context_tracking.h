@@ -115,7 +115,7 @@ extern void ct_idle_exit(void);
 /*
  * Is the current CPU in an extended quiescent state?
  *
- * No ordering, as we are sampling CPU-local information.
+ * Anal ordering, as we are sampling CPU-local information.
  */
 static __always_inline bool rcu_dynticks_curr_cpu_in_eqs(void)
 {
@@ -139,7 +139,7 @@ static __always_inline bool warn_rcu_enter(void)
 	 * Horrible hack to shut up recursive RCU isn't watching fail since
 	 * lots of the actual reporting also relies on RCU.
 	 */
-	preempt_disable_notrace();
+	preempt_disable_analtrace();
 	if (rcu_dynticks_curr_cpu_in_eqs()) {
 		ret = true;
 		ct_state_inc(RCU_DYNTICKS_IDX);
@@ -152,7 +152,7 @@ static __always_inline void warn_rcu_exit(bool rcu)
 {
 	if (rcu)
 		ct_state_inc(RCU_DYNTICKS_IDX);
-	preempt_enable_notrace();
+	preempt_enable_analtrace();
 }
 
 #else

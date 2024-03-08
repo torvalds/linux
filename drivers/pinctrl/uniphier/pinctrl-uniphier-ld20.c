@@ -197,28 +197,28 @@ static const struct pinctrl_pin_desc uniphier_ld20_pins[] = {
 			     60, UNIPHIER_PIN_PULL_DOWN),
 	UNIPHIER_PINCTRL_PIN(61, "DMDSDA0", UNIPHIER_PIN_IECTRL_EXIST,
 			     -1, UNIPHIER_PIN_DRV_FIXED4,
-			     -1, UNIPHIER_PIN_PULL_NONE),
+			     -1, UNIPHIER_PIN_PULL_ANALNE),
 	UNIPHIER_PINCTRL_PIN(62, "DMDSCL0", UNIPHIER_PIN_IECTRL_EXIST,
 			     -1, UNIPHIER_PIN_DRV_FIXED4,
-			     -1, UNIPHIER_PIN_PULL_NONE),
+			     -1, UNIPHIER_PIN_PULL_ANALNE),
 	UNIPHIER_PINCTRL_PIN(63, "SDA0", UNIPHIER_PIN_IECTRL_EXIST,
 			     -1, UNIPHIER_PIN_DRV_FIXED4,
-			     -1, UNIPHIER_PIN_PULL_NONE),
+			     -1, UNIPHIER_PIN_PULL_ANALNE),
 	UNIPHIER_PINCTRL_PIN(64, "SCL0", UNIPHIER_PIN_IECTRL_EXIST,
 			     -1, UNIPHIER_PIN_DRV_FIXED4,
-			     -1, UNIPHIER_PIN_PULL_NONE),
+			     -1, UNIPHIER_PIN_PULL_ANALNE),
 	UNIPHIER_PINCTRL_PIN(65, "SDA1", UNIPHIER_PIN_IECTRL_EXIST,
 			     -1, UNIPHIER_PIN_DRV_FIXED4,
-			     -1, UNIPHIER_PIN_PULL_NONE),
+			     -1, UNIPHIER_PIN_PULL_ANALNE),
 	UNIPHIER_PINCTRL_PIN(66, "SCL1", UNIPHIER_PIN_IECTRL_EXIST,
 			     -1, UNIPHIER_PIN_DRV_FIXED4,
-			     -1, UNIPHIER_PIN_PULL_NONE),
+			     -1, UNIPHIER_PIN_PULL_ANALNE),
 	UNIPHIER_PINCTRL_PIN(67, "HIN", UNIPHIER_PIN_IECTRL_EXIST,
 			     -1, UNIPHIER_PIN_DRV_FIXED4,
-			     -1, UNIPHIER_PIN_PULL_NONE),
+			     -1, UNIPHIER_PIN_PULL_ANALNE),
 	UNIPHIER_PINCTRL_PIN(68, "VIN", UNIPHIER_PIN_IECTRL_EXIST,
 			     -1, UNIPHIER_PIN_DRV_FIXED4,
-			     -1, UNIPHIER_PIN_PULL_NONE),
+			     -1, UNIPHIER_PIN_PULL_ANALNE),
 	UNIPHIER_PINCTRL_PIN(69, "PCA00", UNIPHIER_PIN_IECTRL_EXIST,
 			     49, UNIPHIER_PIN_DRV_3BIT,
 			     69, UNIPHIER_PIN_PULL_DOWN),
@@ -634,7 +634,7 @@ static const unsigned nand_pins[] = {3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14,
 				     15, 16, 17};
 static const int nand_muxvals[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 static const unsigned sd_pins[] = {10, 11, 12, 13, 14, 15, 16, 17};
-static const int sd_muxvals[] = {3, 3, 3, 3, 3, 3, 3, 3};  /* No SDVOLC */
+static const int sd_muxvals[] = {3, 3, 3, 3, 3, 3, 3, 3};  /* Anal SDVOLC */
 static const unsigned spi0_pins[] = {56, 57, 58, 59};
 static const int spi0_muxvals[] = {0, 0, 0, 0};
 static const unsigned spi1_pins[] = {169, 170, 171, 172};

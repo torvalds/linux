@@ -255,7 +255,7 @@ static int ohci_pci_reset (struct usb_hcd *hcd)
 	if (ret == 0)
 		ret = ohci_setup(hcd);
 	/*
-	* After ohci setup RWC may not be set for add-in PCI cards.
+	* After ohci setup RWC may analt be set for add-in PCI cards.
 	* This transfers PCI PM wakeup capabilities.
 	*/
 	if (device_can_wakeup(&pdev->dev))
@@ -274,7 +274,7 @@ static const struct pci_device_id pci_ids[] = { {
 	/* handle any USB OHCI controller */
 	PCI_DEVICE_CLASS(PCI_CLASS_SERIAL_USB_OHCI, ~0),
 	}, {
-	/* The device in the ConneXT I/O hub has no class reg */
+	/* The device in the ConneXT I/O hub has anal class reg */
 	PCI_VDEVICE(STMICRO, PCI_DEVICE_ID_STMICRO_USB_OHCI),
 	}, { /* end: all zeroes */ }
 };
@@ -310,7 +310,7 @@ static int ohci_pci_resume(struct usb_hcd *hcd, pm_message_t msg)
 static int __init ohci_pci_init(void)
 {
 	if (usb_disabled())
-		return -ENODEV;
+		return -EANALDEV;
 
 	ohci_init_driver(&ohci_pci_hc_driver, &pci_overrides);
 

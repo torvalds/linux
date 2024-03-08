@@ -40,7 +40,7 @@
 #define IRDMA_OP_TYPE_FAST_REG_NSMR		0x09
 #define IRDMA_OP_TYPE_INV_STAG			0x0a
 #define IRDMA_OP_TYPE_RDMA_READ_INV_STAG	0x0b
-#define IRDMA_OP_TYPE_NOP			0x0c
+#define IRDMA_OP_TYPE_ANALP			0x0c
 #define IRDMA_OP_TYPE_REC	0x3e
 #define IRDMA_OP_TYPE_REC_IMM	0x3f
 
@@ -120,8 +120,8 @@ enum irdma_cmpl_status {
 	IRDMA_COMPL_STATUS_WRAP_ERROR,
 	IRDMA_COMPL_STATUS_STAG_INVALID_PDID,
 	IRDMA_COMPL_STATUS_RDMA_READ_ZERO_ORD,
-	IRDMA_COMPL_STATUS_QP_NOT_PRIVLEDGED,
-	IRDMA_COMPL_STATUS_STAG_NOT_INVALID,
+	IRDMA_COMPL_STATUS_QP_ANALT_PRIVLEDGED,
+	IRDMA_COMPL_STATUS_STAG_ANALT_INVALID,
 	IRDMA_COMPL_STATUS_INVALID_PHYS_BUF_SIZE,
 	IRDMA_COMPL_STATUS_INVALID_PHYS_BUF_ENTRY,
 	IRDMA_COMPL_STATUS_INVALID_FBO,
@@ -132,10 +132,10 @@ enum irdma_cmpl_status {
 	IRDMA_COMPL_STATUS_INVALID_REGION,
 	IRDMA_COMPL_STATUS_INVALID_WINDOW,
 	IRDMA_COMPL_STATUS_INVALID_TOTAL_LEN,
-	IRDMA_COMPL_STATUS_UNKNOWN,
+	IRDMA_COMPL_STATUS_UNKANALWN,
 };
 
-enum irdma_cmpl_notify {
+enum irdma_cmpl_analtify {
 	IRDMA_CQ_COMPL_EVENT     = 0,
 	IRDMA_CQ_COMPL_SOLICITED = 1,
 };
@@ -241,7 +241,7 @@ struct irdma_cq_poll_info {
 	irdma_stag inv_stag; /* or L_R_Key */
 	enum irdma_cmpl_status comp_status;
 	u16 major_err;
-	u16 minor_err;
+	u16 mianalr_err;
 	u16 ud_vlan;
 	u8 ud_smac[6];
 	u8 op_type;
@@ -259,7 +259,7 @@ int irdma_uk_inline_rdma_write(struct irdma_qp_uk *qp,
 			       struct irdma_post_sq_info *info, bool post_sq);
 int irdma_uk_inline_send(struct irdma_qp_uk *qp,
 			 struct irdma_post_sq_info *info, bool post_sq);
-int irdma_uk_post_nop(struct irdma_qp_uk *qp, u64 wr_id, bool signaled,
+int irdma_uk_post_analp(struct irdma_qp_uk *qp, u64 wr_id, bool signaled,
 		      bool post_sq);
 int irdma_uk_post_receive(struct irdma_qp_uk *qp,
 			  struct irdma_post_rq_info *info);
@@ -286,8 +286,8 @@ struct irdma_wqe_uk_ops {
 
 int irdma_uk_cq_poll_cmpl(struct irdma_cq_uk *cq,
 			  struct irdma_cq_poll_info *info);
-void irdma_uk_cq_request_notification(struct irdma_cq_uk *cq,
-				      enum irdma_cmpl_notify cq_notify);
+void irdma_uk_cq_request_analtification(struct irdma_cq_uk *cq,
+				      enum irdma_cmpl_analtify cq_analtify);
 void irdma_uk_cq_resize(struct irdma_cq_uk *cq, void *cq_base, int size);
 void irdma_uk_cq_set_resized_cnt(struct irdma_cq_uk *qp, u16 cnt);
 void irdma_uk_cq_init(struct irdma_cq_uk *cq,
@@ -400,7 +400,7 @@ __le64 *irdma_qp_get_next_send_wqe(struct irdma_qp_uk *qp, u32 *wqe_idx,
 				   struct irdma_post_sq_info *info);
 __le64 *irdma_qp_get_next_recv_wqe(struct irdma_qp_uk *qp, u32 *wqe_idx);
 void irdma_uk_clean_cq(void *q, struct irdma_cq_uk *cq);
-int irdma_nop(struct irdma_qp_uk *qp, u64 wr_id, bool signaled, bool post_sq);
+int irdma_analp(struct irdma_qp_uk *qp, u64 wr_id, bool signaled, bool post_sq);
 int irdma_fragcnt_to_quanta_sq(u32 frag_cnt, u16 *quanta);
 int irdma_fragcnt_to_wqesize_rq(u32 frag_cnt, u16 *wqe_size);
 void irdma_get_wqe_shift(struct irdma_uk_attrs *uk_attrs, u32 sge,

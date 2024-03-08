@@ -20,7 +20,7 @@ allOf:
   - $ref: dai-common.yaml#
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^dmic@[0-9a-f]*$"
 
   compatible:

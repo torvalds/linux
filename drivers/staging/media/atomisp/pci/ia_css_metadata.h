@@ -30,7 +30,7 @@
 struct ia_css_metadata_config {
 	enum atomisp_input_format data_type; /** Data type of CSI-2 embedded
 			data. The default value is ATOMISP_INPUT_FORMAT_EMBEDDED. For
-			certain sensors, user can choose non-default data type for embedded
+			certain sensors, user can choose analn-default data type for embedded
 			data. */
 	struct ia_css_resolution  resolution; /** Resolution */
 };
@@ -63,7 +63,7 @@ ia_css_metadata_allocate(const struct ia_css_metadata_info *metadata_info);
 /* @brief Free a metadata buffer.
  *
  * @param[in]	metadata	Pointer of metadata buffer.
- * @return	None
+ * @return	Analne
  *
  * This function frees a metadata buffer.
  */

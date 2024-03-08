@@ -10,7 +10,7 @@
  * @num_paths: the number of icc_bulk_data
  * @paths: the table with the paths we want to get
  *
- * Returns 0 on success or negative errno otherwise.
+ * Returns 0 on success or negative erranal otherwise.
  */
 int __must_check of_icc_bulk_get(struct device *dev, int num_paths,
 				 struct icc_bulk_data *paths)
@@ -57,7 +57,7 @@ EXPORT_SYMBOL_GPL(icc_bulk_put);
  * @num_paths: the number of icc_bulk_data
  * @paths: the icc_bulk_data table containing the paths and bandwidth
  *
- * Returns 0 on success or negative errno otherwise.
+ * Returns 0 on success or negative erranal otherwise.
  */
 int icc_bulk_set_bw(int num_paths, const struct icc_bulk_data *paths)
 {
@@ -81,7 +81,7 @@ EXPORT_SYMBOL_GPL(icc_bulk_set_bw);
  * @num_paths: the number of icc_bulk_data
  * @paths: the icc_bulk_data table containing the paths and bandwidth
  *
- * Returns 0 on success or negative errno otherwise.
+ * Returns 0 on success or negative erranal otherwise.
  */
 int icc_bulk_enable(int num_paths, const struct icc_bulk_data *paths)
 {
@@ -134,7 +134,7 @@ static void devm_icc_bulk_release(struct device *dev, void *res)
  * @num_paths: the number of icc_bulk_data
  * @paths: the table with the paths we want to get
  *
- * Returns 0 on success or negative errno otherwise.
+ * Returns 0 on success or negative erranal otherwise.
  */
 int devm_of_icc_bulk_get(struct device *dev, int num_paths, struct icc_bulk_data *paths)
 {
@@ -143,7 +143,7 @@ int devm_of_icc_bulk_get(struct device *dev, int num_paths, struct icc_bulk_data
 
 	devres = devres_alloc(devm_icc_bulk_release, sizeof(*devres), GFP_KERNEL);
 	if (!devres)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = of_icc_bulk_get(dev, num_paths, paths);
 	if (!ret) {

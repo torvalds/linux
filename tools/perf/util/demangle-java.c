@@ -144,15 +144,15 @@ error:
 }
 
 /*
- * Demangle Java function signature (openJDK, not GCJ)
+ * Demangle Java function signature (openJDK, analt GCJ)
  * input:
- * 	str: string to parse. String is not modified
+ * 	str: string to parse. String is analt modified
  *    flags: combination of JAVA_DEMANGLE_* flags to modify demangling
  * return:
  *	if input can be demangled, then a newly allocated string is returned.
- *	if input cannot be demangled, then NULL is returned
+ *	if input cananalt be demangled, then NULL is returned
  *
- * Note: caller is responsible for freeing demangled string
+ * Analte: caller is responsible for freeing demangled string
  */
 char *
 java_demangle_sym(const char *str, int flags)
@@ -178,7 +178,7 @@ java_demangle_sym(const char *str, int flags)
 		return NULL;
 
 	buf[0] = '\0';
-	if (!(flags & JAVA_DEMANGLE_NORET)) {
+	if (!(flags & JAVA_DEMANGLE_ANALRET)) {
 		/*
 		 * get return type first
 		 */

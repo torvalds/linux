@@ -14,7 +14,7 @@
 #include <asm/cacheflush.h>
 #include <linux/uaccess.h>
 
-/* We do not have hardware single-stepping on sparc64.
+/* We do analt have hardware single-stepping on sparc64.
  * So we implement software single-stepping with breakpoint
  * traps.  The top-level scheme is similar to that used
  * in the x86 kprobes implementation.
@@ -39,7 +39,7 @@
  *   restore the PIL interrupt level in "regs->tstate" as well
  * - Make any adjustments necessary to regs->tnpc in order
  *   to handle relative branches correctly.  See below.
- * - Mark that we are no longer actively in a kprobe.
+ * - Mark that we are anal longer actively in a kprobe.
  */
 
 DEFINE_PER_CPU(struct kprobe *, current_kprobe) = NULL;
@@ -133,10 +133,10 @@ static int __kprobes kprobe_handler(struct pt_regs *regs)
 			if (kcb->kprobe_status == KPROBE_HIT_SS) {
 				regs->tstate = ((regs->tstate & ~TSTATE_PIL) |
 					kcb->kprobe_orig_tstate_pil);
-				goto no_kprobe;
+				goto anal_kprobe;
 			}
 			/* We have reentered the kprobe_handler(), since
-			 * another probe was hit while within the handler.
+			 * aanalther probe was hit while within the handler.
 			 * We here save the original kprobes variables and
 			 * just single step on the instruction of the new probe
 			 * without calling any user handlers.
@@ -149,12 +149,12 @@ static int __kprobes kprobe_handler(struct pt_regs *regs)
 			return 1;
 		} else if (*(u32 *)addr != BREAKPOINT_INSTRUCTION) {
 			/* The breakpoint instruction was removed by
-			 * another cpu right after we hit, no further
+			 * aanalther cpu right after we hit, anal further
 			 * handling of this interrupt is appropriate
 			 */
 			ret = 1;
 		}
-		goto no_kprobe;
+		goto anal_kprobe;
 	}
 
 	p = get_kprobe(addr);
@@ -162,22 +162,22 @@ static int __kprobes kprobe_handler(struct pt_regs *regs)
 		if (*(u32 *)addr != BREAKPOINT_INSTRUCTION) {
 			/*
 			 * The breakpoint instruction was removed right
-			 * after we hit it.  Another cpu has removed
+			 * after we hit it.  Aanalther cpu has removed
 			 * either a probepoint or a debugger breakpoint
-			 * at this address.  In either case, no further
+			 * at this address.  In either case, anal further
 			 * handling of this interrupt is appropriate.
 			 */
 			ret = 1;
 		}
-		/* Not one of ours: let kernel handle it */
-		goto no_kprobe;
+		/* Analt one of ours: let kernel handle it */
+		goto anal_kprobe;
 	}
 
 	set_current_kprobe(p, regs, kcb);
 	kcb->kprobe_status = KPROBE_HIT_ACTIVE;
 	if (p->pre_handler && p->pre_handler(p, regs)) {
 		reset_current_kprobe();
-		preempt_enable_no_resched();
+		preempt_enable_anal_resched();
 		return 1;
 	}
 
@@ -185,8 +185,8 @@ static int __kprobes kprobe_handler(struct pt_regs *regs)
 	kcb->kprobe_status = KPROBE_HIT_SS;
 	return 1;
 
-no_kprobe:
-	preempt_enable_no_resched();
+anal_kprobe:
+	preempt_enable_anal_resched();
 	return ret;
 }
 
@@ -203,7 +203,7 @@ static unsigned long __kprobes relbranch_fixup(u32 insn, struct kprobe *p,
 {
 	unsigned long real_pc = (unsigned long) p->addr;
 
-	/* Branch not taken, no mods necessary.  */
+	/* Branch analt taken, anal mods necessary.  */
 	if (regs->tnpc == regs->tpc + 0x4UL)
 		return real_pc + 0x8UL;
 
@@ -312,7 +312,7 @@ static int __kprobes post_kprobe_handler(struct pt_regs *regs)
 	}
 	reset_current_kprobe();
 out:
-	preempt_enable_no_resched();
+	preempt_enable_anal_resched();
 
 	return 1;
 }
@@ -331,7 +331,7 @@ int __kprobes kprobe_fault_handler(struct pt_regs *regs, int trapnr)
 		 * stepped caused a page fault. We reset the current
 		 * kprobe and the tpc points back to the probe address
 		 * and allow the page fault handler to continue as a
-		 * normal page fault.
+		 * analrmal page fault.
 		 */
 		regs->tpc = (unsigned long)cur->addr;
 		regs->tnpc = kcb->kprobe_orig_tnpc;
@@ -341,7 +341,7 @@ int __kprobes kprobe_fault_handler(struct pt_regs *regs, int trapnr)
 			restore_previous_kprobe(kcb);
 		else
 			reset_current_kprobe();
-		preempt_enable_no_resched();
+		preempt_enable_anal_resched();
 		break;
 	case KPROBE_HIT_ACTIVE:
 	case KPROBE_HIT_SSDONE:
@@ -358,7 +358,7 @@ int __kprobes kprobe_fault_handler(struct pt_regs *regs, int trapnr)
 		}
 
 		/*
-		 * fixup_exception() could not handle it,
+		 * fixup_exception() could analt handle it,
 		 * Let do_page_fault() fix it.
 		 */
 		break;
@@ -372,11 +372,11 @@ int __kprobes kprobe_fault_handler(struct pt_regs *regs, int trapnr)
 /*
  * Wrapper routine to for handling exceptions.
  */
-int __kprobes kprobe_exceptions_notify(struct notifier_block *self,
+int __kprobes kprobe_exceptions_analtify(struct analtifier_block *self,
 				       unsigned long val, void *data)
 {
 	struct die_args *args = (struct die_args *)data;
-	int ret = NOTIFY_DONE;
+	int ret = ANALTIFY_DONE;
 
 	if (args->regs && user_mode(args->regs))
 		return ret;
@@ -384,11 +384,11 @@ int __kprobes kprobe_exceptions_notify(struct notifier_block *self,
 	switch (val) {
 	case DIE_DEBUG:
 		if (kprobe_handler(args->regs))
-			ret = NOTIFY_STOP;
+			ret = ANALTIFY_STOP;
 		break;
 	case DIE_DEBUG_2:
 		if (post_kprobe_handler(args->regs))
-			ret = NOTIFY_STOP;
+			ret = ANALTIFY_STOP;
 		break;
 	default:
 		break;
@@ -412,9 +412,9 @@ asmlinkage void __kprobes kprobe_trap(unsigned long trap_level,
 	/* trap_level == 0x170 --> ta 0x70
 	 * trap_level == 0x171 --> ta 0x71
 	 */
-	if (notify_die((trap_level == 0x170) ? DIE_DEBUG : DIE_DEBUG_2,
+	if (analtify_die((trap_level == 0x170) ? DIE_DEBUG : DIE_DEBUG_2,
 		       (trap_level == 0x170) ? "debug" : "debug_2",
-		       regs, 0, trap_level, SIGTRAP) != NOTIFY_STOP)
+		       regs, 0, trap_level, SIGTRAP) != ANALTIFY_STOP)
 		bad_trap(regs, trap_level);
 out:
 	exception_exit(prev_state);
@@ -425,10 +425,10 @@ out:
  * Sequences usually look something like this
  *
  *		call	some_function	<--- return register points here
- *		 nop			<--- call delay slot
+ *		 analp			<--- call delay slot
  *		whatever		<--- where callee returns to
  *
- * To keep trampoline_probe_handler logic simpler, we normalize the
+ * To keep trampoline_probe_handler logic simpler, we analrmalize the
  * value kept in ri->ret_addr so we don't need to keep adjusting it
  * back and forth.
  */
@@ -456,7 +456,7 @@ static int __kprobes trampoline_probe_handler(struct kprobe *p,
 	regs->tnpc = orig_ret_address + 4;
 
 	/*
-	 * By returning a non-zero value, we are telling
+	 * By returning a analn-zero value, we are telling
 	 * kprobe_handler() that we don't want the post_handler
 	 * to run (and have re-enabled preemption)
 	 */
@@ -467,8 +467,8 @@ static void __used kretprobe_trampoline_holder(void)
 {
 	asm volatile(".global __kretprobe_trampoline\n"
 		     "__kretprobe_trampoline:\n"
-		     "\tnop\n"
-		     "\tnop\n");
+		     "\tanalp\n"
+		     "\tanalp\n");
 }
 static struct kprobe trampoline_p = {
 	.addr = (kprobe_opcode_t *) &__kretprobe_trampoline,

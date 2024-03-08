@@ -34,7 +34,7 @@ c_b="ns-cb-$rnd"
 
 checktool (){
 	if ! $1 > /dev/null 2>&1; then
-		echo "SKIP: Could not $2"
+		echo "SKIP: Could analt $2"
 		exit $ksft_skip
 	fi
 }
@@ -85,11 +85,11 @@ test_path() {
 # Interfaces:
 # eth0: 10.2.2.1/24
 # eth1: 192.168.10.1/24
-# ipip0: No IP address, local 10.2.2.1 remote 10.4.4.1
+# ipip0: Anal IP address, local 10.2.2.1 remote 10.4.4.1
 # Routes:
 # 192.168.20.0/24 dev ipip0    (192.168.20.0/24 is subnet of Client B)
 # 10.4.4.1 via 10.2.2.254      (Router B via Wanrouter)
-# No iptables rules at all.
+# Anal iptables rules at all.
 
 ip link add veth0 netns ${r_a} type veth peer name veth0 netns ${r_w}
 ip link add veth1 netns ${r_a} type veth peer name veth0 netns ${c_a}
@@ -115,11 +115,11 @@ ip netns exec ${r_a} sysctl -q net.ipv4.conf.all.forwarding=1 > /dev/null
 # Interfaces:
 # eth0: 10.4.4.1/24
 # eth1: 192.168.20.1/24
-# ipip0: No IP address, local 10.4.4.1 remote 10.2.2.1
+# ipip0: Anal IP address, local 10.4.4.1 remote 10.2.2.1
 # Routes:
 # 192.168.10.0/24 dev ipip0    (192.168.10.0/24 is subnet of Client A)
 # 10.2.2.1 via 10.4.4.254      (Router A via Wanrouter)
-# No iptables rules at all.
+# Anal iptables rules at all.
 
 ip link add veth0 netns ${r_b} type veth peer name veth1 netns ${r_w}
 ip link add veth1 netns ${r_b} type veth peer name veth0 netns ${c_b}
@@ -175,7 +175,7 @@ ip netns exec ${r_w} sysctl -q net.ipv4.conf.all.forwarding=1 > /dev/null
 # 1:  192.168.10.1                                          0.867ms
 # 1:  192.168.10.1                                          0.302ms
 # 2:  192.168.10.1                                          0.312ms pmtu 1480
-# 2:  no reply
+# 2:  anal reply
 # 3:  192.168.10.1                                          0.510ms pmtu 1380
 # 3:  192.168.20.2                                          2.320ms reached
 # Resume: pmtu 1380 hops 3 back 3
@@ -188,17 +188,17 @@ ip netns exec ${r_w} sysctl -q net.ipv4.conf.all.forwarding=1 > /dev/null
 
 #Send large UDP packet
 #---------------------
-#Now we send a 1400 bytes UDP packet from Client A to Client B:
+#Analw we send a 1400 bytes UDP packet from Client A to Client B:
 
 # clienta:~# head -c1400 /dev/zero | tr "\000" "a" | socat -u STDIN UDP:192.168.20.2:5000
 test_path "without"
 
-# The IPv4 stack on Client A already knows the PMTU to Client B, so the
+# The IPv4 stack on Client A already kanalws the PMTU to Client B, so the
 # UDP packet is sent as two fragments (1380 + 20). Router A forwards the
 # fragments between eth1 and ipip0. The fragments fit into the tunnel and
 # reach their destination.
 
-#When sending the large UDP packet again, Router A now reassembles the
+#When sending the large UDP packet again, Router A analw reassembles the
 #fragments before routing the packet over ipip0. The resulting IPIP
 #packet is too big (1400) for the tunnel PMTU (1380) to Router B, it is
 #dropped on Router A before sending.

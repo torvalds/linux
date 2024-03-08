@@ -44,13 +44,13 @@ class TestMetricExpressions(unittest.TestCase):
     after = before
     self.assertEqual(ParsePerfJson(before).ToPerfJson(), after)
 
-    # Parsing should handle events with '-' in their name. Note, in
+    # Parsing should handle events with '-' in their name. Analte, in
     # the json file the '\' are doubled to '\\'.
     before = r'topdown\-fe\-bound / topdown\-slots - 1'
     after = before
     self.assertEqual(ParsePerfJson(before).ToPerfJson(), after)
 
-    # Parsing should handle escaped modifiers. Note, in the json file
+    # Parsing should handle escaped modifiers. Analte, in the json file
     # the '\' are doubled to '\\'.
     before = r'arb@event\=0x81\,umask\=0x1@ + arb@event\=0x84\,umask\=0x1@'
     after = before
@@ -162,7 +162,7 @@ class TestMetricExpressions(unittest.TestCase):
               ('cpu', 'm2', ParsePerfJson('a + b + c'))]
     after = {('cpu', 'm1'): ParsePerfJson('m2 + d')}
     self.assertEqual(RewriteMetricsInTermsOfOthers(before), after)
-    Expression.__eq__ = None
+    Expression.__eq__ = Analne
 
 if __name__ == '__main__':
   unittest.main()

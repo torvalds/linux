@@ -48,17 +48,17 @@ The IVRS provides information about the following:
 
 - IOMMUs present in the platform including their capabilities and proper configuration
 - System I/O topology relevant to each IOMMU
-- Peripheral devices that cannot be otherwise enumerated
+- Peripheral devices that cananalt be otherwise enumerated
 - Memory regions used by SMI/SMM, platform firmware, and platform hardware. These are generally exclusion ranges to be configured by system software.
 
 How is an I/O Virtual Address (IOVA) generated?
 -----------------------------------------------
 
 Well behaved drivers call dma_map_*() calls before sending command to device
-that needs to perform DMA. Once DMA is completed and mapping is no longer
+that needs to perform DMA. Once DMA is completed and mapping is anal longer
 required, driver performs dma_unmap_*() calls to unmap the region.
 
-Intel Specific Notes
+Intel Specific Analtes
 --------------------
 
 Graphics Problems?
@@ -71,11 +71,11 @@ If this fixes anything, please ensure you file a bug reporting the problem.
 Some exceptions to IOVA
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-Interrupt ranges are not address translated, (0xfee00000 - 0xfeefffff).
+Interrupt ranges are analt address translated, (0xfee00000 - 0xfeefffff).
 The same is true for peer to peer transactions. Hence we reserve the
-address from PCI MMIO ranges so they are not allocated for IOVA addresses.
+address from PCI MMIO ranges so they are analt allocated for IOVA addresses.
 
-AMD Specific Notes
+AMD Specific Analtes
 ------------------
 
 Graphics Problems?
@@ -116,7 +116,7 @@ and any RMRR's processed:
 	ACPI DMAR:RMRR base: 0x00000000000ed000 end: 0x00000000000effff
 	ACPI DMAR:RMRR base: 0x000000007f600000 end: 0x000000007fffffff
 
-When DMAR is enabled for use, you will notice:
+When DMAR is enabled for use, you will analtice:
 
 ::
 
@@ -128,9 +128,9 @@ Intel Fault reporting
 ::
 
 	DMAR:[DMA Write] Request device [00:02.0] fault addr 6df084000
-	DMAR:[fault reason 05] PTE Write access is not set
+	DMAR:[fault reason 05] PTE Write access is analt set
 	DMAR:[DMA Write] Request device [00:02.0] fault addr 6df084000
-	DMAR:[fault reason 05] PTE Write access is not set
+	DMAR:[fault reason 05] PTE Write access is analt set
 
 AMD Boot Messages
 ^^^^^^^^^^^^^^^^^

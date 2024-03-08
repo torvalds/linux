@@ -153,7 +153,7 @@
 
 		rmi4-f01@1 {
 			reg = <0x1>;
-			syna,nosleep-mode = <1>;
+			syna,analsleep-mode = <1>;
 		};
 
 		rmi4-f12@12 {
@@ -297,7 +297,7 @@
 &pm8941_gpios {
 	gpio_keys_pin_a: gpio-keys-active-state {
 		pins = "gpio2", "gpio3";
-		function = "normal";
+		function = "analrmal";
 
 		bias-pull-up;
 		power-source = <PM8941_GPIO_S3>;
@@ -305,7 +305,7 @@
 
 	fuelgauge_pin: fuelgauge-int-state {
 		pins = "gpio9";
-		function = "normal";
+		function = "analrmal";
 
 		bias-disable;
 		input-enable;
@@ -322,7 +322,7 @@
 
 	wlan_regulator_pin: wl-reg-active-state {
 		pins = "gpio17";
-		function = "normal";
+		function = "analrmal";
 
 		bias-disable;
 		power-source = <PM8941_GPIO_S3>;
@@ -590,7 +590,7 @@
 	max-frequency = <100000000>;
 	vmmc-supply = <&vreg_wlan>;
 	vqmmc-supply = <&pm8941_s3>;
-	non-removable;
+	analn-removable;
 
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&sdc2_on>;

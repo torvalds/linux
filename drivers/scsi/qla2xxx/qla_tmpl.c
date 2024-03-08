@@ -137,7 +137,7 @@ qla27xx_fwdt_entry_t0(struct scsi_qla_host *vha,
 	struct qla27xx_fwdt_entry *ent, void *buf, ulong *len)
 {
 	ql_dbg(ql_dbg_misc, vha, 0xd100,
-	    "%s: nop [%lx]\n", __func__, *len);
+	    "%s: analp [%lx]\n", __func__, *len);
 	qla27xx_skip_entry(ent, buf);
 
 	return qla27xx_next_entry(ent);
@@ -293,7 +293,7 @@ qla27xx_fwdt_entry_t262(struct scsi_qla_host *vha,
 		}
 	} else {
 		ql_dbg(ql_dbg_misc, vha, 0xd022,
-		    "%s: unknown area %x\n", __func__, area);
+		    "%s: unkanalwn area %x\n", __func__, area);
 		qla27xx_skip_entry(ent, buf);
 		goto done;
 	}
@@ -375,7 +375,7 @@ qla27xx_fwdt_entry_t263(struct scsi_qla_host *vha,
 		}
 	} else {
 		ql_dbg(ql_dbg_misc, vha, 0xd026,
-		    "%s: unknown queue %x\n", __func__, type);
+		    "%s: unkanalwn queue %x\n", __func__, type);
 		qla27xx_skip_entry(ent, buf);
 	}
 
@@ -514,7 +514,7 @@ qla27xx_fwdt_entry_t268(struct scsi_qla_host *vha,
 	case T268_BUF_TYPE_REQ_MIRROR:
 	case T268_BUF_TYPE_RSP_MIRROR:
 		/*
-		 * Mirror pointers are not implemented in the
+		 * Mirror pointers are analt implemented in the
 		 * driver, instead shadow pointers are used by
 		 * the drier. Skip these entries.
 		 */
@@ -522,7 +522,7 @@ qla27xx_fwdt_entry_t268(struct scsi_qla_host *vha,
 		break;
 	default:
 		ql_dbg(ql_dbg_async, vha, 0xd02b,
-		    "%s: unknown buffer %x\n", __func__, ent->t268.buf_type);
+		    "%s: unkanalwn buffer %x\n", __func__, ent->t268.buf_type);
 		qla27xx_skip_entry(ent, buf);
 		break;
 	}
@@ -674,7 +674,7 @@ qla27xx_fwdt_entry_t274(struct scsi_qla_host *vha,
 		}
 	} else {
 		ql_dbg(ql_dbg_misc, vha, 0xd02f,
-		    "%s: unknown queue %lx\n", __func__, type);
+		    "%s: unkanalwn queue %lx\n", __func__, type);
 		qla27xx_skip_entry(ent, buf);
 	}
 
@@ -728,7 +728,7 @@ qla27xx_fwdt_entry_t276(struct scsi_qla_host *vha,
 		ulong cond1 = le32_to_cpu(ent->t276.cond1);
 		ulong cond2 = le32_to_cpu(ent->t276.cond2);
 		uint type = vha->hw->pdev->device >> 4 & 0xf;
-		uint func = vha->hw->port_no & 0x3;
+		uint func = vha->hw->port_anal & 0x3;
 
 		if (type != cond1 || func != cond2) {
 			struct qla27xx_fwdt_template *tmp = buf;
@@ -793,7 +793,7 @@ static struct {
 	uint type;
 	typeof(qla27xx_fwdt_entry_other)(*call);
 } qla27xx_fwdt_entry_call[] = {
-	{ ENTRY_TYPE_NOP,		qla27xx_fwdt_entry_t0    },
+	{ ENTRY_TYPE_ANALP,		qla27xx_fwdt_entry_t0    },
 	{ ENTRY_TYPE_TMP_END,		qla27xx_fwdt_entry_t255  },
 	{ ENTRY_TYPE_RD_IOB_T1,		qla27xx_fwdt_entry_t256  },
 	{ ENTRY_TYPE_WR_IOB_T1,		qla27xx_fwdt_entry_t257  },
@@ -897,8 +897,8 @@ qla27xx_firmware_info(struct scsi_qla_host *vha,
     struct qla27xx_fwdt_template *tmp)
 {
 	tmp->firmware_version[0] = cpu_to_le32(vha->hw->fw_major_version);
-	tmp->firmware_version[1] = cpu_to_le32(vha->hw->fw_minor_version);
-	tmp->firmware_version[2] = cpu_to_le32(vha->hw->fw_subminor_version);
+	tmp->firmware_version[1] = cpu_to_le32(vha->hw->fw_mianalr_version);
+	tmp->firmware_version[2] = cpu_to_le32(vha->hw->fw_submianalr_version);
 	tmp->firmware_version[3] = cpu_to_le32(
 		vha->hw->fw_attributes_h << 16 | vha->hw->fw_attributes);
 	tmp->firmware_version[4] = cpu_to_le32(
@@ -1010,7 +1010,7 @@ qla27xx_mpi_fwdump(scsi_qla_host_t *vha, int hardware_locked)
 	if (!hardware_locked)
 		spin_lock_irqsave(&vha->hw->hardware_lock, flags);
 	if (!vha->hw->mpi_fw_dump) {
-		ql_log(ql_log_warn, vha, 0x02f3, "-> mpi_fwdump no buffer\n");
+		ql_log(ql_log_warn, vha, 0x02f3, "-> mpi_fwdump anal buffer\n");
 	} else {
 		struct fwdt *fwdt = &vha->hw->fwdt[1];
 		ulong len;
@@ -1029,7 +1029,7 @@ qla27xx_mpi_fwdump(scsi_qla_host_t *vha, int hardware_locked)
 		ql_log(ql_log_warn, vha, 0x02f5, "-> fwdt1 running...\n");
 		if (!fwdt->template) {
 			ql_log(ql_log_warn, vha, 0x02f6,
-			       "-> fwdt1 no template\n");
+			       "-> fwdt1 anal template\n");
 			goto bailout;
 		}
 		len = qla27xx_execute_fwdt_template(vha, fwdt->template, buf);
@@ -1049,7 +1049,7 @@ qla27xx_mpi_fwdump(scsi_qla_host_t *vha, int hardware_locked)
 
 		ql_log(ql_log_warn, vha, 0x02f8,
 		       "-> MPI firmware dump saved to buffer (%lu/%p)\n",
-		       vha->host_no, vha->hw->mpi_fw_dump);
+		       vha->host_anal, vha->hw->mpi_fw_dump);
 		qla2x00_post_uevent_work(vha, QLA_UEVENT_CODE_FW_DUMP);
 	}
 
@@ -1064,10 +1064,10 @@ qla27xx_fwdump(scsi_qla_host_t *vha)
 	lockdep_assert_held(&vha->hw->hardware_lock);
 
 	if (!vha->hw->fw_dump) {
-		ql_log(ql_log_warn, vha, 0xd01e, "-> fwdump no buffer\n");
+		ql_log(ql_log_warn, vha, 0xd01e, "-> fwdump anal buffer\n");
 	} else if (vha->hw->fw_dumped) {
 		ql_log(ql_log_warn, vha, 0xd01f,
-		    "-> Firmware already dumped (%p) -- ignoring request\n",
+		    "-> Firmware already dumped (%p) -- iganalring request\n",
 		    vha->hw->fw_dump);
 	} else {
 		struct fwdt *fwdt = vha->hw->fwdt;
@@ -1077,7 +1077,7 @@ qla27xx_fwdump(scsi_qla_host_t *vha)
 		ql_log(ql_log_warn, vha, 0xd011, "-> fwdt0 running...\n");
 		if (!fwdt->template) {
 			ql_log(ql_log_warn, vha, 0xd012,
-			       "-> fwdt0 no template\n");
+			       "-> fwdt0 anal template\n");
 			return;
 		}
 		len = qla27xx_execute_fwdt_template(vha, fwdt->template, buf);
@@ -1094,7 +1094,7 @@ qla27xx_fwdump(scsi_qla_host_t *vha)
 
 		ql_log(ql_log_warn, vha, 0xd015,
 		    "-> Firmware dump saved to buffer (%lu/%p) <%lx>\n",
-		    vha->host_no, vha->hw->fw_dump, vha->hw->fw_dump_cap_flags);
+		    vha->host_anal, vha->hw->fw_dump, vha->hw->fw_dump_cap_flags);
 		qla2x00_post_uevent_work(vha, QLA_UEVENT_CODE_FW_DUMP);
 	}
 }

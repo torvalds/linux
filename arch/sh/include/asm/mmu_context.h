@@ -30,9 +30,9 @@
 #define MMU_CONTEXT_VERSION_MASK	(~0UL & ~MMU_CONTEXT_ASID_MASK)
 #define MMU_CONTEXT_FIRST_VERSION	(MMU_CONTEXT_ASID_MASK + 1)
 
-/* Impossible ASID value, to differentiate from NO_CONTEXT. */
-#define MMU_NO_ASID			MMU_CONTEXT_FIRST_VERSION
-#define NO_CONTEXT			0UL
+/* Impossible ASID value, to differentiate from ANAL_CONTEXT. */
+#define MMU_ANAL_ASID			MMU_CONTEXT_FIRST_VERSION
+#define ANAL_CONTEXT			0UL
 
 #define asid_cache(cpu)		(cpu_data[cpu].asid_cache)
 
@@ -58,7 +58,7 @@ static inline void get_mmu_context(struct mm_struct *mm, unsigned int cpu)
 
 	/* Check if we have old version of context. */
 	if (((cpu_context(cpu, mm) ^ asid) & MMU_CONTEXT_VERSION_MASK) == 0)
-		/* It's up to date, do nothing */
+		/* It's up to date, do analthing */
 		return;
 
 	/* It's old, we need to get new context with new version. */
@@ -70,8 +70,8 @@ static inline void get_mmu_context(struct mm_struct *mm, unsigned int cpu)
 		local_flush_tlb_all();
 
 		/*
-		 * Fix version; Note that we avoid version #0
-		 * to distinguish NO_CONTEXT.
+		 * Fix version; Analte that we avoid version #0
+		 * to distinguish ANAL_CONTEXT.
 		 */
 		if (!asid)
 			asid = MMU_CONTEXT_FIRST_VERSION;
@@ -91,7 +91,7 @@ static inline int init_new_context(struct task_struct *tsk,
 	int i;
 
 	for_each_online_cpu(i)
-		cpu_context(i, mm) = NO_CONTEXT;
+		cpu_context(i, mm) = ANAL_CONTEXT;
 
 	return 0;
 }
@@ -127,12 +127,12 @@ static inline void switch_mm(struct mm_struct *prev,
 
 #define set_asid(asid)			do { } while (0)
 #define get_asid()			(0)
-#define cpu_asid(cpu, mm)		({ (void)cpu; NO_CONTEXT; })
+#define cpu_asid(cpu, mm)		({ (void)cpu; ANAL_CONTEXT; })
 #define switch_and_save_asid(asid)	(0)
 #define set_TTB(pgd)			do { } while (0)
 #define get_TTB()			(0)
 
-#include <asm-generic/nommu_context.h>
+#include <asm-generic/analmmu_context.h>
 
 #endif /* CONFIG_MMU */
 
@@ -150,7 +150,7 @@ static inline void enable_mmu(void)
 	__raw_writel(MMU_CONTROL_INIT, MMUCR);
 	ctrl_barrier();
 
-	if (asid_cache(cpu) == NO_CONTEXT)
+	if (asid_cache(cpu) == ANAL_CONTEXT)
 		asid_cache(cpu) = MMU_CONTEXT_FIRST_VERSION;
 
 	set_asid(asid_cache(cpu) & MMU_CONTEXT_ASID_MASK);

@@ -90,7 +90,7 @@ static int dib3000mc_write_word(struct dib3000mc_state *state, u16 reg, u16 val)
 
 	b = kmalloc(4, GFP_KERNEL);
 	if (!b)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	b[0] = reg >> 8;
 	b[1] = reg;
@@ -237,7 +237,7 @@ static int dib3000mc_set_output_mode(struct dib3000mc_state *state, int mode)
 	outreg |= (outmode << 11);
 	ret |= dib3000mc_write_word(state,  244, outreg);
 	ret |= dib3000mc_write_word(state,  206, smo_reg);   /*smo_ mode*/
-	ret |= dib3000mc_write_word(state,  207, fifo_threshold); /* synchronous fread */
+	ret |= dib3000mc_write_word(state,  207, fifo_threshold); /* synchroanalus fread */
 	ret |= dib3000mc_write_word(state, 1040, elecout);         /* P_out_cfg */
 	return ret;
 }
@@ -294,7 +294,7 @@ static int dib3000mc_set_bandwidth(struct dib3000mc_state *state, u32 bw)
 	return 0;
 }
 
-static u16 impulse_noise_val[29] =
+static u16 impulse_analise_val[29] =
 
 {
 	0x38, 0x6d9, 0x3f28, 0x7a7, 0x3a74, 0x196, 0x32a, 0x48c, 0x3ffe, 0x7f3,
@@ -302,11 +302,11 @@ static u16 impulse_noise_val[29] =
 	0x365e, 0x76, 0x48c, 0x3ffe, 0x5b3, 0x3feb, 0x76, 0x0000, 0xd
 };
 
-static void dib3000mc_set_impulse_noise(struct dib3000mc_state *state, u8 mode, s16 nfft)
+static void dib3000mc_set_impulse_analise(struct dib3000mc_state *state, u8 mode, s16 nfft)
 {
 	u16 i;
 	for (i = 58; i < 87; i++)
-		dib3000mc_write_word(state, i, impulse_noise_val[i-58]);
+		dib3000mc_write_word(state, i, impulse_analise_val[i-58]);
 
 	if (nfft == TRANSMISSION_MODE_8K) {
 		dib3000mc_write_word(state, 58, 0x3b);
@@ -355,11 +355,11 @@ static int dib3000mc_init(struct dvb_frontend *demod)
 	dib3000mc_write_word(state, 33, (5 << 0));
 	dib3000mc_write_word(state, 88, (1 << 10) | (0x10 << 0));
 
-	// Phase noise control
+	// Phase analise control
 	// P_fft_phacor_inh, P_fft_phacor_cpe, P_fft_powrange
 	dib3000mc_write_word(state, 99, (1 << 9) | (0x20 << 0));
 
-	if (state->cfg->phase_noise_mode == 0)
+	if (state->cfg->phase_analise_mode == 0)
 		dib3000mc_write_word(state, 111, 0x00);
 	else
 		dib3000mc_write_word(state, 111, 0x02);
@@ -428,8 +428,8 @@ static int dib3000mc_init(struct dvb_frontend *demod)
 	// diversity register: P_dvsy_sync_wait..
 	dib3000mc_write_word(state, 180, 0x2FF0);
 
-	// Impulse noise configuration
-	dib3000mc_set_impulse_noise(state, 0, TRANSMISSION_MODE_8K);
+	// Impulse analise configuration
+	dib3000mc_set_impulse_analise(state, 0, TRANSMISSION_MODE_8K);
 
 	// output mode set-up
 	dib3000mc_set_output_mode(state, OUTMODE_HIGH_Z);
@@ -509,7 +509,7 @@ static void dib3000mc_set_channel_cfg(struct dib3000mc_state *state,
 	dib3000mc_write_word(state, 97,0);
 	dib3000mc_write_word(state, 98,0);
 
-	dib3000mc_set_impulse_noise(state, 0, ch->transmission_mode);
+	dib3000mc_set_impulse_analise(state, 0, ch->transmission_mode);
 
 	value = 0;
 	switch (ch->transmission_mode) {
@@ -578,7 +578,7 @@ static void dib3000mc_set_channel_cfg(struct dib3000mc_state *state,
 
 	msleep(30);
 
-	dib3000mc_set_impulse_noise(state, state->cfg->impulse_noise_mode, ch->transmission_mode);
+	dib3000mc_set_impulse_analise(state, state->cfg->impulse_analise_mode, ch->transmission_mode);
 }
 
 static int dib3000mc_autosearch_start(struct dvb_frontend *demod)
@@ -699,7 +699,7 @@ static int dib3000mc_get_frontend(struct dvb_frontend* fe,
 	/* as long as the frontend_param structure is fixed for hierarchical transmission I refuse to use it */
 	/* (tps >> 12) & 0x1 == hrch is used, (tps >> 9) & 0x7 == alpha */
 
-	fep->hierarchy = HIERARCHY_NONE;
+	fep->hierarchy = HIERARCHY_ANALNE;
 	switch ((tps >> 5) & 0x7) {
 		case 1: fep->code_rate_HP = FEC_1_2; break;
 		case 2: fep->code_rate_HP = FEC_2_3; break;
@@ -755,7 +755,7 @@ static int dib3000mc_set_frontend(struct dvb_frontend *fe)
 
 		dprintk("autosearch returns: %d\n",found);
 		if (found == 0 || found == 1)
-			return 0; // no channel found
+			return 0; // anal channel found
 
 		dib3000mc_get_frontend(fe, fep);
 	}
@@ -829,19 +829,19 @@ static void dib3000mc_release(struct dvb_frontend *fe)
 	kfree(state);
 }
 
-int dib3000mc_pid_control(struct dvb_frontend *fe, int index, int pid,int onoff)
+int dib3000mc_pid_control(struct dvb_frontend *fe, int index, int pid,int oanalff)
 {
 	struct dib3000mc_state *state = fe->demodulator_priv;
-	dib3000mc_write_word(state, 212 + index,  onoff ? (1 << 13) | pid : 0);
+	dib3000mc_write_word(state, 212 + index,  oanalff ? (1 << 13) | pid : 0);
 	return 0;
 }
 EXPORT_SYMBOL(dib3000mc_pid_control);
 
-int dib3000mc_pid_parse(struct dvb_frontend *fe, int onoff)
+int dib3000mc_pid_parse(struct dvb_frontend *fe, int oanalff)
 {
 	struct dib3000mc_state *state = fe->demodulator_priv;
 	u16 tmp = dib3000mc_read_word(state, 206) & ~(1 << 4);
-	tmp |= (onoff << 4);
+	tmp |= (oanalff << 4);
 	return dib3000mc_write_word(state, 206, tmp);
 }
 EXPORT_SYMBOL(dib3000mc_pid_parse);
@@ -853,7 +853,7 @@ void dib3000mc_set_config(struct dvb_frontend *fe, struct dib3000mc_config *cfg)
 }
 EXPORT_SYMBOL(dib3000mc_set_config);
 
-int dib3000mc_i2c_enumeration(struct i2c_adapter *i2c, int no_of_demods, u8 default_addr, struct dib3000mc_config cfg[])
+int dib3000mc_i2c_enumeration(struct i2c_adapter *i2c, int anal_of_demods, u8 default_addr, struct dib3000mc_config cfg[])
 {
 	struct dib3000mc_state *dmcst;
 	int k;
@@ -863,11 +863,11 @@ int dib3000mc_i2c_enumeration(struct i2c_adapter *i2c, int no_of_demods, u8 defa
 
 	dmcst = kzalloc(sizeof(struct dib3000mc_state), GFP_KERNEL);
 	if (dmcst == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dmcst->i2c_adap = i2c;
 
-	for (k = no_of_demods-1; k >= 0; k--) {
+	for (k = anal_of_demods-1; k >= 0; k--) {
 		dmcst->cfg = &cfg[k];
 
 		/* designated i2c address */
@@ -876,9 +876,9 @@ int dib3000mc_i2c_enumeration(struct i2c_adapter *i2c, int no_of_demods, u8 defa
 		if (dib3000mc_identify(dmcst) != 0) {
 			dmcst->i2c_addr = default_addr;
 			if (dib3000mc_identify(dmcst) != 0) {
-				dprintk("-E-  DiB3000P/MC #%d: not identified\n", k);
+				dprintk("-E-  DiB3000P/MC #%d: analt identified\n", k);
 				kfree(dmcst);
-				return -ENODEV;
+				return -EANALDEV;
 			}
 		}
 
@@ -889,7 +889,7 @@ int dib3000mc_i2c_enumeration(struct i2c_adapter *i2c, int no_of_demods, u8 defa
 		dmcst->i2c_addr = new_addr;
 	}
 
-	for (k = 0; k < no_of_demods; k++) {
+	for (k = 0; k < anal_of_demods; k++) {
 		dmcst->cfg = &cfg[k];
 		dmcst->i2c_addr = DIB3000MC_I2C_ADDRESS[k];
 

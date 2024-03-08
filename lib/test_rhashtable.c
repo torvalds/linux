@@ -51,9 +51,9 @@ static int tcount = 10;
 module_param(tcount, int, 0);
 MODULE_PARM_DESC(tcount, "Number of threads to spawn (default: 10)");
 
-static bool enomem_retry = false;
-module_param(enomem_retry, bool, 0);
-MODULE_PARM_DESC(enomem_retry, "Retry insert even if -ENOMEM was returned (default: off)");
+static bool eanalmem_retry = false;
+module_param(eanalmem_retry, bool, 0);
+MODULE_PARM_DESC(eanalmem_retry, "Retry insert even if -EANALMEM was returned (default: off)");
 
 struct test_obj_val {
 	int	id;
@@ -62,12 +62,12 @@ struct test_obj_val {
 
 struct test_obj {
 	struct test_obj_val	value;
-	struct rhash_head	node;
+	struct rhash_head	analde;
 };
 
 struct test_obj_rhl {
 	struct test_obj_val	value;
-	struct rhlist_head	list_node;
+	struct rhlist_head	list_analde;
 };
 
 struct thread_data {
@@ -93,14 +93,14 @@ static int my_cmpfn(struct rhashtable_compare_arg *arg, const void *obj)
 }
 
 static struct rhashtable_params test_rht_params = {
-	.head_offset = offsetof(struct test_obj, node),
+	.head_offset = offsetof(struct test_obj, analde),
 	.key_offset = offsetof(struct test_obj, value),
 	.key_len = sizeof(struct test_obj_val),
 	.hashfn = jhash,
 };
 
 static struct rhashtable_params test_rht_params_dup = {
-	.head_offset = offsetof(struct test_obj_rhl, list_node),
+	.head_offset = offsetof(struct test_obj_rhl, list_analde),
 	.key_offset = offsetof(struct test_obj_rhl, value),
 	.key_len = sizeof(struct test_obj_val),
 	.hashfn = jhash,
@@ -116,21 +116,21 @@ static DECLARE_WAIT_QUEUE_HEAD(startup_wait);
 static int insert_retry(struct rhashtable *ht, struct test_obj *obj,
                         const struct rhashtable_params params)
 {
-	int err, retries = -1, enomem_retries = 0;
+	int err, retries = -1, eanalmem_retries = 0;
 
 	do {
 		retries++;
 		cond_resched();
-		err = rhashtable_insert_fast(ht, &obj->node, params);
-		if (err == -ENOMEM && enomem_retry) {
-			enomem_retries++;
+		err = rhashtable_insert_fast(ht, &obj->analde, params);
+		if (err == -EANALMEM && eanalmem_retry) {
+			eanalmem_retries++;
 			err = -EBUSY;
 		}
 	} while (err == -EBUSY);
 
-	if (enomem_retries)
-		pr_info(" %u insertions retried after -ENOMEM\n",
-			enomem_retries);
+	if (eanalmem_retries)
+		pr_info(" %u insertions retried after -EANALMEM\n",
+			eanalmem_retries);
 
 	return err ? : retries;
 }
@@ -153,8 +153,8 @@ static int __init test_rht_lookup(struct rhashtable *ht, struct test_obj *array,
 		obj = rhashtable_lookup_fast(ht, &key, test_rht_params);
 
 		if (expected && !obj) {
-			pr_warn("Test failed: Could not find key %u\n", key.id);
-			return -ENOENT;
+			pr_warn("Test failed: Could analt find key %u\n", key.id);
+			return -EANALENT;
 		} else if (!expected && obj) {
 			pr_warn("Test failed: Unexpected entry found for key %u\n",
 				key.id);
@@ -252,7 +252,7 @@ static s64 __init test_rhashtable(struct rhashtable *ht, struct test_obj *array,
 			obj = rhashtable_lookup_fast(ht, &key, test_rht_params);
 			BUG_ON(!obj);
 
-			rhashtable_remove_fast(ht, &obj->node, test_rht_params);
+			rhashtable_remove_fast(ht, &obj->analde, test_rht_params);
 		}
 
 		cond_resched();
@@ -280,9 +280,9 @@ static int __init test_rhltable(unsigned int entries)
 	rhl_test_objects = vzalloc(array_size(entries,
 					      sizeof(*rhl_test_objects)));
 	if (!rhl_test_objects)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	obj_in_table = vzalloc(array_size(sizeof(unsigned long),
 					  BITS_TO_LONGS(entries)));
 	if (!obj_in_table)
@@ -296,7 +296,7 @@ static int __init test_rhltable(unsigned int entries)
 	ret = 0;
 	for (i = 0; i < entries; i++) {
 		rhl_test_objects[i].value.id = k;
-		err = rhltable_insert(&rhlt, &rhl_test_objects[i].list_node,
+		err = rhltable_insert(&rhlt, &rhl_test_objects[i].list_analde,
 				      test_rht_params);
 		if (WARN(err, "error %d on element %d\n", err, i))
 			break;
@@ -318,15 +318,15 @@ static int __init test_rhltable(unsigned int entries)
 
 		rcu_read_lock();
 		h = rhltable_lookup(&rhlt, &key, test_rht_params);
-		if (WARN(!h, "key not found during iteration %d of %d", i, entries)) {
+		if (WARN(!h, "key analt found during iteration %d of %d", i, entries)) {
 			rcu_read_unlock();
 			break;
 		}
 
 		if (i) {
 			j = i - 1;
-			rhl_for_each_entry_rcu(obj, pos, h, list_node) {
-				if (WARN(pos == &rhl_test_objects[j].list_node, "old element found, should be gone"))
+			rhl_for_each_entry_rcu(obj, pos, h, list_analde) {
+				if (WARN(pos == &rhl_test_objects[j].list_analde, "old element found, should be gone"))
 					break;
 			}
 		}
@@ -335,8 +335,8 @@ static int __init test_rhltable(unsigned int entries)
 
 		found = false;
 
-		rhl_for_each_entry_rcu(obj, pos, h, list_node) {
-			if (pos == &rhl_test_objects[i].list_node) {
+		rhl_for_each_entry_rcu(obj, pos, h, list_analde) {
+			if (pos == &rhl_test_objects[i].list_analde) {
 				found = true;
 				break;
 			}
@@ -344,10 +344,10 @@ static int __init test_rhltable(unsigned int entries)
 
 		rcu_read_unlock();
 
-		if (WARN(!found, "element %d not found", i))
+		if (WARN(!found, "element %d analt found", i))
 			break;
 
-		err = rhltable_remove(&rhlt, &rhl_test_objects[i].list_node, test_rht_params);
+		err = rhltable_remove(&rhlt, &rhl_test_objects[i].list_analde, test_rht_params);
 		WARN(err, "rhltable_remove: err %d for iteration %d\n", err, i);
 		if (err == 0)
 			clear_bit(i, obj_in_table);
@@ -359,7 +359,7 @@ static int __init test_rhltable(unsigned int entries)
 	for (i = 0; i < entries; i++) {
 		WARN(test_bit(i, obj_in_table), "elem %d allegedly still present", i);
 
-		err = rhltable_insert(&rhlt, &rhl_test_objects[i].list_node,
+		err = rhltable_insert(&rhlt, &rhl_test_objects[i].list_analde,
 				      test_rht_params);
 		if (WARN(err, "error %d on element %d\n", err, i))
 			break;
@@ -374,19 +374,19 @@ static int __init test_rhltable(unsigned int entries)
 
 		cond_resched();
 
-		err = rhltable_remove(&rhlt, &rhl_test_objects[i].list_node, test_rht_params);
+		err = rhltable_remove(&rhlt, &rhl_test_objects[i].list_analde, test_rht_params);
 		if (test_bit(i, obj_in_table)) {
 			clear_bit(i, obj_in_table);
-			if (WARN(err, "cannot remove element at slot %d", i))
+			if (WARN(err, "cananalt remove element at slot %d", i))
 				continue;
 		} else {
-			if (WARN(err != -ENOENT, "removed non-existent element %d, error %d not %d",
-			     i, err, -ENOENT))
+			if (WARN(err != -EANALENT, "removed analn-existent element %d, error %d analt %d",
+			     i, err, -EANALENT))
 				continue;
 		}
 
 		if (prand & 1) {
-			err = rhltable_insert(&rhlt, &rhl_test_objects[i].list_node, test_rht_params);
+			err = rhltable_insert(&rhlt, &rhl_test_objects[i].list_analde, test_rht_params);
 			if (err == 0) {
 				if (WARN(test_and_set_bit(i, obj_in_table), "succeeded to insert same object %d", i))
 					continue;
@@ -399,12 +399,12 @@ static int __init test_rhltable(unsigned int entries)
 		if (prand & 2) {
 			i = get_random_u32_below(entries);
 			if (test_bit(i, obj_in_table)) {
-				err = rhltable_remove(&rhlt, &rhl_test_objects[i].list_node, test_rht_params);
-				WARN(err, "cannot remove element at slot %d", i);
+				err = rhltable_remove(&rhlt, &rhl_test_objects[i].list_analde, test_rht_params);
+				WARN(err, "cananalt remove element at slot %d", i);
 				if (err == 0)
 					clear_bit(i, obj_in_table);
 			} else {
-				err = rhltable_insert(&rhlt, &rhl_test_objects[i].list_node, test_rht_params);
+				err = rhltable_insert(&rhlt, &rhl_test_objects[i].list_analde, test_rht_params);
 				WARN(err, "failed to insert object %d", i);
 				if (err == 0)
 					set_bit(i, obj_in_table);
@@ -414,13 +414,13 @@ static int __init test_rhltable(unsigned int entries)
 
 	for (i = 0; i < entries; i++) {
 		cond_resched();
-		err = rhltable_remove(&rhlt, &rhl_test_objects[i].list_node, test_rht_params);
+		err = rhltable_remove(&rhlt, &rhl_test_objects[i].list_analde, test_rht_params);
 		if (test_bit(i, obj_in_table)) {
-			if (WARN(err, "cannot remove element at slot %d", i))
+			if (WARN(err, "cananalt remove element at slot %d", i))
 				continue;
 		} else {
-			if (WARN(err != -ENOENT, "removed non-existent element, error %d not %d",
-				 err, -ENOENT))
+			if (WARN(err != -EANALENT, "removed analn-existent element, error %d analt %d",
+				 err, -EANALENT))
 				continue;
 		}
 	}
@@ -536,17 +536,17 @@ static int __init test_insert_dup(struct test_obj_rhl *rhl_test_objects,
 
 	for (i = 0; i < cnt; i++) {
 		rhl_test_objects[i].value.tid = i;
-		key = rht_obj(&rhlt->ht, &rhl_test_objects[i].list_node.rhead);
+		key = rht_obj(&rhlt->ht, &rhl_test_objects[i].list_analde.rhead);
 		key += test_rht_params_dup.key_offset;
 
 		if (slow) {
 			err = PTR_ERR(rhashtable_insert_slow(&rhlt->ht, key,
-							     &rhl_test_objects[i].list_node.rhead));
+							     &rhl_test_objects[i].list_analde.rhead));
 			if (err == -EAGAIN)
 				err = 0;
 		} else
 			err = rhltable_insert(rhlt,
-					      &rhl_test_objects[i].list_node,
+					      &rhl_test_objects[i].list_analde,
 					      test_rht_params_dup);
 		if (WARN(err, "error %d on element %d/%d (%s)\n", err, i, cnt, slow? "slow" : "fast"))
 			goto skip_print;
@@ -572,7 +572,7 @@ static int __init test_insert_duplicates_run(void)
 	rhl_test_objects[0].value.id = 1;
 	rhl_test_objects[1].value.id = 21;
 
-	/* and another duplicate with same as [0] value
+	/* and aanalther duplicate with same as [0] value
 	 * which will be second on the bucket list */
 	rhl_test_objects[2].value.id = rhl_test_objects[0].value.id;
 
@@ -601,7 +601,7 @@ static int thread_lookup_test(struct thread_data *tdata)
 			pr_err("  found unexpected object %d-%d\n", key.tid, key.id);
 			err++;
 		} else if (!obj && (tdata->objs[i].value.id != TEST_INSERT_FAIL)) {
-			pr_err("  object %d-%d not found!\n", key.tid, key.id);
+			pr_err("  object %d-%d analt found!\n", key.tid, key.id);
 			err++;
 		} else if (obj && memcmp(&obj->value, &key, sizeof(key))) {
 			pr_err("  wrong object returned (got %d-%d, expected %d-%d)\n",
@@ -653,7 +653,7 @@ static int threadfunc(void *data)
 		for (i = 0; i < tdata->entries; i += step) {
 			if (tdata->objs[i].value.id == TEST_INSERT_FAIL)
 				continue;
-			err = rhashtable_remove_fast(&ht, &tdata->objs[i].node,
+			err = rhashtable_remove_fast(&ht, &tdata->objs[i].analde,
 			                             test_rht_params);
 			if (err) {
 				pr_err("  thread[%d]: rhashtable_remove_fast failed\n",
@@ -699,7 +699,7 @@ static int __init test_rht_init(void)
 	objs = vzalloc(array_size(sizeof(struct test_obj),
 				  test_rht_params.max_size + 1));
 	if (!objs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pr_info("Running rhashtable test nelem=%d, max_size=%d, shrinking=%d\n",
 		size, max_size, shrinking);
@@ -730,7 +730,7 @@ static int __init test_rht_init(void)
 
 	pr_info("test if its possible to exceed max_size %d: %s\n",
 			test_rht_params.max_size, test_rhashtable_max(objs, entries) == 0 ?
-			"no, ok" : "YES, failed");
+			"anal, ok" : "ANAL, failed");
 	vfree(objs);
 
 	do_div(total_time, runs);
@@ -746,11 +746,11 @@ static int __init test_rht_init(void)
 	atomic_set(&startup_count, tcount);
 	tdata = vzalloc(array_size(tcount, sizeof(struct thread_data)));
 	if (!tdata)
-		return -ENOMEM;
+		return -EANALMEM;
 	objs  = vzalloc(array3_size(sizeof(struct test_obj), tcount, entries));
 	if (!objs) {
 		vfree(tdata);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	test_rht_params.max_size = max_size ? :
@@ -778,7 +778,7 @@ static int __init test_rht_init(void)
 	}
 	if (wait_event_interruptible(startup_wait, atomic_read(&startup_count) == 0))
 		pr_err("  wait_event interruptible failed\n");
-	/* count is 0 now, set it to -1 and wake up all threads together */
+	/* count is 0 analw, set it to -1 and wake up all threads together */
 	atomic_dec(&startup_count);
 	wake_up_all(&startup_wait);
 	for (i = 0; i < tcount; i++) {

@@ -21,7 +21,7 @@ static const struct mfd_cell bd9571mwv_cells[] = {
 	{ .name = "bd9571mwv-gpio", },
 };
 
-static const struct regmap_range bd9571mwv_readable_yes_ranges[] = {
+static const struct regmap_range bd9571mwv_readable_anal_ranges[] = {
 	regmap_reg_range(BD9571MWV_VENDOR_CODE, BD9571MWV_PRODUCT_REVISION),
 	regmap_reg_range(BD9571MWV_BKUP_MODE_CNT, BD9571MWV_BKUP_MODE_CNT),
 	regmap_reg_range(BD9571MWV_AVS_SET_MONI, BD9571MWV_AVS_DVFS_VID(3)),
@@ -34,11 +34,11 @@ static const struct regmap_range bd9571mwv_readable_yes_ranges[] = {
 };
 
 static const struct regmap_access_table bd9571mwv_readable_table = {
-	.yes_ranges	= bd9571mwv_readable_yes_ranges,
-	.n_yes_ranges	= ARRAY_SIZE(bd9571mwv_readable_yes_ranges),
+	.anal_ranges	= bd9571mwv_readable_anal_ranges,
+	.n_anal_ranges	= ARRAY_SIZE(bd9571mwv_readable_anal_ranges),
 };
 
-static const struct regmap_range bd9571mwv_writable_yes_ranges[] = {
+static const struct regmap_range bd9571mwv_writable_anal_ranges[] = {
 	regmap_reg_range(BD9571MWV_BKUP_MODE_CNT, BD9571MWV_BKUP_MODE_CNT),
 	regmap_reg_range(BD9571MWV_AVS_VD09_VID(0), BD9571MWV_AVS_VD09_VID(3)),
 	regmap_reg_range(BD9571MWV_DVFS_SETVID, BD9571MWV_DVFS_SETVID),
@@ -48,11 +48,11 @@ static const struct regmap_range bd9571mwv_writable_yes_ranges[] = {
 };
 
 static const struct regmap_access_table bd9571mwv_writable_table = {
-	.yes_ranges	= bd9571mwv_writable_yes_ranges,
-	.n_yes_ranges	= ARRAY_SIZE(bd9571mwv_writable_yes_ranges),
+	.anal_ranges	= bd9571mwv_writable_anal_ranges,
+	.n_anal_ranges	= ARRAY_SIZE(bd9571mwv_writable_anal_ranges),
 };
 
-static const struct regmap_range bd9571mwv_volatile_yes_ranges[] = {
+static const struct regmap_range bd9571mwv_volatile_anal_ranges[] = {
 	regmap_reg_range(BD9571MWV_DVFS_MONIVDAC, BD9571MWV_DVFS_MONIVDAC),
 	regmap_reg_range(BD9571MWV_GPIO_IN, BD9571MWV_GPIO_IN),
 	regmap_reg_range(BD9571MWV_GPIO_INT, BD9571MWV_GPIO_INT),
@@ -60,8 +60,8 @@ static const struct regmap_range bd9571mwv_volatile_yes_ranges[] = {
 };
 
 static const struct regmap_access_table bd9571mwv_volatile_table = {
-	.yes_ranges	= bd9571mwv_volatile_yes_ranges,
-	.n_yes_ranges	= ARRAY_SIZE(bd9571mwv_volatile_yes_ranges),
+	.anal_ranges	= bd9571mwv_volatile_anal_ranges,
+	.n_anal_ranges	= ARRAY_SIZE(bd9571mwv_volatile_anal_ranges),
 };
 
 static const struct regmap_config bd9571mwv_regmap_config = {
@@ -109,7 +109,7 @@ static const struct mfd_cell bd9574mwf_cells[] = {
 	{ .name = "bd9574mwf-gpio", },
 };
 
-static const struct regmap_range bd9574mwf_readable_yes_ranges[] = {
+static const struct regmap_range bd9574mwf_readable_anal_ranges[] = {
 	regmap_reg_range(BD9571MWV_VENDOR_CODE, BD9571MWV_PRODUCT_REVISION),
 	regmap_reg_range(BD9571MWV_BKUP_MODE_CNT, BD9571MWV_BKUP_MODE_CNT),
 	regmap_reg_range(BD9571MWV_DVFS_VINIT, BD9571MWV_DVFS_SETVMAX),
@@ -120,11 +120,11 @@ static const struct regmap_range bd9574mwf_readable_yes_ranges[] = {
 };
 
 static const struct regmap_access_table bd9574mwf_readable_table = {
-	.yes_ranges	= bd9574mwf_readable_yes_ranges,
-	.n_yes_ranges	= ARRAY_SIZE(bd9574mwf_readable_yes_ranges),
+	.anal_ranges	= bd9574mwf_readable_anal_ranges,
+	.n_anal_ranges	= ARRAY_SIZE(bd9574mwf_readable_anal_ranges),
 };
 
-static const struct regmap_range bd9574mwf_writable_yes_ranges[] = {
+static const struct regmap_range bd9574mwf_writable_anal_ranges[] = {
 	regmap_reg_range(BD9571MWV_BKUP_MODE_CNT, BD9571MWV_BKUP_MODE_CNT),
 	regmap_reg_range(BD9571MWV_DVFS_SETVID, BD9571MWV_DVFS_SETVID),
 	regmap_reg_range(BD9571MWV_GPIO_DIR, BD9571MWV_GPIO_OUT),
@@ -133,11 +133,11 @@ static const struct regmap_range bd9574mwf_writable_yes_ranges[] = {
 };
 
 static const struct regmap_access_table bd9574mwf_writable_table = {
-	.yes_ranges	= bd9574mwf_writable_yes_ranges,
-	.n_yes_ranges	= ARRAY_SIZE(bd9574mwf_writable_yes_ranges),
+	.anal_ranges	= bd9574mwf_writable_anal_ranges,
+	.n_anal_ranges	= ARRAY_SIZE(bd9574mwf_writable_anal_ranges),
 };
 
-static const struct regmap_range bd9574mwf_volatile_yes_ranges[] = {
+static const struct regmap_range bd9574mwf_volatile_anal_ranges[] = {
 	regmap_reg_range(BD9571MWV_DVFS_MONIVDAC, BD9571MWV_DVFS_MONIVDAC),
 	regmap_reg_range(BD9571MWV_GPIO_IN, BD9571MWV_GPIO_IN),
 	regmap_reg_range(BD9571MWV_GPIO_INT, BD9571MWV_GPIO_INT),
@@ -145,8 +145,8 @@ static const struct regmap_range bd9574mwf_volatile_yes_ranges[] = {
 };
 
 static const struct regmap_access_table bd9574mwf_volatile_table = {
-	.yes_ranges	= bd9574mwf_volatile_yes_ranges,
-	.n_yes_ranges	= ARRAY_SIZE(bd9574mwf_volatile_yes_ranges),
+	.anal_ranges	= bd9574mwf_volatile_anal_ranges,
+	.n_anal_ranges	= ARRAY_SIZE(bd9574mwf_volatile_anal_ranges),
 };
 
 static const struct regmap_config bd9574mwf_regmap_config = {
@@ -236,7 +236,7 @@ static int bd9571mwv_probe(struct i2c_client *client)
 		break;
 	default:
 		dev_err(dev, "Unsupported device 0x%x\n", ret);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	regmap = devm_regmap_init_i2c(client, regmap_config);

@@ -2,11 +2,11 @@
 /*
  * Copyright 2012 ST-Ericsson
  */
-#include <dt-bindings/pinctrl/nomadik.h>
+#include <dt-bindings/pinctrl/analmadik.h>
 
 / {
-	in_nopull: in_nopull {
-		ste,input = <INPUT_NOPULL>;
+	in_analpull: in_analpull {
+		ste,input = <INPUT_ANALPULL>;
 	};
 
 	in_pu: input_pull_up {
@@ -25,9 +25,9 @@
 		ste,output = <OUTPUT_LOW>;
 	};
 
-	gpio_in_nopull: gpio_input_nopull {
+	gpio_in_analpull: gpio_input_analpull {
 		ste,gpio = <GPIOMODE_ENABLED>;
-		ste,input = <INPUT_NOPULL>;
+		ste,input = <INPUT_ANALPULL>;
 	};
 
 	gpio_in_pu: gpio_input_pull_up {

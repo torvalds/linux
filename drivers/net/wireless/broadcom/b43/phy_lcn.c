@@ -16,18 +16,18 @@
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program; see the file COPYING.  If not, write to
+  along with this program; see the file COPYING.  If analt, write to
   the Free Software Foundation, Inc., 51 Franklin Steet, Fifth Floor,
   Boston, MA 02110-1301, USA.
 
   This file incorporates work covered by the following copyright and
-  permission notice:
+  permission analtice:
 
       Copyright (c) 2010 Broadcom Corporation
 
       Permission to use, copy, modify, and/or distribute this software for any
       purpose with or without fee is hereby granted, provided that the above
-      copyright notice and this permission notice appear in all copies.
+      copyright analtice and this permission analtice appear in all copies.
 */
 
 #include <linux/slab.h>
@@ -401,7 +401,7 @@ static void b43_phy_lcn_sense_setup(struct b43_wldev *dev,
 	b43_radio_write(dev, 0x112, 0x6);
 
 	b43_dummy_transmission(dev, true, false);
-	/* Wait if not done */
+	/* Wait if analt done */
 	if (!(b43_phy_read(dev, 0x476) & 0x8000))
 		udelay(10);
 
@@ -552,7 +552,7 @@ static void b43_phy_lcn_tx_pwr_ctl_init(struct b43_wldev *dev)
 		b43_phy_lcn_set_bbmult(dev, bbmult);
 		b43_phy_lcn_sense_setup(dev, B43_SENSE_TEMP);
 	} else {
-		b43err(dev->wl, "TX power control not supported for this HW\n");
+		b43err(dev->wl, "TX power control analt supported for this HW\n");
 	}
 
 	b43_mac_enable(dev);
@@ -671,7 +671,7 @@ static int b43_phy_lcn_op_allocate(struct b43_wldev *dev)
 
 	phy_lcn = kzalloc(sizeof(*phy_lcn), GFP_KERNEL);
 	if (!phy_lcn)
-		return -ENOMEM;
+		return -EANALMEM;
 	dev->phy.lcn = phy_lcn;
 
 	return 0;
@@ -743,7 +743,7 @@ static void b43_phy_lcn_op_software_rfkill(struct b43_wldev *dev,
 					bool blocked)
 {
 	if (b43_read32(dev, B43_MMIO_MACCTL) & B43_MACCTL_ENABLED)
-		b43err(dev->wl, "MAC not suspended\n");
+		b43err(dev->wl, "MAC analt suspended\n");
 
 	if (blocked) {
 		b43_phy_mask(dev, B43_PHY_LCN_RF_CTL2, ~0x7c00);
@@ -797,7 +797,7 @@ static unsigned int b43_phy_lcn_op_get_default_chan(struct b43_wldev *dev)
 }
 
 static enum b43_txpwr_result
-b43_phy_lcn_op_recalc_txpower(struct b43_wldev *dev, bool ignore_tssi)
+b43_phy_lcn_op_recalc_txpower(struct b43_wldev *dev, bool iganalre_tssi)
 {
 	return B43_TXPWR_RES_DONE;
 }

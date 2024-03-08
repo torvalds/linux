@@ -13,10 +13,10 @@ maintainers:
 
 description: |
   The MT6357 PMIC provides 5 BUCK and 29 LDO.
-  Regulators and nodes are named according to the regulator type:
+  Regulators and analdes are named according to the regulator type:
   - buck-<name>
   - ldo-<name>.
-  MT6357 regulators node should be sub node of the MT6397 MFD node.
+  MT6357 regulators analde should be sub analde of the MT6397 MFD analde.
 
 patternProperties:
   "^buck-v(core|modem|pa|proc|s1)$":

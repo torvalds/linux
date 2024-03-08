@@ -3,7 +3,7 @@ ARM Broadcom STB platforms Device Tree Bindings
 Boards with Broadcom Brahma15 ARM-based BCMxxxx (generally BCM7xxx variants)
 SoC shall have the following DT organization:
 
-Required root node properties:
+Required root analde properties:
     - compatible: "brcm,bcm<chip_id>", "brcm,brcmstb"
 
 example:
@@ -13,7 +13,7 @@ example:
     model = "Broadcom STB (bcm7445)";
     compatible = "brcm,bcm7445", "brcm,brcmstb";
 
-Further, syscon nodes that map platform-specific registers used for general
+Further, syscon analdes that map platform-specific registers used for general
 system control is required:
 
     - compatible: "brcm,bcm<chip_id>-sun-top-ctrl", "syscon"
@@ -22,7 +22,7 @@ system control is required:
 		  "syscon"
     - compatible: "brcm,bcm<chip_id>-hif-continuation", "syscon"
 
-cpu-biu-ctrl node
+cpu-biu-ctrl analde
 -------------------
 SoCs with Broadcom Brahma15 ARM-based and Brahma53 ARM64-based CPUs have a
 specific Bus Interface Unit (BIU) block which controls and interfaces the CPU
@@ -65,7 +65,7 @@ example:
         };
     };
 
-Nodes that allow for support of SMP initialization and reboot are required:
+Analdes that allow for support of SMP initialization and reboot are required:
 
 smpboot
 -------
@@ -75,18 +75,18 @@ Required properties:
         The string "brcm,brcmstb-smpboot".
 
     - syscon-cpu
-        A phandle / integer array property which lets the BSP know the location
+        A phandle / integer array property which lets the BSP kanalw the location
         of certain CPU power-on registers.
 
         The layout of the property is as follows:
-            o a phandle to the "hif_cpubiuctrl" syscon node
+            o a phandle to the "hif_cpubiuctrl" syscon analde
             o offset to the base CPU power zone register
             o offset to the base CPU reset register
 
     - syscon-cont
-        A phandle pointing to the syscon node which describes the CPU boot
+        A phandle pointing to the syscon analde which describes the CPU boot
         continuation registers.
-            o a phandle to the "hif_continuation" syscon node
+            o a phandle to the "hif_continuation" syscon analde
 
 example:
     smpboot {
@@ -105,7 +105,7 @@ Required properties
         chips with the old SUN_TOP_CTRL interface.
 
     - syscon
-        A phandle / integer array that points to the syscon node which describes
+        A phandle / integer array that points to the syscon analde which describes
         the general system reset registers.
             o a phandle to "sun_top_ctrl"
             o offset to the "reset source enable" register
@@ -147,7 +147,7 @@ A Broadcom STB SoC typically has a number of independent memory controllers,
 each of which may have several associated hardware blocks, which are versioned
 independently (control registers, DDR PHYs, etc.). One might consider
 describing these controllers as a parent "memory controllers" block, which
-contains N sub-nodes (one for each controller in the system), each of which is
+contains N sub-analdes (one for each controller in the system), each of which is
 associated with a number of hardware register resources (e.g., its PHY). See
 the example device tree snippet below.
 
@@ -158,7 +158,7 @@ Represents a single memory controller instance.
 Required properties:
 - compatible     : should contain "brcm,brcmstb-memc" and "simple-bus"
 
-Should contain subnodes for any of the following relevant hardware resources:
+Should contain subanaldes for any of the following relevant hardware resources:
 
 == DDR PHY control
 

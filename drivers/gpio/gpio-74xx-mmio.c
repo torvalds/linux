@@ -92,7 +92,7 @@ static int mmio_74xx_dir_in(struct gpio_chip *gc, unsigned int gpio)
 	if (priv->flags & MMIO_74XX_DIR_IN)
 		return 0;
 
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static int mmio_74xx_dir_out(struct gpio_chip *gc, unsigned int gpio, int val)
@@ -104,7 +104,7 @@ static int mmio_74xx_dir_out(struct gpio_chip *gc, unsigned int gpio, int val)
 		return 0;
 	}
 
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static int mmio_74xx_gpio_probe(struct platform_device *pdev)
@@ -115,7 +115,7 @@ static int mmio_74xx_gpio_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->flags = (uintptr_t)device_get_match_data(&pdev->dev);
 

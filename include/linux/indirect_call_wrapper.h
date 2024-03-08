@@ -5,12 +5,12 @@
 #ifdef CONFIG_RETPOLINE
 
 /*
- * INDIRECT_CALL_$NR - wrapper for indirect calls with $NR known builtin
+ * INDIRECT_CALL_$NR - wrapper for indirect calls with $NR kanalwn builtin
  *  @f: function pointer
  *  @f$NR: builtin functions names, up to $NR of them
  *  @__VA_ARGS__: arguments for @f
  *
- * Avoid retpoline overhead for known builtin, checking @f vs each of them and
+ * Avoid retpoline overhead for kanalwn builtin, checking @f vs each of them and
  * eventually invoking directly the builtin function. The functions are checked
  * in the given order. Fallback to the indirect call.
  */

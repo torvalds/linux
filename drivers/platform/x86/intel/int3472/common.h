@@ -57,7 +57,7 @@ struct int3472_cldb {
 	u8 version;
 	/*
 	 * control logic type
-	 * 0: UNKNOWN
+	 * 0: UNKANALWN
 	 * 1: DISCRETE(CRD-D)
 	 * 2: PMIC TPS68470
 	 * 3: PMIC uP6641

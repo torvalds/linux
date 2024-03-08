@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright (c) 2021 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2021 Mellaanalx Techanallogies. All rights reserved */
 
 #include <linux/debugfs.h>
 #include <linux/err.h>
@@ -202,7 +202,7 @@ int nsim_dev_psample_init(struct nsim_dev *nsim_dev)
 
 	psample = kzalloc(sizeof(*psample), GFP_KERNEL);
 	if (!psample)
-		return -ENOMEM;
+		return -EANALMEM;
 	nsim_dev->psample = psample;
 
 	INIT_DELAYED_WORK(&psample->psample_dw, nsim_dev_psample_report_work);

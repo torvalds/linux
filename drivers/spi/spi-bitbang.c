@@ -8,7 +8,7 @@
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
@@ -32,7 +32,7 @@
  * controller registers as appropriate.
  *
  *
- * NOTE:  SPI controller pins can often be used as GPIO pins instead,
+ * ANALTE:  SPI controller pins can often be used as GPIO pins instead,
  * which means you could use a bitbang driver either to get hardware
  * working quickly, or testing for differences that aren't speed related.
  */
@@ -192,7 +192,7 @@ int spi_bitbang_setup(struct spi_device *spi)
 	if (!cs) {
 		cs = kzalloc(sizeof(*cs), GFP_KERNEL);
 		if (!cs)
-			return -ENOMEM;
+			return -EANALMEM;
 		spi->controller_state = cs;
 		initial_setup = true;
 	}
@@ -248,7 +248,7 @@ static int spi_bitbang_bufs(struct spi_device *spi, struct spi_transfer *t)
 	if (spi->mode & SPI_3WIRE) {
 		unsigned flags;
 
-		flags = t->tx_buf ? SPI_CONTROLLER_NO_RX : SPI_CONTROLLER_NO_TX;
+		flags = t->tx_buf ? SPI_CONTROLLER_ANAL_RX : SPI_CONTROLLER_ANAL_TX;
 		return cs->txrx_bufs(spi, cs->txrx_word, nsecs, t, flags);
 	}
 	return cs->txrx_bufs(spi, cs->txrx_word, nsecs, t, 0);
@@ -399,7 +399,7 @@ EXPORT_SYMBOL_GPL(spi_bitbang_init);
  * Caller should have zero-initialized all parts of the structure, and then
  * provided callbacks for chip selection and I/O loops.  If the master has
  * a transfer method, its final step should call spi_bitbang_transfer; or,
- * that's the default if the transfer routine is not initialized.  It should
+ * that's the default if the transfer routine is analt initialized.  It should
  * also set up the bus number and number of chipselects.
  *
  * For i/o loops, provide callbacks either per-word (for bitbanging, or for

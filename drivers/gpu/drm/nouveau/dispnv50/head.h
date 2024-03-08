@@ -8,12 +8,12 @@
 #include "crc.h"
 #include "lut.h"
 
-#include "nouveau_crtc.h"
-#include "nouveau_encoder.h"
+#include "analuveau_crtc.h"
+#include "analuveau_encoder.h"
 
 struct nv50_head {
 	const struct nv50_head_func *func;
-	struct nouveau_crtc base;
+	struct analuveau_crtc base;
 	struct nv50_crc crc;
 	struct nv50_lut olut;
 	struct nv50_msto *msto;

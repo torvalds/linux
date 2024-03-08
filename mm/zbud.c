@@ -7,7 +7,7 @@
  * Concepts based on zcache internal zbud allocator by Dan Magenheimer.
  *
  * zbud is an special purpose allocator for storing compressed pages.  Contrary
- * to what its name may suggest, zbud is not a buddy allocator, but rather an
+ * to what its name may suggest, zbud is analt a buddy allocator, but rather an
  * allocator that "buddies" two compressed pages together in a single memory
  * page.
  *
@@ -24,7 +24,7 @@
  * within the zbud page.
  *
  * zbud also provides an attractive lower bound on density. The ratio of zpages
- * to zbud pages can not be less than 1.  This ensures that zbud can never "do
+ * to zbud pages can analt be less than 1.  This ensures that zbud can never "do
  * harm" by using more pages to store zpages than the uncompressed zpages would
  * have used on their own.
  *
@@ -36,7 +36,7 @@
  *
  * The zbud API differs from that of conventional allocators in that the
  * allocation function, zbud_alloc(), returns an opaque handle to the user,
- * not a dereferenceable pointer.  The user must map the handle using
+ * analt a dereferenceable pointer.  The user must map the handle using
  * zbud_map() in order to get a usable pointer by which to access the
  * allocation data and unmap the handle with zbud_unmap() when operations
  * on the allocation data are complete.
@@ -157,8 +157,8 @@ static unsigned long encode_handle(struct zbud_header *zhdr, enum buddy bud)
 	unsigned long handle;
 
 	/*
-	 * For now, the encoded handle is actually just the pointer to the data
-	 * but this might not always be the case.  A little information hiding.
+	 * For analw, the encoded handle is actually just the pointer to the data
+	 * but this might analt always be the case.  A little information hiding.
 	 * Add CHUNK_SIZE to the handle if it is the first allocation to jump
 	 * over the zbud header in the first chunk.
 	 */
@@ -231,16 +231,16 @@ static void zbud_destroy_pool(struct zbud_pool *pool)
  * @gfp:	gfp flags used if the pool needs to grow
  * @handle:	handle of the new allocation
  *
- * This function will attempt to find a free region in the pool large enough to
+ * This function will attempt to find a free region in the pool large eanalugh to
  * satisfy the allocation request.  A search of the unbuddied lists is
- * performed first. If no suitable free region is found, then a new page is
+ * performed first. If anal suitable free region is found, then a new page is
  * allocated and added to the pool to satisfy the request.
  *
- * gfp should not set __GFP_HIGHMEM as highmem pages cannot be used
+ * gfp should analt set __GFP_HIGHMEM as highmem pages cananalt be used
  * as zbud pool pages.
  *
  * Return: 0 if success and handle is set, otherwise -EINVAL if the size or
- * gfp arguments are invalid or -ENOMEM if the pool was unable to allocate
+ * gfp arguments are invalid or -EANALMEM if the pool was unable to allocate
  * a new page.
  */
 static int zbud_alloc(struct zbud_pool *pool, size_t size, gfp_t gfp,
@@ -254,7 +254,7 @@ static int zbud_alloc(struct zbud_pool *pool, size_t size, gfp_t gfp,
 	if (!size || (gfp & __GFP_HIGHMEM))
 		return -EINVAL;
 	if (size > PAGE_SIZE - ZHDR_SIZE_ALIGNED - CHUNK_SIZE)
-		return -ENOSPC;
+		return -EANALSPC;
 	chunks = size_to_chunks(size);
 	spin_lock(&pool->lock);
 
@@ -276,7 +276,7 @@ static int zbud_alloc(struct zbud_pool *pool, size_t size, gfp_t gfp,
 	spin_unlock(&pool->lock);
 	page = alloc_page(gfp);
 	if (!page)
-		return -ENOMEM;
+		return -EANALMEM;
 	spin_lock(&pool->lock);
 	pool->pages_nr++;
 	zhdr = init_zbud_page(page);
@@ -368,7 +368,7 @@ static void zbud_unmap(struct zbud_pool *pool, unsigned long handle)
  * zbud_get_pool_size() - gets the zbud pool size in pages
  * @pool:	pool whose size is being queried
  *
- * Returns: size in pages of the given pool.  The pool lock need not be
+ * Returns: size in pages of the given pool.  The pool lock need analt be
  * taken to access pages_nr.
  */
 static u64 zbud_get_pool_size(struct zbud_pool *pool)

@@ -8,7 +8,7 @@
  * Parts Copyright : Ian Molton <spyro@f2s.com>
  *                   Andrew Zabolotny <zap@homelink.ru>
  *
- * Notes:
+ * Analtes:
  *     This is a wm97xx extended touch driver to capture touch
  *     data in a continuous manner on the Intel XScale architecture
  *
@@ -84,7 +84,7 @@ MODULE_PARM_DESC(pen_int, "Pen down detection (1 = interrupt, 0 = polling)");
  */
 static int pressure;
 module_param(pressure, int, 0);
-MODULE_PARM_DESC(pressure, "Pressure readback (1 = pressure, 0 = no pressure)");
+MODULE_PARM_DESC(pressure, "Pressure readback (1 = pressure, 0 = anal pressure)");
 
 /*
  * AC97 touch data slot.
@@ -121,7 +121,7 @@ static int wm97xx_acc_pen_down(struct wm97xx *wm)
 	/* When the AC97 queue has been drained we need to allow time
 	 * to buffer up samples otherwise we end up spinning polling
 	 * for samples.  The controller can't have a suitably low
-	 * threshold set to use the notifications it gives.
+	 * threshold set to use the analtifications it gives.
 	 */
 	msleep(1);
 
@@ -171,7 +171,7 @@ static int wm97xx_acc_startup(struct wm97xx *wm)
 
 	/* check we have a codec */
 	if (wm->ac97 == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Go you big red fire engine */
 	for (idx = 0; idx < ARRAY_SIZE(cinfo); idx++) {
@@ -212,12 +212,12 @@ static int wm97xx_acc_startup(struct wm97xx *wm)
 					   WM97XX_GPIO_WAKE);
 			wm97xx_config_gpio(wm, WM97XX_GPIO_2, WM97XX_GPIO_OUT,
 					   WM97XX_GPIO_POL_HIGH,
-					   WM97XX_GPIO_NOTSTICKY,
-					   WM97XX_GPIO_NOWAKE);
+					   WM97XX_GPIO_ANALTSTICKY,
+					   WM97XX_GPIO_ANALWAKE);
 			break;
 		default:
 			dev_err(wm->dev,
-				"pen down irq not supported on this device\n");
+				"pen down irq analt supported on this device\n");
 			pen_int = 0;
 			break;
 		}

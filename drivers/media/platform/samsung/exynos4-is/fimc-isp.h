@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Samsung EXYNOS4x12 FIMC-IS (Imaging Subsystem) driver
+ * Samsung EXYANALS4x12 FIMC-IS (Imaging Subsystem) driver
  *
  * Copyright (C) 2013 Samsung Electronics Co., Ltd.
  *
@@ -21,7 +21,7 @@
 #include <media/videobuf2-v4l2.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-mediabus.h>
-#include <media/drv-intf/exynos-fimc.h>
+#include <media/drv-intf/exyanals-fimc.h>
 
 extern int fimc_isp_debug;
 
@@ -126,7 +126,7 @@ struct isp_video_buf {
  * @pixfmt: current pixel format
  */
 struct fimc_is_video {
-	struct exynos_video_entity ve;
+	struct exyanals_video_entity ve;
 	enum v4l2_buf_type	type;
 	struct media_pad	pad;
 	struct list_head	pending_buf_q;

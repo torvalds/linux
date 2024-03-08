@@ -89,30 +89,30 @@ static int snvs_lpgpr_read(void *context, unsigned int offset, void *val,
 static int snvs_lpgpr_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *node = dev->of_node;
-	struct device_node *syscon_node;
+	struct device_analde *analde = dev->of_analde;
+	struct device_analde *syscon_analde;
 	struct snvs_lpgpr_priv *priv;
 	struct nvmem_config *cfg;
 	struct nvmem_device *nvmem;
 	const struct snvs_lpgpr_cfg *dcfg;
 
-	if (!node)
-		return -ENOENT;
+	if (!analde)
+		return -EANALENT;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dcfg = of_device_get_match_data(dev);
 	if (!dcfg)
 		return -EINVAL;
 
-	syscon_node = of_get_parent(node);
-	if (!syscon_node)
-		return -ENODEV;
+	syscon_analde = of_get_parent(analde);
+	if (!syscon_analde)
+		return -EANALDEV;
 
-	priv->regmap = syscon_node_to_regmap(syscon_node);
-	of_node_put(syscon_node);
+	priv->regmap = syscon_analde_to_regmap(syscon_analde);
+	of_analde_put(syscon_analde);
 	if (IS_ERR(priv->regmap))
 		return PTR_ERR(priv->regmap);
 
@@ -153,5 +153,5 @@ static struct platform_driver snvs_lpgpr_driver = {
 module_platform_driver(snvs_lpgpr_driver);
 
 MODULE_AUTHOR("Oleksij Rempel <o.rempel@pengutronix.de>");
-MODULE_DESCRIPTION("Low Power General Purpose Register in i.MX6 and i.MX7 Secure Non-Volatile Storage");
+MODULE_DESCRIPTION("Low Power General Purpose Register in i.MX6 and i.MX7 Secure Analn-Volatile Storage");
 MODULE_LICENSE("GPL v2");

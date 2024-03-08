@@ -9,7 +9,7 @@
 #include <linux/compat.h>
 #include <linux/fdtable.h>
 #include <linux/magic.h>
-#include <linux/nospec.h>
+#include <linux/analspec.h>
 
 #include "autofs_i.h"
 
@@ -19,7 +19,7 @@
  *
  * The alternate interface is needed because we need to be able open
  * an ioctl file descriptor on an autofs mount that may be covered by
- * another mount. This situation arises when starting automount(8)
+ * aanalther mount. This situation arises when starting automount(8)
  * or other user space daemon which uses direct mounts or offset
  * mounts (used for autofs lazy mount/umount of nested mount trees),
  * which have been left busy at service shutdown.
@@ -58,18 +58,18 @@ static int check_dev_ioctl_version(int cmd, struct autofs_dev_ioctl *param)
 	int err = 0;
 
 	if ((param->ver_major != AUTOFS_DEV_IOCTL_VERSION_MAJOR) ||
-	    (param->ver_minor > AUTOFS_DEV_IOCTL_VERSION_MINOR)) {
+	    (param->ver_mianalr > AUTOFS_DEV_IOCTL_VERSION_MIANALR)) {
 		pr_warn("ioctl control interface version mismatch: "
 			"kernel(%u.%u), user(%u.%u), cmd(0x%08x)\n",
 			AUTOFS_DEV_IOCTL_VERSION_MAJOR,
-			AUTOFS_DEV_IOCTL_VERSION_MINOR,
-			param->ver_major, param->ver_minor, cmd);
+			AUTOFS_DEV_IOCTL_VERSION_MIANALR,
+			param->ver_major, param->ver_mianalr, cmd);
 		err = -EINVAL;
 	}
 
 	/* Fill in the kernel version. */
 	param->ver_major = AUTOFS_DEV_IOCTL_VERSION_MAJOR;
-	param->ver_minor = AUTOFS_DEV_IOCTL_VERSION_MINOR;
+	param->ver_mianalr = AUTOFS_DEV_IOCTL_VERSION_MIANALR;
 
 	return err;
 }
@@ -157,7 +157,7 @@ static int autofs_dev_ioctl_version(struct file *fp,
 {
 	/* This should have already been set. */
 	param->ver_major = AUTOFS_DEV_IOCTL_VERSION_MAJOR;
-	param->ver_minor = AUTOFS_DEV_IOCTL_VERSION_MINOR;
+	param->ver_mianalr = AUTOFS_DEV_IOCTL_VERSION_MIANALR;
 	return 0;
 }
 
@@ -191,7 +191,7 @@ static int find_autofs_mount(const char *pathname,
 	err = kern_path(pathname, LOOKUP_MOUNTPOINT, &path);
 	if (err)
 		return err;
-	err = -ENOENT;
+	err = -EANALENT;
 	while (path.dentry == path.mnt->mnt_root) {
 		if (path.dentry->d_sb->s_magic == AUTOFS_SUPER_MAGIC) {
 			if (test(&path, data)) {
@@ -215,9 +215,9 @@ static int test_by_dev(const struct path *path, void *p)
 
 static int test_by_type(const struct path *path, void *p)
 {
-	struct autofs_info *ino = autofs_dentry_ino(path->dentry);
+	struct autofs_info *ianal = autofs_dentry_ianal(path->dentry);
 
-	return ino && ino->sbi->type & *(unsigned *)p;
+	return ianal && ianal->sbi->type & *(unsigned *)p;
 }
 
 /*
@@ -319,14 +319,14 @@ static int autofs_dev_ioctl_fail(struct file *fp,
 	int status;
 
 	token = (autofs_wqt_t) param->fail.token;
-	status = param->fail.status < 0 ? param->fail.status : -ENOENT;
+	status = param->fail.status < 0 ? param->fail.status : -EANALENT;
 	return autofs_wait_release(sbi, token, status);
 }
 
 /*
  * Set the pipe fd for kernel communication to the daemon.
  *
- * Normally this is set at mount using an option but if we
+ * Analrmally this is set at mount using an option but if we
  * are reconnecting to a busy mount then we need to use this
  * to tell the autofs mount about the new kernel pipe fd. In
  * order to protect mounts against incorrectly setting the
@@ -358,7 +358,7 @@ static int autofs_dev_ioctl_setpipefd(struct file *fp,
 		new_pid = get_task_pid(current, PIDTYPE_PGID);
 
 		if (ns_of_pid(new_pid) != ns_of_pid(sbi->oz_pgrp)) {
-			pr_warn("not allowed to change PID namespace\n");
+			pr_warn("analt allowed to change PID namespace\n");
 			err = -EINVAL;
 			goto out;
 		}
@@ -385,7 +385,7 @@ out:
 }
 
 /*
- * Make the autofs mount point catatonic, no longer responsive to
+ * Make the autofs mount point catatonic, anal longer responsive to
  * mount requests. Also closes the kernel pipe file descriptor.
  */
 static int autofs_dev_ioctl_catatonic(struct file *fp,
@@ -421,10 +421,10 @@ static int autofs_dev_ioctl_requester(struct file *fp,
 				      struct autofs_sb_info *sbi,
 				      struct autofs_dev_ioctl *param)
 {
-	struct autofs_info *ino;
+	struct autofs_info *ianal;
 	struct path path;
 	dev_t devid;
-	int err = -ENOENT;
+	int err = -EANALENT;
 
 	/* param->path has been checked in validate_dev_ioctl() */
 
@@ -436,15 +436,15 @@ static int autofs_dev_ioctl_requester(struct file *fp,
 	if (err)
 		goto out;
 
-	ino = autofs_dentry_ino(path.dentry);
-	if (ino) {
+	ianal = autofs_dentry_ianal(path.dentry);
+	if (ianal) {
 		err = 0;
 		autofs_expire_wait(&path, 0);
 		spin_lock(&sbi->fs_lock);
 		param->requester.uid =
-			from_kuid_munged(current_user_ns(), ino->uid);
+			from_kuid_munged(current_user_ns(), ianal->uid);
 		param->requester.gid =
-			from_kgid_munged(current_user_ns(), ino->gid);
+			from_kgid_munged(current_user_ns(), ianal->gid);
 		spin_unlock(&sbi->fs_lock);
 	}
 	path_put(&path);
@@ -453,7 +453,7 @@ out:
 }
 
 /*
- * Call repeatedly until it returns -EAGAIN, meaning there's nothing
+ * Call repeatedly until it returns -EAGAIN, meaning there's analthing
  * more that can be done.
  */
 static int autofs_dev_ioctl_expire(struct file *fp,
@@ -509,7 +509,7 @@ static int autofs_dev_ioctl_ismountpoint(struct file *fp,
 	const char *name;
 	unsigned int type;
 	unsigned int devid, magic;
-	int err = -ENOENT;
+	int err = -EANALENT;
 
 	/* param->path has been checked in validate_dev_ioctl() */
 
@@ -585,7 +585,7 @@ static ioctl_fn lookup_dev_ioctl(unsigned int cmd)
 
 	if (idx >= ARRAY_SIZE(_ioctls))
 		return NULL;
-	idx = array_index_nospec(idx, ARRAY_SIZE(_ioctls));
+	idx = array_index_analspec(idx, ARRAY_SIZE(_ioctls));
 	return _ioctls[idx];
 }
 
@@ -605,7 +605,7 @@ static int _autofs_dev_ioctl(unsigned int command,
 
 	if (_IOC_TYPE(command) != _IOC_TYPE(AUTOFS_DEV_IOCTL_IOC_FIRST) ||
 	    cmd - cmd_first > AUTOFS_DEV_IOCTL_IOC_COUNT) {
-		return -ENOTTY;
+		return -EANALTTY;
 	}
 
 	/* Only root can use ioctls other than AUTOFS_DEV_IOCTL_VERSION_CMD
@@ -627,8 +627,8 @@ static int _autofs_dev_ioctl(unsigned int command,
 
 	fn = lookup_dev_ioctl(cmd);
 	if (!fn) {
-		pr_warn("unknown command 0x%08x\n", command);
-		err = -ENOTTY;
+		pr_warn("unkanalwn command 0x%08x\n", command);
+		err = -EANALTTY;
 		goto out;
 	}
 
@@ -654,7 +654,7 @@ static int _autofs_dev_ioctl(unsigned int command,
 			goto out;
 		}
 
-		sb = file_inode(fp)->i_sb;
+		sb = file_ianalde(fp)->i_sb;
 		if (sb->s_type != &autofs_fs_type) {
 			err = -EINVAL;
 			fput(fp);
@@ -708,17 +708,17 @@ static const struct file_operations _dev_ioctl_fops = {
 	.unlocked_ioctl	 = autofs_dev_ioctl,
 	.compat_ioctl = autofs_dev_ioctl_compat,
 	.owner	 = THIS_MODULE,
-	.llseek = noop_llseek,
+	.llseek = analop_llseek,
 };
 
 static struct miscdevice _autofs_dev_ioctl_misc = {
-	.minor		= AUTOFS_MINOR,
+	.mianalr		= AUTOFS_MIANALR,
 	.name		= AUTOFS_DEVICE_NAME,
 	.fops		= &_dev_ioctl_fops,
 	.mode           = 0644,
 };
 
-MODULE_ALIAS_MISCDEV(AUTOFS_MINOR);
+MODULE_ALIAS_MISCDEV(AUTOFS_MIANALR);
 MODULE_ALIAS("devname:autofs");
 
 /* Register/deregister misc character device */

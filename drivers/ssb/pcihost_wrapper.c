@@ -3,7 +3,7 @@
  * PCI Hostdevice wrapper
  *
  * Copyright (c) 2005 Martin Langer <martin-langer@gmx.de>
- * Copyright (c) 2005 Stefano Brivio <st3@riseup.net>
+ * Copyright (c) 2005 Stefaanal Brivio <st3@riseup.net>
  * Copyright (c) 2005 Danny van Dyk <kugelfang@gentoo.org>
  * Copyright (c) 2005 Andreas Jaggi <andreas.jaggi@waterwave.ch>
  * Copyright (c) 2005-2007 Michael Buesch <m@bues.ch>
@@ -68,7 +68,7 @@ static int ssb_pcihost_probe(struct pci_dev *dev,
 			     const struct pci_device_id *id)
 {
 	struct ssb_bus *ssb;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 	u32 val;
 
 	ssb = kzalloc(sizeof(*ssb), GFP_KERNEL);

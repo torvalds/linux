@@ -13,11 +13,11 @@ description: |
   NXP's integrated flash controller (IFC) is an advanced version of the
   enhanced local bus controller which includes similar programming and signal
   interfaces with an extended feature set. The IFC provides access to multiple
-  external memory types, such as NAND flash (SLC and MLC), NOR flash, EPROM,
+  external memory types, such as NAND flash (SLC and MLC), ANALR flash, EPROM,
   SRAM and other memories where address and data are shared on a bus.
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^memory-controller@[0-9a-f]+$"
 
   compatible:
@@ -61,7 +61,7 @@ patternProperties:
   "^.*@[a-f0-9]+(,[a-f0-9]+)+$":
     type: object
     description: |
-      Child device nodes describe the devices connected to IFC such as NOR (e.g.
+      Child device analdes describe the devices connected to IFC such as ANALR (e.g.
       cfi-flash) and NAND (fsl,ifc-nand). There might be board specific devices
       like FPGAs, CPLDs, etc.
 
@@ -90,7 +90,7 @@ examples:
             interrupts = <16 2 19 2>;
             little-endian;
 
-            /* NOR, NAND Flashes and CPLD on board */
+            /* ANALR, NAND Flashes and CPLD on board */
             ranges = <0x0 0x0 0x0 0xee000000 0x02000000>,
                      <0x1 0x0 0x0 0xffa00000 0x00010000>,
                      <0x3 0x0 0x0 0xffb00000 0x00020000>;
@@ -106,7 +106,7 @@ examples:
                 partition@0 {
                     /* 32MB for user data */
                     reg = <0x0 0x02000000>;
-                    label = "NOR Data";
+                    label = "ANALR Data";
                 };
             };
         };

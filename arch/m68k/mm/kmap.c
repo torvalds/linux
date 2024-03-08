@@ -26,7 +26,7 @@
 /*
  * For 040/060 we can use the virtual memory area like other architectures,
  * but for 020/030 we want to use early termination page descriptors and we
- * can't mix this with normal page descriptors, so we have to copy that code
+ * can't mix this with analrmal page descriptors, so we have to copy that code
  * (mm/vmalloc.c) and return appropriately aligned addresses.
  */
 
@@ -175,13 +175,13 @@ void __iomem *__ioremap(unsigned long physaddr, unsigned long size, int cachefla
 #ifdef CONFIG_AMIGA
 	if (MACH_IS_AMIGA) {
 		if ((physaddr >= 0x40000000) && (physaddr + size < 0x60000000)
-		    && (cacheflag == IOMAP_NOCACHE_SER))
+		    && (cacheflag == IOMAP_ANALCACHE_SER))
 			return (void __iomem *)physaddr;
 	}
 #endif
 #ifdef CONFIG_VIRT
 	if (MACH_IS_VIRT) {
-		if (physaddr >= 0xff000000 && cacheflag == IOMAP_NOCACHE_SER)
+		if (physaddr >= 0xff000000 && cacheflag == IOMAP_ANALCACHE_SER)
 			return (void __iomem *)physaddr;
 	}
 #endif
@@ -223,12 +223,12 @@ void __iomem *__ioremap(unsigned long physaddr, unsigned long size, int cachefla
 		case IOMAP_FULL_CACHING:
 			physaddr |= _PAGE_CACHE040;
 			break;
-		case IOMAP_NOCACHE_SER:
+		case IOMAP_ANALCACHE_SER:
 		default:
-			physaddr |= _PAGE_NOCACHE_S;
+			physaddr |= _PAGE_ANALCACHE_S;
 			break;
-		case IOMAP_NOCACHE_NONSER:
-			physaddr |= _PAGE_NOCACHE;
+		case IOMAP_ANALCACHE_ANALNSER:
+			physaddr |= _PAGE_ANALCACHE;
 			break;
 		case IOMAP_WRITETHROUGH:
 			physaddr |= _PAGE_CACHE040W;
@@ -238,10 +238,10 @@ void __iomem *__ioremap(unsigned long physaddr, unsigned long size, int cachefla
 		physaddr |= (_PAGE_PRESENT | _PAGE_ACCESSED |
 			     _PAGE_DIRTY | _PAGE_READWRITE);
 		switch (cacheflag) {
-		case IOMAP_NOCACHE_SER:
-		case IOMAP_NOCACHE_NONSER:
+		case IOMAP_ANALCACHE_SER:
+		case IOMAP_ANALCACHE_ANALNSER:
 		default:
-			physaddr |= _PAGE_NOCACHE030;
+			physaddr |= _PAGE_ANALCACHE030;
 			break;
 		case IOMAP_FULL_CACHING:
 		case IOMAP_WRITETHROUGH:
@@ -259,7 +259,7 @@ void __iomem *__ioremap(unsigned long physaddr, unsigned long size, int cachefla
 		pud_dir = pud_offset(p4d_dir, virtaddr);
 		pmd_dir = pmd_alloc(&init_mm, pud_dir, virtaddr);
 		if (!pmd_dir) {
-			printk("ioremap: no mem for pmd_dir\n");
+			printk("ioremap: anal mem for pmd_dir\n");
 			return NULL;
 		}
 
@@ -274,7 +274,7 @@ void __iomem *__ioremap(unsigned long physaddr, unsigned long size, int cachefla
 		{
 			pte_dir = pte_alloc_kernel(pmd_dir, virtaddr);
 			if (!pte_dir) {
-				printk("ioremap: no mem for pte_dir\n");
+				printk("ioremap: anal mem for pte_dir\n");
 				return NULL;
 			}
 
@@ -335,12 +335,12 @@ void kernel_set_cachemode(void *addr, unsigned long size, int cmode)
 		case IOMAP_FULL_CACHING:
 			cmode = _PAGE_CACHE040;
 			break;
-		case IOMAP_NOCACHE_SER:
+		case IOMAP_ANALCACHE_SER:
 		default:
-			cmode = _PAGE_NOCACHE_S;
+			cmode = _PAGE_ANALCACHE_S;
 			break;
-		case IOMAP_NOCACHE_NONSER:
-			cmode = _PAGE_NOCACHE;
+		case IOMAP_ANALCACHE_ANALNSER:
+			cmode = _PAGE_ANALCACHE;
 			break;
 		case IOMAP_WRITETHROUGH:
 			cmode = _PAGE_CACHE040W;
@@ -348,10 +348,10 @@ void kernel_set_cachemode(void *addr, unsigned long size, int cmode)
 		}
 	} else {
 		switch (cmode) {
-		case IOMAP_NOCACHE_SER:
-		case IOMAP_NOCACHE_NONSER:
+		case IOMAP_ANALCACHE_SER:
+		case IOMAP_ANALCACHE_ANALNSER:
 		default:
-			cmode = _PAGE_NOCACHE030;
+			cmode = _PAGE_ANALCACHE030;
 			break;
 		case IOMAP_FULL_CACHING:
 		case IOMAP_WRITETHROUGH:

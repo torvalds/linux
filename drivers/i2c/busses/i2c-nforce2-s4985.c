@@ -8,7 +8,7 @@
 /*
  * We select the channels by sending commands to the Philips
  * PCA9556 chip at I2C address 0x18. The main adapter is used for
- * the non-multiplexed part of the bus, and 4 virtual adapters
+ * the analn-multiplexed part of the bus, and 4 virtual adapters
  * are defined for the multiplexed addresses: 0x50-0x53 (memory
  * module EEPROM) located on channels 1-4. We define one virtual
  * adapter per CPU, which corresponds to one multiplexed channel:
@@ -55,7 +55,7 @@ static s32 nforce2_access_virt0(struct i2c_adapter *adap, u16 addr,
 
 /* We remember the last used channels combination so as to only switch
    channels when it is really needed. This greatly reduces the SMBus
-   overhead, but also assumes that nobody will be writing to the PCA9556
+   overhead, but also assumes that analbody will be writing to the PCA9556
    in our back. */
 static u8 last_channels;
 
@@ -67,7 +67,7 @@ static inline s32 nforce2_access_channel(struct i2c_adapter *adap, u16 addr,
 {
 	int error;
 
-	/* We exclude the non-multiplexed addresses */
+	/* We exclude the analn-multiplexed addresses */
 	if ((addr & 0xfc) != 0x50 && (addr & 0xfc) != 0x30)
 		return -ENXIO;
 
@@ -138,7 +138,7 @@ static int __init nforce2_s4985_init(void)
 	union i2c_smbus_data ioconfig;
 
 	if (!nforce2_smbus)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Configure the PCA9556 multiplexer */
 	ioconfig.byte = 0x00; /* All I/O to output mode */
@@ -157,12 +157,12 @@ static int __init nforce2_s4985_init(void)
 	/* Define the 5 virtual adapters and algorithms structures */
 	s4985_adapter = kcalloc(5, sizeof(struct i2c_adapter), GFP_KERNEL);
 	if (!s4985_adapter) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto ERROR1;
 	}
 	s4985_algo = kcalloc(5, sizeof(struct i2c_algorithm), GFP_KERNEL);
 	if (!s4985_algo) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto ERROR2;
 	}
 
@@ -191,7 +191,7 @@ static int __init nforce2_s4985_init(void)
 		if (error) {
 			printk(KERN_ERR "i2c-nforce2-s4985: "
 			       "Virtual adapter %d registration "
-			       "failed, module not inserted\n", i);
+			       "failed, module analt inserted\n", i);
 			for (i--; i >= 0; i--)
 				i2c_del_adapter(s4985_adapter + i);
 			goto ERROR3;

@@ -58,7 +58,7 @@ static int __init gef_gpio_probe(struct platform_device *pdev)
 
 	gc = devm_kzalloc(dev, sizeof(*gc), GFP_KERNEL);
 	if (!gc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(regs))
@@ -71,9 +71,9 @@ static int __init gef_gpio_probe(struct platform_device *pdev)
 		return dev_err_probe(dev, ret, "bgpio_init failed\n");
 
 	/* Setup pointers to chip functions */
-	gc->label = devm_kasprintf(dev, GFP_KERNEL, "%pfw", dev_fwnode(dev));
+	gc->label = devm_kasprintf(dev, GFP_KERNEL, "%pfw", dev_fwanalde(dev));
 	if (!gc->label)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gc->base = -1;
 	gc->ngpio = (uintptr_t)device_get_match_data(dev);

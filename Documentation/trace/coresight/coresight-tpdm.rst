@@ -1,7 +1,7 @@
 .. SPDX-License-Identifier: GPL-2.0
 
 ==========================================================
-Trace performance monitoring and diagnostics monitor(TPDM)
+Trace performance monitoring and diaganalstics monitor(TPDM)
 ==========================================================
 
     :Author:   Jinlong Mao <quic_jinlmao@quicinc.com>
@@ -9,7 +9,7 @@ Trace performance monitoring and diagnostics monitor(TPDM)
 
 Hardware Description
 --------------------
-TPDM - The trace performance monitoring and diagnostics monitor or TPDM in
+TPDM - The trace performance monitoring and diaganalstics monitor or TPDM in
 short serves as data collection component for various dataset types.
 The primary use case of the TPDM is to collect data from different data
 sources and send it to a TPDA for packetization, timestamping and funneling.
@@ -21,7 +21,7 @@ Root: ``/sys/bus/coresight/devices/tpdm<N>``
 ----
 
 :File:            ``enable_source`` (RW)
-:Notes:
+:Analtes:
     - > 0 : enable the datasets of TPDM.
 
     - = 0 : disable the datasets of TPDM.
@@ -32,7 +32,7 @@ Root: ``/sys/bus/coresight/devices/tpdm<N>``
 ----
 
 :File:            ``integration_test`` (wo)
-:Notes:
+:Analtes:
     Integration test will generate test data for tpdm.
 
 :Syntax:

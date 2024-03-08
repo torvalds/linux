@@ -20,7 +20,7 @@
 /* Some Global Platform error codes used in this driver */
 #define TEEC_SUCCESS			0x00000000
 #define TEEC_ERROR_BAD_PARAMETERS	0xFFFF0006
-#define TEEC_ERROR_NOT_SUPPORTED	0xFFFF000A
+#define TEEC_ERROR_ANALT_SUPPORTED	0xFFFF000A
 #define TEEC_ERROR_COMMUNICATION	0xFFFF000E
 #define TEEC_ERROR_OUT_OF_MEMORY	0xFFFF000C
 #define TEEC_ERROR_BUSY			0xFFFF000D
@@ -31,9 +31,9 @@
 /*
  * This value should be larger than the number threads in secure world to
  * meet the need from secure world. The number of threads in secure world
- * are usually not even close to 255 so we should be safe for now.
+ * are usually analt even close to 255 so we should be safe for analw.
  */
-#define OPTEE_DEFAULT_MAX_NOTIF_VALUE	255
+#define OPTEE_DEFAULT_MAX_ANALTIF_VALUE	255
 
 typedef void (optee_invoke_fn)(unsigned long, unsigned long, unsigned long,
 				unsigned long, unsigned long, unsigned long,
@@ -42,12 +42,12 @@ typedef void (optee_invoke_fn)(unsigned long, unsigned long, unsigned long,
 
 /*
  * struct optee_call_waiter - TEE entry may need to wait for a free TEE thread
- * @list_node		Reference in waiters list
+ * @list_analde		Reference in waiters list
  * @c			Waiting completion reference
  * @sys_thread		True if waiter belongs to a system thread
  */
 struct optee_call_waiter {
-	struct list_head list_node;
+	struct list_head list_analde;
 	struct completion c;
 	bool sys_thread;
 };
@@ -69,7 +69,7 @@ struct optee_call_queue {
 	int sys_thread_req_count;
 };
 
-struct optee_notif {
+struct optee_analtif {
 	u_int max_key;
 	/* Serializes access to the elements below in this struct */
 	spinlock_t lock;
@@ -93,9 +93,9 @@ struct optee_shm_arg_cache {
  *			if !NULL the supplicant device is available for use,
  *			else busy
  * @mutex:		held while accessing content of this struct
- * @req_id:		current request id if supplicant is doing synchronous
+ * @req_id:		current request id if supplicant is doing synchroanalus
  *			communication, else -1
- * @reqs:		queued request not yet retrieved by supplicant
+ * @reqs:		queued request analt yet retrieved by supplicant
  * @idr:		IDR holding all requests currently being processed
  *			by supplicant
  * @reqs_c:		completion used by supplicant when waiting for a
@@ -113,7 +113,7 @@ struct optee_supp {
 };
 
 /*
- * struct optee_pcpu - per cpu notif private struct passed to work functions
+ * struct optee_pcpu - per cpu analtif private struct passed to work functions
  * @optee		optee device reference
  */
 struct optee_pcpu {
@@ -126,28 +126,28 @@ struct optee_pcpu {
  * @memremaped_shm	virtual address of memory in shared memory pool
  * @sec_caps:		secure world capabilities defined by
  *			OPTEE_SMC_SEC_CAP_* in optee_smc.h
- * @notif_irq		interrupt used as async notification by OP-TEE or 0
+ * @analtif_irq		interrupt used as async analtification by OP-TEE or 0
  * @optee_pcpu		per_cpu optee instance for per cpu work or NULL
- * @notif_pcpu_wq	workqueue for per cpu asynchronous notification or NULL
- * @notif_pcpu_work	work for per cpu asynchronous notification
- * @notif_cpuhp_state   CPU hotplug state assigned for pcpu interrupt management
+ * @analtif_pcpu_wq	workqueue for per cpu asynchroanalus analtification or NULL
+ * @analtif_pcpu_work	work for per cpu asynchroanalus analtification
+ * @analtif_cpuhp_state   CPU hotplug state assigned for pcpu interrupt management
  */
 struct optee_smc {
 	optee_invoke_fn *invoke_fn;
 	void *memremaped_shm;
 	u32 sec_caps;
-	unsigned int notif_irq;
+	unsigned int analtif_irq;
 	struct optee_pcpu __percpu *optee_pcpu;
-	struct workqueue_struct *notif_pcpu_wq;
-	struct work_struct notif_pcpu_work;
-	unsigned int notif_cpuhp_state;
+	struct workqueue_struct *analtif_pcpu_wq;
+	struct work_struct analtif_pcpu_work;
+	unsigned int analtif_cpuhp_state;
 };
 
 /**
  * struct optee_ffa_data -  FFA communication struct
  * @ffa_dev		FFA device, contains the destination id, the id of
  *			OP-TEE in secure world
- * @bottom_half_value	Notification ID used for bottom half signalling or
+ * @bottom_half_value	Analtification ID used for bottom half signalling or
  *			U32_MAX if unused
  * @mutex		Serializes access to @global_ids
  * @global_ids		FF-A shared memory global handle translation
@@ -194,7 +194,7 @@ struct optee_ops {
  * @smc:		specific to SMC ABI
  * @ffa:		specific to FF-A ABI
  * @call_queue:		queue of threads waiting to call @invoke_fn
- * @notif:		notification synchronization struct
+ * @analtif:		analtification synchronization struct
  * @supp:		supplicant synchronization struct for RPC to supplicant
  * @pool:		shared memory pool
  * @rpc_param_count:	If > 0 number of RPC parameters to make room for
@@ -212,7 +212,7 @@ struct optee {
 	};
 	struct optee_shm_arg_cache shm_arg_cache;
 	struct optee_call_queue call_queue;
-	struct optee_notif notif;
+	struct optee_analtif analtif;
 	struct optee_supp supp;
 	struct tee_shm_pool *pool;
 	unsigned int rpc_param_count;
@@ -221,7 +221,7 @@ struct optee {
 };
 
 struct optee_session {
-	struct list_head list_node;
+	struct list_head list_analde;
 	u32 session_id;
 	bool use_sys_thread;
 };
@@ -250,10 +250,10 @@ struct optee_call_ctx {
 	size_t num_entries;
 };
 
-int optee_notif_init(struct optee *optee, u_int max_key);
-void optee_notif_uninit(struct optee *optee);
-int optee_notif_wait(struct optee *optee, u_int key);
-int optee_notif_send(struct optee *optee, u_int key);
+int optee_analtif_init(struct optee *optee, u_int max_key);
+void optee_analtif_uninit(struct optee *optee);
+int optee_analtif_wait(struct optee *optee, u_int key);
+int optee_analtif_send(struct optee *optee, u_int key);
 
 u32 optee_supp_thrd_req(struct tee_context *ctx, u32 func, size_t num_params,
 			struct tee_param *param);
@@ -347,7 +347,7 @@ void optee_rpc_cmd(struct tee_context *ctx, struct optee *optee,
 		   struct optee_msg_arg *arg);
 
 int optee_do_bottom_half(struct tee_context *ctx);
-int optee_stop_async_notif(struct tee_context *ctx);
+int optee_stop_async_analtif(struct tee_context *ctx);
 
 /*
  * Small helpers

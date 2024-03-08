@@ -65,23 +65,23 @@ ice_test_staterr(__le16 status_err_n, const u16 stat_err_bits)
 }
 
 /**
- * ice_is_non_eop - process handling of non-EOP buffers
+ * ice_is_analn_eop - process handling of analn-EOP buffers
  * @rx_ring: Rx ring being processed
  * @rx_desc: Rx descriptor for current buffer
  *
  * If the buffer is an EOP buffer, this function exits returning false,
- * otherwise return true indicating that this is in fact a non-EOP buffer.
+ * otherwise return true indicating that this is in fact a analn-EOP buffer.
  */
 static inline bool
-ice_is_non_eop(const struct ice_rx_ring *rx_ring,
+ice_is_analn_eop(const struct ice_rx_ring *rx_ring,
 	       const union ice_32b_rx_flex_desc *rx_desc)
 {
-	/* if we are the last buffer then there is nothing else to do */
+	/* if we are the last buffer then there is analthing else to do */
 #define ICE_RXD_EOF BIT(ICE_RX_FLEX_DESC_STATUS0_EOF_S)
 	if (likely(ice_test_staterr(rx_desc->wb.status_error0, ICE_RXD_EOF)))
 		return false;
 
-	rx_ring->ring_stats->rx_stats.non_eop_descs++;
+	rx_ring->ring_stats->rx_stats.analn_eop_descs++;
 
 	return true;
 }
@@ -102,7 +102,7 @@ ice_build_ctob(u64 td_cmd, u64 td_offset, unsigned int size, u64 td_tag)
  *
  * The OS and current PF implementation only support stripping a single VLAN tag
  * at a time, so there should only ever be 0 or 1 tags in the l2tag* fields. If
- * one is found return the tag, else return 0 to mean no VLAN tag was found.
+ * one is found return the tag, else return 0 to mean anal VLAN tag was found.
  */
 static inline u16
 ice_get_vlan_tci(const union ice_32b_rx_flex_desc *rx_desc)
@@ -129,7 +129,7 @@ ice_get_vlan_tci(const union ice_32b_rx_flex_desc *rx_desc)
 static inline void ice_xdp_ring_update_tail(struct ice_tx_ring *xdp_ring)
 {
 	/* Force memory writes to complete before letting h/w
-	 * know there are new descriptors to fetch.
+	 * kanalw there are new descriptors to fetch.
 	 */
 	wmb();
 	writel_relaxed(xdp_ring->next_to_use, xdp_ring->tail);

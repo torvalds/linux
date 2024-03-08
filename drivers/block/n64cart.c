@@ -110,33 +110,33 @@ static const struct block_device_operations n64cart_fops = {
 /*
  * The target device is embedded and RAM-constrained. We save RAM
  * by initializing in __init code that gets dropped late in boot.
- * For the same reason there is no module or unloading support.
+ * For the same reason there is anal module or unloading support.
  */
 static int __init n64cart_probe(struct platform_device *pdev)
 {
 	struct gendisk *disk;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	if (!start || !size) {
-		pr_err("start or size not specified\n");
-		return -ENODEV;
+		pr_err("start or size analt specified\n");
+		return -EANALDEV;
 	}
 
 	if (size & 4095) {
 		pr_err("size must be a multiple of 4K\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	reg_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(reg_base))
 		return PTR_ERR(reg_base);
 
-	disk = blk_alloc_disk(NUMA_NO_NODE);
+	disk = blk_alloc_disk(NUMA_ANAL_ANALDE);
 	if (!disk)
 		goto out;
 
-	disk->first_minor = 0;
-	disk->flags = GENHD_FL_NO_PART;
+	disk->first_mianalr = 0;
+	disk->flags = GENHD_FL_ANAL_PART;
 	disk->fops = &n64cart_fops;
 	disk->private_data = &pdev->dev;
 	strcpy(disk->disk_name, "n64cart");
@@ -144,7 +144,7 @@ static int __init n64cart_probe(struct platform_device *pdev)
 	set_capacity(disk, size >> SECTOR_SHIFT);
 	set_disk_ro(disk, 1);
 
-	blk_queue_flag_set(QUEUE_FLAG_NONROT, disk->queue);
+	blk_queue_flag_set(QUEUE_FLAG_ANALNROT, disk->queue);
 	blk_queue_physical_block_size(disk->queue, 4096);
 	blk_queue_logical_block_size(disk->queue, 4096);
 

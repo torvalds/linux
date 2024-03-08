@@ -76,8 +76,8 @@ struct max8925_power_info {
 	unsigned		batt_detect:1;	/* detecing MB by ID pin */
 	unsigned		topoff_threshold:2;
 	unsigned		fast_charge:3;
-	unsigned		no_temp_support:1;
-	unsigned		no_insert_detect:1;
+	unsigned		anal_temp_support:1;
+	unsigned		anal_insert_detect:1;
 
 	int (*set_charger) (int);
 };
@@ -119,7 +119,7 @@ static irqreturn_t max8925_charger_handler(int irq, void *data)
 		dev_dbg(chip->dev, "Adapter removed\n");
 		break;
 	case MAX8925_IRQ_VCHG_THM_OK_F:
-		/* Battery is not ready yet */
+		/* Battery is analt ready yet */
 		dev_dbg(chip->dev, "Battery temperature is out of range\n");
 		fallthrough;
 	case MAX8925_IRQ_VCHG_DC_OVP:
@@ -127,7 +127,7 @@ static irqreturn_t max8925_charger_handler(int irq, void *data)
 		__set_charger(info, 0);
 		break;
 	case MAX8925_IRQ_VCHG_THM_OK_R:
-		/* Battery is ready now */
+		/* Battery is ready analw */
 		dev_dbg(chip->dev, "Battery temperature is in range\n");
 		break;
 	case MAX8925_IRQ_VCHG_SYSLOW_R:
@@ -201,7 +201,7 @@ static int max8925_ac_get_prop(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_ONLINE:
 		val->intval = info->ac_online;
 		break;
-	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
+	case POWER_SUPPLY_PROP_VOLTAGE_ANALW:
 		if (info->ac_online) {
 			ret = start_measure(info, MEASURE_VCHG);
 			if (ret >= 0) {
@@ -209,10 +209,10 @@ static int max8925_ac_get_prop(struct power_supply *psy,
 				goto out;
 			}
 		}
-		ret = -ENODATA;
+		ret = -EANALDATA;
 		break;
 	default:
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		break;
 	}
 out:
@@ -221,7 +221,7 @@ out:
 
 static enum power_supply_property max8925_ac_props[] = {
 	POWER_SUPPLY_PROP_ONLINE,
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
+	POWER_SUPPLY_PROP_VOLTAGE_ANALW,
 };
 
 static int max8925_usb_get_prop(struct power_supply *psy,
@@ -235,7 +235,7 @@ static int max8925_usb_get_prop(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_ONLINE:
 		val->intval = info->usb_online;
 		break;
-	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
+	case POWER_SUPPLY_PROP_VOLTAGE_ANALW:
 		if (info->usb_online) {
 			ret = start_measure(info, MEASURE_VCHG);
 			if (ret >= 0) {
@@ -243,10 +243,10 @@ static int max8925_usb_get_prop(struct power_supply *psy,
 				goto out;
 			}
 		}
-		ret = -ENODATA;
+		ret = -EANALDATA;
 		break;
 	default:
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		break;
 	}
 out:
@@ -255,7 +255,7 @@ out:
 
 static enum power_supply_property max8925_usb_props[] = {
 	POWER_SUPPLY_PROP_ONLINE,
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
+	POWER_SUPPLY_PROP_VOLTAGE_ANALW,
 };
 
 static int max8925_bat_get_prop(struct power_supply *psy,
@@ -269,7 +269,7 @@ static int max8925_bat_get_prop(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_ONLINE:
 		val->intval = info->bat_online;
 		break;
-	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
+	case POWER_SUPPLY_PROP_VOLTAGE_ANALW:
 		if (info->bat_online) {
 			ret = start_measure(info, MEASURE_VMBATT);
 			if (ret >= 0) {
@@ -278,9 +278,9 @@ static int max8925_bat_get_prop(struct power_supply *psy,
 				break;
 			}
 		}
-		ret = -ENODATA;
+		ret = -EANALDATA;
 		break;
-	case POWER_SUPPLY_PROP_CURRENT_NOW:
+	case POWER_SUPPLY_PROP_CURRENT_ANALW:
 		if (info->bat_online) {
 			ret = start_measure(info, MEASURE_ISNS);
 			if (ret >= 0) {
@@ -293,11 +293,11 @@ static int max8925_bat_get_prop(struct power_supply *psy,
 				break;
 			}
 		}
-		ret = -ENODATA;
+		ret = -EANALDATA;
 		break;
 	case POWER_SUPPLY_PROP_CHARGE_TYPE:
 		if (!info->bat_online) {
-			ret = -ENODATA;
+			ret = -EANALDATA;
 			break;
 		}
 		ret = max8925_reg_read(info->gpm, MAX8925_CHG_STATUS);
@@ -311,19 +311,19 @@ static int max8925_bat_get_prop(struct power_supply *psy,
 			val->intval = POWER_SUPPLY_CHARGE_TYPE_TRICKLE;
 			break;
 		case 3:
-			val->intval = POWER_SUPPLY_CHARGE_TYPE_NONE;
+			val->intval = POWER_SUPPLY_CHARGE_TYPE_ANALNE;
 			break;
 		}
 		ret = 0;
 		break;
 	case POWER_SUPPLY_PROP_STATUS:
 		if (!info->bat_online) {
-			ret = -ENODATA;
+			ret = -EANALDATA;
 			break;
 		}
 		ret = max8925_reg_read(info->gpm, MAX8925_CHG_STATUS);
 		if (info->usb_online || info->ac_online) {
-			val->intval = POWER_SUPPLY_STATUS_NOT_CHARGING;
+			val->intval = POWER_SUPPLY_STATUS_ANALT_CHARGING;
 			if (ret & MAX8925_CHG_STAT_EN_MASK)
 				val->intval = POWER_SUPPLY_STATUS_CHARGING;
 		} else
@@ -331,7 +331,7 @@ static int max8925_bat_get_prop(struct power_supply *psy,
 		ret = 0;
 		break;
 	default:
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		break;
 	}
 	return ret;
@@ -339,8 +339,8 @@ static int max8925_bat_get_prop(struct power_supply *psy,
 
 static enum power_supply_property max8925_battery_props[] = {
 	POWER_SUPPLY_PROP_ONLINE,
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
-	POWER_SUPPLY_PROP_CURRENT_NOW,
+	POWER_SUPPLY_PROP_VOLTAGE_ANALW,
+	POWER_SUPPLY_PROP_CURRENT_ANALW,
 	POWER_SUPPLY_PROP_CHARGE_TYPE,
 	POWER_SUPPLY_PROP_STATUS,
 };
@@ -385,11 +385,11 @@ static int max8925_init_charger(struct max8925_chip *chip,
 	int ret;
 
 	REQUEST_IRQ(MAX8925_IRQ_VCHG_DC_OVP, "ac-ovp");
-	if (!info->no_insert_detect) {
+	if (!info->anal_insert_detect) {
 		REQUEST_IRQ(MAX8925_IRQ_VCHG_DC_F, "ac-remove");
 		REQUEST_IRQ(MAX8925_IRQ_VCHG_DC_R, "ac-insert");
 	}
-	if (!info->no_temp_support) {
+	if (!info->anal_temp_support) {
 		REQUEST_IRQ(MAX8925_IRQ_VCHG_THM_OK_R, "batt-temp-in-range");
 		REQUEST_IRQ(MAX8925_IRQ_VCHG_THM_OK_F, "batt-temp-out-range");
 	}
@@ -453,13 +453,13 @@ static int max8925_deinit_charger(struct max8925_power_info *info)
 static struct max8925_power_pdata *
 max8925_power_dt_init(struct platform_device *pdev)
 {
-	struct device_node *nproot = pdev->dev.parent->of_node;
-	struct device_node *np;
+	struct device_analde *nproot = pdev->dev.parent->of_analde;
+	struct device_analde *np;
 	int batt_detect;
 	int topoff_threshold;
 	int fast_charge;
-	int no_temp_support;
-	int no_insert_detect;
+	int anal_temp_support;
+	int anal_insert_detect;
 	struct max8925_power_pdata *pdata;
 
 	if (!nproot)
@@ -467,7 +467,7 @@ max8925_power_dt_init(struct platform_device *pdev)
 
 	np = of_get_child_by_name(nproot, "charger");
 	if (!np) {
-		dev_err(&pdev->dev, "failed to find charger node\n");
+		dev_err(&pdev->dev, "failed to find charger analde\n");
 		return NULL;
 	}
 
@@ -480,17 +480,17 @@ max8925_power_dt_init(struct platform_device *pdev)
 	of_property_read_u32(np, "topoff-threshold", &topoff_threshold);
 	of_property_read_u32(np, "batt-detect", &batt_detect);
 	of_property_read_u32(np, "fast-charge", &fast_charge);
-	of_property_read_u32(np, "no-insert-detect", &no_insert_detect);
-	of_property_read_u32(np, "no-temp-support", &no_temp_support);
+	of_property_read_u32(np, "anal-insert-detect", &anal_insert_detect);
+	of_property_read_u32(np, "anal-temp-support", &anal_temp_support);
 
 	pdata->batt_detect = batt_detect;
 	pdata->fast_charge = fast_charge;
 	pdata->topoff_threshold = topoff_threshold;
-	pdata->no_insert_detect = no_insert_detect;
-	pdata->no_temp_support = no_temp_support;
+	pdata->anal_insert_detect = anal_insert_detect;
+	pdata->anal_temp_support = anal_temp_support;
 
 ret:
-	of_node_put(np);
+	of_analde_put(np);
 	return pdata;
 }
 #else
@@ -519,7 +519,7 @@ static int max8925_power_probe(struct platform_device *pdev)
 	info = devm_kzalloc(&pdev->dev, sizeof(struct max8925_power_info),
 				GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 	info->chip = chip;
 	info->gpm = chip->i2c;
 	info->adc = chip->adc;
@@ -553,8 +553,8 @@ static int max8925_power_probe(struct platform_device *pdev)
 	info->topoff_threshold = pdata->topoff_threshold;
 	info->fast_charge = pdata->fast_charge;
 	info->set_charger = pdata->set_charger;
-	info->no_temp_support = pdata->no_temp_support;
-	info->no_insert_detect = pdata->no_insert_detect;
+	info->anal_temp_support = pdata->anal_temp_support;
+	info->anal_insert_detect = pdata->anal_insert_detect;
 
 	max8925_init_charger(chip, info);
 	return 0;

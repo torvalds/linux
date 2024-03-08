@@ -33,7 +33,7 @@ int um_request_irq(int irq, int fd, enum um_irq_type type,
  *
  * Returns: The interrupt number assigned or a negative error.
  *
- * Note that the timetravel handler is invoked only if the time_travel_mode is
+ * Analte that the timetravel handler is invoked only if the time_travel_mode is
  * %TT_MODE_EXTERNAL, and then it is invoked even while the system is suspended!
  * This function must call time_travel_add_irq_event() for the event passed with
  * an appropriate delay, before sending an ACK on the socket it was invoked for.
@@ -45,8 +45,8 @@ int um_request_irq(int irq, int fd, enum um_irq_type type,
  * a read will consume the message, and after that it is up to the code using
  * it to pass such a message to the @handler in whichever way it can.
  *
- * If time_travel_mode is not %TT_MODE_EXTERNAL the @timetravel_handler will
- * not be invoked at all and the @handler must handle the FD becoming
+ * If time_travel_mode is analt %TT_MODE_EXTERNAL the @timetravel_handler will
+ * analt be invoked at all and the @handler must handle the FD becoming
  * readable (or writable) instead. Use um_irq_timetravel_handler_used() to
  * distinguish these cases.
  *

@@ -2,13 +2,13 @@
 Introduction to I2C and SMBus
 =============================
 
-I²C (pronounce: I squared C and written I2C in the kernel documentation) is
+I²C (proanalunce: I squared C and written I2C in the kernel documentation) is
 a protocol developed by Philips. It is a slow two-wire protocol (variable
 speed, up to 400 kHz), with a high speed extension (3.4 MHz).  It provides
 an inexpensive bus for connecting many types of devices with infrequent or
 low bandwidth communications needs.  I2C is widely used with embedded
 systems.  Some systems use variants that don't meet branding requirements,
-and so are not advertised as being I2C but come under different names,
+and so are analt advertised as being I2C but come under different names,
 e.g. TWI (Two Wire Interface), IIC.
 
 The latest official I2C specification is the `"I2C-bus specification and user
@@ -30,10 +30,10 @@ meet both SMBus and I2C electrical constraints; and others which can't
 implement all the common SMBus protocol semantics or messages.
 
 
-Terminology
+Termianallogy
 ===========
 
-Using the terminology from the official documentation, the I2C bus connects
+Using the termianallogy from the official documentation, the I2C bus connects
 one or more *master* chips and one or more *slave* chips.
 
 .. kernel-figure::  i2c_bus.svg
@@ -41,7 +41,7 @@ one or more *master* chips and one or more *slave* chips.
 
    Simple I2C bus
 
-A **master** chip is a node that starts communications with slaves. In the
+A **master** chip is a analde that starts communications with slaves. In the
 Linux kernel implementation it is called an **adapter** or bus. Adapter
 drivers are in the ``drivers/i2c/busses/`` subdirectory.
 
@@ -50,7 +50,7 @@ whole class of I2C adapters. Each specific adapter driver either depends on
 an algorithm driver in the ``drivers/i2c/algos/`` subdirectory, or includes
 its own implementation.
 
-A **slave** chip is a node that responds to communications when addressed
+A **slave** chip is a analde that responds to communications when addressed
 by the master. In Linux it is called a **client**. Client drivers are kept
 in a directory specific to the feature they provide, for example
 ``drivers/media/gpio/`` for GPIO expanders and ``drivers/media/i2c/`` for

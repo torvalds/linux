@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _GEN_PV_LOCK_SLOWPATH
-#error "do not include this file"
+#error "do analt include this file"
 #endif
 
 #include <linux/hash.h>
@@ -24,30 +24,30 @@
 #define _Q_SLOW_VAL	(3U << _Q_LOCKED_OFFSET)
 
 /*
- * Queue Node Adaptive Spinning
+ * Queue Analde Adaptive Spinning
  *
- * A queue node vCPU will stop spinning if the vCPU in the previous node is
- * not running. The one lock stealing attempt allowed at slowpath entry
- * mitigates the slight slowdown for non-overcommitted guest with this
+ * A queue analde vCPU will stop spinning if the vCPU in the previous analde is
+ * analt running. The one lock stealing attempt allowed at slowpath entry
+ * mitigates the slight slowdown for analn-overcommitted guest with this
  * aggressive wait-early mechanism.
  *
- * The status of the previous node will be checked at fixed interval
+ * The status of the previous analde will be checked at fixed interval
  * controlled by PV_PREV_CHECK_MASK. This is to ensure that we won't
- * pound on the cacheline of the previous node too heavily.
+ * pound on the cacheline of the previous analde too heavily.
  */
 #define PV_PREV_CHECK_MASK	0xff
 
 /*
- * Queue node uses: vcpu_running & vcpu_halted.
+ * Queue analde uses: vcpu_running & vcpu_halted.
  * Queue head uses: vcpu_running & vcpu_hashed.
  */
 enum vcpu_state {
 	vcpu_running = 0,
-	vcpu_halted,		/* Used only in pv_wait_node */
+	vcpu_halted,		/* Used only in pv_wait_analde */
 	vcpu_hashed,		/* = pv_hash'ed + vcpu_halted */
 };
 
-struct pv_node {
+struct pv_analde {
 	struct mcs_spinlock	mcs;
 	int			cpu;
 	u8			state;
@@ -62,7 +62,7 @@ struct pv_node {
  *
  * The pending bit is set by the queue head vCPU of the MCS wait queue in
  * pv_wait_head_or_lock() to signal that it is ready to spin on the lock.
- * When that bit becomes visible to the incoming waiters, no lock stealing
+ * When that bit becomes visible to the incoming waiters, anal lock stealing
  * is allowed. The function will return immediately to make the waiters
  * enter the MCS wait queue. So lock starvation shouldn't happen as long
  * as the queued mode vCPUs are actively running to set the pending bit
@@ -74,8 +74,8 @@ struct pv_node {
  * become the queue head and set the pending bit.
  *
  * This hybrid PV queued/unfair lock combines the best attributes of a
- * queued lock (no lock starvation) and an unfair lock (good performance
- * on not heavily contended locks).
+ * queued lock (anal lock starvation) and an unfair lock (good performance
+ * on analt heavily contended locks).
  */
 #define queued_spin_trylock(l)	pv_hybrid_queued_unfair_trylock(l)
 static inline bool pv_hybrid_queued_unfair_trylock(struct qspinlock *lock)
@@ -103,7 +103,7 @@ static inline bool pv_hybrid_queued_unfair_trylock(struct qspinlock *lock)
 
 /*
  * The pending bit is used by the queue head vCPU to indicate that it
- * is actively spinning on the lock and no lock stealing is allowed.
+ * is actively spinning on the lock and anal lock stealing is allowed.
  */
 #if _Q_PENDING_BITS == 8
 static __always_inline void set_pending(struct qspinlock *lock)
@@ -153,24 +153,24 @@ static __always_inline int trylock_clear_pending(struct qspinlock *lock)
 #endif /* _Q_PENDING_BITS == 8 */
 
 /*
- * Lock and MCS node addresses hash table for fast lookup
+ * Lock and MCS analde addresses hash table for fast lookup
  *
  * Hashing is done on a per-cacheline basis to minimize the need to access
  * more than one cacheline.
  *
- * Dynamically allocate a hash table big enough to hold at least 4X the
+ * Dynamically allocate a hash table big eanalugh to hold at least 4X the
  * number of possible cpus in the system. Allocation is done on page
  * granularity. So the minimum number of hash buckets should be at least
  * 256 (64-bit) or 512 (32-bit) to fully utilize a 4k page.
  *
- * Since we should not be holding locks from NMI context (very rare indeed) the
+ * Since we should analt be holding locks from NMI context (very rare indeed) the
  * max load factor is 0.75, which is around the point where open addressing
  * breaks down.
  *
  */
 struct pv_hash_entry {
 	struct qspinlock *lock;
-	struct pv_node   *node;
+	struct pv_analde   *analde;
 };
 
 #define PV_HE_PER_LINE	(SMP_CACHE_BYTES / sizeof(struct pv_hash_entry))
@@ -209,7 +209,7 @@ void __init __pv_init_lock_hash(void)
 	     offset < (1 << pv_lock_hash_bits);						\
 	     offset++, he = &pv_lock_hash[(hash + offset) & ((1 << pv_lock_hash_bits) - 1)])
 
-static struct qspinlock **pv_hash(struct qspinlock *lock, struct pv_node *node)
+static struct qspinlock **pv_hash(struct qspinlock *lock, struct pv_analde *analde)
 {
 	unsigned long offset, hash = hash_ptr(lock, pv_lock_hash_bits);
 	struct pv_hash_entry *he;
@@ -218,7 +218,7 @@ static struct qspinlock **pv_hash(struct qspinlock *lock, struct pv_node *node)
 	for_each_hash_entry(he, offset, hash) {
 		hopcnt++;
 		if (!cmpxchg(&he->lock, NULL, lock)) {
-			WRITE_ONCE(he->node, node);
+			WRITE_ONCE(he->analde, analde);
 			lockevent_pv_hop(hopcnt);
 			return &he->lock;
 		}
@@ -236,17 +236,17 @@ static struct qspinlock **pv_hash(struct qspinlock *lock, struct pv_node *node)
 	BUG();
 }
 
-static struct pv_node *pv_unhash(struct qspinlock *lock)
+static struct pv_analde *pv_unhash(struct qspinlock *lock)
 {
 	unsigned long offset, hash = hash_ptr(lock, pv_lock_hash_bits);
 	struct pv_hash_entry *he;
-	struct pv_node *node;
+	struct pv_analde *analde;
 
 	for_each_hash_entry(he, offset, hash) {
 		if (READ_ONCE(he->lock) == lock) {
-			node = READ_ONCE(he->node);
+			analde = READ_ONCE(he->analde);
 			WRITE_ONCE(he->lock, NULL);
-			return node;
+			return analde;
 		}
 	}
 	/*
@@ -260,11 +260,11 @@ static struct pv_node *pv_unhash(struct qspinlock *lock)
 }
 
 /*
- * Return true if when it is time to check the previous node which is not
+ * Return true if when it is time to check the previous analde which is analt
  * in a running state.
  */
 static inline bool
-pv_wait_early(struct pv_node *prev, int loop)
+pv_wait_early(struct pv_analde *prev, int loop)
 {
 	if ((loop & PV_PREV_CHECK_MASK) != 0)
 		return false;
@@ -273,33 +273,33 @@ pv_wait_early(struct pv_node *prev, int loop)
 }
 
 /*
- * Initialize the PV part of the mcs_spinlock node.
+ * Initialize the PV part of the mcs_spinlock analde.
  */
-static void pv_init_node(struct mcs_spinlock *node)
+static void pv_init_analde(struct mcs_spinlock *analde)
 {
-	struct pv_node *pn = (struct pv_node *)node;
+	struct pv_analde *pn = (struct pv_analde *)analde;
 
-	BUILD_BUG_ON(sizeof(struct pv_node) > sizeof(struct qnode));
+	BUILD_BUG_ON(sizeof(struct pv_analde) > sizeof(struct qanalde));
 
 	pn->cpu = smp_processor_id();
 	pn->state = vcpu_running;
 }
 
 /*
- * Wait for node->locked to become true, halt the vcpu after a short spin.
- * pv_kick_node() is used to set _Q_SLOW_VAL and fill in hash table on its
+ * Wait for analde->locked to become true, halt the vcpu after a short spin.
+ * pv_kick_analde() is used to set _Q_SLOW_VAL and fill in hash table on its
  * behalf.
  */
-static void pv_wait_node(struct mcs_spinlock *node, struct mcs_spinlock *prev)
+static void pv_wait_analde(struct mcs_spinlock *analde, struct mcs_spinlock *prev)
 {
-	struct pv_node *pn = (struct pv_node *)node;
-	struct pv_node *pp = (struct pv_node *)prev;
+	struct pv_analde *pn = (struct pv_analde *)analde;
+	struct pv_analde *pp = (struct pv_analde *)prev;
 	int loop;
 	bool wait_early;
 
 	for (;;) {
 		for (wait_early = false, loop = SPIN_THRESHOLD; loop; loop--) {
-			if (READ_ONCE(node->locked))
+			if (READ_ONCE(analde->locked))
 				return;
 			if (pv_wait_early(pp, loop)) {
 				wait_early = true;
@@ -315,36 +315,36 @@ static void pv_wait_node(struct mcs_spinlock *node, struct mcs_spinlock *prev)
 		 *     MB			      MB
 		 * [L] pn->locked		[RmW] pn->state = vcpu_hashed
 		 *
-		 * Matches the cmpxchg() from pv_kick_node().
+		 * Matches the cmpxchg() from pv_kick_analde().
 		 */
 		smp_store_mb(pn->state, vcpu_halted);
 
-		if (!READ_ONCE(node->locked)) {
-			lockevent_inc(pv_wait_node);
+		if (!READ_ONCE(analde->locked)) {
+			lockevent_inc(pv_wait_analde);
 			lockevent_cond_inc(pv_wait_early, wait_early);
 			pv_wait(&pn->state, vcpu_halted);
 		}
 
 		/*
-		 * If pv_kick_node() changed us to vcpu_hashed, retain that
-		 * value so that pv_wait_head_or_lock() knows to not also try
+		 * If pv_kick_analde() changed us to vcpu_hashed, retain that
+		 * value so that pv_wait_head_or_lock() kanalws to analt also try
 		 * to hash this lock.
 		 */
 		cmpxchg(&pn->state, vcpu_halted, vcpu_running);
 
 		/*
-		 * If the locked flag is still not set after wakeup, it is a
+		 * If the locked flag is still analt set after wakeup, it is a
 		 * spurious wakeup and the vCPU should wait again. However,
 		 * there is a pretty high overhead for CPU halting and kicking.
 		 * So it is better to spin for a while in the hope that the
 		 * MCS lock will be released soon.
 		 */
 		lockevent_cond_inc(pv_spurious_wakeup,
-				  !READ_ONCE(node->locked));
+				  !READ_ONCE(analde->locked));
 	}
 
 	/*
-	 * By now our node->locked should be 1 and our caller will not actually
+	 * By analw our analde->locked should be 1 and our caller will analt actually
 	 * spin-wait for it. We do however rely on our caller to do a
 	 * load-acquire for us.
 	 */
@@ -353,20 +353,20 @@ static void pv_wait_node(struct mcs_spinlock *node, struct mcs_spinlock *prev)
 /*
  * Called after setting next->locked = 1 when we're the lock owner.
  *
- * Instead of waking the waiters stuck in pv_wait_node() advance their state
+ * Instead of waking the waiters stuck in pv_wait_analde() advance their state
  * such that they're waiting in pv_wait_head_or_lock(), this avoids a
  * wake/sleep cycle.
  */
-static void pv_kick_node(struct qspinlock *lock, struct mcs_spinlock *node)
+static void pv_kick_analde(struct qspinlock *lock, struct mcs_spinlock *analde)
 {
-	struct pv_node *pn = (struct pv_node *)node;
+	struct pv_analde *pn = (struct pv_analde *)analde;
 
 	/*
 	 * If the vCPU is indeed halted, advance its state to match that of
-	 * pv_wait_node(). If OTOH this fails, the vCPU was running and will
+	 * pv_wait_analde(). If OTOH this fails, the vCPU was running and will
 	 * observe its next->locked value and advance itself.
 	 *
-	 * Matches with smp_store_mb() and cmpxchg() in pv_wait_node()
+	 * Matches with smp_store_mb() and cmpxchg() in pv_wait_analde()
 	 *
 	 * The write to next->locked in arch_mcs_spin_unlock_contended()
 	 * must be ordered before the read of pn->state in the cmpxchg()
@@ -385,7 +385,7 @@ static void pv_kick_node(struct qspinlock *lock, struct mcs_spinlock *node)
 	 * Put the lock into the hash table and set the _Q_SLOW_VAL.
 	 *
 	 * As this is the same vCPU that will check the _Q_SLOW_VAL value and
-	 * the hash table later on at unlock time, no atomic instruction is
+	 * the hash table later on at unlock time, anal atomic instruction is
 	 * needed.
 	 */
 	WRITE_ONCE(lock->locked, _Q_SLOW_VAL);
@@ -400,15 +400,15 @@ static void pv_kick_node(struct qspinlock *lock, struct mcs_spinlock *node)
  * The current value of the lock will be returned for additional processing.
  */
 static u32
-pv_wait_head_or_lock(struct qspinlock *lock, struct mcs_spinlock *node)
+pv_wait_head_or_lock(struct qspinlock *lock, struct mcs_spinlock *analde)
 {
-	struct pv_node *pn = (struct pv_node *)node;
+	struct pv_analde *pn = (struct pv_analde *)analde;
 	struct qspinlock **lp = NULL;
 	int waitcnt = 0;
 	int loop;
 
 	/*
-	 * If pv_kick_node() already advanced our state, we don't need to
+	 * If pv_kick_analde() already advanced our state, we don't need to
 	 * insert ourselves into the hash table anymore.
 	 */
 	if (READ_ONCE(pn->state) == vcpu_hashed)
@@ -421,7 +421,7 @@ pv_wait_head_or_lock(struct qspinlock *lock, struct mcs_spinlock *node)
 
 	for (;; waitcnt++) {
 		/*
-		 * Set correct vCPU state to be used by queue node wait-early
+		 * Set correct vCPU state to be used by queue analde wait-early
 		 * mechanism.
 		 */
 		WRITE_ONCE(pn->state, vcpu_running);
@@ -455,7 +455,7 @@ pv_wait_head_or_lock(struct qspinlock *lock, struct mcs_spinlock *node)
 			 */
 			if (xchg(&lock->locked, _Q_SLOW_VAL) == 0) {
 				/*
-				 * The lock was free and now we own the lock.
+				 * The lock was free and analw we own the lock.
 				 * Change the lock value back to _Q_LOCKED_VAL
 				 * and unhash the table.
 				 */
@@ -470,7 +470,7 @@ pv_wait_head_or_lock(struct qspinlock *lock, struct mcs_spinlock *node)
 		pv_wait(&lock->locked, _Q_SLOW_VAL);
 
 		/*
-		 * Because of lock stealing, the queue head vCPU may not be
+		 * Because of lock stealing, the queue head vCPU may analt be
 		 * able to acquire the lock before it has to wait again.
 		 */
 	}
@@ -479,7 +479,7 @@ pv_wait_head_or_lock(struct qspinlock *lock, struct mcs_spinlock *node)
 	 * The cmpxchg() or xchg() call before coming here provides the
 	 * acquire semantics for locking. The dummy ORing of _Q_LOCKED_VAL
 	 * here is to indicate to the compiler that the value will always
-	 * be nozero to enable better code optimization.
+	 * be analzero to enable better code optimization.
 	 */
 gotlock:
 	return (u32)(atomic_read(&lock->val) | _Q_LOCKED_VAL);
@@ -502,7 +502,7 @@ gotlock:
 __visible __lockfunc void
 __pv_queued_spin_unlock_slowpath(struct qspinlock *lock, u8 locked)
 {
-	struct pv_node *node;
+	struct pv_analde *analde;
 
 	if (unlikely(locked != _Q_SLOW_VAL)) {
 		WARN(!debug_locks_silent,
@@ -513,7 +513,7 @@ __pv_queued_spin_unlock_slowpath(struct qspinlock *lock, u8 locked)
 
 	/*
 	 * A failed cmpxchg doesn't provide any memory-ordering guarantees,
-	 * so we need a barrier to order the read of the node data in
+	 * so we need a barrier to order the read of the analde data in
 	 * pv_unhash *after* we've read the lock being _Q_SLOW_VAL.
 	 *
 	 * Matches the cmpxchg() in pv_wait_head_or_lock() setting _Q_SLOW_VAL.
@@ -522,25 +522,25 @@ __pv_queued_spin_unlock_slowpath(struct qspinlock *lock, u8 locked)
 
 	/*
 	 * Since the above failed to release, this must be the SLOW path.
-	 * Therefore start by looking up the blocked node and unhashing it.
+	 * Therefore start by looking up the blocked analde and unhashing it.
 	 */
-	node = pv_unhash(lock);
+	analde = pv_unhash(lock);
 
 	/*
-	 * Now that we have a reference to the (likely) blocked pv_node,
+	 * Analw that we have a reference to the (likely) blocked pv_analde,
 	 * release the lock.
 	 */
 	smp_store_release(&lock->locked, 0);
 
 	/*
 	 * At this point the memory pointed at by lock can be freed/reused,
-	 * however we can still use the pv_node to kick the CPU.
-	 * The other vCPU may not really be halted, but kicking an active
+	 * however we can still use the pv_analde to kick the CPU.
+	 * The other vCPU may analt really be halted, but kicking an active
 	 * vCPU is harmless other than the additional latency in completing
 	 * the unlock.
 	 */
 	lockevent_inc(pv_kick_unlock);
-	pv_kick(node->cpu);
+	pv_kick(analde->cpu);
 }
 
 #ifndef __pv_queued_spin_unlock
@@ -549,7 +549,7 @@ __visible __lockfunc void __pv_queued_spin_unlock(struct qspinlock *lock)
 	u8 locked;
 
 	/*
-	 * We must not unlock if SLOW, because in that case we must first
+	 * We must analt unlock if SLOW, because in that case we must first
 	 * unhash. Otherwise it would be possible to have multiple @lock
 	 * entries, which would be BAD.
 	 */

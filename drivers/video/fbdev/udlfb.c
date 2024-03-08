@@ -36,7 +36,7 @@ static const struct fb_fix_screeninfo dlfb_fix = {
 	.xpanstep =     0,
 	.ypanstep =     0,
 	.ywrapstep =    0,
-	.accel =        FB_ACCEL_NONE,
+	.accel =        FB_ACCEL_ANALNE,
 };
 
 static const u32 udlfb_info_flags = FBINFO_READS_FAST |
@@ -48,7 +48,7 @@ static const u32 udlfb_info_flags = FBINFO_READS_FAST |
  * There are many DisplayLink-based graphics products, all with unique PIDs.
  * So we match on DisplayLink's VID + Vendor-Defined Interface Class (0xff)
  * We also require a match on SubClass (0x00) and Protocol (0x00),
- * which is compatible with all known USB 2.0 era graphics chips and firmware,
+ * which is compatible with all kanalwn USB 2.0 era graphics chips and firmware,
  * but allows DisplayLink to increment those for any future incompatible chips
  */
 static const struct usb_device_id id_table[] = {
@@ -116,7 +116,7 @@ static char *dlfb_vidreg_unlock(char *buf)
  *  0x01 FB_BLANK (1)
  *  0x03 FB_BLANK_VSYNC_SUSPEND (2)
  *  0x05 FB_BLANK_HSYNC_SUSPEND (3)
- *  0x07 FB_BLANK_POWERDOWN (4) Note: requires modeset to come back
+ *  0x07 FB_BLANK_POWERDOWN (4) Analte: requires modeset to come back
  */
 static char *dlfb_blanking(char *buf, int fb_blank)
 {
@@ -132,7 +132,7 @@ static char *dlfb_blanking(char *buf, int fb_blank)
 	case FB_BLANK_VSYNC_SUSPEND:
 		reg = 0x03;
 		break;
-	case FB_BLANK_NORMAL:
+	case FB_BLANK_ANALRMAL:
 		reg = 0x01;
 		break;
 	default:
@@ -292,7 +292,7 @@ static int dlfb_set_video_mode(struct dlfb_data *dlfb,
 
 	urb = dlfb_get_urb(dlfb);
 	if (!urb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	buf = (char *) urb->transfer_buffer;
 
@@ -424,7 +424,7 @@ static int dlfb_trim_hline(const u8 *bback, const u8 **bfront, int *width_bytes)
  * It also processes all data (read and write) in a single pass.
  * Performance benchmarks of common cases show it having just slightly better
  * compression than 256 pixel raw or rle commands, with similar CPU consumpion.
- * But for very rl friendly data, will compress not quite as well.
+ * But for very rl friendly data, will compress analt quite as well.
  */
 static void dlfb_compress_hline(
 	const uint16_t **pixel_start_ptr,
@@ -460,10 +460,10 @@ static void dlfb_compress_hline(
 		*cmd++ = dev_addr >> 8;
 		*cmd++ = dev_addr;
 
-		cmd_pixels_count_byte = cmd++; /*  we'll know this later */
+		cmd_pixels_count_byte = cmd++; /*  we'll kanalw this later */
 		cmd_pixel_start = pixel;
 
-		raw_pixels_count_byte = cmd++; /*  we'll know this later */
+		raw_pixels_count_byte = cmd++; /*  we'll kanalw this later */
 		raw_pixel_start = pixel;
 
 		cmd_pixel_end = pixel + min3(MAX_CMD_PIXELS + 1UL,
@@ -471,7 +471,7 @@ static void dlfb_compress_hline(
 					(unsigned long)(cmd_buffer_end - 1 - cmd) / BPP);
 
 		if (back_buffer_offset) {
-			/* note: the framebuffer may change under us, so we must test for underflow */
+			/* analte: the framebuffer may change under us, so we must test for underflow */
 			while (cmd_pixel_end - 1 > pixel &&
 			       *(cmd_pixel_end - 1) == *(u16 *)((u8 *)(cmd_pixel_end - 1) + back_buffer_offset))
 				cmd_pixel_end--;
@@ -503,7 +503,7 @@ static void dlfb_compress_hline(
 				/* immediately after raw data is repeat byte */
 				*cmd++ = ((pixel - repeating_pixel) - 1) & 0xFF;
 
-				/* Then start another raw pixel span */
+				/* Then start aanalther raw pixel span */
 				raw_pixel_start = pixel;
 				raw_pixels_count_byte = cmd++;
 			}
@@ -522,7 +522,7 @@ static void dlfb_compress_hline(
 	}
 
 	if (cmd_buffer_end - MIN_RLX_CMD_BYTES <= cmd) {
-		/* Fill leftover bytes with no-ops */
+		/* Fill leftover bytes with anal-ops */
 		if (cmd_buffer_end > cmd)
 			memset(cmd, 0xAF, cmd_buffer_end - cmd);
 		cmd = (uint8_t *) cmd_buffer_end;
@@ -718,7 +718,7 @@ static void dlfb_offload_damage(struct dlfb_data *dlfb, int x, int y, int width,
 }
 
 /*
- * NOTE: fb_defio.c is holding info->fbdefio.mutex
+ * ANALTE: fb_defio.c is holding info->fbdefio.mutex
  *   Touching ANY framebuffer memory that triggers a page fault
  *   in fb_defio will cause a deadlock, when it also tries to
  *   grab the same mutex.
@@ -840,7 +840,7 @@ static int dlfb_ops_ioctl(struct fb_info *info, unsigned int cmd,
 		 * To avoid perf imact of unnecessary page fault handling.
 		 * Done by resetting the delay for this fb_info to a very
 		 * long period. Pages will become writable and stay that way.
-		 * Reset to normal value when all clients have closed this fb.
+		 * Reset to analrmal value when all clients have closed this fb.
 		 */
 		if (info->fbdefio)
 			info->fbdefio->delay = DL_DEFIO_WRITE_DISABLE;
@@ -865,23 +865,23 @@ static int dlfb_ops_ioctl(struct fb_info *info, unsigned int cmd,
 
 /* taken from vesafb */
 static int
-dlfb_ops_setcolreg(unsigned regno, unsigned red, unsigned green,
+dlfb_ops_setcolreg(unsigned reganal, unsigned red, unsigned green,
 	       unsigned blue, unsigned transp, struct fb_info *info)
 {
 	int err = 0;
 
-	if (regno >= info->cmap.len)
+	if (reganal >= info->cmap.len)
 		return 1;
 
-	if (regno < 16) {
+	if (reganal < 16) {
 		if (info->var.red.offset == 10) {
 			/* 1:5:5:5 */
-			((u32 *) (info->pseudo_palette))[regno] =
+			((u32 *) (info->pseudo_palette))[reganal] =
 			    ((red & 0xf800) >> 1) |
 			    ((green & 0xf800) >> 6) | ((blue & 0xf800) >> 11);
 		} else {
 			/* 0:5:6:5 */
-			((u32 *) (info->pseudo_palette))[regno] =
+			((u32 *) (info->pseudo_palette))[reganal] =
 			    ((red & 0xf800)) |
 			    ((green & 0xfc00) >> 5) | ((blue & 0xf800) >> 11);
 		}
@@ -902,19 +902,19 @@ static int dlfb_ops_open(struct fb_info *info, int user)
 	/*
 	 * fbcon aggressively connects to first framebuffer it finds,
 	 * preventing other clients (X) from working properly. Usually
-	 * not what the user wants. Fail by default with option to enable.
+	 * analt what the user wants. Fail by default with option to enable.
 	 */
 	if ((user == 0) && (!console))
 		return -EBUSY;
 
 	/* If the USB device is gone, we don't accept new opens */
 	if (dlfb->virtualized)
-		return -ENODEV;
+		return -EANALDEV;
 
 	dlfb->fb_count++;
 
 	if (fb_defio && (info->fbdefio == NULL)) {
-		/* enable defio at last moment if not disabled by client */
+		/* enable defio at last moment if analt disabled by client */
 
 		struct fb_deferred_io *fbdefio;
 
@@ -1173,7 +1173,7 @@ static void dlfb_deferred_vfree(struct dlfb_data *dlfb, void *mem)
 
 /*
  * Assumes &info->lock held by caller
- * Assumes no active clients have framebuffer open
+ * Assumes anal active clients have framebuffer open
  */
 static int dlfb_realloc_framebuffer(struct dlfb_data *dlfb, struct fb_info *info, u32 new_len)
 {
@@ -1191,7 +1191,7 @@ static int dlfb_realloc_framebuffer(struct dlfb_data *dlfb, struct fb_info *info
 		new_fb = vmalloc(new_len);
 		if (!new_fb) {
 			dev_err(info->dev, "Virtual framebuffer alloc failed\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		memset(new_fb, 0xff, new_len);
 
@@ -1215,7 +1215,7 @@ static int dlfb_realloc_framebuffer(struct dlfb_data *dlfb, struct fb_info *info
 			new_back = vzalloc(new_len);
 		if (!new_back)
 			dev_info(info->dev,
-				 "No shadow/backing buffer allocated\n");
+				 "Anal shadow/backing buffer allocated\n");
 		else {
 			dlfb_deferred_vfree(dlfb, dlfb->backing_buffer);
 			dlfb->backing_buffer = new_back;
@@ -1234,7 +1234,7 @@ static int dlfb_realloc_framebuffer(struct dlfb_data *dlfb, struct fb_info *info
  * fb_info.monspecs is full parsed EDID info, including monspecs.modedb
  * fb_info.modelist is a linked list of all monitor & VESA modes which work
  *
- * If EDID is not readable/valid, then modelist is all VESA modes,
+ * If EDID is analt readable/valid, then modelist is all VESA modes,
  * monspecs is NULL, and fb_var_screeninfo is set to safe VESA mode
  * Returns 0 if successful
  */
@@ -1257,7 +1257,7 @@ static int dlfb_setup_modes(struct dlfb_data *dlfb,
 
 	edid = kmalloc(EDID_LENGTH, GFP_KERNEL);
 	if (!edid) {
-		result = -ENOMEM;
+		result = -EANALMEM;
 		goto error;
 	}
 
@@ -1266,8 +1266,8 @@ static int dlfb_setup_modes(struct dlfb_data *dlfb,
 
 	/*
 	 * Try to (re)read EDID from hardware first
-	 * EDID data may return, but not parse as valid
-	 * Try again a few times, in case of e.g. analog cable noise
+	 * EDID data may return, but analt parse as valid
+	 * Try again a few times, in case of e.g. analog cable analise
 	 */
 	while (tries--) {
 
@@ -1359,14 +1359,14 @@ static int dlfb_setup_modes(struct dlfb_data *dlfb,
 						     &info->modelist);
 	}
 
-	/* If we have good mode and no active clients*/
+	/* If we have good mode and anal active clients*/
 	if ((default_vmode != NULL) && (dlfb->fb_count == 0)) {
 
 		fb_videomode_to_var(&info->var, default_vmode);
 		dlfb_var_color_format(&info->var);
 
 		/*
-		 * with mode size info, we can now alloc our framebuffer.
+		 * with mode size info, we can analw alloc our framebuffer.
 		 */
 		memcpy(&info->fix, &dlfb_fix, sizeof(dlfb_fix));
 	} else
@@ -1445,7 +1445,7 @@ static ssize_t edid_store(
 	struct dlfb_data *dlfb = fb_info->par;
 	int ret;
 
-	/* We only support write of entire EDID at once, no offset*/
+	/* We only support write of entire EDID at once, anal offset*/
 	if ((src_size != EDID_LENGTH) || (src_off != 0))
 		return -EINVAL;
 
@@ -1531,7 +1531,7 @@ static int dlfb_parse_vendor_descriptor(struct dlfb_data *dlfb,
 					0x5f, /* vendor specific */
 					0, desc, MAX_VENDOR_DESCRIPTOR_SIZE);
 
-	/* if not found, look in configuration descriptor */
+	/* if analt found, look in configuration descriptor */
 	if (total_len < 0) {
 		if (0 == usb_get_extra_descriptor(intf->cur_altsetting,
 			0x5f, &desc))
@@ -1579,14 +1579,14 @@ static int dlfb_parse_vendor_descriptor(struct dlfb_data *dlfb,
 			desc += length;
 		}
 	} else {
-		dev_info(&intf->dev, "vendor descriptor not available (%d)\n",
+		dev_info(&intf->dev, "vendor descriptor analt available (%d)\n",
 			 total_len);
 	}
 
 	goto success;
 
 unrecognized:
-	/* allow udlfb to load for now even if firmware unrecognized */
+	/* allow udlfb to load for analw even if firmware unrecognized */
 	dev_err(&intf->dev, "Unrecognized vendor firmware descriptor\n");
 
 success:
@@ -1609,7 +1609,7 @@ static int dlfb_usb_probe(struct usb_interface *intf,
 	dlfb = kzalloc(sizeof(*dlfb), GFP_KERNEL);
 	if (!dlfb) {
 		dev_err(&intf->dev, "%s: failed to allocate dlfb\n", __func__);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	INIT_LIST_HEAD(&dlfb->deferred_free);
@@ -1631,8 +1631,8 @@ static int dlfb_usb_probe(struct usb_interface *intf,
 
 	if (!dlfb_parse_vendor_descriptor(dlfb, intf)) {
 		dev_err(&intf->dev,
-			"firmware not recognized, incompatible device?\n");
-		retval = -ENODEV;
+			"firmware analt recognized, incompatible device?\n");
+		retval = -EANALDEV;
 		goto error;
 	}
 
@@ -1644,10 +1644,10 @@ static int dlfb_usb_probe(struct usb_interface *intf,
 	}
 
 
-	/* allocates framebuffer driver structure, not framebuffer memory */
+	/* allocates framebuffer driver structure, analt framebuffer memory */
 	info = framebuffer_alloc(0, &dlfb->udev->dev);
 	if (!info) {
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto error;
 	}
 
@@ -1665,7 +1665,7 @@ static int dlfb_usb_probe(struct usb_interface *intf,
 	INIT_LIST_HEAD(&info->modelist);
 
 	if (!dlfb_alloc_urb_list(dlfb, WRITES_IN_FLIGHT, MAX_TRANSFER)) {
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		dev_err(&intf->dev, "unable to allocate urb list\n");
 		goto error;
 	}
@@ -1747,7 +1747,7 @@ static void dlfb_usb_disconnect(struct usb_interface *intf)
 	/* we virtualize until all fb clients release. Then we free */
 	dlfb->virtualized = true;
 
-	/* When non-active we'll update virtual framebuffer, but no new urbs */
+	/* When analn-active we'll update virtual framebuffer, but anal new urbs */
 	atomic_set(&dlfb->usb_active, 0);
 
 	/* this function will wait for all in-flight urbs to complete */
@@ -1772,8 +1772,8 @@ module_usb_driver(dlfb_driver);
 
 static void dlfb_urb_completion(struct urb *urb)
 {
-	struct urb_node *unode = urb->context;
-	struct dlfb_data *dlfb = unode->dlfb;
+	struct urb_analde *uanalde = urb->context;
+	struct dlfb_data *dlfb = uanalde->dlfb;
 	unsigned long flags;
 
 	switch (urb->status) {
@@ -1781,13 +1781,13 @@ static void dlfb_urb_completion(struct urb *urb)
 		/* success */
 		break;
 	case -ECONNRESET:
-	case -ENOENT:
+	case -EANALENT:
 	case -ESHUTDOWN:
 		/* sync/async unlink faults aren't errors */
 		break;
 	default:
 		dev_err(&dlfb->udev->dev,
-			"%s - nonzero write bulk status received: %d\n",
+			"%s - analnzero write bulk status received: %d\n",
 			__func__, urb->status);
 		atomic_set(&dlfb->lost_pixels, 1);
 		break;
@@ -1796,7 +1796,7 @@ static void dlfb_urb_completion(struct urb *urb)
 	urb->transfer_buffer_length = dlfb->urbs.size; /* reset to actual */
 
 	spin_lock_irqsave(&dlfb->urbs.lock, flags);
-	list_add_tail(&unode->entry, &dlfb->urbs.list);
+	list_add_tail(&uanalde->entry, &dlfb->urbs.list);
 	dlfb->urbs.available++;
 	spin_unlock_irqrestore(&dlfb->urbs.lock, flags);
 
@@ -1806,8 +1806,8 @@ static void dlfb_urb_completion(struct urb *urb)
 static void dlfb_free_urb_list(struct dlfb_data *dlfb)
 {
 	int count = dlfb->urbs.count;
-	struct list_head *node;
-	struct urb_node *unode;
+	struct list_head *analde;
+	struct urb_analde *uanalde;
 	struct urb *urb;
 
 	/* keep waiting and freeing, until we've got 'em all */
@@ -1816,19 +1816,19 @@ static void dlfb_free_urb_list(struct dlfb_data *dlfb)
 
 		spin_lock_irq(&dlfb->urbs.lock);
 
-		node = dlfb->urbs.list.next; /* have reserved one with sem */
-		list_del_init(node);
+		analde = dlfb->urbs.list.next; /* have reserved one with sem */
+		list_del_init(analde);
 
 		spin_unlock_irq(&dlfb->urbs.lock);
 
-		unode = list_entry(node, struct urb_node, entry);
-		urb = unode->urb;
+		uanalde = list_entry(analde, struct urb_analde, entry);
+		urb = uanalde->urb;
 
 		/* Free each separately allocated piece */
 		usb_free_coherent(urb->dev, dlfb->urbs.size,
 				  urb->transfer_buffer, urb->transfer_dma);
 		usb_free_urb(urb);
-		kfree(node);
+		kfree(analde);
 	}
 
 	dlfb->urbs.count = 0;
@@ -1837,7 +1837,7 @@ static void dlfb_free_urb_list(struct dlfb_data *dlfb)
 static int dlfb_alloc_urb_list(struct dlfb_data *dlfb, int count, size_t size)
 {
 	struct urb *urb;
-	struct urb_node *unode;
+	struct urb_analde *uanalde;
 	char *buf;
 	size_t wanted_size = count * size;
 
@@ -1852,22 +1852,22 @@ retry:
 	dlfb->urbs.available = 0;
 
 	while (dlfb->urbs.count * size < wanted_size) {
-		unode = kzalloc(sizeof(*unode), GFP_KERNEL);
-		if (!unode)
+		uanalde = kzalloc(sizeof(*uanalde), GFP_KERNEL);
+		if (!uanalde)
 			break;
-		unode->dlfb = dlfb;
+		uanalde->dlfb = dlfb;
 
 		urb = usb_alloc_urb(0, GFP_KERNEL);
 		if (!urb) {
-			kfree(unode);
+			kfree(uanalde);
 			break;
 		}
-		unode->urb = urb;
+		uanalde->urb = urb;
 
 		buf = usb_alloc_coherent(dlfb->udev, size, GFP_KERNEL,
 					 &urb->transfer_dma);
 		if (!buf) {
-			kfree(unode);
+			kfree(uanalde);
 			usb_free_urb(urb);
 			if (size > PAGE_SIZE) {
 				size /= 2;
@@ -1880,10 +1880,10 @@ retry:
 		/* urb->transfer_buffer_length set to actual before submit */
 		usb_fill_bulk_urb(urb, dlfb->udev,
 			usb_sndbulkpipe(dlfb->udev, OUT_EP_NUM),
-			buf, size, dlfb_urb_completion, unode);
-		urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
+			buf, size, dlfb_urb_completion, uanalde);
+		urb->transfer_flags |= URB_ANAL_TRANSFER_DMA_MAP;
 
-		list_add_tail(&unode->entry, &dlfb->urbs.list);
+		list_add_tail(&uanalde->entry, &dlfb->urbs.list);
 
 		up(&dlfb->urbs.limit_sem);
 		dlfb->urbs.count++;
@@ -1897,7 +1897,7 @@ static struct urb *dlfb_get_urb(struct dlfb_data *dlfb)
 {
 	int ret;
 	struct list_head *entry;
-	struct urb_node *unode;
+	struct urb_analde *uanalde;
 
 	/* Wait for an in-flight buffer to complete and get re-queued */
 	ret = down_timeout(&dlfb->urbs.limit_sem, GET_URB_TIMEOUT);
@@ -1918,8 +1918,8 @@ static struct urb *dlfb_get_urb(struct dlfb_data *dlfb)
 
 	spin_unlock_irq(&dlfb->urbs.lock);
 
-	unode = list_entry(entry, struct urb_node, entry);
-	return unode->urb;
+	uanalde = list_entry(entry, struct urb_analde, entry);
+	return uanalde->urb;
 }
 
 static int dlfb_submit_urb(struct dlfb_data *dlfb, struct urb *urb, size_t len)
@@ -1931,7 +1931,7 @@ static int dlfb_submit_urb(struct dlfb_data *dlfb, struct urb *urb, size_t len)
 	urb->transfer_buffer_length = len; /* set to actual payload len */
 	ret = usb_submit_urb(urb, GFP_KERNEL);
 	if (ret) {
-		dlfb_urb_completion(urb); /* because no one else will */
+		dlfb_urb_completion(urb); /* because anal one else will */
 		atomic_set(&dlfb->lost_pixels, 1);
 		dev_err(&dlfb->udev->dev, "submit urb error: %d\n", ret);
 	}

@@ -29,7 +29,7 @@ enum venc_yuv_fmt {
 /*
  * enum venc_start_opt - encode frame option used in venc_if_encode()
  * @VENC_START_OPT_ENCODE_SEQUENCE_HEADER: encode SPS/PPS for H264
- * @VENC_START_OPT_ENCODE_FRAME: encode normal frame
+ * @VENC_START_OPT_ENCODE_FRAME: encode analrmal frame
  */
 enum venc_start_opt {
 	VENC_START_OPT_ENCODE_SEQUENCE_HEADER,
@@ -115,7 +115,7 @@ struct venc_frm_buf {
 /*
  * struct venc_done_result - This is return information used in venc_if_encode()
  * @bs_size: output bitstream size
- * @is_key_frm: output is key frame or not
+ * @is_key_frm: output is key frame or analt
  */
 struct venc_done_result {
 	unsigned int bs_size;

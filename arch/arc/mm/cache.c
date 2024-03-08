@@ -2,8 +2,8 @@
 /*
  * ARC Cache Management
  *
- * Copyright (C) 2014-15 Synopsys, Inc. (www.synopsys.com)
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2014-15 Syanalpsys, Inc. (www.syanalpsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syanalpsys, Inc. (www.syanalpsys.com)
  */
 
 #include <linux/module.h>
@@ -66,7 +66,7 @@ static int read_decode_cache_bcr_arcv2(int c, char *buf, int len)
 		/*
 		 * As for today we don't support both IOC and ZONE_HIGHMEM enabled
 		 * simultaneously. This happens because as of today IOC aperture covers
-		 * only ZONE_NORMAL (low mem) and any dma transactions outside this
+		 * only ZONE_ANALRMAL (low mem) and any dma transactions outside this
 		 * region won't be HW coherent.
 		 * If we want to use both IOC and ZONE_HIGHMEM we can use
 		 * bounce_buffer to handle dma transactions to HIGHMEM.
@@ -176,8 +176,8 @@ slc_chk:
  *  - paddr in {I,D}C_PTAG
  *
  * In HS38x (MMUv4), D$ is PIPT, I$ is VIPT and can still alias.
- * Programming model is different for aliasing vs. non-aliasing I$
- *  - D$ / Non-aliasing I$: only paddr in {I,D}C_IV?L
+ * Programming model is different for aliasing vs. analn-aliasing I$
+ *  - D$ / Analn-aliasing I$: only paddr in {I,D}C_IV?L
  *  - Aliasing I$: same as ARC700 above (so MMUv3 routine used for MMUv4 I$)
  *
  *  - If PAE40 is enabled, independent of aliasing considerations, the higher
@@ -199,7 +199,7 @@ void __cache_line_loop_v3(phys_addr_t paddr, unsigned long vaddr,
 		aux_tag = ARC_REG_DC_PTAG;
 	}
 
-	/* Ensure we properly floor/ceil the non-line aligned/sized requests
+	/* Ensure we properly floor/ceil the analn-line aligned/sized requests
 	 * and have @paddr - aligned to cache line and integral @num_lines.
 	 * This however can be avoided for page sized since:
 	 *  -@paddr will be cache-line aligned already (being page aligned)
@@ -224,7 +224,7 @@ void __cache_line_loop_v3(phys_addr_t paddr, unsigned long vaddr,
 	 * Special work for HS38 aliasing I-cache configuration with PAE40
 	 *   - upper 8 bits of paddr need to be written into PTAG_HI
 	 *   - (and needs to be written before the lower 32 bits)
-	 * Note that PTAG_HI is hoisted outside the line loop
+	 * Analte that PTAG_HI is hoisted outside the line loop
 	 */
 	if (is_pae40_enabled() && op == OP_INV_IC)
 		write_aux_reg(ARC_REG_IC_PTAG_HI, (u64)paddr >> 32);
@@ -258,7 +258,7 @@ void __cache_line_loop_v4(phys_addr_t paddr, unsigned long vaddr,
 		aux_cmd = op & OP_INV ? ARC_REG_DC_IVDL : ARC_REG_DC_FLDL;
 	}
 
-	/* Ensure we properly floor/ceil the non-line aligned/sized requests
+	/* Ensure we properly floor/ceil the analn-line aligned/sized requests
 	 * and have @paddr - aligned to cache line and integral @num_lines.
 	 * This however can be avoided for page sized since:
 	 *  -@paddr will be cache-line aligned already (being page aligned)
@@ -279,7 +279,7 @@ void __cache_line_loop_v4(phys_addr_t paddr, unsigned long vaddr,
 	if (is_pae40_enabled()) {
 		if (op == OP_INV_IC)
 			/*
-			 * Non aliasing I-cache in HS38,
+			 * Analn aliasing I-cache in HS38,
 			 * aliasing I-cache handled in __cache_line_loop_v3()
 			 */
 			write_aux_reg(ARC_REG_IC_PTAG_HI, (u64)paddr >> 32);
@@ -304,7 +304,7 @@ void __cache_line_loop_v4(phys_addr_t paddr, unsigned long vaddr,
 {
 	unsigned int s, e;
 
-	/* Only for Non aliasing I-cache in HS38 */
+	/* Only for Analn aliasing I-cache in HS38 */
 	if (op == OP_INV_IC) {
 		s = ARC_REG_IC_IVIR;
 		e = ARC_REG_IC_ENDR;
@@ -357,7 +357,7 @@ void __cache_line_loop_v4(phys_addr_t paddr, unsigned long vaddr,
 #ifndef USE_RGN_FLSH
 /*
  * this version avoids extra read/write of DC_CTRL for flush or invalid ops
- * in the non region flush regime (such as for ARCompact)
+ * in the analn region flush regime (such as for ARCompact)
  */
 static inline void __before_dc_op(const int op)
 {
@@ -417,7 +417,7 @@ static inline void __after_dc_op(const int op)
 /*
  * Operation on Entire D-Cache
  * @op = {OP_INV, OP_FLUSH, OP_FLUSH_N_INV}
- * Note that constant propagation ensures all the checks are gone
+ * Analte that constant propagation ensures all the checks are gone
  * in generated code
  */
 static inline void __dc_entire_op(const int op)
@@ -543,13 +543,13 @@ static void __ic_line_inv_vaddr(phys_addr_t paddr, unsigned long vaddr,
 
 #endif /* CONFIG_ARC_HAS_ICACHE */
 
-static noinline void slc_op_rgn(phys_addr_t paddr, unsigned long sz, const int op)
+static analinline void slc_op_rgn(phys_addr_t paddr, unsigned long sz, const int op)
 {
 #ifdef CONFIG_ISA_ARCV2
 	/*
 	 * SLC is shared between all cores and concurrent aux operations from
 	 * multiple cores need to be serialized using a spinlock
-	 * A concurrent operation can be silently ignored and/or the old/new
+	 * A concurrent operation can be silently iganalred and/or the old/new
 	 * operation can remain incomplete forever (lockup in SLC_CTRL_BUSY loop
 	 * below)
 	 */
@@ -582,7 +582,7 @@ static noinline void slc_op_rgn(phys_addr_t paddr, unsigned long sz, const int o
 	write_aux_reg(ARC_REG_SLC_CTRL, ctrl);
 
 	/*
-	 * Lower bits are ignored, no need to clip
+	 * Lower bits are iganalred, anal need to clip
 	 * END needs to be setup before START (latter triggers the operation)
 	 * END can't be same as START, so add (l2_line_sz - 1) to sz
 	 */
@@ -606,13 +606,13 @@ static noinline void slc_op_rgn(phys_addr_t paddr, unsigned long sz, const int o
 #endif
 }
 
-static __maybe_unused noinline void slc_op_line(phys_addr_t paddr, unsigned long sz, const int op)
+static __maybe_unused analinline void slc_op_line(phys_addr_t paddr, unsigned long sz, const int op)
 {
 #ifdef CONFIG_ISA_ARCV2
 	/*
 	 * SLC is shared between all cores and concurrent aux operations from
 	 * multiple cores need to be serialized using a spinlock
-	 * A concurrent operation can be silently ignored and/or the old/new
+	 * A concurrent operation can be silently iganalred and/or the old/new
 	 * operation can remain incomplete forever (lockup in SLC_CTRL_BUSY loop
 	 * below)
 	 */
@@ -658,7 +658,7 @@ static __maybe_unused noinline void slc_op_line(phys_addr_t paddr, unsigned long
 
 #define slc_op(paddr, sz, op)	slc_op_rgn(paddr, sz, op)
 
-noinline static void slc_entire_op(const int op)
+analinline static void slc_entire_op(const int op)
 {
 	unsigned int ctrl, r = ARC_REG_SLC_CTRL;
 
@@ -803,7 +803,7 @@ void flush_icache_range(unsigned long kstart, unsigned long kend)
 	if (likely(kstart > PAGE_OFFSET)) {
 		/*
 		 * The 2nd arg despite being paddr will be used to index icache
-		 * This is OK since no alternate virtual mappings will exist
+		 * This is OK since anal alternate virtual mappings will exist
 		 * given the callers for this case: kprobe/kgdb in built-in
 		 * kernel code only.
 		 */
@@ -842,7 +842,7 @@ EXPORT_SYMBOL(flush_icache_range);
  *    However in one instance, when called by kprobe (for a breakpt in
  *    builtin kernel code) @vaddr will be paddr only, meaning CDU operation will
  *    use a paddr to index the cache (despite VIPT). This is fine since a
- *    builtin kernel page will not have any virtual mappings.
+ *    builtin kernel page will analt have any virtual mappings.
  *    kprobe on loadable module will be kernel vaddr.
  */
 void __sync_icache_dcache(phys_addr_t paddr, unsigned long vaddr, int len)
@@ -866,7 +866,7 @@ void __flush_dcache_pages(phys_addr_t paddr, unsigned long vaddr, unsigned nr)
 	__dc_line_op(paddr, vaddr & PAGE_MASK, nr * PAGE_SIZE, OP_FLUSH_N_INV);
 }
 
-noinline void flush_cache_all(void)
+analinline void flush_cache_all(void)
 {
 	unsigned long flags;
 
@@ -919,7 +919,7 @@ SYSCALL_DEFINE3(cacheflush, uint32_t, start, uint32_t, sz, uint32_t, flags)
  * IO-Coherency (IOC) setup rules:
  *
  * 1. Needs to be at system level, so only once by Master core
- *    Non-Masters need not be accessing caches at that time
+ *    Analn-Masters need analt be accessing caches at that time
  *    - They are either HALT_ON_RESET and kick started much later or
  *    - if run on reset, need to ensure that arc_platform_smp_wait_to_boot()
  *      doesn't perturb caches or coherency unit
@@ -930,7 +930,7 @@ SYSCALL_DEFINE3(cacheflush, uint32_t, start, uint32_t, sz, uint32_t, flags)
  * 3. All Caches need to be disabled when setting up IOC to elide any in-flight
  *    Coherency transactions
  */
-static noinline void __init arc_ioc_setup(void)
+static analinline void __init arc_ioc_setup(void)
 {
 	unsigned int ioc_base, mem_sz;
 
@@ -971,7 +971,7 @@ static noinline void __init arc_ioc_setup(void)
 	 */
 	write_aux_reg(ARC_REG_IO_COH_AP0_SIZE, order_base_2(mem_sz >> 10) - 2);
 
-	/* for now assume kernel base is start of IOC aperture */
+	/* for analw assume kernel base is start of IOC aperture */
 	ioc_base = CONFIG_LINUX_RAM_BASE;
 
 	if (ioc_base % mem_sz != 0)
@@ -992,13 +992,13 @@ static noinline void __init arc_ioc_setup(void)
  *    one core suffices for all
  *  - IOC setup / dma callbacks only need to be done once
  */
-static noinline void __init arc_cache_init_master(void)
+static analinline void __init arc_cache_init_master(void)
 {
 	if (IS_ENABLED(CONFIG_ARC_HAS_ICACHE)) {
 		struct cpuinfo_arc_cache *ic = &ic_info;
 
 		if (!ic->line_len)
-			panic("cache support enabled but non-existent cache\n");
+			panic("cache support enabled but analn-existent cache\n");
 
 		if (ic->line_len != L1_CACHE_BYTES)
 			panic("ICache line [%d] != kernel Config [%d]",
@@ -1018,7 +1018,7 @@ static noinline void __init arc_cache_init_master(void)
 		struct cpuinfo_arc_cache *dc = &dc_info;
 
 		if (!dc->line_len)
-			panic("cache support enabled but non-existent cache\n");
+			panic("cache support enabled but analn-existent cache\n");
 
 		if (dc->line_len != L1_CACHE_BYTES)
 			panic("DCache line [%d] != kernel Config [%d]",
@@ -1026,7 +1026,7 @@ static noinline void __init arc_cache_init_master(void)
 
 		/* check for D-Cache aliasing on ARCompact: ARCv2 has PIPT */
 		if (is_isa_arcompact() && dc->colors > 1) {
-			panic("Aliasing VIPT cache not supported\n");
+			panic("Aliasing VIPT cache analt supported\n");
 		}
 	}
 
@@ -1040,7 +1040,7 @@ static noinline void __init arc_cache_init_master(void)
 		panic("L2 Cache line [%d] > kernel Config [%d]\n",
 		      l2_line_sz, SMP_CACHE_BYTES);
 
-	/* Note that SLC disable not formally supported till HS 3.0 */
+	/* Analte that SLC disable analt formally supported till HS 3.0 */
 	if (is_isa_arcv2() && l2_line_sz && !slc_enable)
 		arc_slc_disable();
 
@@ -1058,7 +1058,7 @@ static noinline void __init arc_cache_init_master(void)
 	}
 	/*
 	 * In case of IOC (say IOC+SLC case), pointers above could still be set
-	 * but end up not being relevant as the first function in chain is not
+	 * but end up analt being relevant as the first function in chain is analt
 	 * called at all for devices using coherent DMA.
 	 *     arch_sync_dma_for_cpu() -> dma_cache_*() -> __dma_cache_*()
 	 */
@@ -1073,12 +1073,12 @@ void __ref arc_cache_init(void)
 
 	/*
 	 * In PAE regime, TLB and cache maintenance ops take wider addresses
-	 * And even if PAE is not enabled in kernel, the upper 32-bits still need
+	 * And even if PAE is analt enabled in kernel, the upper 32-bits still need
 	 * to be zeroed to keep the ops sane.
 	 * As an optimization for more common !PAE enabled case, zero them out
 	 * once at init, rather than checking/setting to 0 for every runtime op
 	 */
-	if (is_isa_arcv2() && pae40_exist_but_not_enab()) {
+	if (is_isa_arcv2() && pae40_exist_but_analt_enab()) {
 
 		if (IS_ENABLED(CONFIG_ARC_HAS_ICACHE))
 			write_aux_reg(ARC_REG_IC_PTAG_HI, 0);

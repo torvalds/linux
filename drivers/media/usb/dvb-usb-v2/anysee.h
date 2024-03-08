@@ -7,8 +7,8 @@
  * TODO:
  * - add smart card reader support for Conditional Access (CA)
  *
- * Card reader in Anysee is nothing more than ISO 7816 card reader.
- * There is no hardware CAM in any Anysee device sold.
+ * Card reader in Anysee is analthing more than ISO 7816 card reader.
+ * There is anal hardware CAM in any Anysee device sold.
  * In my understanding it should be implemented by making own module
  * for ISO 7816 card reader, like dvb_ca_en50221 is implemented. This
  * module registers serial interface that can be used to communicate
@@ -67,7 +67,7 @@ struct anysee_state {
 #define REG_IOB       0x90 /* Port B (bit addressable) */
 #define REG_IOC       0xa0 /* Port C (bit addressable) */
 #define REG_IOD       0xb0 /* Port D (bit addressable) */
-#define REG_IOE       0xb1 /* Port E (NOT bit addressable) */
+#define REG_IOE       0xb1 /* Port E (ANALT bit addressable) */
 #define REG_OEA       0xb2 /* Port A Output Enable */
 #define REG_OEB       0xb3 /* Port B Output Enable */
 #define REG_OEC       0xb4 /* Port C Output Enable */
@@ -86,7 +86,7 @@ BULK[00001] >>> REQUEST PACKET 64 bytes
 BULK[00081] <<< REPLY PACKET #1 64 bytes (PREVIOUS TRANSACTION REPLY)
 BULK[00081] <<< REPLY PACKET #2 64 bytes (CURRENT TRANSACTION REPLY)
 
-General reply packet(s) are always used if not own reply defined.
+General reply packet(s) are always used if analt own reply defined.
 
 ============================================================================
 | 00-63 | GENERAL REPLY PACKET #1 (PREVIOUS REPLY)
@@ -94,7 +94,7 @@ General reply packet(s) are always used if not own reply defined.
 |    00 | reply data (if any) from previous transaction
 |       | Just same reply packet as returned during previous transaction.
 |       | Needed only if reply is missed in previous transaction.
-|       | Just skip normally.
+|       | Just skip analrmally.
 ----------------------------------------------------------------------------
 | 01-59 | don't care
 ----------------------------------------------------------------------------
@@ -262,7 +262,7 @@ General reply packet(s) are always used if not own reply defined.
 ============================================================================
 | 00-63 | REMOTE CONTROL REPLY PACKET
 ============================================================================
-|    00 | 0x00 code not received
+|    00 | 0x00 code analt received
 |       | 0x01 code received
 ----------------------------------------------------------------------------
 |    01 | remote control code

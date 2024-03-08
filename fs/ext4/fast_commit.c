@@ -28,37 +28,37 @@
  *
  * - EXT4_FC_TAG_UNLINK		- records directory entry unlink
  * - EXT4_FC_TAG_LINK		- records directory entry link
- * - EXT4_FC_TAG_CREAT		- records inode and directory entry creation
+ * - EXT4_FC_TAG_CREAT		- records ianalde and directory entry creation
  *
  * (B) File specific data range updates:
  *
- * - EXT4_FC_TAG_ADD_RANGE	- records addition of new blocks to an inode
- * - EXT4_FC_TAG_DEL_RANGE	- records deletion of blocks from an inode
+ * - EXT4_FC_TAG_ADD_RANGE	- records addition of new blocks to an ianalde
+ * - EXT4_FC_TAG_DEL_RANGE	- records deletion of blocks from an ianalde
  *
- * (C) Inode metadata (mtime / ctime etc):
+ * (C) Ianalde metadata (mtime / ctime etc):
  *
- * - EXT4_FC_TAG_INODE		- record the inode that should be replayed
- *				  during recovery. Note that iblocks field is
- *				  not replayed and instead derived during
+ * - EXT4_FC_TAG_IANALDE		- record the ianalde that should be replayed
+ *				  during recovery. Analte that iblocks field is
+ *				  analt replayed and instead derived during
  *				  replay.
  * Commit Operation
  * ----------------
  * With fast commits, we maintain all the directory entry operations in the
  * order in which they are issued in an in-memory queue. This queue is flushed
- * to disk during the commit operation. We also maintain a list of inodes
- * that need to be committed during a fast commit in another in memory queue of
- * inodes. During the commit operation, we commit in the following order:
+ * to disk during the commit operation. We also maintain a list of ianaldes
+ * that need to be committed during a fast commit in aanalther in memory queue of
+ * ianaldes. During the commit operation, we commit in the following order:
  *
- * [1] Lock inodes for any further data updates by setting COMMITTING state
- * [2] Submit data buffers of all the inodes
+ * [1] Lock ianaldes for any further data updates by setting COMMITTING state
+ * [2] Submit data buffers of all the ianaldes
  * [3] Wait for [2] to complete
  * [4] Commit all the directory entry updates in the fast commit space
- * [5] Commit all the changed inode structures
+ * [5] Commit all the changed ianalde structures
  * [6] Write tail tag (this tag ensures the atomicity, please read the following
  *     section for more details).
  * [7] Wait for [4], [5] and [6] to complete.
  *
- * All the inode updates must call ext4_fc_start_update() before starting an
+ * All the ianalde updates must call ext4_fc_start_update() before starting an
  * update. If such an ongoing update is present, fast commit waits for it to
  * complete. The completion of such an update is marked by
  * ext4_fc_stop_update().
@@ -66,7 +66,7 @@
  * Fast Commit Ineligibility
  * -------------------------
  *
- * Not all operations are supported by fast commits today (e.g extended
+ * Analt all operations are supported by fast commits today (e.g extended
  * attributes). Fast commit ineligibility is marked by calling
  * ext4_fc_mark_ineligible(): This makes next fast commit operation to fall back
  * to full commit.
@@ -102,44 +102,44 @@
  * storing the procedure.
  *
  * Let's consider this rename operation: 'mv /a /b'. Let's assume dirent '/a'
- * was associated with inode 10. During fast commit, instead of storing this
+ * was associated with ianalde 10. During fast commit, instead of storing this
  * operation as a procedure "rename a to b", we store the resulting file system
  * state as a "series" of outcomes:
  *
- * - Link dirent b to inode 10
+ * - Link dirent b to ianalde 10
  * - Unlink dirent a
- * - Inode <10> with valid refcount
+ * - Ianalde <10> with valid refcount
  *
- * Now when recovery code runs, it needs "enforce" this state on the file
+ * Analw when recovery code runs, it needs "enforce" this state on the file
  * system. This is what guarantees idempotence of fast commit replay.
  *
- * Let's take an example of a procedure that is not idempotent and see how fast
+ * Let's take an example of a procedure that is analt idempotent and see how fast
  * commits make it idempotent. Consider following sequence of operations:
  *
  *     rm A;    mv B A;    read A
  *  (x)     (y)        (z)
  *
  * (x), (y) and (z) are the points at which we can crash. If we store this
- * sequence of operations as is then the replay is not idempotent. Let's say
+ * sequence of operations as is then the replay is analt idempotent. Let's say
  * while in replay, we crash at (z). During the second replay, file A (which was
  * actually created as a result of "mv B A" operation) would get deleted. Thus,
  * file named A would be absent when we try to read A. So, this sequence of
- * operations is not idempotent. However, as mentioned above, instead of storing
+ * operations is analt idempotent. However, as mentioned above, instead of storing
  * the procedure fast commits store the outcome of each procedure. Thus the fast
  * commit log for above procedure would be as follows:
  *
- * (Let's assume dirent A was linked to inode 10 and dirent B was linked to
- * inode 11 before the replay)
+ * (Let's assume dirent A was linked to ianalde 10 and dirent B was linked to
+ * ianalde 11 before the replay)
  *
- *    [Unlink A]   [Link A to inode 11]   [Unlink B]   [Inode 11]
+ *    [Unlink A]   [Link A to ianalde 11]   [Unlink B]   [Ianalde 11]
  * (w)          (x)                    (y)          (z)
  *
- * If we crash at (z), we will have file A linked to inode 11. During the second
- * replay, we will remove file A (inode 11). But we will create it back and make
- * it point to inode 11. We won't find B, so we'll just skip that step. At this
- * point, the refcount for inode 11 is not reliable, but that gets fixed by the
- * replay of last inode 11 tag. Crashes at points (w), (x) and (y) get handled
- * similarly. Thus, by converting a non-idempotent procedure into a series of
+ * If we crash at (z), we will have file A linked to ianalde 11. During the second
+ * replay, we will remove file A (ianalde 11). But we will create it back and make
+ * it point to ianalde 11. We won't find B, so we'll just skip that step. At this
+ * point, the refcount for ianalde 11 is analt reliable, but that gets fixed by the
+ * replay of last ianalde 11 tag. Crashes at points (w), (x) and (y) get handled
+ * similarly. Thus, by converting a analn-idempotent procedure into a series of
  * idempotent outcomes, fast commits ensured idempotence during the replay.
  *
  * TODOs
@@ -158,7 +158,7 @@
  *
  * 1) Fast commit's commit path locks the entire file system during fast
  *    commit. This has significant performance penalty. Instead of that, we
- *    should use ext4_fc_start/stop_update functions to start inode level
+ *    should use ext4_fc_start/stop_update functions to start ianalde level
  *    updates from ext4_journal_start/stop. Once we do that we can drop file
  *    system locking during commit path.
  *
@@ -176,7 +176,7 @@ static void ext4_end_buffer_io_sync(struct buffer_head *bh, int uptodate)
 			   __func__, bh->b_blocknr);
 		set_buffer_uptodate(bh);
 	} else {
-		ext4_debug("%s: Block %lld not up-to-date",
+		ext4_debug("%s: Block %lld analt up-to-date",
 			   __func__, bh->b_blocknr);
 		clear_buffer_uptodate(bh);
 	}
@@ -184,20 +184,20 @@ static void ext4_end_buffer_io_sync(struct buffer_head *bh, int uptodate)
 	unlock_buffer(bh);
 }
 
-static inline void ext4_fc_reset_inode(struct inode *inode)
+static inline void ext4_fc_reset_ianalde(struct ianalde *ianalde)
 {
-	struct ext4_inode_info *ei = EXT4_I(inode);
+	struct ext4_ianalde_info *ei = EXT4_I(ianalde);
 
 	ei->i_fc_lblk_start = 0;
 	ei->i_fc_lblk_len = 0;
 }
 
-void ext4_fc_init_inode(struct inode *inode)
+void ext4_fc_init_ianalde(struct ianalde *ianalde)
 {
-	struct ext4_inode_info *ei = EXT4_I(inode);
+	struct ext4_ianalde_info *ei = EXT4_I(ianalde);
 
-	ext4_fc_reset_inode(inode);
-	ext4_clear_inode_state(inode, EXT4_STATE_FC_COMMITTING);
+	ext4_fc_reset_ianalde(ianalde);
+	ext4_clear_ianalde_state(ianalde, EXT4_STATE_FC_COMMITTING);
 	INIT_LIST_HEAD(&ei->i_fc_list);
 	INIT_LIST_HEAD(&ei->i_fc_dilist);
 	init_waitqueue_head(&ei->i_fc_wait);
@@ -205,11 +205,11 @@ void ext4_fc_init_inode(struct inode *inode)
 }
 
 /* This function must be called with sbi->s_fc_lock held. */
-static void ext4_fc_wait_committing_inode(struct inode *inode)
-__releases(&EXT4_SB(inode->i_sb)->s_fc_lock)
+static void ext4_fc_wait_committing_ianalde(struct ianalde *ianalde)
+__releases(&EXT4_SB(ianalde->i_sb)->s_fc_lock)
 {
 	wait_queue_head_t *wq;
-	struct ext4_inode_info *ei = EXT4_I(inode);
+	struct ext4_ianalde_info *ei = EXT4_I(ianalde);
 
 #if (BITS_PER_LONG < 64)
 	DEFINE_WAIT_BIT(wait, &ei->i_state_flags,
@@ -222,9 +222,9 @@ __releases(&EXT4_SB(inode->i_sb)->s_fc_lock)
 	wq = bit_waitqueue(&ei->i_flags,
 				EXT4_STATE_FC_COMMITTING);
 #endif
-	lockdep_assert_held(&EXT4_SB(inode->i_sb)->s_fc_lock);
+	lockdep_assert_held(&EXT4_SB(ianalde->i_sb)->s_fc_lock);
 	prepare_to_wait(wq, &wait.wq_entry, TASK_UNINTERRUPTIBLE);
-	spin_unlock(&EXT4_SB(inode->i_sb)->s_fc_lock);
+	spin_unlock(&EXT4_SB(ianalde->i_sb)->s_fc_lock);
 	schedule();
 	finish_wait(wq, &wait.wq_entry);
 }
@@ -236,41 +236,41 @@ static bool ext4_fc_disabled(struct super_block *sb)
 }
 
 /*
- * Inform Ext4's fast about start of an inode update
+ * Inform Ext4's fast about start of an ianalde update
  *
  * This function is called by the high level call VFS callbacks before
- * performing any inode update. This function blocks if there's an ongoing
- * fast commit on the inode in question.
+ * performing any ianalde update. This function blocks if there's an ongoing
+ * fast commit on the ianalde in question.
  */
-void ext4_fc_start_update(struct inode *inode)
+void ext4_fc_start_update(struct ianalde *ianalde)
 {
-	struct ext4_inode_info *ei = EXT4_I(inode);
+	struct ext4_ianalde_info *ei = EXT4_I(ianalde);
 
-	if (ext4_fc_disabled(inode->i_sb))
+	if (ext4_fc_disabled(ianalde->i_sb))
 		return;
 
 restart:
-	spin_lock(&EXT4_SB(inode->i_sb)->s_fc_lock);
+	spin_lock(&EXT4_SB(ianalde->i_sb)->s_fc_lock);
 	if (list_empty(&ei->i_fc_list))
 		goto out;
 
-	if (ext4_test_inode_state(inode, EXT4_STATE_FC_COMMITTING)) {
-		ext4_fc_wait_committing_inode(inode);
+	if (ext4_test_ianalde_state(ianalde, EXT4_STATE_FC_COMMITTING)) {
+		ext4_fc_wait_committing_ianalde(ianalde);
 		goto restart;
 	}
 out:
 	atomic_inc(&ei->i_fc_updates);
-	spin_unlock(&EXT4_SB(inode->i_sb)->s_fc_lock);
+	spin_unlock(&EXT4_SB(ianalde->i_sb)->s_fc_lock);
 }
 
 /*
- * Stop inode update and wake up waiting fast commits if any.
+ * Stop ianalde update and wake up waiting fast commits if any.
  */
-void ext4_fc_stop_update(struct inode *inode)
+void ext4_fc_stop_update(struct ianalde *ianalde)
 {
-	struct ext4_inode_info *ei = EXT4_I(inode);
+	struct ext4_ianalde_info *ei = EXT4_I(ianalde);
 
-	if (ext4_fc_disabled(inode->i_sb))
+	if (ext4_fc_disabled(ianalde->i_sb))
 		return;
 
 	if (atomic_dec_and_test(&ei->i_fc_updates))
@@ -278,27 +278,27 @@ void ext4_fc_stop_update(struct inode *inode)
 }
 
 /*
- * Remove inode from fast commit list. If the inode is being committed
- * we wait until inode commit is done.
+ * Remove ianalde from fast commit list. If the ianalde is being committed
+ * we wait until ianalde commit is done.
  */
-void ext4_fc_del(struct inode *inode)
+void ext4_fc_del(struct ianalde *ianalde)
 {
-	struct ext4_inode_info *ei = EXT4_I(inode);
-	struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
+	struct ext4_ianalde_info *ei = EXT4_I(ianalde);
+	struct ext4_sb_info *sbi = EXT4_SB(ianalde->i_sb);
 	struct ext4_fc_dentry_update *fc_dentry;
 
-	if (ext4_fc_disabled(inode->i_sb))
+	if (ext4_fc_disabled(ianalde->i_sb))
 		return;
 
 restart:
-	spin_lock(&EXT4_SB(inode->i_sb)->s_fc_lock);
+	spin_lock(&EXT4_SB(ianalde->i_sb)->s_fc_lock);
 	if (list_empty(&ei->i_fc_list) && list_empty(&ei->i_fc_dilist)) {
-		spin_unlock(&EXT4_SB(inode->i_sb)->s_fc_lock);
+		spin_unlock(&EXT4_SB(ianalde->i_sb)->s_fc_lock);
 		return;
 	}
 
-	if (ext4_test_inode_state(inode, EXT4_STATE_FC_COMMITTING)) {
-		ext4_fc_wait_committing_inode(inode);
+	if (ext4_test_ianalde_state(ianalde, EXT4_STATE_FC_COMMITTING)) {
+		ext4_fc_wait_committing_ianalde(ianalde);
 		goto restart;
 	}
 
@@ -306,8 +306,8 @@ restart:
 		list_del_init(&ei->i_fc_list);
 
 	/*
-	 * Since this inode is getting removed, let's also remove all FC
-	 * dentry create references, since it is not needed to log it anyways.
+	 * Since this ianalde is getting removed, let's also remove all FC
+	 * dentry create references, since it is analt needed to log it anyways.
 	 */
 	if (list_empty(&ei->i_fc_dilist)) {
 		spin_unlock(&sbi->s_fc_lock);
@@ -368,16 +368,16 @@ void ext4_fc_mark_ineligible(struct super_block *sb, int reason, handle_t *handl
  * if it needs to track a field for the first time or if it needs to just
  * update the previously tracked value.
  *
- * If enqueue is set, this function enqueues the inode in fast commit list.
+ * If enqueue is set, this function enqueues the ianalde in fast commit list.
  */
 static int ext4_fc_track_template(
-	handle_t *handle, struct inode *inode,
-	int (*__fc_track_fn)(struct inode *, void *, bool),
+	handle_t *handle, struct ianalde *ianalde,
+	int (*__fc_track_fn)(struct ianalde *, void *, bool),
 	void *args, int enqueue)
 {
 	bool update = false;
-	struct ext4_inode_info *ei = EXT4_I(inode);
-	struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
+	struct ext4_ianalde_info *ei = EXT4_I(ianalde);
+	struct ext4_sb_info *sbi = EXT4_SB(ianalde->i_sb);
 	tid_t tid = 0;
 	int ret;
 
@@ -386,18 +386,18 @@ static int ext4_fc_track_template(
 	if (tid == ei->i_sync_tid) {
 		update = true;
 	} else {
-		ext4_fc_reset_inode(inode);
+		ext4_fc_reset_ianalde(ianalde);
 		ei->i_sync_tid = tid;
 	}
-	ret = __fc_track_fn(inode, args, update);
+	ret = __fc_track_fn(ianalde, args, update);
 	mutex_unlock(&ei->i_fc_lock);
 
 	if (!enqueue)
 		return ret;
 
 	spin_lock(&sbi->s_fc_lock);
-	if (list_empty(&EXT4_I(inode)->i_fc_list))
-		list_add_tail(&EXT4_I(inode)->i_fc_list,
+	if (list_empty(&EXT4_I(ianalde)->i_fc_list))
+		list_add_tail(&EXT4_I(ianalde)->i_fc_list,
 				(sbi->s_journal->j_flags & JBD2_FULL_COMMIT_ONGOING ||
 				 sbi->s_journal->j_flags & JBD2_FAST_COMMIT_ONGOING) ?
 				&sbi->s_fc_q[FC_Q_STAGING] :
@@ -413,15 +413,15 @@ struct __track_dentry_update_args {
 };
 
 /* __track_fn for directory entry updates. Called with ei->i_fc_lock. */
-static int __track_dentry_update(struct inode *inode, void *arg, bool update)
+static int __track_dentry_update(struct ianalde *ianalde, void *arg, bool update)
 {
-	struct ext4_fc_dentry_update *node;
-	struct ext4_inode_info *ei = EXT4_I(inode);
+	struct ext4_fc_dentry_update *analde;
+	struct ext4_ianalde_info *ei = EXT4_I(ianalde);
 	struct __track_dentry_update_args *dentry_update =
 		(struct __track_dentry_update_args *)arg;
 	struct dentry *dentry = dentry_update->dentry;
-	struct inode *dir = dentry->d_parent->d_inode;
-	struct super_block *sb = inode->i_sb;
+	struct ianalde *dir = dentry->d_parent->d_ianalde;
+	struct super_block *sb = ianalde->i_sb;
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 
 	mutex_unlock(&ei->i_fc_lock);
@@ -430,56 +430,56 @@ static int __track_dentry_update(struct inode *inode, void *arg, bool update)
 		ext4_fc_mark_ineligible(sb, EXT4_FC_REASON_ENCRYPTED_FILENAME,
 					NULL);
 		mutex_lock(&ei->i_fc_lock);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
-	node = kmem_cache_alloc(ext4_fc_dentry_cachep, GFP_NOFS);
-	if (!node) {
-		ext4_fc_mark_ineligible(sb, EXT4_FC_REASON_NOMEM, NULL);
+	analde = kmem_cache_alloc(ext4_fc_dentry_cachep, GFP_ANALFS);
+	if (!analde) {
+		ext4_fc_mark_ineligible(sb, EXT4_FC_REASON_ANALMEM, NULL);
 		mutex_lock(&ei->i_fc_lock);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
-	node->fcd_op = dentry_update->op;
-	node->fcd_parent = dir->i_ino;
-	node->fcd_ino = inode->i_ino;
+	analde->fcd_op = dentry_update->op;
+	analde->fcd_parent = dir->i_ianal;
+	analde->fcd_ianal = ianalde->i_ianal;
 	if (dentry->d_name.len > DNAME_INLINE_LEN) {
-		node->fcd_name.name = kmalloc(dentry->d_name.len, GFP_NOFS);
-		if (!node->fcd_name.name) {
-			kmem_cache_free(ext4_fc_dentry_cachep, node);
-			ext4_fc_mark_ineligible(sb, EXT4_FC_REASON_NOMEM, NULL);
+		analde->fcd_name.name = kmalloc(dentry->d_name.len, GFP_ANALFS);
+		if (!analde->fcd_name.name) {
+			kmem_cache_free(ext4_fc_dentry_cachep, analde);
+			ext4_fc_mark_ineligible(sb, EXT4_FC_REASON_ANALMEM, NULL);
 			mutex_lock(&ei->i_fc_lock);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
-		memcpy((u8 *)node->fcd_name.name, dentry->d_name.name,
+		memcpy((u8 *)analde->fcd_name.name, dentry->d_name.name,
 			dentry->d_name.len);
 	} else {
-		memcpy(node->fcd_iname, dentry->d_name.name,
+		memcpy(analde->fcd_iname, dentry->d_name.name,
 			dentry->d_name.len);
-		node->fcd_name.name = node->fcd_iname;
+		analde->fcd_name.name = analde->fcd_iname;
 	}
-	node->fcd_name.len = dentry->d_name.len;
-	INIT_LIST_HEAD(&node->fcd_dilist);
+	analde->fcd_name.len = dentry->d_name.len;
+	INIT_LIST_HEAD(&analde->fcd_dilist);
 	spin_lock(&sbi->s_fc_lock);
 	if (sbi->s_journal->j_flags & JBD2_FULL_COMMIT_ONGOING ||
 		sbi->s_journal->j_flags & JBD2_FAST_COMMIT_ONGOING)
-		list_add_tail(&node->fcd_list,
+		list_add_tail(&analde->fcd_list,
 				&sbi->s_fc_dentry_q[FC_Q_STAGING]);
 	else
-		list_add_tail(&node->fcd_list, &sbi->s_fc_dentry_q[FC_Q_MAIN]);
+		list_add_tail(&analde->fcd_list, &sbi->s_fc_dentry_q[FC_Q_MAIN]);
 
 	/*
 	 * This helps us keep a track of all fc_dentry updates which is part of
-	 * this ext4 inode. So in case the inode is getting unlinked, before
+	 * this ext4 ianalde. So in case the ianalde is getting unlinked, before
 	 * even we get a chance to fsync, we could remove all fc_dentry
-	 * references while evicting the inode in ext4_fc_del().
-	 * Also with this, we don't need to loop over all the inodes in
-	 * sbi->s_fc_q to get the corresponding inode in
+	 * references while evicting the ianalde in ext4_fc_del().
+	 * Also with this, we don't need to loop over all the ianaldes in
+	 * sbi->s_fc_q to get the corresponding ianalde in
 	 * ext4_fc_commit_dentry_updates().
 	 */
 	if (dentry_update->op == EXT4_FC_TAG_CREAT) {
 		WARN_ON(!list_empty(&ei->i_fc_dilist));
-		list_add_tail(&node->fcd_dilist, &ei->i_fc_dilist);
+		list_add_tail(&analde->fcd_dilist, &ei->i_fc_dilist);
 	}
 	spin_unlock(&sbi->s_fc_lock);
 	mutex_lock(&ei->i_fc_lock);
@@ -488,7 +488,7 @@ static int __track_dentry_update(struct inode *inode, void *arg, bool update)
 }
 
 void __ext4_fc_track_unlink(handle_t *handle,
-		struct inode *inode, struct dentry *dentry)
+		struct ianalde *ianalde, struct dentry *dentry)
 {
 	struct __track_dentry_update_args args;
 	int ret;
@@ -496,26 +496,26 @@ void __ext4_fc_track_unlink(handle_t *handle,
 	args.dentry = dentry;
 	args.op = EXT4_FC_TAG_UNLINK;
 
-	ret = ext4_fc_track_template(handle, inode, __track_dentry_update,
+	ret = ext4_fc_track_template(handle, ianalde, __track_dentry_update,
 					(void *)&args, 0);
-	trace_ext4_fc_track_unlink(handle, inode, dentry, ret);
+	trace_ext4_fc_track_unlink(handle, ianalde, dentry, ret);
 }
 
 void ext4_fc_track_unlink(handle_t *handle, struct dentry *dentry)
 {
-	struct inode *inode = d_inode(dentry);
+	struct ianalde *ianalde = d_ianalde(dentry);
 
-	if (ext4_fc_disabled(inode->i_sb))
+	if (ext4_fc_disabled(ianalde->i_sb))
 		return;
 
-	if (ext4_test_mount_flag(inode->i_sb, EXT4_MF_FC_INELIGIBLE))
+	if (ext4_test_mount_flag(ianalde->i_sb, EXT4_MF_FC_INELIGIBLE))
 		return;
 
-	__ext4_fc_track_unlink(handle, inode, dentry);
+	__ext4_fc_track_unlink(handle, ianalde, dentry);
 }
 
 void __ext4_fc_track_link(handle_t *handle,
-	struct inode *inode, struct dentry *dentry)
+	struct ianalde *ianalde, struct dentry *dentry)
 {
 	struct __track_dentry_update_args args;
 	int ret;
@@ -523,25 +523,25 @@ void __ext4_fc_track_link(handle_t *handle,
 	args.dentry = dentry;
 	args.op = EXT4_FC_TAG_LINK;
 
-	ret = ext4_fc_track_template(handle, inode, __track_dentry_update,
+	ret = ext4_fc_track_template(handle, ianalde, __track_dentry_update,
 					(void *)&args, 0);
-	trace_ext4_fc_track_link(handle, inode, dentry, ret);
+	trace_ext4_fc_track_link(handle, ianalde, dentry, ret);
 }
 
 void ext4_fc_track_link(handle_t *handle, struct dentry *dentry)
 {
-	struct inode *inode = d_inode(dentry);
+	struct ianalde *ianalde = d_ianalde(dentry);
 
-	if (ext4_fc_disabled(inode->i_sb))
+	if (ext4_fc_disabled(ianalde->i_sb))
 		return;
 
-	if (ext4_test_mount_flag(inode->i_sb, EXT4_MF_FC_INELIGIBLE))
+	if (ext4_test_mount_flag(ianalde->i_sb, EXT4_MF_FC_INELIGIBLE))
 		return;
 
-	__ext4_fc_track_link(handle, inode, dentry);
+	__ext4_fc_track_link(handle, ianalde, dentry);
 }
 
-void __ext4_fc_track_create(handle_t *handle, struct inode *inode,
+void __ext4_fc_track_create(handle_t *handle, struct ianalde *ianalde,
 			  struct dentry *dentry)
 {
 	struct __track_dentry_update_args args;
@@ -550,56 +550,56 @@ void __ext4_fc_track_create(handle_t *handle, struct inode *inode,
 	args.dentry = dentry;
 	args.op = EXT4_FC_TAG_CREAT;
 
-	ret = ext4_fc_track_template(handle, inode, __track_dentry_update,
+	ret = ext4_fc_track_template(handle, ianalde, __track_dentry_update,
 					(void *)&args, 0);
-	trace_ext4_fc_track_create(handle, inode, dentry, ret);
+	trace_ext4_fc_track_create(handle, ianalde, dentry, ret);
 }
 
 void ext4_fc_track_create(handle_t *handle, struct dentry *dentry)
 {
-	struct inode *inode = d_inode(dentry);
+	struct ianalde *ianalde = d_ianalde(dentry);
 
-	if (ext4_fc_disabled(inode->i_sb))
+	if (ext4_fc_disabled(ianalde->i_sb))
 		return;
 
-	if (ext4_test_mount_flag(inode->i_sb, EXT4_MF_FC_INELIGIBLE))
+	if (ext4_test_mount_flag(ianalde->i_sb, EXT4_MF_FC_INELIGIBLE))
 		return;
 
-	__ext4_fc_track_create(handle, inode, dentry);
+	__ext4_fc_track_create(handle, ianalde, dentry);
 }
 
-/* __track_fn for inode tracking */
-static int __track_inode(struct inode *inode, void *arg, bool update)
+/* __track_fn for ianalde tracking */
+static int __track_ianalde(struct ianalde *ianalde, void *arg, bool update)
 {
 	if (update)
 		return -EEXIST;
 
-	EXT4_I(inode)->i_fc_lblk_len = 0;
+	EXT4_I(ianalde)->i_fc_lblk_len = 0;
 
 	return 0;
 }
 
-void ext4_fc_track_inode(handle_t *handle, struct inode *inode)
+void ext4_fc_track_ianalde(handle_t *handle, struct ianalde *ianalde)
 {
 	int ret;
 
-	if (S_ISDIR(inode->i_mode))
+	if (S_ISDIR(ianalde->i_mode))
 		return;
 
-	if (ext4_fc_disabled(inode->i_sb))
+	if (ext4_fc_disabled(ianalde->i_sb))
 		return;
 
-	if (ext4_should_journal_data(inode)) {
-		ext4_fc_mark_ineligible(inode->i_sb,
-					EXT4_FC_REASON_INODE_JOURNAL_DATA, handle);
+	if (ext4_should_journal_data(ianalde)) {
+		ext4_fc_mark_ineligible(ianalde->i_sb,
+					EXT4_FC_REASON_IANALDE_JOURNAL_DATA, handle);
 		return;
 	}
 
-	if (ext4_test_mount_flag(inode->i_sb, EXT4_MF_FC_INELIGIBLE))
+	if (ext4_test_mount_flag(ianalde->i_sb, EXT4_MF_FC_INELIGIBLE))
 		return;
 
-	ret = ext4_fc_track_template(handle, inode, __track_inode, NULL, 1);
-	trace_ext4_fc_track_inode(handle, inode, ret);
+	ret = ext4_fc_track_template(handle, ianalde, __track_ianalde, NULL, 1);
+	trace_ext4_fc_track_ianalde(handle, ianalde, ret);
 }
 
 struct __track_range_args {
@@ -607,15 +607,15 @@ struct __track_range_args {
 };
 
 /* __track_fn for tracking data updates */
-static int __track_range(struct inode *inode, void *arg, bool update)
+static int __track_range(struct ianalde *ianalde, void *arg, bool update)
 {
-	struct ext4_inode_info *ei = EXT4_I(inode);
+	struct ext4_ianalde_info *ei = EXT4_I(ianalde);
 	ext4_lblk_t oldstart;
 	struct __track_range_args *__arg =
 		(struct __track_range_args *)arg;
 
-	if (inode->i_ino < EXT4_FIRST_INO(inode->i_sb)) {
-		ext4_debug("Special inode %ld being modified\n", inode->i_ino);
+	if (ianalde->i_ianal < EXT4_FIRST_IANAL(ianalde->i_sb)) {
+		ext4_debug("Special ianalde %ld being modified\n", ianalde->i_ianal);
 		return -ECANCELED;
 	}
 
@@ -634,27 +634,27 @@ static int __track_range(struct inode *inode, void *arg, bool update)
 	return 0;
 }
 
-void ext4_fc_track_range(handle_t *handle, struct inode *inode, ext4_lblk_t start,
+void ext4_fc_track_range(handle_t *handle, struct ianalde *ianalde, ext4_lblk_t start,
 			 ext4_lblk_t end)
 {
 	struct __track_range_args args;
 	int ret;
 
-	if (S_ISDIR(inode->i_mode))
+	if (S_ISDIR(ianalde->i_mode))
 		return;
 
-	if (ext4_fc_disabled(inode->i_sb))
+	if (ext4_fc_disabled(ianalde->i_sb))
 		return;
 
-	if (ext4_test_mount_flag(inode->i_sb, EXT4_MF_FC_INELIGIBLE))
+	if (ext4_test_mount_flag(ianalde->i_sb, EXT4_MF_FC_INELIGIBLE))
 		return;
 
 	args.start = start;
 	args.end = end;
 
-	ret = ext4_fc_track_template(handle, inode,  __track_range, &args, 1);
+	ret = ext4_fc_track_template(handle, ianalde,  __track_range, &args, 1);
 
-	trace_ext4_fc_track_range(handle, inode, start, end, ret);
+	trace_ext4_fc_track_range(handle, ianalde, start, end, ret);
 }
 
 static void ext4_fc_submit_bh(struct super_block *sb, bool is_tail)
@@ -680,7 +680,7 @@ static void ext4_fc_submit_bh(struct super_block *sb, bool is_tail)
  *
  * During the commit time this function is used to manage fast commit
  * block space. We don't split a fast commit log onto different
- * blocks. So this function makes sure that if there's not enough space
+ * blocks. So this function makes sure that if there's analt eanalugh space
  * on the current block, the remaining space in the current block is
  * marked as unused by adding EXT4_FC_TAG_PAD tag. In that case,
  * new block is from jbd2 and CRC is updated to reflect the padding
@@ -698,7 +698,7 @@ static u8 *ext4_fc_reserve_space(struct super_block *sb, int len, u32 *crc)
 
 	/*
 	 * If 'len' is too long to fit in any block alongside a PAD tlv, then we
-	 * cannot fulfill the request.
+	 * cananalt fulfill the request.
 	 */
 	if (len > bsize - EXT4_FC_TAG_BASE_LEN)
 		return NULL;
@@ -713,7 +713,7 @@ static u8 *ext4_fc_reserve_space(struct super_block *sb, int len, u32 *crc)
 
 	/*
 	 * Allocate the bytes in the current block if we can do so while still
-	 * leaving enough space for a PAD tlv.
+	 * leaving eanalugh space for a PAD tlv.
 	 */
 	remaining = bsize - EXT4_FC_TAG_BASE_LEN - off;
 	if (len <= remaining) {
@@ -760,11 +760,11 @@ static int ext4_fc_write_tail(struct super_block *sb, u32 crc)
 
 	/*
 	 * ext4_fc_reserve_space takes care of allocating an extra block if
-	 * there's no enough space on this block for accommodating this tail.
+	 * there's anal eanalugh space on this block for accommodating this tail.
 	 */
 	dst = ext4_fc_reserve_space(sb, EXT4_FC_TAG_BASE_LEN + sizeof(tail), &crc);
 	if (!dst)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	off = sbi->s_fc_bytes % bsize;
 
@@ -791,7 +791,7 @@ static int ext4_fc_write_tail(struct super_block *sb, u32 crc)
 
 /*
  * Adds tag, length, value and updates CRC. Returns true if tlv was added.
- * Returns false if there's not enough space.
+ * Returns false if there's analt eanalugh space.
  */
 static bool ext4_fc_add_tlv(struct super_block *sb, u16 tag, u16 len, u8 *val,
 			   u32 *crc)
@@ -825,8 +825,8 @@ static bool ext4_fc_add_dentry_tlv(struct super_block *sb, u32 *crc,
 	if (!dst)
 		return false;
 
-	fcd.fc_parent_ino = cpu_to_le32(fc_dentry->fcd_parent);
-	fcd.fc_ino = cpu_to_le32(fc_dentry->fcd_ino);
+	fcd.fc_parent_ianal = cpu_to_le32(fc_dentry->fcd_parent);
+	fcd.fc_ianal = cpu_to_le32(fc_dentry->fcd_ianal);
 	tl.fc_tag = cpu_to_le16(fc_dentry->fcd_op);
 	tl.fc_len = cpu_to_le16(sizeof(fcd) + dlen);
 	memcpy(dst, &tl, EXT4_FC_TAG_BASE_LEN);
@@ -839,43 +839,43 @@ static bool ext4_fc_add_dentry_tlv(struct super_block *sb, u32 *crc,
 }
 
 /*
- * Writes inode in the fast commit space under TLV with tag @tag.
+ * Writes ianalde in the fast commit space under TLV with tag @tag.
  * Returns 0 on success, error on failure.
  */
-static int ext4_fc_write_inode(struct inode *inode, u32 *crc)
+static int ext4_fc_write_ianalde(struct ianalde *ianalde, u32 *crc)
 {
-	struct ext4_inode_info *ei = EXT4_I(inode);
-	int inode_len = EXT4_GOOD_OLD_INODE_SIZE;
+	struct ext4_ianalde_info *ei = EXT4_I(ianalde);
+	int ianalde_len = EXT4_GOOD_OLD_IANALDE_SIZE;
 	int ret;
 	struct ext4_iloc iloc;
-	struct ext4_fc_inode fc_inode;
+	struct ext4_fc_ianalde fc_ianalde;
 	struct ext4_fc_tl tl;
 	u8 *dst;
 
-	ret = ext4_get_inode_loc(inode, &iloc);
+	ret = ext4_get_ianalde_loc(ianalde, &iloc);
 	if (ret)
 		return ret;
 
-	if (ext4_test_inode_flag(inode, EXT4_INODE_INLINE_DATA))
-		inode_len = EXT4_INODE_SIZE(inode->i_sb);
-	else if (EXT4_INODE_SIZE(inode->i_sb) > EXT4_GOOD_OLD_INODE_SIZE)
-		inode_len += ei->i_extra_isize;
+	if (ext4_test_ianalde_flag(ianalde, EXT4_IANALDE_INLINE_DATA))
+		ianalde_len = EXT4_IANALDE_SIZE(ianalde->i_sb);
+	else if (EXT4_IANALDE_SIZE(ianalde->i_sb) > EXT4_GOOD_OLD_IANALDE_SIZE)
+		ianalde_len += ei->i_extra_isize;
 
-	fc_inode.fc_ino = cpu_to_le32(inode->i_ino);
-	tl.fc_tag = cpu_to_le16(EXT4_FC_TAG_INODE);
-	tl.fc_len = cpu_to_le16(inode_len + sizeof(fc_inode.fc_ino));
+	fc_ianalde.fc_ianal = cpu_to_le32(ianalde->i_ianal);
+	tl.fc_tag = cpu_to_le16(EXT4_FC_TAG_IANALDE);
+	tl.fc_len = cpu_to_le16(ianalde_len + sizeof(fc_ianalde.fc_ianal));
 
 	ret = -ECANCELED;
-	dst = ext4_fc_reserve_space(inode->i_sb,
-		EXT4_FC_TAG_BASE_LEN + inode_len + sizeof(fc_inode.fc_ino), crc);
+	dst = ext4_fc_reserve_space(ianalde->i_sb,
+		EXT4_FC_TAG_BASE_LEN + ianalde_len + sizeof(fc_ianalde.fc_ianal), crc);
 	if (!dst)
 		goto err;
 
 	memcpy(dst, &tl, EXT4_FC_TAG_BASE_LEN);
 	dst += EXT4_FC_TAG_BASE_LEN;
-	memcpy(dst, &fc_inode, sizeof(fc_inode));
-	dst += sizeof(fc_inode);
-	memcpy(dst, (u8 *)ext4_raw_inode(&iloc), inode_len);
+	memcpy(dst, &fc_ianalde, sizeof(fc_ianalde));
+	dst += sizeof(fc_ianalde);
+	memcpy(dst, (u8 *)ext4_raw_ianalde(&iloc), ianalde_len);
 	ret = 0;
 err:
 	brelse(iloc.bh);
@@ -883,13 +883,13 @@ err:
 }
 
 /*
- * Writes updated data ranges for the inode in question. Updates CRC.
+ * Writes updated data ranges for the ianalde in question. Updates CRC.
  * Returns 0 on success, error otherwise.
  */
-static int ext4_fc_write_inode_data(struct inode *inode, u32 *crc)
+static int ext4_fc_write_ianalde_data(struct ianalde *ianalde, u32 *crc)
 {
 	ext4_lblk_t old_blk_size, cur_lblk_off, new_blk_size;
-	struct ext4_inode_info *ei = EXT4_I(inode);
+	struct ext4_ianalde_info *ei = EXT4_I(ianalde);
 	struct ext4_map_blocks map;
 	struct ext4_fc_add_range fc_ext;
 	struct ext4_fc_del_range lrange;
@@ -907,13 +907,13 @@ static int ext4_fc_write_inode_data(struct inode *inode, u32 *crc)
 	mutex_unlock(&ei->i_fc_lock);
 
 	cur_lblk_off = old_blk_size;
-	ext4_debug("will try writing %d to %d for inode %ld\n",
-		   cur_lblk_off, new_blk_size, inode->i_ino);
+	ext4_debug("will try writing %d to %d for ianalde %ld\n",
+		   cur_lblk_off, new_blk_size, ianalde->i_ianal);
 
 	while (cur_lblk_off <= new_blk_size) {
 		map.m_lblk = cur_lblk_off;
 		map.m_len = new_blk_size - cur_lblk_off + 1;
-		ret = ext4_map_blocks(NULL, inode, &map, 0);
+		ret = ext4_map_blocks(NULL, ianalde, &map, 0);
 		if (ret < 0)
 			return -ECANCELED;
 
@@ -923,12 +923,12 @@ static int ext4_fc_write_inode_data(struct inode *inode, u32 *crc)
 		}
 
 		if (ret == 0) {
-			lrange.fc_ino = cpu_to_le32(inode->i_ino);
+			lrange.fc_ianal = cpu_to_le32(ianalde->i_ianal);
 			lrange.fc_lblk = cpu_to_le32(map.m_lblk);
 			lrange.fc_len = cpu_to_le32(map.m_len);
-			if (!ext4_fc_add_tlv(inode->i_sb, EXT4_FC_TAG_DEL_RANGE,
+			if (!ext4_fc_add_tlv(ianalde->i_sb, EXT4_FC_TAG_DEL_RANGE,
 					    sizeof(lrange), (u8 *)&lrange, crc))
-				return -ENOSPC;
+				return -EANALSPC;
 		} else {
 			unsigned int max = (map.m_flags & EXT4_MAP_UNWRITTEN) ?
 				EXT_UNWRITTEN_MAX_LEN : EXT_INIT_MAX_LEN;
@@ -936,7 +936,7 @@ static int ext4_fc_write_inode_data(struct inode *inode, u32 *crc)
 			/* Limit the number of blocks in one extent */
 			map.m_len = min(max, map.m_len);
 
-			fc_ext.fc_ino = cpu_to_le32(inode->i_ino);
+			fc_ext.fc_ianal = cpu_to_le32(ianalde->i_ianal);
 			ex = (struct ext4_extent *)&fc_ext.fc_ex;
 			ex->ee_block = cpu_to_le32(map.m_lblk);
 			ex->ee_len = cpu_to_le16(map.m_len);
@@ -945,9 +945,9 @@ static int ext4_fc_write_inode_data(struct inode *inode, u32 *crc)
 				ext4_ext_mark_unwritten(ex);
 			else
 				ext4_ext_mark_initialized(ex);
-			if (!ext4_fc_add_tlv(inode->i_sb, EXT4_FC_TAG_ADD_RANGE,
+			if (!ext4_fc_add_tlv(ianalde->i_sb, EXT4_FC_TAG_ADD_RANGE,
 					    sizeof(fc_ext), (u8 *)&fc_ext, crc))
-				return -ENOSPC;
+				return -EANALSPC;
 		}
 
 		cur_lblk_off += map.m_len;
@@ -957,17 +957,17 @@ static int ext4_fc_write_inode_data(struct inode *inode, u32 *crc)
 }
 
 
-/* Submit data for all the fast commit inodes */
-static int ext4_fc_submit_inode_data_all(journal_t *journal)
+/* Submit data for all the fast commit ianaldes */
+static int ext4_fc_submit_ianalde_data_all(journal_t *journal)
 {
 	struct super_block *sb = journal->j_private;
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
-	struct ext4_inode_info *ei;
+	struct ext4_ianalde_info *ei;
 	int ret = 0;
 
 	spin_lock(&sbi->s_fc_lock);
 	list_for_each_entry(ei, &sbi->s_fc_q[FC_Q_MAIN], i_fc_list) {
-		ext4_set_inode_state(&ei->vfs_inode, EXT4_STATE_FC_COMMITTING);
+		ext4_set_ianalde_state(&ei->vfs_ianalde, EXT4_STATE_FC_COMMITTING);
 		while (atomic_read(&ei->i_fc_updates)) {
 			DEFINE_WAIT(wait);
 
@@ -981,7 +981,7 @@ static int ext4_fc_submit_inode_data_all(journal_t *journal)
 			finish_wait(&ei->i_fc_wait, &wait);
 		}
 		spin_unlock(&sbi->s_fc_lock);
-		ret = jbd2_submit_inode_data(journal, ei->jinode);
+		ret = jbd2_submit_ianalde_data(journal, ei->jianalde);
 		if (ret)
 			return ret;
 		spin_lock(&sbi->s_fc_lock);
@@ -991,22 +991,22 @@ static int ext4_fc_submit_inode_data_all(journal_t *journal)
 	return ret;
 }
 
-/* Wait for completion of data for all the fast commit inodes */
-static int ext4_fc_wait_inode_data_all(journal_t *journal)
+/* Wait for completion of data for all the fast commit ianaldes */
+static int ext4_fc_wait_ianalde_data_all(journal_t *journal)
 {
 	struct super_block *sb = journal->j_private;
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
-	struct ext4_inode_info *pos, *n;
+	struct ext4_ianalde_info *pos, *n;
 	int ret = 0;
 
 	spin_lock(&sbi->s_fc_lock);
 	list_for_each_entry_safe(pos, n, &sbi->s_fc_q[FC_Q_MAIN], i_fc_list) {
-		if (!ext4_test_inode_state(&pos->vfs_inode,
+		if (!ext4_test_ianalde_state(&pos->vfs_ianalde,
 					   EXT4_STATE_FC_COMMITTING))
 			continue;
 		spin_unlock(&sbi->s_fc_lock);
 
-		ret = jbd2_wait_inode_data(journal, pos->jinode);
+		ret = jbd2_wait_ianalde_data(journal, pos->jianalde);
 		if (ret)
 			return ret;
 		spin_lock(&sbi->s_fc_lock);
@@ -1024,8 +1024,8 @@ __releases(&sbi->s_fc_lock)
 	struct super_block *sb = journal->j_private;
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 	struct ext4_fc_dentry_update *fc_dentry, *fc_dentry_n;
-	struct inode *inode;
-	struct ext4_inode_info *ei;
+	struct ianalde *ianalde;
+	struct ext4_ianalde_info *ei;
 	int ret;
 
 	if (list_empty(&sbi->s_fc_dentry_q[FC_Q_MAIN]))
@@ -1035,41 +1035,41 @@ __releases(&sbi->s_fc_lock)
 		if (fc_dentry->fcd_op != EXT4_FC_TAG_CREAT) {
 			spin_unlock(&sbi->s_fc_lock);
 			if (!ext4_fc_add_dentry_tlv(sb, crc, fc_dentry)) {
-				ret = -ENOSPC;
+				ret = -EANALSPC;
 				goto lock_and_exit;
 			}
 			spin_lock(&sbi->s_fc_lock);
 			continue;
 		}
 		/*
-		 * With fcd_dilist we need not loop in sbi->s_fc_q to get the
-		 * corresponding inode pointer
+		 * With fcd_dilist we need analt loop in sbi->s_fc_q to get the
+		 * corresponding ianalde pointer
 		 */
 		WARN_ON(list_empty(&fc_dentry->fcd_dilist));
 		ei = list_first_entry(&fc_dentry->fcd_dilist,
-				struct ext4_inode_info, i_fc_dilist);
-		inode = &ei->vfs_inode;
-		WARN_ON(inode->i_ino != fc_dentry->fcd_ino);
+				struct ext4_ianalde_info, i_fc_dilist);
+		ianalde = &ei->vfs_ianalde;
+		WARN_ON(ianalde->i_ianal != fc_dentry->fcd_ianal);
 
 		spin_unlock(&sbi->s_fc_lock);
 
 		/*
-		 * We first write the inode and then the create dirent. This
-		 * allows the recovery code to create an unnamed inode first
+		 * We first write the ianalde and then the create dirent. This
+		 * allows the recovery code to create an unnamed ianalde first
 		 * and then link it to a directory entry. This allows us
 		 * to use namei.c routines almost as is and simplifies
 		 * the recovery code.
 		 */
-		ret = ext4_fc_write_inode(inode, crc);
+		ret = ext4_fc_write_ianalde(ianalde, crc);
 		if (ret)
 			goto lock_and_exit;
 
-		ret = ext4_fc_write_inode_data(inode, crc);
+		ret = ext4_fc_write_ianalde_data(ianalde, crc);
 		if (ret)
 			goto lock_and_exit;
 
 		if (!ext4_fc_add_dentry_tlv(sb, crc, fc_dentry)) {
-			ret = -ENOSPC;
+			ret = -EANALSPC;
 			goto lock_and_exit;
 		}
 
@@ -1085,18 +1085,18 @@ static int ext4_fc_perform_commit(journal_t *journal)
 {
 	struct super_block *sb = journal->j_private;
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
-	struct ext4_inode_info *iter;
+	struct ext4_ianalde_info *iter;
 	struct ext4_fc_head head;
-	struct inode *inode;
+	struct ianalde *ianalde;
 	struct blk_plug plug;
 	int ret = 0;
 	u32 crc = 0;
 
-	ret = ext4_fc_submit_inode_data_all(journal);
+	ret = ext4_fc_submit_ianalde_data_all(journal);
 	if (ret)
 		return ret;
 
-	ret = ext4_fc_wait_inode_data_all(journal);
+	ret = ext4_fc_wait_ianalde_data_all(journal);
 	if (ret)
 		return ret;
 
@@ -1118,7 +1118,7 @@ static int ext4_fc_perform_commit(journal_t *journal)
 			sbi->s_journal->j_running_transaction->t_tid);
 		if (!ext4_fc_add_tlv(sb, EXT4_FC_TAG_HEAD, sizeof(head),
 			(u8 *)&head, &crc)) {
-			ret = -ENOSPC;
+			ret = -EANALSPC;
 			goto out;
 		}
 	}
@@ -1131,15 +1131,15 @@ static int ext4_fc_perform_commit(journal_t *journal)
 	}
 
 	list_for_each_entry(iter, &sbi->s_fc_q[FC_Q_MAIN], i_fc_list) {
-		inode = &iter->vfs_inode;
-		if (!ext4_test_inode_state(inode, EXT4_STATE_FC_COMMITTING))
+		ianalde = &iter->vfs_ianalde;
+		if (!ext4_test_ianalde_state(ianalde, EXT4_STATE_FC_COMMITTING))
 			continue;
 
 		spin_unlock(&sbi->s_fc_lock);
-		ret = ext4_fc_write_inode_data(inode, &crc);
+		ret = ext4_fc_write_ianalde_data(ianalde, &crc);
 		if (ret)
 			goto out;
-		ret = ext4_fc_write_inode(inode, &crc);
+		ret = ext4_fc_write_ianalde(ianalde, &crc);
 		if (ret)
 			goto out;
 		spin_lock(&sbi->s_fc_lock);
@@ -1182,7 +1182,7 @@ static void ext4_fc_update_stats(struct super_block *sb, int status,
 
 /*
  * The main commit entry point. Performs a fast commit for transaction
- * commit_tid if needed. If it's not possible to perform a fast commit
+ * commit_tid if needed. If it's analt possible to perform a fast commit
  * due to various reasons, we fall back to full commit. Returns 0
  * on success, error otherwise.
  */
@@ -1267,7 +1267,7 @@ static void ext4_fc_cleanup(journal_t *journal, int full, tid_t tid)
 {
 	struct super_block *sb = journal->j_private;
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
-	struct ext4_inode_info *iter, *iter_n;
+	struct ext4_ianalde_info *iter, *iter_n;
 	struct ext4_fc_dentry_update *fc_dentry;
 
 	if (full && sbi->s_fc_bh)
@@ -1280,10 +1280,10 @@ static void ext4_fc_cleanup(journal_t *journal, int full, tid_t tid)
 	list_for_each_entry_safe(iter, iter_n, &sbi->s_fc_q[FC_Q_MAIN],
 				 i_fc_list) {
 		list_del_init(&iter->i_fc_list);
-		ext4_clear_inode_state(&iter->vfs_inode,
+		ext4_clear_ianalde_state(&iter->vfs_ianalde,
 				       EXT4_STATE_FC_COMMITTING);
 		if (iter->i_sync_tid <= tid)
-			ext4_fc_reset_inode(&iter->vfs_inode);
+			ext4_fc_reset_ianalde(&iter->vfs_ianalde);
 		/* Make sure EXT4_STATE_FC_COMMITTING bit is clear */
 		smp_mb();
 #if (BITS_PER_LONG < 64)
@@ -1328,7 +1328,7 @@ static void ext4_fc_cleanup(journal_t *journal, int full, tid_t tid)
 
 /* Helper struct for dentry replay routines */
 struct dentry_info_args {
-	int parent_ino, dname_len, ino, inode_len;
+	int parent_ianal, dname_len, ianal, ianalde_len;
 	char *dname;
 };
 
@@ -1345,8 +1345,8 @@ static inline void tl_to_darg(struct dentry_info_args *darg,
 
 	memcpy(&fcd, val, sizeof(fcd));
 
-	darg->parent_ino = le32_to_cpu(fcd.fc_parent_ino);
-	darg->ino = le32_to_cpu(fcd.fc_ino);
+	darg->parent_ianal = le32_to_cpu(fcd.fc_parent_ianal);
+	darg->ianal = le32_to_cpu(fcd.fc_ianal);
 	darg->dname = val + offsetof(struct ext4_fc_dentry_info, fc_dname);
 	darg->dname_len = tl->fc_len - sizeof(struct ext4_fc_dentry_info);
 }
@@ -1364,54 +1364,54 @@ static inline void ext4_fc_get_tl(struct ext4_fc_tl_mem *tl, u8 *val)
 static int ext4_fc_replay_unlink(struct super_block *sb,
 				 struct ext4_fc_tl_mem *tl, u8 *val)
 {
-	struct inode *inode, *old_parent;
+	struct ianalde *ianalde, *old_parent;
 	struct qstr entry;
 	struct dentry_info_args darg;
 	int ret = 0;
 
 	tl_to_darg(&darg, tl, val);
 
-	trace_ext4_fc_replay(sb, EXT4_FC_TAG_UNLINK, darg.ino,
-			darg.parent_ino, darg.dname_len);
+	trace_ext4_fc_replay(sb, EXT4_FC_TAG_UNLINK, darg.ianal,
+			darg.parent_ianal, darg.dname_len);
 
 	entry.name = darg.dname;
 	entry.len = darg.dname_len;
-	inode = ext4_iget(sb, darg.ino, EXT4_IGET_NORMAL);
+	ianalde = ext4_iget(sb, darg.ianal, EXT4_IGET_ANALRMAL);
 
-	if (IS_ERR(inode)) {
-		ext4_debug("Inode %d not found", darg.ino);
+	if (IS_ERR(ianalde)) {
+		ext4_debug("Ianalde %d analt found", darg.ianal);
 		return 0;
 	}
 
-	old_parent = ext4_iget(sb, darg.parent_ino,
-				EXT4_IGET_NORMAL);
+	old_parent = ext4_iget(sb, darg.parent_ianal,
+				EXT4_IGET_ANALRMAL);
 	if (IS_ERR(old_parent)) {
-		ext4_debug("Dir with inode %d not found", darg.parent_ino);
-		iput(inode);
+		ext4_debug("Dir with ianalde %d analt found", darg.parent_ianal);
+		iput(ianalde);
 		return 0;
 	}
 
-	ret = __ext4_unlink(old_parent, &entry, inode, NULL);
-	/* -ENOENT ok coz it might not exist anymore. */
-	if (ret == -ENOENT)
+	ret = __ext4_unlink(old_parent, &entry, ianalde, NULL);
+	/* -EANALENT ok coz it might analt exist anymore. */
+	if (ret == -EANALENT)
 		ret = 0;
 	iput(old_parent);
-	iput(inode);
+	iput(ianalde);
 	return ret;
 }
 
 static int ext4_fc_replay_link_internal(struct super_block *sb,
 				struct dentry_info_args *darg,
-				struct inode *inode)
+				struct ianalde *ianalde)
 {
-	struct inode *dir = NULL;
-	struct dentry *dentry_dir = NULL, *dentry_inode = NULL;
+	struct ianalde *dir = NULL;
+	struct dentry *dentry_dir = NULL, *dentry_ianalde = NULL;
 	struct qstr qstr_dname = QSTR_INIT(darg->dname, darg->dname_len);
 	int ret = 0;
 
-	dir = ext4_iget(sb, darg->parent_ino, EXT4_IGET_NORMAL);
+	dir = ext4_iget(sb, darg->parent_ianal, EXT4_IGET_ANALRMAL);
 	if (IS_ERR(dir)) {
-		ext4_debug("Dir with inode %d not found.", darg->parent_ino);
+		ext4_debug("Dir with ianalde %d analt found.", darg->parent_ianal);
 		dir = NULL;
 		goto out;
 	}
@@ -1423,14 +1423,14 @@ static int ext4_fc_replay_link_internal(struct super_block *sb,
 		goto out;
 	}
 
-	dentry_inode = d_alloc(dentry_dir, &qstr_dname);
-	if (!dentry_inode) {
-		ext4_debug("Inode dentry not created.");
-		ret = -ENOMEM;
+	dentry_ianalde = d_alloc(dentry_dir, &qstr_dname);
+	if (!dentry_ianalde) {
+		ext4_debug("Ianalde dentry analt created.");
+		ret = -EANALMEM;
 		goto out;
 	}
 
-	ret = __ext4_link(dir, inode, dentry_inode);
+	ret = __ext4_link(dir, ianalde, dentry_ianalde);
 	/*
 	 * It's possible that link already existed since data blocks
 	 * for the dir in question got persisted before we crashed OR
@@ -1450,9 +1450,9 @@ out:
 	} else if (dir) {
 		iput(dir);
 	}
-	if (dentry_inode) {
-		d_drop(dentry_inode);
-		dput(dentry_inode);
+	if (dentry_ianalde) {
+		d_drop(dentry_ianalde);
+		dput(dentry_ianalde);
 	}
 
 	return ret;
@@ -1462,148 +1462,148 @@ out:
 static int ext4_fc_replay_link(struct super_block *sb,
 			       struct ext4_fc_tl_mem *tl, u8 *val)
 {
-	struct inode *inode;
+	struct ianalde *ianalde;
 	struct dentry_info_args darg;
 	int ret = 0;
 
 	tl_to_darg(&darg, tl, val);
-	trace_ext4_fc_replay(sb, EXT4_FC_TAG_LINK, darg.ino,
-			darg.parent_ino, darg.dname_len);
+	trace_ext4_fc_replay(sb, EXT4_FC_TAG_LINK, darg.ianal,
+			darg.parent_ianal, darg.dname_len);
 
-	inode = ext4_iget(sb, darg.ino, EXT4_IGET_NORMAL);
-	if (IS_ERR(inode)) {
-		ext4_debug("Inode not found.");
+	ianalde = ext4_iget(sb, darg.ianal, EXT4_IGET_ANALRMAL);
+	if (IS_ERR(ianalde)) {
+		ext4_debug("Ianalde analt found.");
 		return 0;
 	}
 
-	ret = ext4_fc_replay_link_internal(sb, &darg, inode);
-	iput(inode);
+	ret = ext4_fc_replay_link_internal(sb, &darg, ianalde);
+	iput(ianalde);
 	return ret;
 }
 
 /*
- * Record all the modified inodes during replay. We use this later to setup
+ * Record all the modified ianaldes during replay. We use this later to setup
  * block bitmaps correctly.
  */
-static int ext4_fc_record_modified_inode(struct super_block *sb, int ino)
+static int ext4_fc_record_modified_ianalde(struct super_block *sb, int ianal)
 {
 	struct ext4_fc_replay_state *state;
 	int i;
 
 	state = &EXT4_SB(sb)->s_fc_replay_state;
-	for (i = 0; i < state->fc_modified_inodes_used; i++)
-		if (state->fc_modified_inodes[i] == ino)
+	for (i = 0; i < state->fc_modified_ianaldes_used; i++)
+		if (state->fc_modified_ianaldes[i] == ianal)
 			return 0;
-	if (state->fc_modified_inodes_used == state->fc_modified_inodes_size) {
-		int *fc_modified_inodes;
+	if (state->fc_modified_ianaldes_used == state->fc_modified_ianaldes_size) {
+		int *fc_modified_ianaldes;
 
-		fc_modified_inodes = krealloc(state->fc_modified_inodes,
-				sizeof(int) * (state->fc_modified_inodes_size +
+		fc_modified_ianaldes = krealloc(state->fc_modified_ianaldes,
+				sizeof(int) * (state->fc_modified_ianaldes_size +
 				EXT4_FC_REPLAY_REALLOC_INCREMENT),
 				GFP_KERNEL);
-		if (!fc_modified_inodes)
-			return -ENOMEM;
-		state->fc_modified_inodes = fc_modified_inodes;
-		state->fc_modified_inodes_size +=
+		if (!fc_modified_ianaldes)
+			return -EANALMEM;
+		state->fc_modified_ianaldes = fc_modified_ianaldes;
+		state->fc_modified_ianaldes_size +=
 			EXT4_FC_REPLAY_REALLOC_INCREMENT;
 	}
-	state->fc_modified_inodes[state->fc_modified_inodes_used++] = ino;
+	state->fc_modified_ianaldes[state->fc_modified_ianaldes_used++] = ianal;
 	return 0;
 }
 
 /*
- * Inode replay function
+ * Ianalde replay function
  */
-static int ext4_fc_replay_inode(struct super_block *sb,
+static int ext4_fc_replay_ianalde(struct super_block *sb,
 				struct ext4_fc_tl_mem *tl, u8 *val)
 {
-	struct ext4_fc_inode fc_inode;
-	struct ext4_inode *raw_inode;
-	struct ext4_inode *raw_fc_inode;
-	struct inode *inode = NULL;
+	struct ext4_fc_ianalde fc_ianalde;
+	struct ext4_ianalde *raw_ianalde;
+	struct ext4_ianalde *raw_fc_ianalde;
+	struct ianalde *ianalde = NULL;
 	struct ext4_iloc iloc;
-	int inode_len, ino, ret, tag = tl->fc_tag;
+	int ianalde_len, ianal, ret, tag = tl->fc_tag;
 	struct ext4_extent_header *eh;
-	size_t off_gen = offsetof(struct ext4_inode, i_generation);
+	size_t off_gen = offsetof(struct ext4_ianalde, i_generation);
 
-	memcpy(&fc_inode, val, sizeof(fc_inode));
+	memcpy(&fc_ianalde, val, sizeof(fc_ianalde));
 
-	ino = le32_to_cpu(fc_inode.fc_ino);
-	trace_ext4_fc_replay(sb, tag, ino, 0, 0);
+	ianal = le32_to_cpu(fc_ianalde.fc_ianal);
+	trace_ext4_fc_replay(sb, tag, ianal, 0, 0);
 
-	inode = ext4_iget(sb, ino, EXT4_IGET_NORMAL);
-	if (!IS_ERR(inode)) {
-		ext4_ext_clear_bb(inode);
-		iput(inode);
+	ianalde = ext4_iget(sb, ianal, EXT4_IGET_ANALRMAL);
+	if (!IS_ERR(ianalde)) {
+		ext4_ext_clear_bb(ianalde);
+		iput(ianalde);
 	}
-	inode = NULL;
+	ianalde = NULL;
 
-	ret = ext4_fc_record_modified_inode(sb, ino);
+	ret = ext4_fc_record_modified_ianalde(sb, ianal);
 	if (ret)
 		goto out;
 
-	raw_fc_inode = (struct ext4_inode *)
-		(val + offsetof(struct ext4_fc_inode, fc_raw_inode));
-	ret = ext4_get_fc_inode_loc(sb, ino, &iloc);
+	raw_fc_ianalde = (struct ext4_ianalde *)
+		(val + offsetof(struct ext4_fc_ianalde, fc_raw_ianalde));
+	ret = ext4_get_fc_ianalde_loc(sb, ianal, &iloc);
 	if (ret)
 		goto out;
 
-	inode_len = tl->fc_len - sizeof(struct ext4_fc_inode);
-	raw_inode = ext4_raw_inode(&iloc);
+	ianalde_len = tl->fc_len - sizeof(struct ext4_fc_ianalde);
+	raw_ianalde = ext4_raw_ianalde(&iloc);
 
-	memcpy(raw_inode, raw_fc_inode, offsetof(struct ext4_inode, i_block));
-	memcpy((u8 *)raw_inode + off_gen, (u8 *)raw_fc_inode + off_gen,
-	       inode_len - off_gen);
-	if (le32_to_cpu(raw_inode->i_flags) & EXT4_EXTENTS_FL) {
-		eh = (struct ext4_extent_header *)(&raw_inode->i_block[0]);
+	memcpy(raw_ianalde, raw_fc_ianalde, offsetof(struct ext4_ianalde, i_block));
+	memcpy((u8 *)raw_ianalde + off_gen, (u8 *)raw_fc_ianalde + off_gen,
+	       ianalde_len - off_gen);
+	if (le32_to_cpu(raw_ianalde->i_flags) & EXT4_EXTENTS_FL) {
+		eh = (struct ext4_extent_header *)(&raw_ianalde->i_block[0]);
 		if (eh->eh_magic != EXT4_EXT_MAGIC) {
 			memset(eh, 0, sizeof(*eh));
 			eh->eh_magic = EXT4_EXT_MAGIC;
 			eh->eh_max = cpu_to_le16(
-				(sizeof(raw_inode->i_block) -
+				(sizeof(raw_ianalde->i_block) -
 				 sizeof(struct ext4_extent_header))
 				 / sizeof(struct ext4_extent));
 		}
-	} else if (le32_to_cpu(raw_inode->i_flags) & EXT4_INLINE_DATA_FL) {
-		memcpy(raw_inode->i_block, raw_fc_inode->i_block,
-			sizeof(raw_inode->i_block));
+	} else if (le32_to_cpu(raw_ianalde->i_flags) & EXT4_INLINE_DATA_FL) {
+		memcpy(raw_ianalde->i_block, raw_fc_ianalde->i_block,
+			sizeof(raw_ianalde->i_block));
 	}
 
-	/* Immediately update the inode on disk. */
+	/* Immediately update the ianalde on disk. */
 	ret = ext4_handle_dirty_metadata(NULL, NULL, iloc.bh);
 	if (ret)
 		goto out;
 	ret = sync_dirty_buffer(iloc.bh);
 	if (ret)
 		goto out;
-	ret = ext4_mark_inode_used(sb, ino);
+	ret = ext4_mark_ianalde_used(sb, ianal);
 	if (ret)
 		goto out;
 
-	/* Given that we just wrote the inode on disk, this SHOULD succeed. */
-	inode = ext4_iget(sb, ino, EXT4_IGET_NORMAL);
-	if (IS_ERR(inode)) {
-		ext4_debug("Inode not found.");
+	/* Given that we just wrote the ianalde on disk, this SHOULD succeed. */
+	ianalde = ext4_iget(sb, ianal, EXT4_IGET_ANALRMAL);
+	if (IS_ERR(ianalde)) {
+		ext4_debug("Ianalde analt found.");
 		return -EFSCORRUPTED;
 	}
 
 	/*
 	 * Our allocator could have made different decisions than before
 	 * crashing. This should be fixed but until then, we calculate
-	 * the number of blocks the inode.
+	 * the number of blocks the ianalde.
 	 */
-	if (!ext4_test_inode_flag(inode, EXT4_INODE_INLINE_DATA))
-		ext4_ext_replay_set_iblocks(inode);
+	if (!ext4_test_ianalde_flag(ianalde, EXT4_IANALDE_INLINE_DATA))
+		ext4_ext_replay_set_iblocks(ianalde);
 
-	inode->i_generation = le32_to_cpu(ext4_raw_inode(&iloc)->i_generation);
-	ext4_reset_inode_seed(inode);
+	ianalde->i_generation = le32_to_cpu(ext4_raw_ianalde(&iloc)->i_generation);
+	ext4_reset_ianalde_seed(ianalde);
 
-	ext4_inode_csum_set(inode, ext4_raw_inode(&iloc), EXT4_I(inode));
+	ext4_ianalde_csum_set(ianalde, ext4_raw_ianalde(&iloc), EXT4_I(ianalde));
 	ret = ext4_handle_dirty_metadata(NULL, NULL, iloc.bh);
 	sync_dirty_buffer(iloc.bh);
 	brelse(iloc.bh);
 out:
-	iput(inode);
+	iput(ianalde);
 	if (!ret)
 		blkdev_issue_flush(sb->s_bdev);
 
@@ -1613,69 +1613,69 @@ out:
 /*
  * Dentry create replay function.
  *
- * EXT4_FC_TAG_CREAT is preceded by EXT4_FC_TAG_INODE_FULL. Which means, the
- * inode for which we are trying to create a dentry here, should already have
+ * EXT4_FC_TAG_CREAT is preceded by EXT4_FC_TAG_IANALDE_FULL. Which means, the
+ * ianalde for which we are trying to create a dentry here, should already have
  * been replayed before we start here.
  */
 static int ext4_fc_replay_create(struct super_block *sb,
 				 struct ext4_fc_tl_mem *tl, u8 *val)
 {
 	int ret = 0;
-	struct inode *inode = NULL;
-	struct inode *dir = NULL;
+	struct ianalde *ianalde = NULL;
+	struct ianalde *dir = NULL;
 	struct dentry_info_args darg;
 
 	tl_to_darg(&darg, tl, val);
 
-	trace_ext4_fc_replay(sb, EXT4_FC_TAG_CREAT, darg.ino,
-			darg.parent_ino, darg.dname_len);
+	trace_ext4_fc_replay(sb, EXT4_FC_TAG_CREAT, darg.ianal,
+			darg.parent_ianal, darg.dname_len);
 
 	/* This takes care of update group descriptor and other metadata */
-	ret = ext4_mark_inode_used(sb, darg.ino);
+	ret = ext4_mark_ianalde_used(sb, darg.ianal);
 	if (ret)
 		goto out;
 
-	inode = ext4_iget(sb, darg.ino, EXT4_IGET_NORMAL);
-	if (IS_ERR(inode)) {
-		ext4_debug("inode %d not found.", darg.ino);
-		inode = NULL;
+	ianalde = ext4_iget(sb, darg.ianal, EXT4_IGET_ANALRMAL);
+	if (IS_ERR(ianalde)) {
+		ext4_debug("ianalde %d analt found.", darg.ianal);
+		ianalde = NULL;
 		ret = -EINVAL;
 		goto out;
 	}
 
-	if (S_ISDIR(inode->i_mode)) {
+	if (S_ISDIR(ianalde->i_mode)) {
 		/*
 		 * If we are creating a directory, we need to make sure that the
 		 * dot and dot dot dirents are setup properly.
 		 */
-		dir = ext4_iget(sb, darg.parent_ino, EXT4_IGET_NORMAL);
+		dir = ext4_iget(sb, darg.parent_ianal, EXT4_IGET_ANALRMAL);
 		if (IS_ERR(dir)) {
-			ext4_debug("Dir %d not found.", darg.ino);
+			ext4_debug("Dir %d analt found.", darg.ianal);
 			goto out;
 		}
-		ret = ext4_init_new_dir(NULL, dir, inode);
+		ret = ext4_init_new_dir(NULL, dir, ianalde);
 		iput(dir);
 		if (ret) {
 			ret = 0;
 			goto out;
 		}
 	}
-	ret = ext4_fc_replay_link_internal(sb, &darg, inode);
+	ret = ext4_fc_replay_link_internal(sb, &darg, ianalde);
 	if (ret)
 		goto out;
-	set_nlink(inode, 1);
-	ext4_mark_inode_dirty(NULL, inode);
+	set_nlink(ianalde, 1);
+	ext4_mark_ianalde_dirty(NULL, ianalde);
 out:
-	iput(inode);
+	iput(ianalde);
 	return ret;
 }
 
 /*
  * Record physical disk regions which are in use as per fast commit area,
- * and used by inodes during replay phase. Our simple replay phase
+ * and used by ianaldes during replay phase. Our simple replay phase
  * allocator excludes these regions from allocation.
  */
-int ext4_fc_record_regions(struct super_block *sb, int ino,
+int ext4_fc_record_regions(struct super_block *sb, int ianal,
 		ext4_lblk_t lblk, ext4_fsblk_t pblk, int len, int replay)
 {
 	struct ext4_fc_replay_state *state;
@@ -1683,7 +1683,7 @@ int ext4_fc_record_regions(struct super_block *sb, int ino,
 
 	state = &EXT4_SB(sb)->s_fc_replay_state;
 	/*
-	 * during replay phase, the fc_regions_valid may not same as
+	 * during replay phase, the fc_regions_valid may analt same as
 	 * fc_regions_used, update it when do new additions.
 	 */
 	if (replay && state->fc_regions_used != state->fc_regions_valid)
@@ -1697,13 +1697,13 @@ int ext4_fc_record_regions(struct super_block *sb, int ino,
 				       EXT4_FC_REPLAY_REALLOC_INCREMENT),
 				      GFP_KERNEL);
 		if (!fc_regions)
-			return -ENOMEM;
+			return -EANALMEM;
 		state->fc_regions_size +=
 			EXT4_FC_REPLAY_REALLOC_INCREMENT;
 		state->fc_regions = fc_regions;
 	}
 	region = &state->fc_regions[state->fc_regions_used++];
-	region->ino = ino;
+	region->ianal = ianal;
 	region->lblk = lblk;
 	region->pblk = pblk;
 	region->len = len;
@@ -1720,7 +1720,7 @@ static int ext4_fc_replay_add_range(struct super_block *sb,
 {
 	struct ext4_fc_add_range fc_add_ex;
 	struct ext4_extent newex, *ex;
-	struct inode *inode;
+	struct ianalde *ianalde;
 	ext4_lblk_t start, cur;
 	int remaining, len;
 	ext4_fsblk_t start_pblk;
@@ -1732,16 +1732,16 @@ static int ext4_fc_replay_add_range(struct super_block *sb,
 	ex = (struct ext4_extent *)&fc_add_ex.fc_ex;
 
 	trace_ext4_fc_replay(sb, EXT4_FC_TAG_ADD_RANGE,
-		le32_to_cpu(fc_add_ex.fc_ino), le32_to_cpu(ex->ee_block),
+		le32_to_cpu(fc_add_ex.fc_ianal), le32_to_cpu(ex->ee_block),
 		ext4_ext_get_actual_len(ex));
 
-	inode = ext4_iget(sb, le32_to_cpu(fc_add_ex.fc_ino), EXT4_IGET_NORMAL);
-	if (IS_ERR(inode)) {
-		ext4_debug("Inode not found.");
+	ianalde = ext4_iget(sb, le32_to_cpu(fc_add_ex.fc_ianal), EXT4_IGET_ANALRMAL);
+	if (IS_ERR(ianalde)) {
+		ext4_debug("Ianalde analt found.");
 		return 0;
 	}
 
-	ret = ext4_fc_record_modified_inode(sb, inode->i_ino);
+	ret = ext4_fc_record_modified_ianalde(sb, ianalde->i_ianal);
 	if (ret)
 		goto out;
 
@@ -1751,22 +1751,22 @@ static int ext4_fc_replay_add_range(struct super_block *sb,
 
 	cur = start;
 	remaining = len;
-	ext4_debug("ADD_RANGE, lblk %d, pblk %lld, len %d, unwritten %d, inode %ld\n",
+	ext4_debug("ADD_RANGE, lblk %d, pblk %lld, len %d, unwritten %d, ianalde %ld\n",
 		  start, start_pblk, len, ext4_ext_is_unwritten(ex),
-		  inode->i_ino);
+		  ianalde->i_ianal);
 
 	while (remaining > 0) {
 		map.m_lblk = cur;
 		map.m_len = remaining;
 		map.m_pblk = 0;
-		ret = ext4_map_blocks(NULL, inode, &map, 0);
+		ret = ext4_map_blocks(NULL, ianalde, &map, 0);
 
 		if (ret < 0)
 			goto out;
 
 		if (ret == 0) {
-			/* Range is not mapped */
-			path = ext4_find_extent(inode, cur, NULL, 0);
+			/* Range is analt mapped */
+			path = ext4_find_extent(ianalde, cur, NULL, 0);
 			if (IS_ERR(path))
 				goto out;
 			memset(&newex, 0, sizeof(newex));
@@ -1776,10 +1776,10 @@ static int ext4_fc_replay_add_range(struct super_block *sb,
 			newex.ee_len = cpu_to_le16(map.m_len);
 			if (ext4_ext_is_unwritten(ex))
 				ext4_ext_mark_unwritten(&newex);
-			down_write(&EXT4_I(inode)->i_data_sem);
+			down_write(&EXT4_I(ianalde)->i_data_sem);
 			ret = ext4_ext_insert_extent(
-				NULL, inode, &path, &newex, 0);
-			up_write((&EXT4_I(inode)->i_data_sem));
+				NULL, ianalde, &path, &newex, 0);
+			up_write((&EXT4_I(ianalde)->i_data_sem));
 			ext4_free_ext_path(path);
 			if (ret)
 				goto out;
@@ -1792,7 +1792,7 @@ static int ext4_fc_replay_add_range(struct super_block *sb,
 			 * if this range was removed and then reallocated to
 			 * map to new physical blocks during a fast commit.
 			 */
-			ret = ext4_ext_replay_update_ex(inode, cur, map.m_len,
+			ret = ext4_ext_replay_update_ex(ianalde, cur, map.m_len,
 					ext4_ext_is_unwritten(ex),
 					start_pblk + cur - start);
 			if (ret)
@@ -1800,13 +1800,13 @@ static int ext4_fc_replay_add_range(struct super_block *sb,
 			/*
 			 * Mark the old blocks as free since they aren't used
 			 * anymore. We maintain an array of all the modified
-			 * inodes. In case these blocks are still used at either
-			 * a different logical range in the same inode or in
-			 * some different inode, we will mark them as allocated
+			 * ianaldes. In case these blocks are still used at either
+			 * a different logical range in the same ianalde or in
+			 * some different ianalde, we will mark them as allocated
 			 * at the end of the FC replay using our array of
-			 * modified inodes.
+			 * modified ianaldes.
 			 */
-			ext4_mb_mark_bb(inode->i_sb, map.m_pblk, map.m_len, false);
+			ext4_mb_mark_bb(ianalde->i_sb, map.m_pblk, map.m_len, false);
 			goto next;
 		}
 
@@ -1814,23 +1814,23 @@ static int ext4_fc_replay_add_range(struct super_block *sb,
 		ext4_debug("Converting from %ld to %d %lld",
 				map.m_flags & EXT4_MAP_UNWRITTEN,
 			ext4_ext_is_unwritten(ex), map.m_pblk);
-		ret = ext4_ext_replay_update_ex(inode, cur, map.m_len,
+		ret = ext4_ext_replay_update_ex(ianalde, cur, map.m_len,
 					ext4_ext_is_unwritten(ex), map.m_pblk);
 		if (ret)
 			goto out;
 		/*
 		 * We may have split the extent tree while toggling the state.
-		 * Try to shrink the extent tree now.
+		 * Try to shrink the extent tree analw.
 		 */
-		ext4_ext_replay_shrink_inode(inode, start + len);
+		ext4_ext_replay_shrink_ianalde(ianalde, start + len);
 next:
 		cur += map.m_len;
 		remaining -= map.m_len;
 	}
-	ext4_ext_replay_shrink_inode(inode, i_size_read(inode) >>
+	ext4_ext_replay_shrink_ianalde(ianalde, i_size_read(ianalde) >>
 					sb->s_blocksize_bits);
 out:
-	iput(inode);
+	iput(ianalde);
 	return 0;
 }
 
@@ -1839,7 +1839,7 @@ static int
 ext4_fc_replay_del_range(struct super_block *sb,
 			 struct ext4_fc_tl_mem *tl, u8 *val)
 {
-	struct inode *inode;
+	struct ianalde *ianalde;
 	struct ext4_fc_del_range lrange;
 	struct ext4_map_blocks map;
 	ext4_lblk_t cur, remaining;
@@ -1850,101 +1850,101 @@ ext4_fc_replay_del_range(struct super_block *sb,
 	remaining = le32_to_cpu(lrange.fc_len);
 
 	trace_ext4_fc_replay(sb, EXT4_FC_TAG_DEL_RANGE,
-		le32_to_cpu(lrange.fc_ino), cur, remaining);
+		le32_to_cpu(lrange.fc_ianal), cur, remaining);
 
-	inode = ext4_iget(sb, le32_to_cpu(lrange.fc_ino), EXT4_IGET_NORMAL);
-	if (IS_ERR(inode)) {
-		ext4_debug("Inode %d not found", le32_to_cpu(lrange.fc_ino));
+	ianalde = ext4_iget(sb, le32_to_cpu(lrange.fc_ianal), EXT4_IGET_ANALRMAL);
+	if (IS_ERR(ianalde)) {
+		ext4_debug("Ianalde %d analt found", le32_to_cpu(lrange.fc_ianal));
 		return 0;
 	}
 
-	ret = ext4_fc_record_modified_inode(sb, inode->i_ino);
+	ret = ext4_fc_record_modified_ianalde(sb, ianalde->i_ianal);
 	if (ret)
 		goto out;
 
-	ext4_debug("DEL_RANGE, inode %ld, lblk %d, len %d\n",
-			inode->i_ino, le32_to_cpu(lrange.fc_lblk),
+	ext4_debug("DEL_RANGE, ianalde %ld, lblk %d, len %d\n",
+			ianalde->i_ianal, le32_to_cpu(lrange.fc_lblk),
 			le32_to_cpu(lrange.fc_len));
 	while (remaining > 0) {
 		map.m_lblk = cur;
 		map.m_len = remaining;
 
-		ret = ext4_map_blocks(NULL, inode, &map, 0);
+		ret = ext4_map_blocks(NULL, ianalde, &map, 0);
 		if (ret < 0)
 			goto out;
 		if (ret > 0) {
 			remaining -= ret;
 			cur += ret;
-			ext4_mb_mark_bb(inode->i_sb, map.m_pblk, map.m_len, false);
+			ext4_mb_mark_bb(ianalde->i_sb, map.m_pblk, map.m_len, false);
 		} else {
 			remaining -= map.m_len;
 			cur += map.m_len;
 		}
 	}
 
-	down_write(&EXT4_I(inode)->i_data_sem);
-	ret = ext4_ext_remove_space(inode, le32_to_cpu(lrange.fc_lblk),
+	down_write(&EXT4_I(ianalde)->i_data_sem);
+	ret = ext4_ext_remove_space(ianalde, le32_to_cpu(lrange.fc_lblk),
 				le32_to_cpu(lrange.fc_lblk) +
 				le32_to_cpu(lrange.fc_len) - 1);
-	up_write(&EXT4_I(inode)->i_data_sem);
+	up_write(&EXT4_I(ianalde)->i_data_sem);
 	if (ret)
 		goto out;
-	ext4_ext_replay_shrink_inode(inode,
-		i_size_read(inode) >> sb->s_blocksize_bits);
-	ext4_mark_inode_dirty(NULL, inode);
+	ext4_ext_replay_shrink_ianalde(ianalde,
+		i_size_read(ianalde) >> sb->s_blocksize_bits);
+	ext4_mark_ianalde_dirty(NULL, ianalde);
 out:
-	iput(inode);
+	iput(ianalde);
 	return 0;
 }
 
 static void ext4_fc_set_bitmaps_and_counters(struct super_block *sb)
 {
 	struct ext4_fc_replay_state *state;
-	struct inode *inode;
+	struct ianalde *ianalde;
 	struct ext4_ext_path *path = NULL;
 	struct ext4_map_blocks map;
 	int i, ret, j;
 	ext4_lblk_t cur, end;
 
 	state = &EXT4_SB(sb)->s_fc_replay_state;
-	for (i = 0; i < state->fc_modified_inodes_used; i++) {
-		inode = ext4_iget(sb, state->fc_modified_inodes[i],
-			EXT4_IGET_NORMAL);
-		if (IS_ERR(inode)) {
-			ext4_debug("Inode %d not found.",
-				state->fc_modified_inodes[i]);
+	for (i = 0; i < state->fc_modified_ianaldes_used; i++) {
+		ianalde = ext4_iget(sb, state->fc_modified_ianaldes[i],
+			EXT4_IGET_ANALRMAL);
+		if (IS_ERR(ianalde)) {
+			ext4_debug("Ianalde %d analt found.",
+				state->fc_modified_ianaldes[i]);
 			continue;
 		}
 		cur = 0;
 		end = EXT_MAX_BLOCKS;
-		if (ext4_test_inode_flag(inode, EXT4_INODE_INLINE_DATA)) {
-			iput(inode);
+		if (ext4_test_ianalde_flag(ianalde, EXT4_IANALDE_INLINE_DATA)) {
+			iput(ianalde);
 			continue;
 		}
 		while (cur < end) {
 			map.m_lblk = cur;
 			map.m_len = end - cur;
 
-			ret = ext4_map_blocks(NULL, inode, &map, 0);
+			ret = ext4_map_blocks(NULL, ianalde, &map, 0);
 			if (ret < 0)
 				break;
 
 			if (ret > 0) {
-				path = ext4_find_extent(inode, map.m_lblk, NULL, 0);
+				path = ext4_find_extent(ianalde, map.m_lblk, NULL, 0);
 				if (!IS_ERR(path)) {
 					for (j = 0; j < path->p_depth; j++)
-						ext4_mb_mark_bb(inode->i_sb,
+						ext4_mb_mark_bb(ianalde->i_sb,
 							path[j].p_block, 1, true);
 					ext4_free_ext_path(path);
 				}
 				cur += ret;
-				ext4_mb_mark_bb(inode->i_sb, map.m_pblk,
+				ext4_mb_mark_bb(ianalde->i_sb, map.m_pblk,
 							map.m_len, true);
 			} else {
 				cur = cur + (map.m_len ? map.m_len : 1);
 			}
 		}
-		iput(inode);
+		iput(ianalde);
 	}
 }
 
@@ -1960,7 +1960,7 @@ bool ext4_fc_replay_check_excluded(struct super_block *sb, ext4_fsblk_t blk)
 
 	state = &EXT4_SB(sb)->s_fc_replay_state;
 	for (i = 0; i < state->fc_regions_valid; i++) {
-		if (state->fc_regions[i].ino == 0 ||
+		if (state->fc_regions[i].ianal == 0 ||
 			state->fc_regions[i].len == 0)
 			continue;
 		if (in_range(blk, state->fc_regions[i].pblk,
@@ -1977,7 +1977,7 @@ void ext4_fc_replay_cleanup(struct super_block *sb)
 
 	sbi->s_mount_state &= ~EXT4_FC_REPLAY;
 	kfree(sbi->s_fc_replay_state.fc_regions);
-	kfree(sbi->s_fc_replay_state.fc_modified_inodes);
+	kfree(sbi->s_fc_replay_state.fc_modified_ianaldes);
 }
 
 static bool ext4_fc_value_len_isvalid(struct ext4_sb_info *sbi,
@@ -1993,10 +1993,10 @@ static bool ext4_fc_value_len_isvalid(struct ext4_sb_info *sbi,
 	case EXT4_FC_TAG_UNLINK:
 		len -= sizeof(struct ext4_fc_dentry_info);
 		return len >= 1 && len <= EXT4_NAME_LEN;
-	case EXT4_FC_TAG_INODE:
-		len -= sizeof(struct ext4_fc_inode);
-		return len >= EXT4_GOOD_OLD_INODE_SIZE &&
-			len <= sbi->s_inode_size;
+	case EXT4_FC_TAG_IANALDE:
+		len -= sizeof(struct ext4_fc_ianalde);
+		return len >= EXT4_GOOD_OLD_IANALDE_SIZE &&
+			len <= sbi->s_ianalde_size;
 	case EXT4_FC_TAG_PAD:
 		return true; /* padding can have any length */
 	case EXT4_FC_TAG_TAIL:
@@ -2019,7 +2019,7 @@ static bool ext4_fc_value_len_isvalid(struct ext4_sb_info *sbi,
  *
  * This function returns JBD2_FC_REPLAY_CONTINUE to indicate that SCAN is
  * incomplete and JBD2 should send more blocks. It returns JBD2_FC_REPLAY_STOP
- * to indicate that scan has finished and JBD2 can now start replay phase.
+ * to indicate that scan has finished and JBD2 can analw start replay phase.
  * It returns a negative error to indicate that there was an error. At the end
  * of a successful scan phase, sbi->s_fc_replay_state.fc_replay_num_tags is set
  * to indicate the number of tags that need to replayed during the replay phase.
@@ -2080,7 +2080,7 @@ static int ext4_fc_replay_scan(journal_t *journal,
 			memcpy(&ext, val, sizeof(ext));
 			ex = (struct ext4_extent *)&ext.fc_ex;
 			ret = ext4_fc_record_regions(sb,
-				le32_to_cpu(ext.fc_ino),
+				le32_to_cpu(ext.fc_ianal),
 				le32_to_cpu(ex->ee_block), ext4_ext_pblock(ex),
 				ext4_ext_get_actual_len(ex), 0);
 			if (ret < 0)
@@ -2091,7 +2091,7 @@ static int ext4_fc_replay_scan(journal_t *journal,
 		case EXT4_FC_TAG_LINK:
 		case EXT4_FC_TAG_UNLINK:
 		case EXT4_FC_TAG_CREAT:
-		case EXT4_FC_TAG_INODE:
+		case EXT4_FC_TAG_IANALDE:
 		case EXT4_FC_TAG_PAD:
 			state->fc_cur_tag++;
 			state->fc_crc = ext4_chksum(sbi, state->fc_crc, cur,
@@ -2119,7 +2119,7 @@ static int ext4_fc_replay_scan(journal_t *journal,
 			memcpy(&head, val, sizeof(head));
 			if (le32_to_cpu(head.fc_features) &
 				~EXT4_FC_SUPPORTED_FEATURES) {
-				ret = -EOPNOTSUPP;
+				ret = -EOPANALTSUPP;
 				break;
 			}
 			if (le32_to_cpu(head.fc_tid) != expected_tid) {
@@ -2212,8 +2212,8 @@ static int ext4_fc_replay(journal_t *journal, struct buffer_head *bh,
 		case EXT4_FC_TAG_DEL_RANGE:
 			ret = ext4_fc_replay_del_range(sb, &tl, val);
 			break;
-		case EXT4_FC_TAG_INODE:
-			ret = ext4_fc_replay_inode(sb, &tl, val);
+		case EXT4_FC_TAG_IANALDE:
+			ret = ext4_fc_replay_ianalde(sb, &tl, val);
 			break;
 		case EXT4_FC_TAG_PAD:
 			trace_ext4_fc_replay(sb, EXT4_FC_TAG_PAD, 0,
@@ -2244,7 +2244,7 @@ void ext4_fc_init(struct super_block *sb, journal_t *journal)
 	/*
 	 * We set replay callback even if fast commit disabled because we may
 	 * could still have fast commit blocks that need to be replayed even if
-	 * fast commit has now been turned off.
+	 * fast commit has analw been turned off.
 	 */
 	journal->j_fc_replay_callback = ext4_fc_replay;
 	if (!test_opt2(sb, JOURNAL_FAST_COMMIT))
@@ -2256,12 +2256,12 @@ static const char * const fc_ineligible_reasons[] = {
 	[EXT4_FC_REASON_XATTR] = "Extended attributes changed",
 	[EXT4_FC_REASON_CROSS_RENAME] = "Cross rename",
 	[EXT4_FC_REASON_JOURNAL_FLAG_CHANGE] = "Journal flag changed",
-	[EXT4_FC_REASON_NOMEM] = "Insufficient memory",
+	[EXT4_FC_REASON_ANALMEM] = "Insufficient memory",
 	[EXT4_FC_REASON_SWAP_BOOT] = "Swap boot",
 	[EXT4_FC_REASON_RESIZE] = "Resize",
 	[EXT4_FC_REASON_RENAME_DIR] = "Dir renamed",
 	[EXT4_FC_REASON_FALLOC_RANGE] = "Falloc range op",
-	[EXT4_FC_REASON_INODE_JOURNAL_DATA] = "Data journalling",
+	[EXT4_FC_REASON_IANALDE_JOURNAL_DATA] = "Data journalling",
 	[EXT4_FC_REASON_ENCRYPTED_FILENAME] = "Encrypted filename",
 };
 
@@ -2293,7 +2293,7 @@ int __init ext4_fc_init_dentry_cache(void)
 					   SLAB_RECLAIM_ACCOUNT);
 
 	if (ext4_fc_dentry_cachep == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }

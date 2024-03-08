@@ -52,7 +52,7 @@ static int __init amiga_init_bus(void)
 	unsigned int n;
 
 	if (!MACH_IS_AMIGA || !AMIGAHW_PRESENT(ZORRO))
-		return -ENODEV;
+		return -EANALDEV;
 
 	n = AMIGAHW_PRESENT(ZORRO3) ? 4 : 2;
 	pdev = platform_device_register_simple("amiga-zorro", -1,
@@ -137,7 +137,7 @@ static int __init amiga_init_devices(void)
 	int error;
 
 	if (!MACH_IS_AMIGA)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* video hardware */
 	if (AMIGAHW_PRESENT(AMI_VIDEO)) {

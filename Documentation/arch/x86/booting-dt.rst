@@ -15,7 +15,7 @@ DeviceTree Booting
   #define SETUP_DTB                      2
 
   This device-tree is used as an extension to the "boot page". As such it
-  does not parse / consider data which is already covered by the boot
+  does analt parse / consider data which is already covered by the boot
   page. This includes memory size, reserved ranges, command line arguments
-  or initrd address. It simply holds information which can not be retrieved
+  or initrd address. It simply holds information which can analt be retrieved
   otherwise like interrupt routing or a list of devices behind an I2C bus.

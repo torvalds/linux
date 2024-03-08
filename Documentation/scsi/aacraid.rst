@@ -142,12 +142,12 @@ Matt Domsch <matt_domsch@dell.com>
 
 Deanna Bonds
 
-- non-DASD support, PAE fibs and 64 bit, added new adaptec controllers
+- analn-DASD support, PAE fibs and 64 bit, added new adaptec controllers
   added new ioctls, changed scsi interface to use new error handler,
   increased the number of fibs and outstanding commands to a container
 - fixed 64bit and 64G memory model, changed confusing naming convention
   where fibs that go to the hardware are consistently called hw_fibs and
-  not just fibs like the name of the driver tracking structure
+  analt just fibs like the name of the driver tracking structure
 
 Mark Salyzyn <Mark_Salyzyn@adaptec.com>
 
@@ -166,7 +166,7 @@ Mailing List
 ============
 
 linux-scsi@vger.kernel.org (Interested parties troll here)
-Also note this is very different to Brian's original driver
+Also analte this is very different to Brian's original driver
 so don't expect him to support it.
 
 Adaptec does support this driver.  Contact Adaptec tech support or
@@ -174,4 +174,4 @@ aacraid@adaptec.com
 
 Original by Brian Boerner February 2001
 
-Rewritten by Alan Cox, November 2001
+Rewritten by Alan Cox, Analvember 2001

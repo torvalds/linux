@@ -16,7 +16,7 @@
 	#size-cells = <1>;
 	/*
 	 * The decompressor and also some bootloaders rely on a
-	 * pre-existing /chosen node to be available to insert the
+	 * pre-existing /chosen analde to be available to insert the
 	 * command line and merge other ATAGS info.
 	 */
 	chosen {};
@@ -109,15 +109,15 @@
 		clock-output-names = "osc";
 	};
 
-	usbphynop1: usbphynop1 {
-		compatible = "usb-nop-xceiv";
+	usbphyanalp1: usbphyanalp1 {
+		compatible = "usb-analp-xceiv";
 		clocks = <&clks IMX7D_USB_PHY1_CLK>;
 		clock-names = "main_clk";
 		#phy-cells = <0>;
 	};
 
-	usbphynop3: usbphynop3 {
-		compatible = "usb-nop-xceiv";
+	usbphyanalp3: usbphyanalp3 {
+		compatible = "usb-analp-xceiv";
 		clocks = <&clks IMX7D_USB_HSIC_ROOT_CLK>;
 		clock-names = "main_clk";
 		power-domains = <&pgc_hsic_phy>;
@@ -133,8 +133,8 @@
 
 	replicator {
 		/*
-		 * non-configurable replicators don't show up on the
-		 * AMBA bus.  As such no need to add "arm,primecell"
+		 * analn-configurable replicators don't show up on the
+		 * AMBA bus.  As such anal need to add "arm,primecell"
 		 */
 		compatible = "arm,coresight-static-replicator";
 
@@ -168,7 +168,7 @@
 
 	timer {
 		compatible = "arm,armv7-timer";
-		arm,cpu-registers-not-fw-configured;
+		arm,cpu-registers-analt-fw-configured;
 		interrupt-parent = <&intc>;
 		interrupts = <GIC_PPI 13 (GIC_CPU_MASK_SIMPLE(1) | IRQ_TYPE_LEVEL_LOW)>,
 			     <GIC_PPI 14 (GIC_CPU_MASK_SIMPLE(1) | IRQ_TYPE_LEVEL_LOW)>,
@@ -209,7 +209,7 @@
 					};
 				};
 
-				/* the other input ports are not connect to anything */
+				/* the other input ports are analt connect to anything */
 			};
 
 			out-ports {
@@ -261,7 +261,7 @@
 						/* M4 input */
 					};
 				};
-				/* the other input ports are not connect to anything */
+				/* the other input ports are analt connect to anything */
 			};
 
 			out-ports {
@@ -1183,7 +1183,7 @@
 				reg = <0x30b10000 0x200>;
 				interrupts = <GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clks IMX7D_USB_CTRL_CLK>;
-				fsl,usbphy = <&usbphynop1>;
+				fsl,usbphy = <&usbphyanalp1>;
 				fsl,usbmisc = <&usbmisc1 0>;
 				phy-clkgate-delay-us = <400>;
 				status = "disabled";
@@ -1194,7 +1194,7 @@
 				reg = <0x30b30000 0x200>;
 				interrupts = <GIC_SPI 40 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clks IMX7D_USB_CTRL_CLK>;
-				fsl,usbphy = <&usbphynop3>;
+				fsl,usbphy = <&usbphyanalp3>;
 				fsl,usbmisc = <&usbmisc3 0>;
 				phy_type = "hsic";
 				dr_mode = "host";

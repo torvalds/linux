@@ -34,7 +34,7 @@ prom_cmdline(void)
 }
 
 /* Drop into the prom, but completely terminate the program.
- * No chance of continuing.
+ * Anal chance of continuing.
  */
 void
 prom_halt(void)

@@ -19,15 +19,15 @@ int					/* error */
 xfs_rtmount_init(
 	struct xfs_mount	*mp);	/* file system mount structure */
 void
-xfs_rtunmount_inodes(
+xfs_rtunmount_ianaldes(
 	struct xfs_mount	*mp);
 
 /*
- * Get the bitmap and summary inodes into the mount structure
+ * Get the bitmap and summary ianaldes into the mount structure
  * at mount time.
  */
 int					/* error */
-xfs_rtmount_inodes(
+xfs_rtmount_ianaldes(
 	struct xfs_mount	*mp);	/* file system mount structure */
 
 /*
@@ -40,7 +40,7 @@ xfs_growfs_rt(
 
 int xfs_rtalloc_reinit_frextents(struct xfs_mount *mp);
 #else
-# define xfs_growfs_rt(mp,in)				(-ENOSYS)
+# define xfs_growfs_rt(mp,in)				(-EANALSYS)
 # define xfs_rtalloc_reinit_frextents(m)		(0)
 static inline int		/* error */
 xfs_rtmount_init(
@@ -49,11 +49,11 @@ xfs_rtmount_init(
 	if (mp->m_sb.sb_rblocks == 0)
 		return 0;
 
-	xfs_warn(mp, "Not built with CONFIG_XFS_RT");
-	return -ENOSYS;
+	xfs_warn(mp, "Analt built with CONFIG_XFS_RT");
+	return -EANALSYS;
 }
-# define xfs_rtmount_inodes(m)  (((mp)->m_sb.sb_rblocks == 0)? 0 : (-ENOSYS))
-# define xfs_rtunmount_inodes(m)
+# define xfs_rtmount_ianaldes(m)  (((mp)->m_sb.sb_rblocks == 0)? 0 : (-EANALSYS))
+# define xfs_rtunmount_ianaldes(m)
 #endif	/* CONFIG_XFS_RT */
 
 #endif	/* __XFS_RTALLOC_H__ */

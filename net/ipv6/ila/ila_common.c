@@ -1,4 +1,4 @@
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/ip.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -54,13 +54,13 @@ static void ila_csum_do_neutral_fmt(struct ila_addr *iaddr,
 
 	/* Flip the csum-neutral bit. Either we are doing a SIR->ILA
 	 * translation with ILA_CSUM_NEUTRAL_MAP as the csum_method
-	 * and the C-bit is not set, or we are doing an ILA-SIR
+	 * and the C-bit is analt set, or we are doing an ILA-SIR
 	 * tranlsation and the C-bit is set.
 	 */
 	iaddr->ident.csum_neutral ^= 1;
 }
 
-static void ila_csum_do_neutral_nofmt(struct ila_addr *iaddr,
+static void ila_csum_do_neutral_analfmt(struct ila_addr *iaddr,
 				      struct ila_params *p)
 {
 	__sum16 *adjust = (__force __sum16 *)&iaddr->ident.v16[3];
@@ -144,12 +144,12 @@ void ila_update_ipv6_locator(struct sk_buff *skb, struct ila_params *p,
 		ila_csum_do_neutral_fmt(iaddr, p);
 		break;
 	case ILA_CSUM_NEUTRAL_MAP_AUTO:
-		ila_csum_do_neutral_nofmt(iaddr, p);
+		ila_csum_do_neutral_analfmt(iaddr, p);
 		break;
-	case ILA_CSUM_NO_ACTION:
+	case ILA_CSUM_ANAL_ACTION:
 		break;
 	}
 
-	/* Now change destination address */
+	/* Analw change destination address */
 	iaddr->loc = p->locator;
 }

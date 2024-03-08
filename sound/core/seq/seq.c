@@ -18,7 +18,7 @@
 #include "seq_timer.h"
 #include "seq_system.h"
 #include "seq_info.h"
-#include <sound/minors.h>
+#include <sound/mianalrs.h>
 #include <sound/seq_device.h>
 
 #if defined(CONFIG_SND_SEQ_DUMMY_MODULE)
@@ -27,7 +27,7 @@ int seq_client_load[15] = {[0] = SNDRV_SEQ_CLIENT_DUMMY, [1 ... 14] = -1};
 int seq_client_load[15] = {[0 ... 14] = -1};
 #endif
 int seq_default_timer_class = SNDRV_TIMER_CLASS_GLOBAL;
-int seq_default_timer_sclass = SNDRV_TIMER_SCLASS_NONE;
+int seq_default_timer_sclass = SNDRV_TIMER_SCLASS_ANALNE;
 int seq_default_timer_card = -1;
 int seq_default_timer_device =
 #ifdef CONFIG_SND_SEQ_HRTIMER_DEFAULT
@@ -58,7 +58,7 @@ MODULE_PARM_DESC(seq_default_timer_subdevice, "The default timer subdevice numbe
 module_param(seq_default_timer_resolution, int, 0644);
 MODULE_PARM_DESC(seq_default_timer_resolution, "The default timer resolution in Hz.");
 
-MODULE_ALIAS_CHARDEV(CONFIG_SND_MAJOR, SNDRV_MINOR_SEQUENCER);
+MODULE_ALIAS_CHARDEV(CONFIG_SND_MAJOR, SNDRV_MIANALR_SEQUENCER);
 MODULE_ALIAS("devname:snd/seq");
 
 /*

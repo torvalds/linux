@@ -23,7 +23,7 @@ typedef unsigned long long u64;
 #include "spu_utils.h"
 
 #define BR_INSTR		0x327fff80	/* br -4         */
-#define NOP_INSTR		0x40200000	/* nop           */
+#define ANALP_INSTR		0x40200000	/* analp           */
 #define HEQ_INSTR		0x7b000000	/* heq $0, $0    */
 #define STOP_INSTR		0x00000000	/* stop 0x0      */
 #define ILLEGAL_INSTR		0x00800000	/* illegal instr */
@@ -212,13 +212,13 @@ static inline void restore_complete(void)
 		exit_instrs[2] = STOP_INSTR | stopped_code;
 		break;
 	case SPU_STOPPED_STATUS_S_P:
-		/* SPU_Status[S,P]=1.  Add nop instruction
+		/* SPU_Status[S,P]=1.  Add analp instruction
 		 * followed by 'br -4' after end of restore
 		 * code.
 		 */
 		exit_instrs[0] = RESTORE_COMPLETE;
 		exit_instrs[1] = STOP_INSTR | stopped_code;
-		exit_instrs[2] = NOP_INSTR;
+		exit_instrs[2] = ANALP_INSTR;
 		exit_instrs[3] = BR_INSTR;
 		break;
 	case SPU_STOPPED_STATUS_S_I:
@@ -227,7 +227,7 @@ static inline void restore_complete(void)
 		 */
 		exit_instrs[0] = RESTORE_COMPLETE;
 		exit_instrs[1] = ILLEGAL_INSTR;
-		exit_instrs[2] = NOP_INSTR;
+		exit_instrs[2] = ANALP_INSTR;
 		exit_instrs[3] = BR_INSTR;
 		break;
 	case SPU_STOPPED_STATUS_I:
@@ -236,14 +236,14 @@ static inline void restore_complete(void)
 		 */
 		exit_instrs[0] = RESTORE_COMPLETE;
 		exit_instrs[1] = ILLEGAL_INSTR;
-		exit_instrs[2] = NOP_INSTR;
+		exit_instrs[2] = ANALP_INSTR;
 		exit_instrs[3] = BR_INSTR;
 		break;
 	case SPU_STOPPED_STATUS_S:
-		/* SPU_Status[S]=1. Add two 'nop' instructions. */
+		/* SPU_Status[S]=1. Add two 'analp' instructions. */
 		exit_instrs[0] = RESTORE_COMPLETE;
-		exit_instrs[1] = NOP_INSTR;
-		exit_instrs[2] = NOP_INSTR;
+		exit_instrs[1] = ANALP_INSTR;
+		exit_instrs[2] = ANALP_INSTR;
 		exit_instrs[3] = BR_INSTR;
 		break;
 	case SPU_STOPPED_STATUS_H:
@@ -252,7 +252,7 @@ static inline void restore_complete(void)
 		 */
 		exit_instrs[0] = RESTORE_COMPLETE;
 		exit_instrs[1] = HEQ_INSTR;
-		exit_instrs[2] = NOP_INSTR;
+		exit_instrs[2] = ANALP_INSTR;
 		exit_instrs[3] = BR_INSTR;
 		break;
 	case SPU_STOPPED_STATUS_P:
@@ -265,12 +265,12 @@ static inline void restore_complete(void)
 	case SPU_STOPPED_STATUS_R:
 		/* SPU_Status[I,S,H,P,R]=0. Add infinite loop. */
 		exit_instrs[0] = RESTORE_COMPLETE;
-		exit_instrs[1] = NOP_INSTR;
-		exit_instrs[2] = NOP_INSTR;
+		exit_instrs[1] = ANALP_INSTR;
+		exit_instrs[2] = ANALP_INSTR;
 		exit_instrs[3] = BR_INSTR;
 		break;
 	default:
-		/* SPU_Status[R]=1. No additional instructions. */
+		/* SPU_Status[R]=1. Anal additional instructions. */
 		break;
 	}
 	spu_sync();
@@ -283,7 +283,7 @@ static inline void restore_complete(void)
  * following aspects:
  *
  *	1. The EA for LSCSA is passed from PPE in the
- *	   signal notification channels.
+ *	   signal analtification channels.
  *	2. The register spill area is pulled by SPU
  *	   into LS, rather than pushed by PPE.
  *	3. All 128 registers are restored by exit().
@@ -295,8 +295,8 @@ int main()
 {
 	addr64 lscsa_ea;
 
-	lscsa_ea.ui[0] = spu_readch(SPU_RdSigNotify1);
-	lscsa_ea.ui[1] = spu_readch(SPU_RdSigNotify2);
+	lscsa_ea.ui[0] = spu_readch(SPU_RdSigAnaltify1);
+	lscsa_ea.ui[1] = spu_readch(SPU_RdSigAnaltify2);
 	fetch_regs_from_mem(lscsa_ea);
 
 	set_event_mask();		/* Step 1.  */

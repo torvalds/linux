@@ -5,11 +5,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -385,7 +385,7 @@ static irqreturn_t b53_srab_port_isr(int irq, void *dev_id)
 	struct b53_device *dev = port->dev;
 	struct b53_srab_priv *priv = dev->priv;
 
-	/* Acknowledge the interrupt */
+	/* Ackanalwledge the interrupt */
 	writel(BIT(port->num), priv->regs + B53_SRAB_INTR);
 
 	return IRQ_WAKE_THREAD;
@@ -417,7 +417,7 @@ static int b53_srab_irq_enable(struct b53_device *dev, int port)
 	struct b53_srab_port_priv *p = &priv->port_intrs[port];
 	int ret = 0;
 
-	/* Interrupt is optional and was not specified, do not make
+	/* Interrupt is optional and was analt specified, do analt make
 	 * this fatal
 	 */
 	if (p->irq == -ENXIO)
@@ -545,7 +545,7 @@ static void b53_srab_prepare_irq(struct platform_device *pdev)
 	for (i = 0; i < B53_N_PORTS; i++) {
 		port = &priv->port_intrs[i];
 
-		/* There is no port 6 */
+		/* There is anal port 6 */
 		if (i == 6)
 			continue;
 
@@ -578,7 +578,7 @@ static void b53_srab_mux_init(struct platform_device *pdev)
 	if (IS_ERR(priv->mux_config))
 		return;
 
-	/* Obtain the port mux configuration so we know which lanes
+	/* Obtain the port mux configuration so we kanalw which lanes
 	 * actually map to SerDes lanes
 	 */
 	for (port = 5; port > 3; port--, off += 4) {
@@ -618,25 +618,25 @@ static void b53_srab_mux_init(struct platform_device *pdev)
 static int b53_srab_probe(struct platform_device *pdev)
 {
 	struct b53_platform_data *pdata = pdev->dev.platform_data;
-	struct device_node *dn = pdev->dev.of_node;
+	struct device_analde *dn = pdev->dev.of_analde;
 	const struct of_device_id *of_id = NULL;
 	struct b53_srab_priv *priv;
 	struct b53_device *dev;
 
 	if (dn)
-		of_id = of_match_node(b53_srab_of_match, dn);
+		of_id = of_match_analde(b53_srab_of_match, dn);
 
 	if (of_id) {
 		pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
 		if (!pdata)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		pdata->chip_id = (u32)(unsigned long)of_id->data;
 	}
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->regs))
@@ -644,7 +644,7 @@ static int b53_srab_probe(struct platform_device *pdev)
 
 	dev = b53_switch_alloc(&pdev->dev, &b53_srab_ops, priv);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (pdata)
 		dev->pdata = pdata;

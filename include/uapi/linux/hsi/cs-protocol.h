@@ -1,11 +1,11 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * cmt-speech interface definitions
  *
- * Copyright (C) 2008,2009,2010 Nokia Corporation. All rights reserved.
+ * Copyright (C) 2008,2009,2010 Analkia Corporation. All rights reserved.
  *
- * Contact: Kai Vehmanen <kai.vehmanen@nokia.com>
- * Original author: Peter Ujfalusi <peter.ujfalusi@nokia.com>
+ * Contact: Kai Vehmanen <kai.vehmanen@analkia.com>
+ * Original author: Peter Ujfalusi <peter.ujfalusi@analkia.com>
  */
 
 #ifndef _CS_PROTOCOL_H
@@ -63,12 +63,12 @@ struct cs_buffer_config {
 };
 
 /*
- * struct for monotonic timestamp taken when the
+ * struct for moanaltonic timestamp taken when the
  * last control command was received
  */
 struct cs_timestamp {
 	__u32 tv_sec;  /* seconds */
-	__u32 tv_nsec; /* nanoseconds */
+	__u32 tv_nsec; /* naanalseconds */
 };
 
 /*

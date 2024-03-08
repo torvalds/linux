@@ -33,11 +33,11 @@
 /* #define cpu_has_dc_aliases	? */
 /* #define cpu_has_ic_fills_f_dc ? */
 #define cpu_has_clo_clz		1
-#define cpu_has_nofpuex		0
+#define cpu_has_analfpuex		0
 /* #define cpu_has_64bits	? */
 /* #define cpu_has_64bit_zero_reg ? */
 /* #define cpu_has_inclusive_pcaches ? */
-#define cpu_icache_snoops_remote_store 1
+#define cpu_icache_sanalops_remote_store 1
 #endif
 
 #ifdef CONFIG_CPU_MIPS64
@@ -60,11 +60,11 @@
 /* #define cpu_has_dc_aliases	? */
 /* #define cpu_has_ic_fills_f_dc ? */
 #define cpu_has_clo_clz		1
-#define cpu_has_nofpuex		0
+#define cpu_has_analfpuex		0
 /* #define cpu_has_64bits	? */
 /* #define cpu_has_64bit_zero_reg ? */
 /* #define cpu_has_inclusive_pcaches ? */
-#define cpu_icache_snoops_remote_store 1
+#define cpu_icache_sanalops_remote_store 1
 #endif
 
 #endif /* __ASM_MACH_MIPS_CPU_FEATURE_OVERRIDES_H */

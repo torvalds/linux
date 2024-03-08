@@ -26,18 +26,18 @@ description: |
     |   +------+ |                  | dev |  | dev |  | dev |
     +------------+                  +-----+  +-----+  +-----+
 
-  For each I2C child node, an I2C child bus will be created. They will be numbered based on their
+  For each I2C child analde, an I2C child bus will be created. They will be numbered based on their
   order in the device tree.
 
-  Whenever an access is made to a device on a child bus, the value set in the relevant node's reg
+  Whenever an access is made to a device on a child bus, the value set in the relevant analde's reg
   property will be output using the list of GPIOs, the first in the list holding the least-
   significant value.
 
-  If an idle state is defined, using the idle-state (optional) property, whenever an access is not
+  If an idle state is defined, using the idle-state (optional) property, whenever an access is analt
   being made to a device on a child bus, the GPIOs will be set according to the idle value.
 
-  If an idle state is not defined, the most recently used value will be left programmed into
-  hardware whenever no access is being made to a device on a child bus.
+  If an idle state is analt defined, the most recently used value will be left programmed into
+  hardware whenever anal access is being made to a device on a child bus.
 
 properties:
   compatible:
@@ -50,10 +50,10 @@ properties:
   mux-gpios:
     description: list of GPIOs used to control the muxer
     minItems: 1
-    maxItems: 4  # Should be enough
+    maxItems: 4  # Should be eanalugh
 
   idle-state:
-    description: Value to set the muxer to when idle. When no value is given, it defaults to the
+    description: Value to set the muxer to when idle. When anal value is given, it defaults to the
       last value used.
     $ref: /schemas/types.yaml#/definitions/uint32
 

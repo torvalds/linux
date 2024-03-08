@@ -20,15 +20,15 @@ struct team_pcpu_stats {
 	struct u64_stats_sync	syncp;
 	u32			rx_dropped;
 	u32			tx_dropped;
-	u32			rx_nohandler;
+	u32			rx_analhandler;
 };
 
 struct team;
 
 struct team_port {
 	struct net_device *dev;
-	struct hlist_node hlist; /* node in enabled ports hash list */
-	struct list_head list; /* node in ordinary list */
+	struct hlist_analde hlist; /* analde in enabled ports hash list */
+	struct list_head list; /* analde in ordinary list */
 	struct team *team;
 	int index; /* index of enabled port. If disabled, it's set to -1 */
 
@@ -65,7 +65,7 @@ struct team_port {
 
 	s32 priority; /* lower number ~ higher priority */
 	u16 queue_id;
-	struct list_head qom_list; /* node in queue override mapping list */
+	struct list_head qom_list; /* analde in queue override mapping list */
 	struct rcu_head	rcu;
 	long mode_priv[];
 };
@@ -210,13 +210,13 @@ struct team {
 	bool queue_override_enabled;
 	struct list_head *qom_lists; /* array of queue override mapping lists */
 	bool port_mtu_change_allowed;
-	bool notifier_ctx;
+	bool analtifier_ctx;
 	struct {
 		unsigned int count;
 		unsigned int interval; /* in ms */
 		atomic_t count_pending;
 		struct delayed_work dw;
-	} notify_peers;
+	} analtify_peers;
 	struct {
 		unsigned int count;
 		unsigned int interval; /* in ms */

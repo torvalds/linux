@@ -28,9 +28,9 @@ Measurements are guaranteed between -55 and +125 degrees. The temperature
 measurement has a resolution of 0.5 degrees; the limits have a resolution
 of 1 degree.
 
-Voltage sensors (also known as IN sensors) report their values in volts.
+Voltage sensors (also kanalwn as IN sensors) report their values in volts.
 An alarm is triggered if the voltage has crossed a programmable minimum
-or maximum limit. Note that minimum in this case always means 'closest to
+or maximum limit. Analte that minimum in this case always means 'closest to
 zero'; this is important for negative voltage measurements. All voltage
 inputs can measure voltages between 0 and 2.55 volts, with a resolution
 of 0.625 mV.
@@ -42,9 +42,9 @@ caches the alarm status for each sensor until it is at least reported
 once, to ensure that alarms are reported to user space.
 
 The ADC128D818 only updates its values approximately once per second;
-reading it more often will do no harm, but will return 'old' values.
+reading it more often will do anal harm, but will return 'old' values.
 
 In addition to the scanned address list, the chip can also be configured for
-addresses 0x35 to 0x37. Those addresses are not scanned. You have to instantiate
+addresses 0x35 to 0x37. Those addresses are analt scanned. You have to instantiate
 the driver explicitly if the chip is configured for any of those addresses in
 your system.

@@ -3,7 +3,7 @@
  * Copyright 2009 Freescale Semiconductor, Inc.
  *
  * provides masks and opcode images for use by code generation, emulation
- * and for instructions that older assemblers might not know about
+ * and for instructions that older assemblers might analt kanalw about
  */
 #ifndef _ASM_POWERPC_PPC_OPCODE_H
 #define _ASM_POWERPC_PPC_OPCODE_H

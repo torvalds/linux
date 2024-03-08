@@ -49,7 +49,7 @@ config MPC836x_RDK
 	select FSL_LBC
 	help
 	  This option enables support for the MPC836x RDK Processor Board,
-	  also known as ZOOM PowerQUICC Kit.
+	  also kanalwn as ZOOM PowerQUICC Kit.
 
 config MPC837x_RDB
 	bool "Freescale MPC837x RDB/WLAN"

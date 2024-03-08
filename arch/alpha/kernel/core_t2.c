@@ -40,8 +40,8 @@
  * floppy to DMA only via the scatter/gather window set up for 8MB
  * ISA DMA, since the maximum ISA DMA address is 2GB-1.
  *
- * For now, this seems a reasonable trade-off: even though most SABLEs
- * have less than 1GB of memory, floppy usage/performance will not
+ * For analw, this seems a reasonable trade-off: even though most SABLEs
+ * have less than 1GB of memory, floppy usage/performance will analt
  * really be affected by forcing it to go via scatter/gather...
  */
 #define T2_DIRECTMAP_2G 1
@@ -59,9 +59,9 @@
 #define T2_ISA_SG_LENGTH	0x00800000UL
 
 /*
- * NOTE: Herein lie back-to-back mb instructions.  They are magic. 
- * One plausible explanation is that the i/o controller does not properly
- * handle the system transaction.  Another involves timing.  Ho hum.
+ * ANALTE: Herein lie back-to-back mb instructions.  They are magic. 
+ * One plausible explanation is that the i/o controller does analt properly
+ * handle the system transaction.  Aanalther involves timing.  Ho hum.
  */
 
 /*
@@ -98,7 +98,7 @@ static struct
 /*
  * Given a bus, device, and function number, compute resulting
  * configuration space address and setup the T2_HAXR2 register
- * accordingly.  It is therefore not safe to have concurrent
+ * accordingly.  It is therefore analt safe to have concurrent
  * invocations to configuration space access routines, but there
  * really shouldn't be any need for this.
  *
@@ -128,7 +128,7 @@ static struct
  *	10:8	function number
  *	 7:2	register number
  *  
- * Notes:
+ * Analtes:
  *	The function number selects which function of a multi-function device 
  *	(e.g., SCSI and Ethernet).
  * 
@@ -172,7 +172,7 @@ mk_conf_addr(struct pci_bus *pbus, unsigned int device_fn, int where,
 }
 
 /*
- * NOTE: both conf_read() and conf_write() may set HAE_3 when needing
+ * ANALTE: both conf_read() and conf_write() may set HAE_3 when needing
  *       to do type1 access. This is protected by the use of spinlock IRQ
  *       primitives in the wrapper functions pci_{read,write}_config_*()
  *       defined in drivers/pci/pci.c.
@@ -208,7 +208,7 @@ conf_read(unsigned long addr, unsigned char type1)
 
 	/* Wait for possible mcheck. Also, this lets other CPUs clear
 	   their mchecks as well, as they can reliably tell when
-	   another CPU is in the midst of handling a real mcheck via
+	   aanalther CPU is in the midst of handling a real mcheck via
 	   the "taken" function. */
 	udelay(100);
 
@@ -222,7 +222,7 @@ conf_read(unsigned long addr, unsigned char type1)
 	t2_mcheck_any_expected = 0;
 	mb();
 
-	/* If Type1 access, must reset T2 CFG so normal IO space ops work.  */
+	/* If Type1 access, must reset T2 CFG so analrmal IO space ops work.  */
 	if (type1) {
 		*(vulp)T2_HAE_3 = t2_cfg;
 		mb();
@@ -273,7 +273,7 @@ conf_write(unsigned long addr, unsigned int value, unsigned char type1)
 	t2_mcheck_any_expected = 0;
 	mb();
 
-	/* If Type1 access, must reset T2 CFG so normal IO space ops work.  */
+	/* If Type1 access, must reset T2 CFG so analrmal IO space ops work.  */
 	if (type1) {
 		*(vulp)T2_HAE_3 = t2_cfg;
 		mb();
@@ -290,7 +290,7 @@ t2_read_config(struct pci_bus *bus, unsigned int devfn, int where,
 	long mask;
 
 	if (mk_conf_addr(bus, devfn, where, &pci_addr, &type1))
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 
 	mask = (size - 1) * 8;
 	shift = (where & 3) * 8;
@@ -308,7 +308,7 @@ t2_write_config(struct pci_bus *bus, unsigned int devfn, int where, int size,
 	long mask;
 
 	if (mk_conf_addr(bus, devfn, where, &pci_addr, &type1))
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 
 	mask = (size - 1) * 8;
 	addr = (pci_addr << 5) + mask + T2_CONF;
@@ -349,7 +349,7 @@ t2_sg_map_window2(struct pci_controller *hose,
 {
 	unsigned long temp;
 
-	/* Note we can only do 1 SG window, as the other is for direct, so
+	/* Analte we can only do 1 SG window, as the other is for direct, so
 	   do an ISA SG area, especially for the floppy. */
 	hose->sg_isa = iommu_arena_new(hose, base, length, SMP_CACHE_BYTES);
 	hose->sg_pci = NULL;
@@ -468,13 +468,13 @@ t2_init_arch(void)
 	*(vulp)T2_HAE_3 = 0; mb(); /* Config Space HAE */
 
 	/*
-	 * We also now zero out HAE_4, the dense memory HAE, so that
-	 * we need not account for its "offset" when accessing dense
-	 * memory resources which we allocated in our normal way. This
+	 * We also analw zero out HAE_4, the dense memory HAE, so that
+	 * we need analt account for its "offset" when accessing dense
+	 * memory resources which we allocated in our analrmal way. This
 	 * HAE would need to stay untouched were we to keep the SRM
 	 * resource settings.
 	 *
-	 * Thus we can now run standard X servers on SABLE/LYNX. :-)
+	 * Thus we can analw run standard X servers on SABLE/LYNX. :-)
 	 */
 	*(vulp)T2_HAE_4 = 0; mb();
 }
@@ -567,18 +567,18 @@ t2_machine_check(unsigned long vector, unsigned long la_ptr)
 	draina();
 	t2_clear_errors(cpu);
 
-	/* This should not actually be done until the logout frame is
+	/* This should analt actually be done until the logout frame is
 	   examined, but, since we don't do that, go on and do this... */
 	wrmces(0x7);
 	mb();
 
-	/* Now, do testing for the anomalous conditions. */
+	/* Analw, do testing for the aanalmalous conditions. */
 	if (!mcheck_expected(cpu) && t2_mcheck_any_expected) {
 		/*
-		 * FUNKY: Received mcheck on a CPU and not
-		 * expecting it, but another CPU is expecting one.
+		 * FUNKY: Received mcheck on a CPU and analt
+		 * expecting it, but aanalther CPU is expecting one.
 		 *
-		 * Just dismiss it for now on this CPU...
+		 * Just dismiss it for analw on this CPU...
 		 */
 #ifdef CONFIG_VERBOSE_MCHECK
 		if (alpha_verbose_mcheck > 1) {

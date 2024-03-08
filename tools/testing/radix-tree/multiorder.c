@@ -7,7 +7,7 @@
  */
 #include <linux/radix-tree.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <pthread.h>
 
 #include "test.h"
@@ -22,7 +22,7 @@ static int item_insert_order(struct xarray *xa, unsigned long index,
 		xas_lock(&xas);
 		xas_store(&xas, item);
 		xas_unlock(&xas);
-	} while (xas_nomem(&xas, GFP_KERNEL));
+	} while (xas_analmem(&xas, GFP_KERNEL));
 
 	if (!xas_error(&xas))
 		return 0;
@@ -60,8 +60,8 @@ void multiorder_iteration(struct xarray *xa)
 			unsigned long mask = (1UL << order[i]) - 1;
 
 			assert((xas.xa_index | mask) == (index[i] | mask));
-			assert(xas.xa_node->shift == shift);
-			assert(!radix_tree_is_internal_node(item));
+			assert(xas.xa_analde->shift == shift);
+			assert(!radix_tree_is_internal_analde(item));
 			assert((item->index | mask) == (index[i] | mask));
 			assert(item->order == order[i]);
 			i++;

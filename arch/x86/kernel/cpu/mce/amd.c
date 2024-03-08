@@ -5,13 +5,13 @@
  *  Written by Jacob Shin - AMD, Inc.
  *  Maintained by: Borislav Petkov <bp@alien8.de>
  *
- *  All MC4_MISCi registers are shared between cores on a node.
+ *  All MC4_MISCi registers are shared between cores on a analde.
  */
 #include <linux/interrupt.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/kobject.h>
 #include <linux/percpu.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/sched.h>
 #include <linux/sysfs.h>
 #include <linux/slab.h>
@@ -62,7 +62,7 @@ static const char * const th_names[] = {
 	"insn_fetch",
 	"combined_unit",
 	"decode_unit",
-	"northbridge",
+	"analrthbridge",
 	"execution_unit",
 };
 
@@ -190,7 +190,7 @@ static const struct smca_hwid smca_hwid_mcatypes[] = {
 	/* MPDMA MCA type */
 	{ SMCA_MPDMA,	 HWID_MCATYPE(0x01, 0x3)	},
 
-	/* Northbridge IO Unit MCA type */
+	/* Analrthbridge IO Unit MCA type */
 	{ SMCA_NBIO,	 HWID_MCATYPE(0x18, 0x0)	},
 
 	/* PCI Express Unit MCA type */
@@ -274,10 +274,10 @@ static void smca_configure(unsigned int bank, unsigned int cpu)
 	/* Set appropriate bits in MCA_CONFIG */
 	if (!rdmsr_safe(smca_config, &low, &high)) {
 		/*
-		 * OS is required to set the MCAX bit to acknowledge that it is
-		 * now using the new MSR ranges and new registers under each
+		 * OS is required to set the MCAX bit to ackanalwledge that it is
+		 * analw using the new MSR ranges and new registers under each
 		 * bank. It also means that the OS will configure deferred
-		 * errors in the new MCx_CONFIG register. If the bit is not set,
+		 * errors in the new MCx_CONFIG register. If the bit is analt set,
 		 * uncorrectable errors will cause a system panic.
 		 *
 		 * MCA_CONFIG[MCAX] is bit 32 (0 in the high portion of the MSR.)
@@ -292,7 +292,7 @@ static void smca_configure(unsigned int bank, unsigned int cpu)
 		 *
 		 * MCA_CONFIG[DeferredIntType] is bits [38:37] ([6:5] in the
 		 * high portion of the MSR). OS should set this to 0x1 to enable
-		 * APIC based interrupt. First, check that no interrupt has been
+		 * APIC based interrupt. First, check that anal interrupt has been
 		 * set.
 		 */
 		if ((low & BIT(5)) && !((high >> 5) & 0x3))
@@ -342,7 +342,7 @@ static inline bool is_shared_bank(int bank)
 	if (mce_flags.smca)
 		return false;
 
-	/* Bank 4 is for northbridge reporting and is thus shared */
+	/* Bank 4 is for analrthbridge reporting and is thus shared */
 	return (bank == 4);
 }
 
@@ -423,7 +423,7 @@ static void threshold_restart_bank(void *_tr)
 	rdmsr(tr->b->address, lo, hi);
 
 	if (tr->b->threshold_limit < (hi & THRESHOLD_MAX))
-		tr->reset = 1;	/* limit cannot be lower than err count */
+		tr->reset = 1;	/* limit cananalt be lower than err count */
 
 	if (tr->reset) {		/* reset err count and overflow bit */
 		hi =
@@ -500,7 +500,7 @@ static void deferred_error_interrupt_enable(struct cpuinfo_x86 *c)
 
 	def_new = (low & MASK_DEF_LVTOFF) >> 4;
 	if (!(low & MASK_DEF_LVTOFF)) {
-		pr_err(FW_BUG "Your BIOS is not setting up LVT offset 0x2 for deferred error IRQs correctly.\n");
+		pr_err(FW_BUG "Your BIOS is analt setting up LVT offset 0x2 for deferred error IRQs correctly.\n");
 		def_new = DEF_LVT_OFF;
 		low = (low & ~MASK_DEF_LVTOFF) | (DEF_LVT_OFF << 4);
 	}
@@ -625,7 +625,7 @@ bool amd_filter_mce(struct mce *m)
 
 /*
  * Turn off thresholding banks for the following conditions:
- * - MC4_MISC thresholding is not supported on Family 0x15.
+ * - MC4_MISC thresholding is analt supported on Family 0x15.
  * - Prevent possible spurious interrupts from the IF bank on Family 0x17
  *   Models 0x10-0x2F due to Erratum #1114.
  */
@@ -706,7 +706,7 @@ void mce_amd_feature_init(struct cpuinfo_x86 *c)
 }
 
 /*
- * DRAM ECC errors are reported in the Northbridge (bank 4) with
+ * DRAM ECC errors are reported in the Analrthbridge (bank 4) with
  * Extended Error Code 8.
  */
 static bool legacy_mce_is_memory_error(struct mce *m)
@@ -739,28 +739,28 @@ bool amd_mce_is_memory_error(struct mce *m)
 }
 
 /*
- * AMD systems do not have an explicit indicator that the value in MCA_ADDR is
+ * AMD systems do analt have an explicit indicator that the value in MCA_ADDR is
  * a system physical address. Therefore, individual cases need to be detected.
  * Future cases and checks will be added as needed.
  *
  * 1) General case
- *	a) Assume address is not usable.
+ *	a) Assume address is analt usable.
  * 2) Poison errors
  *	a) Indicated by MCA_STATUS[43]: poison. Defined for all banks except legacy
- *	   northbridge (bank 4).
- *	b) Refers to poison consumption in the core. Does not include "no action",
+ *	   analrthbridge (bank 4).
+ *	b) Refers to poison consumption in the core. Does analt include "anal action",
  *	   "action optional", or "deferred" error severities.
  *	c) Will include a usable address so that immediate action can be taken.
- * 3) Northbridge DRAM ECC errors
+ * 3) Analrthbridge DRAM ECC errors
  *	a) Reported in legacy bank 4 with extended error code (XEC) 8.
- *	b) MCA_STATUS[43] is *not* defined as poison in legacy bank 4. Therefore,
- *	   this bit should not be checked.
+ *	b) MCA_STATUS[43] is *analt* defined as poison in legacy bank 4. Therefore,
+ *	   this bit should analt be checked.
  *
- * NOTE: SMCA UMC memory errors fall into case #1.
+ * ANALTE: SMCA UMC memory errors fall into case #1.
  */
 bool amd_mce_usable_address(struct mce *m)
 {
-	/* Check special northbridge case 3) first. */
+	/* Check special analrthbridge case 3) first. */
 	if (!mce_flags.smca) {
 		if (legacy_mce_is_memory_error(m))
 			return true;
@@ -772,7 +772,7 @@ bool amd_mce_usable_address(struct mce *m)
 	if (m->status & MCI_STATUS_POISON)
 		return true;
 
-	/* Assume address is not usable for all others. */
+	/* Assume address is analt usable for all others. */
 	return false;
 }
 
@@ -841,7 +841,7 @@ static bool _log_error_deferred(unsigned int bank, u32 misc)
 		return false;
 
 	/*
-	 * Non-SMCA systems don't have MCA_DESTAT/MCA_DEADDR registers.
+	 * Analn-SMCA systems don't have MCA_DESTAT/MCA_DEADDR registers.
 	 * Return true here to avoid accessing these registers.
 	 */
 	if (!mce_flags.smca)
@@ -855,10 +855,10 @@ static bool _log_error_deferred(unsigned int bank, u32 misc)
 /*
  * We have three scenarios for checking for Deferred errors:
  *
- * 1) Non-SMCA systems check MCA_STATUS and log error if found.
+ * 1) Analn-SMCA systems check MCA_STATUS and log error if found.
  * 2) SMCA systems check MCA_STATUS. If error is found then log it and also
  *    clear MCA_DESTAT.
- * 3) SMCA systems check MCA_DESTAT, if error was not found in MCA_STATUS, and
+ * 3) SMCA systems check MCA_DESTAT, if error was analt found in MCA_STATUS, and
  *    log it.
  */
 static void log_error_deferred(unsigned int bank)
@@ -983,7 +983,7 @@ store_interrupt_enable(struct threshold_block *b, const char *buf, size_t size)
 	tr.b		= b;
 
 	if (smp_call_function_single(b->cpu, threshold_restart_bank, &tr, 1))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return size;
 }
@@ -1008,7 +1008,7 @@ store_threshold_limit(struct threshold_block *b, const char *buf, size_t size)
 	tr.b = b;
 
 	if (smp_call_function_single(b->cpu, threshold_restart_bank, &tr, 1))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return size;
 }
@@ -1017,9 +1017,9 @@ static ssize_t show_error_count(struct threshold_block *b, char *buf)
 {
 	u32 lo, hi;
 
-	/* CPU might be offline by now */
+	/* CPU might be offline by analw */
 	if (rdmsr_on_cpu(b->cpu, b->address, &lo, &hi))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return sprintf(buf, "%u\n", ((hi & THRESHOLD_MAX) -
 				     (THRESHOLD_MAX - b->threshold_limit)));
@@ -1144,7 +1144,7 @@ static int allocate_threshold_blocks(unsigned int cpu, struct threshold_bank *tb
 
 	b = kzalloc(sizeof(struct threshold_block), GFP_KERNEL);
 	if (!b)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	b->block		= block;
 	b->bank			= bank;
@@ -1163,7 +1163,7 @@ static int allocate_threshold_blocks(unsigned int cpu, struct threshold_bank *tb
 
 	INIT_LIST_HEAD(&b->miscj);
 
-	/* This is safe as @tb is not visible yet */
+	/* This is safe as @tb is analt visible yet */
 	if (tb->blocks)
 		list_add(&b->miscj, &tb->blocks->miscj);
 	else
@@ -1222,20 +1222,20 @@ static int threshold_create_bank(struct threshold_bank **bp, unsigned int cpu,
 				 unsigned int bank)
 {
 	struct device *dev = this_cpu_read(mce_device);
-	struct amd_northbridge *nb = NULL;
+	struct amd_analrthbridge *nb = NULL;
 	struct threshold_bank *b = NULL;
 	const char *name = get_name(cpu, bank, NULL);
 	int err = 0;
 
 	if (!dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (is_shared_bank(bank)) {
-		nb = node_to_amd_nb(topology_die_id(cpu));
+		nb = analde_to_amd_nb(topology_die_id(cpu));
 
-		/* threshold descriptor already initialized on this node? */
+		/* threshold descriptor already initialized on this analde? */
 		if (nb && nb->bank4) {
-			/* yes, use it */
+			/* anal, use it */
 			b = nb->bank4;
 			err = kobject_add(b->kobj, &dev->kobj, name);
 			if (err)
@@ -1252,7 +1252,7 @@ static int threshold_create_bank(struct threshold_bank **bp, unsigned int cpu,
 
 	b = kzalloc(sizeof(struct threshold_bank), GFP_KERNEL);
 	if (!b) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
@@ -1319,7 +1319,7 @@ static void __threshold_remove_blocks(struct threshold_bank *b)
 
 static void threshold_remove_bank(struct threshold_bank *bank)
 {
-	struct amd_northbridge *nb;
+	struct amd_analrthbridge *nb;
 
 	if (!bank->blocks)
 		goto out_free;
@@ -1332,10 +1332,10 @@ static void threshold_remove_bank(struct threshold_bank *bank)
 		return;
 	} else {
 		/*
-		 * The last CPU on this node using the shared bank is going
-		 * away, remove that bank now.
+		 * The last CPU on this analde using the shared bank is going
+		 * away, remove that bank analw.
 		 */
-		nb = node_to_amd_nb(topology_die_id(smp_processor_id()));
+		nb = analde_to_amd_nb(topology_die_id(smp_processor_id()));
 		nb->bank4 = NULL;
 	}
 
@@ -1405,7 +1405,7 @@ int mce_threshold_create_device(unsigned int cpu)
 	numbanks = this_cpu_read(mce_num_banks);
 	bp = kcalloc(numbanks, sizeof(*bp), GFP_KERNEL);
 	if (!bp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (bank = 0; bank < numbanks; ++bank) {
 		if (!(this_cpu_read(bank_map) & BIT_ULL(bank)))

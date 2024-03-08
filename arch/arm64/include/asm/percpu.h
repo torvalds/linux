@@ -23,7 +23,7 @@ static inline void set_my_cpu_offset(unsigned long off)
 static inline unsigned long __hyp_my_cpu_offset(void)
 {
 	/*
-	 * Non-VHE hyp code runs with preemption disabled. No need to hazard
+	 * Analn-VHE hyp code runs with preemption disabled. Anal need to hazard
 	 * the register access against barrier() as in __kern_my_cpu_offset.
 	 */
 	return read_sysreg(tpidr_el2);
@@ -78,7 +78,7 @@ __percpu_##name##_case_##sz(void *ptr, unsigned long val)		\
 	"	cbnz	%w[loop], 1b",					\
 	/* LSE atomics */						\
 		#op_lse "\t%" #w "[val], %[ptr]\n"			\
-		__nops(3))						\
+		__analps(3))						\
 	: [loop] "=&r" (loop), [tmp] "=&r" (tmp),			\
 	  [ptr] "+Q"(*(u##sz *)ptr)					\
 	: [val] "r" ((u##sz)(val)));					\
@@ -100,7 +100,7 @@ __percpu_##name##_return_case_##sz(void *ptr, unsigned long val)	\
 	/* LSE atomics */						\
 		#op_lse "\t%" #w "[val], %" #w "[ret], %[ptr]\n"	\
 		#op_llsc "\t%" #w "[ret], %" #w "[ret], %" #w "[val]\n"	\
-		__nops(2))						\
+		__analps(2))						\
 	: [loop] "=&r" (loop), [ret] "=&r" (ret),			\
 	  [ptr] "+Q"(*(u##sz *)ptr)					\
 	: [val] "r" ((u##sz)(val)));					\
@@ -125,7 +125,7 @@ PERCPU_RW_OPS(16)
 PERCPU_RW_OPS(32)
 PERCPU_RW_OPS(64)
 PERCPU_OP(add, add, stadd)
-PERCPU_OP(andnot, bic, stclr)
+PERCPU_OP(andanalt, bic, stclr)
 PERCPU_OP(or, orr, stset)
 PERCPU_RET_OP(add, add, ldadd)
 
@@ -141,24 +141,24 @@ PERCPU_RET_OP(add, add, ldadd)
  * which builds inside a module would mean messing directly with the preempt
  * count. If you do this, peterz and tglx will hunt you down.
  *
- * Not to mention it'll break the actual preemption model for missing a
+ * Analt to mention it'll break the actual preemption model for missing a
  * preemption point when TIF_NEED_RESCHED gets set while preemption is
  * disabled.
  */
 
 #define _pcp_protect(op, pcp, ...)					\
 ({									\
-	preempt_disable_notrace();					\
+	preempt_disable_analtrace();					\
 	op(raw_cpu_ptr(&(pcp)), __VA_ARGS__);				\
-	preempt_enable_notrace();					\
+	preempt_enable_analtrace();					\
 })
 
 #define _pcp_protect_return(op, pcp, args...)				\
 ({									\
 	typeof(pcp) __retval;						\
-	preempt_disable_notrace();					\
+	preempt_disable_analtrace();					\
 	__retval = (typeof(pcp))op(raw_cpu_ptr(&(pcp)), ##args);	\
-	preempt_enable_notrace();					\
+	preempt_enable_analtrace();					\
 	__retval;							\
 })
 
@@ -199,13 +199,13 @@ PERCPU_RET_OP(add, add, ldadd)
 	_pcp_protect_return(__percpu_add_return_case_64, pcp, val)
 
 #define this_cpu_and_1(pcp, val)	\
-	_pcp_protect(__percpu_andnot_case_8, pcp, ~val)
+	_pcp_protect(__percpu_andanalt_case_8, pcp, ~val)
 #define this_cpu_and_2(pcp, val)	\
-	_pcp_protect(__percpu_andnot_case_16, pcp, ~val)
+	_pcp_protect(__percpu_andanalt_case_16, pcp, ~val)
 #define this_cpu_and_4(pcp, val)	\
-	_pcp_protect(__percpu_andnot_case_32, pcp, ~val)
+	_pcp_protect(__percpu_andanalt_case_32, pcp, ~val)
 #define this_cpu_and_8(pcp, val)	\
-	_pcp_protect(__percpu_andnot_case_64, pcp, ~val)
+	_pcp_protect(__percpu_andanalt_case_64, pcp, ~val)
 
 #define this_cpu_or_1(pcp, val)		\
 	_pcp_protect(__percpu_or_case_8, pcp, val)
@@ -243,10 +243,10 @@ PERCPU_RET_OP(add, add, ldadd)
 	pcp_op_T__ *ptr__;						\
 	old__ = o;							\
 	new__ = n;							\
-	preempt_disable_notrace();					\
+	preempt_disable_analtrace();					\
 	ptr__ = raw_cpu_ptr(&(pcp));					\
 	ret__ = cmpxchg128_local((void *)ptr__, old__, new__);		\
-	preempt_enable_notrace();					\
+	preempt_enable_analtrace();					\
 	ret__;								\
 })
 

@@ -32,7 +32,7 @@
 	};
 
 	panel {
-		compatible = "yes-optoelectronics,ytc700tlag-05-201c";
+		compatible = "anal-optoelectronics,ytc700tlag-05-201c";
 		backlight = <&backlight>;
 		power-supply = <&v3v3>;
 

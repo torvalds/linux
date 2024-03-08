@@ -124,7 +124,7 @@
 
 		secure-memory@81000000 {
 			reg = <0x0 0x81000000 0x0 0x01000000>;
-			no-map;
+			anal-map;
 		};
 	};
 

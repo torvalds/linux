@@ -157,7 +157,7 @@ SYM_FUNC_START(atomic64_add_unless_cx8)
 	jmp 3b
 SYM_FUNC_END(atomic64_add_unless_cx8)
 
-SYM_FUNC_START(atomic64_inc_not_zero_cx8)
+SYM_FUNC_START(atomic64_inc_analt_zero_cx8)
 	pushl %ebx
 
 	read64 %esi
@@ -177,4 +177,4 @@ SYM_FUNC_START(atomic64_inc_not_zero_cx8)
 3:
 	popl %ebx
 	RET
-SYM_FUNC_END(atomic64_inc_not_zero_cx8)
+SYM_FUNC_END(atomic64_inc_analt_zero_cx8)

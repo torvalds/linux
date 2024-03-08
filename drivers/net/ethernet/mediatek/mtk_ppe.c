@@ -17,7 +17,7 @@
 static DEFINE_SPINLOCK(ppe_lock);
 
 static const struct rhashtable_params mtk_flow_l2_ht_params = {
-	.head_offset = offsetof(struct mtk_flow_entry, l2_node),
+	.head_offset = offsetof(struct mtk_flow_entry, l2_analde),
 	.key_offset = offsetof(struct mtk_flow_entry, data.bridge),
 	.key_len = offsetof(struct mtk_foe_bridge, key_end),
 	.automatic_shrinking = true,
@@ -405,7 +405,7 @@ int mtk_foe_entry_set_vlan(struct mtk_eth *eth, struct mtk_foe_entry *entry,
 		}
 		return 0;
 	default:
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 }
 
@@ -501,10 +501,10 @@ static void
 __mtk_foe_entry_clear(struct mtk_ppe *ppe, struct mtk_flow_entry *entry)
 {
 	struct hlist_head *head;
-	struct hlist_node *tmp;
+	struct hlist_analde *tmp;
 
 	if (entry->type == MTK_FLOW_TYPE_L2) {
-		rhashtable_remove_fast(&ppe->l2_flows, &entry->l2_node,
+		rhashtable_remove_fast(&ppe->l2_flows, &entry->l2_analde,
 				       mtk_flow_l2_ht_params);
 
 		head = &entry->l2_flows;
@@ -542,13 +542,13 @@ __mtk_foe_entry_clear(struct mtk_ppe *ppe, struct mtk_flow_entry *entry)
 static int __mtk_foe_entry_idle_time(struct mtk_ppe *ppe, u32 ib1)
 {
 	u32 ib1_ts_mask = mtk_get_ib1_ts_mask(ppe->eth);
-	u16 now = mtk_eth_timestamp(ppe->eth);
+	u16 analw = mtk_eth_timestamp(ppe->eth);
 	u16 timestamp = ib1 & ib1_ts_mask;
 
-	if (timestamp > now)
-		return ib1_ts_mask + 1 - timestamp + now;
+	if (timestamp > analw)
+		return ib1_ts_mask + 1 - timestamp + analw;
 	else
-		return now - timestamp;
+		return analw - timestamp;
 }
 
 static void
@@ -557,7 +557,7 @@ mtk_flow_entry_update_l2(struct mtk_ppe *ppe, struct mtk_flow_entry *entry)
 	u32 ib1_ts_mask = mtk_get_ib1_ts_mask(ppe->eth);
 	struct mtk_flow_entry *cur;
 	struct mtk_foe_entry *hwe;
-	struct hlist_node *tmp;
+	struct hlist_analde *tmp;
 	int idle;
 
 	idle = __mtk_foe_entry_idle_time(ppe, entry->data.ib1);
@@ -664,7 +664,7 @@ mtk_foe_entry_commit_l2(struct mtk_ppe *ppe, struct mtk_flow_entry *entry)
 
 	entry->type = MTK_FLOW_TYPE_L2;
 
-	prev = rhashtable_lookup_get_insert_fast(&ppe->l2_flows, &entry->l2_node,
+	prev = rhashtable_lookup_get_insert_fast(&ppe->l2_flows, &entry->l2_analde,
 						 mtk_flow_l2_ht_params);
 	if (likely(!prev))
 		return 0;
@@ -672,8 +672,8 @@ mtk_foe_entry_commit_l2(struct mtk_ppe *ppe, struct mtk_flow_entry *entry)
 	if (IS_ERR(prev))
 		return PTR_ERR(prev);
 
-	return rhashtable_replace_fast(&ppe->l2_flows, &prev->l2_node,
-				       &entry->l2_node, mtk_flow_l2_ht_params);
+	return rhashtable_replace_fast(&ppe->l2_flows, &prev->l2_analde,
+				       &entry->l2_analde, mtk_flow_l2_ht_params);
 }
 
 int mtk_foe_entry_commit(struct mtk_ppe *ppe, struct mtk_flow_entry *entry)
@@ -742,7 +742,7 @@ void __mtk_ppe_check_skb(struct mtk_ppe *ppe, struct sk_buff *skb, u16 hash)
 	struct mtk_foe_entry *hwe = mtk_foe_get_entry(ppe, hash);
 	struct mtk_flow_entry *entry;
 	struct mtk_foe_bridge key = {};
-	struct hlist_node *n;
+	struct hlist_analde *n;
 	struct ethhdr *eh;
 	bool found = false;
 	u8 *tag;
@@ -892,7 +892,7 @@ struct mtk_ppe *mtk_ppe_init(struct mtk_eth *eth, void __iomem *base, int index)
 	rhashtable_init(&ppe->l2_flows, &mtk_flow_l2_ht_params);
 
 	/* need to allocate a separate device, since it PPE DMA access is
-	 * not coherent.
+	 * analt coherent.
 	 */
 	ppe->base = base;
 	ppe->eth = eth;
@@ -983,7 +983,7 @@ void mtk_ppe_start(struct mtk_ppe *ppe)
 	mtk_ppe_init_foe_table(ppe);
 	ppe_w32(ppe, MTK_PPE_TB_BASE, ppe->foe_phys);
 
-	val = MTK_PPE_TB_CFG_AGE_NON_L4 |
+	val = MTK_PPE_TB_CFG_AGE_ANALN_L4 |
 	      MTK_PPE_TB_CFG_AGE_UNBIND |
 	      MTK_PPE_TB_CFG_AGE_TCP |
 	      MTK_PPE_TB_CFG_AGE_UDP |
@@ -1030,7 +1030,7 @@ void mtk_ppe_start(struct mtk_ppe *ppe)
 	ppe_w32(ppe, MTK_PPE_UNBIND_AGE, val);
 
 	val = FIELD_PREP(MTK_PPE_BIND_AGE0_DELTA_UDP, 12) |
-	      FIELD_PREP(MTK_PPE_BIND_AGE0_DELTA_NON_L4, 1);
+	      FIELD_PREP(MTK_PPE_BIND_AGE0_DELTA_ANALN_L4, 1);
 	ppe_w32(ppe, MTK_PPE_BIND_AGE0, val);
 
 	val = FIELD_PREP(MTK_PPE_BIND_AGE1_DELTA_TCP_FIN, 1) |
@@ -1041,7 +1041,7 @@ void mtk_ppe_start(struct mtk_ppe *ppe)
 	ppe_w32(ppe, MTK_PPE_BIND_LIMIT0, val);
 
 	val = MTK_PPE_BIND_LIMIT1_FULL |
-	      FIELD_PREP(MTK_PPE_BIND_LIMIT1_NON_L4, 1);
+	      FIELD_PREP(MTK_PPE_BIND_LIMIT1_ANALN_L4, 1);
 	ppe_w32(ppe, MTK_PPE_BIND_LIMIT1, val);
 
 	val = FIELD_PREP(MTK_PPE_BIND_RATE_BIND, 30) |
@@ -1095,7 +1095,7 @@ int mtk_ppe_stop(struct mtk_ppe *ppe)
 	ppe_w32(ppe, MTK_PPE_FLOW_CFG, 0);
 
 	/* disable aging */
-	val = MTK_PPE_TB_CFG_AGE_NON_L4 |
+	val = MTK_PPE_TB_CFG_AGE_ANALN_L4 |
 	      MTK_PPE_TB_CFG_AGE_UNBIND |
 	      MTK_PPE_TB_CFG_AGE_TCP |
 	      MTK_PPE_TB_CFG_AGE_UDP |

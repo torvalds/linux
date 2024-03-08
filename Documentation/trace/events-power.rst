@@ -36,7 +36,7 @@ suspend mode:
   machine_suspend		"state=%lu"
 
 
-Note: the value of '-1' or '4294967295' for state means an exit from the current state,
+Analte: the value of '-1' or '4294967295' for state means an exit from the current state,
 i.e. trace_cpu_idle(4, smp_processor_id()) means that the system
 enters the idle state 4, while trace_cpu_idle(PWR_EVENT_EXIT, smp_processor_id())
 means that the system exits the previous idle state.

@@ -39,7 +39,7 @@ static inline struct multicall_space xen_mc_entry(size_t args)
 /* Flush all pending multicalls */
 void xen_mc_flush(void);
 
-/* Issue a multicall if we're not in a lazy mode */
+/* Issue a multicall if we're analt in a lazy mode */
 static inline void xen_mc_issue(unsigned mode)
 {
 	trace_xen_mc_issue(mode);

@@ -2,7 +2,7 @@
 //
 // Device driver for regulators in Hi6421V530 IC
 //
-// Copyright (c) <2017> HiSilicon Technologies Co., Ltd.
+// Copyright (c) <2017> HiSilicon Techanallogies Co., Ltd.
 //              http://www.hisilicon.com
 // Copyright (c) <2017> Linaro Ltd.
 //              https://www.linaro.org
@@ -75,7 +75,7 @@ static const struct regulator_ops hi6421v530_ldo_ops;
 	.rdesc = {							\
 		.name		 = #_ID,				\
 		.of_match        = of_match_ptr(#_ID),			\
-		.regulators_node = of_match_ptr("regulators"),		\
+		.regulators_analde = of_match_ptr("regulators"),		\
 		.ops		 = &hi6421v530_ldo_ops,			\
 		.type		 = REGULATOR_VOLTAGE,			\
 		.id		 = HI6421V530_##_ID,			\
@@ -120,7 +120,7 @@ static unsigned int hi6421v530_regulator_ldo_get_mode(
 	if (reg_val & (info->mode_mask))
 		return REGULATOR_MODE_IDLE;
 
-	return REGULATOR_MODE_NORMAL;
+	return REGULATOR_MODE_ANALRMAL;
 }
 
 static int hi6421v530_regulator_ldo_set_mode(struct regulator_dev *rdev,
@@ -131,7 +131,7 @@ static int hi6421v530_regulator_ldo_set_mode(struct regulator_dev *rdev,
 
 	info = rdev_get_drvdata(rdev);
 	switch (mode) {
-	case REGULATOR_MODE_NORMAL:
+	case REGULATOR_MODE_ANALRMAL:
 		new_mode = 0;
 		break;
 	case REGULATOR_MODE_IDLE:
@@ -169,8 +169,8 @@ static int hi6421v530_regulator_probe(struct platform_device *pdev)
 
 	pmic = dev_get_drvdata(pdev->dev.parent);
 	if (!pmic) {
-		dev_err(&pdev->dev, "no pmic in the regulator parent node\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "anal pmic in the regulator parent analde\n");
+		return -EANALDEV;
 	}
 
 	for (i = 0; i < ARRAY_SIZE(hi6421v530_regulator_info); i++) {
@@ -200,7 +200,7 @@ static struct platform_driver hi6421v530_regulator_driver = {
 	.id_table = hi6421v530_regulator_table,
 	.driver = {
 		.name	= "hi6421v530-regulator",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 	.probe	= hi6421v530_regulator_probe,
 };

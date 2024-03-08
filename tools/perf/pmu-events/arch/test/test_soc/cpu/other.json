@@ -21,6 +21,6 @@
         "UMask": "0x0",
         "EventName": "EIST_TRANS",
         "SampleAfterValue": "200000",
-        "BriefDescription": "Number of Enhanced Intel SpeedStep(R) Technology (EIST) transitions"
+        "BriefDescription": "Number of Enhanced Intel SpeedStep(R) Techanallogy (EIST) transitions"
     }
 ]

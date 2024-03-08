@@ -24,7 +24,7 @@
 static unsigned long lb_interval_jiffies = 50 * HZ / 1000;
 
 /*
- * Whether or not we have given userspace control of the lightbar.
+ * Whether or analt we have given userspace control of the lightbar.
  * If this is true, we won't do anything during suspend/resume.
  */
 static bool userspace_control;
@@ -56,27 +56,27 @@ static DEFINE_MUTEX(lb_mutex);
 static int lb_throttle(void)
 {
 	static unsigned long last_access;
-	unsigned long now, next_timeslot;
+	unsigned long analw, next_timeslot;
 	long delay;
 	int ret = 0;
 
 	mutex_lock(&lb_mutex);
 
-	now = jiffies;
+	analw = jiffies;
 	next_timeslot = last_access + lb_interval_jiffies;
 
-	if (time_before(now, next_timeslot)) {
-		delay = (long)(next_timeslot) - (long)now;
+	if (time_before(analw, next_timeslot)) {
+		delay = (long)(next_timeslot) - (long)analw;
 		set_current_state(TASK_INTERRUPTIBLE);
 		if (schedule_timeout(delay) > 0) {
 			/* interrupted - just abort */
 			ret = -EINTR;
 			goto out;
 		}
-		now = jiffies;
+		analw = jiffies;
 	}
 
-	last_access = now;
+	last_access = analw;
 out:
 	mutex_unlock(&lb_mutex);
 
@@ -127,7 +127,7 @@ static int get_lightbar_version(struct cros_ec_dev *ec,
 
 	switch (msg->result) {
 	case EC_RES_INVALID_PARAM:
-		/* Pixel had no version command. */
+		/* Pixel had anal version command. */
 		if (ver_ptr)
 			*ver_ptr = 0;
 		if (flg_ptr)
@@ -147,7 +147,7 @@ static int get_lightbar_version(struct cros_ec_dev *ec,
 		goto exit;
 	}
 
-	/* Anything else (ie, EC_RES_INVALID_COMMAND) - no lightbar */
+	/* Anything else (ie, EC_RES_INVALID_COMMAND) - anal lightbar */
 	ret = 0;
 exit:
 	kfree(msg);
@@ -187,7 +187,7 @@ static ssize_t brightness_store(struct device *dev,
 
 	msg = alloc_lightbar_cmd_msg(ec);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	param = (struct ec_params_lightbar *)msg->data;
 	param->cmd = LIGHTBAR_CMD_SET_BRIGHTNESS;
@@ -225,7 +225,7 @@ static ssize_t led_rgb_store(struct device *dev, struct device_attribute *attr,
 
 	msg = alloc_lightbar_cmd_msg(ec);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	do {
 		/* Skip any whitespace */
@@ -292,7 +292,7 @@ static ssize_t sequence_show(struct device *dev,
 
 	msg = alloc_lightbar_cmd_msg(ec);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	param = (struct ec_params_lightbar *)msg->data;
 	param->cmd = LIGHTBAR_CMD_GET_SEQ;
@@ -325,7 +325,7 @@ static int lb_send_empty_cmd(struct cros_ec_dev *ec, uint8_t cmd)
 
 	msg = alloc_lightbar_cmd_msg(ec);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	param = (struct ec_params_lightbar *)msg->data;
 	param->cmd = cmd;
@@ -353,7 +353,7 @@ static int lb_manual_suspend_ctrl(struct cros_ec_dev *ec, uint8_t enable)
 
 	msg = alloc_lightbar_cmd_msg(ec);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	param = (struct ec_params_lightbar *)msg->data;
 
@@ -400,7 +400,7 @@ static ssize_t sequence_store(struct device *dev, struct device_attribute *attr,
 
 	msg = alloc_lightbar_cmd_msg(ec);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	param = (struct ec_params_lightbar *)msg->data;
 	param->cmd = LIGHTBAR_CMD_SEQ;
@@ -445,7 +445,7 @@ static ssize_t program_store(struct device *dev, struct device_attribute *attr,
 
 	msg = alloc_lightbar_cmd_msg(ec);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = lb_throttle();
 	if (ret)
@@ -539,14 +539,14 @@ static int cros_ec_lightbar_probe(struct platform_device *pd)
 	 * devices like 'cros_pd' doesn't have a lightbar.
 	 */
 	if (strcmp(pdata->ec_name, CROS_EC_DEV_NAME) != 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
 	 * Ask then for the lightbar version, if it's 0 then the 'cros_ec'
 	 * doesn't have a lightbar.
 	 */
 	if (!get_lightbar_version(ec_dev, NULL, NULL))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Take control of the lightbar from the EC. */
 	lb_manual_suspend_ctrl(ec_dev, 1);
@@ -598,7 +598,7 @@ static struct platform_driver cros_ec_lightbar_driver = {
 	.driver = {
 		.name = DRV_NAME,
 		.pm = &cros_ec_lightbar_pm_ops,
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 	.probe = cros_ec_lightbar_probe,
 	.remove_new = cros_ec_lightbar_remove,

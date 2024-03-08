@@ -1,7 +1,7 @@
 [
   {
     "MetricName": "branch_misprediction_ratio",
-    "BriefDescription": "Execution-Time Branch Misprediction Ratio (Non-Speculative)",
+    "BriefDescription": "Execution-Time Branch Misprediction Ratio (Analn-Speculative)",
     "MetricExpr": "d_ratio(ex_ret_brn_misp, ex_ret_brn)",
     "MetricGroup": "branch_prediction",
     "ScaleUnit": "100%"
@@ -15,7 +15,7 @@
   {
     "MetricName": "all_l2_cache_accesses",
     "BriefDescription": "All L2 Cache Accesses",
-    "MetricExpr": "l2_request_g1.all_no_prefetch + l2_pf_hit_l2 + l2_pf_miss_l2_hit_l3 + l2_pf_miss_l2_l3",
+    "MetricExpr": "l2_request_g1.all_anal_prefetch + l2_pf_hit_l2 + l2_pf_miss_l2_hit_l3 + l2_pf_miss_l2_l3",
     "MetricGroup": "l2_cache"
   },
   {
@@ -125,9 +125,9 @@
     "UMask": "0x48"
   },
   {
-    "EventName": "l1_data_cache_fills_from_remote_node",
+    "EventName": "l1_data_cache_fills_from_remote_analde",
     "EventCode": "0x44",
-    "BriefDescription": "L1 Data Cache Fills: From Remote Node",
+    "BriefDescription": "L1 Data Cache Fills: From Remote Analde",
     "UMask": "0x50"
   },
   {
@@ -197,7 +197,7 @@
   },
   {
     "MetricName": "all_remote_links_outbound",
-    "BriefDescription": "Approximate: Outbound data bytes for all Remote Links for a node (die)",
+    "BriefDescription": "Approximate: Outbound data bytes for all Remote Links for a analde (die)",
     "MetricExpr": "remote_outbound_data_controller_0 + remote_outbound_data_controller_1 + remote_outbound_data_controller_2 + remote_outbound_data_controller_3",
     "MetricGroup": "data_fabric",
     "PerPkg": "1",
@@ -205,11 +205,11 @@
   },
   {
     "MetricName": "nps1_die_to_dram",
-    "BriefDescription": "Approximate: Combined DRAM B/bytes of all channels on a NPS1 node (die)",
+    "BriefDescription": "Approximate: Combined DRAM B/bytes of all channels on a NPS1 analde (die)",
     "MetricExpr": "dram_channel_data_controller_0 + dram_channel_data_controller_1 + dram_channel_data_controller_2 + dram_channel_data_controller_3 + dram_channel_data_controller_4 + dram_channel_data_controller_5 + dram_channel_data_controller_6 + dram_channel_data_controller_7",
     "MetricGroup": "data_fabric",
     "PerPkg": "1",
-    "MetricConstraint": "NO_GROUP_EVENTS",
+    "MetricConstraint": "ANAL_GROUP_EVENTS",
     "ScaleUnit": "6.1e-5MiB"
   }
 ]

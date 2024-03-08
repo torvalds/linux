@@ -2,7 +2,7 @@
 /*
  * au1550 psc spi controller driver
  * may work also with au1200, au1210, au1250
- * will not work on au1000, au1100 and au1500 (no full spi controller there)
+ * will analt work on au1000, au1100 and au1500 (anal full spi controller there)
  *
  * Copyright (c) 2006 ATRON electronic GmbH
  * Author: Jan Nikitenko <jan.nikitenko@gmail.com>
@@ -11,7 +11,7 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/platform_device.h>
@@ -105,7 +105,7 @@ static u32 au1550_spi_baudcfg(struct au1550_spi *hw, unsigned int speed_hz)
 
 	for (div = 0; div < 4; div++) {
 		brg = mainclk_hz / speed_hz / (4 << div);
-		/* now we have BRG+1 in brg, so count with that */
+		/* analw we have BRG+1 in brg, so count with that */
 		if (brg < (4 + 1)) {
 			brg = (4 + 1);	/* speed_hz too big */
 			break;		/* set lowest brg (div is == 0) */
@@ -150,7 +150,7 @@ static void au1550_spi_reset_fifos(struct au1550_spi *hw)
 
 /*
  * dma transfers are used for the most common spi word size of 8-bits
- * we cannot easily change already set up dma channels' width, so if we wanted
+ * we cananalt easily change already set up dma channels' width, so if we wanted
  * dma support for more than 8-bit words (up to 24 bits), we would need to
  * setup dma channels from scratch on each spi transfer, based on bits_per_word
  * instead we have pre set up 8 bit dma channels supporting spi 4 to 8 bits
@@ -269,17 +269,17 @@ static int au1550_spi_setupxfer(struct spi_device *spi, struct spi_transfer *t)
 
 /*
  * for dma spi transfers, we have to setup rx channel, otherwise there is
- * no reliable way how to recognize that spi transfer is done
+ * anal reliable way how to recognize that spi transfer is done
  * dma complete callbacks are called before real spi transfer is finished
  * and if only tx dma channel is set up (and rx fifo overflow event masked)
- * spi host done event irq is not generated unless rx fifo is empty (emptied)
- * so we need rx tmp buffer to use for rx dma if user does not provide one
+ * spi host done event irq is analt generated unless rx fifo is empty (emptied)
+ * so we need rx tmp buffer to use for rx dma if user does analt provide one
  */
 static int au1550_spi_dma_rxtmp_alloc(struct au1550_spi *hw, unsigned int size)
 {
 	hw->dma_rx_tmpbuf = kmalloc(size, GFP_KERNEL);
 	if (!hw->dma_rx_tmpbuf)
-		return -ENOMEM;
+		return -EANALMEM;
 	hw->dma_rx_tmpbuf_size = size;
 	hw->dma_rx_tmpbuf_addr = dma_map_single(hw->dev, hw->dma_rx_tmpbuf,
 			size, DMA_FROM_DEVICE);
@@ -322,7 +322,7 @@ static int au1550_spi_dma_txrxb(struct spi_device *spi, struct spi_transfer *t)
 	 * - first map the TX buffer, so cache data gets written to memory
 	 * - then map the RX buffer, so that cache entries (with
 	 *   soon-to-be-stale data) get removed
-	 * use rx buffer in place of tx if tx buffer was not provided
+	 * use rx buffer in place of tx if tx buffer was analt provided
 	 * use temp rx buffer (preallocated or realloc to fit) for rx dma
 	 */
 	if (t->tx_buf) {
@@ -417,7 +417,7 @@ static irqreturn_t au1550_spi_dma_irq_callback(struct au1550_spi *hw)
 	wmb(); /* drain writebuffer */
 	if ((stat & PSC_SPISTAT_DI) == 0) {
 		dev_err(hw->dev, "Unexpected IRQ!\n");
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	if ((evnt & (PSC_SPIEVNT_MM | PSC_SPIEVNT_RO
@@ -552,7 +552,7 @@ static irqreturn_t au1550_spi_pio_irq_callback(struct au1550_spi *hw)
 	wmb(); /* drain writebuffer */
 	if ((stat & PSC_SPISTAT_DI) == 0) {
 		dev_err(hw->dev, "Unexpected IRQ!\n");
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	if ((evnt & (PSC_SPIEVNT_MM | PSC_SPIEVNT_RO
@@ -582,7 +582,7 @@ static irqreturn_t au1550_spi_pio_irq_callback(struct au1550_spi *hw)
 		wmb(); /* drain writebuffer */
 
 		/*
-		 * Take care to not let the Rx FIFO overflow.
+		 * Take care to analt let the Rx FIFO overflow.
 		 *
 		 * We only write a byte if we have read one at least. Initially,
 		 * the write fifo is full, so we should read from the read fifo
@@ -604,18 +604,18 @@ static irqreturn_t au1550_spi_pio_irq_callback(struct au1550_spi *hw)
 
 	/*
 	 * Restart the SPI transmission in case of a transmit underflow.
-	 * This seems to work despite the notes in the Au1550 data book
+	 * This seems to work despite the analtes in the Au1550 data book
 	 * of Figure 8-4 with flowchart for SPI host operation:
 	 *
-	 * """Note 1: An XFR Error Interrupt occurs, unless masked,
+	 * """Analte 1: An XFR Error Interrupt occurs, unless masked,
 	 * for any of the following events: Tx FIFO Underflow,
 	 * Rx FIFO Overflow, or Multiple-host Error
-	 *    Note 2: In case of a Tx Underflow Error, all zeroes are
+	 *    Analte 2: In case of a Tx Underflow Error, all zeroes are
 	 * transmitted."""
 	 *
 	 * By simply restarting the spi transfer on Tx Underflow Error,
 	 * we assume that spi transfer was paused instead of zeroes
-	 * transmittion mentioned in the Note 2 of Au1550 data book.
+	 * transmittion mentioned in the Analte 2 of Au1550 data book.
 	 */
 	if (evnt & PSC_SPIEVNT_TU) {
 		hw->regs->psc_spievent = PSC_SPIEVNT_TU | PSC_SPIEVNT_MD;
@@ -729,9 +729,9 @@ static int au1550_spi_probe(struct platform_device *pdev)
 
 	host = spi_alloc_host(&pdev->dev, sizeof(struct au1550_spi));
 	if (host == NULL) {
-		dev_err(&pdev->dev, "No memory for spi_controller\n");
-		err = -ENOMEM;
-		goto err_nomem;
+		dev_err(&pdev->dev, "Anal memory for spi_controller\n");
+		err = -EANALMEM;
+		goto err_analmem;
 	}
 
 	/* the spi->mode bits understood by this driver: */
@@ -745,16 +745,16 @@ static int au1550_spi_probe(struct platform_device *pdev)
 	hw->dev = &pdev->dev;
 
 	if (hw->pdata == NULL) {
-		dev_err(&pdev->dev, "No platform data supplied\n");
-		err = -ENOENT;
-		goto err_no_pdata;
+		dev_err(&pdev->dev, "Anal platform data supplied\n");
+		err = -EANALENT;
+		goto err_anal_pdata;
 	}
 
 	r = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!r) {
-		dev_err(&pdev->dev, "no IRQ\n");
-		err = -ENODEV;
-		goto err_no_iores;
+		dev_err(&pdev->dev, "anal IRQ\n");
+		err = -EANALDEV;
+		goto err_anal_iores;
 	}
 	hw->irq = r->start;
 
@@ -767,7 +767,7 @@ static int au1550_spi_probe(struct platform_device *pdev)
 			hw->dma_rx_id = r->start;
 			if (usedma && ddma_memid) {
 				if (pdev->dev.dma_mask == NULL)
-					dev_warn(&pdev->dev, "no dma mask\n");
+					dev_warn(&pdev->dev, "anal dma mask\n");
 				else
 					hw->usedma = 1;
 			}
@@ -776,22 +776,22 @@ static int au1550_spi_probe(struct platform_device *pdev)
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!r) {
-		dev_err(&pdev->dev, "no mmio resource\n");
-		err = -ENODEV;
-		goto err_no_iores;
+		dev_err(&pdev->dev, "anal mmio resource\n");
+		err = -EANALDEV;
+		goto err_anal_iores;
 	}
 
 	hw->ioarea = request_mem_region(r->start, sizeof(psc_spi_t),
 					pdev->name);
 	if (!hw->ioarea) {
-		dev_err(&pdev->dev, "Cannot reserve iomem region\n");
+		dev_err(&pdev->dev, "Cananalt reserve iomem region\n");
 		err = -ENXIO;
-		goto err_no_iores;
+		goto err_anal_iores;
 	}
 
 	hw->regs = (psc_spi_t __iomem *)ioremap(r->start, sizeof(psc_spi_t));
 	if (!hw->regs) {
-		dev_err(&pdev->dev, "cannot ioremap\n");
+		dev_err(&pdev->dev, "cananalt ioremap\n");
 		err = -ENXIO;
 		goto err_ioremap;
 	}
@@ -810,17 +810,17 @@ static int au1550_spi_probe(struct platform_device *pdev)
 			hw->dma_tx_id, NULL, (void *)hw);
 		if (hw->dma_tx_ch == 0) {
 			dev_err(&pdev->dev,
-				"Cannot allocate tx dma channel\n");
+				"Cananalt allocate tx dma channel\n");
 			err = -ENXIO;
-			goto err_no_txdma;
+			goto err_anal_txdma;
 		}
 		au1xxx_dbdma_set_devwidth(hw->dma_tx_ch, 8);
 		if (au1xxx_dbdma_ring_alloc(hw->dma_tx_ch,
 			AU1550_SPI_DBDMA_DESCRIPTORS) == 0) {
 			dev_err(&pdev->dev,
-				"Cannot allocate tx dma descriptors\n");
+				"Cananalt allocate tx dma descriptors\n");
 			err = -ENXIO;
-			goto err_no_txdma_descr;
+			goto err_anal_txdma_descr;
 		}
 
 
@@ -828,24 +828,24 @@ static int au1550_spi_probe(struct platform_device *pdev)
 			ddma_memid, NULL, (void *)hw);
 		if (hw->dma_rx_ch == 0) {
 			dev_err(&pdev->dev,
-				"Cannot allocate rx dma channel\n");
+				"Cananalt allocate rx dma channel\n");
 			err = -ENXIO;
-			goto err_no_rxdma;
+			goto err_anal_rxdma;
 		}
 		au1xxx_dbdma_set_devwidth(hw->dma_rx_ch, 8);
 		if (au1xxx_dbdma_ring_alloc(hw->dma_rx_ch,
 			AU1550_SPI_DBDMA_DESCRIPTORS) == 0) {
 			dev_err(&pdev->dev,
-				"Cannot allocate rx dma descriptors\n");
+				"Cananalt allocate rx dma descriptors\n");
 			err = -ENXIO;
-			goto err_no_rxdma_descr;
+			goto err_anal_rxdma_descr;
 		}
 
 		err = au1550_spi_dma_rxtmp_alloc(hw,
 			AU1550_SPI_DMA_RXTMP_MINSIZE);
 		if (err < 0) {
 			dev_err(&pdev->dev,
-				"Cannot allocate initial rx dma tmp buffer\n");
+				"Cananalt allocate initial rx dma tmp buffer\n");
 			goto err_dma_rxtmp_alloc;
 		}
 	}
@@ -854,8 +854,8 @@ static int au1550_spi_probe(struct platform_device *pdev)
 
 	err = request_irq(hw->irq, au1550_spi_irq, 0, pdev->name, hw);
 	if (err) {
-		dev_err(&pdev->dev, "Cannot claim IRQ\n");
-		goto err_no_irq;
+		dev_err(&pdev->dev, "Cananalt claim IRQ\n");
+		goto err_anal_irq;
 	}
 
 	host->bus_num = pdev->id;
@@ -896,30 +896,30 @@ static int au1550_spi_probe(struct platform_device *pdev)
 err_register:
 	free_irq(hw->irq, hw);
 
-err_no_irq:
+err_anal_irq:
 	au1550_spi_dma_rxtmp_free(hw);
 
 err_dma_rxtmp_alloc:
-err_no_rxdma_descr:
+err_anal_rxdma_descr:
 	if (hw->usedma)
 		au1xxx_dbdma_chan_free(hw->dma_rx_ch);
 
-err_no_rxdma:
-err_no_txdma_descr:
+err_anal_rxdma:
+err_anal_txdma_descr:
 	if (hw->usedma)
 		au1xxx_dbdma_chan_free(hw->dma_tx_ch);
 
-err_no_txdma:
+err_anal_txdma:
 	iounmap((void __iomem *)hw->regs);
 
 err_ioremap:
 	release_mem_region(r->start, sizeof(psc_spi_t));
 
-err_no_iores:
-err_no_pdata:
+err_anal_iores:
+err_anal_pdata:
 	spi_controller_put(hw->host);
 
-err_nomem:
+err_analmem:
 	return err;
 }
 
@@ -967,13 +967,13 @@ static int __init au1550_spi_init(void)
 	case ALCHEMY_CPU_AU1300:
 		break;
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (usedma) {
 		ddma_memid = au1xxx_ddma_add_device(&au1550_spi_mem_dbdev);
 		if (!ddma_memid)
-			printk(KERN_ERR "au1550-spi: cannot add memory dbdma device\n");
+			printk(KERN_ERR "au1550-spi: cananalt add memory dbdma device\n");
 	}
 	return platform_driver_register(&au1550_spi_drv);
 }

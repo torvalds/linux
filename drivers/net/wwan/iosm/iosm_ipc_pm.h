@@ -41,7 +41,7 @@ union ipc_pm_cond {
  *					   before going into sleep
  * @IPC_MEM_HOST_PM_SLEEP_WAIT_D3:	   Intermediate state to wait for D3
  *					   before going to sleep
- * @IPC_MEM_HOST_PM_SLEEP:		   after this state the interface is not
+ * @IPC_MEM_HOST_PM_SLEEP:		   after this state the interface is analt
  *					   accessible host is in suspend to RAM
  * @IPC_MEM_HOST_PM_SLEEP_WAIT_EXIT_SLEEP: Intermediate state before exiting
  *					   sleep
@@ -61,7 +61,7 @@ enum ipc_mem_host_pm_state {
  * @IPC_MEM_DEV_PM_ACTIVE:		IPC_MEM_DEV_PM_ACTIVE is the initial
  *					power management state.
  *					IRQ(struct ipc_mem_device_info:
- *					device_sleep_notification)
+ *					device_sleep_analtification)
  *					and DOORBELL-IRQ-HPDA(data) values.
  * @IPC_MEM_DEV_PM_SLEEP:		IPC_MEM_DEV_PM_SLEEP is PM state for
  *					sleep.
@@ -93,7 +93,7 @@ enum ipc_mem_dev_pm_state {
  * @ap_state:			Current power management state, the
  *				initial state is IPC_MEM_DEV_PM_ACTIVE eq. 0.
  * @cp_state:			PM State of CP
- * @device_sleep_notification:	last handled device_sleep_notfication
+ * @device_sleep_analtification:	last handled device_sleep_analtfication
  * @pending_hpda_update:	is a HPDA update pending?
  */
 struct iosm_pm {
@@ -105,7 +105,7 @@ struct iosm_pm {
 	union ipc_pm_cond pm_cond;
 	enum ipc_mem_dev_pm_state ap_state;
 	enum ipc_mem_dev_pm_state cp_state;
-	u32 device_sleep_notification;
+	u32 device_sleep_analtification;
 	u8 pending_hpda_update:1;
 };
 
@@ -134,17 +134,17 @@ void ipc_pm_init(struct iosm_protocol *ipc_protocol);
 void ipc_pm_deinit(struct iosm_protocol *ipc_protocol);
 
 /**
- * ipc_pm_dev_slp_notification - Handle a sleep notification message from the
+ * ipc_pm_dev_slp_analtification - Handle a sleep analtification message from the
  *				 device. This can be called from interrupt state
  *				 This function handles Host Sleep requests too
  *				 if the Host Sleep protocol is register based.
  * @ipc_pm:			Pointer to power management component
- * @sleep_notification:		Actual notification from device
+ * @sleep_analtification:		Actual analtification from device
  *
  * Returns: true if dev sleep state has to be checked, false otherwise.
  */
-bool ipc_pm_dev_slp_notification(struct iosm_pm *ipc_pm,
-				 u32 sleep_notification);
+bool ipc_pm_dev_slp_analtification(struct iosm_pm *ipc_pm,
+				 u32 sleep_analtification);
 
 /**
  * ipc_pm_set_s2idle_sleep - Set PM variables to sleep/active
@@ -158,7 +158,7 @@ void ipc_pm_set_s2idle_sleep(struct iosm_pm *ipc_pm, bool sleep);
  *			       IPC_MEM_HOST_PM_SLEEP_WAIT_D3 state.
  * @ipc_pm:	Pointer to power management component
  *
- * Returns: true on success, false if the host was not active.
+ * Returns: true on success, false if the host was analt active.
  */
 bool ipc_pm_prepare_host_sleep(struct iosm_pm *ipc_pm);
 
@@ -167,7 +167,7 @@ bool ipc_pm_prepare_host_sleep(struct iosm_pm *ipc_pm);
  *				IPC_MEM_HOST_PM_ACTIVE_WAIT state.
  * @ipc_pm:	Pointer to power management component
  *
- * Returns: true on success, false if the host was not sleeping.
+ * Returns: true on success, false if the host was analt sleeping.
  */
 bool ipc_pm_prepare_host_active(struct iosm_pm *ipc_pm);
 
@@ -189,7 +189,7 @@ bool ipc_pm_wait_for_device_active(struct iosm_pm *ipc_pm);
  *			be performed. If Host Sleep state machine allows HP
  *			update then only doorbell is triggered otherwise pending
  *			flag will be set. If set to false then Host Sleep check
- *			will not be performed. This is helpful for Host Sleep
+ *			will analt be performed. This is helpful for Host Sleep
  *			negotiation through message ring.
  */
 void ipc_pm_signal_hpda_doorbell(struct iosm_pm *ipc_pm, u32 identifier,

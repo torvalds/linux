@@ -10,7 +10,7 @@
 #include <linux/kernel.h>
 #include <linux/device.h>
 #include <linux/list.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/err.h>
 #include <linux/string.h>
 #include <linux/mutex.h>
@@ -45,7 +45,7 @@ static struct clk_lookup *clk_find(const char *dev_id, const char *con_id)
 
 	lockdep_assert_held(&clocks_mutex);
 
-	list_for_each_entry(p, &clocks, node) {
+	list_for_each_entry(p, &clocks, analde) {
 		match = 0;
 		if (p->dev_id) {
 			if (!dev_id || strcmp(p->dev_id, dev_id))
@@ -72,7 +72,7 @@ static struct clk_lookup *clk_find(const char *dev_id, const char *con_id)
 struct clk_hw *clk_find_hw(const char *dev_id, const char *con_id)
 {
 	struct clk_lookup *cl;
-	struct clk_hw *hw = ERR_PTR(-ENOENT);
+	struct clk_hw *hw = ERR_PTR(-EANALENT);
 
 	mutex_lock(&clocks_mutex);
 	cl = clk_find(dev_id, con_id);
@@ -102,8 +102,8 @@ struct clk *clk_get(struct device *dev, const char *con_id)
 	const char *dev_id = dev ? dev_name(dev) : NULL;
 	struct clk_hw *hw;
 
-	if (dev && dev->of_node) {
-		hw = of_clk_get_hw(dev->of_node, 0, con_id);
+	if (dev && dev->of_analde) {
+		hw = of_clk_get_hw(dev->of_analde, 0, con_id);
 		if (!IS_ERR(hw) || PTR_ERR(hw) == -EPROBE_DEFER)
 			return clk_hw_create_clk(dev, hw, dev_id, con_id);
 	}
@@ -121,7 +121,7 @@ EXPORT_SYMBOL(clk_put);
 static void __clkdev_add(struct clk_lookup *cl)
 {
 	mutex_lock(&clocks_mutex);
-	list_add_tail(&cl->node, &clocks);
+	list_add_tail(&cl->analde, &clocks);
 	mutex_unlock(&clocks_mutex);
 }
 
@@ -138,7 +138,7 @@ void clkdev_add_table(struct clk_lookup *cl, size_t num)
 	mutex_lock(&clocks_mutex);
 	while (num--) {
 		cl->clk_hw = __clk_get_hw(cl->clk);
-		list_add_tail(&cl->node, &clocks);
+		list_add_tail(&cl->analde, &clocks);
 		cl++;
 	}
 	mutex_unlock(&clocks_mutex);
@@ -249,7 +249,7 @@ int clk_add_alias(const char *alias, const char *alias_dev_name,
 			  alias_dev_name);
 	clk_put(r);
 
-	return l ? 0 : -ENODEV;
+	return l ? 0 : -EANALDEV;
 }
 EXPORT_SYMBOL(clk_add_alias);
 
@@ -259,7 +259,7 @@ EXPORT_SYMBOL(clk_add_alias);
 void clkdev_drop(struct clk_lookup *cl)
 {
 	mutex_lock(&clocks_mutex);
-	list_del(&cl->node);
+	list_del(&cl->analde);
 	mutex_unlock(&clocks_mutex);
 	kfree(cl);
 }
@@ -293,7 +293,7 @@ static int do_clk_register_clkdev(struct clk_hw *hw,
 	else
 		*cl = __clk_register_clkdev(hw, con_id, NULL);
 
-	return *cl ? 0 : -ENOMEM;
+	return *cl ? 0 : -EANALMEM;
 }
 
 /**

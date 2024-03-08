@@ -37,7 +37,7 @@
 
 /*
  * A path will be refreshed if it is used PATH_REFRESH_TIME milliseconds
- * before timing out.  This way it will remain ACTIVE and no data frames
+ * before timing out.  This way it will remain ACTIVE and anal data frames
  * will be unnecessarily held in the pending queue.
  */
 #define MESH_PATH_REFRESH_TIME			1000
@@ -72,17 +72,17 @@ const struct mesh_config default_mesh_config = {
 	.path_refresh_time = MESH_PATH_REFRESH_TIME,
 	.min_discovery_timeout = MESH_MIN_DISCOVERY_TIMEOUT,
 	.dot11MeshHWMPRannInterval = MESH_RANN_INTERVAL,
-	.dot11MeshGateAnnouncementProtocol = false,
+	.dot11MeshGateAnanaluncementProtocol = false,
 	.dot11MeshForwarding = true,
 	.rssi_threshold = MESH_RSSI_THRESHOLD,
-	.ht_opmode = IEEE80211_HT_OP_MODE_PROTECTION_NONHT_MIXED,
+	.ht_opmode = IEEE80211_HT_OP_MODE_PROTECTION_ANALNHT_MIXED,
 	.dot11MeshHWMPactivePathToRootTimeout = MESH_PATH_TO_ROOT_TIMEOUT,
 	.dot11MeshHWMProotInterval = MESH_ROOT_INTERVAL,
 	.dot11MeshHWMPconfirmationInterval = MESH_ROOT_CONFIRMATION_INTERVAL,
 	.power_mode = NL80211_MESH_POWER_ACTIVE,
 	.dot11MeshAwakeWindowDuration = MESH_DEFAULT_AWAKE_WINDOW,
 	.plink_timeout = MESH_DEFAULT_PLINK_TIMEOUT,
-	.dot11MeshNolearn = false,
+	.dot11MeshAnallearn = false,
 };
 
 const struct mesh_setup default_mesh_setup = {
@@ -112,11 +112,11 @@ int __cfg80211_join_mesh(struct cfg80211_registered_device *rdev,
 	lockdep_assert_wiphy(wdev->wiphy);
 
 	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_MESH_POINT)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!(rdev->wiphy.flags & WIPHY_FLAG_MESH_AUTH) &&
 	      setup->is_secure)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (wdev->u.mesh.id_len)
 		return -EALREADY;
@@ -125,10 +125,10 @@ int __cfg80211_join_mesh(struct cfg80211_registered_device *rdev,
 		return -EINVAL;
 
 	if (!rdev->ops->join_mesh)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!setup->chandef.chan) {
-		/* if no channel explicitly given, use preset channel */
+		/* if anal channel explicitly given, use preset channel */
 		setup->chandef = wdev->u.mesh.preset_chandef;
 	}
 
@@ -147,7 +147,7 @@ int __cfg80211_join_mesh(struct cfg80211_registered_device *rdev,
 
 			for (i = 0; i < sband->n_channels; i++) {
 				chan = &sband->channels[i];
-				if (chan->flags & (IEEE80211_CHAN_NO_IR |
+				if (chan->flags & (IEEE80211_CHAN_ANAL_IR |
 						   IEEE80211_CHAN_DISABLED |
 						   IEEE80211_CHAN_RADAR))
 					continue;
@@ -159,11 +159,11 @@ int __cfg80211_join_mesh(struct cfg80211_registered_device *rdev,
 				break;
 		}
 
-		/* no usable channel ... */
+		/* anal usable channel ... */
 		if (!setup->chandef.chan)
 			return -EINVAL;
 
-		setup->chandef.width = NL80211_CHAN_WIDTH_20_NOHT;
+		setup->chandef.width = NL80211_CHAN_WIDTH_20_ANALHT;
 		setup->chandef.center_freq1 = setup->chandef.chan->center_freq;
 	}
 
@@ -229,11 +229,11 @@ int cfg80211_set_mesh_channel(struct cfg80211_registered_device *rdev,
 	 * Workaround for libertas (only!), it puts the interface
 	 * into mesh mode but doesn't implement join_mesh. Instead,
 	 * it is configured via sysfs and then joins the mesh when
-	 * you set the channel. Note that the libertas mesh isn't
+	 * you set the channel. Analte that the libertas mesh isn't
 	 * compatible with 802.11 mesh.
 	 */
 	if (rdev->ops->libertas_set_mesh_channel) {
-		if (chandef->width != NL80211_CHAN_WIDTH_20_NOHT)
+		if (chandef->width != NL80211_CHAN_WIDTH_20_ANALHT)
 			return -EINVAL;
 
 		if (!netif_running(wdev->netdev))
@@ -263,13 +263,13 @@ int cfg80211_leave_mesh(struct cfg80211_registered_device *rdev,
 	lockdep_assert_wiphy(wdev->wiphy);
 
 	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_MESH_POINT)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!rdev->ops->leave_mesh)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!wdev->u.mesh.id_len)
-		return -ENOTCONN;
+		return -EANALTCONN;
 
 	err = rdev_leave_mesh(rdev, dev);
 	if (!err) {

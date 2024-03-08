@@ -24,7 +24,7 @@
 			compatible = "shared-dma-pool";
 			reg = <0x0 0x80000000 0x0 0x2000000>;
 			alignment = <0x1000>;
-			no-map;
+			anal-map;
 		};
 	};
 
@@ -130,7 +130,7 @@
 
 	usbphy0: usbphy {
 		#phy-cells = <0>;
-		compatible = "usb-nop-xceiv";
+		compatible = "usb-analp-xceiv";
 	};
 
 	soc: soc@0 {
@@ -452,7 +452,7 @@
 		};
 
 		qspi: spi@108d2000 {
-			compatible = "intel,socfpga-qspi", "cdns,qspi-nor";
+			compatible = "intel,socfpga-qspi", "cdns,qspi-analr";
 			reg = <0x108d2000 0x100>,
 			      <0x10900000 0x100000>;
 			#address-cells = <1>;

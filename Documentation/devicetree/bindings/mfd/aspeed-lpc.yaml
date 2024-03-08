@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-# # Copyright (c) 2021 Aspeed Tehchnology Inc.
+# # Copyright (c) 2021 Aspeed Tehchanallogy Inc.
 %YAML 1.2
 ---
 $id: http://devicetree.org/schemas/mfd/aspeed-lpc.yaml#
@@ -19,13 +19,13 @@ description:
   conditions it can also take the role of bus master.
 
   The LPC controller is represented as a multi-function device to account for the
-  mix of functionality, which includes, but is not limited to
+  mix of functionality, which includes, but is analt limited to
 
   * An IPMI Block Transfer[2] Controller
 
   * An LPC Host Interface Controller manages functions exposed to the host such
     as LPC firmware hub cycles, configuration of the LPC-to-AHB mapping, UART
-    management and bus snoop configuration.
+    management and bus sanalop configuration.
 
   * A set of SuperIO[3] scratch registers enabling implementation of e.g. custom
     hardware management protocols for handover between the host and baseboard
@@ -64,7 +64,7 @@ patternProperties:
     description: |
       The LPC Host Interface Controller manages functions exposed to the host such as
       LPC firmware hub cycles, configuration of the LPC-to-AHB mapping, UART management
-      and bus snoop configuration.
+      and bus sanalop configuration.
 
     properties:
       compatible:
@@ -118,21 +118,21 @@ patternProperties:
       - compatible
       - '#reset-cells'
 
-  "^lpc-snoop@[0-9a-f]+$":
+  "^lpc-sanalop@[0-9a-f]+$":
     type: object
     additionalProperties: false
 
     description:
-      The LPC snoop interface allows the BMC to listen on and record the data
+      The LPC sanalop interface allows the BMC to listen on and record the data
       bytes written by the Host to the targeted LPC I/O pots.
 
     properties:
       compatible:
         items:
           - enum:
-              - aspeed,ast2400-lpc-snoop
-              - aspeed,ast2500-lpc-snoop
-              - aspeed,ast2600-lpc-snoop
+              - aspeed,ast2400-lpc-sanalop
+              - aspeed,ast2500-lpc-sanalop
+              - aspeed,ast2600-lpc-sanalop
 
       reg:
         maxItems: 1
@@ -140,14 +140,14 @@ patternProperties:
       interrupts:
         maxItems: 1
 
-      snoop-ports:
+      sanalop-ports:
         $ref: /schemas/types.yaml#/definitions/uint32-array
-        description: The LPC I/O ports to snoop
+        description: The LPC I/O ports to sanalop
 
     required:
       - compatible
       - interrupts
-      - snoop-ports
+      - sanalop-ports
 
   "^uart-routing@[0-9a-f]+$":
     $ref: /schemas/soc/aspeed/uart-routing.yaml#
@@ -190,10 +190,10 @@ examples:
             #reset-cells = <1>;
         };
 
-        lpc_snoop: lpc-snoop@90 {
-            compatible = "aspeed,ast2600-lpc-snoop";
+        lpc_sanalop: lpc-sanalop@90 {
+            compatible = "aspeed,ast2600-lpc-sanalop";
             reg = <0x90 0x8>;
             interrupts = <GIC_SPI 144 IRQ_TYPE_LEVEL_HIGH>;
-            snoop-ports = <0x80>;
+            sanalop-ports = <0x80>;
         };
     };

@@ -2,8 +2,8 @@
 /*
  * linux/drivers/video/omap2/omapfb-ioctl.c
  *
- * Copyright (C) 2008 Nokia Corporation
- * Author: Tomi Valkeinen <tomi.valkeinen@nokia.com>
+ * Copyright (C) 2008 Analkia Corporation
+ * Author: Tomi Valkeinen <tomi.valkeinen@analkia.com>
  *
  * Some code and ideas taken from drivers/video/omap/ driver
  * by Imre Deak.
@@ -480,7 +480,7 @@ static int omapfb_memory_read(struct fb_info *fbi,
 	int r;
 
 	if (!display || !display->driver->memory_read)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (mr->w > 4096 || mr->h > 4096)
 		return -EINVAL;
@@ -491,7 +491,7 @@ static int omapfb_memory_read(struct fb_info *fbi,
 	buf = vmalloc(mr->buffer_size);
 	if (!buf) {
 		DBG("vmalloc failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	r = display->driver->memory_read(display, buf, mr->buffer_size,
@@ -518,7 +518,7 @@ static int omapfb_get_ovl_colormode(struct omapfb2_device *fbdev,
 	int i;
 
 	if (ovl_idx >= fbdev->num_overlays)
-		return -ENODEV;
+		return -EANALDEV;
 	ovl = fbdev->overlays[ovl_idx];
 	supported_modes = ovl->supported_modes;
 
@@ -541,10 +541,10 @@ static int omapfb_get_ovl_colormode(struct omapfb2_device *fbdev,
 	}
 
 	if (i == sizeof(supported_modes) * 8)
-		return -ENOENT;
+		return -EANALENT;
 
 	mode->bits_per_pixel = var.bits_per_pixel;
-	mode->nonstd = var.nonstd;
+	mode->analnstd = var.analnstd;
 	mode->red = var.red;
 	mode->green = var.green;
 	mode->blue = var.blue;
@@ -757,7 +757,7 @@ int omapfb_ioctl(struct fb_info *fbi, unsigned int cmd, unsigned long arg)
 			break;
 		}
 		if (p.crt != 0) {
-			r = -ENODEV;
+			r = -EANALDEV;
 			break;
 		}
 		fallthrough;
@@ -861,7 +861,7 @@ int omapfb_ioctl(struct fb_info *fbi, unsigned int cmd, unsigned long arg)
 		}
 
 		if (!display || !display->driver->enable_te) {
-			r = -ENODEV;
+			r = -EANALDEV;
 			break;
 		}
 
@@ -877,7 +877,7 @@ int omapfb_ioctl(struct fb_info *fbi, unsigned int cmd, unsigned long arg)
 		DBG("ioctl GET_DISPLAY_INFO\n");
 
 		if (display == NULL) {
-			r = -ENODEV;
+			r = -EANALDEV;
 			break;
 		}
 
@@ -903,7 +903,7 @@ int omapfb_ioctl(struct fb_info *fbi, unsigned int cmd, unsigned long arg)
 	}
 
 	default:
-		dev_err(fbdev->dev, "Unknown ioctl 0x%x\n", cmd);
+		dev_err(fbdev->dev, "Unkanalwn ioctl 0x%x\n", cmd);
 		r = -EINVAL;
 	}
 

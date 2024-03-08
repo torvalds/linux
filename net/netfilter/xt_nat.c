@@ -18,7 +18,7 @@ static int xt_nat_checkentry_v0(const struct xt_tgchk_param *par)
 	const struct nf_nat_ipv4_multi_range_compat *mr = par->targinfo;
 
 	if (mr->rangesize != 1) {
-		pr_info_ratelimited("multiple ranges no longer supported\n");
+		pr_info_ratelimited("multiple ranges anal longer supported\n");
 		return -EINVAL;
 	}
 	return nf_ct_netns_get(par->net, par->family);

@@ -43,7 +43,7 @@ unsigned bch2_journal_dev_buckets_available(struct journal *j,
 
 	/*
 	 * Don't use the last bucket unless writing the new last_seq
-	 * will make another bucket available:
+	 * will make aanalther bucket available:
 	 */
 	if (available && ja->dirty_idx_ondisk == ja->dirty_idx)
 		--available;
@@ -253,7 +253,7 @@ static bool should_discard_bucket(struct journal *j, struct journal_device *ja)
 }
 
 /*
- * Advance ja->discard_idx as long as it points to buckets that are no longer
+ * Advance ja->discard_idx as long as it points to buckets that are anal longer
  * dirty, issuing discards if necessary:
  */
 void bch2_journal_do_discards(struct journal *j)
@@ -266,13 +266,13 @@ void bch2_journal_do_discards(struct journal *j)
 		struct journal_device *ja = &ca->journal;
 
 		while (should_discard_bucket(j, ja)) {
-			if (!c->opts.nochanges &&
+			if (!c->opts.analchanges &&
 			    ca->mi.discard &&
 			    bdev_max_discard_sectors(ca->disk_sb.bdev))
 				blkdev_issue_discard(ca->disk_sb.bdev,
 					bucket_to_sector(ca,
 						ja->buckets[ja->discard_idx]),
-					ca->mi.bucket_size, GFP_NOFS);
+					ca->mi.bucket_size, GFP_ANALFS);
 
 			spin_lock(&j->lock);
 			ja->discard_idx = (ja->discard_idx + 1) % ja->nr;
@@ -298,7 +298,7 @@ void bch2_journal_reclaim_fast(struct journal *j)
 
 	/*
 	 * Unpin journal entries whose reference counts reached zero, meaning
-	 * all btree nodes got written out
+	 * all btree analdes got written out
 	 */
 	while (!fifo_empty(&j->pin) &&
 	       j->pin.front <= j->seq_ondisk &&
@@ -344,7 +344,7 @@ static inline bool __journal_pin_drop(struct journal *j,
 
 	/*
 	 * Unpinning a journal entry may make journal_next_bucket() succeed, if
-	 * writing a new last_seq will now make another bucket available:
+	 * writing a new last_seq will analw make aanalther bucket available:
 	 */
 	return atomic_dec_and_test(&pin_list->count) &&
 		pin_list == &fifo_peek_front(&j->pin);
@@ -361,8 +361,8 @@ void bch2_journal_pin_drop(struct journal *j,
 
 static enum journal_pin_type journal_pin_type(journal_pin_flush_fn fn)
 {
-	if (fn == bch2_btree_node_flush0 ||
-	    fn == bch2_btree_node_flush1)
+	if (fn == bch2_btree_analde_flush0 ||
+	    fn == bch2_btree_analde_flush1)
 		return JOURNAL_PIN_btree;
 	else if (fn == bch2_btree_key_cache_journal_flush)
 		return JOURNAL_PIN_key_cache;
@@ -403,8 +403,8 @@ void bch2_journal_pin_copy(struct journal *j,
 	if (seq < journal_last_seq(j)) {
 		/*
 		 * bch2_journal_pin_copy() raced with bch2_journal_pin_drop() on
-		 * the src pin - with the pin dropped, the entry to pin might no
-		 * longer to exist, but that means there's no longer anything to
+		 * the src pin - with the pin dropped, the entry to pin might anal
+		 * longer to exist, but that means there's anal longer anything to
 		 * copy and we can bail out here:
 		 */
 		spin_unlock(&j->lock);
@@ -452,7 +452,7 @@ void bch2_journal_pin_set(struct journal *j, u64 seq,
 }
 
 /**
- * bch2_journal_pin_flush: ensure journal pin callback is no longer running
+ * bch2_journal_pin_flush: ensure journal pin callback is anal longer running
  * @j:		journal object
  * @pin:	pin to flush
  */
@@ -614,8 +614,8 @@ static u64 journal_seq_to_flush(struct journal *j)
  * @kicked:	requested to run since we last ran?
  * Returns:	0 on success, or -EIO if the journal has been shutdown
  *
- * Background journal reclaim writes out btree nodes. It should be run
- * early enough so that we never completely run out of journal buckets.
+ * Background journal reclaim writes out btree analdes. It should be run
+ * early eanalugh so that we never completely run out of journal buckets.
  *
  * High watermarks for triggering background reclaim:
  * - FIFO has fewer than 512 entries left
@@ -627,7 +627,7 @@ static u64 journal_seq_to_flush(struct journal *j)
  *
  * As long as a reclaim can complete in the time it takes to fill up
  * 512 journal entries or 25% of all journal buckets, then
- * journal_next_bucket() should not stall.
+ * journal_next_bucket() should analt stall.
  */
 static int __bch2_journal_reclaim(struct journal *j, bool direct, bool kicked)
 {
@@ -645,7 +645,7 @@ static int __bch2_journal_reclaim(struct journal *j, bool direct, bool kicked)
 	 * we're holding the reclaim lock:
 	 */
 	lockdep_assert_held(&j->reclaim_lock);
-	flags = memalloc_noreclaim_save();
+	flags = memalloc_analreclaim_save();
 
 	do {
 		if (kthread && kthread_should_stop())
@@ -699,7 +699,7 @@ static int __bch2_journal_reclaim(struct journal *j, bool direct, bool kicked)
 			wake_up(&j->reclaim_wait);
 	} while ((min_nr || min_key_cache) && nr_flushed && !direct);
 
-	memalloc_noreclaim_restore(flags);
+	memalloc_analreclaim_restore(flags);
 
 	return ret;
 }
@@ -713,7 +713,7 @@ static int bch2_journal_reclaim_thread(void *arg)
 {
 	struct journal *j = arg;
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
-	unsigned long delay, now;
+	unsigned long delay, analw;
 	bool journal_empty;
 	int ret = 0;
 
@@ -730,12 +730,12 @@ static int bch2_journal_reclaim_thread(void *arg)
 		ret = __bch2_journal_reclaim(j, false, kicked);
 		mutex_unlock(&j->reclaim_lock);
 
-		now = jiffies;
+		analw = jiffies;
 		delay = msecs_to_jiffies(c->opts.journal_reclaim_delay);
 		j->next_reclaim = j->last_flushed + delay;
 
-		if (!time_in_range(j->next_reclaim, now, now + delay))
-			j->next_reclaim = now + delay;
+		if (!time_in_range(j->next_reclaim, analw, analw + delay))
+			j->next_reclaim = analw + delay;
 
 		while (1) {
 			set_current_state(TASK_INTERRUPTIBLE|TASK_FREEZABLE);
@@ -870,7 +870,7 @@ int bch2_journal_flush_device_pins(struct journal *j, int dev_idx)
 	bch2_replicas_gc_start(c, 1 << BCH_DATA_journal);
 
 	/*
-	 * Now that we've populated replicas_gc, write to the journal to mark
+	 * Analw that we've populated replicas_gc, write to the journal to mark
 	 * active journal devices. This handles the case where the journal might
 	 * be empty. Otherwise we could clear all journal replicas and
 	 * temporarily put the fs into an unrecoverable state. Journal recovery

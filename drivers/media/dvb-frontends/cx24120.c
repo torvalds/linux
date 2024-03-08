@@ -62,7 +62,7 @@ enum command_message_id {
 	CMD_VCO_SET		= 0x10,		/* cmd.len = 12; */
 	CMD_TUNEREQUEST		= 0x11,		/* cmd.len = 15; */
 
-	CMD_MPEG_ONOFF		= 0x13,		/* cmd.len = 4; */
+	CMD_MPEG_OANALFF		= 0x13,		/* cmd.len = 4; */
 	CMD_MPEG_INIT		= 0x14,		/* cmd.len = 7; */
 	CMD_BANDWIDTH		= 0x15,		/* cmd.len = 12; */
 	CMD_CLOCK_READ		= 0x16,		/* read clock */
@@ -72,7 +72,7 @@ enum command_message_id {
 	CMD_DISEQC_MSG2		= 0x21,		/* cmd.len = d->msg_len + 6; */
 	CMD_SETVOLTAGE		= 0x22,		/* cmd.len = 2; */
 	CMD_SETTONE		= 0x23,		/* cmd.len = 4; */
-	CMD_DISEQC_BURST	= 0x24,		/* cmd.len not used !!! */
+	CMD_DISEQC_BURST	= 0x24,		/* cmd.len analt used !!! */
 
 	CMD_READ_SNR		= 0x1a,		/* Read signal strength */
 	CMD_START_TUNER		= 0x1b,		/* ??? */
@@ -228,7 +228,7 @@ static int cx24120_writeregs(struct cx24120_state *state,
 
 	msg.buf = kmalloc(max + 1, GFP_KERNEL);
 	if (!msg.buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	while (len) {
 		msg.buf[0] = reg;
@@ -443,7 +443,7 @@ static int cx24120_msg_mpeg_output_global_config(struct cx24120_state *state,
 	struct cx24120_cmd cmd;
 	int ret;
 
-	cmd.id = CMD_MPEG_ONOFF;
+	cmd.id = CMD_MPEG_OANALFF;
 	cmd.len = 4;
 	cmd.arg[0] = 0x01;
 	cmd.arg[1] = 0x00;
@@ -492,7 +492,7 @@ static int cx24120_diseqc_send_burst(struct dvb_frontend *fe,
 	dev_dbg(&state->i2c->dev, "\n");
 
 	/*
-	 * Yes, cmd.len is set to zero. The old driver
+	 * Anal, cmd.len is set to zero. The old driver
 	 * didn't specify any len, but also had a
 	 * memset 0 before every use of the cmd struct
 	 * which would have set it to zero.
@@ -638,7 +638,7 @@ static void cx24120_get_stats(struct cx24120_state *state)
 		c->strength.stat[0].scale = FE_SCALE_RELATIVE;
 		c->strength.stat[0].uvalue = sig;
 	} else {
-		c->strength.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		c->strength.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	}
 
 	/* CNR */
@@ -653,15 +653,15 @@ static void cx24120_get_stats(struct cx24120_state *state)
 		c->cnr.stat[0].scale = FE_SCALE_DECIBEL;
 		c->cnr.stat[0].svalue = cnr;
 	} else {
-		c->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		c->cnr.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	}
 
 	/* BER & UCB require lock */
 	if (!(state->fe_status & FE_HAS_LOCK)) {
-		c->post_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
-		c->post_bit_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
-		c->block_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
-		c->block_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		c->post_bit_error.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
+		c->post_bit_count.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
+		c->block_error.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
+		c->block_count.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 		return;
 	}
 
@@ -839,7 +839,7 @@ static void cx24120_calculate_ber_window(struct cx24120_state *state, u32 rate)
 
 	/*
 	 * Calculate bitrate from rate in the clock ratios table.
-	 * This isn't *exactly* right but close enough.
+	 * This isn't *exactly* right but close eanalugh.
 	 */
 	tmp = (u64)c->symbol_rate * rate;
 	do_div(tmp, 256);
@@ -938,7 +938,7 @@ static void cx24120_set_clock_ratios(struct dvb_frontend *fe)
 	}
 
 	if (idx >= ARRAY_SIZE(clock_ratios_table)) {
-		info("Clock ratio not found - data reception in danger\n");
+		info("Clock ratio analt found - data reception in danger\n");
 		return;
 	}
 
@@ -1147,7 +1147,7 @@ static int cx24120_set_frontend(struct dvb_frontend *fe)
 		break;
 	default:
 		dev_dbg(&state->i2c->dev,
-			"delivery system(%d) not supported\n",
+			"delivery system(%d) analt supported\n",
 			c->delivery_system);
 		return -EINVAL;
 	}
@@ -1319,7 +1319,7 @@ static int cx24120_init(struct dvb_frontend *fe)
 
 	ret = state->config->request_firmware(fe, &fw, CX24120_FIRMWARE);
 	if (ret) {
-		err("Could not load firmware (%s): %d\n", CX24120_FIRMWARE,
+		err("Could analt load firmware (%s): %d\n", CX24120_FIRMWARE,
 		    ret);
 		return ret;
 	}
@@ -1449,17 +1449,17 @@ static int cx24120_init(struct dvb_frontend *fe)
 
 	/* init stats here in order signal app which stats are supported */
 	c->strength.len = 1;
-	c->strength.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->strength.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	c->cnr.len = 1;
-	c->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->cnr.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	c->post_bit_error.len = 1;
-	c->post_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->post_bit_error.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	c->post_bit_count.len = 1;
-	c->post_bit_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->post_bit_count.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	c->block_error.len = 1;
-	c->block_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->block_error.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	c->block_count.len = 1;
-	c->block_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->block_count.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 
 	state->cold_init = 1;
 
@@ -1505,7 +1505,7 @@ static int cx24120_get_frontend(struct dvb_frontend *fe,
 
 	dev_dbg(&state->i2c->dev, "\n");
 
-	/* don't return empty data if we're not tuned in */
+	/* don't return empty data if we're analt tuned in */
 	status = cx24120_readreg(state, CX24120_REG_STATUS);
 	if (!(status & CX24120_HAS_LOCK))
 		return 0;

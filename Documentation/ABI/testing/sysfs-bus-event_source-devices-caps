@@ -10,7 +10,7 @@ Description:
 		platform specific PMU supports.
 
 		One of the example available capability in supported platform
-		like Intel is pmu_name, which exposes underlying CPU name known
+		like Intel is pmu_name, which exposes underlying CPU name kanalwn
 		to the PMU driver.
 
 		Example output in powerpc:

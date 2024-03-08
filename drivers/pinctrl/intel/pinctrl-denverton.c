@@ -33,7 +33,7 @@
 
 /* Denverton */
 static const struct pinctrl_pin_desc dnv_pins[] = {
-	/* North ALL */
+	/* Analrth ALL */
 	PINCTRL_PIN(0, "GBE0_SDP0"),
 	PINCTRL_PIN(1, "GBE1_SDP0"),
 	PINCTRL_PIN(2, "GBE0_SDP1"),
@@ -221,9 +221,9 @@ static const struct intel_function dnv_functions[] = {
 	FUNCTION("emmc", dnv_emmc_groups),
 };
 
-static const struct intel_padgroup dnv_north_gpps[] = {
-	DNV_GPP(0, 0, 31),	/* North ALL_0 */
-	DNV_GPP(1, 32, 40),	/* North ALL_1 */
+static const struct intel_padgroup dnv_analrth_gpps[] = {
+	DNV_GPP(0, 0, 31),	/* Analrth ALL_0 */
+	DNV_GPP(1, 32, 40),	/* Analrth ALL_1 */
 };
 
 static const struct intel_padgroup dnv_south_gpps[] = {
@@ -235,7 +235,7 @@ static const struct intel_padgroup dnv_south_gpps[] = {
 };
 
 static const struct intel_community dnv_communities[] = {
-	DNV_COMMUNITY(0, 0, 40, dnv_north_gpps),
+	DNV_COMMUNITY(0, 0, 40, dnv_analrth_gpps),
 	DNV_COMMUNITY(1, 41, 153, dnv_south_gpps),
 };
 

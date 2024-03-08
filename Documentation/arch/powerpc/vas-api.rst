@@ -23,8 +23,8 @@ Block (CRB) and these CRBs must be submitted to the NX using COPY/PASTE
 instructions to paste the CRB to hardware address that is associated with
 the engine's request queue.
 
-The GZIP engine provides two priority levels of requests: Normal and
-High. Only Normal requests are supported from userspace right now.
+The GZIP engine provides two priority levels of requests: Analrmal and
+High. Only Analrmal requests are supported from userspace right analw.
 
 This document explains userspace API that is used to interact with
 kernel to setup channel / window which can be used to send compression
@@ -35,7 +35,7 @@ Overview
 ========
 
 Application access to the GZIP engine is provided through
-/dev/crypto/nx-gzip device node implemented by the VAS/NX device driver.
+/dev/crypto/nx-gzip device analde implemented by the VAS/NX device driver.
 An application must open the /dev/crypto/nx-gzip device to obtain a file
 descriptor (fd). Then should issue VAS_TX_WIN_OPEN ioctl with this fd to
 establish connection to the engine. It means send window is opened on GZIP
@@ -49,16 +49,16 @@ using copy/paste instructions and pasting the CRBs to the virtual address
 established connection or send window by closing the file descriptor
 (close(fd)) or upon the process exit.
 
-Note that applications can send several requests with the same window or
+Analte that applications can send several requests with the same window or
 can establish multiple windows, but one window for each file descriptor.
 
 Following sections provide additional details and references about the
 individual steps.
 
-NX-GZIP Device Node
+NX-GZIP Device Analde
 ===================
 
-There is one /dev/crypto/nx-gzip node in the system and it provides
+There is one /dev/crypto/nx-gzip analde in the system and it provides
 access to all GZIP engines in the system. The only valid operations on
 /dev/crypto/nx-gzip are:
 
@@ -67,18 +67,18 @@ access to all GZIP engines in the system. The only valid operations on
 	* mmap() the engine's request queue into application's virtual
 	  address space (i.e. get a paste_address for the co-processor
 	  engine).
-	* close the device node.
+	* close the device analde.
 
-Other file operations on this device node are undefined.
+Other file operations on this device analde are undefined.
 
-Note that the copy and paste operations go directly to the hardware and
-do not go through this device. Refer COPY/PASTE document for more
+Analte that the copy and paste operations go directly to the hardware and
+do analt go through this device. Refer COPY/PASTE document for more
 details.
 
 Although a system may have several instances of the NX co-processor
 engines (typically, one per P9 chip) there is just one
-/dev/crypto/nx-gzip device node in the system. When the nx-gzip device
-node is opened, Kernel opens send window on a suitable instance of NX
+/dev/crypto/nx-gzip device analde in the system. When the nx-gzip device
+analde is opened, Kernel opens send window on a suitable instance of NX
 accelerator. It finds CPU on which the user process is executing and
 determine the NX instance for the corresponding chip on which this CPU
 belongs.
@@ -96,7 +96,7 @@ instead of libz and use NX GZIP compression without any modification.
 Open /dev/crypto/nx-gzip
 ========================
 
-The nx-gzip device should be opened for read and write. No special
+The nx-gzip device should be opened for read and write. Anal special
 privileges are needed to open the device. Each window corresponds to one
 file descriptor. So if the userspace process needs multiple windows,
 several open calls have to be issued.
@@ -143,19 +143,19 @@ a connection with NX co-processor engine:
 		rc = ioctl(fd, VAS_TX_WIN_OPEN, &attr);
 
 	The VAS_TX_WIN_OPEN ioctl returns 0 on success. On errors, it
-	returns -1 and sets the errno variable to indicate the error.
+	returns -1 and sets the erranal variable to indicate the error.
 
 	Error conditions:
 
 		======	================================================
-		EINVAL	fd does not refer to a valid VAS device.
+		EINVAL	fd does analt refer to a valid VAS device.
 		EINVAL	Invalid vas ID
-		EINVAL	version is not set with proper value
+		EINVAL	version is analt set with proper value
 		EEXIST	Window is already opened for the given fd
-		ENOMEM	Memory is not available to allocate window
-		ENOSPC	System has too many active windows (connections)
+		EANALMEM	Memory is analt available to allocate window
+		EANALSPC	System has too many active windows (connections)
 			opened
-		EINVAL	reserved fields are not set to 0.
+		EINVAL	reserved fields are analt set to 0.
 		======	================================================
 
 	See the ioctl(2) man page for more details, error codes and
@@ -181,19 +181,19 @@ that the application can use to copy/paste its CRB to the hardware engines.
 	page, can also fail with one of the following error codes:
 
 		======	=============================================
-		EINVAL	fd is not associated with an open window
-			(i.e mmap() does not follow a successful call
+		EINVAL	fd is analt associated with an open window
+			(i.e mmap() does analt follow a successful call
 			to the VAS_TX_WIN_OPEN ioctl).
-		EINVAL	offset field is not 0ULL.
+		EINVAL	offset field is analt 0ULL.
 		======	=============================================
 
 Discovery of available VAS engines
 ==================================
 
-Each available VAS instance in the system will have a device tree node
+Each available VAS instance in the system will have a device tree analde
 like /proc/device-tree/vas@* or /proc/device-tree/xscom@*/vas@*.
 Determine the chip or VAS instance and use the corresponding ibm,vas-id
-property value in this node to select specific VAS instance.
+property value in this analde to select specific VAS instance.
 
 Copy/Paste operations
 =====================
@@ -221,7 +221,7 @@ status flags.
 In case if NX encounters translation error (called NX page fault) on CSB
 address or any request buffer, raises an interrupt on the CPU to handle the
 fault. Page fault can happen if an application passes invalid addresses or
-request buffers are not in memory. The operating system handles the fault by
+request buffers are analt in memory. The operating system handles the fault by
 updating CSB with the following data::
 
 	csb.flags = CSB_V;
@@ -233,12 +233,12 @@ When an application receives translation error, it can touch or access
 the page that has a fault address so that this page will be in memory. Then
 the application can resend this request to NX.
 
-If the OS can not update CSB due to invalid CSB address, sends SEGV signal
+If the OS can analt update CSB due to invalid CSB address, sends SEGV signal
 to the process who opened the send window on which the original request was
 issued. This signal returns with the following siginfo struct::
 
-	siginfo.si_signo = SIGSEGV;
-	siginfo.si_errno = EFAULT;
+	siginfo.si_siganal = SIGSEGV;
+	siginfo.si_erranal = EFAULT;
 	siginfo.si_code = SEGV_MAPERR;
 	siginfo.si_addr = CSB address;
 
@@ -250,7 +250,7 @@ as CSB address is valid. If the NX request contains an invalid CSB address,
 the signal will be sent to the child thread that opened the window. But if
 the thread is exited without closing the window and the request is issued
 using this window. the signal will be issued to the thread group leader
-(tgid). It is up to the application whether to ignore or handle these
+(tgid). It is up to the application whether to iganalre or handle these
 signals.
 
 NX-GZIP User's Manual:
@@ -279,15 +279,15 @@ Simple example
 					(unsigned long)&txattr);
 			if (rc < 0) {
 				fprintf(stderr, "ioctl() n %d, error %d\n",
-						rc, errno);
+						rc, erranal);
 				return rc;
 			}
 			addr = mmap(NULL, 4096, PROT_READ|PROT_WRITE,
 					MAP_SHARED, fd, 0ULL);
 			if (addr == MAP_FAILED) {
-				fprintf(stderr, "mmap() failed, errno %d\n",
-						errno);
-				return -errno;
+				fprintf(stderr, "mmap() failed, erranal %d\n",
+						erranal);
+				return -erranal;
 			}
 			do {
 				//Format CRB request with compression or

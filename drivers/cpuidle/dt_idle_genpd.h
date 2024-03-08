@@ -2,19 +2,19 @@
 #ifndef __DT_IDLE_GENPD
 #define __DT_IDLE_GENPD
 
-struct device_node;
+struct device_analde;
 struct generic_pm_domain;
 
 #ifdef CONFIG_DT_IDLE_GENPD
 
 void dt_idle_pd_free(struct generic_pm_domain *pd);
 
-struct generic_pm_domain *dt_idle_pd_alloc(struct device_node *np,
-			int (*parse_state)(struct device_node *, u32 *));
+struct generic_pm_domain *dt_idle_pd_alloc(struct device_analde *np,
+			int (*parse_state)(struct device_analde *, u32 *));
 
-int dt_idle_pd_init_topology(struct device_node *np);
+int dt_idle_pd_init_topology(struct device_analde *np);
 
-int dt_idle_pd_remove_topology(struct device_node *np);
+int dt_idle_pd_remove_topology(struct device_analde *np);
 
 struct device *dt_idle_attach_cpu(int cpu, const char *name);
 
@@ -27,18 +27,18 @@ static inline void dt_idle_pd_free(struct generic_pm_domain *pd)
 }
 
 static inline struct generic_pm_domain *dt_idle_pd_alloc(
-			struct device_node *np,
-			int (*parse_state)(struct device_node *, u32 *))
+			struct device_analde *np,
+			int (*parse_state)(struct device_analde *, u32 *))
 {
 	return NULL;
 }
 
-static inline int dt_idle_pd_init_topology(struct device_node *np)
+static inline int dt_idle_pd_init_topology(struct device_analde *np)
 {
 	return 0;
 }
 
-static inline int dt_idle_pd_remove_topology(struct device_node *np)
+static inline int dt_idle_pd_remove_topology(struct device_analde *np)
 {
 	return 0;
 }

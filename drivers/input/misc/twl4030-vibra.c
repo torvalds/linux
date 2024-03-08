@@ -2,11 +2,11 @@
 /*
  * twl4030-vibra.c - TWL4030 Vibrator driver
  *
- * Copyright (C) 2008-2010 Nokia Corporation
+ * Copyright (C) 2008-2010 Analkia Corporation
  *
- * Written by Henrik Saari <henrik.saari@nokia.com>
- * Updates by Felipe Balbi <felipe.balbi@nokia.com>
- * Input by Jari Vanhala <ext-jari.vanhala@nokia.com>
+ * Written by Henrik Saari <henrik.saari@analkia.com>
+ * Updates by Felipe Balbi <felipe.balbi@analkia.com>
+ * Input by Jari Vanhala <ext-jari.vanhala@analkia.com>
  */
 
 #include <linux/module.h>
@@ -42,7 +42,7 @@ static void vibra_disable_leds(void)
 {
 	u8 reg;
 
-	/* Disable LEDA & LEDB, cannot be used with vibra (PWM) */
+	/* Disable LEDA & LEDB, cananalt be used with vibra (PWM) */
 	twl_i2c_read_u8(TWL4030_MODULE_LED, &reg, LEDEN);
 	reg &= ~0x03;
 	twl_i2c_write_u8(TWL4030_MODULE_LED, LEDEN, reg);
@@ -163,13 +163,13 @@ static int twl4030_vibra_resume(struct device *dev)
 static DEFINE_SIMPLE_DEV_PM_OPS(twl4030_vibra_pm_ops,
 				twl4030_vibra_suspend, twl4030_vibra_resume);
 
-static bool twl4030_vibra_check_coexist(struct device_node *parent)
+static bool twl4030_vibra_check_coexist(struct device_analde *parent)
 {
-	struct device_node *node;
+	struct device_analde *analde;
 
-	node = of_get_child_by_name(parent, "codec");
-	if (node) {
-		of_node_put(node);
+	analde = of_get_child_by_name(parent, "codec");
+	if (analde) {
+		of_analde_put(analde);
 		return true;
 	}
 
@@ -178,27 +178,27 @@ static bool twl4030_vibra_check_coexist(struct device_node *parent)
 
 static int twl4030_vibra_probe(struct platform_device *pdev)
 {
-	struct device_node *twl4030_core_node = pdev->dev.parent->of_node;
+	struct device_analde *twl4030_core_analde = pdev->dev.parent->of_analde;
 	struct vibra_info *info;
 	int ret;
 
-	if (!twl4030_core_node) {
-		dev_dbg(&pdev->dev, "twl4030 OF node is missing\n");
+	if (!twl4030_core_analde) {
+		dev_dbg(&pdev->dev, "twl4030 OF analde is missing\n");
 		return -EINVAL;
 	}
 
 	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	info->dev = &pdev->dev;
-	info->coexist = twl4030_vibra_check_coexist(twl4030_core_node);
+	info->coexist = twl4030_vibra_check_coexist(twl4030_core_analde);
 	INIT_WORK(&info->play_work, vibra_play_work);
 
 	info->input_dev = devm_input_allocate_device(&pdev->dev);
 	if (info->input_dev == NULL) {
 		dev_err(&pdev->dev, "couldn't allocate input device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	input_set_drvdata(info->input_dev, info);
@@ -242,4 +242,4 @@ module_platform_driver(twl4030_vibra_driver);
 MODULE_ALIAS("platform:twl4030-vibra");
 MODULE_DESCRIPTION("TWL4030 Vibra driver");
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Nokia Corporation");
+MODULE_AUTHOR("Analkia Corporation");

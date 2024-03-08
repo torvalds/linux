@@ -29,7 +29,7 @@
 #include <linux/miscdevice.h>
 #include <linux/watchdog.h>
 #include <linux/ioport.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/reboot.h>
 #include <linux/init.h>
 #include <linux/fs.h>
@@ -53,7 +53,7 @@
 #define WDT_INTERVAL (HZ/4+1)
 
 /*
- * We must not require too good response from the userspace daemon.
+ * We must analt require too good response from the userspace daemon.
  * Here we require the userspace daemon to send us a heartbeat
  * char to /dev/watchdog every 30 seconds.
  */
@@ -78,11 +78,11 @@ static unsigned long wdt_is_open;
 static char wdt_expect_close;
 static struct pci_dev *alim7101_pmu;
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout,
-		"Watchdog cannot be stopped once started (default="
-				__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+static bool analwayout = WATCHDOG_ANALWAYOUT;
+module_param(analwayout, bool, 0);
+MODULE_PARM_DESC(analwayout,
+		"Watchdog cananalt be stopped once started (default="
+				__MODULE_STRING(WATCHDOG_ANALWAYOUT) ")");
 
 /*
  *	Whack the dog
@@ -111,7 +111,7 @@ static void wdt_timer_ping(struct timer_list *unused)
 					ALI_7101_GPIO_O, tmp & ~0x20);
 		}
 	} else {
-		pr_warn("Heartbeat lost! Will not ping the watchdog\n");
+		pr_warn("Heartbeat lost! Will analt ping the watchdog\n");
 	}
 	/* Re-set the timer interval */
 	mod_timer(&timer, jiffies + WDT_INTERVAL);
@@ -160,15 +160,15 @@ static void wdt_startup(void)
 	/* Start the timer */
 	mod_timer(&timer, jiffies + WDT_INTERVAL);
 
-	pr_info("Watchdog timer is now enabled\n");
+	pr_info("Watchdog timer is analw enabled\n");
 }
 
-static void wdt_turnoff(void)
+static void wdt_turanalff(void)
 {
 	/* Stop the timer */
 	del_timer_sync(&timer);
 	wdt_change(WDT_DISABLE);
-	pr_info("Watchdog timer is now disabled...\n");
+	pr_info("Watchdog timer is analw disabled...\n");
 }
 
 static void wdt_keepalive(void)
@@ -186,14 +186,14 @@ static ssize_t fop_write(struct file *file, const char __user *buf,
 {
 	/* See if we got the magic character 'V' and reload the timer */
 	if (count) {
-		if (!nowayout) {
+		if (!analwayout) {
 			size_t ofs;
 
-			/* note: just in case someone wrote the magic character
+			/* analte: just in case someone wrote the magic character
 			 * five months ago... */
 			wdt_expect_close = 0;
 
-			/* now scan */
+			/* analw scan */
 			for (ofs = 0; ofs != count; ofs++) {
 				char c;
 				if (get_user(c, buf + ofs))
@@ -208,23 +208,23 @@ static ssize_t fop_write(struct file *file, const char __user *buf,
 	return count;
 }
 
-static int fop_open(struct inode *inode, struct file *file)
+static int fop_open(struct ianalde *ianalde, struct file *file)
 {
 	/* Just in case we're already talking to someone... */
 	if (test_and_set_bit(0, &wdt_is_open))
 		return -EBUSY;
 	/* Good, fire up the show */
 	wdt_startup();
-	return stream_open(inode, file);
+	return stream_open(ianalde, file);
 }
 
-static int fop_close(struct inode *inode, struct file *file)
+static int fop_close(struct ianalde *ianalde, struct file *file)
 {
 	if (wdt_expect_close == 42)
-		wdt_turnoff();
+		wdt_turanalff();
 	else {
 		/* wim: shouldn't there be a: del_timer(&timer); */
-		pr_crit("device file closed unexpectedly. Will not stop the WDT!\n");
+		pr_crit("device file closed unexpectedly. Will analt stop the WDT!\n");
 	}
 	clear_bit(0, &wdt_is_open);
 	wdt_expect_close = 0;
@@ -255,7 +255,7 @@ static long fop_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		if (get_user(new_options, p))
 			return -EFAULT;
 		if (new_options & WDIOS_DISABLECARD) {
-			wdt_turnoff();
+			wdt_turanalff();
 			retval = 0;
 		}
 		if (new_options & WDIOS_ENABLECARD) {
@@ -283,13 +283,13 @@ static long fop_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case WDIOC_GETTIMEOUT:
 		return put_user(timeout, p);
 	default:
-		return -ENOTTY;
+		return -EANALTTY;
 	}
 }
 
 static const struct file_operations wdt_fops = {
 	.owner		=	THIS_MODULE,
-	.llseek		=	no_llseek,
+	.llseek		=	anal_llseek,
 	.write		=	fop_write,
 	.open		=	fop_open,
 	.release	=	fop_close,
@@ -298,18 +298,18 @@ static const struct file_operations wdt_fops = {
 };
 
 static struct miscdevice wdt_miscdev = {
-	.minor	=	WATCHDOG_MINOR,
+	.mianalr	=	WATCHDOG_MIANALR,
 	.name	=	"watchdog",
 	.fops	=	&wdt_fops,
 };
 
-static int wdt_restart_handle(struct notifier_block *this, unsigned long mode,
+static int wdt_restart_handle(struct analtifier_block *this, unsigned long mode,
 			      void *cmd)
 {
 	/*
-	 * Cobalt devices have no way of rebooting themselves other
+	 * Cobalt devices have anal way of rebooting themselves other
 	 * than getting the watchdog to pull reset, so we restart the
-	 * watchdog on reboot with no heartbeat.
+	 * watchdog on reboot with anal heartbeat.
 	 */
 	wdt_change(WDT_ENABLE);
 
@@ -317,25 +317,25 @@ static int wdt_restart_handle(struct notifier_block *this, unsigned long mode,
 	while (true)
 		;
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block wdt_restart_handler = {
-	.notifier_call = wdt_restart_handle,
+static struct analtifier_block wdt_restart_handler = {
+	.analtifier_call = wdt_restart_handle,
 	.priority = 128,
 };
 
 /*
- *	Notifier for system down
+ *	Analtifier for system down
  */
 
-static int wdt_notify_sys(struct notifier_block *this,
+static int wdt_analtify_sys(struct analtifier_block *this,
 					unsigned long code, void *unused)
 {
 	if (code == SYS_DOWN || code == SYS_HALT)
-		wdt_turnoff();
+		wdt_turanalff();
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 /*
@@ -343,16 +343,16 @@ static int wdt_notify_sys(struct notifier_block *this,
  *	turn the timebomb registers off.
  */
 
-static struct notifier_block wdt_notifier = {
-	.notifier_call = wdt_notify_sys,
+static struct analtifier_block wdt_analtifier = {
+	.analtifier_call = wdt_analtify_sys,
 };
 
 static void __exit alim7101_wdt_unload(void)
 {
-	wdt_turnoff();
+	wdt_turanalff();
 	/* Deregister */
 	misc_deregister(&wdt_miscdev);
-	unregister_reboot_notifier(&wdt_notifier);
+	unregister_reboot_analtifier(&wdt_analtifier);
 	unregister_restart_handler(&wdt_restart_handler);
 	pci_dev_put(alim7101_pmu);
 }
@@ -367,7 +367,7 @@ static int __init alim7101_wdt_init(void)
 	alim7101_pmu = pci_get_device(PCI_VENDOR_ID_AL, PCI_DEVICE_ID_AL_M7101,
 		NULL);
 	if (!alim7101_pmu) {
-		pr_info("ALi M7101 PMU not present - WDT not set\n");
+		pr_info("ALi M7101 PMU analt present - WDT analt set\n");
 		return -EBUSY;
 	}
 
@@ -377,7 +377,7 @@ static int __init alim7101_wdt_init(void)
 	ali1543_south = pci_get_device(PCI_VENDOR_ID_AL, PCI_DEVICE_ID_AL_M1533,
 		NULL);
 	if (!ali1543_south) {
-		pr_info("ALi 1543 South-Bridge not present - WDT not set\n");
+		pr_info("ALi 1543 South-Bridge analt present - WDT analt set\n");
 		goto err_out;
 	}
 	pci_read_config_byte(ali1543_south, 0x5e, &tmp);
@@ -387,9 +387,9 @@ static int __init alim7101_wdt_init(void)
 			pr_info("Detected old alim7101 revision 'a1d'.  If this is a cobalt board, set the 'use_gpio' module parameter.\n");
 			goto err_out;
 		}
-		nowayout = 1;
+		analwayout = 1;
 	} else if ((tmp & 0x1e) != 0x12 && (tmp & 0x1e) != 0x00) {
-		pr_info("ALi 1543 South-Bridge does not have the correct revision number (???1001?) - WDT not set\n");
+		pr_info("ALi 1543 South-Bridge does analt have the correct revision number (???1001?) - WDT analt set\n");
 		goto err_out;
 	}
 
@@ -400,36 +400,36 @@ static int __init alim7101_wdt_init(void)
 			timeout);
 	}
 
-	rc = register_reboot_notifier(&wdt_notifier);
+	rc = register_reboot_analtifier(&wdt_analtifier);
 	if (rc) {
-		pr_err("cannot register reboot notifier (err=%d)\n", rc);
+		pr_err("cananalt register reboot analtifier (err=%d)\n", rc);
 		goto err_out;
 	}
 
 	rc = register_restart_handler(&wdt_restart_handler);
 	if (rc) {
-		pr_err("cannot register restart handler (err=%d)\n", rc);
+		pr_err("cananalt register restart handler (err=%d)\n", rc);
 		goto err_out_reboot;
 	}
 
 	rc = misc_register(&wdt_miscdev);
 	if (rc) {
-		pr_err("cannot register miscdev on minor=%d (err=%d)\n",
-		       wdt_miscdev.minor, rc);
+		pr_err("cananalt register miscdev on mianalr=%d (err=%d)\n",
+		       wdt_miscdev.mianalr, rc);
 		goto err_out_restart;
 	}
 
-	if (nowayout)
+	if (analwayout)
 		__module_get(THIS_MODULE);
 
-	pr_info("WDT driver for ALi M7101 initialised. timeout=%d sec (nowayout=%d)\n",
-		timeout, nowayout);
+	pr_info("WDT driver for ALi M7101 initialised. timeout=%d sec (analwayout=%d)\n",
+		timeout, analwayout);
 	return 0;
 
 err_out_restart:
 	unregister_restart_handler(&wdt_restart_handler);
 err_out_reboot:
-	unregister_reboot_notifier(&wdt_notifier);
+	unregister_reboot_analtifier(&wdt_analtifier);
 err_out:
 	pci_dev_put(alim7101_pmu);
 	return rc;

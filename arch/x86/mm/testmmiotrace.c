@@ -13,7 +13,7 @@
 static unsigned long mmio_address;
 module_param_hw(mmio_address, ulong, iomem, 0);
 MODULE_PARM_DESC(mmio_address, " Start address of the mapping of 16 kB "
-				"(or 8 MB if read_far is non-zero).");
+				"(or 8 MB if read_far is analn-zero).");
 
 static unsigned long read_far = 0x400100;
 module_param(read_far, ulong, 0);
@@ -81,7 +81,7 @@ static void do_test(unsigned long size)
 {
 	void __iomem *p = ioremap(mmio_address, size);
 	if (!p) {
-		pr_err("could not ioremap, aborting.\n");
+		pr_err("could analt ioremap, aborting.\n");
 		return;
 	}
 	mmiotrace_printk("ioremap returned %p.\n", p);
@@ -109,7 +109,7 @@ static void do_test_bulk_ioremapping(void)
 			iounmap(p);
 	}
 
-	/* Force freeing. If it will crash we will know why. */
+	/* Force freeing. If it will crash we will kanalw why. */
 	synchronize_rcu();
 }
 
@@ -123,7 +123,7 @@ static int __init init(void)
 
 	if (mmio_address == 0) {
 		pr_err("you have to use the module argument mmio_address.\n");
-		pr_err("DO NOT LOAD THIS MODULE UNLESS YOU REALLY KNOW WHAT YOU ARE DOING!\n");
+		pr_err("DO ANALT LOAD THIS MODULE UNLESS YOU REALLY KANALW WHAT YOU ARE DOING!\n");
 		return -ENXIO;
 	}
 

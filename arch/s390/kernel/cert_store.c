@@ -34,8 +34,8 @@
 
 #define ISM_LEN_DWORDS			4
 #define VCSSB_LEN_BYTES			128
-#define VCSSB_LEN_NO_CERTS		4
-#define VCB_LEN_NO_CERTS		64
+#define VCSSB_LEN_ANAL_CERTS		4
+#define VCB_LEN_ANAL_CERTS		64
 #define VC_NAME_LEN_BYTES		64
 
 #define CERT_STORE_KEY_TYPE_NAME	"cert_store_key"
@@ -55,7 +55,7 @@ enum diag320_subcode {
 
 enum diag320_rc {
 	DIAG320_RC_OK		= 0x0001,
-	DIAG320_RC_CS_NOMATCH	= 0x0306,
+	DIAG320_RC_CS_ANALMATCH	= 0x0306,
 };
 
 /* Verification Certificates Store Support Block (VCSSB). */
@@ -148,7 +148,7 @@ static void cert_store_key_describe(const struct key *key, struct seq_file *m)
 
 /*
  * Certificate store key type takes over properties of
- * user key but cannot be updated.
+ * user key but cananalt be updated.
  */
 static struct key_type key_type_cert_store_key = {
 	.name		= CERT_STORE_KEY_TYPE_NAME,
@@ -236,7 +236,7 @@ static int __diag320(unsigned long subcode, void *addr)
 
 	asm volatile(
 		"	diag	%[rp],%[subcode],0x320\n"
-		"0:	nopr	%%r7\n"
+		"0:	analpr	%%r7\n"
 		EX_TABLE(0b, 0b)
 		: [rp] "+d" (rp.pair)
 		: [subcode] "d" (subcode)
@@ -268,7 +268,7 @@ static int check_certificate_hash(const struct vce *vce)
 	if (memcmp(vce_hash, hash, vc_hash_length) == 0)
 		return 0;
 
-	pr_dbf_msg("SHA256 hash of received certificate does not match");
+	pr_dbf_msg("SHA256 hash of received certificate does analt match");
 	debug_text_event(cert_store_hexdump, 3, "VCE hash:");
 	debug_event(cert_store_hexdump, 3, vce_hash, SHA256_DIGEST_SIZE);
 	debug_text_event(cert_store_hexdump, 3, "Calculated hash:");
@@ -284,11 +284,11 @@ static int check_certificate_valid(const struct vce *vce)
 		return -EINVAL;
 	}
 	if (vce->vce_hdr.vc_format != 1) {
-		pr_dbf_msg("Certificate format is not supported");
+		pr_dbf_msg("Certificate format is analt supported");
 		return -EINVAL;
 	}
 	if (vce->vce_hdr.vc_hash_type != 1) {
-		pr_dbf_msg("Hash type is not supported");
+		pr_dbf_msg("Hash type is analt supported");
 		return -EINVAL;
 	}
 
@@ -304,7 +304,7 @@ static struct key *get_user_session_keyring(void)
 	if (IS_ERR(us_keyring_ref)) {
 		pr_dbf_msg("Couldn't get user session keyring: %ld",
 			   PTR_ERR(us_keyring_ref));
-		return ERR_PTR(-ENOKEY);
+		return ERR_PTR(-EANALKEY);
 	}
 	key_ref_put(us_keyring_ref);
 	return key_ref_to_ptr(us_keyring_ref);
@@ -323,7 +323,7 @@ static int invalidate_keyring_keys(struct key *keyring)
 	num_keys = keyring_payload_len / sizeof(key_serial_t);
 	key_array = kcalloc(num_keys, sizeof(key_serial_t), GFP_KERNEL);
 	if (!key_array)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = key_type_keyring.read(keyring, (char *)key_array, keyring_payload_len);
 	if (rc != keyring_payload_len) {
@@ -401,7 +401,7 @@ static struct key *create_cs_keyring(void)
 	cs_keyring = keyring_alloc(CERT_STORE_KEYRING_NAME, GLOBAL_ROOT_UID,
 				   GLOBAL_ROOT_GID, current_cred(),
 				   (KEY_POS_ALL & ~KEY_POS_SETATTR) | KEY_USR_VIEW | KEY_USR_READ,
-				   KEY_ALLOC_NOT_IN_QUOTA | KEY_ALLOC_SET_KEEP,
+				   KEY_ALLOC_ANALT_IN_QUOTA | KEY_ALLOC_SET_KEEP,
 				   NULL, get_user_session_keyring());
 	if (IS_ERR(cs_keyring)) {
 		pr_dbf_msg("Can't allocate cert_store keyring");
@@ -459,19 +459,19 @@ static int create_key_from_vce(struct vcssb *vcssb, struct vce *vce,
 
 	desc = get_key_description(vcssb, vce);
 	if (!desc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	newkey = key_create_or_update(
 		make_key_ref(keyring, true), CERT_STORE_KEY_TYPE_NAME,
 		desc, (u8 *)vce + vce->vce_hdr.vc_offset,
 		vce->vce_hdr.vc_length,
 		(KEY_POS_ALL & ~KEY_POS_SETATTR)  | KEY_USR_VIEW | KEY_USR_READ,
-		KEY_ALLOC_NOT_IN_QUOTA);
+		KEY_ALLOC_ANALT_IN_QUOTA);
 
 	rc = PTR_ERR_OR_ZERO(newkey);
 	if (rc) {
 		pr_dbf_msg("Couldn't create a key from Certificate Entry (%d)", rc);
-		rc = -ENOKEY;
+		rc = -EANALKEY;
 		goto out;
 	}
 
@@ -495,9 +495,9 @@ static int get_vcssb(struct vcssb *vcssb)
 		pr_dbf_msg("Diag 320 Subcode 1 returned bad RC: %04x", diag320_rc);
 		return -EIO;
 	}
-	if (vcssb->vcssb_length == VCSSB_LEN_NO_CERTS) {
-		pr_dbf_msg("No certificates available for current configuration");
-		return -ENOKEY;
+	if (vcssb->vcssb_length == VCSSB_LEN_ANAL_CERTS) {
+		pr_dbf_msg("Anal certificates available for current configuration");
+		return -EANALKEY;
 	}
 
 	return 0;
@@ -542,16 +542,16 @@ static int get_sevcb(struct vcssb *vcssb, u16 index, struct vcb *vcb)
 	switch (diag320_rc) {
 	case DIAG320_RC_OK:
 		rc = 0;
-		if (vcb->vcb_hdr.vcb_output_length == VCB_LEN_NO_CERTS) {
-			pr_dbf_msg("No certificate entry for index %u", index);
-			rc = -ENOKEY;
+		if (vcb->vcb_hdr.vcb_output_length == VCB_LEN_ANAL_CERTS) {
+			pr_dbf_msg("Anal certificate entry for index %u", index);
+			rc = -EANALKEY;
 		} else if (vcb->vcb_hdr.remaining_vc_count != 0) {
 			/* Retry on insufficient space. */
 			pr_dbf_msg("Couldn't get all requested certificates");
 			rc = -EAGAIN;
 		}
 		break;
-	case DIAG320_RC_CS_NOMATCH:
+	case DIAG320_RC_CS_ANALMATCH:
 		pr_dbf_msg("Certificate Store token mismatch");
 		rc = -EAGAIN;
 		break;
@@ -575,7 +575,7 @@ static int create_key_from_sevcb(struct vcssb *vcssb, u16 index,
 	struct vce *vce;
 	int rc;
 
-	rc = -ENOMEM;
+	rc = -EANALMEM;
 	vcb = vmalloc(get_4k_mult_vcb_size(vcssb));
 	vce = vmalloc(vcssb->max_single_vcb_length - sizeof(vcb->vcb_hdr));
 	if (!vcb || !vce)
@@ -603,8 +603,8 @@ out:
 
 /*
  * Request a single-entry VCB for each VCE available for the partition.
- * Create a key from it and link it to cert_store keyring. If no keys
- * could be created (i.e. VCEs were invalid) return -ENOKEY.
+ * Create a key from it and link it to cert_store keyring. If anal keys
+ * could be created (i.e. VCEs were invalid) return -EANALKEY.
  */
 static int add_certificates_to_keyring(struct vcssb *vcssb, struct key *keyring)
 {
@@ -612,7 +612,7 @@ static int add_certificates_to_keyring(struct vcssb *vcssb, struct key *keyring)
 
 	count = 0;
 	added = 0;
-	/* Certificate Store entries indices start with 1 and have no gaps. */
+	/* Certificate Store entries indices start with 1 and have anal gaps. */
 	for (index = 1; index < vcssb->total_vc_index_count + 1; index++) {
 		pr_dbf_msg("Creating key from VCE %u", index);
 		rc = create_key_from_sevcb(vcssb, index, keyring);
@@ -628,14 +628,14 @@ static int add_certificates_to_keyring(struct vcssb *vcssb, struct key *keyring)
 	}
 
 	if (added == 0) {
-		pr_dbf_msg("Processed %d entries. No keys created", count);
-		return -ENOKEY;
+		pr_dbf_msg("Processed %d entries. Anal keys created", count);
+		return -EANALKEY;
 	}
 
 	pr_info("Added %d of %d keys to cert_store keyring", added, count);
 
 	/*
-	 * Do not allow to link more keys to certificate store keyring after all
+	 * Do analt allow to link more keys to certificate store keyring after all
 	 * the VCEs were processed.
 	 */
 	rc = keyring_restrict(make_key_ref(keyring, true), NULL, NULL);
@@ -647,7 +647,7 @@ static int add_certificates_to_keyring(struct vcssb *vcssb, struct key *keyring)
 
 /*
  * Check which DIAG320 subcodes are installed.
- * Return -ENOENT if subcodes 1 or 2 are not available.
+ * Return -EANALENT if subcodes 1 or 2 are analt available.
  */
 static int query_diag320_subcodes(void)
 {
@@ -657,15 +657,15 @@ static int query_diag320_subcodes(void)
 	rc = diag320(0, ism);
 	if (rc != DIAG320_RC_OK) {
 		pr_dbf_msg("DIAG320 subcode query returned %04x", rc);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	debug_text_event(cert_store_hexdump, 3, "DIAG320 Subcode 0");
 	debug_event(cert_store_hexdump, 3, ism, sizeof(ism));
 
 	if (!test_bit_inv(1, ism) || !test_bit_inv(2, ism)) {
-		pr_dbf_msg("Not all required DIAG320 subcodes are installed");
-		return -ENOENT;
+		pr_dbf_msg("Analt all required DIAG320 subcodes are installed");
+		return -EANALENT;
 	}
 
 	return 0;
@@ -684,14 +684,14 @@ static int fill_cs_keyring(void)
 	struct vcssb *vcssb;
 	int rc;
 
-	rc = -ENOMEM;
+	rc = -EANALMEM;
 	vcssb = kmalloc(VCSSB_LEN_BYTES, GFP_KERNEL);
 	if (!vcssb)
 		goto cleanup_keys;
 
-	rc = -ENOENT;
+	rc = -EANALENT;
 	if (!sclp.has_diag320) {
-		pr_dbf_msg("Certificate Store is not supported");
+		pr_dbf_msg("Certificate Store is analt supported");
 		goto cleanup_keys;
 	}
 
@@ -703,7 +703,7 @@ static int fill_cs_keyring(void)
 	if (rc)
 		goto cleanup_keys;
 
-	rc = -ENOMEM;
+	rc = -EANALMEM;
 	cs_keyring = create_cs_keyring();
 	if (!cs_keyring)
 		goto cleanup_keys;
@@ -775,7 +775,7 @@ static struct kobject *cert_store_kobj;
 
 static int __init cert_store_init(void)
 {
-	int rc = -ENOMEM;
+	int rc = -EANALMEM;
 
 	cert_store_dbf = debug_register("cert_store_msg", 10, 1, 64);
 	if (!cert_store_dbf)

@@ -5,13 +5,13 @@
  * Copyright (C) 2018-2021 ARM Ltd.
  */
 
-#define pr_fmt(fmt) "SCMI Notifications BASE - " fmt
+#define pr_fmt(fmt) "SCMI Analtifications BASE - " fmt
 
 #include <linux/module.h>
 #include <linux/scmi_protocol.h>
 
 #include "common.h"
-#include "notify.h"
+#include "analtify.h"
 
 /* Updated only after ALL the mandatory features for that version are merged */
 #define SCMI_PROTOCOL_SUPPORTED_VERSION		0x20000
@@ -25,7 +25,7 @@ enum scmi_base_protocol_cmd {
 	BASE_DISCOVER_IMPLEMENT_VERSION = 0x5,
 	BASE_DISCOVER_LIST_PROTOCOLS = 0x6,
 	BASE_DISCOVER_AGENT = 0x7,
-	BASE_NOTIFY_ERRORS = 0x8,
+	BASE_ANALTIFY_ERRORS = 0x8,
 	BASE_SET_DEVICE_PERMISSIONS = 0x9,
 	BASE_SET_PROTOCOL_PERMISSIONS = 0xa,
 	BASE_RESET_AGENT_CONFIGURATION = 0xb,
@@ -43,12 +43,12 @@ struct scmi_msg_resp_base_discover_agent {
 };
 
 
-struct scmi_msg_base_error_notify {
+struct scmi_msg_base_error_analtify {
 	__le32 event_control;
-#define BASE_TP_NOTIFY_ALL	BIT(0)
+#define BASE_TP_ANALTIFY_ALL	BIT(0)
 };
 
-struct scmi_base_error_notify_payld {
+struct scmi_base_error_analtify_payld {
 	__le32 agent_id;
 	__le32 error_status;
 #define IS_FATAL_ERROR(x)	((x) & BIT(31))
@@ -209,7 +209,7 @@ scmi_base_implementation_list_get(const struct scmi_protocol_handle *ph,
 
 		if (loop_num_ret > rev->num_protocols - tot_num_ret) {
 			dev_err(dev,
-				"No. Returned protocols > Total protocols.\n");
+				"Anal. Returned protocols > Total protocols.\n");
 			break;
 		}
 
@@ -287,15 +287,15 @@ static int scmi_base_discover_agent_get(const struct scmi_protocol_handle *ph,
 	return ret;
 }
 
-static int scmi_base_error_notify(const struct scmi_protocol_handle *ph,
+static int scmi_base_error_analtify(const struct scmi_protocol_handle *ph,
 				  bool enable)
 {
 	int ret;
-	u32 evt_cntl = enable ? BASE_TP_NOTIFY_ALL : 0;
+	u32 evt_cntl = enable ? BASE_TP_ANALTIFY_ALL : 0;
 	struct scmi_xfer *t;
-	struct scmi_msg_base_error_notify *cfg;
+	struct scmi_msg_base_error_analtify *cfg;
 
-	ret = ph->xops->xfer_get_init(ph, BASE_NOTIFY_ERRORS,
+	ret = ph->xops->xfer_get_init(ph, BASE_ANALTIFY_ERRORS,
 				      sizeof(*cfg), 0, &t);
 	if (ret)
 		return ret;
@@ -309,12 +309,12 @@ static int scmi_base_error_notify(const struct scmi_protocol_handle *ph,
 	return ret;
 }
 
-static int scmi_base_set_notify_enabled(const struct scmi_protocol_handle *ph,
+static int scmi_base_set_analtify_enabled(const struct scmi_protocol_handle *ph,
 					u8 evt_id, u32 src_id, bool enable)
 {
 	int ret;
 
-	ret = scmi_base_error_notify(ph, enable);
+	ret = scmi_base_error_analtify(ph, enable);
 	if (ret)
 		pr_debug("FAIL_ENABLED - evt[%X] ret:%d\n", evt_id, ret);
 
@@ -327,14 +327,14 @@ static void *scmi_base_fill_custom_report(const struct scmi_protocol_handle *ph,
 					  void *report, u32 *src_id)
 {
 	int i;
-	const struct scmi_base_error_notify_payld *p = payld;
+	const struct scmi_base_error_analtify_payld *p = payld;
 	struct scmi_base_error_report *r = report;
 
 	/*
-	 * BaseError notification payload is variable in size but
+	 * BaseError analtification payload is variable in size but
 	 * up to a maximum length determined by the struct ponted by p.
-	 * Instead payld_sz is the effective length of this notification
-	 * payload so cannot be greater of the maximum allowed size as
+	 * Instead payld_sz is the effective length of this analtification
+	 * payload so cananalt be greater of the maximum allowed size as
 	 * pointed by p.
 	 */
 	if (evt_id != SCMI_EVENT_BASE_ERROR_EVENT || sizeof(*p) < payld_sz)
@@ -354,14 +354,14 @@ static void *scmi_base_fill_custom_report(const struct scmi_protocol_handle *ph,
 static const struct scmi_event base_events[] = {
 	{
 		.id = SCMI_EVENT_BASE_ERROR_EVENT,
-		.max_payld_sz = sizeof(struct scmi_base_error_notify_payld),
+		.max_payld_sz = sizeof(struct scmi_base_error_analtify_payld),
 		.max_report_sz = sizeof(struct scmi_base_error_report) +
 				  SCMI_BASE_MAX_CMD_ERR_COUNT * sizeof(u64),
 	},
 };
 
 static const struct scmi_event_ops base_event_ops = {
-	.set_notify_enabled = scmi_base_set_notify_enabled,
+	.set_analtify_enabled = scmi_base_set_analtify_enabled,
 	.fill_custom_report = scmi_base_fill_custom_report,
 };
 
@@ -387,7 +387,7 @@ static int scmi_base_protocol_init(const struct scmi_protocol_handle *ph)
 		return ret;
 
 	rev->major_ver = PROTOCOL_REV_MAJOR(version),
-	rev->minor_ver = PROTOCOL_REV_MINOR(version);
+	rev->mianalr_ver = PROTOCOL_REV_MIANALR(version);
 	ph->set_priv(ph, rev, version);
 
 	ret = scmi_base_attributes_get(ph);
@@ -397,7 +397,7 @@ static int scmi_base_protocol_init(const struct scmi_protocol_handle *ph)
 	prot_imp = devm_kcalloc(dev, rev->num_protocols, sizeof(u8),
 				GFP_KERNEL);
 	if (!prot_imp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	scmi_base_vendor_id_get(ph, false);
 	scmi_base_vendor_id_get(ph, true);
@@ -407,7 +407,7 @@ static int scmi_base_protocol_init(const struct scmi_protocol_handle *ph)
 	scmi_setup_protocol_implemented(ph, prot_imp);
 
 	dev_info(dev, "SCMI Protocol v%d.%d '%s:%s' Firmware version 0x%x\n",
-		 rev->major_ver, rev->minor_ver, rev->vendor_id,
+		 rev->major_ver, rev->mianalr_ver, rev->vendor_id,
 		 rev->sub_vendor_id, rev->impl_ver);
 	dev_dbg(dev, "Found %d protocol(s) %d agent(s)\n", rev->num_protocols,
 		rev->num_agents);

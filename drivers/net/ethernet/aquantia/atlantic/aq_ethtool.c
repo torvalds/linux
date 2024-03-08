@@ -119,11 +119,11 @@ static const char aq_macsec_stat_names[][ETH_GSTRING_LEN] = {
 	"MACSec InCtlPackets",
 	"MACSec InTaggedMissPackets",
 	"MACSec InUntaggedMissPackets",
-	"MACSec InNotagPackets",
+	"MACSec InAnaltagPackets",
 	"MACSec InUntaggedPackets",
 	"MACSec InBadTagPackets",
-	"MACSec InNoSciPackets",
-	"MACSec InUnknownSciPackets",
+	"MACSec InAnalSciPackets",
+	"MACSec InUnkanalwnSciPackets",
 	"MACSec InCtrlPortPassPackets",
 	"MACSec InUnctrlPortPassPackets",
 	"MACSec InCtrlPortFailPackets",
@@ -133,7 +133,7 @@ static const char aq_macsec_stat_names[][ETH_GSTRING_LEN] = {
 	"MACSec InEccErrorPackets",
 	"MACSec InUnctrlHitDropRedir",
 	"MACSec OutCtlPackets",
-	"MACSec OutUnknownSaPackets",
+	"MACSec OutUnkanalwnSaPackets",
 	"MACSec OutUntaggedPackets",
 	"MACSec OutTooLong",
 	"MACSec OutEccErrorPackets",
@@ -157,9 +157,9 @@ static const char * const aq_macsec_txsa_stat_names[] = {
 static const char * const aq_macsec_rxsa_stat_names[] = {
 	"MACSecRXSC%dSA%d UntaggedHitPkts",
 	"MACSecRXSC%dSA%d CtrlHitDrpRedir",
-	"MACSecRXSC%dSA%d NotUsingSa",
+	"MACSecRXSC%dSA%d AnaltUsingSa",
 	"MACSecRXSC%dSA%d UnusedSa",
-	"MACSecRXSC%dSA%d NotValidPkts",
+	"MACSecRXSC%dSA%d AnaltValidPkts",
 	"MACSecRXSC%dSA%d InvalidPkts",
 	"MACSecRXSC%dSA%d OkPkts",
 	"MACSecRXSC%dSA%d LatePkts",
@@ -393,7 +393,7 @@ static int aq_ethtool_set_phys_id(struct net_device *ndev,
 	int ret = 0;
 
 	if (!aq_nic->aq_fw_ops->led_control)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	mutex_lock(&aq_nic->fwreq_mutex);
 
@@ -426,7 +426,7 @@ static int aq_ethtool_get_sset_count(struct net_device *ndev, int stringset)
 		ret = ARRAY_SIZE(aq_ethtool_priv_flag_names);
 		break;
 	default:
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 	}
 
 	return ret;
@@ -481,10 +481,10 @@ static int aq_ethtool_set_rss(struct net_device *netdev,
 	cfg = aq_nic_get_cfg(aq_nic);
 	rss_entries = cfg->aq_rss.indirection_table_size;
 
-	/* We do not allow change in unsupported parameters */
-	if (rxfh->hfunc != ETH_RSS_HASH_NO_CHANGE &&
+	/* We do analt allow change in unsupported parameters */
+	if (rxfh->hfunc != ETH_RSS_HASH_ANAL_CHANGE &&
 	    rxfh->hfunc != ETH_RSS_HASH_TOP)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	/* Fill out the redirection table */
 	if (rxfh->indir)
 		for (i = 0; i < rss_entries; i++)
@@ -529,7 +529,7 @@ static int aq_ethtool_get_rxnfc(struct net_device *ndev,
 		err = aq_get_rxnfc_all_rules(aq_nic, cmd, rule_locs);
 		break;
 	default:
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		break;
 	}
 
@@ -550,7 +550,7 @@ static int aq_ethtool_set_rxnfc(struct net_device *ndev,
 		err = aq_del_rxnfc_rule(aq_nic, cmd);
 		break;
 	default:
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		break;
 	}
 
@@ -597,14 +597,14 @@ static int aq_ethtool_set_coalesce(struct net_device *ndev,
 	 */
 	if (coal->rx_max_coalesced_frames > 1 ||
 	    coal->tx_max_coalesced_frames > 1)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
-	/* We do not support frame counting. Check this
+	/* We do analt support frame counting. Check this
 	 */
 	if (!(coal->rx_max_coalesced_frames == !coal->rx_coalesce_usecs))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if (!(coal->tx_max_coalesced_frames == !coal->tx_coalesce_usecs))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (coal->rx_coalesce_usecs > AQ_CFG_INTERRUPT_MODERATION_USEC_MAX ||
 	    coal->tx_coalesce_usecs > AQ_CFG_INTERRUPT_MODERATION_USEC_MAX)
@@ -641,7 +641,7 @@ static int aq_ethtool_set_wol(struct net_device *ndev,
 	cfg = aq_nic_get_cfg(aq_nic);
 
 	if (wol->wolopts & ~AQ_NIC_WOL_MODES)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	cfg->wol = wol->wolopts;
 
@@ -668,7 +668,7 @@ static int aq_ethtool_get_ts_info(struct net_device *ndev,
 	info->tx_types = BIT(HWTSTAMP_TX_OFF) |
 			 BIT(HWTSTAMP_TX_ON);
 
-	info->rx_filters = BIT(HWTSTAMP_FILTER_NONE);
+	info->rx_filters = BIT(HWTSTAMP_FILTER_ANALNE);
 
 	info->rx_filters |= BIT(HWTSTAMP_FILTER_PTP_V2_L4_EVENT) |
 			    BIT(HWTSTAMP_FILTER_PTP_V2_L2_EVENT) |
@@ -704,7 +704,7 @@ static int aq_ethtool_get_eee(struct net_device *ndev, struct ethtool_eee *eee)
 	int err = 0;
 
 	if (!aq_nic->aq_fw_ops->get_eee_rate)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	mutex_lock(&aq_nic->fwreq_mutex);
 	err = aq_nic->aq_fw_ops->get_eee_rate(aq_nic->aq_hw, &rate,
@@ -740,7 +740,7 @@ static int aq_ethtool_set_eee(struct net_device *ndev, struct ethtool_eee *eee)
 
 	if (unlikely(!aq_nic->aq_fw_ops->get_eee_rate ||
 		     !aq_nic->aq_fw_ops->set_eee_rate))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	mutex_lock(&aq_nic->fwreq_mutex);
 	err = aq_nic->aq_fw_ops->get_eee_rate(aq_nic->aq_hw, &rate,
@@ -770,7 +770,7 @@ static int aq_ethtool_nway_reset(struct net_device *ndev)
 	int err = 0;
 
 	if (unlikely(!aq_nic->aq_fw_ops->renegotiate))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (netif_running(ndev)) {
 		mutex_lock(&aq_nic->fwreq_mutex);
@@ -800,10 +800,10 @@ static int aq_ethtool_set_pauseparam(struct net_device *ndev,
 	int err = 0;
 
 	if (!aq_nic->aq_fw_ops->set_flow_control)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (pause->autoneg == AUTONEG_ENABLE)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (pause->rx_pause)
 		aq_nic->aq_hw->aq_nic_cfg->fc.req |= AQ_NIC_FC_RX;
@@ -854,7 +854,7 @@ static int aq_set_ringparam(struct net_device *ndev,
 	hw_caps = cfg->aq_hw_caps;
 
 	if (ring->rx_mini_pending || ring->rx_jumbo_pending) {
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		goto err_exit;
 	}
 
@@ -914,7 +914,7 @@ static int aq_ethtool_set_priv_flags(struct net_device *ndev, u32 flags)
 	priv_flags = cfg->priv_flags;
 
 	if (flags & ~AQ_PRIV_FLAGS_MASK)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (hweight32((flags | priv_flags) & AQ_HW_LOOPBACK_MASK) > 1) {
 		netdev_info(ndev, "Can't enable more than one loopback simultaneously\n");
@@ -955,7 +955,7 @@ static int aq_ethtool_get_phy_tunable(struct net_device *ndev,
 		break;
 	}
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -964,7 +964,7 @@ static int aq_ethtool_get_phy_tunable(struct net_device *ndev,
 static int aq_ethtool_set_phy_tunable(struct net_device *ndev,
 				      const struct ethtool_tunable *tuna, const void *data)
 {
-	int err = -EOPNOTSUPP;
+	int err = -EOPANALTSUPP;
 	struct aq_nic_s *aq_nic = netdev_priv(ndev);
 
 	switch (tuna->id) {

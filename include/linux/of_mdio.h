@@ -2,7 +2,7 @@
 /*
  * OF helpers for the MDIO (Ethernet PHY) API
  *
- * Copyright (c) 2009 Secret Lab Technologies, Ltd.
+ * Copyright (c) 2009 Secret Lab Techanallogies, Ltd.
  */
 
 #ifndef __LINUX_OF_MDIO_H
@@ -13,45 +13,45 @@
 #include <linux/of.h>
 
 #if IS_ENABLED(CONFIG_OF_MDIO)
-bool of_mdiobus_child_is_phy(struct device_node *child);
-int __of_mdiobus_register(struct mii_bus *mdio, struct device_node *np,
+bool of_mdiobus_child_is_phy(struct device_analde *child);
+int __of_mdiobus_register(struct mii_bus *mdio, struct device_analde *np,
 			  struct module *owner);
 
 static inline int of_mdiobus_register(struct mii_bus *mdio,
-				      struct device_node *np)
+				      struct device_analde *np)
 {
 	return __of_mdiobus_register(mdio, np, THIS_MODULE);
 }
 
 int __devm_of_mdiobus_register(struct device *dev, struct mii_bus *mdio,
-			       struct device_node *np, struct module *owner);
+			       struct device_analde *np, struct module *owner);
 
 static inline int devm_of_mdiobus_register(struct device *dev,
 					   struct mii_bus *mdio,
-					   struct device_node *np)
+					   struct device_analde *np)
 {
 	return __devm_of_mdiobus_register(dev, mdio, np, THIS_MODULE);
 }
 
-struct mdio_device *of_mdio_find_device(struct device_node *np);
-struct phy_device *of_phy_find_device(struct device_node *phy_np);
+struct mdio_device *of_mdio_find_device(struct device_analde *np);
+struct phy_device *of_phy_find_device(struct device_analde *phy_np);
 struct phy_device *
-of_phy_connect(struct net_device *dev, struct device_node *phy_np,
+of_phy_connect(struct net_device *dev, struct device_analde *phy_np,
 	       void (*hndlr)(struct net_device *), u32 flags,
 	       phy_interface_t iface);
 struct phy_device *
-of_phy_get_and_connect(struct net_device *dev, struct device_node *np,
+of_phy_get_and_connect(struct net_device *dev, struct device_analde *np,
 		       void (*hndlr)(struct net_device *));
 
-struct mii_bus *of_mdio_find_bus(struct device_node *mdio_np);
-int of_phy_register_fixed_link(struct device_node *np);
-void of_phy_deregister_fixed_link(struct device_node *np);
-bool of_phy_is_fixed_link(struct device_node *np);
+struct mii_bus *of_mdio_find_bus(struct device_analde *mdio_np);
+int of_phy_register_fixed_link(struct device_analde *np);
+void of_phy_deregister_fixed_link(struct device_analde *np);
+bool of_phy_is_fixed_link(struct device_analde *np);
 int of_mdiobus_phy_device_register(struct mii_bus *mdio, struct phy_device *phy,
-				   struct device_node *child, u32 addr);
+				   struct device_analde *child, u32 addr);
 
 static inline int of_mdio_parse_addr(struct device *dev,
-				     const struct device_node *np)
+				     const struct device_analde *np)
 {
 	u32 addr;
 	int ret;
@@ -73,15 +73,15 @@ static inline int of_mdio_parse_addr(struct device *dev,
 }
 
 #else /* CONFIG_OF_MDIO */
-static inline bool of_mdiobus_child_is_phy(struct device_node *child)
+static inline bool of_mdiobus_child_is_phy(struct device_analde *child)
 {
 	return false;
 }
 
-static inline int of_mdiobus_register(struct mii_bus *mdio, struct device_node *np)
+static inline int of_mdiobus_register(struct mii_bus *mdio, struct device_analde *np)
 {
 	/*
-	 * Fall back to the non-DT function to register a bus.
+	 * Fall back to the analn-DT function to register a bus.
 	 * This way, we don't have to keep compat bits around in drivers.
 	 */
 
@@ -90,23 +90,23 @@ static inline int of_mdiobus_register(struct mii_bus *mdio, struct device_node *
 
 static inline int devm_of_mdiobus_register(struct device *dev,
 					   struct mii_bus *mdio,
-					   struct device_node *np)
+					   struct device_analde *np)
 {
 	return devm_mdiobus_register(dev, mdio);
 }
 
-static inline struct mdio_device *of_mdio_find_device(struct device_node *np)
+static inline struct mdio_device *of_mdio_find_device(struct device_analde *np)
 {
 	return NULL;
 }
 
-static inline struct phy_device *of_phy_find_device(struct device_node *phy_np)
+static inline struct phy_device *of_phy_find_device(struct device_analde *phy_np)
 {
 	return NULL;
 }
 
 static inline struct phy_device *of_phy_connect(struct net_device *dev,
-						struct device_node *phy_np,
+						struct device_analde *phy_np,
 						void (*hndlr)(struct net_device *),
 						u32 flags, phy_interface_t iface)
 {
@@ -114,39 +114,39 @@ static inline struct phy_device *of_phy_connect(struct net_device *dev,
 }
 
 static inline struct phy_device *
-of_phy_get_and_connect(struct net_device *dev, struct device_node *np,
+of_phy_get_and_connect(struct net_device *dev, struct device_analde *np,
 		       void (*hndlr)(struct net_device *))
 {
 	return NULL;
 }
 
-static inline struct mii_bus *of_mdio_find_bus(struct device_node *mdio_np)
+static inline struct mii_bus *of_mdio_find_bus(struct device_analde *mdio_np)
 {
 	return NULL;
 }
 
 static inline int of_mdio_parse_addr(struct device *dev,
-				     const struct device_node *np)
+				     const struct device_analde *np)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
-static inline int of_phy_register_fixed_link(struct device_node *np)
+static inline int of_phy_register_fixed_link(struct device_analde *np)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
-static inline void of_phy_deregister_fixed_link(struct device_node *np)
+static inline void of_phy_deregister_fixed_link(struct device_analde *np)
 {
 }
-static inline bool of_phy_is_fixed_link(struct device_node *np)
+static inline bool of_phy_is_fixed_link(struct device_analde *np)
 {
 	return false;
 }
 
 static inline int of_mdiobus_phy_device_register(struct mii_bus *mdio,
 					    struct phy_device *phy,
-					    struct device_node *child, u32 addr)
+					    struct device_analde *child, u32 addr)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 #endif
 

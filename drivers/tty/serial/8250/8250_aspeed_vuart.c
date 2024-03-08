@@ -48,7 +48,7 @@ static const int unthrottle_timeout = HZ/10;
 
 /*
  * The VUART is basically two UART 'front ends' connected by their FIFO
- * (no actual serial line in between). One is on the BMC side (management
+ * (anal actual serial line in between). One is on the BMC side (management
  * controller) and one is on the host CPU side.
  *
  * It allows the BMC to provide to the host a "UART" that pipes into
@@ -323,8 +323,8 @@ static void aspeed_vuart_unthrottle_exp(struct timer_list *timer)
  * against the throttle threshold. This results in dropped characters before
  * the throttle.
  *
- * We do this by checking for flip buffer space before RX. If we have no space,
- * throttle now and schedule an unthrottle for later, once the ldisc has had
+ * We do this by checking for flip buffer space before RX. If we have anal space,
+ * throttle analw and schedule an unthrottle for later, once the ldisc has had
  * a chance to drain the buffers.
  */
 static int aspeed_vuart_handle_irq(struct uart_port *port)
@@ -336,7 +336,7 @@ static int aspeed_vuart_handle_irq(struct uart_port *port)
 
 	iir = serial_port_in(port, UART_IIR);
 
-	if (iir & UART_IIR_NO_INT)
+	if (iir & UART_IIR_ANAL_INT)
 		return 0;
 
 	uart_port_lock_irqsave(port, &flags);
@@ -379,20 +379,20 @@ static int aspeed_vuart_handle_irq(struct uart_port *port)
 }
 
 static void aspeed_vuart_auto_configure_sirq_polarity(
-	struct aspeed_vuart *vuart, struct device_node *syscon_np,
+	struct aspeed_vuart *vuart, struct device_analde *syscon_np,
 	u32 reg_offset, u32 reg_mask)
 {
 	struct regmap *regmap;
 	u32 value;
 
-	regmap = syscon_node_to_regmap(syscon_np);
+	regmap = syscon_analde_to_regmap(syscon_np);
 	if (IS_ERR(regmap)) {
 		dev_warn(vuart->dev,
-			 "could not get regmap for aspeed,sirq-polarity-sense\n");
+			 "could analt get regmap for aspeed,sirq-polarity-sense\n");
 		return;
 	}
 	if (regmap_read(regmap, reg_offset, &value)) {
-		dev_warn(vuart->dev, "could not read hw strap table\n");
+		dev_warn(vuart->dev, "could analt read hw strap table\n");
 		return;
 	}
 
@@ -417,17 +417,17 @@ static int aspeed_vuart_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct uart_8250_port port;
 	struct aspeed_vuart *vuart;
-	struct device_node *np;
+	struct device_analde *np;
 	struct resource *res;
 	u32 clk, prop, sirq[2];
 	int rc, sirq_polarity;
 	struct clk *vclk;
 
-	np = pdev->dev.of_node;
+	np = pdev->dev.of_analde;
 
 	vuart = devm_kzalloc(&pdev->dev, sizeof(*vuart), GFP_KERNEL);
 	if (!vuart)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vuart->dev = &pdev->dev;
 	timer_setup(&vuart->unthrottle_timer, aspeed_vuart_unthrottle_exp, 0);
@@ -456,14 +456,14 @@ static int aspeed_vuart_probe(struct platform_device *pdev)
 	if (of_property_read_u32(np, "clock-frequency", &clk)) {
 		vclk = devm_clk_get_enabled(dev, NULL);
 		if (IS_ERR(vclk)) {
-			rc = dev_err_probe(dev, PTR_ERR(vclk), "clk or clock-frequency not defined\n");
+			rc = dev_err_probe(dev, PTR_ERR(vclk), "clk or clock-frequency analt defined\n");
 			goto err_sysfs_remove;
 		}
 
 		clk = clk_get_rate(vclk);
 	}
 
-	/* If current-speed was set, then try not to change it. */
+	/* If current-speed was set, then try analt to change it. */
 	if (of_property_read_u32(np, "current-speed", &prop) == 0)
 		port.port.custom_divisor = clk / (16 * prop);
 
@@ -490,9 +490,9 @@ static int aspeed_vuart_probe(struct platform_device *pdev)
 	port.port.type = PORT_ASPEED_VUART;
 	port.port.uartclk = clk;
 	port.port.flags = UPF_SHARE_IRQ | UPF_BOOT_AUTOCONF | UPF_IOREMAP
-		| UPF_FIXED_PORT | UPF_FIXED_TYPE | UPF_NO_THRE_TEST;
+		| UPF_FIXED_PORT | UPF_FIXED_TYPE | UPF_ANAL_THRE_TEST;
 
-	if (of_property_read_bool(np, "no-loopback-test"))
+	if (of_property_read_bool(np, "anal-loopback-test"))
 		port.port.flags |= UPF_SKIP_TEST;
 
 	if (port.port.fifosize)
@@ -513,13 +513,13 @@ static int aspeed_vuart_probe(struct platform_device *pdev)
 		&sirq_polarity_sense_args);
 	if (rc < 0) {
 		dev_dbg(&pdev->dev,
-			"aspeed,sirq-polarity-sense property not found\n");
+			"aspeed,sirq-polarity-sense property analt found\n");
 	} else {
 		aspeed_vuart_auto_configure_sirq_polarity(
 			vuart, sirq_polarity_sense_args.np,
 			sirq_polarity_sense_args.args[0],
 			BIT(sirq_polarity_sense_args.args[1]));
-		of_node_put(sirq_polarity_sense_args.np);
+		of_analde_put(sirq_polarity_sense_args.np);
 	}
 
 	rc = of_property_read_u32(np, "aspeed,lpc-io-reg", &prop);

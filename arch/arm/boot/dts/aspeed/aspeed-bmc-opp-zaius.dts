@@ -30,7 +30,7 @@
 		ranges;
 
 		flash_memory: region@98000000 {
-			no-map;
+			anal-map;
 			reg = <0x98000000 0x04000000>; /* 64M */
 		};
 	};
@@ -99,7 +99,7 @@
 		compatible = "fsi-master-gpio", "fsi-master";
 		#address-cells = <2>;
 		#size-cells = <0>;
-		no-gpio-delays;
+		anal-gpio-delays;
 
 		trans-gpios = <&gpio ASPEED_GPIO(O, 6) GPIO_ACTIVE_HIGH>;
 		enable-gpios = <&gpio ASPEED_GPIO(D, 0) GPIO_ACTIVE_HIGH>;
@@ -142,7 +142,7 @@
 
 	flash@0 {
 		status = "okay";
-		label = "pnor";
+		label = "panalr";
 		m25p,fast-read;
 		spi-max-frequency = <100000000>;
 	};
@@ -175,9 +175,9 @@
 	flash = <&spi1>;
 };
 
-&lpc_snoop {
+&lpc_sanalop {
 	status = "okay";
-	snoop-ports = <0x80>;
+	sanalop-ports = <0x80>;
 };
 
 
@@ -466,7 +466,7 @@
 };
 
 &pinctrl {
-	aspeed,external-nodes = <&gfx &lhc>;
+	aspeed,external-analdes = <&gfx &lhc>;
 
 	pinctrl_gpioh_unbiased: gpioi_unbiased {
 		pins = "A8", "C7", "B7", "A7", "D7", "B6", "A6", "E7";

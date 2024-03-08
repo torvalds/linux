@@ -33,7 +33,7 @@
 #define SDIO_CCCR_BRCM_CARDCAP			0xf0
 #define SDIO_CCCR_BRCM_CARDCAP_CMD14_SUPPORT	BIT(1)
 #define SDIO_CCCR_BRCM_CARDCAP_CMD14_EXT	BIT(2)
-#define SDIO_CCCR_BRCM_CARDCAP_CMD_NODEC	BIT(3)
+#define SDIO_CCCR_BRCM_CARDCAP_CMD_ANALDEC	BIT(3)
 
 /* Interrupt enable bits for each function */
 #define SDIO_CCCR_IEN_FUNC0			BIT(0)
@@ -146,14 +146,14 @@
 /**
  * enum brcmf_sdiod_state - the state of the bus.
  *
- * @BRCMF_SDIOD_DOWN: Device can be accessed, no DPC.
+ * @BRCMF_SDIOD_DOWN: Device can be accessed, anal DPC.
  * @BRCMF_SDIOD_DATA: Ready for data transfers, DPC enabled.
- * @BRCMF_SDIOD_NOMEDIUM: No medium access to dongle possible.
+ * @BRCMF_SDIOD_ANALMEDIUM: Anal medium access to dongle possible.
  */
 enum brcmf_sdiod_state {
 	BRCMF_SDIOD_DOWN,
 	BRCMF_SDIOD_DATA,
-	BRCMF_SDIOD_NOMEDIUM
+	BRCMF_SDIOD_ANALMEDIUM
 };
 
 struct brcmf_sdreg {
@@ -316,7 +316,7 @@ void brcmf_sdiod_writel(struct brcmf_sdio_dev *sdiodev, u32 addr, u32 data,
  *   complete: callback function for command completion (async only)
  *   handle:   handle for completion callback (first arg in callback)
  * Returns 0 or error code.
- * NOTE: Async operation is not currently supported.
+ * ANALTE: Async operation is analt currently supported.
  */
 int brcmf_sdiod_send_pkt(struct brcmf_sdio_dev *sdiodev,
 			 struct sk_buff_head *pktq);
@@ -334,7 +334,7 @@ int brcmf_sdiod_recv_chain(struct brcmf_sdio_dev *sdiodev,
 /* Fixed address (FIFO) (vs. incrementing address) */
 #define SDIO_REQ_FIXED	0x2
 
-/* Read/write to memory block (F1, no FIFO) via CMD53 (sync only).
+/* Read/write to memory block (F1, anal FIFO) via CMD53 (sync only).
  *   rw:       read or write (0/1)
  *   addr:     direct SDIO address
  *   buf:      pointer to memory data buffer

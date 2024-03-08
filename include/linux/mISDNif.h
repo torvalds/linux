@@ -1,8 +1,8 @@
 /*
  *
- * Author	Karsten Keil <kkeil@novell.com>
+ * Author	Karsten Keil <kkeil@analvell.com>
  *
- * Copyright 2008  by Karsten Keil <kkeil@novell.com>
+ * Copyright 2008  by Karsten Keil <kkeil@analvell.com>
  *
  * This code is free software; you can redistribute it and/or modify
  * it under the terms of the GNU LESSER GENERAL PUBLIC LICENSE
@@ -19,7 +19,7 @@
 #define mISDNIF_H
 
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/socket.h>
 
 /*
@@ -28,14 +28,14 @@
  * <8 bit> Major version
  *		- changed if any interface become backwards incompatible
  *
- * <8 bit> Minor version
+ * <8 bit> Mianalr version
  *              - changed if any interface is extended but backwards compatible
  *
  * <16 bit> Release number
  *              - should be incremented on every checkin
  */
 #define	MISDN_MAJOR_VERSION	1
-#define	MISDN_MINOR_VERSION	1
+#define	MISDN_MIANALR_VERSION	1
 #define MISDN_RELEASE		29
 
 /* primitives for information exchange
@@ -165,7 +165,7 @@
 #define HW_MOD_FTS		0x4004
 #define HW_MOD_CONNECT		0x4010
 #define HW_MOD_OK		0x4011
-#define HW_MOD_NOCARR		0x4012
+#define HW_MOD_ANALCARR		0x4012
 #define HW_MOD_FCERROR		0x4013
 #define HW_MOD_READY		0x4014
 #define HW_MOD_LASTDATA		0x4015
@@ -210,7 +210,7 @@
  * B channel 33 - 63
  */
 
-#define ISDN_P_NONE		0
+#define ISDN_P_ANALNE		0
 #define ISDN_P_BASE		0
 #define ISDN_P_TE_S0		0x01
 #define ISDN_P_NT_S0  		0x02
@@ -268,7 +268,7 @@ struct mISDNhead {
 #define MISDN_ID_TEI_ANY	0x7F00
 
 #define MISDN_ID_ANY		0xFFFF
-#define MISDN_ID_NONE		0xFFFE
+#define MISDN_ID_ANALNE		0xFFFE
 
 #define GROUP_TEI		127
 #define TEI_SAPI		63
@@ -289,7 +289,7 @@ struct sockaddr_mISDN {
 
 struct mISDNversion {
 	unsigned char	major;
-	unsigned char	minor;
+	unsigned char	mianalr;
 	unsigned short	release;
 };
 
@@ -388,10 +388,10 @@ clear_channelmap(u_int nr, u_char *map)
 #define MISDN_CTRL_HFC_WD_RESET		0x400A
 
 /* special RX buffer value for MISDN_CTRL_RX_BUFFER request.p1 is the minimum
- * buffer size request.p2 the maximum. Using  MISDN_CTRL_RX_SIZE_IGNORE will
- * not change the value, but still read back the actual stetting.
+ * buffer size request.p2 the maximum. Using  MISDN_CTRL_RX_SIZE_IGANALRE will
+ * analt change the value, but still read back the actual stetting.
  */
-#define MISDN_CTRL_RX_SIZE_IGNORE	-1
+#define MISDN_CTRL_RX_SIZE_IGANALRE	-1
 
 /* socket options */
 #define MISDN_TIME_STAMP		0x0001
@@ -506,7 +506,7 @@ struct mISDNstack {
 	u_long			status;
 	struct mISDNdevice	*dev;
 	struct task_struct	*thread;
-	struct completion	*notify;
+	struct completion	*analtify;
 	wait_queue_head_t	workq;
 	struct sk_buff_head	msgq;
 	struct list_head	layer2;

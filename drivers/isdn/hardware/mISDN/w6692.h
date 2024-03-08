@@ -3,7 +3,7 @@
  * Winbond W6692 specific defines
  *
  * Author       Karsten Keil <keil@isdn4linux.de>
- *		based on the w6692 I4L driver from Petr Novak <petr.novak@i.cz>
+ *		based on the w6692 I4L driver from Petr Analvak <petr.analvak@i.cz>
  *
  * Copyright 2009  by Karsten Keil <keil@isdn4linux.de>
  */

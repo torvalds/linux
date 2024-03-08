@@ -35,25 +35,25 @@ struct drm_device *dcss_drv_dev_to_drm(struct device *dev)
 static int dcss_drv_platform_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *remote;
+	struct device_analde *remote;
 	struct dcss_drv *mdrv;
 	int err = 0;
 	bool hdmi_output = true;
 
-	if (!dev->of_node)
-		return -ENODEV;
+	if (!dev->of_analde)
+		return -EANALDEV;
 
-	remote = of_graph_get_remote_node(dev->of_node, 0, 0);
+	remote = of_graph_get_remote_analde(dev->of_analde, 0, 0);
 	if (!remote)
-		return -ENODEV;
+		return -EANALDEV;
 
 	hdmi_output = !of_device_is_compatible(remote, "fsl,imx8mq-nwl-dsi");
 
-	of_node_put(remote);
+	of_analde_put(remote);
 
 	mdrv = kzalloc(sizeof(*mdrv), GFP_KERNEL);
 	if (!mdrv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mdrv->dcss = dcss_dev_create(dev, hdmi_output);
 	if (IS_ERR(mdrv->dcss)) {

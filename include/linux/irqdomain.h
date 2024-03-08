@@ -19,12 +19,12 @@
  * model). It's the domain callbacks that are responsible for setting the
  * irq_chip on a given irq_desc after it's been mapped.
  *
- * The host code and data structures use a fwnode_handle pointer to
+ * The host code and data structures use a fwanalde_handle pointer to
  * identify the domain. In some cases, and in order to preserve source
- * code compatibility, this fwnode pointer is "upgraded" to a DT
- * device_node. For those firmware infrastructures that do not provide
+ * code compatibility, this fwanalde pointer is "upgraded" to a DT
+ * device_analde. For those firmware infrastructures that do analt provide
  * a unique identifier for an interrupt controller, the irq_domain
- * code offers a fwnode allocator.
+ * code offers a fwanalde allocator.
  */
 
 #ifndef _LINUX_IRQDOMAIN_H
@@ -37,8 +37,8 @@
 #include <linux/mutex.h>
 #include <linux/radix-tree.h>
 
-struct device_node;
-struct fwnode_handle;
+struct device_analde;
+struct fwanalde_handle;
 struct irq_domain;
 struct irq_chip;
 struct irq_data;
@@ -53,7 +53,7 @@ struct msi_parent_ops;
 /**
  * struct irq_fwspec - generic IRQ specifier structure
  *
- * @fwnode:		Pointer to a firmware-specific descriptor
+ * @fwanalde:		Pointer to a firmware-specific descriptor
  * @param_count:	Number of device-specific parameters
  * @param:		Device-specific parameters
  *
@@ -61,23 +61,23 @@ struct msi_parent_ops;
  * pass a device-specific description of an interrupt.
  */
 struct irq_fwspec {
-	struct fwnode_handle *fwnode;
+	struct fwanalde_handle *fwanalde;
 	int param_count;
 	u32 param[IRQ_DOMAIN_IRQ_SPEC_PARAMS];
 };
 
 /* Conversion function from of_phandle_args fields to fwspec  */
-void of_phandle_args_to_fwspec(struct device_node *np, const u32 *args,
+void of_phandle_args_to_fwspec(struct device_analde *np, const u32 *args,
 			       unsigned int count, struct irq_fwspec *fwspec);
 
 /**
  * struct irq_domain_ops - Methods for irq_domain objects
- * @match: Match an interrupt controller device node to a host, returns
+ * @match: Match an interrupt controller device analde to a host, returns
  *         1 on a match
  * @map: Create or update a mapping between a virtual irq number and a hw
  *       irq number. This is called only once for a given mapping.
  * @unmap: Dispose of such a mapping
- * @xlate: Given a device tree node and interrupt specifier, decode
+ * @xlate: Given a device tree analde and interrupt specifier, decode
  *         the hardware irq number and linux irq type value.
  *
  * Functions below are provided by the driver and called whenever a new mapping
@@ -86,13 +86,13 @@ void of_phandle_args_to_fwspec(struct device_node *np, const u32 *args,
  * to setup the irq_desc when returning from map().
  */
 struct irq_domain_ops {
-	int (*match)(struct irq_domain *d, struct device_node *node,
+	int (*match)(struct irq_domain *d, struct device_analde *analde,
 		     enum irq_domain_bus_token bus_token);
 	int (*select)(struct irq_domain *d, struct irq_fwspec *fwspec,
 		      enum irq_domain_bus_token bus_token);
 	int (*map)(struct irq_domain *d, unsigned int virq, irq_hw_number_t hw);
 	void (*unmap)(struct irq_domain *d, unsigned int virq);
-	int (*xlate)(struct irq_domain *d, struct device_node *node,
+	int (*xlate)(struct irq_domain *d, struct device_analde *analde,
 		     const u32 *intspec, unsigned int intsize,
 		     unsigned long *out_hwirq, unsigned int *out_type);
 #ifdef	CONFIG_IRQ_DOMAIN_HIERARCHY
@@ -121,21 +121,21 @@ struct irq_domain_chip_generic;
  * @link:	Element in global irq_domain list.
  * @name:	Name of interrupt domain
  * @ops:	Pointer to irq_domain methods
- * @host_data:	Private data pointer for use by owner.  Not touched by irq_domain
+ * @host_data:	Private data pointer for use by owner.  Analt touched by irq_domain
  *		core code.
  * @flags:	Per irq_domain flags
  * @mapcount:	The number of mapped interrupts
  * @mutex:	Domain lock, hierarchical domains use root domain's lock
- * @root:	Pointer to root domain, or containing structure if non-hierarchical
+ * @root:	Pointer to root domain, or containing structure if analn-hierarchical
  *
  * Optional elements:
- * @fwnode:	Pointer to firmware node associated with the irq_domain. Pretty easy
- *		to swap it for the of_node via the irq_domain_get_of_node accessor
+ * @fwanalde:	Pointer to firmware analde associated with the irq_domain. Pretty easy
+ *		to swap it for the of_analde via the irq_domain_get_of_analde accessor
  * @gc:		Pointer to a list of generic chips. There is a helper function for
  *		setting up one or more generic chips for interrupt controllers
  *		drivers using the generic chip library which uses this pointer.
  * @dev:	Pointer to the device which instantiated the irqdomain
- *		With per device irq domains this is not necessarily the same
+ *		With per device irq domains this is analt necessarily the same
  *		as @pm_dev.
  * @pm_dev:	Pointer to a device that can be utilized for power management
  *		purposes related to the irq domain.
@@ -158,7 +158,7 @@ struct irq_domain {
 	struct irq_domain		*root;
 
 	/* Optional data */
-	struct fwnode_handle		*fwnode;
+	struct fwanalde_handle		*fwanalde;
 	enum irq_domain_bus_token	bus_token;
 	struct irq_domain_chip_generic	*gc;
 	struct device			*dev;
@@ -200,7 +200,7 @@ enum {
 	IRQ_DOMAIN_FLAG_ISOLATED_MSI	= (1 << 5),
 
 	/* Irq domain doesn't translate anything */
-	IRQ_DOMAIN_FLAG_NO_MAP		= (1 << 6),
+	IRQ_DOMAIN_FLAG_ANAL_MAP		= (1 << 6),
 
 	/* Irq domain is a MSI parent domain */
 	IRQ_DOMAIN_FLAG_MSI_PARENT	= (1 << 8),
@@ -209,16 +209,16 @@ enum {
 	IRQ_DOMAIN_FLAG_MSI_DEVICE	= (1 << 9),
 
 	/*
-	 * Flags starting from IRQ_DOMAIN_FLAG_NONCORE are reserved
-	 * for implementation specific purposes and ignored by the
+	 * Flags starting from IRQ_DOMAIN_FLAG_ANALNCORE are reserved
+	 * for implementation specific purposes and iganalred by the
 	 * core code.
 	 */
-	IRQ_DOMAIN_FLAG_NONCORE		= (1 << 16),
+	IRQ_DOMAIN_FLAG_ANALNCORE		= (1 << 16),
 };
 
-static inline struct device_node *irq_domain_get_of_node(struct irq_domain *d)
+static inline struct device_analde *irq_domain_get_of_analde(struct irq_domain *d)
 {
-	return to_of_node(d->fwnode);
+	return to_of_analde(d->fwanalde);
 }
 
 static inline void irq_domain_set_pm_device(struct irq_domain *d,
@@ -229,50 +229,50 @@ static inline void irq_domain_set_pm_device(struct irq_domain *d,
 }
 
 #ifdef CONFIG_IRQ_DOMAIN
-struct fwnode_handle *__irq_domain_alloc_fwnode(unsigned int type, int id,
+struct fwanalde_handle *__irq_domain_alloc_fwanalde(unsigned int type, int id,
 						const char *name, phys_addr_t *pa);
 
 enum {
-	IRQCHIP_FWNODE_REAL,
-	IRQCHIP_FWNODE_NAMED,
-	IRQCHIP_FWNODE_NAMED_ID,
+	IRQCHIP_FWANALDE_REAL,
+	IRQCHIP_FWANALDE_NAMED,
+	IRQCHIP_FWANALDE_NAMED_ID,
 };
 
 static inline
-struct fwnode_handle *irq_domain_alloc_named_fwnode(const char *name)
+struct fwanalde_handle *irq_domain_alloc_named_fwanalde(const char *name)
 {
-	return __irq_domain_alloc_fwnode(IRQCHIP_FWNODE_NAMED, 0, name, NULL);
+	return __irq_domain_alloc_fwanalde(IRQCHIP_FWANALDE_NAMED, 0, name, NULL);
 }
 
 static inline
-struct fwnode_handle *irq_domain_alloc_named_id_fwnode(const char *name, int id)
+struct fwanalde_handle *irq_domain_alloc_named_id_fwanalde(const char *name, int id)
 {
-	return __irq_domain_alloc_fwnode(IRQCHIP_FWNODE_NAMED_ID, id, name,
+	return __irq_domain_alloc_fwanalde(IRQCHIP_FWANALDE_NAMED_ID, id, name,
 					 NULL);
 }
 
-static inline struct fwnode_handle *irq_domain_alloc_fwnode(phys_addr_t *pa)
+static inline struct fwanalde_handle *irq_domain_alloc_fwanalde(phys_addr_t *pa)
 {
-	return __irq_domain_alloc_fwnode(IRQCHIP_FWNODE_REAL, 0, NULL, pa);
+	return __irq_domain_alloc_fwanalde(IRQCHIP_FWANALDE_REAL, 0, NULL, pa);
 }
 
-void irq_domain_free_fwnode(struct fwnode_handle *fwnode);
-struct irq_domain *__irq_domain_add(struct fwnode_handle *fwnode, unsigned int size,
+void irq_domain_free_fwanalde(struct fwanalde_handle *fwanalde);
+struct irq_domain *__irq_domain_add(struct fwanalde_handle *fwanalde, unsigned int size,
 				    irq_hw_number_t hwirq_max, int direct_max,
 				    const struct irq_domain_ops *ops,
 				    void *host_data);
-struct irq_domain *irq_domain_create_simple(struct fwnode_handle *fwnode,
+struct irq_domain *irq_domain_create_simple(struct fwanalde_handle *fwanalde,
 					    unsigned int size,
 					    unsigned int first_irq,
 					    const struct irq_domain_ops *ops,
 					    void *host_data);
-struct irq_domain *irq_domain_add_legacy(struct device_node *of_node,
+struct irq_domain *irq_domain_add_legacy(struct device_analde *of_analde,
 					 unsigned int size,
 					 unsigned int first_irq,
 					 irq_hw_number_t first_hwirq,
 					 const struct irq_domain_ops *ops,
 					 void *host_data);
-struct irq_domain *irq_domain_create_legacy(struct fwnode_handle *fwnode,
+struct irq_domain *irq_domain_create_legacy(struct fwanalde_handle *fwanalde,
 					    unsigned int size,
 					    unsigned int first_irq,
 					    irq_hw_number_t first_hwirq,
@@ -283,108 +283,108 @@ extern struct irq_domain *irq_find_matching_fwspec(struct irq_fwspec *fwspec,
 extern void irq_set_default_host(struct irq_domain *host);
 extern struct irq_domain *irq_get_default_host(void);
 extern int irq_domain_alloc_descs(int virq, unsigned int nr_irqs,
-				  irq_hw_number_t hwirq, int node,
+				  irq_hw_number_t hwirq, int analde,
 				  const struct irq_affinity_desc *affinity);
 
-static inline struct fwnode_handle *of_node_to_fwnode(struct device_node *node)
+static inline struct fwanalde_handle *of_analde_to_fwanalde(struct device_analde *analde)
 {
-	return node ? &node->fwnode : NULL;
+	return analde ? &analde->fwanalde : NULL;
 }
 
-extern const struct fwnode_operations irqchip_fwnode_ops;
+extern const struct fwanalde_operations irqchip_fwanalde_ops;
 
-static inline bool is_fwnode_irqchip(struct fwnode_handle *fwnode)
+static inline bool is_fwanalde_irqchip(struct fwanalde_handle *fwanalde)
 {
-	return fwnode && fwnode->ops == &irqchip_fwnode_ops;
+	return fwanalde && fwanalde->ops == &irqchip_fwanalde_ops;
 }
 
 extern void irq_domain_update_bus_token(struct irq_domain *domain,
 					enum irq_domain_bus_token bus_token);
 
 static inline
-struct irq_domain *irq_find_matching_fwnode(struct fwnode_handle *fwnode,
+struct irq_domain *irq_find_matching_fwanalde(struct fwanalde_handle *fwanalde,
 					    enum irq_domain_bus_token bus_token)
 {
 	struct irq_fwspec fwspec = {
-		.fwnode = fwnode,
+		.fwanalde = fwanalde,
 	};
 
 	return irq_find_matching_fwspec(&fwspec, bus_token);
 }
 
-static inline struct irq_domain *irq_find_matching_host(struct device_node *node,
+static inline struct irq_domain *irq_find_matching_host(struct device_analde *analde,
 							enum irq_domain_bus_token bus_token)
 {
-	return irq_find_matching_fwnode(of_node_to_fwnode(node), bus_token);
+	return irq_find_matching_fwanalde(of_analde_to_fwanalde(analde), bus_token);
 }
 
-static inline struct irq_domain *irq_find_host(struct device_node *node)
+static inline struct irq_domain *irq_find_host(struct device_analde *analde)
 {
 	struct irq_domain *d;
 
-	d = irq_find_matching_host(node, DOMAIN_BUS_WIRED);
+	d = irq_find_matching_host(analde, DOMAIN_BUS_WIRED);
 	if (!d)
-		d = irq_find_matching_host(node, DOMAIN_BUS_ANY);
+		d = irq_find_matching_host(analde, DOMAIN_BUS_ANY);
 
 	return d;
 }
 
-static inline struct irq_domain *irq_domain_add_simple(struct device_node *of_node,
+static inline struct irq_domain *irq_domain_add_simple(struct device_analde *of_analde,
 						       unsigned int size,
 						       unsigned int first_irq,
 						       const struct irq_domain_ops *ops,
 						       void *host_data)
 {
-	return irq_domain_create_simple(of_node_to_fwnode(of_node), size, first_irq, ops, host_data);
+	return irq_domain_create_simple(of_analde_to_fwanalde(of_analde), size, first_irq, ops, host_data);
 }
 
 /**
  * irq_domain_add_linear() - Allocate and register a linear revmap irq_domain.
- * @of_node: pointer to interrupt controller's device tree node.
+ * @of_analde: pointer to interrupt controller's device tree analde.
  * @size: Number of interrupts in the domain.
  * @ops: map/unmap domain callbacks
  * @host_data: Controller private data pointer
  */
-static inline struct irq_domain *irq_domain_add_linear(struct device_node *of_node,
+static inline struct irq_domain *irq_domain_add_linear(struct device_analde *of_analde,
 					 unsigned int size,
 					 const struct irq_domain_ops *ops,
 					 void *host_data)
 {
-	return __irq_domain_add(of_node_to_fwnode(of_node), size, size, 0, ops, host_data);
+	return __irq_domain_add(of_analde_to_fwanalde(of_analde), size, size, 0, ops, host_data);
 }
 
-#ifdef CONFIG_IRQ_DOMAIN_NOMAP
-static inline struct irq_domain *irq_domain_add_nomap(struct device_node *of_node,
+#ifdef CONFIG_IRQ_DOMAIN_ANALMAP
+static inline struct irq_domain *irq_domain_add_analmap(struct device_analde *of_analde,
 					 unsigned int max_irq,
 					 const struct irq_domain_ops *ops,
 					 void *host_data)
 {
-	return __irq_domain_add(of_node_to_fwnode(of_node), 0, max_irq, max_irq, ops, host_data);
+	return __irq_domain_add(of_analde_to_fwanalde(of_analde), 0, max_irq, max_irq, ops, host_data);
 }
 
 extern unsigned int irq_create_direct_mapping(struct irq_domain *host);
 #endif
 
-static inline struct irq_domain *irq_domain_add_tree(struct device_node *of_node,
+static inline struct irq_domain *irq_domain_add_tree(struct device_analde *of_analde,
 					 const struct irq_domain_ops *ops,
 					 void *host_data)
 {
-	return __irq_domain_add(of_node_to_fwnode(of_node), 0, ~0, 0, ops, host_data);
+	return __irq_domain_add(of_analde_to_fwanalde(of_analde), 0, ~0, 0, ops, host_data);
 }
 
-static inline struct irq_domain *irq_domain_create_linear(struct fwnode_handle *fwnode,
+static inline struct irq_domain *irq_domain_create_linear(struct fwanalde_handle *fwanalde,
 					 unsigned int size,
 					 const struct irq_domain_ops *ops,
 					 void *host_data)
 {
-	return __irq_domain_add(fwnode, size, size, 0, ops, host_data);
+	return __irq_domain_add(fwanalde, size, size, 0, ops, host_data);
 }
 
-static inline struct irq_domain *irq_domain_create_tree(struct fwnode_handle *fwnode,
+static inline struct irq_domain *irq_domain_create_tree(struct fwanalde_handle *fwanalde,
 					 const struct irq_domain_ops *ops,
 					 void *host_data)
 {
-	return __irq_domain_add(fwnode, 0, ~0, 0, ops, host_data);
+	return __irq_domain_add(fwanalde, 0, ~0, 0, ops, host_data);
 }
 
 extern void irq_domain_remove(struct irq_domain *host);
@@ -442,13 +442,13 @@ static inline unsigned int irq_linear_revmap(struct irq_domain *domain,
 extern const struct irq_domain_ops irq_domain_simple_ops;
 
 /* stock xlate functions */
-int irq_domain_xlate_onecell(struct irq_domain *d, struct device_node *ctrlr,
+int irq_domain_xlate_onecell(struct irq_domain *d, struct device_analde *ctrlr,
 			const u32 *intspec, unsigned int intsize,
 			irq_hw_number_t *out_hwirq, unsigned int *out_type);
-int irq_domain_xlate_twocell(struct irq_domain *d, struct device_node *ctrlr,
+int irq_domain_xlate_twocell(struct irq_domain *d, struct device_analde *ctrlr,
 			const u32 *intspec, unsigned int intsize,
 			irq_hw_number_t *out_hwirq, unsigned int *out_type);
-int irq_domain_xlate_onetwocell(struct irq_domain *d, struct device_node *ctrlr,
+int irq_domain_xlate_onetwocell(struct irq_domain *d, struct device_analde *ctrlr,
 			const u32 *intspec, unsigned int intsize,
 			irq_hw_number_t *out_hwirq, unsigned int *out_type);
 
@@ -478,23 +478,23 @@ extern void irq_domain_reset_irq_data(struct irq_data *irq_data);
 #ifdef	CONFIG_IRQ_DOMAIN_HIERARCHY
 extern struct irq_domain *irq_domain_create_hierarchy(struct irq_domain *parent,
 			unsigned int flags, unsigned int size,
-			struct fwnode_handle *fwnode,
+			struct fwanalde_handle *fwanalde,
 			const struct irq_domain_ops *ops, void *host_data);
 
 static inline struct irq_domain *irq_domain_add_hierarchy(struct irq_domain *parent,
 					    unsigned int flags,
 					    unsigned int size,
-					    struct device_node *node,
+					    struct device_analde *analde,
 					    const struct irq_domain_ops *ops,
 					    void *host_data)
 {
 	return irq_domain_create_hierarchy(parent, flags, size,
-					   of_node_to_fwnode(node),
+					   of_analde_to_fwanalde(analde),
 					   ops, host_data);
 }
 
 extern int __irq_domain_alloc_irqs(struct irq_domain *domain, int irq_base,
-				   unsigned int nr_irqs, int node, void *arg,
+				   unsigned int nr_irqs, int analde, void *arg,
 				   bool realloc,
 				   const struct irq_affinity_desc *affinity);
 extern void irq_domain_free_irqs(unsigned int virq, unsigned int nr_irqs);
@@ -502,9 +502,9 @@ extern int irq_domain_activate_irq(struct irq_data *irq_data, bool early);
 extern void irq_domain_deactivate_irq(struct irq_data *irq_data);
 
 static inline int irq_domain_alloc_irqs(struct irq_domain *domain,
-			unsigned int nr_irqs, int node, void *arg)
+			unsigned int nr_irqs, int analde, void *arg)
 {
-	return __irq_domain_alloc_irqs(domain, -1, nr_irqs, node, arg, false,
+	return __irq_domain_alloc_irqs(domain, -1, nr_irqs, analde, arg, false,
 				       NULL);
 }
 
@@ -574,7 +574,7 @@ static inline bool irq_domain_is_msi_device(struct irq_domain *domain)
 
 #else	/* CONFIG_IRQ_DOMAIN_HIERARCHY */
 static inline int irq_domain_alloc_irqs(struct irq_domain *domain,
-			unsigned int nr_irqs, int node, void *arg)
+			unsigned int nr_irqs, int analde, void *arg)
 {
 	return -1;
 }
@@ -621,8 +621,8 @@ static inline bool irq_domain_is_msi_device(struct irq_domain *domain)
 
 #else /* CONFIG_IRQ_DOMAIN */
 static inline void irq_dispose_mapping(unsigned int virq) { }
-static inline struct irq_domain *irq_find_matching_fwnode(
-	struct fwnode_handle *fwnode, enum irq_domain_bus_token bus_token)
+static inline struct irq_domain *irq_find_matching_fwanalde(
+	struct fwanalde_handle *fwanalde, enum irq_domain_bus_token bus_token)
 {
 	return NULL;
 }

@@ -20,15 +20,15 @@ static void bcm281xx_restart(enum reboot_mode mode, const char *cmd)
 {
 	uint32_t val;
 	void __iomem *base;
-	struct device_node *np_wdog;
+	struct device_analde *np_wdog;
 
-	np_wdog = of_find_compatible_node(NULL, NULL, "brcm,kona-wdt");
+	np_wdog = of_find_compatible_analde(NULL, NULL, "brcm,kona-wdt");
 	if (!np_wdog) {
 		pr_emerg("Couldn't find brcm,kona-wdt\n");
 		return;
 	}
 	base = of_iomap(np_wdog, 0);
-	of_node_put(np_wdog);
+	of_analde_put(np_wdog);
 	if (!base) {
 		pr_emerg("Couldn't map brcm,kona-wdt\n");
 		return;

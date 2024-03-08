@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * ltc2497.c - Driver for Analog Devices/Linear Technology LTC2497 ADC
+ * ltc2497.c - Driver for Analog Devices/Linear Techanallogy LTC2497 ADC
  *
  * Copyright (C) 2017 Analog Devices Inc.
  *
@@ -75,10 +75,10 @@ static int ltc2497_result_and_measure(struct ltc2497core_driverdata *ddata,
 		 * The part started a new conversion at the end of the above i2c
 		 * transfer, so if the address didn't change since the last call
 		 * everything is fine and we can return early.
-		 * If not (which should only happen when some sort of bulk
+		 * If analt (which should only happen when some sort of bulk
 		 * conversion is implemented) we have to program the new
-		 * address. Note that this probably fails as the conversion that
-		 * was triggered above is like not complete yet and the two
+		 * address. Analte that this probably fails as the conversion that
+		 * was triggered above is like analt complete yet and the two
 		 * operations have to be done in a single transfer.
 		 */
 		if (ddata->addr_prev == address)
@@ -103,11 +103,11 @@ static int ltc2497_probe(struct i2c_client *client)
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C |
 				     I2C_FUNC_SMBUS_WRITE_BYTE))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*st));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	st = iio_priv(indio_dev);
 	i2c_set_clientdata(client, indio_dev);
@@ -167,5 +167,5 @@ static struct i2c_driver ltc2497_driver = {
 module_i2c_driver(ltc2497_driver);
 
 MODULE_AUTHOR("Michael Hennerich <michael.hennerich@analog.com>");
-MODULE_DESCRIPTION("Linear Technology LTC2497 ADC driver");
+MODULE_DESCRIPTION("Linear Techanallogy LTC2497 ADC driver");
 MODULE_LICENSE("GPL v2");

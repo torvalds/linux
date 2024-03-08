@@ -64,7 +64,7 @@ static int db8500_thermal_get_temp(struct thermal_zone_device *tz, int *temp)
 	struct db8500_thermal_zone *th = thermal_zone_device_priv(tz);
 
 	/*
-	 * TODO: There is no PRCMU interface to get temperature data currently,
+	 * TODO: There is anal PRCMU interface to get temperature data currently,
 	 * so a pseudo temperature is returned , it works for thermal framework
 	 * and this will be fixed when the PRCMU interface is available.
 	 */
@@ -102,7 +102,7 @@ static irqreturn_t prcmu_low_irq_handler(int irq, void *irq_data)
 	unsigned long next_low, next_high;
 
 	if (idx == 0)
-		/* Meaningless for thermal management, ignoring it */
+		/* Meaningless for thermal management, iganalring it */
 		return IRQ_HANDLED;
 
 	if (idx == 1) {
@@ -156,7 +156,7 @@ static int db8500_thermal_probe(struct platform_device *pdev)
 
 	th = devm_kzalloc(dev, sizeof(*th), GFP_KERNEL);
 	if (!th)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	th->dev = dev;
 
@@ -165,7 +165,7 @@ static int db8500_thermal_probe(struct platform_device *pdev)
 		return low_irq;
 
 	ret = devm_request_threaded_irq(dev, low_irq, NULL,
-		prcmu_low_irq_handler, IRQF_NO_SUSPEND | IRQF_ONESHOT,
+		prcmu_low_irq_handler, IRQF_ANAL_SUSPEND | IRQF_ONESHOT,
 		"dbx500_temp_low", th);
 	if (ret < 0) {
 		dev_err(dev, "failed to allocate temp low irq\n");
@@ -177,7 +177,7 @@ static int db8500_thermal_probe(struct platform_device *pdev)
 		return high_irq;
 
 	ret = devm_request_threaded_irq(dev, high_irq, NULL,
-		prcmu_high_irq_handler, IRQF_NO_SUSPEND | IRQF_ONESHOT,
+		prcmu_high_irq_handler, IRQF_ANAL_SUSPEND | IRQF_ONESHOT,
 		"dbx500_temp_high", th);
 	if (ret < 0) {
 		dev_err(dev, "failed to allocate temp high irq\n");

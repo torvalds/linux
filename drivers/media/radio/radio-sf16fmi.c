@@ -8,10 +8,10 @@
  * Made working and cleaned up functions <mikael.hedin@irf.se>
  * Support for ISAPnP by Ladislav Michl <ladis@psi.cz>
  *
- * Notes on the hardware
+ * Analtes on the hardware
  *
  *  Frequency control is done digitally -- ie out(port,encodefreq(95.8));
- *  No volume control - only mute/unmute - you have to use line volume
+ *  Anal volume control - only mute/unmute - you have to use line volume
  *  control on SB-part of SF16-FMI/SF16-FMP/SF16-FMD
  *
  * Converted to V4L2 API by Mauro Carvalho Chehab <mchehab@kernel.org>
@@ -148,7 +148,7 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 	v->type = V4L2_TUNER_RADIO;
 	v->rangelow = RSF16_MINFREQ;
 	v->rangehigh = RSF16_MAXFREQ;
-	v->rxsubchans = V4L2_TUNER_SUB_MONO | V4L2_TUNER_SUB_STEREO;
+	v->rxsubchans = V4L2_TUNER_SUB_MOANAL | V4L2_TUNER_SUB_STEREO;
 	v->capability = V4L2_TUNER_CAP_STEREO | V4L2_TUNER_CAP_LOW;
 	v->audmode = V4L2_TUNER_MODE_STEREO;
 	v->signal = fmi_getsigstr(fmi);
@@ -250,17 +250,17 @@ static int __init isapnp_fmi_probe(void)
 	}
 
 	if (!dev)
-		return -ENODEV;
+		return -EANALDEV;
 	if (pnp_device_attach(dev) < 0)
 		return -EAGAIN;
 	if (pnp_activate_dev(dev) < 0) {
 		printk(KERN_ERR "radio-sf16fmi: PnP configure failed (out of resources?)\n");
 		pnp_device_detach(dev);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	if (!pnp_port_valid(dev, 0)) {
 		pnp_device_detach(dev);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	i = pnp_port_start(dev, 0);
@@ -304,14 +304,14 @@ static int __init fmi_init(void)
 			return -EBUSY;
 		}
 		if (inb(io) == 0xff) {
-			printk(KERN_ERR "radio-sf16fmi: card not present at %#x\n", io);
+			printk(KERN_ERR "radio-sf16fmi: card analt present at %#x\n", io);
 			release_region(io, 2);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 	if (io < 0) {
-		printk(KERN_ERR "radio-sf16fmi: no cards found\n");
-		return -ENODEV;
+		printk(KERN_ERR "radio-sf16fmi: anal cards found\n");
+		return -EANALDEV;
 	}
 
 	strscpy(v4l2_dev->name, "sf16fmi", sizeof(v4l2_dev->name));
@@ -322,7 +322,7 @@ static int __init fmi_init(void)
 		release_region(fmi->io, 2);
 		if (pnp_attached)
 			pnp_device_detach(dev);
-		v4l2_err(v4l2_dev, "Could not register v4l2_device\n");
+		v4l2_err(v4l2_dev, "Could analt register v4l2_device\n");
 		return res;
 	}
 
@@ -332,7 +332,7 @@ static int __init fmi_init(void)
 	v4l2_dev->ctrl_handler = hdl;
 	if (hdl->error) {
 		res = hdl->error;
-		v4l2_err(v4l2_dev, "Could not register controls\n");
+		v4l2_err(v4l2_dev, "Could analt register controls\n");
 		v4l2_ctrl_handler_free(hdl);
 		v4l2_device_unregister(v4l2_dev);
 		return res;

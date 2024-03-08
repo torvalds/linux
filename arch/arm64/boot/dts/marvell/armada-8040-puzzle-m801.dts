@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright (C) 2016 Marvell Technology Group Ltd.
+ * Copyright (C) 2016 Marvell Techanallogy Group Ltd.
  * Copyright (C) 2020 Sartura Ltd.
  *
  * Device Tree file for IEI Puzzle-M801
@@ -144,14 +144,14 @@
 &ap_sdhci0 {
 	bus-width = <8>;
 	/*
-	 * Not stable in HS modes - phy needs "more calibration", so add
+	 * Analt stable in HS modes - phy needs "more calibration", so add
 	 * the "slow-mode" and disable SDR104, SDR50 and DDR50 modes.
 	 */
-	marvell,xenon-phy-slow-mode;
-	no-1-8-v;
-	no-sd;
-	no-sdio;
-	non-removable;
+	marvell,xeanaln-phy-slow-mode;
+	anal-1-8-v;
+	anal-sd;
+	anal-sdio;
+	analn-removable;
 	status = "okay";
 	vqmmc-supply = <&v_vddo_h>;
 };
@@ -167,8 +167,8 @@
 	cooling-maps {
 		fan-map {
 			trip = <&cpu_active>;
-			cooling-device = <&chassis_fan_group0 64 THERMAL_NO_LIMIT>,
-					<&chassis_fan_group1 64 THERMAL_NO_LIMIT>;
+			cooling-device = <&chassis_fan_group0 64 THERMAL_ANAL_LIMIT>,
+					<&chassis_fan_group1 64 THERMAL_ANAL_LIMIT>;
 		};
 	};
 };
@@ -188,7 +188,7 @@
 	flash@0 {
 		#address-cells = <0x1>;
 		#size-cells = <0x1>;
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		reg = <0x0>;
 		spi-max-frequency = <20000000>;
 		partition@u-boot {

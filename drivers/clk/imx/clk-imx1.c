@@ -32,7 +32,7 @@ static void __iomem *ccm __initdata;
 #define CCM_PCDR	(ccm + 0x0020)
 #define SCM_GCCR	(ccm + 0x0810)
 
-static void __init mx1_clocks_init_dt(struct device_node *np)
+static void __init mx1_clocks_init_dt(struct device_analde *np)
 {
 	ccm = of_iomap(np, 0);
 	BUG_ON(!ccm);

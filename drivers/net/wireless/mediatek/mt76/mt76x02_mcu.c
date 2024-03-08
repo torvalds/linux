@@ -46,7 +46,7 @@ int mt76x02_mcu_msg_send(struct mt76_dev *mdev, int cmd, const void *data,
 
 	skb = mt76_mcu_msg_alloc(mdev, data, len);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_lock(&mdev->mcu.mutex);
 

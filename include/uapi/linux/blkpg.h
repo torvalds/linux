@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPI__LINUX_BLKPG_H
 #define _UAPI__LINUX_BLKPG_H
 
@@ -28,9 +28,9 @@ struct blkpg_ioctl_arg {
 struct blkpg_partition {
 	long long start;		/* starting offset in bytes */
 	long long length;		/* length in bytes */
-	int pno;			/* partition number */
-	char devname[BLKPG_DEVNAMELTH];	/* unused / ignored */
-	char volname[BLKPG_VOLNAMELTH];	/* unused / ignore */
+	int panal;			/* partition number */
+	char devname[BLKPG_DEVNAMELTH];	/* unused / iganalred */
+	char volname[BLKPG_VOLNAMELTH];	/* unused / iganalre */
 };
 
 #endif /* _UAPI__LINUX_BLKPG_H */

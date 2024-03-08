@@ -2,7 +2,7 @@
 /*
  * Copyright (c) 2022 Broadcom Corporation
  */
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 #include <core.h>
 #include <bus.h>

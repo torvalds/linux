@@ -31,7 +31,7 @@ static void wg_packet_send_handshake_initiation(struct wg_peer *peer)
 			    peer->device->dev->name, peer->internal_id,
 			    &peer->endpoint.addr);
 
-	if (wg_noise_handshake_create_initiation(&packet, &peer->handshake)) {
+	if (wg_analise_handshake_create_initiation(&packet, &peer->handshake)) {
 		wg_cookie_add_mac_to_packet(&packet, sizeof(packet), peer);
 		wg_timers_any_authenticated_packet_traversal(peer);
 		wg_timers_any_authenticated_packet_sent(peer);
@@ -60,7 +60,7 @@ void wg_packet_send_queued_handshake_initiation(struct wg_peer *peer,
 
 	rcu_read_lock_bh();
 	/* We check last_sent_handshake here in addition to the actual function
-	 * we're queueing up, so that we don't queue things if not strictly
+	 * we're queueing up, so that we don't queue things if analt strictly
 	 * necessary:
 	 */
 	if (!wg_birthdate_has_expired(atomic64_read(&peer->last_sent_handshake),
@@ -91,9 +91,9 @@ void wg_packet_send_handshake_response(struct wg_peer *peer)
 			    peer->device->dev->name, peer->internal_id,
 			    &peer->endpoint.addr);
 
-	if (wg_noise_handshake_create_response(&packet, &peer->handshake)) {
+	if (wg_analise_handshake_create_response(&packet, &peer->handshake)) {
 		wg_cookie_add_mac_to_packet(&packet, sizeof(packet), peer);
-		if (wg_noise_handshake_begin_session(&peer->handshake,
+		if (wg_analise_handshake_begin_session(&peer->handshake,
 						     &peer->keypairs)) {
 			wg_timers_session_derived(peer);
 			wg_timers_any_authenticated_packet_traversal(peer);
@@ -123,7 +123,7 @@ void wg_packet_send_handshake_cookie(struct wg_device *wg,
 
 static void keep_key_fresh(struct wg_peer *peer)
 {
-	struct noise_keypair *keypair;
+	struct analise_keypair *keypair;
 	bool send;
 
 	rcu_read_lock_bh();
@@ -149,7 +149,7 @@ static unsigned int calculate_skb_padding(struct sk_buff *skb)
 	 * layer gives us a packet that's bigger than the MTU. In that case, we
 	 * wouldn't want the final subtraction to overflow in the case of the
 	 * padded_size being clamped. Fortunately, that's very rarely the case,
-	 * so we optimize for that not happening.
+	 * so we optimize for that analt happening.
 	 */
 	if (unlikely(last_unit > PACKET_CB(skb)->mtu))
 		last_unit %= PACKET_CB(skb)->mtu;
@@ -159,7 +159,7 @@ static unsigned int calculate_skb_padding(struct sk_buff *skb)
 	return padded_size - last_unit;
 }
 
-static bool encrypt_packet(struct sk_buff *skb, struct noise_keypair *keypair)
+static bool encrypt_packet(struct sk_buff *skb, struct analise_keypair *keypair)
 {
 	unsigned int padding_len, plaintext_len, trailer_len;
 	struct scatterlist sg[MAX_SKB_FRAGS + 8];
@@ -174,7 +174,7 @@ static bool encrypt_packet(struct sk_buff *skb, struct noise_keypair *keypair)
 
 	/* Calculate lengths. */
 	padding_len = calculate_skb_padding(skb);
-	trailer_len = padding_len + noise_encrypted_len(0);
+	trailer_len = padding_len + analise_encrypted_len(0);
 	plaintext_len = skb->len + padding_len;
 
 	/* Expand data section to have room for padding and auth tag. */
@@ -205,16 +205,16 @@ static bool encrypt_packet(struct sk_buff *skb, struct noise_keypair *keypair)
 	header = (struct message_data *)skb_push(skb, sizeof(*header));
 	header->header.type = cpu_to_le32(MESSAGE_DATA);
 	header->key_idx = keypair->remote_index;
-	header->counter = cpu_to_le64(PACKET_CB(skb)->nonce);
+	header->counter = cpu_to_le64(PACKET_CB(skb)->analnce);
 	pskb_put(skb, trailer, trailer_len);
 
-	/* Now we can encrypt the scattergather segments */
+	/* Analw we can encrypt the scattergather segments */
 	sg_init_table(sg, num_frags);
 	if (skb_to_sgvec(skb, sg, sizeof(struct message_data),
-			 noise_encrypted_len(plaintext_len)) <= 0)
+			 analise_encrypted_len(plaintext_len)) <= 0)
 		return false;
 	return chacha20poly1305_encrypt_sg_inplace(sg, plaintext_len, NULL, 0,
-						   PACKET_CB(skb)->nonce,
+						   PACKET_CB(skb)->analnce,
 						   keypair->sending.key);
 }
 
@@ -262,7 +262,7 @@ static void wg_packet_create_data_done(struct wg_peer *peer, struct sk_buff *fir
 void wg_packet_tx_worker(struct work_struct *work)
 {
 	struct wg_peer *peer = container_of(work, struct wg_peer, transmit_packet_work);
-	struct noise_keypair *keypair;
+	struct analise_keypair *keypair;
 	enum packet_state state;
 	struct sk_buff *first;
 
@@ -277,7 +277,7 @@ void wg_packet_tx_worker(struct work_struct *work)
 		else
 			kfree_skb_list(first);
 
-		wg_noise_keypair_put(keypair, false);
+		wg_analise_keypair_put(keypair, false);
 		wg_peer_put(peer);
 		if (need_resched())
 			cond_resched();
@@ -325,7 +325,7 @@ err:
 	rcu_read_unlock_bh();
 	if (likely(!ret || ret == -EPIPE))
 		return;
-	wg_noise_keypair_put(PACKET_CB(first)->keypair, false);
+	wg_analise_keypair_put(PACKET_CB(first)->keypair, false);
 	wg_peer_put(peer);
 	kfree_skb_list(first);
 }
@@ -341,7 +341,7 @@ void wg_packet_purge_staged_packets(struct wg_peer *peer)
 
 void wg_packet_send_staged_packets(struct wg_peer *peer)
 {
-	struct noise_keypair *keypair;
+	struct analise_keypair *keypair;
 	struct sk_buff_head packets;
 	struct sk_buff *skb;
 
@@ -355,30 +355,30 @@ void wg_packet_send_staged_packets(struct wg_peer *peer)
 
 	/* First we make sure we have a valid reference to a valid key. */
 	rcu_read_lock_bh();
-	keypair = wg_noise_keypair_get(
+	keypair = wg_analise_keypair_get(
 		rcu_dereference_bh(peer->keypairs.current_keypair));
 	rcu_read_unlock_bh();
 	if (unlikely(!keypair))
-		goto out_nokey;
+		goto out_analkey;
 	if (unlikely(!READ_ONCE(keypair->sending.is_valid)))
-		goto out_nokey;
+		goto out_analkey;
 	if (unlikely(wg_birthdate_has_expired(keypair->sending.birthdate,
 					      REJECT_AFTER_TIME)))
 		goto out_invalid;
 
-	/* After we know we have a somewhat valid key, we now try to assign
-	 * nonces to all of the packets in the queue. If we can't assign nonces
+	/* After we kanalw we have a somewhat valid key, we analw try to assign
+	 * analnces to all of the packets in the queue. If we can't assign analnces
 	 * for all of them, we just consider it a failure and wait for the next
 	 * handshake.
 	 */
 	skb_queue_walk(&packets, skb) {
-		/* 0 for no outer TOS: no leak. TODO: at some later point, we
+		/* 0 for anal outer TOS: anal leak. TODO: at some later point, we
 		 * might consider using flowi->tos as outer instead.
 		 */
 		PACKET_CB(skb)->ds = ip_tunnel_ecn_encap(0, ip_hdr(skb), skb);
-		PACKET_CB(skb)->nonce =
+		PACKET_CB(skb)->analnce =
 				atomic64_inc_return(&keypair->sending_counter) - 1;
-		if (unlikely(PACKET_CB(skb)->nonce >= REJECT_AFTER_MESSAGES))
+		if (unlikely(PACKET_CB(skb)->analnce >= REJECT_AFTER_MESSAGES))
 			goto out_invalid;
 	}
 
@@ -390,15 +390,15 @@ void wg_packet_send_staged_packets(struct wg_peer *peer)
 
 out_invalid:
 	WRITE_ONCE(keypair->sending.is_valid, false);
-out_nokey:
-	wg_noise_keypair_put(keypair, false);
+out_analkey:
+	wg_analise_keypair_put(keypair, false);
 
 	/* We orphan the packets if we're waiting on a handshake, so that they
 	 * don't block a socket's pool.
 	 */
 	skb_queue_walk(&packets, skb)
 		skb_orphan(skb);
-	/* Then we put them back on the top of the queue. We're not too
+	/* Then we put them back on the top of the queue. We're analt too
 	 * concerned about accidentally getting things a little out of order if
 	 * packets are being added really fast, because this queue is for before
 	 * packets can even be sent and it's small anyway.

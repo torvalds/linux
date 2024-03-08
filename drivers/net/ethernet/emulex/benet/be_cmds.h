@@ -36,7 +36,7 @@ struct be_mcc_wrb {
 	u32 rsvd;		/* dword 4 */
 	union {
 		u8 embedded_payload[236]; /* used by embedded cmds */
-		struct be_sge sgl[19];    /* used by non-embedded cmds */
+		struct be_sge sgl[19];    /* used by analn-embedded cmds */
 	} payload;
 };
 
@@ -53,8 +53,8 @@ enum mcc_base_status {
 	MCC_STATUS_ILLEGAL_FIELD = 3,
 	MCC_STATUS_INSUFFICIENT_BUFFER = 4,
 	MCC_STATUS_UNAUTHORIZED_REQUEST = 5,
-	MCC_STATUS_NOT_SUPPORTED = 66,
-	MCC_STATUS_FEATURE_NOT_SUPPORTED = 68,
+	MCC_STATUS_ANALT_SUPPORTED = 66,
+	MCC_STATUS_FEATURE_ANALT_SUPPORTED = 68,
 	MCC_STATUS_INVALID_LENGTH = 116
 };
 
@@ -175,7 +175,7 @@ struct be_async_event_qnq {
 
 enum {
 	BE_PHY_FUNCTIONAL	= 0,
-	BE_PHY_NOT_PRESENT	= 1,
+	BE_PHY_ANALT_PRESENT	= 1,
 	BE_PHY_DIFF_MEDIA	= 2,
 	BE_PHY_INCOMPATIBLE	= 3,
 	BE_PHY_UNQUALIFIED	= 4,
@@ -185,10 +185,10 @@ enum {
 #define PHY_STATE_MSG_SEVERITY		0x6
 #define PHY_STATE_OPER			0x1
 #define PHY_STATE_INFO_VALID		0x80
-#define	PHY_STATE_OPER_MSG_NONE		0x2
+#define	PHY_STATE_OPER_MSG_ANALNE		0x2
 #define DEFAULT_MSG_SEVERITY		0x1
 
-#define be_phy_state_unknown(phy_state) (phy_state > BE_PHY_UNCERTIFIED)
+#define be_phy_state_unkanalwn(phy_state) (phy_state > BE_PHY_UNCERTIFIED)
 #define be_phy_unqualified(phy_state)				\
 			(phy_state == BE_PHY_UNQUALIFIED ||	\
 			 phy_state == BE_PHY_UNCERTIFIED)
@@ -380,7 +380,7 @@ struct amap_eq_context {
 	u8 delaymult[10];	/* dword 2*/
 	u8 rsvd5[2];		/* dword 2*/
 	u8 phase[2];		/* dword 2*/
-	u8 nodelay;		/* dword 2*/
+	u8 analdelay;		/* dword 2*/
 	u8 rsvd6[4];		/* dword 2*/
 	u8 rsvd7[32];		/* dword 3*/
 } __packed;
@@ -452,7 +452,7 @@ struct amap_cq_context_be {
 	u8 cidx[11];		/* dword 0*/
 	u8 rsvd0;		/* dword 0*/
 	u8 coalescwm[2];	/* dword 0*/
-	u8 nodelay;		/* dword 0*/
+	u8 analdelay;		/* dword 0*/
 	u8 epidx[11];		/* dword 0*/
 	u8 rsvd1;		/* dword 0*/
 	u8 count[2];		/* dword 0*/
@@ -474,7 +474,7 @@ struct amap_cq_context_be {
 struct amap_cq_context_v2 {
 	u8 rsvd0[12];		/* dword 0*/
 	u8 coalescwm[2];	/* dword 0*/
-	u8 nodelay;		/* dword 0*/
+	u8 analdelay;		/* dword 0*/
 	u8 rsvd1[12];		/* dword 0*/
 	u8 count[2];		/* dword 0*/
 	u8 valid;		/* dword 0*/
@@ -676,13 +676,13 @@ enum be_if_flags {
  * filtering capabilities. */
 struct be_cmd_req_if_create {
 	struct be_cmd_req_hdr hdr;
-	u32 version;		/* ignore currently */
+	u32 version;		/* iganalre currently */
 	u32 capability_flags;
 	u32 enable_flags;
 	u8 mac_addr[ETH_ALEN];
 	u8 rsvd0;
 	u8 pmac_invalid; /* if set, don't attach the mac addr to the i/f */
-	u32 vlan_tag;	 /* not used currently */
+	u32 vlan_tag;	 /* analt used currently */
 } __packed;
 
 struct be_cmd_resp_if_create {
@@ -732,7 +732,7 @@ struct be_port_rxf_stats_v0 {
 	u32 rx_ip_checksum_errs;	/* dword 30*/
 	u32 rx_tcp_checksum_errs;	/* dword 31*/
 	u32 rx_udp_checksum_errs;	/* dword 32*/
-	u32 rx_non_rss_packets;	/* dword 33*/
+	u32 rx_analn_rss_packets;	/* dword 33*/
 	u32 rx_ipv4_packets;	/* dword 34*/
 	u32 rx_ipv6_packets;	/* dword 35*/
 	u32 rx_ipv4_bytes_lsd;	/* dword 36*/
@@ -769,10 +769,10 @@ struct be_port_rxf_stats_v0 {
 
 struct be_rxf_stats_v0 {
 	struct be_port_rxf_stats_v0 port[2];
-	u32 rx_drops_no_pbuf;	/* dword 132*/
-	u32 rx_drops_no_txpb;	/* dword 133*/
-	u32 rx_drops_no_erx_descr;	/* dword 134*/
-	u32 rx_drops_no_tpre_descr;	/* dword 135*/
+	u32 rx_drops_anal_pbuf;	/* dword 132*/
+	u32 rx_drops_anal_txpb;	/* dword 133*/
+	u32 rx_drops_anal_erx_descr;	/* dword 134*/
+	u32 rx_drops_anal_tpre_descr;	/* dword 135*/
 	u32 management_rx_port_packets;	/* dword 136*/
 	u32 management_rx_port_bytes;	/* dword 137*/
 	u32 management_rx_port_pause_frames;	/* dword 138*/
@@ -792,7 +792,7 @@ struct be_rxf_stats_v0 {
 };
 
 struct be_erx_stats_v0 {
-	u32 rx_drops_no_fragments[44];     /* dwordS 0 to 43*/
+	u32 rx_drops_anal_fragments[44];     /* dwordS 0 to 43*/
 	u32 rsvd[4];
 };
 
@@ -887,7 +887,7 @@ struct lancer_pport_stats {
 	u32 rx_multicast_bytes_hi;
 	u32 rx_broadcast_bytes_lo;
 	u32 rx_broadcast_bytes_hi;
-	u32 rx_unknown_protos;
+	u32 rx_unkanalwn_protos;
 	u32 rsvd_69; /* Word 69 is reserved */
 	u32 rx_discards_lo;
 	u32 rx_discards_hi;
@@ -915,8 +915,8 @@ struct lancer_pport_stats {
 	u32 rx_jabbers;
 	u32 rx_control_frames_lo;
 	u32 rx_control_frames_hi;
-	u32 rx_control_frames_unknown_opcode_lo;
-	u32 rx_control_frames_unknown_opcode_hi;
+	u32 rx_control_frames_unkanalwn_opcode_lo;
+	u32 rx_control_frames_unkanalwn_opcode_hi;
 	u32 rx_in_range_errors;
 	u32 rx_out_of_range_errors;
 	u32 rx_address_filtered;
@@ -929,7 +929,7 @@ struct lancer_pport_stats {
 	u32 rx_ip_checksum_errors;
 	u32 rx_tcp_checksum_errors;
 	u32 rx_udp_checksum_errors;
-	u32 rx_non_rss_packets;
+	u32 rx_analn_rss_packets;
 	u32 rsvd_111;
 	u32 rx_ipv4_packets_lo;
 	u32 rx_ipv4_packets_hi;
@@ -1031,7 +1031,7 @@ struct be_cmd_req_vlan_config {
 	u8 promiscuous;
 	u8 untagged;
 	u8 num_vlan;
-	u16 normal_vlan[64];
+	u16 analrmal_vlan[64];
 } __packed;
 
 /******************* RX FILTER ******************************/
@@ -1058,13 +1058,13 @@ struct be_cmd_req_link_status {
 };
 
 enum {
-	PHY_LINK_DUPLEX_NONE = 0x0,
+	PHY_LINK_DUPLEX_ANALNE = 0x0,
 	PHY_LINK_DUPLEX_HALF = 0x1,
 	PHY_LINK_DUPLEX_FULL = 0x2
 };
 
 enum {
-	PHY_LINK_SPEED_ZERO = 0x0, 	/* => No link */
+	PHY_LINK_SPEED_ZERO = 0x0, 	/* => Anal link */
 	PHY_LINK_SPEED_10MBPS = 0x1,
 	PHY_LINK_SPEED_100MBPS = 0x2,
 	PHY_LINK_SPEED_1GBPS = 0x3,
@@ -1201,7 +1201,7 @@ struct be_cmd_resp_query_fw_cfg {
  * When multiple RSS types are enabled, HW picks the best hash policy
  * based on the type of the received packet.
  */
-#define RSS_ENABLE_NONE				0x0
+#define RSS_ENABLE_ANALNE				0x0
 #define RSS_ENABLE_IPV4				0x1
 #define RSS_ENABLE_TCP_IPV4			0x2
 #define RSS_ENABLE_IPV6				0x4
@@ -1476,7 +1476,7 @@ struct lancer_cmd_req_write_object {
 	u32 addr_high;
 };
 
-#define LANCER_NO_RESET_NEEDED		0x00
+#define LANCER_ANAL_RESET_NEEDED		0x00
 #define LANCER_FW_RESET_NEEDED		0x02
 struct lancer_cmd_resp_write_object {
 	u8 opcode;
@@ -1648,7 +1648,7 @@ enum {
 	PHY_TYPE_DISABLED = 255
 };
 
-#define BE_SUPPORTED_SPEED_NONE		0
+#define BE_SUPPORTED_SPEED_ANALNE		0
 #define BE_SUPPORTED_SPEED_10MBPS	1
 #define BE_SUPPORTED_SPEED_100MBPS	2
 #define BE_SUPPORTED_SPEED_1GBPS	4
@@ -1950,10 +1950,10 @@ struct be_port_rxf_stats_v1 {
 struct be_rxf_stats_v1 {
 	struct be_port_rxf_stats_v1 port[4];
 	u32 rsvd0[2];
-	u32 rx_drops_no_pbuf;
-	u32 rx_drops_no_txpb;
-	u32 rx_drops_no_erx_descr;
-	u32 rx_drops_no_tpre_descr;
+	u32 rx_drops_anal_pbuf;
+	u32 rx_drops_anal_txpb;
+	u32 rx_drops_anal_erx_descr;
+	u32 rx_drops_anal_tpre_descr;
 	u32 rsvd1[6];
 	u32 rx_drops_too_many_frags;
 	u32 rx_drops_invalid_ring;
@@ -1963,7 +1963,7 @@ struct be_rxf_stats_v1 {
 };
 
 struct be_erx_stats_v1 {
-	u32 rx_drops_no_fragments[68];     /* dwordS 0 to 67*/
+	u32 rx_drops_anal_fragments[68];     /* dwordS 0 to 67*/
 	u32 rsvd[4];
 };
 
@@ -2016,10 +2016,10 @@ struct be_port_rxf_stats_v2 {
 struct be_rxf_stats_v2 {
 	struct be_port_rxf_stats_v2 port[4];
 	u32 rsvd0[2];
-	u32 rx_drops_no_pbuf;
-	u32 rx_drops_no_txpb;
-	u32 rx_drops_no_erx_descr;
-	u32 rx_drops_no_tpre_descr;
+	u32 rx_drops_anal_pbuf;
+	u32 rx_drops_anal_txpb;
+	u32 rx_drops_anal_erx_descr;
+	u32 rx_drops_anal_tpre_descr;
 	u32 rsvd1[6];
 	u32 rx_drops_too_many_frags;
 	u32 rx_drops_invalid_ring;
@@ -2047,7 +2047,7 @@ struct be_cmd_resp_get_stats_v1 {
 };
 
 struct be_erx_stats_v2 {
-	u32 rx_drops_no_fragments[136];     /* dwordS 0 to 135*/
+	u32 rx_drops_anal_fragments[136];     /* dwordS 0 to 135*/
 	u32 rsvd[3];
 };
 
@@ -2130,7 +2130,7 @@ struct be_cmd_req_set_ext_fat_caps {
 #define IF_CAPS_FLAGS_VALID_SHIFT		0	/* IF caps valid */
 #define VFT_SHIFT				3	/* VF template */
 #define IMM_SHIFT				6	/* Immediate */
-#define NOSV_SHIFT				7	/* No save */
+#define ANALSV_SHIFT				7	/* Anal save */
 
 #define MISSION_NIC				1
 #define MISSION_RDMA				8
@@ -2153,7 +2153,7 @@ struct be_port_res_desc {
 #define NV_TYPE_VXLAN				3
 #define SOCVID_SHIFT				2	/* Strip outer vlan */
 #define RCVID_SHIFT				4	/* Report vlan */
-#define PF_NUM_IGNORE				255
+#define PF_NUM_IGANALRE				255
 	u8 nv_flags;
 	u8 rsvd2;
 	__le16 nv_port;					/* vxlan/gre port */
@@ -2217,7 +2217,7 @@ struct be_nic_res_desc {
 
 /************ Multi-Channel type ***********/
 enum mc_type {
-	MC_NONE = 0x01,
+	MC_ANALNE = 0x01,
 	UMC = 0x02,
 	FLEX10 = 0x03,
 	vNIC1 = 0x04,
@@ -2229,7 +2229,7 @@ enum mc_type {
 /* Is BE in a multi-channel mode */
 static inline bool be_is_mc(struct be_adapter *adapter)
 {
-	return adapter->mc_type > MC_NONE;
+	return adapter->mc_type > MC_ANALNE;
 }
 
 struct be_cmd_req_get_func_config {
@@ -2361,8 +2361,8 @@ struct be_cmd_req_set_ll_link {
 };
 
 /************** Manage IFACE Filters *******************/
-#define OP_CONVERT_NORMAL_TO_TUNNEL		0
-#define OP_CONVERT_TUNNEL_TO_NORMAL		1
+#define OP_CONVERT_ANALRMAL_TO_TUNNEL		0
+#define OP_CONVERT_TUNNEL_TO_ANALRMAL		1
 
 struct be_cmd_req_manage_iface_filters {
 	struct be_cmd_req_hdr hdr;
@@ -2394,7 +2394,7 @@ int be_cmd_if_create(struct be_adapter *adapter, u32 cap_flags, u32 en_flags,
 int be_cmd_if_destroy(struct be_adapter *adapter, int if_handle, u32 domain);
 int be_cmd_eq_create(struct be_adapter *adapter, struct be_eq_obj *eqo);
 int be_cmd_cq_create(struct be_adapter *adapter, struct be_queue_info *cq,
-		     struct be_queue_info *eq, bool no_delay,
+		     struct be_queue_info *eq, bool anal_delay,
 		     int num_cqe_dma_coalesce);
 int be_cmd_mccq_create(struct be_adapter *adapter, struct be_queue_info *mccq,
 		       struct be_queue_info *cq);
@@ -2407,9 +2407,9 @@ int be_cmd_rxq_destroy(struct be_adapter *adapter, struct be_queue_info *q);
 int be_cmd_link_status_query(struct be_adapter *adapter, u16 *link_speed,
 			     u8 *link_status, u32 dom);
 int be_cmd_reset(struct be_adapter *adapter);
-int be_cmd_get_stats(struct be_adapter *adapter, struct be_dma_mem *nonemb_cmd);
+int be_cmd_get_stats(struct be_adapter *adapter, struct be_dma_mem *analnemb_cmd);
 int lancer_cmd_get_pport_stats(struct be_adapter *adapter,
-			       struct be_dma_mem *nonemb_cmd);
+			       struct be_dma_mem *analnemb_cmd);
 int be_cmd_get_fw_ver(struct be_adapter *adapter);
 int be_cmd_modify_eqd(struct be_adapter *adapter, struct be_set_eqd *, int num);
 int be_cmd_vlan_config(struct be_adapter *adapter, u32 if_id, u16 *vtag_array,
@@ -2436,7 +2436,7 @@ int lancer_cmd_read_object(struct be_adapter *adapter, struct be_dma_mem *cmd,
 int lancer_fw_download(struct be_adapter *adapter, const struct firmware *fw);
 int be_fw_download(struct be_adapter *adapter, const struct firmware *fw);
 int be_cmd_enable_magic_wol(struct be_adapter *adapter, u8 *mac,
-			    struct be_dma_mem *nonemb_cmd);
+			    struct be_dma_mem *analnemb_cmd);
 int be_cmd_fw_init(struct be_adapter *adapter);
 int be_cmd_fw_clean(struct be_adapter *adapter);
 void be_async_mcc_enable(struct be_adapter *adapter);
@@ -2447,7 +2447,7 @@ int be_cmd_loopback_test(struct be_adapter *adapter, u32 port_num,
 int be_cmd_ddr_dma_test(struct be_adapter *adapter, u64 pattern, u32 byte_cnt,
 			struct be_dma_mem *cmd);
 int be_cmd_get_seeprom_data(struct be_adapter *adapter,
-			    struct be_dma_mem *nonemb_cmd);
+			    struct be_dma_mem *analnemb_cmd);
 int be_cmd_set_loopback(struct be_adapter *adapter, u8 port_num,
 			u8 loopback_type, u8 enable);
 int be_cmd_get_phy_info(struct be_adapter *adapter);

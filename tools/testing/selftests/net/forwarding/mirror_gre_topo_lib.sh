@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 
 # This is the standard topology for testing mirroring to gretap and ip6gretap
-# netdevices. The tests that use it tweak it in one way or another--importantly,
+# netdevices. The tests that use it tweak it in one way or aanalther--importantly,
 # $swp3 and $h3 need to have addresses set up.
 #
 #   +---------------------+                             +---------------------+

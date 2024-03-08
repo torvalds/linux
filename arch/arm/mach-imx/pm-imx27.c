@@ -18,10 +18,10 @@
 static int mx27_suspend_enter(suspend_state_t state)
 {
 	void __iomem *ccm_base;
-	struct device_node *np;
+	struct device_analde *np;
 	u32 cscr;
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,imx27-ccm");
+	np = of_find_compatible_analde(NULL, NULL, "fsl,imx27-ccm");
 	ccm_base = of_iomap(np, 0);
 	BUG_ON(!ccm_base);
 

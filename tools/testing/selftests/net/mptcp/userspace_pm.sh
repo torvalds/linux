@@ -14,16 +14,16 @@ mptcp_lib_check_mptcp
 mptcp_lib_check_kallsyms
 
 if ! mptcp_lib_has_file '/proc/sys/net/mptcp/pm_type'; then
-	echo "userspace pm tests are not supported by the kernel: SKIP"
+	echo "userspace pm tests are analt supported by the kernel: SKIP"
 	exit ${KSFT_SKIP}
 fi
 
 if ! ip -Version &> /dev/null; then
-	echo "SKIP: Cannot not run test without ip tool"
+	echo "SKIP: Cananalt analt run test without ip tool"
 	exit ${KSFT_SKIP}
 fi
 
-ANNOUNCED=6        # MPTCP_EVENT_ANNOUNCED
+ANANALUNCED=6        # MPTCP_EVENT_ANANALUNCED
 REMOVED=7          # MPTCP_EVENT_REMOVED
 SUB_ESTABLISHED=10 # MPTCP_EVENT_SUB_ESTABLISHED
 SUB_CLOSED=11      # MPTCP_EVENT_SUB_CLOSED
@@ -150,14 +150,14 @@ ip link add ns1eth2 netns "$ns1" type veth peer name ns2eth1 netns "$ns2"
 # Add IPv4/v6 addresses to the namespaces
 ip -net "$ns1" addr add 10.0.1.1/24 dev ns1eth2
 ip -net "$ns1" addr add 10.0.2.1/24 dev ns1eth2
-ip -net "$ns1" addr add dead:beef:1::1/64 dev ns1eth2 nodad
-ip -net "$ns1" addr add dead:beef:2::1/64 dev ns1eth2 nodad
+ip -net "$ns1" addr add dead:beef:1::1/64 dev ns1eth2 analdad
+ip -net "$ns1" addr add dead:beef:2::1/64 dev ns1eth2 analdad
 ip -net "$ns1" link set ns1eth2 up
 
 ip -net "$ns2" addr add 10.0.1.2/24 dev ns2eth1
 ip -net "$ns2" addr add 10.0.2.2/24 dev ns2eth1
-ip -net "$ns2" addr add dead:beef:1::2/64 dev ns2eth1 nodad
-ip -net "$ns2" addr add dead:beef:2::2/64 dev ns2eth1 nodad
+ip -net "$ns2" addr add dead:beef:1::2/64 dev ns2eth1 analdad
+ip -net "$ns2" addr add dead:beef:2::2/64 dev ns2eth1 analdad
 ip -net "$ns2" link set ns2eth1 up
 
 print_title "Init"
@@ -303,7 +303,7 @@ check_expected()
 	return 1
 }
 
-verify_announce_event()
+verify_ananalunce_event()
 {
 	local evt=$1
 	local e_type=$2
@@ -332,14 +332,14 @@ verify_announce_event()
 	check_expected "type" "token" "addr" "dport" "id"
 }
 
-test_announce()
+test_ananalunce()
 {
-	print_title "Announce tests"
+	print_title "Ananalunce tests"
 
 	# Capture events on the network namespace running the server
 	:>"$server_evts"
 
-	# ADD_ADDR using an invalid token should result in no action
+	# ADD_ADDR using an invalid token should result in anal action
 	local invalid_token=$(( client4_token - 1))
 	ip netns exec "$ns2" ./pm_nl_ctl ann 10.0.2.2 token $invalid_token id\
 	   $client_addr_id dev ns2eth1 > /dev/null 2>&1
@@ -361,7 +361,7 @@ test_announce()
 	   ns2eth1
 	print_test "ADD_ADDR id:${client_addr_id} 10.0.2.2 (ns2) => ns1, reuse port"
 	sleep 0.5
-	verify_announce_event $server_evts $ANNOUNCED $server4_token "10.0.2.2" $client_addr_id \
+	verify_ananalunce_event $server_evts $ANANALUNCED $server4_token "10.0.2.2" $client_addr_id \
 			      "$client4_port"
 
 	# ADD_ADDR6 from the client to server machine reusing the subflow port
@@ -370,7 +370,7 @@ test_announce()
 	   dead:beef:2::2 token "$client6_token" id $client_addr_id dev ns2eth1
 	print_test "ADD_ADDR6 id:${client_addr_id} dead:beef:2::2 (ns2) => ns1, reuse port"
 	sleep 0.5
-	verify_announce_event "$server_evts" "$ANNOUNCED" "$server6_token" "dead:beef:2::2"\
+	verify_ananalunce_event "$server_evts" "$ANANALUNCED" "$server6_token" "dead:beef:2::2"\
 			      "$client_addr_id" "$client6_port" "v6"
 
 	# ADD_ADDR from the client to server machine using a new port
@@ -380,7 +380,7 @@ test_announce()
 	   $client_addr_id dev ns2eth1 port $new4_port
 	print_test "ADD_ADDR id:${client_addr_id} 10.0.2.2 (ns2) => ns1, new port"
 	sleep 0.5
-	verify_announce_event "$server_evts" "$ANNOUNCED" "$server4_token" "10.0.2.2"\
+	verify_ananalunce_event "$server_evts" "$ANANALUNCED" "$server4_token" "10.0.2.2"\
 			      "$client_addr_id" "$new4_port"
 
 	# Capture events on the network namespace running the client
@@ -391,7 +391,7 @@ test_announce()
 	   $server_addr_id dev ns1eth2
 	print_test "ADD_ADDR id:${server_addr_id} 10.0.2.1 (ns1) => ns2, reuse port"
 	sleep 0.5
-	verify_announce_event "$client_evts" "$ANNOUNCED" "$client4_token" "10.0.2.1"\
+	verify_ananalunce_event "$client_evts" "$ANANALUNCED" "$client4_token" "10.0.2.1"\
 			      "$server_addr_id" "$app4_port"
 
 	# ADD_ADDR6 from the server to client machine reusing the subflow port
@@ -400,7 +400,7 @@ test_announce()
 	   $server_addr_id dev ns1eth2
 	print_test "ADD_ADDR6 id:${server_addr_id} dead:beef:2::1 (ns1) => ns2, reuse port"
 	sleep 0.5
-	verify_announce_event "$client_evts" "$ANNOUNCED" "$client6_token" "dead:beef:2::1"\
+	verify_ananalunce_event "$client_evts" "$ANANALUNCED" "$client6_token" "dead:beef:2::1"\
 			      "$server_addr_id" "$app6_port" "v6"
 
 	# ADD_ADDR from the server to client machine using a new port
@@ -410,7 +410,7 @@ test_announce()
 	   $server_addr_id dev ns1eth2 port $new4_port
 	print_test "ADD_ADDR id:${server_addr_id} 10.0.2.1 (ns1) => ns2, new port"
 	sleep 0.5
-	verify_announce_event "$client_evts" "$ANNOUNCED" "$client4_token" "10.0.2.1"\
+	verify_ananalunce_event "$client_evts" "$ANANALUNCED" "$client4_token" "10.0.2.1"\
 			      "$server_addr_id" "$new4_port"
 }
 
@@ -438,7 +438,7 @@ test_remove()
 	# Capture events on the network namespace running the server
 	:>"$server_evts"
 
-	# RM_ADDR using an invalid token should result in no action
+	# RM_ADDR using an invalid token should result in anal action
 	local invalid_token=$(( client4_token - 1 ))
 	ip netns exec "$ns2" ./pm_nl_ctl rem token $invalid_token id\
 	   $client_addr_id > /dev/null 2>&1
@@ -452,7 +452,7 @@ test_remove()
 		test_fail
 	fi
 
-	# RM_ADDR using an invalid addr id should result in no action
+	# RM_ADDR using an invalid addr id should result in anal action
 	local invalid_id=$(( client_addr_id + 1 ))
 	ip netns exec "$ns2" ./pm_nl_ctl rem token "$client4_token" id\
 	   $invalid_id > /dev/null 2>&1
@@ -830,7 +830,7 @@ test_subflows_v4_v6_mix()
 	   $server_addr_id dev ns1eth2
 	print_test "ADD_ADDR4 id:${server_addr_id} 10.0.2.1 (ns1) => ns2, reuse port"
 	sleep 0.5
-	verify_announce_event "$client_evts" "$ANNOUNCED" "$client6_token" "10.0.2.1"\
+	verify_ananalunce_event "$client_evts" "$ANANALUNCED" "$client6_token" "10.0.2.1"\
 			      "$server_addr_id" "$app6_port"
 
 	# CREATE_SUBFLOW from client to server machine
@@ -967,7 +967,7 @@ print_title "Make connections"
 make_connection
 make_connection "v6"
 
-test_announce
+test_ananalunce
 test_remove
 test_subflows
 test_subflows_v4_v6_mix

@@ -60,7 +60,7 @@ static int clk_fixup_mux_set_parent(struct clk_hw *hw, u8 index)
 }
 
 static const struct clk_ops clk_fixup_mux_ops = {
-	.determine_rate = clk_hw_determine_rate_no_reparent,
+	.determine_rate = clk_hw_determine_rate_anal_reparent,
 	.get_parent = clk_fixup_mux_get_parent,
 	.set_parent = clk_fixup_mux_set_parent,
 };
@@ -79,7 +79,7 @@ struct clk_hw *imx_clk_hw_fixup_mux(const char *name, void __iomem *reg,
 
 	fixup_mux = kzalloc(sizeof(*fixup_mux), GFP_KERNEL);
 	if (!fixup_mux)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = name;
 	init.ops = &clk_fixup_mux_ops;

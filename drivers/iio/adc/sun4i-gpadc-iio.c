@@ -12,11 +12,11 @@
  * disabling interrupts to save some power but that resets the internal clock of
  * the IP, resulting in having to wait X seconds every time we want to read the
  * value of the thermal sensor.
- * This is also the reason of using autosuspend in pm_runtime. If there was no
+ * This is also the reason of using autosuspend in pm_runtime. If there was anal
  * autosuspend, the thermal sensor would need X seconds after every
  * pm_runtime_get_sync to get a value from the ADC. The autosuspend allows the
  * thermal sensor to be requested again in a certain time span before it gets
- * shutdown for not being used.
+ * shutdown for analt being used.
  */
 
 #include <linux/completion.h>
@@ -94,11 +94,11 @@ struct sun4i_gpadc_iio {
 	u32				adc_data;
 	struct regmap			*regmap;
 	unsigned int			fifo_data_irq;
-	atomic_t			ignore_fifo_data_irq;
+	atomic_t			iganalre_fifo_data_irq;
 	unsigned int			temp_data_irq;
-	atomic_t			ignore_temp_data_irq;
+	atomic_t			iganalre_temp_data_irq;
 	const struct gpadc_data		*data;
-	bool				no_irq;
+	bool				anal_irq;
 	/* prevents concurrent reads of temperature and ADC */
 	struct mutex			mutex;
 	struct thermal_zone_device	*tzd;
@@ -136,7 +136,7 @@ static const struct iio_chan_spec sun4i_gpadc_channels[] = {
 	},
 };
 
-static const struct iio_chan_spec sun4i_gpadc_channels_no_temp[] = {
+static const struct iio_chan_spec sun4i_gpadc_channels_anal_temp[] = {
 	SUN4I_GPADC_ADC_CHANNEL(0, "adc_chan0"),
 	SUN4I_GPADC_ADC_CHANNEL(1, "adc_chan1"),
 	SUN4I_GPADC_ADC_CHANNEL(2, "adc_chan2"),
@@ -233,7 +233,7 @@ static int sun4i_gpadc_read(struct iio_dev *indio_dev, int channel, int *val,
 	/*
 	 * The temperature sensor throws an interruption periodically (currently
 	 * set at periods of ~0.6s in sun4i_gpadc_runtime_resume). A 1s delay
-	 * makes sure an interruption occurs in normal conditions. If it doesn't
+	 * makes sure an interruption occurs in analrmal conditions. If it doesn't
 	 * occur, then there is a timeout.
 	 */
 	if (!wait_for_completion_timeout(&info->completion,
@@ -270,7 +270,7 @@ static int sun4i_gpadc_temp_read(struct iio_dev *indio_dev, int *val)
 {
 	struct sun4i_gpadc_iio *info = iio_priv(indio_dev);
 
-	if (info->no_irq) {
+	if (info->anal_irq) {
 		pm_runtime_get_sync(indio_dev->dev.parent);
 
 		regmap_read(info->regmap, SUN4I_GPADC_TEMP_DATA, val);
@@ -331,7 +331,7 @@ static int sun4i_gpadc_read_raw(struct iio_dev *indio_dev,
 			/* 3000mV / 4096 * raw */
 			*val = 0;
 			*val2 = 732421875;
-			return IIO_VAL_INT_PLUS_NANO;
+			return IIO_VAL_INT_PLUS_NAANAL;
 		}
 
 		ret = sun4i_gpadc_temp_scale(indio_dev, val);
@@ -354,7 +354,7 @@ static irqreturn_t sun4i_gpadc_temp_data_irq_handler(int irq, void *dev_id)
 {
 	struct sun4i_gpadc_iio *info = dev_id;
 
-	if (atomic_read(&info->ignore_temp_data_irq))
+	if (atomic_read(&info->iganalre_temp_data_irq))
 		goto out;
 
 	if (!regmap_read(info->regmap, SUN4I_GPADC_TEMP_DATA, &info->temp_data))
@@ -368,7 +368,7 @@ static irqreturn_t sun4i_gpadc_fifo_data_irq_handler(int irq, void *dev_id)
 {
 	struct sun4i_gpadc_iio *info = dev_id;
 
-	if (atomic_read(&info->ignore_fifo_data_irq))
+	if (atomic_read(&info->iganalre_fifo_data_irq))
 		goto out;
 
 	if (!regmap_read(info->regmap, SUN4I_GPADC_DATA, &info->adc_data))
@@ -450,10 +450,10 @@ static int sun4i_irq_init(struct platform_device *pdev, const char *name,
 	 * after being requested but we want to control when these interrupts
 	 * occur thus we disable it right after being requested. However, an
 	 * interrupt might occur between these two instructions and we have to
-	 * make sure that does not happen, by using atomic flags. We set the
+	 * make sure that does analt happen, by using atomic flags. We set the
 	 * flag before requesting the interrupt and unset it right after
 	 * disabling the interrupt. When an interrupt occurs between these two
-	 * instructions, reading the atomic flag will tell us to ignore the
+	 * instructions, reading the atomic flag will tell us to iganalre the
 	 * interrupt.
 	 */
 	atomic_set(atomic, 1);
@@ -470,10 +470,10 @@ static int sun4i_irq_init(struct platform_device *pdev, const char *name,
 
 	*irq = ret;
 	ret = devm_request_any_context_irq(&pdev->dev, *irq, handler,
-					   IRQF_NO_AUTOEN,
+					   IRQF_ANAL_AUTOEN,
 					   devname, info);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "could not request %s interrupt: %d\n",
+		dev_err(&pdev->dev, "could analt request %s interrupt: %d\n",
 			name, ret);
 		return ret;
 	}
@@ -500,9 +500,9 @@ static int sun4i_gpadc_probe_dt(struct platform_device *pdev,
 
 	info->data = of_device_get_match_data(&pdev->dev);
 	if (!info->data)
-		return -ENODEV;
+		return -EANALDEV;
 
-	info->no_irq = true;
+	info->anal_irq = true;
 	indio_dev->num_channels = ARRAY_SIZE(sun8i_a33_gpadc_channels);
 	indio_dev->channels = sun8i_a33_gpadc_channels;
 
@@ -532,7 +532,7 @@ static int sun4i_gpadc_probe_mfd(struct platform_device *pdev,
 		dev_get_drvdata(pdev->dev.parent);
 	int ret;
 
-	info->no_irq = false;
+	info->anal_irq = false;
 	info->regmap = sun4i_gpadc_dev->regmap;
 
 	indio_dev->num_channels = ARRAY_SIZE(sun4i_gpadc_channels);
@@ -553,39 +553,39 @@ static int sun4i_gpadc_probe_mfd(struct platform_device *pdev,
 
 	if (IS_ENABLED(CONFIG_THERMAL_OF)) {
 		/*
-		 * This driver is a child of an MFD which has a node in the DT
-		 * but not its children, because of DT backward compatibility
+		 * This driver is a child of an MFD which has a analde in the DT
+		 * but analt its children, because of DT backward compatibility
 		 * for A10, A13 and A31 SoCs. Therefore, the resulting devices
-		 * of this driver do not have an of_node variable.
-		 * However, its parent (the MFD driver) has an of_node variable
+		 * of this driver do analt have an of_analde variable.
+		 * However, its parent (the MFD driver) has an of_analde variable
 		 * and since devm_thermal_zone_of_sensor_register uses its first
-		 * argument to match the phandle defined in the node of the
-		 * thermal driver with the of_node of the device passed as first
+		 * argument to match the phandle defined in the analde of the
+		 * thermal driver with the of_analde of the device passed as first
 		 * argument and the third argument to call ops from
 		 * thermal_zone_of_device_ops, the solution is to use the parent
 		 * device as first argument to match the phandle with its
-		 * of_node, and the device from this driver as third argument to
+		 * of_analde, and the device from this driver as third argument to
 		 * return the temperature.
 		 */
 		info->sensor_device = pdev->dev.parent;
 	} else {
 		indio_dev->num_channels =
-			ARRAY_SIZE(sun4i_gpadc_channels_no_temp);
-		indio_dev->channels = sun4i_gpadc_channels_no_temp;
+			ARRAY_SIZE(sun4i_gpadc_channels_anal_temp);
+		indio_dev->channels = sun4i_gpadc_channels_anal_temp;
 	}
 
 	if (IS_ENABLED(CONFIG_THERMAL_OF)) {
 		ret = sun4i_irq_init(pdev, "TEMP_DATA_PENDING",
 				     sun4i_gpadc_temp_data_irq_handler,
 				     "temp_data", &info->temp_data_irq,
-				     &info->ignore_temp_data_irq);
+				     &info->iganalre_temp_data_irq);
 		if (ret < 0)
 			return ret;
 	}
 
 	ret = sun4i_irq_init(pdev, "FIFO_DATA_PENDING",
 			     sun4i_gpadc_fifo_data_irq_handler, "fifo_data",
-			     &info->fifo_data_irq, &info->ignore_fifo_data_irq);
+			     &info->fifo_data_irq, &info->iganalre_fifo_data_irq);
 	if (ret < 0)
 		return ret;
 
@@ -609,7 +609,7 @@ static int sun4i_gpadc_probe(struct platform_device *pdev)
 
 	indio_dev = devm_iio_device_alloc(&pdev->dev, sizeof(*info));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	info = iio_priv(indio_dev);
 	platform_set_drvdata(pdev, indio_dev);
@@ -621,7 +621,7 @@ static int sun4i_gpadc_probe(struct platform_device *pdev)
 	indio_dev->info = &sun4i_gpadc_iio_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
-	if (pdev->dev.of_node)
+	if (pdev->dev.of_analde)
 		ret = sun4i_gpadc_probe_dt(pdev, indio_dev);
 	else
 		ret = sun4i_gpadc_probe_mfd(pdev, indio_dev);
@@ -640,12 +640,12 @@ static int sun4i_gpadc_probe(struct platform_device *pdev)
 							  0, info,
 							  &sun4i_ts_tz_ops);
 		/*
-		 * Do not fail driver probing when failing to register in
-		 * thermal because no thermal DT node is found.
+		 * Do analt fail driver probing when failing to register in
+		 * thermal because anal thermal DT analde is found.
 		 */
-		if (IS_ERR(info->tzd) && PTR_ERR(info->tzd) != -ENODEV) {
+		if (IS_ERR(info->tzd) && PTR_ERR(info->tzd) != -EANALDEV) {
 			dev_err(&pdev->dev,
-				"could not register thermal sensor: %ld\n",
+				"could analt register thermal sensor: %ld\n",
 				PTR_ERR(info->tzd));
 			return PTR_ERR(info->tzd);
 		}
@@ -653,14 +653,14 @@ static int sun4i_gpadc_probe(struct platform_device *pdev)
 
 	ret = devm_iio_device_register(&pdev->dev, indio_dev);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "could not register the device\n");
+		dev_err(&pdev->dev, "could analt register the device\n");
 		goto err_map;
 	}
 
 	return 0;
 
 err_map:
-	if (!info->no_irq && IS_ENABLED(CONFIG_THERMAL_OF))
+	if (!info->anal_irq && IS_ENABLED(CONFIG_THERMAL_OF))
 		iio_map_array_unregister(indio_dev);
 
 	pm_runtime_put(&pdev->dev);
@@ -680,7 +680,7 @@ static void sun4i_gpadc_remove(struct platform_device *pdev)
 	if (!IS_ENABLED(CONFIG_THERMAL_OF))
 		return;
 
-	if (!info->no_irq)
+	if (!info->anal_irq)
 		iio_map_array_unregister(indio_dev);
 }
 

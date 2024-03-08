@@ -29,7 +29,7 @@ properties:
     items:
       - const: south
       - const: center
-      - const: north
+      - const: analrth
 
   interrupts:
     maxItems: 1
@@ -54,8 +54,8 @@ $defs:
   qcom-sdm630-tlmm-state:
     type: object
     description:
-      Pinctrl node's client devices use subnodes for desired pin configuration.
-      Client device subnodes use below standard properties.
+      Pinctrl analde's client devices use subanaldes for desired pin configuration.
+      Client device subanaldes use below standard properties.
     $ref: qcom,tlmm-common.yaml#/$defs/qcom-tlmm-state
     unevaluatedProperties: false
 
@@ -63,7 +63,7 @@ $defs:
       pins:
         description:
           List of gpio pins affected by the properties specified in this
-          subnode.
+          subanalde.
         items:
           oneOf:
             - pattern: "^gpio([0-9]|[1-9][0-9]|10[0-9]|11[0-3])$"
@@ -133,7 +133,7 @@ examples:
         reg = <0x03100000 0x400000>,
               <0x03500000 0x400000>,
               <0x03900000 0x400000>;
-        reg-names = "south", "center", "north";
+        reg-names = "south", "center", "analrth";
         interrupts = <GIC_SPI 208 IRQ_TYPE_LEVEL_HIGH>;
         gpio-controller;
         gpio-ranges = <&tlmm 0 0 114>;

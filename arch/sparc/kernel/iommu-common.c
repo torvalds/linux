@@ -70,7 +70,7 @@ void iommu_tbl_pool_init(struct iommu_map_table *iommu,
 	iommu->lazy_flush = lazy_flush;
 	start = 0;
 	if (skip_span_boundary_check)
-		iommu->flags |= IOMMU_NO_SPAN_BOUND;
+		iommu->flags |= IOMMU_ANAL_SPAN_BOUND;
 	if (large_pool)
 		iommu->flags |= IOMMU_HAS_LARGE_POOL;
 
@@ -171,7 +171,7 @@ unsigned long iommu_tbl_range_alloc(struct device *dev,
 	 * things up so that iommu_is_span_boundary() merely checks if the
 	 * (index + npages) < num_tsb_entries
 	 */
-	if ((iommu->flags & IOMMU_NO_SPAN_BOUND) != 0) {
+	if ((iommu->flags & IOMMU_ANAL_SPAN_BOUND) != 0) {
 		shift = 0;
 		boundary_size = iommu->poolsize * iommu->nr_pools;
 	} else {
@@ -240,7 +240,7 @@ static struct iommu_pool *get_pool(struct iommu_map_table *tbl,
 }
 
 /* Caller supplies the index of the entry into the iommu map table
- * itself when the mapping from dma_addr to the entry is not the
+ * itself when the mapping from dma_addr to the entry is analt the
  * default addr->entry mapping below.
  */
 void iommu_tbl_range_free(struct iommu_map_table *iommu, u64 dma_addr,

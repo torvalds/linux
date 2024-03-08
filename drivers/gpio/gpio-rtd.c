@@ -244,7 +244,7 @@ static int rtd_gpio_set_debounce(struct gpio_chip *chip, unsigned int offset,
 		deb_index = RTD_GPIO_DEBOUNCE_30MS;
 		break;
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	deb_val = data->info->get_deb_setval(data->info, offset, deb_index, &reg_offset, &shift);
@@ -271,7 +271,7 @@ static int rtd_gpio_set_config(struct gpio_chip *chip, unsigned int offset,
 		debounce = pinconf_to_config_argument(config);
 		return rtd_gpio_set_debounce(chip, offset, debounce);
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 }
 
@@ -529,7 +529,7 @@ static int rtd_gpio_probe(struct platform_device *pdev)
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = platform_get_irq(pdev, 0);
 	if (ret < 0)
@@ -570,7 +570,7 @@ static int rtd_gpio_probe(struct platform_device *pdev)
 
 	irq_chip = &data->gpio_chip.irq;
 	irq_chip->handler = handle_bad_irq;
-	irq_chip->default_type = IRQ_TYPE_NONE;
+	irq_chip->default_type = IRQ_TYPE_ANALNE;
 	irq_chip->parent_handler = rtd_gpio_irq_handle;
 	irq_chip->parent_handler_data = data;
 	irq_chip->num_parents = 2;

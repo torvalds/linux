@@ -12,7 +12,7 @@ struct hpi_adapter_obj;
 /* a function that takes an adapter obj and returns an int */
 typedef int adapter_int_func(struct hpi_adapter_obj *pao, u32 message);
 
-#define HPI_IRQ_NONE		(0)
+#define HPI_IRQ_ANALNE		(0)
 #define HPI_IRQ_MESSAGE		(1)
 #define HPI_IRQ_MIXER		(2)
 

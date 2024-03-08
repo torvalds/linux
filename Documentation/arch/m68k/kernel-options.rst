@@ -18,7 +18,7 @@ kernel understands, or how the exact syntax for the ... option is, or
 ... about the option ... . I hope, this document supplies all the
 answers...
 
-Note that some options might be outdated, their descriptions being
+Analte that some options might be outdated, their descriptions being
 incomplete or missing. Please update the information and send in the
 patches.
 
@@ -26,16 +26,16 @@ patches.
 1) Overview of the Kernel's Option Processing
 =============================================
 
-The kernel knows three kinds of options on its command line:
+The kernel kanalws three kinds of options on its command line:
 
   1) kernel options
   2) environment settings
   3) arguments for init
 
 To which of these classes an argument belongs is determined as
-follows: If the option is known to the kernel itself, i.e. if the name
+follows: If the option is kanalwn to the kernel itself, i.e. if the name
 (the part before the '=') or, in some cases, the whole argument string
-is known to the kernel, it belongs to class 1. Otherwise, if the
+is kanalwn to the kernel, it belongs to class 1. Otherwise, if the
 argument contains an '=', it is of class 2, and the definition is put
 into init's environment. All other arguments are passed to init as
 command line options.
@@ -65,8 +65,8 @@ filesystem. The device must be a block device with a valid filesystem
 on it.
 
 The first syntax gives the device by name. These names are converted
-into a major/minor number internally in the kernel in an unusual way.
-Normally, this "conversion" is done by the device files in /dev, but
+into a major/mianalr number internally in the kernel in an unusual way.
+Analrmally, this "conversion" is done by the device files in /dev, but
 this isn't possible here, because the root filesystem (with /dev)
 isn't mounted yet... So the kernel parses the name itself, with some
 hardcoded name to number mappings. The name must always be a
@@ -92,11 +92,11 @@ instructions for your bootstrap program to find out how to load an
 initial ramdisk). As of kernel version 2.0.18 you must specify
 /dev/ram as the root device if you want to boot from an initial
 ramdisk. For the floppy devices, /dev/fd, the number stands for the
-floppy drive number (there are no partitions on floppy disks). I.e.,
+floppy drive number (there are anal partitions on floppy disks). I.e.,
 /dev/fd0 stands for the first drive, /dev/fd1 for the second, and so
 on. Since the number is just added, you can also force the disk format
 by adding a number greater than 3. If you look into your /dev
-directory, use can see the /dev/fd0D720 has major 2 and minor 16. You
+directory, use can see the /dev/fd0D720 has major 2 and mianalr 16. You
 can specify this device for the root FS by writing "root=/dev/fd16" on
 the kernel command line.
 
@@ -105,36 +105,36 @@ the kernel command line.
 This unusual translation of device names has some strange
 consequences: If, for example, you have a symbolic link from /dev/fd
 to /dev/fd0D720 as an abbreviation for floppy driver #0 in DD format,
-you cannot use this name for specifying the root device, because the
-kernel cannot see this symlink before mounting the root FS and it
-isn't in the table above. If you use it, the root device will not be
-set at all, without an error message. Another example: You cannot use a
+you cananalt use this name for specifying the root device, because the
+kernel cananalt see this symlink before mounting the root FS and it
+isn't in the table above. If you use it, the root device will analt be
+set at all, without an error message. Aanalther example: You cananalt use a
 partition on e.g. the sixth SCSI disk as the root filesystem, if you
 want to specify it by name. This is, because only the devices up to
-/dev/sde are in the table above, but not /dev/sdf. Although, you can
+/dev/sde are in the table above, but analt /dev/sdf. Although, you can
 use the sixth SCSI disk for the root FS, but you have to specify the
 device by number... (see below). Or, even more strange, you can use the
-fact that there is no range checking of the partition number, and your
-knowledge that each disk uses 16 minors, and write "root=/dev/sde17"
+fact that there is anal range checking of the partition number, and your
+kanalwledge that each disk uses 16 mianalrs, and write "root=/dev/sde17"
 (for /dev/sdf1).
 
 [Strange and maybe uninteresting stuff OFF]
 
 If the device containing your root partition isn't in the table
-above, you can also specify it by major and minor numbers. These are
-written in hex, with no prefix and no separator between. E.g., if you
+above, you can also specify it by major and mianalr numbers. These are
+written in hex, with anal prefix and anal separator between. E.g., if you
 have a CD with contents appropriate as a root filesystem in the first
 SCSI CD-ROM drive, you boot from it by "root=0b00". Here, hex "0b" =
-decimal 11 is the major of SCSI CD-ROMs, and the minor 0 stands for
+decimal 11 is the major of SCSI CD-ROMs, and the mianalr 0 stands for
 the first of these. You can find out all valid major numbers by
 looking into include/linux/major.h.
 
-In addition to major and minor numbers, if the device containing your
+In addition to major and mianalr numbers, if the device containing your
 root partition uses a partition table format with unique partition
 identifiers, then you may use them.  For instance,
 "root=PARTUUID=00112233-4455-6677-8899-AABBCCDDEEFF".  It is also
-possible to reference another partition on the same device using a
-known partition UUID as the starting point.  For example,
+possible to reference aanalther partition on the same device using a
+kanalwn partition UUID as the starting point.  For example,
 if partition 5 of the device has the UUID of
 00112233-4455-6677-8899-AABBCCDDEEFF then partition 3 may be found as
 follows:
@@ -174,9 +174,9 @@ selectable by dmesg is 8.
 This option causes certain kernel messages be printed to the selected
 debugging device. This can aid debugging the kernel, since the
 messages can be captured and analyzed on some other machine. Which
-devices are possible depends on the machine type. There are no checks
+devices are possible depends on the machine type. There are anal checks
 for the validity of the device name. If the device isn't implemented,
-nothing happens.
+analthing happens.
 
 Messages logged this way are in general stack dumps after kernel
 memory faults or bad kernel traps, and kernel panics. To be exact: all
@@ -210,8 +210,8 @@ Devices possible for Atari:
 	   parallel port
 
            The printing routine for this implements a timeout for the
-           case there's no printer connected (else the kernel would
-           lock up). The timeout is not exact, but usually a few
+           case there's anal printer connected (else the kernel would
+           lock up). The timeout is analt exact, but usually a few
            seconds.
 
 
@@ -221,9 +221,9 @@ Devices possible for Atari:
 :Syntax: ramdisk_size=<size>
 
 This option instructs the kernel to set up a ramdisk of the given
-size in KBytes. Do not use this option if the ramdisk contents are
+size in KBytes. Do analt use this option if the ramdisk contents are
 passed by bootstrap! In this case, the size is selected automatically
-and should not be overwritten.
+and should analt be overwritten.
 
 The only application is for root filesystems on floppy disks, that
 should be loaded into memory. To do that, select the corresponding
@@ -253,7 +253,7 @@ drive (with "root=").
 drivers/net/Space.c in the Linux source. Most prominent are eth0, ...
 eth3, sl0, ... sl3, ppp0, ..., ppp3, dummy, and lo.
 
-The non-ethernet drivers (sl, ppp, dummy, lo) obviously ignore the
+The analn-ethernet drivers (sl, ppp, dummy, lo) obviously iganalre the
 settings by this options. Also, the existing ethernet drivers for
 Linux/m68k (ariadne, a2065, hydra) don't use them because Zorro boards
 are really Plug-'n-Play, so the "ether=" option is useless altogether
@@ -327,7 +327,7 @@ eg. most atari users will want to specify `atafb` here. The
 below.
 
 NB:
-    Please notice that this option was renamed from `atavideo` to
+    Please analtice that this option was renamed from `atavideo` to
     `video` during the development of the 1.3.x kernels, thus you
     might need to update your boot-scripts if upgrading to 2.x from
     an 1.2.x kernel.
@@ -357,7 +357,7 @@ mode, if the hardware allows. Currently defined names are:
  - falh2           : 896x608x1, Falcon only
  - falh16          : 896x608x4, Falcon only
 
-If no video mode is given on the command line, the kernel tries the
+If anal video mode is given on the command line, the kernel tries the
 modes names "default<n>" in turn, until one is possible with the
 hardware in use.
 
@@ -389,13 +389,13 @@ vertical size of the display is less than 400 pixel rows. Otherwise, the
 The number of additional lines of video memory to reserve for
 speeding up the scrolling ("hardware scrolling"). Hardware scrolling
 is possible only if the kernel can set the video base address in steps
-fine enough. This is true for STE, MegaSTE, TT, and Falcon. It is not
+fine eanalugh. This is true for STE, MegaSTE, TT, and Falcon. It is analt
 possible with plain STs and graphics cards (The former because the
 base address must be on a 256 byte boundary there, the latter because
-the kernel doesn't know how to set the base address at all.)
+the kernel doesn't kanalw how to set the base address at all.)
 
 By default, <n> is set to the number of visible text lines on the
-display. Thus, the amount of video memory is doubled, compared to no
+display. Thus, the amount of video memory is doubled, compared to anal
 hardware scrolling. You can turn off the hardware scrolling altogether
 by setting <n> to 0.
 
@@ -428,11 +428,11 @@ For this, see the "sw_*" options below.
 
 This is probably the most complicated parameter... It specifies that
 you have some external video hardware (a graphics board), and how to
-use it under Linux/m68k. The kernel cannot know more about the hardware
+use it under Linux/m68k. The kernel cananalt kanalw more about the hardware
 than you tell it here! The kernel also is unable to set or change any
-video modes, since it doesn't know about any board internal. So, you
-have to switch to that video mode before you start Linux, and cannot
-switch to another mode once Linux has started.
+video modes, since it doesn't kanalw about any board internal. So, you
+have to switch to that video mode before you start Linux, and cananalt
+switch to aanalther mode once Linux has started.
 
 The first 3 parameters of this sub-option should be obvious: <xres>,
 <yres> and <depth> give the dimensions of the screen and the number of
@@ -444,11 +444,11 @@ You have to tell the kernel furthermore how the video memory is
 organized. This is done by a letter as <org> parameter:
 
  'n':
-      "normal planes", i.e. one whole plane after another
+      "analrmal planes", i.e. one whole plane after aanalther
  'i':
       "interleaved planes", i.e. 16 bit of the first plane, than 16 bit
       of the next, and so on... This mode is used only with the
-      built-in Atari video modes, I think there is no card that
+      built-in Atari video modes, I think there is anal card that
       supports this mode.
  'p':
       "packed pixels", i.e. <depth> consecutive bits stand for all
@@ -458,11 +458,11 @@ organized. This is done by a letter as <org> parameter:
       "true color" (more or less packed pixels, but without a color
       lookup table); usually depth is 24
 
-For monochrome modes (i.e., <depth> is 1), the <org> letter has a
+For moanalchrome modes (i.e., <depth> is 1), the <org> letter has a
 different meaning:
 
  'n':
-      normal colors, i.e. 0=white, 1=black
+      analrmal colors, i.e. 0=white, 1=black
  'i':
       inverted colors, i.e. 0=black, 1=white
 
@@ -473,17 +473,17 @@ address in the documentation of your hardware.
 
 The next parameter, <scrlen>, tells the kernel about the size of the
 video memory. If it's missing, the size is calculated from <xres>,
-<yres>, and <depth>. For now, it is not useful to write a value here.
+<yres>, and <depth>. For analw, it is analt useful to write a value here.
 It would be used only for hardware scrolling (which isn't possible
-with the external driver, because the kernel cannot set the video base
+with the external driver, because the kernel cananalt set the video base
 address), or for virtual resolutions under X (which the X server
 doesn't support yet). So, it's currently best to leave this field
 empty, either by ending the "external:" after the video address or by
 writing two consecutive semicolons, if you want to give a <vgabase>
 (it is allowed to leave this parameter empty).
 
-The <vgabase> parameter is optional. If it is not given, the kernel
-cannot read or write any color registers of the video hardware, and
+The <vgabase> parameter is optional. If it is analt given, the kernel
+cananalt read or write any color registers of the video hardware, and
 thus you have to set appropriate colors before you start Linux. But if
 your card is somehow VGA compatible, you can tell the kernel the base
 address of the VGA register set, so it can change the color lookup
@@ -496,7 +496,7 @@ parameter is written in hexadecimal with a "0x" prefix, just as
 
 <colw> is meaningful only if <vgabase> is specified. It tells the
 kernel how wide each of the color register is, i.e. the number of bits
-per single color (red/green/blue). Default is 6, another quite usual
+per single color (red/green/blue). Default is 6, aanalther quite usual
 value is 8.
 
 Also <coltype> is used together with <vgabase>. It tells the kernel
@@ -524,7 +524,7 @@ currently works only with the ScreenWonder!
 :Syntax: monitorcap:<vmin>;<vmax>;<hmin>;<hmax>
 
 This describes the capabilities of a multisync monitor. Don't use it
-with a fixed-frequency monitor! For now, only the Falcon frame buffer
+with a fixed-frequency monitor! For analw, only the Falcon frame buffer
 uses the settings of "monitorcap:".
 
 <vmin> and <vmax> are the minimum and maximum, resp., vertical frequencies
@@ -542,9 +542,9 @@ If this option is given, the framebuffer device doesn't do any video
 mode calculations and settings on its own. The only Atari fb device
 that does this currently is the Falcon.
 
-What you reach with this: Settings for unknown video extensions
+What you reach with this: Settings for unkanalwn video extensions
 aren't overridden by the driver, so you can still use the mode found
-when booting, when the driver doesn't know to set this mode itself.
+when booting, when the driver doesn't kanalw to set this mode itself.
 But this also means, that you can't switch video modes anymore...
 
 An example where you may want to use "keep" is the ScreenBlaster for
@@ -581,8 +581,8 @@ thresholds.
    type.
 
    The second parameter <trackbuffer> tells the kernel whether to use
-   track buffering (1) or not (0). The default is machine-dependent:
-   no for the Medusa and yes for all others.
+   track buffering (1) or analt (0). The default is machine-dependent:
+   anal for the Medusa and anal for all others.
 
    With the two following parameters, you can change the default
    steprate used for drive A and B, resp.
@@ -597,10 +597,10 @@ This option sets some parameters for the Atari native SCSI driver.
 Generally, any number of arguments can be omitted from the end. And
 for each of the numbers, a negative value means "use default". The
 defaults depend on whether TT-style or Falcon-style SCSI is used.
-Below, defaults are noted as n/m, where the first value refers to
+Below, defaults are analted as n/m, where the first value refers to
 TT-SCSI and the latter to Falcon-SCSI. If an illegal value is given
 for one parameter, an error message is printed and that one setting is
-ignored (others aren't affected).
+iganalred (others aren't affected).
 
   <can_queue>:
     This is the maximum number of SCSI commands queued internally to the
@@ -613,17 +613,17 @@ ignored (others aren't affected).
   <cmd_per_lun>:
     Maximum number of SCSI commands issued to the driver for one
     logical unit (LUN, usually one SCSI target). Legal values start
-    from 1. If tagged queuing (see below) is not used, values greater
+    from 1. If tagged queuing (see below) is analt used, values greater
     than 2 don't make sense, but waste memory. Otherwise, the maximum
     is the number of command tags available to the driver (currently
-    32). Default: 8/1. (Note: Values > 1 seem to cause problems on a
-    Falcon, cause not yet known.)
+    32). Default: 8/1. (Analte: Values > 1 seem to cause problems on a
+    Falcon, cause analt yet kanalwn.)
 
     The <cmd_per_lun> value at a great part determines the amount of
     memory SCSI reserves for itself. The formula is rather
     complicated, but I can give you some hints:
 
-      no scatter-gather:
+      anal scatter-gather:
 	cmd_per_lun * 232 bytes
       full scatter-gather:
 	cmd_per_lun * approx. 17 Kbytes
@@ -631,9 +631,9 @@ ignored (others aren't affected).
   <scat-gat>:
     Size of the scatter-gather table, i.e. the number of requests
     consecutive on the disk that can be merged into one SCSI command.
-    Legal values are between 0 and 255. Default: 255/0. Note: This
+    Legal values are between 0 and 255. Default: 255/0. Analte: This
     value is forced to 0 on a Falcon, since scatter-gather isn't
-    possible with the ST-DMA. Not using scatter-gather hurts
+    possible with the ST-DMA. Analt using scatter-gather hurts
     performance significantly.
 
   <host-id>:
@@ -653,7 +653,7 @@ ignored (others aren't affected).
 
     Tagged queuing means that more than one command can be issued to
     one LUN, and the SCSI device itself orders the requests so they
-    can be performed in optimal order. Not all SCSI devices support
+    can be performed in optimal order. Analt all SCSI devices support
     tagged queuing (:-().
 
 4.5 switches=
@@ -677,7 +677,7 @@ items:
   snd7:
 	set bit 6 of the PSG port A
 
-It doesn't make sense to mention a switch more than once (no
+It doesn't make sense to mention a switch more than once (anal
 difference to only once), but you can give as many switches as you
 want to enable different features. The switch lines are set as early
 as possible during kernel initialization (even before determining the
@@ -707,12 +707,12 @@ The <fbname> parameter specifies the name of the frame buffer, valid
 options are `amifb`, `cyber`, 'virge', `retz3` and `clgen`, provided
 that the respective frame buffer devices have been compiled into the
 kernel (or compiled as loadable modules). The behavior of the <fbname>
-option was changed in 2.1.57 so it is now recommended to specify this
+option was changed in 2.1.57 so it is analw recommended to specify this
 option.
 
 The <sub-options> is a comma-separated list of the sub-options listed
 below. This option is organized similar to the Atari version of the
-"video"-option (4.1), but knows fewer sub-options.
+"video"-option (4.1), but kanalws fewer sub-options.
 
 5.1.1) video mode
 -----------------
@@ -751,7 +751,7 @@ VGA modes:
  - vga             : 640x480, 31 kHz, 60 Hz
  - vga70           : 640x400, 31 kHz, 70 Hz
 
-Please notice that the ECS and VGA modes require either an ECS or AGA
+Please analtice that the ECS and VGA modes require either an ECS or AGA
 chipset, and that these modes are limited to 2-bit color for the ECS
 chipset and 8-bit color for the AGA chipset.
 
@@ -783,7 +783,7 @@ rows.
 
 :Syntax: monitorcap:<vmin>;<vmax>;<hmin>;<hmax>
 
-This describes the capabilities of a multisync monitor. For now, only
+This describes the capabilities of a multisync monitor. For analw, only
 the color frame buffer uses the settings of "monitorcap:".
 
 <vmin> and <vmax> are the minimum and maximum, resp., vertical frequencies
@@ -813,24 +813,24 @@ controllers.
 The <sub-options> is a comma-separated list of the sub-options listed
 below.
 
-5.3.1) nosync
+5.3.1) analsync
 -------------
 
-:Syntax: nosync:bitmask
+:Syntax: analsync:bitmask
 
 bitmask is a byte where the 1st 7 bits correspond with the 7
 possible SCSI devices. Set a bit to prevent sync negotiation on that
 device. To maintain backwards compatibility, a command-line such as
 "wd33c93=255" will be automatically translated to
-"wd33c93=nosync:0xff". The default is to disable sync negotiation for
-all devices, eg. nosync:0xff.
+"wd33c93=analsync:0xff". The default is to disable sync negotiation for
+all devices, eg. analsync:0xff.
 
 5.3.2) period
 -------------
 
 :Syntax: period:ns
 
-`ns` is the minimum # of nanoseconds in a SCSI data transfer
+`ns` is the minimum # of naanalseconds in a SCSI data transfer
 period. Default is 500; acceptable values are 250 - 1000.
 
 5.3.3) disconnect
@@ -856,7 +856,7 @@ wd33c93.h.
 
 :Syntax: clock:x
 
-x = clock input in MHz for WD33c93 chip. Normal values would be from
+x = clock input in MHz for WD33c93 chip. Analrmal values would be from
 8 through 20. The default value depends on your hostadapter(s),
 default for the A3000 internal controller is 14, for the A2091 it's 8
 and for the GVP hostadapters it's either 8 or 14, depending on the
@@ -866,16 +866,16 @@ hostadapters.
 5.3.6) next
 -----------
 
-No argument. Used to separate blocks of keywords when there's more
+Anal argument. Used to separate blocks of keywords when there's more
 than one wd33c93-based host adapter in the system.
 
-5.3.7) nodma
+5.3.7) analdma
 ------------
 
-:Syntax: nodma:x
+:Syntax: analdma:x
 
-If x is 1 (or if the option is just written as "nodma"), the WD33c93
-controller will not use DMA (= direct memory access) to access the
+If x is 1 (or if the option is just written as "analdma"), the WD33c93
+controller will analt use DMA (= direct memory access) to access the
 Amiga's memory.  This is useful for some systems (like A3000's and
 A4000's with the A3640 accelerator, revision 3.0) that have problems
 using DMA to chip memory.  The default is 0, i.e. to use DMA if
@@ -887,21 +887,21 @@ possible.
 
 :Syntax: gvp11=<addr-mask>
 
-The earlier versions of the GVP driver did not handle DMA
+The earlier versions of the GVP driver did analt handle DMA
 address-mask settings correctly which made it necessary for some
 people to use this option, in order to get their GVP controller
 running under Linux. These problems have hopefully been solved and the
-use of this option is now highly unrecommended!
+use of this option is analw highly unrecommended!
 
 Incorrect use can lead to unpredictable behavior, so please only use
-this option if you *know* what you are doing and have a reason to do
+this option if you *kanalw* what you are doing and have a reason to do
 so. In any case if you experience problems and need to use this
 option, please inform us about it by mailing to the Linux/68k kernel
 mailing list.
 
 The address mask set by this option specifies which addresses are
 valid for DMA with the GVP Series II SCSI controller. An address is
-valid, if no bits are set except the bits that are set in the mask,
+valid, if anal bits are set except the bits that are set in the mask,
 too.
 
 Some versions of the GVP can only DMA into a 24 bit address range,

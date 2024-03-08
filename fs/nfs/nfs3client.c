@@ -26,26 +26,26 @@ const struct rpc_program nfsacl_program = {
  */
 static void nfs_init_server_aclclient(struct nfs_server *server)
 {
-	if (server->flags & NFS_MOUNT_NOACL)
-		goto out_noacl;
+	if (server->flags & NFS_MOUNT_ANALACL)
+		goto out_analacl;
 
 	server->client_acl = rpc_bind_new_program(server->client, &nfsacl_program, 3);
 	if (IS_ERR(server->client_acl))
-		goto out_noacl;
+		goto out_analacl;
 
 	nfs_sysfs_link_rpc_client(server, server->client_acl, NULL);
 
-	/* No errors! Assume that Sun nfsacls are supported */
+	/* Anal errors! Assume that Sun nfsacls are supported */
 	server->caps |= NFS_CAP_ACLS;
 	return;
 
-out_noacl:
+out_analacl:
 	server->caps &= ~NFS_CAP_ACLS;
 }
 #else
 static inline void nfs_init_server_aclclient(struct nfs_server *server)
 {
-	server->flags &= ~NFS_MOUNT_NOACL;
+	server->flags &= ~NFS_MOUNT_ANALACL;
 	server->caps &= ~NFS_CAP_ACLS;
 }
 #endif
@@ -75,7 +75,7 @@ struct nfs_server *nfs3_clone_server(struct nfs_server *source,
  * Set up a pNFS Data Server client over NFSv3.
  *
  * Return any existing nfs_client that matches server address,port,version
- * and minorversion.
+ * and mianalrversion.
  *
  * For a new nfs_client, use a soft mount (default), a low retrans and a
  * low timeout interval so that if a connection is lost, we retry through
@@ -91,7 +91,7 @@ struct nfs_client *nfs3_set_ds_client(struct nfs_server *mds_srv,
 	struct nfs_client_initdata cl_init = {
 		.addr = ds_addr,
 		.addrlen = ds_addrlen,
-		.nodename = mds_clp->cl_rpcclient->cl_nodename,
+		.analdename = mds_clp->cl_rpcclient->cl_analdename,
 		.ip_addr = mds_clp->cl_ipaddr,
 		.nfs_mod = &nfs_v3,
 		.proto = ds_proto,
@@ -117,8 +117,8 @@ struct nfs_client *nfs3_set_ds_client(struct nfs_server *mds_srv,
 			cl_init.nconnect = mds_clp->cl_nconnect;
 	}
 
-	if (mds_srv->flags & NFS_MOUNT_NORESVPORT)
-		__set_bit(NFS_CS_NORESVPORT, &cl_init.init_flags);
+	if (mds_srv->flags & NFS_MOUNT_ANALRESVPORT)
+		__set_bit(NFS_CS_ANALRESVPORT, &cl_init.init_flags);
 
 	__set_bit(NFS_CS_DS, &cl_init.init_flags);
 

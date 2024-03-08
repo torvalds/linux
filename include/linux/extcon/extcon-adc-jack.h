@@ -16,7 +16,7 @@
 
 /**
  * struct adc_jack_cond - condition to use an extcon state
- *			denotes the last adc_jack_cond element among the array)
+ *			deanaltes the last adc_jack_cond element among the array)
  * @id:			the unique id of each external connector
  * @min_adc:		min adc value for this condition
  * @max_adc:		max adc value for this condition
@@ -25,8 +25,8 @@
  * that if ADC value is between (inclusive) 100 and 200, than the cable 0 and
  * 1 are attached (1<<0 | 1<<1 == 0x3)
  *
- * Note that you don't need to describe condition for "no cable attached"
- * because when no adc_jack_cond is met, state = 0 is automatically chosen.
+ * Analte that you don't need to describe condition for "anal cable attached"
+ * because when anal adc_jack_cond is met, state = 0 is automatically chosen.
  */
 struct adc_jack_cond {
 	unsigned int id;

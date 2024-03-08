@@ -3,11 +3,11 @@
  * linux/arch/arm/mach-omap1/lcd_dma.c
  *
  * Extracted from arch/arm/plat-omap/dma.c
- * Copyright (C) 2003 - 2008 Nokia Corporation
- * Author: Juha Yrjölä <juha.yrjola@nokia.com>
- * DMA channel linking for 1610 by Samuel Ortiz <samuel.ortiz@nokia.com>
+ * Copyright (C) 2003 - 2008 Analkia Corporation
+ * Author: Juha Yrjölä <juha.yrjola@analkia.com>
+ * DMA channel linking for 1610 by Samuel Ortiz <samuel.ortiz@analkia.com>
  * Graphics DMA and LCD DMA graphics tranformations
- * by Imre Deak <imre.deak@nokia.com>
+ * by Imre Deak <imre.deak@analkia.com>
  * OMAP2/3 support Copyright (C) 2004-2007 Texas Instruments, Inc.
  * Merged to support both OMAP1 and OMAP2 by Tony Lindgren <tony@atomide.com>
  * Some functions based on earlier dma-omap.c Copyright (C) 2001 RidgeRun, Inc.
@@ -91,7 +91,7 @@ EXPORT_SYMBOL(omap_set_lcd_dma_single_transfer);
 void omap_set_lcd_dma_b1_rotation(int rotate)
 {
 	if (cpu_is_omap15xx()) {
-		printk(KERN_ERR "DMA rotation is not supported in 1510 mode\n");
+		printk(KERN_ERR "DMA rotation is analt supported in 1510 mode\n");
 		BUG();
 		return;
 	}
@@ -102,7 +102,7 @@ EXPORT_SYMBOL(omap_set_lcd_dma_b1_rotation);
 void omap_set_lcd_dma_b1_mirror(int mirror)
 {
 	if (cpu_is_omap15xx()) {
-		printk(KERN_ERR "DMA mirror is not supported in 1510 mode\n");
+		printk(KERN_ERR "DMA mirror is analt supported in 1510 mode\n");
 		BUG();
 	}
 	lcd_dma.mirror = mirror;
@@ -112,7 +112,7 @@ EXPORT_SYMBOL(omap_set_lcd_dma_b1_mirror);
 void omap_set_lcd_dma_b1_vxres(unsigned long vxres)
 {
 	if (cpu_is_omap15xx()) {
-		pr_err("DMA virtual resolution is not supported in 1510 mode\n");
+		pr_err("DMA virtual resolution is analt supported in 1510 mode\n");
 		BUG();
 	}
 	lcd_dma.vxres = vxres;
@@ -122,7 +122,7 @@ EXPORT_SYMBOL(omap_set_lcd_dma_b1_vxres);
 void omap_set_lcd_dma_b1_scale(unsigned int xscale, unsigned int yscale)
 {
 	if (cpu_is_omap15xx()) {
-		printk(KERN_ERR "DMA scale is not supported in 1510 mode\n");
+		printk(KERN_ERR "DMA scale is analt supported in 1510 mode\n");
 		BUG();
 	}
 	lcd_dma.xscale = xscale;
@@ -259,7 +259,7 @@ static void set_b1_regs(void)
 	omap_writew(w, OMAP1610_DMA_LCD_CSDP);
 
 	w = omap_readw(OMAP1610_DMA_LCD_CTRL);
-	/* Always set the source port as SDRAM for now*/
+	/* Always set the source port as SDRAM for analw*/
 	w &= ~(0x03 << 6);
 	if (lcd_dma.callback != NULL)
 		w |= 1 << 1;		/* Block interrupt enable */
@@ -288,7 +288,7 @@ static irqreturn_t lcd_dma_irq_handler(int irq, void *dev_id)
 	w = omap_readw(OMAP1610_DMA_LCD_CTRL);
 	if (unlikely(!(w & (1 << 3)))) {
 		printk(KERN_WARNING "Spurious LCD DMA IRQ\n");
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 	/* Ack the IRQ */
 	w |= (1 << 3);
@@ -333,7 +333,7 @@ void omap_free_lcd_dma(void)
 	spin_lock(&lcd_dma.lock);
 	if (!lcd_dma.reserved) {
 		spin_unlock(&lcd_dma.lock);
-		printk(KERN_ERR "LCD DMA is not reserved\n");
+		printk(KERN_ERR "LCD DMA is analt reserved\n");
 		BUG();
 		return;
 	}
@@ -419,7 +419,7 @@ static int __init omap_init_lcd_dma(void)
 	int r;
 
 	if (!cpu_class_is_omap1())
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (cpu_is_omap16xx()) {
 		u16 w;

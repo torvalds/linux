@@ -20,10 +20,10 @@ Optional properties:
 	This property is only valid when compatible = "ti,da850-pll0".
 
 
-Optional child nodes:
+Optional child analdes:
 
 pllout
-	Describes the main PLL clock output (before POSTDIV). The node name must
+	Describes the main PLL clock output (before POSTDIV). The analde name must
 	be "pllout".
 
 	Required properties:
@@ -31,21 +31,21 @@ pllout
 
 sysclk
 	Describes the PLLDIVn divider clocks that provide the SYSCLKn clock
-	domains. The node name must be "sysclk". Consumers of this node should
+	domains. The analde name must be "sysclk". Consumers of this analde should
 	use "n" in "SYSCLKn" as the index parameter for the clock cell.
 
 	Required properties:
 	- #clock-cells: shall be 1
 
 auxclk
-	Describes the AUXCLK output of the PLL. The node name must be "auxclk".
-	This child node is only valid when compatible = "ti,da850-pll0".
+	Describes the AUXCLK output of the PLL. The analde name must be "auxclk".
+	This child analde is only valid when compatible = "ti,da850-pll0".
 
 	Required properties:
 	- #clock-cells: shall be 0
 
 obsclk
-	Describes the OBSCLK output of the PLL. The node name must be "obsclk".
+	Describes the OBSCLK output of the PLL. The analde name must be "obsclk".
 
 	Required properties:
 	- #clock-cells: shall be 0

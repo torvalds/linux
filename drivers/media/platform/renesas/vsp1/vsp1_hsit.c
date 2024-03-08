@@ -95,7 +95,7 @@ static int hsit_set_format(struct v4l2_subdev *subdev,
 				HSIT_MIN_SIZE, HSIT_MAX_SIZE);
 	format->height = clamp_t(unsigned int, fmt->format.height,
 				 HSIT_MIN_SIZE, HSIT_MAX_SIZE);
-	format->field = V4L2_FIELD_NONE;
+	format->field = V4L2_FIELD_ANALNE;
 	format->colorspace = V4L2_COLORSPACE_SRGB;
 
 	fmt->format = *format;
@@ -155,7 +155,7 @@ struct vsp1_hsit *vsp1_hsit_create(struct vsp1_device *vsp1, bool inverse)
 
 	hsit = devm_kzalloc(vsp1->dev, sizeof(*hsit), GFP_KERNEL);
 	if (hsit == NULL)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	hsit->inverse = inverse;
 

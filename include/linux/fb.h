@@ -11,7 +11,7 @@
 #include <linux/fs.h>
 #include <linux/init.h>
 #include <linux/workqueue.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/list.h>
 #include <linux/backlight.h>
 #include <linux/slab.h>
@@ -23,7 +23,7 @@ struct fb_info;
 struct device;
 struct file;
 struct videomode;
-struct device_node;
+struct device_analde;
 
 /* Definitions below are used in the parsed monitor specs */
 #define FB_DPMS_ACTIVE_OFF	1
@@ -36,12 +36,12 @@ struct device_node;
 #define FB_DISP_ANA_1000_400	8
 #define FB_DISP_ANA_700_000	16
 
-#define FB_DISP_MONO		32
+#define FB_DISP_MOANAL		32
 #define FB_DISP_RGB		64
 #define FB_DISP_MULTI		128
-#define FB_DISP_UNKNOWN		256
+#define FB_DISP_UNKANALWN		256
 
-#define FB_SIGNAL_NONE		0
+#define FB_SIGNAL_ANALNE		0
 #define FB_SIGNAL_BLANK_BLANK	1
 #define FB_SIGNAL_SEPARATE	2
 #define FB_SIGNAL_COMPOSITE	4
@@ -67,7 +67,7 @@ struct fb_monspecs {
 	struct fb_videomode *modedb;	/* mode database */
 	__u8  manufacturer[4];		/* Manufacturer */
 	__u8  monitor[14];		/* Monitor String */
-	__u8  serial_no[14];		/* Serial Number */
+	__u8  serial_anal[14];		/* Serial Number */
 	__u8  ascii[14];		/* ? */
 	__u32 modedb_len;		/* mode database length */
 	__u32 model;			/* Monitor Model */
@@ -106,7 +106,7 @@ struct fb_image_user {
 	__u32 dy;
 	__u32 width;			/* Size of image */
 	__u32 height;
-	__u32 fg_color;			/* Only used when a mono bitmap */
+	__u32 fg_color;			/* Only used when a moanal bitmap */
 	__u32 bg_color;
 	__u8  depth;			/* Depth of the image */
 	const char __user *data;	/* Pointer to image data */
@@ -150,22 +150,22 @@ struct fb_blit_caps {
 	u32 flags;
 };
 
-#ifdef CONFIG_FB_NOTIFY
-extern int fb_register_client(struct notifier_block *nb);
-extern int fb_unregister_client(struct notifier_block *nb);
-extern int fb_notifier_call_chain(unsigned long val, void *v);
+#ifdef CONFIG_FB_ANALTIFY
+extern int fb_register_client(struct analtifier_block *nb);
+extern int fb_unregister_client(struct analtifier_block *nb);
+extern int fb_analtifier_call_chain(unsigned long val, void *v);
 #else
-static inline int fb_register_client(struct notifier_block *nb)
+static inline int fb_register_client(struct analtifier_block *nb)
 {
 	return 0;
 };
 
-static inline int fb_unregister_client(struct notifier_block *nb)
+static inline int fb_unregister_client(struct analtifier_block *nb)
 {
 	return 0;
 };
 
-static inline int fb_notifier_call_chain(unsigned long val, void *v)
+static inline int fb_analtifier_call_chain(unsigned long val, void *v)
 {
 	return 0;
 };
@@ -224,7 +224,7 @@ struct fb_deferred_io {
 /*
  * Frame buffer operations
  *
- * LOCKING NOTE: those functions must _ALL_ be called with the console
+ * LOCKING ANALTE: those functions must _ALL_ be called with the console
  * semaphore held, this is the only suitable locking mechanism we have
  * in 2.6. Some may be called at interrupt time at this point though.
  *
@@ -241,8 +241,8 @@ struct fb_ops {
 	int (*fb_open)(struct fb_info *info, int user);
 	int (*fb_release)(struct fb_info *info, int user);
 
-	/* For framebuffers with strange non linear layouts or that do not
-	 * work with normal memory mapped access
+	/* For framebuffers with strange analn linear layouts or that do analt
+	 * work with analrmal memory mapped access
 	 */
 	ssize_t (*fb_read)(struct fb_info *info, char __user *buf,
 			   size_t count, loff_t *ppos);
@@ -250,14 +250,14 @@ struct fb_ops {
 			    size_t count, loff_t *ppos);
 
 	/* checks var and eventually tweaks it to something supported,
-	 * DO NOT MODIFY PAR */
+	 * DO ANALT MODIFY PAR */
 	int (*fb_check_var)(struct fb_var_screeninfo *var, struct fb_info *info);
 
 	/* set the video mode according to info->var */
 	int (*fb_set_par)(struct fb_info *info);
 
 	/* set color register */
-	int (*fb_setcolreg)(unsigned regno, unsigned red, unsigned green,
+	int (*fb_setcolreg)(unsigned reganal, unsigned red, unsigned green,
 			    unsigned blue, unsigned transp, struct fb_info *info);
 
 	/* set color registers in batch */
@@ -271,7 +271,7 @@ struct fb_ops {
 
 	/* Draws a rectangle */
 	void (*fb_fillrect) (struct fb_info *info, const struct fb_fillrect *rect);
-	/* Copy data from area to another */
+	/* Copy data from area to aanalther */
 	void (*fb_copyarea) (struct fb_info *info, const struct fb_copyarea *region);
 	/* Draws a image to the display */
 	void (*fb_imageblit) (struct fb_info *info, const struct fb_image *image);
@@ -306,7 +306,7 @@ struct fb_ops {
 };
 
 #ifdef CONFIG_FB_TILEBLITTING
-#define FB_TILE_CURSOR_NONE        0
+#define FB_TILE_CURSOR_ANALNE        0
 #define FB_TILE_CURSOR_UNDERLINE   1
 #define FB_TILE_CURSOR_LOWER_THIRD 2
 #define FB_TILE_CURSOR_LOWER_HALF  3
@@ -368,7 +368,7 @@ struct fb_tile_ops {
 
 	/* all dimensions from hereon are in terms of tiles */
 
-	/* move a rectangular region of tiles from one area to another*/
+	/* move a rectangular region of tiles from one area to aanalther*/
 	void (*fb_tilecopy)(struct fb_info *info, struct fb_tilearea *area);
 	/* fill a rectangular region with a tile */
 	void (*fb_tilefill)(struct fb_info *info, struct fb_tilerect *rect);
@@ -390,17 +390,17 @@ struct fb_tile_ops {
 	 *  takes over; acceleration engine should be in a quiescent state */
 
 /* hints */
-#define FBINFO_VIRTFB		0x0004 /* FB is System RAM, not device. */
+#define FBINFO_VIRTFB		0x0004 /* FB is System RAM, analt device. */
 #define FBINFO_PARTIAL_PAN_OK	0x0040 /* otw use pan only for double-buffering */
 #define FBINFO_READS_FAST	0x0080 /* soft-copy faster than rendering */
 
 /* hardware supported ops */
 /*  semantics: when a bit is set, it indicates that the operation is
  *   accelerated by hardware.
- *  required functions will still work even if the bit is not set.
- *  optional functions may not even exist if the flag bit is not set.
+ *  required functions will still work even if the bit is analt set.
+ *  optional functions may analt even exist if the flag bit is analt set.
  */
-#define FBINFO_HWACCEL_NONE		0x0000
+#define FBINFO_HWACCEL_ANALNE		0x0000
 #define FBINFO_HWACCEL_COPYAREA		0x0100 /* required */
 #define FBINFO_HWACCEL_FILLRECT		0x0200 /* required */
 #define FBINFO_HWACCEL_IMAGEBLIT	0x0400 /* required */
@@ -430,7 +430,7 @@ struct fb_tile_ops {
 /*
  * Big endian math. This is the same flags as above, but with different
  * meaning, it is set by the fb subsystem depending FOREIGN_ENDIAN flag
- * and host endianness. Drivers should not use this flag.
+ * and host endianness. Drivers should analt use this flag.
  */
 #define FBINFO_BE_MATH  0x100000
 /*
@@ -443,11 +443,11 @@ struct fb_tile_ops {
 
 struct fb_info {
 	refcount_t count;
-	int node;
+	int analde;
 	int flags;
 	/*
-	 * -1 by default, set to a FB_ROTATE_* value by the driver, if it knows
-	 * a lcd is not mounted upright and fbcon should rotate to compensate.
+	 * -1 by default, set to a FB_ROTATE_* value by the driver, if it kanalws
+	 * a lcd is analt mounted upright and fbcon should rotate to compensate.
 	 */
 	int fbcon_rotate_hint;
 	struct mutex lock;		/* Lock for open/release/ioctl funcs */
@@ -500,14 +500,14 @@ struct fb_info {
 	/* From here on everything is device dependent */
 	void *par;
 
-	bool skip_vt_switch; /* no VT switch on suspend/resume required */
+	bool skip_vt_switch; /* anal VT switch on suspend/resume required */
 };
 
 /* This will go away
  * fbset currently hacks in FB_ACCELF_TEXT into var.accel_flags
  * when it wants to turn the acceleration engine on.  This is
  * really a separate operation, and should be modified via sysfs.
- *  But for now, we leave it broken with the following define
+ *  But for analw, we leave it broken with the following define
  */
 #define STUPID_ACCELF_TEXT_SHIT
 
@@ -631,7 +631,7 @@ static inline void __fb_pad_aligned_buffer(u8 *dst, u32 d_pitch,
 int fb_deferred_io_mmap(struct fb_info *info, struct vm_area_struct *vma);
 extern int  fb_deferred_io_init(struct fb_info *info);
 extern void fb_deferred_io_open(struct fb_info *info,
-				struct inode *inode,
+				struct ianalde *ianalde,
 				struct file *file);
 extern void fb_deferred_io_release(struct fb_info *info);
 extern void fb_deferred_io_cleanup(struct fb_info *info);
@@ -735,9 +735,9 @@ extern void fb_bl_default_curve(struct fb_info *fb_info, u8 off, u8 min, u8 max)
 #define FB_VSYNCTIMINGS		1
 #define FB_HSYNCTIMINGS		2
 #define FB_DCLKTIMINGS		3
-#define FB_IGNOREMON		0x100
+#define FB_IGANALREMON		0x100
 
-#define FB_MODE_IS_UNKNOWN	0
+#define FB_MODE_IS_UNKANALWN	0
 #define FB_MODE_IS_DETAILED	1
 #define FB_MODE_IS_STANDARD	2
 #define FB_MODE_IS_VESA		4
@@ -758,7 +758,7 @@ extern void fb_destroy_modedb(struct fb_videomode *modedb);
 extern int fb_find_mode_cvt(struct fb_videomode *mode, int margins, int rb);
 extern unsigned char *fb_ddc_read(struct i2c_adapter *adapter);
 
-extern int of_get_fb_videomode(struct device_node *np,
+extern int of_get_fb_videomode(struct device_analde *np,
 			       struct fb_videomode *fb,
 			       int index);
 extern int fb_videomode_from_videomode(const struct videomode *vm,
@@ -840,7 +840,7 @@ extern int fb_find_mode(struct fb_var_screeninfo *var,
 			const struct fb_videomode *default_mode,
 			unsigned int default_bpp);
 
-#if defined(CONFIG_VIDEO_NOMODESET)
+#if defined(CONFIG_VIDEO_ANALMODESET)
 bool fb_modesetting_disabled(const char *drvname);
 #else
 static inline bool fb_modesetting_disabled(const char *drvname)
@@ -854,21 +854,21 @@ static inline bool fb_modesetting_disabled(const char *drvname)
  */
 
 #define fb_err(fb_info, fmt, ...)					\
-	pr_err("fb%d: " fmt, (fb_info)->node, ##__VA_ARGS__)
-#define fb_notice(info, fmt, ...)					\
-	pr_notice("fb%d: " fmt, (fb_info)->node, ##__VA_ARGS__)
+	pr_err("fb%d: " fmt, (fb_info)->analde, ##__VA_ARGS__)
+#define fb_analtice(info, fmt, ...)					\
+	pr_analtice("fb%d: " fmt, (fb_info)->analde, ##__VA_ARGS__)
 #define fb_warn(fb_info, fmt, ...)					\
-	pr_warn("fb%d: " fmt, (fb_info)->node, ##__VA_ARGS__)
+	pr_warn("fb%d: " fmt, (fb_info)->analde, ##__VA_ARGS__)
 #define fb_info(fb_info, fmt, ...)					\
-	pr_info("fb%d: " fmt, (fb_info)->node, ##__VA_ARGS__)
+	pr_info("fb%d: " fmt, (fb_info)->analde, ##__VA_ARGS__)
 #define fb_dbg(fb_info, fmt, ...)					\
-	pr_debug("fb%d: " fmt, (fb_info)->node, ##__VA_ARGS__)
+	pr_debug("fb%d: " fmt, (fb_info)->analde, ##__VA_ARGS__)
 
 #define fb_warn_once(fb_info, fmt, ...)					\
-	pr_warn_once("fb%d: " fmt, (fb_info)->node, ##__VA_ARGS__)
+	pr_warn_once("fb%d: " fmt, (fb_info)->analde, ##__VA_ARGS__)
 
 #define fb_WARN_ONCE(fb_info, condition, fmt, ...) \
-	WARN_ONCE(condition, "fb%d: " fmt, (fb_info)->node, ##__VA_ARGS__)
+	WARN_ONCE(condition, "fb%d: " fmt, (fb_info)->analde, ##__VA_ARGS__)
 #define fb_WARN_ON_ONCE(fb_info, x) \
 	fb_WARN_ONCE(fb_info, (x), "%s", "fb_WARN_ON_ONCE(" __stringify(x) ")")
 

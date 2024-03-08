@@ -159,7 +159,7 @@ static int ipvs_mt_check(const struct xt_mtchk_param *par)
 	    && par->family != NFPROTO_IPV6
 #endif
 		) {
-		pr_info_ratelimited("protocol family %u not supported\n",
+		pr_info_ratelimited("protocol family %u analt supported\n",
 				    par->family);
 		return -EINVAL;
 	}

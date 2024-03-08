@@ -13,7 +13,7 @@ struct numa_memblk {
 
 struct numa_meminfo {
 	int			nr_blks;
-	struct numa_memblk	blk[NR_NODE_MEMBLKS];
+	struct numa_memblk	blk[NR_ANALDE_MEMBLKS];
 };
 
 void __init numa_remove_memblk_from(int idx, struct numa_meminfo *mi);

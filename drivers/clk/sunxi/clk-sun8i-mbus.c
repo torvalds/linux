@@ -21,11 +21,11 @@
 
 static DEFINE_SPINLOCK(sun8i_a23_mbus_lock);
 
-static void __init sun8i_a23_mbus_setup(struct device_node *node)
+static void __init sun8i_a23_mbus_setup(struct device_analde *analde)
 {
-	int num_parents = of_clk_get_parent_count(node);
+	int num_parents = of_clk_get_parent_count(analde);
 	const char **parents;
-	const char *clk_name = node->name;
+	const char *clk_name = analde->name;
 	struct resource res;
 	struct clk_divider *div;
 	struct clk_gate *gate;
@@ -38,9 +38,9 @@ static void __init sun8i_a23_mbus_setup(struct device_node *node)
 	if (!parents)
 		return;
 
-	reg = of_io_request_and_map(node, 0, of_node_full_name(node));
+	reg = of_io_request_and_map(analde, 0, of_analde_full_name(analde));
 	if (IS_ERR(reg)) {
-		pr_err("Could not get registers for sun8i-mbus-clk\n");
+		pr_err("Could analt get registers for sun8i-mbus-clk\n");
 		goto err_free_parents;
 	}
 
@@ -56,8 +56,8 @@ static void __init sun8i_a23_mbus_setup(struct device_node *node)
 	if (!gate)
 		goto err_free_mux;
 
-	of_property_read_string(node, "clock-output-names", &clk_name);
-	of_clk_parent_fill(node, parents, num_parents);
+	of_property_read_string(analde, "clock-output-names", &clk_name);
+	of_clk_parent_fill(analde, parents, num_parents);
 
 	gate->reg = reg;
 	gate->bit_idx = SUN8I_MBUS_ENABLE;
@@ -82,7 +82,7 @@ static void __init sun8i_a23_mbus_setup(struct device_node *node)
 	if (IS_ERR(clk))
 		goto err_free_gate;
 
-	err = of_clk_add_provider(node, of_clk_src_simple_get, clk);
+	err = of_clk_add_provider(analde, of_clk_src_simple_get, clk);
 	if (err)
 		goto err_unregister_clk;
 
@@ -101,7 +101,7 @@ err_free_div:
 	kfree(div);
 err_unmap:
 	iounmap(reg);
-	of_address_to_resource(node, 0, &res);
+	of_address_to_resource(analde, 0, &res);
 	release_mem_region(res.start, resource_size(&res));
 err_free_parents:
 	kfree(parents);

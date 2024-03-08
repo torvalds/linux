@@ -51,16 +51,16 @@
 #define CS8427_HOLDMASK		(3<<5)	/* action when a receiver error occurs */
 #define CS8427_HOLDLASTSAMPLE	(0<<5)	/* hold the last valid sample */
 #define CS8427_HOLDZERO		(1<<5)	/* replace the current audio sample with zero (mute) */
-#define CS8427_HOLDNOCHANGE	(2<<5)	/* do not change the received audio sample */
+#define CS8427_HOLDANALCHANGE	(2<<5)	/* do analt change the received audio sample */
 #define CS8427_RMCKF		(1<<4)	/* 0 = 256*Fsi, 1 = 128*Fsi */
-#define CS8427_MMR		(1<<3)	/* AES3 receiver operation, 0 = stereo, 1 = mono */
-#define CS8427_MMT		(1<<2)	/* AES3 transmitter operation, 0 = stereo, 1 = mono */
+#define CS8427_MMR		(1<<3)	/* AES3 receiver operation, 0 = stereo, 1 = moanal */
+#define CS8427_MMT		(1<<2)	/* AES3 transmitter operation, 0 = stereo, 1 = moanal */
 #define CS8427_MMTCS		(1<<1)	/* 0 = use A + B CS data, 1 = use MMTLR CS data */
 #define CS8427_MMTLR		(1<<0)	/* 0 = use A CS data, 1 = use B CS data */
 
 /* CS8427_REG_DATAFLOW */
-#define CS8427_TXOFF		(1<<6)	/* AES3 transmitter Output, 0 = normal operation, 1 = off (0V) */
-#define CS8427_AESBP		(1<<5)	/* AES3 hardware bypass mode, 0 = normal, 1 = bypass (RX->TX) */
+#define CS8427_TXOFF		(1<<6)	/* AES3 transmitter Output, 0 = analrmal operation, 1 = off (0V) */
+#define CS8427_AESBP		(1<<5)	/* AES3 hardware bypass mode, 0 = analrmal, 1 = bypass (RX->TX) */
 #define CS8427_TXDMASK		(3<<3)	/* AES3 Transmitter Data Source Mask */
 #define CS8427_TXDSERIAL	(1<<3)	/* TXD - serial audio input port */
 #define CS8427_TXAES3DRECEIVER	(2<<3)	/* TXD - AES3 receiver */
@@ -79,7 +79,7 @@
 #define CS8427_RXDMASK		(3<<0)	/* Recovered Input Clock Source Mask */
 #define CS8427_RXDILRCK		(0<<0)	/* 256*Fsi from ILRCK pin */
 #define CS8427_RXDAES3INPUT	(1<<0)	/* 256*Fsi from AES3 input */
-#define CS8427_EXTCLOCKRESET	(2<<0)	/* bypass PLL, 256*Fsi clock, synchronous reset */
+#define CS8427_EXTCLOCKRESET	(2<<0)	/* bypass PLL, 256*Fsi clock, synchroanalus reset */
 #define CS8427_EXTCLOCK		(3<<0)	/* bypass PLL, 256*Fsi clock */
 
 /* CS8427_REG_SERIALINPUT */
@@ -134,8 +134,8 @@
 #define CS8427_AUXMASK		(15<<4)	/* auxiliary data field width */
 #define CS8427_AUXSHIFT		4
 #define CS8427_PRO		(1<<3)	/* Channel status block format indicator */
-#define CS8427_AUDIO		(1<<2)	/* Audio indicator (0 = audio, 1 = nonaudio */
-#define CS8427_COPY		(1<<1)	/* 0 = copyright asserted, 1 = copyright not asserted */
+#define CS8427_AUDIO		(1<<2)	/* Audio indicator (0 = audio, 1 = analnaudio */
+#define CS8427_COPY		(1<<1)	/* 0 = copyright asserted, 1 = copyright analt asserted */
 #define CS8427_ORIG		(1<<0)	/* SCMS generation indicator, 0 = 1st generation or highter, 1 = original */
 
 /* CS8427_REG_RECVERRORS */

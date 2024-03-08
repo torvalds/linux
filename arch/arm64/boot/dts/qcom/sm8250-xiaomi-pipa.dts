@@ -18,11 +18,11 @@
  * Delete following upstream (sm8250.dtsi) reserved
  * memory mappings which are different on this device.
  */
-/delete-node/ &adsp_mem;
-/delete-node/ &cdsp_secure_heap;
-/delete-node/ &slpi_mem;
-/delete-node/ &spss_mem;
-/delete-node/ &xbl_aop_mem;
+/delete-analde/ &adsp_mem;
+/delete-analde/ &cdsp_secure_heap;
+/delete-analde/ &slpi_mem;
+/delete-analde/ &spss_mem;
+/delete-analde/ &xbl_aop_mem;
 
 / {
 
@@ -122,32 +122,32 @@
 	reserved-memory {
 		xbl_aop_mem: xbl-aop@80700000 {
 			reg = <0x0 0x80600000 0x0 0x260000>;
-			no-map;
+			anal-map;
 		};
 
 		slpi_mem: slpi@88c00000 {
 			reg = <0x0 0x88c00000 0x0 0x2f00000>;
-			no-map;
+			anal-map;
 		};
 
 		adsp_mem: adsp@8bb00000 {
 			reg = <0x0 0x8bb00000 0x0 0x2500000>;
-			no-map;
+			anal-map;
 		};
 
 		spss_mem: spss@8e000000 {
 			reg = <0x0 0x8e000000 0x0 0x100000>;
-			no-map;
+			anal-map;
 		};
 
 		cdsp_secure_heap: cdsp-secure-heap@8e100000 {
 			reg = <0x0 0x8e100000 0x0 0x4600000>;
-			no-map;
+			anal-map;
 		};
 
 		cont_splash_mem: cont-splash@9c000000 {
 			reg = <0x0 0x9c000000 0x0 0x2300000>;
-			no-map;
+			anal-map;
 		};
 
 		ramoops@b0000000 {
@@ -156,7 +156,7 @@
 			record-size = <0x1000>;
 			console-size = <0x200000>;
 			ecc-size = <16>;
-			no-map;
+			anal-map;
 		};
 	};
 };
@@ -547,7 +547,7 @@
 &pm8150_gpios {
 	vol_up_n: vol-up-n-state {
 		pins = "gpio6";
-		function = "normal";
+		function = "analrmal";
 		power-source = <1>;
 		input-enable;
 		bias-pull-up;

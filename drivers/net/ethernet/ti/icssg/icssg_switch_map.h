@@ -24,7 +24,7 @@
 #define FW_LINK_SPEED_HD                           (0x80)
 
 /* Time after which FDB entries are checked for aged out values.
- * Values are in nanoseconds
+ * Values are in naanalseconds
  */
 #define FDB_AGEING_TIMEOUT_OFFSET                          0x0014
 
@@ -177,7 +177,7 @@
 /* Stores the table used for priority mapping. 1B per PCP/Queue */
 #define PORT_Q_PRIORITY_MAPPING_OFFSET                     0x003C
 
-/* Used to notify the FW of the current link speed */
+/* Used to analtify the FW of the current link speed */
 #define PORT_LINK_SPEED_OFFSET                             0x00A8
 
 /* TAS gate mask for windows list0 */
@@ -198,10 +198,10 @@
 /* Verify Status of State Machine */
 #define PRE_EMPTION_VERIFY_STATUS                          0x05A3
 
-/* Non Final Fragment Size supported by Link Partner */
+/* Analn Final Fragment Size supported by Link Partner */
 #define PRE_EMPTION_ADD_FRAG_SIZE_REMOTE                   0x05A4
 
-/* Non Final Fragment Size supported by Firmware */
+/* Analn Final Fragment Size supported by Firmware */
 #define PRE_EMPTION_ADD_FRAG_SIZE_LOCAL                    0x05A6
 
 /* Time in ms the State machine waits for respond Packet */

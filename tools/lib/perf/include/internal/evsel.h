@@ -16,7 +16,7 @@ struct xyarray;
  * more than one entry in the evlist.
  */
 struct perf_sample_id {
-	struct hlist_node	 node;
+	struct hlist_analde	 analde;
 	u64			 id;
 	struct perf_evsel	*evsel;
        /*
@@ -30,7 +30,7 @@ struct perf_sample_id {
 	struct perf_cpu		 cpu;
 	pid_t			 tid;
 
-	/* Guest machine pid and VCPU, valid only if machine_pid is non-zero */
+	/* Guest machine pid and VCPU, valid only if machine_pid is analn-zero */
 	pid_t			 machine_pid;
 	struct perf_cpu		 vcpu;
 
@@ -39,7 +39,7 @@ struct perf_sample_id {
 };
 
 struct perf_evsel {
-	struct list_head	 node;
+	struct list_head	 analde;
 	struct perf_event_attr	 attr;
 	/** The commonly used cpu map of CPUs the event should be opened upon, etc. */
 	struct perf_cpu_map	*cpus;
@@ -69,7 +69,7 @@ struct perf_evsel {
 	bool			 system_wide;
 	/*
 	 * Some events, for example uncore events, require a CPU.
-	 * i.e. it cannot be the 'any CPU' value of -1.
+	 * i.e. it cananalt be the 'any CPU' value of -1.
 	 */
 	bool			 requires_cpu;
 	/** Is the PMU for the event a core one? Effects the handling of own_cpus. */

@@ -26,8 +26,8 @@ Q =
 msg =
 else
 Q = @
-msg = @printf '  %-8s %s%s\n' "$(1)" "$(notdir $(2))" "$(if $(3), $(3))";
-MAKEFLAGS += --no-print-directory
+msg = @printf '  %-8s %s%s\n' "$(1)" "$(analtdir $(2))" "$(if $(3), $(3))";
+MAKEFLAGS += --anal-print-directory
 submake_extras := feature_display=0
 endif
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2015, Mellaanalx Techanallogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -89,13 +89,13 @@ enum {
 };
 
 enum {
-	MLX5E_ACTION_NONE = 0,
+	MLX5E_ACTION_ANALNE = 0,
 	MLX5E_ACTION_ADD  = 1,
 	MLX5E_ACTION_DEL  = 2,
 };
 
-struct mlx5e_l2_hash_node {
-	struct hlist_node          hlist;
+struct mlx5e_l2_hash_analde {
+	struct hlist_analde          hlist;
 	u8                         action;
 	struct mlx5e_l2_rule ai;
 	bool   mpfs;
@@ -113,7 +113,7 @@ struct dentry *mlx5e_fs_get_debugfs_root(struct mlx5e_flow_steering *fs)
 
 static void mlx5e_add_l2_to_hash(struct hlist_head *hash, const u8 *addr)
 {
-	struct mlx5e_l2_hash_node *hn;
+	struct mlx5e_l2_hash_analde *hn;
 	int ix = mlx5e_hash_l2(addr);
 	int found = 0;
 
@@ -124,7 +124,7 @@ static void mlx5e_add_l2_to_hash(struct hlist_head *hash, const u8 *addr)
 		}
 
 	if (found) {
-		hn->action = MLX5E_ACTION_NONE;
+		hn->action = MLX5E_ACTION_ANALNE;
 		return;
 	}
 
@@ -138,7 +138,7 @@ static void mlx5e_add_l2_to_hash(struct hlist_head *hash, const u8 *addr)
 	hlist_add_head(&hn->hlist, &hash[ix]);
 }
 
-static void mlx5e_del_l2_from_hash(struct mlx5e_l2_hash_node *hn)
+static void mlx5e_del_l2_from_hash(struct mlx5e_l2_hash_analde *hn)
 {
 	hlist_del(&hn->hlist);
 	kfree(hn);
@@ -190,7 +190,7 @@ static int mlx5e_vport_context_update_vlans(struct mlx5e_flow_steering *fs)
 
 	vlans = kvcalloc(list_size, sizeof(*vlans), GFP_KERNEL);
 	if (!vlans)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i = 0;
 	for_each_set_bit(vlan, fs->vlan->active_cvlans, VLAN_N_VID) {
@@ -297,7 +297,7 @@ static int mlx5e_add_vlan_rule(struct mlx5e_flow_steering *fs,
 
 	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (rule_type == MLX5E_VLAN_RULE_TYPE_MATCH_CTAG_VID)
 		mlx5e_vport_context_update_vlans(fs);
@@ -374,7 +374,7 @@ mlx5e_add_trap_rule(struct mlx5_flow_table *ft, int trap_id, int tir_num)
 
 	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	spec->flow_context.flags |= FLOW_CONTEXT_HAS_TAG;
 	spec->flow_context.flow_tag = trap_id;
 	dest.type = MLX5_FLOW_DESTINATION_TYPE_TIR;
@@ -503,7 +503,7 @@ int mlx5e_fs_vlan_rx_add_vid(struct mlx5e_flow_steering *fs,
 	else if (be16_to_cpu(proto) == ETH_P_8021AD)
 		return mlx5e_vlan_rx_add_svid(fs, netdev, vid);
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 int mlx5e_fs_vlan_rx_kill_vid(struct mlx5e_flow_steering *fs,
@@ -568,12 +568,12 @@ static void mlx5e_del_vlan_rules(struct mlx5e_flow_steering *fs)
 		mlx5e_fs_del_any_vid_rules(fs);
 }
 
-#define mlx5e_for_each_hash_node(hn, tmp, hash, i) \
+#define mlx5e_for_each_hash_analde(hn, tmp, hash, i) \
 	for (i = 0; i < MLX5E_L2_ADDR_HASH_SIZE; i++) \
 		hlist_for_each_entry_safe(hn, tmp, &hash[i], hlist)
 
 static void mlx5e_execute_l2_action(struct mlx5e_flow_steering *fs,
-				    struct mlx5e_l2_hash_node *hn)
+				    struct mlx5e_l2_hash_analde *hn)
 {
 	u8 action = hn->action;
 	u8 mac_addr[ETH_ALEN];
@@ -588,7 +588,7 @@ static void mlx5e_execute_l2_action(struct mlx5e_flow_steering *fs,
 			l2_err = mlx5_mpfs_add_mac(fs->mdev, mac_addr);
 			hn->mpfs = !l2_err;
 		}
-		hn->action = MLX5E_ACTION_NONE;
+		hn->action = MLX5E_ACTION_ANALNE;
 		break;
 
 	case MLX5E_ACTION_DEL:
@@ -627,9 +627,9 @@ static void mlx5e_fill_addr_array(struct mlx5e_flow_steering *fs, int list_type,
 				  u8 addr_array[][ETH_ALEN], int size)
 {
 	bool is_uc = (list_type == MLX5_NVPRT_LIST_TYPE_UC);
-	struct mlx5e_l2_hash_node *hn;
+	struct mlx5e_l2_hash_analde *hn;
 	struct hlist_head *addr_list;
-	struct hlist_node *tmp;
+	struct hlist_analde *tmp;
 	int i = 0;
 	int hi;
 
@@ -640,7 +640,7 @@ static void mlx5e_fill_addr_array(struct mlx5e_flow_steering *fs, int list_type,
 	else if (fs->l2.broadcast_enabled)
 		ether_addr_copy(addr_array[i++], ndev->broadcast);
 
-	mlx5e_for_each_hash_node(hn, tmp, addr_list, hi) {
+	mlx5e_for_each_hash_analde(hn, tmp, addr_list, hi) {
 		if (ether_addr_equal(ndev->dev_addr, hn->ai.addr))
 			continue;
 		if (i >= size)
@@ -654,10 +654,10 @@ static void mlx5e_vport_context_update_addr_list(struct mlx5e_flow_steering *fs,
 						 int list_type)
 {
 	bool is_uc = (list_type == MLX5_NVPRT_LIST_TYPE_UC);
-	struct mlx5e_l2_hash_node *hn;
+	struct mlx5e_l2_hash_analde *hn;
 	u8 (*addr_array)[ETH_ALEN] = NULL;
 	struct hlist_head *addr_list;
-	struct hlist_node *tmp;
+	struct hlist_analde *tmp;
 	int max_size;
 	int size;
 	int err;
@@ -669,7 +669,7 @@ static void mlx5e_vport_context_update_addr_list(struct mlx5e_flow_steering *fs,
 		1 << MLX5_CAP_GEN(fs->mdev, log_max_current_mc_list);
 
 	addr_list = is_uc ? fs->l2.netdev_uc : fs->l2.netdev_mc;
-	mlx5e_for_each_hash_node(hn, tmp, addr_list, hi)
+	mlx5e_for_each_hash_analde(hn, tmp, addr_list, hi)
 		size++;
 
 	if (size > max_size) {
@@ -681,7 +681,7 @@ static void mlx5e_vport_context_update_addr_list(struct mlx5e_flow_steering *fs,
 	if (size) {
 		addr_array = kcalloc(size, ETH_ALEN, GFP_KERNEL);
 		if (!addr_array) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto out;
 		}
 		mlx5e_fill_addr_array(fs, list_type, netdev, addr_array, size);
@@ -709,27 +709,27 @@ static void mlx5e_vport_context_update(struct mlx5e_flow_steering *fs,
 
 static void mlx5e_apply_netdev_addr(struct mlx5e_flow_steering *fs)
 {
-	struct mlx5e_l2_hash_node *hn;
-	struct hlist_node *tmp;
+	struct mlx5e_l2_hash_analde *hn;
+	struct hlist_analde *tmp;
 	int i;
 
-	mlx5e_for_each_hash_node(hn, tmp, fs->l2.netdev_uc, i)
+	mlx5e_for_each_hash_analde(hn, tmp, fs->l2.netdev_uc, i)
 		mlx5e_execute_l2_action(fs, hn);
 
-	mlx5e_for_each_hash_node(hn, tmp, fs->l2.netdev_mc, i)
+	mlx5e_for_each_hash_analde(hn, tmp, fs->l2.netdev_mc, i)
 		mlx5e_execute_l2_action(fs, hn);
 }
 
 static void mlx5e_handle_netdev_addr(struct mlx5e_flow_steering *fs,
 				     struct net_device *netdev)
 {
-	struct mlx5e_l2_hash_node *hn;
-	struct hlist_node *tmp;
+	struct mlx5e_l2_hash_analde *hn;
+	struct hlist_analde *tmp;
 	int i;
 
-	mlx5e_for_each_hash_node(hn, tmp, fs->l2.netdev_uc, i)
+	mlx5e_for_each_hash_analde(hn, tmp, fs->l2.netdev_uc, i)
 		hn->action = MLX5E_ACTION_DEL;
-	mlx5e_for_each_hash_node(hn, tmp, fs->l2.netdev_mc, i)
+	mlx5e_for_each_hash_analde(hn, tmp, fs->l2.netdev_mc, i)
 		hn->action = MLX5E_ACTION_DEL;
 
 	if (fs->state_destroy)
@@ -752,7 +752,7 @@ static int mlx5e_add_promisc_rule(struct mlx5e_flow_steering *fs)
 
 	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec)
-		return -ENOMEM;
+		return -EANALMEM;
 	dest.type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
 	dest.ft = mlx5_get_ttc_flow_table(fs->ttc);
 
@@ -801,7 +801,7 @@ err_destroy_promisc_table:
 
 static void mlx5e_del_promisc_rule(struct mlx5e_flow_steering *fs)
 {
-	if (WARN(!fs->promisc.rule, "Trying to remove non-existing promiscuous rule"))
+	if (WARN(!fs->promisc.rule, "Trying to remove analn-existing promiscuous rule"))
 		return;
 	mlx5_del_flow_rules(fs->promisc.rule);
 	fs->promisc.rule = NULL;
@@ -967,7 +967,7 @@ static int mlx5e_add_l2_flow_rule(struct mlx5e_flow_steering *fs,
 
 	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mc_dmac = MLX5_ADDR_OF(fte_match_param, spec->match_criteria,
 			       outer_headers.dmac_47_16);
@@ -1022,11 +1022,11 @@ static int mlx5e_create_l2_table_groups(struct mlx5e_l2_table *l2_table)
 
 	ft->g = kcalloc(MLX5E_NUM_L2_GROUPS, sizeof(*ft->g), GFP_KERNEL);
 	if (!ft->g)
-		return -ENOMEM;
+		return -EANALMEM;
 	in = kvzalloc(inlen, GFP_KERNEL);
 	if (!in) {
 		kfree(ft->g);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	mc = MLX5_ADDR_OF(create_flow_group_in, in, match_criteria);
@@ -1207,7 +1207,7 @@ static int mlx5e_create_vlan_table_groups(struct mlx5e_flow_table *ft)
 
 	in = kvzalloc(inlen, GFP_KERNEL);
 	if (!in)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = __mlx5e_create_vlan_table_groups(ft, in, inlen);
 
@@ -1234,7 +1234,7 @@ static int mlx5e_fs_create_vlan_table(struct mlx5e_flow_steering *fs)
 
 	ft->g = kcalloc(MLX5E_NUM_VLAN_GROUPS, sizeof(*ft->g), GFP_KERNEL);
 	if (!ft->g) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_destroy_vlan_table;
 	}
 
@@ -1306,7 +1306,7 @@ int mlx5e_create_flow_steering(struct mlx5e_flow_steering *fs,
 	int err;
 
 	if (!ns)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	mlx5e_fs_set_ns(fs, ns, false);
 	err = mlx5e_arfs_create_tables(fs, rx_res,
@@ -1378,7 +1378,7 @@ static int mlx5e_fs_vlan_alloc(struct mlx5e_flow_steering *fs)
 {
 	fs->vlan = kvzalloc(sizeof(*fs->vlan), GFP_KERNEL);
 	if (!fs->vlan)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 
@@ -1396,7 +1396,7 @@ static int mlx5e_fs_tc_alloc(struct mlx5e_flow_steering *fs)
 {
 	fs->tc = mlx5e_tc_table_alloc();
 	if (IS_ERR(fs->tc))
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 

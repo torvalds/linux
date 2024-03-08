@@ -33,7 +33,7 @@
  *
  * @return
  *	- true when it is empty.
- *	- false when it is not empty.
+ *	- false when it is analt empty.
  */
 static inline bool ia_css_circbuf_desc_is_empty(
     ia_css_circbuf_desc_t *cb_desc)
@@ -50,7 +50,7 @@ static inline bool ia_css_circbuf_desc_is_empty(
  *
  * @return
  *	- true when it is full.
- *	- false when it is not full.
+ *	- false when it is analt full.
  */
 static inline bool ia_css_circbuf_desc_is_full(
     ia_css_circbuf_desc_t *cb_desc)

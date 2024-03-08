@@ -302,7 +302,7 @@ struct ql3xxx_common_registers {
 
 enum {
 	EXT_HW_CONFIG_SP_MASK = 0x0006,
-	EXT_HW_CONFIG_SP_NONE = 0x0000,
+	EXT_HW_CONFIG_SP_ANALNE = 0x0000,
 	EXT_HW_CONFIG_SP_BYTE_PARITY = 0x0002,
 	EXT_HW_CONFIG_SP_ECC = 0x0004,
 	EXT_HW_CONFIG_SP_ECCx = 0x0006,
@@ -608,14 +608,14 @@ struct ql3xxx_port_registers {
 	u32 fpgaRevID;
 	u32 localRamAddr;
 	u32 localRamDataAutoIncr;
-	u32 localRamDataNonIncr;
+	u32 localRamDataAnalnIncr;
 	u32 gpOutput;
 	u32 gpInput;
 	u32 probeMuxAddr;
 	u32 probeMuxData;
 	u32 statisticsIndexReg;
 	u32 statisticsReadDataRegAutoIncr;
-	u32 statisticsReadDataRegNoIncr;
+	u32 statisticsReadDataRegAnalIncr;
 	u32 PortFatalErrStatus;
 };
 
@@ -751,7 +751,7 @@ enum {
 	PHY_NEG_PARTNER = 5,
 	PHY_AUX_DUPLEX_STAT = 0x0020,
 	PHY_AUX_SPEED_STAT = 0x0018,
-	PHY_AUX_NO_HW_STRAP = 0x0004,
+	PHY_AUX_ANAL_HW_STRAP = 0x0004,
 	PHY_AUX_RESET_STICK = 0x0002,
 	PHY_NEG_PAUSE = 0x0400,
 	PHY_CTRL_SOFT_RESET = 0x8000,
@@ -786,9 +786,9 @@ enum {
 	FM93C66A_SIZE_16 = 0x100,
 	FM93C86A_SIZE_16 = 0x400,
 /* Address Bits */
-	FM93C56A_NO_ADDR_BITS_16 = 8,
-	FM93C56A_NO_ADDR_BITS_8 = 9,
-	FM93C86A_NO_ADDR_BITS_16 = 10,
+	FM93C56A_ANAL_ADDR_BITS_16 = 8,
+	FM93C56A_ANAL_ADDR_BITS_8 = 9,
+	FM93C86A_ANAL_ADDR_BITS_16 = 10,
 /* Data Bits */
 	FM93C56A_DATA_BITS_16 = 16,
 	FM93C56A_DATA_BITS_8 = 8,
@@ -808,8 +808,8 @@ enum {
 	AUBURN_EEPROM_CLK_FALL = 0x0,
 };
 enum {EEPROM_SIZE = FM93C86A_SIZE_16,
-	EEPROM_NO_ADDR_BITS = FM93C86A_NO_ADDR_BITS_16,
-	EEPROM_NO_DATA_BITS = FM93C56A_DATA_BITS_16,
+	EEPROM_ANAL_ADDR_BITS = FM93C86A_ANAL_ADDR_BITS_16,
+	EEPROM_ANAL_DATA_BITS = FM93C56A_DATA_BITS_16,
 };
 
 /*
@@ -922,7 +922,7 @@ struct eeprom_data {
 
 /*
  * Below are a number compiler switches for controlling driver behavior.
- * Some are not supported under certain conditions and are notated as such.
+ * Some are analt supported under certain conditions and are analtated as such.
  */
 
 #define QL3XXX_VENDOR_ID    0x1077
@@ -930,7 +930,7 @@ struct eeprom_data {
 #define QL3032_DEVICE_ID    0x3032
 
 /* MTU & Frame Size stuff */
-#define NORMAL_MTU_SIZE 		ETH_DATA_LEN
+#define ANALRMAL_MTU_SIZE 		ETH_DATA_LEN
 #define JUMBO_MTU_SIZE 			9000
 #define VLAN_ID_LEN			    2
 
@@ -983,11 +983,11 @@ struct bufq_addr_element {
 	__le32 addr_high;
 };
 
-#define QL_NO_RESET			0
+#define QL_ANAL_RESET			0
 #define QL_DO_RESET			1
 
 enum link_state_t {
-	LS_UNKNOWN = 0,
+	LS_UNKANALWN = 0,
 	LS_DOWN,
 	LS_DEGRADE,
 	LS_RECOVER,

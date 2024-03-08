@@ -5,9 +5,9 @@
  *
  *	(c) Copyright 2008 Wim Van Sebroeck <wim@iguana.be>.
  *
- *	Neither Wim Van Sebroeck nor Iguana vzw. admit liability nor
+ *	Neither Wim Van Sebroeck analr Iguana vzw. admit liability analr
  *	provide warranty for any of this software. This material is
- *	provided "AS-IS" and at no charge.
+ *	provided "AS-IS" and at anal charge.
  */
 
 /*
@@ -20,7 +20,7 @@
 #include <linux/module.h>		/* For module specific items */
 #include <linux/moduleparam.h>		/* For new moduleparam's */
 #include <linux/types.h>		/* For standard types (like size_t) */
-#include <linux/errno.h>		/* For the -ENODEV/... values */
+#include <linux/erranal.h>		/* For the -EANALDEV/... values */
 #include <linux/kernel.h>		/* For printk/... */
 #include <linux/miscdevice.h>		/* For struct miscdevice */
 #include <linux/watchdog.h>		/* For the watchdog specific items */
@@ -70,11 +70,11 @@ MODULE_PARM_DESC(timeout,
 	"Watchdog timeout in seconds. 1<= timeout <=15300, default="
 		__MODULE_STRING(WATCHDOG_TIMEOUT) ".");
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout,
-	"Watchdog cannot be stopped once started (default="
-		__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+static bool analwayout = WATCHDOG_ANALWAYOUT;
+module_param(analwayout, bool, 0);
+MODULE_PARM_DESC(analwayout,
+	"Watchdog cananalt be stopped once started (default="
+		__MODULE_STRING(WATCHDOG_ANALWAYOUT) ")");
 
 /*
  *	Super-IO functions
@@ -140,7 +140,7 @@ static void sch311x_wdt_start(void)
 	/* enable the watchdog */
 	/* -- General Purpose I/O Bit 6.0 --
 	 * Bit 0,   In/Out: 0 = Output, 1 = Input
-	 * Bit 1,   Polarity: 0 = No Invert, 1 = Invert
+	 * Bit 1,   Polarity: 0 = Anal Invert, 1 = Invert
 	 * Bit 2-3, Function select: 00 = GPI/O, 01 = LED1, 11 = WDT,
 	 *                           10 = Either Edge Triggered Intr.4
 	 * Bit 4-6  (Reserved)
@@ -202,7 +202,7 @@ static void sch311x_wdt_get_status(int *status)
 	 * Bit 1   Reserved
 	 * Bit 2   Force Timeout: 1 = Forces WD timeout event (self-cleaning)
 	 * Bit 3   P20 Force Timeout enabled:
-	 *          0 = P20 activity does not generate the WD timeout event
+	 *          0 = P20 activity does analt generate the WD timeout event
 	 *          1 = P20 Allows rising edge of P20, from the keyboard
 	 *              controller, to force the WD timeout event.
 	 * Bit 4-7 Reserved
@@ -222,7 +222,7 @@ static ssize_t sch311x_wdt_write(struct file *file, const char __user *buf,
 						size_t count, loff_t *ppos)
 {
 	if (count) {
-		if (!nowayout) {
+		if (!analwayout) {
 			size_t i;
 
 			sch311x_wdt_expect_close = 0;
@@ -299,12 +299,12 @@ static long sch311x_wdt_ioctl(struct file *file, unsigned int cmd,
 	case WDIOC_GETTIMEOUT:
 		return put_user(timeout, p);
 	default:
-		return -ENOTTY;
+		return -EANALTTY;
 	}
 	return 0;
 }
 
-static int sch311x_wdt_open(struct inode *inode, struct file *file)
+static int sch311x_wdt_open(struct ianalde *ianalde, struct file *file)
 {
 	if (test_and_set_bit(0, &sch311x_wdt_is_open))
 		return -EBUSY;
@@ -312,15 +312,15 @@ static int sch311x_wdt_open(struct inode *inode, struct file *file)
 	 *	Activate
 	 */
 	sch311x_wdt_start();
-	return stream_open(inode, file);
+	return stream_open(ianalde, file);
 }
 
-static int sch311x_wdt_close(struct inode *inode, struct file *file)
+static int sch311x_wdt_close(struct ianalde *ianalde, struct file *file)
 {
 	if (sch311x_wdt_expect_close == 42) {
 		sch311x_wdt_stop();
 	} else {
-		pr_crit("Unexpected close, not stopping watchdog!\n");
+		pr_crit("Unexpected close, analt stopping watchdog!\n");
 		sch311x_wdt_keepalive();
 	}
 	clear_bit(0, &sch311x_wdt_is_open);
@@ -334,7 +334,7 @@ static int sch311x_wdt_close(struct inode *inode, struct file *file)
 
 static const struct file_operations sch311x_wdt_fops = {
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
+	.llseek		= anal_llseek,
 	.write		= sch311x_wdt_write,
 	.unlocked_ioctl	= sch311x_wdt_ioctl,
 	.compat_ioctl	= compat_ptr_ioctl,
@@ -343,7 +343,7 @@ static const struct file_operations sch311x_wdt_fops = {
 };
 
 static struct miscdevice sch311x_wdt_miscdev = {
-	.minor	= WATCHDOG_MINOR,
+	.mianalr	= WATCHDOG_MIANALR,
 	.name	= "watchdog",
 	.fops	= &sch311x_wdt_fops,
 };
@@ -376,14 +376,14 @@ static int sch311x_wdt_probe(struct platform_device *pdev)
 		goto exit_release_region;
 	}
 
-	/* Make sure that the watchdog is not running */
+	/* Make sure that the watchdog is analt running */
 	sch311x_wdt_stop();
 
 	/* Disable keyboard and mouse interaction and interrupt */
 	/* -- Watchdog timer configuration --
 	 * Bit 0   Reserved
-	 * Bit 1   Keyboard enable: 0* = No Reset, 1 = Reset WDT upon KBD Intr.
-	 * Bit 2   Mouse enable: 0* = No Reset, 1 = Reset WDT upon Mouse Intr
+	 * Bit 1   Keyboard enable: 0* = Anal Reset, 1 = Reset WDT upon KBD Intr.
+	 * Bit 2   Mouse enable: 0* = Anal Reset, 1 = Reset WDT upon Mouse Intr
 	 * Bit 3   Reserved
 	 * Bit 4-7 WDT Interrupt Mapping: (0000* = Disabled,
 	 *            0001=IRQ1, 0010=(Invalid), 0011=IRQ3 to 1111=IRQ15)
@@ -391,7 +391,7 @@ static int sch311x_wdt_probe(struct platform_device *pdev)
 	outb(0, sch311x_wdt_data.runtime_reg + WDT_CFG);
 
 	/* Check that the heartbeat value is within it's range ;
-	 * if not reset to the default */
+	 * if analt reset to the default */
 	if (sch311x_wdt_set_heartbeat(timeout)) {
 		sch311x_wdt_set_heartbeat(WATCHDOG_TIMEOUT);
 		dev_info(dev, "timeout value must be 1<=x<=15300, using %d\n",
@@ -405,14 +405,14 @@ static int sch311x_wdt_probe(struct platform_device *pdev)
 
 	err = misc_register(&sch311x_wdt_miscdev);
 	if (err != 0) {
-		dev_err(dev, "cannot register miscdev on minor=%d (err=%d)\n",
-							WATCHDOG_MINOR, err);
+		dev_err(dev, "cananalt register miscdev on mianalr=%d (err=%d)\n",
+							WATCHDOG_MIANALR, err);
 		goto exit_release_region2;
 	}
 
 	dev_info(dev,
-		"SMSC SCH311x WDT initialized. timeout=%d sec (nowayout=%d)\n",
-		timeout, nowayout);
+		"SMSC SCH311x WDT initialized. timeout=%d sec (analwayout=%d)\n",
+		timeout, analwayout);
 
 	return 0;
 
@@ -428,7 +428,7 @@ exit:
 static void sch311x_wdt_remove(struct platform_device *pdev)
 {
 	/* Stop the timer before we leave */
-	if (!nowayout)
+	if (!analwayout)
 		sch311x_wdt_stop();
 
 	/* Deregister */
@@ -461,11 +461,11 @@ static int __init sch311x_detect(int sio_config_port, unsigned short *addr)
 
 	sch311x_sio_enter(sio_config_port);
 
-	/* Check device ID. We currently know about:
+	/* Check device ID. We currently kanalw about:
 	 * SCH3112 (0x7c), SCH3114 (0x7d), and SCH3116 (0x7f). */
 	reg = force_id ? force_id : sch311x_sio_inb(sio_config_port, 0x20);
 	if (!(reg == 0x7c || reg == 0x7d || reg == 0x7f)) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto exit;
 	}
 	dev_id = reg == 0x7c ? 2 : reg == 0x7d ? 4 : 6;
@@ -475,14 +475,14 @@ static int __init sch311x_detect(int sio_config_port, unsigned short *addr)
 
 	/* Check if Logical Device Register is currently active */
 	if ((sch311x_sio_inb(sio_config_port, 0x30) & 0x01) == 0)
-		pr_info("Seems that LDN 0x0a is not active...\n");
+		pr_info("Seems that LDN 0x0a is analt active...\n");
 
 	/* Get the base address of the runtime registers */
 	base_addr = (sch311x_sio_inb(sio_config_port, 0x60) << 8) |
 			   sch311x_sio_inb(sio_config_port, 0x61);
 	if (!base_addr) {
-		pr_err("Base address not set\n");
-		err = -ENODEV;
+		pr_err("Base address analt set\n");
+		err = -EANALDEV;
 		goto exit;
 	}
 	*addr = base_addr;
@@ -504,7 +504,7 @@ static int __init sch311x_wdt_init(void)
 			found++;
 
 	if (!found)
-		return -ENODEV;
+		return -EANALDEV;
 
 	sch311x_wdt_data.runtime_reg = addr;
 

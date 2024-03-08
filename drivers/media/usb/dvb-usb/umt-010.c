@@ -80,7 +80,7 @@ static int umt_probe(struct usb_interface *intf,
 	return -EINVAL;
 }
 
-/* do not change the order of the ID table */
+/* do analt change the order of the ID table */
 enum {
 	HANFTEK_UMT_010_COLD,
 	HANFTEK_UMT_010_WARM,
@@ -112,7 +112,7 @@ static struct dvb_usb_device_properties umt_properties = {
 			/* parameter for the MPEG2-data transfer */
 			.stream = {
 				.type = USB_BULK,
-				.count = MAX_NO_URBS_FOR_DATA_STREAM,
+				.count = MAX_ANAL_URBS_FOR_DATA_STREAM,
 				.endpoint = 0x06,
 				.u = {
 					.bulk = {

@@ -23,17 +23,17 @@
 #include "mop500_ab8500.h"
 #include "../codecs/ab8500-codec.h"
 
-#define TX_SLOT_MONO	0x0008
+#define TX_SLOT_MOANAL	0x0008
 #define TX_SLOT_STEREO	0x000a
-#define RX_SLOT_MONO	0x0001
+#define RX_SLOT_MOANAL	0x0001
 #define RX_SLOT_STEREO	0x0003
 #define TX_SLOT_8CH	0x00FF
 #define RX_SLOT_8CH	0x00FF
 
 #define DEF_TX_SLOTS	TX_SLOT_STEREO
-#define DEF_RX_SLOTS	RX_SLOT_MONO
+#define DEF_RX_SLOTS	RX_SLOT_MOANAL
 
-#define DRIVERMODE_NORMAL	0
+#define DRIVERMODE_ANALRMAL	0
 #define DRIVERMODE_CODEC_ONLY	1
 
 /* Slot configuration */
@@ -75,7 +75,7 @@ static inline const char *get_mclk_str(enum mclk mclk_sel)
 	case MCLK_ULPCLK:
 		return "ULPCLK";
 	default:
-		return "Unknown";
+		return "Unkanalwn";
 	}
 }
 
@@ -87,7 +87,7 @@ static int mop500_ab8500_set_mclk(struct device *dev,
 
 	if (IS_ERR(drvdata->clk_ptr_intclk)) {
 		dev_err(dev,
-			"%s: ERROR: intclk not initialized!\n", __func__);
+			"%s: ERROR: intclk analt initialized!\n", __func__);
 		return -EIO;
 	}
 
@@ -103,7 +103,7 @@ static int mop500_ab8500_set_mclk(struct device *dev,
 	}
 
 	if (IS_ERR(clk_ptr)) {
-		dev_err(dev, "%s: ERROR: %s not initialized!\n", __func__,
+		dev_err(dev, "%s: ERROR: %s analt initialized!\n", __func__,
 			get_mclk_str(drvdata->mclk_sel));
 		return -EIO;
 	}
@@ -267,13 +267,13 @@ static int mop500_ab8500_hw_params(struct snd_pcm_substream *substream,
 	if (channels == 8)
 		driver_mode = DRIVERMODE_CODEC_ONLY;
 	else
-		driver_mode = DRIVERMODE_NORMAL;
+		driver_mode = DRIVERMODE_ANALRMAL;
 	dev_dbg(dev, "%s: Driver-mode: %s.\n", __func__,
-		(driver_mode == DRIVERMODE_NORMAL) ? "NORMAL" : "CODEC_ONLY");
+		(driver_mode == DRIVERMODE_ANALRMAL) ? "ANALRMAL" : "CODEC_ONLY");
 
 	/* Setup format */
 
-	if (driver_mode == DRIVERMODE_NORMAL) {
+	if (driver_mode == DRIVERMODE_ANALRMAL) {
 		fmt = SND_SOC_DAIFMT_DSP_A |
 			SND_SOC_DAIFMT_CBM_CFM |
 			SND_SOC_DAIFMT_NB_NF |
@@ -295,8 +295,8 @@ static int mop500_ab8500_hw_params(struct snd_pcm_substream *substream,
 	switch (channels) {
 	case 1:
 		slots = 16;
-		tx_slots = (is_playback) ? TX_SLOT_MONO : 0;
-		rx_slots = (is_playback) ? 0 : RX_SLOT_MONO;
+		tx_slots = (is_playback) ? TX_SLOT_MOANAL : 0;
+		rx_slots = (is_playback) ? 0 : RX_SLOT_MOANAL;
 		break;
 	case 2:
 		slots = 16;
@@ -312,7 +312,7 @@ static int mop500_ab8500_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	if (driver_mode == DRIVERMODE_NORMAL)
+	if (driver_mode == DRIVERMODE_ANALRMAL)
 		sw_codec = sw_cpu;
 	else
 		sw_codec = 20;
@@ -369,7 +369,7 @@ int mop500_ab8500_machine_init(struct snd_soc_pcm_runtime *rtd)
 			GFP_KERNEL);
 
 	if (!drvdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	snd_soc_card_set_drvdata(rtd->card, drvdata);
 

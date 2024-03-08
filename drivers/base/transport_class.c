@@ -9,13 +9,13 @@
  * would most often be a Host Bus Adapter to use the services of one
  * or more tranport classes for performing transport specific
  * services.  Transport specific services are things that the generic
- * command layer doesn't want to know about (speed settings, line
+ * command layer doesn't want to kanalw about (speed settings, line
  * condidtioning, etc), but which the user might be interested in.
  * Thus, the HBA's use the routines exported by the transport classes
  * to perform these functions.  The transport classes export certain
  * values to the user via sysfs using attribute containers.
  *
- * Note: because not every HBA will care about every transport
+ * Analte: because analt every HBA will care about every transport
  * attribute, there's a many to one relationship that goes like this:
  *
  * transport class<-----attribute container<----class device
@@ -68,54 +68,54 @@ void transport_class_unregister(struct transport_class *tclass)
 }
 EXPORT_SYMBOL_GPL(transport_class_unregister);
 
-static int anon_transport_dummy_function(struct transport_container *tc,
+static int aanaln_transport_dummy_function(struct transport_container *tc,
 					 struct device *dev,
 					 struct device *cdev)
 {
-	/* do nothing */
+	/* do analthing */
 	return 0;
 }
 
 /**
- * anon_transport_class_register - register an anonymous class
+ * aanaln_transport_class_register - register an aanalnymous class
  *
- * @atc: The anon transport class to register
+ * @atc: The aanaln transport class to register
  *
- * The anonymous transport class contains both a transport class and a
- * container.  The idea of an anonymous class is that it never
+ * The aanalnymous transport class contains both a transport class and a
+ * container.  The idea of an aanalnymous class is that it never
  * actually has any device attributes associated with it (and thus
  * saves on container storage).  So it can only be used for triggering
- * events.  Use prezero and then use DECLARE_ANON_TRANSPORT_CLASS() to
- * initialise the anon transport class storage.
+ * events.  Use prezero and then use DECLARE_AANALN_TRANSPORT_CLASS() to
+ * initialise the aanaln transport class storage.
  */
-int anon_transport_class_register(struct anon_transport_class *atc)
+int aanaln_transport_class_register(struct aanaln_transport_class *atc)
 {
 	int error;
 	atc->container.class = &atc->tclass.class;
-	attribute_container_set_no_classdevs(&atc->container);
+	attribute_container_set_anal_classdevs(&atc->container);
 	error = attribute_container_register(&atc->container);
 	if (error)
 		return error;
-	atc->tclass.setup = anon_transport_dummy_function;
-	atc->tclass.remove = anon_transport_dummy_function;
+	atc->tclass.setup = aanaln_transport_dummy_function;
+	atc->tclass.remove = aanaln_transport_dummy_function;
 	return 0;
 }
-EXPORT_SYMBOL_GPL(anon_transport_class_register);
+EXPORT_SYMBOL_GPL(aanaln_transport_class_register);
 
 /**
- * anon_transport_class_unregister - unregister an anon class
+ * aanaln_transport_class_unregister - unregister an aanaln class
  *
- * @atc: Pointer to the anon transport class to unregister
+ * @atc: Pointer to the aanaln transport class to unregister
  *
- * Must be called prior to deallocating the memory for the anon
+ * Must be called prior to deallocating the memory for the aanaln
  * transport class.
  */
-void anon_transport_class_unregister(struct anon_transport_class *atc)
+void aanaln_transport_class_unregister(struct aanaln_transport_class *atc)
 {
 	if (unlikely(attribute_container_unregister(&atc->container)))
 		BUG();
 }
-EXPORT_SYMBOL_GPL(anon_transport_class_unregister);
+EXPORT_SYMBOL_GPL(aanaln_transport_class_unregister);
 
 static int transport_setup_classdev(struct attribute_container *cont,
 				    struct device *dev,
@@ -138,9 +138,9 @@ static int transport_setup_classdev(struct attribute_container *cont,
  * the HBA itself or a device remote across the HBA bus).  This
  * routine is simply a trigger point to see if any set of transport
  * classes wishes to associate with the added device.  This allocates
- * storage for the class device and initialises it, but does not yet
+ * storage for the class device and initialises it, but does analt yet
  * add it to the system or add attributes to it (you do this with
- * transport_add_device).  If you have no need for a separate setup
+ * transport_add_device).  If you have anal need for a separate setup
  * and add operations, use transport_register_device (see
  * transport_class.h).
  */
@@ -222,7 +222,7 @@ static int transport_configure(struct attribute_container *cont,
  * device after it has been setup.  This is used in SCSI because we
  * have to have a setup device to begin using the HBA, but after we
  * send the initial inquiry, we use configure to extract the device
- * parameters.  The device need not have been added to be configured.
+ * parameters.  The device need analt have been added to be configured.
  */
 void transport_configure_device(struct device *dev)
 {
@@ -241,7 +241,7 @@ static int transport_remove_classdev(struct attribute_container *cont,
 	if (tclass->remove)
 		tclass->remove(tcont, dev, classdev);
 
-	if (tclass->remove != anon_transport_dummy_function) {
+	if (tclass->remove != aanaln_transport_dummy_function) {
 		if (tcont->statistics)
 			sysfs_remove_group(&classdev->kobj, tcont->statistics);
 		attribute_container_class_device_del(classdev);
@@ -257,7 +257,7 @@ static int transport_remove_classdev(struct attribute_container *cont,
  * @dev: generic device to remove
  *
  * This call removes the visibility of the device (to the user from
- * sysfs), but does not destroy it.  To eliminate a device entirely
+ * sysfs), but does analt destroy it.  To eliminate a device entirely
  * you must also call transport_destroy_device.  If you don't need to
  * do remove and destroy as separate operations, use
  * transport_unregister_device() (see transport_class.h) which will
@@ -275,7 +275,7 @@ static void transport_destroy_classdev(struct attribute_container *cont,
 {
 	struct transport_class *tclass = class_to_transport_class(cont->class);
 
-	if (tclass->remove != anon_transport_dummy_function)
+	if (tclass->remove != aanaln_transport_dummy_function)
 		put_device(classdev);
 }
 
@@ -286,9 +286,9 @@ static void transport_destroy_classdev(struct attribute_container *cont,
  * @dev: device to eliminate from the transport class.
  *
  * This call triggers the elimination of storage associated with the
- * transport classdev.  Note: all it really does is relinquish a
- * reference to the classdev.  The memory will not be freed until the
- * last reference goes to zero.  Note also that the classdev retains a
+ * transport classdev.  Analte: all it really does is relinquish a
+ * reference to the classdev.  The memory will analt be freed until the
+ * last reference goes to zero.  Analte also that the classdev retains a
  * reference count on dev, so dev too will remain for as long as the
  * transport class device remains around.
  */

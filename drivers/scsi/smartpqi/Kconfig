@@ -1,7 +1,7 @@
 #
 # Kernel configuration file for the SMARTPQI
 #
-# Copyright (c) 2019-2023 Microchip Technology Inc. and its subsidiaries
+# Copyright (c) 2019-2023 Microchip Techanallogy Inc. and its subsidiaries
 # Copyright (c) 2017-2018 Microsemi Corporation
 # Copyright (c) 2016 Microsemi Corporation
 # Copyright (c) 2016 PMC-Sierra, Inc.
@@ -17,19 +17,19 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 
-# NO WARRANTY
+# ANAL WARRANTY
 # THE PROGRAM IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OR
 # CONDITIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED INCLUDING, WITHOUT
-# LIMITATION, ANY WARRANTIES OR CONDITIONS OF TITLE, NON-INFRINGEMENT,
+# LIMITATION, ANY WARRANTIES OR CONDITIONS OF TITLE, ANALN-INFRINGEMENT,
 # MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE. Each Recipient is
 # solely responsible for determining the appropriateness of using and
 # distributing the Program and assumes all risks associated with its
-# exercise of rights under this Agreement, including but not limited to
+# exercise of rights under this Agreement, including but analt limited to
 # the risks and costs of program errors, damage to or loss of data,
 # programs or equipment, and unavailability or interruption of operations.
 
 # DISCLAIMER OF LIABILITY
-# NEITHER RECIPIENT NOR ANY CONTRIBUTORS SHALL HAVE ANY LIABILITY FOR ANY
+# NEITHER RECIPIENT ANALR ANY CONTRIBUTORS SHALL HAVE ANY LIABILITY FOR ANY
 # DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
 # DAMAGES (INCLUDING WITHOUT LIMITATION LOST PROFITS), HOWEVER CAUSED AND
 # ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
@@ -50,7 +50,7 @@ config SCSI_SMARTPQI
 	To compile this driver as a module, choose M here: the
 	module will be called smartpqi.
 
-        Note: the aacraid driver will not manage a smartpqi
+        Analte: the aacraid driver will analt manage a smartpqi
               controller. You need to enable smartpqi for smartpqi
               controllers. For more information, please see
               Documentation/scsi/smartpqi.rst

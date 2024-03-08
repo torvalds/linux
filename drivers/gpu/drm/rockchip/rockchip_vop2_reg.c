@@ -28,10 +28,10 @@ static const uint32_t formats_cluster[] = {
 	DRM_FORMAT_BGR888,
 	DRM_FORMAT_RGB565,
 	DRM_FORMAT_BGR565,
-	DRM_FORMAT_YUV420_8BIT, /* yuv420_8bit non-Linear mode only */
-	DRM_FORMAT_YUV420_10BIT, /* yuv420_10bit non-Linear mode only */
-	DRM_FORMAT_YUYV, /* yuv422_8bit non-Linear mode only*/
-	DRM_FORMAT_Y210, /* yuv422_10bit non-Linear mode only */
+	DRM_FORMAT_YUV420_8BIT, /* yuv420_8bit analn-Linear mode only */
+	DRM_FORMAT_YUV420_10BIT, /* yuv420_10bit analn-Linear mode only */
+	DRM_FORMAT_YUYV, /* yuv422_8bit analn-Linear mode only*/
+	DRM_FORMAT_Y210, /* yuv422_10bit analn-Linear mode only */
 };
 
 static const uint32_t formats_esmart[] = {
@@ -47,11 +47,11 @@ static const uint32_t formats_esmart[] = {
 	DRM_FORMAT_NV21, /* yvu420_8bit linear mode, 2 plane */
 	DRM_FORMAT_NV16, /* yuv422_8bit linear mode, 2 plane */
 	DRM_FORMAT_NV61, /* yvu422_8bit linear mode, 2 plane */
-	DRM_FORMAT_NV20, /* yuv422_10bit linear mode, 2 plane, no padding */
+	DRM_FORMAT_NV20, /* yuv422_10bit linear mode, 2 plane, anal padding */
 	DRM_FORMAT_NV24, /* yuv444_8bit linear mode, 2 plane */
 	DRM_FORMAT_NV42, /* yvu444_8bit linear mode, 2 plane */
-	DRM_FORMAT_NV30, /* yuv444_10bit linear mode, 2 plane, no padding */
-	DRM_FORMAT_NV15, /* yuv420_10bit linear mode, 2 plane, no padding */
+	DRM_FORMAT_NV30, /* yuv444_10bit linear mode, 2 plane, anal padding */
+	DRM_FORMAT_NV15, /* yuv420_10bit linear mode, 2 plane, anal padding */
 	DRM_FORMAT_YVYU, /* yuv422_8bit[YVYU] linear mode */
 	DRM_FORMAT_VYUY, /* yuv422_8bit[VYUY] linear mode */
 	DRM_FORMAT_YUYV, /* yuv422_8bit[YUYV] linear mode */
@@ -69,13 +69,13 @@ static const uint32_t formats_rk356x_esmart[] = {
 	DRM_FORMAT_BGR565,
 	DRM_FORMAT_NV12, /* yuv420_8bit linear mode, 2 plane */
 	DRM_FORMAT_NV21, /* yuv420_8bit linear mode, 2 plane */
-	DRM_FORMAT_NV15, /* yuv420_10bit linear mode, 2 plane, no padding */
+	DRM_FORMAT_NV15, /* yuv420_10bit linear mode, 2 plane, anal padding */
 	DRM_FORMAT_NV16, /* yuv422_8bit linear mode, 2 plane */
 	DRM_FORMAT_NV61, /* yuv422_8bit linear mode, 2 plane */
-	DRM_FORMAT_NV20, /* yuv422_10bit linear mode, 2 plane, no padding */
+	DRM_FORMAT_NV20, /* yuv422_10bit linear mode, 2 plane, anal padding */
 	DRM_FORMAT_NV24, /* yuv444_8bit linear mode, 2 plane */
 	DRM_FORMAT_NV42, /* yuv444_8bit linear mode, 2 plane */
-	DRM_FORMAT_NV30, /* yuv444_10bit linear mode, 2 plane, no padding */
+	DRM_FORMAT_NV30, /* yuv444_10bit linear mode, 2 plane, anal padding */
 	DRM_FORMAT_YVYU, /* yuv422_8bit[YVYU] linear mode */
 	DRM_FORMAT_VYUY, /* yuv422_8bit[VYUY] linear mode */
 };
@@ -172,7 +172,7 @@ static const struct vop2_video_port_data rk3568_vop_video_ports[] = {
  *    * nearest-neighbor/bilinear/average for scale down
  *
  *
- * @TODO describe the wind like cpu-map dt nodes;
+ * @TODO describe the wind like cpu-map dt analdes;
  */
 static const struct vop2_win_data rk3568_vop_win_data[] = {
 	{

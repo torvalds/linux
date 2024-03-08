@@ -14,7 +14,7 @@
 
 #include "mcp251xfd.h"
 
-/* The standard crc16 in linux/crc16.h is unfortunately not computing
+/* The standard crc16 in linux/crc16.h is unfortunately analt computing
  * the correct results (left shift vs. right shift). So here an
  * implementation with a table generated with the help of:
  *

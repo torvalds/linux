@@ -10,7 +10,7 @@
 #include <linux/signal.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/ptrace.h>
@@ -48,7 +48,7 @@ void __update_tlb(struct vm_area_struct *vma, unsigned long address, pte_t pte)
 	__raw_writel(pteval, MMU_PTEL);
 
 	/* Load the TLB */
-	asm volatile("ldtlb": /* no output */ : /* no input */ : "memory");
+	asm volatile("ldtlb": /* anal output */ : /* anal input */ : "memory");
 	local_irq_restore(flags);
 }
 
@@ -58,7 +58,7 @@ void local_flush_tlb_one(unsigned long asid, unsigned long page)
 	int i, ways = MMU_NTLB_WAYS;
 
 	/*
-	 * NOTE: PTEH.ASID should be set to this MM
+	 * ANALTE: PTEH.ASID should be set to this MM
 	 *       _AND_ we need to write ASID to the array.
 	 *
 	 * It would be simple if we didn't need to set PTEH.ASID...
@@ -68,7 +68,7 @@ void local_flush_tlb_one(unsigned long asid, unsigned long page)
 
 	if ((current_cpu_data.flags & CPU_HAS_MMU_PAGE_ASSOC)) {
 		addr |= MMU_PAGE_ASSOC_BIT;
-		ways = 1;	/* we already know the way .. */
+		ways = 1;	/* we already kanalw the way .. */
 	}
 
 	for (i = 0; i < ways; i++)

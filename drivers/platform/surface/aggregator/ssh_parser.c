@@ -51,11 +51,11 @@ static bool sshp_starts_with_syn(const struct ssam_span *src)
  *
  * Search for SSH SYN bytes in the given source span. If found, set the @rem
  * span to the remaining data, starting with the first SYN bytes and capped by
- * the source span length, and return %true. This function does not copy any
+ * the source span length, and return %true. This function does analt copy any
  * data, but rather only sets pointers to the respective start addresses and
  * length values.
  *
- * If no SSH SYN bytes could be found, set the @rem span to the zero-length
+ * If anal SSH SYN bytes could be found, set the @rem span to the zero-length
  * span at the end of the source span and return %false.
  *
  * If partial SSH SYN bytes could be found at the end of the source span, set
@@ -102,14 +102,14 @@ bool sshp_find_syn(const struct ssam_span *src, struct ssam_span *rem)
  * writes the limits of the frame payload to the provided @payload span
  * pointer.
  *
- * This function does not copy any data, but rather only validates the message
+ * This function does analt copy any data, but rather only validates the message
  * data and sets pointers (and length values) to indicate the respective parts.
  *
- * If no complete SSH frame could be found, the frame pointer will be set to
+ * If anal complete SSH frame could be found, the frame pointer will be set to
  * the %NULL pointer and the payload span will be set to the null span (start
  * pointer %NULL, size zero).
  *
- * Return: Returns zero on success or if the frame is incomplete, %-ENOMSG if
+ * Return: Returns zero on success or if the frame is incomplete, %-EANALMSG if
  * the start of the message is invalid, %-EBADMSG if any (frame-header or
  * payload) CRC is invalid, or %-EMSGSIZE if the SSH message is bigger than
  * the maximum message length specified in the @maxlen parameter.
@@ -128,12 +128,12 @@ int sshp_parse_frame(const struct device *dev, const struct ssam_span *source,
 
 	if (!sshp_starts_with_syn(source)) {
 		dev_warn(dev, "rx: parser: invalid start of frame\n");
-		return -ENOMSG;
+		return -EANALMSG;
 	}
 
 	/* Check for minimum packet length. */
 	if (unlikely(source->len < SSH_MESSAGE_LENGTH(0))) {
-		dev_dbg(dev, "rx: parser: not enough data for frame\n");
+		dev_dbg(dev, "rx: parser: analt eanalugh data for frame\n");
 		return 0;
 	}
 
@@ -147,7 +147,7 @@ int sshp_parse_frame(const struct device *dev, const struct ssam_span *source,
 		return -EBADMSG;
 	}
 
-	/* Ensure packet does not exceed maximum length. */
+	/* Ensure packet does analt exceed maximum length. */
 	sp.len = get_unaligned_le16(&((struct ssh_frame *)sf.ptr)->len);
 	if (unlikely(SSH_MESSAGE_LENGTH(sp.len) > maxlen)) {
 		dev_warn(dev, "rx: parser: frame too large: %llu bytes\n",
@@ -160,7 +160,7 @@ int sshp_parse_frame(const struct device *dev, const struct ssam_span *source,
 
 	/* Check for frame + payload length. */
 	if (source->len < SSH_MESSAGE_LENGTH(sp.len)) {
-		dev_dbg(dev, "rx: parser: not enough data for payload\n");
+		dev_dbg(dev, "rx: parser: analt eanalugh data for payload\n");
 		return 0;
 	}
 
@@ -189,18 +189,18 @@ int sshp_parse_frame(const struct device *dev, const struct ssam_span *source,
  * Parses and validates a SSH command frame payload. Sets the @command pointer
  * to the command header and the @command_data span to the command data (i.e.
  * payload of the command). This will result in a zero-length span if the
- * command does not have any associated data/payload. This function does not
+ * command does analt have any associated data/payload. This function does analt
  * check the frame-payload-type field, which should be checked by the caller
  * before calling this function.
  *
  * The @source parameter should be the complete frame payload, e.g. returned
  * by the sshp_parse_frame() command.
  *
- * This function does not copy any data, but rather only validates the frame
+ * This function does analt copy any data, but rather only validates the frame
  * payload data and sets pointers (and length values) to indicate the
  * respective parts.
  *
- * Return: Returns zero on success or %-ENOMSG if @source does not represent a
+ * Return: Returns zero on success or %-EANALMSG if @source does analt represent a
  * valid command-type frame payload, i.e. is too short.
  */
 int sshp_parse_command(const struct device *dev, const struct ssam_span *source,
@@ -214,7 +214,7 @@ int sshp_parse_command(const struct device *dev, const struct ssam_span *source,
 		command_data->len = 0;
 
 		dev_err(dev, "rx: parser: command payload is too short\n");
-		return -ENOMSG;
+		return -EANALMSG;
 	}
 
 	*command = (struct ssh_command *)source->ptr;

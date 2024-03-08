@@ -103,7 +103,7 @@ static int eusb2_repeater_init_vregs(struct eusb2_repeater *rptr)
 
 	rptr->vregs = devm_kcalloc(dev, num, sizeof(*rptr->vregs), GFP_KERNEL);
 	if (!rptr->vregs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < num; i++)
 		rptr->vregs[i].supply = rptr->cfg->vreg_list[i];
@@ -114,7 +114,7 @@ static int eusb2_repeater_init_vregs(struct eusb2_repeater *rptr)
 static int eusb2_repeater_init(struct phy *phy)
 {
 	struct eusb2_repeater *rptr = phy_get_drvdata(phy);
-	struct device_node *np = rptr->dev->of_node;
+	struct device_analde *np = rptr->dev->of_analde;
 	struct regmap *regmap = rptr->regmap;
 	const u32 *init_tbl = rptr->cfg->init_tbl;
 	u8 tune_usb2_preem = init_tbl[TUNE_USB2_PREEM];
@@ -175,7 +175,7 @@ static int eusb2_repeater_set_mode(struct phy *phy,
 	case PHY_MODE_USB_DEVICE:
 		/*
 		 * In device mode clear host mode related workaround as there
-		 * is no repeater reset available, and enable/disable of
+		 * is anal repeater reset available, and enable/disable of
 		 * repeater doesn't clear previous value due to shared
 		 * regulators (say host <-> device mode switch).
 		 */
@@ -208,13 +208,13 @@ static int eusb2_repeater_probe(struct platform_device *pdev)
 	struct eusb2_repeater *rptr;
 	struct device *dev = &pdev->dev;
 	struct phy_provider *phy_provider;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	u32 res;
 	int ret;
 
 	rptr = devm_kzalloc(dev, sizeof(*rptr), GFP_KERNEL);
 	if (!rptr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rptr->dev = dev;
 	dev_set_drvdata(dev, rptr);
@@ -225,7 +225,7 @@ static int eusb2_repeater_probe(struct platform_device *pdev)
 
 	rptr->regmap = dev_get_regmap(dev->parent, NULL);
 	if (!rptr->regmap)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = of_property_read_u32(np, "reg", &res);
 	if (ret < 0)

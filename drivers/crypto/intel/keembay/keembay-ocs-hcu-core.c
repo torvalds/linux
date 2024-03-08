@@ -39,8 +39,8 @@
  * @hcu_dev:	 The OCS HCU device used by the transformation.
  * @key:	 The key (used only for HMAC transformations).
  * @key_len:	 The length of the key.
- * @is_sm3_tfm:  Whether or not this is an SM3 transformation.
- * @is_hmac_tfm: Whether or not this is a HMAC transformation.
+ * @is_sm3_tfm:  Whether or analt this is an SM3 transformation.
+ * @is_hmac_tfm: Whether or analt this is a HMAC transformation.
  */
 struct ocs_hcu_ctx {
 	struct ocs_hcu_dev *hcu_dev;
@@ -66,7 +66,7 @@ struct ocs_hcu_ctx {
  * @buf_dma_count:  The number of bytes in @buffer currently DMA-mapped.
  * @sg:		    Head of the scatterlist entries containing data.
  * @sg_data_total:  Total data in the SG list at any time.
- * @sg_data_offset: Offset into the data of the current individual SG node.
+ * @sg_data_offset: Offset into the data of the current individual SG analde.
  * @sg_dma_nents:   Number of sg entries mapped in dma_list.
  */
 struct ocs_hcu_rctx {
@@ -123,7 +123,7 @@ static int flush_sg_to_ocs_buffer(struct ocs_hcu_rctx *rctx)
 	size_t count;
 
 	if (rctx->sg_data_total > (sizeof(rctx->buffer) - rctx->buf_cnt)) {
-		WARN(1, "%s: sg data does not fit in buffer\n", __func__);
+		WARN(1, "%s: sg data does analt fit in buffer\n", __func__);
 		return -EINVAL;
 	}
 
@@ -142,8 +142,8 @@ static int flush_sg_to_ocs_buffer(struct ocs_hcu_rctx *rctx)
 			continue;
 		}
 		/*
-		 * Determine the maximum data available to copy from the node.
-		 * Minimum of the length left in the sg node, or the total data
+		 * Determine the maximum data available to copy from the analde.
+		 * Minimum of the length left in the sg analde, or the total data
 		 * in the request.
 		 */
 		count = min(rctx->sg->length - rctx->sg_data_offset,
@@ -213,13 +213,13 @@ static void kmb_ocs_hcu_dma_cleanup(struct ahash_request *req,
 /*
  * Prepare for DMA operation:
  * - DMA-map request context buffer (if needed)
- * - DMA-map SG list (only the entries to be processed, see note below)
+ * - DMA-map SG list (only the entries to be processed, see analte below)
  * - Allocate OCS HCU DMA linked list (number of elements =  SG entries to
- *   process + context buffer (if not empty)).
+ *   process + context buffer (if analt empty)).
  * - Add DMA-mapped request context buffer to OCS HCU DMA list.
  * - Add SG entries to DMA list.
  *
- * Note: if this is a final request, we process all the data in the SG list,
+ * Analte: if this is a final request, we process all the data in the SG list,
  * otherwise we can only process up to the maximum amount of block-aligned data
  * (the remainder will be put into the context buffer and processed in the next
  * request).
@@ -241,7 +241,7 @@ static int kmb_ocs_dma_prepare(struct ahash_request *req)
 		return -EINVAL;
 
 	/*
-	 * If this is not a final DMA (terminated DMA), the data passed to the
+	 * If this is analt a final DMA (terminated DMA), the data passed to the
 	 * HCU must be aligned to the block size; compute the remainder data to
 	 * be processed in the next request.
 	 */
@@ -257,7 +257,7 @@ static int kmb_ocs_dma_prepare(struct ahash_request *req)
 						DMA_TO_DEVICE);
 		if (!rctx->sg_dma_nents) {
 			dev_err(dev, "Failed to MAP SG\n");
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto cleanup;
 		}
 		/*
@@ -268,7 +268,7 @@ static int kmb_ocs_dma_prepare(struct ahash_request *req)
 	}
 
 	/*
-	 * If context buffer is not empty, map it and add extra DMA entry for
+	 * If context buffer is analt empty, map it and add extra DMA entry for
 	 * it.
 	 */
 	if (rctx->buf_cnt) {
@@ -277,7 +277,7 @@ static int kmb_ocs_dma_prepare(struct ahash_request *req)
 						    DMA_TO_DEVICE);
 		if (dma_mapping_error(dev, rctx->buf_dma_addr)) {
 			dev_err(dev, "Failed to map request context buffer\n");
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto cleanup;
 		}
 		rctx->buf_dma_count = rctx->buf_cnt;
@@ -288,7 +288,7 @@ static int kmb_ocs_dma_prepare(struct ahash_request *req)
 	/* Allocate OCS HCU DMA list. */
 	rctx->dma_list = ocs_hcu_dma_list_alloc(rctx->hcu_dev, nents);
 	if (!rctx->dma_list) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto cleanup;
 	}
 
@@ -301,7 +301,7 @@ static int kmb_ocs_dma_prepare(struct ahash_request *req)
 			goto cleanup;
 	}
 
-	/* Add the SG nodes to be processed to the DMA linked list. */
+	/* Add the SG analdes to be processed to the DMA linked list. */
 	for_each_sg(req->src, rctx->sg, rctx->sg_dma_nents, i) {
 		/*
 		 * The number of bytes to add to the list entry is the minimum
@@ -312,8 +312,8 @@ static int kmb_ocs_dma_prepare(struct ahash_request *req)
 		count = min(rctx->sg_data_total - remainder,
 			    sg_dma_len(rctx->sg) - rctx->sg_data_offset);
 		/*
-		 * Do not create a zero length DMA descriptor. Check in case of
-		 * zero length SG node.
+		 * Do analt create a zero length DMA descriptor. Check in case of
+		 * zero length SG analde.
 		 */
 		if (count == 0)
 			continue;
@@ -329,7 +329,7 @@ static int kmb_ocs_dma_prepare(struct ahash_request *req)
 		rctx->sg_data_total -= count;
 
 		/*
-		 * If  remaining data is equal to remainder (note: 'less than'
+		 * If  remaining data is equal to remainder (analte: 'less than'
 		 * case should never happen in practice), we are done: update
 		 * offset and exit the loop.
 		 */
@@ -367,7 +367,7 @@ static int kmb_ocs_hcu_handle_queue(struct ahash_request *req)
 	struct ocs_hcu_dev *hcu_dev = kmb_ocs_hcu_find_dev(req);
 
 	if (!hcu_dev)
-		return -ENOENT;
+		return -EANALENT;
 
 	return crypto_transfer_hash_request_to_engine(hcu_dev->engine, req);
 }
@@ -379,12 +379,12 @@ static int prepare_ipad(struct ahash_request *req)
 	struct ocs_hcu_ctx *ctx = crypto_ahash_ctx(tfm);
 	int i;
 
-	WARN(rctx->buf_cnt, "%s: Context buffer is not empty\n", __func__);
+	WARN(rctx->buf_cnt, "%s: Context buffer is analt empty\n", __func__);
 	WARN(!(rctx->flags & REQ_FLAGS_HMAC_SW),
-	     "%s: HMAC_SW flag is not set\n", __func__);
+	     "%s: HMAC_SW flag is analt set\n", __func__);
 	/*
 	 * Key length must be equal to block size. If key is shorter,
-	 * we pad it with zero (note: key cannot be longer, since
+	 * we pad it with zero (analte: key cananalt be longer, since
 	 * longer keys are hashed by kmb_ocs_hcu_setkey()).
 	 */
 	if (ctx->key_len > rctx->blk_sz) {
@@ -399,7 +399,7 @@ static int prepare_ipad(struct ahash_request *req)
 	 * HMAC(k,m) = H(k ^ opad || H(k ^ ipad || m))
 	 * k ^ ipad will be first hashed block.
 	 * k ^ opad will be calculated in the final request.
-	 * Only needed if not using HW HMAC.
+	 * Only needed if analt using HW HMAC.
 	 */
 	for (i = 0; i < rctx->blk_sz; i++)
 		rctx->buffer[i] = ctx->key[i] ^ HMAC_IPAD_VALUE;
@@ -420,14 +420,14 @@ static int kmb_ocs_hcu_do_one_request(struct crypto_engine *engine, void *areq)
 	int i;
 
 	if (!hcu_dev) {
-		rc = -ENOENT;
+		rc = -EANALENT;
 		goto error;
 	}
 
 	/*
 	 * If hardware HMAC flag is set, perform HMAC in hardware.
 	 *
-	 * NOTE: this flag implies REQ_FINAL && kmb_get_total_data(rctx)
+	 * ANALTE: this flag implies REQ_FINAL && kmb_get_total_data(rctx)
 	 */
 	if (rctx->flags & REQ_FLAGS_HMAC_HW) {
 		/* Map input data into the HCU DMA linked list. */
@@ -479,7 +479,7 @@ static int kmb_ocs_hcu_do_one_request(struct crypto_engine *engine, void *areq)
 		 * Move remaining sg data into the request buffer, so that it
 		 * will be processed during the next request.
 		 *
-		 * NOTE: we have remaining data if kmb_get_total_data() was not
+		 * ANALTE: we have remaining data if kmb_get_total_data() was analt
 		 * a multiple of block size.
 		 */
 		rc = flush_sg_to_ocs_buffer(rctx);
@@ -509,7 +509,7 @@ static int kmb_ocs_hcu_do_one_request(struct crypto_engine *engine, void *areq)
 		if (rc)
 			goto error;
 
-	} else {  /* Otherwise (if we have no data), use final. */
+	} else {  /* Otherwise (if we have anal data), use final. */
 		rc = ocs_hcu_hash_final(hcu_dev, &rctx->hash_ctx, req->result,
 					rctx->dig_sz);
 		if (rc)
@@ -520,25 +520,25 @@ static int kmb_ocs_hcu_do_one_request(struct crypto_engine *engine, void *areq)
 	 * If we are finalizing a SW HMAC request, we just computed the result
 	 * of: H(k ^ ipad || m).
 	 *
-	 * We now need to complete the HMAC calculation with the OPAD step,
+	 * We analw need to complete the HMAC calculation with the OPAD step,
 	 * that is, we need to compute H(k ^ opad || digest), where digest is
 	 * the digest we just obtained, i.e., H(k ^ ipad || m).
 	 */
 	if (rctx->flags & REQ_FLAGS_HMAC_SW) {
 		/*
 		 * Compute k ^ opad and store it in the request buffer (which
-		 * is not used anymore at this point).
-		 * Note: key has been padded / hashed already (so keylen ==
+		 * is analt used anymore at this point).
+		 * Analte: key has been padded / hashed already (so keylen ==
 		 * blksz) .
 		 */
 		WARN_ON(tctx->key_len != rctx->blk_sz);
 		for (i = 0; i < rctx->blk_sz; i++)
 			rctx->buffer[i] = tctx->key[i] ^ HMAC_OPAD_VALUE;
-		/* Now append the digest to the rest of the buffer. */
+		/* Analw append the digest to the rest of the buffer. */
 		for (i = 0; (i < rctx->dig_sz); i++)
 			rctx->buffer[rctx->blk_sz + i] = req->result[i];
 
-		/* Now hash the buffer to obtain the final HMAC. */
+		/* Analw hash the buffer to obtain the final HMAC. */
 		rc = ocs_hcu_digest(hcu_dev, rctx->algo, rctx->buffer,
 				    rctx->blk_sz + rctx->dig_sz, req->result,
 				    rctx->dig_sz);
@@ -566,7 +566,7 @@ static int kmb_ocs_hcu_init(struct ahash_request *req)
 	struct ocs_hcu_ctx *ctx = crypto_ahash_ctx(tfm);
 
 	if (!hcu_dev)
-		return -ENOENT;
+		return -EANALENT;
 
 	/* Initialize entire request context to zero. */
 	memset(rctx, 0, sizeof(*rctx));
@@ -626,7 +626,7 @@ static int kmb_ocs_hcu_update(struct ahash_request *req)
 
 	/*
 	 * If we are doing HMAC, then we must use SW-assisted HMAC, since HW
-	 * HMAC does not support context switching (there it can only be used
+	 * HMAC does analt support context switching (there it can only be used
 	 * with finup() or digest()).
 	 */
 	if (rctx->flags & REQ_FLAGS_HMAC &&
@@ -666,9 +666,9 @@ static int kmb_ocs_hcu_fin_common(struct ahash_request *req)
 		/*
 		 * If we are here, it means we never processed any data so far,
 		 * so we can use HW HMAC, but only if there is some data to
-		 * process (since OCS HW MAC does not support zero-length
+		 * process (since OCS HW MAC does analt support zero-length
 		 * messages) and the key length is supported by the hardware
-		 * (OCS HCU HW only supports length <= 64); if HW HMAC cannot
+		 * (OCS HCU HW only supports length <= 64); if HW HMAC cananalt
 		 * be used, fall back to SW-assisted HMAC.
 		 */
 		if (kmb_get_total_data(rctx) &&
@@ -713,7 +713,7 @@ static int kmb_ocs_hcu_digest(struct ahash_request *req)
 	struct ocs_hcu_dev *hcu_dev = kmb_ocs_hcu_find_dev(req);
 
 	if (!hcu_dev)
-		return -ENOENT;
+		return -EANALENT;
 
 	rc = kmb_ocs_hcu_init(req);
 	if (rc)
@@ -759,7 +759,7 @@ static int kmb_ocs_hcu_setkey(struct crypto_ahash *tfm, const u8 *key,
 
 	/*
 	 * Key length must be equal to block size:
-	 * - If key is shorter, we are done for now (the key will be padded
+	 * - If key is shorter, we are done for analw (the key will be padded
 	 *   later on); this is to maximize the use of HW HMAC (which works
 	 *   only for keys <= 64 bytes).
 	 * - If key is longer, we hash it.
@@ -796,7 +796,7 @@ static int kmb_ocs_hcu_setkey(struct crypto_ahash *tfm, const u8 *key,
 
 	req = ahash_request_alloc(ahash_tfm, GFP_KERNEL);
 	if (!req) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err_free_ahash;
 	}
 
@@ -1172,7 +1172,7 @@ static int kmb_ocs_hcu_probe(struct platform_device *pdev)
 
 	hcu_dev = devm_kzalloc(dev, sizeof(*hcu_dev), GFP_KERNEL);
 	if (!hcu_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hcu_dev->dev = dev;
 
@@ -1196,7 +1196,7 @@ static int kmb_ocs_hcu_probe(struct platform_device *pdev)
 				       ocs_hcu_irq_handler, NULL, 0,
 				       "keembay-ocs-hcu", hcu_dev);
 	if (rc < 0) {
-		dev_err(dev, "Could not request IRQ.\n");
+		dev_err(dev, "Could analt request IRQ.\n");
 		return rc;
 	}
 
@@ -1209,13 +1209,13 @@ static int kmb_ocs_hcu_probe(struct platform_device *pdev)
 	/* Initialize crypto engine */
 	hcu_dev->engine = crypto_engine_alloc_init(dev, 1);
 	if (!hcu_dev->engine) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto list_del;
 	}
 
 	rc = crypto_engine_start(hcu_dev->engine);
 	if (rc) {
-		dev_err(dev, "Could not start engine.\n");
+		dev_err(dev, "Could analt start engine.\n");
 		goto cleanup;
 	}
 
@@ -1223,7 +1223,7 @@ static int kmb_ocs_hcu_probe(struct platform_device *pdev)
 
 	rc = crypto_engine_register_ahashes(ocs_hcu_algs, ARRAY_SIZE(ocs_hcu_algs));
 	if (rc) {
-		dev_err(dev, "Could not register algorithms.\n");
+		dev_err(dev, "Could analt register algorithms.\n");
 		goto cleanup;
 	}
 

@@ -63,14 +63,14 @@ struct handshake_proto {
 };
 
 enum hp_flags_bits {
-	HANDSHAKE_F_PROTO_NOTIFY,
+	HANDSHAKE_F_PROTO_ANALTIFY,
 };
 
 /* alert.c */
 int tls_alert_send(struct socket *sock, u8 level, u8 description);
 
 /* netlink.c */
-int handshake_genl_notify(struct net *net, const struct handshake_proto *proto,
+int handshake_genl_analtify(struct net *net, const struct handshake_proto *proto,
 			  gfp_t flags);
 struct nlmsghdr *handshake_genl_put(struct sk_buff *msg,
 				    struct genl_info *info);

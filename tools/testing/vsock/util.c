@@ -4,10 +4,10 @@
  *
  * Copyright (C) 2017 Red Hat, Inc.
  *
- * Author: Stefan Hajnoczi <stefanha@redhat.com>
+ * Author: Stefan Hajanalczi <stefanha@redhat.com>
  */
 
-#include <errno.h>
+#include <erranal.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -39,9 +39,9 @@ unsigned int parse_cid(const char *str)
 	char *endptr = NULL;
 	unsigned long n;
 
-	errno = 0;
+	erranal = 0;
 	n = strtoul(str, &endptr, 10);
-	if (errno || *endptr != '\0') {
+	if (erranal || *endptr != '\0') {
 		fprintf(stderr, "malformed CID \"%s\"\n", str);
 		exit(EXIT_FAILURE);
 	}
@@ -116,7 +116,7 @@ int vsock_bind_connect(unsigned int cid, unsigned int port, unsigned int bind_po
 	do {
 		ret = connect(client_fd, (struct sockaddr *)&sa_server, sizeof(sa_server));
 		timeout_check("connect");
-	} while (ret < 0 && errno == EINTR);
+	} while (ret < 0 && erranal == EINTR);
 	timeout_end();
 
 	if (ret < 0) {
@@ -155,15 +155,15 @@ static int vsock_connect(unsigned int cid, unsigned int port, int type)
 	do {
 		ret = connect(fd, &addr.sa, sizeof(addr.svm));
 		timeout_check("connect");
-	} while (ret < 0 && errno == EINTR);
+	} while (ret < 0 && erranal == EINTR);
 	timeout_end();
 
 	if (ret < 0) {
-		int old_errno = errno;
+		int old_erranal = erranal;
 
 		close(fd);
 		fd = -1;
-		errno = old_errno;
+		erranal = old_erranal;
 	}
 	return fd;
 }
@@ -223,7 +223,7 @@ static int vsock_accept(unsigned int cid, unsigned int port,
 		struct sockaddr_vm svm;
 	} clientaddr;
 	socklen_t clientaddr_len = sizeof(clientaddr.svm);
-	int fd, client_fd, old_errno;
+	int fd, client_fd, old_erranal;
 
 	fd = vsock_listen(cid, port, type);
 
@@ -233,12 +233,12 @@ static int vsock_accept(unsigned int cid, unsigned int port,
 	do {
 		client_fd = accept(fd, &clientaddr.sa, &clientaddr_len);
 		timeout_check("accept");
-	} while (client_fd < 0 && errno == EINTR);
+	} while (client_fd < 0 && erranal == EINTR);
 	timeout_end();
 
-	old_errno = errno;
+	old_erranal = erranal;
 	close(fd);
-	errno = old_errno;
+	erranal = old_erranal;
 
 	if (client_fd < 0)
 		return client_fd;
@@ -279,7 +279,7 @@ int vsock_seqpacket_accept(unsigned int cid, unsigned int port,
 /* Transmit bytes from a buffer and check the return value.
  *
  * expected_ret:
- *  <0 Negative errno (for testing errors)
+ *  <0 Negative erranal (for testing errors)
  *   0 End-of-file
  *  >0 Success (bytes successfully written)
  */
@@ -294,7 +294,7 @@ void send_buf(int fd, const void *buf, size_t len, int flags,
 		ret = send(fd, buf + nwritten, len - nwritten, flags);
 		timeout_check("send");
 
-		if (ret == 0 || (ret < 0 && errno != EINTR))
+		if (ret == 0 || (ret < 0 && erranal != EINTR))
 			break;
 
 		nwritten += ret;
@@ -307,7 +307,7 @@ void send_buf(int fd, const void *buf, size_t len, int flags,
 				ret, expected_ret);
 			exit(EXIT_FAILURE);
 		}
-		if (errno != -expected_ret) {
+		if (erranal != -expected_ret) {
 			perror("send");
 			exit(EXIT_FAILURE);
 		}
@@ -332,7 +332,7 @@ void send_buf(int fd, const void *buf, size_t len, int flags,
 /* Receive bytes in a buffer and check the return value.
  *
  * expected_ret:
- *  <0 Negative errno (for testing errors)
+ *  <0 Negative erranal (for testing errors)
  *   0 End-of-file
  *  >0 Success (bytes successfully read)
  */
@@ -346,7 +346,7 @@ void recv_buf(int fd, void *buf, size_t len, int flags, ssize_t expected_ret)
 		ret = recv(fd, buf + nread, len - nread, flags);
 		timeout_check("recv");
 
-		if (ret == 0 || (ret < 0 && errno != EINTR))
+		if (ret == 0 || (ret < 0 && erranal != EINTR))
 			break;
 
 		nread += ret;
@@ -359,7 +359,7 @@ void recv_buf(int fd, void *buf, size_t len, int flags, ssize_t expected_ret)
 				ret, expected_ret);
 			exit(EXIT_FAILURE);
 		}
-		if (errno != -expected_ret) {
+		if (erranal != -expected_ret) {
 			perror("recv");
 			exit(EXIT_FAILURE);
 		}
@@ -384,7 +384,7 @@ void recv_buf(int fd, void *buf, size_t len, int flags, ssize_t expected_ret)
 /* Transmit one byte and check the return value.
  *
  * expected_ret:
- *  <0 Negative errno (for testing errors)
+ *  <0 Negative erranal (for testing errors)
  *   0 End-of-file
  *   1 Success
  */
@@ -398,7 +398,7 @@ void send_byte(int fd, int expected_ret, int flags)
 /* Receive one byte and check the return value.
  *
  * expected_ret:
- *  <0 Negative errno (for testing errors)
+ *  <0 Negative erranal (for testing errors)
  *   0 End-of-file
  *   1 Success
  */
@@ -430,7 +430,7 @@ void run_tests(const struct test_case *test_cases,
 		/* Full barrier before executing the next test.  This
 		 * ensures that client and server are executing the
 		 * same test case.  In particular, it means whoever is
-		 * faster will not see the peer still executing the
+		 * faster will analt see the peer still executing the
 		 * last test.  This is important because port numbers
 		 * can be used by multiple test cases.
 		 */
@@ -481,9 +481,9 @@ void skip_test(struct test_case *test_cases, size_t test_cases_len,
 	unsigned long test_id;
 	char *endptr = NULL;
 
-	errno = 0;
+	erranal = 0;
 	test_id = strtoul(test_id_str, &endptr, 10);
-	if (errno || *endptr != '\0') {
+	if (erranal || *endptr != '\0') {
 		fprintf(stderr, "malformed test ID \"%s\"\n", test_id_str);
 		exit(EXIT_FAILURE);
 	}
@@ -584,7 +584,7 @@ struct iovec *alloc_test_iovec(const struct iovec *test_iovec, int iovnum)
 
 		iovec[i].iov_base = mmap(NULL, iovec[i].iov_len,
 					 PROT_READ | PROT_WRITE,
-					 MAP_PRIVATE | MAP_ANONYMOUS | MAP_POPULATE,
+					 MAP_PRIVATE | MAP_AANALNYMOUS | MAP_POPULATE,
 					 -1, 0);
 		if (iovec[i].iov_base == MAP_FAILED) {
 			perror("mmap");

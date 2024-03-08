@@ -7,7 +7,7 @@ Many of the "generic" devices like HPET or IO APIC have the ce4100
 name in their compatible property because they first appeared in this
 SoC.
 
-The CPU nodes
+The CPU analdes
 -------------
 
 	cpus {
@@ -27,7 +27,7 @@ The CPU nodes
 		};
 	};
 
-A "cpu" node describes one logical processor (hardware thread).
+A "cpu" analde describes one logical processor (hardware thread).
 
 Required properties:
 
@@ -38,20 +38,20 @@ Required properties:
 	Local APIC ID, the unique number assigned to each processor by
 	system hardware.
 
-The SoC node
+The SoC analde
 ------------
 
-This node describes the in-core peripherals. Required property:
+This analde describes the in-core peripherals. Required property:
   compatible = "intel,ce4100-cp";
 
-The PCI node
+The PCI analde
 ------------
-This node describes the PCI bus on the SoC. Its property should be
+This analde describes the PCI bus on the SoC. Its property should be
   compatible = "intel,ce4100-pci", "pci";
 
 If the OS is using the IO-APIC for interrupt routing then the reported
-interrupt numbers for devices is no longer true. In order to obtain the
-correct interrupt number, the child node which represents the device has
+interrupt numbers for devices is anal longer true. In order to obtain the
+correct interrupt number, the child analde which represents the device has
 to contain the interrupt property. Besides the interrupt property it has
 to contain at least the reg property containing the PCI bus address and
 compatible property according to "PCI Bus Binding Revision 2.1".

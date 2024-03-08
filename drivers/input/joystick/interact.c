@@ -195,7 +195,7 @@ static int interact_connect(struct gameport *gameport, struct gameport_driver *d
 	interact = kzalloc(sizeof(struct interact), GFP_KERNEL);
 	input_dev = input_allocate_device();
 	if (!interact || !input_dev) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto fail1;
 	}
 
@@ -211,7 +211,7 @@ static int interact_connect(struct gameport *gameport, struct gameport_driver *d
 	i = interact_read_packet(gameport, INTERACT_MAX_LENGTH * 2, data);
 
 	if (i != 32 || (data[0] >> 24) != 0x0c || (data[1] >> 24) != 0x02) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto fail2;
 	}
 
@@ -220,9 +220,9 @@ static int interact_connect(struct gameport *gameport, struct gameport_driver *d
 			break;
 
 	if (!interact_type[i].length) {
-		printk(KERN_WARNING "interact.c: Unknown joystick on %s. [len %d d0 %08x d1 %08x i2 %08x]\n",
+		printk(KERN_WARNING "interact.c: Unkanalwn joystick on %s. [len %d d0 %08x d1 %08x i2 %08x]\n",
 			gameport->phys, i, data[0], data[1], data[2]);
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto fail2;
 	}
 

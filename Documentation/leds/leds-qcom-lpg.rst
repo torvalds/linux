@@ -19,7 +19,7 @@ blocks, such as the RGB current sink, GPIO pins etc.
 The each PWM channel can operate with a period between 27us and 384 seconds and
 has a 9 bit resolution of the duty cycle.
 
-In order to provide support for status notifications with the CPU subsystem in
+In order to provide support for status analtifications with the CPU subsystem in
 deeper idle states the LPG provides pattern support. This consists of a shared
 lookup table of brightness values and per channel properties to select the
 range within the table to use, the rate and if the pattern should repeat.
@@ -35,7 +35,7 @@ Specify a hardware pattern for a Qualcomm LPG LED.
 The pattern is a series of brightness and hold-time pairs, with the hold-time
 expressed in milliseconds. The hold time is a property of the pattern and must
 therefore be identical for each element in the pattern (except for the pauses
-described below). As the LPG hardware is not able to perform the linear
+described below). As the LPG hardware is analt able to perform the linear
 transitions expected by the leds-trigger-pattern format, each entry in the
 pattern must be followed a zero-length entry of the same brightness.
 
@@ -73,6 +73,6 @@ In order to save space in the shared lookup table the LPG supports "ping-pong"
 mode, in which case each run through the pattern is performed by first running
 the pattern forward, then backwards. This mode is automatically used by the
 driver when the given pattern is a palindrome. In this case the "high pause"
-denotes the wait time before the pattern is run in reverse and as such the
+deanaltes the wait time before the pattern is run in reverse and as such the
 specified hold-time of the middle item in the pattern is allowed to have a
 different hold-time.

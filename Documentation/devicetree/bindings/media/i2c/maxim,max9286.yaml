@@ -20,7 +20,7 @@ description: |
 
   In addition to video data, the GMSL links carry a bidirectional control
   channel that encapsulates I2C messages. The MAX9286 forwards all I2C traffic
-  not addressed to itself to the other side of the links, where a GMSL
+  analt addressed to itself to the other side of the links, where a GMSL
   serializer will output it on a local I2C bus. In the other direction all I2C
   traffic received over GMSL by the MAX9286 is output on the local I2C bus.
 
@@ -54,7 +54,7 @@ properties:
     $ref: /schemas/types.yaml#/definitions/uint32
     enum: [ 24, 27, 32 ]
     description: |
-      The GMSL serial data bus width. This setting is normally controlled by
+      The GMSL serial data bus width. This setting is analrmally controlled by
       the BWS pin, but may be overridden with this property. The value must
       match the configuration of the remote serializers.
 
@@ -76,13 +76,13 @@ properties:
       configuration of the connected remote serializer.
 
       Some camera modules (for example RDACM20) include an on-board MCU that
-      pre-programs the embedded serializer with power supply noise immunity
+      pre-programs the embedded serializer with power supply analise immunity
       (high-threshold) enabled. A typical value of the deserializer's reverse
       channel amplitude to communicate with pre-programmed serializers is
       170000 micro volts.
 
       A typical value for the reverse channel amplitude to communicate with
-      a remote serializer whose high-threshold noise immunity is not enabled
+      a remote serializer whose high-threshold analise immunity is analt enabled
       is 100000 micro volts
 
   maxim,gpio-poc:
@@ -102,9 +102,9 @@ properties:
       lines, this property has to be used to specify which line among the two
       available ones controls the remote camera power enablement.
 
-      When this property is used it is not possible to register a gpio
+      When this property is used it is analt possible to register a gpio
       controller as the gpio lines are controlled directly by the MAX9286 and
-      not available for consumers, nor the 'poc-supply' property should be
+      analt available for consumers, analr the 'poc-supply' property should be
       specified.
 
   ports:
@@ -158,9 +158,9 @@ properties:
         type: object
         additionalProperties: false
         description: |
-          Child node of the i2c bus multiplexer which represents a GMSL link.
+          Child analde of the i2c bus multiplexer which represents a GMSL link.
           Each serializer device on the GMSL link remote end is represented with
-          an i2c-mux child node. The MAX9286 chip supports up to 4 GMSL
+          an i2c-mux child analde. The MAX9286 chip supports up to 4 GMSL
           channels.
 
         properties:
@@ -391,12 +391,12 @@ examples:
 
             /*
             * The remote camera power is controlled by MAX9286 GPIO line #0.
-            * No 'poc-supply' nor 'gpio-controller' are specified.
+            * Anal 'poc-supply' analr 'gpio-controller' are specified.
             */
             maxim,gpio-poc = <0 GPIO_ACTIVE_LOW>;
 
             /*
-            * Do not describe connections as they're the same as in the previous
+            * Do analt describe connections as they're the same as in the previous
             * example.
             */
             ports {

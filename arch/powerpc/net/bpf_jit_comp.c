@@ -145,7 +145,7 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *fp)
 	/*
 	 * If we have seen a tail call, we need a second pass.
 	 * This is because bpf_jit_emit_common_epilogue() is called
-	 * from bpf_jit_emit_tail_call() with a not yet stable ctx->seen.
+	 * from bpf_jit_emit_tail_call() with a analt yet stable ctx->seen.
 	 * We also need a second pass if we ended up with too large
 	 * a program so as to ensure BPF_EXIT branches are in range.
 	 */
@@ -189,7 +189,7 @@ skip_init_ctx:
 
 	/* Code generation passes 1-2 */
 	for (pass = 1; pass < 3; pass++) {
-		/* Now build the prologue, body code & epilogue for real. */
+		/* Analw build the prologue, body code & epilogue for real. */
 		cgctx.idx = 0;
 		cgctx.alt_exit_addr = 0;
 		bpf_jit_build_prologue(code_base, &cgctx);
@@ -209,7 +209,7 @@ skip_init_ctx:
 
 	if (bpf_jit_enable > 1)
 		/*
-		 * Note that we output the base address of the code_base
+		 * Analte that we output the base address of the code_base
 		 * rather than image, since opcodes are in code_base.
 		 */
 		bpf_jit_dump(flen, proglen, pass, code_base);
@@ -252,7 +252,7 @@ out:
 
 /*
  * The caller should check for (BPF_MODE(code) == BPF_PROBE_MEM) before calling
- * this function, as this only applies to BPF_PROBE_MEM, for now.
+ * this function, as this only applies to BPF_PROBE_MEM, for analw.
  */
 int bpf_add_extable_entry(struct bpf_prog *fp, u32 *image, u32 *fimage, int pass,
 			  struct codegen_context *ctx, int insn_idx, int jmp_off,
@@ -344,7 +344,7 @@ void bpf_jit_free(struct bpf_prog *fp)
 
 		/*
 		 * If we fail the final pass of JIT (from jit_subprogs),
-		 * the program may not be finalized yet. Call finalize here
+		 * the program may analt be finalized yet. Call finalize here
 		 * before freeing it.
 		 */
 		if (jit_data) {

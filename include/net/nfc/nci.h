@@ -8,7 +8,7 @@
  *
  *  Written by Ilan Elias <ilane@ti.com>
  *
- *  Acknowledgements:
+ *  Ackanalwledgements:
  *  This file is based on hci.h, which was written
  *  by Maxim Krasnyansky.
  */
@@ -33,11 +33,11 @@
 #define NCI_STATUS_REJECTED					0x01
 #define NCI_STATUS_RF_FRAME_CORRUPTED				0x02
 #define NCI_STATUS_FAILED					0x03
-#define NCI_STATUS_NOT_INITIALIZED				0x04
+#define NCI_STATUS_ANALT_INITIALIZED				0x04
 #define NCI_STATUS_SYNTAX_ERROR					0x05
 #define NCI_STATUS_SEMANTIC_ERROR				0x06
-#define NCI_STATUS_UNKNOWN_GID					0x07
-#define NCI_STATUS_UNKNOWN_OID					0x08
+#define NCI_STATUS_UNKANALWN_GID					0x07
+#define NCI_STATUS_UNKANALWN_OID					0x08
 #define NCI_STATUS_INVALID_PARAM				0x09
 #define NCI_STATUS_MESSAGE_SIZE_EXCEEDED			0x0a
 /* Discovery Specific Status Codes */
@@ -73,7 +73,7 @@
 #define NCI_NFCEE_DISCOVERY_ACTION_DISABLE			0x00
 #define NCI_NFCEE_DISCOVERY_ACTION_ENABLE			0x01
 
-/* NCI RF Technology and Mode */
+/* NCI RF Techanallogy and Mode */
 #define NCI_NFC_A_PASSIVE_POLL_MODE				0x00
 #define NCI_NFC_B_PASSIVE_POLL_MODE				0x01
 #define NCI_NFC_F_PASSIVE_POLL_MODE				0x02
@@ -88,11 +88,11 @@
 
 #define NCI_RF_TECH_MODE_LISTEN_MASK				0x80
 
-/* NCI RF Technologies */
-#define NCI_NFC_RF_TECHNOLOGY_A					0x00
-#define NCI_NFC_RF_TECHNOLOGY_B					0x01
-#define NCI_NFC_RF_TECHNOLOGY_F					0x02
-#define NCI_NFC_RF_TECHNOLOGY_V					0x03
+/* NCI RF Techanallogies */
+#define NCI_NFC_RF_TECHANALLOGY_A					0x00
+#define NCI_NFC_RF_TECHANALLOGY_B					0x01
+#define NCI_NFC_RF_TECHANALLOGY_F					0x02
+#define NCI_NFC_RF_TECHANALLOGY_V					0x03
 
 /* NCI Bit Rates */
 #define NCI_NFC_BIT_RATE_106					0x00
@@ -105,7 +105,7 @@
 #define NCI_NFC_BIT_RATE_26					0x20
 
 /* NCI RF Protocols */
-#define NCI_RF_PROTOCOL_UNKNOWN					0x00
+#define NCI_RF_PROTOCOL_UNKANALWN					0x00
 #define NCI_RF_PROTOCOL_T1T					0x01
 #define NCI_RF_PROTOCOL_T2T					0x02
 #define NCI_RF_PROTOCOL_T3T					0x03
@@ -144,13 +144,13 @@
 #define NCI_STATIC_RF_CONN_ID					0x00
 
 /* NCI Data Flow Control */
-#define NCI_DATA_FLOW_CONTROL_NOT_USED				0xff
+#define NCI_DATA_FLOW_CONTROL_ANALT_USED				0xff
 
 /* NCI RF_DISCOVER_MAP_CMD modes */
 #define NCI_DISC_MAP_MODE_POLL					0x01
 #define NCI_DISC_MAP_MODE_LISTEN				0x02
 
-/* NCI Discover Notification Type */
+/* NCI Discover Analtification Type */
 #define NCI_DISCOVER_NTF_TYPE_LAST				0x00
 #define NCI_DISCOVER_NTF_TYPE_LAST_NFCC				0x01
 #define NCI_DISCOVER_NTF_TYPE_MORE				0x02
@@ -240,7 +240,7 @@ struct set_config_param {
 
 struct nci_core_set_config_cmd {
 	__u8	num_params;
-	struct	set_config_param param; /* support 1 param per cmd is enough */
+	struct	set_config_param param; /* support 1 param per cmd is eanalugh */
 } __packed;
 
 #define NCI_OP_CORE_CONN_CREATE_CMD	nci_opcode_pack(NCI_GID_CORE, 0x04)
@@ -394,7 +394,7 @@ struct nci_nfcee_discover_rsp {
 #define NCI_OP_CORE_GET_CONFIG_RSP	nci_opcode_pack(NCI_GID_CORE, 0x03)
 
 /* --------------------------- */
-/* ---- NCI Notifications ---- */
+/* ---- NCI Analtifications ---- */
 /* --------------------------- */
 #define NCI_OP_CORE_RESET_NTF		nci_opcode_pack(NCI_GID_CORE, 0x00)
 struct nci_core_reset_ntf {

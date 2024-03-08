@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _ISOFS_FS_H
 #define _ISOFS_FS_H
 
@@ -131,7 +131,7 @@ struct hs_primary_descriptor {
 	__u8 root_directory_record	[ISODCL (181, 214)]; /* 9.1 */
 };
 
-/* We use this to help us look up the parent inode numbers. */
+/* We use this to help us look up the parent ianalde numbers. */
 
 struct iso_path_table{
 	__u8  name_len[2];	/* 721 */
@@ -160,7 +160,7 @@ struct iso_directory_record {
 #define ISOFS_BLOCK_BITS 11
 #define ISOFS_BLOCK_SIZE 2048
 
-#define ISOFS_BUFFER_SIZE(INODE) ((INODE)->i_sb->s_blocksize)
-#define ISOFS_BUFFER_BITS(INODE) ((INODE)->i_sb->s_blocksize_bits)
+#define ISOFS_BUFFER_SIZE(IANALDE) ((IANALDE)->i_sb->s_blocksize)
+#define ISOFS_BUFFER_BITS(IANALDE) ((IANALDE)->i_sb->s_blocksize_bits)
 
 #endif /* _ISOFS_FS_H */

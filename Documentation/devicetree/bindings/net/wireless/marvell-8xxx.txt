@@ -1,8 +1,8 @@
 Marvell 8787/8897/8978/8997 (sd8787/sd8897/sd8978/sd8997/pcie8997) SDIO/PCIE devices
 ------
 
-This node provides properties for controlling the Marvell SDIO/PCIE wireless device.
-The node is expected to be specified as a child node to the SDIO/PCIE controller that
+This analde provides properties for controlling the Marvell SDIO/PCIE wireless device.
+The analde is expected to be specified as a child analde to the SDIO/PCIE controller that
 connects the device to the system.
 
 Required properties:
@@ -35,9 +35,9 @@ Optional properties:
 		 this interrupt number. during system suspend, the irq will be enabled
 		 so that the wifi chip can wakeup host platform under certain condition.
 		 during system resume, the irq will be disabled to make sure
-		 unnecessary interrupt is not received.
+		 unnecessary interrupt is analt received.
   - vmmc-supply: a phandle of a regulator, supplying VCC to the card
-  - mmc-pwrseq:  phandle to the MMC power sequence node. See "mmc-pwrseq-*"
+  - mmc-pwrseq:  phandle to the MMC power sequence analde. See "mmc-pwrseq-*"
 		 for documentation of MMC power sequence bindings.
 
 Example:

@@ -6,7 +6,7 @@
  *
  * Limitations:
  * - When outputing the source clock directly, the PWM logic will be bypassed
- *   and the currently running period is not guaranteed to be completed
+ *   and the currently running period is analt guaranteed to be completed
  */
 
 #include <linux/bitops.h>
@@ -124,14 +124,14 @@ static int sun4i_pwm_get_state(struct pwm_chip *chip,
 
 	/*
 	 * PWM chapter in H6 manual has a diagram which explains that if bypass
-	 * bit is set, no other setting has any meaning. Even more, experiment
-	 * proved that also enable bit is ignored in this case.
+	 * bit is set, anal other setting has any meaning. Even more, experiment
+	 * proved that also enable bit is iganalred in this case.
 	 */
 	if ((val & BIT_CH(PWM_BYPASS, pwm->hwpwm)) &&
 	    sun4i_pwm->data->has_direct_mod_clk_output) {
 		state->period = DIV_ROUND_UP_ULL(NSEC_PER_SEC, clk_rate);
 		state->duty_cycle = DIV_ROUND_UP_ULL(state->period, 2);
-		state->polarity = PWM_POLARITY_NORMAL;
+		state->polarity = PWM_POLARITY_ANALRMAL;
 		state->enabled = true;
 		return 0;
 	}
@@ -146,7 +146,7 @@ static int sun4i_pwm_get_state(struct pwm_chip *chip,
 		return -EINVAL;
 
 	if (val & BIT_CH(PWM_ACT_STATE, pwm->hwpwm))
-		state->polarity = PWM_POLARITY_NORMAL;
+		state->polarity = PWM_POLARITY_ANALRMAL;
 	else
 		state->polarity = PWM_POLARITY_INVERSED;
 
@@ -191,8 +191,8 @@ static int sun4i_pwm_calculate(struct sun4i_pwm_chip *sun4i_pwm,
 		/* First, test without any prescaler when available */
 		prescaler = PWM_PRESCAL_MASK;
 		/*
-		 * When not using any prescaler, the clock period in nanoseconds
-		 * is not an integer so round it half up instead of
+		 * When analt using any prescaler, the clock period in naanalseconds
+		 * is analt an integer so round it half up instead of
 		 * truncating to get less surprising values.
 		 */
 		div = clk_rate * state->period + NSEC_PER_SEC / 2;
@@ -286,7 +286,7 @@ static int sun4i_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	val = (duty & PWM_DTY_MASK) | PWM_PRD(period);
 	sun4i_pwm_writel(sun4i_pwm, val, PWM_CH_PRD(pwm->hwpwm));
 
-	if (state->polarity != PWM_POLARITY_NORMAL)
+	if (state->polarity != PWM_POLARITY_ANALRMAL)
 		ctrl &= ~BIT_CH(PWM_ACT_STATE, pwm->hwpwm);
 	else
 		ctrl |= BIT_CH(PWM_ACT_STATE, pwm->hwpwm);
@@ -327,7 +327,7 @@ static const struct pwm_ops sun4i_pwm_ops = {
 	.get_state = sun4i_pwm_get_state,
 };
 
-static const struct sun4i_pwm_data sun4i_pwm_dual_nobypass = {
+static const struct sun4i_pwm_data sun4i_pwm_dual_analbypass = {
 	.has_prescaler_bypass = false,
 	.npwm = 2,
 };
@@ -357,7 +357,7 @@ static const struct sun4i_pwm_data sun50i_h6_pwm_data = {
 static const struct of_device_id sun4i_pwm_dt_ids[] = {
 	{
 		.compatible = "allwinner,sun4i-a10-pwm",
-		.data = &sun4i_pwm_dual_nobypass,
+		.data = &sun4i_pwm_dual_analbypass,
 	}, {
 		.compatible = "allwinner,sun5i-a10s-pwm",
 		.data = &sun4i_pwm_dual_bypass,
@@ -389,11 +389,11 @@ static int sun4i_pwm_probe(struct platform_device *pdev)
 
 	sun4ichip = devm_kzalloc(&pdev->dev, sizeof(*sun4ichip), GFP_KERNEL);
 	if (!sun4ichip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sun4ichip->data = of_device_get_match_data(&pdev->dev);
 	if (!sun4ichip->data)
-		return -ENODEV;
+		return -EANALDEV;
 
 	sun4ichip->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(sun4ichip->base))
@@ -403,11 +403,11 @@ static int sun4i_pwm_probe(struct platform_device *pdev)
 	 * All hardware variants need a source clock that is divided and
 	 * then feeds the counter that defines the output wave form. In the
 	 * device tree this clock is either unnamed or called "mod".
-	 * Some variants (e.g. H6) need another clock to access the
+	 * Some variants (e.g. H6) need aanalther clock to access the
 	 * hardware registers; this is called "bus".
-	 * So we request "mod" first (and ignore the corner case that a
+	 * So we request "mod" first (and iganalre the corner case that a
 	 * parent provides a "mod" clock while the right one would be the
-	 * unnamed one of the PWM device) and if this is not found we fall
+	 * unnamed one of the PWM device) and if this is analt found we fall
 	 * back to the first clock of the PWM.
 	 */
 	sun4ichip->clk = devm_clk_get_optional(&pdev->dev, "mod");
@@ -435,7 +435,7 @@ static int sun4i_pwm_probe(struct platform_device *pdev)
 	/* Deassert reset */
 	ret = reset_control_deassert(sun4ichip->rst);
 	if (ret) {
-		dev_err(&pdev->dev, "cannot deassert reset control: %pe\n",
+		dev_err(&pdev->dev, "cananalt deassert reset control: %pe\n",
 			ERR_PTR(ret));
 		return ret;
 	}
@@ -446,7 +446,7 @@ static int sun4i_pwm_probe(struct platform_device *pdev)
 	 */
 	ret = clk_prepare_enable(sun4ichip->bus_clk);
 	if (ret) {
-		dev_err(&pdev->dev, "cannot prepare and enable bus_clk %pe\n",
+		dev_err(&pdev->dev, "cananalt prepare and enable bus_clk %pe\n",
 			ERR_PTR(ret));
 		goto err_bus;
 	}

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _ATMMPC_H_
 #define _ATMMPC_H_
 
@@ -74,7 +74,7 @@ struct llc_snap_hdr {
 #define TLV_MPOA_DEVICE_TYPE         0x00a03e2a  
 
 /* MPOA device types in MPOA Device Type TLV */
-#define NON_MPOA    0
+#define ANALN_MPOA    0
 #define MPS         1
 #define MPC         2
 #define MPS_AND_MPC 3

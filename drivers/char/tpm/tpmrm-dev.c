@@ -10,21 +10,21 @@ struct tpmrm_priv {
 	struct tpm_space space;
 };
 
-static int tpmrm_open(struct inode *inode, struct file *file)
+static int tpmrm_open(struct ianalde *ianalde, struct file *file)
 {
 	struct tpm_chip *chip;
 	struct tpmrm_priv *priv;
 	int rc;
 
-	chip = container_of(inode->i_cdev, struct tpm_chip, cdevs);
+	chip = container_of(ianalde->i_cdev, struct tpm_chip, cdevs);
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (priv == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = tpm2_init_space(&priv->space, TPM2_SPACE_BUFFER_SIZE);
 	if (rc) {
 		kfree(priv);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	tpm_common_open(file, chip, &priv->priv, &priv->space);
@@ -32,7 +32,7 @@ static int tpmrm_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int tpmrm_release(struct inode *inode, struct file *file)
+static int tpmrm_release(struct ianalde *ianalde, struct file *file)
 {
 	struct file_priv *fpriv = file->private_data;
 	struct tpmrm_priv *priv = container_of(fpriv, struct tpmrm_priv, priv);
@@ -46,7 +46,7 @@ static int tpmrm_release(struct inode *inode, struct file *file)
 
 const struct file_operations tpmrm_fops = {
 	.owner = THIS_MODULE,
-	.llseek = no_llseek,
+	.llseek = anal_llseek,
 	.open = tpmrm_open,
 	.read = tpm_common_read,
 	.write = tpm_common_write,

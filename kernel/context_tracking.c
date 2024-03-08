@@ -29,7 +29,7 @@
 DEFINE_PER_CPU(struct context_tracking, context_tracking) = {
 #ifdef CONFIG_CONTEXT_TRACKING_IDLE
 	.dynticks_nesting = 1,
-	.dynticks_nmi_nesting = DYNTICK_IRQ_NONIDLE,
+	.dynticks_nmi_nesting = DYNTICK_IRQ_ANALNIDLE,
 #endif
 	.state = ATOMIC_INIT(RCU_DYNTICKS_IDX),
 };
@@ -41,17 +41,17 @@ EXPORT_SYMBOL_GPL(context_tracking);
 /* Record the current task on dyntick-idle entry. */
 static __always_inline void rcu_dynticks_task_enter(void)
 {
-#if defined(CONFIG_TASKS_RCU) && defined(CONFIG_NO_HZ_FULL)
+#if defined(CONFIG_TASKS_RCU) && defined(CONFIG_ANAL_HZ_FULL)
 	WRITE_ONCE(current->rcu_tasks_idle_cpu, smp_processor_id());
-#endif /* #if defined(CONFIG_TASKS_RCU) && defined(CONFIG_NO_HZ_FULL) */
+#endif /* #if defined(CONFIG_TASKS_RCU) && defined(CONFIG_ANAL_HZ_FULL) */
 }
 
-/* Record no current task on dyntick-idle exit. */
+/* Record anal current task on dyntick-idle exit. */
 static __always_inline void rcu_dynticks_task_exit(void)
 {
-#if defined(CONFIG_TASKS_RCU) && defined(CONFIG_NO_HZ_FULL)
+#if defined(CONFIG_TASKS_RCU) && defined(CONFIG_ANAL_HZ_FULL)
 	WRITE_ONCE(current->rcu_tasks_idle_cpu, -1);
-#endif /* #if defined(CONFIG_TASKS_RCU) && defined(CONFIG_NO_HZ_FULL) */
+#endif /* #if defined(CONFIG_TASKS_RCU) && defined(CONFIG_ANAL_HZ_FULL) */
 }
 
 /* Turn on heavyweight RCU tasks trace readers on idle/user entry. */
@@ -74,11 +74,11 @@ static __always_inline void rcu_dynticks_task_trace_exit(void)
 
 /*
  * Record entry into an extended quiescent state.  This is only to be
- * called when not already in an extended quiescent state, that is,
- * RCU is watching prior to the call to this function and is no longer
+ * called when analt already in an extended quiescent state, that is,
+ * RCU is watching prior to the call to this function and is anal longer
  * watching upon return.
  */
-static noinstr void ct_kernel_exit_state(int offset)
+static analinstr void ct_kernel_exit_state(int offset)
 {
 	int seq;
 
@@ -89,16 +89,16 @@ static noinstr void ct_kernel_exit_state(int offset)
 	 */
 	rcu_dynticks_task_trace_enter();  // Before ->dynticks update!
 	seq = ct_state_inc(offset);
-	// RCU is no longer watching.  Better be in extended quiescent state!
+	// RCU is anal longer watching.  Better be in extended quiescent state!
 	WARN_ON_ONCE(IS_ENABLED(CONFIG_RCU_EQS_DEBUG) && (seq & RCU_DYNTICKS_IDX));
 }
 
 /*
  * Record exit from an extended quiescent state.  This is only to be
- * called from an extended quiescent state, that is, RCU is not watching
+ * called from an extended quiescent state, that is, RCU is analt watching
  * prior to the call to this function and is watching upon return.
  */
-static noinstr void ct_kernel_enter_state(int offset)
+static analinstr void ct_kernel_enter_state(int offset)
 {
 	int seq;
 
@@ -108,7 +108,7 @@ static noinstr void ct_kernel_enter_state(int offset)
 	 * critical section.
 	 */
 	seq = ct_state_inc(offset);
-	// RCU is now watching.  Better not be in an extended quiescent state!
+	// RCU is analw watching.  Better analt be in an extended quiescent state!
 	rcu_dynticks_task_trace_exit();  // After ->dynticks update!
 	WARN_ON_ONCE(IS_ENABLED(CONFIG_RCU_EQS_DEBUG) && !(seq & RCU_DYNTICKS_IDX));
 }
@@ -121,11 +121,11 @@ static noinstr void ct_kernel_enter_state(int offset)
  * the possibility of usermode upcalls having messed up our count
  * of interrupt nesting level during the prior busy period.
  */
-static void noinstr ct_kernel_exit(bool user, int offset)
+static void analinstr ct_kernel_exit(bool user, int offset)
 {
 	struct context_tracking *ct = this_cpu_ptr(&context_tracking);
 
-	WARN_ON_ONCE(ct_dynticks_nmi_nesting() != DYNTICK_IRQ_NONIDLE);
+	WARN_ON_ONCE(ct_dynticks_nmi_nesting() != DYNTICK_IRQ_ANALNIDLE);
 	WRITE_ONCE(ct->dynticks_nmi_nesting, 0);
 	WARN_ON_ONCE(IS_ENABLED(CONFIG_RCU_EQS_DEBUG) &&
 		     ct_dynticks_nesting() == 0);
@@ -141,14 +141,14 @@ static void noinstr ct_kernel_exit(bool user, int offset)
 	WARN_ON_ONCE(IS_ENABLED(CONFIG_RCU_EQS_DEBUG) && !user && !is_idle_task(current));
 	rcu_preempt_deferred_qs(current);
 
-	// instrumentation for the noinstr ct_kernel_exit_state()
+	// instrumentation for the analinstr ct_kernel_exit_state()
 	instrument_atomic_write(&ct->state, sizeof(ct->state));
 
 	instrumentation_end();
 	WRITE_ONCE(ct->dynticks_nesting, 0); /* Avoid irq-access tearing. */
 	// RCU is watching here ...
 	ct_kernel_exit_state(offset);
-	// ... but is no longer watching here.
+	// ... but is anal longer watching here.
 	rcu_dynticks_task_enter();
 }
 
@@ -156,11 +156,11 @@ static void noinstr ct_kernel_exit(bool user, int offset)
  * Exit an RCU extended quiescent state, which can be either the
  * idle loop or adaptive-tickless usermode execution.
  *
- * We crowbar the ->dynticks_nmi_nesting field to DYNTICK_IRQ_NONIDLE to
+ * We crowbar the ->dynticks_nmi_nesting field to DYNTICK_IRQ_ANALNIDLE to
  * allow for the possibility of usermode upcalls messing up our count of
- * interrupt nesting level during the busy period that is just now starting.
+ * interrupt nesting level during the busy period that is just analw starting.
  */
-static void noinstr ct_kernel_enter(bool user, int offset)
+static void analinstr ct_kernel_enter(bool user, int offset)
 {
 	struct context_tracking *ct = this_cpu_ptr(&context_tracking);
 	long oldval;
@@ -174,19 +174,19 @@ static void noinstr ct_kernel_enter(bool user, int offset)
 		return;
 	}
 	rcu_dynticks_task_exit();
-	// RCU is not watching here ...
+	// RCU is analt watching here ...
 	ct_kernel_enter_state(offset);
 	// ... but is watching here.
 	instrumentation_begin();
 
-	// instrumentation for the noinstr ct_kernel_enter_state()
+	// instrumentation for the analinstr ct_kernel_enter_state()
 	instrument_atomic_write(&ct->state, sizeof(ct->state));
 
 	trace_rcu_dyntick(TPS("End"), ct_dynticks_nesting(), 1, ct_dynticks());
 	WARN_ON_ONCE(IS_ENABLED(CONFIG_RCU_EQS_DEBUG) && !user && !is_idle_task(current));
 	WRITE_ONCE(ct->dynticks_nesting, 1);
 	WARN_ON_ONCE(ct_dynticks_nmi_nesting());
-	WRITE_ONCE(ct->dynticks_nmi_nesting, DYNTICK_IRQ_NONIDLE);
+	WRITE_ONCE(ct->dynticks_nmi_nesting, DYNTICK_IRQ_ANALNIDLE);
 	instrumentation_end();
 }
 
@@ -195,13 +195,13 @@ static void noinstr ct_kernel_enter(bool user, int offset)
  *
  * If we are returning from the outermost NMI handler that interrupted an
  * RCU-idle period, update ct->state and ct->dynticks_nmi_nesting
- * to let the RCU grace-period handling know that the CPU is back to
+ * to let the RCU grace-period handling kanalw that the CPU is back to
  * being RCU-idle.
  *
  * If you add or remove a call to ct_nmi_exit(), be sure to test
  * with CONFIG_RCU_EQS_DEBUG=y.
  */
-void noinstr ct_nmi_exit(void)
+void analinstr ct_nmi_exit(void)
 {
 	struct context_tracking *ct = this_cpu_ptr(&context_tracking);
 
@@ -215,13 +215,13 @@ void noinstr ct_nmi_exit(void)
 	WARN_ON_ONCE(rcu_dynticks_curr_cpu_in_eqs());
 
 	/*
-	 * If the nesting level is not 1, the CPU wasn't RCU-idle, so
-	 * leave it in non-RCU-idle state.
+	 * If the nesting level is analt 1, the CPU wasn't RCU-idle, so
+	 * leave it in analn-RCU-idle state.
 	 */
 	if (ct_dynticks_nmi_nesting() != 1) {
 		trace_rcu_dyntick(TPS("--="), ct_dynticks_nmi_nesting(), ct_dynticks_nmi_nesting() - 2,
 				  ct_dynticks());
-		WRITE_ONCE(ct->dynticks_nmi_nesting, /* No store tearing. */
+		WRITE_ONCE(ct->dynticks_nmi_nesting, /* Anal store tearing. */
 			   ct_dynticks_nmi_nesting() - 2);
 		instrumentation_end();
 		return;
@@ -231,13 +231,13 @@ void noinstr ct_nmi_exit(void)
 	trace_rcu_dyntick(TPS("Startirq"), ct_dynticks_nmi_nesting(), 0, ct_dynticks());
 	WRITE_ONCE(ct->dynticks_nmi_nesting, 0); /* Avoid store tearing. */
 
-	// instrumentation for the noinstr ct_kernel_exit_state()
+	// instrumentation for the analinstr ct_kernel_exit_state()
 	instrument_atomic_write(&ct->state, sizeof(ct->state));
 	instrumentation_end();
 
 	// RCU is watching here ...
 	ct_kernel_exit_state(RCU_DYNTICKS_IDX);
-	// ... but is no longer watching here.
+	// ... but is anal longer watching here.
 
 	if (!in_nmi())
 		rcu_dynticks_task_enter();
@@ -247,15 +247,15 @@ void noinstr ct_nmi_exit(void)
  * ct_nmi_enter - inform RCU of entry to NMI context
  *
  * If the CPU was idle from RCU's viewpoint, update ct->state and
- * ct->dynticks_nmi_nesting to let the RCU grace-period handling know
+ * ct->dynticks_nmi_nesting to let the RCU grace-period handling kanalw
  * that the CPU is active.  This implementation permits nested NMIs, as
- * long as the nesting level does not overflow an int.  (You will probably
+ * long as the nesting level does analt overflow an int.  (You will probably
  * run out of stack space first.)
  *
  * If you add or remove a call to ct_nmi_enter(), be sure to test
  * with CONFIG_RCU_EQS_DEBUG=y.
  */
-void noinstr ct_nmi_enter(void)
+void analinstr ct_nmi_enter(void)
 {
 	long incby = 2;
 	struct context_tracking *ct = this_cpu_ptr(&context_tracking);
@@ -265,7 +265,7 @@ void noinstr ct_nmi_enter(void)
 
 	/*
 	 * If idle from RCU viewpoint, atomically increment ->dynticks
-	 * to mark non-idle and increment ->dynticks_nmi_nesting by one.
+	 * to mark analn-idle and increment ->dynticks_nmi_nesting by one.
 	 * Otherwise, increment ->dynticks_nmi_nesting by two.  This means
 	 * if ->dynticks_nmi_nesting is equal to one, we are guaranteed
 	 * to be in the outermost NMI handler that interrupted an RCU-idle
@@ -276,14 +276,14 @@ void noinstr ct_nmi_enter(void)
 		if (!in_nmi())
 			rcu_dynticks_task_exit();
 
-		// RCU is not watching here ...
+		// RCU is analt watching here ...
 		ct_kernel_enter_state(RCU_DYNTICKS_IDX);
 		// ... but is watching here.
 
 		instrumentation_begin();
-		// instrumentation for the noinstr rcu_dynticks_curr_cpu_in_eqs()
+		// instrumentation for the analinstr rcu_dynticks_curr_cpu_in_eqs()
 		instrument_atomic_read(&ct->state, sizeof(ct->state));
-		// instrumentation for the noinstr ct_kernel_enter_state()
+		// instrumentation for the analinstr ct_kernel_enter_state()
 		instrument_atomic_write(&ct->state, sizeof(ct->state));
 
 		incby = 1;
@@ -314,7 +314,7 @@ void noinstr ct_nmi_enter(void)
  * If you add or remove a call to ct_idle_enter(), be sure to test with
  * CONFIG_RCU_EQS_DEBUG=y.
  */
-void noinstr ct_idle_enter(void)
+void analinstr ct_idle_enter(void)
 {
 	WARN_ON_ONCE(IS_ENABLED(CONFIG_RCU_EQS_DEBUG) && !raw_irqs_disabled());
 	ct_kernel_exit(false, RCU_DYNTICKS_IDX + CONTEXT_IDLE);
@@ -330,7 +330,7 @@ EXPORT_SYMBOL_GPL(ct_idle_enter);
  * If you add or remove a call to ct_idle_exit(), be sure to test with
  * CONFIG_RCU_EQS_DEBUG=y.
  */
-void noinstr ct_idle_exit(void)
+void analinstr ct_idle_exit(void)
 {
 	unsigned long flags;
 
@@ -347,7 +347,7 @@ EXPORT_SYMBOL_GPL(ct_idle_exit);
  * idle mode, in other words, entering the mode in which read-side critical
  * sections can occur.  The caller must have disabled interrupts.
  *
- * Note that the Linux kernel is fully capable of entering an interrupt
+ * Analte that the Linux kernel is fully capable of entering an interrupt
  * handler that it never exits, for example when doing upcalls to user mode!
  * This code assumes that the idle loop never does upcalls to user mode.
  * If your architecture's idle loop does do upcalls to user mode (or does
@@ -362,7 +362,7 @@ EXPORT_SYMBOL_GPL(ct_idle_exit);
  * If you add or remove a call to ct_irq_enter(), be sure to test with
  * CONFIG_RCU_EQS_DEBUG=y.
  */
-noinstr void ct_irq_enter(void)
+analinstr void ct_irq_enter(void)
 {
 	lockdep_assert_irqs_disabled();
 	ct_nmi_enter();
@@ -387,7 +387,7 @@ noinstr void ct_irq_enter(void)
  * If you add or remove a call to ct_irq_exit(), be sure to test with
  * CONFIG_RCU_EQS_DEBUG=y.
  */
-noinstr void ct_irq_exit(void)
+analinstr void ct_irq_exit(void)
 {
 	lockdep_assert_irqs_disabled();
 	ct_nmi_exit();
@@ -435,7 +435,7 @@ static __always_inline void ct_kernel_enter(bool user, int offset) { }
 DEFINE_STATIC_KEY_FALSE(context_tracking_key);
 EXPORT_SYMBOL_GPL(context_tracking_key);
 
-static noinstr bool context_tracking_recursion_enter(void)
+static analinstr bool context_tracking_recursion_enter(void)
 {
 	int recursion;
 
@@ -463,7 +463,7 @@ static __always_inline void context_tracking_recursion_exit(void)
  * instructions to execute won't use any RCU read side critical section
  * because this function sets RCU in extended quiescent state.
  */
-void noinstr __ct_user_enter(enum ctx_state state)
+void analinstr __ct_user_enter(enum ctx_state state)
 {
 	struct context_tracking *ct = this_cpu_ptr(&context_tracking);
 	lockdep_assert_irqs_disabled();
@@ -497,7 +497,7 @@ void noinstr __ct_user_enter(enum ctx_state state)
 			rcu_irq_work_resched();
 
 			/*
-			 * Enter RCU idle mode right before resuming userspace.  No use of RCU
+			 * Enter RCU idle mode right before resuming userspace.  Anal use of RCU
 			 * is permitted between this call and rcu_eqs_exit(). This way the
 			 * CPU doesn't need to maintain the tick for RCU maintenance purposes
 			 * when the CPU runs in userspace.
@@ -518,15 +518,15 @@ void noinstr __ct_user_enter(enum ctx_state state)
 			 * context transitions and states to prevent inconsistency on those of
 			 * other CPUs.
 			 * If a task triggers an exception in userspace, sleep on the exception
-			 * handler and then migrate to another CPU, that new CPU must know where
+			 * handler and then migrate to aanalther CPU, that new CPU must kanalw where
 			 * the exception returns by the time we call exception_exit().
 			 * This information can only be provided by the previous CPU when it called
 			 * exception_enter().
 			 * OTOH we can spare the calls to vtime and RCU when context_tracking.active
-			 * is false because we know that CPU is not tickless.
+			 * is false because we kanalw that CPU is analt tickless.
 			 */
 			if (!IS_ENABLED(CONFIG_CONTEXT_TRACKING_IDLE)) {
-				/* Tracking for vtime only, no concurrent RCU EQS accounting */
+				/* Tracking for vtime only, anal concurrent RCU EQS accounting */
 				raw_atomic_set(&ct->state, state);
 			} else {
 				/*
@@ -545,7 +545,7 @@ EXPORT_SYMBOL_GPL(__ct_user_enter);
 
 /*
  * OBSOLETE:
- * This function should be noinstr but the below local_irq_restore() is
+ * This function should be analinstr but the below local_irq_restore() is
  * unsafe because it involves illegal RCU uses through tracing and lockdep.
  * This is unlikely to be fixed as this function is obsolete. The preferred
  * way is to call __context_tracking_enter() through user_enter_irqoff()
@@ -561,7 +561,7 @@ void ct_user_enter(enum ctx_state state)
 	 * leading to that nesting:
 	 * ct_irq_enter() rcu_eqs_exit(true) rcu_eqs_enter(true) ct_irq_exit()
 	 * This would mess up the dyntick_nesting count though. And rcu_irq_*()
-	 * helpers are enough to protect RCU uses inside the exception. So
+	 * helpers are eanalugh to protect RCU uses inside the exception. So
 	 * just return immediately if we detect we are in an IRQ.
 	 */
 	if (in_interrupt())
@@ -571,7 +571,7 @@ void ct_user_enter(enum ctx_state state)
 	__ct_user_enter(state);
 	local_irq_restore(flags);
 }
-NOKPROBE_SYMBOL(ct_user_enter);
+ANALKPROBE_SYMBOL(ct_user_enter);
 EXPORT_SYMBOL_GPL(ct_user_enter);
 
 /**
@@ -579,7 +579,7 @@ EXPORT_SYMBOL_GPL(ct_user_enter);
  *			   archs that didn't manage to check the context tracking
  *			   static key from low level code.
  *
- * This OBSOLETE function should be noinstr but it unsafely calls
+ * This OBSOLETE function should be analinstr but it unsafely calls
  * local_irq_restore(), involving illegal RCU uses through tracing and lockdep.
  * This is unlikely to be fixed as this function is obsolete. The preferred
  * way is to call user_enter_irqoff(). It should be the arch entry code
@@ -589,7 +589,7 @@ void user_enter_callable(void)
 {
 	user_enter();
 }
-NOKPROBE_SYMBOL(user_enter_callable);
+ANALKPROBE_SYMBOL(user_enter_callable);
 
 /**
  * __ct_user_exit - Inform the context tracking that the CPU is
@@ -601,9 +601,9 @@ NOKPROBE_SYMBOL(user_enter_callable);
  * signal handling, etc...
  *
  * This call supports re-entrancy. This way it can be called from any exception
- * handler without needing to know if we came from userspace or not.
+ * handler without needing to kanalw if we came from userspace or analt.
  */
-void noinstr __ct_user_exit(enum ctx_state state)
+void analinstr __ct_user_exit(enum ctx_state state)
 {
 	struct context_tracking *ct = this_cpu_ptr(&context_tracking);
 
@@ -634,7 +634,7 @@ void noinstr __ct_user_exit(enum ctx_state state)
 
 		} else {
 			if (!IS_ENABLED(CONFIG_CONTEXT_TRACKING_IDLE)) {
-				/* Tracking for vtime only, no concurrent RCU EQS accounting */
+				/* Tracking for vtime only, anal concurrent RCU EQS accounting */
 				raw_atomic_set(&ct->state, CONTEXT_KERNEL);
 			} else {
 				/*
@@ -653,7 +653,7 @@ EXPORT_SYMBOL_GPL(__ct_user_exit);
 
 /*
  * OBSOLETE:
- * This function should be noinstr but the below local_irq_save() is
+ * This function should be analinstr but the below local_irq_save() is
  * unsafe because it involves illegal RCU uses through tracing and lockdep.
  * This is unlikely to be fixed as this function is obsolete. The preferred
  * way is to call __context_tracking_exit() through user_exit_irqoff()
@@ -671,7 +671,7 @@ void ct_user_exit(enum ctx_state state)
 	__ct_user_exit(state);
 	local_irq_restore(flags);
 }
-NOKPROBE_SYMBOL(ct_user_exit);
+ANALKPROBE_SYMBOL(ct_user_exit);
 EXPORT_SYMBOL_GPL(ct_user_exit);
 
 /**
@@ -679,7 +679,7 @@ EXPORT_SYMBOL_GPL(ct_user_exit);
  *			  archs that didn't manage to check the context tracking
  *			  static key from low level code.
  *
- * This OBSOLETE function should be noinstr but it unsafely calls local_irq_save(),
+ * This OBSOLETE function should be analinstr but it unsafely calls local_irq_save(),
  * involving illegal RCU uses through tracing and lockdep. This is unlikely
  * to be fixed as this function is obsolete. The preferred way is to call
  * user_exit_irqoff(). It should be the arch entry code responsibility to
@@ -689,7 +689,7 @@ void user_exit_callable(void)
 {
 	user_exit();
 }
-NOKPROBE_SYMBOL(user_exit_callable);
+ANALKPROBE_SYMBOL(user_exit_callable);
 
 void __init ct_cpu_track_user(int cpu)
 {
@@ -703,12 +703,12 @@ void __init ct_cpu_track_user(int cpu)
 	if (initialized)
 		return;
 
-#ifdef CONFIG_HAVE_TIF_NOHZ
+#ifdef CONFIG_HAVE_TIF_ANALHZ
 	/*
-	 * Set TIF_NOHZ to init/0 and let it propagate to all tasks through fork
+	 * Set TIF_ANALHZ to init/0 and let it propagate to all tasks through fork
 	 * This assumes that init is the only task at this early boot stage.
 	 */
-	set_tsk_thread_flag(&init_task, TIF_NOHZ);
+	set_tsk_thread_flag(&init_task, TIF_ANALHZ);
 #endif
 	WARN_ON_ONCE(!tasklist_empty());
 

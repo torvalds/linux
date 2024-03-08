@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Synopsys HSDK SDP Generic PLL clock driver
+ * Syanalpsys HSDK SDP Generic PLL clock driver
  *
- * Copyright (C) 2017 Synopsys
+ * Copyright (C) 2017 Syanalpsys
  */
 
 #include <linux/clk-provider.h>
@@ -311,17 +311,17 @@ static int hsdk_pll_clk_probe(struct platform_device *pdev)
 
 	pll_clk = devm_kzalloc(dev, sizeof(*pll_clk), GFP_KERNEL);
 	if (!pll_clk)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pll_clk->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(pll_clk->regs))
 		return PTR_ERR(pll_clk->regs);
 
-	init.name = dev->of_node->name;
+	init.name = dev->of_analde->name;
 	init.ops = &hsdk_pll_ops;
-	parent_name = of_clk_get_parent_name(dev->of_node, 0);
+	parent_name = of_clk_get_parent_name(dev->of_analde, 0);
 	init.parent_names = &parent_name;
-	num_parents = of_clk_get_parent_count(dev->of_node);
+	num_parents = of_clk_get_parent_count(dev->of_analde);
 	if (num_parents == 0 || num_parents > CGU_PLL_SOURCE_MAX) {
 		dev_err(dev, "wrong clock parents number: %u\n", num_parents);
 		return -EINVAL;
@@ -333,7 +333,7 @@ static int hsdk_pll_clk_probe(struct platform_device *pdev)
 	pll_clk->pll_devdata = of_device_get_match_data(dev);
 
 	if (!pll_clk->pll_devdata) {
-		dev_err(dev, "No OF match data provided\n");
+		dev_err(dev, "Anal OF match data provided\n");
 		return -EINVAL;
 	}
 
@@ -347,7 +347,7 @@ static int hsdk_pll_clk_probe(struct platform_device *pdev)
 					   &pll_clk->hw);
 }
 
-static void __init of_hsdk_pll_clk_setup(struct device_node *node)
+static void __init of_hsdk_pll_clk_setup(struct device_analde *analde)
 {
 	int ret;
 	const char *parent_name;
@@ -359,23 +359,23 @@ static void __init of_hsdk_pll_clk_setup(struct device_node *node)
 	if (!pll_clk)
 		return;
 
-	pll_clk->regs = of_iomap(node, 0);
+	pll_clk->regs = of_iomap(analde, 0);
 	if (!pll_clk->regs) {
 		pr_err("failed to map pll registers\n");
 		goto err_free_pll_clk;
 	}
 
-	pll_clk->spec_regs = of_iomap(node, 1);
+	pll_clk->spec_regs = of_iomap(analde, 1);
 	if (!pll_clk->spec_regs) {
 		pr_err("failed to map pll registers\n");
 		goto err_unmap_comm_regs;
 	}
 
-	init.name = node->name;
+	init.name = analde->name;
 	init.ops = &hsdk_pll_ops;
-	parent_name = of_clk_get_parent_name(node, 0);
+	parent_name = of_clk_get_parent_name(analde, 0);
 	init.parent_names = &parent_name;
-	num_parents = of_clk_get_parent_count(node);
+	num_parents = of_clk_get_parent_count(analde);
 	if (num_parents > CGU_PLL_SOURCE_MAX) {
 		pr_err("too much clock parents: %u\n", num_parents);
 		goto err_unmap_spec_regs;
@@ -387,13 +387,13 @@ static void __init of_hsdk_pll_clk_setup(struct device_node *node)
 
 	ret = clk_hw_register(NULL, &pll_clk->hw);
 	if (ret) {
-		pr_err("failed to register %pOFn clock\n", node);
+		pr_err("failed to register %pOFn clock\n", analde);
 		goto err_unmap_spec_regs;
 	}
 
-	ret = of_clk_add_hw_provider(node, of_clk_hw_simple_get, &pll_clk->hw);
+	ret = of_clk_add_hw_provider(analde, of_clk_hw_simple_get, &pll_clk->hw);
 	if (ret) {
-		pr_err("failed to add hw provider for %pOFn clock\n", node);
+		pr_err("failed to add hw provider for %pOFn clock\n", analde);
 		goto err_unmap_spec_regs;
 	}
 

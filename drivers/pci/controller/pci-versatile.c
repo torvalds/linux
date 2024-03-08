@@ -27,9 +27,9 @@ static void __iomem *versatile_cfg_base[2];
 #define VP_PCI_DEVICE_ID		0x030010ee
 #define VP_PCI_CLASS_ID			0x0b400000
 
-static u32 pci_slot_ignore;
+static u32 pci_slot_iganalre;
 
-static int __init versatile_pci_slot_ignore(char *str)
+static int __init versatile_pci_slot_iganalre(char *str)
 {
 	int slot;
 
@@ -37,11 +37,11 @@ static int __init versatile_pci_slot_ignore(char *str)
 		if ((slot < 0) || (slot > 31))
 			pr_err("Illegal slot value: %d\n", slot);
 		else
-			pci_slot_ignore |= (1 << slot);
+			pci_slot_iganalre |= (1 << slot);
 	}
 	return 1;
 }
-__setup("pci_slot_ignore=", versatile_pci_slot_ignore);
+__setup("pci_slot_iganalre=", versatile_pci_slot_iganalre);
 
 
 static void __iomem *versatile_map_bus(struct pci_bus *bus,
@@ -49,7 +49,7 @@ static void __iomem *versatile_map_bus(struct pci_bus *bus,
 {
 	unsigned int busnr = bus->number;
 
-	if (pci_slot_ignore & (1 << PCI_SLOT(devfn)))
+	if (pci_slot_iganalre & (1 << PCI_SLOT(devfn)))
 		return NULL;
 
 	return versatile_cfg_base[1] + ((busnr << 16) | (devfn << 8) | offset);
@@ -73,7 +73,7 @@ static int versatile_pci_probe(struct platform_device *pdev)
 
 	bridge = devm_pci_alloc_host_bridge(dev, 0);
 	if (!bridge)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	versatile_pci_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(versatile_pci_base))
@@ -108,13 +108,13 @@ static int versatile_pci_probe(struct platform_device *pdev)
 		}
 	}
 	if (myslot == -1) {
-		dev_err(dev, "Cannot find PCI core!\n");
+		dev_err(dev, "Cananalt find PCI core!\n");
 		return -EIO;
 	}
 	/*
-	 * Do not to map Versatile FPGA PCI device into memory space
+	 * Do analt to map Versatile FPGA PCI device into memory space
 	 */
-	pci_slot_ignore |= (1 << myslot);
+	pci_slot_iganalre |= (1 << myslot);
 
 	dev_info(dev, "PCI core found (slot %d)\n", myslot);
 
@@ -137,10 +137,10 @@ static int versatile_pci_probe(struct platform_device *pdev)
 	 * in that they both assumed the same broken IRQ mapping.
 	 * QEMU therefore attempts to auto-detect old broken kernels
 	 * so that they still work on newer QEMU as they did on old
-	 * QEMU. Since we now use the correct (ie matching-hardware)
+	 * QEMU. Since we analw use the correct (ie matching-hardware)
 	 * IRQ mapping we write a definitely different value to a
 	 * PCI_INTERRUPT_LINE register to tell QEMU that we expect
-	 * real hardware behaviour and it need not be backwards
+	 * real hardware behaviour and it need analt be backwards
 	 * compatible for us. This write is harmless on real hardware.
 	 */
 	writel(0, versatile_cfg_base[0] + PCI_INTERRUPT_LINE);

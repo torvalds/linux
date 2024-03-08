@@ -16,20 +16,20 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; see the file COPYING.  If not, see
+ * along with this program; see the file COPYING.  If analt, see
  * http://www.gnu.org/licenses/.
  *
  * This file incorporates work covered by the following copyright and
- * permission notice:
+ * permission analtice:
  *    Copyright (c) 2007-2008 Atheros Communications, Inc.
  *
  *    Permission to use, copy, modify, and/or distribute this software for any
  *    purpose with or without fee is hereby granted, provided that the above
- *    copyright notice and this permission notice appear in all copies.
+ *    copyright analtice and this permission analtice appear in all copies.
  *
  *    THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  *    WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- *    MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ *    MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  *    ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  *    WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  *    ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -46,7 +46,7 @@
 #define	AR9170_RX_PHY_RATE_CCK_5M		0x37
 #define	AR9170_RX_PHY_RATE_CCK_11M		0x6e
 
-#define	AR9170_ENC_ALG_NONE			0x0
+#define	AR9170_ENC_ALG_ANALNE			0x0
 #define	AR9170_ENC_ALG_WEP64			0x1
 #define	AR9170_ENC_ALG_TKIP			0x2
 #define	AR9170_ENC_ALG_AESCCMP			0x4
@@ -90,14 +90,14 @@
 #define	AR9170_TX_MAC_PROT_CTS			0x0002
 #define	AR9170_TX_MAC_PROT			0x0003
 
-#define	AR9170_TX_MAC_NO_ACK			0x0004
+#define	AR9170_TX_MAC_ANAL_ACK			0x0004
 /* if unset, MAC will only do SIFS space before frame */
 #define	AR9170_TX_MAC_BACKOFF			0x0008
 #define	AR9170_TX_MAC_BURST			0x0010
 #define	AR9170_TX_MAC_AGGR			0x0020
 
 /* encryption is a two-bit field */
-#define	AR9170_TX_MAC_ENCR_NONE			0x0000
+#define	AR9170_TX_MAC_ENCR_ANALNE			0x0000
 #define	AR9170_TX_MAC_ENCR_RC4			0x0040
 #define	AR9170_TX_MAC_ENCR_CENC			0x0080
 #define	AR9170_TX_MAC_ENCR_AES			0x00c0
@@ -187,7 +187,7 @@ struct ar9170_tx_hw_mac_control {
 			 */
 
 			u8 erp_prot:2;
-			u8 no_ack:1;
+			u8 anal_ack:1;
 			u8 backoff:1;
 			u8 burst:1;
 			u8 ampdu:1;
@@ -407,17 +407,17 @@ static inline u8 ar9170_get_decrypt_type(struct ar9170_rx_macstatus *t)
 /*
  * This is an workaround for several undocumented bugs.
  * Don't mess with the QoS/AC <-> HW Queue map, if you don't
- * know what you are doing.
+ * kanalw what you are doing.
  *
- * Known problems [hardware]:
- *  * The MAC does not aggregate frames on anything other
+ * Kanalwn problems [hardware]:
+ *  * The MAC does analt aggregate frames on anything other
  *    than the first HW queue.
  *  * when an AMPDU is placed [in the first hw queue] and
  *    additional frames are already queued on a different
  *    hw queue, the MAC will ALWAYS freeze.
  *
  * In a nutshell: The hardware can either do QoS or
- * Aggregation but not both at the same time. As a
+ * Aggregation but analt both at the same time. As a
  * result, this makes the device pretty much useless
  * for any serious 802.11n setup.
  */

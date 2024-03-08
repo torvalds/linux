@@ -40,7 +40,7 @@ static int __init boardinfo_init(void)
 	lefi_kobj = kobject_create_and_add("lefi", firmware_kobj);
 	if (!lefi_kobj) {
 		pr_err("lefi: Firmware registration failed.\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return sysfs_create_file(lefi_kobj, &boardinfo_attr.attr);

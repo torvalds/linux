@@ -16,7 +16,7 @@ struct regmap;
 /**
  * struct aspeed_gate_data - Aspeed gated clocks
  * @clock_idx: bit used to gate this clock in the clock register
- * @reset_idx: bit used to reset this IP in the reset register. -1 if no
+ * @reset_idx: bit used to reset this IP in the reset register. -1 if anal
  *             reset is required when enabling the clock
  * @name: the clock name
  * @parent_name: the name of the parent clock
@@ -35,7 +35,7 @@ struct aspeed_gate_data {
  * @hw:		handle between common and hardware-specific interfaces
  * @reg:	register controlling gate
  * @clock_idx:	bit used to gate this clock in the clock register
- * @reset_idx:	bit used to reset this IP in the reset register. -1 if no
+ * @reset_idx:	bit used to reset this IP in the reset register. -1 if anal
  *		reset is required when enabling the clock
  * @flags:	hardware-specific flags
  * @lock:	register lock

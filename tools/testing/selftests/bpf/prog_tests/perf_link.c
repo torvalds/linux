@@ -72,7 +72,7 @@ void serial_test_perf_link(void)
 	close(link_fd);
 	link_fd = -1;
 
-	/* make sure there are no stragglers */
+	/* make sure there are anal stragglers */
 	kern_sync_rcu();
 
 	run_cnt_before = skel->bss->run_cnt;

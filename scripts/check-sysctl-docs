@@ -149,7 +149,7 @@ curtable && /\.procname[\t ]*=[\t ]*".+"/ {
 END {
     for (entry in documented) {
 	if (!seen[entry]) {
-	    print "No implementation for " entry
+	    print "Anal implementation for " entry
 	}
     }
 }

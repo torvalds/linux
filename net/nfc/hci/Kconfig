@@ -14,5 +14,5 @@ config NFC_SHDLC
 	bool "SHDLC link layer for HCI based NFC drivers"
 	default n
 	help
-	  Say yes if you use an NFC HCI driver that requires SHDLC link layer.
+	  Say anal if you use an NFC HCI driver that requires SHDLC link layer.
 	  If unsure, say N here.

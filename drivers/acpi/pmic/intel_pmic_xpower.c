@@ -213,7 +213,7 @@ out:
  * @regmap: regmap of the PMIC device
  * @reg: register to get the reading
  *
- * Return a positive value on success, errno on failure.
+ * Return a positive value on success, erranal on failure.
  */
 static int intel_xpower_pmic_get_raw_temp(struct regmap *regmap, int reg)
 {
@@ -227,9 +227,9 @@ static int intel_xpower_pmic_get_raw_temp(struct regmap *regmap, int reg)
 	 * need to temporary switch the TS current-source to ondemand, so that
 	 * the GPADC can use it, otherwise we will always read an all 0 value.
 	 *
-	 * Note that the switching from on to on-ondemand is not necessary
+	 * Analte that the switching from on to on-ondemand is analt necessary
 	 * when the TS current-source is off (this happens on devices which
-	 * do not use the TS-pin).
+	 * do analt use the TS-pin).
 	 */
 	ret = regmap_read(regmap, AXP288_ADC_TS_PIN_CTRL, &adc_ts_pin_ctrl);
 	if (ret)
@@ -238,7 +238,7 @@ static int intel_xpower_pmic_get_raw_temp(struct regmap *regmap, int reg)
 	if (adc_ts_pin_ctrl & AXP288_ADC_TS_CURRENT_ON_OFF_MASK) {
 		/*
 		 * AXP288_ADC_TS_PIN_CTRL reads are cached by the regmap, so
-		 * this does to a single I2C-transfer, and thus there is no
+		 * this does to a single I2C-transfer, and thus there is anal
 		 * need to explicitly call iosf_mbi_block_punit_i2c_access().
 		 */
 		ret = regmap_update_bits(regmap, AXP288_ADC_TS_PIN_CTRL,
@@ -345,7 +345,7 @@ static int intel_xpower_pmic_opregion_probe(struct platform_device *pdev)
 			ACPI_ADR_SPACE_GPIO, intel_xpower_pmic_gpio_handler,
 			NULL, NULL);
 	if (ACPI_FAILURE(status))
-		return -ENODEV;
+		return -EANALDEV;
 
 	result = intel_pmic_install_opregion_handler(&pdev->dev,
 					ACPI_HANDLE(parent), axp20x->regmap,

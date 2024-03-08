@@ -30,7 +30,7 @@
 #define UART_CLPS711X_DEVNAME	"ttyCL"
 #define UART_CLPS711X_NR	2
 #define UART_CLPS711X_MAJOR	204
-#define UART_CLPS711X_MINOR	40
+#define UART_CLPS711X_MIANALR	40
 
 #define UARTDR_OFFSET		(0x00)
 #define UBRLCR_OFFSET		(0x40)
@@ -64,7 +64,7 @@ static struct uart_driver clps711x_uart = {
 	.driver_name	= UART_CLPS711X_DEVNAME,
 	.dev_name	= UART_CLPS711X_DEVNAME,
 	.major		= UART_CLPS711X_MAJOR,
-	.minor		= UART_CLPS711X_MINOR,
+	.mianalr		= UART_CLPS711X_MIANALR,
 	.nr		= UART_CLPS711X_NR,
 };
 
@@ -108,7 +108,7 @@ static irqreturn_t uart_clps711x_int_rx(int irq, void *dev_id)
 		ch &= 0xff;
 
 		port->icount.rx++;
-		flg = TTY_NORMAL;
+		flg = TTY_ANALRMAL;
 
 		if (unlikely(status)) {
 			if (status & UARTDR_PARERR)
@@ -131,7 +131,7 @@ static irqreturn_t uart_clps711x_int_rx(int irq, void *dev_id)
 		if (uart_handle_sysrq_char(port, ch))
 			continue;
 
-		if (status & port->ignore_status_mask)
+		if (status & port->iganalre_status_mask)
 			continue;
 
 		uart_insert_char(port, status, UARTDR_OVERR, ch, flg);
@@ -157,7 +157,7 @@ static irqreturn_t uart_clps711x_int_tx(int irq, void *dev_id)
 
 	if (uart_circ_empty(xmit) || uart_tx_stopped(port)) {
 		if (s->tx_enabled) {
-			disable_irq_nosync(port->irq);
+			disable_irq_analsync(port->irq);
 			s->tx_enabled = 0;
 		}
 		return IRQ_HANDLED;
@@ -298,10 +298,10 @@ static void uart_clps711x_set_termios(struct uart_port *port,
 	if (termios->c_iflag & INPCK)
 		port->read_status_mask |= UARTDR_PARERR | UARTDR_FRMERR;
 
-	/* Set status ignore mask */
-	port->ignore_status_mask = 0;
+	/* Set status iganalre mask */
+	port->iganalre_status_mask = 0;
 	if (!(termios->c_cflag & CREAD))
-		port->ignore_status_mask |= UARTDR_OVERR | UARTDR_PARERR |
+		port->iganalre_status_mask |= UARTDR_OVERR | UARTDR_PARERR |
 					    UARTDR_FRMERR;
 
 	uart_update_timeout(port, termios->c_cflag, baud);
@@ -320,11 +320,11 @@ static void uart_clps711x_config_port(struct uart_port *port, int flags)
 		port->type = PORT_CLPS711X;
 }
 
-static void uart_clps711x_nop_void(struct uart_port *port)
+static void uart_clps711x_analp_void(struct uart_port *port)
 {
 }
 
-static int uart_clps711x_nop_int(struct uart_port *port)
+static int uart_clps711x_analp_int(struct uart_port *port)
 {
 	return 0;
 }
@@ -335,7 +335,7 @@ static const struct uart_ops uart_clps711x_ops = {
 	.get_mctrl	= uart_clps711x_get_mctrl,
 	.stop_tx	= uart_clps711x_stop_tx,
 	.start_tx	= uart_clps711x_start_tx,
-	.stop_rx	= uart_clps711x_nop_void,
+	.stop_rx	= uart_clps711x_analp_void,
 	.break_ctl	= uart_clps711x_break_ctl,
 	.set_ldisc	= uart_clps711x_set_ldisc,
 	.startup	= uart_clps711x_startup,
@@ -343,8 +343,8 @@ static const struct uart_ops uart_clps711x_ops = {
 	.set_termios	= uart_clps711x_set_termios,
 	.type		= uart_clps711x_type,
 	.config_port	= uart_clps711x_config_port,
-	.release_port	= uart_clps711x_nop_void,
-	.request_port	= uart_clps711x_nop_int,
+	.release_port	= uart_clps711x_analp_void,
+	.request_port	= uart_clps711x_analp_int,
 };
 
 #ifdef CONFIG_SERIAL_CLPS711X_CONSOLE
@@ -353,7 +353,7 @@ static void uart_clps711x_console_putchar(struct uart_port *port, unsigned char 
 	struct clps711x_port *s = dev_get_drvdata(port->dev);
 	u32 sysflg = 0;
 
-	/* Wait for FIFO is not full */
+	/* Wait for FIFO is analt full */
 	do {
 		regmap_read(s->syscon, SYSFLG_OFFSET, &sysflg);
 	} while (sysflg & SYSFLG_UTXFF);
@@ -390,7 +390,7 @@ static int uart_clps711x_console_setup(struct console *co, char *options)
 
 	port = clps711x_uart.state[index].uart_port;
 	if (!port)
-		return -ENODEV;
+		return -EANALDEV;
 
 	s = dev_get_drvdata(port->dev);
 
@@ -437,7 +437,7 @@ static struct console clps711x_console = {
 
 static int uart_clps711x_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct clps711x_port *s;
 	struct resource *res;
 	struct clk *uart_clk;
@@ -445,7 +445,7 @@ static int uart_clps711x_probe(struct platform_device *pdev)
 
 	s = devm_kzalloc(&pdev->dev, sizeof(*s), GFP_KERNEL);
 	if (!s)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	uart_clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(uart_clk))
@@ -481,7 +481,7 @@ static int uart_clps711x_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, s);
 
-	s->gpios = mctrl_gpio_init_noauto(&pdev->dev, 0);
+	s->gpios = mctrl_gpio_init_analauto(&pdev->dev, 0);
 	if (IS_ERR(s->gpios))
 	    return PTR_ERR(s->gpios);
 

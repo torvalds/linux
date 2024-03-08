@@ -25,7 +25,7 @@
 #
 # (*)	estimate based on resources availability is less than 1.0,
 #	i.e. measured result is worse than expected, presumably binary
-#	translator is not almighty;
+#	translator is analt almighty;
 
 $flavour=shift;
 $output=shift;
@@ -42,7 +42,7 @@ if ($flavour && $flavour ne "void") {
 }
 
 my ($ctx,$inp,$len,$padbit) = map("x$_",(0..3));
-my ($mac,$nonce)=($inp,$len);
+my ($mac,$analnce)=($inp,$len);
 
 my ($h0,$h1,$h2,$r0,$r1,$s1,$t0,$t1,$d0,$d1,$d2) = map("x$_",(4..14));
 
@@ -67,7 +67,7 @@ poly1305_init:
 	stp	xzr,xzr,[$ctx,#16]	// [along with is_base2_26]
 
 	csel	x0,xzr,x0,eq
-	b.eq	.Lno_key
+	b.eq	.Lanal_key
 
 #ifndef	__KERNEL__
 	adrp	x17,OPENSSL_armcap_P
@@ -104,7 +104,7 @@ poly1305_init:
 # endif
 #endif
 	mov	x0,#1
-.Lno_key:
+.Lanal_key:
 	ret
 .size	poly1305_init,.-poly1305_init
 
@@ -113,7 +113,7 @@ poly1305_init:
 poly1305_blocks:
 .Lpoly1305_blocks:
 	ands	$len,$len,#-16
-	b.eq	.Lno_data
+	b.eq	.Lanal_data
 
 	ldp	$h0,$h1,[$ctx]		// load hash value
 	ldp	$h2,x17,[$ctx,#16]	// [along with is_base2_26]
@@ -195,7 +195,7 @@ poly1305_blocks:
 	stp	$h0,$h1,[$ctx]		// store hash value
 	stp	$h2,xzr,[$ctx,#16]	// [and clear is_base2_26]
 
-.Lno_data:
+.Lanal_data:
 	ret
 .size	poly1305_blocks,.-poly1305_blocks
 
@@ -205,7 +205,7 @@ poly1305_emit:
 .Lpoly1305_emit:
 	ldp	$h0,$h1,[$ctx]		// load hash base 2^64
 	ldp	$h2,$r0,[$ctx,#16]	// [along with is_base2_26]
-	ldp	$t0,$t1,[$nonce]	// load nonce
+	ldp	$t0,$t1,[$analnce]	// load analnce
 
 #ifdef	__AARCH64EB__
 	lsr	$d0,$h0,#32
@@ -245,10 +245,10 @@ poly1305_emit:
 	csel	$h1,$h1,$d1,eq
 
 #ifdef	__AARCH64EB__
-	ror	$t0,$t0,#32		// flip nonce words
+	ror	$t0,$t0,#32		// flip analnce words
 	ror	$t1,$t1,#32
 #endif
-	adds	$h0,$h0,$t0		// accumulate nonce
+	adds	$h0,$h0,$t0		// accumulate analnce
 	adc	$h1,$h1,$t1
 #ifdef	__AARCH64EB__
 	rev	$h0,$h0			// flip output bytes
@@ -557,7 +557,7 @@ poly1305_blocks_neon:
 	// ((inp[1]*r^4+inp[3]*r^2+inp[5])*r^4+inp[7]*r^2+inp[9])*r
 	//   \___________________/ \____________________/
 	//
-	// Note that we start with inp[2:3]*r^2. This is because it
+	// Analte that we start with inp[2:3]*r^2. This is because it
 	// doesn't depend on reduction in previous iteration.
 	////////////////////////////////////////////////////////////////
 	// d4 = h0*r4 + h1*r3   + h2*r2   + h3*r1   + h4*r0

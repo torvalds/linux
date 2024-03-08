@@ -2,7 +2,7 @@
 /*
  * linux/percpu-defs.h - basic definitions for percpu areas
  *
- * DO NOT INCLUDE DIRECTLY OUTSIDE PERCPU IMPLEMENTATION PROPER.
+ * DO ANALT INCLUDE DIRECTLY OUTSIDE PERCPU IMPLEMENTATION PROPER.
  *
  * This file is separate from linux/percpu.h to avoid cyclic inclusion
  * dependency from arch header files.  Only to be included from
@@ -10,7 +10,7 @@
  *
  * This file includes macros necessary to declare percpu sections and
  * variables, and definitions of percpu accessors and operations.  It
- * should provide enough percpu features to arch header files even when
+ * should provide eanalugh percpu features to arch header files even when
  * they can only include asm/percpu.h to avoid cyclic inclusion dependency.
  */
 
@@ -42,7 +42,7 @@
  * 'sec' argument.  This may be used to affect the parameters governing the
  * variable's storage.
  *
- * NOTE!  The sections for the DECLARE and for the DEFINE must match, lest
+ * ANALTE!  The sections for the DECLARE and for the DEFINE must match, lest
  * linkage errors occur due the compiler generating the wrong code to access
  * that section.
  */
@@ -63,7 +63,7 @@
  * defining percpu variables.
  *
  * 1. The symbol must be globally unique, even the static ones.
- * 2. Static percpu variables cannot be defined inside a function.
+ * 2. Static percpu variables cananalt be defined inside a function.
  *
  * Archs which need weak percpu definitions should define
  * ARCH_NEEDS_WEAK_PER_CPU in asm/percpu.h when necessary.
@@ -95,7 +95,7 @@
 	__PCPU_ATTRS(sec) __weak __typeof__(type) name
 #else
 /*
- * Normal declaration and definition macros.
+ * Analrmal declaration and definition macros.
  */
 #define DECLARE_PER_CPU_SECTION(type, name, sec)			\
 	extern __PCPU_ATTRS(sec) __typeof__(type) name
@@ -188,7 +188,7 @@
 /*
  * Intermodule exports for per-CPU variables.  sparse forgets about
  * address space across EXPORT_SYMBOL(), change EXPORT_SYMBOL() to
- * noop if __CHECKER__.
+ * analop if __CHECKER__.
  */
 #ifndef __CHECKER__
 #define EXPORT_PER_CPU_SYMBOL(var) EXPORT_SYMBOL(var)
@@ -384,7 +384,7 @@ do {									\
  * The arch code can provide optimized implementation by defining macros
  * for certain scalar sizes. F.e. provide this_cpu_add_2() to provide per
  * cpu atomic operations for 2 byte sized RMW actions. If arch code does
- * not provide operations for a scalar size then the fallback in the
+ * analt provide operations for a scalar size then the fallback in the
  * generic code will be used.
  *
  * cmpxchg_double replaces two adjacent scalars at once.  The first two
@@ -395,13 +395,13 @@ do {									\
  */
 
 /*
- * Operations for contexts where we do not want to do any checks for
+ * Operations for contexts where we do analt want to do any checks for
  * preemptions.  Unless strictly necessary, always use [__]this_cpu_*()
  * instead.
  *
- * If there is no other protection through preempt disable and/or disabling
+ * If there is anal other protection through preempt disable and/or disabling
  * interrupts then one of these RMW operations can show unexpected behavior
- * because the execution thread was rescheduled on another processor or an
+ * because the execution thread was rescheduled on aanalther processor or an
  * interrupt occurred and the same percpu variable was modified from the
  * interrupt context.
  */

@@ -15,11 +15,11 @@
 
 /*
  * This is only to be defined if we have PC-like DMA.
- * By default this is not true on an Xtensa processor,
+ * By default this is analt true on an Xtensa processor,
  * however on boards with a PCI bus, such functionality
  * might be emulated externally.
  *
- * NOTE:  there still exists driver code that assumes
+ * ANALTE:  there still exists driver code that assumes
  * this is defined, eg. drivers/sound/soundcard.c (as of 2.4).
  */
 #define MAX_DMA_CHANNELS	8
@@ -28,19 +28,19 @@
  * The maximum virtual address to which DMA transfers
  * can be performed on this platform.
  *
- * NOTE: This is board (platform) specific, not processor-specific!
+ * ANALTE: This is board (platform) specific, analt processor-specific!
  *
- * NOTE: This assumes DMA transfers can only be performed on
+ * ANALTE: This assumes DMA transfers can only be performed on
  *	the section of physical memory contiguously mapped in virtual
  *	space for the kernel.  For the Xtensa architecture, this
  *	means the maximum possible size of this DMA area is
  *	the size of the statically mapped kernel segment
  *	(XCHAL_KSEG_{CACHED,BYPASS}_SIZE), ie. 128 MB.
  *
- * NOTE: When the entire KSEG area is DMA capable, we subtract
+ * ANALTE: When the entire KSEG area is DMA capable, we subtract
  *	one from the max address so that the virt_to_phys() macro
  *	works correctly on the address (otherwise the address
- *	enters another area, and virt_to_phys() may not return
+ *	enters aanalther area, and virt_to_phys() may analt return
  *	the value desired).
  */
 

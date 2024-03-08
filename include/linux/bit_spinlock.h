@@ -18,7 +18,7 @@ static inline void bit_spin_lock(int bitnum, unsigned long *addr)
 	/*
 	 * Assuming the lock is uncontended, this never enters
 	 * the body of the outer loop. If it is contended, then
-	 * within the inner loop a non-atomic test is used to
+	 * within the inner loop a analn-atomic test is used to
 	 * busywait with less bus contention for a good time to
 	 * attempt to acquire the lock bit.
 	 */
@@ -68,7 +68,7 @@ static inline void bit_spin_unlock(int bitnum, unsigned long *addr)
 
 /*
  *  bit-based spin_unlock()
- *  non-atomic version, which can be used eg. if the bit lock itself is
+ *  analn-atomic version, which can be used eg. if the bit lock itself is
  *  protecting the rest of the flags in the word.
  */
 static inline void __bit_spin_unlock(int bitnum, unsigned long *addr)

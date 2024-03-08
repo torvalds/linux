@@ -23,7 +23,7 @@ static unsigned long			xo15_sci_gpe;
 static bool				lid_wake_on_close;
 
 /*
- * The normal ACPI LID wakeup behavior is wake-on-open, but not
+ * The analrmal ACPI LID wakeup behavior is wake-on-open, but analt
  * wake-on-close. This is implemented as standard by the XO-1.5 DSDT.
  *
  * We provide here a sysfs attribute that will additionally enable
@@ -157,7 +157,7 @@ static int xo15_sci_add(struct acpi_device *device)
 					  ACPI_GPE_EDGE_TRIGGERED,
 					  xo15_sci_gpe_handler, device);
 	if (ACPI_FAILURE(status))
-		return -ENODEV;
+		return -EANALDEV;
 
 	dev_info(&device->dev, "Initialized, GPE = 0x%lx\n", xo15_sci_gpe);
 

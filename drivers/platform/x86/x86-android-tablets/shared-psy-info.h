@@ -13,15 +13,15 @@
 struct bq24190_platform_data;
 struct gpiod_lookup_table;
 struct platform_device_info;
-struct software_node;
+struct software_analde;
 
 extern const char * const tusb1211_chg_det_psy[];
 extern const char * const bq24190_psy[];
 extern const char * const bq25890_psy[];
 
-extern const struct software_node fg_bq24190_supply_node;
-extern const struct software_node fg_bq25890_supply_node;
-extern const struct software_node generic_lipo_hv_4v35_battery_node;
+extern const struct software_analde fg_bq24190_supply_analde;
+extern const struct software_analde fg_bq25890_supply_analde;
+extern const struct software_analde generic_lipo_hv_4v35_battery_analde;
 
 extern struct bq24190_platform_data bq24190_pdata;
 extern const char * const bq24190_modules[];

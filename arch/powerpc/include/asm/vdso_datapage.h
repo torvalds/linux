@@ -11,7 +11,7 @@
 
 
 /*
- * Note about this structure:
+ * Analte about this structure:
  *
  * This structure was historically called systemcfg and exposed to
  * userland via /proc/ppc64/systemcfg. Unfortunately, this became an
@@ -27,10 +27,10 @@
 
 /*
  * If the major version changes we are incompatible.
- * Minor version changes are a hint.
+ * Mianalr version changes are a hint.
  */
 #define SYSTEMCFG_MAJOR 1
-#define SYSTEMCFG_MINOR 1
+#define SYSTEMCFG_MIANALR 1
 
 #ifndef __ASSEMBLY__
 
@@ -50,10 +50,10 @@ struct vdso_arch_data {
 	__u8  eye_catcher[16];		/* Eyecatcher: SYSTEMCFG:PPC64	0x00 */
 	struct {			/* Systemcfg version numbers	     */
 		__u32 major;		/* Major number			0x10 */
-		__u32 minor;		/* Minor number			0x14 */
+		__u32 mianalr;		/* Mianalr number			0x14 */
 	} version;
 
-	/* Note about the platform flags: it now only contains the lpar
+	/* Analte about the platform flags: it analw only contains the lpar
 	 * bit. The actual platform number is dead and buried
 	 */
 	__u32 platform;			/* Platform flags		0x18 */
@@ -73,7 +73,7 @@ struct vdso_arch_data {
 	__u32 icache_line_size;		/* L1 i-cache line size		0x6C */
 
 	/* those additional ones don't have to be located anywhere
-	 * special as they were not part of the original systemcfg
+	 * special as they were analt part of the original systemcfg
 	 */
 	__u32 dcache_block_size;		/* L1 d-cache block size     */
 	__u32 icache_block_size;		/* L1 i-cache block size     */
@@ -93,7 +93,7 @@ struct vdso_arch_data {
 struct vdso_arch_data {
 	__u64 tb_ticks_per_sec;		/* Timebase tics / sec		0x38 */
 	__u32 syscall_map[SYSCALL_MAP_SIZE]; /* Map of syscalls */
-	__u32 compat_syscall_map[0];	/* No compat syscalls on PPC32 */
+	__u32 compat_syscall_map[0];	/* Anal compat syscalls on PPC32 */
 	struct vdso_data data[CS_BASES];
 };
 

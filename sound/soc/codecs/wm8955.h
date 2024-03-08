@@ -34,11 +34,11 @@
 #define WM8955_LEFT_OUT_MIX_2                   0x23
 #define WM8955_RIGHT_OUT_MIX_1                  0x24
 #define WM8955_RIGHT_OUT_MIX_2                  0x25
-#define WM8955_MONO_OUT_MIX_1                   0x26
-#define WM8955_MONO_OUT_MIX_2                   0x27
+#define WM8955_MOANAL_OUT_MIX_1                   0x26
+#define WM8955_MOANAL_OUT_MIX_2                   0x27
 #define WM8955_LOUT2_VOLUME                     0x28
 #define WM8955_ROUT2_VOLUME                     0x29
-#define WM8955_MONOOUT_VOLUME                   0x2A
+#define WM8955_MOANALOUT_VOLUME                   0x2A
 #define WM8955_CLOCKING_PLL                     0x2B
 #define WM8955_PLL_CONTROL_1                    0x2C
 #define WM8955_PLL_CONTROL_2                    0x2D
@@ -207,9 +207,9 @@
 #define WM8955_VSEL_MASK                        0x00C0  /* VSEL - [7:6] */
 #define WM8955_VSEL_SHIFT                            6  /* VSEL - [7:6] */
 #define WM8955_VSEL_WIDTH                            2  /* VSEL - [7:6] */
-#define WM8955_DMONOMIX_MASK                    0x0030  /* DMONOMIX - [5:4] */
-#define WM8955_DMONOMIX_SHIFT                        4  /* DMONOMIX - [5:4] */
-#define WM8955_DMONOMIX_WIDTH                        2  /* DMONOMIX - [5:4] */
+#define WM8955_DMOANALMIX_MASK                    0x0030  /* DMOANALMIX - [5:4] */
+#define WM8955_DMOANALMIX_SHIFT                        4  /* DMOANALMIX - [5:4] */
+#define WM8955_DMOANALMIX_WIDTH                        2  /* DMOANALMIX - [5:4] */
 #define WM8955_DACINV                           0x0002  /* DACINV */
 #define WM8955_DACINV_MASK                      0x0002  /* DACINV */
 #define WM8955_DACINV_SHIFT                          1  /* DACINV */
@@ -276,10 +276,10 @@
 #define WM8955_ROUT2_MASK                       0x0008  /* ROUT2 */
 #define WM8955_ROUT2_SHIFT                           3  /* ROUT2 */
 #define WM8955_ROUT2_WIDTH                           1  /* ROUT2 */
-#define WM8955_MONO                             0x0004  /* MONO */
-#define WM8955_MONO_MASK                        0x0004  /* MONO */
-#define WM8955_MONO_SHIFT                            2  /* MONO */
-#define WM8955_MONO_WIDTH                            1  /* MONO */
+#define WM8955_MOANAL                             0x0004  /* MOANAL */
+#define WM8955_MOANAL_MASK                        0x0004  /* MOANAL */
+#define WM8955_MOANAL_SHIFT                            2  /* MOANAL */
+#define WM8955_MOANAL_WIDTH                            1  /* MOANAL */
 #define WM8955_OUT3                             0x0002  /* OUT3 */
 #define WM8955_OUT3_MASK                        0x0002  /* OUT3 */
 #define WM8955_OUT3_SHIFT                            1  /* OUT3 */
@@ -354,7 +354,7 @@
 #define WM8955_RI2ROVOL_WIDTH                        3  /* RI2ROVOL - [6:4] */
 
 /*
- * R38 (0x26) - Mono out Mix (1)
+ * R38 (0x26) - Moanal out Mix (1)
  */
 #define WM8955_LD2MO                            0x0100  /* LD2MO */
 #define WM8955_LD2MO_MASK                       0x0100  /* LD2MO */
@@ -373,7 +373,7 @@
 #define WM8955_DMEN_WIDTH                            1  /* DMEN */
 
 /*
- * R39 (0x27) - Mono out Mix (2)
+ * R39 (0x27) - Moanal out Mix (2)
  */
 #define WM8955_RD2MO                            0x0100  /* RD2MO */
 #define WM8955_RD2MO_MASK                       0x0100  /* RD2MO */
@@ -418,7 +418,7 @@
 #define WM8955_ROUT2VOL_WIDTH                        7  /* ROUT2VOL - [6:0] */
 
 /*
- * R42 (0x2A) - MONOOUT volume
+ * R42 (0x2A) - MOANALOUT volume
  */
 #define WM8955_MOZC                             0x0080  /* MOZC */
 #define WM8955_MOZC_MASK                        0x0080  /* MOZC */

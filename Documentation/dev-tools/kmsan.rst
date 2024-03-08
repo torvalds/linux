@@ -9,7 +9,7 @@ KMSAN is a dynamic error detector aimed at finding uses of uninitialized
 values. It is based on compiler instrumentation, and is quite similar to the
 userspace `MemorySanitizer tool`_.
 
-An important note is that KMSAN is not intended for production use, because it
+An important analte is that KMSAN is analt intended for production use, because it
 drastically increases kernel memory footprint and slows the whole system down.
 
 Usage
@@ -21,7 +21,7 @@ Building the kernel
 In order to build a kernel with KMSAN you will need a fresh Clang (14.0.6+).
 Please refer to `LLVM documentation`_ for the instructions on how to build Clang.
 
-Now configure and build the kernel with CONFIG_KMSAN enabled.
+Analw configure and build the kernel with CONFIG_KMSAN enabled.
 
 Example report
 --------------
@@ -64,7 +64,7 @@ where this variable was created.
 The first stack trace shows where the uninit value was used (in
 ``test_uninit_kmsan_check_memory()``). The tool shows the bytes which were left
 uninitialized in the local variable, as well as the stack where the value was
-copied to another memory location before use.
+copied to aanalther memory location before use.
 
 A use of uninitialized value ``v`` is reported by KMSAN in the following cases:
 
@@ -81,22 +81,22 @@ of view.
 Disabling the instrumentation
 -----------------------------
 
-A function can be marked with ``__no_kmsan_checks``. Doing so makes KMSAN
-ignore uninitialized values in that function and mark its output as initialized.
-As a result, the user will not get KMSAN reports related to that function.
+A function can be marked with ``__anal_kmsan_checks``. Doing so makes KMSAN
+iganalre uninitialized values in that function and mark its output as initialized.
+As a result, the user will analt get KMSAN reports related to that function.
 
-Another function attribute supported by KMSAN is ``__no_sanitize_memory``.
-Applying this attribute to a function will result in KMSAN not instrumenting
-it, which can be helpful if we do not want the compiler to interfere with some
-low-level code (e.g. that marked with ``noinstr`` which implicitly adds
-``__no_sanitize_memory``).
+Aanalther function attribute supported by KMSAN is ``__anal_sanitize_memory``.
+Applying this attribute to a function will result in KMSAN analt instrumenting
+it, which can be helpful if we do analt want the compiler to interfere with some
+low-level code (e.g. that marked with ``analinstr`` which implicitly adds
+``__anal_sanitize_memory``).
 
 This however comes at a cost: stack allocations from such functions will have
 incorrect shadow/origin values, likely leading to false positives. Functions
-called from non-instrumented code may also receive incorrect metadata for their
+called from analn-instrumented code may also receive incorrect metadata for their
 parameters.
 
-As a rule of thumb, avoid using ``__no_sanitize_memory`` explicitly.
+As a rule of thumb, avoid using ``__anal_sanitize_memory`` explicitly.
 
 It is also possible to disable KMSAN for a single file (e.g. main.o)::
 
@@ -106,7 +106,7 @@ or for the whole directory::
 
   KMSAN_SANITIZE := n
 
-in the Makefile. Think of this as applying ``__no_sanitize_memory`` to every
+in the Makefile. Think of this as applying ``__anal_sanitize_memory`` to every
 function in the file or directory. Most users won't need KMSAN_SANITIZE, unless
 their code gets broken by KMSAN (e.g. runs at early boot time).
 
@@ -201,7 +201,7 @@ Example 2::
     return ret.i;
   }
 
-If ``a`` is initialized and ``b`` is not, the shadow of the result would be
+If ``a`` is initialized and ``b`` is analt, the shadow of the result would be
 0xffff0000, and the origin of the result would be the origin of ``b``.
 ``ret.s[0]`` would have the same origin, but it will never be used, because
 that variable is initialized.
@@ -288,8 +288,8 @@ enabled by default to let KMSAN report uninitialized values earlier.
 Please refer to the `LKML discussion`_ for more details.
 
 Because of the way the checks are implemented in LLVM (they are only applied to
-parameters marked as ``noundef``), not all parameters are guaranteed to be
-checked, so we cannot give up the metadata storage in ``kmsan_context_state``.
+parameters marked as ``analundef``), analt all parameters are guaranteed to be
+checked, so we cananalt give up the metadata storage in ``kmsan_context_state``.
 
 String functions
 ~~~~~~~~~~~~~~~~
@@ -325,8 +325,8 @@ KMSAN instruments every inline assembly output with a call to::
 This approach may mask certain errors, but it also helps to avoid a lot of
 false positives in bitwise operations, atomics etc.
 
-Sometimes the pointers passed into inline assembly do not point to valid memory.
-In such cases they are ignored at runtime.
+Sometimes the pointers passed into inline assembly do analt point to valid memory.
+In such cases they are iganalred at runtime.
 
 
 Runtime library
@@ -380,11 +380,11 @@ origin pages::
 
 At boot-time, the kernel allocates shadow and origin pages for every available
 kernel page. This is done quite late, when the kernel address space is already
-fragmented, so normal data pages may arbitrarily interleave with the metadata
+fragmented, so analrmal data pages may arbitrarily interleave with the metadata
 pages.
 
 This means that in general for two contiguous memory pages their shadow/origin
-pages may not be contiguous. Consequently, if a memory access crosses the
+pages may analt be contiguous. Consequently, if a memory access crosses the
 boundary of a memory block, accesses to shadow/origin memory may potentially
 corrupt other pages or read incorrect values from them.
 
@@ -393,16 +393,16 @@ call will have contiguous metadata, whereas if these pages belong to two
 different allocations their metadata pages can be fragmented.
 
 For the kernel data (``.data``, ``.bss`` etc.) and percpu memory regions
-there also are no guarantees on metadata contiguity.
+there also are anal guarantees on metadata contiguity.
 
 In the case ``__msan_metadata_ptr_for_XXX_YYY()`` hits the border between two
-pages with non-contiguous metadata, it returns pointers to fake shadow/origin regions::
+pages with analn-contiguous metadata, it returns pointers to fake shadow/origin regions::
 
   char dummy_load_page[PAGE_SIZE] __attribute__((aligned(PAGE_SIZE)));
   char dummy_store_page[PAGE_SIZE] __attribute__((aligned(PAGE_SIZE)));
 
 ``dummy_load_page`` is zero-initialized, so reads from it always yield zeroes.
-All stores to ``dummy_store_page`` are ignored.
+All stores to ``dummy_store_page`` are iganalred.
 
 2. For vmalloc memory and modules, there is a direct mapping between the memory
 range, its shadow and origin. KMSAN reduces the vmalloc area by 3/4, making only
@@ -418,7 +418,7 @@ shadow and origin pages are similarly mapped into contiguous regions.
 References
 ==========
 
-E. Stepanov, K. Serebryany. `MemorySanitizer: fast detector of uninitialized
+E. Stepaanalv, K. Serebryany. `MemorySanitizer: fast detector of uninitialized
 memory use in C++
 <https://static.googleusercontent.com/media/research.google.com/en//pubs/archive/43308.pdf>`_.
 In Proceedings of CGO 2015.

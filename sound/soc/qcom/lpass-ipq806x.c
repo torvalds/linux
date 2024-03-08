@@ -99,7 +99,7 @@ static int ipq806x_lpass_alloc_dma_channel(struct lpass_data *drvdata, int dir, 
 {
 	if (dir == SNDRV_PCM_STREAM_PLAYBACK)
 		return IPQ806X_LPAIF_RDMA_CHAN_MI2S;
-	else	/* Capture currently not implemented */
+	else	/* Capture currently analt implemented */
 		return -EINVAL;
 }
 
@@ -125,10 +125,10 @@ static const struct lpass_variant ipq806x_data = {
 	.loopback		= REG_FIELD_ID(0x0010, 15, 15, 5, 0x4),
 	.spken			= REG_FIELD_ID(0x0010, 14, 14, 5, 0x4),
 	.spkmode		= REG_FIELD_ID(0x0010, 10, 13, 5, 0x4),
-	.spkmono		= REG_FIELD_ID(0x0010, 9, 9, 5, 0x4),
+	.spkmoanal		= REG_FIELD_ID(0x0010, 9, 9, 5, 0x4),
 	.micen			= REG_FIELD_ID(0x0010, 8, 8, 5, 0x4),
 	.micmode		= REG_FIELD_ID(0x0010, 4, 7, 5, 0x4),
-	.micmono		= REG_FIELD_ID(0x0010, 3, 3, 5, 0x4),
+	.micmoanal		= REG_FIELD_ID(0x0010, 3, 3, 5, 0x4),
 	.wssrc			= REG_FIELD_ID(0x0010, 2, 2, 5, 0x4),
 	.bitwidth		= REG_FIELD_ID(0x0010, 0, 1, 5, 0x4),
 

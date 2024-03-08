@@ -184,13 +184,13 @@ static void rpf_configure_stream(struct vsp1_entity *entity,
 	 * As alpha premultiplication is available in the BRx for both Gen2 and
 	 * Gen3+ we handle it there and use the Gen3 alpha multiplier for global
 	 * alpha multiplication only. This however prevents conversion to
-	 * premultiplied alpha if no BRx is present in the pipeline. If that use
+	 * premultiplied alpha if anal BRx is present in the pipeline. If that use
 	 * case turns out to be useful we will revisit the implementation (for
 	 * Gen3 only).
 	 *
 	 * We enable alpha multiplication on Gen3+ using the fixed alpha value
 	 * set through the V4L2_CID_ALPHA_COMPONENT control when the input
-	 * contains an alpha channel. On Gen2 the global alpha is ignored in
+	 * contains an alpha channel. On Gen2 the global alpha is iganalred in
 	 * that case.
 	 *
 	 * In all cases, disable color keying.
@@ -217,7 +217,7 @@ static void rpf_configure_stream(struct vsp1_entity *entity,
 			mult = VI6_RPF_MULT_ALPHA_A_MMD_RATIO
 			     | (premultiplied ?
 				VI6_RPF_MULT_ALPHA_P_MMD_RATIO :
-				VI6_RPF_MULT_ALPHA_P_MMD_NONE);
+				VI6_RPF_MULT_ALPHA_P_MMD_ANALNE);
 		} else {
 			/*
 			 * When the input doesn't contain an alpha channel the
@@ -225,8 +225,8 @@ static void rpf_configure_stream(struct vsp1_entity *entity,
 			 * the alpha multiplier isn't needed and must be
 			 * disabled.
 			 */
-			mult = VI6_RPF_MULT_ALPHA_A_MMD_NONE
-			     | VI6_RPF_MULT_ALPHA_P_MMD_NONE;
+			mult = VI6_RPF_MULT_ALPHA_A_MMD_ANALNE
+			     | VI6_RPF_MULT_ALPHA_P_MMD_ANALNE;
 		}
 
 		rpf->mult_alpha = mult;
@@ -345,7 +345,7 @@ static void rpf_configure_partition(struct vsp1_entity *entity,
 	}
 
 	/*
-	 * On Gen3+ hardware the SPUVS bit has no effect on 3-planar
+	 * On Gen3+ hardware the SPUVS bit has anal effect on 3-planar
 	 * formats. Swap the U and V planes manually in that case.
 	 */
 	if (vsp1->info->gen >= 3 && format->num_planes == 3 &&
@@ -393,7 +393,7 @@ struct vsp1_rwpf *vsp1_rpf_create(struct vsp1_device *vsp1, unsigned int index)
 
 	rpf = devm_kzalloc(vsp1->dev, sizeof(*rpf), GFP_KERNEL);
 	if (rpf == NULL)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	rpf->max_width = RPF_MAX_WIDTH;
 	rpf->max_height = RPF_MAX_HEIGHT;

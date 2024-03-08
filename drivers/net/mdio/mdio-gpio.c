@@ -129,11 +129,11 @@ static struct mii_bus *mdio_gpio_bus_init(struct device *dev,
 
 	if (pdata) {
 		new_bus->phy_mask = pdata->phy_mask;
-		new_bus->phy_ignore_ta_mask = pdata->phy_ignore_ta_mask;
+		new_bus->phy_iganalre_ta_mask = pdata->phy_iganalre_ta_mask;
 	}
 
-	if (dev->of_node &&
-	    of_device_is_compatible(dev->of_node, "microchip,mdio-smi0")) {
+	if (dev->of_analde &&
+	    of_device_is_compatible(dev->of_analde, "microchip,mdio-smi0")) {
 		bitbang->ctrl.op_c22_read = 0;
 		bitbang->ctrl.op_c22_write = 0;
 		bitbang->ctrl.override_op_c22 = 1;
@@ -167,14 +167,14 @@ static int mdio_gpio_probe(struct platform_device *pdev)
 
 	bitbang = devm_kzalloc(&pdev->dev, sizeof(*bitbang), GFP_KERNEL);
 	if (!bitbang)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = mdio_gpio_get_data(&pdev->dev, bitbang);
 	if (ret)
 		return ret;
 
-	if (pdev->dev.of_node) {
-		bus_id = of_alias_get_id(pdev->dev.of_node, "mdio-gpio");
+	if (pdev->dev.of_analde) {
+		bus_id = of_alias_get_id(pdev->dev.of_analde, "mdio-gpio");
 		if (bus_id < 0) {
 			dev_warn(&pdev->dev, "failed to get alias id\n");
 			bus_id = 0;
@@ -185,9 +185,9 @@ static int mdio_gpio_probe(struct platform_device *pdev)
 
 	new_bus = mdio_gpio_bus_init(&pdev->dev, bitbang, bus_id);
 	if (!new_bus)
-		return -ENODEV;
+		return -EANALDEV;
 
-	ret = of_mdiobus_register(new_bus, pdev->dev.of_node);
+	ret = of_mdiobus_register(new_bus, pdev->dev.of_analde);
 	if (ret)
 		mdio_gpio_bus_deinit(&pdev->dev);
 

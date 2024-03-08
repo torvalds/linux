@@ -31,15 +31,15 @@ How to add support for new cards
 The driver needs some config info for the TV cards.  This stuff is in
 cx88-cards.c.  If the driver doesn't work well you likely need a new
 entry for your card in that file.  Check the kernel log (using dmesg)
-to see whenever the driver knows your card or not.  There is a line
+to see whenever the driver kanalws your card or analt.  There is a line
 like this one:
 
-.. code-block:: none
+.. code-block:: analne
 
 	cx8800[0]: subsystem: 0070:3400, board: Hauppauge WinTV \
 		34xxx models [card=1,autodetected]
 
-If your card is listed as "board: UNKNOWN/GENERIC" it is unknown to
+If your card is listed as "board: UNKANALWN/GENERIC" it is unkanalwn to
 the driver.  What to do then?
 
 1) Try upgrading to the latest snapshot, maybe it has been added
@@ -54,5 +54,5 @@ the driver.  What to do then?
        "lspci -v" output is fine too).
      - the tuner type used by the card.  You can try to find one by
        trial-and-error using the tuner=<n> insmod option.  If you
-       know which one the card has you can also have a look at the
+       kanalw which one the card has you can also have a look at the
        list in CARDLIST.tuner

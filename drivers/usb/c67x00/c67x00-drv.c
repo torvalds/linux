@@ -46,7 +46,7 @@ static void c67x00_probe_sie(struct c67x00_sie *sie,
 
 	case C67X00_SIE_UNUSED:
 		dev_info(sie_dev(sie),
-			 "Not using SIE %d as requested\n", sie->sie_num);
+			 "Analt using SIE %d as requested\n", sie->sie_num);
 		break;
 
 	default:
@@ -78,7 +78,7 @@ static irqreturn_t c67x00_irq(int irq, void *__dev)
 
 	int_status = c67x00_ll_hpi_status(c67x00);
 	if (!int_status)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	while (int_status != 0 && (count-- >= 0)) {
 		c67x00_ll_irq(c67x00, int_status);
@@ -94,7 +94,7 @@ static irqreturn_t c67x00_irq(int irq, void *__dev)
 	}
 
 	if (int_status)
-		dev_warn(&c67x00->pdev->dev, "Not all interrupts handled! "
+		dev_warn(&c67x00->pdev->dev, "Analt all interrupts handled! "
 			 "status = 0x%04x\n", int_status);
 
 	return IRQ_HANDLED;
@@ -111,19 +111,19 @@ static int c67x00_drv_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
-		return -ENODEV;
+		return -EANALDEV;
 
 	res2 = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!res2)
-		return -ENODEV;
+		return -EANALDEV;
 
 	pdata = dev_get_platdata(&pdev->dev);
 	if (!pdata)
-		return -ENODEV;
+		return -EANALDEV;
 
 	c67x00 = kzalloc(sizeof(*c67x00), GFP_KERNEL);
 	if (!c67x00)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!request_mem_region(res->start, resource_size(res),
 				pdev->name)) {
@@ -148,7 +148,7 @@ static int c67x00_drv_probe(struct platform_device *pdev)
 
 	ret = request_irq(res2->start, c67x00_irq, 0, pdev->name, c67x00);
 	if (ret) {
-		dev_err(&pdev->dev, "Cannot claim IRQ\n");
+		dev_err(&pdev->dev, "Cananalt claim IRQ\n");
 		goto request_irq_failed;
 	}
 

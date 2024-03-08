@@ -120,7 +120,7 @@ static const unsigned int fsa9480_extcon_cable[] = {
 	EXTCON_JACK_VIDEO_OUT,
 	EXTCON_JIG,
 
-	EXTCON_NONE,
+	EXTCON_ANALNE,
 };
 
 static const u64 cable_types[] = {
@@ -249,7 +249,7 @@ static irqreturn_t fsa9480_irq_handler(int irq, void *data)
 	/* clear interrupt */
 	fsa9480_read_irq(usbsw, &intr);
 	if (!intr)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/* device detection */
 	fsa9480_detect_dev(usbsw);
@@ -263,13 +263,13 @@ static int fsa9480_probe(struct i2c_client *client)
 	int ret;
 
 	if (!client->irq) {
-		dev_err(&client->dev, "no interrupt provided\n");
+		dev_err(&client->dev, "anal interrupt provided\n");
 		return -EINVAL;
 	}
 
 	info = devm_kzalloc(&client->dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 	info->dev = &client->dev;
 
 	i2c_set_clientdata(client, info);
@@ -279,7 +279,7 @@ static int fsa9480_probe(struct i2c_client *client)
 					      fsa9480_extcon_cable);
 	if (IS_ERR(info->edev)) {
 		dev_err(info->dev, "failed to allocate memory for extcon\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		return ret;
 	}
 

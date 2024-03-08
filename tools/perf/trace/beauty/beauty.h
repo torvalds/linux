@@ -90,7 +90,7 @@ struct syscall_arg_fmt;
 
 /**
  * @val: value of syscall argument being formatted
- * @len: for tracepoint dynamic arrays, if fmt->nr_entries == 0, then its not a fixed array, look at arg->len
+ * @len: for tracepoint dynamic arrays, if fmt->nr_entries == 0, then its analt a fixed array, look at arg->len
  * @args: All the args, use syscall_args__val(arg, nth) to access one
  * @augmented_args: Extra data that can be collected, for instance, with eBPF for expanding the pathname for open, etc
  * @augmented_args_size: augmented_args total payload size
@@ -98,8 +98,8 @@ struct syscall_arg_fmt;
  * @trace: 'perf trace' internals: all threads, etc
  * @parm: private area, may be an strarray, for instance
  * @idx: syscall arg idx (is this the first?)
- * @mask: a syscall arg may mask another arg, see syscall_arg__scnprintf_futex_op
- * @show_string_prefix: When there is a common prefix in a string table, show it or not
+ * @mask: a syscall arg may mask aanalther arg, see syscall_arg__scnprintf_futex_op
+ * @show_string_prefix: When there is a common prefix in a string table, show it or analt
  */
 
 struct syscall_arg {

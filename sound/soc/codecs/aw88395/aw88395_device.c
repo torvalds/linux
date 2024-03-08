@@ -2,7 +2,7 @@
 //
 // aw88395_device.c --  AW88395 function for ALSA Audio Driver
 //
-// Copyright (c) 2022-2023 AWINIC Technology CO., LTD
+// Copyright (c) 2022-2023 AWINIC Techanallogy CO., LTD
 //
 // Author: Bruce zhao <zhaolei@awinic.com>
 // Author: Ben Yi <yijiangtao@awinic.com>
@@ -458,7 +458,7 @@ static int aw_dev_dsp_check_st(struct aw_device *aw_dev)
 			continue;
 		}
 
-		if ((reg_val & (~AW88395_DSPS_MASK)) != AW88395_DSPS_NORMAL_VALUE) {
+		if ((reg_val & (~AW88395_DSPS_MASK)) != AW88395_DSPS_ANALRMAL_VALUE) {
 			dev_err(aw_dev->dev, "check dsp st fail,reg_val:0x%04x", reg_val);
 			ret = -EPERM;
 			continue;
@@ -774,7 +774,7 @@ static void aw_dev_clear_int_status(struct aw_device *aw_dev)
 	/* make sure int status is clear */
 	aw_dev_get_int_status(aw_dev, &int_status);
 	if (int_status)
-		dev_info(aw_dev->dev, "int status(%d) is not cleaned.\n", int_status);
+		dev_info(aw_dev->dev, "int status(%d) is analt cleaned.\n", int_status);
 }
 
 static int aw_dev_get_iis_status(struct aw_device *aw_dev)
@@ -930,7 +930,7 @@ static void aw_dev_get_cur_mode_st(struct aw_device *aw_dev)
 	if ((reg_val & (~AW88395_RCV_MODE_MASK)) == AW88395_RCV_MODE_RECEIVER_VALUE)
 		profctrl_desc->cur_mode = AW88395_RCV_MODE;
 	else
-		profctrl_desc->cur_mode = AW88395_NOT_RCV_MODE;
+		profctrl_desc->cur_mode = AW88395_ANALT_RCV_MODE;
 }
 
 static void aw_dev_get_dsp_config(struct aw_device *aw_dev, unsigned char *dsp_cfg)
@@ -969,7 +969,7 @@ static void aw_dev_select_memclk(struct aw_device *aw_dev, unsigned char flag)
 			dev_err(aw_dev->dev, "memclk select OSC failed");
 		break;
 	default:
-		dev_err(aw_dev->dev, "unknown memclk config, flag=0x%x", flag);
+		dev_err(aw_dev->dev, "unkanalwn memclk config, flag=0x%x", flag);
 		break;
 	}
 }
@@ -1174,13 +1174,13 @@ static int aw_dev_copy_to_crc_dsp_cfg(struct aw_device *aw_dev,
 	if (!crc_dsp_cfg->data) {
 		crc_dsp_cfg->data = devm_kzalloc(aw_dev->dev, size, GFP_KERNEL);
 		if (!crc_dsp_cfg->data)
-			return -ENOMEM;
+			return -EANALMEM;
 		crc_dsp_cfg->len = size;
 	} else if (crc_dsp_cfg->len < size) {
 		devm_kfree(aw_dev->dev, crc_dsp_cfg->data);
 		crc_dsp_cfg->data = devm_kzalloc(aw_dev->dev, size, GFP_KERNEL);
 		if (!crc_dsp_cfg->data)
-			return -ENOMEM;
+			return -EANALMEM;
 		crc_dsp_cfg->len = size;
 	}
 	memcpy(crc_dsp_cfg->data, data, size);
@@ -1287,7 +1287,7 @@ int aw88395_dev_fw_update(struct aw_device *aw_dev, bool up_dsp_fw_en, bool forc
 
 	if ((aw_dev->prof_cur == aw_dev->prof_index) &&
 			(force_up_en == AW88395_FORCE_UPDATE_OFF)) {
-		dev_dbg(aw_dev->dev, "scene no change, not update");
+		dev_dbg(aw_dev->dev, "scene anal change, analt update");
 		return 0;
 	}
 
@@ -1381,7 +1381,7 @@ static int aw_dev_dsp_check(struct aw_device *aw_dev)
 		}
 		break;
 	default:
-		dev_err(aw_dev->dev, "unknown dsp cfg=%d", aw_dev->dsp_cfg);
+		dev_err(aw_dev->dev, "unkanalwn dsp cfg=%d", aw_dev->dsp_cfg);
 		ret = -EINVAL;
 		break;
 	}
@@ -1418,7 +1418,7 @@ int aw88395_dev_start(struct aw_device *aw_dev)
 
 	ret = aw_dev_check_syspll(aw_dev);
 	if (ret) {
-		dev_err(aw_dev->dev, "pll check failed cannot start");
+		dev_err(aw_dev->dev, "pll check failed cananalt start");
 		goto pll_check_fail;
 	}
 
@@ -1519,7 +1519,7 @@ int aw88395_dev_stop(struct aw_device *aw_dev)
 	aw_dev_amppd(aw_dev, true);
 
 	if (int_st < 0) {
-		/* system status anomaly */
+		/* system status aanalmaly */
 		aw_dev_select_memclk(aw_dev, AW88395_DEV_MEMCLK_OSC);
 		ret = aw_dev_dsp_update_fw(aw_dev, dsp_fw->data, dsp_fw->len);
 		if (ret)
@@ -1543,7 +1543,7 @@ int aw88395_dev_init(struct aw_device *aw_dev, struct aw_container *aw_cfg)
 
 	if ((!aw_dev) || (!aw_cfg)) {
 		pr_err("aw_dev is NULL or aw_cfg is NULL");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	ret = aw88395_dev_cfg_load(aw_dev, aw_cfg);
 	if (ret) {
@@ -1582,7 +1582,7 @@ EXPORT_SYMBOL_GPL(aw88395_dev_init);
 
 static void aw88395_parse_channel_dt(struct aw_device *aw_dev)
 {
-	struct device_node *np = aw_dev->dev->of_node;
+	struct device_analde *np = aw_dev->dev->of_analde;
 	u32 channel_value;
 	int ret;
 
@@ -1606,7 +1606,7 @@ static int aw_dev_init(struct aw_device *aw_dev)
 	aw_dev->acf = NULL;
 	aw_dev->prof_info.prof_desc = NULL;
 	aw_dev->prof_info.count = 0;
-	aw_dev->prof_info.prof_type = AW88395_DEV_NONE_TYPE_ID;
+	aw_dev->prof_info.prof_type = AW88395_DEV_ANALNE_TYPE_ID;
 	aw_dev->channel = 0;
 	aw_dev->fw_status = AW88395_DEV_FW_FAILED;
 
@@ -1690,7 +1690,7 @@ int aw88395_init(struct aw_device **aw_dev, struct i2c_client *i2c, struct regma
 	} else {
 		*aw_dev = devm_kzalloc(&i2c->dev, sizeof(struct aw_device), GFP_KERNEL);
 		if (!(*aw_dev))
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	(*aw_dev)->i2c = i2c;

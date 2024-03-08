@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -385,7 +385,7 @@
 //XPB_P2P_BAR_CFG
 #define XPB_P2P_BAR_CFG__ADDR_SIZE__SHIFT                                                                     0x0
 #define XPB_P2P_BAR_CFG__SEND_BAR__SHIFT                                                                      0x4
-#define XPB_P2P_BAR_CFG__SNOOP__SHIFT                                                                         0x6
+#define XPB_P2P_BAR_CFG__SANALOP__SHIFT                                                                         0x6
 #define XPB_P2P_BAR_CFG__SEND_DIS__SHIFT                                                                      0x7
 #define XPB_P2P_BAR_CFG__COMPRESS_DIS__SHIFT                                                                  0x8
 #define XPB_P2P_BAR_CFG__UPDATE_DIS__SHIFT                                                                    0x9
@@ -394,7 +394,7 @@
 #define XPB_P2P_BAR_CFG__ATC_TRANSLATED__SHIFT                                                                0xc
 #define XPB_P2P_BAR_CFG__ADDR_SIZE_MASK                                                                       0x0000000FL
 #define XPB_P2P_BAR_CFG__SEND_BAR_MASK                                                                        0x00000030L
-#define XPB_P2P_BAR_CFG__SNOOP_MASK                                                                           0x00000040L
+#define XPB_P2P_BAR_CFG__SANALOP_MASK                                                                           0x00000040L
 #define XPB_P2P_BAR_CFG__SEND_DIS_MASK                                                                        0x00000080L
 #define XPB_P2P_BAR_CFG__COMPRESS_DIS_MASK                                                                    0x00000100L
 #define XPB_P2P_BAR_CFG__UPDATE_DIS_MASK                                                                      0x00000200L
@@ -648,16 +648,16 @@
 #define XPB_INTF_CFG__MC_WRRET_ASK__SHIFT                                                                     0x8
 #define XPB_INTF_CFG__XSP_REQ_CRD__SHIFT                                                                      0x10
 #define XPB_INTF_CFG__P2P_WR_CHAIN_BREAK__SHIFT                                                               0x17
-#define XPB_INTF_CFG__XSP_SNOOP_SEL__SHIFT                                                                    0x1b
-#define XPB_INTF_CFG__XSP_SNOOP_VAL__SHIFT                                                                    0x1d
+#define XPB_INTF_CFG__XSP_SANALOP_SEL__SHIFT                                                                    0x1b
+#define XPB_INTF_CFG__XSP_SANALOP_VAL__SHIFT                                                                    0x1d
 #define XPB_INTF_CFG__XSP_ORDERING_SEL__SHIFT                                                                 0x1e
 #define XPB_INTF_CFG__QUALIFY_P2P_FOR_GPA__SHIFT                                                              0x1f
 #define XPB_INTF_CFG__RPB_WRREQ_CRD_MASK                                                                      0x000000FFL
 #define XPB_INTF_CFG__MC_WRRET_ASK_MASK                                                                       0x0000FF00L
 #define XPB_INTF_CFG__XSP_REQ_CRD_MASK                                                                        0x007F0000L
 #define XPB_INTF_CFG__P2P_WR_CHAIN_BREAK_MASK                                                                 0x00800000L
-#define XPB_INTF_CFG__XSP_SNOOP_SEL_MASK                                                                      0x18000000L
-#define XPB_INTF_CFG__XSP_SNOOP_VAL_MASK                                                                      0x20000000L
+#define XPB_INTF_CFG__XSP_SANALOP_SEL_MASK                                                                      0x18000000L
+#define XPB_INTF_CFG__XSP_SANALOP_VAL_MASK                                                                      0x20000000L
 #define XPB_INTF_CFG__XSP_ORDERING_SEL_MASK                                                                   0x40000000L
 #define XPB_INTF_CFG__QUALIFY_P2P_FOR_GPA_MASK                                                                0x80000000L
 //XPB_INTF_STS
@@ -746,13 +746,13 @@
 //XPB_MAP_INVERT_FLUSH_NUM_LSB
 #define XPB_MAP_INVERT_FLUSH_NUM_LSB__ALTER_FLUSH_NUM__SHIFT                                                  0x0
 #define XPB_MAP_INVERT_FLUSH_NUM_LSB__ALTER_FLUSH_NUM_MASK                                                    0x0000FFFFL
-//XPB_PERF_KNOBS
-#define XPB_PERF_KNOBS__CNS_FIFO_DEPTH__SHIFT                                                                 0x0
-#define XPB_PERF_KNOBS__WCB_HST_FIFO_DEPTH__SHIFT                                                             0x6
-#define XPB_PERF_KNOBS__WCB_SID_FIFO_DEPTH__SHIFT                                                             0xc
-#define XPB_PERF_KNOBS__CNS_FIFO_DEPTH_MASK                                                                   0x0000003FL
-#define XPB_PERF_KNOBS__WCB_HST_FIFO_DEPTH_MASK                                                               0x00000FC0L
-#define XPB_PERF_KNOBS__WCB_SID_FIFO_DEPTH_MASK                                                               0x0003F000L
+//XPB_PERF_KANALBS
+#define XPB_PERF_KANALBS__CNS_FIFO_DEPTH__SHIFT                                                                 0x0
+#define XPB_PERF_KANALBS__WCB_HST_FIFO_DEPTH__SHIFT                                                             0x6
+#define XPB_PERF_KANALBS__WCB_SID_FIFO_DEPTH__SHIFT                                                             0xc
+#define XPB_PERF_KANALBS__CNS_FIFO_DEPTH_MASK                                                                   0x0000003FL
+#define XPB_PERF_KANALBS__WCB_HST_FIFO_DEPTH_MASK                                                               0x00000FC0L
+#define XPB_PERF_KANALBS__WCB_SID_FIFO_DEPTH_MASK                                                               0x0003F000L
 //XPB_STICKY
 #define XPB_STICKY__BITS__SHIFT                                                                               0x0
 #define XPB_STICKY__BITS_MASK                                                                                 0xFFFFFFFFL

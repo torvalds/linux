@@ -110,7 +110,7 @@ static u32 hpt3x2n_find_mode(struct ata_port *ap, int speed)
  *	@adev: ATA device
  *	@mask: mode mask
  *
- *	The Marvell bridge chips used on the HighPoint SATA cards do not seem
+ *	The Marvell bridge chips used on the HighPoint SATA cards do analt seem
  *	to support the UltraDMA modes 1, 2, and 3 as well as any MWDMA modes...
  */
 static unsigned int hpt372n_filter(struct ata_device *adev, unsigned int mask)
@@ -138,12 +138,12 @@ static int hpt3x2n_cable_detect(struct ata_port *ap)
 
 	udelay(10); /* debounce */
 
-	/* Cable register now active */
+	/* Cable register analw active */
 	pci_read_config_byte(pdev, 0x5A, &ata66);
 	/* Restore state */
 	pci_write_config_byte(pdev, 0x5B, scr2);
 
-	if (ata66 & (2 >> ap->port_no))
+	if (ata66 & (2 >> ap->port_anal))
 		return ATA_CBL_PATA40;
 	else
 		return ATA_CBL_PATA80;
@@ -168,17 +168,17 @@ static int hpt3x2n_pre_reset(struct ata_link *link, unsigned long deadline)
 	};
 	u8 mcr2;
 
-	if (!pci_test_config_bits(pdev, &hpt3x2n_enable_bits[ap->port_no]))
-		return -ENOENT;
+	if (!pci_test_config_bits(pdev, &hpt3x2n_enable_bits[ap->port_anal]))
+		return -EANALENT;
 
 	/* Reset the state machine */
-	pci_write_config_byte(pdev, 0x50 + 4 * ap->port_no, 0x37);
+	pci_write_config_byte(pdev, 0x50 + 4 * ap->port_anal, 0x37);
 	udelay(100);
 
 	/* Fast interrupt prediction disable, hold off interrupt disable */
-	pci_read_config_byte(pdev, 0x51 + 4 * ap->port_no, &mcr2);
+	pci_read_config_byte(pdev, 0x51 + 4 * ap->port_anal, &mcr2);
 	mcr2 &= ~0x07;
-	pci_write_config_byte(pdev, 0x51 + 4 * ap->port_no, mcr2);
+	pci_write_config_byte(pdev, 0x51 + 4 * ap->port_anal, mcr2);
 
 	return ata_sff_prereset(link, deadline);
 }
@@ -187,7 +187,7 @@ static void hpt3x2n_set_mode(struct ata_port *ap, struct ata_device *adev,
 			     u8 mode)
 {
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
-	int addr = 0x40 + 4 * (adev->devno + 2 * ap->port_no);
+	int addr = 0x40 + 4 * (adev->devanal + 2 * ap->port_anal);
 	u32 reg, timing, mask;
 
 	/* Determine timing mask and find matching mode entry */
@@ -242,12 +242,12 @@ static void hpt3x2n_bmdma_stop(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
-	int mscreg = 0x50 + 4 * ap->port_no;
+	int mscreg = 0x50 + 4 * ap->port_anal;
 	u8 bwsr_stat, msc_stat;
 
 	pci_read_config_byte(pdev, 0x6A, &bwsr_stat);
 	pci_read_config_byte(pdev, mscreg, &msc_stat);
-	if (bwsr_stat & (1 << ap->port_no))
+	if (bwsr_stat & (1 << ap->port_anal))
 		pci_write_config_byte(pdev, mscreg, msc_stat | 0x30);
 	ata_bmdma_stop(qc);
 }
@@ -270,7 +270,7 @@ static void hpt3x2n_bmdma_stop(struct ata_queued_cmd *qc)
 
 static void hpt3x2n_set_clock(struct ata_port *ap, int source)
 {
-	void __iomem *bmdma = ap->ioaddr.bmdma_addr - ap->port_no * 8;
+	void __iomem *bmdma = ap->ioaddr.bmdma_addr - ap->port_anal * 8;
 
 	/* Tristate the bus */
 	iowrite8(0x80, bmdma+0x73);
@@ -307,7 +307,7 @@ static int hpt3x2n_use_dpll(struct ata_port *ap, int writing)
 static int hpt3x2n_qc_defer(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
-	struct ata_port *alt = ap->host->ports[ap->port_no ^ 1];
+	struct ata_port *alt = ap->host->ports[ap->port_anal ^ 1];
 	int rc, flags = (long)ap->host->private_data;
 	int dpll = hpt3x2n_use_dpll(ap, qc->tf.flags & ATA_TFLAG_WRITE);
 
@@ -409,7 +409,7 @@ static int hpt3x2n_pci_clock(struct pci_dev *pdev, unsigned int base)
 	u32 fcnt;
 
 	/*
-	 * Some devices do not let this value be accessed via PCI space
+	 * Some devices do analt let this value be accessed via PCI space
 	 * according to the old driver.
 	 */
 	fcnt = inl(pci_resource_start(pdev, 4) + 0x90);
@@ -418,7 +418,7 @@ static int hpt3x2n_pci_clock(struct pci_dev *pdev, unsigned int base)
 		int i;
 		u16 sr;
 
-		dev_warn(&pdev->dev, "BIOS clock data not set\n");
+		dev_warn(&pdev->dev, "BIOS clock data analt set\n");
 
 		/* This is the process the HPT371 BIOS is reported to use */
 		for (i = 0; i < 128; i++) {
@@ -452,10 +452,10 @@ static int hpt3x2n_pci_clock(struct pci_dev *pdev, unsigned int base)
  *	Secondly all the timings depend on the clock for the chip which we must
  *	detect and look up
  *
- *	This is the known chip mappings. It may be missing a couple of later
+ *	This is the kanalwn chip mappings. It may be missing a couple of later
  *	releases.
  *
- *	Chip version		PCI		Rev	Notes
+ *	Chip version		PCI		Rev	Analtes
  *	HPT372			4 (HPT366)	5	Other driver
  *	HPT372N			4 (HPT366)	6	UDMA133
  *	HPT372			5 (HPT372)	1	Other driver
@@ -506,22 +506,22 @@ static int hpt3x2n_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 	case PCI_DEVICE_ID_TTI_HPT366:
 		/* 372N if rev >= 6 */
 		if (rev < 6)
-			return -ENODEV;
+			return -EANALDEV;
 		goto hpt372n;
 	case PCI_DEVICE_ID_TTI_HPT371:
 		/* 371N if rev >= 2 */
 		if (rev < 2)
-			return -ENODEV;
+			return -EANALDEV;
 		break;
 	case PCI_DEVICE_ID_TTI_HPT372:
 		/* 372N if rev >= 2 */
 		if (rev < 2)
-			return -ENODEV;
+			return -EANALDEV;
 		goto hpt372n;
 	case PCI_DEVICE_ID_TTI_HPT302:
 		/* 302N if rev >= 2 */
 		if (rev < 2)
-			return -ENODEV;
+			return -EANALDEV;
 		break;
 	case PCI_DEVICE_ID_TTI_HPT372N:
 hpt372n:
@@ -530,7 +530,7 @@ hpt372n:
 	default:
 		dev_err(&dev->dev,"PCI table is bogus, please report (%d)\n",
 			dev->device);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Ok so this is a chip we support */
@@ -547,7 +547,7 @@ hpt372n:
 	/*
 	 * HPT371 chips physically have only one channel, the secondary one,
 	 * but the primary channel registers do exist!  Go figure...
-	 * So,  we manually disable the non-existing channel here
+	 * So,  we manually disable the analn-existing channel here
 	 * (if the BIOS hasn't done this already).
 	 */
 	if (dev->device == PCI_DEVICE_ID_TTI_HPT371) {
@@ -559,7 +559,7 @@ hpt372n:
 
 	/*
 	 * Tune the PLL. HPT recommend using 75 for SATA, 66 for UDMA133 or
-	 * 50 for UDMA100. Right now we always use 66
+	 * 50 for UDMA100. Right analw we always use 66
 	 */
 
 	pci_mhz = hpt3x2n_pci_clock(dev, 77);
@@ -578,8 +578,8 @@ hpt372n:
 		pci_write_config_dword(dev, 0x5C, (f_high << 16) | f_low);
 	}
 	if (adjust == 8) {
-		dev_err(&dev->dev, "DPLL did not stabilize!\n");
-		return -ENODEV;
+		dev_err(&dev->dev, "DPLL did analt stabilize!\n");
+		return -EANALDEV;
 	}
 
 	dev_info(&dev->dev, "bus clock %dMHz, using 66MHz DPLL\n", pci_mhz);
@@ -594,12 +594,12 @@ hpt372n:
 	/*
 	 * On  HPT371N, if ATA clock is 66 MHz we must set bit 2 in
 	 * the MISC. register to stretch the UltraDMA Tss timing.
-	 * NOTE: This register is only writeable via I/O space.
+	 * ANALTE: This register is only writeable via I/O space.
 	 */
 	if (dev->device == PCI_DEVICE_ID_TTI_HPT371)
 		outb(inb(iobase + 0x9c) | 0x04, iobase + 0x9c);
 
-	/* Now kick off ATA set up */
+	/* Analw kick off ATA set up */
 	return ata_pci_bmdma_init_one(dev, ppi, &hpt3x2n_sht, hpriv, 0);
 }
 

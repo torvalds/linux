@@ -1,4 +1,4 @@
-Synopsys GPIO via CREG (Control REGisters) driver
+Syanalpsys GPIO via CREG (Control REGisters) driver
 
 Required properties:
 - compatible : "snps,creg-gpio-hsdk" or "snps,creg-gpio-axs10x".
@@ -7,7 +7,7 @@ Required properties:
   amount of cells must be specified as 2. The first cell is the
   pin number, the second cell is used to specify optional parameters:
   See "gpio-specifier" in .../devicetree/bindings/gpio/gpio.txt.
-- gpio-controller : Marks the device node as a GPIO controller.
+- gpio-controller : Marks the device analde as a GPIO controller.
 - ngpios: Number of GPIO pins.
 
 Example:

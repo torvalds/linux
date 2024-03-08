@@ -2,7 +2,7 @@
 /*
  * max77686-private.h - Voltage regulator driver for the Maxim 77686/802
  *
- *  Copyright (C) 2012 Samsung Electrnoics
+ *  Copyright (C) 2012 Samsung Electranalics
  *  Chiwoong Byun <woong.byun@samsung.com>
  */
 
@@ -29,7 +29,7 @@ enum max77686_pmic_reg {
 	MAX77686_REG_STATUS2		= 0x07,
 
 	MAX77686_REG_PWRON		= 0x08,
-	MAX77686_REG_ONOFF_DELAY	= 0x09,
+	MAX77686_REG_OANALFF_DELAY	= 0x09,
 	MAX77686_REG_MRSTB		= 0x0A,
 	/* Reserved: 0x0B-0x0F */
 

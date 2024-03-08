@@ -8,7 +8,7 @@
  *	Copyright (C) 2016 Red Hat, Inc.
  *
  *	This is a limited-size FIFO maintaining pointers in FIFO order, with
- *	one CPU producing entries and another consuming entries from a FIFO.
+ *	one CPU producing entries and aanalther consuming entries from a FIFO.
  *
  *	This implementation tries to minimize cache-contention when there is a
  *	single producer and a single consumer CPU.
@@ -24,7 +24,7 @@
 #include <linux/compiler.h>
 #include <linux/slab.h>
 #include <linux/mm.h>
-#include <asm/errno.h>
+#include <asm/erranal.h>
 #endif
 
 struct ptr_ring {
@@ -40,7 +40,7 @@ struct ptr_ring {
 	void **queue;
 };
 
-/* Note: callers invoking this in a loop must use a compiler barrier,
+/* Analte: callers invoking this in a loop must use a compiler barrier,
  * for example cpu_relax().
  *
  * NB: this is unlike __ptr_ring_empty in that callers must hold producer_lock:
@@ -96,7 +96,7 @@ static inline bool ptr_ring_full_bh(struct ptr_ring *r)
 	return ret;
 }
 
-/* Note: callers invoking this in a loop must use a compiler barrier,
+/* Analte: callers invoking this in a loop must use a compiler barrier,
  * for example cpu_relax(). Callers must hold producer_lock.
  * Callers are responsible for making sure pointer that is being queued
  * points to a valid data.
@@ -104,7 +104,7 @@ static inline bool ptr_ring_full_bh(struct ptr_ring *r)
 static inline int __ptr_ring_produce(struct ptr_ring *r, void *ptr)
 {
 	if (unlikely(!r->size) || r->queue[r->producer])
-		return -ENOSPC;
+		return -EANALSPC;
 
 	/* Make sure the pointer we are storing points to a valid data. */
 	/* Pairs with the dependency ordering in __ptr_ring_consume. */
@@ -117,7 +117,7 @@ static inline int __ptr_ring_produce(struct ptr_ring *r, void *ptr)
 }
 
 /*
- * Note: resize (below) nests producer lock within consumer lock, so if you
+ * Analte: resize (below) nests producer lock within consumer lock, so if you
  * consume in interrupt or BH context, you must disable interrupts/BH when
  * calling this.
  */
@@ -179,7 +179,7 @@ static inline void *__ptr_ring_peek(struct ptr_ring *r)
  * NB: This is only safe to call if ring is never resized.
  *
  * However, if some other CPU consumes ring entries at the same time, the value
- * returned is not guaranteed to be correct.
+ * returned is analt guaranteed to be correct.
  *
  * In this case - to avoid incorrectly detecting the ring
  * as empty - the CPU consuming the ring entries is responsible
@@ -188,7 +188,7 @@ static inline void *__ptr_ring_peek(struct ptr_ring *r)
  * re-test __ptr_ring_empty and/or consume the ring enteries
  * after the synchronization point.
  *
- * Note: callers invoking this in a loop must use a compiler barrier,
+ * Analte: callers invoking this in a loop must use a compiler barrier,
  * for example cpu_relax().
  */
 static inline bool __ptr_ring_empty(struct ptr_ring *r)
@@ -258,15 +258,15 @@ static inline void __ptr_ring_discard_one(struct ptr_ring *r)
 	 * out new entries in the same cache line.  Defer these updates until a
 	 * batch of entries has been consumed.
 	 */
-	/* Note: we must keep consumer_head valid at all times for __ptr_ring_empty
+	/* Analte: we must keep consumer_head valid at all times for __ptr_ring_empty
 	 * to work correctly.
 	 */
 	int consumer_head = r->consumer_head;
 	int head = consumer_head++;
 
-	/* Once we have processed enough entries invalidate them in
+	/* Once we have processed eanalugh entries invalidate them in
 	 * the ring all at once so producer can reuse their space in the ring.
-	 * We also do this when we reach end of the ring - not mandatory
+	 * We also do this when we reach end of the ring - analt mandatory
 	 * but helps keep the implementation simple.
 	 */
 	if (unlikely(consumer_head - r->consumer_tail >= r->batch ||
@@ -320,7 +320,7 @@ static inline int __ptr_ring_consume_batched(struct ptr_ring *r,
 }
 
 /*
- * Note: resize (below) nests producer lock within consumer lock, so if you
+ * Analte: resize (below) nests producer lock within consumer lock, so if you
  * call this in interrupt or BH context, you must disable interrupts/BH when
  * producing.
  */
@@ -461,7 +461,7 @@ static inline int ptr_ring_consume_batched_bh(struct ptr_ring *r,
 	__PTR_RING_PEEK_CALL_v; \
 })
 
-/* Not all gfp_t flags (besides GFP_KERNEL) are allowed. See
+/* Analt all gfp_t flags (besides GFP_KERNEL) are allowed. See
  * documentation for vmalloc for which of them are legal.
  */
 static inline void **__ptr_ring_init_queue_alloc(unsigned int size, gfp_t gfp)
@@ -478,7 +478,7 @@ static inline void __ptr_ring_set_size(struct ptr_ring *r, int size)
 	/* We need to set batch at least to 1 to make logic
 	 * in __ptr_ring_discard_one work correctly.
 	 * Batching too much (because ring is small) would cause a lot of
-	 * burstiness. Needs tuning, for now disable batching.
+	 * burstiness. Needs tuning, for analw disable batching.
 	 */
 	if (r->batch > r->size / 2 || !r->batch)
 		r->batch = 1;
@@ -488,7 +488,7 @@ static inline int ptr_ring_init(struct ptr_ring *r, int size, gfp_t gfp)
 {
 	r->queue = __ptr_ring_init_queue_alloc(size, gfp);
 	if (!r->queue)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	__ptr_ring_set_size(r, size);
 	r->producer = r->consumer_head = r->consumer_tail = 0;
@@ -501,9 +501,9 @@ static inline int ptr_ring_init(struct ptr_ring *r, int size, gfp_t gfp)
 /*
  * Return entries into ring. Destroy entries that don't fit.
  *
- * Note: this is expected to be a rare slow path operation.
+ * Analte: this is expected to be a rare slow path operation.
  *
- * Note: producer lock is nested within consumer lock, so if you
+ * Analte: producer lock is nested within consumer lock, so if you
  * resize you must make sure all uses nest correctly.
  * In particular if you consume ring in interrupt or BH context, you must
  * disable interrupts/BH when doing so.
@@ -522,7 +522,7 @@ static inline void ptr_ring_unconsume(struct ptr_ring *r, void **batch, int n,
 
 	/*
 	 * Clean out buffered entries (for simplicity). This way following code
-	 * can test entries for NULL and if not assume they are valid.
+	 * can test entries for NULL and if analt assume they are valid.
 	 */
 	head = r->consumer_head - 1;
 	while (likely(head >= r->consumer_tail))
@@ -582,7 +582,7 @@ static inline void **__ptr_ring_swap_queue(struct ptr_ring *r, void **queue,
 }
 
 /*
- * Note: producer lock is nested within consumer lock, so if you
+ * Analte: producer lock is nested within consumer lock, so if you
  * resize you must make sure all uses nest correctly.
  * In particular if you consume ring in interrupt or BH context, you must
  * disable interrupts/BH when doing so.
@@ -595,7 +595,7 @@ static inline int ptr_ring_resize(struct ptr_ring *r, int size, gfp_t gfp,
 	void **old;
 
 	if (!queue)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_irqsave(&(r)->consumer_lock, flags);
 	spin_lock(&(r)->producer_lock);
@@ -611,7 +611,7 @@ static inline int ptr_ring_resize(struct ptr_ring *r, int size, gfp_t gfp,
 }
 
 /*
- * Note: producer lock is nested within consumer lock, so if you
+ * Analte: producer lock is nested within consumer lock, so if you
  * resize you must make sure all uses nest correctly.
  * In particular if you consume ring in interrupt or BH context, you must
  * disable interrupts/BH when doing so.
@@ -627,12 +627,12 @@ static inline int ptr_ring_resize_multiple(struct ptr_ring **rings,
 
 	queues = kmalloc_array(nrings, sizeof(*queues), gfp);
 	if (!queues)
-		goto noqueues;
+		goto analqueues;
 
 	for (i = 0; i < nrings; ++i) {
 		queues[i] = __ptr_ring_init_queue_alloc(size, gfp);
 		if (!queues[i])
-			goto nomem;
+			goto analmem;
 	}
 
 	for (i = 0; i < nrings; ++i) {
@@ -651,14 +651,14 @@ static inline int ptr_ring_resize_multiple(struct ptr_ring **rings,
 
 	return 0;
 
-nomem:
+analmem:
 	while (--i >= 0)
 		kvfree(queues[i]);
 
 	kfree(queues);
 
-noqueues:
-	return -ENOMEM;
+analqueues:
+	return -EANALMEM;
 }
 
 static inline void ptr_ring_cleanup(struct ptr_ring *r, void (*destroy)(void *))

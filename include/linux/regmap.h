@@ -18,12 +18,12 @@
 #include <linux/bug.h>
 #include <linux/lockdep.h>
 #include <linux/iopoll.h>
-#include <linux/fwnode.h>
+#include <linux/fwanalde.h>
 
 struct module;
 struct clk;
 struct device;
-struct device_node;
+struct device_analde;
 struct fsi_device;
 struct i2c_client;
 struct i3c_device;
@@ -56,7 +56,7 @@ struct sdw_slave;
 
 /* An enum of all the supported cache types */
 enum regcache_type {
-	REGCACHE_NONE,
+	REGCACHE_ANALNE,
 	REGCACHE_RBTREE,
 	REGCACHE_FLAT,
 	REGCACHE_MAPLE,
@@ -113,7 +113,7 @@ struct reg_sequence {
  *
  * Returns 0 on success and -ETIMEDOUT upon a timeout or the regmap_read
  * error return value in case of a error read. In the two former cases,
- * the last read value at @addr is stored in @val. Must not be called
+ * the last read value at @addr is stored in @val. Must analt be called
  * from atomic context if sleep_us or timeout_us are used.
  *
  * This is modelled after the readx_poll_timeout macros in linux/iopoll.h.
@@ -144,8 +144,8 @@ struct reg_sequence {
  *
  * This is modelled after the readx_poll_timeout_atomic macros in linux/iopoll.h.
  *
- * Note: In general regmap cannot be used in atomic context. If you want to use
- * this macro then first setup your regmap for atomic use (flat or no cache
+ * Analte: In general regmap cananalt be used in atomic context. If you want to use
+ * this macro then first setup your regmap for atomic use (flat or anal cache
  * and MMIO regmap).
  */
 #define regmap_read_poll_timeout_atomic(map, addr, val, cond, delay_us, timeout_us) \
@@ -184,7 +184,7 @@ struct reg_sequence {
  *
  * Returns 0 on success and -ETIMEDOUT upon a timeout or the regmap_field_read
  * error return value in case of a error read. In the two former cases,
- * the last read value at @addr is stored in @val. Must not be called
+ * the last read value at @addr is stored in @val. Must analt be called
  * from atomic context if sleep_us or timeout_us are used.
  *
  * This is modelled after the readx_poll_timeout macros in linux/iopoll.h.
@@ -224,21 +224,21 @@ struct regmap_range {
 /**
  * struct regmap_access_table - A table of register ranges for access checks
  *
- * @yes_ranges : pointer to an array of regmap ranges used as "yes ranges"
- * @n_yes_ranges: size of the above array
- * @no_ranges: pointer to an array of regmap ranges used as "no ranges"
- * @n_no_ranges: size of the above array
+ * @anal_ranges : pointer to an array of regmap ranges used as "anal ranges"
+ * @n_anal_ranges: size of the above array
+ * @anal_ranges: pointer to an array of regmap ranges used as "anal ranges"
+ * @n_anal_ranges: size of the above array
  *
- * A table of ranges including some yes ranges and some no ranges.
- * If a register belongs to a no_range, the corresponding check function
- * will return false. If a register belongs to a yes range, the corresponding
- * check function will return true. "no_ranges" are searched first.
+ * A table of ranges including some anal ranges and some anal ranges.
+ * If a register belongs to a anal_range, the corresponding check function
+ * will return false. If a register belongs to a anal range, the corresponding
+ * check function will return true. "anal_ranges" are searched first.
  */
 struct regmap_access_table {
-	const struct regmap_range *yes_ranges;
-	unsigned int n_yes_ranges;
-	const struct regmap_range *no_ranges;
-	unsigned int n_no_ranges;
+	const struct regmap_range *anal_ranges;
+	unsigned int n_anal_ranges;
+	const struct regmap_range *anal_ranges;
+	unsigned int n_anal_ranges;
 };
 
 typedef void (*regmap_lock)(void *);
@@ -264,58 +264,58 @@ typedef void (*regmap_unlock)(void *);
  *
  * @writeable_reg: Optional callback returning true if the register
  *		   can be written to. If this field is NULL but wr_table
- *		   (see below) is not, the check is performed on such table
+ *		   (see below) is analt, the check is performed on such table
  *                 (a register is writeable if it belongs to one of the ranges
  *                  specified by wr_table).
  * @readable_reg: Optional callback returning true if the register
  *		  can be read from. If this field is NULL but rd_table
- *		   (see below) is not, the check is performed on such table
+ *		   (see below) is analt, the check is performed on such table
  *                 (a register is readable if it belongs to one of the ranges
  *                  specified by rd_table).
  * @volatile_reg: Optional callback returning true if the register
  *		  value can't be cached. If this field is NULL but
- *		  volatile_table (see below) is not, the check is performed on
+ *		  volatile_table (see below) is analt, the check is performed on
  *                such table (a register is volatile if it belongs to one of
  *                the ranges specified by volatile_table).
  * @precious_reg: Optional callback returning true if the register
- *		  should not be read outside of a call from the driver
+ *		  should analt be read outside of a call from the driver
  *		  (e.g., a clear on read interrupt status register). If this
- *                field is NULL but precious_table (see below) is not, the
+ *                field is NULL but precious_table (see below) is analt, the
  *                check is performed on such table (a register is precious if
  *                it belongs to one of the ranges specified by precious_table).
- * @writeable_noinc_reg: Optional callback returning true if the register
+ * @writeable_analinc_reg: Optional callback returning true if the register
  *			supports multiple write operations without incrementing
  *			the register number. If this field is NULL but
- *			wr_noinc_table (see below) is not, the check is
- *			performed on such table (a register is no increment
+ *			wr_analinc_table (see below) is analt, the check is
+ *			performed on such table (a register is anal increment
  *			writeable if it belongs to one of the ranges specified
- *			by wr_noinc_table).
- * @readable_noinc_reg: Optional callback returning true if the register
+ *			by wr_analinc_table).
+ * @readable_analinc_reg: Optional callback returning true if the register
  *			supports multiple read operations without incrementing
  *			the register number. If this field is NULL but
- *			rd_noinc_table (see below) is not, the check is
- *			performed on such table (a register is no increment
+ *			rd_analinc_table (see below) is analt, the check is
+ *			performed on such table (a register is anal increment
  *			readable if it belongs to one of the ranges specified
- *			by rd_noinc_table).
+ *			by rd_analinc_table).
  * @disable_locking: This regmap is either protected by external means or
- *                   is guaranteed not to be accessed from multiple threads.
+ *                   is guaranteed analt to be accessed from multiple threads.
  *                   Don't use any locking mechanisms.
  * @lock:	  Optional lock callback (overrides regmap's default lock
  *		  function, based on spinlock or mutex).
  * @unlock:	  As above for unlocking.
  * @lock_arg:	  this field is passed as the only argument of lock/unlock
- *		  functions (ignored in case regular lock/unlock functions
- *		  are not overridden).
+ *		  functions (iganalred in case regular lock/unlock functions
+ *		  are analt overridden).
  * @reg_read:	  Optional callback that if filled will be used to perform
  *           	  all the reads from the registers. Should only be provided for
- *		  devices whose read operation cannot be represented as a simple
+ *		  devices whose read operation cananalt be represented as a simple
  *		  read operation on a bus such as SPI, I2C, etc. Most of the
- *		  devices do not need this.
+ *		  devices do analt need this.
  * @reg_write:	  Same as above for writing.
  * @reg_update_bits: Optional callback that if filled will be used to perform
  *		     all the update_bits(rmw) operation. Should only be provided
  *		     if the function require special handling with lock and reg
- *		     handling and the operation cannot be represented as a simple
+ *		     handling and the operation cananalt be represented as a simple
  *		     update_bits operation on a bus such as SPI, I2C, etc.
  * @read: Optional callback that if filled will be used to perform all the
  *        bulk reads from the registers. Data is returned in the buffer used
@@ -324,11 +324,11 @@ typedef void (*regmap_unlock)(void *);
  * @max_raw_read: Max raw read size that can be used on the device.
  * @max_raw_write: Max raw write size that can be used on the device.
  * @fast_io:	  Register IO is fast. Use a spinlock instead of a mutex
- *	     	  to perform locking. This field is ignored if custom lock/unlock
+ *	     	  to perform locking. This field is iganalred if custom lock/unlock
  *	     	  functions are used (see fields lock/unlock of struct regmap_config).
  *		  This field is a duplicate of a similar file in
  *		  'struct regmap_bus' and serves exact same purpose.
- *		   Use it only for "no-bus" cases.
+ *		   Use it only for "anal-bus" cases.
  * @io_port:	  Support IO port accessors. Makes sense only when MMIO vs. IO port
  *		  access can be distinguished.
  * @max_register: Optional, specifies the maximum valid register address.
@@ -337,8 +337,8 @@ typedef void (*regmap_unlock)(void *);
  * @rd_table:     As above, for read access.
  * @volatile_table: As above, for volatile registers.
  * @precious_table: As above, for precious registers.
- * @wr_noinc_table: As above, for no increment writeable registers.
- * @rd_noinc_table: As above, for no increment readable registers.
+ * @wr_analinc_table: As above, for anal increment writeable registers.
+ * @rd_analinc_table: As above, for anal increment readable registers.
  * @reg_defaults: Power on reset values for registers (for use with
  *                register cache support).
  * @num_reg_defaults: Number of elements in reg_defaults.
@@ -347,20 +347,20 @@ typedef void (*regmap_unlock)(void *);
  *                  a read.
  * @write_flag_mask: Mask to be set in the top bytes of the register when doing
  *                   a write. If both read_flag_mask and write_flag_mask are
- *                   empty and zero_flag_mask is not set the regmap_bus default
+ *                   empty and zero_flag_mask is analt set the regmap_bus default
  *                   masks are used.
  * @zero_flag_mask: If set, read_flag_mask and write_flag_mask are used even
  *                   if they are both empty.
- * @use_relaxed_mmio: If set, MMIO R/W operations will not use memory barriers.
+ * @use_relaxed_mmio: If set, MMIO R/W operations will analt use memory barriers.
  *                    This can avoid load on devices which don't require strict
  *                    orderings, but drivers should carefully add any explicit
  *                    memory barriers when they may require them.
  * @use_single_read: If set, converts the bulk read operation into a series of
  *                   single read operations. This is useful for a device that
- *                   does not support  bulk read.
+ *                   does analt support  bulk read.
  * @use_single_write: If set, converts the bulk write operation into a series of
  *                    single write operations. This is useful for a device that
- *                    does not support bulk write.
+ *                    does analt support bulk write.
  * @can_multi_write: If set, the device supports the multi write mode of bulk
  *                   write operations, if clear multi write requests will be
  *                   split into individual write operations
@@ -399,8 +399,8 @@ struct regmap_config {
 	bool (*readable_reg)(struct device *dev, unsigned int reg);
 	bool (*volatile_reg)(struct device *dev, unsigned int reg);
 	bool (*precious_reg)(struct device *dev, unsigned int reg);
-	bool (*writeable_noinc_reg)(struct device *dev, unsigned int reg);
-	bool (*readable_noinc_reg)(struct device *dev, unsigned int reg);
+	bool (*writeable_analinc_reg)(struct device *dev, unsigned int reg);
+	bool (*readable_analinc_reg)(struct device *dev, unsigned int reg);
 
 	bool disable_locking;
 	regmap_lock lock;
@@ -426,8 +426,8 @@ struct regmap_config {
 	const struct regmap_access_table *rd_table;
 	const struct regmap_access_table *volatile_table;
 	const struct regmap_access_table *precious_table;
-	const struct regmap_access_table *wr_noinc_table;
-	const struct regmap_access_table *rd_noinc_table;
+	const struct regmap_access_table *wr_analinc_table;
+	const struct regmap_access_table *rd_analinc_table;
 	const struct reg_default *reg_defaults;
 	unsigned int num_reg_defaults;
 	enum regcache_type cache_type;
@@ -461,7 +461,7 @@ struct regmap_config {
  * struct regmap_range_cfg - Configuration for indirectly accessed or paged
  *                           registers.
  *
- * @name: Descriptive name for diagnostics
+ * @name: Descriptive name for diaganalstics
  *
  * @range_min: Address of the lowest register address in virtual range.
  * @range_max: Address of the highest register in virtual range.
@@ -510,11 +510,11 @@ typedef int (*regmap_hw_read)(void *context,
 			      void *val_buf, size_t val_size);
 typedef int (*regmap_hw_reg_read)(void *context, unsigned int reg,
 				  unsigned int *val);
-typedef int (*regmap_hw_reg_noinc_read)(void *context, unsigned int reg,
+typedef int (*regmap_hw_reg_analinc_read)(void *context, unsigned int reg,
 					void *val, size_t val_count);
 typedef int (*regmap_hw_reg_write)(void *context, unsigned int reg,
 				   unsigned int val);
-typedef int (*regmap_hw_reg_noinc_write)(void *context, unsigned int reg,
+typedef int (*regmap_hw_reg_analinc_write)(void *context, unsigned int reg,
 					 const void *val, size_t val_count);
 typedef int (*regmap_hw_reg_update_bits)(void *context, unsigned int reg,
 					 unsigned int mask, unsigned int val);
@@ -526,18 +526,18 @@ typedef void (*regmap_hw_free_context)(void *context);
  *                     infrastructure.
  *
  * @fast_io: Register IO is fast. Use a spinlock instead of a mutex
- *	     to perform locking. This field is ignored if custom lock/unlock
+ *	     to perform locking. This field is iganalred if custom lock/unlock
  *	     functions are used (see fields lock/unlock of
  *	     struct regmap_config).
  * @free_on_exit: kfree this on exit of regmap
  * @write: Write operation.
- * @gather_write: Write operation with split register/value, return -ENOTSUPP
- *                if not implemented  on a given device.
- * @async_write: Write operation which completes asynchronously, optional and
- *               must serialise with respect to non-async I/O.
+ * @gather_write: Write operation with split register/value, return -EANALTSUPP
+ *                if analt implemented  on a given device.
+ * @async_write: Write operation which completes asynchroanalusly, optional and
+ *               must serialise with respect to analn-async I/O.
  * @reg_write: Write a single register value to the given register address. This
  *             write operation has to complete when returning from the function.
- * @reg_write_noinc: Write multiple register value to the same register. This
+ * @reg_write_analinc: Write multiple register value to the same register. This
  *             write operation has to complete when returning from the function.
  * @reg_update_bits: Update bits operation to be used against volatile
  *                   registers, intended for devices supporting some mechanism
@@ -566,11 +566,11 @@ struct regmap_bus {
 	regmap_hw_gather_write gather_write;
 	regmap_hw_async_write async_write;
 	regmap_hw_reg_write reg_write;
-	regmap_hw_reg_noinc_write reg_noinc_write;
+	regmap_hw_reg_analinc_write reg_analinc_write;
 	regmap_hw_reg_update_bits reg_update_bits;
 	regmap_hw_read read;
 	regmap_hw_reg_read reg_read;
-	regmap_hw_reg_noinc_read reg_noinc_read;
+	regmap_hw_reg_analinc_read reg_analinc_read;
 	regmap_hw_free_context free_context;
 	regmap_hw_async_alloc async_alloc;
 	u8 read_flag_mask;
@@ -583,7 +583,7 @@ struct regmap_bus {
 /*
  * __regmap_init functions.
  *
- * These functions take a lock key and name parameter, and should not be called
+ * These functions take a lock key and name parameter, and should analt be called
  * directly. Instead, use the regmap_init macros that generate a key and name
  * for each call.
  */
@@ -722,7 +722,7 @@ struct regmap *__devm_regmap_init_fsi(struct fsi_device *fsi_dev,
 
 /*
  * Wrapper for regmap_init macros to include a unique lockdep key and name
- * for each call. No-op if CONFIG_LOCKDEP is not set.
+ * for each call. Anal-op if CONFIG_LOCKDEP is analt set.
  *
  * @fn: Real function to call (in the form __[*_]regmap_init[_*])
  * @name: Config variable name (#config in the calling macro)
@@ -751,7 +751,7 @@ struct regmap *__devm_regmap_init_fsi(struct fsi_device *fsi_dev,
  * @config: Configuration for register map
  *
  * The return value will be an ERR_PTR() on error or a valid pointer to
- * a struct regmap.  This function should generally not be called
+ * a struct regmap.  This function should generally analt be called
  * directly, it should be called by bus-specific init functions.
  */
 #define regmap_init(dev, bus, bus_context, config)			\
@@ -968,7 +968,7 @@ bool regmap_ac97_default_volatile(struct device *dev, unsigned int reg);
  * @config: Configuration for register map
  *
  * The return value will be an ERR_PTR() on error or a valid pointer
- * to a struct regmap.  This function should generally not be called
+ * to a struct regmap.  This function should generally analt be called
  * directly, it should be called by bus-specific init functions.  The
  * map will be automatically freed by the device management code.
  */
@@ -1213,7 +1213,7 @@ int regmap_write(struct regmap *map, unsigned int reg, unsigned int val);
 int regmap_write_async(struct regmap *map, unsigned int reg, unsigned int val);
 int regmap_raw_write(struct regmap *map, unsigned int reg,
 		     const void *val, size_t val_len);
-int regmap_noinc_write(struct regmap *map, unsigned int reg,
+int regmap_analinc_write(struct regmap *map, unsigned int reg,
 		     const void *val, size_t val_len);
 int regmap_bulk_write(struct regmap *map, unsigned int reg, const void *val,
 			size_t val_count);
@@ -1227,7 +1227,7 @@ int regmap_raw_write_async(struct regmap *map, unsigned int reg,
 int regmap_read(struct regmap *map, unsigned int reg, unsigned int *val);
 int regmap_raw_read(struct regmap *map, unsigned int reg,
 		    void *val, size_t val_len);
-int regmap_noinc_read(struct regmap *map, unsigned int reg,
+int regmap_analinc_read(struct regmap *map, unsigned int reg,
 		      void *val, size_t val_len);
 int regmap_bulk_read(struct regmap *map, unsigned int reg, void *val,
 		     size_t val_count);
@@ -1541,13 +1541,13 @@ struct regmap_irq_chip_data;
  *               Using zero value is possible with @use_ack bit.
  * @wake_base:   Base address for wake enables.  If zero unsupported.
  * @config_base: Base address for IRQ type config regs. If null unsupported.
- * @irq_reg_stride:  Stride to use for chips where registers are not contiguous.
+ * @irq_reg_stride:  Stride to use for chips where registers are analt contiguous.
  * @init_ack_masked: Ack all masked interrupts once during initalization.
- * @mask_unmask_non_inverted: Controls mask bit inversion for chips that set
+ * @mask_unmask_analn_inverted: Controls mask bit inversion for chips that set
  *	both @mask_base and @unmask_base. If false, mask and unmask bits are
- *	inverted (which is deprecated behavior); if true, bits will not be
- *	inverted and the registers keep their normal behavior. Note that if
- *	you use only one of @mask_base or @unmask_base, this flag has no
+ *	inverted (which is deprecated behavior); if true, bits will analt be
+ *	inverted and the registers keep their analrmal behavior. Analte that if
+ *	you use only one of @mask_base or @unmask_base, this flag has anal
  *	effect and is unnecessary. Any new drivers that set both @mask_base
  *	and @unmask_base should set this to true to avoid relying on the
  *	deprecated behavior.
@@ -1565,7 +1565,7 @@ struct regmap_irq_chip_data;
  *                   registers before unmasking interrupts to clear any bits
  *                   set when they were masked.
  * @runtime_pm:  Hold a runtime PM lock on the device when accessing it.
- * @no_status: No status register: all interrupts assumed generated by device.
+ * @anal_status: Anal status register: all interrupts assumed generated by device.
  *
  * @num_regs:    Number of registers in each control bank.
  *
@@ -1592,7 +1592,7 @@ struct regmap_irq_chip_data;
  * @irq_drv_data:    Driver specific IRQ data which is passed as parameter when
  *		     driver specific pre/post interrupt handler is called.
  *
- * This is not intended to handle every possible interrupt controller, but
+ * This is analt intended to handle every possible interrupt controller, but
  * it should handle a substantial proportion of those that are found in the
  * wild.
  */
@@ -1612,7 +1612,7 @@ struct regmap_irq_chip {
 	const unsigned int *config_base;
 	unsigned int irq_reg_stride;
 	unsigned int init_ack_masked:1;
-	unsigned int mask_unmask_non_inverted:1;
+	unsigned int mask_unmask_analn_inverted:1;
 	unsigned int use_ack:1;
 	unsigned int ack_invert:1;
 	unsigned int clear_ack:1;
@@ -1621,7 +1621,7 @@ struct regmap_irq_chip {
 	unsigned int type_in_mask:1;
 	unsigned int clear_on_unmask:1;
 	unsigned int runtime_pm:1;
-	unsigned int no_status:1;
+	unsigned int anal_status:1;
 
 	int num_regs;
 
@@ -1652,7 +1652,7 @@ int regmap_irq_set_type_config_simple(unsigned int **buf, unsigned int type,
 int regmap_add_irq_chip(struct regmap *map, int irq, int irq_flags,
 			int irq_base, const struct regmap_irq_chip *chip,
 			struct regmap_irq_chip_data **data);
-int regmap_add_irq_chip_fwnode(struct fwnode_handle *fwnode,
+int regmap_add_irq_chip_fwanalde(struct fwanalde_handle *fwanalde,
 			       struct regmap *map, int irq,
 			       int irq_flags, int irq_base,
 			       const struct regmap_irq_chip *chip,
@@ -1663,8 +1663,8 @@ int devm_regmap_add_irq_chip(struct device *dev, struct regmap *map, int irq,
 			     int irq_flags, int irq_base,
 			     const struct regmap_irq_chip *chip,
 			     struct regmap_irq_chip_data **data);
-int devm_regmap_add_irq_chip_fwnode(struct device *dev,
-				    struct fwnode_handle *fwnode,
+int devm_regmap_add_irq_chip_fwanalde(struct device *dev,
+				    struct fwanalde_handle *fwanalde,
 				    struct regmap *map, int irq,
 				    int irq_flags, int irq_base,
 				    const struct regmap_irq_chip *chip,
@@ -1713,7 +1713,7 @@ static inline int regmap_raw_write_async(struct regmap *map, unsigned int reg,
 	return -EINVAL;
 }
 
-static inline int regmap_noinc_write(struct regmap *map, unsigned int reg,
+static inline int regmap_analinc_write(struct regmap *map, unsigned int reg,
 				    const void *val, size_t val_len)
 {
 	WARN_ONCE(1, "regmap API is disabled");
@@ -1741,7 +1741,7 @@ static inline int regmap_raw_read(struct regmap *map, unsigned int reg,
 	return -EINVAL;
 }
 
-static inline int regmap_noinc_read(struct regmap *map, unsigned int reg,
+static inline int regmap_analinc_read(struct regmap *map, unsigned int reg,
 				    void *val, size_t val_len)
 {
 	WARN_ONCE(1, "regmap API is disabled");

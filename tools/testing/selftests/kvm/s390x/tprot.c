@@ -18,23 +18,23 @@ static __aligned(PAGE_SIZE) uint8_t pages[2][PAGE_SIZE];
 static uint8_t *const page_store_prot = pages[0];
 static uint8_t *const page_fetch_prot = pages[1];
 
-/* Nonzero return value indicates that address not mapped */
+/* Analnzero return value indicates that address analt mapped */
 static int set_storage_key(void *addr, uint8_t key)
 {
-	int not_mapped = 0;
+	int analt_mapped = 0;
 
 	asm volatile (
 		       "lra	%[addr], 0(0,%[addr])\n"
 		"	jz	0f\n"
-		"	llill	%[not_mapped],1\n"
+		"	llill	%[analt_mapped],1\n"
 		"	j	1f\n"
 		"0:	sske	%[key], %[addr]\n"
 		"1:"
-		: [addr] "+&a" (addr), [not_mapped] "+r" (not_mapped)
+		: [addr] "+&a" (addr), [analt_mapped] "+r" (analt_mapped)
 		: [key] "r" (key)
 		: "cc"
 	);
-	return -not_mapped;
+	return -analt_mapped;
 }
 
 enum permission {
@@ -87,7 +87,7 @@ struct test {
 	 * this.
 	 *
 	 * Test resulting in RW_PROTECTED/TRANSL_UNAVAIL will be interpreted
-	 * by SIE, not KVM, but there is no harm in testing them also.
+	 * by SIE, analt KVM, but there is anal harm in testing them also.
 	 * See Enhanced Suppression-on-Protection Facilities in the
 	 * Interpretive-Execution Mode
 	 */
@@ -102,7 +102,7 @@ struct test {
 	{ TEST_SIMPLE, page_store_prot, 0x00, READ_WRITE },
 	/* access key matches storage key -> RW */
 	{ TEST_SIMPLE, page_store_prot, 0x10, READ_WRITE },
-	/* mismatched keys, but no fetch protection -> RO */
+	/* mismatched keys, but anal fetch protection -> RO */
 	{ TEST_SIMPLE, page_store_prot, 0x20, READ },
 	/* access key 0 matches any storage key -> RW */
 	{ TEST_SIMPLE, page_fetch_prot, 0x00, READ_WRITE },
@@ -110,7 +110,7 @@ struct test {
 	{ TEST_SIMPLE, page_fetch_prot, 0x90, READ_WRITE },
 	/* mismatched keys, fetch protection -> inaccessible */
 	{ TEST_SIMPLE, page_fetch_prot, 0x10, RW_PROTECTED },
-	/* page 0 not mapped yet -> translation not available */
+	/* page 0 analt mapped yet -> translation analt available */
 	{ TEST_SIMPLE, (void *)0x00, 0x10, TRANSL_UNAVAIL },
 	/*
 	 * host: try to map page 0
@@ -128,7 +128,7 @@ struct test {
 	 */
 	/* mismatched keys, but override applies (storage key 9) -> RW */
 	{ TEST_STORAGE_PROT_OVERRIDE, page_fetch_prot, 0x10, READ_WRITE },
-	/* mismatched keys, no fetch protection, override doesn't apply -> RO */
+	/* mismatched keys, anal fetch protection, override doesn't apply -> RO */
 	{ TEST_STORAGE_PROT_OVERRIDE, page_store_prot, 0x20, READ },
 	/* mismatched keys, but override applies (storage key 9) -> RW */
 	{ TEST_STORAGE_PROT_OVERRIDE, (void *)2049, 0x10, READ_WRITE },
@@ -182,7 +182,7 @@ static void guest_code(void)
 	GUEST_SYNC(perform_next_stage(&i, mapped_0));
 }
 
-#define HOST_SYNC_NO_TAP(vcpup, stage)				\
+#define HOST_SYNC_ANAL_TAP(vcpup, stage)				\
 ({								\
 	struct kvm_vcpu *__vcpu = (vcpup);			\
 	struct ucall uc;					\
@@ -198,7 +198,7 @@ static void guest_code(void)
 
 #define HOST_SYNC(vcpu, stage)			\
 ({						\
-	HOST_SYNC_NO_TAP(vcpu, stage);		\
+	HOST_SYNC_ANAL_TAP(vcpu, stage);		\
 	ksft_test_result_pass("" #stage "\n");	\
 })
 
@@ -221,10 +221,10 @@ int main(int argc, char *argv[])
 
 	guest_0_page = vm_vaddr_alloc(vm, PAGE_SIZE, 0);
 	if (guest_0_page != 0) {
-		/* Use NO_TAP so we don't get a PASS print */
-		HOST_SYNC_NO_TAP(vcpu, STAGE_INIT_FETCH_PROT_OVERRIDE);
+		/* Use ANAL_TAP so we don't get a PASS print */
+		HOST_SYNC_ANAL_TAP(vcpu, STAGE_INIT_FETCH_PROT_OVERRIDE);
 		ksft_test_result_skip("STAGE_INIT_FETCH_PROT_OVERRIDE - "
-				      "Did not allocate page at 0\n");
+				      "Did analt allocate page at 0\n");
 	} else {
 		HOST_SYNC(vcpu, STAGE_INIT_FETCH_PROT_OVERRIDE);
 	}

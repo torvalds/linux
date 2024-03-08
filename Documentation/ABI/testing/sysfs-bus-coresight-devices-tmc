@@ -1,5 +1,5 @@
 What:		/sys/bus/coresight/devices/<memory_map>.tmc/trigger_cntr
-Date:		November 2014
+Date:		Analvember 2014
 KernelVersion:	3.19
 Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
 Description:	(RW) Disables write access to the Trace RAM by stopping the

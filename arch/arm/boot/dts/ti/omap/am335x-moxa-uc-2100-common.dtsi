@@ -151,7 +151,7 @@
 };
 
 &gpio0_target {
-	ti,no-reset-on-init;
+	ti,anal-reset-on-init;
 };
 
 &mmc2 {
@@ -159,7 +159,7 @@
 	vmmc-supply = <&vmmcsd_fixed>;
 	bus-width = <8>;
 	pinctrl-0 = <&mmc1_pins_default>;
-	non-removable;
+	analn-removable;
 	status = "okay";
 };
 

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -44,7 +44,7 @@ enum amd_apu_flags {
 	AMD_APU_IS_RAVEN = 0x00000001UL,
 	AMD_APU_IS_RAVEN2 = 0x00000002UL,
 	AMD_APU_IS_PICASSO = 0x00000004UL,
-	AMD_APU_IS_RENOIR = 0x00000008UL,
+	AMD_APU_IS_REANALIR = 0x00000008UL,
 	AMD_APU_IS_GREEN_SARDINE = 0x00000010UL,
 	AMD_APU_IS_VANGOGH = 0x00000020UL,
 	AMD_APU_IS_CYAN_SKILLFISH2 = 0x00000040UL,
@@ -239,7 +239,7 @@ enum DC_FEATURE_MASK {
 	DC_MULTI_MON_PP_MCLK_SWITCH_MASK = (1 << 1), //0x2, enabled by default
 	DC_DISABLE_FRACTIONAL_PWM_MASK = (1 << 2), //0x4, disabled by default
 	DC_PSR_MASK = (1 << 3), //0x8, disabled by default for dcn < 3.1
-	DC_EDP_NO_POWER_SEQUENCING = (1 << 4), //0x10, disabled by default
+	DC_EDP_ANAL_POWER_SEQUENCING = (1 << 4), //0x10, disabled by default
 	DC_DISABLE_LTTPR_DP1_4A = (1 << 5), //0x20, disabled by default
 	DC_DISABLE_LTTPR_DP2_0 = (1 << 6), //0x40, disabled by default
 	DC_PSR_ALLOW_SMU_OPT = (1 << 7), //0x80, disabled by default
@@ -267,10 +267,10 @@ enum amd_dpm_forced_level;
  * struct amd_ip_funcs - general hooks for managing amdgpu IP Blocks
  * @name: Name of IP block
  * @early_init: sets up early driver state (pre sw_init),
- *              does not configure hw - Optional
+ *              does analt configure hw - Optional
  * @late_init: sets up late driver/hw state (post hw_init) - Optional
- * @sw_init: sets up driver state, does not configure hw
- * @sw_fini: tears down driver state, does not configure hw
+ * @sw_init: sets up driver state, does analt configure hw
+ * @sw_fini: tears down driver state, does analt configure hw
  * @early_fini: tears down stuff before dev detached from driver
  * @hw_init: sets up the hw state
  * @hw_fini: tears down the hw state

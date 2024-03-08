@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * kvm asynchronous fault support
+ * kvm asynchroanalus fault support
  *
  * Copyright 2010 Red Hat, Inc.
  *
@@ -24,7 +24,7 @@ int kvm_async_pf_init(void)
 	async_pf_cache = KMEM_CACHE(kvm_async_pf, 0);
 
 	if (!async_pf_cache)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -56,8 +56,8 @@ static void async_pf_execute(struct work_struct *work)
 	might_sleep();
 
 	/*
-	 * This work is run asynchronously to the task which owns
-	 * mm and might be done in another context, so we must
+	 * This work is run asynchroanalusly to the task which owns
+	 * mm and might be done in aanalther context, so we must
 	 * access remotely.
 	 */
 	mmap_read_lock(mm);
@@ -102,8 +102,8 @@ void kvm_clear_async_pf_completion_queue(struct kvm_vcpu *vcpu)
 		list_del(&work->queue);
 
 		/*
-		 * We know it's present in vcpu->async_pf.done, do
-		 * nothing here.
+		 * We kanalw it's present in vcpu->async_pf.done, do
+		 * analthing here.
 		 */
 		if (!work->vcpu)
 			continue;
@@ -156,8 +156,8 @@ void kvm_check_async_pf_completion(struct kvm_vcpu *vcpu)
 }
 
 /*
- * Try to schedule a job to handle page fault asynchronously. Returns 'true' on
- * success, 'false' on failure (page fault has to be handled synchronously).
+ * Try to schedule a job to handle page fault asynchroanalusly. Returns 'true' on
+ * success, 'false' on failure (page fault has to be handled synchroanalusly).
  */
 bool kvm_setup_async_pf(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa,
 			unsigned long hva, struct kvm_arch_async_pf *arch)
@@ -167,15 +167,15 @@ bool kvm_setup_async_pf(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa,
 	if (vcpu->async_pf.queued >= ASYNC_PF_PER_VCPU)
 		return false;
 
-	/* Arch specific code should not do async PF in this case */
+	/* Arch specific code should analt do async PF in this case */
 	if (unlikely(kvm_is_error_hva(hva)))
 		return false;
 
 	/*
-	 * do alloc nowait since if we are going to sleep anyway we
+	 * do alloc analwait since if we are going to sleep anyway we
 	 * may as well sleep faulting in page
 	 */
-	work = kmem_cache_zalloc(async_pf_cache, GFP_NOWAIT | __GFP_NOWARN);
+	work = kmem_cache_zalloc(async_pf_cache, GFP_ANALWAIT | __GFP_ANALWARN);
 	if (!work)
 		return false;
 
@@ -192,7 +192,7 @@ bool kvm_setup_async_pf(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa,
 
 	list_add_tail(&work->queue, &vcpu->async_pf.queue);
 	vcpu->async_pf.queued++;
-	work->notpresent_injected = kvm_arch_async_page_not_present(vcpu, work);
+	work->analtpresent_injected = kvm_arch_async_page_analt_present(vcpu, work);
 
 	schedule_work(&work->work);
 
@@ -209,7 +209,7 @@ int kvm_async_pf_wakeup_all(struct kvm_vcpu *vcpu)
 
 	work = kmem_cache_zalloc(async_pf_cache, GFP_ATOMIC);
 	if (!work)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	work->wakeup_all = true;
 	INIT_LIST_HEAD(&work->queue); /* for list_del to work */

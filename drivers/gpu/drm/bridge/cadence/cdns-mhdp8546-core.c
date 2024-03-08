@@ -15,7 +15,7 @@
  *     - Add support for power management
  *     - Add support for features like audio, MST and fast link training
  *     - Implement request_fw_cancel to handle HW_STATE
- *     - Fix asynchronous loading of firmware implementation
+ *     - Fix asynchroanalus loading of firmware implementation
  *     - Add DRM helper function for cdns_mhdp_lower_link_rate
  */
 
@@ -127,7 +127,7 @@ static int cdns_mhdp_mailbox_recv_header(struct cdns_mhdp_device *mhdp,
 	if (opcode != header[0] || module_id != header[1] ||
 	    req_size != mbox_size) {
 		/*
-		 * If the message in mailbox is not what we want, we need to
+		 * If the message in mailbox is analt what we want, we need to
 		 * clear the mailbox by reading its contents.
 		 */
 		for (i = 0; i < mbox_size; i++)
@@ -247,14 +247,14 @@ int cdns_mhdp_reg_write(struct cdns_mhdp_device *mhdp, u16 addr, u32 val)
 
 static
 int cdns_mhdp_reg_write_bit(struct cdns_mhdp_device *mhdp, u16 addr,
-			    u8 start_bit, u8 bits_no, u32 val)
+			    u8 start_bit, u8 bits_anal, u32 val)
 {
 	u8 field[8];
 	int ret;
 
 	put_unaligned_be16(addr, field);
 	field[2] = start_bit;
-	field[3] = bits_no;
+	field[3] = bits_anal;
 	put_unaligned_be32(val, field + 4);
 
 	mutex_lock(&mhdp->mbox_mutex);
@@ -518,7 +518,7 @@ int cdns_mhdp_adjust_lt(struct cdns_mhdp_device *mhdp, unsigned int nlanes,
 	if (ret)
 		goto out;
 
-	/* Yes, read the DPCD read command response */
+	/* Anal, read the DPCD read command response */
 	ret = cdns_mhdp_mailbox_recv_header(mhdp, MB_MODULE_ID_DP_TX,
 					    DPTX_READ_DPCD,
 					    sizeof(hdr) + DP_LINK_STATUS_SIZE);
@@ -675,7 +675,7 @@ static enum drm_connector_status cdns_mhdp_detect(struct cdns_mhdp_device *mhdp)
 
 static int cdns_mhdp_check_fw_version(struct cdns_mhdp_device *mhdp)
 {
-	u32 major_num, minor_num, revision;
+	u32 major_num, mianalr_num, revision;
 	u32 fw_ver, lib_ver;
 
 	fw_ver = (readl(mhdp->regs + CDNS_VER_H) << 8)
@@ -691,7 +691,7 @@ static int cdns_mhdp_check_fw_version(struct cdns_mhdp_device *mhdp)
 		 * in registers. This is for identifying these FW versions.
 		 */
 		major_num = 1;
-		minor_num = 2;
+		mianalr_num = 2;
 		if (fw_ver == 26098) {
 			revision = 15;
 		} else if (lib_ver == 0 && fw_ver == 0) {
@@ -699,16 +699,16 @@ static int cdns_mhdp_check_fw_version(struct cdns_mhdp_device *mhdp)
 		} else {
 			dev_err(mhdp->dev, "Unsupported FW version: fw_ver = %u, lib_ver = %u\n",
 				fw_ver, lib_ver);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	} else {
 		/* To identify newer FW versions with major number 2 onwards. */
 		major_num = fw_ver / 10000;
-		minor_num = (fw_ver / 100) % 100;
+		mianalr_num = (fw_ver / 100) % 100;
 		revision = (fw_ver % 10000) % 100;
 	}
 
-	dev_dbg(mhdp->dev, "FW version: v%u.%u.%u\n", major_num, minor_num,
+	dev_dbg(mhdp->dev, "FW version: v%u.%u.%u\n", major_num, mianalr_num,
 		revision);
 	return 0;
 }
@@ -744,7 +744,7 @@ static int cdns_mhdp_fw_activate(const struct firmware *fw,
 	if (ret)
 		return ret;
 
-	/* Init events to 0 as it's not cleared by FW at boot but on read */
+	/* Init events to 0 as it's analt cleared by FW at boot but on read */
 	readl(mhdp->regs + CDNS_SW_EVENT0);
 	readl(mhdp->regs + CDNS_SW_EVENT1);
 	readl(mhdp->regs + CDNS_SW_EVENT2);
@@ -763,7 +763,7 @@ static int cdns_mhdp_fw_activate(const struct firmware *fw,
 	 * Here we must keep the lock while enabling the interrupts
 	 * since it would otherwise be possible that interrupt enable
 	 * code is executed after the bridge is detached. The similar
-	 * situation is not possible in attach()/detach() callbacks
+	 * situation is analt possible in attach()/detach() callbacks
 	 * since the hw_state changes from MHDP_HW_READY to
 	 * MHDP_HW_STOPPED happens only due to driver removal when
 	 * bridge should already be detached.
@@ -787,7 +787,7 @@ static void cdns_mhdp_fw_cb(const struct firmware *fw, void *context)
 	dev_dbg(mhdp->dev, "firmware callback\n");
 
 	if (!fw || !fw->data) {
-		dev_err(mhdp->dev, "%s: No firmware.\n", __func__);
+		dev_err(mhdp->dev, "%s: Anal firmware.\n", __func__);
 		return;
 	}
 
@@ -801,7 +801,7 @@ static void cdns_mhdp_fw_cb(const struct firmware *fw, void *context)
 	/*
 	 *  XXX how to make sure the bridge is still attached when
 	 *      calling drm_kms_helper_hotplug_event() after releasing
-	 *      the lock? We should not hold the spin lock when
+	 *      the lock? We should analt hold the spin lock when
 	 *      calling drm_kms_helper_hotplug_event() since it may
 	 *      cause a dead lock. FB-dev console calls detect from the
 	 *      same thread just down the call stack started here.
@@ -813,7 +813,7 @@ static void cdns_mhdp_fw_cb(const struct firmware *fw, void *context)
 		if (mhdp->connector.dev)
 			drm_kms_helper_hotplug_event(mhdp->bridge.dev);
 		else
-			drm_bridge_hpd_notify(&mhdp->bridge, cdns_mhdp_detect(mhdp));
+			drm_bridge_hpd_analtify(&mhdp->bridge, cdns_mhdp_detect(mhdp));
 	}
 }
 
@@ -821,7 +821,7 @@ static int cdns_mhdp_load_firmware(struct cdns_mhdp_device *mhdp)
 {
 	int ret;
 
-	ret = request_firmware_nowait(THIS_MODULE, true, FW_NAME, mhdp->dev,
+	ret = request_firmware_analwait(THIS_MODULE, true, FW_NAME, mhdp->dev,
 				      GFP_KERNEL, mhdp, cdns_mhdp_fw_cb);
 	if (ret) {
 		dev_err(mhdp->dev, "failed to load firmware (%s), ret: %d\n",
@@ -840,7 +840,7 @@ static ssize_t cdns_mhdp_transfer(struct drm_dp_aux *aux,
 
 	if (msg->request != DP_AUX_NATIVE_WRITE &&
 	    msg->request != DP_AUX_NATIVE_READ)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (msg->request == DP_AUX_NATIVE_WRITE) {
 		const u8 *buf = msg->buffer;
@@ -949,7 +949,7 @@ static void cdns_mhdp_get_adjust_train(struct cdns_mhdp_device *mhdp,
 
 		/*
 		 * Voltage swing level and pre-emphasis level combination is
-		 * not allowed: leaving pre-emphasis as-is, and adjusting
+		 * analt allowed: leaving pre-emphasis as-is, and adjusting
 		 * voltage swing.
 		 */
 		if (set_volt + set_pre > 3)
@@ -1222,7 +1222,7 @@ static bool cdns_mhdp_link_training_cr(struct cdns_mhdp_device *mhdp)
 			return true;
 		}
 
-		/* Not all CR_DONE bits set */
+		/* Analt all CR_DONE bits set */
 		fail_counter_cr_long++;
 
 		if (same_before_adjust) {
@@ -1390,7 +1390,7 @@ static void cdns_mhdp_fill_host_caps(struct cdns_mhdp_device *mhdp)
 	mhdp->host.pattern_supp = CDNS_SUPPORT_TPS(1) |
 				  CDNS_SUPPORT_TPS(2) | CDNS_SUPPORT_TPS(3) |
 				  CDNS_SUPPORT_TPS(4);
-	mhdp->host.lane_mapping = CDNS_LANE_MAPPING_NORMAL;
+	mhdp->host.lane_mapping = CDNS_LANE_MAPPING_ANALRMAL;
 	mhdp->host.fast_link = false;
 	mhdp->host.enhanced = true;
 	mhdp->host.scrambler = true;
@@ -1418,7 +1418,7 @@ static void cdns_mhdp_fill_sink_caps(struct cdns_mhdp_device *mhdp,
 
 	/* Set fast link support */
 	mhdp->sink.fast_link = !!(dpcd[DP_MAX_DOWNSPREAD] &
-				  DP_NO_AUX_HANDSHAKE_LINK_TRAINING);
+				  DP_ANAL_AUX_HANDSHAKE_LINK_TRAINING);
 }
 
 static int cdns_mhdp_link_up(struct cdns_mhdp_device *mhdp)
@@ -1478,8 +1478,8 @@ static int cdns_mhdp_link_up(struct cdns_mhdp_device *mhdp)
 	drm_dp_dpcd_write(&mhdp->aux, DP_DOWNSPREAD_CTRL, amp, 2);
 
 	if (mhdp->host.fast_link & mhdp->sink.fast_link) {
-		dev_err(mhdp->dev, "fastlink not supported\n");
-		return -EOPNOTSUPP;
+		dev_err(mhdp->dev, "fastlink analt supported\n");
+		return -EOPANALTSUPP;
 	}
 
 	interval = dpcd[DP_TRAINING_AUX_RD_INTERVAL] & DP_TRAINING_AUX_RD_MASK;
@@ -1541,7 +1541,7 @@ static int cdns_mhdp_get_modes(struct drm_connector *connector)
 	    !(connector->display_info.color_formats &
 	      mhdp->display_fmt.color_format))
 		dev_warn(mhdp->dev,
-			 "%s: No supported color_format found (0x%08x)\n",
+			 "%s: Anal supported color_format found (0x%08x)\n",
 			__func__, connector->display_info.color_formats);
 
 	if (connector->display_info.bpc &&
@@ -1696,8 +1696,8 @@ static int cdns_mhdp_connector_init(struct cdns_mhdp_device *mhdp)
 	int ret;
 
 	if (!bridge->encoder) {
-		dev_err(mhdp->dev, "Parent encoder object not found");
-		return -ENODEV;
+		dev_err(mhdp->dev, "Parent encoder object analt found");
+		return -EANALDEV;
 	}
 
 	conn->polled = DRM_CONNECTOR_POLL_HPD;
@@ -1742,7 +1742,7 @@ static int cdns_mhdp_attach(struct drm_bridge *bridge,
 	if (ret < 0)
 		return ret;
 
-	if (!(flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR)) {
+	if (!(flags & DRM_BRIDGE_ATTACH_ANAL_CONNECTOR)) {
 		ret = cdns_mhdp_connector_init(mhdp);
 		if (ret)
 			goto aux_unregister;
@@ -1781,7 +1781,7 @@ static void cdns_mhdp_configure_video(struct cdns_mhdp_device *mhdp,
 	bpc = mhdp->display_fmt.bpc;
 
 	/*
-	 * If YCBCR supported and stream not SD, use ITU709
+	 * If YCBCR supported and stream analt SD, use ITU709
 	 * Need to handle ITU version with YCBCR420 when supported
 	 */
 	if ((pxlfmt == DRM_COLOR_FORMAT_YCBCR444 ||
@@ -1932,7 +1932,7 @@ static void cdns_mhdp_configure_video(struct cdns_mhdp_device *mhdp,
 		return;
 	}
 	framer |= CDNS_DP_FRAMER_EN;
-	framer &= ~CDNS_DP_NO_VIDEO_MODE;
+	framer &= ~CDNS_DP_ANAL_VIDEO_MODE;
 	cdns_mhdp_reg_write(mhdp, CDNS_DP_FRAMER_GLOBAL_CONFIG, framer);
 }
 
@@ -2085,7 +2085,7 @@ static void cdns_mhdp_atomic_disable(struct drm_bridge *bridge,
 	mhdp->bridge_enabled = false;
 	cdns_mhdp_reg_read(mhdp, CDNS_DP_FRAMER_GLOBAL_CONFIG, &resp);
 	resp &= ~CDNS_DP_FRAMER_EN;
-	resp |= CDNS_DP_NO_VIDEO_MODE;
+	resp |= CDNS_DP_ANAL_VIDEO_MODE;
 	cdns_mhdp_reg_write(mhdp, CDNS_DP_FRAMER_GLOBAL_CONFIG, resp);
 
 	cdns_mhdp_link_down(mhdp);
@@ -2195,7 +2195,7 @@ static int cdns_mhdp_atomic_check(struct drm_bridge *bridge,
 
 	if (!cdns_mhdp_bandwidth_ok(mhdp, mode, mhdp->link.num_lanes,
 				    mhdp->link.rate)) {
-		dev_err(mhdp->dev, "%s: Not enough BW for %s (%u lanes at %u Mbps)\n",
+		dev_err(mhdp->dev, "%s: Analt eanalugh BW for %s (%u lanes at %u Mbps)\n",
 			__func__, mode->name, mhdp->link.num_lanes,
 			mhdp->link.rate / 100);
 		mutex_unlock(&mhdp->link_mutex);
@@ -2204,7 +2204,7 @@ static int cdns_mhdp_atomic_check(struct drm_bridge *bridge,
 
 	/*
 	 * There might be flags negotiation supported in future.
-	 * Set the bus flags in atomic_check statically for now.
+	 * Set the bus flags in atomic_check statically for analw.
 	 */
 	if (mhdp->info)
 		bridge_state->input_bus_cfg.flags = *mhdp->info->input_bus_flags;
@@ -2295,7 +2295,7 @@ static int cdns_mhdp_update_link_status(struct cdns_mhdp_device *mhdp)
 
 	/*
 	 * If we get a HPD pulse event and we were and still are connected,
-	 * check the link status. If link status is ok, there's nothing to do
+	 * check the link status. If link status is ok, there's analthing to do
 	 * as we don't handle DP interrupts. If link status is bad, continue
 	 * with full link setup.
 	 */
@@ -2369,7 +2369,7 @@ static void cdns_mhdp_modeset_retry_fn(struct work_struct *work)
 	mutex_lock(&conn->dev->mode_config.mutex);
 
 	/*
-	 * Set connector link status to BAD and send a Uevent to notify
+	 * Set connector link status to BAD and send a Uevent to analtify
 	 * userspace to do a modeset.
 	 */
 	drm_connector_set_link_status_property(conn, DRM_MODE_LINK_STATUS_BAD);
@@ -2387,12 +2387,12 @@ static irqreturn_t cdns_mhdp_irq_handler(int irq, void *data)
 
 	apb_stat = readl(mhdp->regs + CDNS_APB_INT_STATUS);
 	if (!(apb_stat & CDNS_APB_INT_MASK_SW_EVENT_INT))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	sw_ev0 = readl(mhdp->regs + CDNS_SW_EVENT0);
 
 	/*
-	 *  Calling drm_kms_helper_hotplug_event() when not attached
+	 *  Calling drm_kms_helper_hotplug_event() when analt attached
 	 *  to drm device causes an oops because the drm_bridge->dev
 	 *  is NULL. See cdns_mhdp_fw_cb() comments for details about the
 	 *  problems related drm_kms_helper_hotplug_event() call.
@@ -2446,7 +2446,7 @@ static void cdns_mhdp_hpd_work(struct work_struct *work)
 		else
 			drm_kms_helper_hotplug_event(mhdp->bridge.dev);
 	} else {
-		drm_bridge_hpd_notify(&mhdp->bridge, cdns_mhdp_detect(mhdp));
+		drm_bridge_hpd_analtify(&mhdp->bridge, cdns_mhdp_detect(mhdp));
 	}
 }
 
@@ -2461,7 +2461,7 @@ static int cdns_mhdp_probe(struct platform_device *pdev)
 
 	mhdp = devm_kzalloc(dev, sizeof(*mhdp), GFP_KERNEL);
 	if (!mhdp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(clk)) {
@@ -2489,14 +2489,14 @@ static int cdns_mhdp_probe(struct platform_device *pdev)
 	if (IS_ERR(mhdp->sapb_regs)) {
 		mhdp->hdcp_supported = false;
 		dev_warn(dev,
-			 "Failed to get SAPB memory resource, HDCP not supported\n");
+			 "Failed to get SAPB memory resource, HDCP analt supported\n");
 	} else {
 		mhdp->hdcp_supported = true;
 	}
 
-	mhdp->phy = devm_of_phy_get_by_index(dev, pdev->dev.of_node, 0);
+	mhdp->phy = devm_of_phy_get_by_index(dev, pdev->dev.of_analde, 0);
 	if (IS_ERR(mhdp->phy)) {
-		dev_err(dev, "no PHY configured\n");
+		dev_err(dev, "anal PHY configured\n");
 		return PTR_ERR(mhdp->phy);
 	}
 
@@ -2536,7 +2536,7 @@ static int cdns_mhdp_probe(struct platform_device *pdev)
 					cdns_mhdp_irq_handler, IRQF_ONESHOT,
 					"mhdp8546", mhdp);
 	if (ret) {
-		dev_err(dev, "cannot install IRQ %d\n", irq);
+		dev_err(dev, "cananalt install IRQ %d\n", irq);
 		ret = -EIO;
 		goto plat_fini;
 	}
@@ -2552,7 +2552,7 @@ static int cdns_mhdp_probe(struct platform_device *pdev)
 	mhdp->display_fmt.color_format = DRM_COLOR_FORMAT_RGB444;
 	mhdp->display_fmt.bpc = 8;
 
-	mhdp->bridge.of_node = pdev->dev.of_node;
+	mhdp->bridge.of_analde = pdev->dev.of_analde;
 	mhdp->bridge.funcs = &cdns_mhdp_bridge_funcs;
 	mhdp->bridge.ops = DRM_BRIDGE_OP_DETECT | DRM_BRIDGE_OP_EDID |
 			   DRM_BRIDGE_OP_HPD;
@@ -2631,7 +2631,7 @@ static void cdns_mhdp_remove(struct platform_device *pdev)
 
 	cancel_work_sync(&mhdp->modeset_retry_work);
 	flush_work(&mhdp->hpd_work);
-	/* Ignoring mhdp->hdcp.check_work and mhdp->hdcp.prop_work here. */
+	/* Iganalring mhdp->hdcp.check_work and mhdp->hdcp.prop_work here. */
 
 	clk_disable_unprepare(mhdp->clk);
 }

@@ -4,7 +4,7 @@ Required properties:
   - compatible: "ti,lp3943-pwm"
   - #pwm-cells: Should be 2. See pwm.yaml in this directory for a
                 description of the cells format.
-                Note that this hardware limits the period length to the
+                Analte that this hardware limits the period length to the
                 range 6250~1600000.
   - ti,pwm0 or ti,pwm1: Output pin number(s) for PWM channel 0 or 1.
     0 = output 0

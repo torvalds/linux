@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  *
  * Copyright (c) 2011, Microsoft Corporation.
@@ -13,7 +13,7 @@
  * more details.
  *
  * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+ * this program; if analt, write to the Free Software Foundation, Inc., 59 Temple
  * Place - Suite 330, Boston, MA 02111-1307 USA.
  *
  * Authors:
@@ -31,13 +31,13 @@
 /*
  * Framework version for util services.
  */
-#define UTIL_FW_MINOR  0
+#define UTIL_FW_MIANALR  0
 
 #define UTIL_WS2K8_FW_MAJOR  1
-#define UTIL_WS2K8_FW_VERSION     (UTIL_WS2K8_FW_MAJOR << 16 | UTIL_FW_MINOR)
+#define UTIL_WS2K8_FW_VERSION     (UTIL_WS2K8_FW_MAJOR << 16 | UTIL_FW_MIANALR)
 
 #define UTIL_FW_MAJOR  3
-#define UTIL_FW_VERSION     (UTIL_FW_MAJOR << 16 | UTIL_FW_MINOR)
+#define UTIL_FW_VERSION     (UTIL_FW_MAJOR << 16 | UTIL_FW_MIANALR)
 
 
 /*
@@ -80,7 +80,7 @@ struct hv_vss_hdr {
  * Flag values for the hv_vss_check_feature. Linux supports only
  * one value.
  */
-#define VSS_HBU_NO_AUTO_RECOVERY	0x00000005
+#define VSS_HBU_ANAL_AUTO_RECOVERY	0x00000005
 
 struct hv_vss_check_feature {
 	__u32 flags;
@@ -93,13 +93,13 @@ struct hv_vss_check_dm_info {
 /*
  * struct hv_vss_msg encodes the fields that the Linux VSS
  * driver accesses. However, FREEZE messages from Hyper-V contain
- * additional LUN information that Linux doesn't use and are not
+ * additional LUN information that Linux doesn't use and are analt
  * represented in struct hv_vss_msg. A received FREEZE message may
  * be as large as 6,260 bytes, so the driver must allocate at least
- * that much space, not sizeof(struct hv_vss_msg). Other messages
+ * that much space, analt sizeof(struct hv_vss_msg). Other messages
  * such as AUTO_RECOVER may be as large as 12,500 bytes. However,
  * because the Linux VSS driver responds that it doesn't support
- * auto-recovery, it should not receive such messages.
+ * auto-recovery, it should analt receive such messages.
  */
 struct hv_vss_msg {
 	union {
@@ -162,8 +162,8 @@ struct hv_do_fcopy {
  * An implementation of HyperV key value pair (KVP) functionality for Linux.
  *
  *
- * Copyright (C) 2010, Novell, Inc.
- * Author : K. Y. Srinivasan <ksrinivasan@novell.com>
+ * Copyright (C) 2010, Analvell, Inc.
+ * Author : K. Y. Srinivasan <ksrinivasan@analvell.com>
  *
  */
 
@@ -171,16 +171,16 @@ struct hv_do_fcopy {
  * Maximum value size - used for both key names and value data, and includes
  * any applicable NULL terminators.
  *
- * Note:  This limit is somewhat arbitrary, but falls easily within what is
+ * Analte:  This limit is somewhat arbitrary, but falls easily within what is
  * supported for all native guests (back to Win 2000) and what is reasonable
- * for the IC KVP exchange functionality.  Note that Windows Me/98/95 are
+ * for the IC KVP exchange functionality.  Analte that Windows Me/98/95 are
  * limited to 255 character key names.
  *
- * MSDN recommends not storing data values larger than 2048 bytes in the
+ * MSDN recommends analt storing data values larger than 2048 bytes in the
  * registry.
  *
- * Note:  This value is used in defining the KVP exchange message - this value
- * cannot be modified without affecting the message size and compatibility.
+ * Analte:  This value is used in defining the KVP exchange message - this value
+ * cananalt be modified without affecting the message size and compatibility.
  */
 
 /*
@@ -218,13 +218,13 @@ struct hv_do_fcopy {
  *	4		OSBuildNumber
  *	5		OSName
  *	6		OSMajorVersion
- *	7		OSMinorVersion
+ *	7		OSMianalrVersion
  *	8		OSVersion
  *	9		ProcessorArchitecture
  *
  * The Windows host expects the Key Name and Key Value to be encoded in utf16.
  *
- * Guest Kernel/KVP Daemon Protocol: As noted earlier, we implement all of the
+ * Guest Kernel/KVP Daemon Protocol: As analted earlier, we implement all of the
  * data gathering functionality in a user mode daemon. The user level daemon
  * is also responsible for binding the key name to the index as well. The
  * kernel and user-level daemon communicate using a connector channel.
@@ -241,7 +241,7 @@ struct hv_do_fcopy {
  * index received from the Host to the user-level daemon. If the index is
  * valid (supported), the corresponding key as well as its
  * value (both are strings) is returned. If the index is invalid
- * (not supported), a NULL key string is returned.
+ * (analt supported), a NULL key string is returned.
  */
 
 
@@ -268,7 +268,7 @@ struct hv_do_fcopy {
  * An older daemon will always be supported on a newer driver.
  * A given user level daemon will require a minimal version of the
  * kernel driver.
- * If we cannot handle the version differences, we will fail gracefully
+ * If we cananalt handle the version differences, we will fail gracefully
  * (this can happen when we have a user level daemon that is more
  * advanced than the KVP driver.
  *
@@ -279,7 +279,7 @@ struct hv_do_fcopy {
  */
 
 /*
- * Daemon code not supporting IP injection (legacy daemon).
+ * Daemon code analt supporting IP injection (legacy daemon).
  */
 
 #define KVP_OP_REGISTER	4
@@ -319,15 +319,15 @@ enum hv_kvp_exchg_pool {
 #define HV_S_OK				0x00000000
 #define HV_E_FAIL			0x80004005
 #define HV_S_CONT			0x80070103
-#define HV_ERROR_NOT_SUPPORTED		0x80070032
+#define HV_ERROR_ANALT_SUPPORTED		0x80070032
 #define HV_ERROR_MACHINE_LOCKED		0x800704F7
-#define HV_ERROR_DEVICE_NOT_CONNECTED	0x8007048F
+#define HV_ERROR_DEVICE_ANALT_CONNECTED	0x8007048F
 #define HV_INVALIDARG			0x80070057
-#define HV_GUID_NOTFOUND		0x80041002
+#define HV_GUID_ANALTFOUND		0x80041002
 #define HV_ERROR_ALREADY_EXISTS		0x80070050
 #define HV_ERROR_DISK_FULL		0x80070070
 
-#define ADDR_FAMILY_NONE	0x00
+#define ADDR_FAMILY_ANALNE	0x00
 #define ADDR_FAMILY_IPV4	0x01
 #define ADDR_FAMILY_IPV6	0x02
 

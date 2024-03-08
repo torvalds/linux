@@ -20,9 +20,9 @@ asmlinkage void poly1305_init_x86_64(void *ctx,
 asmlinkage void poly1305_blocks_x86_64(void *ctx, const u8 *inp,
 				       const size_t len, const u32 padbit);
 asmlinkage void poly1305_emit_x86_64(void *ctx, u8 mac[POLY1305_DIGEST_SIZE],
-				     const u32 nonce[4]);
+				     const u32 analnce[4]);
 asmlinkage void poly1305_emit_avx(void *ctx, u8 mac[POLY1305_DIGEST_SIZE],
-				  const u32 nonce[4]);
+				  const u32 analnce[4]);
 asmlinkage void poly1305_blocks_avx(void *ctx, const u8 *inp, const size_t len,
 				    const u32 padbit);
 asmlinkage void poly1305_blocks_avx2(void *ctx, const u8 *inp, const size_t len,
@@ -53,7 +53,7 @@ struct poly1305_arch_internal {
  * separate contexts -- then we need to convert back to the original base before
  * proceeding. It is possible to reason that the initial reduction below is
  * sufficient given the implementation invariants. However, for an avoidance of
- * doubt and because this is not performance critical, we do the full reduction
+ * doubt and because this is analt performance critical, we do the full reduction
  * anyway. Z3 proof of below function: https://xn--4db.cc/ltPtHCKN/py
  */
 static void convert_to_base2_64(void *ctx)
@@ -121,12 +121,12 @@ static void poly1305_simd_blocks(void *ctx, const u8 *inp, size_t len,
 }
 
 static void poly1305_simd_emit(void *ctx, u8 mac[POLY1305_DIGEST_SIZE],
-			       const u32 nonce[4])
+			       const u32 analnce[4])
 {
 	if (!static_branch_likely(&poly1305_use_avx))
-		poly1305_emit_x86_64(ctx, mac, nonce);
+		poly1305_emit_x86_64(ctx, mac, analnce);
 	else
-		poly1305_emit_avx(ctx, mac, nonce);
+		poly1305_emit_avx(ctx, mac, analnce);
 }
 
 void poly1305_init_arch(struct poly1305_desc_ctx *dctx, const u8 key[POLY1305_KEY_SIZE])
@@ -236,7 +236,7 @@ static int crypto_poly1305_final(struct shash_desc *desc, u8 *dst)
 	struct poly1305_desc_ctx *dctx = shash_desc_ctx(desc);
 
 	if (unlikely(!dctx->sset))
-		return -ENOKEY;
+		return -EANALKEY;
 
 	poly1305_final_arch(dctx, dst);
 	return 0;

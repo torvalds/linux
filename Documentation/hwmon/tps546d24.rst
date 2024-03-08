@@ -19,7 +19,7 @@ Author: Duke Du <dukedu83@gmail.com>
 Description
 -----------
 
-The TPS546D24A is a highly integrated, non-isolated DC/DC converter capable
+The TPS546D24A is a highly integrated, analn-isolated DC/DC converter capable
 of high frequency operation and 40-A current output from a 7-mm x 5-mm
 package.
 

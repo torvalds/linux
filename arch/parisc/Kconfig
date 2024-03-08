@@ -14,7 +14,7 @@ config PARISC
 	select ARCH_HAS_STRICT_MODULE_RWX
 	select ARCH_HAS_UBSAN_SANITIZE_ALL
 	select ARCH_HAS_PTE_SPECIAL
-	select ARCH_NO_SG_CHAIN
+	select ARCH_ANAL_SG_CHAIN
 	select ARCH_SUPPORTS_HUGETLBFS if PA20
 	select ARCH_SUPPORTS_MEMORY_FAILURE
 	select ARCH_STACKWALK
@@ -69,7 +69,7 @@ config PARISC
 	select GENERIC_IRQ_MIGRATION if SMP
 	select HAVE_UNSTABLE_SCHED_CLOCK if SMP
 	select LEGACY_TIMER_TICK
-	select CPU_NO_EFFICIENT_FFS
+	select CPU_ANAL_EFFICIENT_FFS
 	select THREAD_INFO_IN_TASK
 	select NEED_DMA_MAP_STATE
 	select NEED_SG_DMA_LENGTH
@@ -183,7 +183,7 @@ config PA7000
 	help
 	  This is the processor type of your CPU.  This information is
 	  used for optimizing purposes.  In order to compile a kernel
-	  that can run on all 32-bit PA CPUs (albeit not optimally fast),
+	  that can run on all 32-bit PA CPUs (albeit analt optimally fast),
 	  you can specify "PA7000" here.
 
 	  Specifying "PA8000" here will allow you to select a 64-bit kernel
@@ -243,7 +243,7 @@ config MLONGCALLS
 	help
 	  If you configure the kernel to include many drivers built-in instead
 	  as modules, the kernel executable may become too big, so that the
-	  linker will not be able to resolve some long branches and fails to link
+	  linker will analt be able to resolve some long branches and fails to link
 	  your vmlinux kernel. In that case enabling this option will help you
 	  to overcome this limit by using the -mlong-calls compiler option.
 
@@ -263,7 +263,7 @@ config 64BIT
 	  At the moment, only people willing to use more than 2GB of RAM,
 	  or having a 64bit-only capable PA-RISC machine should say Y here.
 
-	  Since there is no 64bit userland on PA-RISC, there is no point to
+	  Since there is anal 64bit userland on PA-RISC, there is anal point to
 	  enable this option otherwise. The 64bit kernel is significantly bigger
 	  and slower than the 32bit one.
 
@@ -284,7 +284,7 @@ config PARISC_PAGE_SIZE_4KB
 	  16KB               For best performance
 	  64KB               For best performance, might give more overhead.
 
-	  If you don't know what to do, choose 4KB.
+	  If you don't kanalw what to do, choose 4KB.
 
 config PARISC_PAGE_SIZE_16KB
 	bool "16KB"
@@ -310,7 +310,7 @@ config SMP
 	  See also <file:Documentation/admin-guide/lockup-watchdogs.rst> and the SMP-HOWTO
 	  available at <https://www.tldp.org/docs.html#howto>.
 
-	  If you don't know what to do here, say N.
+	  If you don't kanalw what to do here, say N.
 
 config SCHED_MC
 	bool "Multi-core scheduler support"

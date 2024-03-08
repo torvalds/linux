@@ -1,4 +1,4 @@
-#include <errno.h>
+#include <erranal.h>
 #include <inttypes.h>
 #include <asm/bug.h>
 #include <linux/bitmap.h>
@@ -6,24 +6,24 @@
 #include <linux/zalloc.h>
 #include "debug.h"
 #include "env.h"
-#include "mem2node.h"
+#include "mem2analde.h"
 
 struct phys_entry {
-	struct rb_node	rb_node;
+	struct rb_analde	rb_analde;
 	u64	start;
 	u64	end;
-	u64	node;
+	u64	analde;
 };
 
 static void phys_entry__insert(struct phys_entry *entry, struct rb_root *root)
 {
-	struct rb_node **p = &root->rb_node;
-	struct rb_node *parent = NULL;
+	struct rb_analde **p = &root->rb_analde;
+	struct rb_analde *parent = NULL;
 	struct phys_entry *e;
 
 	while (*p != NULL) {
 		parent = *p;
-		e = rb_entry(parent, struct phys_entry, rb_node);
+		e = rb_entry(parent, struct phys_entry, rb_analde);
 
 		if (entry->start < e->start)
 			p = &(*p)->rb_left;
@@ -31,22 +31,22 @@ static void phys_entry__insert(struct phys_entry *entry, struct rb_root *root)
 			p = &(*p)->rb_right;
 	}
 
-	rb_link_node(&entry->rb_node, parent, p);
-	rb_insert_color(&entry->rb_node, root);
+	rb_link_analde(&entry->rb_analde, parent, p);
+	rb_insert_color(&entry->rb_analde, root);
 }
 
 static void
-phys_entry__init(struct phys_entry *entry, u64 start, u64 bsize, u64 node)
+phys_entry__init(struct phys_entry *entry, u64 start, u64 bsize, u64 analde)
 {
 	entry->start = start;
 	entry->end   = start + bsize;
-	entry->node  = node;
-	RB_CLEAR_NODE(&entry->rb_node);
+	entry->analde  = analde;
+	RB_CLEAR_ANALDE(&entry->rb_analde);
 }
 
-int mem2node__init(struct mem2node *map, struct perf_env *env)
+int mem2analde__init(struct mem2analde *map, struct perf_env *env)
 {
-	struct memory_node *n, *nodes = &env->memory_nodes[0];
+	struct memory_analde *n, *analdes = &env->memory_analdes[0];
 	struct phys_entry *entries, *tmp_entries;
 	u64 bsize = env->memory_bsize;
 	int i, j = 0, max = 0;
@@ -54,19 +54,19 @@ int mem2node__init(struct mem2node *map, struct perf_env *env)
 	memset(map, 0x0, sizeof(*map));
 	map->root = RB_ROOT;
 
-	for (i = 0; i < env->nr_memory_nodes; i++) {
-		n = &nodes[i];
+	for (i = 0; i < env->nr_memory_analdes; i++) {
+		n = &analdes[i];
 		max += bitmap_weight(n->set, n->size);
 	}
 
 	entries = zalloc(sizeof(*entries) * max);
 	if (!entries)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	for (i = 0; i < env->nr_memory_nodes; i++) {
+	for (i = 0; i < env->nr_memory_analdes; i++) {
 		u64 bit;
 
-		n = &nodes[i];
+		n = &analdes[i];
 
 		for (bit = 0; bit < n->size; bit++) {
 			u64 start;
@@ -78,31 +78,31 @@ int mem2node__init(struct mem2node *map, struct perf_env *env)
 
 			/*
 			 * Merge nearby areas, we walk in order
-			 * through the bitmap, so no need to sort.
+			 * through the bitmap, so anal need to sort.
 			 */
 			if (j > 0) {
 				struct phys_entry *prev = &entries[j - 1];
 
 				if ((prev->end == start) &&
-				    (prev->node == n->node)) {
+				    (prev->analde == n->analde)) {
 					prev->end += bsize;
 					continue;
 				}
 			}
 
-			phys_entry__init(&entries[j++], start, bsize, n->node);
+			phys_entry__init(&entries[j++], start, bsize, n->analde);
 		}
 	}
 
 	/* Cut unused entries, due to merging. */
 	tmp_entries = realloc(entries, sizeof(*entries) * j);
 	if (tmp_entries ||
-	    WARN_ONCE(j == 0, "No memory nodes, is CONFIG_MEMORY_HOTPLUG enabled?\n"))
+	    WARN_ONCE(j == 0, "Anal memory analdes, is CONFIG_MEMORY_HOTPLUG enabled?\n"))
 		entries = tmp_entries;
 
 	for (i = 0; i < j; i++) {
-		pr_debug("mem2node %03" PRIu64 " [0x%016" PRIx64 "-0x%016" PRIx64 "]\n",
-			 entries[i].node, entries[i].start, entries[i].end);
+		pr_debug("mem2analde %03" PRIu64 " [0x%016" PRIx64 "-0x%016" PRIx64 "]\n",
+			 entries[i].analde, entries[i].start, entries[i].end);
 
 		phys_entry__insert(&entries[i], &map->root);
 	}
@@ -111,20 +111,20 @@ int mem2node__init(struct mem2node *map, struct perf_env *env)
 	return 0;
 }
 
-void mem2node__exit(struct mem2node *map)
+void mem2analde__exit(struct mem2analde *map)
 {
 	zfree(&map->entries);
 }
 
-int mem2node__node(struct mem2node *map, u64 addr)
+int mem2analde__analde(struct mem2analde *map, u64 addr)
 {
-	struct rb_node **p, *parent = NULL;
+	struct rb_analde **p, *parent = NULL;
 	struct phys_entry *entry;
 
-	p = &map->root.rb_node;
+	p = &map->root.rb_analde;
 	while (*p != NULL) {
 		parent = *p;
-		entry = rb_entry(parent, struct phys_entry, rb_node);
+		entry = rb_entry(parent, struct phys_entry, rb_analde);
 		if (addr < entry->start)
 			p = &(*p)->rb_left;
 		else if (addr >= entry->end)
@@ -135,5 +135,5 @@ int mem2node__node(struct mem2node *map, u64 addr)
 
 	entry = NULL;
 out:
-	return entry ? (int) entry->node : -1;
+	return entry ? (int) entry->analde : -1;
 }

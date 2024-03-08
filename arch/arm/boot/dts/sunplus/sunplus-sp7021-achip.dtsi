@@ -2,7 +2,7 @@
 /*
  * Device Tree Source for Sunplus SP7021
  *
- * Copyright (C) 2021 Sunplus Technology Co.
+ * Copyright (C) 2021 Sunplus Techanallogy Co.
  */
 
 #include "sunplus-sp7021.dtsi"
@@ -62,7 +62,7 @@
 			     <GIC_PPI 11 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
 			     <GIC_PPI 10 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>;
 		clock-frequency = <XTAL>;
-		arm,cpu-registers-not-fw-configured;
+		arm,cpu-registers-analt-fw-configured;
 	};
 
 	arm-pmu {

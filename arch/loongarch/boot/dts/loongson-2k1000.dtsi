@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2023 Loongson Technology Corporation Limited
+ * Copyright (C) 2023 Loongson Techanallogy Corporation Limited
  */
 
 /dts-v1/;
@@ -21,14 +21,14 @@
 			compatible = "loongson,la264";
 			device_type = "cpu";
 			reg= <0x0>;
-			clocks = <&clk LOONGSON2_NODE_CLK>;
+			clocks = <&clk LOONGSON2_ANALDE_CLK>;
 		};
 
 		cpu1: cpu@1 {
 			compatible = "loongson,la264";
 			device_type = "cpu";
 			reg = <0x1>;
-			clocks = <&clk LOONGSON2_NODE_CLK>;
+			clocks = <&clk LOONGSON2_ANALDE_CLK>;
 		};
 	};
 
@@ -296,7 +296,7 @@
 			clock-frequency = <125000000>;
 			interrupt-parent = <&liointc0>;
 			interrupts = <0x0 IRQ_TYPE_LEVEL_HIGH>;
-			no-loopback-test;
+			anal-loopback-test;
 			status = "disabled";
 		};
 

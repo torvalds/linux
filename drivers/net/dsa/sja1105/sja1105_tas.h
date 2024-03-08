@@ -14,12 +14,12 @@ struct sja1105_private;
 
 enum sja1105_tas_state {
 	SJA1105_TAS_STATE_DISABLED,
-	SJA1105_TAS_STATE_ENABLED_NOT_RUNNING,
+	SJA1105_TAS_STATE_ENABLED_ANALT_RUNNING,
 	SJA1105_TAS_STATE_RUNNING,
 };
 
 enum sja1105_ptp_op {
-	SJA1105_PTP_NONE,
+	SJA1105_PTP_ANALNE,
 	SJA1105_PTP_CLOCKSTEP,
 	SJA1105_PTP_ADJUSTFREQ,
 };
@@ -76,7 +76,7 @@ struct sja1105_tas_data {
 static inline int sja1105_setup_tc_taprio(struct dsa_switch *ds, int port,
 					  struct tc_taprio_qopt_offload *admin)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline void sja1105_tas_setup(struct dsa_switch *ds) { }

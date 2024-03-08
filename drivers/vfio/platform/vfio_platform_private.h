@@ -71,7 +71,7 @@ struct vfio_platform_device {
 
 typedef int (*vfio_platform_reset_fn_t)(struct vfio_platform_device *vdev);
 
-struct vfio_platform_reset_node {
+struct vfio_platform_reset_analde {
 	struct list_head link;
 	char *compat;
 	struct module *owner;
@@ -101,16 +101,16 @@ int vfio_platform_set_irqs_ioctl(struct vfio_platform_device *vdev,
 				 uint32_t flags, unsigned index,
 				 unsigned start, unsigned count, void *data);
 
-void __vfio_platform_register_reset(struct vfio_platform_reset_node *n);
+void __vfio_platform_register_reset(struct vfio_platform_reset_analde *n);
 void vfio_platform_unregister_reset(const char *compat,
 				    vfio_platform_reset_fn_t fn);
 #define vfio_platform_register_reset(__compat, __reset)		\
-static struct vfio_platform_reset_node __reset ## _node = {	\
+static struct vfio_platform_reset_analde __reset ## _analde = {	\
 	.owner = THIS_MODULE,					\
 	.compat = __compat,					\
 	.of_reset = __reset,					\
 };								\
-__vfio_platform_register_reset(&__reset ## _node)
+__vfio_platform_register_reset(&__reset ## _analde)
 
 #define module_vfio_reset_handler(compat, reset)		\
 MODULE_ALIAS("vfio-reset:" compat);				\

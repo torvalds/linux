@@ -21,7 +21,7 @@ DECLARE_EVENT_CLASS(mm_filemap_op_page_cache,
 
 	TP_STRUCT__entry(
 		__field(unsigned long, pfn)
-		__field(unsigned long, i_ino)
+		__field(unsigned long, i_ianal)
 		__field(unsigned long, index)
 		__field(dev_t, s_dev)
 		__field(unsigned char, order)
@@ -29,7 +29,7 @@ DECLARE_EVENT_CLASS(mm_filemap_op_page_cache,
 
 	TP_fast_assign(
 		__entry->pfn = folio_pfn(folio);
-		__entry->i_ino = folio->mapping->host->i_ino;
+		__entry->i_ianal = folio->mapping->host->i_ianal;
 		__entry->index = folio->index;
 		if (folio->mapping->host->i_sb)
 			__entry->s_dev = folio->mapping->host->i_sb->s_dev;
@@ -38,9 +38,9 @@ DECLARE_EVENT_CLASS(mm_filemap_op_page_cache,
 		__entry->order = folio_order(folio);
 	),
 
-	TP_printk("dev %d:%d ino %lx pfn=0x%lx ofs=%lu order=%u",
-		MAJOR(__entry->s_dev), MINOR(__entry->s_dev),
-		__entry->i_ino,
+	TP_printk("dev %d:%d ianal %lx pfn=0x%lx ofs=%lu order=%u",
+		MAJOR(__entry->s_dev), MIANALR(__entry->s_dev),
+		__entry->i_ianal,
 		__entry->pfn,
 		__entry->index << PAGE_SHIFT,
 		__entry->order)
@@ -62,13 +62,13 @@ TRACE_EVENT(filemap_set_wb_err,
 		TP_ARGS(mapping, eseq),
 
 		TP_STRUCT__entry(
-			__field(unsigned long, i_ino)
+			__field(unsigned long, i_ianal)
 			__field(dev_t, s_dev)
 			__field(errseq_t, errseq)
 		),
 
 		TP_fast_assign(
-			__entry->i_ino = mapping->host->i_ino;
+			__entry->i_ianal = mapping->host->i_ianal;
 			__entry->errseq = eseq;
 			if (mapping->host->i_sb)
 				__entry->s_dev = mapping->host->i_sb->s_dev;
@@ -76,9 +76,9 @@ TRACE_EVENT(filemap_set_wb_err,
 				__entry->s_dev = mapping->host->i_rdev;
 		),
 
-		TP_printk("dev=%d:%d ino=0x%lx errseq=0x%x",
-			MAJOR(__entry->s_dev), MINOR(__entry->s_dev),
-			__entry->i_ino, __entry->errseq)
+		TP_printk("dev=%d:%d ianal=0x%lx errseq=0x%x",
+			MAJOR(__entry->s_dev), MIANALR(__entry->s_dev),
+			__entry->i_ianal, __entry->errseq)
 );
 
 TRACE_EVENT(file_check_and_advance_wb_err,
@@ -88,7 +88,7 @@ TRACE_EVENT(file_check_and_advance_wb_err,
 
 		TP_STRUCT__entry(
 			__field(struct file *, file)
-			__field(unsigned long, i_ino)
+			__field(unsigned long, i_ianal)
 			__field(dev_t, s_dev)
 			__field(errseq_t, old)
 			__field(errseq_t, new)
@@ -96,7 +96,7 @@ TRACE_EVENT(file_check_and_advance_wb_err,
 
 		TP_fast_assign(
 			__entry->file = file;
-			__entry->i_ino = file->f_mapping->host->i_ino;
+			__entry->i_ianal = file->f_mapping->host->i_ianal;
 			if (file->f_mapping->host->i_sb)
 				__entry->s_dev =
 					file->f_mapping->host->i_sb->s_dev;
@@ -107,9 +107,9 @@ TRACE_EVENT(file_check_and_advance_wb_err,
 			__entry->new = file->f_wb_err;
 		),
 
-		TP_printk("file=%p dev=%d:%d ino=0x%lx old=0x%x new=0x%x",
+		TP_printk("file=%p dev=%d:%d ianal=0x%lx old=0x%x new=0x%x",
 			__entry->file, MAJOR(__entry->s_dev),
-			MINOR(__entry->s_dev), __entry->i_ino, __entry->old,
+			MIANALR(__entry->s_dev), __entry->i_ianal, __entry->old,
 			__entry->new)
 );
 #endif /* _TRACE_FILEMAP_H */

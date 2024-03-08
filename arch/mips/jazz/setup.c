@@ -6,7 +6,7 @@
  * for more details.
  *
  * Copyright (C) 1996, 1997, 1998, 2001, 07, 08 by Ralf Baechle
- * Copyright (C) 2001 MIPS Technologies, Inc.
+ * Copyright (C) 2001 MIPS Techanallogies, Inc.
  * Copyright (C) 2007 by Thomas Bogendoerfer
  */
 #include <linux/eisa.h>
@@ -81,7 +81,7 @@ void __init plat_mem_setup(void)
 #ifdef CONFIG_OLIVETTI_M700
 #define UART_CLK  1843200
 #else
-/* Some Jazz machines seem to have an 8MHz crystal clock but I don't know
+/* Some Jazz machines seem to have an 8MHz crystal clock but I don't kanalw
    exactly which ones ... XXX */
 #define UART_CLK (8000000 / 16) /* ( 3072000 / 16) */
 #endif

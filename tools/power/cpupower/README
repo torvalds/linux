@@ -6,7 +6,7 @@ requirements
 On x86 pciutils is needed at runtime (-lpci).
 For compilation pciutils-devel (pci/pci.h) and a gcc version
 providing cpuid.h is needed.
-For both it's not explicitly checked for (yet).
+For both it's analt explicitly checked for (yet).
 
 
 libcpupower
@@ -38,8 +38,8 @@ THANKS
 ------
 Many thanks to Mattia Dongili who wrote the autotoolization and
 libtoolization, the manpages and the italian language file for cpupower;
-to Dave Jones for his feedback and his dump_psb tool; to Bruno Ducrot for his
-powernow-k8-decode and intel_gsic tools as well as the french language file;
+to Dave Jones for his feedback and his dump_psb tool; to Bruanal Ducrot for his
+poweranalw-k8-decode and intel_gsic tools as well as the french language file;
 and to various others commenting on the previous (pre-)releases of 
 cpupower.
 

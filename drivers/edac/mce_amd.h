@@ -2,7 +2,7 @@
 #ifndef _EDAC_MCE_AMD_H
 #define _EDAC_MCE_AMD_H
 
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 
 #include <asm/mce.h>
 
@@ -64,7 +64,7 @@ enum rrrr_ids {
 	R4_IRD,
 	R4_PREF,
 	R4_EVICT,
-	R4_SNOOP,
+	R4_SANALOP,
 };
 
 /*

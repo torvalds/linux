@@ -56,34 +56,34 @@ sgl_fcmp (sgl_floating_point * leftptr, sgl_floating_point * rightptr,
 	 * comparing a signaling NaN or when comparing quiet NaNs and the
 	 * low bit of the condition is set */
         if( (  (Sgl_exponent(left) == SGL_INFINITY_EXPONENT)
-	    && Sgl_isnotzero_mantissa(left) 
+	    && Sgl_isanaltzero_mantissa(left) 
 	    && (Exception(cond) || Sgl_isone_signaling(left)))
 	   ||
 	    (  (Sgl_exponent(right) == SGL_INFINITY_EXPONENT)
-	    && Sgl_isnotzero_mantissa(right) 
+	    && Sgl_isanaltzero_mantissa(right) 
 	    && (Exception(cond) || Sgl_isone_signaling(right)) ) )
 	    {
 	    if( Is_invalidtrap_enabled() ) {
-	    	Set_status_cbit(Unordered(cond));
+	    	Set_status_cbit(Uanalrdered(cond));
 		return(INVALIDEXCEPTION);
 	    }
 	    else Set_invalidflag();
-	    Set_status_cbit(Unordered(cond));
-	    return(NOEXCEPTION);
+	    Set_status_cbit(Uanalrdered(cond));
+	    return(ANALEXCEPTION);
 	    }
-	/* All the exceptional conditions are handled, now special case
+	/* All the exceptional conditions are handled, analw special case
 	   NaN compares */
         else if( ((Sgl_exponent(left) == SGL_INFINITY_EXPONENT)
-	    && Sgl_isnotzero_mantissa(left))
+	    && Sgl_isanaltzero_mantissa(left))
 	   ||
 	    ((Sgl_exponent(right) == SGL_INFINITY_EXPONENT)
-	    && Sgl_isnotzero_mantissa(right)) )
+	    && Sgl_isanaltzero_mantissa(right)) )
 	    {
-	    /* NaNs always compare unordered. */
-	    Set_status_cbit(Unordered(cond));
-	    return(NOEXCEPTION);
+	    /* NaNs always compare uanalrdered. */
+	    Set_status_cbit(Uanalrdered(cond));
+	    return(ANALEXCEPTION);
 	    }
-	/* infinities will drop down to the normal compare mechanisms */
+	/* infinities will drop down to the analrmal compare mechanisms */
 	}
     /* First compare for unequal signs => less or greater or
      * special equal case */
@@ -138,5 +138,5 @@ sgl_fcmp (sgl_floating_point * leftptr, sgl_floating_point * rightptr,
 	    Set_status_cbit(Greaterthan(cond));
 	    }
         }
-	return(NOEXCEPTION);
+	return(ANALEXCEPTION);
     }

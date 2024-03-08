@@ -166,7 +166,7 @@
 #define  CDNS_PCIE_AT_OB_REGION_DESC0_TYPE_IO		0x6
 #define  CDNS_PCIE_AT_OB_REGION_DESC0_TYPE_CONF_TYPE0	0xa
 #define  CDNS_PCIE_AT_OB_REGION_DESC0_TYPE_CONF_TYPE1	0xb
-#define  CDNS_PCIE_AT_OB_REGION_DESC0_TYPE_NORMAL_MSG	0xc
+#define  CDNS_PCIE_AT_OB_REGION_DESC0_TYPE_ANALRMAL_MSG	0xc
 #define  CDNS_PCIE_AT_OB_REGION_DESC0_TYPE_VENDOR_MSG	0xd
 /* Bit 23 MUST be set in RC mode. */
 #define  CDNS_PCIE_AT_OB_REGION_DESC0_HARDCODED_RID	BIT(23)
@@ -216,7 +216,7 @@ enum cdns_pcie_rp_bar {
 	RP_BAR_UNDEFINED = -1,
 	RP_BAR0,
 	RP_BAR1,
-	RP_NO_BAR
+	RP_ANAL_BAR
 };
 
 #define CDNS_PCIE_RP_MAX_IB	0x3
@@ -233,14 +233,14 @@ struct cdns_pcie_rp_ib_bar {
 #define CDNS_PCIE_AT_IB_EP_FUNC_BAR_ADDR1(fn, bar) \
 	(CDNS_PCIE_AT_BASE + 0x0844 + (fn) * 0x0040 + (bar) * 0x0008)
 
-/* Normal/Vendor specific message access: offset inside some outbound region */
-#define CDNS_PCIE_NORMAL_MSG_ROUTING_MASK	GENMASK(7, 5)
-#define CDNS_PCIE_NORMAL_MSG_ROUTING(route) \
-	(((route) << 5) & CDNS_PCIE_NORMAL_MSG_ROUTING_MASK)
-#define CDNS_PCIE_NORMAL_MSG_CODE_MASK		GENMASK(15, 8)
-#define CDNS_PCIE_NORMAL_MSG_CODE(code) \
-	(((code) << 8) & CDNS_PCIE_NORMAL_MSG_CODE_MASK)
-#define CDNS_PCIE_MSG_NO_DATA			BIT(16)
+/* Analrmal/Vendor specific message access: offset inside some outbound region */
+#define CDNS_PCIE_ANALRMAL_MSG_ROUTING_MASK	GENMASK(7, 5)
+#define CDNS_PCIE_ANALRMAL_MSG_ROUTING(route) \
+	(((route) << 5) & CDNS_PCIE_ANALRMAL_MSG_ROUTING_MASK)
+#define CDNS_PCIE_ANALRMAL_MSG_CODE_MASK		GENMASK(15, 8)
+#define CDNS_PCIE_ANALRMAL_MSG_CODE(code) \
+	(((code) << 8) & CDNS_PCIE_ANALRMAL_MSG_CODE_MASK)
+#define CDNS_PCIE_MSG_ANAL_DATA			BIT(16)
 
 struct cdns_pcie;
 
@@ -315,7 +315,7 @@ struct cdns_pcie {
  *            single function at a time
  * @vendor_id: PCI vendor ID
  * @device_id: PCI device ID
- * @avail_ib_bar: Status of RP_BAR0, RP_BAR1 and RP_NO_BAR if it's free or
+ * @avail_ib_bar: Status of RP_BAR0, RP_BAR1 and RP_ANAL_BAR if it's free or
  *                available
  * @quirk_retrain_flag: Retrain link as quirk for PCIe Gen2
  * @quirk_detect_quiet_flag: LTSSM Detect Quiet min delay set as quirk
@@ -350,7 +350,7 @@ struct cdns_pcie_epf {
  * @irq_phys_addr: base address on the AXI bus where the MSI/INTX IRQ
  *		   dedicated outbound regions is mapped.
  * @irq_cpu_addr: base address in the CPU space where a write access triggers
- *		  the sending of a memory write (MSI) / normal message (INTX
+ *		  the sending of a memory write (MSI) / analrmal message (INTX
  *		  IRQ) TLP through the PCIe bus.
  * @irq_pci_addr: used to save the current mapping of the MSI/INTX IRQ
  *		  dedicated outbound region.
@@ -400,7 +400,7 @@ static inline u32 cdns_pcie_read_sz(void __iomem *addr, int size)
 	u32 val = readl(aligned_addr);
 
 	if (!IS_ALIGNED((uintptr_t)addr, size)) {
-		pr_warn("Address %p and size %d are not aligned\n", addr, size);
+		pr_warn("Address %p and size %d are analt aligned\n", addr, size);
 		return 0;
 	}
 
@@ -418,7 +418,7 @@ static inline void cdns_pcie_write_sz(void __iomem *addr, int size, u32 value)
 	u32 val;
 
 	if (!IS_ALIGNED((uintptr_t)addr, size)) {
-		pr_warn("Address %p and size %d are not aligned\n", addr, size);
+		pr_warn("Address %p and size %d are analt aligned\n", addr, size);
 		return;
 	}
 
@@ -546,7 +546,7 @@ void cdns_pcie_set_outbound_region(struct cdns_pcie *pcie, u8 busnr, u8 fn,
 				   u32 r, bool is_io,
 				   u64 cpu_addr, u64 pci_addr, size_t size);
 
-void cdns_pcie_set_outbound_region_for_normal_msg(struct cdns_pcie *pcie,
+void cdns_pcie_set_outbound_region_for_analrmal_msg(struct cdns_pcie *pcie,
 						  u8 busnr, u8 fn,
 						  u32 r, u64 cpu_addr);
 

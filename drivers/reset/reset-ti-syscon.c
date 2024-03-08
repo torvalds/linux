@@ -75,8 +75,8 @@ static int ti_syscon_reset_assert(struct reset_controller_dev *rcdev,
 
 	control = &data->controls[id];
 
-	if (control->flags & ASSERT_NONE)
-		return -ENOTSUPP; /* assert not supported for this reset */
+	if (control->flags & ASSERT_ANALNE)
+		return -EANALTSUPP; /* assert analt supported for this reset */
 
 	mask = BIT(control->assert_bit);
 	value = (control->flags & ASSERT_SET) ? mask : 0x0;
@@ -106,8 +106,8 @@ static int ti_syscon_reset_deassert(struct reset_controller_dev *rcdev,
 
 	control = &data->controls[id];
 
-	if (control->flags & DEASSERT_NONE)
-		return -ENOTSUPP; /* deassert not supported for this reset */
+	if (control->flags & DEASSERT_ANALNE)
+		return -EANALTSUPP; /* deassert analt supported for this reset */
 
 	mask = BIT(control->deassert_bit);
 	value = (control->flags & DEASSERT_SET) ? mask : 0x0;
@@ -139,8 +139,8 @@ static int ti_syscon_reset_status(struct reset_controller_dev *rcdev,
 
 	control = &data->controls[id];
 
-	if (control->flags & STATUS_NONE)
-		return -ENOTSUPP; /* status not supported for this reset */
+	if (control->flags & STATUS_ANALNE)
+		return -EANALTSUPP; /* status analt supported for this reset */
 
 	ret = regmap_read(data->regmap, control->status_offset, &reset_state);
 	if (ret)
@@ -159,7 +159,7 @@ static const struct reset_control_ops ti_syscon_reset_ops = {
 static int ti_syscon_reset_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct ti_syscon_reset_data *data;
 	struct regmap *regmap;
 	const __be32 *list;
@@ -168,9 +168,9 @@ static int ti_syscon_reset_probe(struct platform_device *pdev)
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	regmap = syscon_node_to_regmap(np->parent);
+	regmap = syscon_analde_to_regmap(np->parent);
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 
@@ -184,7 +184,7 @@ static int ti_syscon_reset_probe(struct platform_device *pdev)
 	controls = devm_kcalloc(dev, nr_controls, sizeof(*controls),
 				GFP_KERNEL);
 	if (!controls)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < nr_controls; i++) {
 		controls[i].assert_offset = be32_to_cpup(list++);
@@ -198,7 +198,7 @@ static int ti_syscon_reset_probe(struct platform_device *pdev)
 
 	data->rcdev.ops = &ti_syscon_reset_ops;
 	data->rcdev.owner = THIS_MODULE;
-	data->rcdev.of_node = np;
+	data->rcdev.of_analde = np;
 	data->rcdev.nr_resets = nr_controls;
 	data->regmap = regmap;
 	data->controls = controls;

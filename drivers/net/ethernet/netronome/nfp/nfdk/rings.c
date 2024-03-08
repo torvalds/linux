@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2019 Netronome Systems, Inc. */
+/* Copyright (C) 2019 Netroanalme Systems, Inc. */
 
 #include <linux/seq_file.h>
 
@@ -98,7 +98,7 @@ nfp_nfdk_tx_ring_alloc(struct nfp_net_dp *dp, struct nfp_net_tx_ring *tx_ring)
 	tx_ring->size = array_size(tx_ring->cnt, sizeof(*tx_ring->ktxds));
 	tx_ring->ktxds = dma_alloc_coherent(dp->dev, tx_ring->size,
 					    &tx_ring->dma,
-					    GFP_KERNEL | __GFP_NOWARN);
+					    GFP_KERNEL | __GFP_ANALWARN);
 	if (!tx_ring->ktxds) {
 		netdev_warn(dp->netdev, "failed to allocate TX descriptor ring memory, requested descriptor count: %d, consider lowering descriptor count\n",
 			    tx_ring->cnt);
@@ -118,7 +118,7 @@ nfp_nfdk_tx_ring_alloc(struct nfp_net_dp *dp, struct nfp_net_tx_ring *tx_ring)
 
 err_alloc:
 	nfp_nfdk_tx_ring_free(tx_ring);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void

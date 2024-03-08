@@ -14,12 +14,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -29,7 +29,7 @@
 /*
  * This header file contains mode setting related functions and definitions
  * which are only used within the drm module as internal implementation details
- * and are not exported to drivers.
+ * and are analt exported to drivers.
  */
 
 #include <linux/types.h>
@@ -56,7 +56,7 @@ struct drm_plane;
 struct drm_plane_state;
 struct drm_property;
 struct edid;
-struct fwnode_handle;
+struct fwanalde_handle;
 struct kref;
 struct seq_file;
 struct work_struct;
@@ -188,7 +188,7 @@ int drm_connector_set_obj_prop(struct drm_mode_object *obj,
 int drm_connector_create_standard_properties(struct drm_device *dev);
 const char *drm_get_connector_force_name(enum drm_connector_force force);
 void drm_connector_free_work_fn(struct work_struct *work);
-struct drm_connector *drm_connector_find_by_fwnode(struct fwnode_handle *fwnode);
+struct drm_connector *drm_connector_find_by_fwanalde(struct fwanalde_handle *fwanalde);
 
 /* IOCTL */
 int drm_connector_property_set_ioctl(struct drm_device *dev,
@@ -233,7 +233,7 @@ int drm_mode_dirtyfb_ioctl(struct drm_device *dev,
 
 /* drm_atomic.c */
 #ifdef CONFIG_DEBUG_FS
-struct drm_minor;
+struct drm_mianalr;
 void drm_atomic_debugfs_init(struct drm_device *dev);
 #endif
 
@@ -300,6 +300,6 @@ const struct drm_edid *drm_edid_load_firmware(struct drm_connector *connector);
 static inline const struct drm_edid *
 drm_edid_load_firmware(struct drm_connector *connector)
 {
-	return ERR_PTR(-ENOENT);
+	return ERR_PTR(-EANALENT);
 }
 #endif

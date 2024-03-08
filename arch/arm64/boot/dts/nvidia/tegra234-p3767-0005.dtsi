@@ -4,11 +4,11 @@
 
 / {
 	compatible = "nvidia,p3767-0005", "nvidia,tegra234";
-	model = "NVIDIA Jetson Orin Nano";
+	model = "NVIDIA Jetson Orin Naanal";
 
 	bus@0 {
 		hda@3510000 {
-			nvidia,model = "NVIDIA Jetson Orin Nano HDA";
+			nvidia,model = "NVIDIA Jetson Orin Naanal HDA";
 		};
 	};
 };

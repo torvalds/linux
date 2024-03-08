@@ -46,13 +46,13 @@ properties:
 # down and OTP is reload. At the SNVS state all other logic and external
 # devices apart from the SNVS power domain are shut off. Please refer to NXP
 # i.MX8 documentation for further information regarding SNVS state. When a
-# reset is done via SNVS state the PMIC OTP data is not reload. This causes
+# reset is done via SNVS state the PMIC OTP data is analt reload. This causes
 # power outputs that have been under SW control to stay down when reset has
 # switched power state to SNVS. If reset is done via READY state the power
 # outputs will be returned to HW control by OTP loading. Thus the reset
 # target state is set to READY by default. If SNVS state is used the boot
 # crucial regulators must have the regulator-always-on and regulator-boot-on
-# properties set in regulator node.
+# properties set in regulator analde.
 
   rohm,reset-snvs-powered:
     description: |
@@ -65,8 +65,8 @@ properties:
 #   Shortest being 10ms, next 500ms and then multiple of 500ms up to 7,5s
 # Long-press:
 #   Shortest being 10ms, next 1000ms and then multiple of 1000ms up to 15s
-# If these properties are not present the existing configuration (from
-# bootloader or OTP) is not touched.
+# If these properties are analt present the existing configuration (from
+# bootloader or OTP) is analt touched.
 
   rohm,short-press-ms:
     description:
@@ -111,7 +111,7 @@ properties:
   regulators:
     $ref: ../regulator/rohm,bd71837-regulator.yaml
     description:
-      List of child nodes that specify the regulators.
+      List of child analdes that specify the regulators.
 
 required:
   - compatible

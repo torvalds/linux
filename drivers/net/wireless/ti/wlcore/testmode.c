@@ -2,9 +2,9 @@
 /*
  * This file is part of wl1271
  *
- * Copyright (C) 2010 Nokia Corporation
+ * Copyright (C) 2010 Analkia Corporation
  *
- * Contact: Luciano Coelho <luciano.coelho@nokia.com>
+ * Contact: Luciaanal Coelho <luciaanal.coelho@analkia.com>
  */
 #include "testmode.h"
 
@@ -24,9 +24,9 @@ enum wl1271_tm_commands {
 	WL1271_TM_CMD_TEST,
 	WL1271_TM_CMD_INTERROGATE,
 	WL1271_TM_CMD_CONFIGURE,
-	WL1271_TM_CMD_NVS_PUSH,		/* Not in use. Keep to not break ABI */
+	WL1271_TM_CMD_NVS_PUSH,		/* Analt in use. Keep to analt break ABI */
 	WL1271_TM_CMD_SET_PLT_MODE,
-	WL1271_TM_CMD_RECOVER,		/* Not in use. Keep to not break ABI */
+	WL1271_TM_CMD_RECOVER,		/* Analt in use. Keep to analt break ABI */
 	WL1271_TM_CMD_GET_MAC,
 
 	__WL1271_TM_CMD_AFTER_LAST
@@ -111,7 +111,7 @@ static int wl1271_tm_cmd_test(struct wl1271 *wl, struct nlattr *tb[])
 		len = nla_total_size(buf_len);
 		skb = cfg80211_testmode_alloc_reply_skb(wl->hw->wiphy, len);
 		if (!skb) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out_sleep;
 		}
 
@@ -162,7 +162,7 @@ static int wl1271_tm_cmd_interrogate(struct wl1271 *wl, struct nlattr *tb[])
 
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
 	if (!cmd) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_sleep;
 	}
 
@@ -175,7 +175,7 @@ static int wl1271_tm_cmd_interrogate(struct wl1271 *wl, struct nlattr *tb[])
 
 	skb = cfg80211_testmode_alloc_reply_skb(wl->hw->wiphy, sizeof(*cmd));
 	if (!skb) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_free;
 	}
 
@@ -247,7 +247,7 @@ static int wl1271_tm_detect_fem(struct wl1271 *wl, struct nlattr *tb[])
 	len = nla_total_size(sizeof(wl->fem_manuf));
 	skb = cfg80211_testmode_alloc_reply_skb(wl->hw->wiphy, len);
 	if (!skb) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_mutex;
 	}
 
@@ -314,7 +314,7 @@ static int wl12xx_tm_cmd_get_mac(struct wl1271 *wl, struct nlattr *tb[])
 	}
 
 	if (wl->fuse_oui_addr == 0 && wl->fuse_nic_addr == 0) {
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		goto out;
 	}
 
@@ -327,7 +327,7 @@ static int wl12xx_tm_cmd_get_mac(struct wl1271 *wl, struct nlattr *tb[])
 
 	skb = cfg80211_testmode_alloc_reply_skb(wl->hw->wiphy, ETH_ALEN);
 	if (!skb) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -367,7 +367,7 @@ int wl1271_tm_cmd(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	/* Only SET_PLT_MODE is allowed in case of mode PLT_CHIP_AWAKE */
 	if (wl->plt_mode == PLT_CHIP_AWAKE &&
 	    nla_cmd != WL1271_TM_CMD_SET_PLT_MODE)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (nla_cmd) {
 	case WL1271_TM_CMD_TEST:
@@ -381,6 +381,6 @@ int wl1271_tm_cmd(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	case WL1271_TM_CMD_GET_MAC:
 		return wl12xx_tm_cmd_get_mac(wl, tb);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }

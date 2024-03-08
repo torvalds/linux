@@ -187,7 +187,7 @@ static struct smb_version_cmds smb2_0_server_cmds[NUMBER_OF_SMB2_COMMANDS] = {
 	[SMB2_LOCK_HE]		=	{ .proc = smb2_lock},
 	[SMB2_IOCTL_HE]		=	{ .proc = smb2_ioctl},
 	[SMB2_OPLOCK_BREAK_HE]	=	{ .proc = smb2_oplock_break},
-	[SMB2_CHANGE_NOTIFY_HE]	=	{ .proc = smb2_notify},
+	[SMB2_CHANGE_ANALTIFY_HE]	=	{ .proc = smb2_analtify},
 };
 
 /**

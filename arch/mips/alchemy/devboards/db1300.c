@@ -165,7 +165,7 @@ static void au1300_nand_cmd_ctrl(struct nand_chip *this, int cmd,
 		ioaddr += MEM_STNAND_DATA;
 	}
 	this->legacy.IO_ADDR_R = this->legacy.IO_ADDR_W = (void __iomem *)ioaddr;
-	if (cmd != NAND_CMD_NONE) {
+	if (cmd != NAND_CMD_ANALNE) {
 		__raw_writeb(cmd, this->legacy.IO_ADDR_W);
 		wmb();
 	}
@@ -453,7 +453,7 @@ static struct platform_device db1300_ide_dev = {
 #ifdef CONFIG_MMC_AU1X
 static irqreturn_t db1300_mmc_cd(int irq, void *ptr)
 {
-	disable_irq_nosync(irq);
+	disable_irq_analsync(irq);
 	return IRQ_WAKE_THREAD;
 }
 
@@ -571,7 +571,7 @@ static struct platform_device db1300_sd1_dev = {
 
 static int db1300_movinand_inserted(void *mmc_host)
 {
-	return 0; /* disable for now, it doesn't work yet */
+	return 0; /* disable for analw, it doesn't work yet */
 }
 
 static int db1300_movinand_readonly(void *mmc_host)
@@ -741,8 +741,8 @@ static int db1300_wm97xx_probe(struct platform_device *pdev)
 
 	/* internal "virtual" pendown gpio */
 	wm97xx_config_gpio(wm, WM97XX_GPIO_3, WM97XX_GPIO_OUT,
-			   WM97XX_GPIO_POL_LOW, WM97XX_GPIO_NOTSTICKY,
-			   WM97XX_GPIO_NOWAKE);
+			   WM97XX_GPIO_POL_LOW, WM97XX_GPIO_ANALTSTICKY,
+			   WM97XX_GPIO_ANALWAKE);
 
 	wm->pen_irq = DB1300_AC97_PEN_INT;
 
@@ -751,7 +751,7 @@ static int db1300_wm97xx_probe(struct platform_device *pdev)
 #else
 static int db1300_wm97xx_probe(struct platform_device *pdev)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 #endif
 
@@ -796,10 +796,10 @@ int __init db1300_dev_setup(void)
 	/* insert/eject IRQs: one always triggers so don't enable them
 	 * when doing request_irq() on them.  DB1200 has this bug too.
 	 */
-	irq_set_status_flags(DB1300_SD1_INSERT_INT, IRQ_NOAUTOEN);
-	irq_set_status_flags(DB1300_SD1_EJECT_INT, IRQ_NOAUTOEN);
-	irq_set_status_flags(DB1300_CF_INSERT_INT, IRQ_NOAUTOEN);
-	irq_set_status_flags(DB1300_CF_EJECT_INT, IRQ_NOAUTOEN);
+	irq_set_status_flags(DB1300_SD1_INSERT_INT, IRQ_ANALAUTOEN);
+	irq_set_status_flags(DB1300_SD1_EJECT_INT, IRQ_ANALAUTOEN);
+	irq_set_status_flags(DB1300_CF_INSERT_INT, IRQ_ANALAUTOEN);
+	irq_set_status_flags(DB1300_CF_EJECT_INT, IRQ_ANALAUTOEN);
 
 	/*
 	 * setup board
@@ -846,7 +846,7 @@ int __init db1300_dev_setup(void)
 		DB1300_CF_INT, DB1300_CF_INSERT_INT, 0, DB1300_CF_EJECT_INT, 1);
 
 	swapped = bcsr_read(BCSR_STATUS) & BCSR_STATUS_DB1200_SWAPBOOT;
-	db1x_register_norflash(64 << 20, 2, swapped);
+	db1x_register_analrflash(64 << 20, 2, swapped);
 
 	return platform_add_devices(db1300_dev, ARRAY_SIZE(db1300_dev));
 }
@@ -861,7 +861,7 @@ int __init db1300_board_setup(void)
 
 	whoami = bcsr_read(BCSR_WHOAMI);
 	if (BCSR_WHOAMI_BOARD(whoami) != BCSR_WHOAMI_DB1300)
-		return -ENODEV;
+		return -EANALDEV;
 
 	db1300_gpio_config();
 

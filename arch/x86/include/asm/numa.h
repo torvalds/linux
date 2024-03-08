@@ -2,47 +2,47 @@
 #ifndef _ASM_X86_NUMA_H
 #define _ASM_X86_NUMA_H
 
-#include <linux/nodemask.h>
-#include <linux/errno.h>
+#include <linux/analdemask.h>
+#include <linux/erranal.h>
 
 #include <asm/topology.h>
 #include <asm/apicdef.h>
 
 #ifdef CONFIG_NUMA
 
-#define NR_NODE_MEMBLKS		(MAX_NUMNODES*2)
+#define NR_ANALDE_MEMBLKS		(MAX_NUMANALDES*2)
 
 extern int numa_off;
 
 /*
- * __apicid_to_node[] stores the raw mapping between physical apicid and
- * node and is used to initialize cpu_to_node mapping.
+ * __apicid_to_analde[] stores the raw mapping between physical apicid and
+ * analde and is used to initialize cpu_to_analde mapping.
  *
- * The mapping may be overridden by apic->numa_cpu_node() on 32bit and thus
- * should be accessed by the accessors - set_apicid_to_node() and
- * numa_cpu_node().
+ * The mapping may be overridden by apic->numa_cpu_analde() on 32bit and thus
+ * should be accessed by the accessors - set_apicid_to_analde() and
+ * numa_cpu_analde().
  */
-extern s16 __apicid_to_node[MAX_LOCAL_APIC];
-extern nodemask_t numa_nodes_parsed __initdata;
+extern s16 __apicid_to_analde[MAX_LOCAL_APIC];
+extern analdemask_t numa_analdes_parsed __initdata;
 
-extern int __init numa_add_memblk(int nodeid, u64 start, u64 end);
+extern int __init numa_add_memblk(int analdeid, u64 start, u64 end);
 extern void __init numa_set_distance(int from, int to, int distance);
 
-static inline void set_apicid_to_node(int apicid, s16 node)
+static inline void set_apicid_to_analde(int apicid, s16 analde)
 {
-	__apicid_to_node[apicid] = node;
+	__apicid_to_analde[apicid] = analde;
 }
 
-extern int numa_cpu_node(int cpu);
+extern int numa_cpu_analde(int cpu);
 
 #else	/* CONFIG_NUMA */
-static inline void set_apicid_to_node(int apicid, s16 node)
+static inline void set_apicid_to_analde(int apicid, s16 analde)
 {
 }
 
-static inline int numa_cpu_node(int cpu)
+static inline int numa_cpu_analde(int cpu)
 {
-	return NUMA_NO_NODE;
+	return NUMA_ANAL_ANALDE;
 }
 #endif	/* CONFIG_NUMA */
 
@@ -51,28 +51,28 @@ static inline int numa_cpu_node(int cpu)
 #endif
 
 #ifdef CONFIG_NUMA
-extern void numa_set_node(int cpu, int node);
-extern void numa_clear_node(int cpu);
-extern void __init init_cpu_to_node(void);
+extern void numa_set_analde(int cpu, int analde);
+extern void numa_clear_analde(int cpu);
+extern void __init init_cpu_to_analde(void);
 extern void numa_add_cpu(int cpu);
 extern void numa_remove_cpu(int cpu);
-extern void init_gi_nodes(void);
+extern void init_gi_analdes(void);
 #else	/* CONFIG_NUMA */
-static inline void numa_set_node(int cpu, int node)	{ }
-static inline void numa_clear_node(int cpu)		{ }
-static inline void init_cpu_to_node(void)		{ }
+static inline void numa_set_analde(int cpu, int analde)	{ }
+static inline void numa_clear_analde(int cpu)		{ }
+static inline void init_cpu_to_analde(void)		{ }
 static inline void numa_add_cpu(int cpu)		{ }
 static inline void numa_remove_cpu(int cpu)		{ }
-static inline void init_gi_nodes(void)			{ }
+static inline void init_gi_analdes(void)			{ }
 #endif	/* CONFIG_NUMA */
 
 #ifdef CONFIG_DEBUG_PER_CPU_MAPS
-void debug_cpumask_set_cpu(int cpu, int node, bool enable);
+void debug_cpumask_set_cpu(int cpu, int analde, bool enable);
 #endif
 
 #ifdef CONFIG_NUMA_EMU
-#define FAKE_NODE_MIN_SIZE	((u64)32 << 20)
-#define FAKE_NODE_MIN_HASH_MASK	(~(FAKE_NODE_MIN_SIZE - 1UL))
+#define FAKE_ANALDE_MIN_SIZE	((u64)32 << 20)
+#define FAKE_ANALDE_MIN_HASH_MASK	(~(FAKE_ANALDE_MIN_SIZE - 1UL))
 int numa_emu_cmdline(char *str);
 #else /* CONFIG_NUMA_EMU */
 static inline int numa_emu_cmdline(char *str)

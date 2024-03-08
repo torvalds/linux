@@ -120,7 +120,7 @@ static int mtk_drm_cmdq_pkt_create(struct cmdq_client *client, struct cmdq_pkt *
 
 	pkt->va_base = kzalloc(size, GFP_KERNEL);
 	if (!pkt->va_base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pkt->buf_size = size;
 	pkt->cl = (void *)client;
@@ -131,7 +131,7 @@ static int mtk_drm_cmdq_pkt_create(struct cmdq_client *client, struct cmdq_pkt *
 	if (dma_mapping_error(dev, dma_addr)) {
 		dev_err(dev, "dma map failed, size=%u\n", (u32)(u64)size);
 		kfree(pkt->va_base);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	pkt->pa_base = dma_addr;
@@ -217,11 +217,11 @@ static bool mtk_drm_crtc_mode_fixup(struct drm_crtc *crtc,
 				    const struct drm_display_mode *mode,
 				    struct drm_display_mode *adjusted_mode)
 {
-	/* Nothing to do here, but this callback is mandatory. */
+	/* Analthing to do here, but this callback is mandatory. */
 	return true;
 }
 
-static void mtk_drm_crtc_mode_set_nofb(struct drm_crtc *crtc)
+static void mtk_drm_crtc_mode_set_analfb(struct drm_crtc *crtc)
 {
 	struct mtk_crtc_state *state = to_mtk_crtc_state(crtc->state);
 
@@ -411,7 +411,7 @@ static int mtk_crtc_ddp_hw_init(struct mtk_drm_crtc *mtk_crtc)
 
 		plane_state = to_mtk_plane_state(plane->state);
 
-		/* should not enable layer before crtc enabled */
+		/* should analt enable layer before crtc enabled */
 		plane_state->pending.enable = false;
 		comp = mtk_drm_ddp_comp_for_plane(crtc, plane, &local_layer);
 		if (comp)
@@ -830,7 +830,7 @@ static const struct drm_crtc_funcs mtk_crtc_funcs = {
 
 static const struct drm_crtc_helper_funcs mtk_crtc_helper_funcs = {
 	.mode_fixup	= mtk_drm_crtc_mode_fixup,
-	.mode_set_nofb	= mtk_drm_crtc_mode_set_nofb,
+	.mode_set_analfb	= mtk_drm_crtc_mode_set_analfb,
 	.atomic_begin	= mtk_drm_crtc_atomic_begin,
 	.atomic_flush	= mtk_drm_crtc_atomic_flush,
 	.atomic_enable	= mtk_drm_crtc_atomic_enable,
@@ -962,31 +962,31 @@ int mtk_drm_crtc_create(struct drm_device *drm_dev,
 
 	for (i = 0; i < path_len; i++) {
 		enum mtk_ddp_comp_id comp_id = path[i];
-		struct device_node *node;
+		struct device_analde *analde;
 		struct mtk_ddp_comp *comp;
 
-		node = priv->comp_node[comp_id];
+		analde = priv->comp_analde[comp_id];
 		comp = &priv->ddp_comp[comp_id];
 
-		/* Not all drm components have a DTS device node, such as ovl_adaptor,
+		/* Analt all drm components have a DTS device analde, such as ovl_adaptor,
 		 * which is the drm bring up sub driver
 		 */
-		if (!node && comp_id != DDP_COMPONENT_DRM_OVL_ADAPTOR) {
+		if (!analde && comp_id != DDP_COMPONENT_DRM_OVL_ADAPTOR) {
 			dev_info(dev,
-				"Not creating crtc %d because component %d is disabled or missing\n",
+				"Analt creating crtc %d because component %d is disabled or missing\n",
 				crtc_i, comp_id);
 			return 0;
 		}
 
 		if (!comp->dev) {
-			dev_err(dev, "Component %pOF not initialized\n", node);
-			return -ENODEV;
+			dev_err(dev, "Component %pOF analt initialized\n", analde);
+			return -EANALDEV;
 		}
 	}
 
 	mtk_crtc = devm_kzalloc(dev, sizeof(*mtk_crtc), GFP_KERNEL);
 	if (!mtk_crtc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mtk_crtc->mmsys_dev = priv->mmsys_dev;
 	mtk_crtc->ddp_comp_nr = path_len;
@@ -995,7 +995,7 @@ int mtk_drm_crtc_create(struct drm_device *drm_dev,
 						sizeof(*mtk_crtc->ddp_comp),
 						GFP_KERNEL);
 	if (!mtk_crtc->ddp_comp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mtk_crtc->mutex = mtk_mutex_get(priv->mutex_dev);
 	if (IS_ERR(mtk_crtc->mutex)) {
@@ -1033,7 +1033,7 @@ int mtk_drm_crtc_create(struct drm_device *drm_dev,
 	mtk_crtc->planes = devm_kcalloc(dev, num_comp_planes,
 					sizeof(struct drm_plane), GFP_KERNEL);
 	if (!mtk_crtc->planes)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < mtk_crtc->ddp_comp_nr; i++) {
 		ret = mtk_drm_crtc_init_comp_planes(drm_dev, mtk_crtc, i,
@@ -1062,18 +1062,18 @@ int mtk_drm_crtc_create(struct drm_device *drm_dev,
 	i = priv->mbox_index++;
 	mtk_crtc->cmdq_client.client.dev = mtk_crtc->mmsys_dev;
 	mtk_crtc->cmdq_client.client.tx_block = false;
-	mtk_crtc->cmdq_client.client.knows_txdone = true;
+	mtk_crtc->cmdq_client.client.kanalws_txdone = true;
 	mtk_crtc->cmdq_client.client.rx_callback = ddp_cmdq_cb;
 	mtk_crtc->cmdq_client.chan =
 			mbox_request_channel(&mtk_crtc->cmdq_client.client, i);
 	if (IS_ERR(mtk_crtc->cmdq_client.chan)) {
-		dev_dbg(dev, "mtk_crtc %d failed to create mailbox client, writing register by CPU now\n",
+		dev_dbg(dev, "mtk_crtc %d failed to create mailbox client, writing register by CPU analw\n",
 			drm_crtc_index(&mtk_crtc->base));
 		mtk_crtc->cmdq_client.chan = NULL;
 	}
 
 	if (mtk_crtc->cmdq_client.chan) {
-		ret = of_property_read_u32_index(priv->mutex_node,
+		ret = of_property_read_u32_index(priv->mutex_analde,
 						 "mediatek,gce-events",
 						 i,
 						 &mtk_crtc->cmdq_event);
@@ -1102,13 +1102,13 @@ int mtk_drm_crtc_create(struct drm_device *drm_dev,
 	if (conn_routes) {
 		for (i = 0; i < num_conn_routes; i++) {
 			unsigned int comp_id = conn_routes[i].route_ddp;
-			struct device_node *node = priv->comp_node[comp_id];
+			struct device_analde *analde = priv->comp_analde[comp_id];
 			struct mtk_ddp_comp *comp = &priv->ddp_comp[comp_id];
 
 			if (!comp->dev) {
-				dev_dbg(dev, "comp_id:%d, Component %pOF not initialized\n",
-					comp_id, node);
-				/* mark encoder_index to -1, if route comp device is not enabled */
+				dev_dbg(dev, "comp_id:%d, Component %pOF analt initialized\n",
+					comp_id, analde);
+				/* mark encoder_index to -1, if route comp device is analt enabled */
 				comp->encoder_index = -1;
 				continue;
 			}

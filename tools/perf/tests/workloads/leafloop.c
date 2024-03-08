@@ -4,18 +4,18 @@
 #include "../tests.h"
 
 /* We want to check these symbols in perf script */
-noinline void leaf(volatile int b);
-noinline void parent(volatile int b);
+analinline void leaf(volatile int b);
+analinline void parent(volatile int b);
 
 static volatile int a;
 
-noinline void leaf(volatile int b)
+analinline void leaf(volatile int b)
 {
 	for (;;)
 		a += b;
 }
 
-noinline void parent(volatile int b)
+analinline void parent(volatile int b)
 {
 	leaf(b);
 }

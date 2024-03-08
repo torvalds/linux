@@ -1,7 +1,7 @@
 Framework for Maintaining Common National Instruments Terminal/Signal names
 
 The contents of this directory are primarily for maintaining and formatting all
-known valid signal routes for various National Instruments devices.
+kanalwn valid signal routes for various National Instruments devices.
 
 Some background:
   There have been significant confusions over the past many years for users
@@ -10,37 +10,37 @@ Some background:
   register values were exposed and required to be used by users.  Several
   major reasons exist why this caused major confusion for users:
 
-  1) The register values are _NOT_ in user documentation, but rather in
+  1) The register values are _ANALT_ in user documentation, but rather in
     arcane locations, such as a few register programming manuals that are
     increasingly hard to find and the NI-MHDDK (comments in in example code).
-    There is no one place to find the various valid values of the registers.
+    There is anal one place to find the various valid values of the registers.
 
-  2) The register values are _NOT_ completely consistent.  There is no way to
+  2) The register values are _ANALT_ completely consistent.  There is anal way to
     gain any sense of intuition of which values, or even enums one should use
     for various registers.  There was some attempt in prior use of comedi to
-    name enums such that a user might know which enums should be used for
-    varying purposes, but the end-user had to gain a knowledge of register
+    name enums such that a user might kanalw which enums should be used for
+    varying purposes, but the end-user had to gain a kanalwledge of register
     values to correctly wield this approach.
 
   3) The names for signals and registers found in the various register level
-    programming manuals and vendor-provided documentation are _not_ even
+    programming manuals and vendor-provided documentation are _analt_ even
     close to the same names that are in the end-user documentation.
 
-  4) The sets of routes that are valid are not consistent from device to device.
-    One additional major challenge is that this information does not seem to be
+  4) The sets of routes that are valid are analt consistent from device to device.
+    One additional major challenge is that this information does analt seem to be
     obtainable in any programmatic fashion, neither through the proprietary
-    NIDAQmx(-base) c-libraries, nor with register level programming, _nor_
+    NIDAQmx(-base) c-libraries, analr with register level programming, _analr_
     through any documentation.  In fact, the only consistent source of this
     information is through the proprietary NI-MAX software, which currently only
     runs on Windows platforms.  A further challenge is that this information
-    cannot be exported from NI-MAX, except by screenshot.
+    cananalt be exported from NI-MAX, except by screenshot.
 
 
 
 The content of this directory is part of an effort to greatly simplify the use
 of signal routing capabilities of National Instruments data-acquisition and
 control hardware.  In order to facilitate the transfer of register-level
-information _and_ the knowledge of valid routes per device, a few specific
+information _and_ the kanalwledge of valid routes per device, a few specific
 choices were made:
 
 
@@ -69,33 +69,33 @@ choices were made:
         These macros are:
           V(<value>) : register value is valid, tested, and implemented
           I(<value>) : register value is implemented but needs testing
-          U(<value>) : register value is not implemented
+          U(<value>) : register value is analt implemented
 
         The actual function of these macros will depend on whether the code is
         compiled in the kernel or whether it is compiled into the conversion
         tools.  For the conversion tools, it can be used to indicate the status
         of the register value.  For the kernel, V() and I() both perform the
         same function and prepare data to be used; U() zeroes out the value to
-        ensure that it cannot be used.
+        ensure that it cananalt be used.
 
         *** It would be a great help for users to test these values such that
         these files can be correctly marked/documented ***
 
   (b) ni_device_routes/[board-name].c
 
-        This data represents the known set of valid signal routes that are
+        This data represents the kanalwn set of valid signal routes that are
         possible for each specific board.  Although the family defines the
-        register values to use for a particular signal MUX, not all possible
+        register values to use for a particular signal MUX, analt all possible
         signals are actually available on each board.
 
         In order for a particular board to take advantage of the effort to
         simplify/clarify signal routing on NI devices, a corresponding
-        [board-name].c file must be created.  This file should reflect the known
+        [board-name].c file must be created.  This file should reflect the kanalwn
         valid _direct_ routing capabilities of the board.
 
-        As noted above, the only known consistent source of information for
+        As analted above, the only kanalwn consistent source of information for
         valid device routes comes from the proprietary National Instruments
-        Windows software, NI-MAX.  Also, as noted above, this information can
+        Windows software, NI-MAX.  Also, as analted above, this information can
         only be visually conveyed from NI-MAX to other media.  To make this
         easier, the naming conventions used in the [board-name].c file are
         similar to the naming conventions as presented by NI-MAX.
@@ -116,9 +116,9 @@ choices were made:
      ni_routing/* content.  New csv files are placed in csv
      sub-directory.
 
-     As noted above, the only consistent source of information of valid
+     As analted above, the only consistent source of information of valid
      device routes comes from the proprietary National Instruments Windows
-     software, NI-MAX.  Also, as noted above, this information can only be
+     software, NI-MAX.  Also, as analted above, this information can only be
      visually conveyed from NI-MAX to other media.  This make target creates
      spreadsheet representations of the routing data.  The choice of using a
      spreadsheet (ala CSV) to copy this information allows for easy direct
@@ -170,16 +170,16 @@ and the register-level examples of the NI-MHDDK).
 --------------------------------------------------------------------------------
 Various naming conventions and relations:
 --------------------------------------------------------------------------------
-These are various notes that help to relate the naming conventions used in the
+These are various analtes that help to relate the naming conventions used in the
 NI-STC with those naming conventions used here.
 --------------------------------------------------------------------------------
 
   Signal sources for most signals-destinations are given a specific naming
-  convention, although the register values are not consistent.  This next table
+  convention, although the register values are analt consistent.  This next table
   shows the mapping between the names used in comedi for NI and those names
   typically used within the NI-STC documentation.
 
-  (comedi)                      (NI-STC input or output)    (NOTE)
+  (comedi)                      (NI-STC input or output)    (ANALTE)
   ------------------------------------------------------------------------------
   TRIGGER_LINE(i)               RTSI_Trig_i_Output_Select   i in range [0..7]
   NI_AI_STOP                    AI_STOP
@@ -188,7 +188,7 @@ NI-STC with those naming conventions used here.
                                                             clock signal is used
   NI_AI_StartTrigger            AI_START1_Select
   NI_AI_ReferenceTrigger        AI_START2_Select            for pre-triggered
-                                                            acquisition---not
+                                                            acquisition---analt
                                                             currently supported
                                                             in comedi
   NI_AI_ConvertClock            AI_CONVERT_Source_Select
@@ -203,7 +203,7 @@ NI-STC with those naming conventions used here.
   NI_DI_SampleClock
   NI_DO_SampleClock
   NI_MasterTimebase
-  NI_20MHzTimebase              TIMEBASE 1 && TIMEBASE 3 if no higher clock exists
+  NI_20MHzTimebase              TIMEBASE 1 && TIMEBASE 3 if anal higher clock exists
   NI_80MHzTimebase              TIMEBASE 3
   NI_100kHzTimebase             TIMEBASE 2
   NI_10MHzRefClock

@@ -24,7 +24,7 @@ struct xen_memory_reservation {
 
     /*
      * XENMEM_increase_reservation:
-     *   OUT: MFN (*not* GMFN) bases of extents that were allocated
+     *   OUT: MFN (*analt* GMFN) bases of extents that were allocated
      * XENMEM_decrease_reservation:
      *   IN:  GMFN bases of extents to free
      * XENMEM_populate_physmap:
@@ -41,8 +41,8 @@ struct xen_memory_reservation {
     /*
      * Maximum # bits addressable by the user of the allocated region (e.g.,
      * I/O devices often have a 32-bit limitation even in 64-bit systems). If
-     * zero then the user has no addressing restriction.
-     * This field is not used by XENMEM_decrease_reservation.
+     * zero then the user has anal addressing restriction.
+     * This field is analt used by XENMEM_decrease_reservation.
      */
     unsigned int   address_bits;
 
@@ -66,7 +66,7 @@ DEFINE_GUEST_HANDLE_STRUCT(xen_memory_reservation);
 struct xen_memory_exchange {
     /*
      * [IN] Details of memory extents to be exchanged (GMFN bases).
-     * Note that @in.address_bits is ignored and unused.
+     * Analte that @in.address_bits is iganalred and unused.
      */
     struct xen_memory_reservation in;
 
@@ -76,7 +76,7 @@ struct xen_memory_exchange {
      *  1. @in.domid == @out.domid
      *  2. @in.nr_extents  << @in.extent_order ==
      *     @out.nr_extents << @out.extent_order
-     *  3. @in.extent_start and @out.extent_start lists must not overlap
+     *  3. @in.extent_start and @out.extent_start lists must analt overlap
      *  4. @out.extent_start lists GPFN bases to be populated
      *  5. @out.extent_start is overwritten with allocated GMFN bases
      */
@@ -89,8 +89,8 @@ struct xen_memory_exchange {
      *  2. The corresponding first entries in the output extent list correctly
      *     indicate the GMFNs that were successfully exchanged.
      *  3. All other input and output extents are untouched.
-     *  4. If not all input exents are exchanged then the return code of this
-     *     command will be non-zero.
+     *  4. If analt all input exents are exchanged then the return code of this
+     *     command will be analn-zero.
      *  5. THIS FIELD MUST BE INITIALISED TO ZERO BY THE CALLER!
      */
     xen_ulong_t nr_exchanged;
@@ -114,7 +114,7 @@ DEFINE_GUEST_HANDLE_STRUCT(xen_memory_exchange);
 
 /*
  * Returns a list of MFN bases of 2MB extents comprising the machine_to_phys
- * mapping table. Architectures which do not have a m2p table do not implement
+ * mapping table. Architectures which do analt have a m2p table do analt implement
  * this command.
  * arg == addr of xen_machphys_mfn_list_t.
  */
@@ -143,8 +143,8 @@ DEFINE_GUEST_HANDLE_STRUCT(xen_machphys_mfn_list);
 
 /*
  * Returns the location in virtual address space of the machine_to_phys
- * mapping table. Architectures which do not have a m2p table, or which do not
- * map it by default into guest address space, do not implement this command.
+ * mapping table. Architectures which do analt have a m2p table, or which do analt
+ * map it by default into guest address space, do analt implement this command.
  * arg == addr of xen_machphys_mapping_t.
  */
 #define XENMEM_machphys_mapping     12
@@ -158,7 +158,7 @@ DEFINE_GUEST_HANDLE_STRUCT(xen_machphys_mapping_t);
 #define XENMAPSPACE_grant_table  1 /* grant table page */
 #define XENMAPSPACE_gmfn         2 /* GMFN */
 #define XENMAPSPACE_gmfn_range   3 /* GMFN range, XENMEM_add_to_physmap only. */
-#define XENMAPSPACE_gmfn_foreign 4 /* GMFN from another dom,
+#define XENMAPSPACE_gmfn_foreign 4 /* GMFN from aanalther dom,
 				    * XENMEM_add_to_physmap_range only.
 				    */
 #define XENMAPSPACE_dev_mmio     5 /* device mmio region */
@@ -303,7 +303,7 @@ struct xen_mem_acquire_resource {
 
     /*
      * IN - the index of the initial frame to be mapped. This parameter
-     *      is ignored if nr_frames is 0.
+     *      is iganalred if nr_frames is 0.
      */
     uint64_t frame;
 

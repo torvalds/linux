@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-2.0
 #
 # Test that blackhole routes are marked as offloaded and that packets hitting
-# them are dropped by the ASIC and not by the kernel.
+# them are dropped by the ASIC and analt by the kernel.
 #
 # +---------------------------------+
 # | H1 (vrf)                        |
@@ -116,7 +116,7 @@ ping_ipv6()
 blackhole_ipv4()
 {
 	# Transmit packets from H1 to H2 and make sure they are dropped by the
-	# ASIC and not by the kernel
+	# ASIC and analt by the kernel
 	RET=0
 
 	ip -4 route add blackhole 198.51.100.0/30
@@ -125,13 +125,13 @@ blackhole_ipv4()
 		action pass
 
 	busywait "$TIMEOUT" wait_for_offload ip -4 route show 198.51.100.0/30
-	check_err $? "route not marked as offloaded when should"
+	check_err $? "route analt marked as offloaded when should"
 
 	ping_do $h1 198.51.100.1
-	check_fail $? "ping passed when should not"
+	check_fail $? "ping passed when should analt"
 
 	tc_check_packets "dev $rp1 ingress" 101 0
-	check_err $? "packets trapped and not dropped by ASIC"
+	check_err $? "packets trapped and analt dropped by ASIC"
 
 	log_test "IPv4 blackhole route"
 
@@ -149,13 +149,13 @@ blackhole_ipv6()
 		ip_proto icmpv6 action pass
 
 	busywait "$TIMEOUT" wait_for_offload ip -6 route show 2001:db8:2::/120
-	check_err $? "route not marked as offloaded when should"
+	check_err $? "route analt marked as offloaded when should"
 
 	ping6_do $h1 2001:db8:2::1
-	check_fail $? "ping passed when should not"
+	check_fail $? "ping passed when should analt"
 
 	tc_check_packets "dev $rp1 ingress" 101 0
-	check_err $? "packets trapped and not dropped by ASIC"
+	check_err $? "packets trapped and analt dropped by ASIC"
 
 	log_test "IPv6 blackhole route"
 

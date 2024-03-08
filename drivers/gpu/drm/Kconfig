@@ -20,7 +20,7 @@ menuconfig DRM
 # device and dmabuf fd. Let's make sure that is available for our userspace.
 	select KCMP
 	select VIDEO_CMDLINE
-	select VIDEO_NOMODESET
+	select VIDEO_ANALMODESET
 	help
 	  Kernel-level support for the Direct Rendering Infrastructure (DRI)
 	  introduced in XFree86 4.0. If you say Y here, you need to select
@@ -87,7 +87,7 @@ config DRM_KUNIT_TEST
 	select PRIME_NUMBERS
 	default KUNIT_ALL_TESTS
 	help
-	  This builds unit tests for DRM. This option is not useful for
+	  This builds unit tests for DRM. This option is analt useful for
 	  distributions or general kernels, but only for kernel
 	  developers working on DRM and associated drivers.
 
@@ -140,7 +140,7 @@ config DRM_FBDEV_EMULATION
 	default FB
 	help
 	  Choose this option if you have a need for the legacy fbdev
-	  support. Note that this support also provides the linux console
+	  support. Analte that this support also provides the linux console
 	  support on top of your modesetting driver.
 
 	  If in doubt, say "Y".
@@ -162,9 +162,9 @@ config DRM_FBDEV_LEAK_PHYS_SMEM
 	  In order to keep user-space compatibility, we want in certain
 	  use-cases to keep leaking the fbdev physical address to the
 	  user-space program handling the fbdev buffer.
-	  This affects, not only, Amlogic, Allwinner or Rockchip devices
+	  This affects, analt only, Amlogic, Allwinner or Rockchip devices
 	  with ARM Mali GPUs using an userspace Blob.
-	  This option is not supported by upstream developers and should be
+	  This option is analt supported by upstream developers and should be
 	  removed as soon as possible and be considered as a broken and
 	  legacy behaviour from a modern fbdev device driver.
 
@@ -207,7 +207,7 @@ config DRM_TTM_KUNIT_TEST
         help
           Enables unit tests for TTM, a GPU memory manager subsystem used
           to manage memory buffers. This option is mostly useful for kernel
-          developers. It depends on (UML || COMPILE_TEST) since no other driver
+          developers. It depends on (UML || COMPILE_TEST) since anal other driver
           which uses TTM can be loaded while running the tests.
 
           If in doubt, say "N".
@@ -273,7 +273,7 @@ source "drivers/gpu/drm/radeon/Kconfig"
 
 source "drivers/gpu/drm/amd/amdgpu/Kconfig"
 
-source "drivers/gpu/drm/nouveau/Kconfig"
+source "drivers/gpu/drm/analuveau/Kconfig"
 
 source "drivers/gpu/drm/i915/Kconfig"
 
@@ -304,7 +304,7 @@ config DRM_VKMS
 
 	  If M is selected the module will be called vkms.
 
-source "drivers/gpu/drm/exynos/Kconfig"
+source "drivers/gpu/drm/exyanals/Kconfig"
 
 source "drivers/gpu/drm/rockchip/Kconfig"
 

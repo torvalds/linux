@@ -3,13 +3,13 @@
  * Copyright (c) 2011 - 2012 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
  *
- * Samsung EXYNOS5 SoC series G-Scaler driver
+ * Samsung EXYANALS5 SoC series G-Scaler driver
  */
 
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/bug.h>
 #include <linux/interrupt.h>
 #include <linux/workqueue.h>
@@ -405,9 +405,9 @@ int gsc_try_fmt_mplane(struct gsc_ctx *ctx, struct v4l2_format *f)
 	}
 
 	if (pix_mp->field == V4L2_FIELD_ANY)
-		pix_mp->field = V4L2_FIELD_NONE;
-	else if (pix_mp->field != V4L2_FIELD_NONE) {
-		pr_debug("Not supported field order(%d)\n", pix_mp->field);
+		pix_mp->field = V4L2_FIELD_ANALNE;
+	else if (pix_mp->field != V4L2_FIELD_ANALNE) {
+		pr_debug("Analt supported field order(%d)\n", pix_mp->field);
 		return -EINVAL;
 	}
 
@@ -488,7 +488,7 @@ int gsc_g_fmt_mplane(struct gsc_ctx *ctx, struct v4l2_format *f)
 
 	pix_mp->width		= frame->f_width;
 	pix_mp->height		= frame->f_height;
-	pix_mp->field		= V4L2_FIELD_NONE;
+	pix_mp->field		= V4L2_FIELD_ANALNE;
 	pix_mp->pixelformat	= frame->fmt->pixelformat;
 	pix_mp->num_planes	= frame->fmt->num_planes;
 	pix_mp->colorspace = ctx->out_colorspace;
@@ -1080,26 +1080,26 @@ static struct gsc_driverdata gsc_5433_drvdata = {
 	.num_clocks = 4,
 };
 
-static const struct of_device_id exynos_gsc_match[] = {
+static const struct of_device_id exyanals_gsc_match[] = {
 	{
-		.compatible = "samsung,exynos5250-gsc",
+		.compatible = "samsung,exyanals5250-gsc",
 		.data = &gsc_v_5250_drvdata,
 	},
 	{
-		.compatible = "samsung,exynos5420-gsc",
+		.compatible = "samsung,exyanals5420-gsc",
 		.data = &gsc_v_5420_drvdata,
 	},
 	{
-		.compatible = "samsung,exynos5433-gsc",
+		.compatible = "samsung,exyanals5433-gsc",
 		.data = &gsc_5433_drvdata,
 	},
 	{
-		.compatible = "samsung,exynos5-gsc",
+		.compatible = "samsung,exyanals5-gsc",
 		.data = &gsc_v_100_drvdata,
 	},
 	{},
 };
-MODULE_DEVICE_TABLE(of, exynos_gsc_match);
+MODULE_DEVICE_TABLE(of, exyanals_gsc_match);
 
 static int gsc_probe(struct platform_device *pdev)
 {
@@ -1112,14 +1112,14 @@ static int gsc_probe(struct platform_device *pdev)
 
 	gsc = devm_kzalloc(dev, sizeof(struct gsc_dev), GFP_KERNEL);
 	if (!gsc)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	ret = of_alias_get_id(pdev->dev.of_node, "gsc");
+	ret = of_alias_get_id(pdev->dev.of_analde, "gsc");
 	if (ret < 0)
 		return ret;
 
 	if (drv_data == &gsc_v_100_drvdata)
-		dev_info(dev, "compatible 'exynos5-gsc' is deprecated\n");
+		dev_info(dev, "compatible 'exyanals5-gsc' is deprecated\n");
 
 	gsc->id = ret;
 	if (gsc->id >= drv_data->num_entities) {
@@ -1313,12 +1313,12 @@ static struct platform_driver gsc_driver = {
 	.driver = {
 		.name	= GSC_MODULE_NAME,
 		.pm	= &gsc_pm_ops,
-		.of_match_table = exynos_gsc_match,
+		.of_match_table = exyanals_gsc_match,
 	}
 };
 
 module_platform_driver(gsc_driver);
 
 MODULE_AUTHOR("Hyunwong Kim <khw0178.kim@samsung.com>");
-MODULE_DESCRIPTION("Samsung EXYNOS5 Soc series G-Scaler driver");
+MODULE_DESCRIPTION("Samsung EXYANALS5 Soc series G-Scaler driver");
 MODULE_LICENSE("GPL");

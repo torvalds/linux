@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-// Copyright (c) 2018 Nuvoton Technology tomer.maimon@nuvoton.com
+// Copyright (c) 2018 Nuvoton Techanallogy tomer.maimon@nuvoton.com
 // Copyright 2018 Google, Inc.
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
@@ -19,7 +19,7 @@
 		clock-output-names = "refclk";
 	};
 
-	/* external reference clock for cpu. float in normal operation */
+	/* external reference clock for cpu. float in analrmal operation */
 	clk_sysbypck: clk_sysbypck {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
@@ -27,7 +27,7 @@
 		clock-output-names = "sysbypck";
 	};
 
-	/* external reference clock for MC. float in normal operation */
+	/* external reference clock for MC. float in analrmal operation */
 	clk_mcbypck: clk_mcbypck {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;

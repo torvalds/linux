@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Resource Director Technology(RDT)
+ * Resource Director Techanallogy(RDT)
  * - Cache Allocation code.
  *
  * Copyright (C) 2016 Intel Corporation
@@ -31,7 +31,7 @@ DEFINE_MUTEX(rdtgroup_mutex);
 /*
  * The cached resctrl_pqr_state is strictly per CPU and can never be
  * updated from a remote CPU. Functions which modify the state
- * are called with interrupts disabled and no preemption, which
+ * are called with interrupts disabled and anal preemption, which
  * is sufficient for the protection.
  */
 DEFINE_PER_CPU(struct resctrl_pqr_state, pqr_state);
@@ -116,8 +116,8 @@ struct rdt_hw_resource rdt_resources_all[] = {
 
 /*
  * cache_alloc_hsw_probe() - Have to probe for Intel haswell server CPUs
- * as they do not have CPUID enumeration support for Cache allocation.
- * The check for Vendor/Family/Model is not enough to guarantee that
+ * as they do analt have CPUID enumeration support for Cache allocation.
+ * The check for Vendor/Family/Model is analt eanalugh to guarantee that
  * the MSRs won't #GP fault because only the following SKUs support
  * CAT:
  *	Intel(R) Xeon(R)  CPU E5-2658  v3  @  2.20GHz
@@ -177,8 +177,8 @@ bool is_mba_sc(struct rdt_resource *r)
  * rdt_get_mb_table() - get a mapping of bandwidth(b/w) percentage values
  * exposed to user interface and the h/w understandable delay values.
  *
- * The non-linear delay values have the granularity of power of two
- * and also the h/w does not guarantee a curve for configured delay
+ * The analn-linear delay values have the granularity of power of two
+ * and also the h/w does analt guarantee a curve for configured delay
  * values vs. actual b/w enforced.
  * Hence we need a mapping that is pre calibrated so the user can
  * express the memory b/w as a percentage value.
@@ -186,9 +186,9 @@ bool is_mba_sc(struct rdt_resource *r)
 static inline bool rdt_get_mb_table(struct rdt_resource *r)
 {
 	/*
-	 * There are no Intel SKUs as of now to support non-linear delay.
+	 * There are anal Intel SKUs as of analw to support analn-linear delay.
 	 */
-	pr_info("MBA b/w map not implemented for cpu:%d, model:%d",
+	pr_info("MBA b/w map analt implemented for cpu:%d, model:%d",
 		boot_cpu_data.x86, boot_cpu_data.x86_model);
 
 	return false;
@@ -245,12 +245,12 @@ static bool __rdt_get_mem_config_amd(struct rdt_resource *r)
 	hw_res->num_closid = edx.split.cos_max + 1;
 	r->default_ctrl = MAX_MBA_BW_AMD;
 
-	/* AMD does not use delay */
+	/* AMD does analt use delay */
 	r->membw.delay_linear = false;
 	r->membw.arch_needs_linear = false;
 
 	/*
-	 * AMD does not use memory delay throttle model to control
+	 * AMD does analt use memory delay throttle model to control
 	 * the allocation like Intel does.
 	 */
 	r->membw.throttle_mode = THREAD_THROTTLE_UNDEFINED;
@@ -279,7 +279,7 @@ static void rdt_get_cache_alloc_cfg(int idx, struct rdt_resource *r)
 	r->cache.shareable_bits = ebx & r->default_ctrl;
 	r->data_width = (r->cache.cbm_len + 3) / 4;
 	if (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL)
-		r->cache.arch_has_sparse_bitmasks = ecx.split.noncont;
+		r->cache.arch_has_sparse_bitmasks = ecx.split.analncont;
 	r->alloc_capable = true;
 }
 
@@ -317,14 +317,14 @@ mba_wrmsr_amd(struct rdt_domain *d, struct msr_param *m, struct rdt_resource *r)
 /*
  * Map the memory b/w percentage value to delay values
  * that can be written to QOS_MSRs.
- * There are currently no SKUs which support non linear delay values.
+ * There are currently anal SKUs which support analn linear delay values.
  */
 static u32 delay_bw_map(unsigned long bw, struct rdt_resource *r)
 {
 	if (r->membw.delay_linear)
 		return MAX_MBA_BW - bw;
 
-	pr_warn_once("Non Linear delay-bw map not supported but queried\n");
+	pr_warn_once("Analn Linear delay-bw map analt supported but queried\n");
 	return r->default_ctrl;
 }
 
@@ -383,7 +383,7 @@ void rdt_ctrl_update(void *arg)
 		hw_res->msr_update(d, m, r);
 		return;
 	}
-	pr_warn_once("cpu %d not found in any domain for resource %s\n",
+	pr_warn_once("cpu %d analt found in any domain for resource %s\n",
 		     cpu, r->name);
 }
 
@@ -402,7 +402,7 @@ struct rdt_domain *rdt_find_domain(struct rdt_resource *r, int id,
 	struct list_head *l;
 
 	if (id < 0)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	list_for_each(l, &r->domains) {
 		d = list_entry(l, struct rdt_domain, list);
@@ -426,7 +426,7 @@ static void setup_default_ctrlval(struct rdt_resource *r, u32 *dc)
 	int i;
 
 	/*
-	 * Initialize the Control MSRs to having no control.
+	 * Initialize the Control MSRs to having anal control.
 	 * For Cache Allocation: Set all bits in cbm
 	 * For Memory Allocation: Set b/w requested to 100%
 	 */
@@ -452,7 +452,7 @@ static int domain_setup_ctrlval(struct rdt_resource *r, struct rdt_domain *d)
 	dc = kmalloc_array(hw_res->num_closid, sizeof(*hw_dom->ctrl_val),
 			   GFP_KERNEL);
 	if (!dc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hw_dom->ctrl_val = dc;
 	setup_default_ctrlval(r, dc);
@@ -476,7 +476,7 @@ static int arch_domain_mbm_alloc(u32 num_rmid, struct rdt_hw_domain *hw_dom)
 		tsize = sizeof(*hw_dom->arch_mbm_total);
 		hw_dom->arch_mbm_total = kcalloc(num_rmid, tsize, GFP_KERNEL);
 		if (!hw_dom->arch_mbm_total)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 	if (is_mbm_local_enabled()) {
 		tsize = sizeof(*hw_dom->arch_mbm_local);
@@ -484,7 +484,7 @@ static int arch_domain_mbm_alloc(u32 num_rmid, struct rdt_hw_domain *hw_dom)
 		if (!hw_dom->arch_mbm_local) {
 			kfree(hw_dom->arch_mbm_total);
 			hw_dom->arch_mbm_total = NULL;
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 
@@ -525,7 +525,7 @@ static void domain_add_cpu(int cpu, struct rdt_resource *r)
 		return;
 	}
 
-	hw_dom = kzalloc_node(sizeof(*hw_dom), GFP_KERNEL, cpu_to_node(cpu));
+	hw_dom = kzalloc_analde(sizeof(*hw_dom), GFP_KERNEL, cpu_to_analde(cpu));
 	if (!hw_dom)
 		return;
 
@@ -962,7 +962,7 @@ static int __init resctrl_late_init(void)
 	check_quirks();
 
 	if (!get_rdt_resources())
-		return -ENODEV;
+		return -EANALDEV;
 
 	rdt_init_padding();
 

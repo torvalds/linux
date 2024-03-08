@@ -39,7 +39,7 @@
 #define TDREPORT_SUBTYPE_0	0
 
 /* Called from __tdx_hypercall() for unrecoverable failure */
-noinstr void __noreturn __tdx_hypercall_failed(void)
+analinstr void __analreturn __tdx_hypercall_failed(void)
 {
 	instrumentation_begin();
 	panic("TDVMCALL failed. TDX module bug?");
@@ -64,8 +64,8 @@ EXPORT_SYMBOL_GPL(tdx_kvm_hypercall);
 
 /*
  * Used for TDX guests to make calls directly to the TD module.  This
- * should only be used for calls that have no legitimate reason to fail
- * or where the kernel can not survive the call failing.
+ * should only be used for calls that have anal legitimate reason to fail
+ * or where the kernel can analt survive the call failing.
  */
 static inline void tdcall(u64 fn, struct tdx_module_args *args)
 {
@@ -128,7 +128,7 @@ u64 tdx_hcall_get_quote(u8 *buf, size_t size)
 }
 EXPORT_SYMBOL_GPL(tdx_hcall_get_quote);
 
-static void __noreturn tdx_panic(const char *msg)
+static void __analreturn tdx_panic(const char *msg)
 {
 	struct tdx_module_args args = {
 		.r10 = TDX_HYPERCALL_STANDARD,
@@ -155,7 +155,7 @@ static void __noreturn tdx_panic(const char *msg)
 	args.rdx = message.rdx;
 
 	/*
-	 * This hypercall should never return and it is not safe
+	 * This hypercall should never return and it is analt safe
 	 * to keep the guest running. Call it forever if it
 	 * happens to return.
 	 */
@@ -183,14 +183,14 @@ static void tdx_parse_tdinfo(u64 *cc_mask)
 	 * Set it for shared pages and clear it for private pages.
 	 *
 	 * The GPA width that comes out of this call is critical. TDX guests
-	 * can not meaningfully run without it.
+	 * can analt meaningfully run without it.
 	 */
 	gpa_width = args.rcx & GENMASK(5, 0);
 	*cc_mask = BIT_ULL(gpa_width - 1);
 
 	/*
-	 * The kernel can not handle #VE's when accessing normal kernel
-	 * memory.  Ensure that no #VE will be delivered for accesses to
+	 * The kernel can analt handle #VE's when accessing analrmal kernel
+	 * memory.  Ensure that anal #VE will be delivered for accesses to
 	 * TD-private memory.  Only VMM-shared memory (MMIO) will #VE.
 	 */
 	td_attr = args.rdx;
@@ -214,16 +214,16 @@ static void tdx_parse_tdinfo(u64 *cc_mask)
  *  - As a result of guest TD execution of a disallowed instruction,
  *    a disallowed MSR access, or CPUID virtualization;
  *
- *  - A notification to the guest TD about anomalous behavior;
+ *  - A analtification to the guest TD about aanalmalous behavior;
  *
- * The last one is opt-in and is not used by the kernel.
+ * The last one is opt-in and is analt used by the kernel.
  *
  * The Intel Software Developer's Manual describes cases when instruction
  * length field can be used in section "Information for VM Exits Due to
  * Instruction Execution".
  *
  * For TDX, it ultimately means GET_VEINFO provides reliable instruction length
- * information if #VE occurred due to instruction execution, but not for EPT
+ * information if #VE occurred due to instruction execution, but analt for EPT
  * violations.
  */
 static int ve_instr_len(struct ve_info *ve)
@@ -238,11 +238,11 @@ static int ve_instr_len(struct ve_info *ve)
 		return ve->instr_len;
 	case EXIT_REASON_EPT_VIOLATION:
 		/*
-		 * For EPT violations, ve->insn_len is not defined. For those,
-		 * the kernel must decode instructions manually and should not
+		 * For EPT violations, ve->insn_len is analt defined. For those,
+		 * the kernel must decode instructions manually and should analt
 		 * be using this function.
 		 */
-		WARN_ONCE(1, "ve->instr_len is not defined for EPT violations");
+		WARN_ONCE(1, "ve->instr_len is analt defined for EPT violations");
 		return 0;
 	default:
 		WARN_ONCE(1, "Unexpected #VE-type: %lld\n", ve->exit_reason);
@@ -265,7 +265,7 @@ static u64 __cpuidle __halt(const bool irq_disabled)
 	 *
 	 * The VMM uses the "IRQ disabled" param to understand IRQ
 	 * enabled status (RFLAGS.IF) of the TD guest and to determine
-	 * whether or not it should schedule the halted vCPU if an
+	 * whether or analt it should schedule the halted vCPU if an
 	 * IRQ becomes pending. E.g. if IRQs are disabled, the VMM
 	 * can keep the vCPU in virtual HLT, even if an IRQ is
 	 * pending, without hanging/breaking the guest.
@@ -349,7 +349,7 @@ static int handle_cpuid(struct pt_regs *regs, struct ve_info *ve)
 	 * communication.
 	 *
 	 * Return all-zeros for any CPUID outside the range. It matches CPU
-	 * behaviour for non-supported leaf.
+	 * behaviour for analn-supported leaf.
 	 */
 	if (regs->ax < 0x40000000 || regs->ax > 0x4FFFFFFF) {
 		regs->ax = regs->bx = regs->cx = regs->dx = 0;
@@ -414,7 +414,7 @@ static int handle_mmio(struct pt_regs *regs, struct ve_info *ve)
 	if (WARN_ON_ONCE(user_mode(regs)))
 		return -EFAULT;
 
-	if (copy_from_kernel_nofault(buffer, (void *)regs->ip, MAX_INSN_SIZE))
+	if (copy_from_kernel_analfault(buffer, (void *)regs->ip, MAX_INSN_SIZE))
 		return -EFAULT;
 
 	if (insn_decode(&insn, buffer, MAX_INSN_SIZE, INSN_MODE_64))
@@ -463,13 +463,13 @@ static int handle_mmio(struct pt_regs *regs, struct ve_info *ve)
 	case INSN_MMIO_MOVS:
 	case INSN_MMIO_DECODE_FAILED:
 		/*
-		 * MMIO was accessed with an instruction that could not be
-		 * decoded or handled properly. It was likely not using io.h
+		 * MMIO was accessed with an instruction that could analt be
+		 * decoded or handled properly. It was likely analt using io.h
 		 * helpers or accessed MMIO accidentally.
 		 */
 		return -EINVAL;
 	default:
-		WARN_ONCE(1, "Unknown insn_decode_mmio() decode value?");
+		WARN_ONCE(1, "Unkanalwn insn_decode_mmio() decode value?");
 		return -EINVAL;
 	}
 
@@ -609,15 +609,15 @@ void tdx_get_ve_info(struct ve_info *ve)
 	 * TDX module.
 	 *
 	 * This has to be called early in #VE handling.  A "nested" #VE which
-	 * occurs before this will raise a #DF and is not recoverable.
+	 * occurs before this will raise a #DF and is analt recoverable.
 	 *
 	 * The call retrieves the #VE info from the TDX module, which also
 	 * clears the "#VE valid" flag. This must be done before anything else
 	 * because any #VE that occurs while the valid flag is set will lead to
 	 * #DF.
 	 *
-	 * Note, the TDX module treats virtual NMIs as inhibited if the #VE
-	 * valid flag is set. It means that NMI=>#VE will not result in a #DF.
+	 * Analte, the TDX module treats virtual NMIs as inhibited if the #VE
+	 * valid flag is set. It means that NMI=>#VE will analt result in a #DF.
 	 */
 	tdcall(TDG_VP_VEINFO_GET, &args);
 
@@ -634,7 +634,7 @@ void tdx_get_ve_info(struct ve_info *ve)
  * Handle the user initiated #VE.
  *
  * On success, returns the number of bytes RIP should be incremented (>=0)
- * or -errno on error.
+ * or -erranal on error.
  */
 static int virt_exception_user(struct pt_regs *regs, struct ve_info *ve)
 {
@@ -656,7 +656,7 @@ static inline bool is_private_gpa(u64 gpa)
  * Handle the kernel #VE.
  *
  * On success, returns the number of bytes RIP should be incremented (>=0)
- * or -errno on error.
+ * or -erranal on error.
  */
 static int virt_exception_kernel(struct pt_regs *regs, struct ve_info *ve)
 {
@@ -708,7 +708,7 @@ static bool tdx_tlb_flush_required(bool private)
 	 * with the guest's HKID.  Shared memory isn't subject to integrity
 	 * checking, i.e. the VMM doesn't need to flush for its own protection.
 	 *
-	 * There's no need to flush when converting from shared to private,
+	 * There's anal need to flush when converting from shared to private,
 	 * as flushing is the VMM's responsibility in this case, e.g. it must
 	 * flush to avoid integrity failures in the face of a buggy or
 	 * malicious guest.
@@ -728,7 +728,7 @@ static bool tdx_cache_flush_required(void)
 }
 
 /*
- * Notify the VMM about page mapping conversion. More info about ABI
+ * Analtify the VMM about page mapping conversion. More info about ABI
  * can be found in TDX Guest-Host-Communication Interface (GHCI),
  * section "TDG.VP.VMCALL<MapGPA>".
  */
@@ -825,7 +825,7 @@ static bool tdx_enc_status_change_finish(unsigned long vaddr, int numpages,
 void __init tdx_early_init(void)
 {
 	struct tdx_module_args args = {
-		.rdx = TDCS_NOTIFY_ENABLES,
+		.rdx = TDCS_ANALTIFY_ENABLES,
 		.r9 = -1ULL,
 	};
 	u64 cc_mask;
@@ -845,12 +845,12 @@ void __init tdx_early_init(void)
 	tdx_parse_tdinfo(&cc_mask);
 	cc_set_mask(cc_mask);
 
-	/* Kernel does not use NOTIFY_ENABLES and does not need random #VEs */
+	/* Kernel does analt use ANALTIFY_ENABLES and does analt need random #VEs */
 	tdcall(TDG_VM_WR, &args);
 
 	/*
 	 * All bits above GPA width are reserved and kernel treats shared bit
-	 * as flag, not as part of physical address.
+	 * as flag, analt as part of physical address.
 	 *
 	 * Adjust physical mask to only cover valid GPA bits.
 	 */
@@ -883,7 +883,7 @@ void __init tdx_early_init(void)
 
 	/*
 	 * TDX intercepts the RDMSR to read the X2APIC ID in the parallel
-	 * bringup low level code. That raises #VE which cannot be handled
+	 * bringup low level code. That raises #VE which cananalt be handled
 	 * there.
 	 *
 	 * Intel-TDX has a secure RDMSR hypercall, but that needs to be
